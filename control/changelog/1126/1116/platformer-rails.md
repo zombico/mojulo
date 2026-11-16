@@ -32,6 +32,14 @@
   `style.geocube`, else the world's, else the cube made for the kit the stage stands on, else the meadow's valley, so a
   world that names a cube restyles its course's masonry with everything else. Every box keeps its footprint, its top
   and its foot, so the course's laws hold as built. Every 3D course world gains the skin on its next run.
+- **A course is sized by what its hero clears.** The course's lift over the ground and a floor's thickness are shares
+  of the hero's running jump (`course.js` `liftOf`, `slabOf`), no longer fixed metres: the lift a little over a jump,
+  a floor in the round a slab about two thirds of a jump thick where it was a column down to the ground. A floor still
+  reaches down past a lower floor beside it, so a step's or a wall's face is whole. A climbing course's floors are
+  under half the height they were drawn at; tops, footprints and the course's laws are as built. The side strip draws
+  its own columns and is unchanged.
+- **A platformer's hero holds nothing.** The rail writes no item, and a book whose hero carries some is told
+  (`advise`): a platformer's hero runs, jumps and stomps with empty hands. The items are the creator's to take off.
 - **Lives and coins are pictures.** The `lives` and `coins` mechanics say their HUD readouts as counters, so a look
   with pictograms draws a heart and a coin beside the numbers.
 - **Coins along a 3D course.** `mechanics.coins` laid coins on a side strip only; a trail's course (a 3D platformer's)

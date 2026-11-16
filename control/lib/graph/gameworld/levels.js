@@ -127,7 +127,7 @@ const SNEAK_TUNE = Object.freeze({ team: 'guards', rule: { guardRadius: 10, spee
 import { feelRule, readFeel, TAKES, feelCard, lowerFeel, feelVayo } from './feel/lower.js';
 import { reachOf } from './feel/reach.js';
 import { laidCasting, laidJoins } from './casting.js';
-import { readCourse, courseAt, coursePlan, courseLaws, lowerCourse } from './course.js';
+import { readCourse, courseAt, coursePlan, courseLaws, lowerCourse, slabOf } from './course.js';
 import { courseCube, courseColours, skinCourse } from './course-skin.js';
 import { juiceOfGame } from './juice.js';
 import { tempoOfGame } from './tempo.js';
@@ -755,7 +755,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   let course = courseSpec ? (() => {
     const lane = stageLane(stage), reach = reachOf(G.feel ? readFeel(G.feel) : null), length = lane.line.length - 1;
     const plan = coursePlan(reach, { teach: courseSpec.teach, verticality: courseSpec.verticality ?? 'flat', length });
-    const L = lowerCourse(plan, lane), at = (s, z) => { const i = Math.min(lane.line.length - 1, Math.max(0, Math.round(s))); return [lane.line[i][0], lane.line[i][1], r3(L.base + z)]; };
+    // (in the round a floor is a slab as thick as the hero's jump asks, course.js slabOf, not a column to the ground)
+    const L = lowerCourse(plan, lane, { slab: slabOf(reach) }), at = (s, z) => { const i = Math.min(lane.line.length - 1, Math.max(0, Math.round(s))); return [lane.line[i][0], lane.line[i][1], r3(L.base + z)]; };
     // (its coins, where the world lays them: mechanics.coins, below; on the line itself, between its metres)
     const on = (s, z) => { const u = Math.min(lane.line.length - 1, Math.max(0, s)), i = Math.min(lane.line.length - 2, Math.floor(u)), t = u - i, A = lane.line[i], B = lane.line[i + 1] ?? A; return [r3(A[0] + (B[0] - A[0]) * t), r3(A[1] + (B[1] - A[1]) * t), r3(L.base + z)]; };
     return { plan, lowered: L, laws: courseLaws(plan, reach), beats: plan.floors.map((f, k) => ({ beat: `floor-${k + 1}`, at: at((f.s0 + f.s1) / 2, f.z) })), ...(G.mechanics?.coins ? { coins: trailCoins(plan, on) } : {}) };

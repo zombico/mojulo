@@ -196,8 +196,13 @@ function patchFor(world, dimension, pole, boss) {
   // THE HERO IS A MASCOT by default: a book whose direction names no body takes the mascot's (chibi)
   const dir = isObj(world.characters) ? world.characters.direction : null;
   if (isObj(dir) && dir.body === undefined) ops.push({ op: 'set', path: '/characters/direction/body', value: PLATFORMER_BODY });
+  // A PLATFORMER'S HERO HOLDS NOTHING: it runs, jumps and stomps. The rail never writes an item; a book whose hero
+  // carries some (its adornment's items: the run makes the equipped hero and the level's pilot holds them) is told,
+  // and the items are the creator's to keep or take off
+  const held = (isObj(world.characters?.hero?.adornment) && Array.isArray(world.characters.hero.adornment.items) ? world.characters.hero.adornment.items : []).map((i) => i?.id).filter(Boolean);
+  const hands = held.length ? `its hero carries ${held.join(', ')}: a platformer's hero runs, jumps and stomps with empty hands (take the items off characters.hero.adornment.items, or keep them if the game is about them)` : null;
   const needs = isObj(world.characters) ? null : `a hero: the world has no character book yet (characters: { direction: { tradition, body: '${PLATFORMER_BODY}' }, hero }, gameworld-direction; the mascot's body is the platformer's, chibi-sized). Until it has one its levels are walked first person, the camera kept for the run that has its hero`;
-  return { dimension, level: id, courses: firstLevelSegments(dimension, !!boss).map((s) => s.id), says: G.says, patch: ops, turn: G.turn, ...(needs ? { needs } : {}), ...(advise ? { advise } : {}) };
+  return { dimension, level: id, courses: firstLevelSegments(dimension, !!boss).map((s) => s.id), says: G.says, patch: ops, turn: G.turn, ...(needs ? { needs } : {}), ...(advise || hands ? { advise: [advise, hands].filter(Boolean).join('; ') } : {}) };
 }
 
 /** The rail as a patch over a world (see the header); null where it has nothing to offer. */

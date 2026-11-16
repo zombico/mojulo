@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { courseCube, courseColours, skinCourse, SKIN } from './course-skin.js';
-import { coursePlan, lowerCourse } from './course.js';
+import { coursePlan, lowerCourse, slabOf, liftOf } from './course.js';
 import { reachOf } from './feel/reach.js';
 import { readFeel } from './feel/lower.js';
 import { SIDE_CUBE } from '../era/geocube-side.js';
@@ -61,5 +61,39 @@ describe('the course\'s skin', () => {
 
   it('is the same every time', () => {
     expect(skinCourse(L, plan, C)).toEqual(asks);
+  });
+});
+
+describe('a course sized by what its hero clears', () => {
+  const H = reach.moves.run.height, slab = slabOf(reach), S = lowerCourse(plan, lane, { slab });
+  const floors = (R) => R.blocks[0].blocks.filter((_, k) => R.parts[k].floor !== undefined);
+  const drawn = (bs) => bs.reduce((a, b) => a + (b.max[2] - b.min[2]), 0);
+
+  it('its lift and a floor\'s thickness are shares of the running jump, never fixed metres', () => {
+    expect(plan.lift).toBe(liftOf(reach));
+    expect(plan.lift).toBeGreaterThan(H);
+    expect(slab).toBeLessThan(H);
+    // (a hero that clears twice as much: a course twice as tall and slabs twice as thick)
+    const tall = { ...reach, moves: { ...reach.moves, run: { ...reach.moves.run, height: 2 * H } } };
+    expect(liftOf(tall)).toBeCloseTo(2 * liftOf(reach), 3);
+    expect(slabOf(tall)).toBeCloseTo(2 * slabOf(reach), 3);
+  });
+
+  it('a slab keeps every top and footprint, and is never thicker than a column', () => {
+    const a = floors(L), b = floors(S);
+    expect(b).toHaveLength(a.length);
+    b.forEach((x, k) => { expect(x.max).toEqual(a[k].max); expect(x.min.slice(0, 2)).toEqual(a[k].min.slice(0, 2)); expect(x.min[2]).toBeGreaterThanOrEqual(a[k].min[2]); });
+  });
+
+  it('draws less: a climbing course\'s floors are under half the height of their columns', () => {
+    expect(drawn(floors(S))).toBeLessThan(0.5 * drawn(floors(L)));
+  });
+
+  it('a step or a wall\'s face is whole: a floor reaches down past the lower floor beside it', () => {
+    const tops = plan.floors.map((f) => S.base + f.z);
+    floors(S).forEach((b, i) => {
+      const k = S.parts.filter((p) => p.floor !== undefined)[i].floor;
+      for (const z of [tops[k - 1], tops[k + 1]].filter((v) => v !== undefined && v < b.max[2])) expect(b.min[2]).toBeLessThan(z);
+    });
   });
 });

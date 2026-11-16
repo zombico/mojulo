@@ -186,7 +186,7 @@ describe('the rail offered to a world', () => {
     const cam = platformerSuggestion(brief('a game like mario', { camera: 'follow' }));
     expect(cam.dimension).toBe('3d');
     expect(cam.or).toBeUndefined();
-    expect(cam.advise).toBeUndefined();
+    expect(cam.advise ?? '').not.toMatch(/upright/);
     expect(platformerSuggestion(brief('a game like mario', { camera: 'follow', screen: 'phone' })).advise).toMatch(/upright/);
     expect(cam.patch.some((o) => o.path === '/camera')).toBe(false);
     // (another camera is another game: nothing to offer; so is a level that has its course)
@@ -209,6 +209,11 @@ describe('the rail offered to a world', () => {
       expect(P.ui).toEqual({ theme: PLATFORMER_LOOK });
       // (the hero is the creator's: said where the world has none, never laid)
       expect(S.needs).toBeUndefined();
+      // (a platformer's hero holds nothing: a book whose hero carries items is told, and they are never taken off)
+      expect(S.advise).toMatch(/empty hands/);
+      expect(P.characters.hero.adornment).toEqual(W.characters.hero.adornment);
+      const bare = { ...W, characters: { ...W.characters, hero: { ...W.characters.hero, adornment: { ...W.characters.hero.adornment, items: [] } } } };
+      expect(platformerSuggestion(bare).advise ?? '').not.toMatch(/empty hands/);
       // (the hero is a mascot by default: the book's direction takes the mascot's body; one it named is kept)
       expect(P.characters.direction.body).toBe(PLATFORMER_BODY);
       expect(gameBody(PLATFORMER_BODY, 'hero').spec.cast.build).toBe('chibi');
