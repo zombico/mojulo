@@ -34,7 +34,7 @@ const lookup = (T, w) => T[w] ?? T[w.replace(/s$/, '')];
 export function sceneOfWords(words, { seed = 1 } = {}) {
   if (typeof words !== 'string' || !words.trim()) throw new Error('scene: words are a few words about the place');
   const P = readPrompt(words, { scene: true }), land = {}, trail = {}, water = {};
-  let kit = null, openWord = null, flowers = null, snow = false, dunes = null, biome = null, biocube = null, palette = null, camera = null, glyphHour = null;
+  let kit = null, openWord = null, flowers = null, snow = false, dunes = null, biome = null, biocube = null, palette = null, camera = null, glyphHour = null, sea = null;
   for (const { word } of P.read) for (const [k, v] of Object.entries(readingOf(word, { scene: true }))) {
     if (k === 'kit') kit ??= v;
     else if (k === 'outside.cliff') openWord ??= word;
@@ -43,6 +43,8 @@ export function sceneOfWords(words, { seed = 1 } = {}) {
     else if (k.startsWith('water.')) water[k.slice(6)] ??= v;
     else if (k === 'outside.dunes') dunes ??= v;
     else if (k === 'biome') biome ??= v;
+    // (under the sea: the water the page is seen through, a geocube's `sea`, by the word's depth)
+    else if (k === 'sea') sea ??= v;
     else if (k === 'flora.biocube') biocube ??= v;
     else if (k === 'palette') palette ??= v;
     else if (k === 'camera') camera ??= v;
@@ -64,5 +66,5 @@ export function sceneOfWords(words, { seed = 1 } = {}) {
   const read = P.read.map(({ word, decides }) => ({ word, decides: decides.map((d) => (gives(d) ? `${d} (a game's: gave way)` : d === 'outside.cliff' && !open ? `outside.cliff (gave way to ${cliffWord})` : d)) }));
   for (const [w, says] of [[cubeWord, 'geocube'], [hourWord, 'hour']]) if (w && !read.some((r) => r.word === w)) read.push({ word: w, decides: [says] });
   const unread = P.unread.filter((w) => !lookup(CUBE_WORDS, w) && !lookup(HOUR_OF_WORDS, w));
-  return { cube, show: 'path', ...(hour !== undefined ? { hour } : {}), ...(lowered?.clouds ? { clouds: lowered.clouds } : {}), ...(Object.keys(path).length ? { trail: path } : {}), ...(camera ? { camera } : {}), brief: { read, unread } };
+  return { cube, show: 'path', ...(hour !== undefined ? { hour } : {}), ...(lowered?.clouds ? { clouds: lowered.clouds } : {}), ...(Object.keys(path).length ? { trail: path } : {}), ...(camera ? { camera } : {}), ...(sea ? { sea } : {}), brief: { read, unread } };
 }

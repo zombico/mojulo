@@ -805,8 +805,9 @@ export async function designGameHandler(input, context = {}) {
         await updateSketchHandler({ ref, ...(title ? { title } : {}), manifest: next });
       }
     } else {
-      // a new game is made for a screen (game/screen.js): a phone unless the creator names another, or null for none
-      ref = (await createSketchHandler({ title: title ?? world.name ?? world.id, manifest: world.screen === undefined ? { ...manifest, screen: NEW_GAME_SCREEN } : manifest, ...(ref ? { ref } : {}) })).ref;
+      // a new game is made for the screen its creator names (game/screen.js); none named, it is framed for none and
+      // fills its window (NEW_GAME_SCREEN: null writes nothing)
+      ref = (await createSketchHandler({ title: title ?? world.name ?? world.id, manifest: world.screen === undefined && NEW_GAME_SCREEN ? { ...manifest, screen: NEW_GAME_SCREEN } : manifest, ...(ref ? { ref } : {}) })).ref;
     }
   } else {
     if (!ref) throw new Error('design_game: name the gameworld (`ref`), or give a `world` to start one');

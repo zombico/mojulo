@@ -118,7 +118,6 @@ What that shows:
   room, fights kept on the world and laid into a building, sound and score, the flow from title to results, menus
   and HUD in a look. Each has machine gates; most have not been played by a person.
 - **Known seams** (each stated by the code or its theme, none hidden):
-  - A new game is framed for a phone unless the world says `screen`, so a sentence game opens upright on a desktop.
   - The sentence door lays a level whose exit its own default hero cannot reach, advises against it, and builds it.
   - An action game from a sentence gets no weapons kit; an action game's foes cannot carry elements.
   - The scripted player has no dodge, specials or air strings, so some fights (the gallery) cannot be machine-proved.
