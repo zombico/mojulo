@@ -119,7 +119,8 @@ describe('a street as a level of a designed game', () => {
   const W = { id: 'row', name: 'Row', mode: 'autonomous', foes: G.foes, levels: { row: { name: 'The Row', street } } };
 
   it('the level\'s own words sit beside the design: its kit, its lives, its guns', () => {
-    expect(readLevelStreet(street)).toMatchObject({ kit: STREET.kit, lives: STREET.lives, guns: null });
+    // (the falls unsaid are the tuning card's to give, brawl/brawl-tunings.js: the level reads none)
+    expect(readLevelStreet(street)).toMatchObject({ kit: STREET.kit, lives: null, guns: null, tuning: null });
     expect(readLevelStreet({ ...street, kit: 'gothic-stone', lives: 5, guns: ['spread'] })).toMatchObject({ kit: 'gothic-stone', lives: 5, guns: ['spread'], design: street });
     expect(() => readLevelStreet({ ...street, kit: 'nowhere' })).toThrow(/street\.kit/);
     expect(() => readLevelStreet({ ...street, lives: 0 })).toThrow(/street\.lives/);

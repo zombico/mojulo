@@ -141,6 +141,8 @@ export function brawlYardData(block, bodies = null) {
     // (A STREET, a level's: brawl-practice.js streetRoomOf. Its waves held at the belt's gates, a boss on its last screen;
     // a boss is a roster entry (`fighter`) or a fighter's intent; read here so a fault is said before the page)
     ...(P.street ? { street: { waves: streetWaves(P.street.waves, roster, block.belt) } } : {}),
+    // (its tuning, brawl-tunings.js roomTune: the room reads it, and says what is wrong with it)
+    ...(P.tune ? { tune: P.tune } : {}),
     ...(bodies ? { bodies } : {}),
     yard: { spec: Y.spec, css: Y.css, settings: YARD_SETTINGS },
   };

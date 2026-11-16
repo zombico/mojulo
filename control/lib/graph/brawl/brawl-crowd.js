@@ -100,9 +100,10 @@ export function aimAt(p, T) {
   return [ax || p.face, Math.abs(dz) < Math.abs(dx) * ACROSS * 0.5 ? 0 : Math.sign(dz)];
 }
 /** the guns a crowd's types carry: { ids (each its index in ctx.guns), guns } */
-export function crowdGuns(types, guns = []) {
+export function crowdGuns(types, guns = [], over = null) {
   const out = guns.slice(), at = {};
-  for (const t of types) { const g = CROWD_TYPES[t]?.gun; if (g && at[g] === undefined) { at[g] = out.length; out.push(readGun(g)); } }
+  // (`over`: a street's tuning, dials over a crowd gun by its name: brawl-tunings.js)
+  for (const t of types) { const g = CROWD_TYPES[t]?.gun; if (g && at[g] === undefined) { at[g] = out.length; out.push(over?.[g] ? readGun({ from: g, ...over[g] }, `foeGuns.${g}`) : readGun(g)); } }
   return { at, guns: out };
 }
 /** a boss's plays unless its wave says (its grabs are the fight's throw, the CPU's) */
@@ -205,7 +206,7 @@ export function readPlays(plays, F, where = 'plays') {
 }
 
 /** A street to fight down: the players at its start, every wave's crowd waiting offstage, the crowd's mind. */
-export function streetOf({ belt, players, waves = [], things, rules, crowd, range } = {}) {
+export function streetOf({ belt, players, waves = [], things, rules, crowd, range, foeGuns } = {}) {
   if (!belt) throw new Error('brawl: a street needs its belt');
   if (!Array.isArray(players) || !players.length || players.length > 4) throw new Error('brawl: a street has 1 to 4 players');
   const W = readWaves(waves, belt);
@@ -225,7 +226,7 @@ export function streetOf({ belt, players, waves = [], things, rules, crowd, rang
   // (a crowd body's own entrance or ambush, by its id)
   const entries = {};
   // (the shooting crowd's guns, each its index in ctx.guns)
-  const armory = crowdGuns(types, playerGuns);
+  const armory = crowdGuns(types, playerGuns, foeGuns ?? null);
   W.forEach((w, k) => {
     // (the boss first of its wave: it comes in as the wave does)
     if (w.boss) {

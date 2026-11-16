@@ -820,6 +820,8 @@ const QUICK_LEVERS = {
     '  waves: as a brawl\'s (absent, four of the range\'s: a wall of rifles, a pincer, down the stairs, suppressed); its shooters',
     '    (rifleman, gunner, grenadier, bazooka) fire on a warning, to the wave\'s pattern (volley, sweep, pincer, alternate).',
     '  foes, street: as a brawl\'s (its cast all carry guns; its stops and its boss the same).',
+    '  tuning (a street\'s word): arcade (unsaid for a run & gun: soldiers fall to a couple of rounds, the hero to a few hits, an',
+    '    army at each stop, fire sooner and faster, five falls) | measured (the long fight). Ask which the game is.',
     '  The same street as a brawl; what differs is the hitting: rounds fly and are stepped off or rolled through, a grenade lobs.',
   ],
   fight: () => [

@@ -114,7 +114,7 @@ function build() {
   // (the brawler yard's own waves while the settings' Waves is on)
   const melee = !RANGE && BY.waves && SET.waves ? { waves: BY.waves, loop: BY.loop } : {};
   // (A STREET, a level's: its waves at their gates and its boss, a game on it; a run & gun's with the range's guns)
-  if (BY.street) room = streetRoomOf({ belt: BELT, players: picks.map((i) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style })), waves: BY.street.waves, things: BY.things, stakes: BY.stakes || 3, ...range });
+  if (BY.street) room = streetRoomOf({ belt: BELT, players: picks.map((i) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style })), waves: BY.street.waves, things: BY.things, stakes: BY.stakes || 3, ...range, ...(BY.tune ? { tune: BY.tune } : {}) });
   else room = practiceOf({ belt: BELT, players: picks.map((i) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style })), dummies, things: BY.things, health: SET.health.toLowerCase(), ...range, ...melee, ...(BY.stakes ? { stakes: BY.stakes } : {}) });
   for (const m of rounds.values()) YARD.remove(m.tracer, m.shadow);
   rounds.clear();

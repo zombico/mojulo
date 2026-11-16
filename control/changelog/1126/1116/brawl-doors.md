@@ -51,6 +51,14 @@
   whose feel the studio knows ("a Mega Man style run and gun") still gets that feel, not a street.
 - **A first street forgives more.** The street a sentence lays allows five falls. Measured with a hero made from a
   sentence: the simple player lost it at three falls and won it at five.
+- **A run & gun now plays like an arcade one.** Soldiers fall to two or three rounds, your hero falls to a
+  few hits, the enemy fires sooner and its rounds fly faster, and each stop sends about twice as many, dropping in
+  from above and coming out of doors as well as walking in. The street is narrower, so it reads as a side view, and
+  you have five falls. This is one word on a street, its tuning, and you can ask for the older, slower fight
+  instead. A beat-em-up is unchanged.
+- **The tuning is held to what it claims.** The studio's simple player must still win the default street alone,
+  while taking hits. Measured: at a weaker hero it lost at the boss with every fall gone, so the hero was set to
+  survive one of the boss's blows.
 - **Not yet:** an enemy that is a beast is drawn as a plain jointed figure, and the game says so; only a person's
   body stands on the street today. A game that names no enemies of its own still meets the stock crowd, drawn as
   plain figures on one open screen: that path is kept for testing. The things that lie on a street to pick up or

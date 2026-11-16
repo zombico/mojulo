@@ -88,11 +88,18 @@ const chainDamage = (F) => Array.from({ length: F.brawl.chain }, (_, k) => F.mov
  * fall allowed. `range` (a run & gun's street): the players carry guns. `waves` are the street's ({ screen, crowd, boss? });
  * a crowd entry's or a boss's `roster` is who its bodies are drawn as (`yard.cast`, in the bodies' order).
  */
-export function streetRoomOf({ belt, players, waves, things, stakes = 3, range } = {}) {
+export function streetRoomOf({ belt, players: players0, waves, things, stakes = 3, range, tune } = {}) {
   if (!(Number.isInteger(stakes) && stakes >= 1 && stakes <= 9)) throw new Error('brawl: a room\'s stakes are the falls its players may take, 1 to 9');
   if (!Array.isArray(waves) || !waves.length) throw new Error('brawl: a street room has a wave or more to clear');
-  const st = streetOf({ belt, players, waves, things, ...(range ? { range } : {}) });
+  // (a street's TUNING, brawl-tunings.js roomTune: its players' health, the crowd's as a share of its own, the crowd's
+  // guns and rules; absent, the sim's own numbers)
+  if (tune !== undefined && (!tune || typeof tune !== 'object')) throw new Error('brawl: a street\'s tune is { playerHp?, crowdHp?, foeGuns?, crowd? }');
+  if (tune?.playerHp !== undefined && !(Number.isInteger(tune.playerHp) && tune.playerHp >= 1 && tune.playerHp <= 99999)) throw new Error('brawl: tune.playerHp is a whole number from 1 to 99999');
+  if (tune?.crowdHp !== undefined && !(typeof tune.crowdHp === 'number' && tune.crowdHp > 0 && tune.crowdHp <= 10)) throw new Error('brawl: tune.crowdHp is the crowd\'s health as a share of its own, above 0 and 10 at most');
+  const players = tune?.playerHp ? players0.map((p) => ({ ...p, recipe: { ...p.recipe, hp: tune.playerHp } })) : players0;
+  const st = streetOf({ belt, players, waves, things, ...(range ? { range } : {}), ...(tune?.foeGuns ? { foeGuns: tune.foeGuns } : {}), ...(tune?.crowd ? { crowd: tune.crowd } : {}) });
   const P = players.length, B = st.s.bodies;
+  if (tune?.crowdHp) for (const b of B) if (b.side === 'crowd' && !st.mind.bosses[b.id]) b.hp = Math.max(1, Math.round(b.hp * tune.crowdHp));
   if (range) arm(st.s, P, st.ctx.guns);
   // (who each crowd body is drawn as, in the street's order: a wave at a time by screen, its boss first)
   const cast = [...waves].sort((a, b) => a.screen - b.screen).flatMap((w) => [...(w.boss ? [w.boss.roster ?? null] : []), ...(w.crowd ?? []).flatMap((c) => Array.from({ length: c.n }, () => c.roster ?? null))]);
@@ -106,7 +113,7 @@ export function streetRoomOf({ belt, players, waves, things, stakes = 3, range }
     log: players.map(() => []), chain: players.map(() => ({ steps: [], last: null })), combo: players.map(() => ({ hits: 0, damage: 0, last: null })),
     ko: {}, free: {}, stakes, falls: 0, over: null,
     ...(cast.some((k) => k !== null) ? { cast } : {}),
-    spec: { belt, players, waves, things, stakes, range },
+    spec: { belt, players: players0, waves, things, stakes, range, tune },
   };
   return { ...st, yard };
 }

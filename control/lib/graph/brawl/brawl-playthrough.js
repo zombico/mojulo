@@ -31,7 +31,7 @@ const ON_LINE = 150, CLOSE = 750, GUN_LINE = 220;
 function roomOf(yard) {
   if (!yard?.street) throw new Error('brawl: a playthrough plays a street (the level\'s brawl has none)');
   const range = yard.range ? { range: { guns: yard.range.guns, grenades: yard.range.grenades } } : {};
-  return streetRoomOf({ belt: yard.belt, players: yard.players.map((i) => ({ recipe: yard.roster[i].recipe, style: yard.roster[i].style })), waves: yard.street.waves, things: yard.things, stakes: yard.stakes || 3, ...range });
+  return streetRoomOf({ belt: yard.belt, players: yard.players.map((i) => ({ recipe: yard.roster[i].recipe, style: yard.roster[i].style })), waves: yard.street.waves, things: yard.things, stakes: yard.stakes || 3, ...range, ...(yard.tune ? { tune: yard.tune } : {}) });
 }
 
 /** One seat's buttons this frame, from what it sees. */

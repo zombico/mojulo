@@ -45,6 +45,9 @@
  *                Everyone who has a body can be played: a second controller drops in as the next of them
  *       kit    the stage kit its rooms are built in (brawl-levels.js BRAWL_STAGE_KITS; the open-air plaza unsaid)
  *       lives  the falls the player may take (1 to 9; 3)
+ *       tuning how hard it hits, a card (brawl/brawl-tunings.js: measured | arcade). Unsaid, a run & gun's street is
+ *              the arcade's (soldiers fall to a couple of rounds, the hero to a few hits, five falls) and a
+ *              beat-em-up's the sim's own numbers
  *       guns   a run & gun's street: true, or the guns carried, the first held; unsaid, the game's intent decides
  *              (`intent.from: 'run-and-gun'`)
  *   readLevelStreet(v)     → { design, kit, lives, guns } checked (throws, teaching)
@@ -59,6 +62,7 @@ import { bestiaryOf, isPeople, isModel } from './foes.js';
 import { brawlLevel, BRAWL_STAGE_KITS } from '../brawl/brawl-levels.js';
 import { readGun } from '../brawl/brawl-guns.js';
 import { readScreen } from '../game/screen.js';
+import { TUNINGS, STREET_TUNINGS, tuningOf, roomTune } from '../brawl/brawl-tunings.js';
 import { castRoles, FIGHT_ROLES } from './fights.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { CROWD_TYPES } from '../brawl/brawl-crowd.js';
@@ -193,7 +197,7 @@ export function withStreetBodies(waves, rosterAt) {
   }));
 }
 
-const LEVEL_WORDS = ['kit', 'lives', 'guns', 'players'];
+const LEVEL_WORDS = ['kit', 'lives', 'guns', 'players', 'tuning'];
 export const STREET_SEATS = 4;
 // (a stand-in's style by its seat, so four of them are told apart: the brawl's four, brawl-moves.js BRAWL_STYLES)
 const STAND_INS = ['all-rounder', 'rushdown', 'zoner', 'grappler'];
@@ -209,7 +213,8 @@ export function readLevelStreet(v) {
     v.guns.forEach((g, k) => { try { readGun(g, `guns[${k}]`); } catch (e) { throw fail(`.street.${e.message.replace(/^brawl: /, '')}`); } });
   }
   if (v.players !== undefined && !(Number.isInteger(v.players) && v.players >= 1 && v.players <= STREET_SEATS)) throw fail(`.street.players is how many play from its start, 1 to ${STREET_SEATS} on one screen`);
-  return { design, kit: v.kit ?? STREET.kit, lives: v.lives ?? STREET.lives, guns: v.guns ?? null, players: v.players ?? 1 };
+  if (v.tuning !== undefined && !STREET_TUNINGS.includes(v.tuning)) throw fail(`.street.tuning is one of ${STREET_TUNINGS.map((id) => `${id} (${TUNINGS[id].says})`).join('; ')}`);
+  return { design, kit: v.kit ?? STREET.kit, lives: v.lives ?? null, guns: v.guns ?? null, players: v.players ?? 1, tuning: v.tuning ?? null };
 }
 const gunsOf = (G, L) => L.guns !== null || G?.intent?.from === 'run-and-gun';
 
@@ -228,7 +233,15 @@ export function streetFoeIds(G) {
 
 /** A street level of a designed game: its world, its brawl and its contract. */
 export function streetLevel(G, words, { title, ref, heroRef = null, foeRefs = null, party = null } = {}) {
-  const L = readLevelStreet(words), gun = gunsOf(G, L), S = brawlStreet(G, L.design, { gun });
+  const L = readLevelStreet(words), gun = gunsOf(G, L);
+  // (its TUNING, brawl/brawl-tunings.js: the card it names; unsaid, a run & gun's is the arcade's, a beat-em-up's the
+  // sim's own numbers. The card gives the falls allowed, the band and how a stop's crowd comes in where the street says none)
+  const card = tuningOf(L.tuning ?? (gun ? 'arcade' : 'measured')), tune = roomTune(card);
+  const S0 = brawlStreet(G, L.design, { gun });
+  // (its army: each one a wave names comes `army` strong, eight of a kind and twelve a stop at most)
+  const armied = (crowd) => { if (!card.army) return crowd; let room = 12; return crowd.map((c) => { const n = Math.max(1, Math.min(8, c.n * card.army, room)); room -= n; return { ...c, n }; }); };
+  const entered = (crowd, k) => { const how = card.entrances ? card.entrances[k % card.entrances.length] : 'walk'; return crowd.map((c) => (c.entrance || how === 'walk' ? c : { ...c, entrance: how })); };
+  const S = card.entrances || card.army ? { ...S0, waves: S0.waves.map((w, k) => ({ ...w, crowd: entered(armied(w.crowd), k) })) } : S0;
   const has = brawlBodies(G, S), bodied = S.foes.filter((id) => has[id] && foeRefs?.[id]);
   // (its seats: the game's hero, then the cast who join the party, each in its own body; a seat it starts with that
   // nobody fills is a stand-in fighter, said)
@@ -237,9 +250,9 @@ export function streetLevel(G, words, { title, ref, heroRef = null, foeRefs = nu
   const heroes = [...made, ...Array.from({ length: made.length ? short : Math.max(1, L.players) }, (_, k) => ({ id: `stand-in-${made.length + k + 1}`, name: `P${made.length + k + 1}`, archetype: STAND_INS[(made.length + k) % STAND_INS.length] }))];
   const rosterAt = Object.fromEntries(bodied.map((id, k) => [id, heroes.length + k]));
   const roster = [...heroes, ...bodied.map((id) => ({ id: `foe-${id}`, name: id, hero: { ref: foeRefs[id] } }))];
-  const practice = { roster, playable: heroes.length, players: Array.from({ length: L.players }, (_, i) => i), dummies: [], stakes: L.lives, street: { waves: withStreetBodies(S.waves, rosterAt) }, ...(gun ? { range: Array.isArray(L.guns) ? { guns: L.guns } : {} } : {}) };
+  const practice = { roster, playable: heroes.length, players: Array.from({ length: L.players }, (_, i) => i), dummies: [], stakes: L.lives ?? card.lives ?? STREET.lives, ...(tune ? { tune } : {}), street: { waves: withStreetBodies(S.waves, rosterAt) }, ...(gun ? { range: Array.isArray(L.guns) ? { guns: L.guns } : {} } : {}) };
   const register = ['anime', 'western'].includes(G?.juice?.register) ? G.juice.register : null;
-  const m = brawlLevel({ kind: 'stage', kit: L.kit, screens: S.screens }, { ...(title ? { title } : {}), ...(register ? { register } : {}), practice });
+  const m = brawlLevel({ kind: 'stage', kit: L.kit, screens: S.screens, ...(card.depth ? { depth: [...card.depth] } : {}) }, { ...(title ? { title } : {}), ...(register ? { register } : {}), practice });
   const game = { levelRef: ref ?? 'street', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: { text: 'the street' } };
   const standIns = heroes.length - made.length;
   const says = [...S.says, ...(standIns ? [made.length ? `${standIns} of its ${L.players} seats ${standIns === 1 ? 'is a stand-in fighter' : 'are stand-in fighters'}: the game has a hero and ${made.length - (heroRef ? 1 : 0)} who join its party (a cast member that \`joins\` takes a seat)` : `the street is played by ${standIns === 1 ? 'a stand-in fighter' : 'stand-in fighters'}: the world has no hero yet`] : [])];
