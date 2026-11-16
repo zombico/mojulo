@@ -4,7 +4,7 @@
 //
 //   node scripts/spikes/sea/aquarium.mjs [--out <dir>] [--words 'an underwater coral reef'] [--zones shallows,reef,…]
 //     [--mix reef|kelp|meadow|wall|deep|vents] [--density 1] [--seed 1] [--sea '{"torch":true}'] [--sheet]
-//     [--fauna 'sharks and rays' | --fauna '{"cast":{"seaTurtle":2}}' | --no-fauna]   who lives there (marine/fauna.js)
+//     [--fauna 'sharks and rays' | --fauna '{"cast":{"seaTurtle":2}}' | --no-fauna]   who lives there (marine/fauna.js); [--near 2.2] how many lengths off each is shot from
 //   --sheet   every kind of the roster stood in rows on bare sand, in its colours (no sea: the forms themselves)
 import fs from 'node:fs';
 import path from 'node:path';
@@ -67,7 +67,7 @@ if (sheet) {
     const R = payload.geocube?.marine, sp = payload.walk.spawn, eye = sp, beats = (payload.anchors || []).filter((a) => a.kind === 'beat');
     console.log(`${zone.padEnd(9)} ${Date.now() - t} ms  ${R ? `${R.mix}: ${payload.marine.count} copies in ${payload.marine.groups.length} templates, ${R.rocks} rocks of ${R.patches} patches on ${R.ground} m²  ${JSON.stringify(R.kinds)}${R.left ? `  left out: ${R.left.map((l) => l.kind).join(', ')}` : ''}${R.thinned ? `  thinned to ${R.thinned}` : ''}` : 'NO MARINE'}`);
     const FA = R?.fauna;
-    if (FA) console.log(`          who lives there: ${FA.cast.map((c) => `${c.species}×${c.count} (${c.lives})`).join(', ')}; ${FA.bodies} bodies, ${FA.bones} bones${FA.left ? `; left out: ${FA.left.map((l) => `${l.species} (${l.why})`).join('; ')}` : ''}${FA.offered ? `; also lives here: ${FA.offered.join(', ')}` : ''}`);
+    if (FA) console.log(`          who lives there: ${FA.cast.map((c) => `${c.species}×${c.count} (${c.lives})`).join(', ')}; ${FA.bodies} bodies, ${FA.bones} bones${FA.left ? `; left out: ${FA.left.map((l) => `${l.species} (${l.why})`).join('; ')}` : ''}${FA.offered ? `; also lives here: ${FA.offered.join(', ')}` : ''}${FA.rigid ? `; in rigid parts (its skin does not hold the blend): ${FA.rigid.map((r) => `${r.species} ${r.stretch}`).join(', ')}` : ''}`);
     const fwd = beats.length > 1 ? ((d) => { const m = Math.hypot(d[0], d[1]) || 1; return [d[0] / m, d[1] / m]; })([beats[1].at[0] - sp[0], beats[1].at[1] - sp[1]]) : [0, 1];
     // (the nearest rock ahead of the walk's start, seen from the trail's side of it; and the bed from over it)
     const rocks = (payload.marine?.groups ?? []).filter((g) => g.kind === 'bommie').flatMap((g) => Array.from({ length: g.items.length / 7 }, (_, i) => g.items.slice(i * 7, i * 7 + 3)));
@@ -80,7 +80,7 @@ if (sheet) {
       over: { pos: [ahead[0] + from[0] * 9, ahead[1] + from[1] * 9, ahead[2] + 9], target: [ahead[0] - from[0] * 4, ahead[1] - from[1] * 4, ahead[2]], vfov: 62 },
     };
     // (one of each habit met where its loop begins, from a few lengths off)
-    for (const h of ['reef', 'school', 'cruise', 'bed', 'anemone']) { const w = (payload.walkers || []).find((x) => x.style === `sea:${h}`); if (!w) continue; const p = w.path[0], q = w.path[2], L = Math.max(1.2, w.stride * 2.2), d = ((v) => { const m = Math.hypot(v[0], v[1]) || 1; return [v[0] / m, v[1] / m]; })([q[0] - p[0], q[1] - p[1]]); cams[`fauna-${h}`] = { pos: [p[0] + d[1] * L + d[0] * L * 0.4, p[1] - d[0] * L + d[1] * L * 0.4, p[2] + L * 0.25], target: p, vfov: 50 }; }
+    for (const h of ['reef', 'school', 'cruise', 'bed', 'anemone']) { const w = (payload.walkers || []).find((x) => x.style === `sea:${h}`); if (!w) continue; const p = w.path[0], q = w.path[2], L = Math.max(1.2, w.stride * Number(arg('--near', 2.2))), d = ((v) => { const m = Math.hypot(v[0], v[1]) || 1; return [v[0] / m, v[1] / m]; })([q[0] - p[0], q[1] - p[1]]); cams[`fauna-${h}`] = { pos: [p[0] + d[1] * L + d[0] * L * 0.4, p[1] - d[0] * L + d[1] * L * 0.4, p[2] + L * 0.25], target: p, vfov: 50 }; }
     const r = await shoot(`${zone}${mix ? `-${mix}` : ''}`, payload, cams);
     if (r.errors.length || !r.probe || r.probe.count !== payload.marine.count) fail = true;
   }

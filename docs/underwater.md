@@ -117,8 +117,19 @@ biocube: { from: 'seabed', fauna: { sea: { cast: { seaTurtle: 2, tuna: null }, f
   each whether it fits the depth. A new animal is callable the day its row lands; a new sea animal in the encyclopedia
   with no row is not called.
 
-The animals are drawn as the walkers channel draws any rig, in rigid parts: a long body shows its joints, and a coat
-of layers can shimmer. They do not mind the walker, each other or the rocks. The exports do not carry them yet.
+**One skin.** A rig is packed in parts, a triangle handed whole to the bone its corners vote for, so a body that bends
+along its whole length opens a sawtooth between its parts when each part rides its bone rigidly. The sea's animals ask
+the walkers channel for its `blend` instead: each corner is placed by the bones it is weighed to (the weights every
+layered pack already carries), in the vertex shader, so two triangles that share a corner meet in every frame. It is the
+drawer's, not an animal's: any figure on a loop can ask for it.
+
+A skin is measured before it is asked (`walkerSkinStretch`: the most the blend stretches one of its own edges over its
+gait, against the body's size; `WALKER_BLEND.holds`). Where a species' own binding sets neighbouring corners on bones
+that part, one skin would show it as a spike, so that animal swims in rigid parts and is named in the readout's
+`rigid` with its measure. That is a defect of the species' binding, to be mended in its family, and the measure is how
+to find it.
+
+They do not mind the walker, each other or the rocks. The exports do not carry them yet.
 
 ## Limits
 

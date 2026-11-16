@@ -248,7 +248,8 @@ export function castMarine(ask, { mix = null, depth = 14, has = {}, lengthOf = (
  * anemones: [[x, y, z]], trail: [[x, y, z]] (the walk's cells), surface (z of the water's top), seed, bonesOf(species) }.
  * Each body is its own closed path (the walkers channel starts every body at its path's first point: a group's members
  * are the leader's loop turned to their own start and set a little off it), kept over the bed and under the surface.
- * → { walkers: [{ figure, path, speed, stride, scale }], figures: { <figure>: { species, roster, gait } }, readout }
+ * Each asks for the walkers' `blend`: one skin, so a body that bends along its length shows no joint.
+ * → { walkers: [{ figure, path, speed, stride, style, blend }], figures: { <figure>: { species, roster, gait } }, readout }
  */
 export function placeMarineFauna(cast, { z, rocks = [], anemones = [], trail = [], surface = Infinity, seed = 1, bonesOf = () => 20 } = {}) {
   const S = seed | 0, walkers = [], figures = {}, counts = {}; let bones = 0;
@@ -287,7 +288,7 @@ export function placeMarineFauna(cast, { z, rocks = [], anemones = [], trail = [
       // (a member: the same loop from its own start, a body's length or two off the leader's line)
       const spread = c.lives === 'school' ? len * 1.6 + 0.3 : c.lives === 'cruise' ? len * 1.3 : c.lives === 'anemone' ? 0.12 : len * 0.8 + 0.2;
       const k = c.lives === 'school' ? Math.floor(d(20 + j) * 3) : Math.floor((j / c.count) * n + d(20 + j) * 2), shift = j ? [(d(30 + j) - 0.5) * 2 * spread, (d(40 + j) - 0.5) * 2 * spread] : [0, 0];
-      walkers.push({ figure: fig, path: loop(k, shift, j ? (d(50 + j) - 0.5) * spread : 0), speed: r3(speed), stride: r3(Math.max(0.05, len * 0.9)), style: `sea:${c.lives}` });
+      walkers.push({ figure: fig, path: loop(k, shift, j ? (d(50 + j) - 0.5) * spread : 0), speed: r3(speed), stride: r3(Math.max(0.05, len * 0.9)), style: `sea:${c.lives}`, blend: true });
       bones += per; counts[c.species] = (counts[c.species] || 0) + 1;
     }
   });

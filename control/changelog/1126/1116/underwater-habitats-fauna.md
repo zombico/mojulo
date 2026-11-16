@@ -24,3 +24,13 @@
   load), over the bed and under the surface; the sea's light takes it as it takes the land.
 - **Said back**: the geocube's readout carries `marine` (what was laid, the cast, what was left out and why, and who else
   lives there), so the next ask can name them. The `seabed` biome calls its animals; the `seabed` biocube alone calls none.
+- **One skin for a body that bends** (`scene/channels/walkers.js`, a walker's `blend`). A rig is packed in parts, each
+  triangle handed whole to the bone its corners vote for; ridden rigidly, a fish's parts opened in a sawtooth along its
+  length. Asked for, a figure is now drawn as one skin: each corner placed by the bones it is weighed to (the weights
+  every layered pack already carries, until now read only by the preview and the exports), in the vertex shader, the
+  bones posed by the same clip as before; the depth prepass is told the same move. It is the drawer's, so any looping
+  figure can ask; no walker asking, the channel is byte for byte as it was.
+- **A skin is measured before it is asked** (`walkerSkinStretch`, `WALKER_BLEND.holds`): the most the blend stretches
+  one of a figure's own edges over its gait, against the body's size. A species whose binding sets neighbouring corners
+  on bones that part (some sharks and whales, the pufferfish) would show a spike as one skin, so it swims in rigid parts
+  and the readout's `rigid` names it with its measure: a defect of its family's binding, found by the measure.
