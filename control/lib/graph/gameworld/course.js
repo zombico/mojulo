@@ -21,7 +21,9 @@
  *       move it teaches and its kind (gap | step | drop | wall)
  *   courseLaws(plan, reach) → [{ id, holds, says }] the machine gate: every gap crossed by the move it teaches; an
  *       advanced one past the running jump; floors long enough to land on and to fight on
- *   lowerCourse(plan, lane, { player }) → { blocks, events: { sources, reactions } }: the floors as walkway tiles over
+ *   liftOf(reach) · slabOf(reach) → the course's lift and a floor's thickness, each a share of what the hero's running
+ *       jump clears: a course is sized by its hero, so nothing is drawn that the play does not need
+ *   lowerCourse(plan, lane, { player, slab? }) → { blocks, events: { sources, reactions } }: the floors as walkway tiles over
  *       the line (squares sized so their edges sit on the planned stations however the line turns), the stairs up onto
  *       the course and down to the exit, and a CATCH zone in each gap that puts a fallen hero back on the floor it left
  *
@@ -38,7 +40,16 @@ export const VERTICALITY = Object.freeze({
 });
 // the walkway: its width across the line, the tile laid along it, the course's lift over the trailhead's ground (the
 // drop a gap falls to), the stairs' riser and tread, a floor's least length (a landing), a fighting floor's
-const WIDTH = 3, TILE = 1.5, LIFT = 2.2, RISER = 0.22, TREAD = 0.4, LAND = 4, FIGHT = 9, MARGIN = 0.35, END = 3;
+const WIDTH = 3, TILE = 1.5, RISER = 0.22, TREAD = 0.4, LAND = 4, FIGHT = 9, MARGIN = 0.35, END = 3;
+// SIZED BY WHAT THE HERO CLEARS (its running jump's rise, reach.moves.run.height), never by a fixed number of metres: a
+// course is lifted a little over a jump (a fall into a gap is a fall, not a hop back up), and a floor is a SLAB about
+// two thirds of a jump thick, not a column down to the ground. A taller hero's course is taller; a small one's is not
+// drawn any bigger than it plays
+const LIFT_JUMPS = 1.2, SLAB_JUMPS = 0.65, SLAB_UNDER = 0.3;
+/** The course's lift over the trailhead's ground: a little over what the hero's running jump clears. */
+export const liftOf = (reach) => r3(reach.moves.run.height * LIFT_JUMPS);
+/** A floor's thickness: about two thirds of what the hero's running jump clears. */
+export const slabOf = (reach) => r3(reach.moves.run.height * SLAB_JUMPS);
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 /**
@@ -105,7 +116,7 @@ function beatsOf(reach, teach, verticality) {
 /** The course a segment lays: its floors and the gaps between them along `length` metres of line. `lift` the height
  * it stands over its ground (its stairs climb it; 0, a side strip's: no stairs, the floors start on the ground), `end`
  * the ground before its first step and after its last. */
-export function coursePlan(reach, { teach = 'basic', verticality = 'flat', length = 72, lift = LIFT, end = END } = {}) {
+export function coursePlan(reach, { teach = 'basic', verticality = 'flat', length = 72, lift = liftOf(reach), end = END } = {}) {
   if (!TEACH.includes(teach)) throw new Error(`course: teach is one of ${TEACH.join(', ')}`);
   if (!VERTICALITY[verticality]) throw new Error(`course: verticality is one of ${Object.entries(VERTICALITY).map(([k, v]) => `${k} (${v.says})`).join(', ')}`);
   const beats = beatsOf(reach, teach, verticality);
@@ -168,7 +179,7 @@ function along(line, s) {
 const edge = (a, h) => a / Math.max(Math.abs(Math.cos(h)), Math.abs(Math.sin(h)));
 
 /** The course as the level's blocks and its catch zones. */
-export function lowerCourse(plan, lane, { player = 'hero', value = 0.58 } = {}) {
+export function lowerCourse(plan, lane, { player = 'hero', value = 0.58, slab = null } = {}) {
   const { line, ground } = lane, a = WIDTH / 2;
   const base = ground(...(({ x, y }) => [x, y])(along(line, plan.start))) + plan.lift;
   const blocks = [], parts = [], sources = [], reactions = [];
@@ -179,7 +190,11 @@ export function lowerCourse(plan, lane, { player = 'hero', value = 0.58 } = {}) 
   const lowUnder = (s0, s1) => { let lo = Infinity; for (let s = s0; s <= s1 + 1e-9; s += 1) { const P = along(line, s); for (const [dx, dy] of [[-a, -a], [a, -a], [-a, a], [a, a]]) lo = Math.min(lo, ground(P.x + dx, P.y + dy)); } return lo - 0.3; };
   // the floors: tiles every TILE metres, the first and the last set back so their edges sit on the floor's ends
   plan.floors.forEach((f, k) => {
-    const top = base + f.z, lo = lowUnder(f.s0, f.s1);
+    // (a SLAB, where the course is drawn in the round: as thick as `slab`, and down past the floor beside it where that
+    // one is lower, so a step or a wall's face is whole; never below the ground. Absent, a column to the ground)
+    const top = base + f.z, under = lowUnder(f.s0, f.s1);
+    const beside = [plan.floors[k - 1], plan.floors[k + 1]].filter(Boolean).map((n) => base + n.z);
+    const lo = slab ? Math.max(under, Math.min(top - slab, ...beside.map((z) => z - SLAB_UNDER))) : under;
     const e0 = edge(a, along(line, f.s0).h), e1 = edge(a, along(line, f.s1).h);
     const first = f.s0 + e0, last = f.s1 - e1;
     for (let s = first; s < last; s += TILE) tile(s, top, lo, k);
