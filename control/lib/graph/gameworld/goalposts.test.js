@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { goalposts, GOALPOSTS } from './goalposts.js';
+import { goalposts, GOALPOSTS, leadNext, draftAsk } from './goalposts.js';
 import { MEADOWMARK_HERO } from './index.js';
 import { POLE_IDS } from './feel/cards.js';
 
@@ -79,5 +79,37 @@ describe('the goalposts read the ledger', () => {
     const other = { ...R('open', [], 'start'), unit: 'level:elsewhere' };
     expect(goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, made: MADE, reqs: [other] })).toBeNull();
     expect(JSON.stringify(goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, reqs: [other] }))).toBe(JSON.stringify(goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS })));
+  });
+});
+
+describe('the goalpost leads the next moves', () => {
+  // a book just begun: every design goalpost open, the first one the game's
+  const open = goalposts({ world: {}, chapters: [] });
+  const ids = (next) => next.map((n) => n.step);
+
+  it('before a build: a gated world asks before its run, an autonomous one right after it; what leads stays', () => {
+    const next = [{ step: 'workshop' }, { step: 'run' }, { step: 'intent' }];
+    const gated = leadNext(next, open, { mode: 'gated' });
+    expect(ids(gated)).toEqual(['workshop', 'goalpost', 'run', 'intent']);
+    expect(gated[1]).toMatchObject({ id: 'game', met: open.met, of: GOALPOSTS.length, ask: expect.stringContaining('what game is it'), chapter: 'intent', card: 'gameworld-next' });
+    expect(gated[1].draft).toBeUndefined();
+    expect(ids(leadNext(next, open, { mode: 'autonomous' }))).toEqual(['workshop', 'run', 'goalpost', 'intent']);
+    expect(ids(leadNext([{ step: 'review' }, { step: 'run' }], open, { mode: 'gated' }))).toEqual(['review', 'goalpost', 'run']);
+  });
+
+  it('a game built with design goalposts open is a draft: the question leads, play and share say so, share goes last', () => {
+    const next = leadNext([{ step: 'play' }, { step: 'share' }, { step: 'rerun' }, { step: 'sound' }], open, { mode: 'autonomous', made: true });
+    expect(ids(next)).toEqual(['goalpost', 'play', 'rerun', 'sound', 'share']);
+    expect(next.filter((n) => n.draft).map((n) => n.step)).toEqual(['goalpost', 'play', 'share']);
+    expect(draftAsk(open)).toContain(`${open.met} of ${GOALPOSTS.length}`);
+  });
+
+  it('nothing moves with every goalpost met, on a quick game, or when only the first level is left (the build leads)', () => {
+    const next = [{ step: 'run' }, { step: 'play' }];
+    expect(leadNext(next, null)).toBe(next);
+    expect(leadNext(next, open, { quick: true })).toBe(next);
+    const last = goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS });
+    expect(last.next.goalpost).toBe('first-level');
+    expect(leadNext(next, last, { made: true })).toBe(next);
   });
 });

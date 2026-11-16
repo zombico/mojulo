@@ -25,6 +25,14 @@
  *                 met once it is received (the machine gate) or accepted; each partial one says the req's failing
  *                 checks, and its move is the req's next
  *
+ *   leadNext(next, posts, { mode, quick, made }) → next
+ *     the readout's `next` with the first open goalpost's question in it as a step ({ step: 'goalpost', id, ask, … }),
+ *     so the list and the goalposts say the same move. A build is cheap, so it is never held back; what changes is
+ *     what leads. A game not built yet: a gated world's question goes before its run, an autonomous one's right after
+ *     it (it was asked to be made). A game built with design goalposts open is a DRAFT: the question leads, the play
+ *     step and the share step say `draft`, and sharing waits behind them. The last goalpost (the first level made and
+ *     proved) is the build's own, so there the run leads as before. A quick game is not on this rail.
+ *
  * Pure.
  */
 export const GOALPOSTS = Object.freeze([
@@ -119,3 +127,23 @@ export function goalposts({ world = {}, chapters = [], parts: parts_ = [], mainQ
   const viaReq = R && (n.id === 'first-plan' || n.id === 'first-level');
   return { met, of: posts.length, posts, next: { goalpost: n.id, chapter: BY[n.id].chapter, ...(moves[n.id] ? { move: moves[n.id] } : {}), ...(viaReq ? { req: R.id } : {}) } };
 }
+
+// the steps that keep their lead over a goalpost: where it is seen, the ledger's open req, the creator's open verdicts
+const LEADS = new Set(['workshop', 'req', 'review']);
+/** The readout's `next` with the first open goalpost's question placed in it (the doc above). */
+export function leadNext(next = [], posts = null, { mode = 'gated', quick = false, made = false } = {}) {
+  if (!posts || quick || posts.next?.goalpost === 'first-level') return next;
+  const n = posts.posts.find((p) => p.id === posts.next.goalpost);
+  const step = { step: 'goalpost', id: n.id, met: posts.met, of: posts.of, ask: n.ask, chapter: posts.next.chapter, ...(posts.next.move ? { move: posts.next.move } : {}), ...(made ? { draft: true } : {}), card: 'gameworld-next' };
+  const head = [], rest = [...next];
+  while (rest.length && LEADS.has(rest[0].step)) head.push(rest.shift());
+  if (made) {
+    const draft = (s) => (s.step === 'play' || s.step === 'share' ? { ...s, draft: true } : s);
+    return [...head, step, ...rest.filter((s) => s.step !== 'share').map(draft), ...rest.filter((s) => s.step === 'share').map(draft)];
+  }
+  const at = mode === 'autonomous' ? rest.findIndex((s) => s.step === 'run') + 1 : 0;
+  return [...head, ...rest.slice(0, at), step, ...rest.slice(at)];
+}
+
+/** What a draft's share offer says in place of "the game is complete" (share-offer.js `ask`). */
+export const draftAsk = (posts) => `A draft, not the game yet: ${posts.met} of ${posts.of} first-session goalposts met. Show it (the play step), then ask the next goalpost's question (next: goalpost). Share it when the creator asks; never export unasked.`;
