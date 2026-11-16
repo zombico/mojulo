@@ -50,6 +50,7 @@ import { compileCheck, planError } from './design-game-check.js';
 import { combatGame } from '@/lib/graph/gameworld/combat/game.js';
 import { feelReport } from '@/lib/graph/gameworld/feel/lower.js';
 import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
+import { platformerSuggestion, platformerStart } from '@/lib/graph/gameworld/platformer-game.js';
 import { juiceOfGame, juiceSuggestion } from '@/lib/graph/gameworld/juice.js';
 import { arsenalOfGame, arsenalSuggestion, heroStrikes } from '@/lib/graph/gameworld/arsenal.js';
 import { roomEligible } from '@/lib/graph/gameworld/practice-room.js';
@@ -563,6 +564,12 @@ function readout(ref, world, context = {}) {
   // none written: the template its brief, its shooter pole or its genre points at, suggested (a default is written, never laid)
   const feelSuggest = feel ? null : feelSuggestion(world);
   if (feelSuggest) next.push({ step: 'feel', suggest: feelSuggest.feel, why: feelSuggest.why, from: feelSuggest.from, card: 'gameworld-feel' });
+  // THE PLATFORMER'S RAIL (gameworld/platformer-game.js): a world that plays a platformer's template and has no course
+  // yet is offered its first level and the flow that plays it, as a patch: the side-scroller (one strip, one turn) by
+  // default, the 3D platformer (courses, a turn each, its own flow) as its other reading or where its camera or its
+  // brief says the round. Offered, never laid
+  const railSuggest = (() => { try { return platformerSuggestion(world); } catch { return null; } })();
+  if (railSuggest) next.push({ step: 'first-level', rail: 'platformer', ...railSuggest, card: 'gameworld-course' });
   // how its effects are drawn and timed (gameworld/juice.js): the floor its levels carry, or what 'auto' would lay
   const JW = feel ? { ...world, feel: { pole: feel.pole } } : world;
   const juice = juiceOfGame(JW), juiceSuggest = juice ? null : juiceSuggestion(JW);
@@ -757,7 +764,13 @@ export async function designGameHandler(input, context = {}) {
   if (compose !== undefined && (written !== undefined || patch !== undefined || quick !== undefined)) throw new Error('design_game: `compose` writes the world from its words; give it alone, then edit the world with `patch`');
   // THE START (goalposts.js startReadout): a new book with no level yet is answered with what to ask, never refused;
   // nothing is stored (a gameworld begins with its first level)
-  if (written !== undefined && given === undefined && isObj(written) && written.levels === undefined && patch === undefined) return startReadout({ ...written, ...(title && written.name === undefined ? { name: title } : {}) });
+  // (a book that points at a platformer, by its feel, its brief or its genre, is offered the platformer's rail beside
+  // the questions: its first level and the flow that plays it as words to write, platformer-game.js platformerStart)
+  if (written !== undefined && given === undefined && isObj(written) && written.levels === undefined && patch === undefined) {
+    const S = startReadout({ ...written, ...(title && written.name === undefined ? { name: title } : {}) });
+    const rail = (() => { try { return platformerStart(written); } catch { return null; } })();
+    return rail ? { ...S, next: [...S.next, { step: 'first-level', rail: 'platformer', ...rail, card: 'gameworld-course' }], cards: [...S.cards, 'gameworld-course'] } : S;
+  }
   // a hero named by its name (a named hero, create_character spec.name) is found on this machine: its ref is written
   const quickQ = quick !== undefined && isObj(quick.hero) && quick.hero.name !== undefined ? { ...quick, hero: { ref: namedHeroRef(quick.hero.name, quick.hero.ref) } } : quick;
   // (a composed world's cast is PAINTED against its ground (gameworld/colour.js paintedCast): its palette stamped here,

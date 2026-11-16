@@ -18,7 +18,7 @@
  *     hud?: 'derive' | false | [part],          // the readouts: derived (default), none, or the creator's own
  *     lives?: 1 … 9,                            // a platformer's lives instead of hp (game/mechanics.js lives): a hit or a
  *                                               // fall costs one, none left loses; the HUD says lives, not the hp bar
- *     coins?: true | { oneup? },                // coins along a side strip's course (game/mechanics.js coins), every
+ *     coins?: true | { oneup? },                // coins along a course, a strip's or a trail's (game/mechanics.js coins), every
  *                                               // `oneup` (30) a life where the level is on lives
  *     legend?: 'screen' | 'menu',               // where the controls are taught: on the play screen for a level's first
  *                                               // seconds (the default), or only in the pause menu, as a game ships
@@ -118,7 +118,7 @@ export function readMechanics(M) {
   }
   if (M.coins !== undefined) {
     const C = M.coins;
-    if (!(C === true || (isObj(C) && Object.keys(C).every((k) => k === 'oneup') && (C.oneup === undefined || (Number.isInteger(C.oneup) && C.oneup > 0))))) throw fail('coins is true or { oneup }: coins along a side strip\'s course, a life every `oneup` (30)');
+    if (!(C === true || (isObj(C) && Object.keys(C).every((k) => k === 'oneup') && (C.oneup === undefined || (Number.isInteger(C.oneup) && C.oneup > 0))))) throw fail('coins is true or { oneup }: coins along a platformer\'s course, a life every `oneup` (30)');
     out.coins = C;
   }
   if (M.legend !== undefined) {

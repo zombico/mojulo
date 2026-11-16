@@ -61,6 +61,11 @@ session leaves.
 | an idea, or documents | `design_game({ world: { name } })` first (it answers what to ask, nothing stored), then `{ world }` with its levels and patches | the designed game: the agent writes the recipe |
 | a board game, a pen-and-paper RPG, a fight | `create_game` with its own key | game types with their own machines ([table-rpg.md](table-rpg.md), [broadcast.md](broadcast.md)) |
 
+A platformer has a rail of its own under the designed path: a world that plays a platformer's feel and has no course
+is offered its first level and the flow that plays it as a ready patch (`next: first-level`,
+`control/lib/graph/gameworld/platformer-game.js`). It is a side-scroller (one strip, one turn) unless the camera or the
+brief says the round; the 3D platformer lays courses up a hill, a turn each, entered from a courses screen.
+
 The sentence door is a keyword reader, not the agent's judgment. It is a starting recipe; the words it lists as
 `unread` are the agent's to write in.
 

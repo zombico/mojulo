@@ -755,7 +755,9 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const lane = stageLane(stage), reach = reachOf(G.feel ? readFeel(G.feel) : null), length = lane.line.length - 1;
     const plan = coursePlan(reach, { teach: courseSpec.teach, verticality: courseSpec.verticality ?? 'flat', length });
     const L = lowerCourse(plan, lane), at = (s, z) => { const i = Math.min(lane.line.length - 1, Math.max(0, Math.round(s))); return [lane.line[i][0], lane.line[i][1], r3(L.base + z)]; };
-    return { plan, lowered: L, laws: courseLaws(plan, reach), beats: plan.floors.map((f, k) => ({ beat: `floor-${k + 1}`, at: at((f.s0 + f.s1) / 2, f.z) })) };
+    // (its coins, where the world lays them: mechanics.coins, below; on the line itself, between its metres)
+    const on = (s, z) => { const u = Math.min(lane.line.length - 1, Math.max(0, s)), i = Math.min(lane.line.length - 2, Math.floor(u)), t = u - i, A = lane.line[i], B = lane.line[i + 1] ?? A; return [r3(A[0] + (B[0] - A[0]) * t), r3(A[1] + (B[1] - A[1]) * t), r3(L.base + z)]; };
+    return { plan, lowered: L, laws: courseLaws(plan, reach), beats: plan.floors.map((f, k) => ({ beat: `floor-${k + 1}`, at: at((f.s0 + f.s1) / 2, f.z) })), ...(G.mechanics?.coins ? { coins: trailCoins(plan, on) } : {}) };
   })() : null;
   const stripped = isStrip(stage.manifest) ? stripCourse(G, stage) : null;
   if (stripped) course = stripped;
@@ -983,7 +985,9 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     // over each gap, where the hero's feet pass
     const M = G.mechanics ?? {};
     if (M.lives) game.mechanics = [...game.mechanics.filter((m) => m.kind !== 'fail-on-death'), { kind: 'lives', start: M.lives, falls: C.sources.map((x) => x.zone).filter((z) => typeof z === 'string' && z.startsWith('__course-')) }];
-    if (M.coins && strip) game.mechanics = [...game.mechanics, { kind: 'coins', pickups: courseCoins(course.plan), ...(M.coins.oneup ? { oneup: M.coins.oneup } : {}) }];
+    // (and along a trail's course, a 3D platformer's: the same rows and arcs on the trail's own line, trailCoins)
+    const coins = M.coins ? (strip ? courseCoins(course.plan) : course.coins ?? []) : [];
+    if (coins.length) game.mechanics = [...game.mechanics, { kind: 'coins', pickups: coins, ...(M.coins.oneup ? { oneup: M.coins.oneup } : {}) }];
   }
   if (ways && ways.arrive.length) {
     const pilot = pilotPart.entities[0].id, ev = pilotPart.events || {};
@@ -1297,6 +1301,22 @@ export function courseCoins(plan) {
     out.push(at(g.s0 + 0.2 * g.w, z + COIN.arc[0]), at((g.s0 + g.s1) / 2, z + COIN.arc[1]), at(g.s1 - 0.2 * g.w, z + COIN.arc[0]));
   }
   return out.sort((a, b) => a.at[1] - b.at[1]);
+}
+/** A TRAIL COURSE'S COINS (a 3D platformer's: the course over a trail's own line, course.js coursePlan): the strip's
+ * rows and arcs, a row of three along each floor at the height the feet pass, an arc of three over each gap, placed by
+ * `at(station, height over the course's base) → [x, y, z]` on the trail's line. In the order they are run past. */
+export function trailCoins(plan, at) {
+  const out = [], put = (s, z) => out.push({ s, at: at(s, z) });
+  for (const f of plan.floors) {
+    if (f.s1 - f.s0 < 3) continue;
+    for (let s = f.s0 + 2; s + 2 * COIN.gap <= f.s1 - 1; s += COIN.row) for (let k = 0; k < 3; k++) put(s + k * COIN.gap, f.z + COIN.walk);
+  }
+  plan.gaps.forEach((g, k) => {
+    if (g.kind === 'wall' || !(g.w > 0)) return;
+    const z = Math.max(plan.floors[k].z, plan.floors[k + 1].z);
+    put(g.s0 + 0.2 * g.w, z + COIN.arc[0]); put((g.s0 + g.s1) / 2, z + COIN.arc[1]); put(g.s1 - 0.2 * g.w, z + COIN.arc[0]);
+  });
+  return out.sort((a, b) => a.s - b.s).map((c) => ({ at: c.at }));
 }
 /** The side camera's height on a course: eased while the hero stands (a stair's risers), held through a jump inside it. */
 export const SIDE_BAND = Object.freeze([1, 2]);
