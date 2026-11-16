@@ -8,7 +8,9 @@
  *   the camera    a chase the player turns; the aim held, behind the shoulder; from the aim, the eye
  *   the kit       the world's guns as the firing range reads them (loadout.js loadoutOf: a carried kit, the hero's own
  *                 guns, else its feel template's), the knife in the free hand where it carries one
- *   the run       the feel's fast gait with nothing held; a low wall or a crate gone over out of the run, a taller
+ *   in hand       one weapon at a time, or none, from a held menu the look steps; a ration used from another
+ *                 (worlds/controllable/carry.js)
+ *   the run       the feel's fast gait, the only pace: no sprint, no stamina; a low wall or a crate gone over out of the run, a taller
  *                 thing climbed on the jump (worlds/controllable/free-run.js)
  *   the yard      a walled floor 32 m square: a wall to come round (the third-person look past a corner), two low walls to
  *                 fire over, crates; the start at its south
@@ -30,7 +32,7 @@ import { lowerBody } from './game-bodies.js';
 import { PLAY_GRADE } from '../figures/figure-grades.js';
 
 const HALF = 16;
-export const INFILTRATION_LEGEND = 'W A S D  run · mouse  look · run at a low wall to go over it · Space at a taller one  climb · right mouse (hold)  aim · click  fire, aimed · Tab  first person, aimed · Q  the other shoulder, aimed · R  reload · V  knife · Space  jump';
+export const INFILTRATION_LEGEND = 'W A S D  run · mouse  look · run at a low wall to go over it · Space at a taller one  climb · G (hold)  weapon menu · H (hold)  item menu · right mouse (hold)  aim · click  fire, aimed · Tab  first person, aimed · Q  the other shoulder, aimed · R  reload · V  knife · Space  jump';
 const START = Object.freeze([0, -13, 0]);
 const wall = (id, x, y, length, height, N = [0, -1]) => ({ id, form: 'wall', at: [x, y, 0], N, length, height, thick: 0.5 });
 const BLOCKS = Object.freeze([
@@ -49,14 +51,18 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null } =
   const L = loadoutOf(G), words = (L?.weapons ?? []).filter((w) => typeof w === 'string'), hasKnife = (L?.weapons ?? []).some((w) => w && typeof w === 'object' && w.fire === 'melee');
   // (the kit's rounds against this yard's targets: the kit's numbers are against the quick shooter's foe)
   const kit = words.length ? armsLoadout(words, { ...SHOOT.rifle, damage: TARGET_HP / SHOOT.foeHp }, { eye: 1.5, hand: 'right', converge: true }) : null;
-  // THE RUN IS THE DEFAULT: the stick's push is the feel's fast gait (its sprint), with nothing held; its key still
-  // dodges on a double tap where the feel has one
-  const felt = G?.feel != null ? feelRule(G.feel) : {}, fast = felt.boostSpeed ?? felt.sprintSpeed ?? null;
+  // ONE PACE: the stick's push is the feel's fast gait (its sprint's speed) and there is no run to hold: the feel's
+  // sprint, its stamina and the dodge on the sprint's key are left out
+  const { boostSpeed, boostMax: _bm, boostRegen: _br, overheatRegen: _or, boostUnlockFrac: _bu, stamina: _st, sprintSpeed, sprint: _sp,
+    dodge: _d, dodgeDur: _dd, dodgeSpeed: _ds, dodgeBoostCost: _dc, dodgeOverheat: _do, dodgeCooldown: _dl, ...felt } = G?.feel != null ? feelRule(G.feel) : {};
+  const fast = boostSpeed ?? sprintSpeed ?? null;
   const rule = {
     ...felt, ...(fast > (felt.speed ?? 0) ? { speed: fast } : {}), move: 'camera', collideRadius: 0.3, collideHeight: 1.7,
     aimView: { shoulder: { ...SHOULDER }, eye: 1.6 },
     // (over the low walls and the crates out of the run; the jump at a taller thing climbs it: free-run.js)
     freeRun: {},
+    // (one weapon in hand, or none, from a held menu; a ration to use: carry.js)
+    carry: { items: [{ id: 'ration', name: 'ration', count: 3, heal: 40 }] },
     ...(kit ? { loadout: kit, gunplay: true } : {}), ...(hasKnife ? { knife: knifeOf(TARGET_HP) } : {}),
   };
   const P = playerWorld({ heroRef: own ? refs.hero : 'stand-in', id: 'hero', title: 'infiltration yard', controls: INFILTRATION_LEGEND, rule });
@@ -65,7 +71,7 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null } =
   // library's: hero motion `stepVault`, `speedVault`, `hurdle`, `kongVault`), else a state every player plays)
   const clips = traversalStates({ ...lib.clips, ...(vault ? { vault } : {}) });
   const figures = { hero: own ? { ...lib, clips, heroRef: refs.hero } : { ...lib, clips, hero: lowerBody({ cast }, null) } };
-  const heroE = { ...P.entities[0], ...(kit ? { weapon: kit[0].weapon } : {}), body: { ...P.entities[0].body, hittable: true, radius: 0.5, egg: { ...PERSON, cz: PERSON.c } }, transform: { pos: START.slice(), heading: Math.PI / 2 } };
+  const heroE = { ...P.entities[0], ...(kit ? { weapon: kit[0].weapon } : {}), body: { ...P.entities[0].body, hittable: true, hp: 100, radius: 0.5, egg: { ...PERSON, cz: PERSON.c } }, transform: { pos: START.slice(), heading: Math.PI / 2 } };
   const targets = TARGETS.map((t) => ({ id: t.id, rule: { type: 'walk', speed: 0, eye: 0 }, team: 'targets', transform: { pos: [t.at[0], t.at[1], 0.9], heading: -Math.PI / 2 },
     body: { type: 'mesh', shape: 'box', size: [0.5, 0.3, 1.8], color: 0xb0716a, marker: false, hittable: true, hp: TARGET_HP, radius: 0.5, egg: { ...PERSON, cz: 0 }, respawn: 3 } }));
   const { faces, colliders } = floorOf({ half: HALF });

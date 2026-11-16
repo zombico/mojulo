@@ -7,32 +7,25 @@
 //   view       an edge: Tab, the right shoulder (to the eye and back, while aiming)
 //   shoulder   an edge: Q, the right stick's click (the other shoulder, while aiming)
 //   reload     R, the east face (a gunplay kit's reload)
-//   sprint     Shift held; the left stick's click, on until the stick comes back to rest or the aim comes up
 // The body hidden while the camera rides its eye is the controllable channel's own line (__avHides).
 export function aimViewScript() {
   return `
 // ── THE AIM HELD ──
-const __AV = { aim: false, sprint: false, lsWas: false };
+const __AV = { aim: false };
 __canvas.addEventListener('mousedown', (ev) => { if (__mb('aim', ev)) __AV.aim = true; });
 window.addEventListener('mouseup', (ev) => { if (__mb('aim', ev)) __AV.aim = false; });
 __canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
 window.addEventListener('keydown', (ev) => { if (__CTL.is(__BIND, 'view', 'keyboard', ev.code)) ev.preventDefault(); });
-window.addEventListener('blur', () => { __AV.aim = false; __AV.sprint = false; });
+window.addEventListener('blur', () => { __AV.aim = false; });
 const __avRead0 = __readInput;
 __readInput = function () {
   const inp = __avRead0();
   if (window.__mojMenuOpen) return inp;
   const g = __padNow(), gr = g ? __CTL.gamepadRead(g, __DEV) : null, pb = (id) => !!gr && __CTL.held(__BIND, id, 'gamepad', gr);
-  const p = __world.pilotId && __world.byId[__world.pilotId], r = (p && p.rule) || {};
   inp.aim = inp.aim || __AV.aim || pb('aim') ? 1 : 0;
   inp.view = __k('view') || pb('view') ? 1 : 0;
   inp.shoulder = __k('shoulder') || pb('shoulder') ? 1 : 0;
   if (__k('reload') || pb('reload')) inp.reload = 1;
-  const ls = pb('sprint'), moving = Math.abs(inp.forward || 0) + Math.abs(inp.strafe || 0) + Math.abs(inp.turn || 0) > 0.2;
-  if (ls && !__AV.lsWas) __AV.sprint = true;
-  __AV.lsWas = ls;
-  if (!moving || inp.aim) __AV.sprint = false;
-  if (__AV.sprint || __k('sprint')) { if (r.sprintSpeed > 0) inp.sprint = 1; if (r.boostSpeed > 0) inp.boost = 1; }
   return inp;
 };
 `;

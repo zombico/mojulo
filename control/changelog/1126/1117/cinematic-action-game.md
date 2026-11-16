@@ -44,3 +44,11 @@ or a recipe key; the spike mints through the real doors and measures.
   nothing held; its low walls are vaulted out of the run and its stacked crates climbed on the jump. The operative
   carries the solved clips (`motion: stepVault, speedVault, hurdle`) and the vault plays its step vault; the climb has
   no clip of its own yet (it plays the jump's start).
+- **What is in hand, from a held menu** (`rule.carry`, worlds/controllable/carry.js, opt-in): one weapon equipped at a
+  time, or none. The weapon menu is held (G, the D-pad's up); the look or the wheel steps through nothing in hand and
+  each weapon, turning nothing, and letting go chooses. Nothing in hand puts the gun away: it is not drawn, fired or
+  reloaded until another is chosen. The item menu (H, the D-pad's left) is the same, and letting go uses the consumable
+  stepped to (a ration gives health back, to the body's most). The keys and the wheel that switched a kit's slots are
+  held off. Its strip on the screen is plain DOM for now, not mana-ui's.
+- **One pace**: the infiltration yard's stick is the feel's fast gait and there is no sprint: the feel's sprint, its
+  stamina and the dodge on the sprint's key are left out of the room's rule, and the operative scheme has no sprint.

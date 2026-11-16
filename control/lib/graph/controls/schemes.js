@@ -444,16 +444,16 @@ const ACTION = {
 
 // THE OPERATIVE: the pilot's actions laid out as a stealth action game lays them (the principles of the tactical
 // espionage pad): the aim is HELD on the left trigger and the right trigger fires only then; from the aim, the right
-// shoulder goes to the eye and the right stick's click to the other shoulder; the left stick's click sprints; the west
-// face is the action (use, open, pick up), the east reloads, the north dives; the D-pad's up is the weapon in hand (a
-// tap the next, held the selector). A page whose pilot aims this way (worlds/controllable/aim-view.js) reads this
+// shoulder goes to the eye and the right stick's click to the other shoulder; the stick's push is the run (there is no
+// sprint); the west face is the action (use, open, pick up), the east reloads, the north dives; the D-pad's up HELD is
+// the weapon menu and its left HELD the item menu (worlds/controllable/carry.js: the look steps, letting go chooses). A page whose pilot aims this way (worlds/controllable/aim-view.js) reads this
 // scheme in the pilot's place. The stance, the binoculars, the radio and the item slots have no action yet: their
 // buttons are left free for them (south keeps the jump until the stance is built).
 const OPERATIVE_BIND = {
   boost: { keyboard: ['KeyF'] }, kneel: { keyboard: ['KeyX'] }, guard: { keyboard: ['Shift'] },
   strafeLeft: { xr: ['left.thumbstickX-'] }, tackle: { keyboard: ['KeyC'], gamepad: ['north'] },
-  cycleWeapon: { mouse: ['back'], gamepad: ['up'] }, lock: {}, swapSuit: { keyboard: ['KeyT'] }, transform: { keyboard: ['KeyB'] },
-  aiToggle: { keyboard: ['KeyG'] }, reverseView: {}, pause: { keyboard: ['Escape'], gamepad: ['start', 'select'] },
+  cycleWeapon: {}, lock: {}, swapSuit: { keyboard: ['KeyT'] }, transform: { keyboard: ['KeyB'] },
+  aiToggle: {}, reverseView: {}, pause: { keyboard: ['Escape'], gamepad: ['start', 'select'] },
 };
 const OPERATIVE = {
   ...PILOT, id: 'operative', label: 'the operative: a third-person stealth action pilot, the aim held',
@@ -463,12 +463,13 @@ const OPERATIVE = {
     { id: 'view', label: 'first-person view (while aiming)', group: 'camera', in: ['ground'], bind: { keyboard: ['Tab'], gamepad: ['rb'] } },
     { id: 'shoulder', label: 'the other shoulder (while aiming)', group: 'camera', in: ['ground'], bind: { keyboard: ['KeyQ'], gamepad: ['rs'] } },
     { id: 'reload', label: 'reload', group: 'combat', in: ['ground'], bind: { keyboard: ['KeyR'], gamepad: ['east'] } },
-    { id: 'sprint', label: 'sprint', group: 'move', in: ['ground'], bind: { keyboard: ['Shift'], gamepad: ['ls'] } },
+    { id: 'equip', label: 'weapon menu (hold, look to step)', group: 'combat', hold: true, in: ['ground'], bind: { keyboard: ['KeyG'], gamepad: ['up'] } },
+    { id: 'item', label: 'item menu (hold, look to step)', group: 'world', hold: true, in: ['ground'], bind: { keyboard: ['KeyH'], gamepad: ['left'] } },
   ],
   legend: {
     ...PILOT.legend,
-    keyboard: [...PILOT.legend.keyboard, { ids: ['aim'], dev: 'mouse', label: 'aim (hold)' }, { ids: ['view', 'shoulder'], sep: ' · ', label: 'first person · other shoulder (aiming)' }, { ids: ['reload'], label: 'reload' }, { ids: ['sprint'], label: 'sprint (hold)' }],
-    gamepad: [...PILOT.legend.gamepad, { ids: ['aim'], label: 'aim (hold)' }, { ids: ['view', 'shoulder'], sep: ' · ', label: 'first person · other shoulder (aiming)' }, { ids: ['reload'], label: 'reload' }, { ids: ['sprint'], label: 'sprint' }],
+    keyboard: [...PILOT.legend.keyboard, { ids: ['aim'], dev: 'mouse', label: 'aim (hold)' }, { ids: ['view', 'shoulder'], sep: ' · ', label: 'first person · other shoulder (aiming)' }, { ids: ['reload'], label: 'reload' }, { ids: ['equip', 'item'], sep: ' · ', label: 'weapon menu · item menu (hold)' }],
+    gamepad: [...PILOT.legend.gamepad, { ids: ['aim'], label: 'aim (hold)' }, { ids: ['view', 'shoulder'], sep: ' · ', label: 'first person · other shoulder (aiming)' }, { ids: ['reload'], label: 'reload' }, { ids: ['equip', 'item'], sep: ' · ', label: 'weapon menu · item menu (hold)' }],
   },
 };
 
