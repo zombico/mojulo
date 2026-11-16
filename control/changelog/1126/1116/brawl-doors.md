@@ -34,9 +34,13 @@
   (choosing a level, the result, going on to the next) are drawn in the game's own look.
 - **The studio warns when the screen is the wrong shape.** A street runs across the screen. A game made for an
   upright phone shows only a sliver of it, and the studio now says so and how to change it.
+- **A street shows the game, not the practice room.** While you play a street you see each player's name and
+  health, the falls you have left, which stop you are at, the boss's health while it stands, and a banner when a
+  stop clears and the street opens again. The practice readouts and the practice settings no longer appear in a
+  level.
 - **Not yet:** an enemy that is a beast is drawn as a plain jointed figure, and the game says so; only a person's
   body stands on the street today. A game that names no enemies of its own still meets the stock crowd, drawn as
   plain figures on one open screen: that path is kept for testing. The things that lie on a street to pick up or
-  break are not laid, a game is one street long, and the readouts on screen are still the practice room's. Nobody
+  break are not laid, and the number of players is set by the game, not chosen on the screen before a level. Nobody
   has played these; the studio has checked that each level loads, that the street holds at a stop and brings its
   enemies in, and that winning and losing end the level.

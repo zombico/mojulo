@@ -171,7 +171,7 @@ describe('a street as a level of a designed game', () => {
 
   it('a world with no hero yet is played by a stand-in, and said; a run & gun by its intent or its guns', () => {
     const S = streetLevel(G, street, { foeRefs: { goon: 'r1', warlord: 'r2' } });
-    expect(S.manifest.brawl.practice.roster[0]).toEqual({ id: 'stand-in-1', archetype: 'all-rounder' });
+    expect(S.manifest.brawl.practice.roster[0]).toEqual({ id: 'stand-in-1', name: 'P1', archetype: 'all-rounder' });
     expect(S.laws[0]).toMatchObject({ holds: false, says: expect.stringMatching(/stand-in fighter/) });
     expect(S.manifest.brawl.practice.range).toBeUndefined();
     expect(streetLevel({ ...G, intent: { from: 'run-and-gun' } }, street, {}).manifest.brawl.practice.range).toEqual({});

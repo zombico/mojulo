@@ -234,7 +234,7 @@ export function streetLevel(G, words, { title, ref, heroRef = null, foeRefs = nu
   // nobody fills is a stand-in fighter, said)
   const made = [...(heroRef ? [{ id: 'hero', hero: { ref: heroRef } }] : []), ...(party ?? []).filter((m) => m?.ref).map((m) => ({ id: m.id, name: m.name ?? m.id, hero: { ref: m.ref } }))].slice(0, STREET_SEATS);
   const short = Math.max(0, L.players - made.length);
-  const heroes = [...made, ...Array.from({ length: made.length ? short : Math.max(1, L.players) }, (_, k) => ({ id: `stand-in-${made.length + k + 1}`, archetype: STAND_INS[(made.length + k) % STAND_INS.length] }))];
+  const heroes = [...made, ...Array.from({ length: made.length ? short : Math.max(1, L.players) }, (_, k) => ({ id: `stand-in-${made.length + k + 1}`, name: `P${made.length + k + 1}`, archetype: STAND_INS[(made.length + k) % STAND_INS.length] }))];
   const rosterAt = Object.fromEntries(bodied.map((id, k) => [id, heroes.length + k]));
   const roster = [...heroes, ...bodied.map((id) => ({ id: `foe-${id}`, name: id, hero: { ref: foeRefs[id] } }))];
   const practice = { roster, playable: heroes.length, players: Array.from({ length: L.players }, (_, i) => i), dummies: [], stakes: L.lives, street: { waves: withStreetBodies(S.waves, rosterAt) }, ...(gun ? { range: Array.isArray(L.guns) ? { guns: L.guns } : {} } : {}) };

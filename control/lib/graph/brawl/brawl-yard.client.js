@@ -94,6 +94,9 @@ let picks = BY.players.slice(0, 4);
 let dummies = BY.dummies;
 let room = null, bodies = [], things = new Map(), rounds = new Map(), t = 0;
 let ENDED = false;
+// (a street's moments, its banner: a stop's name as its wave comes in, GO as it clears, the boss's name; each stop's name by its screen)
+let MOMENTS = [];
+const STOPS = BY.street ? BY.street.waves.reduce((o, w) => { o[w.screen] = w.name || ''; return o; }, []) : [];
 const runs = [];
 function dummiesOf() {
   const n = Number(SET.count) || 1, mode = SET.mode.toLowerCase();
@@ -672,7 +675,7 @@ const HELD = new Set(), LATCH = new Set();
 addEventListener('keydown', (e) => {
   HELD.add(e.code); LATCH.add(e.code);
   if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
-  if (e.code === 'KeyR' && !UI.rt.state().screen) { room = resetYard(room); for (const B of bodies) B.drawn = null; }
+  if (e.code === 'KeyR' && !BY.street && !UI.rt.state().screen) { room = resetYard(room); for (const B of bodies) B.drawn = null; }
 });
 addEventListener('keyup', (e) => HELD.delete(e.code));
 addEventListener('blur', () => HELD.clear());
@@ -714,7 +717,7 @@ const UI = (() => {
     ...(RANGE ? [{ kind: 'cycler', label: 'Gun', var: 'brawl.practice.set.gun', options: RANGE.names }] : []),
     ...((RANGE && RANGE.waves) || BY.waves ? [{ kind: 'toggle', label: 'Waves', var: 'brawl.practice.set.waves' }] : []),
     ...BY.yard.settings.map((f) => (f.label === 'Type' ? { ...f, options: [...f.options, ...BY.roster.map((r) => r.name)] } : f))];
-  const state = { brawl: { practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' } } } };
+  const state = { brawl: { practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' }, party: [], street: { stop: 1, of: 1, name: '', lives: 0, livesMax: 1 }, boss: { on: false, name: '', hp: 0, hpMax: 1, phases: 1, statuses: [] }, moments: [], gun: { on: false, name: '', ammo: 0, of: 1, grenades: 0, shots: '' } } } };
   const el = document.createElement('div');
   document.body.appendChild(el);
   const setPath = (path, to) => { const k = path.split('.'), last = k.pop(); k.reduce((o, x) => o[x], state)[last] = to; };
@@ -774,13 +777,15 @@ function tick() {
     if (!UI.rt.state().screen) applySettings();
     return;
   }
-  if (edge.start) { UI.rt.open('settings'); UI.view.paint(); return; }
+  // (a level's pause and its settings are the game shell's: a street opens no practice settings)
+  if (edge.start && !BY.street) { UI.rt.open('settings'); UI.view.paint(); return; }
   if (edge.list) { UI.state.brawl.practice.moves = RANGE ? rangeMoveList(room) : brawlMoveList(room.ctx.fighters[0]); UI.rt.open('moves'); UI.view.paint(); return; }
   // (a second controller sat down: it drops in as the next player)
   if (seated() > picks.length && picks.length < 4) { picks = [...picks, (picks.length) % (BY.playable || BY.roster.length)]; build(); }
   const buttons = picks.map((_, i) => buttonsOf(i));
   room = stepYard(room, buttons);
   // a GAME on the room (its `stakes`): over, the level ends once, by the page's game contract (channels/game.js)
+  if (BY.street) MOMENTS = streetMoments(MOMENTS, room.s.events, STOPS);
   if (BY.stakes && !ENDED && room.yard.over) { ENDED = true; if (window.__mojGame) window.__mojGame.end(room.yard.over === 'won' ? 'success' : 'fail'); }
   t++;
   for (const e of room.s.events) {
@@ -811,6 +816,8 @@ function draw() {
   IMPACT.el.style.display = IMPACT.left > 0 ? 'block' : 'none';
   const read = yardRead(room, 0);
   Object.assign(UI.state.brawl.practice, yardHud(read, room.ctx.fighters[room.s.bodies[0].fi], project, runs.map((x) => ({ text: x.text }))));
+  // (a street's screen reads the game: every player's health, the stop and the falls left, the boss, the moments)
+  if (BY.street) Object.assign(UI.state.brawl.practice, streetHud(room, picks.map((k) => BY.roster[k].name)), { moments: MOMENTS });
 }
 
 build();

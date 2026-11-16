@@ -24,7 +24,7 @@ import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES as CONTROL_SCHEMES } from '../controls/schemes.js';
 import { buildSeatsKernel } from '../controls/seats-kernel.js';
 import { DEVICES } from '../controls/devices.js';
-import { yardOf, YARD_SETTINGS } from './brawl-yard.js';
+import { yardOf, streetYardOf, YARD_SETTINGS } from './brawl-yard.js';
 import { BRAWL_STYLES } from './brawl-moves.js';
 import { readGun } from './brawl-guns.js';
 import { RANGE_GUNS } from './brawl-practice.js';
@@ -107,7 +107,8 @@ function streetWaves(waves, roster, belt) {
 const readStakes = (v) => { if (!(Number.isInteger(v) && v >= 1 && v <= 9)) throw new Error('brawl: practice.stakes is the falls the players may take, 1 to 9'); return v; };
 export function brawlYardData(block, bodies = null) {
   const P = block.practice ?? {};
-  const Y = yardOf();
+  // (a street level's screen is the game's own; a practice room's the yard's: brawl-yard.js)
+  const Y = P.street ? streetYardOf() : yardOf();
   const roster = Array.isArray(P.roster) && P.roster.length
     ? P.roster.map((e, k) => { const r = rosterEntry(e, k); const style = BRAWL_STYLES[r.archetype] ? r.archetype : 'all-rounder'; return { ...r, style, ...(e.weapon ? { recipe: { ...r.recipe, weapon: e.weapon } } : {}) }; })
     : block.armed ? BRAWL_ARMED_ROSTER : BRAWL_ROSTER;
