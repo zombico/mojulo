@@ -28,6 +28,7 @@ import { posable, behaviorFrames, prepare as preparePose } from './behavior/pose
 import { reactsOf, reactionFrames, REACTION_SECONDS } from './behavior/react.js';
 import { strikesOf, strikeFrames, strikeSeconds, strikeTiming } from './behavior/strike.js';
 import { packLayeredRig } from '../polygonizer/station-loft-rig.js';
+import { shapeId } from '../polygonizer/station-loft-plan.js';
 import { bodyPlan, bodyLocomotion } from './body.js';
 
 const AXIS = /^(spine|neck|tail)\d+$|^head$/;
@@ -42,11 +43,15 @@ export function faunaBones(id) {
   return { bones: S.bones, boneIndex: Object.fromEntries(S.bones.map((b, i) => [b.id, i])) };
 }
 
-/** A part's station ids and centres, as expandPlan names them (st0…, or the rings' own ids). */
-function stationsOf(part, joints) {
-  return (part.stations || []).map((s, i) => {
-    const c = s.at || (() => { const v = Object.values(s.points); return [0, 1, 2].map((k) => v.reduce((t, p) => t + p[k], 0) / v.length); })();
-    return { id: s.id ?? `st${i}`, c };
+/** A part's station ids and centres, as expandPlan names them: a ring's own id, else its place among the part's WHOLE
+ *  stations (st0…), a SHAPING ring (one with an address `u` between two of them) by that address (`st1_st2_50`,
+ *  station-loft-plan.js loftPart). Counted any other way a shaped loft's rings miss their binds: each whole station takes
+ *  the bone of the one before it, and a shaping ring, named by none, falls to the part's first bone. */
+export function stationsOf(part, joints) {
+  let k = 0;
+  return (part.stations || []).map((s) => {
+    const c = s.at || (() => { const v = Object.values(s.points); return [0, 1, 2].map((q) => v.reduce((t, p) => t + p[q], 0) / v.length); })();
+    return { id: s.id ?? (s.u === undefined ? `st${k++}` : shapeId(s.u)), c };
   });
 }
 
