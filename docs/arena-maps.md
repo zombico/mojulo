@@ -220,6 +220,40 @@ place's own shape: `loops` on a pier, an alley or a tank farm's lanes (a pier is
 
 A mission takes a place as its map (`mission.map: { town } | { city, on }`, [missions.md](missions.md#on-a-place)).
 
+## An industrial facility
+
+`arena-map/facility.js` takes the cut one step further for a city's industry (its tank farm, its container storage, its
+works): the yard is **designed** and **drawn as itself**.
+
+- **Designed.** `designFacility(spec, { seed, on, size })` reads every window on a stride over the block, keeps the ones
+  that are a yard (ground to fight on with the place's own things standing in it), grows the most varied first under
+  the laws with what the place is made of kept, and returns the one that holds the most. The laws are the only judge;
+  the search is how a yard that can hold them all is found where a single picked window may not. It answers with the
+  cut's middle (`at`), which a mission then names.
+- **Drawn.** The reader keeps the block's plan (`read.things`); `facilityGround` stands each thing where the design put
+  it, the geocity's own piece at its size: tanks, spheres, a gasholder, silos, a stack, containers, transformers,
+  gantries, pipe racks, pylons and halls. What the generator grew is the yard's own cover: a wall panel a concrete
+  panel, a low wall a barrier, a pillar a short container. A perimeter wall, and the block's tall things beyond it as
+  its skyline.
+- **Lit.** Each paint's base is the cube's own day; its light is the hour's: the sky, the moon or the sun where it
+  reaches, and each **floodlight** by its distance. So a night is dark and lit where a flood stands. The floods stand
+  over the map's prizes (the laws' own measures: the most seen places are the lit ones), kept apart, none by day.
+- **Weather.** A weather wets it (`era/wetness.js`: rain a sheet over the slab) and falls round the camera (the
+  page's weather channel), in the air of the cube's hour.
+
+```
+levels.<id>: { mission: { map: { city: true, on: 'tanks', size: 48, at: [3555, 452], hour: 'night', weather: 'rain', floods: true } } }
+```
+
+What the first run found (machine gate only): the tank farm of the default metro, seed 1, a 48 m yard at that place:
+four tanks at its corners, a cross of open ground between them, cover grown in the crossing, all fourteen laws held.
+Played headless with the shooter feel the gunner wins it in 69 s.
+
+Said: a flood's light is not shaded by what stands between it and a face in the bake (the page draws the nearest
+floods' shadows live); a hall is its box and gable in its paint, its doors and windows not drawn; the colliders are the
+grid's cells, so a round tank is walked round as its cells; a yard's faces are carried in its manifest, megabytes of
+them, where another map's are a fraction of one; the search grows each window, so a design takes tens of seconds.
+
 ## Next
 
 - **Templates for a long gun.** These four are sized for the mid band; a kit with a long gun wants a longer line

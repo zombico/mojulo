@@ -57,6 +57,7 @@ import { readTownMap, readCityMap } from '../arena-map/read-town.js';
 import { kitOf } from '../arena-map/laws.js';
 import { mapGround, mapFloors } from '../arena-map/ground.js';
 import { mapFormGround } from '../arena-map/ground-form.js';
+import { facilityGround, isFacility } from '../arena-map/facility.js';
 import { ERAS } from '../era/eras.js';
 import { phasesOnMap, phaseLaws } from '../arena-map/phases.js';
 import { interfaceLook } from '../playscape/ui/interface-look.js';
@@ -98,7 +99,7 @@ function grownMap(template, seed, kit, place = null) {
   if (!GROWN.has(k)) {
     if (GROWN.size >= GROWN_KEPT) GROWN.delete(GROWN.keys().next().value);
     // (a PLACE: a town's or a city's cut read onto the grid, arena-map/read-town.js, then grown with what it is made of kept)
-    const given = place ? (place.town ? readTownMap(place.town, { seed, size: place.size, ...(place.block ? { block: place.block } : {}) }) : readCityMap(place.city, { seed, on: place.on, size: place.size })) : null;
+    const given = place ? (place.town ? readTownMap(place.town, { seed, size: place.size, ...(place.block ? { block: place.block } : {}) }) : readCityMap(place.city, { seed, on: place.on, size: place.size, ...(place.at ? { at: place.at } : {}) })) : null;
     GROWN.set(k, growArenaMap({ template, seed, kit, ...(given ? { map: given } : {}) }));
   }
   const g = GROWN.get(k);
@@ -265,8 +266,12 @@ export function missionStage(G, P) {
   // (a map read by the seventh generation: its blocks as material under the cube's day, arena-map/ground-form.js, drawn by
   // the form render; in the sixth, or on the lane, the greybox as painted)
   const cube = missionCube(G), formed = !!P.map && ERAS[cube.era]?.surface === 'form';
-  const ground = P.map ? (formed ? mapFormGround(P.map.map, { cube }) : mapGround(P.map.map)) : missionGround(P.mission);
-  return { kind: 'controllable', title: 'mission', geocube: cube, bg: BG, faces: ground.faces, colliders: ground.colliders, ...(formed ? { form: ground.form } : {}), sky: { ...SKY }, mission: missionUi(G, P.mission, P.brief, { laws: P.laws, map: P.map ?? null }) };
+  // (an industrial yard, arena-map/facility.js: the place's own things, under its hour, its weather and its floodlights)
+  const place = P.brief.map?.place ?? null, yard = formed && isFacility(P.map.map);
+  const ground = P.map ? (yard ? facilityGround(P.map.map, { cube, ...(place?.hour !== undefined ? { hour: place.hour } : {}), ...(place?.weather ? { weather: place.weather } : {}), ...(place?.floods !== undefined ? { floods: place.floods } : {}) })
+    : formed ? mapFormGround(P.map.map, { cube }) : mapGround(P.map.map)) : missionGround(P.mission);
+  return { kind: 'controllable', title: 'mission', geocube: cube, bg: yard ? ground.bg : BG, faces: ground.faces, colliders: ground.colliders, ...(formed ? { form: ground.form } : {}), sky: yard ? ground.sky : { ...SKY },
+    ...(yard && place?.weather ? { weather: { climate: { [place.weather]: 1 }, start: place.weather, air: ground.air } } : {}), mission: missionUi(G, P.mission, P.brief, { laws: P.laws, map: P.map ?? null }) };
 }
 
 /** The blocks a laid mission's map was grown into, carried by its manifest (`mission.plan.map`), or null. */

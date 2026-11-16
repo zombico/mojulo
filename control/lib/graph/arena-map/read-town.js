@@ -22,7 +22,8 @@
  *   readGroundMap(G, opts?) → map      the rasteriser both stand on: G = { bounds, masses: [{ rect, h, what }],
  *             rounds: [{ at, r, h, what }], fences: [rect], wet: (x, y) → true over water, notes }
  *   map: { nx, ny, nz: 1, floors, solids, walls, ramps: [], ladders: [], read: { cell, origin, cut, picked, water:
- *          [[i, j, 0]], masses, fences, share: { floor, mass, water }, notes } }
+ *          [[i, j, 0]], masses, fences, share: { floor, mass, water }, notes, things?: a city's industrial pieces as its
+ *          plan draws them, in the map's metres, `beyond` the ones past its wall (facility.js draws them) } }
  *
  * HOW A DESIGN IS READ (every approximation said):
  *   - THE GRID. One level: the land's hills and a street's grade are not read (a cut is flat). A cell is sampled at a
@@ -50,11 +51,13 @@
 import { CELL, EYE } from './blocks.js';
 import { designGeotown } from '../geotown/design.js';
 import { designGeocity } from '../geocity/design.js';
-import { industrialPlan } from '../geocity/industry.js';
+import { industrialPlan, INDUSTRY_FAR } from '../geocity/industry.js';
 import { INDUSTRY_SEGMENTS } from '../geocity/segments.js';
 import { frameOf, shoreAt, WATERFRONT_KINDS } from '../geocity/waterfront.js';
 import { streamOf } from '../city/plan/dice.js';
 
+/** How far past the ground read a place's things are kept, for a skyline over the cut's wall (m). */
+const SKYLINE = 60;
 /** A cut's side, metres: eighteen cells, a little over the longest of the generator's templates. */
 export const CUT = 54;
 /** What a city cut may be held to. */
@@ -66,6 +69,8 @@ const PIECES = Object.freeze({
   container: { along: 6.1, across: 1.22, h: 2.6 }, silos: { along: 14.4, across: 3.6, h: 24 }, transformer: { along: 2.4, across: 1.6, h: 3.2 },
 });
 const SUB = 5;
+// the pieces seen over a wall from across their district (geocity/industry.js INDUSTRY_FAR)
+const FAR_KEYS = INDUSTRY_FAR;
 const r2 = (v) => Math.round(v * 100) / 100;
 const no = (msg) => { throw new Error(`arena-map: ${msg}`); };
 
@@ -156,11 +161,18 @@ export function readGroundMap(G, { cell = CELL, fill = 0.5, at = null, size = CU
   for (const k of fenceN) { const [i, j] = k.split(',').map(Number); if (open(i, j) && open(i, j + 1)) walls.push({ at: [i, j, 0], side: 'n', kind: 'low' }); }
   const fenced = walls.some((w) => w.kind === 'low') ? (G.fences ?? []).length : 0;
   if (fenced) notes.push(`${fenced} fence${fenced === 1 ? '' : 's'} read as a low wall on the nearest grid line (it stops a body, not a line), with no gate: the plan draws none`);
+  // the place's things in the map's own metres: what stands in the cut, and the tall things beyond its wall
+  const x1c = ox + cnx * cell, y1c = oy + cny * cell, mv = (q) => [r2(q[0] - ox), r2(q[1] - oy), r2(q[2] - ox), r2(q[3] - oy)];
+  const things = (G.things ?? []).map((t) => {
+    const q = t.q ?? t.foot ?? [t.at[0] - 1, t.at[1] - 1, t.at[0] + 1, t.at[1] + 1], inside = q[0] < x1c && q[2] > ox && q[1] < y1c && q[3] > oy;
+    if (!inside && !(t.kind !== 'stamp' || FAR_KEYS.includes(t.key))) return null;
+    return { ...t, ...(t.q ? { q: mv(t.q) } : {}), ...(t.at ? { at: [r2(t.at[0] - ox), r2(t.at[1] - oy)] } : {}), ...(t.foot ? { foot: mv(t.foot) } : {}), ...(inside ? {} : { beyond: true }) };
+  }).filter(Boolean);
   const all = cnx * cny;
   return {
     nx: cnx, ny: cny, nz: 1, floors, solids, walls, ramps: [], ladders: [],
     read: { cell, origin: [r2(ox), r2(oy)], cut: [r2(ox), r2(oy), r2(ox + cnx * cell), r2(oy + cny * cell)], picked, water, masses: masses.length + rounds.length, fences: fenced,
-      share: { floor: r2((floors.length - solids.length) / all), mass: r2(solids.length / all), water: r2(water.length / all) }, notes },
+      share: { floor: r2((floors.length - solids.length) / all), mass: r2(solids.length / all), water: r2(water.length / all) }, notes, ...(things.length ? { things } : {}) },
   };
 }
 
@@ -182,7 +194,7 @@ export function readTownMap(spec = {}, { seed = 1, block = null, ...opts } = {})
  *  masses and fences, its towers. */
 export function cityGround(d, { on = INDUSTRY_SEGMENTS[0] } = {}) {
   if (!CITY_ONS.includes(on)) no(`a city cut is held to one of ${CITY_ONS.join(', ')}; '${on}' is none`);
-  const notes = [], masses = [], rounds = [], fences = [];
+  const notes = [], masses = [], rounds = [], fences = [], things = [];
   const blocks = d.regions.flatMap((r) => r.blocks ?? []), strips = d.waterfront ?? [];
   // (water: the bands along its sides, less the ground reclaimed out into them and the piers out from it)
   const frames = strips.map((W) => ({ W, F: frameOf(W) }));
@@ -207,6 +219,21 @@ export function cityGround(d, { on = INDUSTRY_SEGMENTS[0] } = {}) {
     notes.push(`a cut of the ${W.side} shore's ${on} at the water's edge: its ground and piers; its pavilions, parasols, boats and pontoons not read`);
   }
   const inB = (q) => q[0] < bounds[2] && q[2] > bounds[0] && q[1] < bounds[3] && q[3] > bounds[1];
+  // (the things of the place as its plan draws them, for what draws the map as itself, facility.js: every piece of the
+  // industrial blocks in reach, where it stands, how it lies, its size and its paint)
+  const reach = [bounds[0] - SKYLINE, bounds[1] - SKYLINE, bounds[2] + SKYLINE, bounds[3] + SKYLINE], inR = (q) => q[0] < reach[2] && q[2] > reach[0] && q[1] < reach[3] && q[3] > reach[1];
+  for (const b of blocks) {
+    if (!INDUSTRY_SEGMENTS.includes(b.kind) || !inR(b.rect)) continue;
+    for (const o of industrialPlan(b, streamOf(d.seed, 'scene', b.id))) {
+      if (o.op === 'box') things.push({ kind: 'box', q: o.q, z: o.z ?? 0, h: o.h, wall: o.wall, roof: o.roof });
+      else if (o.op === 'gable') things.push({ kind: 'gable', q: o.q, z: o.z ?? 0, ze: o.ze, zr: o.zr, axis: o.axis, wall: o.wall, roof: o.roof });
+      else if (o.op === 'stamp') {
+        const [key, lies] = o.key.split(':'), Pc = PIECES[key], k = o.scale ?? 1;
+        const foot = !Pc ? null : Pc.r ? [o.at[0] - Pc.r * k, o.at[1] - Pc.r * k, o.at[0] + Pc.r * k, o.at[1] + Pc.r * k] : (() => { const ax = lies === 'y' ? [Pc.across, Pc.along] : [Pc.along, Pc.across]; return [o.at[0] - ax[0], o.at[1] - ax[1], o.at[0] + ax[0], o.at[1] + ax[1]]; })();
+        things.push({ kind: 'stamp', key, ...(lies ? { lies } : {}), at: o.at.slice(0, 2), ...(o.z ? { z: o.z } : {}), ...(o.scale ? { scale: o.scale } : {}), ...(o.tint ? { tint: o.tint } : {}), ...(foot ? { foot } : {}) });
+      }
+    }
+  }
   let plain = 0;
   for (const b of blocks) {
     if (!inB(b.rect)) continue;
@@ -224,7 +251,7 @@ export function cityGround(d, { on = INDUSTRY_SEGMENTS[0] } = {}) {
     }
   }
   if (plain) notes.push(`${plain} other block${plain === 1 ? '' : 's'} in reach read as open ground but ${plain === 1 ? 'its' : 'their'} towers`);
-  return { bounds, masses, rounds, fences, wet, notes };
+  return { bounds, masses, rounds, fences, wet, notes, things };
 }
 /** A geocity, cut as an arena map (see the header). */
 export function readCityMap(spec = {}, { seed = 1, on = INDUSTRY_SEGMENTS[0], design = null, ...opts } = {}) {

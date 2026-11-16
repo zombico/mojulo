@@ -189,3 +189,13 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   the ambient mostly by its level, each face by the way it looks, a metal's highlight on the gun and a cloth's on the
   hands, through the page's own tone curve. On a painted page they are the paint they were. The hands sort with the
   gun, after the world's glass.
+- **An industrial facility, by night, in the rain.** `arena-map/facility.js`: a yard of a geocity's industry designed
+  under the laws (`designFacility`: windows over the block grown in turn, the most varied first, the one that holds the
+  most kept) and drawn as itself (`facilityGround`: the reader now keeps the block's plan, `read.things`, and each
+  piece stands where the design put it, the geocity's own tanks, spheres, silos, stack, containers, pipe racks and
+  halls; what the generator grew a concrete panel, a barrier, a short container; the block beyond the wall its
+  skyline). Its paints' bases are the cube's day and its light the hour's, so a night is dark, lit by floodlights on
+  masts over the map's prizes, each baked by its distance and handed to the form render with the surfaces' roughness
+  and, in a wet weather, its wet; the weather falls in the hour's own air. A mission names it:
+  `map: { city, on, size, at, hour, weather, floods }`. The default metro's tank farm at 48 m holds all fourteen laws
+  and the headless gunner wins it in 69 s. `geocity/industry.js` exports its pieces unlit (`industryRaw`).

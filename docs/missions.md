@@ -169,6 +169,9 @@ on its open ground under the laws; the phases are placed on it as on any map, an
 law of the map it does not hold is said as advice (`map:loops` on a pier). Water is drawn under the ground's level and
 a body stops at the shore.
 
+An industrial yard (a city's `tanks`, `storage`, `works`…) is drawn as itself and takes `at`, `hour`, `weather` and
+`floods` ([arena-maps.md](arena-maps.md#an-industrial-facility)).
+
 What the first runs found (machine gate only; the shooter feel, seed 1, played headless on the resolved page): the
 gunner wins the quay, the pier, the container yard and the main street in 66 to 74 s, and goes down in the hold on the
 houses block and the beach. Said, not tuned. The level is greybox: a place reads as its shape, not its look.
