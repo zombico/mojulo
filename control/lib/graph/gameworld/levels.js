@@ -583,10 +583,11 @@ function geotownEnds(manifest) {
 // THE DISTRICT'S ENDS (a geocity level, geocity/scene.js: an evocation): the hero set down at the start of the walk its
 // metro lays (its evoked street's), facing along it, its exit the far side of that walk; beats along the way every dozen
 // metres; its ground the district's ground faces (its walks, roads, pads, courts, stoops and its open shops' floors:
-// never a roof), what stands on it its boxes; the tills of its shops walked into (geocity.shops)
-const CITY_GROUND = /^geocity:(walk|road|bike|crossing|ground|court|lot|pad|paving|site|park|field|yard|scrub|median|margin|planting|promenade|quay|sand|deck|stoop|floor|highway|platform)$/;
+// never a roof, and never the highway carried over its streets: a level is set down on the street under it), what
+// stands on it its boxes; the tills of its shops walked into (geocity.shops)
+const CITY_GROUND = /^geocity:(walk|road|bike|crossing|ground|court|lot|pad|paving|site|park|field|yard|scrub|median|margin|planting|promenade|quay|sand|deck|stoop|floor|platform)$/;
 function geocityEnds(manifest) {
-  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), P = assembleGeocityScene(own, {});
+  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), P = assembleGeocityScene(own, { play: true });
   const route = (P.route ?? []).map((p) => [p[0], p[1], p[2] ?? 0]);
   if (route.length < 2) throw new Error('levels: the district lays no walk to set the hero down on');
   const ground = groundSampler(P.faces ?? [], CITY_GROUND), on = (p) => { const z = ground(p[0], p[1]); return [r3(p[0]), r3(p[1]), r3(z ?? p[2])]; };
@@ -601,7 +602,7 @@ function geocityEnds(manifest) {
   Object.defineProperty(out, 'rocks', { value: () => null, enumerable: false });
   Object.defineProperty(out, 'colliders', { value: P.colliders ?? [], enumerable: false });
   Object.defineProperty(out, 'townDoors', { value: [], enumerable: false });
-  Object.defineProperty(out, 'kerbs', { value: kerbSpots(route, groundSampler(P.faces ?? [], /^geocity:road$/), P.colliders ?? []), enumerable: false });
+  Object.defineProperty(out, 'kerbs', { value: kerbSpots(route, groundSampler(P.faces ?? [], /^geocity:road$/), P.colliders ?? [], ground), enumerable: false });
   Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && a.store?.till).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
   // (what it weighs: its faces, its boxes, its repeats' templates and instances; said by the level's audit and its book)
   Object.defineProperty(out, 'weight', { value: { faces: (P.faces ?? []).length, colliders: (P.colliders ?? []).length, templates: (P.repeats ?? []).reduce((a, r) => a + r.template.length, 0), instances: (P.repeats ?? []).reduce((a, r) => a + r.transforms.length, 0), shops: P.geocity?.stores?.shops ?? 0 }, enumerable: false });
@@ -612,19 +613,21 @@ const CITY_PLAY_KEYS = ['level', 'game', 'entities', 'camera', 'pilot', 'play', 
 
 // WHERE A CAR MAY STAND (a world's `cars`, cars.js): the kerb beside the walk's start. From the spawn, out across the
 // walk to the road on whichever side it lies nearer, a car's half width into it; then along the street, a car's length
-// apart, each spot on the road and clear of every box. → [{ at, heading }], none where no road lies beside the start
+// apart, each spot on the road and clear of every box, nose to tail; where a ground is given (`top`), the road is
+// the ground there, never one running under a walk or a pad. → [{ at, heading }], none where no road lies beside the start
 const KERB = Object.freeze({ reach: 14, step: 0.5, into: 1.5, apart: 6.5, most: 4, clear: 1.2 });
-function kerbSpots(route, road, colliders) {
+function kerbSpots(route, road, colliders, top = null) {
   if (route.length < 2) return [];
   const [x0, y0] = route[0], hd = Math.atan2(route[1][1] - y0, route[1][0] - x0), f = [Math.cos(hd), Math.sin(hd)], spots = [];
   const blocked = (x, y, z) => colliders.some((c) => x > c.min[0] - KERB.clear && x < c.max[0] + KERB.clear && y > c.min[1] - KERB.clear && y < c.max[1] + KERB.clear && z + 0.7 > c.min[2] && z + 0.7 < c.max[2]);
+  const open = (x, y) => { const z = road(x, y); return z !== null && (!top || Math.abs((top(x, y) ?? z) - z) < 0.1) && !blocked(x, y, z); };
   let side = null;
-  for (let s = KERB.step; s <= KERB.reach && !side; s += KERB.step) for (const k of [1, -1]) { const n = [-f[1] * k, f[0] * k]; if (road(x0 + n[0] * s, y0 + n[1] * s) !== null && road(x0 + n[0] * (s + KERB.into), y0 + n[1] * (s + KERB.into)) !== null) { side = { n, s: s + KERB.into }; break; } }
+  for (let s = KERB.step; s <= KERB.reach && !side; s += KERB.step) for (const k of [1, -1]) { const n = [-f[1] * k, f[0] * k]; if (top ? open(x0 + n[0] * s, y0 + n[1] * s) && open(x0 + n[0] * (s + KERB.into), y0 + n[1] * (s + KERB.into)) : road(x0 + n[0] * s, y0 + n[1] * s) !== null && road(x0 + n[0] * (s + KERB.into), y0 + n[1] * (s + KERB.into)) !== null) { side = { n, s: s + KERB.into }; break; } }
   if (!side) return [];
   for (const k of [0, 1, -1, 2, -2, 3, -3, 4, -4]) {
     if (spots.length >= KERB.most) break;
     const x = x0 + side.n[0] * side.s + f[0] * k * KERB.apart, y = y0 + side.n[1] * side.s + f[1] * k * KERB.apart, z = road(x, y);
-    if (z === null || blocked(x, y, z)) continue;
+    if (z === null || blocked(x, y, z) || (top && [-2.2, 2.2].some((d) => !open(x + f[0] * d, y + f[1] * d)))) continue;
     spots.push({ at: [r3(x), r3(y), r3(z)], heading: r3(hd) });
   }
   return spots;

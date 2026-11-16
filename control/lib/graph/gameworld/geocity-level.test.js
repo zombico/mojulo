@@ -8,6 +8,7 @@ import { gameworldBibleHtml } from './bible-html.js';
 import { gameworldGraph } from './graph.js';
 import { runSteps } from './runner.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
+import { composeLive } from '../worlds/controllable/compose.js';
 
 const CITY = { metro: { from: 'lakeshore', rings: { core: 350, frame: 700 } }, extent: [1800, 1500], water: { sides: ['s'], depth: 200 }, core: [0.5, 0.2], evoke: 'neighbourhood', at: 'B4', shops: { cards: ['electronics'] } };
 const WORLD = { id: 'district-walk', name: 'District walk', seed: 2, levels: { district: { name: 'The district', geocity: CITY } } };
@@ -52,6 +53,18 @@ describe('a geocity level', () => {
     for (const k of E.kerbs) expect(E.colliders.some((c) => within([k.at[0], k.at[1], k.at[2] + 0.7], c))).toBe(false);
     expect(Math.hypot(E.kerbs[0].at[0] - E.spawn[0], E.kerbs[0].at[1] - E.spawn[1])).toBeLessThan(20);
   });
+  it('its pads hold a body at their foot: a terrace over its walk is a wall from below, stood on from its level side', () => {
+    const pads = E.colliders.filter((c) => c.of.endsWith(':pad'));
+    expect(pads.length).toBeGreaterThan(0);
+    // (one that stands a step and more over the ground at one of its corners: a body at that corner's foot is in its box,
+    // a body on its top is over it)
+    const tall = pads.find((c) => { const g = E.ground(c.min[0] - 0.6, c.min[1] - 0.6); return g !== null && c.max[2] - g > 0.6; });
+    expect(tall).toBeTruthy();
+    const g = E.ground(tall.min[0] - 0.6, tall.min[1] - 0.6);
+    expect(g + 0.3).toBeGreaterThan(tall.min[2]); expect(g + 0.3).toBeLessThan(tall.max[2]);
+    // (and no sunk shop's inside or till stands in a pad's box)
+    for (const t of E.tills) expect(pads.some((c) => within([t.at[0], t.at[1], t.at[2] + 0.2], c))).toBe(false);
+  });
   it('says what it weighs', () => {
     expect(E.weight.faces).toBeGreaterThan(0);
     expect(E.weight.shops).toBe(E.tills.length);
@@ -67,5 +80,31 @@ describe('a geocity level', () => {
     expect(page.walkers).toBeUndefined();
     expect(JSON.stringify(gameworldGraph(G))).toContain('district');
     expect(gameworldBibleHtml(WORLD)).toContain('The district');
+  });
+});
+
+describe('a car driven in the district (the level\'s own bodies on the runtime, its ground and its boxes)', () => {
+  // the district's game with a hero of its own and a car at its kerb (cars.js)
+  const DRIVEN = { ...WORLD, screen: 'screen', style: { kit: 'trail-valley' }, cars: true,
+    characters: { direction: { tradition: 'western' }, hero: { looks: { body: { cast: 'male' }, underlayer: { type: 'outfit', style: 'streetwear' } }, motion: { vibe: ['bold'] }, actions: { idiom: 'city-stalker-like' } } } };
+  const level = runSteps(DRIVEN, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest;
+  const R = composeLive(), DT = 1 / 30, ground = (p) => E.ground(p[0], p[1]);
+  const st = R.createWorld({ entities: level.entities, colliders: E.colliders, camera: level.camera });
+  const run = (s, input = {}, each = null) => { for (let i = 0; i < Math.max(1, Math.round(s / DT)); i++) { R.stepWorld(st, input, DT, { ground }); if (each) each(); } };
+  it('the hero gets in at the kerb and drives its street: on the road\'s grade all the way, up no pad, into no box', () => {
+    const hero = st.byId.hero, car = st.byId['car-1'], K = E.kerbs[0], f = [Math.cos(K.heading), Math.sin(K.heading)], left = [-f[1], f[0]];
+    expect(car).toBeTruthy();
+    // (every car stands on the road that is the ground there: never one running under a walk or a pad)
+    for (const k of E.kerbs) expect(Math.abs(E.ground(k.at[0], k.at[1]) - k.at[2])).toBeLessThan(0.1);
+    hero.transform.pos = [K.at[0] + left[0] * 2.4, K.at[1] + left[1] * 2.4, E.ground(K.at[0] + left[0] * 2.4, K.at[1] + left[1] * 2.4) ?? K.at[2]];
+    run(DT, { interact: 1 }); run(5);
+    expect(st.pilotId).toBe('car-1');
+    // (driven on, then steered hard at whatever stands beside the street: its grade never a wall's)
+    let steepest = 0, went = 0, last = car.transform.pos.slice();
+    const watch = () => { const p = car.transform.pos, dxy = Math.hypot(p[0] - last[0], p[1] - last[1]); if (dxy > 0.05) { went += dxy; steepest = Math.max(steepest, Math.abs(p[2] - last[2]) / dxy); last = p.slice(); } };
+    run(5, { forward: 1 }, watch); run(4, { forward: 1, turn: 1 }, watch); run(4, { forward: 1, turn: -1 }, watch);
+    expect(went).toBeGreaterThan(20);
+    expect(steepest).toBeLessThan(0.45);
+    expect(E.colliders.some((c) => within([car.transform.pos[0], car.transform.pos[1], car.transform.pos[2] + 0.7], c))).toBe(false);
   });
 });

@@ -334,6 +334,8 @@ export function assembleGeocityScene(m, ctx = {}) {
   // slot (retail/store-slot.js), behind the door its front lays (frontage.js `shopBays`, its open shop's): the row's wall
   // cut at each door, its box left open round each inside and through each door, each inside stamped where it stands
   // and drawn near the camera only ──
+  // (a metro played, levels.js geocityEnds and the world kind: its pads hold a body, below)
+  const PLAY = ctx.play === true, padHolds = [];
   const ENTER = d.spec.shops ?? null, cityStores = new Map(), entered = [], steep = { n: 0 }, tight = { n: 0, last: null };
   // (a shop's stoop: its riser and tread, how far it stands either side of its door, the most its door stands over its
   // walk (three risers), and the most its floor is sunk under its pad to keep it so)
@@ -387,7 +389,9 @@ export function assembleGeocityScene(m, ctx = {}) {
       wall = wall.flatMap((f) => cutFace(f, { axis: k === 0 ? 'x' : 'y', plane: wl.a[1 - k], u0: o[k] - dw / 2, u1: o[k] + dw / 2, z0: zf + 0.02, z1: zf + D.h * zs, N: n }));
       // (sunk: the pad, the land under it and any terrace's face are cut round its inside, and the face that holds
       // its pad over its walk at its door, once the metro is laid: `sunk`)
-      if (sink > 0) { sunk.push({ I, door: box2(-dw / 2, -0.45, dw / 2, 0.3), sill: box2(-dw / 2, -0.2, dw / 2, 0.02), top: zf + In.h }); sinks[i] = r5(sink); deepest = Math.max(deepest, sink); }
+      // (every inside, sunk or not: a row that stands across two terraces has the higher one's pad through its floor)
+      sunk.push({ I, door: box2(-dw / 2, -0.45, dw / 2, 0.3), sill: box2(-dw / 2, -0.2, dw / 2, 0.02), top: zf + In.h });
+      if (sink > 0) { sinks[i] = r5(sink); deepest = Math.max(deepest, sink); }
       if (C) {
         held = held.flatMap((r) => rectLess(r, I)).flatMap((r) => rectLess(r, way));
         for (const bx of St.boxes) { const r = box2(bx.min[0], bx.min[1], bx.max[0], bx.max[1]); colliders.push({ min: P3([r[0], r[1], zf + bx.min[2]]), max: P3([r[2], r[3], zf + bx.max[2]]), of: `${b.id}:store:${bx.of}` }); }
@@ -521,6 +525,9 @@ export function assembleGeocityScene(m, ctx = {}) {
       terraces.forEach((t, k) => {
         const [a0, b0, a1, b1] = t.q;
         put([[a0, b0, t.z], [a1, b0, t.z], [a1, b1, t.z], [a0, b1, t.z]], padGroup, IND_GROUND[b.kind]?.[1] ?? padHex);
+        // (played, `ctx.play`: the pad holds a body at its foot. A terrace that stands over its walk is a wall to a walker and
+        // a car below it, stood on from its level side: its box from under the lowest ground round it to its top)
+        if (PLAY) padHolds.push({ q: [a0, b0, a1, b1], top: t.z, bot: Math.min(...[[a0, b0], [a1, b0], [a1, b1], [a0, b1]].map(([x, yy]) => S(x, yy))) - 1, of: `${b.id}:pad` });
         // its retaining faces: down to the walk on its street sides, down to the terrace below between them
         const edges = [[[a0, b0], [a1, b0], [0, -1, 0], 's'], [[a1, b0], [a1, b1], [1, 0, 0], 'e'], [[a1, b1], [a0, b1], [0, 1, 0], 'n'], [[a0, b1], [a0, b0], [-1, 0, 0], 'w']];
         for (const [p, q, nn, s] of edges) {
@@ -1526,6 +1533,12 @@ export function assembleGeocityScene(m, ctx = {}) {
     }
   }
   for (const t of tunnels) for (const R of t.footprint) groundCut(R, (f) => Math.min(...f.corners.map((cc) => cc[2])) >= t.top + 0.2);
+  // (played: each pad's box, open round what is walked into under its level: a sunk shop and its door, a podium's inside,
+  // a passage's run)
+  if (PLAY) {
+    const open = [...sunk.flatMap((K) => [K.I, K.door]), ...podia.map((P) => P.I.footprint), ...tunnels.flatMap((t) => t.footprint)];
+    for (const H of padHolds) for (const r of open.reduce((rs, o) => rs.flatMap((q) => rectLess(q, o)), [H.q])) colliders.push({ min: P3([r[0], r[1], H.bot]), max: P3([r[2], r[3], H.top]), of: H.of });
+  }
   // the subway under its street (geocity/subway.js): its stations, tunnels and entrances, the walk open over each
   // entrance's stairwell
   if (SUBP && !SUB) SUB = subwayUnder(d, { S, kerb: KERB, plan: SUBP });
