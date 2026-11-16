@@ -48,16 +48,18 @@ const VARIANTS = {
   // a hero: does the camera, the guards and the template's loadout reach a building's page?
   hero: (w) => ({ ...w, characters: HERO }),
   // a level's own scene on a building level
-  scenes: (w) => ({ ...w, characters: HERO, levels: { ...w.levels, hangar: { ...w.levels.hangar, scenes: [{ id: 'arrival', when: { start: true }, beats: { script: SCRIPT } }] } } }),
+  scenes: (w) => ({ ...w, characters: HERO, levels: { ...w.levels, hangar: { ...w.levels.hangar, scenes: [{ id: 'arrival', when: { start: true }, beats: [{ script: SCRIPT }] }] } } }),
   // a story moment bound to a building level, as it starts and at a place
   story: (w) => ({ ...w, characters: HERO, story: [
-    { id: 'arrival', where: { level: 'hangar' }, when: { slot: 'before' }, beats: { script: SCRIPT } },
-    { id: 'the-plant', where: { level: 'plant', place: 'exit' }, when: { reach: true }, beats: { script: 'HERO: There it is.' } },
+    { id: 'arrival', where: { level: 'hangar' }, when: { slot: 'before' }, beats: [{ script: SCRIPT }] },
+    { id: 'the-plant', where: { level: 'plant', place: 'exit' }, when: { reach: true }, beats: [{ script: 'HERO: There it is.' }] },
   ] }),
-  // the mission's flow with empty cutscene slots
-  flow: (w) => ({ ...w, flow: missionFlow({ kind: 'cutscene', next: 'hangar' }) }),
+  // the mission's flow with empty cutscene slots, on a world with no hero: is it kept?
+  'flow-no-hero': (w) => ({ ...w, flow: missionFlow({ kind: 'cutscene', next: 'hangar' }) }),
+  // the same, with a hero
+  flow: (w) => ({ ...w, characters: HERO, flow: missionFlow({ kind: 'cutscene', next: 'hangar' }) }),
   // the same flow, its briefing a film's ref
-  film: (w) => ({ ...w, flow: missionFlow({ kind: 'cinematic', film: 'steel_serpents-briefing', next: 'hangar' }) }),
+  film: (w) => ({ ...w, characters: HERO, flow: missionFlow({ kind: 'cinematic', film: 'steel_serpents-briefing', next: 'hangar' }) }),
 };
 
 const require = createRequire(path.join(control, 'package.json'));
@@ -74,7 +76,7 @@ const levelFacts = (m) => {
     teams: ents.reduce((a, e) => ({ ...a, [e.team ?? '-']: (a[e.team ?? '-'] ?? 0) + 1 }), {}),
     minds: ents.filter((e) => e.rule?.type === 'ai').length,
     camera: m.camera?.rule ?? m.camera?.steer ?? (m.camera ? 'own' : null),
-    hero: hero ? { rule: hero.rule?.type ?? null, move: hero.rule?.move ?? null, weapons: (hero.rule?.weapons ?? hero.weapons ?? []).length, knife: !!hero.rule?.knife } : null,
+    hero: hero ? { rule: hero.rule?.type ?? null, move: hero.rule?.move ?? null, weapons: (hero.rule?.weapons ?? hero.weapons ?? (hero.weapon ? [hero.weapon] : [])).length, knife: !!hero.rule?.knife } : null,
     scenes: (m.play?.scenes ?? []).map((s) => s.id),
   };
 };
