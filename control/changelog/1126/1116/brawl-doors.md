@@ -23,9 +23,13 @@
   run & gun.
 - **The studio says what a street is missing, and builds it anyway.** A street with no boss, or a stop that meets
   fewer enemies than the one before it, is pointed out for you to decide on.
+- **A street can be a level of the game you are designing.** A game designed page by page (its intent, its
+  enemies, its hero) can now say that one of its levels is a street. It is reviewed, built and checked with the
+  rest of the game: its enemies are the game's own, made once and used wherever they appear, and the hero is the
+  game's hero. A game that has no hero yet is played by a stand-in, and the studio says so.
 - **Not yet:** an enemy that is a beast is drawn as a plain jointed figure, and the game says so; only a person's
   body stands on the street today. A game that names no enemies of its own still meets the stock crowd, drawn as
-  plain figures on one open screen: that path is kept for testing. The things that lie on a street to pick up or
+  plain figures on one open screen: that path is kept for testing. A street level is for one player today. The things that lie on a street to pick up or
   break are not laid, a game is one street long, and the readouts on screen are still the practice room's. Nobody
   has played these; the studio has checked that each level loads, that the street holds at a stop and brings its
   enemies in, and that winning and losing end the level.

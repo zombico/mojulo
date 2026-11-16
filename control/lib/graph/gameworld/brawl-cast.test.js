@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { brawlPlay, brawlCast, brawlBodies, withBodies, readBrawlWaves, BRAWL_PLAYS, brawlStreet, readStreet, withStreetBodies, STREET } from './brawl-cast.js';
 import { readBelt } from '../brawl/brawl-belt.js';
+import { readLevelStreet, streetFoeIds, streetLevel } from './brawl-cast.js';
+import { readGameworld } from './world.js';
+import { gameStages, stageLevelOrder } from './levels.js';
+import { fieldedIds } from './foes.js';
 import { readWaves } from '../brawl/brawl-crowd.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { CROWD_TYPES } from '../brawl/brawl-crowd.js';
@@ -105,5 +109,51 @@ describe('a brawl\'s street', () => {
     expect(() => readStreet({ stops: [{ wave: { grunt: 1 }, length: 2 }] })).toThrow(/8 to 48 m/);
     expect(() => readStreet({ stops: [{ wave: { grunt: 1 } }], boss: { hp: 5 } })).toThrow(/street\.boss is/);
     expect(() => brawlStreet(G, { stops: [{ wave: { grunt: 1 } }], boss: 'nobody' })).toThrow(/street\.boss: a role/);
+  });
+});
+
+// A STREET AS A LEVEL of a designed game: a level says it is a street, the world's bestiary is its crowd, the game's
+// hero and its made foes its bodies; the run makes it as it makes any level.
+describe('a street as a level of a designed game', () => {
+  const street = { stops: [{ wave: { grunt: 2 } }, { wave: { grunt: 3 } }], boss: 'warlord' };
+  const W = { id: 'row', name: 'Row', mode: 'autonomous', foes: G.foes, levels: { row: { name: 'The Row', street } } };
+
+  it('the level\'s own words sit beside the design: its kit, its lives, its guns', () => {
+    expect(readLevelStreet(street)).toMatchObject({ kit: STREET.kit, lives: STREET.lives, guns: null });
+    expect(readLevelStreet({ ...street, kit: 'gothic-stone', lives: 5, guns: ['spread'] })).toMatchObject({ kit: 'gothic-stone', lives: 5, guns: ['spread'], design: street });
+    expect(() => readLevelStreet({ ...street, kit: 'nowhere' })).toThrow(/street\.kit/);
+    expect(() => readLevelStreet({ ...street, lives: 0 })).toThrow(/street\.lives/);
+  });
+
+  it('the world reads it: the street alone on its level, its stops read against the bestiary', () => {
+    const R = readGameworld(W);
+    expect(R.levels.row.street).toEqual(street);
+    expect(() => readGameworld({ ...W, levels: { row: { street, walk: { nodes: { a: { trail: {} } } } } } })).toThrow(/a street level is the street alone/);
+    expect(() => readGameworld({ ...W, levels: { row: { street: { stops: [{ wave: { nobody: 1 } }] } } } })).toThrow(/levels\.row/);
+    // (its foes are fielded: each one a figure the run makes)
+    expect(streetFoeIds(R)).toEqual(['goon', 'warlord']);
+    expect(fieldedIds(R)).toEqual(expect.arrayContaining(['goon', 'warlord']));
+  });
+
+  it('is one stage, and its level is laid on the game\'s hero and its made foes', () => {
+    const R = readGameworld(W), stages = gameStages(R);
+    expect(stages).toHaveLength(1);
+    expect(stages[0]).toMatchObject({ level: 'row', section: 'street', manifest: { kind: 'stage', game: { produces: { results: ['success', 'fail'] } } } });
+    const L = stageLevelOrder(R, stages[0], { ref: 'gw-level-row-0', heroRef: 'gw-hero', foeRefs: { goon: 'gw-foes-goon', warlord: 'gw-foes-warlord' } });
+    const P = L.args.manifest.brawl.practice;
+    expect(L.args.manifest.game.levelRef).toBe('gw-level-row-0');
+    expect(P.roster).toEqual([{ id: 'hero', hero: { ref: 'gw-hero' } }, { id: 'foe-goon', name: 'goon', hero: { ref: 'gw-foes-goon' } }, { id: 'foe-warlord', name: 'warlord', hero: { ref: 'gw-foes-warlord' } }]);
+    expect(P).toMatchObject({ playable: 1, players: [0], stakes: STREET.lives });
+    expect(P.street.waves.at(-1).boss).toMatchObject({ fighter: 2 });
+    expect(L.laws[0]).toMatchObject({ concern: 'cast', law: 'street', holds: true });
+  });
+
+  it('a world with no hero yet is played by a stand-in, and said; a run & gun by its intent or its guns', () => {
+    const S = streetLevel(G, street, { foeRefs: { goon: 'r1', warlord: 'r2' } });
+    expect(S.manifest.brawl.practice.roster[0]).toEqual({ id: 'hero', archetype: 'all-rounder' });
+    expect(S.laws[0]).toMatchObject({ holds: false, says: expect.stringMatching(/stand-in fighter/) });
+    expect(S.manifest.brawl.practice.range).toBeUndefined();
+    expect(streetLevel({ ...G, intent: { from: 'run-and-gun' } }, street, {}).manifest.brawl.practice.range).toEqual({});
+    expect(streetLevel(G, { ...street, guns: ['spread'] }, {}).manifest.brawl.practice.range).toEqual({ guns: ['spread'] });
   });
 });
