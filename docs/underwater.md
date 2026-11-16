@@ -126,8 +126,9 @@ drawer's, not an animal's: any figure on a loop can ask for it.
 A skin is measured before it is asked (`walkerSkinStretch`: the most the blend stretches one of its own edges over its
 gait, against the body's size; `WALKER_BLEND.holds`). Where a species' own binding sets neighbouring corners on bones
 that part, one skin would show it as a spike, so that animal swims in rigid parts and is named in the readout's
-`rigid` with its measure. That is a defect of the species' binding, to be mended in its family, and the measure is how
-to find it.
+`rigid` with its measure: a defect of its binding, and the measure is how to find it. The measure found one: a loft
+with shaping rings was bound by the wrong names (`fauna/rig.js` `stationsOf`), so each whole ring took the bone of the
+one before it and a shaping ring fell to the part's first bone; mended, every sea animal's skin holds.
 
 They do not mind the walker, each other or the rocks. The exports do not carry them yet.
 

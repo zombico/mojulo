@@ -46,7 +46,7 @@ import { HELD_WALK_SOURCE } from './traffic-model.js';
 // `WALKER_BLEND`: `most` the bones a corner is weighed to (the pack's); `holds` the most a blended skin may stretch one of
 // its own edges, as a share of the body's size, and still be drawn as one skin (walkerSkinStretch): past it the figure's
 // own binding sets neighbouring corners on bones that part, which rigid parts hide as a seam and one skin shows as a spike.
-export const WALKER_BLEND = Object.freeze({ most: 4, holds: 0.06 });
+export const WALKER_BLEND = Object.freeze({ most: 4, holds: 0.08 });
 
 /**
  * A SKIN'S MEASURE: how far the blend stretches the worst of a figure's edges over its `forward` clip, as a share of the

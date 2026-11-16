@@ -34,3 +34,12 @@
   one of a figure's own edges over its gait, against the body's size. A species whose binding sets neighbouring corners
   on bones that part (some sharks and whales, the pufferfish) would show a spike as one skin, so it swims in rigid parts
   and the readout's `rigid` names it with its measure: a defect of its family's binding, found by the measure.
+- **Fixed: a shaped body was bound to the wrong bones** (`fauna/rig.js` `stationsOf`). A loft names its whole stations
+  `st0…` counted apart from its shaping rings, which it names by their address (`st1_st2_50`); the binder counted every
+  ring alike. So on any species whose body has shaping rings (the sharks, the whales, the pufferfish, and land animals
+  too: found by a count over the roster, not a list), each whole ring took the bone of the one before it and each
+  shaping ring, named by nothing, fell to the part's first bone: a ring at the shoulder rode the tail. Rigid parts hid it
+  as a ragged seam and one skin showed it as spikes. The binder now names rings as the loft does; the worst edge stretch
+  of a great white's skin over its gait fell from a quarter of its length to under a hundredth, and every sea animal now
+  holds the blend. A minted animal with motion binds differently from before on those species: its skin weights and the
+  parts its triangles ride change, its shape and its clips do not.
