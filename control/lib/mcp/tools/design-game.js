@@ -1540,7 +1540,8 @@ export function registerDesignGameTools() {
       + 'with `run: true`, makes every ready step through the real doors, keeping what did not move, leaving hand edits '
       + '(`force` overwrites). Answers the stamps, what was made, the advice and the next moves as step ids '
       + '(`readout: \'changed\'` for only what moved). Read '
-      + 'get_game_vocab({ id: \'gameworld-guide\' }) first. `example` makes a reference only when the creator asks; '
+      + 'get_game_vocab({ id: \'gameworld-guide\' }) first. A new game needs only `world: { name }`: it answers what to ask, '
+      + 'nothing stored. `example` makes a reference only when the creator asks; '
       + '`compare` reads one against a made world. `compose: { prompt }`: words to a world. `chapter`: a chapter\'s view.',
     inputSchema: {
       type: 'object',
