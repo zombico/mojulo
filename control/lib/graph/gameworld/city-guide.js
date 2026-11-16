@@ -26,6 +26,8 @@ export const CITY_GUIDE = Object.freeze({
 });
 
 const words = (item) => String(item).replace(/-/g, ' ');
+// a store card's id as the shop people call it: 'gun-store' the gun store, 'pharmacy' the pharmacy, 'apparel' the apparel shop
+const shop = (card) => { const w = words(card); return /(store|shop|pharmacy|diner|market|bakery|cafe|bar)$/.test(w) ? w : `${w} shop`; };
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const at3 = (p) => [r3(p[0]), r3(p[1]), r3(p[2] ?? 0)];
 
@@ -43,12 +45,19 @@ export function cityGuide(manifest) {
   const jobs = mechanics.filter((m) => m && m.kind === 'deliver' && Array.isArray(m.at));
   for (const J of jobs) {
     const first = steps.length;
-    for (const w of J.wants ?? []) {
-      const T = mechanics.find((m) => m && m.kind === 'trade' && m.item === w.item && Array.isArray(m.at));
-      if (T) steps.push({ id: `pick-${T.item}`, say: `Pick up the ${words(T.item)}`, kind: 'find', at: at3(T.at), radius: T.radius ?? 2, says: `${words(T.item)[0].toUpperCase()}${words(T.item).slice(1)} aboard` });
-    }
+    // (what it asks for, each after what it is had for: a price is picked up before the counter it is spent at)
+    const seen = new Set(), had = (item) => {
+      if (seen.has(item)) return;
+      seen.add(item);
+      const T = mechanics.find((m) => m && m.kind === 'trade' && m.item === item && Array.isArray(m.at));
+      if (!T) return;
+      for (const n of T.needs ?? []) had(n.item);
+      // (bought over a counter where it has a price, `needs`; picked up otherwise; `place` the shop it stands at or in)
+      steps.push({ id: `pick-${T.item}`, say: `${T.needs?.length ? 'Buy' : 'Pick up'} the ${words(T.item)}${T.place ? ` ${T.till ? 'in' : 'at'} the ${shop(T.place)}` : ''}`, kind: 'find', at: at3(T.at), radius: T.radius ?? 2, says: `${words(T.item)[0].toUpperCase()}${words(T.item).slice(1)} ${T.needs?.length ? 'bought' : 'aboard'}` });
+    };
+    for (const w of J.wants ?? []) had(w.item);
     const paid = (J.reward ?? []).map((r) => `${r.n ?? 1} ${words(r.item)}`).join(', ');
-    steps.push({ id: `deliver-${J.id ?? 'errand'}`, say: `Deliver the ${(J.wants ?? []).map((w) => words(w.item)).join(', ') || 'goods'}`, kind: 'find', at: at3(J.at), radius: J.radius ?? 2, ...(paid ? { says: `Paid ${paid}` } : {}) });
+    steps.push({ id: `deliver-${J.id ?? 'errand'}`, say: `Deliver the ${(J.wants ?? []).map((w) => words(w.item)).join(', ') || 'goods'}${J.place ? ` to the ${shop(J.place)}` : ''}`, kind: 'find', at: at3(J.at), radius: J.radius ?? 2, ...(paid ? { says: `Paid ${paid}` } : {}) });
     // (the first standing job goes round again from its pick-up)
     if (J.repeat === true && loop === null) loop = first;
   }

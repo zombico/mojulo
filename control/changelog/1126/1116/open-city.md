@@ -25,3 +25,10 @@
   a car, pick up the job, deliver it. A job that repeats sends you round again; with no job it says the city is open.
 - **Your earnings stay on screen.** A repeating job's pay is shown as a running count in the corner, and the key hints
   now mention the car key.
+- **Jobs send you across the district, to its own shops.** In a city-district game with cars, an errand's stops now
+  stand at the district's shops rather than along the starting street, each chosen far from the start and from the
+  others so a job is a drive. A stop you pull up to is at a shop's door; one bought over a counter is at the till
+  inside a shop of that kind, so you park and walk in. The on-screen guide names the place ("Buy the gadget in the
+  electronics shop", "Deliver the gadget to the gun store") and takes a job with a price in its right order.
+- **One-off jobs and repeating jobs share a city.** Where a level has a repeating job, finishing a one-off job pays
+  and the level carries on, so a district can hold a quest or two and a standing job at once.

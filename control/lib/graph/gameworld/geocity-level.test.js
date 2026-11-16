@@ -135,3 +135,36 @@ describe('a car driven in the district (the level\'s own bodies on the runtime, 
     expect(E.colliders.some((c) => within([car.transform.pos[0], car.transform.pos[1], car.transform.pos[2] + 0.7], c))).toBe(false);
   });
 });
+
+describe('jobs across the district (errands on a played district: its shops their places, the level kept open)', () => {
+  const JOBS = { ...WORLD, id: 'jobs', topology: 'interconnected', screen: 'screen', style: { kit: 'trail-valley' },
+    characters: { direction: { tradition: 'western' }, hero: { looks: { body: { cast: 'male' }, underlayer: { type: 'outfit', style: 'streetwear' } }, motion: { vibe: ['bold'] }, actions: { idiom: 'city-stalker-like' } } },
+    errands: [
+      // (a parcel run: paid at one shop, the goods bought over a counter with it, brought to another)
+      { id: 'parcel', giver: 'district', reward: [{ item: 'coin', n: 30 }], list: [{ item: 'fee', at: 'district', count: 1 }, { item: 'gadget', at: 'district', shop: 'electronics', needs: ['fee'] }] },
+      { id: 'fare', giver: 'district', repeat: true, reward: [{ item: 'coin', n: 12 }], list: [{ item: 'passenger', at: 'district' }] },
+    ] };
+  const level = runSteps(JOBS, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest, M = level.game.mechanics;
+  const legs = M.filter((m) => m.kind === 'trade' || m.kind === 'deliver'), d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  it('each stop stands at one of the district\'s shops, named, apart from the start and from each other', () => {
+    expect(E.places.length).toBeGreaterThan(4);
+    expect(legs).toHaveLength(5);
+    for (const l of legs) expect(typeof l.place).toBe('string');
+    const kerb = legs.filter((l) => !l.till);
+    for (const l of kerb) { expect(l.radius).toBe(7); expect(E.places.some((p) => p.at[0] === l.at[0] && p.at[1] === l.at[1] && p.card === l.place)).toBe(true); expect(d(l.at, E.spawn)).toBeGreaterThan(40); }
+    for (let i = 0; i < kerb.length; i++) for (let j = i + 1; j < kerb.length; j++) expect(d(kerb[i].at, kerb[j].at)).toBeGreaterThan(40);
+    // (what is bought over a counter is had inside a shop of its kind, on foot)
+    expect(M.find((m) => m.kind === 'trade' && m.item === 'gadget')).toMatchObject({ place: 'electronics', needs: [{ item: 'fee', n: 1 }] });
+    expect(M.find((m) => m.kind === 'trade' && m.item === 'gadget').till).toBeTruthy();
+  });
+  it('a standing job keeps the level open: the one-off pays and ends nothing; the guide leads through both, then round the fares', async () => {
+    expect(M.find((m) => m.kind === 'deliver' && m.id === 'parcel')).toMatchObject({ open: true });
+    expect(M.find((m) => m.kind === 'deliver' && m.id === 'fare')).toMatchObject({ repeat: true });
+    const { cityGuide } = await import('./city-guide.js'), G = cityGuide(level);
+    expect(G.steps.map((s) => s.id)).toEqual(['car', 'pick-fee', 'pick-gadget', 'deliver-parcel', 'pick-passenger', 'deliver-fare']);
+    expect(G.steps[1].say).toMatch(/^Pick up the fee at the /);
+    expect(G.steps[2].say).toMatch(/^Buy the gadget in the electronics/);
+    expect(G.steps[3].say).toMatch(/^Deliver the gadget to the /);
+    expect(G.loop).toBe(4);
+  });
+});

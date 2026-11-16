@@ -609,6 +609,9 @@ function geocityEnds(manifest) {
   const lots = parkedCars(parked), walk = lots.some((c) => Math.hypot(c.at[0] - spawn[0], c.at[1] - spawn[1]) <= KERB.walk);
   Object.defineProperty(out, 'parked', { value: walk ? lots : [...kerbCars(manifest.seed ?? 1, kerbSpots(route, groundSampler(P.faces ?? [], /^geocity:road$/), P.colliders ?? [], ground, P.flow?.lanes ?? [])), ...lots], enumerable: false });
   Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && a.store?.till).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
+  // (its PLACES: each shop walked into as somewhere a job may send its hero, a stride out from its door on the walk or
+  // the forecourt before it: where a pick-up or a hand-in stands, had from the kerb)
+  Object.defineProperty(out, 'places', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && Array.isArray(a.at) && Array.isArray(a.N) && a.store?.card).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: on([a.at[0] + a.N[0] * 2.4, a.at[1] + a.N[1] * 2.4, a.at[2]]) })), enumerable: false });
   // (what it weighs: its faces, its boxes, its repeats' templates and instances; said by the level's audit and its book)
   Object.defineProperty(out, 'weight', { value: { faces: (P.faces ?? []).length, colliders: (P.colliders ?? []).length, templates: (P.repeats ?? []).reduce((a, r) => a + r.template.length, 0), instances: (P.repeats ?? []).reduce((a, r) => a + r.transforms.length, 0), shops: P.geocity?.stores?.shops ?? 0 }, enumerable: false });
   return out;
@@ -1555,9 +1558,22 @@ function stageWays(stage, ends, plan) {
     // along its streets, from a third of the way to the far end and never side by side, each had from the kerb: a
     // car pulled up beside the walk is in reach)
     const driven = (ends.parked?.length ?? 0) > 0, need = plan.errand.filter((l) => l.kind === 'trade' || l.kind === 'deliver').length;
-    const spots = driven && need > 0 && open.length > need ? Array.from({ length: need }, (_, k) => open[Math.min(open.length - 1, Math.round(open.length * ERRAND_DRIVE.from + ((open.length - 1 - open.length * ERRAND_DRIVE.from) * k) / Math.max(1, need - 1)))]).filter((p, k, arr) => arr.indexOf(p) === k) : open;
-    const laid = layErrand(plan.errand, spots.length >= need ? spots : open, ends.tills ?? []);
-    mechanics.push(...(driven ? laid.map((l) => ((l.kind === 'trade' || l.kind === 'deliver') && !l.till ? { ...l, radius: ERRAND_DRIVE.reach } : l)) : laid));
+    // (its places: the stage's own, ends.places, a district's shops, where it has enough of them: each the one farthest
+    // from the start and from every place already taken, so a job crosses the district; else along its walk, from a
+    // third of the way to its far end)
+    const named = new Map();
+    let spots = open;
+    if (driven && need > 0 && (ends.places?.length ?? 0) >= need) {
+      const taken2 = [ends.spawn], pool = ends.places.slice(), gap = (p) => Math.min(...taken2.map((q) => Math.hypot(p.at[0] - q[0], p.at[1] - q[1])));
+      spots = [];
+      for (let k = 0; k < need; k++) { const best = pool.reduce((m, p) => (gap(p) > gap(m) + 1e-9 ? p : m), pool[0]); pool.splice(pool.indexOf(best), 1); taken2.push(best.at); spots.push(best.at); named.set(best.at, best.card); }
+    } else if (driven && need > 0 && open.length > need) {
+      const along = Array.from({ length: need }, (_, k) => open[Math.min(open.length - 1, Math.round(open.length * ERRAND_DRIVE.from + ((open.length - 1 - open.length * ERRAND_DRIVE.from) * k) / Math.max(1, need - 1)))]).filter((p, k, arr) => arr.indexOf(p) === k);
+      if (along.length >= need) spots = along;
+    }
+    const tills = ends.tills ?? [], laid = layErrand(plan.errand, spots, tills), placeOf = (l) => { const hit = spots.find((p) => named.has(p) && p[0] === l.at?.[0] && p[1] === l.at?.[1]); return l.till ? tills.find((t) => t.id === l.till)?.card : hit ? named.get(hit) : null; };
+    // (each leg says where it is, `place`: the kind of shop it stands at or in, for the page's guide)
+    mechanics.push(...laid.map((l) => { if (l.kind !== 'trade' && l.kind !== 'deliver') return l; const place = placeOf(l); return { ...l, ...(driven && !l.till ? { radius: ERRAND_DRIVE.reach } : {}), ...(place ? { place } : {}) }; }));
   }
   return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })) };
 }

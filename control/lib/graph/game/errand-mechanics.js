@@ -20,7 +20,8 @@
  *                       short of any, a toast says so (`errand:short:<id>`) and nothing is taken. A bounty board is a
  *                       giver that wants proofs.
  *                       { id?, at, wants: [{ item, min? (1) }], reward?: [{ item, n? (1) }], radius?, planar?, repeat? }
- *                       `repeat: true`: a standing job's, which pays each time and ends nothing
+ *                       `repeat: true`: a standing job's, which pays each time and ends nothing; `open: true`: a
+ *                       one-off's in a level a standing job keeps open, which pays and ends nothing either
  *
  * Names (recipe-derived, for a handoff): a trade's zone and marker `trade-<item>`, a deliver's zone `deliver-<id>`.
  * A deliver's audit is the walk to it (what the walk must hold first is the errand's order: gameworld/errand.js).
@@ -142,13 +143,13 @@ export function lowerDeliver(p, ctx) {
   frag.reactions.push({ on: ok, do: 'emit', type: done });
   // (a standing job's pay is kept in view: what it has earned, counted up)
   if (p.repeat === true) for (const r of reward) frag.hud.push({ var: heldVar(BAG, r.item), label: itemKey(r.item).replace(/-/g, ' '), as: 'counter', slot: 'top-right' });
-  if (p.repeat === true) frag.hud.push({ on: done, as: 'toast', text: reward.length ? `paid ${reward.map((r) => `${r.n ?? 1} ${itemKey(r.item).replace(/-/g, ' ')}`).join(', ')}` : 'done', ttl: 1.8 });
+  if (p.repeat === true || p.open === true) frag.hud.push({ on: done, as: 'toast', text: reward.length ? `paid ${reward.map((r) => `${r.n ?? 1} ${itemKey(r.item).replace(/-/g, ' ')}`).join(', ')}` : 'done', ttl: 1.8 });
   frag.hud.push({ on: short, as: 'toast', text: `bring ${wants.map((w) => `${w.min ?? 1} ${itemKey(w.item).replace(/-/g, ' ')}`).join(', ')}`, ttl: 1.8 });
   const shape = Array.isArray(p.half) ? { half: p.half } : { radius: Number.isFinite(p.radius) ? p.radius : 2 };
   return {
     world: { ...frag, sources: [{ type: 'zone', zone, at: p.at.slice(), ...shape, planar: p.planar !== false, watch: ctx.player }] },
     // (a standing job, `repeat`: paid and done again, the level never ended by it)
-    ...(p.repeat === true ? {} : { on: { [done]: { end: 'success' } } }),
+    ...(p.repeat === true || p.open === true ? {} : { on: { [done]: { end: 'success' } } }),
     produces: [{ type: 'consume', slice: BAG }, ...(reward.length ? [{ type: 'grant', slice: BAG }] : [])],
     audit: { kind: 'walkto', target: p.at.slice() },
   };

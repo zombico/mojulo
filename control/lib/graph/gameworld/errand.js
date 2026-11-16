@@ -168,6 +168,8 @@ function errandLaws(E, G) {
 export function errandLegs(errands, level) {
   if (!errands?.length) return [];
   const legs = [];
+  // (a level with a standing job is OPEN: no job done in it ends it, a one-off's hand-in pays and the level goes on)
+  const open = errands.some((E) => E.repeat && E.giver === level);
   for (const E of errands) {
     const count = (item) => E.list.find((x) => x.item === item).count;
     for (const N of E.list) {
@@ -176,7 +178,7 @@ export function errandLegs(errands, level) {
         ? { kind: 'bounty', item: N.item, who: `foe-${N.from.foe}-*`, n: N.count }
         : { kind: 'trade', item: N.item, count: N.count, ...(N.needs.length ? { needs: N.needs.map((n) => ({ item: n, n: count(n) })) } : {}), ...(N.shop ? { shop: N.shop } : {}) });
     }
-    if (E.giver === level) legs.push({ kind: 'deliver', id: E.id, wants: E.roots.map((r) => ({ item: r, min: E.list.find((x) => x.item === r).min })), ...(E.reward.length ? { reward: E.reward } : {}), ...(E.repeat ? { repeat: true } : {}) });
+    if (E.giver === level) legs.push({ kind: 'deliver', id: E.id, wants: E.roots.map((r) => ({ item: r, min: E.list.find((x) => x.item === r).min })), ...(E.reward.length ? { reward: E.reward } : {}), ...(E.repeat ? { repeat: true } : open ? { open: true } : {}) });
   }
   for (const E of errands) for (const N of E.list) if (N.cargo) legs.push({ kind: 'cargo', item: N.item, ...N.cargo, max: N.count });
   return legs;
