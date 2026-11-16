@@ -77,6 +77,7 @@ import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { readCone } from '@/lib/graph/scene/channels/view-cone';
 import { readAtmosphere, atmosphereInput, roomAirColour } from '@/lib/graph/scene/channels/atmosphere';
+import { readSea, seaInput } from '@/lib/graph/scene/channels/sea';
 import { readClouds, CLOUDS_OF_WEATHER } from '@/lib/graph/matte-paint/sky';
 import { wantsSunShare, readOcclusion, liveLightDefaults } from '@/lib/graph/scene/live-light';
 import { readEra, ERAS } from '@/lib/graph/era/eras';
@@ -1028,6 +1029,20 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       // (the recipe's own colour wins: a neon night's air the glow of its lights)
       const room = payload.form?.room, colour = A.colour ?? (room && Array.isArray(room.ambient) ? roomAirColour(room) : null);
       payload.air = atmosphereInput(A, { base: spawn && Number.isFinite(spawn[2]) ? spawn[2] : 0, sun: inside ? null : sun, unit: payload.metersPerUnit || 1, colour });
+    }
+  }
+  // THE SEA a gen-7 geocube page is seen through (channels/sea.js): the recipe's `sea`, its land (or its flooded hall, room
+  // or cavern) put under water by light alone: the sun's light at a depth colour by colour, the water along the view,
+  // caustics, shafts, the surface from below, lamps and snow. Read on any geocube read (a bad word refuses there too);
+  // drawn on a gen-7 page alone. Under the sea there is no air: the two are not asked together
+  if (payload && sketch.manifest.kind === 'geocube' && sketch.manifest.sea !== undefined) {
+    const inside = !!payload.form?.room || (payload.anchors || []).some((a) => a && a.kind === 'cavern');
+    const S = readSea(sketch.manifest.sea, { inside });
+    if (S && sketch.manifest.air !== undefined && sketch.manifest.air !== null && sketch.manifest.air !== false) throw new Error('sea and air are not asked together: under the sea there is no air (how far the water is seen through is sea.visibility)');
+    if (S && !unshaded && viewOpts.paint !== true && ERAS[era]?.surface === 'form') {
+      const spawn = Array.isArray(payload.walk?.spawn) ? payload.walk.spawn : null, sun = payload.sky && !payload.sky.space && Array.isArray(payload.sky.sun?.dir) ? payload.sky.sun.dir : null;
+      // (the depth is the water over the walk's ground: the spawn stands an eye's height over it)
+      payload.sea = seaInput(S, { base: spawn && Number.isFinite(spawn[2]) ? spawn[2] - (Number.isFinite(payload.walk.minEye) ? payload.walk.minEye : 0) : 0, sun: inside ? null : sun, unit: payload.metersPerUnit || 1 });
     }
   }
   // (where the plants stand is the form render's read alone: never on a page)
