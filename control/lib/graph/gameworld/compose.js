@@ -163,7 +163,7 @@ export const BIOMES = Object.freeze({
   desert: Object.freeze({ biocube: 'desert', palette: 'desert-haze', skin: 'sandstone' }),
   // (a seabed: the desert's ground and palette, its flora the bed's own, era/biocube.js `seabed`; no grass grows on it, so
   // the ground a land paints as grass is sand too: its grass and foliage roles locked to the bed's sand and weed)
-  seabed: Object.freeze({ biocube: 'seabed', palette: 'desert-haze', skin: 'sandstone', colour: Object.freeze({ grass: '#cbbd98', foliage: '#6f8a4a' }) }),
+  seabed: Object.freeze({ biocube: Object.freeze({ from: 'seabed', fauna: Object.freeze({ sea: true }) }), palette: 'desert-haze', skin: 'sandstone', colour: Object.freeze({ grass: '#cbbd98', foliage: '#6f8a4a' }) }),
 });
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** What a world map grows where its cube names no flora: the meadow kit's own card flora (era/biocube.js). */

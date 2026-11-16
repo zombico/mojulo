@@ -92,6 +92,34 @@ sceneOfWords('an underwater coral reef')        // the seabed biome, low dunes, 
 
 It casts and takes no shadow, and the exports do not carry it yet.
 
+## Who lives there
+
+Code: [control/lib/graph/marine/fauna.js](../control/lib/graph/marine/fauna.js) (the rows, the search, the call, the
+loops), [control/lib/graph/worlds/marine-fauna.js](../control/lib/graph/worlds/marine-fauna.js) (the figures). From
+`control/`: `node scripts/marine.mjs search|cast|list`.
+
+A biocube's `fauna.sea` calls the encyclopedia's own sea animals into the water. No animal is modelled here: a row of
+`MARINE_FAUNA` names a species `fauna/` or `bugs/` already builds and says how it lives in a sea.
+
+```js
+biocube: { from: 'seabed', fauna: { sea: true } }                         // who the flora's mix calls
+biocube: { from: 'seabed', fauna: { sea: 'sharks and rays' } }            // by words
+biocube: { from: 'seabed', fauna: { sea: { cast: { seaTurtle: 2, tuna: null }, find: 'a crab', density: 1.5 } } }
+```
+
+- **A habit is a path's rule** (`MARINE_HABITS`): over an anemone, round a rock, on the bed, lurking, a school, a cruiser.
+  Each animal swims a closed loop of its own on the page's walkers channel.
+- **The call keeps its laws** (`MARINE_CALL`): depth, room, habitat, salt and the pyramid. What a law leaves out is named
+  with its reason in the readout's `left`; who else lives there is in `offered`. Nothing is refused.
+- **Asking**: a name asks for that animal (a count keeps its number, `null` never calls it); words that only describe
+  (a family, a habit) are preferred where they fit.
+- **Searching**: `searchMarine(words, { depth, what })` finds flora and fauna alike by the words people say and says of
+  each whether it fits the depth. A new animal is callable the day its row lands; a new sea animal in the encyclopedia
+  with no row is not called.
+
+The animals are drawn as the walkers channel draws any rig, in rigid parts: a long body shows its joints, and a coat
+of layers can shimmer. They do not mind the walker, each other or the rocks. The exports do not carry them yet.
+
 ## Limits
 
 - Lamps are literals in every material: `SEA.lamps.most` a page.

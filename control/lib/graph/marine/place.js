@@ -7,7 +7,8 @@
  *                                plane) and the cells its trail runs on → { z(x, y) | null, cells, trail }
  *   placeMarine(comp, grid, o)   a composition (marine/roster.js readMarine) laid along the trail, by the seed →
  *                                { groups: [{ kind, grow, seed, h, w, n, sway, base, tip, items: [x, y, z, yaw, scale,
- *                                leanX, leanY, …] }], count, tris, readout }
+ *                                leanX, leanY, …] }], sites: { rocks, anemones, trail } (where the sea's animals find
+ *                                their seats: marine/fauna.js), count, tris, readout }
  *
  * The rules of the lay (MARINE_LAY): nothing on the trail or within its clear; patches kept apart so sand shows between
  * them; on a rock the tall things stand back from its rim and a fan faces out of it; a drift is wholly one kind; a kind
@@ -91,7 +92,7 @@ export function placeMarine(comp, grid, { seed = 1 } = {}) {
       const R0 = (K.w[0] + K.w[1]) / 4, H0 = (K.h[0] + K.h[1]) / 2, R = R0 * rock.s, vs = variantSeed('bommie', rock.v), cy = Math.cos(rock.yaw), sy = Math.sin(rock.yaw);
       // (the rock's height at a point of the bed: the kernel's own function, in the rock's turned and scaled frame)
       const top = (x, y) => { const dx = x - rock.x, dy = y - rock.y; return rock.s * rockZ(vs, R0, H0, (dx * cy + dy * sy) / rock.s, (-dx * sy + dy * cy) / rock.s); };
-      rocks.push({ x: rock.x, y: rock.y, R });
+      rocks.push({ x: rock.x, y: rock.y, z: rock.z, R, H: H0 * rock.s });
       if (hasOn) {
         const n = Math.min(L.on.most, Math.round(L.on.base + R * R * L.on.perArea)), mine = [];
         for (let j = 0, tries = 0; mine.length < n && tries < n * 6; j++, tries++) {
@@ -152,7 +153,9 @@ export function placeMarine(comp, grid, { seed = 1 } = {}) {
     counts[it.kind] = (counts[it.kind] || 0) + 1;
   }
   const list = [...groups.values()].sort((a, b) => (a.kind + a.seed + a.base.join()).localeCompare(b.kind + b.seed + b.base.join()));
-  return { groups: list, count: kept.length, tris: kept.reduce((a, it) => a + cost(it), 0),
+  // (where the animals' habits find their seats, marine/fauna.js: the rocks, and the anemones that were kept)
+  const sites = { rocks, anemones: kept.filter((it) => it.kind === 'anemone').map((it) => [r3(it.x), r3(it.y), r3(it.z + 0.3 * it.s)]), trail: trail.map((t) => [t[0], t[1], t[2]]) };
+  return { groups: list, sites, count: kept.length, tris: kept.reduce((a, it) => a + cost(it), 0),
     readout: { mix: comp.mix, reads: comp.reads, depth: comp.depth, ground: area, patches: centres.length, rocks: rocks.length, kinds: counts, ...(share < 1 ? { thinned: r3(share) } : {}), ...(comp.left.length ? { left: comp.left } : {}) } };
 }
 

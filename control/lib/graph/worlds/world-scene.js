@@ -81,6 +81,8 @@ import { readSea, seaInput } from '@/lib/graph/scene/channels/sea';
 import { readMarine } from '@/lib/graph/marine/roster';
 import { seabedGrid, placeMarine } from '@/lib/graph/marine/place';
 import { marineInput } from '@/lib/graph/scene/channels/marine';
+import { castMarine, placeMarineFauna } from '@/lib/graph/marine/fauna';
+import { marineLength, marineFigure, lowerMarineFauna } from '@/lib/graph/worlds/marine-fauna';
 import { readClouds, CLOUDS_OF_WEATHER } from '@/lib/graph/matte-paint/sky';
 import { wantsSunShare, readOcclusion, liveLightDefaults } from '@/lib/graph/scene/live-light';
 import { readEra, ERAS } from '@/lib/graph/era/eras';
@@ -1053,15 +1055,32 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // stands and in drifts, by the sea's zone and depth where the recipe has a sea. Read on any geocube read; drawn on a
   // gen-7 page alone
   if (payload && sketch.manifest.kind === 'geocube') {
-    const bio = sketch.manifest.biocube ?? readGeocube(sketch.manifest.cube).biocube, ask = bio ? readBiocube(bio).flora?.marine : null;
+    const bio = sketch.manifest.biocube ?? readGeocube(sketch.manifest.cube).biocube, B0 = bio ? readBiocube(bio) : null, ask = B0?.flora?.marine ?? null, seaAsk = B0?.fauna?.sea ?? null;
+    let laid = null, comp0 = null, marineSaid = null;
     if (ask) {
       const S = sketch.manifest.sea !== undefined ? readSea(sketch.manifest.sea) : null, comp = readMarine(ask, { zone: S?.zone ?? null, depth: S?.depth ?? null });
       if (comp && !unshaded && viewOpts.paint !== true && ERAS[era]?.surface === 'form') {
         const placed = placeMarine(comp, seabedGrid(payload.faces), { seed: sketch.manifest.seed ?? 1 });
         const input = marineInput(placed, { sun: payload.sky && !payload.sky.space && Array.isArray(payload.sky.sun?.dir) ? payload.sky.sun.dir : null, light: payload.form?.land?.light ?? null });
-        if (input) { payload.marine = input; payload.marineReadout = placed.readout; }
+        if (input) { payload.marine = input; marineSaid = placed.readout; }
+        laid = placed; comp0 = comp;
       }
     }
+    // WHO LIVES THERE (marine/fauna.js, worlds/marine-fauna.js): the biocube's `fauna.sea`, the encyclopedia's sea animals
+    // called by the laws of the call (depth, room, habitat, the pyramid) for the flora's mix and the sea's depth, each
+    // on a loop by its habit round the seats the flora laid (its rocks, its anemones); drawn by the walkers channel
+    if (seaAsk && sketch.manifest.sea !== undefined && !unshaded && viewOpts.paint !== true && ERAS[era]?.surface === 'form') {
+      const S = readSea(sketch.manifest.sea), grid = seabedGrid(payload.faces), sites = laid?.sites ?? { rocks: [], anemones: [], trail: [...grid.trail].map((k) => grid.cells.get(k)).filter(Boolean) };
+      const called = castMarine(seaAsk, { mix: comp0?.mix ?? null, depth: S.depth, has: { rock: sites.rocks.length, anemone: sites.anemones.length }, lengthOf: marineLength, seed: sketch.manifest.seed ?? 1 });
+      const spawn = Array.isArray(payload.walk?.spawn) ? payload.walk.spawn : null, base = spawn ? spawn[2] - (Number.isFinite(payload.walk.minEye) ? payload.walk.minEye : 0) : 0;
+      // (each called animal's rig, built once a species and kept: its bones are what the page poses a frame, the budget's measure)
+      const rigs = {}; for (const c of called.cast) rigs[c.species] = await marineFigure(c);
+      const placed = placeMarineFauna(called.cast, { z: grid.z, ...sites, surface: base + S.depth / (payload.metersPerUnit || 1), seed: seaAsk.seed ?? sketch.manifest.seed ?? 1, bonesOf: (sp) => rigs[sp].bones.length });
+      await lowerMarineFauna(payload, placed);
+      marineSaid = { ...(marineSaid ?? {}), fauna: { cast: called.cast.map(({ species, lives, count }) => ({ species, lives, count })), ...placed.readout, ...(called.left.length ? { left: called.left } : {}), ...(called.offered.length ? { offered: called.offered } : {}) } };
+    }
+    // (said in the geocube's own readout, where the agent reads what was laid, what was left out and why, and who else lives there)
+    if (marineSaid && payload.geocube) payload.geocube = { ...payload.geocube, marine: marineSaid };
   }
   // (where the plants stand is the form render's read alone: never on a page)
   if (payload && payload.plants) delete payload.plants;

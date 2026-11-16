@@ -171,7 +171,7 @@ describe('the seabed, composed', () => {
   it('a scene\'s words put it under the sea: the bed\'s biome, its dunes, the water by the word\'s depth', () => {
     const S = sceneOfWords('an underwater reef');
     expect(S.sea).toBe('reef');
-    expect(S.cube).toMatchObject({ biocube: 'seabed', outside: { cliff: false, dunes: { supply: 1 } }, colour: { grass: expect.any(String) } });
+    expect(S.cube).toMatchObject({ biocube: { from: 'seabed' }, outside: { cliff: false, dunes: { supply: 1 } }, colour: { grass: expect.any(String) } });
     expect(sceneOfWords('the abyss').sea).toBe('midnight');
     expect(sceneOfWords('a grassy field').sea).toBeUndefined();
   });

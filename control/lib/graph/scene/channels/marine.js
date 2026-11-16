@@ -26,6 +26,7 @@ const r4 = (x) => Math.round(x * 1e4) / 1e4;
 export function marineInput(placed, { sun = null, light = null } = {}) {
   if (!placed || !placed.count) return null;
   const n = sun && sun.length === 3 ? Math.hypot(...sun) : 0;
+  // (the page's alone: where the animals' seats are stays with the placer)
   return { groups: placed.groups.map((g) => ({ ...g, blade: MARINE_BLADES.includes(g.grow) })), count: placed.count,
     light: { dir: (n > 0 && sun[2] > 0 ? sun.map((c) => c / n) : DEFAULT_LIGHT.dir).map(r4), sun: (light?.sun ?? DEFAULT_LIGHT.sun).map(r4), ambient: (light?.ambient ?? DEFAULT_LIGHT.ambient).map(r4) } };
 }

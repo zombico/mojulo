@@ -404,6 +404,7 @@ Pointers only; each target carries its own design notes.
   says what the read stands on; lamps where the sun does not reach) and what grows on the bed,
   [marine/](control/lib/graph/marine/) (a biocube's `flora.marine`: primitives in one kernel the page inlines, a roster by
   depth, mixes, a lay made as an aquarium is; the `seabed` biocube and biome; a new thing is a row, a new composition a
-  mix): [docs/underwater.md](docs/underwater.md).
+  mix) and who lives there (`marine/fauna.js`, a biocube's `fauna.sea`: the encyclopedia's sea animals called by depth,
+  room, habitat and a pyramid, searched by `searchMarine` and `scripts/marine.mjs`, swum on loops by the walkers channel): [docs/underwater.md](docs/underwater.md).
 - Rendering docs: [docs/scene-css3d-lighting.md](docs/scene-css3d-lighting.md),
   [docs/raymarch-effects-layer.md](docs/raymarch-effects-layer.md), [docs/local-blender-worker.md](docs/local-blender-worker.md).
