@@ -800,6 +800,21 @@ const QUICK_LEVERS = {
     '  seen from overhead and worked by a mascot unless camera or hero says otherwise (hero: false: first person); the work shown in pips',
     '  its work room: bible?book=practice&room=work (&cast=orb|sprout|toon&feel=<template>): the recipe on the floor, a mascot and a movement from the presets'],
   battle: () => [`  foes: n (3), foe: ${HERO_WORDS}`],
+  brawl: () => [
+    '  players: 1..4 on one screen   lives: 1..9, the falls they may take between them (3)   register: the game\'s one look',
+    '  waves: [{ name?, crowd: [{ type, n, hp? }], formation?, pattern?, entrance?, cover?, ambush?, after? }] (1..20; absent, four:',
+    '    the street\'s own, then knives, runners and leapers, then a big one). A crowd type is its fighter (thug, knife, charger,',
+    '    jumper, heavy; sword, spear, axe, staff armed). One wave at a time; the last cleared wins the level.',
+    '  armed: true   every hero carries its own weapon the whole game (a blade\'s reach and its clash)',
+    '  The street is one open screen; a blow lands only lined up across it. The gated street and its boss are not laid yet.',
+  ],
+  rungun: () => [
+    '  players: 1..4 on one screen   lives: 1..9 (3)   register: the game\'s one look',
+    '  guns: [<name> | { from, …dials }] (1..6, the first held over the sidearm; absent machine-gun, spread, flame, rocket)',
+    '  waves: as a brawl\'s (absent, four of the range\'s: a wall of rifles, a pincer, down the stairs, suppressed); its shooters',
+    '    (rifleman, gunner, grenadier, bazooka) fire on a warning, to the wave\'s pattern (volley, sweep, pincer, alternate).',
+    '  The same street as a brawl; what differs is the hitting: rounds fly and are stepped off or rolled through, a grenade lobs.',
+  ],
   fight: () => [
     '  roster (1..12): every fighter a CHARACTER. A sheet (egocube card) the run',
     '    makes into one: an archetype word, a brief in words, or { brief?, facets?, seed?, archetype?, role?, build?, age?,',

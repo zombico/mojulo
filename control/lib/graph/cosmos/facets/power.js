@@ -60,7 +60,7 @@ export const POWER = Object.freeze({
         // fight's frame data: the same frame, damage and recovery), the crowd's mind (two close in, one swings at a time),
         // waves, the clinch and its throws, the street's things, a boss; built as its own sim and its practice yard, reached
         // from a greybox's `brawl` block, not yet from design_game
-        brawl: { status: 'local', effort: 'M', pkg: 'brawler', requires: ['space.levelForm=belt'], lowers: 'lib/graph/brawl/brawl-core.js', note: 'a beat-em-up down a belt (brawl-core.js, brawl-crowd.js, brawl-moves.js): many bodies, the crowd taking turns, waves held at gates, the clinch and its throws, the street\'s things, a boss; its practice yard (brawl-practice.js) and readouts in mana-ui; reached from a greybox\'s brawl block and the spikes, not yet from a gameworld' },
+        brawl: { status: 'partial', effort: 'M', pkg: 'brawler', requires: ['space.levelForm=belt'], lowers: 'lib/graph/brawl/brawl-core.js', note: 'a quick game\'s `brawl` goal (gameworld/quick.js brawlArenas) lays it on one open screen of a stage street: the crowd in waves, one at a time, the clinch and its throws, one to four players, won at the last wave, lost at the last fall allowed; the gated belt, its things and its boss are still the sim\'s alone. a beat-em-up down a belt (brawl-core.js, brawl-crowd.js, brawl-moves.js): many bodies, the crowd taking turns, waves held at gates, the clinch and its throws, the street\'s things, a boss; its practice yard (brawl-practice.js) and readouts in mana-ui; reached from a greybox\'s brawl block and the spikes, not yet from a gameworld' },
         // local 11-08 (1108-realism-combat-tester): a big gun on a mount (worlds/controllable/turret.js), aimed by hand on any
         // base, its rounds' flight and drag (ordnance.js) and what they do to matter (terminal.js: a hole, a breach, a
         // spall, a crater); played on the artillery range, not yet from a gameworld
@@ -123,7 +123,7 @@ export const POWER = Object.freeze({
         // step off (never a hitscan), lobs and bursts, a stream that cannot pin a body, poise; the gunner's buttons (eight
         // aims, plant, roll, a grenade), the shooting crowd firing on a warning, entrances, cover and riders; its practice
         // the range and its wave tester (brawl-practice.js, brawl-waves.js); waits on the brawler's door
-        arcade: { status: 'local', effort: 'M', pkg: 'brawler', requires: ['power.combat=brawl'], lowers: 'lib/graph/brawl/brawl-guns.js', note: 'the run & gun\'s guns on the belt (brawl-guns.js, brawl-gunner.js): rounds that fly and are stepped off, lobs and bursts, poise, eight aims, a roll, the shooting crowd on its warning; its range and wave tester (brawl-practice.js, brawl-waves.js)' },
+        arcade: { status: 'partial', effort: 'M', pkg: 'brawler', requires: ['power.combat=brawl'], lowers: 'lib/graph/brawl/brawl-guns.js', note: 'a quick game\'s `rungun` goal (gameworld/quick.js brawlArenas) lays it on one open screen of a stage street: the guns passed in, the shooting crowd in waves to its patterns, won at the last wave; the gated belt is still the sim\'s alone. the run & gun\'s guns on the belt (brawl-guns.js, brawl-gunner.js): rounds that fly and are stepped off, lobs and bursts, poise, eight aims, a roll, the shooting crowd on its warning; its range and wave tester (brawl-practice.js, brawl-waves.js)' },
       },
     },
     beams: { multi: true, source: { module: 'lib/graph/playscape/elements/beams.js', table: 'BEAMS' } },

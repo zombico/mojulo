@@ -89,6 +89,7 @@ export const BRAWL_ARMED_ROSTER = Object.freeze(BRAWL_ROSTER.map((r) => {
  * characterBodies: { <ref>: its body, played with its clips }) draws each character in its own body; one with none is
  * drawn as the fight's stick figure.
  */
+const readStakes = (v) => { if (!(Number.isInteger(v) && v >= 1 && v <= 9)) throw new Error('brawl: practice.stakes is the falls the players may take, 1 to 9'); return v; };
 export function brawlYardData(block, bodies = null) {
   const P = block.practice ?? {};
   const Y = yardOf();
@@ -111,6 +112,8 @@ export function brawlYardData(block, bodies = null) {
     belt: block.belt, register: block.register ?? null, ...(block.armed ? { armed: true } : {}), ...(block.sun ? { sun: block.sun } : {}),
     roster, players, dummies,
     things: P.things ?? [], health: P.health ?? 'chains',
+    // (a GAME on the room, brawl-practice.js `stakes`: the falls its players may take; the page ends the level with it)
+    ...(P.stakes !== undefined ? { stakes: readStakes(P.stakes) } : {}),
     // (the brawler yard's own wave tester, read here so a fault is said before the page)
     ...(P.waves && !P.range ? { waves: readRangeWaves(P.waves), loop: P.loop !== false } : {}),
     // (THE RANGE, the run & gun's: the guns passed in to be tried, read here so a fault is said before the page)
