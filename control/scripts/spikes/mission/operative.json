@@ -1,0 +1,57 @@
+{
+ "cast": "male",
+ "form": "realistic",
+ "physique": "athletic",
+ "hair": "curtains",
+ "headgear": "bandana",
+ "outfit": {
+  "type": "outfit",
+  "style": "security",
+  "language": {
+   "bottom": {
+    "family": "woven",
+    "leg": "long",
+    "cut": "straight",
+    "into": "boots",
+    "pockets": "cargo"
+   }
+  },
+  "pieces": [
+   {
+    "kind": "vest",
+    "cut": "plate"
+   },
+   {
+    "kind": "kneepads"
+   },
+   {
+    "kind": "elbowpads"
+   },
+   {
+    "kind": "thighPouch"
+   }
+  ]
+ },
+ "palette": {
+  "OutfitTrim": "#1d2022",
+  "Top": "#1b1e21",
+  "Bottom": "#3a3f3b",
+  "OutfitSecond": "#2a2f2a",
+  "Leather": "#141414",
+  "Buckle": "#4a4a46",
+  "Shoes": "#111111",
+  "Helmet": "#3d4a40",
+  "Hair": "#5b3d26",
+  "HairHighlight": "#7a5536"
+ },
+ "face": {
+  "seed": 9001,
+  "ethnicity": "western",
+  "age": 34,
+  "want": {
+   "chin": "strong",
+   "nose": "classical",
+   "eyes": "almond"
+  }
+ }
+}
