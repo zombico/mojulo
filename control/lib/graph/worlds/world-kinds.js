@@ -59,7 +59,7 @@ import { studioSceneFromFaces, WORKBENCH_LIGHT } from '@/lib/graph/worlds/workbe
 import { withBands, resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { layeredFaces, layeredSeat } from '@/lib/graph/polygonizer/station-loft-faces';
 import { resolveCharacterLight, layeredShadingNormals, characterLitPieces, characterLitFaces, characterInk, piecesAt, STUDIO_SMOOTH_CREASE } from '@/lib/graph/polygonizer/station-loft-shade';
-import { standPose, showcaseStand, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds, STRUCTURED_SWING_BASE } from '@/lib/graph/polygonizer/hero-gesture';
+import { standPose, showcaseStand, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds, clothClipSeconds, STRUCTURED_SWING_BASE } from '@/lib/graph/polygonizer/hero-gesture';
 import { locomotionClips } from '@/lib/graph/polygonizer/hero-motion';
 import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layeredClip, plantedFoot } from '@/lib/graph/polygonizer/station-loft-rig';
 import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming, swingClass, HELD_SWINGS, MOVE_SWINGS, HELD_STRIKE, swingClipKeys, fitSwing } from '@/lib/graph/polygonizer/hero-swing';
@@ -89,6 +89,7 @@ import { perform } from '@/lib/graph/face-acting/perform';
 import { animePerformanceTrack } from '@/lib/graph/face-acting/anime-read';
 import { animeFormed } from '@/lib/graph/polygonizer/anime-looks';
 import { formBodied } from '@/lib/graph/polygonizer/hero-form';
+import { clothFlows, heroClothRig, bakeClothClips } from '@/lib/graph/polygonizer/hero-cloth';
 import { emoteTake, emoteClips } from '@/lib/graph/face-acting/emotes';
 import { actClipOn } from '@/lib/graph/actor/act';
 // a scene's takes on the page (ctx.takes): the body's keys a second, the face's frames a second (a take runs a scene's
@@ -941,7 +942,7 @@ export const WORLD_KINDS = {
         // interpolated at the split), and with the character ink the preview inks its moving parts and hides the
         // static outline with the static solid (`preview.ink`, the rig-preview channel).
         // Standing, the static solid IS the stand (skinned exactly), so the preview opens on it (`solid: 'stand'`) and
-        // leaves the one-key clip out of its picker (played by rigidly moved parts it would only crack at the joints);
+        // leaves the one-key clip out of its picker (the stand is the solid itself; played, it would only repeat it);
         // the clip stays in the pack for the skinned and engine exports.
         const rim = Array.isArray(m.rim) && m.rim.length === 5 && m.rim.every(Number.isFinite) ? m.rim : figLight !== light ? figLight.rim : null;
         // THE FACE (anime-face-rig.js), only when the export asks (ctx.face: the skinned GLB): the
@@ -1056,8 +1057,17 @@ export const WORLD_KINDS = {
         // RIDING (ctx.ride: a world with a mount, worlds/mount-units.js): the hero's riding clips, solved on this rig to the
         // horse's saddle, irons and bit (mount/game.js), each its pose words by key, lowered by this pack's lift. Absent ⇒ as before
         // (an iron a little past a short leg's reach is clamped to it, as the solve did: the rig's handle says so)
-        const packR = typeof ctx.ride === 'function' ? { ...R, reach: 'clamp' } : R;
-        if (packR !== R) clipsIn = { ...clipsIn, ...ctx.ride(R, dz) };
+        // THE CLOTH (hero-cloth.js, a hero minted under the hero laws 23): its loose pieces (a cloak, a robe's skirt, a
+        // card's panels) hung on strings, bones appended after the body's, and every clip's swing baked into their keys, so
+        // the page and the skinned GLB play it as bones. A row minted before, or nothing that flows ⇒ the rig, the skin and
+        // the clips as they were, byte for byte
+        const cloth = m.hero && clothFlows(m.hero) ? heroClothRig(mesh, m.recipe, m.hero, m.plan) : null;
+        const packR = typeof ctx.ride === 'function' ? { ...(cloth ? cloth.R : R), reach: 'clamp' } : cloth ? cloth.R : R;
+        if (typeof ctx.ride === 'function') clipsIn = { ...clipsIn, ...ctx.ride(R, dz) };
+        // (a hero whose cloth flows plays every clip over ONE duration on the page and in an export, the one its cloth's
+        // swing is baked at: hero-gesture.js clothClipSeconds. Before, a clip with none played three seconds on the page
+        // and one in the GLB, its swing baked for the page's)
+        if (cloth) seconds = clothClipSeconds(m.hero, clipsIn, seconds);
         // (the painted face's texture rides the pack: with its drawings for an export, its authored face alone for the page)
         // (the coated locks' and the xeno appliances' coat rides it too: alone where nothing else does (the landmark head, an
         // anime head unpainted), stacked under the painted face's or the realistic skin's atlas (hair-coat.js stackPaints); on the page
@@ -1127,7 +1137,8 @@ export const WORLD_KINDS = {
         // THE COVER (beast/cover.js): a beast-kin's fur, scales, chitin or feathers as a tiling material over its coat, on
         // the same lit, skinned export (its tile's UVs, each corner's tangent; the GLB's maps). Any other figure: none
         const coverKind = engineLit && ctx.face && !paintPack ? beastCoverStyleOf(m.hero) : null, cover = coverKind ? coverMap(mesh, m.recipe, engineLit, coverKind, beastCoatOf(m.hero)) : null;
-        const pack = packLayeredRig(mesh, skin, packR, { clips: clipsIn, ...(acts ? { acts } : {}), ...(correctives ? { correctives } : {}), ...(engineLit ? { engineLit: true } : {}), ...(relief ? { relief } : {}), ...(cover ? { cover } : {}), keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : engineLit ? { normals: engineLit } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
+        const clothClips = cloth ? bakeClothClips(cloth, clipsIn, R, { seconds, speeds }) : clipsIn, clothActs = cloth && acts ? bakeClothClips(cloth, acts, R) : acts;
+        const pack = packLayeredRig(mesh, cloth ? cloth.skin : skin, packR, { clips: clothClips, ...(clothActs ? { acts: clothActs } : {}), ...(correctives ? { correctives } : {}), ...(engineLit ? { engineLit: true } : {}), ...(relief ? { relief } : {}), ...(cover ? { cover } : {}), keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : engineLit ? { normals: engineLit } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
         // (the page's face rows as 16-bit steps of each part's own scale, about a micron: an export keeps its floats)
         // (and said once and only where they move: a corner's row shared with its vertex's others, a target's column its own
         // rows alone, figures/morph-sparse.js; exact, the same steps)

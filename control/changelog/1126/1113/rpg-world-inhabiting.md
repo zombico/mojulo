@@ -197,7 +197,126 @@ blows, drawn in the game's style, and said so in its books. Machine gate through
     ordered a game with its flow (its own, the story's cinematics placed in the default, now the start in play) and the
     door made the game without it, so a made game always played the default. The flow and the front go with the
     game, made or remade; `create_game` carries a `flow` it is handed (unlisted: the flow is the gameworld's page).
-- Not here yet: a cutscene's video has no file carried into the export by the game's own door (it names a path the
+- **The opening level as a place** (`level/grid-scene.js`, `scene/channels/guide.js`, `gameworld/compose.js`).
+  - **No designer's posts in a played level.** A sketch's marks (a post and a tooltip a beat: "encounter: …") were drawn
+    on every page; on one a player pilots they are left out, the marks themselves read as before.
+  - **No pillar of light on a fight.** The guide's pillar marks a place to go to; a fight's stood on its foe.
+  - **A world map grows.** A cube's land takes grass only where a biocube brings it, and the map's cube named none, so
+    it was bare ground. A meadow kit's map takes the meadow's own flora unless the cube or the sentence names what
+    grows; the brief says so.
+- **The meadow card's colours as the action RPG's world, each place derived from it** (`color-theorist/directions.js`,
+  `gameworld/world-palette.js`, `world-map.js`, `colour.js`, `level/grid-scene.js`). Supersedes the quiet land the
+  action RPG was laid in: a choice made again at the eyes gate.
+  - **`kit-card`, a colour direction**: the land given back to its kit's card, as a palette the theorist solves to the
+    card exactly and can move. The action RPG's row in `GENRE_COLOUR` is now this; any game on a kit with a row is
+    offered it in its colour options.
+  - **Each place its own light** (`PLACE_LIGHT`): the village and its road are home, unmoved; the ruins, the towns
+    between and the castle heights are the same palette shifted, a row and a sentence a place. A region's
+    `palette: { shift }` moves the level's cube for its tiles.
+  - **The cast is painted clear of every place** (`landsOf`): the figure solver sees each place's land at once, so the
+    sentence door's cast and every colour option hold across the whole map.
+- **The action RPG's protagonist, designed at the eyes gate** (`gameworld/hero-rows.js`, new; `hero-design.js`). A genre
+  may have a protagonist kept as a row (`GENRE_HERO`): its looks pages whole, given to a game of that genre laid from
+  a sentence in place of the rolled person. The action RPG's is a young swordswoman in red and gold under a short plum
+  cape, blonde, every colour on her the meadow card's. A creator's own pages still take it away.
+- **Clothing words the design needed** (`polygonizer/outfit-plan.js`, `body-garment.js`, `outfit/styles.js`,
+  `outfit/expand.js`). Each is an option on the outfit any hero can wear; absent, a piece is built as before.
+  - **A drape panel's `hem: 'petal'`**: its corners drawn up in a curve, the middle the longest.
+  - **A cloak's `lining`** (the cape's own inner face in its own colour: one cloth, where a second cape inside the
+    first crossed it whenever the figure moved; `polygonizer/body-garment.js` `insideGroup`, `station-loft.js`
+    `mirrorGroup`), a `hem` given as a place between the length words, and **`arms: false`**: a cape hung from the
+    trunk alone, where one carried by a swinging arm was dragged through the cloth beside it. A cape's inside now
+    skins as the outside over it.
+  - **`crest`** (a six-sided plaque with a gem standing proud of it, on the breast or on the centre line at the
+    waist), **`bands`** (lines of braid across the front of the chest), **`midriff`** (the belly's cloth in another
+    cloth's colour).
+  - **A waist belt of pouches on the torso** (`on: 'torso'`, with one pouch alone at the front or the back), a belt
+    with no buckle of its own, a belt or a sash worn lower (`drop`), a hip belt's `window` and `standoff`.
+  - **A plain shoulder cap in any colour** (`plain`), its `size`, `crown` and `standoff`; **anklets** anywhere on the
+    shin (`window`: a boot's rim), on a hero's shank as on a creature's shin.
+- **The action RPG is heard** (`gameworld/compose.js`). A world map's game laid from a sentence is put on the sound
+  sheet and given a score (an empty `sound` and an empty `music`): its sword, its ground underfoot, its foes' voices
+  and a bed a place solved from the game, every level scored from the cue sheet. Play's sounds only: the interface
+  keeps its own sound set. The brief says so; a game with no map is laid silent as before.
+- **The made game reads as a game** (the action RPG's, each change opt-in so no other game's bytes move):
+  - Her sword is cut short and worn at the left hip out of combat, never on the back under the cape (a genre hero
+    row's `carry`: `gameworld/hero-rows.js`, `levels.js` sheathedSpec).
+  - She runs the move library's run, the hero's standard (a genre hero row's `run: 'library'`: her own calibrated jog
+    is not handed to her levels, `hero-rows.js` rowGaits).
+  - She fights with her feel's kit (`arsenal: 'auto'`, `gameworld/compose.js`): the sword's strings and specials and
+    the bow as the sidearm, where a game laid from a sentence had the one blow.
+  - Her foes never lock blades with her (the row's `foes.clash: false` → `rule.clash: false`,
+    `worlds/controllable/combat-melee.js`): a swing that meets their swing lands. The row's alone: every other game's
+    foes clash as they did.
+  - Her foes are harder (a genre hero row's `foes`, `hero-rows.js` rowFoe): never floored by a string's finisher
+    (`rule.topple: false`, `worlds/controllable/combat-hit.js`: a knockdown reels a living body), a temper up
+    (relentless), quicker to answer (veteran), half again the health and a little faster. A boss keeps its own mind.
+  - A step is played at a share of a cue's level on the sound sheet (`sound-sheet.js` STEP_GAIN; a game's own:
+    `sound.steps`): it sounds twice a stride, and at a blow's level it was all a player heard.
+  - A zone's page is titled by its places ("The village", "The meadow road and the old ruins"), where it showed the
+    map's id and the zone's letters (`gameworld/levels.js`).
+  - The hero's health is a bar labelled Health, where it was a chip reading "HP 20" (`fail-on-death` `bar: true`,
+    `game/mechanics.js`; set where the genre has a hero row).
+  - On a page a player pilots, the rim's near rings stay the land's colour under a far range (`level/grid-scene.js`):
+    a hero who starts by the border no longer stands over a slab of far haze.
+- **The input map** (`gameworld/input-map.js`): what each of a hero's actions is on each device, read from the pilot
+  scheme and never written by hand. A hero with an arsenal says its attacks, its sidearm, its specials and its guard in
+  the level's legend (it said "click strike" alone), and the pause sheet lists them (`controls/schemes.js`: a moveset's
+  rows, on keys and on a pad). The wireframe board has an adventure HUD frame (`mana-ui/board.js`): vitals, the action
+  cluster, a compass, the objective, one prompt, one card at a time. The first step of the action RPG's interface,
+  designed from its inputs.
+- **The HUD grammar** (`scene/channels/hud-grammar.js`, `gameworld/hud-grammar.js`): the action-adventure's HUD on
+  mana-ui, in the greybox, where its genre's row asks (`hud: 'grammar'`). The hero's health as hearts (two hits a
+  heart), a compass strip with the goal's bearing and the objective under it, and the actions on their controls (the
+  weapon in hand, the sidearm, what is collected with its count; keys, or a pad once one has spoken). The page hosts
+  it: each frame it reads the bus's vars and the pilot. The health chip, the item chip, the legend line and the radar
+  and the stamina gauge are not shown beside it. What the level says is one lane: its guide gives its one thing as
+  data (`scene/channels/guide.js` `view()`) and keeps its own line down, and the HUD draws it: the current beat as the
+  objective with its distance and its bearing on the compass, a lesson's keys as a prompt (no counter), the opening,
+  a line said and a way held as cards on mana-ui's moment queue; the stamina under the hearts while it is spent. A place card as the hero comes into each named place of a planned map (`gameworld/hud-grammar.js` mapPlaces: the plan's key, each segment's square). A moveset's special is on Q too (`controls/schemes.js`: not every mouse has a forward
+  button), and Q never strafes a hero with a moveset.
+- **Her items and her bag** (`gameworld/inventory.js`, a genre hero row's `items`): playscape's own inventory wired
+  onto each level. A healing draught restores two hearts (an item's `hearts` lowered to hp on the level's health,
+  never past its full), used on X from the bag; the bag opens on I (an inventory menu); a new game starts with one
+  and the bag is carried from level to level (the `bag` mechanic, the store's slice). The HUD's item slot is the
+  quick item, its count the bag's own var, greyed when there is none.
+- **The interface's look on the HUD** (`playscape/ui/interface-look.js`: the action RPG is `storybook`): the HUD
+  grammar is drawn in the game's look, the world's palette on it (`events.grammar.theme`), the hearts large in its
+  accent on no plate, each slot its thing's icon (`playscape/ui/item-icons.js`).
+- **Its screens in the same look** (`gameworld/compose.js`: a world map's game has an interface, an empty `ui`): the
+  play shell's screens (the levels, a result, the options, the loading) are mana-ui's in the game's look, as its HUD
+  is. And **the pause is one of them** (`game/play-shell-mana.js` `pause`, any game with a `ui`): resume, restart, the
+  controls the level lists (each a control and what it does), the options, the way out; backing out of it resumes.
+  A game without a `ui` keeps the shell's own panel.
+- **The HUD after a play** (the operator's notes): the actions are one row of icons at the bottom (the weapon, the
+  sidearm, the item, the guard, the sprint, the lock, each on its control), and no reminder text is drawn: a lesson's
+  line and a fight's keys are what the row shows. The compass has no box: its marks and the objective stand on the
+  world, white with a dark edge. A step is softer again (STEP_GAIN 0.15). Her blows leave no trail (a genre row's
+  `juice: { trail: 0 }`). Her game fills its window whatever its shape (a row's `screen: 'fill'`: no frame written, so
+  no bars). The viewer's strip (the view cams, wireframe, fly and walk, reverse view, the AI switch) and its corner
+  hint are not shown on a page with a HUD grammar, however the page is opened. The game's `ui` is carried into the made game (`mcp/tools/create-game.js`, `design-game.js`: it was
+  dropped at the mint and at a remake, so a world's interface never reached its shell).
+- **Her build is a heroine's** (`gameworld/hero-rows.js`, the row's body page). On the anime frame alone she stood 8.7
+  heads tall on thighs narrower than her calves (10 cm against 13), a stick figure at the play camera's distance. Her
+  tune stands her about 7.4 heads: a larger head, thighs and calves that taper (17 and 16 cm), fuller arms, hips and
+  shoulders a little wider, legs a little shorter. Measured off the mesh; the look is the operator's to judge.
+- **Esc opens the pause** (`game/level-contract.js` MSG_MENU, `scene/scene-three.js`, `game/play-shell.js`): a level a
+  shell plays tells it when Esc is pressed there, or when the captured mouse is let go by it (the browser takes that
+  press itself); Esc on the shell's own page does the same. With the pause up, Esc is the menu's back. Not while one
+  of the level's own menus is up (its Esc closes that). The pause's controls list is the level's own rows, filled as
+  they arrive (it showed the stock three).
+- **The fantasy dressing branch merged.** A cape minted before keeps its bytes: its inside skins as its outside only
+  on a cape that says `arms: false` or a lining. The hero's cloak is wool by the cloth law and swings in her clips on
+  a new mint; a shared corner is placed by its weights on the page, so her cape and skirt no longer split in a stride.
+- **Merged with the release candidate.** Its pause on mana-ui (`game/play-shell-mana.js`) is the one kept: this
+  theme's own was dropped for it, and Esc (MSG_MENU) opens it. Its level HUD on mana-ui (`game/hud-mana.js`) draws a
+  level's rows in the game's look; a level with a HUD grammar keeps the grammar alone, so nothing is drawn twice. The
+  game's `ui`, `screen` and `hud` are carried into the made game by the candidate's own fix.
+- Not here yet: a scabbard is not drawn (the blade
+  hangs bare at the hip); the HUD grammar is its own page layer, not yet a composition on the level HUD's host (`game/hud-mana.js`), so its cards and the level's banners are two lanes; the pause menu still says "quit to levels"; the HUD grammar's marked slot is always the weapon; the bag's menu is still the old menu layer's (not mana-ui's, not in the game's look) and the quick item and the bag have no pad control; the lessons' keys are still written by hand (`level/map-sketch.js` TEACH), not read from the input map; a cape does not drape over what is worn on a belt (a pouch at the back shows through it); the hero's
+  cloth takes no texture on the anime body; the back of
+  light hair shades brown; the bell bob is the stock bob's clumps moved (no hair form of its own), its lined strands
+  blocky at the sides; a crest's and a band's place are offsets tuned on one body; a cutscene's video has no file carried into the export by the game's own door (it names a path the
   page can reach); the land beside an opening's path is still walkable (its fights hold the way out; a solid gate that
   opens on a win is not in the level kit); a pursuer gives up a hero it can no longer see (it hunts by sight, not by
   memory); the lessons name the keyboard's keys only; a crew's dress, a beast's coat and a quick

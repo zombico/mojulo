@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { readGameworld, composeGameworld } from './index.js';
-import { colourOfGame, colourOptions, figuresOfGame, castPatch, paintedCast, GENRE_COLOUR } from './colour.js';
+import { colourOfGame, colourOptions, figuresOfGame, castPatch, paintedCast, landsOf, GENRE_COLOUR } from './colour.js';
+import { PLACE_LIGHT } from './world-map.js';
+import { stampWorldPalette, stampGeocubes } from '../color-theorist/stamp.js';
 import { colourBookHtml } from './colour-book.js';
 import { groundOf } from './world-palette.js';
 import { GENRES } from './intent.js';
+import { GEOCUBE_PALETTES } from '../era/geocube.js';
 import { PACK_STYLES } from '../foes/packs.js';
 import { kinCoat } from '../beast/cards.js';
 import { COLOUR_DIRECTIONS } from '../color-theorist/directions.js';
@@ -136,8 +139,29 @@ describe('the game\'s colour', () => {
     for (const [g, d] of Object.entries(GENRE_COLOUR)) { expect(GENRES[g], g).toBeTruthy(); expect(COLOUR_DIRECTIONS[d], d).toBeTruthy(); }
     const [genre, dir] = Object.entries(GENRE_COLOUR)[0], w = composeGameworld({ prompt: `a ${GENRES[genre].words[0]}`, seed: 2 });
     expect(w.brief.colour).toEqual({ direction: dir });
-    expect(w.style.geocube.palette).toMatchObject(COLOUR_DIRECTIONS[dir].move({}).values ? { values: COLOUR_DIRECTIONS[dir].move({}).values } : {});
+    // (the direction's own words are on the cube's palette: what it makes of the cube's spec, in the world's kit)
+    const made = COLOUR_DIRECTIONS[dir].move({}, { kit: w.style.kit });
+    expect(Object.keys(made).length).toBeGreaterThan(0);
+    expect({ ...GEOCUBE_PALETTES[w.style.geocube.from], ...w.style.geocube.palette }).toMatchObject(made);
     const other = Object.keys(GENRES).find((g) => !GENRE_COLOUR[g] && (() => { try { return composeGameworld({ prompt: `a ${GENRES[g].words[0]}`, seed: 2 }).brief.hero?.genre === g; } catch { return false; } })());
     expect(composeGameworld({ prompt: `a ${GENRES[other].words[0]}`, seed: 2 }).brief.colour).toBeUndefined();
+  });
+
+  it('a map whose places each move the palette: the cast is seen on every place\'s land, and painted clear of each', () => {
+    const w = stampWorldPalette(stampGeocubes(composeGameworld({ prompt: 'an anime action rpg like zelda', seed: 2 })), null, () => 77);
+    const G = readGameworld(w), key = Object.values(w.levels)[0].glyphs.plan.key, moved = Object.values(key).filter((r) => r.palette?.shift);
+    // (its places' rows are the map's own: one land for home and one for each distinct shift)
+    expect(moved.length).toBeGreaterThan(0);
+    for (const r of moved) expect(PLACE_LIGHT[r.name].shift).toEqual(r.palette.shift);
+    const lands = landsOf(G, G.style.palette);
+    expect(lands).toHaveLength(1 + new Set(moved.map((r) => JSON.stringify(r.palette.shift))).size);
+    expect(new Set(lands.map((K) => K.roles.ground[2])).size).toBe(lands.length);
+    // (painted, every figure parts from every land: none sinking, the clearance law holding)
+    const { kind: _k, ...P } = paintedCast(w).world, now = colourOfGame(readGameworld(P));
+    expect(now.ground.lands).toHaveLength(lands.length);
+    expect(now.sinks).toEqual([]);
+    expect(now.laws.find((l) => l.law === 'figures-clear').ok).toBe(true);
+    // (a world with no such place is seen on its one land, as before)
+    expect(landsOf({ ids: [], levels: {} }, G.style.palette)).toHaveLength(1);
   });
 });

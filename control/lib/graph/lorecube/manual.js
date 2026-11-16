@@ -4,7 +4,7 @@
  * and how far into the game they are met. A vertical slice of the lorecube: it lowers to the party RPG's own words
  * (playscape/rpg: `foes` and the `skills` they use), and what it lowers is read back by that game's own reader.
  *
- *   ROLES            the cast's four (gameworld/foe-casting.js ROLES: grunt, harrier, elite, boss), read from there
+ *   ROLES            the cast's four (gameworld/foe-roles.js ROLES, the casting call's: grunt, harrier, elite, boss), read from there
  *   ROLE_STATS       a role's numbers at level 1, in the RPG's stats, set beside its presets (a grunt a starter, a
  *                    harrier quick and frail, an elite a wall, a boss the fight a level ends on)
  *
@@ -34,7 +34,7 @@
  */
 import { definePart } from './passes.js';
 import { rootOf, resolvePolarity, readPolarity, affinityOf, elementHandles } from './polarity.js';
-import { ROLES as CAST_ROLES } from '../gameworld/foe-casting.js';
+import { ROLES as CAST_ROLES } from '../gameworld/foe-roles.js';
 
 const fail = (m) => new Error(`lorecube: manual${m}`);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);

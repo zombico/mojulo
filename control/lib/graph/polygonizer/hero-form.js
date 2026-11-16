@@ -356,8 +356,13 @@ export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
  * now), nor the realistic form.
  * Laws 22 REFINES THE ANIME FRAME (ANIME_FRAME, below): the wrist deeper through the hand, the shoe's heel, the
  * shoulder's cone under the torso's skin at the clavicle; laws 1 to 21 build the anime body as it was.
+ * Laws 23 HANGS THE LOOSE CLOTH ON STRINGS (hero-cloth.js, on hero-flow.js's solver and cloth-law.js's tables): every
+ * piece that says how it moves (a cloak, a robe's or a gown's skirt, a card's drape panels) hangs on the register's
+ * strings, bones after the body's, and each clip's swing is baked into their keys, the skirt pushed out by the legs and
+ * the cloak by the arms; laws 1 to 22 rode the cloth on its skin weights. Read where the rig is packed (the World page,
+ * the skinned GLB): no plan or recipe moves, and a hero with nothing that flows packs as it did.
  */
-export const HERO_LAWS_VERSION = 22;
+export const HERO_LAWS_VERSION = 23;
 /** THE ANIME FRAME (hero laws 22, the anime proportions on the structured core): the body the anime head wears, refined
  * where a fuller body read it thin or as boxes (the muscle shirt, musculature/, worn over it, takes each with it):
  *   wrist   the hand's section at the wrist and its palm's first ring deeper through the hand by this (its second by

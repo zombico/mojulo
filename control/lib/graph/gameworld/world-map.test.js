@@ -3,16 +3,23 @@
 // way out), its first zone after it, a zone a block after that, travelled zone to zone. The concept on two cases, one
 // per path: the smallest world (its last block the goal) and one with zones after its first.
 import { describe, it, expect } from 'vitest';
-import { worldMapLevel, WORLD_MAP } from './world-map.js';
-import { composeGameworld } from './compose.js';
+import { worldMapLevel, WORLD_MAP, PLACE_LIGHT } from './world-map.js';
+import { composeGameworld, MAP_FLORA } from './compose.js';
+import { readGeocube } from '../era/geocube.js';
 import { castingCall } from './foe-casting.js';
 import { gameworldBibleHtml, readMade } from './index.js';
 import { readGrid } from '../level/grid.js';
-import { readSketch, sketchLaws } from '../level/map-sketch.js';
+import { readSketch, sketchLaws, levelGrid } from '../level/map-sketch.js';
+import { mapWay } from '../level/map-items.js';
+import { walkFrom } from '../level/grid.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { SIGHTS } from '../mind/vocab.js';
 import { FLOW_IN_PLAY, readFlow, walkFlow } from '../game/flow.js';
 import { runSteps } from './runner.js';
+import { gameworldMapHtml, plannedMaps } from './map-designer.js';
+import { soundSheet } from './sound-sheet.js';
+import { cueSheet } from './cue-sheet.js';
+import { readGameworld } from './world.js';
 
 const lawsOf = (level) => {
   const g = level.glyphs, G = readGrid({ tile: g.tile, plan: g.plan, ...(g.segments ? { segments: g.segments } : {}) }, 'grid');
@@ -71,6 +78,67 @@ describe('the world map', () => {
     for (const l of lawsOf(level)) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
   });
 
+  it('is an open world: blocks laid by the trail library, side ways that close loops, the opening\'s one way out kept', () => {
+    const { level } = worldMapLevel({ n: 3 }), g = level.glyphs, P = g.plan, [A, B, , D, E] = P.route;
+    const G = readGrid({ tile: g.tile, plan: P, segments: g.segments }, 'grid'), id = (x) => `${x.r},${x.c}`;
+    // (a side way wherever two blocks lie side by side off the walk; none out of the opening)
+    expect(P.joins).toEqual([[B, E]]);
+    expect(G.plan.gates.filter((x) => x.from === A || x.to === A)).toHaveLength(1);
+    // (each block past the opening names a template; never one line from gate to gate through every block)
+    for (const S of P.route.slice(1)) expect(Object.keys(WORLD_MAP.fills).some((k) => [].concat(WORLD_MAP.fills[k]).includes(P.key[S].fill)), S).toBe(true);
+    expect(new Set(P.route.slice(1).map((S) => P.key[S].fill)).size).toBeGreaterThan(1);
+    // (a loop: with the walk's own gate from the town to the goal shut, the goal is still reached, by the side way)
+    const goal = G.cells.find((x) => x.kind === 'place' && x.place.goal), start = mapWay(G).start;
+    const shut = (a, b) => ({ ...G, cells: G.cells.map((x) => (x.open ? { ...x, open: x.open.filter((s) => { const y = G.at(x.r + { n: -1, s: 1, e: 0, w: 0 }[s], x.c + { n: 0, s: 0, e: 1, w: -1 }[s]); return !(y && ((x.region === a && y.region === b) || (x.region === b && y.region === a))); }) } : x)) });
+    expect(walkFrom(shut(D, E), start).dist.has(id(goal))).toBe(true);
+    expect(walkFrom(shut(B, E), start).dist.has(id(goal))).toBe(true);
+    // (the walk itself keeps to its route: the side way is never the way on, so every block of the walk is on it)
+    const way = mapWay(G).way;
+    expect(new Set(way.map((x) => x.region))).toEqual(new Set(P.route));
+    for (let i = 1; i < way.length; i++) expect(Math.abs(P.route.indexOf(way[i].region) - P.route.indexOf(way[i - 1].region))).toBeLessThanOrEqual(1);
+  });
+
+  it('a shortcut costs more: a band holds each side way at its gate, off the walk, more of them than any block\'s own fight', () => {
+    const { level } = worldMapLevel({ n: 3 }), g = level.glyphs, P = g.plan, beats = g.sketch.scenario.beats;
+    const G = readGrid({ tile: g.tile, plan: P, segments: g.segments }, 'grid'), count = (b) => Object.values(b.foes ?? {}).reduce((a, c) => a + c, 0);
+    const guards = beats.filter((b) => /-shortcut$/.test(b.id));
+    expect(guards).toHaveLength(P.joins.length);
+    for (const [i, [X, Y]] of P.joins.entries()) {
+      const b = guards[i], gate = G.plan.gates.find((x) => x.join && x.from === X && x.to === Y), [r0, c0] = G.plan.segments[Y].at;
+      expect(b.at).toBe(Y);
+      // (at the side way's gate in the block it comes out in, and never on the walk's own way)
+      expect([r0 + b.tile[0], c0 + b.tile[1]]).toEqual(gate.tiles[1]);
+      expect(mapWay(G).way.some((x) => x.r === gate.tiles[1][0] && x.c === gate.tiles[1][1])).toBe(false);
+      // (significantly more: twice any other fight short of the climax, at the least)
+      const most = Math.max(...beats.filter((x) => x.kind === 'fight' && !guards.includes(x)).map(count));
+      expect(count(b)).toBeGreaterThanOrEqual(2 * most);
+      expect(count(b)).toBe(WORLD_MAP.shortcut.grunt + WORLD_MAP.shortcut.elite);
+    }
+    for (const l of lawsOf(level)) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
+    for (const l of lawsOf(worldMapLevel({ n: 6 }).level)) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
+  });
+
+  it('its cliffs make sense: terraces that climb to the goal, a way a step a tile at most, a cliff only where no way crosses', () => {
+    const { level } = worldMapLevel({ n: 3 }), g = level.glyphs, P = g.plan;
+    const G = levelGrid({ grid: { tile: g.tile, plan: P, segments: g.segments }, sketch: g.sketch }), z = (x) => G.rise.z[x.r * G.cols + x.c];
+    const SIDE = { e: [0, 1], s: [1, 0] }, S = G.rise.scarps;
+    // (the goal's block stands highest, the opening's on the low ground)
+    const top = (seg) => Math.max(...G.cells.filter((x) => x.region === seg).map(z));
+    expect(top(P.route.at(-1))).toBeGreaterThan(top(P.route[0]));
+    expect(top(P.route.at(-1))).toBe(Math.max(...P.route.map(top)));
+    expect(G.sketch.laid.cliffs).toBeGreaterThan(0);
+    let crossed = 0, cliffs = 0;
+    for (const x of G.cells) for (const [s, [dr, dc]] of Object.entries(SIDE)) {
+      const y = G.at(x.r + dr, x.c + dc); if (!y) continue;
+      const way = (x.open ?? []).includes(s) || (y.open ?? []).includes(s === 'e' ? 'w' : 'n'), scarp = S[s][x.r * G.cols + x.c] === 1;
+      // (no cliff across a way; a way climbs a step at most; a cliff is a real step)
+      if (way) { crossed++; expect(scarp, `${x.r},${x.c} ${s}`).toBe(false); expect(Math.abs(z(x) - z(y))).toBeLessThanOrEqual(3); }
+      if (scarp) { cliffs++; expect(Math.abs(z(x) - z(y))).toBeGreaterThanOrEqual(6); }
+    }
+    expect(crossed).toBeGreaterThan(0);
+    expect(cliffs).toBe(G.sketch.laid.cliffs);
+  });
+
   it('the sentence door lays the action RPG as a world map travelled zone to zone, and the casting call fields it', () => {
     const W = composeGameworld({ prompt: 'an anime action rpg like zelda: a swordsman crosses a kingdom of forests and ruins', seed: 1 });
     const ids = Object.keys(W.levels);
@@ -80,6 +148,27 @@ describe('the world map', () => {
     expect(W.levels[ids[0]].walk).toBeUndefined();
     expect(W.levels[ids[0]].glyphs.plan.route.length).toBe(WORLD_MAP.first + 2);
     expect(W.brief.worldMap.level).toBe(ids[0]);
+    // (it GROWS: its cube names no flora, so the map takes the meadow kit's own, and the brief says so; a sentence that
+    // names what grows keeps its own)
+    const plain = composeGameworld({ prompt: 'an anime action rpg like zelda', seed: 1 });
+    expect(readGeocube(plain.style.geocube).biocube).toBe(MAP_FLORA.biocube);
+    expect(plain.brief.worldMap.grows).toMatch(/meadow/);
+    // (this one's forests are its sentence's: its cube's flora is theirs, and the brief claims nothing)
+    expect(readGeocube(W.style.geocube).biocube).toBeTruthy();
+    expect(readGeocube(W.style.geocube).biocube).not.toBe(MAP_FLORA.biocube);
+    expect(W.brief.worldMap.grows).toBeUndefined();
+    // (each place its own light: home's blocks unmoved, every place with a row the world's palette moved by it)
+    for (const r of Object.values(W.levels[ids[0]].glyphs.plan.key)) expect(r.palette, r.name).toEqual(PLACE_LIGHT[r.name] ? { shift: PLACE_LIGHT[r.name].shift } : undefined);
+    expect(Object.values(W.levels[ids[0]].glyphs.plan.key).some((r) => r.palette)).toBe(true);
+    // (it is HEARD: on the sound sheet and scored, both empty words the game's own to fill; the sheet solves its sword and
+    // its ground, the cue sheet asks for its level, and the brief says so. A game with no map is laid silent as before)
+    expect(W.sound).toEqual({});
+    expect(W.music).toEqual({});
+    expect(W.brief.audio).toMatch(/sound sheet.*cue sheet/);
+    const sheet = soundSheet(readGameworld(W));
+    expect(sheet.slots.swing && sheet.slots.strike && sheet.slots.step).toBeTruthy();
+    expect(cueSheet(W, { ref: 'gw' }).requests.some((r) => r.id.startsWith('level:'))).toBe(true);
+    expect(composeGameworld({ prompt: 'a haunted forest of misty hills', seed: 2 }).sound).toBeUndefined();
     // (it starts in play: its opening a cutscene's slot, then straight into the game; the brief says so)
     expect(W.flow).toBe(FLOW_IN_PLAY);
     expect(W.brief.start).toMatch(/cutscene.*straight into play/);
@@ -93,6 +182,16 @@ describe('the world map', () => {
     expect(D.topology).toBeUndefined();
     expect(Object.values(D.levels).every((l) => l.walk || l.building)).toBe(true);
   });
+  it('is looked at before it is built: the map designer draws it in miniature from its recipe, side ways and all', () => {
+    const W = composeGameworld({ prompt: 'an anime action rpg like zelda: a swordsman crosses a kingdom of forests and ruins', seed: 1 });
+    const [id] = plannedMaps(W), html = gameworldMapHtml(W), P = W.levels[id].glyphs.plan;
+    expect(Object.keys(W.levels)).toEqual([id]);
+    for (const S of P.route) expect(html, S).toContain(P.key[S].name);
+    expect(html).toContain('A band holds the short way');
+    expect(() => gameworldMapHtml(W, { level: 'nowhere' })).toThrow(/no planned map of this world/);
+    expect(() => gameworldMapHtml({ levels: { a: { walk: {} } } })).toThrow(/no level of this world is a planned map/);
+  });
+
   it('the game made of it starts in play: its flow an opening cutscene\'s empty slot, then its first page, no screen before', () => {
     const W = composeGameworld({ prompt: 'an anime action rpg like zelda: a swordsman crosses a kingdom of forests and ruins', seed: 1 });
     const game = runSteps(W, { ref: 'gw' }).find((s) => s.key === 'game').order, refs = game.levels.map((l) => l.ref);

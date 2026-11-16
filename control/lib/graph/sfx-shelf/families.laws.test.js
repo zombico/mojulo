@@ -4,6 +4,7 @@ import { renderSound, renderHeld } from './measure.js';
 import { meetsRegister, meetsHeld, REGISTER } from './register.js';
 import { SET_NAMES, FLOOR_SETS } from './sets.js';
 import { BASELINE } from './baseline.js';
+import { SOUNDS } from './roster.js';
 
 // the families' laws, rendered as an export renders them: an ordered dial moves its measures the way it says, a
 // material is heard as itself, and each family's defaults are in the realistic register. Machine gates: nobody listened.
@@ -12,7 +13,9 @@ const holding = async (name, dials) => { const { wav, ...m } = await renderHeld(
 
 describe('the families on the yardstick', () => {
   it('every set that voices the realistic style is in the register (its stored numbers)', () => {
-    const voicing = SET_NAMES.filter((s) => !FLOOR_SETS.includes(s));
+    // the sets a row names for realistic (a mouth set voices its own style, held to its trace, not to this register)
+    const realistic = new Set(Object.values(SOUNDS).map((r) => r.voices?.realistic).filter((v) => v && v !== 'families'));
+    const voicing = SET_NAMES.filter((s) => !FLOOR_SETS.includes(s) && realistic.has(s));
     expect(voicing.length).toBeGreaterThan(0);
     const off = voicing.flatMap((s) => Object.entries(BASELINE[s]).flatMap(([c, m]) => meetsRegister(m).map((o) => `${s}:${c}: ${o}`)));
     expect(off).toEqual([]);

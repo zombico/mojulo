@@ -30,6 +30,7 @@
  *
  * Pure and deterministic: the people, the crew and its colours are the world's seed's (mulberry32), nothing else is rolled.
  */
+import { ROLES } from './foe-roles.js';
 import { readGameworld } from './world.js';
 import { playOrder } from './graph.js';
 import { cubeOfWorld } from './intent.js';
@@ -62,13 +63,8 @@ export function henchmenOf(G) {
   return { rail: R.rail, ...(B.spec.form === 'realistic' ? { body: 'realistic' } : {}), ...(R.muscle !== undefined ? { muscle: R.muscle } : {}) };
 }
 
-/** The cast's roles, in the order they are cast: the rank each stands at and what it is for. */
-export const ROLES = Object.freeze({
-  grunt: { rank: 'minion', line: 'the bulk the hero cuts through' },
-  harrier: { rank: 'minion', line: 'a second threat the grunt is not: it hurts from where the grunt cannot' },
-  elite: { rank: 'elite', line: 'the test of what the hero has learned' },
-  boss: { rank: 'boss', line: 'the encounter a level ends on' },
-});
+/** The cast's roles, in the order they are cast (foe-roles.js: a leaf, read here and by the lorecube's manual). */
+export { ROLES };
 /** The peoples each era fields its foes from (egocube/ancestry.js lineages); an era without a row fields beasts. */
 export const ERA_PEOPLES = Object.freeze({
   myth: ['undead', 'skeleton', 'infernal'],

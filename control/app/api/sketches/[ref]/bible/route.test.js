@@ -38,6 +38,8 @@ describe('GET /bible', () => {
     expect(await (await bible('gw_ground')).text()).toBe(gameworldBibleHtml(MEADOWMARK));
     expect((await bible('gw_ground', '?book=characters')).status).toBe(422);
     expect((await bible('gw_hero', '?book=elsewhere')).status).toBe(400);
+    // the map designer: a world with no planned map has none, and says why
+    expect((await bible('gw_hero', '?book=map')).status).toBe(422);
     // the atlas: the world's levels drawn as a map, in a look; a look it does not have refused
     expect(await (await bible('gw_hero', '?book=atlas&look=ink')).text()).toBe(gameworldAtlasHtml(MEADOWMARK_HERO, { look: 'ink' }));
     expect((await bible('gw_hero', '?book=atlas&look=sepia')).status).toBe(400);

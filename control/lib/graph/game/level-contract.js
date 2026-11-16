@@ -60,6 +60,10 @@ export const MSG_DOOR = 'game-door';
 export const MSG_AUDIO = 'game-audio';
 export const MSG_PAUSE = 'game-pause';
 export const MSG_CONTROLS = 'game-controls';
+//   level → shell  { moj: MSG_MENU }                     — the player asks for the menu from inside the level: Esc
+//                                                          pressed there, or the captured mouse let go by it (the
+//                                                          browser takes that press itself); the shell pauses
+export const MSG_MENU = 'game-menu';
 export const MSG_GAMEPAD = 'game-gamepad';
 export const MSG_AI = 'game-ai';
 //   level → shell  { moj: MSG_SEATS, seats: [{ n, label, color, controller, away }] }

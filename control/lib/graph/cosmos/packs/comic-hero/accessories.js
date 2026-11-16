@@ -66,7 +66,7 @@ export const ACCESSORY_IDS = Object.freeze(Object.keys(ACCESSORIES));
 
 // worn things the door has no word for yet: each says what is missing and the nearest card, never approximated
 export const ACCESSORY_GAPS = Object.freeze({
-  necklace: 'no place on a person\'s chest yet for the hung necklace (the `medallion` on its cord, the `chain` of office): the door leaves it off and says so (layered.js sortPieces); strappedEmblem mounts the disc on the harness instead',
+  necklace: 'no card yet for the hung necklace: the outfit\'s `medallion` on its cord is worn under outfit laws 2 (hung from the neck\'s root over the bodice, under a cloak or a mantle; a row stamped with laws 1 leaves it off and says so, layered.js sortPieces), but no accessory card wears it; strappedEmblem mounts the disc on the harness instead',
   dogTags: 'no tag on a chain: the hung necklace is the gap above',
   wristGadget: 'no worn gadget on the forearm outside armour: the hardsuit\'s `arms: \'gadget\'` is armour language (the hunter and bounty hunter ensembles)',
   capeClasp: 'no clasp on the cloak itself: the mantle carries the clasp (claspedMantle)',

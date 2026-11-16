@@ -158,8 +158,10 @@ function mapPlanSvg(glyphs, width = 300) {
       + `<text x="${x + C / 2}" y="${y + C / 2 + 2}" text-anchor="middle" fill="currentColor" font-size="9">${esc(k.name ?? '')}</text>`
       + (f ? `<text x="${x + C / 2}" y="${y + C - 13}" text-anchor="middle" fill="currentColor" fill-opacity="0.75" font-size="8">${esc(f)}</text>` : '') + '</g>';
   };
+  // (its side ways, the plan's joins: a second way between two blocks, off the walk, finer and dotted)
+  const joins = (P.joins ?? []).filter(([a, b]) => at[a] && at[b]).map(([a, b]) => `<path d="M${at[a][0] + C / 2 + 14} ${at[a][1] + C / 2 + 12}L${at[b][0] + C / 2 + 14} ${at[b][1] + C / 2 + 12}" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="1 3" stroke-opacity="0.6"/>`).join('');
   const route = (P.route ?? []).filter((S) => at[S]).map((S, i) => `${i ? 'L' : 'M'}${at[S][0] + C / 2} ${at[S][1] + C / 2 + 12}`).join(' ');
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${pad * 2 + cols * C} ${pad * 2 + rows.length * C}" width="${width}">${Object.keys(at).map(cell).join('')}<path d="${route}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3" stroke-opacity="0.6"/></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${pad * 2 + cols * C} ${pad * 2 + rows.length * C}" width="${width}">${Object.keys(at).map(cell).join('')}<path d="${route}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3" stroke-opacity="0.6"/>${joins}</svg>`;
 }
 
 // the plates a world's parts are drawn as

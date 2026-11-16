@@ -150,9 +150,11 @@ export function cinchWaist(P, under, { zw, zb, zt }, { gap = 0.002, above = 0.03
   P.stations.forEach((st, i) => {
     const z = C[i][2], w = z < zb ? ease3((z - zw) / Math.max(1e-6, zb - zw)) : z > zt ? 1 - ease3((z - zt) / above) : 1;
     if (w <= 0) return;
-    const reach = need(C[i]);
+    // (a RISEN piece's rings (body-garment.js riseToNeck) are not level: each point read at its own height, never at its
+    // ring's middle, which at the neckline lies above the front)
+    const reach = need(C[i]), own = P.risen ? (p) => need([C[i][0], C[i][1], p[2]]) : null;
     for (const sl of P.slots) {
-      const p = st.points[sl], h = [p[0] - C[i][0], p[1] - C[i][1]], r = Math.hypot(...h), d = [h[0] / (r || 1), h[1] / (r || 1), 0], under = reach(d), to = under + gap;
+      const p = st.points[sl], h = [p[0] - C[i][0], p[1] - C[i][1]], r = Math.hypot(...h), d = [h[0] / (r || 1), h[1] / (r || 1), 0], under = (own ? own(p) : reach)(d), to = under + gap;
       // (nothing read under it there: left as it stands, never drawn to the axis)
       if (under > 0 && to < r) st.points[sl] = [C[i][0] + d[0] * (r + (to - r) * w), C[i][1] + d[1] * (r + (to - r) * w), p[2]].map(r6);
     }
