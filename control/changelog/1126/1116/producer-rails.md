@@ -5,7 +5,7 @@ In progress. Each line is added as its phase lands.
 - **The rail roster** (`gameworld/rails.js`): one row per game type mojulo builds, under the name the producer says:
   the house titles (Fallen Angel, Fable of Artesia, Jumping Giuseppe, Steel Serpents, Mech Battle Kai, Mojulo Fighter
   and the rest of the feel templates) and the types that have no title yet (racing, sports, the board game simulator,
-  the work sim, farming, strategy, rhythm, puzzle, flight, the table RPG). A rail is a template, never the game: a
+  the work sim, farming, tower defense, strategy, rhythm, puzzle, flight, the table RPG). A rail is a template, never the game: a
   person's game starts from it and is theirs. A row names into the tables that measure it (its feel template, the genre
   cubes it starts a designed game from, its quick goals, its pixelizer games) and copies no number; it says how much of
   mojulo makes it (a pixelizer game, a quick game, a table game, a designed game: `SIZES`, least first), what its first
