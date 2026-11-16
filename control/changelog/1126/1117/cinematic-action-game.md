@@ -102,3 +102,10 @@ or a recipe key; the spike mints through the real doors and measures.
   on it as an enemy, red. The infiltration yard reads 30 m: its targets blue, its guard red.
 - **The yard's guard is dressed**: a rifleman of the comic pack's private military (`create_character { pack: {
   id: 'comic-hero', grunt: 'privateMilitary', colourway: 'woodland', look: 'realistic-night' } }`), carried by ref.
+- **The takedown** (`rule.takedown`, worlds/controllable/takedown.js, opt-in): the action pressed behind a watcher that
+  has not seen the body lately, near it and facing it, puts it down in one move. The body is held through the move and
+  turned onto the watcher, which goes down at its middle (its health spent, struck by the body: a death as any
+  other). From the front, from too far, with the back turned or once it has been seen, the press is whatever else
+  the action is. The infiltration yard's operative has it.
+- **The yard's guard fires its carbine**: the carbine is its one weapon slot in place of the patrol's blow, so what it
+  sees it shoots, in short bursts from where it stands off (a round 8 of the hero's 100).

@@ -17,7 +17,9 @@
  *                 thing climbed by holding the stick into it, the gun put away for it (worlds/controllable/free-run.js)
  *   the yard      a walled floor 32 m square: a wall to come round (the third-person look past a corner), two low walls to
  *                 fire over, crates; the start at its south
- *   the guard     a patrol across the far half of the yard, its round between two posts; what it sees is drawn on the
+ *   the takedown  the action behind a guard that has not seen the hero puts it down (worlds/controllable/takedown.js)
+ *   the guard     a patrol across the far half of the yard, armed with a carbine it fires on what it sees, its round
+ *                 between two posts; what it sees is drawn on the
  *                 floor as a fan that stops at what stops its sight, hot while it sees the hero; a sighting is said
  *   the targets   a person's box at 5, 15 and 30 m of the start, one behind the corner; each stands again a moment
  *                 after it falls
@@ -40,7 +42,7 @@ import { armLevel } from './arsenal.js';
 import { BASIC_ARSENAL } from './combos.js';
 
 const HALF = 16;
-export const INFILTRATION_LEGEND = 'W A S D  run · mouse  look · Space  dive · run at a low wall to go over it · hold W into a taller one to climb it · unarmed: click  punch · G (hold)  weapon menu · H (hold)  item menu · right mouse (hold)  aim · click  fire, aimed · Tab  first person, aimed · Q  the other shoulder, aimed · R  reload · V  knife · Space  jump';
+export const INFILTRATION_LEGEND = 'W A S D  run · mouse  look · Space  dive · run at a low wall to go over it · hold W into a taller one to climb it · unarmed: click  punch · E behind a guard that has not seen you  takedown · G (hold)  weapon menu · H (hold)  item menu · right mouse (hold)  aim · click  fire, aimed · Tab  first person, aimed · Q  the other shoulder, aimed · R  reload · V  knife · Space  jump';
 const START = Object.freeze([0, -13, 0]);
 const wall = (id, x, y, length, height, N = [0, -1]) => ({ id, form: 'wall', at: [x, y, 0], N, length, height, thick: 0.5 });
 const BLOCKS = Object.freeze([
@@ -57,7 +59,12 @@ const TARGET_HP = 100;
 const GUARD = Object.freeze({ id: 'guard-1', entry: Object.freeze({ class: 'patrol', skin: Object.freeze({ people: 'human' }) }), at: Object.freeze([-8, 10.5, 0]), heading: 0 });
 // (its figure: a made one's on the stand-in's library and clips, drawn as it is, else the stand-in person)
 const guardFigure = (ref, cast) => { const { hero, ...rest } = dummyFigure(cast); return typeof ref === 'string' ? { ...rest, heroRef: ref } : { ...rest, hero }; };
-const GUARD_TUNE = Object.freeze({ team: 'guards', rule: Object.freeze({ speed: 1.6, turnRate: 2.2, guardRadius: 14, sightShown: true }), body: Object.freeze({ hittable: true, hp: TARGET_HP }) });
+// (its CARBINE: what it sees it fires on, in short bursts from where it stands off, a round 8 of the hero's 100; it
+// turns and shoots rather than closing to strike)
+const GUARD_CARBINE = Object.freeze({ fireClass: 'sight', auto: false, cooldown: 0.28, magazine: 30, reload: 2.2, damage: 8, impact: 1, range: 40, coreAngle: 1.5, eye: 1.4, round: SHOOT.rifle.round });
+const GUARD_TUNE = Object.freeze({ team: 'guards', rule: Object.freeze({ speed: 1.6, turnRate: 2.2, guardRadius: 14, sightShown: true, standoff: 9, burst: 0.5, pause: 1.1, meleeSeek: false,
+  // (the carbine its one slot, in place of the patrol's own blow: a body with a loadout fires what its slot carries)
+  loadout: Object.freeze([Object.freeze({ name: 'carbine', figure: GUARD.id, weapon: GUARD_CARBINE })]) }), weapon: GUARD_CARBINE, body: Object.freeze({ hittable: true, hp: TARGET_HP }) });
 // (the box a hero's vault clip is solved for where the door is given none: the middle of the speed vault's band, about
 // half a metre; the yard's low walls are a metre, and the body is lifted by the rest: free-run.js `clipH`)
 const VAULT_CLIP_H = 0.5;
@@ -92,6 +99,8 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, ro
     aimView: { shoulder: { ...SHOULDER }, eye: 1.6 },
     // (over the low walls and the crates out of the run; the stick held into a taller thing climbs it: free-run.js; the jump's
     // button is the dive's: dive.js)
+    // (a watcher that has not seen it, come up on from behind, is put down on the action: takedown.js)
+    takedown: { clip: 'mv_fist_hook_still' },
     // (the radar reads the yard: 30 m to its rim)
     radarRange: 30,
     freeRun: { on: 'push', ...(vault ? { clipH: VAULT_CLIP_H } : {}) },
