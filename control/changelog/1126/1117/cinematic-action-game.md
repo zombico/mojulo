@@ -26,3 +26,10 @@ or a recipe key; the spike mints through the real doors and measures.
   knife), a walled yard of cover and a person's box at 5, 15 and 30 m and behind a corner. Not on the practice door
   yet. Played headless on real key and mouse presses: the run, the sprint, no round unaimed, the aim, a round, the
   other shoulder, the eye, the free camera again, with no page error; nobody has played it.
+- **A practice room's hero under the cast rig** (`castLight: { cube, hour? }` on a world that is no form page,
+  worlds/world-scene.js): its bodies are read as a level's form page reads them, the skinned body under one light, where
+  a greybox page drew the painted figure, whose skin showed through its cloth at the shoulders, the collar and the
+  joints. The infiltration yard asks for it (the `theatre-grey` cube) and bakes its hero at the play grade. Absent, a
+  page is as it was.
+- **The camera back from the eye** (the aim held's pages only): a follow camera is no longer pulled in on what is not
+  drawn. The eye's own hands and gun, hidden once the aim leaves the eye, pulled the chase into the hero's back.

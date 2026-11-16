@@ -919,6 +919,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // level's cube, hour, clouds and biocube the recipe's words)
   // (the cube and the hour a form page's land is lit by: the cast rig's, for the hero that walks it, below)
   let formCast = null;
+  // (a world that is no form page may ask the cast rig for its bodies all the same, `castLight: { cube, hour? }`: a
+  // practice room's hero drawn as a level's form page draws it, the skinned body under one light; absent, nothing)
+  const CL = sketch.manifest.castLight;
+  if (payload && !unshaded && viewOpts.paint !== true && CL && typeof CL === 'object' && !Array.isArray(CL) && CL.cube !== undefined) formCast = { cube: readGeocube(CL.cube), ...(CL.hour !== undefined ? { hour: readHour(CL.hour) } : {}) };
   const formMap = sketch.manifest.kind === 'map' && sketch.manifest.level?.grid && sketch.manifest.level.geocube !== undefined;
   if (payload && (!unshaded || viewOpts.handoff === true) && viewOpts.paint !== true && (sketch.manifest.kind === 'geocube' || formMap) && ERAS[era]?.surface === 'form') {
     // (a metro's land a town's too, geocity/scene.js: its lawns mown, no trail's rubble)

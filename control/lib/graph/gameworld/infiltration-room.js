@@ -25,6 +25,7 @@ import { loadoutOf } from './loadout.js';
 import { armsLoadout, knifeOf } from './arms-kit.js';
 import { SHOOT, SHOULDER, PERSON } from './quick.js';
 import { lowerBody } from './game-bodies.js';
+import { PLAY_GRADE } from '../figures/figure-grades.js';
 
 const HALF = 16;
 export const INFILTRATION_LEGEND = 'W A S D  move · mouse  look · Shift  sprint · right mouse (hold)  aim · click  fire, aimed · Tab  first person, aimed · Q  the other shoulder, aimed · R  reload · V  knife · Space  jump';
@@ -62,6 +63,10 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male' } = {}) {
     kind: 'controllable', title: `Infiltration yard · ${G?.name ?? G?.id ?? 'game'}`, bg: '#1b1d22', faces, colliders, figures, entities: [heroE, ...targets],
     camera: { ...P.camera, steer: 'orbit', mouseLook: true }, events: { ...(P.events ?? {}) },
     blocks: BLOCKS.map((b) => ({ ...b, at: b.at.slice() })),
+    // (the hero baked as a level bakes it: the play grade, figure-grades.js)
+    figureGrade: PLAY_GRADE,
+    // (and lit as a form page lights it, the cast rig: the skinned body, its cloth closed over its joints)
+    castLight: { cube: { from: 'theatre-grey' } },
   };
   return { manifest, kit: kit ? kit.map((s) => s.name) : [], knife: hasKnife, hero: own ? 'own' : 'stand-in', targets: TARGETS.map((t) => t.id) };
 }

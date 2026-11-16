@@ -2670,7 +2670,10 @@ function __driveCamera(dt) {
       for (const hit of __camRay.intersectObjects(scene.children, true)) {
         const ho = hit.object;
         if (!ho.isMesh || (ho.material && ho.material.depthTest === false)) continue;   // meshes only; skip overlay quads (fog/effects)
-        let o = ho, isOwn = false; while (o) { if (own.includes(o)) { isOwn = true; break; } o = o.parent; }
+${aimView ? `        // (the aim held, aim-view.js: a camera back from the eye must not be pulled in on what the eye alone draws, the
+        // hands and the gun before it, hidden now: a thing not drawn hides nothing)
+        { let v = ho, drawn = true; while (v) { if (v.visible === false) { drawn = false; break; } v = v.parent; } if (!drawn) continue; }
+` : ''}        let o = ho, isOwn = false; while (o) { if (own.includes(o)) { isOwn = true; break; } o = o.parent; }
         if (isOwn) continue;   // never pull in on an entity body (suits) — world geometry only
         hitD = hit.distance; break;   // nearest world surface between subject and eye
       }
