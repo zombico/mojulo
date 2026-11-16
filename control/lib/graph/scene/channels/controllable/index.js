@@ -17,6 +17,7 @@ import { touchLayout, touchScript } from './touch.js';
 import { runnerViewScript } from './runner-view.js';
 import { followPullIn } from './follow-pull-in.js';
 import { gunplayScript } from './gunplay-view.js';
+import { aimViewScript } from './aim-view-view.js';
 import { specialsPaletteScript } from './specials-palette.js';
 import { mergeableFigure, mergedFigureScript } from './merged-figure.js';
 import { groundGridScript } from './ground-grid.js';
@@ -770,6 +771,8 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const touchLayer = touch ? touchLayout(entities, camera, { runner: !!runner, course: courseTouch }) : null;
   // a shooter's carried arms (gunplay.js, gunplay-view.js): a body whose rule says gunplay; absent, nothing is emitted
   const gunplay = entities.some((e) => e && e.rule && e.rule.gunplay);
+  // the aim held (aim-view.js, aim-view-view.js): a body whose rule says aimView; absent, nothing is emitted
+  const aimView = entities.some((e) => e && e.rule && e.rule.aimView);
   // a gun on a mount aimed by hand (worlds/controllable/turret.js, turret-view.js): an entity with a turret; absent, nothing
   const turretOn = entities.some((e) => e && e.turret);
   // a body steered on its wheels (worlds/controllable/steer.js), its rule's or a form's: absent, nothing
@@ -1216,7 +1219,7 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   // (a tempo whose moments carry a look: the page lays it over the grade)
   const tempoLook = !!(tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look));
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(boatOn ? { boat: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}) })};
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(aimView ? { aimView: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(boatOn ? { boat: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}) })};
 const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${loose ? `, loose: ${safeJson(loose)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''}${styleMeter ? `, styleMeter: ${safeJson(styleMeter)}` : ''}${gusts ? ', vayoAir: true' : ''}${knock ? `, knock: ${safeJson(knock)}` : ''}${roll ? `, roll: ${safeJson(roll)}` : ''} });
 ${xr ? `// the headset (channels/xr.js): set while a session plays the game, { pad, input, hides }; null, the page's own devices
 let __xrCtl = null;
@@ -2573,7 +2576,8 @@ function __syncEntity(e, dt) {
   // wreck finisher: a respawn cleared the vanish — re-show the body. NOT while the hangar
   // menu holds this body hidden (userData.hangarHidden, __showActive): this unconditional
   // per-frame re-show is what superposed every suit at the origin after the respawn work.
-  if (!m.visible && !m.userData.hangarHidden${hideId ? ` && e.id !== ${JSON.stringify(hideId)}` : ''}) m.visible = true;${hideId ? `
+  if (!m.visible && !m.userData.hangarHidden${hideId ? ` && e.id !== ${JSON.stringify(hideId)}` : ''}${aimView ? ' && !__avHides(e)' : ''}) m.visible = true;${aimView ? `
+  if (__avHides(e)) m.visible = false;   // the aim at the eye (aim-view.js): the camera rides inside this body` : ''}${hideId ? `
   if (e.id === ${JSON.stringify(hideId)}) m.visible = false;   // first person: the eye rides inside this body` : ''}${xr ? `
   if (__xrCtl && __xrCtl.hides(e)) m.visible = false;   // in the headset: the player stands inside this body` : ''}
   m.position.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2]);
@@ -2719,8 +2723,10 @@ function __ground(pos) {
 // mouse button serves an action is the pilot scheme's (controls/schemes.js), read through the controls
 // kernel per device family (controls/devices.js); __BIND is the live table, so a remap replaces it and
 // nothing below changes. This page drives the keyboard, mouse and standard-mapping gamepad families.
-const __CTL = (${buildControlsKernel.toString()})();
-const __SCHEME = ${safeJson(SCHEMES.pilot)};
+${aimView ? `// the aim held (aim-view.js): a body whose camera rides its eye for now is hidden
+const __avHides = (e) => { const r = __world.camera && __world.camera.rule; return !!r && r.type === 'eye' && r.hideTarget === true && r.target === e.id; };
+` : ''}const __CTL = (${buildControlsKernel.toString()})();
+const __SCHEME = ${safeJson(aimView ? SCHEMES.operative : SCHEMES.pilot)};
 const __DEV = ${safeJson({ keyboard: DEVICES.keyboard, mouse: DEVICES.mouse, gamepad: DEVICES.gamepad })};
 let __BIND = __CTL.resolve(__SCHEME, __DEV);
 const __held = {};
@@ -4744,7 +4750,7 @@ function __mojBackdrop(from, look, shift) {
   scene.add(quad);
   return { dispose: () => { scene.remove(quad); quad.geometry.dispose(); quad.material.dispose(); rt.dispose(); } };
 }
-` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${backdrop ? ' backdrop: __mojBackdrop,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''}${gusts ? ' air: __CW.vayoAir,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay ? gunplayScript() : ''}${vayoOn ? vayoTrailScript() : ''}${knock ? knockFxScript() : ''}${turretOn ? turretScript() : ''}${boatOn ? boatWaterScript() : ''}${moveset ? specialsPaletteScript() : ''}${roll ? `
+` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${backdrop ? ' backdrop: __mojBackdrop,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''}${gusts ? ' air: __CW.vayoAir,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay ? gunplayScript() : ''}${aimView ? aimViewScript() : ''}${vayoOn ? vayoTrailScript() : ''}${knock ? knockFxScript() : ''}${turretOn ? turretScript() : ''}${boatOn ? boatWaterScript() : ''}${moveset ? specialsPaletteScript() : ''}${roll ? `
 // ---- THE ROLL (worlds/controllable/roll.js): what this level's seed picks on it. Applied once, where the level starts:
 // by the seed its shell sends with game-init${rollWaits ? '' : ' (this page has no game channel: the reference roll, seed 1)'}. A thing rolled away never stood: it leaves the colliders
 // (the runtime's) and the scene (taken out, not hidden: the ground's ray and the camera's meet nothing where it was).
