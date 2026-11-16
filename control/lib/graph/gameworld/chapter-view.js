@@ -44,11 +44,12 @@ export function chapterOfMove(move) {
   if (!isObj(move) || typeof move.step !== 'string') return null;
   if (move.step === 'wait') return chapterById(move.on);
   if (move.step === 'req') return unitOf(move.unit)?.chapter ?? chapterById('build');   // the unit's, else the director's
+  if (move.step === 'goalpost') return chapterById(move.chapter) ?? chapterById('build');   // the chapter the goalpost names, else the director's
   if (move.step === 'form') return null;   // its asks are each their own (chapterView splits them)
   if (move.step === 'review' || move.step === 'advised') return null;   // its parts are each their own
   return chapterById(MOVE[move.step]);
 }
-export const MOVE_STEPS = Object.freeze([...Object.keys(MOVE), 'wait', 'form', 'review', 'advised']);
+export const MOVE_STEPS = Object.freeze([...Object.keys(MOVE), 'goalpost', 'wait', 'form', 'review', 'advised']);
 
 // the readout's sections and advice, each by its chapter
 const SECTION = { intent: 'intent', composed: 'intent', concept: 'intent', feel: 'feel', juice: 'feel', numbers: 'systems', story: 'story', audits: 'build', fight: 'cast', first_frame: 'build', resonance: 'build', comparison: 'intent', compile: 'build', errand_proof: 'story', gauntlet_proof: 'levels', mainQuest: 'main-quest', loop: 'intent', goalposts: 'build' };

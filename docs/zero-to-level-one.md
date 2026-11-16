@@ -34,7 +34,9 @@ session leaves.
    `gameworld-producer` card). Bringing nothing is an answer. The quick path and the sentence door are not asked.
 2. **The goalposts.** Every readout carries `goalposts` (`gameworld/goalposts.js`): what game it is, its shape, its
    look, its play, its plan, the first level's plan, the first level made. Each is met, partial or open, and an open
-   one carries the question only the person can answer. `next` names where the session goes on.
+   one carries the question only the person can answer. The first open one is also a step in `next`
+   (`step: 'goalpost'`), so the list of moves and the goalposts say the same thing. A game built while a design
+   goalpost is open is a draft: its play and share steps say `draft`, and the question leads.
 3. **The chapters.** The agent writes or patches the world; `next` answers with step ids, each with its card and often
    a ready patch (`gameworld-next`). `{ ref, chapter }` is one chapter's view, a department's.
 4. **Try the play before the levels.** The practice door builds a room from the recipe alone, chosen by how the game
@@ -97,6 +99,9 @@ Measured on this branch on 2026-11-16 in a cloud box (software rendering), throu
 - Of a nine-word sentence the door read one word (the hour). The goalposts said so: one of them met, the rest open
   or partial, each with its question. That is the rail working as meant, and it is also the distance left: the
   sentence door alone does not give the game that was asked for, the agent writing the recipe does.
+- On that run the readout led with `run`, and after the build with "the game is complete: ask how to share it",
+  while the goalposts beside it said one of them was met. The goalpost step and the draft wording (above) were added
+  after this run, to close that.
 
 What that shows:
 
