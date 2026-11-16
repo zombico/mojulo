@@ -583,7 +583,8 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // that fills its window (`screen: 'fill'`: no frame written, so no bars on a window of another shape)
   const row = genre ? GENRE_HERO[genre.id] : null;
   if (row?.juice && world.juice === 'auto') world.juice = { ...row.juice };
-  if (row?.screen === 'fill') delete world.screen;
+  // (written as null, the world's word for no frame: an absent `screen` is one design_game makes for a phone)
+  if (row?.screen === 'fill') world.screen = null;
   // HOW ITS SCREENS LOOK (playscape/ui/interface-look.js): a world map's game has an interface (an empty `ui`: its look
   // the world's, by its intent, its colours the world's palette), so the play shell's screens are mana-ui's in that look
   // (game/play-shell-mana.js) as its HUD is; a game with no map keeps the shell's own screens

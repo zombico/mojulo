@@ -137,6 +137,10 @@ describe('how the genre\'s hero plays', () => {
     expect(sheetAudio(G).sheet.steps.gain).toBe(STEP_GAIN);
     expect(STEP_GAIN).toBeLessThan(1);
   });
+  it('her game fills its window: no frame is written as null, so design_game lays no phone frame over it', () => {
+    expect(world.screen).toBeNull();
+    expect(G.screen).toBeUndefined();
+  });
   it('its foes are harder: never floored, a temper and a skill up, more health, faster; a boss keeps its own mind', () => {
     const e = { id: 'foe-1', team: 'foes', rule: { speed: 3.6, mind: { rank: 'minion', aggressiveness: 'bold', skill: 'regular' } }, body: { hp: 8 } };
     const F = GENRE_HERO['action-rpg'].foes, made = rowFoe(G, e);
