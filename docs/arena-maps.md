@@ -222,8 +222,9 @@ A mission takes a place as its map (`mission.map: { town } | { city, on }`, [mis
 
 - **Templates for a long gun.** These four are sized for the mid band; a kit with a long gun wants a longer line
   somewhere, so a bigger court or a yard.
-- **A place drawn as itself.** A cut is laid in greybox: a house is a grey mass, a container a grey block. Its own
-  render (the geotown's and the geocity's scenes) is not on the map's page.
+- **A place drawn as itself.** A map and a cut are drawn by the form render in a dress of generic tiles
+  (`ground-form.js`): a house is a brick mass, a container a brick block. The place's own render (the geotown's and
+  the geocity's scenes: its houses, its tanks, its quay) is not on the map's page.
 - **A place's low things.** Hedges, parked cars, planters and bollards are the cover a street already has; they live
   in the scenes, not the designs, so the reader cannot see them and the generator grows panels in their place.
 - **A city's other blocks.** Only industry and the waterfront are read at a building's grain; a tower block, a

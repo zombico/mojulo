@@ -239,9 +239,17 @@ nothing stops a body under a stair's flight.
 A mission is read in the seventh generation by default (`mission-level.js` `missionCube`: the world's own cube, its era
 `gen-7` unless the cube names one). An era is a render (`era/eras.js`), and a mission is fought among bodies that move:
 the form render's live light (the actors' shadows, the hour's shadow map, contact occlusion) is what parts them from
-the floor. With no cube a mission page had no era and was drawn flat. Its greybox faces and its figures are still drawn
-as paint under that light: the era reading says so (`approximated`), and they are built as form when the form render
-draws them (a figure under the cast rig, a dressed ground).
+the floor. With no cube a mission page had no era and was drawn flat.
+
+A mission **on a map or a place** is drawn by the form render (`arena-map/ground-form.js`): the map's blocks are the
+greybox's geometry, face for face, each wearing a tile by what it is (`MAP_FORM`: an arena's stone and concrete, a
+place's asphalt and brick), mapped in metres and baked under the cube's sun as a town's buildings are
+(`form/sun-light.js`): its colour and the day's light apart, the blocks shading each other. The page takes it through
+`form.town`; a controllable manifest carries `form` only when a stage hands it one. The tiles are a first dress, one a
+part: a house in a place's cut is a brick mass, not that house. In the sixth generation the map is the greybox as
+painted, and the lane mission is greybox in either.
+
+Still paint in every mission: the figures (the era reading says so, `approximated`), water, and a ladder.
 
 ## On mana-ui, end to end
 
@@ -273,6 +281,22 @@ an overlay across the screen is read without it: the HUD lies over the sights.
 
 The channel's module imports the UI runtime, the controls layer and the theme cards, and nothing of the gameworld; a
 test holds that (`mission-mana.test.js`).
+
+### The radar and the map
+
+Both are one concept (`gameworld/radar.js`), two reads of the same scene, drawn by mana-ui's minimap.
+
+- **The radar** sits in the HUD's bottom left: a round scope with the pilot at its middle and **ahead at the top**, so
+  it turns as the pilot turns. A cross is a foe that is awake, within `RADAR.range`; a star is the task in hand where
+  it is a place to go, on the rim while it is further off. A foe asleep is not on it: a room's foes wake as it is
+  walked into, and the radar keeps that surprise.
+- **The map** is a screen, on its key (M, again to close) and in the pause menu: the level's plan with **north at the
+  top**, still. The plan is drawn on the page from the scene's own colliders, what stands in a body's way on the
+  ground (a mass, a low wall) and its water, so it is the level as it is played, on a lane, a map, a place or a
+  building alike, and no second drawing of it is stored. On it: the pilot, the task in hand, the foes awake.
+
+Said: the map's mark for the pilot does not turn to show which way it faces; a building's map is its ground storey
+whichever storey the pilot stands on; the map key is the keyboard's (a pad reaches the map through the pause menu).
 
 ## The gates
 

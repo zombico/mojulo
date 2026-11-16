@@ -163,3 +163,12 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   place's own shape (a pier is a dead end). A mission takes a place as its map (`mission.map: { town } | { city, on }`):
   played headless, the gunner wins the quay, the pier, the container yard and the main street and goes down in the hold
   on the houses block and the beach. Greybox only; a place's hedges, cars and pavilions are the scenes' and are not read.
+- **Maps and places in the seventh generation.** A mission on a grown map or a place's cut is drawn by the form render
+  (`arena-map/ground-form.js`): the greybox's geometry, each face in a tile by what it is, baked under the cube's sun
+  with the blocks' own shadows, handed to the page as a town's buildings are (`form.town`; a controllable manifest now
+  carries an opt-in `form`). The era reading no longer lists its faces and tiles as approximated; figures, water and
+  ladders are still paint. A first dress of generic tiles: a place's house is a brick mass.
+- **A radar and a map.** `gameworld/radar.js`: a round scope in the mission's HUD, the pilot at its middle and ahead at
+  the top, the foes awake within its range and the task in hand pinned to its rim; and a map screen (M, and in the
+  pause menu), the level's plan north up, drawn on the page from the scene's own colliders and water, with the pilot,
+  the task and the foes awake. A foe asleep is on neither. Each task that is a place to go carries its place.

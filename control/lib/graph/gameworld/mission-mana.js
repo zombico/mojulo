@@ -10,6 +10,8 @@
  *                  task in hand, every task ticked as it is met), the yard's clock while it is held. Read each frame off
  *                  the scene: the bus's vars (the hp, the objectives' own var, the hold's clock) and the pilot's weapon.
  *                  The reticle stays the gunplay view's own (its cone, its hit flash and its sights are the gun's)
+ *   the radar and the map   what is round the pilot, on a round scope that turns with it, and where the pilot is in the
+ *                  level, on its plan (radar.js: the map on its key, M, and in the pause menu)
  *   the damage ring   where the fire is coming from: each hit the pilot takes marks a ring round the aim at its
  *                  attacker's bearing from where the pilot faces (ahead at the top, behind at the bottom), for a moment
  *                  (RING.life seconds of the scene's own clock, begun again by another hit from the same one), turning
@@ -47,6 +49,7 @@ import { DEVICES } from '../controls/devices.js';
 import { MSG_PAUSE, MSG_CONTROLS } from '../game/level-contract.js';
 import { THEME_CARDS, cardTheme } from '../playscape/ui/theme-cards/loader.js';
 import { RING, hitBearing, ringTracker } from './damage-ring.js';
+import { RADAR, radarMarks, planBox, planPoint, planSvg, sceneThings } from './radar.js';
 
 // (the damage ring is its own concept, drawn here on mana-ui: damage-ring.js)
 export { RING, hitBearing };
@@ -85,6 +88,8 @@ export function missionManaSpec() {
       { use: 'ammo-counter', props: { weapon: B('weapon'), ammo: B('ammo'), reserve: B('reserve') } },
       // the damage ring: drawn only while a hit's mark stands
       { use: 'damage-direction', props: { hits: B('ring.hits') }, when: B('ring.on') },
+      // the radar (radar.js): the pilot at its middle, ahead at the top, the foes awake and the task in hand
+      { use: 'region', props: { at: 'bottom-left' }, children: [{ use: 'minimap', props: { shape: 'round', markers: B('radar.marks'), label: B('radar.label') } }] },
     ] },
     screens: {
       briefing: tabsScreen(B('title'), B('brief'), [{ use: 'button', props: { label: B('begin') }, on: { accept: { close: true } } }]),
@@ -92,6 +97,12 @@ export function missionManaSpec() {
       how: tabsScreen('How to play', B('how'), [back]),
       controls: { use: 'screen', props: { title: 'Controls', place: 'center' }, children: [{ use: 'window', children: [{ use: 'stack', children: [
         { use: 'each', props: { rows: B('controls'), row: { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [txt(I('label')), txt(I('keys'), 'label')] } } },
+        back,
+      ] }] }] },
+      // the map (radar.js): the level's plan, north at the top, the pilot, the task in hand and the foes awake on it
+      map: { use: 'screen', props: { title: 'The map', place: 'center' }, children: [{ use: 'window', children: [{ use: 'stack', children: [
+        { use: 'minimap', props: { markers: B('map.marks'), label: B('map.label') } },
+        { use: 'each', props: { rows: B('map.legend'), row: txt(I('text'), 'label') } },
         back,
       ] }] }] },
       debrief: { use: 'results-screen', props: { outcome: B('result.outcome'), stats: B('result.stats'), rank: B('result.rank'), items: B('result.items') } },
@@ -118,6 +129,7 @@ export function missionMana(ui) {
     { label: 'Moving', lines: [{ glyph: 'W A S D', text: 'move' }, { glyph: 'mouse', text: 'look' }, { action: 'jump', text: 'jump' }, { action: 'pause', text: 'this menu' }] },
     { label: 'The guns', lines: [{ action: 'fire', text: 'fire' }, { glyph: 'right click', text: 'raise the sights' }, { glyph: 'R', text: 'reload (what is left in the magazine is lost)' }, { glyph: '1-5', text: 'switch' }, { glyph: 'V', text: 'the knife, where one is carried' }] },
     { label: 'Under fire', lines: ['A red mark on the ring round your aim shows where a hit came from.', 'The top of the ring is ahead of you, the bottom behind, the sides your sides.', 'Turn until the mark is at the top: you are facing who is shooting.'] },
+    { label: 'Radar and map', lines: ['The round scope shows what is round you: you are its middle and the top is ahead, so it turns as you turn.', 'A cross is a foe that is awake. A star is the task in hand, on the rim while it is further off.', { glyph: 'M', text: 'the map: the level from above, north at the top' }] },
     { label: 'The rules', lines: ['Each room has one task. Its way on is sealed until the task is met.', 'A room\'s foes wake as you walk into it, never before.', 'Rounds and health lie on the floor: walk over them.'] },
   ];
   const brief = [
@@ -128,15 +140,17 @@ export function missionMana(ui) {
   ];
   const state = { ms: {
     title: `Mission · ${ui.title}`, name: ui.title, begin: 'Begin', brief: tabs(brief), how: tabs(how), controls: [],
-    menu: [{ label: 'Resume', then: { close: true } }, { label: 'The briefing', then: { open: 'briefing' } }, { label: 'How to play', then: { open: 'how' } }, { label: 'Controls', then: { open: 'controls' } }, { label: 'Start again', then: { emit: 'mission:restart' } }],
+    menu: [{ label: 'Resume', then: { close: true } }, { label: 'The map', then: { open: 'map' } }, { label: 'The briefing', then: { open: 'briefing' } }, { label: 'How to play', then: { open: 'how' } }, { label: 'Controls', then: { open: 'controls' } }, { label: 'Start again', then: { emit: 'mission:restart' } }],
     hp: 100, hpMax: 100, weapon: '', ammo: 0, reserve: 0,
     objective: { title: ui.tasks[0]?.text ?? '', steps: ui.tasks.map((t) => ({ text: t.text, done: false })) },
     hold: { on: false, left: 0, label: 'Hold' },
     ring: { on: false, hits: [] },
+    radar: { marks: [], label: `${RADAR.range} m` },
+    map: { marks: [], label: 'north up', legend: [{ text: '▲ you' }, { text: '★ the task in hand' }, { text: '✕ a foe awake' }] },
     result: { outcome: '', stats: [], rank: '', items: [{ label: 'Play it again', then: { emit: 'mission:restart' } }, { label: 'The briefing', then: { open: 'briefing' } }] },
   } };
   const C = manaControls();
-  return { theme: themeOf(ui.theme), spec: missionManaSpec(), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad }, open: openControls(), state, tasks: ui.tasks, ring: { life: RING.life, most: RING.most }, msg: { pause: MSG_PAUSE, controls: MSG_CONTROLS } };
+  return { theme: themeOf(ui.theme), spec: missionManaSpec(), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad }, open: openControls(), state, tasks: ui.tasks, ring: { life: RING.life, most: RING.most }, radar: { ...RADAR }, mapKey: 'KeyM', water: ((R) => (R?.water ?? []).map(([i, j]) => [i * R.cell, j * R.cell, (i + 1) * R.cell, (j + 1) * R.cell]))(ui.plan?.map?.blocks?.read), msg: { pause: MSG_PAUSE, controls: MSG_CONTROLS } };
 }
 
 /**
@@ -149,6 +163,11 @@ export function missionManaCss(theme) {
     'div:has(>#__wepIcon){display:none!important}#wrap .hint{display:none}',
     // the damage ring: no ring drawn, each mark a bar lying along it where the fire comes from
     '#mana .mana-threat{border-color:transparent;width:min(46vh,46vw);height:min(46vh,46vw)}',
+    // the radar: a round scope, its marks small, a foe in the harm's colour; the map: the plan under its marks, large
+    '#mana .mana-minimap[data-shape=round]{width:min(22vh,22vw);height:min(22vh,22vw);background:radial-gradient(circle,rgba(20,24,20,.55) 0 66%,rgba(20,24,20,.8) 67% 100%);overflow:hidden}',
+    '#mana .mana-minimap[data-shape=round]::after{content:"▲";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:1.4vh;opacity:.9}',
+    '#mana .mana-minimap[data-shape=square]{width:min(62vh,62vw);height:min(62vh,62vw);background:var(--ms-plan,none) center/100% 100% no-repeat #1c1f1c}',
+    '#mana .mana-minimap .mana-marker{font-size:1.5vh}#mana .mana-minimap .mana-marker[data-kind=foe]{color:var(--mana-harm,#e0533f)}#mana .mana-minimap .mana-marker[data-kind=goal]{color:var(--mana-accent,#e8b53a);font-size:2vh}',
     '#mana .mana-arc{font-size:0;width:26%;height:3.2%;border-radius:999px;background:var(--mana-harm,#e0533f);box-shadow:0 0 14px 2px var(--mana-harm,#e0533f);opacity:.92}',
   ].join('\n');
 }
@@ -162,8 +181,15 @@ export function missionManaRuntime(cfg) {
   const rt = __manaUi.runtime(cfg.spec, { read: (p) => __manaUi.readPath(S, p), act, now: () => performance.now() / 1000, cues: 'silent' });
   rt.glyphs(cfg.glyphs);
   const view = __manaUi.mount(root, rt, { auto: true });
+  // the map's key: opens it over the held scene, and closes it again (listened for ahead of the menu's host, which
+  // takes the keys it knows while a screen is up)
+  addEventListener('keydown', (e) => {
+    if (e.code !== cfg.mapKey || ended) return;
+    if (up && onMap) { e.preventDefault(); rt.close(); view.paint(); return; }
+    if (!up && !shut && !e.defaultPrevented && !window.__mojMenuOpen) { e.preventDefault(); open('map'); read(); view.paint(); }
+  }, true);
   __manaHostK.connect(rt, view, { keys: cfg.controls.keys, pad: cfg.controls.pad, padLayout: __manaPadLayout });
-  let up = false, shut = false, ended = false;
+  let up = false, shut = false, ended = false, onMap = false;
   const hosted = (function () { try { return window.parent && window.parent !== window; } catch (e) { return false; } })();
   const hold = (on) => { try { window.postMessage({ moj: cfg.msg.pause, on }, '*'); } catch (e) { /* no scene */ } };
   const world = () => (window.__mojCtrl && window.__mojCtrl.world) || null;
@@ -173,6 +199,7 @@ export function missionManaRuntime(cfg) {
     up = true;
     try { if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock(); } catch (e) { /* no lock */ }
     rt.open(screen);
+    onMap = screen === 'map';
     hold(true);
     view.paint();
   }
@@ -196,6 +223,14 @@ export function missionManaRuntime(cfg) {
   let shown = '';
   // THE DAMAGE RING (damage-ring.js): the marks standing this frame, from the pilot's own count of hits
   const ring = __msRing(cfg.ring, __msBearing);
+  // THE RADAR AND THE MAP (radar.js): the plan drawn once from the scene's own colliders, the marks read each frame
+  let plan = null;
+  function planOf(W) {
+    if (plan) return plan;
+    plan = __msPlanBox(W.colliders, cfg.water);
+    try { root.style.setProperty('--ms-plan', 'url("data:image/svg+xml,' + encodeURIComponent(__msPlanSvg(W.colliders, cfg.water, plan)) + '")'); } catch (e) { /* a page with no style */ }
+    return plan;
+  }
   function read() {
     const W = world(), v = vars(), me = W && W.entities.find((x) => x.pilotable), w = me && me.weapon;
     if (Number.isFinite(v.hp)) P.hp = Math.max(0, Math.round(v.hp));
@@ -212,8 +247,13 @@ export function missionManaRuntime(cfg) {
     P.hold.on = held; P.hold.left = held ? v['__obj_left' + n] : 0;
     P.ring.hits = me ? ring.step(W, me) : [];
     P.ring.on = P.ring.hits.length > 0;
+    if (me && me.transform) {
+      const things = __msThings(W, me, T && T.at ? T.at : null), box = planOf(W);
+      P.radar.marks = __msRadar(me.transform.pos, me.transform.heading, things, cfg.radar);
+      P.map.marks = up ? things.map((x) => Object.assign(__msPlanPoint(box, x.at), { kind: x.kind })).concat([Object.assign(__msPlanPoint(box, me.transform.pos), { kind: 'self' })]) : [];
+    }
     // (a mark is repainted when it has moved five degrees: a turning pilot's ring turns, a still one's is left alone)
-    const now = JSON.stringify([P.hp, P.weapon, P.ammo, P.reserve, n, P.hold.on, P.hold.left, P.ring.hits.map((x) => Math.round(x.bearing / 5))]);
+    const now = JSON.stringify([P.hp, P.weapon, P.ammo, P.reserve, n, P.hold.on, P.hold.left, P.ring.hits.map((x) => Math.round(x.bearing / 5)), P.radar.marks.map((x) => [Math.round(x.x * 40), Math.round(x.y * 40), x.kind]), P.map.marks.length]);
     if (now !== shown) { shown = now; view.paint(); }
     // the end: the level's one envelope; alone, the debrief; in a shell, the shell's own result screen
     const G = window.__mojGame, env = G && G.envelope;
@@ -261,6 +301,11 @@ const __manaHostK = ${manaHostSource()};
 const __manaPadLayout = (${padLayoutSource()});
 const __msBearing = ${hitBearing.toString()};
 const __msRing = ${ringTracker.toString()};
+const __msRadar = ${radarMarks.toString()};
+const __msPlanBox = ${planBox.toString()};
+const __msPlanPoint = ${planPoint.toString()};
+const __msPlanSvg = ${planSvg.toString()};
+const __msThings = ${sceneThings.toString()};
 const __msCss = document.createElement('style');
 __msCss.textContent = ${json(missionManaCss(theme))};
 document.head.appendChild(__msCss);

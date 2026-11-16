@@ -780,6 +780,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // for the same reason. A mind's flight (worlds/controllable/mind.js floorWay) takes an opt-in `way`, its points from the
 // foot up, walked a point at a time (a switchback's legs and landing). No fixture's flight carries one, so every walk
 // is foot to top as it was; only the runtime's text moved.
+// Re-pinned 2026-11-16 (1115-shooting-rails: a radar and a map): `mission` only. Its page's HUD carries the radar and
+// its screens the map (gameworld/radar.js, inlined beside the mission's runtime), and each task that is a place to go
+// its place. Every other fixture holds byte for byte.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

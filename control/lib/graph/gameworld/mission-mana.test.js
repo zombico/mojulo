@@ -18,8 +18,21 @@ describe('the mission on mana-ui', () => {
   it('has a spec mana-ui reads: a briefing, a pause, how to play, the controls, a debrief, and a HUD', () => {
     const S = missionManaSpec();
     expect(() => manaUi.readSpec(S)).not.toThrow();
-    expect(Object.keys(S.screens)).toEqual(['briefing', 'pause', 'how', 'controls', 'debrief']);
-    expect(S.hud.children.map((c) => c.use)).toEqual(['region', 'objective-tracker', 'region', 'ammo-counter', 'damage-direction']);
+    expect(Object.keys(S.screens)).toEqual(['briefing', 'pause', 'how', 'controls', 'map', 'debrief']);
+    expect(S.hud.children.map((c) => c.use)).toEqual(['region', 'objective-tracker', 'region', 'ammo-counter', 'damage-direction', 'region']);
+  });
+  it('carries the radar in its HUD and the map on a screen, a key and the pause menu, each task its place where it has one', () => {
+    const S = missionManaSpec(), C = missionMana(UI), radar = S.hud.children.at(-1);
+    expect(radar.children[0]).toMatchObject({ use: 'minimap', props: { shape: 'round' } });
+    expect(JSON.stringify(S.screens.map)).toContain('"minimap"');
+    expect(C.state.ms.menu.map((m) => m.then.open).filter(Boolean)).toContain('map');
+    expect(C.radar.range).toBeGreaterThan(0);
+    expect(C.mapKey).toBe('KeyM');
+    expect(C.state.ms.radar.marks).toEqual([]);
+    // (a place to go has its place; a room to clear has none: its foes are the marks)
+    for (const t of UI.tasks) { if (t.kind === 'take' || t.kind === 'reach') expect(t.at).toHaveLength(2); if (t.kind === 'clear') expect(t.at).toBeUndefined(); }
+    const src = missionChannelSource(UI);
+    for (const fn of ['__msRadar', '__msPlanBox', '__msPlanPoint', '__msPlanSvg', '__msThings']) expect(src).toContain(`const ${fn} = `);
   });
   it('builds its page from the manifest\'s `mission`: the tasks tracked, the briefing in tabs, the look named', () => {
     const C = missionMana(UI);
@@ -60,8 +73,8 @@ describe('the mission on mana-ui', () => {
   it('imports nothing of the gameworld but the page\'s own pieces', () => {
     const src = readFileSync(fileURLToPath(new URL('./mission-mana.js', import.meta.url)), 'utf8');
     const from = [...src.matchAll(/^import .* from '([^']+)';$/gm)].map((m) => m[1]);
-    // (its one neighbour is the damage ring, itself import-free: damage-ring.test.js)
-    expect(from.filter((f) => f.startsWith('./'))).toEqual(['./damage-ring.js']);
+    // (its neighbours are the damage ring and the radar, themselves import-free: damage-ring.test.js, radar.test.js)
+    expect(from.filter((f) => f.startsWith('./'))).toEqual(['./damage-ring.js', './radar.js']);
     expect(from.filter((f) => /gameworld|mission\//.test(f))).toEqual([]);
   });
 });

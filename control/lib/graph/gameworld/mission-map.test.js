@@ -5,7 +5,8 @@
 // are proved on the bus; a gunner that walks the map's own graph wins it and one that gives no input does not; a level's
 // own form takes it as the practice room does; the greybox mission is untouched by it.
 import { describe, expect, it } from 'vitest';
-import { missionLevel, missionPlan, missionMapOf } from './mission-level.js';
+import { missionLevel, missionPlan, missionMapOf, missionCube } from './mission-level.js';
+import { mapFormGround, MAP_FORM, mapDress } from '../arena-map/ground-form.js';
 import { proveMission, playMission, proveMissions, missionStageManifests } from './mission-proof.js';
 import { readGameworld } from './world.js';
 import { gameStages, stageLevelOrder } from './levels.js';
@@ -36,9 +37,12 @@ describe('a mission on a map', () => {
     expect(L.mission.on).toBe('map');
     const carried = missionMapOf(m);
     expect(carried).toMatchObject({ template: SMALLEST, seed: L.map.seed });
-    const G = mapGround(carried.blocks);
+    // (read by the seventh generation: the blocks as material under the mission's cube, rebuilt from them the same)
+    const G = mapFormGround(carried.blocks, { cube: missionCube(WORLD) });
     expect(G.faces).toEqual(m.faces);
+    expect(G.colliders).toEqual(mapGround(carried.blocks).colliders);
     expect(G.colliders).toEqual(m.colliders);
+    expect(m.form).toEqual(G.form);
     // its ladders the runtime's climbs, among the cast; its foes asleep
     expect(m.entities.filter((e) => e.rule?.type === 'climbable').length).toBe(carried.blocks.ladders.length);
     expect(m.entities.filter((e) => e.team === 'foes').every((e) => e.dormant)).toBe(true);
@@ -113,11 +117,42 @@ describe('a mission on a place', () => {
     expect(carried.blocks.nx).toBe(PLACE_SIZE[2] / 3);
     expect(carried.blocks.read.notes.join(' ')).toMatch(/a cut of block/);
     expect(carried.blocks.read.masses).toBeGreaterThan(0);
-    expect(mapGround(carried.blocks).faces).toEqual(m.faces);
+    expect(mapFormGround(carried.blocks, { cube: missionCube(WORLD) }).faces).toEqual(m.faces);
     expect(missionPlan(WORLD, { spec: readMission({ map: { town: { segment: SEG } } }), seed: L.map.seed, grown: carried.blocks }).mission).toEqual(L.mission);
     expect(L.brief.why.map).toMatch(/cut of a town/);
     // (its tasks proved on the bus; a law of the map it does not hold is said, as advice)
     expect(proveMission(m)).toMatchObject({ proved: true });
     expect(L.laws.filter((l) => !l.holds).every((l) => l.law.startsWith('map:'))).toBe(true);
   }, 60000);
+});
+
+// THE MAP IN THE SEVENTH GENERATION (arena-map/ground-form.js): its blocks as material under the cube's day. One map (the
+// smallest template) and one place's cut. The concepts: the geometry is the greybox's, face for face; every block face
+// wears its dress's tile, mapped in metres, with its colour and the day's light apart; a face the sun cannot see is in
+// shadow; the page is handed the form render; a world that names the sixth generation keeps the greybox, not a key more.
+import { ERAS, ERA_IDS } from '../era/eras.js';
+
+describe('a map read by the seventh generation', () => {
+  const M = TEMPLATES[SMALLEST].build(), G = mapFormGround(M, { cube: missionCube(WORLD) }), P = mapGround(M);
+  it('is the greybox\'s geometry in its dress\'s tiles, baked under the cube\'s sun', () => {
+    expect(G.faces.map((f) => f.corners)).toEqual(P.faces.map((f) => f.corners));
+    expect(mapDress(M)).toBe('arena');
+    const worn = G.faces.filter((f) => f.texture);
+    expect(worn.length).toBeGreaterThan(G.faces.length * 0.8);
+    expect(new Set(worn.map((f) => f.texture)).size).toBeLessThanOrEqual(Object.keys(MAP_FORM.arena).length);
+    for (const f of worn.slice(0, 40)) { expect(f.uv).toHaveLength(f.corners.length); expect(f.cornerLight).toHaveLength(f.corners.length); expect(f.sunShare).toHaveLength(f.corners.length); }
+    // (the sun reaches some corners and not others: the blocks shade each other)
+    const shares = worn.flatMap((f) => f.sunShare);
+    expect(shares.some((v) => v > 0.3) && shares.some((v) => v === 0)).toBe(true);
+    expect(G.form.town.lights).toHaveLength(1);
+    expect(mapFormGround(M, { cube: missionCube(WORLD) })).toEqual(G);
+  });
+  it('is the mission\'s ground only in an era whose surface is the form\'s; the sixth keeps the greybox and carries no form', () => {
+    const SIXTH = ERA_IDS.find((e) => ERAS[e].surface !== 'form');
+    const old = missionLevel({ ...WORLD, style: { geocube: { from: 'valley-morning', era: SIXTH } } }, { quiet: true, spec: { map: SMALLEST }, seed: 1 }).manifest;
+    expect(old.form).toBeUndefined();
+    expect(old.faces).toEqual(mapGround(missionMapOf(old).blocks).faces);
+    // (the lane, no map: greybox in either era)
+    expect(missionLevel(WORLD, { quiet: true }).manifest.form).toBeUndefined();
+  });
 });
