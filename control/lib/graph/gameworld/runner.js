@@ -194,7 +194,13 @@ const composedAudits = (audits, C, composite) => (Array.isArray(composite) ? aud
 function shellUi(G) {
   // (a game of obstacle courses says no `ui` and still gets its screens from the game UI runtime, in its course's own
   // look: the dress's `ui`, course-dress.js. A running game's title, pause and result are part of how it reads)
-  if (G.ui === undefined) { const look = courseLook(G); return look ? { ui: { theme: look } } : {}; }
+  // (and a game whose every level is a STREET, a beat-em-up's or a run & gun's: the street's own look, brawl-street,
+  // on its menus as on its screen)
+  if (G.ui === undefined) {
+    const look = courseLook(G), ids = G.ids ?? [];
+    if (look) return { ui: { theme: look } };
+    return ids.length && ids.every((k) => G.levels[k]?.brawlStreet || G.levels[k]?.street) ? { ui: { theme: cardTheme('brawl-street') } } : {};
+  }
   return { ui: { theme: interfaceLook(G).theme, ...(G.ui.languages ? { languages: G.ui.languages } : {}), ...(G.ui.language ? { language: G.ui.language } : {}) } };
 }
 // a level's sounds where the game is on the sound sheet (sound-sheet.js levelSheet): a game with a `sound` of its own

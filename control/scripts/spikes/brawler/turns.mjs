@@ -50,7 +50,7 @@ const { FOE_CLASSES } = await import('@/lib/graph/foes/index.js');
 const groundOf = (L) => { const { screens: _s, belt, ...rest } = L; if (!belt) return rest; const { screens: _b, ...b } = belt; return { ...rest, ...(Object.keys(b).length ? { belt: b } : {}) }; };
 const composedWorld = { id: 'dockside', name: 'Dockside', mode: 'autonomous', style: MEADOWMARK_HERO.style, civilizations: MEADOWMARK_HERO.civilizations, characters: MEADOWMARK_HERO.characters,
   foes: { punk: { class: Object.keys(FOE_CLASSES)[0], skin: { people: 'human', dress: { faction: 'punks' } } } },
-  levels: { dock: { name: 'Dock Road', street: { ground: groundOf(streets[0].level), stops: [{ wave: { grunt: 2 } }], boss: { foe: 'grunt', hp: 200 } } }, yard: { name: 'The Yard', street: { ground: groundOf(streets[2].level), stops: [{ wave: { grunt: 2 } }], boss: { foe: 'grunt', hp: 200 } } } },
+  levels: { dock: { name: 'Dock Road', street: { ground: groundOf(streets[0].level), open: 22, stops: [{ wave: { grunt: 2 }, length: 20 }], boss: { foe: 'grunt', hp: 200, length: 20 } } }, yard: { name: 'The Yard', street: { ground: groundOf(streets[2].level), open: 22, stops: [{ wave: { grunt: 2 }, length: 20 }], boss: { foe: 'grunt', hp: 200, length: 20 } } } },
   links: [{ from: 'dock', to: 'yard', kind: 'gate' }] };
 // (--gun: each street says nothing of what holds it: the run & gun's own waves and things are laid)
 if (opt.gun) for (const s of streets) delete s.waves;

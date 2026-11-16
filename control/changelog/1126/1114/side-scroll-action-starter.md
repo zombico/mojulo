@@ -296,6 +296,9 @@ screen) is now played on a page; before, only its practice yard was.
   has each level's turn call them. The fight measure reads a street level as its page does (its cast's waves, its
   lives, its tuning). `levels.<id>.sideways`, its `cast` by crowd type and its raw `waves` are gone: who comes is
   written at the street's stops, by role or by a foe's name.
+- A game whose every level is a street wears the street's look (`brawl-street`) on its menus when it says no `ui`,
+  as a quick brawl does: its level list, set-up, pause and results are the game UI runtime's, driven from the keys.
+  A blockout takes the game's `screen` word, as a stage does (a street on a blockout ground was refused for it).
 - Not yet (the two doors): the design door's scripted player and this theme's fight measure both read a street (one check would do); the
   practice room that ends (`stakes`) is still its own path for a wave set with no street.
 - Not yet (run & gun): one-hit play, a boss's own attacks (a pattern only it has), the turn asking each
