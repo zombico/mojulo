@@ -51,6 +51,13 @@
   turf, dirt and rock are read from the cube's own outside, as the side strip reads them, so a floor is the same land
   as the ground round it. A stair is stone alone (a tread is about as tall as a cornice), and the trim is a stop
   lighter than the stone.
+- **The side strip's land is dressed.** The land behind a side-scroller's lane was a bare terrace and one row of like
+  trees. It is now dressed by principles lifted from a running course's dress and turned on their side
+  (`docs/side-strip-principles.md`): the terrace in slices, A a grove (trees of unlike sizes, a bush, a stone) and B
+  open ground, ordered by the walls' rule (never three alike, never a pair repeated); the grove at the terrace's back
+  and only low things at its front, so the band the hero runs in stays the hero's; tufts on the nearest land, where
+  speed is read; clouds set low, since a side camera looks down; a small tower in the cube's accent past the lane's
+  end. Three laws join the strip's (`rhythm`, `behind`, `quiet`). Every side strip gains the dress on its next run.
 - **Lives and coins are pictures.** The `lives` and `coins` mechanics say their HUD readouts as counters, so a look
   with pictograms draws a heart and a coin beside the numbers.
 - **Coins along a 3D course.** `mechanics.coins` laid coins on a side strip only; a trail's course (a 3D platformer's)
