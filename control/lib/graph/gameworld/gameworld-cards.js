@@ -334,7 +334,7 @@ function worldCard() {
     '  { houses?, enter?, goal? } stand buildings and a town\'s first houses on a trail, walked into (card game-building).',
     '  or city: { grammar?, civilization?, from?, to?, stalker?, … } (card city-plan), played by its segments (stalker: true, by the hero).',
     '  or geocity: { evoke: neighbourhood | corridor | segment, at?, shops?, … } (card geocube): a DISTRICT of a metro in detail, the rest its',
-    '    skyline, walked along its street; shops: true opens its shops (an errand\'s `shop` trade at a till). A heavy page (tens of MB): say so first.',
+    '    skyline, walked along its street; shops: true opens its shops (an errand\'s `shop` trade at a till). A big page (tens of MB): over a cloud session\'s limit, fine locally.',
     '  or glyphs: { rows, key?, regions?, tile? }: one world on one page as a glyph grid (# path, . land, a letter a place { use, goal? };',
     '    regions: a second grid, each { name, rise?, biocube? }), walked from its far end to the goal\'s door.',
     '    ~ water: its edge a beach or a cliff (a region\'s shore: beach | cliff). ways: ranked (roads by places, tracks, paths,',

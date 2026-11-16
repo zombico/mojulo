@@ -667,7 +667,7 @@ export function readGameworld(W) {
       if (!isObj(L.geocity)) throw new Error(`gameworld: ${at}.geocity is { metro?, evoke: 'neighbourhood' | 'corridor' | 'segment', at?, along?, shops?, … } (the geocube kind's geocity)`);
       let Gc;
       try { Gc = readGeocity(L.geocity); } catch (e) { throw new Error(`gameworld: ${at}.geocity: ${e.message.replace(/^geocity:\s*/, '')}`); }
-      if (!GEOCITY_LEVEL_EVOKES.includes(Gc.evoke)) throw new Error(`gameworld: ${at}.geocity.evoke is ${GEOCITY_LEVEL_EVOKES.join(', ')}: a level is a district of the metro, not the metro (a whole metro is no page a host shows)`);
+      if (!GEOCITY_LEVEL_EVOKES.includes(Gc.evoke)) throw new Error(`gameworld: ${at}.geocity.evoke is ${GEOCITY_LEVEL_EVOKES.join(', ')}: a level is a district of the metro, not the metro (nothing streams a metro yet: its build and its boxes are a district's several times over)`);
     } else if (L.geotown !== undefined) {
       // a geotown level: a neighbourhood (geotown/: its pattern, its streetscape, a segment or a neighbourhood), drawn on
       // the level's geocube and walked from its streets; the town is its own ground
