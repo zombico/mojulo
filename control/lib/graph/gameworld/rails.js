@@ -8,7 +8,8 @@
  * It NAMES; the tables behind it still MEASURE. A row's handles are its keys into them, so no number is copied here:
  *
  *   pole     gameworld/feel/cards.js POLES: how the buttons feel (the action tuning), its camera, what it lacks
- *   genres   cosmos/fixtures.js FIXTURES (intent.js GENRES): the cubes it starts a designed game from, the first its own
+ *   genres   cosmos/fixtures.js FIXTURES (intent.js GENRES): the first is ITS OWN cube, what the template is (its
+ *            tunings are read from it, built or not); the rest are the cubes near it a designed game may start from
  *   quick    gameworld/quick.js QUICK_GOALS: the goals it plays as one level
  *   pixel    pixelizer/pixelizer-games.js PIXELIZER_REDUCERS: the one-page games it is
  *   table    'tabletop' | 'table-rpg': create_game's own key for it
@@ -33,8 +34,9 @@
  *   SIZES, RAILS, RAIL_IDS, NOT_YET, GENERIC_GOALS
  *   railOf(id)                 → the row (with its id), or throws naming the rails
  *   railOfPole(pole) · railOfGenre(genre) · railsOfGoal(goal)
- *   seenOf(rail)               → 'side' | 'free' | 'above' | 'first-person' | 'fixed' | null: how it is seen, from its
- *                              pole's camera, else its first genre's
+ *   seenOf(rail)               → the ways it is seen (['above', 'free']: side | free | above | first-person | fixed), its
+ *                              template's first, then its cubes' in order; more than one is a choice the producer
+ *                              asks (side-on, or in the round?), [] when no table says
  *   railWords(rail)            → the words a brief uses for it: its own, its pole's, its genres'
  *   railLacks(rail)            → what it does not do yet: its own, then its pole's needs
  *   railShape(rail)            → the producer's one line: name, like, sizes, how it is seen, its first level
@@ -60,9 +62,13 @@
  *   railShapes()               → { rails: [<a line a rail>], notYet: [<a line a type not made yet>] }: the shape of
  *                              what mojulo makes, the whole of what the producer holds before an ask
  *   railSheet(id)              → the rail's sheet, pulled once it is picked: { id, name, like, seen, level1, sizes:
- *                              [{ size, name, door, with }], from, tunings: { level, action, character, world }, asks,
- *                              labours, chain: [{ step, does, card? }], lacks }
- *     from      the genre cube the tunings are read from (the first the book lays, else its first), or null
+ *                              [{ size, name, door, with }], from, starts, gaps?, tunings: { level, action, character,
+ *                              world }, asks, labours, chain: [{ size, steps: [{ step, does, card? }] }], lacks }
+ *     from      its own cube, the one the tunings are read from (its first genre), or null
+ *     starts    the cube a designed game starts from today: its own when the book lays it, else the nearest of its
+ *               genres the book does lay (the person's game then changes the values that differ), or null
+ *     gaps      what its own cube names that is not built yet ([{ facet, setting, value, status }]): why `starts` is
+ *               another cube, said before anything is built
  *     tunings   the variant the rail names, each read from its tables: level (the cube's space), action (its feel
  *               template and the cube's power), character (the cube's soul), world (the cube's reality)
  *     asks      what the cube asks of a world (concerns.js)
@@ -102,7 +108,7 @@ export const GENERIC_GOALS = Object.freeze(['reach', 'survive', 'avoid']);
 export const RAILS = Object.freeze({
   // ── on foot: the house titles (each a feel template) ──
   'fallen-angel': row({ name: 'Fallen Angel', like: 'stylish action: long sword strings, launchers and air combos, guns between',
-    handles: row({ pole: 'fallen-angel', genres: list(['stylish-action', 'arena-brawler']) }), sizes: list(['designed']), level1: 'a level: a gate court, a great hall, a long gallery, a sanctum and its boss' }),
+    handles: row({ pole: 'fallen-angel', genres: list(['stylish-action']) }), sizes: list(['designed']), level1: 'a level: a gate court, a great hall, a long gallery, a sanctum and its boss' }),
   'ebon-spirits': row({ name: 'Ebon Spirits', like: 'deliberate action: committed blows, a roll, the guard, room after room',
     handles: row({ pole: 'ebon-spirits', genres: list(['dungeon-crawler', 'survival-horror']) }), sizes: list(['designed']), level1: 'a level: rooms to the exit, loot and hazards on the way' }),
   'fable-of-artesia': row({ name: 'Fable of Artesia', like: 'action adventure and action RPG: sword and shield, a land to cross, dungeons in it',
@@ -112,8 +118,7 @@ export const RAILS = Object.freeze({
   'galaxy-boy': row({ name: 'Galaxy Boy', like: 'a side-on run and gun: the dash, the wall kick, a charged shot, powers that open the map',
     handles: row({ pole: 'galaxy-boy', genres: list(['metroidvania']) }), sizes: list(['designed']), level1: 'a level seen from the side, its first power at the end' }),
   'steel-serpents': row({ name: 'Steel Serpents', like: 'stealth action: guards who see what is in front of them, slipped past or taken down',
-    handles: row({ pole: 'steel-serpents', genres: list(['stealth', 'tactical-espionage']), quick: list(['sneak']) }), sizes: list(['quick', 'designed']), level1: 'a level: a compound crossed unseen',
-    lacks: list(['the top-down floor map with CQC and a silenced pistol (the tactical-espionage cube) has gaps']) }),
+    handles: row({ pole: 'steel-serpents', genres: list(['tactical-espionage', 'stealth']), quick: list(['sneak']) }), sizes: list(['quick', 'designed']), level1: 'a level: a base infiltrated layer by layer, unseen' }),
   'vigilante-justice': row({ name: 'Vigilante Justice', like: 'a hero over a city: rooftops, a glide or a swing, a crowd fought with counters',
     handles: row({ pole: 'vigilante-justice', genres: list(['city-stalker']) }), sizes: list(['designed']), level1: 'a district crossed by its rooftops' }),
   'mech-battle-kai': row({ name: 'Mech Battle Kai', like: 'robot action: a heavy machine that boosts, hovers, shoots and transforms',
@@ -193,11 +198,13 @@ export const SEEN_WORDS = Object.freeze({ side: 'from the side', free: 'in the r
 
 const rowOf = (rail) => (typeof rail === 'string' ? railOf(rail) : rail);
 
+export { seenSays };
 export function seenOf(rail) {
   const R = rowOf(rail), H = R.handles;
-  const camera = (H.pole ? POLES[H.pole]?.view?.camera : null) ?? (H.genres[0] ? genreCube(H.genres[0])?.space?.camera : null);
-  return camera ? SEEN[camera] ?? null : null;
+  const cameras = [H.pole ? POLES[H.pole]?.view?.camera : null, ...H.genres.map((g) => genreCube(g)?.space?.camera)];
+  return [...new Set(cameras.map((c) => (c ? SEEN[c] : null)).filter(Boolean))];
 }
+const seenSays = (seen) => seen.map((w) => SEEN_WORDS[w]).join(', or ');
 
 export function railWords(rail) {
   const R = rowOf(rail), H = R.handles;
@@ -211,7 +218,7 @@ export function railLacks(rail) {
 
 export function railShape(rail) {
   const R = rowOf(rail), seen = seenOf(R);
-  return `${R.name}: ${R.like}. ${R.sizes.map((s) => SIZES[s].name).join(' or ')}${seen ? `, seen ${SEEN_WORDS[seen]}` : ''}. First: ${R.level1}.`;
+  return `${R.name}: ${R.like}. ${R.sizes.map((s) => SIZES[s].name).join(' or ')}${seen.length ? `, seen ${seenSays(seen)}` : ''}. First: ${R.level1}.`;
 }
 
 // ══════════ the size call ══════════
@@ -306,12 +313,14 @@ function chainOf(R, size, from) {
 
 export function railSheet(id) {
   const R = railOf(id), H = R.handles;
-  const from = H.genres.find(laidGenre) ?? H.genres[0] ?? null, cube = from ? genreCube(from) : null;
+  const from = H.genres[0] ?? null, cube = from ? genreCube(from) : null;
+  const starts = H.genres.find(laidGenre) ?? null;
+  const dry = cube ? dryRun(cube) : null, gaps = dry ? [...dry.blocked, ...dry.gaps].map(({ facet, setting, value, status }) => ({ facet, setting, value, status })) : [];
   const pole = H.pole ? POLES[H.pole] : null;
   return {
     id: R.id, name: R.name, like: R.like, seen: seenOf(R), level1: R.level1,
     sizes: R.sizes.map((size) => ({ size, name: SIZES[size].name, door: SIZES[size].door, with: keysFor(R, size) })),
-    from,
+    from, starts, ...(gaps.length ? { gaps } : {}),
     tunings: {
       level: cube?.space ? { ...cube.space } : null,
       action: pole || cube?.power ? { ...(pole ? { feel: H.pole, base: pole.base, says: pole.says } : {}), ...(cube?.power ?? {}) } : null,
@@ -320,7 +329,7 @@ export function railSheet(id) {
     },
     asks: cube ? concernsOf(cube).map((c) => c.id) : [],
     labours: Object.keys(LABOURS).filter((l) => LABOURS[l].genres.some((g) => H.genres.includes(g))),
-    chain: R.sizes.map((size) => ({ size, steps: chainOf(R, size, size === 'designed' ? H.genres.find(laidGenre) ?? null : null) })),
+    chain: R.sizes.map((size) => ({ size, steps: chainOf(R, size, size === 'designed' ? starts : null) })),
     lacks: railLacks(R),
   };
 }

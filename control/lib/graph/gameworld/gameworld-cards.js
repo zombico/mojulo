@@ -14,7 +14,7 @@
  * Pure.
  */
 import { MOTIVATIONS, LABOURS, WORLD_SHAPES, ORDER_KINDS, SIDE_SHARE } from './gmn.js';
-import { RAIL_IDS, SIZES, OWN, SEEN_WORDS, railOf, railShapes, railSheet } from './rails.js';
+import { RAIL_IDS, SIZES, OWN, seenSays, railOf, railShapes, railSheet } from './rails.js';
 import { COATS } from '../mount/coats.js';
 import { ERRAND_LAWS } from './errand.js';
 import { GAME_BODIES, GAME_BODY_NAMES } from './game-bodies.js';
@@ -1462,14 +1462,16 @@ function railCard(id) {
     `THE RAIL: ${S.name} — ${S.like}. A TEMPLATE: the person's game starts from it and is theirs (its name, hero, world`,
     'and story). Say what they keep from it and where their game departs.',
     '',
-    `seen: ${S.seen ? SEEN_WORDS[S.seen] : 'as its page lays it'}.   first: ${S.level1}.`,
+    `seen: ${S.seen.length ? seenSays(S.seen) : 'as its page lays it'}${S.seen.length > 1 ? ' (a choice: ask which)' : ''}.   first: ${S.level1}.`,
     ...S.sizes.map((z) => `  ${z.size.padEnd(9)}${z.door}   ${set(z.with)}`),
     '',
-    `ITS TUNINGS${S.from ? ` (read from the cube '${S.from}'; each value theirs to change)` : ''}:`,
+    `ITS TUNINGS${S.from ? ` (its own cube, '${S.from}'; each value theirs to change)` : ''}:`,
     `  level      ${set(S.tunings.level)}`,
     `  action     ${set(S.tunings.action)}`,
     `  character  ${set(S.tunings.character)}`,
     `  world      ${set(S.tunings.world)}`,
+    ...(S.gaps ? [`not built yet in its own cube: ${S.gaps.map((g) => `${g.facet}.${g.setting} '${g.value}' (${g.status})`).join(', ')}.`,
+      S.starts && S.starts !== S.from ? `so a designed game starts from '${S.starts}' today and changes the values that differ: say so before it is built.` : 'so it is not laid as a designed game yet.'] : []),
     ...(S.asks.length ? [`what it asks of a world: ${S.asks.join(', ')}.`] : []),
     ...(S.labours.length ? [`labours that suit it (gameworld-brief; any may be mixed): ${S.labours.join(', ')}.`] : []),
     '',

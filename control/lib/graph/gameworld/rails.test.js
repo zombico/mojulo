@@ -76,14 +76,21 @@ describe('the rail roster names into the tables that measure', () => {
 });
 
 describe('what a rail says', () => {
-  // one rail a way of being seen, picked from the roster, not by hand
-  const bySeen = Object.fromEntries(RAIL_IDS.map((id) => [seenOf(id), id]).filter(([s]) => s));
+  // one rail a way of being seen first, picked from the roster, not by hand
+  const bySeen = Object.fromEntries(RAIL_IDS.map((id) => [seenOf(id)[0], id]).filter(([s]) => s));
 
-  it('is seen as its pole\'s camera says, else its first genre\'s', () => {
-    expect(Object.keys(bySeen).sort()).toEqual(Object.keys(SEEN_WORDS).filter((s) => bySeen[s]).sort());
+  it('is seen as its template\'s camera says first, then as its cubes\' say: more than one is a choice', () => {
     expect(Object.keys(bySeen)).toEqual(expect.arrayContaining(['side', 'free', 'above']));
-    for (const id of RAIL_IDS) if (RAILS[id].handles.pole || RAILS[id].handles.genres.length) expect(seenOf(id), `${id}: a camera with no word`).not.toBeNull();
-    expect(seenOf(RAIL_IDS.find((id) => !RAILS[id].handles.pole && !RAILS[id].handles.genres.length))).toBeNull();
+    for (const id of RAIL_IDS) {
+      const H = RAILS[id].handles, seen = seenOf(id);
+      for (const w of seen) expect(SEEN_WORDS[w], `${id}: ${w}`).toBeTruthy();
+      expect(new Set(seen).size).toBe(seen.length);
+      if (H.pole || H.genres.length) expect(seen.length, `${id}: a camera with no word`).toBeGreaterThan(0);
+      else expect(seen).toEqual([]);
+    }
+    // a template and its own cube never disagree unsaid: both ways are there, the template's first
+    const two = RAIL_IDS.find((id) => seenOf(id).length > 1 && RAILS[id].handles.pole);
+    expect(railShape(two)).toContain(`${SEEN_WORDS[seenOf(two)[0]]}, or ${SEEN_WORDS[seenOf(two)[1]]}`);
   });
 
   it('gathers its words from its own, its pole\'s and its genres\'', () => {
@@ -178,9 +185,9 @@ describe('the two depths: the shape, then the sheet', () => {
     expect(S.notYet[0]).toContain('Not a game yet');
   });
 
-  it('a sheet reads the four tunings from the rail\'s tables, copying none', () => {
+  it('a sheet reads the four tunings from the rail\'s own cube, copying none', () => {
     const S = railSheet(designed), H = RAILS[designed].handles, cube = genreCube(S.from);
-    expect(laid(S.from)).toBe(true); expect(H.genres).toContain(S.from);
+    expect(S.from).toBe(H.genres[0]); expect(laid(S.starts)).toBe(true); expect(H.genres).toContain(S.starts);
     expect(S.tunings.level).toEqual(cube.space); expect(S.tunings.character).toEqual(cube.soul); expect(S.tunings.world).toEqual(cube.reality);
     expect(S.tunings.action).toMatchObject({ feel: H.pole, says: POLES[H.pole].says, ...cube.power });
     expect(S.sizes.map((z) => z.size)).toEqual([...RAILS[designed].sizes]);
@@ -190,6 +197,19 @@ describe('the two depths: the shape, then the sheet', () => {
     S.tunings.level.camera = 'x'; expect(genreCube(S.from).space.camera).not.toBe('x');
   });
 
+  it('a rail whose own cube is not built yet says what is missing and the cube a game starts from today', () => {
+    const id = RAIL_IDS.find((k) => { const g = RAILS[k].handles.genres; return g.length > 1 && !laid(g[0]) && g.some(laid); });
+    const S = railSheet(id), H = RAILS[id].handles;
+    expect(S.from).toBe(H.genres[0]); expect(S.starts).toBe(H.genres.find(laid)); expect(S.starts).not.toBe(S.from);
+    expect(S.gaps.length).toBeGreaterThan(0); expect(S.gaps.every((g) => g.status !== 'built')).toBe(true);
+    expect(S.tunings.level).toEqual(genreCube(S.from).space);
+    expect(S.chain.find((c) => c.size === 'designed').steps.find((st) => st.step === 'intent').card).toBe(`gameworld-intent-${S.starts}`);
+    const body = railCardById(`gameworld-rail-${id}`).body;
+    expect(body).toContain('not built yet in its own cube'); expect(body).toContain(`starts from '${S.starts}' today`);
+    // a rail whose own cube is laid has no gaps to say
+    expect(railSheet(RAIL_IDS.find((k) => laid(RAILS[k].handles.genres[0]))).gaps).toBeUndefined();
+  });
+
   it('its chain is the tools that build it at each size, in order, a card a step', () => {
     const S = railSheet(designed), by = Object.fromEntries(S.chain.map((c) => [c.size, c.steps]));
     expect(Object.keys(by)).toEqual([...RAILS[designed].sizes]);
@@ -197,7 +217,7 @@ describe('the two depths: the shape, then the sheet', () => {
     const steps = by.designed.map((s) => s.step);
     expect(steps[0]).toBe('intake'); expect(steps[steps.length - 1]).toBe('play');
     expect(steps.indexOf('brief')).toBeLessThan(steps.indexOf('intent')); expect(steps.indexOf('feel')).toBeLessThan(steps.indexOf('first-level'));
-    expect(by.designed.find((s) => s.step === 'intent').card).toBe(`gameworld-intent-${S.from}`);
+    expect(by.designed.find((s) => s.step === 'intent').card).toBe(`gameworld-intent-${S.starts}`);
     // a rail with no cube and no template still has a sheet: its tunings are the ask's
     const B = railSheet(bare);
     expect(B.from).toBeNull(); expect(Object.values(B.tunings).every((v) => v === null)).toBe(true); expect(B.chain.length).toBe(RAILS[bare].sizes.length);
