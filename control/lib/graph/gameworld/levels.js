@@ -617,9 +617,9 @@ function geocityEnds(manifest) {
 const CITY_PLAY_KEYS = ['level', 'game', 'entities', 'camera', 'pilot', 'play', 'destruction', 'matter', 'scars', 'wind'];
 
 // THE CARS A LEVEL'S HERO MAY GET INTO (cars.js): the cars its town or district parks itself, each the car shelf's own
-// card in its own paint where the scene stands it (its nose along +y at rotZ 0, a body's heading from +x). A fleet's
-// lofts and a vehicle with something on its roof stay scenery. → [{ at, heading, model, paint }]
-const parkedCars = (list) => list.filter((c) => !c.model.startsWith('loft:') && !c.extra).map((c) => ({ at: c.pos.map(r3), heading: r3((c.rotZ ?? 0) + Math.PI / 2), model: c.model, paint: c.paint }));
+// model in its own paint where the scene stands it (its nose along +y at rotZ 0, a body's heading from +x). A
+// vehicle with something on its roof (a taxi's sign, a light bar) stays scenery. → [{ at, heading, model, paint }]
+const parkedCars = (list) => list.filter((c) => !c.extra).map((c) => ({ at: c.pos.map(r3), heading: r3((c.rotZ ?? 0) + Math.PI / 2), model: c.model, paint: c.paint }));
 
 // WHERE A CAR MAY STAND where a district parks none by its start (its lots lie blocks away): the kerb beside the walk's start. From the spawn, out across the
 // walk to the road on whichever side it lies nearer, a car's half width into it; then along the street, a car's length
@@ -653,7 +653,7 @@ const ERRAND_DRIVE = Object.freeze({ from: 0.33, reach: 7 });
 // The district's own cars stood at those spots: each one of its civilian fleet (geocity/fleets.js: the model and the
 // paint the city's dice pick for a car parked there), where no car of its lots stands within a walk of the start.
 function kerbCars(seed, spots) {
-  return spots.map((k, i) => { const v = pickOf(fleetOf('civilian'), streamOf(seed, 'fleet', `kerb:${i}`)); return { at: k.at, heading: k.heading, model: v.model, paint: v.paint }; }).filter((c) => !c.model.startsWith('loft:') && !c.model.startsWith('site:'));
+  return spots.map((k, i) => { const v = pickOf(fleetOf('civilian'), streamOf(seed, 'fleet', `kerb:${i}`)); return { at: k.at, heading: k.heading, model: v.model, paint: v.paint }; }).filter((c) => !c.model.startsWith('site:'));
 }
 
 // THE TOWN'S DOORS: for each use the level opens (`enter`), the house of that use whose door stands nearest the walk the

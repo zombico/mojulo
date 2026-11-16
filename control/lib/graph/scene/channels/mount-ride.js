@@ -29,7 +29,7 @@ export function mountRideScript({ cab = false } = {}) {
         if (!h.mount || h.riderId || h.downed || h.gone${cab ? ' || !(pilot.rides || h.mount.cab)' : ''}) continue;
         if (Math.hypot(h.transform.pos[0] - pilot.transform.pos[0], h.transform.pos[1] - pilot.transform.pos[1]) < (h.mount.reach || 2.6)) { ask = ${cab ? "h.mount.cab ? 'get in' : 'ride'" : "'ride'"}; break; }
       }
-    }
+${cab ? "      if (!ask && W.trafficOffer) ask = 'get in';   // (a vehicle of the traffic's in reach: channels/cab-pool.js)\n" : ''}    }
     const n = C.interacts ? C.interacts() : 0;
     if (prevN !== null && n !== prevN && ask && !window.__mojMenuOpen && !window.__mojReach) W.mountPress = 1;
     prevN = n;

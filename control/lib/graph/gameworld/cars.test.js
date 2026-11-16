@@ -22,45 +22,55 @@ describe('a town\'s cars', () => {
   it('a world takes no cars key: the cars are its town\'s', () => {
     expect(() => readGameworld({ ...WORLD, cars: true })).toThrow(/cars/);
   });
-  it('a town level tells the cars it parks: the car shelf\'s cards in their paints, where they stand', () => {
+  it('a town level tells the cars it parks: their models and paints, where they stand', () => {
     expect(E.parked.length).toBeGreaterThan(0);
-    for (const c of E.parked) { expect(CAR_CARDS[c.model]).toBeTruthy(); expect(c.paint).toMatch(/^#[0-9a-f]{6}$/i); }
+    for (const c of E.parked) { expect(typeof c.model).toBe('string'); expect(c.paint).toMatch(/^#[0-9a-f]{6}$/i); }
+    expect(E.parked.some((c) => CAR_CARDS[c.model])).toBe(true);
     expect(Object.keys(E)).not.toContain('parked');
-    // (the nearest its start first, never more than a cab's count, none beyond its reach)
+    // (the nearest its start first, none beyond its reach)
     const cars = levelCars(E), d = (c) => Math.hypot(c.at[0] - E.spawn[0], c.at[1] - E.spawn[1]);
     expect(cars.length).toBeGreaterThan(0); expect(cars.length).toBeLessThanOrEqual(CAB.most);
     expect(cars.map(d)).toEqual([...cars.map(d)].sort((a, b) => a - b));
     expect(Math.max(...cars.map(d))).toBeLessThanOrEqual(CAB.far);
     expect(levelCars({ spawn: E.spawn, parked: [] })).toEqual([]);
   });
-  it('stands each as a body: its own model and paint its figure, its class\'s drive rule with a box, a cab', () => {
-    const part = carsExtra()(E), cars = levelCars(E);
-    expect(part.entities.map((e) => e.id)).toEqual(cars.map((_, i) => `car-${i + 1}`));
-    const c = part.entities[0], fig = part.figures[c.body.figure];
-    expect(c.rule).toMatchObject({ type: 'drive', vehicle: CAR_CARDS[cars[0].model].class });
+  it('stands each as a body: drawn from the town\'s own template of its model in its paint, its class\'s drive rule, a cab with its hull', () => {
+    const part = carsExtra()(E), cars = levelCars(E), own = part.entities.filter((e) => !e.mount.spare);
+    expect(own.map((e) => e.id)).toEqual(cars.map((_, i) => `car-${i + 1}`));
+    const c = own[0];
+    expect(c.rule.type).toBe('drive');
     expect(c.rule.collideRadius).toBeGreaterThan(0);
-    expect(c.mount).toMatchObject({ cab: true, reach: CAB.reach, slow: CAB.slow });
-    expect(fig).toEqual({ loft: { car: { preset: cars[0].model, paint: { colour: cars[0].paint } }, light: 'form' } });
+    expect(c.mount).toMatchObject({ cab: true, slow: CAB.slow, pool: { model: cars[0].model } });
+    expect(c.mount.pool.tint).toHaveLength(3);
+    expect(c.mount.hull[1]).toBeGreaterThan(c.mount.hull[0]);
+    expect(c.body).toEqual({ type: 'none' });
+    expect(Object.keys(part.figures)).toEqual([]);
     expect(c.transform.pos).toEqual(cars[0].at);
+    // (and the spares a vehicle taken from the traffic becomes: cabs with no body yet)
+    const spares = part.entities.filter((e) => e.mount.spare);
+    expect(spares).toHaveLength(CAB.spares);
+    for (const sp of spares) { expect(sp.mount.pool).toBeUndefined(); expect(sp.mount.cab).toBe(true); }
     // (a stage that parks none stands none)
     expect(carsExtra()({ spawn: E.spawn, parked: [] })).toBeNull();
   });
-  it('the run mints nothing for them and lays them in the level; the town draws every car but those', () => {
+  it('the run mints nothing for them and lays them in the level; the town draws no car where a body stands, and pools their models', () => {
     const S = runSteps(WORLD, { ref: 'gw' }), level = S.find((x) => x.key.startsWith('level-')).order.manifest;
     expect(S.some((x) => x.key.startsWith('car-'))).toBe(false);
-    const cars = level.entities.filter((e) => e.mount?.cab);
+    const cars = level.entities.filter((e) => e.mount?.cab && !e.mount.spare);
     expect(cars).toHaveLength(levelCars(E).length);
-    for (const c of cars) expect(level.figures[c.body.figure].loft.car.preset).toBeTruthy();
     // (the hero still the pilot, on foot, made for a monitor, nothing in its hands)
     expect(level.entities.find((e) => e.pilotable)?.id).toBe('hero');
     expect(level.screen).toBe('screen');
     expect(level.entities.find((e) => e.id === 'hero').weapon).toBeUndefined();
-    // (the scene: as many car instances fewer as there are bodies, and the same town without them)
     const own = Object.fromEntries(Object.entries(stage.manifest).filter(([k]) => GEOTOWN_KEYS.includes(k)));
     const count = (P) => P.repeats.filter((r) => r.group === 'geotown:car-paint').reduce((a, r) => a + r.transforms.length, 0);
     const all = assembleGeotownScene(own, {}), less = assembleGeotownScene(own, { driven: cars.map((c) => c.transform.pos) });
     expect(count(all) - count(less)).toBe(cars.length);
     expect(less.faces.length).toBe(all.faces.length);
+    // (each body's model a pooled template, its paint and its trim; the town with no bodies pools none)
+    const pools = new Set(less.repeats.filter((r) => r.pool).map((r) => r.pool));
+    for (const c of cars) { expect(pools.has(`${c.mount.pool.model}|paint`)).toBe(true); expect(pools.has(`${c.mount.pool.model}|trim`)).toBe(true); }
+    expect(all.repeats.some((r) => r.pool)).toBe(false);
   });
 });
 

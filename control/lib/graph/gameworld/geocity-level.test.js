@@ -93,7 +93,7 @@ describe('a car driven in the district (the level\'s own bodies on the runtime, 
   const run = (s, input = {}, each = null) => { for (let i = 0; i < Math.max(1, Math.round(s / DT)); i++) { R.stepWorld(st, input, DT, { ground }); if (each) each(); } };
   it('the hero gets into a car the district parked and drives off: on the ground\'s grade all the way, up no pad, into no box', () => {
     // (the front car of the row at the kerb: the one behind it would stop against it, as a car does)
-    const row = st.entities.filter((e) => e.mount?.cab), h0 = row[0].transform.heading, car = row.reduce((m, e) => ((e.transform.pos[0] - m.transform.pos[0]) * Math.cos(h0) + (e.transform.pos[1] - m.transform.pos[1]) * Math.sin(h0) > 0 ? e : m), row[0]);
+    const row = st.entities.filter((e) => e.mount?.cab && !e.mount.spare && Math.hypot(e.transform.pos[0] - E.spawn[0], e.transform.pos[1] - E.spawn[1]) < 30), h0 = row[0].transform.heading, car = row.reduce((m, e) => ((e.transform.pos[0] - m.transform.pos[0]) * Math.cos(h0) + (e.transform.pos[1] - m.transform.pos[1]) * Math.sin(h0) > 0 ? e : m), row[0]);
     const hero = st.byId.hero, K = { at: car.transform.pos.slice(), heading: car.transform.heading }, f = [Math.cos(K.heading), Math.sin(K.heading)], left = [-f[1], f[0]];
     expect(car).toBeTruthy();
     // (the district's lots lie blocks from its start: the car by it is its own fleet's, on the road that is the ground)

@@ -16,7 +16,8 @@ import { TRAFFIC_MODEL_SOURCE } from './traffic-model.js';
 // behind one brakes to rest a gap short of it (tick by tick, however long the frame) and those behind queue as they do at a red (a lane's pose is then no
 // longer the clock's alone, until the camera leaves it); and the vehicles near the pilot are handed to the world as
 // hulls (`world.trafficHulls`: [{ p, heading, hull: [half width, half length] }]) the cabs and walkers are pushed out
-// of; the probe's `blocks` counts the lanes' blocks this frame. Absent `play`, not one byte of it.
+// of, each with its id, model and paint so one may be taken (channels/cab-pool.js: `window.__mojTaken`, drawn here no
+// more); the probe's `blocks` counts the lanes' blocks this frame. Absent `play`, not one byte of it.
 //
 //   flow { T, signals, near, kinds: [{ model, extra?, len }], tints: [[r, g, b] linear], lanes: [{ axis, cross, lo, hi,
 //          dir, total, speed, crossings, ground: [u, z, …] }], cars: [[lane, kind, tint, startFrac]] }
@@ -142,7 +143,7 @@ ${play ? '    const __flB = __flBlocks(L); __flNB += __flB.length;\n    if (__fl
     for (let k = 0; k < m.cars.length; k++) {
       const c = lane.cars[k], kind = FLOW.kinds[c[1]], s = m.cars[k].s, u = sg > 0 ? L.lo + s : L.hi - s;
       const x = L.axis === 'y' ? L.cross : u, y = L.axis === 'y' ? u : L.cross, dx = x - p.x, dy = y - p.y;
-${play ? '      // (near the pilot, seen or not: a hull the world holds its bodies out of)\n      if (__flHulls && (x - __flPil[0]) * (x - __flPil[0]) + (y - __flPil[1]) * (y - __flPil[1]) < 1600) __flHulls.push({ p: [x, y, __flZ(L.ground, u)], heading: heading + Math.PI / 2, hull: [kind.wid / 2, kind.len / 2], v: m.cars[k].v });\n' : ''}      // (within reach, and not behind the camera)
+${play ? '      // (one a hero took, channels/cab-pool.js: a body of the world now, drawn and held there)\n      if (window.__mojTaken && window.__mojTaken[__flLanes.indexOf(lane) + \':\' + k]) continue;\n      // (near the pilot, seen or not: a hull the world holds its bodies out of)\n      if (__flHulls && (x - __flPil[0]) * (x - __flPil[0]) + (y - __flPil[1]) * (y - __flPil[1]) < 1600) __flHulls.push({ p: [x, y, __flZ(L.ground, u)], heading: heading + Math.PI / 2, hull: [kind.wid / 2, kind.len / 2], v: m.cars[k].v, id: __flLanes.indexOf(lane) + \':\' + k, model: kind.model, tint: FLOW.tints[c[2]] });\n' : ''}      // (within reach, and not behind the camera)
       if (dx * dx + dy * dy > R * R || dx * fx + dy * fy < -kind.len) continue;
       const h = kind.len * 0.35, zf = __flZ(L.ground, u + sg * h), zr = __flZ(L.ground, u - sg * h), dz = (zf + zr) / 2 - p.z;
       if (dx * dx + dy * dy + dz * dz > R * R) continue;

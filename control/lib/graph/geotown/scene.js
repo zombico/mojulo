@@ -1155,8 +1155,11 @@ export function assembleGeotownScene(m, ctx = {}) {
   // (the town's cars: each model a repeat for its paint and one for its trim, cars.js)
   // (a played level's cars a hero gets into, gameworld/cars.js: `ctx.driven` their places, each a body of the level's
   // and so never drawn here; `ctx.parked`, a list the caller hands, is filled with every car parked)
-  const undriven = (list) => { if (Array.isArray(ctx.parked)) ctx.parked.push(...list); const at = ctx.driven ?? []; return at.length ? list.filter((c) => !at.some((q) => Math.abs(q[0] - c.pos[0]) < 0.02 && Math.abs(q[1] - c.pos[1]) < 0.02)) : list; };
-  repeats.push(...carRepeats(undriven(carsAt), { group: 'geotown:car' }));
+  // (and their models pooled, `pool`: the templates those bodies are drawn from, scene/channels/cab-pool.js)
+  const isDriven = (c) => (ctx.driven ?? []).some((q) => Math.abs(q[0] - c.pos[0]) < 0.02 && Math.abs(q[1] - c.pos[1]) < 0.02);
+  if (Array.isArray(ctx.parked)) ctx.parked.push(...carsAt);
+  const drivenModels = [...new Set(carsAt.filter(isDriven).map((c) => c.model))].sort();
+  repeats.push(...carRepeats(drivenModels.length ? carsAt.filter((c) => !isDriven(c)) : carsAt, { group: 'geotown:car', ...(drivenModels.length ? { pool: drivenModels.map((model) => ({ model })) } : {}) }));
   const night = lit.night, bg = night ? air.fog.color : rgbToHex(air.dome.horizon);
   const counts = { plots: d.plots.length, units: d.units ?? d.plots.length, duplexes: d.plots.filter((pl) => pl.duplex).length, buildings: built, ...builtOf, hedges, gated, parked, pads: d.parking?.pads ?? 0, padCars, cars: carsAt.length, carModels: [...new Set(carsAt.map((c) => c.model))].length, lights: d.traffic?.lights.length ?? 0, signals: d.traffic?.signals ?? 0, stops: d.traffic?.stops ?? 0, trees: Object.values(kept).reduce((a, l) => a + l.length, 0), crowded, faces: faces.length, treeFaces };
   // (read by the seventh generation: its soft ground the form's own, `isekai:ground`, its land read draws it and grows its
