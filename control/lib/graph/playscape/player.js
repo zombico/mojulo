@@ -106,6 +106,8 @@ export const TRAVERSAL_FALLBACK = Object.freeze({
   vault: ['stepVault', 'hurdle', 'leap'],
   crouch_idle: ['kneel', 'squat', 'idle'],
   crouch_walk: ['walk', 'forward'],
+  prone_idle: ['crouch_idle', 'kneel', 'squat', 'idle'],
+  prone_crawl: ['crouch_walk', 'walk', 'forward'],
   perch: ['kneel', 'squat', 'idle'],
   dive: ['leap'],
   swing: ['leap'],

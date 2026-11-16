@@ -907,6 +907,8 @@ function __updateGearLines() {
   // a hero's SQUASH AND STRETCH on its own jumps (rules-platform.js takes: `takes.squash`, a feel card's look): the rig
   // scaled about its feet by the rule's `e.squash`. No rule carries one ⇒ not a byte of it
   const figHasSquash = (entities || []).some((e) => e && e.rule && e.rule.takes && e.rule.takes.squash > 0);
+  // (a body that lies down, stance.js: its whole-body turn says where it pivots and how high that point rests)
+  const figLies = (entities || []).some((e) => e && e.rule && e.rule.stance && e.rule.stance.prone);
   const figHasForms = Object.values(figures || {}).some((f) => f && f.rig && f.forms);
   // a car's own light in a dark mood (car-designer/supercar-figure.js: the headlamps' pool on the road, the tail lamps'
   // ribbons) — emitted only when some figure's juice carries them.
@@ -2312,9 +2314,9 @@ function __sidearmProps(e, m, rig, fig, AL) {
     __rigQT.setFromAxisAngle(__rigAxis, e.tumble.angle);
     __rigQZ.setFromAxisAngle(__RIG_Z, yawA);
     m.quaternion.copy(__rigQT).multiply(__rigQZ);
-    const c = (rig.fig.figH || 1) * 0.42;
+    const c = ${figLies ? '(e.tumble.at != null ? e.tumble.at : 0.42) * (rig.fig.figH || 1)' : '(rig.fig.figH || 1) * 0.42'};
     __rigPivot.set(0, 0, c).applyQuaternion(__rigQT);
-    m.position.set(e.transform.pos[0] - __rigPivot.x, e.transform.pos[1] - __rigPivot.y, e.transform.pos[2] + c - __rigPivot.z);
+    m.position.set(e.transform.pos[0] - __rigPivot.x, e.transform.pos[1] - __rigPivot.y, e.transform.pos[2] + ${figLies ? '(e.tumble.rise != null ? e.tumble.rise : c)' : 'c'} - __rigPivot.z);
   } else {
     ${figHasForms ? `if (e.tilt && rig.fig.forms) m.rotation.set(e.tilt.pitch || 0, e.tilt.roll || 0, yawA, 'ZYX');   // a flying form's attitude
     else ` : ''}m.rotation.set(0, 0, yawA);

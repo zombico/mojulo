@@ -47,3 +47,26 @@ describe('hurt, it looks round', () => {
     expect(w.byId.g.sightings || 0).toBe(0);
   });
 });
+
+describe('it hears', () => {
+  const HEARS = { hears: {} };
+  const shot = (w, quiet = false) => { const p = w.byId.p; if (quiet) p.weapon = { quiet: true }; p.lastShot = { t: w.time, from: [p.transform.pos[0], p.transform.pos[1], 1.4], mode: 'miss' }; };
+  it('a gunshot behind it turns it round and it sees who fired; a suppressed one that far off it does not hear', () => {
+    const w = world({ startle: HEARS }); run(w, 10); shot(w); run(w, 4);
+    expect(w.byId.g.st).toBeTruthy();
+    expect(w.byId.g.heard).toBe(1);
+    run(w, 120);
+    expect(w.byId.g.sightings).toBeGreaterThan(0);
+    const q = world({ startle: HEARS }); run(q, 10); q.byId.p.transform.pos = [-9, 0, 0]; shot(q, true); run(q, 120);
+    expect(q.byId.g.heard || 0).toBe(0);
+    expect(q.byId.g.sightings || 0).toBe(0);
+  });
+  it('running close behind it is heard; walking slowly, crouched, or running far off is not; a deaf one hears nothing', () => {
+    const walkBy = (opts, speed, y, more = {}) => { const w = world(opts); const p = w.byId.p; Object.assign(p, more); p.rule = { ...p.rule, speed }; p.transform.pos = [-5, y, 0]; p.transform.heading = Math.PI / 2; for (let k = 0; k < 40; k++) E.stepWorld(w, { forward: 1 }, 1 / 60, hooks); return w.byId.g.heard || 0; };
+    expect(walkBy({ startle: HEARS }, 5.8, -3)).toBe(1);
+    expect(walkBy({ startle: HEARS }, 1.6, -3)).toBe(0);
+    expect(walkBy({ startle: HEARS }, 5.8, -3, { crouched: true })).toBe(0);
+    expect(walkBy({ startle: HEARS }, 5.8, -30)).toBe(0);
+    expect(walkBy({ startle: {} }, 5.8, -3)).toBe(0);
+  });
+});

@@ -123,3 +123,17 @@ or a recipe key; the spike mints through the real doors and measures.
 - **The yard's punches land plainly**: its effects are the western register in the realistic flavour with the shake,
   the impact's flash and its sparks turned well down, and no blow of the fist shoves harder than the jab or knocks
   down (the hook's and the uppercut's longer freeze and the hook's knockdown are gone).
+- **It hears** (`rule.startle.hears: { shot?, quiet?, run?, pace? }`, startle.js): a watcher that sees no one hears a
+  shot within `shot` metres (25; a weapon marked `quiet`, within 6) and a body moving at a run within `run` metres (7)
+  on its feet; a crouched or lying body, or a slow one, makes no sound. It turns to the sound and looks, as it does
+  when hurt, and who it then sees its mind has. The yard's guard hears.
+- **The prone** (`rule.stance.prone: { speed?, height? }`, `hold`, stance.js): the crouch's button held lies the body
+  down, from standing or crouched; lying, a tap comes up to the crouch and a hold stands. Lying it crawls (0.9 m/s) and
+  its eye is under a wall half a metre high, where a crouch is seen over it. The page plays `prone_idle` and
+  `prone_crawl` with the whole body turned onto its front about its middle (the dodge's whole-body turn, which on a
+  page with a prone says where it pivots and how high that rests); the eye's camera rides the lowered eye. The
+  operative carries keyed clips for both.
+- **The fan is a line of sight in height** (sight-view.js): it is drawn for the pilot as it stands now. A box as tall
+  as the watcher's eye ends a ray; a lower one that stands over the pilot's eye leaves a hole behind it, out to where
+  the line from eye to eye clears its top, and the fan takes up again beyond. Crouching opens a hole behind a wall a
+  metre high; lying down opens one behind any low cover. It draws what the mind's own sight already said.

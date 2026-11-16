@@ -249,6 +249,122 @@
     "elbowL": 72,
     "elbowR": 72
    }
+  ],
+  "proneIdle": [
+   {
+    "support": "none",
+    "head": {
+     "pitch": 30
+    },
+    "neck": {
+     "pitch": 20
+    },
+    "shL": {
+     "pitch": 150
+    },
+    "shR": {
+     "pitch": 150
+    },
+    "elbowL": 75,
+    "elbowR": 75
+   },
+   {
+    "support": "none",
+    "head": {
+     "pitch": 30
+    },
+    "neck": {
+     "pitch": 20
+    },
+    "shL": {
+     "pitch": 151
+    },
+    "shR": {
+     "pitch": 149
+    },
+    "elbowL": 76,
+    "elbowR": 75
+   }
+  ],
+  "proneCrawl": [
+   {
+    "support": "none",
+    "head": {
+     "pitch": 30
+    },
+    "neck": {
+     "pitch": 20
+    },
+    "shL": {
+     "pitch": 172
+    },
+    "shR": {
+     "pitch": 125
+    },
+    "elbowL": 25,
+    "elbowR": 110,
+    "hipR": {
+     "pitch": 55,
+     "yaw": 50
+    },
+    "kneeR": 95
+   },
+   {
+    "support": "none",
+    "head": {
+     "pitch": 30
+    },
+    "neck": {
+     "pitch": 20
+    },
+    "shL": {
+     "pitch": 150
+    },
+    "shR": {
+     "pitch": 150
+    },
+    "elbowL": 75,
+    "elbowR": 75
+   },
+   {
+    "support": "none",
+    "head": {
+     "pitch": 30
+    },
+    "neck": {
+     "pitch": 20
+    },
+    "shL": {
+     "pitch": 125
+    },
+    "shR": {
+     "pitch": 172
+    },
+    "elbowL": 110,
+    "elbowR": 25,
+    "hipL": {
+     "pitch": 55,
+     "yaw": -50
+    },
+    "kneeL": 95
+   },
+   {
+    "support": "none",
+    "head": {
+     "pitch": 30
+    },
+    "neck": {
+     "pitch": 20
+    },
+    "shL": {
+     "pitch": 150
+    },
+    "shR": {
+     "pitch": 150
+    },
+    "elbowL": 75,
+    "elbowR": 75
+   }
   ]
  },
  "stocking": true
