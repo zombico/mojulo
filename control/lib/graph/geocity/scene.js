@@ -285,7 +285,8 @@ export function assembleGeocityScene(m, ctx = {}) {
   // THE FRONTAGE (frontage.js): each building's walls as the street sees them, recorded as it is laid (its boxes, its
   // storeys, its use, the walls inside it), dressed once the cameras say which are near a person's eye
   const fronts = [], frontOf = (b, q, z0, storeys, floorH, use, { skip = [], only = null, ground = false, house = null, open = null, signs = null, sinks = null } = {}) => { if (storeys >= 1) fronts.push({ b, q, z0, storeys: Math.round(storeys), floorH, use, skip, only, ground, house, ...(open ? { open, signs, ...(sinks ? { sinks } : {}) } : {}) }); };
-  const stamp = (key, pos, rotZ, scale = null) => { if (!stamps.has(key)) stamps.set(key, []); stamps.get(key).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}), ...(scale ? { scale } : {}) }); };
+  // (`slope`, [dz/dx, dz/dy]: a flat piece laid on the road's own slope, never level across it: its paint, its rails)
+  const stamp = (key, pos, rotZ, scale = null, slope = null) => { if (!stamps.has(key)) stamps.set(key, []); stamps.get(key).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}), ...(scale ? { scale } : {}), ...(slope && (slope[0] || slope[1]) ? { slope: slope.map(r5) } : {}) }); };
   const templateOf = (key) => { const [k, f] = key.split(':'); return f ? KIT[k][f] : KIT[k]; };
   // a site's machines (SITE above): the crane drawn within its district's reach of the camera, the machines inside its
   // hoarding near the camera only, like the kit
@@ -556,7 +557,10 @@ export function assembleGeocityScene(m, ctx = {}) {
    *  platform down a right-of-way). All stamped as repeats drawn only near the camera: from far the blocks suffice. */
   function street() {
     const lift = 0.05, at = (l, off, s) => (l.axis === 'ns' ? [l.at + off, s] : [s, l.at + off]), rotAlong = (l) => (l.axis === 'ns' ? Math.PI / 2 : 0);
-    const flat = (key, l, off, s) => { const [x, yy] = at(l, off, s); stamp(key, [x, yy, S(x, yy) + lift], rotAlong(l)); };
+    // (paint lies on the road: each piece on the plane through its own start, the road's fall along it and across it)
+    const fall = (x, yy, ax, len) => { const along = (S(x + (ax ? 0 : len), yy + (ax ? len : 0)) - S(x, yy)) / len, mx = x + (ax ? 0 : len / 2), my = yy + (ax ? len / 2 : 0), over = ax ? (S(mx + 0.5, my) - S(mx - 0.5, my)) : (S(mx, my + 0.5) - S(mx, my - 0.5)); return ax ? [over, along] : [along, over]; };
+    const LEN = { dash: 3, line: 10, yellow: 10, rail: 10, bar: 3 };
+    const flat = (key, l, off, s) => { const [x, yy] = at(l, off, s); stamp(key, [x, yy, S(x, yy) + lift], rotAlong(l), null, fall(x, yy, l.axis === 'ns', LEN[key] ?? 10)); };
     for (const l of d.lines) {
       const runs = l.axis === 'ns' ? runsNS : runsEW, bands = l.bands.slice().sort((a, b) => a.from - b.from);
       // the lines between bands
@@ -613,8 +617,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     for (const a of NS) for (const b of EW) {
       const x = a.at, yy = b.at, z = S(x, yy);
       // crosswalks across each arm, just outside the crossing; stop bars behind them
-      for (const sy of [-1, 1]) for (let o = -a.road / 2 + 0.6; o <= a.road / 2 - 0.6; o += 1.2) stamp('bar', [x + o, yy + sy * (b.half + 0.6) + (sy < 0 ? -3 : 0), z + lift], Math.PI / 2);
-      for (const sx of [-1, 1]) for (let o = -b.road / 2 + 0.6; o <= b.road / 2 - 0.6; o += 1.2) stamp('bar', [x + sx * (a.half + 0.6) + (sx < 0 ? -3 : 0), yy + o, z + lift], 0);
+      for (const sy of [-1, 1]) for (let o = -a.road / 2 + 0.6; o <= a.road / 2 - 0.6; o += 1.2) { const bx = x + o, by = yy + sy * (b.half + 0.6) + (sy < 0 ? -3 : 0); stamp('bar', [bx, by, S(bx, by) + lift], Math.PI / 2, null, fall(bx, by, true, LEN.bar)); }
+      for (const sx of [-1, 1]) for (let o = -b.road / 2 + 0.6; o <= b.road / 2 - 0.6; o += 1.2) { const bx = x + sx * (a.half + 0.6) + (sx < 0 ? -3 : 0), by = yy + o; stamp('bar', [bx, by, S(bx, by) + lift], 0, null, fall(bx, by, false, LEN.bar)); }
       // a signal on each corner, the diagonal pairs reaching over the two roads; a street-name sign on one
       for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
         const px = x + sx * (a.road / 2 + 0.9), py = yy + sy * (b.road / 2 + 0.9), face = sx * sy > 0 ? (sx > 0 ? 'w' : 'e') : (sy > 0 ? 's' : 'n');

@@ -15,3 +15,6 @@
 - **A city's traffic reacts to you.** The traffic already driving a city's main streets now brakes and queues behind
   your car, or behind you on foot, when you are in its lane, and drives on when you leave. Its vehicles are solid:
   drive into one and you stop against it. Cars parked for you at the kerb are kept out of the traffic's lanes.
+- **Street paint lies on the road.** On a sloped city street the lane lines, streetcar rails and crosswalk bars used to
+  sit level, each piece floating at one end and sunk at the other, so a hill read as a flight of steps. They now lie
+  flat on the road's own slope, and every crosswalk sits on the road where it is rather than at its crossing's height.

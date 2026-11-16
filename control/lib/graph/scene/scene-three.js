@@ -464,6 +464,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       radius: gm.radius,
       // a per-axis scale ([sx, sy, sz]: a unit box stretched to a mass) rides as three more numbers; a uniform one as one
       t: r.transforms.map((t) => [(t.pos || [0, 0, 0])[0], (t.pos || [0, 0, 0])[1], (t.pos || [0, 0, 0])[2], t.rotZ || 0, ...(Array.isArray(t.scale) && t.scale.length === 3 && t.scale.every(Number.isFinite) ? t.scale : [Number.isFinite(t.scale) ? t.scale : 1])]),
+      // a SLOPE ([dz/dx, dz/dy], `slope`: a flat piece laid on sloped ground, a street's paint): the instance sheared to
+      // lie on that plane about its own place; one a transform, 0 where none; the key absent without any
+      ...(r.transforms.some((t) => Array.isArray(t.slope)) ? { sl: r.transforms.map((t) => (Array.isArray(t.slope) && t.slope.length === 2 && t.slope.every(Number.isFinite) && (t.slope[0] || t.slope[1]) ? t.slope : 0)) } : {}),
       tint: (hasTint || hasAmb)
         ? r.transforms.map((t, k) => {
           const base = Array.isArray(t.tint) ? t.tint : [1, 1, 1];
@@ -586,6 +589,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   });
   const hasRepeatTextures = packedRepeats.some((r) => r.tex);
   const hasAxisScale = packedRepeats.some((r) => r.t.some((t) => t.length > 5));   // absent: the uniform line, byte-identical
+  const hasSlope = packedRepeats.some((r) => r.sl);   // absent: not one byte
+  const slopeShear = (i) => (hasSlope ? ` if (r.sl && r.sl[${i}]) { const e = M.elements, sl = r.sl[${i}]; e[2] += sl[0] * e[0] + sl[1] * e[1]; e[6] += sl[0] * e[4] + sl[1] * e[5]; e[10] += sl[0] * e[8] + sl[1] * e[9]; }` : '');
   const hasNear = packedRepeats.some((r) => r.near);   // absent: no near tiles, not one byte
   const hasCompact = packedRepeats.some((r) => r.q);   // absent: no compact template, not one byte
   const hasPool = packedRepeats.some((r) => r.pool);   // none: no pools, not one byte
@@ -1409,7 +1414,7 @@ const __nearRepeat = (r, geo, material = null) => {
     let cx = 0, cy = 0;${hasConeTiles ? '\n    let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity, h = 0;' : ''}
     ids.forEach((i, j) => {
       const t = r.t[i]; cx += t[0] / ids.length; cy += t[1] / ids.length;${hasConeTiles ? '\n      x0 = Math.min(x0, t[0]); x1 = Math.max(x1, t[0]); y0 = Math.min(y0, t[1]); y1 = Math.max(y1, t[1]); z0 = Math.min(z0, t[2]); z1 = Math.max(z1, t[2]); h = Math.max(h, 2 * r.radius * Math.max(t[4], t[6] ?? t[4]));' : ''}
-      Q.setFromAxisAngle(UP, t[3]); P.set(t[0], t[1], t[2]); ${hasAxisScale ? 'S.set(t[4], t[5] ?? t[4], t[6] ?? t[4]);' : 'S.set(t[4], t[4], t[4]);'} M.compose(P, Q, S); im.setMatrixAt(j, M);
+      Q.setFromAxisAngle(UP, t[3]); P.set(t[0], t[1], t[2]); ${hasAxisScale ? 'S.set(t[4], t[5] ?? t[4], t[6] ?? t[4]);' : 'S.set(t[4], t[4], t[4]);'} M.compose(P, Q, S);${slopeShear('i')} im.setMatrixAt(j, M);
       if (r.tint) im.setColorAt(j, new THREE.Color(r.tint[i][0], r.tint[i][1], r.tint[i][2]));
     });
     im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
@@ -1436,7 +1441,7 @@ scene.onBeforeRender = function (rd, sc, cam, rt) {
   r.t.forEach((t, i) => {
     Q.setFromAxisAngle(UP, t[3]);
     P.set(t[0], t[1], t[2]); ${hasAxisScale ? 'S.set(t[4], t[5] ?? t[4], t[6] ?? t[4]);' : 'S.set(t[4], t[4], t[4]);'}
-    M.compose(P, Q, S);
+    M.compose(P, Q, S);${slopeShear('i')}
     im.setMatrixAt(i, M);
     if (r.tint) im.setColorAt(i, new THREE.Color(r.tint[i][0], r.tint[i][1], r.tint[i][2]));
   });
