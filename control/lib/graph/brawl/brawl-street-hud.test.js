@@ -52,4 +52,23 @@ describe('a street\'s screen', () => {
     expect(moments.length).toBeLessThanOrEqual(4);
     expect(new Set(moments.map((m) => m.id)).size).toBe(moments.length);
   });
+
+  it('a staged boss\'s bar is cut by its stages, and each stage begun is a moment', () => {
+    const staged = streetRoomOf({ belt, players: [{ recipe: recipe('a') }], waves: [{ screen: 1, crowd: [{ type: 'thug', n: 1 }] }, { screen: 2, crowd: [], boss: { recipe: boss, stages: [{}, { name: 'Enraged' }, {}] } }], stakes: 3 });
+    let r = staged, moments = [], phases = null;
+    const sweep = (x) => { for (const b of x.s.bodies) if (b.side === 'crowd' && !b.gone && !b.ko && !x.mind.bosses[b.id]) { b.hp = 0; b.ko = 1; b.st = 'ko'; } return x; };
+    for (let k = 0; k < 3000 && !r.yard.over; k++) {
+      const B = r.s.bodies.find((p) => r.mind.bosses[p.id]);
+      // (the boss worn down a little each frame once it is in, as blows would)
+      if (B && !B.gone && !B.ko) B.hp = Math.max(1, B.hp - 3);
+      r = stepYard(sweep(r), [{ x: 1 }]);
+      moments = streetMoments(moments, r.s.events, []);
+      const H = streetHud(r);
+      if (H.boss.on) phases = H.boss.phases;
+      if (moments.some((m) => m.text === 'STAGE 3')) break;
+    }
+    expect(phases).toBe(3);
+    expect(moments.map((m) => m.text)).toEqual(expect.arrayContaining(['Enraged', 'STAGE 3']));
+    expect(moments.find((m) => m.text === 'Enraged').sub).toBe('2 / 3');
+  });
 });

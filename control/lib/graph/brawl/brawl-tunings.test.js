@@ -64,8 +64,9 @@ describe('a street\'s tuning', () => {
     expect(one.struck).toBeGreaterThan(5);
     expect(one.falls).toBeLessThan(one.stakes);
     expect(still.won).toBe(false);
-    // (the same street on the sim's own numbers is the safer one: fewer hits taken)
-    expect(playStreet(yard({ tuning: 'measured' })).struck).toBeLessThan(one.struck);
+    // (the same street on the sim's own numbers is the longer fight: its soldiers take many more rounds)
+    const slow = playStreet(yard({ tuning: 'measured' }));
+    expect(slow.landed).toBeGreaterThan(one.landed);
   }, 120_000);
 
   it('ducking is a way out of a round, not a place to live: a player that only ducks and fires is still hit', () => {

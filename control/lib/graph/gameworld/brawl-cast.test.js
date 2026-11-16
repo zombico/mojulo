@@ -97,6 +97,19 @@ describe('a brawl\'s street', () => {
     expect(withStreetBodies(S.waves, { goon: 1 })[1].boss).toMatchObject({ archetype: 'grappler', name: 'hound' });
   });
 
+  it('a boss\'s stages: how many (each a level harder) or each written, who a stage calls cast as a wave is', () => {
+    const counted = brawlStreet(G, { stops: [{ wave: { grunt: 1 } }], boss: { foe: 'warlord', cpu: 'novice', stages: 3 } }).waves.at(-1);
+    expect(counted.boss.stages).toEqual([{ cpu: 'novice' }, { cpu: 'regular' }, { cpu: 'veteran' }]);
+    const written = brawlStreet(G, { stops: [{ wave: { grunt: 1 } }], boss: { foe: 'warlord', with: { grunt: 1 }, stages: [{}, { at: 0.5, name: 'Enraged', calls: { goon: 2, shooter: 1 } }] } }).waves.at(-1);
+    expect(written.boss.stages).toEqual([{}, { at: 0.5, name: 'Enraged' }]);
+    expect(written.crowd).toEqual([{ type: 'thug', n: 1, foe: 'goon' }, { type: 'thug', n: 2, foe: 'goon', stage: 1 }, { type: 'gunner', n: 1, foe: 'slinger', stage: 1 }]);
+    // (the page takes them: the called bodies keep their stage and their bodies)
+    expect(withStreetBodies([written], { goon: 1 })[0].crowd[1]).toEqual({ type: 'thug', n: 2, stage: 1, roster: 1 });
+    expect(() => readStreet({ stops: [{ wave: { grunt: 1 } }], boss: { foe: 'boss', stages: 1 } })).toThrow(/2 to 5/);
+    expect(() => readStreet({ stops: [{ wave: { grunt: 1 } }], boss: { foe: 'boss', stages: [{ calls: { grunt: 1 } }, {}] } })).toThrow(/its first stage calls none/);
+    expect(() => readStreet({ stops: [{ wave: { grunt: 1 } }], boss: { foe: 'boss', stages: [{}, { hp: 3 }] } })).toThrow(/not a stage's word/);
+  });
+
   it('advises, never refuses: a street with no boss, a stop that meets fewer than the one before', () => {
     const S = brawlStreet(G, { stops: [{ wave: { grunt: 3 } }, { wave: { grunt: 1 } }] });
     expect(S.boss).toBeNull();

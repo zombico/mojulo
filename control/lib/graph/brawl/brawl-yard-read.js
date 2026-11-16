@@ -88,7 +88,7 @@ export function streetHud(room, names = []) {
   return {
     party,
     street: { stop: at, of, name: mind.begun === mind.wave ? (yard.spec?.waves?.[mind.wave]?.name ?? '') : '', lives: Math.max(0, yard.stakes - yard.falls), livesMax: yard.stakes },
-    boss: B ? { on: true, name: mind.bosses[bossId].name, hp: Math.max(0, B.hp), hpMax: yard.hp[bossId], phases: 1, statuses: [] } : { on: false, name: '', hp: 0, hpMax: 1, phases: 1, statuses: [] },
+    boss: B ? { on: true, name: mind.bosses[bossId].name, hp: Math.max(0, B.hp), hpMax: yard.hp[bossId], phases: mind.bosses[bossId].stages ? mind.bosses[bossId].stages.length : 1, statuses: [] } : { on: false, name: '', hp: 0, hpMax: 1, phases: 1, statuses: [] },
   };
 }
 
@@ -99,6 +99,8 @@ export function streetMoments(moments, events, stops = []) {
   for (const e of events) {
     if (e.t === 'wave' && e.screen !== undefined) { const name = stops[e.screen]; if (name) add(name, 'minor'); }
     else if (e.t === 'boss') add(e.name, 'major');
+    // (a boss's stage begun: its name, or which of how many)
+    else if (e.t === 'bossStage') add(e.name ?? `STAGE ${e.k}`, 'major', `${e.k} / ${e.of}`);
     else if (e.t === 'stageClear') add('CLEAR', 'decisive');
     else if (e.t === 'cleared') add('GO', 'normal');
   }

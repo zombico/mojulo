@@ -21,8 +21,10 @@ import { genreCube, GENRES } from './intent.js';
 
 // (the street a sentence lays: three stops that build to the cast's boss, a novice for a first street, and five falls
 // allowed: measured with a hero the sentence door made, the brawl's basic player lost it at three and won it at five,
-// brawl/brawl-playthrough.js)
-export const STREET_FROM_A_SENTENCE = Object.freeze({ stops: [{ wave: { grunt: 2 } }, { wave: { grunt: 3, shooter: 1 } }, { wave: { elite: 1, grunt: 3 } }], boss: Object.freeze({ foe: 'boss', cpu: 'novice' }), lives: 5 });
+// brawl/brawl-playthrough.js). Its boss fights in three stages, a level harder each and calling two of the rank and file
+// in at the second and the third: measured with the basic player, won by a beat-em-up's with two of five falls and by
+// an arcade run & gun's with three of five)
+export const STREET_FROM_A_SENTENCE = Object.freeze({ stops: [{ wave: { grunt: 2 } }, { wave: { grunt: 3, shooter: 1 } }, { wave: { elite: 1, grunt: 3 } }], boss: Object.freeze({ foe: 'boss', cpu: 'novice', stages: Object.freeze([Object.freeze({}), Object.freeze({ cpu: 'regular', calls: Object.freeze({ grunt: 2 }) }), Object.freeze({ cpu: 'veteran', calls: Object.freeze({ grunt: 2 }) })]) }), lives: 5 });
 /** The book level forms the sentence door lays a genre's levels in. */
 export const GENRE_FORMS = Object.freeze({
   // the flight genres: an airspace a level (skyscape/airspace.js): a runway, a gate course, the genre's craft

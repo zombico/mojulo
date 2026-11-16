@@ -66,6 +66,13 @@
 - **Ducking is a move, not a hiding place.** Measured on the default street with three kinds of simple player: one
   that only ducks and fires was hit the most, one that jumps incoming rounds was hit the least, and the plain one
   sat between them.
+- **A boss can fight in stages.** In a beat-em-up or a run & gun, say how many stages the boss fight has, or
+  write each one: the point in its health where the stage begins, how hard it fights from there, what the stage is
+  called, and who it calls in to help. As a stage begins the boss cannot be hurt for a moment, a banner names the
+  stage, and its bar across the top shows the stages as segments.
+- **A game made from a sentence gets a three-stage boss.** It fights harder at each stage and calls two of its
+  rank and file in at the second and third. Measured with the simple player: won in a beat-em-up with two of five
+  falls, and in a run & gun with three of five.
 - **Not yet:** an enemy that is a beast is drawn as a plain jointed figure, and the game says so; only a person's
   body stands on the street today. A game that names no enemies of its own still meets the stock crowd, drawn as
   plain figures on one open screen: that path is kept for testing. The things that lie on a street to pick up or
