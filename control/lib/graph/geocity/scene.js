@@ -341,17 +341,56 @@ export function assembleGeocityScene(m, ctx = {}) {
   // (a shop's stoop: its riser and tread, how far it stands either side of its door, the most its door stands over its
   // walk (three risers), and the most its floor is sunk under its pad to keep it so)
   const STOOP = { riser: 0.18, tread: 0.28, side: 0.25, most: 0.54, sunk: 2 }, sunk = [];
+  // (a row's FORECOURT: where its pad stands more than a stoop over its walk anywhere along it, the walk is raised to
+  // its shops' floor along the whole front, so every door is entered on the level: how far it stands out from the
+  // wall, the lane beside it an end's steps stand on, the run of an end's ramp to a metre of rise, the most it rises
+  // before the row is left to its stoops)
+  const FORE = { depth: 1.3, lane: 1, run: 5, most: 3 }, fores = [];
   // (a composed town's repeats are drawn within the metro's ring, but a shop's inside within its own)
   const storeRing = (rp) => (typeof rp.group === 'string' && rp.group.startsWith('geotown:store-') && rp.near ? rp.near : NEAR);
   const openShops = (b, s, q, z0, z1) => {
     const wl = wallsOf(q)[s], n = FACINGS[s], t = [-n[1], n[0]], T = SLOT.wall, k = s === 's' || s === 'n' ? 0 : 1, deep = k === 0 ? q[3] - q[1] : q[2] - q[0];
     const D = { ...FRONTAGE.shop.door, ...FRONTAGE.shop.open }, zs = shopRise(STOREY), wallFace = faces[faces.length - 4 + ['s', 'e', 'n', 'w'].indexOf(s)], C = holder !== null ? colliders.pop() : null;
     let wall = [wallFace], held = C ? [[C.min[0], C.min[1], C.max[0], C.max[1]]] : [], deepest = 0;
+    // ITS FORECOURT: level with its floor along the whole front; at each end that stands over the walk a ramp down to
+    // it (no nearer a door than a step), or steps down beside it; a face down to the walk along its outer edge; a body
+    // is held at its foot
+    const bays = shopBays(wl.L, 'shops', FRONTAGE.shop.enter).bays, at = (u, v) => [wl.a[0] + t[0] * u + n[0] * v, wl.a[1] + t[1] * u + n[1] * v];
+    const zwAt = (u, v = 0.4) => S(...at(u, v)) + KERB, high = Math.max(...cuts(0, wl.L, 4).map((u) => z0 - zwAt(u)));
+    let fore = null;
+    if (bays.length && high > STOOP.most && high <= FORE.most) {
+      const doors = bays.map(({ u, w }) => { const su = w / FRONTAGE.shop.w; return [u + D.u * su - (D.w * su) / 2, u + D.u * su + (D.w * su) / 2]; });
+      const h0 = Math.max(0, z0 - zwAt(0)), h1 = Math.max(0, z0 - zwAt(wl.L)), room0 = Math.min(...doors.map((dd) => dd[0])) - 0.4, room1 = wl.L - Math.max(...doors.map((dd) => dd[1])) - 0.4;
+      // an end's way down to the walk: a RAMP at its run where it has the room before a door, its forecourt's own end;
+      // else STEPS beside the forecourt, on a lane outside it, the forecourt closed at that end
+      const treads = (h) => { const nr = Math.ceil(h / STOOP.riser - 1e-6); return Array.from({ length: nr - 1 }, (_, i) => (h * (i + 1)) / nr); };
+      const ramp0 = h0 > 0.02 && room0 >= h0 * FORE.run ? h0 * FORE.run : 0, ramp1 = h1 > 0.02 && room1 >= h1 * FORE.run ? h1 * FORE.run : 0;
+      // a strip's top in pieces along it, [from, to, the drop under the floor at each]: laid from `v0` to `v1` off the wall
+      const lay = (segs, v0, v1) => segs.forEach(([ua, ub, da, db], k2) => {
+        if (ub - ua < 0.01) return;
+        const za = z0 - da, zc = z0 - db, zb = (uu) => zwAt(uu, v1) - 0.05, low = (uu) => Math.min(zwAt(uu, v0 + 0.2), zwAt(uu, v1)) - 0.05;
+        put([[...at(ua, v0), za], [...at(ub, v0), zc], [...at(ub, v1), zc], [...at(ua, v1), za]], 'geocity:stoop', col.walk);
+        put([[...at(ua, v1), Math.min(zb(ua), za)], [...at(ub, v1), Math.min(zb(ub), zc)], [...at(ub, v1), zc], [...at(ua, v1), za]], 'geocity:stoop', col.retain, n);
+        // (a face across it where the next piece, or the walk past its end, lies lower: a riser, a closed end)
+        const zn = segs[k2 + 1] ? z0 - segs[k2 + 1][2] : low(ub), zp = k2 > 0 ? z0 - segs[k2 - 1][3] : low(ua);
+        if (zc - zn > 0.02) put([[...at(ub, v0), zn], [...at(ub, v1), zn], [...at(ub, v1), zc], [...at(ub, v0), zc]], 'geocity:stoop', col.retain, t);
+        if (za - zp > 0.02) put([[...at(ua, v1), zp], [...at(ua, v0), zp], [...at(ua, v0), za], [...at(ua, v1), za]], 'geocity:stoop', col.retain, [-t[0], -t[1], 0]);
+      });
+      const segs = [...(ramp0 ? [[0, ramp0, h0, 0]] : []), [ramp0, wl.L - ramp1, 0, 0], ...(ramp1 ? [[wl.L - ramp1, wl.L, 0, h1]] : [])];
+      lay(segs, 0, FORE.depth);
+      if (h0 > 0.02 && !ramp0) lay(treads(h0).reverse().map((dr, i) => [i * STOOP.tread, (i + 1) * STOOP.tread, dr, dr]), FORE.depth, FORE.depth + FORE.lane);
+      if (h1 > 0.02 && !ramp1) { const T1 = treads(h1), from = wl.L - T1.length * STOOP.tread; lay(T1.map((dr, i) => [from + i * STOOP.tread, from + (i + 1) * STOOP.tread, dr, dr]), FORE.depth, FORE.depth + FORE.lane); }
+      const zTop = (uu) => { const g = segs.find((x) => uu <= x[1] + 1e-9) ?? segs[segs.length - 1]; return z0 - (g[2] + ((g[3] - g[2]) * Math.min(1, Math.max(0, (uu - g[0]) / (g[1] - g[0] || 1))))); };
+      const lv = segs.find((x) => x[2] === 0 && x[3] === 0);
+      if (holder !== null && lv && lv[1] - lv[0] > 0.2) { const p0 = at(lv[0], 0), p1 = at(lv[1], FORE.depth); colliders.push({ min: P3([Math.min(p0[0], p1[0]), Math.min(p0[1], p1[1]), Math.min(zwAt(lv[0], FORE.depth), zwAt(lv[1], FORE.depth)) - 1]), max: P3([Math.max(p0[0], p1[0]), Math.max(p0[1], p1[1]), z0]), of: `${b.id}:forecourt` }); }
+      fore = { a: wl.a, t, n, L: wl.L, zTop };
+      fores.push(fore);
+    }
     // (each bay's tenant by its street's tenancy, never the bay's before it; its sign in its store's own colour; how far
     // its floor is sunk under its row's pad)
     const opened = [], signs = {}, sinks = {};
     let prev = null;
-    shopBays(wl.L, 'shops', FRONTAGE.shop.enter).bays.forEach(({ u, w }, i) => {
+    bays.forEach(({ u, w }, i) => {
       const su = w / FRONTAGE.shop.w, ud = u + D.u * su, dw = D.w * su;
       const slot = slotOf({ w: w - 2 * T, d: deep - 2 * T, h: STOREY - 0.2, door: { x: ud - (u - w / 2 + T), w: dw } });
       // (a bay too narrow or too shallow to hold a store stays shut, and is counted)
@@ -359,7 +398,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       // (its FLOOR: its row's pad, or SUNK under it where the pad stands more than a stoop over its walk, so its door is
       // never more than `STOOP.most` up; a pad past `STOOP.sunk` over its walk keeps its shop shut. Its STOOP: treads
       // down from its door onto the walk, each a riser, and a riser's face under its threshold)
-      const foot = [wl.a[0] + t[0] * ud, wl.a[1] + t[1] * ud], zw = S(foot[0] + n[0] * 0.4, foot[1] + n[1] * 0.4) + KERB, sink = Math.max(0, z0 - zw - STOOP.most);
+      const foot = [wl.a[0] + t[0] * ud, wl.a[1] + t[1] * ud], zw = fore ? z0 : S(foot[0] + n[0] * 0.4, foot[1] + n[1] * 0.4) + KERB, sink = Math.max(0, z0 - zw - STOOP.most);
       if (sink > STOOP.sunk) { steep.n++; return; }
       const zf = z0 - sink, rise = zf - zw, nr = Math.max(1, Math.ceil(rise / STOOP.riser - 1e-6));
       const c = (al, v) => [foot[0] + t[0] * al + n[0] * v, foot[1] + t[1] * al + n[1] * v];
@@ -1799,6 +1838,14 @@ export function assembleGeocityScene(m, ctx = {}) {
   // (the URBAN PIZZA VIEWER, a live page whose world asks for the view cone, scene/channels/city-cone.js: the kit drawn by
   // the cone's rule rather than the ring; an export, and a page without the cone, as before)
   const coned = !!ctx.live && m.cone !== undefined && m.cone !== null, kit = coned ? { cone: 'kit' } : {};
+  // (what the street stood on a walk a forecourt now covers, a bench, a bin, a bike ring: on the forecourt)
+  if (fores.length) for (const [k, list] of stamps) {
+    if (['dash', 'line', 'yellow', 'rail', 'bar', 'wire'].includes(k.split(':')[0])) continue;
+    for (const st of list) for (const Fc of fores) {
+      const dx = st.pos[0] - Fc.a[0], dy = st.pos[1] - Fc.a[1], u = dx * Fc.t[0] + dy * Fc.t[1], v = dx * Fc.n[0] + dy * Fc.n[1];
+      if (u >= 0 && u <= Fc.L && v >= 0 && v <= FORE.depth && st.pos[2] < Fc.zTop(u)) st.pos = P3([st.pos[0], st.pos[1], Fc.zTop(u)]);
+    }
+  }
   const repeats = E?.evoke === 'skyline' ? [] : [...stamps].map(([key, transforms]) => ({ group: `geocity:${key.split(':')[0]}`, template: templateOf(key), transforms, near: NEAR, ...kit }));
   if (E?.evoke !== 'skyline') {
     // (the shops' insides, each a template stamped at its doors, within its own ring)
@@ -1938,7 +1985,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       graph: { nodes: d.graph.nodes.length, edges: d.graph.edges.length, beyond: d.graph.beyond },
       ...(Object.keys(towns).length ? { geotowns: towns } : {}),
       // (its shops walked into: how many, on how many templates, their cards, the faces their templates hold)
-      ...(ENTER ? { stores: { near: ENTER.near, shops: entered.length, sunk: entered.filter((e) => e.sink > 0).length, shut: steep.n, small: tight.n, templates: cityStores.size, cards: entered.reduce((a, e) => ({ ...a, [e.S.card]: (a[e.S.card] ?? 0) + 1 }), {}), faces: [...cityStores.values()].reduce((a, v) => a + v.S.faceCount, 0) } } : {}),
+      ...(ENTER ? { stores: { near: ENTER.near, shops: entered.length, sunk: entered.filter((e) => e.sink > 0).length, ...(fores.length ? { forecourts: fores.length } : {}), shut: steep.n, small: tight.n, templates: cityStores.size, cards: entered.reduce((a, e) => ({ ...a, [e.S.card]: (a[e.S.card] ?? 0) + 1 }), {}), faces: [...cityStores.values()].reduce((a, v) => a + v.S.faceCount, 0) } } : {}),
       ...(UN ? { under: inside ? {
         podium: inside.block, plan: inside.I.plan, rise: inside.I.rise,
         podia: podia.map((P) => ({ id: P.block, plan: P.I.plan, ports: P.I.ports.length, findings: P.I.findings })),
