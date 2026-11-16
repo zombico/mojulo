@@ -33,5 +33,25 @@ In progress. Each line is added as its phase lands.
 - **One reader of a brief's words** (`nearestRails(text)`): the rails whose words the text uses, most first, over a
   rail's own words, its feel template's and its genres'. A heuristic, said to be one: the agent picks or asks.
   `notYetFor(text)` names a type not made yet that the text asks for, so it is said before anything is built.
+- **A rail may be seen more than one way** (`seenOf` is a list, the template's way first, then its cubes'). More than
+  one is a choice the producer asks (side-on, or in the round?), so a template and its cube never disagree unsaid.
+  A rail's first genre is its OWN cube, what the template is: its tunings are read from it, built or not, and the
+  sheet says what of it is not built yet (`gaps`) and the cube a designed game starts from today (`starts`). Steel
+  Serpents' own cube is `tactical-espionage` (seen from above, as its template is; a designed game starts from
+  `stealth` today). Fallen Angel is stylish action and no longer claims the arena brawler's words.
+- **The pitch** (a gameworld's `rail`, the intent chapter's): `{ from, size?, departs?, locked? }`. The template the
+  person's game starts from, the size the producer called, where their game leaves the template (a line a tuning:
+  level, action, character, world) and whether the structure is agreed. A record, never a page: it lays nothing on a
+  level, and a world without one is unchanged. `design_game`'s readout says it back (`rail`): the template, what the
+  game keeps of it and where it departs, the cube it starts from, what its own cube lacks, its sheet's card. It never
+  refuses: a size the rail does not reach is said (`short`), and a locked pitch moved to another rail is a re-plan,
+  said to the creator (`replanned`).
+- **Nothing is asked twice** (`goalposts.js`). A picked rail makes "what game it is" partial and its question "where
+  does their game leave the template?"; its move is the cube the rail starts from, and the play goalpost's move the
+  rail's feel. A written Game Brief has decided the stakes and the structure, so the shape goalpost says what it
+  decided and asks only its length and whether its spine reads right. The start readout (a book with no level yet)
+  says the pitch back with its rail's sheet to pull.
 
-No readout, routing card or listed card changes yet: the producer's own card and the start readout take these next.
+A pitch is stored with the game's first reading (its first level written, or laid from a sentence): a book with no
+level is still answered, not stored. No routing card or listed card changes yet: the producer's own card and the
+order of the readout's steps take these next.

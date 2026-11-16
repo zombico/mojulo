@@ -80,6 +80,26 @@
  *   notYetFor(text)            → [{ id, name, like, waits, matched }] the types not made yet whose own words the text uses:
  *                              said to the person before anything is built
  *
+ * THE PITCH — a gameworld's `rail`: the template the person's game starts from and where their game departs from it.
+ * A record the producer keeps, never a page: it lays nothing on a level, and a world without one is unchanged.
+ *
+ *   rail: { from: '<rail id>', size?: <SIZES>, departs?: { level?, action?, character?, world? }, locked?: true }
+ *     from      the rail it is started from (a template: the game's name, hero, world and story stay theirs)
+ *     size      the size the producer called (the size call), when it is said
+ *     departs   where their game leaves the template, a line a tuning (TUNINGS), in the agent's own words
+ *     locked    true once the person agreed the structure (how it is seen, its first level's shape): the work request
+ *               chain starts from it. Content is never locked. A locked pitch moved to another rail is a RE-PLAN: said,
+ *               never refused
+ *
+ *   TUNINGS                    the four tunings a rail names a variant in
+ *   readRail(v)                → { from, size?, departs, locked }; throws, teaching
+ *   railReport(world, before?) → null | { from, name, template, size?, short?, seen, level1, keeps: [<tuning>],
+ *                              departs, locked, starts, gaps?, replanned?, card }: the pitch as the readout says it;
+ *                              `keeps` the tunings the game takes from the template as they are, `short` a size the
+ *                              rail does not reach, `replanned` { was } a locked pitch that moved (before: the world
+ *                              as it stood)
+ *   railMoves(world)           → { game?, play? }: the goalposts' moves a picked rail pre-answers (goalposts.js)
+ *
  * Pure: no database, no clock, no dice.
  */
 import { POLES } from './feel/cards.js';
@@ -350,4 +370,59 @@ export function notYetFor(text) {
   return Object.entries(NOT_YET)
     .map(([id, N]) => ({ id, name: N.name, like: N.like, waits: N.waits, matched: N.words.filter((w) => t.includes(` ${w} `)) }))
     .filter((r) => r.matched.length).sort(byMatch);
+}
+
+// ══════════ the pitch: a gameworld's `rail` ══════════
+
+/** The four tunings a rail names a variant in. */
+export const TUNINGS = Object.freeze({
+  level: 'how its levels are laid and seen',
+  action: 'how its buttons feel and what the hero does',
+  character: 'who the hero is and how they are drawn',
+  world: 'where it is set and how it looks',
+});
+const RAIL_KEYS = ['from', 'size', 'departs', 'locked'];
+const pitchFail = (m) => new Error(`gameworld: rail${m}`);
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+
+export function readRail(v) {
+  if (!isObj(v)) throw pitchFail(` is { from, size?, departs?, locked? }: the template the game starts from and where it departs (get_game_vocab({ id: 'gameworld-rails' }))`);
+  for (const k of Object.keys(v)) if (!RAIL_KEYS.includes(k)) throw pitchFail(`.${k} is not part of a pitch (${RAIL_KEYS.join(', ')})`);
+  if (!RAILS[v.from]) throw pitchFail(`.from is the rail it starts from: ${RAIL_IDS.join(', ')}`);
+  if (v.size !== undefined && !SIZES[v.size]) throw pitchFail(`.size is the size called: ${SIZE_IDS.join(', ')}`);
+  if (v.departs !== undefined) {
+    if (!isObj(v.departs)) throw pitchFail(`.departs is { ${Object.keys(TUNINGS).map((k) => `${k}?`).join(', ')} }: where their game leaves the template, a line each`);
+    for (const [k, w] of Object.entries(v.departs)) {
+      if (!TUNINGS[k]) throw pitchFail(`.departs.${k} is not a tuning (${Object.keys(TUNINGS).join(', ')})`);
+      if (typeof w !== 'string' || !w.trim()) throw pitchFail(`.departs.${k} is a line: ${TUNINGS[k]}, as their game has it`);
+    }
+  }
+  if (v.locked !== undefined && typeof v.locked !== 'boolean') throw pitchFail('.locked is true once the person agreed the structure');
+  return { from: v.from, ...(v.size !== undefined ? { size: v.size } : {}), departs: Object.fromEntries(Object.entries(v.departs ?? {}).map(([k, w]) => [k, w.trim()])), locked: v.locked === true };
+}
+
+export function railReport(world, before = null) {
+  if (!isObj(world) || world.rail === undefined || world.rail === null) return null;
+  const P = readRail(world.rail), R = railOf(P.from), S = railSheet(P.from);
+  const short = P.size && !R.sizes.includes(P.size) ? { wanted: P.size, reaches: [...R.sizes], waits: pendingOf(R.handles.genres[0])?.waits ?? `${R.name} is not made at that size yet` } : null;
+  const was = (() => { try { return isObj(before?.rail) ? readRail(before.rail) : null; } catch { return null; } })();
+  return {
+    from: P.from, name: R.name, template: `a template: the game is theirs, started from ${R.name}`,
+    ...(P.size ? { size: P.size } : {}), ...(short ? { short } : {}),
+    seen: S.seen, level1: R.level1,
+    keeps: Object.keys(TUNINGS).filter((k) => !P.departs[k]), departs: P.departs, locked: P.locked,
+    starts: S.starts, ...(S.gaps ? { gaps: S.gaps } : {}),
+    ...(was?.locked && was.from !== P.from ? { replanned: { was: was.from } } : {}),
+    card: `gameworld-rail-${P.from}`,
+  };
+}
+
+export function railMoves(world) {
+  const P = (() => { try { return isObj(world?.rail) ? readRail(world.rail) : null; } catch { return null; } })();
+  if (!P) return {};
+  const R = railOf(P.from), S = railSheet(P.from);
+  return {
+    game: S.starts ? `write intent: { from: '${S.starts}' } (${R.name}'s cube${S.starts !== S.from ? ' today' : ''}), then the values their game changes (gameworld-rail-${P.from})` : `write intent from the cube nearest their game: ${R.name} has none the book lays (gameworld-rail-${P.from})`,
+    ...(R.handles.pole ? { play: `write feel: '${R.handles.pole}' (${R.name}'s), tuned toward their game; write the motion and the actions (gameworld-feel)` } : {}),
+  };
 }

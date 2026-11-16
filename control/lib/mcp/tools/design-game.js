@@ -69,6 +69,7 @@ import { STYLES, DIRECTS, checkProduction, postureOf, roleOf, maySettle, checkpo
 import { checkAsk, traceStart, traceOf } from '@/lib/graph/gameworld/asks.js';
 import { askAdvice, needsAsk, unaskedStamp, runAdvice, ASK_SAYS } from '@/lib/graph/gameworld/routing.js';
 import { intakeAdvice, intakeReport } from '@/lib/graph/gameworld/intake.js';
+import { railReport } from '@/lib/graph/gameworld/rails.js';
 import { manualOrder } from '@/lib/graph/gameworld/battles-manual.js';
 import { treeOrder, treesOf } from '@/lib/graph/gameworld/battles-tree.js';
 import { beatPlan, stagePlan, walkReport } from '@/lib/graph/gameworld/level-plan.js';
@@ -627,6 +628,11 @@ function readout(ref, world, context = {}) {
   const unread = intakeAdvice(world);
   if (unread) { advice.intake = [unread.says]; next.splice(unasked ? 1 : 0, 0, unread.next); }
   const brought = (() => { try { return intakeReport(world); } catch { return null; } })();
+  // the pitch (gameworld/rails.js): the template the game starts from and where it departs, said back beside the
+  // intake; a locked pitch moved to another rail is a re-plan, said
+  const pitch = (() => { try { return railReport(world, context?.priorWorld ?? null); } catch { return null; } })();
+  if (pitch?.replanned) advice.rail = [`the pitch was locked on '${pitch.replanned.was}' and now starts from '${pitch.from}': a re-plan. Say so to the creator, and read again what the chapters already settled`];
+  if (pitch?.short) (advice.rail ||= []).push(`${pitch.name} is not made as ${pitch.short.wanted} yet (${pitch.short.waits}); it reaches ${pitch.short.reaches.join(', ')}`);
   // a lore part on a page is an order its chapter runs (gameworld/battles-manual.js): a manual on the battles, said with
   // how deep it has been taken; the rungs still derived are the battles chapter's next pass
   const manual = (() => { try { return world.battles?.manual !== undefined ? manualOrder(world.battles.manual) : null; } catch { return null; } })();
@@ -637,7 +643,7 @@ function readout(ref, world, context = {}) {
     (advice.lore ||= []).push(`the battles' tree '${T.id}' is at its ${T.rung}: its ${T.open.join(' and ')} ${T.open.length === 1 ? 'is' : 'are'} derived (learned rank by rank as written, dearer the deeper); write them to make them yours`);
     next.push({ step: 'lore', part: 'tree', id: T.id, at: T.rung, open: T.open, chapter: 'battles', card: 'gameworld-battles' });
   }
-  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(brought ? { intake: brought } : {}), ...(manual || trees.length ? { lore: { ...(manual ? { manual } : {}), ...(trees.length ? { trees } : {}) } } : {}), ...(MQ ? { mainQuest: (({ laws: _l, ...r }) => r)(MQ) } : {}), ...(loop ? { loop } : {}), ...(feel ? { feel: { ...feel, ...(measured ? { measured } : {}) } } : {}), ...(arsenal ? { arsenal } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(door.rooms.length ? { practice: { rooms: Object.fromEntries(door.rooms.map((r) => [r, `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=${r}`])), ...(rangeM || rollM ? { measured: { ...(rangeM ? { range: rangeM } : {}), ...(rollM ? { roll: rollM } : {}) } } : {}), ...(fightsR ? { fights: fightsR } : {}) } } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), ...(combatGame(world) && world.made?.game?.ref ? { combatBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=combat` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(chapters.length ? { chapters } : {}), ...(Object.keys(made).length ? { made } : {}), ...(audits ? { audits } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}), ...(told.notes?.length ? { notes: told.notes.map((n) => ({ moment: n.id, script: n.script, says: n.notes.map((x) => `${x.id}: ${x.says} ${x.try}`) })) } : {}) } } : {}), next };
+  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(brought ? { intake: brought } : {}), ...(pitch ? { rail: pitch } : {}), ...(manual || trees.length ? { lore: { ...(manual ? { manual } : {}), ...(trees.length ? { trees } : {}) } } : {}), ...(MQ ? { mainQuest: (({ laws: _l, ...r }) => r)(MQ) } : {}), ...(loop ? { loop } : {}), ...(feel ? { feel: { ...feel, ...(measured ? { measured } : {}) } } : {}), ...(arsenal ? { arsenal } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(door.rooms.length ? { practice: { rooms: Object.fromEntries(door.rooms.map((r) => [r, `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=${r}`])), ...(rangeM || rollM ? { measured: { ...(rangeM ? { range: rangeM } : {}), ...(rollM ? { roll: rollM } : {}) } } : {}), ...(fightsR ? { fights: fightsR } : {}) } } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), ...(combatGame(world) && world.made?.game?.ref ? { combatBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=combat` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(chapters.length ? { chapters } : {}), ...(Object.keys(made).length ? { made } : {}), ...(audits ? { audits } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}), ...(told.notes?.length ? { notes: told.notes.map((n) => ({ moment: n.id, script: n.script, says: n.notes.map((x) => `${x.id}: ${x.says} ${x.try}`) })) } : {}) } } : {}), next };
 }
 
 /** The verdicts as the review to write. */
@@ -1374,7 +1380,7 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
     if (!W.made?.hero) throw new Error('design_game: compare after you have made your own world (run it first): a reference read before the design is a template, and this one is not');
     comparison = { reference: compare, ...compareWorlds(W, REFERENCES[compare]) };
   }
-  const full = { ...readout(ref, W, context), ...(await fightReadout(W)) };
+  const full = { ...readout(ref, W, { ...context, priorWorld: before ?? null }), ...(await fightReadout(W)) };
   // the pre-compile check, on a run (what is left of the build) and on a chapter's view (each department its own
   // blockers): what a run would hit, found before it is made; a next move while anything blocks
   if (run || chapter) {

@@ -3,7 +3,8 @@
  * game is not done at the end of a session; at the end of a good first one these hold. Each is read from what the book
  * already says (its chapters' states, its main quest, its record), never asked for twice:
  *
- *   game         what game it is: its intent (and its core loop, read from it)
+ *   game         what game it is: its intent (and its core loop, read from it); a rail picked and no intent yet is
+ *                partial, and its move the rail's own cube (rails.js railMoves)
  *   shape        how long it is, where it is set, where the story takes it: the main quest and the world
  *   look         the hero's look and the world's (the cast and the foes when there are any)
  *   play         how it feels to play, and the hero's powers
@@ -41,6 +42,9 @@
  *
  * Pure.
  */
+import { railMoves, railReport } from './rails.js';
+import { resolveGmn, LABOURS, MOTIVATIONS } from './gmn.js';
+
 export const GOALPOSTS = Object.freeze([
   { id: 'game', says: 'what game it is: its intent and its core loop', ask: 'what game is it? a genre to start from, what the player does again and again, and how it is run: yeoman, auteur or avant-garde', chapter: 'intent' },
   { id: 'shape', says: 'how long it is, where it is set, where the story takes it', ask: 'how long does it play, where is it set, and where does the story take the hero (an ending can wait)?', chapter: 'main-quest' },
@@ -64,20 +68,29 @@ export function goalposts({ world = {}, chapters = [], parts: parts_ = [], mainQ
   // (a met goalpost is its id and its state; an open or partial one says what is missing, the question and the move)
   // (only the next one's move is said: it is the one to make now)
   const moves = {};
-  const post = (id, status, why, move) => { if (move) moves[id] = move; posts.push(status === 'met' ? { id, status } : { id, status, says: why ?? BY[id].says, ask: BY[id].ask }); };
+  // (a question something already answered is not asked again: a picked rail, a written brief change what is asked)
+  const post = (id, status, why, move, ask) => { if (move) moves[id] = move; posts.push(status === 'met' ? { id, status } : { id, status, says: why ?? BY[id].says, ask: ask ?? BY[id].ask }); };
   const st = (id) => stateOf(chapters, id);
+  // (a picked rail pre-answers two moves: the cube its game starts from, the feel it plays: rails.js)
+  const rail = railMoves(world), picked = world.rail !== undefined && world.rail !== null;
 
   // 1 what game it is
   const intent = world.intent !== undefined || isObj(world.quick);
-  post('game', intent ? 'met' : 'open', intent ? null : 'no intent written: what game it is is read from the brief alone', 'write intent (gameworld-intent), and the loop if the book does not say it');
+  post('game', intent ? 'met' : picked ? 'partial' : 'open', intent ? null : picked ? 'a rail is picked; no intent written yet' : 'no intent written: what game it is is read from the brief alone', rail.game ?? 'write intent (gameworld-intent), and the loop if the book does not say it',
+    picked ? 'where does their game leave the template: its levels, its action, its hero, its world? and how is it run: yeoman, auteur or avant-garde' : undefined);
 
   // 2 its length, its setting, where its story goes
   const Q = isObj(world.mainQuest) ? world.mainQuest : null;
   const parts = Q ? Q.chapters ?? Q.acts ?? [] : [];
   const shaped = Q && Q.length !== undefined && parts.length > 0, set = done(st('world'));
-  post('shape', shaped && set ? 'met' : Q || set ? 'partial' : 'open',
-    shaped && set ? null : [!Q ? 'no main quest' : Q.length === undefined ? 'the main quest says no length' : null, !set ? 'the world is not settled' : null].filter(Boolean).join('; '),
-    'write the main quest (gameworld-main-quest): its length, its acts or chapters; settle the world');
+  // (the Game Brief, gmn.js, has decided the stakes and the structure when it is written: the question left is its
+  // length and whether its spine reads right, never the shape again)
+  const B = (() => { try { const g = world.gameBrief; return isObj(g) ? g.resolved ?? (isObj(g.gmn) ? resolveGmn(g.gmn) : null) : null; } catch { return null; } })();
+  const briefed = B && (B.labour || B.motivation) ? [B.motivation ? MOTIVATIONS[B.motivation].name : null, B.labour ? `${LABOURS[B.labour].name} (${B.structure.shape})` : null].filter(Boolean).join(', ') : null;
+  post('shape', shaped && set ? 'met' : Q || set || briefed ? 'partial' : 'open',
+    shaped && set ? null : [briefed && !Q ? `the brief decided ${briefed}; no main quest is written from it` : !Q ? 'no main quest' : Q.length === undefined ? 'the main quest says no length' : null, !set ? 'the world is not settled' : null].filter(Boolean).join('; '),
+    briefed && !Q ? 'write the main quest from the brief\'s spine (the readout\'s intent.gameBrief; gameworld-main-quest): its length, its acts; settle the world' : 'write the main quest (gameworld-main-quest): its length, its acts or chapters; settle the world',
+    briefed && !Q ? 'how long does it play, and does the brief\'s spine read right as its acts (an ending can wait)?' : undefined);
 
   // 3 the look
   // (an adopted hero is the creator's own row: its look is theirs already)
@@ -89,7 +102,7 @@ export function goalposts({ world = {}, chapters = [], parts: parts_ = [], mainQ
   // 4 play: the feel and the powers
   const playChapters = ['motion', 'actions'].map(st), felt = world.feel !== undefined && world.feel !== null;
   const playMet = playChapters.every(done) && felt;
-  post('play', playMet ? 'met' : playChapters.some(begun) || felt ? 'partial' : 'open', playMet ? null : [...['motion', 'actions'].filter((c, i) => !done(playChapters[i])).map((c) => `${c} open`), ...(felt ? [] : ['no feel written'])].join('; '), 'write the motion and the actions, and a feel (gameworld-feel)');
+  post('play', playMet ? 'met' : playChapters.some(begun) || felt ? 'partial' : 'open', playMet ? null : [...['motion', 'actions'].filter((c, i) => !done(playChapters[i])).map((c) => `${c} open`), ...(felt ? [] : ['no feel written'])].join('; '), (!felt && rail.play) || 'write the motion and the actions, and a feel (gameworld-feel)');
 
   // 5 the plan: the quest's beats, the first buildable, nothing blocking
   const first = parts[0]?.beats?.[0] ?? null;
@@ -159,14 +172,17 @@ export const draftAsk = (posts) => `A draft, not the game yet: ${posts.met} of $
 export function startReadout(world = {}) {
   const posts = goalposts({ world, chapters: [] });
   const n = posts.posts.find((p) => p.id === posts.next.goalpost);
+  // (the pitch, when a rail is picked: said back, with the rail's sheet to pull; a malformed one is the door's to refuse)
+  const pitch = railReport(world);
   return {
     ok: true, readout: 'start', stored: false,
     says: 'Nothing is stored or built yet: a book begins with its first level. Ask what the creator brought (intake), then each open goalpost\'s question. When the first level can be named, write the world with its `levels` (gameworld-guide), or lay a first reading from a sentence (`compose: { prompt }`) and edit it. A build is fast: build to show a draft, then go on asking.',
+    ...(pitch ? { rail: pitch } : {}),
     goalposts: posts,
     next: [
       { step: 'intake', card: 'gameworld-producer' },
       { step: 'goalpost', id: n.id, met: posts.met, of: posts.of, ask: n.ask, chapter: posts.next.chapter, card: 'gameworld-next' },
     ],
-    cards: ['gameworld-guide', 'gameworld-studio', 'gameworld-producer'],
+    cards: ['gameworld-guide', 'gameworld-studio', 'gameworld-producer', ...(pitch ? [pitch.card] : [])],
   };
 }
