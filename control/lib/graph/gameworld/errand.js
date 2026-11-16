@@ -8,6 +8,8 @@
  *   errands: [{ id, giver: '<level>', reward?: [{ item, n? }],
  *     list: [{ item, at: '<level>', count?: 1, min?, needs?: ['<item>'], from?: { foe: '<bestiary id>' }, shop?: '<store card>',
  *              cargo?: { fragile?: true, perishable?: <seconds a unit> } }] }]
+ *   repeat   true: a STANDING job (a fare, a round of deliveries). Its hand-in pays each time and never ends the level;
+ *            what it asks for is had again once the bag holds none of it, as any trade restocks
  *   needs    the list's items spent where this one is had, each its whole `count` (3 coin for the eggs)
  *   min      how much must reach the giver (the count, by default): a fragile cargo's margin is count − min
  *   from     a bounty: the item is the proof the foe's fall drops; its level must field that foe (`foes`)
@@ -43,7 +45,7 @@ export const ERRAND_LAWS = Object.freeze({
   varied: 'Varied: no two legs in a row in the same level; an errand crosses the world.',
   survivable: 'Survivable: a fragile or perishable cargo carries a margin to lose on the way.',
 });
-const KEYS = ['id', 'giver', 'reward', 'list'];
+const KEYS = ['id', 'giver', 'reward', 'list', 'repeat'];
 export const TILL_REACH = 1.6;
 const NODE_KEYS = ['item', 'at', 'count', 'min', 'needs', 'from', 'cargo', 'shop'];
 const WORD = /^[a-z][a-z0-9-]{0,31}$/;
@@ -56,6 +58,7 @@ function readOne(E, k, G) {
   for (const key of Object.keys(E)) if (!KEYS.includes(key)) no(`.${key} is not an errand setting (${KEYS.join(', ')})`);
   if (typeof E.id !== 'string' || !WORD.test(E.id)) no('.id is the errand\'s name, lower-case');
   if (!G.levels[E.giver]) no(`.giver is the level the goods are brought to (levels: ${G.ids.join(', ')})`);
+  if (E.repeat !== undefined && E.repeat !== true) no('.repeat is true: a standing job, paid each time it is done and never ending its level');
   const reward = E.reward ?? [];
   if (!Array.isArray(reward) || reward.some((r) => !isObj(r) || typeof r.item !== 'string' || !WORD.test(r.item) || (r.n !== undefined && !posInt(r.n)))) no('.reward is [{ item, n? }]: what the giver pays');
   if (!Array.isArray(E.list) || !E.list.length) no('.list is [{ item, at, … }], at least one: what is fetched');
@@ -101,7 +104,7 @@ function readOne(E, k, G) {
   for (const N of list) visit(N.item, []);
   const needed = new Set(list.flatMap((N) => N.needs));
   const roots = list.filter((N) => !needed.has(N.item)).map((N) => N.item);
-  const read = { id: E.id, giver: E.giver, reward: reward.map((r) => ({ item: r.item, n: r.n ?? 1 })), list, roots, order };
+  const read = { id: E.id, giver: E.giver, reward: reward.map((r) => ({ item: r.item, n: r.n ?? 1 })), list, roots, order, ...(E.repeat ? { repeat: true } : {}) };
   read.laws = errandLaws(read, G);
   return read;
 }
@@ -173,7 +176,7 @@ export function errandLegs(errands, level) {
         ? { kind: 'bounty', item: N.item, who: `foe-${N.from.foe}-*`, n: N.count }
         : { kind: 'trade', item: N.item, count: N.count, ...(N.needs.length ? { needs: N.needs.map((n) => ({ item: n, n: count(n) })) } : {}), ...(N.shop ? { shop: N.shop } : {}) });
     }
-    if (E.giver === level) legs.push({ kind: 'deliver', id: E.id, wants: E.roots.map((r) => ({ item: r, min: E.list.find((x) => x.item === r).min })), ...(E.reward.length ? { reward: E.reward } : {}) });
+    if (E.giver === level) legs.push({ kind: 'deliver', id: E.id, wants: E.roots.map((r) => ({ item: r, min: E.list.find((x) => x.item === r).min })), ...(E.reward.length ? { reward: E.reward } : {}), ...(E.repeat ? { repeat: true } : {}) });
   }
   for (const E of errands) for (const N of E.list) if (N.cargo) legs.push({ kind: 'cargo', item: N.item, ...N.cargo, max: N.count });
   return legs;

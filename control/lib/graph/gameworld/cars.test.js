@@ -126,6 +126,18 @@ describe('a fare (an errand on a stage with cars: picked up and set down from th
     // (and neither where the level starts)
     expect(Math.hypot(trade.at[0] - E.spawn[0], trade.at[1] - E.spawn[1])).toBeGreaterThan(10);
   });
+  it('a standing job pays each time and ends nothing: its hand-in is no end of the level', async () => {
+    const OPEN = { ...FARE, id: 'open', errands: [{ ...FARE.errands[0], repeat: true }] };
+    expect(() => readGameworld({ ...OPEN, errands: [{ ...FARE.errands[0], repeat: 2 }] })).toThrow(/repeat is true/);
+    const level = runSteps(OPEN, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest;
+    expect(level.game.mechanics.find((m) => m.kind === 'deliver')).toMatchObject({ id: 'fare', repeat: true });
+    const { lowerDeliver } = await import('../game/errand-mechanics.js');
+    const ctx = { i: 0, player: 'hero', resolve: () => {} }, d = { id: 'fare', at: [0, 0, 0], wants: [{ item: 'passenger' }], reward: [{ item: 'coin', n: 5 }] };
+    expect(lowerDeliver(d, ctx).on).toEqual({ 'errand:done:fare': { end: 'success' } });
+    const open = lowerDeliver({ ...d, repeat: true }, ctx);
+    expect(open.on).toBeUndefined();
+    expect(open.world.hud.some((h) => h.on === 'errand:done:fare' && /paid 5 coin/.test(h.text))).toBe(true);
+  });
   it('a driver in a cab stands in a zone where its car is; one sent away stands in none', async () => {
     const { deriveZoneEvents } = await import('../worlds/event-bus.js');
     const src = [{ type: 'zone', zone: 'trade-passenger', at: [5, 0, 0], radius: 7, planar: true, watch: 'hero' }];
