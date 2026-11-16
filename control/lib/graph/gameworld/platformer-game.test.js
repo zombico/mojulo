@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { platformerGame, platformerFlow, platformerSuggestion, platformerPole, dimensionOf, PLATFORMER_DIMENSIONS, PLATFORMER_TURN, PLATFORMER_LOOK, PLATFORMER_BODY } from './platformer-game.js';
+import { platformerGame, platformerFlow, platformerSuggestion, platformerPole, dimensionOf, PLATFORMER_DIMENSIONS, PLATFORMER_TURN, PLATFORMER_LOOK, PLATFORMER_BODY, PLATFORMER_CUBE } from './platformer-game.js';
 import { gameBody } from './game-bodies.js';
 import { THEME_CARDS, cardTheme } from '../playscape/ui/theme-cards/loader.js';
 import { readTheme, themeAdvice } from '../../mana-ui/theme.js';
@@ -54,6 +54,7 @@ describe('the rail, as words', () => {
       expect(readFront(W.front, { levels: d === '3d' ? 4 : 1 }), d).toEqual([]);
       expect(W.screen, d).toBe('screen');
       expect(W.ui, d).toEqual({ theme: PLATFORMER_LOOK });
+      expect(W.style, d).toEqual({ geocube: PLATFORMER_CUBE });
       expect(W.mechanics, d).toEqual({ lives: 3, coins: true, legend: 'menu' });
     }
     // (the look is a card of the toy family that reads: its advice is empty)
@@ -207,6 +208,9 @@ describe('the rail offered to a world', () => {
       expect(P.flow.home).toBe(d === '3d' ? 'courses' : 'title');
       expect(P.front.menu.includes('levels')).toBe(d === '3d');
       expect(P.ui).toEqual({ theme: PLATFORMER_LOOK });
+      // (drawn in the toy hill: written beside what the world's style already says; a cube it named is kept)
+      expect(P.style).toMatchObject({ ...W.style, geocube: PLATFORMER_CUBE });
+      expect(platformerSuggestion({ ...W, style: { ...W.style, geocube: 'island-noon' } }).patch.some((o) => o.path.startsWith('/style'))).toBe(false);
       // (the hero is the creator's: said where the world has none, never laid)
       expect(S.needs).toBeUndefined();
       // (a platformer's hero holds nothing: a book whose hero carries items is told, and they are never taken off)

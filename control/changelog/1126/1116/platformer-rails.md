@@ -40,6 +40,17 @@
   its own columns and is unchanged.
 - **A platformer's hero holds nothing.** The rail writes no item, and a book whose hero carries some is told
   (`advise`): a platformer's hero runs, jumps and stomps with empty hands. The items are the creator's to take off.
+- **Two geocubes for a mascot platformer.** The existing cubes are places with a history (limestone, red roofs, a
+  stone night): none is light in weight and none is active. `sherbet-orchard` is the platformer's own, the rail's
+  `style.geocube` in both dimensions: warm pastels solved by the colour theorist (a peach floor, plum blossom, cream
+  blocks), one mint accent, the only cool colour on the land, the values in three masses so a platform reads at a
+  glance; rounded land with no far cliff, quiet surfaces. `toy-hill` is its sibling: clean greens, cream blocks and a
+  bright clear sky, one tomato red. Both palettes hold every law of the theorist. The rail writes the orchard on a
+  world whose style names no cube; a cube the creator named is kept.
+- **A cube that paints the land colours the course's floors.** Where the level or the world names the cube, a course's
+  turf, dirt and rock are read from the cube's own outside, as the side strip reads them, so a floor is the same land
+  as the ground round it. A stair is stone alone (a tread is about as tall as a cornice), and the trim is a stop
+  lighter than the stone.
 - **Lives and coins are pictures.** The `lives` and `coins` mechanics say their HUD readouts as counters, so a look
   with pictograms draws a heart and a coin beside the numbers.
 - **Coins along a 3D course.** `mechanics.coins` laid coins on a side strip only; a trail's course (a 3D platformer's)

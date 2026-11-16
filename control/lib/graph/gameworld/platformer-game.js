@@ -28,13 +28,14 @@
  *   PLATFORMER_DIMENSIONS            { 2d, 3d }: each { camera, cameras, level, after, says, poles? (the templates it is
  *                                    offered for; absent: every platformer's) }
  *   PLATFORMER_TURN                  { 2d, 3d }: the turn's phases as each game plays them (the readout's and the card's)
+ *   PLATFORMER_CUBE                  the geocube its levels are drawn in (`style.geocube`): the sherbet orchard
  *   PLATFORMER_LOOK                  the theme card both are drawn in (`ui.theme`)
  *   PLATFORMER_BODY                  the body its hero is made on: the mascot's (chibi), written on a character book
  *                                    that names none (the patch's `/characters/direction/body`); a named one is kept
  *   platformerFlow(dimension)        → the flow it says, in the world's level ids
  *   platformerFront(dimension)       → the start menu that flow is entered through
  *   platformerGame({ dimension?, pole?, id?, name?, seed?, kit?, boss?, camera? })
- *                                    → { dimension, level, words: { feel, camera, mechanics, levels, screen, ui, front,
+ *                                    → { dimension, level, words: { feel, camera, mechanics, levels, style, screen, ui, front,
  *                                    flow }, turn, says }
  *   dimensionOf(world)               → '2d' | '3d' | null: the dimension its camera says (side; orbit or follow, the
  *                                    chases W A S D steer by the camera; null: none said, or another camera)
@@ -96,6 +97,12 @@ const readDimension = (d) => { if (!FIRST_LEVEL_DIMENSIONS.includes(d)) throw ne
  * creator named is kept. */
 export const PLATFORMER_BODY = 'mascot';
 
+/** The geocube its levels are drawn in (era/geocube.js GEOCUBE_PRESETS): the sherbet orchard, warm pastels (a peach
+ * floor, pink blossom, cream blocks) and one mint accent, the values in three masses so a platform reads at a glance.
+ * Written on a world whose style names no cube; a cube the creator named is kept (the toy hill is its sibling: clean
+ * greens under a clear sky). The side strip is drawn in it and a course in the round is skinned from it. */
+export const PLATFORMER_CUBE = 'sherbet-orchard';
+
 /** The theme card both dimensions are drawn in (playscape/ui/theme-cards/). */
 export const PLATFORMER_LOOK = 'hilltop';
 
@@ -137,6 +144,7 @@ export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id
     levels: { [level]: firstLevel({ name, seed, kit, boss, dimension }) },
     // (made for a screen on its side: a lane is read across its width, a chase camera needs it; game/screen.js)
     screen: 'screen',
+    style: { geocube: PLATFORMER_CUBE },
     ui: { theme: PLATFORMER_LOOK },
     front, flow,
   };
@@ -184,6 +192,8 @@ function patchFor(world, dimension, pole, boss) {
   ops.push({ op: 'set', path: `/levels/${id}`, value: G.words.levels[id] });
   // (played first: a world that already has levels starts on the one the rail lays)
   if (taken.length && (world.start ?? taken[0]) !== id) ops.push({ op: 'set', path: '/start', value: id });
+  if (!isObj(world.style)) ops.push({ op: 'set', path: '/style', value: G.words.style });
+  else if (world.style.geocube === undefined) ops.push({ op: 'set', path: '/style/geocube', value: PLATFORMER_CUBE });
   if (world.ui === undefined) ops.push({ op: 'set', path: '/ui', value: G.words.ui });
   if (G.words.front && world.front === undefined) ops.push({ op: 'set', path: '/front', value: G.words.front });
   if (G.words.flow && world.flow === undefined) ops.push({ op: 'set', path: '/flow', value: G.words.flow });

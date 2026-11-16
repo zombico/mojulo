@@ -327,8 +327,8 @@ Pointers only; each target carries its own design notes.
   it plays): [gameworld/practice.js](control/lib/graph/gameworld/practice.js), [docs/practice-rooms.md](docs/practice-rooms.md).
 - The platformer's rail (a mascot platformer from its feel to a first level and the flow that plays it, in two
   dimensions: `2d` the side-scroller, one strip and one turn, its home the title; `3d` opt-in, courses up a hill, a
-  turn each, its home the courses screen; both on one flow shape, a start menu, a screen on its side and the
-  `hilltop` theme card; offered by `design_game` as `next: first-level`, never laid): [gameworld/platformer-game.js](control/lib/graph/gameworld/platformer-game.js) over
+  turn each, its home the courses screen; both on one flow shape, a start menu, a screen on its side, the
+  `hilltop` theme card and the `sherbet-orchard` geocube; offered by `design_game` as `next: first-level`, never laid): [gameworld/platformer-game.js](control/lib/graph/gameworld/platformer-game.js) over
   [gameworld/first-level.js](control/lib/graph/gameworld/first-level.js); manual: the `gameworld-course` card. A course in
   the round is skinned by [gameworld/course-skin.js](control/lib/graph/gameworld/course-skin.js) (floors the land's turf,
   dirt and rock; stairs and walls a geocube's stone and trim, the cube read from the level, the world or the kit).

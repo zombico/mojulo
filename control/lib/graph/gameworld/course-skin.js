@@ -6,8 +6,8 @@
  *   a TERRAIN run   a floor the hero runs on: a turf cap over a dirt band over rock, in the colours of THE LAND IT
  *                   STANDS ON (the stage's own kit palette: its grass, its soil, its rock), so a floor is a piece of
  *                   that land lifted up
- *   a BUILT run     the stairs, and a floor reached up a wall: masonry, a trim cornice over stone, in the colours of A
- *                   GEOCUBE (its stone and its trim: what the place builds with)
+ *   a BUILT run     the stairs, and a floor reached up a wall: masonry in the colours of A GEOCUBE (its stone; a floor
+ *                   wears a trim cornice over it, a stair is stone alone)
  *
  * WHICH CUBE the built parts are drawn in is read from what the level needs, never asked for twice: the level's own
  * `style.geocube`, else the world's, else the cube that is made for the kit the stage stands on (GEOCUBE_PRESETS, its
@@ -16,14 +16,15 @@
  *
  *   SKIN                          the bands' measures (the strip's: geocube-side.js SIDE)
  *   courseCube(G, stage)          → { cube, from: 'level' | 'world' | 'kit' | 'default' }
- *   courseColours(stage, cube)    → { turf, dirt, rock, stone, trim }: each [r, g, b] 0 to 1
+ *   courseColours(stage, cube, from?) → { turf, dirt, rock, stone, trim }: each [r, g, b] 0 to 1; the land's from the
+ *                                 cube's own outside where the level or the world names the cube (it paints the land)
  *   skinCourse(lowered, plan, colours) → the course's block asks, one a band ({ blocks, course: false, value, tint }):
  *                                 every box cut into its bands by height; its top, its sides and its footprint are the
  *                                 box's own, so the hero stands where it stood and the course's laws hold as built
  *
  * Pure: the same course and the same colours make the same blocks.
  */
-import { GEOCUBE_PRESETS, readGeocube, geocubeRamps } from '../era/geocube.js';
+import { GEOCUBE_PRESETS, readGeocube, geocubeRamps, lowerGeocube } from '../era/geocube.js';
 import { SIDE_CUBE } from '../era/geocube-side.js';
 import { outTrailStyle } from '../era/out-trail-board.js';
 
@@ -49,11 +50,17 @@ export function courseCube(G, stage) {
 }
 
 /** The colours a course is skinned in: the land's from the stage's own kit, the masonry's from the cube. */
-export function courseColours(stage, cube) {
-  const P = outTrailStyle(stage.manifest).st.palette;
-  let R;
-  try { R = geocubeRamps(readGeocube(cube)); } catch { R = geocubeRamps(readGeocube(cubeName(cube) && GEOCUBE_PRESETS[cubeName(cube)] ? cubeName(cube) : SIDE_CUBE)); }
-  return { turf: unit(mid(P.grass, 0.5)), dirt: unit(mid(P.soil, 0.5)), rock: unit(mid(P.rock, 0.6)), stone: unit(hex(mid(R.stone, 0.5))), trim: unit(hex(mid(R.trim, 0.5))) };
+export function courseColours(stage, cube, from = 'kit') {
+  let C;
+  try { C = readGeocube(cube); } catch { C = readGeocube(cubeName(cube) && GEOCUBE_PRESETS[cubeName(cube)] ? cubeName(cube) : SIDE_CUBE); }
+  const R = geocubeRamps(C);
+  // THE LAND'S COLOURS: where the level or the world names the cube, the cube PAINTS the land the stage stands on, so
+  // the land's palette is the cube's own outside (as the side strip reads it); else the stage's own kit, as it is drawn
+  const painted = from === 'level' || from === 'world';
+  const P = outTrailStyle(painted ? { kit: lowerGeocube(C, 'outside').kit } : stage.manifest).st.palette;
+  // (the trim a stop lighter than the stone: a cornice is the lit edge of the masonry under it, whatever hue a solved
+  // palette gives it)
+  return { turf: unit(mid(P.grass, 0.5)), dirt: unit(mid(P.soil, 0.5)), rock: unit(mid(P.rock, 0.6)), stone: unit(hex(mid(R.stone, 0.5))), trim: unit(hex(mid(R.trim, 0.75))) };
 }
 
 /** The course's blocks, cut into bands and coloured (the header). */
@@ -65,7 +72,8 @@ export function skinCourse(lowered, plan, colours) {
     const p = P[k] ?? {}, top = b.max[2], lo = b.min[2];
     const built = !!p.stair || (p.floor > 0 && plan.gaps[p.floor - 1]?.kind === 'wall');
     // (the bands from the top down, each cut short where the box ends; a box thinner than its cap is all cap)
-    const layers = built ? [['trim', SKIN.cornice], ['stone', Infinity]] : [['turf', SKIN.cap], ['dirt', SKIN.dirt], ['rock', Infinity]];
+    // (a stair is stone alone: a tread is about as tall as a cornice, so a cornice on each would be all there is to see)
+    const layers = p.stair ? [['stone', Infinity]] : built ? [['trim', SKIN.cornice], ['stone', Infinity]] : [['turf', SKIN.cap], ['dirt', SKIN.dirt], ['rock', Infinity]];
     let z = top;
     for (const [name, h] of layers) {
       if (z - lo < 1e-6) break;

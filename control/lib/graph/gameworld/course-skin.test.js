@@ -36,6 +36,15 @@ describe('the course\'s skin', () => {
     expect(night.turf).toEqual(C.turf);
   });
 
+  it('a cube the level or the world names paints the land, so the turf is the cube\'s own ground', () => {
+    const named = courseColours(stage, 'sherbet-orchard', 'world'), unnamed = courseColours(stage, 'sherbet-orchard', 'kit');
+    expect(unnamed.turf).toEqual(C.turf);
+    expect(named.turf).not.toEqual(C.turf);
+    // (the orchard's floor is warm: more red than green, where the meadow's is green)
+    expect(named.turf[0]).toBeGreaterThan(named.turf[1]);
+    expect(named.stone).toEqual(unnamed.stone);
+  });
+
   it('cuts every box into bands that fill it exactly: the same footprint, the same top, the same foot', () => {
     const src = L.blocks[0].blocks;
     for (const b of src) {
@@ -53,9 +62,11 @@ describe('the course\'s skin', () => {
     for (const b of turf.blocks) expect(b.max[2] - b.min[2]).toBeLessThanOrEqual(SKIN.cap + 1e-6);
     for (const b of trim.blocks) expect(b.max[2] - b.min[2]).toBeLessThanOrEqual(SKIN.cornice + 1e-6);
     // (the stairs are built: as many cornices as there are stair blocks and floors up a wall)
-    const built = L.parts.filter((p, k) => p.stair || (p.floor > 0 && plan.gaps[p.floor - 1]?.kind === 'wall')).length;
-    expect(trim.blocks).toHaveLength(built);
-    expect(turf.blocks).toHaveLength(L.parts.length - built);
+    // (a cornice on each floor up a wall; a stair is stone alone)
+    const stairs = L.parts.filter((p) => p.stair).length, walled = L.parts.filter((p) => !p.stair && p.floor > 0 && plan.gaps[p.floor - 1]?.kind === 'wall').length;
+    expect(trim.blocks).toHaveLength(walled);
+    expect(turf.blocks).toHaveLength(L.parts.length - stairs - walled);
+    expect(by[JSON.stringify(C.stone)].blocks.length).toBeGreaterThanOrEqual(stairs);
     for (const a of asks) expect(a).toMatchObject({ course: false });
   });
 
