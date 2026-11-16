@@ -114,7 +114,9 @@ function build() {
   for (const m of rounds.values()) YARD.remove(m.tracer, m.shadow);
   rounds.clear();
   // (who each body is: a player's roster pick, a dummy's roster entry when it names one, else a thug of the street's)
-  const entryOf = (i) => (i < picks.length ? BY.roster[picks[i]] : Number.isInteger(dummies[i - picks.length]?.roster) ? BY.roster[dummies[i - picks.length].roster] : null);
+  // (a wave's body where its wave names one: a game's own cast, drawn in its own body as a player's hero is)
+  const castOf = (i) => { const k = room.yard.cast ? room.yard.cast[i - picks.length - dummies.length] : null; return Number.isInteger(k) ? BY.roster[k] : null; };
+  const entryOf = (i) => (i < picks.length ? BY.roster[picks[i]] : Number.isInteger(dummies[i - picks.length]?.roster) ? BY.roster[dummies[i - picks.length].roster] : castOf(i));
   bodies = room.s.bodies.map((b, i) => {
     const E = entryOf(i), skin = skinOf(E && E.character), player = i < picks.length;
     const B = skin ? (skin.pack.played ? makePlayed(skin) : makeCharacter(skin)) : makeBody(E ? E.color : '#9a8f86', room.ctx.fighters[b.fi], false);
@@ -773,7 +775,7 @@ function tick() {
   if (edge.start) { UI.rt.open('settings'); UI.view.paint(); return; }
   if (edge.list) { UI.state.brawl.practice.moves = RANGE ? rangeMoveList(room) : brawlMoveList(room.ctx.fighters[0]); UI.rt.open('moves'); UI.view.paint(); return; }
   // (a second controller sat down: it drops in as the next player)
-  if (seated() > picks.length && picks.length < 4) { picks = [...picks, (picks.length) % BY.roster.length]; build(); }
+  if (seated() > picks.length && picks.length < 4) { picks = [...picks, (picks.length) % (BY.playable || BY.roster.length)]; build(); }
   const buttons = picks.map((_, i) => buttonsOf(i));
   room = stepYard(room, buttons);
   // a GAME on the room (its `stakes`): over, the level ends once, by the page's game contract (channels/game.js)

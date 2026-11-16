@@ -64,7 +64,7 @@ import { resolveSport } from '../contest/sports.js';
 import { STADIUM_PRESETS } from '../stadium/stadium-words.js';
 import { LANE_KITS } from '../broadcast/broadcast-package.js';
 import { SPORT_KITS } from '../sportswear/kits.js';
-import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, sportArenas, brawlArenas, brawlHeroes, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
+import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, sportArenas, brawlArenas, brawlHeroes, castWaves, BRAWL_ROLE_WAVES, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { sheetAudio, sheetBed, onSheet, levelSheet, rideSound, rideTop } from './sound-sheet.js';
 import { cueSheet, levelScore, onScore } from './cue-sheet.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
@@ -72,6 +72,7 @@ import { castingOf, laidCasting, laidJoins } from './casting.js';
 import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
 import { beastLook } from './stage-figures.js';
 import { kinWords, kinBare, isKin } from '../foes/packs.js';
+import { brawlCast, brawlBodies, withBodies } from './brawl-cast.js';
 import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits, withFoeWin, onBody, peopleRollOf, isPeople, isModel, isDressed, dressOf } from './foes.js';
 import { rideBuild, rideRule } from './ride.js';
 import { rideOf, loftCamera } from '../vehicle-registry/ride.js';
@@ -637,10 +638,10 @@ function goalArgs(G, s, lastOf, ref, { fought = false } = {}) {
  * an ooze makes dressed from its kit's ramps, the colour theorist's when the world names a palette, and its own coat
  * taken to them: animal.js `coat: 'world'`), as its people are;
  * and the refs each stage's foes stand on. */
-const foeSteps = (G, ref, ready) => {
+const foeSteps = (G, ref, ready, ids = null) => {
   // (its coat in the world's colours too, where the world has ramps: a foe belongs to its world's palette)
   const setting = settingOfGame(G), coat = setting.ramps?.length ? { coat: 'world' } : {}, hench = bookRail(G);
-  return fieldedIds(G).flatMap((id) => {
+  return (ids ?? fieldedIds(G)).flatMap((id) => {
     const entry = bestiaryOf(G)[id], title = `${G.name ?? G.id} ${id}`;
     // (a model made elsewhere is made by no step: it stands on the sketch its model is bound onto)
     if (isModel(entry)) return [];
@@ -971,10 +972,23 @@ function quickSteps(world, G, ref, lookup) {
       heroSteps.push({ key, ref: charRef, ready: true, order: { egocube: sheetRef, title: `${title} · ${name}` }, print: fingerprint({ roll }) });
       roster.push({ ...own, hero: { ref: charRef }, ...over });
     }
-    const arenas = brawlArenas(Q, { title, roster }).map((a) => ({ ...a, key: `level-arena-${a.id}`, ref: childRef(ref, `level-arena-${a.id}`) }));
+    // THE FOES (gameworld/brawl-cast.js): a world that keeps a bestiary, or writes its waves by role, is met by its own
+    // cast: each foe that comes made as the game's foes are (foeSteps), fighting as what it is, drawn in its own body
+    // where it has one. A world with neither meets the street's stock bodies (the harness)
+    let cast = null, castLaws = null;
+    if (G.foes !== undefined || castWaves(Q.waves)) {
+      const C = brawlCast(G, castWaves(Q.waves) ? Q.waves : BRAWL_ROLE_WAVES, { gun: Q.goal === 'rungun' });
+      const has = brawlBodies(G, C), bodied = C.foes.filter((id) => has[id]), heroes = roster.length;
+      heroSteps.push(...foeSteps(G, ref, { ready: true }, bodied));
+      const rosterAt = Object.fromEntries(bodied.map((id, k) => [id, heroes + k]));
+      for (const id of bodied) roster.push({ id: `foe-${id}`, name: id, hero: { ref: childRef(ref, `foes-${id}`) } });
+      cast = { waves: withBodies(C.waves, rosterAt), playable: heroes };
+      castLaws = [{ concern: 'cast', law: 'foes', holds: !C.says.length, says: C.says.length ? C.says.join('; ') : `the street's crowd is the game's own cast (${C.foes.join(', ')}), each in its own body` }];
+    }
+    const arenas = brawlArenas(Q, { title, roster, cast }).map((a) => ({ ...a, key: `level-arena-${a.id}`, ref: childRef(ref, `level-arena-${a.id}`) }));
     const levels = arenas.map((a) => ({ key: a.key, ref: a.ref, ready: true, order: { title: a.manifest.title ?? a.name, manifest: a.manifest }, print: fingerprint(a.manifest) }));
     const game = { title, store: quickStore(Q), levels: arenas.map((a) => ({ ref: a.ref, title: a.name })), allow_unaudited: true, shell: 'play', ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), ...(G.screen ? { screen: G.screen } : {}) };
-    return [...heroSteps, ...levels, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game) }];
+    return [...heroSteps, ...levels, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game), ...(castLaws ? { laws: castLaws } : {}) }];
   }
   // `hero: { ref }` adopts a hero made with create_character: pinned to nothing (a quick game has no book), never made
   const adopted = isObj(Q.hero) && typeof Q.hero.ref === 'string' ? Q.hero.ref : null;

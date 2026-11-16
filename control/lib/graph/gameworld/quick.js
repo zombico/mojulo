@@ -815,7 +815,9 @@ function readBrawl(Q) {
     if (!Array.isArray(Q.guns) || !Q.guns.length || Q.guns.length > 6) throw fail('.guns is a list of 1 to 6 guns, the first held (a name or dials over one)');
     Q.guns.forEach((g, k) => { try { readGun(g, `guns[${k}]`); } catch (e) { throw fail(`.${e.message.replace(/^brawl: /, '')}`); } });
   }
-  if (Q.waves !== undefined) { try { readRangeWaves(Q.waves); } catch (e) { throw fail(`.waves: ${e.message.replace(/^brawl: /, '')}`); } }
+  // (its waves: the game's own cast by role or foe id, gameworld/brawl-cast.js, read against the world's bestiary where
+  // the level is laid; or the street's stock bodies by type, the harness's)
+  if (Q.waves !== undefined && !castWaves(Q.waves)) { try { readRangeWaves(Q.waves); } catch (e) { throw fail(`.waves: ${e.message.replace(/^brawl: /, '')}`); } }
   // (its heroes: the fight's roster, every one a character; as many at least as play)
   if (Q.roster !== undefined) {
     if (!Array.isArray(Q.roster) || !Q.roster.length || Q.roster.length > 4) throw fail('.roster is 1 to 4 heroes, each a character as a fight\'s fighter is (an archetype word, a brief, { brief?, facets?, … } or { hero: { ref } })');
@@ -823,16 +825,21 @@ function readBrawl(Q) {
     try { brawlHeroes(Q, 1); } catch (e) { throw fail(`.roster: ${e.message.replace(/^versus: /, '')}`); }
   }
 }
+/** are these waves written from the game's cast (by role or foe id), not by the street's stock types? */
+export const castWaves = (waves) => Array.isArray(waves) && waves.length > 0 && waves.every((w) => isObj(w) && !Array.isArray(w.crowd));
+/** the waves a brawl meets when its world keeps a bestiary and says none: its cast by role, a boss last */
+export const BRAWL_ROLE_WAVES = Object.freeze([{ grunt: 2 }, { grunt: 3, shooter: 1 }, { elite: 1, grunt: 2 }, { boss: 1, grunt: 2 }].map((w) => Object.freeze(w)));
 /** A brawl's heroes: the fight's fighters (fightFighters: each a sheet the run makes into a character, or one already
  * made), one for each player unless its roster says. */
 export const brawlHeroes = (Q, seed = 1) => fightFighters({ roster: Q.roster ?? defaultFighters(seed).slice(0, Q.players ?? 1) }, seed);
 /** A brawl's level: its street as a world carrying the brawl and the game contract a hosted level speaks. One open
  * screen of a stage street (brawl-levels.js: the open-air plaza kit, one long room, its fronts the far side); the room is the practice room's (brawl-practice.js) with the game on it (`stakes`): its
  * waves do not loop, won at the last, lost at the last fall allowed. */
-export function brawlArenas(Q, { title, roster } = {}) {
-  const gun = Q.goal === 'rungun', waves = Q.waves ?? (gun ? RUNGUN_WAVES : BRAWL_WAVES);
+export function brawlArenas(Q, { title, roster, cast } = {}) {
+  // (`cast`: the waves cast from the world's bestiary and how many of the roster are played, the run's: brawl-cast.js)
+  const gun = Q.goal === 'rungun', waves = cast?.waves ?? Q.waves ?? (gun ? RUNGUN_WAVES : BRAWL_WAVES);
   const players = Array.from({ length: Q.players ?? 1 }, (_, i) => i);
-  const practice = { ...(roster ? { roster } : {}), players, dummies: [], stakes: Q.lives ?? BRAWL.lives, ...(gun ? { range: { ...(Q.guns ? { guns: Q.guns } : {}), waves, loop: false } } : { waves, loop: false }) };
+  const practice = { ...(roster ? { roster } : {}), ...(cast?.playable ? { playable: cast.playable } : {}), players, dummies: [], stakes: Q.lives ?? BRAWL.lives, ...(gun ? { range: { ...(Q.guns ? { guns: Q.guns } : {}), waves, loop: false } } : { waves, loop: false }) };
   const m = brawlLevel({ kind: 'stage', kit: BRAWL.kit, screens: [{ length: BRAWL.street }] }, { ...(title ? { title } : {}), ...(Q.register ? { register: Q.register } : {}), ...(Q.armed ? { armed: true } : {}), practice });
   const contract = { levelRef: 'street', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: { text: 'the street' } };
   return [{ id: 'street', name: m.title ?? title ?? 'The street', manifest: { ...m, game: contract } }];

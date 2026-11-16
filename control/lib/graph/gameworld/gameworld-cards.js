@@ -806,6 +806,10 @@ const QUICK_LEVERS = {
     '    the street\'s own, then knives, runners and leapers, then a big one). A crowd type is its fighter (thug, knife, charger,',
     '    jumper, heavy; sword, spear, axe, staff armed). One wave at a time; the last cleared wins the level.',
     '  armed: true   every hero carries its own weapon the whole game (a blade\'s reach and its clash)',
+    '  THE CROWD IS THE GAME\'S CAST: give the world its `foes` (the bestiary, gameworld-foes) and write waves by role or foe id,',
+    '    [{ grunt: 3, shooter: 1 }, { foes: { <id>: n }, formation?, name? }, { boss: 1 }]: each foe fights as its class and rank,',
+    '    a person or a people drawn in its own body (a beast as a jointed figure, said). Ask who the enemies are before the run.',
+    '    With no `foes` and no role waves the stock crowd comes, drawn as figures: a test harness, not a game to hand over.',
     '  The street is one open screen; a blow lands only lined up across it. The gated street and its boss are not laid yet.',
   ],
   rungun: () => [

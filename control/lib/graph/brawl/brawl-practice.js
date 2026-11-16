@@ -125,7 +125,7 @@ export function practiceOf({ belt, players, dummies = [], things, health = 'chai
   if (W) W.forEach((w, k) => { for (const c of w.crowd) for (let j = 0; j < c.n; j++) {
     const key = `type:${c.type}`, T = CROWD_TYPES[c.type];
     if (kinds[key] === undefined) { kinds[key] = fighters.length; fighters.push(crowdFighter(c.type)); }
-    waveSpec.push({ fighter: kinds[key], type: c.type, wave: k, hp: c.hp, arms: { wave: k, ...(T.gun ? { gun: gunIx(T.gun, `range.waves[${k}]`) } : {}), ...((c.poise ?? T.poise) ? { poise: c.poise ?? T.poise } : {}) } });
+    waveSpec.push({ fighter: kinds[key], type: c.type, wave: k, hp: c.hp, ...(c.roster !== undefined ? { roster: c.roster } : {}), arms: { wave: k, ...(T.gun ? { gun: gunIx(T.gun, `range.waves[${k}]`) } : {}), ...((c.poise ?? T.poise) ? { poise: c.poise ?? T.poise } : {}) } });
   } });
   if (guns.length) ctx.guns = guns;
   // (each body's arms: a player on the range its first gun over its sidearm, its grenades; a shooting dummy its gun)
@@ -155,6 +155,8 @@ export function practiceOf({ belt, players, dummies = [], things, health = 'chai
     log: players.map(() => []), chain: players.map(() => ({ steps: [], last: null })), combo: players.map(() => ({ hits: 0, damage: 0, last: null })),
     ko: {}, free: {},
     ...(stakes !== undefined ? { stakes, falls: 0, over: null } : {}),
+    // (who each wave body is drawn as, where its wave says: a roster index, or null)
+    ...(waveSpec.some((w) => w.roster !== undefined) ? { cast: waveSpec.map((w) => w.roster ?? null) } : {}),
   };
   const mind = newCrowdMind(Object.fromEntries([...spec.map((d, j) => [P + j, d.type]), ...waveSpec.map((w, j) => [P + spec.length + j, w.type])]));
   return { ctx, s, mind, yard };

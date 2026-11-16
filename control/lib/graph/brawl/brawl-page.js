@@ -89,6 +89,8 @@ export const BRAWL_ARMED_ROSTER = Object.freeze(BRAWL_ROSTER.map((r) => {
  * characterBodies: { <ref>: its body, played with its clips }) draws each character in its own body; one with none is
  * drawn as the fight's stick figure.
  */
+const readPlayable = (v, n) => { if (!(Number.isInteger(v) && v >= 1 && v <= n)) throw new Error(`brawl: practice.playable is how many of the roster are played, 1 to ${n}`); return v; };
+const castIn = (waves, n) => { for (const w of waves) for (const c of w.crowd) if (c.roster !== undefined && c.roster >= n) throw new Error(`brawl: a wave's crowd is drawn as roster ${c.roster}: the roster holds ${n}`); return waves; };
 const readStakes = (v) => { if (!(Number.isInteger(v) && v >= 1 && v <= 9)) throw new Error('brawl: practice.stakes is the falls the players may take, 1 to 9'); return v; };
 export function brawlYardData(block, bodies = null) {
   const P = block.practice ?? {};
@@ -114,12 +116,14 @@ export function brawlYardData(block, bodies = null) {
     things: P.things ?? [], health: P.health ?? 'chains',
     // (a GAME on the room, brawl-practice.js `stakes`: the falls its players may take; the page ends the level with it)
     ...(P.stakes !== undefined ? { stakes: readStakes(P.stakes) } : {}),
+    // (how many of the roster are played: the rest are the crowd's own bodies, a game's cast, never a player's pick)
+    ...(P.playable !== undefined ? { playable: readPlayable(P.playable, roster.length) } : {}),
     // (the brawler yard's own wave tester, read here so a fault is said before the page)
-    ...(P.waves && !P.range ? { waves: readRangeWaves(P.waves), loop: P.loop !== false } : {}),
+    ...(P.waves && !P.range ? { waves: castIn(readRangeWaves(P.waves), roster.length), loop: P.loop !== false } : {}),
     // (THE RANGE, the run & gun's: the guns passed in to be tried, read here so a fault is said before the page)
     ...(P.range ? { range: { guns: (P.range.guns ?? RANGE_GUNS).map((g, k) => { readGun(g, `practice.range.guns[${k}]`); return g; }), grenades: P.range.grenades ?? 3,
       // (its waves, read here so a fault is said before the page: the sampler for `true`)
-      ...(P.range.waves ? { waves: readRangeWaves(P.range.waves), loop: P.range.loop !== false } : {}), names: (P.range.guns ?? RANGE_GUNS).map((g) => { const G = readGun(g); return G.name ?? G.id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' '); }) } } : {}),
+      ...(P.range.waves ? { waves: castIn(readRangeWaves(P.range.waves), roster.length), loop: P.range.loop !== false } : {}), names: (P.range.guns ?? RANGE_GUNS).map((g) => { const G = readGun(g); return G.name ?? G.id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' '); }) } } : {}),
     ...(bodies ? { bodies } : {}),
     yard: { spec: Y.spec, css: Y.css, settings: YARD_SETTINGS },
   };
