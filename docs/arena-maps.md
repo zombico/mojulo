@@ -140,7 +140,7 @@ stairs or turns, and the land is not flat.
 
 ## Geocube plans designed as fighting maps
 
-A building's `fight: true | { rings?, stagger?, stairs?, gallery?, cover? }` (`era/programs.js` `FIGHT`, opt-in: absent,
+A building's `fight: true | { rings?, stagger?, stairs?, gallery?, cover?, room? }` (`era/programs.js` `FIGHT`, opt-in: absent,
 the plan's bytes are as they were) is the plan's answer to the laws it fails.
 
 - **rings:** every room along a wing opens onto its neighbour (the doorways at alternate ends of their wall), the first
@@ -151,6 +151,8 @@ the plan's bytes are as they were) is the plan's answer to the laws it fails.
   storey and climbed to from the hall. Its doorway is floored through the wall's thickness at the deck's height.
 - **cover:** the hall's own stock (`stocking.js` `HALL_COVER`), a baffle off each doorway and blocks on a seeded lattice
   of the arena's cells, the doorways, stairs and a lane kept clear.
+- **room:** every storey a metre taller and the corridors six metres wide (`program-core.js` `ROOMY`), the lobby with
+  them, the core given more floor so its stair still finds its run up the taller storey.
 
 On house-shape plans only rings and cover apply. The reader reads a gallery as its deck at the upper level, railed, its
 stairs as ramps. Machine gate only: with every dial the warehouse holds two laws short of all for a kit of close and mid

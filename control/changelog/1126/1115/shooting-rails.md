@@ -180,3 +180,12 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   depth (`channels/form.js`), which it did not.
 - **A mission fills its window.** Its HUD and screens are laid over the window, so its page fills it where its game
   names no screen of its own (a screen holds its own frame); before, the view kept the studio's size beside them.
+- **Room to fight in.** A sixth fight dial, `room` (`era/programs.js` `FIGHT`, `program-core.js` `ROOMY`): every storey
+  a metre taller, the corridors six metres wide, the lobby with them, the core given more floor so its stair still
+  finds its run. `fight: true` asks it, so a mission's building is roomier; a building that asks no fight is as it was.
+- **The gun and the hands in the seventh generation.** On a page drawn as form the gun in the hands and the hands
+  themselves are lit by the room's own light (`channels/controllable/gunplay-view.js`, the form channel's
+  `probe.light`): the live lamps nearest the eye, reaching what is held from further than the relief's few metres, and
+  the ambient mostly by its level, each face by the way it looks, a metal's highlight on the gun and a cloth's on the
+  hands, through the page's own tone curve. On a painted page they are the paint they were. The hands sort with the
+  gun, after the world's glass.

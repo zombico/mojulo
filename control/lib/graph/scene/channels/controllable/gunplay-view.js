@@ -56,14 +56,43 @@ const __gpBreath = __gpScope.querySelector('[data-breath]');
 const __gpD = Math.PI / 180;
 // the arm's view: its parts' boxes, item frame (x across, y up, z along the bore, cm) turned onto the camera's (the bore
 // along -z, up +y: a half turn about y); \`held\`, the item's own frame in metres, for a body to carry (__gpHold)
+// THE VIEW'S MATERIAL: on a page drawn as form (the seventh generation: channels/form.js hands its light, \`__mojForm.light\`)
+// the gun and the hands are lit by the room's own light, the live lamps nearest the eye and the ambient, each face by
+// the way it looks (its normal from the surface itself), a metal's highlight on the gun and a cloth's on the hands; on a
+// painted page they are the paint they were, shaded by which way each face looks. \`lit\`: whether a colour is laid unshaded
+function __gpLit() { return !!(window.__mojForm && window.__mojForm.light); }
+function __gpMatOf(kind, side) {
+  const FL = window.__mojForm && window.__mojForm.light;
+  if (!FL) return new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, ...(side ? { side } : {}) });
+  const K = FL.K, U = FL.U, sp = kind === 'metal' ? [0.5, 42] : [0.05, 8];
+  return new THREE.ShaderMaterial({ vertexColors: true, transparent: true, ...(side ? { side } : {}),
+    uniforms: { uFLp: U.uFLp, uFLk: U.uFLk, uFLr: U.uFLr, uFFall: U.uFFall, uFAmb: U.uFAmb, uGpSpec: { value: new THREE.Vector2(sp[0], sp[1]) } },
+    vertexShader: ['varying vec3 vC;', 'varying vec3 vV;', '#include <common>', '#include <logdepthbuf_pars_vertex>',
+      'void main() { vC = color; vec4 mv = modelViewMatrix * vec4( position, 1.0 ); vV = mv.xyz; gl_Position = projectionMatrix * mv;', '#include <logdepthbuf_vertex>', '}'].join('\\n'),
+    fragmentShader: ['uniform vec3 uFLp[' + K + '];', 'uniform vec3 uFLk[' + K + '];', 'uniform float uFLr[' + K + '];', 'uniform float uFFall;', 'uniform vec3 uFAmb;', 'uniform vec2 uGpSpec;',
+      'varying vec3 vC;', 'varying vec3 vV;', '#include <common>', '#include <logdepthbuf_pars_fragment>', 'void main() {', '#include <logdepthbuf_fragment>',
+      '  vec3 N = normalize( cross( dFdx( vV ), dFdy( vV ) ) ), V = normalize( - vV ); if ( dot( N, V ) < 0.0 ) N = - N;',
+      // (the ambient mostly by its level, a little by its hue: a blue sky's fill does not paint a black gun blue; and a
+      // floor under it, as an eye held on a thing in its own hands still makes it out in a dim room)
+      '  float la = dot( uFAmb, vec3( 0.2126, 0.7152, 0.0722 ) ); vec3 amb = mix( vec3( la ), uFAmb, 0.3 );',
+      '  vec3 sum = ( amb * 1.5 + vec3( 0.22 ) ) * ( 0.85 + 0.25 * N.y ), spec = vec3( 0.0 );',
+      '  for ( int i = 0; i < ' + K + '; i++ ) { vec3 d = uFLp[ i ] - vV; float r = length( d ); vec3 L = d / max( r, 1e-3 );',
+      // (a lamp's live reach is the relief's, a few metres: what is held at the eye stands in the room's whole light,
+      // its bounce with it, so a lamp reaches it from 2.2 times as far)
+      '    float t = clamp( 1.0 - max( r, 1.1 ) / ( uFLr[ i ] * 2.2 ), 0.0, 1.0 ); vec3 c = uFLk[ i ] * pow( t * t, uFFall ); float nl = max( dot( N, L ), 0.0 );',
+      '    sum += c * nl; spec += c * nl * uGpSpec.x * pow( max( dot( N, normalize( L + V ) ), 0.0 ), uGpSpec.y ); }',
+      '  float fr = pow( 1.0 - max( dot( N, V ), 0.0 ), 4.0 );',
+      '  gl_FragColor = vec4( pow( vC, vec3( 2.2 ) ) * sum * 1.6 + spec + amb * fr * uGpSpec.x * 0.6, 1.0 );',
+      '#include <tonemapping_fragment>', '#include <colorspace_fragment>', '}'].join('\\n') });
+}
 function __gpBuild(g, held) {
   const f = held ? 1 : -1;
   const grp = new THREE.Group(), mats = new Map();
   // (the world's faces carry their light baked: a box is shaded the same way, by which way each face looks)
-  const mat = () => { if (!mats.has(0)) mats.set(0, new THREE.MeshBasicMaterial({ vertexColors: true })); return mats.get(0); };
+  const LIT = __gpLit(), mat = () => { if (!mats.has(0)) mats.set(0, __gpMatOf('metal')); return mats.get(0); };
   const shade = (geo, c) => {
     const base = new THREE.Color(c), n = geo.attributes.normal, col = new Float32Array(n.count * 3);
-    for (let i = 0; i < n.count; i++) { const k = n.getY(i) > 0.5 ? 1.25 : n.getY(i) < -0.5 ? 0.55 : Math.abs(n.getX(i)) > 0.5 ? 0.85 : 1.0; col[3 * i] = Math.min(1, base.r * k + 0.04); col[3 * i + 1] = Math.min(1, base.g * k + 0.04); col[3 * i + 2] = Math.min(1, base.b * k + 0.05); }
+    for (let i = 0; i < n.count; i++) { const k = LIT ? 1 : n.getY(i) > 0.5 ? 1.25 : n.getY(i) < -0.5 ? 0.55 : Math.abs(n.getX(i)) > 0.5 ? 0.85 : 1.0; col[3 * i] = Math.min(1, base.r * k + 0.04); col[3 * i + 1] = Math.min(1, base.g * k + 0.04); col[3 * i + 2] = Math.min(1, base.b * k + 0.05); }
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); return geo;
   };
   const slab = (s, at, c, into) => { const m = new THREE.Mesh(shade(new THREE.BoxGeometry(s[0], s[1], s[2]), c), mat()); m.position.set(at[0], at[1], at[2]); (into || grp).add(m); return m; };
@@ -87,7 +116,7 @@ function __gpBuild(g, held) {
     const MS = g.view.mesh || null, drawn = {};
     if (MS) {
       const pal = MS.cols.map((c) => { const k = new THREE.Color(c); return [Math.min(1, k.r * 1.7 + 0.07), Math.min(1, k.g * 1.7 + 0.07), Math.min(1, k.b * 1.7 + 0.08)]; });
-      const armMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+      const armMat = __gpMatOf('metal', THREE.DoubleSide);
       for (const P of MS.parts) {
         const n = P.ci.length, pos = new Float32Array(n * 18), col = new Float32Array(n * 18), lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
         for (let i = 0; i < P.q.length; i += 3) for (let a = 0; a < 3; a++) { if (P.q[i + a] < lo[a]) lo[a] = P.q[i + a]; if (P.q[i + a] > hi[a]) hi[a] = P.q[i + a]; }
@@ -102,7 +131,7 @@ function __gpBuild(g, held) {
           // rail's flats, the receiver's chamfers and the handguard's facets read apart)
           const o = j * 18, ux = pos[o + 3] - pos[o], uy = pos[o + 4] - pos[o + 1], uz = pos[o + 5] - pos[o + 2], vx = pos[o + 6] - pos[o], vy = pos[o + 7] - pos[o + 1], vz = pos[o + 8] - pos[o + 2];
           let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx; const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
-          const k = 0.6 + 0.55 * Math.max(0, -0.37 * nx + 0.74 * ny + 0.56 * nz) + 0.14 * Math.max(0, ny);
+          const k = LIT ? 1 : 0.6 + 0.55 * Math.max(0, -0.37 * nx + 0.74 * ny + 0.56 * nz) + 0.14 * Math.max(0, ny);
           for (let t = 0; t < 6; t++) { col[o + t * 3] = Math.min(1, c[0] * k); col[o + t * 3 + 1] = Math.min(1, c[1] * k); col[o + t * 3 + 2] = Math.min(1, c[2] * k); }
         }
         const geo = new THREE.BufferGeometry();
@@ -156,9 +185,10 @@ function __gpEase(t) { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * 
 const __gpHands = { R: null, L: null, knife: null, grabT: -1, reserve: null, uses: null, magK: null };
 function __gpShadeBox(s, c, at, into) {
   const geo = new THREE.BoxGeometry(s[0], s[1], s[2]), base = new THREE.Color(c), n = geo.attributes.normal, col = new Float32Array(n.count * 3);
-  for (let i = 0; i < n.count; i++) { const k = n.getY(i) > 0.5 ? 1.2 : n.getY(i) < -0.5 ? 0.6 : Math.abs(n.getX(i)) > 0.5 ? 0.85 : 1.0; col[3 * i] = Math.min(1, base.r * k + 0.03); col[3 * i + 1] = Math.min(1, base.g * k + 0.03); col[3 * i + 2] = Math.min(1, base.b * k + 0.035); }
+  for (let i = 0; i < n.count; i++) { const k = __gpLit() ? 1 : n.getY(i) > 0.5 ? 1.2 : n.getY(i) < -0.5 ? 0.6 : Math.abs(n.getX(i)) > 0.5 ? 0.85 : 1.0; col[3 * i] = Math.min(1, base.r * k + 0.03); col[3 * i + 1] = Math.min(1, base.g * k + 0.03); col[3 * i + 2] = Math.min(1, base.b * k + 0.035); }
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true }));
+  // (the hands sort with the gun, after the world's glass: see where the gun's order is set)
+  const m = new THREE.Mesh(geo, __gpMatOf('cloth'));
   m.position.set(at[0], at[1], at[2]); m.renderOrder = 1e6; m.frustumCulled = false; m.raycast = function () {}; into.add(m); return m;
 }
 // a hand's own frame: +x its index side, +y wrist to knuckles, the palm toward +z (the right's) or -z (the left's)

@@ -45,6 +45,9 @@
 import { STAIR_PROFILES } from '../construction/circulation.js';
 
 export const CORE = Object.freeze({ w: 10, d: 12, room: 6, bays: [1, 6], storeys: [1, 6], wings: ['I', 'L', 'T', 'U'], loading: ['single', 'double'], deep: 4 });
+/** A building designed with room to fight in (programs.js FIGHT `room`): what a storey gains, its corridors' width, and what its core
+ *  gains each way so its stair still finds its run up the taller storey (m). */
+export const ROOMY = Object.freeze({ rise: 1, corridor: 6, core: Object.freeze([2, 4]) });
 const SLAB_M = 0.5;   // a floor's thickness between storeys (storeys.js SLAB)
 const PASSAGE = 2.4;  // a stair room's floor beside its stair's well, so the floor round the hole leads on
 // the length two boxes ({ x, y, w, d }) share along a common wall (0 when they do not touch)
@@ -63,13 +66,15 @@ export function planCore(P, program, kit, rnd) {
   const C = P.core, g = kit.grid, need = kit.door.width + 2 * kit.door.frame + kit.wall;
   // (every size on the kit's grid: a gothic kit's is not a metre)
   const snap = (v) => +(Math.max(1, Math.round(v / g)) * g).toFixed(6), up = (v) => +(Math.ceil(v / g - 1e-9) * g).toFixed(6);
-  const cw = up(Math.max(3, need + 0.4)), D = snap(CORE.room), bay = snap(kit.bay ?? CORE.room), CW = snap(CORE.w), CD = snap(CORE.d), LD = snap(P.lobby.d);
+  // (room, programs.js FIGHT: the corridors ROOMY.corridor wide and every storey ROOMY.rise taller, the lobby with them)
+  const roomy = program.fight?.room === true;
+  const cw = up(Math.max(roomy ? ROOMY.corridor : 3, need + 0.4)), D = snap(CORE.room), bay = snap(kit.bay ?? CORE.room), CW = snap(CORE.w + (roomy ? ROOMY.core[0] : 0)), CD = snap(CORE.d + (roomy ? ROOMY.core[1] : 0)), LD = snap(P.lobby.d);
   const storeys = program.storeys ?? C.storeys, wings = program.wings ?? C.wings, loading = program.loading ?? C.loading, bays = program.bays ?? C.bays;
   if (!(Number.isInteger(storeys) && storeys >= CORE.storeys[0] && storeys <= CORE.storeys[1])) throw new Error(`program: storeys is a whole number, ${CORE.storeys.join(' to ')}`);
   if (!SHAPES[wings]) throw new Error(`program: wings is ${CORE.wings.join(', ')} (the plan's shape round its core)`);
   if (!CORE.loading.includes(loading)) throw new Error(`program: loading is single (rooms on one side of the corridor) or double (both)`);
   if (!(Number.isInteger(bays) && bays >= CORE.bays[0] && bays <= CORE.bays[1])) throw new Error(`program: bays is a wing's length in bays, ${CORE.bays.join(' to ')}`);
-  const h = C.h, rooms = [], links = [], findings = [], off = program.basement ? 1 : 0;
+  const h = C.h + (roomy ? ROOMY.rise : 0), rooms = [], links = [], findings = [], off = program.basement ? 1 : 0;
   const free = (b) => !rooms.some((q) => (q.storey ?? 0) === (b.storey ?? 0) && overlaps(b, q));
   if (program.basement !== undefined && typeof program.basement !== 'boolean') throw new Error('program: basement is true (a storey under the ground one: a concourse under the lobby, the plate\'s twin) or false');
   const put = (b) => { rooms.push(b); return b; };
@@ -112,7 +117,7 @@ export function planCore(P, program, kit, rnd) {
   for (let s = 0; s < storeys; s++) {
     const n = s + 1, at = (b) => ({ ...b, h, ...(s + off ? { storey: s + off } : {}) });
     // (the lobby first: the plan's first room is its way in)
-    if (!s) put({ id: 'lobby', x: 0, y: -LD, w: CW, d: LD, h: P.lobby.h ?? h, ...(off ? { storey: off } : {}) });
+    if (!s) put({ id: 'lobby', x: 0, y: -LD, w: CW, d: LD, h: (P.lobby.h ?? C.h) + (roomy ? ROOMY.rise : 0), ...(off ? { storey: off } : {}) });
     const core = put(at({ id: `core-${n}`, x: 0, y: 0, w: CW, d: CD }));
     // (stagger, a wing off the core's back: the lobby's doorway to the far end of the core's front from it)
     const lobbyAt = !s && F?.stagger && SHAPES[wings].includes('+y') ? doorAt(0, CW, 1) : null;

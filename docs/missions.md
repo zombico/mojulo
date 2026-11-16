@@ -249,7 +249,10 @@ place's asphalt and brick), mapped in metres and baked under the cube's sun as a
 part: a house in a place's cut is a brick mass, not that house. In the sixth generation the map is the greybox as
 painted, and the lane mission is greybox in either.
 
-Still paint in every mission: the figures (the era reading says so, `approximated`), water, and a ladder.
+The gun in the hands and the hands are lit by the same light on a form page (the live lamps nearest the eye and the
+ambient, `channels/controllable/gunplay-view.js`).
+
+Still paint in every mission: the foes' figures (the era reading says so, `approximated`), water, and a ladder.
 
 ## On mana-ui, end to end
 

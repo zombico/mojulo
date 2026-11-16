@@ -460,6 +460,9 @@ ${cfg.reflect && cfg.sun ? `    // (a built thing out of doors is closed and dra
     for (const s of slots) if (s.next === s.lamp) s.next = null;
   };
   const probe = { lamps: lamps.length, live: slots.length, made, panes, reads: Object.fromEntries(Object.entries(F.maps).map(([k, m]) => [k, m.read])), on: () => slots.map((s) => (s.lamp ? s.lamp.i : -1)) };
+  // (the light a thing held before the eye is drawn under: the live lamps, in the camera's frame, and the ambient;
+  // channels/controllable/gunplay-view.js lights the gun and the hands by it)
+  probe.light = { U, K };
   const prev = scene.onBeforeRender;
   scene.onBeforeRender = function (r, s, cam, rt) {
     if (prev) prev.call(this, r, s, cam, rt);

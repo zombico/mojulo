@@ -10,7 +10,7 @@ import { planStage, assembleStageScene } from './stage.js';
 import { keepOuts, footprintOf } from './compose-dress.js';
 import { STOCK, HALL_COVER, roleOf } from './stocking.js';
 import { catwalkLayout } from './bay.js';
-import { CORE } from './program-core.js';
+import { CORE, ROOMY } from './program-core.js';
 import { stageColliders } from './anchors.js';
 import { buildingStage, buildingEnds } from '../gameworld/levels.js';
 
@@ -177,6 +177,20 @@ describe('cover', () => {
     }
     // (a baffle off each doorway into the hall)
     expect(cover.some((it) => it.id.includes('/cover/baffle'))).toBe(true);
+  });
+});
+
+describe('room', () => {
+  it(`(${ANNEXED}) every storey a metre taller and the corridors wide, its stair still finding its run; absent, the sizes as they were`, () => {
+    const A = planned(ANNEXED, { room: true }), B = planned(ANNEXED), cor = (P) => { const c = P.rooms.find((r) => /^corridor-1/.test(r.id)); return Math.min(c.box[2] - c.box[0], c.box[3] - c.box[1]); }, core = (P) => P.rooms.find((r) => /^core-1/.test(r.id));
+    expect(core(A).h - core(B).h).toBeCloseTo(ROOMY.rise, 6);
+    expect(cor(A)).toBeGreaterThanOrEqual(ROOMY.corridor);
+    expect(cor(A)).toBeGreaterThan(cor(B));
+    expect(A.rooms.find((r) => r.id === 'lobby').h).toBeGreaterThan(B.rooms.find((r) => r.id === 'lobby').h);
+    // (the taller storey is climbed: a stair for every pair of storeys, as the plan without the dial has)
+    expect(A.stairs.length).toBe(B.stairs.length);
+    expect(A.stairs.every((x) => x.z1 - x.z0 > B.stairs[0].z1 - B.stairs[0].z0)).toBe(true);
+    expect(planned(ANNEXED, { room: false, rings: true }).rooms.find((r) => /^core-1/.test(r.id)).h).toBe(core(B).h);
   });
 });
 

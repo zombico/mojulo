@@ -787,6 +787,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // `mission` only. The gun in the hands marks its materials transparent so it sorts after every transparent thing of the
 // world before it clears the depth (channels/controllable/gunplay-view.js), and a mission's page fills its window
 // where its game names no screen. Every other fixture holds byte for byte.
+// Re-pinned 2026-11-16 a third time (1115-shooting-rails: the gun and the hands lit by the form render): the fixtures
+// whose page inlines the controllable runtime's gunplay view. Its materials come from one maker, the page's own light
+// where the form hands it one (channels/form.js `probe.light`) and the paint they were where it does not: no fixture is
+// drawn as form, so each plays and looks as it did; only the page's text moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

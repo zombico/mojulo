@@ -134,7 +134,9 @@ export const BASE_USES = Object.freeze(PROGRAM_IDS.filter((id) => PROGRAMS[id].b
  *            storey's floor, opening from that storey's corridor (program-core.js; stage.js opens it; bay.js builds it)
  *   cover    the halls broken: the annex's own stock (stocking.js HALL_COVER) stood in its middle on a seeded lattice, a
  *            baffle off each doorway, its doorways, stairs and a lane round it kept clear (compose-dress.js layCover)
- * `fight: true` asks every dial; `{ rings?, stagger?, stairs?, gallery?, cover? }` the ones named true. A house's plan
+ *   room     room to fight in: every storey a metre taller and the corridors wide (program-core.js ROOMY), the core
+ *            given the floor its stair needs up the taller storey
+ * `fight: true` asks every dial; `{ rings?, stagger?, stairs?, gallery?, cover?, room? }` the ones named true. A house's plan
  * takes rings and cover; the rest are said (a finding) and laid nowhere.
  */
 export const FIGHT = Object.freeze({
@@ -143,6 +145,7 @@ export const FIGHT = Object.freeze({
   stairs: 'a second stair at the far end of each wing, joining the same storeys',
   gallery: 'a gallery round the tall annex at the upper storey\'s floor, open to the hall, entered from the storey and by its stair',
   cover: 'cover in the middle of the halls: their own stock on a seeded lattice, the doorways and a way round clear',
+  room: 'room to fight in: every storey a metre taller, the corridors wide enough for two to pass with cover between them',
 });
 export const FIGHT_DIALS = Object.freeze(Object.keys(FIGHT));
 /** A program's `fight`, read: null when absent, else each dial true or false. */
