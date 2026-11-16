@@ -1,0 +1,87 @@
+// A CAB's laws (mount.js `mount.cab`): a walker in reach of a car gets INTO it with interact (no riding clips: any
+// walker), is gone from the world while it is in, and the car is the pilot on its own drive rule; interact when it is
+// slow sets the walker down at its door, the pilot again, clear of a wall that stands there. The page's prompt says
+// "get in" and "get out" only where a cab is; a page of horses alone is as it was.
+import { describe, it, expect } from 'vitest';
+import { composeLive } from './compose.js';
+import { mountRideScript } from '../../scene/channels/mount-ride.js';
+
+const E = composeLive();
+const DT = 1 / 30;
+const car = (id, pos, heading = 0) => ({
+  id, rule: { type: 'drive', horsepower: 140, mass: 1400, wheelbase: 2.7, wheelRadius: 0.33, collideRadius: 1.1, collideHeight: 1.5 },
+  mount: { cab: true, reach: 3, stand: [-1.3, 0.2], mount: { s: 0.35 }, dismount: { s: 0.35 }, slow: 1.5, camera: { dist: 8, height: 3, lookH: 1 } },
+  body: { type: 'figure-rig', figure: id }, transform: { pos, heading },
+});
+function world({ colliders } = {}) {
+  return E.createWorld({ ...(colliders ? { colliders } : {}), entities: [
+    { id: 'hero', pilotable: true, rule: { type: 'platform', speed: 5 }, body: { type: 'figure-rig', figure: 'hero' }, transform: { pos: [0, 0, 0], heading: 0 } },
+    car('car-1', [2, 1, 0]),
+    { id: 'cam', isCamera: true, rule: { type: 'follow', target: 'hero', dist: 5.5 } },
+  ] });
+}
+const run = (st, s, input = {}) => { for (let i = 0; i < Math.max(1, Math.round(s / DT)); i++) E.stepWorld(st, input, DT, { ground: () => 0 }); return st; };
+const getIn = (st) => { run(st, DT, { interact: 1 }); return run(st, 4); };
+
+describe('a cab', () => {
+  it('any walker in reach gets in: it walks to the door, is gone from the world, and the car is the pilot', () => {
+    const st = world();
+    run(st, DT, { interact: 1 });
+    expect(st.byId.hero.mountedOn).toBe('car-1');
+    expect(st.byId.hero.mountPhase).toBe('approach');
+    expect(st.byId.hero.gone).toBeFalsy();
+    run(st, 4);
+    const p = st.byId.hero, c = st.byId['car-1'];
+    expect(p.mountPhase).toBe('ride');
+    expect(p.gone).toBe(true);
+    expect(st.pilotId).toBe('car-1');
+    expect(st.camera.rule.target).toBe('car-1');
+    expect(st.camera.rule.dist).toBe(8);
+    expect((st.mountEvents ?? []).map((e) => e.type)).toEqual(['mounting', 'mounted']);
+    // (carried in it)
+    expect(Math.hypot(p.transform.pos[0] - c.transform.pos[0], p.transform.pos[1] - c.transform.pos[1])).toBeLessThan(1e-9);
+  });
+  it('drives on its own rule: the throttle moves it, its rider with it', () => {
+    const st = getIn(world()), c = st.byId['car-1'], x0 = c.transform.pos.slice();
+    run(st, 3, { forward: 1 });
+    expect(Math.hypot(c.transform.pos[0] - x0[0], c.transform.pos[1] - x0[1])).toBeGreaterThan(5);
+    expect(c.speed).toBeGreaterThan(3);
+    expect(st.byId.hero.transform.pos[0]).toBeCloseTo(c.transform.pos[0], 9);
+  });
+  it('lets no one out at speed; slow, the walker is set down at its door, the pilot again, in the world', () => {
+    const st = getIn(world()), c = st.byId['car-1'];
+    run(st, 3, { forward: 1 });
+    run(st, DT, { forward: 1, interact: 1 });
+    expect(st.byId.hero.mountPhase).toBe('ride');
+    // (braked to a stop, then out)
+    run(st, 6, { forward: -1 }); run(st, 2);
+    c.speed = 0;
+    run(st, DT, { interact: 1 }); run(st, 1);
+    const p = st.byId.hero;
+    expect(p.mountedOn).toBeNull();
+    expect(p.gone).toBe(false);
+    expect(st.pilotId).toBe('hero');
+    expect(st.camera.rule.target).toBe('hero');
+    expect(st.camera.rule.dist).toBe(5.5);
+    expect(p.rule.type).toBe('platform');
+    const d = Math.hypot(p.transform.pos[0] - c.transform.pos[0], p.transform.pos[1] - c.transform.pos[1]);
+    expect(d).toBeGreaterThan(1); expect(d).toBeLessThan(2);
+    expect(c.riderId).toBeNull();
+  });
+  it('sets its rider down clear of a wall that stands at its door', () => {
+    // (a wall along the car's left, where its door opens: heading 0 is +x, its left +y)
+    const wall = { min: [-10, 1.6, -1], max: [20, 6, 4] };
+    const st = world({ colliders: [wall] });
+    getIn(st); st.byId['car-1'].speed = 0;
+    run(st, DT, { interact: 1 }); run(st, 1);
+    const p = st.byId.hero.transform.pos;
+    expect(st.byId.hero.mountedOn).toBeNull();
+    expect(p[1] > wall.min[1] && p[1] < wall.max[1] && p[0] > wall.min[0] && p[0] < wall.max[0]).toBe(false);
+  });
+  it('the page says get in and get out only where a cab is', () => {
+    expect(mountRideScript({ cab: true })).toContain('get in');
+    expect(mountRideScript({ cab: true })).toContain('get out');
+    expect(mountRideScript()).not.toContain('get in');
+    expect(mountRideScript()).toContain("ask = 'ride'");
+  });
+});

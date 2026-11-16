@@ -572,6 +572,8 @@ function geotownEnds(manifest) {
   const houses = (P.anchors ?? []).filter((a) => a.kind === 'house' && Array.isArray(a.at) && Array.isArray(a.N));
   Object.defineProperty(out, 'townDoors', { value: houses.map((a, n) => ({ id: `town-${a.use}-${n + 1}`, use: a.use, at: a.at, N: a.N, enter: a.store ? 'walk' : null,
     ...(a.store?.keeper ? { rooms: [{ id: 'shopfloor', box: a.store.inside, stand: { at: a.store.keeper.map(r3), face: a.store.till.map(r3) } }] } : {}) })), enumerable: false });
+  // (where a car may stand, cars.js: the kerb of the road beside the walk's start)
+  Object.defineProperty(out, 'kerbs', { value: kerbSpots(route, groundSampler(P.faces ?? [], /^geotown:road$/), P.colliders ?? []), enumerable: false });
   Object.defineProperty(out, 'townLots', { value: houses.map((a, n) => ({ route: 'geotown', side: a.row ?? 'row', s: n, use: a.use })), enumerable: false });
   // (the tills of its shops walked into, geotown.shops: where an errand's trade had in a shop of that kind stands)
   Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.store?.till).map((a) => ({ id: a.id.replace(/^house-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
@@ -599,6 +601,7 @@ function geocityEnds(manifest) {
   Object.defineProperty(out, 'rocks', { value: () => null, enumerable: false });
   Object.defineProperty(out, 'colliders', { value: P.colliders ?? [], enumerable: false });
   Object.defineProperty(out, 'townDoors', { value: [], enumerable: false });
+  Object.defineProperty(out, 'kerbs', { value: kerbSpots(route, groundSampler(P.faces ?? [], /^geocity:road$/), P.colliders ?? []), enumerable: false });
   Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && a.store?.till).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
   // (what it weighs: its faces, its boxes, its repeats' templates and instances; said by the level's audit and its book)
   Object.defineProperty(out, 'weight', { value: { faces: (P.faces ?? []).length, colliders: (P.colliders ?? []).length, templates: (P.repeats ?? []).reduce((a, r) => a + r.template.length, 0), instances: (P.repeats ?? []).reduce((a, r) => a + r.transforms.length, 0), shops: P.geocity?.stores?.shops ?? 0 }, enumerable: false });
@@ -606,6 +609,26 @@ function geocityEnds(manifest) {
 }
 // (what plays in a metro is the level's, layered over it by the page: never the district's own settings)
 const CITY_PLAY_KEYS = ['level', 'game', 'entities', 'camera', 'pilot', 'play', 'destruction', 'matter', 'scars', 'wind'];
+
+// WHERE A CAR MAY STAND (a world's `cars`, cars.js): the kerb beside the walk's start. From the spawn, out across the
+// walk to the road on whichever side it lies nearer, a car's half width into it; then along the street, a car's length
+// apart, each spot on the road and clear of every box. → [{ at, heading }], none where no road lies beside the start
+const KERB = Object.freeze({ reach: 14, step: 0.5, into: 1.5, apart: 6.5, most: 4, clear: 1.2 });
+function kerbSpots(route, road, colliders) {
+  if (route.length < 2) return [];
+  const [x0, y0] = route[0], hd = Math.atan2(route[1][1] - y0, route[1][0] - x0), f = [Math.cos(hd), Math.sin(hd)], spots = [];
+  const blocked = (x, y, z) => colliders.some((c) => x > c.min[0] - KERB.clear && x < c.max[0] + KERB.clear && y > c.min[1] - KERB.clear && y < c.max[1] + KERB.clear && z + 0.7 > c.min[2] && z + 0.7 < c.max[2]);
+  let side = null;
+  for (let s = KERB.step; s <= KERB.reach && !side; s += KERB.step) for (const k of [1, -1]) { const n = [-f[1] * k, f[0] * k]; if (road(x0 + n[0] * s, y0 + n[1] * s) !== null && road(x0 + n[0] * (s + KERB.into), y0 + n[1] * (s + KERB.into)) !== null) { side = { n, s: s + KERB.into }; break; } }
+  if (!side) return [];
+  for (const k of [0, 1, -1, 2, -2, 3, -3, 4, -4]) {
+    if (spots.length >= KERB.most) break;
+    const x = x0 + side.n[0] * side.s + f[0] * k * KERB.apart, y = y0 + side.n[1] * side.s + f[1] * k * KERB.apart, z = road(x, y);
+    if (z === null || blocked(x, y, z)) continue;
+    spots.push({ at: [r3(x), r3(y), r3(z)], heading: r3(hd) });
+  }
+  return spots;
+}
 
 // THE TOWN'S DOORS: for each use the level opens (`enter`), the house of that use whose door stands nearest the walk the
 // hero is set down on, entered at its door into a scene of its own (interiorStage): its zone on the walk before the door,

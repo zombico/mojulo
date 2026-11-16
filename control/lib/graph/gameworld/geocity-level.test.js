@@ -47,6 +47,11 @@ describe('a geocity level', () => {
     const laid = layErrand([{ kind: 'trade', item: 'radio', count: 1, shop: 'electronics' }], [[0, 0, 0]], E.tills);
     expect(laid.find((l) => l.item === 'radio').at).toEqual(t.at);
   });
+  it('tells its kerb: where a car may stand on its road beside its start, clear of every box', () => {
+    expect(E.kerbs.length).toBeGreaterThan(0);
+    for (const k of E.kerbs) expect(E.colliders.some((c) => within([k.at[0], k.at[1], k.at[2] + 0.7], c))).toBe(false);
+    expect(Math.hypot(E.kerbs[0].at[0] - E.spawn[0], E.kerbs[0].at[1] - E.spawn[1])).toBeLessThan(20);
+  });
   it('says what it weighs', () => {
     expect(E.weight.faces).toBeGreaterThan(0);
     expect(E.weight.shops).toBe(E.tills.length);
