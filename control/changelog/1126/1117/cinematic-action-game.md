@@ -75,3 +75,6 @@ or a recipe key; the spike mints through the real doors and measures.
   only once the arms have drawn up. It always ends standing on the top. The operative carries a keyed clip for it
   (`climbUp`).
 - **The chase is not pulled in on cover the body goes over**, nor while it climbs (a `freeRun` page's only).
+- **A climb with nothing pressed** (`freeRun.on: 'push'`): the stick held into a thing the body can climb, for a
+  quarter of a second, climbs it (and takes a low thing it came to too slowly to vault). What is in its hand is put
+  away through the climb and is in hand again as it stands. The infiltration yard climbs this way.

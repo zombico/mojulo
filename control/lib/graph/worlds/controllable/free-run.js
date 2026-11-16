@@ -13,7 +13,10 @@
  *                       carries the body over a box that tall, so the body is lifted only by what the thing is taller
  *                       than that, and passes just over its top. Absent, the body is carried over on an arc of its own
  *     grab?: 2.15,      the highest edge the hands reach to take hold of (a standing reach on the toes): a climb's limit
- *     on?: 'act',       what climbs: the action (`input.act`) where the body has no jump to press; absent, the jump
+ *     on?: 'push',      what climbs. 'push': nothing is pressed: the stick held into the thing for `hold` seconds climbs
+ *                       it (and takes a low thing the body walked up to too slowly to vault). 'act': the action
+ *                       (`input.act`). Absent, the jump
+ *     hold?: 0.25,      the seconds of push a climb waits for
  *   }
  *
  *   A VAULT  the body moving at `speed` or more, on the ground, a box ahead within `reach` whose top is over a step and
@@ -24,13 +27,16 @@
  *            It is solved from the hands: they take the edge and stay on it, and the body is wherever that puts it as
  *            the arms work (HANDS: the hands' height over the feet through the reach, the pull to the chest, the press
  *            to the hips and the step up), so the feet leave the ground only once the arms have drawn up to the edge,
- *            and it comes in over the lip as it presses. The jump is not taken.
+ *            and it comes in over the lip as it presses. The jump is not taken. WHAT IS IN ITS HAND IS PUT AWAY for
+ *            the climb (the body's `weapon` null through it, so nothing draws it in a hand that is on the edge), and
+ *            is in hand again as it stands.
  *   Either is refused, and the body stops or jumps as it would, when another box stands where it would land or over
  *   the top it would cross.
  *
  * The page plays `e.locomotion`: `vault` over a vault, `mantle` up a climb (a figure without the clip plays its
  * fallback, playscape/player.js TRAVERSAL_FALLBACK), `e.gaitPhase` the share of the move done.
- * Field ownership: e.fr ({ kind, t, dur, from, to, top, over }) while a move runs; e.frJump (the jump's last read).
+ * Field ownership: e.fr ({ kind, t, dur, from, to, top, over, gun }) while a move runs; e.frJump (the press's last
+ * read), e.frPush (the seconds pushed), e.frV (its pace over the ground); the pilot's `weapon` through a climb.
  *
  * Wraps stepWorld (as gunplay.js does), so the pinned pipeline order is untouched. Import-free (the page runs this source
  * via toString(), compose.js); emitted only into a page whose world has a rule with `freeRun`, so every other page keeps
@@ -136,8 +142,18 @@ export function buildFreeRun(E) {
   E.stepWorld = function stepWithFreeRun(state, input, dt, hooks) {
     const p = state.pilotId ? state.byId[state.pilotId] : null;
     if (!p || !p.rule || !p.rule.freeRun || !input) return step(state, input, dt, hooks);
-    const press = p.rule.freeRun.on === 'act' ? !!input.act : !!input.jump, jumped = press && !p.frJump; p.frJump = press;
-    if (!p.fr) { const M = input.aim ? null : plan(state, p, input, hooks, jumped); if (M) p.fr = M; }
+    const F = p.rule.freeRun, push = F.on === 'push';
+    const press = push ? false : F.on === 'act' ? !!input.act : !!input.jump, jumped = press && !p.frJump; p.frJump = press;
+    if (!p.fr) {
+      let M = input.aim ? null : plan(state, p, input, hooks, jumped);
+      // (the push: the stick held into a thing it could climb, or a low one it came to too slowly, for `hold` seconds)
+      if (!M && push && !input.aim && Math.abs(input.forward || 0) + Math.abs(input.strafe || 0) + Math.abs(input.turn || 0) > 0.5) {
+        const C = plan(state, p, input, hooks, true);
+        p.frPush = C ? (p.frPush || 0) + dt : 0;
+        if (C && p.frPush >= (F.hold ?? 0.25)) M = C;
+      } else if (push) p.frPush = 0;
+      if (M) { p.fr = M; p.frPush = 0; if (M.kind === 'climb' && p.weapon) { M.gun = p.weapon; p.weapon = null; } }
+    }
     const M = p.fr, eye = p.rule.eye || 0, before = [p.transform.pos[0], p.transform.pos[1]];
     if (!M) {
       const out = step(state, input, dt, hooks);
@@ -153,7 +169,11 @@ export function buildFreeRun(E) {
     if (p.vel) p.vel[2] = 0;
     p.locomotion = M.kind === 'vault' ? 'vault' : 'mantle'; p.gaitPhase = Math.min(M.t, 0.999); p.moving = true;
     p.grounded = M.t >= 1;
-    if (M.t >= 1) { p.fr = null; p.frV = [(M.to[0] - M.from[0]) / M.dur, (M.to[1] - M.from[1]) / M.dur]; }
+    if (M.t >= 1) {
+      // (what was put away for the climb is in hand again, unless it was put away for good meanwhile: carry.js)
+      if (M.gun && !p.weapon && !(p.carry && p.carry.holstered)) p.weapon = M.gun;
+      p.fr = null; p.frV = [(M.to[0] - M.from[0]) / M.dur, (M.to[1] - M.from[1]) / M.dur];
+    }
     return out;
   };
 }

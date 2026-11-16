@@ -13,7 +13,7 @@
  *   the dive      on the jump's button (there is no jump): a second, about 4.8 m, a second before another
  *   the fists     with nothing in hand the trigger is the fist's strings (jab, cross, hook; the heavy an uppercut)
  *   the run       the feel's fast gait, the only pace: no sprint, no stamina; a low wall or a crate gone over out of the run, a taller
- *                 thing climbed on the action (worlds/controllable/free-run.js)
+ *                 thing climbed by holding the stick into it, the gun put away for it (worlds/controllable/free-run.js)
  *   the yard      a walled floor 32 m square: a wall to come round (the third-person look past a corner), two low walls to
  *                 fire over, crates; the start at its south
  *   the targets   a person's box at 5, 15 and 30 m of the start, one behind the corner; each stands again a moment
@@ -36,7 +36,7 @@ import { armLevel } from './arsenal.js';
 import { BASIC_ARSENAL } from './combos.js';
 
 const HALF = 16;
-export const INFILTRATION_LEGEND = 'W A S D  run · mouse  look · Space  dive · run at a low wall to go over it · E at a taller one  climb · unarmed: click  punch · G (hold)  weapon menu · H (hold)  item menu · right mouse (hold)  aim · click  fire, aimed · Tab  first person, aimed · Q  the other shoulder, aimed · R  reload · V  knife · Space  jump';
+export const INFILTRATION_LEGEND = 'W A S D  run · mouse  look · Space  dive · run at a low wall to go over it · hold W into a taller one to climb it · unarmed: click  punch · G (hold)  weapon menu · H (hold)  item menu · right mouse (hold)  aim · click  fire, aimed · Tab  first person, aimed · Q  the other shoulder, aimed · R  reload · V  knife · Space  jump';
 const START = Object.freeze([0, -13, 0]);
 const wall = (id, x, y, length, height, N = [0, -1]) => ({ id, form: 'wall', at: [x, y, 0], N, length, height, thick: 0.5 });
 const BLOCKS = Object.freeze([
@@ -79,9 +79,9 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, ro
   const rule = {
     ...felt, ...(fast > (felt.speed ?? 0) ? { speed: fast } : {}), move: 'camera', collideRadius: 0.3, collideHeight: 1.7,
     aimView: { shoulder: { ...SHOULDER }, eye: 1.6 },
-    // (over the low walls and the crates out of the run; the action at a taller thing climbs it: free-run.js; the jump's
+    // (over the low walls and the crates out of the run; the stick held into a taller thing climbs it: free-run.js; the jump's
     // button is the dive's: dive.js)
-    freeRun: { on: 'act', ...(vault ? { clipH: VAULT_CLIP_H } : {}) },
+    freeRun: { on: 'push', ...(vault ? { clipH: VAULT_CLIP_H } : {}) },
     ...DIVE, ...(roll ? { dive: { ...DIVE.dive, clip: true } } : {}),
     // (one weapon in hand, or none, from a held menu; a ration to use: carry.js)
     carry: { items: [{ id: 'ration', name: 'ration', count: 3, heal: 40 }] },

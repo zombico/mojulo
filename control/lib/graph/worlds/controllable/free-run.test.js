@@ -98,3 +98,24 @@ describe('a climb is solved from the hands', () => {
     expect(b.byId.p.transform.pos[0]).toBeGreaterThan(5);
   });
 });
+
+describe('the push', () => {
+  const B = [box(4, 8, 1.9)];
+  const armed = (freeRun) => { const w = world(B, freeRun); w.byId.p.weapon = { ammo: 9 }; return w; };
+  it('nothing pressed: the stick held into a wall it can climb climbs it, after the hold; let go before, it does not', () => {
+    const a = world(B, { on: 'push' }); run(a, B, { forward: 1 }, 200);
+    expect(a.byId.p.transform.pos[2]).toBeCloseTo(1.9, 1);
+    const b = world(B, { on: 'push', hold: 5 }); run(b, B, { forward: 1 }, 240);
+    expect(b.byId.p.transform.pos[2]).toBeLessThan(0.01);
+    // (and the jump is no longer what climbs)
+    const c = world(B, { on: 'push', hold: 5 }); run(c, B, { forward: 1 }, 100); run(c, B, { forward: 1, jump: 1 }, 2);
+    expect(c.byId.p.fr == null).toBe(true);
+  });
+  it('what is in hand is put away through the climb, and in hand again on the top', () => {
+    const w = armed({ on: 'push' }), H = hooks(B), G = w.byId.p.weapon; let away = 0, held = 0;
+    for (let k = 0; k < 400; k++) { E.stepWorld(w, { forward: 1 }, 1 / 60, H); if (w.byId.p.fr && w.byId.p.fr.kind === 'climb') { if (w.byId.p.weapon == null) away++; else held++; } }
+    expect(away).toBeGreaterThan(20);
+    expect(held).toBe(0);
+    expect(w.byId.p.weapon).toBe(G);
+  });
+});
