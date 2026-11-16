@@ -366,8 +366,10 @@ function think(s, ctx, M) {
       // (its aim kept from the warning's start: the round goes where the warning pointed)
       const G = ctx.guns[p.gn], aim = m.fire.aim;
       m.swung = 1; m.fire = { ...m.fire, t: m.fire.t + 1 };
-      if (m.fire.t <= G.telegraph) { pads[p.id] = { aim }; continue; }
-      if (m.fire.n < (kind.volley ?? 1)) { if ((p.fc ?? 0) <= 1) m.fire = { ...m.fire, n: m.fire.n + 1 }; pads[p.id] = { fire: aim }; continue; }
+      // (`low`: aimed at a ducked body, brawl-core.js: its round goes out at the knee, the height its warning showed)
+      const low = m.fire.low ? { low: 1 } : {};
+      if (m.fire.t <= G.telegraph) { pads[p.id] = { aim, ...low }; continue; }
+      if (m.fire.n < (kind.volley ?? 1)) { if ((p.fc ?? 0) <= 1) m.fire = { ...m.fire, n: m.fire.n + 1 }; pads[p.id] = { fire: aim, ...low }; continue; }
       delete m.fire; pads[p.id] = {}; continue;
     }
     // ── its play under way: the chain run on (to its ender), the run to its blow, the leap to its kick ──
@@ -393,7 +395,10 @@ function think(s, ctx, M) {
         const [near, far] = SHOOT_RANGE;
         if (dx > far) { pads[p.id] = { x: -side }; continue; }
         if (dx < near) { pads[p.id] = { x: side }; continue; }
-        if (FREE.has(T.st) && !claimed.has(T.id) && FREE.has(p.st) && p.st !== 'run') { claimed.add(T.id); const aim = aimAt(p, T); m.fire = { t: 0, n: 0, aim }; pads[p.id] = { aim }; continue; }
+        // (a body ducked by its own pad is shot at LOW: under a round at the chest it is safe, so the shooter aims at the
+        // knee, and the way out of that one is a jump)
+        const ducked = T.st === 'hide' && !!T.dk;
+        if ((FREE.has(T.st) || ducked) && !claimed.has(T.id) && FREE.has(p.st) && p.st !== 'run') { claimed.add(T.id); const aim = aimAt(p, T); m.fire = { t: 0, n: 0, aim, ...(ducked ? { low: 1 } : {}) }; pads[p.id] = { aim, ...(ducked ? { low: 1 } : {}) }; continue; }
         pads[p.id] = {};
         continue;
       }

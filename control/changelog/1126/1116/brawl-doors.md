@@ -59,6 +59,13 @@
 - **The tuning is held to what it claims.** The studio's simple player must still win the default street alone,
   while taking hits. Measured: at a weaker hero it lost at the boss with every fall gone, so the hero was set to
   survive one of the boss's blows.
+- **Jump over fire, duck under it.** In a run & gun an enemy's round flies at chest height. Jump early enough and
+  it passes under you; jump late and you are caught in the air and knocked down. Hold duck (strong and down
+  together) and it passes over you, and you can fire back from the crouch, low. Enemies notice: they aim low at a
+  ducked player, and the way out of a low round is a jump. Stepping off a round's line still works as before.
+- **Ducking is a move, not a hiding place.** Measured on the default street with three kinds of simple player: one
+  that only ducks and fires was hit the most, one that jumps incoming rounds was hit the least, and the plain one
+  sat between them.
 - **Not yet:** an enemy that is a beast is drawn as a plain jointed figure, and the game says so; only a person's
   body stands on the street today. A game that names no enemies of its own still meets the stock crowd, drawn as
   plain figures on one open screen: that path is kept for testing. The things that lie on a street to pick up or

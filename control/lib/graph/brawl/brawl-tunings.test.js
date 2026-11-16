@@ -4,7 +4,7 @@ import { GUNS, readGun } from './brawl-guns.js';
 import { CROWD_TYPES } from './brawl-crowd.js';
 import { playStreet } from './brawl-playthrough.js';
 import { brawlYardData } from './brawl-page.js';
-import { streetRoomOf } from './brawl-practice.js';
+import { streetRoomOf, stepYard } from './brawl-practice.js';
 import { streetLevel, readLevelStreet } from '../gameworld/brawl-cast.js';
 import { STREET_FROM_A_SENTENCE } from '../gameworld/genre-forms.js';
 
@@ -66,5 +66,20 @@ describe('a street\'s tuning', () => {
     expect(still.won).toBe(false);
     // (the same street on the sim's own numbers is the safer one: fewer hits taken)
     expect(playStreet(yard({ tuning: 'measured' })).struck).toBeLessThan(one.struck);
+  }, 120_000);
+
+  it('ducking is a way out of a round, not a place to live: a player that only ducks and fires is still hit', () => {
+    const Y = yard();
+    let r = streetRoomOf({ belt: Y.belt, players: Y.players.map((i) => ({ recipe: Y.roster[i].recipe })), waves: Y.street.waves, stakes: Y.stakes, range: { guns: Y.range.guns }, tune: Y.tune });
+    let struck = 0, low = 0;
+    // (it walks on until a foe stands, then stays down firing the way it faces)
+    for (let f = 0; f < 60 * 60 && !r.yard.over; f++) {
+      const foe = r.s.bodies.some((b) => b.side === 'crowd' && !b.gone && !b.ko);
+      r = stepYard(r, [foe ? { h: true, z: -1, a: true } : { x: 1 }]);
+      struck += r.s.events.filter((e) => e.t === 'hit' && e.d === 0).length;
+      low += r.s.shots.filter((t) => t.side === 'crowd' && !t.lob && t.y < 1000).length;
+    }
+    expect(low).toBeGreaterThan(0);
+    expect(struck).toBeGreaterThan(0);
   }, 120_000);
 });
