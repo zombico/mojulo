@@ -44,7 +44,7 @@ import { playerWorld, traversalStates, HERO_WALK_RUN } from '../playscape/player
 import { resolveEquipment } from './equipment.js';
 import { outTrailOf, outTrailStyle } from '../era/out-trail-board.js';
 import { outTrailSpan } from '../era/out-trail.js';
-import { SIDE_CUBE, sidePads } from '../era/geocube-side.js';
+import { SIDE_CUBE, sidePads, sideCameraWords } from '../era/geocube-side.js';
 import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
 import { fixedStations, uprightCamera, UPRIGHT, STEERED } from './cameras.js';
@@ -869,7 +869,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
     const camera = look ? { rule: 'eye', target: 'hero', height: pilot ? pilot.eye : HERO_EYE, mouseLook: true, hideTarget: true }
       : top ? { rule: 'overhead', target: 'hero', ...OVERHEAD }
-        : lane ? { rule: 'side', target: 'hero', ...(course ? { band: SIDE_BAND, ends: SIDE_ENDS } : {}) }
+        // (a strip drawn in a shape family, era/geocube-side.js: framed nearly level, so its sky and far rows are seen)
+        : lane ? { rule: 'side', target: 'hero', ...(course ? { band: SIDE_BAND, ends: SIDE_ENDS } : {}), ...(isStrip(stage.manifest) ? sideCameraWords(stage.manifest.cube, stage.manifest.side?.shapes) : {}) }
         : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) }
         : steered ? { ...P.camera, steer: steered, ...(actionOrbit ? ACTION_ORBIT : {}) }
         : stage.section === 'runner' ? { rule: 'follow', target: 'hero', ...RUNNER_CAMERA }

@@ -58,6 +58,14 @@
   and only low things at its front, so the band the hero runs in stays the hero's; tufts on the nearest land, where
   speed is read; clouds set low, since a side camera looks down; a small tower in the cube's accent past the lane's
   end. Three laws join the strip's (`rhythm`, `behind`, `quiet`). Every side strip gains the dress on its next run.
+- **Scoops: a shape family for a side strip.** A geocube describes a place to walk round in; a side-scroller shows a
+  stack of silhouettes, so a strip may now be drawn in a shape family (`era/geocube-side.js` `SHAPE_FAMILIES`), named
+  by its cube or by the strip (`side.shapes`). `scoops`, the sherbet orchard's: every shape a dome or a circle. Hills
+  in three rows of domes, each about 1.6 times the one before it and a step further into the air; round crowns; puffed
+  clouds; a domed tower; turf that hangs over a floor's edge in scallops; all flat and facing the camera. A shaped strip
+  is framed by a camera nearly level and a little over the hero, so the sky and the far rows are in the frame (the
+  default looks down and shows mostly ground). A law joins the strip's (`one-family`). A cube with no family is drawn as
+  it was.
 - **Lives and coins are pictures.** The `lives` and `coins` mechanics say their HUD readouts as counters, so a look
   with pictograms draws a heart and a coin beside the numbers.
 - **Coins along a 3D course.** `mechanics.coins` laid coins on a side strip only; a trail's course (a 3D platformer's)

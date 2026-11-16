@@ -43,13 +43,33 @@ landscape's height is never seen. What is meant to be seen in the sky is set low
 One thing on the land is in the cube's accent: a small tower past the lane's end. It is the only made thing behind
 the lane, and it marks the end.
 
+## One family of shapes
+
+A geocube describes a place to walk round in. A side-scroller never shows that: it shows a stack of flat silhouettes,
+so what it needs is a rule for those silhouettes. A strip may be drawn in a **shape family** (`SHAPE_FAMILIES`), named
+by its cube (`SIDE_SHAPES`) or by the strip itself (`side.shapes`): every silhouette on the screen is the same kind of
+shape, which is what makes it one place.
+
+- **Scoops**: every shape a dome or a circle. Scooped hills in three rows, round crowns, puffed clouds, a domed tower,
+  and turf that hangs over a floor's edge in scallops. The sherbet orchard's.
+- **A scale ladder.** Each row of hills is about 1.6 times the one in front of it, so far things are big and slow and
+  near things small and quick.
+- **A value ladder.** Each row back is a step further into the air, so the lane is always the clearest thing.
+- **Flat, facing the camera.** A silhouette is a shape, not a solid: no facets, no shading across it.
+- **A level camera.** A shaped strip is framed nearly level and a little over the hero (`SHAPED_CAMERA`), so the sky
+  and the far rows are in the frame.
+
+A cube with no family is drawn as it was. A new family is a row and its shapes.
+
 ## What holds it
 
 `sideLaws` measures these on a built strip: `rhythm` (the slices keep the walls' rule), `behind` (the dress stands
-behind the lane), `quiet` (a grove at the terrace's back, low things at its front), beside the strip's own (`skinned`,
+behind the lane), `quiet` (a grove at the terrace's back, low things at its front), `one-family` (a shaped strip's hills and
+clouds are all its family's shapes), beside the strip's own (`skinned`,
 `foreground`, `budget`). They advise; none refuses.
 
 ## Not yet
 
 A premise per cube (what this place is, and why someone runs through it), slices as cards a cube names, a made thing
-in the hills seen from the first step, and the land's own grass (the 3D levels' blades) on the terrace.
+in the hills seen from the first step, more families (steps, pennants), and the family carried into the round: a 3D
+course's floors are boxes, so its turf does not hang in scallops there.
