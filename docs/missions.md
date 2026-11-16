@@ -295,6 +295,8 @@ Both are one concept (`gameworld/radar.js`), two reads of the same scene, drawn 
   ground (a mass, a low wall) and its water, so it is the level as it is played, on a lane, a map, a place or a
   building alike, and no second drawing of it is stored. On it: the pilot, the task in hand, the foes awake.
 
+A mission's page fills its window (its HUD is laid over it), where its game names no screen of its own.
+
 Said: the map's mark for the pilot does not turn to show which way it faces; a building's map is its ground storey
 whichever storey the pilot stands on; the map key is the keyboard's (a pad reaches the map through the pause menu).
 

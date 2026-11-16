@@ -1198,6 +1198,9 @@ ${spin ? `  /* ?spin=1 is the EMBED read (a preview pane iframes this page): fil
 ` : ''}${hasTour ? `  /* a TOUR (exhibit/tour.js) is an exhibit: it fills the window it is shown in, a phone's or a kiosk's, so its plate is
      always on screen (an authored studio size taller than a phone would put the plate below the fold) */
   html,body{height:100%}#wrap{width:100vw;height:100vh;height:100dvh;max-width:none;aspect-ratio:auto}
+` : ''}${mission && !capture && !screen ? `  /* a MISSION (channels/mission.js) is played, and its HUD and screens are laid over the window: the page fills it, as
+     a toured page does, where its game names no screen of its own (a screen holds its own frame, below) */
+  html,body{height:100%;overflow:hidden}#wrap{width:100vw;height:100vh;height:100dvh;max-width:none;aspect-ratio:auto}
 ` : ''}${screen ? `  /* the SCREEN the game is made for (game/screen.js): the page fills its window and #wrap holds the frame inside
      it (screenFit below), bars past its reach; the safe area is the notch's and the home bar's */
   :root{--safe-t:env(safe-area-inset-top,0px);--safe-r:env(safe-area-inset-right,0px);--safe-b:env(safe-area-inset-bottom,0px);--safe-l:env(safe-area-inset-left,0px)}

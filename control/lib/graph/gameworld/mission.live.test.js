@@ -47,6 +47,8 @@ describe('the first mission, from a world', () => {
     await wait(600);
     expect((await st()).t).toBeGreaterThan(p0.t);
     expect(p0.weapon).toBe(TEMPLATE_LOADOUTS[SHOOTER].weapons[0]);
+    // (a mission is played: its page fills the window its HUD is laid over)
+    expect(await page.evaluate(() => { const w = document.getElementById('wrap'); return [w.clientWidth === innerWidth, w.clientHeight === innerHeight]; })).toEqual([true, true]);
     // (the gun in the hands is the arms library's own arm: its parts' faces, handed to the page at its resolve)
     const parts = await page.evaluate(() => { const me = window.__mojCtrl.world.entities.find((e) => e.pilotable), M = me.rule.loadout[0].gunplay.view.mesh; return M ? M.parts.length : 0; });
     expect(parts).toBeGreaterThan(8);

@@ -137,7 +137,10 @@ function __gpBuild(g, held) {
   }
   // (carried, it is never footing, cover or a mark: no ray finds it)
   if (held) { grp.matrixAutoUpdate = false; grp.visible = false; grp.traverse((o) => { o.raycast = function () {}; }); return V; }
-  grp.traverse((o) => { if (o.isMesh || o.isLine) { o.renderOrder = 1e6; o.frustumCulled = false; } });
+  // (drawn after the whole world, its glass and its glows too: a material that is not transparent is drawn before every
+  // transparent one whatever its order, so the gun's are marked transparent, opaque as they are, to sort with them; else
+  // the depth it clears is cleared under the world's panes, and they are drawn through every wall)
+  grp.traverse((o) => { if (o.isMesh || o.isLine) { o.renderOrder = 1e6; o.frustumCulled = false; for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m) m.transparent = true; } });
   let first = null; grp.traverse((o) => { if (!first && o.isMesh) first = o; });
   if (first) { first.renderOrder = 1e6 - 1; first.onBeforeRender = (r) => r.clearDepth(); }
   grp.visible = false; camera.add(grp);

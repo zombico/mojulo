@@ -172,3 +172,11 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   the top, the foes awake within its range and the task in hand pinned to its rim; and a map screen (M, and in the
   pause menu), the level's plan north up, drawn on the page from the scene's own colliders and water, with the pilot,
   the task and the foes awake. A foe asleep is on neither. Each task that is a place to go carries its place.
+- **Glass and glows no longer show through walls from the eye.** The gun in the hands clears the depth to lie over the
+  world, but an opaque material is drawn before every transparent one whatever its order, so the depth was cleared
+  under the world's panes, sun patches and hot faces and they were drawn through every wall in front of them (seen in
+  a building mission: white bars across the view). The gun's materials are now marked transparent, so it sorts after
+  them (`channels/controllable/gunplay-view.js`). The form render's glass shader also takes the page's logarithmic
+  depth (`channels/form.js`), which it did not.
+- **A mission fills its window.** Its HUD and screens are laid over the window, so its page fills it where its game
+  names no screen of its own (a screen holds its own frame); before, the view kept the studio's size beside them.
