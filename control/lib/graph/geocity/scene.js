@@ -343,9 +343,10 @@ export function assembleGeocityScene(m, ctx = {}) {
   const STOOP = { riser: 0.18, tread: 0.28, side: 0.25, most: 0.54, sunk: 2 }, sunk = [];
   // (a row's FORECOURT: where its pad stands more than a stoop over its walk anywhere along it, the walk is raised to
   // its shops' floor along the whole front, so every door is entered on the level: how far it stands out from the
-  // wall, the lane beside it an end's steps stand on, the run of an end's ramp to a metre of rise, the most it rises
-  // before the row is left to its stoops)
-  const FORE = { depth: 1.3, lane: 1, run: 5, most: 3 }, fores = [];
+  // wall (two people abreast), the lane beside it an end's steps and their landing stand on, the run of an end's ramp
+  // to a metre of rise, the most it rises before the row is left to its stoops; its rail's height, its posts' stride,
+  // and the drop an edge is railed from)
+  const FORE = { depth: 2, lane: 1.4, landing: 1.4, run: 5, most: 3, rail: 1.05, post: 1.5, guard: 0.3 }, fores = [];
   // (a composed town's repeats are drawn within the metro's ring, but a shop's inside within its own)
   const storeRing = (rp) => (typeof rp.group === 'string' && rp.group.startsWith('geotown:store-') && rp.near ? rp.near : NEAR);
   const openShops = (b, s, q, z0, z1) => {
@@ -378,9 +379,39 @@ export function assembleGeocityScene(m, ctx = {}) {
       });
       const segs = [...(ramp0 ? [[0, ramp0, h0, 0]] : []), [ramp0, wl.L - ramp1, 0, 0], ...(ramp1 ? [[wl.L - ramp1, wl.L, 0, h1]] : [])];
       lay(segs, 0, FORE.depth);
-      if (h0 > 0.02 && !ramp0) lay(treads(h0).reverse().map((dr, i) => [i * STOOP.tread, (i + 1) * STOOP.tread, dr, dr]), FORE.depth, FORE.depth + FORE.lane);
-      if (h1 > 0.02 && !ramp1) { const T1 = treads(h1), from = wl.L - T1.length * STOOP.tread; lay(T1.map((dr, i) => [from + i * STOOP.tread, from + (i + 1) * STOOP.tread, dr, dr]), FORE.depth, FORE.depth + FORE.lane); }
-      const zTop = (uu) => { const g = segs.find((x) => uu <= x[1] + 1e-9) ?? segs[segs.length - 1]; return z0 - (g[2] + ((g[3] - g[2]) * Math.min(1, Math.max(0, (uu - g[0]) / (g[1] - g[0] || 1))))); };
+      // (an end's steps: a landing level with the forecourt, stepped onto from its side, then its treads down to the walk)
+      const T0 = h0 > 0.02 && !ramp0 ? treads(h0) : null, T1 = h1 > 0.02 && !ramp1 ? treads(h1) : null, V2 = FORE.depth + FORE.lane;
+      const side0 = T0 ? [...T0.slice().reverse().map((dr, i) => [i * STOOP.tread, (i + 1) * STOOP.tread, dr, dr]), [T0.length * STOOP.tread, T0.length * STOOP.tread + FORE.landing, 0, 0]] : null;
+      const from1 = T1 ? wl.L - T1.length * STOOP.tread - FORE.landing : wl.L, side1 = T1 ? [[from1, from1 + FORE.landing, 0, 0], ...T1.map((dr, i) => [from1 + FORE.landing + i * STOOP.tread, from1 + FORE.landing + (i + 1) * STOOP.tread, dr, dr])] : null;
+      if (side0) lay(side0, FORE.depth, V2);
+      if (side1) lay(side1, FORE.depth, V2);
+      const topOf = (list) => (uu) => { const g = list.find((x) => uu <= x[1] + 1e-9) ?? list[list.length - 1]; return z0 - (g[2] + ((g[3] - g[2]) * Math.min(1, Math.max(0, (uu - g[0]) / (g[1] - g[0] || 1))))); }, zTop = topOf(segs);
+      // ITS RAILS: a post every stride, a top rail and a mid rail between them, wherever its edge stands a step or
+      // more over what lies beside it: its outer edge (open at each landing), its closed ends, its steps' outer edge
+      // and their landing's end; the level stretch's hold a body (`holder`)
+      const bar = (p, q, za, zc, lo, hi, want) => put([[...p, za + lo], [...q, zc + lo], [...q, zc + hi], [...p, za + hi]], 'geocity:handrail', col.rail ?? '#3a3f45', want);
+      const railU = (ua, ub, v, top, beside) => {
+        if (ub - ua < 0.3) return;
+        const us = cuts(ua, ub, FORE.post);
+        for (let i = 0; i + 1 < us.length; i++) {
+          const a2 = us[i], b2 = us[i + 1];
+          if (Math.max(top(a2) - beside(a2), top(b2) - beside(b2)) < FORE.guard) continue;
+          for (const [lo, hi] of [[FORE.rail - 0.06, FORE.rail], [FORE.rail * 0.5 - 0.03, FORE.rail * 0.5 + 0.03]]) bar(at(a2, v), at(b2, v), top(a2), top(b2), lo, hi, n);
+          for (const uu of [a2, b2]) { bar(at(uu - 0.03, v), at(uu + 0.03, v), top(uu), top(uu), 0, FORE.rail, n); bar(at(uu, v - 0.03), at(uu, v + 0.03), top(uu), top(uu), 0, FORE.rail, t); }
+          if (holder !== null && Math.abs(top(a2) - top(b2)) < 0.01) { const p0 = at(a2, v - 0.05), p1 = at(b2, v + 0.05); colliders.push({ min: P3([Math.min(p0[0], p1[0]), Math.min(p0[1], p1[1]), top(a2)]), max: P3([Math.max(p0[0], p1[0]), Math.max(p0[1], p1[1]), top(a2) + FORE.rail]), of: `${b.id}:rail` }); }
+        }
+      };
+      const railV = (uu, v0, v1, z, want) => {
+        for (const [lo, hi] of [[FORE.rail - 0.06, FORE.rail], [FORE.rail * 0.5 - 0.03, FORE.rail * 0.5 + 0.03]]) bar(at(uu, v0), at(uu, v1), z, z, lo, hi, want);
+        for (const v of [v0, v1]) bar(at(uu, v - 0.03), at(uu, v + 0.03), z, z, 0, FORE.rail, want);
+        if (holder !== null) { const p0 = at(uu - 0.05, v0), p1 = at(uu + 0.05, v1); colliders.push({ min: P3([Math.min(p0[0], p1[0]), Math.min(p0[1], p1[1]), z]), max: P3([Math.max(p0[0], p1[0]), Math.max(p0[1], p1[1]), z + FORE.rail]), of: `${b.id}:rail` }); }
+      };
+      const walkAt = (v) => (uu) => zwAt(uu, v + 0.2), gap0 = side0 ? side0[side0.length - 1] : null, gap1 = side1 ? side1[0] : null;
+      // (the forecourt's outer edge: beside it the walk, or its steps' treads; open where a landing meets it)
+      const beside = (uu) => (side0 && uu <= gap0[1] ? topOf(side0)(uu) : side1 && uu >= gap1[0] ? topOf(side1)(uu) : zwAt(uu, FORE.depth + 0.2));
+      for (const [ua, ub] of [[0, gap0 ? gap0[0] : 0], [gap0 ? gap0[1] : 0, gap1 ? gap1[0] : wl.L], [gap1 ? gap1[1] : wl.L, wl.L]]) railU(ua, ub, FORE.depth, zTop, beside);
+      if (side0) { railV(0, 0, FORE.depth, z0, [-t[0], -t[1], 0]); railU(0, gap0[1], V2, topOf(side0), walkAt(V2)); railV(gap0[1], FORE.depth, V2, z0, t); }
+      if (side1) { railV(wl.L, 0, FORE.depth, z0, t); railU(gap1[0], wl.L, V2, topOf(side1), walkAt(V2)); railV(gap1[0], FORE.depth, V2, z0, [-t[0], -t[1], 0]); }
       const lv = segs.find((x) => x[2] === 0 && x[3] === 0);
       if (holder !== null && lv && lv[1] - lv[0] > 0.2) { const p0 = at(lv[0], 0), p1 = at(lv[1], FORE.depth); colliders.push({ min: P3([Math.min(p0[0], p1[0]), Math.min(p0[1], p1[1]), Math.min(zwAt(lv[0], FORE.depth), zwAt(lv[1], FORE.depth)) - 1]), max: P3([Math.max(p0[0], p1[0]), Math.max(p0[1], p1[1]), z0]), of: `${b.id}:forecourt` }); }
       fore = { a: wl.a, t, n, L: wl.L, zTop };

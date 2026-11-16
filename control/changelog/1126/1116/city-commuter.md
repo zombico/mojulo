@@ -21,5 +21,7 @@
 - **Shops on a hill are entered on the level.** Where a row of walk-in shops in a city stands well above its sloping
   pavement, the pavement is now raised to the shops' floor along the whole front, so each door opens straight onto it
   instead of into a notch cut in a wall. The raised stretch meets the street at its uphill end, and at an end that
-  stands above the street it has a ramp down where there is room, or a flight of steps beside it. Rows more than
-  three metres above their pavement are left as they were.
+  stands above the street it has a ramp down where there is room, or a flight of steps beside it with a landing at
+  the top. It is two metres wide, room for two people side by side, and railed wherever its edge stands over the
+  street: along the front, across a closed end and down the steps. Rows more than three metres above their pavement
+  are left as they were.
