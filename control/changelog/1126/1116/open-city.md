@@ -9,3 +9,8 @@
 - **A car can be taken out of traffic.** Walk up to a vehicle that is stopped or crawling in a city's traffic and the
   same prompt offers it; press and you are in it, and it is yours to drive. Up to six taken vehicles are kept at once;
   after that the one left standing farthest away is given up for the next.
+- **People on the pavements.** A played city district now has pedestrians: clothed figures walking round the blocks
+  near you on their pavements, some one way and some the other, following the ground up and down the hills. They are
+  scenery for now: they do not react to you or to cars.
+- **Cars sit on the road.** A car now pitches and leans with the ground under it instead of standing level on a
+  slope, both parked and while you drive.

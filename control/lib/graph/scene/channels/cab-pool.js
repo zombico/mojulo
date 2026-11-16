@@ -1,7 +1,8 @@
 // In-page script: THE CITY'S CARS AS BODIES. A cab (worlds/controllable/mount.js `mount.cab`) whose mount names a POOL
 // (`mount.pool`: { model, tint }) is drawn here from the page's pooled templates (scene-three's __POOLS: the same
 // `<model>|paint` and `<model>|trim` its parked and moving vehicles are instanced from), its paint tinted, at its
-// entity's place and heading: so every car a town parks can be a body without a figure baked for each.
+// entity's place and heading, pitched and rolled to the ground under it: so every car a town parks can be a body
+// without a figure baked for each.
 //
 // And A CAR TAKEN FROM THE TRAFFIC (channels/flow.js, played: `world.trafficHulls`, each { id, p, heading, hull, v,
 // model, tint }): the pilot on foot beside a vehicle that is stopped or slow, with no parked cab in reach, is offered it
@@ -15,7 +16,7 @@ export function cabPoolScript() {
 (function () {
   if (typeof __POOLS === 'undefined') return;
   const TRIM = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), made = new Map();
-  const REACH = 3.6, SLOW = 2, FAR = 120, SEEN = 420;
+  const REACH = 3.6, SLOW = 2, FAR = 120, SEEN = 420, TILT = 90;
   function bodyOf(e) {
     const P = e.mount.pool; let b = made.get(e.id);
     if (b && b.model === P.model && b.tint === P.tint) return b;
@@ -26,6 +27,8 @@ export function cabPoolScript() {
     g.userData.g = 'cab:' + P.model; scene.add(g);
     b = { g, model: P.model, tint: P.tint }; made.set(e.id, b); return b;
   }
+  // (the page's own ground probe, the controllable runtime's: down from a point)
+  const GROUND = typeof __ground === 'function' ? (x, y, z) => __ground([x, y, z]) : null;
   let prevN = null;
   (function tick() {
     requestAnimationFrame(tick);
@@ -37,8 +40,21 @@ export function cabPoolScript() {
       if (!e.mount.pool) continue;
       const b = bodyOf(e), p = e.transform.pos, dx = p[0] - cam.x, dy = p[1] - cam.y;
       b.g.visible = !e.gone && dx * dx + dy * dy < SEEN * SEEN;
-      if (b.g.visible) { b.g.position.set(p[0], p[1], p[2]); b.g.rotation.z = e.transform.heading - Math.PI / 2; }
+      if (!b.g.visible) continue;
+      b.g.position.set(p[0], p[1], p[2]);
+      // (laid on the road: pitched and rolled to the ground under its ends and sides, probed once where it stands and
+      // again while it moves, near the camera only)
+      const moving = Math.abs(e.speed || 0) > 0.01 || e.riderId;
+      if (GROUND && dx * dx + dy * dy < TILT * TILT && (moving || b.at !== p[0] + ':' + p[1])) {
+        const a = e.transform.heading, fx = Math.cos(a), fy = Math.sin(a), hl = e.mount.hull[1] * 0.7, hw = e.mount.hull[0] * 0.8, z = p[2] + 1.2;
+        const zf = GROUND(p[0] + fx * hl, p[1] + fy * hl, z), zr = GROUND(p[0] - fx * hl, p[1] - fy * hl, z), zl = GROUND(p[0] - fy * hw, p[1] + fx * hw, z), zR = GROUND(p[0] + fy * hw, p[1] - fx * hw, z);
+        b.pitch = zf != null && zr != null && Math.abs(zf - zr) < hl ? Math.atan2(zf - zr, 2 * hl) : 0;
+        b.roll = zl != null && zR != null && Math.abs(zl - zR) < hw ? Math.atan2(zR - zl, 2 * hw) : 0;
+        b.at = p[0] + ':' + p[1];
+      }
+      b.g.rotation.set(b.pitch || 0, -(b.roll || 0), e.transform.heading - Math.PI / 2, 'ZXY');
     }
+    window.__mojCabPool = { bodies: made.size, tilted: [...made.values()].filter((b) => Math.abs(b.pitch || 0) > 0.005 || Math.abs(b.roll || 0) > 0.005).length, pilot: pilot && made.get(pilot.id) ? [made.get(pilot.id).pitch || 0, made.get(pilot.id).roll || 0] : null };
     // a vehicle of the traffic's in reach, stopped or slow, where no parked cab is
     let offer = null;
     if (pilot && !pilot.mount && !pilot.mountedOn && !pilot.gone) {

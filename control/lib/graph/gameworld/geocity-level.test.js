@@ -70,14 +70,24 @@ describe('a geocity level', () => {
     expect(E.weight.shops).toBe(E.tills.length);
     expect(Object.keys(E)).not.toContain('weight');
   });
-  it('is in the game the run makes, its book and its graph', () => {
+  it('is in the game the run makes, its book and its graph', async () => {
     const S = runSteps(WORLD, { ref: 'gw' }), level = S.find((x) => x.key.startsWith('level-'));
     expect(level.order.manifest).toMatchObject({ kind: 'geocube', show: 'geocity' });
     expect(level.order.manifest.geocity.shops).toBeTruthy();
-    // (the level's own keys over the district's: the world kind plays it, and no stand-in walks it)
-    const page = WORLD_KINDS.geocube.resolve(level.order.manifest, { title: 't' });
+    // (the level's own keys over the district's: the world kind plays it; no stand-in walks it for the camera, and its
+    // people walk its blocks: clothed figures on closed rings at a person's pace, each on its walk's ground)
+    const page = await WORLD_KINDS.geocube.resolve(level.order.manifest, { title: 't' });
     expect(page.faces.length).toBeGreaterThan(0);
-    expect(page.walkers).toBeUndefined();
+    expect(page.walkers.length).toBeGreaterThan(0);
+    expect(page.walkers.some((w) => w.follow)).toBe(false);
+    for (const w of page.walkers.slice(0, 3)) {
+      expect(page.figures[w.figure]).toBeTruthy();
+      expect(w.path[0]).toEqual(w.path[w.path.length - 1]);
+      expect(w.speed).toBeGreaterThan(1); expect(w.speed).toBeLessThan(1.7);
+      const q = w.path[2], g = E.ground(q[0], q[1]);
+      expect(g).not.toBeNull(); expect(Math.abs(q[2] - g)).toBeLessThan(0.5);
+    }
+    expect(page.walkerLoops).toBeUndefined(); expect(page.cityCues).toBeUndefined();
     expect(JSON.stringify(gameworldGraph(G))).toContain('district');
     expect(gameworldBibleHtml(WORLD)).toContain('The district');
   });

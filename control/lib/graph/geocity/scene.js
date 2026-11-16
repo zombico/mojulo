@@ -336,7 +336,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   // cut at each door, its box left open round each inside and through each door, each inside stamped where it stands
   // and drawn near the camera only ──
   // (a metro played, levels.js geocityEnds and the world kind: its pads hold a body, below)
-  const PLAY = ctx.play === true, padHolds = [];
+  const PLAY = ctx.play === true, padHolds = [], walked = [];
   const ENTER = d.spec.shops ?? null, cityStores = new Map(), entered = [], steep = { n: 0 }, tight = { n: 0, last: null };
   // (a shop's stoop: its riser and tread, how far it stands either side of its door, the most its door stands over its
   // walk (three risers), and the most its floor is sunk under its pad to keep it so)
@@ -414,7 +414,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       if (side1) { railV(wl.L, 0, FORE.depth, z0, t); railU(gap1[0], wl.L, V2, topOf(side1), walkAt(V2)); railV(gap1[0], FORE.depth, V2, z0, [-t[0], -t[1], 0]); }
       const lv = segs.find((x) => x[2] === 0 && x[3] === 0);
       if (holder !== null && lv && lv[1] - lv[0] > 0.2) { const p0 = at(lv[0], 0), p1 = at(lv[1], FORE.depth); colliders.push({ min: P3([Math.min(p0[0], p1[0]), Math.min(p0[1], p1[1]), Math.min(zwAt(lv[0], FORE.depth), zwAt(lv[1], FORE.depth)) - 1]), max: P3([Math.max(p0[0], p1[0]), Math.max(p0[1], p1[1]), z0]), of: `${b.id}:forecourt` }); }
-      fore = { a: wl.a, t, n, L: wl.L, zTop };
+      fore = { a: wl.a, t, n, L: wl.L, zTop, block: b.id };
       fores.push(fore);
     }
     // (each bay's tenant by its street's tenancy, never the bay's before it; its sign in its store's own colour; how far
@@ -610,6 +610,8 @@ export function assembleGeocityScene(m, ctx = {}) {
           put([[p[0], p[1], zb(p)], [q[0], q[1], zb(q)], [q[0], q[1], t.z], [p[0], p[1], t.z]], 'geocity:retain', col.retain, nn);
         }
       });
+      // (played: a block people walk round, its walk's ring: THE PEOPLE below)
+      if (PLAY && detail.has(b.id)) walked.push({ id: b.id, rect: [x0, y0, x1, y1] });
       if (b.kind === 'park') continue;
       if (!firstBlock || Math.hypot((x0 + x1) / 2 - d.seat[0], (y0 + y1) / 2 - d.seat[1]) < Math.hypot((firstBlock.rect[0] + firstBlock.rect[2]) / 2 - d.seat[0], (firstBlock.rect[1] + firstBlock.rect[3]) / 2 - d.seat[1])) firstBlock = b;
       holder = b.id; zOf.set(b.id, zAt);
@@ -1991,8 +1993,29 @@ export function assembleGeocityScene(m, ctx = {}) {
     for (const f of faces) if (FORM_GROUND.includes(f.group)) f.group = 'isekai:ground';
     counts.trees = [...trees.values()].reduce((a, l) => a + l.length, 0);
   }
+  // ── THE PEOPLE (played): on the walks of the blocks a person is near, each walking round its block on its sidewalk,
+  // one to each stretch of it, turn about one way and the other, at a person's pace; the legacy city's walkers carry them (worlds/world-kinds.js
+  // attachCityWalkers, scene/channels/walkers.js: their clothed rigs, a looped path). A block whose shops stand on a
+  // forecourt keeps its walk to those who shop there: its ring would pass through its rails. Seeded per block.
+  const PEOPLE = { inset: 1.2, stride: 6, speed: 1.35, most: 36, share: 0.9, each: 55, block: 6 }, walkerLoops = [];
+  if (PLAY) {
+    const railed = new Set(fores.map((f) => f.block));
+    for (const b of walked) {
+      if (walkerLoops.length >= PEOPLE.most) break;
+      if (railed.has(b.id)) continue;
+      const R = streamOf(seed, 'people', b.id), [x0, y0, x1, y1] = b.rect, k = PEOPLE.inset;
+      if (x1 - x0 < 12 || y1 - y0 < 12 || R() >= PEOPLE.share) continue;
+      const corners = [[x0 - k, y0 - k], [x1 + k, y0 - k], [x1 + k, y1 + k], [x0 - k, y1 + k], [x0 - k, y0 - k]], pts = [];
+      for (let i = 0; i + 1 < corners.length; i++) { const [a, c] = [corners[i], corners[i + 1]], L = Math.hypot(c[0] - a[0], c[1] - a[1]), n = Math.max(1, Math.round(L / PEOPLE.stride)); for (let j = 0; j < n; j++) pts.push([a[0] + ((c[0] - a[0]) * j) / n, a[1] + ((c[1] - a[1]) * j) / n]); }
+      const ring = [...pts, pts[0]].map(([x, y]) => P3([x, y, S(x, y) + KERB]));
+      // (a person to each stretch of its walk, turn about: one way, then the other, set out round it)
+      const many = Math.max(1, Math.min(PEOPLE.block, Math.round((2 * (x1 - x0 + y1 - y0)) / PEOPLE.each))), first = R();
+      for (let i = 0; i < many && walkerLoops.length < PEOPLE.most; i++) walkerLoops.push({ block: b.id, path: i % 2 ? ring.slice().reverse() : ring, speed: r5(PEOPLE.speed * (0.85 + R() * 0.3)), start: r5((first + i / many) % 1) });
+    }
+    if (walkerLoops.length) counts.people = walkerLoops.length;
+  }
   return {
-    faces, ...(formTown ? { form: { town: formTown } } : {}), ...(repeats.length ? { repeats } : {}), ...(F ? { flow: F } : {}), ...(beaconAt.length ? { beacons: { at: beaconAt, color: BEACON.color, period: BEACON.period, duty: BEACON.duty } } : {}), ...(counts.industry?.lines ? { footless: ['geocity:wire'] } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
+    faces, ...(formTown ? { form: { town: formTown } } : {}), ...(repeats.length ? { repeats } : {}), ...(F ? { flow: F } : {}), ...(walkerLoops.length ? { walkerLoops, cityCues: { pedHeight: 1.75 } } : {}), ...(beaconAt.length ? { beacons: { at: beaconAt, color: BEACON.color, period: BEACON.period, duty: BEACON.duty } } : {}), ...(counts.industry?.lines ? { footless: ['geocity:wire'] } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
     // (the city's haze is laid per its world unit, city/plan/scene.js; this world's unit is the metre)
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },

@@ -1276,7 +1276,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       return f === 'paint' ? fig : { ...fig, juice: { ...fig.juice, fidelity: f } };
     };
     if (figs && typeof figs === 'object') {
-      payload.figures = {};
+      // (the kind's own ambient walkers keep their rigs, a played district's people: world-kinds.js attachCityWalkers;
+      // a scene with none starts empty, as it always did)
+      const ambient = Array.isArray(payload.walkers) && payload.figures ? Object.fromEntries(Object.entries(payload.figures).filter(([k]) => payload.walkers.some((w) => w && w.figure === k))) : {};
+      payload.figures = { ...ambient };
       let poseNames = null;
       // THE SCENES' TAKES (playscape/ui/scene-takes.js): a page whose scenes are written as scripts gives each figure that
       // plays in them its acts and face takes, blocked on the stage the scripts are lowered on below (lowerPlay). None ⇒
