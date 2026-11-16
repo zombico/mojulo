@@ -11,8 +11,15 @@
  *                the `cone` either side of the heading, with a clear line to it. None found, no line: an open plaza or a
  *                park is where a swinger runs. A box marked `hold: false` (a level's edge) takes no line.
  *   the swing    held (the gear's key, `boost` by default) in the air, cast again `cool` after a line is cut or met:
- *                an inextensible line, the body falling under the rule's gravity, its velocity kept off the line's
- *                stretch, steered by A / D (turning) and pumped by forward. It swings about a PIVOT, the anchor drawn
+ *                an ELASTIC line, the body falling under the rule's gravity: past its length the line pulls the hand
+ *                back toward the pivot (`spring`: the pull at a whole length of stretch, so a strain of load / spring),
+ *                gives back `recoil` times what it took as it shortens again (over 1, the line throws the body: the
+ *                bottom of the arc is a sling), and at `stretch` of its length is taut (the velocity kept off any more;
+ *                a line low over the street is taut sooner, at what keeps the body off the ground).
+ *                Let go while it is stretched, the line FLINGS the body: `fling` of what the stretch holds is added to
+ *                its speed along its way (the low of the arc is where it is loaded: let go there for the most), never
+ *                past `flingMax` × `maxSpeed`. `stretch: 0` is the inextensible line. Steered by A / D (turning) and
+ *                pumped by forward. It swings about a PIVOT, the anchor drawn
  *                `center` of the way in toward the hero's line across the ground (the genre's cheat: the line lands on
  *                the side wall, the arc runs down the street). The line's length is chosen so the arc's bottom clears
  *                the ground under the hero by `clear`, or a quarter of the room under the pivot where that is less (a
@@ -36,17 +43,17 @@
  * Lengths in the world's units; the defaults are metres × the rule's `metre`, as the wall's.
  *
  *   swinger: { reach 60 m, ideal 0.7, elev 55°, minElev 25°, cone 75°, center 0.75, clear 3 m, pump 6 m/s², steer 1.6 rad/s,
- *              maxSpeed 45 m/s, zipSpeed 28 m/s, reel 20 m/s, lift 0.6, cool 0.25 s, hang 0.85, flips 1, flipTime 0.7 s,
- *              flipRoom 4 m, key 'boost' }
+ *              maxSpeed 45 m/s, zipSpeed 28 m/s, reel 20 m/s, lift 0.6, cool 0.25 s, stretch 0.22, spring 420 m/s²,
+ *              recoil 1.8, fling 1.5, flingMax 1.35, hang 0.85, flips 1, flipTime 0.7 s, flipRoom 4 m, key 'boost' }
  */
 export function buildSwing(E) {
   const { add, sub, scl, clamp, fwdXY } = E;
   const EPS = 0.05, DEG = Math.PI / 180;
   // the presets: the direction constraints a gear's line keeps (lengths in metres, × metre)
   const GEAR_PRESETS = {
-    swinger: { reach: 60, ideal: 0.7, elev: 55, minElev: 25, cone: 75, center: 0.75, clear: 3, pump: 6, steer: 1.6, maxSpeed: 45, zipSpeed: 28, reel: 20, lift: 0.6, cool: 0.25, hang: 0.85, flips: 1, flipTime: 0.7, flipRoom: 4, key: 'boost' },
+    swinger: { reach: 60, ideal: 0.7, elev: 55, minElev: 25, cone: 75, center: 0.75, clear: 3, pump: 6, steer: 1.6, maxSpeed: 45, zipSpeed: 28, reel: 20, lift: 0.6, cool: 0.25, stretch: 0.22, spring: 420, recoil: 1.8, fling: 1.5, flingMax: 1.35, hang: 0.85, flips: 1, flipTime: 0.7, flipRoom: 4, key: 'boost' },
   };
-  const LENGTHS = ['reach', 'clear', 'pump', 'maxSpeed', 'zipSpeed', 'reel', 'flipRoom'];
+  const LENGTHS = ['reach', 'clear', 'pump', 'maxSpeed', 'zipSpeed', 'reel', 'flipRoom', 'spring'];
   const gearOf = (r) => {
     const g = typeof r.gear === 'string' ? { preset: r.gear } : r.gear, P = GEAR_PRESETS[g.preset || 'swinger'];
     if (!P) return null;
@@ -136,7 +143,15 @@ export function buildSwing(E) {
     e._gearKey = key;
     const eye = r.eye ?? 0, R = r.collideRadius ?? 0, H = r.collideHeight ?? 1.7 * (r.metre ?? 1), g = r.gravity ?? 20 * (r.metre ?? 1);
     const ground = (p) => (world && world.ground ? world.ground([p[0], p[1], p[2] - eye + (r.step ?? 0.35 * (r.metre ?? 1))]) : null);
-    const release = (v, how) => {
+    const release = (v0, how) => {
+      // THE FLING: let go (the key, a jump) with the line stretched, what the stretch holds goes into the body's speed
+      // along its way: ½ v² gains fling × ½ (spring / L) x²
+      let v = v0;
+      const S0 = e.swinging;
+      if (S0 && S0.ext > 0 && G.fling > 0 && (how === 'release' || how === 'jump')) {
+        const sp0 = len(v0), sp1 = Math.min(Math.max(sp0, G.maxSpeed * G.flingMax), Math.sqrt(sp0 * sp0 + G.fling * (G.spring / S0.L) * S0.ext * S0.ext));
+        if (sp0 > EPS && sp1 > sp0) { v = scl(v0, sp1 / sp0); e.swungFling = sp1 - sp0; }
+      }
       e.swinging = null; e.zipping = null; e._gearCool = G.cool; e._gearRel = how === 'release' ? 0.5 : 0;
       e.vel = [0, 0, v[2]]; e.dashVel = [v[0], v[1]]; e.grounded = false; e.coyote = 1; e.jumpBuf = 0;
       e.swung = { end: how };
@@ -197,7 +212,8 @@ export function buildSwing(E) {
       // the body's own velocity as the swing starts: its last step's travel
       const v0 = scl(sub(t.pos, prev), 1 / Math.max(dt, 1e-6));
       // the line starts at the cast's length and is REELED to its own at `reel` (never a snap across the gap)
-      e.swinging = { anchor: A.q, pivot, L: D, to: L, face: A.face, v: [v0[0], v0[1], e.vel[2]] };
+      // (how far it may stretch: its share of its length, and never so far that the arc's bottom meets the street)
+      e.swinging = { anchor: A.q, pivot, L: D, to: L, most: Math.max(L, Math.min(L * (1 + Math.max(0, G.stretch)), room - clear * 0.75)), face: A.face, v: [v0[0], v0[1], e.vel[2]] };
       e.launchedBy = null; e.launchLock = false;
     }
 
@@ -220,11 +236,21 @@ export function buildSwing(E) {
     // move, then hold the hand to the line: never further than L from the anchor, the stretch taken off the velocity
     let p = add(t.pos, scl(v, dt));
     const hOff = handOf(e)[2] - t.pos[2], hand = [p[0], p[1], p[2] + hOff], d = sub(hand, S.pivot), D = len(d);
+    S.ext = 0;
     if (D > S.L) {
-      const u = scl(d, 1 / D);
-      p = add(S.pivot, scl(u, S.L)); p[2] -= hOff;
-      const out = v[0] * u[0] + v[1] * u[1] + v[2] * u[2];
-      if (out > 0) v = sub(v, scl(u, out));
+      const u = scl(d, 1 / D), most = Math.max(S.L, S.most ?? S.L);
+      S.ext = Math.min(D, most) - S.L;
+      let out = v[0] * u[0] + v[1] * u[1] + v[2] * u[2];
+      // THE STRETCH: the line pulls back by its strain, and throws harder shortening than it took lengthening
+      if (G.stretch > 0) {
+        const pull = G.spring * ((Math.min(D, most) - S.L) / S.L) * (out < 0 ? G.recoil : 1) * dt;
+        v = sub(v, scl(u, pull)); out -= pull;
+      }
+      // taut at its full stretch: the hand held there, nothing more let out
+      if (D > most) {
+        p = add(S.pivot, scl(u, most)); p[2] -= hOff;
+        if (out > 0) v = sub(v, scl(u, out));
+      }
     }
     // the line crossed by a box, the body met by one, or the ground under it: let go
     const feet = p[2] - eye, hit = inBox(cs, p, feet, R, H), gz = ground(p);

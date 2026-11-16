@@ -18,3 +18,11 @@
   Moving or jumping ends the rest.
 - **The camera no longer dives into a hero on a wall.** When a hero faced a wall it was holding, the chase camera
   could be pushed inside the hero and fill the screen with its back. It now keeps its distance.
+- **An elastic swing line.** The line now stretches under the hero's weight at the bottom of a swing and throws
+  the hero as it shortens again, so a swing carries more speed than before. Let go while the line is still
+  stretched and it flings the hero faster along its way; the low point of the swing is where it is loaded most. A
+  line cast low over the street stretches less, so the hero is never dropped onto the road.
+- **A heroic way of moving.** A hero's movement can now be described as "heroic": chest up and head steady, a
+  long driving stride, the arms pumping, leaning into the run.
+- **A sky for a city level.** A game can say what clouds hang over a city level (clear, fair, overcast, storm,
+  haze, high), painted round the sky at the level's hour, so a city at golden hour has lit cloud behind its towers.

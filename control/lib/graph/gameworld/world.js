@@ -177,6 +177,7 @@ import { CAMERAS } from './cameras.js';
 import { readMechanics } from './mechanics.js';
 import { readWeather } from '../weather/weather.js';
 import { readHour } from '../era/geocube-hours.js';
+import { readClouds } from '../matte-paint/sky.js';
 import { readGeocube, cubeStreetLook } from '../era/geocube.js';
 import { PROGRAM_IDS } from '../era/programs.js';
 import { STRUCTURE_RAILS, hasStructureRails } from '../era/out-structures.js';
@@ -221,6 +222,7 @@ export const WORLD_STYLE = Object.freeze({
   terrain: 'which of the geocube\'s terrains (its heartbeat\'s when left out, else the cube\'s own)',
   domain: 'or one of the cube\'s levels (its domains)',
   hour: 'the cube lit at an hour: dawn, noon, dusk, night… or 0-24',
+  clouds: 'the sky painted over a metro level at its hour: clear, fair, overcast, storm, haze, high, or { kind, cover?, seed? }',
   look: 'the look in words ("a grounded frontier of rust plains…", or { intent, seed? }): tunnelled from the kit, the ground drawn in it',
   pixel: 'the pixel look: true (4) or 2 to 8 screen pixels a drawn one',
   // (a spec recolours the kit or the look, and skins the game's HUD; false keeps the kit's own: color-theorist/)
@@ -328,6 +330,7 @@ function readStyle(s, at) {
     else if (k === 'weather') { try { out.weather = readWeather(v, `${at}.weather`); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }
     else if (k === 'look') out.look = intentOf(v, `${at}.look`);
     else if (k === 'hour') { try { readHour(v); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); } out.hour = v; }
+    else if (k === 'clouds') { try { readClouds(v); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); } out.clouds = v; }
     else if (k === 'palette') { try { out.palette = readPaletteSpec(v, `${at}.palette`); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }
     else if (k === 'pixel') { if (!(v === true || (Number.isInteger(v) && v >= 2 && v <= 8))) throw new Error(`gameworld: ${at}.pixel is true or 2 to 8`); out.pixel = v === true ? 4 : v; }
     else if (GROUPS[k]) out[k] = group(k, v, `${at}.${k}`);
@@ -979,10 +982,10 @@ export function resolveLevel(world, id) {
   }
   // a geocity level: the metro on the level's geocube (a morning valley unless the style names one), in the cube's own
   // era; a level plays a neighbourhood of it at a building's detail unless it names what it evokes (the whole metro at
-  // block scale is the open world's, streamed); the style's hour its light
+  // block scale is the open world's, streamed); the style's hour its light, its clouds the sky painted over it
   if (L.geocity) {
     const cube = cubeInPalette(style.geocube ?? 'valley-morning', style.palette);
-    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geocity: { spec: { evoke: GEOCITY_EVOKE, ...L.geocity }, cube, ...(style.hour !== undefined ? { hour: style.hour } : {}) } };
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geocity: { spec: { evoke: GEOCITY_EVOKE, ...L.geocity }, cube, ...(style.hour !== undefined ? { hour: style.hour } : {}), ...(style.clouds !== undefined ? { clouds: style.clouds } : {}) } };
   }
   // a geotown level: the town on the level's geocube (a morning valley unless the style names one), read in the seventh
   // generation unless the cube names its era (a town walked is drawn as form); the style's hour its light

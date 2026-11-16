@@ -55,6 +55,8 @@ export const VIBES = Object.freeze({
   cocky:     { confidence: 0.8, poise: -0.3, energy: 0.3 },
   swagger:   { confidence: 0.8, poise: -0.5, energy: 0.1 },
   noble:     { poise: 0.7, confidence: 0.6 },
+  // a champion's run: the chest up and the head steady, a long driving stride, the arms pumping, leant into it
+  heroic:    { energy: 0.9, confidence: 1, poise: 0.7, weight: 0.1 },
   menacing:  { weight: 0.6, confidence: 0.6, energy: -0.2 },
 });
 

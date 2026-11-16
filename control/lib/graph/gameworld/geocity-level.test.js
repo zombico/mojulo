@@ -22,6 +22,12 @@ describe('a geocity level', () => {
     expect(resolveLevel(readGameworld({ ...WORLD, levels: { downtown: { geocity: { ...METRO, evoke: 'corridor' } } } }), 'downtown').geocity.spec.evoke).toBe('corridor');
     expect(() => readGameworld({ ...WORLD, levels: { downtown: { geocity: METRO, geotown: { pattern: 'old-town' } } } })).toThrow(/the city alone/);
     expect(() => readGameworld({ ...WORLD, levels: { downtown: { geocity: { metro: 'no-such-metro' } } } })).toThrow(/geocity/);
+    // its sky: the style's clouds painted over the cube at its hour, on the stage's manifest; a word the sky lacks is refused
+    const sky = { ...WORLD, style: { hour: 'golden', clouds: 'fair' } };
+    expect(resolveLevel(readGameworld(sky), 'downtown').geocity).toMatchObject({ hour: 'golden', clouds: 'fair' });
+    expect(gameStages(sky)[0].manifest).toMatchObject({ hour: 'golden', clouds: 'fair' });
+    expect(gameStages(WORLD)[0].manifest.clouds).toBeUndefined();
+    expect(() => readGameworld({ ...WORLD, style: { clouds: 'fluffy' } })).toThrow(/clouds/);
   });
 
   const S = gameStages(WORLD), E = stageEnds(S[0].manifest);

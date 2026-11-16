@@ -174,7 +174,7 @@ export function gameStages(world) {
     if (R.glyphs) { out.push({ level, node: 'map', section: 'map', index: 0, manifest: { kind: 'map', level: R.glyphs } }); continue; }
     // a geocity level is one stage: the metro on its cube (geocity/scene.js), played from its streets and its roofs
     if (R.geocity) {
-      out.push({ level, node: 'metro', section: 'geocity', index: 0, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...(R.geocity.hour !== undefined ? { hour: R.geocity.hour } : {}) } });
+      out.push({ level, node: 'metro', section: 'geocity', index: 0, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...(R.geocity.hour !== undefined ? { hour: R.geocity.hour } : {}), ...(R.geocity.clouds !== undefined ? { clouds: R.geocity.clouds } : {}) } });
       continue;
     }
     // a geotown level is one stage: the town on its cube (geotown/scene.js), walked from its streets

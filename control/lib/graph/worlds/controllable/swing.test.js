@@ -32,7 +32,8 @@ describe('the swinger: a line to a face above and ahead', () => {
     for (let i = 0; i < 90 && h.swinging; i++) {
       step(W, { boost: 1 });
       if (!h.swinging) break;
-      expect(dist(hand(h), pivot)).toBeLessThanOrEqual(L + 1e-6);
+      // (held within its stretch: an elastic line, taut at 22% over its length)
+      expect(dist(hand(h), pivot)).toBeLessThanOrEqual(Math.max(h.swinging.L, h.swinging.most) + 1e-6);
       // the pivot drawn in toward the hero's line: the arc runs down the street, not into the wall the line is on
       expect(Math.abs(h.transform.pos[1])).toBeLessThan(2);
       low = Math.min(low, h.transform.pos[2]);
@@ -42,7 +43,8 @@ describe('the swinger: a line to a face above and ahead', () => {
   });
 
   it('lets go when the key is let go, flying on with the swing\'s speed across the ground', () => {
-    const W = make(CANYON);
+    // (the line that does not stretch: an elastic one adds its fling, below)
+    const W = make(CANYON, hero({ gear: { preset: 'swinger', stretch: 0 } }));
     step(W, { boost: 1 }, 50);
     const h = W.w.byId.hero, v = h.swinging.v;
     step(W, {});
@@ -86,7 +88,8 @@ describe('the swinger: a line to a face above and ahead', () => {
   });
 
   it('gains no energy unpumped: speed and height trade, they do not grow', () => {
-    const W = make(CANYON), h = step(W, { boost: 1 });
+    // (the line that does not stretch: an elastic one's recoil is the sling, and throws on purpose)
+    const W = make(CANYON, hero({ gear: { preset: 'swinger', stretch: 0 } })), h = step(W, { boost: 1 });
     const energy = () => 0.5 * Math.hypot(...h.swinging.v) ** 2 + 20 * h.transform.pos[2];
     const e0 = energy();
     for (let i = 0; i < 80 && h.swinging; i++) { step(W, { boost: 1 }); if (h.swinging) expect(energy()).toBeLessThanOrEqual(e0 + 1e-6); }
@@ -136,11 +139,49 @@ describe('the swinger\'s body: hung along its line, a somersault off it', () => 
   });
 
   it('let go low, only rights itself; with hang and flips at 0 the body is never turned', () => {
-    const W = make(CANYON, hero({}, [5, 0, 6]));
+    // (no room under it for a turn: `flipRoom` over anything this street has)
+    const W = make(CANYON, hero({ gear: { preset: 'swinger', flipRoom: 500 } }, [5, 0, 12]));
     step(W, { boost: 1 }, 30);
     const h = W.w.byId.hero;
-    if (h.swinging) { step(W, {}); expect(h._gearTurn ? h._gearTurn.flip.turns : 0).toBe(0); }
+    expect(h.swinging).toBeTruthy();
+    step(W, {});
+    expect(h._gearTurn ? h._gearTurn.flip.turns : 0).toBe(0);
     const P = make(CANYON, hero({ gear: { preset: 'swinger', hang: 0, flips: 0 } }, [5, 0, 40]));
     for (let i = 0; i < 80; i++) { step(P, { boost: i < 50 ? 1 : 0 }); expect(P.w.byId.hero.tumble ?? null).toBeNull(); }
+  });
+});
+
+describe('the swinger\'s line: elastic', () => {
+  // one swing from 30 m over the street: cast, held to a little past the arc's low, let go
+  const swing = (gear, at = 0.6) => {
+    const W = make(CANYON, hero({ gear }, [5, 0, 30])), h = W.w.byId.hero;
+    let most = 0, low = Infinity, on = 0;
+    for (let i = 0; i < 600; i++) {
+      const was = !!h.swinging;
+      if (was) { most = Math.max(most, 1 + (h.swinging.ext || 0) / h.swinging.L); low = Math.min(low, h.transform.pos[2]); on = Math.hypot(...h.swinging.v); }
+      step(W, { boost: !was || h.gaitPhase < at ? 1 : 0, forward: 1 });
+      if (was && !h.swinging) return { most, low, on, off: Math.hypot(h.dashVel[0], h.dashVel[1], h.vel[2]), end: h.swung.end };
+    }
+    return null;
+  };
+  it('stretches past its length under the swing\'s load, never past its stretch, and stays clear of the street', () => {
+    const E = swing('swinger');
+    expect(E.end).toBe('release');
+    expect(E.most).toBeGreaterThan(1.02);
+    expect(E.most).toBeLessThanOrEqual(1.22 + 1e-6);
+    expect(E.low).toBeGreaterThan(1.5);
+    // a line cast low over the street is taut sooner: the body never meets the ground on it
+    const W = make(CANYON, hero({}, [5, 0, 9])), h = W.w.byId.hero;
+    for (let i = 0; i < 90; i++) { step(W, { boost: 1, forward: 1 }); if (h.swinging) expect(h.transform.pos[2]).toBeGreaterThan(1.5); }
+  });
+  it('throws the body: faster on the line than one that does not stretch, and flung faster still let go while it is stretched', () => {
+    const E = swing('swinger'), R = swing({ preset: 'swinger', stretch: 0 }), N = swing({ preset: 'swinger', fling: 0 });
+    expect(R.most).toBeLessThanOrEqual(1 + 1e-6);
+    expect(R.off).toBeCloseTo(R.on, 6);
+    expect(E.on).toBeGreaterThan(R.on);
+    expect(N.off).toBeCloseTo(N.on, 6);
+    expect(E.off).toBeGreaterThan(N.off);
+    // never past the fling's own ceiling
+    expect(E.off).toBeLessThanOrEqual(45 * 1.35 + 1e-6);
   });
 });
