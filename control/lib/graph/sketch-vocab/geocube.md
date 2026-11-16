@@ -138,7 +138,7 @@ A cube that names no domains offers one per terrain and one per interior.
   the stand-in and seen from its overlook: a place to walk, not a game (`seed`, `biocube`, `path`, `hour`, `clouds`
   as the other shows; the cube's `snow`; its own `trail` recipe: dials, ground, rocks). A scene asked in words: `words`
   ('a colorful grassy field in the daytime') read at mint into `cube`, `show: 'path'`, `hour`, `clouds`, `trail` and
-  `camera` by the game's own word table (gameworld/scene-words.js: lake, beach, river, waterfall the water; dunes, erg the dunes; desert,
+  `camera` by the game's own word table (gameworld/scene-words.js: lake, beach, river, waterfall the water; dunes, erg the dunes; underwater, seabed, reef, coral, abyss the sea: the `seabed` biocube on low dunes under a `sea` at the word's depth, its corals, sponges, anemones and weed laid as an aquarium is; desert,
   alpine, coast a biome, its flora, ground and palette's character; the painted landscape's glyph words, each card's
   numbers read onto the cube, a splatch as the palette's axes, never its colours), each key written beside them kept;
   `camera` the still it is first seen from (`low`, `overhead`, `wide`, `close`); `brief` says what each word

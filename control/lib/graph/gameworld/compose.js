@@ -100,6 +100,12 @@ export const LEXICON = Object.freeze({
   // (the land laid in sand dunes, every trail the cube paints, open on both sides of the walk: era/out-dunes.js; a sea of
   // sand is long ridges, its crests tall)
   dunes: { biome: 'desert', 'outside.dunes': true, 'outside.cliff': false }, dune: { biome: 'desert', 'outside.dunes': true, 'outside.cliff': false },
+  // under the sea (a scene's `sea`, scene/channels/sea.js, by the word's depth): the bed the desert's ground in low
+  // dunes, open, its flora the bed's own (BIOMES.seabed: reef rock, corals, weed; marine/roster.js)
+  underwater: { biome: 'seabed', 'outside.dunes': { supply: 1, height: 1.4, spacing: 18 }, 'outside.cliff': false, sea: 'reef' }, undersea: { biome: 'seabed', 'outside.dunes': { supply: 1, height: 1.4, spacing: 18 }, 'outside.cliff': false, sea: 'reef' },
+  seabed: { biome: 'seabed', 'outside.dunes': { supply: 1, height: 1.4, spacing: 18 }, 'outside.cliff': false, sea: 'reef' }, seafloor: { biome: 'seabed', 'outside.dunes': { supply: 1, height: 1.4, spacing: 18 }, 'outside.cliff': false, sea: 'reef' },
+  reef: { biome: 'seabed', 'outside.dunes': { supply: 1, height: 1.4, spacing: 18 }, 'outside.cliff': false, sea: 'shallows' }, coral: { biome: 'seabed', 'outside.dunes': { supply: 1, height: 1.4, spacing: 18 }, 'outside.cliff': false, sea: 'shallows' },
+  abyss: { biome: 'seabed', 'outside.dunes': { supply: 1, height: 1.4, spacing: 18 }, 'outside.cliff': false, sea: 'midnight' }, abyssal: { biome: 'seabed', 'outside.dunes': { supply: 1, height: 1.4, spacing: 18 }, 'outside.cliff': false, sea: 'midnight' },
   sandy: { biome: 'desert', 'outside.dunes': { supply: 0.5 } }, erg: { biome: 'desert', 'outside.dunes': { supply: 1, height: 4 }, 'outside.cliff': false }, arid: { biome: 'desert' },
   // landmarks
   arch: { 'land.landmark': ['arch', 0.25] }, arches: { 'land.landmark': ['arch', 0.75] }, spire: { 'land.landmark': ['spire', 0.25] }, spires: { 'land.landmark': ['spire', 0.75] },
@@ -149,12 +155,15 @@ export const HOUR_OF_WORDS = Object.freeze({
  * THE BIOMES: a place's character laid on a cube at once: its flora (a biocube, era/biocube.js), its palette's character
  * (the colour theorist's own preset for such a place, color-theorist/solve.js PALETTE_PRESETS: its axes and hues as the
  * spec, solved with the cube's seed), its ground (a land's formation, era/substrate.js: sandstone weathers to sand) and
- * its water (era/out-water.js).
+ * its water (era/out-water.js); `colour`: the cube's colours it locks (a role the palette's solve fits the rest round).
  */
 export const BIOMES = Object.freeze({
   coast: Object.freeze({ biocube: 'coast', palette: 'coastal-noon', water: Object.freeze({ coast: true }) }),
   alpine: Object.freeze({ biocube: 'alpine', palette: 'alpine-dawn' }),
   desert: Object.freeze({ biocube: 'desert', palette: 'desert-haze', skin: 'sandstone' }),
+  // (a seabed: the desert's ground and palette, its flora the bed's own, era/biocube.js `seabed`; no grass grows on it, so
+  // the ground a land paints as grass is sand too: its grass and foliage roles locked to the bed's sand and weed)
+  seabed: Object.freeze({ biocube: 'seabed', palette: 'desert-haze', skin: 'sandstone', colour: Object.freeze({ grass: '#cbbd98', foliage: '#6f8a4a' }) }),
 });
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** What a world map grows where its cube names no flora: the meadow kit's own card flora (era/biocube.js). */
@@ -170,6 +179,7 @@ export function cubeWithLand(geocube, { open = false, flowers = null, snow = fal
   if (open) c.outside = { ...(c.outside ?? {}), cliff: false };
   const B = biome ? BIOMES[biome] : null;
   if (B?.skin) c.outside = { ...(c.outside ?? {}), land: { ...(c.outside?.land ?? {}), skin: B.skin } };
+  if (B?.colour) c.colour = { ...(c.colour ?? {}), ...B.colour };
   const W = { ...(B?.water ?? {}), ...(water ?? {}) };
   if (Object.keys(W).length) c.outside = { ...(c.outside ?? {}), water: { ...(c.outside?.water ?? {}), ...W } };
   if (dunes !== null) c.outside = { ...(c.outside ?? {}), dunes };

@@ -401,6 +401,9 @@ Pointers only; each target carries its own design notes.
   sound is a row first, a new variation a dial value): [docs/sfx-shelf.md](docs/sfx-shelf.md).
 - Underwater: [scene/channels/sea.js](control/lib/graph/scene/channels/sea.js) (a geocube's `sea`: its land put under
   water by light alone on a gen-7 page, the air's sibling on three's fog chunk; waters and depth zones are rows, a zone
-  says what the read stands on; lamps where the sun does not reach): [docs/underwater.md](docs/underwater.md).
+  says what the read stands on; lamps where the sun does not reach) and what grows on the bed,
+  [marine/](control/lib/graph/marine/) (a biocube's `flora.marine`: primitives in one kernel the page inlines, a roster by
+  depth, mixes, a lay made as an aquarium is; the `seabed` biocube and biome; a new thing is a row, a new composition a
+  mix): [docs/underwater.md](docs/underwater.md).
 - Rendering docs: [docs/scene-css3d-lighting.md](docs/scene-css3d-lighting.md),
   [docs/raymarch-effects-layer.md](docs/raymarch-effects-layer.md), [docs/local-blender-worker.md](docs/local-blender-worker.md).

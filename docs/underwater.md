@@ -63,6 +63,35 @@ A zone is read, not measured: physics sets the colour, the zone sets what the ey
   stays an honest one (its density the water's extinction in its clearest colour, a quarter more over the clock's
   period), so what else reads it, the contact occlusion's fade among them, fades by the water.
 
+## What grows on the bed
+
+Code: [control/lib/graph/marine/](../control/lib/graph/marine/) (`forms.js` the primitives, `roster.js` the kinds and the
+mixes, `place.js` the lay), drawn by `scene/channels/marine.js`. Spike: `node scripts/spikes/sea/aquarium.mjs`.
+
+A biocube's `flora.marine` lays what grows on a seabed and does not swim (the swimmers and crawlers are the fauna's).
+The `seabed` biocube is the desert's baseline with the surface world taken out (no tree, no grass, no bush) and
+`marine: true`; the `seabed` biome lays it on the desert's sand, and a scene's words reach it:
+
+```js
+sceneOfWords('an underwater coral reef')        // the seabed biome, low dunes, sea: 'reef'
+{ kind: 'geocube', cube, show: 'path', sea: 'shallows', biocube: 'seabed' }
+{ kind: 'geocube', cube, show: 'path', sea: 'blue', biocube: { from: 'seabed', flora: { marine: { mix: 'wall', density: 1.5, kinds: { fan: 2, whip: 0 } } } } }
+```
+
+- **A kind is a row** of `MARINE_KINDS`: its primitive, its size, how far it sways, its colours, where it sits in a
+  composition (`MARINE_SEATS`) and the depth of water it lives under. A new thing is a row; a new shape is a way of
+  growing in the kernel.
+- **A composition is a mix** (`MARINE_MIXES`), laid the way an aquarium is: the rock first, what grows on it, what sits
+  round its foot, what stands apart, what carpets the sand, and open sand between. `marine: true` grows the mix its
+  sea's zone grows (`MARINE_OF_ZONE`).
+- **Depth is a law, said and not refused**: a kind asked for where it does not live is left out and named in the
+  readout's `left`.
+- **The page grows the templates**: the kernel is inlined, so a page carries only where each copy stands. Each is lit in
+  the vertex by the cube's sun and sky and sways by where it stands; the sea then takes it as it takes the land.
+- **The budget** (`MARINE_BUDGET`): a crowded bed is thinned evenly, its rocks kept.
+
+It casts and takes no shadow, and the exports do not carry it yet.
+
 ## Limits
 
 - Lamps are literals in every material: `SEA.lamps.most` a page.

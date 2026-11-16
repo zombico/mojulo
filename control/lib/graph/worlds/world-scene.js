@@ -78,6 +78,9 @@ import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { readCone } from '@/lib/graph/scene/channels/view-cone';
 import { readAtmosphere, atmosphereInput, roomAirColour } from '@/lib/graph/scene/channels/atmosphere';
 import { readSea, seaInput } from '@/lib/graph/scene/channels/sea';
+import { readMarine } from '@/lib/graph/marine/roster';
+import { seabedGrid, placeMarine } from '@/lib/graph/marine/place';
+import { marineInput } from '@/lib/graph/scene/channels/marine';
 import { readClouds, CLOUDS_OF_WEATHER } from '@/lib/graph/matte-paint/sky';
 import { wantsSunShare, readOcclusion, liveLightDefaults } from '@/lib/graph/scene/live-light';
 import { readEra, ERAS } from '@/lib/graph/era/eras';
@@ -939,7 +942,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const S0 = payload.snowMap ? readSnow(cube.snow) : null, winter = !!S0 && (S0.line === undefined || S0.line === null);
     // (a map carries no camera of its own: the land is read framed from the south over its middle, raised, as an island's)
     const mapCam = formMap && !(payload.cameras ?? []).length && payload.map ? (() => { const W = payload.map.cols * payload.map.tile, H = payload.map.rows * payload.map.tile; return [{ name: 'island', worldFraming: { cameraPosition: [W / 2, -H * 1.15, H * 0.55], lookAt: [W / 2, -H / 2, 0], horizontalFov: 60, pictureCenter: [560, 390] } }]; })() : null;
-    const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
+    const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter || (F?.marine && !F.grass) ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
     if (read) formCast = { cube, ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}) };
     // (a map's far range, level/far-range.js, stands hundreds of metres out: its own haze, the page's fog thinned over it
@@ -1043,6 +1046,21 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       const spawn = Array.isArray(payload.walk?.spawn) ? payload.walk.spawn : null, sun = payload.sky && !payload.sky.space && Array.isArray(payload.sky.sun?.dir) ? payload.sky.sun.dir : null;
       // (the depth is the water over the walk's ground: the spawn stands an eye's height over it)
       payload.sea = seaInput(S, { base: spawn && Number.isFinite(spawn[2]) ? spawn[2] - (Number.isFinite(payload.walk.minEye) ? payload.walk.minEye : 0) : 0, sun: inside ? null : sun, unit: payload.metersPerUnit || 1 });
+    }
+  }
+  // WHAT GROWS ON THE BED (marine/, channels/marine.js): the biocube's `flora.marine` (the recipe's biocube, else the
+  // cube's), laid as an aquarium is along the trail on the land as built: its rocks, what grows on them, round them, in
+  // stands and in drifts, by the sea's zone and depth where the recipe has a sea. Read on any geocube read; drawn on a
+  // gen-7 page alone
+  if (payload && sketch.manifest.kind === 'geocube') {
+    const bio = sketch.manifest.biocube ?? readGeocube(sketch.manifest.cube).biocube, ask = bio ? readBiocube(bio).flora?.marine : null;
+    if (ask) {
+      const S = sketch.manifest.sea !== undefined ? readSea(sketch.manifest.sea) : null, comp = readMarine(ask, { zone: S?.zone ?? null, depth: S?.depth ?? null });
+      if (comp && !unshaded && viewOpts.paint !== true && ERAS[era]?.surface === 'form') {
+        const placed = placeMarine(comp, seabedGrid(payload.faces), { seed: sketch.manifest.seed ?? 1 });
+        const input = marineInput(placed, { sun: payload.sky && !payload.sky.space && Array.isArray(payload.sky.sun?.dir) ? payload.sky.sun.dir : null, light: payload.form?.land?.light ?? null });
+        if (input) { payload.marine = input; payload.marineReadout = placed.readout; }
+      }
     }
   }
   // (where the plants stand is the form render's read alone: never on a page)
