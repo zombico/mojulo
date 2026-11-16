@@ -208,6 +208,12 @@ export const FIXTURE = [
   ['give my hero an undercut, then try a ponytail with a longer tail', 'update_character'],
   // hero detail: the dragon's detail and adornment passes on the hero, by word (hero-detail)
   ['dress my hero in a quilted jerkin with a belt, a baldric and one pauldron', 'update_character'],
+  // the wardrobe: a ready outfit card (the fantasy six among them), a hood on its cloak or robe, headgear's circlet and
+  // hats, on a new hero (card hero) and on a made one (card revise-character)
+  ['make me a sorceress in a pointy hood and a long starry robe', 'create_character'],
+  ['a fantasy lord with a fur mantle and a thin gold band round his brow', 'create_character'],
+  ['pull the hood up on the ranger I already made and give her a wool cloak', 'update_character'],
+  ['swap my character\'s clothes for priest robes and a pointed wizard hat', 'update_character'],
   // anime form: the Anime Form Studio's head worn by the hero (`head: 'anime'`), its clumps directed by name
   ['an anime heroine with a long layered cut and one bang swept over her eye', 'create_character'],
   // anime looks: presets composed by word (`look: ['rival', 'tareme']`)
