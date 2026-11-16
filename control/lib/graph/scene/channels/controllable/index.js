@@ -3403,7 +3403,10 @@ function __updateWepHud() {
     tr.pos[1] + cpp * Math.sin(hh) * rd,
     tr.pos[2] + (W.eye || 0) + Math.sin(pp) * rd
   ).project(camera);
-  const cw = renderer.domElement.clientWidth, ch = renderer.domElement.clientHeight;
+${aimView ? `  // (a round that CONVERGES goes to the point under the centre of an over-the-shoulder view, combat-ranged.js
+  // crosshairPoint: the crosshair is there, not out along the body's own line, which lies beside it)
+  if (W.converge && __world.camera && __world.camera.rule && __world.camera.rule.type === 'follow' && __world.camera.rule.target === ent.id) __wep.aimV.set(0, 0, 0);
+` : ''}  const cw = renderer.domElement.clientWidth, ch = renderer.domElement.clientHeight;
   if (__wep.aimV.z < 1) {
     __wep.ret.style.display = '';
     __wep.ret.style.left = ((__wep.aimV.x * 0.5 + 0.5) * cw) + 'px';

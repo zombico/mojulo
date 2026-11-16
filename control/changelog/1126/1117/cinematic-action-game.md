@@ -137,3 +137,7 @@ or a recipe key; the spike mints through the real doors and measures.
   as the watcher's eye ends a ray; a lower one that stands over the pilot's eye leaves a hole behind it, out to where
   the line from eye to eye clears its top, and the fan takes up again beyond. Crouching opens a hole behind a wall a
   metre high; lying down opens one behind any low cover. It draws what the mind's own sight already said.
+- **The crosshair is where the round goes** (the aim held's pages): a gun that converges sends its round to the point
+  under the centre of the over-the-shoulder view, but its reticle was drawn out along the body's own line, which lies
+  beside that centre by the shoulder's offset. Over the shoulder the reticle now sits at the view's centre; from the
+  eye it is the body's line as before.
