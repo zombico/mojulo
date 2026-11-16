@@ -130,6 +130,10 @@ that part, one skin would show it as a spike, so that animal swims in rigid part
 with shaping rings was bound by the wrong names (`fauna/rig.js` `stationsOf`), so each whole ring took the bone of the
 one before it and a shaping ring fell to the part's first bone; mended, every sea animal's skin holds.
 
+The same skin on land: a herd's animal (`worlds/fauna-units.js`) asks the controllable drawer's skinned mesh
+(`skin: true`, the path a ridden mount already took) where its skin holds over every clip it carries, so a crocodile's
+or a lizard's back bends as one skin too.
+
 They do not mind the walker, each other or the rocks. The exports do not carry them yet.
 
 ## Limits

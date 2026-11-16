@@ -43,3 +43,9 @@
   of a great white's skin over its gait fell from a quarter of its length to under a hundredth, and every sea animal now
   holds the blend. A minted animal with motion binds differently from before on those species: its skin weights and the
   parts its triangles ride change, its shape and its clips do not.
+- **One skin for a herd's animals** (`worlds/fauna-units.js`). The controllable drawer already draws a figure that asks
+  for it as one skinned mesh (`skin: true`, the path a ridden mount takes); a herd's animal now asks where its skin holds
+  the blend over every clip it carries (its gait, its eating, its flinch, fall and rise: `walkerSkinStretch`
+  `{ clips: 'all' }`), so a crocodile's or a lizard's back bends as one skin and a knee no longer cracks. A page with a
+  herd carries the figure's joints and weights, which a rigid figure's page drops. A skin that does not hold rides its
+  bones in rigid parts, as before.

@@ -46,7 +46,7 @@ import { HELD_WALK_SOURCE } from './traffic-model.js';
 // `WALKER_BLEND`: `most` the bones a corner is weighed to (the pack's); `holds` the most a blended skin may stretch one of
 // its own edges, as a share of the body's size, and still be drawn as one skin (walkerSkinStretch): past it the figure's
 // own binding sets neighbouring corners on bones that part, which rigid parts hide as a seam and one skin shows as a spike.
-export const WALKER_BLEND = Object.freeze({ most: 4, holds: 0.08 });
+export const WALKER_BLEND = Object.freeze({ most: 4, holds: 0.1 });
 
 /**
  * A SKIN'S MEASURE: how far the blend stretches the worst of a figure's edges over its `forward` clip, as a share of the
@@ -54,8 +54,15 @@ export const WALKER_BLEND = Object.freeze({ most: 4, holds: 0.08 });
  * a skin that holds keeps every edge near its rest length. → { stretch, size, holds } (a figure with no skin: null).
  * Pure; the figure as packed (base64 parts, a clip of { k, b }).
  */
-export function walkerSkinStretch(fig) {
+export function walkerSkinStretch(fig, { clips = null } = {}) {
   if (!fig || !Array.isArray(fig.parts) || !fig.parts.some((p) => p && p.jnt && p.wgt)) return null;
+  // (`clips: 'all'`: over every clip the figure carries, a body that also eats, flinches and falls; the worst of them)
+  if (clips === 'all') {
+    const each = [...new Set(Object.values(fig.clips || {}))].filter((c) => c && c.k && c.b).map((c) => walkerSkinStretch({ ...fig, clips: { forward: c } }));
+    if (!each.length) return null;
+    const worst = each.reduce((m, e) => (e.stretch > m.stretch ? e : m));
+    return { ...worst, holds: worst.stretch <= WALKER_BLEND.holds };
+  }
   const clip = fig.clips && (fig.clips.forward || fig.clips[Object.keys(fig.clips)[0]]);
   if (!clip) return null;
   const buf = (s) => Buffer.from(s, 'base64'), f32 = (s) => { const u = buf(s); return new Float32Array(u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength)); };
