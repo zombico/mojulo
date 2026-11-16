@@ -63,7 +63,7 @@ const VARIANTS = {
 const require = createRequire(path.join(control, 'package.json'));
 const rowsOf = (ref) => {
   const db = new (require('better-sqlite3'))(path.join(env.MOJULO_DATA_DIR, 'mojulo-lite.db'), { readonly: true });
-  try { return db.prepare('select ref, kind, manifest from sketches where ref like ?').all(`${ref}%`).map((r) => ({ ref: r.ref, kind: r.kind, m: JSON.parse(r.manifest || '{}') })); } finally { db.close(); }
+  try { return db.prepare('select ref, kind, manifest_json from sketches where ref like ?').all(`${ref}%`).map((r) => ({ ref: r.ref, kind: r.kind, m: JSON.parse(r.manifest_json || '{}') })); } finally { db.close(); }
 };
 // what a made level carries, read from its recipe
 const levelFacts = (m) => {
