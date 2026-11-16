@@ -1536,13 +1536,13 @@ export function registerDesignGameTools() {
     timeoutMs: RENDER_TOOL_TIMEOUT_MS,
     description:
       'The GAME rail: design a game top down and let mojulo make it. A gameworld (levels, hero, gear, systems) is '
-      + 'a sketch; this writes it (`world`, `patch`), takes the creator\'s verdicts (`approve`, `revise` { part, note }) and, '
-      + 'with `run: true`, makes every ready step through the real doors, keeping what did not move, leaving hand edits '
-      + '(`force` overwrites). Answers the stamps, what was made, the advice and the next moves as step ids '
-      + '(`readout: \'changed\'` for only what moved). Read '
-      + 'get_game_vocab({ id: \'gameworld-guide\' }) first. A new game needs only `world: { name }`: it answers what to ask, '
-      + 'nothing stored. `example` makes a reference only when the creator asks; '
-      + '`compare` reads one against a made world. `compose: { prompt }`: words to a world. `chapter`: a chapter\'s view.',
+      + 'a sketch; this writes it (`world`, `patch`), takes verdicts (`approve`, `revise` { part, note }) and, '
+      + 'with `run: true`, makes every ready step through the real doors, keeping what did not move and hand edits '
+      + '(`force` overwrites). Answers stamps, what was made, advice and the next moves as step ids '
+      + '(`readout: \'changed\'`: only what moved). Read '
+      + 'get_game_vocab({ id: \'gameworld-guide\' }) first. `world: { name }` alone answers what to ask. '
+      + '`example`: a reference, only when asked; '
+      + '`compare`: one against a made world. `compose: { prompt }`: words to a world. `chapter`: a chapter\'s view.',
     inputSchema: {
       type: 'object',
       properties: {
