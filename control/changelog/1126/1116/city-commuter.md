@@ -25,3 +25,7 @@
   the top. It is two metres wide, room for two people side by side, and railed wherever its edge stands over the
   street: along the front, across a closed end and down the steps. Rows more than three metres above their pavement
   are left as they were.
+- **An errand can be driven: a fare.** In a town or city-district level with cars, an errand's pick-up and hand-in
+  now stand well apart along the streets instead of a few steps from each other, and each is reached from the kerb:
+  pull up beside it in a car and it counts, without getting out. A single-level world can now carry an errand on a
+  town or a district, so a one-fare taxi run (pick up a passenger, drive, set down, get paid) is a game on its own.

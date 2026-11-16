@@ -114,3 +114,24 @@ describe('a car driven on the town\'s street (the level\'s own bodies on the run
     function shopsAt() { const q = E.tills[0].at; return [q[0], q[1]]; }
   });
 });
+
+describe('a fare (an errand on a stage with cars: picked up and set down from the kerb)', () => {
+  const FARE = { ...WORLD, id: 'fares', topology: 'interconnected', errands: [{ id: 'fare', giver: 'town', reward: [{ item: 'coin', n: 5 }], list: [{ item: 'passenger', at: 'town' }] }] };
+  it('its pick-up and its set-down stand apart along the street, each in a kerb\'s reach', async () => {
+    const level = runSteps(FARE, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest;
+    const M = level.game.mechanics, trade = M.find((m) => m.kind === 'trade'), deliver = M.find((m) => m.kind === 'deliver');
+    expect(trade).toMatchObject({ item: 'passenger', radius: 7 });
+    expect(deliver).toMatchObject({ id: 'fare', radius: 7, reward: [{ item: 'coin', n: 5 }] });
+    expect(Math.hypot(trade.at[0] - deliver.at[0], trade.at[1] - deliver.at[1])).toBeGreaterThan(20);
+    // (and neither where the level starts)
+    expect(Math.hypot(trade.at[0] - E.spawn[0], trade.at[1] - E.spawn[1])).toBeGreaterThan(10);
+  });
+  it('a driver in a cab stands in a zone where its car is; one sent away stands in none', async () => {
+    const { deriveZoneEvents } = await import('../worlds/event-bus.js');
+    const src = [{ type: 'zone', zone: 'trade-passenger', at: [5, 0, 0], radius: 7, planar: true, watch: 'hero' }];
+    const at = (extra) => deriveZoneEvents([{ id: 'hero', transform: { pos: [4, 1, 0] }, ...extra }], null, src).events.map((e) => e.type);
+    expect(at({ gone: true, mountedOn: 'car-1' })).toEqual(['enter']);
+    expect(at({ gone: true })).toEqual([]);
+    expect(at({})).toEqual(['enter']);
+  });
+});

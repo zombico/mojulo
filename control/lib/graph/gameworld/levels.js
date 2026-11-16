@@ -647,6 +647,9 @@ function kerbSpots(route, road, colliders, top = null, lanes = []) {
   return spots;
 }
 
+// a driven errand's places (a stage with cars): how far along its walk the first stands, and a kerb's reach (m)
+const ERRAND_DRIVE = Object.freeze({ from: 0.33, reach: 7 });
+
 // The district's own cars stood at those spots: each one of its civilian fleet (geocity/fleets.js: the model and the
 // paint the city's dice pick for a car parked there), where no car of its lots stands within a walk of the start.
 function kerbCars(seed, spots) {
@@ -1507,7 +1510,8 @@ function heldWays(G, stage, ends, plan, mechanics) {
 
 function stageWays(stage, ends, plan) {
   // (a glyph map's ends carry its ways as a trail's do, level/grid-ends.js: a zone of a megaworld)
-  if (stage.manifest.trail === undefined && stage.section !== 'map') throw new Error(`levels: a map world's stages are trails or glyph maps, whose ends and pockets carry its ways; '${stage.level}/${stage.node}' is a climb`);
+  // (a town's and a district's walk carries them too: its far end the way on, its start the way back, levels.js geotownEnds)
+  if (stage.manifest.trail === undefined && !['map', 'geotown', 'geocity'].includes(stage.section)) throw new Error(`levels: a map world's stages are trails, glyph maps, towns or districts, whose ends and pockets carry its ways; '${stage.level}/${stage.node}' is a climb`);
   const side = ends.beats.filter((b) => b.beat === 'pocket').concat(ends.beats.filter((b) => b.beat === 'landmark'));
   const h = ends.heading, behind = [r3(ends.spawn[0] - 2.4 * Math.cos(h)), r3(ends.spawn[1] - 2.4 * Math.sin(h)), ends.spawn[2]];
   const toward = (p, q, d) => { const L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1, t = Math.min(1, d / L); return [r3(p[0] + (q[0] - p[0]) * t), r3(p[1] + (q[1] - p[1]) * t), r3(p[2] + (q[2] - p[2]) * t + 1)]; };
@@ -1546,8 +1550,14 @@ function stageWays(stage, ends, plan) {
   if (plan.errand?.length) {
     const free = ends.beats.filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead' && !extra.some((_, j) => side[j] === b));
     const taken = new Set([...extra.map((_, j) => side[j]), ...(found.length ? [free[Math.floor(free.length / 2)]] : [])]);
-    const spots = free.filter((b) => !taken.has(b)).map((b) => b.at);
-    mechanics.push(...layErrand(plan.errand, spots, ends.tills ?? []));
+    const open = free.filter((b) => !taken.has(b)).map((b) => b.at);
+    // (a stage with cars to get into, cars.js: a town's, a district's. Its errand is driven: its places stand apart
+    // along its streets, from a third of the way to the far end and never side by side, each had from the kerb: a
+    // car pulled up beside the walk is in reach)
+    const driven = (ends.parked?.length ?? 0) > 0, need = plan.errand.filter((l) => l.kind === 'trade' || l.kind === 'deliver').length;
+    const spots = driven && need > 0 && open.length > need ? Array.from({ length: need }, (_, k) => open[Math.min(open.length - 1, Math.round(open.length * ERRAND_DRIVE.from + ((open.length - 1 - open.length * ERRAND_DRIVE.from) * k) / Math.max(1, need - 1)))]).filter((p, k, arr) => arr.indexOf(p) === k) : open;
+    const laid = layErrand(plan.errand, spots.length >= need ? spots : open, ends.tills ?? []);
+    mechanics.push(...(driven ? laid.map((l) => ((l.kind === 'trade' || l.kind === 'deliver') && !l.till ? { ...l, radius: ERRAND_DRIVE.reach } : l)) : laid));
   }
   return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })) };
 }
