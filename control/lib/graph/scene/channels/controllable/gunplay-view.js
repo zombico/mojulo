@@ -334,7 +334,7 @@ function __gpHoldRig(rig) {
     c0.addScaledVector(a0, -c0.dot(a0)).normalize();
     // (the palm: inward on either hand, so the right's is c × a and the left's a × c)
     const palm = s === 'R' ? c0.clone().cross(a0) : a0.clone().cross(c0);
-    return { up, fo, hand, fingers, chains, ef: ix('elbowFold' + s), clav: ix('clavicle' + s), sf: ix('shoulderFold' + s), a0, c0, palm, hl, la: __gpA(B[up].tail).distanceTo(__gpA(B[up].head)), lb: __gpA(B[fo].tail).distanceTo(__gpA(B[fo].head)) };
+    return { up, fo, hand, fingers, chains, ef: ix('elbowFold' + s), ec: ix('elbowCrease' + s), clav: ix('clavicle' + s), sf: ix('shoulderFold' + s), a0, c0, palm, hl, la: __gpA(B[up].tail).distanceTo(__gpA(B[up].head)), lb: __gpA(B[fo].tail).distanceTo(__gpA(B[fo].head)) };
   };
   const R = side('R'), L = side('L'), lumbar = ix('lumbar') >= 0 ? ix('lumbar') : ix('pelvis'), neck = ix('neck'), head = ix('head');
   if (!R || !L || lumbar < 0 || head < 0) return (rig.__hold = null);
@@ -377,6 +377,8 @@ function __gpReach(rig, A, fist, a1, c1, pole, curl = 1) {
   const qf = __gpAlign(dir(A.fo), A.c0, Wr.clone().sub(E), A.c0.clone().applyQuaternion(qh), new THREE.Quaternion());
   __gpPut(rig, A.up, qu, S); __gpPut(rig, A.fo, qf, E);
   if (A.ef >= 0) __gpPut(rig, A.ef, qu.clone().slerp(qf, 0.5), E);
+  // (and the elbow's crease, a later hero's bone: the sleeve's ring there goes with the arm, where it stayed with the stride's)
+  if (A.ec >= 0) __gpPut(rig, A.ec, qu.clone().slerp(qf, 0.5), E);
   __gpPut(rig, A.hand, qh, Wr);
   // the digits closed round the station: each joint bent toward the palm (the fingers about the line across the
   // knuckles, the thumb across the palm, less), laid out from the hand as the hand now stands; the stride's own finger
@@ -477,7 +479,7 @@ function __gpHold(e, m, rig, dt) {
     if (at.short > 0 && A.clav >= 0) {
       const C = __gpHeadOf(rig, A.clav, __gpV()), SL = __gpHeadOf(rig, A.up, __gpV()), r = SL.distanceTo(C);
       const ax = SL.clone().sub(C).cross(at.fist.clone().sub(SL)).normalize(), th = Math.min(0.5, at.short / Math.max(0.05, r));
-      if (ax.lengthSq() > 0.5) { const qc = new THREE.Quaternion().setFromAxisAngle(ax, th); for (const bi of [A.clav, A.sf, A.up, A.fo, A.hand, A.ef, ...A.fingers]) if (bi >= 0) __gpTurn(rig, bi, qc, C); }
+      if (ax.lengthSq() > 0.5) { const qc = new THREE.Quaternion().setFromAxisAngle(ax, th); for (const bi of [A.clav, A.sf, A.up, A.fo, A.hand, A.ef, A.ec, ...A.fingers]) if (bi >= 0) __gpTurn(rig, bi, qc, C); }
     }
     __gpReach(rig, A, at.fist, along(at.s.a), along(at.s.c), new THREE.Vector3(-0.25, 0, -1), 0.8);
   }

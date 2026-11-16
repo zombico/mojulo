@@ -78,3 +78,6 @@ or a recipe key; the spike mints through the real doors and measures.
 - **A climb with nothing pressed** (`freeRun.on: 'push'`): the stick held into a thing the body can climb, for a
   quarter of a second, climbs it (and takes a low thing it came to too slowly to vault). What is in its hand is put
   away through the climb and is in hand again as it stands. The infiltration yard climbs this way.
+- **The gun hold carries the elbow's crease** (scene/channels/controllable/gunplay-view.js): a hero whose rig has an
+  `elbowCrease` bone had the ring of sleeve it carries left where the stride had the arm while the hold moved the arm
+  to the gun, floating beside it. The crease now goes with the elbow, as the elbow's fold does.
