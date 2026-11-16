@@ -21,7 +21,7 @@ const volumes = (M) => M.shells.map(([a, b]) => { let v = 0; for (let f = a; f <
 
 describe('headwear on the realistic head', () => {
   const H = head();
-  for (const id of ['circlet', 'travelerHat', 'wizardHat']) {
+  for (const id of ['circlet', 'bandana', 'travelerHat', 'wizardHat']) {
     it(`${id}: clears the head and the hair it covers, every shell faced out, the same twice`, () => {
       const B = buildHeadwear(H.cloud, H, HEADWEAR[id]), law = headwearGaps({ ...H, made: B.made });
       expect(law.points).toBeGreaterThan(20);
@@ -47,7 +47,7 @@ describe('headwear on the realistic head', () => {
     expect(Math.max(...Wz.M.vertices.map((p) => p[2]))).toBeGreaterThan(top + 0.6 * HEADWEAR.wizardHat.cone.len);
   });
   it('the cards lower to the headwear word on the realistic body from the hero laws 23, and refuse it before', () => {
-    for (const id of ['circlet', 'travelerHat', 'wizardHat']) {
+    for (const id of ['circlet', 'bandana', 'travelerHat', 'wizardHat']) {
       const worn = withHeadgear({ form: 'realistic', palette: { Helmet: '#112233' } }, 'realistic', id);
       expect(worn.headwear).toBe(id);
       expect(worn.hair).toBeUndefined();

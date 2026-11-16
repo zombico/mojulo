@@ -629,6 +629,11 @@ export const HEADGEAR = Object.freeze({
   circlet: { reads: 'the circlet: a thin gold band round the brow, a gem at its front; the noble, the mage, the elf', family: 'crown',
     at: { tiered: (spec) => withKit({ ...spec, palette: { EyeFrame: '#d4a73a', EyeGlow: '#3f7fd0', ...(spec.palette || {}) } }, eyegearKit(CIRCLET, { id: 'circlet' })),
       realistic: (spec) => onRealisticHead(spec, 'circlet', { EyeFrame: '#d4a73a', EyeGlow: '#3f7fd0' }) } },
+  // the BANDANA (a tied headband, the operative's): the circlet's band in cloth, wider, no gem; on the realistic head a
+  // knot at the back and two tails (headgear/realistic.js), on the game body the band alone
+  bandana: { reads: 'the bandana: a cloth band tied round the brow over the hair, its knot and two tails at the back; the operative, the martial artist', family: 'crown',
+    at: { tiered: (spec) => withKit({ ...spec, palette: { EyeFrame: '#2f3a34', ...(spec.palette || {}) } }, eyegearKit({ ...CIRCLET, outline: { ...CIRCLET.outline, h: 0.42 }, strap: { ...CIRCLET.strap, h: 0.42 }, fittings: [] }, { id: 'bandana' })),
+      realistic: (spec) => onRealisticHead(spec, 'bandana', { Helmet: '#2f3a34' }) } },
   travelerHat: HATTED(HELMETED('the traveller\'s hat: a soft felt crown, a broad brim all round dipping at the back; the ranger, the wanderer', () => helmetKit(HAT_SHELL({ brim: { len: 0.075, tilt: 0.12, drop: 0.6 } })), { Helmet: '#4a3b2a', HelmetTrim: '#2e2418' }), 'travelerHat'),
   wizardHat: HATTED(HELMETED('the wizard\'s hat: a soft crown, a wide brim, a tall cone leaning back off the crown; the mage', () => helmetKit(HAT_SHELL({ brim: { len: 0.09, tilt: 0.08, drop: 0.3 }, cone: { len: 0.3, w: 0.2, lean: -0.35 } })), { Helmet: '#3f5aa0', HelmetTrim: '#e0bd62' }), 'wizardHat'),
 });

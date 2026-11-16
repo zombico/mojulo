@@ -42,6 +42,9 @@ export const HEADWEAR = Object.freeze({
     brim: Object.freeze({ len: 0.07, up: 0.12, drop: 0.32, thick: 0.004 }), group: 'Helmet', trimGroup: 'HelmetTrim' }),
   wizardHat: Object.freeze({ kind: 'hat', front: 0.62, back: -0.08, ease: 0.006, rise: 0.008, box: 0.5, thick: 0.003, trim: 0.018,
     brim: Object.freeze({ len: 0.085, up: 0.05, drop: 0.2, thick: 0.004 }), cone: Object.freeze({ len: 0.28, lean: 0.3, bend: 0.35 }), group: 'Helmet', trimGroup: 'HelmetTrim' }),
+  // the bandana: the circlet's band in cloth, wide over the brow, no gem; a knot at the back and two tails hanging from it
+  bandana: Object.freeze({ kind: 'circlet', front: 0.5, back: 0.12, gap: 0.0004, h: 0.034, peak: 1, thick: 0.0016, gem: 0,
+    tails: Object.freeze({ len: 0.2, w: 0.028, thick: 0.0016, spread: 0.22, back: 0.3, knot: 0.012 }), group: 'Helmet' }),
 });
 
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
@@ -118,17 +121,44 @@ function outward(M) {
 }
 const ringAt = (c, z, r, out = 0) => r.map((x, q) => { const b = q * 2 * Math.PI / N_BEAR; return [c[0] + (x + out) * Math.sin(b), c[1] + (x + out) * Math.cos(b), typeof z === 'function' ? z(b) : z]; });
 
+/** THE TAILS of a tied band (the bandana's): a knot on the band's back at `at`, and two flat tails `len` long hanging from
+ * it, each swung `spread` of its length to its side and `back` of it behind the head, the rest of it down; each a closed
+ * shell in the band's group */
+function tails(M, c, at, W, k) {
+  const T = W.tails, len = T.len * k, w = T.w * k / 2, th = T.thick * k / 2, kn = T.knot * k, K = 6;
+  // (the knot: a small lozenge standing off the band)
+  const ring = (y, r) => M.loop([[at[0] - r, y, at[2]], [at[0], y, at[2] + r * 0.8], [at[0] + r, y, at[2]], [at[0], y, at[2] - r * 0.8]]);
+  M.loft([[M.add([at[0], at[1] + kn * 0.2, at[2]])], ring(at[1] - kn * 0.2, kn), ring(at[1] - kn * 0.8, kn * 0.8), [M.add([at[0], at[1] - kn * 1.1, at[2]])]], W.group);
+  for (const side of [-1, 1]) {
+    const loops = [];
+    for (let i = 0; i <= K; i++) {
+      const s = i / K, ease = s * (2 - s);
+      const p = [at[0] + side * (kn * 0.4 + T.spread * len * ease), at[1] - kn * 0.6 - T.back * len * ease, at[2] - len * (1 - T.back) * s * (0.4 + 0.6 * s)];
+      // (flat across the tail's width, widening a little to its end)
+      const hw = w * (0.7 + 0.3 * s);
+      loops.push(M.loop([[p[0] - hw, p[1] + th, p[2]], [p[0] + hw, p[1] + th, p[2]], [p[0] + hw, p[1] - th, p[2]], [p[0] - hw, p[1] - th, p[2]]]));
+    }
+    const a0 = M.vertices[loops[0][0]], aK = M.vertices[loops[K][0]];
+    M.loft([[M.add([a0[0] + w * 0.7, a0[1] - th, a0[2] + 0.001 * k])], ...loops, [M.add([aK[0] + w, aK[1] - th, aK[2] - 0.002 * k])]], W.group);
+  }
+}
+
 /** THE CIRCLET: a band on the band line over the hair, a setting and a gem at its front */
 function circlet(M, cloud, c, zOf, W, k) {
   const pts = [...cloud.skull, ...cloud.hair, ...cloud.hood], h0 = W.h * k;
   const hOf = (b) => h0 * (1 + (W.peak - 1) * Math.max(0, Math.cos(b)) ** 6);
   const zt = (b) => zOf(b) + hOf(b) / 2, zb = (b) => zOf(b) - hOf(b) / 2;
-  const rt = supportRing(pts, c, zt, 0.004 * k), rb = supportRing(pts, c, zb, 0.004 * k), rm = supportRing(pts, c, zOf, 0.004 * k);
+  // (a WIDE band, a cloth's: one support over its whole height, so nothing between its edges stands through it)
+  const dz = 0.004 * k, wide = h0 > 4 * dz, all = wide ? supportRing(pts, c, zOf, h0 / 2 + dz) : null;
+  const rt = all ?? supportRing(pts, c, zt, dz), rb = all ?? supportRing(pts, c, zb, dz), rm = all ?? supportRing(pts, c, zOf, dz);
   if (!rt || !rb || !rm) return null;
   // (a rigid band: never in under its own middle, so it bridges a hair's dip as metal does)
   const inT = rt.map((x, q) => Math.max(x, rm[q] - 0.002 * k) + W.gap * k), inB = rb.map((x, q) => Math.max(x, rm[q] - 0.002 * k) + W.gap * k);
   const t = W.thick * k;
   M.loft([M.loop(ringAt(c, zt, inT, t)), M.loop(ringAt(c, zb, inB, t)), M.loop(ringAt(c, zb, inB)), M.loop(ringAt(c, zt, inT))], W.group, { closed: true });
+  if (W.tails) tails(M, c, [c[0], c[1] - (inT[N_BEAR / 2] + inB[N_BEAR / 2]) / 2 - t, zOf(Math.PI)], W, k);
+  // (a band with no gem, the bandana: the band alone)
+  if (!(W.gem > 0)) return { band: { front: zOf(0), back: zOf(Math.PI), height: h0, peak: W.peak, gap: W.gap * k }, inner: inT, innerB: inB, zt, zb };
   // the setting and the gem: on the band's face at the front, along its outward normal there
   const pt = [c[0], c[1] + inT[0] + t, zt(0)], pb = [c[0], c[1] + inB[0] + t, zb(0)], mid = pt.map((v, i) => (v + pb[i]) / 2);
   const up = [0, pt[1] - pb[1], pt[2] - pb[2]], ul = Math.hypot(...up), u = up.map((v) => v / ul), n = [0, u[2], -u[1]];
