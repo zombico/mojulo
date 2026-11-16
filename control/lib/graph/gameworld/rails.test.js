@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   RAILS, RAIL_IDS, SIZES, SIZE_IDS, NOT_YET, GENERIC_GOALS, SEEN_WORDS,
-  railOf, railOfPole, railOfGenre, railsOfGoal, seenOf, railWords, railLacks, railShape,
+  railOf, railOfPole, railOfGenre, railsOfGoal, seenOf, railWords, railLacks, railShape, OWN, sizeCall,
 } from './rails.js';
 import { POLES } from './feel/cards.js';
 import { GENRES, genreCube } from './intent.js';
@@ -113,5 +113,54 @@ describe('what a rail says', () => {
     expect(railOf(RAIL_IDS[0]).id).toBe(RAIL_IDS[0]);
     expect(() => railOf('no-such-rail')).toThrow(/is not one: /);
     expect(railOfGenre('no-such-genre')).toBeNull();
+  });
+});
+
+describe('the size call', () => {
+  // one rail a concept, picked from the roster: least size each, one that grows, one the book does not reach
+  const least = (size) => RAIL_IDS.find((id) => RAILS[id].sizes[0] === size);
+  const grows = RAIL_IDS.find((id) => RAILS[id].sizes[0] === 'quick' && RAILS[id].sizes.includes('designed'));
+  const stops = RAIL_IDS.find((id) => !RAILS[id].sizes.includes('designed') && PENDING[RAILS[id].handles.genres[0]]);
+  const own = Object.keys(OWN)[0];
+
+  it('calls the least a rail is made with when nothing more is asked, with that door\'s keys', () => {
+    for (const size of SIZE_IDS) {
+      const id = least(size);
+      if (!id) continue;
+      const C = sizeCall(id);
+      expect(C).toMatchObject({ rail: id, size, door: SIZES[size].door, brief: size === 'designed' });
+      expect(Object.values(C.with).flat().length, `${id}: the door's keys`).toBeGreaterThan(0);
+    }
+    expect(SIZE_IDS.filter(least).length).toBeGreaterThan(2);
+    expect(sizeCall(least('quick')).with.goal).toEqual(RAILS[least('quick')].handles.quick);
+  });
+
+  it('grows to the designed game when more levels or something of their own is asked, and asks the brief', () => {
+    expect(sizeCall(grows, { simple: true })).toMatchObject({ size: 'quick', brief: false, next: { size: 'designed' } });
+    for (const wants of [{ levels: 3 }, { levels: 'many' }, { own: [own] }]) {
+      const C = sizeCall(grows, wants);
+      expect(C).toMatchObject({ size: 'designed', brief: true });
+      expect(C.next).toBeUndefined(); expect(C.short).toBeUndefined();
+      expect(C.with.from).toEqual(RAILS[grows].handles.genres);
+    }
+    expect(sizeCall(grows, { own: [own] }).why).toContain(OWN[own]);
+  });
+
+  it('never refuses: an ask past what a rail reaches is called at its largest, and what it waits on is said', () => {
+    const C = sizeCall(stops, { levels: 'many' }), top = RAILS[stops].sizes[RAILS[stops].sizes.length - 1];
+    expect(C).toMatchObject({ size: top, brief: false, short: { wanted: 'designed' } });
+    expect(C.short.waits).toMatch(/\S/); expect(C.why).toContain('does not reach yet');
+  });
+
+  it('with no rail, calls it by the wants alone', () => {
+    expect(sizeCall(null)).toMatchObject({ rail: null, size: 'quick', next: { size: 'designed' }, brief: false });
+    expect(sizeCall(null, { own: [own] })).toMatchObject({ rail: null, size: 'designed', brief: true });
+  });
+
+  it('teaches its wants', () => {
+    expect(() => sizeCall(grows, { levels: 0 })).toThrow(/levels is how many/);
+    expect(() => sizeCall(grows, { own: ['a-thing'] })).toThrow(/own is what is theirs/);
+    expect(() => sizeCall(grows, { big: true })).toThrow(/big is not one/);
+    expect(() => sizeCall('no-such-rail')).toThrow(/is not one: /);
   });
 });

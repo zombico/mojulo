@@ -15,5 +15,12 @@ In progress. Each line is added as its phase lands.
 - **Held to what is built** (`rails.test.js`): every feel template, quick goal and pixelizer game belongs to a row, a
   row's sizes are what the tables say (a designed size only where the book lays one of its genres today), and a type
   listed as not yet fails the day it can be made, so it moves. A new game type is a row first.
+- **The size call** (`sizeCall(rail, wants)`): how much of mojulo an ask needs, the producer's first decision. From a
+  rail and what the agent infers the person wants (`levels`, what is theirs to design: `OWN`, `simple`), it calls the
+  least size that answers it, with that door and the rail's keys for it (its quick goals, its pixelizer games, the
+  genres a designed game starts from), why, and the next size up the rail reaches. A designed game is the only size
+  the Game Brief is asked for (`brief`). It never refuses: an ask for more than a rail reaches (a fighting game of
+  many levels) is called at the rail's largest, and what the larger one waits on is said (`short`), before anything is
+  built. With no rail it calls quick or designed by the wants alone.
 
 Nothing reads the roster yet: no door, card or readout changes with this step.

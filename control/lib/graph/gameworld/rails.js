@@ -39,11 +39,28 @@
  *   railLacks(rail)            → what it does not do yet: its own, then its pole's needs
  *   railShape(rail)            → the producer's one line: name, like, sizes, how it is seen, its first level
  *
+ * THE SIZE CALL — how much of mojulo an ask needs, the producer's first decision: a pixelizer game, a quick game, a
+ * table game, or the full design loop. Advice, never a refusal: the person may ask for more or for less.
+ *
+ *   OWN                        what a person may want to be their own design: each is a chapter of the book, so any
+ *                              one of them asks for a designed game
+ *   sizeCall(rail | null, wants?) → { rail, size, door, with?, why, short?, next?, brief }
+ *     wants   what the agent infers the person wants: { levels?: 1 | 2 … | 'many', own?: [<OWN>], simple?: true }
+ *             (none: the least the rail is made with)
+ *     size    the least size that answers it, of the rail's own; with no rail, quick or designed by the wants alone
+ *     with    the rail's keys for that door: its quick goals, its pixelizer games, its table key, its genres
+ *     short   { wanted, waits }: the ask wanted a size this rail does not reach yet; the largest it does is called,
+ *             and what the larger one waits on is said (to the person, before anything is built)
+ *     next    { size, name, says }: the next size up the rail reaches: what growing it would be
+ *     brief   true for a designed game: the Game Brief (gmn.js: why it is played, how it is shaped) is asked next;
+ *             a smaller game has none
+ *
  * Pure: no database, no clock, no dice.
  */
 import { POLES } from './feel/cards.js';
 import { FEEL_WORDS } from './feel/suggest.js';
 import { GENRES, genreCube } from './intent.js';
+import { pendingOf } from './genre-forms.js';
 
 const row = (o) => Object.freeze(o);
 const list = (a) => Object.freeze(a);
@@ -173,4 +190,62 @@ export function railLacks(rail) {
 export function railShape(rail) {
   const R = rowOf(rail), seen = seenOf(R);
   return `${R.name}: ${R.like}. ${R.sizes.map((s) => SIZES[s].name).join(' or ')}${seen ? `, seen ${SEEN_WORDS[seen]}` : ''}. First: ${R.level1}.`;
+}
+
+// ══════════ the size call ══════════
+
+/** What a person may want to be their own design. Each is a chapter of the book: any one asks for a designed game. */
+export const OWN = Object.freeze({
+  hero: 'a hero of their own design',
+  world: 'a world of their own: its places, its look',
+  story: 'a story: a main quest, an ending',
+  cast: 'a cast or foes of their own',
+  progression: 'something kept from level to level: powers, gear, a save',
+});
+const WANT_KEYS = ['levels', 'own', 'simple'];
+const wantFail = (m) => new Error(`gameworld: a size call's wants${m}`);
+
+function readWants(w) {
+  if (w === undefined || w === null) return { levels: 1, own: [], simple: false };
+  if (typeof w !== 'object' || Array.isArray(w)) throw wantFail(` are { levels?, own?, simple? }`);
+  for (const k of Object.keys(w)) if (!WANT_KEYS.includes(k)) throw wantFail(`.${k} is not one (${WANT_KEYS.join(', ')})`);
+  const levels = w.levels ?? 1;
+  if (levels !== 'many' && !(Number.isInteger(levels) && levels >= 1)) throw wantFail(`.levels is how many levels the game has: 1, 2 … or 'many'`);
+  const own = w.own ?? [];
+  if (!Array.isArray(own) || own.some((o) => !OWN[o])) throw wantFail(`.own is what is theirs to design: [${Object.keys(OWN).join(' | ')}]`);
+  if (w.simple !== undefined && typeof w.simple !== 'boolean') throw wantFail('.simple is true when they asked for something small');
+  return { levels, own: [...new Set(own)], simple: w.simple === true };
+}
+
+// a rail's keys for a size's door
+const keysFor = (R, size) => {
+  const H = R.handles;
+  if (size === 'pixel') return { reducer: [...H.pixel] };
+  if (size === 'quick') return { goal: [...H.quick] };
+  if (size === 'table') return { key: H.table === 'table-rpg' ? 'table_rpg' : 'tabletop' };
+  return { ...(H.genres.length ? { from: [...H.genres] } : {}), ...(H.pole ? { feel: H.pole } : {}) };
+};
+
+export function sizeCall(rail, wants) {
+  const W = readWants(wants), R = rail == null ? null : rowOf(rail);
+  const more = W.levels !== 1, asksBook = more || W.own.length > 0;
+  const reason = asksBook
+    ? [more ? (W.levels === 'many' ? 'many levels' : `${W.levels} levels`) : null, ...W.own.map((o) => OWN[o])].filter(Boolean).join('; ')
+    : W.simple ? 'something small was asked for' : 'one level answers it';
+  if (!R) {
+    const size = asksBook ? 'designed' : 'quick';
+    return { rail: null, size, door: SIZES[size].door, why: `${reason}: ${SIZES[size].name}`, ...(size === 'quick' ? { next: { size: 'designed', name: SIZES.designed.name, says: SIZES.designed.says } } : {}), brief: size === 'designed' };
+  }
+  const reach = R.sizes, top = reach[reach.length - 1];
+  const size = !asksBook ? reach[0] : reach.includes('designed') ? 'designed' : top;
+  const at = reach.indexOf(size), up = reach[at + 1];
+  // the ask wanted the book and the rail does not reach it: what its own genre waits on, said
+  const waits = asksBook && size !== 'designed' ? (pendingOf(R.handles.genres[0])?.waits ?? `${R.name} is not laid as a designed game yet`) : null;
+  return {
+    rail: R.id, size, door: SIZES[size].door, with: keysFor(R, size),
+    why: waits ? `${reason}: that asks for ${SIZES.designed.name}, which ${R.name} does not reach yet; ${SIZES[size].name} is what it is made with today` : `${reason}: ${SIZES[size].name}`,
+    ...(waits ? { short: { wanted: 'designed', waits } } : {}),
+    ...(up ? { next: { size: up, name: SIZES[up].name, says: SIZES[up].says } } : {}),
+    brief: size === 'designed',
+  };
 }
