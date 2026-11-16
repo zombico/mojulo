@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { composeLive, emissionSource } from './compose.js';
+import { BASIC_ARSENAL, lowerArsenal } from '../../gameworld/combos.js';
 
 // WHAT IS IN HAND (carry.js): a held menu steps through nothing in hand and each weapon, one equipped at a time; another
 // uses a consumable.
@@ -66,5 +67,31 @@ describe('what is in hand', () => {
     const w = run(world({ holstered: true }), {}, 2);
     expect(w.byId.p.weapon).toBeNull();
     expect(fired(w)).toBe(false);
+  });
+});
+
+describe('nothing in hand, a body with a moveset', () => {
+  // the fist's ground strings (gameworld/combos.js), as a level's arsenal lays them on a pilot
+  const fist = BASIC_ARSENAL.weapons.find((x) => x.id === 'fist'), ground = Object.fromEntries(Object.entries(fist.moves).filter(([, m]) => !m.air && !m.launch));
+  const W = lowerArsenal({ timing: BASIC_ARSENAL.timing, weapons: [{ ...fist, figure: 'drawn', guard: false, moves: ground, combos: fist.combos.filter((c) => !c.air && c.moves.every((m) => ground[m])) }] });
+  const armed = () => E.createWorld({
+    camera: { rule: 'follow', target: 'p' },
+    entities: [{ id: 'p', pilotable: true, rule: { type: 'platform', speed: 4, eye: 0, strikeContact: [0.4, 0.5], loadout: [gun('handgun')], weapons: W, moveset: W[0].moveset, moveClips: true, carry: {} }, body: { type: 'mesh', hittable: true, hp: 100 }, transform: { pos: [0, 0, 0], heading: 0 } }],
+  });
+  it('with the gun in hand the trigger fires it; put away, the trigger is the fist\'s first blow, and the next press its second', () => {
+    const w = run(armed(), {}, 5), p = w.byId.p;
+    expect(fired(w)).toBe(true);
+    expect(p.swingT == null).toBe(true);
+    run(w, { equipHold: 1 }, 1); run(w, { equipHold: 1, step: -1 }, 1); run(w, {}, 2);
+    expect(p.carry.holstered).toBe(true);
+    expect(p.rule.loadout).toBeUndefined();
+    run(w, { fire: 1 }, 2);
+    expect(p.swingClip).toBe('mv_fist_jab');
+    run(w, {}, 16); run(w, { fire: 1 }, 2); run(w, {}, 6);
+    expect(p.swingClip).toBe('mv_fist_cross');
+    // a weapon chosen again: the loadout back, the trigger the gun's
+    run(w, {}, 60); run(w, { equipHold: 1 }, 1); run(w, { equipHold: 1, step: 1 }, 1); run(w, {}, 30);
+    expect(Array.isArray(p.rule.loadout)).toBe(true);
+    expect(fired(w)).toBe(true);
   });
 });

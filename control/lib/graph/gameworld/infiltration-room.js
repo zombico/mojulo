@@ -10,8 +10,10 @@
  *                 guns, else its feel template's), the knife in the free hand where it carries one
  *   in hand       one weapon at a time, or none, from a held menu the look steps; a ration used from another
  *                 (worlds/controllable/carry.js)
+ *   the dive      on the jump's button (there is no jump): 0.8 s, about 4.8 m, a second before another
+ *   the fists     with nothing in hand the trigger is the fist's strings (jab, cross, hook; the heavy an uppercut)
  *   the run       the feel's fast gait, the only pace: no sprint, no stamina; a low wall or a crate gone over out of the run, a taller
- *                 thing climbed on the jump (worlds/controllable/free-run.js)
+ *                 thing climbed on the action (worlds/controllable/free-run.js)
  *   the yard      a walled floor 32 m square: a wall to come round (the third-person look past a corner), two low walls to
  *                 fire over, crates; the start at its south
  *   the targets   a person's box at 5, 15 and 30 m of the start, one behind the corner; each stands again a moment
@@ -30,9 +32,11 @@ import { armsLoadout, knifeOf } from './arms-kit.js';
 import { SHOOT, SHOULDER, PERSON } from './quick.js';
 import { lowerBody } from './game-bodies.js';
 import { PLAY_GRADE } from '../figures/figure-grades.js';
+import { armLevel } from './arsenal.js';
+import { BASIC_ARSENAL } from './combos.js';
 
 const HALF = 16;
-export const INFILTRATION_LEGEND = 'W A S D  run · mouse  look · run at a low wall to go over it · Space at a taller one  climb · G (hold)  weapon menu · H (hold)  item menu · right mouse (hold)  aim · click  fire, aimed · Tab  first person, aimed · Q  the other shoulder, aimed · R  reload · V  knife · Space  jump';
+export const INFILTRATION_LEGEND = 'W A S D  run · mouse  look · Space  dive · run at a low wall to go over it · E at a taller one  climb · unarmed: click  punch · G (hold)  weapon menu · H (hold)  item menu · right mouse (hold)  aim · click  fire, aimed · Tab  first person, aimed · Q  the other shoulder, aimed · R  reload · V  knife · Space  jump';
 const START = Object.freeze([0, -13, 0]);
 const wall = (id, x, y, length, height, N = [0, -1]) => ({ id, form: 'wall', at: [x, y, 0], N, length, height, thick: 0.5 });
 const BLOCKS = Object.freeze([
@@ -43,6 +47,19 @@ const BLOCKS = Object.freeze([
 // a person's box at each range of the start, and one behind the corner
 const TARGETS = Object.freeze([{ id: 'target-5', at: [2, -8, 0] }, { id: 'target-15', at: [6, 2, 0] }, { id: 'target-30', at: [-1, 15, 0] }, { id: 'target-corner', at: [-8, 2, 0] }]);
 const TARGET_HP = 100;
+// THE DIVE (worlds/controllable/dive.js over the rule's dodge): 0.8 s at 9.5 m/s at its middle, about 4.8 m of ground,
+// a second before another
+const DIVE = Object.freeze({ dodge: true, dodgeDur: 0.8, dodgeSpeed: 9.5, dodgeCooldown: 1, dodgeBoostCost: 0, dodgeOverheat: false, dive: Object.freeze({ jump: false }) });
+// (a bare hand's blow, where a held blade would say its own, worlds/held-strike.js: its reach, its seconds, and a damage
+// that makes the jab 8 of a target's 100, the cross about 10, the hook 16)
+const FIST_BLOW = Object.freeze({ strikeReach: 0.95, strikeDur: 0.4, strikeDamage: 16 });
+// THE FISTS (the basic arsenal's, gameworld/combos.js): its ground strings alone, the jab, the cross and the hook on
+// the light beat and the uppercut on the heavy; no launcher, no air string, no guard prop. What the trigger is with
+// nothing in hand (worlds/controllable/carry.js)
+const FISTS = (() => {
+  const fist = BASIC_ARSENAL.weapons.find((w) => w.id === 'fist'), moves = Object.fromEntries(Object.entries(fist.moves).filter(([, m]) => !m.air && !m.launch));
+  return { timing: BASIC_ARSENAL.timing, weapons: [{ ...fist, figure: 'drawn', guard: false, moves, combos: fist.combos.filter((c) => !c.air && c.moves.every((m) => moves[m])) }] };
+})();
 
 /** The infiltration yard (see the header). */
 export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null } = {}) {
@@ -59,8 +76,10 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null } =
   const rule = {
     ...felt, ...(fast > (felt.speed ?? 0) ? { speed: fast } : {}), move: 'camera', collideRadius: 0.3, collideHeight: 1.7,
     aimView: { shoulder: { ...SHOULDER }, eye: 1.6 },
-    // (over the low walls and the crates out of the run; the jump at a taller thing climbs it: free-run.js)
-    freeRun: {},
+    // (over the low walls and the crates out of the run; the action at a taller thing climbs it: free-run.js; the jump's
+    // button is the dive's: dive.js)
+    freeRun: { on: 'act' },
+    ...DIVE,
     // (one weapon in hand, or none, from a held menu; a ration to use: carry.js)
     carry: { items: [{ id: 'ration', name: 'ration', count: 3, heal: 40 }] },
     ...(kit ? { loadout: kit, gunplay: true } : {}), ...(hasKnife ? { knife: knifeOf(TARGET_HP) } : {}),
@@ -84,5 +103,8 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null } =
     // (and lit as a form page lights it, the cast rig: the skinned body, its cloth closed over its joints)
     castLight: { cube: { from: 'theatre-grey' } },
   };
+  // (the fists, laid as a level's arsenal is, their clips the figure's own)
+  const armed = armLevel({ ...(G ?? {}), arsenal: FISTS }, manifest);
+  if (armed !== manifest) { manifest.figures = armed.figures; manifest.entities = armed.entities.map((e) => (e.id === 'hero' ? { ...e, rule: { ...e.rule, moveClips: true, ...FIST_BLOW } } : e)); }
   return { manifest, kit: kit ? kit.map((s) => s.name) : [], knife: hasKnife, hero: own ? 'own' : 'stand-in', targets: TARGETS.map((t) => t.id) };
 }

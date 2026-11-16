@@ -52,3 +52,12 @@ or a recipe key; the spike mints through the real doors and measures.
   held off. Its strip on the screen is plain DOM for now, not mana-ui's.
 - **One pace**: the infiltration yard's stick is the feel's fast gait and there is no sprint: the feel's sprint, its
   stamina and the dodge on the sprint's key are left out of the room's rule, and the operative scheme has no sprint.
+- **The dive on a button** (`rule.dive`, worlds/controllable/dive.js, opt-in): the platform rule's dodge taken on one
+  press, where the rule asks for a double tap of the boost; `jump: false` gives the body no jump, its button the
+  dive's. The infiltration yard's dive is 0.8 s and about 4.8 m, a second after it ends before another. The climb
+  moves to the action (`freeRun.on: 'act'`).
+- **Nothing in hand, the fists** (carry.js): a body that carries a loadout and a moveset has its rule read two ways.
+  With a weapon in hand its strings are set aside and the trigger is the gun's; with nothing in hand its loadout is,
+  and the trigger is its strings' light beat. The yard lays the basic arsenal's fist on the operative, its ground
+  strings alone: the jab, the cross and the hook on the trigger, the uppercut on the heavy, each the solved clip, a
+  bare hand's reach and a damage of 8, 10 and 16 of a target's 100. The aim is held off with nothing in hand.

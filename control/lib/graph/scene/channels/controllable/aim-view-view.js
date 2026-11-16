@@ -7,6 +7,8 @@
 //   view       an edge: Tab, the right shoulder (to the eye and back, while aiming)
 //   shoulder   an edge: Q, the right stick's click (the other shoulder, while aiming)
 //   reload     R, the east face (a gunplay kit's reload)
+//   dive       the jump's own button (Space, the south face), read as the dive's
+//   act        the action (E, the west face), held: what a climb is taken on
 // The body hidden while the camera rides its eye is the controllable channel's own line (__avHides).
 export function aimViewScript() {
   return `
@@ -26,6 +28,10 @@ __readInput = function () {
   inp.view = __k('view') || pb('view') ? 1 : 0;
   inp.shoulder = __k('shoulder') || pb('shoulder') ? 1 : 0;
   if (__k('reload') || pb('reload')) inp.reload = 1;
+  // (the jump's button as the dive's, dive.js, and the action as a level: free-run.js climbs on it; a rule that asks for
+  // neither reads neither)
+  inp.dive = inp.jumpHeld || inp.jump ? 1 : 0;
+  inp.act = __k('interact') || pb('interact') ? 1 : 0;
   return inp;
 };
 `;

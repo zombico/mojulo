@@ -15,7 +15,7 @@
  *   input.itemHold    held: the ITEM menu, the consumables it still has; let go, the one stepped to is used once.
  *   While either is held the trigger and the aim are held off.
  *
- * Field ownership: e.carry ({ menu, sel, acc, holstered, counts, used, ps }), and the pilot's `weapon` while it is put
+ * Field ownership: e.carry ({ menu, sel, acc, holstered, counts, used, ps, rule, view }), and the pilot's `weapon` while it is put
  * away. The page draws the menu from e.carry (scene/channels/controllable/carry-view.js).
  *
  * Wraps stepWorld (as gunplay.js does; listed after it and the aim, so it steps first and they read what it leaves).
@@ -25,7 +25,7 @@
 export function buildCarry(E) {
   const step = E.stepWorld;
   E.carryPlaces = (e, menu) => {
-    const R = e.rule.carry, C = e.carry, lo = Array.isArray(e.rule.loadout) ? e.rule.loadout : [];
+    const R = e.rule.carry, C = e.carry, own = (C && C.rule) || e.rule, lo = Array.isArray(own.loadout) ? own.loadout : [];
     if (menu === 'weapon') return [{ kind: 'none', name: 'unarmed' }, ...lo.map((s, i) => ({ kind: 'weapon', slot: i, name: (s && s.name) || `weapon ${i + 1}` }))];
     return (R.items || []).map((it, i) => ({ kind: 'item', item: i, id: it.id, name: it.name || it.id, count: C ? C.counts[i] : it.count })).filter((x) => x.count > 0);
   };
@@ -65,8 +65,20 @@ export function buildCarry(E) {
       C.menu = null;
     }
     C.ps = input.step || 0;
-    // (nothing in hand: nothing fires, reloads or is switched to by the keys; the menu alone equips)
-    if (C.holstered) inp = { ...inp, fire: 0, reload: 0, cycle: 0, slot: 0 };
+    // TWO READS OF ONE RULE (a body that carries both a loadout and a moveset, gameworld/combos.js): with a weapon in hand
+    // its rule is read without its strings (a moveset would take the trigger from the gun), with nothing in hand without
+    // its loadout and with `strike: true`, so the trigger is its strings' light beat. The whole rule is kept in C.rule.
+    // A read is changed only while no aim holds the rule (aim-view.js keeps its own copy while the aim is up).
+    const aiming = !!(p.av && p.av.on), full = C.rule || p.rule, both = !!(full.moveset && full.loadout), view = C.holstered ? 'fists' : 'armed';
+    if (both && C.view !== view && !aiming) {
+      C.rule = full; C.view = view;
+      // (its `gunplay` word stays: with no loadout the gun's hands do nothing, and the page's still puts the gun away)
+      if (view === 'fists') { const { loadout: _l, knife: _k, ...bare } = full; p.rule = { ...bare, strike: true }; }
+      else { const { moveset: _m, weapons: _w, strike: _s, ...bare } = full; p.rule = bare; if (!p.weapon && p.loadoutWeapons) p.weapon = p.loadoutWeapons[p.loadoutIdx || 0] || null; }
+    }
+    // NOTHING IN HAND: nothing is aimed, reloaded or switched to by the keys (the menu alone equips); the trigger is the
+    // fists' where the body has them, else nothing
+    if (C.holstered) inp = { ...inp, aim: 0, reload: 0, cycle: 0, slot: 0, ...(C.view === 'fists' ? {} : { fire: 0 }) };
     return step(state, inp, dt, hooks);
   };
 }

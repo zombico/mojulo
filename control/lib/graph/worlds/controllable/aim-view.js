@@ -16,7 +16,7 @@
  *   input.view       an edge, while aiming: to the eye and back (the `eye` rule on the body, `hideTarget`: the page hides
  *                    a body whose camera rides its eye). Letting the aim go leaves the eye too.
  *   input.shoulder   an edge, while aiming over the shoulder: the other shoulder.
- *   input.fire       held off while the aim is down, unless `hip`.
+ *   input.fire       held off while the aim is down, unless `hip`, or the body has no weapon in hand.
  *
  * Field ownership: e.av ({ on, fp, side, cam, rule, pv, ps }) on the pilot; while the aim is held, state.camera.rule and
  * the pilot's rule (a copy: the body's own is given back untouched).
@@ -56,6 +56,7 @@ export function buildAimView(E) {
       if (view) { S.fp = !S.fp; C.rule = S.fp ? eye(A, p.id) : over(A, p.id, S.side); }
       else if (swap && !S.fp) { S.side = -S.side; C.rule = over(A, p.id, S.side); }
     }
-    return step(state, S.on || A.hip ? input : { ...input, fire: 0 }, dt, hooks);
+    // (the trigger is the aim's while a weapon is in hand; with none, it is whatever the body's own blow is)
+    return step(state, S.on || A.hip || !p.weapon ? input : { ...input, fire: 0 }, dt, hooks);
   };
 }

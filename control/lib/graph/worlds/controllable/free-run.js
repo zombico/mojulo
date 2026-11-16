@@ -9,12 +9,13 @@
  *     depth?: 1.6,      the deepest thing vaulted across; a deeper one is climbed onto, or run round
  *     reach?: 0.7,      how far ahead of the body a thing is taken from
  *     speed?: 2,        the pace (m/s over the ground) a vault is taken at; under it the body stops at the thing
+ *     on?: 'act',       what climbs: the action (`input.act`) where the body has no jump to press; absent, the jump
  *   }
  *
  *   A VAULT  the body moving at `speed` or more, on the ground, a box ahead within `reach` whose top is over a step and
  *            no higher than `vault`, no deeper than `depth`, and room to land beyond it: it goes over on an arc that
  *            clears the top, at the pace it came in with, and lands running. Nothing is pressed.
- *   A CLIMB  the jump pressed facing a box within `reach` whose top is over `vault` and no higher than `climb`: up its
+ *   A CLIMB  the jump (or the action, `on`) pressed facing a box within `reach` whose top is over `vault` and no higher than `climb`: up its
  *            face and onto its top (a top too thin to stand on: over it and down the far side). The jump is not taken.
  *   Either is refused, and the body stops or jumps as it would, when another box stands where it would land or over
  *   the top it would cross.
@@ -117,7 +118,7 @@ export function buildFreeRun(E) {
   E.stepWorld = function stepWithFreeRun(state, input, dt, hooks) {
     const p = state.pilotId ? state.byId[state.pilotId] : null;
     if (!p || !p.rule || !p.rule.freeRun || !input) return step(state, input, dt, hooks);
-    const jumped = !!input.jump && !p.frJump; p.frJump = !!input.jump;
+    const press = p.rule.freeRun.on === 'act' ? !!input.act : !!input.jump, jumped = press && !p.frJump; p.frJump = press;
     if (!p.fr) { const M = input.aim ? null : plan(state, p, input, hooks, jumped); if (M) p.fr = M; }
     const M = p.fr, eye = p.rule.eye || 0, before = [p.transform.pos[0], p.transform.pos[1]];
     if (!M) {
