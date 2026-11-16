@@ -9,8 +9,13 @@
 - **A car can be taken out of traffic.** Walk up to a vehicle that is stopped or crawling in a city's traffic and the
   same prompt offers it; press and you are in it, and it is yours to drive. Up to six taken vehicles are kept at once;
   after that the one left standing farthest away is given up for the next.
-- **People on the pavements.** A played city district now has pedestrians: clothed figures walking round the blocks
-  near you on their pavements, some one way and some the other, following the ground up and down the hills. They are
-  scenery for now: they do not react to you or to cars.
+- **People on the pavements.** A played city district now has pedestrians walking round the blocks near you on their
+  pavements, some one way and some the other, following the ground up and down the hills. They are scenery for now:
+  they do not react to you or to cars.
+- **The people are made the way your hero is.** Each pedestrian is a person from the same character generator as the
+  hero, rolled from the game's own seed in its setting, so they share its body, proportions, clothes and palette
+  rather than being a separate stock figure. A handful are rolled for a district and shared among everyone walking,
+  each at a slightly different height, and each is re-sampled to about a quarter of a played character's detail so a
+  street of them stays light.
 - **Cars sit on the road.** A car now pitches and leans with the ground under it instead of standing level on a
   slope, both parked and while you drive.

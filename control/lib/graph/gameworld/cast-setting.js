@@ -18,7 +18,8 @@
  *                               underlayer (a role with a sport's `kit` of its own, the athlete, in that: sportswear/kits.js);
  *                               `variant` another roll of the same role, `uniform` a rank's first member's spec, `kit` the
  *                               kit's words (a sport's card, its colours, its pattern) over the role's, the roll's own shirt
- *                               colour the kit's when the words name none
+ *                               colour the kit's when the words name none; `path` the roll's own path in the
+ *                               world's keys (a street's people: gameworld/people.js), over the role's
  *
  * Pure. A word the game does not say is left out, never guessed.
  */
@@ -104,11 +105,11 @@ export const QUICK_FIGURES = Object.freeze({
 /** A quick figure rolled in the game's setting: the Egocube's person on the hero door (a blind roll is human, so it is
  * always that door), in the game's tradition, wearing what the kit's world wears beneath everything (hero-looks.js
  * UNDERLAYERS, as a book hero's base does) in the world's ramps. */
-export function quickFigure(G, quick, key, setting = settingOfGame(G, quick), { variant = 0, uniform = null, kit = null } = {}) {
+export function quickFigure(G, quick, key, setting = settingOfGame(G, quick), { variant = 0, uniform = null, kit = null, path = null } = {}) {
   const F = QUICK_FIGURES[key];
   if (!F) throw new Error(`quick figure: '${key}' is not one (${Object.keys(QUICK_FIGURES).join(', ')})`);
   const seed = Number.isInteger(G.seed) ? G.seed : 1;
-  const sheet = rollEgocube({ facets: F.facets, seed, path: variant ? `quick/${key}/${variant + 1}` : `quick/${key}`, setting });
+  const sheet = rollEgocube({ facets: F.facets, seed, path: path ?? (variant ? `quick/${key}/${variant + 1}` : `quick/${key}`), setting });
   const P = planFromSheet(sheet), pending = P.ledger.filter((r) => r.pending && r.from.startsWith('setting.')).map((r) => `${r.channel}: ${r.pending}`);
   let spec = P.create.spec;
   // (a modern or future person dresses as its rolled look, egocube/outfit.js ERA_LOOKS: the look is its world's wardrobe,

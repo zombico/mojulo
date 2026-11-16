@@ -75,6 +75,7 @@ import { kinWords, kinBare, isKin } from '../foes/packs.js';
 import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits, withFoeWin, onBody, peopleRollOf, isPeople, isModel, isDressed, dressOf } from './foes.js';
 import { rideBuild, rideRule } from './ride.js';
 import { carsExtra } from './cars.js';
+import { peopleExtra } from './people.js';
 import { rideOf, loftCamera } from '../vehicle-registry/ride.js';
 import { vehicleRule, VEHICLES as PHYSICS } from '../roads/vehicles.js';
 import { FLEET } from '../roads/fleet.js';
@@ -499,7 +500,9 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     // (the cars its town or district parks, its hero's to get into, cars.js: a walked town's and district's stage)
     const cars = s.section === 'geotown' || s.section === 'geocity' ? carsExtra() : null;
     const goalCast = (hostile || folk || cars) && !fight && !stall && !market ? GA.goalCast : null;
-    const extra = composeExtras(fight, stall, market, goalCast, folk, hostile, cars);
+    // (the people of its pavements, people.js: a district's; rolled by the world's keys, worn by its scene's walkers)
+    const people = s.section === 'geocity' ? peopleExtra(G) : null;
+    const extra = composeExtras(fight, stall, market, goalCast, folk, hostile, cars, people);
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : {}) } : {};
     // a walked stage's story slots: its before at its start, its after (and its epoch's end) at its exit
     const sl = walkedSlots(st, endOf[i], s);

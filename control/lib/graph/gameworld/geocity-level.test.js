@@ -101,6 +101,20 @@ describe('a car driven in the district (the level\'s own bodies on the runtime, 
   const R = composeLive(), DT = 1 / 30, ground = (p) => E.ground(p[0], p[1]);
   const st = R.createWorld({ entities: level.entities, colliders: E.colliders, camera: level.camera });
   const run = (s, input = {}, each = null) => { for (let i = 0; i < Math.max(1, Math.round(s / DT)); i++) { R.stepWorld(st, input, DT, { ground }); if (each) each(); } };
+  it('its people are the hero door\'s: a few rolled by the world\'s keys, at the crowd grade, each walker one of them at a height of its own', async () => {
+    const people = Object.keys(level.figures).filter((k) => /^person-\d+$/.test(k));
+    expect(people.length).toBeGreaterThanOrEqual(4);
+    for (const k of people) { expect(level.figures[k]).toMatchObject({ grade: 'play', crowd: true }); expect(level.figures[k].hero).toBeTruthy(); }
+    // (not one person six times: their rolls differ)
+    expect(new Set(people.map((k) => JSON.stringify(level.figures[k].hero))).size).toBeGreaterThan(1);
+    const page = await WORLD_KINDS.geocube.resolve(level, { title: 't' });
+    expect(page.walkers.length).toBeGreaterThan(people.length);
+    for (const w of page.walkers) { expect(people).toContain(w.figure); expect(w.scale).toBeGreaterThan(0.9); expect(w.scale).toBeLessThan(1.1); }
+    expect(new Set(page.walkers.map((w) => w.figure)).size).toBe(people.length);
+    expect(new Set(page.walkers.map((w) => w.scale)).size).toBeGreaterThan(3);
+    // (and the same world rolls the same people)
+    expect(JSON.stringify(runSteps(DRIVEN, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest.figures)).toBe(JSON.stringify(level.figures));
+  });
   it('the hero gets into a car the district parked and drives off: on the ground\'s grade all the way, up no pad, into no box', () => {
     // (the front car of the row at the kerb: the one behind it would stop against it, as a car does)
     const row = st.entities.filter((e) => e.mount?.cab && !e.mount.spare && Math.hypot(e.transform.pos[0] - E.spawn[0], e.transform.pos[1] - E.spawn[1]) < 30), h0 = row[0].transform.heading, car = row.reduce((m, e) => ((e.transform.pos[0] - m.transform.pos[0]) * Math.cos(h0) + (e.transform.pos[1] - m.transform.pos[1]) * Math.sin(h0) > 0 ? e : m), row[0]);
