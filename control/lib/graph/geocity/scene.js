@@ -1801,7 +1801,11 @@ export function assembleGeocityScene(m, ctx = {}) {
     for (const [key, { template, transforms }] of [...cityStores].sort(([a], [b]) => a.localeCompare(b))) repeats.push({ group: `geocity:store-${key}`, template, transforms, near: ENTER.near, occlude: false, compact: true });
     // (its vehicles: each model's paint and trim and its roof's extras, cars.js; its machines the shelf's assembly)
     // (none of them an occluder in the ambient bake: a parked car, a machine, a window darkens nothing the bake needs)
-    for (const r of carRepeats(vehicles, { group: 'geocity:vehicle', ...(F ? { pool: F.kinds } : {}) })) repeats.push({ ...r, near: NEAR, occlude: false, compact: true, ...kit });
+    // (a played level's cars a hero gets into, gameworld/cars.js: `ctx.driven` their places, each a body of the level's
+    // and so never drawn here; `ctx.parked`, a list the caller hands, is filled with every vehicle parked)
+    if (Array.isArray(ctx.parked)) ctx.parked.push(...vehicles);
+    const drivenAt = ctx.driven ?? [], undriven = drivenAt.length ? vehicles.filter((c) => !drivenAt.some((q) => Math.abs(q[0] - c.pos[0]) < 0.02 && Math.abs(q[1] - c.pos[1]) < 0.02)) : vehicles;
+    for (const r of carRepeats(undriven, { group: 'geocity:vehicle', ...(F ? { pool: F.kinds } : {}) })) repeats.push({ ...r, near: NEAR, occlude: false, compact: true, ...kit });
     for (const [arch, transforms] of [...machines].sort(([a], [b]) => a.localeCompare(b))) repeats.push({ group: `geocity:machine-${arch}`, template: siteFaces(LIGHT, `m:${arch}`, () => assembleMachine(arch, { laws: false })), transforms, near: NEAR, occlude: false, compact: true, ...kit });
     // (its industry's pieces, industry.js: the tall ones seen across their district, the rest near the camera)
     if (indStamps.size) {

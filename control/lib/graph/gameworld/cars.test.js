@@ -1,70 +1,66 @@
-// A WORLD'S CARS: parked at the kerb beside where a town level starts, each a ride's build on its own drive rule with a
-// cab the hero gets into; the run mints a ride once; a world without the key is as it was.
+// A TOWN'S CARS: the cars a town parks nearest where its level starts are bodies its hero gets into, each the town's own
+// model in its own paint where the town stood it, on its class's drive rule with a cab; the town draws the rest, and
+// none where a body stands; nothing is asked for and nothing is minted.
 import { describe, it, expect } from 'vitest';
 import { readGameworld } from './world.js';
 import { gameStages, stageEnds } from './levels.js';
 import { runSteps } from './runner.js';
-import { readCars, carRides, carsExtra, CAB } from './cars.js';
-import { RIDES } from './ride.js';
+import { levelCars, carsExtra, CAB } from './cars.js';
+import { CAR_CARDS } from '../car-shelf/car-library.js';
+import { assembleGeotownScene, GEOTOWN_KEYS } from '../geotown/scene.js';
 import { composeLive } from '../worlds/controllable/compose.js';
 
-// the smallest town with a street to park on: one main-street segment
+// the smallest town that parks cars by its street: one main-street segment
 const TOWN = { evoke: 'segment', segment: 'main-street', hills: { height: 4 }, margin: 12, enter: [], shops: { cards: ['electronics'] } };
 // (a modern town's game, made for a monitor: its hero in street clothes, no powers and nothing in its hands)
 const WORLD = { id: 'drive-about', name: 'Drive about', seed: 4, screen: 'screen', style: { kit: 'trail-valley' },
-  characters: { direction: { tradition: 'western' }, hero: { looks: { body: { cast: 'male' }, underlayer: { type: 'outfit', style: 'streetwear' } }, motion: { vibe: ['bold'] }, actions: { idiom: 'city-stalker-like' } } }, cars: [{ ride: 'coupe' }, { ride: 'coupe' }], levels: { town: { name: 'Main street', seed: 4, geotown: TOWN } } };
+  characters: { direction: { tradition: 'western' }, hero: { looks: { body: { cast: 'male' }, underlayer: { type: 'outfit', style: 'streetwear' } }, motion: { vibe: ['bold'] }, actions: { idiom: 'city-stalker-like' } } }, levels: { town: { name: 'Main street', seed: 4, geotown: TOWN } } };
 const G = readGameworld(WORLD), stage = gameStages(G)[0], E = stageEnds(stage.manifest);
 const within = (p, c) => p[0] > c.min[0] && p[0] < c.max[0] && p[1] > c.min[1] && p[1] < c.max[1] && p[2] > c.min[2] && p[2] < c.max[2];
 
-describe('a world\'s cars', () => {
-  it('reads: one, a count, a list of rides; refuses the rest', () => {
-    expect(readCars(undefined)).toBeNull();
-    expect(readCars(true)).toEqual([{ ride: 'car' }]);
-    expect(readCars(2).map((c) => c.ride)).toEqual(Object.keys(RIDES).slice(0, 2));
-    expect(G.cars).toEqual([{ ride: 'coupe' }, { ride: 'coupe' }]);
-    expect(carRides(G.cars)).toEqual(['coupe']);
-    expect(() => readGameworld({ ...WORLD, cars: [{ ride: 'tank' }] })).toThrow(/cars\[0\].ride is/);
-    expect(() => readGameworld({ ...WORLD, cars: 9 })).toThrow(/cars is true, a count/);
+describe('a town\'s cars', () => {
+  it('a world takes no cars key: the cars are its town\'s', () => {
+    expect(() => readGameworld({ ...WORLD, cars: true })).toThrow(/cars/);
   });
-  it('a town level tells its kerb: spots on its road beside its start, a car\'s length apart, clear of every box', () => {
-    expect(E.kerbs.length).toBeGreaterThanOrEqual(2);
-    for (const k of E.kerbs) {
-      expect(E.colliders.some((c) => within([k.at[0], k.at[1], k.at[2] + 0.7], c))).toBe(false);
-      expect(Math.hypot(k.at[0] - E.spawn[0], k.at[1] - E.spawn[1])).toBeLessThan(40);
-    }
-    expect(Math.hypot(E.kerbs[0].at[0] - E.kerbs[1].at[0], E.kerbs[0].at[1] - E.kerbs[1].at[1])).toBeGreaterThan(5);
-    // (the nearest within a walk of the hero, and not on it)
-    const d0 = Math.hypot(E.kerbs[0].at[0] - E.spawn[0], E.kerbs[0].at[1] - E.spawn[1]);
-    expect(d0).toBeGreaterThan(1.2); expect(d0).toBeLessThan(16);
-    expect(Object.keys(E)).not.toContain('kerbs');
+  it('a town level tells the cars it parks: the car shelf\'s cards in their paints, where they stand', () => {
+    expect(E.parked.length).toBeGreaterThan(0);
+    for (const c of E.parked) { expect(CAR_CARDS[c.model]).toBeTruthy(); expect(c.paint).toMatch(/^#[0-9a-f]{6}$/i); }
+    expect(Object.keys(E)).not.toContain('parked');
+    // (the nearest its start first, never more than a cab's count, none beyond its reach)
+    const cars = levelCars(E), d = (c) => Math.hypot(c.at[0] - E.spawn[0], c.at[1] - E.spawn[1]);
+    expect(cars.length).toBeGreaterThan(0); expect(cars.length).toBeLessThanOrEqual(CAB.most);
+    expect(cars.map(d)).toEqual([...cars.map(d)].sort((a, b) => a - b));
+    expect(Math.max(...cars.map(d))).toBeLessThanOrEqual(CAB.far);
+    expect(levelCars({ spawn: E.spawn, parked: [] })).toEqual([]);
   });
-  it('stands each car at a spot: its ride\'s drive rule with a box, a cab, its build its figure', () => {
-    const part = carsExtra(G.cars, (r) => `sk_${r}`, 4)(E);
-    expect(part.entities.map((e) => e.id)).toEqual(['car-1', 'car-2']);
-    const c = part.entities[0];
-    expect(c.rule.type).toBe('drive');
+  it('stands each as a body: its own model and paint its figure, its class\'s drive rule with a box, a cab', () => {
+    const part = carsExtra()(E), cars = levelCars(E);
+    expect(part.entities.map((e) => e.id)).toEqual(cars.map((_, i) => `car-${i + 1}`));
+    const c = part.entities[0], fig = part.figures[c.body.figure];
+    expect(c.rule).toMatchObject({ type: 'drive', vehicle: CAR_CARDS[cars[0].model].class });
     expect(c.rule.collideRadius).toBeGreaterThan(0);
     expect(c.mount).toMatchObject({ cab: true, reach: CAB.reach, slow: CAB.slow });
-    expect(part.figures['car-1']).toMatchObject({ vehicleRef: 'sk_coupe' });
-    expect(c.transform.pos.slice(0, 2)).toEqual(E.kerbs[0].at.slice(0, 2));
-    // (a stage with no road beside its start stands none)
-    expect(carsExtra(G.cars, () => 'x', 4)({ kerbs: [] })).toBeNull();
+    expect(fig).toEqual({ loft: { car: { preset: cars[0].model, paint: { colour: cars[0].paint } }, light: 'form' } });
+    expect(c.transform.pos).toEqual(cars[0].at);
+    // (a stage that parks none stands none)
+    expect(carsExtra()({ spawn: E.spawn, parked: [] })).toBeNull();
   });
-  it('the run mints a ride once and lays the cars in the level; a world without the key has neither', () => {
+  it('the run mints nothing for them and lays them in the level; the town draws every car but those', () => {
     const S = runSteps(WORLD, { ref: 'gw' }), level = S.find((x) => x.key.startsWith('level-')).order.manifest;
-    expect(S.filter((x) => x.key.startsWith('car-')).map((x) => x.key)).toEqual(['car-coupe']);
-    expect(S.find((x) => x.key === 'car-coupe').order.manifest.kind).toBe('assembler');
+    expect(S.some((x) => x.key.startsWith('car-'))).toBe(false);
     const cars = level.entities.filter((e) => e.mount?.cab);
-    expect(cars).toHaveLength(2);
-    expect(level.figures['car-1'].vehicleRef).toBe(S.find((x) => x.key === 'car-coupe').ref);
-    // (the hero still the pilot, on foot, and the level still its own)
+    expect(cars).toHaveLength(levelCars(E).length);
+    for (const c of cars) expect(level.figures[c.body.figure].loft.car.preset).toBeTruthy();
+    // (the hero still the pilot, on foot, made for a monitor, nothing in its hands)
     expect(level.entities.find((e) => e.pilotable)?.id).toBe('hero');
-    // (made for a monitor, and its hero carries nothing: no weapon's figure beside its own)
     expect(level.screen).toBe('screen');
     expect(level.entities.find((e) => e.id === 'hero').weapon).toBeUndefined();
-    const { cars: _c, ...bare } = WORLD, S0 = runSteps(bare, { ref: 'gw' }), L0 = S0.find((x) => x.key.startsWith('level-')).order.manifest;
-    expect(S0.some((x) => x.key.startsWith('car-'))).toBe(false);
-    expect((L0.entities ?? []).some((e) => e.mount)).toBe(false);
+    // (the scene: as many car instances fewer as there are bodies, and the same town without them)
+    const own = Object.fromEntries(Object.entries(stage.manifest).filter(([k]) => GEOTOWN_KEYS.includes(k)));
+    const count = (P) => P.repeats.filter((r) => r.group === 'geotown:car-paint').reduce((a, r) => a + r.transforms.length, 0);
+    const all = assembleGeotownScene(own, {}), less = assembleGeotownScene(own, { driven: cars.map((c) => c.transform.pos) });
+    expect(count(all) - count(less)).toBe(cars.length);
+    expect(less.faces.length).toBe(all.faces.length);
   });
 });
 
@@ -77,15 +73,17 @@ describe('a car driven on the town\'s street (the level\'s own bodies on the run
   const boxed = (e) => E.colliders.some((c) => within([e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + 0.7], c));
   it('the hero walks to the car, gets in, drives down the street on its ground, stops, and gets out on foot', () => {
     // (set down within its reach, as a walk across the pavement leaves it)
-    const K = E.kerbs[0], f = [Math.cos(K.heading), Math.sin(K.heading)], left = [-f[1], f[0]];
+    const K = { at: car.transform.pos.slice(), heading: car.transform.heading }, f = [Math.cos(K.heading), Math.sin(K.heading)], left = [-f[1], f[0]];
     hero.transform.pos = [K.at[0] + left[0] * 2.4, K.at[1] + left[1] * 2.4, E.ground(K.at[0] + left[0] * 2.4, K.at[1] + left[1] * 2.4) ?? K.at[2]];
     run(DT, { interact: 1 }); run(5);
     expect(st.pilotId).toBe('car-1');
     expect(hero.gone).toBe(true);
     const from = car.transform.pos.slice();
-    run(4, { forward: 1 });
-    const went = Math.hypot(car.transform.pos[0] - from[0], car.transform.pos[1] - from[1]);
-    expect(went).toBeGreaterThan(8);
+    // (a town's car is quick and its town small: driven a few car lengths, not for a time)
+    const gone = () => Math.hypot(car.transform.pos[0] - from[0], car.transform.pos[1] - from[1]);
+    for (let i = 0; i < 240 && gone() < 6; i++) run(DT, { forward: 1 });
+    const went = gone();
+    expect(went).toBeGreaterThan(5);
     // (on the town's ground all the way, never through a box)
     const gz = E.ground(car.transform.pos[0], car.transform.pos[1]);
     expect(gz).not.toBeNull();

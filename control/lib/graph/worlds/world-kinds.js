@@ -213,6 +213,9 @@ import { existsSync } from 'node:fs';
 import { loadSharp } from '@/lib/sharp-lazy';
 import { rigSpecies } from '@/lib/graph/mutagen/rig';
 
+// where a played level's driven cars stand (gameworld/cars.js: entities with a cab): the scene draws no parked car there
+const drivenOf = (m) => (Array.isArray(m.entities) ? m.entities.filter((e) => e?.mount?.cab && Array.isArray(e.transform?.pos)).map((e) => e.transform.pos) : []);
+
 const svgDataUrl = (svg) => `data:image/svg+xml;base64,${Buffer.from(String(svg), 'utf8').toString('base64')}`;
 
 // Resolve workbench label-wrap sources → a { key: dataURL } texture map. A source is an inline
@@ -590,7 +593,8 @@ export const WORLD_KINDS = {
       if (m.show === 'geotown') {
         const played = m.entities !== undefined || m.game !== undefined, own = played ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOTOWN_KEYS.includes(k))) : m;
         // (formBuildings: its buildings baked for the form render, form/sun-light.js; a page's read only, the handoff's as it was)
-        const p = assembleGeotownScene(own, { title: ctx.title, ...(ctx.formLit ? { form: true, ...(ctx.handoff ? {} : { formBuildings: true }) } : {}) });
+        // (the cars its hero gets into are the level's bodies, gameworld/cars.js: the town draws the rest)
+        const p = assembleGeotownScene(own, { title: ctx.title, ...(played && drivenOf(m).length ? { driven: drivenOf(m) } : {}), ...(ctx.formLit ? { form: true, ...(ctx.handoff ? {} : { formBuildings: true }) } : {}) });
         return played ? p : attachDummy(p);
       }
       // a side-scroller's strip (era/geocube-side.js): a course skinned in the cube's layers, its land behind it in layers;
@@ -600,7 +604,7 @@ export const WORLD_KINDS = {
       // (formBuildings: its massing baked for the form render, form/sun-light.js; a page's read only, the handoff's as it was)
       // (a game's level stands on one, a district: the level's pilot and its game layered over it by the page, and no
       // stand-in walks it)
-      if (m.show === 'geocity') return (m.entities !== undefined || m.game !== undefined ? (p) => p : attachDummy)(assembleGeocityScene(m.entities !== undefined || m.game !== undefined ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCITY_KEYS.includes(k))) : m, { title: ctx.title, ...(m.entities !== undefined || m.game !== undefined ? { play: true } : {}), ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true, ...(ctx.formLit && !ctx.handoff ? { formBuildings: true } : {}) } : {}) }));
+      if (m.show === 'geocity') return (m.entities !== undefined || m.game !== undefined ? (p) => p : attachDummy)(assembleGeocityScene(m.entities !== undefined || m.game !== undefined ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCITY_KEYS.includes(k))) : m, { title: ctx.title, ...(m.entities !== undefined || m.game !== undefined ? { play: true, ...(drivenOf(m).length ? { driven: drivenOf(m) } : {}) } : {}), ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true, ...(ctx.formLit && !ctx.handoff ? { formBuildings: true } : {}) } : {}) }));
       const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }, assembleStageScene);
       return p.route ? attachDummy(p) : p;
     },

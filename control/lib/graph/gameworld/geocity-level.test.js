@@ -48,10 +48,10 @@ describe('a geocity level', () => {
     const laid = layErrand([{ kind: 'trade', item: 'radio', count: 1, shop: 'electronics' }], [[0, 0, 0]], E.tills);
     expect(laid.find((l) => l.item === 'radio').at).toEqual(t.at);
   });
-  it('tells its kerb: where a car may stand on its road beside its start, clear of every box', () => {
-    expect(E.kerbs.length).toBeGreaterThan(0);
-    for (const k of E.kerbs) expect(E.colliders.some((c) => within([k.at[0], k.at[1], k.at[2] + 0.7], c))).toBe(false);
-    expect(Math.hypot(E.kerbs[0].at[0] - E.spawn[0], E.kerbs[0].at[1] - E.spawn[1])).toBeLessThan(20);
+  it('tells the cars it parks: where each stands, its model and its paint', () => {
+    expect(E.parked.length).toBeGreaterThan(0);
+    for (const c of E.parked.slice(0, 5)) { expect(typeof c.model).toBe('string'); expect(c.paint).toMatch(/^#[0-9a-f]{6}$/i); expect(E.ground(c.at[0], c.at[1])).not.toBeNull(); }
+    expect(Object.keys(E)).not.toContain('parked');
   });
   it('its pads hold a body at their foot: a terrace over its walk is a wall from below, stood on from its level side', () => {
     const pads = E.colliders.filter((c) => c.of.endsWith(':pad'));
@@ -84,18 +84,19 @@ describe('a geocity level', () => {
 });
 
 describe('a car driven in the district (the level\'s own bodies on the runtime, its ground and its boxes)', () => {
-  // the district's game with a hero of its own and a car at its kerb (cars.js)
-  const DRIVEN = { ...WORLD, screen: 'screen', style: { kit: 'trail-valley' }, cars: true,
+  // the district's game with a hero of its own and the cars the district parks (cars.js)
+  const DRIVEN = { ...WORLD, screen: 'screen', style: { kit: 'trail-valley' },
     characters: { direction: { tradition: 'western' }, hero: { looks: { body: { cast: 'male' }, underlayer: { type: 'outfit', style: 'streetwear' } }, motion: { vibe: ['bold'] }, actions: { idiom: 'city-stalker-like' } } } };
   const level = runSteps(DRIVEN, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest;
   const R = composeLive(), DT = 1 / 30, ground = (p) => E.ground(p[0], p[1]);
   const st = R.createWorld({ entities: level.entities, colliders: E.colliders, camera: level.camera });
   const run = (s, input = {}, each = null) => { for (let i = 0; i < Math.max(1, Math.round(s / DT)); i++) { R.stepWorld(st, input, DT, { ground }); if (each) each(); } };
-  it('the hero gets in at the kerb and drives its street: on the road\'s grade all the way, up no pad, into no box', () => {
-    const hero = st.byId.hero, car = st.byId['car-1'], K = E.kerbs[0], f = [Math.cos(K.heading), Math.sin(K.heading)], left = [-f[1], f[0]];
+  it('the hero gets into a car the district parked and drives off: on the ground\'s grade all the way, up no pad, into no box', () => {
+    const hero = st.byId.hero, car = st.byId['car-1'], K = { at: car.transform.pos.slice(), heading: car.transform.heading }, f = [Math.cos(K.heading), Math.sin(K.heading)], left = [-f[1], f[0]];
     expect(car).toBeTruthy();
-    // (every car stands on the road that is the ground there: never one running under a walk or a pad)
-    for (const k of E.kerbs) expect(Math.abs(E.ground(k.at[0], k.at[1]) - k.at[2])).toBeLessThan(0.1);
+    // (the district's lots lie blocks from its start: the car by it is its own fleet's, on the road that is the ground)
+    expect(Math.hypot(K.at[0] - E.spawn[0], K.at[1] - E.spawn[1])).toBeLessThan(20);
+    expect(Math.abs(E.ground(K.at[0], K.at[1]) - K.at[2])).toBeLessThan(0.1);
     hero.transform.pos = [K.at[0] + left[0] * 2.4, K.at[1] + left[1] * 2.4, E.ground(K.at[0] + left[0] * 2.4, K.at[1] + left[1] * 2.4) ?? K.at[2]];
     run(DT, { interact: 1 }); run(5);
     expect(st.pilotId).toBe('car-1');

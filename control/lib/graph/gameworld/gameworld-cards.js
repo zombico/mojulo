@@ -73,7 +73,6 @@ import { MATCH_SPORT_IDS, TURN_SPORT_IDS, TEAM_SPORT_IDS, INNINGS_SPORT_IDS } fr
 import { GENRES, genreCube } from './intent.js';
 import { CONCERNS, concernsOf } from './concerns.js';
 import { RIDES } from './ride.js';
-import { CAB } from './cars.js';
 import { LEVEL_SECTIONS } from '../level/graph.js';
 import { TUNE_KEYS, HERO_MOVE_NAMES, PALETTE as HERO_PALETTE, HERO_CASTS, PROPORTION_WORDS } from '../polygonizer/hero-form.js';
 import { LOOK_TABLES } from '../polygonizer/anime-looks.js';
@@ -947,10 +946,9 @@ function mountsCard() {
     'A world whose levels walk lays them on each; a level whose hero is a car or a craft leaves them standing loose.',
     'The mount lane (`bible?book=practice&room=mount`, before any level) tunes the ride: the gaits, the jump, the fences.',
     'A template that rides (the action-adventure) is suggested two (a `mounts` step in design_game\'s readout), never laid.',
-    `CARS — cars the hero gets into and drives: cars: true | 1…${CAB.most} | [{ ride?: ${Object.keys(RIDES).join(' | ')} }], parked at the kerb beside`,
-    '  where each town and district level starts (a geotown\'s, a geocity\'s). E in reach walks to the driver\'s door and gets in:',
-    '  W throttle, S brake then reverse, A/D steer; E when nearly stopped gets out at the door, on foot again (into a shop:',
-    '  geotown.shops). Each ride is built once by the run. A world with no hero of its own has no one to drive them.',
+    'CARS — a level on a town or a district (a geotown\'s, a geocity\'s) needs none asked for: the cars it parks nearest its\n' +
+    '  start are the hero\'s to get into, each its own model and paint where it stands. E in reach walks to the driver\'s door\n' +
+    '  and gets in: W throttle, S brake then reverse, A/D steer; E when nearly stopped gets out at the door, on foot again.',
   );
 }
 

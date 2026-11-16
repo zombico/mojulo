@@ -74,7 +74,7 @@ import { beastLook } from './stage-figures.js';
 import { kinWords, kinBare, isKin } from '../foes/packs.js';
 import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits, withFoeWin, onBody, peopleRollOf, isPeople, isModel, isDressed, dressOf } from './foes.js';
 import { rideBuild, rideRule } from './ride.js';
-import { carRides, carsExtra } from './cars.js';
+import { carsExtra } from './cars.js';
 import { rideOf, loftCamera } from '../vehicle-registry/ride.js';
 import { vehicleRule, VEHICLES as PHYSICS } from '../roads/vehicles.js';
 import { FLEET } from '../roads/fleet.js';
@@ -362,9 +362,6 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const spec = withReact(react, G.minigames ? MINIGAME_KEEPER : SHOP_KEEPER), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} keeper`, spec };
     steps.push({ key: 'keeper', ref: keeperRef, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec }) });
   }
-  // its cars (cars.js): each ride's build a step, minted once however many cars are that ride; none without the key
-  const carRef = Object.fromEntries(carRides(G.cars).map((r) => [r, childRef(ref, `car-${r}`)])), gameSeed = Number.isInteger(G.seed) ? G.seed : 1;
-  for (const [r, cref] of Object.entries(carRef)) { const build = rideBuild(r, gameSeed); steps.push({ key: `car-${r}`, ref: cref, ready: true, order: { title: build.title, manifest: build }, print: fingerprint({ car: r, seed: gameSeed }) }); }
   const MO = mechanicsOrders(G, B.mechanics, { heroRef });
   if (MO) steps.push({ key: 'systems', ref: childRef(ref, 'systems'), ready: ready.systems.ready, ...waits(ready.systems), order: MO.args, print: fingerprint(MO.args) });
   const EO = equipmentOrders(G, ready.equipment);
@@ -499,8 +496,8 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const hostile = hostileOf(G, s, foeRefs, true, lastOf[s.level] === s.index, hpBase ? onBody([{ kind: 'fail-on-death', hits: LEVEL_GOAL.hit }], hpBase).hurt : null);
     const mintOf = folks[i] ? new Map(folks[i].bodies.mints.map((m) => [m.key, m])) : null;
     const folk = folks[i] ? folkExtra(folks[i], (k) => folkRef[folkMintKey(folks[i], mintOf.get(k))], { shops: market ? hubFolkShops(G) : null }) : null;
-    // (its cars at the kerb, cars.js: a town's and a district's stage)
-    const cars = G.cars && (s.section === 'geotown' || s.section === 'geocity') ? carsExtra(G.cars, (r) => carRef[r], gameSeed) : null;
+    // (the cars its town or district parks, its hero's to get into, cars.js: a walked town's and district's stage)
+    const cars = s.section === 'geotown' || s.section === 'geocity' ? carsExtra() : null;
     const goalCast = (hostile || folk || cars) && !fight && !stall && !market ? GA.goalCast : null;
     const extra = composeExtras(fight, stall, market, goalCast, folk, hostile, cars);
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : {}) } : {};

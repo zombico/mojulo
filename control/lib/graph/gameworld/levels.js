@@ -31,6 +31,8 @@ import { errandLegs, layErrand } from './errand.js';
 import { readGameworld, resolveLevel, looksOfKit } from './world.js';
 import { assembleGeotownScene, GEOTOWN_KEYS } from '../geotown/scene.js';
 import { assembleGeocityScene, GEOCITY_KEYS } from '../geocity/scene.js';
+import { fleetOf, pickOf } from '../geocity/fleets.js';
+import { streamOf } from '../city/plan/dice.js';
 import { SURFACE_IDS as GEOTOWN_SURFACES } from '../geotown/pattern.js';
 import { rollArt, ART_KITS, ART_ITEMS } from '../era/art-direction.js';
 import { solvePalette, fingerprint as printOf } from '../color-theorist/solve.js';
@@ -551,7 +553,7 @@ function mapEnds(manifest) {
 // (and a shop's floor, where the town's shops are walked into: `geotown.shops`)
 const TOWN_GROUND = new RegExp(`^geotown:(${[...GEOTOWN_SURFACES.filter((k) => k !== 'house'), 'floor'].join('|')})$`);
 function geotownEnds(manifest) {
-  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOTOWN_KEYS.includes(k))), P = assembleGeotownScene(own, {});
+  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOTOWN_KEYS.includes(k))), parked = [], P = assembleGeotownScene(own, { parked });
   const route = (P.route ?? []).map((p) => [p[0], p[1], p[2] ?? 0]);
   if (route.length < 2) throw new Error('levels: the town lays no walk round its first block to set the hero down on');
   const ground = groundSampler(P.faces ?? [], TOWN_GROUND), on = (p) => { const z = ground(p[0], p[1]); return [r3(p[0]), r3(p[1]), r3(z ?? p[2])]; };
@@ -572,8 +574,8 @@ function geotownEnds(manifest) {
   const houses = (P.anchors ?? []).filter((a) => a.kind === 'house' && Array.isArray(a.at) && Array.isArray(a.N));
   Object.defineProperty(out, 'townDoors', { value: houses.map((a, n) => ({ id: `town-${a.use}-${n + 1}`, use: a.use, at: a.at, N: a.N, enter: a.store ? 'walk' : null,
     ...(a.store?.keeper ? { rooms: [{ id: 'shopfloor', box: a.store.inside, stand: { at: a.store.keeper.map(r3), face: a.store.till.map(r3) } }] } : {}) })), enumerable: false });
-  // (where a car may stand, cars.js: the kerb of the road beside the walk's start)
-  Object.defineProperty(out, 'kerbs', { value: kerbSpots(route, groundSampler(P.faces ?? [], /^geotown:road$/), P.colliders ?? []), enumerable: false });
+  // (the cars the town parks, cars.js: the ones its hero may get into)
+  Object.defineProperty(out, 'parked', { value: parkedCars(parked), enumerable: false });
   Object.defineProperty(out, 'townLots', { value: houses.map((a, n) => ({ route: 'geotown', side: a.row ?? 'row', s: n, use: a.use })), enumerable: false });
   // (the tills of its shops walked into, geotown.shops: where an errand's trade had in a shop of that kind stands)
   Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.store?.till).map((a) => ({ id: a.id.replace(/^house-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
@@ -587,7 +589,7 @@ function geotownEnds(manifest) {
 // stands on it its boxes; the tills of its shops walked into (geocity.shops)
 const CITY_GROUND = /^geocity:(walk|road|bike|crossing|ground|court|lot|pad|paving|site|park|field|yard|scrub|median|margin|planting|promenade|quay|sand|deck|stoop|floor|platform)$/;
 function geocityEnds(manifest) {
-  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), P = assembleGeocityScene(own, { play: true });
+  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), parked = [], P = assembleGeocityScene(own, { play: true, parked });
   const route = (P.route ?? []).map((p) => [p[0], p[1], p[2] ?? 0]);
   if (route.length < 2) throw new Error('levels: the district lays no walk to set the hero down on');
   const ground = groundSampler(P.faces ?? [], CITY_GROUND), on = (p) => { const z = ground(p[0], p[1]); return [r3(p[0]), r3(p[1]), r3(z ?? p[2])]; };
@@ -602,7 +604,10 @@ function geocityEnds(manifest) {
   Object.defineProperty(out, 'rocks', { value: () => null, enumerable: false });
   Object.defineProperty(out, 'colliders', { value: P.colliders ?? [], enumerable: false });
   Object.defineProperty(out, 'townDoors', { value: [], enumerable: false });
-  Object.defineProperty(out, 'kerbs', { value: kerbSpots(route, groundSampler(P.faces ?? [], /^geocity:road$/), P.colliders ?? [], ground), enumerable: false });
+  // (the cars its hero may get into, cars.js: the ones it parks, and where none stands within a walk of the start, its
+  // own fleet's at the kerb there)
+  const lots = parkedCars(parked), walk = lots.some((c) => Math.hypot(c.at[0] - spawn[0], c.at[1] - spawn[1]) <= KERB.walk);
+  Object.defineProperty(out, 'parked', { value: walk ? lots : [...kerbCars(manifest.seed ?? 1, kerbSpots(route, groundSampler(P.faces ?? [], /^geocity:road$/), P.colliders ?? [], ground)), ...lots], enumerable: false });
   Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && a.store?.till).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
   // (what it weighs: its faces, its boxes, its repeats' templates and instances; said by the level's audit and its book)
   Object.defineProperty(out, 'weight', { value: { faces: (P.faces ?? []).length, colliders: (P.colliders ?? []).length, templates: (P.repeats ?? []).reduce((a, r) => a + r.template.length, 0), instances: (P.repeats ?? []).reduce((a, r) => a + r.transforms.length, 0), shops: P.geocity?.stores?.shops ?? 0 }, enumerable: false });
@@ -611,11 +616,16 @@ function geocityEnds(manifest) {
 // (what plays in a metro is the level's, layered over it by the page: never the district's own settings)
 const CITY_PLAY_KEYS = ['level', 'game', 'entities', 'camera', 'pilot', 'play', 'destruction', 'matter', 'scars', 'wind'];
 
-// WHERE A CAR MAY STAND (a world's `cars`, cars.js): the kerb beside the walk's start. From the spawn, out across the
+// THE CARS A LEVEL'S HERO MAY GET INTO (cars.js): the cars its town or district parks itself, each the car shelf's own
+// card in its own paint where the scene stands it (its nose along +y at rotZ 0, a body's heading from +x). A fleet's
+// lofts and a vehicle with something on its roof stay scenery. → [{ at, heading, model, paint }]
+const parkedCars = (list) => list.filter((c) => !c.model.startsWith('loft:') && !c.extra).map((c) => ({ at: c.pos.map(r3), heading: r3((c.rotZ ?? 0) + Math.PI / 2), model: c.model, paint: c.paint }));
+
+// WHERE A CAR MAY STAND where a district parks none by its start (its lots lie blocks away): the kerb beside the walk's start. From the spawn, out across the
 // walk to the road on whichever side it lies nearer, a car's half width into it; then along the street, a car's length
 // apart, each spot on the road and clear of every box, nose to tail; where a ground is given (`top`), the road is
 // the ground there, never one running under a walk or a pad. → [{ at, heading }], none where no road lies beside the start
-const KERB = Object.freeze({ reach: 14, step: 0.5, into: 1.5, apart: 6.5, most: 4, clear: 1.2 });
+const KERB = Object.freeze({ reach: 14, step: 0.5, into: 1.5, apart: 6.5, most: 3, clear: 1.2, walk: 60 });
 function kerbSpots(route, road, colliders, top = null) {
   if (route.length < 2) return [];
   const [x0, y0] = route[0], hd = Math.atan2(route[1][1] - y0, route[1][0] - x0), f = [Math.cos(hd), Math.sin(hd)], spots = [];
@@ -631,6 +641,12 @@ function kerbSpots(route, road, colliders, top = null) {
     spots.push({ at: [r3(x), r3(y), r3(z)], heading: r3(hd) });
   }
   return spots;
+}
+
+// The district's own cars stood at those spots: each one of its civilian fleet (geocity/fleets.js: the model and the
+// paint the city's dice pick for a car parked there), where no car of its lots stands within a walk of the start.
+function kerbCars(seed, spots) {
+  return spots.map((k, i) => { const v = pickOf(fleetOf('civilian'), streamOf(seed, 'fleet', `kerb:${i}`)); return { at: k.at, heading: k.heading, model: v.model, paint: v.paint }; }).filter((c) => !c.model.startsWith('loft:') && !c.model.startsWith('site:'));
 }
 
 // THE TOWN'S DOORS: for each use the level opens (`enter`), the house of that use whose door stands nearest the walk the
