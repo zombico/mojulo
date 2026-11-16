@@ -33,3 +33,14 @@ or a recipe key; the spike mints through the real doors and measures.
   page is as it was.
 - **The camera back from the eye** (the aim held's pages only): a follow camera is no longer pulled in on what is not
   drawn. The eye's own hands and gun, hidden once the aim leaves the eye, pulled the chase into the hero's back.
+- **Getting over things** (`rule.freeRun`, worlds/controllable/free-run.js, opt-in): the runtime's half of the free-run
+  library, whose vault clips (polygonizer/hero-vault.js) nothing on the runtime played. A body running at a thing no
+  higher than its hip and no deeper than a table goes over it on an arc that clears the top and lands running, with
+  nothing pressed; the jump at a taller thing (to a standing reach) climbs onto its top, or over it where the top is
+  too thin to stand on. Refused where another thing stands at the landing or over the top. A wall laid in courses or
+  crates stacked are one thing. The page plays `vault` and `mantle` (`TRAVERSAL_FALLBACK`: a figure without the clip
+  plays a state it has). It wraps the world's step: every other page keeps every byte.
+- **The infiltration yard runs by default and goes over its cover**: the stick's push is the feel's fast gait with
+  nothing held; its low walls are vaulted out of the run and its stacked crates climbed on the jump. The operative
+  carries the solved clips (`motion: stepVault, speedVault, hurdle`) and the vault plays its step vault; the climb has
+  no clip of its own yet (it plays the jump's start).

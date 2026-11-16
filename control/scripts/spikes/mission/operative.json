@@ -53,5 +53,12 @@
    "nose": "classical",
    "eyes": "almond"
   }
+ },
+ "motion": {
+  "jog": true,
+  "sprint": true,
+  "stepVault": true,
+  "speedVault": true,
+  "hurdle": true
  }
 }
