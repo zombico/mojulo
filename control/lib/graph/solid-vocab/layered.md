@@ -1053,7 +1053,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   the same cloth (each garment one piece over the segments it covers, the layers apart, collars standing, short
   sleeves turned in; its trims, buttons and emblems where the card puts them; a skirt carried down from its body), a
   panel, a cape and a hood still over the skin's envelope; `adorn` and `paint` are worn over the envelope too; an outfit takes off the body's suit (its
-  Top and Bottom paint), so what it leaves bare is skin. Its SKIN is the character's: `skin: { tone, undertone, age,
+  Top and Bottom paint), so what it leaves bare is skin. `stocking: true` keeps that suit under the outfit (a bodystocking in the Top's and the Bottom's
+  own colours), so a gap between two garments at an elbow, a hip or a knee shows their colour, not skin. Its SKIN is the character's: `skin: { tone, undertone, age,
   flush, freckles, oil, lines, dirt, paint, hairColour, … }` (tone an MST swatch 1–10 or a hex; `palette.Skin` is the
   tone when `skin` names none), painted in an export (the GLB's base colour texture) where it shows; skin under what it
   wears keeps the flat base colour. `bake: true` pre-bakes light into its corners (the unlit export): the head's layers

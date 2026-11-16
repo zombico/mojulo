@@ -81,3 +81,11 @@ or a recipe key; the spike mints through the real doors and measures.
 - **The gun hold carries the elbow's crease** (scene/channels/controllable/gunplay-view.js): a hero whose rig has an
   `elbowCrease` bone had the ring of sleeve it carries left where the stride had the arm while the hold moved the arm
   to the gun, floating beside it. The crease now goes with the elbow, as the elbow's fold does.
+- **A bodystocking** (the hero door's `stocking: true`, the realistic body): the body's suit is kept under its outfit,
+  the trunk and the limbs in the Top's and the Bottom's own colours, where an outfit took it off and left skin. A gap
+  between two garments at an elbow, a hip or a knee shows their colour, not skin. The operative wears one.
+- **A climb from the side**: a leg goes onto the ledge first and the body rolls over it, so it stands a little to
+  that side of where it took hold (the right where the top has room there, else the left, else straight). The
+  operative's climb clip is keyed for it.
+- **The chase keeps its distance by anything the body gets over**: it is pulled in neither by a thing it vaults nor by
+  one it climbs, so it does not close in as the body comes up to a crate and is not let out again as it goes up.

@@ -2733,9 +2733,10 @@ function __ground(pos) {
 // nothing below changes. This page drives the keyboard, mouse and standard-mapping gamepad families.
 ${aimView ? `// the aim held (aim-view.js): a body whose camera rides its eye for now is hidden
 const __avHides = (e) => { const r = __world.camera && __world.camera.rule; return !!r && r.type === 'eye' && r.hideTarget === true && r.target === e.id; };
-` : ''}${freeRun ? `// getting over things (free-run.js): the chase is not pulled in on what its body goes over out of the run (a thing no
-// higher than its vault), nor while it climbs
-const __frSkip = (hit) => { const p = __world.pilotId && __world.byId[__world.pilotId], F = p && p.rule && p.rule.freeRun; if (!F) return false; if (p.fr) return true; return hit.point.z < p.transform.pos[2] - (p.rule.eye || 0) + (F.vault ?? 1.15) + 0.1; };
+` : ''}${freeRun ? `// getting over things (free-run.js): the chase is not pulled in on what its body gets over: a thing it vaults out of
+// the run or climbs (its top within the hands' reach of the feet). It neither closes in as the body comes up to such a
+// thing nor is let out again as it goes over or up
+const __frSkip = (hit) => { const p = __world.pilotId && __world.byId[__world.pilotId], F = p && p.rule && p.rule.freeRun; if (!F) return false; const feet = (p.fr ? p.fr.from[2] : p.transform.pos[2] - (p.rule.eye || 0)); return hit.point.z < feet + Math.max(F.vault ?? 1.15, Math.min(F.climb ?? 2.2, F.grab ?? 2.15)) + 0.1; };
 ` : ''}const __CTL = (${buildControlsKernel.toString()})();
 const __SCHEME = ${safeJson(aimView ? SCHEMES.operative : SCHEMES.pilot)};
 const __DEV = ${safeJson({ keyboard: DEVICES.keyboard, mouse: DEVICES.mouse, gamepad: DEVICES.gamepad })};

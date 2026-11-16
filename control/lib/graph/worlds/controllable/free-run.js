@@ -27,7 +27,8 @@
  *            It is solved from the hands: they take the edge and stay on it, and the body is wherever that puts it as
  *            the arms work (HANDS: the hands' height over the feet through the reach, the pull to the chest, the press
  *            to the hips and the step up), so the feet leave the ground only once the arms have drawn up to the edge,
- *            and it comes in over the lip as it presses. The jump is not taken. WHAT IS IN ITS HAND IS PUT AWAY for
+ *            and it comes in over the lip as it presses, FROM THE SIDE: a leg onto the ledge first, the body rolled
+ *            over it, so it stands a little to that side of where it took hold (the right, else the left). The jump is not taken. WHAT IS IN ITS HAND IS PUT AWAY for
  *            the climb (the body's `weapon` null through it, so nothing draws it in a hand that is on the edge), and
  *            is in hand again as it stands.
  *   Either is refused, and the body stops or jumps as it would, when another box stands where it would land or over
@@ -35,7 +36,7 @@
  *
  * The page plays `e.locomotion`: `vault` over a vault, `mantle` up a climb (a figure without the clip plays its
  * fallback, playscape/player.js TRAVERSAL_FALLBACK), `e.gaitPhase` the share of the move done.
- * Field ownership: e.fr ({ kind, t, dur, from, to, top, over, gun }) while a move runs; e.frJump (the press's last
+ * Field ownership: e.fr ({ kind, t, dur, from, to, top, over, gun, side }) while a move runs; e.frJump (the press's last
  * read), e.frPush (the seconds pushed), e.frV (its pace over the ground); the pilot's `weapon` through a climb.
  *
  * Wraps stepWorld (as gunplay.js does), so the pinned pipeline order is untouched. Import-free (the page runs this source
@@ -115,15 +116,23 @@ export function buildFreeRun(E) {
     }
     // a climb: the hands must reach the edge, and there must be room to stand on the top
     if (!jumped || A.h > climbH || A.h > (F.grab ?? 2.15)) return null;
-    const inn = A.tin + rad + Math.min(0.45, Math.max(0.1, deep / 2)), on = [t.pos[0] + d[0] * inn, t.pos[1] + d[1] * inn];
-    if (!free(boxes, on, top, rad, A.set)) return null;
+    // (FROM THE SIDE: a leg goes onto the ledge first and the body rolls over it, so it comes up a little to that side
+    // of where it took hold: the right where there is room on the top there, else the left, else straight)
+    const inn = A.tin + rad + Math.min(0.45, Math.max(0.1, deep / 2)), rt = [d[1], -d[0]];
+    const onAt = (k) => [t.pos[0] + d[0] * inn + rt[0] * k, t.pos[1] + d[1] * inn + rt[1] * k];
+    const under = (q) => boxes.some((b) => A.set.includes(b) && Math.abs(b.max[2] - top) < 0.05 && q[0] >= b.min[0] && q[0] <= b.max[0] && q[1] >= b.min[1] && q[1] <= b.max[1]);
+    const side = [0.3, -0.3, 0].find((k) => under(onAt(k)) && free(boxes, onAt(k), top, rad, A.set));
+    if (side === undefined) return null;
+    const on = onAt(side);
     // (it is taken from the thing's face: the body steps in to it as the hands go up)
     const face = [t.pos[0] + d[0] * Math.max(0, A.tin - 0.02), t.pos[1] + d[1] * Math.max(0, A.tin - 0.02)];
-    return { kind: 'climb', t: 0, dur: 0.9 + 0.45 * A.h, from: [t.pos[0], t.pos[1], feet], face, to: [on[0], on[1], top], top, over: false };
+    return { kind: 'climb', t: 0, dur: 1.0 + 0.5 * A.h, from: [t.pos[0], t.pos[1], feet], face, to: [on[0], on[1], top], top, over: false, side: Math.sign(side) };
   }
   // THE HANDS over the feet through a climb, as its clip plays them: the reach, the hang, the pull to the chest, the
   // press to the hips, the knee up, standing (the hands then at the feet's own height: on the top)
-  const HANDS = [[0, 2.05], [0.2, 2.05], [0.4, 1.6], [0.6, 1.1], [0.8, 0.45], [1, 0]];
+  // (the leg goes onto the ledge at the pull's top, about 0.55 through, the body low beside the edge as it does, then
+  // rolls over the leg onto the top)
+  const HANDS = [[0, 2.05], [0.2, 2.05], [0.4, 1.55], [0.58, 1.25], [0.8, 0.5], [1, 0]];
   const handsAt = (s) => { for (let k = 1; k < HANDS.length; k++) if (s <= HANDS[k][0]) { const a = HANDS[k - 1], b = HANDS[k], u = (s - a[0]) / (b[0] - a[0]); return a[1] + (b[1] - a[1]) * u; } return 0; };
   // where the body is `s` of the way through its move
   function at(M, s) {
@@ -138,6 +147,7 @@ export function buildFreeRun(E) {
     const a = clamp(s / 0.2, 0, 1), inn = clamp((s - 0.55) / 0.45, 0, 1), ka = a * a * (3 - 2 * a), ki = inn * inn * (3 - 2 * inn);
     const x = M.from[0] + (M.face[0] - M.from[0]) * ka + (M.to[0] - M.face[0]) * ki, y = M.from[1] + (M.face[1] - M.from[1]) * ka + (M.to[1] - M.face[1]) * ki;
     return [x, y, Math.max(M.from[2], M.top - handsAt(s))];
+
   }
   E.stepWorld = function stepWithFreeRun(state, input, dt, hooks) {
     const p = state.pilotId ? state.byId[state.pilotId] : null;
