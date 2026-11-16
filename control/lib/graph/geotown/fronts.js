@@ -54,7 +54,7 @@ function baySpan({ W, doorX, doorW }) {
 
 /** The front an evoked house wears: its porch, then its bay. */
 export function frontOf(front = {}, house) {
-  const { W, n, storeyH: sh, doorX, doorW } = house, out = [], Pc = FRONT.porch;
+  const { W, n, storeyH: sh, doorX, doorW } = house, out = [], panes = [], Pc = FRONT.porch;
   // ── the porch: a deck at the floor over the bank before the house, its posts, a slab of roof sloping off the wall ──
   let pd = 0, roofZ = null;
   // (a split house's second door, the upper flat's, beside the first, toward the front's nearer end)
@@ -133,8 +133,17 @@ export function frontOf(front = {}, house) {
     const fr = V.frame ? { hex: V.frame } : {}, sg = V.signHex ? { hex: V.signHex } : {}, aw = V.awningHex ? { hex: V.awningHex } : {};
     for (const [a, b] of gaps) {
       if (b - a < 0.6) continue;
-      out.push({ corners: [P(a, -0.04, 0), P(b, -0.04, 0), P(b, -0.04, zt), P(a, -0.04, zt)], out: [0, -1, 0], role: 'trim', ...fr });
-      out.push({ corners: [P(a + 0.08, -0.06, kick), P(b - 0.08, -0.06, kick), P(b - 0.08, -0.06, zt - 0.1), P(a + 0.08, -0.06, zt - 0.1)], out: [0, -1, 0], role: 'glass' });
+      // (an OPEN shop's, `open`, a shop walked into: its panel only round its glass, the glass seen through, `see`, and
+      // its pane told, `panes`, so the wall behind it is cut)
+      if (V.open) {
+        const g = [a + 0.08, b - 0.08, kick, zt - 0.1];
+        for (const [x0, x1, z0, z1] of [[a, b, 0, g[2]], [a, b, g[3], zt], [a, g[0], g[2], g[3]], [g[1], b, g[2], g[3]]]) out.push({ corners: [P(x0, -0.04, z0), P(x1, -0.04, z0), P(x1, -0.04, z1), P(x0, -0.04, z1)], out: [0, -1, 0], role: 'trim', ...fr });
+        out.push({ corners: [P(g[0], -0.06, g[2]), P(g[1], -0.06, g[2]), P(g[1], -0.06, g[3]), P(g[0], -0.06, g[3])], out: [0, -1, 0], role: 'glass', see: true });
+        panes.push(g);
+      } else {
+        out.push({ corners: [P(a, -0.04, 0), P(b, -0.04, 0), P(b, -0.04, zt), P(a, -0.04, zt)], out: [0, -1, 0], role: 'trim', ...fr });
+        out.push({ corners: [P(a + 0.08, -0.06, kick), P(b - 0.08, -0.06, kick), P(b - 0.08, -0.06, zt - 0.1), P(a + 0.08, -0.06, zt - 0.1)], out: [0, -1, 0], role: 'glass' });
+      }
       const k = Math.max(1, Math.round((b - a) / Sf.mullion));
       for (let i = 1; i < k; i++) { const x = a + ((b - a) * i) / k; out.push({ corners: [P(x - 0.04, -0.08, kick), P(x + 0.04, -0.08, kick), P(x + 0.04, -0.08, zt - 0.1), P(x - 0.04, -0.08, zt - 0.1)], out: [0, -1, 0], role: 'trim', ...fr }); }
       out.push({ corners: [P(a + 0.08, -0.08, zt - 0.62), P(b - 0.08, -0.08, zt - 0.62), P(b - 0.08, -0.08, zt - 0.56), P(a + 0.08, -0.08, zt - 0.56)], out: [0, -1, 0], role: 'trim', ...fr });
@@ -192,5 +201,5 @@ export function frontOf(front = {}, house) {
     out.push(...box(a, -c.d, b, 0, c.z, c.z + 0.16, 'trim'));
     for (const x of [a + 0.15, b - 0.15]) out.push({ corners: [P(x, 0, c.z - 0.6), P(x, 0, c.z), P(x, -c.d * 0.8, c.z)], out: [1, 0, 0], role: 'trim' });
   }
-  return { faces: out, porch: pd };
+  return { faces: out, porch: pd, ...(panes.length ? { panes } : {}) };
 }

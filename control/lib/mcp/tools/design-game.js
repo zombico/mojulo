@@ -44,7 +44,7 @@ import { applyManifestPatch } from './manifest-patch.js';
 import { chapterView } from '@/lib/graph/gameworld/chapter-view.js';
 import { readMainQuest, mainQuestContext, mainQuestReport } from '@/lib/graph/gameworld/main-quest.js';
 import { questPlays, withQuestLevels } from '@/lib/graph/gameworld/main-quest-lay.js';
-import { goalposts } from '@/lib/graph/gameworld/goalposts.js';
+import { goalposts, leadNext, draftAsk, startReadout } from '@/lib/graph/gameworld/goalposts.js';
 import { loopOf, loopLaws } from '@/lib/graph/gameworld/core-loop.js';
 import { compileCheck, planError } from './design-game-check.js';
 import { combatGame } from '@/lib/graph/gameworld/combat/game.js';
@@ -54,6 +54,7 @@ import { juiceOfGame, juiceSuggestion } from '@/lib/graph/gameworld/juice.js';
 import { arsenalOfGame, arsenalSuggestion, heroStrikes } from '@/lib/graph/gameworld/arsenal.js';
 import { roomEligible } from '@/lib/graph/gameworld/practice-room.js';
 import { practiceFor, mountSuggestion, rangeMeasured, rollMeasured } from '@/lib/graph/gameworld/practice.js';
+import { fightsReadout } from '@/lib/graph/gameworld/fights-readout.js';
 import { measureRoom, measuredSummary } from '@/lib/graph/gameworld/feel/measure.js';
 import { fightMeasured } from '@/lib/graph/gameworld/fight-measure.js';
 import { railOfGame } from '@/lib/graph/gameworld/game-bodies.js';
@@ -67,6 +68,9 @@ import { GameworldReqRepository, GameworldReqJobRepository, GameworldAskReposito
 import { STYLES, DIRECTS, checkProduction, postureOf, roleOf, maySettle, checkpointLevels, productionSummary } from '@/lib/graph/gameworld/production.js';
 import { checkAsk, traceStart, traceOf } from '@/lib/graph/gameworld/asks.js';
 import { askAdvice, needsAsk, unaskedStamp, runAdvice, ASK_SAYS } from '@/lib/graph/gameworld/routing.js';
+import { intakeAdvice, intakeReport } from '@/lib/graph/gameworld/intake.js';
+import { manualOrder } from '@/lib/graph/gameworld/battles-manual.js';
+import { treeOrder, treesOf } from '@/lib/graph/gameworld/battles-tree.js';
 import { beatPlan, stagePlan, walkReport } from '@/lib/graph/gameworld/level-plan.js';
 import { beatUnit, beatRemit, questUnits, beatCrew, actUnit, actRemit } from '@/lib/graph/gameworld/quest-reqs.js';
 import { authorPlan, criticPlan, jobsLeft, reissuesLeft, outsideOf, checkSubmit, jobBrief, jobReport, nextOf, jobLines, jobUnit, seatOf } from '@/lib/graph/gameworld/jobs.js';
@@ -548,12 +552,18 @@ function readout(ref, world, context = {}) {
   const rollM = door.rooms.includes('roll') ? rollMeasured(world) : null;
   if (rollM?.dress?.lost.length) next.push({ step: 'roll', dress: rollM.dress.theme, lost: rollM.dress.lost, why: 'the course\'s dress loses a law of its own: an ask is read against the way, the walls and the backdrop, told from the other kind and told ahead; the walls and the backdrop recede behind it', sheet: rollM.dress.sheet, card: 'gameworld-course-dress' });
   if (rollM && (rollM.lost.length || (rollM.forms && !rollM.forms.stops.length))) next.push({ step: 'roll', ...(rollM.lost.length ? { lost: rollM.lost, worst: rollM.worst } : {}), ...(rollM.forms && !rollM.forms.stops.length ? { why: 'no form of cover stops this hero: its feel clears a high wall, so a roll of walls changes little; roll what it cannot go over, or what lies and where it starts' } : {}), card: 'gameworld-roll' });
+  // ITS FIGHTS (gameworld/fights.js): the ones settled in the game room and kept by name, each held to its laws, and whether
+  // they answer everything the kit asks; a world that keeps none is offered one of each kind to play (never laid unasked)
+  const fightsR = door.rooms.includes('room') ? fightsReadout(world) : null;
+  if (fightsR?.suggest) next.push({ step: 'room', room: 'room', fights: fightsR.kinds, url: `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=room&fight=${fightsR.kinds[0]}`, why: fightsR.suggest.why, patch: fightsR.suggest.patch, card: 'gameworld-next' });
+  else if (fightsR && (fightsR.kept.some((f) => f.lost.length) || fightsR.asked?.holds === false)) next.push({ step: 'room', room: 'room', lost: [...fightsR.kept.flatMap((f) => f.lost.map((l) => `${f.name}: ${l}`)), ...(fightsR.asked?.holds === false ? [fightsR.asked.says] : [])], card: 'gameworld-next' });
   // THE FIRST SLICE: the combat room, then the first level. A hero that fights hand to hand plays its room before any
   // level is made: said until one is (the creator's to play; its kit tuned on their notes)
   if (door.rooms.includes('practice') && !Object.keys(world.made ?? {}).some((k) => k.startsWith('level-'))) next.push({ step: 'room', room: 'practice', url: `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=practice`, card: 'gameworld-next' });
   // A WORLD MAP (gameworld/world-map.js): its blocks laid as the floor (the default ways, the scenario's beats on them);
-  // each block's sketch is its author's, then level design's play layer, block by block
-  for (const [id, L] of Object.entries(world.levels ?? {})) if (L?.glyphs?.plan && L.glyphs.sketch?.scenario && L.glyphs.play === undefined) next.push({ step: 'worldmap', level: id, blocks: L.glyphs.plan.route, req: { unit: `level:${id}`, segments: true }, card: 'gameworld-next' });
+  // each block's sketch is its author's, then level design's play layer, block by block. LOOKED AT FIRST: `look`, the map
+  // designer's miniature (gameworld/map-designer.js), before a block is written or a page built
+  for (const [id, L] of Object.entries(world.levels ?? {})) if (L?.glyphs?.plan && L.glyphs.sketch?.scenario && L.glyphs.play === undefined) next.push({ step: 'worldmap', level: id, blocks: L.glyphs.plan.route, look: `/api/sketches/${encodeURIComponent(ref)}/bible?book=map&level=${encodeURIComponent(id)}`, req: { unit: `level:${id}`, segments: true }, card: 'gameworld-next' });
   if (mountsSuggest) next.push({ step: 'mounts', suggest: mountsSuggest.suggest, why: mountsSuggest.why, patch: [{ op: 'set', path: '/mounts', value: mountsSuggest.suggest }], card: 'gameworld-mounts' });
   // none written: the template its brief, its shooter pole or its genre points at, suggested (a default is written, never laid)
   const feelSuggest = feel ? null : feelSuggestion(world);
@@ -609,7 +619,23 @@ function readout(ref, world, context = {}) {
   // a book that stands on an intent with no ask on the ledger (gameworld/routing.js): said, and the ask leads
   const unasked = askAdvice(world, { asked: GameworldAskRepository.list(ref).length > 0 });
   if (unasked) { advice.intent = [unasked.says]; next.unshift(unasked.next); }
-  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(MQ ? { mainQuest: (({ laws: _l, ...r }) => r)(MQ) } : {}), ...(loop ? { loop } : {}), ...(feel ? { feel: { ...feel, ...(measured ? { measured } : {}) } } : {}), ...(arsenal ? { arsenal } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(door.rooms.length ? { practice: { rooms: Object.fromEntries(door.rooms.map((r) => [r, `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=${r}`])), ...(rangeM || rollM ? { measured: { ...(rangeM ? { range: rangeM } : {}), ...(rollM ? { roll: rollM } : {}) } } : {}) } } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), ...(combatGame(world) && world.made?.game?.ref ? { combatBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=combat` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(chapters.length ? { chapters } : {}), ...(Object.keys(made).length ? { made } : {}), ...(audits ? { audits } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}), ...(told.notes?.length ? { notes: told.notes.map((n) => ({ moment: n.id, script: n.script, says: n.notes.map((x) => `${x.id}: ${x.says} ${x.try}`) })) } : {}) } } : {}), next };
+  // a book nobody has asked yet what its creator brought (gameworld/intake.js): said, the producer's step leading,
+  // before the first goalpost (after the ask where one is owed: the ticket is what the work stands on); what was
+  // brought, once recorded, is read back beside the goalposts
+  const unread = intakeAdvice(world);
+  if (unread) { advice.intake = [unread.says]; next.splice(unasked ? 1 : 0, 0, unread.next); }
+  const brought = (() => { try { return intakeReport(world); } catch { return null; } })();
+  // a lore part on a page is an order its chapter runs (gameworld/battles-manual.js): a manual on the battles, said with
+  // how deep it has been taken; the rungs still derived are the battles chapter's next pass
+  const manual = (() => { try { return world.battles?.manual !== undefined ? manualOrder(world.battles.manual) : null; } catch { return null; } })();
+  if (manual?.open.length) { advice.lore = [`the battles' manual is at its ${manual.rung}: its ${manual.open.join(' and ')} ${manual.open.length === 1 ? 'is' : 'are'} derived (the polarity gives the affinities, the roles the levels); write them to make them yours`]; next.push({ step: 'lore', part: 'manual', at: manual.rung, open: manual.open, chapter: 'battles', card: 'gameworld-battles' }); }
+  // (and its skill trees, battles-tree.js: each school a class, its order and its costs derived while it says none)
+  const trees = (() => { try { return world.battles?.tree !== undefined ? treesOf(world.battles.tree).map(treeOrder) : []; } catch { return []; } })();
+  for (const T of trees.filter((t) => t.open.length)) {
+    (advice.lore ||= []).push(`the battles' tree '${T.id}' is at its ${T.rung}: its ${T.open.join(' and ')} ${T.open.length === 1 ? 'is' : 'are'} derived (learned rank by rank as written, dearer the deeper); write them to make them yours`);
+    next.push({ step: 'lore', part: 'tree', id: T.id, at: T.rung, open: T.open, chapter: 'battles', card: 'gameworld-battles' });
+  }
+  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(brought ? { intake: brought } : {}), ...(manual || trees.length ? { lore: { ...(manual ? { manual } : {}), ...(trees.length ? { trees } : {}) } } : {}), ...(MQ ? { mainQuest: (({ laws: _l, ...r }) => r)(MQ) } : {}), ...(loop ? { loop } : {}), ...(feel ? { feel: { ...feel, ...(measured ? { measured } : {}) } } : {}), ...(arsenal ? { arsenal } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(door.rooms.length ? { practice: { rooms: Object.fromEntries(door.rooms.map((r) => [r, `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=${r}`])), ...(rangeM || rollM ? { measured: { ...(rangeM ? { range: rangeM } : {}), ...(rollM ? { roll: rollM } : {}) } } : {}), ...(fightsR ? { fights: fightsR } : {}) } } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), ...(combatGame(world) && world.made?.game?.ref ? { combatBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=combat` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(chapters.length ? { chapters } : {}), ...(Object.keys(made).length ? { made } : {}), ...(audits ? { audits } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}), ...(told.notes?.length ? { notes: told.notes.map((n) => ({ moment: n.id, script: n.script, says: n.notes.map((x) => `${x.id}: ${x.says} ${x.try}`) })) } : {}) } } : {}), next };
 }
 
 /** The verdicts as the review to write. */
@@ -734,6 +760,9 @@ export async function designGameHandler(input, context = {}) {
   if (quick !== undefined && written !== undefined) throw new Error('design_game: `quick` writes the world itself; pass the world\'s own settings (id, name, style …) beside the goal as quick.world, or a whole `world` without quick');
   // the interpreter (gameworld/compose.js): a few words read into a whole world, stored as `world` is
   if (compose !== undefined && (written !== undefined || patch !== undefined || quick !== undefined)) throw new Error('design_game: `compose` writes the world from its words; give it alone, then edit the world with `patch`');
+  // THE START (goalposts.js startReadout): a new book with no level yet is answered with what to ask, never refused;
+  // nothing is stored (a gameworld begins with its first level)
+  if (written !== undefined && given === undefined && isObj(written) && written.levels === undefined && patch === undefined) return startReadout({ ...written, ...(title && written.name === undefined ? { name: title } : {}) });
   // a hero named by its name (a named hero, create_character spec.name) is found on this machine: its ref is written
   const quickQ = quick !== undefined && isObj(quick.hero) && quick.hero.name !== undefined ? { ...quick, hero: { ref: namedHeroRef(quick.hero.name, quick.hero.ref) } } : quick;
   // (a composed world's cast is PAINTED against its ground (gameworld/colour.js paintedCast): its palette stamped here,
@@ -1392,6 +1421,10 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   });
   const posts = (() => { try { return goalposts({ world: W, chapters: full.chapters ?? [], parts: full.parts ?? [], mainQuest: full.mainQuest ?? null, made: W.made ?? {}, compile: full.compile ?? null, reqs: levelReqs }); } catch { return null; } })();
   if (posts) full.goalposts = posts;
+  // the goalpost's question in `next` (goalposts.js leadNext): the list and the goalposts say the same move, and a game
+  // built with design goalposts open is said to be a draft
+  const drafted = !!posts && !W.quick && posts.next?.goalpost !== 'first-level';
+  full.next = leadNext(full.next, posts, { mode: W.mode ?? 'gated', quick: !!W.quick, made: !!W.made?.game, brought: isObj(W.intake) && Array.isArray(W.intake.items) && W.intake.items.length > 0 });
   // the ticket: what this call did, linked to the intent it acted on (gameworld/asks.js)
   const ticket = ask !== undefined ? linkAsk(ref, ask, { raised: ledger.summary?.raised ?? [], approve, revise, patched, ran }) : null;
   if (ticket) full.ask = ticket;
@@ -1438,7 +1471,8 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   }
   // the run that made (or remade) the game completed it: the whole share offer rides this call, once
   const completed = W.made?.game && ran?.some((r) => r.key === 'game' && (r.action === 'make' || r.action === 'remake'));
-  const share = completed ? { share: shareForContext(context, { ref: W.made.game.ref }) } : {};
+  const offer = completed ? shareForContext(context, { ref: W.made.game.ref }) : null;
+  const share = offer ? { share: drafted ? { ...offer, draft: true, ask: draftAsk(posts) } : offer } : {};
   // one chapter: the whole readout projected onto it (a department's view; the share offer rides it as it rides the whole)
   if (chapter) {
     // a unit's own req (the live one asked for it): its remit, its precedent, its budget

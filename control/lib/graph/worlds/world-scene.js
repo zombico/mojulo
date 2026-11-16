@@ -1986,6 +1986,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // Absent: every byte as it was.
   if (payload && sketch.manifest.grade != null && sketch.manifest.grade !== false) { const G = readGrade(sketch.manifest.grade); if (G) payload.grade = G; }
 
+  // the STYLE METER (worlds/controllable/style.js): how well the pilot fights, read off the world each step; the page
+  // composes it only then. Absent: every byte as it was.
+  if (payload && sketch.manifest.styleMeter != null && sketch.manifest.styleMeter !== false) payload.styleMeter = sketch.manifest.styleMeter === true ? {} : sketch.manifest.styleMeter;
   // the WORLD CLOCK (worlds/controllable/world-clock.js): moments that slow or hold a live world on what happens in it, the
   // camera keeping real time; the page composes the clock only then. Absent: every byte as it was.
   if (payload && sketch.manifest.tempo != null && sketch.manifest.tempo !== false) { const T = readTempo(sketch.manifest.tempo); if (T) payload.tempo = T; }

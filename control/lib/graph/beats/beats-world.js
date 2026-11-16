@@ -240,7 +240,8 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     audioSpec = {
       ...audioSpec,
       sfx: { cues, ...(Object.keys(on).length ? { on } : {}), vary: sheet.vary !== false, ...(sheet.mix !== undefined ? { mix: sheet.mix } : {}) },
-      footsteps: audioSpec.footsteps ?? kept({ step: slot('step', 'step'), jump: slot('jump', 'jump'), land: slot('land', 'land') }),
+      // (`sheet.steps.gain`: a step's level beside the other cues, sound-sheet.js STEP_GAIN)
+      footsteps: audioSpec.footsteps ?? { ...kept({ step: slot('step', 'step'), jump: slot('jump', 'jump'), land: slot('land', 'land') }), ...(Number.isFinite(sheet.steps?.gain) ? { gain: sheet.steps.gain } : {}) },
       weapon: audioSpec.weapon ?? kept({ shot: slot('shot', 'shoot'), hit: slot('hit', 'hit'), reload: slot('reload', 'reload') }),
       ...(moves ? { moves } : { strike: audioSpec.strike ?? kept({ swing: slot('swing', 'swing'), hit: slot('strike', 'strike') }) }),
       dodge: audioSpec.dodge ?? slot('dodge', 'dodge'),
@@ -310,6 +311,7 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
       step: f.step || DEFAULT_FOOTSTEPS.step,
       jump: f.jump || DEFAULT_FOOTSTEPS.jump,
       land: f.land || DEFAULT_FOOTSTEPS.land,
+      ...(Number.isFinite(f.gain) ? { gain: f.gain } : {}),
     };
   }
 

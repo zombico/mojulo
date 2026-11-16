@@ -801,7 +801,10 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // export line (they had no route in) and the OBSERVE row's camera words for forge_motion's shoot.
   // Grown 2026-10-19 (8_830 -> 8_880; measured 8,836 widest cell, studio+plain+reflective): the GAME row names
   // create_pixelizer_game (a match-3 saga), the arcade-board routing card's entry, which had no route in.
-  const MODE_CEILINGS = { studio: 8_880 };
+  // Grown 2026-11-15 (8_880 -> 9_060, for one line): a Guards line for a visitor
+  // with no ask yet (the four starts, and a game's first session running to its first level played), which had no
+  // route in: the index dispatched an ask and said nothing to the agent whose operator has none.
+  const MODE_CEILINGS = { studio: 9_060 };
 
   // A representative pulse: a workshop with something in every bucket. The
   // empty-workshop variant is shorter, so this is the honest worst case.

@@ -51,6 +51,8 @@ import { composeExtras } from './stage-figures.js';
 import { stageFolk, folkExtra, folkMintKey, placeSidequests } from './folk-cast.js';
 import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots, skirmishStages, bookEpochs, epochDraw, MAP_DOTS } from './board-levels.js';
 import { gauntletCast } from './gauntlet-cast.js';
+import { carriedBlade, genreHero, rowGaits } from './hero-rows.js';
+import { layTasks, tasksCast } from './tasks.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane, stageTitle, sheathedSpec } from './levels.js';
 import { bindStory } from './story.js';
 import { storyCinematics, flowToRefs } from './game-flow.js';
@@ -195,13 +197,6 @@ function shellUi(G) {
   if (G.ui === undefined) { const look = courseLook(G); return look ? { ui: { theme: look } } : {}; }
   return { ui: { theme: interfaceLook(G).theme, ...(G.ui.languages ? { languages: G.ui.languages } : {}), ...(G.ui.language ? { language: G.ui.language } : {}) } };
 }
-/** The look a world's first obstacle course is dressed for (its dress's `ui`: a preset's name, or a card's theme), or null. */
-function courseLook(G) {
-  const id = (G.ids ?? []).find((k) => G.levels[k]?.obstacles);
-  if (!id) return null;
-  const named = DRESS_THEMES[readDress(G.levels[id].obstacles.dress).theme].ui;
-  return !named ? null : THEMES[named] ? named : cardTheme(named);
-}
 // a level's sounds where the game is on the sound sheet (sound-sheet.js levelSheet): a game with a `sound` of its own
 // hears it on every level it builds; one without builds its levels as it did
 const sheetOf = (G, s, score = null) => {
@@ -235,6 +230,13 @@ const withCues = (steps, game, runScore, G, ref) => { const C = gameCues(runScor
 // a game's cue sheet for a run (cue-sheet.js), its identity the game's own from its ref; null for a game with no `music`
 const scoreOfRun = (world, G, ref) => (onScore(G) ? { world, sheet: cueSheet(world, { game: seedOfRef(childRef(ref, 'game')) }) } : null);
 
+/** The look a world's first obstacle course is dressed for (its dress's `ui`: a preset's name, or a card's theme), or null. */
+function courseLook(G) {
+  const id = (G.ids ?? []).find((k) => G.levels[k]?.obstacles);
+  if (!id) return null;
+  const named = DRESS_THEMES[readDress(G.levels[id].obstacles.dress).theme].ui;
+  return !named ? null : THEMES[named] ? named : cardTheme(named);
+}
 export function childRef(ref, part) {
   const plain = `${ref}-${part}`;
   if (plain.length <= REF_MAX) return plain;
@@ -306,6 +308,8 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   if (Q) {
     // the motion's gaits and clips ride; the stand that shows the gear (HOLD_STAND) wins over the motion's own
     const spec = { ...Q.spec, ...(hero.motion && !edited ? motionFields(hero.motion) : {}), ...(Q.spec.gesture ? { gesture: Q.spec.gesture } : {}), ...(edited ? rowSurfaces(lookup.head) : {}) };
+    // (its genre's hero row's blade: hero-rows.js carriedBlade; an adopted hero's gear is its own)
+    if (!adopted && spec.gear) spec.gear = carriedBlade(G, spec.gear);
     // an adopted hero's light is its own row's (create_character's `toon`), not the tradition's
     const toon = adopted ? lookup?.head?.toon : hero.mint.toon;
     const { toon: _t, ...mint } = hero.mint;
@@ -380,7 +384,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   // plays the ones it was made with)
   const ownMoves = react ? Object.fromEntries([...(adopted ? [] : [heroRef]), ...(equipped ? [equipped.ref] : []), ...(foeRef && ownFoe && !beastLook(G.battles.foe) ? [foeRef] : []), ...(keeperRef ? [keeperRef] : [])].map((r) => [r, REACT_STATES])) : null;
   if (ownMoves && adopted) { const st = reactStatesOf(isObj(lookup?.heroSpec?.motion) ? Object.keys(lookup.heroSpec.motion) : []); if (st) ownMoves[heroRef] = st; }
-  const heroGaits = gaitsOf(equipped ? equipped.order.spec : adopted ? lookup?.heroSpec : { ...hero.spec, ...(hero.motion ? motionFields(hero.motion) : {}) });
+  const heroGaits = rowGaits(adopted ? null : G, gaitsOf(equipped ? equipped.order.spec : adopted ? lookup?.heroSpec : { ...hero.spec, ...(hero.motion ? motionFields(hero.motion) : {}) }));
   // a building by ref is played as it was made: its ref is the level, and no step makes it
   const stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
   const runScore = scoreOfRun(world, G, ref);
@@ -627,6 +631,11 @@ function goalArgs(G, s, lastOf, ref, { fought = false } = {}) {
   if (!goal && !foes) return {};
   const last = lastOf[s.level] === s.index;
   let own = {};
+  // its TASKS (tasks.js): its fights laid in its building's rooms, the wave gauntlet over them the level's end
+  if (goal?.tasks) {
+    const L = layTasks(G, s.level, s);
+    return L.mechanic ? { goal: () => [{ ...L.mechanic, audit: L.audits[0] }] } : {};
+  }
   if (goal) {
     const boss = goal.boss ? childRef(ref, 'foe') : null;
     const guards = goal.guards ? { guards: { ref: childRef(ref, 'guard'), posts: (ends) => guardPosts({}, ends) } } : {};
@@ -637,7 +646,7 @@ function goalArgs(G, s, lastOf, ref, { fought = false } = {}) {
   // one); a stage they do not reach plays its goal as before. On a stage the party battles are fought on, the battle's
   // own fail-on-death is the level's end: the foes stand and are cleared, their hits taking no second hp
   const mech = (ends) => levelGoalMechanics(goal ?? {}, ends, { last });
-  return { ...own, goal: (ends) => (foePlacements(G, s.level, { ...ends, node: s.node }).length ? withFoeWin(G, s.level, { ...ends, node: s.node }, fought ? mech(ends) : withFoeHits(mech(ends))) : mech(ends)) };
+  return { ...own, goal: (ends) => (foePlacements(G, s.level, { ...ends, node: s.node }).length ? withFoeWin(G, s.level, { ...ends, node: s.node }, fought ? mech(ends) : withFoeHits(mech(ends), { bar: !!genreHero(G) })) : mech(ends)) };
 }
 /** The bestiary's figures (foes.js): a beast for each entry some level stands, at `<ref>-foes-<id>`, made through the
  * animal door with its skin's oozes (a person dressed as a crew's through the hero door), in the WORLD'S LOOK (cast-setting.js settingOfGame: its tradition's light, and what
@@ -690,7 +699,8 @@ const hostileOf = (G, s, refs, hero, last = false, hurt = null) => {
   const rail = s.manifest?.kind === 'geocube' && s.manifest.show === 'side' ? { length: s.manifest.side.length } : null;
   const own = G.levels[s.level]?.foes !== undefined ? (ends) => hostileCast(G, s.level, { ...ends, node: s.node }, { refs, hero, ...(hurt ? { hurt } : {}), ...(rail ? { rail } : {}) }) : null;
   const gauntlet = last && G.levels[s.level]?.goal?.gauntlet ? (ends) => gauntletCast(G, s.level, ends, { refs, hero }) : null;
-  return composeExtras(own, gauntlet);
+  const tasks = G.levels[s.level]?.goal?.tasks ? () => tasksCast(G, s.level, s, { refs, hero }) : null;
+  return composeExtras(own, gauntlet, tasks);
 };
 // the base of the stat the systems bind to the hero's body's hp (mechanics.js: bodies.hpMax), or null where none is bound
 const bodyHpBase = (M) => { const S = M?.play?.stats, id = S?.bodies?.hpMax; return id ? S.stats.find((x) => x.id === id)?.base ?? null : null; };
@@ -739,9 +749,9 @@ function worldSteps(world, G, ref, composite) {
   if (C.stages.length) {
     const links = gameLinks(C.stages, C.refs), theme = paletteTheme(G);
     const gameBare = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(C.stages, C.refs, C.map), ...(G.megaworld ? { atlas: atlasOf(G.megaworld, C.stages, C.refs) } : {}), ...(coreOf(G.megaworld, C.stages, C.refs) ? { final: coreOf(G.megaworld, C.stages, C.refs) } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}), ...(G.hud ? { hud: G.hud } : {}) };
-    const game0 = withCues(steps, gameBare, runScore, G, ref);
     // (a world that STARTS IN PLAY, as one laid from a sentence does: flow.js startInPlay over the flow its levels and
     // front make; it has no story yet, so its opening cutscene is the empty slot, passed at once)
+    const game0 = withCues(steps, gameBare, runScore, G, ref);
     const flow0 = G.flow === FLOW_IN_PLAY ? startInPlay(defaultFlow(game0)) : null;
     // (THE SET-UP, setup.js: what is asked before a level loads)
     const flowS = G.setup ? withSetup(flow0 ?? defaultFlow(game0), G.setup) : flow0;

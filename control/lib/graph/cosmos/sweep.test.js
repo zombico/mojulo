@@ -145,9 +145,13 @@ describe('sweep', () => {
     // eras require chapters, which are built: a built prerequisite is neither needed nor priced
     expect(reg.time.passage.values.eras.requires).toEqual(['time.chapters=overlays']);
     expect(reg.time.chapters.values.overlays.status).toBe('built');
-    // (the draw that prices eras alone: since 11-04 the time facet's main-quest settings move the rolls, and seed 1's draw
-    // prices eras inside the main quest's same maps instead, below)
-    const r2 = sweep({ n: 300, seed: 2, around: 'story-adventure' });
+    // (the draw that prices eras alone and the main quest's same maps beside them: a facet growing a setting moves the
+    // rolls (11-04 the main quest's, 11-15 the cube's lore, people and colour), so the seed is found, the first whose
+    // draw touches both, never written)
+    const touches = (r, id) => r.unlock.packages.some((p) => p.id === id);
+    const r2 = Array.from({ length: 24 }, (_, i) => sweep({ n: 300, seed: i + 1, around: 'story-adventure' }))
+      .find((r) => touches(r, 'time.passage=eras') && touches(r, 'time.periods=same-maps'));
+    expect(r2, 'a draw near the story adventure that touches eras and same maps').toBeTruthy();
     const eras = r2.unlock.packages.find((p) => p.id === 'time.passage=eras');
     expect(eras).toMatchObject({ needs: [], cost: 8 });
     // and an absent prerequisite is needed and priced in: the main quest's same maps at another period wait on eras

@@ -7,8 +7,9 @@
  *   JON (worried): I kept everything.        a PARENTHETICAL before the colon: the line's face, an emotion
  *                                            (face-acting/emotions.js), else a note on the line
  *   Mara crosses to the window.              DIRECTIONS (a line with no cue): an actor `crosses to` (or `walks to`,
- *   Jon turns to Mara.                       `moves to`) a mark; `turns to` an actor or a mark; `looks at` an actor or
- *   Mara looks at the door.                  a mark (till the next line); `waits` (a beat, or `waits 2 seconds`)
+ *   Jon turns to Mara.                       `moves to`) a mark, or another actor (up to them, a conversation's
+ *   Mara looks at the door.                  distance short); `turns to` an actor or a mark; `looks at` an actor or
+ *                                            a mark (till the next line); `waits` (a beat, or `waits 2 seconds`)
  *   Mara waits.
  *   Slow motion.                             TIME (shoot/time.js, the screen's clock, never the scene's): `slow
  *   Real time.                               motion` (at a speed: `slow motion 0.1`) until `real time` (or `normal
@@ -76,7 +77,8 @@ export function parseScreenplay(script, { cast = {}, marks = {} } = {}) {
       if (kind === 'wait') beats.push({ kind, who: w, seconds: m[2] ? Number(m[2]) : WAIT });
       else {
         const to = target(m[2], at);
-        if (kind === 'cross' && !to.mark) throw new Error(`screenplay: ${at}: ${w} crosses to a mark, not to '${m[2]}' (marks: ${Object.keys(marks).join(', ') || 'none'})`);
+        // (a cross is to a mark, or up to another actor: scene.js stops it a conversation's distance short of them)
+        if (kind === 'cross' && to.actor === w) throw new Error(`screenplay: ${at}: ${w} crosses to a mark or to another actor, not to '${m[2]}' (marks: ${Object.keys(marks).join(', ') || 'none'})`);
         beats.push({ kind, who: w, to });
       }
       return;

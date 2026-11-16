@@ -29,6 +29,12 @@ const PINS = {
   food: '4b70deeb1d2b32a0',
   homewares: '23ef74a50512e3af',
   'wine-bar': 'b3d67bcd73205937',
+  // (the street's cards, new with the shops walked into: pinned as first built)
+  convenience: 'f240c68c5d2e57bb',
+  diner: '2c09333dabced948',
+  'gun-store': 'b77aa40d6a75c383',
+  pawn: 'ac99afda02cb715f',
+  pharmacy: '7511657582e85919',
 };
 const hash = (faces) => createHash('sha256').update(JSON.stringify(faces)).digest('hex').slice(0, 16);
 

@@ -32,7 +32,7 @@
  */
 
 import { buildGameStoreKernel } from './store-kernel.js';
-import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD, MSG_SEATS, MSG_SHOWN, MSG_CARD_DONE, MSG_SCENE_END } from './level-contract.js';
+import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_MENU, MSG_GAMEPAD, MSG_SEATS, MSG_SHOWN, MSG_CARD_DONE, MSG_SCENE_END } from './level-contract.js';
 import { FONTS, FONT_IDS, STYLE_TOKENS, hexToRgba } from './hud-widgets.js';
 import { THEMES } from '../../mana-ui/theme.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
@@ -42,6 +42,7 @@ import { FRONT_CSS, frontConfig, playFrontRuntime } from './play-front.js';
 import { readScreen, screenPayload } from './screen.js';
 import { buildFlowKernel, defaultFlow, readFlow } from './flow.js';
 import { buildTurnKernel, turnOf, TURN_KEYS } from './turn.js';
+import { playCineRuntime } from './play-cine.js';
 import { shellManaConfig, shellManaCss, shellManaScript } from './play-shell-mana.js';
 
 const CTL = buildControlsKernel();
@@ -131,7 +132,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ...(manifest.run ? { run: { length: manifest.run.length, ...(manifest.run.repeat ? { repeat: true } : {}) } } : {}),
     // the result's stingers (music.victory / music.defeat, resolved to srcs): absent, no key
     ...(stingers && (stingers.victory || stingers.defeat) ? { stingers: { victory: stingers.victory || null, defeat: stingers.defeat || null } } : {}),
-    wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, gamepad: MSG_GAMEPAD, seats: MSG_SEATS, shown: MSG_SHOWN, cardDone: MSG_CARD_DONE, sceneEnd: MSG_SCENE_END, ...(links ? { door: MSG_DOOR } : {}) },
+    wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, menu: MSG_MENU, gamepad: MSG_GAMEPAD, seats: MSG_SEATS, shown: MSG_SHOWN, cardDone: MSG_CARD_DONE, sceneEnd: MSG_SCENE_END, ...(links ? { door: MSG_DOOR } : {}) },
     pauseButtons: PAUSE_BUTTONS,
     // THE FRONT (play-front.js): a title over a cover, the start menu, options, credits, the end; absent, no key
     ...(manifest.front ? { front: frontConfig(manifest.front, frontArt, { levels: levelTable.length, run: !!manifest.run }) } : {}),
@@ -144,6 +145,9 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   };
   // (with mana-ui the front's words are drawn by it: the front's own sheet and code stay out)
   const mana = !!cfg.mana, front = !!cfg.front && !mana;
+  // A CUTSCENE PLAYED AS A VIDEO (flow.js: a cinematic's `film` or `video`, play-cine.js): its player is inlined only in
+  // a game whose flow has one. Absent: not a byte of it
+  const cine = Object.values(cfg.flow.steps || {}).some((s) => s && s.kind === 'cinematic' && (s.film !== undefined || s.video !== undefined));
   // THE SCREEN (screen.js): the game is made for a phone, a tablet or a monitor; its levels hold the frame, and the shell
   // fills the device to its edges with its chrome clear of the notch and the home bar, its buttons a thumb's size.
   // Absent: no attribute, no rule, the page as it was
@@ -221,7 +225,8 @@ ${bareHud ? '  @media (hover:hover) and (pointer:fine){#pauseBtn{display:none!im
 <div id="toast" role="status"></div>
 <script>${front ? `
 const __mojFront = (${playFrontRuntime.toString()});` : ''}${mana ? `
-${shellManaScript()}` : ''}
+${shellManaScript()}` : ''}${cine ? `
+const __mojCine = (${playCineRuntime.toString()});` : ''}
 const K = (${buildGameStoreKernel.toString()})();
 const __mojFlowK = (${buildFlowKernel.toString()})();${hasTurns ? `
 const __mojTurnK = (${buildTurnKernel.toString()})();` : ''}
@@ -256,6 +261,8 @@ export function playShellRuntime(cfg, K) {
   // THE FLOW (flow.js): what plays when. Every screen's buttons and every level's end are events the flow steps on;
   // `at` is the step the game is on and the level last played
   const FK = __mojFlowK, FLOW = cfg.flow;
+  // (a game whose flow plays a video has its player inlined, play-cine.js; any other has none)
+  const CINE = typeof __mojCine === 'function' ? __mojCine({ go: (e) => go(e), show: (n) => show(n), app, here: () => at }) : null;
   // THE TURNS (turn.js): a level step that says picks or a trigger is run as a turn; `turn` is the one being played
   // ({ T, lv, from, s: the kernel's state, draft: a pick of several, being made })
   const TK = typeof __mojTurnK === 'object' ? __mojTurnK : null, TURNS = cfg.turns || {};
@@ -590,7 +597,9 @@ export function playShellRuntime(cfg, K) {
     const d = e.data;
     if (!d || !session || e.source !== frame.contentWindow) return;
     if (d.moj === W.seats) { seatList = Array.isArray(d.seats) ? d.seats : []; if (paused) renderPause(); return; }
-    if (d.moj === W.controls) { ctlRows = Array.isArray(d.rows) && d.rows.length ? d.rows : null; if (paused) renderPause(); return; }
+    if (d.moj === W.controls) { ctlRows = Array.isArray(d.rows) && d.rows.length ? d.rows : null; if (paused && !(MANA && screen === 'level')) renderPause(); return; }
+    // the menu asked for from inside the level (Esc there, or the captured mouse let go by it): the pause opens
+    if (d.moj === W.menu) { if (!paused && screen === 'level') setPaused(true); return; }
     // the level's first frame drawn: the veil lifts (a level from before game-shown lifts it a moment after it is ready)
     if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); if (session && !session.t0) session.t0 = performance.now(); turnReady(); signal('shown'); return; }
     // the scene the flow staged here has ended (or the level had none, or it never started): the flow goes on, the page
@@ -719,6 +728,9 @@ export function playShellRuntime(cfg, K) {
     pauseEl.appendChild(s);
   }
   pauseBtn.addEventListener('click', () => setPaused(!paused));
+  // Esc on the shell's own page (the level's frame not in focus) opens the pause over a level; with the pause up, Esc
+  // is the menu's own back (mana-ui's, which resumes), or closes the shell's panel
+  window.addEventListener('keydown', (e) => { if (e.key !== 'Escape' || e.repeat || screen !== 'level') return; if (!paused) setPaused(true); else if (!MANA) setPaused(false); });
   // each pad's start on its own press edge: any pad opens the pause, only the one that opened it closes it
   const padPrev = {};
   (function padPoll() {
@@ -938,6 +950,7 @@ export function playShellRuntime(cfg, K) {
   function enter(next, more) {
     const m = more || {}, s = FLOW.steps[next.step], was = at, again = againTurn;
     againTurn = false;
+    if (CINE) next = CINE.arrive(next, s, at);
     at = next;
     clearTimeout(holdTimer); clearTimeout(idleTimer); holdUntil = null; idleAfter = 0;
     if (s.kind === 'level') {
@@ -965,6 +978,8 @@ export function playShellRuntime(cfg, K) {
     // a cinematic: seen from now on (an opening plays on a first boot)
     seenSteps[next.step] = 1;
     try { storage.setItem(SEEN_KEY, JSON.stringify(seenSteps)); } catch (e) { /* session only */ }
+    // a cutscene played as a video (play-cine.js): over the game, on no level's page
+    if (CINE && CINE.play(next, s)) return;
     // A CUTSCENE with no directed scene: its video over the shell, left as it ends, fails or is skipped (a key or a
     // tap, once it has been up a moment); with no video either the slot is empty, and it is passed at once
     if (s.kind === 'cutscene' && !s.scene) {

@@ -461,7 +461,18 @@ const DESCRIPTION_ALLOWLIST = {
 // and list_cooks folded into get_stash and get_cook (no ref: the list), and the housekeeping tools (mint / rename /
 // drawer / update / archive, recommend_kind, sketch_stash, forge_publications) cut to routing grade; three leave the
 // allowlist. Two tools off the list, no behaviour changed.
-const PAYLOAD_CEILING = 179_900;
+// Raised 2026-11-13 on 1113-animation-studio-infra (179_900 -> 180_100; measured 179,992) for the scene film:
+// forge_motion's `subject.screenplay` (a scene acted by its cast, shot by its coverage, filmed in Blender) and its shot
+// motion 'coverage'. An argument on the door that owns the film intent rather than a new tool; the manual is the
+// `scene-film` motion-vocab card, its description fit inside forge_motion's own pin by a trim.
+// Raised 2026-11-13 on 1113-animation-studio-infra (180_100 -> 180_400; measured 180,306) for the film studio:
+// forge_motion's `film` argument (a film of scenes written, approved and run: storyboard, animatic, blender) and the
+// screenplay's world_ref / voice / dub named in its subject. Arguments on the door that owns the film intent, not a new
+// tool (a direct_film door waits on gate 2b); the manuals are the `scene-film` and `film-studio` motion-vocab cards.
+// Raised 2026-11-14 on 1113-animation-studio-infra (180_400 -> 180_500; measured 180,403) for the film shot in mojulo:
+// `film` as a screenplay's export and a film's run (the scene played on its set's own World page, a video with no other
+// program). Three words on the door that owns the film intent; the manuals carry the rest.
+const PAYLOAD_CEILING = 180_500;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

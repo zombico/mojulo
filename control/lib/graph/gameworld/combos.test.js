@@ -127,8 +127,8 @@ describe('the arsenal', () => {
 // THE WEAPON CYCLE (combat-melee.js r.weapons): the cycle steps to the next weapon between moves, its own string, reach
 // and damage; the fist shows the sheathed hero, in combat too (rules-platform.js combat)
 describe('stepping through the weapons', () => {
-  const armed = () => {
-    const W = lowerArsenal(BASIC_ARSENAL);
+  const armed = (over = {}) => {
+    const W = lowerArsenal({ ...BASIC_ARSENAL, ...over });
     const w = createWorld({ entities: [
       { id: 'p', rule: { type: 'platform', eye: 0, speed: 6, strike: 'melee', strikeReach: 1.6, strikeDamage: 2, strikeContact: [0.44, 0.52], weapons: W, moveset: W[0].moveset, moveClips: true, combat: { near: 10, far: 15, linger: 3, speed: 2.4, stride: 1.6, drawn: 'hero', sheathed: 'hero-sheathed' } }, body: { type: 'figure-rig', figure: 'hero-sheathed' }, transform: { pos: [0, 0, 0], heading: 0 } },
       { id: 'foe', team: 'foes', body: { type: 'box', size: [0.6, 0.6, 1.8], hittable: true, hp: 1e6, poise: 1 }, rule: { type: 'static' }, transform: { pos: [1.4, 0, 0], heading: Math.PI } },
@@ -158,5 +158,40 @@ describe('stepping through the weapons', () => {
     A.step({ fire: 1 }); A.step(); A.step({ cycle: 1 });
     expect(A.p.mvWeapon).toBe('sword');
     expect(A.log[A.log.length - 1]).toMatchObject({ beat: 'cycle', verdict: 'dropped' });
+  });
+  // THE SWITCH CANCEL (an arsenal's `switch: 'cancel'`): the cycle mid-swing is held to the move's switch point, the
+  // rest of the move cut, the next weapon's string opened on the press that was waiting, the count carried on
+  it('a switch cancel chains one weapon\'s string into the other\'s', () => {
+    const A = armed({ switch: 'cancel' }), M = lowerArsenal({ ...BASIC_ARSENAL, switch: 'cancel' })[0].moveset, cut = M.moves['cut-1'];
+    expect(M.swap).toBe(true);
+    expect(lowerArsenal(BASIC_ARSENAL)[0].moveset.swap).toBeUndefined();
+    A.step({ fire: 1 }); A.step(); A.step({ cycle: 1 });
+    expect(A.log[A.log.length - 1]).toMatchObject({ beat: 'cycle', verdict: 'held' });
+    expect(A.p.mvWeapon).toBe('sword');
+    // (stepped to just before the cancel: still the sword's move; a light pressed there waits)
+    let f = 0;
+    while (A.p.swingT != null && A.p.swingT < cut.cancel - 0.08 && f++ < 200) A.step();
+    expect(A.p.mvWeapon).toBe('sword');
+    A.step({ fire: 1 });
+    for (let k = 0; k < 12 && A.p.mvWeapon === 'sword'; k++) A.step();
+    expect(A.p.mvWeapon).toBe('fist');
+    // (the switch and the waiting press are taken on one frame: the press's is the one the frame says last)
+    expect(A.log[A.log.length - 1]).toMatchObject({ beat: 'L', verdict: 'taken' });
+    expect(A.log[A.log.length - 1].why).toMatch(/an opener: jab/);
+    for (let k = 0; k < 6; k++) A.step();
+    // the fist's opener plays at once, as the string's second blow
+    expect(A.clips[A.clips.length - 1].replace(/_still$/, '')).toBe('mv_fist_jab');
+    expect(A.p.mvHit).toBe(2);
+    expect(A.p.body.figure).toBe('hero-sheathed');
+  });
+  it('a finisher is switched out of once its blow is done, never before', () => {
+    const A = armed({ switch: 'cancel' }), M = lowerArsenal({ ...BASIC_ARSENAL, switch: 'cancel' })[0].moveset, H = M.tree.H.move, mv = M.moves[H];
+    expect(mv.cancel).toBe(1);
+    A.step({ heavy: 1 }); A.step(); A.step({ cycle: 1 });
+    let before = null;
+    for (let k = 0; k < 200 && A.p.mvWeapon === 'sword'; k++) { before = A.p.swingT; A.step(); }
+    expect(A.p.mvWeapon).toBe('fist');
+    expect(before).toBeGreaterThanOrEqual((mv.contact ? mv.contact[1] : 0.52) - 0.05);   // (its blow's end: the rule's contact where the move names none)
+    expect(before).toBeLessThan(1);
   });
 });

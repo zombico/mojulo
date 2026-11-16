@@ -234,7 +234,7 @@ if (__AUDIO.footsteps) {
         if (ctrl.pilotId && e.id !== ctrl.pilotId) continue;
         const last = __gaitLast[e.id] || (__gaitLast[e.id] = { ix: 0, jumped: false, landed: false });
         const ix = Math.floor((e.gaitPhase || 0) * 2);
-        if (e.moving && e.grounded !== false && ix !== last.ix) __beatsCue(__AUDIO.footsteps.step);
+        if (e.moving && e.grounded !== false && ix !== last.ix) __beatsCue(__AUDIO.footsteps.step, __AUDIO.footsteps.gain);
         if (e.jumped && !last.jumped) __beatsCue(__AUDIO.footsteps.jump);
         if (e.landed && !last.landed) __beatsCue(__AUDIO.footsteps.land);
         last.ix = ix; last.jumped = !!e.jumped; last.landed = !!e.landed;

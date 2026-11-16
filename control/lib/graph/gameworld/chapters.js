@@ -47,14 +47,14 @@ const C = (id, department, name, { paths = [], parts = [], steps = [], cards = [
 
 /** The book's chapters, in the order a book is written (every chapter after the ones it reads). */
 export const CHAPTERS = Object.freeze([
-  C('intent', 'production', 'What game it is', { paths: ['/id', '/name', '/seed', '/intent', '/brief', '/gameBrief', '/backdrop', '/quick', '/loop'], parts: ['intent'], cards: ['gameworld-guide', 'gameworld-brief', 'gameworld-intent', 'gameworld-intent-*', 'gameworld-quick'], outcome: 'intent' }),
+  C('intent', 'production', 'What game it is', { paths: ['/id', '/name', '/seed', '/intent', '/brief', '/gameBrief', '/backdrop', '/intake', '/quick', '/loop'], parts: ['intent'], cards: ['gameworld-guide', 'gameworld-producer', 'gameworld-brief', 'gameworld-intent', 'gameworld-intent-*', 'gameworld-quick'], outcome: 'intent' }),
   C('world', 'worlds', 'The world', { paths: ['/style', '/civilizations', '/grade'], parts: ['world', 'nature', 'civilizations', 'key', 'tech:*'], cards: ['gameworld-world', 'gameworld-colour'], reads: ['intent'], outcome: 'world' }),
   C('main-quest', 'production', 'The main quest', { paths: ['/mainQuest'], cards: ['gameworld-main-quest'], reads: ['intent', 'world'] }),
   C('levels', 'worlds', 'The levels', { paths: ['/levels', '/links', '/start', '/hub', '/topology', '/megaworld', '/wcd', '/qow', '/roll', '/room'], parts: ['level:*'], steps: ['level-*', 'map-*'], cards: ['gameworld-wcd', 'gameworld-course', 'gameworld-qow', 'gameworld-roll', 'gameworld-course-dress', 'gameworld-side-scroll'], reads: ['world', 'main-quest'], outcome: 'levels' }),
   C('direction', 'characters', 'The direction', { paths: ['/characters/direction'], parts: ['characters:direction'], cards: ['gameworld-direction'], reads: ['intent', 'world'], outcome: 'characters' }),
   C('hero', 'characters', 'The hero', { paths: ['/characters/hero'], parts: ['hero:body', 'hero:head', 'hero:hair', 'hero:colour', 'hero:base'], steps: ['hero'], cards: ['gameworld-looks'], reads: ['direction'], outcome: 'characters' }),
   C('motion', 'play', 'The motion', { paths: ['/characters/hero/motion', '/moves'], parts: ['hero:motion'], cards: ['gameworld-motion'], reads: ['hero'], outcome: 'characters' }),
-  C('feel', 'play', 'The feel and the juice', { paths: ['/feel', '/arsenal', '/juice', '/tempo'], cards: ['gameworld-feel', 'gameworld-juice'], reads: ['intent', 'motion'] }),
+  C('feel', 'play', 'The feel and the juice', { paths: ['/feel', '/arsenal', '/juice', '/tempo', '/fights', '/loadout', '/styleMeter'], cards: ['gameworld-feel', 'gameworld-juice'], reads: ['intent', 'motion'] }),
   C('actions', 'play', 'The actions', { paths: ['/characters/hero/actions'], parts: ['hero:actions'], cards: ['gameworld-actions'], reads: ['intent', 'hero', 'main-quest'], outcome: 'characters' }),
   C('adornment', 'characters', 'The adornment', { paths: ['/characters/hero/adornment'], parts: ['hero:adornment'], steps: ['hero-equipped', 'hero-sheathed'], cards: ['gameworld-adornment'], reads: ['hero', 'actions'], outcome: 'characters' }),
   C('systems', 'play', 'The systems', { paths: ['/mechanics'], parts: ['mechanics:*'], steps: ['systems'], cards: ['gameworld-systems'], reads: ['hero', 'actions', 'motion'], outcome: 'systems' }),

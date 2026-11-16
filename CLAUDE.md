@@ -7,15 +7,23 @@ comments, docs, or the changelog: plans are working documents that move to
 
 ## What this is
 
+In one line: a modular 3D creative studio, built for agents to help a person make content that is composable, editable
+and theirs for good. Every tool, rail and composition is an assistive guide toward that. Game makers before us turned
+their craft into words ("concepts": a core loop, a walled-core dungeon, game feel); mojulo binds those words to code that
+runs the same way every time, so an agent writes a recipe in them and mojulo reads it as the detail of a character or a
+world. For games the goal is to take a person from nothing to a first level they can play:
+[docs/zero-to-level-one.md](docs/zero-to-level-one.md).
+
 A local MCP server with a dashboard that turns the operator's agent into a 3D creative studio: 3D objects, characters,
 environments, interactive worlds and even playable games, exported to the person's desktop. Inside, the agent works
-through seven departments: worlds and levels (art direction, light, set pieces, cities planned for play),
+through its departments (`DEPARTMENTS` in `gameworld/chapters.js` is the list): worlds and levels (art direction, light, set pieces, cities planned for play),
 characters, props and vehicles (`create_character`, `mint_solid`), play modes, animation and sound (`create_game`, feel,
 juice, `create_beats`), foes and bosses, cinematics (the actor: a persona's `style` and `role`, scenes and their coverage,
 `forge_motion`, the scenes card; craft in [docs/cinematics.md](docs/cinematics.md)), and game design and
-production (`design_game`, the bibles, plans and sweeps), which ties the rest into a game, and interface and UX (menus, a
-game's front and screen; its runtime is mana-ui, below; newest, so not yet in the README or the `get_substrate` drawer,
-which join it once a game's UI runs on mana-ui). The audit and the engine legs
+production (`design_game`, the bibles, plans and sweeps), which ties the rest into a game, interface and UX (menus, a
+game's front, screen and HUD; its runtime is mana-ui, below), level design (each block's play layer) and music (the
+score and the audio direction). The last three are the newest and are not yet in the README or the `get_substrate`
+drawer: a designed game's menus, pause, HUD and touch pad now run on mana-ui, so they are due there. The audit and the engine legs
 are how everything holds up, not departments. Every department writes into one tiny deterministic recipe (a `sketches`
 row) that regenerates on every read and exports to the web, a team's engine (Godot, Unity, Unreal, Blender), GLB, STL,
 3MF, USD, which is why a game's bible, its levels and its export agree. Play, Print, Read, Hear and Observe are what
@@ -26,6 +34,20 @@ It makes single-player and couch-multiplayer games (online is out of scope) for 
 whole game end to end on the web (`export_game`); developers and teams get a handoff of assets, animation and levels to
 their engine, with the recipe and its bible as the team's design source and the web build as the prototype that
 validated the loop (the `engine-handoff` theme).
+
+The game rails take a person with an idea or a sketch from 0 to level 1. Every rail, studio tool and geocube
+orchestration serves that: decide the characters, validate the loop, build the level, tune the play, run it in a shell
+that links to the next level. The first session's goalposts ([goalposts.js](control/lib/graph/gameworld/goalposts.js))
+are that path, and `design_game`'s readout says which is next. Level 1 is proved by the machine gate and approved by
+the person, who plays it: it is the game they want to play. The level played as a turn (set-up, load, play, pause,
+results: `game/turn.js`, mana-ui drawing it) is most games and the default to build toward; an open world (the quest
+open world, a world map) is a different paradigm and is said to be. A new operator with no ask is offered four starts
+(a character, a game, an object, a 3D exhibit) by the `initialize` preamble; for a game the agent expects
+attachments (drawings, plans, docs) and knows what to do with each, where it would otherwise guess from the start;
+the loop runs on what is missing. That step is the producer's ([intake.js](control/lib/graph/gameworld/intake.js), the
+`gameworld-producer` card: the seat that runs the work beside the director, who decides, and the assistant director,
+who holds a unit to its remit): a gameworld's `intake` records each thing brought as placed or set aside, never
+dropped, and the readout says which goalposts it answered. A new kind of material is a row of `INTAKE_KINDS`.
 
 Two audiences, one truth. The README, the plugin and the manifests speak to the person (the 3D creative studio): they
 open broad, show the pieces it makes from the easy (an object) up to the hard (a game), and say what the person gets,
@@ -227,7 +249,7 @@ Pointers only; each target carries its own design notes.
   `musculature/`; the socket each brow drawing carries: `anime-sockets.js`.
 - What it wears: the wearable libraries [footwear/](control/lib/graph/footwear/), [handwear/](control/lib/graph/handwear/) and
   [plating/](control/lib/graph/plating/) (card → passes → laws → adapter; a new look is a card): [docs/plating.md](docs/plating.md).
-  On the head, [headgear/](control/lib/graph/headgear/): the cards (masks, cowls, eyegear, helmets) worn by the hero door's
+  On the head, [headgear/](control/lib/graph/headgear/): the cards (masks, cowls, eyegear, helmets, circlets and hats) worn by the hero door's
   `headgear` word, and the helmets by tradition an outfit's `language.head` wears; a new look is a card.
 - Arms: [equipment/arms/](control/lib/graph/equipment/arms/) (modern and future guns and knives for the gen-7 look: a
   model row and its builder → tunable parts → a finish card, held to the laws in `laws.js`; a new look is a finish card,
@@ -270,7 +292,7 @@ Pointers only; each target carries its own design notes.
 - Vegetation: [vegetation/](control/lib/graph/vegetation/) (grown trees, palms, bamboo; pooled like `rock-pool.js`);
   read [docs/vegetation.md](docs/vegetation.md) before changing a preset or a level of detail.
 - The game book's chapters: [gameworld/chapters.js](control/lib/graph/gameworld/chapters.js) (each page a chapter in one of
-  the seven departments: the recipe paths, review parts, run steps and cards it owns, and the chapters it reads; a new one
+  the departments: the recipe paths, review parts, run steps and cards it owns, and the chapters it reads; a new one
   that joins no chapter fails `chapters.test.js`). `design_game`'s readout says them (`chapters`); `{ ref, chapter }`
   is one chapter's view ([gameworld/chapter-view.js](control/lib/graph/gameworld/chapter-view.js)), a department's; the
   studio card (`gameworld-studio`, generated from the registry) teaches the agent to work them in waves.
@@ -283,7 +305,7 @@ Pointers only; each target carries its own design notes.
   read through bindings and never copied, a form that is a tree of data, a function that is cue effects; greybox first,
   styles a layer over it, `theme.js`, a world's guide reaching it through `playscape/ui/mana-theme.js`; a new look is a theme card in `playscape/ui/theme-cards/`, a game's `ui` dressed by the interface chapter in `playscape/ui/interface-look.js`; the shared screens and HUD parts as compositions in `idioms-*.js`, all drawn live by the
   wireframe board, `board.js`; imports nothing outside its folder; a view that reads no device: the controls layer drives
-  it, `controls/mana-host.js`): [docs/mana-ui.md](docs/mana-ui.md). Its first surface: the RPG's battles, party menu and
+  it, `controls/mana-host.js`): [docs/mana-ui.md](docs/mana-ui.md). Its surfaces: a designed game's title, set-up picks, pause, result, HUD and touch pad (`game/play-shell-mana.js`, `game/hud-mana.js`), the tabletop and board pages, and the RPG's battles, party menu and
   shops, a spec in `playscape/rpg/rpg-ui.js` hosted by the page's RPG channel.
 - Combat: [gameworld/combat/](control/lib/graph/gameworld/combat/) (a made game's player and foe measured on its runtime:
   movement against its feel's card, each gun's rounds to drop the foe, cone, climb, marks by matter, switching; the gym
@@ -300,8 +322,8 @@ Pointers only; each target carries its own design notes.
 - Game feel: [gameworld/feel/](control/lib/graph/gameworld/feel/) (the action lab's cards and templates, a gameworld's
   `feel` lowered onto the hero's platform rule, its suggestions, the feel book); the lab and its gate are
   `control/scripts/spikes/action-lab/` (`verify.mjs` holds the lowered rule to the lab's numbers). How a hero swings a
-  blade (an arsenal's `art`: realistic, inspired, freestyle): [docs/sword-arts.md](docs/sword-arts.md). A game's play
-  tried before its levels (the action and platform rooms, the mount lane, the firing and artillery ranges, chosen by how
+  blade (an arsenal's `art`: `SWORD_ARTS` in `polygonizer/hero-swing-body.js`): [docs/sword-arts.md](docs/sword-arts.md). A game's play
+  tried before its levels (the action and platform rooms, the mount lane, the firing and artillery ranges, the roll room, the work room and the game room, chosen by how
   it plays): [gameworld/practice.js](control/lib/graph/gameworld/practice.js), [docs/practice-rooms.md](docs/practice-rooms.md).
 - Title cards: [game/title-carve.js](control/lib/graph/game/title-carve.js) (a HUD banner `as: 'title'`: its words carved
   by [motion/glyph-carver.js](control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,
@@ -342,6 +364,12 @@ Pointers only; each target carries its own design notes.
   own shader, so they light nothing else; one key a page). Its clients: a fight's and a brawl's bodies under a register,
   the hero a player pilots on a form page, a vehicle's form body. It is light only: a body moves as its client moves it.
   [docs/hero-form-light.md](docs/hero-form-light.md).
+- The animation studio (a FILM of scenes: one cast, sets, a look, an edit; a sketch of kind `film`, its page its book):
+  [film/](control/lib/graph/film/) (the recipe, its departments and their waves, the readout, the book), the door
+  `forge_motion`'s `film` and `subject.screenplay` ([tools/film.js](control/lib/mcp/tools/film.js),
+  [tools/scene-film.js](control/lib/mcp/tools/scene-film.js): a scene's storyboard and animatic, its voice, dub and set,
+  the film shot natively as a video, its Blender film pack as the high-end version; a cutscene another studio orders,
+  `film/order.js`); craft in [docs/cinematics.md](docs/cinematics.md).
 - The game's colour: [gameworld/colour.js](control/lib/graph/gameworld/colour.js) (the bridge from a game to the colour
   theorist: its cast read as figures on its ground, `color-theorist/figures.js`, kept in their hue families; the ways it
   could be oriented, `color-theorist/directions.js`, each a patch; the colour book, `/bible?book=colour`; a new kind of

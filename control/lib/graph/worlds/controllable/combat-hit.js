@@ -215,6 +215,8 @@ export function buildCombatHit(E) {
     // carries none: without this, a blade or a round that took it to 0 left it standing, and its level never failed)
     if (!Number.isFinite(tg.poise)) { if (dead && !tg.downed && !tg.noDestroy) { tg.downed = true; tg.moving = false; } return; }
     if (dead) kind = 'topple';
+    // (`rule.topple: false`: a body that is never floored while it lives: a knockdown reels it, as any other blow)
+    else if (kind === 'topple' && tg.rule && tg.rule.topple === false) { kind = 'stagger'; force = false; }
     const inKnockdown = tg.staggerT != null && (tg.reactClip === 'topple' || tg.reactClip === 'downpause' || tg.reactClip === 'getup');
     // COMBO path (comboCfg): a non-toppling hit on an upright / reeling / airborne target RE-ARMS
     // the stun at the combo's decayed length and feeds the juggle. A toppling hit on an airborne

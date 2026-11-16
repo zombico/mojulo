@@ -293,8 +293,11 @@ describe('the sword arts', () => {
     return { nodes, grip: P(g.sockets.grip.origin), end: P(g.sockets.tip?.origin || g.sockets.focal?.origin), head: [0, 1, 2].map((k) => (nodes.headBase[k] + nodes.headTop[k]) / 2) };
   };
   const cases = [['chop', 'sword', 'normal'], ['rising', 'sword', 'normal'], ['cleave', 'greatsword', 'heavy']];
-  it('names its registers', () => expect(SWORD_ARTS).toEqual(['realistic', 'inspired', 'freestyle']));
-  for (const art of ['inspired', 'freestyle']) for (const [word, item, cls] of cases) {
+  it('names its registers', () => expect(SWORD_ARTS).toEqual(['realistic', 'inspired', 'freestyle', 'wild']));
+  // (every art is held to the laws: a new register is a new style, and a style can break a leg's reach or take the blade
+  // through the head)
+  const ARTS_HELD = SWORD_ARTS.filter((a) => a !== 'realistic');
+  for (const art of ARTS_HELD) for (const [word, item, cls] of cases) {
     it(`${art} ${word}: every key's legs reach, the blade clear of the head and the floor`, () => {
       const hero = heroOf(item), R = validateRig(expandLayeredManifest({ kind: 'layered', hero }).recipe.rig), [g] = gearMounts(hero, R);
       const keys = swingBody(word, cls, swingClipKeys(word, cls, { base: STRUCTURED_SWING_BASE }), R, rigNodesAt, art);
@@ -312,7 +315,7 @@ describe('the sword arts', () => {
   }
   // (and between the keys: an art's clip, eased through its held anticipation and its fast cut, keeps the blade off the
   // head and out of the floor at every sample; one forehand, the two-handed cleave, the low upswing)
-  for (const art of ['inspired', 'freestyle']) it(`${art}: the blade clear of the head and above the floor all through its clips`, () => {
+  for (const art of ARTS_HELD) it(`${art}: the blade clear of the head and above the floor all through its clips`, () => {
     const hero = heroOf('sword'), R = validateRig(expandLayeredManifest({ kind: 'layered', hero }).recipe.rig), [g] = gearMounts(hero, R);
     const M = lowerCombos(BASIC_COMBOS), ctx = { R, cls: 'normal', base: STRUCTURED_SWING_BASE, grip: [], own: 'chop', body: true, style: art, timing: artTiming('normal', art), contact: CONTACT, layeredClip, rigNodesAt, plantedFoot, swingClipKeys, fitSwing, swingPhases, HELD_SWINGS: MOVE_SWINGS };
     for (const id of ['cut-1', 'cleave', 'launcher']) {
@@ -338,7 +341,7 @@ describe('the sword arts', () => {
     expect(followOf('inspired').facing).toBeLessThan(followOf('freestyle').facing);
   });
   it('the timing holds the anticipation at the cock and the finish at the follow-through, the strike inside its window', () => {
-    for (const art of ['inspired', 'freestyle']) {
+    for (const art of ARTS_HELD) {
       const T = artTiming('normal', art), N = 6;
       expect(T.strike).toBeGreaterThan(T.window[0]);
       expect(T.strike).toBeLessThan(T.window[1]);

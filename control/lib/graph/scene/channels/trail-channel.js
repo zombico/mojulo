@@ -16,7 +16,8 @@ import { safeJson } from '../emit-util.js';
  *           the floor's drawings a second (held on twos)
  *   sheen   (material) a short faint added smear, the colour barely there
  *
- * A hand holding nothing (its farthest point within a hand's reach of its wrist) leaves none. Emitted only where a
+ * A hand holding nothing (its farthest point within a hand's reach of its wrist) leaves none, and so does a hand of a body
+ * that is not drawn (a hero's other figure, kept and animated beside the one shown: its blade's while the fist is out). Emitted only where a
  * composed floor carries a trail; the characters' bodies are exposed for it (effect-rim.js bodiesWanted).
  *
  *   swingTrailScript(trail)   the page's block: __stepSwing()
@@ -52,6 +53,8 @@ function __swMake(m, P, keep) {
   return L;
 }
 let __swSeen = -1, __swTick = -1, __swGi = 0;
+// (drawn: itself and everything it hangs from)
+const __swShown = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
 function __stepSwing() {
   const W = window.__mojCtrl && window.__mojCtrl.world, B = window.__mojCtrl && window.__mojCtrl.bodies; if (!W || !B) return;
   let n = 0; for (const id in B) n += B[id] ? 1 : 0;
@@ -74,7 +77,7 @@ function __stepSwing() {
     // fast enough: past the game type's floor and the look's share of this swing's running peak (decaying, so the next
     // swing finds its own)
     L.peak = Math.max(speed, (L.peak || 0) * Math.exp(-dt / 2));
-    const fast = speed >= __swT.min && speed >= __swT.fast * L.peak;
+    const fast = speed >= __swT.min && speed >= __swT.fast * L.peak && __swShown(L.m);
     if (fast) {
       // a trail beginning starts where the blade was a sample ago, so the first span already sweeps (on twos, a long one)
       if (!L.moving && L.prev) L.pts.unshift({ ...L.prev, t0: now });

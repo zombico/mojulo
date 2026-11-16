@@ -130,6 +130,10 @@ describe('motion/blender-film — the declared atmosphere', () => {
       expect(py, word).toContain(word);
     }
     expect(py).toContain("o.name.startswith('light:')");      // mojulo's imported lamps are not the operator's lights
+    // a scene's weather: the sun through cloud, the sky under it, the air, and what falls (made of geometry nodes whose
+    // points' heights are a function of the frame, so any frame renders alone)
+    for (const word of ["atm.get('weather')", "W.get('sky')", "W.get('air')", "precip(W, 'rain')", "precip(W, 'snow')", 'GeometryNodeInputSceneTime', 'FLOORED_MODULO']) expect(py, word).toContain(word);
+    expect(py).not.toMatch(/particle_system|ptcache/);
     expect(py).toMatch(/if yours and not force:/);
   });
 });
