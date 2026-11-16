@@ -29,6 +29,8 @@
  *                                    offered for; absent: every platformer's) }
  *   PLATFORMER_TURN                  { 2d, 3d }: the turn's phases as each game plays them (the readout's and the card's)
  *   PLATFORMER_LOOK                  the theme card both are drawn in (`ui.theme`)
+ *   PLATFORMER_BODY                  the body its hero is made on: the mascot's (chibi), written on a character book
+ *                                    that names none (the patch's `/characters/direction/body`); a named one is kept
  *   platformerFlow(dimension)        → the flow it says, in the world's level ids
  *   platformerFront(dimension)       → the start menu that flow is entered through
  *   platformerGame({ dimension?, pole?, id?, name?, seed?, kit?, boss?, camera? })
@@ -88,6 +90,11 @@ export const PLATFORMER_TURN = Object.freeze({
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const poleOfFeel = (f) => (typeof f === 'string' ? f : isObj(f) && typeof f.pole === 'string' ? f.pole : null);
 const readDimension = (d) => { if (!FIRST_LEVEL_DIMENSIONS.includes(d)) throw new Error(`platformer: dimension is ${Object.entries(PLATFORMER_DIMENSIONS).map(([k, v]) => `${k} (${v.after})`).join(' or ')}`); return d; };
+
+/** The body its hero is made on (game-bodies.js, the character book's `direction.body`): the mascot's, a big head on a
+ * small round body (chibi; a few flat faces in a pixel world). Written on a book that names no body; a body the
+ * creator named is kept. */
+export const PLATFORMER_BODY = 'mascot';
 
 /** The theme card both dimensions are drawn in (playscape/ui/theme-cards/). */
 export const PLATFORMER_LOOK = 'hilltop';
@@ -186,7 +193,10 @@ function patchFor(world, dimension, pole, boss) {
   const upright = (world.screen === 'phone' || (isObj(world.screen) && world.screen.orientation === 'portrait'));
   const advise = upright ? 'its screen is held upright: a platformer is read across its width, a lane or a chase camera (screen: \'screen\', a monitor or a TV)' : null;
   if (G.words.screen && world.screen === undefined) ops.push({ op: 'set', path: '/screen', value: G.words.screen });
-  const needs = isObj(world.characters) ? null : 'a hero: the world has no character book yet (characters: its direction and its hero, gameworld-direction). Until it has one its levels are walked first person, the camera kept for the run that has its hero';
+  // THE HERO IS A MASCOT by default: a book whose direction names no body takes the mascot's (chibi)
+  const dir = isObj(world.characters) ? world.characters.direction : null;
+  if (isObj(dir) && dir.body === undefined) ops.push({ op: 'set', path: '/characters/direction/body', value: PLATFORMER_BODY });
+  const needs = isObj(world.characters) ? null : `a hero: the world has no character book yet (characters: { direction: { tradition, body: '${PLATFORMER_BODY}' }, hero }, gameworld-direction; the mascot's body is the platformer's, chibi-sized). Until it has one its levels are walked first person, the camera kept for the run that has its hero`;
   return { dimension, level: id, courses: firstLevelSegments(dimension, !!boss).map((s) => s.id), says: G.says, patch: ops, turn: G.turn, ...(needs ? { needs } : {}), ...(advise ? { advise } : {}) };
 }
 
@@ -215,6 +225,6 @@ export function platformerStart(world, { boss = false } = {}) {
   if (!isObj(world) || world.levels !== undefined) return null;
   const S = platformerSuggestion(world, { boss });
   if (!S) return null;
-  const words = (d) => { const cam = world.camera, G = platformerGame({ dimension: d, pole: S.pole, boss, ...(PLATFORMER_DIMENSIONS[d].cameras.includes(cam) ? { camera: cam } : {}) }); return { dimension: d, says: G.says, world: G.words, turn: G.turn, ...(isObj(world.characters) ? {} : { needs: 'a hero: write the character book with it (characters: its direction and its hero, gameworld-direction); a platformer watches its hero' }) }; };
+  const words = (d) => { const cam = world.camera, G = platformerGame({ dimension: d, pole: S.pole, boss, ...(PLATFORMER_DIMENSIONS[d].cameras.includes(cam) ? { camera: cam } : {}) }); return { dimension: d, says: G.says, world: G.words, turn: G.turn, ...(isObj(world.characters) ? {} : { needs: `a hero: write the character book with it (characters: { direction: { tradition, body: '${PLATFORMER_BODY}' }, hero }, gameworld-direction): a platformer watches its hero, a mascot by default (chibi-sized)` }) }; };
   return { ...words(S.dimension), pole: S.pole, from: S.from, why: S.why, ...(S.or ? { or: words(S.or.dimension) } : {}) };
 }

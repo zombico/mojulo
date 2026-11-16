@@ -22,6 +22,9 @@
   what is won; a sunburst on warm yellow behind the title, dots behind a full page, confetti on a result, nothing
   behind a menu laid over play (a pause leaves the level in sight); screens open and close on an iris; chunky
   pictograms in the colour of what they mean. Its contrast advice is empty.
+- **The hero is a mascot by default.** The rail's patch writes the mascot's body (`characters.direction.body:
+  'mascot'`, chibi-sized: a big head on a small round body) on a character book that names no body; a body the creator
+  named is kept, and a world with no book is told the words to write.
 - **Lives and coins are pictures.** The `lives` and `coins` mechanics say their HUD readouts as counters, so a look
   with pictograms draws a heart and a coin beside the numbers.
 - **Coins along a 3D course.** `mechanics.coins` laid coins on a side strip only; a trail's course (a 3D platformer's)

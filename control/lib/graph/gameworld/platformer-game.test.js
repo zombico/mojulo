@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { platformerGame, platformerFlow, platformerSuggestion, platformerPole, dimensionOf, PLATFORMER_DIMENSIONS, PLATFORMER_TURN, PLATFORMER_LOOK } from './platformer-game.js';
+import { platformerGame, platformerFlow, platformerSuggestion, platformerPole, dimensionOf, PLATFORMER_DIMENSIONS, PLATFORMER_TURN, PLATFORMER_LOOK, PLATFORMER_BODY } from './platformer-game.js';
+import { gameBody } from './game-bodies.js';
 import { THEME_CARDS, cardTheme } from '../playscape/ui/theme-cards/loader.js';
 import { readTheme, themeAdvice } from '../../mana-ui/theme.js';
 import { firstLevel, firstLevelSegments, FIRST_LEVEL_COURSES, FIRST_LEVEL_SEGMENTS } from './first-level.js';
@@ -208,6 +209,11 @@ describe('the rail offered to a world', () => {
       expect(P.ui).toEqual({ theme: PLATFORMER_LOOK });
       // (the hero is the creator's: said where the world has none, never laid)
       expect(S.needs).toBeUndefined();
+      // (the hero is a mascot by default: the book's direction takes the mascot's body; one it named is kept)
+      expect(P.characters.direction.body).toBe(PLATFORMER_BODY);
+      expect(gameBody(PLATFORMER_BODY, 'hero').spec.cast.build).toBe('chibi');
+      const named = { ...W, characters: { ...W.characters, direction: { ...W.characters.direction, body: 'realistic' } } };
+      expect(platformerSuggestion(named).patch.some((o) => o.path === '/characters/direction/body')).toBe(false);
       expect(platformerSuggestion({ ...W, characters: undefined }).needs).toMatch(/a hero/);
       expect(platformerSuggestion(P)).toBeNull();
     }
