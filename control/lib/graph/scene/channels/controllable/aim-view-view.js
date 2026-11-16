@@ -8,7 +8,8 @@
 //   shoulder   an edge: Q, the right stick's click (the other shoulder, while aiming)
 //   reload     R, the east face (a gunplay kit's reload)
 //   dive       the jump's own button (Space, the south face), read as the dive's
-//   act        the action (E, the west face), held: what a climb is taken on
+//   act        the action (E, the west face), held: what a takedown is taken on
+//   crouch     C, the left stick's click: down, and up again (stance.js)
 // The body hidden while the camera rides its eye is the controllable channel's own line (__avHides).
 export function aimViewScript() {
   return `
@@ -32,6 +33,7 @@ __readInput = function () {
   // neither reads neither)
   inp.dive = inp.jumpHeld || inp.jump ? 1 : 0;
   inp.act = __k('interact') || pb('interact') ? 1 : 0;
+  inp.crouch = __k('crouch') || pb('crouch') ? 1 : 0;
   return inp;
 };
 `;

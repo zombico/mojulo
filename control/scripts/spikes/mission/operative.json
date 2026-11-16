@@ -169,6 +169,86 @@
     "support": "none"
    },
    {}
+  ],
+  "crouchIdle": [
+   {
+    "crouch": 0.9,
+    "hinge": 46,
+    "shL": {
+     "pitch": 25
+    },
+    "shR": {
+     "pitch": 25
+    },
+    "elbowL": 70,
+    "elbowR": 70
+   },
+   {
+    "crouch": 0.92,
+    "hinge": 47,
+    "shL": {
+     "pitch": 26
+    },
+    "shR": {
+     "pitch": 24
+    },
+    "elbowL": 72,
+    "elbowR": 70
+   }
+  ],
+  "crouchWalk": [
+   {
+    "crouch": 0.85,
+    "hinge": 48,
+    "stagger": 0.22,
+    "shL": {
+     "pitch": 10
+    },
+    "shR": {
+     "pitch": 40
+    },
+    "elbowL": 70,
+    "elbowR": 75
+   },
+   {
+    "crouch": 0.93,
+    "hinge": 48,
+    "stagger": 0,
+    "shL": {
+     "pitch": 25
+    },
+    "shR": {
+     "pitch": 25
+    },
+    "elbowL": 72,
+    "elbowR": 72
+   },
+   {
+    "crouch": 0.85,
+    "hinge": 48,
+    "stagger": -0.22,
+    "shL": {
+     "pitch": 40
+    },
+    "shR": {
+     "pitch": 10
+    },
+    "elbowL": 75,
+    "elbowR": 70
+   },
+   {
+    "crouch": 0.93,
+    "hinge": 48,
+    "stagger": 0,
+    "shL": {
+     "pitch": 25
+    },
+    "shR": {
+     "pitch": 25
+    },
+    "elbowL": 72,
+    "elbowR": 72
+   }
   ]
  },
  "stocking": true

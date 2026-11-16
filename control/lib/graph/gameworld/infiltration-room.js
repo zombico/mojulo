@@ -17,6 +17,8 @@
  *                 thing climbed by holding the stick into it, the gun put away for it (worlds/controllable/free-run.js)
  *   the yard      a walled floor 32 m square: a wall to come round (the third-person look past a corner), two low walls to
  *                 fire over, crates; the start at its south
+ *   the crouch    on a press, and up on the next: slower, and out of a guard's sight behind a wall a metre high
+ *                 (worlds/controllable/stance.js)
  *   the takedown  the action behind a guard that has not seen the hero puts it down (worlds/controllable/takedown.js)
  *   the guard     a patrol across the far half of the yard, armed with a carbine it fires on what it sees, its round
  *                 between two posts; hurt by what it has not seen it turns there and looks, and fires on who it finds; what it sees is drawn on the
@@ -24,7 +26,7 @@
  *   the targets   a person's box at 5, 15 and 30 m of the start, one behind the corner; each stands again a moment
  *                 after it falls
  *
- *   infiltrationRoom(G, { refs?, cast?, vault?, roll?, climb?: '<the hero's own clip for each>' }) → { manifest, kit: [names], knife, hero: 'own' | 'stand-in', targets }
+ *   infiltrationRoom(G, { refs?, cast?, vault?, roll?, climb?: '<the hero's own clip for each>', crouch?: { idle, walk } }) → { manifest, kit: [names], knife, hero: 'own' | 'stand-in', targets }
  *   INFILTRATION_LEGEND
  *
  * Pure, no dice. Its page: scripts/spikes/mission/room.mjs (a spike: the room joins the practice door once it is kept).
@@ -42,7 +44,7 @@ import { armLevel } from './arsenal.js';
 import { BASIC_ARSENAL } from './combos.js';
 
 const HALF = 16;
-export const INFILTRATION_LEGEND = 'W A S D  run · mouse  look · Space  dive · run at a low wall to go over it · hold W into a taller one to climb it · unarmed: click  punch · E behind a guard that has not seen you  takedown · G (hold)  weapon menu · H (hold)  item menu · right mouse (hold)  aim · click  fire, aimed · Tab  first person, aimed · Q  the other shoulder, aimed · R  reload · V  knife · Space  jump';
+export const INFILTRATION_LEGEND = 'W A S D  run · mouse  look · Space  dive · run at a low wall to go over it · hold W into a taller one to climb it · C  crouch · unarmed: click  punch · E behind a guard that has not seen you  takedown · G (hold)  weapon menu · H (hold)  item menu · right mouse (hold)  aim · click  fire, aimed · Tab  first person, aimed · Q  the other shoulder, aimed · R  reload · V  knife · Space  jump';
 const START = Object.freeze([0, -13, 0]);
 const wall = (id, x, y, length, height, N = [0, -1]) => ({ id, form: 'wall', at: [x, y, 0], N, length, height, thick: 0.5 });
 const BLOCKS = Object.freeze([
@@ -81,11 +83,14 @@ const FIST_BLOW = Object.freeze({ strikeReach: 0.95, strikeDur: 0.4, strikeDamag
 // nothing in hand (worlds/controllable/carry.js)
 const FISTS = (() => {
   const fist = BASIC_ARSENAL.weapons.find((w) => w.id === 'fist'), moves = Object.fromEntries(Object.entries(fist.moves).filter(([, m]) => !m.air && !m.launch));
+  // (their blows land plainly: no blow shoves harder than the jab does or knocks down, so the hook and the uppercut
+  // bring no longer freeze, shove or fall than a jab's)
+  for (const k of Object.keys(moves)) { const { impact: _i, topple: _t, ...m } = moves[k]; moves[k] = m; }
   return { timing: BASIC_ARSENAL.timing, weapons: [{ ...fist, figure: 'drawn', guard: false, moves, combos: fist.combos.filter((c) => !c.air && c.moves.every((m) => moves[m])) }] };
 })();
 
 /** The infiltration yard (see the header). */
-export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, roll = null, climb = null } = {}) {
+export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, roll = null, climb = null, crouch = null } = {}) {
   const own = typeof refs.hero === 'string';
   if (G?.feel != null) readFeel(G.feel);
   const L = loadoutOf(G), words = (L?.weapons ?? []).filter((w) => typeof w === 'string'), hasKnife = (L?.weapons ?? []).some((w) => w && typeof w === 'object' && w.fire === 'melee');
@@ -101,6 +106,8 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, ro
     aimView: { shoulder: { ...SHOULDER }, eye: 1.6 },
     // (over the low walls and the crates out of the run; the stick held into a taller thing climbs it: free-run.js; the jump's
     // button is the dive's: dive.js)
+    // (the crouch: slower, and low enough to be out of sight behind the yard's low walls: stance.js)
+    stance: { crouch: { speed: 2.2, height: 1.1 } },
     // (a watcher that has not seen it, come up on from behind, is put down on the action: takedown.js)
     takedown: { clip: 'mv_fist_hook_still' },
     // (the radar reads the yard: 30 m to its rim)
@@ -116,7 +123,7 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, ro
   // (what plays a vault and a climb: the hero's own vault clip where it has one, `vault` its name (the free-run
   // library's: hero motion `stepVault`, `speedVault`, `hurdle`, `kongVault`), else a state every player plays)
   // (and its own roll under the dive, `roll` (hero motion `rollForward`), its own climb, `climb` (a clip of the hero's))
-  const clips = traversalStates({ ...lib.clips, ...(vault ? { vault } : {}), ...(roll ? { dodge_roll: roll } : {}), ...(climb ? { mantle: climb } : {}) });
+  const clips = traversalStates({ ...lib.clips, ...(vault ? { vault } : {}), ...(roll ? { dodge_roll: roll } : {}), ...(climb ? { mantle: climb } : {}), ...(crouch ? { crouch_idle: crouch.idle, crouch_walk: crouch.walk } : {}) });
   const figures = { hero: own ? { ...lib, clips, heroRef: refs.hero } : { ...lib, clips, hero: lowerBody({ cast }, null) } };
   const heroE = { ...P.entities[0], ...(kit ? { weapon: kit[0].weapon } : {}), body: { ...P.entities[0].body, hittable: true, hp: 100, radius: 0.5, egg: { ...PERSON, cz: PERSON.c } }, transform: { pos: START.slice(), heading: Math.PI / 2 } };
   const targets = TARGETS.map((t) => ({ id: t.id, rule: { type: 'walk', speed: 0, eye: 0 }, team: 'targets', transform: { pos: [t.at[0], t.at[1], 0.9], heading: -Math.PI / 2 },
@@ -130,6 +137,9 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, ro
     figureGrade: PLAY_GRADE,
     // (and lit as a form page lights it, the cast rig: the skinned body, its cloth closed over its joints)
     castLight: { cube: { from: 'theatre-grey' } },
+    // (its effects plain: the western register in the realistic flavour, the camera's shake, the impact's flash and its
+    // sparks turned well down: scene/juice-style.js)
+    fxStyle: { register: 'western', flavor: 'realistic', shake: 0.15, star: 0.3, sparks: 0.3, light: 0.4 },
   };
   // (the guard, stood as every hostile is: foes.js standFoe; its figure a made one's, `refs.guard`, else a stand-in person)
   const part = { figures: manifest.figures, entities: manifest.entities };

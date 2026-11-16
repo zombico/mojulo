@@ -115,3 +115,11 @@ or a recipe key; the spike mints through the real doors and measures.
   it was doing after its seconds. It only turns the body: what is seen is the mind's own to say. The yard's guard has
   it: struck from behind in the open it turned in about a second and fired; with the striker behind cover it looked
   and went back to its round.
+- **The crouch** (`rule.stance.crouch`, worlds/controllable/stance.js, opt-in): down on a press and up on the next (C,
+  the left stick's click on the operative scheme). Crouched the body is slower and shorter, and since a watcher's
+  sight is eye to eye it is not seen over what its lowered eye is under: behind a wall a metre high it is out of
+  sight, where standing it is seen. It stands for a dive, a vault and a climb. The page plays `crouch_idle` and
+  `crouch_walk`; the operative carries keyed clips for both.
+- **The yard's punches land plainly**: its effects are the western register in the realistic flavour with the shake,
+  the impact's flash and its sparks turned well down, and no blow of the fist shoves harder than the jab or knocks
+  down (the hook's and the uppercut's longer freeze and the hook's knockdown are gone).

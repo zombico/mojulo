@@ -4,7 +4,7 @@
  * practice room, written to a folder. A spike: the room is not on the practice door yet.
  *
  *   cd control
- *   node scripts/spikes/mission/room.mjs --out /abs/dir [--hero <a stored hero's ref>] [--guard <a stored figure's ref>] [--vault speedVault] [--roll rollForward] [--climb climbUp] [--feel steel-serpents] [--cdn] [--capture]
+ *   node scripts/spikes/mission/room.mjs --out /abs/dir [--hero <a stored hero's ref>] [--guard <a stored figure's ref>] [--vault speedVault] [--roll rollForward] [--climb climbUp] [--crouch crouchIdle,crouchWalk] [--feel steel-serpents] [--cdn] [--capture]
  *
  * `--hero` needs the database the hero was minted in (MOJULO_DATA_DIR); without it the hero is a stand-in person and
  * no database is read. `--vault`, `--roll` and `--climb` name the hero's own clips for each (its motion words speedVault, rollForward; a clip of its own, climbUp). `--capture` exposes the page's bodies to a headless test (window.__mojCtrl.bodies).
@@ -26,7 +26,7 @@ const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scen
 const { emitThreeWorld } = await import('../../../lib/graph/scene/scene-three.js');
 const G = { id: 'steel-serpents', name: 'Steel Serpents', feel };
 const guard = opt('--guard');
-const room = infiltrationRoom(G, { refs: { ...(hero ? { hero } : {}), ...(guard ? { guard } : {}) }, vault: opt('--vault'), roll: opt('--roll'), climb: opt('--climb') });
+const room = infiltrationRoom(G, { refs: { ...(hero ? { hero } : {}), ...(guard ? { guard } : {}) }, vault: opt('--vault'), roll: opt('--roll'), climb: opt('--climb'), crouch: opt('--crouch') ? { idle: opt('--crouch').split(',')[0], walk: opt('--crouch').split(',')[1] } : null });
 const { payload } = await resolveWorldScene({ ref: 'steel-serpents-infiltration-yard', manifest: room.manifest }, {});
 const cdn = argv.includes('--cdn');
 const html = emitThreeWorld({ ...payload, wireframe: false, walk: true, spin: false, decollide: true, hud: false, inline: !cdn, cdn, ...(argv.includes('--capture') ? { capture: true } : {}) });
