@@ -70,6 +70,12 @@ const SCOOPS = Object.freeze({
     { x: -44, w: [22, 36], h: [8, 12.5], lap: 0.78, ramp: 'grass', t: 0.74, haze: 0.34, group: 'side:hills' },
     { x: -22, w: [11, 19], h: [3.6, 5.8], lap: 0.8, ramp: 'grass', t: 0.62, haze: 0.16, group: 'side:hills' },
   ]),
+  // THE LIGHT, as shapes (the seventh generation's principles turned into silhouettes: one key every shape agrees on,
+  // the air between the rows, contact where things meet). The key comes from up the lane (+y) and above: each dome
+  // wears a lit cap toward it, each crown its light on that side; mist pools at a row's foot; a thing on the ground
+  // lays a soft shadow down the lane from the light; the turf's lip shades the dirt under it; a floor's edge catches
+  // the light
+  light: Object.freeze({ side: 1, cap: 0.62, capLift: 0.3, gain: 0.55, mist: 0.32, mistH: 0.34, shadow: 0.2, lip: 0.14, rim: 0.05 }),
   crown: Object.freeze({ r: [0.5, 1.05] }), cloud: Object.freeze({ every: [24, 46], x: -150, z: [15, 25], w: [9, 17] }),
   scallop: 0.27, bud: [0.1, 0.2],
 });
@@ -146,7 +152,11 @@ function lookOf(m) {
   const lit = (rgb, n, k = 1) => rgbHex(rgb.map((c, i) => (c / 255) * (amb[i] + key[i] * Math.max(0, dot(n, L))) * expose * k));
   // (a colour seen through the air: toward the horizon by `k`)
   const horizon = st.palette.sky[st.palette.sky.length - 1], hazed = (hex, k) => rgbHex(hexRgb(hex).map((v, i) => lerp(v, horizon[i] / 255, k)));
-  return { cube, st, at, lit, hazed, sun: sunDir(Lt.key.elevation, Lt.key.azimuth) };
+  // (AERIAL PERSPECTIVE, a shaped strip's: a far thing goes toward the SKY'S OWN COLOUR, not toward white, so distance
+  // is told by hue and the land keeps its chroma; and the key's colour, for what the light touches)
+  const air = st.palette.sky[Math.floor((st.palette.sky.length - 1) / 2)], aired = (hex, k) => rgbHex(hexRgb(hex).map((v, i) => lerp(v, air[i] / 255, k)));
+  const warm = hexRgb(Lt.key.color), sunlit = (hex, k) => rgbHex(hexRgb(hex).map((v, i) => Math.min(1, lerp(v, Math.min(1, v * 1.18 + 0.1 * warm[i]), k))));
+  return { cube, st, at, lit, hazed, aired, sunlit, sun: sunDir(Lt.key.elevation, Lt.key.azimuth) };
 }
 
 // a quad facing n, its corners turned anticlockwise seen from outside (from its normal's side)
@@ -192,6 +202,11 @@ function skinFront(out, look, run, { x, y0, y1, top, bottom, n, seed, beds, end 
     band(top - SIDE.cap, top, at('grass', 0.62), 'side:turf');
     band(top - SIDE.cap - SIDE.dirt, top - SIDE.cap, at('soil', 0.5), 'side:dirt');
     // (scoops: the turf hangs over the dirt in scallops, a row of half discs under the cap)
+    if (look.shapes === 'scoops' && !end) {
+      // (the lip's shade on the dirt under the scallops, and the light caught along the floor's edge)
+      band(top - SIDE.cap - SCOOPS.scallop - SCOOPS.light.lip, top - SIDE.cap - SCOOPS.scallop * 0.35, at('soil', 0.36), 'side:lip');
+      quad(out, plane(y0, y1, top - SCOOPS.light.rim, top).map((c) => [c[0] + 0.02, c[1], c[2]]), n, look.sunlit(lit(at('grass', 0.66), FACE.top), 0.5), 'side:rim');
+    }
     if (look.shapes === 'scoops' && !end) { const r = SCOOPS.scallop, n = Math.floor((y1 - y0) / (2 * r)), pad = (y1 - y0 - n * 2 * r) / 2; for (let i = 0; i < n; i++) scallop(out, x + 0.012, y0 + pad + r + i * 2 * r, top - SIDE.cap + 0.01, r, lit(at('grass', 0.62), n_px), 'side:scallop'); }
     const z1d = top - SIDE.cap - SIDE.dirt;
     for (const [b0, b1, k] of beds) {
@@ -237,11 +252,16 @@ const scallop = (out, x, y, z, r, fill, group) => out.push({ corners: arcPts(x, 
 function scoopTree(out, look, { x, y, z, r, trunk, tone = 0, haze = 0, group }) {
   const { at, lit } = look, veil = (hex) => (haze ? look.hazed(hex, haze) : hex), tw = Math.max(0.1, r * 0.12), cz = z + trunk + r * 0.8;
   quad(out, [[x, y - tw, z - 0.3], [x, y + tw, z - 0.3], [x, y + tw, cz], [x, y - tw, cz]], FACE.px, veil(lit(at('soil', 0.3), FACE.px)), group);
-  const body = veil(lit(at('foliage', 0.56 + tone), FACE.top)), light = veil(lit(at('foliage', 0.72 + tone), FACE.top));
+  const body = veil(lit(at('foliage', 0.44 + tone), FACE.top)), light = veil(lit(at('foliage', 0.58 + tone), FACE.top));
   disc(out, x + 0.02, y - r * 0.62, cz - r * 0.28, r * 0.62, body, group);
   disc(out, x + 0.02, y + r * 0.66, cz - r * 0.34, r * 0.56, body, group);
   disc(out, x + 0.04, y, cz, r, body, group);
-  disc(out, x + 0.06, y - r * 0.28, cz + r * 0.3, r * 0.42, light, group);
+  disc(out, x + 0.06, y + SCOOPS.light.side * r * 0.28, cz + r * 0.3, r * 0.42, look.sunlit ? look.sunlit(light, SCOOPS.light.gain * 0.5) : light, group);
+}
+// a soft shadow on the ground under a thing, laid down the lane from the light: a flat ellipse, a step darker than the land
+function contact(out, look, x, y, z, r) {
+  const { at, lit } = look, L = SCOOPS.light, n = 10, cy = y - L.side * r * 0.5;
+  out.push({ corners: Array.from({ length: n }, (_, i) => { const a = (i / n) * 2 * Math.PI; return [x + r * 0.55 * Math.cos(a), cy + r * 1.25 * Math.sin(a), z + 0.02].map(r5); }), normal: FACE.top, fill: lit(at('grass', 0.55 - L.shadow), FACE.top), group: 'side:contact' });
 }
 
 // a tree: a trunk under a round crown, eight-sided, widening and closing again; its back never drawn. `tone` shifts the
@@ -319,13 +339,16 @@ export function assembleSideStrip(m, ctx = {}) {
       const n = rnd(1) < 0.5 ? Dr.trees[0] : Dr.trees[1], big = Math.floor(rnd(2) * n);
       for (let i = 0; i < n; i++) {
         const u = (i + 0.5 + 0.5 * (rnd(10 + i) - 0.5)) / n, y = ya + (0.12 + 0.76 * u) * cellLen, x = T.back + lerp(Dr.tree.back[0], Dr.tree.back[1], rnd(20 + i)), k = i === big ? 1 : 0.35 + 0.4 * rnd(30 + i);
+        if (scoops) contact(faces, look, x, y, landAt(y), lerp(SCOOPS.crown.r[0], SCOOPS.crown.r[1], k));
         if (scoops) scoopTree(faces, look, { x, y, z: landAt(y), r: lerp(SCOOPS.crown.r[0], SCOOPS.crown.r[1], k), trunk: lerp(Dr.tree.trunk[0], Dr.tree.trunk[1], rnd(40 + i)), tone: 0.06 + 0.16 * (rnd(50 + i) - 0.5), haze: Dr.tree.haze, group: 'side:grove' });
         else tree(faces, look, { x, y, z: landAt(y), r: lerp(Dr.tree.r[0], Dr.tree.r[1], k), h: lerp(Dr.tree.h[0], Dr.tree.h[1], k), trunk: lerp(Dr.tree.trunk[0], Dr.tree.trunk[1], rnd(40 + i)), tone: 0.08 + 0.14 * (rnd(50 + i) - 0.5), haze: Dr.tree.haze, group: 'side:grove' });
       }
       const yb = ya + (0.2 + 0.6 * rnd(3)) * cellLen, ys = ya + (0.15 + 0.7 * rnd(4)) * cellLen;
       if (scoops) {
         const rb = lerp(Dr.bush[0], Dr.bush[1], rnd(5)), rs = lerp(Dr.stone[0], Dr.stone[1], rnd(6));
+        contact(faces, look, T.front - 1.1, yb, landAt(yb), rb * 0.9);
         dome(faces, T.front - 1.1, yb, landAt(yb) - 0.05, rb, rb * 0.85, landAt(yb) - 0.3, lit(at('foliage', 0.46), FACE.top), 'side:grove');
+        dome(faces, T.front - 1.08, yb + SCOOPS.light.side * rb * 0.25, landAt(yb) + rb * 0.3, rb * 0.5, rb * 0.42, landAt(yb) + rb * 0.29, look.sunlit(lit(at('foliage', 0.62), FACE.top), SCOOPS.light.gain), 'side:grove');
         dome(faces, T.front - 0.7, ys, landAt(ys) - 0.05, rs, rs * 0.75, landAt(ys) - 0.3, lit(at('stone', 0.62), FACE.top), 'side:grove');
       } else {
         mound(faces, look, { x: T.front - 1.1, y: yb, z: landAt(yb), r: lerp(Dr.bush[0], Dr.bush[1], rnd(5)), ramp: 'foliage', t: 0.42, group: 'side:grove' });
@@ -353,11 +376,16 @@ export function assembleSideStrip(m, ctx = {}) {
     const base0 = lo - 3;
     const ramp = (name, t) => { const r = st.palette[name] ?? st.palette.sky, u = Math.max(0, Math.min(1, t)) * (r.length - 1), i = Math.min(r.length - 2, Math.floor(u)); return r[i].map((c, k) => lerp(c, r[i + 1][k], u - i)); };
     SCOOPS.rows.forEach((R, ri) => {
-      const reach = (Math.abs(R.x) + cam.dist) * 0.62, fill = look.hazed(lit(ramp(R.ramp, R.t), FACE.top), R.haze);
+      const Lg = SCOOPS.light, body = lit(ramp(R.ramp, R.t), FACE.top), reach = (Math.abs(R.x) + cam.dist) * 0.62, fill = look.aired(body, R.haze);
+      const capFill = look.aired(look.sunlit(body, Lg.gain), R.haze * 0.85), mistFill = look.aired(body, Math.min(0.9, R.haze + Lg.mist));
       for (let y = y0 - reach, k = 0; y < y1 + reach; k++) {
         const w = lerp(R.w[0], R.w[1], hash3(k, 31 + ri, seed + 61)), h = lerp(R.h[0], R.h[1], hash3(k, 41 + ri, seed + 61));
         // (each dome a hair nearer than the last, so where two lap neither flickers)
-        dome(faces, R.x + 0.02 * (k % 7), y + w / 2, base0, w / 2, h, base0 - 14, fill, R.group);
+        const xk = R.x + 0.02 * (k % 7), cy = y + w / 2;
+        dome(faces, xk, cy, base0, w / 2, h, base0 - 14, fill, R.group);
+        // (its lit cap: a smaller dome inside it toward the key, risen off its foot; and the mist at its foot)
+        dome(faces, xk + 0.004, cy + Lg.side * w * 0.11, base0 + h * Lg.capLift, (w / 2) * Lg.cap, h * (1 - Lg.capLift) * 0.86, base0 + h * Lg.capLift - 0.01, capFill, R.group);
+        dome(faces, xk + 0.008, cy, base0, w / 2, h * Lg.mistH, base0 - 14, mistFill, R.group);
         y += w * R.lap;
       }
     });
@@ -453,6 +481,7 @@ export function sideLaws(m, payload, { budget = 12000 } = {}) {
     { id: 'rhythm', holds: P.cells.length < 3 || (rhythmFaults(P.order).length === 0 && new Set(P.order).size > 1), says: `the land behind the lane in slices, never three alike and never a pair repeated (${P.order})` },
     { id: 'behind', holds: faces.every((f) => !/^side:(grove|open|tufts|crowns|clouds|tower)$/.test(f.group ?? '') || f.corners.every((c) => c[0] <= SIDE.terrace.front + 0.05)), says: 'everything that dresses the land stands behind the lane: nothing of it is met, nothing covers the hero' },
     ...(P.shapes === 'scoops' ? [{ id: 'one-family', holds: !faces.some((f) => /^side:(hills|range|clouds)$/.test(f.group ?? '') && f.corners.length < 8), says: 'the land beyond the terrace is one family of shapes: every hill and cloud a dome or a disc, none a slope or a bar' }] : []),
+    ...(P.shapes === 'scoops' ? [{ id: 'one-light', holds: faces.some((f) => f.group === 'side:contact') && faces.some((f) => f.group === 'side:rim') && faces.some((f) => f.group === 'side:lip'), says: 'one key every shape agrees on: lit caps toward it, shadows laid away from it, the lip\'s shade and the edge\'s light' }] : []),
     { id: 'quiet', holds: faces.filter((f) => f.group === 'side:grove').every((f) => f.corners.every((c) => c[0] <= SIDE.terrace.back + SIDE.dress.tree.back[1] + SIDE.dress.tree.r[1] + 0.05 || c[2] <= Math.max(...P.terrace.map((t) => t.h)) + SIDE.dress.bush[1] + 0.2)), says: 'a grove stands at the back of the terrace and only low things at its front: the band the hero runs in is the hero\'s' },
     { id: 'budget', holds: faces.length <= budget, says: `${faces.length} faces, ${budget} at most` },
   ];

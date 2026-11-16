@@ -433,7 +433,9 @@ export const GEOCUBE_PALETTES = Object.freeze({
   'theatre-grey': { intent: 'a grey, quiet world staged in pools of light, one red for what matters', key: 'mid', heat: -0.25, weight: 0.35, activity: -0.8, scheme: 'mono-accent', hues: { rock: 230 }, lock: { accent: '#b8261e' } },
   'limestone-crags': { intent: 'pale limestone crags, dry olive scrub and a high clear sky', key: 'high', heat: 0.3, weight: 0.1, activity: -0.2, scheme: 'complementary', hues: { soil: 36, ground: 78, foliage: 96 }, lock: { rock: '#c4b69c', sky: '#8db8e4' }, values: { groups: 3 } },
   'toy-hill': { intent: 'a toy hill on a clear day: clean greens, cream blocks, a bright sky, one tomato red', key: 'high', heat: 0.3, weight: -0.6, activity: 0.8, scheme: 'triad', hues: { sky: 235, ground: 135, foliage: 150, rock: 85, soil: 55 }, lock: { accent: '#c9371e' }, values: { groups: 3 } },
-  'sherbet-orchard': { intent: 'sherbet pastels: peach ground, pink blossom, a mint accent', key: 'high', heat: 0.6, weight: -0.8, activity: 0.45, scheme: 'analogous', hues: { sky: 215, ground: 70, foliage: 10, rock: 60, soil: 40, accent: '#3fc9a0' }, values: { groups: 3 } },
+  // (the blossom is LOCKED pink: the solve's own foliage is a dark plum, in the land's value group; a pink blossom is
+  // lighter than that group, which the value-groups law says, and it is the orchard's point)
+  'sherbet-orchard': { intent: 'sherbet pastels: peach ground, pink blossom, a mint accent', key: 'high', heat: 0.6, weight: -0.8, activity: 0.7, scheme: 'analogous', hues: { sky: 215, ground: 70, foliage: 10, rock: 60, soil: 40, accent: '#3fc9a0' }, lock: { foliage: '#e8789a' }, values: { groups: 3 } },
   'city-night': { intent: 'concrete, asphalt and neon under a glowing night sky', key: 'low', heat: -0.3, weight: 0.4, activity: 0.5, scheme: 'mono-accent', hues: { rock: 220 }, lock: { accent: '#ff3d7f' } },
 });
 // each preset's principles that name its colours: under a solved palette they give way to the palette's own reading

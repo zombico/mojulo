@@ -66,6 +66,13 @@
   is framed by a camera nearly level and a little over the hero, so the sky and the far rows are in the frame (the
   default looks down and shows mostly ground). A law joins the strip's (`one-family`). A cube with no family is drawn as
   it was.
+- **Light as shapes, and a more vivid orchard.** A shaped strip is flat, so the seventh generation's lighting
+  principles are drawn as silhouettes: one key every shape agrees on (a lit cap on each dome and each crown toward
+  it), air with a colour (a far row goes toward the sky's own hue, not toward white, and mist pools at its foot),
+  contact (a soft shadow under each tree and bush, the turf's lip shading the dirt), and a lit line along a floor's
+  edge. A law joins the strip's (`one-light`). The sherbet orchard's palette is more active and its blossom is locked
+  pink (the solve's own foliage was a dark plum; the lock loses the value-groups law, said on the palette), and the
+  rail grades the frame `vivid`.
 - **Lives and coins are pictures.** The `lives` and `coins` mechanics say their HUD readouts as counters, so a look
   with pictograms draws a heart and a coin beside the numbers.
 - **Coins along a 3D course.** `mechanics.coins` laid coins on a side strip only; a trail's course (a 3D platformer's)

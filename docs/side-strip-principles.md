@@ -61,11 +61,26 @@ shape, which is what makes it one place.
 
 A cube with no family is drawn as it was. A new family is a row and its shapes.
 
+## The light, as shapes
+
+A shaped strip has no renderer to light it: every shape is flat. So the seventh generation's lighting principles
+(`control/lib/graph/era/eras.js`: one live key over indirect light, shadows where things meet, air between near and
+far) are turned into silhouettes of their own.
+
+- **One key every shape agrees on.** The light comes from up the lane and above. Each dome wears a lit cap toward it,
+  each crown its light on that side. A shape lit from its own direction breaks the place.
+- **Air has a colour.** A far row goes toward the sky's own colour, not toward white, so distance is told by hue and
+  the land keeps its chroma. Mist pools at a row's foot.
+- **Contact.** A thing on the ground lays a soft shadow down the lane from the light. The turf's lip shades the dirt
+  under its scallops.
+- **An edge catches the light.** A floor's top edge is a thin lit line, so a platform reads against what is behind it.
+- **The frame is graded.** A mascot platformer is saturated (`grade: 'vivid'`, the rail's word).
+
 ## What holds it
 
 `sideLaws` measures these on a built strip: `rhythm` (the slices keep the walls' rule), `behind` (the dress stands
 behind the lane), `quiet` (a grove at the terrace's back, low things at its front), `one-family` (a shaped strip's hills and
-clouds are all its family's shapes), beside the strip's own (`skinned`,
+clouds are all its family's shapes), `one-light` (its lit caps, shadows, lip shade and edge light are there), beside the strip's own (`skinned`,
 `foreground`, `budget`). They advise; none refuses.
 
 ## Not yet

@@ -35,7 +35,7 @@
  *   platformerFlow(dimension)        → the flow it says, in the world's level ids
  *   platformerFront(dimension)       → the start menu that flow is entered through
  *   platformerGame({ dimension?, pole?, id?, name?, seed?, kit?, boss?, camera? })
- *                                    → { dimension, level, words: { feel, camera, mechanics, levels, style, screen, ui, front,
+ *                                    → { dimension, level, words: { feel, camera, mechanics, levels, style, grade, screen, ui, front,
  *                                    flow }, turn, says }
  *   dimensionOf(world)               → '2d' | '3d' | null: the dimension its camera says (side; orbit or follow, the
  *                                    chases W A S D steer by the camera; null: none said, or another camera)
@@ -145,6 +145,8 @@ export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id
     // (made for a screen on its side: a lane is read across its width, a chase camera needs it; game/screen.js)
     screen: 'screen',
     style: { geocube: PLATFORMER_CUBE },
+    // (the frame graded vivid: a mascot platformer is saturated, scene/channels/grade.js)
+    grade: 'vivid',
     ui: { theme: PLATFORMER_LOOK },
     front, flow,
   };
@@ -194,6 +196,7 @@ function patchFor(world, dimension, pole, boss) {
   if (taken.length && (world.start ?? taken[0]) !== id) ops.push({ op: 'set', path: '/start', value: id });
   if (!isObj(world.style)) ops.push({ op: 'set', path: '/style', value: G.words.style });
   else if (world.style.geocube === undefined) ops.push({ op: 'set', path: '/style/geocube', value: PLATFORMER_CUBE });
+  if (world.grade === undefined) ops.push({ op: 'set', path: '/grade', value: G.words.grade });
   if (world.ui === undefined) ops.push({ op: 'set', path: '/ui', value: G.words.ui });
   if (G.words.front && world.front === undefined) ops.push({ op: 'set', path: '/front', value: G.words.front });
   if (G.words.flow && world.flow === undefined) ops.push({ op: 'set', path: '/flow', value: G.words.flow });
