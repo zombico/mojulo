@@ -357,6 +357,9 @@ export const GEOCUBE_PRESETS = Object.freeze({
   // there is: a peach floor under blossom trees, cream blocks, and one mint accent, cool against everything else
   'sherbet-orchard': {
     id: 'sherbet-orchard', title: 'Sherbet orchard', reads: 'Peach ground, pink blossom, cream blocks and a mint accent', biocube: 'meadow',
+    // (the seventh generation's light, era/eras.js: what moves casts a shadow each frame, the land its own at its hour,
+    // contact occlusion where things meet; the land in the round read as material under the cube's light)
+    era: 'gen-7',
     light: { reference: 'island-noon', outsideFog: 1.1 },
     colour: { stone: '#e6d4c5', floor: '#b18373', trim: '#fff1e0', accent: '#1fc7a0', grass: '#dba465', foliage: '#e07f98', water: '#7fd6e8', sand: '#f6e2c0', shade: 305 },
     register: { steps: 0, key: 0.62 },

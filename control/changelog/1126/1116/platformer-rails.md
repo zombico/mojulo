@@ -73,6 +73,9 @@
   edge. A law joins the strip's (`one-light`). The sherbet orchard's palette is more active and its blossom is locked
   pink (the solve's own foliage was a dark plum; the lock loses the value-groups law, said on the palette), and the
   rail grades the frame `vivid`.
+- **The orchard is drawn in the seventh generation.** `sherbet-orchard` names `era: 'gen-7'`: its levels take the live
+  light (what moves casts a shadow each frame, the land its own shadow map at its hour, contact occlusion), in both
+  dimensions. A world that wants the lighter render names the cube with `era: 'gen-6'`.
 - **Lives and coins are pictures.** The `lives` and `coins` mechanics say their HUD readouts as counters, so a look
   with pictograms draws a heart and a coin beside the numbers.
 - **Coins along a 3D course.** `mechanics.coins` laid coins on a side strip only; a trail's course (a 3D platformer's)
