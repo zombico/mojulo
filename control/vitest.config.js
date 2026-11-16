@@ -37,6 +37,7 @@ export const E2E = [
   'lib/graph/gameworld/mission.live.test.js',
   'lib/graph/gameworld/mission-building.live.test.js',
   'lib/graph/gameworld/mission-site.live.test.js',
+  'lib/graph/gameworld/mission-industrial.live.test.js',
   'lib/graph/car-designer/form-render.live.test.js',
   'lib/graph/cycle-shelf/cycle-ride.live.test.js',
   'lib/mcp/tools/export-model.realistic.test.js',

@@ -64,6 +64,10 @@
        runner?: true | { lanes?, laneW?, speed?, accel?, max?, seed?, palette?, … },
                                          // in place of `walk`: the level is an endless run down lanes (worlds/controllable/
                                          // runner.js): the hero runs on its own, its rows laid ahead as it is played
+       industrial?: true | { use?, depth?, hour?, weather?, walker?, cube? },
+                                         // an INDUSTRIAL level (mission-industrial.js): a yard before a base building,
+                                         // its containers, barriers and floodlights stood under the arena's laws, built
+                                         // by the geocube; its `mission` its play (the default one where none is named)
        mission?: true | { seed?, sections?, foes?, hold?, waves?, map?: true | <arena-map template> | { town, block?, size? } | { city, on?, size? } },
                                          // in place of `walk`: the level is a MISSION (mission-level.js, lib/graph/mission):
                                          // the firing range stretched into sections, each a band the world's guns are
@@ -211,6 +215,7 @@ import { readGeotown } from '../geotown/read.js';
 /** The uses a town level opens at their doors when it names none: a shop, the hall (an old town's church), a dwelling. */
 export const GEOTOWN_ENTER = Object.freeze(['shop', 'hall', 'dwelling']);
 import { readBuildingParked } from '../vehicle-registry/parked.js';
+import { readIndustrial } from './industrial-words.js';
 import { readGrid } from '../level/grid.js';
 import { readSketch } from '../level/map-sketch.js';
 import { readPlay } from '../level/play-layer.js';
@@ -281,7 +286,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'glyphs', 'course', 'obstacles', 'mission'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'glyphs', 'course', 'obstacles', 'mission', 'industrial'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -642,7 +647,18 @@ export function readGameworld(W) {
       if (isObj(A) && A.spawns !== undefined && !(Number.isInteger(A.spawns) && A.spawns >= 2 && A.spawns <= 8)) throw new Error(`gameworld: ${at}.arena.spawns is how many spawns it lays, 2 to 8`);
       if (L.walk === undefined) throw new Error(`gameworld: ${at}.arena is laid on a walk's first trail`);
     }
-    if (L.mission !== undefined && L.building === undefined) {
+    if (L.industrial !== undefined) {
+      // an industrial level: a yard before a base building, designed under the arena's laws and built by the geocube
+      // (mission-industrial.js); its mission is its play (the default one where it names none), its ground, its foes and
+      // its tasks its own
+      const beside = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'glyphs', 'places', 'ground', 'arena', 'goal', 'foes', 'course', 'obstacles'].filter((k) => L[k] !== undefined);
+      if (beside.length) throw new Error(`gameworld: ${at}: an industrial level is its yard and its mission alone: no ${beside.join(', ')} beside it`);
+      readIndustrial(L.industrial, `${at}.industrial`);
+      let M;
+      try { M = readMission(L.mission ?? true, 'mission'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
+      for (const k of ['map', 'sections']) if (M[k] !== undefined) throw new Error(`gameworld: ${at}.mission.${k}: on an industrial level the yard is the map and its design places the phases; drop ${k}`);
+      if (!loadoutOf(W)) throw new Error(`gameworld: ${at}.industrial is fought with the guns the world carries, and this world carries none: a quick shooter's arms, a gun in the hero's right hand (an item that serves 'shoot'), or a feel whose template shoots`);
+    } else if (L.mission !== undefined && L.building === undefined) {
       // a mission level: the firing range stretched into sections with tasks (lib/graph/mission), laid from the world's
       // guns; its foes, its tasks and its ground are its own (a mission in a building: the building's branch, below)
       const beside = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'glyphs', 'places', 'ground', 'arena', 'goal', 'foes', 'course'].filter((k) => L[k] !== undefined);
@@ -1007,6 +1023,8 @@ export function resolveLevel(world, id) {
     const { enter = GEOTOWN_ENTER, ...spec } = L.geotown;
     return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geotown: { spec, cube, enter, ...(style.hour !== undefined ? { hour: style.hour } : {}) } };
   }
+  // an industrial level: its yard's words and its mission's, its seed the level's unless the mission names one
+  if (L.industrial !== undefined) { const spec = readMission(L.mission ?? true, 'mission'); return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, industrial: { I: readIndustrial(L.industrial, `levels.${id}.industrial`), spec, seed: spec.seed ?? (seed >>> 0) } }; }
   // a mission level: its settings as read, its seed the level's unless it names one (levels.js lays it)
   if (L.mission && !L.building) { const spec = readMission(L.mission, 'mission'); return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, mission: { spec, seed: spec.seed ?? (seed >>> 0) } }; }
   // a runner level: the run's settings, its seed the level's unless it names one (levels.js lays it)

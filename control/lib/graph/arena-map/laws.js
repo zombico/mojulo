@@ -18,7 +18,7 @@ import { BANDS, BAND_IDS } from '../mission/sections.js';
 
 export const PRINCIPLES = Object.freeze({
   // STRUCTURE: the plan is a circuit
-  bounded: { group: 'structure', why: 'a fight is held on the map: nothing walks or falls off it', asks: 'a wall round the ground, a wall or a rail round every upper floor at the map\'s edge' },
+  bounded: { group: 'structure', why: 'a fight is held on the map: nothing walks or falls off it', asks: 'a wall or a rail round the map\'s edge on every floor: what stops a body' },
   connected: { group: 'structure', why: 'a body set down anywhere can reach everywhere, and come back', asks: 'every standing place reached from every other (a drop counts one way only)' },
   loops: { group: 'structure', why: 'a line of sight is also a line of retreat: a place with one way in is a trap for who is in it and a fortress for who holds its door', asks: 'no part of the map hangs off a single way (an alcove of a cell or two aside)' },
   // ACCESS: nothing built runs into anything
@@ -126,10 +126,11 @@ export function mapLaws(M, kit = kitOf()) {
       const b = [c[0] + di, c[1] + dj];
       if (b[0] >= 0 && b[1] >= 0 && b[0] < M.nx && b[1] < M.ny) continue;
       const w = I.wallAt(c, b, c[2]);
-      if (!(c[2] === 0 ? w === 'full' : w)) open.push(`${c} is open to the outside`);
+      // (a wall or a rail: what stops a body. A yard fenced round is bounded as a walled one is)
+      if (!w) open.push(`${c} is open to the outside`);
     }
   }
-  law('bounded', open, 'walled round the ground, railed or walled round every upper floor at its edge');
+  law('bounded', open, 'walled or railed round its edge on every floor');
   // CONNECTED: out from one place and back to it
   const first = I.nodes[0], out = first ? distances(I, first) : new Map(), back = new Map();
   if (first) {

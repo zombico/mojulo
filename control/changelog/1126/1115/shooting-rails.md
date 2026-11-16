@@ -204,3 +204,13 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   flat-painted pieces under a bake of its own: retired for this, which uses what the geocube already does.
 - **Fixed:** the mission's brief read the geocity's tables as it loaded, a ring of imports that failed two geocity
   test files; it reads them when asked.
+- **An industrial level.** `levels.<id>: { industrial: true | { use?, depth?, hour?, weather?, walker? } }`
+  (`gameworld/mission-industrial.js`, its words in `industrial-words.js`): a fenced yard before a base building, by
+  night in the rain, a siege walker parked on it. Its blocks are the geocube's, its layout the laws':
+  `arena-map/yard.js` designs a yard piece by piece (a forty-foot container, a twenty-foot one, a barrier on a line),
+  keeping a change only when the yard holds its laws no worse and stays one ground, the floodlights over its prizes,
+  the building's door its way out. `era/stage-buildings.js` takes a design's placements as a yard's words (`depth`,
+  `fence`, `stacks`, `barriers`, `masts`, in the plan's metres), the height a floor is asked to stand at (`at.floor`),
+  and says a building's seat before it is built (`buildingSeat`), so the level is planned with nothing resolved and is
+  a stage as any is. A world's run proves it; `design_game` offers it beside the first mission. `bounded` asks for a
+  wall or a rail. The default yard holds thirteen of fourteen laws; built, the headless gunner wins it in 74 s.

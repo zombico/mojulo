@@ -177,6 +177,12 @@ What the first runs found (machine gate only; the shooter feel, seed 1, played h
 gunner wins the quay, the pier, the container yard and the main street in 66 to 74 s, and goes down in the hold on the
 houses block and the beach. Said, not tuned. The level is greybox: a place reads as its shape, not its look.
 
+### An industrial level
+
+`levels.<id>: { industrial: true }` is a level of its own: a fenced yard before a base building, its containers,
+barriers and floodlights stood under the arena's laws and built by the geocube, a walker parked on it, its mission its
+play ([arena-maps.md](arena-maps.md#an-industrial-level)). `design_game` offers it beside the first mission.
+
 ## In a building
 
 A first mission can be fought inside a building of the geocube's own, drawn by the seventh generation's form render

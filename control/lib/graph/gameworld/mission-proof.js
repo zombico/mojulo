@@ -47,6 +47,7 @@ import { mapPoint } from '../arena-map/ground.js';
 import { asksLevel, withBuildingLevel } from '../structure/level.js';
 import { buildNav } from '../worlds/controllable/nav.js';
 import { missionBuildingStage } from './levels.js';
+import { industrialPlan } from './mission-industrial.js';
 
 // the walkers' own pathfinder (worlds/controllable/nav.js: A* over the colliders on one floor, string-pulled), for a
 // mission in a building: a floor at a time, its storeys joined by its stairs' own ways
@@ -282,11 +283,19 @@ export function missionStageManifests(steps) {
  * manifest }), its treads and its floors being the page's; with none at hand it is proved on the bus and its play said
  * to wait on the page. */
 export function proveMissions(world, manifests, { payloads = {} } = {}) {
-  const G = readGameworld(world), ids = G.ids.filter((id) => G.levels[id].mission !== undefined);
+  const G = readGameworld(world), ids = G.ids.filter((id) => G.levels[id].mission !== undefined || G.levels[id].industrial !== undefined);
   if (!ids.length) return null;
   return ids.map((id) => {
     const m = manifests[id];
     if (!m) return { level: id, proved: false, says: 'no stage made for it', assumed: [] };
+    if (G.levels[id].industrial !== undefined) {
+      // (an industrial level: its yard designed again from its words, as the level laid it; played on its page where at
+      // hand, since its ground and what stands on it are the place's own, built by the geocube)
+      const P = proveMission(m), R0 = resolveLevel(G, id).industrial, plan = industrialPlan(G, R0.I, { spec: R0.spec, seed: R0.seed }), page = payloads[id] ?? null;
+      const R = page ? playMission(page, plan.mission) : null;
+      const advice = R && !R.won ? `the gunner ${R.reason}: fewer foes there (mission.foes), a shorter hold (mission.hold, mission.waves), or a gun carried for that section's band` : null;
+      return { level: id, proved: P.proved, says: P.says, play: R ? missionPlaySummary(R) : 'not played: an industrial level is played on its resolved page (the place the geocube builds), not at hand here', ...(R ? { won: R.won } : {}), ...(advice ? { advice } : {}), assumed: P.assumed };
+    }
     if (G.levels[id].building !== undefined) {
       // (in a building: the phases placed again from its plan, as the level laid them; played on its page where at hand)
       const P = proveMission(m), plan = missionBuildingStage(G, resolveLevel(G, id), id).mission, page = payloads[id] ?? null;

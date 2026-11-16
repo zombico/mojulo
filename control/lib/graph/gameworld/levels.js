@@ -132,6 +132,7 @@ import { juiceOfGame } from './juice.js';
 import { tempoOfGame } from './tempo.js';
 import { gradeOfGame } from './grade.js';
 import { readBuildingParked, parkIn, paintOfDress } from '../vehicle-registry/parked.js';
+import { industrialPlan, industrialManifest } from './mission-industrial.js';
 import { roleOf } from '../era/stocking.js';
 import { camoForSetting } from '../car-designer/livery-cut.js';
 import { gridEnds } from '../level/grid-ends.js';
@@ -189,6 +190,13 @@ export function gameStages(world) {
     }
     // a city level is its segments: a line of them from its way in to its way out in a linear world, all of them in a map
     if (R.city) { out.push(...cityStages(level, R.city, G.topology === 'interconnected')); continue; }
+    // an industrial level is one stage: the yard designed and the place's recipe (mission-industrial.js), its plan riding
+    // the stage for the order that lays its cast and its tasks
+    if (R.industrial) {
+      const P = industrialPlan(G, R.industrial.I, { spec: R.industrial.spec, seed: R.industrial.seed });
+      if (!P) throw new Error(`levels: ${level}.industrial is fought with the guns the world carries, and this world carries none`);
+      out.push({ level, node: 'yard', section: 'industrial', index: 0, label: G.levels[level]?.name ?? level, manifest: P.recipe, mission: P }); continue;
+    }
     // a mission level is one stage: the firing range stretched into sections (mission-level.js), its ground its own; its
     // plan (the composition, the brief, the laws) rides the stage for the order that lays its pilot, cast and tasks
     if (R.mission) { const P = missionPlan(G, R.mission); out.push({ level, node: 'mission', section: 'mission', index: 0, label: G.levels[level]?.name ?? level, manifest: missionStage(G, P), mission: P }); continue; }
@@ -701,6 +709,13 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
   // (a mission in a building: the mission's cast, tasks, camera and page over the building's rooms)
+  // (an industrial level: the place's recipe with the mission's cast on it; its ends the mission's own, on the land)
+  if (stage.section === 'industrial') {
+    const P = stage.mission, M = P.mission, manifest = industrialManifest(G, P, { refs: { foe: gunnerRef }, title: title ?? `${G.name ?? G.id} · ${stage.level}` });
+    const laws = P.laws.map((l) => ({ concern: 'mission', law: l.law, holds: l.holds, says: l.says }));
+    return { tool: 'create_sketch', args: { title: manifest.title, manifest: { ...manifest, game: { ...manifest.game, levelRef: ref } } },
+      ends: { spawn: M.anchors.spawn.slice(), heading: M.heading, exit: M.anchors.exit.slice(), exitFrom: M.anchors.exit.slice(), beats: M.sections.map((S) => ({ beat: S.id, at: S.entry.slice() })), planar: true }, ...(laws.length ? { laws } : {}) };
+  }
   if (stage.section === 'building' && stage.mission) return buildingMissionOrder(G, stage, { ref, heroRef, heroGaits, pilot, title, gunnerRef });
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
   const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stage.section === 'obstacles' ? obstacleEnds(stage.manifest) : stage.section === 'mission' ? missionEnds(stage.manifest) : stageEnds(stage.manifest);
