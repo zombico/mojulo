@@ -69,7 +69,7 @@ forearm (25 cm) over it. `freestyle` and `wild` keep no elbow law.
 ## Using one
 
 - An arsenal: `{ art: 'inspired', weapons: [...] }` (`readArsenal` refuses any other word). The templates' kits
-  (`gameworld/combos.js` `TEMPLATE_ARSENALS`) carry theirs: Fallen Angel's `freestyle`, Fable of Artesia's `inspired`.
+  (`gameworld/combos.js` `TEMPLATE_ARSENALS`) carry theirs: Fallen Angel's `freestyle`, Fable of Artesia's `inspired` (the worked example in `docs/examples/fallen-angel/` writes its own, `wild`).
   The practice room takes its kit's, `--art realistic | inspired | freestyle` over it.
 - A game: its `arsenal` key (`gameworld/arsenal.js`), a kit by name, `{ from: <kit>, art: 'realistic', … }` (a kit with
   edits), `'auto'` (the feel template's kit) or a whole arsenal, laid on every level's hero that strikes.
