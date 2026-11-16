@@ -55,12 +55,34 @@
  *     brief   true for a designed game: the Game Brief (gmn.js: why it is played, how it is shaped) is asked next;
  *             a smaller game has none
  *
+ * THE TWO DEPTHS — the producer knows the shape first and the details only once a rail is picked:
+ *
+ *   railShapes()               → { rails: [<a line a rail>], notYet: [<a line a type not made yet>] }: the shape of
+ *                              what mojulo makes, the whole of what the producer holds before an ask
+ *   railSheet(id)              → the rail's sheet, pulled once it is picked: { id, name, like, seen, level1, sizes:
+ *                              [{ size, name, door, with }], from, tunings: { level, action, character, world }, asks,
+ *                              labours, chain: [{ step, does, card? }], lacks }
+ *     from      the genre cube the tunings are read from (the first the book lays, else its first), or null
+ *     tunings   the variant the rail names, each read from its tables: level (the cube's space), action (its feel
+ *               template and the cube's power), character (the cube's soul), world (the cube's reality)
+ *     asks      what the cube asks of a world (concerns.js)
+ *     labours   the Game Brief's labours that suit it (gmn.js: advice, any labour may be mixed with any rail)
+ *     chain     the tools that build it, in order, each with the card to pull when it is reached
+ *   nearestRails(text, n?)     → [{ id, name, like, sizes, matched }] the rails whose words the text uses, most first;
+ *                              a heuristic over words, said to be one: the agent, the real reader of a brief, picks
+ *                              from it or asks. It suggests and refuses nothing
+ *   notYetFor(text)            → [{ id, name, like, waits, matched }] the types not made yet whose own words the text uses:
+ *                              said to the person before anything is built
+ *
  * Pure: no database, no clock, no dice.
  */
 import { POLES } from './feel/cards.js';
 import { FEEL_WORDS } from './feel/suggest.js';
 import { GENRES, genreCube } from './intent.js';
-import { pendingOf } from './genre-forms.js';
+import { pendingOf, PENDING, HAND_OFFS } from './genre-forms.js';
+import { concernsOf } from './concerns.js';
+import { LABOURS } from './gmn.js';
+import { dryRun } from '../cosmos/cosmos.js';
 
 const row = (o) => Object.freeze(o);
 const list = (a) => Object.freeze(a);
@@ -128,7 +150,7 @@ export const RAILS = Object.freeze({
     words: list(['pen and paper', 'pen-and-paper', 'dungeons and dragons', 'tabletop rpg', 'game master', 'dice']) }),
   'work-sim': row({ name: 'Work Sim', like: 'a work shift: a kitchen, a farm stand, a workshop: orders worked station to station before the bell',
     handles: row({ genres: list([]), quick: list(['work']) }), sizes: list(['quick']), level1: 'a shift: the orders served by the bell',
-    words: list(['cooking', 'cooking sim', 'kitchen', 'restaurant', 'overcooked', 'shift', 'orders']),
+    words: list(['cooking', 'cooking sim', 'kitchen', 'restaurant', 'shift', 'orders']),
     lacks: list(['one cook: the shared kitchen (two to four on one screen) waits on its seats']) }),
   farming: row({ name: 'Farming', like: 'a farm: plant, let the days ripen it, harvest and sell',
     handles: row({ genres: list(['farming']), quick: list(['farm']) }), sizes: list(['quick']), level1: 'a day: the gold made before it ends' }),
@@ -146,8 +168,8 @@ export const RAIL_IDS = Object.freeze(Object.keys(RAILS));
 
 /** Game types built apart that no door makes a game from yet: said to the person, never offered as a rail. */
 export const NOT_YET = Object.freeze({
-  'beat-em-up': row({ name: 'Side-scroll beat-em-up', like: 'a street brawler down a belt, with its guns', genres: list(['co-op-brawler', 'run-and-gun']), waits: 'its belt and its fight are built as their own and not yet made from a game' }),
-  'shared-kitchen': row({ name: 'Shared kitchen', like: 'two to four cooks on one screen', genres: list(['co-op-kitchen']), waits: 'the work shift\'s seats; one cook plays today (the Work Sim rail)' }),
+  'beat-em-up': row({ name: 'Side-scroll beat-em-up', like: 'a street brawler down a belt, with its guns', genres: list(['co-op-brawler', 'run-and-gun']), words: list(['beat em up', 'beat-em-up', 'belt scroller', 'street brawler', 'streets of rage', 'final fight', 'double dragon', 'contra', 'metal slug']), waits: 'its belt and its fight are built as their own and not yet made from a game' }),
+  'shared-kitchen': row({ name: 'Shared kitchen', like: 'two to four cooks on one screen', genres: list(['co-op-kitchen']), words: list(['co-op kitchen', 'co-op cooking', 'cooking together', 'cook together', 'overcooked']), waits: 'the work shift\'s seats; one cook plays today (the Work Sim rail)' }),
 });
 
 const fail = (m) => new Error(`gameworld: rail${m}`);
@@ -248,4 +270,75 @@ export function sizeCall(rail, wants) {
     ...(up ? { next: { size: up, name: SIZES[up].name, says: SIZES[up].says } } : {}),
     brief: size === 'designed',
   };
+}
+
+// ══════════ the two depths: the shape, then the sheet ══════════
+
+export function railShapes() {
+  return {
+    rails: RAIL_IDS.map((id) => `${id}: ${railShape(id)}`),
+    notYet: Object.entries(NOT_YET).map(([id, N]) => `${id}: ${N.name}: ${N.like}. Not a game yet: ${N.waits}.`),
+  };
+}
+
+/** A genre the book lays as a designed game today: its cube makeable, not waiting on its form, not another door's. */
+export const laidGenre = (g) => !!GENRES[g] && !PENDING[g] && !HAND_OFFS[g] && dryRun(genreCube(g)).verdict === 'makeable';
+
+// the steps that build a rail at a size, in order, each with the card pulled when it is reached
+function chainOf(R, size, from) {
+  const H = R.handles;
+  if (size === 'pixel') return [{ step: 'make', does: `create_pixelizer_game({ reducer: ${H.pixel.map((p) => `'${p}'`).join(' | ')} }): it is the game` }];
+  if (size === 'table') return [{ step: 'make', does: `create_game({ ${H.table === 'table-rpg' ? 'table_rpg' : 'tabletop'}: { … } })`, card: H.table }];
+  if (size === 'quick') return [
+    ...H.quick.map((g) => ({ step: 'make', does: `design_game({ quick: { goal: '${g}' } }): one level, made in a call`, card: `gameworld-quick-${g}` })),
+    { step: 'play', does: 'the person plays it: the eyes gate is theirs' },
+  ];
+  return [
+    { step: 'intake', does: 'what the person brought, placed or set aside', card: 'gameworld-producer' },
+    { step: 'brief', does: 'why it is played and how it is shaped: the motivations and the labours', card: 'gameworld-brief' },
+    ...(from ? [{ step: 'intent', does: `intent: { from: '${from}' }, then the cube's values the person's game changes`, card: `gameworld-intent-${from}` }] : [{ step: 'intent', does: 'the cube nearest the ask, its values changed to the person\'s game', card: 'gameworld-intent' }]),
+    ...(H.pole ? [{ step: 'feel', does: `feel: '${H.pole}', tuned toward their game; tried in a practice room before any level`, card: 'gameworld-feel' }] : []),
+    { step: 'chapters', does: 'the book a chapter at a time: the hero, the world, the main quest, the foes', card: 'gameworld-studio' },
+    { step: 'first-level', does: `the first level: ${R.level1}; made, then proved by the machine gate`, card: 'gameworld-ledger' },
+    { step: 'play', does: 'the person plays it: the eyes gate is theirs' },
+  ];
+}
+
+export function railSheet(id) {
+  const R = railOf(id), H = R.handles;
+  const from = H.genres.find(laidGenre) ?? H.genres[0] ?? null, cube = from ? genreCube(from) : null;
+  const pole = H.pole ? POLES[H.pole] : null;
+  return {
+    id: R.id, name: R.name, like: R.like, seen: seenOf(R), level1: R.level1,
+    sizes: R.sizes.map((size) => ({ size, name: SIZES[size].name, door: SIZES[size].door, with: keysFor(R, size) })),
+    from,
+    tunings: {
+      level: cube?.space ? { ...cube.space } : null,
+      action: pole || cube?.power ? { ...(pole ? { feel: H.pole, base: pole.base, says: pole.says } : {}), ...(cube?.power ?? {}) } : null,
+      character: cube?.soul ? { ...cube.soul } : null,
+      world: cube?.reality ? { ...cube.reality } : null,
+    },
+    asks: cube ? concernsOf(cube).map((c) => c.id) : [],
+    labours: Object.keys(LABOURS).filter((l) => LABOURS[l].genres.some((g) => H.genres.includes(g))),
+    chain: R.sizes.map((size) => ({ size, steps: chainOf(R, size, size === 'designed' ? H.genres.find(laidGenre) ?? null : null) })),
+    lacks: railLacks(R),
+  };
+}
+
+const norm = (t) => ` ${String(t ?? '').toLowerCase().replace(/[^a-z0-9-]+/g, ' ')} `;
+const longest = (ws) => Math.max(...ws.map((w) => w.length));
+const byMatch = (a, b) => b.matched.length - a.matched.length || longest(b.matched) - longest(a.matched);
+
+export function nearestRails(text, n = 3) {
+  const t = norm(text);
+  return RAIL_IDS
+    .map((id) => ({ id, name: RAILS[id].name, like: RAILS[id].like, sizes: [...RAILS[id].sizes], matched: railWords(id).filter((w) => t.includes(` ${w} `)) }))
+    .filter((r) => r.matched.length).sort(byMatch).slice(0, n);
+}
+
+export function notYetFor(text) {
+  const t = norm(text);
+  return Object.entries(NOT_YET)
+    .map(([id, N]) => ({ id, name: N.name, like: N.like, waits: N.waits, matched: N.words.filter((w) => t.includes(` ${w} `)) }))
+    .filter((r) => r.matched.length).sort(byMatch);
 }

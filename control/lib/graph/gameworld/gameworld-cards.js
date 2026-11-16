@@ -14,6 +14,7 @@
  * Pure.
  */
 import { MOTIVATIONS, LABOURS, WORLD_SHAPES, ORDER_KINDS, SIDE_SHARE } from './gmn.js';
+import { RAIL_IDS, SIZES, OWN, SEEN_WORDS, railOf, railShapes, railSheet } from './rails.js';
 import { COATS } from '../mount/coats.js';
 import { ERRAND_LAWS } from './errand.js';
 import { GAME_BODIES, GAME_BODY_NAMES } from './game-bodies.js';
@@ -1423,6 +1424,63 @@ function workshopCard() {
 /** The workshop card by id (`gameworld-workshop`), or null. Served by id from the readout's step, not listed. */
 export function workshopCardById(id) {
   return id === 'gameworld-workshop' ? { id, name: 'The workshop', summary: 'where a big game is made and where it is seen: the laptop, a desktop download, or kept small', when: 'a game too big to see in a cloud box, a level over the page limit, where do I play it', scope: 'rail', body: workshopCard() } : null;
+}
+
+// THE RAILS (rails.js): the game types as templates, the producer's two depths. The shape is every rail in a line; a
+// rail's sheet is pulled once it is picked. Both generated from the roster; served by id, not listed.
+function railsCard() {
+  const S = railShapes();
+  return lines(
+    'THE RAILS — the game types mojulo builds, each a TEMPLATE a person\'s game starts from, never the game itself: they',
+    'are making a stealth action game of their own design, started from Steel Serpents. The template\'s name is ours;',
+    'the game\'s name, hero, world and story are theirs. This is the shape; pull a rail\'s sheet only once it is picked:',
+    'get_game_vocab({ id: \'gameworld-rail-<id>\' }).',
+    '',
+    ...S.rails.map((l) => `  ${l}`),
+    '',
+    'NOT A GAME YET (say so before anything is built; offer the nearest rail):',
+    ...S.notYet.map((l) => `  ${l}`),
+    '',
+    `THE SIZE, called first: ${Object.entries(SIZES).map(([id, z]) => `${id} (${z.name}: ${z.says})`).join('; ')}.`,
+    'Call the least that answers the ask and say what the next size up would add. More than one level, or anything that',
+    `is theirs to design (${Object.keys(OWN).join(', ')}), asks for a designed game; only a designed game is asked the`,
+    'Game Brief (gameworld-brief). An ask past what a rail reaches is made at its largest and what it waits on is said.',
+    'How a game is played THROUGH (levels in turns, an open world) is the brief\'s labour, not the rail\'s.',
+  );
+}
+
+function railCard(id) {
+  const S = railSheet(id);
+  const say = (v) => (Array.isArray(v) ? `[${v.map(say).join(', ')}]` : typeof v === 'string' ? `'${v}'` : String(v));
+  const set = (o) => (o ? `{ ${Object.entries(o).map(([k, v]) => `${k}: ${say(v)}`).join(', ')} }` : 'read from the ask: no cube of its own');
+  return lines(
+    `THE RAIL: ${S.name} — ${S.like}. A TEMPLATE: the person's game starts from it and is theirs (its name, hero, world`,
+    'and story). Say what they keep from it and where their game departs.',
+    '',
+    `seen: ${S.seen ? SEEN_WORDS[S.seen] : 'as its page lays it'}.   first: ${S.level1}.`,
+    ...S.sizes.map((z) => `  ${z.size.padEnd(9)}${z.door}   ${set(z.with)}`),
+    '',
+    `ITS TUNINGS${S.from ? ` (read from the cube '${S.from}'; each value theirs to change)` : ''}:`,
+    `  level      ${set(S.tunings.level)}`,
+    `  action     ${set(S.tunings.action)}`,
+    `  character  ${set(S.tunings.character)}`,
+    `  world      ${set(S.tunings.world)}`,
+    ...(S.asks.length ? [`what it asks of a world: ${S.asks.join(', ')}.`] : []),
+    ...(S.labours.length ? [`labours that suit it (gameworld-brief; any may be mixed): ${S.labours.join(', ')}.`] : []),
+    '',
+    'THE CHAIN, by size (pull a step\'s card when it is reached, not before):',
+    ...S.chain.flatMap((c) => [`  ${c.size}:`, ...c.steps.map((st, i) => `    ${i + 1}. ${st.step.padEnd(12)}${st.does}${st.card ? `  (${st.card})` : ''}`)]),
+    ...(S.lacks.length ? ['', 'WHAT IT DOES NOT DO YET (say it when the ask reaches for it):', ...S.lacks.map((l) => `  ${l}`)] : []),
+  );
+}
+
+/** The rails' shape (`gameworld-rails`) or one rail's sheet (`gameworld-rail-<id>`), or null. Served by id, not listed. */
+export function railCardById(id) {
+  if (id === 'gameworld-rails') return { id, name: 'The rails', summary: 'the game types mojulo builds, each a template a person\'s game starts from; the size called first', when: 'what kind of game, which template, a game like one I know, how big a game', scope: 'rail', body: railsCard() };
+  const rail = typeof id === 'string' && id.startsWith('gameworld-rail-') ? id.slice('gameworld-rail-'.length) : null;
+  if (!rail || !RAIL_IDS.includes(rail)) return null;
+  const R = railOf(rail);
+  return { id, name: `The rail: ${R.name}`, summary: R.like, when: `a game started from ${R.name}`, scope: 'rail', body: railCard(rail) };
 }
 
 /** One genre's card by id (`gameworld-intent-<genre>`), or null. Served by id, not listed with the rail. */

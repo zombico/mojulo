@@ -5,17 +5,18 @@ import { describe, it, expect } from 'vitest';
 import {
   RAILS, RAIL_IDS, SIZES, SIZE_IDS, NOT_YET, GENERIC_GOALS, SEEN_WORDS,
   railOf, railOfPole, railOfGenre, railsOfGoal, seenOf, railWords, railLacks, railShape, OWN, sizeCall,
+  railShapes, railSheet, nearestRails, notYetFor, laidGenre,
 } from './rails.js';
 import { POLES } from './feel/cards.js';
 import { GENRES, genreCube } from './intent.js';
 import { QUICK_GOALS } from './quick.js';
 import { PENDING, HAND_OFFS } from './genre-forms.js';
 import { PIXELIZER_REDUCER_IDS } from '../pixelizer/pixelizer-games.js';
-import { dryRun } from '../cosmos/cosmos.js';
+import { LABOURS } from './gmn.js';
+import { railCardById } from './gameworld-cards.js';
 
 const FROZEN = 'a new game type is a row first (gameworld/rails.js)';
-// a genre the book lays as a designed game today: its cube makeable, and not waiting on its form or handed to another door
-const laid = (g) => !!GENRES[g] && !PENDING[g] && !HAND_OFFS[g] && dryRun(genreCube(g)).verdict === 'makeable';
+const laid = laidGenre;
 const claims = (key) => RAIL_IDS.flatMap((id) => [RAILS[id].handles[key] ?? []].flat().map((h) => [h, id]));
 
 describe('the rail roster names into the tables that measure', () => {
@@ -162,5 +163,72 @@ describe('the size call', () => {
     expect(() => sizeCall(grows, { own: ['a-thing'] })).toThrow(/own is what is theirs/);
     expect(() => sizeCall(grows, { big: true })).toThrow(/big is not one/);
     expect(() => sizeCall('no-such-rail')).toThrow(/is not one: /);
+  });
+});
+
+describe('the two depths: the shape, then the sheet', () => {
+  const designed = RAIL_IDS.find((id) => RAILS[id].handles.pole && RAILS[id].handles.genres.some(laid) && RAILS[id].handles.quick?.length);
+  const bare = RAIL_IDS.find((id) => !RAILS[id].handles.pole && !RAILS[id].handles.genres.length);
+
+  it('the shape is a line a rail and a line a type not made yet', () => {
+    const S = railShapes();
+    expect(S.rails.length).toBe(RAIL_IDS.length); expect(S.notYet.length).toBe(Object.keys(NOT_YET).length);
+    expect(S.rails.every((l) => !/\n/.test(l))).toBe(true);
+    expect(S.rails[0].startsWith(`${RAIL_IDS[0]}: `)).toBe(true);
+    expect(S.notYet[0]).toContain('Not a game yet');
+  });
+
+  it('a sheet reads the four tunings from the rail\'s tables, copying none', () => {
+    const S = railSheet(designed), H = RAILS[designed].handles, cube = genreCube(S.from);
+    expect(laid(S.from)).toBe(true); expect(H.genres).toContain(S.from);
+    expect(S.tunings.level).toEqual(cube.space); expect(S.tunings.character).toEqual(cube.soul); expect(S.tunings.world).toEqual(cube.reality);
+    expect(S.tunings.action).toMatchObject({ feel: H.pole, says: POLES[H.pole].says, ...cube.power });
+    expect(S.sizes.map((z) => z.size)).toEqual([...RAILS[designed].sizes]);
+    expect(S.lacks).toEqual(railLacks(designed));
+    for (const l of S.labours) expect(LABOURS[l].genres.some((g) => H.genres.includes(g))).toBe(true);
+    // a sheet is a fresh read: changing it changes no table
+    S.tunings.level.camera = 'x'; expect(genreCube(S.from).space.camera).not.toBe('x');
+  });
+
+  it('its chain is the tools that build it at each size, in order, a card a step', () => {
+    const S = railSheet(designed), by = Object.fromEntries(S.chain.map((c) => [c.size, c.steps]));
+    expect(Object.keys(by)).toEqual([...RAILS[designed].sizes]);
+    expect(by.quick[0].card).toBe(`gameworld-quick-${RAILS[designed].handles.quick[0]}`);
+    const steps = by.designed.map((s) => s.step);
+    expect(steps[0]).toBe('intake'); expect(steps[steps.length - 1]).toBe('play');
+    expect(steps.indexOf('brief')).toBeLessThan(steps.indexOf('intent')); expect(steps.indexOf('feel')).toBeLessThan(steps.indexOf('first-level'));
+    expect(by.designed.find((s) => s.step === 'intent').card).toBe(`gameworld-intent-${S.from}`);
+    // a rail with no cube and no template still has a sheet: its tunings are the ask's
+    const B = railSheet(bare);
+    expect(B.from).toBeNull(); expect(Object.values(B.tunings).every((v) => v === null)).toBe(true); expect(B.chain.length).toBe(RAILS[bare].sizes.length);
+  });
+
+  it('the nearest rails are those whose words a brief uses, most first, and it refuses nothing', () => {
+    const id = designed, words = railWords(id).slice(0, 2);
+    const N = nearestRails(`a game with ${words.join(' and ')} in it`);
+    expect(N[0]).toMatchObject({ id, name: RAILS[id].name }); expect(N[0].matched).toEqual(expect.arrayContaining(words));
+    expect(N.length).toBeLessThanOrEqual(3); expect(nearestRails(`${words[0]}`, 1).length).toBe(1);
+    expect(nearestRails('nothing any rail says zzz')).toEqual([]); expect(nearestRails(undefined)).toEqual([]);
+    // matched whole: a word inside another is not a match
+    expect(nearestRails(`x${words[0]}x`).find((r) => r.id === id && r.matched.includes(words[0]))).toBeUndefined();
+  });
+
+  it('a type not made yet is said by its own words', () => {
+    const [id, N] = Object.entries(NOT_YET)[0];
+    expect(notYetFor(`I want a ${N.words[0]} game`)[0]).toMatchObject({ id, waits: N.waits });
+    expect(notYetFor('a quiet walk')).toEqual([]);
+    // (a word may also be a rail's: the producer then says both, the type not made yet and the nearest rail)
+    for (const v of Object.values(NOT_YET)) expect(v.words.length).toBeGreaterThan(0);
+  });
+
+  it('is served as two cards by id: the shape, and a rail\'s sheet', () => {
+    const all = railCardById('gameworld-rails');
+    for (const id of [RAIL_IDS[0], RAIL_IDS[RAIL_IDS.length - 1]]) expect(all.body).toContain(RAILS[id].name);
+    expect(all.body).toMatch(/TEMPLATE/); expect(all.body).toContain(Object.values(NOT_YET)[0].name);
+    const one = railCardById(`gameworld-rail-${designed}`);
+    expect(one.body).toContain(RAILS[designed].name); expect(one.body).toMatch(/TEMPLATE/); expect(one.body).toContain('THE CHAIN');
+    expect(one.body).toContain(railLacks(designed)[0]);
+    expect(railCardById(`gameworld-rail-${bare}`).body).toContain('no cube of its own');
+    expect(railCardById('gameworld-rail-no-such')).toBeNull(); expect(railCardById('gameworld-intent')).toBeNull();
   });
 });

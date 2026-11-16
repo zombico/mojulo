@@ -22,5 +22,16 @@ In progress. Each line is added as its phase lands.
   the Game Brief is asked for (`brief`). It never refuses: an ask for more than a rail reaches (a fighting game of
   many levels) is called at the rail's largest, and what the larger one waits on is said (`short`), before anything is
   built. With no rail it calls quick or designed by the wants alone.
+- **The two depths** (`railShapes`, `railSheet`). The shape is a line a rail and a line a type not made yet: the whole
+  of what the producer holds before an ask. A rail's sheet is pulled once it is picked: its sizes with their doors and
+  keys, its four tunings read from its tables (level: the cube's space; action: its feel template and the cube's
+  power; character: the cube's soul; world: the cube's reality), what the cube asks of a world, the Game Brief's
+  labours that suit it, the chain of tools that builds it at each size with the card to pull at each step, and what it
+  does not do yet. Nothing is copied: a sheet is a fresh read of the tables.
+- **Two cards served by id** from `get_game_vocab` (not listed): `gameworld-rails`, the shape and the size call's
+  rule, and `gameworld-rail-<id>`, one rail's sheet. Both generated from the roster; both the intent chapter's.
+- **One reader of a brief's words** (`nearestRails(text)`): the rails whose words the text uses, most first, over a
+  rail's own words, its feel template's and its genres'. A heuristic, said to be one: the agent picks or asks.
+  `notYetFor(text)` names a type not made yet that the text asks for, so it is said before anything is built.
 
-Nothing reads the roster yet: no door, card or readout changes with this step.
+No readout, routing card or listed card changes yet: the producer's own card and the start readout take these next.
