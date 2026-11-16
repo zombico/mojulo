@@ -76,6 +76,11 @@
 - **The orchard is drawn in the seventh generation.** `sherbet-orchard` names `era: 'gen-7'`: its levels take the live
   light (what moves casts a shadow each frame, the land its own shadow map at its hour, contact occlusion), in both
   dimensions. A world that wants the lighter render names the cube with `era: 'gen-6'`.
+- **A side-scroller's foes stand on the rail.** Every foe of a side strip waited on the land behind the lane and leapt
+  in as the hero came near, so a player could not see what a jump was being timed on. A foe now stands on the rail
+  from the start, in the hero's plane (a swarm's extra foes are brought onto the lane and spaced along it, no two in
+  one spot). An ambush is rare: one foe in six, never one of the first four, still waits off the rail and comes in
+  (`foes.js` `RAIL.ambush`, `railAmbush`).
 - **Lives and coins are pictures.** The `lives` and `coins` mechanics say their HUD readouts as counters, so a look
   with pictograms draws a heart and a coin beside the numbers.
 - **Coins along a 3D course.** `mechanics.coins` laid coins on a side strip only; a trail's course (a 3D platformer's)

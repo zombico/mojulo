@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { firstLevel, readBossWin, storyWins, WINS, FIRST_LEVEL_SEGMENTS } from './first-level.js';
 import { readGameworld, MEADOWMARK_HERO } from './index.js';
 import { gameStages, stageLevelOrder, stageLane, stageTitle, isStrip, SIDE_BAND, SIDE_ENDS } from './levels.js';
-import { foePlacements, hostileCast, RAIL } from './foes.js';
+import { foePlacements, hostileCast, RAIL, railAmbush } from './foes.js';
 import { POLE_IDS, poleCard } from './feel/cards.js';
 
 // A PLATFORMER'S FIRST LEVEL: its trails in teaching order, each its course and its foes' density; a boss only when the
@@ -121,7 +121,17 @@ describe('the first level from the side: one strip, its trails the segments of o
     // (none on the floor the hero is set down on)
     const first = O.course.floors[0];
     expect(foes.filter((e) => e.rule.rail.join[1] <= first.s1)).toEqual([]);
-    for (const e of foes) { expect(e.rule.rail).toMatchObject({ wait: true }); expect(e.transform.pos[0]).toBe(RAIL.back); }
+    // ON THE RAIL from the start, in the hero's plane, so a jump is timed on a foe that is seen; an ambush is rare,
+    // never one of the first, and waits behind the lane
+    const waiting = foes.filter((e) => e.rule.rail.wait), standing = foes.filter((e) => !e.rule.rail.wait);
+    for (const e of standing) { expect(e.transform.pos[0]).toBe(0); expect(e.transform.pos).toEqual(e.rule.rail.join); }
+    for (const e of waiting) expect(e.transform.pos[0]).toBe(RAIL.back);
+    expect(standing.length).toBeGreaterThan(waiting.length * 3);
+    // (no two in one spot along the lane)
+    const ys = foes.map((e) => e.rule.rail.join[1]).sort((p, q) => p - q);
+    for (let i = 1; i < ys.length; i++) expect(ys[i] - ys[i - 1]).toBeGreaterThanOrEqual(RAIL.apart - 1e-6);
+    expect(foes.slice(0, RAIL.ambushAfter).some((e) => e.rule.rail.wait)).toBe(false);
+    expect([0, 3, 9, 10, 15].map(railAmbush)).toEqual([false, false, true, false, true]);
   });
 
   it('its camera settles on the stairs and holds in from the lane\'s ends', () => {
