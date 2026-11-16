@@ -329,7 +329,9 @@ Pointers only; each target carries its own design notes.
   dimensions: `2d` the side-scroller, one strip and one turn, its home the title; `3d` opt-in, courses up a hill, a
   turn each, its home the courses screen; both on one flow shape, a start menu, a screen on its side and the
   `hilltop` theme card; offered by `design_game` as `next: first-level`, never laid): [gameworld/platformer-game.js](control/lib/graph/gameworld/platformer-game.js) over
-  [gameworld/first-level.js](control/lib/graph/gameworld/first-level.js); manual: the `gameworld-course` card.
+  [gameworld/first-level.js](control/lib/graph/gameworld/first-level.js); manual: the `gameworld-course` card. A course in
+  the round is skinned by [gameworld/course-skin.js](control/lib/graph/gameworld/course-skin.js) (floors the land's turf,
+  dirt and rock; stairs and walls a geocube's stone and trim, the cube read from the level, the world or the kit).
 - Title cards: [game/title-carve.js](control/lib/graph/game/title-carve.js) (a HUD banner `as: 'title'`: its words carved
   by [motion/glyph-carver.js](control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,
   in the juice register's look; words by key in the world's `locale` from `control/messages/`: `game/title-words.js`);

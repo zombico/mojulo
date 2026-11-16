@@ -25,6 +25,13 @@
 - **The hero is a mascot by default.** The rail's patch writes the mascot's body (`characters.direction.body:
   'mascot'`, chibi-sized: a big head on a small round body) on a character book that names no body; a body the creator
   named is kept, and a world with no book is told the words to write.
+- **A course in the round is skinned.** A 3D course's floors and stairs were grey boxes; they are now drawn as part of
+  the place (`gameworld/course-skin.js`), as the side strip's are. A floor is the land it stands on lifted up: a turf
+  cap over a dirt band over rock, in the stage's own kit colours. The stairs and a floor reached up a wall are masonry,
+  a trim cornice over stone, in a geocube's colours. Which cube is read from what the level needs: the level's
+  `style.geocube`, else the world's, else the cube made for the kit the stage stands on, else the meadow's valley, so a
+  world that names a cube restyles its course's masonry with everything else. Every box keeps its footprint, its top
+  and its foot, so the course's laws hold as built. Every 3D course world gains the skin on its next run.
 - **Lives and coins are pictures.** The `lives` and `coins` mechanics say their HUD readouts as counters, so a look
   with pictograms draws a heart and a coin beside the numbers.
 - **Coins along a 3D course.** `mechanics.coins` laid coins on a side strip only; a trail's course (a 3D platformer's)

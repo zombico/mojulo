@@ -128,6 +128,7 @@ import { feelRule, readFeel, TAKES, feelCard, lowerFeel, feelVayo } from './feel
 import { reachOf } from './feel/reach.js';
 import { laidCasting, laidJoins } from './casting.js';
 import { readCourse, courseAt, coursePlan, courseLaws, lowerCourse } from './course.js';
+import { courseCube, courseColours, skinCourse } from './course-skin.js';
 import { juiceOfGame } from './juice.js';
 import { tempoOfGame } from './tempo.js';
 import { styleMeterOfGame } from './style-meter.js';
@@ -977,7 +978,10 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     strip = { side: { ...stage.manifest.side, boxes }, colliders: boxes.map(({ min, max }) => ({ min, max, of: 'side:course' })) };
   }
   if (course) {
-    if (!strip) blocks = [...(blocks ?? []), ...course.lowered.blocks];
+    // (a course in the round is SKINNED, course-skin.js: its floors the land it stands on lifted up, a turf cap over dirt
+    // over rock in the stage's own colours; its stairs and the floors up a wall masonry in the level's geocube, the one
+    // the level or the world names, else the one made for the kit it stands on)
+    if (!strip) blocks = [...(blocks ?? []), ...skinCourse(course.lowered, course.plan, courseColours(stage, courseCube(G, stage).cube))];
     const ev = pilotPart.events ?? {}, C = course.lowered.events;
     pilotPart = { ...pilotPart, events: { ...ev, sources: [...(ev.sources ?? []), ...C.sources], reactions: [...(ev.reactions ?? []), ...C.reactions] } };
     // LIVES (the world's `mechanics.lives`): a hit or a fall into one of the course's pits costs one, none left loses;
