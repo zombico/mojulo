@@ -287,7 +287,9 @@ export function streetOf({ belt, players: players0, waves = [], things, rules, c
   if (range !== undefined && (!range || typeof range !== 'object')) throw new Error('brawl: a street\'s range is { guns?, grenades? }');
   const gunner = gunner0 ?? (range ? { guns: range.guns ?? ['machine-gun', 'spread', 'flame', 'rocket'], grenades: range.grenades ?? 3 } : undefined);
   // (A SEAT NOT YET TAKEN, a player `away: true`: its body made and waiting off the street until it joins, joinStreet)
-  const bodies = players.map((p, i) => ({ fighter: i, side: 'player', x: Math.round((half - 3 + i * 0.6) * 1000), z: Math.round(n0 + ((i + 1) * (n1 - n0)) / (players.length + 1)) }));
+  // (those who play from the start share the band's width between them: a seat that waits moves no one)
+  const here = players.filter((p) => !p.away).length || 1;
+  const bodies = players.map((p, i) => ({ fighter: i, side: 'player', x: Math.round((half - 3 + i * 0.6) * 1000), z: Math.round(n0 + ((Math.min(i, here - 1) + 1) * (n1 - n0)) / (here + 1)) }));
   const kinds = [];
   const bosses = {};
   // (a crowd body's own entrance or ambush, by its id)

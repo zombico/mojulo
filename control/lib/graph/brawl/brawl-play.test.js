@@ -230,6 +230,8 @@ describe('a second seat taken mid-street', () => {
   it('waits off the street: not read, not fought, and the street\'s end is the seated players\'', () => {
     let st = two();
     expect(st.s.bodies[1]).toMatchObject({ side: 'player', gone: 1, aw: 1 });
+    // (a seat that waits moves no one: the one who plays starts where it would alone)
+    expect(st.s.bodies[0].z).toBe(streetOf({ belt, players: [hero()], waves, gunner }).s.bodies[0].z);
     expect(streetRead(st, []).mates).toMatchObject([{ on: false }]);
     st.s.bodies[0].ko = 1; st.s.bodies[0].hp = 0;
     expect(streetRead(st, []).lost).toBe(true);
