@@ -27,9 +27,16 @@
   enemies, its hero) can now say that one of its levels is a street. It is reviewed, built and checked with the
   rest of the game: its enemies are the game's own, made once and used wherever they appear, and the hero is the
   game's hero. A game that has no hero yet is played by a stand-in, and the studio says so.
+- **Up to four can play a street.** Say how many play from the start. The seats go to your game's hero and then
+  to the companions who join the party, each in their own body, and anyone with a body can drop in on a second
+  controller. A seat nobody fills is played by a stand-in, and the studio says how many.
+- **A game can have more than one street.** Each is a level; clearing one opens the next, and the game's menus
+  (choosing a level, the result, going on to the next) are drawn in the game's own look.
+- **The studio warns when the screen is the wrong shape.** A street runs across the screen. A game made for an
+  upright phone shows only a sliver of it, and the studio now says so and how to change it.
 - **Not yet:** an enemy that is a beast is drawn as a plain jointed figure, and the game says so; only a person's
   body stands on the street today. A game that names no enemies of its own still meets the stock crowd, drawn as
-  plain figures on one open screen: that path is kept for testing. A street level is for one player today. The things that lie on a street to pick up or
+  plain figures on one open screen: that path is kept for testing. The things that lie on a street to pick up or
   break are not laid, a game is one street long, and the readouts on screen are still the practice room's. Nobody
   has played these; the studio has checked that each level loads, that the street holds at a stop and brings its
   enemies in, and that winning and losing end the level.

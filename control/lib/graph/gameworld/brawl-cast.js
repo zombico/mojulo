@@ -39,7 +39,10 @@
  *
  * A STREET AS A LEVEL of a designed game (`levels.<id>.street`): the street's design with the level's own words beside
  * it, laid on the game's hero and its made foes.
- *   levels.<id>.street: { …the street (open?, stops, boss?), kit?, lives?, guns? }
+ *   levels.<id>.street: { …the street (open?, stops, boss?), kit?, lives?, guns?, players? }
+ *       players  how many play from its start, 1 to 4 on one screen (1). Its seats are the game's hero, then the cast
+ *                who join the party, each in its own body; a seat with nobody to fill it is a stand-in fighter, said.
+ *                Everyone who has a body can be played: a second controller drops in as the next of them
  *       kit    the stage kit its rooms are built in (brawl-levels.js BRAWL_STAGE_KITS; the open-air plaza unsaid)
  *       lives  the falls the player may take (1 to 9; 3)
  *       guns   a run & gun's street: true, or the guns carried, the first held; unsaid, the game's intent decides
@@ -55,6 +58,7 @@
 import { bestiaryOf, isPeople, isModel } from './foes.js';
 import { brawlLevel, BRAWL_STAGE_KITS } from '../brawl/brawl-levels.js';
 import { readGun } from '../brawl/brawl-guns.js';
+import { readScreen } from '../game/screen.js';
 import { castRoles, FIGHT_ROLES } from './fights.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { CROWD_TYPES } from '../brawl/brawl-crowd.js';
@@ -189,7 +193,10 @@ export function withStreetBodies(waves, rosterAt) {
   }));
 }
 
-const LEVEL_WORDS = ['kit', 'lives', 'guns'];
+const LEVEL_WORDS = ['kit', 'lives', 'guns', 'players'];
+export const STREET_SEATS = 4;
+// (a stand-in's style by its seat, so four of them are told apart: the brawl's four, brawl-moves.js BRAWL_STYLES)
+const STAND_INS = ['all-rounder', 'rushdown', 'zoner', 'grappler'];
 /** A level's street as written: its design and the level's own words. */
 export function readLevelStreet(v) {
   if (!isObj(v)) throw fail('.street is { open?, stops, boss?, kit?, lives?, guns? }');
@@ -201,7 +208,8 @@ export function readLevelStreet(v) {
     if (!Array.isArray(v.guns) || !v.guns.length || v.guns.length > 6) throw fail('.street.guns is true (a run & gun\'s street) or 1 to 6 guns, the first held');
     v.guns.forEach((g, k) => { try { readGun(g, `guns[${k}]`); } catch (e) { throw fail(`.street.${e.message.replace(/^brawl: /, '')}`); } });
   }
-  return { design, kit: v.kit ?? STREET.kit, lives: v.lives ?? STREET.lives, guns: v.guns ?? null };
+  if (v.players !== undefined && !(Number.isInteger(v.players) && v.players >= 1 && v.players <= STREET_SEATS)) throw fail(`.street.players is how many play from its start, 1 to ${STREET_SEATS} on one screen`);
+  return { design, kit: v.kit ?? STREET.kit, lives: v.lives ?? STREET.lives, guns: v.guns ?? null, players: v.players ?? 1 };
 }
 const gunsOf = (G, L) => L.guns !== null || G?.intent?.from === 'run-and-gun';
 
@@ -219,18 +227,25 @@ export function streetFoeIds(G) {
 }
 
 /** A street level of a designed game: its world, its brawl and its contract. */
-export function streetLevel(G, words, { title, ref, heroRef = null, foeRefs = null } = {}) {
+export function streetLevel(G, words, { title, ref, heroRef = null, foeRefs = null, party = null } = {}) {
   const L = readLevelStreet(words), gun = gunsOf(G, L), S = brawlStreet(G, L.design, { gun });
   const has = brawlBodies(G, S), bodied = S.foes.filter((id) => has[id] && foeRefs?.[id]);
-  // (the hero the game's own; a world with none is played by a stand-in fighter, said)
-  const heroes = heroRef ? [{ id: 'hero', hero: { ref: heroRef } }] : [{ id: 'hero', archetype: 'all-rounder' }];
+  // (its seats: the game's hero, then the cast who join the party, each in its own body; a seat it starts with that
+  // nobody fills is a stand-in fighter, said)
+  const made = [...(heroRef ? [{ id: 'hero', hero: { ref: heroRef } }] : []), ...(party ?? []).filter((m) => m?.ref).map((m) => ({ id: m.id, name: m.name ?? m.id, hero: { ref: m.ref } }))].slice(0, STREET_SEATS);
+  const short = Math.max(0, L.players - made.length);
+  const heroes = [...made, ...Array.from({ length: made.length ? short : Math.max(1, L.players) }, (_, k) => ({ id: `stand-in-${made.length + k + 1}`, archetype: STAND_INS[(made.length + k) % STAND_INS.length] }))];
   const rosterAt = Object.fromEntries(bodied.map((id, k) => [id, heroes.length + k]));
   const roster = [...heroes, ...bodied.map((id) => ({ id: `foe-${id}`, name: id, hero: { ref: foeRefs[id] } }))];
-  const practice = { roster, playable: heroes.length, players: [0], dummies: [], stakes: L.lives, street: { waves: withStreetBodies(S.waves, rosterAt) }, ...(gun ? { range: Array.isArray(L.guns) ? { guns: L.guns } : {} } : {}) };
+  const practice = { roster, playable: heroes.length, players: Array.from({ length: L.players }, (_, i) => i), dummies: [], stakes: L.lives, street: { waves: withStreetBodies(S.waves, rosterAt) }, ...(gun ? { range: Array.isArray(L.guns) ? { guns: L.guns } : {} } : {}) };
   const register = ['anime', 'western'].includes(G?.juice?.register) ? G.juice.register : null;
   const m = brawlLevel({ kind: 'stage', kit: L.kit, screens: S.screens }, { ...(title ? { title } : {}), ...(register ? { register } : {}), practice });
   const game = { levelRef: ref ?? 'street', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: { text: 'the street' } };
-  const says = [...S.says, ...(heroRef ? [] : ['the street is played by a stand-in fighter: the world has no hero yet'])];
+  const standIns = heroes.length - made.length;
+  const says = [...S.says, ...(standIns ? [made.length ? `${standIns} of its ${L.players} seats ${standIns === 1 ? 'is a stand-in fighter' : 'are stand-in fighters'}: the game has a hero and ${made.length - (heroRef ? 1 : 0)} who join its party (a cast member that \`joins\` takes a seat)` : `the street is played by ${standIns === 1 ? 'a stand-in fighter' : 'stand-in fighters'}: the world has no hero yet`] : [])];
   const laws = [{ concern: 'cast', law: 'street', holds: !says.length, says: says.length ? says.join('; ') : `the street's ${S.waves.length} stops are met by the game's own cast (${S.foes.join(', ')})` }];
+  // (a street runs across the screen: an upright one shows a sliver of it. Advised, never refused, as a fight's is)
+  const upright = (() => { try { return G?.screen ? readScreen(G.screen).orientation === 'portrait' : false; } catch { return false; } })();
+  if (upright) laws.push({ concern: 'screen', law: 'frame-fits', holds: false, says: 'a street runs across the screen, and this game is made for an upright one: its players and the crowd are cut off at the sides. Give the world `screen: \'screen\'` (or a tablet) for a beat-em-up or a run & gun' });
   return { manifest: { ...m, game }, laws };
 }

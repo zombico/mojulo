@@ -148,9 +148,30 @@ describe('a street as a level of a designed game', () => {
     expect(L.laws[0]).toMatchObject({ concern: 'cast', law: 'street', holds: true });
   });
 
+  it('up to four play: the hero and the cast who join take the seats; a seat nobody fills is a stand-in, said', () => {
+    const party = [{ id: 'ally', ref: 'gw-cast-ally', name: 'Ally' }, { id: 'kid', ref: 'gw-cast-kid' }];
+    const three = streetLevel(G, { ...street, players: 3 }, { heroRef: 'gw-hero', party }).manifest.brawl.practice;
+    expect(three.roster.slice(0, 3)).toEqual([{ id: 'hero', hero: { ref: 'gw-hero' } }, { id: 'ally', name: 'Ally', hero: { ref: 'gw-cast-ally' } }, { id: 'kid', name: 'kid', hero: { ref: 'gw-cast-kid' } }]);
+    expect(three).toMatchObject({ players: [0, 1, 2], playable: 3 });
+    // (one plays from the start, the others who have bodies can drop in)
+    expect(streetLevel(G, street, { heroRef: 'gw-hero', party }).manifest.brawl.practice).toMatchObject({ players: [0], playable: 3 });
+    const four = streetLevel(G, { ...street, players: 4 }, { heroRef: 'gw-hero', party });
+    expect(four.manifest.brawl.practice.roster[3]).toMatchObject({ id: 'stand-in-4', archetype: 'grappler' });
+    expect(four.manifest.brawl.practice).toMatchObject({ players: [0, 1, 2, 3], playable: 4 });
+    expect(four.laws[0].says).toMatch(/1 of its 4 seats is a stand-in fighter/);
+    // (the foes' bodies come after every seat)
+    const withFoes = streetLevel(G, { ...street, players: 2 }, { heroRef: 'gw-hero', foeRefs: { goon: 'r1', warlord: 'r2' } }).manifest.brawl.practice;
+    expect(withFoes.roster.map((r) => r.id)).toEqual(['hero', 'stand-in-2', 'foe-goon', 'foe-warlord']);
+    expect(withFoes.street.waves[0].crowd[0].roster).toBe(2);
+    expect(() => readLevelStreet({ ...street, players: 5 })).toThrow(/1 to 4/);
+    // (a street runs across the screen: a game made for an upright one is told, and built all the same)
+    expect(streetLevel({ ...G, screen: 'phone' }, street, { heroRef: 'gw-hero' }).laws.find((l) => l.concern === 'screen')).toMatchObject({ holds: false, says: expect.stringMatching(/upright/) });
+    expect(streetLevel({ ...G, screen: 'screen' }, street, { heroRef: 'gw-hero' }).laws.find((l) => l.concern === 'screen')).toBeUndefined();
+  });
+
   it('a world with no hero yet is played by a stand-in, and said; a run & gun by its intent or its guns', () => {
     const S = streetLevel(G, street, { foeRefs: { goon: 'r1', warlord: 'r2' } });
-    expect(S.manifest.brawl.practice.roster[0]).toEqual({ id: 'hero', archetype: 'all-rounder' });
+    expect(S.manifest.brawl.practice.roster[0]).toEqual({ id: 'stand-in-1', archetype: 'all-rounder' });
     expect(S.laws[0]).toMatchObject({ holds: false, says: expect.stringMatching(/stand-in fighter/) });
     expect(S.manifest.brawl.practice.range).toBeUndefined();
     expect(streetLevel({ ...G, intent: { from: 'run-and-gun' } }, street, {}).manifest.brawl.practice.range).toEqual({});

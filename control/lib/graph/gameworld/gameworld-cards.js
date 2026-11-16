@@ -810,6 +810,8 @@ const QUICK_LEVERS = {
     '    shooter, elite, boss. Absent with `foes`: three stops that build, the cast\'s boss. The readout advises (no boss, a stop that',
     '    meets fewer than the one before), never refuses.',
     '  waves: [{ grunt: 3 }, { foes: { <id>: n }, formation?, name? }] alone: a wave set on one open screen.',
+    '  IN A DESIGNED GAME a street is a level: levels.<id>.street: { …the street, players?: 1..4, kit?, lives?, guns? }; its seats the hero and',
+    '    the cast who join; more levels are more streets, linked. Give the world screen: \'screen\': a street runs across it.',
     '  With no `foes` the stock crowd comes as figures: a test harness, not a game to hand over.',
   ],
   rungun: () => [

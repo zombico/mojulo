@@ -746,7 +746,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
   // a street level (brawl-cast.js): its own simulation and its own contract, the game's hero and made foes its bodies
-  if (stage.section === 'street') { const S = streetLevel(G, stage.street, { title: title ?? stageTitle(stage), ref, heroRef, foeRefs }); return { tool: 'create_sketch', args: { title: S.manifest.title, manifest: S.manifest }, laws: S.laws }; }
+  if (stage.section === 'street') { const S = streetLevel(G, stage.street, { title: title ?? stageTitle(stage), ref, heroRef, foeRefs, party }); return { tool: 'create_sketch', args: { title: S.manifest.title, manifest: S.manifest }, laws: S.laws }; }
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, sheathRef, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
   const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stage.section === 'obstacles' ? obstacleEnds(stage.manifest) : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
