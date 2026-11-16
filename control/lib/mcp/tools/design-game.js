@@ -190,8 +190,9 @@ async function realize(step, action) {
     }
     return {};
   }
-  if (key === 'ride') {
-    // a quick game's ride: the vehicle's build (an assembler sketch), its manifest whole in place
+  if (key === 'ride' || /^car-[a-z-]+$/.test(key)) {
+    // a quick game's ride, or one of a world's cars (cars.js): the vehicle's build (an assembler sketch), its manifest
+    // whole in place
     if (action === 'make') await createSketchHandler({ ...order, ref });
     else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
     return {};
