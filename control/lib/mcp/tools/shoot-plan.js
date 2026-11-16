@@ -154,7 +154,7 @@ export function registerShootPlanTools() {
         ops: {
           type: 'array',
           minItems: 1,
-          items: { type: 'object', additionalProperties: true, properties: { op: { type: 'string', enum: ['add_camera', 'remove_camera', 'set_camera', 'add_key', 'set_key', 'remove_key', 'ease', 'retime', 'add_shot', 'set_shot', 'remove_shot', 'move_shot', 'add_piece', 'set_piece', 'piece_key', 'remove_piece', 'set', 'frame'] } }, required: ['op'] },
+          items: { type: 'object', additionalProperties: true, properties: { op: { type: 'string', enum: ['add_camera', 'remove_camera', 'set_camera', 'add_key', 'set_key', 'remove_key', 'ease', 'retime', 'add_shot', 'set_shot', 'remove_shot', 'move_shot', 'add_piece', 'set_piece', 'piece_key', 'remove_piece', 'set', 'frame', 'move'] } }, required: ['op'] },
           description: `In order; cameras by id, keys by \`t\` (s), shots by name or index. E.g. { op:'set_key', camera:'a', t:2, lens:'85mm', ease:'easy ease in' }. pos/poi: ${POINT}.`,
         },
         subjects_at: { type: 'number', description: 'List the followable subjects where they are at this time (s).' },

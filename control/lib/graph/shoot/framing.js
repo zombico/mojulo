@@ -18,8 +18,10 @@
  *   solveFraming(words, subject, { aspect }) → { pos, poi, focal_mm, roll, framing, read }   `subject` { pos, heading,
  *     height } in the world's units (its ground point, radians from +x); the camera a two-node key takes, refined
  *     against the frame read until the crown and the size's edge land where the size puts them; `read` is that read
- *   frameKey(words, subject, { t, follow, aspect }) → a shoot-plan key: fixed points, or with `follow` (a subject id)
- *     both ends riding the subject in its own frame (subjects.js `frame: 'subject'`), so the framing holds as it moves
+ *   frameKey(words, subject, { t, follow, aspect, stand }) → a shoot-plan key: fixed points, or with `follow` (a subject
+ *     id) both ends riding the subject in its own frame (subjects.js `frame: 'subject'`), so the framing holds as it
+ *     moves; with `stand` the camera held there, framing by its aim and lens (solveFromStand)
+ *   subjectOf(on, t, { subjects, metersPerUnit, heading, height }) → the subject a word's `on` names at a time
  *
  * Pure and deterministic.
  */
@@ -141,10 +143,75 @@ function intoSubject(p, P, heading) {
 }
 
 /** A shoot-plan key for the words on a subject (see the header) */
-export function frameKey(words, subject, { t = 0, follow = null, aspect = ASPECT, ease } = {}) {
-  const solved = solveFraming(words, subject, { aspect });
-  const pos = follow ? { follow, offset: intoSubject(solved.pos, subject.pos, subject.heading || 0), frame: 'subject' } : solved.pos;
-  const poi = follow ? { follow, offset: intoSubject(solved.poi, subject.pos, subject.heading || 0), frame: 'subject' } : solved.poi;
+/**
+ * The camera for the words seen from a place it already stands (`stand`, a point): only its aim and its lens move, a
+ * pan and a zoom, so the size is had by the focal length the distance asks for (the whip pan's and the crash zoom's
+ * framing). `side` and `angle` are the stand's, so they are not read. → as solveFraming
+ */
+export function solveFromStand(words, subject, stand, { aspect = ASPECT } = {}) {
+  const { framing, rows, warnings } = readFraming(words);
+  const P = subject.pos, H = subject.height, heading = subject.heading || 0;
+  const { topV, edgeH, edgeV } = targetsOf(rows.size);
+  const S = (H - edgeH * H) / Math.max(0.05, edgeV - topV);
+  let L = [P[0], P[1], P[2] + H + topV * S - S / 2];
+  const dist = () => Math.hypot(L[0] - stand[0], L[1] - stand[1], L[2] - stand[2]);
+  let tanV = S / (2 * Math.max(0.05, dist())), read = null, wantU = PLACES[framing.place];
+  const focalOf = (tv) => Math.max(8, Math.min(800, 18 / (tv * aspect)));   // the 36 mm back: tan(h/2) = 18 / focal
+  const cam = () => ({ pos: stand.slice(), look: L.slice(), hfov: hfovForFocal(focalOf(tanV)), roll: 0 });
+  const vAt = (c, h) => projectPoint(c, [P[0], P[1], P[2] + h * H], { aspect })?.v ?? 1;
+  for (let i = 0; i < 16; i++) {
+    const c = cam();
+    read = readFigure(c, { pos: P, heading, height: H }, { aspect });
+    if (read.behind || !Number.isFinite(read.u)) break;
+    if (wantU == null) wantU = read.facing === 'right' ? 1 / 3 : read.facing === 'left' ? 2 / 3 : 0.5;
+    const vt = read.top, ve = edgeH > 0 ? vAt(c, edgeH) : read.bottom, d = dist(), Sw = 2 * d * Math.tan((c.hfov * DEG) / 2) / aspect;
+    const span = ve - vt, want = edgeV - topV;
+    if (!(span > 1e-6)) break;
+    tanV *= Math.max(0.6, Math.min(1.6, span / want));
+    // the aim swung so the figure sits where the size and the place put it: down or up by the vertical miss, across by
+    // the horizontal one, along the frame's own axes
+    const f = [L[0] - stand[0], L[1] - stand[1], L[2] - stand[2]], fl = Math.hypot(...f);
+    const rt = [f[1] / Math.hypot(f[0], f[1]), -f[0] / Math.hypot(f[0], f[1]), 0], dv = ((vt + ve) / 2 - (topV + edgeV) / 2) * Sw, du = (read.u - wantU) * Sw * aspect;
+    L = [L[0] + rt[0] * du, L[1] + rt[1] * du, L[2] - dv];
+    const k = fl / Math.hypot(L[0] - stand[0], L[1] - stand[1], L[2] - stand[2]);
+    L = [stand[0] + (L[0] - stand[0]) * k, stand[1] + (L[1] - stand[1]) * k, stand[2] + (L[2] - stand[2]) * k];
+  }
+  const focal = Math.round(focalOf(tanV) * 10) / 10, roll = framing.dutch || 0;
+  read = readFigure({ ...cam(), hfov: hfovForFocal(focal), roll }, { pos: P, heading, height: H }, { aspect });
+  const { side, angle, ...kept } = framing;
+  if (read.size !== rows.size.id) warnings.push(`from where it stands the lens reaches a ${read.size} at ${focal}mm, not a ${rows.size.name}: stand nearer`);
+  return { pos: stand.map(r4), poi: L.map(r4), focal_mm: focal, roll, framing: { ...kept, focal_mm: focal, stand: true }, read, ...(warnings.length ? { warnings } : {}) };
+}
+
+/**
+ * What a framing word's `on` names, at a time: a subject of the world by its id (its place and heading then, its box's
+ * height, or a figure's) or a point standing still ([x, y, z] with a `heading` in degrees and a `height` in metres).
+ * → { subject: { pos, heading, height }, id? } or { error }
+ */
+export function subjectOf(on, t, { subjects = null, metersPerUnit = 1, heading, height, figureH = 1.75 } = {}) {
+  const mpu = Number.isFinite(metersPerUnit) && metersPerUnit > 0 ? metersPerUnit : 1;
+  if (typeof on === 'string' && on.trim()) {
+    const s = subjects && subjects.get(on.trim());
+    if (!s) return { error: `'${on}' ${subjects ? 'is not a moving subject in this world' : 'cannot be found: the world is not in hand'}` };
+    const here = s.at(t);
+    return { id: s.id, subject: { pos: here.pos, heading: here.heading, height: s.box ? s.box.hgt : figureH / mpu } };
+  }
+  if (Array.isArray(on) && on.length === 3 && on.every(Number.isFinite)) {
+    return { subject: { pos: on.slice(), heading: Number.isFinite(heading) ? heading * DEG : 0, height: Number.isFinite(height) && height > 0 ? height / mpu : figureH / mpu } };
+  }
+  return { error: '`on` is a subject\'s id (walker:0, car:2, entity:hero) or a point [x,y,z]' };
+}
+
+/**
+ * A shoot-plan key for the words on a subject (see the header). With `stand` (a point) the camera stays there and
+ * frames by aim and lens (solveFromStand); its aim then follows the subject in the world's frame, so a pan keeps it.
+ */
+export function frameKey(words, subject, { t = 0, follow = null, aspect = ASPECT, ease, stand = null } = {}) {
+  const solved = stand ? solveFromStand(words, subject, stand, { aspect }) : solveFraming(words, subject, { aspect });
+  const ride = (p) => ({ follow, offset: intoSubject(p, subject.pos, subject.heading || 0), frame: 'subject' });
+  const aim = (p) => ({ follow, offset: [r4(p[0] - subject.pos[0]), r4(p[1] - subject.pos[1]), r4(p[2] - subject.pos[2])] });
+  const pos = follow && !stand ? ride(solved.pos) : solved.pos;
+  const poi = follow ? (stand ? aim(solved.poi) : ride(solved.poi)) : solved.poi;
   const { placed, ...said } = solved.framing;
   return {
     key: { t, pos, poi, focal_mm: solved.focal_mm, roll: solved.roll, ...(ease ? { ease } : {}), ...(follow ? { about: follow } : {}), framing: said },

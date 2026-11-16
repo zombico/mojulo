@@ -158,6 +158,8 @@ export function readFigure(cam, subject, { aspect = ASPECT } = {}) {
 }
 
 const sizeIndex = (id) => SIZES.findIndex((z) => z.id === id);
+// the moves (moves.js) whose frames in between are a blur on the way, not a composition
+const FAST = ['whip_pan', 'crash_zoom'];
 // the subject a key's point of interest stands on, at an instant: within its own height of the point
 function standingAt(poi, subjects, t, heightOf) {
   let best = null;
@@ -195,11 +197,11 @@ export function frameRead(plan, { subjects = null, metersPerUnit = 1, aspect = A
     const ends = [shot.start + 1e-6, shot.start + shot.length / 2, shot.start + shot.length - 1e-6];
     const reads = ends.map((tau) => {
       const at = shotAt(program, tau), cam = cameraAt(compiled.get(shot.camera), at.camera_t ?? at.t);
-      const s = aboutOf(shot, at.t, cam, at.camera_t ?? at.t);
-      if (!s) return { t: at.t, cam };
+      const ct = at.camera_t ?? at.t, s = aboutOf(shot, at.t, cam, ct);
+      if (!s) return { t: at.t, ct, cam };
       const h = heightOf(s), here = s.at(at.t);
-      if (h == null) { const p = projectPoint(cam, here.pos, { aspect }); return { t: at.t, cam, s, read: { in_frame: !!p && p.u >= 0 && p.u <= 1 && p.v >= 0 && p.v <= 1, ...(p ? { u: r3(p.u), v: r3(p.v) } : { behind: true }) } }; }
-      return { t: at.t, cam, s, read: readFigure(cam, { pos: here.pos, heading: here.heading, height: h, figure: figureOf(s), ...(s.box ? { width: s.box.len } : {}) }, { aspect }) };
+      if (h == null) { const p = projectPoint(cam, here.pos, { aspect }); return { t: at.t, ct, cam, s, read: { in_frame: !!p && p.u >= 0 && p.u <= 1 && p.v >= 0 && p.v <= 1, ...(p ? { u: r3(p.u), v: r3(p.v) } : { behind: true }) } }; }
+      return { t: at.t, ct, cam, s, read: readFigure(cam, { pos: here.pos, heading: here.heading, height: h, figure: figureOf(s), ...(s.box ? { width: s.box.len } : {}) }, { aspect }) };
     });
     const about = reads.find((x) => x.s)?.s;
     const mid = reads[1].read || reads.find((x) => x.read)?.read;
@@ -218,10 +220,13 @@ export function frameRead(plan, { subjects = null, metersPerUnit = 1, aspect = A
     shots.push(row);
     if (!about) return;
     // ─── the advice on one shot ─────────────────────────────────────────────────────────────────────────────────────
-    const lost = reads.find((x) => x.read && !x.read.in_frame);
+    // (a whip pan leaves its subject between its keys on purpose: the blur is the move)
+    const inMove = (x, ids) => { const ks = camOf(shot.camera).keys, ct = x.ct; return ks.some((k, j) => ids.includes(k.framing?.move) && ks[j + 1] && ks[j + 1].framing?.move === k.framing.move && k.t <= ct && ct < ks[j + 1].t); };
+    const lost = reads.find((x) => x.read && !x.read.in_frame && !inMove(x, ['whip_pan']));
     if (lost) note('lost', shot.name, lost.t, `${about.id} is out of the frame at ${r3(lost.t)}s`, 'aim the point of interest at it (follow it), or open the lens');
     const R = mid;
-    if (!R || !R.size || sizeIndex(R.size) < 0 || !R.in_frame) return;
+    // (a frame in a fast move, a whip or a crash zoom, is a blur on its way: its composition is the keys')
+    if (!R || !R.size || sizeIndex(R.size) < 0 || !R.in_frame || inMove(reads[1], FAST)) return;
     const k = sizeIndex(R.size);
     if (R.top < -0.005 && k >= sizeIndex('ms')) note('head-cut', shot.name, reads[1].t, `a ${SIZES[k].name} cuts ${about.id}'s head off at the top`, 'lower the point of interest, or pull back');
     if (R.top > RULES.loose && k >= sizeIndex('mcu') && k <= sizeIndex('mls')) note('loose-head', shot.name, reads[1].t, `${r3(R.top * 100)}% of the frame over ${about.id}'s head: it sinks in a ${SIZES[k].name}`, 'raise the point of interest so the eyes sit near the upper third');

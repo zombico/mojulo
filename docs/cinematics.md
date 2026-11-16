@@ -107,6 +107,23 @@ camera can be placed from the same words (`shoot/framing.js`, a shoot-plan key's
 The read rides the shoot door's answer as `composition`: each shot's subject, size, headroom, eyes, place and facing, and
 advice with its fix. It reads; the eyes gate (LOOK THROUGH on the World page) is the person's.
 
+## The moves
+
+A move is said by its name and laid as keys framed in those words (`shoot/moves.js`, a key's `move`, the op `move`), so
+it rides a subject that walks and reads back as its sizes. Each is a row of `MOVES`.
+
+- **Dolly or zoom, never confused.** A push in keeps its lens and moves the camera; a crash zoom keeps the camera and
+  changes the lens; a dolly zoom does both against each other so the subject holds its size while the place round it
+  stretches. Framing from where a camera stands (`framing.js` `solveFromStand`) is how a zoom or a pan frames.
+- **A zoom keeps its subject framed on the way.** A crash zoom lays a key at each size between, timed by the lens, so
+  the aim follows the closing frame.
+- **A crane bows.** The boom swings on its arm: a key between, at the mean tilt, so the path arcs.
+- **A whip is a blur.** Between its keys a whip pan leaves its subject on purpose, and the frame read does not call it
+  lost; inside a whip or a crash zoom it reads no composition.
+- **The hand that holds it.** A camera's `shake` (`shoot/shake.js`) is a style (handheld, steadicam, run, rumble) laid
+  over its keyed path by the sampler from seeded dice, so every reader of the camera shakes the same; a camera without
+  one is sampled exactly as before.
+
 ## The director's notes
 
 Suggestions read off a scene and its coverage (`actor/notes.js` `directorsNotes`), each with its principle and a change

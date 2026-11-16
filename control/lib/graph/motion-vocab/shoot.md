@@ -63,6 +63,23 @@ Say the shot, not the coordinates: a key `{ t, frame: { on, size, angle?, side?,
 
 The key keeps `about` and `framing` (its words); moving or re-aiming it by hand (`set_key` pos / poi) drops them.
 
+## Named moves (`move`)
+
+Say the move: a key `{ t, move: { kind, on, for?, …framing words } }` (or the op `move { camera, t, move, on, … }`, which adds the camera, and a shot over the move, when it is new) lays the keys that make it from `t`, each framed in words on `on`, so on a walker it rides and the frame read reads each key back. Its keys replace the camera's keys in its span; afterwards they are ordinary keys (set_key, ease).
+
+| move | what it does | its words (defaults) |
+|---|---|---|
+| `push_in` / `pull_out` | the dolly in or out, the lens kept | `from` / `to` sizes (ms → cu; cu → ws) |
+| `dolly_zoom` | the size held while the lens changes: the place stretches or closes in round the subject | `from` / `to` lenses (24mm → 85mm), `size` (mcu) |
+| `arc` | round the subject at one size, a key every 30° | `by` degrees (90; + toward its left), `side`, `size` (ms) |
+| `crane_up` / `crane_down` | the boom: eye level at a size up to a high wide, or down | `to` an angle (high), `to_size` (ws) |
+| `track` | alongside a subject as it moves; on a still point, a truck | `side` (profile-left), `size` (fs); `by` metres for a truck (3) |
+| `whip_pan` | a pan so fast it blurs, the camera held | `to` the subject or point it lands on (required) |
+| `crash_zoom` | the lens slammed in from where the camera stands | `from` / `to` sizes (ws → cu) |
+| `handheld` · `steadicam` · `run` · `rumble` | the camera's shake over `for` seconds, or its whole range | `amount` (1), `seed` |
+
+`for` is the move's seconds (each has its own: a whip 0.35, a crash zoom 0.3). Said words read too ('dolly in', 'vertigo', 'orbit', 'swish pan', 'snap zoom', 'hand-held'). A shake is the camera's `shake` (`set_camera { shake: 'handheld' | { style, amount, span } | null }`), laid over its keyed path by the sampler, seeded, so a render, the page's track and the Blender frames shake the same; a camera following a live entity is not shaken on the page. The frame read lets a whip pan leave its subject between its keys, and reads no composition inside a whip or a crash zoom.
+
 ## The frame read (`composition`)
 
 Beside the readout, the door answers what each shot FRAMES: the subject it is about (the key's `about`, else the one its camera follows, else the one standing at its point of interest), read at the shot's start, middle and end: its `size` (`sizes` when it changes), `headroom` and `eyes` (shares of the frame from the top), `across` (0 left, 1 right) and `facing` (left | right | toward | away). Its `notes`, each with a fix, are advice:
@@ -103,7 +120,7 @@ Recipes: a wormhole = a `pipe` `along` the flying camera; a corridor = `{ kind: 
 
 ## Edits (`shoot: { ops }`)
 
-`frame { camera, t, on, size?, angle?, side?, place?, lens?, dutch?, follow?, ease? }` (a key said in words, above) · `add_key { camera, key }` · `set_key { camera, t, to?, pos?, poi?, lens?, ease?, roll? }` · `remove_key { camera, t }` · `ease { camera, t? | times?, ease }` (no time = every key) · `retime { camera?, scale?, shift? }` (keys and that camera's shots) · `set_camera { camera, name?, lens?, path?, type? }` (flipping the type keeps the view) · `add_camera { camera, shot? }` · `remove_camera` · `add_shot { shot, at? }` · `set_shot { shot, name?, camera?, span?, in?, speed?, time?, clock?, grain? }` · `remove_shot` · `move_shot { shot, to }` · `add_piece { piece }` · `set_piece { piece, …fields }` · `piece_key { piece, key }` (a key at an existing time merges) · `remove_piece` · `set { fps }`.
+`frame { camera, t, on, size?, angle?, side?, place?, lens?, dutch?, follow?, ease? }` (a key said in words, above) · `move { camera, t, move, on, for?, … }` (a named move, above) · `add_key { camera, key }` · `set_key { camera, t, to?, pos?, poi?, lens?, ease?, roll? }` · `remove_key { camera, t }` · `ease { camera, t? | times?, ease }` (no time = every key) · `retime { camera?, scale?, shift? }` (keys and that camera's shots) · `set_camera { camera, name?, lens?, path?, type?, shake? }` (flipping the type keeps the view) · `add_camera { camera, shot? }` · `remove_camera` · `add_shot { shot, at? }` · `set_shot { shot, name?, camera?, span?, in?, speed?, time?, clock?, grain? }` · `remove_shot` · `move_shot { shot, to }` · `add_piece { piece }` · `set_piece { piece, …fields }` · `piece_key { piece, key }` (a key at an existing time merges) · `remove_piece` · `set { fps }`.
 
 ## Exports
 
