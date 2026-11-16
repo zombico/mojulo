@@ -50,6 +50,7 @@ export const PLAYER_CLIPS = Object.freeze({
  *    swing          the phase the arc's, 0 behind the pivot to 1 ahead: arched with the legs trailing, long at the
  *                   bottom, piked with the legs thrown ahead; one arm up the line, the other swept wide
  *    swing_release  the phase the somersault's: laid out as the line is let go, tucked through the turn, opened wide to land
+ *    dive           head first off a line: laid long, the arms swept back
  *    zip            pulled up a line to a wall: one arm leading, the other back, the legs trailing together */
 export const GEAR_CLIPS = Object.freeze({
   swing: { keys: [
@@ -62,6 +63,12 @@ export const GEAR_CLIPS = Object.freeze({
     { support: 'none', spine: { lean: ['forward', 0.55] }, head: { pitch: 22 }, legL: { x: -0.08, y: 0.78, z: -0.62 }, kneeL: 125, legR: { x: 0.08, y: 0.78, z: -0.62 }, kneeR: 125, armL: { x: -0.22, y: 0.62, z: -0.6 }, elbowL: 75, armR: { x: 0.22, y: 0.62, z: -0.6 }, elbowR: 75 },
     { support: 'none', spine: { lean: ['forward', 0.5] }, head: { pitch: 20 }, legL: { x: -0.08, y: 0.74, z: -0.66 }, kneeL: 120, legR: { x: 0.08, y: 0.74, z: -0.66 }, kneeR: 120, armL: { x: -0.22, y: 0.6, z: -0.62 }, elbowL: 72, armR: { x: 0.22, y: 0.6, z: -0.62 }, elbowR: 72 },
     { support: 'none', spine: { arch: 0.15 }, head: { pitch: -4 }, legL: { x: -0.14, y: 0.12, z: -0.98 }, kneeL: 22, legR: { x: 0.14, y: 0.22, z: -0.96 }, kneeR: 34, armL: { x: -0.9, y: 0.05, z: 0.3 }, elbowL: 12, armR: { x: 0.9, y: 0.05, z: 0.3 }, elbowR: 12 },
+  ] },
+  // (the dive, head first: the engine pitches the whole body; here it is laid long, the arms swept back along it, the
+  // legs together and trailing, the head up to see where it goes)
+  dive: { keys: [
+    { support: 'none', spine: { arch: 0.22 }, head: { pitch: -28 }, legL: { x: -0.04, y: -0.12, z: -0.99 }, kneeL: 6, legR: { x: 0.04, y: -0.06, z: -0.99 }, kneeR: 10, armL: { x: -0.28, y: -0.32, z: -0.9 }, elbowL: 8, armR: { x: 0.28, y: -0.32, z: -0.9 }, elbowR: 8 },
+    { support: 'none', spine: { arch: 0.26 }, head: { pitch: -30 }, legL: { x: -0.04, y: -0.16, z: -0.98 }, kneeL: 10, legR: { x: 0.04, y: -0.08, z: -0.99 }, kneeR: 14, armL: { x: -0.32, y: -0.36, z: -0.88 }, elbowL: 12, armR: { x: 0.32, y: -0.36, z: -0.88 }, elbowR: 12 },
   ] },
   zip: { keys: [
     { support: 'none', spine: { arch: 0.22 }, head: { pitch: -12 }, legL: { x: -0.05, y: -0.3, z: -0.95 }, kneeL: 20, legR: { x: 0.05, y: -0.12, z: -0.99 }, kneeR: 45, armR: { x: 0.15, y: 0.45, z: 0.88 }, elbowR: 6, armL: { x: -0.35, y: -0.55, z: -0.75 }, elbowL: 15 },
@@ -149,6 +156,7 @@ export const libraryBob = (library, clip) => LIBRARY_BOB[library]?.[clip] ?? 0;
  *  swing.js): each falls back, in order, to a state every player already plays, so no figure is refused for a clip it
  *  lacks. */
 export const TRAVERSAL_FALLBACK = Object.freeze({
+  wall_run: ['sprint', 'forward', 'climb', 'leap'],
   wall_crawl: ['climb', 'leap'],
   wall_rest: ['idle'],
   mantle: ['climb', 'squat', 'leap'],

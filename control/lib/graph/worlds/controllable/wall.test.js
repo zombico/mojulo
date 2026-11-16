@@ -147,3 +147,56 @@ describe('the wall: the rest', () => {
     expect(h.tumble ?? null).toBeNull();
   });
 });
+
+describe('the wall: the run', () => {
+  // flung at the tower's west face across it: east and north, a little up
+  const flung = (rule = {}, v = [10, 9, 3]) => {
+    const W = world([TOWER], hero(rule, [0.4, -3, 8], Math.atan2(v[1], v[0]))), h = W.w.byId.hero;
+    h.grounded = false; h.vel = [0, 0, v[2]]; h.dashVel = [v[0], v[1]];
+    return { W, h };
+  };
+  it('met at speed in the air, the face is run: along it and up it with what the body brought, leant out from the wall', () => {
+    const { W, h } = flung();
+    let ran = 0;
+    for (let i = 0; i < 40 && !(h.walling && h.walling.run); i++) run(W, { forward: 1 }, 1);
+    expect(h.walling).toMatchObject({ ax: 0, s: -1, at: 2 });
+    expect(h.walling.run).toBeTruthy();
+    const p0 = [...h.transform.pos];
+    for (let i = 0; i < 20 && h.walling && h.walling.run; i++) { run(W, { forward: 1 }, 1); if (h.locomotion === 'wall_run') ran++; }
+    expect(ran).toBeGreaterThan(5);
+    // carried north along the face and up it, held to its plane, the body turned the way it runs and leant off the wall
+    expect(h.transform.pos[1]).toBeGreaterThan(p0[1] + 1);
+    expect(h.transform.pos[2]).toBeGreaterThan(p0[2]);
+    expect(h.transform.pos[0]).toBeCloseTo(2 - 0.35, 6);
+  });
+
+  it('ends in a hold when forward is let go, and a jump off it keeps the run\'s speed along the face', () => {
+    const A = flung();
+    for (let i = 0; i < 40 && !(A.h.walling && A.h.walling.run); i++) run(A.W, { forward: 1 }, 1);
+    run(A.W, {}, 3);
+    expect(A.h.walling).toBeTruthy();
+    expect(A.h.walling.run ?? null).toBeNull();
+    expect(A.h.locomotion).toBe('wall_crawl');
+    expect(A.h.tumble ?? null).toBeNull();
+    const B = flung();
+    for (let i = 0; i < 40 && !(B.h.walling && B.h.walling.run); i++) run(B.W, { forward: 1 }, 1);
+    run(B.W, { forward: 1 }, 4);
+    const along = B.h.walling.run.vta;
+    run(B.W, { forward: 1, jump: 1, jumpHeld: 1 }, 2);
+    run(B.W, { forward: 1 }, 1);
+    expect(B.h.walling).toBeNull();
+    expect(B.h.walled.end).toBe('jump');
+    expect(B.h.dashVel[1]).toBeGreaterThan(along * 0.8);
+    expect(B.h.dashVel[0]).toBeLessThan(0);
+  });
+
+  it('run: false, or a body that walks at the face, holds at once as before', () => {
+    const { W, h } = flung({ wall: { run: false } }, [10, 0, 0]);
+    for (let i = 0; i < 40 && !h.walling; i++) run(W, { forward: 1 }, 1);
+    expect(h.walling).toBeTruthy();
+    expect(h.walling.run).toBeUndefined();
+    const S = world([TOWER]), s = run(S, { forward: 1 }, 40);
+    expect(s.walling.run).toBeUndefined();
+    expect(s.locomotion).toBe('wall_crawl');
+  });
+});

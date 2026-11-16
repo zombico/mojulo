@@ -10,6 +10,12 @@
  *               (`ground: false` asks for a jump first: taken only from a leap since the body last stood, never from
  *               a step off a kerb beside the face); a face narrower than `minFace` (a tree's trunk) is not held,
  *               nor a box marked `hold: false` (a level's edge)
+ *   run         met at speed in the air (`runMin` or more: off a swing, a leap, a zip's launch), the face is RUN: the body
+ *               keeps what it came in with along the face and up it (what it carried into the wall turned up it too),
+ *               steered by A / D, a share of gravity (`runFall`) and a drag (`runDrag`) taking it, forward held holding
+ *               it up; past the top it mantles onto the roof, slowed to a crawl's pace it holds; a jump off it keeps
+ *               the run's speed along the face. Taken at any angle the body's own speed carries into the wall, not
+ *               only walking at it. `run: false` holds at once, as before
  *   crawl       forward up the face, back down it, A / D (strafe or turn) across it; round an outside corner onto the
  *               next face of the same box, unless another box stands there
  *   mantle      up past the top: over the lip onto the roof, eased over `mantleT`
@@ -22,12 +28,13 @@
  *   perch       standing still on a roof, within `lip` of its edge: the body crouches there (`perch`)
  *   dive        falling faster than `dive` off a wall's hero: head first (`dive`)
  *
- * Locomotion: wall_crawl, wall_rest, mantle, perch, dive (a figure without the clip plays its fallback: playscape/player.js
+ * Locomotion: wall_run, wall_crawl, wall_rest, mantle, perch, dive (a figure without the clip plays its fallback: playscape/player.js
  * TRAVERSAL_FALLBACK). Lengths in the world's units; the defaults are metres, scaled by the rule's `metre` (world units
  * per metre, 1 by default: a city level's hero carries 1 / 3.66), so a power that grants `wall: true` holds anywhere.
  *
  *   wall: { speed 3 m/s, reach 0.5 m, minFace 1 m, lip 0.6 m, dive 9 m/s, mantleT 0.3 s, chargeT 0.25 s,
- *           chargeMax 0.8 s, launch 2, ground true, rest 0.3 rad, restT 0.35 s }
+ *           chargeMax 0.8 s, launch 2, ground true, rest 0.3 rad, restT 0.35 s,
+ *           run true, runMin 7 m/s, runFall 0.45, runDrag 0.5 /s, runLean 0.6 rad }
  */
 export function buildWall(E) {
   const { clamp, fwdXY } = E;
@@ -37,6 +44,7 @@ export function buildWall(E) {
     return {
       speed: w.speed ?? 3 * m, reach: w.reach ?? 0.5 * m, minFace: w.minFace ?? 1 * m, lip: w.lip ?? 0.6 * m, dive: w.dive ?? 9 * m,
       mantleT: w.mantleT ?? 0.3, chargeT: w.chargeT ?? 0.25, chargeMax: w.chargeMax ?? 0.8, launch: w.launch ?? 2, ground: w.ground !== false, rest: w.rest ?? 0.3, restT: w.restT ?? 0.35,
+      run: w.run !== false, runMin: w.runMin ?? 7 * m, runFall: w.runFall ?? 0.45, runDrag: w.runDrag ?? 0.5, runLean: w.runLean ?? 0.6,
     };
   };
   E.wallDials = dials;   // the wall's dials off a rule, for the reach (game/reach.js): what the solver reaches, the wall holds
@@ -70,17 +78,19 @@ export function buildWall(E) {
   const inside = (cs, p, feet, H, R, skip) => cs.some((c) => c !== skip && p[0] > c.min[0] - R + EPS && p[0] < c.max[0] + R - EPS && p[1] > c.min[1] - R + EPS && p[1] < c.max[1] + R - EPS && feet < c.max[2] - EPS && feet + H > c.min[2] + EPS);
 
   // a face to take hold of: in reach, faced, forward pressed, standing above the body (or met in the air)
-  function grab(e, inp, D, cs) {
+  function grab(e, inp, D, cs, vin = null) {
     const r = e.rule, t = e.transform, R = r.collideRadius ?? 0, eye = r.eye ?? 0, H = r.collideHeight ?? 1.7 * (r.metre ?? 1), feet = t.pos[2] - eye;
     if (!(inp.forward > 0) || (!D.ground && (e.grounded || !e._wallLeap))) return null;
     const f = fwdXY(t.heading);
+    // (a body carried in at a run's speed takes the face its speed carries it into, however it is turned)
+    const sp = vin ? Math.hypot(vin[0], vin[1], vin[2]) : 0, carried = D.run && !e.grounded && sp >= D.runMin;
     let best = null;
     for (const c of cs) {
       if (c.hold === false) continue;
       for (const ax of [0, 1]) for (const s of [-1, 1]) {
         const ta = 1 - ax, at = planeOf(c, ax, s), d = (t.pos[ax] - at) * s - R;
         if (d < -EPS || d > D.reach) continue;
-        if (-(ax === 0 ? f[0] : f[1]) * s < 0.5) continue;
+        if (-(ax === 0 ? f[0] : f[1]) * s < 0.5 && !(carried && -(vin[ax] * s) / sp >= 0.12)) continue;
         if (t.pos[ta] < c.min[ta] || t.pos[ta] > c.max[ta] || c.max[ta] - c.min[ta] < D.minFace) continue;
         if (feet + H * 0.5 < c.min[2] || feet > c.max[2] - H * 0.5) continue;
         if (e.grounded && faceTop(cs, ax, s, at, t.pos, feet) - feet < H * 1.2) continue;
@@ -100,13 +110,25 @@ export function buildWall(E) {
     const r = e.rule, D = dials(r), t = e.transform, R = r.collideRadius ?? 0, eye = r.eye ?? 0, H = r.collideHeight ?? 1.7 * (r.metre ?? 1);
     // (a wall that asks a jump first: a leap since the body last stood, its own or off a wall; the ground ends it)
     if (!D.ground) { if (e.grounded) e._wallLeap = false; if (e.jumped) e._wallLeap = true; }
+    // the speed the body comes in at: its last step's travel, or what a line that met a box carried (swing.js `_carry`)
+    const at0 = e._wallAt;
+    e._wallAt = [t.pos[0], t.pos[1], t.pos[2]];
+    let vin = at0 && dt > 0 ? [(t.pos[0] - at0[0]) / dt, (t.pos[1] - at0[1]) / dt, (t.pos[2] - at0[2]) / dt] : [0, 0, 0];
+    if (e._carry) { e._carry.t -= dt; if (e._carry.t > 0) vin = e._carry.v; else e._carry = null; }
     if (!e.walling) {
       if (e._wallCool > 0) return false;
-      const g = grab(e, inp, D, cs);
+      const g = grab(e, inp, D, cs, vin);
       if (!g) return false;
       // a jump still held from the leap that met the wall is not a charge: it must be let go first
       e.walling = { ax: g.ax, s: g.s, at: g.at, hold: null, mantle: null, spent: !!(inp.jumpHeld || inp.jump) };
       e.launchedBy = null; e.launchLock = false;
+      // THE RUN: met at speed in the air, the face is run with what the body brought along it and up it, and what it
+      // carried into the wall is turned up it
+      if (D.run && !e.grounded) {
+        const into = Math.max(0, -(vin[g.ax] * g.s)), run = { vta: vin[1 - g.ax], up: Math.max(-2 * (r.metre ?? 1), vin[2]) + into * 0.6 };
+        if (Math.hypot(run.vta, run.up) >= D.runMin) e.walling.run = run;
+      }
+      e._carry = null;
     }
     const w = e.walling, n = w.ax === 0 ? [w.s, 0] : [0, w.s], ta = 1 - w.ax;
     const still = () => { e.vel = [0, 0, 0]; e.dashVel = null; e.grounded = false; e.coyote = 1; e.jumpBuf = 0; };
@@ -132,15 +154,27 @@ export function buildWall(E) {
       const out = launched ? 0.7 : 0.55, along = side * 0.45;
       e.walling = null; e._wallCool = WALL_COOL;
       e.vel = [0, 0, P * lift]; e.dashVel = [(n[0] * out + tg[0] * along) * P, (n[1] * out + tg[1] * along) * P];
+      // (off a RUN: its speed along the face goes with the jump, and a share of what it was climbing at)
+      if (w.run) { e.dashVel[ta] += w.run.vta; e.vel[2] += Math.max(0, w.run.up) * 0.6; }
       e.grounded = false; e.coyote = 1; e.jumpBuf = 0; e.jumped = true;
       t.heading = Math.atan2(n[1], n[0]);
       e.locomotion = 'leap'; e.walled = { end: launched ? 'launch' : 'jump', power: P };
       return true;
     }
     // the crawl: up / down the face, across it
-    const du = (inp.forward || 0) * D.speed * dt, side = clamp((inp.strafe || 0) + (inp.turn || 0), -1, 1), dl = side * D.speed * 0.8 * dt;
+    const side = clamp((inp.strafe || 0) + (inp.turn || 0), -1, 1);
+    let du = (inp.forward || 0) * D.speed * dt, dl = side * D.speed * 0.8 * dt;
     // across, in the face's own sense: right of a body facing in (heading -n) is +s along y on an x face, -s along x on a y face
     const tsign = w.ax === 0 ? w.s : -w.s;
+    // the run's own travel: gravity's share and the drag take it, A / D steers it, forward holds it up; slowed to a
+    // crawl's pace, or forward let go, the body holds
+    if (w.run) {
+      const g = r.gravity ?? 20 * (r.metre ?? 1), k = Math.exp(-D.runDrag * dt), fwd = clamp(inp.forward || 0, 0, 1);
+      w.run.up = (w.run.up > 0 ? w.run.up * k : w.run.up) - g * D.runFall * (1 - 0.6 * fwd) * dt;
+      w.run.vta = w.run.vta * k + side * tsign * D.speed * 3 * dt;
+      if (Math.hypot(w.run.up, w.run.vta) < D.speed || !(fwd > 0)) w.run = null;
+      else { du = w.run.up * dt; dl = w.run.vta * tsign * dt; }
+    }
     const feet0 = t.pos[2] - eye, held = support(cs, w.ax, w.s, w.at, t.pos, feet0, H);
     const letGo = () => { e.walling = null; e._wallCool = WALL_COOL; e.vel = [0, 0, 0]; e.dashVel = null; e.walled = { end: 'bottom' }; return false; };
     if (!held) return letGo();
@@ -153,7 +187,7 @@ export function buildWall(E) {
         const s2 = p[ta] > held.max[ta] ? 1 : -1, at2 = planeOf(held, ta, s2), q = [0, 0, 0];
         q[ta] = at2 + s2 * R; q[w.ax] = w.at - w.s * Math.min(R, (held.max[w.ax] - held.min[w.ax]) / 2);
         if (!inside(cs, q, feet0, H, R, held)) {
-          e.walling = { ax: ta, s: s2, at: at2, hold: w.hold, mantle: null, spent: w.spent };
+          e.walling = { ax: ta, s: s2, at: at2, hold: w.hold, mantle: null, spent: w.spent };   // (a run ends at a corner: the next face is held)
           t.pos = [q[0], q[1], feet0 + eye]; t.heading = Math.atan2(-(ta === 1 ? s2 : 0), -(ta === 0 ? s2 : 0));
           still(); e.locomotion = 'wall_crawl'; e.moving = true;
           return true;
@@ -193,6 +227,8 @@ export function buildWall(E) {
     still();
     e.locomotion = 'wall_crawl'; e.gaitPhase = (e.gaitPhase || 0) + (Math.abs(du) + Math.abs(dl)) / (0.6 * (r.metre ?? 1));
     e.moving = Math.abs(du) > 1e-9 || Math.abs(dl) > 1e-9;
+    // (a run ended: its lean goes with it)
+    if (!w.run && e._runLean) { e.tumble = null; e._runLean = false; e._wallLean = false; }
     // THE REST: held still, the body settles onto the face and looks down the street: its own clip, read slowly round
     // (a breath), and the whole body leant out from the wall about its own left (e.tumble, eased in). Moving ends it
     if (e.moving || !(D.rest > 0)) { e._wallRest = 0; if (e._wallLean) { e.tumble = null; e._wallLean = false; } }
@@ -203,6 +239,21 @@ export function buildWall(E) {
         e.locomotion = 'wall_rest'; e.moving = true; e.gaitPhase = ((e._wallRest - D.restT) / 4) % 1;
         e.tumble = { axis: [-f[1], f[0], 0], angle: -D.rest * k }; e._wallLean = true;
       }
+    }
+    // THE RUN's body: along the face it runs the way it goes, leant out from the wall about its own way; up it, it
+    // faces the wall, leant back off it
+    if (w.run) {
+      e.locomotion = 'wall_run'; e.moving = true;
+      e.gaitPhase = (e.gaitPhase || 0) + Math.hypot(du, dl) / (1.7 * (r.metre ?? 1));
+      if (Math.abs(w.run.vta) > Math.abs(w.run.up)) {
+        const sg = Math.sign(w.run.vta), fx = ta === 0 ? sg : 0, fy = ta === 1 ? sg : 0;
+        t.heading = Math.atan2(fy, fx);
+        e.tumble = { axis: [fx, fy, 0], angle: D.runLean * Math.sign(fy * n[0] - fx * n[1]) };
+      } else {
+        const fi = fwdXY(t.heading);
+        e.tumble = { axis: [-fi[1], fi[0], 0], angle: -D.runLean * 1.5 * Math.sign(w.run.up || 1) };
+      }
+      e._wallLean = true; e._runLean = true;
     }
     return true;
   }, 55);

@@ -27,8 +27,16 @@
  *                the key is let go, a jump is pressed (with a lift), a box crosses the line, the body meets a box (the
  *                wall then takes it, wall.js), or the ground; the body flies on with the swing's velocity (the platform
  *                rule's `dashVel`, to touchdown)
- *   the zip      the key pressed on the ground: a pull straight to the anchor at `zipSpeed`, arriving on the face (the
- *                wall holds it there when the rule has `wall`)
+ *   the zip      the key pressed on the ground, or TAPPED TWICE in the air (a line let go within `tapT` of its cast,
+ *                the key pressed again within `tapWin`): a pull straight to the anchor at `zipSpeed`, arriving on the
+ *                face (the wall holds it there when the rule has `wall`)
+ *   the launch   a jump pressed on the way (THE POINT LAUNCH): the zip is carried to the face's top where that is in
+ *                reach, and the body springs over the roof's edge, `pointLift` × the zip's speed up and `pointCarry` ×
+ *                on over the roof, turning a somersault; a face too tall to top is run up from where the zip lands (the
+ *                wall's run, wall.js), or sprung off where the rule has no wall
+ *   the dive     the kneel key held in the air off a line: the body falls `dive` times as hard and as fast (the platform
+ *                rule reads `e.diving`), head first, driven on along its way by `diveDrive`; a line cast out of a dive
+ *                takes the fall's speed into the swing
  *
  *   the body     hangs along its line (`hang` of the way: a trapeze artist's body follows the rope, eased in as the line
  *                takes its weight), the clip's phase the arc's (0 behind the pivot, 1 ahead of it: arched at the back,
@@ -44,16 +52,17 @@
  *
  *   swinger: { reach 60 m, ideal 0.7, elev 55°, minElev 25°, cone 75°, center 0.75, clear 3 m, pump 6 m/s², steer 1.6 rad/s,
  *              maxSpeed 45 m/s, zipSpeed 28 m/s, reel 20 m/s, lift 0.6, cool 0.25 s, stretch 0.22, spring 420 m/s²,
- *              recoil 1.8, fling 1.5, flingMax 1.35, hang 0.85, flips 1, flipTime 0.7 s, flipRoom 4 m, key 'boost' }
+ *              recoil 1.8, fling 1.5, flingMax 1.35, hang 0.85, flips 1, flipTime 0.7 s, flipRoom 4 m, tapT 0.22 s, tapWin 0.4 s,
+ *              pointLift 0.6, pointCarry 0.85, dive 2.2, diveDrive 6 m/s², diveLean 1.2 rad, key 'boost' }
  */
 export function buildSwing(E) {
   const { add, sub, scl, clamp, fwdXY } = E;
   const EPS = 0.05, DEG = Math.PI / 180;
   // the presets: the direction constraints a gear's line keeps (lengths in metres, × metre)
   const GEAR_PRESETS = {
-    swinger: { reach: 60, ideal: 0.7, elev: 55, minElev: 25, cone: 75, center: 0.75, clear: 3, pump: 6, steer: 1.6, maxSpeed: 45, zipSpeed: 28, reel: 20, lift: 0.6, cool: 0.25, stretch: 0.22, spring: 420, recoil: 1.8, fling: 1.5, flingMax: 1.35, hang: 0.85, flips: 1, flipTime: 0.7, flipRoom: 4, key: 'boost' },
+    swinger: { reach: 60, ideal: 0.7, elev: 55, minElev: 25, cone: 75, center: 0.75, clear: 3, pump: 6, steer: 1.6, maxSpeed: 45, zipSpeed: 28, reel: 20, lift: 0.6, cool: 0.25, stretch: 0.22, spring: 420, recoil: 1.8, fling: 1.5, flingMax: 1.35, hang: 0.85, flips: 1, flipTime: 0.7, flipRoom: 4, tapT: 0.22, tapWin: 0.4, pointLift: 0.6, pointCarry: 0.85, dive: 2.2, diveDrive: 6, diveLean: 1.2, key: 'boost' },
   };
-  const LENGTHS = ['reach', 'clear', 'pump', 'maxSpeed', 'zipSpeed', 'reel', 'flipRoom', 'spring'];
+  const LENGTHS = ['reach', 'clear', 'pump', 'maxSpeed', 'zipSpeed', 'reel', 'flipRoom', 'spring', 'diveDrive'];
   const gearOf = (r) => {
     const g = typeof r.gear === 'string' ? { preset: r.gear } : r.gear, P = GEAR_PRESETS[g.preset || 'swinger'];
     if (!P) return null;
@@ -89,7 +98,7 @@ export function buildSwing(E) {
         // the line clear of every box but the one it lands on (it ends on that box's face)
         const toward = sub(q, scl(d, EPS / D)), wt = E.nearestWallT(hand, toward, cs);
         if (wt != null && wt < 1 - 1e-6) continue;
-        best = { miss, q, face: { ax, s, at } };
+        best = { miss, q, face: { ax, s, at }, top: c.max[2] };
       }
       // the box's UNDERSIDE, over the hero (a ceiling's slab, a beam, a catwalk: indoors the line goes up); not for a zip,
       // which lands on a face the wall holds
@@ -123,7 +132,15 @@ export function buildSwing(E) {
     // the body's turn (e.tumble: the hang along the line, the somersault off it) is the gear's own: anything that takes
     // the body from it (a blow, a wall, a drop) rights it
     const upright = () => { if (e._gearTurn) { e._gearTurn = null; e.tumble = null; } };
-    if (e.staggerT != null || e.dropping || e.dormant || e.downed || e.climbing || e.walling) { e.swinging = null; e.zipping = null; upright(); return false; }
+    // (the dive's own lean, apart from the gear's turn: eased in and out, never fought with a hang or a somersault)
+    const lean = (to) => {
+      const a0 = e._diveA || 0, a = e._gearTurn ? 0 : a0 + (to - a0) * Math.min(1, dt * 8);
+      e._diveA = Math.abs(a) > 1e-3 ? a : 0;
+      if (e._gearTurn) return;
+      if (e._diveA) { const fd = fwdXY(e.transform.heading); e.tumble = { axis: [-fd[1], fd[0], 0], angle: e._diveA }; e._diveOn = true; }
+      else if (e._diveOn) { e.tumble = null; e._diveOn = false; }
+    };
+    if (e.staggerT != null || e.dropping || e.dormant || e.downed || e.climbing || e.walling) { e.swinging = null; e.zipping = null; e.diving = 0; e._diveA = 0; if (e._diveOn) { e._diveOn = false; if (!e.walling) e.tumble = null; } upright(); return false; }
     // THE SOMERSAULT off a line let go (or the body righting itself): eased from the hang's angle to upright, `flips`
     // turns on the way; the ground ends it where it is
     if (e._gearTurn && e._gearTurn.flip) {
@@ -170,7 +187,35 @@ export function buildSwing(E) {
 
     // the ZIP: a pull straight to the anchor, arriving on its face
     if (e.zipping) {
-      const Z = e.zipping, to = Z.to, d = sub(to, t.pos), D = len(d), step = G.zipSpeed * dt;
+      const Z = e.zipping;
+      e.diving = 0; lean(0);
+      // THE POINT LAUNCH: a jump pressed on the way arms it, and carries the zip to the face's top where that is in reach
+      if (!Z.launch && (inp.jump || inp.jumpHeld)) {
+        Z.launch = true;
+        if (Z.face.ax !== 2 && Z.top != null && Z.top - (t.pos[2] - eye) <= G.reach * 1.2) {
+          const lip = [Z.anchor[0], Z.anchor[1], Z.top + eye + 0.15 * (r.metre ?? 1)];
+          lip[Z.face.ax] = Z.face.at + Z.face.s * R;
+          Z.to = lip; Z.over = true; Z.anchor = [Z.anchor[0], Z.anchor[1], Z.top];
+        }
+      }
+      const to = Z.to, d = sub(to, t.pos), D = len(d), step = G.zipSpeed * dt;
+      if (D <= step && Z.launch) {
+        const nx = Z.face.ax === 0 ? Z.face.s : 0, ny = Z.face.ax === 1 ? Z.face.s : 0;
+        t.pos = to; e.zipping = null; e._gearCool = G.cool; e.grounded = false; e.coyote = 1; e.jumped = true;
+        t.heading = Math.atan2(-ny, -nx);
+        if (Z.over) {
+          // over the roof's edge: up, and on over the roof, a somersault where the gear turns one
+          e.vel = [0, 0, G.zipSpeed * G.pointLift]; e.dashVel = [-nx * G.zipSpeed * G.pointCarry, -ny * G.zipSpeed * G.pointCarry];
+          if (G.flips > 0) e._gearTurn = { angle: 0, u: 0, flip: { t: 0, dur: G.flipTime, from: 0, to: 2 * Math.PI, axis: [ny, -nx, 0], turns: 1 } };
+        } else if (r.wall && Z.face.ax !== 2) {
+          // a face too tall to top: run up it from where the zip lands (wall.js reads the run)
+          e.vel = [0, 0, 0]; e.dashVel = null;
+          e.walling = { ax: Z.face.ax, s: Z.face.s, at: Z.face.at, hold: null, mantle: null, spent: true, run: { up: G.zipSpeed, vta: 0 } };
+        } else { e.vel = [0, 0, G.zipSpeed * G.pointLift]; e.dashVel = [nx * G.zipSpeed * 0.3, ny * G.zipSpeed * 0.3]; }
+        e.swung = { end: 'launch', over: !!Z.over };
+        e.locomotion = 'leap'; e.moving = true;
+        return true;
+      }
       if (D <= step) {
         t.pos = to; e.zipping = null; e._gearCool = G.cool; e.vel = [0, 0, 0]; e.dashVel = null; e.grounded = false; e.coyote = 1;
         e.swung = { end: 'zip' };
@@ -186,16 +231,28 @@ export function buildSwing(E) {
     }
 
     if (!e.swinging) {
-      // in the air the key held casts (again after `cool`, a line cut or met); on the ground a press zips
-      if (e._gearCool > 0 || (e.grounded ? !pressed : !key)) return false;
-      const A = anchorFor(e, G, cs, { walls: e.grounded });
+      // THE DIVE: the kneel key held in the air, off a line: a harder, faster fall (the platform rule's, by `e.diving`),
+      // driven on along the body's way, head first
+      e._gearTap = Math.max(0, (e._gearTap || 0) - dt);
+      const diving = G.dive > 1 && !e.grounded && !!inp.kneel && !key;
+      e.diving = diving ? G.dive : 0;
+      if (diving && e.dashVel) {
+        const fd = fwdXY(t.heading), sp = Math.hypot(e.dashVel[0], e.dashVel[1]);
+        if (sp < G.maxSpeed) e.dashVel = [e.dashVel[0] + fd[0] * G.diveDrive * dt, e.dashVel[1] + fd[1] * G.diveDrive * dt];
+      }
+      lean(diving ? G.diveLean : 0);
+      // in the air the key held casts (again after `cool`, a line cut or met); on the ground a press zips, and in the
+      // air a second tap does (the key pressed again within `tapWin` of a line let go as soon as it was cast)
+      const tapZip = !e.grounded && pressed && e._gearTap > 0;
+      if (!tapZip && (e._gearCool > 0 || (e.grounded ? !pressed : !key))) return false;
+      const A = anchorFor(e, G, cs, { walls: e.grounded || tapZip });
       if (!A) return false;
-      if (e.grounded) {
-        // on the ground the key zips: to the face, a body's radius off it
+      if (e.grounded || tapZip) {
+        // the zip: to the face, a body's radius off it
         const to = [A.q[0], A.q[1], A.q[2] - H * 0.9 + eye];
         to[A.face.ax] = A.face.at + A.face.s * R;
-        e.zipping = { to, face: A.face, anchor: A.q };
-        e.swinging = null; upright();
+        e.zipping = { to, face: A.face, anchor: A.q, top: A.top ?? null };
+        e.swinging = null; e._gearTap = 0; e.diving = 0; upright();
         return true;
       }
       // the PIVOT the body swings about: the anchor drawn `center` of the way in toward the hero's own line across the
@@ -213,11 +270,15 @@ export function buildSwing(E) {
       const v0 = scl(sub(t.pos, prev), 1 / Math.max(dt, 1e-6));
       // the line starts at the cast's length and is REELED to its own at `reel` (never a snap across the gap)
       // (how far it may stretch: its share of its length, and never so far that the arc's bottom meets the street)
-      e.swinging = { anchor: A.q, pivot, L: D, to: L, most: Math.max(L, Math.min(L * (1 + Math.max(0, G.stretch)), room - clear * 0.75)), face: A.face, v: [v0[0], v0[1], e.vel[2]] };
+      e.swinging = { anchor: A.q, pivot, L: D, to: L, most: Math.max(L, Math.min(L * (1 + Math.max(0, G.stretch)), room - clear * 0.75)), face: A.face, v: [v0[0], v0[1], e.vel[2]], age: 0 };
+      e.diving = 0;
       e.launchedBy = null; e.launchLock = false;
     }
 
     const S = e.swinging;
+    S.age = (S.age || 0) + dt;
+    // (a line let go as soon as it is cast is a TAP: no fling, no turn, and the key again within `tapWin` zips)
+    if (!key && S.age <= G.tapT) { e._gearTap = G.tapWin; S.ext = 0; release(S.v, 'tap'); e._gearCool = 0; return true; }
     if (!key) { release(S.v, 'release'); return true; }
     if (inp.jump) { release([S.v[0], S.v[1], Math.max(S.v[2], 0) + (r.jumpSpeed ?? 8.5 * (r.metre ?? 1)) * G.lift], 'jump'); e.jumped = true; return true; }
     // steer (turn) and pump (forward along the heading), under gravity
@@ -255,7 +316,8 @@ export function buildSwing(E) {
     // the line crossed by a box, the body met by one, or the ground under it: let go
     const feet = p[2] - eye, hit = inBox(cs, p, feet, R, H), gz = ground(p);
     const hp = [p[0], p[1], p[2] + hOff], toA = sub(S.anchor, hp), lineCut = E.nearestWallT(hp, sub(S.anchor, scl(toA, EPS / Math.max(EPS, len(toA)))), cs);
-    if (hit) { e.swinging = null; e._gearCool = G.cool; e.vel = [0, 0, 0]; e.dashVel = null; e.swung = { end: 'met' }; upright(); return true; }
+    // (met by a box: the speed it came in at is carried to the wall, which runs with it where the rule has `wall`)
+    if (hit) { e.swinging = null; e._gearCool = G.cool; e.vel = [0, 0, 0]; e.dashVel = null; e.swung = { end: 'met' }; e._carry = { v: [v[0], v[1], v[2]], t: 0.25 }; upright(); return true; }
     if (gz != null && feet <= gz + EPS) { t.pos = [p[0], p[1], gz + eye]; release([v[0], v[1], 0], 'ground'); return true; }
     if (lineCut != null && lineCut < 1 - 1e-6) { t.pos = p; release(v, 'cut'); return true; }
     t.pos = p; S.v = v;
@@ -281,6 +343,7 @@ export function buildSwing(E) {
 
   // SWING RELEASE: the flight after a line is let go, until the body lands or holds again
   E.registerWorldPass('gear-pose', (state) => {
+    for (const e of state.entities) if (geared(e) && e.diving && !e.grounded && !e.swinging && !e.zipping && !e.walling) { e.locomotion = 'dive'; e.moving = true; }
     for (const e of state.entities) if (geared(e) && !e.swinging && !e.zipping && !e.walling && !e.grounded && (e._gearRel > 0 || (e._gearTurn && e._gearTurn.flip && e._gearTurn.flip.turns))) {
       e.locomotion = 'swing_release';
       // (a somersault's clip plays across the turn: the tuck in its middle, the body open as it rights)

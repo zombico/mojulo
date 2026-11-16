@@ -28,3 +28,12 @@
   has to put one foot in front of the other.
 - **A sky for a city level.** A game can say what clouds hang over a city level (clear, fair, overcast, storm,
   haze, high), painted round the sky at the level's hour, so a city at golden hour has lit cloud behind its towers.
+- **A wall run.** A hero who meets a wall at speed in the air (off a swing, a leap or a launch) now runs it,
+  along the face and up it with the speed it arrived at, where before it stopped dead and clung. Steer with left and
+  right, hold forward to stay up; it slows into a cling, runs over the top onto the roof, or jumps off keeping its
+  speed along the wall.
+- **A point launch.** Press jump while zipping to a building and the hero is carried to the roof's edge and springs
+  over it with a somersault, landing on the roof at speed. On a tower too tall to clear, the hero runs up the wall
+  from where the zip lands. Tapping the swing key twice in the air zips from mid-air.
+- **A dive.** Hold the crouch key in the air and the hero dives head first, falling much harder and faster. Cast a
+  line out of a dive and the swing starts with that speed.

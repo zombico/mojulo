@@ -185,3 +185,83 @@ describe('the swinger\'s line: elastic', () => {
     expect(E.off).toBeLessThanOrEqual(45 * 1.35 + 1e-6);
   });
 });
+
+describe('the gear: the point launch, the air zip, the dive', () => {
+  // a 20 m block east of the hero, and a 200 m tower
+  const BLOCK = [{ min: [8, -10, 0], max: [30, 10, 20] }], TALL = [{ min: [8, -10, 0], max: [30, 10, 200] }];
+  // (stood on the street a few steps, then the key)
+  const zipAt = (boxes, rule = {}) => { const W = make(boxes, hero(rule, [0, 0, 0])); step(W, {}, 4); step(W, { boost: 1 }); return W; };
+  // open sky: one box far off, out of any line's reach
+  const SKY = [{ min: [5000, 5000, 0], max: [5010, 5010, 10] }];
+
+  it('a jump pressed on a zip carries it to the roof\'s edge and springs the body over it, turning', () => {
+    const W = zipAt(BLOCK), h = W.w.byId.hero;
+    expect(h.zipping).toBeTruthy();
+    step(W, { jump: 1, jumpHeld: 1 });
+    expect(h.zipping.over).toBe(true);
+    expect(h.zipping.to[2]).toBeGreaterThan(20);
+    for (let i = 0; i < 120 && h.zipping; i++) step(W, {});
+    expect(h.swung).toMatchObject({ end: 'launch', over: true });
+    expect(h.vel[2]).toBeGreaterThan(10);
+    expect(h.dashVel[0]).toBeGreaterThan(10);          // on over the roof, east
+    expect(h._gearTurn.flip.turns).toBe(1);
+    for (let i = 0; i < 400 && !h.grounded; i++) step(W, {});
+    // it lands on the roof, past its edge, upright
+    for (let i = 0; i < 30; i++) step(W, {});
+    expect(h.grounded).toBe(true);
+    expect(h.transform.pos[2]).toBeCloseTo(20, 1);
+    expect(h.transform.pos[0]).toBeGreaterThan(9);
+    expect(h.tumble ?? null).toBeNull();
+  });
+
+  it('on a face too tall to top, the launch runs up the wall from where the zip lands; with no jump the zip holds the face', () => {
+    const W = zipAt(TALL, { wall: true }), h = W.w.byId.hero;
+    step(W, { jump: 1, jumpHeld: 1 });
+    expect(h.zipping.over).toBeUndefined();
+    for (let i = 0; i < 200 && h.zipping; i++) step(W, {});
+    expect(h.swung.end).toBe('launch');
+    expect(h.walling.run.up).toBeGreaterThan(20);
+    const z = h.transform.pos[2];
+    step(W, { forward: 1 }, 20);
+    expect(h.locomotion).toBe('wall_run');
+    expect(h.transform.pos[2]).toBeGreaterThan(z + 4);
+    const P = zipAt(TALL, { wall: true }), p = P.w.byId.hero;
+    for (let i = 0; i < 200 && p.zipping; i++) step(P, {});
+    expect(p.swung.end).toBe('zip');
+    expect(p.walling.run).toBeUndefined();
+  });
+
+  it('the key tapped twice in the air zips: a line let go as it is cast, then the key again', () => {
+    const W = make(CANYON), h = W.w.byId.hero;
+    step(W, { boost: 1 }, 3);
+    expect(h.swinging).toBeTruthy();
+    step(W, {}, 2);
+    expect(h.swung.end).toBe('tap');
+    expect(h._gearTurn ?? null).toBeNull();               // (a tap turns no somersault)
+    step(W, { boost: 1 });
+    expect(h.zipping).toBeTruthy();
+    // held past the tap, a line let go is a release, and the key again casts a line, not a zip
+    const S = make(CANYON), s = S.w.byId.hero;
+    step(S, { boost: 1 }, 30); step(S, {}, 20); step(S, { boost: 1 }, 2);
+    expect(s.zipping ?? null).toBeNull();
+  });
+
+  it('the dive: kneel held in the air falls harder and faster, head first, and a line cast out of it swings faster', () => {
+    const fall = (kneel) => { const W = make(SKY, hero({}, [0, 0, 300])), h = W.w.byId.hero; step(W, { kneel }, 90); return h; };
+    const D = fall(1), F = fall(0);
+    expect(D.diving).toBeGreaterThan(1);
+    expect(D.locomotion).toBe('dive');
+    expect(D.transform.pos[2]).toBeLessThan(F.transform.pos[2] - 10);
+    expect(D.tumble.angle).toBeCloseTo(1.2, 1);            // pitched forward, head first
+    expect(F.diving).toBe(0);
+    expect(F.tumble ?? null).toBeNull();
+    // let go, the body rights itself
+    const W = make(SKY, hero({}, [0, 0, 300])), h = W.w.byId.hero;
+    step(W, { kneel: 1 }, 40); step(W, {}, 60);
+    expect(h.diving).toBe(0);
+    expect(h.tumble ?? null).toBeNull();
+    // out of a dive into a swing: the fall's speed is the swing's
+    const into = (kneel) => { const X = make(CANYON, hero({}, [5, 0, 70])), x = X.w.byId.hero; step(X, { kneel }, 45); step(X, { boost: 1 }, 2); return x.swinging ? Math.hypot(...x.swinging.v) : 0; };
+    expect(into(1)).toBeGreaterThan(into(0) + 5);
+  });
+});
