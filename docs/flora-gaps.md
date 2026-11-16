@@ -12,10 +12,10 @@ as the presets lay it, by the water a word lays (lake, coast, river: era/out-wat
 
 | substrate | what it is | dry | by the water | share of a level |
 | --- | --- | --- | --- | --- |
-| bedrock | bare rock at the surface: a cliff, a crag, a pavement of it | 8.5% | 8.0% | 8.2% |
-| scree | loose rock fallen from a face, lying at its foot | 7.7% | 7.2% | 7.4% |
-| soil | earth deep enough to root in: the turf and the woods | 73.8% | 61.4% | 67.6% |
-| sand | loose grains, dry and shifting: a beach, a dune, a sandstone flat | 0.0% | 6.7% | 3.4% |
+| bedrock | bare rock at the surface: a cliff, a crag, a pavement of it | 8.0% | 7.6% | 7.8% |
+| scree | loose rock fallen from a face, lying at its foot | 7.7% | 7.2% | 7.5% |
+| soil | earth deep enough to root in: the turf and the woods | 74.3% | 61.8% | 68.0% |
+| sand | loose grains, dry and shifting: a beach, a dune, a sandstone flat | 0.0% | 6.6% | 3.3% |
 | wet | ground the water keeps: a stream bank, a marsh, a seep | 0.0% | 6.9% | 3.4% |
 | path | ground walked bare: the trail and its edge | 10.0% | 9.9% | 10.0% |
 
@@ -44,17 +44,17 @@ Ranked by the ground a kind would cover: over the grounds it belongs on, each on
 
 | wanted | what it is | on | climates | fills | score |
 | --- | --- | --- | --- | --- | --- |
-| fallen-log | a trunk down in the grass, mossed and split | soil | temperate, boreal, tropical | · | 40.6 |
-| leaf-litter | fallen leaves and twigs drifted under the trees | soil | temperate, boreal, tropical | · | 40.6 |
-| steppe-grass | short dry bunchgrass over bare earth | soil | arid | · | 13.5 |
-| scree-runner | creeping stems running over the stones and rooting where they touch | scree | temperate, alpine | scree.accent | 5.9 |
-| rock-moss | moss cushions where the rock stays damp | bedrock | temperate, boreal, tropical | · | 4.9 |
+| fallen-log | a trunk down in the grass, mossed and split | soil | temperate, boreal, tropical | · | 40.8 |
+| leaf-litter | fallen leaves and twigs drifted under the trees | soil | temperate, boreal, tropical | · | 40.8 |
+| steppe-grass | short dry bunchgrass over bare earth | soil | arid | · | 13.6 |
+| scree-runner | creeping stems running over the stones and rooting where they touch | scree | temperate, alpine | scree.accent | 6 |
+| rock-moss | moss cushions where the rock stays damp | bedrock | temperate, boreal, tropical | · | 4.7 |
 | path-weeds | plantain and dandelion where the feet miss | path | temperate | path.accent | 4 |
-| rock-flower | thrift, rock rose and harebell from the crevices | bedrock | temperate, alpine | · | 3.3 |
+| rock-flower | thrift, rock rose and harebell from the crevices | bedrock | temperate, alpine | · | 3.1 |
 | alpine-flower | gentian, edelweiss and alpine poppy in the gaps | scree | alpine | scree.accent | 3 |
 | krummholz | wind-cropped dwarf pines hugging the ground | scree | alpine, boreal | · | 3 |
-| marsh-marigold | yellow cups of marsh marigold at the water's edge | wet | temperate, boreal | wet.accent | 2.7 |
-| water-lily | lilies flowering on still water | wet | temperate, tropical | wet.accent | 2.7 |
+| marsh-marigold | yellow cups of marsh marigold at the water's edge | wet | temperate, boreal | wet.accent | 2.8 |
+| water-lily | lilies flowering on still water | wet | temperate, tropical | wet.accent | 2.8 |
 | rush | stiff dark tufts of rush | wet | temperate, alpine, boreal | · | 2.1 |
 | alder | alders along the stream | wet | temperate, boreal | · | 1.4 |
 | cattail | bulrushes, their brown heads over the water | wet | temperate, tropical | · | 1.4 |
