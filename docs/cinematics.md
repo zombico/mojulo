@@ -84,6 +84,29 @@ What a director would shoot, in the shoot plan's own shape and the scenes card's
 - **Let a shot be read.** A cut that would hold for less than about a second is folded into the one before it.
 - **Cut on the line.** Shots change as lines begin, so the cut lands on whoever is about to speak.
 
+## Camera styles
+
+The coverage above is one way of shooting a scene, the classical one. A screenplay's `camera` (a film's, or a scene's
+own) names another, a card in `actor/camera-styles.js`, and the same cuts (on the lines, the crosses, the turns) are
+shot as the card says:
+
+- **A cut is the scene's; its framing is the style's.** Every style cuts where the scene turns. The card says what each
+  cut is shot as: the opening (a wide, or straight in on the first speaker), a line (over the shoulder, a clean single,
+  the two held), the turn (a close, a push, or nothing special), a move (back to the wide, or the mover followed).
+- **The pace is a hold.** A card's `least` is how long a framing is held before the next cut is let in: a sooner cut
+  waits until it has, and is dropped if the next comes first. A card's `react` breaks a long line with a cut to the
+  listener.
+- **Singles are said in words.** A style's singles are framed by size, angle, side and place (`shoot/framing.js`):
+  a three-quarter on the scene's side of the line, or a frontal one in the middle that crosses it on purpose.
+- **One camera can be a whole scene.** A oner glides to each framing in a short shot of its own and holds it, a single
+  camera all scene.
+- **The hand on the camera is the style's.** Each card names its shake, laid over every camera it keys.
+- **A style answers its own notes.** A card's `quiet` names the director's notes it answers by design: a oner's long
+  takes are its point, and a frontal style crosses the line on purpose.
+
+`classical` is the coverage with no style, byte for byte. A new style is a card. The in-game scene runner still shoots
+classical (its directing camera frames by the scenes card's words).
+
 ## The frame
 
 Where a camera stands is the clearance gate's; what it puts in its frame is the frame read's (`shoot/frame.js`), and a

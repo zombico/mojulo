@@ -31,6 +31,7 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { actScene } from '@/lib/graph/actor/scene.js';
 import { coverScene } from '@/lib/graph/actor/coverage.js';
+import { cameraStyleErrors } from '@/lib/graph/actor/camera-styles.js';
 import { standingOf, openGround, floorUnder, middleOf, EASE, STEP, REACH } from '@/lib/graph/actor/ground.js';
 import { reliefOf, reliefFrom, heightAt, levelled, landBetween } from '@/lib/graph/actor/relief.js';
 import { PAIR } from '@/lib/graph/actor/scene.js';
@@ -52,7 +53,7 @@ import { isPersonaKind } from '@/lib/graph/persona/persona.js';
 
 export { LOOKS };
 export const SCENE_CAST_KEYS = Object.freeze(['persona', 'hero', 'register', 'style', 'role', 'mark', 'height']);
-export const SCREENPLAY_KEYS = Object.freeze(['cast', 'marks', 'props', 'script', 'seed', 'world_ref', 'hour', 'weather', 'clouds', 'wind', 'life', 'voice', 'dub']);
+export const SCREENPLAY_KEYS = Object.freeze(['cast', 'marks', 'props', 'script', 'seed', 'world_ref', 'hour', 'weather', 'clouds', 'wind', 'life', 'voice', 'dub', 'camera']);
 /** THE SCENE'S HOUR: the time of day a scene is shot at, whatever hour its set was made at (a number from 0 up to 24,
  * or a word on the dial: era/geocube-hours.js). The film's light is set by it: the preset the Blender rig lights by
  * (motion/blender-film.js film_light.py), and on a geocube its own sky at that hour. The set's form does not change. */
@@ -88,6 +89,7 @@ export function screenplayErrors(sp) {
   const extra = Object.keys(sp).filter((k) => !SCREENPLAY_KEYS.includes(k));
   if (extra.length) errs.push(`a screenplay takes ${SCREENPLAY_KEYS.join(', ')} (not ${extra.join(', ')})`);
   if (typeof sp.script !== 'string' || !sp.script.trim()) errs.push('script: the screenplay\'s text ("NAME: the line", "NAME (worried): the line", "Mara crosses to the table.")');
+  errs.push(...cameraStyleErrors(sp.camera));
   if (!isPlain(sp.cast) || !Object.keys(sp.cast).length) errs.push('cast: { <who>: { persona?: <ref> | hero?: <ref> | <a hero spec>, … } }, one actor at least');
   else for (const [who, C] of Object.entries(sp.cast)) {
     if (!isPlain(C)) { errs.push(`cast.${who}: { persona? | hero?, register?, style?, role?, mark?, height? }`); continue; }
@@ -175,7 +177,8 @@ export function planSceneFilm(sp, { getRow, style = null, grain = null, set = nu
   const walled = set?.rooms?.some((r) => r.walled) ? set.rooms : null;
   // (and on any set they stand where they see the cast: the set's faces as a line of sight, coverage.js fitSight)
   const sight = set?.faces?.length ? faceSight(set.faces) : null;
-  const coverage = coverScene(S, { grain: readGrain(grain), ...(walled ? { rooms: walled } : {}), ...(sight ? { sight } : {}) });
+  // (the screenplay's `camera`: how its cuts are shot, actor/camera-styles.js; none is the classical coverage)
+  const coverage = coverScene(S, { grain: readGrain(grain), ...(walled ? { rooms: walled } : {}), ...(sight ? { sight } : {}), ...(sp.camera != null ? { style: sp.camera } : {}) });
   return { S, coverage, notes: directorsNotes(S, coverage), cast, heroes, sources };
 }
 

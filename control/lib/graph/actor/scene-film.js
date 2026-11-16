@@ -29,7 +29,7 @@
  */
 import { filmShot, emitBlenderFilm, BLENDER_FILM_VERSION } from '../../motion/blender-film.js';
 import { directorsNotes } from './notes.js';
-import { programOf, shotAt } from '../shoot/sample.js';
+import { programOf, shotAt, shaken } from '../shoot/sample.js';
 import { warped } from '../shoot/time.js';
 import { placeOn } from './scene.js';
 import { heightAt } from './relief.js';
@@ -58,7 +58,10 @@ export function coverageCameraAt(coverage, t, shot = null) {
   const cam = coverage.cameras.find((c) => c.id === s.camera), ks = cam.keys.filter((k) => k.t >= s.span[0] - 1e-3 && k.t <= s.span[1] + 1e-3);
   const a = ks[0], b = ks.at(-1), u = b.t > a.t ? Math.min(1, Math.max(0, (t - a.t) / (b.t - a.t))) : 0, lerp = (p, q) => p.map((v, i) => v + (q[i] - v) * u);
   const focal = a.focal_mm + (b.focal_mm - a.focal_mm) * u, film = cam.film_mm ?? 36;
-  return { shot: s, framing: { cameraPosition: lerp(a.pos, b.pos), lookAt: lerp(a.poi, b.poi), horizontalFov: (2 * Math.atan(film / (2 * focal)) * 180) / Math.PI } };
+  const hfov = (2 * Math.atan(film / (2 * focal)) * 180) / Math.PI;
+  // (a camera style's shake, shoot/shake.js, laid over the keyed camera; a camera with none is as it was)
+  if (cam.shake) { const c = shaken({ pos: lerp(a.pos, b.pos), look: lerp(a.poi, b.poi), hfov, roll: 0 }, cam.shake, t); return { shot: s, framing: { cameraPosition: c.pos, lookAt: c.look, horizontalFov: hfov } }; }
+  return { shot: s, framing: { cameraPosition: lerp(a.pos, b.pos), lookAt: lerp(a.poi, b.poi), horizontalFov: hfov } };
 }
 
 /** The pack's files (see the header) */

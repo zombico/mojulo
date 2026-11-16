@@ -42,6 +42,18 @@ forge_motion({ title: 'The key', export: 'storyboard',
   performance: the realistic hero (`form: 'realistic'`) or the anime head (`head: 'anime'`). Any other is refused by
   name.
 - **The marks**: `{ <name>: [x, y] }` in metres. Without them the cast stands in a line, facing each other.
+- **The camera** (`camera`): how the coverage shoots the scene's cuts, a card each (`actor/camera-styles.js`); none is
+  `classical` (establish wide, over the shoulder, close for the turn, wide for a move, one side of the line):
+  - `verite`: handheld singles on a long lens, no establishing wide, the mover followed;
+  - `planimetric`: flat and frontal, each speaker centred facing the lens, a short lens, the line crossed;
+  - `still`: low and level, nearly into the lens, long holds, no moves;
+  - `oner`: one camera, no cuts, gliding to whoever speaks, on a stabilised rig;
+  - `kinetic`: quick cuts, tight low singles, a push on the turn, a reaction cut on a long line, the camera running;
+  - `observational`: from across the room on a long lens, the two held, few cuts.
+
+  Words read too ('handheld', 'symmetrical', 'long take', 'action', 'surveillance'). A style answers some notes by
+  design (a oner's long take is no `long-take` note). Each style's shake rides the Blender pack's and the native
+  film's cameras; the in-game scene runner shoots classical.
 - **shot.params**:
   - `look`: `film` (default) or `anime`;
   - `style`: a playing style for every part without one;

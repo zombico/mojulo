@@ -189,19 +189,24 @@ export function frameRead(plan, { subjects = null, metersPerUnit = 1, aspect = A
     // one standing at its point of interest
     const camDef = camOf(shot.camera), said = camDef.keys.filter((k) => k.about && subjects && subjects.has(k.about));
     const key = said.filter((k) => k.t <= ct + 1e-9).at(-1) || said[0];
-    if (key) return subjects.get(key.about);
-    for (const k of camDef.keys) for (const v of [k.poi, k.pos]) if (v && v.follow && subjects && subjects.has(v.follow)) return subjects.get(v.follow);
-    return subjects && subjects.size ? standingAt(cam.look, subjects, t, heightOf) : null;
+    if (key) return { s: subjects.get(key.about) };
+    for (const k of camDef.keys) for (const v of [k.poi, k.pos]) if (v && v.follow && subjects && subjects.has(v.follow)) return { s: subjects.get(v.follow) };
+    const near = subjects && subjects.size ? standingAt(cam.look, subjects, t, heightOf) : null;
+    return near ? { s: near, guessed: true } : null;
   };
   program.shots.forEach((shot, i) => {
     const ends = [shot.start + 1e-6, shot.start + shot.length / 2, shot.start + shot.length - 1e-6];
     const reads = ends.map((tau) => {
       const at = shotAt(program, tau), cam = cameraAt(compiled.get(shot.camera), at.camera_t ?? at.t);
-      const ct = at.camera_t ?? at.t, s = aboutOf(shot, at.t, cam, ct);
+      const ct = at.camera_t ?? at.t, found = aboutOf(shot, at.t, cam, ct), s = found?.s;
       if (!s) return { t: at.t, ct, cam };
       const h = heightOf(s), here = s.at(at.t);
       if (h == null) { const p = projectPoint(cam, here.pos, { aspect }); return { t: at.t, ct, cam, s, read: { in_frame: !!p && p.u >= 0 && p.u <= 1 && p.v >= 0 && p.v <= 1, ...(p ? { u: r3(p.u), v: r3(p.v) } : { behind: true }) } }; }
-      return { t: at.t, ct, cam, s, read: readFigure(cam, { pos: here.pos, heading: here.heading, height: h, figure: figureOf(s), ...(s.box ? { width: s.box.len } : {}) }, { aspect }) };
+      const read = readFigure(cam, { pos: here.pos, heading: here.heading, height: h, figure: figureOf(s), ...(s.box ? { width: s.box.len } : {}) }, { aspect });
+      // (a subject only guessed from where the camera looks is the shot's only while it is in the frame: a camera
+      //  between two framings, a long take's glide, is about no one, and loses no one)
+      if (found.guessed && !read.in_frame) return { t: at.t, ct, cam };
+      return { t: at.t, ct, cam, s, read };
     });
     const about = reads.find((x) => x.s)?.s;
     const mid = reads[1].read || reads.find((x) => x.read)?.read;

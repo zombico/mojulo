@@ -1,4 +1,4 @@
-### Camera: the frame read, framing by words and the named moves
+### Camera: the frame read, framing by words, the named moves and camera styles
 
 - **The frame read** (`shoot/frame.js`): what each shot of a shoot plan frames, in a cinematographer's words: the
   subject it is about, its shot size by where the frame cuts the figure (extreme close-up to extreme wide, a row each in
@@ -13,3 +13,8 @@
   where a camera stands (`solveFromStand`): a pan and a zoom, the lens the distance asks for.
 - **Shake** (`shoot/shake.js`, a camera's `shake`): handheld, steadicam, run and rumble, a style a row, seeded and
   laid over the keyed path by the sampler, so the render, the page's track and the Blender frames shake alike.
+- **Camera styles** (`actor/camera-styles.js`, a screenplay's, a film's or a scene's `camera`): how a scene's coverage
+  shoots its cuts, a card each: classical (the coverage as it was, byte for byte), verite, planimetric, still, oner,
+  kinetic and observational. A card says the opening, what a line, the turn and a move are shot as, the singles' size,
+  lens, angle, side and place, the least a framing holds, a reaction beat, a one-camera long take, its shake and the
+  director's notes it answers by design. Its shake rides the Blender pack's and the native film's cameras.

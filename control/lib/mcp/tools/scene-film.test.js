@@ -52,10 +52,20 @@ describe('the cast', () => {
     expect(screenplayErrors(scene({ mara: { voice: 'x' } })).join()).toMatch(/not voice/);
     expect(screenplayErrors({ cast: {}, script: '' })).toHaveLength(2);
     expect(screenplayErrors({ ...BASELINE.blocked, shots: [] }).join()).toMatch(/not shots/);
+    expect(screenplayErrors({ ...BASELINE.blocked, camera: 'wobbly' }).join()).toMatch(/a camera style/);
+    expect(screenplayErrors({ ...BASELINE.blocked, camera: 'symmetrical' })).toEqual([]);
   });
 });
 
 describe('the plan, before any mint', () => {
+  it('a screenplay\'s camera says how its cuts are shot: the coverage in that style, its notes the style\'s', () => {
+    const plain = planSceneFilm(BASELINE.blocked, { getRow: () => null }), oner = planSceneFilm({ ...BASELINE.blocked, camera: 'long take' }, { getRow: () => null });
+    expect(plain.coverage.style).toBeUndefined();
+    expect(oner.coverage.style).toBe('oner');
+    expect(oner.coverage.cameras).toHaveLength(1);
+    expect(oner.notes.map((n) => n.id)).not.toContain('long-take');
+  });
+
   it('blocks, covers and notes the scene the persona plays', () => {
     const P = planSceneFilm(scene({ mara: { persona: 'pp_news', mark: 'door' } }), { getRow });
     expect(Object.keys(P.S.actors)).toEqual(['mara', 'jon']);

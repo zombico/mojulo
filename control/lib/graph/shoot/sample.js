@@ -121,7 +121,12 @@ function keyCamera(compiled, k, t) {
 /** The camera `{ pos, look, hfov, roll }` at camera-local time t (seconds), clamped to the first and last key, with
  * its shake (shake.js) laid over the keyed camera when it has one. */
 export function cameraAt(compiled, t) {
-  const c = keyedAt(compiled, t), sh = compiled.cam.shake;
+  return shaken(keyedAt(compiled, t), compiled.cam.shake, t);
+}
+
+/** A camera `{ pos, look, hfov, roll }` with a shake (shake.js) laid over it at world time t; none, and it is returned
+ * as it was */
+export function shaken(c, sh, t) {
   if (!sh) return c;
   const o = shakeAt(sh, t);
   const d = [c.look[0] - c.pos[0], c.look[1] - c.pos[1], c.look[2] - c.pos[2]], D = Math.hypot(d[0], d[1], d[2]) || 1;
