@@ -9,14 +9,22 @@
  *     depth?: 1.6,      the deepest thing vaulted across; a deeper one is climbed onto, or run round
  *     reach?: 0.7,      how far ahead of the body a thing is taken from
  *     speed?: 2,        the pace (m/s over the ground) a vault is taken at; under it the body stops at the thing
+ *     clipH?: 0.5,      the box height the body's own vault clip was solved for (polygonizer/hero-vault.js): the clip
+ *                       carries the body over a box that tall, so the body is lifted only by what the thing is taller
+ *                       than that, and passes just over its top. Absent, the body is carried over on an arc of its own
+ *     grab?: 2.15,      the highest edge the hands reach to take hold of (a standing reach on the toes): a climb's limit
  *     on?: 'act',       what climbs: the action (`input.act`) where the body has no jump to press; absent, the jump
  *   }
  *
  *   A VAULT  the body moving at `speed` or more, on the ground, a box ahead within `reach` whose top is over a step and
  *            no higher than `vault`, no deeper than `depth`, and room to land beyond it: it goes over on an arc that
  *            clears the top, at the pace it came in with, and lands running. Nothing is pressed.
- *   A CLIMB  the jump (or the action, `on`) pressed facing a box within `reach` whose top is over `vault` and no higher than `climb`: up its
- *            face and onto its top (a top too thin to stand on: over it and down the far side). The jump is not taken.
+ *   A CLIMB  the jump (or the action, `on`) pressed facing a thing within `reach` whose top is over `vault`, where the
+ *            hands REACH ITS EDGE (no higher than `grab`, and no higher than `climb`) and there is room to stand on it.
+ *            It is solved from the hands: they take the edge and stay on it, and the body is wherever that puts it as
+ *            the arms work (HANDS: the hands' height over the feet through the reach, the pull to the chest, the press
+ *            to the hips and the step up), so the feet leave the ground only once the arms have drawn up to the edge,
+ *            and it comes in over the lip as it presses. The jump is not taken.
  *   Either is refused, and the body stops or jumps as it would, when another box stands where it would land or over
  *   the top it would cross.
  *
@@ -95,25 +103,35 @@ export function buildFreeRun(E) {
     if (A.h <= vaultH && deep <= (F.depth ?? 1.6)) {
       if (pace < (F.speed ?? 2) && !jumped) return null;
       const far = A.tout + LAND;
-      return over('vault', clamp(far / Math.max(pace, 3), 0.45, 0.95));
+      const M = over('vault', clamp(far / Math.max(pace, 3), 0.45, 0.95));
+      if (M && F.clipH > 0) M.lift = Math.max(0, top - feet - F.clipH) + 0.04;
+      return M;
     }
-    if (!jumped || A.h > climbH) return null;
-    // a climb: onto the top where a body can stand on it, else over it
-    const on = [t.pos[0] + d[0] * (A.tin + rad + 0.45), t.pos[1] + d[1] * (A.tin + rad + 0.45)];
-    if (deep >= 0.9 && free(boxes, on, top, rad, A.set)) return { kind: 'climb', t: 0, dur: 0.5 + 0.35 * A.h, from: [t.pos[0], t.pos[1], feet], to: [on[0], on[1], top], top, over: false };
-    return over('climb', 0.6 + 0.4 * A.h);
+    // a climb: the hands must reach the edge, and there must be room to stand on the top
+    if (!jumped || A.h > climbH || A.h > (F.grab ?? 2.15)) return null;
+    const inn = A.tin + rad + Math.min(0.45, Math.max(0.1, deep / 2)), on = [t.pos[0] + d[0] * inn, t.pos[1] + d[1] * inn];
+    if (!free(boxes, on, top, rad, A.set)) return null;
+    // (it is taken from the thing's face: the body steps in to it as the hands go up)
+    const face = [t.pos[0] + d[0] * Math.max(0, A.tin - 0.02), t.pos[1] + d[1] * Math.max(0, A.tin - 0.02)];
+    return { kind: 'climb', t: 0, dur: 0.9 + 0.45 * A.h, from: [t.pos[0], t.pos[1], feet], face, to: [on[0], on[1], top], top, over: false };
   }
+  // THE HANDS over the feet through a climb, as its clip plays them: the reach, the hang, the pull to the chest, the
+  // press to the hips, the knee up, standing (the hands then at the feet's own height: on the top)
+  const HANDS = [[0, 2.05], [0.2, 2.05], [0.4, 1.6], [0.6, 1.1], [0.8, 0.45], [1, 0]];
+  const handsAt = (s) => { for (let k = 1; k < HANDS.length; k++) if (s <= HANDS[k][0]) { const a = HANDS[k - 1], b = HANDS[k], u = (s - a[0]) / (b[0] - a[0]); return a[1] + (b[1] - a[1]) * u; } return 0; };
   // where the body is `s` of the way through its move
   function at(M, s) {
-    const k = s * s * (3 - 2 * s);
     if (M.kind === 'vault') {
-      const peak = M.top + CLEAR, base = M.from[2] + (M.to[2] - M.from[2]) * s, lift = Math.max(0, peak - Math.max(M.from[2], M.to[2])) + Math.max(M.from[2], M.to[2]) - base;
+      const base = M.from[2] + (M.to[2] - M.from[2]) * s, hi = Math.max(M.from[2], M.to[2]);
+      // (with the clip's own height known, the body is lifted only by what the thing is taller than the clip's box)
+      const lift = M.lift != null ? M.lift : Math.max(0, M.top + CLEAR - hi) + hi - base;
       return [M.from[0] + (M.to[0] - M.from[0]) * s, M.from[1] + (M.to[1] - M.from[1]) * s, base + lift * Math.sin(Math.PI * s)];
     }
-    // a climb: up the face first, then in over the lip (and, over a thin top, down the far side)
-    const up = clamp(s / 0.55, 0, 1), inn = clamp((s - 0.4) / 0.6, 0, 1), ku = up * up * (3 - 2 * up), ki = inn * inn * (3 - 2 * inn);
-    const z = M.over ? (s < 0.6 ? M.from[2] + (M.top + CLEAR - M.from[2]) * ku : M.top + CLEAR + (M.to[2] - M.top - CLEAR) * clamp((s - 0.6) / 0.4, 0, 1) ** 2) : M.from[2] + (M.top - M.from[2]) * ku;
-    return [M.from[0] + (M.to[0] - M.from[0]) * (M.over ? k : ki), M.from[1] + (M.to[1] - M.from[1]) * (M.over ? k : ki), z];
+    // a climb: in to the face as the hands go up; the feet where the hands on the edge put them; in over the lip from
+    // the press on
+    const a = clamp(s / 0.2, 0, 1), inn = clamp((s - 0.55) / 0.45, 0, 1), ka = a * a * (3 - 2 * a), ki = inn * inn * (3 - 2 * inn);
+    const x = M.from[0] + (M.face[0] - M.from[0]) * ka + (M.to[0] - M.face[0]) * ki, y = M.from[1] + (M.face[1] - M.from[1]) * ka + (M.to[1] - M.face[1]) * ki;
+    return [x, y, Math.max(M.from[2], M.top - handsAt(s))];
   }
   E.stepWorld = function stepWithFreeRun(state, input, dt, hooks) {
     const p = state.pilotId ? state.byId[state.pilotId] : null;
@@ -131,7 +149,7 @@ export function buildFreeRun(E) {
     M.t = Math.min(1, M.t + dt / M.dur);
     const q = at(M, M.t);
     p.transform.pos = [q[0], q[1], q[2] + eye];
-    p.transform.heading = Math.atan2(M.to[1] - M.from[1], M.to[0] - M.from[0]);
+    if (Math.hypot(M.to[0] - M.from[0], M.to[1] - M.from[1]) > 1e-3) p.transform.heading = Math.atan2(M.to[1] - M.from[1], M.to[0] - M.from[0]);
     if (p.vel) p.vel[2] = 0;
     p.locomotion = M.kind === 'vault' ? 'vault' : 'mantle'; p.gaitPhase = Math.min(M.t, 0.999); p.moving = true;
     p.grounded = M.t >= 1;

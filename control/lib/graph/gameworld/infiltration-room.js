@@ -10,7 +10,7 @@
  *                 guns, else its feel template's), the knife in the free hand where it carries one
  *   in hand       one weapon at a time, or none, from a held menu the look steps; a ration used from another
  *                 (worlds/controllable/carry.js)
- *   the dive      on the jump's button (there is no jump): 0.8 s, about 4.8 m, a second before another
+ *   the dive      on the jump's button (there is no jump): a second, about 4.8 m, a second before another
  *   the fists     with nothing in hand the trigger is the fist's strings (jab, cross, hook; the heavy an uppercut)
  *   the run       the feel's fast gait, the only pace: no sprint, no stamina; a low wall or a crate gone over out of the run, a taller
  *                 thing climbed on the action (worlds/controllable/free-run.js)
@@ -19,7 +19,7 @@
  *   the targets   a person's box at 5, 15 and 30 m of the start, one behind the corner; each stands again a moment
  *                 after it falls
  *
- *   infiltrationRoom(G, { refs?, cast?, vault?: '<the hero's vault clip>' }) → { manifest, kit: [names], knife, hero: 'own' | 'stand-in', targets }
+ *   infiltrationRoom(G, { refs?, cast?, vault?, roll?, climb?: '<the hero's own clip for each>' }) → { manifest, kit: [names], knife, hero: 'own' | 'stand-in', targets }
  *   INFILTRATION_LEGEND
  *
  * Pure, no dice. Its page: scripts/spikes/mission/room.mjs (a spike: the room joins the practice door once it is kept).
@@ -47,9 +47,12 @@ const BLOCKS = Object.freeze([
 // a person's box at each range of the start, and one behind the corner
 const TARGETS = Object.freeze([{ id: 'target-5', at: [2, -8, 0] }, { id: 'target-15', at: [6, 2, 0] }, { id: 'target-30', at: [-1, 15, 0] }, { id: 'target-corner', at: [-8, 2, 0] }]);
 const TARGET_HP = 100;
-// THE DIVE (worlds/controllable/dive.js over the rule's dodge): 0.8 s at 9.5 m/s at its middle, about 4.8 m of ground,
-// a second before another
-const DIVE = Object.freeze({ dodge: true, dodgeDur: 0.8, dodgeSpeed: 9.5, dodgeCooldown: 1, dodgeBoostCost: 0, dodgeOverheat: false, dive: Object.freeze({ jump: false }) });
+// (the box a hero's vault clip is solved for where the door is given none: the middle of the speed vault's band, about
+// half a metre; the yard's low walls are a metre, and the body is lifted by the rest: free-run.js `clipH`)
+const VAULT_CLIP_H = 0.5;
+// THE DIVE (worlds/controllable/dive.js over the rule's dodge): a second at 7.6 m/s at its middle, about 4.8 m of
+// ground, a second before another; with a roll of the hero's own (`roll`) it plays that, the page's tumble off
+const DIVE = Object.freeze({ dodge: true, dodgeDur: 1, dodgeSpeed: 7.6, dodgeCooldown: 1, dodgeBoostCost: 0, dodgeOverheat: false, dodgeTurns: 0, dive: Object.freeze({ jump: false }) });
 // (a bare hand's blow, where a held blade would say its own, worlds/held-strike.js: its reach, its seconds, and a damage
 // that makes the jab 8 of a target's 100, the cross about 10, the hook 16)
 const FIST_BLOW = Object.freeze({ strikeReach: 0.95, strikeDur: 0.4, strikeDamage: 16 });
@@ -62,7 +65,7 @@ const FISTS = (() => {
 })();
 
 /** The infiltration yard (see the header). */
-export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null } = {}) {
+export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, roll = null, climb = null } = {}) {
   const own = typeof refs.hero === 'string';
   if (G?.feel != null) readFeel(G.feel);
   const L = loadoutOf(G), words = (L?.weapons ?? []).filter((w) => typeof w === 'string'), hasKnife = (L?.weapons ?? []).some((w) => w && typeof w === 'object' && w.fire === 'melee');
@@ -78,8 +81,8 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null } =
     aimView: { shoulder: { ...SHOULDER }, eye: 1.6 },
     // (over the low walls and the crates out of the run; the action at a taller thing climbs it: free-run.js; the jump's
     // button is the dive's: dive.js)
-    freeRun: { on: 'act' },
-    ...DIVE,
+    freeRun: { on: 'act', ...(vault ? { clipH: VAULT_CLIP_H } : {}) },
+    ...DIVE, ...(roll ? { dive: { ...DIVE.dive, clip: true } } : {}),
     // (one weapon in hand, or none, from a held menu; a ration to use: carry.js)
     carry: { items: [{ id: 'ration', name: 'ration', count: 3, heal: 40 }] },
     ...(kit ? { loadout: kit, gunplay: true } : {}), ...(hasKnife ? { knife: knifeOf(TARGET_HP) } : {}),
@@ -88,7 +91,8 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null } =
   const { heroRef: _r, ...lib } = P.figures.hero;
   // (what plays a vault and a climb: the hero's own vault clip where it has one, `vault` its name (the free-run
   // library's: hero motion `stepVault`, `speedVault`, `hurdle`, `kongVault`), else a state every player plays)
-  const clips = traversalStates({ ...lib.clips, ...(vault ? { vault } : {}) });
+  // (and its own roll under the dive, `roll` (hero motion `rollForward`), its own climb, `climb` (a clip of the hero's))
+  const clips = traversalStates({ ...lib.clips, ...(vault ? { vault } : {}), ...(roll ? { dodge_roll: roll } : {}), ...(climb ? { mantle: climb } : {}) });
   const figures = { hero: own ? { ...lib, clips, heroRef: refs.hero } : { ...lib, clips, hero: lowerBody({ cast }, null) } };
   const heroE = { ...P.entities[0], ...(kit ? { weapon: kit[0].weapon } : {}), body: { ...P.entities[0].body, hittable: true, hp: 100, radius: 0.5, egg: { ...PERSON, cz: PERSON.c } }, transform: { pos: START.slice(), heading: Math.PI / 2 } };
   const targets = TARGETS.map((t) => ({ id: t.id, rule: { type: 'walk', speed: 0, eye: 0 }, team: 'targets', transform: { pos: [t.at[0], t.at[1], 0.9], heading: -Math.PI / 2 },

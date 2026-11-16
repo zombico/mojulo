@@ -776,6 +776,8 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const aimView = entities.some((e) => e && e.rule && e.rule.aimView);
   // what is in hand, from a held menu (carry.js, carry-view.js): a body whose rule says carry; absent, nothing is emitted
   const carry = entities.some((e) => e && e.rule && e.rule.carry);
+  // getting over things (free-run.js): a body whose rule says freeRun; absent, nothing is emitted
+  const freeRun = entities.some((e) => e && e.rule && e.rule.freeRun);
   // a gun on a mount aimed by hand (worlds/controllable/turret.js, turret-view.js): an entity with a turret; absent, nothing
   const turretOn = entities.some((e) => e && e.turret);
   // a body steered on its wheels (worlds/controllable/steer.js), its rule's or a form's: absent, nothing
@@ -1222,7 +1224,7 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   // (a tempo whose moments carry a look: the page lays it over the grade)
   const tempoLook = !!(tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look));
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(aimView ? { aimView: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.freeRun) ? { freeRun: true } : {}), ...(carry ? { carry: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.dive) ? { dive: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(boatOn ? { boat: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}) })};
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(aimView ? { aimView: true } : {}), ...(freeRun ? { freeRun: true } : {}), ...(carry ? { carry: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.dive) ? { dive: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(boatOn ? { boat: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}) })};
 const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${loose ? `, loose: ${safeJson(loose)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''}${styleMeter ? `, styleMeter: ${safeJson(styleMeter)}` : ''}${gusts ? ', vayoAir: true' : ''}${knock ? `, knock: ${safeJson(knock)}` : ''}${roll ? `, roll: ${safeJson(roll)}` : ''} });
 ${xr ? `// the headset (channels/xr.js): set while a session plays the game, { pad, input, hides }; null, the page's own devices
 let __xrCtl = null;
@@ -2673,7 +2675,7 @@ function __driveCamera(dt) {
       for (const hit of __camRay.intersectObjects(scene.children, true)) {
         const ho = hit.object;
         if (!ho.isMesh || (ho.material && ho.material.depthTest === false)) continue;   // meshes only; skip overlay quads (fog/effects)
-${aimView ? `        // (the aim held, aim-view.js: a camera back from the eye must not be pulled in on what the eye alone draws, the
+${freeRun ? '        if (__frSkip(hit)) continue;\n' : ''}${aimView ? `        // (the aim held, aim-view.js: a camera back from the eye must not be pulled in on what the eye alone draws, the
         // hands and the gun before it, hidden now: a thing not drawn hides nothing)
         { let v = ho, drawn = true; while (v) { if (v.visible === false) { drawn = false; break; } v = v.parent; } if (!drawn) continue; }
 ` : ''}        let o = ho, isOwn = false; while (o) { if (own.includes(o)) { isOwn = true; break; } o = o.parent; }
@@ -2731,6 +2733,9 @@ function __ground(pos) {
 // nothing below changes. This page drives the keyboard, mouse and standard-mapping gamepad families.
 ${aimView ? `// the aim held (aim-view.js): a body whose camera rides its eye for now is hidden
 const __avHides = (e) => { const r = __world.camera && __world.camera.rule; return !!r && r.type === 'eye' && r.hideTarget === true && r.target === e.id; };
+` : ''}${freeRun ? `// getting over things (free-run.js): the chase is not pulled in on what its body goes over out of the run (a thing no
+// higher than its vault), nor while it climbs
+const __frSkip = (hit) => { const p = __world.pilotId && __world.byId[__world.pilotId], F = p && p.rule && p.rule.freeRun; if (!F) return false; if (p.fr) return true; return hit.point.z < p.transform.pos[2] - (p.rule.eye || 0) + (F.vault ?? 1.15) + 0.1; };
 ` : ''}const __CTL = (${buildControlsKernel.toString()})();
 const __SCHEME = ${safeJson(aimView ? SCHEMES.operative : SCHEMES.pilot)};
 const __DEV = ${safeJson({ keyboard: DEVICES.keyboard, mouse: DEVICES.mouse, gamepad: DEVICES.gamepad })};

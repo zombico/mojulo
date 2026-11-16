@@ -59,6 +59,95 @@
   "sprint": true,
   "stepVault": true,
   "speedVault": true,
-  "hurdle": true
+  "hurdle": true,
+  "rollForward": true
+ },
+ "clips": {
+  "climbUp": [
+   {
+    "shL": {
+     "pitch": 170
+    },
+    "shR": {
+     "pitch": 170
+    },
+    "elbowL": 5,
+    "elbowR": 5
+   },
+   {
+    "shL": {
+     "pitch": 175
+    },
+    "shR": {
+     "pitch": 175
+    },
+    "elbowL": 5,
+    "elbowR": 5,
+    "kneeL": 15,
+    "kneeR": 15,
+    "support": "none"
+   },
+   {
+    "shL": {
+     "pitch": 150
+    },
+    "shR": {
+     "pitch": 150
+    },
+    "elbowL": 100,
+    "elbowR": 100,
+    "hipL": {
+     "pitch": 25
+    },
+    "hipR": {
+     "pitch": 25
+    },
+    "kneeL": 45,
+    "kneeR": 45,
+    "hinge": 5,
+    "support": "none"
+   },
+   {
+    "shL": {
+     "pitch": 60
+    },
+    "shR": {
+     "pitch": 60
+    },
+    "elbowL": 90,
+    "elbowR": 90,
+    "hinge": 30,
+    "hipR": {
+     "pitch": 80
+    },
+    "kneeR": 110,
+    "hipL": {
+     "pitch": 10
+    },
+    "kneeL": 30,
+    "support": "none"
+   },
+   {
+    "shL": {
+     "pitch": 15
+    },
+    "shR": {
+     "pitch": 15
+    },
+    "elbowL": 25,
+    "elbowR": 25,
+    "hinge": 40,
+    "hipR": {
+     "pitch": 95
+    },
+    "kneeR": 100,
+    "hipL": {
+     "pitch": 40
+    },
+    "kneeL": 80,
+    "support": "none"
+   },
+   {}
+  ]
  }
 }

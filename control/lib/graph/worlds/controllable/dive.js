@@ -3,7 +3,11 @@
  * moves, invulnerable through it) taken on one press, where the rule itself asks for a double tap of the boost. Opt-in
  * on the pilot's rule, beside its `dodge`:
  *
- *   rule.dive: { jump?: false }      `jump: false`: the body has no jump (its button is the dive's: the page sends it)
+ *   rule.dive: { jump?: false,       `jump: false`: the body has no jump (its button is the dive's: the page sends it)
+ *                clip?: true }       the body has a ROLL OF ITS OWN to play (the hero library's `rollForward`, a dive over
+ *                                    the shoulder into a tucked roll, polygonizer/hero-jump.js): it turns to face the way
+ *                                    it dives and plays `dodge_roll` through, its phase the dodge's (the rule's
+ *                                    `dodgeTurns: 0` keeps the page from tumbling the whole body besides)
  *   rule.dodge, dodgeDur, dodgeSpeed, dodgeCooldown    the dive itself: how long, how fast at its middle (it covers
  *                                    dodgeSpeed × dodgeDur × 2/π metres), and the seconds before another
  *
@@ -24,6 +28,11 @@ export function buildDive(E) {
     const edge = !!input.dive && !p.divePrev; p.divePrev = !!input.dive;
     const go = edge && p.dodgeT == null && !p.fr && !p.downed;
     if (go) p.fTapWin = 1;
-    return step(state, { ...input, boost: go ? 1 : 0, ...(R.jump === false ? { jump: 0, jumpHeld: 0 } : {}) }, dt, hooks);
+    const out = step(state, { ...input, boost: go ? 1 : 0, ...(R.jump === false ? { jump: 0, jumpHeld: 0 } : {}) }, dt, hooks);
+    if (R.clip && p.dodgeT != null) {
+      if (p.dodgeDir) p.transform.heading = Math.atan2(p.dodgeDir[1], p.dodgeDir[0]);
+      p.locomotion = 'dodge_roll'; p.gaitPhase = Math.min(p.dodgeT, 0.999); p.moving = true;
+    }
+    return out;
   };
 }

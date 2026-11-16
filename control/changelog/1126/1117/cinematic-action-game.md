@@ -61,3 +61,17 @@ or a recipe key; the spike mints through the real doors and measures.
   and the trigger is its strings' light beat. The yard lays the basic arsenal's fist on the operative, its ground
   strings alone: the jab, the cross and the hook on the trigger, the uppercut on the heavy, each the solved clip, a
   bare hand's reach and a damage of 8, 10 and 16 of a target's 100. The aim is held off with nothing in hand.
+- **The dive plays the hero's own roll** (`dive.clip`): a body with a roll of its own (the hero library's
+  `rollForward`, a dive over the shoulder into a tucked roll, which nothing on the runtime played) turns to face the
+  way it dives and plays it through the dodge, its phase the dodge's, where the runtime held one tucked pose and
+  tumbled the whole body.
+- **A vault that stays low** (`freeRun.clipH`): with the body's own vault clip known, the body is lifted only by what
+  the thing is taller than the box the clip was solved for, so it passes just over the top (about half a metre of
+  lift over a metre's wall, where the arc lifted its feet clear of it). The yard plays the speed vault: one hand on
+  the top, the body turned and reclined, the legs over together beside it.
+- **A climb solved from the hands** (free-run.js): taken only where the hands reach the edge (`grab`, a standing
+  reach) and there is room to stand on the top. The hands take the edge and stay on it; the body is where that puts
+  it through the reach, the pull to the chest, the press to the hips and the step up, so the feet leave the ground
+  only once the arms have drawn up. It always ends standing on the top. The operative carries a keyed clip for it
+  (`climbUp`).
+- **The chase is not pulled in on cover the body goes over**, nor while it climbs (a `freeRun` page's only).
