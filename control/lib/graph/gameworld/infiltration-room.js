@@ -4,6 +4,7 @@
  * its levels, on the runtime it ships: the hero on the world's feel, its kit in its hands, a yard of cover and targets
  * at the ranges a sidearm is asked for.
  *
+ *   the radar     the yard's bodies within 30 m of the hero (`rule.radarRange`)
  *   the hero      the world's own where made (`refs.hero`), else a stand-in person; on the world's feel
  *   the camera    a chase the player turns; the aim held, behind the shoulder; from the aim, the eye
  *   the kit       the world's guns as the firing range reads them (loadout.js loadoutOf: a carried kit, the hero's own
@@ -54,6 +55,8 @@ const TARGET_HP = 100;
 // narrow beam, engages what it sees and takes up its round again), across the yard's far half, its sight drawn on the
 // floor (scene/channels/controllable/sight-view.js). It can be struck and shot
 const GUARD = Object.freeze({ id: 'guard-1', entry: Object.freeze({ class: 'patrol', skin: Object.freeze({ people: 'human' }) }), at: Object.freeze([-8, 10.5, 0]), heading: 0 });
+// (its figure: a made one's on the stand-in's library and clips, drawn as it is, else the stand-in person)
+const guardFigure = (ref, cast) => { const { hero, ...rest } = dummyFigure(cast); return typeof ref === 'string' ? { ...rest, heroRef: ref } : { ...rest, hero }; };
 const GUARD_TUNE = Object.freeze({ team: 'guards', rule: Object.freeze({ speed: 1.6, turnRate: 2.2, guardRadius: 14, sightShown: true }), body: Object.freeze({ hittable: true, hp: TARGET_HP }) });
 // (the box a hero's vault clip is solved for where the door is given none: the middle of the speed vault's band, about
 // half a metre; the yard's low walls are a metre, and the body is lifted by the rest: free-run.js `clipH`)
@@ -89,6 +92,8 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, ro
     aimView: { shoulder: { ...SHOULDER }, eye: 1.6 },
     // (over the low walls and the crates out of the run; the stick held into a taller thing climbs it: free-run.js; the jump's
     // button is the dive's: dive.js)
+    // (the radar reads the yard: 30 m to its rim)
+    radarRange: 30,
     freeRun: { on: 'push', ...(vault ? { clipH: VAULT_CLIP_H } : {}) },
     ...DIVE, ...(roll ? { dive: { ...DIVE.dive, clip: true } } : {}),
     // (one weapon in hand, or none, from a held menu; a ration to use: carry.js)
@@ -115,9 +120,9 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, ro
     // (and lit as a form page lights it, the cast rig: the skinned body, its cloth closed over its joints)
     castLight: { cube: { from: 'theatre-grey' } },
   };
-  // (the guard, stood as every hostile is: foes.js standFoe; a stand-in person its figure)
+  // (the guard, stood as every hostile is: foes.js standFoe; its figure a made one's, `refs.guard`, else a stand-in person)
   const part = { figures: manifest.figures, entities: manifest.entities };
-  standFoe(null, part, { id: GUARD.id, entry: GUARD.entry, at: GUARD.at.slice(), heading: GUARD.heading }, { figure: dummyFigure(cast), tune: GUARD_TUNE });
+  standFoe(null, part, { id: GUARD.id, entry: GUARD.entry, at: GUARD.at.slice(), heading: GUARD.heading }, { figure: guardFigure(refs.guard, cast), tune: GUARD_TUNE });
   manifest.figures = part.figures; manifest.entities = part.entities;
   // (the fists, laid as a level's arsenal is, their clips the figure's own)
   const armed = armLevel({ ...(G ?? {}), arsenal: FISTS }, manifest);

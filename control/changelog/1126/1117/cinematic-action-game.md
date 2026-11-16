@@ -97,3 +97,8 @@ or a recipe key; the spike mints through the real doors and measures.
   drawn. It engages what it sees and takes up its round again; it can be struck and shot.
 - **The chase's pull-in reads what the thing is**: a `freeRun` page skips a hit only on a thing whose top its body
   gets over (by the runtime's own boxes), where it skipped by the hit's height and stood behind a tall wall.
+- **The radar at a person's scale** (a pilot's `rule.radarRange`, metres to its rim): the radar's reach was an arena of
+  machines' (620 m), so the bodies of a yard all stood under its centre. With a reach given, a body with a mind reads
+  on it as an enemy, red. The infiltration yard reads 30 m: its targets blue, its guard red.
+- **The yard's guard is dressed**: a rifleman of the comic pack's private military (`create_character { pack: {
+  id: 'comic-hero', grunt: 'privateMilitary', colourway: 'woodland', look: 'realistic-night' } }`), carried by ref.

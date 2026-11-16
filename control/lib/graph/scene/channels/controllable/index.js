@@ -781,6 +781,10 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const freeRun = entities.some((e) => e && e.rule && e.rule.freeRun);
   // what a watcher sees, drawn (sight-view.js): a body whose rule says sightShown; absent, nothing is emitted
   const sightShown = entities.some((e) => e && e.rule && e.rule.sightShown);
+  // THE RADAR'S REACH (a pilot's `rule.radarRange`, metres to its rim): a person's game reads the bodies within a few
+  // tens of metres, where the radar's own reach is an arena of machines'; and on such a radar a body with a mind (a
+  // guard, a foe) reads as an enemy, red, where only a rival's suit did. Absent, 620, as it was
+  const radarRange = ((entities.find((e) => e && e.pilotable && e.rule && e.rule.radarRange > 0) || {}).rule || {}).radarRange ?? 620;
   // a gun on a mount aimed by hand (worlds/controllable/turret.js, turret-view.js): an entity with a turret; absent, nothing
   const turretOn = entities.some((e) => e && e.turret);
   // a body steered on its wheels (worlds/controllable/steer.js), its rule's or a form's: absent, nothing
@@ -3561,7 +3565,7 @@ if (__radarSelf() && !(__world.camera && __world.camera.rule && __world.camera.r
   const __rCv = document.createElement('canvas');
   __rCv.width = RSZ * 2; __rCv.height = RSZ * 2; __rCv.style.cssText = 'width:100%;height:100%';
   __rWrap.appendChild(__rCv); wrap.appendChild(__rWrap); __rWrap.className = 'moj-c-radar';   // (a HUD's hook: hud-grammar.js stands in for it)
-  __radar = { ctx: __rCv.getContext('2d'), sz: RSZ * 2, range: 620, band: 10 };
+  __radar = { ctx: __rCv.getContext('2d'), sz: RSZ * 2, range: ${radarRange}, band: 10 };
 }
 function __updateRadar() {
   if (!__radar) return;
@@ -3588,7 +3592,7 @@ function __updateRadar() {
       // targets stay blue. Absent teams → the classic pilotable=red read (byte-identical).
       const __teamOn = __world.match && __world.match.teamMode;
       const ally = __teamOn && self.team && e.team && e.team === self.team;
-      const enemy = __teamOn ? (!ally && !!e.team && e.team !== self.team) : !!e.pilotable;
+      const enemy = __teamOn ? (!ally && !!e.team && e.team !== self.team) : !!e.pilotable${radarRange !== 620 ? " || !!(e.rule && e.rule.type === 'ai')" : ''};
       const bx = C + px, by = C + py, col = ally ? '#5fe08a' : (enemy ? '#ff5a5a' : '#7fd4ff');
       x.strokeStyle = col; x.fillStyle = col; x.setLineDash([]);
       if (dz > band) { x.lineWidth = enemy ? 3.4 : 2.6; x.beginPath(); x.arc(bx, by, enemy ? 6 : 5, 0, 7); x.stroke(); }          // ABOVE → thick ring
