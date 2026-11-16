@@ -38,9 +38,16 @@
   health, the falls you have left, which stop you are at, the boss's health while it stands, and a banner when a
   stop clears and the street opens again. The practice readouts and the practice settings no longer appear in a
   level.
+- **A street is played through before you get it.** When the studio checks your game it now plays each street
+  with a simple player that lines up, closes in and attacks (or fires, in a run & gun), and with one that does
+  nothing. A street passes when the first can win it and the second cannot. If the simple player loses, the studio
+  says where it ran out of falls and what would ease it: more falls, a thinner wave at that stop, or an easier
+  boss. It tells you; it does not change your design.
+- **The street a game gets by default can be won by one player.** Its boss now fights as a novice. Measured: at the
+  usual level one simple player lost at the boss with all three falls gone, while two players won.
 - **Not yet:** an enemy that is a beast is drawn as a plain jointed figure, and the game says so; only a person's
   body stands on the street today. A game that names no enemies of its own still meets the stock crowd, drawn as
   plain figures on one open screen: that path is kept for testing. The things that lie on a street to pick up or
-  break are not laid, and the number of players is set by the game, not chosen on the screen before a level. Nobody
-  has played these; the studio has checked that each level loads, that the street holds at a stop and brings its
-  enemies in, and that winning and losing end the level.
+  break are not laid, and the number of players is set by the game, not chosen on the screen before a level. No person
+  has played these: the studio's simple player has, and it does not jump, throw, use a strong blow or a special, so
+  it shows a street can be won, not that it is fun.

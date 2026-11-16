@@ -1415,7 +1415,7 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
     const receipt = ledger.received(r), jobs = GameworldReqJobRepository.list(ref, r.id);
     return { id: r.id, unit: r.unit, status: r.status, receipt, does: nextOf(jobs, { level: true, probe: probeState(receipt), presented: !!r.verdict?.presented }) };
   });
-  const posts = (() => { try { return goalposts({ world: W, chapters: full.chapters ?? [], parts: full.parts ?? [], mainQuest: full.mainQuest ?? null, made: W.made ?? {}, compile: full.compile ?? null, reqs: levelReqs }); } catch { return null; } })();
+  const posts = (() => { try { return goalposts({ world: W, chapters: full.chapters ?? [], parts: full.parts ?? [], mainQuest: full.mainQuest ?? null, made: W.made ?? {}, compile: full.compile ?? null, reqs: levelReqs, playthrough: full.playthrough ?? null }); } catch { return null; } })();
   if (posts) full.goalposts = posts;
   // the goalpost's question in `next` (goalposts.js leadNext): the list and the goalposts say the same move, and a game
   // built with design goalposts open is said to be a draft
@@ -1503,6 +1503,8 @@ export async function playReadout(W, { budgetMs = runBudgetMs(), clock = Date.no
   const made = Object.entries(W.made ?? {}).filter(([k, v]) => k.startsWith('level-') && v?.ref);
   const fights = made.map(([key, v]) => ({ key, ref: v.ref, row: SketchRepository.getByRef(v.ref) })).filter(({ row }) => {
     const ents = row?.manifest?.entities ?? [], pilot = ents.find((e) => e?.pilotable);
+    // (a street level is a fight: its own simulation, played by the brawl's scripted player, below)
+    if (row?.manifest?.brawl?.practice?.street) return true;
     return ents.some((e) => e?.team === 'foes') && !!(pilot?.rule?.moveset || pilot?.rule?.weapons);
   });
   if (!fights.length) return null;
@@ -1513,6 +1515,15 @@ export async function playReadout(W, { budgetMs = runBudgetMs(), clock = Date.no
     if (levels.length && budgetMs > 0 && clock() - t0 >= budgetMs) { unplayed.push(key); continue; }
     try {
       const { payload } = await resolveWorldScene(row);
+      // a street (brawl/brawl-playthrough.js): the room its page steps, played by the brawl's basic player and its still one
+      if (payload.brawl?.street) {
+        const { playStreet, streetSummary } = await import('@/lib/graph/brawl/brawl-playthrough.js');
+        const basic = playStreet(payload.brawl, { player: 'basic' }), still = playStreet(payload.brawl, { player: 'still' });
+        // (a street its basic player loses: where, and the two words that ease it; advice, the design is the creator's)
+        const eases = basic.won ? {} : { eases: `the basic player ${basic.outcome === 'lost' ? `ran out of falls at stop ${Math.min(basic.stops.of, basic.stops.cleared + 1)} of ${basic.stops.of}` : 'did not finish in time'}: allow more falls (street.lives), thin that stop's wave, or stand its boss at cpu: 'novice'` };
+        levels.push({ level: key, pass: basic.won && !still.won, basic: streetSummary(basic), still: streetSummary(still), ...eases });
+        continue;
+      }
       const basic = playLevel(payload, { player: 'basic' }), still = playLevel(payload, { player: 'still' });
       levels.push({ level: key, pass: basic.won && !still.won, basic: playthroughSummary(basic), still: playthroughSummary(still), hitsBy: basic.hitsBy });
     } catch (e) { levels.push({ level: key, pass: false, error: String(e?.message ?? e).slice(0, 200) }); }

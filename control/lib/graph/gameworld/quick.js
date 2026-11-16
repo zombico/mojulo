@@ -830,8 +830,10 @@ function readBrawl(Q) {
 }
 /** are these waves written from the game's cast (by role or foe id), not by the street's stock types? */
 export const castWaves = (waves) => Array.isArray(waves) && waves.length > 0 && waves.every((w) => isObj(w) && !Array.isArray(w.crowd));
-/** the street a brawl is fought down when its world keeps a bestiary and says none: three stops that build, a boss last */
-export const BRAWL_STREET = Object.freeze({ stops: [{ wave: { grunt: 2 } }, { wave: { grunt: 3, shooter: 1 } }, { wave: { elite: 1, grunt: 3 } }], boss: 'boss' });
+/** the street a brawl is fought down when its world keeps a bestiary and says none: three stops that build, a boss last.
+ * A first street's boss fights as a novice: one player on the basic game beats it with falls to spare (measured by the
+ * scripted player, brawl/brawl-playthrough.js; at the sim's own `regular` that player loses at the boss) */
+export const BRAWL_STREET = Object.freeze({ stops: [{ wave: { grunt: 2 } }, { wave: { grunt: 3, shooter: 1 } }, { wave: { elite: 1, grunt: 3 } }], boss: Object.freeze({ foe: 'boss', cpu: 'novice' }) });
 /** the waves a brawl meets when its world keeps a bestiary and says none: its cast by role, a boss last */
 export const BRAWL_ROLE_WAVES = Object.freeze([{ grunt: 2 }, { grunt: 3, shooter: 1 }, { elite: 1, grunt: 2 }, { boss: 1, grunt: 2 }].map((w) => Object.freeze(w)));
 /** A brawl's heroes: the fight's fighters (fightFighters: each a sheet the run makes into a character, or one already
