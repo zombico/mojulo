@@ -31,7 +31,12 @@
  *     what leads. A game not built yet: a gated world's question goes before its run, an autonomous one's right after
  *     it (it was asked to be made). A game built with design goalposts open is a DRAFT: the question leads, the play
  *     step and the share step say `draft`, and sharing waits behind them. The last goalpost (the first level made and
- *     proved) is the build's own, so there the run leads as before. A quick game is not on this rail.
+ *     proved) is the build's own, so there the run leads as before. A world whose creator BROUGHT material (`brought`)
+ *     is asked first like a gated one, whatever its mode. A QUICK game is what was asked for, so nothing leads it and
+ *     nothing is a draft; once it is built the question rides last (`grow`): how one level becomes their game.
+ *   startReadout(world) → { readout: 'start', … }
+ *     a book with no level yet cannot be stored; the door answers this instead of refusing: every goalpost with its
+ *     question, the producer's intake step first, nothing built. The designed path's first call, as cheap as a quick one.
  *
  * Pure.
  */
@@ -129,21 +134,38 @@ export function goalposts({ world = {}, chapters = [], parts: parts_ = [], mainQ
 }
 
 // the steps that keep their lead over a goalpost: where it is seen, the ledger's open req, the creator's open verdicts
-const LEADS = new Set(['workshop', 'req', 'review']);
+const LEADS = new Set(['workshop', 'req', 'review', 'ask', 'intake']);
 /** The readout's `next` with the first open goalpost's question placed in it (the doc above). */
-export function leadNext(next = [], posts = null, { mode = 'gated', quick = false, made = false } = {}) {
-  if (!posts || quick || posts.next?.goalpost === 'first-level') return next;
+export function leadNext(next = [], posts = null, { mode = 'gated', quick = false, made = false, brought = false } = {}) {
+  if (!posts || posts.next?.goalpost === 'first-level' || (quick && !made)) return next;
   const n = posts.posts.find((p) => p.id === posts.next.goalpost);
-  const step = { step: 'goalpost', id: n.id, met: posts.met, of: posts.of, ask: n.ask, chapter: posts.next.chapter, ...(posts.next.move ? { move: posts.next.move } : {}), ...(made ? { draft: true } : {}), card: 'gameworld-next' };
+  const step = { step: 'goalpost', id: n.id, met: posts.met, of: posts.of, ask: n.ask, chapter: posts.next.chapter, ...(posts.next.move ? { move: posts.next.move } : {}), ...(quick ? { grow: true } : made ? { draft: true } : {}), card: 'gameworld-next' };
+  if (quick) return [...next, step];
   const head = [], rest = [...next];
   while (rest.length && LEADS.has(rest[0].step)) head.push(rest.shift());
   if (made) {
     const draft = (s) => (s.step === 'play' || s.step === 'share' ? { ...s, draft: true } : s);
     return [...head, step, ...rest.filter((s) => s.step !== 'share').map(draft), ...rest.filter((s) => s.step === 'share').map(draft)];
   }
-  const at = mode === 'autonomous' ? rest.findIndex((s) => s.step === 'run') + 1 : 0;
+  const at = mode === 'autonomous' && !brought ? rest.findIndex((s) => s.step === 'run') + 1 : 0;
   return [...head, ...rest.slice(0, at), step, ...rest.slice(at)];
 }
 
 /** What a draft's share offer says in place of "the game is complete" (share-offer.js `ask`). */
 export const draftAsk = (posts) => `A draft, not the game yet: ${posts.met} of ${posts.of} first-session goalposts met. Show it (the play step), then ask the next goalpost's question (next: goalpost). Share it when the creator asks; never export unasked.`;
+
+/** The designed path's first call (the doc above): a book with no level yet, answered with what to ask. Not stored. */
+export function startReadout(world = {}) {
+  const posts = goalposts({ world, chapters: [] });
+  const n = posts.posts.find((p) => p.id === posts.next.goalpost);
+  return {
+    ok: true, readout: 'start', stored: false,
+    says: 'Nothing is stored or built yet: a book begins with its first level. Ask what the creator brought (intake), then each open goalpost\'s question. When the first level can be named, write the world with its `levels` (gameworld-guide), or lay a first reading from a sentence (`compose: { prompt }`) and edit it. A build is fast: build to show a draft, then go on asking.',
+    goalposts: posts,
+    next: [
+      { step: 'intake', card: 'gameworld-producer' },
+      { step: 'goalpost', id: n.id, met: posts.met, of: posts.of, ask: n.ask, chapter: posts.next.chapter, card: 'gameworld-next' },
+    ],
+    cards: ['gameworld-guide', 'gameworld-studio', 'gameworld-producer'],
+  };
+}

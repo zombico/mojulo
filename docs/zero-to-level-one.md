@@ -37,6 +37,8 @@ session leaves.
    one carries the question only the person can answer. The first open one is also a step in `next`
    (`step: 'goalpost'`), so the list of moves and the goalposts say the same thing. A game built while a design
    goalpost is open is a draft: its play and share steps say `draft`, and the question leads.
+   A quick game is not a draft: once built, the question rides last (`grow`), for the person who wants to go on.
+   Where the person brought material, the question is asked before the run whatever the world's mode.
 3. **The chapters.** The agent writes or patches the world; `next` answers with step ids, each with its card and often
    a ready patch (`gameworld-next`). `{ ref, chapter }` is one chapter's view, a department's.
 4. **Try the play before the levels.** The practice door builds a room from the recipe alone, chosen by how the game
@@ -56,7 +58,7 @@ session leaves.
 |---|---|---|
 | one level, one goal | `design_game({ quick })` (`gameworld-quick`) | the fastest playable thing; a work sim ([worksim.md](worksim.md)) |
 | a sentence | `design_game({ compose: { prompt } })` | a first reading to edit: it answers what it `read` and what it left `unread` |
-| an idea, or documents | `design_game({ world })`, then patches | the designed game: the agent writes the recipe |
+| an idea, or documents | `design_game({ world: { name } })` first (it answers what to ask, nothing stored), then `{ world }` with its levels and patches | the designed game: the agent writes the recipe |
 | a board game, a pen-and-paper RPG, a fight | `create_game` with its own key | game types with their own machines ([table-rpg.md](table-rpg.md), [broadcast.md](broadcast.md)) |
 
 The sentence door is a keyword reader, not the agent's judgment. It is a starting recipe; the words it lists as

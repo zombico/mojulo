@@ -8,3 +8,13 @@
   something worth showing. A game built while those decisions are still open is no longer announced as complete
   with an offer to share it: it is shown as a draft, the next question is asked, and sharing waits until you ask
   for it. A one-level quick game is unchanged.
+- **Designing a game starts as quickly as a one-level game.** Tell the agent you want to design a game and it can
+  now begin with nothing written: it answers at once with what to ask you (what you brought, then what game it is,
+  how long, who the hero is, how it plays), and builds nothing until there is something to build. Before, a design
+  could not begin until a first level had been written.
+- **A quick game can grow.** A one-level game made the quick way is still made at once and offered to share as
+  before. It now ends with the question that would turn its one level into your game, for when you want to go on.
+- **What you brought comes first.** When you hand over drawings, plans or documents, the next question is asked
+  before the build even for a game you asked to be made in one go.
+- **The studio's guidance to the agent leads with the designed game.** It names designing your game first and the
+  one-level path as the choice when one level is all that was asked.

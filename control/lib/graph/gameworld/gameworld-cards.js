@@ -1282,6 +1282,7 @@ function nextCard() {
     '  advised    autonomous: the machine gate advises on those `parts`: change the page, or approve it as it stands.',
     '  goalpost   the next open goalpost (`id`, `met` of `of`): ask the creator its `ask`, then make its `move`. Run',
     '             whenever there is something to show; a game built while it stands is a DRAFT (`draft`): show, ask, go on.',
+    '             `grow` (a quick game, last): how its one level becomes their game. A `world` with no levels answers them all.',
     '  play       the game is made: `url`. Its levels are walkable by construction (the hero spawns on each stage\'s ground,',
     '             its exit is the stage\'s own end); whether they can be beaten is the creator\'s to judge in play: nothing',
     '             proved it (`gate: eyes`). `playtest` plays it with every level open and nothing saved; ?level=<ref> opens one.',

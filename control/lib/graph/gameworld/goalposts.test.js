@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { goalposts, GOALPOSTS, leadNext, draftAsk } from './goalposts.js';
+import { goalposts, GOALPOSTS, leadNext, draftAsk, startReadout } from './goalposts.js';
 import { MEADOWMARK_HERO } from './index.js';
 import { POLE_IDS } from './feel/cards.js';
 
@@ -108,8 +108,28 @@ describe('the goalpost leads the next moves', () => {
     const next = [{ step: 'run' }, { step: 'play' }];
     expect(leadNext(next, null)).toBe(next);
     expect(leadNext(next, open, { quick: true })).toBe(next);
+    // a quick game once built: nothing leads it and nothing is a draft; the question rides last, how it grows
+    const grown = leadNext([{ step: 'play' }, { step: 'share' }], open, { quick: true, made: true });
+    expect(ids(grown)).toEqual(['play', 'share', 'goalpost']);
+    expect(grown.map((n) => n.draft)).toEqual([undefined, undefined, undefined]);
+    expect(grown[2].grow).toBe(true);
     const last = goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS });
     expect(last.next.goalpost).toBe('first-level');
     expect(leadNext(next, last, { made: true })).toBe(next);
+  });
+
+  it('material brought: an autonomous world is asked before its run too, behind the producer\'s own steps', () => {
+    const next = [{ step: 'intake' }, { step: 'run' }];
+    expect(ids(leadNext(next, open, { mode: 'autonomous', brought: true }))).toEqual(['intake', 'goalpost', 'run']);
+    expect(ids(leadNext(next, open, { mode: 'autonomous' }))).toEqual(['intake', 'run', 'goalpost']);
+  });
+
+  it('the start: a book with no level yet is answered with every question, nothing stored', () => {
+    const start = startReadout({ name: 'My Game' });
+    expect(start).toMatchObject({ ok: true, readout: 'start', stored: false, goalposts: { met: 0, of: GOALPOSTS.length } });
+    expect(ids(start.next)).toEqual(['intake', 'goalpost']);
+    expect(start.goalposts.posts.every((p) => typeof p.ask === 'string')).toBe(true);
+    // (what the creator already said is read: an intent meets the first goalpost)
+    expect(startReadout({ intent: { from: 'long-rpg' } }).next[1].id).not.toBe('game');
   });
 });
