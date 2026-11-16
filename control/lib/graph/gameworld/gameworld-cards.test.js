@@ -58,6 +58,8 @@ describe('the rail\'s cards', () => {
     // 4608 since the two met on 1026-consolidated (2026-11-03: the complex's lines and the parked vehicles', 4574 bytes)
     // the next card too (2026-11-04, 1104 requisitions: the `req` move, the unit being worked, one line; it stood at
     // 4085 bytes, 4200 with it)
+    // (2026-11-16: gameworld-next 5120 → 5504: the `goalpost` move, a draft build, a quick game's `grow` and the start,
+    // three lines; 5071 bytes before, 5417 with them)
     // (2026-11-06: gameworld-world 4480 → 4736: a level's new shape, glyphs, a level as one glyph-map world, two lines)
     // (2026-11-06: gameworld-world 4736 → 4864: a glyph map planned as segments, each written apart, one line)
     // (2026-11-06: gameworld-world 4864 → 5248: the megaworld, two lines, 5120 bytes)
@@ -90,7 +92,7 @@ describe('the rail\'s cards', () => {
     // producer: 4594)
     // the battles card too (2026-11-15, zero to level one: `manual`, a lorecube manual fielded by the page, three lines;
     // 5197 bytes before, 5541 with them; 5888 the same day for `tree`, a school the party can be in, two lines: 5796)
-    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4608, 'gameworld-world': 5760, 'gameworld-foes': 5760, 'gameworld-wcd': 4608, 'gameworld-battles': 5888, 'gameworld-next': 5120, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
+    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4608, 'gameworld-world': 5760, 'gameworld-foes': 5760, 'gameworld-wcd': 4608, 'gameworld-battles': 5888, 'gameworld-next': 5504, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

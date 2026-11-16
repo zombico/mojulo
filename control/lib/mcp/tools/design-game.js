@@ -44,7 +44,7 @@ import { applyManifestPatch } from './manifest-patch.js';
 import { chapterView } from '@/lib/graph/gameworld/chapter-view.js';
 import { readMainQuest, mainQuestContext, mainQuestReport } from '@/lib/graph/gameworld/main-quest.js';
 import { questPlays, withQuestLevels } from '@/lib/graph/gameworld/main-quest-lay.js';
-import { goalposts } from '@/lib/graph/gameworld/goalposts.js';
+import { goalposts, leadNext, draftAsk, startReadout } from '@/lib/graph/gameworld/goalposts.js';
 import { loopOf, loopLaws } from '@/lib/graph/gameworld/core-loop.js';
 import { compileCheck, planError } from './design-game-check.js';
 import { combatGame } from '@/lib/graph/gameworld/combat/game.js';
@@ -755,6 +755,9 @@ export async function designGameHandler(input, context = {}) {
   if (quick !== undefined && written !== undefined) throw new Error('design_game: `quick` writes the world itself; pass the world\'s own settings (id, name, style …) beside the goal as quick.world, or a whole `world` without quick');
   // the interpreter (gameworld/compose.js): a few words read into a whole world, stored as `world` is
   if (compose !== undefined && (written !== undefined || patch !== undefined || quick !== undefined)) throw new Error('design_game: `compose` writes the world from its words; give it alone, then edit the world with `patch`');
+  // THE START (goalposts.js startReadout): a new book with no level yet is answered with what to ask, never refused;
+  // nothing is stored (a gameworld begins with its first level)
+  if (written !== undefined && given === undefined && isObj(written) && written.levels === undefined && patch === undefined) return startReadout({ ...written, ...(title && written.name === undefined ? { name: title } : {}) });
   // a hero named by its name (a named hero, create_character spec.name) is found on this machine: its ref is written
   const quickQ = quick !== undefined && isObj(quick.hero) && quick.hero.name !== undefined ? { ...quick, hero: { ref: namedHeroRef(quick.hero.name, quick.hero.ref) } } : quick;
   // (a composed world's cast is PAINTED against its ground (gameworld/colour.js paintedCast): its palette stamped here,
@@ -1413,6 +1416,10 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   });
   const posts = (() => { try { return goalposts({ world: W, chapters: full.chapters ?? [], parts: full.parts ?? [], mainQuest: full.mainQuest ?? null, made: W.made ?? {}, compile: full.compile ?? null, reqs: levelReqs }); } catch { return null; } })();
   if (posts) full.goalposts = posts;
+  // the goalpost's question in `next` (goalposts.js leadNext): the list and the goalposts say the same move, and a game
+  // built with design goalposts open is said to be a draft
+  const drafted = !!posts && !W.quick && posts.next?.goalpost !== 'first-level';
+  full.next = leadNext(full.next, posts, { mode: W.mode ?? 'gated', quick: !!W.quick, made: !!W.made?.game, brought: isObj(W.intake) && Array.isArray(W.intake.items) && W.intake.items.length > 0 });
   // the ticket: what this call did, linked to the intent it acted on (gameworld/asks.js)
   const ticket = ask !== undefined ? linkAsk(ref, ask, { raised: ledger.summary?.raised ?? [], approve, revise, patched, ran }) : null;
   if (ticket) full.ask = ticket;
@@ -1459,7 +1466,8 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   }
   // the run that made (or remade) the game completed it: the whole share offer rides this call, once
   const completed = W.made?.game && ran?.some((r) => r.key === 'game' && (r.action === 'make' || r.action === 'remake'));
-  const share = completed ? { share: shareForContext(context, { ref: W.made.game.ref }) } : {};
+  const offer = completed ? shareForContext(context, { ref: W.made.game.ref }) : null;
+  const share = offer ? { share: drafted ? { ...offer, draft: true, ask: draftAsk(posts) } : offer } : {};
   // one chapter: the whole readout projected onto it (a department's view; the share offer rides it as it rides the whole)
   if (chapter) {
     // a unit's own req (the live one asked for it): its remit, its precedent, its budget

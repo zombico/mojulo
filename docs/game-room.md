@@ -6,9 +6,10 @@ The practice room reconfigures itself into the game's room, a training room that
 
 Status: the brief, the primitives, the composition, the laws, the dress, the area and the practice room are built
 (`control/lib/graph/gameroom/`, `gameworld/game-room.js`), and the room composes and plays one fight (below). The
-room is where a game's combat is settled; it is never a level. A game's levels are made by the geocube (a
-building's rooms, a walk on its terrain), and a fight settled here is laid into them by these same rules: that,
-approved fights kept on the world, and the interior designer's style cards as dresses are next.
+room is where a game's combat is settled; it is not itself a level. A game's levels are made by the geocube (a
+building's rooms, a walk on its terrain), and a fight settled here is kept on the world by name (its `fights` key)
+and laid into a building level as an ordered task (`goal.tasks`, `gameworld/tasks.js`; "A fight", below). The
+interior designer's style cards as dresses are next.
 
 ## Composable primitives
 

@@ -391,7 +391,7 @@ Migration is in the migration block in [db/index.js](../control/lib/db/index.js)
 | [control/lib/runners/engine.js](../control/lib/runners/engine.js) | App runtime engine inside the daemon |
 | [control/lib/mcp/tools/agent-tasks.js](../control/lib/mcp/tools/agent-tasks.js) | Ring 7 — `pull_agent_task`, `submit_envelope_inference`, `cancel_agent_task` |
 | [control/lib/mcp/agent-tasks/queue.js](../control/lib/mcp/agent-tasks/queue.js) | In-memory FIFO single-claim queue; `parkRequest` / `parkRequestForTrigger` entry points |
-| [control/lib/mcp/tools/plan-mode.js](../control/lib/mcp/tools/plan-mode.js) | Ring 8 — plan mode tools (`enter_plan_mode`, `forge_plan`, `compile_plan`, `execute_plan`, `list_plans`, `get_plan`) |
+| [control/lib/mcp/tools/plan-mode.js](../control/lib/mcp/tools/plan-mode.js) | Ring 8 — plan mode tools (`enter_plan_mode`, `forge_plan`, `compile_plan`, `execute_plan`, `get_plan`, which lists when called with no ref; `list_plans` is retired, callable by name) |
 | [control/lib/mcp/meta-context/plan-release.js](../control/lib/mcp/meta-context/plan-release.js) | One-way plan→contextmap bridge; writes `plan_release` principles and archives plans on materialization |
 | [control/app/plan/page.jsx](../control/app/plan/page.jsx) | Dashboard plan inbox (read-only; archived plans hidden behind toggle) |
 | [control/lib/mcp/tools/research-mode.js](../control/lib/mcp/tools/research-mode.js) | Ring 9 — the research book's tools (`enter_research_mode`, `start_research`, `bind_research_item`, `synthesize_abstract`, `get_research`, `list_research`), retired: registered and callable by name, never listed |
