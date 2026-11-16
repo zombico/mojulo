@@ -41,6 +41,21 @@ describe('a cab', () => {
     // (carried in it)
     expect(Math.hypot(p.transform.pos[0] - c.transform.pos[0], p.transform.pos[1] - c.transform.pos[1])).toBeLessThan(1e-9);
   });
+  it('stands while no one drives it: the throttle its driver-to-be holds on the way to its door moves nothing', () => {
+    const st = world(), c = st.byId['car-1'], at = c.transform.pos.slice();
+    run(st, DT, { interact: 1, forward: 1 });
+    run(st, 1, { forward: 1 });
+    expect(st.byId.hero.mountPhase).toBe('approach');
+    expect(c.transform.pos.slice(0, 2)).toEqual(at.slice(0, 2));
+    // (and a car simply parked, no one near, the same)
+    const lone = world(); lone.byId.hero.transform.pos = [40, 40, 0];
+    run(lone, 2, { forward: 1 });
+    expect(lone.byId['car-1'].transform.pos.slice(0, 2)).toEqual([2, 1]);
+    // (in, the same throttle drives it)
+    run(st, 5, { forward: 1 });
+    expect(st.pilotId).toBe('car-1');
+    expect(Math.hypot(c.transform.pos[0] - at[0], c.transform.pos[1] - at[1])).toBeGreaterThan(3);
+  });
   it('drives on its own rule: the throttle moves it, its rider with it', () => {
     const st = getIn(world()), c = st.byId['car-1'], x0 = c.transform.pos.slice();
     run(st, 3, { forward: 1 });

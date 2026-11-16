@@ -10,7 +10,9 @@ import { composeLive } from '../worlds/controllable/compose.js';
 
 // the smallest town with a street to park on: one main-street segment
 const TOWN = { evoke: 'segment', segment: 'main-street', hills: { height: 4 }, margin: 12, enter: [], shops: { cards: ['electronics'] } };
-const WORLD = { id: 'drive-about', name: 'Drive about', seed: 4, characters: { direction: { tradition: 'western' } }, cars: [{ ride: 'coupe' }, { ride: 'coupe' }], levels: { town: { name: 'Main street', seed: 4, geotown: TOWN } } };
+// (a modern town's game, made for a monitor: its hero in street clothes, no powers and nothing in its hands)
+const WORLD = { id: 'drive-about', name: 'Drive about', seed: 4, screen: 'screen', style: { kit: 'trail-valley' },
+  characters: { direction: { tradition: 'western' }, hero: { looks: { body: { cast: 'male' }, underlayer: { type: 'outfit', style: 'streetwear' } }, motion: { vibe: ['bold'] }, actions: { idiom: 'city-stalker-like' } } }, cars: [{ ride: 'coupe' }, { ride: 'coupe' }], levels: { town: { name: 'Main street', seed: 4, geotown: TOWN } } };
 const G = readGameworld(WORLD), stage = gameStages(G)[0], E = stageEnds(stage.manifest);
 const within = (p, c) => p[0] > c.min[0] && p[0] < c.max[0] && p[1] > c.min[1] && p[1] < c.max[1] && p[2] > c.min[2] && p[2] < c.max[2];
 
@@ -57,6 +59,9 @@ describe('a world\'s cars', () => {
     expect(level.figures['car-1'].vehicleRef).toBe(S.find((x) => x.key === 'car-coupe').ref);
     // (the hero still the pilot, on foot, and the level still its own)
     expect(level.entities.find((e) => e.pilotable)?.id).toBe('hero');
+    // (made for a monitor, and its hero carries nothing: no weapon's figure beside its own)
+    expect(level.screen).toBe('screen');
+    expect(level.entities.find((e) => e.id === 'hero').weapon).toBeUndefined();
     const { cars: _c, ...bare } = WORLD, S0 = runSteps(bare, { ref: 'gw' }), L0 = S0.find((x) => x.key.startsWith('level-')).order.manifest;
     expect(S0.some((x) => x.key.startsWith('car-'))).toBe(false);
     expect((L0.entities ?? []).some((e) => e.mount)).toBe(false);

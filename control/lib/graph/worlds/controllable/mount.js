@@ -27,7 +27,8 @@
  *     (no riding clips: it is not seen riding): it walks to the cab's `stand` (its door), is in after `mount.s`, and is
  *     gone from the world while it is (`gone`: unseen, no one's target), carried in the cab; the cab is the pilot.
  *     Interact again when it is slow (`slow`): out after `dismount.s`, set down at the door, pushed clear of a wall
- *     that stands there, the pilot again. The cab plays no clip of the rider's: its own rule drives it.
+ *     that stands there, the pilot again. The cab plays no clip of the rider's: its own rule drives it, and only while
+ *     it is driven: a cab no one drives is parked (`cabRule` keeps its rule), so a held stick moves nothing.
  *
  * Opt-in (compose.js EMISSION_OPT_IN): emitted only into a page whose world has a mount; on the live instance a world
  * without one steps exactly as before. Import-free (the page runs this source via toString()). Field ownership: the
@@ -129,6 +130,14 @@ export function buildMount(E) {
     const horses = state.entities.filter((e) => e.mount);
     if (!horses.length) return step(state, input, dt, hooks);
     dt = dt || 1 / 60;
+    // (a cab no one drives is PARKED: it stands on no rule of its own, so the stick its driver-to-be still holds on the
+    // way to its door moves nothing; its own rule is back the step after its driver is in)
+    for (const h of horses) {
+      if (!h.mount.cab) continue;
+      const driven = state.pilotId === h.id;
+      if (!driven && !h.cabRule) { h.cabRule = h.rule; h.rule = { type: 'mounted' }; h.speed = 0; }
+      else if (driven && h.cabRule) { h.rule = h.cabRule; h.cabRule = null; }
+    }
     const press = !!(input && input.interact) || !!state.mountPress;
     state.mountPress = 0;
     const pilot = state.byId[state.pilotId];
