@@ -165,12 +165,13 @@ export function playMission(payload, M, { player = 'gunner', seconds = 300, trac
       return { at: way[0] };
     }
     if (!onMap) return grid.toward(fieldTo(goal), pos, 6);
-    const a = nodeAt(I, pos, hero.rule?.eye ?? 0), b = nodeAt(I, [goal[0], goal[1], goal[2] + 0.5]);
+    // (a map laid off the world's origin, a site's: `M.origin`, where its first cell's corner stands)
+    const O = M.origin ?? [0, 0, 0], a = nodeAt(I, pos, hero.rule?.eye ?? 0, O), b = nodeAt(I, [goal[0], goal[1], goal[2] + 0.5], 0, O);
     if (!a || !b || a === b) return { at: goal };
     const k = `${a}>${b}`;
     if (!routes.has(k)) routes.set(k, mapRoute(I, a, b));
     const R = routes.get(k);
-    return { at: R && R.length > 1 ? mapPoint(I.at.get(R[1])) : goal };
+    return { at: R && R.length > 1 ? mapPoint(I.at.get(R[1]), O) : goal };
   };
   const hpNow = () => (Number.isFinite(sim.bus.vars.hp) ? sim.bus.vars.hp : null);
   // (what lies on the floor, each taken once: walked over, it is gone)

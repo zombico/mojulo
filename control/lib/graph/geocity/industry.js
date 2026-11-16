@@ -246,14 +246,6 @@ export function industryTemplates(L) {
 /** A shipping container as it is built, unlit, along x about its foot: [{ corners, normal, hex }] (a stage stacks them on a
  *  building's apron and lights them as it lights the building, era/stage-buildings.js). Its body pale for an instance's tint. */
 export function containerRaw() { return container(); }
-/** Every piece as it is built, unlit, about its foot: [{ corners, normal, hex }], a piece that lies along a way both ways
- *  ({ x, y }). For what lights them itself (a facility's yard under its floods: arena-map/facility.js). Built once. */
-let RAW = null;
-export function industryRaw() {
-  const two = (build) => { const u = build(); return { x: u, y: turn(u) }; };
-  return (RAW ??= { tank: tank(), sphere: sphere(), holder: holder(), breaker: breaker(), stack: stack(),
-    silos: two(silos), container: two(container), transformer: two(transformer), gantry: two(gantry), pylon: two(pylon), chainlink: two(chainlink), piperack: two(piperack) });
-}
 /** How far each piece is seen (m): the tall ones across their district, the rest near the camera like the street's kit. */
 export const INDUSTRY_FAR = Object.freeze(['tank', 'sphere', 'holder', 'silos', 'stack', 'pylon']);
 

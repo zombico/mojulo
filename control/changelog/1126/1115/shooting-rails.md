@@ -189,13 +189,18 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   the ambient mostly by its level, each face by the way it looks, a metal's highlight on the gun and a cloth's on the
   hands, through the page's own tone curve. On a painted page they are the paint they were. The hands sort with the
   gun, after the world's glass.
-- **An industrial facility, by night, in the rain.** `arena-map/facility.js`: a yard of a geocity's industry designed
-  under the laws (`designFacility`: windows over the block grown in turn, the most varied first, the one that holds the
-  most kept) and drawn as itself (`facilityGround`: the reader now keeps the block's plan, `read.things`, and each
-  piece stands where the design put it, the geocity's own tanks, spheres, silos, stack, containers, pipe racks and
-  halls; what the generator grew a concrete panel, a barrier, a short container; the block beyond the wall its
-  skyline). Its paints' bases are the cube's day and its light the hour's, so a night is dark, lit by floodlights on
-  masts over the map's prizes, each baked by its distance and handed to the form render with the surfaces' roughness
-  and, in a wet weather, its wet; the weather falls in the hour's own air. A mission names it:
-  `map: { city, on, size, at, hour, weather, floods }`. The default metro's tank farm at 48 m holds all fourteen laws
-  and the headless gunner wins it in 69 s. `geocity/industry.js` exports its pieces unlit (`industryRaw`).
+- **An industrial yard, designed.** `arena-map/facility.js` `designFacility`: windows over a geocity's industrial block
+  read in turn, the ones that are a yard grown under the laws with what the place is made of kept (the most varied
+  first), the one that holds the most answered with where it stands; a mission's city cut names it (`map.at`). The
+  reader keeps the block's plan (`read.things`). The default metro's tank farm at 48 m holds all fourteen laws.
+- **A mission on a place as the geocube builds it.** `gameworld/mission-site.js`: a base building on its land with its
+  yard of containers under floodlights, by night in the rain, a siege walker parked in its hall, all of it the
+  geocube's own recipe (`era/stage-buildings.js`, the form render's floods and wet, `parked`); the mission is laid on
+  it as it stands, its page's colliders read onto the arena grid (`arena-map/read-colliders.js`: a mass a solid, a thin
+  wall an edge wherever no body's width is clear, one ground), the phases placed from that map and the laws said. The
+  geocube kind carries a level's page channels (`events`, `audio`, `mission`, `game`, `parked`) and a camera that is
+  the page's. The headless gunner walks a site as it walks a building, on the place's colliders. A builder with a
+  script (`scripts/spikes/shooter/facility.mjs`), not yet a level's form. A first attempt drew a yard itself, in
+  flat-painted pieces under a bake of its own: retired for this, which uses what the geocube already does.
+- **Fixed:** the mission's brief read the geocity's tables as it loaded, a ring of imports that failed two geocity
+  test files; it reads them when asked.

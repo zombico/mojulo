@@ -157,29 +157,12 @@ describe('a map read by the seventh generation', () => {
   });
 });
 
-// AN INDUSTRIAL YARD AS THE MAP (arena-map/facility.js): a city's industrial block cut, grown and drawn as itself under
-// its hour, its weather and its floodlights. One yard, the smallest cut, of the first industrial segment.
-import { INDUSTRY_SEGMENTS } from '../geocity/segments.js';
-
-describe('a mission in an industrial yard', () => {
-  const ON = INDUSTRY_SEGMENTS[0], place = { city: true, on: ON, size: PLACE_SIZE[0], hour: 'night', weather: 'rain', floods: 2 };
-  it('reads where the yard stands, its hour, its weather and its floods; they are an industrial yard\'s alone', () => {
-    expect(readMission({ map: { ...place, at: [100, 200] } }).map).toMatchObject({ city: {}, on: ON, at: [100, 200], hour: 'night', weather: 'rain', floods: 2 });
-    expect(() => readMission({ map: { city: true, on: ON, at: [1] } })).toThrow(/the cut's middle/);
-    expect(() => readMission({ map: { city: true, on: ON, weather: 'soup' } })).toThrow(/the air over it/);
-    expect(() => readMission({ map: { city: true, on: ON, hour: 'teatime' } })).toThrow(/hour is a number/);
-    expect(() => readMission({ map: { city: true, on: ON, floods: 40 } })).toThrow(/how many floodlights/);
-    expect(() => readMission({ map: { town: true, weather: 'rain' } })).toThrow(/an industrial yard's/);
+// WHERE A CITY'S CUT STANDS (`map.at`, a design step's answer: arena-map/facility.js designFacility).
+describe('a mission on a cut that names where it stands', () => {
+  it('reads `at` for a city\'s cut and for none other', () => {
+    expect(readMission({ map: { city: true, at: [100, 200] } }).map).toMatchObject({ city: {}, at: [100, 200] });
+    expect(() => readMission({ map: { city: true, at: [1] } })).toThrow(/a city cut's middle/);
+    expect(() => readMission({ map: { town: true, at: [1, 2] } })).toThrow(/a city cut's middle/);
+    expect(() => readMission({ map: { city: true, weather: 'rain' } })).toThrow(/not a place's word/);
   });
-  it(`(${ON}) is drawn as itself by night in the rain: its page takes the weather, the night's sky and the form render with its floods and its wet`, () => {
-    const L = missionLevel(WORLD, { quiet: true, spec: { map: place }, seed: 1 }), m = L.manifest;
-    expect(missionMapOf(m).blocks.read.things.length).toBeGreaterThan(0);
-    expect(m.weather).toMatchObject({ climate: { rain: 1 }, start: 'rain' });
-    expect(m.form.room.reflect.wet).toMatchObject({ rain: 1 });
-    expect(m.form.room.reflect.floods.length).toBeGreaterThan(0);
-    expect(m.form.room.reflect.floods.length).toBeLessThanOrEqual(2);
-    expect(m.sky.day).toBe(0);
-    expect(new Set(m.faces.map((f) => f.group)).has('facility:apron')).toBe(true);
-    expect(proveMission(m)).toMatchObject({ proved: true });
-  }, 240000);
 });

@@ -13,8 +13,8 @@
  *     map                  fought on a fighting map in place of the line (arena-map/): true (the map the kit's longest
  *                          band picks, MISSION_MAPS) or a template's id (arena-map/templates.js TEMPLATE_IDS)
  *                          or a PLACE: { town: true | <geotown recipe>, block?, size? } or { city: true | <geocity
- *                          recipe>, on?, size?, at?, hour?, weather?, floods? }: a window of the design cut as the map
- *                          (arena-map/read-town.js); an industrial yard drawn as itself (arena-map/facility.js)
+ *                          recipe>, on?, size?, at? }: a window of the design cut as the map (arena-map/read-town.js),
+ *                          `at` where a design step put it (arena-map/facility.js)
  *     (gun                 the emplacement's mounted gun: a gap, refused with what it waits on: sections.js)
  *   missionBrief(G, spec) → { guns: [{ name, band }], serves: { close, mid, long }, sections: [kind], yard, run, eye, width,
  *                             scale, hold, waves, camera, map: { template } | null, why: { <need>: words } } | null (a world
@@ -31,12 +31,11 @@ import { SECTIONS, SECTION_IDS, ARCHETYPE_BAND, FIRE_BAND } from './sections.js'
 import { TEMPLATE_IDS } from '../arena-map/templates.js';
 import { INDUSTRY_SEGMENTS } from '../geocity/segments.js';
 import { WATERFRONT_KINDS } from '../geocity/waterfront.js';
-import { STATES } from '../weather/weather.js';
-import { readHour } from '../era/geocube-hours.js';
 
-// (what a city's cut is held to: arena-map/read-town.js CITY_ONS, read from its two tables here so the brief does not
+// (what a city's cut is held to: arena-map/read-town.js cityOns(), read from its two tables here so the brief does not
 // carry the designs)
-const CITY_ONS = [...INDUSTRY_SEGMENTS, ...WATERFRONT_KINDS];
+// (read when asked, never as the module loads: the geocity's tables and this one meet in a ring of imports)
+const cityOns = () => [...INDUSTRY_SEGMENTS, ...WATERFRONT_KINDS];
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -83,7 +82,7 @@ export function readMission(v, at = 'mission') {
   if (v.hold !== undefined) { if (!Number.isFinite(v.hold) || v.hold < L.hold[0] || v.hold > L.hold[1]) no(`.hold is the seconds the yard is held, ${L.hold[0]} to ${L.hold[1]}`); out.hold = v.hold; }
   if (v.map !== undefined) {
     if (isPlace(v.map)) out.map = readPlace(v.map, no);
-    else { if (v.map !== true && !TEMPLATE_IDS.includes(v.map)) no(`.map is true (the map the kit picks), a template (${TEMPLATE_IDS.join(', ')}), or a place: { town: <a geotown> } or { city: <a geocity>, on: ${CITY_ONS.join(' | ')} }`); out.map = v.map; }
+    else { if (v.map !== true && !TEMPLATE_IDS.includes(v.map)) no(`.map is true (the map the kit picks), a template (${TEMPLATE_IDS.join(', ')}), or a place: { town: <a geotown> } or { city: <a geocity>, on: ${cityOns().join(' | ')} }`); out.map = v.map; }
   }
   // (the emplacement and its gun: a gap, said with what would close it; nothing is laid half)
   if (v.gun !== undefined) no(`.gun asks for the emplacement, which is designed, not built: ${SECTIONS.emplacement.gap}`);
@@ -93,7 +92,7 @@ export function readMission(v, at = 'mission') {
 // A PLACE (`map: { town } | { city, on }`): a window of a designed geotown or geocity cut as the map (arena-map/
 // read-town.js), then grown under the laws with its buildings, water and fences kept. `size` its side in metres
 const isPlace = (v) => v != null && typeof v === 'object' && !Array.isArray(v);
-const PLACE_KEYS = ['town', 'city', 'on', 'block', 'size', 'at', 'hour', 'weather', 'floods'];
+const PLACE_KEYS = ['town', 'city', 'on', 'block', 'size', 'at'];
 function readPlace(v, no) {
   const bad = Object.keys(v).find((k) => !PLACE_KEYS.includes(k));
   if (bad) no(`.map.${bad} is not a place's word (${PLACE_KEYS.join(', ')})`);
@@ -101,18 +100,13 @@ function readPlace(v, no) {
   const obj = (x) => x === true || (x != null && typeof x === 'object' && !Array.isArray(x));
   if (v.town !== undefined && !obj(v.town)) no('.map.town is true (one block of houses) or a geotown recipe ({ segment: \'main-street\' })');
   if (v.city !== undefined && !obj(v.city)) no('.map.city is true (the metro as it is) or a geocity recipe');
-  if (v.on !== undefined && (v.city === undefined || !CITY_ONS.includes(v.on))) no(`.map.on is what a city's cut is held to: ${CITY_ONS.join(', ')}`);
+  if (v.on !== undefined && (v.city === undefined || !cityOns().includes(v.on))) no(`.map.on is what a city's cut is held to: ${cityOns().join(', ')}`);
   if (v.block !== undefined && (v.town === undefined || typeof v.block !== 'string')) no('.map.block is a town\'s block by its id (A1)');
   if (v.size !== undefined && !(Number.isFinite(v.size) && v.size >= PLACE_SIZE[0] && v.size <= PLACE_SIZE[1])) no(`.map.size is the cut's side in metres, ${PLACE_SIZE[0]} to ${PLACE_SIZE[1]}`);
-  // (where the cut stands, a design step's answer: arena-map/facility.js designFacility; and the hour, the weather and the
-  // floodlights an industrial yard is drawn under)
-  if (v.at !== undefined && !(Array.isArray(v.at) && v.at.length === 2 && v.at.every(Number.isFinite))) no('.map.at is the cut\'s middle in the design\'s metres, [x, y]');
-  if (v.hour !== undefined) { try { readHour(v.hour); } catch (e) { no(`.map.${e.message}`); } }
-  if (v.weather !== undefined && !(typeof v.weather === 'string' && STATES[v.weather])) no(`.map.weather is the air over it, one of ${Object.keys(STATES).join(', ')}`);
-  if (v.floods !== undefined && !(typeof v.floods === 'boolean' || (Number.isInteger(v.floods) && v.floods >= 1 && v.floods <= 6))) no('.map.floods is true, false or how many floodlights stand over it, 1 to 6');
-  for (const k of ['hour', 'weather', 'floods']) if (v[k] !== undefined && !(v.city !== undefined && INDUSTRY_SEGMENTS.includes(v.on ?? CITY_ONS[0]))) no(`.map.${k} is an industrial yard's (a city's ${INDUSTRY_SEGMENTS.join(', ')}): it is drawn as itself under its hour, its weather and its floods`);
-  const more = Object.fromEntries(['at', 'hour', 'weather', 'floods'].filter((k) => v[k] !== undefined).map((k) => [k, Array.isArray(v[k]) ? v[k].slice() : v[k]]));
-  return { ...more, ...(v.town !== undefined ? { town: v.town === true ? {} : structuredClone(v.town), ...(v.block ? { block: v.block } : {}) } : { city: v.city === true ? {} : structuredClone(v.city), on: v.on ?? CITY_ONS[0] }), size: v.size ?? PLACE_SIZE[2] };
+  // (where the cut stands, a design step's answer: arena-map/facility.js designFacility)
+  if (v.at !== undefined && !(v.city !== undefined && Array.isArray(v.at) && v.at.length === 2 && v.at.every(Number.isFinite))) no('.map.at is a city cut\'s middle in the design\'s metres, [x, y]');
+  const more = v.at !== undefined ? { at: v.at.slice() } : {};
+  return { ...more, ...(v.town !== undefined ? { town: v.town === true ? {} : structuredClone(v.town), ...(v.block ? { block: v.block } : {}) } : { city: v.city === true ? {} : structuredClone(v.city), on: v.on ?? cityOns()[0] }), size: v.size ?? PLACE_SIZE[2] };
 }
 /** A place's cut: its least and most side, and the side a mission cuts when it names none (metres). */
 export const PLACE_SIZE = Object.freeze([24, 54, 36]);
