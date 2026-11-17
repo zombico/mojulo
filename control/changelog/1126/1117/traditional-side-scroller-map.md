@@ -34,9 +34,12 @@ said as its phase lands.
   sooner fizzles). Each round flies straight from the chest, swept against the bodies it meets and ended by a wall, its
   damage a share of a hero's blow by level. Fired on J (the pad's right trigger as ever), drawn as glowing pellets in
   the charge's colours, its charge lighting the hero juice's sparks; composed into a page only where a body carries one.
-- **The arm cannon** (`cannon: 'R' | 'L'`, the toy family's): a barrel round the hand from over the wrist past the
-  fingertips, a lip at its muzzle, the bore dark in its face. Planned: the hand that becomes the cannon only while the
-  buster is out.
+- **The arm cannon** (`cannon: 'R' | 'L'`, the toy family's): one form with the forearm, the forearm's line carried on
+  past the wrist over the hand to a muzzle with its lip and the bore dark in its face, on a BONE OF ITS OWN
+  (`polygonizer/hero-buster-rig.js`: wrist to knuckles, riding the hand, appended after every other bone at pack time,
+  every clip keying it). The hand becomes the cannon while the buster is out: on the page the cannon's bone grows to
+  whole and the hand's shrink away (charging, or a shot just fired), and the skinned GLB carries the same swap as
+  `buster:out`, an override layer of scale channels. A hero with no cannon keeps its rig, its skin and its export.
 - **A level seen as an elevation.** The course map's sibling: a side-scroller's level as the camera's path through the
   along × up plane, a chain of zones (runs one screen thick, rooms that scroll both ways, full-screen corners), built
   only where the camera can see. Across develops, down is free or a commitment, up is earned.
