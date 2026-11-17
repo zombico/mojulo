@@ -69,6 +69,9 @@ export const TRACK_LEXICON = Object.freeze({
   // a street circuit: round a town's blocks, square corners, the town laid down its straights (street-frontage.js)
   'street circuit': { streets: true }, 'street track': { streets: true }, 'street race': { streets: true }, 'city circuit': { streets: true },
   'city track': { streets: true }, 'city streets': { streets: true }, 'downtown': { streets: true }, 'town circuit': { streets: true }, 'through the streets': { streets: true },
+  // a mine the track runs through (mine.js: galleries under a hill, timber, lanterns, gems, a cart line)
+  'gem mine': { mine: true }, 'a mine': { mine: true }, 'mine track': { mine: true }, 'mine circuit': { mine: true }, 'mineshaft': { mine: true }, 'mine shaft': { mine: true },
+  'underground': { mine: true }, 'tunnels': { mine: true }, 'caves': { mine: true }, 'cavern': { mine: true }, 'chocolate mountain': { mine: true },
   'chunky': { pole: 'chunky' }, 'rounded': { pole: 'chunky' }, 'plastic': { pole: 'chunky' },
   // its light: the seventh generation's (the page lights it, the sun's shadows cast live: track-form.js), or baked in
   'gen 7': { lit: 'form' }, 'gen-7': { lit: 'form' }, 'seventh gen': { lit: 'form' }, 'seventh generation': { lit: 'form' }, 'shadows': { lit: 'form' },
@@ -118,7 +121,7 @@ export function readTrackIntent(intent = '') {
   const form = got.form ?? 'circuit', pole = got.pole ?? (set === 'kart' ? 'chunky' : 'material');
   const base = form === 'stage' ? LENGTH.stage : LENGTH[cls] ?? LENGTH.circuit;
   const track = { class: cls, form, length: Math.round(base * (got.length ?? 1)), twist: got.twist ?? (cls === 'kart' ? 0.5 : 0.4), ...(got.duel && form !== 'stage' ? { duel: true } : {}),
-    ...(got.elevation ? { elevation: got.elevation } : {}), ...(got.ramps ? { ramps: got.ramps } : {}), ...(got.crossing ? { crossing: true } : {}), ...(got.streets && form !== 'stage' && !got.duel ? { streets: true } : {}) };
+    ...(got.elevation ? { elevation: got.elevation } : {}), ...(got.ramps ? { ramps: got.ramps } : {}), ...(got.crossing ? { crossing: true } : {}), ...(got.streets && form !== 'stage' && !got.duel ? { streets: true } : {}), ...(got.mine && !got.streets && form !== 'stage' && !got.duel ? { mine: true } : {}) };
   // the look: the scene's words, the pole said in the tunnel's terms (realistic, or stylized) when no word did
   const said = scene.join(' ');
   const look = `${pole === 'material' && !/\b(realistic|realism|naturalistic|lifelike|photoreal)\b/.test(said) ? 'realistic ' : pole !== 'material' && !/\bstyli[sz]ed\b/.test(said) ? 'stylized ' : ''}${said}`.trim() || (pole === 'material' ? 'realistic green grass' : 'stylized green grass');
@@ -135,7 +138,7 @@ export function composeTrack(intent, { seed = 1 } = {}) {
   if (!TRACK_FORMS.includes(T.form)) throw new Error(`trackscape: form ${T.form}`);
   // (a duel is two lanes and a crossover: no hills, ramps or crossing of its own)
   const course = T.duel ? { class: T.class, length: T.length, twist: T.twist, seed, duel: true } : { class: T.class, length: T.length, twist: T.twist, seed, ...(T.elevation ? { elevation: T.elevation } : {}), ...(T.ramps ? { ramps: T.ramps } : {}), ...(T.crossing && !T.streets ? { crossing: true } : {}), ...(T.streets ? { streets: true } : {}), ...(T.form === 'stage' ? { closed: false } : {}) };
-  return { kind: 'roadway', form: T.form, course, kit: { look: R.look, seed, ...(R.pole === 'voxel' || R.pole === 'shaded' || R.pole === 'chunky' ? { pole: R.pole } : {}), ...(R.form ? { form: true } : {}) }, ...(T.streets && T.class === 'kart' ? { language: 'candy-city' } : LANGUAGE_OF_CLASS[T.class] ? { language: LANGUAGE_OF_CLASS[T.class] } : {}), scape: { set: R.set, seed, ...(R.landmark ? { landmark: R.landmark } : {}), ...(R.surrounds ? { surrounds: R.surrounds } : {}), ...(R.venue ? { venue: R.venue } : R.pole !== 'voxel' ? { stands: 'bowl' } : {}) }, seed, intent, reads: R.reads, vehicle: R.vehicle };
+  return { kind: 'roadway', form: T.form, course, kit: { look: R.look, seed, ...(R.pole === 'voxel' || R.pole === 'shaded' || R.pole === 'chunky' ? { pole: R.pole } : {}), ...(R.form ? { form: true } : {}) }, ...(T.streets && T.class === 'kart' ? { language: 'candy-city' } : T.mine && T.class === 'kart' ? { language: 'candy-mine' } : LANGUAGE_OF_CLASS[T.class] ? { language: LANGUAGE_OF_CLASS[T.class] } : {}), scape: { set: R.set, seed, ...(R.landmark ? { landmark: R.landmark } : {}), ...(R.surrounds ? { surrounds: R.surrounds } : {}), ...(R.venue ? { venue: R.venue } : R.pole !== 'voxel' ? { stands: 'bowl' } : {}) }, seed, intent, reads: R.reads, vehicle: R.vehicle };
 }
 
 /** A gameworld from words: its look the words', its one level the track drawn in it (the world and the track together). */

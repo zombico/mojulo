@@ -30,7 +30,8 @@ import { racingLine } from './contract.js';
 import { moodOf, moodScene } from './race-mood.js';
 import { readLanguage, railFaces, postFaces, kerbFaces, edgeFaces, puffFaces, chevronFaces, buntingFaces, padFaces, languageLaws } from './track-language.js';
 import { chunkyFaces, chunkyFlat, chunkyLightOf } from './chunky-look.js';
-import { trackForm } from './track-form.js';
+import { trackForm, TRACK_FORM_KEEP } from './track-form.js';
+import { mineLight, MINE_GLOW } from './mine.js';
 import { streetFeatures, splitGap } from './street-features.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -549,9 +550,11 @@ export function assembleTrackScene(m = {}, opts = {}, planned = null) {
   if (m.kit && typeof m.kit === 'object' && m.kit.form && !m.mood) {
     const xs = plan.stations.map((p) => p.x), ys = plan.stations.map((p) => p.y), zs = plan.stations.map((p) => p.z);
     const half = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) / 2 + 40;
-    const F = trackForm(scene.faces, { fit: { at: [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2, Math.min(...zs)], half } });
-    return { ...scene, faces: F.faces, form: F.form, shadows: F.shadows, sky: { ...scene.sky, sun: { dir: F.sun, size: 1.4, glow: 1.3 } } };
+    const F = trackForm(scene.faces, { fit: { at: [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2, Math.min(...zs)], half }, ...(plan.mine ? { keep: [...TRACK_FORM_KEEP, MINE_GLOW] } : {}) });
+    // (under a mine's hill, mine.js: the day dimmed by how deep, the lanterns' and the gems' light laid on)
+    return { ...scene, faces: plan.mine ? mineLight(F.faces, plan.mine) : F.faces, form: F.form, shadows: F.shadows, sky: { ...scene.sky, sun: { dir: F.sun, size: 1.4, glow: 1.3 } } };
   }
+  if (plan.mine && !m.mood) return { ...scene, faces: mineLight(scene.faces, plan.mine) };
   return m.mood ? moodScene(scene, plan, moodOf(m.mood), { isRoad: (f) => !!plan.roadFaces?.has(f) }) : scene;
 }
 function assembleNoonScene(m, opts, plan) {

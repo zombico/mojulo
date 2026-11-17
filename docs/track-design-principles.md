@@ -58,7 +58,18 @@ the operator's to say on the page.
     them loses. A shortcut is worth taking only if it asks for something; and **an underpass**, a toy building spanning another
     straight, the street through its ground floor under a berry band and a row of balls, lamps along its ceiling. A
     choice and a dark moment: a lap with both has something to learn and something to feel.
-12. **One primitive, two tunings.** A realistic circuit answers the same questions soberly: the look's own asphalt and
+12. **Underground is the track's too: a mine** (`candy-mine`, asked for as "a kart race through a gem mine",
+    "underground", "tunnels", "caves"; `roads/mine.js`, the card's `mine`). The lap runs through a chocolate mountain
+    the miners bored. Its galleries are laid where the way bends gently enough for their walls, never over the grid,
+    the longest one first and a short one after it. Each is a bore past the rail with a ledge for the cart line, under a
+    lumpy hill of the family's rock, frosted along its crest, that rises toward the gallery's middle and falls to each
+    mouth as a hillside. Each mouth is a timber portal with a board of gems. Inside, the miners' sets (log posts and a
+    cap, a set every few metres) mark the speed, lantern pairs hang over the kerbs, gems glow in the walls, and carts
+    heaped with gems stand on the line. Outside its longest gallery is the yard: a headframe with its wheel and a heap
+    of spoil. Its light is the cave's (`era/cave.js`): under the hill a corner sees the day only through the mouths, less
+    the deeper it is, and the lanterns lay warm pools in the cave's torch register, scaled to the bore's width as a big
+    cave's lamps are. A dark moment, then the day again: the lap has a rhythm the open air cannot give it.
+13. **One primitive, two tunings.** A realistic circuit answers the same questions soberly: the look's own asphalt and
     paint, one steel for the guardrail and its posts. A principle is a question, and candy is one answer to it.
 
 ## A card
@@ -79,6 +90,11 @@ the operator's to say on the page.
     pieces:  { blocks: { <set piece>: <its stand-in> }, paint: { <surface group>: <material> } },
     city:    { sidewalk, margin, paving, crossing, zebra, lamps, facades: [...], heights: { core, edge, flat, tower },
                blocks: { shop, flat, tower }, kit: { lamp, signal } },   // a street circuit's town
+    mine:    { galleries: [{ share, least, most }], clearStart, apart, dark, depth,
+               bore: { ledge, flank, spring, crown, cover, lump, round, step, peak, frost, lean, boulders },
+               rock, frost, floor, timber, lantern, sets: { every, r }, lanterns: { off, drop, r, gain },
+               gems: { share, colours: [...], glow, size }, line: { gauge, rail }, carts: { inside, body, rim },
+               board: { w, h, material, edge }, yard: { back, off, r, headframe, wheel, wheelMaterial } },   // a mine
   },
   sky: { zenith: [r, g, b], horizon: [r, g, b], sun: { u, h }, puffs: { count, hex, alt: [lo, hi], size: [lo, hi] } } }
 ```
@@ -107,7 +123,9 @@ the kit's `form: true`. Its faces are built in their colours alone (`roads/chunk
 normals kept, then baked as the gen 7 town's buildings are (`roads/track-form.js` over `form/sun-light.js`): each corner
 its base and the day's light apart, and the sun's share of it. The page lays the sun's shadow from a static map fitted to
 the track and the karts' map that follows the action (`scene/live-light.js`). A mood (golden, dusk, night, rain)
-relights a baked track and is not read on a page-lit one yet.
+relights a baked track and is not read on a page-lit one yet. Under a mine's hill a light pass follows the bake
+(`roads/mine.js` `mineLight`): it dims what the day gives a corner by its depth in the gallery and adds the lamps'
+light, both before the page draws, and the gems and lanterns are kept from the bake as their own light.
 
 ## Looking
 

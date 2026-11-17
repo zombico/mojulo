@@ -78,6 +78,24 @@ In progress. Built so far:
   block: two piers, a deck, the building over it, a berry band and a row of balls over each mouth, lamps along its
   ceiling); the page's shadow darkens it. The town gives way to both: its rows stop at the mouths and the underpass, and
   the alley has fronts and a sidewalk down its far side.
+- **Built: a mine, a kart race through a chocolate mountain** ("a kart race through a gem mine", "underground",
+  "tunnels", "caves"; the `candy-mine` card's `mine`, `roads/mine.js`). Laid from what mojulo knew of the underground,
+  the trail's caves and caverns (`era/cave.js`, `era/cavern.js`), in the track's family. The lap runs through galleries
+  bored under a lumpy hill of cocoa rock, frosted cream along its crest, rising toward each gallery's middle and falling
+  to its mouths as a hillside. A gallery is laid only where the way bends gently enough for its walls, never over the
+  grid: the longest first, a short one after it. Each mouth is a biscuit-timber portal with a lemon board of gems. Inside:
+  - the miners' sets (log posts and a cap with knees, every eight metres), marking the speed
+  - lantern pairs over the kerbs
+  - berry, lemon and cream gems glowing in the walls
+  - a boarded floor past the way
+  - a narrow-gauge cart line on the ledge, with carts heaped with gems
+
+  Outside the longest gallery is the yard: a headframe with a berry wheel, carts and a heap of spoil. It is lit as a
+  cave is lit. Under the hill a corner sees the day only through the mouths, less the deeper it is, and the lanterns
+  lay warm pools in the cave's torch register and falloff, scaled to the bore's width as a big cave's lamps are. A light
+  pass after the bake does it (`mineLight`), on the page-lit track and the baked one alike, with the gems and lanterns
+  kept as their own light. The hill casts the sun's shadow live. The rail and its posts are the mine's timber. A mine
+  has no venue beside it: the land, the set pieces and the trees keep clear of the hill and the yard.
 - **The principles a new map starts from** ([docs/track-design-principles.md](../../../../docs/track-design-principles.md))
   and the agent's card for them (`gameworld-track-language`, read by the levels chapter): a premise first, a small
   family, a quiet way, a corner told three times, things seen to move, asymmetry, chunky, the track's own sky.

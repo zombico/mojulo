@@ -21,6 +21,9 @@
  *             city   { sidewalk, margin, paving, crossing, zebra, lamps, facades, heights, split?, tunnel?, blocks, kit }: a street
  *                    circuit's town (street-frontage.js): fronts down each straight's sides in the facades' colours by
  *                    turns, tall toward the middle; the sidewalks paved, lamps and signals, zebras across the way
+ *             mine   { galleries, bore, rock, timber, lantern, sets, gems, line, carts, board, yard }: a mine the track runs
+ *                    through (mine.js): galleries bored under a hill of the rock, timber sets, lanterns, glowing gems, a
+ *                    cart line and its carts, a yard with a headframe
  *             verge  { mown: { every, lift } }: the run-off mown in stripes across the way (the look's own grass, a
  *                    stripe lighter by `lift`), so the sides are seen to move too
  *             edge   { profile: 'bead', w, h, material } | { from: 'kit' } (a painted line)
@@ -113,6 +116,40 @@ export const TRACK_LANGUAGES = Object.freeze({
       },
       city: { sidewalk: 4, margin: 14, paving: 'sugar', crossing: 'cream', zebra: 5, lamps: 22, facades: ['cream', 'icing', 'lemon', 'sky', 'berry'],
         heights: { core: 34, edge: 7, flat: 10, tower: 27 }, split: { cut: 30, surface: 'cobbles', cobbles: ['sugar', 'icing'], pads: { at: [0.1, 0.55], len: 5, seconds: 1.6, material: 'lemon', arrows: 'berry' } }, tunnel: { length: 26, block: 'toy-tunnel' }, blocks: { shop: 'toy-shop', flat: 'toy-flat', tower: 'toy-tower' }, kit: { lamp: 'candy-lamp', signal: 'toy-signal' } },
+    }),
+    sky: Object.freeze({ zenith: [52, 128, 232], horizon: [198, 234, 255], sun: { u: 0.3, h: 0.5 }, puffs: { count: 28, hex: '#ffffff', alt: [45, 140], size: [20, 46] } }),
+  }),
+  'candy-mine': Object.freeze({
+    reads: 'a gem mine in a chocolate mountain: the candy track bored through cocoa rock under biscuit timber, lanterns warm in the dark, berry and lemon gems glowing in the walls, carts heaped with them on a narrow-gauge line, a headframe over the yard',
+    suits: Object.freeze(['kart']),
+    materials: Object.freeze({
+      fondant: { of: 'fondant', finish: 'matte', hex: '#7f7aae' },
+      icing: { of: 'fondant', finish: 'matte', hex: '#8d88bb' },
+      cocoa: { of: 'rock', finish: 'matte', hex: '#7a4f4a' },
+      biscuit: { of: 'timber', finish: 'matte', hex: '#e2a35e' },
+      cream: { of: 'plastic', finish: 'gloss', hex: '#fff3e2' },
+      berry: { of: 'plastic', finish: 'gloss', hex: '#ff4f86' },
+      lemon: { of: 'plastic', finish: 'gloss', hex: '#ffd03a' },
+    }),
+    parts: Object.freeze({
+      way: { material: 'fondant', bands: { every: 8, material: 'icing' }, dash: { every: 8, len: 3, w: 0.28, material: 'cream' },
+        chevrons: { before: [12, 26, 40], w: 3.1, len: 8, t: 2.2, materials: ['berry', 'cream'] } },
+      verge: { mown: { every: 4, lift: 1.1 } },
+      bunting: { min: 34, every: 16, h: 4.6, sag: 0.9, flags: 9, drop: 0.85, pole: { r: 0.11, material: 'biscuit', cap: { r: 0.26, material: 'lemon' } }, materials: ['berry', 'lemon', 'cream'] },
+      tree: { profile: 'lollipop', blossom: { share: 0.16, materials: ['berry', 'lemon'] } },
+      pieces: {
+        blocks: { arch: 'hoop-arch', 'marker-board': 'lolly-board', 'castle-tower': 'candy-tower', castle: 'candy-castle', bumper: 'candy-bumper' },
+        paint: { 'tech:body': 'cream', 'tech:skin': 'cream', 'str:plaster': 'cream', 'tech:frame': 'biscuit', 'tech:trim': 'berry', 'tech:glass': 'lemon', 'tech:cable': 'cocoa', 'tech:light': 'lemon', 'str:accent': 'lemon', 'str:stone': 'cocoa' },
+      },
+      edge: { profile: 'bead', w: 0.34, h: 0.08, material: 'cream' },
+      kerb: { profile: 'pillow', h: 0.17, materials: ['berry', 'cream'] },
+      rail: { profile: 'tube', r: 0.33, z: 0.6, material: 'biscuit', tell: ['berry', 'cream'],
+        post: { profile: 'round', r: 0.24, every: 4, material: 'biscuit', cap: { r: 0.4, material: 'lemon' } } },
+      mine: { galleries: [{ share: 0.24, least: 40, most: 180 }, { share: 0.1, least: 26, most: 60 }], clearStart: 45, apart: 40, dark: 0.22, depth: 9,
+        bore: { ledge: 2.4, flank: 10, spring: 3.6, crown: 7.4, cover: 4.5, lump: 0.7, round: 4, step: 2, peak: 0.45, frost: 0.22, lean: 9, boulders: 9 },
+        rock: 'cocoa', frost: 'cream', floor: 'biscuit', timber: 'biscuit', lantern: 'lemon', sets: { every: 8, r: 0.3 }, lanterns: { off: 5.5, drop: 0.9, r: 0.42, gain: 1.4 },
+        gems: { share: 0.85, colours: ['berry', 'lemon', 'cream'], glow: 0.6, size: 1.7 }, line: { gauge: 0.9, rail: 'cream' }, carts: { inside: 2, body: 'berry', rim: 'cream' },
+        board: { w: 6, h: 1.4, material: 'lemon', edge: 'berry' }, yard: { back: 16, off: 12, r: 14, headframe: 13, wheel: 2.2, wheelMaterial: 'berry' } },
     }),
     sky: Object.freeze({ zenith: [52, 128, 232], horizon: [198, 234, 255], sun: { u: 0.3, h: 0.5 }, puffs: { count: 28, hex: '#ffffff', alt: [45, 140], size: [20, 46] } }),
   }),
@@ -340,8 +377,8 @@ export function languageLaws(card, { cls = null, drawn = null } = {}) {
   const M = card.materials ?? {}, parts = card.parts ?? {}, ids = Object.keys(M), R = parts.rail;
   if (typeof card.reads !== 'string' || card.reads.trim().length < 20) say('premise', 'the language does not say what the track is made of');
   if (ids.length > FAMILY_MAX) say('family', `${ids.length} materials (at most ${FAMILY_MAX}): a family is small`);
-  const C = parts.city;
-  const named = [parts.way?.material, parts.way?.bands?.material, parts.way?.dash?.material, ...(parts.way?.chevrons?.materials ?? []), ...(parts.bunting?.materials ?? []), parts.bunting?.pole?.material, parts.bunting?.pole?.cap?.material, ...(parts.tree?.blossom?.materials ?? []), ...Object.values(parts.pieces?.paint ?? {}), ...(C ? [C.paving, C.crossing, ...C.facades, ...(C.split?.pads ? [C.split.pads.material, C.split.pads.arrows] : []), ...(C.split?.cobbles ?? [])] : []), parts.edge?.material, ...(parts.kerb?.materials ?? []), R?.material, ...(R?.tell ?? []), R?.post?.material, R?.post?.cap?.material].filter((x) => x !== undefined);
+  const C = parts.city, MN = parts.mine;
+  const named = [parts.way?.material, parts.way?.bands?.material, parts.way?.dash?.material, ...(parts.way?.chevrons?.materials ?? []), ...(parts.bunting?.materials ?? []), parts.bunting?.pole?.material, parts.bunting?.pole?.cap?.material, ...(parts.tree?.blossom?.materials ?? []), ...Object.values(parts.pieces?.paint ?? {}), ...(C ? [C.paving, C.crossing, ...C.facades, ...(C.split?.pads ? [C.split.pads.material, C.split.pads.arrows] : []), ...(C.split?.cobbles ?? [])] : []), ...(MN ? [MN.rock, MN.frost, MN.floor, MN.timber, MN.lantern, MN.line?.rail, MN.board?.material, MN.board?.edge, MN.carts?.body, MN.carts?.rim, MN.yard?.wheelMaterial, ...(MN.gems?.colours ?? [])] : []), parts.edge?.material, ...(parts.kerb?.materials ?? []), R?.material, ...(R?.tell ?? []), R?.post?.material, R?.post?.cap?.material].filter((x) => x !== undefined);
   for (const id of new Set(named)) if (!M[id]) say('family', `a part names '${id}', which the family does not hold`);
   for (const id of ids) if (!named.includes(id)) say('family', `'${id}' is in the family and no part wears it`);
   if (R && R.post && M[R.material] && M[R.post.material] && M[R.material].of !== M[R.post.material].of) say('one-metal', `the rail is ${M[R.material].of} and its post ${M[R.post.material].of}`);
