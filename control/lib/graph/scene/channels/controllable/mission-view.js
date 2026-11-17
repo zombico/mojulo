@@ -29,7 +29,7 @@ function __msThing(id, make) { let m = __MS.things[id]; if (!m) { m = __MS.thing
   for (const w of M.ways || []) for (const k of ['a', 'b']) __msThing('w:' + w.id + k, () => { const lift = (w.kind || 'lift') === 'lift', r = (w.radius || 1.8); const g = new THREE.Mesh(lift ? new THREE.PlaneGeometry(r * 2, r * 2) : new THREE.PlaneGeometry(r * 1.4, r * 0.7), __msMat(lift ? 0xe0b040 : 0x8fd08c, 0.34)); g.position.set(w[k][0], w[k][1], w[k][2] + 0.04); return g; });
   for (const b of M.barriers || []) { const m = __msThing('b:' + b.id, () => { const g = new THREE.Mesh(new THREE.BoxGeometry(b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]), new THREE.MeshBasicMaterial({ color: 0x39424a })); g.position.set((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2); return g; }); m.visible = !(S && S.open[b.id]); }
   const O = __CW.missionObjective ? __CW.missionObjective(__world) : null;
-  __msObj.textContent = S && S.done ? 'MISSION COMPLETE' : O ? 'OBJECTIVE  ' + O.says : (M.result ? 'OBJECTIVE  get out' : '');
+  __msObj.textContent = S && S.done ? 'MISSION COMPLETE' : O ? 'OBJECTIVE  ' + O.says : M.result && M.result.when.every((id) => S && S.held[id]) ? 'OBJECTIVE  get out' : (M.unsure ? 'OBJECTIVE  ' + M.unsure : '');
   let act = '';
   if (S && S.near && !S.ride) {
     const c = (M.clues || []).find((x) => x.id === S.near), w = (M.ways || []).find((x) => x.id === S.near);

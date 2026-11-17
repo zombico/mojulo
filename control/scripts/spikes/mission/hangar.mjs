@@ -71,6 +71,7 @@ const mission = {
     { id: 'true', says: M.objectives.true.reads, after: M.reveal.flag, done: 'intel-siege' },
   ],
   result: { at: r2(mid(R.lobby, 0, -2)), radius: 2.5, when: M.result.when },
+  unsure: 'something in this hangar does not add up: look around',
 };
 const start = r2(mid(R.lobby)); start[2] += 0.05;
 // the guards: two on the main hall's floor, one below, each the yard's guard on a round of its own

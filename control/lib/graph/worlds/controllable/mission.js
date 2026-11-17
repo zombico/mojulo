@@ -15,6 +15,7 @@
  *     barriers?: [{ id, min, max, needs?: { items?, flags? } }]  a box that holds a passage shut until what it needs is
  *                                                                held and set and the body comes within 2.5 m of it
  *     objectives: [{ id, says, done: <item id>, after?: <flag> }] in order; the current one is the first not done
+ *     unsure?: '<words>'                                         said while none stands and the result's things are not all held
  *     result?: { at: [x, y, z], radius?: 3, when: [item ids] }   holding them all there ends the mission
  *   }
  *   input.act      an edge: reads a clue, or rides a way, where the body stands on one (else whatever the action is)
