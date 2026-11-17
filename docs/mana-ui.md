@@ -192,7 +192,7 @@ widgets under a pointer (only the view knows where they are).
 | group | for |
 |---|---|
 | layout | screens on the stack (`seats` > 1 gives each couch seat a cursor), windows, stacks, splits, tabs (fixed, or pages from data), `each` (a row per item that does not itself take focus), dividers |
-| value | text in a type role, stats, bars (phase segments, the hatched chip of the last hit, filling from the right for a second fighter, or without their numbers), pips, counters, timers, compares (better or worse as ▲ ▼), tables (your row marked), dials, action and hotbar slots (key, cooldown, count, the one in hand), and placeholders for icons, portraits and images, badges, button prompts; a card (its face, its state as a shape, its back), a log (kept whole, shown from its end), a small series as bars, a magazine (the rounds as the figure, the reserve its caption, a belt of rounds; low, empty and reloading said) |
+| value | text in a type role, stats, bars (phase segments, the hatched chip of the last hit, filling from the right for a second fighter, or without their numbers), pips, counters, timers, compares (better or worse as ▲ ▼), tables (your row marked), dials, action and hotbar slots (key, cooldown, count, the one in hand), and placeholders for icons, portraits and images, badges, button prompts; a card (its face, its state as a shape, its back), a log (kept whole, shown from its end), a small series as bars, a magazine (the gun's wireframe over it, the rounds as the figure, the reserve its caption, a belt of the cartridges it feeds; low, empty and reloading said) |
 | input | lists (a long one scrolls), grids (two directions), trees (tiers by what each node requires), carousels, buttons, toggles, cyclers, sliders, keybinds, a `field` that picks its input from data, an allocator (points spent as a draft), a text entry (typed from a grid, so a pad can type). A disabled button, slot, row or cell may say `why`: its reason shows under it while it has the focus or the pointer, and as it is pressed |
 | hud | the in-game layer: a `hud` of regions (the nine screen places, a place that may be bound; a region bare, on a scrim, or at rest) and layers: anchors (a part over each thing in the world at the screen x and y the game projects; a row with an id is its own element, and `pass` rows rise and fade once: damage numbers), edges (what is off screen, held at the edge with an arrow), a threat ring (arcs where harm came from, fading), the peril (the screen's edge closing in as danger rises), the cinema bars; reticle, minimap (or a scope: a bezel, the wedge ahead, north), compass, feed, toast, banner, a phone's touch controls. A screen lays its own parts out in regions too, over the held game |
 | enemy | an enemy's awareness as a shape (unaware –, suspicious ?, searching ??, alert !, combat !!, fleeing », down ✕) and its statuses |
@@ -618,34 +618,38 @@ not whether a principle holds.
 2. **One figure leads each readout.** The value acted on now is drawn as a display numeral; the value behind it is a
    caption. A magazine's rounds are large and the reserve is small beside them; a clock's seconds are the figure.
    Never two values at one size side by side, as a table would draw them (`magazine`).
-3. **Count what can be seen.** A thing the player spends one at a time is drawn one at a time: the rounds in a
-   magazine as a belt that empties toward the edge it sits by, hearts, grenades, charges. Past what the eye can count
-   (a drum of a hundred rounds) it becomes one track.
-4. **No boxes over the world.** A readout over play sits on the world. It is either bare with a halo, or on a scrim: a
+3. **Count what can be seen.** A thing the player spends one at a time is drawn one at a time, as the thing it is:
+   the rounds in a magazine as a belt of cartridges that empties toward the edge it sits by (a rifle's bottle-necked
+   round, a pistol's short one, a shotgun's shell, a rocket; a spent one its empty outline), hearts, grenades, charges.
+   Past what the eye can count (a drum of a hundred rounds) it becomes one track.
+4. **A picture before a word.** What the player holds is drawn before it is named: the gun in hand as a wireframe of
+   its side, so a rifle, a shotgun and a pistol are told apart at a glance and the name is only confirmation
+   (`magazine`'s `gun`, else its name; `guns.js`).
+5. **No boxes over the world.** A readout over play sits on the world. It is either bare with a halo, or on a scrim: a
    shade behind it that fades out before any edge can show (`region` `variant: 'bare' | 'scrim'`). A plate with a
    border is for a menu, not for a corner of the screen during a fight.
-5. **The corners have jobs.** The player is at the bottom left (health), the player's gun is at the bottom right, where
+6. **The corners have jobs.** The player is at the bottom left (health), the player's gun is at the bottom right, where
    the player is and what is near is at the top left (the radar), and what to do now is at the top. The centre is the
    aim's, and it stays open except for marks about the aim itself (hits, the damage ring).
-6. **It speaks when something changes.** A readout that holds no news (a full magazine, full health) fades back, and
+7. **It speaks when something changes.** A readout that holds no news (a full magazine, full health) fades back, and
    the moment it changes it comes forward (`region` `rest`, a binding the game sets). Firing is not news: a shot kicks
    the figure and does not flash it. A loss or a low value is news.
-7. **Urgency is shown, not reported.** Low ammunition turns the figure and the belt to harm and says so ("Low ammo",
+8. **Urgency is shown, not reported.** Low ammunition turns the figure and the belt to harm and says so ("Low ammo",
    "Reload", "Reloading"). Low health closes the screen's own edge in, tinted, and near the end the edge beats slowly
    (`peril`; under three times a second, still under less motion or less flash). The player feels it before reading a
    number.
-8. **An order, not a checklist.** The objective is one line with a mark: what to do now, which of how many, and how
+9. **An order, not a checklist.** The objective is one line with a mark: what to do now, which of how many, and how
    far (metres to a place, or the foes still standing). A held place drains its clock under it. The full list of tasks
    belongs to the pause, the map and the briefing (`objective-order`).
-9. **The map is an instrument.** A radar is round and centred on the player, with ahead at the top, so it turns as
-   the player turns. It has a bezel of ticks, the wedge the player sees, north riding the bezel, and a face that fades
-   into the world. It is never a picture in a square frame (`minimap` `scope`, `north`; `radar-scope`).
-10. **Harm says where it came from.** A hit marks an arc of a ring round the aim at the attacker's bearing. The arc
+10. **The map is an instrument.** A radar is round and centred on the player, with ahead at the top, so it turns as
+    the player turns. It has a bezel of ticks, the wedge the player sees, north riding the bezel, and a face that fades
+    into the world. It is never a picture in a square frame (`minimap` `scope`, `north`; `radar-scope`).
+11. **Harm says where it came from.** A hit marks an arc of a ring round the aim at the attacker's bearing. The arc
     tapers at its ends, fades as it ages, and follows the attacker while it stands (`threat`, a mark's `fade`).
-11. **Geometry carries the genre.** Cut corners, a lean shared by bars and belts, tick marks, a mark before an order,
+12. **Geometry carries the genre.** Cut corners, a lean shared by bars and belts, tick marks, a mark before an order,
     a fire mode in a small keyed box. These come from the theme's closed words (`slant`, `corner`, `frame`), never from a
     node.
-12. **Readable first, still.** Every principle above sits around the words (restraint, above). A figure keeps its halo,
+13. **Readable first, still.** Every principle above sits around the words (restraint, above). A figure keeps its halo,
     a harm colour keeps its contrast against the scrim, and nothing that repeats breathes faster than three times a
     second.
 
@@ -653,7 +657,7 @@ How a shooter's parts are drawn now:
 
 | a modern shooter shows | an app-like HUD draws | mana-ui draws |
 |---|---|---|
-| the magazine's rounds large, the reserve small, a belt of rounds, "reload" said when empty | "Ammo 23/90" in a box | `weapon-readout`: `magazine` on a scrim, resting while full |
+| the gun's silhouette, the magazine's rounds large, the reserve small, a belt of cartridges, "reload" said when empty | "Ammo 23/90" in a box | `weapon-readout`: `magazine` on a scrim (the gun's wireframe, its rounds as the cartridges it feeds), resting while full |
 | health as a long bar in cells, no number | "HP ▓▓▓░ 74/100" in a box | `health-strip`: a large bar in cells, `figures: false`, on a scrim |
 | low health as a red, beating screen edge | a hatched bar | `peril-edge`: `peril`, its level from the health's share |
 | one order with a mark and a distance | a checklist of every step | `objective-order`; the checklist moves to the map screen |
@@ -668,7 +672,7 @@ Not yet drawn, and next on this road (the UI only):
 - a compass strip with the objective's bearing and distance, beside the radar
 - a waypoint over the objective in the world (a mark and its metres; an `anchors` row, the game projecting it)
 - the kill confirm at the aim (a skull, a ring) and a kill feed of icons, not lines of words
-- the gun as a silhouette in place of its name, and the equipment (grenades, a melee charge) as counted slots beside it
+- the equipment (grenades, a melee charge) as counted slots beside the gun
 - a pickup said where it was taken ("+30 rounds" rising off the belt)
 
 ## The fight's language
@@ -1021,6 +1025,11 @@ Each is one outline on a 24 grid. A theme's `icons` word is the style they are a
 changes its frames. Nothing is loaded: the theme's sheet carries each as a mask, cut out of the ink of the words
 beside it. The runtime only names one (`data-icon` on an `icon`, a counter's `icon`, a prompt's glyph); a game's other
 words for it (`coins`, `time`, `hp`) are aliases in the library.
+
+A shooter's guns are a shelf beside them (`guns.js`): each gun a wireframe of its side on a 64 by 20 grid, its
+outlines over a faint fill of themselves and its inner lines thinner, and each round it feeds standing tip up, both
+masks cut from the ink like the pictograms. A magazine names its gun (`gun`, else its `name`; the words for a gun are
+aliases) and the sheet draws its wireframe and its rounds; a name with no wireframe draws none. A new gun is a row.
 
 A theme dresses them further. `icons` has eight styles: `solid`, `line`, `chunky`, `badge`, `duo`, `sketch` (drawn by
 hand), `stencil` (cut and sprayed) and `glow` (a lit tube). `iconTone: 'meaning'` colours each by what it means in the

@@ -192,7 +192,7 @@ export function buildManaUi() {
     bar: { group: 'value', about: 'a value against its max; segments mark phases or chunks; `ghost` the value before the last hit (drawn hatched, the chip a fighting game shows; given as the value once the combo ends, it drains); rtl fills from the right (the second fighter); `size: large` a bar that is a frame (a fighter\'s health along the top), thicker, `thin` one that rides under another (a guard under the health), its meaning still its variant\'s; `figures: false` (or `numbers: false`) draws no value/max (a fight\'s health, a foe\'s, read by its length)', props: { value: [N, 0, true], max: [N, 1, true], variant: [['plain', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'], 'plain'], label: [T], segments: [N, 0], ghost: [N, 0], dir: [['ltr', 'rtl'], 'ltr'], size: [['normal', 'large', 'thin'], 'normal'], figures: [B, true], numbers: [B, true] } },
     pips: { group: 'value', about: 'a count as marks: hearts, pips', props: { value: [N, 0, true], max: [N, 3, true], shape: [Object.keys(PIP_SHAPES), 'pip'], label: [T] } },
     counter: { group: 'value', about: 'an icon and a count (ammo, coins, keys)', props: { label: [T, '', true], value: [T, '', true], max: [T], icon: [T] } },
-    magazine: { group: 'value', about: 'the gun in hand as a shooter shows it: the rounds in the magazine as the big figure, the reserve small beside it, the magazine drawn round by round (spent rounds hollow; past 60, one track); its name and fire `mode` small over it; low (at `low` of its `size`) the figure turns to harm and says so, empty it says reload, `reloading` the rounds refill', props: { rounds: [N, 0, true], size: [N, 0], reserve: [T], name: [T], mode: [T], reloading: [B, false], low: [N, 0.3] } },
+    magazine: { group: 'value', about: 'the gun in hand as a shooter shows it: its wireframe over it (`gun`, else its `name`: rifle, carbine, bullpup, smg, shotgun, marksman, sniper, pistol, revolver, launcher, knife and the words for them; another name draws none), the rounds in the magazine as the big figure, the reserve small beside it, the magazine drawn round by round as cartridges (the `round` its gun feeds: rifle, pistol, shell, rocket; a spent one its empty outline; past 60, one track); its name and fire `mode` small over it; low (at `low` of its `size`) the figure turns to harm and says so, empty it says reload, `reloading` the rounds refill', props: { rounds: [N, 0, true], size: [N, 0], reserve: [T], name: [T], gun: [T], round: [T], mode: [T], reloading: [B, false], low: [N, 0.3] } },
     timer: { group: 'value', about: 'seconds as a clock', props: { seconds: [N, 0, true], format: [['mmss', 'ss', 'hmmss'], 'mmss'], label: [T] } },
     compare: { group: 'value', about: 'before → after, better or worse told by a shape (▲ ▼ =)', props: { label: [T, '', true], from: [N, 0, true], to: [N, 0, true], better: [['up', 'down'], 'up'] } },
     icon: { group: 'value', about: 'an icon\'s place, named', props: { name: [T, '', true], size: [['s', 'm', 'l'], 'm'] } },
@@ -730,13 +730,16 @@ export function buildManaUi() {
           case 'magazine': {
             // the figure is the rounds; what they mean (low, empty, reloading) is a word that comes and goes beside it
             const size = Math.max(0, Math.floor(p.size)), n = clamp(Math.round(p.rounds), 0, size || Infinity), c = changeOf(key, n);
-            const empty = n === 0 && !p.reloading, low = !empty && !p.reloading && size > 0 && n <= p.low * size;
-            const call = p.reloading ? W('reloading') : empty ? W('reload') : low ? W('lowAmmo') : null;
             const has = (v) => v !== undefined && v !== null && v !== '';
-            return ['div', { class: cls, 'data-low': low ? 'yes' : null, 'data-empty': empty ? 'yes' : null, 'data-reloading': p.reloading ? 'yes' : null },
+            // (a blade, or a gun with nothing to count: no magazine, no reserve, nothing in it: its wireframe and name alone)
+            const counted = size > 0 || n > 0 || has(p.reserve) || p.reloading;
+            const empty = counted && n === 0 && !p.reloading, low = !empty && !p.reloading && size > 0 && n <= p.low * size;
+            const call = p.reloading ? W('reloading') : empty ? W('reload') : low ? W('lowAmmo') : null;
+            return ['div', { class: cls, 'data-gun': iconName(has(p.gun) ? p.gun : p.name), 'data-low': low ? 'yes' : null, 'data-empty': empty ? 'yes' : null, 'data-reloading': p.reloading ? 'yes' : null },
+              ['i', { class: 'mana-sil', 'aria-hidden': 'true' }],
               has(p.name) || has(p.mode) ? ['span', { class: 'mana-gun' }, has(p.name) ? ['span', null, p.name] : null, has(p.mode) ? ['b', { class: 'mana-mode' }, p.mode] : null] : null,
-              ['span', { class: 'mana-rounds' }, ['span', { class: 'mana-num', ...chOf(c) }, words(n)], has(p.reserve) ? ['span', { class: 'mana-reserve' }, words(p.reserve)] : null],
-              size > 0 && size <= 60 ? ['span', { class: 'mana-belt', style: `width:calc(${Math.min(330, size * 11)} * var(--mana-du))` }, ...Array.from({ length: size }, (_, k) => ['i', { 'data-spent': k >= n ? 'yes' : null }])]
+              counted ? ['span', { class: 'mana-rounds' }, ['span', { class: 'mana-num', ...chOf(c) }, words(n)], has(p.reserve) ? ['span', { class: 'mana-reserve' }, words(p.reserve)] : null] : null,
+              size > 0 && size <= 60 ? ['span', { class: 'mana-belt', 'data-round': has(p.round) ? iconName(p.round) : null, style: `width:calc(${Math.min(360, size * 13)} * var(--mana-du))` }, ...Array.from({ length: size }, (_, k) => ['i', { 'data-spent': k >= n ? 'yes' : null }])]
                 : size > 60 ? ['span', { class: 'mana-track' }, ['i', { style: `width:${pct(n / size)}` }]] : null,
               call ? ['span', { class: 'mana-call', 'data-key': p.reloading ? 'reloading' : empty ? 'empty' : 'low' }, call] : null];
           }

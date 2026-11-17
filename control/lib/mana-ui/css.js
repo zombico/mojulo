@@ -39,6 +39,7 @@
  * a part of the UI).
  */
 import { contrast, DISTANCES, HALOS } from './theme.js';
+import { gunCss } from './guns.js';
 export const GREYBOX_VARS = Object.freeze({
   ink: '#111111', mid: '#6b6b6b', soft: '#bdbdbd', line: '#111111', panel: '#fafafa', paper: '#fafafa', wash: '#ececec',
   scrim: 'rgba(255,255,255,.72)', shade: '#000000',
@@ -61,6 +62,8 @@ export const GREYBOX_VARS = Object.freeze({
   halo: HALOS.outline, 'sub-plate': '.82',
   // how near the end is (the peril layer's level, set on it by the runtime): nothing in the greybox's stand-in
   peril: '0',
+  // a magazine's wireframe and its rounds (guns.js: masks the sheet sets on the names that draw them): none unset
+  gun: 'none', round: 'none', 'round-spent': 'none',
   // the focus: the ▶ (a shape, never a colour alone) and the room it keeps at an item's left (mark 0: none)
   cursor: '"\\25B6"', mark: '1',
   // the lean of tabs, bars, banners, keys and buttons (theme.js SLANTS); the rule an inner part is drawn with
@@ -421,17 +424,20 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-rounds>.mana-num{display:inline-block;font:800 ${ts(80)}/.86 ${v('display')};letter-spacing:-.02em}`,
     `${s} .mana-reserve{font:700 ${ts(30)}/1 ${v('mono')};opacity:.72}`,
     `${s} .mana-reserve::before{content:"/";margin-right:${u(4)};opacity:.6}`,
-    `${s} .mana-belt{display:flex;flex-direction:row-reverse;gap:${u(2)};height:${u(15)}}`,
-    `${s} .mana-belt i{flex:1 1 0;min-width:1px;max-width:${u(9)};background:${v('ink')};transform:skewX(${v('slant')})}`,
-    `${s} .mana-belt i[data-spent]{background:color-mix(in srgb,${v('ink')} 18%,transparent)}`,
+    // (the gun's wireframe over it all, and each round a cartridge cut from the ink: guns.js; a spent one its outline)
+    `${s} .mana-magazine .mana-sil{margin-bottom:${u(-4)};opacity:.92}`,
+    `${s} .mana-belt{display:flex;flex-direction:row-reverse;align-items:flex-end;gap:${u(2)}}`,
+    `${s} .mana-belt i{flex:1 1 0;min-width:1px;height:100%;background:${v('ink')};-webkit-mask:var(--mana-round) center bottom/contain no-repeat;mask:var(--mana-round) center bottom/contain no-repeat}`,
+    `${s} .mana-belt i[data-spent]{background:color-mix(in srgb,${v('ink')} 45%,transparent);-webkit-mask-image:var(--mana-round-spent);mask-image:var(--mana-round-spent)}`,
     `${s} .mana-magazine>.mana-track{width:${u(300)};height:${u(8)}}`,
     `${s} .mana-magazine .mana-num[data-ch]{animation:mana-kick calc(${v('dur')} * 1.4) ${v('ease')}}`,
     `${s} .mana-magazine:is([data-low],[data-empty]) .mana-rounds>.mana-num{color:${v('harm')}}`,
     `${s} .mana-magazine:is([data-low],[data-empty]) .mana-belt i:not([data-spent]){background:${v('harm')}}`,
     `${s} .mana-call{font:800 ${t('label')}/1 ${v('font')};letter-spacing:.16em;text-transform:${v('case')};color:${v('harm')};animation:mana-fade calc(${v('dur')} * 2) ease-out both}`,
+    ...gunCss(s).split('\n'),
     `${s} .mana-magazine[data-empty] .mana-call{animation:mana-pulse ${PULSE}s ease-in-out infinite;animation-play-state:${v('loop')}}`,
     `${s} .mana-magazine[data-reloading] .mana-call{color:${v('accent')}}`,
-    `${s} .mana-magazine[data-reloading] .mana-belt i{background:transparent;box-shadow:inset 0 0 0 1px ${v('accent')};animation:mana-pulse .75s ease-in-out infinite;animation-play-state:${v('loop')}}`,
+    `${s} .mana-magazine[data-reloading] .mana-belt i{background:${v('accent')};-webkit-mask-image:var(--mana-round-spent);mask-image:var(--mana-round-spent);animation:mana-pulse .75s ease-in-out infinite;animation-play-state:${v('loop')}}`,
     `${s} .mana-marker{position:absolute;transform:translate(-50%,-50%);font-size:${u(16)};line-height:1}`,
     `${s} .mana-minimap .mana-caption{position:absolute;left:${u(6)};bottom:${u(3)}}`,
     `${s} .mana-compass{position:relative;width:${u(450)};height:${u(33)};border:${v('rule-w')} solid ${v('line')};background:${v('paper')};overflow:hidden}`,

@@ -11,6 +11,14 @@ a mission plays has changed.
   semi, launcher) sit small above it. Low on rounds, the figure and the belt turn red and say "Low ammo"; empty, they
   say "Reload"; while reloading, the belt refills. A shot kicks the figure instead of flashing it, because firing is
   not news. A gun with an endless reload shows ∞ for its reserve.
+- **The gun at a glance.** Over the figure, the gun in hand is drawn as a wireframe of its side: its stock, grip,
+  magazine, barrel and sights, and the few lines that tell one gun from another (a rifle's rail, a shotgun's pump, a
+  marksman rifle's scope and bipod). A rifle, carbine, bullpup, submachine gun, shotgun, marksman rifle, sniper rifle,
+  pistol, revolver, rocket launcher and knife each have one, and the other words for them (a handgun, a PDW, a DMR) draw
+  the same. A gun with none shows its name alone.
+- **Ammunition you can see.** The belt is a row of cartridges, the round the gun feeds: a rifle's bottle-necked round,
+  a pistol's short round-nosed one, a shotgun's shell, a rocket. A spent round is its empty outline. A knife counts
+  nothing and says nothing about reloading.
 - **Health** (bottom left) is one long bar in cells, read by its length, with no label and no number.
 - **No boxes over the world.** Both corners sit on a soft shade that fades out before any edge shows, and each one
   fades back while it has nothing new to say (a full magazine, full health). It comes forward the moment that changes.
@@ -28,4 +36,4 @@ a mission plays has changed.
   rests while it holds no news. The shooter HUD idioms (weapon readout, health strip, objective order, radar scope,
   danger edge) are built from them. The wireframe board's shooter HUD now lays these out together.
 - **What is next on this road** is listed in the notes: a compass strip, a waypoint over the objective in the world, a
-  kill confirm and a feed of icons, the gun as a silhouette, and grenades as counted slots.
+  kill confirm and a feed of icons, and grenades as counted slots.

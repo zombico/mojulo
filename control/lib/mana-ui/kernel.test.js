@@ -284,6 +284,13 @@ describe('mana-ui: the live game', () => {
     expect(mag({ rounds: 0 })).toMatch(/data-empty="yes".*>Reload</);
     expect(mag({ rounds: 0, reloading: true })).toMatch(/data-reloading="yes".*>Reloading</);
     expect(mag({ rounds: 0, reloading: true })).not.toContain('data-empty');
+    // its wireframe by its name (or the gun it names), its rounds the ones it names; a blade counts nothing
+    expect(full).toContain('data-gun="carbine"');
+    expect(full).toContain('<i aria-hidden="true" class="mana-sil"></i>');
+    expect(mag({ rounds: 5, size: 8, gun: 'Shotgun', round: 'shell' })).toMatch(/data-gun="shotgun".*class="mana-belt" data-round="shell"/);
+    const blade = hudOf([at({ use: 'magazine', props: { name: 'Knife', rounds: 0 } })]).view();
+    expect(blade).toContain('data-gun="knife"');
+    expect(blade).not.toMatch(/mana-rounds|mana-call|data-empty/);
     // a drum past sixty is one track, not a belt
     expect(mag({ rounds: 50, size: 100 })).toMatch(/mana-track"><i style="width:50%"/);
     const peril = (level) => hudOf([{ use: 'peril', props: { level } }]).view();

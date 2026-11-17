@@ -263,8 +263,11 @@ export function missionManaRuntime(cfg) {
     // the screen's edge: nothing over the health's half, closing in to all of it near none
     const share = P.hpMax > 0 ? P.hp / P.hpMax : 1;
     P.peril = Math.round(Math.min(1, Math.max(0, (cfg.hud.peril - share) / (cfg.hud.peril - cfg.hud.end))) * 20) / 20;
-    if (w) {
-      const slot = me.rule && me.rule.loadout ? me.rule.loadout[me.loadoutIdx || 0] : null;
+    const slot = me && me.rule && me.rule.loadout ? me.rule.loadout[me.loadoutIdx || 0] : null;
+    if (slot && slot.fire === 'melee') {
+      // (a blade in hand: its wireframe and name, nothing counted)
+      P.weapon = slot.name || ''; P.mode = ''; P.reloading = false; P.ammo = 0; P.magazine = 0; P.reserve = '';
+    } else if (w) {
       P.weapon = (slot && slot.name) || '';
       P.mode = w.fireClass === 'lob' ? 'Launcher' : w.auto ? 'Auto' : w.burst > 1 ? 'Burst' : 'Semi';
       P.reloading = !!w.reloading;

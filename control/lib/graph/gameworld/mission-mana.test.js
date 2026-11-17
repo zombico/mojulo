@@ -26,7 +26,7 @@ describe('the mission on mana-ui', () => {
     const rt = manaUi.runtime(C.spec, { read: (p) => manaUi.readPath(S, p) }), v = rt.view();
     // (no "HP" and no "Ammo" said: the bar's length and the figure are their own label)
     expect(v).not.toMatch(/>HP<|>Ammo</);
-    expect(v).toContain('class="mana-magazine" data-low="yes"');
+    expect(v).toMatch(/class="mana-magazine" data-gun="carbine" data-low="yes"/);
     expect(v).toContain('>Low ammo<');
     expect(v).toContain('data-variant="scrim"');
     expect(v).toContain('--mana-peril:0.7');
