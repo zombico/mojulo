@@ -72,6 +72,22 @@ function frame(X) {
   return { P, bank };
 }
 
+/**
+ * A track's STRAIGHTS and the CORNERS they lead into, off its stations' curvature (a station is a corner's where the
+ * curvature is over KERB_K): { straights: [{ s0, s1 }], corners: [{ s, d, run }] } (d: +1 the corner turns left, −1
+ * right; run: the straight before it, in metres). A lap's last straight runs on past its length.
+ */
+export function trackRuns({ stations: st, alignment: a }) {
+  const n = st.length, L = a.length, runs = { corners: [], straights: [] };
+  const isC = (i) => Math.abs(st[i].k) > KERB_K, first = a.closed ? st.findIndex((p, i) => isC(i)) : 0;
+  if (first >= 0) for (let q = 0, open = null; q <= n; q++) {
+    const i = (first + q) % n, s = st[i].s + (first + q >= n && a.closed ? L : 0), c = q < n ? isC(i) : true;
+    if (!c && open === null) open = s;
+    if (c && open !== null) { runs.straights.push({ s0: open, s1: s }); if (q < n || a.closed) runs.corners.push({ s, d: Math.sign(st[i].k) || 1, run: s - open }); open = null; }
+  }
+  return runs;
+}
+
 /** The course (preset name or spec) for a manifest, as its form asks: a circuit is a lap, a stage is open. */
 export function trackCourse(m) {
   const form = m.form;
@@ -202,14 +218,8 @@ export function planTrack(m = {}) {
   // the kit's wear on the road: the racing line rubbered dark through every corner, and repairs
   // the corners' starts and the straights between them, off the stations' curvature (a lap's last straight runs on
   // past its length): where a language lays its chevrons (before a corner) and its bunting (down a straight)
-  const runs = { corners: [], straights: [] };
+  const runs = lang && (LP.way?.chevrons || LP.bunting) ? trackRuns({ stations: st, alignment: a }) : { corners: [], straights: [] };
   if (lang && (LP.way?.chevrons || LP.bunting)) {
-    const isC = (i) => Math.abs(st[i].k) > KERB_K, first = a.closed ? st.findIndex((p, i) => isC(i)) : 0;
-    if (first >= 0) for (let q = 0, open = null; q <= n; q++) {
-      const i = (first + q) % n, s = st[i].s + (first + q >= n && a.closed ? L : 0), c = q < n ? isC(i) : true;
-      if (!c && open === null) open = s;
-      if (c && open !== null) { runs.straights.push({ s0: open, s1: s }); if (q < n || a.closed) runs.corners.push({ s, d: Math.sign(st[i].k) || 1, run: s - open }); open = null; }
-    }
     const point = (s, off, dz = 0) => P(a.at(a.closed ? ((s % L) + L) % L : Math.max(0, Math.min(L, s))), off, dz);
     // chevrons on the outside half of the way before each corner, pointing into it, as far back as the straight runs
     if (LP.way?.chevrons && wayHex) for (const c of runs.corners) LP.way.chevrons.before.forEach((back, i) => {

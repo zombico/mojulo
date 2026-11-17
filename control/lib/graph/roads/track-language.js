@@ -18,6 +18,9 @@
  *             pieces { blocks?: { <set piece>: <its stand-in> }, paint?: { <surface group>: <material> } }: the
  *                    trackside pieces (set-pieces.js) made as the track is: a block stood in for another (with the
  *                    same params, sized in its slot alike), and every surface group in the family's materials
+ *             city   { sidewalk, margin, paving, crossing, zebra, lamps, facades, heights, blocks, kit }: a street
+ *                    circuit's town (street-frontage.js): fronts down each straight's sides in the facades' colours by
+ *                    turns, tall toward the middle; the sidewalks paved, lamps and signals, zebras across the way
  *             verge  { mown: { every, lift } }: the run-off mown in stripes across the way (the look's own grass, a
  *                    stripe lighter by `lift`), so the sides are seen to move too
  *             edge   { profile: 'bead', w, h, material } | { from: 'kit' } (a painted line)
@@ -80,6 +83,36 @@ export const TRACK_LANGUAGES = Object.freeze({
       kerb: { profile: 'pillow', h: 0.17, materials: ['berry', 'cream'] },
       rail: { profile: 'tube', r: 0.33, z: 0.6, material: 'sky', tell: ['berry', 'cream'],
         post: { profile: 'round', r: 0.24, every: 4, material: 'cream', cap: { r: 0.4, material: 'lemon' } } },
+    }),
+    sky: Object.freeze({ zenith: [52, 128, 232], horizon: [198, 234, 255], sun: { u: 0.3, h: 0.5 }, puffs: { count: 28, hex: '#ffffff', alt: [45, 140], size: [20, 46] } }),
+  }),
+  'candy-city': Object.freeze({
+    reads: 'a toy town\'s streets closed for a race: the candy track laid between rows of toy shops, flats and towers in the family\'s colours, sugar-pink sidewalks, lollipop lamps, signals of three balls, zebras across the way',
+    suits: Object.freeze(['kart']),
+    materials: Object.freeze({
+      fondant: { of: 'fondant', finish: 'matte', hex: '#7f7aae' },
+      icing: { of: 'fondant', finish: 'matte', hex: '#8d88bb' },
+      sugar: { of: 'fondant', finish: 'matte', hex: '#f1d9e2' },
+      cream: { of: 'plastic', finish: 'gloss', hex: '#fff3e2' },
+      berry: { of: 'plastic', finish: 'gloss', hex: '#ff4f86' },
+      sky: { of: 'plastic', finish: 'gloss', hex: '#35b4ff' },
+      lemon: { of: 'plastic', finish: 'gloss', hex: '#ffd03a' },
+    }),
+    parts: Object.freeze({
+      way: { material: 'fondant', bands: { every: 8, material: 'icing' }, dash: { every: 8, len: 3, w: 0.28, material: 'cream' },
+        chevrons: { before: [12, 26, 40], w: 3.1, len: 8, t: 2.2, materials: ['berry', 'cream'] } },
+      edge: { profile: 'bead', w: 0.34, h: 0.08, material: 'cream' },
+      kerb: { profile: 'pillow', h: 0.17, materials: ['berry', 'cream'] },
+      rail: { profile: 'tube', r: 0.33, z: 0.6, material: 'sky', tell: ['berry', 'cream'],
+        post: { profile: 'round', r: 0.24, every: 4, material: 'cream', cap: { r: 0.4, material: 'lemon' } } },
+      bunting: { min: 34, every: 16, h: 4.6, sag: 0.9, flags: 9, drop: 0.85, pole: { r: 0.11, material: 'cream', cap: { r: 0.26, material: 'lemon' } }, materials: ['berry', 'lemon', 'sky', 'cream'] },
+      tree: { profile: 'lollipop', blossom: { share: 0.16, materials: ['berry', 'lemon'] } },
+      pieces: {
+        blocks: { arch: 'hoop-arch', 'marker-board': 'lolly-board', 'castle-tower': 'candy-tower', castle: 'candy-castle', bumper: 'candy-bumper', 'tower-block': 'toy-tower' },
+        paint: { 'tech:body': 'cream', 'tech:skin': 'cream', 'str:plaster': 'cream', 'tech:frame': 'cream', 'tech:trim': 'berry', 'tech:glass': 'sky', 'tech:cable': 'sky', 'tech:light': 'lemon', 'str:accent': 'lemon', 'str:stone': 'cream' },
+      },
+      city: { sidewalk: 4, margin: 14, paving: 'sugar', crossing: 'cream', zebra: 5, lamps: 22, facades: ['cream', 'icing', 'lemon', 'sky', 'berry'],
+        heights: { core: 34, edge: 7, flat: 10, tower: 27 }, blocks: { shop: 'toy-shop', flat: 'toy-flat', tower: 'toy-tower' }, kit: { lamp: 'candy-lamp', signal: 'toy-signal' } },
     }),
     sky: Object.freeze({ zenith: [52, 128, 232], horizon: [198, 234, 255], sun: { u: 0.3, h: 0.5 }, puffs: { count: 28, hex: '#ffffff', alt: [45, 140], size: [20, 46] } }),
   }),
@@ -290,7 +323,8 @@ export function languageLaws(card, { cls = null, drawn = null } = {}) {
   const M = card.materials ?? {}, parts = card.parts ?? {}, ids = Object.keys(M), R = parts.rail;
   if (typeof card.reads !== 'string' || card.reads.trim().length < 20) say('premise', 'the language does not say what the track is made of');
   if (ids.length > FAMILY_MAX) say('family', `${ids.length} materials (at most ${FAMILY_MAX}): a family is small`);
-  const named = [parts.way?.material, parts.way?.bands?.material, parts.way?.dash?.material, ...(parts.way?.chevrons?.materials ?? []), ...(parts.bunting?.materials ?? []), parts.bunting?.pole?.material, parts.bunting?.pole?.cap?.material, ...(parts.tree?.blossom?.materials ?? []), ...Object.values(parts.pieces?.paint ?? {}), parts.edge?.material, ...(parts.kerb?.materials ?? []), R?.material, ...(R?.tell ?? []), R?.post?.material, R?.post?.cap?.material].filter((x) => x !== undefined);
+  const C = parts.city;
+  const named = [parts.way?.material, parts.way?.bands?.material, parts.way?.dash?.material, ...(parts.way?.chevrons?.materials ?? []), ...(parts.bunting?.materials ?? []), parts.bunting?.pole?.material, parts.bunting?.pole?.cap?.material, ...(parts.tree?.blossom?.materials ?? []), ...Object.values(parts.pieces?.paint ?? {}), ...(C ? [C.paving, C.crossing, ...C.facades] : []), parts.edge?.material, ...(parts.kerb?.materials ?? []), R?.material, ...(R?.tell ?? []), R?.post?.material, R?.post?.cap?.material].filter((x) => x !== undefined);
   for (const id of new Set(named)) if (!M[id]) say('family', `a part names '${id}', which the family does not hold`);
   for (const id of ids) if (!named.includes(id)) say('family', `'${id}' is in the family and no part wears it`);
   if (R && R.post && M[R.material] && M[R.post.material] && M[R.material].of !== M[R.post.material].of) say('one-metal', `the rail is ${M[R.material].of} and its post ${M[R.post.material].of}`);

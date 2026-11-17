@@ -42,7 +42,16 @@ the operator's to say on the page.
     same family and the same shapes: a stand-in block for each set piece (`pieces.blocks`, taking the piece's own
     params so it is sized in its slot the same way) and every surface group painted in the family's materials
     (`pieces.paint`). A hoop on two balls for an arch, a lollipop for a braking board, balls for battlements.
-11. **One primitive, two tunings.** A realistic circuit answers the same questions soberly: the look's own asphalt and
+11. **A town is the track's too: a street circuit** (`candy-city`, asked for as "a kart street circuit", "downtown",
+    "through the streets"). The lap runs round a few blocks of a grid, its corners square
+    (`roads/course.js` `designStreets`). The town is laid from the geocity's ideas in the track's family
+    (`roads/street-frontage.js`): a row of buildings faces the way down each side of every straight, past the rail and
+    a sugar-pink sidewalk; they rise toward the town's middle as a geocity's rings do (shops at the edge, flats, a few
+    towers at the core); never three of a kind in a row; each a colour of the family by turns, never the one beside
+    it. The street's kit near the eye: lollipop lamps down the sidewalks by turns, a signal of three balls at the
+    outside of every corner, a zebra across the way at each straight's start. The corners stay open: the boards, the
+    arches and the landmark still tell them, and the side pieces give way to the fronts.
+12. **One primitive, two tunings.** A realistic circuit answers the same questions soberly: the look's own asphalt and
     paint, one steel for the guardrail and its posts. A principle is a question, and candy is one answer to it.
 
 ## A card
@@ -61,6 +70,8 @@ the operator's to say on the page.
     bunting: { min, every, h, sag, flags, drop, pole, materials: [...] },
     tree:    { profile: 'lollipop', blossom: { share, materials: [...] } },
     pieces:  { blocks: { <set piece>: <its stand-in> }, paint: { <surface group>: <material> } },
+    city:    { sidewalk, margin, paving, crossing, zebra, lamps, facades: [...], heights: { core, edge, flat, tower },
+               blocks: { shop, flat, tower }, kit: { lamp, signal } },   // a street circuit's town
   },
   sky: { zenith: [r, g, b], horizon: [r, g, b], sun: { u, h }, puffs: { count, hex, alt: [lo, hi], size: [lo, hi] } } }
 ```

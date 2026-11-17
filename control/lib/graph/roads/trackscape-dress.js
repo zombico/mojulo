@@ -31,6 +31,7 @@ import { planTrack } from './track.js';
 import { planTrackscape, trackscapeLaws } from './trackscape.js';
 import { driverEye } from './eye.js';
 import { pieceFor, buildPiece, paintPiece, SET_OF_CLASS, SETS, TRACK_BLOCKS } from './set-pieces.js';
+import { planFrontage, buildFrontage } from './street-frontage.js';
 import { buildBlock } from '../era/blocks.js';
 import { planArena, zoneOf, ARENA } from './arena-plan.js';
 import { buildLocalAreas } from './local-area.js';
@@ -63,16 +64,21 @@ export function planScapedTrack(m = {}) {
   const nearest = (x, y) => { let b = C[0], d = Infinity; for (const c of C) { const e = (c.x - x) ** 2 + (c.y - y) ** 2; if (e < d) { d = e; b = c; } } return b; };
   const offOf = (x, y) => { const c = nearest(x, y); return { c, off: -(x - c.x) * Math.sin(c.heading) + (y - c.y) * Math.cos(c.heading) }; };
   // the arena plan (arena-plan.js): the venue's zones; a slot inside one is the zone's to fill (its local area)
-  const arena = opts.arena === false ? null : planArena(plan, { scape, seed });
+  // a street circuit's town (street-frontage.js, its language's `city`): planned first, so the venue and the land keep
+  // clear of it; a town has no venue of its own beside the track
+  const town = lang?.parts?.city ? planFrontage(plan, lang, { seed }) : null;
+  const arena = opts.arena === false || town ? null : planArena(plan, { scape, seed });
   // the surrounds (surrounds.js): the land beyond the venue shaped and stood on, before anything here stands on it
   const SO = opts.surrounds === false ? null : opts.surrounds === true || opts.surrounds === undefined ? {} : opts.surrounds;
-  const sur = SO ? planSurrounds(plan, { arena, scape, K, seed: Number.isInteger(SO.seed) ? SO.seed : seed, land: SO.land ?? landOf(m), settlement: SO.settlement ?? 'village' }) : null;
+  const sur = SO ? planSurrounds(plan, { arena, scape, K, seed: Number.isInteger(SO.seed) ? SO.seed : seed, land: SO.land ?? landOf(m), settlement: SO.settlement ?? (town ? 'town' : 'village'), ...(town ? { keepOut: town.keepOut } : {}) }) : null;
   if (sur) plan = sur.plan;
   const absorbed = [];
   const nth = {}, pieces = [], faces = [...(sur ? sur.faces : [])], colliders = [];
   for (const slot of scape.slots) {
     const z = arena && slot.beat !== 'span' && slot.beat !== 'gantry' && !slot.landmark ? zoneOf(arena, slot.at) : null;
     if (z) { absorbed.push({ beat: slot.beat, zone: z.id }); continue; }
+    // (in a town its fronts stand where the side pieces would: the boards, the spans and the landmark stay)
+    if (town && (slot.beat === 'pocket' || slot.beat === 'reveal' || slot.beat === 'rhythm')) { absorbed.push({ beat: slot.beat, zone: 'town' }); continue; }
     const { c } = offOf(slot.at[0], slot.at[1]), across = slot.beat === 'span' || slot.beat === 'gantry';
     const k = (nth[slot.beat] = (nth[slot.beat] ?? -1) + 1);
     const pick = { nth: k, toward: [c.x, c.y], heading: across ? slot.heading ?? c.heading : c.heading };
@@ -110,19 +116,22 @@ export function planScapedTrack(m = {}) {
       if (reach < X.outer + REACH) colliders.push({ min: box.lo.map(r3), max: box.hi.map(r3), of: `trackscape:${slot.beat}` });
     }
   }
+  // the town, stood on the land as it was shaped and painted in the language's family
+  const street = town ? buildFrontage(town, plan, lang, K) : null;
+  if (street) { faces.push(...street.faces); colliders.push(...street.colliders); }
   // the local areas (local-area.js): each zone built on its own, in passes (ground, massing, elements, dressing)
   const stands = readStands(opts.stands, plan.course.class);
   const local = arena && opts.local !== false ? buildLocalAreas(plan, arena, { K, seed, local: opts.local ?? {}, upTo: opts.upTo ?? 'dressing', ...(stands ? { stands } : {}) }) : null;
   if (local) { faces.push(...local.faces); colliders.push(...local.colliders); }
   // the eye again, on what was built (a zone not yet built to its elements counts as what will stand there)
-  const built = local ? local.things : [];
+  const built = [...(local ? local.things : []), ...(street ? street.things : [])];
   const census = driverEye(plan, [...scapeThings(pieces), ...built, ...(arena && !built.length ? zoneThings(arena, plan) : []), ...(sur ? sur.things : [])], { cls: scape.cls, ground: plan.groundAt });
   const laws = trackscapeLaws(plan, { ...scape, slots: scape.slots }, census);
   return {
     ...plan,
     faces: [...plan.faces, ...faces],
     colliders: [...plan.colliders, ...colliders],
-    scape: { set, kit: K.id, slots: scape.slots, keepClear: scape.keepClear, corners: scape.corners, pieces, ...(arena ? { arena, absorbed } : {}), ...(local ? { local: local.areas } : {}), ...(sur ? { surrounds: sur.report } : {}), census: { blank: census.blank, seconds: census.seconds.length, corners: census.corners, landmarkSeen: census.landmarkSeen, rhythm: census.rhythm }, laws },
+    scape: { set, kit: K.id, slots: scape.slots, keepClear: scape.keepClear, corners: scape.corners, pieces, ...(arena ? { arena, absorbed } : {}), ...(local ? { local: local.areas } : {}), ...(sur ? { surrounds: sur.report } : {}), ...(street ? { street: street.report, absorbed } : {}), census: { blank: census.blank, seconds: census.seconds.length, corners: census.corners, landmarkSeen: census.landmarkSeen, rhythm: census.rhythm }, laws },
   };
 }
 

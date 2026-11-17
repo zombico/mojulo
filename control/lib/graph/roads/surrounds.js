@@ -18,7 +18,7 @@
  *   a lake         where the infield is widest, a basin and its water
  *
  *   LANDS, SETTLEMENTS
- *   planSurrounds(plan, { arena, scape, K, seed, land, settlement }) → { plan (its land shaped: terrain, groundAt, the
+ *   planSurrounds(plan, { arena, scape, K, seed, land, settlement, keepOut? }) → { plan (its land shaped: terrain, groundAt, the
  *        ground's faces), faces, things (for the eye), report: { land, settlement, formations, buildings, trees, faces } }
  *
  * Pure, deterministic.
@@ -172,12 +172,15 @@ function gridAt(xs, ys, z, x, y) {
   return fx >= fy ? z00 + fx * (z10 - z00) + fy * (z11 - z10) : z00 + fy * (z01 - z00) + fx * (z11 - z01);
 }
 
-export function planSurrounds(plan, { arena = null, scape = null, K, seed = 1, land = 'hills', settlement = 'village' } = {}) {
+export function planSurrounds(plan, { arena = null, scape = null, K, seed = 1, land = 'hills', settlement = 'village', keepOut = [] } = {}) {
   const L = LANDS[land];
   if (!L) throw new Error(`trackscape: no land '${land}' (${Object.keys(LANDS).join(', ')})`);
   if (!SETTLEMENTS.includes(settlement)) throw new Error(`trackscape: no settlement '${settlement}' (${SETTLEMENTS.join(', ')})`);
   const kart = plan.course.class === 'kart', rnd = mulberry32((seed * 2654435761 + 977) >>> 0), S = (seed * 7919) % 100003;
   const keep = keepOf(plan, arena, scape), T = plan.terrain, zFar = T.zFar;
+  // (what the caller has built already, a street circuit's town, street-frontage.js: kept clear as a settlement is)
+  for (const d of keepOut) keep.discs.push({ at: d.at, r: d.r });
+  const outOf = (p, pad) => !keepOut.some((d) => Math.hypot(p[0] - d.at[0], p[1] - d.at[1]) < d.r + pad);
   const a = plan.alignment, Lap = a.length, lapPts = Array.from({ length: Math.max(32, Math.round(Lap / 10)) }, (_, i) => a.at((i * Lap) / Math.max(32, Math.round(Lap / 10))));
   const bx0 = T.x0, by0 = T.y0, bx1 = T.x0 + T.nx * T.cell, by1 = T.y0 + T.ny * T.cell, bc = [(bx0 + bx1) / 2, (by0 + by1) / 2], H = Math.max(bx1 - bx0, by1 - by0) / 2 + FAR_OUT;
   const inFar = (p, share = 0.7) => Math.max(Math.abs(p[0] - bc[0]), Math.abs(p[1] - bc[1])) < H * share;
@@ -383,7 +386,7 @@ export function planSurrounds(plan, { arena = null, scape = null, K, seed = 1, l
   mark('settlement', n0);
   // ── woods: trees near, canopy far, groves in the infield; boulders on steep ground ──
   const near = kart ? 170 : 280, reach = kart ? 520 : 900, cap = kart ? 160 : 340, capFar = kart ? 60 : 130, thr = 0.32 - 0.7 * L.woods;
-  const clearOf = (p, pad) => !(lake && Math.hypot(p[0] - lake.at[0], p[1] - lake.at[1]) < lake.R * 1.35 + pad) && !formations.some((f) => p[0] > f.box.lo[0] - pad && p[0] < f.box.hi[0] + pad && p[1] > f.box.lo[1] - pad && p[1] < f.box.hi[1] + pad) && !sites.some((s) => Math.hypot(s.at[0] - p[0], s.at[1] - p[1]) < s.r + pad) && !fieldAt(p[0], p[1]);
+  const clearOf = (p, pad) => outOf(p, pad) && !(lake && Math.hypot(p[0] - lake.at[0], p[1] - lake.at[1]) < lake.R * 1.35 + pad) && !formations.some((f) => p[0] > f.box.lo[0] - pad && p[0] < f.box.hi[0] + pad && p[1] > f.box.lo[1] - pad && p[1] < f.box.hi[1] + pad) && !sites.some((s) => Math.hypot(s.at[0] - p[0], s.at[1] - p[1]) < s.r + pad) && !fieldAt(p[0], p[1]);
   const trees = [], canopy = [], scree = [], wooded = L.woods > 0.05;   // (a desert has none)
   const pitch = kart ? 13 : 20;
   const rx = keep.ring.map((p) => p[0]), ry = keep.ring.map((p) => p[1]);

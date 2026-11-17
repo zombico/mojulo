@@ -51,6 +51,18 @@ In progress. Built so far:
   palette) and Pit Wall (`pit-wall`, the clean family: a timing tower, near-black and quiet), worn by a race by its
   track's language or class unless the world names a theme. The minimap gains a `route`: a way drawn under its markers
   as a dotted line, in the place of the blank map.
+- **Built: a street circuit, a kart race through a toy town** ("a kart street circuit", "downtown", "through the
+  streets"; the course preset `city-blocks`). The lap runs round a few blocks of a grid grown from one, its corners
+  square (`roads/course.js` `designStreets`, its blocks kept on the course). Its town is laid from the geocity's ideas
+  in the track's design language (`roads/street-frontage.js`, the `candy-city` card's `city`): rows of buildings face
+  the way down each side of every straight, past the rail and a sidewalk; they rise toward the town's middle (shops at
+  the edge, flats, a few towers at the core), never three of a kind in a row, each in a colour of the family by turns,
+  never the one beside it, none standing in another. Lamps down the sidewalks by turns, a signal at the outside of
+  every corner, a zebra across the way at each straight's start. The town is planned before the land round it, which
+  keeps clear of it; a street circuit has no venue beside it, and its side pieces give way to its fronts. New blocks
+  for it: a toy shop, toy flats, a toy tower, a lollipop lamp and a signal of three balls, each held to the block laws.
+  A realistic street circuit ("a street circuit") gets the square course and no town yet: only the kart language has
+  one.
 - **The principles a new map starts from** ([docs/track-design-principles.md](../../../../docs/track-design-principles.md))
   and the agent's card for them (`gameworld-track-language`, read by the levels chapter): a premise first, a small
   family, a quiet way, a corner told three times, things seen to move, asymmetry, chunky, the track's own sky.
