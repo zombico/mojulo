@@ -16,17 +16,18 @@
  *   (a tall frame: the place and the lap on one plate at the top's middle, no map; the speed in the corner)
  *
  *   raceHud(race, { theme?, screen?, words? }) → { spec, theme, feed } (a level manifest's `manaHud`)
- *     race    { mech, laps, racers, outline?, speedMax?, language? }
+ *     race    { mech, laps, racers, outline?, speedMax?, language?, items? }
  *             mech      the laps mechanic's index in the level's mechanics (its bus vars are `__lap_<mech>` …)
  *             laps      times round; racers: the field, you included (1 alone)
  *             outline   the track's line, [[x, y], …] in metres (its stations): drawn as the map's route
  *             speedMax  the dial's top, km/h; language: the track's design language (its `ui` is its HUD's look)
+ *             items     the track lays item boxes (roads/kart-items.js): the item held shown at the top's middle
  *     theme   a mana-ui theme (a preset's or a card's name, or a child theme): the language's look unsaid
  *     words   the HUD's words (pos, lap, time, best, go, final, finish, unit, ready), so a game in another language says its own
  *   RACE_HUD_STATE   the state's shape, with the values a sheet or a test draws it on
  *
  * The state the spec binds (the host writes it):
- *   race { place, of, placeSays, field, lap, laps, lapSays, time, best, hasBest, speed, speedMax, markers, solo }
+ *   race { place, of, placeSays, field, lap, laps, lapSays, time, best, hasBest, speed, speedMax, markers, solo, hasItem, itemSays }
  *   start { lit, of, lights, sub } (lights: the lit ones said as marks)   moments [{ id, text, sub?, weight? }]
  * Pure: a spec is data.
  */
@@ -37,7 +38,7 @@ const B = (path) => ({ bind: path });
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 export const RACE_HUD_STATE = Object.freeze({
-  race: { place: 2, of: 6, placeSays: '2nd', field: '/ 6', lap: 2, laps: 3, lapSays: '2/3', time: 41.3, best: 39.8, hasBest: true, speed: 62, speedMax: 90, solo: false,
+  race: { place: 2, of: 6, placeSays: '2nd', field: '/ 6', lap: 2, laps: 3, lapSays: '2/3', time: 41.3, best: 39.8, hasBest: true, speed: 62, speedMax: 90, solo: false, hasItem: true, itemSays: 'GUMBALL',
     markers: [{ x: 0.3, y: 0.4, kind: 'self' }, { x: 0.35, y: 0.32, kind: 'foe' }] },
   start: { lit: 3, of: 5, lights: '● ● ● ○ ○', sub: 'get ready' },
   moments: [],
@@ -66,7 +67,7 @@ export function raceMap(outline) {
 
 export function raceHud(race, { theme = null, screen = null, words = {} } = {}) {
   const portrait = !!screen && (screen === 'phone' || screen.pole === 'phone' || screen.orientation === 'portrait');
-  const w = { pos: 'pos', lap: 'lap', time: 'time', best: 'best', go: 'go', final: 'final lap', finish: 'finish', unit: 'km/h', ready: 'get ready', ...words };
+  const w = { pos: 'pos', lap: 'lap', time: 'time', best: 'best', go: 'go', final: 'final lap', finish: 'finish', unit: 'km/h', ready: 'get ready', item: 'item', use: 'E', ...words };
   const laps = Number.isInteger(race.laps) && race.laps > 0 ? race.laps : 1, racers = Number.isInteger(race.racers) && race.racers > 0 ? race.racers : 1;
   const map = raceMap(race.outline), TALL = { frame: 'portrait' }, field = racers > 1;
   // the parts
@@ -77,6 +78,9 @@ export function raceHud(race, { theme = null, screen = null, words = {} } = {}) 
     { use: 'timer', props: { seconds: B('race.time'), format: 'mmss', label: w.time } },
     { use: 'timer', props: { seconds: B('race.best'), format: 'mmss', label: w.best }, when: B('race.hasBest') }] };
   const speed = { use: 'region', props: { at: 'bottom-right' }, children: [{ use: 'gauge', props: { value: B('race.speed'), max: B('race.speedMax'), unit: w.unit } }] };
+  // the item held (a race with item boxes): its name on a plate at the top's middle, the key that uses it beside
+  const item = race.items ? [{ use: 'region', props: { at: 'top' }, unless: TALL, when: B('race.hasItem'), children: [{ use: 'window', props: { variant: 'plain' }, children: [{ use: 'stack', props: { dir: 'row', gap: 'tight', align: 'center' }, children: [
+    { use: 'text', props: { value: B('race.itemSays'), role: 'title' } }, { use: 'text', props: { value: w.use, role: 'label' } }] }] }] }] : [];
   const moments = { use: 'region', props: { at: 'center', variant: 'bare' }, children: [{ use: 'moments', props: { rows: B('moments'), as: 'banner', hold: 1.1, read: 0.4 } }] };
   // ONE composition, laid by the frame it is drawn in. A wide frame: the place in the top-left corner, the laps and the
   // times in the top-right, the map on the right edge; a tall one: the place and the lap on one plate in the top's middle
@@ -85,7 +89,7 @@ export function raceHud(race, { theme = null, screen = null, words = {} } = {}) 
     { use: 'region', props: { at: 'top-right' }, unless: TALL, children: [{ use: 'stack', props: { dir: 'column', gap: 'tight', align: 'end' }, children: [...(laps > 1 ? [lap] : []), times] }] },
     ...(map ? [{ use: 'region', props: { at: 'right' }, unless: TALL, children: [{ use: 'minimap', props: { markers: B('race.markers'), route: map.route, shape: 'round' } }] }] : []),
     { use: 'region', props: { at: 'top' }, when: TALL, children: [{ use: 'stack', props: { dir: 'row', gap: 'loose', align: 'center' }, children: [...(field ? [place] : []), ...(laps > 1 ? [lap] : []), { use: 'timer', props: { seconds: B('race.time'), format: 'mmss' } }] }] },
-    speed, moments] };
+    ...item, speed, moments] };
   // the lights are a SCREEN: while one is up the karts are held, and the host freezes the race's clock until GO
   // (the lights as large as the title's words, on a plate: read at a glance, as a gantry's are from the grid)
   const ready = { use: 'screen', props: { layer: 'overlay', place: 'center', legend: 'none' }, children: [{ use: 'window', props: { variant: 'plain' }, children: [{ use: 'stack', props: { dir: 'column', gap: 'tight', align: 'center' }, children: [
@@ -95,7 +99,7 @@ export function raceHud(race, { theme = null, screen = null, words = {} } = {}) 
   return {
     spec: { screens: { ready }, hud },
     theme: portrait ? (typeof base === 'string' ? { from: base, distance: 'hand' } : { ...base, distance: 'hand' }) : base,
-    feed: { kind: 'race', mech: race.mech ?? 0, laps, racers, lights: { count: 5, every: 0.8, hold: 0.6 }, words: { go: w.go.toUpperCase(), final: w.final.toUpperCase(), finish: w.finish.toUpperCase(), ready: w.ready },
+    feed: { kind: 'race', mech: race.mech ?? 0, laps, racers, ...(race.items ? { items: true } : {}), lights: { count: 5, every: 0.8, hold: 0.6 }, words: { go: w.go.toUpperCase(), final: w.final.toUpperCase(), finish: w.finish.toUpperCase(), ready: w.ready },
       speedMax: Number.isFinite(race.speedMax) && race.speedMax > 0 ? race.speedMax : 120, ...(map ? { frame: map.frame } : {}) },
   };
 }

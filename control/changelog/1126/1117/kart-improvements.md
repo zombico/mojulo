@@ -103,6 +103,19 @@ In progress. Built so far:
   kept as their own light; in the cavern every corner's sky is the cave's dark and the sun reaches only down the
   skylight's shaft, where a kart casts its live shadow. The rail and its posts are the mine's timber. A mine
   has no venue beside it: the land, the set pieces and the trees keep clear of the hill and the yard.
+- **Built: items, and the boxes that drop them** (`roads/kart-items.js`, a track's `items`; a kart track from words
+  lays them, a level's roadway may say `items`). Rows of mystery boxes across the way on the straights, never on the
+  grid. Each is a rounded golden core with a "?" on every face, inside a glassy shell lit at its rim in colours that
+  run round it (a fresnel), turning on a tilted axis and bobbing: a thing to drive at. Driving through one takes an
+  item if the kart holds none; the box pops and grows back. Three items in the candy family's words:
+  - a sugar rush: a boost, the drive rule's own
+  - a toffee: dropped behind, it slows and spins the kart that drives over it
+  - a gumball: rolled ahead along the track's line, it knocks the first kart it meets
+
+  The pilot uses its item on E (or right Shift, or the pad's left face), and rivals use theirs by judgement. The race
+  HUD shows the item held at the top's middle, and the kart's juice pulses while one is held. Run by one step
+  inlined on the page as the boost pads' is (`scene/channels/controllable/kart-items-view.js`), emitted only on a
+  track with boxes. The roadway contract carries the rows.
 - **The principles a new map starts from** ([docs/track-design-principles.md](../../../../docs/track-design-principles.md))
   and the agent's card for them (`gameworld-track-language`, read by the levels chapter): a premise first, a small
   family, a quiet way, a corner told three times, things seen to move, asymmetry, chunky, the track's own sky.

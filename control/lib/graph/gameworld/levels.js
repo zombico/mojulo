@@ -1057,7 +1057,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
       const Lm = game.mechanics[mi], top = pilotPart.entities?.[0]?.rule?.topSpeed, c = stage.manifest.course;
       const named = G.ui && typeof G.ui === 'object' && G.ui.theme && G.ui.theme !== 'world' ? interfaceLook(G).theme : null;
       manifest = { ...manifest, manaHud: raceHud({ mech: mi, laps: Lm.laps ?? 1, racers: 1 + (Array.isArray(Lm.rivals) ? Lm.rivals.length : 0), outline: ends.roadway?.line ?? null,
-        language: typeof stage.manifest.language === 'string' ? stage.manifest.language : null, cls: c && typeof c === 'object' ? c.class : typeof c === 'string' && /^kart/.test(c) ? 'kart' : 'circuit',
+        language: typeof stage.manifest.language === 'string' ? stage.manifest.language : null, items: !!stage.manifest.items, cls: c && typeof c === 'object' ? c.class : typeof c === 'string' && /^kart/.test(c) ? 'kart' : 'circuit',
         speedMax: Number.isFinite(top) && top > 0 ? Math.ceil((top * 3.6 * 1.15) / 10) * 10 : RACE_DIAL[c && typeof c === 'object' ? c.class : typeof c === 'string' && /^kart/.test(c) ? 'kart' : 'circuit'] ?? 120 }, { theme: named, screen: G.screen ?? null }) };
     }
   }

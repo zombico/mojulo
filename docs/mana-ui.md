@@ -965,6 +965,8 @@ the top right; the track's map on the right edge, the track's own line drawn as 
 a screen, so the karts are held, and the world frozen with the race's clock until they go out. A tall frame lays the
 place and the lap on one plate at the top, with no map. Its look is its track's: `kart-candy` (the toy family) for a
 candy track, `pit-wall` (the clean family: the timing tower) for a circuit; a world that names its own theme wears it.
+A race on a track with item boxes (`roads/kart-items.js`) shows the item held, its name on a plate at the top's middle
+with the key that uses it, read off the page's `window.__mojItems`.
 
 ### Layout that adapts
 

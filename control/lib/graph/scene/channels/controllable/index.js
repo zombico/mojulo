@@ -2,6 +2,7 @@ import { b64, safeJson } from '../../emit-util.js';
 import { packRigMesh } from '../../../figures/rig-bake.js';
 import { emissionSource } from '../../../worlds/controllable/compose.js';
 import { surfaceAt, padAt } from '../../../roads/surface.js';
+import { kartItemsViewScript } from './kart-items-view.js';
 import { commanderSource } from '../../../worlds/controllable/commander.js';
 import { MSG_GAMEPAD as GAME_MSG_GAMEPAD, MSG_AI as GAME_MSG_AI, MSG_SEATS as GAME_MSG_SEATS } from '../../../game/level-contract.js';
 import { hangarStepperBlock } from './hangar-menu.js';
@@ -2695,7 +2696,7 @@ const __surface = (p) => __surfaceAt(__surfaceT, p);
 ${driveSurface.pads ? `// boost pads (roads/surface.js padAt): the seconds of boost a wheel on one lights
 const __padAt = ${padAt.toString()};
 const __pad = (p) => __padAt(__surfaceT, p);
-` : ''}` : ''}${groundGridScript()}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
+` : ''}${driveSurface.items ? kartItemsViewScript(driveSurface.items.boxes.length) : ''}` : ''}${groundGridScript()}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
 const __groundRay = new THREE.Raycaster();
 const __bodySet = () => Object.values(__bodies);
 let __gridOn = false;
@@ -4684,7 +4685,8 @@ ${hangarHook}  __msHookParams();
     const wdt = dt * __CW.tempoScale(__world);   // the world clock: the bodies and their effects on the world's step, the camera on the real one
     // a moment that fires cues the live shoot plan's shot waiting on it (on: 'tempo:<what fired it>'): the impact cam
     if (__world.tempo && __world.tempo.playing !== __tmLast) { __tmLast = __world.tempo.playing; if (__tmLast && window.__mojShoot && window.__mojShoot.cue) window.__mojShoot.cue('tempo:' + __tmLast.on); }` : ''}
-    for (const e of __world.entities) __syncEntity(e, ${tempo ? 'wdt' : 'dt'});${place ? '\n    __placeStep(dt);' : ''}${seats ? `
+    for (const e of __world.entities) __syncEntity(e, ${tempo ? 'wdt' : 'dt'});${driveSurface && driveSurface.items ? `
+    __kiTick(dt);` : ''}${place ? '\n    __placeStep(dt);' : ''}${seats ? `
     __seatRings();
     __seatStrip();
     __seatsOver();` : ''}

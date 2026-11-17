@@ -195,6 +195,7 @@ import { readVenue } from '../stadium/venue.js';
 import { LANDS, SETTLEMENTS } from '../roads/surrounds.js';
 import { RACE_MOOD_IDS } from '../roads/race-mood.js';
 import { readLanguage } from '../roads/track-language.js';
+import { readItems } from '../roads/kart-items.js';
 import { readFront } from '../game/play-front.js';
 import { readFlow, FLOW_IN_PLAY } from '../game/flow.js';
 import { readSetup } from './setup.js';
@@ -296,7 +297,7 @@ const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
 // its scape (roads/trackscape-dress.js): true, or { set?: 'gt' | 'kart', seed?, landmark?, surrounds? }, the track dressed
 // where a driver looks (its surrounds: the land beyond the venue, roads/surrounds.js); and its mood
 // (roads/race-mood.js: golden, dusk, night, rain, night-rain: the light it is raced in)
-const ROADWAY_LEVEL_KEYS = ['form', 'course', 'dress', 'kit', 'scape', 'mood', 'language'];
+const ROADWAY_LEVEL_KEYS = ['form', 'course', 'dress', 'kit', 'scape', 'mood', 'language', 'items'];
 // a city level (city/plan/): the plan's own settings, who builds it, and the segments it is entered at and left from
 const CITY_LEVEL_KEYS = ['grammar', 'seed', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'cars', 'play', 'look', 'paint', 'civilization', 'from', 'to', 'stalker'];
 // (a building use's plan, era/programs.js: storeys, wings, loading and bays for an office, a lab building, a warehouse)
@@ -721,6 +722,7 @@ export function readGameworld(W) {
       if (Rw.course !== undefined && !(isObj(Rw.course) || COURSE_PRESETS[Rw.course])) throw new Error(`gameworld: ${at}.roadway.course is a preset (${Object.keys(COURSE_PRESETS).join(', ')}) or a course spec ({ pis, … } or { class, length, … })`);
       if (Rw.dress !== undefined && Rw.dress !== true && Rw.dress !== false && !isObj(Rw.dress)) throw new Error(`gameworld: ${at}.roadway.dress is true, false or { trees?, rocks?, clear? }`);
       if (Rw.language !== undefined) { try { readLanguage(Rw.language); } catch (e) { throw new Error(`gameworld: ${at}.roadway.language: ${e.message.replace(/^roadway: /, '')}`); } }
+      if (Rw.items !== undefined) { try { readItems(Rw.items); } catch (e) { throw new Error(`gameworld: ${at}.roadway.${e.message.replace(/^roadway: /, '')}`); } }
       if (Rw.mood !== undefined && !RACE_MOOD_IDS.includes(Rw.mood)) throw new Error(`gameworld: ${at}.roadway.mood is one of ${RACE_MOOD_IDS.join(', ')}`);
       if (Rw.kit !== undefined && Rw.kit !== true && Rw.kit !== false && typeof Rw.kit !== 'string' && !(isObj(Rw.kit) && typeof Rw.kit.look === 'string')) throw new Error(`gameworld: ${at}.roadway.kit is true (the world's look), a kit's id, or a look in words ({ look })`);
       const SU = Rw.scape?.surrounds, okSurrounds = SU === undefined || SU === true || SU === false || (isObj(SU) && Object.keys(SU).every((k) => ['land', 'settlement', 'seed'].includes(k)) && (SU.land === undefined || LANDS[SU.land]) && (SU.settlement === undefined || SETTLEMENTS.includes(SU.settlement)));
@@ -1023,11 +1025,11 @@ export function resolveLevel(world, id) {
   if (L.runner) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, runner: { ...(L.runner === true ? {} : L.runner), seed: (L.runner === true ? undefined : L.runner.seed) ?? (seed >>> 0) } };
   // a roadway level: its course and its form (a lap unless its course runs end to end), laid by levels.js
   if (L.roadway) {
-    const { course = 'kart-oval', dress, form, kit, scape, mood, language } = L.roadway;
+    const { course = 'kart-oval', dress, form, kit, scape, mood, language, items } = L.roadway;
     const open = form === undefined && (course === 'rally-stage' || (isObj(course) && course.closed === false));
     // the kit: the look's words (composed again wherever the track is drawn) or the kit's id
     const drawn = kit === true ? (style.look ? { look: style.look.intent, base: style.look.base, ...(Number.isInteger(style.look.seed) ? { seed: style.look.seed } : Number.isInteger(G.seed) ? { seed: G.seed } : {}) } : style.kit) : kit || null;
-    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, roadway: { form: form ?? (open ? 'stage' : 'circuit'), course, ...(dress ? { dress } : {}), ...(drawn ? { kit: drawn } : {}), ...(scape ? { scape } : {}), ...(mood ? { mood } : {}), ...(language ? { language } : {}) } };
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, roadway: { form: form ?? (open ? 'stage' : 'circuit'), course, ...(dress ? { dress } : {}), ...(drawn ? { kit: drawn } : {}), ...(scape ? { scape } : {}), ...(mood ? { mood } : {}), ...(language ? { language } : {}), ...(items ? { items } : {}) } };
   }
 
   // a city level: its plan, built in its civilization's language (unless it names a grammar document of its own), painted

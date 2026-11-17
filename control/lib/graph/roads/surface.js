@@ -11,6 +11,7 @@
  * the run-off's off the corners; a circuit's run-off is gravel outside them). off: [mu, roll] past the footprint.
  */
 import { SURFACES } from './surfaces.js';
+import { itemTable } from './kart-items.js';
 
 const STEP = 2;
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -33,7 +34,9 @@ export function driveSurfaceTable(plan) {
   const pads = (plan.street?.split?.pads ?? []).map((q) => [r3(q.at[0]), r3(q.at[1]), r3(q.heading), r3(q.len / 2), r3(q.w / 2), r3(q.boost)]);
   // (the alley's points carry 2: what is under a tyre there, within the way's width, is its own rough surface)
   const rough = plan.street?.split?.rough ? S(plan.street.split.rough) : null;
-  return { pts, bands, off: S('grass'), ...(pads.length ? { pads } : {}), ...(rough ? { rough } : {}) };
+  // (a race's item boxes, kart-items.js: a track that asks for them; none, no key)
+  const items = plan.items ? itemTable(plan, plan.items) : null;
+  return { pts, bands, off: S('grass'), ...(pads.length ? { pads } : {}), ...(rough ? { rough } : {}), ...(items ? { items } : {}) };
 }
 
 /** The boost a point is on (pos: [x, y, …]): a pad's seconds, or 0. A pad is [x, y, heading, half its length, half its

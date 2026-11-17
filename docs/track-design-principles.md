@@ -119,6 +119,26 @@ and its post of one stuff), `finish`, `kerb-read`, `tell` (the tell is not the r
 is laid on), `drawn` (nothing drawn outside the family). A roadway level's gate says them as `language:<law>` beside
 the track's own laws and the trackscape's.
 
+## Items
+
+A kart track from words lays item boxes (a track's `items`: true, or `{ every, across, back, odds }`;
+`roads/kart-items.js`). They stand in rows across the way on the straights, never on the grid, a row every so many
+metres of the lap. Each box is something to drive at, said three ways at once:
+- **Its shape:** a rounded golden core with a "?" on every face.
+- **Its rim:** a glassy shell lit at its rim in colours that run round it (a fresnel: the more the shell turns from the
+  eye, the brighter and the further round the wheel), standing apart from the family's flat colours.
+- **Its motion:** it turns on a tilted axis and bobs, where nothing else on the track moves.
+
+Driving through a box takes an item if the kart holds none. The box pops and comes back after a few seconds. The items
+are the candy family's own:
+- a **sugar rush**: a boost, the drive rule's own
+- a **toffee**: a sticky blob dropped behind, which slows and spins the kart that drives over it
+- a **gumball**: a ball rolled ahead down the track's line, which knocks the first kart it meets
+
+The pilot uses its item on E (or right Shift, or the pad's left face). Rivals use theirs by judgement: a boost at once,
+a toffee with a kart close behind, a gumball with one ahead in reach. The HUD shows the item held at the top's middle.
+A new item is a row of a known kind on `ITEMS`.
+
 ## The race's HUD
 
 The HUD is read from the kart as the track is, so it keeps the same screen: the corners and the right edge, never the

@@ -31,6 +31,7 @@ import { moodOf, moodScene } from './race-mood.js';
 import { readLanguage, railFaces, postFaces, kerbFaces, edgeFaces, puffFaces, chevronFaces, buntingFaces, padFaces, languageLaws } from './track-language.js';
 import { chunkyFaces, chunkyFlat, chunkyLightOf } from './chunky-look.js';
 import { trackForm, TRACK_FORM_KEEP } from './track-form.js';
+import { readItems } from './kart-items.js';
 import { mineLight, MINE_GLOW } from './mine.js';
 import { streetFeatures, splitGap } from './street-features.js';
 
@@ -131,6 +132,8 @@ export function planTrack(m = {}) {
   // the design language (`language`): its parts' faces gathered raw (no light in them) and lit at the end in the
   // track's own drawing; `lang.way`: the way's colour where the language has a material for it
   const lang = readLanguage(m.language), LP = lang?.parts ?? {}, raw = [];
+  // (a race's item boxes, kart-items.js: the options the track's `items` says; none, none)
+  const items = readItems(m.items);
   const wayHex = lang && LP.way?.material ? lang.materials[LP.way.material].hex : null;
   const flatLit = (hex, c) => { const up = upFace(c); return { corners: up.c, fill: K?.pole === 'chunky' ? chunkyFlat(hex, up.n, chunkyLightOf(K)) : K ? K.tint(hex, up.c, up.n).fill : face(up.c, hex).fill }; };
   const railOpen = !!(lang && LP.rail), marks = new Set();
@@ -295,7 +298,7 @@ export function planTrack(m = {}) {
   const props = m.dress ? dressProps({ a, X, terrain, dress: m.dress, seed: Number.isInteger(m.seed) ? m.seed : 1 }) : [];
   for (const q of props) faces.push(...propFaces(q));
   const cameras = trackCameras({ a, X, P, course, deck, crossings });
-  return { form: m.form, course, alignment: a, X, stations: st, faces, roadFaces, ground, sections, terrain, groundAt, lines, deck, crossings, colliders, props, cameras, advisories: course.advisories, length: L, ...(language ? { language } : {}), ...(feats ? { street: feats } : {}) };
+  return { form: m.form, course, alignment: a, X, stations: st, faces, roadFaces, ground, sections, terrain, groundAt, lines, deck, crossings, colliders, props, cameras, advisories: course.advisories, length: L, ...(language ? { language } : {}), ...(feats ? { street: feats } : {}), ...(items ? { items } : {}) };
 }
 
 // ── the ground ───────────────────────────────────────────────────────────────────────────────────

@@ -28,6 +28,7 @@
  * its tightest bend wider than the road's own. (A taut string, the shortest line, hugs the inside of a long bend
  * tighter than the road; least total bending does too.) Deterministic: fixed passes in index order.
  */
+import { itemRows } from './kart-items.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const TAU = 2 * Math.PI;
@@ -152,5 +153,7 @@ export function trackContract(plan, { leg = 20, slots = 8 } = {}) {
     ramps: course.ramps.map((r) => ({ ...r, ...(r.lip ? { lip: { ...r.lip, at: pt(r.lip.s) } } : {}) })),
     crossings: plan.crossings.map((c) => ({ s: [c.s1, c.s2], at: c.at, dz: c.dz })),
     ...(duel ? { duel } : {}),
+    // (a race's item boxes, kart-items.js: their rows across the way, where a game or a rival reads them)
+    ...(plan.items ? { items: itemRows(plan, plan.items) } : {}),
   };
 }

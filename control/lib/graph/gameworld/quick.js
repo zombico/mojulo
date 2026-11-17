@@ -940,7 +940,7 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
       ...intent,
     };
   }
-  const levels = flight ?? (quick.geotown ? { run: { name: name ?? id, geotown: quick.geotown } } : worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape, ...(worded.language ? { language: worded.language } : {}), ...mood } } }
+  const levels = flight ?? (quick.geotown ? { run: { name: name ?? id, geotown: quick.geotown } } : worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape, ...(worded.language ? { language: worded.language } : {}), ...(worded.items ? { items: worded.items } : {}), ...mood } } }
     : quick.roadway ? { run: { name: name ?? id, roadway: { course: quick.roadway, dress: true, ...mood } } } : quick.run
     ? Object.fromEntries(Array.from({ length: quick.run + 2 }, (_, k) => [`stretch-${k + 1}`, { name: `${name ?? id} ${k + 1}`, seed: s0 + 101 * (k + 1), walk: { nodes: { path: { trail: {} } } } }]))
     : { run: quick.building ? { name: name ?? id, building: quick.building } : { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) },
