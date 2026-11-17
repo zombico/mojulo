@@ -1,3 +1,7 @@
+// Re-pinned 2026-11-17 (the open city's wanted level): every fixture that embeds the controllable runtime. The cast's
+// `spawn` gained `near` and `ring` (worlds/controllable/cast.js: a body set down at a ring's distance from another, on
+// one of its own `posts`, the law's police), a branch taken only by an op that names `near` (no fixture's does): their
+// worlds step as before.
 import { createHash } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
