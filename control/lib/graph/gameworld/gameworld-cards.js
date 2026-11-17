@@ -14,6 +14,7 @@
  * Pure.
  */
 import { MOTIVATIONS, LABOURS, WORLD_SHAPES, ORDER_KINDS, SIDE_SHARE } from './gmn.js';
+import { RAIL_IDS, SIZES, OWN, seenSays, railOf, railShapes, railSheet } from './rails.js';
 import { COATS } from '../mount/coats.js';
 import { ERRAND_LAWS } from './errand.js';
 import { GAME_BODIES, GAME_BODY_NAMES } from './game-bodies.js';
@@ -149,33 +150,42 @@ function ledgerCard() {
   );
 }
 
-// the producer: the seat that runs the work (its intake of what the creator brought, the order of the units), beside
-// the director, who decides, and the assistant director, who holds a unit to its remit. Its intake rows are the table's
+// the producer: the seat that faces the creator (the client talks to the producer, the producer to the director). It
+// knows the SHAPE of what mojulo makes (the rails) before any detail, calls the size, says the pitch back and locks it,
+// then hands the director the work. Its intake rows are the table's own
 function producerCard() {
   return lines(
-    'THE PRODUCER — the seat that runs the work, versed in doing it, not in making the art. Three seats work a game:',
-    '  the director            decides: what the game is, which proposal is kept, the vertical slice (gameworld-ledger)',
-    '  the assistant director  holds a unit to its remit: assistive, strict or elevating (the production\'s style)',
-    '  the producer            runs the work: what was brought, what is answered, what is open, which unit is next',
-    'One agent may sit in all three; say which seat a move is made from. The producer never picks between two looks and',
-    'never fills a gap with taste: what is ambiguous is listed as open and asked, the director\'s or the creator\'s to say.',
+    'THE PRODUCER — the seat that faces the creator. The creator talks to the producer; the producer hands the director',
+    'the work. One agent wears both: as PRODUCER you ask and shape, as DIRECTOR you build (gameworld-ledger); say which',
+    'seat a move is made from. The assistant director holds a unit to its remit. The producer never picks between two',
+    'looks and never fills a gap with taste: what is ambiguous is asked, the creator\'s to say.',
     '',
-    'THE INTAKE, before the first goalpost. A game starts from what the creator HAS: expect attachments. Ask once:',
-    '"do you have drawings, plans or documents for this game?" Then, for each thing brought, by its kind:',
+    'ONE QUESTION A TURN: the readout\'s `producer.ask` is the one to ask now; the rest of `next` waits. Know the SHAPE',
+    'first (gameworld-rails: a line a game type); pull detail only when the creator\'s wish reaches for it.',
+    '',
+    '1 HEAR (next: intake). A game starts from what the creator HAS: ask once for drawings, plans or documents.',
     ...Object.entries(INTAKE_KINDS).map(([id, K]) => `  ${id.padEnd(10)}${K.name} → ${K.door}  (answers: ${K.answers.join(', ')})`),
-    'You read it (you can see it); the pages are yours to write by `patch`, each from what the attachment SAYS, never',
-    'from what it might have meant. Then write the record, so the next session knows what was brought:',
-    '  { ref, patch: [{ op: \'add\', path: \'/intake\', value: { items: [{ id, kind, says, placed | aside, answers?, basis? }] } }] }',
-    '  placed  the page it went to (a JSON pointer) or a chapter\'s id        aside  why it has no place yet',
-    '  basis   stated (it says so) | inferred (read between its lines: say so to the creator)',
-    'Nothing brought is dropped: an item is placed or set aside, with why. Brought nothing: `intake: \'none\'`.',
-    'The readout\'s `intake` then says which goalposts their material answered and which are open: run the loop on',
-    'the open ones only, and do not ask again what a document already said.',
+    '  Write each from what it SAYS, never what it might have meant, then the record:',
+    '  { ref, patch: [{ op: \'set\', path: \'/intake\', value: { items: [{ id, kind, says, placed | aside, answers?, basis? }] } }] }',
+    '  placed: the page it went to; aside: why it has no place yet; basis: stated | inferred (say so). Nothing brought',
+    '  is dropped. Brought nothing: `intake: \'none\'`. Never ask again what a document already said.',
+    '2 PLACE (next: rail). Read gameworld-rails. A rail is a TEMPLATE, never the game: they are making a stealth action',
+    '  game of their own, started from Steel Serpents. The step\'s `nearest` are the rails their words point at; `notYet`',
+    '  a type no door makes yet: say it before anything is built. CALL THE SIZE, the least that answers the ask: a',
+    '  pixelizer game, a quick game, a table game, or the designed game (more than one level, or a hero, world or story',
+    '  of their own). Say what the next size up would add. Write rail: { from, size, departs? }.',
+    '3 LOCK (next: lock). Say the pitch back: the template, what their game keeps of it, where it departs (level,',
+    '  action, character, world), what the template does not do yet. With their yes write rail.locked: true: structure',
+    '  is locked, content never. On a book with no level this lays the rail\'s STARTER first level and stores the game',
+    '  (`pitch.stored`; nothing built). A locked pitch moved to another rail is a re-plan: say so.',
+    '4 DEEPEN. Now pull the rail\'s sheet (gameworld-rail-<id>: its tunings, its chain of tools, a card a step) and, for',
+    '  a designed game, ask the Game Brief (next: brief, gameworld-brief): why it is played, how it is shaped. Recommend',
+    '  a real plan only here, with the build chapter\'s estimate.',
+    '5 HAND OFF (next: hand-off). The step carries the first level as a `req`, its remit filled from the pitch. Raise',
+    '  it as the DIRECTOR with your ticket: { ref, ask: { intent }, req }. From there the ledger runs the work.',
     '',
-    'THE WORK, after it: the readout\'s `goalposts` are the path from 0 to level 1 and `next` the move. Raise a unit',
-    'for what is open ({ req: { unit } }, gameworld-ledger), one at a time, each with its `ask`. Level 1 is proved by',
-    'the machine gate (`check: true`) and approved by the creator, who plays it: it is the game they want to play.',
-    'What a thing brought asks for that nothing makes yet is said by name and set aside, never quietly left out.',
+    'The goalposts are the path from 0 to level 1 and `next` the move. Level 1 is proved by the machine gate',
+    '(`check: true`) and approved by the creator, who plays it: it is the game they want to play.',
   );
 }
 
@@ -225,7 +235,7 @@ function studioCard() {
     'next picks up. A good first session leaves:',
     ...GOALPOSTS.map((g, i) => `  ${i + 1}. ${g.id.padEnd(12)} ${g.says}`),
     '',
-    'THE SEATS: the director decides, the assistant director holds the remit, the producer runs the work (gameworld-producer).',
+    'THE SEATS: the producer faces the creator and hands on, the director builds, the assistant holds the remit (gameworld-producer).',
     'One level, a simple goal: the quick path (gameworld-quick).',
   );
 }
@@ -1459,6 +1469,65 @@ export function workshopCardById(id) {
   return id === 'gameworld-workshop' ? { id, name: 'The workshop', summary: 'where a big game is made and where it is seen: the laptop, a desktop download, or kept small', when: 'a game too big to see in a cloud box, a level over the page limit, where do I play it', scope: 'rail', body: workshopCard() } : null;
 }
 
+// THE RAILS (rails.js): the game types as templates, the producer's two depths. The shape is every rail in a line; a
+// rail's sheet is pulled once it is picked. Both generated from the roster; served by id, not listed.
+function railsCard() {
+  const S = railShapes();
+  return lines(
+    'THE RAILS — the game types mojulo builds, each a TEMPLATE a person\'s game starts from, never the game itself: they',
+    'are making a stealth action game of their own design, started from Steel Serpents. The template\'s name is ours;',
+    'the game\'s name, hero, world and story are theirs. This is the shape; pull a rail\'s sheet only once it is picked:',
+    'get_game_vocab({ id: \'gameworld-rail-<id>\' }).',
+    '',
+    ...S.rails.map((l) => `  ${l}`),
+    '',
+    'NOT A GAME YET (say so before anything is built; offer the nearest rail):',
+    ...S.notYet.map((l) => `  ${l}`),
+    '',
+    `THE SIZE, called first: ${Object.entries(SIZES).map(([id, z]) => `${id} (${z.name}: ${z.says})`).join('; ')}.`,
+    'Call the least that answers the ask and say what the next size up would add. More than one level, or anything that',
+    `is theirs to design (${Object.keys(OWN).join(', ')}), asks for a designed game; only a designed game is asked the`,
+    'Game Brief (gameworld-brief). An ask past what a rail reaches is made at its largest and what it waits on is said.',
+    'How a game is played THROUGH (levels in turns, an open world) is the brief\'s labour, not the rail\'s.',
+  );
+}
+
+function railCard(id) {
+  const S = railSheet(id);
+  const say = (v) => (Array.isArray(v) ? `[${v.map(say).join(', ')}]` : typeof v === 'string' ? `'${v}'` : String(v));
+  const set = (o) => (o ? `{ ${Object.entries(o).map(([k, v]) => `${k}: ${say(v)}`).join(', ')} }` : 'read from the ask: no cube of its own');
+  return lines(
+    `THE RAIL: ${S.name} — ${S.like}. A TEMPLATE: the person's game starts from it and is theirs (its name, hero, world`,
+    'and story). Say what they keep from it and where their game departs.',
+    '',
+    `seen: ${S.seen.length ? seenSays(S.seen) : 'as its page lays it'}${S.seen.length > 1 ? ' (a choice: ask which)' : ''}.   first: ${S.level1}.`,
+    ...S.sizes.map((z) => `  ${z.size.padEnd(9)}${z.door}   ${set(z.with)}`),
+    '',
+    `ITS TUNINGS${S.from ? ` (its own cube, '${S.from}'; each value theirs to change)` : ''}:`,
+    `  level      ${set(S.tunings.level)}`,
+    `  action     ${set(S.tunings.action)}`,
+    `  character  ${set(S.tunings.character)}`,
+    `  world      ${set(S.tunings.world)}`,
+    ...(S.gaps ? [`not built yet in its own cube: ${S.gaps.map((g) => `${g.facet}.${g.setting} '${g.value}' (${g.status})`).join(', ')}.`,
+      S.starts && S.starts !== S.from ? `so a designed game starts from '${S.starts}' today and changes the values that differ: say so before it is built.` : 'so it is not laid as a designed game yet.'] : []),
+    ...(S.asks.length ? [`what it asks of a world: ${S.asks.join(', ')}.`] : []),
+    ...(S.labours.length ? [`labours that suit it (gameworld-brief; any may be mixed): ${S.labours.join(', ')}.`] : []),
+    '',
+    'THE CHAIN, by size (pull a step\'s card when it is reached, not before):',
+    ...S.chain.flatMap((c) => [`  ${c.size}:`, ...c.steps.map((st, i) => `    ${i + 1}. ${st.step.padEnd(12)}${st.does}${st.card ? `  (${st.card})` : ''}`)]),
+    ...(S.lacks.length ? ['', 'WHAT IT DOES NOT DO YET (say it when the ask reaches for it):', ...S.lacks.map((l) => `  ${l}`)] : []),
+  );
+}
+
+/** The rails' shape (`gameworld-rails`) or one rail's sheet (`gameworld-rail-<id>`), or null. Served by id, not listed. */
+export function railCardById(id) {
+  if (id === 'gameworld-rails') return { id, name: 'The rails', summary: 'the game types mojulo builds, each a template a person\'s game starts from; the size called first', when: 'what kind of game, which template, a game like one I know, how big a game', scope: 'rail', body: railsCard() };
+  const rail = typeof id === 'string' && id.startsWith('gameworld-rail-') ? id.slice('gameworld-rail-'.length) : null;
+  if (!rail || !RAIL_IDS.includes(rail)) return null;
+  const R = railOf(rail);
+  return { id, name: `The rail: ${R.name}`, summary: R.like, when: `a game started from ${R.name}`, scope: 'rail', body: railCard(rail) };
+}
+
 /** One genre's card by id (`gameworld-intent-<genre>`), or null. Served by id, not listed with the rail. */
 export function genreCardById(id) {
   const genre = typeof id === 'string' && id.startsWith('gameworld-intent-') ? id.slice('gameworld-intent-'.length) : null;
@@ -1522,7 +1591,7 @@ const CARDS = [
   ['gameworld-guide', 'The game book', 'the loop and the principles: design a game top down, then let design_game make it', 'make a game, design a game, a game with a hero and powers, where do I start', guide],
   ['gameworld-studio', 'The studio', 'the book worked a chapter at a time: the departments in waves, a chapter\'s session, the build', 'a big game, many levels, several departments, who does what and in what order, subagents, a team of agents', studioCard],
   ['gameworld-ledger', 'The ledger', 'a game made one unit at a time: a req per chapter or level, its jobs for agents, its received gate, the game built up to the last accepted level', 'one level at a time, requisition, req, remit, precedent, subagents, jobs, author, diverge, critic, probe, received, accepted, composite', ledgerCard],
-  ['gameworld-producer', 'The producer', 'the seat that runs the work: the intake of what the creator brought (drawings, plans, docs), what it answers and what is open, the order of the units; beside the director and the assistant director', 'I have a design doc, here are my sketches, turn my notes into a game, I drew a map, my game plan, where do we start, who does what, producer, planner', producerCard],
+  ['gameworld-producer', 'The producer', 'the seat that faces the creator: what they brought (drawings, plans, docs), the rail their game starts from and its size, the pitch said back and locked, the hand-off to the director; one question a turn', 'I have a design doc, here are my sketches, turn my notes into a game, I drew a map, my game plan, where do we start, who does what, producer, planner', producerCard],
   ['gameworld-main-quest', 'The main quest', 'the game\'s spine: acts of beats, each played as a level, a dungeon, an open world, a gauntlet, an errand; the core loop', 'a long game, an RPG, a campaign, the story from start to end, acts, how long is the game, beginning middle and end, the core loop', mainQuestCard],
   ['gameworld-quick', 'The quick path', `one level and a simple goal in one call: ${Object.keys(QUICK_GOALS).join(', ')}`, 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a race against the clock, a kart race against rivals, a stealth level, a rhythm game, drive a car, tower defence, a boulder puzzle, a farm, a turn-based fight, a shooter, a deathmatch with bots, a quick game', quickCard],
   ['gameworld-brief', 'The Game Brief', 'what the game is about, above its genre: the motivations and labours, and the orders they make for the composer', 'what my game is about, the story and its shape, save the princess, storm the citadel, catch them all', briefCard],

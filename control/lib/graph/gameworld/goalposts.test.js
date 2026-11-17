@@ -137,9 +137,10 @@ describe('the goalpost leads the next moves', () => {
   it('the start: a book with no level yet is answered with every question, nothing stored', () => {
     const start = startReadout({ name: 'My Game' });
     expect(start).toMatchObject({ ok: true, readout: 'start', stored: false, goalposts: { met: 0, of: GOALPOSTS.length } });
-    expect(ids(start.next)).toEqual(['intake', 'goalpost']);
+    // (the producer's steps lead: what was brought, then the rail the game is placed on; then the goalpost)
+    expect(ids(start.next)).toEqual(['intake', 'rail', 'goalpost']);
     expect(start.goalposts.posts.every((p) => typeof p.ask === 'string')).toBe(true);
     // (what the creator already said is read: an intent meets the first goalpost)
-    expect(startReadout({ intent: { from: 'long-rpg' } }).next[1].id).not.toBe('game');
+    expect(startReadout({ intent: { from: 'long-rpg' } }).next.find((x) => x.step === 'goalpost').id).not.toBe('game');
   });
 });

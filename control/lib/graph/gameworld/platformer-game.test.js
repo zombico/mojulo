@@ -152,7 +152,8 @@ describe('laid in a world', () => {
         expect(g.ui.theme).toEqual(cardTheme(PLATFORMER_LOOK));
         expect(g.screen).toBe('screen');
       }
-    });
+      // (two whole runs of the courses' steps: near twenty seconds alone, past the default thirty on a loaded runner)
+    }, 120_000);
 
     it('a world without the word lays none (the trail\'s course as it was)', () => {
       const P = { ...W, mechanics: { ...W.mechanics } }; delete P.mechanics.coins;
