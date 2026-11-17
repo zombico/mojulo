@@ -69,7 +69,7 @@ const GUARD_CARBINE = Object.freeze({ fireClass: 'sight', auto: false, cooldown:
 // (the carbine as the arms library draws it: the view the hero's own kit carries, its parts and where each hand closes;
 // the guard carries it, its rounds are GUARD_CARBINE's)
 const CARBINE_VIEW = armsLoadout(['carbine'], SHOOT.rifle, { eye: GUARD_CARBINE.eye, hand: 'right' })[0].gunplay;
-const GUARD_TUNE = Object.freeze({ team: 'guards', rule: Object.freeze({ speed: 1.6, turnRate: 2.2, guardRadius: 14, sightShown: true, standoff: 9, burst: 0.5, pause: 1.1, meleeSeek: false,
+const GUARD_TUNE = Object.freeze({ team: 'guards', rule: Object.freeze({ speed: 1.6, turnRate: 2.2, guardRadius: 14, sightShown: 'radar', standoff: 9, burst: 0.5, pause: 1.1, meleeSeek: false,
   // (hurt by what it has not seen, it stops, turns to where the blow came from and looks: startle.js)
   // (and it hears: a shot across the yard, running feet close by)
   startle: Object.freeze({ hears: Object.freeze({}) }),

@@ -811,6 +811,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // hold, and the opener's count. A moveset that says no `swap` runs as before: the cycle mid-swing is dropped. Every
 // fixture that embeds the controllable runtime re-pinned with it.
 //
+// Re-pinned 2026-11-17 a fourth time (1117-cinematic-action-game: a watcher's sight on the radar): `brawl`, `holo` and
+// `mission`, the three fixtures whose page inlines the game UI kernel and its styles. The kernel's map draws a marker's
+// `fan` as a wedge under it (what a watcher sees, gameworld/radar.js), and `mission` also inlines the radar's marks,
+// which now carry that fan for a watcher whose rule shows its sight. No fixture's marker carries one, so each map
+// draws as it did; only the inlined text moved. Every other fixture holds byte for byte.
 // Re-pinned 2026-11-17 a third time (1117-cinematic-action-game: a cued shot keeps its caller's clock): `shoot-live`
 // only, the one fixture whose plan carries a cue. The shoot channel's cue block gains `cueAt` (a cued shot's seconds
 // said by who fired it: a ride's own clock, so its camera and its deck stay together when the world is slowed). Nobody

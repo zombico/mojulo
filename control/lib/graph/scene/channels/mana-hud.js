@@ -167,7 +167,7 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     }
     // the page's radar, as a scope; its damage ring, as arcs; its weapon selector, as the wheel
     const R = st.radar; R.on = !!document.getElementById('__radar');
-    if (R.on && me.transform) { const p = me.transform.pos; R.marks = __hRadar(p, me.transform.heading, __hThings(W, me, null), __hR); R.north = __hBearing(p, me.transform.heading, [p[0], p[1] + 1, 0]); }
+    if (R.on && me.transform) { const p = me.transform.pos; R.marks = __hRadar(p, me.transform.heading, __hThings(W, me, null), me.rule && me.rule.radarRange > 0 ? Object.assign({}, __hR, { range: me.rule.radarRange }) : __hR); R.north = __hBearing(p, me.transform.heading, [p[0], p[1] + 1, 0]); }
     const D = window.__mojDamageRing; st.ring.on = !!(D && D.hits && D.hits.length); st.ring.hits = st.ring.on ? D.hits : [];
     const C = window.__mojWc && window.__mojWc.view ? window.__mojWc.view() : null;
     st.wheel.open = !!(C && C.open);

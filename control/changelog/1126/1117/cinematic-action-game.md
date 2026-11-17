@@ -230,3 +230,11 @@ or a recipe key; the spike mints through the real doors and measures.
   that changes each thing a person will ask to change, and the rule that a change is tried on the planner before a
   page is built. `lib.mjs` holds what every segment's builder does the same way (the land's height under a point
   among them, so what is parked and laid stands on the ground as it was laid).
+- **A watcher's sight on the radar** (`sightShown: 'radar'`; gameworld/radar.js, the game UI's `minimap`): a watcher
+  whose rule shows its sight carries it on the HUD's radar, its mark's `fan` a wedge from where it stands along its
+  facing, each ray ended by what would hide the pilot as it stands now (so a wedge stops at a metre of cover for a
+  crouch and runs on past it for a body standing), tinted by its state: calm, searching, seeing. The map part draws
+  any marker's `fan` (points, itself first) under it, cut with a clip path. A watcher that says `'radar'` lays no fan
+  on the ground (sight-view.js still says a sighting); `true` lays it on the ground as before. The HUD's radar reads
+  the pilot's own `radarRange` where it names one. The starter's guards show their sight on the radar, and the
+  infiltration yard's page takes the game's HUD so it is drawn there too.

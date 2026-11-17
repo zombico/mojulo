@@ -29,7 +29,9 @@ const guard = opt('--guard');
 const room = infiltrationRoom(G, { refs: { ...(hero ? { hero } : {}), ...(guard ? { guard } : {}) }, vault: opt('--vault'), roll: opt('--roll'), climb: opt('--climb'), crouch: opt('--crouch') ? { idle: opt('--crouch').split(',')[0], walk: opt('--crouch').split(',')[1] } : null, prone: opt('--prone') ? { idle: opt('--prone').split(',')[0], crawl: opt('--prone').split(',')[1] } : null });
 const { payload } = await resolveWorldScene({ ref: 'steel-serpents-infiltration-yard', manifest: room.manifest }, {});
 const cdn = argv.includes('--cdn');
-const html = emitThreeWorld({ ...payload, wireframe: false, walk: true, spin: false, decollide: true, hud: false, inline: !cdn, cdn, ...(argv.includes('--capture') ? { capture: true } : {}) });
+// (the game's HUD: the guard's sight is drawn on its radar)
+const { levelHud } = await import('../../../lib/graph/game/hud-mana.js');
+const html = emitThreeWorld({ ...payload, wireframe: false, walk: true, spin: false, decollide: true, hud: false, manaHud: levelHud('field-brief'), inline: !cdn, cdn, ...(argv.includes('--capture') ? { capture: true } : {}) });
 await fs.mkdir(out, { recursive: true });
 const file = path.join(out, 'infiltration-yard.html');
 await fs.writeFile(file, html);

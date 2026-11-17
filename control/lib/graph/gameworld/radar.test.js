@@ -70,3 +70,26 @@ describe('the module', () => {
     for (const f of [radarMarks, planBox, planPoint, planSvg, sceneThings]) expect(() => new Function(`return (${f.toString()})`)()).not.toThrow();
   });
 });
+
+describe('what a watcher sees, on the radar', () => {
+  const cfg = { ...RADAR, range: 30 };
+  const watcher = (boxes = [], extra = {}) => ({ at: [0, 10], kind: 'foe', sight: { heading: -Math.PI / 2, cone: 0.6, range: 14, eye: 1.35, pe: 1.275, feet: 0, state: 'calm', boxes, ...extra } });
+  it('a watcher that shows its sight carries its fan: itself first, then its cone toward where it faces', () => {
+    const [m] = radarMarks([0, 0], Math.PI / 2, [watcher()], cfg);
+    expect(m.fan[0]).toEqual([m.x, m.y]);
+    expect(m.state).toBe('calm');
+    // (it stands ahead of the pilot and looks back at it: the fan comes down the scope toward the middle)
+    for (const p of m.fan.slice(1)) expect(p[1]).toBeGreaterThan(m.y);
+    expect(Math.max(...m.fan.map((p) => p[1]))).toBeCloseTo(m.y + 14 * (0.5 / 30), 2);
+  });
+  it('a ray ends at what would hide the pilot as it stands: a metre of cover ends it for a crouch, not for a body standing', () => {
+    const wall = [{ min: [-6, 5, 0], max: [6, 5.4, 1] }];
+    const reach = (pe) => { const [m] = radarMarks([0, 0], Math.PI / 2, [watcher(wall, { pe })], cfg); return Math.max(...m.fan.map((p) => p[1])) - m.y; };
+    expect(reach(1.275)).toBeCloseTo(14 * (0.5 / 30), 2);
+    expect(reach(0.825)).toBeLessThan(6 * (0.5 / 30));
+  });
+  it('a foe that shows no sight is a mark and nothing more', () => {
+    const [m] = radarMarks([0, 0], 0, [{ at: [5, 0], kind: 'foe' }], cfg);
+    expect(m.fan).toBeUndefined();
+  });
+});

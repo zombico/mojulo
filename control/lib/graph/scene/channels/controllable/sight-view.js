@@ -1,6 +1,8 @@
 // In-page script: WHAT A WATCHER SEES, drawn — the cone of a body whose rule says `sightShown` (a guard a sneak gets
 // past: worlds/controllable/mind.js perceive, its `sightRange`, its `sightCone` half-angle, its facing), laid on the
 // floor as a fan. Emitted only into a page whose world has such a rule, so every other page keeps every byte.
+// `sightShown: 'radar'` says the sight is the radar's to draw (gameworld/radar.js: the watcher's mark carries its fan on
+// the game's HUD): no fan is laid on the ground, and only the sighting is said here.
 //
 //   the fan     from the watcher's feet along its facing, its half-angle and its range the rule's own, over the ground
 //               where the PILOT, as it stands now, would be seen. Sight is eye to eye, a line in height too: a box as
@@ -15,7 +17,7 @@
 export function sightScript() {
   return `
 // ── WHAT A WATCHER SEES ──
-const __SV = { fans: {}, n: 40, seen: 0, at: -1e9, hits: [], sp: [0, 0, 0, 0] };
+const __SV = { counts: {}, fans: {}, n: 40, seen: 0, at: -1e9, hits: [], sp: [0, 0, 0, 0] };
 const __svEl = document.createElement('div');
 __svEl.style.cssText = 'position:fixed;left:50%;top:14%;transform:translateX(-50%);display:none;z-index:7;pointer-events:none;font:700 26px/1 ui-monospace,monospace;letter-spacing:.14em;color:#ff5a4a;text-shadow:0 2px 0 rgba(0,0,0,.5)';
 document.body.appendChild(__svEl);
@@ -53,6 +55,8 @@ function __svSpans(x, y, dx, dy, E, pe, feet, far, out) {
   const now = __world.time || 0; let fresh = 0;
   for (const e of __world.entities) {
     const r = e.rule; if (!r || !r.sightShown) continue;
+    // (a watcher whose sight is the radar's, sightShown 'radar': no fan on the ground; a fresh sighting is still said)
+    if (r.sightShown === 'radar') { const c0 = __SV.counts[e.id] ?? (__SV.counts[e.id] = e.sightings || 0); if ((e.sightings || 0) > c0) { fresh += (e.sightings || 0) - c0; __SV.counts[e.id] = e.sightings || 0; } continue; }
     let F = __SV.fans[e.id];
     if (!F) {
       // (the near span a fan from the feet; the span seen again beyond low cover a strip, two points a ray)

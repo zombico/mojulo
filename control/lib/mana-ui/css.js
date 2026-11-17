@@ -468,6 +468,11 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-magazine[data-reloading] .mana-call{color:${v('accent')}}`,
     `${s} .mana-magazine[data-reloading] .mana-belt i{background:${v('accent')};-webkit-mask-image:var(--mana-round-spent);mask-image:var(--mana-round-spent);animation:mana-pulse .75s ease-in-out infinite;animation-play-state:${v('loop')}}`,
     `${s} .mana-marker{position:absolute;transform:translate(-50%,-50%);font-size:${u(16)};line-height:1}`,
+    // (a marker's sight: a wedge over the whole map, cut to its fan; calm it is the ink's, searching the accent's, seeing the harm's)
+    `${s} .mana-seen{position:absolute;inset:0;pointer-events:none}`,
+    `${s} .mana-sight{position:absolute;inset:0;background:color-mix(in srgb,${v('ink')} 34%,transparent)}`,
+    `${s} .mana-sight[data-state=search]{background:color-mix(in srgb,${v('accent')} 55%,transparent)}`,
+    `${s} .mana-sight[data-state=seen]{background:color-mix(in srgb,${v('harm')} 62%,transparent)}`,
     `${s} .mana-minimap .mana-caption{position:absolute;left:${u(6)};bottom:${u(3)}}`,
     `${s} .mana-compass{position:relative;width:${u(450)};height:${u(33)};border:${v('rule-w')} solid ${v('line')};background:${v('paper')};overflow:hidden}`,
     `${s} .mana-compass .mana-cardinal,${s} .mana-compass .mana-marker{position:absolute;top:50%;transform:translate(-50%,-50%);font:700 ${u(16)} ${v('mono')}}`,

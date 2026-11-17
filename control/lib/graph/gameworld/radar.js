@@ -12,8 +12,10 @@
  * One concept wherever it is drawn; a mission draws both on mana-ui (mission-mana.js).
  *
  *   RADAR                      its numbers: its range (m), the most marks it draws, the rim a pinned mark sits on
- *   radarMarks(pos, heading, things, cfg) → [{ x, y, kind }]   0 to 1, the pilot at 0.5, 0.5, ahead at the top
- *                                (things: [{ at: [x, y], kind, pin? }]; heading radians, counter-clockwise from +x)
+ *   radarMarks(pos, heading, things, cfg) → [{ x, y, kind, fan?, state? }]   0 to 1, the pilot at 0.5, 0.5, ahead at the
+ *                                top; a watcher that shows its sight carries its `fan` (its cone as points on the scope,
+ *                                itself first, each ray ended by what would hide the pilot) and its `state`: calm | search | seen
+ *                                (things: [{ at: [x, y], kind, pin?, sight? }]; heading radians, counter-clockwise from +x)
  *   planBox(colliders, water?) → [x0, y0, side]   the square the plan is drawn in (metres)
  *   planPoint(box, p)          → { x, y }   a place on the plan, 0 to 1, north at the top
  *   planSvg(colliders, water, box) → the plan as an SVG document (a string): masses, low things, water
@@ -32,7 +34,33 @@ export function radarMarks(pos, heading, things, cfg) {
     if (n.d > cfg.range && !n.t.pin) continue;
     // (past its range a pinned mark sits on the rim, toward where it is)
     const k = n.d > cfg.range ? cfg.rim / (n.d || 1) : 0.5 / cfg.range, r = (v) => Math.round(v * 1000) / 1000;
-    out.push({ x: r(0.5 + n.u * k), y: r(0.5 - n.v * k), kind: n.t.kind });
+    const mark = { x: r(0.5 + n.u * k), y: r(0.5 - n.v * k), kind: n.t.kind };
+    // WHAT IT SEES (a thing with a `sight`: a watcher whose rule shows it): its cone as a fan on the scope, from where it
+    // stands along its facing, each ray ended by what would hide the pilot as it stands now (a box across the line from
+    // the watcher's eye to the pilot's: sight is a line in height, so low cover ends a ray only for a body low enough)
+    const S = n.t.sight;
+    if (S && n.d <= cfg.range + S.range) {
+      const fan = [[mark.x, mark.y]], N = 8, E = S.eye, pe = S.pe;
+      for (let i = 0; i <= N; i++) {
+        const a = S.heading - S.cone + (2 * S.cone * i) / N, dx = Math.cos(a), dy = Math.sin(a);
+        let reach = S.range;
+        for (const b of S.boxes || []) {
+          const h = b.max[2] - S.feet; if (h <= pe || b.min[2] - S.feet > Math.max(E, pe)) continue;
+          let t0 = 0, t1 = reach, miss = false;
+          for (let q = 0; q < 2; q++) {
+            const o = n.t.at[q], d = q ? dy : dx;
+            if (Math.abs(d) < 1e-9) { if (o < b.min[q] || o > b.max[q]) { miss = true; break; } continue; }
+            const u0 = (b.min[q] - o) / d, u1 = (b.max[q] - o) / d;
+            t0 = Math.max(t0, Math.min(u0, u1)); t1 = Math.min(t1, Math.max(u0, u1));
+          }
+          if (!miss && t0 <= t1 && t0 < reach) reach = t0;
+        }
+        const px = n.t.at[0] + dx * reach - pos[0], py = n.t.at[1] + dy * reach - pos[1];
+        fan.push([r(0.5 + (px * fy - py * fx) * (0.5 / cfg.range)), r(0.5 - (px * fx + py * fy) * (0.5 / cfg.range))]);
+      }
+      mark.fan = fan; mark.state = S.state;
+    }
+    out.push(mark);
   }
   return out;
 }
@@ -71,7 +99,16 @@ export function sceneThings(W, me, goal) {
   if (goal) out.push({ at: goal, kind: 'goal', pin: true });
   for (const e of (W && W.entities) || []) {
     if (!e || e === me || !e.transform || e.isCamera || e.dormant || e.downed || e.gone || !e.team || e.team === me.team || !e.body || !e.body.hittable) continue;
-    out.push({ at: e.transform.pos, kind: 'foe' });
+    const T = { at: e.transform.pos, kind: 'foe' }, r = e.rule;
+    // (a watcher whose rule shows its sight: its cone, its reach, whether it is calm, searching or has the pilot; the
+    // boxes near it, and the pilot's eye as it stands now)
+    if (r && r.sightShown) {
+      const now = W.time || 0, range = r.sightRange != null ? r.sightRange : 14, p = e.transform.pos, eyeOf = (b) => (b.rule && b.rule.collideHeight != null ? b.rule.collideHeight : 1.7) * 0.75;
+      T.sight = { heading: e.transform.heading || 0, cone: r.sightCone != null ? r.sightCone : 0.6, range, eye: eyeOf(e), pe: eyeOf(me), feet: p[2] - (r.eye || 0),
+        state: e.lastSeen && now - e.lastSeen.t < 0.6 ? 'seen' : e.alert && e.alert.level && e.alert.level !== 'calm' ? 'search' : 'calm',
+        boxes: (W.colliders || []).filter((b) => b.max[0] > p[0] - range && b.min[0] < p[0] + range && b.max[1] > p[1] - range && b.min[1] < p[1] + range) };
+    }
+    out.push(T);
   }
   return out;
 }
