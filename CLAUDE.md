@@ -48,11 +48,8 @@ the loop runs on what is missing. That step is the producer's ([intake.js](contr
 `gameworld-producer` card: the seat that faces the person and hands the director the work, one agent in both; the
 assistant director holds a unit to its remit): a gameworld's `intake` records each thing brought as placed or set aside,
 never dropped, and the readout says which goalposts it answered. A new kind of material is a row of `INTAKE_KINDS`.
-The producer knows the shape first: the rails ([rails.js](control/lib/graph/gameworld/rails.js)) are the game types
-mojulo builds, each a template a person's own game starts from and never the game itself. It calls the size (a
-pixelizer game, a quick game, a table game, the designed game), says the pitch back and locks it (a gameworld's `rail`),
-and hands on the first level; the readout's `producer.ask` is the one question a turn asks. A new game type is a row of
-`RAILS` first.
+The producer's rails, its pitch and its hand-off: [rails.js](control/lib/graph/gameworld/rails.js); the steps are the
+`gameworld-producer` card's and the `game-design` routing card's.
 
 Two audiences, one truth. The README, the plugin and the manifests speak to the person (the 3D creative studio): they
 open broad, show the pieces it makes from the easy (an object) up to the hard (a game), and say what the person gets,
@@ -330,13 +327,11 @@ Pointers only; each target carries its own design notes.
   blade (an arsenal's `art`: `SWORD_ARTS` in `polygonizer/hero-swing-body.js`): [docs/sword-arts.md](docs/sword-arts.md). A game's play
   tried before its levels (the action and platform rooms, the mount lane, the firing and artillery ranges, the roll room, the work room and the game room, chosen by how
   it plays): [gameworld/practice.js](control/lib/graph/gameworld/practice.js), [docs/practice-rooms.md](docs/practice-rooms.md).
-- The rails and the producer's loop: [gameworld/rails.js](control/lib/graph/gameworld/rails.js) (one row a game type,
-  naming into the feel templates, genre cubes, quick goals and pixelizer games that measure it; the size call; the shape
-  and a rail's sheet, served by id as `gameworld-rails` and `gameworld-rail-<id>`; the pitch, a gameworld's `rail`),
-  the producer's steps and its one question in [gameworld/goalposts.js](control/lib/graph/gameworld/goalposts.js), a
-  locked pitch stored on its rail's starter level by [gameworld/pitch-start.js](control/lib/graph/gameworld/pitch-start.js),
-  and the first unit proposed to the director by [gameworld/hand-off.js](control/lib/graph/gameworld/hand-off.js):
-  [docs/zero-to-level-one.md](docs/zero-to-level-one.md).
+- The game producer: [gameworld/rails.js](control/lib/graph/gameworld/rails.js) (a new game type is a row first),
+  [gameworld/pitch-start.js](control/lib/graph/gameworld/pitch-start.js), [gameworld/hand-off.js](control/lib/graph/gameworld/hand-off.js).
+- The exhibit producer: [exhibit/producer.js](control/lib/graph/exhibit/producer.js) (`create_exhibit({ start })`),
+  [exhibit/scales.js](control/lib/graph/exhibit/scales.js), [exhibit/fit.js](control/lib/graph/exhibit/fit.js),
+  [exhibit/intake.js](control/lib/graph/exhibit/intake.js); the steps are the `exhibit-producer` routing card's.
 - The platformer's rail (a mascot platformer from its feel to a first level and the flow that plays it, in two
   dimensions: `2d` the side-scroller, one strip and one turn, its home the title; `3d` opt-in, courses up a hill, a
   turn each, its home the courses screen; both on one flow shape, a start menu, a screen on its side, the
@@ -389,7 +384,9 @@ Pointers only; each target carries its own design notes.
   `forge_motion`'s `film` and `subject.screenplay` ([tools/film.js](control/lib/mcp/tools/film.js),
   [tools/scene-film.js](control/lib/mcp/tools/scene-film.js): a scene's storyboard and animatic, its voice, dub and set,
   the film shot natively as a video, its Blender film pack as the high-end version; a cutscene another studio orders,
-  `film/order.js`); craft in [docs/cinematics.md](docs/cinematics.md).
+  `film/order.js`); craft in [docs/cinematics.md](docs/cinematics.md). A camera directed in words (a shoot plan's
+  framing and moves, `shoot/`; a scene's camera style, `actor/camera-styles.js`) and looked at on a contact sheet:
+  `/direct`.
 - The game's colour: [gameworld/colour.js](control/lib/graph/gameworld/colour.js) (the bridge from a game to the colour
   theorist: its cast read as figures on its ground, `color-theorist/figures.js`, kept in their hue families; the ways it
   could be oriented, `color-theorist/directions.js`, each a patch; the colour book, `/bible?book=colour`; a new kind of

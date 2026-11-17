@@ -23,7 +23,8 @@
  *     keeps (the screenplay as written, its recordings bound)
  *   resolveSceneCast(screenplay, { getRow, style? }) → { cast, heroes, sources }   the words actScene reads, each
  *     actor's hero ({ ref } | { spec }) and where each part came from (refs looked up through getRow)
- *   planSceneFilm(screenplay, { getRow, style?, grain?, set? }) → { S, coverage, notes, cast, heroes, sources }   no mint
+ *   planSceneFilm(screenplay, { getRow, style?, grain?, set? }) → { S, coverage, notes, framing, cast, heroes, sources }
+ *     no mint; `framing` the coverage's frame read (actor/frame-read.js)
  *   writeSceneFilm({ outDir, screenplay, getRow, title?, style?, grain?, grade?, fps?, hero?, log? }) → the summary
  *     (the actors minted and written as actors/<who>.glb, the pack's files beside them)
  */
@@ -31,6 +32,8 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { actScene } from '@/lib/graph/actor/scene.js';
 import { coverScene } from '@/lib/graph/actor/coverage.js';
+import { cameraStyleErrors } from '@/lib/graph/actor/camera-styles.js';
+import { sceneFrameRead } from '@/lib/graph/actor/frame-read.js';
 import { standingOf, openGround, floorUnder, middleOf, EASE, STEP, REACH } from '@/lib/graph/actor/ground.js';
 import { reliefOf, reliefFrom, heightAt, levelled, landBetween } from '@/lib/graph/actor/relief.js';
 import { PAIR } from '@/lib/graph/actor/scene.js';
@@ -52,7 +55,7 @@ import { isPersonaKind } from '@/lib/graph/persona/persona.js';
 
 export { LOOKS };
 export const SCENE_CAST_KEYS = Object.freeze(['persona', 'hero', 'register', 'style', 'role', 'mark', 'height']);
-export const SCREENPLAY_KEYS = Object.freeze(['cast', 'marks', 'props', 'script', 'seed', 'world_ref', 'hour', 'weather', 'clouds', 'wind', 'life', 'voice', 'dub']);
+export const SCREENPLAY_KEYS = Object.freeze(['cast', 'marks', 'props', 'script', 'seed', 'world_ref', 'hour', 'weather', 'clouds', 'wind', 'life', 'voice', 'dub', 'camera']);
 /** THE SCENE'S HOUR: the time of day a scene is shot at, whatever hour its set was made at (a number from 0 up to 24,
  * or a word on the dial: era/geocube-hours.js). The film's light is set by it: the preset the Blender rig lights by
  * (motion/blender-film.js film_light.py), and on a geocube its own sky at that hour. The set's form does not change. */
@@ -88,6 +91,7 @@ export function screenplayErrors(sp) {
   const extra = Object.keys(sp).filter((k) => !SCREENPLAY_KEYS.includes(k));
   if (extra.length) errs.push(`a screenplay takes ${SCREENPLAY_KEYS.join(', ')} (not ${extra.join(', ')})`);
   if (typeof sp.script !== 'string' || !sp.script.trim()) errs.push('script: the screenplay\'s text ("NAME: the line", "NAME (worried): the line", "Mara crosses to the table.")');
+  errs.push(...cameraStyleErrors(sp.camera));
   if (!isPlain(sp.cast) || !Object.keys(sp.cast).length) errs.push('cast: { <who>: { persona?: <ref> | hero?: <ref> | <a hero spec>, … } }, one actor at least');
   else for (const [who, C] of Object.entries(sp.cast)) {
     if (!isPlain(C)) { errs.push(`cast.${who}: { persona? | hero?, register?, style?, role?, mark?, height? }`); continue; }
@@ -175,8 +179,10 @@ export function planSceneFilm(sp, { getRow, style = null, grain = null, set = nu
   const walled = set?.rooms?.some((r) => r.walled) ? set.rooms : null;
   // (and on any set they stand where they see the cast: the set's faces as a line of sight, coverage.js fitSight)
   const sight = set?.faces?.length ? faceSight(set.faces) : null;
-  const coverage = coverScene(S, { grain: readGrain(grain), ...(walled ? { rooms: walled } : {}), ...(sight ? { sight } : {}) });
-  return { S, coverage, notes: directorsNotes(S, coverage), cast, heroes, sources };
+  // (the screenplay's `camera`: how its cuts are shot, actor/camera-styles.js; none is the classical coverage)
+  const coverage = coverScene(S, { grain: readGrain(grain), ...(walled ? { rooms: walled } : {}), ...(sight ? { sight } : {}), ...(sp.camera != null ? { style: sp.camera } : {}) });
+  // (and the coverage read as any shoot plan is, the actors its subjects: actor/frame-read.js, beside the notes)
+  return { S, coverage, notes: directorsNotes(S, coverage), framing: sceneFrameRead(S, coverage), cast, heroes, sources };
 }
 
 /**
@@ -771,7 +777,7 @@ export const NATIVE_REV = 1;
  * is spent and stay on disk under the scene's `stamp`; the same call again goes on from the next frame (the page's
  * picture at a frame is its clock's alone). Until every frame is shot: → { pending: { frames, of }, cast, advice, took }
  */
-export async function writeNativeFilm({ dir, prepared: P, plan, getRow, title = 'scene', fps = NATIVE.fps, width = NATIVE.width, height = NATIVE.height, hero = null, file = 'film.mp4', mux = true, budgetMs = null, stamp = null, log = () => {} }) {
+export async function writeNativeFilm({ dir, prepared: P, plan, getRow, title = 'scene', fps = NATIVE.fps, width = NATIVE.width, height = NATIVE.height, hero = null, file = 'film.mp4', mux = true, budgetMs = null, stamp = null, contact = null, log = () => {} }) {
   if (!Number.isFinite(fps) || fps < 1 || fps > 120) throw new Error('fps: a frame rate, 1 to 120');
   const { S, coverage, heroes, sources } = plan, took = {}, advice = [];
   const clockOf = (label, t0) => { took[label] = Math.round((Date.now() - t0) / 100) / 10; log(`${label}: ${took[label]} s`); };
@@ -821,6 +827,26 @@ export async function writeNativeFilm({ dir, prepared: P, plan, getRow, title = 
   if (Array.isArray(world.walkers) && world.walkers.some((w) => w?.follow)) world.walkers = world.walkers.filter((w) => !w?.follow);
   const html = emitThreeWorld({ ...world, figures, inline: true, capture: true, walk: false });
   const shot = nativeShots(S, coverage, { fps, aspect: width / height, units, floor, lift, clock });
+  // (the CONTACT SHEET instead of the film: each cut's start, middle and end shot on the same page, laid a row a shot
+  //  with the frame read under it, motion/contact-sheet.js; seconds where the take is minutes)
+  if (contact) {
+    const { composeContactSheet } = await import('@/lib/motion/contact-sheet');
+    const { AT } = await import('@/lib/graph/shoot/contact.js');
+    const ats = AT[contact] ?? AT[3], read = plan.framing ?? { shots: [], notes: [] };
+    const rows = shot.cuts.map((c, k) => {
+      const R = read.shots[k] ?? {};
+      const frames = ats.map((at) => { const f = at === 'start' ? c.from : at === 'end' ? c.from + c.frames - 1 : c.from + Math.floor(c.frames / 2); return { at, f, world_t: shot.times[f] }; });
+      return { shot: c.shot, camera: coverage.shots[k]?.camera ?? '', ...(R.about ? { about: R.about } : {}), ...(R.size ? { size: R.size } : {}), notes: read.notes.filter((n) => n.shot === c.shot).map((n) => n.code), frames };
+    });
+    const specs = rows.flatMap((r) => r.frames.map((x) => shot.specs[x.f]));
+    const pageFile = path.join(dir, 'contact-page.html');
+    try {
+      const { pngs } = await renderWorldFrames(html, specs, { width, height, timeoutMs: 1_800_000, file: pageFile });
+      writeFileSync(path.join(dir, 'contact.png'), await composeContactSheet(rows, pngs, { width, height }));
+    } finally { rmSync(pageFile, { force: true }); }
+    clockOf(`contact (${specs.length} frames)`, t0);
+    return { contact: 'contact.png', frames: specs.length, rows: rows.map(({ frames: fr, ...r }) => ({ ...r, frames: fr.map(({ f: _f, ...x }) => x) })), cast, advice, took, width, height };
+  }
   const frames = path.join(dir, 'frames'), pageFile = path.join(dir, 'film-page.html'), pad = (i) => String(i + 1).padStart(6, '0');
   // (frames already shot of this very take are kept: the take's stamp, its size, its frame count)
   const { existsSync, readFileSync } = await import('node:fs');
@@ -863,7 +889,7 @@ export async function writeNativeFilm({ dir, prepared: P, plan, getRow, title = 
 export const packTitle = (title) => String(title ?? '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'scene';
 
 /** shot.params a screenplay takes */
-export const SCREENPLAY_PARAMS = Object.freeze(['look', 'style', 'grain', 'grade', 'hero', 'render']);
+export const SCREENPLAY_PARAMS = Object.freeze(['look', 'style', 'grain', 'grade', 'hero', 'render', 'contact']);
 
 /** The forms a screenplay is forged to: its storyboard (the default: no mint, seconds), the storyboard and its animatic,
  * the film shot in mojulo (the cast on the set's own page: minutes), or the Blender film pack (each actor minted: minutes,
@@ -948,7 +974,10 @@ export async function forgeScreenplay({ title, subject, shot, exportFormat, tagR
     grain: P.grain ?? null, grade: P.grade ?? null, fps, hero: P.hero ?? null, prepared: prep, render: P.render ?? null,
   }) : null;
   // (the film shot in mojulo: the cast on the set's own page, shot by the same coverage, its sound under it)
-  const native = form === 'film' ? await writeNativeFilm({ dir, prepared: prep, plan, getRow, title: packTitle(title), fps, hero: P.hero ?? null, file: 'motion.mp4' }) : null;
+  // (`contact`: the film shot in mojulo at a few frames a shot, its contact sheet, instead of the whole take)
+  if (P.contact !== undefined && P.contact !== false && form !== 'film') throw new Error(`shot.params.contact is the film shot in mojulo at a few frames a shot: export: 'film' (not '${form}'; ${MANUAL})`);
+  const contact = P.contact === undefined || P.contact === false ? null : (P.contact === true ? 3 : Math.max(1, Math.min(3, Math.round(+P.contact) || 3)));
+  const native = form === 'film' ? await writeNativeFilm({ dir, prepared: prep, plan, getRow, title: packTitle(title), fps, hero: P.hero ?? null, file: 'motion.mp4', contact }) : null;
   if (native) prep.advice.push(...native.advice.filter((a) => !sound?.advice?.includes(a)));
   const recipe = {
     motion_ref: ref, title, subject: { screenplay: prep.kept },
@@ -984,7 +1013,10 @@ export async function forgeScreenplay({ title, subject, shot, exportFormat, tagR
     frames: recipe.meta.frames,
     storyboard: { page: `${url}index.html`, panels: board.panels.length, json: `${url}storyboard.json` },
     shots: board.panels.map((p) => ({ n: p.n, name: p.name, span: p.span, lens_mm: p.lens_mm, move: p.move, lines: p.lines.length, ...(p.notes.length ? { notes: p.notes.map((N) => N.id) } : {}) })),
-    ...(native ? { mp4_path: `${url}${native.file}`, film: { seconds: native.seconds, frames: native.frames, fps: native.fps, width: native.width, height: native.height, bytes: native.bytes, shots: native.shots.map((s) => ({ n: s.n, name: s.name, still: `${url}${s.still}` })), cast: native.cast, ...(native.set ? { set: native.set } : {}), ...(native.tracks ? { tracks: native.tracks } : {}), took: native.took, note: 'Shot on the set\'s own World page: the cast acting on it, what the world moves in the picture. Looked at by no one yet: the stills are a frame a shot.' } } : {}),
+    // (the coverage read as a shoot plan is, beside the director's notes: each shot's subject and size, and its advice)
+    framing: { shots: plan.framing.shots.map((x, k) => ({ n: k + 1, ...(x.about ? { about: x.about.replace(/^actor:/, '') } : {}), ...(x.size ? { size: x.size } : {}) })), notes: plan.framing.notes.map(({ code, shot: at, why, fix }) => ({ code, shot: at, why, fix })) },
+    ...(native?.contact ? { contact: { path: path.join(dir, native.contact), url: `${url}${native.contact}`, frames: native.frames, rows: native.rows, note: 'a row a shot of the film shot in mojulo, its start, middle and end, the thirds over each frame and the frame read under it: look at the PNG; the eyes gate is the person\'s' } } : {}),
+    ...(native && !native.contact ? { mp4_path: `${url}${native.file}`, film: { seconds: native.seconds, frames: native.frames, fps: native.fps, width: native.width, height: native.height, bytes: native.bytes, shots: native.shots.map((s) => ({ n: s.n, name: s.name, still: `${url}${s.still}` })), cast: native.cast, ...(native.set ? { set: native.set } : {}), ...(native.tracks ? { tracks: native.tracks } : {}), took: native.took, note: 'Shot on the set\'s own World page: the cast acting on it, what the world moves in the picture. Looked at by no one yet: the stills are a frame a shot.' } } : {}),
     ...(mp4 ? { mp4_path: `${url}motion.mp4`, animatic: { seconds: mp4.durationSec ?? board.screen, bytes: mp4.bytes ?? null, ...(mp4.tracks ? { tracks: mp4.tracks } : {}) } } : {}),
     ...(sound ? { sound: {
       captions: `${url}${sound.captions}`,

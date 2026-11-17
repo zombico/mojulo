@@ -42,12 +42,33 @@ forge_motion({ title: 'The key', export: 'storyboard',
   performance: the realistic hero (`form: 'realistic'`) or the anime head (`head: 'anime'`). Any other is refused by
   name.
 - **The marks**: `{ <name>: [x, y] }` in metres. Without them the cast stands in a line, facing each other.
+- **The camera** (`camera`): how the coverage shoots the scene's cuts, a card each (`actor/camera-styles.js`); none is
+  `classical` (establish wide, over the shoulder, close for the turn, wide for a move, one side of the line):
+  - `verite`: handheld singles on a long lens, no establishing wide, the mover followed;
+  - `planimetric`: flat and frontal, each speaker centred facing the lens, a short lens, the line crossed;
+  - `still`: low and level, nearly into the lens, long holds, no moves;
+  - `oner`: one camera, no cuts, gliding to whoever speaks, on a stabilised rig;
+  - `kinetic`: quick cuts, tight low singles, a push on the turn, a reaction cut on a long line, the camera running;
+  - `observational`: from across the room on a long lens, the two held, few cuts.
+
+  Words read too ('handheld', 'symmetrical', 'long take', 'action', 'surveillance'). A style answers some notes by
+  design (a oner's long take is no `long-take` note). Each style's shake rides the Blender pack's and the native
+  film's cameras; the in-game scene runner shoots classical.
 - **shot.params**:
   - `look`: `film` (default) or `anime`;
   - `style`: a playing style for every part without one;
   - `grain`: `twos` | `threes`, the scene on twos with the camera on ones, as anime is keyed;
   - `grade`: a word (film, noir, bleach, vivid, pastel, cold, warm) or the dials;
-  - `hero`: the spec every part without a body plays.
+  - `hero`: the spec every part without a body plays;
+  - `contact`: `1` | `2` | `3` with `export: 'film'`: the film shot in mojulo at a few frames a shot, its CONTACT SHEET
+    (each cut's start, middle and end on the set's own page, a row a shot, the thirds over each frame and the frame read
+    under it: `contact.path`) instead of the whole take. Look at it before the film: about a minute for a short scene
+    where the film is several.
+
+  The answer's `framing` is the coverage read as a shoot plan is (each shot's actor and size, and the advice: a head
+  cut, a joint cut, a jump cut, short-siding, a screen-direction flip), beside the director's notes. A style's
+  framings are solved in the film's 16:9 frame. The read takes a figure as its height on its axis: hair stands a little
+  over the crown it measures, and at under a metre from the lens a face draws larger than it reads.
 
   `shot.fps` defaults to 24.
 
