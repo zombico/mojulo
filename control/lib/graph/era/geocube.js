@@ -466,7 +466,7 @@ const no = (msg) => { throw new Error(`geocube: ${msg}`); };
 // and a camera that is the page's (an entity's, with a `rule`) is not a still. Absent, the kind is as it was.
 // (and `figureGrade`: the grade its bodies are baked at, figures/figure-grades.js: a level played on the place asks for
 // the play grade, as every other level does)
-const LEVEL_KEYS = Object.freeze(['events', 'audio', 'mission', 'game', 'parked', 'figureGrade']);
+const LEVEL_KEYS = Object.freeze(['events', 'audio', 'mission', 'game', 'parked', 'figureGrade', 'screen']);
 const pageCamera = (c) => !!c && typeof c === 'object' && typeof c.rule === 'string';
 // a relief checked where the cube names it: its own words, said as the cube's
 const reliefOrNo = (v, at) => { try { readRelief(v); } catch (e) { no(`${at}: ${e.message.replace(/^relief: /, '')}`); } };

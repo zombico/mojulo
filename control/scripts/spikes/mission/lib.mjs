@@ -8,7 +8,8 @@
  *   starterRoom(o, G?)            → the infiltration room laid for the options' hero, guard and clips: its figures, its
  *                                   hero and guard entities, its camera and events
  *   groundOf(payload)             → (x, y) → the land's height there (its top face under the point), or null off it
- *   writePage(payload, room, file, { capture?, theme?, events? }) → { file, mb }: the page, the hero's camera and the
+ *   writePage(payload, room, file, { capture?, theme?, events? }) → { file, mb }: the page (filling its window: the
+ *       game's screen, a monitor's, where the payload names none), the hero's camera and the
  *                                   game's HUD laid on the resolved payload (a stage or geocube recipe takes no pilot)
  */
 import fs from 'node:fs/promises';
@@ -71,10 +72,16 @@ const FPS = `<script>(function(){var d=document.createElement('div');d.style.css
 export async function writePage(payload, room, file, { capture = false, theme = 'field-brief', events = null } = {}) {
   const { emitThreeWorld } = await import('../../../lib/graph/scene/scene-three.js');
   const { levelHud } = await import('../../../lib/graph/game/hud-mana.js');
-  const { walkers: _w, ...P } = payload;
+  const { walkers: _w, ...P0 } = payload;
+  // (a level is played on the window it is given: the game's screen, a monitor's 16:9 grown wider before it bars,
+  // game/screen.js; a payload that names its own keeps it)
+  const { readScreen, screenPayload, screenFrame } = await import('../../../lib/graph/game/screen.js');
+  const P = P0.screen ? P0 : { ...P0, screen: screenPayload(readScreen('screen')), viewBox: screenFrame(readScreen('screen'), 1120) };
   const html = emitThreeWorld({ ...P, camera: room.manifest.camera, events: events ?? room.manifest.events, walk: false, spin: false, hud: false, manaHud: levelHud(theme), inline: true, ...(capture ? { capture: true } : {}) });
   await fs.mkdir(path.dirname(file), { recursive: true });
-  const out = html.includes('</body>') ? html.replace('</body>', FPS + '</body>') : html + FPS;
+  // (the World page's orbit hint is a viewer's, not a game's: a played level hides it)
+  const NOHINT = '<style>#wrap>.hint{display:none}</style>';
+  const out = html.includes('</body>') ? html.replace('</body>', NOHINT + FPS + '</body>') : html + NOHINT + FPS;
   await fs.writeFile(file, out);
   return { file, mb: +(out.length / 1e6).toFixed(1) };
 }

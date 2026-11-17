@@ -285,3 +285,9 @@ or a recipe key; the spike mints through the real doors and measures.
 - **Bodies cast no live shadow** where a level asks (level0.json `performance.bodies: 'blob'`): no body in the live
   light's map each frame, a soft pool at each one's feet instead (suit-shadows.js `feet`: no ray through the scene a body
   a frame, the pool where the runtime stood the body). The land's own hour shadows stay.
+- **The level fills its window**: a geocube level takes the game's `screen` (era/geocube.js, a level's word beside `events`
+  and `mission`), and level 0 asks for a monitor's (16:9, grown wider before it bars; its HUD inside the frame, not a
+  1120×780 box at the top of the window). The spike's other pages take the same where their payload names none, and
+  hide the World page's orbit hint.
+- **Thinner air**: level 0's `air` a light haze (visibility 450 m, clear to 40 m, no far blur) in place of the land's
+  distance haze (about 130 m).

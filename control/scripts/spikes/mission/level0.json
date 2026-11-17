@@ -467,5 +467,12 @@
   "path": {
     "rubble": "parallax",
     "reads": "the trail's rubble drawn in the ground's shader (parallax pebbles in clusters), none stood up as stones: fewer and cheaper"
+  },
+  "screen": "screen",
+  "air": {
+    "kind": "haze",
+    "visibility": 450,
+    "clear": 40,
+    "blur": false
   }
 }
