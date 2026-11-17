@@ -185,10 +185,10 @@ function measureExhibit({ ref, every }) {
 export async function getExhibitHandler(input) {
   const { id, hall, ref, every, detail, audit, start } = input && typeof input === 'object' ? input : {};
   // THE START (exhibit/producer.js): a person with a concept to display, before anything is made. It builds nothing:
-  // the producer's one question, the exhibits the concept points at, the fit once their time is known
+  // the producer's one question and the fit once their time is known. The exhibit is made new; the halls are samples
   if (start !== undefined) {
     if (id !== undefined || ref !== undefined || hall !== undefined) throw new Error('get_exhibit: `start` is asked alone: what the person has said so far');
-    return exhibitStart(start, { cards: exhibitCards() });
+    return exhibitStart(start);
   }
   if (ref !== undefined) {
     if (typeof ref !== 'string' || !ref) throw new Error('get_exhibit: `ref` is a made exhibit\'s sketch ref');

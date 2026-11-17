@@ -4,7 +4,10 @@
  * fit turns two of their answers (how long people have with it, and who they are) into the SIZE of what is made and a
  * budget of stops, so nobody writes a twenty-stop tour for a glance in passing.
  *
- * It adds nothing an exhibit could not already be: every size is made by create_exhibit today. Its arithmetic is the
+ * The exhibit is made NEW, by the agent, from the primitives a world is composed of: the halls' exhibits are samples of
+ * what one is like, never the thing to pick. Every size here rides any world (a tour and a curation are opt-in keys of
+ * any world's recipe; a gallery's room and a prepared state are any world), so the fit adds nothing a world could not
+ * already be. Its arithmetic is the
  * tour's own (audit.js `holdSeconds`: a stop is held as long as its caption takes to read), so the fit and the exhibit's
  * machine gate agree on what a span of time holds.
  *
@@ -39,12 +42,12 @@ const row = (o) => Object.freeze(o);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`exhibit: a fit's ${m}`);
 
-/** What is made, least first. Every one is a create_exhibit call (or a few) today. */
+/** What is made, least first, and how: each rides a world the agent makes new. */
 export const EXHIBIT_SIZES = Object.freeze({
-  view: row({ name: 'one exhibit', door: 'create_exhibit({ id })', says: 'one thing to look at and turn, with one sentence that stands alone' }),
-  tour: row({ name: 'a toured exhibit', door: 'create_exhibit({ id, tour, curation })', says: 'one exhibit stepped through: at each stop the view moves, a caption explains, the part it speaks of is lit' }),
-  states: row({ name: 'an exhibit at several settings', door: 'create_exhibit({ id, states })', says: 'the same thing prepared several ways and switched, so a visitor sees what changes' }),
-  gallery: row({ name: 'a gallery of rooms', door: 'create_exhibit({ rooms })', says: 'several exhibits walked as one, a room a subject, each with its own tour' }),
+  view: row({ name: 'one exhibit', door: 'a world made new from the primitives, its parts named', says: 'one thing to look at and turn, with one sentence that stands alone' }),
+  tour: row({ name: 'a toured exhibit', door: 'that world, then update_sketch({ ref, patch: [set /tour, set /curation] })', says: 'one exhibit stepped through: at each stop the view moves, a caption explains, the part it speaks of is lit' }),
+  states: row({ name: 'an exhibit at several settings', door: "the world made once a setting, then create_sketch({ manifest: { kind: 'exhibit-states', states: [{ ref, label }] } })", says: 'the same thing prepared several ways and switched, so a visitor sees what changes' }),
+  gallery: row({ name: 'a gallery of rooms', door: 'a toured world a room, then create_exhibit({ rooms: [refs] })', says: 'several exhibits walked as one, a room a subject, each with its own tour' }),
 });
 export const EXHIBIT_SIZE_IDS = Object.freeze(Object.keys(EXHIBIT_SIZES));
 

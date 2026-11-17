@@ -21,11 +21,13 @@ In progress. Each line is added as its phase lands.
 - **The start** (`exhibit/producer.js`; the door: `get_exhibit({ start: { concept?, people?, time?, brought?,
   wants? } })`, read-only). A person with a concept to display is answered before anything is made: the four
   questions only they can answer, in order (what people should leave understanding, who it is for, how long they have
-  with it, what material they bring), each dropped once answered, and `producer.ask`, the one to ask this turn. With a
-  concept, `place`: the exhibits whose own words it uses, most first, the one it names ahead of a hub that mentions
-  it (a heuristic over words, said to be one: the agent picks, or searches); where none matches, `uncovered` says to
-  search, to compose a demo from laws, or to say that nothing makes it before anything is built. With their time,
-  the fit. When all four are answered, `make`: the fit's door, said back first, the stops and claims written from
-  what they said and never for them. A plain request to see something (a concept and nothing of people, time or
-  material) is marked `plain` and made at once. It builds and stores nothing; without `start` the door reads as it
-  always did.
+  with it, what material they bring), each dropped once answered, and `producer.ask`, the one to ask this turn. With
+  their time, the fit. When all four are answered, `make`: the fit's door, said back first, the stops and claims
+  written from what they said and never for them. A plain request to see something (a concept and nothing of people,
+  time or material) is marked `plain` and made at once. It builds and stores nothing; without `start` the door reads
+  as it always did.
+- **The exhibit is made new.** The agent composes it from the primitives a world is made of, for this person's
+  concept. The halls' exhibits are samples of what one is like (how a tour steps, how a part is lit, how a claim is
+  graded), read for their form (`like`) and never offered as the thing to make: nothing matches a concept's words to
+  the catalog. A fit's sizes say how each rides a world made new: a tour and a curation are opt-in keys of any
+  world's recipe, a prepared state and a gallery's room are any world.

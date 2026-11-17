@@ -208,8 +208,8 @@ describe('get_exhibit', () => {
   it('start: a person with a concept is answered the producer\'s one question and the fit, and nothing is made', async () => {
     const out = await getExhibitHandler({ start: { concept: 'how a dam makes electricity from falling water', time: 'visit' } });
     expect(out).toMatchObject({ ok: true, readout: 'start', built: false, producer: { seat: 'producer', step: 'people' } });
-    // (placed on the real catalog: the hydro exhibit's own words)
-    expect(out.nearest.map((n) => n.id)).toContain('earth/hydro');
+    // (made new: the halls are samples, and nothing is matched to the catalog)
+    expect(out.nearest).toBeUndefined(); expect(out.like.says).toMatch(/SAMPLES/);
     expect(out.fit.says).toMatch(/holds one exhibit/);
     expect(out.ref).toBeUndefined();
     await expect(getExhibitHandler({ start: {}, id: 'earth/hydro' })).rejects.toThrow(/`start` is asked alone/);
