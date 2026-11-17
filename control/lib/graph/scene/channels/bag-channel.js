@@ -17,7 +17,7 @@ const txt = (value, role) => ({ use: 'text', props: { value, ...(role ? { role }
 /** The spec it draws: mana's inventory, each item by its own icon (an item's `icon`, a name the shelf may not have). */
 export function bagSpec(G) {
   return { screens: { bag: { use: 'screen', props: { title: G.title, layer: 'modal', place: 'full', legend: 'none' }, children: [
-    ...(G.money ? [{ use: 'counter', props: { label: { word: 'gold' }, value: B('money'), icon: 'coin' } }] : []),
+    ...(G.money ? [{ use: 'counter', props: { label: '', value: B('money'), icon: 'coin' } }] : []),
     { use: 'window', children: [{ use: 'tabs', props: { pages: B('categories'), page: { use: 'split', props: { ratio: 'wide' }, children: [
       { use: 'grid', id: 'bag', props: { cells: I('items'), columns: 4, empty: 'Nothing carried', cell: { use: 'stack', props: { align: 'center', gap: 'tight' }, children: [{ use: 'icon', props: { name: I('icon'), size: 'l' } }, txt(I('name'), 'caption'), { use: 'badge', props: { value: { format: 'x{count}' } } }] } } },
       { use: 'stack', props: { gap: 'normal' }, children: [txt(K('bag.name'), 'title'), txt(K('bag.kind'), 'label'), txt(K('bag.about')), { use: 'stat', props: { label: { word: 'held' }, value: K('bag.count') } }] },

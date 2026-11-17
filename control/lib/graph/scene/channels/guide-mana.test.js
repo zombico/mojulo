@@ -35,6 +35,18 @@ describe('the guide on mana-ui', () => {
     const quiet = rt.view();
     expect(quiet).not.toContain('mana-compass'); expect(quiet).not.toContain('3 / 3');
   });
+  it('the keys step away once said; a car taken is named large, then gone; the objective is an order with its mark', () => {
+    const spec = guideManaSpec(), S = { guide: { heading: 0, markers: [], objective: 'Pick up the fee · 320 m', finding: false, teaching: false, lesson: [], lessonAt: '', cards: [], keys: [{ action: 'E', label: 'Get in' }], rest: false, ride: { on: false, name: '', sub: '' } } };
+    const rt = manaUi.runtime(spec, { read: (p) => manaUi.readPath(S, p), act() {}, now: () => 0 });
+    rt.input('keys');
+    expect(rt.view()).toContain('Get in');
+    expect(rt.view()).toMatch(/◆<\/span><span[^>]*>Pick up the fee · 320 m/);
+    S.guide = { ...S.guide, rest: true, ride: { on: true, name: 'Mid SUV', sub: '' } };
+    rt.tick();
+    const v = rt.view();
+    expect(v).not.toContain('Get in');
+    expect(v).toMatch(/data-at="bottom-right".*data-role="display"[^>]*>Mid SUV</s);
+  });
   it('is on the page only where the guide asks and the HUD is mana\'s; there the guide\'s line and the level\'s key words stand down', () => {
     const asked = emitThreeWorld({ faces: [quad], entities: [hero], events, manaHud, guide: { ...guide, mana: true } });
     for (const s of ['__mojGuideMana', 'window.__mojGuideHost', 'window.__mojMana']) expect(asked).toContain(s);

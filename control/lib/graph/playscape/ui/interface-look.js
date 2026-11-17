@@ -21,7 +21,7 @@
  * for the world (its palette's `ui`: ink, panel, line, accent, accent2), moving as its juice register moves (an anime
  * game snaps where its look would only ease).
  *
- *   INTENT_LOOKS                       the intent's genre → the preset its look starts from (console when none)
+ *   INTENT_LOOKS                       the intent's genre → the preset or the card its look starts from (console when none)
  *   readUi(ui, where?)                 → errors[] (teaching); shape and words only
  *   worldLook(G)                       → the world's look as a theme ({ from, …}): the art director's words
  *   interfaceLook(G)                   → { theme, from: { look, colour }, advice }: the theme mana-ui draws the game in,
@@ -45,7 +45,9 @@ export const INTENT_LOOKS = Object.freeze({
   tactics: 'tactician', rts: 'tactician', 'tower-defense': 'tactician',
   jrpg: 'rebel', 'long-rpg': 'rebel', 'story-adventure': 'rebel', 'cinematic-action': 'rebel',
   'arena-brawler': 'arcade', 'versus-fighter': 'arcade', 'arena-shooter': 'arcade', 'space-shooter': 'arcade', 'pixel-puzzle': 'arcade', 'block-puzzle': 'arcade', 'endless-runner': 'arcade', rhythm: 'arcade',
-  'co-op-brawler': 'street', 'city-stalker': 'street', 'co-op-scroller': 'street',
+  'co-op-brawler': 'street', 'co-op-scroller': 'street',
+  // (a look may be a card: a city's open world at night, theme-cards/downtown.json)
+  'city-stalker': 'downtown',
   shooter: 'mecha', 'air-combat': 'mecha', 'flight-sim': 'mecha', 'driver-and-gunner': 'mecha', 'split-deathmatch': 'mecha', stealth: 'terminal',
   'party-mash': 'idol', 'co-op-kitchen': 'idol', 'match-3-saga': 'idol', collectathon: 'idol', 'co-op-platformer': 'idol', 'kart-racer': 'idol',
   farming: 'storybook', 'top-down-adventure': 'storybook', 'action-rpg': 'storybook', metroidvania: 'console',
@@ -65,9 +67,10 @@ const registerOf = (G) => { try { const J = juiceOfGame(G) || juiceSuggestion(G)
 /** The world's look: the intent's register and the juice's motion (its colours are the colour theorist's: interfaceLook). */
 export function worldLook(G) {
   const base = INTENT_LOOKS[G && G.intent && G.intent.from] || 'console', anime = registerOf(G) === 'anime';
-  const B = THEMES[base];
+  // (a card's words over its own preset: the anime register reads what the card draws)
+  const B = THEMES[base] || readTheme(cardTheme(base));
   return {
-    name: `${(G && G.name) || 'The world'}'s look`, from: base,
+    name: `${(G && G.name) || 'The world'}'s look`, from: THEMES[base] ? base : cardTheme(base),
     ...(anime && !CALM.has(base) && B.motion === 'ease' ? { motion: 'snap' } : {}),
     ...(anime && !CALM.has(base) && B.slant === 'none' ? { slant: 'light' } : {}),
   };
