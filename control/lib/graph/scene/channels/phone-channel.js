@@ -1,6 +1,8 @@
 /**
- * The PHONE channel: the hero's contacts as a screen, on mana-ui (gameworld/phone-ui.js lays it off the level's
- * mechanics). P opens it: the contacts met so far, and the thread of the one in focus (what they said as each job was
+ * The PHONE channel: the hero's phone as a screen, on mana-ui (gameworld/phone-ui.js lays it off the level's
+ * mechanics). P opens it. A tab for each APP (TaskFu: subscribed to with Enter, then its tasks, each taken with Enter:
+ * an event on the level's bus, so a task is a quest with its reward and no one is met), turned with Q and E. The
+ * contacts' tab: the contacts met so far, and the thread of the one in focus (what they said as each job was
  * given, what is to do next, each step done, what was paid); the arrows move its focus, P or Esc shuts it; the world
  * is held while it is open, as a menu holds it. A thread is the bus's own flags (`window.__mojBus`) read in order, so
  * nothing is kept of its own; a line that is new since the phone was last open is counted, and the count shown by the
@@ -10,53 +12,65 @@
 import { manaUi, manaUiSource } from '../../../mana-ui/kernel.js';
 import { manaCss } from '../../../mana-ui/css.js';
 import { themeCss } from '../../../mana-ui/theme.js';
-import { phoneThread, PHONE_UI } from '../../gameworld/phone-ui.js';
+import { phoneThread, phoneTasks, PHONE_UI } from '../../gameworld/phone-ui.js';
 
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 const I = (f) => ({ item: f }), K = (p) => ({ pick: p }), B = (p) => ({ bind: `phone.${p}` });
 const txt = (value, role) => ({ use: 'text', props: { value, ...(role ? { role } : {}) } });
 
-/** The spec it draws: the contacts beside the thread of the one in focus. */
+/** The spec it draws: a tab for the contacts and one for each app, each the same page: its rows beside what the one in
+ * focus says (a contact's thread; a task's ask, its pay and its next step). */
 export function phoneSpec(G) {
   return { screens: { phone: { use: 'screen', props: { title: G.title, layer: 'modal', place: 'full', legend: 'none' }, children: [
-    { use: 'split', children: [
-      { use: 'window', props: { title: 'Contacts' }, children: [{ use: 'list', id: 'contacts', props: { rows: B('contacts'), empty: 'No one yet. Someone with a job stands where the light is.', row: { use: 'stack', props: { dir: 'row', gap: 'tight', align: 'center' }, children: [{ use: 'icon', props: { name: 'person' } }, txt(I('name')), { use: 'badge', props: { value: I('state') } }] } } }] },
-      { use: 'window', children: [{ use: 'stack', props: { gap: 'normal' }, children: [txt(K('contacts.name'), 'title'), { use: 'each', props: { rows: K('contacts.thread'), row: { use: 'stack', props: { gap: 'tight' }, children: [txt(I('who'), 'label'), txt(I('text'))] } } }] }] },
-    ] },
-    { use: 'legend', props: { rows: [{ action: 'back', label: { word: 'back' } }] } },
+    { use: 'window', children: [{ use: 'tabs', props: { pages: B('pages'), page: { use: 'split', children: [
+      { use: 'list', id: 'rows', props: { rows: I('rows'), empty: I('empty'), row: { use: 'stack', props: { dir: 'row', gap: 'tight', align: 'center' }, children: [{ use: 'icon', props: { name: I('icon') } }, txt(I('name')), { use: 'badge', props: { value: I('state') } }] } }, on: { accept: { emit: 'pick', row: I('id') } } },
+      { use: 'stack', props: { gap: 'normal' }, children: [txt(K('rows.name'), 'title'), { use: 'each', props: { rows: K('rows.lines'), row: { use: 'stack', props: { gap: 'tight' }, children: [txt(I('who'), 'label'), txt(I('text'))] } } }] },
+    ] } } }] },
+    { use: 'legend', props: { rows: [...((G.apps ?? []).length ? [{ actions: ['tabPrev', 'tabNext'], label: { word: 'tabs' } }, { action: 'accept', label: 'Take' }] : []), { action: 'back', label: { word: 'back' } }] } },
   ] } } };
 }
 const PHONE_CSS = '.moj-phone{position:absolute;inset:0;pointer-events:none;z-index:8}.moj-phone .mana-root{background:none}.moj-phone.open{z-index:34;pointer-events:auto}';
 
-/** The page's side (inlined by toString): the runtime mounted, the threads read off the bus. */
-export function phonePage(G, ui, spec, css, thread, W) {
+/** The page's side (inlined by toString): the runtime mounted, the tabs read off the bus. */
+export function phonePage(G, ui, spec, css, thread, tasks, W) {
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   const root = document.createElement('div'); root.className = 'moj-phone'; (document.getElementById('wrap') || document.body).appendChild(root);
-  const S = { phone: { contacts: [] } };
-  const rt = ui.runtime(spec, { read: (p) => ui.readPath(S, p), act: function () {}, now: () => performance.now() / 1000 });
-  rt.glyphs({ keys: { back: 'P' } }); rt.input('keys');
+  const S = { phone: { pages: [] } }, apps = G.apps || [];
+  // (a row taken: an app subscribed to, a task taken; each an event on the level's bus, game/errand-mechanics.js lowerTask)
+  function act(e) {
+    if (!e || e.emit !== 'pick' || typeof e.row !== 'string' || !window.__mojBus || !window.__mojBus.press) return;
+    if (e.row.indexOf('sub:') === 0) window.__mojBus.press('app:sub:' + e.row.slice(4));
+    else if (e.row.indexOf('task:') === 0) window.__mojBus.press('app:take:' + e.row.slice(5));
+  }
+  const rt = ui.runtime(spec, { read: (p) => ui.readPath(S, p), act: act, now: () => performance.now() / 1000 });
+  rt.glyphs({ keys: { back: 'P', tabPrev: 'Q', tabNext: 'E', accept: 'Enter' } }); rt.input('keys');
   ui.mount(root, rt, { auto: true });
-  let open = false, sig = '', seen = 0, lines = 0;
+  let open = false, sig = '', seen = 0, lines = 0, metN = 0;
   function read() {
     const vars = window.__mojBus && window.__mojBus.state ? window.__mojBus.state.vars || {} : {};
     const met = G.contacts.filter((c) => Number(vars[c.met]) >= 1).map((c) => {
       const t = thread(c, vars, W), job = c.jobs.filter((j) => Number(vars[j.took]) >= 1).pop();
-      return { id: c.id, name: c.name, state: job && !(job.done && Number(vars[job.done]) >= 1) ? job.name : '', thread: t.map((m) => ({ who: m.call ? m.who + ' · call' : m.who, text: m.text })) };
+      return { id: 'c:' + c.id, icon: 'person', name: c.name, state: job && !(job.done && Number(vars[job.done]) >= 1) ? job.name : '', lines: t.map((m) => ({ who: m.call ? m.who + ' · call' : m.who, text: m.text })) };
     });
-    lines = met.reduce((n, c) => n + c.thread.length, 0);
+    const pages = apps.map((a) => ({ label: a.name, empty: '', rows: tasks(a, vars, W).map((r) => Object.assign({ icon: r.id.indexOf('sub:') === 0 ? 'star' : 'box' }, r)) }));
+    // (the contacts' tab where the level has someone to meet; the apps' after it)
+    if (G.contacts.length) pages.unshift({ label: 'Contacts', empty: 'No one yet. Someone with a job stands where the light is.', rows: met });
+    metN = met.length;
+    lines = pages.reduce((n, pg) => n + pg.rows.reduce((k, r) => k + r.lines.length, 0), 0);
     if (open) seen = lines;
-    const next = JSON.stringify(met);
+    const next = JSON.stringify(pages);
     if (next === sig) return;
-    sig = next; S.phone = { contacts: met };
+    sig = next; S.phone = { pages: pages };
   }
   function show(on) {
     if (on === open) return;
     if (on && ((window.__mojScenes && window.__mojScenes.on()) || window.__mojMenuOpen || window.__mojManaOpen)) return;   // not over a scene or another menu
     open = on; root.classList.toggle('open', on);
-    if (on) { sig = ''; read(); rt.open('phone'); } else rt.close();
+    // (with no one met yet it opens on its first app: the tab with something to take)
+    if (on) { sig = ''; read(); rt.open('phone'); if (G.contacts.length && apps.length && !metN) rt.press('tabNext'); } else rt.close();
     window.__mojManaOpen = on ? 'phone' : null; window.__mojMenuOpen = on; window.__mojFreeze = on;
   }
-  const MOVE = { ArrowUp: 'up', ArrowDown: 'down', KeyW: 'up', KeyS: 'down' };
+  const MOVE = { ArrowUp: 'up', ArrowDown: 'down', KeyW: 'up', KeyS: 'down', BracketRight: 'tabNext', BracketLeft: 'tabPrev', KeyE: 'tabNext', KeyQ: 'tabPrev', Enter: 'accept', Space: 'accept' };
   window.addEventListener('keydown', (ev) => {
     if (ev.code === 'KeyP' && !ev.repeat) { ev.preventDefault(); show(!open); return; }
     if (!open) return;
@@ -70,11 +84,11 @@ export function phonePage(G, ui, spec, css, thread, W) {
 
 /** The page's script ('' for none). `theme`: the look the level's HUD wears. */
 export function phoneScript(G, theme = null, { shared = null } = {}) {
-  if (!G || !Array.isArray(G.contacts) || !G.contacts.length) return '';
+  if (!G || !Array.isArray(G.contacts) || !(G.contacts.length || (G.apps ?? []).length)) return '';
   const spec = phoneSpec(G);
   manaUi.readSpec(spec);
   return `
 // THE PHONE (scene/channels/phone-channel.js): the contacts met and their threads, on P; laid by gameworld/phone-ui.js
-window.__mojPhone = (${phonePage.toString()})(${json(G)}, ${shared || manaUiSource()}, ${json(spec)}, ${json(shared ? PHONE_CSS : `${manaCss()}\n${themeCss(theme ?? 'greybox')}\n${PHONE_CSS}`)}, ${phoneThread.toString()}, ${json(PHONE_UI)});
+window.__mojPhone = (${phonePage.toString()})(${json(G)}, ${shared || manaUiSource()}, ${json(spec)}, ${json(shared ? PHONE_CSS : `${manaCss()}\n${themeCss(theme ?? 'greybox')}\n${PHONE_CSS}`)}, ${phoneThread.toString()}, ${phoneTasks.toString()}, ${json(PHONE_UI)});
 `;
 }

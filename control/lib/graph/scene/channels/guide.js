@@ -16,7 +16,7 @@ import { safeJson } from '../emit-util.js';
 // Its words sit on the scene, outlined, never on a card. It reads the pilot and the cast through window.__mojCtrl (the
 // controllable channel's), so it waits for it. Emitted only when the page has a guide: every other page byte-identical.
 // A guide that goes ROUND (`loop`: the step it returns to after its last, a standing job's pick-up: gameworld/city-guide.js)
-// one whose step is reached by being in a car (a step's `cab`), and one with its own last word (`done`, in place of "the way on lies past this place": an open city's) say so; a guide
+// one whose step is reached by being in a car (a step's `cab`), one waited on (a step's `when`: a bus var set, a task taken on the phone), and one with its own last word (`done`, in place of "the way on lies past this place": an open city's) say so; a guide
 // with none of them is as it was, byte for byte. `host` (a page whose guide is drawn by mana-ui, guide-mana.js): this
 // line stays down for that host as it does for the HUD grammar; unasked, not a byte.
 export function guideScript(guide, { host = false } = {}) {
@@ -90,7 +90,7 @@ export function guideScript(guide, { host = false } = {}) {
         dx = s.at[0] - p.transform.pos[0]; dy = s.at[1] - p.transform.pos[1]; d = Math.hypot(dx, dy);
         near = s.fight ? W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - s.at[0], e.transform.pos[1] - s.at[1]) < s.radius) : false;
         // (a fight that counts its falls is won by them, wherever it was fought; any other beat by reaching it)
-        const won = ${guide.steps.some((x) => x && x.cab) ? 's.cab ? !!(p.mount && p.mount.cab) : ' : ''}s.downs ? W.entities.filter(fell).length >= s.downs : d < s.radius && !near;
+        const won = ${guide.steps.some((x) => x && x.cab) ? 's.cab ? !!(p.mount && p.mount.cab) : ' : ''}${guide.steps.some((x) => x && x.when) ? 's.when ? !!(window.__mojBus && window.__mojBus.state.vars[s.when] >= 1) : ' : ''}s.downs ? W.entities.filter(fell).length >= s.downs : d < s.radius && !near;
         if (won) { if (s.says) { sayText = s.says; sayUntil = performance.now() + 4500; } k++;${Number.isInteger(guide.loop) ? ' if (k >= GD.steps.length) k = GD.loop;' : ''} plant(); }
       }
       const now = performance.now(), cur = GD.steps[k];

@@ -57,7 +57,7 @@ import { cubeOfWorld } from './intent.js';
 import { genreHero } from './hero-rows.js';
 import { movesetLegend } from './input-map.js';
 import { quickFigure } from './cast-setting.js';
-import { jobQuests, contactName } from './city-guide.js';
+import { jobQuests, contactName, appName } from './city-guide.js';
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
 import { concernIds } from './concerns.js';
@@ -1583,6 +1583,7 @@ function stageWays(stage, ends, plan) {
       // (one giver a CONTACT, errand.js `contact`: the jobs of one contact share them. The first is taken where they
       // stand; they are on the phone after, and each next job is offered by a call when the one before it is done)
       for (const J of plan.errand.filter((l) => l.kind === 'deliver')) {
+        if (J.app) continue;   // (a phone app's task: no one stands for it)
         const who = J.contact ?? GIVER.contact, id = J.id ?? 'errand', had = givers.find((g) => g.contact === who);
         if (had) { had.jobs.push({ id, says: J.offer ?? GIVER.says, repeat: J.repeat === true }); continue; }
         const at = pool.filter((p) => near(p) >= GIVER.off && stood.every((q) => Math.hypot(p.at[0] - q[0], p.at[1] - q[1]) >= GIVER.apart)).reduce((m, p) => (!m || near(p) < near(m) - 1e-9 ? p : m), null);
@@ -1598,19 +1599,24 @@ function stageWays(stage, ends, plan) {
     // (each leg says where it is, `place`: the kind of shop it stands at or in, for the page's guide)
     // (and the flag it sets when it is done, `flag`: its job's step in the journal, city-guide.js jobQuests)
     const giverOf = new Map(givers.flatMap((g) => g.jobs.map((J) => [J.id, g])));
+    // (the phone apps' tasks, errand.js `app`: taken on the phone, where the level is driven; never on foot alone, since
+    // the givers are laid only there too)
+    const appJobs = driven ? plan.errand.filter((l) => l.kind === 'deliver' && l.app) : [], appOf = new Map(appJobs.map((J) => [J.id ?? 'errand', J.app]));
     const legs = laid.map((l) => {
       if (l.kind !== 'trade' && l.kind !== 'deliver') return l;
       const place = placeOf(l), id = l.kind === 'trade' ? l.job : l.id ?? 'errand', g = giverOf.get(id);
       // (a one-off is brought HOME: handed in where its giver stands, who pays; a standing job's is where it was laid)
       const home = l.kind === 'deliver' && g && l.repeat !== true;
       return { ...l, ...(home ? { at: g.at.slice(), home: true } : {}), ...(driven && !l.till ? { radius: ERRAND_DRIVE.reach } : {}), ...(home ? { place: g.place } : place ? { place } : {}),
-        flag: l.kind === 'trade' ? `had-${l.item}` : `done-${id}`, ...(g ? { after: `took-${id}` } : {}) };
+        flag: l.kind === 'trade' ? `had-${l.item}` : `done-${id}`, ...(g || appOf.has(id) ? { after: `took-${id}` } : {}) };
     });
     // (each giver's offer: where its first job is taken, errand-mechanics.js lowerOffer; each job after it a call, on the
     // one before it done, lowerCall; a job's legs are had after it is taken)
     const offers = givers.flatMap((g) => g.jobs.map((J, k) => (k === 0
       ? { kind: 'offer', id: J.id, at: g.at.slice(), flag: `took-${J.id}`, says: J.says, radius: ERRAND_DRIVE.reach, place: g.place, contact: g.contact }
       : { kind: 'call', id: J.id, flag: `took-${J.id}`, on: `errand:done:${g.jobs[k - 1].id}`, from: contactName(g.contact), says: J.says, contact: g.contact })));
+    const tasks = appJobs.map((J, k) => ({ kind: 'task', id: J.id ?? 'errand', app: J.app, flag: `took-${J.id ?? 'errand'}`, name: appName(J.app), ...(appJobs.findIndex((x) => x.app === J.app) === k ? { subscribe: true } : {}), ...(J.offer ? { says: J.offer } : {}) }));
+    offers.push(...tasks);
     // (the legs before the offers: a hand-in where its giver stands is not tried on the step that takes the job)
     mechanics.push(...legs, ...offers);
     quests = jobQuests([...offers, ...legs]);

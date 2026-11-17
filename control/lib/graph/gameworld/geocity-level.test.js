@@ -202,6 +202,19 @@ describe('jobs across the district (errands on a played district: its shops thei
     expect(phoneUi(two).contacts.map((c) => [c.name, c.met, c.jobs.map((j) => j.id)])).toEqual([['Your contact', 'flag-took-parcel', ['parcel']], ['Dispatch', 'flag-took-fare', ['fare']]]);
     expect(phoneUi(level).contacts.map((c) => c.jobs.map((j) => [j.id, j.called, j.home]))).toEqual([[['parcel', false, true], ['fare', true, false]]]);
   });
+  it('a job an app gives has no giver: TaskFu\'s task is taken on the phone, its legs open then, and it is a quest with its reward', async () => {
+    const app = runSteps({ ...JOBS, id: 'jobs3', errands: [JOBS.errands[0], { ...JOBS.errands[1], app: 'taskfu' }] }, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest, A = app.game.mechanics;
+    expect(A.filter((m) => m.kind === 'task')).toEqual([{ kind: 'task', id: 'fare', app: 'taskfu', flag: 'took-fare', name: 'TaskFu', subscribe: true }]);
+    // (one giver, the parcel's; no one stands for the app, and no call is made for its task)
+    expect(app.entities.filter((e) => /^giver-/.test(e.id)).map((e) => e.id)).toEqual(['giver-contact']);
+    expect(A.some((m) => m.kind === 'call')).toBe(false);
+    expect(A.find((m) => m.kind === 'trade' && m.item === 'passenger').after).toBe('took-fare');
+    expect(A.find((m) => m.kind === 'deliver' && m.id === 'fare')).toMatchObject({ after: 'took-fare', reward: [{ item: 'coin', n: 12 }] });
+    expect(app.play.quests.find((q) => q.id === 'fare').starts).toBe('took-fare');
+    const { phoneUi } = await import('./phone-ui.js'), P = phoneUi(app);
+    expect(P.apps.map((a) => [a.name, a.tasks.map((t) => t.id)])).toEqual([['TaskFu', ['fare']]]);
+    expect(P.contacts.map((c) => c.jobs.map((j) => j.id))).toEqual([['parcel']]);
+  });
   it('a standing job keeps the level open: the one-off pays and ends nothing; the guide leads through both, then round the fares', async () => {
     expect(M.find((m) => m.kind === 'deliver' && m.id === 'parcel')).toMatchObject({ open: true });
     expect(M.find((m) => m.kind === 'deliver' && m.id === 'fare')).toMatchObject({ repeat: true });

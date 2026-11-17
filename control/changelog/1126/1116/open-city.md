@@ -79,3 +79,9 @@
   only time you return; a standing job (fares) pays where it ends. Jobs belong to one contact unless an errand names
   its own (`contact`), and each contact is their own person on the street. The phone can be retitled or turned off
   (`ui.phone`) and wears the game's theme like the map and the inventory.
+- **TaskFu: jobs from an app, not a person.** The phone has a TaskFu tab. Subscribe to it there and it lists paid
+  tasks; take one and it becomes a quest in your journal with its reward, paid where the task ends. Nobody is met
+  and nobody is gone back to, so an open world can offer ride-hailing style work with no character standing for it.
+  A world's maker puts any job on the app by naming it on the errand (`app: 'taskfu'`; another word is another app,
+  with its own tab). Jobs from people and jobs from apps sit side by side: the phone opens on the app when you have
+  met no one yet, and on-screen guidance tells you to take the task on your phone.

@@ -2,11 +2,11 @@
 // as a call; a thread is the level's own flags read in order. Hosted on mana-ui, in the theme's look alone.
 import { execFileSync } from 'node:child_process';
 import { describe, it, expect } from 'vitest';
-import { phoneUi, phoneThread, readPhoneUi, PHONE_UI } from './phone-ui.js';
+import { phoneUi, phoneThread, phoneTasks, readPhoneUi, PHONE_UI } from './phone-ui.js';
 import { phoneScript, phoneSpec } from '../scene/channels/phone-channel.js';
 import { manaUi } from '../../mana-ui/kernel.js';
 import { readUi } from '../playscape/ui/interface-look.js';
-import { lowerCall } from '../game/errand-mechanics.js';
+import { lowerCall, lowerTask } from '../game/errand-mechanics.js';
 import { MECHANIC_KINDS } from '../game/mechanics.js';
 
 const LEVEL = { game: { mechanics: [{ kind: 'bag', slice: 'bag' },
@@ -51,23 +51,60 @@ describe('the phone', () => {
     expect(world.hud[0]).toMatchObject({ on: 'call:fare', as: 'toast', text: 'Dispatch: Fares are waiting.' });
     expect(() => lowerCall({ id: 'fare', flag: 'took-fare' }, { i: 0 })).toThrow(/on is the event/);
   });
+  it('an app is not a person: TaskFu is subscribed to on the phone, and its tasks, taken there, are quests with a reward', async () => {
+    const { jobsOf, jobQuests, cityGuide, appName } = await import('./city-guide.js');
+    const M = [{ kind: 'bag', slice: 'bag' }, { kind: 'trade', item: 'passenger', job: 'fare', at: [20, 0, 0], flag: 'had-passenger', after: 'took-fare' },
+      { kind: 'deliver', id: 'fare', repeat: true, app: 'taskfu', wants: [{ item: 'passenger', min: 1 }], reward: [{ item: 'coin', n: 12 }], at: [60, 0, 0], flag: 'done-fare', after: 'took-fare' },
+      { kind: 'task', id: 'fare', app: 'taskfu', flag: 'took-fare', name: 'TaskFu', subscribe: true }];
+    expect([appName('taskfu'), appName('runner')]).toEqual(['TaskFu', 'Runner']);
+    expect(jobsOf(M)[0]).toMatchObject({ id: 'fare', starts: 'took-fare', app: 'taskfu' });
+    // (a quest like any job's, begun by taking it; the guide waits on that, wherever the hero is)
+    expect(jobQuests(M)).toEqual([{ id: 'fare', name: 'Fare', starts: 'took-fare', steps: [{ log: 'Pick up the passenger', done: 'had-passenger' }, { log: 'Deliver the passenger', done: 'done-fare' }] }]);
+    const hero = { id: 'hero', pilotable: true, transform: { pos: [0, 0, 0], heading: 0 } }, car = { id: 'car-1', mount: { cab: true }, transform: { pos: [3, 0, 0], heading: 0 } };
+    const G = cityGuide({ entities: [hero, car], game: { mechanics: M } });
+    expect(G.steps[1]).toMatchObject({ id: 'app-fare', say: 'Take the fare task on TaskFu · P', when: 'flag-took-fare', at: [20, 0, 0] });
+    expect(G.loop).toBe(2);
+    // (the phone: no contact, one app; before it is subscribed to, the one row that subscribes; then its tasks)
+    const P = phoneUi({ game: { mechanics: M } });
+    expect(P.contacts).toEqual([]);
+    expect(P.apps).toMatchObject([{ id: 'taskfu', name: 'TaskFu', sub: 'flag-sub-taskfu', tasks: [{ id: 'fare', took: 'flag-took-fare', done: 'flag-done-fare', repeat: true, pays: '12 coin' }] }]);
+    expect(phoneTasks(P.apps[0], {}, PHONE_UI)).toEqual([{ id: 'sub:taskfu', name: 'Subscribe', state: '', lines: [{ who: 'TaskFu', text: PHONE_UI.pitch }] }]);
+    const open = phoneTasks(P.apps[0], { 'flag-sub-taskfu': 1 }, PHONE_UI);
+    expect(open).toEqual([{ id: 'task:fare', name: 'Fare', state: 'Open', lines: [{ who: 'Task', text: 'Pick up the passenger, then deliver the passenger' }, { who: 'Pays', text: '12 coin each time' }] }]);
+    const active = phoneTasks(P.apps[0], { 'flag-sub-taskfu': 1, 'flag-took-fare': 1, 'flag-had-passenger': 1 }, PHONE_UI)[0];
+    expect(active.state).toBe('Active');
+    expect(active.lines.at(-1)).toEqual({ who: 'TaskFu', text: 'Next: Deliver the passenger' });
+    // (the mechanic: subscribing and taking are events the phone raises on the level's bus)
+    const { world } = lowerTask(M[3], { i: 0 });
+    expect(world.vars).toEqual({ 'flag-took-fare': 0, 'flag-sub-taskfu': 0 });
+    expect(world.reactions.map((r) => r.on)).toEqual(['app:sub:taskfu', 'app:take:fare', 'task:fare', 'task:fare']);
+    expect(lowerTask({ ...M[3], subscribe: false }, { i: 0 }).world.reactions.map((r) => r.on)).toEqual(['app:take:fare', 'task:fare', 'task:fare']);
+    expect(MECHANIC_KINDS).toContain('task');
+  });
   it('the page hosts it on mana-ui: the contacts met beside the thread of the one in focus, in the theme\'s look alone', () => {
     const G = phoneUi(LEVEL), spec = phoneSpec(G);
     expect(() => manaUi.readSpec(spec)).not.toThrow();
-    const S = { phone: { contacts: [{ id: 'dispatch', name: 'Dispatch', state: 'Parcel', thread: [{ who: 'Dispatch', text: 'The shop is waiting on this.' }, { who: 'Dispatch', text: 'Next: Pick up the gadget' }] }] } };
-    const rt = manaUi.runtime(spec, { read: (p) => manaUi.readPath(S, p), act() {}, now: () => 0 });
+    const S = { phone: { pages: [{ label: 'Contacts', empty: 'No one yet.', rows: [{ id: 'c:dispatch', icon: 'person', name: 'Dispatch', state: 'Parcel', lines: [{ who: 'Dispatch', text: 'The shop is waiting on this.' }, { who: 'Dispatch', text: 'Next: Pick up the gadget' }] }] },
+      { label: 'TaskFu', empty: '', rows: [{ id: 'task:fare', icon: 'box', name: 'Fare', state: 'Open', lines: [{ who: 'Pays', text: '12 coin each time' }] }] }] } };
+    const acts = [];
+    const rt = manaUi.runtime(spec, { read: (p) => manaUi.readPath(S, p), act(e) { acts.push(e); }, now: () => 0 });
     rt.open('phone');
     const html = rt.view();
-    for (const s of ['Phone', 'Contacts', 'Dispatch', 'Parcel', 'The shop is waiting on this.', 'Next: Pick up the gadget', 'data-icon="person"']) expect(html).toContain(s);
+    for (const s of ['Phone', 'Contacts', 'TaskFu', 'Dispatch', 'Parcel', 'The shop is waiting on this.', 'Next: Pick up the gadget', 'data-icon="person"']) expect(html).toContain(s);
     expect(html).not.toMatch(/#[0-9a-f]{6}/i);
-    S.phone = { contacts: [] }; rt.tick();
+    // (the app's tab: its task in focus, taken with accept: the row's id is what the page raises on the bus)
+    rt.press('tabNext');
+    expect(rt.view()).toContain('12 coin each time');
+    rt.press('accept');
+    expect(acts.find((e) => e.emit === 'pick')).toMatchObject({ row: 'task:fare' });
+    S.phone = { pages: [{ label: 'Contacts', empty: 'No one yet.', rows: [] }] }; rt.tick();
     expect(rt.view()).toContain('No one yet');
     const src = phoneScript(G, 'console');
-    for (const s of ['__mojPhone', 'KeyP', 'unread']) expect(src).toContain(s);
+    for (const s of ['__mojPhone', 'KeyP', 'unread', 'app:take:']) expect(src).toContain(s);
     let bad = null;
     try { execFileSync(process.execPath, ['--input-type=module', '--check'], { input: src, stdio: ['pipe', 'pipe', 'pipe'] }); } catch (e) { bad = String(e.stderr || e.message).slice(0, 300); }
     expect(bad).toBe(null);
     expect(phoneScript(null)).toBe('');
-    expect(phoneScript({ contacts: [] })).toBe('');
+    expect(phoneScript({ contacts: [], apps: [] })).toBe('');
   });
 });

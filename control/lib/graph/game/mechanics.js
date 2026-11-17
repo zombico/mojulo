@@ -17,7 +17,7 @@
  */
 import { heldVar, itemKey } from '../playscape/ui/items.js';
 import { lowerEscapeRoom } from './escape-room.js';
-import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer, lowerCall } from './errand-mechanics.js';
+import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer, lowerCall, lowerTask } from './errand-mechanics.js';
 import { lowerWaveGauntlet } from './wave-gauntlet.js';
 import { lowerWork } from './work-mechanics.js';
 
@@ -1021,6 +1021,8 @@ const MECHANICS = {
   offer: { role: 'emitter', lower: lowerOffer },
   // (a job offered by phone, by a giver already met, when the one before it is done)
   call: { role: 'emitter', lower: lowerCall },
+  // (a job given by a phone app, subscribed to and taken on the phone: no one to meet)
+  task: { role: 'emitter', lower: lowerTask },
 
   // the PARTY carried (an emitter): the battle party of play.rpg (playscape/rpg) goes from level to level in a party
   // slice: each member's level, xp, hp, mp, class, class ranks and points, and the skills learned (the kernel's save:

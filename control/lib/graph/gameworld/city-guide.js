@@ -32,6 +32,9 @@ const words = (item) => String(item).replace(/-/g, ' ');
 const shop = (card) => { const w = words(card); return /(store|shop|pharmacy|diner|market|bakery|cafe|bar)$/.test(w) ? w : `${w} shop`; };
 /** A contact as it is called: the level's one unnamed contact 'Your contact', a named one its word ('Dispatch'). */
 export const contactName = (id) => (!id || id === 'contact' ? 'Your contact' : `${words(id)[0].toUpperCase()}${words(id).slice(1)}`);
+/** A phone app as it is called: 'taskfu' TaskFu, any other its word ('Runner'). */
+export const APP_NAMES = Object.freeze({ taskfu: 'TaskFu' });
+export const appName = (id) => APP_NAMES[id] ?? `${words(id)[0].toUpperCase()}${words(id).slice(1)}`;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const at3 = (p) => [r3(p[0]), r3(p[1]), r3(p[2] ?? 0)];
 
@@ -40,8 +43,9 @@ const at3 = (p) => [r3(p[0]), r3(p[1]), r3(p[2] ?? 0)];
  * stands): each job its hand-in's, its steps in the order they are done (what it asks for after what that is had for,
  * then the hand-in), each a line of what to do and where. What the guide leads through and what the journal keeps
  * (jobQuests) are these, so the two never say different things.
- *   → [{ id, name, repeat, steps: [{ id, say, at, radius, says?, flag?, take? }], starts?, called?, contact? }]
- * (`starts`: the flag that begins it, where it is given; `called`: given by phone; `contact`: who gives it)
+ *   → [{ id, name, repeat, steps: [{ id, say, at, radius, says?, flag?, take? }], starts?, called?, contact?, app? }]
+ * (`starts`: the flag that begins it, where it is given; `called`: given by phone; `contact`: who gives it; `app`: the
+ * phone app that gives it, in place of anyone)
  */
 export function jobsOf(mechanics) {
   const M = Array.isArray(mechanics) ? mechanics : [], out = [];
@@ -62,12 +66,17 @@ export function jobsOf(mechanics) {
     // (a job that comes by phone, lowerCall, is taken nowhere: it starts when the call comes)
     const Cl = O ? null : M.find((m) => m && m.kind === 'call' && m.id === (J.id ?? 'errand'));
     const who = J.contact ?? O?.contact ?? Cl?.contact;
+    // (a phone app's task, lowerTask: taken on the phone, wherever the hero is; the guide waits on it, `when`, its light
+    // where the task begins)
+    const Tk = O || Cl ? null : M.find((m) => m && m.kind === 'task' && m.id === (J.id ?? 'errand'));
+    if (Tk) steps.push({ id: `app-${Tk.id}`, say: `Take the ${words(Tk.id)} task on ${appName(Tk.app)} · P`, at: null, radius: 0, when: `flag-${Tk.flag}`, take: true });
     if (O) steps.push({ id: `take-${O.id}`, say: `Meet ${contactName(O.contact).toLowerCase()}${O.place ? ` at the ${shop(O.place)}` : ''}`, at: at3(O.at), radius: O.radius ?? 2.5, ...(O.says ? { says: O.says } : {}), take: true });
     for (const w of J.wants ?? []) had(w.item);
     const paid = (J.reward ?? []).map((r) => `${r.n ?? 1} ${words(r.item)}`).join(', '), id = J.id ?? 'errand';
     // (a one-off is brought home: back to who gave it)
     steps.push({ id: `deliver-${id}`, say: J.home ? `Bring the ${(J.wants ?? []).map((w) => words(w.item)).join(', ') || 'goods'} back to ${contactName(who).toLowerCase()}${J.place ? ` at the ${shop(J.place)}` : ''}` : `Deliver the ${(J.wants ?? []).map((w) => words(w.item)).join(', ') || 'goods'}${J.place ? ` to the ${shop(J.place)}` : ''}`, at: at3(J.at), radius: J.radius ?? 2, ...(paid ? { says: `Paid ${paid}` } : {}), ...(J.flag ? { flag: J.flag } : {}) });
-    out.push({ id, name: `${words(id)[0].toUpperCase()}${words(id).slice(1)}`, repeat: J.repeat === true, steps, ...(O ? { starts: O.flag } : Cl ? { starts: Cl.flag, called: true } : {}), ...(who ? { contact: who } : {}) });
+    if (Tk) { const first = steps.find((x) => x.at); steps[0].at = first ? first.at.slice() : at3(J.at); }
+    out.push({ id, name: `${words(id)[0].toUpperCase()}${words(id).slice(1)}`, repeat: J.repeat === true, steps, ...(O ? { starts: O.flag } : Cl ? { starts: Cl.flag, called: true } : Tk ? { starts: Tk.flag, app: Tk.app } : {}), ...(who ? { contact: who } : {}) });
   }
   return out;
 }
