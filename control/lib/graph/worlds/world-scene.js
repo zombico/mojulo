@@ -642,6 +642,21 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...S.faces];
     structureColliders = S.colliders; structureRings = S.rings;
   }
+  // a brawl street's DRESS (brawl/brawl-dress.js): what stands along the belt beside the band, a set a screen. Its
+  // faces join here, before the material / AO / texture passes. Absent ⇒ nothing.
+  // a brawl's walk that BENDS through a place that already stands (brawl/brawl-warp.js): the place sheared by its belt,
+  // across by the band's drift and (a building's rooms, whose ground does not climb of itself) up by its rise, so the
+  // place runs along the band's line. A blockout is laid along it where it is made, and is not sheared again. Before
+  // the dress (which stands on the moved ground) and the material / AO / texture passes. A straight, level belt
+  // warps nothing.
+  if (payload && sketch.manifest.brawl?.belt && sketch.manifest.kind !== 'greybox' && (sketch.manifest.brawl.belt.drift || (sketch.manifest.brawl.belt.rise && sketch.manifest.kind === 'stage'))) {
+    const { placeWarp } = await import('@/lib/graph/brawl/brawl-warp.js');
+    placeWarp(payload, sketch.manifest.brawl.belt, { rise: sketch.manifest.kind === 'stage' });
+  }
+  if (payload && sketch.manifest.brawl?.dress && sketch.manifest.brawl.belt) {
+    const { dressSceneFaces } = await import('@/lib/graph/brawl/brawl-dress.js');
+    payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...dressSceneFaces(sketch.manifest.brawl.dress, sketch.manifest.brawl.belt, ctx.light ?? undefined)];
+  }
   // a geocube domain's structures (era/geocube.js geocubeStructures): its landmarks, painted from the cube and lit by its
   // key (unshaded, the view's light), standing on the domain's land
   const domainStructures = payload && (kind === 'stage' || kind === 'geocube') && sketch.manifest.domain !== undefined ? geocubeStructures(sketch.manifest) : null;
@@ -2104,14 +2119,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // a brawl on the world (brawl/brawl-levels.js brawlLevel): its practice yard, the belt and the practice (who plays,
   // the dummies, the things); the page's brawl channel plays it, its blows sounded from the SFX shelf as a fight's are.
   // Absent (or a brawl block with no practice yet) ⇒ nothing (scene/channels/brawl.js).
-  if (payload && sketch.manifest.brawl && typeof sketch.manifest.brawl === 'object' && sketch.manifest.brawl.practice) {
+  if (payload && sketch.manifest.brawl && typeof sketch.manifest.brawl === 'object' && (sketch.manifest.brawl.practice || sketch.manifest.brawl.street)) {
     const { brawlYardData } = await import('@/lib/graph/brawl/brawl-page.js');
     // its roster's characters measured from the store as a fight's are, each played in its own body with its own clips
     // (under a register, its lit export, for the yard to draw every body the register's one way), as a fight's arena does
     const { withCharacters, characterBodies } = await import('@/lib/graph/versus/versus-character.js');
-    const practice = await withCharacters(sketch.manifest.brawl.practice);
+    // (a STREET fought down, `brawl.street`, is read as the yard is: its roster's characters, its bodies)
+    const isStreet = !sketch.manifest.brawl.practice;
+    const practice = await withCharacters(isStreet ? sketch.manifest.brawl.street : sketch.manifest.brawl.practice);
     const bodies = Array.isArray(practice.roster) ? await characterBodies(practice.roster, { register: sketch.manifest.brawl.register ?? null }) : null;
-    payload.brawl = brawlYardData({ ...sketch.manifest.brawl, practice }, bodies);
+    payload.brawl = brawlYardData({ ...sketch.manifest.brawl, ...(isStreet ? { street: practice } : { practice }) }, bodies);
     // (under a register its bodies are drawn under the cast rig, as a fight's are: versus/versus-cast.js)
     if (payload.brawl.register) { const { fightCast } = await import('@/lib/graph/versus/versus-cast.js'); payload.brawl.cast = fightCast(payload.brawl.register); }
     const { fightAudio } = await import('@/lib/graph/versus/versus-sfx.js');
@@ -2122,7 +2139,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
     // the run & gun's range: every gun's shot and landing (the shelf's and those passed in), the range's own sounds;
     // without one, the street's own (a mount's crash, a wreck's metal, the ground dug out of)
-    const { gunAudio, streetAudio } = await import('@/lib/graph/brawl/brawl-sfx.js');
+    const { gunAudio, streetAudio, brawlAudio } = await import('@/lib/graph/brawl/brawl-sfx.js');
+    // the brawler's sound sheet (brawl-sfx.js BRAWL_SOUNDS): its blows thrown and landed and its bodies' voices, by shelf
+    // word in the sheet's style (`brawl.sound.style`; the newest voices first), over the fight's family cues
+    { const BA = resolveWorldAudio(brawlAudio({ ...(sketch.manifest.brawl.sound?.style ? { style: sketch.manifest.brawl.sound.style } : {}) }), { time, ref: sketch.ref });
+      payload.audio = payload.audio ? { ...payload.audio, cues: { ...(payload.audio.cues ?? {}), ...BA.cues }, mix: BA.mix ?? payload.audio.mix } : BA; }
     if (!practice.range) {
       const A = resolveWorldAudio(streetAudio(), { time, ref: sketch.ref });
       payload.audio = payload.audio ? { ...payload.audio, cues: { ...(payload.audio.cues ?? {}), ...A.cues } } : A;

@@ -64,7 +64,7 @@ describe('brawl crowd: its words', () => {
     expect(F.moves.desperate.damage).toBe(Math.round((plain.moves.desperate.damage * (plain.moves.desperate.hits || 1) * T.tune.damage) / 100 / (plain.moves.desperate.hits || 1)));
   });
   it('a wave holds a held screen, once; its crowd is a known type', () => {
-    expect(() => readWaves([{ screen: 0, crowd: [{ type: 'thug', n: 1 }] }], belt)).toThrow(/held/);
+    expect(readWaves([{ screen: 0, crowd: [{ type: 'thug', n: 1 }] }], belt)).toHaveLength(1);   // (an open screen's: fought on the move)
     expect(() => readWaves([{ screen: 1, crowd: [{ type: 'ninja', n: 1 }] }], belt)).toThrow(/type/);
     expect(() => readWaves([{ screen: 1, crowd: [{ type: 'thug', n: 1 }] }, { screen: 1, crowd: [{ type: 'thug', n: 1 }] }], belt)).toThrow(/already/);
   });

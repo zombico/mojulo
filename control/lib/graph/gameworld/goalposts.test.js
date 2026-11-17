@@ -82,6 +82,16 @@ describe('the goalposts read the ledger', () => {
   });
 });
 
+describe('a level played through is proved', () => {
+  it('the first level\'s stage won by the scripted player meets the last goalpost; a lost one does not', () => {
+    const made = { [`level-${L1}-0`]: { ref: 'r', order: '0', stored: '0' } };
+    const open = goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, made });
+    expect(at(open, 'first-level').status).toBe('partial');
+    expect(goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, made, playthrough: { levels: [{ level: `level-${L1}-0`, pass: true }] } })).toBeNull();
+    expect(at(goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, made, playthrough: { levels: [{ level: `level-${L1}-0`, pass: false }] } }), 'first-level').status).toBe('partial');
+  });
+});
+
 describe('the goalpost leads the next moves', () => {
   // a book just begun: every design goalpost open, the first one the game's
   const open = goalposts({ world: {}, chapters: [] });

@@ -21,6 +21,7 @@
  *     chapters    the readout's chapter book ([{ id, state }]); parts its review parts ([{ id, status }])
  *     mainQuest   the readout's main quest report (its plays), or null
  *     made        the record (made.js); compile the pre-compile check, when one ran
+ *     playthrough a check's playthrough readout, when one ran ({ levels: [{ level, pass }] }): a stage it won is proved
  *     reqs        the ledger's level reqs ([{ id, unit, status, does, receipt }], reqs.js): with one for the first level,
  *                 goalposts 6 and 7 are its: the plan met once its proposal is kept with its decisions cited, the level
  *                 met once it is received (the machine gate) or accepted; each partial one says the req's failing
@@ -65,7 +66,7 @@ const done = (st) => st === 'settled' || st === 'written';
 const begun = (st) => st !== 'empty';
 
 /** The goalposts as the book stands; null when every one is met (the first session's work is done). */
-export function goalposts({ world = {}, chapters = [], parts: parts_ = [], mainQuest = null, made = {}, compile = null, reqs = [] } = {}) {
+export function goalposts({ world = {}, chapters = [], parts: parts_ = [], mainQuest = null, made = {}, compile = null, reqs = [], playthrough = null } = {}) {
   const posts = [];
   // (a met goalpost is its id and its state; an open or partial one says what is missing, the question and the move)
   // (only the next one's move is said: it is the one to make now)
@@ -132,7 +133,11 @@ export function goalposts({ world = {}, chapters = [], parts: parts_ = [], mainQ
   const stages = firstLevel ? Object.keys(made).filter((k) => k.startsWith(`level-${firstLevel}-`)).sort() : [];
   const walks = stages.map((k) => made[`audit-${k}`] ?? null);
   const unwalked = stages.filter((k, i) => !walks[i]), failed = walks.filter((a) => a && a.verdict?.completable !== true);
-  const proved = stages.length > 0 && !unwalked.length && !failed.length;
+  // (a level played through by the scripted player, a check's `playthrough`: each of its stages won by the basic one and
+  // not by the still one is proved as a walked one is; a street has no walk, so this is its proof)
+  const played = new Map((playthrough?.levels ?? []).map((l) => [l.level, l.pass === true]));
+  const playedAll = stages.length > 0 && stages.every((k) => (made[`audit-${k}`]?.verdict?.completable === true) || played.get(k) === true);
+  const proved = stages.length > 0 && ((!unwalked.length && !failed.length) || playedAll);
   const received = R && (R.status === 'received' || R.status === 'accepted');
   // (why a check walked none: the plan's first finding, else the first stage the walk cannot prove: level-plan.js)
   const notWalked = compile?.walk ? (compile.walk.plan?.[0]?.says ?? compile.walk.unwalked?.[0]?.why ?? null) : null;

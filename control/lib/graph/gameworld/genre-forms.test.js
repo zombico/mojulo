@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest';
 
 import { GENRE_FORMS, HAND_OFFS, PENDING, WAITS, pendingOf, refusalOf, heroFrameOf } from './genre-forms.js';
 import { readActions, resolveActions } from './actions.js';
-import { GENRES } from './intent.js';
+import { GENRES, readGenre, genreCube } from './intent.js';
+import { dryRun } from '../cosmos/cosmos.js';
 import { composeGameworld } from './compose.js';
 import { readGameworld } from './world.js';
 import { runSteps } from './runner.js';
@@ -123,5 +124,37 @@ describe('the hero frame: a genre on foot is laid with a hero, its camera and it
     const C = composeGameworld({ prompt: 'a city stalker: swing between rooftops at night', seed: 1, levels: 1 });
     expect(Object.values(C.levels)[0]).toMatchObject({ city: { stalker: true } });
     expect(C.characters.hero.actions).toEqual({ none: true, moves: ['wall', 'swinger'] });
+  });
+});
+
+// THE STREET GENRES: a beat-em-up and a run & gun are registered whole. The registry holds what their cubes ask as
+// built, a brief's plain names for them are read, and the sentence door lays their levels as streets with a hero.
+describe('the street genres are registered', () => {
+  it('the registry makes both, and each has a street for its level form on a screen that runs across', () => {
+    for (const id of ['co-op-brawler', 'run-and-gun']) {
+      expect(dryRun(genreCube(id)).verdict, id).toBe('makeable');
+      expect(refusalOf(id), id).toBeNull();
+      expect(pendingOf(id), id).toBeNull();
+      expect(GENRE_FORMS[id]).toMatchObject({ form: 'street', screen: 'screen', hero: {} });
+      expect(GENRE_FORMS[id].level(0, 1).street.stops.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('a brief\'s plain names for them are read as them', () => {
+    for (const [words, id] of [['a beat em up in a port town', 'co-op-brawler'], ['a beat-em-up with my friends', 'co-op-brawler'], ['a run and gun through a factory', 'run-and-gun'], ['a run & gun', 'run-and-gun'], ['a side-scrolling shooter', 'run-and-gun']]) expect(readGenre(words)?.id, words).toBe(id);
+    // (a brawler in an arena is still the arena's)
+    expect(readGenre('an arena brawler')?.id).toBe('arena-brawler');
+  });
+
+  it('the sentence door lays a street game with a hero; a named game\'s feel is not taken for a street', () => {
+    const W = composeGameworld({ prompt: 'a run and gun through a ruined factory', levels: 1, seed: 1 });
+    expect(W.intent).toEqual({ from: 'run-and-gun' });
+    expect(W.screen).toBe('screen');
+    expect(Object.values(W.levels)[0].street).toMatchObject({ lives: 5, boss: { cpu: 'novice' } });
+    expect(W.characters?.hero).toBeDefined();
+    expect(() => readGameworld(W)).not.toThrow();
+    const feel = composeGameworld({ prompt: 'a mega man style run and gun across stormy cliffs', seed: 1 });
+    expect(feel.intent).toBeUndefined();
+    expect(Object.values(feel.levels)[0].street).toBeUndefined();
   });
 });
