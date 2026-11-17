@@ -204,31 +204,50 @@ export function lowerTask(p, ctx) {
   };
 }
 
-/** THE JOIN (an emitter): a FACTION joined, where its contact stands. The hero is with one faction at a time: coming
- * to its contact while with no one sets `flag-in-<faction>` (`others`: the other factions, whose flags must be down);
- * it is left on the phone (`app:leave:<faction>`); its standing (`standing-<faction>`) is kept through leaving.
- *   { faction, at, radius?, name?, says?, others?: [faction] } */
+/** THE JOIN (an emitter): a FACTION joined, where its contact stands, by the player's own say. Its contact is OPEN only
+ * once its `after` flag is set (the first job done: the faction has heard of the player, and says so); coming to them
+ * then ASKS (a word on the screen: the key to join, or walk on), and only the key (`key`, Y) joins, while the player
+ * stands there and is with no one. Joining sets `flag-in-<faction>`; it is left on the phone (`app:leave:<faction>`),
+ * its standing (`standing-<faction>`) kept. Absent `after`, open from the start.
+ *   { faction, at, radius?, name?, says?, ask?, others?: [faction], after?, key? } */
 export function lowerJoin(p, ctx) {
   const at0 = `join[${ctx.i}]`, fail = (m) => { throw new Error(`${at0}: ${m}`); };
   if (typeof p.faction !== 'string' || !WORD.test(p.faction)) fail('faction is the side joined, lower-case');
   if (!isVec(p.at)) fail('at is [x, y, z]: where its contact stands');
   const others = p.others ?? [];
   if (!Array.isArray(others) || others.some((o) => typeof o !== 'string' || !WORD.test(o) || o === p.faction)) fail('others is the other factions, left on joining this one');
-  const zone = `join-${p.faction}`, joined = `join:${p.faction}`, v = `flag-in-${p.faction}`, name = typeof p.name === 'string' && p.name ? p.name : p.faction;
+  if (p.after !== undefined && (typeof p.after !== 'string' || !/^[a-z][a-z0-9-]{0,47}$/.test(p.after))) fail('after is the flag its contact opens on (done-parcel): the first job done');
+  const key = typeof p.key === 'string' && /^[a-z]$/.test(p.key) ? p.key : 'y';
+  const f = p.faction, zone = `join-${f}`, joined = `join:${f}`, v = `flag-in-${f}`, near = `join-near-${f}`, open = `join-open-${f}`, name = typeof p.name === 'string' && p.name ? p.name : f;
+  const free = [{ var: v, eq: 0 }, ...others.map((o) => ({ var: `flag-in-${o}`, eq: 0 }))];
+  // (a guard chain: each guard a hop of its own, the last the event)
+  const chain = (from, guards, type, hop) => guards.map((g, k) => ({ on: k ? `${hop}:${k}` : from.on, ...(k ? {} : from.match ? { match: from.match } : {}), if: g, do: 'emit', type: k === guards.length - 1 ? type : `${hop}:${k + 1}` }));
+  const reactions = [
+    { on: 'enter', match: { zone }, do: 'set', var: near, to: 1 }, { on: 'exit', match: { zone }, do: 'set', var: near, to: 0 },
+    // (coming to its contact, open and with no one: it asks)
+    ...chain({ on: 'enter', match: { zone } }, [{ var: open, gte: 1 }, ...free], `join-ask:${f}`, `asking:${f}`),
+    // (the key, said there: joined)
+    ...chain({ on: `join-yes:${f}` }, [{ var: near, gte: 1 }, { var: open, gte: 1 }, ...free], joined, `joining:${f}`),
+    { on: joined, do: 'set', var: v, to: 1 }, { on: joined, do: 'emit', type: `flag:in-${f}` },
+    { on: `app:leave:${f}`, do: 'set', var: v, to: 0 },
+    // (opened by the first job done: the faction has heard of the player)
+    ...(p.after ? [{ on: `flag:${p.after}`, if: { var: open, eq: 0 }, do: 'emit', type: `join-open:${f}` }, { on: `join-open:${f}`, do: 'set', var: open, to: 1 }] : []),
+  ];
+  const ask = typeof p.ask === 'string' && p.ask ? p.ask : 'We could use someone like you.';
   return {
     world: {
-      vars: { [v]: 0, [`standing-${p.faction}`]: 0, ...Object.fromEntries(others.map((o) => [`flag-in-${o}`, 0])) },
-      // (joined by coming to its contact while with NO ONE: each other faction's flag a guard in turn, so walking past a
-      // rival's contact changes nothing; a faction is LEFT on the phone, `app:leave:<faction>`, its standing kept)
-      reactions: [
-        ...[v, ...others.map((o) => `flag-in-${o}`)].map((g, k, all) => ({ on: k ? `joining:${p.faction}:${k}` : 'enter', ...(k ? {} : { match: { zone } }), if: { var: g, eq: 0 }, do: 'emit', type: k === all.length - 1 ? joined : `joining:${p.faction}:${k + 1}` })),
-        { on: joined, do: 'set', var: v, to: 1 }, { on: joined, do: 'emit', type: `flag:in-${p.faction}` },
-        { on: `app:leave:${p.faction}`, do: 'set', var: v, to: 0 },
+      vars: { [v]: 0, [`standing-${f}`]: 0, [near]: 0, [open]: p.after ? 0 : 1, ...(p.after ? { [`flag-${p.after}`]: 0 } : {}), ...Object.fromEntries(others.map((o) => [`flag-in-${o}`, 0])) },
+      reactions,
+      inputs: [{ on: 'key', key, once: true, emit: { type: `join-yes:${f}` } }],
+      hud: [
+        ...(p.after ? [{ on: `join-open:${f}`, as: 'toast', text: `${name} have heard about you. Their contact is on the map, if you want in.`, ttl: 5 }] : []),
+        { on: `join-ask:${f}`, as: 'toast', text: `${name}: ${ask} ${key.toUpperCase()} to join, or walk on.`, ttl: 6 },
+        { on: joined, as: 'toast', text: `${name}: ${typeof p.says === 'string' && p.says ? p.says : 'you are with us now'}`, ttl: 3.6 },
+        { on: `app:leave:${f}`, as: 'toast', text: `You have left ${name}`, ttl: 3.2 },
       ],
-      hud: [{ on: joined, as: 'toast', text: `${name}: ${typeof p.says === 'string' && p.says ? p.says : 'you are with us now'}`, ttl: 3.6 }, { on: `app:leave:${p.faction}`, as: 'toast', text: `You have left ${name}`, ttl: 3.2 }],
       sources: [{ type: 'zone', zone, at: p.at.slice(), radius: Number.isFinite(p.radius) ? p.radius : 2.5, planar: p.planar !== false, watch: ctx.player }],
     },
-    emits: [joined],
+    emits: [joined, `join-ask:${f}`, ...(p.after ? [`join-open:${f}`] : [])],
     audit: { kind: 'walkto', target: p.at.slice() },
   };
 }

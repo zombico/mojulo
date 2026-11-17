@@ -164,7 +164,7 @@ export const MECHANIC_SFX = {
   offer: { 'offer:*': 'chime' },
   call: { 'call:*': 'alarm' },
   task: { 'task:*': 'chime', 'app:sub:*': 'checkpoint' },
-  join: { 'join:*': 'checkpoint', 'app:leave:*': 'thud' },
+  join: { 'join:*': 'checkpoint', 'join-open:*': 'alarm', 'join-ask:*': 'chime', 'app:leave:*': 'thud' },
   act: { 'posting:*': 'chime', 'act:*:ok': 'goal', 'encounter:*': 'wave', 'encounter-lost:*': 'lose' },
   frags: { kill: 'down', 'frags:won': 'goal', 'frags:lost': 'lose' },
   control: { 'control:won': 'goal', 'control:lost': 'lose' },

@@ -56,3 +56,27 @@ describe('an encounter in free roam', () => {
     expect(back.vars['flag-done-torch']).toBe(1);
   });
 });
+
+describe('a side joined by the player\'s say', () => {
+  const JOIN = { kind: 'join', faction: 'reds', at: [20, 0, 0], name: 'The Reds', others: ['dockers'], after: 'done-parcel' };
+  const run = (script) => {
+    const c = composeMechanics([JOIN, { kind: 'reach-exit', at: [999, 999, 0] }], ctx), ev = c.events, s = B.createBusState(ev, ev.entities);
+    let prev;
+    const pump = (list) => { B.processEvents(s, list); let w = B.watchEvents(s), g = 0; while (w.length && g++ < 8) { B.processEvents(s, w); w = B.watchEvents(s); } };
+    pump([]);
+    for (const step of script) {
+      if (step.at) for (let f = 0; f < 2; f++) { const z = B.deriveZoneEvents([{ id: 'hero', position: step.at }], prev, ev.sources); prev = z.prev; pump(z.events); }
+      if (step.event) pump([{ type: step.event }]);
+    }
+    return { vars: s.vars, log: s.log.map((r) => r.type) };
+  };
+  const there = { at: [20, 0, 0] }, away = { at: [200, 0, 0] }, yes = { event: 'join-yes:reds' }, done = { event: 'flag:done-parcel' };
+  it('its contact says nothing before the first job is done; walking up never joins; only the key, said there, does', () => {
+    expect(run([there, yes]).vars['flag-in-reds']).toBe(0);
+    const asked = run([done, there]);
+    expect(asked.log).toContain('join-open:reds'); expect(asked.log).toContain('join-ask:reds');
+    expect(asked.vars['flag-in-reds']).toBe(0);
+    expect(run([done, there, away, yes]).vars['flag-in-reds']).toBe(0);
+    expect(run([done, there, yes]).vars['flag-in-reds']).toBe(1);
+  });
+});

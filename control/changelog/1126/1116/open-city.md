@@ -129,3 +129,8 @@
   In the demo city the legs run from about 300 to 550 m.
 - **An athletic hero runs further.** A hero whose run is `athletic` (its legs opened wide) now covers the ground its
   longer stride covers: it runs about 60% faster at the same cadence, so its feet still keep pace with the street.
+- **Joining a side is your choice, and it comes later.** A faction's contact says nothing until your first job is done;
+  then you hear the faction has heard of you, and its contact is on the map. Walking up to them only asks ("Y to join,
+  or walk on"); you join by pressing Y there, never by passing by.
+- **Everyone runs faster in the city.** Every hero in a played town or district runs at least 5.5 m/s (the streets are
+  long). An athletic hero gets there on its longer stride; any other on quicker legs, its feet still keeping pace.

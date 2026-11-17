@@ -664,6 +664,10 @@ function kerbSpots(route, road, colliders, top = null, lanes = []) {
 // (`weigh`: how much more the drive from the stop before counts than the gap to any other stop taken, when a stop is
 // chosen: the drive matters most)
 const ERRAND_DRIVE = Object.freeze({ from: 0.33, reach: 7, weigh: 0.6 });
+// A CITY'S RUN: every hero in a played town or district runs at least this fast (m/s), the streets being long; a hero
+// that does not reach it by its stride runs it on quicker legs (player.js `runSpeed`)
+const CITY_RUN = 5.5;
+const cityStage = (stage) => stage?.manifest?.kind === 'geocube' && (stage.manifest.show === 'geocity' || stage.manifest.show === 'geotown');
 // A HERO'S REACH (hero-vibe.js, its motion's `reach`: an athletic run, its legs opened wide): how much more ground its
 // run's stride takes than the gait as studied, so the level runs it that much faster at the same cadence (player.js
 // `reach`). 1 for a hero that does not say it.
@@ -958,7 +962,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const rule = struck ? { ...(rule0 ?? {}), ...struck } : rule0;
     // (a mascot pilot, egocube/mascot-pilot.js: its own clips, capsule, stride, camera and eye)
     const moves = heroMoves(G);
-    const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), ...(lane || stage.section === 'runner' ? { walk: false } : {}), ...(heroReach(G) !== 1 ? { reach: heroReach(G) } : {}), id: 'hero', title: name, controls: G.mechanics?.legend === 'menu' ? '' : `${controls}${written?.dash && written.dash.ground !== false ? ' · F  dash' : written?.sprint ? ' · F  run' : rule?.stamina ? ` · F  sprint (stamina)${rule.dodge ? ' · F F  dodge' : ''}` : ''}${written?.sprintSpeed ? ' · Shift  sprint' : ''}${airKeys(written)}${actionOrbit ? ' · C  lock on' : ''}${movesLegend(moves)}`, ...(rule ? { rule } : {}), ...(takes ? { takes } : {}) }), moves, startingGrants(G));
+    const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), ...(lane || stage.section === 'runner' ? { walk: false } : {}), ...(heroReach(G) !== 1 ? { reach: heroReach(G) } : {}), ...(cityStage(stage) ? { runSpeed: CITY_RUN } : {}), id: 'hero', title: name, controls: G.mechanics?.legend === 'menu' ? '' : `${controls}${written?.dash && written.dash.ground !== false ? ' · F  dash' : written?.sprint ? ' · F  run' : rule?.stamina ? ` · F  sprint (stamina)${rule.dodge ? ' · F F  dodge' : ''}` : ''}${written?.sprintSpeed ? ' · Shift  sprint' : ''}${airKeys(written)}${actionOrbit ? ' · C  lock on' : ''}${movesLegend(moves)}`, ...(rule ? { rule } : {}), ...(takes ? { takes } : {}) }), moves, startingGrants(G));
     const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
     const camera = look ? { rule: 'eye', target: 'hero', height: pilot ? pilot.eye : HERO_EYE, mouseLook: true, hideTarget: true }
       : top ? { rule: 'overhead', target: 'hero', ...OVERHEAD }
@@ -1722,7 +1726,10 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined) {
         if (!at) continue;
         used.add(key(at));
         givers.push({ id: `giver-${F.id}`, contact: F.id, faction: F.id, at: at.at.slice(), heading: r3(Math.atan2(at.N[1], at.N[0])), place: at.card, jobs: [] });
-        offers.push({ kind: 'join', faction: F.id, at: at.at.slice(), radius: ERRAND_DRIVE.reach, name: F.name, says: F.says, others: factions.filter((o) => o.id !== F.id).map((o) => o.id), colour: F.colour, turf: r, place: at.card });
+        // (opened by the level's first job done, a contact's or an app's: a side is offered to someone who has worked, and
+        // taken only by the player's say: errand-mechanics.js lowerJoin)
+        const first = givers[0]?.jobs[0]?.id ?? appJobs[0]?.id ?? null;
+        offers.push({ kind: 'join', faction: F.id, at: at.at.slice(), radius: ERRAND_DRIVE.reach, name: F.name, says: F.says, ...(first ? { after: `done-${first}` } : {}), others: factions.filter((o) => o.id !== F.id).map((o) => o.id), colour: F.colour, turf: r, place: at.card });
       }
       // (the acts after every contact stands: an act's place is never where someone stands, and clear of them)
       for (const F of factions) {

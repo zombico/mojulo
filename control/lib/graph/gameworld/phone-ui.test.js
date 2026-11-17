@@ -131,11 +131,11 @@ describe('the phone', () => {
     const hero = { id: 'hero', pilotable: true, transform: { pos: [0, 0, 0], heading: 0 } }, car = { id: 'car-1', mount: { cab: true }, transform: { pos: [3, 0, 0], heading: 0 } };
     expect(cityGuide({ entities: [hero, car], game: { mechanics: M } }).steps.map((x) => x.id)).toEqual(['car']);
     // (the mechanics: joining one leaves the others; an act pays once, only when taken, on THE SEAM act:<verb>:<id>)
-    const J = lowerJoin(M[1], { i: 0, player: 'hero' }).world;
-    expect(J.vars).toEqual({ 'flag-in-reds': 0, 'standing-reds': 0, 'flag-in-dockers': 0 });
-    // (joined only while with no one; left on the phone)
-    expect(J.reactions.slice(0, 2)).toEqual([{ on: 'enter', match: { zone: 'join-reds' }, if: { var: 'flag-in-reds', eq: 0 }, do: 'emit', type: 'joining:reds:1' }, { on: 'joining:reds:1', if: { var: 'flag-in-dockers', eq: 0 }, do: 'emit', type: 'join:reds' }]);
+    const J = lowerJoin({ ...M[1], after: 'done-parcel' }, { i: 0, player: 'hero' }).world;
+    expect(J.vars).toMatchObject({ 'flag-in-reds': 0, 'standing-reds': 0, 'flag-in-dockers': 0, 'join-open-reds': 0, 'join-near-reds': 0 });
+    expect(J.inputs).toEqual([{ on: 'key', key: 'y', once: true, emit: { type: 'join-yes:reds' } }]);
     expect(J.reactions).toContainEqual({ on: 'app:leave:reds', do: 'set', var: 'flag-in-reds', to: 0 });
+    expect(J.reactions).toContainEqual({ on: 'flag:done-parcel', if: { var: 'join-open-reds', eq: 0 }, do: 'emit', type: 'join-open:reds' });
     const A = lowerAct(M[2], { i: 0, resolve() {} }).world;
     expect(A.reactions.filter((r) => r.on === 'act:torch:torch')).toEqual([{ on: 'act:torch:torch', if: { var: 'flag-took-torch', gte: 1 }, do: 'emit', type: 'acting:torch' }]);
     expect(A.reactions).toContainEqual({ on: 'act:torch:torch:ok', do: 'inc', var: 'standing-reds', by: 1 });

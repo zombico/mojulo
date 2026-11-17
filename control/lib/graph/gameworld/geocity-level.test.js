@@ -234,6 +234,8 @@ describe('jobs across the district (errands on a played district: its shops thei
       dockers: { name: 'The Dockers', colour: '#2e86c1', turf: 'south', crew: 'thug' } };
     const sided = runSteps({ ...JOBS, id: 'jobs5', factions: FACTIONS, foes: { thug: { class: 'pursuer', skin: { people: 'human' } } } }, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest, A = sided.game.mechanics;
     const joins = A.filter((m) => m.kind === 'join'), acts = A.filter((m) => m.kind === 'act');
+    // (a side is offered once the first job is done, and taken only by the player's say: errand-mechanics.js lowerJoin)
+    for (const j of joins) expect(j.after).toBe('done-parcel');
     expect(joins.map((j) => [j.faction, j.name, j.others])).toEqual([['reds', 'Reds', ['dockers']], ['dockers', 'The Dockers', ['reds']]]);
     // (turf: the halves of the box the district's shops stand in; each contact at a shop on their own)
     const xs = E.places.map((p) => p.at[0]), ys = E.places.map((p) => p.at[1]), midY = (Math.min(...ys) + Math.max(...ys)) / 2;
@@ -294,11 +296,13 @@ describe('jobs across the district (errands on a played district: its shops thei
     const legs = [...route.slice(1).map((p, k) => d(p, route[k])), d(fares[0], fares[1])];
     for (const [k, m] of legs.entries()) expect(m, `leg ${k}: ${legs.map((x) => Math.round(x)).join(', ')} m`).toBeGreaterThan(150);
   });
-  it('an athletic hero covers more ground: its run as fast as its longer stride carries it at the same cadence', () => {
+  it('every hero in the city runs fast: an athletic one on its longer stride at the same cadence, any other on quicker legs', () => {
     const hero = (motion) => runSteps({ ...JOBS, id: 'jobs7', characters: { ...JOBS.characters, hero: { ...JOBS.characters.hero, motion } } }, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest.entities.find((e) => e.pilotable).rule;
     const plain = hero({ vibe: ['bold'] }), fast = hero({ vibe: ['athletic'] });
-    expect(fast.speed / plain.speed).toBeGreaterThan(1.4);
-    expect(fast.speed / fast.stride).toBeCloseTo(plain.speed / plain.stride, 2);
+    // (every hero in the city runs at least the city's pace: a plain one on quicker legs, its stride the clip's)
+    expect(plain.speed).toBeGreaterThanOrEqual(5.5); expect(plain.stride).toBe(1.72);
+    // (an athletic one on its longer stride, at the cadence it always had)
+    expect(fast.speed).toBeGreaterThan(plain.speed); expect(fast.stride / 1.72).toBeCloseTo(fast.speed / 3.6, 2);
   });
   it('a standing job keeps the level open: the one-off pays and ends nothing; the guide leads through both, then round the fares', async () => {
     expect(M.find((m) => m.kind === 'deliver' && m.id === 'parcel')).toMatchObject({ open: true });
