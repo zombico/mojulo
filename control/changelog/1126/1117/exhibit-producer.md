@@ -44,7 +44,9 @@ In progress. Each line is added as its phase lands.
 - **The scales** (`exhibit/scales.js`): the first primitive of an exhibit, the size of the thing it shows. The human
   point of view is the base (what a person could stand beside); below it the micro, the atomic and molecular, the
   subatomic; above it the macro (the bigger view from above), the geo (a geocube: terrain modelled), the planetary
-  (its own views), outer space. The two ends are conceptual; an idea has no scale and stands beside the ladder. Each
+  (its own views), outer space. The two ends are conceptual. Two things stand beside the ladder with no rung: a
+  place in history (the historical views: a real place at its period, where the historic cultures are the primitives
+  of what can be shown, Pompeii and Sumer among them) and an idea, which has no size. Each
   rung says what it shows naturally (the tour's own shapes: a structure, a process, a quantity), how a world at it is
   made new, the law tables that can compose it where there are any, and the samples in the halls that are like it.
 - **The exhibit determines its scale.** The agent reads the concept and names the rungs it lives at (`start.scales`,

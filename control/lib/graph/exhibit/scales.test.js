@@ -6,16 +6,19 @@ import { TOUR_SHAPES } from './tour.js';
 import { exhibitStart } from './producer.js';
 import { exhibitFit } from './fit.js';
 
-const ladder = SCALE_IDS.filter((s) => SCALES[s].rung !== null), off = SCALE_IDS.find((s) => SCALES[s].rung === null);
+const ladder = SCALE_IDS.filter((s) => SCALES[s].rung !== null), beside = SCALE_IDS.filter((s) => SCALES[s].rung === null), off = beside[0];
 const below = ladder.find((s) => SCALES[s].rung < 0), above = ladder.find((s) => SCALES[s].rung > 0);
 
 describe('the scales', () => {
-  it('are a ladder round the human base, smallest first, its two ends conceptual, an idea beside it', () => {
+  it('are a ladder round the human base, smallest first, its two ends conceptual; a place in history and an idea beside it', () => {
     expect(SCALES[HOME_SCALE].rung).toBe(0);
     expect(ladder.map((s) => SCALES[s].rung)).toEqual([...ladder.map((s) => SCALES[s].rung)].sort((a, b) => a - b));
     expect(new Set(ladder.map((s) => SCALES[s].rung)).size).toBe(ladder.length);
     expect(SCALES[ladder[0]].conceptual).toBe(true); expect(SCALES[ladder[ladder.length - 1]].conceptual).toBe(true); expect(SCALES[HOME_SCALE].conceptual).toBeUndefined();
-    expect(SCALE_IDS[SCALE_IDS.length - 1]).toBe(off);
+    // (what has no rung comes after the ladder; the historical views' cultures are named as its primitives)
+    expect(SCALE_IDS.slice(ladder.length)).toEqual(beside); expect(beside).toEqual(expect.arrayContaining(['history', 'idea']));
+    expect(SCALES.history.made).toMatch(/cultures are the primitives/); expect(SCALES.history.samples.every((x) => x.startsWith('history/'))).toBe(true);
+    expect(ladder.flatMap((s) => SCALES[s].samples).some((x) => x.startsWith('history/'))).toBe(false);
     for (const id of SCALE_IDS) {
       const S = SCALES[id];
       expect(S.says).toMatch(/\S/); expect(S.made).toMatch(/\S/); expect(S.samples.length).toBeGreaterThan(0);
