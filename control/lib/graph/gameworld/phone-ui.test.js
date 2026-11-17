@@ -81,6 +81,34 @@ describe('the phone', () => {
     expect(lowerTask({ ...M[3], subscribe: false }, { i: 0 }).world.reactions.map((r) => r.on)).toEqual(['app:take:fare', 'task:fare', 'task:fare']);
     expect(MECHANIC_KINDS).toContain('task');
   });
+  it('a game may have several fus: each app lists the tags it carries, and a tagged task is on every app that lists one', async () => {
+    const { taskApps, appTitle } = await import('./phone-ui.js');
+    const APPS = { ridefu: { name: 'RideFu', tags: ['ride'] }, dropfu: { name: 'DropFu', tags: ['courier', 'food'] } };
+    expect(taskApps({ tags: ['ride'] }, APPS)).toEqual(['ridefu']);
+    expect(taskApps({ tags: ['food', 'ride'] }, APPS)).toEqual(['ridefu', 'dropfu']);
+    // (its own app first; a tag no app lists is TaskFu's; a job with neither is a person's)
+    expect(taskApps({ app: 'taskfu', tags: ['courier'] }, APPS)).toEqual(['taskfu', 'dropfu']);
+    expect(taskApps({ tags: ['odd'] }, APPS)).toEqual(['taskfu']);
+    expect(taskApps({ tags: ['ride'] })).toEqual(['taskfu']);
+    expect(taskApps({ contact: 'fixer' }, APPS)).toEqual([]);
+    expect([appTitle('ridefu', APPS), appTitle('taskfu', APPS)]).toEqual(['RideFu', 'TaskFu']);
+    const M = [{ kind: 'trade', item: 'passenger', job: 'fare', at: [20, 0, 0], flag: 'had-passenger', after: 'took-fare' },
+      { kind: 'deliver', id: 'fare', repeat: true, wants: [{ item: 'passenger', min: 1 }], reward: [{ item: 'coin', n: 12 }], at: [60, 0, 0], flag: 'done-fare', after: 'took-fare' },
+      { kind: 'task', id: 'fare', app: 'ridefu', apps: ['ridefu', 'dropfu'], tags: ['food', 'ride'], flag: 'took-fare', name: 'RideFu', subscribe: [{ app: 'ridefu', name: 'RideFu' }, { app: 'dropfu', name: 'DropFu' }] }];
+    const P = phoneUi({ game: { mechanics: M } }, { apps: APPS });
+    expect(P.apps.map((a) => [a.id, a.name, a.tags, a.tasks.map((t) => t.id)])).toEqual([['ridefu', 'RideFu', ['ride'], ['fare']], ['dropfu', 'DropFu', ['courier', 'food'], ['fare']]]);
+    // (the same task on both: taken on one, it is taken on the other)
+    expect(P.apps[0].tasks[0].took).toBe(P.apps[1].tasks[0].took);
+    expect(phoneTasks(P.apps[1], {}, PHONE_UI)[0].lines.at(-1)).toEqual({ who: 'Carries', text: 'courier · food' });
+    expect(phoneTasks(P.apps[1], { 'flag-sub-dropfu': 1 }, PHONE_UI)[0].lines).toContainEqual({ who: 'Tags', text: 'food · ride' });
+    const { world } = lowerTask(M[2], { i: 0 });
+    expect(world.vars).toEqual({ 'flag-took-fare': 0, 'flag-sub-ridefu': 0, 'flag-sub-dropfu': 0 });
+    expect(world.reactions.filter((r) => r.on.startsWith('app:sub:')).map((r) => r.var)).toEqual(['flag-sub-ridefu', 'flag-sub-dropfu']);
+    expect(world.hud.map((h) => h.text)).toContain('DropFu: subscribed. Tasks come to your phone.');
+    expect(readPhoneUi({ apps: APPS })).toEqual([]);
+    expect(readPhoneUi({ apps: { ridefu: { tags: ['Ride'] } } })[0]).toMatch(/tags is the kinds of task/);
+    expect(readPhoneUi({ apps: { ridefu: { colour: 'red' } } })[0]).toMatch(/not an app setting/);
+  });
   it('the page hosts it on mana-ui: the contacts met beside the thread of the one in focus, in the theme\'s look alone', () => {
     const G = phoneUi(LEVEL), spec = phoneSpec(G);
     expect(() => manaUi.readSpec(spec)).not.toThrow();

@@ -69,14 +69,14 @@ export function jobsOf(mechanics) {
     // (a phone app's task, lowerTask: taken on the phone, wherever the hero is; the guide waits on it, `when`, its light
     // where the task begins)
     const Tk = O || Cl ? null : M.find((m) => m && m.kind === 'task' && m.id === (J.id ?? 'errand'));
-    if (Tk) steps.push({ id: `app-${Tk.id}`, say: `Take the ${words(Tk.id)} task on ${appName(Tk.app)} · P`, at: null, radius: 0, when: `flag-${Tk.flag}`, take: true });
+    if (Tk) steps.push({ id: `app-${Tk.id}`, say: `Take the ${words(Tk.id)} task on ${Tk.name ?? appName(Tk.app)} · P`, at: null, radius: 0, when: `flag-${Tk.flag}`, take: true });
     if (O) steps.push({ id: `take-${O.id}`, say: `Meet ${contactName(O.contact).toLowerCase()}${O.place ? ` at the ${shop(O.place)}` : ''}`, at: at3(O.at), radius: O.radius ?? 2.5, ...(O.says ? { says: O.says } : {}), take: true });
     for (const w of J.wants ?? []) had(w.item);
     const paid = (J.reward ?? []).map((r) => `${r.n ?? 1} ${words(r.item)}`).join(', '), id = J.id ?? 'errand';
     // (a one-off is brought home: back to who gave it)
     steps.push({ id: `deliver-${id}`, say: J.home ? `Bring the ${(J.wants ?? []).map((w) => words(w.item)).join(', ') || 'goods'} back to ${contactName(who).toLowerCase()}${J.place ? ` at the ${shop(J.place)}` : ''}` : `Deliver the ${(J.wants ?? []).map((w) => words(w.item)).join(', ') || 'goods'}${J.place ? ` to the ${shop(J.place)}` : ''}`, at: at3(J.at), radius: J.radius ?? 2, ...(paid ? { says: `Paid ${paid}` } : {}), ...(J.flag ? { flag: J.flag } : {}) });
     if (Tk) { const first = steps.find((x) => x.at); steps[0].at = first ? first.at.slice() : at3(J.at); }
-    out.push({ id, name: `${words(id)[0].toUpperCase()}${words(id).slice(1)}`, repeat: J.repeat === true, steps, ...(O ? { starts: O.flag } : Cl ? { starts: Cl.flag, called: true } : Tk ? { starts: Tk.flag, app: Tk.app } : {}), ...(who ? { contact: who } : {}) });
+    out.push({ id, name: `${words(id)[0].toUpperCase()}${words(id).slice(1)}`, repeat: J.repeat === true, steps, ...(O ? { starts: O.flag } : Cl ? { starts: Cl.flag, called: true } : Tk ? { starts: Tk.flag, app: Tk.app, ...(Tk.apps ? { apps: Tk.apps } : {}), ...(Tk.tags ? { tags: Tk.tags } : {}) } : {}), ...(who ? { contact: who } : {}) });
   }
   return out;
 }

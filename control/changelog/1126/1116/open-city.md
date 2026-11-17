@@ -85,3 +85,7 @@
   A world's maker puts any job on the app by naming it on the errand (`app: 'taskfu'`; another word is another app,
   with its own tab). Jobs from people and jobs from apps sit side by side: the phone opens on the app when you have
   met no one yet, and on-screen guidance tells you to take the task on your phone.
+- **More than one fu in a game.** Tasks carry tags (ride, food, courier) and the phone can have several apps, each
+  with its own name, its own tab and the tags it carries (`ui.phone.apps`). A tagged task shows up on every app that
+  carries one of its tags, and taking it on one takes it on all. Each app is subscribed to on its own. A game that
+  names no apps still has TaskFu, which carries every tag.

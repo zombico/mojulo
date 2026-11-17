@@ -215,6 +215,20 @@ describe('jobs across the district (errands on a played district: its shops thei
     expect(P.apps.map((a) => [a.name, a.tasks.map((t) => t.id)])).toEqual([['TaskFu', ['fare']]]);
     expect(P.contacts.map((c) => c.jobs.map((j) => j.id))).toEqual([['parcel']]);
   });
+  it('several fus in one game: a tagged job is laid as one task on every app that lists its tag, each app subscribed to on its own', async () => {
+    const fus = runSteps({ ...JOBS, id: 'jobs4', ui: { phone: { apps: { ridefu: { name: 'RideFu', tags: ['ride'] }, cityfu: { name: 'CityFu', tags: ['ride', 'courier'] } } } },
+      errands: [{ ...JOBS.errands[0], offer: undefined, tags: ['courier'] }, { ...JOBS.errands[1], tags: ['ride'] }].map(({ offer: _o, ...e }) => e) }, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest;
+    const T = fus.game.mechanics.filter((m) => m.kind === 'task');
+    expect(T.map((t) => [t.id, t.app, t.apps, t.tags, t.name])).toEqual([['parcel', 'cityfu', undefined, ['courier'], 'CityFu'], ['fare', 'ridefu', ['ridefu', 'cityfu'], ['ride'], 'RideFu']]);
+    expect(T[0].subscribe).toBe(true);
+    expect(T[1].subscribe).toBe(true);
+    // (no one stands in a game whose jobs are all apps'; a one-off pays where it was laid, not at a giver)
+    expect(fus.entities.some((e) => /^giver-/.test(e.id))).toBe(false);
+    expect(fus.game.mechanics.find((m) => m.kind === 'deliver' && m.id === 'parcel').home).toBeUndefined();
+    const { phoneUi } = await import('./phone-ui.js'), P = phoneUi(fus, fus.manaHud.phone);
+    expect(P.contacts).toEqual([]);
+    expect(P.apps.map((a) => [a.name, a.tasks.map((t) => t.id)])).toEqual([['CityFu', ['parcel', 'fare']], ['RideFu', ['fare']]]);
+  });
   it('a standing job keeps the level open: the one-off pays and ends nothing; the guide leads through both, then round the fares', async () => {
     expect(M.find((m) => m.kind === 'deliver' && m.id === 'parcel')).toMatchObject({ open: true });
     expect(M.find((m) => m.kind === 'deliver' && m.id === 'fare')).toMatchObject({ repeat: true });

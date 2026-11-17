@@ -57,7 +57,8 @@ import { cubeOfWorld } from './intent.js';
 import { genreHero } from './hero-rows.js';
 import { movesetLegend } from './input-map.js';
 import { quickFigure } from './cast-setting.js';
-import { jobQuests, contactName, appName } from './city-guide.js';
+import { jobQuests, contactName } from './city-guide.js';
+import { taskApps, appTitle } from './phone-ui.js';
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
 import { concernIds } from './concerns.js';
@@ -850,7 +851,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
   const doorMechs = (ends.doors ?? []).map(({ inside: _i, ...d }) => ({ kind: 'door', ...d }));
   // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot
-  const ways = map ? stageWays(stage, ends, map) : null;
+  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps) : null;
   // (a glyph map with no way on, a megaworld's core: its goal stays its own, reaching it the level's win, no exit taken)
   // (a zone holding the walk's goal keeps it too: reaching it is the game's end, its gates travel)
   const keepsGoal = ways && stage.section === 'map' && (!map.on.length || !!ends.holdsGoal);
@@ -1520,7 +1521,7 @@ function heldWays(G, stage, ends, plan, mechanics) {
   return Object.assign(out, { hold });
 }
 
-function stageWays(stage, ends, plan) {
+function stageWays(stage, ends, plan, fus = undefined) {
   // (a glyph map's ends carry its ways as a trail's do, level/grid-ends.js: a zone of a megaworld)
   // (a town's and a district's walk carries them too: its far end the way on, its start the way back, levels.js geotownEnds)
   if (stage.manifest.trail === undefined && !['map', 'geotown', 'geocity'].includes(stage.section)) throw new Error(`levels: a map world's stages are trails, glyph maps, towns or districts, whose ends and pockets carry its ways; '${stage.level}/${stage.node}' is a climb`);
@@ -1583,7 +1584,7 @@ function stageWays(stage, ends, plan) {
       // (one giver a CONTACT, errand.js `contact`: the jobs of one contact share them. The first is taken where they
       // stand; they are on the phone after, and each next job is offered by a call when the one before it is done)
       for (const J of plan.errand.filter((l) => l.kind === 'deliver')) {
-        if (J.app) continue;   // (a phone app's task: no one stands for it)
+        if (taskApps(J, fus).length) continue;   // (a phone app's task: no one stands for it)
         const who = J.contact ?? GIVER.contact, id = J.id ?? 'errand', had = givers.find((g) => g.contact === who);
         if (had) { had.jobs.push({ id, says: J.offer ?? GIVER.says, repeat: J.repeat === true }); continue; }
         const at = pool.filter((p) => near(p) >= GIVER.off && stood.every((q) => Math.hypot(p.at[0] - q[0], p.at[1] - q[1]) >= GIVER.apart)).reduce((m, p) => (!m || near(p) < near(m) - 1e-9 ? p : m), null);
@@ -1601,7 +1602,7 @@ function stageWays(stage, ends, plan) {
     const giverOf = new Map(givers.flatMap((g) => g.jobs.map((J) => [J.id, g])));
     // (the phone apps' tasks, errand.js `app`: taken on the phone, where the level is driven; never on foot alone, since
     // the givers are laid only there too)
-    const appJobs = driven ? plan.errand.filter((l) => l.kind === 'deliver' && l.app) : [], appOf = new Map(appJobs.map((J) => [J.id ?? 'errand', J.app]));
+    const appJobs = driven ? plan.errand.filter((l) => l.kind === 'deliver' && taskApps(l, fus).length) : [], appOf = new Map(appJobs.map((J) => [J.id ?? 'errand', taskApps(J, fus)]));
     const legs = laid.map((l) => {
       if (l.kind !== 'trade' && l.kind !== 'deliver') return l;
       const place = placeOf(l), id = l.kind === 'trade' ? l.job : l.id ?? 'errand', g = giverOf.get(id);
@@ -1615,7 +1616,12 @@ function stageWays(stage, ends, plan) {
     const offers = givers.flatMap((g) => g.jobs.map((J, k) => (k === 0
       ? { kind: 'offer', id: J.id, at: g.at.slice(), flag: `took-${J.id}`, says: J.says, radius: ERRAND_DRIVE.reach, place: g.place, contact: g.contact }
       : { kind: 'call', id: J.id, flag: `took-${J.id}`, on: `errand:done:${g.jobs[k - 1].id}`, from: contactName(g.contact), says: J.says, contact: g.contact })));
-    const tasks = appJobs.map((J, k) => ({ kind: 'task', id: J.id ?? 'errand', app: J.app, flag: `took-${J.id ?? 'errand'}`, name: appName(J.app), ...(appJobs.findIndex((x) => x.app === J.app) === k ? { subscribe: true } : {}), ...(J.offer ? { says: J.offer } : {}) }));
+    // (a task is on each app its tags put it on, phone-ui.js taskApps; the first task of an app carries its subscribing)
+    const subbed = new Set(), tasks = appJobs.map((J) => {
+      const on = taskApps(J, fus), subs = on.filter((a) => !subbed.has(a)); subs.forEach((a) => subbed.add(a));
+      return { kind: 'task', id: J.id ?? 'errand', app: on[0], flag: `took-${J.id ?? 'errand'}`, name: appTitle(on[0], fus), ...(on.length > 1 ? { apps: on } : {}), ...(J.tags ? { tags: J.tags } : {}),
+        ...(subs.length === 1 && subs[0] === on[0] ? { subscribe: true } : subs.length ? { subscribe: subs.map((a) => ({ app: a, name: appTitle(a, fus) })) } : {}) };
+    });
     offers.push(...tasks);
     // (the legs before the offers: a hand-in where its giver stands is not tried on the step that takes the job)
     mechanics.push(...legs, ...offers);

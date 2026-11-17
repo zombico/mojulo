@@ -175,24 +175,30 @@ export function lowerCall(p, ctx) {
   };
 }
 
-/** THE TASK (an emitter): a job given by a phone APP, with no one to meet. The app is subscribed to on the phone
- * (`app:sub:<app>` sets `flag-sub-<app>`; one task of an app carries it, `subscribe`), and a task is taken there
- * (`app:take:<id>` sets its flag, once: its quest begins, its legs open).
- *   { id, app, flag, name?, subscribe? } */
+/** THE TASK (an emitter): a job given by a phone APP, with no one to meet. An app is subscribed to on the phone
+ * (`app:sub:<app>` sets `flag-sub-<app>`; one task of an app carries that, `subscribe`), and a task is taken there
+ * (`app:take:<id>` sets its flag, once: its quest begins, its legs open). A task may be on several apps (`apps`: the
+ * ones its `tags` put it on); taken on any, it is taken.
+ *   { id, app, flag, name?, apps?: [app], tags?: [word], subscribe?: true | [{ app, name? }] } */
 export function lowerTask(p, ctx) {
   const at0 = `task[${ctx.i}]`, fail = (m) => { throw new Error(`${at0}: ${m}`); };
   if (typeof p.id !== 'string' || !WORD.test(p.id)) fail('id is the task\'s name, lower-case');
   if (typeof p.app !== 'string' || !WORD.test(p.app)) fail('app is the phone app that gives it, lower-case (taskfu)');
   if (typeof p.flag !== 'string' || !/^[a-z][a-z0-9-]{0,47}$/.test(p.flag)) fail('flag is the flag taking it sets (took-fare)');
-  const took = `task:${p.id}`, v = `flag-${p.flag}`, sub = `flag-sub-${p.app}`, name = typeof p.name === 'string' && p.name ? p.name : p.app;
+  const apps = p.apps ?? [p.app];
+  if (!Array.isArray(apps) || !apps.length || apps.some((a) => typeof a !== 'string' || !WORD.test(a))) fail('apps is the apps it is on, lower-case words');
+  if (p.tags !== undefined && (!Array.isArray(p.tags) || p.tags.some((t) => typeof t !== 'string' || !WORD.test(t)))) fail('tags is what kind of task it is, lower-case words');
+  const name = typeof p.name === 'string' && p.name ? p.name : p.app, subs = p.subscribe === true ? [{ app: p.app, name }] : Array.isArray(p.subscribe) ? p.subscribe : [];
+  for (const s of subs) if (!s || typeof s.app !== 'string' || !WORD.test(s.app)) fail('subscribe is true, or [{ app, name? }]: the apps this task carries the subscribing of');
+  const took = `task:${p.id}`, v = `flag-${p.flag}`;
   return {
     world: {
-      vars: { [v]: 0, [sub]: 0 },
+      vars: { [v]: 0, ...Object.fromEntries(apps.map((a) => [`flag-sub-${a}`, 0])) },
       reactions: [
-        ...(p.subscribe ? [{ on: `app:sub:${p.app}`, do: 'set', var: sub, to: 1 }] : []),
+        ...subs.map((s) => ({ on: `app:sub:${s.app}`, do: 'set', var: `flag-sub-${s.app}`, to: 1 })),
         { on: `app:take:${p.id}`, if: { var: v, eq: 0 }, do: 'emit', type: took }, { on: took, do: 'set', var: v, to: 1 }, { on: took, do: 'emit', type: `flag:${p.flag}` },
       ],
-      hud: [...(p.subscribe ? [{ on: `app:sub:${p.app}`, as: 'toast', text: `${name}: subscribed. Tasks come to your phone.`, ttl: 3.2 }] : []), { on: took, as: 'toast', text: `${name}: task taken`, ttl: 3.2 }],
+      hud: [...subs.map((s) => ({ on: `app:sub:${s.app}`, as: 'toast', text: `${s.name ?? s.app}: subscribed. Tasks come to your phone.`, ttl: 3.2 })), { on: took, as: 'toast', text: `${name}: task taken`, ttl: 3.2 }],
     },
     emits: [took],
   };

@@ -10,6 +10,9 @@
  *              cargo?: { fragile?: true, perishable?: <seconds a unit> } }] }]
  *   app      the phone APP that gives it (one word: taskfu), in place of a person: the player subscribes to the app on
  *            the phone and takes its tasks there; each is a quest with its reward, paid where it ends. No one is met
+ *   tags     what kind of task it is (words: ride, food, courier). A game may have SEVERAL apps (`ui.phone.apps`,
+ *            gameworld/phone-ui.js), each listing the tags it carries: a tagged task is offered by every app that
+ *            lists one of its tags (and by its own `app`, when it names one); by TaskFu when none does
  *   contact  who gives it (one word; unsaid, the level's one contact): the jobs of one contact share a giver, who is met
  *            once for the first and is on the PHONE after: the next is offered by a call when the one before is done
  *   offer    what its giver says as the job is taken (where a level stands its givers: a town's, a district's)
@@ -50,7 +53,7 @@ export const ERRAND_LAWS = Object.freeze({
   varied: 'Varied: no two legs in a row in the same level; an errand crosses the world.',
   survivable: 'Survivable: a fragile or perishable cargo carries a margin to lose on the way.',
 });
-const KEYS = ['id', 'giver', 'reward', 'list', 'repeat', 'offer', 'contact', 'app'];
+const KEYS = ['id', 'giver', 'reward', 'list', 'repeat', 'offer', 'contact', 'app', 'tags'];
 export const TILL_REACH = 1.6;
 const NODE_KEYS = ['item', 'at', 'count', 'min', 'needs', 'from', 'cargo', 'shop'];
 const WORD = /^[a-z][a-z0-9-]{0,31}$/;
@@ -67,6 +70,8 @@ function readOne(E, k, G) {
   if (E.offer !== undefined && !(typeof E.offer === 'string' && E.offer.trim() && E.offer.length <= 160)) no('.offer is what its giver says when the job is taken, in words');
   if (E.contact !== undefined && (typeof E.contact !== 'string' || !WORD.test(E.contact))) no('.contact is who gives it, one lower-case word (fixer, dispatch): jobs of one contact share a giver, met once and on the phone after');
   if (E.app !== undefined && (typeof E.app !== 'string' || !WORD.test(E.app))) no('.app is the phone app that gives it, one lower-case word (taskfu): a task taken on the phone, with no one to meet');
+  if (E.tags !== undefined && (!Array.isArray(E.tags) || !E.tags.length || E.tags.some((t) => typeof t !== 'string' || !WORD.test(t)) || new Set(E.tags).size !== E.tags.length)) no('.tags is what kind of task it is, lower-case words, each once ([\'ride\'], [\'food\', \'rush\']): every phone app that lists one of them offers it');
+  if (E.tags !== undefined && E.contact !== undefined) no(' has tags, so an app gives it: it has no contact');
   if (E.app !== undefined && E.contact !== undefined) no(' is given by a contact or by an app, not both');
   const reward = E.reward ?? [];
   if (!Array.isArray(reward) || reward.some((r) => !isObj(r) || typeof r.item !== 'string' || !WORD.test(r.item) || (r.n !== undefined && !posInt(r.n)))) no('.reward is [{ item, n? }]: what the giver pays');
@@ -113,7 +118,7 @@ function readOne(E, k, G) {
   for (const N of list) visit(N.item, []);
   const needed = new Set(list.flatMap((N) => N.needs));
   const roots = list.filter((N) => !needed.has(N.item)).map((N) => N.item);
-  const read = { id: E.id, giver: E.giver, reward: reward.map((r) => ({ item: r.item, n: r.n ?? 1 })), list, roots, order, ...(E.repeat ? { repeat: true } : {}), ...(E.offer ? { offer: E.offer.trim() } : {}), ...(E.contact ? { contact: E.contact } : {}), ...(E.app ? { app: E.app } : {}) };
+  const read = { id: E.id, giver: E.giver, reward: reward.map((r) => ({ item: r.item, n: r.n ?? 1 })), list, roots, order, ...(E.repeat ? { repeat: true } : {}), ...(E.offer ? { offer: E.offer.trim() } : {}), ...(E.contact ? { contact: E.contact } : {}), ...(E.app ? { app: E.app } : {}), ...(E.tags ? { tags: E.tags.slice() } : {}) };
   read.laws = errandLaws(read, G);
   return read;
 }
@@ -187,7 +192,7 @@ export function errandLegs(errands, level) {
         ? { kind: 'bounty', item: N.item, who: `foe-${N.from.foe}-*`, n: N.count }
         : { kind: 'trade', job: E.id, item: N.item, count: N.count, ...(N.needs.length ? { needs: N.needs.map((n) => ({ item: n, n: count(n) })) } : {}), ...(N.shop ? { shop: N.shop } : {}) });
     }
-    if (E.giver === level) legs.push({ kind: 'deliver', id: E.id, wants: E.roots.map((r) => ({ item: r, min: E.list.find((x) => x.item === r).min })), ...(E.reward.length ? { reward: E.reward } : {}), ...(E.repeat ? { repeat: true } : open ? { open: true } : {}), ...(E.offer ? { offer: E.offer } : {}), ...(E.contact ? { contact: E.contact } : {}), ...(E.app ? { app: E.app } : {}) });
+    if (E.giver === level) legs.push({ kind: 'deliver', id: E.id, wants: E.roots.map((r) => ({ item: r, min: E.list.find((x) => x.item === r).min })), ...(E.reward.length ? { reward: E.reward } : {}), ...(E.repeat ? { repeat: true } : open ? { open: true } : {}), ...(E.offer ? { offer: E.offer } : {}), ...(E.contact ? { contact: E.contact } : {}), ...(E.app ? { app: E.app } : {}), ...(E.tags ? { tags: E.tags } : {}) });
   }
   for (const E of errands) for (const N of E.list) if (N.cargo) legs.push({ kind: 'cargo', item: N.item, ...N.cargo, max: N.count });
   return legs;
