@@ -34,3 +34,10 @@
   the checkpoint's first unseen way now crouches through the truck's grass.
 - **The spike's bench** (scripts/spikes/mission/bench.mjs): pages timed side by side in headless Chromium at one window
   and one density, a relative yardstick. Hangar 229 ms a frame; level 0 as it was 283, open and lean 199.
+- **Tall grass among a field's grass** (`tallGrass.elsewhere: 'grass'`): the patches the tall sward and the stand, the land's
+  own grass round them the short sward, thinned (six bristles a cell, no dark twin: form/tall-grass.js `fieldOf`), so grass
+  that hides nothing is never drawn as grass that does. Until now the field took the stand's clump at every distance.
+- **Level 0's checkpoint a line** across the whole field (wire to both edges, sandbags and a gate on the trail, the tower,
+  the truck on the line) with two ways through besides the gate: the slot by the truck, screened by grass both sides and
+  in it, and a cut in the west wire behind its grass, the line's patrol walking past it. All eight laws hold. The field's
+  grass back, real out to 10 m (the view cone), painted past it: bench 246 ms a frame against the hangar's 236.

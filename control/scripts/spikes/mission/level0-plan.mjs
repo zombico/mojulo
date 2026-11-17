@@ -107,7 +107,7 @@ export function watchersOf(L) {
 }
 
 /** The level's tall grass as the geocube reads it (`tallGrass`, form/tall-grass.js) and as the search's veils. */
-export function tallGrassOf(L) { return L.grass && L.grass.length ? { patches: L.grass.map((g) => ({ at: g.at, r: g.r, ...(g.h ? { h: g.h } : {}) })) } : null; }
+export function tallGrassOf(L) { return L.grass && L.grass.length ? { patches: L.grass.map((g) => ({ at: g.at, r: g.r, ...(g.h ? { h: g.h } : {}) })), ...(L.grassElsewhere ? { elsewhere: L.grassElsewhere } : {}) } : null; }
 export function grassVeils(L) { const T = readTallGrass(tallGrassOf(L)); return T ? T.patches : []; }
 
 export function planLevel(L, colliders = [], field = [-8, 0, 30, 75.5]) {

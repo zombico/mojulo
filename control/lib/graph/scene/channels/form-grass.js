@@ -212,8 +212,8 @@ ${ramp ? `      // (a blade in the host's ramp: unlit, the stop its height picks
         };
         rm.customProgramCacheKey = () => 'form-grass-ramp-' + T.id + (windU() ? '-wind' : ''); return rm; };
 ` : ''}      GTIERS.forEach((${stand ? 'T0' : 'T'}, ti) => {${stand ? `
-        // (a land's tall grass: the tall clump its patches', form/tall-grass.js standOf)
-        const ST = Gm.stand && T0.sward === 'tall' ? Gm.stand : null, T = ST ? { ...T0, id: 'stand', scale: T0.scale * ST.scale, spacing: ST.spacing, clump: { ...T0.clump, ...ST.clump } } : T0;` : ''}
+        // (a land's tall grass: the tall clump its patches', form/tall-grass.js standOf; the short sward round them thinned, fieldOf)
+        const ST = Gm.stand && T0.sward === 'tall' ? Gm.stand : null, FD = Gm.field && T0.sward === 'short' ? Gm.field : null, T = ST ? { ...T0, id: 'stand', scale: T0.scale * ST.scale, spacing: ST.spacing, clump: { ...T0.clump, ...ST.clump } } : FD ? { ...T0, id: 'field', clump: { ...T0.clump, ...FD.clump } } : T0;` : ''}
         const tg = clumpGeometry(T.clump, ti * 31, T.spacing), R = [];
         each(T.spacing * SF.spread[T.sward], ti, (x, y, m, h) => {
           const dL = Math.abs(m.sw - SL[T.sward]) / SL.band; if (dL >= 1) return;

@@ -30,4 +30,5 @@ describe('a geocube\'s tall grass', () => {
     expect(veilsOf(P, () => 2.5)).toEqual([{ at: [0, 0, 2.5], r: TALL_GRASS.r, h: 1.24 }]);
     expect(veilsOf(P)[0].at[2]).toBe(0);
   });
+
 });

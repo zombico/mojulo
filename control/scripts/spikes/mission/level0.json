@@ -18,7 +18,7 @@
       "vehicle": "cargo-truck",
       "at": {
         "trail": 68,
-        "off": -8.6
+        "off": -9.6
       },
       "heading": 0
     },
@@ -82,7 +82,7 @@
       },
       "to": {
         "trail": 66,
-        "off": -14
+        "off": -21
       },
       "reads": "walks the front of the checkpoint"
     },
@@ -140,7 +140,7 @@
   "points": [
     {
       "id": "checkpoint",
-      "reads": "sandbags across the land with a gate on the trail, wire either side, a tower over the gate, a patrol through the gate and one along the front",
+      "reads": "a line across the field (wire to its edges, sandbags and a gate on the trail, a tower over it, the truck on the line): through the gate under the tower, the slot by the truck, or the cut in the west wire behind its grass when the line's patrol has turned",
       "from": {
         "trail": 56,
         "off": 0
@@ -298,7 +298,7 @@
       },
       "to": {
         "trail": 68,
-        "off": 11.5
+        "off": 12.5
       }
     },
     {
@@ -306,11 +306,23 @@
       "kind": "wire",
       "from": {
         "trail": 68,
-        "off": -15
+        "off": -12.6
       },
       "to": {
         "trail": 68,
-        "off": -22
+        "off": -17.4
+      }
+    },
+    {
+      "id": "wire-far-west",
+      "kind": "wire",
+      "from": {
+        "trail": 68,
+        "off": -19.6
+      },
+      "to": {
+        "trail": 68,
+        "off": -28
       }
     },
     {
@@ -359,9 +371,9 @@
   "performance": {
     "light": "half",
     "occlusion": false,
-    "cone": 20,
+    "cone": 10,
     "bodies": "blob",
-    "reads": "what the page may cost: its shadows at half (light.tier), no contact occlusion, real grass out to 20 m (the view cone); [ and ] move the grass's reach live; bodies 'blob' casts no body into the live shadow map, a soft pool at the feet instead ('live' for real shadows); parallax false: a lean ground (none of its height marched, most of the frame's cost; true for the full ground); density 1: the window's own pixels at most on a high-DPI screen (the page's cap is 1.5 unless said)",
+    "reads": "what the page may cost: its shadows at half (light.tier), no contact occlusion, real grass out to 10 m (past it the field's grass is painted on the ground) (the view cone); [ and ] move the grass's reach live; bodies 'blob' casts no body into the live shadow map, a soft pool at the feet instead ('live' for real shadows); parallax false: a lean ground (none of its height marched, most of the frame's cost; true for the full ground); density 1: the window's own pixels at most on a high-DPI screen (the page's cap is 1.5 unless said)",
     "parallax": false,
     "density": 1
   },
@@ -421,6 +433,70 @@
         "off": -7
       },
       "r": 2.6
+    },
+    {
+      "id": "slot-south",
+      "at": {
+        "trail": 65.4,
+        "off": -5.3
+      },
+      "r": 1.7
+    },
+    {
+      "id": "slot",
+      "at": {
+        "trail": 68,
+        "off": -5.4
+      },
+      "r": 1.4
+    },
+    {
+      "id": "slot-north",
+      "at": {
+        "trail": 70.6,
+        "off": -5.3
+      },
+      "r": 1.7
+    },
+    {
+      "id": "cut-south-2",
+      "at": {
+        "trail": 60,
+        "off": -18.5
+      },
+      "r": 2.4
+    },
+    {
+      "id": "cut-south-1",
+      "at": {
+        "trail": 64.3,
+        "off": -18.5
+      },
+      "r": 2.4
+    },
+    {
+      "id": "cut",
+      "at": {
+        "trail": 68,
+        "off": -18.5
+      },
+      "r": 1.4
+    },
+    {
+      "id": "cut-north-1",
+      "at": {
+        "trail": 71.7,
+        "off": -18.5
+      },
+      "r": 2.4
+    },
+    {
+      "id": "cut-north-2",
+      "at": {
+        "trail": 76,
+        "off": -18
+      },
+      "r": 2.4
     },
     {
       "id": "camp-south",
@@ -483,5 +559,7 @@
     "clear": 40,
     "blur": false
   },
-  "cubeReads": "the jungle haze's look on open ground: no cliff walling the trail (a field both sides), lone trees on a short-grassed upland in place of bamboo groves; the ground most of the frame's cost, the jungle a tenth of it"
+  "cubeReads": "the jungle haze's look on open ground: no cliff walling the trail (a field both sides), lone trees on a short-grassed upland in place of bamboo groves; the ground most of the frame's cost, the jungle a tenth of it",
+  "grassElsewhere": "grass",
+  "checkpointReads": "a line across the whole field: wire to its edges, sandbags either side of a gate on the trail, a tower over the gate, the truck parked on the line with a slot beside it; and a cut in the west wire, screened by tall grass both sides, that the patrol along the line walks past"
 }

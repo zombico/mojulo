@@ -41,7 +41,7 @@ import { landStones, stoneForms, SHAPES } from './land-stones.js';
 import { soilTones } from '../color-theorist/ground.js';
 import { readRelief, reliefMap } from './rock-relief.js';
 import { DRIFT_CELL, DRIFT_SEAM, driftForms, weedForms } from './grass-drifts.js';
-import { patchCover, standOf } from './tall-grass.js';
+import { patchCover, standOf, fieldOf } from './tall-grass.js';
 
 const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 /** The sward's short areas: the field's cell (metres) and the seam a short area eases into a tall one over (a share of
@@ -324,7 +324,9 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
     const rankIn = (R, f) => { let lo = 0, hi = R.length; while (lo < hi) { const m = (lo + hi) >> 1; if (R[m] < f) lo = m + 1; else hi = m; } return lo / Math.max(1, R.length); };
     const areaAt = (share, R, f) => (x, y) => (share >= 1 ? 1 : share <= 0 || !R?.length ? 0 : ease(Math.min(1, Math.max(0, (share - rankIn(R, f(x, y))) / SWARD_SEAM + 0.5))));
     const shortAt = areaAt(shortShare, ranked(shortShare, swardF), swardF), mediumAt = areaAt(mediumShare, ranked(mediumShare, mediumF), mediumF);
-    const lengthAt = (x, y) => Math.max(shortAt(x, y), 0.5 * mediumAt(x, y));
+    // (a stealth land's TALL GRASS, form/tall-grass.js: its patches the tall sward, the page's stand; the land's own grass
+    // round them, where it has any, short, never the stand: grass that hides nothing is never drawn as grass that does)
+    const lengthAt = tallGrass ? (x, y) => (patchCover(x, y, tallGrass.patches) > 0.35 ? 0 : 1) : (x, y) => Math.max(shortAt(x, y), 0.5 * mediumAt(x, y));
     for (let q = 0; q < nx * ny; q++) { const zq = top[q] === -Infinity ? 0 : Math.round(((top[q] - zlo) / span) * 65535); px[q * 4] = zq >> 8; px[q * 4 + 1] = zq & 255; px[q * 4 + 2] = Math.round(cov[q] * 255); px[q * 4 + 3] = Math.round(lengthAt(...cellXY(q)) * 255); }
     // (the drifts: each its own field at a finer cell, ranked to its share over the grass's cells no drift named before it
     // has taken, a channel each; so each holds its share of the land's grass, and no two share a cell)
@@ -341,7 +343,7 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
     const at = (x, y) => { const ii = Math.round((x - x0) / GCELL), j = Math.round((y - y0) / GCELL); if (ii < 0 || j < 0 || ii >= nx || j >= ny) return null; const q = j * nx + ii; return top[q] === -Infinity ? null : { z: top[q], c: cov[q] }; };
     // (no grass anywhere, a land wholly under snow: no grass on the page at all)
     if (!cov.some((v) => v > 1e-3)) return null;
-    return { origin: [x0, y0], cell: GCELL, size: [nx, ny], z: [zlo, span], px: b64(px), at, ...(dpx ? { drift: b64(dpx) } : {}), ...(tallGrass ? { stand: standOf(tallGrass.patches), patches: patchRead } : {}) };
+    return { origin: [x0, y0], cell: GCELL, size: [nx, ny], z: [zlo, span], px: b64(px), at, ...(dpx ? { drift: b64(dpx) } : {}), ...(tallGrass ? { stand: standOf(tallGrass.patches), patches: patchRead, ...(tallGrass.elsewhere === 'grass' ? { field: fieldOf() } : {}) } : {}) };
   })() : null;
   // the far: fins along the ground in rows three ways (60° apart, ROW apart, SEG long), each row's line wandering so the
   // rows weave rather than rule, each fin from the ground up a height that wanders (its bristles drawn on the page), only
@@ -404,7 +406,7 @@ export function formPayload(R) {
       // (the drifts: their map, a channel each, and their plants)
       ...(driftKinds ? { drifts: { px: grassMap.drift, kinds: driftKinds } } : {}), ...(weedKinds ? { weeds: weedKinds } : {}),
       // (a stealth land's tall grass, form/tall-grass.js: its clump, drawn at every distance)
-      ...(grassMap.stand ? { stand: grassMap.stand } : {}) },
+      ...(grassMap.stand ? { stand: grassMap.stand } : {}), ...(grassMap.field ? { field: grassMap.field } : {}) },
     // (the relief's heights in 16 bits over its range, row by row up the face)
     relief: relief && { tile: relief.tile, size: relief.size, lo: r4(relief.lo), hi: r4(relief.hi), px: b64(new Uint8Array(Uint16Array.from(relief.h, (v) => Math.round(((v - relief.lo) / Math.max(1e-6, relief.hi - relief.lo)) * 65535)).buffer)) },
   };
