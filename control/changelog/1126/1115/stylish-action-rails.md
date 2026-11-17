@@ -126,6 +126,12 @@ In progress. Built so far, all in the practice door's game room
   quarters. Found on the level: the sawtooth left is the page's, not the cloth's. A hero is drawn there as rigid parts,
   each vertex carried by its one strongest bone, so at every joint the layers step past each other in teeth; the
   fauna are drawn as one skin where it holds, a hero not yet.
+- **Built: a hero drawn as one skin** (realistic laws 17, the realistic body's doc, "One skin on the page"). A realistic
+  hero minted under them is drawn on the page as skinned parts on one skeleton, every corner carried by its own bones,
+  keeping its paint, normals, face and light; the page's bank keeps its weights. The sawtooth where the cloth's layers
+  met at a joint is gone from Lucien at rest and in a swing (seen in a headless browser on Fallen Angel's level). A
+  hero minted before, and every page without such a hero, byte for byte as it was. Its page carries the weights, a byte
+  each: Fallen Angel's export went from 39.6 MB to 48.6 MB.
 - **Fixed: a coat's shoulders under a raised arm** (realistic laws 17, the realistic body's doc, "The correctives").
   The tailor's cloth now carries the skin's correctives: each of its points moves as the skin nearest it moves. A
   raised arm had pushed the shoulder's skin out through the coat (the marks on the shoulder blades, the deltoid

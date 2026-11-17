@@ -80,11 +80,14 @@ const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'sp
 // bytes (`nq`), and the face's rows (figures/morph-sparse.js) named by the welded corners. Read by __makeRigGroup's q
 // branch. What cannot be welded so (a face's rows not sparse, a count that does not agree) is returned as it came.
 const FULL_KEYS = ['uv', 'nrm', 'morph'], FULL_ONLY = ['corrective', 'tan', 'metal', 'q', 'spec', 'spec8'];
-function pageFullPart(rest) {
+function pageFullPart(rest, skin = null) {
   const raw = (str) => { const b = Buffer.from(str, 'base64'); return b.buffer.slice(b.byteOffset, b.byteOffset + b.length); };
   const pos = new Float32Array(raw(rest.pos)), col = new Uint8Array(raw(rest.col)), nV = (pos.length / 3) | 0;
   const uv = rest.uv ? new Float32Array(raw(rest.uv)) : null, nrm = rest.nrm ? new Float32Array(raw(rest.nrm)) : null, M = rest.morph || null;
-  if (!nV || col.length !== nV * 3 || (uv && uv.length !== nV * 2) || (nrm && nrm.length !== nV * 3) || (M && !M.z)) return rest;
+  // (a part of a figure drawn as one skin, `skin`: each corner's four bones and weights, welded with it: the corners one only
+  // where they also ride alike)
+  const J = skin ? new Uint8Array(raw(skin.jnt)) : null, W = skin ? new Float32Array(raw(skin.wgt)) : null;
+  if (!nV || col.length !== nV * 3 || (uv && uv.length !== nV * 2) || (nrm && nrm.length !== nV * 3) || (M && !M.z) || (J && (J.length !== nV * 4 || W.length !== nV * 4))) return skin ? { ...rest, ...skin } : rest;
   // each corner's face row (its unique row's number), or -1: two corners with different rows are never one
   const rowOf = new Int32Array(nV).fill(-1);
   let mI = null, mU = null;
@@ -99,12 +102,14 @@ function pageFullPart(rest) {
   const ub = uv ? [0, 1].map((k) => box(uv, 2, k)) : null, uo = ub ? ub.map((b) => r6(b[0])) : null, us = ub ? ub.map((b) => grid(b[0], b[1])) : null;
   const qz = (v, lo, st) => { if (!st) return 0; const q = Math.round((v - lo) / st); return q <= 0 ? 0 : q >= 65535 ? 65535 : q; };
   const n8 = (v) => { const q = Math.round(v * 127); return q < -127 ? -127 : q > 127 ? 127 : q; };
-  const seen = new Map(), idx = new (nV > 65535 ? Uint32Array : Uint16Array)(nV), Q = [], C = [], UQ = [], NQ = [], rows = [];
+  const seen = new Map(), idx = new (nV > 65535 ? Uint32Array : Uint16Array)(nV), Q = [], C = [], UQ = [], NQ = [], rows = [], JQ = [], WQ = [];
+  const w8 = (v) => { const q = Math.round(v * 255); return q < 0 ? 0 : q > 255 ? 255 : q; };
   for (let i = 0; i < nV; i++) {
     const a = [qz(pos[3 * i], o[0], sp[0]), qz(pos[3 * i + 1], o[1], sp[1]), qz(pos[3 * i + 2], o[2], sp[2]), col[3 * i], col[3 * i + 1], col[3 * i + 2]];
     if (uv) a.push(qz(uv[2 * i], uo[0], us[0]), qz(uv[2 * i + 1], uo[1], us[1]));
     if (nrm) a.push(n8(nrm[3 * i]), n8(nrm[3 * i + 1]), n8(nrm[3 * i + 2]));
     a.push(rowOf[i]);
+    if (J) a.push(J[4 * i], J[4 * i + 1], J[4 * i + 2], J[4 * i + 3], w8(W[4 * i]), w8(W[4 * i + 1]), w8(W[4 * i + 2]), w8(W[4 * i + 3]));
     const key = a.join(',');
     let u = seen.get(key);
     if (u === undefined) {
@@ -112,6 +117,7 @@ function pageFullPart(rest) {
       Q.push(a[0], a[1], a[2]); C.push(a[3], a[4], a[5]);
       let k = 6; if (uv) { UQ.push(a[k], a[k + 1]); k += 2; } if (nrm) NQ.push(a[k], a[k + 1], a[k + 2]);
       rows.push(rowOf[i]);
+      if (J) { const e = a.length - 8; JQ.push(a[e], a[e + 1], a[e + 2], a[e + 3]); WQ.push(a[e + 4], a[e + 5], a[e + 6], a[e + 7]); }
     }
     idx[i] = u;
   }
@@ -122,6 +128,7 @@ function pageFullPart(rest) {
   const out = { ...keep, full: 1, q: b64(Uint16Array.from(Q)), o, s: sp, n, idx: b64(n > 65535 ? Uint32Array.from(idx) : (idx instanceof Uint16Array ? idx : Uint16Array.from(idx))), col: b64(Uint8Array.from(C)) };
   if (uv) Object.assign(out, { uq: b64(Uint16Array.from(UQ)), uo, us });
   if (nrm) out.nq = b64(Int8Array.from(NQ));
+  if (J) Object.assign(out, { jq: b64(Uint8Array.from(JQ)), wq: b64(Uint8Array.from(WQ)) });
   if (M) {
     const at = [], ur = [];
     for (let u = 0; u < n; u++) if (rows[u] >= 0) { at.push(u); ur.push(rows[u]); }
@@ -129,9 +136,19 @@ function pageFullPart(rest) {
   }
   return out;
 }
-function pagePart(p) {
+function pagePart(p, skin = false) {
   if (!p || (p.jnt === undefined && p.wgt === undefined)) return p;
   const { jnt: _j, wgt: _w, ...rest } = p;
+  // (a part of a figure drawn as ONE SKIN, `skinParts`: its bones and weights kept, welded with its corners where the part is
+  // welded, else as they came)
+  if (skin) {
+    if (typeof rest.pos === 'string' && typeof rest.col === 'string' && FULL_ONLY.every((k) => rest[k] === undefined) && FULL_KEYS.some((k) => rest[k] !== undefined)) return pageFullPart(rest, { jnt: p.jnt, wgt: p.wgt });
+    // (a part not welded keeps its corners, its weights a byte each as a welded one's are)
+    if (typeof p.wgt !== 'string') return p;
+    const wb = Buffer.from(p.wgt, 'base64'), W = new Float32Array(wb.buffer.slice(wb.byteOffset, wb.byteOffset + wb.length)), Q = new Uint8Array(W.length);
+    for (let i = 0; i < W.length; i++) { const q = Math.round(W[i] * 255); Q[i] = q < 0 ? 0 : q > 255 ? 255 : q; }
+    return { ...rest, jnt: p.jnt, wq: Buffer.from(Q.buffer).toString('base64') };
+  }
   // (a part that carries its paint's place, its normals or a face's rows and nothing else laid per corner: welded and
   // on a grid as well, pageFullPart below; one with a corrective, a tangent, a metal or a specular stays as it came)
   if (typeof rest.pos === 'string' && typeof rest.col === 'string' && FULL_ONLY.every((k) => rest[k] === undefined) && FULL_KEYS.some((k) => rest[k] !== undefined)) return pageFullPart(rest);
@@ -167,7 +184,7 @@ export function pageFigures(figures) {
   const out = {}, same = {}, seen = new Map();
   let changed = false;
   for (const [name, f] of Object.entries(figures)) {
-    const g = drop(f) ? { ...f, parts: f.parts.map(pagePart), ...(f.clips ? { clips: pageClips(f.clips) } : {}), ...(f.acts ? { acts: pageClips(f.acts) } : {}) } : f;
+    const g = drop(f) ? { ...f, parts: f.parts.map((q) => pagePart(q, f.skinParts === true)), ...(f.clips ? { clips: pageClips(f.clips) } : {}), ...(f.acts ? { acts: pageClips(f.acts) } : {}) } : f;
     if (g !== f) changed = true;
     const key = g && typeof g === 'object' ? JSON.stringify(g) : null;
     if (key && key.length >= 4096 && seen.has(key)) { same[name] = seen.get(key); changed = true; continue; }
@@ -871,6 +888,9 @@ function __updateGearLines() {
   // ONE DRAW A FIGURE (merged-figure.js): a plain rigid rig drawn as one skinned mesh, a draw a pass instead of one a part;
   // off where a part's own mesh is read (the toon ink's hulls, a headset's hands). None mergeable ⇒ byte-identical
   const figMerge = !xr && !toonInk && Object.values(figures || {}).some(mergeableFigure);
+  // ONE SKIN A HERO (world-scene.js heroFigure `skinParts`, realistic laws 17): its parts skinned on one skeleton, each corner
+  // carried by its own bones; not where a part's own mesh is read (the toon ink's hull, a headset's hands)
+  const figSkinParts = !xr && !toonInk && Object.values(figures || {}).some((f) => f && f.skinParts === true);
   // (a figure with a pose twin, figure-grades.js: cut in while a close shot is on it; none, not a byte)
   const figPose = figMerge && Object.values(figures || {}).some((f) => f && typeof f.pose === 'string' && mergeableFigure(f));
   // a racer's JUICE (car-designer/juice.js: flames, puffs, smoke, dust, sparks, a landing ring at its anchors) —
@@ -1364,7 +1384,7 @@ function __rigFace(rig, clipName, phase) {
   const over = F.ambient && (!tr || (F.ambientOver || []).includes(clipName));
   const w = over ? __rigTrack(F.ambient, now % F.ambient.seconds) : __rigTrack(tr, phase * tr.t[tr.t.length - 1]);
   const ws = w || F.weights; if (!ws) return;
-  for (const mesh of rig.boneMeshes) if (mesh && mesh.morphTargetInfluences) for (let t = 0; t < ws.length; t++) mesh.morphTargetInfluences[t] = ws[t];
+  for (const mesh of ${figSkinParts ? '(rig.meshes || rig.boneMeshes)' : 'rig.boneMeshes'}) if (mesh && mesh.morphTargetInfluences) for (let t = 0; t < ws.length; t++) mesh.morphTargetInfluences[t] = ws[t];
 }
 ` : ''}${figHasPaint ? `// the painted body's atlas, once per figure (shared by every entity wearing it)
 function __rigTex(fig) { if (!fig.__tex) { fig.__tex = new THREE.TextureLoader().load(fig.paintTex.url); fig.__tex.colorSpace = THREE.SRGBColorSpace; } return fig.__tex; }
@@ -1437,7 +1457,7 @@ function __castMR(fig, c, n) {
   const group = new THREE.Group();${figHasSkin ? `
   if (fig.skin) return __makeSkinGroup(fig, b, group);` : ''}${figMerge ? `
   if (__mergeable(fig)) return __makeMergedGroup(fig, b, group);` : ''}
-  const boneMeshes = fig.bones.map((bn, bi) => {
+${figSkinParts ? '  let __skinned = null;\n' : ''}  const boneMeshes = fig.bones.map((bn, bi) => {
     const part = fig.parts[bi];
     if (!part) return null;${figHasForm ? `
     if (part.form && fig.form) {
@@ -1464,19 +1484,32 @@ function __castMR(fig, c, n) {
     // (a body under the cast rig: each corner's normal as the lit read wrote it, else its mesh's own)
     if (fig.cast) { if (part.nq) geo.setAttribute('normal', new THREE.BufferAttribute(new Int8Array(decodeU8(part.nq).buffer), 3, true)); else if (part.nrm) geo.setAttribute('normal', new THREE.BufferAttribute(decodeF32(part.nrm), 3)); else geo.computeVertexNormals(); }${figHasResp ? `
     if (fig.cast && Array.isArray(fig.response)) { const cc = geo.getAttribute('color'); geo.setAttribute('aMR', new THREE.BufferAttribute(__castMR(fig, cc.array, cc.count), 2, true)); }` : ''}` : ''}
-    geo.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geo, ${figHasCast ? `fig.cast ? __castMat(fig, { vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''}${figHasRelief ? ', ...(map ? __castRelief(fig) : {})' : ''} }) : ` : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''} }));${figHasCast ? `
+${figSkinParts ? `    // (one skin: its bones and weights, welded with the part or as they came; a part with none rides its bone rigidly)
+    const SK = fig.skinParts && !fig.wreck && (part.jq || part.jnt) && !/^(weapon_|shield$)/.test(fig.bones[bi].id);
+    if (SK) { if (part.jq) { geo.setAttribute('skinIndex', new THREE.BufferAttribute(decodeU8(part.jq), 4)); geo.setAttribute('skinWeight', new THREE.BufferAttribute(decodeU8(part.wq), 4, true)); } else { geo.setAttribute('skinIndex', new THREE.BufferAttribute(decodeU8(part.jnt), 4)); geo.setAttribute('skinWeight', part.wq ? new THREE.BufferAttribute(decodeU8(part.wq), 4, true) : new THREE.BufferAttribute(decodeF32(part.wgt), 4)); } }
+` : ''}    geo.computeBoundingSphere();
+    const mesh = new ${figSkinParts ? '(SK ? THREE.SkinnedMesh : THREE.Mesh)' : 'THREE.Mesh'}(geo, ${figHasCast ? `fig.cast ? __castMat(fig, { vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''}${figHasRelief ? ', ...(map ? __castRelief(fig) : {})' : ''} }) : ` : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''} }));${figHasCast ? `
     if (fig.cast) mesh.receiveShadow = true;` : ''}${figHasFace ? `
     if (geo.morphAttributes.position) mesh.updateMorphTargets();` : ''}${rigSpecHook}${rigMetalHook}${rigRimHook}${rigInkHook}${castHook}
     mesh.matrixAutoUpdate = false;
     mesh.frustumCulled = false;   // matrices mutate per frame
     group.add(mesh);
-    return mesh;
+${figSkinParts ? `    // (a skinned part leaves a bone in its place for the sync to pose; it never raycasts, as the bone meshes are kept from it:
+    // no footing, no camera's occluder)
+    if (SK) { mesh.raycast = function () {}; (__skinned || (__skinned = [])).push(mesh); const bn = new THREE.Bone(); bn.matrixAutoUpdate = false; group.add(bn); return bn; }
+` : ''}    return mesh;
   });
-  scene.add(group);${bodyScaled ? `
+${figSkinParts ? `  // (one skin: every bone posed, a part's or none, and the skinned parts bound to them at the identity, as __makeSkinGroup's)
+  if (__skinned) {
+    for (let i = 0; i < boneMeshes.length; i++) if (!boneMeshes[i]) { const bn = new THREE.Bone(); bn.matrixAutoUpdate = false; group.add(bn); boneMeshes[i] = bn; }
+    group.updateMatrixWorld(true);
+    const sk = new THREE.Skeleton(boneMeshes, boneMeshes.map(() => new THREE.Matrix4()));
+    for (const m of __skinned) m.bind(sk);
+  }
+` : ''}  scene.add(group);${bodyScaled ? `
   if (b.scale > 0) group.scale.setScalar(b.scale);` : ''}
   group.userData.rigFig = { fig, boneMeshes, mix: {}, blendTime: b.blendTime, lookA: 0,
-    yaw: b.yawOffset != null ? b.yawOffset : -Math.PI / 2, headTrack: b.headTrack || null };
+    yaw: b.yawOffset != null ? b.yawOffset : -Math.PI / 2, headTrack: b.headTrack || null${figSkinParts ? `, ...(__skinned ? { meshes: [...__skinned, ...boneMeshes.filter((m) => m && m.isMesh)] } : {})` : ''} };
   // muzzle locator: an empty child of the weapon bone mesh at the muzzle's bone-local rest point,
   // so its world position IS the live weapon tip (rides every clip). Shot fx originate here.
   if (fig.muzzle) {
@@ -2485,17 +2518,17 @@ ${figHasRide ? `      // (a ridden machine's front turns about the steering axis
   __sidearmProps(e, m, rig, fig, AL);` : ''}${figHasFace ? `
   if (fig.face) __rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);` : ''}${takes && figHasFace ? `
   // (a taking face's weights, where a headless driver reads them: e.takeFace)
-  if (fig.face) { const fm = tk ? rig.boneMeshes.find((x) => x && x.morphTargetInfluences && x.morphTargetInfluences.length) : null; e.takeFace = fm ? Array.from(fm.morphTargetInfluences) : null; }` : ''}
+  if (fig.face) { const fm = tk ? ${figSkinParts ? '(rig.meshes || rig.boneMeshes)' : 'rig.boneMeshes'}.find((x) => x && x.morphTargetInfluences && x.morphTargetInfluences.length) : null; e.takeFace = fm ? Array.from(fm.morphTargetInfluences) : null; }` : ''}
   // i-frame SHIMMER: while INVINCIBLE the whole rig flickers translucent — the
   // classic i-frame read. Both the acrobatic dodge and the getup rise set
   // e.invincible, so both shimmer; the topple FALL (not invincible) does not.
   // Restore full opacity when it ends.
   if (e.invincible) {
     const o = 0.45 + 0.35 * Math.sin(__world.time * 40);
-    for (const bm of rig.skin ? [rig.skin] : rig.boneMeshes) { if (bm && bm.material) { bm.material.transparent = true; bm.material.opacity = o; } }   // (a merged figure: its one skin)
+    for (const bm of rig.skin ? [rig.skin] : ${figSkinParts ? '(rig.meshes || rig.boneMeshes)' : 'rig.boneMeshes'}) { if (bm && bm.material) { bm.material.transparent = true; bm.material.opacity = o; } }   // (a merged figure: its one skin)
     rig.__shimmered = true;
   } else if (rig.__shimmered) {
-    for (const bm of rig.skin ? [rig.skin] : rig.boneMeshes) { if (bm && bm.material) { bm.material.opacity = 1; bm.material.transparent = false; } }
+    for (const bm of rig.skin ? [rig.skin] : ${figSkinParts ? '(rig.meshes || rig.boneMeshes)' : 'rig.boneMeshes'}) { if (bm && bm.material) { bm.material.opacity = 1; bm.material.transparent = false; } }
     rig.__shimmered = false;
   }
 }
@@ -3680,7 +3713,7 @@ function __foeRim(id) {
     for (const k of __rim.kids) if (k.parent) k.parent.remove(k);
     __rim.kids = []; __rim.id = id; __rim.g = g;
     const rf = g && g.userData.rigFig;
-    if (rf) for (const m of rf.skin ? [rf.skin] : rf.boneMeshes) {
+    if (rf) for (const m of rf.skin ? [rf.skin] : ${figSkinParts ? '(rf.meshes || rf.boneMeshes)' : 'rf.boneMeshes'}) {
       if (!m || !m.geometry || !m.geometry.attributes.position) continue;
       __rimNormals(m.geometry);
       const k = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, __tgtRimMat) : new THREE.Mesh(m.geometry, __tgtRimMat);

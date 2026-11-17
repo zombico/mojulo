@@ -278,8 +278,14 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
   // (read lit, a body whose colour is its palette's own (no painted texture) says how each of its materials answers the
   // light: color-theorist/cast-response.js; the page reads a corner's class off its colour)
   const response = lit && !pack.paintTex && manifest && manifest.recipe && manifest.recipe.palette ? (await import('@/lib/graph/color-theorist/cast-response.js')).castResponse(manifest.recipe.palette) : null;
-  return { ...pack, clips, ...(held ? { held } : {}), ...(face ? { face } : {}), ...(response && response.length ? { response } : {}) };
+  // ONE SKIN (realistic laws 17): a realistic hero minted under them is drawn on the page as one skin, each part a skinned
+  // mesh on one skeleton, every corner carried by the bones it is weighed to (controllable/index.js `skinParts`); drawn as
+  // rigid parts, one bone a part, its layers stepped past each other at every joint, the cloth's sawtooth. Before: as it was
+  const H = manifest?.hero, skinParts = !!(H && H.form === 'realistic' && ((H.physique && typeof H.physique === 'object' ? H.physique.laws : undefined) ?? 1) >= SKIN_PARTS_LAWS && pack.parts?.some((q) => q && q.jnt !== undefined && q.wgt !== undefined));
+  return { ...pack, clips, ...(held ? { held } : {}), ...(face ? { face } : {}), ...(response && response.length ? { response } : {}), ...(skinParts ? { skinParts: true } : {}) };
 }
+/** the realistic laws from which a hero is drawn as one skin on the page */
+const SKIN_PARTS_LAWS = 17;
 
 /**
  * A level's sketch as it is played: a city segment's level reads its city by ref (city/plan/ref.js), merged before it is
