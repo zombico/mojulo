@@ -30,7 +30,18 @@ export function mapSpec(M) {
     hud: { use: 'hud', children: M.corner ? [{ use: 'radar-corner', props: { shapes: B('shapes'), markers: B('near'), focus: B('you'), heading: B(M.corner === 'follow' ? 'heading' : 'north'), zoom: M.zoom } }] : [] },
   });
 }
-const MAP_CSS = '.moj-map{position:absolute;inset:0;pointer-events:none;z-index:8}.moj-map .mana-root{background:none}.moj-map.open{z-index:34;pointer-events:auto}';
+const MAP_CSS = '.moj-map{position:absolute;inset:0;pointer-events:none;z-index:8}.moj-map .mana-root{background:none}.moj-map.open{z-index:34;pointer-events:auto}'
+  // THE RADAR, an instrument and not a picture in a box: round, on no plate, its rim the panel's with a hairline round it
+  // and a shadow under it, the ground inside darkened toward its edge (docs/mana-ui.md: the map is an instrument)
+  + '.moj-map .mana-place>.mana-region:has(>.mana-map[data-size=corner]){background:none!important;border:0!important;box-shadow:none!important;clip-path:none!important;padding:0!important}'
+  + '.moj-map .mana-map[data-size=corner]{border:0;border-radius:50%;clip-path:circle(50% at 50% 50%);box-shadow:0 0 0 4px var(--mana-panel),0 0 0 5px color-mix(in srgb,var(--mana-ink) 30%,transparent),0 10px 28px rgba(0,0,0,.5)}'
+  + '.moj-map .mana-map[data-size=corner]::after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;background:radial-gradient(closest-side,transparent 62%,color-mix(in srgb,var(--mana-panel) 70%,transparent))}'
+  // THE GROUND, in the look's own night: the frame round the city the panel's, the water a cold blue (the look's shield)
+  // under the land; on the opened map only the goal and you are named (every stop's words at once is noise; the key
+  // beside it names the rest)
+  + '.moj-map .mana-map,.moj-map .mana-map-plane,.moj-map .mana-map-shape[data-kind=land]{background:color-mix(in srgb,var(--mana-panel) 88%,#000)}'
+  + '.moj-map .mana-map-shape[data-kind=water]{background:color-mix(in srgb,var(--mana-shield) 42%,var(--mana-panel))}'
+  + '.moj-map .mana-map-mark:not([data-kind=goal]):not([data-you=yes])>.mana-caption{display:none}';
 
 /** The page's side (inlined by toString): the runtime mounted, a frame's read of the pilot, the cars and the goal. */
 export function mapPage(M, ui, spec, css) {

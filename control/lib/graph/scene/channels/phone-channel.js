@@ -19,18 +19,31 @@ const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 const I = (f) => ({ item: f }), K = (p) => ({ pick: p }), B = (p) => ({ bind: `phone.${p}` });
 const txt = (value, role) => ({ use: 'text', props: { value, ...(role ? { role } : {}) } });
 
-/** The spec it draws: a tab for the contacts and one for each app, each the same page: its rows beside what the one in
- * focus says (a contact's thread; a task's ask, its pay and its next step). */
+/** The spec it draws: a tab for the contacts and one for each app, each the same page: its rows over what the one in
+ * focus says (a contact's thread; a task's ask, its pay and its next step). Drawn as a HANDSET, not a screen: a phone held
+ * at the bottom right with the city still there round it (PHONE_CSS: its body, its bar of the hour and the signal, its
+ * apps as the tabs along its top), the way an open-world game hands the player a phone. */
 export function phoneSpec(G) {
-  return { screens: { phone: { use: 'screen', props: { title: G.title, layer: 'modal', place: 'full', legend: 'none' }, children: [
-    { use: 'window', children: [{ use: 'tabs', props: { pages: B('pages'), page: { use: 'split', children: [
+  return { screens: { phone: { use: 'screen', props: { title: G.title, layer: 'modal', place: 'right', legend: 'none' }, children: [
+    { use: 'window', children: [{ use: 'tabs', props: { pages: B('pages'), page: { use: 'stack', props: { gap: 'normal' }, children: [
       { use: 'list', id: 'rows', props: { rows: I('rows'), empty: I('empty'), row: { use: 'stack', props: { dir: 'row', gap: 'tight', align: 'center' }, children: [{ use: 'icon', props: { name: I('icon') } }, txt(I('name')), { use: 'badge', props: { value: I('state') } }] } }, on: { accept: { emit: 'pick', row: I('id') } } },
-      { use: 'stack', props: { gap: 'normal' }, children: [txt(K('rows.name'), 'title'), { use: 'each', props: { rows: K('rows.lines'), row: { use: 'stack', props: { gap: 'tight' }, children: [txt(I('who'), 'label'), txt(I('text'))] } } }] },
+      { use: 'stack', props: { gap: 'tight' }, children: [txt(K('rows.name'), 'heading'), { use: 'each', props: { rows: K('rows.lines'), row: { use: 'stack', props: { gap: 'tight' }, children: [txt(I('who'), 'caption'), txt(I('text'))] } } }] },
     ] } } }] },
     { use: 'legend', props: { rows: [...((G.apps ?? []).length || (G.factions ?? []).length ? [{ actions: ['tabPrev', 'tabNext'], label: { word: 'tabs' } }, { action: 'accept', label: 'Take' }] : []), { action: 'back', label: { word: 'back' } }] } },
   ] } } };
 }
-const PHONE_CSS = '.moj-phone{position:absolute;inset:0;pointer-events:none;z-index:8}.moj-phone .mana-root{background:none}.moj-phone.open{z-index:34;pointer-events:auto}';
+const PHONE_CSS = '.moj-phone{position:absolute;inset:0;pointer-events:none;z-index:8}.moj-phone .mana-root{background:none}.moj-phone.open{z-index:34;pointer-events:auto}'
+  // THE HANDSET: the city held but not veiled; a phone's body at the bottom right, rounded, its glass the theme's panel,
+  // the hour and the signal along its top, its name under them, its apps (the tabs) a row of chips, its rows and the
+  // thread scrolling inside it; its keys said under it
+  + '.moj-phone .mana-screen[data-place=right]{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:linear-gradient(90deg,transparent 55%,rgba(0,0,0,.35))!important;justify-content:flex-end!important;padding-bottom:calc(var(--mana-safe) * 100cqh + 56px)!important}'
+  + '.moj-phone .mana-screen[data-place=right]>.mana-window{position:relative;width:min(400px,86cqw)!important;min-width:0!important;height:min(640px,74cqh);overflow:hidden;border-radius:36px!important;clip-path:none!important;padding:46px 18px 18px!important;box-shadow:0 0 0 3px #1c1f24,0 0 0 5px rgba(255,255,255,.12),0 24px 60px rgba(0,0,0,.55)!important;border:0!important}'
+  + '.moj-phone .mana-screen[data-place=right]>.mana-window::before{content:"\\25CF\\25CF\\25CF\\25CF  5G";position:absolute;right:22px;top:14px;font:700 11px/1 ui-monospace,monospace;letter-spacing:1px;opacity:.75}'
+  + '.moj-phone .mana-screen[data-place=right]>.mana-window::after{content:"";position:absolute;left:50%;top:12px;width:92px;height:22px;transform:translateX(-50%);border-radius:12px;background:#000}'
+  + '.moj-phone .mana-screen[data-place=right]>.mana-title{position:absolute;right:calc(var(--mana-safe) * 100cqw + 30px);bottom:calc(var(--mana-safe) * 100cqh + 56px + min(640px,74cqh) - 40px);z-index:2;font-size:13px!important;letter-spacing:2px;opacity:.8}'
+  + '.moj-phone .mana-screen[data-place=right]>.mana-title::before{content:none!important}'
+  + '.moj-phone .mana-tabs .mana-list{max-height:min(250px,30cqh);overflow:auto}'
+  + '.moj-phone .mana-screen[data-place=right]>.mana-legend{position:absolute;right:calc(var(--mana-safe) * 100cqw);bottom:calc(var(--mana-safe) * 100cqh)}';
 
 /** The page's side (inlined by toString): the runtime mounted, the tabs read off the bus. */
 export function phonePage(G, ui, spec, css, thread, tasks, board, W) {
