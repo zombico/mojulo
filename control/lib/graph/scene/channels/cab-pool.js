@@ -9,14 +9,18 @@
 // (`world.trafficOffer`, which the mount prompt reads); on the interact press a SPARE cab (`mount.spare`, kept out of the
 // world until then) takes its place, model, paint and box, the traffic's own vehicle is drawn no more
 // (`window.__mojTaken`), and the runtime gets the driver in. With none spare, the farthest one left standing is reused.
+// MAYHEM (`mayhem`: a page whose bus listens for it, the law's wanted level, game/law-mechanics.js): a car taken from
+// the traffic presses `mayhem:carjack`; driven into one of the traffic's vehicles at speed, `mayhem:crash` (once a
+// while). Absent, not one byte.
 // Emitted only when an entity's mount carries `pool` or `spare`; absent, not one byte.
-export function cabPoolScript() {
+export function cabPoolScript({ mayhem = false } = {}) {
   return `
 // --- the city's cars as bodies: drawn from the pooled templates; one taken from the traffic ---
 (function () {
   if (typeof __POOLS === 'undefined') return;
   const TRIM = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), made = new Map();
-  const REACH = 3.6, SLOW = 2, FAR = 120, SEEN = 420, TILT = 90;
+  const REACH = 3.6, SLOW = 2, FAR = 120, SEEN = 420, TILT = 90;${mayhem ? `
+  const CRASH = { speed: 7, every: 2500 };` : ''}
   function bodyOf(e) {
     const P = e.mount.pool; let b = made.get(e.id);
     if (b && b.model === P.model && b.tint === P.tint) return b;
@@ -81,9 +85,18 @@ export function cabPoolScript() {
       spare.mount.pool = { model: x.model, tint: x.tint }; spare.mount.hull = [x.hull[0], x.hull[1]]; spare.mount.stand = [-(x.hull[0] + 0.5), 0.25];
       spare.transform.pos[0] = x.p[0]; spare.transform.pos[1] = x.p[1]; spare.transform.pos[2] = x.p[2]; spare.transform.heading = x.heading;
       spare.speed = 0; spare.gone = false; spare.riderId = null;
-      W.mountPress = 1;
+      W.mountPress = 1;${mayhem ? `
+      if (window.__mojBus && window.__mojBus.press) window.__mojBus.press('mayhem:carjack');` : ''}
     }
-    prevN = n;
+    prevN = n;${mayhem ? `
+    // (driven into the traffic at speed: a crash, once a while)
+    if (pilot && pilot.mountedOn && window.__mojBus && window.__mojBus.press) {
+      const car = W.byId[pilot.mountedOn], now = performance.now();
+      if (car && Math.abs(car.speed || 0) > CRASH.speed && !(now - (W.crashT || -1e9) < CRASH.every)) {
+        const cp = car.transform.pos;
+        for (const x of W.trafficHulls || []) { if (Math.abs(x.p[2] - cp[2]) > 2.5) continue; if (Math.hypot(x.p[0] - cp[0], x.p[1] - cp[1]) < x.hull[1] * 0.5 + (car.mount.hull ? car.mount.hull[1] * 0.5 : 2.2)) { W.crashT = now; window.__mojBus.press('mayhem:crash'); break; } }
+      }
+    }` : ''}
   })();
 })();
 `;

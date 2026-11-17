@@ -111,7 +111,7 @@ export function buildManaUi() {
   const MARKERS = { self: '▲', ally: '●', foe: '✕', goal: '★', item: '◆', poi: '○' };
   // a map's ground, by kind (a kind it does not know is land), and how its miniature is tilted (degrees: back, round)
   const MAP_KINDS = ['land', 'road', 'walk', 'block', 'building', 'park', 'water', 'lot', 'turf'], MAP_TILT = [56, -32];
-  const PIP_SHAPES = { pip: ['●', '○'], heart: ['♥', '♡'], square: ['■', '□'], diamond: ['◆', '◇'] };
+  const PIP_SHAPES = { pip: ['●', '○'], heart: ['♥', '♡'], square: ['■', '□'], diamond: ['◆', '◇'], star: ['★', '☆'] };
   // a moment's weight: a number, or the words (the broadcast's tones, weightiest last)
   const WEIGHTS = { minor: 0, normal: 1, major: 2, decisive: 3 };
   const RETICLES = { cross: '+', dot: '·', circle: '◯', bracket: '[ ]' };

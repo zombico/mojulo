@@ -61,6 +61,7 @@ import { jobQuests, contactName } from './city-guide.js';
 import { taskApps, appTitle } from './phone-ui.js';
 import { resolveMotion, GAIT_BASE } from './hero-vibe.js';
 import { turfRect, actLine } from './factions.js';
+import { policeCount, LAW } from './law.js';
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
 import { concernIds } from './concerns.js';
@@ -693,6 +694,18 @@ function encounterCast(G, E, refs, hero) {
   return { ...part, pilot: { ...(hero ? { rule: { stomp: stompOf(G) } } : {}), body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } } } };
 }
 
+/** The law's police: its bodies stood asleep and gone where the level starts (foes.js standFoe, each its class and its
+ * figure), each with the posts it may be set down on; brought by the wanted level (game/law-mechanics.js lowerWanted). */
+function policeCast(G, L, refs, hero) {
+  const B = bestiaryOf(G), part = { figures: {}, entities: [] }, ctx = { rim: targetRimOf(G), sheets: {} };
+  for (const id of L.ids) {
+    const e = standFoe(G, part, { id, eid: L.eid, entry: B[L.eid], at: L.at, heading: L.heading }, { ref: refs?.[L.eid] ?? null, more: { dormant: true, gone: true, posts: L.posts, modeRefs: refs ?? {} }, ctx });
+    // (sent for the player, they know where to look and keep up: at least LAW.chase of a city's run, and a long sight)
+    if (e.rule) e.rule = { ...e.rule, speed: Math.max(e.rule.speed ?? 0, r3(LAW.chase.run * CITY_RUN)), sightRange: Math.max(e.rule.sightRange ?? 0, LAW.chase.sight) };
+  }
+  return { ...part, pilot: { ...(hero ? { rule: { stomp: stompOf(G) } } : {}), body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } } } };
+}
+
 // a job's giver: how far from the start it stands at the least (a short drive), how far from another giver, what it
 // says unsaid (m)
 const GIVER = Object.freeze({ off: 120, apart: 14, says: 'I have a job for you.', budget: 8000, contact: 'contact' });
@@ -895,7 +908,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
   const doorMechs = (ends.doors ?? []).map(({ inside: _i, ...d }) => ({ kind: 'door', ...d }));
   // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot
-  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps, G.factions) : null;
+  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps, G.factions, G.law ? { ...G.law, bag: !!G.errands?.length } : null) : null;
   // (a glyph map with no way on, a megaworld's core: its goal stays its own, reaching it the level's win, no exit taken)
   // (a zone holding the walk's goal keeps it too: reaching it is the game's end, its gates travel)
   const keepsGoal = ways && stage.section === 'map' && (!map.on.length || !!ends.holdsGoal);
@@ -1027,7 +1040,9 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   const giverPart = heroRef && ways?.givers?.length ? ways.givers.reduce((part, g) => stand(part, g.id, { hero: quickFigure(G, null, 'farmhand', undefined, { path: `giver/${g.contact}` }).spec, grade: 'play', crowd: true, budget: GIVER.budget, stand: true }, g.at.slice(), g.heading), { figures: {}, entities: [] }) : null;
   // (AN ENCOUNTER's crew, stood asleep where the stage laid them: encounterCast)
   const encPart = ways?.encounter ? encounterCast(G, ways.encounter, foeRefs, !!heroRef) : null;
-  const X1 = giverPart ? mergeExtras(X0, giverPart) : X0, X = encPart ? mergeExtras(X1, encPart) : X1;
+  // (THE LAW's police, stood asleep and away at the start: policeCast)
+  const lawPart = ways?.police ? policeCast(G, ways.police, foeRefs, !!heroRef) : null;
+  const X1 = giverPart ? mergeExtras(X0, giverPart) : X0, X2 = encPart ? mergeExtras(X1, encPart) : X1, X = lawPart ? mergeExtras(X2, lawPart) : X2;
   if (X) {
     const p0 = pilotPart.entities[0];
     // (a written feel wins over a goal's own feet: a deathmatch's shooter pole moves the pilot only where no feel is written)
@@ -1589,7 +1604,7 @@ function heldWays(G, stage, ends, plan, mechanics) {
   return Object.assign(out, { hold });
 }
 
-function stageWays(stage, ends, plan, fus = undefined, factions = undefined) {
+function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law = null) {
   // (a glyph map's ends carry its ways as a trail's do, level/grid-ends.js: a zone of a megaworld)
   // (a town's and a district's walk carries them too: its far end the way on, its start the way back, levels.js geotownEnds)
   if (stage.manifest.trail === undefined && !['map', 'geotown', 'geocity'].includes(stage.section)) throw new Error(`levels: a map world's stages are trails, glyph maps, towns or districts, whose ends and pockets carry its ways; '${stage.level}/${stage.node}' is a climb`);
@@ -1757,7 +1772,28 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined) {
     quests = jobQuests([...offers, ...legs]);
     stoodGivers = givers;
   }
-  return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })), ...(quests.length ? { quests } : {}), ...(stoodGivers.length ? { givers: stoodGivers } : {}), ...(encounter ? { encounter } : {}) };
+  // THE LAW (law.js): a driven city a world's law watches. Its police stand asleep at the start, out of sight (policeCast),
+  // each with the posts it may be set down on (its walk's, its shops' fronts); the wanted level brings them star by star
+  // (game/law-mechanics.js lowerWanted), a street fight started raising one too
+  let police = null;
+  if (law && cityStage(stage) && (ends.parked?.length ?? 0) > 0) {
+    const ids = Array.from({ length: policeCount(law) }, (_, k) => `police-${k + 1}`);
+    police = { eid: law.police, ids, at: ends.spawn.slice(), heading: ends.heading, posts: lawPosts(ends) };
+    mechanics.push({ kind: 'wanted', police: ids, per: law.per, stars: law.stars, calm: law.calm, busted: law.busted, ...(law.bag && law.fine ? { fine: law.fine } : {}), back: ends.spawn.slice(), ...(encounter ? { mayhem: [`encounter:${encounter.id}`] } : {}) });
+  }
+  return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })), ...(quests.length ? { quests } : {}), ...(stoodGivers.length ? { givers: stoodGivers } : {}), ...(encounter ? { encounter } : {}), ...(police ? { police } : {}) };
+}
+
+// WHERE THE POLICE MAY BE SET DOWN (the cast's spawn `near`): along the walk the district lays, every POLICE_POSTS.step m,
+// and before its shops' fronts; at the most POLICE_POSTS.most of them, taken evenly
+const POLICE_POSTS = Object.freeze({ step: 20, most: 32 });
+function lawPosts(ends) {
+  const out = [], via = ends.via ?? [], g = ends.ground ?? (() => null);
+  let last = null;
+  for (const p of via) if (!last || Math.hypot(p[0] - last[0], p[1] - last[1]) >= POLICE_POSTS.step) { last = p; const z = g(p[0], p[1]); out.push([p[0], p[1], z ?? ends.spawn[2]]); }
+  for (const P of ends.places ?? []) out.push(P.at.slice());
+  const pick = out.length <= POLICE_POSTS.most ? out : Array.from({ length: POLICE_POSTS.most }, (_, k) => out[Math.floor((k * out.length) / POLICE_POSTS.most)]);
+  return pick.map((p) => p.map((v) => Math.round(v * 10) / 10));
 }
 
 /**

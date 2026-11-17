@@ -296,6 +296,21 @@ describe('jobs across the district (errands on a played district: its shops thei
     const legs = [...route.slice(1).map((p, k) => d(p, route[k])), d(fares[0], fares[1])];
     for (const [k, m] of legs.entries()) expect(m, `leg ${k}: ${legs.map((x) => Math.round(x)).join(', ')} m`).toBeGreaterThan(150);
   });
+  it('the law (law.js): a world with law stands its police asleep and away, each with the posts it may be set down on, and lays the wanted level; without, none', () => {
+    const lawful = runSteps({ ...JOBS, id: 'jobs8', law: { stars: 3 } }, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest;
+    const cops = lawful.entities.filter((e) => /^police-/.test(e.id)), W = lawful.game.mechanics.find((m) => m.kind === 'wanted');
+    // (two a star, three stars: six; asleep and gone at the start; on the patrol's figure; keeping up with a city's run)
+    expect(cops.map((e) => e.id)).toEqual(['police-1', 'police-2', 'police-3', 'police-4', 'police-5', 'police-6']);
+    for (const e of cops) { expect(e).toMatchObject({ dormant: true, gone: true }); expect(e.rule.speed).toBeGreaterThan(5); expect(e.rule.sightRange).toBeGreaterThanOrEqual(45); }
+    expect(cops[0].posts.length).toBeGreaterThan(4);
+    for (const p of cops[0].posts) expect(p).toHaveLength(3);
+    expect(W).toMatchObject({ police: cops.map((e) => e.id), per: 2, stars: 3, fine: 20, back: E.spawn });
+    // (the law is no faction: no contact, no board)
+    expect(lawful.game.mechanics.some((m) => m.kind === 'join')).toBe(false);
+    // (a game without law has none of it)
+    expect(level.entities.some((e) => /^police-/.test(e.id))).toBe(false);
+    expect(M.some((m) => m.kind === 'wanted')).toBe(false);
+  });
   it('every hero in the city runs fast: an athletic one on its longer stride at the same cadence, any other on quicker legs', () => {
     const hero = (motion) => runSteps({ ...JOBS, id: 'jobs7', characters: { ...JOBS.characters, hero: { ...JOBS.characters.hero, motion } } }, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest.entities.find((e) => e.pilotable).rule;
     const plain = hero({ vibe: ['bold'] }), fast = hero({ vibe: ['athletic'] });

@@ -51,7 +51,8 @@ export function hudToMana(rows, { register = null, hero = true, touch = false } 
       if (w.as === 'bar') {
         const variant = meaningOf(w); if (variant === 'hp') hpRow = true;
         bySlot[w.slot].push({ use: 'bar', props: { value, max: typeof w.max === 'string' ? B(`v.${varKey(w.max)}`) : w.max, ...(variant !== 'plain' ? { variant } : {}), ...(label ? { label } : {}) }, ...gate(w, i) });
-      } else if (w.as === 'clock') bySlot[w.slot].push({ use: 'timer', props: { seconds: value, ...(label ? { label } : {}) }, ...gate(w, i) });
+      } else if (w.as === 'stars') bySlot[w.slot].push({ use: 'pips', props: { value, max: w.max, shape: 'star', ...(label ? { label } : {}) }, ...gate(w, i) });
+      else if (w.as === 'clock') bySlot[w.slot].push({ use: 'timer', props: { seconds: value, ...(label ? { label } : {}) }, ...gate(w, i) });
       // (money is a coin and a figure, never the word beside a number: the shape is the label)
       else if (w.as === 'counter' && MONEY.test(String(label || w.var).trim())) bySlot[w.slot].push({ use: 'counter', props: { label: '', value, icon: 'coin' }, ...gate(w, i) });
       else if (w.as === 'counter') { const icon = iconOf(label) ?? iconOf(w.var); bySlot[w.slot].push({ use: 'counter', props: { label, value, ...(icon ? { icon } : {}) }, ...gate(w, i) }); }

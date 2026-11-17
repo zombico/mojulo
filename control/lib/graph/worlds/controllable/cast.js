@@ -18,6 +18,8 @@
  *     spawn { among, guard }  (among: [[x, y, z?], …]) at the one farthest from the living (the nearest other standing
  *                         body; a tie to the first): nobody stands up in front of the gun that felled them. (guard)
  *                         that many seconds no round or blade hurts it, or until it fires (the spawn guard)
+ *     spawn { near, ring? }   (near: a body's id) at a ring's distance from it ([14, 30] m), facing it: on one of the spawned
+ *                         body's own `posts` there (its id picks which), else the post nearest the ring, else behind it
  *     walk { points, names?, speed?, then?, face?, pose?, reach? }   a DUMB PATH: straight lines from point to point
  *                         (turn toward it, step, ground snap, collider push-out); `then` at the last point: 'stay' (hold
  *                         there, take `face` / `pose`), 'loop', 'back' (walk the points back, then stay)
@@ -225,6 +227,20 @@ export function buildCast(E) {
             if (dmin > bd) { bd = dmin; best = s; }
           }
           if (best) e.transform.pos = pt3(best, e.transform.pos[2]);
+        } else if (typeof o.near === 'string' && state.byId[o.near]) {
+          // NEAR A BODY (the law's police: game/law-mechanics.js): at a ring's distance from it, out of reach and close
+          // enough to come; on one of the spawned body's own `posts` (where it may be set down: a street's walks) in
+          // the ring, which one by its id and how often it has come, else the post nearest the ring; with none, behind it
+          const T = state.byId[o.near], tp = T.transform.pos, R = Array.isArray(o.ring) && o.ring.length === 2 ? o.ring : [14, 30];
+          const k = (e.spawns = (e.spawns || 0) + 1), h = [...e.id].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, k * 7919);
+          const posts = Array.isArray(e.posts) ? e.posts.filter(Array.isArray) : [], dist = (p) => Math.hypot(p[0] - tp[0], p[1] - tp[1]);
+          const inRing = posts.filter((p) => dist(p) >= R[0] && dist(p) <= R[1]), mid = (R[0] + R[1]) / 2;
+          const near = posts.reduce((m, p) => (dist(p) <= R[1] * 3 && (!m || Math.abs(dist(p) - mid) < Math.abs(dist(m) - mid)) ? p : m), null);
+          const at = inRing.length ? inRing[h % inRing.length] : near;
+          // (a step or two off the post, by its id: two set on one post stand apart)
+          if (at) { const j = (h % 628) / 100, o2 = 1 + (h >>> 12) % 2; e.transform.pos = pt3([at[0] + Math.cos(j) * o2, at[1] + Math.sin(j) * o2, at[2]], tp[2]); }
+          else { const a = (T.transform.heading || 0) + Math.PI + ((h % 1000) / 1000 - 0.5) * 1.6, r = R[0] + ((h >>> 10) % 1000) / 1000 * (R[1] - R[0]); e.transform.pos = [tp[0] + Math.cos(a) * r, tp[1] + Math.sin(a) * r, tp[2]]; }
+          e.transform.heading = Math.atan2(tp[1] - e.transform.pos[1], tp[0] - e.transform.pos[0]);
         } else if (Array.isArray(o.at)) e.transform.pos = pt3(o.at, e.transform.pos[2]);
         if (Number.isFinite(o.guard) && o.guard > 0) { e.spawnGuard = true; e.spawnGuardT = o.guard; e.invincible = true; }   // combat-match's spawn-guard ticks it; a shot breaks it
         if (Number.isFinite(o.face)) e.transform.heading = o.face * DEG;

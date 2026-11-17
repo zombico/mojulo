@@ -5,7 +5,8 @@
  * A hud row is a WIDGET in one of seven SLOTS (the signage slot names, reused verbatim — the
  * corners hold persistent readouts, the centre line holds moments):
  *
- *   readout  { var, label?, slot?, as?: 'text'|'counter'|'bar'|'clock', max?, color? }
+ *   readout  { var, label?, slot?, as?: 'text'|'counter'|'bar'|'clock'|'stars', max?, color? }   ('stars': a count as
+ *            stars out of max, the wanted level's)
  *   banner   { on: '<busEventPattern>', text, slot?: 'center', ttl?: 2, color? }
  *   toast    { on, text, as: 'toast', slot?: 'center', ttl?: 0.8, color? }   — a banner that STACKS
  *            { var, as: 'toast', text?: '{delta}', slot?, ttl?, color? }     — fires when the var changes
@@ -46,7 +47,7 @@ import { MOTION_TIMING } from '../playscape/ui/register.js';
 import { titleMaterialName, titleMaterial } from './title-material.js';
 
 export const HUD_SLOTS = ['top-left', 'top', 'top-right', 'center', 'bottom-left', 'bottom', 'bottom-right'];
-export const HUD_KINDS = ['text', 'counter', 'bar', 'clock'];
+export const HUD_KINDS = ['text', 'counter', 'bar', 'clock', 'stars'];
 export const MOMENT_KINDS = ['banner', 'toast', 'title'];   // what an `on` row may be `as`
 export const TOAST_TTL = 0.8;                        // seconds a damage number lives (default)
 export const TITLE_TTL = 1.8;                        // seconds a title card stands (default), its entrance and exit inside
@@ -314,6 +315,7 @@ export function normalizeHud(rows, ctx = {}) {
       const kind = r.as !== undefined ? r.as : null;
       if (kind !== null && !HUD_KINDS.includes(kind)) errors.push(`${where}.as must be one of: ${HUD_KINDS.join(', ')} (or 'toast' for a change popup)`);
       if (kind === 'bar' && !(Number.isFinite(r.max) || isStr(r.max))) errors.push(`${where}: as:'bar' needs max (a number, or the name of a var)`);
+      if (kind === 'stars' && !(Number.isInteger(r.max) && r.max >= 1 && r.max <= 10)) errors.push(`${where}: as:'stars' needs max (how many stars, 1 to 10)`);
       if (r.max !== undefined && !(Number.isFinite(r.max) || isStr(r.max))) errors.push(`${where}.max must be a number or a var name`);
       if (r.label !== undefined && typeof r.label !== 'string') errors.push(`${where}.label must be a string`);
       const fields = {

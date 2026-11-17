@@ -166,6 +166,8 @@ export const MECHANIC_SFX = {
   task: { 'task:*': 'chime', 'app:sub:*': 'checkpoint' },
   join: { 'join:*': 'checkpoint', 'join-open:*': 'alarm', 'join-ask:*': 'chime', 'app:leave:*': 'thud' },
   act: { 'posting:*': 'chime', 'act:*:ok': 'goal', 'encounter:*': 'wave', 'encounter-lost:*': 'lose' },
+  // (the law: a star raised the alarm, a bust a loss, shaken off a checkpoint)
+  wanted: { 'wanted:*': 'alarm', 'busted': 'lose', 'wanted-lost': 'checkpoint' },
   frags: { kill: 'down', 'frags:won': 'goal', 'frags:lost': 'lose' },
   control: { 'control:won': 'goal', 'control:lost': 'lose' },
   board: { 'board-won': 'goal', 'board-lost': 'lose', 'board-draw': 'lose' },

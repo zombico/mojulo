@@ -1097,7 +1097,7 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, f
   // the hero's phone (channels/phone-channel.js): the givers met and their threads on P, on mana-ui in the HUD's look; none ⇒ ''
   const phoneBlock = phoneUi && manaHud && !capture ? phoneScript(phoneUi, manaHud.theme ?? null, manaShared ? { shared: manaShared } : {}) : '';
   // the city's cars as bodies (channels/cab-pool.js): a cab drawn from the pooled templates, one taken from the traffic; none ⇒ ''
-  const cabPoolBlock = hasPool && entityList.some((e) => e.mount && e.mount.cab && (e.mount.pool || e.mount.spare)) ? cabPoolScript() : '';
+  const cabPoolBlock = hasPool && entityList.some((e) => e.mount && e.mount.cab && (e.mount.pool || e.mount.spare)) ? cabPoolScript({ mayhem: hasEvents && events.reactions.some((r) => r && typeof r.on === 'string' && r.on.startsWith('mayhem:')) }) : '';
   const flowSpec = readFlow(flow), flowBlock = flowSpec && hasPool ? flowChannelScript(flowSpec, { play: entityList.some((e) => e.mount && e.mount.cab) }) : '';
   // a city's aviation lights (channels/beacons.js): blinking over its tallest on the world clock; none ⇒ ''
   const beaconsSpec = readBeacons(beacons), beaconsBlock = beaconsSpec ? beaconsChannelScript(beaconsSpec) : '';
