@@ -31,7 +31,7 @@ describe('the first mission, from a world', () => {
     page.on('pageerror', (e) => errors.push(String(e)));
     await page.setContent(html, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => !!(window.__mojMission && window.__mojMission.up), { timeout: 120000 });
-    const st = () => page.evaluate(() => { const M = window.__mojMission, P = M.state.ms; return { up: M.up, screen: M.rt.state().screen, ended: M.ended, weapon: P.weapon, hp: P.hp, title: P.objective.title, done: P.objective.steps.filter((s) => s.done).length, t: window.__mojCtrl.world.time }; });
+    const st = () => page.evaluate(() => { const M = window.__mojMission, P = M.state.ms; return { up: M.up, screen: M.rt.state().screen, ended: M.ended, weapon: P.weapon, hp: P.hp, title: P.order.title, step: P.order.step, mag: P.magazine, mode: P.mode, peril: P.peril, done: P.objective.steps.filter((s) => s.done).length, t: window.__mojCtrl.world.time }; });
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const stand = (at) => page.evaluate((p) => { const me = window.__mojCtrl.world.entities.find((e) => e.pilotable); me.transform.pos[0] = p[0]; me.transform.pos[1] = p[1]; }, at);
     const where = () => page.evaluate(() => window.__mojCtrl.world.entities.find((e) => e.pilotable).transform.pos.slice(0, 2));
@@ -47,6 +47,11 @@ describe('the first mission, from a world', () => {
     await wait(600);
     expect((await st()).t).toBeGreaterThan(p0.t);
     expect(p0.weapon).toBe(TEMPLATE_LOADOUTS[SHOOTER].weapons[0]);
+    // (the gun as a shooter shows it: its magazine's size for the belt, its fire mode; full health puts no edge on the screen)
+    expect(p0.mag).toBeGreaterThan(0);
+    expect(['Auto', 'Burst', 'Semi', 'Launcher']).toContain(p0.mode);
+    expect(p0.peril).toBe(0);
+    expect(await page.evaluate(() => !!document.querySelector('#mana .mana-magazine .mana-belt, #mana .mana-magazine .mana-track'))).toBe(true);
     // (a mission is played: its page fills the window its HUD is laid over)
     expect(await page.evaluate(() => { const w = document.getElementById('wrap'); return [w.clientWidth === innerWidth, w.clientHeight === innerHeight]; })).toEqual([true, true]);
     // (the gun in the hands is the arms library's own arm: its parts' faces, handed to the page at its resolve)
@@ -58,7 +63,7 @@ describe('the first mission, from a world', () => {
     expect((await ring()).on).toBe(false);
     await page.evaluate(() => { const W = window.__mojCtrl.world, me = W.entities.find((e) => e.pilotable), f = W.entities.find((e) => e.team === 'foes'); f.transform.pos[0] = me.transform.pos[0] - 6; f.transform.pos[1] = me.transform.pos[1]; me.transform.heading = 0; me.hits = (me.hits || 0) + 1; me.lastHitBy = f.id; });
     await wait(300);
-    expect(await ring()).toEqual({ on: true, hits: [{ bearing: 180 }] });
+    expect(await ring()).toMatchObject({ on: true, hits: [{ bearing: 180 }] });
     await page.waitForFunction(() => !window.__mojMission.state.ms.ring.on, { timeout: 10000 });
     // a way on still sealed puts the body back
     const S0 = level.mission.sections[0];
@@ -70,6 +75,7 @@ describe('the first mission, from a world', () => {
     const p1 = await st();
     expect(p1.done).toBe(1);
     expect(p1.title).toBe(level.mission.sections[1].task.text);
+    expect(p1.step).toBe(`2/${level.mission.sections.length}`);
     // the pilot's pause: the menu up, the scene held
     await page.keyboard.press('Escape'); await wait(400);
     const z = await st();
@@ -79,6 +85,9 @@ describe('the first mission, from a world', () => {
     await page.keyboard.press('Escape'); await wait(400);
     expect((await st()).up).toBe(false);
     // a level lost: its one envelope lands, the debrief opens
+    // (low, the screen's edge closes in)
+    await page.evaluate(() => { window.__mojBus.state.vars.hp = 10; });
+    await page.waitForFunction(() => window.__mojMission.state.ms.peril > 0.5, { timeout: 5000 });
     await page.evaluate(() => { const B = window.__mojBus; B.state.vars.hp = 0; });
     await page.waitForFunction(() => window.__mojMission.ended && window.__mojMission.rt.state().screen === 'debrief', { timeout: 20000 });
     const end = await page.evaluate(() => ({ result: window.__mojGame.envelope.result, outcome: window.__mojMission.state.ms.result.outcome }));

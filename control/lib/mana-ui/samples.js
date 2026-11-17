@@ -172,6 +172,11 @@ export const SAMPLE_STATE = Object.freeze({
     threats: [{ bearing: 130 }, { bearing: 250 }],
     offscreen: [{ x: 1.25, y: 0.4, kind: 'goal', label: 'Extract' }, { x: -0.15, y: 0.75, kind: 'foe' }, { x: 0.5, y: -0.3, kind: 'ally', label: 'Isa' }],
     locks: [{ x: 0.64, y: 0.38, name: 'Drone', range: '40 m' }],
+    gun: { name: 'Carbine', mode: 'Auto', rounds: 7, size: 30, reserve: 90, reloading: false },
+    order: { title: 'Clear the lane', step: '2/3', distance: '24 m', holding: true, hold: 40, left: 17 },
+    radar: [{ x: 0.62, y: 0.3, kind: 'foe' }, { x: 0.34, y: 0.42, kind: 'foe' }, { x: 0.5, y: 0.04, kind: 'goal' }],
+    north: 320,
+    peril: 0.35,
   },
   scoreboard: [
     { id: 'ayla', name: 'Ayla', team: 'Red', score: 1450, kills: 12, deaths: 3, self: true, side: 0 }, { id: 'bram', name: 'Bram', team: 'Red', score: 1210, kills: 9, deaths: 5, side: 0 },
