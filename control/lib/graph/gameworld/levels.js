@@ -59,6 +59,7 @@ import { movesetLegend } from './input-map.js';
 import { quickFigure } from './cast-setting.js';
 import { jobQuests, contactName } from './city-guide.js';
 import { taskApps, appTitle } from './phone-ui.js';
+import { turfRect, actLine } from './factions.js';
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
 import { concernIds } from './concerns.js';
@@ -851,7 +852,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
   const doorMechs = (ends.doors ?? []).map(({ inside: _i, ...d }) => ({ kind: 'door', ...d }));
   // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot
-  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps) : null;
+  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps, G.factions) : null;
   // (a glyph map with no way on, a megaworld's core: its goal stays its own, reaching it the level's win, no exit taken)
   // (a zone holding the walk's goal keeps it too: reaching it is the game's end, its gates travel)
   const keepsGoal = ways && stage.section === 'map' && (!map.on.length || !!ends.holdsGoal);
@@ -1521,7 +1522,7 @@ function heldWays(G, stage, ends, plan, mechanics) {
   return Object.assign(out, { hold });
 }
 
-function stageWays(stage, ends, plan, fus = undefined) {
+function stageWays(stage, ends, plan, fus = undefined, factions = undefined) {
   // (a glyph map's ends carry its ways as a trail's do, level/grid-ends.js: a zone of a megaworld)
   // (a town's and a district's walk carries them too: its far end the way on, its start the way back, levels.js geotownEnds)
   if (stage.manifest.trail === undefined && !['map', 'geotown', 'geocity'].includes(stage.section)) throw new Error(`levels: a map world's stages are trails, glyph maps, towns or districts, whose ends and pockets carry its ways; '${stage.level}/${stage.node}' is a climb`);
@@ -1623,6 +1624,28 @@ function stageWays(stage, ends, plan, fus = undefined) {
         ...(subs.length === 1 && subs[0] === on[0] ? { subscribe: true } : subs.length ? { subscribe: subs.map((a) => ({ app: a, name: appTitle(a, fus) })) } : {}) };
     });
     offers.push(...tasks);
+    // THE FACTIONS (factions.js): each on its turf, a part of the district its shops stand in. Its contact stands at a
+    // shop on its turf, and coming to them is joining it (lowerJoin: one faction at a time). Its board's postings are
+    // acts (lowerAct), each with the zone it is done in: its target's turf, a rival's when it names one.
+    if (driven && factions?.length && (ends.places?.length ?? 0) > 0) {
+      const P = ends.places, box = [Math.min(...P.map((p) => p.at[0])), Math.min(...P.map((p) => p.at[1])), Math.max(...P.map((p) => p.at[0])), Math.max(...P.map((p) => p.at[1]))];
+      const key = (p) => `${p.at[0]},${p.at[1]}`, used = new Set([...givers.map((g) => `${g.at[0]},${g.at[1]}`), ...legs.filter((l) => l.at).map((l) => `${l.at[0]},${l.at[1]}`)]);
+      const inside = (r) => (p) => p.at[0] >= r[0] && p.at[0] <= r[2] && p.at[1] >= r[1] && p.at[1] <= r[3];
+      const nearest = (c, ok) => P.filter(ok).reduce((m, p) => (!m || Math.hypot(p.at[0] - c[0], p.at[1] - c[1]) < Math.hypot(m.at[0] - c[0], m.at[1] - c[1]) - 1e-9 ? p : m), null);
+      for (const F of factions) {
+        const r = turfRect(F, box), c = [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2], free = (p) => !used.has(key(p));
+        const at = nearest(c, (p) => free(p) && inside(r)(p)) ?? nearest(c, free);
+        if (!at) continue;
+        used.add(key(at));
+        givers.push({ id: `giver-${F.id}`, contact: F.id, faction: F.id, at: at.at.slice(), heading: r3(Math.atan2(at.N[1], at.N[0])), place: at.card, jobs: [] });
+        offers.push({ kind: 'join', faction: F.id, at: at.at.slice(), radius: ERRAND_DRIVE.reach, name: F.name, says: F.says, others: factions.filter((o) => o.id !== F.id).map((o) => o.id), colour: F.colour, turf: r, place: at.card });
+        for (const Pn of F.board) {
+          const tr = Pn.act.on ? turfRect(factions.find((o) => o.id === Pn.act.on), box) : r, tc = [(tr[0] + tr[2]) / 2, (tr[1] + tr[3]) / 2], spot = nearest(tc, inside(tr)) ?? nearest(tc, () => true);
+          offers.push({ kind: 'act', id: Pn.id, faction: F.id, verb: Pn.act.verb, ...(Pn.act.target ? { target: Pn.act.target } : {}), flag: `took-${Pn.id}`, done: `done-${Pn.id}`, at: spot.at.slice(), radius: r3(Math.max(ERRAND_DRIVE.reach, Math.min(tr[2] - tr[0], tr[3] - tr[1]) / 2)),
+            ...(Pn.reward.length ? { reward: Pn.reward } : {}), standing: Pn.standing, rank: Pn.rank, name: F.name, title: Pn.name, line: actLine(Pn, factions), ...(Pn.says ? { says: Pn.says } : {}) });
+        }
+      }
+    }
     // (the legs before the offers: a hand-in where its giver stands is not tried on the step that takes the job)
     mechanics.push(...legs, ...offers);
     quests = jobQuests([...offers, ...legs]);

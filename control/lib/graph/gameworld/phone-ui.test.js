@@ -109,6 +109,36 @@ describe('the phone', () => {
     expect(readPhoneUi({ apps: { ridefu: { tags: ['Ride'] } } })[0]).toMatch(/tags is the kinds of task/);
     expect(readPhoneUi({ apps: { ridefu: { colour: 'red' } } })[0]).toMatch(/not an app setting/);
   });
+  it('a faction\'s board is a tab while the hero is with it: its standing, and what it posts at that standing, each an act paid in money and standing', async () => {
+    const { phoneBoard } = await import('./phone-ui.js'), { lowerJoin, lowerAct } = await import('../game/errand-mechanics.js'), { jobQuests, cityGuide } = await import('./city-guide.js');
+    const M = [{ kind: 'bag', slice: 'bag' },
+      { kind: 'join', faction: 'reds', at: [10, 8, 0], name: 'Reds', says: 'In.', others: ['dockers'], colour: '#c0392b', turf: [0, 50, 100, 100] },
+      { kind: 'act', id: 'torch', faction: 'reds', verb: 'torch', target: 'car', flag: 'took-torch', done: 'done-torch', at: [40, 20, 0], radius: 30, reward: [{ item: 'coin', n: 50 }], standing: 1, rank: 0, name: 'Reds', title: 'Torch', line: 'Torch a car on Dockers turf' },
+      { kind: 'act', id: 'tag', faction: 'reds', verb: 'tag', flag: 'took-tag', done: 'done-tag', at: [40, 80, 0], radius: 30, standing: 2, rank: 1, name: 'Reds', title: 'Tag', line: 'Tag' }];
+    const P = phoneUi({ game: { mechanics: M } });
+    expect(P.contacts).toEqual([]); expect(P.apps).toEqual([]);
+    expect(P.factions).toMatchObject([{ id: 'reds', name: 'Reds', in: 'flag-in-reds', standing: 'standing-reds', postings: [{ id: 'torch', rank: 0, pays: '50 coin' }, { id: 'tag', rank: 1, standing: 2 }] }]);
+    // (at no standing: the one posting at rank 0, the other only counted)
+    const b0 = phoneBoard(P.factions[0], { 'flag-in-reds': 1 }, PHONE_UI);
+    expect(b0.map((r) => [r.id, r.name, r.state])).toEqual([['side:reds', 'Standing', '0'], ['task:torch', 'Torch', 'Open']]);
+    expect(b0[0].lines.at(-1).text).toBe('1 more at higher standing');
+    expect(b0[1].lines).toEqual([{ who: 'Job', text: 'Torch a car on Dockers turf' }, { who: 'Pays', text: '50 coin · standing +1' }]);
+    const b1 = phoneBoard(P.factions[0], { 'flag-in-reds': 1, 'standing-reds': 1, 'flag-took-torch': 1, 'flag-done-torch': 1 }, PHONE_UI);
+    expect(b1.map((r) => [r.id, r.state])).toEqual([['side:reds', '1'], ['task:torch', 'Done'], ['task:tag', 'Open']]);
+    // (a posting is a quest begun by taking it, its one step the act; the guide never leads to one)
+    expect(jobQuests(M)).toEqual([{ id: 'torch', name: 'Torch', starts: 'took-torch', steps: [{ log: 'Torch a car on Dockers turf', done: 'done-torch' }] }, { id: 'tag', name: 'Tag', starts: 'took-tag', steps: [{ log: 'Tag', done: 'done-tag' }] }]);
+    const hero = { id: 'hero', pilotable: true, transform: { pos: [0, 0, 0], heading: 0 } }, car = { id: 'car-1', mount: { cab: true }, transform: { pos: [3, 0, 0], heading: 0 } };
+    expect(cityGuide({ entities: [hero, car], game: { mechanics: M } }).steps.map((x) => x.id)).toEqual(['car']);
+    // (the mechanics: joining one leaves the others; an act pays once, only when taken, on THE SEAM act:<verb>:<id>)
+    const J = lowerJoin(M[1], { i: 0, player: 'hero' }).world;
+    expect(J.vars).toEqual({ 'flag-in-reds': 0, 'standing-reds': 0, 'flag-in-dockers': 0 });
+    expect(J.reactions).toContainEqual({ on: 'join:reds', do: 'set', var: 'flag-in-dockers', to: 0 });
+    const A = lowerAct(M[2], { i: 0, resolve() {} }).world;
+    expect(A.reactions.filter((r) => r.on === 'act:torch:torch')).toEqual([{ on: 'act:torch:torch', if: { var: 'flag-took-torch', gte: 1 }, do: 'emit', type: 'act:torch:torch:ok:1' }]);
+    expect(A.reactions).toContainEqual({ on: 'act:torch:torch:ok', do: 'inc', var: 'standing-reds', by: 1 });
+    expect(A.reactions).toContainEqual({ on: 'app:take:torch', if: { var: 'flag-took-torch', eq: 0 }, do: 'emit', type: 'posting:torch' });
+    expect(MECHANIC_KINDS).toEqual(expect.arrayContaining(['join', 'act']));
+  });
   it('the page hosts it on mana-ui: the contacts met beside the thread of the one in focus, in the theme\'s look alone', () => {
     const G = phoneUi(LEVEL), spec = phoneSpec(G);
     expect(() => manaUi.readSpec(spec)).not.toThrow();

@@ -410,6 +410,8 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-map-shape[data-kind=block]{background:${v('soft')}}`,
     `${s} .mana-map-shape[data-kind=building]{background:${v('mid')}}`,
     `${s} .mana-map-shape[data-kind=lot]{background:color-mix(in srgb,${v('soft')} 55%,${v('paper')})}`,
+    // (a side's turf: a wash of the side's own colour, the game's to say, `tint`; over the ground, under what stands on it)
+    `${s} .mana-map-shape[data-kind=turf]{background:color-mix(in srgb,var(--tint,${v('accent')}) 34%,transparent);outline:1px solid color-mix(in srgb,var(--tint,${v('accent')}) 70%,transparent);outline-offset:-1px;pointer-events:none}`,
     `${s} .mana-map-shape[data-kind=park]{background:color-mix(in srgb,${v('accent2')} 38%,${v('wash')})}`,
     `${s} .mana-map-shape[data-kind=water]{background:color-mix(in srgb,${v('accent')} 34%,${v('wash')})}`,
     // (raised in the miniature: its roof lifted over its plot, its plot the wall's shade)

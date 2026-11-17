@@ -57,15 +57,19 @@ export function cityMap(plan, manifest, ui = undefined) {
   const [bx0, by0, bx1, by1] = plan.box, side = Math.max(bx1 - bx0, by1 - by0), ox = (bx0 + bx1) / 2 - side / 2, oy = (by0 + by1) / 2 - side / 2;
   const X = (x) => (x - ox) / side, Y = (y) => 1 - (y - oy) / side;
   const shapes = plan.shapes.filter((q) => Array.isArray(q.r)).map((q) => ({ kind: q.kind, x: r4(X(q.r[0])), y: r4(Y(q.r[3])), w: r4((q.r[2] - q.r[0]) / side), h: r4((q.r[3] - q.r[1]) / side), ...(q.tall ? { tall: q.tall } : {}) }));
+  // (the factions' TURF, factions.js: each a wash of its colour over its part of the district; its contact where it is joined)
+  const sides = (manifest?.game?.mechanics ?? []).filter((m) => m?.kind === 'join' && Array.isArray(m.turf));
+  for (const F of sides) shapes.push({ kind: 'turf', tint: F.colour, x: r4(X(F.turf[0])), y: r4(Y(F.turf[3])), w: r4((F.turf[2] - F.turf[0]) / side), h: r4((F.turf[3] - F.turf[1]) / side) });
   const markers = [];
   if ((U.shops ?? CITY_MAP.shops) !== false) for (const p of plan.places ?? []) markers.push({ x: r4(X(p.at[0])), y: r4(Y(p.at[1])), kind: 'poi', icon: icons.shop, label: shopName(p.card), named: false });
   // (each job's stops, over the shops they stand at: the last drawn is on top)
   for (const J of jobsOf(manifest?.game?.mechanics)) for (const s of J.steps) markers.push({ x: r4(X(s.at[0])), y: r4(Y(s.at[1])), kind: 'item', icon: icons.job, label: `${J.name}: ${s.say}` });
+  for (const F of sides) markers.push({ x: r4(X(F.at[0])), y: r4(Y(F.at[1])), kind: 'npc', icon: 'person', label: `${F.name}: join here` });
   const radius = U.radius ?? CITY_MAP.radius, cars = (U.cars ?? CITY_MAP.cars) !== false;
   return {
     box: [r4(ox), r4(oy)], side: r4(side), shapes, markers,
     corner: U.corner === undefined ? CITY_MAP.corner : U.corner, views: [...(U.views ?? CITY_MAP.views)],
     zoom: r4(Math.max(1, Math.min(16, side / (2 * radius)))), icons, cars,
-    key: [{ icon: icons.goal, name: 'Where to go' }, { icon: icons.job, name: 'A job\'s stop' }, ...((U.shops ?? CITY_MAP.shops) !== false ? [{ icon: icons.shop, name: 'A shop' }] : []), ...(cars ? [{ icon: icons.car, name: 'A car' }] : [])],
+    key: [{ icon: icons.goal, name: 'Where to go' }, { icon: icons.job, name: 'A job\'s stop' }, ...((U.shops ?? CITY_MAP.shops) !== false ? [{ icon: icons.shop, name: 'A shop' }] : []), ...(cars ? [{ icon: icons.car, name: 'A car' }] : []), ...(sides.length ? [{ icon: 'person', name: 'A faction\'s contact' }] : [])],
   };
 }

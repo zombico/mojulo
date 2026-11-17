@@ -45,7 +45,7 @@ const at3 = (p) => [r3(p[0]), r3(p[1]), r3(p[2] ?? 0)];
  * (jobQuests) are these, so the two never say different things.
  *   → [{ id, name, repeat, steps: [{ id, say, at, radius, says?, flag?, take? }], starts?, called?, contact?, app? }]
  * (`starts`: the flag that begins it, where it is given; `called`: given by phone; `contact`: who gives it; `app`: the
- * phone app that gives it, in place of anyone)
+ * phone app that gives it, in place of anyone; `faction`: the side whose board posts it, its one step an act done in a zone)
  */
 export function jobsOf(mechanics) {
   const M = Array.isArray(mechanics) ? mechanics : [], out = [];
@@ -78,6 +78,9 @@ export function jobsOf(mechanics) {
     if (Tk) { const first = steps.find((x) => x.at); steps[0].at = first ? first.at.slice() : at3(J.at); }
     out.push({ id, name: `${words(id)[0].toUpperCase()}${words(id).slice(1)}`, repeat: J.repeat === true, steps, ...(O ? { starts: O.flag } : Cl ? { starts: Cl.flag, called: true } : Tk ? { starts: Tk.flag, app: Tk.app, ...(Tk.apps ? { apps: Tk.apps } : {}), ...(Tk.tags ? { tags: Tk.tags } : {}) } : {}), ...(who ? { contact: who } : {}) });
   }
+  // (a faction's POSTINGS, lowerAct: each one step, an act done somewhere in a zone; taken on the phone, on its board)
+  for (const A of M.filter((m) => m && m.kind === 'act' && Array.isArray(m.at))) out.push({ id: A.id, name: A.title ?? `${words(A.id)[0].toUpperCase()}${words(A.id).slice(1)}`, repeat: false, faction: A.faction, starts: A.flag,
+    steps: [{ id: `act-${A.id}`, say: A.line ?? words(A.verb), at: at3(A.at), radius: A.radius ?? 2, flag: A.done, zone: true }] });
   return out;
 }
 
@@ -100,11 +103,12 @@ export function cityGuide(manifest) {
   let loop = null;
   const jobs = jobsOf(M.game?.mechanics);
   for (const J of jobs) {
+    if (J.faction) continue;   // (a faction's posting is a side taken, never the way on: its board, the journal and the map say it)
     // (a standing job goes round again from its pick-up: it is taken once)
     if (J.repeat && loop === null) loop = steps.length + (J.steps[0]?.take ? 1 : 0);
     for (const { flag: _flag, take: _take, ...x } of J.steps) steps.push({ ...x, kind: 'find' });
   }
-  const job = jobs.length > 0;
+  const job = jobs.some((J) => !J.faction);
   return {
     // (the game's name: a level's title is `<game> · <level> · <stage>`)
     intro: `${M.title ? `${String(M.title).split(' · ')[0]}. ` : ''}${job ? 'Take any car. A job waits where the light stands.' : 'Take any car. The city is open.'}`,

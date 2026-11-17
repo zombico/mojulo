@@ -110,7 +110,7 @@ export function buildManaUi() {
   const AWARENESS = { unaware: '–', suspicious: '?', searching: '??', alert: '!', combat: '!!', fleeing: '»', down: '✕' };
   const MARKERS = { self: '▲', ally: '●', foe: '✕', goal: '★', item: '◆', poi: '○' };
   // a map's ground, by kind (a kind it does not know is land), and how its miniature is tilted (degrees: back, round)
-  const MAP_KINDS = ['land', 'road', 'walk', 'block', 'building', 'park', 'water', 'lot'], MAP_TILT = [56, -32];
+  const MAP_KINDS = ['land', 'road', 'walk', 'block', 'building', 'park', 'water', 'lot', 'turf'], MAP_TILT = [56, -32];
   const PIP_SHAPES = { pip: ['●', '○'], heart: ['♥', '♡'], square: ['■', '□'], diamond: ['◆', '◇'] };
   // a moment's weight: a number, or the words (the broadcast's tones, weightiest last)
   const WEIGHTS = { minor: 0, normal: 1, major: 2, decisive: 3 };
@@ -829,7 +829,7 @@ export function buildManaUi() {
             const stand = mini ? `rotateZ(${-MAP_TILT[1]}deg) rotateX(${-MAP_TILT[0]}deg)` : rot ? `rotate(${r2(rot)}deg)` : '';
             const shapes = p.shapes.filter((q) => isObj(q) && [q.x, q.y, q.w, q.h].every((n) => isFinite(Number(n)))).map((q) => {
               const tall = mini && Number(q.tall) > 0 ? clamp(Number(q.tall), 0, 1) : 0;
-              return ['span', { class: 'mana-map-shape', 'data-kind': MAP_KINDS.includes(q.kind) ? q.kind : 'land', 'data-tall': tall ? 'yes' : null, style: `left:${pct(q.x)};top:${pct(q.y)};width:${pct(q.w)};height:${pct(q.h)}${tall ? `;--tall:${r2(tall)}` : ''}` }, tall ? ['span', { class: 'mana-map-roof' }] : null];
+              return ['span', { class: 'mana-map-shape', 'data-kind': MAP_KINDS.includes(q.kind) ? q.kind : 'land', 'data-tall': tall ? 'yes' : null, style: `left:${pct(q.x)};top:${pct(q.y)};width:${pct(q.w)};height:${pct(q.h)}${tall ? `;--tall:${r2(tall)}` : ''}${q.kind === 'turf' && /^#[0-9a-f]{6}$/i.test(q.tint || '') ? `;--tint:${q.tint}` : ''}` }, tall ? ['span', { class: 'mana-map-roof' }] : null];
             });
             const marks = p.markers.filter((m) => isObj(m) && isFinite(Number(m.x)) && isFinite(Number(m.y))).map((m) => {
               const turn = m.you && isFinite(Number(m.heading)) && !mini ? ` rotate(${r2(Number(m.heading) - rot)}deg)` : '';

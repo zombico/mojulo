@@ -229,6 +229,32 @@ describe('jobs across the district (errands on a played district: its shops thei
     expect(P.contacts).toEqual([]);
     expect(P.apps.map((a) => [a.name, a.tasks.map((t) => t.id)])).toEqual([['CityFu', ['parcel', 'fare']], ['RideFu', ['fare']]]);
   });
+  it('factions: each on its turf of the district, its contact at a shop there (joining is coming to them), its board\'s acts each with a zone; turf is on the map', async () => {
+    const FACTIONS = { reds: { colour: '#c0392b', turf: 'north', rivals: ['dockers'], board: [{ id: 'torch', act: { verb: 'torch', target: 'car', on: 'dockers' }, reward: [{ item: 'coin', n: 50 }] }, { id: 'tag', act: { verb: 'tag' }, standing: 2, rank: 1 }] },
+      dockers: { name: 'The Dockers', colour: '#2e86c1', turf: 'south' } };
+    const sided = runSteps({ ...JOBS, id: 'jobs5', factions: FACTIONS }, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest, A = sided.game.mechanics;
+    const joins = A.filter((m) => m.kind === 'join'), acts = A.filter((m) => m.kind === 'act');
+    expect(joins.map((j) => [j.faction, j.name, j.others])).toEqual([['reds', 'Reds', ['dockers']], ['dockers', 'The Dockers', ['reds']]]);
+    // (turf: the halves of the box the district's shops stand in; each contact at a shop on their own)
+    const xs = E.places.map((p) => p.at[0]), ys = E.places.map((p) => p.at[1]), midY = (Math.min(...ys) + Math.max(...ys)) / 2;
+    expect(joins[0].turf[1]).toBeCloseTo(midY, 2); expect(joins[1].turf[3]).toBeCloseTo(midY, 2);
+    expect(joins[0].turf[0]).toBeCloseTo(Math.min(...xs), 2);
+    expect(joins[0].at[1]).toBeGreaterThanOrEqual(midY); expect(joins[1].at[1]).toBeLessThanOrEqual(midY);
+    for (const j of joins) { expect(E.places.some((p) => p.at[0] === j.at[0] && p.at[1] === j.at[1])).toBe(true); expect(sided.entities.find((e) => e.id === `giver-${j.faction}`).transform.pos.slice(0, 2)).toEqual(j.at.slice(0, 2)); }
+    // (no two stand in one place: the factions' contacts, the job's giver)
+    const stands = sided.entities.filter((e) => /^giver-/.test(e.id)).map((e) => e.transform.pos.slice(0, 2).join());
+    expect(new Set(stands).size).toBe(stands.length); expect(stands).toHaveLength(3);
+    // (the acts: the torch on the rival's turf, the tag on its own; each a quest, taken on the board)
+    expect(acts.map((a) => [a.id, a.verb, a.line, a.rank, a.standing])).toEqual([['torch', 'torch', 'Torch a car on The Dockers turf', 0, 1], ['tag', 'tag', 'Tag', 1, 2]]);
+    expect(acts[0].at[1]).toBeLessThanOrEqual(midY); expect(acts[1].at[1]).toBeGreaterThanOrEqual(midY);
+    expect(sided.play.quests.map((q) => [q.id, q.starts])).toEqual([['parcel', 'took-parcel'], ['fare', 'took-fare'], ['torch', 'took-torch'], ['tag', 'took-tag']]);
+    const { cityMap } = await import('./city-map.js');
+    const map = cityMap({ box: [0, 0, 1000, 1000], shapes: [], places: [] }, sided);
+    expect(map.shapes.filter((q) => q.kind === 'turf').map((q) => q.tint)).toEqual(['#c0392b', '#2e86c1']);
+    expect(map.markers.map((m) => m.label)).toEqual(expect.arrayContaining(['Reds: join here', 'The Dockers: join here']));
+    // (a game with no factions has none of it)
+    expect(M.some((m) => m.kind === 'join' || m.kind === 'act')).toBe(false);
+  });
   it('a standing job keeps the level open: the one-off pays and ends nothing; the guide leads through both, then round the fares', async () => {
     expect(M.find((m) => m.kind === 'deliver' && m.id === 'parcel')).toMatchObject({ open: true });
     expect(M.find((m) => m.kind === 'deliver' && m.id === 'fare')).toMatchObject({ repeat: true });

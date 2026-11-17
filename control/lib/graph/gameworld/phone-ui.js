@@ -18,12 +18,16 @@
  *   An APP is not a person (errand.js `app`; TaskFu): a tab of the phone, subscribed to there, whose tasks are taken
  *   there and are quests with a reward like any job. Nothing is met and nothing is gone back to.
  *
- *   phoneUi(manifest, ui?)         → { title, apps: [{ id, name, sub, tasks: [{ id, name, took, done, repeat, pays, steps }] }], contacts: [{ id, name, met, jobs: [{ id, name, took, done, called, says,
+ *   A FACTION's board (factions.js) is a tab while the hero is with it: what it posts at the hero's standing, each an
+ *   act, taken there like a task.
+ *
+ *   phoneUi(manifest, ui?)         → { title, factions: [{ id, name, in, standing, postings }], apps: [{ id, name, sub, tasks: [{ id, name, took, done, repeat, pays, steps }] }], contacts: [{ id, name, met, jobs: [{ id, name, took, done, called, says,
  *                                    paid, steps: [{ say, var }] }] }] } | null
  *                                    (`met`, `took`, `done`, a step's `var`: the bus's vars that say so); null for a
  *                                    level no one gives a job in, or `ui.phone: false`
  *   taskApps(job, apps?)           → the apps a job is on: its own `app`, and each that lists one of its `tags`
  *   appTitle(id, apps?)            → an app's name
+ *   phoneBoard(faction, vars, W)   → a faction's board as the flags stand: its standing, then its postings at it
  *   phoneThread(contact, vars, W)  → [{ who, text, call? }]: a contact's thread as the flags stand, oldest first
  *   phoneTasks(app, vars, W)       → an app's rows as the flags stand: its one row to subscribe by, or its tasks
  *                                    [{ id, name, state, lines: [{ who, text }] }] (id 'sub:<app>' | 'task:<id>')
@@ -33,7 +37,9 @@ import { jobsOf, contactName, appName } from './city-guide.js';
 
 export const PHONE_UI = Object.freeze({ title: 'Phone', you: 'You', next: 'Next: ', done: 'Done. ', home: 'Bring it back to me when you have it.', again: 'There is always another.',
   // an app's words: what it is before it is subscribed to, its one row then, and a task's states
-  pitch: 'Paid tasks around the city, sent to your phone. No one to meet: take one here, do it, get paid.', subscribe: 'Subscribe', open: 'Open', active: 'Active', paid: 'Paid', task: 'Task', pays: 'Pays', tags: 'Tags', carries: 'Carries' });
+  pitch: 'Paid tasks around the city, sent to your phone. No one to meet: take one here, do it, get paid.', subscribe: 'Subscribe', open: 'Open', active: 'Active', paid: 'Paid', task: 'Task', pays: 'Pays', tags: 'Tags', carries: 'Carries',
+  // a faction's board
+  standing: 'Standing', with: 'You are with ', job: 'Job', locked: ' more at higher standing', finished: 'Done' });
 const KEYS = ['title', 'apps'];
 const APP_KEYS = ['name', 'tags'], WORD = /^[a-z][a-z0-9-]{0,31}$/;
 /** The app every game has unless it names its own: it carries any tag no other app lists. */
@@ -76,7 +82,7 @@ export function phoneUi(manifest, ui = undefined) {
   if (ui === false) return null;
   const contacts = [];
   for (const J of jobsOf(M)) {
-    if (!J.starts || J.app) continue;   // a job no one gives is no one's to call about; an app's is on its own tab
+    if (!J.starts || J.app || J.faction) continue;   // a job no one gives is no one's to call about; an app's is on its own tab
     const who = J.contact ?? 'contact', D = M.find((m) => m?.kind === 'deliver' && (m.id ?? 'errand') === J.id), O = M.find((m) => (m?.kind === 'offer' || m?.kind === 'call') && m.id === J.id);
     let C = contacts.find((c) => c.id === who);
     if (!C) contacts.push((C = { id: who, name: contactName(who), met: `flag-${J.starts}`, jobs: [] }));
@@ -99,8 +105,12 @@ export function phoneUi(manifest, ui = undefined) {
       A.tasks.push(task);
     }
   }
-  if (!contacts.length && !apps.length) return null;
-  return { title: (isObj(ui) ? ui.title : null) ?? PHONE_UI.title, contacts, apps };
+  // THE FACTIONS (factions.js): each a tab while the hero is with it, its BOARD: what it posts at the hero's standing
+  const pay = (r) => (r ?? []).map((x) => `${x.n ?? 1} ${String(x.item).replace(/-/g, ' ')}`).join(', ');
+  const factions = M.filter((m) => m?.kind === 'join').map((Jn) => ({ id: Jn.faction, name: Jn.name ?? Jn.faction, in: `flag-in-${Jn.faction}`, standing: `standing-${Jn.faction}`,
+    postings: M.filter((a) => a?.kind === 'act' && a.faction === Jn.faction).map((a) => ({ id: a.id, name: a.title ?? a.id, line: a.line ?? a.verb, took: `flag-${a.flag}`, done: `flag-${a.done}`, rank: a.rank ?? 0, standing: a.standing ?? 1, pays: pay(a.reward), ...(a.says ? { says: a.says } : {}) })) }));
+  if (!contacts.length && !apps.length && !factions.length) return null;
+  return { title: (isObj(ui) ? ui.title : null) ?? PHONE_UI.title, contacts, apps, factions };
 }
 
 /** A contact's thread as the flags stand (`vars`: the bus's): what they said as each job was taken (a call, after the
@@ -133,4 +143,17 @@ export function phoneTasks(A, vars, W) {
     if (took) { const next = T.steps.find((s) => !on(s.var)); if (next && !(done && !T.repeat)) lines.push({ who: A.name, text: W.next + next.say }); }
     return { id: 'task:' + T.id, name: T.name, state: !took ? W.open : done && !T.repeat ? W.paid : W.active, lines };
   });
+}
+
+/** A faction's board as the flags stand: the hero's standing with it, then what it posts at that standing (a posting
+ * above it is not listed, only counted), each what is to be done, what it pays and where it stands. Inlined by the page. */
+export function phoneBoard(F, vars, W) {
+  const on = (v) => !!v && Number(vars[v]) >= 1, standing = Number(vars[F.standing]) || 0, open = F.postings.filter((P) => P.rank <= standing), locked = F.postings.length - open.length;
+  const head = { id: 'side:' + F.id, name: W.standing, state: String(standing), lines: [{ who: F.name, text: W.with + F.name + '.' }].concat(locked ? [{ who: F.name, text: locked + W.locked }] : []) };
+  return [head].concat(open.map((P) => {
+    const lines = [{ who: W.job, text: P.line }];
+    if (P.says) lines.push({ who: F.name, text: P.says });
+    lines.push({ who: W.pays, text: (P.pays ? P.pays + ' · ' : '') + 'standing +' + P.standing });
+    return { id: 'task:' + P.id, name: P.name, state: on(P.done) ? W.finished : on(P.took) ? W.active : W.open, lines };
+  }));
 }

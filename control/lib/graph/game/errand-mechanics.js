@@ -33,7 +33,7 @@
  *   call     (emitter)  a job offered by phone, by a giver already met: on its event (the job before it done) its
  *                       flag is set, once, and the caller's words are said.   { id, flag, on, from?, says? }
  *
- *   lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer, lowerCall, lowerTask   (game/mechanics.js registers them)
+ *   lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer, lowerCall, lowerTask, lowerJoin, lowerAct   (game/mechanics.js registers them)
  *
  * Pure, no dice.
  */
@@ -202,6 +202,58 @@ export function lowerTask(p, ctx) {
     },
     emits: [took],
   };
+}
+
+/** THE JOIN (an emitter): a FACTION joined, where its contact stands. The hero is with one faction at a time: coming
+ * to its contact sets `flag-in-<faction>` and clears the others' (`others`), once while not with it; its standing
+ * (`standing-<faction>`) is kept through leaving.
+ *   { faction, at, radius?, name?, says?, others?: [faction] } */
+export function lowerJoin(p, ctx) {
+  const at0 = `join[${ctx.i}]`, fail = (m) => { throw new Error(`${at0}: ${m}`); };
+  if (typeof p.faction !== 'string' || !WORD.test(p.faction)) fail('faction is the side joined, lower-case');
+  if (!isVec(p.at)) fail('at is [x, y, z]: where its contact stands');
+  const others = p.others ?? [];
+  if (!Array.isArray(others) || others.some((o) => typeof o !== 'string' || !WORD.test(o) || o === p.faction)) fail('others is the other factions, left on joining this one');
+  const zone = `join-${p.faction}`, joined = `join:${p.faction}`, v = `flag-in-${p.faction}`, name = typeof p.name === 'string' && p.name ? p.name : p.faction;
+  return {
+    world: {
+      vars: { [v]: 0, [`standing-${p.faction}`]: 0, ...Object.fromEntries(others.map((o) => [`flag-in-${o}`, 0])) },
+      reactions: [{ on: 'enter', match: { zone }, if: { var: v, eq: 0 }, do: 'emit', type: joined }, { on: joined, do: 'set', var: v, to: 1 }, ...others.map((o) => ({ on: joined, do: 'set', var: `flag-in-${o}`, to: 0 })), { on: joined, do: 'emit', type: `flag:in-${p.faction}` }],
+      hud: [{ on: joined, as: 'toast', text: `${name}: ${typeof p.says === 'string' && p.says ? p.says : 'you are with us now'}`, ttl: 3.6 }],
+      sources: [{ type: 'zone', zone, at: p.at.slice(), radius: Number.isFinite(p.radius) ? p.radius : 2.5, planar: p.planar !== false, watch: ctx.player }],
+    },
+    emits: [joined],
+    audit: { kind: 'walkto', target: p.at.slice() },
+  };
+}
+
+/** THE ACT (an emitter): a faction's POSTING, finished by something done and not by something carried. It is taken on
+ * the phone (`app:take:<id>` sets its flag, once); when the act is done (the event `act:<verb>:<id>`, raised by
+ * whatever does it: THE SEAM the action is wired behind) and it was taken, it is paid: its `reward` into the bag, its
+ * `standing` onto the faction's, once.
+ *   { id, faction, verb, flag, done, target?, at?, radius?, reward?: [{ item, n? }], standing?, rank?, name?, line? } */
+export function lowerAct(p, ctx) {
+  const at0 = `act[${ctx.i}]`, fail = (m) => { throw new Error(`${at0}: ${m}`); };
+  if (typeof p.id !== 'string' || !WORD.test(p.id)) fail('id is the posting\'s name, lower-case');
+  if (typeof p.faction !== 'string' || !WORD.test(p.faction)) fail('faction is the side that posts it, lower-case');
+  if (typeof p.verb !== 'string' || !WORD.test(p.verb)) fail('verb is what is done, one lower-case word');
+  for (const k of ['flag', 'done']) if (typeof p[k] !== 'string' || !/^[a-z][a-z0-9-]{0,47}$/.test(p[k])) fail(`${k} is a flag's name (took-torch, done-torch)`);
+  const reward = p.reward ?? [];
+  if (!Array.isArray(reward) || reward.some((r) => !r || typeof r.item !== 'string' || (r.n !== undefined && !posInt(r.n)))) fail('reward is [{ item, n? }]: what it pays');
+  if (reward.length) ctx.resolve('inventory', p.slice ?? BAG, at0);
+  const standing = p.standing === undefined ? 1 : p.standing;
+  if (!posInt(standing)) fail('standing is how much standing it pays, a whole number from 1');
+  const took = `posting:${p.id}`, did = `act:${p.verb}:${p.id}`, ok = `${did}:ok`, tv = `flag-${p.flag}`, dv = `flag-${p.done}`, sv = `standing-${p.faction}`;
+  const frag = { vars: { [tv]: 0, [dv]: 0, [sv]: 0 }, reactions: [], hud: [] };
+  frag.reactions.push({ on: `app:take:${p.id}`, if: { var: tv, eq: 0 }, do: 'emit', type: took }, { on: took, do: 'set', var: tv, to: 1 }, { on: took, do: 'emit', type: `flag:${p.flag}` });
+  // (done only once taken, and once)
+  frag.reactions.push({ on: did, if: { var: tv, gte: 1 }, do: 'emit', type: `${ok}:1` }, { on: `${ok}:1`, if: { var: dv, eq: 0 }, do: 'emit', type: ok });
+  frag.reactions.push({ on: ok, do: 'set', var: dv, to: 1 }, { on: ok, do: 'inc', var: sv, by: standing });
+  for (const r of reward) lowerMove({ item: r.item, n: r.n ?? 1, from: NOWHERE, to: BAG, on: ok }, frag);
+  frag.reactions.push({ on: ok, do: 'emit', type: `errand:done:${p.id}` }, { on: ok, do: 'emit', type: `flag:${p.done}` });
+  const name = typeof p.name === 'string' && p.name ? p.name : p.faction, paid = reward.map((r) => `${r.n ?? 1} ${itemKey(r.item).replace(/-/g, ' ')}`).join(', ');
+  frag.hud.push({ on: took, as: 'toast', text: `${name}: job taken`, ttl: 3.2 }, { on: ok, as: 'toast', text: `${name}: done${paid ? `, paid ${paid}` : ''} · standing +${standing}`, ttl: 3.6 });
+  return { world: frag, emits: [took, ok], ...(reward.length ? { produces: [{ type: 'grant', slice: BAG }] } : {}) };
 }
 
 export function lowerDeliver(p, ctx) {

@@ -89,3 +89,10 @@
   with its own name, its own tab and the tags it carries (`ui.phone.apps`). A tagged task shows up on every app that
   carries one of its tags, and taking it on one takes it on all. Each app is subscribed to on its own. A game that
   names no apps still has TaskFu, which carries every tag.
+- **Factions: the city has sides.** A game's maker writes its factions: a name, a colour, the part of the district
+  that is its turf, its rivals, and what its board posts (`factions`). Each has a contact standing on its turf;
+  walking up to them joins it, and you are with one faction at a time. Its board is a tab on your phone: your
+  standing with it, and the jobs it posts at that standing. A posting is something to do rather than something to
+  carry (an act, on a rival's turf when it says so); it is taken on the board, becomes a quest, and pays money and
+  standing when done. More standing opens more of the board. Turf shows on the map in each faction's colour, with
+  where to join. What actually performs an act is not built yet: a posting completes when its event is raised.
