@@ -159,6 +159,13 @@ export const MECHANIC_SFX = {
   cargo: { 'cargo:lost:*': 'hit' },
   bounty: { 'bounty:*': 'pickup' },
   deliver: { 'errand:done:*': 'goal', 'errand:short:*': 'thud' },
+  // (the open city's jobs: one taken where its giver stands, one that comes by phone, an app's task, a side joined, a
+  // faction's posting taken and done, its fight begun and lost)
+  offer: { 'offer:*': 'chime' },
+  call: { 'call:*': 'alarm' },
+  task: { 'task:*': 'chime', 'app:sub:*': 'checkpoint' },
+  join: { 'join:*': 'checkpoint', 'app:leave:*': 'thud' },
+  act: { 'posting:*': 'chime', 'act:*:ok': 'goal', 'encounter:*': 'wave', 'encounter-lost:*': 'lose' },
   frags: { kill: 'down', 'frags:won': 'goal', 'frags:lost': 'lose' },
   control: { 'control:won': 'goal', 'control:lost': 'lose' },
   board: { 'board-won': 'goal', 'board-lost': 'lose', 'board-draw': 'lose' },

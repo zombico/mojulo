@@ -221,7 +221,7 @@ export function lowerJoin(p, ctx) {
       // (joined by coming to its contact while with NO ONE: each other faction's flag a guard in turn, so walking past a
       // rival's contact changes nothing; a faction is LEFT on the phone, `app:leave:<faction>`, its standing kept)
       reactions: [
-        ...[v, ...others.map((o) => `flag-in-${o}`)].map((g, k, all) => ({ on: k ? `${joined}:${k}` : 'enter', ...(k ? {} : { match: { zone } }), if: { var: g, eq: 0 }, do: 'emit', type: k === all.length - 1 ? joined : `${joined}:${k + 1}` })),
+        ...[v, ...others.map((o) => `flag-in-${o}`)].map((g, k, all) => ({ on: k ? `joining:${p.faction}:${k}` : 'enter', ...(k ? {} : { match: { zone } }), if: { var: g, eq: 0 }, do: 'emit', type: k === all.length - 1 ? joined : `joining:${p.faction}:${k + 1}` })),
         { on: joined, do: 'set', var: v, to: 1 }, { on: joined, do: 'emit', type: `flag:in-${p.faction}` },
         { on: `app:leave:${p.faction}`, do: 'set', var: v, to: 0 },
       ],
@@ -254,7 +254,7 @@ export function lowerAct(p, ctx) {
   const frag = { vars: { [tv]: 0, [dv]: 0, [sv]: 0 }, reactions: [], hud: [] };
   frag.reactions.push({ on: `app:take:${p.id}`, if: { var: tv, eq: 0 }, do: 'emit', type: took }, { on: took, do: 'set', var: tv, to: 1 }, { on: took, do: 'emit', type: `flag:${p.flag}` });
   // (done only once taken, and once)
-  frag.reactions.push({ on: did, if: { var: tv, gte: 1 }, do: 'emit', type: `${ok}:1` }, { on: `${ok}:1`, if: { var: dv, eq: 0 }, do: 'emit', type: ok });
+  frag.reactions.push({ on: did, if: { var: tv, gte: 1 }, do: 'emit', type: `acting:${p.id}` }, { on: `acting:${p.id}`, if: { var: dv, eq: 0 }, do: 'emit', type: ok });
   frag.reactions.push({ on: ok, do: 'set', var: dv, to: 1 }, { on: ok, do: 'inc', var: sv, by: standing });
   for (const r of reward) lowerMove({ item: r.item, n: r.n ?? 1, from: NOWHERE, to: BAG, on: ok }, frag);
   frag.reactions.push({ on: ok, do: 'emit', type: `errand:done:${p.id}` }, { on: ok, do: 'emit', type: `flag:${p.done}` });
@@ -269,17 +269,17 @@ export function lowerAct(p, ctx) {
     if (!isVec(F.at)) fail('fight.at is [x, y, z]: where it is fought');
     if (F.back !== undefined && !isVec(F.back)) fail('fight.back is [x, y, z]: where the hero is put after going down');
     const hp0 = Number.isFinite(F.hp) && F.hp > 0 ? F.hp : 100, hits = Number.isFinite(F.hits) && F.hits > 0 ? F.hits : 20;
-    const zone = `fight-${p.id}`, on = `fight-on-${p.id}`, fell = `fight-fell-${p.id}`, hp = `fight-hp-${p.id}`, woke = `encounter:${p.id}`, lost = `encounter:lost:${p.id}`;
+    const zone = `fight-${p.id}`, on = `fight-on-${p.id}`, fell = `fight-fell-${p.id}`, hp = `fight-hp-${p.id}`, woke = `encounter:${p.id}`, lost = `encounter-lost:${p.id}`;
     Object.assign(frag.vars, { [on]: 0, [fell]: 0, [hp]: hp0 });
     frag.sources = [{ type: 'zone', zone, at: F.at.slice(), radius: Number.isFinite(F.radius) ? F.radius : 8, planar: true, watch: ctx.player }];
-    frag.reactions.push({ on: 'enter', match: { zone }, if: { var: tv, gte: 1 }, do: 'emit', type: `${woke}:1` }, { on: `${woke}:1`, if: { var: dv, eq: 0 }, do: 'emit', type: `${woke}:2` }, { on: `${woke}:2`, if: { var: on, eq: 0 }, do: 'emit', type: woke });
+    frag.reactions.push({ on: 'enter', match: { zone }, if: { var: tv, gte: 1 }, do: 'emit', type: `waking:${p.id}:1` }, { on: `waking:${p.id}:1`, if: { var: dv, eq: 0 }, do: 'emit', type: `waking:${p.id}:2` }, { on: `waking:${p.id}:2`, if: { var: on, eq: 0 }, do: 'emit', type: woke });
     frag.reactions.push({ on: woke, do: 'set', var: on, to: 1 });
     for (const f of F.foes) frag.reactions.push({ on: woke, do: 'ctrl', op: 'spawn', who: f, fresh: true }, { on: 'down', match: { entity: f }, do: 'inc', var: fell, by: 1 });
-    frag.watches = [{ type: did, when: { var: fell, gte: F.foes.length } }, { type: `${lost}:0`, when: { var: hp, lte: 0 } }];
+    frag.watches = [{ type: did, when: { var: fell, gte: F.foes.length } }, { type: `falling:${p.id}`, when: { var: hp, lte: 0 } }];
     frag.reactions.push({ on: ok, do: 'set', var: on, to: 0 });
     // (the hero's hits count only while it is fought)
     frag.reactions.push({ on: `hit:${ctx.player}`, if: { var: on, gte: 1 }, do: 'inc', var: hp, by: -hits, min: 0 });
-    frag.reactions.push({ on: `${lost}:0`, if: { var: on, gte: 1 }, do: 'emit', type: lost });
+    frag.reactions.push({ on: `falling:${p.id}`, if: { var: on, gte: 1 }, do: 'emit', type: lost });
     for (const f of F.foes) frag.reactions.push({ on: lost, do: 'ctrl', op: 'vanish', who: f });
     frag.reactions.push({ on: lost, do: 'set', var: fell, to: 0 }, { on: lost, do: 'set', var: hp, to: hp0 }, { on: lost, do: 'set', var: on, to: 0 });
     if (F.back) frag.reactions.push({ on: lost, do: 'move', target: ctx.player, to: F.back.slice() });
@@ -287,7 +287,7 @@ export function lowerAct(p, ctx) {
   }
   const name = typeof p.name === 'string' && p.name ? p.name : p.faction, paid = reward.map((r) => `${r.n ?? 1} ${itemKey(r.item).replace(/-/g, ' ')}`).join(', ');
   frag.hud.push({ on: took, as: 'toast', text: `${name}: job taken`, ttl: 3.2 }, { on: ok, as: 'toast', text: `${name}: done${paid ? `, paid ${paid}` : ''} · standing +${standing}`, ttl: 3.6 });
-  return { world: frag, emits: [took, ok, ...(F ? [`encounter:${p.id}`, `encounter:lost:${p.id}`] : [])], ...(reward.length ? { produces: [{ type: 'grant', slice: BAG }] } : {}) };
+  return { world: frag, emits: [took, ok, ...(F ? [`encounter:${p.id}`, `encounter-lost:${p.id}`] : [])], ...(reward.length ? { produces: [{ type: 'grant', slice: BAG }] } : {}) };
 }
 
 export function lowerDeliver(p, ctx) {

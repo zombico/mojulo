@@ -232,6 +232,8 @@ if (__AUDIO.footsteps) {
         // mech marching should not stomp full-volume in your ear (audio here is non-positional). No
         // pilot => every walker sounds (single-figure walk worlds unchanged).
         if (ctrl.pilotId && e.id !== ctrl.pilotId) continue;
+        // (a rider is carried, not walking: no steps while in a car or in a saddle; its ride is heard instead)
+        if (e.mountedOn || e.gone) continue;
         const last = __gaitLast[e.id] || (__gaitLast[e.id] = { ix: 0, jumped: false, landed: false });
         const ix = Math.floor((e.gaitPhase || 0) * 2);
         if (e.moving && e.grounded !== false && ix !== last.ix) __beatsCue(__AUDIO.footsteps.step, __AUDIO.footsteps.gain);
@@ -416,9 +418,23 @@ ${audio.moves ? `// a MOVESET's sounds (audio.moves, beats-world.js; gameworld/c
     requestAnimationFrame(__beatsEngine);
     if (!__beatsEng) return;
     if (!H) { try { H = __beatsEng.sustain(Object.assign({}, E.voice, { level: (E.voice.level == null ? 1 : E.voice.level) * E.level })); } catch (e) { return; } }
-    const ctrl = window.__mojCtrl && window.__mojCtrl.world, P = ctrl && ctrl.byId && ctrl.byId[ctrl.pilotId];
+    const ctrl = window.__mojCtrl && window.__mojCtrl.world, P${audio.engine.cab ? '0' : ''} = ctrl && ctrl.byId && ctrl.byId[ctrl.pilotId];
     const now = performance.now() / 1000;
-    if (P && P.transform && P.transform.pos) {
+${audio.engine.cab ? `    // (a city's cars, its cab: heard only while the pilot rides one, by that car's own speed; the door as it is got into
+    // and out of, a crash on a hard stop)
+    const P = E.cab ? (P0 && P0.mountedOn && ctrl.byId[P0.mountedOn]) || null : P0;
+    if (E.cab) {
+      const riding = !!(P0 && P0.mountedOn), was = K.riding;
+      if (riding !== was && was !== undefined) __beatsCue(__AUDIO.cues && __AUDIO.cues['car:door']);
+      K.riding = riding;
+      if (!riding) { K.pos = null; K.speed = 0; }
+      // (a hard stop: its speed fallen faster than any brake drops it)
+      // (the speed is smoothed, an eighth of the way a frame: a fall of more than a tenth of it in a frame is the car
+      // stopped near dead at once, which no brake does; once in a second and a half)
+      if (riding && K.prev !== undefined && K.prev > 6 && K.prev - K.speed > 0.1 * K.prev && !(now - (K.crashT || -9) < 1.5)) { K.crashT = now; __beatsCue(__AUDIO.cues && __AUDIO.cues['car:crash'], Math.min(1, K.prev / 20)); }
+      K.prev = K.speed;
+    }
+` : ''}    if (P && P.transform && P.transform.pos) {
       const p = P.transform.pos, dt = now - K.t;
       if (K.pos && dt > 0 && dt < 0.5) { const d = Math.hypot(p[0] - K.pos[0], p[1] - K.pos[1], (p[2] || 0) - (K.pos[2] || 0)); K.speed += (d / dt - K.speed) * 0.12; }
       K.pos = [p[0], p[1], p[2] || 0]; K.t = now;
@@ -426,7 +442,9 @@ ${audio.moves ? `// a MOVESET's sounds (audio.moves, beats-world.js; gameworld/c
     const x = E.idle + (1 - E.idle) * Math.max(0, Math.min(1, K.speed / E.top));
     H.set(__beatsMuted || !P ? 0 : x);
   })();
-})();
+${audio.engine.cab ? `  // (the horn: H at the wheel)
+  if (E.cab) addEventListener('keydown', function (ev) { const c = window.__mojCtrl && window.__mojCtrl.world, P = c && c.byId && c.byId[c.pilotId]; if (ev.code === 'KeyH' && !ev.repeat && P && P.mountedOn && !window.__mojMenuOpen) __beatsCue(__AUDIO.cues && __AUDIO.cues['car:horn']); });
+` : ''}})();
 ` : ''}// thruster ROAR (boost, the F key): a SUSTAINED rocket-engine voice — the acoustic twin of the
 // visual jets. Unlike the one-shot cues above it is a continuous, gain-modulated noise bed that
 // SWELLS with e.thrust (the same 0..1 the platform rule flags on boost and the jets read) and dies

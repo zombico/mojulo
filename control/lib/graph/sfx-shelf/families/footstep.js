@@ -3,7 +3,7 @@
  *
  * The body is the weight: a person's step is a short dull knock, a heavy trooper's longer, a mobile suit's a thump
  * with its frame clanking and its ankle's hydraulics breathing out, a giant's a quake. The surface is the texture: a
- * scuff on concrete, a ring on metal, a crunch in gravel, a swish in grass, a squeak in snow, a splash in water. One
+ * scuff on concrete, a heel's click on a pavement, a ring on metal, a crunch in gravel, a swish in grass, a squeak in snow, a splash in water. One
  * cue is one footfall; the cadence is the gait's (the audio channel fires a step on each half gait).
  */
 import { transient, sub, grit, tail, plate, harmonicsOf } from '../layers.js';
@@ -14,6 +14,9 @@ const KNOCK = [['D3', 'A2', 0.04, 0.15], ['G2', 'D2', 0.07, 0.22], ['C2', 'E1', 
 // a surface: its transient, its ring, its grit (lo, hi, grains, over), whether it splashes or lowpasses the knock
 const SURFACES = {
   concrete: { hp: 2500, grit: [1000, 6000, 5, 0.03] },
+  // (a street's pavement walked in shoes: the heel's clean click and the knock, barely a scuff: the grit two grains and
+  // a hundredth of a second, where concrete's scuff drags)
+  pavement: { hp: 3200, click: 0.22, grit: [2000, 7000, 2, 0.012] },
   metal: { hp: 3500, ring: ['metal', 'A4', 0.12], grit: [2000, 8000, 4, 0.03] },
   dirt: { thud: 2200, grit: [200, 2000, 9, 0.05] },
   grass: { grit: [1500, 7000, 14, 0.09], soft: true },
@@ -32,7 +35,7 @@ export const footstep = {
     const S = SURFACES[d.surface], b = BODY.indexOf(d.body), s = 1 + 0.6 * b, [from, to, decay, vol] = KNOCK[b];
     const knock = { type: 'thump', from, to, decay, vol, ...(S.soft ? { vol: vol * 0.7 } : {}) };
     const out = [knock, harmonicsOf(knock, 0.06 + 0.03 * b, 350)];
-    if (S.hp) out.push(transient(S.hp, 0.008 + 0.004 * b, 0.12 + 0.04 * b));
+    if (S.hp) out.push(transient(S.hp, 0.008 + 0.004 * b, (S.click ?? 0.12) + 0.04 * b));
     if (S.thud) out.push({ type: 'burst', decay: 0.03 * s, vol: 0.2 + 0.05 * b, lowpass: S.thud, send: 0.1 });
     if (S.ring) out.push({ type: 'ring', material: S.ring[0], note: S.ring[1], decay: S.ring[2] * s, vol: 0.08, send: 0.25 });
     if (S.splash) out.push({ type: 'burst', decay: 0.12 * s, vol: 0.22, bandpass: 1500, q: 0.8, send: 0.3 });

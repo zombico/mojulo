@@ -67,7 +67,7 @@ import { STADIUM_PRESETS } from '../stadium/stadium-words.js';
 import { LANE_KITS } from '../broadcast/broadcast-package.js';
 import { SPORT_KITS } from '../sportswear/kits.js';
 import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, brawlStreets, brawlCrowd, brawlBody, brawlSetup, brawlGuns, BRAWL_SCENES, brawlArenas, brawlHeroes, castWaves, BRAWL_STREET, brawlByDesign, brawlAsStreets, withStreetScenes, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
-import { sheetAudio, sheetBed, onSheet, levelSheet, rideSound, rideTop } from './sound-sheet.js';
+import { sheetAudio, sheetBed, onSheet, levelSheet, citySounds, rideSound, rideTop } from './sound-sheet.js';
 import { cueSheet, levelScore, onScore } from './cue-sheet.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { castingOf, laidCasting, laidJoins } from './casting.js';
@@ -213,6 +213,9 @@ const sheetOf = (G, s, score = null) => {
   // stage that wrote its own soundtrack keeps it)
   const own = s.manifest?.audio, cue = score && own?.soundtrack === undefined ? levelScore(score.world, s.level, { sheet: score.sheet }) : null;
   const audio = sheet || cue ? { ...(sheet ?? own ?? {}), ...(cue ?? {}) } : null;
+  // (a played town or district: its cars heard, the engine only at the wheel, the door, the horn, a crash: sound-sheet.js citySounds)
+  const city = sheet ? citySounds(G, { manifest: s.manifest ?? null }) : null;
+  if (city && audio) { audio.engine = city.engine; audio.sfx = { ...audio.sfx, sheet: { ...audio.sfx.sheet, cues: { ...(audio.sfx.sheet.cues ?? {}), ...city.cues } } }; }
   return audio ? { audio } : {};
 };
 // THE SCORE'S CUES A GAME NAMES BY REF (cue-sheet.js): a game's shell plays stored beats sketches, so each cue the game

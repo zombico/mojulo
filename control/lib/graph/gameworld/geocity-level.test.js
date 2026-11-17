@@ -270,10 +270,21 @@ describe('jobs across the district (errands on a played district: its shops thei
     const W = lowerAct(acts[0], { i: 0, player: 'hero', resolve() {} }).world;
     expect(W.reactions.filter((r) => r.do === 'ctrl' && r.op === 'spawn').map((r) => r.who)).toEqual(crew.map((e) => e.id));
     expect(W.watches).toContainEqual({ type: 'act:torch:torch', when: { var: 'fight-fell-torch', gte: 3 } });
-    expect(W.reactions).toContainEqual({ on: 'encounter:lost:torch', do: 'move', target: 'hero', to: joins[0].at });
+    expect(W.reactions).toContainEqual({ on: 'encounter-lost:torch', do: 'move', target: 'hero', to: joins[0].at });
     expect(acts[1].fight).toBeUndefined();
     // (a game with no factions has none of it)
     expect(M.some((m) => m.kind === 'join' || m.kind === 'act')).toBe(false);
+  });
+  it('heard: on the sound sheet a played district has the street\'s bed, a car\'s engine heard only at the wheel, its door, horn and crash, and its jobs\' sounds; off it, none', () => {
+    const heard = runSteps({ ...JOBS, id: 'jobs6', sound: {}, music: {} }, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest;
+    expect(heard.audio.bed).toBe('city');
+    // (its footsteps the pavement's, whatever the world's kit grows elsewhere; the engine louder than a ride game's)
+    expect(heard.audio.sfx.sheet.slots.step).toBe('step-pavement');
+    expect(heard.audio.engine.level).toBeGreaterThan(0.3);
+    expect(heard.audio.engine).toMatchObject({ voice: 'car-engine', cab: true });
+    expect(Object.keys(heard.audio.sfx.sheet.cues)).toEqual(expect.arrayContaining(['car:door', 'car:horn', 'car:crash']));
+    for (const k of ['car:door', 'car:horn', 'car:crash']) expect(heard.audio.sfx.sheet.cues[k].length).toBeGreaterThan(0);
+    expect(level.audio?.engine).toBeUndefined(); expect(level.audio?.bed).toBeUndefined();
   });
   it('a standing job keeps the level open: the one-off pays and ends nothing; the guide leads through both, then round the fares', async () => {
     expect(M.find((m) => m.kind === 'deliver' && m.id === 'parcel')).toMatchObject({ open: true });

@@ -20,4 +20,4 @@
 ## Lowers to
 
 - world: `app:take:<id>` sets the flag; `act:<verb>:<id>` with it taken and not done → paid, `errand:done:<id>`, `flag:<done>`.
-- with `fight`: a zone at `fight.at`; entered with it taken → `encounter:<id>`, each foe `ctrl spawn`; each `down` counted, the last raises `act:<verb>:<id>`; `hit:<player>` off its health while it is on; at none `encounter:lost:<id>`: each foe `ctrl vanish`, the counts zeroed, the hero moved to `back`.
+- with `fight`: a zone at `fight.at`; entered with it taken → `encounter:<id>`, each foe `ctrl spawn`; each `down` counted, the last raises `act:<verb>:<id>`; `hit:<player>` off its health while it is on; at none `encounter-lost:<id>`: each foe `ctrl vanish`, the counts zeroed, the hero moved to `back`.
