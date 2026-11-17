@@ -563,6 +563,10 @@ then this department directs it (`playscape/ui/scene-script.js`), lowered at bui
 
 ## Where to look
 
+- **The contact sheet** (a shoot plan's `contact`, `shoot/contact.js`, `motion/contact-sheet.js`): each shot at its
+  start, middle and end on the world's own page, the thirds drawn over, the frame read under each frame. The skill
+  `/direct` is the director's loop round it: the words, the why, the read, the sheet, three rounds at most.
+
 - **The dailies** (`control/scripts/spikes/actor/dailies.mjs`): every take on one clock, its timeline and its readings
   law by law; scenes drawn from above.
 - **The scene film** (`control/scripts/spikes/actor/scene-film.mjs`): both actors at once on a minted hero, cut by the

@@ -1,4 +1,4 @@
-### Camera: the frame read, framing by words, the named moves and camera styles
+### Camera: the frame read, framing by words, the named moves, camera styles and the contact sheet
 
 - **The frame read** (`shoot/frame.js`): what each shot of a shoot plan frames, in a cinematographer's words: the
   subject it is about, its shot size by where the frame cuts the figure (extreme close-up to extreme wide, a row each in
@@ -18,3 +18,8 @@
   kinetic and observational. A card says the opening, what a line, the turn and a move are shot as, the singles' size,
   lens, angle, side and place, the least a framing holds, a reaction beat, a one-camera long take, its shake and the
   director's notes it answers by design. Its shake rides the Blender pack's and the native film's cameras.
+- **The contact sheet** (`shoot/contact.js`, `motion/contact-sheet.js`, the shoot door's `contact`): each shot of a
+  shoot plan at its start, middle and end, captured on the world's own page and laid a row a shot, the rule of thirds
+  over each frame and the frame read under it, one PNG in the world's outcome folder. Seconds where the film takes
+  minutes: what an agent looks at before it renders. The skill `/direct` is the director's loop round it: the shots in
+  words, the why, the read, the sheet, three rounds of words at most, the eyes gate the person's.

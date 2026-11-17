@@ -111,12 +111,47 @@ export async function updateShootPlanHandler(input = {}) {
   return { ...out, ...(Number.isFinite(subjectsAt) ? { subjects: subjectsSays(world.subjects, subjectsAt) } : {}) };
 }
 
-/** One door: `plan` writes (replaces), `ops` edits in place, neither lists what a key can follow. */
+/**
+ * The plan's CONTACT SHEET (motion/world-motion.js renderWorldContact): each shot at its start, middle and end (`per`),
+ * rendered on the world's own page and laid a row a shot, written into the world's outcome folder as
+ * `contact-<stamp>.png` (the stamp of the plan and the sheet's size, so the same plan's sheet is the same file).
+ */
+export async function contactSheetHandler({ ref, contact, size = null }) {
+  const sketch = SketchRepository.getByRef(ref);
+  if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
+  if (!sketch.manifest?.shoot) throw new Error(`'${ref}' has no shoot plan yet — forge_motion({ subject: { world_ref }, shoot: { plan } }) makes one`);
+  const per = contact === true || contact == null ? 3 : Math.max(1, Math.min(3, Math.round(+contact) || 3));
+  const params = { per, ...(size?.width ? { width: size.width } : {}), ...(size?.height ? { height: size.height } : {}) };
+  const { createHash } = await import('node:crypto');
+  const { mkdirSync, writeFileSync } = await import('node:fs');
+  const path = (await import('node:path')).default;
+  const { outcomeDirFor, outcomeUrlFor } = await import('@/lib/outcomes-paths');
+  const { renderWorldContact } = await import('@/lib/motion/world-motion');
+  const { withChromiumFetch } = await import('@/lib/graph/scene/chromium-consent');
+  const { value: sheet, fetched } = await withChromiumFetch(() => renderWorldContact({ sketch, params }));
+  const stamp = createHash('sha256').update(JSON.stringify({ shoot: sketch.manifest.shoot, params })).digest('hex').slice(0, 12);
+  const dir = outcomeDirFor(ref), file = `contact-${stamp}.png`;
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(dir, file), sheet.png);
+  return {
+    path: path.join(dir, file), url: `${outcomeUrlFor(ref)}${file}`, frames: sheet.rows.reduce((n, r) => n + r.frames.length, 0),
+    rows: sheet.rows.map((r) => ({ shot: r.shot, camera: r.camera, ...(r.about ? { about: r.about } : {}), ...(r.size ? { size: r.size } : {}), ...(r.notes.length ? { notes: r.notes } : {}), frames: r.frames.map((f) => ({ at: f.at, world_t: f.world_t, ...(f.size ? { size: f.size } : {}) })) })),
+    ...(sheet.cut ? { cut: sheet.cut } : {}),
+    ...(sheet.live ? { live: 'this world plays live: its entities are drawn where the page stands them at each instant, not as played' } : {}),
+    ...(fetched ? { browser_download: fetched } : {}),
+    note: 'a row a shot, its start, middle and end, the rule of thirds over each frame, the frame read under it: look at the PNG (the machine has only read it); whether it reads is the eyes gate, the person\'s',
+  };
+}
+
+/** One door: `plan` writes (replaces), `ops` edits in place, neither lists what a key can follow; `contact` beside
+ * either (or alone, on the plan there) renders the plan's contact sheet. */
 export async function shootPlanHandler(input = {}) {
-  const { plan, ops } = input;
+  const { plan, ops, contact, ...rest } = input;
   if (plan !== undefined && ops !== undefined) throw new Error('shoot: `plan` writes a whole plan, `ops` edits the one there; pass one');
-  if (ops !== undefined) return updateShootPlanHandler(input);
-  return createShootPlanHandler(input);
+  const wants = contact !== undefined && contact !== false;
+  if (wants && plan === undefined && ops === undefined) return { ok: true, ref: rest.ref, contact: await contactSheetHandler({ ref: rest.ref, contact, size: rest.size }) };
+  const out = ops !== undefined ? await updateShootPlanHandler({ ...rest, ops }) : await createShootPlanHandler({ ...rest, ...(plan !== undefined ? { plan } : {}) });
+  return wants && out.plan ? { ...out, contact: await contactSheetHandler({ ref: rest.ref, contact, size: rest.size }) } : out;
 }
 
 const POINT = "[x,y,z] (world units) or { follow: 'car:2', offset?, frame?: 'subject' }";

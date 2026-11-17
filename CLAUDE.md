@@ -369,7 +369,9 @@ Pointers only; each target carries its own design notes.
   `forge_motion`'s `film` and `subject.screenplay` ([tools/film.js](control/lib/mcp/tools/film.js),
   [tools/scene-film.js](control/lib/mcp/tools/scene-film.js): a scene's storyboard and animatic, its voice, dub and set,
   the film shot natively as a video, its Blender film pack as the high-end version; a cutscene another studio orders,
-  `film/order.js`); craft in [docs/cinematics.md](docs/cinematics.md).
+  `film/order.js`); craft in [docs/cinematics.md](docs/cinematics.md). A camera directed in words (a shoot plan's
+  framing and moves, `shoot/`; a scene's camera style, `actor/camera-styles.js`) and looked at on a contact sheet:
+  `/direct`.
 - The game's colour: [gameworld/colour.js](control/lib/graph/gameworld/colour.js) (the bridge from a game to the colour
   theorist: its cast read as figures on its ground, `color-theorist/figures.js`, kept in their hue families; the ways it
   could be oriented, `color-theorist/directions.js`, each a patch; the colour book, `/bible?book=colour`; a new kind of

@@ -96,6 +96,10 @@ Beside the readout, the door answers what each shot FRAMES: the subject it is ab
 
 A shot of nothing in particular is read but advised nothing. Whether the frame reads is the eyes gate: LOOK THROUGH on the World page.
 
+## The contact sheet (`contact`)
+
+`shoot: { contact: 3 }` beside `plan` or `ops` (or alone, on the plan there) renders the plan's CONTACT SHEET: each shot of the running order at its start, middle and end (`1` the middle, `2` start and end), captured on the world's own page, laid a row a shot with the rule of thirds over each frame, each row headed by the shot, its camera, what it is about and the frame read's notes, each frame captioned with the size it reads. One PNG in the world's outcome folder (`contact.path`, `contact.url`), named by the plan, so the same plan's sheet is the same file. Seconds, not the film's minutes: LOOK at it (the agent: Read the PNG) before rendering the film. The frame read measures where things land; only the picture shows what stands in front and where the eye goes. The skill `/direct` is the loop round it.
+
 ## Live worlds
 
 A world that plays live (it has entities or physics) cannot rewind, so its plan runs on the world's own clock: the shot whose span holds the clock plays (the last one begun), a shot that starts before the one before it ends cuts in when that one ends, the panel has no scrubber, and a shot chip pins that camera until clicked again. The tools say so in `live.notes`.
