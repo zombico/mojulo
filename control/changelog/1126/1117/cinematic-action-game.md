@@ -146,3 +146,12 @@ or a recipe key; the spike mints through the real doors and measures.
   siege walker parked in it. A geocube recipe takes no pilot, so the script lays the hero's camera and events on the
   resolved payload; the level's own start is the walk's, under the hall's slab, so the hero starts on the hall floor.
   Played headless: it stands, runs and vaults the hall's barriers under the level's light, the guard walks its round.
+- **Level 1 planned dry as a walled-core dungeon in miniature** (`scripts/spikes/mission/level1.json`, `plan.mjs`): a
+  mission's layers are the segments of one level (an outdoor section of its walk, a building's inside by its door),
+  its doors the joins, its gates what is found in the layer before. The briefed mission is intel on the assault
+  walkers in the main hangar; clues there lead to a second hangar beneath, the core, where the siege walker stands.
+  Nothing is built: the level is laid through `gameStages` to say which segments the rail makes, the dungeon's laws
+  are read on it by its own reader and the mission's beside them (a key in the space its door leaves, clues enough
+  that one may be missed, what stands parked a vehicle the registry parks, one result where the core's way out
+  leads). What it says today: the rail lays the two outdoor sections and the hangar's inside; nothing lies below a
+  building yet, so the core has no stage.
