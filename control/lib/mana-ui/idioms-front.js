@@ -136,11 +136,18 @@ export const FRONT_IDIOMS = {
     example: { title: 'Choose an arena', arenas: { bind: 'arenas' }, value: { bind: 'arena' } },
   },
   'pause-menu': {
-    kind: 'screen', about: 'the pause over the held game: resume, then what the game offers (party, options, quit)',
-    reads: 'items: [{ label, then, disabled? }]', emits: 'each item\'s then (back resumes: the stack closes)',
-    params: ['title', 'items'],
-    node: screen({ title: P('title'), layer: 'modal', place: 'center' }, [{ use: 'window', children: [{ use: 'list', id: 'pause', props: { rows: P('items'), variant: 'menu' }, on: { accept: I('then') } }] }, legend(['accept', 'pick'], ['back', 'resume'])]),
-    example: { title: 'Paused', items: [{ label: 'Resume', then: { close: true } }, { label: 'Party', then: { open: 'party' } }, { label: 'Options', then: { open: 'options' } }, { label: 'Save', disabled: true }, { label: 'Quit to title', then: { emit: 'quit' } }] },
+    kind: 'screen', about: 'the pause over the held game, read as a game\'s and not a dialog: the world veiled behind (the theme\'s backdrop), PAUSED large at the left with where you are under it, the menu at a title\'s size (resume, then what the game offers: party, options, quit), and what the run stands at, bare at the right (the level, the time, the task); back resumes',
+    reads: 'title, sub (where you are), items: [{ label, then, disabled? }], aside?: [{ label, value }] (what the run stands at; none, no column)', emits: 'each item\'s then (back resumes: the stack closes)',
+    params: ['title', 'sub', 'items', 'aside'],
+    node: screen({ title: P('title'), layer: 'modal', place: 'left' }, [
+      { use: 'window', props: { variant: 'ghost' }, children: [{ use: 'stack', children: [
+        { use: 'text', props: { value: P('sub'), role: 'label' }, when: P('sub') },
+        { use: 'list', id: 'pause', props: { rows: P('items'), variant: 'menu' }, on: { accept: I('then') } },
+      ] }] },
+      { use: 'region', props: { at: 'right', variant: 'bare' }, when: P('aside'), children: [{ use: 'stack', props: { gap: 'loose', align: 'end' }, children: [{ use: 'each', props: { rows: P('aside'), row: { use: 'stack', props: { gap: 'tight', align: 'end' }, children: [{ use: 'text', props: { value: I('label'), role: 'caption' } }, { use: 'text', props: { value: I('value'), role: 'heading' } }] } } }] }] },
+      legend(['accept', 'pick'], ['back', 'resume']),
+    ]),
+    example: { title: 'Paused', sub: 'Level 2 · The Lane', aside: [{ label: 'Time', value: '4:12' }, { label: 'Objective', value: 'Clear the lane' }], items: [{ label: 'Resume', then: { close: true } }, { label: 'Party', then: { open: 'party' } }, { label: 'Options', then: { open: 'options' } }, { label: 'Save', disabled: true }, { label: 'Quit to title', then: { emit: 'quit' } }] },
   },
   'options-screen': {
     kind: 'screen', about: 'options in sections (video, audio, controls, gameplay, accessibility): each field a toggle, cycler, slider or keybind bound to the var it sets; the game\'s language picked under them when it ships more than one',

@@ -299,6 +299,21 @@ describe('mana-ui: the live game', () => {
     expect(peril(0.9)).toContain('data-high="yes"');
     expect(peril(4)).toContain('--mana-peril:1"');
   });
+  it('a charge is a ring that fills, glows ready and drains active; a wheel lays what is carried at its buttons, the one in hand named in the middle', () => {
+    const ch = hudOf([at({ use: 'charge', props: { value: 0.42, state: 'ready', icon: 'clock', label: 'Dodge' } })]).view();
+    expect(ch).toContain('data-state="ready" style="--r:0.42"');
+    expect(ch).toContain('>Dodge<');
+    const wh = hudOf([at({ use: 'wheel', props: { title: 'hold RB', rows: [{ name: 'Knife', at: 0, key: 'Y' }, { name: 'Carbine', at: 270, key: 'X', count: '24 / 90', on: true, sub: 'auto' }] } })]).view();
+    // (the top slot at the ring's top, the left one at its left; the one in hand lit, its name in the hub)
+    expect(wh).toMatch(/data-gun="knife" style="left:50%;top:10%"/);
+    expect(wh).toMatch(/data-gun="carbine" data-on="yes" style="left:10%;top:50%"/);
+    expect(wh).toMatch(/class="mana-whub"><span class="mana-caption">hold RB<\/span><span class="mana-name">Carbine<\/span><span class="mana-caption">auto<\/span>/);
+  });
+  it('a part whose `when` is a param left out is never drawn, and nothing it would need is asked of it', () => {
+    const spec = { start: 's', defs: { 'note-card': { params: ['note'], node: { use: 'stack', children: [{ use: 'text', props: { value: 'x' } }, { use: 'text', props: { value: { param: 'note' } }, when: { param: 'note' } }] } } }, screens: { s: { use: 'screen', children: [{ use: 'note-card' }] } } };
+    expect(() => manaUi.readSpec(spec)).not.toThrow();
+    expect(manaUi.runtime(spec, host({})).view()).not.toContain('undefined');
+  });
   it('a radar is a scope: a bezel, the wedge ahead, north on the bezel; a region may rest, or sit on a scrim', () => {
     const v = hudOf([{ use: 'region', props: { at: 'top-left', variant: 'scrim', rest: true }, children: [{ use: 'minimap', props: { shape: 'round', scope: true, north: 90, markers: [{ x: 0.5, y: 0.1, kind: 'foe' }] } }] }]).view();
     expect(v).toContain('data-rest="yes" data-variant="scrim"');

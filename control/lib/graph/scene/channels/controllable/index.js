@@ -2839,6 +2839,7 @@ function __wcRender() {
   if (!lo || !m) { __wcHide(); return; }
   if (!__wcEl) {
     __wcEl = document.createElement('div');
+    __wcEl.id = '__wc';   // (a HUD host that draws the wheel itself puts this panel away by its id: channels/mana-hud.js)
     __wcEl.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:30;display:flex;flex-direction:column;gap:6px;min-width:240px;padding:14px 18px;background:rgba(8,13,24,.88);border:1px solid #2a3b58;border-radius:12px;font:600 13px system-ui,sans-serif;color:#cfe3ff;pointer-events:none;backdrop-filter:blur(2px)';
     (typeof wrap !== 'undefined' ? wrap : document.body).appendChild(__wcEl);
   }
@@ -2864,6 +2865,21 @@ function __wcRender() {
   __wcCur = cur;
 }
 function __wcHide() { __wcOpen = false; __wcCur = -1; if (__wcEl) __wcEl.style.display = 'none'; }
+// what the selector shows, for a HUD host that draws it itself (channels/mana-hud.js: the wheel): whether it is open, and
+// each slot at its face button (north 0, east 90, south 180, west 270), the button's glyph in this pad's layout, the one
+// in hand, its rounds
+window.__mojWc = { view: () => {
+  const ent = __wcEnt(), lo = ent && __entLoadout(ent), m = __wcMap();
+  if (!__wcOpen || !lo || !m) return { open: false, rows: [] };
+  const AT = { 3: 0, 1: 90, 0: 180, 2: 270 }, cur = ent.loadoutIdx || 0, rows = [];
+  for (const bi of [2, 3, 1, 0]) {
+    if (m[bi] == null) continue;
+    const cfg = lo[m[bi]] || {}, w = m[bi] === cur ? ent.weapon : null, n = cfg.name || (cfg.strike ? 'melee' : 'ranged');
+    const count = w && Number.isFinite(w.ammo) ? w.ammo + (Number.isFinite(w.reserve) ? ' / ' + w.reserve : '') : '';
+    rows.push({ name: n, at: AT[bi], key: __CTL.label(__DEV, 'gamepad', __DEV.gamepad.faces[bi], __padLayout), on: m[bi] === cur, count, sub: count });
+  }
+  return { open: true, title: 'hold RB · press a button', rows };
+} };
 window.__mojWcHide = __wcHide;   // the pause sidecar closes the selector when the shell freezes the sim
 ${touchLayer ? `${touchScript(touchLayer, { view: touchView })}` : ''}function __pollPad() {
 ${seats ? `  // SEATS: seat 1 reads only its own pad (none when the keyboard is its controller), never another seat's
@@ -3546,6 +3562,7 @@ const __radarSelf = () => __world.spectate ? __specWatchEnt() : ((__world.pilotI
 if (__radarSelf() && !(__world.camera && __world.camera.rule && __world.camera.rule.type === 'side') && __world.entities.some((e) => e.body && e.body.hittable && e !== __radarSelf())) {
   const RSZ = 132;
   const __rWrap = document.createElement('div');
+  __rWrap.id = '__radar';   // (a HUD host that draws the radar itself puts this one away by its id: channels/mana-hud.js)
   __rWrap.style.cssText = 'position:absolute;right:16px;top:16px;width:' + RSZ + 'px;height:' + RSZ + 'px;border-radius:50%;background:rgba(8,14,22,0.42);box-shadow:inset 0 0 0 1px rgba(120,200,255,0.28),0 2px 10px rgba(0,0,0,0.42);pointer-events:none;z-index:9;overflow:hidden';
   const __rCv = document.createElement('canvas');
   __rCv.width = RSZ * 2; __rCv.height = RSZ * 2; __rCv.style.cssText = 'width:100%;height:100%';

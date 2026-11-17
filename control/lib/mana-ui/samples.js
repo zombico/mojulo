@@ -177,6 +177,8 @@ export const SAMPLE_STATE = Object.freeze({
     radar: [{ x: 0.62, y: 0.3, kind: 'foe' }, { x: 0.34, y: 0.42, kind: 'foe' }, { x: 0.5, y: 0.04, kind: 'goal' }],
     north: 320,
     peril: 0.35,
+    focus: { value: 1, state: 'ready', label: 'Dodge' },
+    wheel: [{ name: 'Carbine', at: 270, key: 'X', count: '24 / 90', on: true, sub: '24 / 90 · auto' }, { name: 'Knife', at: 0, key: 'Y' }, { name: 'Shotgun', at: 90, key: 'B', count: '6 / 24' }, { name: 'Pistol', at: 180, key: 'A', count: '12 / 36' }],
   },
   scoreboard: [
     { id: 'ayla', name: 'Ayla', team: 'Red', score: 1450, kills: 12, deaths: 3, self: true, side: 0 }, { id: 'bram', name: 'Bram', team: 'Red', score: 1210, kills: 9, deaths: 5, side: 0 },

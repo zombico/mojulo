@@ -192,6 +192,8 @@ export function buildManaUi() {
     bar: { group: 'value', about: 'a value against its max; segments mark phases or chunks; `ghost` the value before the last hit (drawn hatched, the chip a fighting game shows; given as the value once the combo ends, it drains); rtl fills from the right (the second fighter); `size: large` a bar that is a frame (a fighter\'s health along the top), thicker, `thin` one that rides under another (a guard under the health), its meaning still its variant\'s; `figures: false` (or `numbers: false`) draws no value/max (a fight\'s health, a foe\'s, read by its length)', props: { value: [N, 0, true], max: [N, 1, true], variant: [['plain', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'], 'plain'], label: [T], segments: [N, 0], ghost: [N, 0], dir: [['ltr', 'rtl'], 'ltr'], size: [['normal', 'large', 'thin'], 'normal'], figures: [B, true], numbers: [B, true] } },
     pips: { group: 'value', about: 'a count as marks: hearts, pips', props: { value: [N, 0, true], max: [N, 3, true], shape: [Object.keys(PIP_SHAPES), 'pip'], label: [T] } },
     counter: { group: 'value', about: 'an icon and a count (ammo, coins, keys)', props: { label: [T, '', true], value: [T, '', true], max: [T], icon: [T] } },
+    charge: { group: 'value', about: 'a power that fills and is spent, as a ring round its pictogram (bullet time, a special, a shout): `value` 0..1 how full; `state` cooling (filling), ready (full: it glows), active (spending: the ring drains as it runs); `label` small beside it, what sets it off', props: { value: [N, 0, true], state: [['cooling', 'ready', 'active'], 'cooling'], icon: [T], label: [T] } },
+    wheel: { group: 'hud', about: 'what is carried, picked while a button is held (a weapon wheel): each row a slot round a ring at its `at` (degrees from the top, clockwise: a pad\'s face buttons are 0, 90, 180, 270), drawn as its gun\'s wireframe (`gun`, else its `name`) with its name, the control that picks it (`key`) and a `count`; the slot in hand (`on`) lit, its name and `sub` large in the middle. It takes no focus: the game\'s own input picks', props: { rows: [L, [], true], title: [T] } },
     magazine: { group: 'value', about: 'the gun in hand as a shooter shows it: its wireframe over it (`gun`, else its `name`: rifle, carbine, bullpup, smg, shotgun, marksman, sniper, pistol, revolver, launcher, knife and the words for them; another name draws none), the rounds in the magazine as the big figure, the reserve small beside it, the magazine drawn round by round as cartridges (the `round` its gun feeds: rifle, pistol, shell, rocket; a spent one its empty outline; past 60, one track); its name and fire `mode` small over it; low (at `low` of its `size`) the figure turns to harm and says so, empty it says reload, `reloading` the rounds refill', props: { rounds: [N, 0, true], size: [N, 0], reserve: [T], name: [T], gun: [T], round: [T], mode: [T], reloading: [B, false], low: [N, 0.3] } },
     timer: { group: 'value', about: 'seconds as a clock', props: { seconds: [N, 0, true], format: [['mmss', 'ss', 'hmmss'], 'mmss'], label: [T] } },
     compare: { group: 'value', about: 'before → after, better or worse told by a shape (▲ ▼ =)', props: { label: [T, '', true], from: [N, 0, true], to: [N, 0, true], better: [['up', 'down'], 'up'] } },
@@ -275,6 +277,8 @@ export function buildManaUi() {
     }
     const C = COMPONENTS[node.use];
     if (!C) throw new Error(`${where}.use '${node.use}' is a component (${COMPONENT_IDS.join(', ')}) or a def (${Object.keys(defs).join(', ') || 'none given'})`);
+    // (a node whose `when` is a param the user did not give never draws: nothing it or what it holds would need is asked)
+    if (node.when === false) return { use: node.use, props: {}, on: {}, children: [], when: false };
     const props = { ...(node.props || {}) };
     for (const k in props) if (!C.props[k]) throw new Error(`${where}.props.${k}: ${node.use} takes ${Object.keys(C.props).join(', ') || 'no props'}`);
     for (const k in C.props) {
@@ -742,6 +746,21 @@ export function buildManaUi() {
               size > 0 && size <= 60 ? ['span', { class: 'mana-belt', 'data-round': has(p.round) ? iconName(p.round) : null, style: `width:calc(${Math.min(360, size * 13)} * var(--mana-du))` }, ...Array.from({ length: size }, (_, k) => ['i', { 'data-spent': k >= n ? 'yes' : null }])]
                 : size > 60 ? ['span', { class: 'mana-track' }, ['i', { style: `width:${pct(n / size)}` }]] : null,
               call ? ['span', { class: 'mana-call', 'data-key': p.reloading ? 'reloading' : empty ? 'empty' : 'low' }, call] : null];
+          }
+          case 'charge': {
+            const r = clamp(Number(p.value) || 0, 0, 1);
+            return ['div', { class: cls, 'data-state': p.state, style: `--r:${Math.round(r * 100) / 100}` }, ['span', { class: 'mana-ring' }, p.icon ? ['span', { class: 'mana-icon', 'data-size': 'm', 'data-icon': iconName(p.icon) }, /^(clock|time)$/.test(iconName(p.icon)) ? '⧗' : initials(p.icon)] : null], p.label ? ['span', { class: 'mana-label' }, p.label] : null];
+          }
+          case 'wheel': {
+            const rows = p.rows.filter(isObj), on = rows.find((r) => r.on) || null, has = (v) => v !== undefined && v !== null && v !== '';
+            return ['div', { class: cls }, ['span', { class: 'mana-wring' }],
+              ...rows.map((r, i) => {
+                const a = ((has(r.at) && isFinite(Number(r.at)) ? Number(r.at) : (i * 360) / Math.max(1, rows.length)) * Math.PI) / 180;
+                return ['div', { class: 'mana-wslot', 'data-gun': iconName(has(r.gun) ? r.gun : r.name), 'data-on': r.on ? 'yes' : null, style: `left:${pct(0.5 + 0.4 * Math.sin(a))};top:${pct(0.5 - 0.4 * Math.cos(a))}` },
+                  ['i', { class: 'mana-sil', 'aria-hidden': 'true' }], ['span', { class: 'mana-name' }, words(r.name)],
+                  has(r.key) || has(r.count) ? ['span', { class: 'mana-wmeta' }, has(r.key) ? ['span', { class: 'mana-key' }, words(r.key)] : null, has(r.count) ? ['span', { class: 'mana-num' }, words(r.count)] : null] : null];
+              }),
+              ['div', { class: 'mana-whub' }, p.title ? ['span', { class: 'mana-caption' }, p.title] : null, on ? ['span', { class: 'mana-name' }, words(on.name)] : null, on && has(on.sub) ? ['span', { class: 'mana-caption' }, words(on.sub)] : null]];
           }
           case 'timer': return ['div', { class: cls }, p.label ? ['span', { class: 'mana-label' }, p.label] : null, ['span', { class: 'mana-num' }, clock(p.seconds, p.format)]];
           case 'compare': {

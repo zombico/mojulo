@@ -897,6 +897,8 @@ export function playShellRuntime(cfg, K) {
       sound: () => { settings.sfxOn = !settings.sfxOn; saveSettings(); pushPrefs(); }, homeWord,
       rows: () => ctlRows || [['W A S D / arrows', 'move'], ['mouse', 'look'], ['Space', 'jump']],
       owner: () => { const o = pauseBy && seatList.find((x) => x.controller === pauseBy); return o ? o.label : ''; },
+      // where the run stands as it pauses: the level's name, which of how many, the seconds played
+      where: () => { if (!session || !session.level) return null; const i = LEVELS.findIndex((l) => l.ref === session.level.ref); return { title: session.level.title || '', at: i + 1, of: LEVELS.length, secs: playedSecs() }; },
     },
   }) : null;
 
