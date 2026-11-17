@@ -675,6 +675,33 @@ Not yet drawn, and next on this road (the UI only):
 - the equipment (grenades, a melee charge) as counted slots beside the gun
 - a pickup said where it was taken ("+30 rounds" rising off the belt)
 
+### A cinematic action game: its HUD, its item select and its pause
+
+A cinematic action game (the genre's slow motion on a dodge, a hero fighting through set pieces) holds to the same
+principles on its three surfaces. Each is drawn by mana-ui in the game's look, in place of what the level page drew on
+its own.
+
+- **The HUD** (the level's rows lowered by `game/hud-mana.js`, hosted by `scene/channels/mana-hud.js`):
+  - **The pilot, bottom left.** The health is one strip in cells with no label and no number. A level row that is the
+    health is folded into it, so the screen shows one health (its max is the highest the row has stood). The sprint is
+    a thin bar under it, and the strip rests while the health is full.
+  - **The slow motion.** Beside the strip, a charge (`charge`, the `bullet-time` idiom) is a ring round an hourglass.
+    It fills while the moment comes back, glows when it is ready with what sets it off said beside it ("Dodge"), and
+    drains while the world crawls.
+  - **The rest.** The gun in hand sits bottom right (`magazine`: its wireframe, its rounds as cartridges). The page's
+    radar becomes a scope at the top right, its damage ring becomes arcs, and the screen's edge closes in under half
+    health. Every other row is bare or on a scrim, never boxed.
+  - Each part stands only where the page has the thing; the page's own versions are put away.
+- **The item select** (`wheel`, the `item-wheel` idiom): held open on RB, what is carried lies round a ring at the face
+  button that picks it (Y at the top, B right, A at the foot, X left), as the pad's own diamond. Each slot is drawn as
+  its wireframe with its name, its button in the pad's own print and its rounds. The one in hand is lit and named large
+  in the middle, over a shade with no box, the world showing through. It takes no focus: the level's own buttons pick,
+  and the page says what it shows through `window.__mojWc.view()`.
+- **The pause** (`pause-menu`, as every game's pause now is): the world is veiled behind (the theme's backdrop), PAUSED is
+  large at the left with where you are under it, and the menu is set at a title's size. What the run stands at sits bare
+  at the right: which level of how many, and the time played (the play shell's `pause.where()`). The controls screen
+  shows each key as a cap beside what it does.
+
 ## The fight's language
 
 A fighting game's UI is its own language, not a party game's: quiet so the fight reads, side against side. It is grown
@@ -1089,9 +1116,11 @@ reading the level's bus each frame. So a level's readouts, its moments and the g
 | legend | words in its slot, for its ttl |
 | title | the carved letters, as before (`game/title-carve.js`) |
 
-A row's `id` and `when` gate it as they did. The pilot's own gauges (its health, its sprint) lead the top-left corner,
-read off the runtime; the runtime's own gauges and the old widget columns are hidden, not removed. A row's colour is
-not carried: the theme owns the look. A level manifest asks for it with `manaHud: { rows: 'events', theme }`
+A row's `id` and `when` gate it as they did. The pilot's parts (its health as a strip in cells, with a level's
+health row folded in; its sprint; the slow motion's charge; the gun in hand; the radar, the damage ring and the weapon
+wheel) are drawn as the cinematic action game's are (above), read off the runtime. The runtime's own gauges, its radar,
+weapon panel, wheel and damage ring, and the old widget columns are hidden, not removed. A row's colour is not carried:
+the theme owns the look. A corner's rows sit on a scrim and the others bare, never boxed. A level manifest asks for it with `manaHud: { rows: 'events', theme }`
 (`levelHud`); a world without a `ui` lays its levels as before, and a course's HUD stays its own composition on the
 same host. Not yet on the host: a board, a building or a tabletop level, and the level-complete card.
 

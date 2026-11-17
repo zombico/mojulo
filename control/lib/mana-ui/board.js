@@ -38,6 +38,8 @@ export const BOARD_HUDS = Object.freeze({
   'explore HUD': ['vitals', 'compass-strip', 'minimap-corner', 'objective-tracker', 'interact-prompt'],
   'fighting HUD': ['versus-bars', 'super-meters', 'combo-counter'],
   'racing HUD': ['race-standing', 'speedometer', 'minimap-corner', 'offscreen-markers'],
+  'cinematic action HUD': ['crosshair', 'peril-edge', 'damage-direction', 'radar-scope', 'objective-order', 'health-strip', 'bullet-time', 'weapon-readout'],
+  'item wheel': ['crosshair', 'item-wheel', 'health-strip', 'weapon-readout'],
   'shooter HUD': ['crosshair', 'peril-edge', 'damage-direction', 'offscreen-markers', 'lock-on', 'radar-scope', 'objective-order', 'health-strip', 'weapon-readout', 'event-feed'],
   'action RPG HUD': ['vitals', 'ability-bar', 'enemy-plates', 'damage-numbers', 'quest-toasts', 'achievement-toast', 'world-labels'],
   'survival HUD': ['vitals', 'hotbar', 'world-labels', 'interact-prompt'],

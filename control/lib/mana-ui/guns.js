@@ -17,7 +17,8 @@
  *   ROUND_OF      { <gun id>: <round id> }   the round a gun feeds when the magazine names none (the rifle's otherwise)
  *   gunOf(name)   the wireframe a name draws (its id, an alias's), or null
  *   gunSvg(id) · roundSvg(id, spent?)   each as a whole <svg> (a board's, a doc's)
- *   gunCss(scope) the sheet's rules: every wireframe and every round, on the names that draw them (a magazine's data-gun)
+ *   gunCss(scope) the sheet's rules: every wireframe and every round, on the names that draw them (a magazine's or a
+ *                 wheel slot's data-gun)
  *
  * Pure data and strings: imports nothing.
  */
@@ -183,8 +184,8 @@ export function gunCss(scope = '.mana-root') {
   const round = (id) => `--mana-round:${urlOf(roundSvg(id))};--mana-round-spent:${urlOf(roundSvg(id, true))};height:${u(H[id])}`;
   return [
     `${s} .mana-sil{display:none;width:${u(200)};height:${u(62)};background:currentColor;-webkit-mask:var(--mana-gun) right center/contain no-repeat;mask:var(--mana-gun) right center/contain no-repeat}`,
-    `${s} .mana-magazine:is(${every}) .mana-sil{display:block}`,
-    ...GUN_IDS.map((id) => `${s} .mana-magazine:is(${on(id)}) .mana-sil{--mana-gun:${urlOf(gunSvg(id))}}`),
+    `${s} :is(.mana-magazine,.mana-wslot):is(${every}) .mana-sil{display:block}`,
+    ...GUN_IDS.map((id) => `${s} :is(.mana-magazine,.mana-wslot):is(${on(id)}) .mana-sil{--mana-gun:${urlOf(gunSvg(id))}}`),
     `${s} .mana-belt{${round('rifle')}}`,
     ...Object.entries(ROUND_OF).map(([g, r]) => `${s} .mana-magazine:is(${on(g)}) .mana-belt{${round(r)}}`),
     ...ROUND_IDS.map((r) => `${s} .mana-magazine .mana-belt[data-round=${r}]{${round(r)}}`),

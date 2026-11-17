@@ -10,8 +10,9 @@
  *                modern shooter draws them rather than as a dashboard: weapon-readout (the magazine's rounds the big figure,
  *                the belt of rounds, reload said), health-strip (one long bar in cells, no label, no number), objective-order
  *                (one order and how far, a hold's clock draining), radar-scope (an instrument that turns with you), peril-edge
- *                (the screen's edge closing in as health runs out). The principles: docs/mana-ui.md, "A HUD that reads as
- *                a game"
+ *                (the screen's edge closing in as health runs out); a cinematic action game's own: bullet-time (the
+ *                slow-motion's charge as a ring), item-wheel (what is carried, picked round a ring at the pad's face
+ *                buttons). The principles: docs/mana-ui.md, "A HUD that reads as a game"
  *   survival     hotbar, world-labels
  *   strategy     resource-bar, turn-order, selection-grid, unit-card, combat-forecast, wave-status
  *   a match      score-bug, lower-third
@@ -121,6 +122,20 @@ export const LIVE_IDIOMS = {
     params: ['level'],
     node: { use: 'peril', props: { level: P('level') } },
     example: { level: { bind: 'shooter.peril' } },
+  },
+  'bullet-time': {
+    kind: 'hud', about: 'the slow-motion a cinematic action game spends, as a ring round a clock beside the health (bottom left, on a scrim): filling while it comes back, glowing when it is ready with what sets it off said beside it (a dodge, the last foe), draining while the world crawls',
+    reads: 'value (0..1), state (cooling | ready | active), label (what sets it off)', emits: '—',
+    params: ['value', 'state', 'label'],
+    node: { use: 'region', props: { at: 'bottom-left', variant: 'scrim' }, children: [{ use: 'charge', props: { value: P('value'), state: P('state'), icon: 'clock', label: P('label') } }] },
+    example: { value: { bind: 'shooter.focus.value' }, state: { bind: 'shooter.focus.state' }, label: { bind: 'shooter.focus.label' } },
+  },
+  'item-wheel': {
+    kind: 'hud', about: 'what is carried, held open on a button (a weapon wheel), centred over the slowed world: each slot at the face button that picks it, drawn as its wireframe with its name, its button and its rounds, the one in hand lit and named in the middle; it takes no focus (the game\'s own buttons pick)',
+    reads: 'open, title, slots: [{ name, gun?, at (degrees: 0 top, 90 right…), key, count?, on?, sub? }]', emits: '—',
+    params: ['open', 'title', 'slots'],
+    node: { use: 'region', props: { at: 'center', variant: 'bare' }, when: P('open'), children: [{ use: 'wheel', props: { rows: P('slots'), title: P('title') } }] },
+    example: { open: true, title: 'Hold RB · press a button', slots: { bind: 'shooter.wheel' } },
   },
   'offscreen-markers': {
     kind: 'hud', about: 'what matters off screen, held at the edge with an arrow toward it: an objective, a foe behind, an ally',
