@@ -1095,6 +1095,33 @@ not carried: the theme owns the look. A level manifest asks for it with `manaHud
 (`levelHud`); a world without a `ui` lays its levels as before, and a course's HUD stays its own composition on the
 same host. Not yet on the host: a board, a building or a tabletop level, and the level-complete card.
 
+### The shooter's HUD is the baseline
+
+Every page a gun is fired on wears one HUD: the first mission and its kin (a mission in a building, an industrial
+level), a quick shooter's level, a deathmatch and the firing range. It is the mission's page with nothing of a mission
+in it where there is none (`mission: { tasks: [], plain: true }`, `shooterHudUi`; `gameworld/mission-mana.js`): the gun
+in hand, the health, the screen's edge, the scope, the damage ring, the map and the pause. With no mission it shows no
+order, opens no briefing and leaves the end to the level; the level's own counters, lines and clock stay the page's (a
+bout's frags and place) and stand at the top right, clear of the scope; the page's own health row and its old radar
+give way, since this HUD draws both.
+
+What "A HUD that reads as a game" sets down are the baseline, and they are principles, not a skin. They hold for every
+shooter whatever it looks like:
+
+- a readout is read by its shape (a belt of rounds, a bar's length), never by a label beside a number
+- nothing is boxed over the world, and a readout with no news rests
+- danger is felt at the screen's edge before it is read
+- one order at a time, the list on the map
+- a hit says where it came from
+
+The look over them is the game's own. A world's `ui` (the interface chapter: `playscape/ui/interface-look.js`) names
+its theme, and the same parts are drawn in it: its inks, its accent and harm colours, its type, its corners. A world
+that names none wears the field brief. A new look is a theme card; a new part is a part of mana-ui that every theme
+then draws. So a game themes its HUD its way and cannot quietly drop a principle: the parts carry them.
+
+Said: the firing range's own buttons and its bout badge still stand at the top left under the scope; a world's `ui`
+has been checked to change the sheet, not looked at theme by theme on a shooter.
+
 ## What is next
 
 1. The integration, one surface at a time, each step either drawing the same bytes or naming the change it makes to

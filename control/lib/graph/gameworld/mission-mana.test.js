@@ -78,6 +78,22 @@ describe('the mission on mana-ui', () => {
     expect(C.ring).toEqual({ life: RING.life, most: RING.most });
     expect(C.state.ms.how.map((t) => t.label)).toContain('Under fire');
   });
+  it('is every shooter\'s HUD: with no mission in it (`plain`) the same parts and look, and no order, briefing or debrief', () => {
+    const plain = { title: 'Bout', theme: MISSION_LOOK, tasks: [], plain: true }, C = missionMana(plain), full = missionMana(UI);
+    // (the same spec: one HUD, drawn by the same parts; the order stands only where there is one)
+    expect(C.spec).toEqual(full.spec);
+    expect(C.plain).toBe(true); expect(full.plain).toBeUndefined();
+    expect(C.state.ms.order.on).toBe(false); expect(full.state.ms.order.on).toBe(true);
+    expect(C.state.ms.menu.map((m) => m.label)).not.toContain('The briefing');
+    expect(C.state.ms.title).toBe('Bout');
+    // (its sheet leaves the level's own counters, lines and clock, where a mission's puts them away)
+    expect(missionManaCss(C.theme, { plain: true })).not.toContain('.moj-w-counter');
+    expect(missionManaCss(full.theme)).toContain('.moj-w-counter');
+    // (and it takes a game's own look as a mission does: another theme card, another sheet, the same parts)
+    const other = Object.keys(THEME_CARDS).find((k) => k !== MISSION_LOOK);
+    expect(missionManaCss(missionMana({ ...plain, theme: other }).theme, { plain: true })).not.toBe(missionManaCss(C.theme, { plain: true }));
+    expect(() => new Function(missionChannelSource(plain))).not.toThrow();
+  });
   it('is one block on the page, the same from the same mission, and publishes its probe', () => {
     const a = missionChannelScript(UI);
     expect(a).toBe(missionChannelScript(UI));

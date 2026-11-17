@@ -86,6 +86,10 @@ describe('the level that carries it', () => {
     expect(levelOf({ goal: 'shoot' }).damageRing).toBe(true);
     expect(levelOf({ goal: 'deathmatch' }).damageRing).toBe(true);
     expect(levelOf({ goal: 'reach' }).damageRing).toBeUndefined();
+    // (and with it the shooter's HUD, no mission in it: the mission channel's plain page, in the world's look)
+    expect(levelOf({ goal: 'shoot' }).mission).toMatchObject({ tasks: [], plain: true });
+    expect(levelOf({ goal: 'deathmatch' }).mission).toMatchObject({ tasks: [], plain: true });
+    expect(levelOf({ goal: 'reach' }).mission).toBeUndefined();
   });
   it('a mission carries none of its own: it draws the ring in its HUD', () => {
     const m = levelOf({ goal: 'shoot', arms: ['rifle'], mission: true });

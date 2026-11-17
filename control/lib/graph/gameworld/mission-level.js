@@ -271,6 +271,12 @@ export function missionUi(G, M, brief, { laws = [], map = null } = {}) {
   };
 }
 
+/** THE SHOOTER'S HUD WITH NO MISSION (a quick shooter's level, a deathmatch): the mission's page with nothing of a
+ *  mission in it: the gun in hand, the health, the screen's edge, the radar, the damage ring, the map and the pause, in
+ *  the world's own look (its `ui`), the level's own counters and end left the page's. A world's `mission` key, as a
+ *  mission's is (scene/channels/mission.js). */
+export const shooterHudUi = (G) => ({ title: G?.name ?? G?.id ?? 'game', theme: G?.ui !== undefined ? interfaceLook(G).theme : MISSION_LOOK, tasks: [], plain: true });
+
 /** A mission level's stage (levels.js gameStages): its ground and what its page draws from, the pilot and the cast laid
  * over it by levelOrder. `P`: missionPlan's. */
 /** The cube a mission is read under: the world's own (its style's), in the SEVENTH GENERATION unless the cube names its

@@ -265,3 +265,10 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   (`club:drift`, `club:drive`), in place of the orchestral cues.
 - **A round that lands is seen.** A crew's body flinches when it is hit: the figure library's hit clip, once through,
   over whatever it was doing (`flinch`, beside `fire`). Seen only: the body is not stopped by it.
+- **Every shooter wears the new HUD.** The shooter's HUD (the gun in hand as a belt of rounds, the health strip, the
+  screen's edge, the scope, the damage ring, the map and the pause) was the mission's alone. A quick shooter's level, a
+  deathmatch and the firing range now wear it too, as the mission's page with no mission in it (`shooterHudUi`,
+  `mission: { tasks: [], plain: true }`): no order, no briefing, the level's own end; the level's counters stay and
+  stand clear of the scope, and the page's own health row and old radar give way. Its principles are set down as the
+  baseline for every shooter, and the look over them is the game's: a world's `ui` themes the same parts
+  ([docs/mana-ui.md](../../../../docs/mana-ui.md), "The shooter's HUD is the baseline").
