@@ -954,6 +954,18 @@ a loading screen that says which map is next, and a result with the map, the sec
 its level hosts a HUD of its own (`scene/channels/mana-hud.js`, composed by `gameworld/course-hud.js`). Both wear the
 look the course's dress names (`toybox`, the toy family's first card).
 
+### A race's HUD
+
+A level raced by laps on a roadway (the `laps` mechanic round a track) hosts a HUD of its own too, composed by
+`gameworld/race-hud.js`. A race is read from behind the kart as a course is, so the HUD keeps to the corners and the
+right edge: the place, large, in the top left over the field; the lap of the laps, this lap's time and the best lap in
+the top right; the track's map on the right edge, the track's own line drawn as a dotted route (the minimap's
+`route`) with you and the field on it; the speed on a dial in the bottom-right corner; the final lap and the finish
+(with the place) as moments. The start is five lights coming on a beat apart on a plate, then out together for GO:
+a screen, so the karts are held, and the world frozen with the race's clock until they go out. A tall frame lays the
+place and the lap on one plate at the top, with no map. Its look is its track's: `kart-candy` (the toy family) for a
+candy track, `pit-wall` (the clean family: the timing tower) for a circuit; a world that names its own theme wears it.
+
 ### Layout that adapts
 
 The frame a view is drawn in is state. A mount measures its own box, and measures it again when it changes (a phone

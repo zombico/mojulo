@@ -22,6 +22,7 @@
  *
  * Pure (the stage is assembled to read its ends; nothing is stored).
  */
+import { raceHud, RACE_DIAL } from './race-hud.js';
 import { levelHud } from '../game/hud-mana.js';
 import { interfaceLook } from '../playscape/ui/interface-look.js';
 import { ATLAS_SLICE } from './megaworld.js';
@@ -1048,6 +1049,18 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // drawn there too, in the same look, by the page's HUD host; a course's HUD is already its own (course-hud.js)
   // (a level with a HUD grammar, hud-grammar.js, has its HUD: its hearts, its compass and its actions stand in for the
   // rows, so they are not drawn a second time)
+  // A RACE (race-hud.js): a roadway raced by laps wears its own HUD, the race read at a glance (place, laps, times, the
+  // map, the speed, the lights), in its track's look unless the world names a theme of its own
+  if (stage.section === 'roadway' && !manifest.manaHud) {
+    const mi = (game?.mechanics ?? []).findIndex((x) => x && x.kind === 'laps');
+    if (mi >= 0) {
+      const Lm = game.mechanics[mi], top = pilotPart.entities?.[0]?.rule?.topSpeed, c = stage.manifest.course;
+      const named = G.ui && typeof G.ui === 'object' && G.ui.theme && G.ui.theme !== 'world' ? interfaceLook(G).theme : null;
+      manifest = { ...manifest, manaHud: raceHud({ mech: mi, laps: Lm.laps ?? 1, racers: 1 + (Array.isArray(Lm.rivals) ? Lm.rivals.length : 0), outline: ends.roadway?.line ?? null,
+        language: typeof stage.manifest.language === 'string' ? stage.manifest.language : null, cls: c && typeof c === 'object' ? c.class : typeof c === 'string' && /^kart/.test(c) ? 'kart' : 'circuit',
+        speedMax: Number.isFinite(top) && top > 0 ? Math.ceil((top * 3.6 * 1.15) / 10) * 10 : RACE_DIAL[c && typeof c === 'object' ? c.class : typeof c === 'string' && /^kart/.test(c) ? 'kart' : 'circuit'] ?? 120 }, { theme: named, screen: G.screen ?? null }) };
+    }
+  }
   if (G.ui !== undefined && !manifest.manaHud && !manifest.events?.grammar) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null }) };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'

@@ -391,6 +391,10 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-hit{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:${u(51)};font-weight:200}`,
     `${s} .mana-minimap{position:relative;width:${u(195)};height:${u(195)};border:${v('rule-w')} solid ${v('line')};background:${X_BOX} ${v('paper')}}`,
     `${s} .mana-minimap[data-shape=round]{border-radius:50%}`,
+    // (a map with its way drawn: the way's dots in place of the blank map's cross)
+    `${s} .mana-minimap[data-route]{background:${v('paper')}}`,
+    `${s} .mana-minimap[data-route] .mana-marker[data-kind=self]{color:${v('accent')};font-size:${u(22)}}`,
+    `${s} .mana-trace{position:absolute;width:${u(7)};height:${u(7)};border-radius:50%;background:${v('ink')};opacity:.5;transform:translate(-50%,-50%)}`,
     `${s} .mana-marker{position:absolute;transform:translate(-50%,-50%);font-size:${u(16)};line-height:1}`,
     `${s} .mana-minimap .mana-caption{position:absolute;left:${u(6)};bottom:${u(3)}}`,
     `${s} .mana-compass{position:relative;width:${u(450)};height:${u(33)};border:${v('rule-w')} solid ${v('line')};background:${v('paper')};overflow:hidden}`,

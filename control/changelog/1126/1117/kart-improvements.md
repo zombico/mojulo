@@ -40,6 +40,17 @@ In progress. Built so far:
   before. The outdoor bake (`form/sun-light.js`) gains two opt-ins for it: a normal a corner for what is drawn smooth,
   and a reference face the colours are held on. A world's page keeps a builder's own fitted shadows, the live
   defaults filling what it leaves unsaid. The page weighs more with its per-corner light (about half again).
+- **Built: the race's HUD on the game UI runtime** (`gameworld/race-hud.js`, hosted by the level page's HUD channel).
+  Every roadway level raced by laps wears it: the place, large, over the field; the lap of the laps, this lap's time
+  and the best; the track's map with you and the field on it; the speed on a dial; the final lap and the finish as
+  moments. It keeps to the corners and the right edge, the way ahead and the kart left clear. The start is five lights
+  on a plate, one a beat, out together for GO: the karts held and the world frozen with the race's clock until they
+  go out (the race's time was counted from the page's first frame before). Read off the laps mechanic's own vars; the
+  raw widget rows (Time, Lap, Place) stand down beside it. A tall frame lays the place and the lap on one plate at the
+  top. Two looks for racing on the theme shelf: Candy Kart (`kart-candy`, the toy family, the candy track's own
+  palette) and Pit Wall (`pit-wall`, the clean family: a timing tower, near-black and quiet), worn by a race by its
+  track's language or class unless the world names a theme. The minimap gains a `route`: a way drawn under its markers
+  as a dotted line, in the place of the blank map.
 - **The principles a new map starts from** ([docs/track-design-principles.md](../../../../docs/track-design-principles.md))
   and the agent's card for them (`gameworld-track-language`, read by the levels chapter): a premise first, a small
   family, a quiet way, a corner told three times, things seen to move, asymmetry, chunky, the track's own sky.

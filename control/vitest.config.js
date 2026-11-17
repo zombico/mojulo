@@ -12,6 +12,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 // leg of the matrix. Listed here so both configs read one list; the e2e config re-exports it.
 // A list, not a suffix: a rename would collide with every branch still editing these files.
 export const E2E = [
+  'lib/graph/gameworld/race-hud.e2e.test.js',
   'lib/graph/gameworld/door-probes.e2e.test.js',
   // the exhibit starters made through create_exhibit: Pompeii resolves a whole historic town and its people
   'lib/graph/exhibit/starters.e2e.test.js',

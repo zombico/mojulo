@@ -75,6 +75,13 @@ and its post of one stuff), `finish`, `kerb-read`, `tell` (the tell is not the r
 is laid on), `drawn` (nothing drawn outside the family). A roadway level's gate says them as `language:<law>` beside
 the track's own laws and the trackscape's.
 
+## The race's HUD
+
+The HUD is read from the kart as the track is, so it keeps the same screen: the corners and the right edge, never the
+way ahead or the kart (`gameworld/race-hud.js`). It wears the track's family: a candy track's HUD is berry plates with a
+cream rim and lemon for what matters (`kart-candy`); a circuit's is the timing tower, near-black and quiet (`pit-wall`).
+Its map draws the track's own line. Its lights are a start gantry's: five, one a beat, out together for GO.
+
 ## The light in code
 
 A chunky kart track is lit by the page unless a word bakes it ("baked"; "gen 7" and "shadows" name the page-lit one):
