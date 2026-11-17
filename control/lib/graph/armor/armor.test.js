@@ -134,6 +134,13 @@ describe('the toy family', () => {
     expect(K.pecL.side).toBe('L');
     expect(K.pecL.signature.c).toBe(-K.pecR.signature.c);
   });
+  it('the arm cannon only where the language names its arm: a barrel round that hand, its bore dark in the muzzle', () => {
+    expect(kit().some((e) => /^buster/.test(e.id))).toBe(false);
+    const R = byId(kit({}, { cannon: 'R' })).busterR, L = byId(kit({}, { cannon: 'L' })).busterL;
+    expect(R.part).toBe('handR');
+    expect(L.part).toBe('handL');
+    expect(R.signature.bore).toBeTruthy();
+  });
   it('covers in order: the chest first, the plaques last', () => {
     expect(kit({ coverage: 0 }).map((e) => e.id)).toEqual(['chest']);
     expect(kit({ coverage: 1, ornament: 2 }).length).toBeGreaterThan(kit({ coverage: 0.5, ornament: 2 }).length);

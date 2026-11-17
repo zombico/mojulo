@@ -16,18 +16,25 @@
 // headgear card (headgear/cards.js heroBotHelm), worn with the suit as the build's `with`.
 //
 // Language words (each optional; absent, the piece as the card has it): pauldron ball | none, chest barrel | none,
-// arms football | none, legs cone | none, knees cap | none, collar band | none, brief brief | none.
+// arms football | none, legs cone | none, knees cap | none, collar band | none, brief brief | none, cannon none | R | L (the
+// arm cannon on that arm: never at the card's default, a run and gun's hero names it).
 import { r4 } from './plate.js';
 
-export const TOY_ORDER = Object.freeze([[0.0, 'chest'], [0.1, 'boot'], [0.2, 'forearm'], [0.3, 'pauldron'], [0.45, 'brief'], [0.55, 'knee'],
+export const TOY_ORDER = Object.freeze([[0.0, 'chest'], [0.0, 'cannon'], [0.1, 'boot'], [0.2, 'forearm'], [0.3, 'pauldron'], [0.45, 'brief'], [0.55, 'knee'],
   [0.65, 'collar'], [0.8, 'thighRim'], [0.9, 'plaque']]);
 export const TOY_WORDS = Object.freeze({ pauldron: ['ball', 'none'], chest: ['barrel', 'none'], arms: ['football', 'none'], legs: ['cone', 'none'],
-  knees: ['cap', 'none'], collar: ['band', 'none'], brief: ['brief', 'none'] });
+  knees: ['cap', 'none'], collar: ['band', 'none'], brief: ['brief', 'none'], cannon: ['none', 'R', 'L'] });
 // which language word turns each piece off
 const OFF = Object.freeze({ pauldron: 'pauldron', chest: 'chest', forearm: 'arms', boot: 'legs', knee: 'knees', collar: 'collar', brief: 'brief' });
 
 // THE PIECES, one side's (the right's: a paired piece is mirrored to the left), as the toy hero robot's cast laid them on
 // the hero's rig: each a part's stations (`s`), its volume's girth a share of the limb's
+// THE ARM CANNON (the buster's: worlds/controllable/buster.js), off unless the language names its arm: a barrel round the
+// hand, from over the wrist past the fingertips, a lip at its muzzle and the bore dark in it. The hand is inside it
+const CANNON = Object.freeze({ mode: 'shell', part: 'handR', s: [0, 1], t: 'wrap', nt: 8, ns: 4, mugen: 0.001, thick: 0.001, rigid: true, group: 'Armor',
+  signature: { kind: 'volume', group: 'Armor', shape: 'football', girth: 2.05, peak: 0.25, mouth: 0.95, n: 2.2, extend: [0.3, 4], m: 28, rings: 16,
+    lip: { group: 'Cuff', at: 'high', w: 0.1, out: 0.05 }, bore: { group: 'Bore', r: 0.62 } } });
+
 const PIECES = Object.freeze({
   collar: Object.freeze({"mode": "shell", "part": "neck", "s": [0.0, 0.9], "t": "wrap", "nt": 10, "ns": 3, "mugen": 0.001, "thick": 0.001, "rigid": true, "group": "Cuff", "signature": {"kind": "volume", "group": "Cuff", "shape": "cone", "girth": 1.22, "taper": 0.88, "n": 2.2, "m": 20}}),
   chest: Object.freeze({"mode": "shell", "part": "torso", "s": [1.05, 3.5], "t": "wrap", "nt": 10, "ns": 4, "mugen": 0.001, "thick": 0.001, "rigid": true, "group": "Chest", "signature": {"kind": "volume", "group": "Chest", "shape": "football", "girth": 1.12, "n": 2.0, "squash": [1.32, 0.9], "m": 32, "lip": {"group": "Cuff", "at": "low", "w": 0.12, "out": 0.03}, "base": 0.72, "peak": 0.62, "mouth": 0.68, "rings": 18}}),
@@ -72,6 +79,7 @@ export function toySuit(dials, ctx = {}, lang = {}) {
     collar: () => lay('neckband', PIECES.collar, false),
     thighRim: () => { if (orn >= 2) lay('thighRim', PIECES.thighRim, true); },
     plaque: () => { if (orn >= 2) { lay('pec', PIECES.pec, true); lay('abplate', PIECES.abplate, false); } },
+    cannon: () => { if (lang.cannon === 'R' || lang.cannon === 'L') { const q = massed(CANNON, mass); kit.push({ id: `buster${lang.cannon}`, ...(lang.cannon === 'L' ? mirror(q) : q) }); } },
   };
   for (const [th, piece] of TOY_ORDER) {
     if (c < th - 1e-9 || (ctx.keep && !ctx.keep.includes(piece)) || (OFF[piece] && lang[OFF[piece]] === 'none')) continue;
