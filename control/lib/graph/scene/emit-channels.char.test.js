@@ -1,3 +1,7 @@
+// Re-pinned 2026-11-17 (the law's police cars): every fixture that embeds the controllable runtime. The drive builder
+// gained the `chaser` rule (rules-drive.js), the cast its `dismount` op and a `near` spawn's car reset, the mount step its
+// `eject` and a `carHull`'s place among the hulls, and the runtime keeps `posts`, `carBody` and `carHull` (two
+// normalizers). Each is taken only by an entity or an op that names it (no fixture's does): their worlds step as before.
 // Re-pinned 2026-11-17 (the open city's wanted level): every fixture that embeds the controllable runtime. The cast's
 // `spawn` gained `near` and `ring` (worlds/controllable/cast.js: a body set down at a ring's distance from another, on
 // one of its own `posts`, the law's police), a branch taken only by an op that names `near` (no fixture's does): their
