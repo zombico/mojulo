@@ -58,6 +58,8 @@ import { dressOrders } from '../foes/dress.js';
 import { isModelSkin } from '../foes/model.js';
 import { LEVEL_GOAL, PERSON } from './quick.js';
 import { gauntletIds } from './gauntlet.js';
+import { taskFoeIds } from './fights.js';
+import { streetFoeIds } from './brawl-cast.js';
 import { HERO } from '../foes/vocab.js';
 import { FEELS, FPS } from './feel/cards.js';
 import { feelCard } from './feel/lower.js';
@@ -70,6 +72,7 @@ import { rollEgocube } from '../egocube/egocube.js';
 import { statureOf } from '../egocube/cast.js';
 import { fieldOf } from './casting.js';
 import { settingOfGame } from './cast-setting.js';
+import { rowFoe } from './hero-rows.js';
 
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
 const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'vanish', 'states', 'summons', 'pair', 'becomes'];
@@ -206,6 +209,10 @@ export function fieldedIds(G) {
   for (const id of G.ids) { const LF = G.levels[id].foes; if (LF !== undefined) for (const f of readLevelFoes(LF, G.foes, `levels.${id}`).from) used.add(f); }
   // (and what a level's wave gauntlet wakes: gauntlet.js)
   for (const f of gauntletIds(G)) used.add(f);
+  // (and what its tasks' fights wake: fights.js)
+  for (const f of taskFoeIds(G)) used.add(f);
+  // (and who its streets bring: brawl-cast.js)
+  for (const f of streetFoeIds(G)) used.add(f);
   // (and what a summoner it fields calls, and who a pair stands with)
   for (const id of [...used]) { const E = bestiaryOf(G)[id]; if (E?.summons) used.add(E.summons.foe); if (E?.pair) used.add(E.pair.foe); }
   // (and the modes each of them becomes)
@@ -377,13 +384,19 @@ export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tun
     transform: { pos: p.at, heading: p.heading },
     ...(more.dormant ? { dormant: true } : {}),
   };
-  part.entities.push(e);
-  return e;
+  // (its genre's row: how hard a game's foes are, hero-rows.js rowFoe)
+  const made = rowFoe(G, e);
+  part.entities.push(made);
+  return made;
 }
 
-/** THE RAIL a side strip's foes fight on (worlds/controllable/foe.js RAIL): each waits on the land behind the lane
- * (`back` m behind it, a little under its floor) and comes in on an arc when the hero is within `wake` m of its place. */
-export const RAIL = Object.freeze({ back: -5.5, drop: 0.85, wake: 9, time: 0.7, arc: 1.4 });
+/** THE RAIL a side strip's foes fight on (worlds/controllable/foe.js RAIL). A foe STANDS ON THE RAIL from the start, in
+ * the hero's plane, so it is seen coming and a jump is timed on it. An AMBUSH is rare: one foe in `ambush` (never one of
+ * the first `ambushAfter`, which teach the stomp) waits on the land behind the lane (`back` m behind it, a little under
+ * its floor) and comes in on an arc when the hero is within `wake` m of its place. */
+export const RAIL = Object.freeze({ back: -5.5, drop: 0.85, wake: 9, time: 0.7, arc: 1.4, ambush: 6, ambushAfter: 4, apart: 1.3 });
+/** Does the k-th foe laid on a rail wait off it (an ambush)? Rare, and never among the first. */
+export const railAmbush = (k) => k >= RAIL.ambushAfter && (k - RAIL.ambushAfter) % RAIL.ambush === RAIL.ambush - 1;
 
 export function hostileCast(G, level, ends, { refs, hero = true, hurt = null, rail = null } = {}) {
   const P = foePlacements(G, level, ends);
@@ -414,12 +427,22 @@ export function hostileCast(G, level, ends, { refs, hero = true, hurt = null, ra
     standOne(p, { rule: { summon: { ids, at: Math.min(SUMMON.at, n), every: SUMMON.every, wind: r3(resolveFoe(specOf(p.entry)).attack.timing.startup / 60), radius: SUMMON.radius, ring: SUMMON.ring, with: SUMMON.with } } });
     ids.forEach((id) => standOne({ id, eid: S.foe, entry: B[S.foe], at: p.at, heading: p.heading }, { dormant: true, rule: { summoned: { by: p.id, bound } } }));
   }
-  // on a side strip's rail: each body that stands (a summons sleeps on its summoner) waits behind the lane and comes in
-  if (rail) for (const e of entities) {
-    if (e.dormant) continue;
-    const at = e.transform.pos;
-    e.rule = { ...e.rule, rail: { a: [0, -RAIL.wake], b: [0, r3(rail.length + RAIL.wake)], join: at, heading: e.transform.heading, wait: true, wake: RAIL.wake, time: RAIL.time, arc: RAIL.arc } };
-    e.transform = { ...e.transform, pos: [RAIL.back, at[1], r3(at[2] - RAIL.drop)], heading: 0 };
+  // on a side strip's rail: each body that stands (a summons sleeps on its summoner) is ON the rail where it was stood,
+  // held to the lane in all it does; a rare one (railAmbush) waits behind the lane and comes in
+  if (rail) {
+    let k = 0;
+    const taken = [];
+    for (const e of entities) {
+      if (e.dormant) continue;
+      // (its place ON the lane: a foe stood round a beat, a swarm's, is brought onto it, and along it clear of the last
+      // one stood there, so no two stand in one spot)
+      let y = e.transform.pos[1];
+      while (taken.some((t) => Math.abs(t - y) < RAIL.apart)) y = r3(y + RAIL.apart);
+      taken.push(y);
+      const at = [0, y, e.transform.pos[2]], wait = railAmbush(k++), line = { a: [0, -RAIL.wake], b: [0, r3(rail.length + RAIL.wake)], join: at, heading: e.transform.heading };
+      e.rule = { ...e.rule, rail: wait ? { ...line, wait: true, wake: RAIL.wake, time: RAIL.time, arc: RAIL.arc } : line };
+      e.transform = wait ? { ...e.transform, pos: [RAIL.back, at[1], r3(at[2] - RAIL.drop)], heading: 0 } : { ...e.transform, pos: at };
+    }
   }
   // the hero takes their hits: hittable (a person's egg over its feet, or under the eye a first-person walker walks at);
   // a hero with legs stomps them (worlds/controllable/foe.js)
@@ -455,10 +478,11 @@ export function withFoeWin(G, level, ends, mechanics) {
   return mechanics.some((m) => m.kind === 'reach-exit') ? mechanics.map((m) => (m.kind === 'reach-exit' ? clear : m)) : [...mechanics, clear];
 }
 
-export function withFoeHits(mechanics) {
+export function withFoeHits(mechanics, { bar = false } = {}) {
   const i = mechanics.findIndex((m) => m.kind === 'fail-on-death');
   if (i >= 0) return mechanics.map((m, j) => (j === i && m.hits === undefined ? { ...m, hits: LEVEL_GOAL.hit } : m));
-  const death = { kind: 'fail-on-death', startHp: LEVEL_GOAL.hp, hits: LEVEL_GOAL.hit };
+  // (`bar`: the hp read as a health bar, a hero designed for its genre's: hero-rows.js)
+  const death = { kind: 'fail-on-death', startHp: LEVEL_GOAL.hp, hits: LEVEL_GOAL.hit, ...(bar ? { bar: true } : {}) };
   return [...mechanics.slice(0, -1), death, ...mechanics.slice(-1)];
 }
 

@@ -16,6 +16,19 @@
   it has no place yet; nothing is quietly dropped. The game then says which of its first decisions your material
   already answered and which are still open, so you are not asked again what a document already said. Bringing
   nothing is an answer too. A quick one-level game and a game made from one sentence are not asked.
+- **A book of monsters becomes the game's enemies.** Hand over the creatures of a setting (each one's element and
+  the part it plays: the bulk, a quick threat, a tougher test, the boss) and a party role-playing game now fights
+  them: what each is weak to and resists, how strong each is, which groups are met in what order, and the boss last.
+  Anything you write yourself wins over what was worked out for you, and the game says which parts were worked out
+  so you can make them your own. Each creature also stands on the map as a creature: a body by the part it plays
+  (the bulk a small beast, a quick threat one that flies, a tougher test a big one, the boss the biggest), changed by
+  its element, so a fire one and a frost one are told apart at a glance; give any of them your own look and yours is
+  used. An action game's enemies cannot carry elements yet.
+- **A school of techniques becomes a class your party can be in.** Name a school, its element and what each technique
+  does (a bolt, a storm, an elemental blade, a ward, a rallying surge, a mend, a hex, a weakening) and a party
+  role-playing game now has it as a class beside its own: each technique a skill, learned as the class ranks up or
+  bought after the ones it builds on, stronger and costlier the deeper it sits. Say nothing of the order and they are
+  learned one rank after another as you wrote them; the game says so, so you can set your own.
 - **A producer beside the director.** The agent's guidance now names three seats on a game: the director decides,
   the assistant director holds each piece of work to what was asked, and the producer runs the work (what was
   brought, what is open, what is next). The producer never chooses between two looks: what is unclear is listed and

@@ -30,7 +30,8 @@
 import { GOALPOSTS } from './goalposts.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const POSTS = GOALPOSTS.map((g) => g.id);
+// (read when asked, not at load: goalposts.js reads the rails, whose tables reach back to the world's reader and so here)
+const postIds = () => GOALPOSTS.map((g) => g.id);
 const ID = /^[a-z][a-z0-9-]{0,39}$/;
 const fail = (m) => new Error(`gameworld: intake${m}`);
 
@@ -40,7 +41,7 @@ export const INTAKE_KINDS = Object.freeze({
   map: Object.freeze({ name: 'a map or a level sketch', door: 'the level\'s own page: its walk, or a written map (gameworld-world: glyphs)', answers: Object.freeze(['first-plan']) }),
   design: Object.freeze({ name: 'a design document or a pitch', door: 'intent, the main quest, the feel and the actions, a page at a time', answers: Object.freeze(['game', 'shape', 'play']) }),
   lore: Object.freeze({ name: 'a setting\'s lore or a story', door: 'the world\'s `backdrop` (extracted, never authored), then the main quest', answers: Object.freeze(['shape']) }),
-  rules: Object.freeze({ name: 'rules, stats, a bestiary or a power system', door: 'the actions, the systems, the foes; a power system no page takes yet is set aside', answers: Object.freeze(['play']) }),
+  rules: Object.freeze({ name: 'rules, stats, a bestiary or a power system', door: 'the actions, the systems, the foes; a party game\'s bestiary → battles.manual, its school of techniques → battles.tree (gameworld-battles); a power system no page takes yet is set aside', answers: Object.freeze(['play']) }),
   art: Object.freeze({ name: 'concept art or a mood board', door: 'reference_protocol → capture_reference, then the direction and the world\'s look', answers: Object.freeze(['look']) }),
   plan: Object.freeze({ name: 'a production plan or a level list', door: 'the main quest\'s beats and the levels they are played on', answers: Object.freeze(['plan']) }),
 });
@@ -64,7 +65,7 @@ export function readIntake(v) {
     if (typeof it.says !== 'string' || !it.says.trim()) throw fail(`${at}.says is what the attachment says, in a line`);
     const placed = typeof it.placed === 'string' && it.placed.trim(), aside = typeof it.aside === 'string' && it.aside.trim();
     if (!!placed === !!aside) throw fail(`${at} says where it went (placed: a page or a chapter) or why it has no place yet (aside), one of the two: nothing brought is dropped`);
-    if (it.answers !== undefined && (!Array.isArray(it.answers) || it.answers.some((g) => !POSTS.includes(g)))) throw fail(`${at}.answers are goalposts: ${POSTS.join(', ')}`);
+    if (it.answers !== undefined && (!Array.isArray(it.answers) || it.answers.some((g) => !postIds().includes(g)))) throw fail(`${at}.answers are goalposts: ${postIds().join(', ')}`);
     if (it.basis !== undefined && !BASES.includes(it.basis)) throw fail(`${at}.basis is ${BASES.join(' | ')}`);
     return { id: it.id, kind: it.kind, says: it.says.trim(), ...(placed ? { placed: it.placed.trim() } : { aside: it.aside.trim() }), answers: [...(it.answers ?? INTAKE_KINDS[it.kind].answers)], basis: it.basis ?? 'stated' };
   });
@@ -93,5 +94,5 @@ export function intakeReport(world) {
   for (const it of R.items) if (it.placed) for (const g of it.answers) (answered[g] ||= []).push(it.id);
   const aside = R.items.filter((it) => it.aside).map(({ id, says, aside: why }) => ({ id, says, aside: why }));
   const inferred = R.items.filter((it) => it.basis === 'inferred').map((it) => it.id);
-  return { items: R.items.length, answered, open: POSTS.filter((g) => !answered[g]), ...(aside.length ? { aside } : {}), ...(inferred.length ? { inferred } : {}) };
+  return { items: R.items.length, answered, open: postIds().filter((g) => !answered[g]), ...(aside.length ? { aside } : {}), ...(inferred.length ? { inferred } : {}) };
 }

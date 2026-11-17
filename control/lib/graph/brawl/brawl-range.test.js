@@ -39,7 +39,7 @@ describe('brawl range: the guns passed in', () => {
     expect(L[0].label).toBe('Guns');
     expect(L[0].moves.map((m) => m.name)).toEqual(['Machine Gun', 'Spread', 'Flame', 'Rocket']);
     expect(L[0].moves[0].data.find((d) => d.what === 'round speed (m/s)').value).toBe(String(Math.round((GUNS['machine-gun'].speed * 60) / 100) / 10));
-    expect(L[1].moves.map((m) => m.name)).toEqual(['Fire', 'Aim', 'Plant', 'Roll', 'Jump', 'Grenade']);
+    expect(L[1].moves.map((m) => m.name)).toEqual(['Fire', 'Aim', 'Plant', 'Duck', 'Roll', 'Jump', 'Grenade']);
   });
 });
 

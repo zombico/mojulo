@@ -115,12 +115,13 @@ strong one ≥ 40; value masses over 5 % of the outline, western 2–4, anime/ga
 **The shoulder line.** Natural `esh ≤ 0.04`; extended or padded 0.04–0.12; armour, pauldrons, capes ≥ 0.15; a dropped
 shoulder read by its slope, not its width [snippet: tailors on soft, roped and natural shoulders].
 
-**Fabric sets standoff, fold size and fold count.** On a stiffness scale `k` (drape coefficient about 30 % limp to 90 %
-stiff [snippet: Cusick, via ScienceDirect]): chiffon 0.1 (falls to the body, many small folds); jersey, satin 0.25;
-shirting, poplin 0.45; wool suiting, twill 0.6 (holds the cut's planes); denim, gabardine 0.75 (stands off, few large
-folds stacking at the ankle); canvas, leather, felt 0.9 (holds its own shape, creases). Stiffer stands further off below
-a support, folds bigger and fewer [snippet]. A stiff cloth clinging, or a fluid one standing off unsupported, is
-incoherent. Knit sits near 0.25, woven 0.45–0.6.
+**Fabric sets standoff, fold size and fold count.** The stiffness `k` here is the piece's `rigidity`, one axis from 0
+(limp) to 1 (holds its own shape), read like a drape coefficient (about 30 % limp to 90 % stiff [snippet: Cusick, via
+ScienceDirect]); it is the same number the cloth's motion reads. What each cloth is, its rigidity and its weight, is one
+table: `MATERIALS` in [cloth-law.js](../control/lib/graph/polygonizer/cloth-law.js) (silk falls to the body in many
+small folds; leather holds its own shape and creases). Stiffer stands further off below a support, folds bigger and fewer
+[snippet]. A stiff cloth clinging, or a fluid one standing off unsupported, is incoherent. Knit sits near 0.25, woven
+0.45–0.6.
 
 **Exaggeration lives in a few pieces (anime/game).** One to three FLAIR pieces (`e > 0.25`: an oversized sleeve, a
 flared trouser, a coat skirt, a cape, a sash), with ≥ 60 % of the trunk's and limbs' length at `e ≤ 0.10`. The outfit

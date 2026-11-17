@@ -85,6 +85,7 @@ export function assembleControllableScene(manifest = {}, opts = {}) {
 const _cw = composeLive();
 export const createWorld = _cw.createWorld;
 export const stepWorld = _cw.stepWorld;
+export const styleOf = _cw.styleOf;   // the style meter (controllable/style.js): where it stands, or null
 export const normalizeEntity = _cw.normalizeEntity;
 export const gaitFramePair = _cw.gaitFramePair;
 export const advanceGaitMix = _cw.advanceGaitMix;

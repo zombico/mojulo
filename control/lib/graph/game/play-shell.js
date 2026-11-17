@@ -32,7 +32,7 @@
  */
 
 import { buildGameStoreKernel } from './store-kernel.js';
-import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD, MSG_SEATS, MSG_SHOWN, MSG_CARD_DONE, MSG_SCENE_END } from './level-contract.js';
+import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_MENU, MSG_GAMEPAD, MSG_SEATS, MSG_SHOWN, MSG_CARD_DONE, MSG_SCENE_END } from './level-contract.js';
 import { FONTS, FONT_IDS, STYLE_TOKENS, hexToRgba } from './hud-widgets.js';
 import { THEMES } from '../../mana-ui/theme.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
@@ -132,7 +132,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ...(manifest.run ? { run: { length: manifest.run.length, ...(manifest.run.repeat ? { repeat: true } : {}) } } : {}),
     // the result's stingers (music.victory / music.defeat, resolved to srcs): absent, no key
     ...(stingers && (stingers.victory || stingers.defeat) ? { stingers: { victory: stingers.victory || null, defeat: stingers.defeat || null } } : {}),
-    wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, gamepad: MSG_GAMEPAD, seats: MSG_SEATS, shown: MSG_SHOWN, cardDone: MSG_CARD_DONE, sceneEnd: MSG_SCENE_END, ...(links ? { door: MSG_DOOR } : {}) },
+    wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, menu: MSG_MENU, gamepad: MSG_GAMEPAD, seats: MSG_SEATS, shown: MSG_SHOWN, cardDone: MSG_CARD_DONE, sceneEnd: MSG_SCENE_END, ...(links ? { door: MSG_DOOR } : {}) },
     pauseButtons: PAUSE_BUTTONS,
     // THE FRONT (play-front.js): a title over a cover, the start menu, options, credits, the end; absent, no key
     ...(manifest.front ? { front: frontConfig(manifest.front, frontArt, { levels: levelTable.length, run: !!manifest.run }) } : {}),
@@ -556,6 +556,7 @@ export function playShellRuntime(cfg, K) {
       if (Object.keys(picked.picks).length) params.__picks = picked.picks;
       // (the difficulty picked is the dial the level's foes read: the engine's tier, params.difficulty)
       if (typeof picked.picks.difficulty === 'string') params.difficulty = picked.picks.difficulty;
+      if (picked.end) params.__end = picked.end;
       for (const sl in picked.slices) {
         const v = state[sl], key = v && v.roster ? 'roster' : 'items', out = {};
         if (!v || !v[key]) continue;
@@ -596,7 +597,9 @@ export function playShellRuntime(cfg, K) {
     const d = e.data;
     if (!d || !session || e.source !== frame.contentWindow) return;
     if (d.moj === W.seats) { seatList = Array.isArray(d.seats) ? d.seats : []; if (paused) renderPause(); return; }
-    if (d.moj === W.controls) { ctlRows = Array.isArray(d.rows) && d.rows.length ? d.rows : null; if (paused) renderPause(); return; }
+    if (d.moj === W.controls) { ctlRows = Array.isArray(d.rows) && d.rows.length ? d.rows : null; if (paused && !(MANA && screen === 'level')) renderPause(); return; }
+    // the menu asked for from inside the level (Esc there, or the captured mouse let go by it): the pause opens
+    if (d.moj === W.menu) { if (!paused && screen === 'level') setPaused(true); return; }
     // the level's first frame drawn: the veil lifts (a level from before game-shown lifts it a moment after it is ready)
     if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); if (session && !session.t0) session.t0 = performance.now(); turnReady(); signal('shown'); return; }
     // the scene the flow staged here has ended (or the level had none, or it never started): the flow goes on, the page
@@ -725,6 +728,9 @@ export function playShellRuntime(cfg, K) {
     pauseEl.appendChild(s);
   }
   pauseBtn.addEventListener('click', () => setPaused(!paused));
+  // Esc on the shell's own page (the level's frame not in focus) opens the pause over a level; with the pause up, Esc
+  // is the menu's own back (mana-ui's, which resumes), or closes the shell's panel
+  window.addEventListener('keydown', (e) => { if (e.key !== 'Escape' || e.repeat || screen !== 'level') return; if (!paused) setPaused(true); else if (!MANA) setPaused(false); });
   // each pad's start on its own press edge: any pad opens the pause, only the one that opened it closes it
   const padPrev = {};
   (function padPoll() {
@@ -859,7 +865,7 @@ export function playShellRuntime(cfg, K) {
     if (onOf('again')) items.push({ label: won ? 'play again' : 'try again', then: { emit: 'again' } });
     if (onOf('home')) items.push({ label: homeWord(), then: { emit: 'home' } });
     const kept = env.stats && Array.isArray(env.stats.kept) ? env.stats.kept.map((k) => ({ label: k.label, value: String(k.value) + (k.unit || '') })) : [];
-    return { outcome: (won ? 'cleared' : env.result === 'fail' ? 'failed' : 'left') + ' · ' + lv.title, stats: (o.ok ? gainsOf(env.events || []) : []).map((g) => ({ label: g, value: '' })).concat(kept), rank: o.fin && M.final ? 'complete' : '', items };
+    return { outcome: (won ? 'cleared' : env.result === 'fail' ? 'failed' : 'left') + ' · ' + lv.title, stats: (o.ok ? gainsOf(env.events || []) : []).map((g) => ({ label: g, value: '' })).concat(kept), rank: o.fin && M.final ? 'complete' : (env.stats && typeof env.stats.rank === 'string' ? env.stats.rank : ''), items };
   }
   // a run's end as data (the run is over once it is said)
   function runInfo() {
@@ -1060,7 +1066,10 @@ export function playShellRuntime(cfg, K) {
     const kept = TK.keptPicks(T, turn.s);
     if (Object.keys(kept).length) { seenSteps.$picks = Object.assign({}, seenSteps.$picks, kept); try { storage.setItem(SEEN_KEY, JSON.stringify(seenSteps)); } catch (e) { /* session only */ } }
     const t = peek && peek.sub === 'start' ? peek.trigger : null, stage = t && t.scene ? { scene: t.scene, ...(t.skip ? {} : { skip: false }) } : null;
-    launch(turn.lv, turn.arrive, turn.carry, stage, TK.turnParams(T, turn.s));
+    // (an END trigger that is a scene is the level's to play: named to it as it loads (__end), played on its page once
+    // its outcome is known and before it says so, so the store's write and the results come after it)
+    const endT = T.end && T.end.scene ? { scene: T.end.scene, when: T.end.when, ...(T.end.skip ? {} : { skip: false }) } : null;
+    launch(turn.lv, turn.arrive, turn.carry, stage, Object.assign(TK.turnParams(T, turn.s), endT ? { end: endT } : {}));
     // (a level that never says its scene ended, a page from before stages, is given two minutes)
     if (stage) { pauseBtn.style.display = 'none'; setTimeout(() => { if (turn === me) turnSceneEnd(); }, 120000); }
   }

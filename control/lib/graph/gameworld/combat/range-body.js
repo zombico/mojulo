@@ -85,7 +85,7 @@ const GUNPLAY = (view) => ({ kind: view.kind, ads: { zoom: 1.3, time: 0.25, spre
 const lookOf = (skin, base) => (skin ? kitSlot(skin, base).gunplay : null);
 
 /** A range's body and its target: the slots its weapons make, the knife its melee is. → { pilot, foe, payload } */
-export function rangeBody({ weapons, skins = {}, sounds = {}, foe = {}, name = null, quiet = false } = {}) {
+export function rangeBody({ weapons, skins = {}, sounds = {}, foe = {}, name = null, quiet = false, vary = false } = {}) {
   const errs = validateRange({ weapons, skins, sounds, foe });
   if (errs.length) throw new Error(`firing range: ${errs.join('; ')}`);
   const hp = foe.hp ?? 100;
@@ -113,7 +113,7 @@ export function rangeBody({ weapons, skins = {}, sounds = {}, foe = {}, name = n
     slots.push({ name: w.name, weapon, switchReady: 0.65, gunplay: look ? { ...GUNPLAY(view), ads: look.ads, sway: look.sway, swap: look.swap, ...(look.arm ? { arm: look.arm } : {}) } : GUNPLAY(view) });
   }
   // its sounds (range-sound.js): each weapon's own, by what it is or the game's word; the range's on a mix in the open
-  const heard = quiet ? null : rangeAudio({ slots, knife, sounds });
+  const heard = quiet ? null : rangeAudio({ slots, knife, sounds, vary });
   if (heard) for (const s of slots) s.weapon = { ...s.weapon, sfx: heard.sfx[s.name] };
   // a person, first person, as a made first-person shooter lays one: a person's pace, the eye at 1.7 m, a hull under it
   const rule = { type: 'walk', speed: 4.5, turn: 2.4, eye: 1.7, turnMode: 'look', lookPitch: true, strafe: 1, collideRadius: 0.3, collideHeight: 1.7, ...(slots.length ? { loadout: slots, gunplay: true } : {}), ...(knife ? { knife } : {}) };

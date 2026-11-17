@@ -22,6 +22,10 @@ import { normalizePieces, lowerPieces } from './pieces.js';
 import { hfovForFocal } from './lens.js';
 import { normalizeTransition, transitionPieces } from './transitions.js';
 import { MIN_SPEED, MAX_SPEED, normalizeTime, timelineReadout } from './time.js';
+import { frameKey } from './framing.js';
+import { moveKeys } from './moves.js';
+import { readShake } from './shake.js';
+import { FIGURE_H, ASPECT } from './frame.js';
 
 export const EASES = ['linear', 'easy_ease', 'easy_ease_in', 'easy_ease_out', 'hold'];
 export const CAMERA_TYPES = ['two_node', 'one_node'];
@@ -66,14 +70,66 @@ export function parseEase(v) {
   return null;
 }
 
-function normalizeCamera(raw, i, warn, subjects) {
+/**
+ * A key said in words (`frame: { on, size?, angle?, side?, place?, lens?, dutch?, follow? }`, framing.js) placed: its
+ * `pos` and `poi` solved on the subject `on` names at the key's time, riding it (`follow`, the default for a subject
+ * that moves) or standing where it is then (`follow: false`). `on` is a subject's id, or a point [x, y, z] (with
+ * `heading` in degrees and `height` in metres, a figure's by default). The key keeps `about` (the subject) and
+ * `framing` (the words as read) for the frame read. A key with a `pos` of its own is left as it is.
+ */
+function framedKey(k, id, j, warn, { subjects, metersPerUnit, aspect }) {
+  if (!k || typeof k !== 'object' || k.pos != null || !k.frame || typeof k.frame !== 'object') return k;
+  const { on, follow, heading, height, ...words } = k.frame;
+  const mpu = fin(metersPerUnit) && metersPerUnit > 0 ? metersPerUnit : 1;
+  const t = fin(k.t) && k.t >= 0 ? k.t : 0;
+  let subject = null, rider = null;
+  if (typeof on === 'string' && on.trim()) {
+    const s = subjects && subjects.get(on.trim());
+    if (!s) { warn(`${id}: key ${j} frames '${on}', ${subjects ? 'which is not a moving subject in this world' : 'and the world is not in hand to find it'}; key dropped`); return null; }
+    const here = s.at(t), h = s.box ? s.box.hgt : FIGURE_H / mpu;
+    subject = { pos: here.pos, heading: here.heading, height: h };
+    if (follow !== false) rider = s.id;
+  } else if (v3(on)) {
+    subject = { pos: on.slice(), heading: fin(heading) ? (heading * Math.PI) / 180 : 0, height: fin(height) && height > 0 ? height / mpu : FIGURE_H / mpu };
+  } else { warn(`${id}: key ${j} has \`frame\` but no \`on\` (a subject's id or a point [x,y,z]); key dropped`); return null; }
+  const solved = frameKey(words, subject, { t, follow: rider, aspect });
+  for (const w of solved.warnings || []) warn(`${id}: key ${j}: ${w}`);
+  const { frame, ...rest } = k;
+  return { ...rest, ...solved.key, ...(typeof on === 'string' ? { about: on.trim() } : {}), t, ...(k.ease != null ? { ease: k.ease } : {}) };
+}
+
+function normalizeCamera(raw, i, warn, subjects, ctx = {}) {
   // with the world's subjects in hand a follow must name one of them; without, it is kept for a later read
   const knows = (v) => !isFollow(v) || !subjects || subjects.has(v.follow.trim());
   const id = typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim().slice(0, 40) : `cam${i + 1}`;
   const film = fin(raw.film_mm) && raw.film_mm > 0 ? raw.film_mm : FILM_MM;
   const camLens = parseLens(raw.focal_mm ?? raw.lens ?? (fin(raw.hfov) ? { hfov: raw.hfov } : null), film);
-  const rawKeys = Array.isArray(raw.keys) ? raw.keys.slice(0, MAX_KEYS) : [];
-  if (Array.isArray(raw.keys) && raw.keys.length > MAX_KEYS) warn(`${id}: only the first ${MAX_KEYS} keys are kept`);
+  // a key that names a MOVE (moves.js: `{ t, move: { kind, on, for?, … } }`) is the keys that move lays, the keys it
+  // spans replaced; a shake move is the camera's shake (shake.js)
+  let shake = null;
+  const expanded = [];
+  const listed = Array.isArray(raw.keys) ? raw.keys : [];
+  const moved = listed.filter((k) => k && k.move && typeof k.move === 'object' && k.pos == null).map((k) => {
+    const t0 = fin(k.t) && k.t >= 0 ? k.t : 0;
+    const m = moveKeys(k.move, t0, { subjects, metersPerUnit: ctx.metersPerUnit, aspect: ctx.aspect, camera: id });
+    for (const w of m.warnings) warn(`${id}: ${k.move.kind ?? k.move.move ?? 'move'} at ${t0}s: ${w}`);
+    if (m.shake) shake = m.shake;
+    return m;
+  });
+  const spanned = (k) => moved.some((m) => m.keys.length && m.span && fin(k.t) && k.t >= m.span[0] - 1e-6 && k.t <= m.span[1] + 1e-6);
+  for (const k of listed) {
+    if (k && k.move && typeof k.move === 'object' && k.pos == null) continue;
+    if (k && spanned(k)) continue;
+    expanded.push(k);
+  }
+  for (const m of moved) expanded.push(...m.keys);
+  if (raw.shake != null && !shake) {
+    const r = readShake(raw.shake, { seed: id, metersPerUnit: ctx.metersPerUnit });
+    for (const w of r.warnings) warn(`${id}: ${w}`);
+    shake = r.shake;
+  }
+  if (expanded.length > MAX_KEYS) warn(`${id}: only the first ${MAX_KEYS} keys are kept`);
+  const rawKeys = expanded.slice(0, MAX_KEYS).map((k, j) => framedKey(k, id, j, warn, { subjects, ...ctx }));
   let type = parseCameraType(raw.type);
   if (raw.type != null && !type) warn(`${id}: unknown camera type '${raw.type}', reading it from the keys`);
   const hasPoi = rawKeys.some((k) => k && isPoint(k.poi ?? k.look_at ?? k.target));
@@ -118,14 +174,17 @@ function normalizeCamera(raw, i, warn, subjects) {
     if (lens != null) focal = lens;
     const ease = parseEase(k.ease);
     if (k.ease != null && !ease) warn(`${id}: key at ${t}s has an unknown ease '${k.ease}', using linear`);
-    const out = { t, pos: pointOf(k.pos), ...(type === 'two_node' ? { poi: pointOf(poi) } : { yaw, pitch }), roll, focal_mm: focal, ease: ease || 'linear' };
+    // what the key is about and the words it was framed by (framedKey), kept for the frame read
+    const about = typeof k.about === 'string' && k.about.trim() && (!subjects || subjects.has(k.about.trim())) ? k.about.trim() : null;
+    const framing = k.framing && typeof k.framing === 'object' && !Array.isArray(k.framing) ? k.framing : null;
+    const out = { t, pos: pointOf(k.pos), ...(type === 'two_node' ? { poi: pointOf(poi) } : { yaw, pitch }), roll, focal_mm: focal, ease: ease || 'linear', ...(about ? { about } : {}), ...(framing ? { framing: { ...framing } } : {}) };
     if (type === 'two_node' && v3(out.pos) && v3(out.poi) && dist0(out.pos, out.poi) < 1e-6) warn(`${id}: key at ${t}s sits on its own point of interest; the view direction is undefined`);
     return out;
   });
   return {
     id,
     ...(typeof raw.name === 'string' && raw.name.trim() ? { name: raw.name.trim().slice(0, 60) } : {}),
-    type, film_mm: film, path: raw.path === 'linear' ? 'linear' : 'smooth', keys,
+    type, film_mm: film, path: raw.path === 'linear' ? 'linear' : 'smooth', keys, ...(shake ? { shake } : {}),
   };
 }
 
@@ -136,7 +195,7 @@ const dist0 = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
  * `subjects` (subjects.js `shootSubjects` of the world) checks every follow names something that moves there.
  * Idempotent: a normalized plan normalizes to itself.
  */
-export function normalizeShoot(raw, { subjects = null } = {}) {
+export function normalizeShoot(raw, { subjects = null, metersPerUnit = 1, aspect = ASPECT } = {}) {
   const warnings = [];
   const warn = (m) => { if (warnings.length < 40) warnings.push(m); };
   if (!raw || typeof raw !== 'object') return { plan: null, warnings: ['shoot: expected an object { cameras, shots? }'] };
@@ -146,7 +205,7 @@ export function normalizeShoot(raw, { subjects = null } = {}) {
   const ids = new Set();
   rawCams.slice(0, MAX_CAMERAS).forEach((c, i) => {
     if (!c || typeof c !== 'object') return;
-    const cam = normalizeCamera(c, i, warn, subjects);
+    const cam = normalizeCamera(c, i, warn, subjects, { metersPerUnit, aspect });
     if (!cam) return;
     if (ids.has(cam.id)) { const was = cam.id; cam.id = `${cam.id}-${i + 1}`; warn(`camera id '${was}' is taken, renamed '${cam.id}'`); }
     ids.add(cam.id);

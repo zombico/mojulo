@@ -19,6 +19,7 @@ import { catmullRom, lerp, lerp3 } from '../../motion/easing.js';
 import { hfovForFocal } from './lens.js';
 import { followPoint } from './subjects.js';
 import { warped, timeline, clocksAt } from './time.js';
+import { shakeAt } from './shake.js';
 
 const EASE_INF = 1 / 3;   // AE's Easy Ease influence
 const ARC_STEPS = 32;     // arc-length table resolution per segment
@@ -117,8 +118,31 @@ function keyCamera(compiled, k, t) {
   };
 }
 
-/** The camera `{ pos, look, hfov, roll }` at camera-local time t (seconds), clamped to the first and last key. */
+/** The camera `{ pos, look, hfov, roll }` at camera-local time t (seconds), clamped to the first and last key, with
+ * its shake (shake.js) laid over the keyed camera when it has one. */
 export function cameraAt(compiled, t) {
+  return shaken(keyedAt(compiled, t), compiled.cam.shake, t);
+}
+
+/** A camera `{ pos, look, hfov, roll }` with a shake (shake.js) laid over it at world time t; none, and it is returned
+ * as it was */
+export function shaken(c, sh, t) {
+  if (!sh) return c;
+  const o = shakeAt(sh, t);
+  const d = [c.look[0] - c.pos[0], c.look[1] - c.pos[1], c.look[2] - c.pos[2]], D = Math.hypot(d[0], d[1], d[2]) || 1;
+  const f = [d[0] / D, d[1] / D, d[2] / D];
+  let r = [f[1], -f[0], 0];
+  const rl = Math.hypot(r[0], r[1]);
+  r = rl > 1e-6 ? [r[0] / rl, r[1] / rl, 0] : [1, 0, 0];
+  const u = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]];
+  const along = (k) => r[k] * o.right + u[k] * o.up + f[k] * o.fwd;
+  const ty = Math.tan((o.yaw * Math.PI) / 180) * D, tp = Math.tan((o.pitch * Math.PI) / 180) * D;
+  const pos = [0, 1, 2].map((k) => c.pos[k] + along(k));
+  return { pos, look: [0, 1, 2].map((k) => pos[k] + d[k] + r[k] * ty + u[k] * tp), hfov: c.hfov, roll: c.roll + o.roll };
+}
+
+// the keyed camera alone
+function keyedAt(compiled, t) {
   const { cam, smooth } = compiled;
   const keys = cam.keys;
   if (keys.length === 1 || t <= keys[0].t) return keyCamera(compiled, keys[0], t);

@@ -32,6 +32,13 @@ const B = (u0, u1, v0, v1, z0, z1, s) => [u0, u1, v0, v1, z0, z1, s];
 // a furniture-door piece turned from facing +y to face its way: [xx, xy, yx, yy]
 const TURN = Object.freeze({ '+y': [1, 0, 0, 1], '-y': [-1, 0, 0, -1], '+x': [0, 1, -1, 0], '-x': [0, -1, 1, 0] });
 export const PIECES = Object.freeze({
+  // a FIGHT's pieces (gameroom/primitives.js, laid in a room by gameworld/tasks.js): a column that turns a chase, a
+  // shooter's perch, an urn that breaks, a font, a boss's low dais (stepped over: it blocks nothing)
+  pillar: { class: 'set-piece', w: 0.7, d: 0.7, h: 4, parts: [B(0, 0.7, 0, 0.7, 0, 0.3, 'concrete'), ['prism', 0.35, 0.35, 0.28, 0.3, 3.8, 10, 'column'], B(0, 0.7, 0, 0.7, 3.8, 4, 'concrete')] },
+  perch: { class: 'set-piece', w: 1.6, d: 1.6, h: 2.4, parts: [B(0.1, 1.5, 0.1, 1.5, 0, 2.3, 'concrete'), B(0, 1.6, 0, 1.6, 2.3, 2.4, 'trim')] },
+  urn: { class: 'barrel', w: 0.6, d: 0.6, h: 0.9, parts: [['prism', 0.3, 0.3, 0.2, 0, 0.15, 10, 'concrete'], ['prism', 0.3, 0.3, 0.28, 0.15, 0.7, 10, 'paint'], ['prism', 0.3, 0.3, 0.18, 0.7, 0.9, 10, 'trim']] },
+  font: { class: 'set-piece', w: 0.8, d: 0.8, h: 1, parts: [['prism', 0.4, 0.4, 0.28, 0, 0.7, 10, 'concrete'], ['prism', 0.4, 0.4, 0.4, 0.7, 1, 10, 'trim']] },
+  dais: { class: 'sign', w: 4, d: 3, h: 0.12, solid: false, parts: [B(0, 4, 0, 3, 0, 0.12, 'concrete')] },
   crate: { class: 'crate', w: 1, d: 1, h: 0.9, stack: 3, parts: [B(0.03, 0.97, 0.03, 0.97, 0.08, 0.82, 'cabinet'), B(0, 1, 0, 1, 0, 0.08, 'beam'), B(0, 1, 0, 1, 0.82, 0.9, 'beam')] },
   'ammo-can': { class: 'crate', w: 0.5, d: 0.3, h: 0.35, stack: 4, parts: [B(0, 0.5, 0, 0.3, 0, 0.3, 'paint'), B(0.02, 0.48, 0.02, 0.28, 0.3, 0.35, 'trim')] },
   drum: { class: 'barrel', w: 0.62, d: 0.62, h: 0.9, stack: 1, parts: [['prism', 0.31, 0.31, 0.3, 0, 0.9, 8, 'services'], ['prism', 0.31, 0.31, 0.31, 0.28, 0.34, 8, 'trim'], ['prism', 0.31, 0.31, 0.31, 0.6, 0.66, 8, 'trim']] },

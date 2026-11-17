@@ -67,13 +67,13 @@ describe('design_game quick', () => {
     expect(out.ran.map((r) => [r.key, r.action])).toEqual([['hero', 'make'], ['level-run-0', 'make'], ['game', 'make']]);
     const L = stored('rn-level-run-0');
     expect(L.runner).toMatchObject({ seed: expect.any(Number) });
-    expect(L.screen).toMatchObject({ pole: 'phone' });   // a new game is made for a phone
+    expect(L.screen).toBeUndefined();   // a new game is framed for no screen unless it names one
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('rn-level-run-0'));
     expect(payload.runner).toEqual(L.runner);
     const html = emitThreeWorld({ ...payload, inline: true });
     expect(html).toContain('function buildRunner(E)');
     expect(html).toContain('function __updateRunner(dt)');
-    expect(html).toContain('swipe ← →');
+    expect(html).not.toContain('swipe ← →');   // (the swipe legend is a touch screen's: a runner that names `screen: 'phone'` has it)
     expect(stored('rn-game').levels.map((l) => l.ref)).toEqual(['rn-level-run-0']);
   }, 240_000);
 
@@ -945,7 +945,7 @@ describe('design_game quick', () => {
     expect(() => readQuick({ goal: 'race', building: { use: 'tavern' } })).toThrow(/runs a trail/);
     expect(() => readQuick({ goal: 'reach', music: 'polka' })).toThrow(/music is 'auto'/);
     expect(() => readQuick({ goal: 'reach', misses: 3 })).toThrow(/misses belongs to the rhythm goal/);
-    expect(() => readQuick({ goal: 'reach', sfx: 'kazoo' })).toThrow(/sfx is 'auto'.*arcade, foley, orchestral, synth/);
+    expect(() => readQuick({ goal: 'reach', sfx: 'kazoo' })).toThrow(/sfx is 'sheet'.*'auto'.*arcade, foley, orchestral, synth/);
     expect(() => readQuick({ goal: 'rhythm', music: 'chapel' })).toThrow(/steady beat/);
     expect(() => readQuick({ goal: 'race', ride: 'tank' })).toThrow(/ride is one of car/);
     expect(() => readQuick({ goal: 'race', ride: 'car', hero: { cast: 'male' } })).toThrow(/the ride is the hero/);

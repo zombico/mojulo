@@ -21,7 +21,7 @@
  *            launcher's tube for a projectile, the combat knife for melee)
  *   sounds   { [name]: { shot?, reload?, hit?, draw? } } (a melee weapon's { swing?, hit? }), each a word of the SFX shelf:
  *            what a weapon sounds like, the game's own choice; absent, chosen by what it is (range-sound.js). `quiet`:
- *            no sound at all
+ *            no sound at all. `vary`: every shot, hit and swing a seeded variant (the game's sound sheet turns it on)
  *   foe      { hp? }: the body the rounds are timed against (100)
  * Pure but for the measures' time (a few seconds a weapon).
  */

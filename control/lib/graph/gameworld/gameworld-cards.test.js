@@ -31,7 +31,7 @@ describe('the rail\'s cards', () => {
   it('the guide first, then a card per page in the loop\'s order, each small', () => {
     expect(GAMEWORLD_CARD_IDS[0]).toBe('gameworld-guide');
     // (the studio second: the book worked a chapter at a time, read after the guide when the ask is a whole game)
-    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-studio', 'gameworld-ledger', 'gameworld-producer', 'gameworld-main-quest', 'gameworld-quick', 'gameworld-brief', 'gameworld-intent', 'gameworld-world', 'gameworld-wcd', 'gameworld-course', 'gameworld-mission', 'gameworld-qow', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-colour', 'gameworld-juice', 'gameworld-interface', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-roll', 'gameworld-course-dress', 'gameworld-mounts', 'gameworld-battles', 'gameworld-foes', 'gameworld-story', 'gameworld-folk', 'gameworld-flow', 'gameworld-next']);
+    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-studio', 'gameworld-ledger', 'gameworld-producer', 'gameworld-main-quest', 'gameworld-quick', 'gameworld-brief', 'gameworld-intent', 'gameworld-world', 'gameworld-wcd', 'gameworld-course', 'gameworld-mission', 'gameworld-qow', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-colour', 'gameworld-sound', 'gameworld-music', 'gameworld-juice', 'gameworld-interface', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-roll', 'gameworld-course-dress', 'gameworld-side-scroll', 'gameworld-mounts', 'gameworld-battles', 'gameworld-foes', 'gameworld-story', 'gameworld-folk', 'gameworld-flow', 'gameworld-next']);
     // the guide alone may run to 4224 bytes: its loop gained the battles page (10-16) with 3 bytes to spare under 4096;
     // 4480 since 2026-10-29 (1029-tac-com-simulator-interior: SHOWN FIRST, a draft's book as the approval sheet, 4407 bytes);
     // 4512 since 2026-11-04 (1103-game-design-studio-abstraction: the book's line points at the studio card, the book
@@ -58,12 +58,19 @@ describe('the rail\'s cards', () => {
     // 4608 since the two met on 1026-consolidated (2026-11-03: the complex's lines and the parked vehicles', 4574 bytes)
     // the next card too (2026-11-04, 1104 requisitions: the `req` move, the unit being worked, one line; it stood at
     // 4085 bytes, 4200 with it)
+    // (2026-11-16: gameworld-next 5120 → 5504: the `goalpost` move, a draft build, a quick game's `grow` and the start,
+    // three lines; 5071 bytes before, 5417 with them)
+    // (2026-11-16: gameworld-foes 5760 → 5888: a street level, whose crowd is the bestiary, one line; 5753 bytes before)
+    // (2026-11-16: gameworld-guide 4608 → 4864: SIZE THE ASK names the designed game first, the intake question and
+    // the start from a name alone, two lines: three fresh agents each invented a level to begin; 4816 bytes)
     // (2026-11-06: gameworld-world 4480 → 4736: a level's new shape, glyphs, a level as one glyph-map world, two lines)
     // (2026-11-06: gameworld-world 4736 → 4864: a glyph map planned as segments, each written apart, one line)
     // (2026-11-06: gameworld-world 4864 → 5248: the megaworld, two lines, 5120 bytes)
     // the actions card too (2026-11-05, 1104-vayo-effects: the vayo moves join the powers' line, the vayo jump, its air
     // dash and its jetpack, each with the words that say it; 4031 bytes before, 4542 with them)
     // (2026-11-09: gameworld-world 5248 → 5376: a glyph map's water and its ways' ranks, and its style's geocube, two lines)
+    // (2026-11-15, 1115-geocity-refinements: gameworld-world 5376 → 5760: a level that is a district of a metro, the
+    // geocity level, two lines; the card stood a few bytes under its ceiling before)
     // the feel card too (2026-11-09, 1109-gen-bodywork merging 1108-practice-room: the two lines' feel words met, 4157
     // bytes)
     // and again (2026-11-10, 1110-practice-room-slice: the arsenal, its kits and its edits, three lines; 4082
@@ -73,6 +80,8 @@ describe('the rail\'s cards', () => {
     // 4543 with them)
     // gameworld-next 4864 (2026-11-12, 1111-design-code-rail-alignment: the first slice's room and a world map's blocks,
     // two steps the rails now say)
+    // gameworld-next 5120 (2026-11-15, 1115-geocube-refinements: a world map is looked at in the map designer before a
+    // block is written or a page built: the step's `look`, two lines)
     // gameworld-foes 5248 (2026-11-13, 1113-rpg-world-inhabiting: a people's `gear`, what its hands carry, one line,
     // and the goblin joining the peoples the card lists from the table; 5108 bytes before, 5226 with them)
     // gameworld-foes 5632 (2026-11-13, 1113-rpg-world-inhabiting: a kin's `body`, `adorned` and `pack`, three lines, and
@@ -84,7 +93,9 @@ describe('the rail\'s cards', () => {
     // creator brings, the level turn as most games and the open world as the exception, four lines; 4086 bytes before,
     // 4472 with them; 4608 the same day for the seats, one line naming the director, the assistant director and the
     // producer: 4594)
-    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4608, 'gameworld-world': 5376, 'gameworld-foes': 5760, 'gameworld-wcd': 4608, 'gameworld-battles': 5248, 'gameworld-next': 4864, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
+    // the battles card too (2026-11-15, zero to level one: `manual`, a lorecube manual fielded by the page, three lines;
+    // 5197 bytes before, 5541 with them; 5888 the same day for `tree`, a school the party can be in, two lines: 5796)
+    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4864, 'gameworld-world': 5760, 'gameworld-foes': 5888, 'gameworld-wcd': 4608, 'gameworld-battles': 5888, 'gameworld-next': 5504, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

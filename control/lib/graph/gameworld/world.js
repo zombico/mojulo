@@ -153,6 +153,7 @@ import { readMainQuest, mainQuestContext } from './main-quest.js';
 import { readGameBrief } from './gmn.js';
 import { readBackdrop } from '../lorecube/backdrop.js';
 import { readIntake } from './intake.js';
+import { readRail } from './rails.js';
 import { readMegaworld } from './megaworld.js';
 import { readLoop } from './core-loop.js';
 import { readBookSkin } from './book-skin.js';
@@ -175,6 +176,7 @@ import { readEscapeGoal } from './escape.js';
 import { readErrands } from './errand.js';
 import { readGauntletGoal } from './gauntlet.js';
 import { readBestiary, readLevelFoes, bestiaryOf } from './foes.js';
+import { readLevelStreet, brawlStreet } from './brawl-cast.js';
 import { readCourse } from './course.js';
 import { readBossWin } from './first-level.js';
 import { readIntent, cubeOfWorld } from './intent.js';
@@ -185,7 +187,13 @@ import { WEAPON_ROLES } from './weapon-roles.js';
 import { readFeel } from './feel/lower.js';
 import { readJuiceStyle } from '../scene/juice-style.js';
 import { readGameTempo } from './tempo.js';
-import { readGameArsenal } from './arsenal.js';
+import { readGameArsenal, arsenalOfGame } from './arsenal.js';
+import { readFights } from './fights.js';
+import { readTasks } from './task-read.js';
+import { readLoadout } from './carried.js';
+import { readStyleMeter } from './style-meter.js';
+import { readSound } from './sound-sheet.js';
+import { readMusic } from './audio-direction.js';
 import { readGameGrade } from './grade.js';
 import { levelFrame, GROUND_CELL } from '../level/ground.js';
 import { sequentialOrder } from '../level/sequential.js';
@@ -212,8 +220,11 @@ import { readMinigameBook, minigamesOfWords } from './minigames.js';
 import { readMounts } from '../worlds/mount-units.js';
 import { validateAirspace, isSpace } from '../skyscape/airspace.js';
 import { readGeotown } from '../geotown/read.js';
+import { readGeocity } from '../geocity/metro.js';
 /** The uses a town level opens at their doors when it names none: a shop, the hall (an old town's church), a dwelling. */
 export const GEOTOWN_ENTER = Object.freeze(['shop', 'hall', 'dwelling']);
+// the evocations a geocity level may be (geocity/metro.js EVOKES): a district, never the metro or its skyline
+export const GEOCITY_LEVEL_EVOKES = Object.freeze(['neighbourhood', 'corridor', 'segment']);
 import { readBuildingParked } from '../vehicle-registry/parked.js';
 import { readIndustrial } from './industrial-words.js';
 import { readGrid } from '../level/grid.js';
@@ -276,7 +287,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'megaworld', 'made', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'xr', 'mainQuest', 'loop', 'room', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'rail', 'megaworld', 'made', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', 'fights', 'loadout', 'styleMeter', ...RESERVED];
 /** The recipe's own keys, read here (the chapter registry, chapters.js, gives each its chapter). */
 export const GAMEWORLD_KEYS = Object.freeze([...KEYS]);
 // THE HUD'S LOOK (`hud`): a mana-ui theme preset its levels' HUD wears (mana-ui/theme.js: a bare HUD's parts on the scene
@@ -286,7 +297,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'glyphs', 'course', 'obstacles', 'mission', 'industrial'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -296,7 +307,7 @@ export const gridOfGlyphs = (g) => Object.fromEntries(GRID_OF_GLYPHS.filter((k) 
 // (`sketch`: the planned map decided in miniature before it is built, level/map-sketch.js: its concept, its segments'
 // ground, heights and marks; read by the miniature, not yet by the build)
 // (`far`: a zoned map's pages see the rest of the map far off, level/far-view.js)
-const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments', 'kit', 'biocube', 'grass', 'wind', 'shrubs', 'zoned', 'apron', 'sketch', 'far', 'play', 'ways'];
+const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments', 'kit', 'biocube', 'grass', 'wind', 'shrubs', 'zoned', 'apron', 'sketch', 'far', 'play', 'ways', 'hats'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
 const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
@@ -593,7 +604,9 @@ export function readGameworld(W) {
   if (!isObj(W.levels) || !Object.keys(W.levels).length) throw new Error('gameworld: levels is { <id>: { walk, … } }, at least one');
   // the BESTIARY (foes.js): the foe classes the world fields, each resolved once so a bad word says so here
   const quickGame = W.quick !== undefined && W.quick !== null;
-  if (W.foes !== undefined && W.foes !== null && quickGame) throw new Error('gameworld: foes: a quick game\'s foes are its goal\'s (quick.foe)');
+  // (a quick brawl's or run & gun's crowd IS the world's bestiary: gameworld/brawl-cast.js)
+  const brawlGame = quickGame && isObj(W.quick) && (W.quick.goal === 'brawl' || W.quick.goal === 'rungun');
+  if (W.foes !== undefined && W.foes !== null && quickGame && !brawlGame) throw new Error('gameworld: foes: a quick game\'s foes are its goal\'s (quick.foe)');
   const foes = W.foes === undefined || W.foes === null ? null : readBestiary(W.foes);
   const ids = Object.keys(W.levels), levels = {}, sceneSets = {};
   for (const id of ids) {
@@ -625,6 +638,14 @@ export function readGameworld(W) {
         if (Gl.boss || Gl.health) throw new Error(`gameworld: ${at}.goal: a gauntlet owns the hero's hp and ends the level when its last wave is down: no boss or health beside it`);
         if (L.walk === undefined) throw new Error(`gameworld: ${at}.goal.gauntlet stands on a walk's last stage (a building's arena is to come)`);
       }
+    }
+    // its TASKS (tasks.js): its fights in order, each a fight the world keeps, laid in a room of its building; they own
+    // the hero's hp and the last one down ends the level
+    if (L.goal?.tasks !== undefined) {
+      const Gl = L.goal;
+      if (L.building === undefined || L.building?.ref !== undefined || L.building?.complex !== undefined) throw new Error(`gameworld: ${at}.goal.tasks are laid in a building's rooms (building: { use })`);
+      for (const k of ['boss', 'health', 'escape', 'gauntlet']) if (Gl[k] !== undefined) throw new Error(`gameworld: ${at}.goal: its tasks own the hero's hp and end the level when the last is down: no ${k} beside them`);
+      try { readTasks(Gl.tasks, { fights: W.fights ?? {}, at: `${at}.goal.tasks` }); } catch (e) { throw new Error(`gameworld: ${e.message}`); }
     }
     // the level's platforming COURSE (course.js): floors and gaps over its trails, sized by the hero's reach
     if (L.course !== undefined) {
@@ -668,7 +689,7 @@ export function readGameworld(W) {
     } else if (L.glyphs !== undefined) {
       // a glyph-map level: the whole level one world written as a glyph grid (its paths, its places, its regions), walked
       // end to end on one page; the map is its own ground
-      if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a glyph-map level is the map alone: no walk, building, city, roadway, airspace, runner, geotown, places, ground or arena beside it`);
+      if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'geocity', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a glyph-map level is the map alone: no walk, building, city, roadway, airspace, runner, geotown, places, ground or arena beside it`);
       if (!isObj(L.glyphs)) throw new Error(`gameworld: ${at}.glyphs is { rows, key?, regions?, tile?, kit?, … } (a level written as a glyph grid: level/grid.js)`);
       for (const k of Object.keys(L.glyphs)) if (!GLYPHS_LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.glyphs.${k} is not a glyph map's setting (settings: ${GLYPHS_LEVEL_KEYS.join(', ')})`);
       try { readGrid(gridOfGlyphs(L.glyphs), 'glyphs'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^level: /, '')}`); }
@@ -694,6 +715,14 @@ export function readGameworld(W) {
         if (L.glyphs.plan === undefined) throw new Error(`gameworld: ${at}.glyphs.zoned builds a planned map a segment a page: write its plan (glyphs.plan)`);
         if (W.topology !== 'interconnected') throw new Error(`gameworld: ${at}.glyphs.zoned is a world map, travelled zone to zone: set topology: 'interconnected'`);
       } else if (L.glyphs.apron !== undefined) throw new Error(`gameworld: ${at}.glyphs.apron is a zoned map's (glyphs.zoned: true): how many tiles of a zone's neighbours its page shows`);
+    } else if (L.geocity !== undefined) {
+      // a geocity level: a DISTRICT of a metro (geocity/: an evocation, one neighbourhood, corridor or block at a
+      // building's detail, the rest of the metro its skyline), drawn on the level's geocube and walked from its streets
+      if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'places', 'ground', 'arena', 'geotown'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a geocity level is the district alone: no walk, building, city, roadway, airspace, runner, places, ground, arena or geotown`);
+      if (!isObj(L.geocity)) throw new Error(`gameworld: ${at}.geocity is { metro?, evoke: 'neighbourhood' | 'corridor' | 'segment', at?, along?, shops?, … } (the geocube kind's geocity)`);
+      let Gc;
+      try { Gc = readGeocity(L.geocity); } catch (e) { throw new Error(`gameworld: ${at}.geocity: ${e.message.replace(/^geocity:\s*/, '')}`); }
+      if (!GEOCITY_LEVEL_EVOKES.includes(Gc.evoke)) throw new Error(`gameworld: ${at}.geocity.evoke is ${GEOCITY_LEVEL_EVOKES.join(', ')}: a level is a district of the metro, not the metro (nothing streams a metro yet: its build and its boxes are a district's several times over)`);
     } else if (L.geotown !== undefined) {
       // a geotown level: a neighbourhood (geotown/: its pattern, its streetscape, a segment or a neighbourhood), drawn on
       // the level's geocube and walked from its streets; the town is its own ground
@@ -708,6 +737,11 @@ export function readGameworld(W) {
       // an obstacle course: a lane of slots a seed fills, run at speed (roll-course.js), sized for the world's hero
       if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: an obstacle course is the lane alone: no walk, building, city, roadway, airspace, runner, places, ground or arena beside it`);
       try { readObstacles(L.obstacles); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
+    } else if (L.street !== undefined) {
+      // a street level: a beat-em-up's or a run & gun's street (brawl-cast.js), its stops and its boss the level's design,
+      // its crowd the world's bestiary
+      if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'places', 'ground', 'arena', 'goal', 'foes'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a street level is the street alone: no walk, building, city, roadway, airspace, runner, places, ground, arena, goal or foes beside it (its stops name who comes)`);
+      try { readLevelStreet(L.street); brawlStreet({ foes: W.foes ?? undefined }, readLevelStreet(L.street).design); } catch (e) { throw new Error(`gameworld: ${at}${e.message.replace(/^gameworld: brawl/, '')}`); }
     } else if (L.runner !== undefined) {
       // a runner level: an endless run down lanes (worlds/controllable/runner.js), its rows laid as it is played
       if (['walk', 'building', 'city', 'roadway', 'airspace', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a runner level is the run alone: no walk, building, city, roadway, airspace, places, ground or arena beside it`);
@@ -914,6 +948,16 @@ export function readGameworld(W) {
   }
   // its weapons and strings (arsenal.js): the practice room's arsenal, laid on every level's hero that strikes
   readGameArsenal(W.arsenal);
+  // its sound (sound-sheet.js): the sheet's style and any slot or cue it names by shelf word, over what the game solves
+  readSound(W.sound);
+  // its music (audio-direction.js): the audio direction every audio page reads, and the score's cue sheet
+  readMusic(W.music);
+  // the style meter (style-meter.js): how well the hero fights, on every level
+  readStyleMeter(W.styleMeter);
+  // what the hero carries of the arsenal (carried.js): its slots, the weapons it starts with, checked against the kit's
+  if (W.loadout !== undefined) readLoadout(W.loadout, arsenalOfGame({ arsenal: W.arsenal, feel: W.feel })?.arsenal ?? null);
+  // its fights, settled in the game room and kept by name (fights.js): each a kind, a seed, its waves read on the bestiary
+  if (W.fights !== undefined) readFights(W.fights, { foes: foes ?? undefined });
   // its world clock (tempo.js): moments that slow or hold its live levels on what happens in play
   readGameTempo(W.tempo);
   // its grade (grade.js): the look laid over every frame of its levels, the base its moments' looks push from
@@ -926,6 +970,8 @@ export function readGameworld(W) {
   // nothing on a level: a world without one is unchanged
   // what the creator brought, read before the first goalpost (intake.js): a record, never a page
   if (W.intake !== undefined) readIntake(W.intake);
+  // the pitch (rails.js): the template the game starts from and where it departs: a record, never a page
+  if (W.rail !== undefined && W.rail !== null) readRail(W.rail);
   if (W.backdrop !== undefined && W.backdrop !== null) { try { readBackdrop(W.backdrop); } catch (e) { throw new Error(`gameworld: backdrop${e.message.replace(/^lorecube: backdrop/, '')}`); } }
   const megaworld = readMegaworld(W.megaworld, W.levels);
   const minigames = W.minigames !== undefined ? readMinigameBook(W.minigames) : typeof W.brief?.prompt === 'string' ? minigamesOfWords(W.brief.prompt)?.games ?? null : null;
@@ -942,7 +988,7 @@ export function readGameworld(W) {
   // laws advise (design_game's readout), a malformed one is refused here. Its core loop (core-loop.js) is read the same
   const mainQuest = W.mainQuest === undefined || W.mainQuest === null ? null : (() => { try { return readMainQuest(W.mainQuest, mainQuestContext(W)); } catch (e) { throw new Error(`gameworld: ${e.message}`); } })();
   try { readLoop(W.loop); } catch (e) { throw new Error(`gameworld: ${e.message}`); }
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(megaworld ? { megaworld } : {}), ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(mainQuest ? { mainQuest } : {}), ...(errands ? { errands } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.arsenal !== undefined ? { arsenal: W.arsenal } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.grade !== undefined ? { grade: W.grade } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.mounts != null && W.mounts !== false ? { mounts: readMounts(W.mounts) } : {}), ...(W.roll != null && W.roll !== false ? { roll: readWorldRoll(W.roll) } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.xr ? { xr: W.xr } : {}), ...(W.room !== undefined ? { room: W.room } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.hub !== undefined ? { hub: W.hub } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.hud !== undefined ? { hud: readHudLook(W.hud) } : {}), ...(W.ui !== undefined ? { ui: W.ui } : {}), ...(W.flow !== undefined ? { flow: W.flow } : {}), ...(W.setup !== undefined ? { setup: W.setup } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(megaworld ? { megaworld } : {}), ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(mainQuest ? { mainQuest } : {}), ...(errands ? { errands } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.arsenal !== undefined ? { arsenal: W.arsenal } : {}), ...(W.sound !== undefined ? { sound: W.sound } : {}), ...(W.music !== undefined ? { music: W.music } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.grade !== undefined ? { grade: W.grade } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.mounts != null && W.mounts !== false ? { mounts: readMounts(W.mounts) } : {}), ...(W.roll != null && W.roll !== false ? { roll: readWorldRoll(W.roll) } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.xr ? { xr: W.xr } : {}), ...(W.room !== undefined ? { room: W.room } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.hub !== undefined ? { hub: W.hub } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.hud !== undefined ? { hud: readHudLook(W.hud) } : {}), ...(W.ui !== undefined ? { ui: W.ui } : {}), ...(W.flow !== undefined ? { flow: W.flow } : {}), ...(W.setup !== undefined ? { setup: W.setup } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), ...(W.fights !== undefined ? { fights: W.fights } : {}), ...(W.loadout !== undefined ? { loadout: W.loadout } : {}), ...(W.styleMeter !== undefined ? { styleMeter: W.styleMeter } : {}), [READ]: true };
 }
 
 /**
@@ -1016,6 +1062,11 @@ export function resolveLevel(world, id) {
     const cube = painted ? { geocube: cubeInPalette(style.geocube, style.palette), ...(style.terrain !== undefined ? { terrain: style.terrain } : {}), ...(style.hour !== undefined ? { hour: style.hour } : {}) } : {};
     return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, glyphs: { ...(painted ? {} : { kit }), seed: seed >>> 0, grid, ...cube, ...words } };
   }
+  // a geocity level: the district on the level's geocube (a morning valley unless the style names one), as a geotown's
+  if (L.geocity) {
+    const c0 = cubeInPalette(style.geocube ?? 'valley-morning', style.palette), c1 = typeof c0 === 'string' ? { from: c0 } : c0, cube = c1.era ? c1 : { ...c1, era: 'gen-7' };
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geocity: { spec: { ...L.geocity }, cube, ...(style.hour !== undefined ? { hour: style.hour } : {}) } };
+  }
   // a geotown level: the town on the level's geocube (a morning valley unless the style names one), read in the seventh
   // generation unless the cube names its era (a town walked is drawn as form); the style's hour its light
   if (L.geotown) {
@@ -1030,6 +1081,8 @@ export function resolveLevel(world, id) {
   // a runner level: the run's settings, its seed the level's unless it names one (levels.js lays it)
   // an obstacle course: its settings (levels.js lays the lane for the world's hero)
   if (L.obstacles) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, obstacles: readObstacles(L.obstacles) };
+  // a street level: its words (levels.js lays it on the game's hero and foes: brawl-cast.js streetLevel)
+  if (L.street) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, brawlStreet: L.street };
   if (L.runner) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, runner: { ...(L.runner === true ? {} : L.runner), seed: (L.runner === true ? undefined : L.runner.seed) ?? (seed >>> 0) } };
   // a roadway level: its course and its form (a lap unless its course runs end to end), laid by levels.js
   if (L.roadway) {

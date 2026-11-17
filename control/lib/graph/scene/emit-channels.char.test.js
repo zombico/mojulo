@@ -20,6 +20,27 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-14 (the action RPG: foes that never lock blades, steps at their own level): the runtime's melee
+// contact reads `rule.clash === false` on either body before a clash (combat-melee.js: one line replaced in place; a
+// rule that says nothing clashes as before), and the audio channel plays a step at `footsteps.gain` (audio.js: one
+// line replaced; no gain, a cue's own level as before). Every fixture that embeds the controllable runtime or the
+// audio channel re-pinned with it.
+// Then (the input map): the pilot scheme's pause legend gained a moveset's rows (schemes.js: its attacks, its
+// sidearm, its specials, its guard; `fire` hidden beside them) and the legend's flags say `moveset` and `sidearm`
+// (controllable/index.js: one line added); the same fixtures re-pinned again.
+// Then (the special on Q): a moveset's special is read on its key beside the mouse and the pad, and its key never
+// strafes (controllable/index.js: two lines replaced on a page with a moveset; any other page as it was); the
+// scheme's legend says so. The same fixtures re-pinned again.
+// Then (the HUD grammar): the radar's wrap carries a class a HUD can hide it by (controllable/index.js: one line
+// replaced; it draws as before). The same fixtures re-pinned again.
+// Then (one card lane): the guide gives what it says as data (guide.js `view()`) and stays down beside a HUD grammar
+// (its `put` gained the data and the check). Any fixture with a guide re-pinned.
+// Then (Esc asks for the menu): a level a shell plays tells it when Esc is pressed there or the captured mouse is
+// let go (scene-three.js: a block added before the pause's listener, inert on a page with no parent). Every fixture
+// re-pinned.
+// Then (foes that are never floored): a knockdown on a living body whose `rule.topple === false` reels it
+// (combat-hit.js armReaction: one line added); the same fixtures re-pinned again.
+//
 // Re-pinned 2026-11-07 (the action RPG: a hero's sprint on its stamina, the orbit camera): the runtime the page embeds
 // gained the platform rule's `sprint` (the boost held as a walker's sprint on its gauge: rules-platform.js) and its
 // `moveYaw: 'camera'`, and the follow rule's `orbit` (rules-basic.js). On the `controllable` fixture 35 lines are added
@@ -27,6 +48,9 @@ import { emitThreeWorld } from './scene-three.js';
 // Every fixture that embeds the controllable runtime re-pinned with it. Then (the controls): the sprint's own `sprint`
 // clip on its `sprintStride` (the stride's line guarded) and the orbit's swing round a locked foe (`lockTrack`): a few
 // more lines added, one replaced; the same fixtures re-pinned again.
+// Then (2026-11-15, merged with the release candidate's stylish action rails): the candidate's style meter, loadout and
+// switch cancel and this theme's runtime lines (the stagger, the clash opt-out, Esc's menu post) each change what a page
+// embeds; neither side's snapshot holds the sum, so every fixture is re-pinned on the merged runtime.
 //
 // Re-pinned 2026-10-07 (playscape: movers run rails and ride drives): the controllable runtime the page embeds gained
 // the mover's `path` / `drive: 'ride'` branch and the carry pass's `_ridden` mark. The diff on the `controllable` fixture
@@ -735,9 +759,36 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-14 again (mana-ui's layout that adapts): `brawl` and `holo`, for the same reason. The kernel holds
 // the frame it is drawn in (`rt.frame`, the `frame` binding, a mount's own measure) and a stack's `fit`; a spec that
 // names neither draws as it did, and every other fixture holds byte for byte.
+// Re-pinned 2026-11-14 (a street fought down, brawl/brawl-street.js): `brawl`, the one fixture whose page inlines the
+// brawl's client and modules. The page may now play a STREET in the yard's place (`brawl.street`: its waves a held
+// screen, read by the brawler's own reader, its screen and its read inlined beside the yard's); a yard plays as it did.
+// And again the same day (the brawler's sound sheet, brawl/brawl-sfx.js BRAWL_SOUNDS): `brawl`. The client sounds a blow
+// thrown, a jump and the bodies' voices off the street's state, and counts what it asked for (window.__mojBrawl.heard).
+// And once more (a street in a game's shell): `brawl`. A hosted street says it is ready, takes the focus, and sends its
+// end up the level wire in place of its own end screen.
+// And for its rank and the keys handed back (`brawl`): a cleared street is ranked by the health left, sent with its end;
+// the frame gives the focus back to the shell as it ends, and takes it again when the shell says go.
+// And for the crowd's faces (`brawl`): a street's `cast` draws its crowd and its boss as roster characters.
+// And for its variety (`brawl`): a cast's kind may name several characters, taken in turn body by body.
 // Re-pinned 2026-11-14 (the holo arena's `ready`, tabletop/holo-arena.client.js): `holo`. Its probe says whether a
 // person's click would be taken now (in play, their turn, no beat on stage or waiting), so a driver waits on the page and
 // not on a clock; the arena plays as it did.
+// Re-pinned 2026-11-14 (the street's own angle, brawl/brawl-belt.js): `brawl`. Its page inlines the belt, whose angles
+// gain `street` and each the height it looks at (`look`); the fixture's `classic` looks at a body's chest as before.
+// Re-pinned 2026-11-14 (the street's breakables as skandart's vessels, brawl/brawl-yard.client.js): `brawl`. Its page
+// inlines the yard's client (a box drawn as its vessel where the page carries one, its wreck left where it broke) and
+// the things' table (a steel drum); the fixture lays no box, so its page carries no model.
+// Re-pinned 2026-11-14 (a belt that rises, brawl/brawl-belt.js `rise`): `brawl`. Its page inlines the belt (its floor's
+// height along it, the camera rising with it) and the yard's client (every thing the simulation places drawn that much
+// higher); the fixture's belt is flat, so its floor is 0 everywhere and its page plays as it did.
+// Re-pinned 2026-11-14 (a belt that turns, brawl/brawl-belt.js `turn`): `brawl`. Its page inlines the belt, whose
+// camera is turned down the street by the belt's turn where it stands; the fixture's belt has none, so its camera is as
+// it was.
+// Re-pinned 2026-11-14 (a belt that drifts, brawl/brawl-belt.js `drift`): `brawl`. Its page inlines the belt (the
+// band's slide across it, the camera following) and the yard's client (every thing the simulation places drawn that
+// much across); the fixture's belt is straight, so its drift is 0 everywhere and its page plays as it did.
+// Re-pinned 2026-11-14 (the player's line on a drifting belt, brawl/brawl-yard.client.js): `brawl`. The line lies
+// along the band's diagonal where the player stands; the fixture's belt is straight, so its line lies as it did.
 // Re-pinned 2026-11-14 (the game turn's pick screen, mana-ui/idioms-front.js): `brawl` and `holo`, the two whose page
 // inlines the game UI kernel. A mount on an element with no box of its own (a bare div its root is laid out of) measures
 // its root's, so the frame is known there too, and the runtime's words gain `choose` and `choices`; a page that mounts
@@ -792,6 +843,32 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // stands on and boxed on the ground a level says it is fought on. No other fixture moved.
 // Re-pinned 2026-11-17 again (1115-shooting-rails: orders are spoken): `mission` only. Its HUD carries a line for the
 // order as it is given (mana-ui's subtitles, who gives it and what is said), each task its line. No other fixture moved.
+//
+// Re-pinned 2026-11-15 (the switch cancel): the runtime the page embeds gained the moveset's `swap` (combat-melee.js
+// stepMoveset: the weapon cycle pressed mid-swing held to the live move's switch point, the next weapon's string
+// opened on the press that was waiting, the string's count carried on). Five places in that one function: a block
+// added before the cycle, the cycle's own line guarded on `swap`, a guard on the chain at the cancel, the buffer's
+// hold, and the opener's count. A moveset that says no `swap` runs as before: the cycle mid-swing is dropped. Every
+// fixture that embeds the controllable runtime re-pinned with it.
+//
+// Re-pinned 2026-11-15 (the release candidate merged into the side-scroll starter): `brawl`. Its page carries both
+// sides' changes at once (the belt's bends and the yard's client from the one, the game UI kernel and its sheet from the
+// other); each is said above, and neither changes how the fixture plays.
+// Re-pinned 2026-11-15 (a street in a game's turn, brawl/brawl-street-read.js): `brawl`. Its page inlines the
+// street's read (its session: who plays and how hard, as a turn's picks say) and the yard's client (a hosted street
+// reads it when the shell starts it); the fixture is a practice yard on no shell, and plays as it did.
+// Re-pinned 2026-11-15 (a street's scenes, brawl/brawl-scenes.js): `brawl`. Its page inlines the scenes' kernel and the
+// yard's client (a scene the game's turn stages plays with the fight held, its end told before the outcome); the
+// fixture is a practice yard with no scene, and plays as it did.
+// Re-pinned 2026-11-15 (a street played as a run & gun, brawl/brawl-play.js): `brawl`. Its page inlines the core (a
+// gun to take up, taken in a gunner's stride), the crowd (a street's gunner, a wave fought on the move), the street's
+// read (the gun held, the rounds tallied) and the yard's client (a street's play: the gunner's buttons); the fixture is
+// a brawler's practice yard with no gun on it, and plays as it did. Again the same day (the fight measured,
+// brawl/brawl-measure.js): the core (a player's round breaks a box open), the street's read (the difficulty tiers)
+// and the crowd (a boss of the crowd's own kind); and the yard's client (cover drawn as the dress's own piece, a
+// band's models' colours brought to linear light). Again (a boss's phases, a second seat taken mid-street): the
+// crowd, the street's read and the yard's client; the fixture is a yard, with neither. Again (the street's seats):
+// the street's read (a gun's letters) and the yard's client (each seat's quarter).
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
@@ -804,3 +881,8 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
     }
   });
 });
+//
+// Re-pinned 2026-11-17 (1116-rc merged into 1115-shooting-rails): the fixtures whose page inlines the controllable runtime
+// (the seventeen named above, with the candidate's own that carry it) and `mission`. Each page carries both sides' changes
+// at once: the candidate's (the switch cancel, the street, the sea) and this branch's (a climb held by jump, a path kept
+// to its ground, a flight's way, the mission's HUD); each is said above, and neither changes how a fixture plays.

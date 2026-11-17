@@ -223,6 +223,7 @@ const MECHANICS = {
   'fail-on-death': {
     role: 'terminal', ends: ['fail'], requires: ['character'],
     lower(p, ctx) {
+      // (`bar: true`: the hp read as a bar of its start, labelled Health, where a number chip reads as a debug readout)
       // `hits`: what each hit the player takes (the cast's hit:<player>: a round, a blade, a splash) costs it, on the HUD
       const hits = Number.isFinite(p.hits) && p.hits > 0 ? p.hits : null;
       if (p.hits !== undefined && !hits) throw new Error(`fail-on-death[${ctx.i}]: hits is the hp a hit on the player takes, above 0`);
@@ -236,7 +237,7 @@ const MECHANICS = {
         world: {
           vars: { hp: Number.isFinite(p.startHp) ? p.startHp : 100 },
           watches: [{ type: 'dead', when: { var: 'hp', lte: 0 } }],
-          ...(hits ? { reactions: [{ on: `hit:${ctx.player}`, do: 'inc', var: 'hp', by: -hits, min: 0 }], hud: [{ var: 'hp', label: 'HP' }] } : {}),
+          ...(hits ? { reactions: [{ on: `hit:${ctx.player}`, do: 'inc', var: 'hp', by: -hits, min: 0 }], hud: [p.bar === true ? { var: 'hp', label: 'Health', as: 'bar', max: Number.isFinite(p.startHp) ? p.startHp : 100, color: 'harm' } : { var: 'hp', label: 'HP' }] } : {}),
         },
         on: { dead: { end: 'fail' } },
       };
@@ -262,7 +263,7 @@ const MECHANICS = {
             { on: 'oneup', do: 'inc', var: 'lives', by: 1, max },
           ],
           watches: [{ type: 'dead', when: { var: 'lives', lte: 0 } }],
-          hud: [{ var: 'lives', label: 'Lives' }],
+          hud: [{ var: 'lives', label: 'Lives', as: 'counter' }],   // (a counter: mana-ui draws its heart, hud-mana.js)
         },
         on: { dead: { end: 'fail' } },
       };
@@ -278,7 +279,7 @@ const MECHANICS = {
       const pickups = Array.isArray(p.pickups) ? p.pickups : [];
       if (!pickups.length) throw new Error(`coins[${ctx.i}]: needs pickups: [{ at }]`);
       const every = Number.isInteger(p.oneup) && p.oneup > 0 ? p.oneup : 30, run = `__coins_run_${ctx.i}`;
-      const world = { vars: { coins: 0, [run]: 0 }, sources: [], reactions: [], entities: [], watches: [{ type: 'oneup', when: { var: run, gte: every } }], hud: [{ var: 'coins', label: 'Coins' }] };
+      const world = { vars: { coins: 0, [run]: 0 }, sources: [], reactions: [], entities: [], watches: [{ type: 'oneup', when: { var: run, gte: every } }], hud: [{ var: 'coins', label: 'Coins', as: 'counter' }] };
       pickups.forEach((pk, j) => {
         const zone = `cn_${ctx.i}_${j}`, at = pk.at || [0, 0, 0];
         world.entities.push({ id: zone, on: true, position: at });

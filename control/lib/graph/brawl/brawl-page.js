@@ -19,23 +19,32 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { moduleDir } from '../../module-dir.js';
 import { versusSource, rosterEntry } from '../versus/versus-page.js';
+import { boxModels, coverModels } from './brawl-dress.js';
 import { solveFighter, ARCHETYPES } from '../versus/versus-solver.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES as CONTROL_SCHEMES } from '../controls/schemes.js';
 import { buildSeatsKernel } from '../controls/seats-kernel.js';
 import { DEVICES } from '../controls/devices.js';
-import { yardOf, YARD_SETTINGS } from './brawl-yard.js';
+import { yardOf, streetYardOf, YARD_SETTINGS } from './brawl-yard.js';
 import { BRAWL_STYLES } from './brawl-moves.js';
 import { readGun } from './brawl-guns.js';
 import { RANGE_GUNS } from './brawl-practice.js';
 import { readRangeWaves } from './brawl-waves.js';
+import { gunName } from './brawl-street-read.js';
+import { readScenes } from './brawl-scenes.js';
+import { streetScreenOf, readStreet } from './brawl-street.js';
+import { MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_SCENE_END, MSG_SHOWN, CONTRACT_VERSION } from '../game/level-contract.js';
+
+// the level wire a street hosted in a game's shell speaks (the shell's own handshake: ready → init → outcome)
+export const STREET_WIRE = Object.freeze({ ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, sceneEnd: MSG_SCENE_END, shown: MSG_SHOWN, version: CONTRACT_VERSION });
+import { readWaves } from './brawl-crowd.js';
 
 const SRC = moduleDir(import.meta.url, 'lib/graph/brawl');
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 
 // (the order matters: each module only uses names from the ones before it)
 export const BRAWL_VERSUS_MODULES = Object.freeze(['versus-rig.js', 'versus-library.js', 'versus-traditions.js', 'versus-react.js', 'versus-fx.js', 'versus-compile.js', 'versus-input.js', 'versus-cpu.js', 'versus-solver.js', 'versus-figure.js']);
-export const BRAWL_PAGE_MODULES = Object.freeze(['brawl-belt.js', 'brawl-things.js', 'brawl-guns.js', 'brawl-core.js', 'brawl-moves.js', 'brawl-gunner.js', 'brawl-crowd.js', 'brawl-waves.js', 'brawl-practice.js', 'brawl-pose.js', 'brawl-yard-read.js']);
+export const BRAWL_PAGE_MODULES = Object.freeze(['brawl-belt.js', 'brawl-things.js', 'brawl-guns.js', 'brawl-core.js', 'brawl-moves.js', 'brawl-gunner.js', 'brawl-crowd.js', 'brawl-waves.js', 'brawl-practice.js', 'brawl-street-read.js', 'brawl-scenes.js', 'brawl-pose.js', 'brawl-yard-read.js']);
 
 /** The names a module exports (one per `export function|const|let|class` line). */
 export function exportsOf(src) {
@@ -89,9 +98,31 @@ export const BRAWL_ARMED_ROSTER = Object.freeze(BRAWL_ROSTER.map((r) => {
  * characterBodies: { <ref>: its body, played with its clips }) draws each character in its own body; one with none is
  * drawn as the fight's stick figure.
  */
+const readPlayable = (v, n) => { if (!(Number.isInteger(v) && v >= 1 && v <= n)) throw new Error(`brawl: practice.playable is how many of the roster are played, 1 to ${n}`); return v; };
+const castIn = (waves, n) => { for (const w of waves) for (const c of w.crowd) if (c.roster !== undefined && c.roster >= n) throw new Error(`brawl: a wave's crowd is drawn as roster ${c.roster}: the roster holds ${n}`); return waves; };
+function streetWaves(waves, roster, belt) {
+  if (!Array.isArray(waves) || !waves.length) throw new Error('brawl: practice.street.waves is a list of { screen, crowd, boss? }, one at least');
+  const out = waves.map((w, i) => {
+    if (!w || typeof w !== 'object' || !w.boss) return w;
+    const { fighter, ...boss } = w.boss;
+    if (fighter === undefined) return { ...w, boss: { ...boss, recipe: boss.recipe ?? rosterEntry(boss, i).recipe } };
+    if (!(Number.isInteger(fighter) && fighter >= 0 && fighter < roster.length)) throw new Error(`brawl: practice.street.waves[${i}].boss.fighter is a roster index, 0 to ${roster.length - 1}`);
+    return { ...w, boss: { ...boss, recipe: { ...roster[fighter].recipe, name: boss.name ?? roster[fighter].name }, roster: fighter } };
+  });
+  readWaves(out, belt);
+  return castIn(out.map((w) => ({ ...w, crowd: w.crowd ?? [] })), roster.length);
+}
+const readStakes = (v) => { if (!(Number.isInteger(v) && v >= 1 && v <= 9)) throw new Error('brawl: practice.stakes is the falls the players may take, 1 to 9'); return v; };
 export function brawlYardData(block, bodies = null) {
-  const P = block.practice ?? {};
-  const Y = yardOf();
+  // (A STREET fought down, `block.street` (brawl-street.js): the same page, its room a street: who plays, its waves a held
+  // screen, its things; no dummies, and the street's screen in the yard's place)
+  const ST = block.street ? readStreet(block.street, block.belt) : null;
+  // (A STREET WRITTEN AT ITS DESIGN, `block.practice.street` (gameworld/brawl-cast.js: its waves at their stops, each
+  // crowd entry and its boss a body of the roster's, its players' falls, its tuning): the same street, played the same
+  // way; a run & gun's by its `range`)
+  const PS = !ST && block.practice?.street ? block.practice : null;
+  const P = ST ? { roster: ST.roster, players: ST.players, things: ST.things, dummies: [] } : PS ? { ...PS, dummies: [] } : block.practice ?? {};
+  const Y = ST ? streetScreenOf(ST.play) : PS ? streetScreenOf(PS.range ? 'gun' : 'brawl') : yardOf();
   const roster = Array.isArray(P.roster) && P.roster.length
     ? P.roster.map((e, k) => { const r = rosterEntry(e, k); const style = BRAWL_STYLES[r.archetype] ? r.archetype : 'all-rounder'; return { ...r, style, ...(e.weapon ? { recipe: { ...r.recipe, weapon: e.weapon } } : {}) }; })
     : block.armed ? BRAWL_ARMED_ROSTER : BRAWL_ROSTER;
@@ -111,13 +142,34 @@ export function brawlYardData(block, bodies = null) {
     belt: block.belt, register: block.register ?? null, ...(block.armed ? { armed: true } : {}), ...(block.sun ? { sun: block.sun } : {}),
     roster, players, dummies,
     things: P.things ?? [], health: P.health ?? 'chains',
+    // (its breakables drawn as skandart's vessels, brawl-dress.js boxModels: none laid, not a byte)
+    ...((P.things ?? []).some((t) => t.kind === 'box') ? { boxes: boxModels((P.things ?? []).filter((t) => t.kind === 'box').map((t) => t.what)) } : {}),
+    // (its cover drawn as the dress's own pieces, brawl-dress.js coverModels: none that has a piece laid, not a byte)
+    ...(Object.keys(coverModels((P.things ?? []).filter((t) => t.kind === 'cover').map((t) => t.what))).length ? { covers: coverModels((P.things ?? []).filter((t) => t.kind === 'cover').map((t) => t.what)) } : {}),
+    // (a GAME on the room, brawl-practice.js `stakes`: the falls its players may take; the page ends the level with it)
+    ...(P.stakes !== undefined ? { stakes: readStakes(P.stakes) } : {}),
+    // (how many of the roster are played: the rest are the crowd's own bodies, a game's cast, never a player's pick)
+    ...(P.playable !== undefined ? { playable: readPlayable(P.playable, roster.length) } : {}),
     // (the brawler yard's own wave tester, read here so a fault is said before the page)
-    ...(P.waves && !P.range ? { waves: readRangeWaves(P.waves), loop: P.loop !== false } : {}),
+    ...(P.waves && !P.range ? { waves: castIn(readRangeWaves(P.waves), roster.length), loop: P.loop !== false } : {}),
     // (THE RANGE, the run & gun's: the guns passed in to be tried, read here so a fault is said before the page)
     ...(P.range ? { range: { guns: (P.range.guns ?? RANGE_GUNS).map((g, k) => { readGun(g, `practice.range.guns[${k}]`); return g; }), grenades: P.range.grenades ?? 3,
       // (its waves, read here so a fault is said before the page: the sampler for `true`)
-      ...(P.range.waves ? { waves: readRangeWaves(P.range.waves), loop: P.range.loop !== false } : {}), names: (P.range.guns ?? RANGE_GUNS).map((g) => { const G = readGun(g); return G.name ?? G.id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' '); }) } } : {}),
+      ...(P.range.waves ? { waves: castIn(readRangeWaves(P.range.waves), roster.length), loop: P.range.loop !== false } : {}), names: (P.range.guns ?? RANGE_GUNS).map((g) => { const G = readGun(g); return G.name ?? G.id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' '); }) } } : {}),
+    // (A STREET, a level's: brawl-practice.js streetRoomOf. Its waves held at the belt's gates, a boss on its last screen;
+    // a boss is a roster entry (`fighter`) or a fighter's intent; read here so a fault is said before the page)
+    ...(PS ? (() => {
+      const W = streetWaves(PS.street.waves, roster, block.belt), guns = PS.range ? PS.range.guns ?? RANGE_GUNS : null;
+      // (who each crowd body is drawn as, in the street's order: a wave at a time by screen, its boss first, then those
+      // its boss calls, its crowd)
+      const castAt = [...W].sort((a, b) => a.screen - b.screen).flatMap((w) => [...(w.boss ? [w.boss.roster ?? null] : []), ...(w.crowd ?? []).flatMap((c) => Array.from({ length: c.n }, () => c.roster ?? null))]);
+      return { street: { sides: Y.sides, waves: W, ...(PS.street.scenes ? { scenes: readScenes(PS.street.scenes, block.belt, 'practice.street.scenes') } : {}), lives: readStakes(PS.stakes ?? 3), ...(castAt.some((k) => k !== null) ? { castAt } : {}), ...(PS.tune ? { tune: PS.tune } : {}),
+        ...(guns ? { play: 'gun', guns, grenades: PS.range.grenades ?? 3, names: guns.map((g) => gunName(readGun(g))), ids: guns.map((g) => readGun(g).id) } : {}) }, wire: STREET_WIRE };
+    })() : {}),
+    // (its tuning, brawl-tunings.js roomTune: the room reads it, and says what is wrong with it)
+    ...(P.tune ? { tune: P.tune } : {}),
     ...(bodies ? { bodies } : {}),
-    yard: { spec: Y.spec, css: Y.css, settings: YARD_SETTINGS },
+    ...(ST ? { street: { sides: Y.sides, waves: ST.waves, ...(ST.play ? { play: ST.play, guns: ST.guns, grenades: ST.grenades, names: ST.guns.map((g) => gunName(readGun(g))), ids: ST.guns.map((g) => readGun(g).id) } : {}), ...(ST.scenes ? { scenes: ST.scenes } : {}), ...(ST.cast ? { cast: Object.fromEntries(Object.entries(ST.cast).map(([t, k]) => [t, (Array.isArray(k) ? k : [k]).map((x) => pick(x, `street.cast.${t}`))])) } : {}) }, wire: STREET_WIRE } : {}),
+    yard: { spec: Y.spec, css: Y.css, settings: ST || PS ? [] : YARD_SETTINGS },
   };
 }

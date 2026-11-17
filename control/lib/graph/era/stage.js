@@ -757,7 +757,11 @@ function readShadows(v0) {
 /** Every kit face for the plan (untinted, unlit), plus the torch seats the kit offers. */
 export function buildStageGeometry(plan) {
   const { kit } = plan, out = [], seats = [], drains = [], dressBays = [], columns = [], houses = [], labs = [], pilasters = [], bayRooms = [];
-  const surf = (part, variant = 0) => {
+  // (a part the kit does not carry, a prop's surface on a kit drawn in stone, compose-dress.js PIECES: the kit's nearest
+  // of its own, so a pillar stood in a gothic hall is its pilasters' stone; a part the kit carries reads as it did)
+  const NEAREST = { column: ['pillar', 'trim', 'wall'], concrete: ['trim', 'wall'], paint: ['trim', 'wall'], cabinet: ['trim', 'wall'], beam: ['trim', 'wall'], services: ['trim', 'wall'], grate: ['trim', 'wall'] };
+  const surf = (part0, variant = 0) => {
+    const part = kit.tiles[part0] ? part0 : (NEAREST[part0] ?? ['trim', 'wall']).find((k) => kit.tiles[k]) ?? part0;
     const t = kit.tiles[part];
     return { key: t.family ? `${t.family}-${VARIANTS[variant % (t.variants ?? 4)]}` : t.key, scale: t.scale, tint: kit.tint[part], group: `stage:${part}`, turn: !!t.turn, cell: kit.cells[part], ...(t.upright ? { upright: true } : {}) };
   };

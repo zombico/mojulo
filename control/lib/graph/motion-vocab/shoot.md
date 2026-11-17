@@ -50,6 +50,56 @@ A rendered film steps the world to each frame's `world_t` and frames the camera 
 
 `shoot: {}` (no `plan`, no `ops`) lists what a key can follow (`subjects_at: <seconds>` gives where each one is): `walker:<i>`, `car:<i>` (signalised traffic included: it stops at lights), `mover:<group>`. A followed key is read at the instant being shown; a segment between a fixed key and a followed one eases from the place onto the subject (a pickup) or off it. `frame: 'subject'` turns the offset with the subject's heading — x forward, y left, z up — so `[-3.5, 0, 1.3]` rides behind and above. A world's controllable entities (the player, AI, scripted movers, physics) move LIVE: follow one as `entity:<id>`. Its place is not known until it plays, so the plan's readout assumes it at its spawn, and the World page evaluates that camera's keys each frame against where the entity really is (its path drawn as a trail behind it).
 
+## Framing in words (`frame`)
+
+Say the shot, not the coordinates: a key `{ t, frame: { on, size, angle?, side?, place?, lens?, dutch?, follow? } }` in place of `pos` / `poi` (or the op `frame { camera, t, on, … }`, which adds the camera when it is new) is solved on the subject `on` names at `t`, so the frame read gives back the words.
+
+- `size`: `ecu` extreme close-up (eyes and mouth) · `cu` close-up (head and the top of the shoulders) · `mcu` medium close-up (chest up) · `ms` medium (waist up) · `mls` medium long, the cowboy (thigh up) · `fs` full (head to foot) · `ws` wide (the figure in its place) · `ews` extreme wide. The words people say read too ('close-up', 'cowboy', 'establishing').
+- `angle` (the lens's tilt): `eye` · `high` (looking down: smaller) · `low` (looking up: larger) · `overhead` (bird's eye) · `worm`, or degrees down (+) / up (−). A tilt a size cannot hold is eased toward level, with a warning.
+- `side` (where the camera stands round the subject, from the way it faces; its left is +90°): `front` · `three-quarter-left` / `-right` · `profile-left` / `-right` · `three-quarter-back-left` / `-right` · `back`, or degrees.
+- `place` across the frame: `lead` (the default: room ahead of the way it faces) · `left` / `right` (the thirds) · `centre`.
+- `lens` ('85mm'; each size has its own by default), `dutch` (degrees of roll, `true` for 12).
+- `on` a subject (`walker:0`, `car:2`, `entity:hero`) RIDES it (the key's ends follow it in its own frame, so the framing holds as it walks or turns); `follow: false` stands the camera where the subject is at `t` (it walks through a locked-off frame). `on: [x, y, z]` with `heading` (degrees) and `height` (m) frames a thing that stands still.
+
+The key keeps `about` and `framing` (its words); moving or re-aiming it by hand (`set_key` pos / poi) drops them.
+
+## Named moves (`move`)
+
+Say the move: a key `{ t, move: { kind, on, for?, …framing words } }` (or the op `move { camera, t, move, on, … }`, which adds the camera, and a shot over the move, when it is new) lays the keys that make it from `t`, each framed in words on `on`, so on a walker it rides and the frame read reads each key back. Its keys replace the camera's keys in its span; afterwards they are ordinary keys (set_key, ease).
+
+| move | what it does | its words (defaults) |
+|---|---|---|
+| `push_in` / `pull_out` | the dolly in or out, the lens kept | `from` / `to` sizes (ms → cu; cu → ws) |
+| `dolly_zoom` | the size held while the lens changes: the place stretches or closes in round the subject | `from` / `to` lenses (24mm → 85mm), `size` (mcu) |
+| `arc` | round the subject at one size, a key every 30° | `by` degrees (90; + toward its left), `side`, `size` (ms) |
+| `crane_up` / `crane_down` | the boom: eye level at a size up to a high wide, or down | `to` an angle (high), `to_size` (ws) |
+| `track` | alongside a subject as it moves; on a still point, a truck | `side` (profile-left), `size` (fs); `by` metres for a truck (3) |
+| `whip_pan` | a pan so fast it blurs, the camera held | `to` the subject or point it lands on (required) |
+| `crash_zoom` | the lens slammed in from where the camera stands | `from` / `to` sizes (ws → cu) |
+| `handheld` · `steadicam` · `run` · `rumble` | the camera's shake over `for` seconds, or its whole range | `amount` (1), `seed` |
+
+`for` is the move's seconds (each has its own: a whip 0.35, a crash zoom 0.3). Said words read too ('dolly in', 'vertigo', 'orbit', 'swish pan', 'snap zoom', 'hand-held'). A shake is the camera's `shake` (`set_camera { shake: 'handheld' | { style, amount, span } | null }`), laid over its keyed path by the sampler, seeded, so a render, the page's track and the Blender frames shake the same; a camera following a live entity is not shaken on the page. The frame read lets a whip pan leave its subject between its keys, and reads no composition inside a whip or a crash zoom.
+
+## The frame read (`composition`)
+
+Beside the readout, the door answers what each shot FRAMES: the subject it is about (the key's `about`, else the one its camera follows, else the one standing at its point of interest), read at the shot's start, middle and end: its `size` (`sizes` when it changes), `headroom` and `eyes` (shares of the frame from the top), `across` (0 left, 1 right) and `facing` (left | right | toward | away). Its `notes`, each with a fix, are advice:
+
+| code | what it says |
+|---|---|
+| `lost` | the subject leaves the frame |
+| `head-cut` | a medium shot or wider cuts the head off at the top |
+| `loose-head` / `eyes-low` | too much room over the head; the eyes well below the upper third |
+| `joint-cut` | the bottom edge cuts at the knees or the ankles |
+| `short-sided` | a figure facing frame right sits on the right (its room is behind it): lead room |
+| `jump-cut` | the next shot of the same subject turns under 30° round it and keeps or moves one size |
+| `direction-flip` | a mover goes frame right, then frame left after the cut: the line is crossed |
+
+A shot of nothing in particular is read but advised nothing. Whether the frame reads is the eyes gate: LOOK THROUGH on the World page.
+
+## The contact sheet (`contact`)
+
+`shoot: { contact: 3 }` beside `plan` or `ops` (or alone, on the plan there) renders the plan's CONTACT SHEET: each shot of the running order at its start, middle and end (`1` the middle, `2` start and end), captured on the world's own page, laid a row a shot with the rule of thirds over each frame, each row headed by the shot, its camera, what it is about and the frame read's notes, each frame captioned with the size it reads. One PNG in the world's outcome folder (`contact.path`, `contact.url`), named by the plan, so the same plan's sheet is the same file. Seconds, not the film's minutes: LOOK at it (the agent: Read the PNG) before rendering the film. The frame read measures where things land; only the picture shows what stands in front and where the eye goes. The skill `/direct` is the loop round it.
+
 ## Live worlds
 
 A world that plays live (it has entities or physics) cannot rewind, so its plan runs on the world's own clock: the shot whose span holds the clock plays (the last one begun), a shot that starts before the one before it ends cuts in when that one ends, the panel has no scrubber, and a shot chip pins that camera until clicked again. The tools say so in `live.notes`.
@@ -74,7 +124,7 @@ Recipes: a wormhole = a `pipe` `along` the flying camera; a corridor = `{ kind: 
 
 ## Edits (`shoot: { ops }`)
 
-`add_key { camera, key }` · `set_key { camera, t, to?, pos?, poi?, lens?, ease?, roll? }` · `remove_key { camera, t }` · `ease { camera, t? | times?, ease }` (no time = every key) · `retime { camera?, scale?, shift? }` (keys and that camera's shots) · `set_camera { camera, name?, lens?, path?, type? }` (flipping the type keeps the view) · `add_camera { camera, shot? }` · `remove_camera` · `add_shot { shot, at? }` · `set_shot { shot, name?, camera?, span?, in?, speed?, time?, clock?, grain? }` · `remove_shot` · `move_shot { shot, to }` · `add_piece { piece }` · `set_piece { piece, …fields }` · `piece_key { piece, key }` (a key at an existing time merges) · `remove_piece` · `set { fps }`.
+`frame { camera, t, on, size?, angle?, side?, place?, lens?, dutch?, follow?, ease? }` (a key said in words, above) · `move { camera, t, move, on, for?, … }` (a named move, above) · `add_key { camera, key }` · `set_key { camera, t, to?, pos?, poi?, lens?, ease?, roll? }` · `remove_key { camera, t }` · `ease { camera, t? | times?, ease }` (no time = every key) · `retime { camera?, scale?, shift? }` (keys and that camera's shots) · `set_camera { camera, name?, lens?, path?, type?, shake? }` (flipping the type keeps the view) · `add_camera { camera, shot? }` · `remove_camera` · `add_shot { shot, at? }` · `set_shot { shot, name?, camera?, span?, in?, speed?, time?, clock?, grain? }` · `remove_shot` · `move_shot { shot, to }` · `add_piece { piece }` · `set_piece { piece, …fields }` · `piece_key { piece, key }` (a key at an existing time merges) · `remove_piece` · `set { fps }`.
 
 ## Exports
 

@@ -26,6 +26,10 @@
  *                          night at the inn for INN_PRICE gold, more further on, or the book's price (inn: false, none)
  *     random?: { every?, chance?, after? },   random encounters on the trails, drawn from that stage's packs
  *     classes?, skills?, foes?, items?, gear?, juice?, rules?,   play.rpg's own (playscape/rpg/rpg.js), over the presets
+ *     manual?: <a lorecube manual, at any depth>,   a setting's creatures fielded (battles-manual.js): its foes and their
+ *                          skills, its packs by role and level and its boss, each under the page's own word for it
+ *     tree?: <a lorecube skill tree, at any depth> | [trees],   a school the party can be in (battles-tree.js): a class
+ *                          and its techniques as skills, learned by rank or bought, each under the page's own word
  *   The party and the bag (its items, the gear not worn, and its gold: held:bag:gold) are carried level to level.
  *   }
  * A world that writes none but whose intent fights turn by turn (its cube's power.combat) is laid with the defaults.
@@ -52,6 +56,8 @@ import { settingOfGame } from './cast-setting.js';
 import { fieldFigure, libraryFigure } from './stage-figures.js';
 import { readGrid } from '../level/grid.js';
 import { mapItems } from '../level/map-items.js';
+import { manualBattles } from './battles-manual.js';
+import { treesBattles } from './battles-tree.js';
 
 export const PACKS = Object.freeze([
   ['slime', 'slime'], ['wolf', 'bat'], ['goblin', 'spider', 'slime'], ['skeleton', 'wolf'],
@@ -127,7 +133,7 @@ export const BAG_START = Object.freeze({ potion: 2 });
 // room (a dungeon: its boss in the goal room, levels.js buildingEnds); a building made by ref, a building's inside
 // entered by its door (a town's house), a city and a roadway have none
 export const FOUGHT = (s) => !['interior', 'city', 'roadway'].includes(s.section) && !(s.section === 'building' && s.building?.ref);
-const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'sets', 'foe', 'looks', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules'];
+const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'sets', 'foe', 'looks', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules', 'manual', 'tree'];
 const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules', 'skirmish', 'epochs', 'talk'];
 const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -213,7 +219,18 @@ export function readBattles(v, characters = null, ids = null) {
     if (v.board.epochs !== undefined) readEpochs(v.board.epochs, ids);
     if (v.board.talk !== undefined && !(isObj(v.board.talk) && Object.entries(v.board.talk).every(([k, x]) => ['bubble', 'portrait'].includes(k) && typeof x === 'boolean'))) throw err('.board.talk is { bubble?, portrait? }: the words over whoever speaks (on unless false), a close portrait of them beside (off unless true)');
   }
-  const out = { ...v, ...(packs ? { packs } : {}), ...(boss ? { boss } : {}) };
+  // a manual on the page (battles-manual.js): its creatures the foes, their skills, its ladder and its boss, each a
+  // floor under the page's own words
+  const M = v.manual === undefined ? null : (() => { try { return manualBattles(v.manual); } catch (e) { throw err(`.manual${String(e.message).replace(/^lorecube: manual/, '')}`); } })();
+  // a skill tree on the page (battles-tree.js): each school a class, its techniques skills, the same floor
+  const T = v.tree === undefined ? null : (() => { try { return treesBattles(v.tree); } catch (e) { throw err(`.tree${String(e.message).replace(/^lorecube: tree/, '')}`); } })();
+  const lore = {
+    ...(M ? { foes: { ...M.foes, ...(v.foes ?? {}) }, looks: { ...M.looks, ...(v.looks ?? {}) } } : {}),
+    ...(M || T ? { skills: { ...(M?.skills ?? {}), ...(T?.skills ?? {}), ...(v.skills ?? {}) } } : {}),
+    ...(T ? { classes: { ...T.classes, ...(v.classes ?? {}) } } : {}),
+    ...(M && (packs ?? M.packs) ? { packs: packs ?? M.packs } : {}), ...(M && (boss ?? M.boss) ? { boss: boss ?? M.boss } : {}),
+  };
+  const out = { ...v, ...(packs ? { packs } : {}), ...(boss ? { boss } : {}), ...lore };
   // the play.rpg it makes, read now, so a wrong class, skill, foe or rule is said where it was written
   readRpg({ rpg: battleBase({ battles: out, characters }) });
   for (const p of [...(packs ?? []), ...(boss ? [boss] : [])]) readRpg({ rpg: { ...battleBase({ battles: out, characters }), encounters: [{ id: 'check', foes: p }] } });

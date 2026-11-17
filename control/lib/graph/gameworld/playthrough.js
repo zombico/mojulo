@@ -10,7 +10,8 @@
  *           the sidearm on a foe that shoots from out of reach (a draw held and let go; an automatic held), down a clear
  *           line only: a shooter behind a wall is closed on until the line opens; the foe in its face first. A charge
  *           telegraphed (a rushing foe braced or on its line) is met with the guard up, facing it. It heads straight for its goal, hopping when no ground is gained, and leaves a foe it cannot
- *           reach for another (`stuck`: it has no pathfinding). Once no foe stands, it walks to the level's way on. No
+ *           reach for another (`stuck`: it has no pathfinding). Once no foe stands, it walks to the level's way on (a
+ *           level ended by its fights: the way through it, point by point). No
  *           specials, no air strings, no dodge: the floor of play, not its ceiling
  *   still   holds no input at all: a level a player who does nothing wins is a level with no fight in it
  *
@@ -24,6 +25,7 @@
  */
 import { steer, outcomeIn, SIM_DT, auditPath, faceGround, pageGroundFaces } from '../game/level-equivalence.js';
 import { simLevel } from '../game/level-sim.js';
+import { styleOf } from '../worlds/controllable-world.js';
 
 /** The level as the page runs it: its world with the page's own world options (the lock, the minds' tuning…), its bus,
  * its colliders and the page's ground. */
@@ -100,6 +102,8 @@ function wayOn(contract) {
 
 // a person's patience: a hop after a second with no ground gained, and a goal given up for another after STUCK_AFTER
 const HOP_AFTER = 30, HOP_FOR = 6, STUCK_AFTER = 300;
+// (a point on the way is passed within this of it)
+const WAYPOINT_AT = 1.2;
 
 /** Heads for `p` (a foe's id or the way on, `id`), as the win script does: a hop over what stands in the way when no ground
  * is gained for a second; a goal no nearer after STUCK_AFTER frames is named stuck (the player tries another). */
@@ -136,6 +140,16 @@ function basicInput(sim, hero, M, contract) {
   }
   const T = all.find((e) => d(e) <= STRIKE_AT + 1) ?? (sidearm && foes.find((e) => shoots(e) && d(e) < SHOOT_LOCK_AT)) ?? foes[0] ?? null;
   if (!T) {
+    // (a level with no exit of its own, its fights its end: the way through it is walked point by point, as a person
+    // goes from room to room, each point passed once; the next fight begins where its point is)
+    const hasExit = (contract?.mechanics ?? []).some((x) => x && x.kind === 'reach-exit' && x.exit !== 'back' && Array.isArray(x.at));
+    const pts = hasExit ? [] : auditPath(contract).points;
+    if (pts.length > 1) {
+      M.wp = M.wp ?? 0;
+      while (M.wp < pts.length - 1 && flat(pts[M.wp], hero.transform.pos) < WAYPOINT_AT) M.wp++;
+      Object.assign(inp, approach(W, hero, M, pts[M.wp], `the way on (${M.wp + 1} of ${pts.length})`));
+      return inp;
+    }
     const exit = wayOn(contract);
     if (exit) Object.assign(inp, approach(W, hero, M, exit, 'the way on'));
     return inp;
@@ -210,7 +224,9 @@ export function playLevel(payload, { player = 'basic', seconds = 180 } = {}) {
   const downs = foes.filter((f) => f.down).length, hpLeft = hpOf(sim, hero);
   const stuck = [...M.stuck];
   const reason = outcome === 'success' ? 'won' : outcome === 'fail' ? 'the hero went down' : `not ended in ${seconds} s${stuck.length ? ` (could not reach ${stuck.join(', ')})` : ''}`;
-  return { player, outcome, won: outcome === 'success', t: r1(t), hp: { start: hp0, left: r1(hpLeft) }, presses: M.presses, shots: M.shots, hitsBy, foes, downs, ...(stuck.length ? { stuck } : {}), reason };
+  // (how it fought, where the level carries a style meter: worlds/controllable/style.js)
+  const style = styleOf(W);
+  return { player, outcome, won: outcome === 'success', t: r1(t), hp: { start: hp0, left: r1(hpLeft) }, presses: M.presses, shots: M.shots, hitsBy, foes, downs, ...(stuck.length ? { stuck } : {}), ...(style ? { style: { peak: style.peakName, earned: style.earned, best: style.best, hurt: style.hurt } } : {}), reason };
 }
 
 /** One line for a report: won or lost, how long, the hp left, the foes downed and who hit the hero most. */
@@ -218,5 +234,5 @@ export function playthroughSummary(R) {
   if (!R) return null;
   const worst = Object.entries(R.hitsBy ?? {}).sort((a, b) => b[1] - a[1])[0];
   return `${R.player}: ${R.reason} at ${R.t} s, hp ${R.hp?.left ?? '?'}/${R.hp?.start ?? '?'}, ${R.downs}/${R.foes?.length ?? 0} foes down`
-    + `${R.presses ? `, ${R.presses} presses` : ''}${R.shots ? `, ${R.shots} shots` : ''}${worst ? `, hit most by ${worst[0]} (${worst[1]})` : ''}`;
+    + `${R.presses ? `, ${R.presses} presses` : ''}${R.shots ? `, ${R.shots} shots` : ''}${worst ? `, hit most by ${worst[0]} (${worst[1]})` : ''}${R.style ? `, style peaked at ${R.style.peak} (longest combo ${R.style.best})` : ''}`;
 }
