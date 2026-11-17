@@ -224,3 +224,9 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   nothing. Measured in headless Chrome with every foe awake: script time over fifteen seconds from about 5.5 s to 0.3 s.
 - **The industrial level is heard.** Its guns carry the range's own sound (a shot, a reload, a draw, a hit for each,
   chosen by what the weapon is); `industrialManifest`'s `quiet` asks for none.
+- **Supplies are a medkit and an ammo crate.** Two forms on the glyph shelf (`medkit`: a first-aid case, a red cross
+  on its faces; `ammo-crate`: a drab steel box with a stencil band), and the `supplies` mechanic's decoration wears
+  them: health is a medkit where it was a heart, rounds an ammo crate where they were an orb.
+- **The range's jump is a body's.** Its feet had a step and a landing and no jump, so a jump played the gait's default
+  chirp. Now a jump is the boots pushing off the concrete and the kit shifting, and a landing is both feet and the
+  weight under them (`combat/range-sound.js`).
