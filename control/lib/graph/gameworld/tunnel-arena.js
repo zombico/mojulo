@@ -52,14 +52,14 @@ const S = (words, read, set) => ({ words, read, set });
 const G = (words, read, gap) => ({ words, read, gap });
 
 // the grammar's rails
-const RAILS = Object.freeze({ half: [12, 26], lanes: [2, 4], gapEnd: [2.5, 6], gapMid: [3, 8], court: [0.25, 0.45], many: [0, 1] });
+const RAILS = Object.freeze({ half: [12, 30], lanes: [2, 4], gapEnd: [2.5, 6], gapMid: [3, 8], court: [0.25, 0.45], many: [0, 1] });
 const clamp = (k, v) => Math.max(RAILS[k][0], Math.min(RAILS[k][1], v));
 
 /** What the words ask, and what each sets in the grammar. */
 export const ARENA_TRAITS = Object.freeze({
-  small: S(['small', 'tight', 'compact', 'little', 'cramped'], 'small: 26 m across', { half: 13 }),
-  medium: S(['medium', 'mid-size', 'midsize'], 'medium: 36 m across', { half: 18 }),
-  large: S(['large', 'big', 'huge', 'wide', 'sprawling', 'vast'], 'large: 48 m across', { half: 24 }),
+  small: S(['small', 'tight', 'compact', 'little', 'cramped'], 'small: 32 m across', { half: 16 }),
+  medium: S(['medium', 'mid-size', 'midsize'], 'medium: 44 m across', { half: 22 }),
+  large: S(['large', 'big', 'huge', 'wide', 'sprawling', 'vast'], 'large: 56 m across', { half: 28 }),
   'two-lanes': S(['two lanes', 'two-lane', '2 lanes', 'two-lanes'], 'two lanes, side by side', { topology: 'lanes', lanes: 2 }),
   'three-lanes': S(['three lanes', 'three-lane', '3 lanes', 'three-lanes', 'lanes', 'lane'], 'three lanes: a middle and two flanks', { topology: 'lanes', lanes: 3 }),
   'four-lanes': S(['four lanes', 'four-lane', '4 lanes', 'four-lanes'], 'four lanes', { topology: 'lanes', lanes: 4 }),

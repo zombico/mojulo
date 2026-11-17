@@ -13,7 +13,7 @@ import { readHour } from '../era/geocube-hours.js';
 import { readWetness } from '../era/wetness.js';
 import { GRUNT_STYLE_IDS } from '../cosmos/packs/comic-hero/grunts.js';
 
-export const INDUSTRIAL = Object.freeze({ use: 'warehouse', depth: 33, hour: 'golden', weather: false, wet: 'wet', tower: true, walker: false, crew: 'privateMilitary', masked: true });
+export const INDUSTRIAL = Object.freeze({ use: 'warehouse', depth: 36, hour: 'golden', weather: false, wet: 'wet', tower: true, walker: false, crew: 'privateMilitary', masked: true });
 const KEYS = ['use', 'depth', 'hour', 'weather', 'wet', 'tower', 'walker', 'crew', 'masked', 'cube'];
 
 /** An industrial level as written (see the header). */

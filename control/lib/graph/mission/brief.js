@@ -111,7 +111,7 @@ function readPlace(v, no) {
   return { ...more, ...(v.town !== undefined ? { town: v.town === true ? {} : structuredClone(v.town), ...(v.block ? { block: v.block } : {}) } : { city: v.city === true ? {} : structuredClone(v.city), on: v.on ?? cityOns()[0] }), size: v.size ?? PLACE_SIZE[2] };
 }
 /** A place's cut: its least and most side, and the side a mission cuts when it names none (metres). */
-export const PLACE_SIZE = Object.freeze([24, 54, 36]);
+export const PLACE_SIZE = Object.freeze([24, 54, 48]);
 
 // the band a weapon is carried for: a kit word its archetype's, a weapon written by its fire type that type's
 function bandOf(w) {

@@ -35,8 +35,8 @@ export const BEAT_IDS = Object.freeze(Object.keys(BEATS));
 
 /** The default opening mission's legs (see the header). `level`: the leg as a world's level, less its name. */
 export const OPENING = Object.freeze([
-  Object.freeze({ id: 'yard', name: 'The staging yard', beats: ['cold-open', 'kit-check', 'first-contact', 'insertion'], place: 'a court grown under the arena\'s laws', says: 'gear up, then the first of them',
-    level: () => ({ mission: { sections: ['staging', 'contact', 'extract'], map: 'courtyard', squad: 1 } }) }),
+  Object.freeze({ id: 'yard', name: 'The staging yard', beats: ['cold-open', 'kit-check', 'first-contact', 'insertion'], place: 'three rooms in a row, grown under the arena\'s laws', says: 'gear up, then the first of them',
+    level: () => ({ mission: { sections: ['staging', 'contact', 'extract'], map: 'three-rooms', squad: 1 } }) }),
   Object.freeze({ id: 'street', name: 'The street', beats: ['push'], place: 'a town\'s main street, cut and grown', says: 'push up the street to the works',
     level: () => ({ mission: { sections: ['lane', 'extract'], map: { town: { segment: 'main-street' } }, squad: 1 } }) }),
   Object.freeze({ id: 'inside', name: 'The building', beats: ['push'], place: 'a building designed as a fighting map', says: 'clear it, room by room', needs: 'building',

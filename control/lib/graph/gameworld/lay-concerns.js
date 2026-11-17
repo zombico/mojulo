@@ -58,7 +58,7 @@ export const LOOP = Object.freeze({ radius: 9, width: 8, margin: 3, step: 2, sta
 // a match's arena (metres): half its side when its plan names none (36 m across), how far up the first trail it
 // starts, its wall's height, how far a spawn stands in from the wall; its laws' numbers: how near cover must be, the
 // share of the floor it must be near (the longest clear line is its plan's: its side, unless it asks for long lines)
-export const ARENA = Object.freeze({ half: 18, start: 24, wall: 3, inset: 2.5, coverNear: 3.5, covered: 0.8 });
+export const ARENA = Object.freeze({ half: 22, start: 24, wall: 3, inset: 2.5, coverNear: 3.5, covered: 0.8 });
 
 // a block of cells beside the walk on its open side (toward the site's open edge): `cols` across from 4 m off the walk,
 // rows r0 to r1 of the first trail; → { at: '<cells>', centre: [x, y] } in the level's frame

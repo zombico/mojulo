@@ -298,3 +298,9 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   at the pilot's shoulder on the pilot's side, an escort's mind (it keeps by the pilot and fights whom it sees of the
   other side), the pilot's first gun at a share of its harm; neither harms the other and no task counts it. A
   campaign's legs each ask one.
+- **Bigger maps.** Each kind of fighting ground is larger by its own measure: a bout's arena (small, medium and large
+  are 32, 44 and 56 m across where they were 26, 36 and 48; one that names none is 44), a push's strip (seven cells
+  across and up to ten deep where it was five and eight), a place cut from a town or a city (48 m a side where it
+  named none, from 36), the industrial yard (36 m deep), and the campaign's first leg (three rooms in a row where it
+  was one court). The grid's cell stays 3 m: a wider cell was tried and broke what is designed on it (a ladder's
+  climb, where a mission's phases stand, a fight building's loops), so it is not changed here.

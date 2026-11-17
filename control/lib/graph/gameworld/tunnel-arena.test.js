@@ -17,8 +17,8 @@ describe('the arena tunnel', () => {
 
   it('the words change the arena, and each holds its measure and the laws', () => {
     const cases = [
-      ['a tight two-lane arena', (p) => p.half === 13 && p.lanes === 2],
-      ['a large ring arena with long sightlines', (p) => p.half === 24 && p.topology === 'ring'],
+      ['a tight two-lane arena', (p) => p.half === 16 && p.lanes === 2],
+      ['a large ring arena with long sightlines', (p) => p.half === 28 && p.topology === 'ring'],
       ['a sparse four-lane arena', (p) => p.lanes === 4 && p.pieces.filter((q) => q.form === 'crate').length <= 6],
       // (dense: its cover is counted whole, the crates and the panels the laws grew inside its wall)
       ['a close quarters four-lane warehouse', (p) => p.lanes === 4 && coverCount(p.pieces, p.half) >= 14],

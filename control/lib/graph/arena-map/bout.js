@@ -117,7 +117,7 @@ export function boutPieces(M, half) {
  * stays one ground, so there is always a way up it. Its edges are open land: the walls that bound it for the laws are
  * not built. → { map, laws, held, of, seed }, the best of a few seeds. Remembered by what asked for it.
  */
-export const PUSH = Object.freeze({ w: 5, d: [3, 8], passes: 140, drift: 30, tries: 2 });
+export const PUSH = Object.freeze({ w: 7, d: [4, 10], passes: 140, drift: 30, tries: 2 });
 export function pushMap({ w = PUSH.w, d = 5, side = 1, seed = 1, sight = null } = {}) {
   const key = JSON.stringify(['push', w, d, side, seed, sight]);
   if (memo.has(key)) return memo.get(key);
