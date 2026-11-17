@@ -20,6 +20,9 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-17 (mana-ui's map): the game UI runtime and its sheet, which a page with a mana screen embeds whole,
+// gained the `map` component (kernel.js: a catalogue row and its draw; css.js: its rules), the corner radar and the map
+// screen idioms. The two fixtures that embed the runtime (brawl, holo) re-pinned; they draw as before.
 // Re-pinned 2026-11-16 (the open city: a driver in a cab stands in zones where its car is): the event bus the page
 // embeds reads a body sent away that rides in a cab as present (worlds/event-bus.js deriveZoneEvents: one line replaced),
 // so an errand is done from a car. Every fixture that embeds the bus re-pinned; the pages draw and play as before.

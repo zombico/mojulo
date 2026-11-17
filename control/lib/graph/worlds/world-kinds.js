@@ -213,6 +213,7 @@ import { existsSync } from 'node:fs';
 import { loadSharp } from '@/lib/sharp-lazy';
 import { rigSpecies } from '@/lib/graph/mutagen/rig';
 import { cityGuide } from '@/lib/graph/gameworld/city-guide.js';
+import { cityMap } from '@/lib/graph/gameworld/city-map.js';
 
 // where a played level's driven cars stand (gameworld/cars.js: entities with a cab): the scene draws no parked car there
 const pooledOf = (m) => [...new Set((Array.isArray(m.entities) ? m.entities : []).map((e) => e?.mount?.pool?.model).filter((x) => typeof x === 'string'))];
@@ -617,7 +618,7 @@ export const WORLD_KINDS = {
       // (a game's level stands on one, a district: the level's pilot and its game layered over it by the page, and no
       // stand-in walks it)
       // (played: its people walk its blocks, the legacy city's walkers: geocity/scene.js THE PEOPLE)
-      if (m.show === 'geocity') return (m.entities !== undefined || m.game !== undefined ? (p) => attachCityWalkers(p, Object.keys(m.figures ?? {}).filter((k) => /^person-\d+$/.test(k))).then(attachCityCars).then((q) => { const guide = cityGuide(m); return guide ? { ...q, guide } : q; }) : attachDummy)(assembleGeocityScene(m.entities !== undefined || m.game !== undefined ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCITY_KEYS.includes(k))) : m, { title: ctx.title, ...(m.entities !== undefined || m.game !== undefined ? { play: true, ...(drivenOf(m).length ? { driven: drivenOf(m), pooled: pooledOf(m) } : {}) } : {}), ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true, ...(ctx.formLit && !ctx.handoff ? { formBuildings: true } : {}) } : {}) }));
+      if (m.show === 'geocity') return (m.entities !== undefined || m.game !== undefined ? (p) => attachCityWalkers(p, Object.keys(m.figures ?? {}).filter((k) => /^person-\d+$/.test(k))).then(attachCityCars).then((q) => { const guide = cityGuide(m); return guide ? { ...q, guide } : q; }).then(({ plan, ...q }) => { const map = m.manaHud ? cityMap(plan, m, m.manaHud.map) : null; return map ? { ...q, cityMap: map } : q; }) : attachDummy)(assembleGeocityScene(m.entities !== undefined || m.game !== undefined ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCITY_KEYS.includes(k))) : m, { title: ctx.title, ...(m.entities !== undefined || m.game !== undefined ? { play: true, ...(drivenOf(m).length ? { driven: drivenOf(m), pooled: pooledOf(m) } : {}) } : {}), ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true, ...(ctx.formLit && !ctx.handoff ? { formBuildings: true } : {}) } : {}) }));
       const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }, assembleStageScene);
       return p.route ? attachDummy(p) : p;
     },

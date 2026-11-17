@@ -109,6 +109,8 @@ export function buildManaUi() {
   // an enemy's awareness, each a SHAPE (never a colour alone): what it knows of you
   const AWARENESS = { unaware: '–', suspicious: '?', searching: '??', alert: '!', combat: '!!', fleeing: '»', down: '✕' };
   const MARKERS = { self: '▲', ally: '●', foe: '✕', goal: '★', item: '◆', poi: '○' };
+  // a map's ground, by kind (a kind it does not know is land), and how its miniature is tilted (degrees: back, round)
+  const MAP_KINDS = ['land', 'road', 'walk', 'block', 'building', 'park', 'water', 'lot'], MAP_TILT = [56, -32];
   const PIP_SHAPES = { pip: ['●', '○'], heart: ['♥', '♡'], square: ['■', '□'], diamond: ['◆', '◇'] };
   // a moment's weight: a number, or the words (the broadcast's tones, weightiest last)
   const WEIGHTS = { minor: 0, normal: 1, major: 2, decisive: 3 };
@@ -207,6 +209,7 @@ export function buildManaUi() {
     // in-game: aim, maps, the feed, moments
     reticle: { group: 'hud', about: 'the aim; a hit adds a hitmarker shape', props: { shape: [Object.keys(RETICLES), 'cross'], hit: [B, false] } },
     minimap: { group: 'hud', about: 'the map in a corner: markers at x, y from 0 to 1, each kind a shape', props: { markers: [L, []], shape: [['square', 'round'], 'square'], label: [T] } },
+    map: { group: 'hud', about: `a MAP of the place: its ground as shapes (each { kind: ${MAP_KINDS.join(' | ')}, x, y, w, h } from 0 to 1, north up, a \`tall\` one raised in the miniature) and what is on it as markers ({ x, y, kind?, icon?, label?, named?, heading?, you? }: an icon by its name, else its kind's shape; \`you\` turned to its heading; \`named: false\` keeps its name off the map where names are written), seen one of three ways: \`plan\` from straight above, north up; \`follow\` from above with the heading up and the focus at the centre (a corner's radar); \`miniature\` tilted, a model on a table, its tall shapes standing. \`focus\` { x, y } and \`zoom\` say what part; \`size\` how big it is drawn; \`labels\` writes each marker's name`, props: { shapes: [L, []], markers: [L, []], view: [['plan', 'follow', 'miniature'], 'plan'], focus: [A], heading: [N, 0], zoom: [N, 1], size: [['corner', 'panel', 'full'], 'panel'], labels: [B, false], label: [T] } },
     compass: { group: 'hud', about: 'a heading strip with the bearings of markers', props: { heading: [N, 0, true], markers: [L, []] } },
     feed: { group: 'hud', about: 'the last few lines of a log (kills, pickups, chat from the world); a line said again in a row merges (×3)', props: { rows: [L, [], true], field: [T, 'text'], max: [N, 4] } },
     toast: { group: 'hud', about: 'a passing word', props: { value: [T, '', true] } },
@@ -816,6 +819,27 @@ export function buildManaUi() {
             if (!isObj(m) || !isFinite(Number(m.x)) || !isFinite(Number(m.y))) return null;
             return ['span', { class: 'mana-marker', 'data-kind': MARKERS[m.kind] ? m.kind : 'poi', style: `left:${pct(m.x)};top:${pct(m.y)}`, title: m.label || null }, MARKERS[m.kind] || MARKERS.poi];
           }), p.label ? ['span', { class: 'mana-caption' }, p.label] : null];
+          case 'map': {
+            const view = p.view, mini = view === 'miniature', rot = view === 'follow' ? (Number(p.heading) || 0) : 0, z = clamp(Number(p.zoom) || 1, 1, 16);
+            const f = isObj(p.focus) ? p.focus : {}, fx = clamp(isFinite(Number(f.x)) ? Number(f.x) : 0.5, 0, 1), fy = clamp(isFinite(Number(f.y)) ? Number(f.y) : 0.5, 0, 1);
+            const r2 = (x) => Math.round(x * 100) / 100;
+            // the plane: scaled and turned about the focus, the focus brought to the middle; the miniature tilted after
+            const plane = `transform-origin:${pct(fx)} ${pct(fy)};transform:translate(${r2((0.5 - fx) * 100)}%,${r2((0.5 - fy) * 100)}%)${mini ? ` rotateX(${MAP_TILT[0]}deg) rotateZ(${MAP_TILT[1]}deg)` : rot ? ` rotate(${r2(-rot)}deg)` : ''} scale(${r2(z)})`;
+            // a marker stays its own size and upright whatever the plane does (in the miniature it stands on it)
+            const stand = mini ? `rotateZ(${-MAP_TILT[1]}deg) rotateX(${-MAP_TILT[0]}deg)` : rot ? `rotate(${r2(rot)}deg)` : '';
+            const shapes = p.shapes.filter((q) => isObj(q) && [q.x, q.y, q.w, q.h].every((n) => isFinite(Number(n)))).map((q) => {
+              const tall = mini && Number(q.tall) > 0 ? clamp(Number(q.tall), 0, 1) : 0;
+              return ['span', { class: 'mana-map-shape', 'data-kind': MAP_KINDS.includes(q.kind) ? q.kind : 'land', 'data-tall': tall ? 'yes' : null, style: `left:${pct(q.x)};top:${pct(q.y)};width:${pct(q.w)};height:${pct(q.h)}${tall ? `;--tall:${r2(tall)}` : ''}` }, tall ? ['span', { class: 'mana-map-roof' }] : null];
+            });
+            const marks = p.markers.filter((m) => isObj(m) && isFinite(Number(m.x)) && isFinite(Number(m.y))).map((m) => {
+              const turn = m.you && isFinite(Number(m.heading)) && !mini ? ` rotate(${r2(Number(m.heading) - rot)}deg)` : '';
+              return ['span', { class: 'mana-map-mark', 'data-kind': MARKERS[m.kind] ? m.kind : 'poi', 'data-you': m.you ? 'yes' : null, style: `left:${pct(m.x)};top:${pct(m.y)};transform:translate(-50%,${mini ? '-100%' : '-50%'}) ${stand} scale(${r2(1 / z)})`, title: m.label || null },
+                m.icon ? ['span', { class: 'mana-icon', 'data-size': 's', 'data-icon': iconName(m.icon), style: turn ? `transform:${turn.trim()}` : null }, initials(m.icon)] : ['span', { class: 'mana-map-glyph', style: turn ? `transform:${turn.trim()}` : null }, MARKERS[m.kind] || MARKERS.poi],
+                p.labels && m.label && m.named !== false ? ['span', { class: 'mana-caption' }, words(m.label)] : null];
+            });
+            // (its frame a square in the middle of whatever box it is given: a metre is a metre both ways)
+            return ['div', { class: cls, 'data-view': view, 'data-size': p.size }, ['div', { class: 'mana-map-frame' }, ['div', { class: 'mana-map-plane', style: plane }, ...shapes, ...marks]], p.label ? ['span', { class: 'mana-caption' }, p.label] : null];
+          }
           case 'compass': {
             const at = (b) => ((((Number(b) || 0) - p.heading) % 360) + 540) % 360 - 180;
             const marks = [['N', 0], ['E', 90], ['S', 180], ['W', 270]].map(([w, b]) => ({ w, d: at(b), cardinal: true })).concat(p.markers.filter(isObj).map((m) => ({ w: MARKERS[m.kind] || MARKERS.poi, d: at(m.bearing) })));

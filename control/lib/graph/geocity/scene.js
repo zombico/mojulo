@@ -2014,8 +2014,19 @@ export function assembleGeocityScene(m, ctx = {}) {
     }
     if (walkerLoops.length) counts.people = walkerLoops.length;
   }
+  // ── ITS PLAN (played): the metro as a map's ground, in its own metres (gameworld/city-map.js lays it on mana-ui's
+  // map): its frame, its land as street, its water, its arterials' roadways, every block by what it is (a park, a
+  // lot, a square, else built: how tall it stands in a miniature by its kind), and each shop walked into as a place ──
+  let plan = null;
+  if (PLAY) {
+    const TALL = { tower: 1, podium: 0.7, slab: 0.55, midrise: 0.45 }, KIND = { park: 'park', parking: 'lot', square: 'walk', vacant: 'lot', construction: 'lot' };
+    const shapes = [{ kind: 'road', r: [lx0, ly0, lx1, ly1].map(r5) }];
+    for (const w of d.water) { const q = { s: [0, 0, d.frame.W, ly0], n: [0, ly1, d.frame.W, d.frame.D], w: [0, ly0, lx0, ly1], e: [lx1, ly0, d.frame.W, ly1] }[w.side]; if (q && q[2] > q[0] && q[3] > q[1]) shapes.push({ kind: 'water', r: q.map(r5) }); }
+    for (const r of d.regions) for (const b of r.blocks ?? []) { if (!Array.isArray(b.rect)) continue; const k = KIND[b.kind] ?? 'block', tall = k === 'block' ? TALL[b.kind] ?? 0.16 : 0; shapes.push({ kind: k, r: b.rect.map(r5), ...(tall ? { tall } : {}) }); }
+    plan = { box: [0, 0, r5(d.frame.W), r5(d.frame.D)], shapes, places: entered.map((e) => ({ at: [r5(e.door[0]), r5(e.door[1])], kind: 'shop', card: e.S.card })) };
+  }
   return {
-    faces, ...(formTown ? { form: { town: formTown } } : {}), ...(repeats.length ? { repeats } : {}), ...(F ? { flow: F } : {}), ...(walkerLoops.length ? { walkerLoops, cityCues: { pedHeight: 1.75 } } : {}), ...(beaconAt.length ? { beacons: { at: beaconAt, color: BEACON.color, period: BEACON.period, duty: BEACON.duty } } : {}), ...(counts.industry?.lines ? { footless: ['geocity:wire'] } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
+    faces, ...(formTown ? { form: { town: formTown } } : {}), ...(repeats.length ? { repeats } : {}), ...(F ? { flow: F } : {}), ...(plan ? { plan } : {}), ...(walkerLoops.length ? { walkerLoops, cityCues: { pedHeight: 1.75 } } : {}), ...(beaconAt.length ? { beacons: { at: beaconAt, color: BEACON.color, period: BEACON.period, duty: BEACON.duty } } : {}), ...(counts.industry?.lines ? { footless: ['geocity:wire'] } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
     // (the city's haze is laid per its world unit, city/plan/scene.js; this world's unit is the metre)
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },

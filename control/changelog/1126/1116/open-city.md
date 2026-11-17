@@ -38,3 +38,13 @@
 - **The journal and its messages wear the game's look.** In a game with an interface look, the journal and the quest
   messages are drawn by the same interface system as the rest of the game's screens and HUD, instead of a separate
   plain panel. A game without one keeps the journal it had.
+- **A map.** A played city now has a map. A small radar sits in the corner showing the streets and blocks around you
+  with the way you face at the top, and M opens the full map: the whole place with its blocks, parks and water, your
+  position, where to go next, each job's stops, the shops and the cars. V turns it between a straight-down plan, a
+  tilted miniature with the buildings standing up, and a view that follows you; + and - zoom. A key beside it says
+  what each icon means. The world pauses while it is open.
+- **The map belongs to the game's interface, not to itself.** It is a new part of the game interface system, so it
+  takes the game's theme like every other screen and has no colours of its own. What it shows is a setting on the
+  game's interface: whether there is a radar and which way up, which views it turns through and which opens first,
+  how far the radar sees, whether shops and cars are marked, and which icon stands for each kind of marker.
+- **Three new icons**: a car, a shop and a parcel, in every icon style the themes offer.

@@ -9,6 +9,8 @@
  *     colour?:    'world' | 'theme'     whose colours: the world's palette, solved by the colour theorist (the default
  *                 when the world has one), or the theme's own
  *     languages?: { <code>: { <key>: word } }, language?: '<code>'   the game's languages (mana-ui's words.test.js)
+ *     map?:       false | { corner?, views?, radius?, shops?, cars?, icons? }   a played city's map: its radar, the
+ *                 views it turns through, what it marks and with which pictograms (gameworld/city-map.js)
  *   }
  *
  * THE WORLD'S LOOK, absent a theme, is the art director's: the register the game's intent sets (a souls-like grave, a
@@ -27,9 +29,10 @@ import { manaUi } from '../../../mana-ui/kernel.js';
 import { THEME_CARDS, THEME_CARD_IDS, cardTheme } from './theme-cards/loader.js';
 import { solvePalette } from '../../color-theorist/solve.js';
 import { juiceOfGame, juiceSuggestion } from '../../gameworld/juice.js';
+import { readMapUi } from '../../gameworld/city-map.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const KEYS = ['theme', 'colour', 'languages', 'language'];
+const KEYS = ['theme', 'colour', 'languages', 'language', 'map'];
 
 // the art director's register by the game's intent (gameworld/intent.js GENRES): where its look starts
 export const INTENT_LOOKS = Object.freeze({
@@ -89,6 +92,8 @@ export function readUi(ui, where = 'ui') {
   if (ui.languages !== undefined || ui.language !== undefined) {
     try { manaUi.readSpec({ screens: {}, languages: ui.languages, language: ui.language }); } catch (e) { errors.push(`${where}: ${e.message}`); }
   }
+  // (the map: what a played city's shows and how it is seen, gameworld/city-map.js)
+  if (ui.map !== undefined) errors.push(...readMapUi(ui.map, `${where}.map`));
   return errors;
 }
 
