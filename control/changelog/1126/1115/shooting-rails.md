@@ -217,3 +217,9 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   them since the laws ask two ways onto high ground, and the mission's minds and its proof are told its stairs. A
   world's run proves the level; `design_game` offers it beside the first mission. `bounded` asks for a wall or a rail.
   The default yard holds twelve of fourteen laws; built, the headless gunner wins it in 78 s.
+- **A wave no longer stalls the industrial level's page.** A mission with floors sent its waves' minds with
+  `navLedges`, and a ledge is asked of the page's ground a cell at a time, a ray through the scene each: on a place
+  the size of the yard, with a few minds pathing at once, the page spent about a second a frame on it. A mission whose
+  upper floors are railed all round says `ledges: false` (the industrial level does) and its minds ask the ground
+  nothing. Measured in headless Chrome with every foe awake: script time over fifteen seconds from about 5.5 s to 0.3 s.
+

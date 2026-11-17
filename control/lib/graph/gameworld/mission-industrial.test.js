@@ -60,6 +60,10 @@ describe('an industrial level, planned', () => {
     expect(P.mission.frame.floors).toEqual([SEAT.floor, SEAT.floor + RISE]);
     expect(P.mission.frame.stairs).toHaveLength(2);
     expect(P.mission.floors[0].flights).toHaveLength(2);
+    // (its deck railed and its yard fenced, its minds cross the floors and ask the ground nothing: no ledge probes)
+    const sentTo = industrialManifest(G, P).entities.filter((e) => e.rule?.floors);
+    expect(sentTo.length).toBeGreaterThan(0);
+    expect(sentTo.every((e) => !e.rule.navLedges)).toBe(true);
     // (a walker in its place: parked, a mass of the design, and the yard one level)
     const W = industrialPlan(G, readIndustrial({ walker: 'siege-walker', weather: 'rain' }), { seed: 1 });
     expect(W.recipe.parked[0]).toMatchObject({ vehicle: 'siege-walker' });

@@ -190,11 +190,12 @@ export function missionCast(G, M, { refs = {}, hero = false, camera = null, quie
   const sent = new Set(M.sections.filter((S) => S.task.kind === 'hold').flatMap((S) => S.foes.map((f) => f.id)));
   // ON A MAP WITH FLOORS a sent wave crosses them: the match player's mind (it goes to where its foe is, by a ramp to
   // another floor and down one: `rule.floors`), its path kept to ground it can stand on (`navLedges`: round a well,
-  // along a gallery, never out over a drop). It keeps to ramps: a mind climbs no ladder, and reaches no floor over a floor
+  // along a gallery, never out over a drop; a mission whose upper floors are railed all round says `ledges: false`, and
+  // its minds ask the ground nothing: a probe a cell is a ray through the page, dear on a big place). It keeps to ramps: a mind climbs no ladder, and reaches no floor over a floor
   const floors = M.floors?.length ? M.floors : null;
   for (const e of entities) {
     if (!sent.has(e.id) || !e.rule?.mind) continue;
-    if (floors) e.rule = { ...e.rule, mind: { ...e.rule.mind, motivation: 'frag', perception: 'memory' }, floors: structuredClone(floors), navLedges: true };
+    if (floors) e.rule = { ...e.rule, mind: { ...e.rule.mind, motivation: 'frag', perception: 'memory' }, floors: structuredClone(floors), ...(M.ledges === false ? {} : { navLedges: true }) };
     else if (e.rule.mind.perception) { const { perception: _p, ...mind } = e.rule.mind; e.rule = { ...e.rule, mind }; }
   }
   // (a map's ladders: the runtime's climbs, arena-map/ground.js)

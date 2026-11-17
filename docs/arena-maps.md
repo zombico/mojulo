@@ -298,6 +298,11 @@ on the page where the design put it; played on the place's own colliders the gun
 met; a player walked up the west stair in headless Chrome stands on the deck and is stopped by its far rail. With a
 walker in the tower's place the yard holds thirteen.
 
+A mission with floors sends its waves' minds with ledge-keeping paths, and a ledge is asked of the page's ground a
+cell at a time, a ray through the scene each: dear on a place this size (the page stalled once a few minds pathed at
+once). The level's deck is railed and its yard fenced, so its mission says `ledges: false` and its minds ask nothing.
+A building's mission still keeps ledges (its galleries need them); the cost there is unmeasured.
+
 Said: the level's page is about forty megabytes and takes minutes to resolve, the land with it; the fence stops a
 mind's sight as a wall does (it is a collider), where the laws read it as a rail; the tower's steel is plain, flat
 colour, dark against a low sun; the land is cut deep where the yard meets its cliff; only buildings with a hall take a

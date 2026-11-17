@@ -92,6 +92,8 @@ export function industrialPlan(G, I, { spec = {}, seed = null } = {}) {
     const ways = [[cellAt(tower.i - TOWER.run - 1, tower.j), half(cellAt(tower.i - TOWER.run, tower.j), -1), cellAt(tower.i, tower.j)], [cellAt(e + TOWER.run + 1, n), half(cellAt(e + TOWER.run, n), 1), cellAt(e, n)]].map((w) => w.map(toW));
     const a = toW([deckMid[0] - TOWER.deck * CELL / 2, deckMid[1] - TOWER.deck * CELL / 2]), b = toW([deckMid[0] + TOWER.deck * CELL / 2, deckMid[1] + TOWER.deck * CELL / 2]);
     for (const way of ways) mission.frame.stairs.push({ z0: SEAT.floor, z1: up, way });
+    // (the deck is railed and the yard fenced: no ledge to keep a path from, so a mind's path asks the ground nothing)
+    mission.ledges = false;
     mission.floors = [{ area: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])], z: up, flights: ways.map((way) => ({ bottom: way[0].slice(), top: way.at(-1).slice(), way: way.map((q) => q.slice()) })) }];
   }
   const laws = [...phaseLaws(M0, design.map), ...design.laws.map((l) => ({ law: `map:${l.law}`, holds: l.holds, says: l.says }))];
