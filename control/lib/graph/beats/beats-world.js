@@ -287,6 +287,15 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     if (errors.length) throw new Error(`${where}:\n - ${errors.join('\n - ')}`);
     return v;
   };
+  // THE RUSH: the wind of the pilot's own speed (a swinger's, a diver's), silent standing and risen with how fast it
+  // goes: from `at` (10 m/s) to `full` (40), its loudness to `level` (0…1) and its band brighter. `true` takes the defaults.
+  if (audioSpec.rush) {
+    const ru = audioSpec.rush === true ? {} : audioSpec.rush;
+    if (typeof ru !== 'object' || Array.isArray(ru)) throw new Error('audio.rush is true or { level?, at?, full? }');
+    for (const k of Object.keys(ru)) if (!['level', 'at', 'full'].includes(k)) throw new Error(`audio.rush.${k} is not a rush setting (level, at, full)`);
+    for (const k of ['level', 'at', 'full']) if (ru[k] !== undefined && !(Number.isFinite(ru[k]) && ru[k] >= 0)) throw new Error(`audio.rush.${k} is a number, 0 or more`);
+    out.rush = { level: ru.level ?? 0.5, at: ru.at ?? 10, full: ru.full ?? 40 };
+  }
   if (audioSpec.thruster) {
     const th = audioSpec.thruster === true ? {} : audioSpec.thruster;
     out.thruster = { level: Number.isFinite(th.level) ? th.level : 0.5 };

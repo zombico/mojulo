@@ -437,7 +437,45 @@ ${thrHeld ? `if (__AUDIO.thruster) {
     __thr.tone.frequency.setTargetAtTime(720 + thrust * 620, now, 0.12);    // the whine rises 720 -> 1340 Hz
   })();
 }
-`}// JUMP audio (charge / release / land): the stop-and-charge GATHERS like a mech loading up — a low
+`}${audio.rush ? `
+// THE RUSH (audio.rush): the wind of the pilot's own speed. Seeded noise through a band that opens and brightens as it
+// goes faster, and a low body under it; silent standing still. Read-only: its speed is its travel between frames.
+{
+  let __rush = null, __rushAt = null, __rushT = 0, __rushK = 0;
+  const __rushBuild = () => {
+    const ctx = __beatsCtx, master = __beatsEng.master;
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 3), ctx.sampleRate), d = buf.getChannelData(0);
+    let s = 0x51ed270b >>> 0;
+    for (let i = 0; i < d.length; i++) { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; d[i] = (s / 0x7fffffff) - 1; }
+    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 420; bp.Q.value = 0.7;
+    const low = ctx.createBiquadFilter(); low.type = 'lowpass'; low.frequency.value = 180; low.Q.value = 0.4;
+    const lowG = ctx.createGain(); lowG.gain.value = 0.6;
+    const g = ctx.createGain(); g.gain.value = 0;
+    // a slow flutter on the band: gusts, never a steady hiss
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.37; const lfoG = ctx.createGain(); lfoG.gain.value = 90;
+    lfo.connect(lfoG); lfoG.connect(bp.frequency);
+    src.connect(bp); bp.connect(g); src.connect(low); low.connect(lowG); lowG.connect(g); g.connect(master);
+    src.start(); lfo.start();
+    return { g, bp };
+  };
+  (function __beatsRush(now) {
+    requestAnimationFrame(__beatsRush);
+    if (!__beatsEng) return;
+    if (!__rush) { try { __rush = __rushBuild(); } catch (e) { return; } }
+    const w = window.__mojCtrl && window.__mojCtrl.world, e = w && (w.byId[w.pilotId] || w.entities.find((x) => x.pilotable));
+    const dt = Math.min(0.25, Math.max(1e-3, ((now || 0) - __rushT) / 1000)); __rushT = now || 0;
+    let sp = 0;
+    if (e) { const p = e.transform.pos; if (__rushAt) sp = Math.min(200, Math.hypot(p[0] - __rushAt[0], p[1] - __rushAt[1], p[2] - __rushAt[2]) / dt); __rushAt = [p[0], p[1], p[2]]; }
+    const want = __beatsMuted ? 0 : Math.max(0, Math.min(1, (sp - __AUDIO.rush.at) / Math.max(1e-6, __AUDIO.rush.full - __AUDIO.rush.at)));
+    __rushK += (want - __rushK) * Math.min(1, dt * 4);
+    const t = __beatsCtx.currentTime;
+    __rush.g.gain.setTargetAtTime(__rushK * __rushK * __AUDIO.rush.level, t, 0.08);
+    __rush.bp.frequency.setTargetAtTime(420 + __rushK * 1500, t, 0.12);
+    window.__mojRush = __rushK;
+  })();
+}
+` : ''}// JUMP audio (charge / release / land): the stop-and-charge GATHERS like a mech loading up — a low
 // hydraulic SERVO STRAIN (a resonant sawtooth-through-lowpass motor, not a cartoon tone) with rhythmic
 // PISTON chuffs that speed up as it coils (e.chargeFrac) — then a piston-SLAM RELEASE on launch whose
 // weight scales with how long it was held (e.jumpPower), and a metal CLANG when the suit lands (scaled

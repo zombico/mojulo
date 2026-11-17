@@ -123,7 +123,22 @@ export function buildRulesBasic(E) {
       lkMix = lkTgt ? e.lockMix : 0;
       e._lkLook = lo.mix ?? 0.5; e._lkDist = lo.dist ?? 1.2;
     }
-    const dist = (r.dist ?? 6) * (lkMix ? 1 + (e._lkDist - 1) * lkMix : 1), height = r.height ?? 3, shoulder = r.shoulder ?? 0, lead = r.lead ?? 4, lookH = r.lookH ?? 1.5, lerp = r.lerp ?? 8;
+    // THE RUSH (opt-in `rush: true | { at, full, dist, fov, rate }`, a swinger's chase): the faster the target goes, the
+    // further back the chase stands and the wider it looks. Its speed is its own travel between steps; from `at` (12 m/s)
+    // to `full` (40) the distance opens to `dist` (1.45) times its own and the page's field of view to `fov` (1.28) times
+    // (`e.fovK`, read by the page), eased at `rate` (2.5 /s) so a cast or a landing never snaps it. Absent, nothing here
+    // runs and `fovK` is never set.
+    let rushD = 1;
+    if (r.rush) {
+      const ro = r.rush === true ? {} : r.rush, p = tgt.transform.pos, q = e._rushAt;
+      e._rushAt = [p[0], p[1], p[2]];
+      const sp = q && dt > 0 ? Math.min(200, Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) / dt) : 0;
+      const at = ro.at ?? 12, full = ro.full ?? 40, want = Math.max(0, Math.min(1, (sp - at) / Math.max(1e-6, full - at)));
+      e.rushK = (e.rushK || 0) + (want - (e.rushK || 0)) * smooth(ro.rate ?? 2.5, dt);
+      rushD = 1 + ((ro.dist ?? 1.45) - 1) * e.rushK;
+      e.fovK = 1 + ((ro.fov ?? 1.28) - 1) * e.rushK;
+    }
+    const dist = (r.dist ?? 6) * rushD * (lkMix ? 1 + (e._lkDist - 1) * lkMix : 1), height = r.height ?? 3, shoulder = r.shoulder ?? 0, lead = r.lead ?? 4, lookH = r.lookH ?? 1.5, lerp = r.lerp ?? 8;
     const wantFlip = r.reverse ? 1 : 0;
     if (e.flipMix == null) e.flipMix = wantFlip;   // start settled (no swing on load)
     e.flipMix += (wantFlip - e.flipMix) * smooth(r.flipRate ?? 3, dt);

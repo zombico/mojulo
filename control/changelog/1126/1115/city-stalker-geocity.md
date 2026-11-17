@@ -37,3 +37,9 @@
   from where the zip lands. Tapping the swing key twice in the air zips from mid-air.
 - **A dive.** Hold the crouch key in the air and the hero dives head first, falling much harder and faster. Cast a
   line out of a dive and the swing starts with that speed.
+- **A camera that feels the speed.** Behind a hero on a swing line the camera now pulls back and widens its view
+  as the hero goes faster, and eases back in as it slows, so speed can be seen as well as measured.
+- **Wind at speed.** A level with a swinging hero now has a wind that is silent standing still and rises and
+  brightens the faster the hero moves, in a swing, a dive or a fall.
+- **Either hand.** The swing line now leaves the hand on the side of the building it lands on, and the hands take
+  turns when the anchor is straight ahead. A left-hand swing and zip are the mirror of the right.

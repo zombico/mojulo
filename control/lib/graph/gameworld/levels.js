@@ -313,7 +313,9 @@ function withMoves(P, moves, grants = []) {
   const figures = moves ? Object.fromEntries(Object.entries(P.figures || {}).map(([k, f]) => [k, { ...f, ...(f.clips ? { clips: traversalStates(f.clips) } : {}), ...own(f) }])) : P.figures;
   // (each grant over the rule as it stands: a high jump the hero's own half as high again, a second jump at least one)
   const grant = (rule) => grants.reduce((r, m) => { const g = TRAVERSAL_MOVES[m.move ?? m].rule(r, m); return { ...r, ...g, ...(g.airJumps ? { airJumps: Math.max(r.airJumps ?? 0, g.airJumps) } : {}) }; }, rule);
-  return { ...P, figures, entities: P.entities.map((e, i) => (i === 0 ? { ...e, rule: grant({ ...e.rule, ...(moves ?? {}) }) } : e)) };
+  // (a hero on a line is chased at its speed: the follow camera's `rush`, rules-basic.js)
+  const camera = moves && moves.gear && P.camera && P.camera.rule === 'follow' ? { camera: { ...P.camera, rush: true } } : {};
+  return { ...P, ...camera, figures, entities: P.entities.map((e, i) => (i === 0 ? { ...e, rule: grant({ ...e.rule, ...(moves ?? {}) }) } : e)) };
 }
 // a hero runs and walks with Z held (player.js HERO_WALK_RUN); a mascot pilot runs on its own clips, and a hero with the
 // gear (the swing and zip) runs as it did
@@ -1015,7 +1017,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // (and its HUD wears the look: events.look, scene/channels/events.js)
   if (G.hud) pilotPart = { ...pilotPart, events: { ...(pilotPart.events ?? {}), look: G.hud } };
   // (the world's arsenal on its hero that strikes and its foes, arsenal.js: none written, the level as it was)
-  let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
+  let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio || (heroRef && heroMoves(G)?.gear) ? { audio: { ...(audio ?? {}), ...(heroRef && heroMoves(G)?.gear ? { rush: true } : {}) } } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
   // ONE HUD (game/hud-mana.js): a world whose screens are the game UI runtime's (its `ui`) has its levels' own rows
   // drawn there too, in the same look, by the page's HUD host; a course's HUD is already its own (course-hud.js)
   if (G.ui !== undefined && !manifest.manaHud) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null }) };

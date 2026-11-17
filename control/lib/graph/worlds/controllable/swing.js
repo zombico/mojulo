@@ -45,7 +45,11 @@
  *                opening upright; low or slow, it only rights itself. `e.tumble` carries both (the page turns the whole
  *                body about its middle); a new line, a wall or the ground ends it. `hang: 0, flips: 0` is the body upright
  *
- * Locomotion: swing, swing_release, zip (a figure without the clip plays its fallback: playscape/player.js
+ *   the hand     the line leaves the hand on the anchor's side of the body's way (`hand`: 'L' | 'R'), the other hand
+ *                where the anchor stands dead ahead and the last line was this one's: lines alternate down a street.
+ *                A left-hand line plays `swing_left` (the swing's mirror; a zip, `zip_left`)
+ *
+ * Locomotion: swing, swing_left, swing_release, zip, zip_left (a figure without the clip plays its fallback: playscape/player.js
  * TRAVERSAL_FALLBACK; a hero that starts with the line carries its own, player.js GEAR_CLIPS). `e.swinging` is { anchor, pivot, L, face, v } while a line is out (the page draws it from the hand
  * to the anchor).
  * Lengths in the world's units; the defaults are metres × the rule's `metre`, as the wall's.
@@ -73,6 +77,15 @@ export function buildSwing(E) {
   E.gearOf = gearOf;   // the gear's dials off a rule, for the reach (game/reach.js)
   const geared = (e) => !!(e.rule && e.rule.type === 'platform' && e.rule.gear && !e.rule.space && e.vel && !e.isCamera);
   const len = (v) => Math.hypot(v[0], v[1], v[2]);
+  // which hand casts to an anchor: the one on its side of the body's way; dead ahead (within a body's width), the hand
+  // the last line did not leave
+  const handFor = (e, q) => {
+    const t = e.transform, f = fwdXY(t.heading), side = -(q[0] - t.pos[0]) * f[1] + (q[1] - t.pos[1]) * f[0];
+    const w = (e.rule.collideRadius ?? 0.3) * 2;
+    const hand = side > w ? 'L' : side < -w ? 'R' : e._gearHand === 'R' ? 'L' : 'R';
+    e._gearHand = hand;
+    return hand;
+  };
   // the hand the line leaves from: high on the body
   const handOf = (e) => { const r = e.rule, H = r.collideHeight ?? 1.7 * (r.metre ?? 1), feet = e.transform.pos[2] - (r.eye ?? 0); return [e.transform.pos[0], e.transform.pos[1], feet + H * 0.9]; };
 
@@ -221,12 +234,12 @@ export function buildSwing(E) {
         e.swung = { end: 'zip' };
         if (r.wall) e.walling = { ax: Z.face.ax, s: Z.face.s, at: Z.face.at, hold: null, mantle: null, spent: true };
         t.heading = Math.atan2(-(Z.face.ax === 1 ? Z.face.s : 0), -(Z.face.ax === 0 ? Z.face.s : 0));
-        e.locomotion = 'zip'; e.moving = false;
+        e.locomotion = Z.hand === 'L' ? 'zip_left' : 'zip'; e.moving = false;
         return true;
       }
       t.pos = add(t.pos, scl(d, step / D));
       e.vel = [0, 0, 0]; e.dashVel = null; e.grounded = false; e.coyote = 1;
-      t.heading = Math.atan2(d[1], d[0]); e.locomotion = 'zip'; e.moving = true; e.gaitPhase = (e.gaitPhase || 0) + dt * 2;
+      t.heading = Math.atan2(d[1], d[0]); e.locomotion = Z.hand === 'L' ? 'zip_left' : 'zip'; e.moving = true; e.gaitPhase = (e.gaitPhase || 0) + dt * 2;
       return true;
     }
 
@@ -251,7 +264,7 @@ export function buildSwing(E) {
         // the zip: to the face, a body's radius off it
         const to = [A.q[0], A.q[1], A.q[2] - H * 0.9 + eye];
         to[A.face.ax] = A.face.at + A.face.s * R;
-        e.zipping = { to, face: A.face, anchor: A.q, top: A.top ?? null };
+        e.zipping = { to, face: A.face, anchor: A.q, top: A.top ?? null, hand: handFor(e, A.q) };
         e.swinging = null; e._gearTap = 0; e.diving = 0; upright();
         return true;
       }
@@ -270,7 +283,7 @@ export function buildSwing(E) {
       const v0 = scl(sub(t.pos, prev), 1 / Math.max(dt, 1e-6));
       // the line starts at the cast's length and is REELED to its own at `reel` (never a snap across the gap)
       // (how far it may stretch: its share of its length, and never so far that the arc's bottom meets the street)
-      e.swinging = { anchor: A.q, pivot, L: D, to: L, most: Math.max(L, Math.min(L * (1 + Math.max(0, G.stretch)), room - clear * 0.75)), face: A.face, v: [v0[0], v0[1], e.vel[2]], age: 0 };
+      e.swinging = { anchor: A.q, pivot, L: D, to: L, most: Math.max(L, Math.min(L * (1 + Math.max(0, G.stretch)), room - clear * 0.75)), face: A.face, v: [v0[0], v0[1], e.vel[2]], age: 0, hand: handFor(e, A.q) };
       e.diving = 0;
       e.launchedBy = null; e.launchLock = false;
     }
@@ -324,7 +337,7 @@ export function buildSwing(E) {
     if (Math.hypot(v[0], v[1]) > EPS) t.heading = Math.atan2(v[1], v[0]);
     e.vel = [0, 0, 0]; e.dashVel = null; e.grounded = false; e.coyote = 1; e.jumpBuf = 0;
     const arc = Math.atan2(d[0] * f[0] + d[1] * f[1], -d[2]);
-    e.locomotion = 'swing'; e.moving = true; e.gaitPhase = clamp(0.5 + arc / Math.PI, 0, 0.999);
+    e.locomotion = S.hand === 'L' ? 'swing_left' : 'swing'; e.moving = true; e.gaitPhase = clamp(0.5 + arc / Math.PI, 0, 0.999);
     // THE HANG: the body along its line (up toward the pivot), eased in over a quarter second as the line takes it (from
     // a somersault's angle where a line is cast in one); the turn about the body's left, so leaning back is negative
     if (G.hang > 0) {

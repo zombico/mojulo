@@ -57,6 +57,11 @@ describe('a geocity level', () => {
     // the gear's own clips (player.js GEAR_CLIPS): on the hero's mint, as its motion page's, and played by the figure
     // where the hero carries them; a hero without the line carries none
     expect(m.figures.hero.moves).toMatchObject(moveStates(['wall', 'swinger']));
+    // a hero on a line is chased at its speed and hears it: the follow camera's rush, the audio's
+    expect(m.camera).toMatchObject({ rule: 'follow', rush: true });
+    expect(m.audio).toMatchObject({ rush: true });
+    expect(Object.keys(GEAR_CLIPS)).toEqual(expect.arrayContaining(['swing_left', 'zip_left']));
+    expect(GEAR_CLIPS.swing_left.keys[0].armL.x).toBe(-GEAR_CLIPS.swing.keys[0].armR.x);
     const clipsOf = (world) => heroOrders(readGameworld(world)).motion?.args.patch.find((op) => op.path === '/hero/clips')?.value;
     expect(Object.keys(clipsOf(W))).toEqual(expect.arrayContaining([...Object.keys(GEAR_CLIPS), ...Object.keys(WALL_CLIPS)]));
     expect(clipsOf({ ...W, characters: { ...W.characters, hero: { ...W.characters.hero, actions: { none: true } } } })).toBeUndefined();

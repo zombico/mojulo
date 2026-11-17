@@ -818,7 +818,7 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
 const __gearLines = {}, __gearV = new THREE.Vector3();
 function __updateGearLines() {
   for (const e of __world.entities) {
-    const S = e.swinging || (e.zipping ? { anchor: e.zipping.anchor } : null);
+    const S = e.swinging || (e.zipping ? { anchor: e.zipping.anchor, hand: e.zipping.hand } : null);
     let ln = __gearLines[e.id];
     if (!S) { if (ln) ln.visible = false; continue; }
     if (!ln) {
@@ -830,12 +830,13 @@ function __updateGearLines() {
     a[0] = e.transform.pos[0]; a[1] = e.transform.pos[1]; a[2] = e.transform.pos[2] - (r.eye || 0) + H * 0.9;
     // (a body hung along its line is turned about its middle, swing.js e.tumble: the line leaves the hand where it is drawn)
     if (e.tumble && e.tumble.angle) { const ax = e.tumble.axis, sn = Math.sin(e.tumble.angle) * H * 0.48; a[0] += ax[1] * sn; a[1] -= ax[0] * sn; a[2] = e.transform.pos[2] - (r.eye || 0) + H * (0.42 + 0.48 * Math.cos(e.tumble.angle)); }
-    // a rigged body casts it from its HAND: the right hand's far end as the body is posed and turned this frame (the
-    // clip holds that arm up the line); a body with no such bone keeps the point over its head
+    // a rigged body casts it from its HAND: that hand's far end as the body is posed and turned this frame (the clip
+    // holds that arm up the line); a body with no such bone keeps the point over its head
     const bm = __bodies[e.id], rg = bm && bm.userData && bm.userData.rigFig;
     if (rg && rg.fig && rg.boneMeshes) {
-      if (rg.__gearHand === undefined) rg.__gearHand = rg.fig.bones.findIndex((b) => b.id === 'handR');
-      const hb = rg.__gearHand >= 0 ? rg.fig.bones[rg.__gearHand] : null, hm = hb ? rg.boneMeshes[rg.__gearHand] : null;
+      // (the hand the line is cast from: the one on the anchor's side, swing.js hand)
+      if (rg.__gearHand === undefined) rg.__gearHand = { R: rg.fig.bones.findIndex((b) => b.id === 'handR'), L: rg.fig.bones.findIndex((b) => b.id === 'handL') };
+      const hi = rg.__gearHand[S.hand === 'L' ? 'L' : 'R'], hb = hi >= 0 ? rg.fig.bones[hi] : null, hm = hb ? rg.boneMeshes[hi] : null;
       if (hm && hb.head) {
         const at = hb.tail || hb.head;
         bm.updateMatrixWorld();
@@ -2710,6 +2711,12 @@ function __driveCamera(dt) {
   }
   camera.position.set(px, py, pz);
   camera.lookAt(look[0], look[1], look[2]);
+  // (a chase that widens with its target's speed, rules-basic.js rush: the field of view its own times fovK)
+  if (c.fovK != null) {
+    if (camera.userData.fov0 == null) camera.userData.fov0 = camera.fov;
+    const fv = camera.userData.fov0 * c.fovK;
+    if (Math.abs(camera.fov - fv) > 0.02) { camera.fov = fv; camera.updateProjectionMatrix(); }
+  }
   if (c.roll) camera.rotateZ(-c.roll);   // a follow camera banking with its target (rollFollow): about the view axis
 }
 ${driveSurface ? `// surface hook (roads/surface.js): what a car's tyres are on, for the vehicle classes' rule

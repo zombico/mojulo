@@ -22,7 +22,9 @@ describe('the swinger: a line to a face above and ahead', () => {
     expect(Math.abs(a[1])).toBeCloseTo(6, 6);
     expect(a[0]).toBeGreaterThan(h.transform.pos[0]);
     expect(a[2]).toBeGreaterThan(hand(h)[2]);
-    expect(h.locomotion).toBe('swing');
+    // (the line leaves the hand on the anchor's side, and the swing is that hand's)
+    expect(h.locomotion).toBe(h.swinging.hand === 'L' ? 'swing_left' : 'swing');
+    expect(h.swinging.hand).toBe(a[1] > 0 ? 'L' : 'R');
   });
 
   it('swings under it: held to the line, clear of the street, carried on down the middle of the street', () => {
@@ -263,5 +265,26 @@ describe('the gear: the point launch, the air zip, the dive', () => {
     // out of a dive into a swing: the fall's speed is the swing's
     const into = (kneel) => { const X = make(CANYON, hero({}, [5, 0, 70])), x = X.w.byId.hero; step(X, { kneel }, 45); step(X, { boost: 1 }, 2); return x.swinging ? Math.hypot(...x.swinging.v) : 0; };
     expect(into(1)).toBeGreaterThan(into(0) + 5);
+  });
+});
+
+describe('the gear: the hand the line leaves', () => {
+  it('is the one on the anchor\'s side of the body\'s way; dead ahead, the hand the last line did not leave', () => {
+    // one tower to the north of a street running east: its face is on the hero's left
+    const left = step(make([CANYON[0]]), { boost: 1 });
+    expect(left.swinging.hand).toBe('L');
+    expect(left.locomotion).toBe('swing_left');
+    const right = step(make([CANYON[1]]), { boost: 1 });
+    expect(right.swinging.hand).toBe('R');
+    expect(right.locomotion).toBe('swing');
+    // a beam dead ahead and overhead: the hands take turns
+    const BEAM = [{ min: [10, -40, 30], max: [400, 40, 32] }], W = make(BEAM, hero({}, [5, 0, 12])), h = W.w.byId.hero, hands = [];
+    for (let i = 0; i < 400 && hands.length < 4; i++) {
+      const was = !!h.swinging;
+      step(W, { boost: i % 40 < 28 ? 1 : 0, forward: 1 });
+      if (h.swinging && !was) hands.push(h.swinging.hand);
+    }
+    expect(hands.length).toBeGreaterThanOrEqual(2);
+    for (let i = 1; i < hands.length; i++) expect(hands[i]).not.toBe(hands[i - 1]);
   });
 });

@@ -52,7 +52,15 @@ export const PLAYER_CLIPS = Object.freeze({
  *    swing_release  the phase the somersault's: laid out as the line is let go, tucked through the turn, opened wide to land
  *    dive           head first off a line: laid long, the arms swept back
  *    zip            pulled up a line to a wall: one arm leading, the other back, the legs trailing together */
-export const GEAR_CLIPS = Object.freeze({
+// a pose's mirror: left and right limbs changed over, what leans or looks to a side turned the other way
+const mirrorPose = (k) => Object.fromEntries(Object.entries(k).map(([key, v]) => {
+  const m = /^(arm|leg|elbow|knee|sh|hip|heel)([LR])$/.exec(key), name = m ? m[1] + (m[2] === 'L' ? 'R' : 'L') : key;
+  if (v && typeof v === 'object' && !Array.isArray(v) && 'x' in v) return [name, { ...v, x: -v.x }];
+  if (key === 'glance' && typeof v === 'number') return [name, -v];
+  return [name, v];
+}));
+const mirrorClip = (c) => ({ ...c, keys: c.keys.map(mirrorPose) });
+const GEAR_RIGHT = {
   swing: { keys: [
     { support: 'none', spine: { arch: 0.4 }, head: { pitch: -14 }, legL: { x: -0.06, y: -0.5, z: -0.86 }, kneeL: 30, legR: { x: 0.06, y: -0.32, z: -0.94 }, kneeR: 55, armR: { x: 0.12, y: 0.12, z: 0.98 }, elbowR: 6, armL: { x: -0.72, y: -0.4, z: -0.1 }, elbowL: 18 },
     { support: 'none', spine: { arch: 0.12 }, head: { pitch: -4 }, legL: { x: -0.05, y: 0.06, z: -0.99 }, kneeL: 6, legR: { x: 0.05, y: 0.12, z: -0.99 }, kneeR: 12, armR: { x: 0.1, y: 0.05, z: 0.99 }, elbowR: 4, armL: { x: -0.8, y: 0.05, z: -0.3 }, elbowL: 10 },
@@ -74,7 +82,10 @@ export const GEAR_CLIPS = Object.freeze({
     { support: 'none', spine: { arch: 0.22 }, head: { pitch: -12 }, legL: { x: -0.05, y: -0.3, z: -0.95 }, kneeL: 20, legR: { x: 0.05, y: -0.12, z: -0.99 }, kneeR: 45, armR: { x: 0.15, y: 0.45, z: 0.88 }, elbowR: 6, armL: { x: -0.35, y: -0.55, z: -0.75 }, elbowL: 15 },
     { support: 'none', spine: { arch: 0.26 }, head: { pitch: -14 }, legL: { x: -0.05, y: -0.34, z: -0.94 }, kneeL: 24, legR: { x: 0.05, y: -0.1, z: -0.99 }, kneeR: 50, armR: { x: 0.15, y: 0.42, z: 0.9 }, elbowR: 8, armL: { x: -0.35, y: -0.6, z: -0.72 }, elbowL: 18 },
   ] },
-});
+};
+/** The gear's clips: the right hand's as drawn, and `swing_left` and `zip_left` their mirrors (a line cast from the left
+ *  hand, swing.js `hand`). */
+export const GEAR_CLIPS = Object.freeze({ ...GEAR_RIGHT, swing_left: mirrorClip(GEAR_RIGHT.swing), zip_left: mirrorClip(GEAR_RIGHT.zip) });
 /** THE WALL'S CLIP (worlds/controllable/wall.js): what a hero that starts with the wall plays held still on a face,
  *  drawn facing the wall (the engine leans the whole body out from it): the feet planted on it knees high and apart, one
  *  hand on it above the head, the other arm let hang, the head turned over the shoulder and down to the street; two
@@ -163,8 +174,10 @@ export const TRAVERSAL_FALLBACK = Object.freeze({
   perch: ['kneel', 'squat', 'idle'],
   dive: ['leap'],
   swing: ['leap'],
+  swing_left: ['swing', 'leap'],
   swing_release: ['leap'],
   zip: ['leap'],
+  zip_left: ['zip', 'leap'],
 });
 /** A states map (runtime state → clip) with each traversal state it lacks played by its first fallback it has. */
 export function traversalStates(states) {
