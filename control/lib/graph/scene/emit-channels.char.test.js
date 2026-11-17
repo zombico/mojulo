@@ -886,3 +886,6 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // (the seventeen named above, with the candidate's own that carry it) and `mission`. Each page carries both sides' changes
 // at once: the candidate's (the switch cancel, the street, the sea) and this branch's (a climb held by jump, a path kept
 // to its ground, a flight's way, the mission's HUD); each is said above, and neither changes how a fixture plays.
+// Re-pinned 2026-11-17 (1115-shooting-rails: one radar): `mission` only. Its sheet puts the page's own round radar away
+// (the controllable runtime's, by the class the candidate gave it) wherever the shooter's HUD stands, so a shooter has
+// one radar, the HUD's scope. No other fixture moved.

@@ -96,6 +96,8 @@ describe('the mission on mana-ui', () => {
     // (its sheet leaves the level's own counters, lines and clock, where a mission's puts them away)
     expect(missionManaCss(C.theme, { plain: true })).not.toContain('.moj-w-counter');
     expect(missionManaCss(full.theme)).toContain('.moj-w-counter');
+    // (one radar: the page's own round one is put away wherever this HUD stands, mission or none)
+    for (const css of [missionManaCss(C.theme, { plain: true }), missionManaCss(full.theme)]) expect(css).toContain('.moj-c-radar{display:none');
     // (and it takes a game's own look as a mission does: another theme card, another sheet, the same parts)
     const other = Object.keys(THEME_CARDS).find((k) => k !== MISSION_LOOK);
     expect(missionManaCss(missionMana({ ...plain, theme: other }).theme, { plain: true })).not.toBe(missionManaCss(C.theme, { plain: true }));

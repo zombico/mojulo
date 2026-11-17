@@ -191,6 +191,8 @@ export function missionManaCss(theme, { plain = false } = {}) {
     // and they stand at the top right, clear of the scope
     plain ? '.moj-hud .moj-w-bar{display:none}.moj-hud-top-left{left:auto;right:12px;align-items:flex-end}' : '.moj-hud .moj-w-counter,.moj-hud .moj-w-text,.moj-hud .moj-w-bar,.moj-hud .moj-w-clock{display:none}',
     'div:has(>#__wepIcon){display:none!important}#wrap .hint{display:none}',
+    // (the page's own round radar, the controllable runtime's: this HUD draws the scope, so there is one radar, not two)
+    '.moj-c-radar{display:none!important}',
     // the damage ring, sized to the screen round the aim
     '#mana .mana-threat{width:min(46vh,46vw);height:min(46vh,46vw)}',
     // the radar: a round scope, the pilot its middle, its marks small, a foe in the harm's colour; the map: the plan under
@@ -350,11 +352,10 @@ export function missionManaRuntime(cfg) {
     if (!world()) { requestAnimationFrame(ready); return; }
     read();
     if (!cfg.plain) open('briefing');
-    // (with no mission the page keeps its own readouts: the two this HUD draws itself give way: the health's own row
-    // and the page's round radar)
+    // (with no mission the page keeps its own readouts: the health's own row gives way, since this HUD draws it; the
+    // page's round radar is put away by the sheet)
     else {
       for (const l of document.querySelectorAll('.moj-hud .moj-w .moj-lbl')) if (/^(hp|health)$/i.test(l.textContent.trim())) l.parentElement.style.display = 'none';
-      for (const c of document.querySelectorAll('#wrap > div > canvas')) if (c.parentElement.style.borderRadius === '50%') c.parentElement.style.display = 'none';
     }
   })();
   // for a headless driver

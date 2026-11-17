@@ -306,3 +306,6 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   climb, where a mission's phases stand, a fight building's loops), so it is not changed here.
   A bout's arena is grown on twelve cells a side at most: a bigger one is the same grid drawn larger, so its ways are
   wider (near 4 m at 44 m across, 4.7 m at 56 m) and it grows no slower. Long sightlines clear a lane end to end.
+- **One radar.** A page wearing the shooter's HUD showed two: the HUD's scope and the page's own round radar, which the
+  runtime draws whenever there are other bodies. The HUD's sheet now puts the page's own away on every such page (the
+  missions, a quick shooter's level, a deathmatch, the firing range), by the class the runtime gives it.
