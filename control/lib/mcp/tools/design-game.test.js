@@ -39,7 +39,7 @@ describe('design_game', () => {
     await designGameHandler({ world: { ...GATED, screen: 'phone' }, ref: 'gw-phone' });
     expect(stored('gw-phone').screen).toBe('phone');
     await designGameHandler({ world: GATED, ref: 'gw-phone' });   // re-sent whole, no screen in it
-    expect(stored('gw-phone').screen).toBe('screen');
+    expect(stored('gw-phone').screen).toBe('phone');
     await designGameHandler({ world: { ...GATED, screen: 'tablet' }, ref: 'gw-tablet' });
     expect(stored('gw-tablet').screen).toBe('tablet');
     await designGameHandler({ world: { ...GATED, screen: null }, ref: 'gw-none' });
