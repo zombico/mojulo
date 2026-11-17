@@ -16,9 +16,20 @@ said as its phase lands.
   body word): too real for the mascot's chibi. The herobot proportions under the anime form's bare head (a head cast's
   body tune undid them: the door's default, Shonen High, stretched the figure to 4.9 heads; bare it stands about four
   and a half, 1.75 m), on the game body at the current laws. Galaxy Boy's feel and the metroidvania genre read it, and
-  the platformer's rail writes it on a Galaxy Boy book (`platformerBody`); Jumping Giuseppe stays a mascot. Planned:
-  its armour from the wearable libraries, an arm cannon on the arms shelf, and the hero's height reaching the play (its
-  collision follows its body, and the side map's camera frames it).
+  the platformer's rail writes it on a Galaxy Boy book (`platformerBody`); Jumping Giuseppe stays a mascot.
+- **The toy hero robot dressed from the libraries.** Its helm a headgear card (`heroBotHelm`: a face window, cheek
+  guards curled under the jaw, ear domes, a raised V over the brow round a gem), worn in the robot's own armour groups so
+  the hero's palette paints it with the suit. Its body armour a fourth armour family beside plate, lamellar and hardsuit:
+  **toy** (`armor/toy.js`), moulded volumes whose read is girth contrast (balls on the shoulders, a barrel chest,
+  forearms swelling to a flared cuff, boots widening to half-egg soles, a brief, knee caps, a collar, and at ornament 2
+  the chest's plaques and the thigh rims), `mass` how far each swells past its limb; its seeded card `herobot`. The
+  hand-placed cast's nineteen shells, each now a library piece.
+- **The hero collides as tall as it stands.** Every level's hero collided as a 1.7 m person whatever its body. A hero's
+  stature is read off its plan alone, no mesh compiled (`layered.js` `heroStature`, the tiered heads), once it is made,
+  and each level's hero collides at it; a level ordered without it keeps 1.7 m, a mascot pilot its own capsule.
+- Planned: the arm cannon (the hand becomes the cannon while the buster is out), and the buster itself on the runtime:
+  its tap shots and its charge are the action lab's and not yet the game's (the feel's lowering reports the charge
+  lost).
 - **A level seen as an elevation.** The course map's sibling: a side-scroller's level as the camera's path through the
   along × up plane, a chain of zones (runs one screen thick, rooms that scroll both ways, full-screen corners), built
   only where the camera can see. Across develops, down is free or a commitment, up is earned.
