@@ -811,6 +811,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // hold, and the opener's count. A moveset that says no `swap` runs as before: the cycle mid-swing is dropped. Every
 // fixture that embeds the controllable runtime re-pinned with it.
 //
+// Re-pinned 2026-11-17 a third time (1117-cinematic-action-game: a cued shot keeps its caller's clock): `shoot-live`
+// only, the one fixture whose plan carries a cue. The shoot channel's cue block gains `cueAt` (a cued shot's seconds
+// said by who fired it: a ride's own clock, so its camera and its deck stay together when the world is slowed). Nobody
+// calls it in the fixture, so its cue runs on the page's clock from the moment it fires, as it did; only the block's
+// text moved. Every fixture without a cue holds byte for byte.
 // Re-pinned 2026-11-17 again (1116-rc merged into 1117-cinematic-action-game): the fixtures whose page inlines text
 // either side had moved since (the candidate: the camera's moves and shake, the sea, the street; this side: the mission
 // and damage-ring channels, the aim held's chase). The merged text is neither side's pin; no behaviour is claimed changed.

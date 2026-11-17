@@ -66,7 +66,9 @@ const start0 = r2(mid(R.lobby)); start0[2] += 0.05;
 //                         shoulder as the deck goes down, so the reveal is his (the cut turns far more than 30 degrees)
 //   the machine           low on the hall's floor before the walker, wide, pushing in: its size, and the push lands the turn
 // The first and the last are placed, not said: the framing words size a person, and a machine eight metres tall is not one.
-const RIDE = 10, A0 = r2([lift.b[0] + 2, lift.b[1] - 12, 1.3]), WK = r2([siege[0], siege[1], 5.4]);
+// (`--shot-scale k`: the plan's times stretched k times, for a headless check on a page that runs k times slower than
+// the clock the plan plays on; 1 in a build that is played)
+const SCALE = Number(opt('--shot-scale', 1)), RIDE = 10, A0 = r2([lift.b[0] + 2, lift.b[1] - 12, 1.3]), WK = r2([siege[0], siege[1], 5.4]);
 const shoot = { cameras: [{ id: 'lift', keys: [
   { t: 0, pos: A0, poi: { follow: 'entity:hero', offset: [0, 0, 1] }, lens: '24mm' },
   { t: 3.2, pos: A0, poi: { follow: 'entity:hero', offset: [0, 0, 1] }, lens: '24mm' },
@@ -74,7 +76,7 @@ const shoot = { cameras: [{ id: 'lift', keys: [
   { t: 6.8, frame: { on: 'entity:hero', size: 'ms', side: 'back', angle: 'eye', place: 'left' } },
   { t: 6.85, pos: r2([siege[0] - 12, siege[1] - 7, 1.1]), poi: WK, lens: '28mm' },
   { t: RIDE, pos: r2([siege[0] - 9, siege[1] - 5, 1.1]), poi: WK, lens: '28mm', ease: 'easy ease' },
-] }], shots: [{ name: 'lift-down', camera: 'lift', span: [0, RIDE], on: 'lift:down' }] };
+].map((k) => ({ ...k, t: k.t * SCALE })) }], shots: [{ name: 'lift-down', camera: 'lift', span: [0, RIDE * SCALE], on: 'lift:down' }] };
 const mission = {
   items: [
     { id: 'intel-manifest', name: M.items['intel-manifest'].reads, at: r2(mid(R['flight-ops'])) },

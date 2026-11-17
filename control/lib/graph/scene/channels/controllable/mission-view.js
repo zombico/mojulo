@@ -53,11 +53,15 @@ function __msThing(id, make) { let m = __MS.things[id]; if (!m) { m = __MS.thing
   const said = S && S.said && now - S.said.t < 4 ? S.said.text : '';
   __msSay.textContent = said; __msSay.style.display = said ? 'block' : 'none';
   const R = S && S.ride, u = R ? R.t / R.secs : 0;
+  // (the plan's own gizmos, its cameras and paths drawn as objects, are a director's view: never shown in play)
+  if (window.__mojShoot && !__MS.shot) for (const o of scene.children) if (o.renderOrder === 980 && o.visible) o.visible = false;
   // A RIDE'S SHOT: a carried ride to an end whose way names a cue plays that shot of the page's shoot plan, the view the
   // plan's through it (channels/shoot.js: cue, look), the bars drawn; as the ride ends the view is the game's again
   { const w = R && R.deck && R.rides ? (M.ways || []).find((x) => x.id === R.way) : null, cue = w && w.shot ? w.shot[R.end] : null, P = window.__mojShoot;
     if (cue && P && P.cue && !__MS.shot) { if (P.cue(cue)) { P.look(true); __MS.shot = R.way; for (const b of __msBars) b.style.height = '11vh'; } }
-    else if (__MS.shot && !(R && R.way === __MS.shot)) { if (P) P.look(false); __MS.shot = null; for (const b of __msBars) b.style.height = '0'; } }
+    else if (__MS.shot && !(R && R.way === __MS.shot)) { if (P) { if (P.cueAt) P.cueAt(false); P.look(false); } __MS.shot = null; for (const b of __msBars) b.style.height = '0'; }
+    // (the shot keeps the ride's clock, not the page's: the camera and the deck stay together when the world is slowed)
+    if (__MS.shot && R && P && P.cueAt) P.cueAt(R.t); }
   if (S && S.exit) __msFade.style.opacity = String(Math.min(1, (now - S.exit.t) / 0.5)); else
   if (R && R.deck) __msFade.style.opacity = '0'; else
   __msFade.style.opacity = R ? String(Math.max(0, Math.min(1, 1 - Math.abs(u - 0.5) * 4 + 1))) : '0';
