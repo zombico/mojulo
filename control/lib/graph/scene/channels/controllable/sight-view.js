@@ -7,7 +7,9 @@
 //               tall as the watcher's eye ends a ray; a lower one that stands over the pilot's eye hides the ground
 //               behind it, out to where the line clears its top, and the fan takes up again beyond. So the fan has a
 //               hole behind low cover, and the hole grows as the pilot crouches and again as it lies down
-//   its colour  calm while it sees no one; hot from the frame it sees the pilot and for a moment after
+//   its colour  calm while it sees no one; hot from the frame it sees the pilot and for a moment after; amber while it
+//               is alerted and does not see it (worlds/controllable/alert.js: it searches where it lost the pilot, or
+//               comes to where it was called), its fan the alerted one, wider and longer
 //   seen        a fresh sighting (the mind's own count, `sightings`) says so on the screen, with how many there have been
 // It reads the world and draws; it changes nothing the simulation reads.
 export function sightScript() {
@@ -76,8 +78,8 @@ function __svSpans(x, y, dx, dy, E, pe, feet, far, out) {
       P.setXYZ(s0 + 2 * k, t.pos[0] + dx * S[2], t.pos[1] + dy * S[2], z); P.setXYZ(s0 + 2 * k + 1, t.pos[0] + dx * S[3], t.pos[1] + dy * S[3], z);
     }
     P.needsUpdate = true;
-    const hot = e.lastSeen && now - e.lastSeen.t < 0.6;
-    F.m.material.color.setHex(hot ? 0xff5a4a : 0x6fd08c); F.m.material.opacity = hot ? 0.42 : 0.28;
+    const hot = e.lastSeen && now - e.lastSeen.t < 0.6, look = !hot && e.alert && e.alert.level !== 'calm';
+    F.m.material.color.setHex(hot ? 0xff5a4a : look ? 0xf2b33d : 0x6fd08c); F.m.material.opacity = hot ? 0.42 : look ? 0.34 : 0.28;
     if ((e.sightings || 0) > F.count) { fresh += (e.sightings || 0) - F.count; F.count = e.sightings || 0; }
   }
   if (fresh) { __SV.seen += fresh; __SV.at = now; __svEl.textContent = 'SEEN' + (__SV.seen > 1 ? ' ×' + __SV.seen : ''); __svEl.style.display = 'block'; window.__mojSeen = __SV.seen; }

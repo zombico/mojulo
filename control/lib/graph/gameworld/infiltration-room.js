@@ -22,7 +22,9 @@
  *   the takedown  the action behind a guard that has not seen the hero puts it down (worlds/controllable/takedown.js)
  *   the guard     a patrol across the far half of the yard, armed with a carbine it fires on what it sees, its round
  *                 between two posts; hurt by what it has not seen it turns there and looks, and fires on who it finds; what it sees is drawn on the
- *                 floor as a fan that stops at what stops its sight, hot while it sees the hero; a sighting is said
+ *                 floor as a fan that stops at what stops its sight, hot while it sees the hero; a sighting is said. The
+ *                 carbine is in its hands, carried low on its round; once it has seen the hero it keeps it (alert.js):
+ *                 shouldered, its sight wider and longer, where it lost the hero searched, the guards near it called
  *   the targets   a person's box at 5, 15 and 30 m of the start, one behind the corner; each stands again a moment
  *                 after it falls
  *
@@ -61,15 +63,23 @@ const TARGET_HP = 100;
 const GUARD = Object.freeze({ id: 'guard-1', entry: Object.freeze({ class: 'patrol', skin: Object.freeze({ people: 'human' }) }), at: Object.freeze([-8, 10.5, 0]), heading: 0 });
 // (its figure: a made one's on the stand-in's library and clips, drawn as it is, else the stand-in person)
 const guardFigure = (ref, cast) => { const { hero, ...rest } = dummyFigure(cast); return typeof ref === 'string' ? { ...rest, heroRef: ref } : { ...rest, hero }; };
-// (its CARBINE: what it sees it fires on, in short bursts from where it stands off, a round 8 of the hero's 100; it
+// (its CARBINE: what it sees it fires on, in bursts of three from where it stands off, a round 6 of the hero's 100; it
 // turns and shoots rather than closing to strike)
-const GUARD_CARBINE = Object.freeze({ fireClass: 'sight', auto: false, cooldown: 0.28, magazine: 30, reload: 2.2, damage: 8, impact: 1, range: 40, coreAngle: 1.5, eye: 1.4, round: SHOOT.rifle.round });
+const GUARD_CARBINE = Object.freeze({ fireClass: 'sight', auto: false, cooldown: 0.28, burst: 3, burstRof: 9, magazine: 30, reload: 2.2, damage: 6, impact: 1, range: 40, coreAngle: 1.5, eye: 1.4, round: SHOOT.rifle.round });
+// (the carbine as the arms library draws it: the view the hero's own kit carries, its parts and where each hand closes;
+// the guard carries it, its rounds are GUARD_CARBINE's)
+const CARBINE_VIEW = armsLoadout(['carbine'], SHOOT.rifle, { eye: GUARD_CARBINE.eye, hand: 'right' })[0].gunplay;
 const GUARD_TUNE = Object.freeze({ team: 'guards', rule: Object.freeze({ speed: 1.6, turnRate: 2.2, guardRadius: 14, sightShown: true, standoff: 9, burst: 0.5, pause: 1.1, meleeSeek: false,
   // (hurt by what it has not seen, it stops, turns to where the blow came from and looks: startle.js)
   // (and it hears: a shot across the yard, running feet close by)
   startle: Object.freeze({ hears: Object.freeze({}) }),
+  // (once it has seen the hero it keeps it: its sight wider and longer, where it lost it searched, the guards near it
+  // called, the carbine up before its first round: alert.js)
+  alert: Object.freeze({ cone: 1.3, range: 1.6, hold: 12, search: 6, pace: 1.8, leash: 2, raise: 0.45, call: 14 }),
+  // (the carbine in its hands, carried low on its round and shouldered once it has the hero: gunplay-view.js)
+  armHeld: true,
   // (the carbine its one slot, in place of the patrol's own blow: a body with a loadout fires what its slot carries)
-  loadout: Object.freeze([Object.freeze({ name: 'carbine', figure: GUARD.id, weapon: GUARD_CARBINE })]) }), weapon: GUARD_CARBINE, body: Object.freeze({ hittable: true, hp: TARGET_HP }) });
+  loadout: Object.freeze([Object.freeze({ name: 'carbine', figure: GUARD.id, weapon: GUARD_CARBINE, gunplay: CARBINE_VIEW })]) }), weapon: GUARD_CARBINE, body: Object.freeze({ hittable: true, hp: TARGET_HP }) });
 // (the box a hero's vault clip is solved for where the door is given none: the middle of the speed vault's band, about
 // half a metre; the yard's low walls are a metre, and the body is lifted by the rest: free-run.js `clipH`)
 const VAULT_CLIP_H = 0.5;

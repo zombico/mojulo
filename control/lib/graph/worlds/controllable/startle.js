@@ -29,6 +29,8 @@ export function buildStartle(E) {
   const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
   E.stepWorld = function stepWithStartle(state, input, dt, hooks) {
     const out = step(state, input, dt, hooks), now = state.time || 0;
+    // (a world with no watcher is stepped as the engine steps it: nothing written on its bodies)
+    if (!state.entities.some((e) => e.rule && e.rule.startle)) return out;
     // (the pilots' paces over the ground this step: what running is)
     const pilots = E.pilotsOf ? E.pilotsOf(state) : (state.pilotId && state.byId[state.pilotId] ? [state.byId[state.pilotId]] : []);
     for (const p of pilots) { const q = p.transform.pos; p.stPace = p.stAt && dt > 0 ? Math.hypot(q[0] - p.stAt[0], q[1] - p.stAt[1]) / dt : 0; p.stAt = [q[0], q[1]]; }
