@@ -1,13 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { COLOUR_DIRECTIONS, COLOUR_DIRECTION_IDS, directSpec, QUIET } from './directions.js';
+import { COLOUR_DIRECTIONS, COLOUR_DIRECTION_IDS, directSpec, QUIET, CARD_CHARACTER, cardPaletteSpec } from './directions.js';
+import { SWATCHES } from '../era/style/swatches.js';
 import { readPaletteSpec, solvePalette, PALETTE_SCRIPT_IDS } from './solve.js';
-import { lchOf, hexToRgb } from './oklab.js';
+import { lchOf, hexToRgb, rgbToHex } from './oklab.js';
 
 const SPEC = { seed: 9, key: 'high', heat: 0.4, activity: 0.3, scheme: 'complementary', hues: { ground: 118, accent: '#3a80d0' } };
 
 describe('the colour directions', () => {
   it('each moves a spec the theorist reads, and keeps the palette\'s own character: its seed, its key, its hues', () => {
-    for (const id of COLOUR_DIRECTION_IDS) {
+    // (the directions that move the palette it is given; one that reads a kit's card is below)
+    for (const id of COLOUR_DIRECTION_IDS.filter((x) => !COLOUR_DIRECTIONS[x].needs)) {
       const moved = directSpec(SPEC, id);
       expect(() => readPaletteSpec(moved, id), id).not.toThrow();
       for (const k of ['seed', 'key', 'heat', 'scheme', 'hues']) expect(moved[k], `${id} ${k}`).toEqual(SPEC[k]);
@@ -27,6 +29,25 @@ describe('the colour directions', () => {
     // a land already quieter stays as quiet as it was; taken twice, it is the same
     expect(directSpec({ ...SPEC, activity: -0.8 }, 'quiet-land').activity).toBe(-0.8);
     expect(directSpec(moved, 'quiet-land')).toEqual(moved);
+  });
+
+  it('a kit\'s card is given back as a palette the theorist solves to the card and can move; a kit with no row is left', () => {
+    const kit = Object.keys(CARD_CHARACTER)[0], card = cardPaletteSpec(kit), L = SWATCHES[kit].land, mid = (r) => rgbToHex(r[Math.floor(r.length / 2)]).toLowerCase();
+    const moved = directSpec(SPEC, 'kit-card', { kit });
+    expect(moved).toEqual({ seed: SPEC.seed, ...card });
+    expect(() => readPaletteSpec(moved, 'kit-card')).not.toThrow();
+    // (solved, each locked role's middle stop is the card's own, read from where the card keeps it)
+    const K = solvePalette(moved);
+    expect(K.roles.ground[2]).toBe(mid(L.grass));
+    expect(K.roles.sky[2]).toBe(mid(L.sky));
+    // (moved, it is the same palette somewhere else: the ground no longer the card's, and darker toward night)
+    const night = solvePalette({ ...moved, shift: { light: -0.5 } });
+    expect(night.roles.ground[2]).not.toBe(K.roles.ground[2]);
+    expect(lchOf(hexToRgb(night.roles.ground[2]))[0]).toBeLessThan(lchOf(hexToRgb(K.roles.ground[2]))[0]);
+    // (no kit, or one with no row: the spec as it was, so the direction is no option there)
+    expect(directSpec(SPEC, 'kit-card')).toEqual(SPEC);
+    expect(directSpec(SPEC, 'kit-card', { kit: 'no-such-kit' })).toEqual(SPEC);
+    expect(cardPaletteSpec('no-such-kit')).toBeNull();
   });
 
   it('a script is one the theorist knows, and says how many levels it travels across', () => {

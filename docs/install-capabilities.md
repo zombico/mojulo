@@ -10,7 +10,7 @@ There is a small, always-present **kernel** — "what mojulo *is*" — surrounde
 `installGroup` and is gatable, or declares none and is unconditional like the kernel. The groups are
 **creative** (the render / media / games stack — the flagship default, always installed) and **recall** (the
 embedding runtime behind vector `semantic_search`; opt-in, no pack of its own).
-Everything else — the Workflows packs (plan, research, stash, catalysts) — declares no group and is always
+Everything else — the Workflows packs (plan, stash, catalysts) — declares no group and is always
 present, as are the retired office packs (apps/daemons, connected services; registered, never listed since 3.1.0).
 The kernel alone can already mint a diagram.
 
@@ -26,7 +26,7 @@ index (SQLite FTS5, inside `better-sqlite3`; the embedding model is the opt-in *
 **diagram maker** (see the stub below). This is the floor every install carries; its measured size is in
 [tech-requirements.md](tech-requirements.md#package-size-and-disk-footprint).
 
-**Always-present packs (no `installGroup`).** The workflow plumbing: plan, research, stash and catalysts.
+**Always-present packs (no `installGroup`).** The workflow plumbing: plan, stash and catalysts (the research book is retired: registered, never listed).
 Pure code with no heavy optional deps to shed, so it ships in every install and is never gated. (The office
 packs, connected-service workflows and local apps/daemons, left the listed surface in 3.1.0: see above.)
 

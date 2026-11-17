@@ -345,6 +345,19 @@ export function heroClipSeconds(hero, clips) {
     return [name, isObj(door) && fin(door.seconds) ? door.seconds : Object.hasOwn(ANIME_CLIP_SECONDS, name) ? ANIME_CLIP_SECONDS[name] : Math.max(1, 0.5 * keys.length)];
   }));
 }
+/** Every clip's duration on a hero whose CLOTH FLOWS (hero-cloth.js, the hero laws 23), whatever its head: its cloth's
+ * swing is baked for one duration, so the World page and an export must play each clip over that same one. A clip that
+ * carries its seconds keeps them (`seconds`: the anime hero's, a gait's); a hero's own clip (keys) takes the anime hero's
+ * rule (heroClipSeconds); a compiled clip (a function: a swing, a ride, a stance) one second, as an export plays one. An
+ * act's clip keeps its own clock (its `act.seconds`), never stamped. → `{ <name>: seconds }` */
+export function clothClipSeconds(hero, clips, seconds = null) {
+  return Object.fromEntries(Object.entries(clips || {}).filter(([, c]) => !(typeof c === 'function' && c.act)).map(([name, c]) => {
+    if (seconds?.[name] > 0) return [name, seconds[name]];
+    if (typeof c === 'function') return [name, 1];
+    const door = hero?.clips && Object.hasOwn(hero.clips, name) ? hero.clips[name] : null;
+    return [name, isObj(door) && fin(door.seconds) ? door.seconds : Object.hasOwn(ANIME_CLIP_SECONDS, name) ? ANIME_CLIP_SECONDS[name] : Math.max(1, 0.5 * c.length)];
+  }));
+}
 /** Every clip's FACIAL TRACK as the door gave it: `{ <name>: [channels | null per key] }` over the recipe's clips — a door
  * key's `face` resolved as `hero.expression` is (anime-head resolveAnimeExpression: `{ blink, smile, open, brow }`),
  * null where a key carries none (the authored face holds) and for every key of the hero's own clips. */

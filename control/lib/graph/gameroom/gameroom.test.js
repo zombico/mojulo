@@ -15,7 +15,8 @@ describe('the room primitives', () => {
     for (const kind of Object.keys(PRIMITIVES)) {
       const p = { kind, id: kind, at: [0, 0, 0], rot: 0, h: kind === 'platform' ? 1.2 : undefined };
       const B = blocksOf(p);
-      expect(B.length).toBeGreaterThan(0);
+      // (a mark stands nothing: a rift)
+      expect(B.length > 0).toBe(!PRIMITIVES[kind].mark);
       expect(PRIMITIVES[kind].affords.length).toBeGreaterThan(0);
       const f = footprint(p);
       for (const b of B) { expect(b.x[0]).toBeGreaterThanOrEqual(f.x[0] - 1e-9); expect(b.y[0]).toBeGreaterThanOrEqual(f.y[0] - 1e-9); }
@@ -88,5 +89,74 @@ describe('the room laws', () => {
     expect(R.primitives.some((p) => p.kind === 'pillar')).toBe(true);
     expect(roomLaws(R, N).find((l) => l.law === 'camera').holds).toBe(false);
     expect(composeRoom(N).primitives.some((p) => p.kind === 'pillar')).toBe(false);
+  });
+});
+
+// A FIGHT (fight.js): what the kit asks, the place composed for it, its laws. One kit that asks (a template with a
+// launcher, a dash and a sidearm), one that asks less, chosen in code from the templates' kits.
+import { kitAsks } from './needs.js';
+import { FIGHT_KINDS, FIGHT_KIND_IDS, composeFight } from './fight.js';
+import { fightLaws, askedBy } from './laws.js';
+import { TEMPLATE_ARSENALS } from '../gameworld/combos.js';
+
+const movesOf = (id) => TEMPLATE_ARSENALS[id].weapons.flatMap((W) => Object.values(W.moves));
+const LAUNCHES = Object.keys(TEMPLATE_ARSENALS).find((id) => movesOf(id).some((m) => m.launch > 0));
+const GROUNDED = Object.keys(TEMPLATE_ARSENALS).find((id) => !movesOf(id).some((m) => m.launch > 0));
+
+describe('what the kit asks', () => {
+  it('each move asks something of the space and says why; a kit without the move asks nothing of it', () => {
+    const a = roomNeeds({ feel: LAUNCHES }).asks, g = roomNeeds({ feel: GROUNDED }).asks;
+    expect(a.air.headroom).toBeGreaterThan(1.8);
+    expect(a.ring.r).toBeGreaterThanOrEqual(3);
+    for (const ask of Object.values(a)) { expect(ask.by.length).toBeGreaterThan(0); expect(ask.why).toBeTruthy(); }
+    expect(g.air).toBeUndefined();
+    expect(g.ring).toBeTruthy();
+    // more foes, a wider ring
+    expect(kitAsks({ feel: LAUNCHES }, { foes: 8 }).ring.r).toBeGreaterThanOrEqual(kitAsks({ feel: LAUNCHES }, { foes: 1 }).ring.r);
+  });
+  it('a world that does not fight, and a shift, are asked nothing: the brief they had', () => {
+    expect(roomNeeds({ feel: CALM }).asks).toBeUndefined();
+    expect(roomNeeds({ quick: { goal: 'work' } }).asks).toBeUndefined();
+    expect(Object.keys(roomNeeds({ feel: CALM }))).not.toContain('asks');
+  });
+});
+
+describe('a fight', () => {
+  const N = roomNeeds({ feel: LAUNCHES });
+  it('is seeded, and every kind holds its laws on the kit that asks the most', () => {
+    for (const kind of FIGHT_KIND_IDS) {
+      const F = composeFight(N, { kind, seed: 3 });
+      expect(F, kind).toEqual(composeFight(N, { kind, seed: 3 }));
+      expect(fightLaws(F, N).filter((l) => !l.holds), kind).toEqual([]);
+      expect(F.anchors.ways.length).toBeGreaterThan(1);
+      expect(F.anchors.foes.length).toBeGreaterThan(0);
+    }
+    expect(() => composeFight(N, { kind: 'siege' })).toThrow(/no fight 'siege'/);
+  });
+  it('lays what its kind is for: rifts round a melee, perches and a lane in a gallery, a dais for a boss', () => {
+    const m = composeFight(N, { kind: 'melee' }), g = composeFight(N, { kind: 'gallery' }), b = composeFight(N, { kind: 'boss' }), d = composeFight(N, { kind: 'duel' });
+    expect(m.anchors.rifts.length).toBeGreaterThan(1);
+    expect(g.primitives.filter((p) => p.kind === 'perch').length).toBeGreaterThan(1);
+    expect(g.reserves.runUp.y[1] - g.reserves.runUp.y[0]).toBeGreaterThanOrEqual(N.asks['run-up'].length);
+    // a shooter stands on its perch, above the blade's reach
+    expect(g.anchors.foes.some((s) => s[2] >= N.asks.perch.h)).toBe(true);
+    expect(b.anchors.boss).toBeTruthy();
+    expect(b.reserves.ring.r).toBeGreaterThan(m.reserves.ring.r);
+    expect(d.size).toBeLessThan(m.size);
+    // a mark stands nothing
+    expect(blocksOf(m.primitives.find((p) => p.kind === 'rift'))).toEqual([]);
+  });
+  it('is advised, never refused: a crate in the ring, a wall before a rift, a way put back onto a block', () => {
+    const F = composeFight(N, { kind: 'melee' }), r = F.anchors.rifts[0], c = F.reserves.ring.at;
+    const mid = [(r.at[0] + c[0]) / 2, (r.at[1] + c[1]) / 2, 0], back = F.anchors.ways[1].back;
+    const L = fightLaws({ ...F, primitives: [...F.primitives, { kind: 'crate', id: 'x', at: c, rot: 0 }, { kind: 'cover-tall', id: 'w', at: mid, rot: 0 }, { kind: 'crate', id: 'y', at: back, rot: 0 }] }, N);
+    for (const law of ['ring', 'seen', 'put-back']) expect(L.find((l) => l.law === law).holds, law).toBe(false);
+    expect(fightLaws({ ...F, headroom: 2 }, N).find((l) => l.law === 'headroom').holds).toBe(false);
+  });
+  it('every ask of the kit is answered by some kind of fight, and one kind alone leaves some unanswered', () => {
+    const all = FIGHT_KIND_IDS.map((kind) => composeFight(N, { kind }));
+    expect(askedBy(all, N).holds).toBe(true);
+    expect(askedBy([composeFight(N, { kind: 'duel' })], N).holds).toBe(false);
+    for (const K of Object.values(FIGHT_KINDS)) expect(K.waves.length).toBeGreaterThan(0);
   });
 });

@@ -10,6 +10,7 @@ register (`gameworld/combos.js`, an arsenal's `art`), and its moveset's clips ar
 | `realistic` | the game type's own swing (the default): the realistic law, an economical arc, the elbow never over the head |
 | `inspired` | real technique performed for the camera: kenjutsu's and the long sword's chambers, a deep stance, a held finish |
 | `freestyle` | the anime sword: anything goes, the sword's weight and the stance's balance no law |
+| `wild` | a brawler with a blade: the freestyle's reach with none of its composure, nothing held, everything thrown |
 
 ## The study: what the realistic swing holds back
 
@@ -46,6 +47,13 @@ Each art is a style of the body layer (`SWING_STYLES.inspired`, `.freestyle`) an
 
 (Timing values are each segment's weight against the others; a move's own length and contact window stay the game's.)
 
+`wild` against `freestyle`, dial by dial: the wind-up and follow-through 2.5 and 2.3; the stance 2.5, standing
+taller (`crouch` +0.08) and staggered longer; the hips through the follow 118°, the back turned to the target; the
+weight thrown furthest (2.3); the off hand widest (3.0); the arm straightened 90 %; the gaze barely kept (40 %); the
+trunk's bend capped lower (14°), so a blade thrown that far stays off the floor. Its timing: the anticipation held
+0.4 (a normal cut), the cut 0.18, the finish held 0.9, under half the anime sword's. An art holds its cock and its
+finish at least a beat: the laws' floor, and the first tuning (no hold, a deeper bend) lost them.
+
 ## The laws each register keeps
 
 Every register, measured on the rig (`hero-swing-body.test.js`, "the sword arts"):
@@ -56,14 +64,32 @@ Every register, measured on the rig (`hero-swing-body.test.js`, "the sword arts"
 - the trunk's bend is capped (`bend`) so a deep blow's blade stays off the floor.
 
 `realistic` keeps the elbow under the shoulder line. `inspired` keeps a chamber's discipline: the elbow at most a
-forearm (25 cm) over it. `freestyle` keeps no elbow law.
+forearm (25 cm) over it. `freestyle` and `wild` keep no elbow law.
 
 ## Using one
 
 - An arsenal: `{ art: 'inspired', weapons: [...] }` (`readArsenal` refuses any other word). The templates' kits
-  (`gameworld/combos.js` `TEMPLATE_ARSENALS`) carry theirs: Fallen Angel's `freestyle`, Fable of Artesia's `inspired`.
+  (`gameworld/combos.js` `TEMPLATE_ARSENALS`) carry theirs: Fallen Angel's `freestyle`, Fable of Artesia's `inspired` (the worked example in `docs/examples/fallen-angel/` writes its own, `wild`).
   The practice room takes its kit's, `--art realistic | inspired | freestyle` over it.
 - A game: its `arsenal` key (`gameworld/arsenal.js`), a kit by name, `{ from: <kit>, art: 'realistic', … }` (a kit with
   edits), `'auto'` (the feel template's kit) or a whole arsenal, laid on every level's hero that strikes.
 - A new register is a style in `SWING_STYLES` with a `timing`, and its row in this table. Whether it reads as intended
   is the eyes gate: these are machine gates only.
+
+## What is carried
+
+The arsenal is what the game has; the loadout is what the hero carries of it (`gameworld/carried.js`):
+`loadout: { slots?: { melee }, start?: { melee: [weapon ids], sidearm? } }`. Two melee weapons at once unless it
+says otherwise, in the order the weapon switch steps through them, and the sidearm, or `false` for none. It is laid
+on every level's hero and in the game room's fights; the foes stay numbered by the whole kit. A world that writes
+none carries every weapon of its arsenal. Choosing the loadout at points in the game (before a level, at a rest,
+when a weapon is earned) is to come.
+
+## The switch
+
+`switch: 'between' | 'cancel'` on an arsenal says how the weapon is changed. `between` (unsaid) is between moves
+only: the press mid-swing is dropped. `cancel` (the stylish kit's) is the switch cancel: the press mid-swing is
+held to the move's switch point, which is its cancel, or the end of its blow for a move with none (a finisher).
+There the rest of the move is cut, with no rest and no cooldown, the next weapon is in hand, a press that was
+waiting opens that weapon's string at once, and the string's count carries on. So three cuts of the sword can end
+in the fist's hook, and a launcher's recovery can be cut into the other weapon's air string.

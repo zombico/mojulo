@@ -52,6 +52,10 @@ import { SHOOT, PERSON, shoulderOf } from './quick.js';
 import { HOLDER } from './mechanics.js';
 import { readScreen, screenPayload } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
+import { genreHero } from './hero-rows.js';
+import { movesetLegend } from './input-map.js';
+import { levelGrammar, mapPlaces } from './hud-grammar.js';
+import { rowInventory, bagStart } from './inventory.js';
 import { concernIds } from './concerns.js';
 import { rollOfLevel } from './roll-lower.js';
 import { obstacleStage, obstacleEnds } from './roll-course.js';
@@ -79,7 +83,7 @@ import { battleRoster, laidBattles, PARTY_SLICE, BAG_SLICE, BAG_START } from './
 import { mergeExtras, libraryFigure, fieldFigure, stand } from './stage-figures.js';
 import { standFoe, foePlacements } from './foes.js';
 import { readTheme } from '../../mana-ui/theme.js';
-import { armLevel, heroStrikes } from './arsenal.js';
+import { armLevel, heroStrikes, arsenalOfGame } from './arsenal.js';
 
 /** A sneak's guard: a guard in a person's skin (foes/classes/guard.js), and what the sneak plays it at: a watcher whose
  * sighting ends the run (the `unseen` mechanic reads its team), never fought, kept near its post. */
@@ -126,6 +130,7 @@ import { laidCasting, laidJoins } from './casting.js';
 import { readCourse, courseAt, coursePlan, courseLaws, lowerCourse } from './course.js';
 import { juiceOfGame } from './juice.js';
 import { tempoOfGame } from './tempo.js';
+import { styleMeterOfGame } from './style-meter.js';
 import { gradeOfGame } from './grade.js';
 import { readBuildingParked, parkIn, paintOfDress } from '../vehicle-registry/parked.js';
 import { roleOf } from '../era/stocking.js';
@@ -137,6 +142,8 @@ import { gridEnds } from '../level/grid-ends.js';
 const juiceOf = (G) => { const J = juiceOfGame(G); return J ? { fxStyle: J.fxStyle } : {}; };
 // the world's clock (tempo.js): the moments that slow or hold its live levels, on every level; none written, nothing laid
 const tempoOf = (G) => { const T = tempoOfGame(G); return T ? { tempo: T.tempo } : {}; };
+// the style meter (style-meter.js): how well the hero fights, on every level it strikes on; none written, nothing laid
+const meterOf = (G) => { const M = styleMeterOfGame(G); return M ? { styleMeter: M.styleMeter } : {}; };
 // the world's grade (grade.js): the look over every frame of its levels; none written, nothing laid
 const gradeOf = (G) => { const R = gradeOfGame(G); return R ? { grade: R.grade } : {}; };
 // the grade its people are played at (figure-grades.js): a game's levels play the PLAY grade, the cinematics pose theirs
@@ -168,15 +175,15 @@ export function gameStages(world) {
       const { zoned, ...glyphs } = R.glyphs, P = readGrid(glyphs.grid, 'glyphs').plan, order = [...P.route, ...Object.keys(P.segments).filter((S) => !P.route.includes(S))];
       const groups = Array.isArray(zoned) ? zoned : [], pageOf = (S) => groups.find((g) => g.includes(S)) ?? [S], pages = [];
       for (const S of order) { const g = pageOf(S); if (!pages.includes(g)) pages.push(g); }
-      pages.forEach((g, index) => { const zone = g.length > 1 ? g : g[0]; out.push({ level, node: g.join('+'), section: 'map', index, zone, manifest: { kind: 'map', level: { ...glyphs, zone } } }); });
+      // (a page is titled by its places' names, the plan's key: 'The village', 'The meadow road and the old ruins'; a
+      // place the key leaves unnamed, the page's letters as before)
+      const named = (g) => { const ns = g.map((S) => (glyphs.grid?.plan?.key ?? P.key)?.[S]?.name); if (!ns.every((x) => typeof x === 'string' && x)) return null; const t = ns.length > 1 ? `${ns.slice(0, -1).join(', ')} and ${ns[ns.length - 1]}` : ns[0]; return t[0].toUpperCase() + t.slice(1); };
+      pages.forEach((g, index) => { const zone = g.length > 1 ? g : g[0], label = named(g); out.push({ level, node: g.join('+'), section: 'map', index, zone, ...(label ? { label } : {}), manifest: { kind: 'map', level: { ...glyphs, zone } } }); });
       continue;
     }
     if (R.glyphs) { out.push({ level, node: 'map', section: 'map', index: 0, manifest: { kind: 'map', level: R.glyphs } }); continue; }
-    // a geocity level is one stage: the metro on its cube (geocity/scene.js), played from its streets and its roofs
-    if (R.geocity) {
-      out.push({ level, node: 'metro', section: 'geocity', index: 0, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...(R.geocity.hour !== undefined ? { hour: R.geocity.hour } : {}), ...(R.geocity.clouds !== undefined ? { clouds: R.geocity.clouds } : {}) } });
-      continue;
-    }
+    // a geocity level is one stage: the district on its cube (geocity/scene.js: an evocation), walked from its streets
+    if (R.geocity) { out.push({ level, node: 'district', section: 'geocity', index: 0, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...(R.geocity.hour !== undefined ? { hour: R.geocity.hour } : {}), ...(R.geocity.clouds !== undefined ? { clouds: R.geocity.clouds } : {}) } }); continue; }
     // a geotown level is one stage: the town on its cube (geotown/scene.js), walked from its streets
     if (R.geotown) {
       out.push({ level, node: 'town', section: 'geotown', index: 0, manifest: { kind: 'geocube', cube: R.geotown.cube, show: 'geotown', seed: R.seed, geotown: R.geotown.spec, ...(R.geotown.hour !== undefined ? { hour: R.geotown.hour } : {}), ...(R.geotown.enter?.length ? { enter: [...R.geotown.enter] } : {}) } });
@@ -547,7 +554,8 @@ function mapEnds(manifest) {
 // THE TOWN'S ENDS (a geotown level, geotown/scene.js): the hero set down at the start of the walk round its first block,
 // facing along it, its exit the far side of that walk; beats along the way every dozen metres; its ground the town's
 // ground faces (its streets, walks, yards, squares: never a roof), what stands on it its houses' and sites' boxes
-const TOWN_GROUND = new RegExp(`^geotown:(${GEOTOWN_SURFACES.filter((k) => k !== 'house').join('|')})$`);
+// (and a shop's floor, where the town's shops are walked into: `geotown.shops`)
+const TOWN_GROUND = new RegExp(`^geotown:(${[...GEOTOWN_SURFACES.filter((k) => k !== 'house'), 'floor'].join('|')})$`);
 function geotownEnds(manifest) {
   const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOTOWN_KEYS.includes(k))), P = assembleGeotownScene(own, {});
   const route = (P.route ?? []).map((p) => [p[0], p[1], p[2] ?? 0]);
@@ -564,39 +572,53 @@ function geotownEnds(manifest) {
   Object.defineProperty(out, 'surface', { value: ground, enumerable: false });
   Object.defineProperty(out, 'rocks', { value: () => null, enumerable: false });
   Object.defineProperty(out, 'colliders', { value: P.colliders ?? [], enumerable: false });
-  Object.defineProperty(out, 'townDoors', { value: [], enumerable: false });
+  // (the town's houses as its folk stand by them, folk-cast.js: each anchor's door `town-<use>-<n>` in the town's own
+  // order, the way it faces out; a shop walked into has its shop floor, where its keeper stands behind its counter
+  // facing its till. Its lots, the same houses in the same order, root its people: folk/folk.js)
+  const houses = (P.anchors ?? []).filter((a) => a.kind === 'house' && Array.isArray(a.at) && Array.isArray(a.N));
+  Object.defineProperty(out, 'townDoors', { value: houses.map((a, n) => ({ id: `town-${a.use}-${n + 1}`, use: a.use, at: a.at, N: a.N, enter: a.store ? 'walk' : null,
+    ...(a.store?.keeper ? { rooms: [{ id: 'shopfloor', box: a.store.inside, stand: { at: a.store.keeper.map(r3), face: a.store.till.map(r3) } }] } : {}) })), enumerable: false });
+  Object.defineProperty(out, 'townLots', { value: houses.map((a, n) => ({ route: 'geotown', side: a.row ?? 'row', s: n, use: a.use })), enumerable: false });
+  // (the tills of its shops walked into, geotown.shops: where an errand's trade had in a shop of that kind stands)
+  Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.store?.till).map((a) => ({ id: a.id.replace(/^house-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
   return out;
 }
 
-// THE METRO'S ENDS (a geocity level, geocity/scene.js): the hero set down at the start of the walk round the block the
-// metro is seen from (the seat's, or the evoked one), facing along it, its exit the far side of that walk; beats along
-// the way every dozen metres; its ground the city's street-level faces (its roads, walks, pads, parks and waterfront:
-// never a roof, a highway's deck or the water), what stands on it every mass a walker reaches, in its box
-const METRO_GROUND = /^geocity:(road|walk|bike|paving|court|pad|lot|planting|ground|site|park|deck|promenade|sand|quay)$/;
+// THE DISTRICT'S ENDS (a geocity level, geocity/scene.js: an evocation): the hero set down at the start of the walk its
+// metro lays (its evoked street's), facing along it, its exit the far side of that walk; beats along the way every dozen
+// metres; its ground the district's ground faces (its walks, roads, pads, courts, stoops and its open shops' floors:
+// never a roof), what stands on it its boxes; the tills of its shops walked into (geocity.shops)
+const CITY_GROUND = /^geocity:(walk|road|bike|crossing|ground|court|lot|pad|paving|site|park|field|yard|scrub|median|margin|planting|promenade|quay|sand|deck|stoop|floor|highway|platform)$/;
 function geocityEnds(manifest) {
-  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k))), P = assembleGeocityScene(own, {});
+  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), P = assembleGeocityScene(own, {});
   const route = (P.route ?? []).map((p) => [p[0], p[1], p[2] ?? 0]);
-  if (route.length < 2) throw new Error('levels: the metro lays no walk round a block to set the hero down on');
-  const ground = groundSampler(P.faces ?? [], METRO_GROUND), on = (p) => { const z = ground(p[0], p[1]); return [r3(p[0]), r3(p[1]), r3(z ?? p[2])]; };
+  if (route.length < 2) throw new Error('levels: the district lays no walk to set the hero down on');
+  const ground = groundSampler(P.faces ?? [], CITY_GROUND), on = (p) => { const z = ground(p[0], p[1]); return [r3(p[0]), r3(p[1]), r3(z ?? p[2])]; };
   const spawn = on(route[0]), far = route.reduce((m, p, i) => (Math.hypot(p[0] - spawn[0], p[1] - spawn[1]) > Math.hypot(route[m][0] - spawn[0], route[m][1] - spawn[1]) ? i : m), 0);
   const exit = on(route[far]), heading = r3(Math.atan2(route[1][1] - route[0][1], route[1][0] - route[0][0]));
   const beats = [];
   let last = route[0];
   for (const p of route.slice(1, far)) if (Math.hypot(p[0] - last[0], p[1] - last[1]) >= 12) { beats.push({ beat: 'along', at: on(p) }); last = p; }
-  const out = { spawn, heading, exit, exitFrom: 'the far side of the walk round its block', planar: true, beats, hazards: [], via: route.slice(0, far + 1).map((p) => [r3(p[0]), r3(p[1])]) };
+  const out = { spawn, heading, exit, exitFrom: 'the far side of the walk its street lays', planar: true, beats, hazards: [], via: route.slice(0, far + 1).map((p) => [r3(p[0]), r3(p[1])]) };
   Object.defineProperty(out, 'ground', { value: ground, enumerable: false });
   Object.defineProperty(out, 'surface', { value: ground, enumerable: false });
   Object.defineProperty(out, 'rocks', { value: () => null, enumerable: false });
   Object.defineProperty(out, 'colliders', { value: P.colliders ?? [], enumerable: false });
   Object.defineProperty(out, 'townDoors', { value: [], enumerable: false });
+  Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && a.store?.till).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
+  // (what it weighs: its faces, its boxes, its repeats' templates and instances; said by the level's audit and its book)
+  Object.defineProperty(out, 'weight', { value: { faces: (P.faces ?? []).length, colliders: (P.colliders ?? []).length, templates: (P.repeats ?? []).reduce((a, r) => a + r.template.length, 0), instances: (P.repeats ?? []).reduce((a, r) => a + r.transforms.length, 0), shops: P.geocity?.stores?.shops ?? 0 }, enumerable: false });
   return out;
 }
+// (what plays in a metro is the level's, layered over it by the page: never the district's own settings)
+const CITY_PLAY_KEYS = ['level', 'game', 'entities', 'camera', 'pilot', 'play', 'destruction', 'matter', 'scars', 'wind'];
 
 // THE TOWN'S DOORS: for each use the level opens (`enter`), the house of that use whose door stands nearest the walk the
 // hero is set down on, entered at its door into a scene of its own (interiorStage): its zone on the walk before the door,
 // where a walker coming back out stands a few steps out, facing away from it
 function geotownDoors(P, enter, route, ground, seed) {
-  const houses = (P.anchors ?? []).filter((a) => a.kind === 'house' && Array.isArray(a.at) && Array.isArray(a.N));
+  // (a shop walked into where it stands, geotown.shops, is no door to a scene of its own)
+  const houses = (P.anchors ?? []).filter((a) => a.kind === 'house' && Array.isArray(a.at) && Array.isArray(a.N) && !a.store);
   const off = (p) => { let m = Infinity; for (let i = 1; i < route.length; i++) { const a = route[i - 1], b = route[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)); m = Math.min(m, Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy)); } return m; };
   const taken = new Set(), doors = [];
   for (const use of enter) {
@@ -725,7 +747,7 @@ function withBookUi(G, play) {
 function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
-  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
+  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, sheathRef, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
   const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stage.section === 'obstacles' ? obstacleEnds(stage.manifest) : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
   // reads them: the field the ground was flattened for, a race's checkpoint spacing; cover stands after the goal's cast
@@ -772,7 +794,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   const X0 = extra ? extra(ends) : goalCast ? goalCast(ends) : null;
   const shoulder = !!heroRef && !look && (cam ?? 'third-person') === 'third-person' && !!(X0?.camera?.mouseLook || shotItem(G));
   const moveWords = stage.section === 'runner' ? 'A / D  change lane · S  slide' : lane ? 'A / D  run' : steered ? `W A S D  move${actionOrbit ? ' · mouse  look' : steered === 'orbit' ? ' · drag / right stick  look' : ''}` : top ? `W A S D  move${heroRef && !pilot && !heroMoves(G)?.gear ? ' · Z  walk' : ''}` : look || shoulder ? `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  step aside · mouse  look` : `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  turn`;
-  const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${heroRef && carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${heroRef && shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${legend ? ` · ${legend}` : ''}${look && X0?.pilot?.rule?.knife ? ' · V  knife' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
+  const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${heroRef && carriesStrike(G) ? ` · ${kitLegend(G) ?? STRIKE_LEGEND}` : ''}${heroRef && shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${legend ? ` · ${legend}` : ''}${look && X0?.pilot?.rule?.knife ? ' · V  knife' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   // (a runner's own goal is the run: a crash ends it, the score its result)
   const placed0 = goal ? goal(ends) : stage.section === 'runner' ? [{ kind: 'runner' }] : [...(ends.coins ? [{ kind: 'coins', pickups: ends.coins.map((c) => ({ id: c.id, at: c.at, radius: 1.1 })) }, { kind: 'score', var: 'coins', label: 'Coins', best: 'high', points: [] }] : []), { kind: 'reach-exit', at: ends.exit, ...(ends.exitHalf ? { half: ends.exitHalf } : { radius: 2.5 }), ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }];
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
@@ -1016,11 +1038,23 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   play = withBookUi(G, play);
   // (and its HUD wears the look: events.look, scene/channels/events.js)
   if (G.hud) pilotPart = { ...pilotPart, events: { ...(pilotPart.events ?? {}), look: G.hud } };
+  // (and the action-adventure's HUD where its genre's row asks: gameworld/hud-grammar.js; any other game, as it was)
+  // (its items and its bag, inventory.js: the quick item on its key, the bag on its own, carried level to level)
+  const inv = heroRef && !pilot ? rowInventory(G, game?.mechanics ?? []) : null;
+  if (inv) {
+    play = mergePlay(play, inv.play);
+    pilotPart = { ...pilotPart, events: { ...(pilotPart.events ?? {}), inputs: [...(pilotPart.events?.inputs ?? []), ...inv.inputs] } };
+    if (inv.mechanics.length) game.mechanics = [...game.mechanics, ...inv.mechanics];
+  }
+  const grammar = heroRef && !pilot ? levelGrammar(G, game?.mechanics ?? [], { places: stage.section === 'map' ? mapPlaces(stage.manifest?.level, stage.zone ?? null) : null, quick: inv?.quick ?? null, theme: interfaceLook(G).theme }) : null;
+  if (grammar) pilotPart = { ...pilotPart, events: { ...(pilotPart.events ?? {}), grammar } };
   // (the world's arsenal on its hero that strikes and its foes, arsenal.js: none written, the level as it was)
-  let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio || (heroRef && heroMoves(G)?.gear) ? { audio: { ...(audio ?? {}), ...(heroRef && heroMoves(G)?.gear ? { rush: true } : {}) } } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
+  let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio || (heroRef && heroMoves(G)?.gear) ? { audio: { ...(audio ?? {}), ...(heroRef && heroMoves(G)?.gear ? { rush: true } : {}) } } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
   // ONE HUD (game/hud-mana.js): a world whose screens are the game UI runtime's (its `ui`) has its levels' own rows
   // drawn there too, in the same look, by the page's HUD host; a course's HUD is already its own (course-hud.js)
-  if (G.ui !== undefined && !manifest.manaHud) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null }) };
+  // (a level with a HUD grammar, hud-grammar.js, has its HUD: its hearts, its compass and its actions stand in for the
+  // rows, so they are not drawn a second time)
+  if (G.ui !== undefined && !manifest.manaHud && !manifest.events?.grammar) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null }) };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
@@ -1382,17 +1416,24 @@ export const POSE_LAYERS = Object.freeze({
   ],
 });
 /** The SHEATHED HERO an action hero's world makes beside the equipped one (gameworld/runner.js `hero-sheathed`): its spec
- * with the right hand's blade on its back (polygonizer/hero-gear.js `back`: hilt up over the right shoulder), played out
+ * with the right hand's blade on its back (polygonizer/hero-gear.js `back`: hilt up over the right shoulder; at the
+ * hip where its genre's hero row says so), played out
  * of combat; null where the world has no action hero (the orbit and a blow) or the hand holds no blade. */
 export function sheathedSpec(G, spec) {
   const R = spec?.gear?.right, BLADES = ['dagger', 'sword', 'greatsword', 'knife'];
   if (G.camera !== 'orbit' || !carriesStrike(G) || !R || !BLADES.includes(R.item) || spec.gear.back) return null;
   const { right: _r, ...rest } = spec.gear, { gesture: _g, ...bare } = spec;
-  return { ...bare, gear: { ...rest, back: R } };
+  // (where it is worn: the back, or the slot its genre's hero row names: hero-rows.js `carry.sheath`)
+  const slot = genreHero(G)?.carry?.sheath ?? 'back';
+  if (spec.gear[slot]) return null;
+  return { ...bare, gear: { ...rest, [slot]: R } };
 }
 // AN ACTION HERO'S WALL (a hero that starts with `wall` or is granted it): walking into a wall, a house's or a rock's,
 // never climbs it; a jump at it takes hold (worlds/controllable/wall.js `ground: false`), as an open world's climb is a
 // choice and never a stumble. A city stalker's wall, taken from the ground, is its own
+// (a hero with an ARSENAL says its attacks, its sidearm, its specials and its guard, by the scheme's keys: input-map.js;
+// null for a world with none, whose hero has the one blow)
+const kitLegend = (G) => { const A = arsenalOfGame(G)?.arsenal; return A ? movesetLegend({ sidearm: A.ranged?.[0]?.name?.toLowerCase() ?? null }) : null; };
 export const actionWall = (rule) => (rule && rule.wall ? { wall: { ...(rule.wall === true ? {} : rule.wall), ground: false } } : {});
 function actionHero(entity, figures, sheathRef) {
   const fig = entity.body.figure, sheathed = sheathRef ? `${fig}-sheathed` : null;
@@ -1466,7 +1507,7 @@ function stageWays(stage, ends, plan) {
     const free = ends.beats.filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead' && !extra.some((_, j) => side[j] === b));
     const taken = new Set([...extra.map((_, j) => side[j]), ...(found.length ? [free[Math.floor(free.length / 2)]] : [])]);
     const spots = free.filter((b) => !taken.has(b)).map((b) => b.at);
-    mechanics.push(...layErrand(plan.errand, spots));
+    mechanics.push(...layErrand(plan.errand, spots, ends.tills ?? []));
   }
   return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })) };
 }
@@ -1507,6 +1548,8 @@ export function gameStore(world, book) {
     const bag = slices.findIndex((x) => x.name === BAG_SLICE), init = { items: { ...BAG_START } };
     if (bag < 0) slices.push({ name: BAG_SLICE, kind: 'inventory', init }); else slices[bag] = { ...slices[bag], init };
   }
+  // a genre hero's items (inventory.js): its bag carried from level to level, holding what a new game starts with
+  if (bagStart(G)) { const bag = slices.findIndex((x) => x.name === BAG_SLICE), init = { items: bagStart(G) }; if (bag < 0) slices.push({ name: BAG_SLICE, kind: 'inventory', init }); else slices[bag] = { ...slices[bag], init: { ...(slices[bag].init ?? {}), items: { ...(slices[bag].init?.items ?? {}), ...bagStart(G) } } }; }
   // the minigames' winnings (minigames.js): gold in a bag carried from level to level
   if (G.minigames && !slices.some((x) => x.name === BAG_SLICE)) slices.push({ name: BAG_SLICE, kind: 'inventory' });
   return { slices };
@@ -1683,7 +1726,7 @@ export function buildingEnds(stage, lowered = withBuildingLevel({ ...stage.manif
   return ends;
 }
 
-function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal = null, goalCast = null, extra = null, legend = null, story = null, carryFrom = null, party = null, castFigures = null } = {}) {
+function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, sheathRef = null, goal = null, goalCast = null, extra = null, legend = null, story = null, carryFrom = null, party = null, castFigures = null } = {}) {
   const name = title ?? `${G.name ?? G.id} · ${stage.level}`;
   let base = { ...stage.manifest, title: name, ...(mechanics?.play ? { play: mechanics.play } : {}) };
   const lowered = withBuildingLevel(base, ref), walker = lowered.entities[0];
@@ -1711,11 +1754,13 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   const feelOver = X?.pilot?.rule && G.feel ? feelRule(G.feel) : null;
   const piloted = (p) => (X?.pilot ? { ...p, ...X.pilot, rule: { ...p.rule, ...(X.pilot.rule ?? {}), ...(feelOver ?? {}) }, body: { ...p.body, ...(X.pilot.body ?? {}) } } : p);
   if (X?.play) base = { ...base, play: mergePlay(base.play, X.play) };
+  // (a level's tasks' pieces, tasks.js: the fights' pillars, perches, urns, standing in its rooms as the stage's props)
+  if (X?.props?.length) base = { ...base, props: [...(Array.isArray(base.props) ? base.props : []), ...X.props] };
   if (extra && X?.mechanics?.length) base = { ...base, level: { ...base.level, mechanics: [...(base.level?.mechanics ?? []), ...X.mechanics.filter((m) => !(base.level?.mechanics ?? []).some((x) => x.kind === m.kind && x.slice === m.slice))] } };
   if (!heroRef) {
     if (X?.entities?.length) base = { ...base, figures: { ...(base.figures ?? {}), ...X.figures }, entities: [piloted(walker), ...X.entities], camera: lowered.camera };
     if (X?.inputs?.length) base = { ...base, events: { ...(base.events ?? {}), inputs: [...(base.events?.inputs ?? []), ...X.inputs] } };
-    return { tool: 'create_sketch', args: { title: name, manifest: { ...base, ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf() } }, ends };
+    return { tool: 'create_sketch', args: { title: name, manifest: { ...base, ...juiceOf(G), ...tempoOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf() } }, ends };
   }
   // a hero with the wall or the line (actions.moves) plays it under its rooms' ceilings, laid as colliders (era/anchors.js)
   const moves = heroMoves(G);
@@ -1726,15 +1771,19 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   const cam = G.camera ?? null, top = cam === 'top-down';
   if (cam === 'side') throw new Error(`levels: a side camera runs a trail's lane, and '${stage.level}' is a building with none; play it top-down, fixed or third-person`);
   const controls = `${top ? `W A S D  move${!pilot && !moves?.gear ? ' · Z  walk' : ''}` : `${walkRun(pilot, moves?.gear ? 'F ' : '')} · A / D  turn`} · Space  jump${carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${movesLegend(moves)}${X?.legend ? ` · ${X.legend}` : ''}${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
-  const brule = { ...(top ? { move: 'world', moveYaw: OVERHEAD.yaw } : {}), ...(strikeWindow(G, null) ?? {}) };
+  // (AN ACTION HERO indoors, the orbit and a blow, as on a trail: it moves in the camera's frame under the orbit that
+  // locks on, and where the run made its sheathed twin its blade goes to its back and the fist is in its hands)
+  const actionOrbit = cam === 'orbit' && carriesStrike(G);
+  const brule = { ...(top ? { move: 'world', moveYaw: OVERHEAD.yaw } : actionOrbit ? { move: 'camera' } : {}), ...(strikeWindow(G, null) ?? {}) };
   const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls, ...(Object.keys(brule).length ? { rule: brule } : {}) }), moves, startingGrants(G));
   const inputs = [...(P.events?.inputs ?? []), ...(mechanics?.inputs ?? []), ...(X?.inputs ?? [])];
   const events = { ...(P.events || {}), ...(inputs.length > (P.events?.inputs?.length ?? 0) ? { inputs } : {}) };
   const A = armedPilot(G, { ...P.entities[0], transform: { pos: cx ? spawn : steppedIn(plan, spawn, heading), heading } }, cam);
-  const camera = top ? { rule: 'overhead', target: 'hero', ...OVERHEAD } : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) } : A.camera ?? partyChase(G, P.camera);
-  const pilot0 = { figures: X?.figures ? { ...P.figures, ...X.figures } : P.figures, entities: [piloted(A.entity), ...(X?.entities ?? [])], camera, events };
+  const camera = top ? { rule: 'overhead', target: 'hero', ...OVERHEAD } : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) } : actionOrbit ? { ...P.camera, steer: 'orbit', ...ACTION_ORBIT } : A.camera ?? partyChase(G, P.camera);
+  const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef) : null, figs0 = fighter ? fighter.figures : P.figures;
+  const pilot0 = { figures: X?.figures ? { ...figs0, ...X.figures } : figs0, entities: [piloted(fighter ? fighter.entity : A.entity), ...(X?.entities ?? [])], camera, events, ...(actionOrbit ? { lock: true } : {}) };
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's
   const play0 = base.play ?? null, { pilotPart, play } = storyPart(G, stage, ends, null, pilot0, play0, { story, carryFrom, party, castFigures });
-  const manifest = armLevel(G, { ...base, ...pilotPart, ...(play !== play0 ? { play: withBookUi(G, play) } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf() });
+  const manifest = armLevel(G, { ...base, ...pilotPart, ...(play !== play0 ? { play: withBookUi(G, play) } : {}), ...juiceOf(G), ...tempoOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf() });
   return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }

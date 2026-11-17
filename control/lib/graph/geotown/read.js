@@ -47,6 +47,8 @@
  *                                                                   // each off it behind its apron
  *     blocks?:  { '<A1>': { use?: <segment type>, built?: false, access? } },   // a block by hand, on the grid's board
  *     margin?:  metres of the land drawn round the town, its border (0–120, 12)
+ *     shops?:   true | { cards?: [a seeded store card's id…], near?: metres },   // its shops walked into, each a store
+ *                                                                   // from a card, its inside drawn near the camera only
  *   }
  *
  *   EVOKES            { <level>: { read } | null (metro: to scale) }
@@ -55,11 +57,12 @@
  *   readGeotown(spec) → { evoke, pattern: { id, streetscape, …P }, grid, cells: [[type…] south to north], mains: [line id…], hills:
  *                         { height, span, from } | null, blocks, margin }
  */
+import { readEnter } from '../retail/store-enter.js';
 import { PATTERNS, PATTERN_IDS, DEFAULT_PATTERN, SEGMENTS, SEGMENT_IDS, SEGMENT_LETTERS, STREETSCAPE_SETTINGS, GATE_SHARES, PARKING_SIDES, GATE_KINDS } from './pattern.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const no = (msg) => { throw new Error(`geotown: ${msg}`); };
-const KEYS = ['evoke', 'segment', 'neighbourhood', 'pattern', 'streetscape', 'grid', 'hills', 'blocks', 'margin', 'profile', 'access', 'slope'];
+const KEYS = ['evoke', 'segment', 'neighbourhood', 'pattern', 'streetscape', 'grid', 'hills', 'blocks', 'margin', 'profile', 'access', 'slope', 'shops'];
 const SIDES = Object.freeze(['n', 'e', 's', 'w']);
 // a houses block's ACCESS (pattern.js `access`): how its households reach their cars
 export const ACCESS_IDS = Object.freeze(['none', 'lane', 'mutual', 'compact', 'alley']);
@@ -271,5 +274,8 @@ export function readGeotown(spec = {}) {
     slope = { ...S, ...(S.streets ? { streets: { ...S.streets } } : {}) };
     if (slope.streets && !profile) profile = {};
   }
-  return { evoke, pattern, grid, cells, mains, majors, bikes, hills, blocks, margin, ...(profile ? { profile } : {}), ...(spec.access !== undefined ? { access: spec.access } : {}), ...(slope ? { slope } : {}) };
+  // (its shops walked into, retail/store-slot.js: each shop of a row a store from a card, entered by its own door)
+  // (`shops`, not `enter`: a game's level keeps `enter` for the uses whose doors open on a scene of their own)
+  const shops = readEnter(spec.shops, no);
+  return { evoke, pattern, grid, cells, mains, majors, bikes, hills, blocks, margin, ...(profile ? { profile } : {}), ...(spec.access !== undefined ? { access: spec.access } : {}), ...(slope ? { slope } : {}), ...(shops ? { shops } : {}) };
 }

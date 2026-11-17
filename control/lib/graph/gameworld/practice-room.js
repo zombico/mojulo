@@ -26,6 +26,7 @@
 import { POLES, STAGES } from './feel/cards.js';
 import { readFeel, feelRule } from './feel/lower.js';
 import { arsenalOfGame, armLevel, heroStrikes } from './arsenal.js';
+import { variesHits, MOVE_SOUND_WORDS } from './sound-sheet.js';
 import { arsenalFor, BASIC_ARSENAL } from './combos.js';
 import { standFoe, bestiaryOf } from './foes.js';
 import { FIGURE_LIBRARY } from './stage-figures.js';
@@ -90,12 +91,10 @@ export function floorOf(S) {
 // THE SOUNDS: the SFX shelf's by the words people say (sfx-shelf/resolve.js), each a cue, the moveset's events wired to
 // them (audio.moves, beats-world.js): a blade's cuts and its blow, the fist's, the finisher's knockout, the guard's block,
 // parry and break, the sidearm, the weapon cycle, the foe's swing and its fall, a blow taken; steps, the dodge, the jump
-const SOUND_WORDS = Object.freeze({ 'blade-light': 'blade-swing', 'blade-heavy': 'blunt-swing', 'fist-swing': 'swing', 'blade-hit': 'blade-hit', 'finisher-hit': 'knockout-blow',
-  punch: 'punch', uppercut: 'uppercut', block: 'block', parry: 'blade-clash', 'guard-break': 'wood-break', 'bow-draw': 'bow-draw', 'bow-shot': 'bow-shot',
-  'arrow-hit': 'arrow-target', felled: 'down', cycle: 'weapon-switch', 'foe-swing': 'blade-swing', hurt: 'flesh-impact' });
+const SOUND_WORDS = MOVE_SOUND_WORDS;
 // (a blade's swing is a swish; the slash itself sounds only when it connects, from its cut on, laid over the blow's hit)
 const SLASHES = Object.freeze({ 'blade-hit': 'katana-swing', 'finisher-hit': 'katana-heavy-swing' });
-export function roomAudio(arsenal, style = 'realistic') {
+export function roomAudio(arsenal, style = 'realistic', { vary = false } = {}) {
   if (style === 'none') return null;
   const soundOf = (word) => { const v = sfxSound(word, { style }); return v && v.gestures ? v.gestures : null; };
   const fromCut = (g) => { const kept = g.filter((x) => (x.at ?? 0) >= 0.05); if (!kept.length) return g; const t0 = Math.min(...kept.map((x) => x.at)); return kept.map((x) => ({ ...x, at: Math.round((x.at - t0) * 1e4) / 1e4 })); };
@@ -106,10 +105,38 @@ export function roomAudio(arsenal, style = 'realistic') {
   const swing = Object.fromEntries(arsenal.weapons.map((W) => [W.id, blade(W) ? clean({ light: has('blade-light'), heavy: has('blade-heavy'), finisher: has('blade-heavy') }) : clean({ light: has('fist-swing') })]));
   const hit = Object.fromEntries(arsenal.weapons.map((W) => [W.id, blade(W) ? clean({ light: has('blade-hit'), heavy: has('blade-hit'), finisher: has('finisher-hit') }) : clean({ light: has('punch'), heavy: has('uppercut'), finisher: has('finisher-hit') })]));
   const step = soundOf('step-concrete'), jump = soundOf('jump'), land = soundOf('land'), dodge = soundOf('dodge');
-  return { sfx: { cues, ...(style === 'realistic' ? { mix: { space: 'interior' } } : {}) },
+  return { sfx: { cues, ...(vary ? { vary: true } : {}), ...(style === 'realistic' ? { mix: { space: 'interior' } } : {}) },
     ...(step ? { footsteps: clean({ step, jump: jump ?? undefined, land: land ?? undefined }) } : {}), ...(dodge ? { dodge } : {}),
     moves: clean({ swing, hit, block: has('block'), parry: has('parry'), break: has('guard-break'), draw: has('bow-draw'), loose: has('bow-shot'), arrow: has('arrow-hit'),
       felled: has('felled'), cycle: has('cycle'), foeSwing: has('foe-swing'), hurt: has('hurt') }) };
+}
+
+/**
+ * THE ROOM'S HERO, as a level's action hero: the game's own (its sketch, and the sheathed twin the run makes an action
+ * hero), or a stand-in on the template's body with the world's blade (a sword where it names none) in its right hand and
+ * on its back out of a fight; on the feel's rule, struck with as a held blade strikes. The action room's, and a fight's
+ * in the game room (game-room.js).
+ *   roomHero(G, { refs?, cast?, body?, pos, heading, title? }) → { P, figures, heroE, own }
+ */
+export function roomHero(G, { refs = {}, cast = 'male', body = null, pos, heading, title = 'practice room' } = {}) {
+  const held = (G.characters?.hero?.adornment?.items ?? []).find((it) => it.slot === 'right' && (it.serves ?? []).includes('strike'))?.build?.item;
+  const blade = BLADES.includes(held) ? held : 'sword';
+  const own = typeof refs.hero === 'string' && heroStrikes(G);
+  const standIn = { cast, ...(body ?? {}), gear: { right: { item: blade } } };
+  const rule0 = { ...feelRule(G.feel), move: 'camera' };
+  const rule = Array.isArray(rule0.strikeContact) ? rule0 : { ...rule0, strikeContact: [...HELD_CONTACT] };
+  // (the hero's figure as a level's: on the library's clips; a stand-in the hero door's spec in the stored hero's place, as
+  // the hero door draws one, its blade in hand, and on its back for the sheathed twin)
+  const P = playerWorld({ heroRef: own ? refs.hero : 'stand-in', id: 'hero', title, controls: ROOM_LEGEND, rule });
+  const fig = 'hero', { heroRef: _r, ...lib } = P.figures[fig], clipped = { ...lib, clips: { ...lib.clips, guard: 'walk' } };
+  const drawnFig = own ? { ...clipped, heroRef: refs.hero } : { ...clipped, hero: standIn };
+  const sheathFig = own ? (typeof refs.sheathed === 'string' ? { ...clipped, heroRef: refs.sheathed } : null) : { ...clipped, hero: { cast, ...(body ?? {}), gear: { back: { item: blade } } } };
+  const figures = { [fig]: drawnFig, ...(sheathFig ? { [`${fig}-sheathed`]: sheathFig } : {}) };
+  const e0 = P.entities[0];
+  const heroE = { ...e0, body: { ...e0.body, ...(sheathFig ? { figure: `${fig}-sheathed` } : {}), layers: POSE_LAYERS },
+    rule: { ...e0.rule, ...actionWall(e0.rule), combat: { ...COMBAT, ...(sheathFig ? { drawn: fig, sheathed: `${fig}-sheathed` } : {}) } },
+    transform: { pos, heading } };
+  return { P, figures, heroE, own };
 }
 
 /** The arsenal the room plays: the world's, its feel template's kit, or the basic one. */
@@ -128,28 +155,10 @@ export function practiceRoom(G, { refs = {}, cast = 'male', pack = 1, sound = 'r
   const S = STAGES[P0.stage] && Array.isArray(STAGES[P0.stage].blocks) ? STAGES[P0.stage] : RING, stage = S === RING ? 'ring' : P0.stage;
   const { arsenal, kit, from } = given ? { arsenal: given, kit: null, from: 'given' } : roomArsenal(G);
 
-  // THE HERO: the game's own (its sketch, and the sheathed twin the run makes an action hero), or a stand-in on the
-  // template's body with the world's blade (a sword where it names none) in its right hand and on its back out of a fight
-  const held = (G.characters?.hero?.adornment?.items ?? []).find((it) => it.slot === 'right' && (it.serves ?? []).includes('strike'))?.build?.item;
-  const blade = BLADES.includes(held) ? held : 'sword';
-  const own = typeof refs.hero === 'string' && heroStrikes(G);
-  const standIn = { cast, ...(body ?? {}), gear: { right: { item: blade } } };
-  const rule0 = { ...feelRule(G.feel), move: 'camera' };
-  const rule = Array.isArray(rule0.strikeContact) ? rule0 : { ...rule0, strikeContact: [...HELD_CONTACT] };
-  // (the hero's figure as a level's: on the library's clips; a stand-in the hero door's spec in the stored hero's place, as
-  // the hero door draws one, its blade in hand, and on its back for the sheathed twin)
-  const P = playerWorld({ heroRef: own ? refs.hero : 'stand-in', id: 'hero', title: 'practice room', controls: ROOM_LEGEND, rule });
-  const fig = 'hero', { heroRef: _r, ...lib } = P.figures[fig], clipped = { ...lib, clips: { ...lib.clips, guard: 'walk' } };
-  const drawnFig = own ? { ...clipped, heroRef: refs.hero } : { ...clipped, hero: standIn };
-  const sheathFig = own ? (typeof refs.sheathed === 'string' ? { ...clipped, heroRef: refs.sheathed } : null) : { ...clipped, hero: { cast, ...(body ?? {}), gear: { back: { item: blade } } } };
-  const figures = { [fig]: drawnFig, ...(sheathFig ? { [`${fig}-sheathed`]: sheathFig } : {}) };
-  // (the hero starts a step out of reach of the foe, on the line from the stage's own start to its dummy: a lunge or two in)
+  // THE HERO (roomHero): a step out of reach of the foe, on the line from the stage's own start to its dummy: a lunge or two in
   const [sx, sy] = S.hero, [dx, dy] = S.dummy, heading = Math.atan2(dy - sy, dx - sx);
   const hx = r3(dx - START * Math.cos(heading)), hy = r3(dy - START * Math.sin(heading));
-  const e0 = P.entities[0];
-  const heroE = { ...e0, body: { ...e0.body, ...(sheathFig ? { figure: `${fig}-sheathed` } : {}), layers: POSE_LAYERS },
-    rule: { ...e0.rule, ...actionWall(e0.rule), combat: { ...COMBAT, ...(sheathFig ? { drawn: fig, sheathed: `${fig}-sheathed` } : {}) } },
-    transform: { pos: [hx, hy, 0], heading: r3(heading) } };
+  const { P, figures, heroE, own } = roomHero(G, { refs, cast, body, pos: [hx, hy, 0], heading: r3(heading) });
 
   // THE FOE: the bestiary's first (the world's own, else the stand-in bestiary's), its made sketch, or a person of its
   // class standing in; `pack` of them round where the template's dummy stands, facing the hero
@@ -163,7 +172,7 @@ export function practiceRoom(G, { refs = {}, cast = 'male', pack = 1, sound = 'r
   }
 
   const { faces, colliders } = floorOf(S);
-  const audio = roomAudio(arsenal, sound);
+  const audio = roomAudio(arsenal, sound, { vary: variesHits(G) });
   const camera = { ...P.camera, ...ACTION_ORBIT };
   const manifest = armLevel({ arsenal }, {
     kind: 'controllable', title: `Practice room · ${G.name ?? G.id ?? 'game'}`, bg: '#1b1d22', faces, colliders, figures: part.figures, entities: part.entities, camera, lock: true,

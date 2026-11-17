@@ -196,7 +196,15 @@ describe('design_game, autonomous', () => {
     expect(stored('gw-game')).toMatchObject({ kind: 'game', store: { slices: expect.arrayContaining([expect.objectContaining({ kind: 'character' })]) } });
     expect(stored('gw-game').levels.map((l) => l.ref)).toHaveLength(5);
     expect(stored('gw-game').shell).toBe('play');
-    expect(step(out, 'play')).toEqual({ step: 'play', url: '/api/sketches/gw-game/game', playtest: '/api/sketches/gw-game/playtest', gate: 'eyes', card: 'gameworld-next' });
+    // (built with design goalposts still open, no intent or main quest written: a draft, and said so: goalposts.js leadNext)
+    expect(step(out, 'play')).toEqual({ step: 'play', url: '/api/sketches/gw-game/game', playtest: '/api/sketches/gw-game/playtest', gate: 'eyes', draft: true, card: 'gameworld-next' });
+    // (the question leads the play step, behind only the steps that keep their lead: the ask this world is owed)
+    const order = out.next.map((n) => n.step);
+    expect(order[0]).toBe('ask');
+    expect(order.indexOf('goalpost')).toBe(1);
+    expect(order.indexOf('goalpost')).toBeLessThan(order.indexOf('play'));
+    expect(step(out, 'goalpost')).toMatchObject({ draft: true });
+    expect(out.next.at(-1).step).toBe('share');
     // the numbers, readable without the bible
     expect(out.numbers.stats).toMatchObject({ hp: 100, power: 10, guard: 5 });
     expect(out.numbers.powers.map((p) => p.key)).toEqual(['1', '2', '3']);

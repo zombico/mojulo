@@ -10,7 +10,8 @@
  *       rows: ['A B', '. C'],           // the segments' layout, north row first ('.' no segment: open land)
  *       route: ['A', 'B', 'C'],         // the walk, segment by segment: the first sets out, the last holds the goal
  *       joins?: [['A', 'C'], …],        // more ways between neighbours, off the walk (a world map's side ways, its loops)
- *       key?: { <S>: { name?, role?, goal?, rise?, …a region's words } },
+ *       key?: { <S>: { name?, role?, goal?, rise?, fill?, …a region's words } },   // fill: a template of the trail
+ *                                       // library (block-fills.js): through, round, loop, spur, crossroads, switchback
  *       props?: { <piece id>: false | { tile } },   // pins on the map's pieces (level/map-items.js)
  *     },
  *     segments?: { <S>: { rows: [size glyph rows], key?: { <place glyph>: <what stands on it> } } },
@@ -19,7 +20,9 @@
  * THE GATES: between two segments the route walks in turn, one gate each side of their shared border, at the middle tile
  * of it (MID: an even size its lower middle); a JOIN lays one more between two neighbours the walk does not step between. THE DEFAULT FILL: a path from its entry gate to its middle and on to its
  * exit gate (an I, or two arms meeting in an L), the first segment's from an end at its middle, the last's to its goal
- * place at its middle (the plan's `key.<S>.goal`); open land round it. A SEGMENT'S LAW: its rows size × size; a path at
+ * place at its middle (the plan's `key.<S>.goal`); open land round it. A segment that names a `fill` is laid by that
+ * template of the trail library instead (a ring round its middle, a way round it, a spur, a crossroads, a switchback),
+ * its goal still at its middle. A SEGMENT'S LAW: its rows size × size; a path at
  * each of its gates, and no other path on a side a neighbour segment lies beyond (it would join the neighbour where the
  * plan did not: two paths across a seam always join); a side on open land or the map's edge its own; every path in it
  * reached from its gates; a climax the plan names a goal in holds a place whose key says `goal: true`.
@@ -35,6 +38,7 @@
  * Pure.
  */
 import { ROLE_IDS } from '../era/compose-roles.js';
+import { BLOCK_FILL_IDS, layFill } from './block-fills.js';
 
 export const SEGMENT_SIZE = Object.freeze({ lo: 3, hi: 8 });
 const SIDES = Object.freeze({ n: [-1, 0], e: [0, 1], s: [1, 0], w: [0, -1] });
@@ -110,6 +114,9 @@ export function readPlan(plan, at = 'grid.plan') {
     const pin = key[S]?.role, i = route.indexOf(S);
     if (pin !== undefined && !ROLE_IDS.includes(pin)) throw new Error(`level: ${at}.key.${S}.role is ${ROLE_IDS.join(', ')}`);
     roles[S] = pin ?? (i < 0 ? 'pocket' : i === 0 ? 'arrival' : i === route.length - 1 ? 'climax' : 'passage');
+    // (its FILL: a template of the trail library, block-fills.js)
+    const fill = key[S]?.fill;
+    if (fill !== undefined && !BLOCK_FILL_IDS.includes(fill)) throw new Error(`level: ${at}.key.${S}.fill is a template of the trail library: ${BLOCK_FILL_IDS.join(', ')}`);
   }
   // THE PINS on the map's pieces (level/map-items.js): a piece's id, false (none there) or a tile of its segment's own
   const props = plan.props;
@@ -124,23 +131,26 @@ export function readPlan(plan, at = 'grid.plan') {
 }
 
 // a segment's rows as a grid of glyphs, and back
-const blank = (n) => Array.from({ length: n }, () => Array(n).fill('.'));
 const lay = (G, [r0, c0], [r1, c1], g = '#') => { for (let r = Math.min(r0, r1); r <= Math.max(r0, r1); r++) for (let c = Math.min(c0, c1); c <= Math.max(c0, c1); c++) G[r][c] = g; };
 
-/** The default fill of segment S: its way through from gate to gate, by its middle. */
+/** The default fill of segment S: its way through from gate to gate, by its middle; or, where the plan names one, a
+ *  template of the trail library (`key.<S>.fill`, block-fills.js). */
 export function fillSegment(P, S) {
-  const n = P.size, G = blank(n), m = [MID(n), MID(n)], { in: inS, out: outS } = P.sides[S], key = {};
-  if (inS) lay(G, gateTile(n, inS), m);
-  if (outS) lay(G, m, gateTile(n, outS));
-  // (a join's gate: its own arm from the middle; a segment off the walk entirely lays its arms the same way)
-  for (const side of Object.keys(P.ways?.[S] ?? {})) if (side !== inS && side !== outS) lay(G, m, gateTile(n, side));
+  const n = P.size, m = [MID(n), MID(n)], { in: inS, out: outS } = P.sides[S], key = {};
+  // (a join's gate: its own arm; a segment off the walk entirely lays its arms the same way)
+  const more = Object.keys(P.ways?.[S] ?? {}).filter((side) => side !== inS && side !== outS);
   // (the last: its goal at its middle, the way in ending at its door; its own words the plan's)
-  if (!outS && S === P.route.at(-1)) {
-    const goal = P.key[S]?.goal;
-    if (goal !== undefined) {
-      if (!isObj(goal) || typeof goal.use !== 'string') throw new Error(`level: grid.plan.key.${S}.goal is { use, …the building's words }: the place the walk ends at`);
-      G[m[0]][m[1]] = 'G'; key.G = { ...goal, goal: true };
-    }
+  const goal = !outS && S === P.route.at(-1) ? P.key[S]?.goal : undefined;
+  if (goal !== undefined && (!isObj(goal) || typeof goal.use !== 'string')) throw new Error(`level: grid.plan.key.${S}.goal is { use, …the building's words }: the place the walk ends at`);
+  // (a goal stands at the middle: a template that branches off the middle would end its branches at the goal's walls)
+  const want = P.key[S]?.fill ?? 'through', id = goal !== undefined && (want === 'spur' || want === 'crossroads') ? 'through' : want;
+  let G = layFill(n, { in: inS, out: outS, more }, id).rows;
+  // (and a ring that runs over the middle, an even side's, would be cut by the goal standing on it: laid through)
+  if (goal !== undefined && id !== 'through' && G[m[0]][m[1]] === '#') G = layFill(n, { in: inS, out: outS, more }, 'through').rows;
+  if (goal !== undefined) {
+    G[m[0]][m[1]] = 'G'; key.G = { ...goal, goal: true };
+    // (a ring too wide to touch the middle: the way in runs on to the goal's door)
+    if (!Object.values(SIDES).some(([dr, dc]) => G[m[0] + dr]?.[m[1] + dc] === '#') && inS) { lay(G, gateTile(n, inS), m); G[m[0]][m[1]] = 'G'; }
   }
   return { rows: G.map((r) => r.join(' ')), key };
 }
@@ -190,9 +200,9 @@ export function stitchPlan(g, { at = 'grid', regionWords = [] } = {}) {
   const P = readPlan(g.plan, `${at}.plan`), n = P.size, segs = g.segments === undefined ? {} : g.segments;
   if (!isObj(segs)) throw new Error(`level: ${at}.segments is { <segment>: { rows, key? } }`);
   // (a plan's key says, of each segment, its region's words beside its name, rise, role and goal)
-  const words = new Set(['name', 'rise', 'role', 'goal', ...regionWords]);
+  const words = new Set(['name', 'rise', 'role', 'goal', 'fill', ...regionWords]);
   for (const [S, v] of Object.entries(P.key)) {
-    if (!isObj(v)) throw new Error(`level: ${at}.plan.key.${S} is { name?, role?, goal?, rise?, …a region's words }`);
+    if (!isObj(v)) throw new Error(`level: ${at}.plan.key.${S} is { name?, role?, goal?, rise?, fill?, …a region's words }`);
     for (const w of Object.keys(v)) if (!words.has(w)) throw new Error(`level: ${at}.plan.key.${S}.${w} is not a segment's word (words: ${[...words].join(', ')})`);
   }
   const H = P.rows * n, W = P.cols * n, rows = Array.from({ length: H }, () => Array(W).fill('.')), regions = Array.from({ length: H }, () => Array(W).fill('.'));
@@ -220,7 +230,7 @@ export function stitchPlan(g, { at = 'grid', regionWords = [] } = {}) {
   for (const S of Object.keys(segs)) if (!P.at[S]) throw new Error(`level: ${at}.segments.${S}: no such segment in the plan (segments: ${Object.keys(P.at).join(', ')})`);
   // (each segment its region: its name, its rise and its words, the plan's)
   const regionKey = Object.fromEntries(Object.keys(P.at).map((S) => {
-    const { role, goal, ...rest } = P.key[S] ?? {};
+    const { role, goal, fill, ...rest } = P.key[S] ?? {};
     return [S, { name: rest.name ?? S, ...Object.fromEntries(Object.entries(rest).filter(([w]) => w !== 'name')) }];
   }));
   const grid = { ...(g.tile !== undefined ? { tile: g.tile } : {}), rows: rows.map((r) => r.join(' ')), key, regions: { rows: regions.map((r) => r.join(' ')), key: regionKey } };
