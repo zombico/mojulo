@@ -60,6 +60,13 @@ export function feelCard(feel) {
   return F.set ? mergeDeep(base, F.set) : base;
 }
 
+// THE BUSTER's rounds (worlds/controllable/buster.js): a hero's blow (foes/vocab.js HERO.blow, the foes' health is counted
+// in blows) and each level's share of it (the tap, the first charge, the full charge), and each level's colour (the
+// hero juice's charge tiers, gameworld/feel/hero-juice.js: the tap a pale lemon, then green, then gold)
+const BLOW = 20;
+export const BUSTER_DAMAGE = Object.freeze([0.5, 1, 2.5]);
+const BUSTER_COLOURS = Object.freeze([0xfff2a8, 0x5dff7a, 0xffd23a]);
+
 // what the runtime does not carry yet, by the card's field (reported only when the card has it)
 const LOST = Object.freeze({
   'jump.hang': 'the hang at the apex: the platform rule has none',
@@ -233,6 +240,18 @@ export function lowerFeel(card, { gear = null, takes = false, base = null } = {}
       ...(G.stamina ? { stamina: { max: G.stamina.max, cost: G.stamina.cost, regen: G.stamina.regen, break: r4(G.stamina.break / FPS) } } : {}) };
     half('guard', `the guard held (Shift, the pad's left shoulder): the block from the front, the parry ${G.parry == null ? 'on any guard' : `within ${Math.round(G.parry)} frames of raising it`}, the riposte; every foe's blow parryable (the zones are the lab's)${G.perfect ? '; the perfect dodge\'s witch time is not carried' : ''}`);
     moves.add('guard');
+  }
+  // THE BUSTER (worlds/controllable/buster.js), a run and gun's: a charge of `kind: 'shot'` whose tap fires. The tap
+  // shot on the press of fire (J, the pad's right trigger), at most the tap's `max` in flight; held, the charge builds
+  // through anything, and let go it fires the highest level reached; every round straight from the chest along the
+  // facing, its speed, size and life the card's (frames as seconds), its damage a share of a hero's blow by its level
+  // (BUSTER_DAMAGE), a heavy round's impact a stagger. The charge's stance and its show frames are the page's juice
+  if (C.charge && C.charge.kind === 'shot' && C.charge.tap && Array.isArray(C.charge.levels) && Array.isArray(C.charge.at)) {
+    const K = C.charge, round = (R, k) => ({ speed: R.speed, size: R.size, life: r4(R.life / FPS), damage: r4(BLOW * BUSTER_DAMAGE[Math.min(k, BUSTER_DAMAGE.length - 1)]),
+      impact: (R.tags ?? []).includes('heavy') ? 1 : 0, color: BUSTER_COLOURS[Math.min(k, BUSTER_COLOURS.length - 1)] });
+    rule.buster = { max: K.tap.max ?? 3, chest: 0.7, tap: round(K.tap, 0), levels: K.levels.map((f, i) => ({ at: r4(f / FPS), ...round(K.at[i] ?? K.at[K.at.length - 1], i + 1) })) };
+    half('charge', `the buster on fire (J, the pad's right trigger): the tap shot on the press (${rule.buster.max} out at most), the charge held through anything and let go at ${K.levels.map((f) => `${f}`).join(' or ')} frames; each round straight from the chest; its damage a share of a hero's blow by level (${BUSTER_DAMAGE.join(', ')})`);
+    moves.add('charge');
   }
   for (const [field, why] of Object.entries(LOST)) {
     if (moves.has(field)) continue;

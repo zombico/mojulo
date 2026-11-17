@@ -1,0 +1,73 @@
+// The buster's laws (buster.js): a press fires a tap shot at once, never more than its cap in flight; held, the charge
+// builds and the release fires the highest level reached, a short hold none; each round flies straight along the facing
+// and a body it meets takes its level's damage; the builder is emitted only into a page whose world has a body with a
+// buster, so a page without one keeps every byte.
+import { describe, it, expect } from 'vitest';
+import { composeLive, emissionSource } from './compose.js';
+import { controllableChannelScript } from '../../scene/channels/controllable/index.js';
+import { feelRule } from '../../gameworld/feel/lower.js';
+
+const E = composeLive();
+const DT = 1 / 60;
+// the run and gun's own buster, as the feel lowers it (Galaxy Boy's card)
+const BUSTER = feelRule({ pole: 'galaxy-boy', takes: true }).buster;
+const hero = (buster = BUSTER) => ({ id: 'hero', pilotable: true, rule: { type: 'platform', eye: 0, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, buster }, transform: { pos: [0, 0, 0], heading: 0 } });
+// (a person's body, as a foe stands: its egg, so a round at the chest meets it)
+const foe = (x, hp = 100) => ({ id: 'foe', team: 'foes', rule: { type: 'static' }, body: { type: 'mesh', hittable: true, hp, egg: { a: 0.35, c: 0.9, cz: 0.9 } }, transform: { pos: [x, 0, 0], heading: Math.PI } });
+const world = (...es) => E.createWorld({ entities: es, pilot: 'hero' });
+const step = (st, fire, n = 1) => { for (let i = 0; i < n; i++) E.stepWorld(st, { fire: fire ? 1 : 0 }, DT, { ground: () => 0 }); return st; };
+const rounds = (st, lv) => (st.projectiles || []).filter((p) => p.owner === 'hero' && (lv === undefined || p.busterLv === lv));
+
+describe('the buster', () => {
+  it('is the run and gun\'s, lowered from its card: a tap and its charge levels', () => {
+    expect(BUSTER.max).toBe(3);
+    expect(BUSTER.levels.length).toBeGreaterThanOrEqual(2);
+    expect(BUSTER.levels[1].damage).toBeGreaterThan(BUSTER.levels[0].damage);
+    expect(BUSTER.levels[0].damage).toBeGreaterThan(BUSTER.tap.damage);
+  });
+  it('a press fires a tap shot at once, straight along the facing; no more than its cap fly', () => {
+    const st = world(hero());
+    step(st, true);
+    expect(rounds(st, 0)).toHaveLength(1);
+    const r = rounds(st, 0)[0];
+    expect(r.vel[1]).toBe(0); expect(r.vel[2]).toBe(0); expect(r.vel[0]).toBeGreaterThan(0);
+    for (let k = 0; k < 5; k++) { step(st, false); step(st, true); }
+    expect(rounds(st, 0)).toHaveLength(3);
+  });
+  it('held, the charge builds; let go, the highest level reached fires; a short hold fires no charge', () => {
+    const st = world(hero());
+    step(st, true);                                                  // the tap
+    step(st, true, Math.ceil(BUSTER.levels[0].at / DT) + 2);          // past the first level
+    expect(st.byId.hero.charging).toBe(true);
+    expect(st.byId.hero.chargeLevel).toBe(1);
+    step(st, false);
+    expect(rounds(st, 1)).toHaveLength(1);
+    const full = world(hero());
+    step(full, true, Math.ceil(BUSTER.levels.at(-1).at / DT) + 2);
+    expect(full.byId.hero.chargeFrac).toBe(1);
+    step(full, false);
+    expect(rounds(full, BUSTER.levels.length)).toHaveLength(1);
+    const short = world(hero());
+    step(short, true, 3); step(short, false);
+    expect(rounds(short).filter((p) => p.busterLv > 0)).toHaveLength(0);
+  });
+  it('the release is the beat (the action lab\'s law): let go a level\'s frames after the press, that level fires on that frame; a frame sooner it fizzles', () => {
+    const L0 = Math.round(BUSTER.levels[0].at / DT);
+    const on = world(hero()); step(on, true, L0); step(on, false);
+    expect(rounds(on, 1)).toHaveLength(1);
+    const soon = world(hero()); step(soon, true, L0 - 1); step(soon, false);
+    expect(rounds(soon).filter((p) => p.busterLv > 0)).toHaveLength(0);
+  });
+  it('a body in its line takes the round\'s damage', () => {
+    const st = world(hero(), foe(3));
+    step(st, true); step(st, false, 30);
+    expect(st.byId.foe.body.hp).toBeCloseTo(100 - BUSTER.tap.damage, 6);
+  });
+  it('is emitted only into a page with a body that carries it', () => {
+    expect(emissionSource()).not.toContain('stepWithBuster');
+    expect(controllableChannelScript([foe(3)], null, {})).not.toContain('stepWithBuster');
+    const page = controllableChannelScript([hero(), foe(3)], null, {});
+    expect(page).toContain('stepWithBuster');
+    expect(page).toContain('p.pellet');
+  });
+});

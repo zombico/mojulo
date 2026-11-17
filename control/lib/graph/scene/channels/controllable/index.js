@@ -775,6 +775,8 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   // a body steered on its wheels (worlds/controllable/steer.js), its rule's or a form's: absent, nothing
   const hoverOn = entities.some((e) => e && e.rule && e.rule.type === 'hover');
   const boatOn = entities.some((e) => e && e.rule && e.rule.type === 'boat');
+  // (a run and gun's arm cannon, worlds/controllable/buster.js: a body whose rule carries a buster; its rounds drawn as pellets)
+  const busterOn = entities.some((e) => e && e.rule && e.rule.buster);
   const steerOn = entities.some((e) => e && ((e.rule && e.rule.steer) || (e.forms && Object.values(e.forms).some((f) => f && f.rule && f.rule.steer))));
   // a person's sprint (rules-platform.js sprintSpeed): Shift held, read only where a body has one; absent, nothing emitted
   const sprint = entities.some((e) => e && e.rule && e.rule.sprintSpeed > 0);
@@ -1216,7 +1218,7 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   // (a tempo whose moments carry a look: the page lays it over the grade)
   const tempoLook = !!(tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look));
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(boatOn ? { boat: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}) })};
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(boatOn ? { boat: true } : {}), ...(busterOn ? { buster: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}) })};
 const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${loose ? `, loose: ${safeJson(loose)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''}${styleMeter ? `, styleMeter: ${safeJson(styleMeter)}` : ''}${gusts ? ', vayoAir: true' : ''}${knock ? `, knock: ${safeJson(knock)}` : ''}${roll ? `, roll: ${safeJson(roll)}` : ''} });
 ${xr ? `// the headset (channels/xr.js): set while a session plays the game, { pad, input, hides }; null, the page's own devices
 let __xrCtl = null;
@@ -2733,7 +2735,11 @@ let __usePad = false;   // the device the player last used (a prompt names its k
 window.addEventListener('keydown', (e) => { __held[e.code] = true; __usePad = false; if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); });
 window.addEventListener('keyup', (e) => { __held[e.code] = false; });
 let __lookDX = 0, __lookDY = 0, __drag = false, __fireDown = false;${moveset ? ' let __heavyDown = false, __specialDown = false, __cycleDown = false;' : ''}
-const __canvas = renderer.domElement;
+${busterOn ? `// THE BUSTER's fire (worlds/controllable/buster.js): J held (a side-scroller's hands are on the keys; the pad's right trigger
+// fires it too), a press its tap shot, held its charge, let go the charged shot
+window.addEventListener('keydown', (e) => { if (e.code === 'KeyJ') __fireDown = true; });
+window.addEventListener('keyup', (e) => { if (e.code === 'KeyJ') __fireDown = false; });
+` : ''}const __canvas = renderer.domElement;
 const __MOUSELOOK = ${!!(camera && (camera.turnMode === 'look' || camera.mouseLook))};   // FPS look camera?
 if (__MOUSELOOK) {
   // pointer-lock FPS look: click once to capture the mouse, then RAW moves steer (no drag to hold).
@@ -4078,7 +4084,15 @@ function __updateProjectiles() {
         scene.add(g); rec = __projMeshes[p.id] = { g: g };
       }
     }` : ''}
-    if (!rec) {
+${busterOn ? `    // (a buster's round, buster.js: a PELLET, a glowing ball its level's size and colour, a white core, no flash)
+    if (!rec && p.pellet) {
+        const col = p.fxColor != null ? p.fxColor : 0xfff2a8, r = p.fxScale != null ? p.fxScale : 0.08;
+        const glow = new THREE.Mesh(new THREE.SphereGeometry(r * 1.6, 12, 8), __fxMat(col)), core = new THREE.Mesh(new THREE.SphereGeometry(r * 0.75, 10, 6), __fxMat(0xffffff));
+        glow.raycast = function () {}; core.raycast = function () {};
+        const g = new THREE.Group(); g.add(glow); g.add(core); scene.add(g);
+        rec = __projMeshes[p.id] = { g: g };
+      }
+` : ''}    if (!rec) {
       const col = p.fxColor != null ? p.fxColor : 0xffcc66, sz = p.fxScale != null ? p.fxScale : 3;
       // the round is a POINTED SHELL (a hot nose-cone, not a beachball): a long thin cone whose TIP
       // leads along the velocity, wrapped in a translucent glow cone. Oriented per-frame to its heading.
