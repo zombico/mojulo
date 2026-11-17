@@ -31,7 +31,7 @@ describe('armor build validation', () => {
     expect(isArmorBuild({ type: 'armor' })).toBe(true);
     expect(isArmorBuild('ranger')).toBe(false);
     expect(validateArmor({ type: 'armor', style: 'knight' })).toEqual([]);
-    expect(validateArmor({ type: 'armor', style: 'paladin' })[0]).toMatch(/not a sample \(knight, kuro-kon, aka, shiro, grim-scifi, fantasy-space, armored-hero\)/);
+    expect(validateArmor({ type: 'armor', style: 'paladin' })[0]).toMatch(/not a sample \(knight, kuro-kon, aka, shiro, grim-scifi, fantasy-space, armored-hero, herobot\)/);
     expect(validateArmor({ type: 'armor', dials: { coverage: 2 } })[0]).toMatch(/coverage: a number 0–1/);
     expect(validateArmor({ type: 'armor', dials: { heft: 1 } })[0]).toMatch(/not a dial/);
     expect(validateArmor({ type: 'armor', dials: { ornament: 1.5 } })[0]).toMatch(/an integer 0–3/);
@@ -103,5 +103,39 @@ describe('the laws', () => {
     const sode = kit.find((A) => A.id === 'upperArmR-sode');
     expect(sode.signature).toMatchObject({ kind: 'boards', group: 'Lacquer', cordGroup: 'Odoshi', bottom: 'jN' });
     expect(sode.pin[3]).toBe('torso');   // hung from the shoulder strap: the arm moves beneath it
+  });
+});
+
+// THE TOY FAMILY (toy.js): moulded volumes whose read is girth contrast. The concepts: mass scales how far a volume swells
+// past its limb; ornament 0 bares the volumes (no cuffs, no plaques); a language `none` leaves its piece off; a paired
+// piece is mirrored to the left, a plaque turned over across the chest; coverage adds pieces in the family's order.
+describe('the toy family', () => {
+  const kit = (dials = {}, language = {}) => expandArmor({ type: 'armor', style: 'herobot', dials, language }, { Ht: 4, Hl: 3 }).kit;
+  const byId = (K) => Object.fromEntries(K.map((e) => [e.id, e]));
+  it('swells by mass: a volume\'s girth past its limb scales with the dial', () => {
+    const one = byId(kit({ mass: 1 })).forearmR.signature.girth, two = byId(kit({ mass: 2 })).forearmR.signature.girth;
+    expect(two - 1).toBeCloseTo(2 * (one - 1), 3);
+  });
+  it('ornament 0 bares it: no cuffs on the volumes, no plaques, no thigh rims', () => {
+    const K = kit({ ornament: 0 });
+    expect(K.some((e) => e.signature?.lip)).toBe(false);
+    expect(K.some((e) => /^pec|^abplate|^thighRim/.test(e.id))).toBe(false);
+    expect(kit({ ornament: 2 }).some((e) => e.id === 'pecR')).toBe(true);
+  });
+  it('a language none leaves its piece off', () => {
+    expect(kit({}, { arms: 'none' }).some((e) => /^forearm/.test(e.id))).toBe(false);
+    expect(kit({}, { legs: 'none' }).some((e) => /^(boot|sole)/.test(e.id))).toBe(false);
+    expect(validateArmorCard({ family: 'toy', language: { arms: 'panels' } })[0]).toMatch(/arms: one of football, none/);
+  });
+  it('mirrors a pair: the left part, the left side, a plaque turned over', () => {
+    const K = byId(kit({ ornament: 2 }));
+    expect(K.shoulderL.part).toBe('upperArmL');
+    expect(K.bootL.part).toBe('shankL');
+    expect(K.pecL.side).toBe('L');
+    expect(K.pecL.signature.c).toBe(-K.pecR.signature.c);
+  });
+  it('covers in order: the chest first, the plaques last', () => {
+    expect(kit({ coverage: 0 }).map((e) => e.id)).toEqual(['chest']);
+    expect(kit({ coverage: 1, ornament: 2 }).length).toBeGreaterThan(kit({ coverage: 0.5, ornament: 2 }).length);
   });
 });

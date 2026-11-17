@@ -39,6 +39,10 @@ const PINS = {
   'armored-hero@0': '196c4fc450ea2e25',
   'armored-hero@0.5': '75469bbce6ad5353',
   'armored-hero@1': 'e5ffef415410f11e',
+  // the toy family (toy.js): the toy hero robot's suit, first pinned 1117
+  'herobot@0': '17717dabdbffd38a',
+  'herobot@0.5': '844abbcbae608e87',
+  'herobot@1': '090691e0809bdbdd',
   // themed: a theme over the plate knight (themes/themes.js)
   'knight+death-knight@0.5': '7b7758cdab24668b',
   'knight+death-knight@1': '1846ed34a5b4663a',

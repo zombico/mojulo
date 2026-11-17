@@ -3,12 +3,14 @@
 // dials (principles.js): a new direction is a new card, not code.
 //
 // A card:
-//   family    'plate' | 'lamellar' | 'hardsuit' — the construction (law 12), which picks the grammar and its coverage
+//   family    'plate' | 'lamellar' | 'hardsuit' | 'toy' — the construction (law 12), which picks the grammar and its coverage
 //             order
 //   dials     { stylize, mass, coverage, ornament } — the defaults a build's own `dials` override
 //   language  plate: { pauldron: 'spaulder' | 'bell', focalSide: 'R' | 'L', fnSide: 'R' | 'L' } — the focal shoulder and
 //             the arm that carries function (a bow arm takes the first bracer)
 //             lamellar: { crest: 'crescent' | 'kuwagata' | 'sun' }
+//             toy: { pauldron: 'ball' | 'none', chest: 'barrel' | 'none', arms: 'football' | 'none', legs: 'cone' | 'none',
+//             knees: 'cap' | 'none', collar: 'band' | 'none', brief: 'brief' | 'none' } (toy.js TOY_WORDS)
 //             hardsuit: { helm: 'power' | 'trooper' | 'faceplate' | 'none' (bareheaded: an anime head wears none yet), pauldron: 'dome' | 'cap' | 'segmented' |
 //             'lames' | 'none', chest: 'plain' | 'reactor' | 'plates' | 'box' | 'bands' | 'none', pack: 'power' | 'jet' | 'none', segments: 1–3 (the
 //             panel lines), and the archetype words (hardsuit.js HARD_WORDS: arms, legs, skirt, glow, collar, pauldronSide), focal: 'helm' | 'pauldron' |
@@ -27,8 +29,9 @@
 //             only where a level names `materials` (a geocube's), under that level's own overrides and age
 
 import { validateMaterialRef } from '../polygonizer/materials.js';
+import { TOY_WORDS } from './toy.js';
 
-export const ARMOR_FAMILIES = Object.freeze(['plate', 'lamellar', 'hardsuit']);
+export const ARMOR_FAMILIES = Object.freeze(['plate', 'lamellar', 'hardsuit', 'toy']);
 export const PAULDRONS = Object.freeze(['spaulder', 'bell']);
 export const SIDES = Object.freeze(['R', 'L']);
 const HARD = { helm: ['power', 'trooper', 'faceplate', 'shell', 'none'], pauldron: ['dome', 'cap', 'segmented', 'lames', 'none'], chest: ['plain', 'reactor', 'plates', 'box', 'bands', 'none'], pack: ['power', 'jet', 'tanks', 'none'], focal: ['helm', 'pauldron', 'reactor'],
@@ -113,6 +116,15 @@ export const SEEDED_ARMOR = Object.freeze({
     "emissive": ["Lens", "Reactor"],
     "materials": { "Face": { "metal": "stainless", "finish": "brushed" } }
   },
+  // the toy hero robot's suit (toy.js): moulded volumes in its blues, its cuffs light, the gem red (the helm is the
+  // headgear card heroBotHelm, worn as the build's `with`)
+  herobot: {
+    "id": "herobot",
+    "family": "toy",
+    "dials": { "stylize": 0.5, "mass": 1, "coverage": 1, "ornament": 2 },
+    "language": {},
+    "tones": { "Armor": "#1f5fc8", "Cuff": "#7fd4ff", "Chest": "#1f5fc8", "Pec": "#3f8ef2", "Plaque": "#8fd6ff", "Gem": "#c4122f", "Top": "#4aa8ff", "Bottom": "#4aa8ff", "Shoes": "#1f5fc8" }
+  }
 });
 
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
@@ -140,6 +152,7 @@ export function validateArmorCard(card, at = 'style') {
     for (const k of ['focalSide', 'fnSide']) if (L[k] !== undefined && !SIDES.includes(L[k])) errs.push(`${at}.language.${k}: 'R' | 'L'`);
   }
   if (card.family === 'lamellar' && L.crest !== undefined && !['crescent', 'kuwagata', 'sun'].includes(L.crest)) errs.push(`${at}.language.crest: one of crescent, kuwagata, sun`);
+  if (card.family === 'toy') for (const [k, vs] of Object.entries(TOY_WORDS)) if (L[k] !== undefined && !vs.includes(L[k])) errs.push(`${at}.language.${k}: one of ${vs.join(', ')}`);
   if (card.family === 'hardsuit') {
     for (const [k, vs] of Object.entries(HARD)) if (L[k] !== undefined && !vs.includes(L[k])) errs.push(`${at}.language.${k}: one of ${vs.join(', ')}`);
     if (L.segments !== undefined && !(Number.isInteger(L.segments) && L.segments >= 1 && L.segments <= 3)) errs.push(`${at}.language.segments: an integer 1–3 (the panel lines)`);
