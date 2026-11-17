@@ -186,3 +186,12 @@ or a recipe key; the spike mints through the real doors and measures.
   body, so a body run up against a wall had its look point inside it and the view jammed into its back).
 - **The yard starts clear of the hangar's wall**: the rail stands the hangar's shut shell along the trail with its
   corner on the trailhead, so the body starts six metres clear of what is built, and the result is there.
+- **The yard in the seventh generation**: the rail lays the level's section as a `stage` painted by its geocube, and
+  the form render (the land, the trail and the plants as material under the cube's light) is a geocube scene's alone,
+  so the yard read as it stood was painted land beside a form-lit hangar. `yard.mjs` asks for the same section as the
+  geocube's own path in gen-7 (its cube, seed, trail and buildings the rail's), with an apron, containers and floods
+  by the barracks; the bodies and the mission are placed on the land as it is read back.
+- **The game's HUD on the mission's pages** (after the UI branch's merge): the spike's pages ask for the level HUD in
+  the game's look (`levelHud`, the `field-brief` theme), and the held carry menu is its weapon wheel
+  (carry-view.js answers `window.__mojWc` while a menu is held on a page with that HUD; its own strip is put away).
+  The mission's own words (objective, prompt, found) are still plain DOM.
