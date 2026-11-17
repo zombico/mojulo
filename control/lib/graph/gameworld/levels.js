@@ -128,7 +128,7 @@ const SNEAK_TUNE = Object.freeze({ team: 'guards', rule: { guardRadius: 10, spee
 import { feelRule, readFeel, TAKES, feelCard, lowerFeel, feelVayo } from './feel/lower.js';
 import { reachOf } from './feel/reach.js';
 import { laidCasting, laidJoins } from './casting.js';
-import { readCourse, courseAt, coursePlan, courseLaws, lowerCourse, slabOf } from './course.js';
+import { readCourse, courseAt, coursePlan, courseLaws, joinLaw, lowerCourse, slabOf } from './course.js';
 import { courseCube, courseColours, skinCourse } from './course-skin.js';
 import { juiceOfGame } from './juice.js';
 import { tempoOfGame } from './tempo.js';
@@ -1249,7 +1249,7 @@ function sideSegments(G, level, stages) {
   const segments = stages.map((s) => {
     const C = courseAt(spec, s.node);
     let D = 12;
-    while (D < 400) { try { coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: D, lift: 0, end: STRIP_END }); break; } catch { D += 1; } }
+    while (D < 400) { try { coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: D, lift: 0, end: STRIP_END, floor: 0 }); break; } catch { D += 1; } }
     D = Math.ceil(D * STRIP_SLACK);
     const seg = { node: s.node, s0: r3(at), length: r3(D) };
     at += D;
@@ -1273,7 +1273,8 @@ function stripCourse(G, stage) {
     const C = courseAt(spec, seg.node);
     if (!C) continue;
     // (on a strip the course stands on the ground: no stairs up to it, the hero on its first floor at once)
-    const plan = coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: Math.floor(seg.length), lift: 0, end: STRIP_END });
+    // (a floor never stands under the strip's ground, `floor: 0`: a rolling trail rolls, it does not sink)
+    const plan = coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: Math.floor(seg.length), lift: 0, end: STRIP_END, floor: 0 });
     const line = Array.from({ length: Math.floor(seg.length) + 1 }, (_, k) => [0, r3(seg.s0 + k)]);
     const L = lowerCourse(plan, { line, ground: () => 0 }), B = L.blocks[0].blocks;
     B.forEach((b, k) => { const p = L.parts[k]; blocks.push(b); parts.push({ ...p, role: p.stair || (p.floor > 0 && plan.gaps[p.floor - 1]?.kind === 'wall') ? 'built' : 'terrain', node: seg.node }); });
@@ -1281,7 +1282,10 @@ function stripCourse(G, stage) {
     const name = (z) => z.replace(/^__course-/, `__course-${j + 1}-`);
     sources.push(...L.events.sources.map((x) => ({ ...x, zone: name(x.zone) })));
     reactions.push(...L.events.reactions.map((x) => ({ ...x, match: { ...x.match, zone: name(x.match.zone) } })));
-    laws.push(...courseLaws(plan, reach).map((x) => ({ ...x, id: segs.length > 1 ? `${seg.node}:${x.id}` : x.id })));
+    const lawId = (id) => (segs.length > 1 ? `${seg.node}:${id}` : id);
+    laws.push(...courseLaws(plan, reach).map((x) => ({ ...x, id: lawId(x.id) })));
+    // (its JOINS: on from the strip's ground onto its first floor, and off its last floor back down to it)
+    laws.push(joinLaw(lawId('join-in'), plan.floors[0].z, reach), joinLaw(lawId('join-out'), -plan.floors.at(-1).z, reach));
     const at = (s, z) => [0, r3(seg.s0 + s), r3(L.base + z)];
     // (the floor the hero is set down on is no beat: nothing stands on it, the first foe a jump or two in)
     beats.push(...plan.floors.map((f, k) => ({ beat: `floor-${k + 1}`, at: at((f.s0 + f.s1) / 2, f.z), ...(segs.length > 1 ? { node: seg.node } : {}) })).filter((_, k) => j > 0 || k > 0));
