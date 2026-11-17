@@ -604,7 +604,8 @@ export const WORLD_KINDS = {
       // (a game's level stands on one: the town takes its own settings, the level's pilot and its game layered over it by
       // the page, and no stand-in walks it)
       if (m.show === 'geotown') {
-        const played = m.entities !== undefined || m.game !== undefined, own = played ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOTOWN_KEYS.includes(k))) : m;
+        // (a brawl fought down one of its streets, brawl/brawl-levels.js the town kind: its `brawl` block the page's, not the town's)
+        const played = m.entities !== undefined || m.game !== undefined || m.brawl !== undefined, own = played ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOTOWN_KEYS.includes(k))) : m;
         // (formBuildings: its buildings baked for the form render, form/sun-light.js; a page's read only, the handoff's as it was)
         // (the cars its hero gets into are the level's bodies, gameworld/cars.js: the town draws the rest)
         const p = assembleGeotownScene(own, { title: ctx.title, ...(played && drivenOf(m).length ? { driven: drivenOf(m) } : {}), ...(ctx.formLit ? { form: true, ...(ctx.handoff ? {} : { formBuildings: true }) } : {}) });

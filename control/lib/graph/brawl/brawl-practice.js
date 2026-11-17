@@ -32,11 +32,16 @@
  *     things   the street's (brawl-things.js), in the belt's metres: put back as they were on a reset
  *     health   'chains' (a dummy's health a few of the player's chains: it falls, and is back on its spot BACK frames
  *              later) or 'refill' (its health back whenever it is free: it never falls)
+ *     stakes   A GAME on the room (a quick brawl's or run & gun's level, gameworld/quick.js): the falls its players may
+ *              take between them (1 to 9). With stakes the room ENDS (`yard.over`, yardOver): 'won' when its waves'
+ *              last falls (a set that does not loop), 'lost' at the last fall allowed, the player left down; ended, it
+ *              steps no further. Absent, a practice room: nothing ends and nobody stays down.
  *   A player never dies in the yard: knocked out, it is back on its feet where it lies, its health whole.
  *   stepYard(room, buttons) → the room a frame on: each seat's buttons ({ x, z, a, j, s }) read by the brawler's reader
  *              (brawl-moves.js), the dummies' pads by their modes, the core's step, the room's rules, and each press's
  *              VERDICT kept (`yard.log`): taken (how many frames late) or dropped, and why
  *   resetYard(room) → everyone on their spots, whole, the things put back, the logs cleared
+ *   yardOver(room) → 'won' | 'lost' | null: how a game on the room ended (null: a practice room, or not over yet)
  *   yardRead(room, player?) → what the room shows a player: the line to each dummy, the chain (its steps landed, how it
  *              ended and why), the press log, the clinch, the last combo, the tokens, a state held, a weapon held
  *   brawlMoveList(F) → a brawler's moves as its player reads them, by kind (the command-list idiom's `kinds`)
@@ -46,7 +51,7 @@
  */
 import { newBrawl, stepBrawl, enterBody, BRAWL_RULES } from './brawl-core.js';
 import { brawlFighter, newReader, readButtons, BRAWL_STYLES } from './brawl-moves.js';
-import { crowdPads, newCrowdMind, crowdFighter, CROWD_TYPES, aimAt, rideFire } from './brawl-crowd.js';
+import { crowdPads, newCrowdMind, crowdFighter, CROWD_TYPES, aimAt, rideFire, streetOf, stepStreet } from './brawl-crowd.js';
 import { readGun } from './brawl-guns.js';
 import { readRangeWaves, stationsOf, entryOf, volleyAt, WAVE_RULES } from './brawl-waves.js';
 import { newGunReader, readGunButtons, gunMoveList } from './brawl-gunner.js';
@@ -76,12 +81,53 @@ const sgn = (v) => (v > 0 ? 1 : v < 0 ? -1 : 0);
 /** a brawler style's chain damage: its blows down to the knockdown, summed (what a dummy's health is measured in) */
 const chainDamage = (F) => Array.from({ length: F.brawl.chain }, (_, k) => F.moves[`chain.${k + 1}`].damage * (F.moves[`chain.${k + 1}`].hits || 1)).reduce((a, b) => a + b, 0);
 
+/**
+ * A STREET as a room (a level's: gameworld/brawl-cast.js brawlStreet): the street's own sim (brawl-crowd.js streetOf:
+ * its waves held at their gates, the camera held with them, a boss on its last screen) under the room's readers and
+ * readouts, a game on it (`stakes`, as above): WON when its last wave has fallen (its boss with it), lost at the last
+ * fall allowed. `range` (a run & gun's street): the players carry guns. `waves` are the street's ({ screen, crowd, boss? });
+ * a crowd entry's or a boss's `roster` is who its bodies are drawn as (`yard.cast`, in the bodies' order).
+ */
+export function streetRoomOf({ belt, players: players0, waves, things, stakes = 3, range, tune } = {}) {
+  if (!(Number.isInteger(stakes) && stakes >= 1 && stakes <= 9)) throw new Error('brawl: a room\'s stakes are the falls its players may take, 1 to 9');
+  if (!Array.isArray(waves) || !waves.length) throw new Error('brawl: a street room has a wave or more to clear');
+  // (a street's TUNING, brawl-tunings.js roomTune: its players' health, the crowd's as a share of its own, the crowd's
+  // guns and rules; absent, the sim's own numbers)
+  if (tune !== undefined && (!tune || typeof tune !== 'object')) throw new Error('brawl: a street\'s tune is { playerHp?, crowdHp?, foeGuns?, crowd? }');
+  if (tune?.playerHp !== undefined && !(Number.isInteger(tune.playerHp) && tune.playerHp >= 1 && tune.playerHp <= 99999)) throw new Error('brawl: tune.playerHp is a whole number from 1 to 99999');
+  if (tune?.crowdHp !== undefined && !(typeof tune.crowdHp === 'number' && tune.crowdHp > 0 && tune.crowdHp <= 10)) throw new Error('brawl: tune.crowdHp is the crowd\'s health as a share of its own, above 0 and 10 at most');
+  const players = tune?.playerHp ? players0.map((p) => ({ ...p, recipe: { ...p.recipe, hp: tune.playerHp } })) : players0;
+  const st = streetOf({ belt, players, waves, things, ...(range ? { range } : {}), ...(tune?.foeGuns ? { foeGuns: tune.foeGuns } : {}), ...(tune?.crowd ? { crowd: tune.crowd } : {}) });
+  const P = players.length, B = st.s.bodies;
+  if (tune?.crowdHp) for (const b of B) if (b.side === 'crowd' && !st.mind.bosses[b.id]) b.hp = Math.max(1, Math.round(b.hp * tune.crowdHp));
+  if (range) arm(st.s, P, st.ctx.guns);
+  // (who each crowd body is drawn as, in the street's order: a wave at a time by screen, its boss first)
+  const cast = [...waves].sort((a, b) => a.screen - b.screen).flatMap((w) => [...(w.boss ? [w.boss.roster ?? null] : []), ...(w.crowd ?? []).flatMap((c) => Array.from({ length: c.n }, () => c.roster ?? null))]);
+  const yard = {
+    players: P, health: 'chains', street: true, hp: B.map((b) => b.hp), homes: B.map((b) => [b.x, b.z]), modes: B.slice(P).map(() => 'wave'),
+    things: [], volley: {},
+    // (a gunner's arms, as on the range: its gun loaded again when spent, its grenades back)
+    arms: range ? players.map((_, i) => ({ gun: B[i].gn, grenades: B[i].gr ?? 3 })) : [],
+    ...(range ? { range: true, shots: players.map(() => ({ fired: 0, landed: 0, damage: 0, struck: 0 })) } : {}),
+    readers: players.map(() => (range ? newGunReader() : newReader())), prev: players.map(() => ({})), pending: players.map(() => []),
+    log: players.map(() => []), chain: players.map(() => ({ steps: [], last: null })), combo: players.map(() => ({ hits: 0, damage: 0, last: null })),
+    ko: {}, free: {}, stakes, falls: 0, over: null,
+    ...(cast.some((k) => k !== null) ? { cast } : {}),
+    spec: { belt, players: players0, waves, things, stakes, range, tune },
+  };
+  return { ...st, yard };
+}
+
+/** How a game on the room ended: 'won', 'lost', or null (a practice room, or not over yet). */
+export const yardOver = (room) => room.yard.over ?? null;
+
 /** A practice room. */
-export function practiceOf({ belt, players, dummies = [], things, health = 'chains', range, waves, loop } = {}) {
+export function practiceOf({ belt, players, dummies = [], things, health = 'chains', range, waves, loop, stakes } = {}) {
   if (!belt) throw new Error('brawl: a practice room needs its belt');
   if (!Array.isArray(players) || !players.length || players.length > 4) throw new Error('brawl: a practice room has 1 to 4 players');
   if (!HEALTH_MODES.includes(health)) throw new Error(`brawl: a practice room's health is ${HEALTH_MODES.join(' | ')}`);
   if (!Array.isArray(dummies) || dummies.length > 8) throw new Error('brawl: a practice room has up to 8 dummies');
+  if (stakes !== undefined && !(Number.isInteger(stakes) && stakes >= 1 && stakes <= 9)) throw new Error('brawl: a room\'s stakes are the falls its players may take, 1 to 9');
   const fighters = players.map((p) => brawlFighter(p.recipe, { style: p.style }));
   // THE RANGE's guns: the sidearm, the guns passed in, the grenade, and each shooting dummy's
   if (range !== undefined && (!range || typeof range !== 'object')) throw new Error('brawl: a practice room\'s range is { guns?, grenades? }');
@@ -116,7 +162,7 @@ export function practiceOf({ belt, players, dummies = [], things, health = 'chai
   if (W) W.forEach((w, k) => { for (const c of w.crowd) for (let j = 0; j < c.n; j++) {
     const key = `type:${c.type}`, T = CROWD_TYPES[c.type];
     if (kinds[key] === undefined) { kinds[key] = fighters.length; fighters.push(crowdFighter(c.type)); }
-    waveSpec.push({ fighter: kinds[key], type: c.type, wave: k, hp: c.hp, arms: { wave: k, ...(T.gun ? { gun: gunIx(T.gun, `range.waves[${k}]`) } : {}), ...((c.poise ?? T.poise) ? { poise: c.poise ?? T.poise } : {}) } });
+    waveSpec.push({ fighter: kinds[key], type: c.type, wave: k, hp: c.hp, ...(c.roster !== undefined ? { roster: c.roster } : {}), arms: { wave: k, ...(T.gun ? { gun: gunIx(T.gun, `range.waves[${k}]`) } : {}), ...((c.poise ?? T.poise) ? { poise: c.poise ?? T.poise } : {}) } });
   } });
   if (guns.length) ctx.guns = guns;
   // (each body's arms: a player on the range its first gun over its sidearm, its grenades; a shooting dummy its gun)
@@ -145,6 +191,9 @@ export function practiceOf({ belt, players, dummies = [], things, health = 'chai
     readers: players.map(() => (range ? newGunReader() : newReader())), prev: players.map(() => ({})), pending: players.map(() => []),
     log: players.map(() => []), chain: players.map(() => ({ steps: [], last: null })), combo: players.map(() => ({ hits: 0, damage: 0, last: null })),
     ko: {}, free: {},
+    ...(stakes !== undefined ? { stakes, falls: 0, over: null } : {}),
+    // (who each wave body is drawn as, where its wave says: a roster index, or null)
+    ...(waveSpec.some((w) => w.roster !== undefined) ? { cast: waveSpec.map((w) => w.roster ?? null) } : {}),
   };
   const mind = newCrowdMind(Object.fromEntries([...spec.map((d, j) => [P + j, d.type]), ...waveSpec.map((w, j) => [P + spec.length + j, w.type])]));
   return { ctx, s, mind, yard };
@@ -156,13 +205,16 @@ function arm(s, P, guns) {
 }
 /** Everyone on their spots and whole, the things put back, the logs cleared. */
 export function resetYard(room) {
+  // (a street is laid again from its words: its waves wait offstage as at its start)
+  if (room.yard.street) return streetRoomOf(room.yard.spec);
   const { yard, ctx } = room;
   const fresh = newBrawl(ctx, { bodies: room.s.bodies.map((b, i) => ({ fighter: i < yard.players ? i : b.fb ?? b.fi, side: b.side, x: yard.homes[i][0], z: yard.homes[i][1], face: i < yard.players ? 1 : -1, ...(b.ng ? { grabs: false } : {}), ...(yard.arms?.[i] ?? {}) })), ...(yard.things.length ? { things: yard.things.map((t) => ({ ...t })) } : {}) });
   fresh.bodies.forEach((b, i) => { b.hp = yard.hp[i]; });
   if (yard.range) arm(fresh, yard.players, ctx.guns);
   fresh.f = room.s.f;
+  const stakesReset = yard.stakes !== undefined ? { falls: 0, over: null } : {};
   const waveReset = yard.wave ? { wave: newWaveRun(yard.wave.list, yard.wave.loop, yard.wave.bodies), station: {}, ambush: {} } : {};
-  return { ...room, s: fresh, mind: newCrowdMind(room.mind.type), yard: { ...yard, readers: yard.readers.map(() => (yard.range ? newGunReader() : newReader())), volley: {}, ...waveReset, ...(yard.range ? { shots: yard.shots.map(() => ({ fired: 0, landed: 0, damage: 0, struck: 0 })) } : {}), prev: yard.prev.map(() => ({})), pending: yard.pending.map(() => []), log: yard.log.map(() => []), chain: yard.chain.map(() => ({ steps: [], last: null })), combo: yard.combo.map(() => ({ hits: 0, damage: 0, last: null })), ko: {}, free: {} } };
+  return { ...room, s: fresh, mind: newCrowdMind(room.mind.type), yard: { ...yard, readers: yard.readers.map(() => (yard.range ? newGunReader() : newReader())), volley: {}, ...waveReset, ...stakesReset, ...(yard.range ? { shots: yard.shots.map(() => ({ fired: 0, landed: 0, damage: 0, struck: 0 })) } : {}), prev: yard.prev.map(() => ({})), pending: yard.pending.map(() => []), log: yard.log.map(() => []), chain: yard.chain.map(() => ({ steps: [], last: null })), combo: yard.combo.map(() => ({ hits: 0, damage: 0, last: null })), ko: {}, free: {} } };
 }
 
 // ── the dummies' practice mind ───────────────────────────────────────────────────────────────────────────────
@@ -385,10 +437,13 @@ function verdicts(room, i, buttons, before, after) {
 // ── the yard a frame on ──────────────────────────────────────────────────────────────────────────────────────
 
 export function stepYard(room, buttons = []) {
+  // (a game on the room, ended: it steps no further)
+  if (room.yard.over) return room;
   const yard = { ...room.yard, readers: room.yard.readers.slice(), prev: room.yard.prev.slice(), pending: room.yard.pending.map((q) => q.map((e) => ({ ...e }))), log: room.yard.log.map((l) => l.slice()), chain: room.yard.chain.map((c) => ({ ...c, steps: c.steps.slice() })), combo: room.yard.combo.map((c) => ({ ...c })), ko: { ...room.yard.ko }, free: { ...room.yard.free }, volley: { ...room.yard.volley }, ...(room.yard.range ? { shots: room.yard.shots.map((x) => ({ ...x })) } : {}), ...(room.yard.wave ? { wave: { ...room.yard.wave }, station: { ...room.yard.station }, ambush: { ...room.yard.ambush } } : {}) };
   const mind = { ...room.mind, tok: Object.fromEntries(Object.entries(room.mind.tok).map(([k, v]) => [k, v.slice()])), b: Object.fromEntries(Object.entries(room.mind.b).map(([k, v]) => [k, { ...v }])) };
   const r0 = { ...room, yard, mind };
-  const pads = dummyPads(r0, mind);
+  // (a street's crowd is its own sim's, below: its mind, its waves and its gates)
+  const pads = yard.street ? [] : dummyPads(r0, mind);
   const before = room.s.bodies.map((b) => ({ st: b.st, kn: b.kn, mv: b.mv }));
   const readerAfter = [];
   for (let i = 0; i < yard.players; i++) {
@@ -396,10 +451,13 @@ export function stepYard(room, buttons = []) {
     const [pad, r] = yard.range ? readGunButtons(yard.readers[i], buttons[i] ?? {}, p) : readButtons(yard.readers[i], buttons[i] ?? {}, p, room.ctx.fighters[p.fi]);
     yard.readers[i] = r; readerAfter[i] = r; pads[i] = pad;
   }
-  const s = stepBrawl(room.s, pads, room.ctx);
-  const out = { ...r0, s };
+  const st = yard.street ? stepStreet({ ctx: room.ctx, s: room.s, mind: room.mind }, pads) : null;
+  const s = st ? st.s : stepBrawl(room.s, pads, room.ctx);
+  const out = st ? { ...r0, s, mind: st.mind } : { ...r0, s };
   for (let i = 0; i < yard.players; i++) { if (yard.range) gunVerdicts(out, i, buttons[i] ?? {}, room.s.bodies[i]); else verdicts(out, i, buttons[i] ?? {}, before[i], readerAfter[i]); }
   rules(out);
+  // (a street is won when its last wave has fallen: its boss with it)
+  if (yard.street && !yard.over && out.mind.wave >= out.mind.waves.length) yard.over = 'won';
   return out;
 }
 
@@ -477,10 +535,16 @@ function rules(room) {
     // a combo over: once no dummy reels from it
     const c = yard.combo[i];
     if (c.open && !s.bodies.some((d, j) => j >= P && !d.gone && (d.st === 'hit' || d.st === 'fall') && d.combo > 0)) { c.last = { hits: c.hits, damage: c.damage }; c.open = 0; }
-    // never dies: knocked out, back on its feet where it lies, whole
-    if (p.ko && p.st === 'ko') { p.ko = 0; p.hp = ctx.fighters[p.fi].hp; p.st = 'rise'; p.sf = 0; }
+    // never dies: knocked out, back on its feet where it lies, whole (a game on the room counts the fall: at the last
+    // one its stakes allow the player stays down and the room is lost)
+    if (p.ko && p.st === 'ko') {
+      if (yard.stakes !== undefined && !yard.over && ++yard.falls >= yard.stakes) { yard.over = 'lost'; continue; }
+      p.ko = 0; p.hp = ctx.fighters[p.fi].hp; p.st = 'rise'; p.sf = 0;
+    }
   }
   if (yard.wave) waveStep(room);
+  // (a game on the room is won when its waves' last has fallen: a set that does not loop)
+  if (yard.stakes !== undefined && !yard.over && yard.wave && yard.wave.state === 'done') yard.over = 'won';
   for (let i = P; i < s.bodies.length; i++) {
     const d = s.bodies[i];
     // (a wave's bodies stay down: the wave is cleared, not refilled)

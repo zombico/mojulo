@@ -14,8 +14,19 @@
  * reward and no exit: it is the story's record, read by the next level's build and logged as the story accrues
  * (storyWins). The boss's rank is the fight's size; the win's kind the story's, and the two are independent.
  *
- *   firstLevel({ name?, seed?, kit?, boss? }) → a gameworld level: its walk (the trails, in order), its course and its
- *       foes' density by trail node, and its goal's boss when asked (boss: true | { win })
+ * IN TWO DIMENSIONS (`dimension`, platformer-game.js). The teaching order is the same; what a trail is differs:
+ *
+ *   2d   the side-scroller's (the default): under a side camera the trails are the segments of ONE strip, one page, one
+ *        turn; foes come in on the hero's rail, so the gauntlet is a swarm
+ *   3d   the 3D platformer's: every trail is a COURSE of its own, a page and a turn each (played, won, the next one
+ *        opened), named for where it is on the way up: the grounds (the yard movement is learned in, nothing in it to
+ *        be hurt by), the meadow (the first foes), the climb (the advanced moves, each floor a tall step up), the ridge
+ *        (movement and foes together, climbing) and, when asked, the summit (the boss). A foe in 3D is walked round as
+ *        well as jumped, on a walkway three metres wide: none on the grounds, and dense where the strip's is a swarm
+ *
+ *   firstLevel({ name?, seed?, kit?, boss?, dimension? }) → a gameworld level: its walk (the trails, in order), its
+ *       course and its foes' density by trail node, and its goal's boss when asked (boss: true | { win })
+ *   firstLevelSegments(dimension?, boss?) → [{ id, teach, verticality, density, run }] the trails it lays, in order
  *   readBossWin(v, at) → the boss goal as written: true or { win }; throws, teaching
  *   storyWins(G) → [{ level, win }] the levels whose boss names its win, in the book's order: the story so far
  *
@@ -38,6 +49,23 @@ const SEGMENTS = Object.freeze([
 ]);
 const BOSS = Object.freeze({ id: 'boss', teach: 'boss', verticality: 'flat', density: 'none', run: 12 });
 export const FIRST_LEVEL_SEGMENTS = Object.freeze([...SEGMENTS.map((s) => s.id), BOSS.id]);
+// THE 3D PLATFORMER'S: a course a trail, each its own page and turn, the way up a hill (the header)
+const COURSES_3D = Object.freeze([
+  { id: 'grounds', teach: 'basic', verticality: 'rolling', density: 'none', run: 16 },
+  { id: 'meadow', teach: 'meet', verticality: 'flat', density: 'sparse', run: 12 },
+  { id: 'climb', teach: 'advanced', verticality: 'towering', density: 'sparse', run: 24 },
+  { id: 'ridge', teach: 'gauntlet', verticality: 'climbing', density: 'dense', run: 18 },
+]);
+const SUMMIT = Object.freeze({ id: 'summit', teach: 'boss', verticality: 'flat', density: 'none', run: 12 });
+export const FIRST_LEVEL_DIMENSIONS = Object.freeze(['2d', '3d']);
+export const FIRST_LEVEL_COURSES = Object.freeze([...COURSES_3D.map((s) => s.id), SUMMIT.id]);
+
+/** The trails a first level lays, in order: the strip's segments (2d), or the courses up the hill (3d). */
+export function firstLevelSegments(dimension = '2d', boss = false) {
+  if (!FIRST_LEVEL_DIMENSIONS.includes(dimension)) throw new Error(`firstLevel: dimension is ${FIRST_LEVEL_DIMENSIONS.join(' | ')} (a side-scroller's strip, or a 3D platformer's courses)`);
+  const [segs, last] = dimension === '3d' ? [COURSES_3D, SUMMIT] : [SEGMENTS, BOSS];
+  return boss ? [...segs, last] : [...segs];
+}
 
 /** A boss goal as written: true, or { win }. */
 export function readBossWin(v, at) {
@@ -49,8 +77,8 @@ export function readBossWin(v, at) {
 }
 
 /** The first level, laid as its trails, their courses and their foes; a boss only when asked. */
-export function firstLevel({ name, seed, kit, boss = false } = {}) {
-  const segs = boss ? [...SEGMENTS, BOSS] : SEGMENTS;
+export function firstLevel({ name, seed, kit, boss = false, dimension = '2d' } = {}) {
+  const segs = firstLevelSegments(dimension, !!boss);
   const nodes = Object.fromEntries(segs.map((s) => [s.id, { trail: { run: s.run, heartbeat: 0.2 } }]));
   return {
     ...(name ? { name } : {}), ...(seed !== undefined ? { seed } : {}),

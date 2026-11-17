@@ -4,7 +4,8 @@ import { behaviorFrames } from './behavior/pose.js';
 import { BEHAVIORS } from './behavior/index.js';
 import { gaitFrames } from './gait.js';
 import { speciesPlan } from './species.js';
-import { expandPlan } from '../polygonizer/station-loft-plan.js';
+import { expandPlan, loftPart } from '../polygonizer/station-loft-plan.js';
+import { SPECIES } from './species.js';
 import { compileLayered } from '../polygonizer/station-loft.js';
 import { bindLayered } from '../polygonizer/station-loft-rig.js';
 import { faunaSkeleton } from './skeleton.js';
@@ -19,6 +20,20 @@ const mv = (M, v) => M.map((r) => r[0] * v[0] + r[1] * v[1] + r[2] * v[2]);
 const minted = (id) => { const recipe = expandPlan(withMotion(speciesPlan(id), id)); const mesh = compileLayered(recipe, {}, {}); return { recipe, mesh, skin: bindLayered(mesh, recipe, faunaBones(id)) }; };
 
 describe('fauna rig', () => {
+  it('a shaped loft\'s rings are bound by the names the loft gives them: whole stations counted apart from shaping rings', () => {
+    // (the first species whose body has a shaping ring, an address between two whole stations: found, not listed)
+    const shaped = (p) => (p.stations || []).some((s) => s.u !== undefined), id = Object.keys(SPECIES).find((k) => speciesPlan(k).segments.some((p) => p.kind === 'loft' && shaped(p)));
+    expect(id).toBeTruthy();
+    const P = withMotion(speciesPlan(id), id); let seen = 0;
+    for (const seg of P.segments) {
+      if (seg.kind !== 'loft' || !shaped(seg) || !seg.bind?.blend) continue;
+      const rings = loftPart(seg.stations, seg.caps).stations.map((r) => r.id), bound = Object.keys(seg.bind.blend).filter((k) => k !== 'back' && k !== 'tip');
+      expect(bound.sort(), seg.name).toEqual([...rings].sort());
+      expect(rings.some((r) => /_st\d+_\d+$/.test(r)), seg.name).toBe(true);
+      seen++;
+    }
+    expect(seen).toBeGreaterThan(0);
+  });
   for (const id of PER_RIG) {
     it(`${faunaSkeleton(id).rig} (${id}): every vertex bound, weights valid`, () => {
       const { mesh, skin } = minted(id), nb = faunaBones(id).bones.length;

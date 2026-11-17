@@ -20,7 +20,14 @@ A gritty land draws trees as composed kinds (below); a quiet land keeps the sixt
 
 `{ from?: <preset>, flora: { trees?, grass?, shrubs?, flowers? } }`, each block merged over the preset's. Presets
 (`BIOCUBE_IDS`): `meadow`, `upland` (lone trees, short thin grass), `grove` (close clumps, bushes), `forest` (arranged
-clumps, the near trees whole and the far ones shapes), `bare`.
+clumps, the near trees whole and the far ones shapes), `bare`, and `seabed` (the desert's baseline with no tree, grass
+or bush, and `flora.marine: true`: what grows on a seabed and does not swim, laid as an aquarium is on a gen-7 page:
+reef rock, corals on it, sponges and anemones round it, kelp and whips in stands, seagrass in drifts; `marine` a mix
+`reef` | `kelp` | `meadow` | `wall` | `deep` | `vents`, `true` (what its `sea`'s zone grows) or `{ mix, density, kinds:
+{ <kind>: weight }, seed }`; a kind that does not live at the depth is left out and named; its animals are its `fauna.sea`:
+`true` (who its mix calls), words (`'sharks and rays'`) or `{ cast: { <species>: true | count | null }, find, density }`,
+the encyclopedia's sea animals called by depth, room and habitat, each on a loop by its habit; the geocube's readout
+`marine` says the cast, who was left out and why, and who else lives there).
 
 - **trees** `{ clusters, perCluster: [lo, hi], spread, heights: [lo, hi] m, clearTrail, clearCliff, compose?, bands?,
   kinds? }`: `clusters` clumps of `perCluster` trees `spread` m round each; `compose: 'ikebana'` arranges a clump (a
