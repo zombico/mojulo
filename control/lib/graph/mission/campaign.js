@@ -16,6 +16,9 @@
  *                              level spec }, patch: [{ op: 'set', path, value }] } the legs as a world's levels, in the
  *                              order they are played (a linear world's levels unlock each other in that order)
  *
+ * Every leg is fought with a squadmate at the pilot's shoulder (`mission.squad`), as the genre's openings are: someone
+ * who knows the way goes with you.
+ *
  * A leg with a place the world cannot build is left out and said (`building`: the core building the kit's band asks
  * for, gameworld/mission-building.js; none, no leg indoors). Pure.
  */
@@ -33,14 +36,14 @@ export const BEAT_IDS = Object.freeze(Object.keys(BEATS));
 /** The default opening mission's legs (see the header). `level`: the leg as a world's level, less its name. */
 export const OPENING = Object.freeze([
   Object.freeze({ id: 'yard', name: 'The staging yard', beats: ['cold-open', 'kit-check', 'first-contact', 'insertion'], place: 'a court grown under the arena\'s laws', says: 'gear up, then the first of them',
-    level: () => ({ mission: { sections: ['staging', 'contact', 'extract'], map: 'courtyard' } }) }),
+    level: () => ({ mission: { sections: ['staging', 'contact', 'extract'], map: 'courtyard', squad: 1 } }) }),
   Object.freeze({ id: 'street', name: 'The street', beats: ['push'], place: 'a town\'s main street, cut and grown', says: 'push up the street to the works',
-    level: () => ({ mission: { sections: ['lane', 'extract'], map: { town: { segment: 'main-street' } } } }) }),
+    level: () => ({ mission: { sections: ['lane', 'extract'], map: { town: { segment: 'main-street' } }, squad: 1 } }) }),
   Object.freeze({ id: 'inside', name: 'The building', beats: ['push'], place: 'a building designed as a fighting map', says: 'clear it, room by room', needs: 'building',
-    level: ({ building }) => ({ building: { use: building, fight: true }, mission: true }) }),
+    level: ({ building }) => ({ building: { use: building, fight: true }, mission: { squad: 1 } }) }),
   Object.freeze({ id: 'works', name: 'The works', beats: ['first-contact', 'push', 'set-piece', 'run-out'], place: 'an industrial yard, a tower in it', says: 'take the works, hold the yard, then get out',
     // (an industrial level's yard is its map and its design places the phases: its mission is the whole one, resupply first)
-    level: () => ({ industrial: true }) }),
+    level: () => ({ industrial: true, mission: { squad: 1 } }) }),
 ]);
 
 /** The opening mission as a world's levels (see the header). */

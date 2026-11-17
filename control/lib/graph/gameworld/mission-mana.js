@@ -65,10 +65,10 @@ const B = (p) => ({ bind: `ms.${p}` });
 const I = (f) => ({ item: f });
 const txt = (value, role) => ({ use: 'text', props: { value, ...(role ? { role } : {}) } });
 const back = { use: 'button', props: { label: { word: 'back' } }, on: { accept: { back: true } } };
-const USES = ['pause-menu', 'results-screen', 'objective-order', 'weapon-readout', 'health-strip', 'radar-scope', 'peril-edge', 'damage-direction'];
+const USES = ['pause-menu', 'results-screen', 'objective-order', 'weapon-readout', 'health-strip', 'radar-scope', 'peril-edge', 'damage-direction', 'subtitles'];
 /** The HUD's numbers: how long a readout holds no news before it fades back (s), the health's cells, where the screen's
  *  edge begins to close in (a share of the health) and where it is closed. */
-export const HUD = Object.freeze({ rest: 3, cells: 4, peril: 0.5, end: 0.05 });
+export const HUD = Object.freeze({ rest: 3, cells: 4, peril: 0.5, end: 0.05, radio: 5 });
 /** The look a mission wears where its world writes no interface of its own: the field brief (a theme card). */
 export const MISSION_LOOK = 'field-brief';
 // a mission's theme as mana-ui reads it: a card by its name, else a preset or a theme as written; and nothing of it drawn
@@ -99,6 +99,8 @@ export function missionManaSpec() {
       { use: 'objective-order', when: B('order.on'), props: { title: B('order.title'), step: B('order.step'), distance: B('order.distance'), holding: B('hold.on'), hold: B('hold.total'), left: B('hold.left'), label: B('hold.label') } },
       { use: 'health-strip', props: { hp: B('hp'), hpMax: B('hpMax'), cells: HUD.cells, rest: B('rest.hp') } },
       { use: 'weapon-readout', props: { name: B('weapon'), mode: B('mode'), rounds: B('ammo'), size: B('magazine'), reserve: B('reserve'), reloading: B('reloading'), rest: B('rest.gun') } },
+      // the order as it is spoken: who gives it and the line, for a few seconds as a task begins
+      { use: 'subtitles', props: { show: B('radio.on'), who: B('radio.who'), line: B('radio.line'), skip: '' } },
       // the damage ring: drawn only while a hit's mark stands
       { use: 'damage-direction', props: { hits: B('ring.hits') }, when: B('ring.on') },
     ] },
@@ -167,6 +169,7 @@ export function missionMana(ui) {
     objective: { title: plain ? ui.title : 'The mission', steps: ui.tasks.map((t) => ({ text: t.text, done: false })) },
     order: { on: ui.tasks.length > 0, title: ui.tasks[0]?.text ?? '', step: ui.tasks.length ? `1/${ui.tasks.length}` : '', distance: '' },
     hold: { on: false, left: 0, total: 0, label: 'Hold' },
+    radio: { on: false, who: ui.callsign ?? 'Command', line: '' },
     ring: { on: false, hits: [] },
     radar: { marks: [], north: 0, label: `${RADAR.range} m` },
     map: { marks: [], label: 'north up', legend: [{ text: '▲ you' }, ...(plain ? [] : [{ text: '★ the task in hand' }]), { text: '✕ a foe awake' }] },
@@ -250,7 +253,7 @@ export function missionManaRuntime(cfg) {
   // (when each readout last changed: the clock it rests on)
   const calm = { gun: '', gunT: 0, hp: -1, hpT: 0 };
   // THE HUD: read off the scene each frame, painted when what it shows has changed
-  let shown = '';
+  let shown = '', said = -1, saidT = 0;
   // THE DAMAGE RING (damage-ring.js): the marks standing this frame, from the pilot's own count of hits
   const ring = __msRing(cfg.ring, __msBearing);
   // THE RADAR AND THE MAP (radar.js): the plan drawn once from the scene's own colliders, the marks read each frame
@@ -294,6 +297,9 @@ export function missionManaRuntime(cfg) {
     const n = Number.isFinite(v.__obj) ? v.__obj : 0;
     for (let k = 0; k < cfg.tasks.length; k++) P.objective.steps[k].done = k < n;
     const T = cfg.tasks[n], held = !!T && T.kind === 'hold' && v['__obj_on' + n] === 1;
+    // THE ORDER, SPOKEN: as a task begins (the first once the briefing is shut) its line stands a few seconds
+    if (n !== said && !up && cfg.tasks[n]) { said = n; P.radio.line = cfg.tasks[n].say || ''; saidT = t; }
+    P.radio.on = !!P.radio.line && said === n && t - saidT < cfg.hud.radio && !up;
     P.order.on = cfg.tasks.length > 0;
     P.order.title = T ? T.text : 'Mission complete';
     P.order.step = T ? (n + 1) + '/' + cfg.tasks.length : '';
@@ -311,7 +317,7 @@ export function missionManaRuntime(cfg) {
       P.order.distance = !T ? '' : T.at ? Math.round(Math.hypot(T.at[0] - pos[0], T.at[1] - pos[1])) + ' m' : T.kind === 'clear' && foes ? foes + (foes === 1 ? ' hostile' : ' hostiles') : '';
     }
     // (a mark is repainted when it has moved five degrees: a turning pilot's ring turns, a still one's is left alone)
-    const now = JSON.stringify([P.hp, P.peril, P.weapon, P.mode, P.ammo, P.magazine, P.reserve, P.reloading, P.rest.gun, P.rest.hp, n, P.order.distance, P.hold.on, P.hold.left, P.ring.hits.map((x) => [Math.round(x.bearing / 5), Math.round(x.fade * 5)]), P.radar.marks.map((x) => [Math.round(x.x * 40), Math.round(x.y * 40), x.kind]), Math.round(P.radar.north / 5), P.map.marks.length]);
+    const now = JSON.stringify([P.radio.on, P.radio.line, P.hp, P.peril, P.weapon, P.mode, P.ammo, P.magazine, P.reserve, P.reloading, P.rest.gun, P.rest.hp, n, P.order.distance, P.hold.on, P.hold.left, P.ring.hits.map((x) => [Math.round(x.bearing / 5), Math.round(x.fade * 5)]), P.radar.marks.map((x) => [Math.round(x.x * 40), Math.round(x.y * 40), x.kind]), Math.round(P.radar.north / 5), P.map.marks.length]);
     if (now !== shown) { shown = now; view.paint(); }
     // the end: the level's one envelope; alone, the debrief; in a shell, the shell's own result screen
     const G = window.__mojGame, env = G && G.envelope;

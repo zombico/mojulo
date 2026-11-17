@@ -111,6 +111,7 @@ export function industrialPlan(G, I, { spec = {}, seed = null } = {}) {
     ] : [],
   };
   const laws = [...phaseLaws(M0, design.map), ...design.laws.map((l) => ({ law: `map:${l.law}`, holds: l.holds, says: l.says }))];
+  if (brief.squad) mission.squad = brief.squad;
   return { brief, recipe, design, map: design.map, mission, laws, seat, places, ...(I.crew ? { crew: { faction: I.crew, ...(I.masked ? { masks: true } : {}) } } : {}), grid: { nx, ny, xa: r2(xa), ya: r2(ya), door } };
 }
 
@@ -169,7 +170,7 @@ export function industrialManifest(G, P, { refs = {}, title = null, quiet = fals
   // (heard: its guns' shots, reloads, draws and hits, the range's own sound, combat/range-sound.js; `quiet` for none)
   const M = P.mission, C = missionCast(G, M, { refs, quiet, crew: P.crew ?? null }), felt = G?.feel != null ? feelRule(G.feel) : null;
   const rule = { type: 'platform', speed: 4.5, walkSpeed: 1.6, turn: 2.4, eye: EYE, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(felt ?? {}), turnMode: 'look', lookPitch: true, strafe: 1, ...C.pilot.rule };
-  const sp = M.anchors.spawn, player = { id: 'player', pilotable: true, rule, ...(C.pilot.weapon ? { weapon: C.pilot.weapon } : {}), body: { type: 'none', ...C.pilot.body }, transform: { pos: [sp[0], sp[1], r3(sp[2] + EYE)], heading: M.heading } };
+  const sp = M.anchors.spawn, player = { id: 'player', pilotable: true, ...(C.pilot.team ? { team: C.pilot.team } : {}), rule, ...(C.pilot.weapon ? { weapon: C.pilot.weapon } : {}), body: { type: 'none', ...C.pilot.body }, transform: { pos: [sp[0], sp[1], r3(sp[2] + EYE)], heading: M.heading } };
   return {
     ...P.recipe, seed: M.seed, title: title ?? `Mission · ${G?.name ?? G?.id ?? 'game'}`,
     figures: C.figures, entities: [player, ...C.entities], camera: C.eyeCamera,

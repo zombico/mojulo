@@ -211,9 +211,17 @@ proved on the bus; played on their resolved pages the headless gunner wins the y
 building it does not finish in 240 s (it stands at the lane), as a building's mission was already said to play; the
 works it wins in 78 s.
 
+Each order is SPOKEN as its task begins: a section carries its line (`SECTIONS.<id>.radio`), and the HUD stands it for
+a few seconds under who gives it (mana-ui's `subtitles`; `Command` unless the level names a callsign). And every leg is
+fought with a SQUADMATE (`mission.squad`, 0 to 2; a mission's own word, a campaign's legs ask one): a body at the
+pilot's shoulder on the pilot's side, its mind an escort's (it keeps by the pilot and fights whom it sees of the other
+side), carrying the pilot's first gun at a share of its harm, so it helps a fight and does not win one. Neither harms
+the other; no task counts it; it can fall. Measured headless on the street: with the pilot standing still for a
+minute the squadmate drops two of three and the pilot is left half its health; the gunner's own run is no slower.
+
 Said: the legs are separate pages, so nothing is carried from one to the next (health, rounds); the first two are
-short; no order is spoken and nobody fights beside the pilot; a leg's cold open is its briefing unless the story gives
-its turn a scene.
+short; an order is a line of text, not a voice; a squadmate wears the stand-in body and says nothing; a leg's cold
+open is its briefing unless the story gives its turn a scene.
 
 ## In a building
 

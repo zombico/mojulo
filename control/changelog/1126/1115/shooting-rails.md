@@ -293,3 +293,8 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   levels in order: a staging yard, a street, a building where the kit asks for one, the works. A leg is a checkpoint.
   `design_game` offers it beside the first mission, with its patch
   ([docs/missions.md](../../../../docs/missions.md), "A campaign's opening mission").
+- **Orders are spoken, and someone goes with you.** A mission's section carries the line its task is given in, and the
+  HUD stands it for a few seconds as the task begins, under who gives it. A mission takes a `squad` (0 to 2): a body
+  at the pilot's shoulder on the pilot's side, an escort's mind (it keeps by the pilot and fights whom it sees of the
+  other side), the pilot's first gun at a share of its harm; neither harms the other and no task counts it. A
+  campaign's legs each ask one.

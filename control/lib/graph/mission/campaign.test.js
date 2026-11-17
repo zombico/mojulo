@@ -8,6 +8,7 @@ import { readGameworld } from '../gameworld/world.js';
 import { gameStages, stageLevelOrder, gameLevels } from '../gameworld/levels.js';
 import { proveMission } from '../gameworld/mission-proof.js';
 import { missionBuildingFor } from '../gameworld/mission-building.js';
+import { SQUAD_TEAM } from '../gameworld/mission-level.js';
 import { TEMPLATE_LOADOUTS } from '../gameworld/loadout.js';
 import { POLES } from '../gameworld/feel/cards.js';
 
@@ -35,6 +36,17 @@ describe('a campaign\'s opening mission', () => {
       const m = stageLevelOrder(G, st, { ref: `${st.level}-0`, heroRef: null }).args.manifest;
       expect(m.mission.tasks.at(-1).kind, st.level).toBe('reach');
       expect(proveMission(m).proved, st.level).toBe(true);
+    }
+    // (each leg is fought with a squadmate: a body on the pilot's side whose mind keeps by the pilot, with a share of
+    // the pilot's own gun; the pilot on that side too, so neither harms the other; and it is no task's foe)
+    for (const st of stages) {
+      const m = stageLevelOrder(G, st, { ref: `${st.level}-0`, heroRef: null }).args.manifest, me = m.entities.find((e) => e.pilotable), mates = m.entities.filter((e) => /^ally-/.test(e.id));
+      expect(mates, st.level).toHaveLength(1);
+      expect(me.team).toBe(SQUAD_TEAM);
+      expect(mates[0]).toMatchObject({ team: SQUAD_TEAM, rule: { mind: { motivation: 'escort' }, escort: 'player' } });
+      expect(mates[0].weapon.damage).toBeLessThan(me.weapon.damage);
+      expect(JSON.stringify(m.game?.mechanics ?? m.level?.mechanics)).not.toContain('ally-');
+      expect(m.mission.tasks.every((t) => typeof t.say === 'string')).toBe(true);
     }
     const refs = stages.map((s) => `${s.level}-0`), L = gameLevels(stages, refs);
     expect(L[0].gate).toBeUndefined();

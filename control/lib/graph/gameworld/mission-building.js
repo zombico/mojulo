@@ -197,5 +197,6 @@ export function buildingMissionPlan(G, stage, { spec = {}, seed = null, spawn, h
     anchors: { spawn: spawn.slice(), exit: exitS ? exitS.task.at.slice() : spawn.slice() }, heart, cells: G0.cells, frame,
     ...(floors ? { floors } : {}),
   };
+  if (brief.squad) mission.squad = brief.squad;
   return { brief, mission, laws, map, moved, dropped };
 }

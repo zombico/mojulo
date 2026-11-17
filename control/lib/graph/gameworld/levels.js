@@ -1598,7 +1598,7 @@ function buildingMissionOrder(G, stage, { ref, heroRef, heroGaits = null, pilot 
     const controls = `W / S  walk · A / D  step aside · mouse  look · ${MX.legend}${felt ? ` · Space  jump${felt.sprintSpeed ? ' · Shift  sprint' : ''}` : ''}${MX.pilot.rule.knife ? ' · V  knife' : ''}`;
     const PW = playerWorld({ heroRef: 'none', id: 'player', title: name, controls });
     const rule = { type: 'platform', speed: 4.5, walkSpeed: 1.6, turn: 2.4, eye: EYE_FALLBACK, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(felt ?? {}), turnMode: 'look', lookPitch: true, strafe: 1, ...MX.pilot.rule };
-    const me = { ...walker, rule, ...(MX.pilot.weapon ? { weapon: MX.pilot.weapon } : {}), body: { ...walker.body, ...MX.pilot.body }, transform: { pos: [spawn[0], spawn[1], r3(spawn[2] + EYE_FALLBACK)], heading } };
+    const me = { ...walker, ...(MX.pilot.team ? { team: MX.pilot.team } : {}), rule, ...(MX.pilot.weapon ? { weapon: MX.pilot.weapon } : {}), body: { ...walker.body, ...MX.pilot.body }, transform: { pos: [spawn[0], spawn[1], r3(spawn[2] + EYE_FALLBACK)], heading } };
     pilotPart = { figures: MX.figures, entities: [me, ...MX.entities], camera: { rule: 'eye', target: 'player', height: 0, mouseLook: true }, events: PW.events || {} };
   } else {
     // A HERO: its own walker armed with the mission's guns, over its shoulder where the camera says
