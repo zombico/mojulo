@@ -112,7 +112,9 @@ In progress. Built so far:
   - a toffee: dropped behind, it slows and spins the kart that drives over it
   - a gumball: rolled ahead along the track's line, it knocks the first kart it meets
 
-  The pilot uses its item on E (or right Shift, or the pad's left face), and rivals use theirs by judgement. The race
+  What a box hands out depends on where the kart stands (catch-up): the race ranks the field by each kart's progress
+  round the lap, and the last mostly draws sugar rushes while the leader mostly draws toffee (`catchup: false` draws
+  flat). The pilot uses its item on E (or right Shift, or the pad's left face), and rivals use theirs by judgement. The race
   HUD shows the item held at the top's middle, and the kart's juice pulses while one is held. Run by one step
   inlined on the page as the boost pads' is (`scene/channels/controllable/kart-items-view.js`), emitted only on a
   track with boxes. The roadway contract carries the rows.

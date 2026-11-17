@@ -90,6 +90,36 @@ describe('what the boxes hand out', () => {
   });
 });
 
+describe('catch-up: what a box hands out by where the kart stands', () => {
+  // (a straight line of points the field is ranked on, a box under each of two karts far apart)
+  const line = Array.from({ length: 60 }, (_, j) => [0, j * 2, Math.PI / 2, 0]).flat();
+  const T0 = itemTable(plan, {}), T = { ...T0, line, back: 0.001, boxes: [[0, 90, 0.3], [0, 12, 0.3]] };
+  const kart = (id, y) => ({ id, pos: [0, y, 0.3], heading: Math.PI / 2, speed: 15, use: false, ai: false });
+  const draws = (table, runs = 300) => {
+    const S = itemState(table, 5), got = { lead: {}, last: {} };
+    for (let i = 0; i < runs; i++) {
+      S.held = {}; S.box = S.box.map(() => 0);
+      kartItemsStep(S, [kart('lead', 90), kart('last', 12)], 0.01);
+      for (const id of ['lead', 'last']) got[id][S.held[id]] = (got[id][S.held[id]] || 0) + 1;
+    }
+    return got;
+  };
+  it('the last is handed sugar rushes far more often than the leader, the leader the toffee', () => {
+    const got = draws(T);
+    expect((got.last['sugar-rush'] || 0)).toBeGreaterThan(3 * (got.lead['sugar-rush'] || 0));
+    expect((got.lead.toffee || 0)).toBeGreaterThan(3 * (got.last.toffee || 0));
+  });
+  it('without catch-up, the two draw alike', () => {
+    const flat = { ...itemTable(plan, { catchup: false }), line, back: 0.001, boxes: T.boxes }, got = draws(flat);
+    const share = (g) => (g['sugar-rush'] || 0) / 300;
+    expect(Math.abs(share(got.last) - share(got.lead))).toBeLessThan(0.12);
+  });
+  it('is read as its settings, and a bad one refused', () => {
+    expect(readItems({ catchup: false })).toEqual({ catchup: false });
+    expect(() => readItems({ catchup: { 'sugar-rush': [1] } })).toThrow(/leader's scale/);
+  });
+});
+
 describe('the race HUD shows the item held', () => {
   it('a race with items has its slot and its feed says so; one without, neither', () => {
     const on = raceHud({ mech: 0, laps: 3, racers: 4, items: true }), off = raceHud({ mech: 0, laps: 3, racers: 4 });

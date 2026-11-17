@@ -8,15 +8,20 @@
  *     sugar-rush  boost   a burst of speed the moment it is used (the drive rule's boost: rules-drive.js `boostT`)
  *     toffee      trap    a sticky blob dropped behind: a kart that drives over it is slowed and wobbles
  *     gumball     shot    a ball rolled ahead down the track's own line: the kart it meets is knocked and spun
- *   readItems(v) → the options a track's `items` says (true, false, or { every?, across?, back?, odds? }), or null
+ *   readItems(v) → the options a track's `items` says (true, false, or { every?, across?, back?, odds?, catchup? }), or null
  *   itemRows(plan, opts) → [{ s, boxes: [[x, y, z]] }]   rows across the way on the straights, never on the grid
  *   itemTable(plan, opts) → { boxes, r, back, kinds, odds } | null   the page's table (a drive surface's `items`)
  *   kartItemsStep(S, karts, dt) → effects   pure and import-free: the page embeds its source as it is
  *     S       the race's item state: { T (the table), seed, box: [seconds till back], held: { id: kind }, traps, shots,
  *             spin: { id: seconds } } (made by `itemState`)
- *     karts   [{ id, pos: [x, y, z], heading, speed, use, ai, line? }] (`use`: the racer pressed its item this frame)
+ *     karts   [{ id, pos: [x, y, z], heading, speed, use, ai, rank? }] (`use`: the racer pressed its item this frame;
+ *             `rank` its standing, 0 the leader … 1 the last, where the table has no line to rank the field by)
  *     → [{ id, boost? , slow?, spin? }] what happened to whom this frame (the page lays it on the drive rule's entity)
  *   itemState(T, seed) → the state a race starts with
+ *
+ * CATCH-UP: what a box hands out depends on where the kart stands. The step keeps each kart's progress round the lap on
+ * the track's line and ranks the field from it; each item's weight is scaled between its leader's and its last's
+ * (ITEM_BOXES.catchup): the back mostly gets sugar rushes, the leader mostly toffee. `catchup: false` draws flat.
  *
  * A rival uses what it holds: a boost on a straight at once, a toffee when a kart is close behind it, a gumball when
  * one is ahead in reach (or each after a while, so nothing is held for the whole race).
@@ -32,15 +37,22 @@ export const ITEMS = Object.freeze({
 });
 /** How the boxes are laid and how often each item comes out of one. */
 export const ITEM_BOXES = Object.freeze({ every: 170, least: 30, clear: 40, across: 4, size: 1.4, lift: 1.05, r: 1.5, back: 2.5,
-  odds: Object.freeze({ 'sugar-rush': 0.45, gumball: 0.3, toffee: 0.25 }) });
+  odds: Object.freeze({ 'sugar-rush': 0.45, gumball: 0.3, toffee: 0.25 }),
+  // CATCH-UP: each item's weight scaled by where the kart stands in the field, [the leader's, the last's] (between, by
+  // rank): the back is handed boosts to come back with, the front a toffee to defend with and few boosts to run away on
+  catchup: Object.freeze({ 'sugar-rush': Object.freeze([0.25, 3]), gumball: Object.freeze([1, 1]), toffee: Object.freeze([2.2, 0.3]) }) });
 
 /** A track's `items` checked: true (the boxes as ITEM_BOXES lays them), false or none, or { every?, across?, back?,
  *  odds? } (odds: { <item>: weight } over the shelf's items). → the options, or null; throws on a bad one. */
 export function readItems(v) {
   if (v === undefined || v === null || v === false) return null;
   if (v === true) return {};
-  if (typeof v !== 'object' || Array.isArray(v)) throw new Error('roadway: items is true, false or { every?, across?, back?, odds? }');
-  for (const k of Object.keys(v)) if (!['every', 'across', 'back', 'odds'].includes(k)) throw new Error(`roadway: items.${k} is not an item setting (every, across, back, odds)`);
+  if (typeof v !== 'object' || Array.isArray(v)) throw new Error('roadway: items is true, false or { every?, across?, back?, odds?, catchup? }');
+  for (const k of Object.keys(v)) if (!['every', 'across', 'back', 'odds', 'catchup'].includes(k)) throw new Error(`roadway: items.${k} is not an item setting (every, across, back, odds, catchup)`);
+  if (v.catchup !== undefined && v.catchup !== false) {
+    if (typeof v.catchup !== 'object' || Array.isArray(v.catchup)) throw new Error('roadway: items.catchup is false or { <item>: [the leader\'s scale, the last\'s] }');
+    for (const [id, c] of Object.entries(v.catchup)) { if (!ITEMS[id]) throw new Error(`roadway: items.catchup names '${id}', not an item`); if (!Array.isArray(c) || c.length !== 2 || !c.every((x) => Number.isFinite(x) && x >= 0)) throw new Error(`roadway: items.catchup.${id} is [the leader's scale, the last's], each 0 or more`); }
+  }
   for (const k of ['every', 'across', 'back']) if (v[k] !== undefined && !(Number.isFinite(v[k]) && v[k] > 0)) throw new Error(`roadway: items.${k} is a number over 0`);
   if (v.odds !== undefined) for (const [id, w] of Object.entries(v.odds)) { if (!ITEMS[id]) throw new Error(`roadway: items.odds names '${id}', not an item (${Object.keys(ITEMS).join(', ')})`); if (!(Number.isFinite(w) && w >= 0)) throw new Error(`roadway: items.odds.${id} is a weight, 0 or more`); }
   return { ...v };
@@ -69,14 +81,14 @@ export function itemRows(plan, opts = {}) {
 export function itemTable(plan, opts = {}) {
   const O = { ...ITEM_BOXES, ...opts }, rows = itemRows(plan, O);
   if (!rows.length) return null;
-  const odds = Object.entries(O.odds).filter(([id]) => ITEMS[id]);
+  const odds = Object.entries(O.odds).filter(([id]) => ITEMS[id]), cu = O.catchup === false ? {} : O.catchup ?? {};
   return { boxes: rows.flatMap((r) => r.boxes), r: O.r, back: O.back, size: O.size,
-    kinds: Object.fromEntries(odds.map(([id]) => [id, { ...ITEMS[id] }])), odds: odds.map(([id, w]) => [id, w]) };
+    kinds: Object.fromEntries(odds.map(([id]) => [id, { ...ITEMS[id] }])), odds: odds.map(([id, w]) => [id, w, ...(cu[id] ?? [1, 1])]) };
 }
 
 /** The state a race's items start in. */
 export function itemState(T, seed = 1) {
-  return { T, seed: (seed >>> 0) || 1, box: T.boxes.map(() => 0), held: {}, traps: [], shots: [], spin: {}, since: {} };
+  return { T, seed: (seed >>> 0) || 1, box: T.boxes.map(() => 0), held: {}, traps: [], shots: [], spin: {}, since: {}, at: {}, lap: {} };
 }
 
 /**
@@ -86,7 +98,24 @@ export function itemState(T, seed = 1) {
 export function kartItemsStep(S, karts, dt) {
   const T = S.T, out = [];
   const dice = () => { S.seed = (S.seed + 0x6d2b79f5) >>> 0; let t = S.seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-  const pick = () => { let total = 0; for (const o of T.odds) total += o[1]; let u = dice() * total; for (const o of T.odds) { u -= o[1]; if (u <= 0) return o[0]; } return T.odds[T.odds.length - 1][0]; };
+  // (an item drawn at a rank, 0 the leader, 1 the last: each weight scaled between its leader's and its last's)
+  const pick = (r) => { const w = (o) => o[1] * (o.length > 3 ? o[2] + (o[3] - o[2]) * r : 1); let total = 0; for (const o of T.odds) total += w(o); let u = dice() * total; for (const o of T.odds) { u -= w(o); if (u <= 0) return o[0]; } return T.odds[T.odds.length - 1][0]; };
+  // THE FIELD: each kart's progress round the lap, its place on the track's line (the main line's points, a branch's
+  // left out) and the laps it has wrapped; its rank from it. A kart alone, or a race without a line, draws at the middle
+  const P = T.line, rank = {};
+  let n = 0;
+  if (P && P.length >= 8) while (n * 4 < P.length && P[n * 4 + 3] !== 2) n++;
+  if (n >= 2 && karts.length > 1) {
+    const prog = karts.map((k) => {
+      let best = 0, bd = Infinity;
+      for (let j = 0; j < n; j++) { const d = (P[j * 4] - k.pos[0]) ** 2 + (P[j * 4 + 1] - k.pos[1]) ** 2; if (d < bd) { bd = d; best = j; } }
+      const was = S.at[k.id];
+      if (was !== undefined) { if (was > 0.75 * n && best < 0.25 * n) S.lap[k.id] = (S.lap[k.id] || 0) + 1; else if (was < 0.25 * n && best > 0.75 * n) S.lap[k.id] = (S.lap[k.id] || 0) - 1; }
+      S.at[k.id] = best;
+      return { id: k.id, p: (S.lap[k.id] || 0) * n + best };
+    }).sort((a, b) => b.p - a.p);
+    prog.forEach((q, i) => { rank[q.id] = i / (prog.length - 1); });
+  }
   const hit = (k, I) => { out.push({ id: k.id, slow: I.slow, spin: I.spin }); S.spin[k.id] = I.spin; };
   // the boxes: back after their time; a kart through one takes an item if it holds none (the box pops either way)
   for (let i = 0; i < T.boxes.length; i++) {
@@ -95,7 +124,7 @@ export function kartItemsStep(S, karts, dt) {
     for (const k of karts) {
       if (Math.hypot(k.pos[0] - b[0], k.pos[1] - b[1]) > T.r || Math.abs(k.pos[2] - b[2]) > 3) continue;
       S.box[i] = T.back;
-      if (!S.held[k.id]) { S.held[k.id] = pick(); S.since[k.id] = 0; out.push({ id: k.id, took: S.held[k.id] }); }
+      if (!S.held[k.id]) { S.held[k.id] = pick(rank[k.id] ?? (k.rank !== undefined ? k.rank : 0.5)); S.since[k.id] = 0; out.push({ id: k.id, took: S.held[k.id] }); }
       break;
     }
   }

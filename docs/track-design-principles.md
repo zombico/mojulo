@@ -121,7 +121,7 @@ the track's own laws and the trackscape's.
 
 ## Items
 
-A kart track from words lays item boxes (a track's `items`: true, or `{ every, across, back, odds }`;
+A kart track from words lays item boxes (a track's `items`: true, or `{ every, across, back, odds, catchup }`;
 `roads/kart-items.js`). They stand in rows across the way on the straights, never on the grid, a row every so many
 metres of the lap. Each box is something to drive at, said three ways at once:
 - **Its shape:** a rounded golden core with a "?" on every face.
@@ -134,6 +134,11 @@ are the candy family's own:
 - a **sugar rush**: a boost, the drive rule's own
 - a **toffee**: a sticky blob dropped behind, which slows and spins the kart that drives over it
 - a **gumball**: a ball rolled ahead down the track's line, which knocks the first kart it meets
+
+What a box hands out depends on where the kart stands (catch-up). The race keeps each kart's progress round the lap on
+the track's line and ranks the field from it. Each item's weight is scaled between the leader's and the last's
+(`ITEM_BOXES.catchup`): the last mostly gets sugar rushes to come back with, and the leader mostly toffee to defend with
+and few boosts to run away on. `items: { catchup: false }` draws flat.
 
 The pilot uses its item on E (or right Shift, or the pad's left face). Rivals use theirs by judgement: a boost at once,
 a toffee with a kart close behind, a gumball with one ahead in reach. The HUD shows the item held at the top's middle.
