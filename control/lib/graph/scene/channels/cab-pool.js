@@ -12,8 +12,10 @@
 // MAYHEM (`mayhem`: a page whose bus listens for it, the law's wanted level, game/law-mechanics.js): a car taken from
 // the traffic presses `mayhem:carjack`; driven into one of the traffic's vehicles at speed, `mayhem:crash` (once a
 // while). Absent, not one byte.
+// THE LAW'S CARS (`patrol`: entities with a `carBody`, gameworld/cars.js patrolCar): drawn the same way from the pooled
+// templates, in their livery, a light bar on the roof flashing red and blue. Absent, not one byte.
 // Emitted only when an entity's mount carries `pool` or `spare`; absent, not one byte.
-export function cabPoolScript({ mayhem = false } = {}) {
+export function cabPoolScript({ mayhem = false, patrol = false } = {}) {
   return `
 // --- the city's cars as bodies: drawn from the pooled templates; one taken from the traffic ---
 (function () {
@@ -34,7 +36,22 @@ export function cabPoolScript({ mayhem = false } = {}) {
     g.userData.g = 'cab:' + P.model; scene.add(g);
     b = { g, model: P.model, tint: P.tint }; made.set(e.id, b); return b;
   }
-  // (the page's own ground probe, the controllable runtime's: down from a point)
+${patrol ? `  // a police car: its model's body in its livery, a light bar over its roof (two lamps, red and blue)
+  const patrols = new Map();
+  function patrolOf(e) {
+    let b = patrols.get(e.id);
+    if (b) return b;
+    const P = e.carBody.pool, g = new THREE.Group(), paint = __POOLS[P.model + '|paint'], trim = __POOLS[P.model + '|trim'];
+    if (paint) g.add(new THREE.Mesh(paint, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, color: new THREE.Color(P.tint[0], P.tint[1], P.tint[2]) })));
+    if (trim) g.add(new THREE.Mesh(trim, TRIM));
+    if (paint && !paint.boundingBox) paint.computeBoundingBox();
+    const bb = paint && paint.boundingBox, top = bb ? bb.max.z : 1.45, mid = bb ? (bb.min.y + bb.max.y) / 2 - 0.15 : 0;
+    const lamp = (x, c) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.24, 0.13), new THREE.MeshBasicMaterial({ color: c })); m.position.set(x, mid, top + 0.07); g.add(m); return m; };
+    b = { g, red: lamp(-0.27, 0xd02020), blue: lamp(0.27, 0x2040d0) };
+    g.traverse(function (o) { o.raycast = function () {}; });
+    g.userData.g = 'police-car'; scene.add(g); patrols.set(e.id, b); return b;
+  }
+` : ''}  // (the page's own ground probe, the controllable runtime's: down from a point)
   const GROUND = typeof __ground === 'function' ? (x, y, z) => __ground([x, y, z]) : null;
   let prevN = null;
   (function tick() {
@@ -61,7 +78,17 @@ export function cabPoolScript({ mayhem = false } = {}) {
       }
       b.g.rotation.set(b.pitch || 0, -(b.roll || 0), e.transform.heading - Math.PI / 2, 'ZXY');
     }
-    window.__mojCabPool = { bodies: made.size, tilted: [...made.values()].filter((b) => Math.abs(b.pitch || 0) > 0.005 || Math.abs(b.roll || 0) > 0.005).length, pilot: pilot && made.get(pilot.id) ? [made.get(pilot.id).pitch || 0, made.get(pilot.id).roll || 0] : null };
+${patrol ? `    // the law's cars: placed, turned, their lamps flashing turn about
+    const flash = Math.floor(performance.now() / 160) % 2;
+    for (const e of W.entities) {
+      if (!e.carBody) continue;
+      const b = patrolOf(e), p = e.transform.pos, dx = p[0] - cam.x, dy = p[1] - cam.y;
+      b.g.visible = !e.gone && dx * dx + dy * dy < SEEN * SEEN;
+      if (!b.g.visible) continue;
+      b.g.position.set(p[0], p[1], p[2]); b.g.rotation.set(0, 0, e.transform.heading - Math.PI / 2);
+      b.red.material.color.setRGB(flash ? 1 : 0.22, flash ? 0.12 : 0.03, flash ? 0.12 : 0.03); b.blue.material.color.setRGB(flash ? 0.03 : 0.12, flash ? 0.05 : 0.25, flash ? 0.22 : 1);
+    }
+` : ''}    window.__mojCabPool = { bodies: made.size, tilted: [...made.values()].filter((b) => Math.abs(b.pitch || 0) > 0.005 || Math.abs(b.roll || 0) > 0.005).length, pilot: pilot && made.get(pilot.id) ? [made.get(pilot.id).pitch || 0, made.get(pilot.id).roll || 0] : null };
     // a vehicle of the traffic's in reach, stopped or slow, where no parked cab is
     let offer = null;
     if (pilot && !pilot.mount && !pilot.mountedOn && !pilot.gone) {

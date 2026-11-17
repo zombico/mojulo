@@ -8,9 +8,12 @@
  *                       set down near the player (the cast's spawn `near`, out of reach), who chase and strike. Every
  *                       `calm` seconds with no mayhem and no police blow on the player, a star is taken off and its police
  *                       sent away; at none the chase is over. `busted` police blows: the player is BUSTED, fined `fine`
- *                       coin when it holds that much, set down at `back`, and wanted no more.
- *                       { police: [entity id], per? (2), stars? (5), calm? (12), busted? (6), fine? (0), back?,
- *                         mayhem?: [event], ring? ([14, 30]) }
+ *                       coin when it holds that much, taken out of what it drives, set down at `back`, and wanted no more.
+ *                       POLICE CARS (`cars`, the `chaser` rule's bodies minted asleep): the k-th star brings the k-th,
+ *                       set down farther off (`carRing`, at a junction), after the player along the streets; one that
+ *                       holds a player who stands counts a blow as an officer's does.
+ *                       { police: [entity id], cars?: [entity id], per? (2), stars? (5), calm? (12), busted? (6),
+ *                         fine? (0), back?, mayhem?: [event], ring? ([14, 30]), carRing? ([45, 90]) }
  *
  * Its vars: `wanted` (the stars, what the HUD draws), `wanted-calm`, `wanted-hits`. Its events: `wanted:<n>` (the n-th
  * star raised), `wanted-lost` (shaken off), `busted`.
@@ -23,7 +26,7 @@ import { lowerMove, NOWHERE } from '../playscape/ui/items.js';
 const isVec = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
 const posInt = (v) => Number.isInteger(v) && v >= 1;
 const EVENT = /^[a-z][a-z0-9:-]{0,63}$/;
-export const WANTED = Object.freeze({ per: 2, stars: 5, calm: 12, busted: 6, ring: Object.freeze([14, 30]), mayhem: Object.freeze(['mayhem:carjack', 'mayhem:crash']) });
+export const WANTED = Object.freeze({ per: 2, stars: 5, calm: 12, busted: 6, ring: Object.freeze([14, 30]), carRing: Object.freeze([45, 90]), mayhem: Object.freeze(['mayhem:carjack', 'mayhem:crash']) });
 
 export function lowerWanted(p, ctx) {
   const at0 = `wanted[${ctx.i}]`, fail = (m) => { throw new Error(`${at0}: ${m}`); };
@@ -36,8 +39,11 @@ export function lowerWanted(p, ctx) {
   if (!posInt(busted)) fail('busted is the police blows that take the player down');
   if (!(Number.isInteger(fine) && fine >= 0)) fail('fine is the coin a bust costs');
   if (p.back !== undefined && !isVec(p.back)) fail('back is [x, y, z]: where a busted player is set down');
+  const cars = p.cars ?? [];
+  if (!Array.isArray(cars) || cars.some((x) => typeof x !== 'string' || !x)) fail('cars is the police cars, by their entity ids');
   const mayhem = [...WANTED.mayhem, ...(p.mayhem ?? [])];
   if (mayhem.some((m) => typeof m !== 'string' || !EVENT.test(m))) fail('mayhem is the events that raise a star (encounter:torch)');
+  const ringOf = (v, d) => (Array.isArray(v) && v.length === 2 && v.every(Number.isFinite) && v[0] < v[1] ? v.slice() : d.slice()), carRing = ringOf(p.carRing, WANTED.carRing);
   const ring = Array.isArray(p.ring) && p.ring.length === 2 && p.ring.every(Number.isFinite) && p.ring[0] < p.ring[1] ? p.ring.slice() : WANTED.ring.slice();
   const W = 'wanted', C = 'wanted-calm', H = 'wanted-hits', was = 'wanted-was';
   const frag = { vars: { [W]: 0, [C]: 0, [H]: 0, [was]: 0 }, reactions: [], hud: [], timers: [], watches: [] };
@@ -50,6 +56,7 @@ export function lowerWanted(p, ctx) {
     const mine = police.slice((k - 1) * per, k * per);
     frag.watches.push({ type: `wanted:${k}`, when: { var: W, gte: k } }, { type: `unwanted:${k}`, when: { var: W, lt: k } });
     for (const id of mine) frag.reactions.push({ on: `wanted:${k}`, do: 'ctrl', op: 'spawn', who: id, fresh: true, near: ctx.player, ring }, { on: `unwanted:${k}`, do: 'ctrl', op: 'vanish', who: id });
+    if (cars[k - 1]) frag.reactions.push({ on: `wanted:${k}`, do: 'ctrl', op: 'spawn', who: cars[k - 1], near: ctx.player, ring: carRing }, { on: `unwanted:${k}`, do: 'ctrl', op: 'vanish', who: cars[k - 1] });
   }
   frag.reactions.push({ on: 'wanted:1', do: 'set', var: was, to: 1 });
   // THE CALM: a second at a time while wanted; a police blow starts it over; `calm` of them take a star off
@@ -60,9 +67,11 @@ export function lowerWanted(p, ctx) {
   // (shaken off: none left, from a chase and not a bust)
   frag.reactions.push({ on: 'unwanted:1', if: { var: was, gte: 1 }, do: 'emit', type: 'wanted-lost' }, { on: 'unwanted:1', do: 'set', var: was, to: 0 }, { on: 'unwanted:1', do: 'set', var: H, to: 0 });
   // BUSTED: the police blows counted while wanted
-  for (const id of police) frag.reactions.push({ on: `hit:${ctx.player}`, match: { by: id }, if: { var: W, gte: 1 }, do: 'inc', var: H, by: 1 }, { on: `hit:${ctx.player}`, match: { by: id }, do: 'set', var: C, to: 0 });
+  for (const id of [...police, ...cars]) frag.reactions.push({ on: `hit:${ctx.player}`, match: { by: id }, if: { var: W, gte: 1 }, do: 'inc', var: H, by: 1 }, { on: `hit:${ctx.player}`, match: { by: id }, do: 'set', var: C, to: 0 });
   frag.watches.push({ type: 'busted', when: { var: H, gte: busted } });
   frag.reactions.push({ on: 'busted', do: 'set', var: was, to: 0 }, { on: 'busted', do: 'set', var: W, to: 0 }, { on: 'busted', do: 'set', var: H, to: 0 }, { on: 'busted', do: 'set', var: C, to: 0 });
+  // (out of the car first, if it drives one, set down where it is put)
+  frag.reactions.push({ on: 'busted', do: 'ctrl', op: 'dismount', who: ctx.player, ...(p.back ? { to: p.back.slice() } : {}) });
   if (p.back) frag.reactions.push({ on: 'busted', do: 'move', target: ctx.player, to: p.back.slice() });
   // (the fine taken only when the player holds it, and said only then)
   if (fine > 0) { ctx.resolve('inventory', p.slice ?? 'bag', at0); const { ok } = lowerMove({ item: 'coin', n: fine, from: 'bag', to: NOWHERE, on: 'busted' }, frag); frag.reactions.push({ on: ok, do: 'emit', type: 'fined:wanted' }); frag.hud.push({ on: 'fined:wanted', as: 'toast', text: `Fined ${fine}`, ttl: 3 }); }

@@ -1990,6 +1990,13 @@ export function assembleGeocityScene(m, ctx = {}) {
     // (a played level's cars a hero gets into, gameworld/cars.js: `ctx.driven` their places, each a body of the level's
     // and so never drawn here; `ctx.parked`, a list the caller hands, is filled with every vehicle parked)
     if (Array.isArray(ctx.parked)) ctx.parked.push(...vehicles);
+    // (`ctx.streets`, a list the caller hands, filled with every street a driver keeps to: each arterial across the
+    // land and each neighbourhood's own streets, run by run, as [axis (0 along x, 1 along y), its middle, from, to]:
+    // gameworld/levels.js cityRoads, the law's police car)
+    if (Array.isArray(ctx.streets)) {
+      for (const l of d.lines) ctx.streets.push(l.axis === 'ns' ? [1, r5(l.at), r5(ly0), r5(ly1)] : [0, r5(l.at), r5(lx0), r5(lx1)]);
+      for (const r of d.regions) for (const st of r.streets ?? []) for (const [a, b] of st.runs ?? []) ctx.streets.push([st.axis === 'ns' ? 1 : 0, r5(st.at), r5(a), r5(b)]);
+    }
     const drivenAt = ctx.driven ?? [], undriven = drivenAt.length ? vehicles.filter((c) => !drivenAt.some((q) => Math.abs(q[0] - c.pos[0]) < 0.02 && Math.abs(q[1] - c.pos[1]) < 0.02)) : vehicles;
     // (their models pooled with the traffic's: the templates those bodies are drawn from, scene/channels/cab-pool.js;
     // `ctx.pooled`, the models of bodies the district did not park itself: its fleet's cars a level stands at a kerb)

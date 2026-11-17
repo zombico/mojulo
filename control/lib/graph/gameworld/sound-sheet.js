@@ -404,16 +404,18 @@ const playedCity = (manifest) => !!manifest && manifest.kind === 'geocube' && (m
 
 /** THE CITY'S CARS, HEARD: a sheet game's played town or district, where every parked car can be got into (cars.js).
  * Its engine is the car's (a held voice by the speed of the car the pilot rides, `cab`: silent on foot), and its
- * one-shots the door as a car is got into and out of, the horn (H, at the wheel) and a crash on a hard stop: the
+ * one-shots the door as a car is got into and out of, the horn (H, at the wheel), a crash on a hard stop and, where the
+ * law watches the city, the siren of a police car near the player (`law:siren`): the
  * shelf's words in the sheet's style, as cues the audio channel plays. → { engine, cues, why } or null (a game on no
  * sheet, a level that is no played city, or `sound.ride: false`). */
-export const CITY_CAR = Object.freeze({ top: 28, level: 0.55, engine: 'road-car-engine', door: 'car-door', horn: 'car-horn', crash: 'car-crash' });
+export const CITY_CAR = Object.freeze({ top: 28, level: 0.55, engine: 'road-car-engine', door: 'car-door', horn: 'car-horn', crash: 'car-crash', siren: 'siren' });
 export function citySounds(G, { manifest = null, quick = G?.quick } = {}) {
   if (!onSheet(G, quick) || !playedCity(manifest)) return null;
   const R = rideSound(G, { quick, words: 'car', top: CITY_CAR.top });
   if (!R) return null;
   const style = soundSheet(G, { manifest }).style, cue = (w) => sfxSound(w, { style })?.gestures ?? sfxSound(w)?.gestures ?? null;
-  const cues = Object.fromEntries([['car:door', CITY_CAR.door], ['car:horn', CITY_CAR.horn], ['car:crash', CITY_CAR.crash]].map(([k, w]) => [k, cue(w)]).filter(([, g]) => g));
+  // (and where the law watches the city, gameworld/law.js, its cars' siren: the audio channel sounds it near one)
+  const cues = Object.fromEntries([['car:door', CITY_CAR.door], ['car:horn', CITY_CAR.horn], ['car:crash', CITY_CAR.crash], ...(G?.law ? [['law:siren', CITY_CAR.siren]] : [])].map(([k, w]) => [k, cue(w)]).filter(([, g]) => g));
   // (the car's engine the road car's, voiced for a small speaker, unless the game names its own ride)
   const own = readSound(G?.sound).ride;
   return { engine: { ...R.engine, ...(own ? {} : { voice: CITY_CAR.engine }), level: CITY_CAR.level, cab: true }, cues, why: `${R.why}, heard only at the wheel; the door, the horn, a crash` };

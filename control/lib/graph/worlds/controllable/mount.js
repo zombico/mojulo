@@ -42,6 +42,8 @@ export function buildMount(E) {
   const step = E.stepWorld;
   // (a horse's `mount` and a body's `rides`, carried onto the entity)
   registerNormalize((ent, raw) => { if (raw.mount && typeof raw.mount === 'object') ent.mount = { ...raw.mount }; if (raw.rides === true) ent.rides = true; });
+  // (a car no one gets into, the law's police car: its hull, and the body the page draws it with)
+  registerNormalize((ent, raw) => { if (Array.isArray(raw.carHull) && raw.carHull.length === 2) ent.carHull = raw.carHull.slice(); if (raw.carBody && typeof raw.carBody === 'object') ent.carBody = { ...raw.carBody }; });
 
   // a point in a horse's frame (its figure's: +y forward, +x its right) → the world, at the horse's place and heading
   const local = (h, p) => { const a = h.transform.heading - Math.PI / 2, c = Math.cos(a), s = Math.sin(a); return [h.transform.pos[0] + p[0] * c - p[1] * s, h.transform.pos[1] + p[0] * s + p[1] * c, h.transform.pos[2]]; };
@@ -53,7 +55,9 @@ export function buildMount(E) {
   // walker (a body on foot with a `collideRadius`) is pushed out of every hull. The traffic the page hands the world
   // (`state.trafficHulls`: [{ p, heading, hull }], scene/channels/flow.js) holds as a parked car does. Facts: e.bumped (the speed lost, the
   // step it struck). A cab with no hull, and a world with no cab, are as they were.
-  const axes = (h) => { const a = h.transform.heading, c = Math.cos(a), sn = Math.sin(a); return { f: [c, sn], r: [sn, -c], hw: h.mount.hull[0], hl: h.mount.hull[1], p: h.transform.pos }; };
+  // (a car no one gets into, `carHull`: the law's police car, a hull all the same)
+  const hullOf = (h) => (h.mount ? h.mount.hull : h.carHull);
+  const axes = (h) => { const a = h.transform.heading, c = Math.cos(a), sn = Math.sin(a), u = hullOf(h); return { f: [c, sn], r: [sn, -c], hw: u[0], hl: u[1], p: h.transform.pos }; };
   // the least push that takes box A out of box B (separating axes, on the ground plane), or null where they are apart
   function apart(A, B) {
     const d = [A.p[0] - B.p[0], A.p[1] - B.p[1]];
@@ -68,7 +72,7 @@ export function buildMount(E) {
     return best;
   }
   function hulls(state, cabs) {
-    const H = cabs.filter((h) => h.mount.cab && h.mount.hull && !h.gone);
+    const H = [...cabs.filter((h) => h.mount.cab && h.mount.hull && !h.gone), ...state.entities.filter((e) => e.carHull && !e.mount && !e.gone)];
     if (!H.length && !(state.trafficHulls && state.trafficHulls.length)) return;
     const moves = (h) => Math.abs(h.speed || 0) > 0.01;
     const struck = (h, n) => { const v = h.speed || 0, into = -(Math.cos(h.transform.heading) * n[0] + Math.sin(h.transform.heading) * n[1]) * Math.sign(v); if (into > 0) { const lost = Math.abs(v) * into; h.speed = v * (1 - into); if (lost > 0.2) h.bumped = lost; } };
@@ -97,7 +101,7 @@ export function buildMount(E) {
     const boxes = [...H.map(axes), ...T];
     for (const e of state.entities) {
       const cr = e.rule && e.rule.collideRadius;
-      if (!(cr > 0) || e.mount || e.mountedOn || e.gone || e.isCamera) continue;
+      if (!(cr > 0) || e.mount || e.carHull || e.mountedOn || e.gone || e.isCamera) continue;
       for (const X of boxes) {
         const dx = e.transform.pos[0] - X.p[0], dy = e.transform.pos[1] - X.p[1];
         if (Math.abs(e.transform.pos[2] - (e.rule.eye || 0) - X.p[2]) > 2) continue;
@@ -226,6 +230,14 @@ export function buildMount(E) {
       const h = state.byId[P.mountedOn];
       if (h && Math.abs(h.speed || 0) <= (h.mount.slow ?? 1.8) && h.jumpT == null) { P.mountPhase = 'dismount'; P.mountT = 0; h.mountClip = h.mount.dismount.clip || null; h.mountU = 0; }
     }
+    // THROWN OUT (the cast's `dismount`, `e.eject`: the law's bust): a rider made to get off now, the car stopped, set
+    // down at `eject.to` when it names one; one on foot is as it was
+    for (const h of horses) {
+      const p = h.riderId && state.byId[h.riderId];
+      if (!p || !p.eject) continue;
+      h.speed = 0; h.mountClip = null; p.mountPhase = 'dismount'; p.mountT = (h.mount.dismount && h.mount.dismount.s) || 0;
+    }
+    for (const e of state.entities) if (e.eject && !e.mountedOn) e.eject = null;
     // the moment before the step: approaching, getting on, getting off
     for (const h of horses) {
       const p = h.riderId && state.byId[h.riderId];
@@ -281,6 +293,7 @@ export function buildMount(E) {
           h.riderId = null; h.mountClip = null; h.mountU = 0; h.speed = 0; h.gaitIx = 0;
           state.pilotId = p.id; retarget(state, h.id, p.id, null);
           event(state, { type: 'dismounted', rider: p.id, mount: h.id });
+          if (p.eject) { const to = p.eject.to; if (Array.isArray(to)) { p.transform.pos[0] = to[0]; p.transform.pos[1] = to[1]; p.transform.pos[2] = to[2]; } p.eject = null; }
         }
       }
     }

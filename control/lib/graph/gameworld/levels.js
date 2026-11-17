@@ -61,7 +61,8 @@ import { jobQuests, contactName } from './city-guide.js';
 import { taskApps, appTitle } from './phone-ui.js';
 import { resolveMotion, GAIT_BASE } from './hero-vibe.js';
 import { turfRect, actLine } from './factions.js';
-import { policeCount, LAW } from './law.js';
+import { policeCount, policeCars, LAW } from './law.js';
+import { patrolCar } from './cars.js';
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
 import { concernIds } from './concerns.js';
@@ -600,7 +601,7 @@ function geotownEnds(manifest) {
 // stands on it its boxes; the tills of its shops walked into (geocity.shops)
 const CITY_GROUND = /^geocity:(walk|road|bike|crossing|ground|court|lot|pad|paving|site|park|field|yard|scrub|median|margin|planting|promenade|quay|sand|deck|stoop|floor|platform)$/;
 function geocityEnds(manifest) {
-  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), parked = [], P = assembleGeocityScene(own, { play: true, parked });
+  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), parked = [], streets = [], P = assembleGeocityScene(own, { play: true, parked, streets });
   const route = (P.route ?? []).map((p) => [p[0], p[1], p[2] ?? 0]);
   if (route.length < 2) throw new Error('levels: the district lays no walk to set the hero down on');
   const ground = groundSampler(P.faces ?? [], CITY_GROUND), on = (p) => { const z = ground(p[0], p[1]); return [r3(p[0]), r3(p[1]), r3(z ?? p[2])]; };
@@ -619,6 +620,8 @@ function geocityEnds(manifest) {
   // own fleet's at the kerb there)
   const lots = parkedCars(parked), walk = lots.some((c) => Math.hypot(c.at[0] - spawn[0], c.at[1] - spawn[1]) <= KERB.walk);
   Object.defineProperty(out, 'parked', { value: walk ? lots : [...kerbCars(manifest.seed ?? 1, kerbSpots(route, groundSampler(P.faces ?? [], /^geocity:road$/), P.colliders ?? [], ground, P.flow?.lanes ?? [])), ...lots], enumerable: false });
+  // (its STREETS as a driver keeps to them: the middle line of each signalled street its traffic drives, cityRoads)
+  Object.defineProperty(out, 'roads', { value: cityRoads(streets), enumerable: false });
   Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && a.store?.till).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
   // (its PLACES: each shop walked into as somewhere a job may send its hero, a stride out from its door on the walk or
   // the forecourt before it: where a pick-up or a hand-in stands, had from the kerb)
@@ -627,6 +630,14 @@ function geocityEnds(manifest) {
   Object.defineProperty(out, 'weight', { value: { faces: (P.faces ?? []).length, colliders: (P.colliders ?? []).length, templates: (P.repeats ?? []).reduce((a, r) => a + r.template.length, 0), instances: (P.repeats ?? []).reduce((a, r) => a + r.transforms.length, 0), shops: P.geocity?.stores?.shops ?? 0 }, enumerable: false });
   return out;
 }
+// A DISTRICT'S STREETS for a driver who keeps to them (worlds/controllable rules-drive.js `chaser`, the law's police car):
+// its arterials and its neighbourhoods' streets, run by run (geocity/scene.js `ctx.streets`), each once, along x (0) or
+// y (1). → [[axis, cross, lo, hi], …]
+function cityRoads(streets) {
+  const seen = new Set(), r1 = (v) => Math.round(v * 10) / 10;
+  return streets.filter((r) => r[3] - r[2] >= 4).map((r) => [r[0], r1(r[1]), r1(r[2]), r1(r[3])]).filter((r) => !seen.has(r.join()) && seen.add(r.join()));
+}
+
 // (what plays in a metro is the level's, layered over it by the page: never the district's own settings)
 const CITY_PLAY_KEYS = ['level', 'game', 'entities', 'camera', 'pilot', 'play', 'destruction', 'matter', 'scars', 'wind'];
 
@@ -702,6 +713,11 @@ function policeCast(G, L, refs, hero) {
     const e = standFoe(G, part, { id, eid: L.eid, entry: B[L.eid], at: L.at, heading: L.heading }, { ref: refs?.[L.eid] ?? null, more: { dormant: true, gone: true, posts: L.posts, modeRefs: refs ?? {} }, ctx });
     // (sent for the player, they know where to look and keep up: at least LAW.chase of a city's run, and a long sight)
     if (e.rule) e.rule = { ...e.rule, speed: Math.max(e.rule.speed ?? 0, r3(LAW.chase.run * CITY_RUN)), sightRange: Math.max(e.rule.sightRange ?? 0, LAW.chase.sight) };
+  }
+  // (its cars: the fleets' police car, asleep and gone at the start, after the hero on the streets: cars.js patrolCar)
+  if (L.cars) {
+    const V = fleetOf(LAW.car.fleet)[0];
+    for (const id of L.cars.ids) part.entities.push(patrolCar({ id, at: L.at, heading: L.heading, model: V.model, paint: V.paints[0], target: 'hero', roads: L.cars.roads, posts: L.cars.posts }));
   }
   return { ...part, pilot: { ...(hero ? { rule: { stomp: stompOf(G) } } : {}), body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } } } };
 }
@@ -1778,15 +1794,32 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
   let police = null;
   if (law && cityStage(stage) && (ends.parked?.length ?? 0) > 0) {
     const ids = Array.from({ length: policeCount(law) }, (_, k) => `police-${k + 1}`);
-    police = { eid: law.police, ids, at: ends.spawn.slice(), heading: ends.heading, posts: lawPosts(ends) };
-    mechanics.push({ kind: 'wanted', police: ids, per: law.per, stars: law.stars, calm: law.calm, busted: law.busted, ...(law.bag && law.fine ? { fine: law.fine } : {}), back: ends.spawn.slice(), ...(encounter ? { mayhem: [`encounter:${encounter.id}`] } : {}) });
+    // (its cars: one a star while the law has them, kept to the district's streets, set down at their junctions)
+    const roads = ends.roads ?? [], nc = roads.length >= 2 ? policeCars(law) : 0, cars = Array.from({ length: nc }, (_, k) => `police-car-${k + 1}`);
+    police = { eid: law.police, ids, at: ends.spawn.slice(), heading: ends.heading, posts: lawPosts(ends), ...(nc ? { cars: { ids: cars, roads, posts: roadPosts(roads, ends) } } : {}) };
+    mechanics.push({ kind: 'wanted', police: ids, ...(nc ? { cars } : {}), per: law.per, stars: law.stars, calm: law.calm, busted: law.busted, ...(law.bag && law.fine ? { fine: law.fine } : {}), back: ends.spawn.slice(), ...(encounter ? { mayhem: [`encounter:${encounter.id}`] } : {}) });
   }
   return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })), ...(quests.length ? { quests } : {}), ...(stoodGivers.length ? { givers: stoodGivers } : {}), ...(encounter ? { encounter } : {}), ...(police ? { police } : {}) };
 }
 
+// WHERE A POLICE CAR MAY BE SET DOWN: the junctions of the district's streets, on the ground there; at the most
+// POLICE_POSTS.most of them, taken evenly
+// (a street's run stops at the kerb of the street it meets: they join within this much of its end, m)
+const ROAD_JOIN = 14;
+function roadPosts(roads, ends) {
+  const g = ends.ground ?? (() => null), out = [];
+  for (const x of roads) for (const y of roads) {
+    if (x[0] !== 1 || y[0] !== 0 || y[1] < x[2] - ROAD_JOIN || y[1] > x[3] + ROAD_JOIN || x[1] < y[2] - ROAD_JOIN || x[1] > y[3] + ROAD_JOIN) continue;
+    const z = g(x[1], y[1]);
+    if (z !== null && z !== undefined) out.push([x[1], y[1], z]);
+  }
+  const pick = out.length <= POLICE_POSTS.cars ? out : Array.from({ length: POLICE_POSTS.cars }, (_, k) => out[Math.floor((k * out.length) / POLICE_POSTS.cars)]);
+  return pick.map((p) => p.map((v) => Math.round(v * 10) / 10));
+}
+
 // WHERE THE POLICE MAY BE SET DOWN (the cast's spawn `near`): along the walk the district lays, every POLICE_POSTS.step m,
 // and before its shops' fronts; at the most POLICE_POSTS.most of them, taken evenly
-const POLICE_POSTS = Object.freeze({ step: 20, most: 32 });
+const POLICE_POSTS = Object.freeze({ step: 20, most: 32, cars: 48 });
 function lawPosts(ends) {
   const out = [], via = ends.via ?? [], g = ends.ground ?? (() => null);
   let last = null;

@@ -20,6 +20,7 @@
  *                         that many seconds no round or blade hurts it, or until it fires (the spawn guard)
  *     spawn { near, ring? }   (near: a body's id) at a ring's distance from it ([14, 30] m), facing it: on one of the spawned
  *                         body's own `posts` there (its id picks which), else the post nearest the ring, else behind it
+ *     dismount { to? }        a rider made to get out of what it rides at once (the car stopped), set down `to`: the law's bust
  *     walk { points, names?, speed?, then?, face?, pose?, reach? }   a DUMB PATH: straight lines from point to point
  *                         (turn toward it, step, ground snap, collider push-out); `then` at the last point: 'stay' (hold
  *                         there, take `face` / `pose`), 'loop', 'back' (walk the points back, then stay)
@@ -65,6 +66,8 @@
 
 export function buildCast(E) {
   const { TAU, clamp, resolveBlocking, registerBodyOwner, initWeapon } = E;
+  // (where a body may be set down when it is brought near another: the spawn's `near`, the law's police)
+  E.registerNormalize((ent, raw) => { if (Array.isArray(raw.posts)) ent.posts = raw.posts.filter(Array.isArray).map((q) => q.slice(0, 3)); });
   const DEG = Math.PI / 180;
 
   function stepRoute(e, dt, world) {
@@ -215,6 +218,8 @@ export function buildCast(E) {
           e.coverHits = e.fragHits = e.hits || 0;
         }
         if (Number.isFinite(e.hpMax) && e.body) { e.body.hp = e.hpMax; e.body.hittable = true; }
+        // (a car no one gets into, the law's: brought standing, its old chase forgotten)
+        if (e.carHull) { e.speed = 0; e.chaseRoute = null; e.chaseFrom = null; e.planT = 0; e.backT = 0; e.pinT = 0; }
         if (Array.isArray(o.among) && o.among.length) {
           let best = null, bd = -1;
           for (const s of o.among) {
@@ -301,6 +306,8 @@ export function buildCast(E) {
           face: Number.isFinite(o.face) ? o.face * DEG : null, pose: typeof o.pose === 'string' ? o.pose : null,
         };
       } else if (o.op === 'stop') { e.route = null; e.held = false; e.moving = false; }
+      // (made to get out of what it rides, now, and set down `to`: the mount step does it, mount.js `eject`)
+      else if (o.op === 'dismount') { if (e.mountedOn) e.eject = Array.isArray(o.to) ? { to: pt3(o.to, e.transform.pos[2]) } : {}; }
       else if (o.op === 'status') {
         if (typeof o.is !== 'string' || e.gone) continue;
         const t = state.time || 0;

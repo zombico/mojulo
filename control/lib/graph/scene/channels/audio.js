@@ -443,7 +443,13 @@ ${audio.engine.cab ? `    // (a city's cars, its cab: heard only while the pilot
       if (riding && K.prev !== undefined && K.prev > 6 && K.prev - K.speed > 0.1 * K.prev && !(now - (K.crashT || -9) < 1.5)) { K.crashT = now; __beatsCue(__AUDIO.cues && __AUDIO.cues['car:crash'], Math.min(1, K.prev / 20)); }
       K.prev = K.speed;
     }
-` : ''}    if (P && P.transform && P.transform.pos) {
+${audio.cues && audio.cues['law:siren'] ? `    // (the law's cars, gameworld/law.js: the nearest one's siren while one is about, louder the nearer, a call at a time)
+    if (P0 && P0.transform) {
+      let sd = Infinity;
+      for (const c of ctrl.entities) if (c.carBody && !c.gone) sd = Math.min(sd, Math.hypot(c.transform.pos[0] - P0.transform.pos[0], c.transform.pos[1] - P0.transform.pos[1]));
+      if (sd < 110 && !(now - (K.sirenT || -9) < 2.3)) { K.sirenT = now; __beatsCue(__AUDIO.cues['law:siren'], Math.max(0.15, 1 - sd / 110)); }
+    }
+` : ''}` : ''}    if (P && P.transform && P.transform.pos) {
       const p = P.transform.pos, dt = now - K.t;
       if (K.pos && dt > 0 && dt < 0.5) { const d = Math.hypot(p[0] - K.pos[0], p[1] - K.pos[1], (p[2] || 0) - (K.pos[2] || 0)); K.speed += (d / dt - K.speed) * 0.12; }
       K.pos = [p[0], p[1], p[2] || 0]; K.t = now;

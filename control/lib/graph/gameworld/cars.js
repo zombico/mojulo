@@ -13,6 +13,11 @@
  *   carsExtra()              → (ends) → { figures, entities } | null: a stage extra (stage-figures.js): each parked car a
  *                            body drawn from the town's own template of its model (`mount.pool`), and the spares a
  *                            vehicle taken from the traffic becomes
+ *   patrolCar({ id, at, heading, model, paint, target, roads, posts })
+ *                            → a police car (gameworld/law.js): its model's body (`carBody`, drawn as a cab is, a light
+ *                            bar on its roof) on its class's drive, driven by the `chaser` rule after `target` along
+ *                            `roads`, a hull the player's car bumps (`carHull`); no one gets into it. Asleep and gone
+ *                            until the wanted level brings it
  *
  * Pure, no dice: a car's place, model and paint are its town's.
  */
@@ -79,5 +84,15 @@ export function carsExtra() {
       transform: { pos: [r3(at[0]), r3(at[1]), r3(at[2] - 60)], heading: 0 },
     });
     return part;
+  };
+}
+
+export function patrolCar({ id, at, heading = 0, model, paint, target, roads, posts }) {
+  const M = carModel(model), hull = [r3(M.W / 2), r3(M.L / 2)];
+  return {
+    id, pilotable: false, rule: { ...box(ruleOf(model)), type: 'chaser', target, roads },
+    carBody: { pool: { model, tint: lin(paint) }, lights: 'rb' }, carHull: hull, posts,
+    body: { type: 'none' }, dormant: true, gone: true,
+    transform: { pos: [r3(at[0]), r3(at[1]), r3(at[2])], heading: r3(heading) },
   };
 }

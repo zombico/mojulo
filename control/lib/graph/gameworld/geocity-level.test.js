@@ -298,13 +298,27 @@ describe('jobs across the district (errands on a played district: its shops thei
   });
   it('the law (law.js): a world with law stands its police asleep and away, each with the posts it may be set down on, and lays the wanted level; without, none', () => {
     const lawful = runSteps({ ...JOBS, id: 'jobs8', law: { stars: 3 } }, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest;
-    const cops = lawful.entities.filter((e) => /^police-/.test(e.id)), W = lawful.game.mechanics.find((m) => m.kind === 'wanted');
+    const cops = lawful.entities.filter((e) => /^police-\d/.test(e.id)), W = lawful.game.mechanics.find((m) => m.kind === 'wanted');
     // (two a star, three stars: six; asleep and gone at the start; on the patrol's figure; keeping up with a city's run)
     expect(cops.map((e) => e.id)).toEqual(['police-1', 'police-2', 'police-3', 'police-4', 'police-5', 'police-6']);
     for (const e of cops) { expect(e).toMatchObject({ dormant: true, gone: true }); expect(e.rule.speed).toBeGreaterThan(5); expect(e.rule.sightRange).toBeGreaterThanOrEqual(45); }
     expect(cops[0].posts.length).toBeGreaterThan(4);
     for (const p of cops[0].posts) expect(p).toHaveLength(3);
     expect(W).toMatchObject({ police: cops.map((e) => e.id), per: 2, stars: 3, fine: 20, back: E.spawn });
+    // (its cars: one a star, the fleets' police car, asleep and gone, driven after the hero on the district's streets,
+    // set down at their junctions; a hull the player's car bumps, no cab to get into)
+    const cars = lawful.entities.filter((e) => /^police-car-/.test(e.id));
+    expect(cars.map((e) => e.id)).toEqual(['police-car-1', 'police-car-2', 'police-car-3']);
+    expect(W.cars).toEqual(cars.map((e) => e.id));
+    for (const c of cars) {
+      expect(c).toMatchObject({ dormant: true, gone: true, rule: { type: 'chaser', target: 'hero' }, carBody: { lights: 'rb' } });
+      expect(c.mount).toBeUndefined(); expect(c.carHull).toHaveLength(2);
+    }
+    const R = cars[0].rule.roads;
+    expect(R.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(R.map((r) => r[0]))).toEqual(new Set([0, 1]));
+    for (const p of cars[0].posts) expect(R.some((r) => Math.abs((r[0] ? p[0] : p[1]) - r[1]) < 0.2)).toBe(true);
+    expect(cars[0].posts.length).toBeGreaterThan(0);
     // (the law is no faction: no contact, no board)
     expect(lawful.game.mechanics.some((m) => m.kind === 'join')).toBe(false);
     // (a game without law has none of it)

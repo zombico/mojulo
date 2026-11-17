@@ -8,7 +8,8 @@ import { buildBus } from '../worlds/event-bus.js';
 const B = buildBus();
 const ctx = { storeSchema: { slices: [{ name: 'bag', kind: 'inventory' }, { name: 'hero', kind: 'character' }] }, player: 'hero', spawn: [0, 0, 0] };
 const COPS = ['police-1', 'police-2', 'police-3', 'police-4'];
-const WANT = { kind: 'wanted', police: COPS, per: 2, stars: 2, calm: 5, busted: 3, fine: 20, back: [1, 2, 0], mayhem: ['encounter:torch'] };
+const CARS = ['police-car-1', 'police-car-2'];
+const WANT = { kind: 'wanted', police: COPS, cars: CARS, per: 2, stars: 2, calm: 5, busted: 3, fine: 20, back: [1, 2, 0], mayhem: ['encounter:torch'] };
 const M = [{ kind: 'bag', slice: 'bag' }, WANT, { kind: 'reach-exit', at: [999, 999, 0] }];
 
 function play(script, { coin = 0 } = {}) {
@@ -35,13 +36,15 @@ describe('the wanted level', () => {
   it('mayhem raises a star and brings its police near the player, out of reach', () => {
     const r = play([jack]);
     expect(r.vars.wanted).toBe(1);
-    expect(r.ops).toEqual(['spawn:police-1', 'spawn:police-2']);
+    expect(r.ops).toEqual(['spawn:police-1', 'spawn:police-2', 'spawn:police-car-1']);
     expect(r.near).toMatchObject({ near: 'hero', fresh: true });
     expect(r.near.ring[0]).toBeGreaterThan(10);
+    // (a police car set down farther off, near the player too)
+    expect(play([jack]).vars.wanted).toBe(1);
     // (a second: the next two; never past the most)
     const two = play([jack, { event: 'encounter:torch' }, jack, jack]);
     expect(two.vars.wanted).toBe(2);
-    expect(two.ops.filter((o) => o.startsWith('spawn'))).toEqual(COPS.map((c) => `spawn:${c}`));
+    expect(two.ops.filter((o) => o.startsWith('spawn'))).toEqual(['spawn:police-1', 'spawn:police-2', 'spawn:police-car-1', 'spawn:police-3', 'spawn:police-4', 'spawn:police-car-2']);
     // (a police body downed is mayhem too)
     expect(play([jack, { event: 'down', entity: 'police-2' }]).vars.wanted).toBe(2);
   });
@@ -49,6 +52,7 @@ describe('the wanted level', () => {
     const r = play([jack, jack, { wait: 5 }]);
     expect(r.vars.wanted).toBe(1);
     expect(r.ops).toContain('vanish:police-3');
+    expect(r.ops).toContain('vanish:police-car-2'); expect(r.ops).not.toContain('vanish:police-car-1');
     expect(r.ops).not.toContain('vanish:police-1');
     const gone = play([jack, jack, { wait: 10 }]);
     expect(gone.vars.wanted).toBe(0);
@@ -56,6 +60,10 @@ describe('the wanted level', () => {
     // (a police blow starts the calm over)
     const held = play([jack, { wait: 4 }, blow, { wait: 4 }]);
     expect(held.vars.wanted).toBe(1);
+  });
+  it('a police car\'s blows (holding a player who stands) count as an officer\'s', () => {
+    const car = { event: 'hit:hero', by: 'police-car-1' };
+    expect(play([jack, car, car, car]).log).toContain('busted');
   });
   it('police blows bust the player: fined when it holds the coin, set down at the start, wanted no more', () => {
     const r = play([jack, blow, blow, blow], { coin: 50 });
@@ -67,6 +75,8 @@ describe('the wanted level', () => {
     const poor = play([jack, blow, blow, blow]);
     expect(poor.log).toContain('busted'); expect(poor.log).not.toContain('fined:wanted');
     expect(r.ops).toContain('vanish:police-1');
+    // (out of what it drives first, set down at the start)
+    expect(r.ops).toContain('dismount:hero');
     // (blows from anyone else, or while not wanted, are no bust)
     expect(play([blow, blow, blow, blow]).log).not.toContain('busted');
     expect(play([jack, { event: 'hit:hero', by: 'foe-1' }, { event: 'hit:hero', by: 'foe-1' }, { event: 'hit:hero', by: 'foe-1' }]).log).not.toContain('busted');
