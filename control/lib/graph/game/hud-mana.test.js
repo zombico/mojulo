@@ -102,6 +102,10 @@ describe('the host carries a level\'s rows', () => {
     expect(spec.hud.children.length).toBeGreaterThan(2);
     expect(spec.hud.children.every((r) => r.props.variant === 'bare')).toBe(true);
     expect(JSON.stringify(spec)).not.toContain('W A S D');
+    // (nor passing words: a banner and a toast are not drawn)
+    const passing = hudToMana([{ on: 'wave', text: 'Wave {event.n}' }, { on: 'gauntlet:arena', text: 'cleared', as: 'toast', ttl: 2 }], { style: true });
+    expect(JSON.stringify(passing.spec)).not.toMatch(/moments|feed/);
+    expect(passing.feed.rows.banners.concat(passing.feed.rows.toasts)).toEqual([]);
     // (the meter is letters and figures alone: no bar, no caption)
     const meter = JSON.stringify(spec.hud.children.find((r) => r.props.at === 'right'));
     expect(meter).not.toMatch(/"use":"(bar|window|badge)"/);

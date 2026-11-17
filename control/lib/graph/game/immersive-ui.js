@@ -13,6 +13,7 @@
  * (scene/channels/mana-hud.js). Pure: strings.
  */
 const A = 'var(--mana-accent)', A2 = 'var(--mana-accent2)';
+const INK = `color-mix(in srgb,${A} 12%,#fff)`;
 const LIGHT = `color-mix(in srgb,${A} 65%,#fff)`, GLOW = `color-mix(in srgb,${A2} 55%,transparent)`;
 export const LETTER_RIM = `.045em .045em 0 ${A2},-.02em -.02em 0 ${LIGHT},0 0 .45em ${GLOW},0 .12em .3em rgba(0,0,0,.6)`;
 export const letterRimFilter = () => `drop-shadow(.04em .04em 0 ${A2}) drop-shadow(-.018em -.018em 0 ${LIGHT}) drop-shadow(0 0 .2em ${GLOW}) drop-shadow(0 .1em .14em rgba(0,0,0,.55))`;
@@ -20,6 +21,8 @@ export const letterRimFilter = () => `drop-shadow(.04em .04em 0 ${A2}) drop-shad
 export function immersiveCss(scope = '#mana') {
   const s = scope, stamp = `${s} .mana-badge[data-variant=stamp]`;
   return [
+    // the letters stand over the play, never on a plate: light, whatever ink the theme's plates were written in
+    `${s},${s} .mana-root{--mana-ink:${INK};--mana-focus-ink:${INK};--mana-mid:color-mix(in srgb,${A2} 30%,#fff)}`,
     // no box: no plate, no frame, no ornament on a window, a banner or a region
     `${s} :is(.mana-window,.mana-banner,.mana-region){background:transparent!important;border-color:transparent!important;box-shadow:none!important;backdrop-filter:none!important;clip-path:none!important;outline:0!important}`,
     `${s} :is(.mana-window,.mana-banner)::before,${s} :is(.mana-window,.mana-banner)::after{display:none!important}`,

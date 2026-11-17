@@ -12,8 +12,9 @@
  *
  * THE IMMERSIVE HUD (a stylish action game's): NO BOX IS DRAWN. Every region sits on no plate (`bare`): what stands on
  * the screen is letters and figures over the play, haloed, and what changes is said by effects and motion on them (a
- * figure pops as it changes), never by a frame. NO EXPLAINING WORDS: a legend row is not drawn and a readout carries no
- * caption the play does not need; a mark or an arrow says where to go.
+ * figure pops as it changes), never by a frame. NO EXPLAINING WORDS: a legend row, a banner and a toast are not drawn
+ * (a carved title stays: letters with motion are the principle's own) and a readout carries no caption the play does
+ * not need; a mark or an arrow says where to go. feed.immersive says the host dresses the page's own parts to match.
  *     rows      a level's `events.hud` (raw or normalized: normalizing is idempotent)
  *     hero      draw the pilot's own gauges (its health, its sprint) with the rows: true unless said
  *   levelHud(theme, { screen?, style?, ways? }) → a level manifest's `manaHud`: { rows: 'events', theme, style?, ways? }
@@ -62,7 +63,8 @@ export function hudToMana(rows, { register = null, hero = true, touch = false, s
       } else if (w.as === 'clock') bySlot[w.slot].push({ use: 'timer', props: { seconds: value, ...(label ? { label } : {}) }, ...gate(w, i) });
       else if (w.as === 'counter') { const icon = iconOf(label) ?? iconOf(w.var); bySlot[w.slot].push({ use: 'counter', props: { label, value, ...(icon ? { icon } : {}) }, ...gate(w, i) }); }
       else bySlot[w.slot].push({ use: 'stat', props: { label, value }, ...gate(w, i) });
-    } else if (w.kind === 'banner') banners.push({ on: w.on, text: w.text, ...cond(w) });
+    } else if (immersive && (w.kind === 'banner' || w.kind === 'toast')) return;   // (no passing words either: the play says it)
+    else if (w.kind === 'banner') banners.push({ on: w.on, text: w.text, ...cond(w) });
     else if (w.kind === 'toast') {
       if (!lines[w.slot]) lines[w.slot] = `l${Object.keys(lines).length}`;
       toasts.push({ ...(w.var ? { var: w.var } : { on: w.on }), text: w.text, ttl: w.ttl, line: lines[w.slot], ...cond(w) });
@@ -95,7 +97,7 @@ export function hudToMana(rows, { register = null, hero = true, touch = false, s
     { use: 'text', props: { value: B('style.name'), role: 'numeral' } },   // (a numeral: marked as it changes, so the host's motion plays)
     { use: 'text', props: { value: B('style.combo'), role: 'numeral' }, when: B('style.combo') },
   ] }] });
-  return { spec: { screens: {}, hud: { use: 'hud', children: regions } }, feed: { rows: { vars, gates, banners, toasts, lines: Object.values(lines) }, ...(hero ? { hero: true } : {}), ...(style ? { style: true } : {}) } };
+  return { spec: { screens: {}, hud: { use: 'hud', children: regions } }, feed: { rows: { vars, gates, banners, toasts, lines: Object.values(lines) }, ...(hero ? { hero: true } : {}), ...(style ? { style: true } : {}), ...(immersive ? { immersive: true } : {}) } };
 }
 
 /** A level's `manaHud` in a look (a mana-ui preset's name, a card's, or a theme object): its rows are the level's own. */

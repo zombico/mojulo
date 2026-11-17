@@ -107,6 +107,13 @@ In progress. Built so far, all in the practice door's game room
   be walked into. A level without it keeps every byte. Seen in a headless browser at the screen's edge, turned to a
   place out of view; the arrow over a place in view was not caught there, and nobody has played it. Not yet: an
   arrow to a level's way out.
+- **Fallen Angel remade with all of it**, through `design_game`, and its level's own page seen in a headless
+  browser: Lucien in the gate court with the health bar, the weapon's count and the meter (its letter and its
+  count) standing over the play on no plate. What that showed, and what was put right: the wave's banner and the
+  cleared toast are not drawn on an immersive HUD (passing words; the banner's figures were never filled in either),
+  the page's own weapon panel loses its plate there, and the letters are light whatever ink the theme's plates
+  were written in (the world's palette had made them dark on a dark hall). The door's check played it again: the
+  floor player won in 122 s, all 18 foes down; one who does nothing did not. Nobody has played it.
 - **A building level has its action hero.** A world played under the orbit camera with a hero that strikes now
   gets, in a building as on a trail, the orbit that locks on, movement in the camera's frame and its sheathed
   twin, so the fist is in its hands and the weapon switch has two weapons to switch between. Before, a building

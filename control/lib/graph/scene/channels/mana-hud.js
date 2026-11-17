@@ -26,7 +26,7 @@ import { manaUiSource } from '../../../mana-ui/kernel.js';
 import { manaCss } from '../../../mana-ui/css.js';
 import { themeCss } from '../../../mana-ui/theme.js';
 import { hudToMana } from '../../game/hud-mana.js';
-import { LETTER_RIM, letterRimFilter } from '../../game/immersive-ui.js';
+import { LETTER_RIM, letterRimFilter, immersiveCss } from '../../game/immersive-ui.js';
 import { hudSubst, fmtDelta } from '../../game/hud-widgets.js';
 
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
@@ -81,7 +81,7 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   // gauntlet's next arena waiting to be walked into); only then
   const ways = hud.ways && typeof hud.ways.var === 'string' && Array.isArray(hud.ways.at) ? { var: hud.ways.var, at: hud.ways.at } : null;
   const R = hud.feed && hud.feed.rows;
-  const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp' : ''}{display:none!important}${hud.feed && hud.feed.style ? styleMeterCss() : ''}${ways ? wayCss() : ''}`;
+  const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp' : ''}{display:none!important}${hud.feed && hud.feed.immersive ? immersiveCss('#moj-mana-hud') : ''}${hud.feed && hud.feed.style ? styleMeterCss() : ''}${ways ? wayCss() : ''}`;
   const styled = !!(hud.feed && hud.feed.style);
   return `
 // THE HUD on mana-ui (channels/mana-hud.js): the level's own spec over a state this page feeds
@@ -94,7 +94,10 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   const F = CFG.feed, of = Math.max(1, Math.round((F.to || 0) - (F.from || 0)));
   const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [], hint: '' }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {}${hud.feed && hud.feed.style ? ", style: { on: false, name: '', combo: 0 }" : ''} };
   let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
-${styled ? '  let sTier = 0;\n' : ''}${ways ? `  // the way on: an arrow over the place while it is in view, at the screen's edge pointing to it while it is not
+${styled ? '  let sTier = 0;\n' : ''}${hud.feed && hud.feed.immersive ? `  // (the immersive HUD, game/immersive-ui.js: the page's own weapon panel on no plate either)
+  let bared = false;
+  function bare() { const a = document.getElementById('__ammoTxt'), pnl = a && a.parentElement && a.parentElement.parentElement; if (pnl) { bared = true; pnl.style.background = 'transparent'; pnl.style.border = '0'; } }
+` : ''}${ways ? `  // the way on: an arrow over the place while it is in view, at the screen's edge pointing to it while it is not
   const wayEl = document.createElement('div'); wayEl.id = 'moj-way'; wayEl.textContent = '\u27A4'; const wayV = new THREE.Vector3();
   function way(V) {
     const k = V ? V[CFG.ways.var] : -1, P = k >= 0 ? CFG.ways.at[k] : null;
@@ -188,7 +191,7 @@ ${hud.feed && hud.feed.style ? `    // the style meter (worlds/controllable/styl
     const SM = window.__mojStyle && window.__mojStyle.now(); if (SM) { st.style.on = SM.points > 0 || SM.combo > 0; st.style.name = SM.name; st.style.combo = SM.combo; if (SM.tier !== sTier) { root.dataset.styleWay = SM.tier > sTier ? 'up' : 'down'; sTier = SM.tier; root.dataset.styleTop = SM.tier === SM.tiers.length - 1 ? 'yes' : 'no'; } root.style.setProperty('--moj-style-fill', String(SM.fill)); root.style.setProperty('--moj-style-heat', String(Math.min(1, SM.combo / 30))); }
 ` : ''}    const V = window.__mojBus && window.__mojBus.state && window.__mojBus.state.vars;
     if (V && V.coins != null) st.coins.count = V.coins;
-${ways ? '    way(V);\n' : ''}    if (ROWS && V) rows(window.__mojBus.state, V);
+${ways ? '    way(V);\n' : ''}${hud.feed && hud.feed.immersive ? '    if (!bared) bare();\n' : ''}    if (ROWS && V) rows(window.__mojBus.state, V);
     if (cue) {
       const k = Math.floor((clock - cue.t0) / F.cue.every);
       if (k < F.cue.beats.length) st.start.count = F.cue.beats[k];
