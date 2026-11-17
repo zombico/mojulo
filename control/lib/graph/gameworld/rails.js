@@ -28,7 +28,7 @@
  * Brief's labour (gmn.js LABOURS). A rail says how a moment plays.
  *
  * Listed only when it reaches a playable first level today; NOT_YET names the types built apart that no door makes a
- * game from, each with what it waits on. rails.test.js holds every pole, every quick goal and every pixelizer game to a
+ * game from, each with what it waits on (a type moves to RAILS the day the book lays it: rails.test.js fails until it does). rails.test.js holds every pole, every quick goal and every pixelizer game to a
  * row (GENERIC_GOALS aside), every `sizes` to what the tables say, and NOT_YET to still being so: a new game type is a
  * row here first.
  *
@@ -163,6 +163,13 @@ export const RAILS = Object.freeze({
     handles: row({ pole: 'mojulo-fighter', genres: list(['versus-fighter']), quick: list(['fight']) }), sizes: list(['quick']), level1: 'a fight: two fighters, best of its rounds' }),
   'commuter-rail-runner': row({ name: 'Commuter Rail Runner', like: 'an endless runner: three lanes, ever faster, jump, slide, coins',
     handles: row({ pole: 'commuter-rail-runner', genres: list(['endless-runner']), quick: list(['runner']) }), sizes: list(['quick', 'designed']), level1: 'a run: as far as it goes before the crash' }),
+  // ── down a street, side on: named for their type ──
+  'beat-em-up': row({ name: 'Side-scroll Beat-em-up', like: 'a beat-em-up down a street: wave after wave fought hand to hand, one to four players on one screen',
+    handles: row({ genres: list(['co-op-brawler']), quick: list(['brawl']) }), sizes: list(['quick', 'designed']), level1: 'a street: its stops held wave by wave, a boss at the end',
+    seen: list(['side']), words: list(['streets of rage', 'double dragon']) }),
+  'run-and-gun': row({ name: 'Run and Gun', like: 'a run and gun down a street: the same waves fought with guns, a roll, grenades, a crowd that shoots back',
+    handles: row({ genres: list(['run-and-gun']), quick: list(['rungun']) }), sizes: list(['quick', 'designed']), level1: 'a street: its stops shot through wave by wave, a boss at the end',
+    seen: list(['side']) }),
   // ── off their feet: named for their type (they have no house title yet) ──
   racing: row({ name: 'Racing', like: 'a race: a track or a road, checkpoints, rivals, the best time kept',
     handles: row({ genres: list(['racing', 'kart-racer']), quick: list(['race']) }), sizes: list(['quick']), level1: 'a race: the laps, the podium' }),
@@ -197,7 +204,6 @@ export const RAIL_IDS = Object.freeze(Object.keys(RAILS));
 
 /** Game types built apart that no door makes a game from yet: said to the person, never offered as a rail. */
 export const NOT_YET = Object.freeze({
-  'beat-em-up': row({ name: 'Side-scroll beat-em-up', like: 'a street brawler down a belt, with its guns', genres: list(['co-op-brawler', 'run-and-gun']), words: list(['beat em up', 'beat-em-up', 'belt scroller', 'street brawler', 'streets of rage', 'final fight', 'double dragon', 'contra', 'metal slug']), waits: 'its belt and its fight are built as their own and not yet made from a game' }),
   'shared-kitchen': row({ name: 'Shared kitchen', like: 'two to four cooks on one screen', genres: list(['co-op-kitchen']), words: list(['co-op kitchen', 'co-op cooking', 'cooking together', 'cook together', 'overcooked']), waits: 'the work shift\'s seats; one cook plays today (the Work Sim rail)' }),
 });
 
