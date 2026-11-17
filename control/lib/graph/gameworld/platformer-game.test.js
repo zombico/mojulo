@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { platformerGame, platformerFlow, platformerSuggestion, platformerPole, dimensionOf, PLATFORMER_DIMENSIONS, PLATFORMER_TURN, PLATFORMER_LOOK, PLATFORMER_BODY, PLATFORMER_CUBE } from './platformer-game.js';
+import { platformerGame, platformerBody, platformerFlow, platformerSuggestion, platformerPole, dimensionOf, PLATFORMER_DIMENSIONS, PLATFORMER_TURN, PLATFORMER_LOOK, PLATFORMER_BODY, PLATFORMER_CUBE } from './platformer-game.js';
 import { gameBody } from './game-bodies.js';
 import { THEME_CARDS, cardTheme } from '../playscape/ui/theme-cards/loader.js';
 import { readTheme, themeAdvice } from '../../mana-ui/theme.js';
@@ -227,5 +227,10 @@ describe('the rail offered to a world', () => {
       expect(platformerSuggestion({ ...W, characters: undefined }).needs).toMatch(/a hero/);
       expect(platformerSuggestion(P)).toBeNull();
     }
+  });
+  it('the body follows the template: the run and gun\'s hero is the toy hero robot, the mascot platformer\'s a chibi', () => {
+    expect(platformerBody('jumping-giuseppe')).toBe(PLATFORMER_BODY);
+    expect(platformerBody('galaxy-boy')).toBe('herobot');
+    expect(gameBody(platformerBody('galaxy-boy'), 'hero').spec.proportions).toBe('herobot');
   });
 });

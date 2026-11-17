@@ -32,6 +32,8 @@
  *   PLATFORMER_LOOK                  the theme card both are drawn in (`ui.theme`)
  *   PLATFORMER_BODY                  the body its hero is made on: the mascot's (chibi), written on a character book
  *                                    that names none (the patch's `/characters/direction/body`); a named one is kept
+ *   platformerBody(pole)             → the body a template puts its hero on: its feel's rail (Galaxy Boy's the toy hero
+ *                                    robot's, game-bodies.js), else the mascot's
  *   platformerFlow(dimension)        → the flow it says, in the world's level ids
  *   platformerFront(dimension)       → the start menu that flow is entered through
  *   platformerGame({ dimension?, pole?, id?, name?, seed?, kit?, boss?, camera? })
@@ -54,6 +56,7 @@ import { firstLevel, firstLevelSegments, FIRST_LEVEL_DIMENSIONS } from './first-
 import { POLES } from './feel/cards.js';
 import { feelSuggestion } from './feel/suggest.js';
 import { STEERED } from './cameras.js';
+import { railOfGame } from './game-bodies.js';
 
 export const PLATFORMER_DIMENSIONS = Object.freeze({
   '2d': Object.freeze({
@@ -96,6 +99,9 @@ const readDimension = (d) => { if (!FIRST_LEVEL_DIMENSIONS.includes(d)) throw ne
  * small round body (chibi; a few flat faces in a pixel world). Written on a book that names no body; a body the
  * creator named is kept. */
 export const PLATFORMER_BODY = 'mascot';
+/** The body a platformer's template puts its hero on: its feel's rail (game-bodies.js railOfGame: Galaxy Boy's the toy
+ * hero robot's, too real a body for a chibi), else the mascot's. */
+export const platformerBody = (pole) => railOfGame({ feel: pole })?.rail ?? PLATFORMER_BODY;
 
 /** The geocube its levels are drawn in (era/geocube.js GEOCUBE_PRESETS): the sherbet orchard, warm pastels (a peach
  * floor, pink blossom, cream blocks) and one mint accent, the values in three masses so a platform reads at a glance.
@@ -206,15 +212,16 @@ function patchFor(world, dimension, pole, boss) {
   const upright = (world.screen === 'phone' || (isObj(world.screen) && world.screen.orientation === 'portrait'));
   const advise = upright ? 'its screen is held upright: a platformer is read across its width, a lane or a chase camera (screen: \'screen\', a monitor or a TV)' : null;
   if (G.words.screen && world.screen === undefined) ops.push({ op: 'set', path: '/screen', value: G.words.screen });
-  // THE HERO IS A MASCOT by default: a book whose direction names no body takes the mascot's (chibi)
-  const dir = isObj(world.characters) ? world.characters.direction : null;
-  if (isObj(dir) && dir.body === undefined) ops.push({ op: 'set', path: '/characters/direction/body', value: PLATFORMER_BODY });
+  // THE HERO IS A MASCOT by default: a book whose direction names no body takes the template's body (the mascot's chibi,
+  // or the toy hero robot's for the run and gun)
+  const dir = isObj(world.characters) ? world.characters.direction : null, body = platformerBody(pole);
+  if (isObj(dir) && dir.body === undefined) ops.push({ op: 'set', path: '/characters/direction/body', value: body });
   // A PLATFORMER'S HERO HOLDS NOTHING: it runs, jumps and stomps. The rail never writes an item; a book whose hero
   // carries some (its adornment's items: the run makes the equipped hero and the level's pilot holds them) is told,
   // and the items are the creator's to keep or take off
   const held = (isObj(world.characters?.hero?.adornment) && Array.isArray(world.characters.hero.adornment.items) ? world.characters.hero.adornment.items : []).map((i) => i?.id).filter(Boolean);
   const hands = held.length ? `its hero carries ${held.join(', ')}: a platformer's hero runs, jumps and stomps with empty hands (take the items off characters.hero.adornment.items, or keep them if the game is about them)` : null;
-  const needs = isObj(world.characters) ? null : `a hero: the world has no character book yet (characters: { direction: { tradition, body: '${PLATFORMER_BODY}' }, hero }, gameworld-direction; the mascot's body is the platformer's, chibi-sized). Until it has one its levels are walked first person, the camera kept for the run that has its hero`;
+  const needs = isObj(world.characters) ? null : `a hero: the world has no character book yet (characters: { direction: { tradition, body: '${body}' }, hero }, gameworld-direction; ${body === PLATFORMER_BODY ? 'the mascot\'s body is the platformer\'s, chibi' : `the ${body} body is this template's`}-sized). Until it has one its levels are walked first person, the camera kept for the run that has its hero`;
   return { dimension, level: id, courses: firstLevelSegments(dimension, !!boss).map((s) => s.id), says: G.says, patch: ops, turn: G.turn, ...(needs ? { needs } : {}), ...(advise || hands ? { advise: [advise, hands].filter(Boolean).join('; ') } : {}) };
 }
 

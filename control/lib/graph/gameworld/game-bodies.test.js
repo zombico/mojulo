@@ -48,6 +48,17 @@ describe('the body rails', () => {
       if (B.spec.animeBody) expect(hero.animeBodyResolved.pole).toBe(pole);
     }
   }, 240000);
+  it('the toy hero robot is a rail of its own: the run and gun reads it, and its head stays bare so its proportions stand', () => {
+    expect(railOfGame({ feel: 'galaxy-boy' })).toMatchObject({ rail: 'herobot', from: 'feel' });
+    expect(railOfGame({ genre: 'metroidvania' }).rail).toBe('herobot');
+    expect(railOfGame({ feel: 'jumping-giuseppe' }).rail).toBe('mascot');
+    expect(styleOf('herobot', { tradition: 'anime' }).style).toBe('herobot');
+    expect(styleOf('herobot', { pixel: true }).style).toBe('lowpoly');
+    const B = gameBody('herobot', 'hero');
+    expect(B.spec).toMatchObject({ proportions: 'herobot', head: 'anime', animeStyle: null });
+    // (the door stamps a head cast only where none is said: a bare head said is kept, so no cast's body tune lands on it)
+    expect(withDefaultForm({ cast: 'male', ...B.spec }).animeStyle).toBeNull();
+  });
   it('puts the muscle shirt on only when asked: the role\'s definition, or the world\'s; a western body has none to put on', () => {
     expect(gameBody('muscular', 'hero', { tradition: 'anime' }).spec.muscleShirt).toBeUndefined();
     expect(gameBody('muscular', 'hero', { tradition: 'anime', muscle: true }).spec.muscleShirt).toEqual({ definition: 1 });
