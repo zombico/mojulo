@@ -20,7 +20,7 @@
  * true is the expert's (brief.js, the accuracy gate), never the agent's and never this readout's.
  *
  *   EXHIBIT_QUESTIONS            the four, in order: { id, ask };  LIKE  where the samples are, and what they are for
- *   readStart(v)                 → { concept?, people?, time?, brought?, wants? } checked; throws, teaching
+ *   readStart(v)                 → { concept?, people?, time?, brought?, scales?, wants? } checked; throws, teaching
  *   needsProducer(start)         → does the person fit it to people, a time or material (true), or just ask to see
  *                                something (false: make it at once)?
  *   exhibitStart(start) → { ok, readout: 'start', built: false, says, producer: { seat, ask, step, holds } | null,
@@ -28,6 +28,10 @@
  *     next      the questions not yet answered, in order; once the four are answered, `make` (the fit's door)
  *     like      where the samples are, and that they are samples
  *     fit       once the time is known (people: everyone until said)
+ *     scale     the rungs the concept lives at (scales.js), once the agent has named them (`scales`): what each shows,
+ *               how a world at it is made new, its samples; a concept that spans rungs is a room a rung
+ *     map       with a fit: the exhibit's map, a spine and its sequences (one page, or a lobby of rooms each stepped
+ *               through), each room's scale and stops, the zoom between rooms
  *     intake    what they brought, read back (intake.js): what was placed and where, what was set aside, which of
  *               the questions their own material answered. Such a question is not asked: its step says `read`
  *
@@ -36,6 +40,7 @@
 import { exhibitFit, readTime, TIMES, TIME_IDS } from './fit.js';
 import { AUDIENCES, AUDIENCE_WORDS } from './brief.js';
 import { readExhibitIntake, exhibitIntakeReport } from './intake.js';
+import { SCALE_IDS, readScales, scaleReport } from './scales.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`get_exhibit: start${m}`);
@@ -47,7 +52,7 @@ export const EXHIBIT_QUESTIONS = Object.freeze([
   Object.freeze({ id: 'time', ask: `roughly how long do they have with it: ${TIME_IDS.map((k) => TIMES[k].name).join(', ')}?` }),
   Object.freeze({ id: 'brought', ask: 'do you have material for it: sources, label text, learning goals, pictures?' }),
 ]);
-const KEYS = [...EXHIBIT_QUESTIONS.map((q) => q.id), 'wants'];
+const KEYS = [...EXHIBIT_QUESTIONS.map((q) => q.id), 'scales', 'wants'];
 const CONCEPT_MAX = 600;
 
 export function readStart(v) {
@@ -68,6 +73,8 @@ export function readStart(v) {
     try { readExhibitIntake(v.brought); } catch (e) { throw fail(`.${e.message.replace(/^exhibit: /, '')}`); }
     out.brought = v.brought;
   }
+  // (the rungs the concept lives at, scales.js: the agent's reading of the concept, never a question for the person)
+  if (v.scales !== undefined) { try { out.scales = readScales(v.scales); } catch (e) { throw fail(`.${e.message.replace(/^exhibit: /, '')}`); } }
   if (v.wants !== undefined) { try { exhibitFit({ time: 'visit', wants: v.wants }); } catch (e) { throw fail(`.${e.message.replace(/^exhibit: a fit's /, '')}`); } out.wants = v.wants; }
   return out;
 }
@@ -89,12 +96,24 @@ export function exhibitStart(start) {
   const S = readStart(start ?? {});
   const open = EXHIBIT_QUESTIONS.filter((q) => S[q.id] === undefined);
   const leads = needsProducer(S);
-  const fit = S.time !== undefined ? exhibitFit({ time: S.time, people: S.people, wants: S.wants }) : null;
+  // THE SCALE (scales.js): the exhibit determines it. The agent names the rungs the concept lives at; a concept that
+  // spans several is a room a rung, so the fit's rooms are the rungs unless they asked for a number of their own
+  const scale = S.scales ? scaleReport(S.scales) : null;
+  const wants = scale?.spans && S.wants?.rooms === undefined ? { ...(S.wants ?? {}), rooms: S.scales.length } : S.wants;
+  const fit = S.time !== undefined ? exhibitFit({ time: S.time, people: S.people, wants }) : null;
+  // THE MAP: a spine and its sequences. One page stepped through, or a lobby of rooms each stepped through, walked in
+  // order (a kiosk walks it by itself); between rooms at different scales the visitor zooms. Nothing branches
+  const map = fit ? {
+    form: fit.size === 'gallery' ? 'a spine of rooms: a lobby that lists them, each a page stepped through in order' : fit.size === 'tour' ? 'one page, stepped through in order' : 'one page',
+    rooms: (fit.size === 'gallery' ? Array.from({ length: fit.rooms }, (_, i) => i) : [0]).map((i) => ({ ...(scale?.rungs[i] ? { at: scale.rungs[i].id } : {}), stops: fit.stops.about })),
+    ...(scale?.zoom.length && fit.size === 'gallery' ? { zoom: scale.zoom } : {}),
+  } : null;
   // (what they brought, intake.js: a question their own material answered is never asked: it is READ, the agent writing
   // the answer from the item and calling again with it)
   const intake = exhibitIntakeReport(S.brought);
   const read = (q) => (intake && !intake.none ? intake.answered[q] ?? null : null);
   const next = [
+    ...(S.concept && !scale ? [{ step: 'scale', says: 'read the concept and name the rungs it lives at, its home first (a concept that spans several is a room a rung): call again with `scales`. Yours to read, never a question for them', rungs: SCALE_IDS }] : []),
     ...open.map((q) => (read(q.id) ? { step: q.id, read: read(q.id), says: `their own material says it (${read(q.id).join(', ')}): write it as \`${q.id}\` from what it says and call again; do not ask them again` } : { step: q.id, ask: q.ask })),
     ...(!open.length && fit ? [{ step: 'make', size: fit.size, door: fit.door, says: `${fit.says} Say it back; with their yes, make it new from the primitives. The stops and the claims are written from what they said, never for them` }] : []),
   ];
@@ -109,6 +128,8 @@ export function exhibitStart(start) {
     producer: lead ? { seat: 'producer', ask: lead.ask, step: lead.step, holds: HOLDS } : null,
     next,
     like: LIKE,
+    ...(scale ? { scale } : {}),
+    ...(map ? { map } : {}),
     ...(intake ? { intake } : {}),
     ...(fit ? { fit } : {}),
     ...(plain ? { plain: true } : {}),

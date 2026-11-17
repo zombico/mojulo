@@ -264,7 +264,7 @@ export function registerExhibitTools() {
         ref: { type: 'string', description: 'A made exhibit to measure.' },
         every: { type: 'number', description: 'With `ref`: every Nth sample (default 1).' },
         audit: { type: 'boolean', description: 'With `ref`: its audit (tour, claims, reading) instead.' },
-        start: { type: 'object', description: "Before making one for someone's people and time: { concept?, people?, time?, brought?, wants? } → the one question to ask, the fit. Builds nothing." },
+        start: { type: 'object', description: "A person's exhibit before it is made: { concept?, people?, time?, brought?, scales? } → the one question to ask, the fit. Builds nothing." },
       },
       required: [],
     },

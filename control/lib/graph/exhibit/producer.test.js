@@ -17,7 +17,9 @@ describe('the exhibit\'s start', () => {
     expect(empty).toMatchObject({ ok: true, readout: 'start', built: false, producer: { seat: 'producer', step: 'concept', ask: EXHIBIT_QUESTIONS[0].ask } });
     expect(empty.next.map((x) => x.step)).toEqual(ids);
     // each answer given drops its question, in any order
-    expect(steps({ concept: 'a dam', people: ['child'] })).toEqual(['time', 'brought']);
+    expect(steps({ concept: 'a dam', people: ['child'], scales: ['macro'] })).toEqual(['time', 'brought']);
+    // (with a concept and no scale named yet, the agent's own step leads the list: it is no question for the person)
+    expect(steps({ concept: 'a dam', people: ['child'] })).toEqual(['scale', 'time', 'brought']);
     expect(steps({ time: 'visit' })).toEqual(['concept', 'people', 'brought']);
     expect(exhibitStart({ concept: 'a dam', people: ['child'] }).producer.step).toBe('time');
   });
@@ -27,7 +29,7 @@ describe('the exhibit\'s start', () => {
     expect(needsProducer({ concept: 'a dam', brought: 'none' })).toBe(false);
     for (const more of [{ people: ['child'] }, { time: 'glance' }, { brought: ['a syllabus'] }, { wants: { rooms: 3 } }]) expect(needsProducer({ concept: 'a dam', ...more })).toBe(true);
     const plain = exhibitStart({ concept: 'how a dam makes electricity' });
-    expect(plain.plain).toBe(true); expect(plain.says).toMatch(/made at once, new/); expect(plain.next[0].step).toBe('people');
+    expect(plain.plain).toBe(true); expect(plain.says).toMatch(/made at once, new/); expect(plain.next[0].step).toBe('scale'); expect(plain.next[0].ask).toBeUndefined(); expect(plain.producer.step).toBe('people');
     const led = exhibitStart({ concept: 'how a dam makes electricity', time: 'visit' });
     expect(led.plain).toBeUndefined(); expect(led.says).toMatch(/PRODUCER/);
   });
@@ -48,8 +50,9 @@ describe('the exhibit\'s start', () => {
     expect(exhibitStart({ concept: 'a dam', people }).fit).toBeUndefined();
     const all = exhibitStart({ concept: 'a dam', people, time, brought: 'none', wants: { compare: true } });
     expect(all.fit).toEqual(exhibitFit({ time, people, wants: { compare: true } }));
-    expect(all.next.map((x) => x.step)).toEqual(['make']);
-    expect(all.next[0]).toMatchObject({ size: all.fit.size, door: all.fit.door }); expect(all.next[0].says).toMatch(/never for them/); expect(all.next[0].says).toMatch(/new from the primitives/);
+    expect(all.next.map((x) => x.step)).toEqual(['scale', 'make']);
+    const make = all.next[1];
+    expect(make).toMatchObject({ size: all.fit.size, door: all.fit.door }); expect(make.says).toMatch(/never for them/); expect(make.says).toMatch(/new from the primitives/);
     expect(all.producer).toBeNull();
   });
 

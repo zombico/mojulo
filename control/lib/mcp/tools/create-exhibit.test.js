@@ -214,6 +214,10 @@ describe('get_exhibit', () => {
     expect(out.ref).toBeUndefined();
     await expect(getExhibitHandler({ start: {}, id: 'earth/hydro' })).rejects.toThrow(/`start` is asked alone/);
     await expect(getExhibitHandler({ start: { topic: 'x' } })).rejects.toThrow(/topic is not one/);
+    // (a scale's samples are exhibits the halls hold)
+    const { SCALES } = await import('@/lib/graph/exhibit/scales');
+    const held = new Set((await getExhibitHandler({})).cards.map((c) => c.id));
+    for (const [id, S] of Object.entries(SCALES)) for (const x of S.samples) expect(held.has(x), `${id}: ${x}`).toBe(true);
     // without it the door reads as it always did
     expect((await getExhibitHandler({})).halls.length).toBeGreaterThan(0);
   });

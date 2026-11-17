@@ -41,3 +41,17 @@ In progress. Each line is added as its phase lands.
   source is never a claim until they say what it shows. It records and never authors.
 - **Kept with the exhibit**: a curation may carry `brought`, the record as read, so the next session knows what was
   brought. A curation without one is as it always was.
+- **The scales** (`exhibit/scales.js`): the first primitive of an exhibit, the size of the thing it shows. The human
+  point of view is the base (what a person could stand beside); below it the micro, the atomic and molecular, the
+  subatomic; above it the macro (the bigger view from above), the geo (a geocube: terrain modelled), the planetary
+  (its own views), outer space. The two ends are conceptual; an idea has no scale and stands beside the ladder. Each
+  rung says what it shows naturally (the tour's own shapes: a structure, a process, a quantity), how a world at it is
+  made new, the law tables that can compose it where there are any, and the samples in the halls that are like it.
+- **The exhibit determines its scale.** The agent reads the concept and names the rungs it lives at (`start.scales`,
+  its home first): never a question for the person. A concept that spans rungs is a room a rung, and the fit's rooms
+  are the rungs unless they asked for a number of their own.
+- **The map** (`map` on the start, once there is a fit): a spine and its sequences. One page stepped through, or a
+  lobby of rooms each stepped through in order, each room's scale and stops, and between rooms at different scales
+  the way the visitor zooms (in, out, or aside to an idea). Nothing branches.
+- The tool list's payload pin is raised for `start` (an argument on the read-only door that owns the exhibit intent),
+  with its reason beside the pin.
