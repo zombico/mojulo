@@ -24,7 +24,7 @@
 // The viewmodel draws over the world (its depth cleared before it), so it never sinks into a wall.
 import { viewHand } from '../../../equipment/arms/view-hand.js';
 
-export function gunplayScript() {
+export function gunplayScript({ held = false } = {}) {
   return `
 // ── GUNPLAY ──
 const __GP = { aim: false, breath: false, reload: false, wheel: 0, kick: 0, shots: {}, slot: -1, prev: -1, views: {}, bob: 0, lag: [0, 0], lastH: null, lastP: null, fov0: null, fovSet: null, arrows: new Map(), scene: false };
@@ -582,5 +582,94 @@ if (typeof __syncRigEntity === 'function') {
 window.__mojCtrl.hands = () => ({ R: !!(__gpHands.R && __gpHands.R.hand.visible), L: !!(__gpHands.L && __gpHands.L.hand.visible), knife: !!(__gpHands.knife && __gpHands.knife.visible && __gpHands.L.hand.visible) });
 const __gpStep0 = stepControllable;
 stepControllable = (dt, inputOverride) => { __gpStep0(dt, inputOverride); __gpFrame(dt || 0); __gpArrows(); };
+${held ? heldScript() : ''}`;
+}
+
+// THE GUN IN A WATCHER'S HANDS (a body with a mind whose rule says `armHeld`, its slot's `gunplay` view the arm it
+// carries: gameworld/infiltration-room.js): the same arm, the same reach of the hands and turn of the chest as the
+// hero's, its posture read off the watcher's alert (worlds/controllable/alert.js `e.alert.up`) rather than a trigger.
+//   calm      the patrol carry: the butt in the shoulder's pocket, the muzzle down and across the body, the chest
+//             little turned, over the walk
+//   search    a high ready: the muzzle a little under the line, the chest turned
+//   combat    the attack stance: shouldered, the chest side-on to the line, the gun on the mind's own aim (its heading
+//             and its pitch at the target's chest), kicking with each round; its rounds leave from its muzzle
+// A body without an alert carries by its trigger: up while it fires and a second after. Emitted only into a page that
+// has such a body, so every other page keeps every byte.
+function heldScript() {
+  return `
+const __gpMindHeld = {};
+function __gpHoldMind(e, m, rig, dt) {
+  const lo = Array.isArray(e.rule.loadout) ? e.rule.loadout : null, S0 = lo && lo[e.loadoutIdx || 0], g = S0 && S0.gunplay, w = e.weapon;
+  const V0 = __gpMindHeld[e.id];
+  if (V0) V0.grp.visible = false;
+  if (window.__mojMuzzle) __gpMz(e.id, null);
+  if (!g || !w || !g.view || !g.view.hands || g.view.kind === 'bow' || e.downed || e.dead || e.gone || e.tumble || e.staggerT != null || e.swingT != null || e.takenDown) return;
+  const H = __gpHoldRig(rig); if (!H) return;
+  const V = V0 || (__gpMindHeld[e.id] = __gpBuild(g, true)), hands = g.view.hands, pistol = g.view.kind === 'handgun';
+  if (V.grp.parent !== m) m.add(V.grp);
+  // the posture: the alert's weapon up (0 the carry, 1 the stance), else up while it fires
+  if (H.shots >= 0 && (w.shots || 0) > H.shots) { H.last = __world.time; H.kick = 1; }
+  H.shots = w.shots || 0; H.kick = Math.max(0, H.kick - dt * 9);
+  const want = e.alert ? e.alert.up : __world.time - H.last < 1 ? 1 : 0;
+  H.ready += (want - H.ready) * Math.min(1, dt * 8);
+  const r = __gpEase(H.ready), re = w.reloading && w.reload > 0 ? Math.sin(Math.PI * (1 - w.reloadT / w.reload)) : 0;
+  // the gun's frame: on the mind's aim as it comes up, down and across the body as it goes down, rolled to reload
+  const pitch = (e.transform.pitch || 0) * r - (1 - r) * (pistol ? 1.0 : 0.85) - re * 0.25, yaw = (1 - r) * (pistol ? 0.2 : 0.5);
+  const F = new THREE.Vector3(0, Math.cos(pitch), Math.sin(pitch)), U = new THREE.Vector3(0, -Math.sin(pitch), Math.cos(pitch)), L = new THREE.Vector3(-1, 0, 0);
+  const qy = new THREE.Quaternion().setFromAxisAngle(__gpT.z, yaw); F.applyQuaternion(qy); U.applyQuaternion(qy); L.applyQuaternion(qy);
+  if (re) { const qr = new THREE.Quaternion().setFromAxisAngle(F, -0.5 * re); U.applyQuaternion(qr); L.applyQuaternion(qr); }
+  const item = (p, o) => o.clone().addScaledVector(L, p[0] / 100).addScaledVector(U, p[1] / 100).addScaledVector(F, p[2] / 100);
+  const along = (v) => L.clone().multiplyScalar(v[0]).addScaledVector(U, v[1]).addScaledVector(F, v[2]).normalize();
+  const P = H.pivot, SR0 = __gpHeadOf(rig, H.R.up, __gpV()), SL0 = __gpHeadOf(rig, H.L.up, __gpV()), N0 = __gpHeadOf(rig, H.neck >= 0 ? H.neck : H.head, __gpV());
+  const about = (v, q) => v.clone().sub(P).applyQuaternion(q).add(P);
+  let swing = 0;
+  if (H.torso >= 0) { const v = new THREE.Vector3(1, 0, 0).applyQuaternion(__gpQOf(rig, H.torso, new THREE.Quaternion())); swing = Math.atan2(v.y, v.x); }
+  const sp = hands.support, reachL = H.L.la + H.L.lb + 0.5 * H.L.hl;
+  const place = (blade, pull = 0) => {
+    const q = new THREE.Quaternion().setFromAxisAngle(__gpT.z, -blade - swing);
+    let O;
+    if (hands.butt && !pistol) O = about(SR0, q).add(new THREE.Vector3(-0.07, 0.05, -0.04).applyQuaternion(q)).sub(item(hands.butt, __gpV()));
+    else O = about(N0, q).add(new THREE.Vector3(0.05, 0, -0.2)).addScaledVector(F, 0.28 + 0.12 * r).sub(item(hands.strong.at, __gpV()));
+    O.addScaledVector(F, -0.035 * H.kick - 0.14 * re - pull).addScaledVector(L, 0.06 * re);
+    const SL = about(SL0, q);
+    let s = sp, fist = null;
+    if (sp) {
+      if (sp.alt && SL.distanceTo(item(sp.at, O)) > reachL * 0.98) s = sp.alt;
+      fist = item(s.at, O);
+      if (re && g.view.mag) fist.lerp(item(g.view.mag, O), re);
+    }
+    return { q, O, s, fist, short: fist ? SL.distanceTo(fist) - reachL * 0.97 : 0 };
+  };
+  // (the chest little turned at the carry, side-on to the line in the stance)
+  let blade = pistol ? 0.18 : 0.3 + 0.32 * r, at = place(blade);
+  for (let k = 0; k < 5 && at.short > 0; k++) { blade += 0.08; at = place(blade); }
+  for (let pull = 0.03; pull <= 0.18 && at.short > 0; pull += 0.03) at = place(blade, pull);
+  const B = rig.fig.bones;
+  for (let bi = 0; bi < B.length; bi++) {
+    if (H.lower.has(bi) && bi !== H.lumbar) continue;
+    const k = bi === H.lumbar ? 0.4 : bi === H.neck ? 0.5 : H.top.has(bi) ? 0 : 1;
+    if (k) __gpTurn(rig, bi, k === 1 ? at.q : __gpT.q2.setFromAxisAngle(__gpT.z, -(blade + swing) * k), P);
+  }
+  const O = at.O;
+  V.grp.matrix.makeBasis(L, U, F).setPosition(O); V.grp.visible = true;
+  if (V.mag) V.mag.visible = re < 0.85;
+  m.updateMatrixWorld(true); __gpMz(e.id, V.grp.localToWorld(new THREE.Vector3(0, 0, (g.view.muzzle || 0) / 100)));
+  __gpReach(rig, H.R, item(hands.strong.at, O), along(hands.strong.a), along(hands.strong.c), new THREE.Vector3(0.6, -0.2, -0.8));
+  if (at.fist) {
+    const A = H.L;
+    if (at.short > 0 && A.clav >= 0) {
+      const C = __gpHeadOf(rig, A.clav, __gpV()), SL = __gpHeadOf(rig, A.up, __gpV()), rr = SL.distanceTo(C);
+      const ax = SL.clone().sub(C).cross(at.fist.clone().sub(SL)).normalize(), th = Math.min(0.5, at.short / Math.max(0.05, rr));
+      if (ax.lengthSq() > 0.5) { const qc = new THREE.Quaternion().setFromAxisAngle(ax, th); for (const bi of [A.clav, A.sf, A.up, A.fo, A.hand, A.ef, A.ec, ...A.fingers]) if (bi >= 0) __gpTurn(rig, bi, qc, C); }
+    }
+    __gpReach(rig, A, at.fist, along(at.s.a), along(at.s.c), new THREE.Vector3(-0.25, 0, -1), 0.8);
+  }
+}
+if (typeof __syncRigEntity === 'function') {
+  const __gpSyncM = __syncRigEntity;
+  __syncRigEntity = function (e, m, rig, dt) { __gpSyncM(e, m, rig, dt); if (e.rule && e.rule.armHeld && e.id !== __world.pilotId) __gpHoldMind(e, m, rig, dt || 0); };
+}
+// (what each watcher's gun shows, for a page's check: its posture, 0 the carry to 1 the stance, and whether it is drawn)
+window.__mojCtrl.held = () => Object.fromEntries(Object.entries(__gpMindHeld).map(([id, V]) => [id, { drawn: V.grp.visible, ready: (__bodies[id] && __bodies[id].userData.rigFig && __bodies[id].userData.rigFig.__hold && __bodies[id].userData.rigFig.__hold.ready) || 0 }]));
 `;
 }
