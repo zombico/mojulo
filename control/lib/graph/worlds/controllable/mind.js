@@ -356,6 +356,8 @@ export function buildMind(E) {
     }
     const eyeH = (b) => (b.rule && b.rule.collideHeight != null ? b.rule.collideHeight : 24) * 0.75 - ((b.rule && b.rule.eye) || 0);
     if (world && world.colliders && sightBlocked([t.pos[0], t.pos[1], t.pos[2] + eyeH(e)], [q[0], q[1], q[2] + eyeH(target)], world.colliders)) return false;
+    // (nor through tall grass, veil.js: a world with veils, its lines run through them)
+    if (world && world.veils && E.veilBlocked && E.veilBlocked([t.pos[0], t.pos[1], t.pos[2] + eyeH(e)], [q[0], q[1], q[2] + eyeH(target)], world.veils)) return false;
     // a FRESH sighting (not seen in the last half second) is counted: castFacts says it on the bus (`seen`)
     if (!recent) { e.sightings = (e.sightings || 0) + 1; e.seenId = target.id; }
     e.lastSeen = { pos: [q[0], q[1], q[2]], t: now, id: target.id };

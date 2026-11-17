@@ -811,6 +811,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // hold, and the opener's count. A moveset that says no `swap` runs as before: the cycle mid-swing is dropped. Every
 // fixture that embeds the controllable runtime re-pinned with it.
 //
+// Re-pinned 2026-11-17 a fifth time (1117-cinematic-action-game: tall grass as cover): the seventeen fixtures whose page
+// inlines the controllable runtime. The engine's step hands a world's `veils` to its minds (core.js, one spread in the
+// world record: none, none handed), and a mind's sight asks them (mind.js perceive: a line lost in tall grass,
+// worlds/controllable/veil.js, the opt-in module that answers). No fixture's world carries veils, so every sight is the
+// colliders' as it was; only the runtime's text moved. Every fixture with no controllable runtime holds byte for byte.
 // Re-pinned 2026-11-17 a fourth time (1117-cinematic-action-game: a watcher's sight on the radar): `brawl`, `holo` and
 // `mission`, the three fixtures whose page inlines the game UI kernel and its styles. The kernel's map draws a marker's
 // `fan` as a wedge under it (what a watcher sees, gameworld/radar.js), and `mission` also inlines the radar's marks,

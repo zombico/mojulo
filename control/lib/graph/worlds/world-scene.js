@@ -73,6 +73,7 @@ import { GLASS_GROUPS } from '@/lib/graph/era/bay-glass';
 import { floraRead, floraBox, viewHeld, FLORA_HIDES, leafPilesRead } from '@/lib/graph/form/flora-read';
 import { snowBase, readSnow } from '@/lib/graph/era/snow';
 import { readDrifts } from '@/lib/graph/form/grass-drifts';
+import { readTallGrass, veilsOf } from '@/lib/graph/form/tall-grass';
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { readCone } from '@/lib/graph/scene/channels/view-cone';
@@ -954,7 +955,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // its drifts, `flora.grass.drifts` and `flora.flowers`; the recipe's biocube or else the cube's, none without)
     // (a town's lawns are mown: the short sward, no meadow's drifts)
     const cube = readGeocube(M.cube), bio = M.biocube ?? cube.biocube, F = bio ? readBiocube(bio).flora : null, moss = town ? 0 : F?.moss ?? 0, sward = town ? 'short' : F?.grass?.sward;
-    const drifts = town ? [] : readDrifts({ drifts: F?.grass?.drifts, flowers: F?.grass ? F.flowers : null });
+    // (a stealth land's TALL GRASS, form/tall-grass.js: its patches the only grass, tall, its sward one length, no drifts)
+    const TG = town ? null : readTallGrass(M.tallGrass);
+    const drifts = town || TG ? [] : readDrifts({ drifts: F?.grass?.drifts, flowers: F?.grass ? F.flowers : null });
     // (a raised view's ground claimed, form/flora-read.js viewHeld: no crown over an overlook's eye in what it looks over)
     if (payload.plants && !town) payload.plants = viewHeld(payload.plants, payload.cameras, { kinds: payload.plants.kinds });
     // (where the form grows its own plants, floraBox: the painted trees and bushes there are not read as land)
@@ -963,8 +966,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const S0 = payload.snowMap ? readSnow(cube.snow) : null, winter = !!S0 && (S0.line === undefined || S0.line === null);
     // (a map carries no camera of its own: the land is read framed from the south over its middle, raised, as an island's)
     const mapCam = formMap && !(payload.cameras ?? []).length && payload.map ? (() => { const W = payload.map.cols * payload.map.tile, H = payload.map.rows * payload.map.tile; return [{ name: 'island', worldFraming: { cameraPosition: [W / 2, -H * 1.15, H * 0.55], lookAt: [W / 2, -H / 2, 0], horizontalFov: 60, pictureCenter: [560, 390] } }]; })() : null;
-    const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter || (F?.marine && !F.grass) ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
+    const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter || (F?.marine && !F.grass) ? false : 'map', ...(moss ? { moss } : {}), ...(TG ? { sward: { short: 0, medium: 0 }, tallGrass: TG } : sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (and each patch a VEIL the runtime's sight reads, worlds/controllable/veil.js: its foot on the ground the map has)
+    // (each standing on the level ground its grass grows on, none where too little grows; how each stood is said beside it)
+    if (TG) { const PR = read?.grassMap?.patches ?? TG.patches; payload.veils = veilsOf(PR, (x, y) => read?.grassMap?.at?.(x, y)?.z ?? 0); payload.tallGrassRead = PR; }
     if (read) formCast = { cube, ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}) };
     // (a map's far range, level/far-range.js, stands hundreds of metres out: its own haze, the page's fog thinned over it
     // and less of the sky's air, so its mountains read through a morning's haze; channels/form-land.js)

@@ -16,10 +16,11 @@
  *                                silent), prone (a crawl: slowest, lowest, silent)
  *   watcherAt(w, t)              → { pos: [x, y], heading } a watcher at second t: a post (it stands and looks one way)
  *                                or a patrol on its round ({ at, to, speed })
- *   sees(w, at, eye, t, boxes)   → is a body's eye there seen by that watcher at t?
+ *   sees(w, at, eye, t, boxes, veils?) → is a body's eye there seen by that watcher at t? (`veils`: tall grass, a
+ *                                column each the line is lost in, worlds/controllable/veil.js, the runtime's own)
  *   sneakRoutes(place)           → { direct, sneak, other, verdicts }
  *       place: { bounds: [x0, y0, x1, y1], boxes: [{ min, max, sight?: false (seen through: a wire), walk?: false
- *                (walked under or over) }], watchers: [{ id, at, to?, speed?, heading?, cone?,
+ *                (walked under or over) }], veils?: [{ at: [x, y], r, h }] (tall grass, form/tall-grass.js), watchers: [{ id, at, to?, speed?, heading?, cone?,
  *                range?, eye?, hear? }], start: [x, y], goal: [x, y], goalRadius?: 2, seconds?: 300, cell?: 1 }
  *       direct  the shortest way with no watcher in mind (anyone's first try): { path, seconds, seen: { at, by, t } | null }
  *       sneak   the fastest way never seen or heard: { path: [{ at, t, stance }], seconds, waits (seconds stood still),
@@ -33,6 +34,8 @@
  * Coarse on purpose: the ground is flat to it (a land's rise is not read), a step is a cell, time is a quarter second,
  * and a body is a point. It proves a way exists with room to spare; whether it plays is the person's. Pure, no dice.
  */
+import { buildVeil } from '../worlds/controllable/veil.js';
+
 export const SNEAK_STANCES = Object.freeze({
   stand: Object.freeze({ eye: 1.275, ticks: 1, loud: true }),    // (a run: a cell a quarter second, 4 m/s)
   crouch: Object.freeze({ eye: 0.825, ticks: 2, loud: false }),  // (2 m/s)
@@ -40,6 +43,9 @@ export const SNEAK_STANCES = Object.freeze({
 });
 const STANCE_IDS = Object.keys(SNEAK_STANCES), TICK = 0.25, CHANGE = 2;   // (a change of stance: half a second)
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+// (the runtime's veils, built on a plain object: the same lines the minds read)
+const VEIL = {}; buildVeil(VEIL);
+const flatVeils = (V) => (Array.isArray(V) && V.length ? V.map((v) => ({ at: [v.at[0], v.at[1], 0], r: v.r, h: v.h, ...(v.through != null ? { through: v.through } : {}), ...(v.near != null ? { near: v.near } : {}) })) : null);
 
 export function watcherAt(w, t) {
   if (!Array.isArray(w.to)) return { pos: [w.at[0], w.at[1]], heading: w.heading ?? 0 };
@@ -68,16 +74,18 @@ function blocked(ax, ay, az, bx, by, bz, boxes) {
   return false;
 }
 
-export function sees(w, at, eye, t, boxes) {
+export function sees(w, at, eye, t, boxes, veils = null) {
   const g = watcherAt(w, t), dx = at[0] - g.pos[0], dy = at[1] - g.pos[1], d = Math.hypot(dx, dy);
   if (d > (w.range ?? 14) || d < 1e-6) return d < 1e-6;
   if (Math.abs(wrap(Math.atan2(dy, dx) - g.heading)) > (w.cone ?? 0.6)) return false;
-  return !blocked(g.pos[0], g.pos[1], w.eye ?? 1.35, at[0], at[1], eye, boxes);
+  if (blocked(g.pos[0], g.pos[1], w.eye ?? 1.35, at[0], at[1], eye, boxes)) return false;
+  // (nor through tall grass: the runtime's own veils, its ground flat here)
+  return !(veils && veils.length && VEIL.veilBlocked([g.pos[0], g.pos[1], w.eye ?? 1.35], [at[0], at[1], eye], veils));
 }
 
 export function sneakRoutes(place) {
   const C = place.cell ?? 1, [X0, Y0, X1, Y1] = place.bounds, W = Math.max(1, Math.ceil((X1 - X0) / C)), H = Math.max(1, Math.ceil((Y1 - Y0) / C));
-  const boxes = place.boxes ?? [], watchers = place.watchers ?? [], N = W * H, TT = Math.round((place.seconds ?? 300) / TICK);
+  const boxes = place.boxes ?? [], veils = flatVeils(place.veils), watchers = place.watchers ?? [], N = W * H, TT = Math.round((place.seconds ?? 300) / TICK);
   const cx = (i) => X0 + ((i % W) + 0.5) * C, cy = (i) => Y0 + (Math.floor(i / W) + 0.5) * C;
   const cellOf = (p) => Math.min(H - 1, Math.max(0, Math.floor((p[1] - Y0) / C))) * W + Math.min(W - 1, Math.max(0, Math.floor((p[0] - X0) / C)));
   // a cell a body cannot stand in: inside a box taller than a step (inflated by the body)
@@ -102,7 +110,7 @@ export function sneakRoutes(place) {
   };
   const seenAt = (i, s, tick) => {
     const at = [cx(i), cy(i)], S = SNEAK_STANCES[STANCE_IDS[s]], t = tick * TICK;
-    for (const w of watchers) if (sees(w, at, S.eye, t, boxes)) return w.id;
+    for (const w of watchers) if (sees(w, at, S.eye, t, boxes, veils)) return w.id;
     return null;
   };
   // (heard: a run within a watcher's hearing)

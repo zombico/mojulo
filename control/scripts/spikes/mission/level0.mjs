@@ -24,7 +24,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const { options, database, starterRoom, groundOf, writePage, boxFaces } = await import('./lib.mjs');
 const o = options(process.argv.slice(2)), out = path.resolve(o.opt('--out', 'level-0'));
 database(o.opt('--hero'), o.opt('--guard'));
-const { planLevel, planSvg, coverOf, watchersOf, GUARD, spineFrom, spineOf, placeRecipe, structureBoxes, STRUCTURE } = await import('./level0-plan.mjs');
+const { planLevel, planSvg, coverOf, watchersOf, GUARD, spineFrom, spineOf, placeRecipe, structureBoxes, STRUCTURE, tallGrassOf } = await import('./level0-plan.mjs');
 const { assembleStageScene } = await import('../../../lib/graph/era/stage.js');
 const { readGameworld } = await import('../../../lib/graph/gameworld/index.js');
 const { gameStages } = await import('../../../lib/graph/gameworld/levels.js');
@@ -51,7 +51,7 @@ const fieldOf = (colliders) => { const B = colliders.filter((c) => /^bound:/.tes
 
 if (facts0) {
   const F = facts0, plan = planLevel(L, F.colliders, F.field);
-  report(plan); await fs.writeFile(path.join(out, 'level-0-plan.svg'), planSvg(L, plan, F.field, F.trail));
+  report(plan); await fs.writeFile(path.join(out, 'level-0-plan.svg'), planSvg(L, plan, F.field, F.trail, F.relief));
   console.log(`level 0: ${path.join(out, 'level-0-plan.svg')}`); process.exit(0);
 }
 
@@ -65,7 +65,7 @@ const Pf = L0.performance ?? {}, occl = o.has('--no-occlusion') ? false : Pf.occ
 // `bodies: 'blob'` draws no body into the live light's map each frame, a soft pool at each one's feet instead)
 const bodyShadows = Pf.bodies === 'blob' ? { actors: false, hour: true, feet: true, occlude: true, r: 0.5, alpha: 0.42, fade: 1.5 } : { actors: true, hour: true };
 const costs = { ...(occl !== undefined ? { occlusion: occl } : {}), ...(Pf.light ? { light: { tier: Pf.light } } : {}), ...(Number.isFinite(Pf.cone) ? { cone: Pf.cone } : {}) };
-const scene = { kind: 'geocube', cube: { from: L.cube, era: 'gen-7' }, show: 'path', seed: stage.seed, trail: stage.trail, hour: L.hour, shadows: bodyShadows, ...costs, parked: cover.parked,
+const scene = { kind: 'geocube', cube: { from: L.cube, era: 'gen-7' }, show: 'path', seed: stage.seed, trail: stage.trail, hour: L.hour, shadows: bodyShadows, ...costs, ...(tallGrassOf(L) ? { tallGrass: tallGrassOf(L) } : {}), parked: cover.parked,
   figures: room.manifest.figures, entities: [h0, ...L.watchers.map((w) => ({ ...g0, id: w.id })), ...backupIds.map((id) => ({ ...g0, id, dormant: true }))], fxStyle: room.manifest.fxStyle, figureGrade: room.manifest.figureGrade };
 const { payload } = await resolveWorldScene({ ref: 'steel-serpents-level-0', title: `${L.name} · Steel Serpents`, manifest: scene }, { era: 'gen-7', live: true });
 
@@ -73,9 +73,20 @@ const { payload } = await resolveWorldScene({ ref: 'steel-serpents-level-0', tit
 const ground = groundOf(payload), zAt = (p) => ground(p[0], p[1]) ?? 0, on = (p, lift = 0) => r2([p[0], p[1], zAt(p) + lift]);
 const field = fieldOf(payload.colliders), trail = (payload.anchors ?? []).filter((a) => a.kind === 'beat').map((a) => a.at);
 await fs.mkdir(out, { recursive: true });
-await fs.writeFile(factsFile, JSON.stringify({ field, trail, spine: spine.samples, colliders: payload.colliders.filter((c) => /^(shrub|bound)/.test(c.of ?? '')) }));
+// THE LAND'S RELIEF for the plan (the grass map's heights, a metre a cell over the field): where a bank stands, a patch of
+// grass on it grows only on its level top, and the search reads the ground as flat
+const relief = (() => {
+  const G = payload.form?.land?.grass; if (!G) return null;
+  const px = Buffer.from(G.px, 'base64'), [nx, ny] = G.size, zAt = (x, y) => { const i = Math.round((x - G.origin[0]) / G.cell), j = Math.round((y - G.origin[1]) / G.cell); if (i < 0 || j < 0 || i >= nx || j >= ny) return null; const q = (j * nx + i) * 4; return G.z[0] + ((px[q] * 256 + px[q + 1]) / 65535) * G.z[1]; };
+  const [X0, Y0, X1, Y1] = field, W = Math.ceil(X1 - X0), H = Math.ceil(Y1 - Y0), z = [];
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const v = zAt(X0 + i + 0.5, Y0 + j + 0.5); z.push(v == null ? null : Math.round(v * 100) / 100); }
+  return { origin: [X0, Y0], size: [W, H], z };
+})();
+// (how each patch of tall grass stands: its share of level green ground, where its grass grows; one under half is no cover)
+for (const [k, P] of (payload.tallGrassRead ?? []).entries()) if (P.share !== undefined) console.log(`level 0: grass ${L.grass?.[k]?.id ?? k}: ${Math.round(P.share * 100)}% level ground${P.share < 0.5 ? ' — too little grows: no cover here, move it' : P.share < 0.75 ? ' — thin in places' : ''}`);
+await fs.writeFile(factsFile, JSON.stringify({ field, trail, spine: spine.samples, colliders: payload.colliders.filter((c) => /^(shrub|bound)/.test(c.of ?? '')), ...(relief ? { relief } : {}) }));
 const plan = planLevel(L, payload.colliders, field);
-report(plan); await fs.writeFile(path.join(out, 'level-0-plan.svg'), planSvg(L, plan, field, trail));
+report(plan); await fs.writeFile(path.join(out, 'level-0-plan.svg'), planSvg(L, plan, field, trail, relief));
 if (o.has('--plan')) process.exit(0);
 
 // what is parked is set on the ground under it (the recipe gave it no height), its box with it

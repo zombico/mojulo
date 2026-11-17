@@ -11,6 +11,7 @@
  */
 import { sneakRoutes, watcherAt } from '../../../lib/graph/gameworld/stealth-routes.js';
 import { withParked } from '../../../lib/graph/vehicle-registry/parked.js';
+import { readTallGrass } from '../../../lib/graph/form/tall-grass.js';
 
 /** The trail's line from its own faces (the land's `trail` group): x across the site at each metre up it, the mean of
  *  the faces' middles there, read between the metres. → { x(y), samples: [[y, x]] } */
@@ -41,7 +42,9 @@ export function placeRecipe(L, spine) {
   const posted = (w) => (w.on ? (structures.find((t) => t.id === w.on) ?? {}).at : at(w.at));
   return { ...L, structures, start: at(L.start), exit: at(L.exit), ...(L.backup ? { backup: { ...L.backup, from: at(L.backup.from) } } : {}),
     cover: L.cover.map((c) => ({ ...c, at: at(c.at) })), watchers: L.watchers.map((w) => ({ ...w, at: posted(w), ...(w.to ? { to: at(w.to) } : {}), ...(w.facing ? { facing: at(w.facing) } : {}) })),
-    points: L.points.map((P) => ({ ...P, from: at(P.from), to: at(P.to) })), hints: L.hints.map((h) => ({ ...h, at: at(h.at) })) };
+    points: L.points.map((P) => ({ ...P, from: at(P.from), to: at(P.to) })), hints: L.hints.map((h) => ({ ...h, at: at(h.at) })),
+    // (its tall grass, each patch's middle along the trail too: form/tall-grass.js)
+    ...(L.grass ? { grass: L.grass.map((g) => ({ ...g, at: at(g.at) })) } : {}) };
 }
 
 /**
@@ -103,18 +106,34 @@ export function watchersOf(L) {
     cone: w.cone ?? GUARD.cone, range: w.range ?? GUARD.range, eye: GUARD.eye + up(w), hear: w.hear ?? GUARD.hear }));
 }
 
+/** The level's tall grass as the geocube reads it (`tallGrass`, form/tall-grass.js) and as the search's veils. */
+export function tallGrassOf(L) { return L.grass && L.grass.length ? { patches: L.grass.map((g) => ({ at: g.at, r: g.r, ...(g.h ? { h: g.h } : {}) })) } : null; }
+export function grassVeils(L) { const T = readTallGrass(tallGrassOf(L)); return T ? T.patches : []; }
+
 export function planLevel(L, colliders = [], field = [-8, 0, 30, 75.5]) {
   const boxes = coverBoxes(L, colliders), watchers = watchersOf(L);
   const points = L.points.map((P) => ({ id: P.id, reads: P.reads,
-    routes: sneakRoutes({ bounds: [field[0], P.window[0], field[2], P.window[1]], boxes, watchers, start: P.from, goal: P.to, goalRadius: 2, seconds: P.seconds ?? 240 }) }));
+    routes: sneakRoutes({ bounds: [field[0], P.window[0], field[2], P.window[1]], boxes, veils: grassVeils(L), watchers, start: P.from, goal: P.to, goalRadius: 2, seconds: P.seconds ?? 240 }) }));
   return { boxes, watchers, points, laws: points.flatMap((P) => P.routes.verdicts.map((v) => ({ ...v, law: `${P.id}: ${v.law}` }))) };
 }
 
-export function planSvg(L, plan, field = [-8, 0, 30, 75.5], trail = []) {
+export function planSvg(L, plan, field = [-8, 0, 30, 75.5], trail = [], relief = null) {
   const S = 12, [X0, Y0, X1, Y1] = field, W = (X1 - X0) * S, H = (Y1 - Y0) * S, px = (x) => (x - X0) * S, py = (y) => (Y1 - y) * S;
   const line = (pts, style) => `<polyline fill="none" ${style} points="${pts.map((p) => `${px(p[0]).toFixed(1)},${py(p[1]).toFixed(1)}`).join(' ')}"/>`;
   const out = [`<svg xmlns="http://www.w3.org/2000/svg" width="${W + 260}" height="${H}" viewBox="0 0 ${W + 260} ${H}" font-family="ui-monospace,monospace" font-size="11">`, `<rect width="${W + 260}" height="${H}" fill="#101418"/>`, `<rect width="${W}" height="${H}" fill="#1c2a1e"/>`];
+  // (the land's relief, a metre a cell: lit from the north-west, a bank's face dark, its steepness the more so; the search
+  // reads the ground as flat, so a way that climbs one is the eye's to judge)
+  if (relief) {
+    const [W0, H0] = relief.size, Z = (i, j) => relief.z[Math.min(H0 - 1, Math.max(0, j)) * W0 + Math.min(W0 - 1, Math.max(0, i))];
+    for (let j = 0; j < H0; j++) for (let i = 0; i < W0; i++) {
+      const z = Z(i, j); if (z == null) continue;
+      const gx = ((Z(i + 1, j) ?? z) - (Z(i - 1, j) ?? z)) / 2, gy = ((Z(i, j + 1) ?? z) - (Z(i, j - 1) ?? z)) / 2, steep = Math.hypot(gx, gy), lit = Math.max(-1, Math.min(1, (-gx + gy) * 0.9));
+      if (steep < 0.12) continue;
+      out.push(`<rect x="${px(relief.origin[0] + i)}" y="${py(relief.origin[1] + j + 1)}" width="${S}" height="${S}" fill="${lit > 0 ? '#d8d2b8' : '#000'}" opacity="${Math.min(0.55, 0.12 + steep * 0.35).toFixed(2)}"/>`);
+    }
+  }
   if (trail.length) out.push(line(trail, 'stroke="#6b5a40" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" opacity=".55"'));
+  for (const g of grassVeils(L)) out.push(`<circle cx="${px(g.at[0]).toFixed(1)}" cy="${py(g.at[1]).toFixed(1)}" r="${(g.r * S).toFixed(1)}" fill="#7fae4a" opacity=".45" stroke="#a6d46a" stroke-width="1"/>`);
   for (const b of plan.boxes) { if (b.fill) { if (b.walk === false && !b.deck) continue; out.push(`<rect x="${px(b.min[0])}" y="${py(b.max[1])}" width="${(b.max[0] - b.min[0]) * S}" height="${(b.max[1] - b.min[1]) * S}" fill="${b.fill}" opacity="${b.deck ? 0.55 : 1}" stroke="${b.sight === false && !b.deck ? '#aab' : '#0b0e10'}" stroke-dasharray="${b.sight === false && !b.deck ? '3 2' : ''}"/>`); continue; } const sh = /^shrub/.test(b.id); out.push(`<rect x="${px(b.min[0])}" y="${py(b.max[1])}" width="${(b.max[0] - b.min[0]) * S}" height="${(b.max[1] - b.min[1]) * S}" fill="${sh ? '#3f6b3a' : b.max[2] < 0.7 ? '#7a5c3a' : b.max[2] < 1.2 ? '#8a8060' : '#59636b'}" stroke="#0b0e10"/>`); }
   for (const w of plan.watchers) {
     if (w.to) out.push(line([w.at, w.to], 'stroke="#ff7a59" stroke-width="1.5" stroke-dasharray="5 4"'));
@@ -139,7 +158,7 @@ export function planSvg(L, plan, field = [-8, 0, 30, 75.5], trail = []) {
     out.push(`<text x="${px(L.points.find((p) => p.id === P.id).from[0]) + 10}" y="${py(L.points.find((p) => p.id === P.id).from[1]) + 4}" fill="#e8ecef" font-size="13">${P.id}</text>`);
   }
   key('#ff5a4a', 'the first try: seen at the ring'); key('#5fe08a', 'the way unseen'); key('#5fb8ff', 'a second way'); row++;
-  for (const t of ['thin: a run', 'thick: a crouch', 'dotted: a crawl', '', 'grey: parked (tall)', 'khaki: sandbags (1 m)', 'dashed: wire, seen through', 'square: a tower', 'tan: crates (1 m)', 'brown: logs (0.55 m)', 'green: shrubs', 'red fans: what a watcher', '  sees (two moments)']) { out.push(`<text x="${W + 14}" y="${24 + row * 18}" fill="#9aa4aa">${t}</text>`); row++; }
+  for (const t of ['thin: a run', 'thick: a crouch', 'dotted: a crawl', '', 'grey: parked (tall)', 'khaki: sandbags (1 m)', 'dashed: wire, seen through', 'square: a tower', 'tan: crates (1 m)', 'brown: logs (0.55 m)', 'green: shrubs', 'pale green: tall grass', '  (hides a crouch, a crawl)', 'light / dark cells: a slope', '  (a bank: the search reads', '  the ground as flat)', 'red fans: what a watcher', '  sees (two moments)']) { out.push(`<text x="${W + 14}" y="${24 + row * 18}" fill="#9aa4aa">${t}</text>`); row++; }
   out.push('</svg>');
   return out.join('\n');
 }

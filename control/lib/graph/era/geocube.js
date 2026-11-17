@@ -112,6 +112,7 @@
  *   geocubeRegisterOf(manifest)    the crease pass's terms (creases, outline) that cube's register asks for, or null
  *   geocubeEraOf(manifest)         the era (era/eras.js) of the cube a world manifest is painted by, or null
  */
+import { readTallGrass } from '../form/tall-grass.js';
 import { validateTerrainWind } from '../vegetation/wind.js';
 import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook } from './sixth-gen.js';
 import { readAvoid, measureAvoid } from './geocube-laws.js';
@@ -1451,7 +1452,9 @@ function withTownCameras(payload, site) {
     cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'sea', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart', 'fxStyle', ...LEVEL_KEYS].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, sea, words, hall, skandart; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'sea', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart', 'fxStyle', 'tallGrass', ...LEVEL_KEYS].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, sea, words, hall, skandart, tallGrass; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
+  // (a stealth land's tall grass, form/tall-grass.js: patches, each a middle and a radius)
+  if (manifest.tallGrass !== undefined && !readTallGrass(manifest.tallGrass)) no('tallGrass is { patches: [{ at: [x, y], r?, h? }], elsewhere?: \'none\' | \'grass\' }: grass in tight clumps where a body may hide, none elsewhere');
   // (`camera`: the still it is first seen from, STILLS: a camera glyph's, gameworld/glyph-words.js)
   if (manifest.camera !== undefined && !pageCamera(manifest.camera) && !STILLS.includes(manifest.camera)) no(`camera is the still it is first seen from: ${STILLS.join(', ')}`);
   // (`words`, and its `brief`: the words a scene was asked in and what each decided, written at authoring time into the

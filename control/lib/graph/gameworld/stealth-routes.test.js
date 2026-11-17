@@ -63,6 +63,19 @@ describe('the ways through', () => {
     for (const p of R.sneak.path) expect(sees(patrol, p.at, E[p.stance].eye, p.t, boxes), `at ${p.t} s`).toBe(false);
     expect(R.sneak.path.at(-1).at[1]).toBeGreaterThan(26);
   });
+  it('a strip of tall grass is a way past a post that sees the whole lane: low in the grass, never seen', () => {
+    const post = { id: 'post', at: [7, 20], heading: -Math.PI / 2, cone: 1.2, range: 14, hear: 0 };
+    const veils = [5, 9, 13, 17, 21, 25].map((y) => ({ at: [2.5, y], r: 2.2, h: 1.2 }));
+    expect(sneakRoutes(lane({ watchers: [post] })).sneak).toBeNull();
+    const R = sneakRoutes(lane({ watchers: [post], veils }));
+    expect(R.direct.seen).toMatchObject({ by: 'post' });
+    expect(R.sneak).not.toBeNull();
+    expect(R.sneak.crouch + R.sneak.crawl).toBeGreaterThan(6);
+    for (const p of R.sneak.path) expect(sees(post, p.at, E[p.stance].eye, p.t, [], veils), `at ${p.t} s`).toBe(false);
+    // (standing in it is no use: the eye is over the grass)
+    expect(sees(post, [2.5, 13], E.stand.eye, 0, [], veils)).toBe(true);
+    expect(sees(post, [2.5, 13], E.crouch.eye, 0, [], veils)).toBe(false);
+  });
   it('an empty place asks for no sneak, and says so', () => {
     const R = sneakRoutes(lane());
     expect(R.direct.seen).toBeNull();

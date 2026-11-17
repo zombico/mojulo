@@ -189,6 +189,13 @@
     },
     {
       "at": {
+        "trail": 23.5,
+        "off": 0
+      },
+      "says": "Tall grass to your right. Crouch or lie down in it and a guard cannot see you, unless he is close enough to step on you. Stand up and your head is over it."
+    },
+    {
+      "at": {
         "trail": 27,
         "off": 0
       },
@@ -349,5 +356,112 @@
     "cone": 20,
     "bodies": "blob",
     "reads": "what the page may cost: its shadows at half (light.tier), no contact occlusion, real grass out to 20 m (the view cone); [ and ] move the grass's reach live; bodies 'blob' casts no body into the live shadow map, a soft pool at the feet instead ('live' for real shadows)"
-  }
+  },
+  "grass": [
+    {
+      "id": "practice",
+      "at": {
+        "trail": 23,
+        "off": 5.5
+      },
+      "r": 3.2
+    },
+    {
+      "id": "truck-south-1",
+      "at": {
+        "trail": 58,
+        "off": -6.5
+      },
+      "r": 2.6
+    },
+    {
+      "id": "truck-south-2",
+      "at": {
+        "trail": 62.5,
+        "off": -8
+      },
+      "r": 2.6
+    },
+    {
+      "id": "truck-south-3",
+      "at": {
+        "trail": 66,
+        "off": -9.5
+      },
+      "r": 2.2
+    },
+    {
+      "id": "truck-north-1",
+      "at": {
+        "trail": 71,
+        "off": -9.5
+      },
+      "r": 2.4
+    },
+    {
+      "id": "truck-north-2",
+      "at": {
+        "trail": 75,
+        "off": -8.5
+      },
+      "r": 2.6
+    },
+    {
+      "id": "truck-north-3",
+      "at": {
+        "trail": 79.5,
+        "off": -7
+      },
+      "r": 2.6
+    },
+    {
+      "id": "camp-south",
+      "at": {
+        "trail": 84,
+        "off": -9
+      },
+      "r": 2.4
+    },
+    {
+      "id": "camp-west-1",
+      "at": {
+        "trail": 87,
+        "off": -12.3
+      },
+      "r": 2.2
+    },
+    {
+      "id": "camp-west-2",
+      "at": {
+        "trail": 91,
+        "off": -12.3
+      },
+      "r": 2.2
+    },
+    {
+      "id": "camp-west-3",
+      "at": {
+        "trail": 95,
+        "off": -10.8
+      },
+      "r": 2.0
+    },
+    {
+      "id": "camp-west-4",
+      "at": {
+        "trail": 98.8,
+        "off": -9.8
+      },
+      "r": 2.0
+    },
+    {
+      "id": "camp-north",
+      "at": {
+        "trail": 102.8,
+        "off": -15.8
+      },
+      "r": 2.2
+    }
+  ],
+  "grassReads": "tall grass in tight clumps, none elsewhere: a body crouched or lying a stride into it is unseen (a lookout up a tower sees a crouch, not a body lying flat; a guard within 2 m sees whatever); standing, the eye is over it"
 }

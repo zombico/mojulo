@@ -91,6 +91,12 @@ hung cloth sway in it; a physical level's blocks, dust, smoke and leaves feel th
   `anchor` names another, in a `style` (its own, else `buildings.style`). A town walks on a trail.
 - **Flora** (`biocube`): what grows on its land, its trees composed as silhouettes in the cube's colours
   (`get_sketch_vocab({ id: 'biocube' })`).
+- **Tall grass** (a geocube recipe's `tallGrass: { patches: [{ at: [x, y], r?, h? }], elsewhere?: 'none' | 'grass' }`, the
+  gen-7 form render): a stealth game's cover. Grass only in the patches (tight clumps, 1.2 m by default), drawn at every
+  distance, none elsewhere, so the land keeps its look at a fraction of the meadow's cost. Each patch is a veil the
+  runtime's guards read: a body crouched or lying a stride into it, or low behind it, is unseen; standing, its head is
+  over it; a guard within 2 m sees it, a lookout up a tower sees a crouch but not a body lying flat. Lay a patch on level
+  green ground: on a bank little grows, and a patch where under half grows hides nothing.
 - **Snow** (`snow`): the cube's land under snow, its trail's stage and the far ridges. `true`, a depth (`dusting`,
   `cover`, `deep`), or `{ line?, depth?, hold?, drift?, lee? }`: `line` metres over the land's lowest ground where it
   begins (snowcapped crags; absent, the whole land), `depth` a word or metres, `hold` how level ground must be to hold
