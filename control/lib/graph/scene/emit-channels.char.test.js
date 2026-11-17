@@ -786,6 +786,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-16 again (1115-shooting-rails: a mission fills its window): `mission` only. A mission's page fills
 // its window where its game names no screen. Every other fixture holds byte for byte. (The gunplay view's own changes
 // of that day, the gun drawn after the world's glass and lit by the form render, moved no fixture: none carries it.)
+// Re-pinned 2026-11-17 (1115-shooting-rails: every shooter wears the HUD): `mission` only. The mission's page gained a
+// plain form (no order, briefing or debrief, for a shooter with no mission), its order stands only where there is one,
+// its health falls back to the pilot's own body where the bus keeps none, and its map is drawn at the floor the pilot
+// stands on and boxed on the ground a level says it is fought on. No other fixture moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
