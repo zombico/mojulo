@@ -22,6 +22,8 @@
 //           through a reload, a knife drawn in it and cut on V (a quick knife, rule.knife), a reach and a grab for what
 //           is picked up or used.
 // The viewmodel draws over the world (its depth cleared before it), so it never sinks into a wall.
+import { viewHand } from '../../../equipment/arms/view-hand.js';
+
 export function gunplayScript() {
   return `
 // ── GUNPLAY ──
@@ -191,29 +193,46 @@ function __gpShadeBox(s, c, at, into) {
   const m = new THREE.Mesh(geo, __gpMatOf('cloth'));
   m.position.set(at[0], at[1], at[2]); m.renderOrder = 1e6; m.frustumCulled = false; m.raycast = function () {}; into.add(m); return m;
 }
-// a hand's own frame: +x its index side, +y wrist to knuckles, the palm toward +z (the right's) or -z (the left's)
+// a hand's own frame: +x its index side, +y wrist to knuckles, the palm toward +z (the right's) or -z (the left's).
+// THE HAND IS THE FIGURES' OWN (polygonizer/hero-hand.js, through equipment/arms/view-hand.js): a palm and five jointed
+// digits, one mesh, carried at a run of curls from open to a fist; the page blends between two of them, so the fingers
+// close as the hand's own rule closes them and nothing is solved here. The left is the right mirrored through its palm
+const __GP_HAND = ${JSON.stringify(viewHand())};
 function __gpHandBuild(side) {
-  const ps = side === 'R' ? 1 : -1, GLOVE = '#8d7656', SLEEVE = '#58604c';
-  const hand = new THREE.Group(), fingers = new THREE.Group(), thumb = new THREE.Group();
-  __gpShadeBox([0.084, 0.092, 0.032], GLOVE, [0, 0.046, 0], hand);
-  __gpShadeBox([0.072, 0.05, 0.062], GLOVE, [0, -0.02, 0], hand);
-  fingers.position.set(0, 0.09, 0); hand.add(fingers);
-  __gpShadeBox([0.08, 0.075, 0.024], GLOVE, [0, 0.036, 0], fingers);
-  thumb.position.set(0.036, 0.02, ps * 0.012); hand.add(thumb);
-  __gpShadeBox([0.024, 0.06, 0.024], GLOVE, [0, 0.03, 0], thumb);
-  const arm = new THREE.Group(); __gpShadeBox([0.08, 1, 0.08], SLEEVE, [0, 0.5, 0], arm);
+  const ps = side === 'R' ? 1 : -1, GLOVE = '#8d7656', SLEEVE = '#58604c', D = __GP_HAND;
+  const hand = new THREE.Group(), geo = new THREE.BufferGeometry(), pos = new Float32Array(D.n * 3), col = new Float32Array(D.n * 3);
+  for (let i = 0; i < D.n; i++) { pos[3 * i] = D.curls[0][3 * i]; pos[3 * i + 1] = D.curls[0][3 * i + 1]; pos[3 * i + 2] = ps * D.curls[0][3 * i + 2]; }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(D.tris); geo.computeVertexNormals();
+  // (a painted page shades it by which way each part looks, as it shades the gun: the back of the hand lighter)
+  const base = new THREE.Color(GLOVE), nn = geo.attributes.normal;
+  for (let i = 0; i < D.n; i++) { const k = __gpLit() ? 1 : 0.86 - 0.28 * ps * nn.getZ(i) + 0.1 * nn.getX(i); col[3 * i] = Math.min(1, base.r * k + 0.03); col[3 * i + 1] = Math.min(1, base.g * k + 0.03); col[3 * i + 2] = Math.min(1, base.b * k + 0.035); }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const mesh = new THREE.Mesh(geo, __gpMatOf('cloth', THREE.DoubleSide));
+  mesh.renderOrder = 1e6; mesh.frustumCulled = false; mesh.raycast = function () {}; hand.add(mesh);
+  // (the sleeve: a cuff no wider than the wrist it ends at, so the hand past it is seen, and the forearm behind it)
+  const arm = new THREE.Group(); __gpShadeBox([0.06, 0.3, 0.044], SLEEVE, [0, 0.15, 0], arm); __gpShadeBox([0.078, 0.7, 0.064], SLEEVE, [0, 0.65, 0], arm);
   hand.visible = false; arm.visible = false; camera.add(hand); camera.add(arm);
   // (the elbow the forearm runs toward, in the camera's frame: below, out to the side, beside the eye)
-  return { hand, fingers, thumb, arm, ps, elbow: side === 'R' ? new THREE.Vector3(0.26, -0.4, 0.04) : new THREE.Vector3(-0.27, -0.38, -0.02) };
+  return { hand, mesh, arm, ps, curl: -1, elbow: side === 'R' ? new THREE.Vector3(0.26, -0.4, 0.04) : new THREE.Vector3(-0.27, -0.38, -0.02) };
+}
+// the hand closed by its curl (0 open to 1 a fist): its points between the two curls it falls between
+function __gpHandCurl(H, curl) {
+  const c = Math.max(0, Math.min(1, curl));
+  if (Math.abs(c - H.curl) < 0.004) return;
+  H.curl = c;
+  const D = __GP_HAND, t = c * (D.curls.length - 1), i = Math.min(D.curls.length - 2, Math.floor(t)), f = t - i, A = D.curls[i], B = D.curls[i + 1], P = H.mesh.geometry.attributes.position, a = P.array;
+  for (let k = 0; k < a.length; k += 3) { a[k] = A[k] + (B[k] - A[k]) * f; a[k + 1] = A[k + 1] + (B[k + 1] - A[k + 1]) * f; a[k + 2] = H.ps * (A[k + 2] + (B[k + 2] - A[k + 2]) * f); }
+  P.needsUpdate = true;
 }
 // a hand posed: the fist's centre, its long axis and index side (camera frame), how closed (0 open to 1 a fist)
 function __gpHandPose(H, fist, a, c, curl) {
   const A = a.clone().normalize(), C = c.clone().addScaledVector(A, -c.dot(A)).normalize(), Z = C.clone().cross(A);
   H.hand.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(C, A, Z));
   const palm = Z.clone().multiplyScalar(H.ps);
-  const W = fist.clone().addScaledVector(A, -0.046).addScaledVector(palm, -0.012);
+  // (the fist's centre is where the fingers close: short of the knuckles, off the palm)
+  const W = fist.clone().addScaledVector(A, -0.086).addScaledVector(palm, -0.03);
   H.hand.position.copy(W);
-  H.fingers.rotation.x = H.ps * 1.75 * curl; H.thumb.rotation.set(H.ps * 0.9 * curl, 0, -0.45 - 0.35 * curl);
+  __gpHandCurl(H, curl);
   // the sleeve from the wrist toward its elbow, a forearm's length
   const back = H.elbow.clone().sub(W), L = Math.min(0.3, back.length());
   H.arm.position.copy(W); H.arm.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), back.normalize()); H.arm.scale.set(1, L, 1);

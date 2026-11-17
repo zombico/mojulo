@@ -230,3 +230,8 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
 - **The range's jump is a body's.** Its feet had a step and a landing and no jump, so a jump played the gait's default
   chirp. Now a jump is the boots pushing off the concrete and the kit shifting, and a landing is both feet and the
   weight under them (`combat/range-sound.js`).
+- **The view's hands are the figures' own.** A first person's hands on a gun were boxes: a palm, a finger slab, a
+  thumb. They are now the hero's hand (`polygonizer/hero-hand.js`: a palm and five jointed digits), one mesh built at a
+  run of curls from open to a fist by the hand's own rule (`equipment/arms/view-hand.js`; `heroHand` takes a `curl`),
+  which the page blends between as the hand closes on a grip, a magazine or a knife. A little over life, the cuff no
+  wider than the wrist, so the hand reads past its sleeve and the gun.
