@@ -75,3 +75,7 @@
 - The city's crews are people: `CITY_CREWS` in `gameworld/foes.js` is a bestiary a city game takes whole (a street gang's
   bruiser, a crime family's soldier, a private military's rifleman), each made through the hero door in its faction's
   dress on the comic rail and stood on the district in crews. A creature is no longer the stand-in for a city's foe.
+- A calm city: a style's `calm: true` draws a metro level lighter (`CITY_CALM` in `gameworld/world.js`: no moving
+  traffic, no ambient-occlusion pass, the live shadows at half size; the buildings, parked cars and street kit stay).
+  Measured on the district the playable page shows: 5.7 M triangles and 2,400 draws a frame down to 2.2 M and 1,400.
+  The occlusion prepass was redrawing the whole district every frame; the foes were not the cost.

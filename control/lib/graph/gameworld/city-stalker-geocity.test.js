@@ -159,3 +159,15 @@ describe('the city\'s crews', () => {
     expect(m.entities.filter((e) => e.team === 'foes').map((e) => e.id).sort()).toEqual(['foe-criminal-1', 'foe-mercenary-1', 'foe-thug-1']);
   }, 120_000);
 });
+
+describe('a calm city', () => {
+  it('is the style\'s word: the district\'s recipe gives up its traffic, its occlusion pass and half its shadows\' size, and nothing unasked', async () => {
+    const { CITY_CALM } = await import('./world.js');
+    const mk = (style) => { const W = { ...MEADOWMARK_HERO, style, levels: { downtown: { name: 'Downtown', geocity: CITY } } }; for (const k of ['links', 'start', 'review', 'fights', 'mainQuest', 'errands', 'foes']) delete W[k]; return W; };
+    const man = (W) => { const lv = runSteps(W, { ref: 'gw' }).find((x) => /^level-/.test(x.key)); return lv.order.args ? lv.order.args.manifest : lv.order.manifest; };
+    const calm = man(mk({ ...(MEADOWMARK_HERO.style ?? {}), calm: true })), plain = man(mk({ ...(MEADOWMARK_HERO.style ?? {}) }));
+    expect(calm).toMatchObject(CITY_CALM);
+    for (const k of Object.keys(CITY_CALM)) expect(k in plain).toBe(false);
+    expect(() => readGameworld(mk({ calm: 'yes' }))).toThrow(/calm is true or false/);
+  }, 120_000);
+});

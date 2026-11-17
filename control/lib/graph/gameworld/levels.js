@@ -28,7 +28,7 @@ import { ATLAS_SLICE } from './megaworld.js';
 import { PLAY_GRADE } from '../figures/figure-grades.js';
 import { PARTY_CHASE } from '../playscape/hero-chase.js';
 import { errandLegs, layErrand } from './errand.js';
-import { readGameworld, resolveLevel, looksOfKit } from './world.js';
+import { readGameworld, resolveLevel, looksOfKit, CITY_CALM } from './world.js';
 import { assembleGeotownScene, GEOTOWN_KEYS } from '../geotown/scene.js';
 import { assembleGeocityScene, GEOCITY_KEYS } from '../geocity/scene.js';
 import { SURFACE_IDS as GEOTOWN_SURFACES } from '../geotown/pattern.js';
@@ -185,7 +185,7 @@ export function gameStages(world) {
     }
     if (R.glyphs) { out.push({ level, node: 'map', section: 'map', index: 0, manifest: { kind: 'map', level: R.glyphs } }); continue; }
     // a geocity level is one stage: the district on its cube (geocity/scene.js: an evocation), walked from its streets
-    if (R.geocity) { out.push({ level, node: 'district', section: 'geocity', index: 0, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...(R.geocity.hour !== undefined ? { hour: R.geocity.hour } : {}), ...(R.geocity.clouds !== undefined ? { clouds: R.geocity.clouds } : {}) } }); continue; }
+    if (R.geocity) { out.push({ level, node: 'district', section: 'geocity', index: 0, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...(R.geocity.hour !== undefined ? { hour: R.geocity.hour } : {}), ...(R.geocity.clouds !== undefined ? { clouds: R.geocity.clouds } : {}), ...(R.geocity.calm ? CITY_CALM : {}) } }); continue; }
     // a geotown level is one stage: the town on its cube (geotown/scene.js), walked from its streets
     if (R.geotown) {
       out.push({ level, node: 'town', section: 'geotown', index: 0, manifest: { kind: 'geocube', cube: R.geotown.cube, show: 'geotown', seed: R.seed, geotown: R.geotown.spec, ...(R.geotown.hour !== undefined ? { hour: R.geotown.hour } : {}), ...(R.geotown.enter?.length ? { enter: [...R.geotown.enter] } : {}) } });

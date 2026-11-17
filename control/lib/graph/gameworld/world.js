@@ -207,6 +207,8 @@ import { readGeocity } from '../geocity/metro.js';
 /** The uses a town level opens at their doors when it names none: a shop, the hall (an old town's church), a dwelling. */
 export const GEOTOWN_ENTER = Object.freeze(['shop', 'hall', 'dwelling']);
 // the evocations a geocity level may be (geocity/metro.js EVOKES): a district, never the metro or its skyline
+// a metro level drawn lighter (a style's `calm`): what it gives up, as the city's own recipe keys (geocity/scene.js)
+export const CITY_CALM = Object.freeze({ flow: false, occlusion: false, light: Object.freeze({ tier: 'half' }) });
 export const GEOCITY_LEVEL_EVOKES = Object.freeze(['neighbourhood', 'corridor', 'segment']);
 import { readBuildingParked } from '../vehicle-registry/parked.js';
 import { readGrid } from '../level/grid.js';
@@ -229,6 +231,7 @@ export const WORLD_STYLE = Object.freeze({
   domain: 'or one of the cube\'s levels (its domains)',
   hour: 'the cube lit at an hour: dawn, noon, dusk, night… or 0-24',
   clouds: 'the sky painted over a metro level at its hour: clear, fair, overcast, storm, haze, high, or { kind, cover?, seed? }',
+  calm: 'a metro level drawn lighter (true): no moving traffic, no ambient-occlusion pass, the live shadows at half size; its buildings, parked cars and street kit stay',
   look: 'the look in words ("a grounded frontier of rust plains…", or { intent, seed? }): tunnelled from the kit, the ground drawn in it',
   pixel: 'the pixel look: true (4) or 2 to 8 screen pixels a drawn one',
   // (a spec recolours the kit or the look, and skins the game's HUD; false keeps the kit's own: color-theorist/)
@@ -337,6 +340,7 @@ function readStyle(s, at) {
     else if (k === 'look') out.look = intentOf(v, `${at}.look`);
     else if (k === 'hour') { try { readHour(v); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); } out.hour = v; }
     else if (k === 'clouds') { try { readClouds(v); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); } out.clouds = v; }
+    else if (k === 'calm') { if (typeof v !== 'boolean') throw new Error(`gameworld: ${at}.calm is true or false (a metro level drawn lighter: its traffic, its occlusion pass and its shadows' size)`); out.calm = v; }
     else if (k === 'palette') { try { out.palette = readPaletteSpec(v, `${at}.palette`); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }
     else if (k === 'pixel') { if (!(v === true || (Number.isInteger(v) && v >= 2 && v <= 8))) throw new Error(`gameworld: ${at}.pixel is true or 2 to 8`); out.pixel = v === true ? 4 : v; }
     else if (GROUPS[k]) out[k] = group(k, v, `${at}.${k}`);
@@ -1009,7 +1013,7 @@ export function resolveLevel(world, id) {
   // a geocity level: the district on the level's geocube (a morning valley unless the style names one), as a geotown's
   if (L.geocity) {
     const c0 = cubeInPalette(style.geocube ?? 'valley-morning', style.palette), c1 = typeof c0 === 'string' ? { from: c0 } : c0, cube = c1.era ? c1 : { ...c1, era: 'gen-7' };
-    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geocity: { spec: { ...L.geocity }, cube, ...(style.hour !== undefined ? { hour: style.hour } : {}), ...(style.clouds !== undefined ? { clouds: style.clouds } : {}) } };
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geocity: { spec: { ...L.geocity }, cube, ...(style.hour !== undefined ? { hour: style.hour } : {}), ...(style.clouds !== undefined ? { clouds: style.clouds } : {}), ...(style.calm ? { calm: true } : {}) } };
   }
   // a geotown level: the town on the level's geocube (a morning valley unless the style names one), read in the seventh
   // generation unless the cube names its era (a town walked is drawn as form); the style's hour its light
