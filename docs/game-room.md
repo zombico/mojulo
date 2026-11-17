@@ -270,4 +270,9 @@ level's results, and the play shell keeps the best of each figure.
 A stylish action game's HUD holds to one principle: **no box is drawn**. Letters and figures stand over the play on
 no plate; a change is said by effects and motion on them, never by a frame; and nothing is explained in words the
 play shows, so a legend row is not drawn and a mark or an arrow says where to go. A level that carries the meter
-gets this HUD (`hudToMana`'s `immersive`, said with `style` unless said not).
+gets this HUD (`hudToMana`'s `immersive`, said with `style` unless said not). The game's screens hold to it too
+(`game/immersive-ui.js`, the game's `ui.immersive`, laid by the run on a game that carries the meter): no plate, no
+frame and no veil over the play; the choice marked by its arrow alone; a rank its letter, stamped large. The
+letters carry the look instead, in a light rim and a light shadow of the theme's own accents. Between a level's
+fights an arrow (`manaHud.ways`), and no words, points to the next fight's ring: over it while it is in view, at
+the screen's edge while it is not.

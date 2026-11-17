@@ -145,6 +145,9 @@ const juiceOf = (G) => { const J = juiceOfGame(G); return J ? { fxStyle: J.fxSty
 // the world's clock (tempo.js): the moments that slow or hold its live levels, on every level; none written, nothing laid
 const tempoOf = (G) => { const T = tempoOfGame(G); return T ? { tempo: T.tempo } : {}; };
 // the style meter (style-meter.js): how well the hero fights, on every level it strikes on; none written, nothing laid
+// the way on (game/hud-mana.js `ways`): a gauntlet whose arenas are walked into (a level's tasks, tasks.js) names the
+// one waiting in its arm var (game/wave-gauntlet.js); the arrow points to its ring
+const waysOf = (mechanics) => { const g = (mechanics ?? []).find((m) => m && m.kind === 'wave-gauntlet' && Array.isArray(m.arenas) && m.arenas.some((a) => a.enter)); return g ? { var: `__wg_${g.id ?? 'gauntlet'}_arm`, at: g.arenas.map((a) => (a.enter ? a.enter.at.slice() : null)) } : null; };
 const meterOf = (G) => { const M = styleMeterOfGame(G); return M ? { styleMeter: M.styleMeter } : {}; };
 // the world's grade (grade.js): the look over every frame of its levels; none written, nothing laid
 const gradeOf = (G) => { const R = gradeOfGame(G); return R ? { grade: R.grade } : {}; };
@@ -1819,6 +1822,6 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   if (manifest.styleMeter && manifest.level) manifest = { ...manifest, level: { ...manifest.level, rank: levelRankOf(G, stage.level) ?? {} } };
   // (a level that carries the style meter, style-meter.js, shows it: its HUD on the game UI runtime, in the game's look,
   // the level's own rows drawn there with it)
-  if (manifest.styleMeter && !manifest.manaHud && !manifest.events?.grammar) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, style: true }) };
+  if (manifest.styleMeter && !manifest.manaHud && !manifest.events?.grammar) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, style: true, ways: waysOf(manifest.level?.mechanics) }) };
   return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }

@@ -34,6 +34,8 @@ describe('a game\'s style meter', () => {
     expect(levelRankOf(G, 'citadel')).toEqual({ par: PAR.task * L.laid.length + PAR.foe * foes });
     expect(m.level.rank).toEqual(levelRankOf(G, 'citadel'));   // (a building's game is made from its `level`)
     expect(m.manaHud).toMatchObject({ rows: 'events', style: true });
+    // (the way on: an arrow to each task's ring in turn, named by the gauntlet's arm)
+    expect(m.manaHud.ways).toEqual({ var: '__wg_tasks_arm', at: L.mechanic.arenas.map((x) => x.enter.at) });
     // (a game with no meter: no rank, and its HUD as it was)
     const plain = made(world({})).m;
     expect(plain.level.rank).toBeUndefined();

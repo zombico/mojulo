@@ -111,4 +111,14 @@ describe('the host carries a level\'s rows', () => {
     expect(kept.hud.children.some((r) => r.props.variant !== 'bare')).toBe(true);
     expect(JSON.stringify(kept)).toContain('W A S D');
   });
+  it('the way on: an arrow and no words, toward the place a bus var names; none ⇒ not a byte', () => {
+    const rows = [{ var: 'score', label: 'Score' }], ways = { var: '__wg_tasks_arm', at: [[4, 9, 0], null, [20, 30, 2]] };
+    const js = manaHudScript(levelHud('console', { ways }), { rows }), bare = manaHudScript(levelHud('console'), { rows });
+    expect(js).toContain('"ways":{"var":"__wg_tasks_arm"');
+    expect(js).toContain('moj-way');
+    expect(js).toContain('.project(camera)');
+    expect(bare).not.toContain('moj-way');
+    expect(bare).not.toContain('ways');
+    expect(() => new Function('THREE', 'camera', js)).not.toThrow();
+  });
 });

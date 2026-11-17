@@ -26,6 +26,7 @@ import { manaUiSource } from '../../../mana-ui/kernel.js';
 import { manaCss } from '../../../mana-ui/css.js';
 import { themeCss } from '../../../mana-ui/theme.js';
 import { hudToMana } from '../../game/hud-mana.js';
+import { LETTER_RIM, letterRimFilter } from '../../game/immersive-ui.js';
 import { hudSubst, fmtDelta } from '../../game/hud-widgets.js';
 
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
@@ -40,11 +41,13 @@ function styleMeterCss() {
   const T = '#moj-mana-hud .mana-place[data-at=right] .mana-stack>.mana-text', F = 'calc(var(--moj-style-fill,0) * 100%)';
   return [
     `${T}{display:inline-block;font-family:var(--mana-display);font-weight:900;font-style:italic;line-height:.9;transform-origin:100% 60%;background-color:transparent}`,
-    `${T}:first-child{font-size:5.4em;letter-spacing:-.02em;background:linear-gradient(to top,var(--mana-accent) ${F},var(--mana-ink) ${F});-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;text-shadow:none;filter:drop-shadow(0 .04em 0 rgba(0,0,0,.7)) drop-shadow(0 0 .22em rgba(0,0,0,.55))}`,
+    `${T}:first-child{font-size:5.4em;letter-spacing:-.02em;background:linear-gradient(to top,var(--mana-accent) ${F},var(--mana-ink) ${F});-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;text-shadow:none;filter:${letterRimFilter()}}`,
     `${T}:first-child[data-ch]{animation:moj-style-up .42s cubic-bezier(.2,1.5,.4,1) both}`,
     `#moj-mana-hud[data-style-way=down] ${T.slice(14)}:first-child[data-ch]{animation:moj-style-down .5s ease-out both}`,
     `#moj-mana-hud[data-style-top=yes] .mana-place[data-at=right] .mana-stack{filter:drop-shadow(0 0 .6em var(--mana-accent))}`,
-    `${T}:nth-child(2){font-size:calc(2.1em + 1.3em * var(--moj-style-heat,0));color:var(--mana-ink);text-shadow:0 .05em 0 rgba(0,0,0,.7),0 0 .3em rgba(0,0,0,.55)}`,
+    // (the immersive HUD's letters: a light rim and a light shadow in the theme's accents, game/immersive-ui.js)
+    `#moj-mana-hud :is(.mana-text,.mana-num,.mana-label){text-shadow:${LETTER_RIM}}`,
+    `${T}:nth-child(2){font-size:calc(2.1em + 1.3em * var(--moj-style-heat,0));color:var(--mana-ink);text-shadow:${LETTER_RIM}}`,
     `${T}:nth-child(2)[data-ch]{animation:moj-style-hit .22s cubic-bezier(.2,1.8,.4,1) both}`,
     '@keyframes moj-style-up{0%{opacity:0;transform:scale(2.8) rotate(-14deg)}55%{opacity:1;transform:scale(.92) rotate(3deg)}100%{transform:none}}',
     '@keyframes moj-style-down{0%{opacity:.35;transform:translateX(0)}15%{transform:translateX(-.14em)}30%{transform:translateX(.11em)}45%{transform:translateX(-.07em)}60%{transform:translateX(.03em)}100%{opacity:1;transform:none}}',
@@ -52,6 +55,9 @@ function styleMeterCss() {
     `@media (prefers-reduced-motion:reduce){${T}[data-ch]{animation:none!important}}`,
   ].join('');
 }
+
+/** The way on's arrow: a letter like the rest (immersive-ui.js), breathing so it is found. */
+const wayCss = () => `#moj-way{position:absolute;display:none;pointer-events:none;font:900 2.4em/1 var(--mana-display,system-ui);color:var(--mana-accent,#ffe07a);text-shadow:${LETTER_RIM};animation:moj-way .8s ease-in-out infinite alternate}@keyframes moj-way{to{scale:1.25;opacity:.7}}@media (prefers-reduced-motion:reduce){#moj-way{animation:none}}`;
 
 export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false } = {}) {
   // (a level whose HUD is its own rows, `rows: 'events'`: lowered here, where the page emits them, game/hud-mana.js)
@@ -71,13 +77,16 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     const pad = { use: 'region', props: { at: 'bottom', variant: 'bare' }, when: T('on'), children: [{ use: 'touchpad', props: { lane: T('lane'), held: T('held'), down: T('down'), buttons: T('buttons') } }] };
     hud = { ...hud, spec: { ...hud.spec, hud: { ...hud.spec.hud, children: [...(hud.spec.hud.children ?? []), pad] } } };
   }
+  // THE WAY ON (a level's `manaHud.ways`: { var, at }): an arrow, no words, toward the place the bus var names (a
+  // gauntlet's next arena waiting to be walked into); only then
+  const ways = hud.ways && typeof hud.ways.var === 'string' && Array.isArray(hud.ways.at) ? { var: hud.ways.var, at: hud.ways.at } : null;
   const R = hud.feed && hud.feed.rows;
-  const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp' : ''}{display:none!important}${hud.feed && hud.feed.style ? styleMeterCss() : ''}`;
+  const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp' : ''}{display:none!important}${hud.feed && hud.feed.style ? styleMeterCss() : ''}${ways ? wayCss() : ''}`;
   const styled = !!(hud.feed && hud.feed.style);
   return `
 // THE HUD on mana-ui (channels/mana-hud.js): the level's own spec over a state this page feeds
 (function () {
-  const CFG = ${json({ spec: hud.spec, feed: hud.feed ?? {} })}, GAME = ${game ? 'true' : 'false'};
+  const CFG = ${json({ spec: hud.spec, feed: hud.feed ?? {}, ...(ways ? { ways } : {}) })}, GAME = ${game ? 'true' : 'false'};
   const manaUi = ${manaUiSource()};
   const sheet = document.createElement('style'); sheet.textContent = ${json(css)}; document.head.appendChild(sheet);
   // (laid over the scene's own frame, as the level's widgets were: a letterboxed scene keeps its HUD inside it)
@@ -85,7 +94,19 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   const F = CFG.feed, of = Math.max(1, Math.round((F.to || 0) - (F.from || 0)));
   const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [], hint: '' }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {}${hud.feed && hud.feed.style ? ", style: { on: false, name: '', combo: 0 }" : ''} };
   let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
-${styled ? '  let sTier = 0;\n' : ''}  // a HUD part pressed (a level's button row): its event raised on the level's bus, as a key bound to it would
+${styled ? '  let sTier = 0;\n' : ''}${ways ? `  // the way on: an arrow over the place while it is in view, at the screen's edge pointing to it while it is not
+  const wayEl = document.createElement('div'); wayEl.id = 'moj-way'; wayEl.textContent = '\u27A4'; const wayV = new THREE.Vector3();
+  function way(V) {
+    const k = V ? V[CFG.ways.var] : -1, P = k >= 0 ? CFG.ways.at[k] : null;
+    if (!P || typeof camera === 'undefined') { wayEl.style.display = 'none'; return; }
+    if (!wayEl.parentNode) (root.querySelector('.mana-root') || root).appendChild(wayEl);
+    wayV.set(P[0], P[1], (P[2] || 0) + 1.6).project(camera);
+    let x = wayV.x, y = wayV.y, ang = Math.PI / 2;
+    const behind = wayV.z > 1; if (behind) { x = -x; y = -y; }
+    if (behind || Math.abs(x) > 0.86 || Math.abs(y) > 0.78) { const m = Math.max(Math.abs(x) / 0.86, Math.abs(y) / 0.78) || 1; x /= m; y /= m; ang = Math.atan2(-y, x); }
+    wayEl.style.display = 'block'; wayEl.style.left = ((x + 1) * 50) + '%'; wayEl.style.top = ((1 - y) * 50) + '%'; wayEl.style.transform = 'translate(-50%,-50%) rotate(' + ang.toFixed(3) + 'rad)';
+  }
+` : ''}  // a HUD part pressed (a level's button row): its event raised on the level's bus, as a key bound to it would
   // (a keyed one, game/screen-keys.js: that key pressed, heard by whatever listens for it)
   function press(e) {
     if (e && typeof e.key === 'string') { for (const t of ['keydown', 'keyup']) window.dispatchEvent(new KeyboardEvent(t, { key: e.key, code: e.code || e.key, bubbles: true, cancelable: true })); return; }
@@ -167,7 +188,7 @@ ${hud.feed && hud.feed.style ? `    // the style meter (worlds/controllable/styl
     const SM = window.__mojStyle && window.__mojStyle.now(); if (SM) { st.style.on = SM.points > 0 || SM.combo > 0; st.style.name = SM.name; st.style.combo = SM.combo; if (SM.tier !== sTier) { root.dataset.styleWay = SM.tier > sTier ? 'up' : 'down'; sTier = SM.tier; root.dataset.styleTop = SM.tier === SM.tiers.length - 1 ? 'yes' : 'no'; } root.style.setProperty('--moj-style-fill', String(SM.fill)); root.style.setProperty('--moj-style-heat', String(Math.min(1, SM.combo / 30))); }
 ` : ''}    const V = window.__mojBus && window.__mojBus.state && window.__mojBus.state.vars;
     if (V && V.coins != null) st.coins.count = V.coins;
-    if (ROWS && V) rows(window.__mojBus.state, V);
+${ways ? '    way(V);\n' : ''}    if (ROWS && V) rows(window.__mojBus.state, V);
     if (cue) {
       const k = Math.floor((clock - cue.t0) / F.cue.every);
       if (k < F.cue.beats.length) st.start.count = F.cue.beats[k];

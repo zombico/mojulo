@@ -79,7 +79,7 @@ In progress. Built so far, all in the practice door's game room
   explained in words the play shows (a legend row is not drawn; a mark or an arrow says where to go). The level's
   HUD holds to it wherever the meter is carried: every region sits on no plate, the meter is its letter and its
   count alone. Seen on an action hero's page in a headless browser (the letter, the count rising blow by blow);
-  nobody has played it. Not yet: the same principle on the game's menus and results, arrows for the way on.
+  nobody has played it.
 - **Built: the meter's motion** (the HUD host, only on a page whose level carries the meter). The tier's letter fills
   from its foot as the tier is climbed; a tier gained slams it in, a tier lost shakes it; the top tier glows. The
   combo's count is struck by each blow and grows heavier as the combo runs. In the theme's colours and display face,
@@ -91,7 +91,22 @@ In progress. Built so far, all in the practice door's game room
   counted on paper from the level's tasks (a fight's walk in, and each of its foes); a level with no tasks is
   ranked on style and how clean it was alone. A level that is not ranked keeps every byte. Seen on a page ended in a
   headless browser (its result carried the rank and the three figures). Not yet: the par a level writes itself,
-  the best rank kept as a letter, the results screen drawn with no box.
+  the best rank kept as a letter.
+- **Built: the immersive UI on the game's screens** (`game/immersive-ui.js`, a game's `ui.immersive`). A game that
+  carries the style meter has its title, pause and results drawn on the game UI runtime with no box, whether or
+  not it writes a `ui`: a window, a banner and the legend sit on no plate and in no frame, no veil is laid over the
+  play behind a screen, and what is chosen is marked by its arrow alone. The letters carry the look: a light rim
+  and a light shadow in the theme's own accents (cut one way, lit the other), a soft glow of the same, then the
+  dark that keeps them read. A rank is its letter, stamped large, with no caption. The HUD's meter and readouts wear
+  the same letters. A game that does not say it keeps every byte. Seen in a headless browser: the results screen
+  (the outcome, three figures, the rank's letter, the menu and its arrow, nothing framed) and the meter. Nobody has
+  played it; the key chips in the legend still draw their own small frames.
+- **Built: the way on, as an arrow** (a level's `manaHud.ways`, the HUD host). Between a level's fights an arrow,
+  and no words, points to the next fight's ring: over the place while it is in view, at the screen's edge turned
+  toward it while it is not; gone once the hero steps in. It reads the gauntlet's own word for the arena waiting to
+  be walked into. A level without it keeps every byte. Seen in a headless browser at the screen's edge, turned to a
+  place out of view; the arrow over a place in view was not caught there, and nobody has played it. Not yet: an
+  arrow to a level's way out.
 - **A building level has its action hero.** A world played under the orbit camera with a hero that strikes now
   gets, in a building as on a trail, the orbit that locks on, movement in the camera's frame and its sheathed
   twin, so the fist is in its hands and the weapon switch has two weapons to switch between. Before, a building

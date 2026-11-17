@@ -53,6 +53,7 @@ import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots,
 import { gauntletCast } from './gauntlet-cast.js';
 import { carriedBlade, genreHero, rowGaits } from './hero-rows.js';
 import { layTasks, tasksCast } from './tasks.js';
+import { styleMeterOfGame } from './style-meter.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane, stageTitle, sheathedSpec } from './levels.js';
 import { bindStory } from './story.js';
 import { storyCinematics, flowToRefs } from './game-flow.js';
@@ -196,6 +197,9 @@ function shellUi(G) {
   // look: the dress's `ui`, course-dress.js. A running game's title, pause and result are part of how it reads)
   // (and a game whose every level is a STREET, a beat-em-up's or a run & gun's: the street's own look, brawl-street,
   // on its menus as on its screen)
+  // (a game that carries the style meter, a stylish action game: its screens on the game UI runtime whether or not it
+  // writes a `ui`, and drawn with no box, game/immersive-ui.js)
+  if (styleMeterOfGame(G)) return { ui: { theme: interfaceLook(G).theme, ...(G.ui?.languages ? { languages: G.ui.languages } : {}), ...(G.ui?.language ? { language: G.ui.language } : {}), immersive: true } };
   if (G.ui === undefined) {
     const look = courseLook(G), ids = G.ids ?? [];
     if (look) return { ui: { theme: look } };

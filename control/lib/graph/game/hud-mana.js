@@ -16,7 +16,9 @@
  * caption the play does not need; a mark or an arrow says where to go.
  *     rows      a level's `events.hud` (raw or normalized: normalizing is idempotent)
  *     hero      draw the pilot's own gauges (its health, its sprint) with the rows: true unless said
- *   levelHud(theme, { screen?, style? }) → a level manifest's `manaHud`: { rows: 'events', theme, style? } (the page lowers the level's
+ *   levelHud(theme, { screen?, style?, ways? }) → a level manifest's `manaHud`: { rows: 'events', theme, style?, ways? }
+ *     ways      { var, at: [[x, y, z] | null, …] }: the way on, an arrow toward the place a bus var names by its index
+ *               (none while it names none); the page's HUD host draws it (the page lowers the level's
  *     rows where it emits them, so a mechanic's rows, merged late, are in)
  *
  * What each row becomes:
@@ -97,8 +99,8 @@ export function hudToMana(rows, { register = null, hero = true, touch = false, s
 }
 
 /** A level's `manaHud` in a look (a mana-ui preset's name, a card's, or a theme object): its rows are the level's own. */
-export function levelHud(theme, { screen = null, style = false } = {}) {
+export function levelHud(theme, { screen = null, style = false, ways = null } = {}) {
   const base = typeof theme === 'string' && !THEMES[theme] ? cardTheme(theme) : theme ?? 'console';
   const portrait = !!screen && (screen === 'phone' || screen.pole === 'phone' || screen.orientation === 'portrait');
-  return { rows: 'events', theme: portrait ? (typeof base === 'string' ? { from: base, distance: 'hand' } : { ...base, distance: 'hand' }) : base, ...(style ? { style: true } : {}) };
+  return { rows: 'events', theme: portrait ? (typeof base === 'string' ? { from: base, distance: 'hand' } : { ...base, distance: 'hand' }) : base, ...(style ? { style: true } : {}), ...(ways ? { ways } : {}) };
 }
