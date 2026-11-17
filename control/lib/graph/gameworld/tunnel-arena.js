@@ -117,7 +117,8 @@ export function composeArena(c, seed = 1) {
   // panel has its partner. It gives way to the bout's own means: a panel stands clear of a tower and its stair (the
   // high ground is stood first, on the bare floor), and is taken where the tweak found it closing a way (`opens`, each
   // with its turned partner); how much of it stands is the words' (`many`: sparse keeps its longer runs alone)
-  const cells = Math.max(6, Math.round((2 * H) / BOUT_CELL)), B = boutMap({ n: cells, topology: c.topology, lanes: c.lanes, court: c.court, stagger: !!c.stagger, sight: c.sight ?? null, seed, bare: c.many < 0.3 });
+  // (twelve cells a side at most: a bigger arena is the same grid drawn larger, its ways wider, and no slower to grow)
+  const cells = Math.max(6, Math.min(12, Math.round((2 * H) / BOUT_CELL))), B = boutMap({ n: cells, topology: c.topology, lanes: c.lanes, court: c.court, stagger: !!c.stagger, sight: c.sight ?? null, seed, bare: c.many < 0.3 });
   {
     const T0 = askBoxes(arenaAsks(P.filter((q) => q.form === 'tower'), (u, v) => [u, v, 0])), opens = (c.opens ?? []).flatMap(([u, v]) => [[u, v], [-u, -v]]);
     for (const q of boutPieces(B.map, H)) {
@@ -251,7 +252,7 @@ export function arenaDomain({ spawns = 8, weapons = null } = {}) {
         } else if (l.law === 'no-line-across' && built.line.from) breakAt(built.line.from, built.line.to, 'a line across');
         else if (l.law === 'routes-loop') {
           if (c.breaks?.length) { const b = c.breaks.pop(); (c.cut ||= []).push(b); changed.push(`the break at [${b[0]}, ${b[1]}] taken away: it cut a way (routes loop)`); }
-          else if (/\[(-?[\d.]+),\s*(-?[\d.]+)\]/.test(String(l.value)) && (c.opens ?? []).length < 10) {
+          else if (/\[(-?[\d.]+),\s*(-?[\d.]+)\]/.test(String(l.value)) && (c.opens ?? []).filter((o) => o[2] !== 'long').length < 10) {
             // (the way the law names is the only one: the map's panels beside it are taken, and their partners)
             const m = String(l.value).match(/\[(-?[\d.]+),\s*(-?[\d.]+)\]/), at = [r2(+m[1]), r2(+m[2])];
             (c.opens ||= []).push(at); changed.push(`the panels at [${at}] taken (routes loop: a second way)`);
@@ -272,6 +273,12 @@ export function arenaDomain({ spawns = 8, weapons = null } = {}) {
       for (const t of failed.traits) {
         if (t.id === 'close' && c.topology === 'lanes' && !c.stagger) { c.stagger = true; changed.push('lanes staggered (close quarters)'); }
         else if (t.id === 'close' && built.line.from) breakAt(built.line.from, built.line.to, 'close quarters');
+        else if (t.id === 'long' && !(c.opens ?? []).some((o) => o[2] === 'long') && built.lanes?.length) {
+          // (a lane cleared end to end: the map's panels along its middle taken, and their partners)
+          const mid = r2(built.lanes[built.lanes.length - 1].mid);
+          for (const k of [-0.75, -0.45, -0.15, 0.15, 0.45, 0.75]) (c.opens ||= []).push([mid, r2(k * H), 'long']);
+          changed.push(`the panels down the lane at u ${mid} taken (long sightlines)`);
+        }
         else if (t.id === 'long') { if (c.breaks?.length) { c.breaks.pop(); changed.push('a break taken away (long sightlines)'); } else { c.many = r2(clamp('many', c.many - 0.2)); changed.push(`many ${c.many} (long sightlines)`); } }
       }
       return { candidate: c, changed: changed.length ? changed : [`reseed ${seed + 1}`], reseed: changed.length ? undefined : seed + 1 };

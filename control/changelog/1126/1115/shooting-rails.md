@@ -304,3 +304,5 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   named none, from 36), the industrial yard (36 m deep), and the campaign's first leg (three rooms in a row where it
   was one court). The grid's cell stays 3 m: a wider cell was tried and broke what is designed on it (a ladder's
   climb, where a mission's phases stand, a fight building's loops), so it is not changed here.
+  A bout's arena is grown on twelve cells a side at most: a bigger one is the same grid drawn larger, so its ways are
+  wider (near 4 m at 44 m across, 4.7 m at 56 m) and it grows no slower. Long sightlines clear a lane end to end.
