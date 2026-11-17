@@ -24,6 +24,9 @@ export function cabPoolScript() {
     const g = new THREE.Group(), paint = __POOLS[P.model + '|paint'], trim = __POOLS[P.model + '|trim'];
     if (paint) g.add(new THREE.Mesh(paint, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, color: new THREE.Color(P.tint[0], P.tint[1], P.tint[2]) })));
     if (trim) g.add(new THREE.Mesh(trim, TRIM));
+    // (never footing: the ground probe is a ray down through the scene's meshes, and a car that found its own roof
+    // under its nose would lie to that, and again the next frame: it wobbles)
+    g.traverse(function (o) { o.raycast = function () {}; });
     g.userData.g = 'cab:' + P.model; scene.add(g);
     b = { g, model: P.model, tint: P.tint }; made.set(e.id, b); return b;
   }

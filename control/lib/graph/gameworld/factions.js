@@ -124,7 +124,11 @@ export function actLine(P, factions) {
 }
 
 /** The bestiary entries a world's factions fight with: the crew of every faction a fight posting is done on. */
-export function factionFoeIds(factions) {
+export function factionFoeIds(factions0) {
+  // (as read, or as written: a world not read yet says them as its rows)
+  let factions = factions0;
+  if (isObj(factions0)) { try { factions = readFactions(factions0); } catch { factions = null; } }
+  if (!Array.isArray(factions)) return [];
   const out = [];
   for (const F of factions ?? []) for (const P of F.board) if (P.act.fight) { const T = (factions ?? []).find((o) => o.id === P.act.on); if (T?.crew && !out.includes(T.crew)) out.push(T.crew); }
   return out;

@@ -17,7 +17,8 @@
  *                            false, or 'auto' on a feel whose template has no kit)
  *   arsenalSuggestion(G)   → { suggest: 'auto', template, why } for a world that writes none, whose hero strikes and whose
  *                            feel's template has a kit; else null. Never laid unasked: a kit changes every level's bytes
- *   heroStrikes(G)         → the world's hero carries a right-hand item it strikes with (adornment.js BASIC_VERBS)
+ *   heroStrikes(G)         → the world's hero carries a right-hand item it strikes with (adornment.js BASIC_VERBS), or
+ *                            fights bare-handed (bareHanded: its factions post a fight and it carries nothing; FISTS)
  *   armLevel(G, manifest)  → the level with the arsenal, as CARRIED (carried.js: the world's `loadout`), laid on each pilot that strikes (`rule.strikeContact`): the
  *                            weapons, the moveset, the sidearm; and on its foes the juggle's combo rules and their HEALTH
  *                            IN THE KIT'S STRINGS (below). Without an arsenal, or with no hero that strikes, the manifest
@@ -32,7 +33,8 @@
  *
  * Pure.
  */
-import { TEMPLATE_ARSENALS, arsenalFor, readArsenal, lowerArsenal, lowerJuggle } from './combos.js';
+import { TEMPLATE_ARSENALS, BASIC_ARSENAL, arsenalFor, readArsenal, lowerArsenal, lowerJuggle } from './combos.js';
+import { factionFoeIds } from './factions.js';
 import { HELD_STRIKE } from '../polygonizer/hero-swing.js';
 import { genreHero } from './hero-rows.js';
 import { AGGRESSIVENESS } from '../mind/vocab.js';
@@ -139,6 +141,8 @@ export function readGameArsenal(raw) {
 /** The arsenal every level of a world lays on its hero, or null. */
 export function arsenalOfGame(G) {
   const own = G?.arsenal;
+  // (bare hands, the default of a hero that must fight and carries nothing: its fists)
+  if ((own === undefined || own === null) && bareHanded(G)) return { arsenal: structuredClone(FISTS), from: 'bare', why: 'its hero must fight and carries nothing: its fists' };
   if (own === undefined || own === null || own === false) return null;
   if (own === 'auto') {
     const K = arsenalFor(G.feel);
@@ -150,7 +154,14 @@ export function arsenalOfGame(G) {
 }
 
 /** THE BODY'S OWN BLOW (adornment.js BASIC_VERBS 'strike'): the hero carries a right-hand item it strikes with */
-export const heroStrikes = (G) => (G?.characters?.hero?.adornment?.items ?? []).some((it) => it.slot === 'right' && (it.serves ?? []).includes('strike'));
+const carriesBlow = (G) => (G?.characters?.hero?.adornment?.items ?? []).some((it) => it.slot === 'right' && (it.serves ?? []).includes('strike'));
+/** BARE HANDS: a world whose hero must fight (its factions post a fight, factions.js) and carries nothing to strike or
+ * shoot with fights with its FISTS, the default weapon: the body's own strikes (the jab, the cross, the hook, the
+ * uppercut), the kit's fist drawn on the hero as it stands. Carrying a blade or a gun, or writing an arsenal, is the
+ * world's own word and stands over it. */
+export const bareHanded = (G) => !carriesBlow(G) && factionFoeIds(G?.factions).length > 0 && !(G?.characters?.hero?.adornment?.items ?? []).some((it) => it.slot === 'right' && (it.serves ?? []).includes('shoot'));
+export const FISTS = Object.freeze({ timing: BASIC_ARSENAL.timing, weapons: [{ ...BASIC_ARSENAL.weapons.find((W) => W.id === 'fist'), figure: 'drawn' }] });
+export const heroStrikes = (G) => carriesBlow(G) || bareHanded(G);
 
 /** What `arsenal: 'auto'` would lay on a world that writes none (see the header). */
 export function arsenalSuggestion(G) {

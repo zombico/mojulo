@@ -261,6 +261,11 @@ describe('jobs across the district (errands on a played district: its shops thei
     expect(acts[0].fight).toMatchObject({ foes: crew.map((e) => e.id), radius: 10, back: joins[0].at });
     expect(d(acts[0].fight.at, spot.at)).toBeCloseTo(4.5, 2);
     expect(sided.entities.find((e) => e.pilotable).body.hittable).toBe(true);
+    // (a hero that must fight and carries nothing fights with its FISTS: the body's own strikes laid on its rule)
+    const pilot = sided.entities.find((e) => e.pilotable);
+    expect(Array.isArray(pilot.rule.strikeContact)).toBe(true);
+    expect(pilot.rule.weapons.map((w) => w.id)).toEqual(['fist']);
+    expect(level.entities.find((e) => e.pilotable).rule.weapons).toBeUndefined();
     const { lowerAct } = await import('../game/errand-mechanics.js');
     const W = lowerAct(acts[0], { i: 0, player: 'hero', resolve() {} }).world;
     expect(W.reactions.filter((r) => r.do === 'ctrl' && r.op === 'spawn').map((r) => r.who)).toEqual(crew.map((e) => e.id));

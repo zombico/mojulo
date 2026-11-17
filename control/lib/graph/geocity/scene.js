@@ -750,8 +750,10 @@ export function assembleGeocityScene(m, ctx = {}) {
             // its trees on the verge each side (a streetcar suburb's boulevard), clear of its poles
             for (const sd of [-1, 1]) for (let s0 = a + 9 + (sd > 0 ? TREE.verge / 2 : 0); s0 <= b - 9; s0 += TREE.verge) {
               if (sd === side && Math.abs(((s0 - a - 6) % HYDRO + HYDRO) % HYDRO) < 2.5) continue;
-              const [x, yy] = pt(sd, s0, st.w / 2 - WALK - 1.0);
-              plant(r.industrial ? 'dense' : 'low', x, yy, S(x, yy), `${st.id}:${sd}:${Math.round(s0)}`);
+              // (played, a tree stands on the walk by the kerb: the verge it stands on otherwise is drawn as the road's
+              // own edge, where a car parks and drives)
+              const [x, yy] = pt(sd, s0, PLAY ? st.w / 2 - WALK + 0.9 : st.w / 2 - WALK - 1.0);
+              plant(r.industrial ? 'dense' : 'low', x, yy, S(x, yy) + (PLAY ? KERB : 0), `${st.id}:${sd}:${Math.round(s0)}`);
             }
           } else {
             for (const sd of [-1, 1]) for (let s0 = a + 8 + (sd > 0 ? LAMP / 2 : 0); s0 <= b - 8; s0 += LAMP) { const [x, yy] = pt(sd, s0); stamp(`lamp:${face(sd)}`, [x, yy, S(x, yy) + KERB], 0); }
@@ -1878,6 +1880,17 @@ export function assembleGeocityScene(m, ctx = {}) {
       const dx = st.pos[0] - Fc.a[0], dy = st.pos[1] - Fc.a[1], u = dx * Fc.t[0] + dy * Fc.t[1], v = dx * Fc.n[0] + dy * Fc.n[1];
       if (u >= 0 && u <= Fc.L && v >= 0 && v <= FORE.depth && st.pos[2] < Fc.zTop(u)) st.pos = P3([st.pos[0], st.pos[1], Fc.zTop(u)]);
     }
+  }
+  // PLAYED, NOTHING STANDS ON A ROAD: what the street stands (a signal, a lamp, a pole, a hydrant, a bin, a bench, a
+  // sign) and every tree is kept only off the carriageway: one found over road surface with no other ground under it
+  // (a walk, a paving, a park, a lot) is left out. A road is driven on here, and what stands in it is hit.
+  if (PLAY) {
+    const ROADS = ['geocity:road', 'geocity:streetcar-row', 'geocity:bike'], flat = faces.filter((f) => f.normal && f.normal[2] > 0.9 && f.corners.length >= 3).map((f) => { const xs = f.corners.map((c) => c[0]), ys = f.corners.map((c) => c[1]); return { road: ROADS.includes(f.group), x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), z: f.corners[0][2], c: f.corners }; });
+    const inside = (x, y, c) => { let k = false; for (let i = 0, j = c.length - 1; i < c.length; j = i++) if ((c[i][1] > y) !== (c[j][1] > y) && x < ((c[j][0] - c[i][0]) * (y - c[i][1])) / (c[j][1] - c[i][1]) + c[i][0]) k = !k; return k; };
+    const onRoad = (x, y, z) => { let road = false; for (const f of flat) { if (x < f.x0 || x > f.x1 || y < f.y0 || y > f.y1 || Math.abs(f.z - z) > 3 || !inside(x, y, f.c)) continue; if (!f.road) return false; road = true; } return road; };
+    const STOOD = ['signal', 'lamp', 'hydro', 'can', 'pole', 'hydrant', 'bin', 'bench', 'sign', 'ring', 'papers'];
+    for (const [k, list] of stamps) if (STOOD.includes(k.split(':')[0])) stamps.set(k, list.filter((t) => !onRoad(t.pos[0], t.pos[1], t.pos[2])));
+    for (const [k, list] of trees) trees.set(k, list.filter((t) => !onRoad(t.x, t.y, t.z0)));
   }
   const repeats = E?.evoke === 'skyline' ? [] : [...stamps].map(([key, transforms]) => ({ group: `geocity:${key.split(':')[0]}`, template: templateOf(key), transforms, near: NEAR, ...kit }));
   if (E?.evoke !== 'skyline') {

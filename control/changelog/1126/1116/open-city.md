@@ -105,3 +105,13 @@
   going. You fight as yourself, with what your character carries. Put them all down and the job is done and paid;
   go down yourself and they are gone, your health is back, you are returned to your own faction's contact, and the
   job is still open. Your health shows while there is a fight to be had.
+- **The car no longer wobbles when you get in.** A car tilts to the ground under it, and while driven it was
+  measuring its own body as if it were ground. It now ignores itself.
+- **Nothing stands in the road of a level you play.** Trees along outskirts streets grow on the pavement by the kerb,
+  where before they stood a metre into the carriageway, and any lamp, hydrant, pole, signal, bin, bench or sign found
+  on road surface is left out.
+- **Fists are the default weapon.** A hero who has to fight and carries nothing fights bare-handed: a jab, a cross,
+  a hook and an uppercut on one button. Carrying a blade or a gun still replaces them.
+- **An athletic run.** A hero's movement can be called `athletic` (or `bounding`): the legs open wide and a stride
+  takes a lot of ground, with a longer flight. It is meant to look fast, not to be measured. Behind it is a new
+  `reach` dial for how far a stride goes.
