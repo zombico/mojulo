@@ -417,8 +417,13 @@ ${audio.moves ? `// a MOVESET's sounds (audio.moves, beats-world.js; gameworld/c
   (function __beatsEngine() {
     requestAnimationFrame(__beatsEngine);
     if (!__beatsEng) return;
-    if (!H) { try { H = __beatsEng.sustain(Object.assign({}, E.voice, { level: (E.voice.level == null ? 1 : E.voice.level) * E.level })); } catch (e) { return; } }
-    const ctrl = window.__mojCtrl && window.__mojCtrl.world, P${audio.engine.cab ? '0' : ''} = ctrl && ctrl.byId && ctrl.byId[ctrl.pilotId];
+${audio.engine.cab ? `    // (a city's car: its engine RUNS only while a car is ridden: started as the pilot gets in, stopped as it gets out;
+    // walking is its own sound and hears no engine, not even an idle)
+    const __cw = window.__mojCtrl && window.__mojCtrl.world, __cp = __cw && __cw.byId && __cw.byId[__cw.pilotId], __rides = !!(__cp && __cp.mountedOn);
+    if (__rides && !H) { try { H = __beatsEng.sustain(Object.assign({}, E.voice, { level: (E.voice.level == null ? 1 : E.voice.level) * E.level })); } catch (e) { return; } }
+    else if (!__rides && H) { H.stop(); H = null; }
+` : `    if (!H) { try { H = __beatsEng.sustain(Object.assign({}, E.voice, { level: (E.voice.level == null ? 1 : E.voice.level) * E.level })); } catch (e) { return; } }
+`}    const ctrl = window.__mojCtrl && window.__mojCtrl.world, P${audio.engine.cab ? '0' : ''} = ctrl && ctrl.byId && ctrl.byId[ctrl.pilotId];
     const now = performance.now() / 1000;
 ${audio.engine.cab ? `    // (a city's cars, its cab: heard only while the pilot rides one, by that car's own speed; the door as it is got into
     // and out of, a crash on a hard stop)
@@ -440,7 +445,7 @@ ${audio.engine.cab ? `    // (a city's cars, its cab: heard only while the pilot
       K.pos = [p[0], p[1], p[2] || 0]; K.t = now;
     } else K.speed *= 0.9;
     const x = E.idle + (1 - E.idle) * Math.max(0, Math.min(1, K.speed / E.top));
-    H.set(__beatsMuted || !P ? 0 : x);
+    ${audio.engine.cab ? 'if (H) ' : ''}H.set(__beatsMuted || !P ? 0 : x);
   })();
 ${audio.engine.cab ? `  // (the horn: H at the wheel)
   if (E.cab) addEventListener('keydown', function (ev) { const c = window.__mojCtrl && window.__mojCtrl.world, P = c && c.byId && c.byId[c.pilotId]; if (ev.code === 'KeyH' && !ev.repeat && P && P.mountedOn && !window.__mojMenuOpen) __beatsCue(__AUDIO.cues && __AUDIO.cues['car:horn']); });

@@ -13,12 +13,17 @@ describe('the city\'s cars, heard', () => {
     const plain = block(audioChannelScript({ engine: { voice, top: 10, level: 0.3, idle: 0.12 } }));
     expect(plain).not.toMatch(/mountedOn|car:door|KeyH/);
     expect(plain).toContain('const ctrl = window.__mojCtrl && window.__mojCtrl.world, P = ctrl');
+    expect(plain).not.toContain('__rides');
   });
   it('a city car\'s engine is the ridden car\'s, and the door, the horn and a crash are played from the level\'s cues', () => {
     const cab = block(audioChannelScript({ engine: { voice, top: 28, level: 0.3, idle: 0.12, cab: true }, cues: {} }));
     expect(cab).toContain('const P = E.cab ? (P0 && P0.mountedOn && ctrl.byId[P0.mountedOn]) || null : P0;');
     for (const k of ['car:door', 'car:crash', 'car:horn']) expect(cab).toContain(`__AUDIO.cues['${k}']`);
     expect(cab).toMatch(/ev\.code === 'KeyH'/);
+    // (the engine runs only while a car is ridden: started on getting in, stopped on getting out; no idle on foot)
+    expect(cab).toContain('if (__rides && !H) {');
+    expect(cab).toContain('else if (!__rides && H) { H.stop(); H = null; }');
+    expect(cab).toContain('if (H) H.set(');
     expect(() => new Function(cab.replace(/^[^\n]*\n/, ''))).not.toThrow();
   });
   it('the level\'s audio keeps the engine\'s `cab` through the world\'s read', () => {
