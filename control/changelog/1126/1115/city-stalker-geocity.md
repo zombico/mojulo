@@ -59,3 +59,16 @@
   floors), the acrobat (four quick blows ending in an uppercut that launches a foe), and the bruiser (two heavy
   blows). Each has its own string in the air. A hero with something at range has one range button for it, and one
   special button is kept for whatever the level asks for where the hero stands.
+- **An autoflow on one button.** A fighting style is now a flow of punches and kicks mixed together on the single
+  punch button. Press again as each blow lands and the flow plays on to its finisher. What changes the outcome is when
+  and how long the button is pressed: pause a breath mid-string and it turns into a different ending; hold the button
+  and it becomes a charged heavy blow, from standing, in the middle of a string, or in the air.
+- **Kicks.** Heroes can kick: a front kick, a round kick and a knee, thrown from the same guard as the punches so
+  they chain with them without a step between.
+- **A super on the modifier.** Hold the modifier (left Ctrl, or a pad's right trigger) and punch for the style's
+  super, spent from a meter that landed blows fill.
+- **The special button finishes a reeling foe.** With a foe in reach staggered or knocked into the air, the special
+  button turns the hero to it and lands the style's heaviest blow. With no such foe it is still the level's own
+  button for doors, switches and people.
+- **Exporting a big level no longer times out.** Exporting a level's page now has the long-render time allowance,
+  and a hero's moves build faster because each punch or kick is worked out once and reused.

@@ -182,7 +182,11 @@ export function armLevel(G, manifest) {
     if (!A.weapons.length) return e;
     if (!lowered.has(A)) lowered.set(A, lowerArsenal(A));
     const weapons = lowered.get(A), side = weapons[0].sidearm;
-    return { ...e, rule: { ...e.rule, weapons, moveset: weapons[0].moveset, ...(side ? { weapon: side.weapon } : {}) } };
+    // (a KIT's hero fights with its body, hero-kits.js: it holds nothing for the page to arm it by, world-scene.js's held
+    // strike, so its rule is armed here: the strike on, a hand's reach, the normal class's seconds and damage, its moves'
+    // own clips played)
+    const bare = R.from === 'kit' ? { strike: 'melee', strikeReach: e.rule.strikeReach ?? 1.1, strikeDur: e.rule.strikeDur ?? HELD_STRIKE.normal.seconds, strikeDamage: e.rule.strikeDamage ?? HELD_STRIKE.normal.damage, moveClips: true } : {};
+    return { ...e, rule: { ...e.rule, ...bare, weapons, moveset: weapons[0].moveset, ...(side ? { weapon: side.weapon } : {}) } };
   };
   // (the JUGGLE's rules on each foe's body: its hitstun, its air time, its recovery; a foe that writes its own keeps it)
   const combo = R.arsenal.juggle ? lowerJuggle(R.arsenal.juggle).combo : null;

@@ -26,7 +26,9 @@
  *            held when the wait is inside the buffer, else dropped and said
  *
  * A COMBO is { id, name, beats, moves }: `beats` the presses, L (light), H (heavy), S (special) and `.` (a pause:
- * the next press held back until the last move has ended and a breath has passed), one move a press. Combos share their
+ * the next press held back until the last move has ended and a breath has passed), one move a press; `L+` is the light
+ * HELD (a charge: the button not let go for the timing's `charge`; let go sooner it is the plain light), so a string
+ * forks on how long a press is held as it forks on a pause. Combos share their
  * openings: L L L and L L H are one tree that forks at the third beat; `.` forks a string on its timing.
  *
  * THE TIMING, with forgiveness (frames): `blend` one move blends into the next this long (its travel waits it out, so no
@@ -54,15 +56,22 @@ export const TRAVEL = Object.freeze(['none', 'step', 'lunge', 'dash']);
 // performed for the camera), freestyle (the anime sword: anything goes)
 export const ARTS = Object.freeze(['realistic', 'inspired', 'freestyle', 'wild']);
 export const SWINGS = Object.freeze(['neutral', 'forward', 'back', 'left', 'right', 'up', 'around']);
-/** the body strikes a move may play (hero-strike.js STRIKES, hero-box.js BOX_STRIKES): the fist's */
-export const STRIKES = Object.freeze(['jab', 'cross', 'hook', 'uppercut']);
+/** the body strikes a move may play (hero-strike.js STRIKES, hero-box.js BOX_STRIKES: the fist's; hero-kick.js KICKS: the legs') */
+export const STRIKES = Object.freeze(['jab', 'cross', 'hook', 'uppercut', 'frontKick', 'roundKick', 'knee']);
 // (bH: back + heavy, the heavy pressed with the stick pulled away from where the hero faces: the launcher's beat; mL, mH,
 // mS: a face pressed with the MODIFIER held (the right trigger, left Ctrl): the specials, mS the MP ability in the
 // sidearm's place)
-export const BEATS = Object.freeze(['L', 'H', 'S', 'bH', 'mL', 'mH', 'mS', '.']);
+// (L+: the light HELD, a charge: the press not let go for the timing's `charge`; let go sooner, it is the light)
+// (F: the SPECIAL button's FINISH, the interact control: taken only when a foe within the timing's `finish` metres is
+// reeling or in the air, so the same button is the level's own where there is none)
+export const BEATS = Object.freeze(['L', 'H', 'S', 'bH', 'mL', 'mH', 'mS', 'L+', 'F', '.']);
 /** beats named and not yet played: a held press (a charge) and a mashed one */
-export const LATER_BEATS = Object.freeze({ 'L+': 'a held light', 'H+': 'a held heavy', 'L*': 'a mashed light', 'H*': 'a mashed heavy' });
+export const LATER_BEATS = Object.freeze({ 'H+': 'a held heavy', 'L*': 'a mashed light', 'H*': 'a mashed heavy' });
 const FPS = 60;
+/** the frames a light is held before it is the held light, by default (a timing's `charge`) */
+export const CHARGE_FRAMES = 22;
+/** the metres within which a reeling foe is finished, by default (a timing's `finish`) */
+export const FINISH_REACH = 2.6;
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
 export const BASIC_COMBOS = Object.freeze({
@@ -102,6 +111,8 @@ export function readCombos(C) {
   if (T.late !== undefined && !num(T.late, 0, 60)) no('timing.late is the frames a press after a move still chains, 0 to 60');
   if (T.blend !== undefined && !num(T.blend, 1, 20)) no('timing.blend is the frames one move blends into the next, 1 to 20');
   if (T.rest !== undefined && !num(T.rest, 0, 300)) no('timing.rest is the frames after a finisher before a string opens again, 0 to 300');
+  if (T.finish !== undefined && !num(T.finish, 0.5, 8)) no('timing.finish is the metres within which a reeling foe is finished (the F beat), 0.5 to 8');
+  if (T.charge !== undefined && !num(T.charge, 6, 120)) no('timing.charge is the frames a light is held before it is the held light (L+), 6 to 120');
   if (T.pause !== undefined && !(Array.isArray(T.pause) && T.pause.length === 2 && num(T.pause[0], 1, 120) && num(T.pause[1], T.pause[0], 240))) no('timing.pause is [from, to] frames after a move has ended');
   if (!isObj(C.moves) || !Object.keys(C.moves).length) no('moves is { <id>: a move }, one at least');
   for (const [id, m] of Object.entries(C.moves)) {
@@ -204,7 +215,11 @@ export function lowerCombos(C0, { prefix = '' } = {}) {
     specials[b] = { move: tree[b].move, name: (c && (c.name ?? c.id)) ?? tree[b].move, ...(mv.mp ? { mp: mv.mp } : {}) };
   }
   // (`ready`: the fighting stance its moves start and end in, the hero's idle in combat with this moveset)
-  return { moves, tree, ...(Object.keys(airTree).length ? { airTree } : {}), ...(Object.keys(specials).length ? { specials } : {}), ready: `mv_${prefix}ready`, buffer: r4(T.buffer / FPS), late: r4(T.late / FPS), pause: [r4(T.pause[0] / FPS), r4(T.pause[1] / FPS)], blend: r4(T.blend / FPS), ...(T.rest > 0 ? { rest: r4(T.rest / FPS) } : {}) };
+  // (THE CHARGE: only a moveset that plays a held light says how long it is held, `charge` seconds; none adds nothing)
+  const held = C.combos.some((c) => c.beats.includes('L+')) ? { charge: r4((T.charge ?? CHARGE_FRAMES) / FPS) } : {};
+  // (THE FINISH: a moveset with an F beat says how near a reeling foe must stand; none adds nothing)
+  const fin = tree.F || airTree.F ? { finish: { reach: T.finish ?? FINISH_REACH } } : {};
+  return { moves, tree, ...held, ...fin, ...(Object.keys(airTree).length ? { airTree } : {}), ...(Object.keys(specials).length ? { specials } : {}), ready: `mv_${prefix}ready`, buffer: r4(T.buffer / FPS), late: r4(T.late / FPS), pause: [r4(T.pause[0] / FPS), r4(T.pause[1] / FPS)], blend: r4(T.blend / FPS), ...(T.rest > 0 ? { rest: r4(T.rest / FPS) } : {}) };
 }
 
 /** The director's list: each combo's beats and its moves, read whole. */

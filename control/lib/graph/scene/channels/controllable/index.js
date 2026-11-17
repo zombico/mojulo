@@ -3083,7 +3083,8 @@ function __readInput() {
     kneel: __k('kneel') || (__pad && __pad.kneel) ? 1 : 0,   // one-knee hold (platform rule, opt-in kneel:true) / space descend
     fire: __fireDown || (__pad && (${moveset ? '__pad.light' : '__pad.fire'}) && !__veh) ? 1 : 0,   // left mouse or RT (weapon subsystem; RT is throttle in a vehicle)${moveset ? `
     heavy: __heavyDown || (__pad && __pad.heavy) ? 1 : 0, special: __specialDown || __k('special') || (__pad && __pad.special) ? 1 : 0,   // a moveset's heavy and special beats (the special on its key too)
-    mod: __k('modifier') || (__pad && __pad.mod) ? 1 : 0,   // the modifier held (left Ctrl, the right trigger): a moveset's specials` : ''}${guards ? `
+    mod: __k('modifier') || (__pad && __pad.mod) ? 1 : 0,   // the modifier held (left Ctrl, the right trigger): a moveset's specials
+    finish: it ? 1 : 0,   // the interact control, as a moveset's FINISH reads it (combat-melee.js: the F beat, a reeling foe in reach)` : ''}${guards ? `
     guard: __k('guard') || (__pad && __pad.guard) ? 1 : 0,   // the guard held (Shift, the left shoulder)` : ''}
     cycle, slot,                     // weapon cycling (platform rule, opt-in loadout)
     swap,                            // suit switcher (T): transfer the pilot between pilotable suits

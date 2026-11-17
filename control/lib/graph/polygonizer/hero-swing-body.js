@@ -325,7 +325,8 @@ export function readyClip(ctx) {
  * by the runtime's phase, its footwork over it as a swing's (withFootwork: a planted foot held on the floor while the
  * runtime carries the body). ctx: { R, rigNodesAt, plantedFoot, footwork, solvers: { strike: heroStrike, box: heroBox } }.
  */
-export const STRIKE_FAMILY = Object.freeze({ jab: 'strike', cross: 'strike', hook: 'box', uppercut: 'box' });
+// (and the legs': the kicks, hero-kick.js, thrown from the same guard)
+export const STRIKE_FAMILY = Object.freeze({ jab: 'strike', cross: 'strike', hook: 'box', uppercut: 'box', frontKick: 'kick', roundKick: 'kick', knee: 'kick' });
 export function strikeMoveClip(move, ctx) {
   const K = ctx.solvers[STRIKE_FAMILY[move.strike]](move.strike, ctx.R), arm = (u) => K.clip.fn(Math.max(0, Math.min(1, u)));
   const contact = move.contact ?? [K.contact.t / K.seconds, Math.min(0.95, K.contact.t / K.seconds + 0.1)];

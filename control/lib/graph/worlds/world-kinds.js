@@ -70,6 +70,7 @@ import { heroStrike } from '@/lib/graph/polygonizer/hero-strike';
 import { heroStance, reachArm } from '@/lib/graph/polygonizer/hero-stance';
 import { elbowsDown } from '@/lib/graph/polygonizer/hero-elbow';
 import { heroBox } from '@/lib/graph/polygonizer/hero-box';
+import { heroKick } from '@/lib/graph/polygonizer/hero-kick';
 import { faunaBones, packFaunaRig } from '@/lib/graph/fauna/rig';
 import { bugBones, packBugRig } from '@/lib/graph/bugs/rig';
 import { heroFaceRig, faceKnots } from '@/lib/graph/polygonizer/anime-face-rig';
@@ -1039,7 +1040,10 @@ export const WORLD_KINDS = {
         // and boxing solvers' clips on this rig, its footwork over them, and the fist's fighting stance; whatever the hand
         // holds (the fist's hero is the sheathed one)
         if (ctx.swings && Array.isArray(ctx.swings.moves) && ctx.swings.moves.some((mv) => mv.strike)) {
-          const sc = { R, rigNodesAt, plantedFoot, solvers: { strike: heroStrike, box: heroBox } }, strikes = {};
+          // (a strike is solved once a rig: a moveset plays the same jab in several moves, each with a still twin, and a
+          // solve is the slow part; what it gives is read, never written, so the clips are the same)
+          const solved = new Map(), once = (fam, solve) => (word, rig) => { const k = `${fam}:${word}`; if (!solved.has(k)) solved.set(k, solve(word, rig)); return solved.get(k); };
+          const sc = { R, rigNodesAt, plantedFoot, solvers: { strike: once('strike', heroStrike), box: once('box', heroBox), kick: once('kick', heroKick) } }, strikes = {};
           for (const rd of ctx.swings.readies ?? []) if (rd.strike) strikes[rd.clip] = strikeReadyClip(rd.strike, sc);
           for (const mv of ctx.swings.moves) {
             if (!mv.strike) continue;

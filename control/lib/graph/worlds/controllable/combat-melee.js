@@ -632,7 +632,33 @@ export function buildCombatMelee(E) {
     // (back is away from the ENGAGED foe, locked on or not; with none, away from where the hero faces)
     const foe0 = hE ? mvFoe(e, world) : null;
     const back = ctx.moveH != null ? Math.cos(ctx.moveH - (foe0 ? headingTo(e, foe0) : t.heading)) < -0.5 : (input.forward || 0) < -0.5;
-    const beat1 = hE ? (back && (T0.bH || (S.node && S.node.next && S.node.next.bH)) ? 'bH' : 'H') : lE ? 'L' : sE ? 'S' : null;
+    // THE CHARGE (`L+`, a moveset with `charge`): where the tree has a held light from here (an opener, the next beat, or
+    // on the pause), a light press is not taken until it is let go (the plain light) or held `charge` seconds (the held
+    // light, taken as it fills, the button still down). `e.mvCharging` is how full it is, 0 … 1, for the page.
+    const holdsL = !!(M.charge && (T0['L+'] || (S.node && ((S.node.next && S.node.next['L+']) || (S.node.pause && S.node.pause['L+'])))));
+    let lB = lE ? 'L' : null;
+    if (lE && holdsL && !input.mod) { S.hold = now; lB = null; }
+    else if (S.hold != null) {
+      if (!input.fire) { lB = 'L'; S.hold = null; }
+      else if (now - S.hold >= M.charge - 1e-9) { lB = 'L+'; S.hold = null; }
+    }
+    if (M.charge) e.mvCharging = S.hold != null ? Math.min(1, (now - S.hold) / M.charge) : 0;
+    // THE FINISH (`F`, a moveset with `finish`): the interact control pressed with a foe of the other side within its
+    // reach that is REELING (staggered) or in the air (juggled): the hero turns to it and takes the tree's F move.
+    // With none such, the press is not a beat: it is the level's own (a door, a switch, someone to help).
+    let fB = null;
+    if (M.finish && T0.F && edge(input.finish !== undefined ? 'finish' : 'interact', 'finishPrev') && world && world.byId) {
+      let best = null, bd = M.finish.reach * M.finish.reach;
+      for (const id in world.byId) {
+        const x = world.byId[id];
+        if (!x || x === e || !x.transform || x.gone || x.downed || (x.team || null) === (e.team || null) || !(x.body && x.body.hp > 0)) continue;
+        if (x.staggerT == null && !x.juggle) continue;
+        const dx = x.transform.pos[0] - t.pos[0], dy = x.transform.pos[1] - t.pos[1], d2 = dx * dx + dy * dy;
+        if (d2 <= bd) { bd = d2; best = x; }
+      }
+      if (best) { fB = 'F'; e.mvFinish = best.id; t.heading = headingTo(e, best); }
+    }
+    const beat1 = hE ? (back && (T0.bH || (S.node && S.node.next && S.node.next.bH)) ? 'bH' : 'H') : fB ? fB : lB ? lB : sE ? 'S' : null;
     // (THE MODIFIER held, `mod` (the right trigger, left Ctrl): a face pressed with it is that face's SPECIAL, `mL` `mH`
     // `mS`, where the tree has one; mS is the MP ability in the sidearm's place)
     const mB = beat1 && beat1 !== 'bH' ? `m${beat1}` : beat1 === 'bH' ? 'mH' : null;

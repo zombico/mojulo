@@ -19,7 +19,8 @@ describe('the combo manifest', () => {
   });
   it('refuses what it cannot play, in words', () => {
     const bad = (patch, re) => { const C = copy(BASIC_COMBOS); patch(C); expect(() => readCombos(C)).toThrow(re); };
-    bad((C) => { C.combos[0].beats = ['L', 'L+']; C.combos[0].moves = ['cut-1', 'cut-2']; }, /held light.*not played yet/);
+    // (a held heavy and the mashed beats are named for later; the held light, L+, plays: the autoflow's charge)
+    bad((C) => { C.combos[0].beats = ['L', 'H+']; C.combos[0].moves = ['cut-1', 'cut-2']; }, /held heavy.*not played yet/);
     bad((C) => { C.combos.push({ id: 'x', beats: ['L', 'H'], moves: ['cut-2', 'thrust'] }); }, /play 'cut-2' where 'three-cuts' plays 'cut-1'/);
     bad((C) => { C.moves['cut-1'].travel = { kind: 'teleport', m: 1 }; }, /travel is \{ kind: none \| step \| lunge/);
     bad((C) => { C.combos[0].beats = ['.', 'L']; C.combos[0].moves = ['cut-1']; }, /a pause stands between two presses/);

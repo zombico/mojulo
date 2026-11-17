@@ -26,6 +26,7 @@
 // importers of this path keep working unchanged. New code should import from the
 // specific sibling rather than from this barrel.
 
+import { RENDER_TOOL_TIMEOUT_MS } from '../telemetry.js';
 import { DETAIL_PROPERTY } from '@/lib/mcp/vocab-listing';
 import { registerTool } from '@/lib/mcp/server';
 import { withPluginProfile } from '@/lib/mcp/plugin-profile';
@@ -346,6 +347,8 @@ export function registerSketchTools() {
 
   registerTool(withPluginProfile({
     name: 'export_model',
+    // (a game's level is a long build: its hero's and its foes' rigs and every move's clip; the render tools' budget)
+    timeoutMs: RENDER_TOOL_TIMEOUT_MS,
     description:
       "Export a stored sketch's traversable 3D World as a binary glTF (.glb) for Blender, three.js or Quick Look. Pass the sketch `ref`. Works for the World kinds (cities, hubs, rooms, terrain, workbench/assembler studies, `manji-tree` polygomers, vehicles, science views, posed figures, carved wordmarks, turntable solids); flat diagrams and charts have no exportable geometry and return `{ ok:false, eligible:false }` with pointers to /scene and /svg. Fidelity: light BAKED into the geometry, the mesh UNLIT (KHR_materials_unlit + vertex colours): it looks like the live World from any camera, no lighting setup downstream. Glow billboards and the sky drop; gradients collapse to one colour; animation exports at its static pose. `format: 'stl'` is the 3D-PRINTING handoff: a binary STL for slicers — shape only (colour/textures dropped; water/decals/studio grid omitted; repeats expanded; z-up). Sizing: literal kinds (workbench/assembler/carved-solid/turntable/vehicle) derive mm from `units`; worlds, views, and figures print as MINIATURES fit to `target_mm` (default 120). Honest triangle soup, not guaranteed-manifold — results report an advisory `closure` audit + printed size. Returns `{ ok, ref, kind, format, url, bytes, vertices, triangles }` (+ `nodes` for glb), plus an on-disk `path` when `write` is true (the default). The `url` (`/api/sketches/<ref>/model.glb` or `.stl`) regenerates deterministically on each request — hand it to the operator to download. Rig worlds: pass `clips` (names array or '_all') to bake figure/unit/vehicle rig clips into glTF animations (own clip lengths). `format: 'html'` writes `world.html`, the live page, self-contained (opens from file://, contacts no server); `cdn: true` writes `world.cdn.html` with three.js off the pinned jsdelivr CDN, the form a page door running a CSP executes. `format: 'bundle'` zips page + mesh (+ STL for literal kinds) + recipe + README into `<ref>.zip`, the one file every host's handoff door accepts. Every written result carries `handoff` (this host's next move: artifact, PR, file card, or the dashboard) and `fits` (against the host's byte limit). `engine` hands a world to a team's engine (Godot, Unity, Unreal, Blender): its assets, materials and level, re-handed under their scene.",
     inputSchema: {
