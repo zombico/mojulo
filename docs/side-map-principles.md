@@ -40,6 +40,9 @@ them, and each section here gains the module that holds it as it lands.
    follows from the hero.
 7. **The hero is an eighth of the frame.** The frame is 16:9 and the hero stands about an eighth of its height, so a
    screen is about eight heroes tall and fourteen wide. A hero drawn bigger than that hides the level it is in.
+The measures are `control/lib/graph/gameworld/side-map/screen.js`: a screen in metres for a side camera, and the camera
+that holds a hero of a given stature at the frame's share, the lane at its place down the frame.
+
 8. **A shaft is narrower than a screen.** At 16:9 a screen is wide: a shaft that wide is several jumps across and is no
    longer a shaft. Its walls are set as far apart as the climb asks, and the closed rock or plant beside them fills the
    frame out to its edges.

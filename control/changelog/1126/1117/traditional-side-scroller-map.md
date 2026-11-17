@@ -42,8 +42,9 @@ said as its phase lands.
   only where the camera can see. Across develops, down is free or a commitment, up is earned.
 - **Keyed in the cosmos cube**, so the studio can lay one for any game: a level form and its beats registered, the
   zones and climbs words a level writes.
-- **The screen as a measure** beside the hero's reach: what one screen is in metres for a side camera at 16:9, and the
-  camera that holds the hero at about an eighth of the frame's height.
+- **The screen as a measure** beside the hero's reach (`gameworld/side-map/screen.js`): what one screen is in metres for
+  a side camera at 16:9, the camera that holds a hero at an eighth of the frame's height with the lane two thirds down
+  it (for the toy hero robot's 1.67 m, 22.8 m back and a screen 13.4 m by 23.8 m), and a distance read in screens.
 - **Going up, earned.** Climbs in their forms (ledges, a switchback, a chimney with rests, a stair, a ladder, pillars
   over a gap), light at the top of every climb, a backdrop that knows how high the hero is, and the screen from below:
   a climb's frame that rises on its own.
