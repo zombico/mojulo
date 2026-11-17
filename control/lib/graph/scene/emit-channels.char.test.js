@@ -784,6 +784,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // hold, and the opener's count. A moveset that says no `swap` runs as before: the cycle mid-swing is dropped. Every
 // fixture that embeds the controllable runtime re-pinned with it.
 //
+// Re-pinned 2026-11-17 (the race's HUD on mana-ui): `brawl` and `holo`, the two whose page inlines the game UI runtime.
+// Its minimap gains a `route` (a way drawn as a dotted line under its markers, gameworld/race-hud.js's track map): one
+// prop, its draw and two sheet rules; a minimap that names no route draws as it did. Every other page byte-identical.
+//
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
