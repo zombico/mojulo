@@ -51,6 +51,15 @@ said as its phase lands.
   what it teaches (the first level's words) or a beat (rest, reveal, landing, commit), an up run's climb (ledges, a
   switchback, a chimney, a stair, a ladder; `rises`: the screen from below), a down run's drop (a cascade, or a chute:
   a commit), its place and fill, its spawners, pillars and ceiling; refused with teaching.
+- **The layout** (`gameworld/side-map/layout.js`): a zone chain laid on the along × up plane in screens and the hero's
+  reach, each zone from where the walk left the last. An across run is the course for what it teaches at its length
+  (its gaps open to the frame's bottom: pits; `pillars` a pit crossed on tops a jump apart; `ceiling` a held one); an
+  up run a shaft narrower than a screen, its walls closed out to the frame's edges, climbed as a chimney (rests on
+  alternate walls within three kicks, a pickup on each), ledges, a switchback, a stair or a ladder; a down run a
+  cascade of steps or a one-way chute shut at its foot; a room its size, a boss's shut behind its door. Each zone says
+  what the camera sees (its swept area, one screen thick on its locked axis), what the play moves in and what is
+  closed, its checkpoint, and what it could not fit (a run too short for what it teaches is laid as one floor, and
+  says so).
 - **The screen as a measure** beside the hero's reach (`gameworld/side-map/screen.js`): what one screen is in metres for
   a side camera at 16:9, the camera that holds a hero at an eighth of the frame's height with the lane two thirds down
   it (for the toy hero robot's 1.67 m, 22.8 m back and a screen 13.4 m by 23.8 m), and a distance read in screens.
