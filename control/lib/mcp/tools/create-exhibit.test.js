@@ -205,6 +205,19 @@ describe('prepared states: one exhibit at several settings', () => {
 });
 
 describe('get_exhibit', () => {
+  it('start: a person with a concept is answered the producer\'s one question and the fit, and nothing is made', async () => {
+    const out = await getExhibitHandler({ start: { concept: 'how a dam makes electricity from falling water', time: 'visit' } });
+    expect(out).toMatchObject({ ok: true, readout: 'start', built: false, producer: { seat: 'producer', step: 'people' } });
+    // (placed on the real catalog: the hydro exhibit's own words)
+    expect(out.nearest.map((n) => n.id)).toContain('earth/hydro');
+    expect(out.fit.says).toMatch(/holds one exhibit/);
+    expect(out.ref).toBeUndefined();
+    await expect(getExhibitHandler({ start: {}, id: 'earth/hydro' })).rejects.toThrow(/`start` is asked alone/);
+    await expect(getExhibitHandler({ start: { topic: 'x' } })).rejects.toThrow(/topic is not one/);
+    // without it the door reads as it always did
+    expect((await getExhibitHandler({})).halls.length).toBeGreaterThan(0);
+  });
+
   it('reads a card by hall id, lists the halls and one hall', async () => {
     const one = await getExhibitHandler({ id: 'earth/hydro' });
     expect(one).toMatchObject({ id: 'earth/hydro', hall: 'earth' });

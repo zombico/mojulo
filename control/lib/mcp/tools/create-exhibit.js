@@ -23,6 +23,7 @@ import { deriveViewKind } from '@/lib/mcp/tools/save-recipe';
 import { createSketchHandler, updateSketchHandler } from '@/lib/mcp/tools/sketch-mint';
 import { auditExhibit, auditStates } from '@/lib/graph/exhibit/audit';
 import { galleryRooms } from '@/lib/graph/exhibit/gallery';
+import { exhibitStart } from '@/lib/graph/exhibit/producer';
 import { readRecording } from '@/lib/graph/face-acting/recordings';
 
 // whether this machine holds a narration's recording (the audit says a page is quiet where it does not)
@@ -182,7 +183,13 @@ function measureExhibit({ ref, every }) {
 }
 
 export async function getExhibitHandler(input) {
-  const { id, hall, ref, every, detail, audit } = input && typeof input === 'object' ? input : {};
+  const { id, hall, ref, every, detail, audit, start } = input && typeof input === 'object' ? input : {};
+  // THE START (exhibit/producer.js): a person with a concept to display, before anything is made. It builds nothing:
+  // the producer's one question, the exhibits the concept points at, the fit once their time is known
+  if (start !== undefined) {
+    if (id !== undefined || ref !== undefined || hall !== undefined) throw new Error('get_exhibit: `start` is asked alone: what the person has said so far');
+    return exhibitStart(start, { cards: exhibitCards() });
+  }
   if (ref !== undefined) {
     if (typeof ref !== 'string' || !ref) throw new Error('get_exhibit: `ref` is a made exhibit\'s sketch ref');
     if (audit === true) {
@@ -257,6 +264,7 @@ export function registerExhibitTools() {
         ref: { type: 'string', description: 'A made exhibit to measure.' },
         every: { type: 'number', description: 'With `ref`: every Nth sample (default 1).' },
         audit: { type: 'boolean', description: 'With `ref`: its audit (tour, claims, reading) instead.' },
+        start: { type: 'object', description: "Before making one for someone's people and time: { concept?, people?, time?, brought?, wants? } → the one question to ask, the fit. Builds nothing." },
       },
       required: [],
     },

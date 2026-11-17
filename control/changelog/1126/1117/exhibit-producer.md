@@ -17,4 +17,15 @@ In progress. Each line is added as its phase lands.
   stop: words to write, no time added. It names three depths of attention it serves (the glance, the visit, the
   study) and says the fit in a line. Its arithmetic is the tour's own (`holdSeconds`), so a fit's stops played as the
   exhibit's audit plays them fit the time they were called for: a test holds that. A stop count is a ceiling, read
-  end to end. Advice, never a refusal. Nothing calls it yet.
+  end to end. Advice, never a refusal.
+- **The start** (`exhibit/producer.js`; the door: `get_exhibit({ start: { concept?, people?, time?, brought?,
+  wants? } })`, read-only). A person with a concept to display is answered before anything is made: the four
+  questions only they can answer, in order (what people should leave understanding, who it is for, how long they have
+  with it, what material they bring), each dropped once answered, and `producer.ask`, the one to ask this turn. With a
+  concept, `place`: the exhibits whose own words it uses, most first, the one it names ahead of a hub that mentions
+  it (a heuristic over words, said to be one: the agent picks, or searches); where none matches, `uncovered` says to
+  search, to compose a demo from laws, or to say that nothing makes it before anything is built. With their time,
+  the fit. When all four are answered, `make`: the fit's door, said back first, the stops and claims written from
+  what they said and never for them. A plain request to see something (a concept and nothing of people, time or
+  material) is marked `plain` and made at once. It builds and stores nothing; without `start` the door reads as it
+  always did.
