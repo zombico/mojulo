@@ -702,6 +702,40 @@ its own.
   at the right: which level of how many, and the time played (the play shell's `pause.where()`). The controls screen
   shows each key as a cap beside what it does.
 
+### The street: the beat 'em up and the run and gun
+
+Both draw one street HUD (`brawl/brawl-street.js` `streetSpec`, its `gun` variant the run and gun's), inside the
+street's frame (the HUD's root is the scene's, never the page's margin: every `.mana-root` in a world page's `#wrap` is
+placed in it).
+
+- **The seats** are four quarters across the top on one shade, never boxes. A seat taken is its tag and its name, and its
+  health as a strip in cells in its own colour (`bar` `side`), read by its length. The run and gun's seat adds the gun
+  in its hands as its wireframe, its rounds as the figure over a belt (or a track past sixty), the sidearm endless (`∞`,
+  never low: `magazine` `endless`), and its grenades as pips. The arcade guns have their own wireframes (machine gun,
+  spread, flame).
+- **Danger:** with one player the screen's edge closes in under half health (`peril`); in co-op the low seat's bar
+  beats, since one edge cannot say whose.
+- **The foe being hit** is named, with a short bar, under the seats for two seconds after the last hit. **The combo** is
+  a large figure at the hitter's edge, with a word at each rung.
+- **Shapes over words:** the way on is an arrow pulsing at the right edge ("GO ➜"), not a word over the fight. The
+  boss's name is a title over its bar, its phases ticks inside it. The stages and the foes left are marks with no label.
+- **A scene** (an arrive or leave card) clears the HUD from the screen. The street's own end says no health on a loss,
+  and the rank is stamped.
+- A choice of gun before the street shows each gun's wireframe beside its name (an option's `gun`).
+
+### Fable of Artesia: the action-adventure's HUD
+
+The action-adventure's HUD grammar (`scene/channels/hud-grammar.js`) holds to the same principles.
+
+- **The hearts empty by quarters** (`pips` takes a fraction: the last heart drawn that far full).
+- **What is held** (the weapon, the sidearm, the item and its count) sits small at the top right. What the body does
+  (the guard, the sprint, the lock) is not equipment: its keys are the controls screen's.
+- **The stamina** is a ring by the hero's shoulder, shown only while it is spent, harm when nearly gone. **The lock**
+  is brackets over the locked foe's drawn top with its health thin under them, in place of the runtime's own diamond
+  and bar. Both are drawn on `anchors` at points the page's camera projects.
+- **The map** is a round scope at the bottom right that turns with the hero, with the foes awake and the way on.
+- **Passing words** (an item used up, a pickup) sit at the foot's left, haloed dark, off the aim.
+
 ## The fight's language
 
 A fighting game's UI is its own language, not a party game's: quiet so the fight reads, side against side. It is grown

@@ -314,6 +314,15 @@ describe('mana-ui: the live game', () => {
     expect(() => manaUi.readSpec(spec)).not.toThrow();
     expect(manaUi.runtime(spec, host({})).view()).not.toContain('undefined');
   });
+  it('a pick that is a gun shows its wireframe beside its name; an endless gun says ∞ and is never low', () => {
+    const spec = withIdioms({ start: 's', screens: { s: { use: 'pick-screen', props: { title: 'Street', ask: 'Choose your gun', chosen: [], rows: [{ id: 'spread', name: 'Spread', gun: 'spread', then: { emit: 'x' } }, { id: 'flame', name: 'Flame', gun: 'flame', then: { emit: 'y' } }] } } } });
+    const v = manaUi.runtime(spec, host({})).view();
+    expect(v).toContain('data-gun="spread"');
+    expect(v).toContain('data-gun="flame"');
+    const side = hudOf([at({ use: 'magazine', props: { gun: 'sidearm', rounds: 0, endless: true } })]).view();
+    expect(side).toContain('>∞<');
+    expect(side).not.toMatch(/data-empty|data-low|mana-belt/);
+  });
   it('a radar is a scope: a bezel, the wedge ahead, north on the bezel; a region may rest, or sit on a scrim', () => {
     const v = hudOf([{ use: 'region', props: { at: 'top-left', variant: 'scrim', rest: true }, children: [{ use: 'minimap', props: { shape: 'round', scope: true, north: 90, markers: [{ x: 0.5, y: 0.1, kind: 'foe' }] } }] }]).view();
     expect(v).toContain('data-rest="yes" data-variant="scrim"');

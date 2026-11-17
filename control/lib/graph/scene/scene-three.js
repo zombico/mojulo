@@ -153,6 +153,7 @@ export function emitRaymarchWorld({ frag, customUniforms = {}, dataTextures = {}
 <style>
   :root{color-scheme:dark} body{margin:0;background:${bg};color:#cfe3ff;font:13px/1.4 system-ui,sans-serif;display:flex;flex-direction:column;align-items:center}
   #wrap{position:relative;width:${W}px;height:${H}px;max-width:100%;aspect-ratio:${W} / ${H};overflow:hidden}
+  #wrap .mana-root{position:absolute}
   canvas{display:block;width:100%;height:100%}
   .hint{position:absolute;right:8px;bottom:8px;color:#6f86ad;font-size:11px;user-select:none}
   .moj-readout{position:absolute;left:8px;bottom:8px;background:rgba(4,7,16,.74);border:1px solid #24324a;border-radius:6px;padding:7px 10px;font-size:12px;color:#cfe3ff;display:flex;flex-direction:column;gap:2px;pointer-events:none;z-index:4;max-width:60%}
@@ -1211,6 +1212,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   body{background:#04070d url("${backdropUrl}") center/cover no-repeat fixed}
   #wrap{background:transparent}` : ''}
   #wrap{position:relative;width:${W}px;height:${H}px;max-width:100%;aspect-ratio:${W} / ${H};overflow:hidden}
+  #wrap .mana-root{position:absolute}
 ${spin ? `  /* ?spin=1 is the EMBED read (a preview pane iframes this page): fill whatever viewport
      the host gives instead of holding the authored studio pixel size — a short pane would
      otherwise clip the canvas bottom (and skew the camera aspect the fit is computed at). */

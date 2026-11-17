@@ -3541,6 +3541,7 @@ const __lockEl = document.createElement('div');
 __lockEl.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none;z-index:9;display:none';
 __lockEl.innerHTML = '<div style="width:40px;height:40px;margin:-20px 0 0 -20px;border:2px solid #ffe000;border-radius:5px;transform:rotate(45deg);box-shadow:0 0 14px rgba(255,224,0,.55),inset 0 0 8px rgba(255,224,0,.25)"></div>'
   + '<div style="position:absolute;left:26px;top:-8px;font:700 11px/1 ui-monospace,Menlo,monospace;letter-spacing:2px;color:#ffe000;text-shadow:0 0 8px rgba(255,224,0,.7)">LOCK</div>';
+__lockEl.className = 'moj-c-lock';   // (a HUD host that draws the lock itself puts this one away: channels/hud-grammar.js)
 wrap.appendChild(__lockEl);
 const __lockV = new THREE.Vector3();
 function __updateLock() {
@@ -3652,6 +3653,7 @@ for (const e of __world.entities) {
   el.style.cssText = 'position:absolute;width:56px;height:6px;transform:translate(-50%,-50%);border-radius:3px;background:rgba(8,12,20,0.6);box-shadow:inset 0 0 0 1px rgba(255,120,120,0.55),0 1px 3px rgba(0,0,0,0.5);overflow:hidden;pointer-events:none;z-index:8;display:none';
   const fl = document.createElement('div'); fl.style.cssText = 'height:100%;width:100%;background:#ff5a5a';
   el.appendChild(fl); wrap.appendChild(el);
+  el.className = 'moj-c-ehp';   // (a HUD host that draws its foe's health with its lock puts these away: channels/hud-grammar.js)
   __ehp.push({ id: e.id, el: el, fill: fl });
 }
 const __ehpV = __ehp.length ? new THREE.Vector3() : null;${foeBars ? `

@@ -88,11 +88,22 @@ describe('its screen', () => {
     expect(top.match(/Press start/g)).toHaveLength(1);
     expect(top).not.toContain('3P');
     expect(SEATS).toHaveLength(4);
-    // (a brawl's seat shows no gun; a run & gun's its gun's letters, its rounds, a mark when they are low, its grenades)
-    expect(top).not.toContain('data-icon="bullet"');
-    const gs = { brawl: { street: { ...state.brawl.street, p1: { ...state.brawl.street.p1, gun: 'MG', ammo: '12', low: true, grenades: 2 } } } };
+    // (a brawl's seat shows no gun and no box: one shade across the top, its health a strip in cells in its own colour,
+    // no figures; a run & gun's its gun as its wireframe, its rounds as the figure and a belt, low said, its grenades as
+    // pips; the sidearm endless)
+    expect(top).not.toContain('mana-magazine');
+    expect(top).not.toContain('class="mana-window"');
+    expect(top).toContain('data-variant="scrim"');
+    expect(top).toMatch(/class="mana-bar" data-figures="no"[^>]*data-side="0"[^>]*data-variant="hp"/);
+    const gs = { brawl: { street: { ...state.brawl.street, p1: { ...state.brawl.street.p1, gunId: 'machine-gun', rounds: 30, size: 200, grenades: 2, grenadesMax: 3 } } } };
     const gv = manaUi.runtime(streetSpec('gun'), { read: (p) => manaUi.readPath(gs, p), act() {}, now: () => 1 }).view().split('data-at="bottom')[0];
-    for (const w of ['MG', '12', 'Low', 'bullet', 'grenade']) expect(gv, w).toContain(w);
+    expect(gv).toContain('data-gun="machine-gun" data-low="yes"');
+    expect(gv).toContain('>Low ammo<');
+    expect(gv).toContain('●●○');
+    gs.brawl.street.p1 = { ...gs.brawl.street.p1, gunId: 'sidearm', rounds: 0, size: 0, endless: true };
+    const side = manaUi.runtime(streetSpec('gun'), { read: (p) => manaUi.readPath(gs, p), act() {}, now: () => 1 }).view();
+    expect(side).toContain('>∞<');
+    expect(side).not.toContain('Reload');
     expect(rt.view()).not.toContain('Big Rig');
     state.brawl.street.boss = { on: true, name: 'Big Rig', hp: 90, hpMax: 150 };
     rt.tick();                                            // (a value it read changed: drawn again)
