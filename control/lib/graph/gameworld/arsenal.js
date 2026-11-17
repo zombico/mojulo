@@ -32,6 +32,7 @@
  *
  * Pure.
  */
+import { kitOfGame, kitArsenal } from './hero-kits.js';
 import { TEMPLATE_ARSENALS, arsenalFor, readArsenal, lowerArsenal, lowerJuggle } from './combos.js';
 import { HELD_STRIKE } from '../polygonizer/hero-swing.js';
 import { genreHero } from './hero-rows.js';
@@ -139,6 +140,8 @@ export function readGameArsenal(raw) {
 /** The arsenal every level of a world lays on its hero, or null. */
 export function arsenalOfGame(G) {
   const own = G?.arsenal;
+  // (a world that writes no arsenal and whose hero has a KIT, hero-kits.js: its fighting style's hands and its ranged)
+  if (own === undefined || own === null) { const K = kitOfGame(G); if (K) return { arsenal: kitArsenal(K), from: 'kit', why: `the hero's kit: it fights as a ${K.style}${K.ranged ? `, with a ${K.ranged} at range` : ''}` }; }
   if (own === undefined || own === null || own === false) return null;
   if (own === 'auto') {
     const K = arsenalFor(G.feel);

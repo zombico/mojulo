@@ -47,6 +47,7 @@
  * Pure. `readCharacters` reads the shape alone (the world reader calls it, so it never reads the world back);
  * `resolveDirection(G)` hands the world's direction down onto a read world.
  */
+import { readHeroKit } from './hero-kits.js';
 import { readActorDials } from '../playscape/ui/scene-script.js';
 import { kitCard, languageCard, hasKitCard, hasLanguageCard } from './style-guide.js';
 import { poleOf } from '../era/style/pole.js';
@@ -103,7 +104,7 @@ const NOT_LOOKS = Object.freeze({
  * the systems numbered from the actions (mechanics.js): their stats and their HUD.
  * They share the world's `review` field with the world's own parts. */
 export const CHARACTER_PART_IDS = Object.freeze(['characters:direction', ...Object.keys(LOOKS_ELEMENTS).map((k) => `hero:${k}`), 'hero:base', 'hero:motion', 'hero:actions', 'hero:adornment', 'equipment', 'mechanics:stats', 'mechanics:hud']);
-const HERO_KEYS = ['ref', 'name', 'looks', 'motion', 'actions', 'adornment', 'actor'];
+const HERO_KEYS = ['ref', 'name', 'looks', 'motion', 'actions', 'adornment', 'actor', 'kit'];
 const KEYS = ['direction', 'hero', 'cast', 'casting', 'folk'];
 /** The character book's keys and its hero's (the chapter registry, chapters.js, gives each its chapter). */
 export const CHARACTER_BOOK_KEYS = Object.freeze([...KEYS]), CHARACTER_HERO_KEYS = Object.freeze([...HERO_KEYS]);
@@ -261,7 +262,7 @@ export function readCharacters(C) {
     if (!isObj(C.hero)) throw err(`hero is { ${HERO_KEYS.join(', ')} }`);
     for (const k of Object.keys(C.hero)) {
       if (!HERO_KEYS.includes(k)) throw err(`hero.${k} is not part of the hero's page (${HERO_KEYS.join(', ')})${NOT_LOOKS[k] ? `; ${NOT_LOOKS[k]}` : LOOKS_ELEMENTS[k] ? `; ${k} is a looks page (hero.looks.${k})` : ''}`);
-      if (k !== 'looks' && k !== 'ref' && k !== 'name' && C.hero[k] !== undefined && !isObj(C.hero[k])) throw err(`hero.${k} is an object`);
+      if (k !== 'looks' && k !== 'ref' && k !== 'name' && k !== 'kit' && C.hero[k] !== undefined && !isObj(C.hero[k])) throw err(`hero.${k} is an object`);
     }
     if (C.hero.ref !== undefined && !(typeof C.hero.ref === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(C.hero.ref))) throw err('hero.ref is the sketch ref of a hero made with create_character (the run adopts it and makes none)');
     out.hero = {};
@@ -277,6 +278,8 @@ export function readCharacters(C) {
     if (C.hero.actions !== undefined) out.hero.actions = readActions(C.hero.actions);
     if (C.hero.adornment !== undefined) out.hero.adornment = readAdornment(C.hero.adornment);
     if (C.hero.actor !== undefined) out.hero.actor = actorOf(C.hero.actor, 'hero.actor');
+    // (its KIT, hero-kits.js: how it gets about, how it fights, what it has at range and its special, kept as written)
+    if (C.hero.kit !== undefined && C.hero.kit !== null) { readHeroKit(C.hero.kit); out.hero.kit = C.hero.kit; }
   }
   return out;
 }

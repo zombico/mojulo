@@ -81,6 +81,7 @@ import { flyCourse } from '../skyscape/autopilot.js';
 import { seatCraft, craftPilot } from '../skyscape/craft.js';
 import { battleRoster, laidBattles, PARTY_SLICE, BAG_SLICE, BAG_START } from './battles.js';
 import { mergeExtras, libraryFigure, fieldFigure, stand } from './stage-figures.js';
+import { kitMoves, kitGrants, kitOfGame, kitLegendOf } from './hero-kits.js';
 import { standFoe, foePlacements, CREW } from './foes.js';
 import { readTheme } from '../../mana-ui/theme.js';
 import { armLevel, heroStrikes, arsenalOfGame } from './arsenal.js';
@@ -93,7 +94,8 @@ const SNEAK_GUARD = Object.freeze({ class: 'guard', skin: { people: 'human' } })
 // the swing clip) where no feel names one; the world's page arms the rule with what the figure holds, its reach, seconds
 // and damage (world-scene.js, the held strike). A hero carrying nothing for it, as it was.
 const HELD_CONTACT = Object.freeze([0.28, 0.62]);
-const carriesStrike = heroStrikes;
+// (a hero that carries a thing it strikes with, or whose kit gives it a fighting style: its hands)
+const carriesStrike = (G) => heroStrikes(G) || !!kitOfGame(G);
 const strikeWindow = (G, rule) => (carriesStrike(G) && !Array.isArray(rule?.strikeContact) ? { strikeContact: [...HELD_CONTACT] } : null);
 const STRIKE_LEGEND = 'click  strike';
 // AN ACTION HERO'S ORBIT (cameras.js `orbit` on a hero that strikes): the mouse turns it as a third-person action game's
@@ -287,18 +289,20 @@ export function cityStages(level, C, map = false) {
  *  to its platform rule (null with none), and its player made over it: the rule, the traversal states' clips
  *  (player.js traversalStates: the wall's and the line's states play a clip every figure has), F named on the legend. */
 function heroMoves(G) {
-  const ids = G.characters?.hero?.actions?.moves ?? [];
+  // (its actions page's, and its kit's movement's: hero-kits.js)
+  const ids = kitMoves(G);
   return ids.length ? Object.assign({}, ...ids.map((id) => HERO_MOVES[id].rule)) : null;
 }
 // THE POWERS' MOVES the hero starts with (actions.js TRAVERSAL_MOVES): a power with a `move` the hero gains at the early
 // stage (or any, where the page lays no stages) is granted from the first level, every level it plays; one that keys a
 // map's door is found there instead (game.powers), and one gained later waits on its stage. → the move ids, or []
 function startingGrants(G) {
-  const A = G.characters?.hero?.actions;
-  if (!A?.powers?.length) return [];
+  // (and what its kit's movement grants, hero-kits.js: a leaper's high jump, a glider's glide, a flyer's flight)
+  const A = G.characters?.hero?.actions, kit = kitGrants(G).map((g) => ({ ...g, ...vayoTune(G, g.move) }));
+  if (!A?.powers?.length) return kit;
   const keyed = new Set(powerKeys(G).map((p) => p.id)), staged = (A.progression ?? []).length > 0;
   const early = new Set(staged ? (A.progression.find((s) => s.stage === 'early')?.gains ?? []) : A.powers.map((p) => p.id));
-  return A.powers.filter((p) => p.move && early.has(p.id) && !keyed.has(p.id)).map((p) => ({ move: p.move, ...(p.element ? { element: p.element } : {}), ...vayoTune(G, p.move) }));
+  return [...kit, ...A.powers.filter((p) => p.move && early.has(p.id) && !keyed.has(p.id)).map((p) => ({ move: p.move, ...(p.element ? { element: p.element } : {}), ...vayoTune(G, p.move) }))];
 }
 // a vayo move's tuning by the game's feel card (feel/lower.js feelVayo): only a power that grants one reads it
 const vayoTune = (G, move) => { if (!G.feel || !String(move).startsWith('vayo-')) return {}; const t = feelVayo(feelCard(G.feel)); return t ? { tune: t } : {}; };
@@ -1434,7 +1438,7 @@ export function sheathedSpec(G, spec) {
 // choice and never a stumble. A city stalker's wall, taken from the ground, is its own
 // (a hero with an ARSENAL says its attacks, its sidearm, its specials and its guard, by the scheme's keys: input-map.js;
 // null for a world with none, whose hero has the one blow)
-const kitLegend = (G) => { const A = arsenalOfGame(G)?.arsenal; return A ? movesetLegend({ sidearm: A.ranged?.[0]?.name?.toLowerCase() ?? null }) : null; };
+const kitLegend = (G) => { const K = kitOfGame(G); if (K) return kitLegendOf(K); const A = arsenalOfGame(G)?.arsenal; return A ? movesetLegend({ sidearm: A.ranged?.[0]?.name?.toLowerCase() ?? null }) : null; };
 export const actionWall = (rule) => (rule && rule.wall ? { wall: { ...(rule.wall === true ? {} : rule.wall), ground: false } } : {});
 function actionHero(entity, figures, sheathRef) {
   const fig = entity.body.figure, sheathed = sheathRef ? `${fig}-sheathed` : null;

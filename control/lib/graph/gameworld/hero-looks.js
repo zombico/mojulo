@@ -20,6 +20,7 @@
 import { resolveDirection, LOOKS_ELEMENTS } from './characters.js';
 import { resolveMotion, motionOrders } from './hero-vibe.js';
 import { moveClips } from '../playscape/player.js';
+import { kitMoves } from './hero-kits.js';
 import { ELEMENT_TINT } from './element-words.js';
 import { solvePalette } from '../color-theorist/solve.js';
 import { skinDirection } from '../color-theorist/adapters.js';
@@ -223,7 +224,7 @@ export function heroOrders(G, { title, composed } = {}) {
   // the feel, once the hero stands: its gaits and stand, then any custom clips, as patches of the same sketch
   // (a hero carries the clips of the moves it starts with, actions.js HERO_MOVES, player.js MOVE_CLIPS: the line's
   // trapeze swing, somersault and zip, the wall's rest; a clip of its page's by the same name is its own)
-  const hero = G.characters.hero ?? {}, own = moveClips(hero.actions?.moves);
+  const hero = G.characters.hero ?? {}, own = moveClips(kitMoves(G));
   const R = hero.motion || own ? resolveMotion(hero.motion ?? {}) : null;
   const motion = R ? motionOrders(own ? { ...R, clips: { ...own, ...(R.clips ?? {}) } } : R) : null;
   return { mint, patches, ...(motion ? { motion } : {}), unread: C.unread };

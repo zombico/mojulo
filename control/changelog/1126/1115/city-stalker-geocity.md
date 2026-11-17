@@ -49,3 +49,13 @@
   of three at spots spread along the street, and each crew fights as one, the way a beat-em-up's crowd does: it
   holds its corner until the hero comes near, rings the hero, then presses in, with only two of the crew attacking
   at a time while the rest keep the ring. The hero always has a moment to act between two attackers' blows.
+- **A hero is a kit of parts.** A game's hero can now be described by four choices made apart: how it gets about
+  (a line swinger, a leaper, a glider, a flyer, or on foot), how it fights, what it has at range if anything, and
+  what its special button does. Swinging is a way of moving, never a way of fighting. Four heroes come ready-made
+  (the swinger, the powerhouse, the blaster, the vigilante), and any of them can have one part changed, such as the
+  swinger given a heavy hitter's fists.
+- **Fighting with one button.** A fighting style is played on a single punch button: press it again as each blow
+  lands for the next one, and the last is a finisher. Three styles to start: the brawler (one, two, and a hook that
+  floors), the acrobat (four quick blows ending in an uppercut that launches a foe), and the bruiser (two heavy
+  blows). Each has its own string in the air. A hero with something at range has one range button for it, and one
+  special button is kept for whatever the level asks for where the hero stands.
