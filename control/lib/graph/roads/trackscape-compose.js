@@ -28,6 +28,7 @@
  * Pure, deterministic (the seed designs the course).
  */
 import { TRACK_FORMS } from './track.js';
+import { LANGUAGE_OF_CLASS } from './track-language.js';
 
 /** The track's words: phrases, longest first; a later phrase wins what an earlier one set. */
 export const TRACK_LEXICON = Object.freeze({
@@ -65,6 +66,7 @@ export const TRACK_LEXICON = Object.freeze({
   'cartoon': { pole: 'banded' }, 'toy': { pole: 'banded' }, 'stylized': { pole: 'banded' }, 'cel': { pole: 'banded' },
   'pixel': { pole: 'banded' }, 'pixelated': { pole: 'banded' },
   'voxel': { pole: 'voxel' }, 'voxels': { pole: 'voxel' }, 'blocky': { pole: 'voxel' }, 'cubes': { pole: 'voxel' },
+  'chunky': { pole: 'chunky' }, 'rounded': { pole: 'chunky' }, 'plastic': { pole: 'chunky' },
   'shaded': { pole: 'shaded' }, 'smooth': { pole: 'shaded' }, 'gouraud': { pole: 'shaded' }, 'sunshine': { pole: 'shaded' }, 'mario sunshine': { pole: 'shaded' },
   'kingdom hearts': { pole: 'shaded' }, 'gamecube': { pole: 'shaded' }, 'ps2': { pole: 'shaded' }, 'sixth gen': { pole: 'shaded' }, 'sixth-gen': { pole: 'shaded' },
   // a stadium's duel (course.js designDuel): two lanes and a crossover, inside a stadium's bowl (stadium/stadium.js)
@@ -106,8 +108,8 @@ export function readTrackIntent(intent = '') {
   const scene = [];
   for (const w of rest) if (SCENE_WORDS[w]) { scene.push(SCENE_WORDS[w]); reads.push({ phrase: w, decided: `look: ${SCENE_WORDS[w]}` }); } else if (!FILLER.has(w)) scene.push(w);
   const cls = got.class ?? (got.set === 'kart' ? 'kart' : 'circuit'), set = got.set ?? (cls === 'kart' ? 'kart' : 'gt');
-  // (a kart track voxel: the battle racer's look, cubes under the isekai light; a circuit realistic)
-  const form = got.form ?? 'circuit', pole = got.pole ?? (set === 'kart' ? 'voxel' : 'material');
+  // (a kart track chunky: smooth rounded plastic, chunky-look.js; the voxel look by its word; a circuit realistic)
+  const form = got.form ?? 'circuit', pole = got.pole ?? (set === 'kart' ? 'chunky' : 'material');
   const base = form === 'stage' ? LENGTH.stage : LENGTH[cls] ?? LENGTH.circuit;
   const track = { class: cls, form, length: Math.round(base * (got.length ?? 1)), twist: got.twist ?? (cls === 'kart' ? 0.5 : 0.4), ...(got.duel && form !== 'stage' ? { duel: true } : {}),
     ...(got.elevation ? { elevation: got.elevation } : {}), ...(got.ramps ? { ramps: got.ramps } : {}), ...(got.crossing ? { crossing: true } : {}) };
@@ -125,11 +127,11 @@ export function composeTrack(intent, { seed = 1 } = {}) {
   if (!TRACK_FORMS.includes(T.form)) throw new Error(`trackscape: form ${T.form}`);
   // (a duel is two lanes and a crossover: no hills, ramps or crossing of its own)
   const course = T.duel ? { class: T.class, length: T.length, twist: T.twist, seed, duel: true } : { class: T.class, length: T.length, twist: T.twist, seed, ...(T.elevation ? { elevation: T.elevation } : {}), ...(T.ramps ? { ramps: T.ramps } : {}), ...(T.crossing ? { crossing: true } : {}), ...(T.form === 'stage' ? { closed: false } : {}) };
-  return { kind: 'roadway', form: T.form, course, kit: { look: R.look, seed, ...(R.pole === 'voxel' || R.pole === 'shaded' ? { pole: R.pole } : {}) }, scape: { set: R.set, seed, ...(R.landmark ? { landmark: R.landmark } : {}), ...(R.surrounds ? { surrounds: R.surrounds } : {}), ...(R.venue ? { venue: R.venue } : R.pole !== 'voxel' ? { stands: 'bowl' } : {}) }, seed, intent, reads: R.reads, vehicle: R.vehicle };
+  return { kind: 'roadway', form: T.form, course, kit: { look: R.look, seed, ...(R.pole === 'voxel' || R.pole === 'shaded' || R.pole === 'chunky' ? { pole: R.pole } : {}) }, ...(LANGUAGE_OF_CLASS[T.class] ? { language: LANGUAGE_OF_CLASS[T.class] } : {}), scape: { set: R.set, seed, ...(R.landmark ? { landmark: R.landmark } : {}), ...(R.surrounds ? { surrounds: R.surrounds } : {}), ...(R.venue ? { venue: R.venue } : R.pole !== 'voxel' ? { stands: 'bowl' } : {}) }, seed, intent, reads: R.reads, vehicle: R.vehicle };
 }
 
 /** A gameworld from words: its look the words', its one level the track drawn in it (the world and the track together). */
 export function composeTrackWorld(intent, { seed = 1, id = 'trackscape' } = {}) {
   const R = readTrackIntent(intent), M = composeTrack(intent, { seed });
-  return { id, seed, style: { look: R.look }, levels: { track: { name: intent, roadway: { form: M.form, course: M.course, kit: true, scape: M.scape } } } };
+  return { id, seed, style: { look: R.look }, levels: { track: { name: intent, roadway: { form: M.form, course: M.course, kit: M.kit, scape: M.scape, ...(M.language ? { language: M.language } : {}) } } } };
 }
