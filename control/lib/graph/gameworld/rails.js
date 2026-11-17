@@ -20,6 +20,7 @@
  *   sizes    how much of mojulo it can be made with (SIZES), least first: the producer's size call starts at the least
  *            that answers the ask
  *   level1   what its first level is: a level, a match, a race, a shift
+ *   seen     how it is seen, said outright where its tables' cameras are not the game's (seenOf reads it alone)
  *   words    the words people say for it that its pole's and its genres' own word lists lack
  *   lacks    what it does not do yet, beyond its pole's own `needs`
  *
@@ -34,8 +35,8 @@
  *   SIZES, RAILS, RAIL_IDS, NOT_YET, GENERIC_GOALS
  *   railOf(id)                 → the row (with its id), or throws naming the rails
  *   railOfPole(pole) · railOfGenre(genre) · railsOfGoal(goal)
- *   seenOf(rail)               → the ways it is seen (['above', 'free']: side | free | above | first-person | fixed), its
- *                              template's first, then its cubes' in order; more than one is a choice the producer
+ *   seenOf(rail)               → the ways it is seen (['side', 'free']: side | free | above | first-person | fixed): the
+ *                              row's own word where it says one, else its template's first, then its cubes' in order; more than one is a choice the producer
  *                              asks (side-on, or in the round?), [] when no table says
  *   railWords(rail)            → the words a brief uses for it: its own, its pole's, its genres'
  *   railLacks(rail)            → what it does not do yet: its own, then its pole's needs
@@ -138,7 +139,10 @@ export const RAILS = Object.freeze({
   'galaxy-boy': row({ name: 'Galaxy Boy', like: 'a side-on run and gun: the dash, the wall kick, a charged shot, powers that open the map',
     handles: row({ pole: 'galaxy-boy', genres: list(['metroidvania']) }), sizes: list(['designed']), level1: 'a level seen from the side, its first power at the end' }),
   'steel-serpents': row({ name: 'Steel Serpents', like: 'stealth action: guards who see what is in front of them, slipped past or taken down',
-    handles: row({ pole: 'steel-serpents', genres: list(['tactical-espionage', 'stealth']), quick: list(['sneak']) }), sizes: list(['quick', 'designed']), level1: 'a level: a base infiltrated layer by layer, unseen' }),
+    // (seen in the third person, the operator's word: the template's lab view is from overhead and the espionage cube's
+    // from above, neither the game's camera)
+    handles: row({ pole: 'steel-serpents', genres: list(['stealth', 'tactical-espionage']), quick: list(['sneak']) }), sizes: list(['quick', 'designed']), level1: 'a level: a base infiltrated layer by layer, unseen',
+    seen: list(['free']) }),
   'vigilante-justice': row({ name: 'Vigilante Justice', like: 'a hero over a city: rooftops, a glide or a swing, a crowd fought with counters',
     handles: row({ pole: 'vigilante-justice', genres: list(['city-stalker']) }), sizes: list(['designed']), level1: 'a district crossed by its rooftops' }),
   'mech-battle-kai': row({ name: 'Mech Battle Kai', like: 'robot action: a heavy machine that boosts, hovers, shoots and transforms',
@@ -221,6 +225,7 @@ const rowOf = (rail) => (typeof rail === 'string' ? railOf(rail) : rail);
 export { seenSays };
 export function seenOf(rail) {
   const R = rowOf(rail), H = R.handles;
+  if (R.seen) return [...R.seen];
   const cameras = [H.pole ? POLES[H.pole]?.view?.camera : null, ...H.genres.map((g) => genreCube(g)?.space?.camera)];
   return [...new Set(cameras.map((c) => (c ? SEEN[c] : null)).filter(Boolean))];
 }

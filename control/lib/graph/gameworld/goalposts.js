@@ -35,6 +35,8 @@
  *     proved) is the build's own, so there the run leads as before. A world whose creator BROUGHT material (`brought`)
  *     is asked first like a gated one, whatever its mode. A QUICK game is what was asked for, so nothing leads it and
  *     nothing is a draft; once it is built the question rides last (`grow`): how one level becomes their game.
+ *   producerSteps(world, { stored? }) → the producer's steps before the goalposts: intake, rail, lock, brief, each with
+ *     its one question; producerSays(next) → { seat, ask, step, holds }: the one question this turn asks
  *   startReadout(world) → { readout: 'start', … }
  *     a book with no level yet cannot be stored; the door answers this instead of refusing: every goalpost with its
  *     question, the producer's intake step first, nothing built. The designed path's first call, as cheap as a quick one.
@@ -42,7 +44,7 @@
  *
  * Pure.
  */
-import { railMoves, railReport } from './rails.js';
+import { railMoves, railReport, nearestRails, notYetFor } from './rails.js';
 import { resolveGmn, LABOURS, MOTIVATIONS } from './gmn.js';
 
 export const GOALPOSTS = Object.freeze([
@@ -148,7 +150,7 @@ export function goalposts({ world = {}, chapters = [], parts: parts_ = [], mainQ
 }
 
 // the steps that keep their lead over a goalpost: where it is seen, the ledger's open req, the creator's open verdicts
-const LEADS = new Set(['workshop', 'req', 'review', 'ask', 'intake']);
+const LEADS = new Set(['workshop', 'req', 'review', 'ask', 'intake', 'rail', 'lock', 'brief']);
 /** The readout's `next` with the first open goalpost's question placed in it (the doc above). */
 export function leadNext(next = [], posts = null, { mode = 'gated', quick = false, made = false, brought = false } = {}) {
   if (!posts || posts.next?.goalpost === 'first-level' || (quick && !made)) return next;
@@ -168,21 +170,54 @@ export function leadNext(next = [], posts = null, { mode = 'gated', quick = fals
 /** What a draft's share offer says in place of "the game is complete" (share-offer.js `ask`). */
 export const draftAsk = (posts) => `A draft, not the game yet: ${posts.met} of ${posts.of} first-session goalposts met. Show it (the play step), then ask the next goalpost's question (next: goalpost). Share it when the creator asks; never export unasked.`;
 
+// ══════════ the producer's steps: what is asked before the goalposts, one question a turn ══════════
+
+const INTAKE_ASK = 'do you have drawings, plans or documents for this game?';
+const wordsOf = (world) => [typeof world.brief === 'string' ? world.brief : world.brief?.prompt, world.name].filter((w) => typeof w === 'string').join(' ');
+
+/**
+ * The producer's steps for a book as it stands (the client talks to the producer; the producer hands the director the
+ * work): the intake while nobody has asked, then the RAIL placed (the nearest templates its words point at, and any
+ * type not made yet, said before anything is built), the pitch LOCKED once the person has heard it back, and for a
+ * designed game the Game BRIEF. Each carries the one question it asks. `stored`: the book is a row already.
+ */
+export function producerSteps(world = {}, { stored = false } = {}) {
+  const steps = [];
+  const pitch = (() => { try { return railReport(world); } catch { return null; } })();
+  if (!stored && world.intake === undefined) steps.push({ step: 'intake', ask: INTAKE_ASK, card: 'gameworld-producer' });
+  if (!pitch) {
+    if (!stored) {
+      const near = nearestRails(wordsOf(world)), notYet = notYetFor(wordsOf(world));
+      steps.push({ step: 'rail', ask: 'what kind of game is it, and how big: one level, or a game of several with a hero and a world of their own?', ...(near.length ? { nearest: near } : {}), ...(notYet.length ? { notYet } : {}), move: 'place it on a rail and call its size (gameworld-rails), then write rail: { from, size }', card: 'gameworld-rails' });
+    }
+    return steps;
+  }
+  if (!pitch.locked) steps.push({ step: 'lock', ask: `said back: their game, started from ${pitch.name}; what it keeps, where it departs, what the template does not do yet. Is this the game?`, move: stored ? 'with their yes, write /rail/locked: true' : 'with their yes, write rail.locked: true: the rail\'s starter first level is laid and the pitch is stored (nothing is built)', card: pitch.card });
+  if ((pitch.size ?? 'designed') === 'designed' && world.gameBrief === undefined && !world.quick) steps.push({ step: 'brief', ask: 'why does the hero go on, and what does the game ask of the player?', card: 'gameworld-brief' });
+  return steps;
+}
+
+/** The producer's word on a readout: the seat, and the ONE question this turn asks (the rest of `next` waits). */
+export function producerSays(next = []) {
+  const lead = next.find((s) => typeof s.ask === 'string');
+  return lead ? { seat: 'producer', ask: lead.ask, step: lead.step, holds: 'one question a turn: say this, wait for the answer, keep the rest of `next` and the chapters\' detail for the director' } : null;
+}
+
 /** The designed path's first call (the doc above): a book with no level yet, answered with what to ask. Not stored. */
 export function startReadout(world = {}) {
   const posts = goalposts({ world, chapters: [] });
   const n = posts.posts.find((p) => p.id === posts.next.goalpost);
   // (the pitch, when a rail is picked: said back, with the rail's sheet to pull; a malformed one is the door's to refuse)
   const pitch = railReport(world);
+  // (the producer's steps lead, each with its one question: the intake, the rail, the lock, the brief; then the goalpost)
+  const next = [...producerSteps(world), { step: 'goalpost', id: n.id, met: posts.met, of: posts.of, ask: n.ask, chapter: posts.next.chapter, card: 'gameworld-next' }];
   return {
     ok: true, readout: 'start', stored: false,
-    says: 'Nothing is stored or built yet: a book begins with its first level. Ask what the creator brought (intake), then each open goalpost\'s question. When the first level can be named, write the world with its `levels` (gameworld-guide), or lay a first reading from a sentence (`compose: { prompt }`) and edit it. A build is fast: build to show a draft, then go on asking.',
+    says: 'Nothing is stored or built yet: a book begins with its first level. You are the PRODUCER here: ask one question a turn (`producer.ask`), what the creator brought first (intake), then place the game on a rail and call its size (gameworld-rails), say the pitch back and lock it, then each open goalpost\'s question. When the first level can be named, write the world with its `levels` (gameworld-guide), or lay a first reading from a sentence (`compose: { prompt }`) and edit it. A build is fast: build to show a draft, then go on asking.',
     ...(pitch ? { rail: pitch } : {}),
     goalposts: posts,
-    next: [
-      { step: 'intake', card: 'gameworld-producer' },
-      { step: 'goalpost', id: n.id, met: posts.met, of: posts.of, ask: n.ask, chapter: posts.next.chapter, card: 'gameworld-next' },
-    ],
-    cards: ['gameworld-guide', 'gameworld-studio', 'gameworld-producer', ...(pitch ? [pitch.card] : [])],
+    producer: producerSays(next),
+    next,
+    cards: ['gameworld-guide', 'gameworld-studio', 'gameworld-producer', ...(pitch ? [pitch.card] : ['gameworld-rails'])],
   };
 }

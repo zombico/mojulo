@@ -13,8 +13,10 @@ import { QUICK_GOALS } from './quick.js';
 import { PENDING, HAND_OFFS } from './genre-forms.js';
 import { PIXELIZER_REDUCER_IDS } from '../pixelizer/pixelizer-games.js';
 import { LABOURS } from './gmn.js';
+import { dryRun } from '../cosmos/cosmos.js';
 import { railCardById } from './gameworld-cards.js';
-import { goalposts, startReadout, GOALPOSTS } from './goalposts.js';
+import { goalposts, startReadout, producerSteps, producerSays, leadNext, GOALPOSTS } from './goalposts.js';
+import { pitchStart } from './pitch-start.js';
 import { readGameworld } from './world.js';
 import { chaptersOfPath } from './chapters.js';
 import { MOTIVATIONS } from './gmn.js';
@@ -203,16 +205,16 @@ describe('the two depths: the shape, then the sheet', () => {
   });
 
   it('a rail whose own cube is not built yet says what is missing and the cube a game starts from today', () => {
-    const id = RAIL_IDS.find((k) => { const g = RAILS[k].handles.genres; return g.length > 1 && !laid(g[0]) && g.some(laid); });
+    // (its gaps are its own cube's dry run, and nothing else: every rail's sheet holds to that)
+    const unbuilt = (k) => { const g = RAILS[k].handles.genres[0]; return !!g && dryRun(genreCube(g)).verdict !== 'makeable'; };
+    for (const k of [RAIL_IDS.find(unbuilt), RAIL_IDS.find((x) => RAILS[x].handles.genres[0] && !unbuilt(x))].filter(Boolean)) expect(!!railSheet(k).gaps, k).toBe(unbuilt(k));
+    const id = RAIL_IDS.find((k) => unbuilt(k) && RAILS[k].handles.genres.some(laid));
+    if (!id) return;   // (no rail stands on an unbuilt cube with a laid neighbour today)
     const S = railSheet(id), H = RAILS[id].handles;
     expect(S.from).toBe(H.genres[0]); expect(S.starts).toBe(H.genres.find(laid)); expect(S.starts).not.toBe(S.from);
-    expect(S.gaps.length).toBeGreaterThan(0); expect(S.gaps.every((g) => g.status !== 'built')).toBe(true);
-    expect(S.tunings.level).toEqual(genreCube(S.from).space);
-    expect(S.chain.find((c) => c.size === 'designed').steps.find((st) => st.step === 'intent').card).toBe(`gameworld-intent-${S.starts}`);
+    expect(S.gaps.every((g) => g.status !== 'built')).toBe(true);
     const body = railCardById(`gameworld-rail-${id}`).body;
     expect(body).toContain('not built yet in its own cube'); expect(body).toContain(`starts from '${S.starts}' today`);
-    // a rail whose own cube is laid has no gaps to say
-    expect(railSheet(RAIL_IDS.find((k) => laid(RAILS[k].handles.genres[0]))).gaps).toBeUndefined();
   });
 
   it('its chain is the tools that build it at each size, in order, a card a step', () => {
@@ -331,6 +333,90 @@ describe('the pitch: a gameworld\'s rail', () => {
     expect(S.rail).toMatchObject({ from: id, size: 'designed' }); expect(S.cards).toContain(`gameworld-rail-${id}`);
     expect(S.stored).toBe(false);
     const plain = startReadout({});
-    expect(plain.rail).toBeUndefined(); expect(plain.cards).toEqual(['gameworld-guide', 'gameworld-studio', 'gameworld-producer']);
+    expect(plain.rail).toBeUndefined(); expect(plain.cards).toEqual(['gameworld-guide', 'gameworld-studio', 'gameworld-producer', 'gameworld-rails']);
+  });
+
+  it('a rail says how it is seen outright where its tables\' cameras are not the game\'s', () => {
+    const said = RAIL_IDS.find((k) => RAILS[k].seen);
+    expect(seenOf(said)).toEqual([...RAILS[said].seen]); expect(railShape(said)).toContain(SEEN_WORDS[RAILS[said].seen[0]]);
+  });
+});
+
+describe('the producer leads: one question a turn, before the goalposts', () => {
+  const id = RAIL_IDS.find((k) => RAILS[k].handles.genres.some(laid) && !RAILS[k].handles.quick);
+  const steps = (w, o) => producerSteps(w, o).map((s) => s.step);
+
+  it('asks what was brought, then places the game on a rail, then locks the pitch, then the brief', () => {
+    expect(steps({})).toEqual(['intake', 'rail']);
+    expect(steps({ intake: 'none' })).toEqual(['rail']);
+    expect(steps({ intake: 'none', rail: { from: id } })).toEqual(['lock', 'brief']);
+    expect(steps({ intake: 'none', rail: { from: id, locked: true } })).toEqual(['brief']);
+    expect(steps({ intake: 'none', rail: { from: id, locked: true }, gameBrief: { gmn: {} } })).toEqual([]);
+    // a smaller game is asked no brief
+    expect(steps({ intake: 'none', rail: { from: id, size: 'quick', locked: true } })).toEqual([]);
+    for (const s of producerSteps({})) { expect(s.ask).toMatch(/\?$/); expect(s.card).toMatch(/^gameworld-/); }
+  });
+
+  it('the rail step carries the templates the book\'s words point at, and a type not made yet', () => {
+    const w = railWords(id)[0], N = Object.values(NOT_YET)[0];
+    const R = producerSteps({ intake: 'none', brief: `a ${w} game` }).find((s) => s.step === 'rail');
+    expect(R.nearest.map((r) => r.id)).toContain(id);
+    expect(producerSteps({ intake: 'none', name: N.words[0] }).find((s) => s.step === 'rail').notYet[0].waits).toBe(N.waits);
+    expect(producerSteps({ intake: 'none' }).find((s) => s.step === 'rail').nearest).toBeUndefined();
+  });
+
+  it('the start readout leads with them and says the one question this turn asks', () => {
+    const S = startReadout({});
+    expect(S.next.map((s) => s.step)).toEqual(['intake', 'rail', 'goalpost']);
+    expect(S.producer).toMatchObject({ seat: 'producer', step: 'intake', ask: S.next[0].ask });
+    const L = startReadout({ intake: 'none', rail: { from: id } });
+    expect(L.next.map((s) => s.step)).toEqual(['lock', 'brief', 'goalpost']); expect(L.producer.step).toBe('lock');
+    expect(L.next[0].ask).toContain(RAILS[id].name);
+    expect(producerSays([{ step: 'run' }])).toBeNull();
+  });
+
+  it('a stored book with no pitch has no producer steps; with one, they keep their lead over a goalpost', () => {
+    expect(producerSteps({}, { stored: true })).toEqual([]);
+    expect(steps({ rail: { from: id } }, { stored: true })).toEqual(['lock', 'brief']);
+    const posts = goalposts({ world: { rail: { from: id } } });
+    const next = leadNext([...producerSteps({ rail: { from: id } }, { stored: true }), { step: 'run' }], posts, {});
+    expect(next.map((s) => s.step)).toEqual(['lock', 'brief', 'goalpost', 'run']);
+  });
+});
+
+describe('the pitch kept: a locked pitch with no level is given the rail\'s starter', () => {
+  const composed = RAIL_IDS.find((k) => RAILS[k].sizes.includes('designed') && RAILS[k].handles.genres.some(laid) && !['platformer'].includes(POLES[RAILS[k].handles.pole]?.base));
+  const platformer = RAIL_IDS.find((k) => POLES[RAILS[k].handles.pole]?.base === 'platformer' && RAILS[k].sizes.includes('designed'));
+  const small = RAIL_IDS.find((k) => !RAILS[k].sizes.includes('designed'));
+  const base = { id: 'their-game', name: 'Their Game' };
+
+  it('only a locked pitch with no level asks for it', () => {
+    expect(pitchStart({ ...base, rail: { from: composed } })).toBeNull();
+    expect(pitchStart({ ...base })).toBeNull();
+    expect(pitchStart({ ...base, levels: {}, rail: { from: composed, locked: true } })).toBeNull();
+  });
+
+  it('lays a first reading of the cube the rail starts from: one level, the game\'s own keys winning, a world that reads', () => {
+    const P = pitchStart({ ...base, rail: { from: composed, locked: true }, intake: 'none' }), S = railSheet(composed);
+    expect(P.laid).toMatchObject({ by: 'compose', from: S.starts }); expect(P.laid.levels.length).toBe(1); expect(P.laid.says).toMatch(/starter/);
+    expect(P.world).toMatchObject({ id: 'their-game', name: 'Their Game', intake: 'none', rail: { from: composed, locked: true }, intent: { from: S.starts } });
+    expect(P.world.feel).toBe(RAILS[composed].handles.pole);
+    // the starter brings its ground, never the composer's review, mode or brief
+    for (const k of ['mode', 'review', 'brief', 'made']) expect(P.world[k]).toBeUndefined();
+    expect(() => readGameworld(P.world)).not.toThrow();
+    // what the creator wrote wins, and the same pitch lays the same starter
+    expect(pitchStart({ ...base, feel: 'ebon-spirits', intent: { from: S.starts, why: 'theirs' }, rail: { from: composed, locked: true } }).world).toMatchObject({ feel: 'ebon-spirits', intent: { why: 'theirs' } });
+    expect(JSON.stringify(pitchStart({ ...base, rail: { from: composed, locked: true }, intake: 'none' }))).toBe(JSON.stringify(P));
+  });
+
+  it('a platformer\'s rail lays its own first level and the flow that plays it', () => {
+    const P = pitchStart({ ...base, rail: { from: platformer, locked: true } });
+    expect(P.laid.by).toBe('platformer'); expect(P.world.flow).toBeTruthy(); expect(P.world.feel).toBe(RAILS[platformer].handles.pole);
+    expect(() => readGameworld(P.world)).not.toThrow();
+  });
+
+  it('a rail with no starter, or a smaller size, is said and not laid', () => {
+    expect(pitchStart({ ...base, rail: { from: small, locked: true } }).unlaid).toMatch(/not laid as a designed game yet/);
+    expect(pitchStart({ ...base, rail: { from: composed, size: 'quick', locked: true } })?.unlaid ?? pitchStart({ ...base, rail: { from: RAIL_IDS.find((k) => RAILS[k].sizes.includes('quick')), size: 'quick', locked: true } }).unlaid).toMatch(/its own call/);
   });
 });

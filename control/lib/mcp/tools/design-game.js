@@ -44,7 +44,7 @@ import { applyManifestPatch } from './manifest-patch.js';
 import { chapterView } from '@/lib/graph/gameworld/chapter-view.js';
 import { readMainQuest, mainQuestContext, mainQuestReport } from '@/lib/graph/gameworld/main-quest.js';
 import { questPlays, withQuestLevels } from '@/lib/graph/gameworld/main-quest-lay.js';
-import { goalposts, leadNext, draftAsk, startReadout } from '@/lib/graph/gameworld/goalposts.js';
+import { goalposts, leadNext, draftAsk, startReadout, producerSteps, producerSays } from '@/lib/graph/gameworld/goalposts.js';
 import { loopOf, loopLaws } from '@/lib/graph/gameworld/core-loop.js';
 import { compileCheck, planError } from './design-game-check.js';
 import { combatGame } from '@/lib/graph/gameworld/combat/game.js';
@@ -70,6 +70,7 @@ import { checkAsk, traceStart, traceOf } from '@/lib/graph/gameworld/asks.js';
 import { askAdvice, needsAsk, unaskedStamp, runAdvice, ASK_SAYS } from '@/lib/graph/gameworld/routing.js';
 import { intakeAdvice, intakeReport } from '@/lib/graph/gameworld/intake.js';
 import { railReport } from '@/lib/graph/gameworld/rails.js';
+import { pitchStart } from '@/lib/graph/gameworld/pitch-start.js';
 import { manualOrder } from '@/lib/graph/gameworld/battles-manual.js';
 import { treeOrder, treesOf } from '@/lib/graph/gameworld/battles-tree.js';
 import { beatPlan, stagePlan, walkReport } from '@/lib/graph/gameworld/level-plan.js';
@@ -632,6 +633,9 @@ function readout(ref, world, context = {}) {
   // intake; a locked pitch moved to another rail is a re-plan, said
   const pitch = (() => { try { return railReport(world, context?.priorWorld ?? null); } catch { return null; } })();
   if (pitch?.replanned) advice.rail = [`the pitch was locked on '${pitch.replanned.was}' and now starts from '${pitch.from}': a re-plan. Say so to the creator, and read again what the chapters already settled`];
+  // (a pitch not yet locked, and a designed game's brief not yet asked, are the producer's steps: they lead, after the
+  // ask and the intake; a book with no pitch is read as it always was)
+  if (pitch) { const at = next.findIndex((s) => s.step !== 'ask' && s.step !== 'intake'); next.splice(at < 0 ? next.length : at, 0, ...producerSteps(world, { stored: true })); }
   if (pitch?.short) (advice.rail ||= []).push(`${pitch.name} is not made as ${pitch.short.wanted} yet (${pitch.short.waits}); it reaches ${pitch.short.reaches.join(', ')}`);
   // a lore part on a page is an order its chapter runs (gameworld/battles-manual.js): a manual on the battles, said with
   // how deep it has been taken; the rungs still derived are the battles chapter's next pass
@@ -773,7 +777,12 @@ export async function designGameHandler(input, context = {}) {
   // (a book that points at a platformer, by its feel, its brief or its genre, is offered the platformer's rail beside
   // the questions: its first level and the flow that plays it as words to write, platformer-game.js platformerStart)
   if (written !== undefined && given === undefined && isObj(written) && written.levels === undefined && patch === undefined) {
-    const S = startReadout({ ...written, ...(title && written.name === undefined ? { name: title } : {}) });
+    // THE PITCH KEPT (gameworld/pitch-start.js): a LOCKED pitch is given the rail's starter first level and stored, so
+    // what the person agreed to outlives the session; said as a starter, nothing built. A rail with none is said
+    const kept = pitchStart(written, { title });
+    if (kept?.world) return { ...(await designGameHandler({ ...input, world: kept.world }, context)), pitch: { stored: true, ...kept.laid } };
+    const S0 = startReadout({ ...written, ...(title && written.name === undefined ? { name: title } : {}) });
+    const S = kept?.unlaid ? { ...S0, pitch: { stored: false, why: kept.unlaid } } : S0;
     const rail = (() => { try { return platformerStart(written); } catch { return null; } })();
     return rail ? { ...S, next: [...S.next, { step: 'first-level', rail: 'platformer', ...rail, card: 'gameworld-course' }], cards: [...S.cards, 'gameworld-course'] } : S;
   }
@@ -1440,6 +1449,8 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   // built with design goalposts open is said to be a draft
   const drafted = !!posts && !W.quick && posts.next?.goalpost !== 'first-level';
   full.next = leadNext(full.next, posts, { mode: W.mode ?? 'gated', quick: !!W.quick, made: !!W.made?.game, brought: isObj(W.intake) && Array.isArray(W.intake.items) && W.intake.items.length > 0 });
+  // (a game with a pitch is the producer's to lead: the one question this turn asks, goalposts.js producerSays)
+  if (isObj(W.rail)) { const P = producerSays(full.next); if (P) full.producer = P; }
   // the ticket: what this call did, linked to the intent it acted on (gameworld/asks.js)
   const ticket = ask !== undefined ? linkAsk(ref, ask, { raised: ledger.summary?.raised ?? [], approve, revise, patched, ran }) : null;
   if (ticket) full.ask = ticket;

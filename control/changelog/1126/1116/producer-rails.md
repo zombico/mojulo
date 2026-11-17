@@ -51,7 +51,22 @@ In progress. Each line is added as its phase lands.
   rail's feel. A written Game Brief has decided the stakes and the structure, so the shape goalpost says what it
   decided and asks only its length and whether its spine reads right. The start readout (a book with no level yet)
   says the pitch back with its rail's sheet to pull.
+- **Steel Serpents is seen in the third person.** A rail row may say how it is seen outright (`seen`) where its
+  tables' cameras are not the game's (its template's lab view is from overhead); its own cube is `stealth`, which the
+  book lays today, with `tactical-espionage` beside it.
+- **A locked pitch is kept** (`gameworld/pitch-start.js`). A gameworld begins with its first level, so a pitch the
+  person agreed to used to live only in the session that made it. `design_game({ world: { rail: { from, locked: true },
+  … } })` on a book with no level now lays the rail's STARTER first level under what the creator wrote (every key of
+  theirs wins) and stores it, saying so (`pitch: { stored, by, levels, says }`): the platformer's own first level and
+  the flow that plays it for a platformer's rail, else one level of the genre the rail starts from, read by the
+  sentence door's composer without its review, mode or brief. Nothing is built. Only the lock asks for it; a rail
+  with no starter yet, or a pitch of a smaller size, is answered and said (`pitch: { stored: false, why }`).
+- **The producer leads the readout** (`goalposts.js` `producerSteps`, `producerSays`). The client talks to the
+  producer: a book with no level is answered with the producer's steps before the goalposts, each with the ONE
+  question it asks: `intake` (what was brought), `rail` (what kind of game and how big, with the templates the book's
+  own words point at and any type not made yet), `lock` (the pitch said back: is this the game?), and for a designed
+  game `brief`. The readout's `producer` says the seat and the one question this turn asks; the rest of `next` waits.
+  A stored game with a pitch carries its `lock` and `brief` steps ahead of its goalpost and the same `producer` word.
+  A stored game with no pitch reads as it always did.
 
-A pitch is stored with the game's first reading (its first level written, or laid from a sentence): a book with no
-level is still answered, not stored. No routing card or listed card changes yet: the producer's own card and the
-order of the readout's steps take these next.
+No routing card or listed card changes yet: the producer's own card, the preamble and the docs take these next.
