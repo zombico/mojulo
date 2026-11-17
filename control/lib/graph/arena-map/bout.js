@@ -88,7 +88,9 @@ export function boutMap({ n, topology = 'lanes', lanes = 3, court = 0.33, stagge
 
 /** A bout's map as the arena's pieces (see the header). */
 export function boutPieces(M, half) {
-  const n = M.nx, s = (2 * half) / n, r2 = (v) => Math.round(v * 100) / 100, out = [];
+  // (snapped to 5 cm by its size, its sign kept: a piece and its turned partner land on exactly opposite places, so laid
+  // on the land at any centre they stay each other's turn to the millimetre)
+  const n = M.nx, s = (2 * half) / n, r2 = (v) => (Math.sign(v) * Math.round(Math.abs(v) * 20)) / 20 + 0, out = [];
   const inner = (M.walls ?? []).filter((w) => (w.side === 'e' ? w.at[0] >= 0 && w.at[0] < n - 1 : w.at[1] >= 0 && w.at[1] < n - 1));
   // runs of panels of one kind along one line, joined
   for (const side of ['e', 'n']) for (const kind of ['full', 'low']) {

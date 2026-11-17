@@ -312,3 +312,6 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
 - **The radar is a minimap.** The shooter HUD's scope is a third larger, reaches 40 m (from 30), and carries the level's
   plan under its marks (the same plan the map screen draws, from the scene's own colliders), at the scope's scale and
   turned so ahead is up, the pilot at its middle; it fades out before the bezel.
+  A grown floor's panels are snapped to 5 cm with their sign kept, so a panel and its turned partner stand on exactly
+  opposite places wherever the arena is laid; and the peek law reads a square block (a grown mass) the same way on
+  both sides of the middle, where float noise had it lie one way on one side and the other way on the other.

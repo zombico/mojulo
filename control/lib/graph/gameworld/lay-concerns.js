@@ -502,22 +502,25 @@ export function concernLaws(ids, { ends, blocks = [], posts = [], watchers = [],
  * whether it peeks into the other half (`toward`). Turned half round its centre, an arena gives each half as many right-
  * hand peeks into the other; mirrored across its middle (a team map), one half's become the other's left-hand peeks. */
 export function arenaPeeks(arena, blocks) {
-  const [cx, cy] = arena.centre, H = arena.half, boxes = askBoxes(blocks), out = [];
-  const touches = (p, own) => boxes.some((B) => B !== own && p[0] > B.min[0] - 0.3 && p[0] < B.max[0] + 0.3 && p[1] > B.min[1] - 0.3 && p[1] < B.max[1] + 0.3);
+  // (a tie reads the same from either side: a margin met exactly is not touched, a micron either way, so a piece and its
+  // turned partner, laid at a centre the floats cannot hold exactly, are judged alike)
+  const [cx, cy] = arena.centre, H = arena.half, boxes = askBoxes(blocks), out = [], E = 1e-6;
+  const touches = (p, own) => boxes.some((B) => B !== own && p[0] > B.min[0] - 0.3 + E && p[0] < B.max[0] + 0.3 - E && p[1] > B.min[1] - 0.3 + E && p[1] < B.max[1] + 0.3 - E);
   for (const B of boxes) {
     const sx = B.max[0] - B.min[0], sy = B.max[1] - B.min[1];
     if (Math.max(sx, sy) < 1.5 || B.max[2] - B.min[2] < 1.7) continue;   // a wall a body hides behind, not a crate
-    const ax = sx >= sy ? 0 : 1, c = [(B.min[0] + B.max[0]) / 2, (B.min[1] + B.max[1]) / 2], half = (ax ? sy : sx) / 2;
+    // (a square block, a mass, lies along x on both sides of the middle: its sides compared a micron loose)
+    const ax = sx >= sy - E ? 0 : 1, c = [(B.min[0] + B.max[0]) / 2, (B.min[1] + B.max[1]) / 2], half = (ax ? sy : sx) / 2;
     for (const sgn of [1, -1]) {
       const d = ax ? [0, sgn] : [sgn, 0], end = [c[0] + d[0] * half, c[1] + d[1] * half];
-      if (Math.abs(end[0] - cx) > H - 1 || Math.abs(end[1] - cy) > H - 1 || touches([end[0] + d[0] * 0.4, end[1] + d[1] * 0.4], B)) continue;
+      if (Math.abs(end[0] - cx) > H - 1 - E || Math.abs(end[1] - cy) > H - 1 - E || touches([end[0] + d[0] * 0.4, end[1] + d[1] * 0.4], B)) continue;
       for (const nsg of [1, -1]) {
         const n = ax ? [nsg, 0] : [0, nsg];
         // facing across the wall (-n), its right is [-(-n)y, (-n)x] … the edge is on the right when d · right > 0
         const f = [-n[0], -n[1]], right = [f[1], -f[0]];
         if (d[0] * right[0] + d[1] * right[1] <= 0) continue;
         const at = [end[0] + n[0] * 0.8 - d[0] * 0.5, end[1] + n[1] * 0.8 - d[1] * 0.5], v = at[1] - cy, u = at[0] - cx;
-        const hf = Math.abs(v) > 0.25 ? (v > 0 ? 0 : 1) : (u > 0 ? 0 : 1);
+        const hf = Math.abs(v) > 0.25 + E ? (v > 0 ? 0 : 1) : (u > 0 ? 0 : 1);
         // toward: it peeks into the other half (its facing crosses the middle line), the peek a side attacks with
         out.push({ at: at.map(r3), half: hf, toward: hf === 0 ? f[1] < -0.5 : f[1] > 0.5 });
       }
