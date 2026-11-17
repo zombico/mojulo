@@ -27,7 +27,7 @@
  *                                     body is carried, a first person's eye: where a sealed way puts it back)
  *   missionMechanics(M, { lift? })  → the level's mechanics: objectives, fail-on-death, supplies
  *   missionGround(M)         → { faces, colliders } the greybox (a mission on a map: arena-map/ground.js mapGround)
- *   missionCast(G, M, { refs?, hero?, camera? }) → { figures, entities, pilot, camera?, legend, audio? } the foes on their
+ *   missionCast(G, M, { refs?, hero?, camera?, crew? }) → { figures, entities, pilot, camera?, legend, audio? } the foes on their
  *                              spots and what the pilot carries (levels.js lays it over its own pilot; the practice room
  *                              over the range's person)
  *   missionStage(G, P)       → a mission level's stage manifest: its ground, its sky and its page's `mission`
@@ -47,6 +47,8 @@ import { SHOOT, SHOOT_FOE, SHOOT_TUNE, PERSON, shoulderOf } from './quick.js';
 import { ARMS_LEGEND, armDetailed } from './arms-kit.js';
 import { standFoe } from './foes.js';
 import { libraryFigure, FIGURE_LIBRARY } from './stage-figures.js';
+import { dressOrders } from '../foes/dress.js';
+import { GRUNT_STYLES, GRUNT_STYLE_IDS } from '../cosmos/packs/comic-hero/grunts.js';
 import { playerStates } from '../playscape/player.js';
 import { feelRule } from './feel/lower.js';
 import { blocksOf, PRIMITIVES } from '../gameroom/primitives.js';
@@ -83,6 +85,18 @@ function box(x0, y0, x1, y1, h, fill, group) {
   };
 }
 // the stand-in foe: a person of the figure library, as the practice rooms stand one (practice-room.js dummyFigure)
+/** A crew's bodies: `bodies` people of a faction's kind (its first, the rank and file: the rifleman, the soldier, the
+ *  tough; or the `kind` named), each rolled on its own seed so no two are one face, dressed by the hero door's own words
+ *  (foes/dress.js), standing and walking on the figure library's clips as the stand-in does. A crew is
+ *  '<faction>' | { faction, kind?, colourway?, bodies? }. */
+export function crewFigures(crew, seed = 1) {
+  const { bodies = 3, ...C } = typeof crew === 'string' ? { faction: crew } : crew, kinds = Object.keys(GRUNT_STYLES[C.faction]?.kinds ?? {});
+  if (!kinds.length) throw new Error(`mission: no crew '${C.faction}' (${GRUNT_STYLE_IDS.join(', ')})`);
+  return Array.from({ length: bodies }, (_, k) => {
+    const { gesture: _g, statue: _s, vibe: _v, ...spec } = dressOrders({ people: 'human', dress: { kind: kinds[0], ...C } }, { seed: (seed | 0) + 7 * k }).mint.spec;
+    return { hero: spec, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop' } };
+  });
+}
 const standIn = () => ({ hero: { cast: 'female' }, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop' } });
 const SKY = Object.freeze({ zenith: [120, 140, 170], horizon: [200, 205, 210], day: 1, stars: 0, seed: 1 });
 const BG = '#9aa0a8';
@@ -174,7 +188,7 @@ export function missionGround(M) {
 /** The foes on their spots (dormant, woken by their section's task) and what the pilot carries. `hero`: the pilot has a
  * body (its eye over its feet); `camera`: the world's, so a hero seen from behind aims over its shoulder (quick.js
  * SHOULDER: its rounds converge on the crosshair). `refs.foe`: the foes' made figure, or a pool of them cycled. */
-export function missionCast(G, M, { refs = {}, hero = false, camera = null, quiet = false } = {}) {
+export function missionCast(G, M, { refs = {}, hero = false, camera = null, quiet = false, crew = null } = {}) {
   const L = loadoutOf(G);
   if (!L) throw new Error('mission: this world carries no gun (a quick shooter\'s arms, a hero\'s carried gun, or a feel template that shoots)');
   // the range's own body: its slots, its sights and its knife, its rounds counted against a body of the range's health
@@ -182,8 +196,11 @@ export function missionCast(G, M, { refs = {}, hero = false, camera = null, quie
   const figures = {}, entities = [], part = { figures, entities };
   const pool = Array.isArray(refs.foe) ? refs.foe : typeof refs.foe === 'string' ? [refs.foe] : null;
   const tune = { ...SHOOT_TUNE, body: { ...SHOOT_TUNE.body, hp: MISSION_HP.foe } };
+  // (`crew`: the foes dressed as one crew, each of its kinds in turn: foes/dress.js, a faction of the grunts; a made
+  // figure given wins; none of either, the stand-in)
+  const dressed = !pool && crew ? crewFigures(crew, M.seed) : null;
   let n = 0;
-  for (const S of M.sections) for (const f of S.foes) standFoe(null, part, { id: f.id, entry: SHOOT_FOE, at: f.at.slice(), heading: f.heading }, { figure: pool ? libraryFigure(pool[n++ % pool.length]) : standIn(), tune, more: { dormant: true } });
+  for (const S of M.sections) for (const f of S.foes) standFoe(null, part, { id: f.id, entry: SHOOT_FOE, at: f.at.slice(), heading: f.heading }, { figure: pool ? libraryFigure(pool[n++ % pool.length]) : dressed ? dressed[n++ % dressed.length] : standIn(), tune, more: { dormant: true } });
   // A WAVE IS SENT TO THE FIGHT: the foes a hold wakes know where the body is (the mind with no `perception`: the arena's
   // brain, worlds/controllable/mind.js) and path to it, where a hunter by sight and memory woken out of sight has seen
   // no one and stands where it was put. The foes of a clear keep their class's sight and memory: they are found

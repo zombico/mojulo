@@ -892,7 +892,7 @@ function missionCard() {
     '  sections): fought in its rooms, its fight true unless false, read in the seventh generation (the form render draws',
     '  it); its plan read as a fighting map, the phases placed in real rooms, from its door to a way out. design_game',
     `  proposes one by the kit's band (${Object.entries(MISSION_BUILDINGS).map(([b, r]) => `${b} ${r.use}`).join(', ')}): the step's \`building\`.`,
-    'INDUSTRIAL   levels.<id>: { industrial: true | { use?, depth?, hour?, weather?, wet?, tower?, walker? }, mission?: { seed?, foes?, hold?, waves? } }: out',
+    'INDUSTRIAL   levels.<id>: { industrial: true | { use?, depth?, hour?, weather?, wet?, tower?, walker?, crew? }, mission?: { seed?, foes?, hold?, waves? } }: out',
     '  of doors, a fenced yard before a base building, its containers, barriers and floodlights stood by the arena laws, a',
     '  tower to climb (or a walker parked), built by the geocube (sunset on wet ground where it names none); out by its door.',
     'SECTIONS (each a room across the mission, a doorway to the next, sealed until its task is met)',

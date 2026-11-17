@@ -235,3 +235,7 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   run of curls from open to a fist by the hand's own rule (`equipment/arms/view-hand.js`; `heroHand` takes a `curl`),
   which the page blends between as the hand closes on a grip, a magazine or a knife. A little over life, the cuff no
   wider than the wrist, so the hand reads past its sleeve and the gun.
+- **The yard is held by a crew.** An industrial level's foes are dressed as one (`crew`, a faction of the grunts:
+  private military where it names none; `false` for the plain stand-in): three of its rank and file, each rolled on its
+  own seed, in the hero door's own words (`foes/dress.js`), so a contractor stands in a tactical rig with a carbine in
+  hand where a bare figure stood. `missionCast` takes a `crew`; a made figure given still wins.

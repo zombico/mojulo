@@ -97,13 +97,13 @@ export function industrialPlan(G, I, { spec = {}, seed = null } = {}) {
     mission.floors = [{ area: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])], z: up, flights: ways.map((way) => ({ bottom: way[0].slice(), top: way.at(-1).slice(), way: way.map((q) => q.slice()) })) }];
   }
   const laws = [...phaseLaws(M0, design.map), ...design.laws.map((l) => ({ law: `map:${l.law}`, holds: l.holds, says: l.says }))];
-  return { brief, recipe, design, map: design.map, mission, laws, seat, grid: { nx, ny, xa: r2(xa), ya: r2(ya), door } };
+  return { brief, recipe, design, map: design.map, mission, laws, seat, ...(I.crew ? { crew: I.crew } : {}), grid: { nx, ny, xa: r2(xa), ya: r2(ya), door } };
 }
 
 /** The level's manifest: the place's recipe with the mission's cast on it, the pilot at the eye on the platform rule. */
 export function industrialManifest(G, P, { refs = {}, title = null, quiet = false } = {}) {
   // (heard: its guns' shots, reloads, draws and hits, the range's own sound, combat/range-sound.js; `quiet` for none)
-  const M = P.mission, C = missionCast(G, M, { refs, quiet }), felt = G?.feel != null ? feelRule(G.feel) : null;
+  const M = P.mission, C = missionCast(G, M, { refs, quiet, crew: P.crew ?? null }), felt = G?.feel != null ? feelRule(G.feel) : null;
   const rule = { type: 'platform', speed: 4.5, walkSpeed: 1.6, turn: 2.4, eye: EYE, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(felt ?? {}), turnMode: 'look', lookPitch: true, strafe: 1, ...C.pilot.rule };
   const sp = M.anchors.spawn, player = { id: 'player', pilotable: true, rule, ...(C.pilot.weapon ? { weapon: C.pilot.weapon } : {}), body: { type: 'none', ...C.pilot.body }, transform: { pos: [sp[0], sp[1], r3(sp[2] + EYE)], heading: M.heading } };
   return {

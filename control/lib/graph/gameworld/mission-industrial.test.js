@@ -61,6 +61,15 @@ describe('an industrial level, planned', () => {
     expect(P.mission.frame.stairs).toHaveLength(2);
     expect(P.mission.floors[0].flights).toHaveLength(2);
     // (its deck railed and its yard fenced, its minds cross the floors and ask the ground nothing: no ledge probes)
+    // (who holds it: a crew, its foes dressed as its rank and file, more than one face among them; `crew: false` the
+    // plain stand-in; a crew that is none is refused)
+    const figs = Object.values(industrialManifest(G, P).figures).filter((f) => f.hero?.outfit);
+    expect(figs.length).toBeGreaterThan(0);
+    expect(figs.every((f) => f.hero.outfit.style === 'tactical')).toBe(true);
+    expect(new Set(figs.map((f) => JSON.stringify(f.hero))).size).toBeGreaterThan(1);
+    const plain = industrialPlan(G, readIndustrial({ crew: false }), { seed: 1 });
+    expect(Object.values(industrialManifest(G, plain).figures).some((f) => f.hero?.outfit)).toBe(false);
+    expect(() => readIndustrial({ crew: 'pirates' })).toThrow(/a crew its foes are dressed as/);
     // (heard: the range's own sound for its guns, unless it is asked quiet)
     expect(industrialManifest(G, P).audio).toBeTruthy();
     expect(industrialManifest(G, P, { quiet: true }).audio).toBeUndefined();

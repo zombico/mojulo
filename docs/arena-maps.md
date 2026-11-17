@@ -289,6 +289,10 @@ weather named wets the ground itself.
   and is a pure stage, as any level is. The deck and its stairs are told to the mission's minds (`mission.floors`) and
   to its proof's walker (`frame.stairs`).
 
+Who holds it is a crew (`crew`, a faction of the grunts: private military where it names none): its foes are three of
+the crew's rank and file, dressed by the hero door's own words. Said: the crew's other kinds are not stood (one does
+not build alone, one is several times the weight on the page).
+
 `bounded` now asks for what stops a body, a wall or a rail, on every floor: a fenced yard is bounded as a walled one is.
 
 What the first run found (machine gate; the shooter feel, seed 1): the default yard, nineteen cells by ten with its
