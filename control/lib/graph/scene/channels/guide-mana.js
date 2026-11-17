@@ -74,7 +74,7 @@ export function guideManaPage(ui, spec, css, rowsOf) {
     // the keys that work now: on foot or at the wheel, and the screens this page has
     const cab = !!(me.mount && me.mount.cab), near = !cab && (W.trafficOffer || W.entities.some((e) => e.mount && e.mount.cab && !e.gone && !e.riderId && Math.hypot(e.transform.pos[0] - me.transform.pos[0], e.transform.pos[1] - me.transform.pos[1]) < (e.mount.reach || 2.6)));
     const keys = (cab ? [{ action: 'W', label: 'Drive' }, { action: 'S', label: 'Brake' }, { actions: ['A', 'D'], label: 'Steer' }, { action: 'E', label: 'Get out' }] : [{ actions: ['W', 'A', 'S', 'D'], label: 'Move' }, { action: 'Space', label: 'Jump' }].concat(near ? [{ action: 'E', label: 'Get in' }] : []))
-      .concat(window.__mojMap ? [{ action: 'M', label: 'Map' }] : [], window.__mojBag ? [{ action: 'I', label: 'Bag' }] : [], window.__mojQuests ? [{ action: 'J', label: 'Journal' }] : []);
+      .concat(window.__mojMap ? [{ action: 'M', label: 'Map' }] : [], window.__mojBag ? [{ action: 'I', label: 'Bag' }] : [], window.__mojPhone ? [{ action: 'P', label: window.__mojPhone.unread() ? 'Phone (' + window.__mojPhone.unread() + ')' : 'Phone' }] : [], window.__mojQuests ? [{ action: 'J', label: 'Journal' }] : []);
     const next = JSON.stringify([heading, markers, objective, finding, teaching, lesson, lessonAt, cards.length, keys]);
     if (next === sig) return;
     sig = next;

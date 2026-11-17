@@ -40,10 +40,24 @@ describe('the city\'s guide', () => {
     const M = [offer, { ...trade, flag: 'had-passenger', after: 'took-fare' }, deliver({ repeat: true, flag: 'done-fare' })];
     const G = cityGuide(level(M));
     expect(G.steps.map((s) => s.id)).toEqual(['car', 'take-fare', 'pick-passenger', 'deliver-fare']);
-    expect(G.steps[1]).toMatchObject({ say: 'Take the job at the diner', at: [10, 8, 0], radius: 7, says: 'Hop in.' });
+    expect(G.steps[1]).toMatchObject({ say: 'Meet your contact at the diner', at: [10, 8, 0], radius: 7, says: 'Hop in.' });
     expect(G.steps[1].take).toBeUndefined();
     expect(G.loop).toBe(2);
     expect(jobsOf(M)[0].starts).toBe('took-fare');
     expect(jobQuests(M)).toEqual([{ id: 'fare', name: 'Fare', starts: 'took-fare', steps: [{ log: 'Pick up the passenger', done: 'had-passenger' }, { log: 'Deliver the passenger', done: 'done-fare' }] }]);
+  });
+  it('a contact\'s next job comes by phone: it is taken nowhere; a one-off is brought back to who gave it', async () => {
+    const { jobsOf, jobQuests, contactName } = await import('./city-guide.js');
+    const M = [{ kind: 'offer', id: 'parcel', at: [10, 8, 0], flag: 'took-parcel', place: 'diner', contact: 'dispatch' },
+      { kind: 'trade', item: 'gadget', job: 'parcel', at: [70, 2, 0], flag: 'had-gadget', after: 'took-parcel' },
+      { kind: 'deliver', id: 'parcel', wants: [{ item: 'gadget', min: 1 }], at: [10, 8, 0], home: true, place: 'diner', flag: 'done-parcel', after: 'took-parcel' },
+      { kind: 'call', id: 'fare', flag: 'took-fare', on: 'errand:done:parcel', from: 'Dispatch', says: 'Fares are waiting.', contact: 'dispatch' },
+      { ...trade, flag: 'had-passenger', after: 'took-fare' }, deliver({ repeat: true, flag: 'done-fare', after: 'took-fare' })];
+    const J = jobsOf(M);
+    expect(J.map((j) => [j.id, j.starts, j.called === true, j.contact])).toEqual([['parcel', 'took-parcel', false, 'dispatch'], ['fare', 'took-fare', true, 'dispatch']]);
+    expect(J[0].steps.map((x) => x.say)).toEqual(['Meet dispatch at the diner', 'Pick up the gadget', 'Bring the gadget back to dispatch at the diner']);
+    expect(J[1].steps.map((x) => x.id)).toEqual(['pick-passenger', 'deliver-fare']);
+    expect(jobQuests(M).map((q) => q.starts)).toEqual(['took-parcel', 'took-fare']);
+    expect([contactName(), contactName('contact'), contactName('dispatch')]).toEqual(['Your contact', 'Your contact', 'Dispatch']);
   });
 });

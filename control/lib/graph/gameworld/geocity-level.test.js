@@ -150,7 +150,8 @@ describe('jobs across the district (errands on a played district: its shops thei
     expect(E.places.length).toBeGreaterThan(4);
     expect(legs).toHaveLength(5);
     for (const l of legs) expect(typeof l.place).toBe('string');
-    const kerb = legs.filter((l) => !l.till);
+    // (a one-off's hand-in is its giver's own place, `home`: below)
+    const kerb = legs.filter((l) => !l.till && !l.home);
     for (const l of kerb) { expect(l.radius).toBe(7); expect(E.places.some((p) => p.at[0] === l.at[0] && p.at[1] === l.at[1] && p.card === l.place)).toBe(true); expect(d(l.at, E.spawn)).toBeGreaterThan(40); }
     for (let i = 0; i < kerb.length; i++) for (let j = i + 1; j < kerb.length; j++) expect(d(kerb[i].at, kerb[j].at)).toBeGreaterThan(40);
     // (what is bought over a counter is had inside a shop of its kind, on foot)
@@ -167,37 +168,50 @@ describe('jobs across the district (errands on a played district: its shops thei
     // (a world with an interface look: its level's HUD on mana-ui, and so its journal: scene-three's `questMana`)
     expect(level.manaHud).toMatchObject({ rows: 'events' });
   });
-  it('each job has a giver and a start: someone before a shop near the start, whom the hero comes to; the job\'s stops open and its quest begins then', () => {
-    const offers = M.filter((m) => m.kind === 'offer'), by = Object.fromEntries(offers.map((o) => [o.id, o]));
-    expect(offers.map((o) => o.id)).toEqual(['parcel', 'fare']);
-    expect(by.parcel).toMatchObject({ flag: 'took-parcel', says: 'The shop is waiting on this. Be quick.', radius: 7 });
-    expect(by.fare).toMatchObject({ flag: 'took-fare', says: 'I have a job for you.' });
-    // (near the start, off it, and off each other; never where a stop stands)
-    for (const o of offers) { expect(d(o.at, E.spawn)).toBeGreaterThanOrEqual(18); expect(d(o.at, E.spawn)).toBeLessThan(150); for (const l of legs) expect(d(o.at, l.at)).toBeGreaterThan(1); }
-    expect(d(by.parcel.at, by.fare.at)).toBeGreaterThanOrEqual(14);
-    // (its stops are had only once it is taken; the hand-in asks for what they give)
+  it('jobs have a giver, met once: the first is taken where they stand, a shop near the start; the next comes by phone when it is done; a one-off is brought back to them', () => {
+    const offers = M.filter((m) => m.kind === 'offer'), calls = M.filter((m) => m.kind === 'call');
+    // (unsaid, the level's jobs are one contact's)
+    expect(offers.map((o) => o.id)).toEqual(['parcel']);
+    const o = offers[0];
+    expect(o).toMatchObject({ flag: 'took-parcel', says: 'The shop is waiting on this. Be quick.', radius: 7, contact: 'contact' });
+    expect(calls).toEqual([{ kind: 'call', id: 'fare', flag: 'took-fare', on: 'errand:done:parcel', from: 'Your contact', says: 'I have a job for you.', contact: 'contact' }]);
+    // (near the start and off it; never where a stop out in the district stands)
+    expect(d(o.at, E.spawn)).toBeGreaterThanOrEqual(18); expect(d(o.at, E.spawn)).toBeLessThan(150);
+    for (const l of legs.filter((x) => !x.home)) expect(d(o.at, l.at)).toBeGreaterThan(1);
+    // (the one-off comes home: handed in where its giver stands, once it is taken; the fares' drop is out in the district)
+    expect(M.find((m) => m.kind === 'deliver' && m.id === 'parcel')).toMatchObject({ home: true, at: o.at, place: o.place, after: 'took-parcel' });
+    expect(M.find((m) => m.kind === 'deliver' && m.id === 'fare').home).toBeUndefined();
+    // (its stops are had only once it is taken)
     for (const l of legs.filter((x) => x.kind === 'trade')) expect(l.after).toBe(`took-${l.job}`);
     expect(level.play.quests.map((q) => q.starts)).toEqual(['took-parcel', 'took-fare']);
-    // (the giver stands there: a person of the world's own keys, at the crowd grade, waiting)
-    for (const o of offers) {
-      const g = level.entities.find((e) => e.id === `giver-${o.id}`);
-      expect(g).toBeTruthy();
-      expect(g.rule.type).toBe('static');
-      expect(g.transform.pos.slice(0, 2)).toEqual(o.at.slice(0, 2));
-      expect(level.figures[g.body.figure]).toMatchObject({ grade: 'play', crowd: true, stand: true });
-    }
-    expect(JSON.stringify(level.figures['giver-parcel'].hero)).not.toBe(JSON.stringify(level.figures['giver-fare'].hero));
+    // (the giver stands there: a person of the world's own keys, at the crowd grade, waiting; one, not one a job)
+    const gs = level.entities.filter((e) => /^giver-/.test(e.id));
+    expect(gs.map((e) => e.id)).toEqual(['giver-contact']);
+    expect(gs[0].rule.type).toBe('static');
+    expect(gs[0].transform.pos.slice(0, 2)).toEqual(o.at.slice(0, 2));
+    expect(level.figures[gs[0].body.figure]).toMatchObject({ grade: 'play', crowd: true, stand: true });
+  });
+  it('two contacts are two givers, apart, each met for their own first job; the phone is laid off them', async () => {
+    const two = runSteps({ ...JOBS, id: 'jobs2', errands: [JOBS.errands[0], { ...JOBS.errands[1], contact: 'dispatch' }] }, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest;
+    const offers = two.game.mechanics.filter((m) => m.kind === 'offer');
+    expect(offers.map((x) => [x.id, x.contact])).toEqual([['parcel', 'contact'], ['fare', 'dispatch']]);
+    expect(d(offers[0].at, offers[1].at)).toBeGreaterThanOrEqual(14);
+    expect(two.game.mechanics.some((m) => m.kind === 'call')).toBe(false);
+    expect(JSON.stringify(two.figures['giver-contact'].hero)).not.toBe(JSON.stringify(two.figures['giver-dispatch'].hero));
+    const { phoneUi } = await import('./phone-ui.js');
+    expect(phoneUi(two).contacts.map((c) => [c.name, c.met, c.jobs.map((j) => j.id)])).toEqual([['Your contact', 'flag-took-parcel', ['parcel']], ['Dispatch', 'flag-took-fare', ['fare']]]);
+    expect(phoneUi(level).contacts.map((c) => c.jobs.map((j) => [j.id, j.called, j.home]))).toEqual([[['parcel', false, true], ['fare', true, false]]]);
   });
   it('a standing job keeps the level open: the one-off pays and ends nothing; the guide leads through both, then round the fares', async () => {
     expect(M.find((m) => m.kind === 'deliver' && m.id === 'parcel')).toMatchObject({ open: true });
     expect(M.find((m) => m.kind === 'deliver' && m.id === 'fare')).toMatchObject({ repeat: true });
     const { cityGuide } = await import('./city-guide.js'), G = cityGuide(level);
-    expect(G.steps.map((s) => s.id)).toEqual(['car', 'take-parcel', 'pick-fee', 'pick-gadget', 'deliver-parcel', 'take-fare', 'pick-passenger', 'deliver-fare']);
-    expect(G.steps[1].say).toMatch(/^Take the job at the /);
+    expect(G.steps.map((s) => s.id)).toEqual(['car', 'take-parcel', 'pick-fee', 'pick-gadget', 'deliver-parcel', 'pick-passenger', 'deliver-fare']);
+    expect(G.steps[1].say).toMatch(/^Meet your contact at the /);
     expect(G.steps[2].say).toMatch(/^Pick up the fee at the /);
     expect(G.steps[3].say).toMatch(/^Buy the gadget in the electronics/);
-    expect(G.steps[4].say).toMatch(/^Deliver the gadget to the /);
+    expect(G.steps[4].say).toMatch(/^Bring the gadget back to your contact at the /);
     // (a standing job is taken once: it goes round again from its pick-up)
-    expect(G.loop).toBe(6);
+    expect(G.loop).toBe(5);
   });
 });

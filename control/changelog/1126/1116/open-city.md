@@ -72,3 +72,10 @@
   shop near where you begin. Go to them and they say what the job is; only then do its stops work and only then does
   it appear in your journal. The on-screen guide leads you to them first, and an errand can carry the words its
   giver says.
+- **The people you work for call you.** Whoever gives you jobs is now a contact: you meet them once, where they stand,
+  for the first job. After that they are on your phone (P): what they said, what to do next, each step as you do it,
+  what you were paid, and a count by the key when there is something new. Their next job comes as a call when the
+  last one is done, so there is no going back to ask. A one-off job is brought back to them to be paid, which is the
+  only time you return; a standing job (fares) pays where it ends. Jobs belong to one contact unless an errand names
+  its own (`contact`), and each contact is their own person on the street. The phone can be retitled or turned off
+  (`ui.phone`) and wears the game's theme like the map and the inventory.

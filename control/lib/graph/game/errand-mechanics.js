@@ -30,7 +30,10 @@
  *   offer    (emitter)  where a job is taken: coming to its giver sets its flag, once, and says the giver's words; a
  *                       trade `after` that flag is had only once it is set.   { id, at, flag, says?, radius? }
  *
- *   lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer   (game/mechanics.js registers them)
+ *   call     (emitter)  a job offered by phone, by a giver already met: on its event (the job before it done) its
+ *                       flag is set, once, and the caller's words are said.   { id, flag, on, from?, says? }
+ *
+ *   lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer, lowerCall   (game/mechanics.js registers them)
  *
  * Pure, no dice.
  */
@@ -153,6 +156,25 @@ export function lowerOffer(p, ctx) {
   };
 }
 
+/** THE CALL (an emitter): a job offered BY PHONE, by a giver already met. When its event comes (`on`: the job before it
+ * done), its flag is set, once (its quest begins, its legs open), and the caller's words are said.
+ *   { id, flag, on: '<event type>', from?, says? } */
+export function lowerCall(p, ctx) {
+  const at0 = `call[${ctx.i}]`, fail = (m) => { throw new Error(`${at0}: ${m}`); };
+  if (typeof p.id !== 'string' || !WORD.test(p.id)) fail('id is the job\'s name, lower-case');
+  if (typeof p.flag !== 'string' || !/^[a-z][a-z0-9-]{0,47}$/.test(p.flag)) fail('flag is the flag the call sets (took-fare)');
+  if (typeof p.on !== 'string' || !p.on) fail('on is the event the call comes on (errand:done:parcel)');
+  const call = `call:${p.id}`, v = `flag-${p.flag}`, who = typeof p.from === 'string' && p.from ? `${p.from}: ` : '';
+  return {
+    world: {
+      vars: { [v]: 0 },
+      reactions: [{ on: p.on, if: { var: v, eq: 0 }, do: 'emit', type: call }, { on: call, do: 'set', var: v, to: 1 }, { on: call, do: 'emit', type: `flag:${p.flag}` }],
+      hud: typeof p.says === 'string' && p.says ? [{ on: call, as: 'toast', text: `${who}${p.says}`, ttl: 4 }] : [],
+    },
+    emits: [call],
+  };
+}
+
 export function lowerDeliver(p, ctx) {
   const at0 = `deliver[${ctx.i}]`, fail = (m) => { throw new Error(`${at0}: ${m}`); };
   ctx.resolve('inventory', p.slice ?? BAG, at0);
@@ -163,7 +185,9 @@ export function lowerDeliver(p, ctx) {
   if (!wants.length || wants.some((w) => !w || typeof w.item !== 'string' || (w.min !== undefined && !posInt(w.min)))) fail('wants is [{ item, min? }], at least one: what the giver asked for');
   const zone = `deliver-${id}`, frag = { vars: {}, reactions: [], hud: [] }, done = `errand:done:${id}`, short = `errand:short:${id}`, ok = `${done}:ok`;
   for (const w of wants) frag.vars[heldVar(BAG, w.item)] ??= 0;
-  frag.reactions.push({ on: 'enter', match: { zone }, do: 'emit', type: `${zone}:try` });
+  // (a job that is offered, `after`: handed in only once it is taken, so its giver's own place says nothing of it before)
+  if (typeof p.after === 'string' && p.after) { frag.vars[`flag-${p.after}`] ??= 0; frag.reactions.push({ on: 'enter', match: { zone }, if: { var: `flag-${p.after}`, gte: 1 }, do: 'emit', type: `${zone}:try` }); }
+  else frag.reactions.push({ on: 'enter', match: { zone }, do: 'emit', type: `${zone}:try` });
   chain(frag.reactions, `${zone}:try`, wants.map((w) => ({ var: heldVar(BAG, w.item), gte: w.min ?? 1 })), ok, short);
   for (const w of wants) lowerMove({ item: w.item, n: w.min ?? 1, from: BAG, to: NOWHERE, on: ok }, frag);
   // every errand pays: its reward into the bag (coin for the next leg's trade)

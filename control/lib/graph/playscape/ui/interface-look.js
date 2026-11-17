@@ -13,6 +13,7 @@
  *                 views it turns through, what it marks and with which pictograms (gameworld/city-map.js)
  *     inventory?: false | { title?, icons?: { <item>: '<pictogram>' } }   the screen of what is carried: what it is
  *                 called and each item's pictogram (gameworld/bag-ui.js)
+ *     phone?:     false | { title? }   the hero's phone: the givers met, as contacts, and what they say (gameworld/phone-ui.js)
  *   }
  *
  * THE WORLD'S LOOK, absent a theme, is the art director's: the register the game's intent sets (a souls-like grave, a
@@ -33,9 +34,10 @@ import { solvePalette } from '../../color-theorist/solve.js';
 import { juiceOfGame, juiceSuggestion } from '../../gameworld/juice.js';
 import { readMapUi } from '../../gameworld/city-map.js';
 import { readBagUi } from '../../gameworld/bag-ui.js';
+import { readPhoneUi } from '../../gameworld/phone-ui.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const KEYS = ['theme', 'colour', 'languages', 'language', 'map', 'inventory'];
+const KEYS = ['theme', 'colour', 'languages', 'language', 'map', 'inventory', 'phone'];
 
 // the art director's register by the game's intent (gameworld/intent.js GENRES): where its look starts
 export const INTENT_LOOKS = Object.freeze({
@@ -99,6 +101,8 @@ export function readUi(ui, where = 'ui') {
   if (ui.map !== undefined) errors.push(...readMapUi(ui.map, `${where}.map`));
   // (the inventory: how what is carried is shown, gameworld/bag-ui.js)
   if (ui.inventory !== undefined) errors.push(...readBagUi(ui.inventory, `${where}.inventory`));
+  // (the phone: the contacts met and what they say, gameworld/phone-ui.js)
+  if (ui.phone !== undefined) errors.push(...readPhoneUi(ui.phone, `${where}.phone`));
   return errors;
 }
 
