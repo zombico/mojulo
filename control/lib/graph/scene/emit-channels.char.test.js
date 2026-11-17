@@ -790,6 +790,8 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // plain form (no order, briefing or debrief, for a shooter with no mission), its order stands only where there is one,
 // its health falls back to the pilot's own body where the bus keeps none, and its map is drawn at the floor the pilot
 // stands on and boxed on the ground a level says it is fought on. No other fixture moved.
+// Re-pinned 2026-11-17 again (1115-shooting-rails: orders are spoken): `mission` only. Its HUD carries a line for the
+// order as it is given (mana-ui's subtitles, who gives it and what is said), each task its line. No other fixture moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
