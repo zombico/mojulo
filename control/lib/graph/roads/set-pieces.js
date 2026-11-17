@@ -235,10 +235,10 @@ export const TRACK_BLOCKS = Object.freeze({
       { id: 'tip', prim: 'ball', role: 'trim', r: 'r * 0.2', sides: 6, at: [0, 0, 'h + r * 1.3'], group: 'tech:light', value: 0.7 },
     ], sig: ['drum', 'roof'], lead: 'drum' },
   'candy-castle': { id: 'candy-castle', read: 'a candy castle: a broad keep, its tall tower set off its middle, a turret at each corner', tier: 'landmark', mounts: ['ground'], functions: [],
-    params: { w: [14, 50], h: [10, 34] },
+    params: { w: [22, 50], h: [20, 34] },
     parts: [
-      { id: 'keep', prim: 'box', role: 'body', size: ['w * 0.72', 'w * 0.72', 'h'], group: 'str:stone', value: 0.6 },
-      { id: 'tall', block: 'candy-tower', role: 'body', params: { r: 6, h: 30 }, at: ['w * 0.05', 'w * 0.04', 0] },
+      { id: 'keep', prim: 'box', role: 'body', size: ['w * 0.8', 'w * 0.8', 'h'], group: 'str:stone', value: 0.6 },
+      { id: 'tall', block: 'candy-tower', role: 'body', params: { r: 4, h: 22 }, at: ['w * 0.05', 'w * 0.04', 0] },
       { id: 'corners', block: 'candy-turret', role: 'body', params: { r: 2.4, h: 12 }, repeat: { n: 4, around: 'max(w * 0.48, 9.6)' } },
     ], sig: ['keep', 'tall'], lead: 'keep' },
   'candy-bumper': { id: 'candy-bumper', read: 'a candy bumper: three fat rolls lying along the track, berry, cream, berry', tier: 'machine', mounts: ['ground'], functions: [],
