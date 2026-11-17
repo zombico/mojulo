@@ -6,7 +6,8 @@
  *   trade    (emitter)  a place where an item is had: walk in holding its `needs` and they are spent for it (`count` of
  *                       it into the bag). With no needs it is a source (a shelf, a crate). It gives again only once the
  *                       bag holds none of it, so a spoiled cargo is fetched again (the shelf restocks).
- *                       { item, at, count? (1), needs?: [{ item, n? (1) }], radius? }
+ *                       { item, at, count? (1), needs?: [{ item, n? (1) }], radius?, flag? }   (`flag`: a quest's
+ *                       step, set when it is had: playscape/ui/quests.js; the hand-in's `flag` the same)
  *   cargo    (emitter)  what a carried item's condition is: its count in the bag. Fragile: each hit the carrier takes and
  *                       each fall (the fall policy's catch) loses one; perishable: one every `perishable` seconds while
  *                       any is held. A bar on the HUD; `cargo:lost:<item>` a unit, said as a toast.
@@ -74,6 +75,8 @@ export function lowerTrade(p, ctx) {
   }
   lowerMove({ item: key, n: count, from: NOWHERE, to: BAG, on: paid }, frag);
   frag.reactions.push({ on: paid, do: 'emit', type: `pickup:${key}` });
+  // (a leg of a quest, `flag`: had, its flag is set: playscape/ui/quests.js)
+  if (typeof p.flag === 'string' && p.flag) frag.reactions.push({ on: paid, do: 'emit', type: `flag:${p.flag}` });
   return {
     world: {
       ...frag,
@@ -141,6 +144,7 @@ export function lowerDeliver(p, ctx) {
   if (!Array.isArray(reward) || reward.some((r) => !r || typeof r.item !== 'string' || (r.n !== undefined && !posInt(r.n)))) fail('reward is [{ item, n? }]: what the giver pays');
   for (const r of reward) lowerMove({ item: r.item, n: r.n ?? 1, from: NOWHERE, to: BAG, on: ok }, frag);
   frag.reactions.push({ on: ok, do: 'emit', type: done });
+  if (typeof p.flag === 'string' && p.flag) frag.reactions.push({ on: ok, do: 'emit', type: `flag:${p.flag}` });
   // (a standing job's pay is kept in view: what it has earned, counted up)
   if (p.repeat === true) for (const r of reward) frag.hud.push({ var: heldVar(BAG, r.item), label: itemKey(r.item).replace(/-/g, ' '), as: 'counter', slot: 'top-right' });
   if (p.repeat === true || p.open === true) frag.hud.push({ on: done, as: 'toast', text: reward.length ? `paid ${reward.map((r) => `${r.n ?? 1} ${itemKey(r.item).replace(/-/g, ' ')}`).join(', ')}` : 'done', ttl: 1.8 });

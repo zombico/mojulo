@@ -56,6 +56,7 @@ import { readScreen, screenPayload } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
 import { genreHero } from './hero-rows.js';
 import { movesetLegend } from './input-map.js';
+import { jobQuests } from './city-guide.js';
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
 import { concernIds } from './concerns.js';
@@ -1052,6 +1053,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     // a power that gives the wall or the line: the pilot's figure plays their states' fallbacks from the start
     if (Object.values(grants).some((g) => g.wall || g.gear) && pilotPart.figures) pilotPart = { ...pilotPart, figures: Object.fromEntries(Object.entries(pilotPart.figures).map(([k, f]) => [k, f && f.clips ? { ...f, clips: traversalStates(f.clips) } : f])) };
   }
+  // (its jobs kept in its journal: each errand a quest, its legs the steps, city-guide.js jobQuests)
+  if (ways?.quests?.length) extraPlay = mergePlay(extraPlay, { quests: ways.quests });
   let play;
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? mergePlay(mechanics?.play ?? {}, extraPlay) : mechanics?.play ?? null, { story, carryFrom, party, castFigures }));
   // (a level on lives shows them, not the hp bar, and no level badge: the lives and coins counters say the run; and the
@@ -1533,6 +1536,7 @@ function stageWays(stage, ends, plan) {
     spot.set(w, { at: z.exit, arrive: [z.arrive[0], z.arrive[1], r3(z.arrive[2] + 1)] });
   }
   const mechanics = [], arrive = [];
+  let quests = [];
   for (const w of [...gated, ...plan.on, ...plan.back]) {
     const s = spot.get(w);
     mechanics.push({ kind: 'reach-exit', exit: w.id, at: s.at, radius: w === plan.back[0] ? 1.2 : 2.5, ...(ends.planar ? {} : { planar: false }), ...(w.needs ? { needs: w.needs } : {}) });
@@ -1573,9 +1577,12 @@ function stageWays(stage, ends, plan) {
     }
     const tills = ends.tills ?? [], laid = layErrand(plan.errand, spots, tills), placeOf = (l) => { const hit = spots.find((p) => named.has(p) && p[0] === l.at?.[0] && p[1] === l.at?.[1]); return l.till ? tills.find((t) => t.id === l.till)?.card : hit ? named.get(hit) : null; };
     // (each leg says where it is, `place`: the kind of shop it stands at or in, for the page's guide)
-    mechanics.push(...laid.map((l) => { if (l.kind !== 'trade' && l.kind !== 'deliver') return l; const place = placeOf(l); return { ...l, ...(driven && !l.till ? { radius: ERRAND_DRIVE.reach } : {}), ...(place ? { place } : {}) }; }));
+    // (and the flag it sets when it is done, `flag`: its job's step in the journal, city-guide.js jobQuests)
+    const legs = laid.map((l) => { if (l.kind !== 'trade' && l.kind !== 'deliver') return l; const place = placeOf(l); return { ...l, ...(driven && !l.till ? { radius: ERRAND_DRIVE.reach } : {}), ...(place ? { place } : {}), flag: l.kind === 'trade' ? `had-${l.item}` : `done-${l.id ?? 'errand'}` }; });
+    mechanics.push(...legs);
+    quests = jobQuests(legs);
   }
-  return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })) };
+  return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })), ...(quests.length ? { quests } : {}) };
 }
 
 /**

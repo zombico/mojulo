@@ -32,3 +32,9 @@
   electronics shop", "Deliver the gadget to the gun store") and takes a job with a price in its right order.
 - **One-off jobs and repeating jobs share a city.** Where a level has a repeating job, finishing a one-off job pays
   and the level carries on, so a district can hold a quest or two and a standing job at once.
+- **Jobs are quests in a journal.** Every errand in a level is now also a quest: press J for the journal, which lists
+  each job with its steps ticked as you do them, in the same words the on-screen guide uses. A line appears as a step
+  is done and when a quest is complete.
+- **The journal and its messages wear the game's look.** In a game with an interface look, the journal and the quest
+  messages are drawn by the same interface system as the rest of the game's screens and HUD, instead of a separate
+  plain panel. A game without one keeps the journal it had.

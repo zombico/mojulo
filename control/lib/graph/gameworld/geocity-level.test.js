@@ -137,7 +137,7 @@ describe('a car driven in the district (the level\'s own bodies on the runtime, 
 });
 
 describe('jobs across the district (errands on a played district: its shops their places, the level kept open)', () => {
-  const JOBS = { ...WORLD, id: 'jobs', topology: 'interconnected', screen: 'screen', style: { kit: 'trail-valley' },
+  const JOBS = { ...WORLD, id: 'jobs', topology: 'interconnected', screen: 'screen', ui: {}, style: { kit: 'trail-valley' },
     characters: { direction: { tradition: 'western' }, hero: { looks: { body: { cast: 'male' }, underlayer: { type: 'outfit', style: 'streetwear' } }, motion: { vibe: ['bold'] }, actions: { idiom: 'city-stalker-like' } } },
     errands: [
       // (a parcel run: paid at one shop, the goods bought over a counter with it, brought to another)
@@ -156,6 +156,16 @@ describe('jobs across the district (errands on a played district: its shops thei
     // (what is bought over a counter is had inside a shop of its kind, on foot)
     expect(M.find((m) => m.kind === 'trade' && m.item === 'gadget')).toMatchObject({ place: 'electronics', needs: [{ item: 'fee', n: 1 }] });
     expect(M.find((m) => m.kind === 'trade' && m.item === 'gadget').till).toBeTruthy();
+  });
+  it('each job is a quest in the level\'s journal: its steps the guide\'s own lines, each done by the flag its leg sets; the HUD and the journal mana-ui\'s', async () => {
+    const { cityGuide } = await import('./city-guide.js'), G = cityGuide(level);
+    expect(level.play.quests.map((q) => q.id)).toEqual(['parcel', 'fare']);
+    const parcel = level.play.quests[0];
+    expect(parcel.steps.map((x) => x.done)).toEqual(['had-fee', 'had-gadget', 'done-parcel']);
+    expect(parcel.steps.map((x) => x.log)).toEqual(G.steps.slice(1, 4).map((x) => x.say));
+    for (const l of legs) expect(l.flag).toBe(l.kind === 'trade' ? `had-${l.item}` : `done-${l.id}`);
+    // (a world with an interface look: its level's HUD on mana-ui, and so its journal: scene-three's `questMana`)
+    expect(level.manaHud).toMatchObject({ rows: 'events' });
   });
   it('a standing job keeps the level open: the one-off pays and ends nothing; the guide leads through both, then round the fares', async () => {
     expect(M.find((m) => m.kind === 'deliver' && m.id === 'parcel')).toMatchObject({ open: true });

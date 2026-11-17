@@ -8,6 +8,8 @@
  * open, and says so.
  *
  *   CITY_GUIDE                 its numbers and its words
+ *   jobsOf(mechanics)          → a level's jobs, each its steps in order (see below)
+ *   jobQuests(mechanics)       → the same jobs as the journal's quests (playscape/ui/quests.js)
  *   cityGuide(manifest)        → { intro, lessons, steps: [{ id, say, kind, at, radius, says? }], loop?, done } | null:
  *                              a level manifest (its title, entities, game.mechanics); null where it stands no car
  *
@@ -31,35 +33,55 @@ const shop = (card) => { const w = words(card); return /(store|shop|pharmacy|din
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const at3 = (p) => [r3(p[0]), r3(p[1]), r3(p[2] ?? 0)];
 
+/**
+ * A level's JOBS, read off its laid errand legs (errand.js layErrand: its trades and its hand-ins, each where it
+ * stands): each job its hand-in's, its steps in the order they are done (what it asks for after what that is had for,
+ * then the hand-in), each a line of what to do and where. What the guide leads through and what the journal keeps
+ * (jobQuests) are these, so the two never say different things.
+ *   → [{ id, name, repeat, steps: [{ id, say, at, radius, says?, flag? }] }]
+ */
+export function jobsOf(mechanics) {
+  const M = Array.isArray(mechanics) ? mechanics : [], out = [];
+  for (const J of M.filter((m) => m && m.kind === 'deliver' && Array.isArray(m.at))) {
+    const steps = [];
+    // (what it asks for, each after what it is had for: a price is picked up before the counter it is spent at)
+    const seen = new Set(), had = (item) => {
+      if (seen.has(item)) return;
+      seen.add(item);
+      const T = M.find((m) => m && m.kind === 'trade' && m.item === item && Array.isArray(m.at));
+      if (!T) return;
+      for (const n of T.needs ?? []) had(n.item);
+      // (bought over a counter where it has a price, `needs`; picked up otherwise; `place` the shop it stands at or in)
+      steps.push({ id: `pick-${T.item}`, say: `${T.needs?.length ? 'Buy' : 'Pick up'} the ${words(T.item)}${T.place ? ` ${T.till ? 'in' : 'at'} the ${shop(T.place)}` : ''}`, at: at3(T.at), radius: T.radius ?? 2, says: `${words(T.item)[0].toUpperCase()}${words(T.item).slice(1)} ${T.needs?.length ? 'bought' : 'aboard'}`, ...(T.flag ? { flag: T.flag } : {}) });
+    };
+    for (const w of J.wants ?? []) had(w.item);
+    const paid = (J.reward ?? []).map((r) => `${r.n ?? 1} ${words(r.item)}`).join(', '), id = J.id ?? 'errand';
+    steps.push({ id: `deliver-${id}`, say: `Deliver the ${(J.wants ?? []).map((w) => words(w.item)).join(', ') || 'goods'}${J.place ? ` to the ${shop(J.place)}` : ''}`, at: at3(J.at), radius: J.radius ?? 2, ...(paid ? { says: `Paid ${paid}` } : {}), ...(J.flag ? { flag: J.flag } : {}) });
+    out.push({ id, name: `${words(id)[0].toUpperCase()}${words(id).slice(1)}`, repeat: J.repeat === true, steps });
+  }
+  return out;
+}
+
+/** A level's jobs as its QUESTS (playscape/ui/quests.js: the journal's, a step done when its flag is set): each job
+ * whose every step carries a flag, its steps' lines the guide's own. */
+export function jobQuests(mechanics) {
+  return jobsOf(mechanics).filter((J) => J.steps.every((x) => x.flag)).map((J) => ({ id: J.id, name: J.name, steps: J.steps.map((x) => ({ log: x.say, done: x.flag })) }));
+}
+
 export function cityGuide(manifest) {
   const M = manifest ?? {}, entities = Array.isArray(M.entities) ? M.entities : [];
   const hero = entities.find((e) => e && e.pilotable && e.transform), cabs = entities.filter((e) => e?.mount?.cab && !e.mount.spare && e.transform);
   if (!hero || !cabs.length) return null;
   const from = hero.transform.pos, d = (e) => Math.hypot(e.transform.pos[0] - from[0], e.transform.pos[1] - from[1]);
   const car = cabs.reduce((m, e) => (d(e) < d(m) ? e : m), cabs[0]);
-  const mechanics = Array.isArray(M.game?.mechanics) ? M.game.mechanics : [];
   // (the car is reached by being in one, whichever: standing beside it is not it. `cab`: scene/channels/guide.js)
   const steps = [{ id: 'car', say: 'Get into a car', kind: 'find', at: at3(car.transform.pos), radius: CITY_GUIDE.car, cab: true }];
-  // each job's legs in the order it is done: what it asks for picked up where it is had, then handed in
+  // each job's steps in the order it is done; the first standing job goes round again from its pick-up
   let loop = null;
-  const jobs = mechanics.filter((m) => m && m.kind === 'deliver' && Array.isArray(m.at));
+  const jobs = jobsOf(M.game?.mechanics);
   for (const J of jobs) {
-    const first = steps.length;
-    // (what it asks for, each after what it is had for: a price is picked up before the counter it is spent at)
-    const seen = new Set(), had = (item) => {
-      if (seen.has(item)) return;
-      seen.add(item);
-      const T = mechanics.find((m) => m && m.kind === 'trade' && m.item === item && Array.isArray(m.at));
-      if (!T) return;
-      for (const n of T.needs ?? []) had(n.item);
-      // (bought over a counter where it has a price, `needs`; picked up otherwise; `place` the shop it stands at or in)
-      steps.push({ id: `pick-${T.item}`, say: `${T.needs?.length ? 'Buy' : 'Pick up'} the ${words(T.item)}${T.place ? ` ${T.till ? 'in' : 'at'} the ${shop(T.place)}` : ''}`, kind: 'find', at: at3(T.at), radius: T.radius ?? 2, says: `${words(T.item)[0].toUpperCase()}${words(T.item).slice(1)} ${T.needs?.length ? 'bought' : 'aboard'}` });
-    };
-    for (const w of J.wants ?? []) had(w.item);
-    const paid = (J.reward ?? []).map((r) => `${r.n ?? 1} ${words(r.item)}`).join(', ');
-    steps.push({ id: `deliver-${J.id ?? 'errand'}`, say: `Deliver the ${(J.wants ?? []).map((w) => words(w.item)).join(', ') || 'goods'}${J.place ? ` to the ${shop(J.place)}` : ''}`, kind: 'find', at: at3(J.at), radius: J.radius ?? 2, ...(paid ? { says: `Paid ${paid}` } : {}) });
-    // (the first standing job goes round again from its pick-up)
-    if (J.repeat === true && loop === null) loop = first;
+    if (J.repeat && loop === null) loop = steps.length;
+    for (const { flag: _flag, ...x } of J.steps) steps.push({ ...x, kind: 'find' });
   }
   const job = jobs.length > 0;
   return {

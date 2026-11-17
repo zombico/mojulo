@@ -883,7 +883,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // block (a bare `sources` list with nothing listening is inert, so it is not worth emitting).
   const hasEvents = !!events && ((Array.isArray(events.reactions) && events.reactions.length > 0) || (Array.isArray(events.sequences) && events.sequences.length > 0) || (Array.isArray(events.hud) && events.hud.length > 0) || (Array.isArray(events.library) && events.library.length > 0));   // (a library alone is a channel: its shelf)
   // the effect light reads the level's sky: an effect lights a night world fully, a noon one a quarter as much
-  const eventsBlock = hasEvents ? eventsChannelScript(events, { ...(events.fxLight === true ? { fxDay: fxDay(sky && Array.isArray(sky.zenith) ? sky.zenith : hexRgb255(bg)) } : {}), ...(roll && roll.items ? { rollItems: true } : {}) }) : '';
+  const eventsBlock = hasEvents ? eventsChannelScript(events, { ...(events.fxLight === true ? { fxDay: fxDay(sky && Array.isArray(sky.zenith) ? sky.zenith : hexRgb255(bg)) } : {}), ...(roll && roll.items ? { rollItems: true } : {}), ...(manaHud && !capture && manaHud.theme !== undefined ? { questMana: manaHud.theme ?? true } : {}) }) : '';
   // audio channel: never emitted on capture runs (headless bakes carry no sound and must stay
   // byte-identical to a muted live run); absent audio interpolates '' so no-audio worlds are
   // byte-identical to today.
