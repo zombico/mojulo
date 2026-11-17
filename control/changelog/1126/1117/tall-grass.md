@@ -41,3 +41,11 @@
   the truck on the line) with two ways through besides the gate: the slot by the truck, screened by grass both sides and
   in it, and a cut in the west wire behind its grass, the line's patrol walking past it. All eight laws hold. The field's
   grass back, real out to 10 m (the view cone), painted past it: bench 246 ms a frame against the hangar's 236.
+- **A lean ground keeps its cliffs plain** (`parallax: false`): no relief cut into a cliff's faces (each steep triangle
+  was cut into 36) and a third of its scree's stones stood up (form/land-read.js `stones`, a share of them). Benched at a
+  quarter of the window, a cliff's cost was its geometry more than its pixels.
+- **Level 0 boxed in a gorge** (the spike's `gorge`: a cliff face down each side of the field, 14 m, the high side out,
+  as the trail's ground edits): the field between them as it was, every law holding. Bench: hangar 231 ms a frame, the
+  open field 237, the gorge 248 (with relief and the full scree it was 345).
+- **The bench** opens each page in a browser of its own (one opened after another ran slower) and counts draws only
+  after the frames are timed.

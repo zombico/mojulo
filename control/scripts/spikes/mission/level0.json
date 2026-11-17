@@ -561,5 +561,15 @@
   },
   "cubeReads": "the jungle haze's look on open ground: no cliff walling the trail (a field both sides), lone trees on a short-grassed upland in place of bamboo groves; the ground most of the frame's cost, the jungle a tenth of it",
   "grassElsewhere": "grass",
-  "checkpointReads": "a line across the whole field: wire to its edges, sandbags either side of a gate on the trail, a tower over the gate, the truck parked on the line with a slot beside it; and a cut in the west wire, screened by tall grass both sides, that the patrol along the line walks past"
+  "checkpointReads": "a line across the whole field: wire to its edges, sandbags either side of a gate on the trail, a tower over the gate, the truck parked on the line with a slot beside it; and a cut in the west wire, screened by tall grass both sides, that the patrol along the line walks past",
+  "gorge": {
+    "west": -7.5,
+    "east": 29.5,
+    "from": -12,
+    "to": 134,
+    "height": 14,
+    "face": 72,
+    "reach": 30,
+    "reads": "a cliff face down each side of the field, its high side out: the level boxed in a gorge (the trail's ground edits); the field between them as it was"
+  }
 }

@@ -24,18 +24,20 @@ const hooks = () => {
   // (the page's pixel budget held at one density, so every page is timed at the same pixels: its slow frames would
   // otherwise lower one page's and not another's)
   Object.defineProperty(window, '__mojBudget', { configurable: true, get() { return this.__benchB; }, set(v) { Object.defineProperty(v, 'dpr', { get: () => 1, set() {} }); this.__benchB = v; } });
-  const S = (window.__bench = { tri: 0, draws: 0, on: false, frames: [] }), P = WebGL2RenderingContext.prototype;
-  const tri = (m, c, n) => (m === 4 ? c / 3 : m === 5 || m === 6 ? c - 2 : 0) * (n || 1);
-  for (const [k, f] of [['drawElements', (a) => tri(a[0], a[1])], ['drawArrays', (a) => tri(a[0], a[2])], ['drawElementsInstanced', (a) => tri(a[0], a[1], a[4])], ['drawArraysInstanced', (a) => tri(a[0], a[2], a[3])]]) {
-    const o = P[k]; P[k] = function (...a) { if (S.on) { S.tri += f(a); S.draws++; } return o.apply(this, a); };
-  }
+  // (the draws are counted by wrapping WebGL's own calls only after the frames are timed: wrapped, every frame is slower)
+  const S = (window.__bench = { tri: 0, draws: 0, on: false, frames: [] });
+  S.count = () => { const P = WebGL2RenderingContext.prototype, tri = (m, c, n) => (m === 4 ? c / 3 : m === 5 || m === 6 ? c - 2 : 0) * (n || 1);
+    for (const [k, f] of [['drawElements', (a) => tri(a[0], a[1])], ['drawArrays', (a) => tri(a[0], a[2])], ['drawElementsInstanced', (a) => tri(a[0], a[1], a[4])], ['drawArraysInstanced', (a) => tri(a[0], a[2], a[3])]]) {
+      const o = P[k]; P[k] = function (...a) { if (S.on) { S.tri += f(a); S.draws++; } return o.apply(this, a); };
+    } };
   const raf = window.requestAnimationFrame.bind(window);
   window.requestAnimationFrame = (fn) => raf((t) => { S.frames.push(t); fn(t); });
 };
 
-const browser = await launchChromium({ executablePath: await resolveChromium(), headless: true, args: [...CHROMIUM_WEBGL_ARGS], protocolTimeout: 1800000 });
-try {
-  for (const file of pages) {
+// (each page in a browser of its own: one opened after another in the same browser runs slower for what the first left)
+for (const file of pages) {
+  const browser = await launchChromium({ executablePath: await resolveChromium(), headless: true, args: [...CHROMIUM_WEBGL_ARGS], protocolTimeout: 1800000 });
+  try {
     const page = await browser.newPage();
     await page.setViewport({ width: W, height: H });
     await page.evaluateOnNewDocument(hooks);
@@ -47,10 +49,11 @@ try {
       await new Promise((r) => setTimeout(r, span * 1000));
       const F = S.frames.slice(n0), ms = F.length > 1 ? (F[F.length - 1] - F[0]) / (F.length - 1) : NaN;
       // (one frame's work: counted between two frames)
+      S.count();
       await new Promise((r) => requestAnimationFrame(() => { S.tri = 0; S.draws = 0; S.on = true; requestAnimationFrame(() => { S.on = false; r(); }); }));
       return { ms, frames: F.length, dpr: window.__mojBudget ? window.__mojBudget.dpr : null, tri: S.tri, draws: S.draws };
     }, span);
     console.log(`${path.basename(path.dirname(file))}/${path.basename(file)}: ${R.ms.toFixed(0)} ms a frame (${R.frames} frames) · dpr ${R.dpr ?? '—'} · ${(R.tri / 1e6).toFixed(2)}M triangles · ${R.draws} draws`);
     await page.close();
-  }
-} finally { await browser.close(); }
+  } finally { await browser.close(); }
+}

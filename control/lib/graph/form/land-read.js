@@ -18,7 +18,8 @@
  *     the map alone, the page grows its brush); sward: how long it is (the biocube's `flora.grass.sward`: 'tall',
  *     'short' or { short?, medium? }), in the map's fourth channel (0 tall, a half medium, 1 short); drifts: wheat, chaff, any grass kind and the flowers in
  *     areas of their own (form/grass-drifts.js readDrifts: [{ id, share, mix? }]), a channel each of a second map; relief:
- *     the rock's relief (form/rock-relief.js: a preset id or a document; false for none), drawn with `reliefSeed`; moss:
+ *     the rock's relief (form/rock-relief.js: a preset id or a document; false for none), drawn with `reliefSeed`;
+ *     stones: the share of the scree's stones stood up (1, all; a lean ground fewer); moss:
  *     how much moss the rock wears, 0–1 (the biocube's `flora.moss`), none by default.
  *     Each vertex's face and corner (`faceOf`, `cornerOf`) so a caller can lay its own per-vertex readings beside. Null
  *     for a payload with no land.
@@ -37,7 +38,7 @@ import { dressedMaterial, screeDice } from '../matte-paint/dressed.js';
 import { encodePng } from '../landscape/surface-textures.js';
 import { landLayers, LAYER_OF, PATH_REACH } from './land-layers.js';
 import { strHash } from '../city/plan/dice.js';
-import { landStones, stoneForms, SHAPES } from './land-stones.js';
+import { landStones, stoneForms, SHAPES, STONE_DENSITY } from './land-stones.js';
 import { soilTones } from '../color-theorist/ground.js';
 import { readRelief, reliefMap } from './rock-relief.js';
 import { DRIFT_CELL, DRIFT_SEAM, driftForms, weedForms } from './grass-drifts.js';
@@ -112,7 +113,7 @@ function layerAtlas(LAYERS, surface) {
   return R;
 }
 
-export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass = false, relief = RELIEF_DEFAULT, reliefSeed = 3, moss = 0, sward = 'tall', drifts = [], grown = null, snow = null, tallGrass = null } = {}) {
+export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass = false, relief = RELIEF_DEFAULT, reliefSeed = 3, moss = 0, sward = 'tall', drifts = [], grown = null, snow = null, tallGrass = null, stones = 1 } = {}) {
   // (no land to read: a payload with no faces of the land's groups)
   if (!P0.faces.some((f) => /^isekai:(sand|ground|soil|scree|cliff|rock|water)$/.test(f.group))) return null;
   // (the cards a land stands up, the grass's blades and the sky's clouds, are drawn by their cut-out textures: not read here
@@ -238,7 +239,7 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   const dirtBase = Object.fromEntries(Object.entries(tones).map(([k, t]) => [k, lin(hexRgb(t)).map((v, c) => Math.round(light.linearBases.floor[c] * v / Math.max(1e-6, floorLin[c]) * 1e4) / 1e4)]));
   // (the ground the trail's things claim, era/isekai.js ALLOT: its plants' `clear`, [x, y, r] each; no stone and no grass there)
   const CLAIMS = P0.plants?.clear?.length ? P0.plants.clear : null;
-  const STONES = landStones(P.faces, LY, { seed: 3, rubble: dress.pebbles ? 0 : dress.rubble, ...(dress.pebbles ? { offTrail: true } : {}), ...(CLAIMS ? { clear: CLAIMS } : {}) }), stoneBase = light.linearBases.stone;
+  const STONES = landStones(P.faces, LY, { seed: 3, ...(stones !== 1 ? { density: STONE_DENSITY * stones } : {}), rubble: dress.pebbles ? 0 : dress.rubble, ...(dress.pebbles ? { offTrail: true } : {}), ...(CLAIMS ? { clear: CLAIMS } : {}) }), stoneBase = light.linearBases.stone;
   const stonePack = Float32Array.from(STONES.flatMap((q) => [...q.at, q.r, ...q.n, q.tone, q.v]));
   // THE GRASS (gen-7): the ground seen from above at GCELL (its height, and where grass grows: a green land's level ground,
   // off the trail), read by the near blades on the page; and the FAR, rows of brushes laid along the ground both ways

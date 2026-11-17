@@ -39,7 +39,11 @@ const G = readGameworld({ ...rest, style: { ...W0.style, geocube: L0.cube }, lev
 const stage0 = gameStages(G).find((s) => s.node === L0.section)?.manifest;
 if (!stage0) { console.error(`level 0: the rail lays no section '${L0.section}'`); process.exit(1); }
 // (the trail at the recipe's run: its length, so a level that wants a longer approach asks for it)
-const stage = L0.run ? { ...stage0, trail: { ...stage0.trail, run: L0.run } } : stage0;
+// (and its GORGE, `gorge`: a cliff face down each side of the field, the high side out, as the trail's ground edits
+// (era/out-ground.js `cliff`): the land boxed in, the field between them as it was)
+const G0 = L0.gorge, gorgeEdits = G0 ? [['west', 'left'], ['east', 'right']].map(([k, side]) => ({ op: 'cliff', path: [[G0[k], G0.from], [G0[k], G0.to]], height: G0.height, side, face: G0.face, reach: G0.reach })) : [];
+const trail0 = { ...stage0.trail, ...(L0.run ? { run: L0.run } : {}), ...(gorgeEdits.length ? { ground: { ...(stage0.trail.ground ?? {}), edits: [...(stage0.trail.ground?.edits ?? []), ...gorgeEdits] } } : {}) };
+const stage = { ...stage0, trail: trail0 };
 // THE RECIPE SET DOWN ON THIS LAND: its places are said along the trail, read off the trail's own line (a dry lay of
 // the stage, a second or two; the plan alone reads the line kept from the last build)
 const facts0 = o.has('--plan') && fss.existsSync(factsFile) ? JSON.parse(fss.readFileSync(factsFile, 'utf8')) : null;
