@@ -72,3 +72,6 @@
   button for doors, switches and people.
 - **Exporting a big level no longer times out.** Exporting a level's page now has the long-render time allowance,
   and a hero's moves build faster because each punch or kick is worked out once and reused.
+- The city's crews are people: `CITY_CREWS` in `gameworld/foes.js` is a bestiary a city game takes whole (a street gang's
+  bruiser, a crime family's soldier, a private military's rifleman), each made through the hero door in its faction's
+  dress on the comic rail and stood on the district in crews. A creature is no longer the stand-in for a city's foe.

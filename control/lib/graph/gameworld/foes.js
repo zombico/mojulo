@@ -191,6 +191,16 @@ const crewPlan = (C) => ['hold', { pattern: 'encircle', when: { dist: C.near }, 
 // a foe's rule in its crew: its mind's group, the crew's (a swarm's own pack keeps its own)
 const crewed = (rule, crew) => (crew && !(rule.mind && rule.mind.group) ? { ...rule, mind: { ...(rule.mind || {}), group: { id: crew.id, plan: crewPlan(crew), attackers: crew.attackers } } } : rule);
 
+/** THE CITY'S CREWS: a bestiary a city game can take whole (`foes: CITY_CREWS`), people every one, dressed as the comic
+ *  hero pack's crews on the game's henchman body (foes/dress.js): the THUG a street gang's bruiser that wades in, the
+ *  CRIMINAL a crime family's soldier that runs the hero down, the MERCENARY a private contractor that hunts. A new one is
+ *  a row: a class, a faction, a kind. */
+export const CITY_CREWS = Object.freeze({
+  thug: Object.freeze({ class: 'brute', skin: Object.freeze({ people: 'human', dress: Object.freeze({ faction: 'streetGang', kind: 'bruiser', rail: 'comic' }) }) }),
+  criminal: Object.freeze({ class: 'pursuer', skin: Object.freeze({ people: 'human', dress: Object.freeze({ faction: 'crimeFamily', kind: 'soldier', rail: 'comic' }) }) }),
+  mercenary: Object.freeze({ class: 'hunter', skin: Object.freeze({ people: 'human', dress: Object.freeze({ faction: 'privateMilitary', kind: 'rifleman', rail: 'comic' }) }) }),
+});
+
 // (a summoner on its stand-in calls the walker's)
 const fallback = () => Object.fromEntries(Object.keys(FOE_CLASSES).map((c) => [c, { class: c, ...(c === 'summoner' ? { summons: { foe: 'walker' } } : {}) }]));
 export const bestiaryOf = (G) => G.foes ?? fallback();

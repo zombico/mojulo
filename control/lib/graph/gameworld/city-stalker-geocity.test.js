@@ -143,3 +143,19 @@ describe('a district\'s foes: crews', () => {
     expect(most).toBeLessThanOrEqual(2);
   }, 120_000);
 });
+
+describe('the city\'s crews', () => {
+  it('are people every one, dressed as crews: a bestiary a city game takes whole, stood on its district', async () => {
+    const { CITY_CREWS } = await import('./foes.js');
+    for (const e of Object.values(CITY_CREWS)) expect(e.skin).toMatchObject({ people: 'human', dress: { rail: 'comic' } });
+    expect(new Set(Object.values(CITY_CREWS).map((e) => e.skin.dress.faction)).size).toBe(Object.keys(CITY_CREWS).length);
+    const W = { ...MEADOWMARK_HERO, foes: structuredClone(CITY_CREWS), levels: { downtown: { name: 'Downtown', geocity: CITY, foes: { from: Object.keys(CITY_CREWS), count: 3 } } } };
+    for (const k of ['links', 'start', 'review', 'fights', 'mainQuest', 'errands']) delete W[k];
+    expect(() => readGameworld(W)).not.toThrow();
+    const steps = runSteps(W, { ref: 'gw' });
+    // each is made through the hero door as a person (a cast and an outfit), never a creature's body
+    for (const id of Object.keys(CITY_CREWS)) { const s = steps.find((x) => x.key === `foes-${id}`); expect(s).toBeTruthy(); expect(JSON.stringify(s.order)).toMatch(/"cast":"(male|female)"/); expect(JSON.stringify(s.order)).toMatch(/"outfit"/); }
+    const lv = steps.find((x) => /^level-/.test(x.key)), m = lv.order.args ? lv.order.args.manifest : lv.order.manifest;
+    expect(m.entities.filter((e) => e.team === 'foes').map((e) => e.id).sort()).toEqual(['foe-criminal-1', 'foe-mercenary-1', 'foe-thug-1']);
+  }, 120_000);
+});
