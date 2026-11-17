@@ -318,6 +318,22 @@ mind's sight as a wall does (it is a collider), where the laws read it as a rail
 colour, dark against a low sun; the land is cut deep where the yard meets its cliff; only buildings with a hall take a
 yard this way.
 
+## A bout and a push
+
+The laws are put to two more means than a mission's (`arena-map/bout.js`).
+
+- **A bout** (a deathmatch's arena, `gameworld/tunnel-arena.js`): one level; the arena's words say where the laws
+  start (lanes, or a court); the kit the laws size it by is the bout's sight; and it is fair: the half the laws liked
+  best is turned half round the centre onto the other, the turned map held to the laws again, the best of a few seeds
+  kept. The bout's own means stay the tunnel's: spawns out of sight, supplies by risk, towers stood first with the
+  panels giving way, crates, and the panels beside a way that is the only one taken.
+- **A push** (a quick shooter's cover, `gameworld/lay-concerns.js` `coverBlocks`): a strip from where a body comes on
+  to a post that holds it, grown for the near bands, then held to what a push needs: the post's cover a sidestep away,
+  its cell and the way on clear, the strip one ground. Its edges are open land.
+
+Said: a bout's map is flat (its high ground is the tunnel's towers); growing costs seconds an arena; the laws a turned
+map does not hold are in the tunnel's record (`built.map`), not on the level's readout.
+
 ## Next
 
 - **Templates for a long gun.** These four are sized for the mid band; a kit with a long gun wants a longer line

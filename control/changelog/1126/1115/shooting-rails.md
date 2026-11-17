@@ -272,3 +272,17 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   stand clear of the scope, and the page's own health row and old radar give way. Its principles are set down as the
   baseline for every shooter, and the look over them is the game's: a world's `ui` themes the same parts
   ([docs/mana-ui.md](../../../../docs/mana-ui.md), "The shooter's HUD is the baseline").
+- **A bout's arena and a push's cover are the arena laws'.** The two shooter modes that laid their ground by a recipe
+  now grow it under the arena's laws, each for its own means (`arena-map/bout.js`). A DEATHMATCH's floor: the arena's
+  words still say where the laws start (lanes, or a court), the laws grow it for the bout's sight (close quarters the
+  near band, long sightlines every band), and the half they liked best is turned half round onto the other, so every
+  panel has its partner; what is the bout's own stays (spawns out of sight, supplies by risk, towers stood first on the
+  bare floor with the panels giving way, crates), and where the grown floor leaves one way between spawns the tunnel
+  takes the panels beside it and says so; a sparse arena stands ungrown. A QUICK SHOOTER's cover: the fixed wall, crate
+  and wall at each post give way to a strip grown for a push, from where a body comes on to the post that holds it, the
+  post's cover a sidestep away, its cell and the way on clear, always a way up. The firing range is a measuring room
+  and is laid from its guns' numbers as before. Said: growing is slow (a new arena takes seconds, the arena tunnel's
+  own tests about a hundred), and cover is counted as crates and grown panels together.
+- **The map is of the floor it is fought on.** The map screen and the radar's plan are drawn at the height the pilot
+  stands at and boxed on the ground a level says it is fought on (a bout's arena), where they assumed a floor at zero
+  and the whole site: a yard on its land and an arena on a hill were blank.
