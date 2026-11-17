@@ -97,7 +97,7 @@ export function industrialPlan(G, I, { spec = {}, seed = null } = {}) {
     mission.floors = [{ area: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])], z: up, flights: ways.map((way) => ({ bottom: way[0].slice(), top: way.at(-1).slice(), way: way.map((q) => q.slice()) })) }];
   }
   const laws = [...phaseLaws(M0, design.map), ...design.laws.map((l) => ({ law: `map:${l.law}`, holds: l.holds, says: l.says }))];
-  return { brief, recipe, design, map: design.map, mission, laws, seat, ...(I.crew ? { crew: I.crew } : {}), grid: { nx, ny, xa: r2(xa), ya: r2(ya), door } };
+  return { brief, recipe, design, map: design.map, mission, laws, seat, ...(I.crew ? { crew: { faction: I.crew, ...(I.masked ? { masks: true } : {}) } } : {}), grid: { nx, ny, xa: r2(xa), ya: r2(ya), door } };
 }
 
 /** The level's manifest: the place's recipe with the mission's cast on it, the pilot at the eye on the platform rule. */

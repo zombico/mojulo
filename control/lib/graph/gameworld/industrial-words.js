@@ -4,7 +4,7 @@
  * without the whole of what builds them.
  *
  *   INDUSTRIAL               what one is when it names nothing
- *   readIndustrial(v, at?)   as written → { use, depth, hour, weather, wet, tower, walker, crew, cube? }; throws, teaching
+ *   readIndustrial(v, at?)   as written → { use, depth, hour, weather, wet, tower, walker, crew, masked, cube? }; throws, teaching
  */
 import { CELL } from '../arena-map/blocks.js';
 import { PROGRAM_IDS, PROGRAMS } from '../era/programs.js';
@@ -13,8 +13,8 @@ import { readHour } from '../era/geocube-hours.js';
 import { readWetness } from '../era/wetness.js';
 import { GRUNT_STYLE_IDS } from '../cosmos/packs/comic-hero/grunts.js';
 
-export const INDUSTRIAL = Object.freeze({ use: 'warehouse', depth: 33, hour: 'golden', weather: false, wet: 'wet', tower: true, walker: false, crew: 'privateMilitary' });
-const KEYS = ['use', 'depth', 'hour', 'weather', 'wet', 'tower', 'walker', 'crew', 'cube'];
+export const INDUSTRIAL = Object.freeze({ use: 'warehouse', depth: 33, hour: 'golden', weather: false, wet: 'wet', tower: true, walker: false, crew: 'privateMilitary', masked: true });
+const KEYS = ['use', 'depth', 'hour', 'weather', 'wet', 'tower', 'walker', 'crew', 'masked', 'cube'];
 
 /** An industrial level as written (see the header). */
 export function readIndustrial(v = {}, at = 'industrial') {
@@ -39,6 +39,7 @@ export function readIndustrial(v = {}, at = 'industrial') {
   if (I.tower && I.walker) no(' stands one thing in its yard\'s middle: a tower or a walker');
   if (I.crew === false) I.crew = null;
   if (I.crew !== null && !GRUNT_STYLE_IDS.includes(I.crew)) no(`.crew is who holds the yard, a crew its foes are dressed as (${GRUNT_STYLE_IDS.join(', ')}), or false for the plain stand-in`);
+  if (typeof I.masked !== 'boolean') no('.masked is true (its crew masked: a tactical mask, a gas mask, a respirator) or false (their faces shown)');
   if (I.walker !== null && typeof I.walker !== 'string') no('.walker is the vehicle parked on its yard, by its word (siege-walker), or false');
   return I;
 }

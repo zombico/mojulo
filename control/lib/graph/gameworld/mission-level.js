@@ -88,12 +88,18 @@ function box(x0, y0, x1, y1, h, fill, group) {
 /** A crew's bodies: `bodies` people of a faction's kind (its first, the rank and file: the rifleman, the soldier, the
  *  tough; or the `kind` named), each rolled on its own seed so no two are one face, dressed by the hero door's own words
  *  (foes/dress.js), standing and walking on the figure library's clips as the stand-in does. A crew is
- *  '<faction>' | { faction, kind?, colourway?, bodies? }. */
+ *  '<faction>' | { faction, kind?, colourway?, bodies?, masks?: true (CREW_MASKS) | [headgear words] }. */
+/** What a masked crew wears over its faces, a body each in turn: the headgear shelf's words (headgear/cards.js). */
+export const CREW_MASKS = Object.freeze(['tacticalMask', 'gasMask', 'respirator']);
+const CREW_MASK_TONES = Object.freeze({ Mask: '#1b1d20', MaskDomino: '#1b1d20', Helm: '#1b1d20', MaskMouth: '#15171a', MaskTrim: '#2c2f33', MaskSeam: '#2c2f33', MaskFilter: '#2c2f33', Trim: '#2c2f33', MaskLens: '#7d8a88' });
 export function crewFigures(crew, seed = 1) {
-  const { bodies = 3, ...C } = typeof crew === 'string' ? { faction: crew } : crew, kinds = Object.keys(GRUNT_STYLES[C.faction]?.kinds ?? {});
+  const { bodies = 3, masks = null, ...C } = typeof crew === 'string' ? { faction: crew } : crew, kinds = Object.keys(GRUNT_STYLES[C.faction]?.kinds ?? {});
   if (!kinds.length) throw new Error(`mission: no crew '${C.faction}' (${GRUNT_STYLE_IDS.join(', ')})`);
   return Array.from({ length: bodies }, (_, k) => {
     const { gesture: _g, statue: _s, vibe: _v, ...spec } = dressOrders({ people: 'human', dress: { kind: kinds[0], ...C } }, { seed: (seed | 0) + 7 * k }).mint.spec;
+    const worn = masks === true ? CREW_MASKS : Array.isArray(masks) && masks.length ? masks : null;
+    // (the masks in the crew's own dark, their lenses a dull glass: never the shelf's showier tones)
+    if (worn) { spec.headgear = worn[k % worn.length]; spec.palette = { ...spec.palette, ...CREW_MASK_TONES }; }
     return { hero: spec, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop' } };
   });
 }

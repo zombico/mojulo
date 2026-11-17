@@ -4,6 +4,7 @@
 // land, inside the yard's own ground, the way out at the building's door; its tasks are proved on the bus; it is a
 // level's form, staged and ordered as one, and refuses what does not go beside it. The level whole is the e2e tier's.
 import { RISE } from '../arena-map/blocks.js';
+import { CREW_MASKS } from './mission-level.js';
 import { describe, expect, it } from 'vitest';
 import { readIndustrial, industrialPlan, industrialManifest, INDUSTRIAL, SEAT } from './mission-industrial.js';
 import { proveMission } from './mission-proof.js';
@@ -67,6 +68,9 @@ describe('an industrial level, planned', () => {
     expect(figs.length).toBeGreaterThan(0);
     expect(figs.every((f) => f.hero.outfit.style === 'tactical')).toBe(true);
     expect(new Set(figs.map((f) => JSON.stringify(f.hero))).size).toBeGreaterThan(1);
+    // (masked: each body a mask of the crew's in turn; `masked: false` shows their faces)
+    expect(new Set(figs.map((f) => f.hero.headgear))).toEqual(new Set(CREW_MASKS));
+    expect(Object.values(industrialManifest(G, industrialPlan(G, readIndustrial({ masked: false }), { seed: 1 })).figures).some((f) => f.hero?.headgear)).toBe(false);
     const plain = industrialPlan(G, readIndustrial({ crew: false }), { seed: 1 });
     expect(Object.values(industrialManifest(G, plain).figures).some((f) => f.hero?.outfit)).toBe(false);
     expect(() => readIndustrial({ crew: 'pirates' })).toThrow(/a crew its foes are dressed as/);

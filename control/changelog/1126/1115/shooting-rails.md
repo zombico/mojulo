@@ -239,3 +239,5 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   private military where it names none; `false` for the plain stand-in): three of its rank and file, each rolled on its
   own seed, in the hero door's own words (`foes/dress.js`), so a contractor stands in a tactical rig with a carbine in
   hand where a bare figure stood. `missionCast` takes a `crew`; a made figure given still wins.
+- **The crew is masked.** An industrial level's crew wears the headgear shelf's masks, a body each in turn (a tactical
+  mask, a gas mask, a respirator: `CREW_MASKS`); `masked: false` shows their faces.
