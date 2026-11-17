@@ -67,6 +67,9 @@ export const TRACK_LEXICON = Object.freeze({
   'pixel': { pole: 'banded' }, 'pixelated': { pole: 'banded' },
   'voxel': { pole: 'voxel' }, 'voxels': { pole: 'voxel' }, 'blocky': { pole: 'voxel' }, 'cubes': { pole: 'voxel' },
   'chunky': { pole: 'chunky' }, 'rounded': { pole: 'chunky' }, 'plastic': { pole: 'chunky' },
+  // its light: the seventh generation's (the page lights it, the sun's shadows cast live: track-form.js), or baked in
+  'gen 7': { lit: 'form' }, 'gen-7': { lit: 'form' }, 'seventh gen': { lit: 'form' }, 'seventh generation': { lit: 'form' }, 'shadows': { lit: 'form' },
+  'baked': { lit: 'baked' }, 'baked light': { lit: 'baked' },
   'shaded': { pole: 'shaded' }, 'smooth': { pole: 'shaded' }, 'gouraud': { pole: 'shaded' }, 'sunshine': { pole: 'shaded' }, 'mario sunshine': { pole: 'shaded' },
   'kingdom hearts': { pole: 'shaded' }, 'gamecube': { pole: 'shaded' }, 'ps2': { pole: 'shaded' }, 'sixth gen': { pole: 'shaded' }, 'sixth-gen': { pole: 'shaded' },
   // a stadium's duel (course.js designDuel): two lanes and a crossover, inside a stadium's bowl (stadium/stadium.js)
@@ -118,7 +121,9 @@ export function readTrackIntent(intent = '') {
   const look = `${pole === 'material' && !/\b(realistic|realism|naturalistic|lifelike|photoreal)\b/.test(said) ? 'realistic ' : pole !== 'material' && !/\bstyli[sz]ed\b/.test(said) ? 'stylized ' : ''}${said}`.trim() || (pole === 'material' ? 'realistic green grass' : 'stylized green grass');
   // the surrounds: the land the words name (a course's mountains are the land's too), the settlement they name
   const surrounds = { ...(got.land ? { land: got.land } : {}), ...(got.settlement ? { settlement: got.settlement } : {}) };
-  return { track, set, pole, look, vehicle: VEHICLE[cls] ?? 'sports', ...(got.venue && track.duel ? { venue: got.venue } : {}), ...(got.landmark ? { landmark: got.landmark } : {}), ...(Object.keys(surrounds).length ? { surrounds } : {}), reads, unread: [] };
+  // (a chunky track the seventh generation's unless a word bakes its light)
+  const litForm = pole === 'chunky' && got.lit !== 'baked';
+  return { track, set, pole, ...(litForm ? { form: true } : {}), look, vehicle: VEHICLE[cls] ?? 'sports', ...(got.venue && track.duel ? { venue: got.venue } : {}), ...(got.landmark ? { landmark: got.landmark } : {}), ...(Object.keys(surrounds).length ? { surrounds } : {}), reads, unread: [] };
 }
 
 /** A roadway manifest from words: the course designed by the seed, the look composed wherever it is drawn. */
@@ -127,7 +132,7 @@ export function composeTrack(intent, { seed = 1 } = {}) {
   if (!TRACK_FORMS.includes(T.form)) throw new Error(`trackscape: form ${T.form}`);
   // (a duel is two lanes and a crossover: no hills, ramps or crossing of its own)
   const course = T.duel ? { class: T.class, length: T.length, twist: T.twist, seed, duel: true } : { class: T.class, length: T.length, twist: T.twist, seed, ...(T.elevation ? { elevation: T.elevation } : {}), ...(T.ramps ? { ramps: T.ramps } : {}), ...(T.crossing ? { crossing: true } : {}), ...(T.form === 'stage' ? { closed: false } : {}) };
-  return { kind: 'roadway', form: T.form, course, kit: { look: R.look, seed, ...(R.pole === 'voxel' || R.pole === 'shaded' || R.pole === 'chunky' ? { pole: R.pole } : {}) }, ...(LANGUAGE_OF_CLASS[T.class] ? { language: LANGUAGE_OF_CLASS[T.class] } : {}), scape: { set: R.set, seed, ...(R.landmark ? { landmark: R.landmark } : {}), ...(R.surrounds ? { surrounds: R.surrounds } : {}), ...(R.venue ? { venue: R.venue } : R.pole !== 'voxel' ? { stands: 'bowl' } : {}) }, seed, intent, reads: R.reads, vehicle: R.vehicle };
+  return { kind: 'roadway', form: T.form, course, kit: { look: R.look, seed, ...(R.pole === 'voxel' || R.pole === 'shaded' || R.pole === 'chunky' ? { pole: R.pole } : {}), ...(R.form ? { form: true } : {}) }, ...(LANGUAGE_OF_CLASS[T.class] ? { language: LANGUAGE_OF_CLASS[T.class] } : {}), scape: { set: R.set, seed, ...(R.landmark ? { landmark: R.landmark } : {}), ...(R.surrounds ? { surrounds: R.surrounds } : {}), ...(R.venue ? { venue: R.venue } : R.pole !== 'voxel' ? { stands: 'bowl' } : {}) }, seed, intent, reads: R.reads, vehicle: R.vehicle };
 }
 
 /** A gameworld from words: its look the words', its one level the track drawn in it (the world and the track together). */

@@ -32,7 +32,8 @@
  *     `pole: 'voxel'`, the VOXEL look (voxel-look.js): a battle racer's flat colour under the isekai light, set pieces
  *     in cubes, no tiles; with `pole: 'shaded'`, the SHADED look (shaded-look.js): the sixth generation's polygons lit
  *     per corner under a sky, a bounce and a hard high sun, saturated, no tiles; with `pole: 'chunky'`, the CHUNKY look
- *     (chunky-look.js): the same smooth polygons under a softer light, a kart track's own
+ *     (chunky-look.js): the same smooth polygons under a softer light, a kart track's own; and with `form: true` as well,
+ *     built in their colours alone for the form render (the light laid after, track-form.js; `K.form`)
  *
  * Tiles are PNGs resolved by key (`track:<painter>:<stops>`, landscape/surface-textures.js). Pure, deterministic.
  */
@@ -47,7 +48,7 @@ import { ISEKAI_STYLES } from '../era/isekai.js';
 import { sunDir } from '../era/sun.js';
 import { VOXEL_LIGHT } from './voxel-look.js';
 import { SHADED_LIGHT } from './shaded-look.js';
-import { CHUNKY_LIGHT } from './chunky-look.js';
+import { CHUNKY_LIGHT, CHUNKY_FORM_LIGHT } from './chunky-look.js';
 
 /** Each material: its painter, the kit ramp it is drawn from, the values of its five stops (luma 0–255), how much of the
  *  ramp's colour it keeps, and `grain`: tiles per the caller's uv unit (asphalt's aggregate is fine, a tile a metre). */
@@ -144,7 +145,8 @@ export function trackKit(kit) {
   };
   const varyAt = (c) => { const m = c.reduce((a, p) => [a[0] + p[0] / c.length, a[1] + p[1] / c.length], [0, 0]), i = Math.floor(m[0]), j = Math.floor(m[1]); let h = Math.imul((i * 73856093) ^ (j * 19349663), 1274126177); h = ((h ^ (h >>> 16)) >>> 0) % 3; return 1 + 0.04 * (h - 1); };
   // the shaded pole's light (shaded-look.js): the sky from above, the bounce from below, the high warm sun; saturated
-  const SL = pole === 'chunky' ? CHUNKY_LIGHT : SHADED_LIGHT, sL = sunDir(SL.key.elevation, SL.key.azimuth), sKey = hexRgb(SL.key.color).map((v) => v / 255), sSky = hexRgb(SL.sky).map((v) => v / 255), sGrd = hexRgb(SL.ground).map((v) => v / 255);
+  const form = pole === 'chunky' && !!(kit && typeof kit === 'object' && kit.form);
+  const SL = form ? CHUNKY_FORM_LIGHT : pole === 'chunky' ? CHUNKY_LIGHT : SHADED_LIGHT, sL = sunDir(SL.key.elevation, SL.key.azimuth), sKey = hexRgb(SL.key.color).map((v) => v / 255), sSky = hexRgb(SL.sky).map((v) => v / 255), sGrd = hexRgb(SL.ground).map((v) => v / 255);
   const sixthLit = (rgb, n) => {
     const l = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2], c = rgb.map((v) => l + (v - l) * SL.saturate), up = (n[2] + 1) / 2, lam = Math.max(0, n[0] * sL[0] + n[1] * sL[1] + n[2] * sL[2]);
     return hex(c.map((v, k) => v * Math.max(SL.shadeFloor * sSky[k] * 0.9 + 0.1, (sSky[k] * up + sGrd[k] * (1 - up)) * SL.fill + sKey[k] * SL.sunGain * lam)));
@@ -158,7 +160,7 @@ export function trackKit(kit) {
     return { corners, fill: hex(stops[2]), texture: keyOf(m, stops), uv };
   };
   return {
-    id: kitId, pole, ramps, paints, light,
+    id: kitId, pole, ramps, paints, light, ...(form ? { form: true } : {}),
     /** A set piece group's colours at a value (0–1 channels), banded the isekai way (a band is a choice of stop, not a
      *  darkening): lit, its stop warmed a touch by the key; a top, half a stop up; shade, a stop down, cooled toward the
      *  ambient. What the voxel look fills a cube with. */

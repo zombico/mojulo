@@ -30,7 +30,7 @@ import { inPoly } from './arena-plan.js';
 import { terrainAt, GRASS_TILE } from './track.js';
 import { TRACK_BLOCKS, paintPiece } from './set-pieces.js';
 import { treeFaces } from './track-language.js';
-import { chunkyFaces } from './chunky-look.js';
+import { chunkyFaces, chunkyLightOf } from './chunky-look.js';
 
 /** A land's character: its relief's shape, its height in the infield, its steepest rise from what stays flat, its height
  *  near the venue and far from it (reached `reach` m out), its wavelength (m), steps (a mesa's terraces), the snow line
@@ -426,7 +426,7 @@ export function planSurrounds(plan, { arena = null, scape = null, K, seed = 1, l
   for (const p of scree) { const rr = 1.2 + rnd() * 2.5; lump(into(p).far, [p[0], p[1], groundAt(p[0], p[1]) - rr * 0.3], { r: rr, h: rr * (0.7 + rnd() * 0.6), profile: BOULDER, sides: 6, rnd, value: 0.56 }); }
   n0 = faces.length;
   for (const k of [...tiles.keys()].sort()) { const t = tiles.get(k); if (t.near.length) faces.push(...paintPiece(t.near, K, { voxel: voxelAt(t.dv) })); }
-  if (chunkTrees.length) faces.push(...chunkyFaces(chunkTrees));
+  if (chunkTrees.length) faces.push(...chunkyFaces(chunkTrees, { light: chunkyLightOf(K) }));
   mark('trees', n0); n0 = faces.length;
   for (const k of [...tiles.keys()].sort()) { const t = tiles.get(k); if (t.far.length) faces.push(...paintPiece(t.far, K, { voxel: Math.max(6, voxelAt(t.dv)) })); }
   mark('canopy', n0); count.ground = ground.length;

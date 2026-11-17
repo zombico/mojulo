@@ -29,7 +29,8 @@ import { trackKit } from './track-kit.js';
 import { racingLine } from './contract.js';
 import { moodOf, moodScene } from './race-mood.js';
 import { readLanguage, railFaces, postFaces, kerbFaces, edgeFaces, puffFaces, chevronFaces, buntingFaces, languageLaws } from './track-language.js';
-import { chunkyFaces, chunkyFlat } from './chunky-look.js';
+import { chunkyFaces, chunkyFlat, chunkyLightOf } from './chunky-look.js';
+import { trackForm } from './track-form.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const upFace = (c) => { let n = [0, 0, 0]; for (let i = 0; i < c.length; i++) { const a = c[i], b = c[(i + 1) % c.length]; n = [n[0] + (a[1] - b[1]) * (a[2] + b[2]), n[1] + (a[2] - b[2]) * (a[0] + b[0]), n[2] + (a[0] - b[0]) * (a[1] + b[1])]; } const l = Math.hypot(...n) || 1; n = n.map((v) => v / l); return n[2] < 0 ? { c: c.slice().reverse(), n: n.map((v) => -v) } : { c, n }; };
@@ -113,7 +114,7 @@ export function planTrack(m = {}) {
   // track's own drawing; `lang.way`: the way's colour where the language has a material for it
   const lang = readLanguage(m.language), LP = lang?.parts ?? {}, raw = [];
   const wayHex = lang && LP.way?.material ? lang.materials[LP.way.material].hex : null;
-  const flatLit = (hex, c) => { const up = upFace(c); return { corners: up.c, fill: K?.pole === 'chunky' ? chunkyFlat(hex, up.n) : K ? K.tint(hex, up.c, up.n).fill : face(up.c, hex).fill }; };
+  const flatLit = (hex, c) => { const up = upFace(c); return { corners: up.c, fill: K?.pole === 'chunky' ? chunkyFlat(hex, up.n, chunkyLightOf(K)) : K ? K.tint(hex, up.c, up.n).fill : face(up.c, hex).fill }; };
   const railOpen = !!(lang && LP.rail), marks = new Set();
   // the way in bands (its second tone by turns), its centre dash, and the verge mown in stripes: what is seen to move
   const bandHex = wayHex && LP.way.bands ? lang.materials[LP.way.bands.material].hex : null, dashHex = wayHex && LP.way.dash ? lang.materials[LP.way.dash.material].hex : null;
@@ -226,9 +227,9 @@ export function planTrack(m = {}) {
     Object.defineProperty(language, 'card', { value: lang, enumerable: false });
     if (lang.sky) language.sky = lang.sky;
     if (K?.pole === 'chunky') {
-      faces.push(...chunkyFaces(raw));
+      faces.push(...chunkyFaces(raw, { light: chunkyLightOf(K) }));
       // the sky's puffs (the chunky drawing's own clouds), in a ring round the course
-      if (lang.sky?.puffs) { const xs = st.map((p) => p.x), ys = st.map((p) => p.y), cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2; faces.push(...chunkyFaces(puffFaces(lang, { centre: [cx, cy, st[0].z], reach: Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys), 200) * 0.9, rnd: mulberry32((((Number.isInteger(m.seed) ? m.seed : 1) * 2654435761) ^ 0x51ed) >>> 0) }))); }
+      if (lang.sky?.puffs) { const xs = st.map((p) => p.x), ys = st.map((p) => p.y), cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2; faces.push(...chunkyFaces(puffFaces(lang, { centre: [cx, cy, st[0].z], reach: Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys), 200) * 0.9, rnd: mulberry32((((Number.isInteger(m.seed) ? m.seed : 1) * 2654435761) ^ 0x51ed) >>> 0) })).map((f) => ({ ...f, group: 'track:cloud' }))); }
     }
     else for (const f of raw) faces.push(K ? K.tint(f.hex, f.corners, f.normal) : face(f.corners, f.hex));
 
@@ -495,6 +496,14 @@ export function assembleTrackScene(m = {}, opts = {}, planned = null) {
   const plan = planned ?? planTrack(m);
   // `mood` (race-mood.js): the light the race is run in; absent, noon, every byte as it was
   const scene = assembleNoonScene(m, opts, plan);
+  // (the form render, a chunky kit's `form: true`: the faces baked with their colour and the day apart, the sun's shadow
+  // cast live, track-form.js; a mood relights a baked track and is not read here)
+  if (m.kit && typeof m.kit === 'object' && m.kit.form && !m.mood) {
+    const xs = plan.stations.map((p) => p.x), ys = plan.stations.map((p) => p.y), zs = plan.stations.map((p) => p.z);
+    const half = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) / 2 + 40;
+    const F = trackForm(scene.faces, { fit: { at: [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2, Math.min(...zs)], half } });
+    return { ...scene, faces: F.faces, form: F.form, shadows: F.shadows, sky: { ...scene.sky, sun: { dir: F.sun, size: 1.4, glow: 1.3 } } };
+  }
   return m.mood ? moodScene(scene, plan, moodOf(m.mood), { isRoad: (f) => !!plan.roadFaces?.has(f) }) : scene;
 }
 function assembleNoonScene(m, opts, plan) {

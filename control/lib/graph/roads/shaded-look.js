@@ -11,7 +11,8 @@
  *   colour     saturated, the colour the painted stop's; no tiles
  *   gloss      a face that says `gloss` (0–1) takes the key's highlight (the chunky look's plastics: chunky-look.js)
  *
- *   shadeFaces(faces, { colourOf, light, crease, shadows }) → faces lit per corner (cornerFills), four corners at most
+ *   shadeFaces(faces, { colourOf, light, crease, shadows, normals }) → faces lit per corner (cornerFills), four corners at
+ *              most; `normals`: each keeps its normal and its corners' smoothed normals (a light laid after)
  *   SHADED_LIGHT → Sunshine's island noon (era/sixth-gen.js `sunshine`)
  *
  * Pure, deterministic.
@@ -32,7 +33,7 @@ function newell(c) {
 const saturate = (c, k) => { const l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; return c.map((v) => l + (v - l) * k); };
 
 /** Faces lit the sixth generation's way: each corner its smoothed normal under the sky, the bounce and the sun. */
-export function shadeFaces(faces, { colourOf, light = SHADED_LIGHT, shadows = true } = {}) {
+export function shadeFaces(faces, { colourOf, light = SHADED_LIGHT, shadows = true, normals = false } = {}) {
   const L = sunDir(light.key.elevation, light.key.azimuth), key = hexRgb(light.key.color), sky = hexRgb(light.sky), grd = hexRgb(light.ground);
   const cosC = Math.cos(((light.crease ?? 50) * Math.PI) / 180);
   const H = unit([L[0], L[1], L[2] + 1]);   // the half vector of the sun and straight up: where a gloss shows from behind a car
@@ -59,7 +60,8 @@ export function shadeFaces(faces, { colourOf, light = SHADED_LIGHT, shadows = tr
     const cs = x.c.map(lit), n = x.c.length;
     // four corners at most (the World draws a face's first four): a fan of quads
     const idx = n <= 4 ? [[...Array(n).keys()]] : Array.from({ length: Math.ceil((n - 2) / 2) }, (_, j) => { const i = 1 + 2 * j; return i + 2 < n ? [0, i, i + 1, i + 2] : [0, i, i + 1]; });
-    for (const I of idx) out.push({ corners: I.map((i) => x.c[i]), fill: toHex(I.reduce((s, i) => s.map((v, q) => v + cs[i][q] / I.length), [0, 0, 0])), cornerFills: I.map((i) => toHex(cs[i])) });
+    // (`normals`: each face keeps its normal and a corner's smoothed one, for a light laid after: the form render's)
+    for (const I of idx) out.push({ corners: I.map((i) => x.c[i]), fill: toHex(I.reduce((s, i) => s.map((v, q) => v + cs[i][q] / I.length), [0, 0, 0])), cornerFills: I.map((i) => toHex(cs[i])), ...(normals ? { normal: x.n, cornerNormals: I.map((i) => smooth(x.c[i], x.n)) } : {}) });
   }
   return out;
 }

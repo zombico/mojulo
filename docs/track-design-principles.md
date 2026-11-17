@@ -31,7 +31,12 @@ the operator's to say on the page.
    tell is on the outside only. A tree's crown is lopsided, no two alike, and a share of the trees are in blossom.
 7. **Chunky.** Rounded and stout. Nothing thinner than a hand could hold, a ball on every pole, pillows for kerbs, a
    tube for a rail. Smooth polygons, never cubes.
-8. **The sky is the track's.** Its day, its sun, and clouds built as the track is. Never an empty grey.
+8. **The sky is the track's, and its sun casts.** Its day, its sun, and clouds built as the track is. Never an empty
+   grey. The light is the seventh generation's: a surface carries its colour and its form, and the page lights it, the
+   sun's shadow cast live (the static world once, the karts each frame). The sun stands low enough (36°) that a post, a
+   ball and an arch lay shadows long enough to be read from the kart, and the sky is so much of the light that a shadow
+   is a soft blue, never black. The palette is held on what lies flat (the way, the kerbs, the verge): a colour there
+   shows as the card says, and a wall turned to the sun runs brighter than its paint.
 9. **The land in the track's shapes.** Trees take the land's own greens and the language's forms.
 10. **The trackside is the track's too.** The arch, the braking boards, the castle and the bumpers are made in the
     same family and the same shapes: a stand-in block for each set piece (`pieces.blocks`, taking the piece's own
@@ -69,6 +74,15 @@ words takes. A new language is a card, by name on the shelf or written out in a 
 and its post of one stuff), `finish`, `kerb-read`, `tell` (the tell is not the rail's colour), `suits` (the class it
 is laid on), `drawn` (nothing drawn outside the family). A roadway level's gate says them as `language:<law>` beside
 the track's own laws and the trackscape's.
+
+## The light in code
+
+A chunky kart track is lit by the page unless a word bakes it ("baked"; "gen 7" and "shadows" name the page-lit one):
+the kit's `form: true`. Its faces are built in their colours alone (`roads/chunky-look.js` `CHUNKY_FORM_LIGHT`), their
+normals kept, then baked as the gen 7 town's buildings are (`roads/track-form.js` over `form/sun-light.js`): each corner
+its base and the day's light apart, and the sun's share of it. The page lays the sun's shadow from a static map fitted to
+the track and the karts' map that follows the action (`scene/live-light.js`). A mood (golden, dusk, night, rain)
+relights a baked track and is not read on a page-lit one yet.
 
 ## Looking
 

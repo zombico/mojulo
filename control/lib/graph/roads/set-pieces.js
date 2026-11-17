@@ -30,7 +30,7 @@ import { buildBlock } from '../era/blocks.js';
 import { STRUCTURE_RINGS } from '../era/out-structures.js';
 import { voxelize, voxelFaces, voxelSizeFor } from './voxel-look.js';
 import { shadeFaces } from './shaded-look.js';
-import { CHUNKY_LIGHT } from './chunky-look.js';
+import { chunkyLightOf } from './chunky-look.js';
 import { FINISHES } from './track-language.js';
 
 // ── the library ──
@@ -372,7 +372,7 @@ export function paintPiece(faces, K, { voxel = null, language = null } = {}) {
     return voxelFaces(vox, { light: K.light });
   }
   // the shaded look: the piece's own polygons, lit per corner the sixth generation's way (shaded-look.js)
-  if (K.pole === 'shaded' || K.pole === 'chunky') return shadeFaces(faces, { ...(K.pole === 'chunky' ? { light: CHUNKY_LIGHT } : {}), colourOf: (f) => (f.tint ? tintColours(f.tint).lit : K.colourOf(GROUP_PAINT[f.group] ?? GROUP_PAINT['tech:body'], f.value ?? 0.6, !!f.tile).lit) });
+  if (K.pole === 'shaded' || K.pole === 'chunky') return shadeFaces(faces, { ...(K.pole === 'chunky' ? { light: chunkyLightOf(K), ...(K.form ? { normals: true } : {}) } : {}), colourOf: (f) => (f.tint ? tintColours(f.tint).lit : K.colourOf(GROUP_PAINT[f.group] ?? GROUP_PAINT['tech:body'], f.value ?? 0.6, !!f.tile).lit) });
   const out = [];
   for (const f of faces) {
     const G = GROUP_PAINT[f.group] ?? GROUP_PAINT['tech:body'];

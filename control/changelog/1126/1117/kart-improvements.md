@@ -30,6 +30,16 @@ In progress. Built so far:
   a cream tower with a band, balls for battlements and a berry roof, a castle whose tall tower stands off its middle,
   bumpers of three rolls. The venue's own buildings take the family's paint too. Two primitives join the block library
   for them: a ball, and a ring with a round section (a square one, as before, unless it says).
+- **Built: a kart track lit by the page, its sun casting** (the seventh generation's form render). A chunky track's
+  faces are built in their colours alone, every part's normals kept, then baked as the gen 7 town's buildings are
+  (`roads/track-form.js`): each corner its base and the day's light apart. The page lays the sun's shadow live: the
+  static world into a map fitted to the track, drawn once, and the karts into a map that follows the action, each
+  darkening only the sun's share of a corner's light, so a shadow is a soft blue. The sun stands at 36° so the rail,
+  the posts, the balls and the arch lay shadows that read from the kart. The palette is held on what lies flat: the way,
+  the kerbs and the verge show the card's own colours. A kart track from words is drawn so; "baked" bakes its light as
+  before. The outdoor bake (`form/sun-light.js`) gains two opt-ins for it: a normal a corner for what is drawn smooth,
+  and a reference face the colours are held on. A world's page keeps a builder's own fitted shadows, the live
+  defaults filling what it leaves unsaid. The page weighs more with its per-corner light (about half again).
 - **The principles a new map starts from** ([docs/track-design-principles.md](../../../../docs/track-design-principles.md))
   and the agent's card for them (`gameworld-track-language`, read by the levels chapter): a premise first, a small
   family, a quiet way, a corner told three times, things seen to move, asymmetry, chunky, the track's own sky.
