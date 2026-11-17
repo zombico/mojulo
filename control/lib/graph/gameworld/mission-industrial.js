@@ -14,7 +14,7 @@
  *   INDUSTRIAL                 what one is when it names nothing; where it is seated on its land
  *   readIndustrial(v, at?)     as written → { use, depth, hour, weather, walker, cube? }; throws, teaching
  *   industrialPlan(G, I, { spec?, seed? }) → { brief, recipe, design, map, mission, laws, seat } | null (no gun)
- *   industrialManifest(G, P, { refs?, title? }) → the level's manifest: the recipe with the mission's cast, tasks and page
+ *   industrialManifest(G, P, { refs?, title?, quiet? }) → the level's manifest: the recipe with the mission's cast, tasks and page
  *
  * Said: the yard is one level, flat; its fence stops a body and, to a mind, a sight (a collider), where the laws read it
  * as a rail a line crosses; the walker is a box to walk round; a hold's wave comes on the ground.
@@ -101,8 +101,9 @@ export function industrialPlan(G, I, { spec = {}, seed = null } = {}) {
 }
 
 /** The level's manifest: the place's recipe with the mission's cast on it, the pilot at the eye on the platform rule. */
-export function industrialManifest(G, P, { refs = {}, title = null } = {}) {
-  const M = P.mission, C = missionCast(G, M, { refs, quiet: true }), felt = G?.feel != null ? feelRule(G.feel) : null;
+export function industrialManifest(G, P, { refs = {}, title = null, quiet = false } = {}) {
+  // (heard: its guns' shots, reloads, draws and hits, the range's own sound, combat/range-sound.js; `quiet` for none)
+  const M = P.mission, C = missionCast(G, M, { refs, quiet }), felt = G?.feel != null ? feelRule(G.feel) : null;
   const rule = { type: 'platform', speed: 4.5, walkSpeed: 1.6, turn: 2.4, eye: EYE, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(felt ?? {}), turnMode: 'look', lookPitch: true, strafe: 1, ...C.pilot.rule };
   const sp = M.anchors.spawn, player = { id: 'player', pilotable: true, rule, ...(C.pilot.weapon ? { weapon: C.pilot.weapon } : {}), body: { type: 'none', ...C.pilot.body }, transform: { pos: [sp[0], sp[1], r3(sp[2] + EYE)], heading: M.heading } };
   return {

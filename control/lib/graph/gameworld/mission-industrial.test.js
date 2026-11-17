@@ -61,6 +61,9 @@ describe('an industrial level, planned', () => {
     expect(P.mission.frame.stairs).toHaveLength(2);
     expect(P.mission.floors[0].flights).toHaveLength(2);
     // (its deck railed and its yard fenced, its minds cross the floors and ask the ground nothing: no ledge probes)
+    // (heard: the range's own sound for its guns, unless it is asked quiet)
+    expect(industrialManifest(G, P).audio).toBeTruthy();
+    expect(industrialManifest(G, P, { quiet: true }).audio).toBeUndefined();
     const sentTo = industrialManifest(G, P).entities.filter((e) => e.rule?.floors);
     expect(sentTo.length).toBeGreaterThan(0);
     expect(sentTo.every((e) => !e.rule.navLedges)).toBe(true);
