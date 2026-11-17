@@ -26,8 +26,12 @@
 /* global gunCode, joinStreet, newGunReader, readGunButtons, gunMoveList, tallyRounds, accuracyOf, sceneOf, stepScene, sceneShows, streetSession, STREET_DIFFICULTY, CPU_LEVELS, BRAWL_YARD, castKit, THREE, THINGS, MOUNTS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, streetOf, stepStreet, streetRead, newReader, readButtons, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
 const BY = BRAWL_YARD;
 const BELT = BY.belt;
-controls.enabled = false;
-__ctrlOwnsCamera = true;   // the page's loop leaves the camera to the yard
+// AN ENCOUNTER (`BRAWL_YARD.encounter`: a fight inside a page that is free roam, the open city's): the brawl WAITS. It
+// takes no camera, steps nothing and draws nothing until the encounter begins (`begin`, below), and gives the page
+// back as it ends. Absent, the brawl is the page's from its first frame, as it always was.
+const ENC = BY.encounter || null;
+let ENC_ON = false, ENC_JOIN = false;
+if (!ENC) { controls.enabled = false; __ctrlOwnsCamera = true; }   // the page's loop leaves the camera to the yard
 // the stage in the belt's frame: x along it, y across it (toward the far side), z up, from its start
 const YARD = new THREE.Group();
 YARD.position.set(BELT.at[0], BELT.at[1], BELT.floor);
@@ -38,6 +42,7 @@ const FL = (mm) => beltFloor(BELT, mm / 1000);
 const DR = (mm) => beltDrift(BELT, mm / 1000);
 YARD.rotation.z = (BELT.heading * Math.PI) / 180;
 scene.add(YARD);
+if (ENC) YARD.visible = false;
 
 // ── the register (the fight's look, versus-arena.client.js fightRig): every body drawn the one way under one key ─────
 // 'anime' cel, three tones stepped from the key, its shadows stepped and cool; 'western' lit as an engine lights it, its
@@ -111,7 +116,8 @@ let SESSION = { players: picks, difficulty: null };
 // (A STREET'S SPARE SEATS: the playable characters no one has picked (never one the crowd is drawn as), their bodies
 // made and waiting, so a second player sits down mid-street and walks in: no street begun again. Two seats at least)
 let SPARE = [];
-const spareSeats = () => { if (!STREET) return []; const drawn = new Set(Object.values(STREET.cast || {}).flat().concat((STREET.castAt || []).filter((k) => k !== null))), can = BY.roster.map((_, k) => k).filter((k) => !drawn.has(k) && (!BY.playable || k < BY.playable)); const out = can.filter((k) => picks.indexOf(k) < 0); for (let k = 0; picks.length + out.length < 2 && can.length; k++) out.push(can[k % can.length]); return out.slice(0, Math.max(0, 4 - picks.length)); };
+const spareSeats = () => { if (!STREET || ENC) return [];   // (an encounter is the one who walked into it: no seat waits)
+  const drawn = new Set(Object.values(STREET.cast || {}).flat().concat((STREET.castAt || []).filter((k) => k !== null))), can = BY.roster.map((_, k) => k).filter((k) => !drawn.has(k) && (!BY.playable || k < BY.playable)); const out = can.filter((k) => picks.indexOf(k) < 0); for (let k = 0; picks.length + out.length < 2 && can.length; k++) out.push(can[k % can.length]); return out.slice(0, Math.max(0, 4 - picks.length)); };
 const seatsOf = () => picks.concat(SPARE);
 // A SCENE PLAYING (brawl-scenes.js): the street's own beats, the fight held under it. `STAGED` what the game's turn asks
 // of this session (the play shell's params: __stage as play starts, __end once the outcome is known); `CINE` the one
@@ -784,7 +790,9 @@ let SEATS = __BR_SEATK.newSeats({ max: 4 }), READS = {};
 function pollSeats() {
   const reads = { keyboard: kbRead }, frame = {};
   const wants = (fam, rd) => __BR_CTL.held(__BR_BIND, 'start', fam, rd) || __BR_CTL.held(__BR_BIND, 'attack', fam, rd);
-  frame.keyboard = { join: wants('keyboard', kbRead) };
+  // (an encounter seats the keyboard as it begins: the player is already playing, there is no sitting down)
+  frame.keyboard = { join: wants('keyboard', kbRead) || ENC_JOIN };
+  ENC_JOIN = false;
   const ps = navigator.getGamepads ? navigator.getGamepads() : [];
   for (let k = 0; k < ps.length; k++) {
     const p = ps[k];
@@ -811,7 +819,9 @@ const seated = () => SEATS.seats.filter((x) => !x.away).length;
 const UI = (() => {
   const style = document.createElement('style');
   style.textContent = BY.yard.css;
-  document.head.appendChild(style);
+  // (an encounter's sheet is on the page only while it is fought: it is the brawler's look over mana-ui's own classes,
+  // and free roam's screens wear the game's)
+  if (!ENC) document.head.appendChild(style);
   // (the fighter from the roster; the dummies' type the street's crowd or anyone on the roster)
   const settings = [{ kind: 'cycler', label: 'Fighter', var: 'brawl.practice.set.fighter', options: BY.roster.map((r) => r.name) },
     ...(RANGE ? [{ kind: 'cycler', label: 'Gun', var: 'brawl.practice.set.gun', options: RANGE.names }] : []),
@@ -820,6 +830,7 @@ const UI = (() => {
   const state = { brawl: { street: { p1: {}, p2: {}, p3: {}, p4: {}, gun: { on: false, name: '', ammo: '', grenades: 0 }, accuracy: '—', hp: 1, hpMax: 1, name: '', cleared: 0, of: 1, left: 0, boss: { on: false, name: '', hp: 0, hpMax: 1 }, moments: [], time: '0:00', rank: '', moves: [] }, practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' } } } };
   const el = document.createElement('div');
   document.body.appendChild(el);
+  if (ENC) el.style.display = 'none';
   const setPath = (path, to) => { const k = path.split('.'), last = k.pop(); k.reduce((o, x) => o[x], state)[last] = to; };
   const rt = manaUi.runtime(BY.yard.spec, {
     read: (p) => manaUi.readPath(state, p),
@@ -829,7 +840,7 @@ const UI = (() => {
   rt.glyphs({ keys: { up: 'W', down: 'S', left: 'A', right: 'D', tabPrev: 'A', tabNext: 'D', back: 'Esc', accept: 'J' }, pad: { xbox: { up: '↑', down: '↓', left: '←', right: '→', tabPrev: '←', tabNext: '→', back: 'B', accept: 'A' } } });
   rt.input('keys');
   const view = manaUi.mount(el, rt, { auto: true });
-  return { state, rt, view, press: (a) => { rt.press(a); view.paint(); } };
+  return { state, rt, view, el, style, press: (a) => { rt.press(a); view.paint(); } };
 })();
 // the settings applied as the screen closes: the fighter, the dummies, their health
 let applied = JSON.stringify(SET);
@@ -961,6 +972,7 @@ function streetScreen() {
     const tell = () => { if (HOSTED) window.parent.postMessage({ moj: BY.wire.outcome, envelope: { contractVersion: BY.wire.version, levelRef: 'street', result: R.won ? 'success' : 'fail', events: [], stats: { street: { cleared: R.cleared, of: R.of, seconds: secs, health: R.hp, healthOf: R.hpMax }, ...(R.won ? { rank: R.rank } : {}), kept: [{ label: 'time', value: secs, unit: ' s', best: 'low' }, { label: 'health', value: R.hp, best: 'high' }, ...(GUNPLAY && accuracyOf(tally) !== null ? [{ label: 'accuracy', value: accuracyOf(tally), unit: '%', best: 'high' }] : [])] } } }, '*');
     // (and the keys go back to the shell: its result is driven from them)
       if (HOSTED) { try { window.parent.focus(); } catch (err) { /* an opaque parent */ } }
+      else if (ENC) encounterEnd(over);
       else { UI.rt.open(over); UI.view.paint(); } };
     // (THE END SCENE the game's turn asks for, on the outcomes it names: played here, the outcome told after it)
     const E = STAGED.end;
@@ -979,10 +991,67 @@ if (HOSTED) {
   take(); window.addEventListener('pointerdown', take);
 }
 
-build();
+// ── THE ENCOUNTER (a fight inside free roam) ──────────────────────────────────────────────────────────────────────
+// It begins when the page's hero, on foot, comes within its reach while its flag is set and its done flag is not
+// (`ENC.took`, `ENC.done`: the level's bus vars; `ENC.at`, `ENC.radius`): the world is held (`__mojFreeze`), the hero
+// steps out of the picture, the camera is the belt's, and the street is fought from its start. Won, the hero stands
+// where the fight ended and the encounter's event is raised on the bus (`ENC.event`: what it finishes, a faction's
+// posting); lost, the hero is put back where it began and it may be tried again after a moment (`ENC.again`, s).
+let ENC_KEEP = null, ENC_WAIT = 0;
+function encounterBegin() {
+  const C = window.__mojCtrl, W = C && C.world, me = W && W.pilotId ? W.byId[W.pilotId] : null;
+  if (ENC_ON || !me) return false;
+  ENC_KEEP = { pos: me.transform.pos.slice(), heading: me.transform.heading, camPos: camera.position.clone(), camUp: camera.up.clone(), camQ: camera.quaternion.clone(), fov: camera.fov, controls: controls.enabled, owns: __ctrlOwnsCamera, id: me.id };
+  ENC_ON = true;
+  me.gone = true;
+  window.__mojFreeze = true; window.__mojMenuOpen = true; window.__mojManaOpen = 'encounter';
+  controls.enabled = false; __ctrlOwnsCamera = true;
+  YARD.visible = true; UI.el.style.display = '';
+  // (free roam's own screens are put away while it is fought: every mana-ui surface that is not the fight's)
+  const wrapEl = document.getElementById('wrap');
+  ENC_KEEP.hid = [];
+  document.querySelectorAll('.mana-root').forEach((n) => { let top = n; while (top.parentElement && top.parentElement !== wrapEl && top.parentElement !== document.body) top = top.parentElement; if (top !== UI.el && !UI.el.contains(top) && ENC_KEEP.hid.every((h) => h[0] !== top)) { ENC_KEEP.hid.push([top, top.style.display]); top.style.display = 'none'; } });
+  document.head.appendChild(UI.style);
+  HELD.clear(); LATCH.clear(); ENC_JOIN = true;
+  yardLast = null; yardAcc = 0;
+  // (a street that cannot be laid gives the page straight back: the fault is said, free roam goes on)
+  try { build(); } catch (err) { room = null; encounterEnd('fault'); console.error('encounter:', err); return false; }
+  return true;
+}
+function encounterEnd(result) {
+  if (!ENC_ON) return;
+  const K = ENC_KEEP, C = window.__mojCtrl, W = C && C.world, me = W && K ? W.byId[K.id] : null, won = result === 'won';
+  ENC_ON = false; ENC_WAIT = performance.now() + (ENC.again ?? 6) * 1000;
+  YARD.visible = false; UI.el.style.display = 'none';
+  if (UI.style.parentNode) UI.style.parentNode.removeChild(UI.style);
+  for (const h of (K && K.hid) || []) h[0].style.display = h[1];
+  if (me) {
+    me.gone = false;
+    // (won: where the fight ended, on the belt; lost: where it began)
+    if (won && room) { const p = room.s.bodies[0], v = YARD.localToWorld(new THREE.Vector3(p.x / 1000, p.z / 1000 + DR(p.x), FL(p.x))); me.transform.pos[0] = v.x; me.transform.pos[1] = v.y; me.transform.pos[2] = v.z + 0.1; }
+    else { me.transform.pos[0] = K.pos[0]; me.transform.pos[1] = K.pos[1]; me.transform.pos[2] = K.pos[2]; me.transform.heading = K.heading; }
+  }
+  camera.position.copy(K.camPos); camera.up.copy(K.camUp); camera.quaternion.copy(K.camQ);
+  if (Math.abs(camera.fov - K.fov) > 0.01) { camera.fov = K.fov; camera.updateProjectionMatrix(); }
+  controls.enabled = K.controls; __ctrlOwnsCamera = K.owns;
+  window.__mojFreeze = false; window.__mojMenuOpen = false; window.__mojManaOpen = null;
+  if (won && ENC.event && window.__mojBus && window.__mojBus.press) window.__mojBus.press(ENC.event);
+  ENC_ENDS.push(result);
+}
+const ENC_ENDS = [];
+function encounterWatch() {
+  if (ENC_ON || performance.now() < ENC_WAIT || window.__mojFreeze || window.__mojManaOpen) return;
+  const vars = window.__mojBus && window.__mojBus.state ? window.__mojBus.state.vars || {} : null, C = window.__mojCtrl, W = C && C.world, me = W && W.pilotId ? W.byId[W.pilotId] : null;
+  if (!vars || !me || me.mountedOn || (me.mount && me.mount.cab)) return;
+  if (!(Number(vars[ENC.took]) >= 1) || Number(vars[ENC.done]) >= 1) return;
+  if (Math.hypot(me.transform.pos[0] - ENC.at[0], me.transform.pos[1] - ENC.at[1]) <= ENC.radius) encounterBegin();
+}
+
+if (!ENC) build();
 // the page calls this from its frame step with its clock in MILLISECONDS; the yard steps at 60 a second
 let yardAcc = 0, yardLast = null;
 function stepBrawlYard(ms) {
+  if (ENC && !ENC_ON) { encounterWatch(); return; }
   const s = ms / 1000;
   if (yardLast === null) yardLast = s;
   yardAcc += Math.min(0.1, Math.max(0, s - yardLast));
@@ -991,4 +1060,4 @@ function stepBrawlYard(ms) {
   LATCH.clear();
   draw();
 }
-window.__mojBrawl = { wreck: (e) => wreckAt(e), get seats() { return { joined: picks.length, spare: SPARE.length, seated: seated() }; }, get session() { return { players: picks.slice(), difficulty: SESSION.difficulty, ...(SESSION.gun ? { gun: SESSION.gun } : {}) }; }, get tally() { return { ...tally }; }, get scene() { return CINE ? { id: CINE.id, at: CINE.state.at, shows: sceneShows(CINE.beats, CINE.state) } : null; }, play: (id) => playScene(id, () => {}), get room() { return room; }, get ui() { return UI; }, get read() { return STREET ? streetRead(room, hp0) : yardRead(room, 0); }, get over() { return over; }, get heard() { return { ...HEARD }; }, get cues() { return typeof __AUDIO !== 'undefined' && __AUDIO && __AUDIO.cues ? Object.keys(__AUDIO.cues) : []; } };
+window.__mojBrawl = { ...(ENC ? { encounter: { get on() { return ENC_ON; }, get ends() { return ENC_ENDS.slice(); }, begin: () => encounterBegin(), end: (r) => encounterEnd(r), get room() { return room; } } } : {}), wreck: (e) => wreckAt(e), get seats() { return { joined: picks.length, spare: SPARE.length, seated: seated() }; }, get session() { return { players: picks.slice(), difficulty: SESSION.difficulty, ...(SESSION.gun ? { gun: SESSION.gun } : {}) }; }, get tally() { return { ...tally }; }, get scene() { return CINE ? { id: CINE.id, at: CINE.state.at, shows: sceneShows(CINE.beats, CINE.state) } : null; }, play: (id) => playScene(id, () => {}), get room() { return room; }, get ui() { return UI; }, get read() { return STREET ? streetRead(room, hp0) : yardRead(room, 0); }, get over() { return over; }, get heard() { return { ...HEARD }; }, get cues() { return typeof __AUDIO !== 'undefined' && __AUDIO && __AUDIO.cues ? Object.keys(__AUDIO.cues) : []; } };

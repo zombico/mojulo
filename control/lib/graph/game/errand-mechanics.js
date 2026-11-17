@@ -205,8 +205,8 @@ export function lowerTask(p, ctx) {
 }
 
 /** THE JOIN (an emitter): a FACTION joined, where its contact stands. The hero is with one faction at a time: coming
- * to its contact sets `flag-in-<faction>` and clears the others' (`others`), once while not with it; its standing
- * (`standing-<faction>`) is kept through leaving.
+ * to its contact while with no one sets `flag-in-<faction>` (`others`: the other factions, whose flags must be down);
+ * it is left on the phone (`app:leave:<faction>`); its standing (`standing-<faction>`) is kept through leaving.
  *   { faction, at, radius?, name?, says?, others?: [faction] } */
 export function lowerJoin(p, ctx) {
   const at0 = `join[${ctx.i}]`, fail = (m) => { throw new Error(`${at0}: ${m}`); };
@@ -218,8 +218,14 @@ export function lowerJoin(p, ctx) {
   return {
     world: {
       vars: { [v]: 0, [`standing-${p.faction}`]: 0, ...Object.fromEntries(others.map((o) => [`flag-in-${o}`, 0])) },
-      reactions: [{ on: 'enter', match: { zone }, if: { var: v, eq: 0 }, do: 'emit', type: joined }, { on: joined, do: 'set', var: v, to: 1 }, ...others.map((o) => ({ on: joined, do: 'set', var: `flag-in-${o}`, to: 0 })), { on: joined, do: 'emit', type: `flag:in-${p.faction}` }],
-      hud: [{ on: joined, as: 'toast', text: `${name}: ${typeof p.says === 'string' && p.says ? p.says : 'you are with us now'}`, ttl: 3.6 }],
+      // (joined by coming to its contact while with NO ONE: each other faction's flag a guard in turn, so walking past a
+      // rival's contact changes nothing; a faction is LEFT on the phone, `app:leave:<faction>`, its standing kept)
+      reactions: [
+        ...[v, ...others.map((o) => `flag-in-${o}`)].map((g, k, all) => ({ on: k ? `${joined}:${k}` : 'enter', ...(k ? {} : { match: { zone } }), if: { var: g, eq: 0 }, do: 'emit', type: k === all.length - 1 ? joined : `${joined}:${k + 1}` })),
+        { on: joined, do: 'set', var: v, to: 1 }, { on: joined, do: 'emit', type: `flag:in-${p.faction}` },
+        { on: `app:leave:${p.faction}`, do: 'set', var: v, to: 0 },
+      ],
+      hud: [{ on: joined, as: 'toast', text: `${name}: ${typeof p.says === 'string' && p.says ? p.says : 'you are with us now'}`, ttl: 3.6 }, { on: `app:leave:${p.faction}`, as: 'toast', text: `You have left ${name}`, ttl: 3.2 }],
       sources: [{ type: 'zone', zone, at: p.at.slice(), radius: Number.isFinite(p.radius) ? p.radius : 2.5, planar: p.planar !== false, watch: ctx.player }],
     },
     emits: [joined],

@@ -60,6 +60,7 @@ import { quickFigure } from './cast-setting.js';
 import { jobQuests, contactName } from './city-guide.js';
 import { taskApps, appTitle } from './phone-ui.js';
 import { turfRect, actLine } from './factions.js';
+import { readBelt } from '../brawl/brawl-belt.js';
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
 import { concernIds } from './concerns.js';
@@ -661,6 +662,23 @@ function kerbSpots(route, road, colliders, top = null, lanes = []) {
 
 // a driven errand's places (a stage with cars): how far along its walk the first stands, and a kerb's reach (m)
 const ERRAND_DRIVE = Object.freeze({ from: 0.33, reach: 7 });
+// AN ENCOUNTER's belt and street (brawl/brawl-belt.js, brawl-street.js): one held screen along the fronts where its spot
+// is (a shop's place: `N` the way out of its door), the fronts on the far side and the camera out over the road; the
+// band between the walk and the roadway. Its crowd the street's own thugs, a knife among them from the third.
+const ENCOUNTER = Object.freeze({ length: 22, out: 4.5, depth: [-2.5, 2.5], reach: 9, again: 6, clear: 30 });
+export function encounterBrawl(E) {
+  const n = Math.hypot(E.N[0], E.N[1]) || 1, N = [E.N[0] / n, E.N[1] / n];
+  // (the band's far side is the fronts': across the belt is heading + 90°, so the belt heads 90° behind the way in)
+  const deg = Math.atan2(-N[1], -N[0]) * 180 / Math.PI - 90, t = deg * Math.PI / 180, along = [Math.cos(t), Math.sin(t)];
+  const mid = [E.at[0] + N[0] * ENCOUNTER.out, E.at[1] + N[1] * ENCOUNTER.out];
+  const knives = E.crowd >= 3 ? 1 : 0;
+  return {
+    belt: readBelt({ at: [r3(mid[0] - along[0] * ENCOUNTER.length / 2), r3(mid[1] - along[1] * ENCOUNTER.length / 2)], heading: r3(deg), floor: r3(E.at[2]), depth: [...ENCOUNTER.depth], screens: [{ length: ENCOUNTER.length, gate: true }] }),
+    encounter: { id: E.id, event: E.event, took: E.took, done: E.done, at: [r3(mid[0]), r3(mid[1]), r3(E.at[2])], radius: ENCOUNTER.reach, again: ENCOUNTER.again },
+    street: { players: [0], waves: [{ screen: 0, crowd: [{ type: 'thug', n: E.crowd - knives }, ...(knives ? [{ type: 'knife', n: knives }] : [])] }] },
+  };
+}
+
 // a job's giver: how far from the start it stands at the least, how far from another giver, what it says unsaid (m)
 const GIVER = Object.freeze({ off: 18, apart: 14, says: 'I have a job for you.', budget: 4200, contact: 'contact' });
 
@@ -1127,6 +1145,9 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // drawn there too, in the same look, by the page's HUD host; a course's HUD is already its own (course-hud.js)
   // (a level with a HUD grammar, hud-grammar.js, has its HUD: its hearts, its compass and its actions stand in for the
   // rows, so they are not drawn a second time)
+  // AN ENCOUNTER (a faction's posting that is a fight, stageWays): the brawl laid on the district's own street where the
+  // posting's spot is, waiting on the page until its posting is taken and its place come to (brawl/brawl-yard.client.js)
+  if (ways?.encounter) manifest = { ...manifest, brawl: encounterBrawl(ways.encounter) };
   if (G.ui !== undefined && !manifest.manaHud && !manifest.events?.grammar) manifest = { ...manifest, manaHud: { ...levelHud(interfaceLook(G).theme, { screen: G.screen ?? null }), ...(G.ui.map !== undefined ? { map: G.ui.map } : {}), ...(G.ui.inventory !== undefined ? { inventory: G.ui.inventory } : {}), ...(G.ui.phone !== undefined ? { phone: G.ui.phone } : {}) } };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
@@ -1576,7 +1597,7 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined) {
     spot.set(w, { at: z.exit, arrive: [z.arrive[0], z.arrive[1], r3(z.arrive[2] + 1)] });
   }
   const mechanics = [], arrive = [];
-  let quests = [], stoodGivers = [];
+  let quests = [], stoodGivers = [], encounter = null;
   for (const w of [...gated, ...plan.on, ...plan.back]) {
     const s = spot.get(w);
     mechanics.push({ kind: 'reach-exit', exit: w.id, at: s.at, radius: w === plan.back[0] ? 1.2 : 2.5, ...(ends.planar ? {} : { planar: false }), ...(w.needs ? { needs: w.needs } : {}) });
@@ -1671,8 +1692,16 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined) {
         used.add(key(at));
         givers.push({ id: `giver-${F.id}`, contact: F.id, faction: F.id, at: at.at.slice(), heading: r3(Math.atan2(at.N[1], at.N[0])), place: at.card, jobs: [] });
         offers.push({ kind: 'join', faction: F.id, at: at.at.slice(), radius: ERRAND_DRIVE.reach, name: F.name, says: F.says, others: factions.filter((o) => o.id !== F.id).map((o) => o.id), colour: F.colour, turf: r, place: at.card });
+      }
+      // (the acts after every contact stands: an act's place is never where someone stands, and clear of them)
+      for (const F of factions) {
+        const r = turfRect(F, box), free = (p) => !used.has(key(p)) && givers.every((g) => Math.hypot(g.at[0] - p.at[0], g.at[1] - p.at[1]) > ENCOUNTER.clear);
+        if (!givers.some((g) => g.faction === F.id)) continue;
         for (const Pn of F.board) {
-          const tr = Pn.act.on ? turfRect(factions.find((o) => o.id === Pn.act.on), box) : r, tc = [(tr[0] + tr[2]) / 2, (tr[1] + tr[3]) / 2], spot = nearest(tc, inside(tr)) ?? nearest(tc, () => true);
+          const tr = Pn.act.on ? turfRect(factions.find((o) => o.id === Pn.act.on), box) : r, tc = [(tr[0] + tr[2]) / 2, (tr[1] + tr[3]) / 2], spot = nearest(tc, (p) => free(p) && inside(tr)(p)) ?? nearest(tc, free) ?? nearest(tc, () => true);
+          // (a posting that is a FIGHT, factions.js `act.fight`: an encounter where its spot is, its belt along the fronts
+          // there; one a level: a page has one belt)
+          if (Pn.act.fight && !encounter) encounter = { id: Pn.id, event: `act:${Pn.act.verb}:${Pn.id}`, took: `flag-took-${Pn.id}`, done: `flag-done-${Pn.id}`, at: spot.at.slice(), N: spot.N.slice(), crowd: Pn.act.fight.crowd, name: F.name };
           offers.push({ kind: 'act', id: Pn.id, faction: F.id, verb: Pn.act.verb, ...(Pn.act.target ? { target: Pn.act.target } : {}), flag: `took-${Pn.id}`, done: `done-${Pn.id}`, at: spot.at.slice(), radius: r3(Math.max(ERRAND_DRIVE.reach, Math.min(tr[2] - tr[0], tr[3] - tr[1]) / 2)),
             ...(Pn.reward.length ? { reward: Pn.reward } : {}), standing: Pn.standing, rank: Pn.rank, name: F.name, title: Pn.name, line: actLine(Pn, factions), ...(Pn.says ? { says: Pn.says } : {}) });
         }
@@ -1683,7 +1712,7 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined) {
     quests = jobQuests([...offers, ...legs]);
     stoodGivers = givers;
   }
-  return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })), ...(quests.length ? { quests } : {}), ...(stoodGivers.length ? { givers: stoodGivers } : {}) };
+  return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })), ...(quests.length ? { quests } : {}), ...(stoodGivers.length ? { givers: stoodGivers } : {}), ...(encounter ? { encounter } : {}) };
 }
 
 /**

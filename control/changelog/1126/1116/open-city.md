@@ -96,3 +96,10 @@
   carry (an act, on a rival's turf when it says so); it is taken on the board, becomes a quest, and pays money and
   standing when done. More standing opens more of the board. Turf shows on the map in each faction's colour, with
   where to join. What actually performs an act is not built yet: a posting completes when its event is raised.
+- **Joining a faction is a choice, not an accident.** You join by walking up to a faction's contact only while you
+  are with no one, so passing a rival's contact changes nothing. You leave from the phone (the first row of your
+  faction's board); your standing is kept. A posting's place is now kept clear of anyone who stands on the street.
+- **Not finished: a posting that is a street fight.** A faction's posting can say it is a fight, and the level lays
+  a strip of the district's own street for it that waits until the posting is taken and its place is reached, then
+  hands the page back and pays when it is won. The fight itself is not yet played through on the page, and how a
+  fight should run inside the open city is still being decided.

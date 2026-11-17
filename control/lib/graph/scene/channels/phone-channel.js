@@ -41,6 +41,7 @@ export function phonePage(G, ui, spec, css, thread, tasks, board, W) {
   function act(e) {
     if (!e || e.emit !== 'pick' || typeof e.row !== 'string' || !window.__mojBus || !window.__mojBus.press) return;
     if (e.row.indexOf('sub:') === 0) window.__mojBus.press('app:sub:' + e.row.slice(4));
+    else if (e.row.indexOf('side:') === 0) window.__mojBus.press('app:leave:' + e.row.slice(5));
     else if (e.row.indexOf('task:') === 0) window.__mojBus.press('app:take:' + e.row.slice(5));
   }
   const rt = ui.runtime(spec, { read: (p) => ui.readPath(S, p), act: act, now: () => performance.now() / 1000 });

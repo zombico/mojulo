@@ -121,7 +121,8 @@ describe('the phone', () => {
     // (at no standing: the one posting at rank 0, the other only counted)
     const b0 = phoneBoard(P.factions[0], { 'flag-in-reds': 1 }, PHONE_UI);
     expect(b0.map((r) => [r.id, r.name, r.state])).toEqual([['side:reds', 'Standing', '0'], ['task:torch', 'Torch', 'Open']]);
-    expect(b0[0].lines.at(-1).text).toBe('1 more at higher standing');
+    expect(b0[0].lines.map((l) => l.text)).toContain('1 more at higher standing');
+    expect(b0[0].lines.at(-1).who).toBe('Leave');
     expect(b0[1].lines).toEqual([{ who: 'Job', text: 'Torch a car on Dockers turf' }, { who: 'Pays', text: '50 coin · standing +1' }]);
     const b1 = phoneBoard(P.factions[0], { 'flag-in-reds': 1, 'standing-reds': 1, 'flag-took-torch': 1, 'flag-done-torch': 1 }, PHONE_UI);
     expect(b1.map((r) => [r.id, r.state])).toEqual([['side:reds', '1'], ['task:torch', 'Done'], ['task:tag', 'Open']]);
@@ -132,7 +133,9 @@ describe('the phone', () => {
     // (the mechanics: joining one leaves the others; an act pays once, only when taken, on THE SEAM act:<verb>:<id>)
     const J = lowerJoin(M[1], { i: 0, player: 'hero' }).world;
     expect(J.vars).toEqual({ 'flag-in-reds': 0, 'standing-reds': 0, 'flag-in-dockers': 0 });
-    expect(J.reactions).toContainEqual({ on: 'join:reds', do: 'set', var: 'flag-in-dockers', to: 0 });
+    // (joined only while with no one; left on the phone)
+    expect(J.reactions.slice(0, 2)).toEqual([{ on: 'enter', match: { zone: 'join-reds' }, if: { var: 'flag-in-reds', eq: 0 }, do: 'emit', type: 'join:reds:1' }, { on: 'join:reds:1', if: { var: 'flag-in-dockers', eq: 0 }, do: 'emit', type: 'join:reds' }]);
+    expect(J.reactions).toContainEqual({ on: 'app:leave:reds', do: 'set', var: 'flag-in-reds', to: 0 });
     const A = lowerAct(M[2], { i: 0, resolve() {} }).world;
     expect(A.reactions.filter((r) => r.on === 'act:torch:torch')).toEqual([{ on: 'act:torch:torch', if: { var: 'flag-took-torch', gte: 1 }, do: 'emit', type: 'act:torch:torch:ok:1' }]);
     expect(A.reactions).toContainEqual({ on: 'act:torch:torch:ok', do: 'inc', var: 'standing-reds', by: 1 });

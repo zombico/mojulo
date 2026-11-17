@@ -14,7 +14,9 @@
  *       board   what it posts: [{ id, act: { verb, target?, on? }, reward?: [{ item, n? }], standing?, rank?, name?,
  *               says? }]. An ACT is what is done (a verb on a target, on a rival's turf when `on` names one), not what
  *               is carried. `rank` is the standing it is posted at; it pays `reward` and `standing`. What DOES an act is
- *               not here: it is whatever raises the event act:<verb>:<id> (game/errand-mechanics.js lowerAct)
+ *               not here: it is whatever raises the event act:<verb>:<id> (game/errand-mechanics.js lowerAct). An act
+ *               that says `fight` (true, or { crowd }) is an ENCOUNTER: a street fight where its zone is, on the
+ *               district's own street; won, it is done (brawl/brawl-yard.client.js)
  *
  *   FACTIONS                         the turf words, the words said
  *   readFactions(spec)               → [{ id, name, colour, turf: [x0, y0, x1, y1], rivals, says, board }] | null (refuses a
@@ -37,9 +39,11 @@ export const FACTIONS = Object.freeze({
   says: 'You are with us now. Work comes to your phone.',
   // how much standing a posting pays, unsaid
   standing: 1,
+  // a posting that is a FIGHT: how many stand against the player unsaid, and at the most
+  crowd: Object.freeze([3, 8]),
 });
 const KEYS = ['name', 'colour', 'turf', 'rivals', 'says', 'board'];
-const POST_KEYS = ['id', 'name', 'act', 'reward', 'standing', 'rank', 'says'], ACT_KEYS = ['verb', 'target', 'on'];
+const POST_KEYS = ['id', 'name', 'act', 'reward', 'standing', 'rank', 'says'], ACT_KEYS = ['verb', 'target', 'on', 'fight'];
 const posInt = (v) => Number.isInteger(v) && v >= 1;
 const cap = (id) => `${id[0].toUpperCase()}${id.slice(1).replace(/-/g, ' ')}`;
 
@@ -72,11 +76,12 @@ export function readFactions(spec) {
         for (const key of Object.keys(P.act)) if (!ACT_KEYS.includes(key)) no(`${pw}.act.${key}: not an act's key (${ACT_KEYS.join(', ')})`);
         if (P.act.target !== undefined && (typeof P.act.target !== 'string' || !WORD.test(P.act.target))) no(`${pw}.act.target is what it is done to, one lower-case word (car, courier, wall)`);
         if (P.act.on !== undefined && (P.act.on === id || !Object.hasOwn(spec, P.act.on))) no(`${pw}.act.on names the faction whose turf it is done on: another faction of this game`);
+        if (P.act.fight !== undefined && P.act.fight !== true && !(isObj(P.act.fight) && Object.keys(P.act.fight).every((k) => k === 'crowd') && Number.isInteger(P.act.fight.crowd) && P.act.fight.crowd >= 1 && P.act.fight.crowd <= FACTIONS.crowd[1])) no(`${pw}.act.fight is true (the act is a street fight, won) or { crowd: 1 to ${FACTIONS.crowd[1]} }: how many stand against the player`);
         if (P.reward !== undefined && (!Array.isArray(P.reward) || P.reward.some((r) => !isObj(r) || typeof r.item !== 'string' || !WORD.test(r.item) || (r.n !== undefined && !posInt(r.n))))) no(`${pw}.reward is [{ item, n? }]: what it pays`);
         if (P.standing !== undefined && !posInt(P.standing)) no(`${pw}.standing is how much standing it pays, a whole number from 1`);
         if (P.rank !== undefined && !(Number.isInteger(P.rank) && P.rank >= 0)) no(`${pw}.rank is the standing it is posted at, a whole number from 0`);
         if (P.says !== undefined && !(typeof P.says === 'string' && P.says.trim())) no(`${pw}.says is what the posting says, in words`);
-        board.push({ id: P.id, name: P.name?.trim() ?? cap(P.id), act: { verb: P.act.verb, ...(P.act.target ? { target: P.act.target } : {}), ...(P.act.on ? { on: P.act.on } : {}) }, reward: (P.reward ?? []).map((r) => ({ item: r.item, n: r.n ?? 1 })), standing: P.standing ?? FACTIONS.standing, rank: P.rank ?? 0, ...(P.says ? { says: P.says.trim() } : {}) });
+        board.push({ id: P.id, name: P.name?.trim() ?? cap(P.id), act: { verb: P.act.verb, ...(P.act.target ? { target: P.act.target } : {}), ...(P.act.on ? { on: P.act.on } : {}), ...(P.act.fight ? { fight: { crowd: P.act.fight === true ? FACTIONS.crowd[0] : P.act.fight.crowd } } : {}) }, reward: (P.reward ?? []).map((r) => ({ item: r.item, n: r.n ?? 1 })), standing: P.standing ?? FACTIONS.standing, rank: P.rank ?? 0, ...(P.says ? { says: P.says.trim() } : {}) });
       });
     }
     out.push({ id, name: F.name?.trim() ?? cap(id), colour: F.colour.toLowerCase(), turf: turf.map(r4), rivals: (F.rivals ?? []).slice(), says: F.says?.trim() ?? FACTIONS.says, board });

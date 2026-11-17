@@ -39,7 +39,7 @@ export const PHONE_UI = Object.freeze({ title: 'Phone', you: 'You', next: 'Next:
   // an app's words: what it is before it is subscribed to, its one row then, and a task's states
   pitch: 'Paid tasks around the city, sent to your phone. No one to meet: take one here, do it, get paid.', subscribe: 'Subscribe', open: 'Open', active: 'Active', paid: 'Paid', task: 'Task', pays: 'Pays', tags: 'Tags', carries: 'Carries',
   // a faction's board
-  standing: 'Standing', with: 'You are with ', job: 'Job', locked: ' more at higher standing', finished: 'Done' });
+  standing: 'Standing', with: 'You are with ', job: 'Job', locked: ' more at higher standing', finished: 'Done', leave: 'Leave', leaving: 'Take this row to walk away. Your standing is kept, and any faction\'s contact will have you.' });
 const KEYS = ['title', 'apps'];
 const APP_KEYS = ['name', 'tags'], WORD = /^[a-z][a-z0-9-]{0,31}$/;
 /** The app every game has unless it names its own: it carries any tag no other app lists. */
@@ -149,7 +149,7 @@ export function phoneTasks(A, vars, W) {
  * above it is not listed, only counted), each what is to be done, what it pays and where it stands. Inlined by the page. */
 export function phoneBoard(F, vars, W) {
   const on = (v) => !!v && Number(vars[v]) >= 1, standing = Number(vars[F.standing]) || 0, open = F.postings.filter((P) => P.rank <= standing), locked = F.postings.length - open.length;
-  const head = { id: 'side:' + F.id, name: W.standing, state: String(standing), lines: [{ who: F.name, text: W.with + F.name + '.' }].concat(locked ? [{ who: F.name, text: locked + W.locked }] : []) };
+  const head = { id: 'side:' + F.id, name: W.standing, state: String(standing), lines: [{ who: F.name, text: W.with + F.name + '.' }].concat(locked ? [{ who: F.name, text: locked + W.locked }] : [], [{ who: W.leave, text: W.leaving }]) };
   return [head].concat(open.map((P) => {
     const lines = [{ who: W.job, text: P.line }];
     if (P.says) lines.push({ who: F.name, text: P.says });
