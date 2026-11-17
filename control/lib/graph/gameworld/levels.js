@@ -132,7 +132,7 @@ import { readCourse, courseAt, coursePlan, courseLaws, lowerCourse, slabOf } fro
 import { courseCube, courseColours, skinCourse } from './course-skin.js';
 import { juiceOfGame } from './juice.js';
 import { tempoOfGame } from './tempo.js';
-import { styleMeterOfGame } from './style-meter.js';
+import { styleMeterOfGame, levelRankOf } from './style-meter.js';
 import { gradeOfGame } from './grade.js';
 import { readBuildingParked, parkIn, paintOfDress } from '../vehicle-registry/parked.js';
 import { roleOf } from '../era/stocking.js';
@@ -1064,6 +1064,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // drawn there too, in the same look, by the page's HUD host; a course's HUD is already its own (course-hud.js)
   // (a level with a HUD grammar, hud-grammar.js, has its HUD: its hearts, its compass and its actions stand in for the
   // rows, so they are not drawn a second time)
+  // (a level that carries the style meter is ranked on its results, game/rank.js)
+  if (manifest.styleMeter && manifest.game) manifest = { ...manifest, game: { ...manifest.game, rank: levelRankOf(G, stage.level) ?? {} } };
   // (a level that carries the style meter, style-meter.js, shows it there, whether or not the world writes a `ui`)
   if ((G.ui !== undefined || manifest.styleMeter) && !manifest.manaHud && !manifest.events?.grammar) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, ...(manifest.styleMeter ? { style: true } : {}) }) };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
@@ -1812,6 +1814,9 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's
   const play0 = base.play ?? null, { pilotPart, play } = storyPart(G, stage, ends, null, pilot0, play0, { story, carryFrom, party, castFigures });
   let manifest = armLevel(G, { ...base, ...pilotPart, ...(play !== play0 ? { play: withBookUi(G, play) } : {}), ...juiceOf(G), ...tempoOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf() });
+  // (and is ranked on its results, game/rank.js: its par counted from its tasks; a building's game is made from its
+  // `level` as the page is resolved, so the rank is said there)
+  if (manifest.styleMeter && manifest.level) manifest = { ...manifest, level: { ...manifest.level, rank: levelRankOf(G, stage.level) ?? {} } };
   // (a level that carries the style meter, style-meter.js, shows it: its HUD on the game UI runtime, in the game's look,
   // the level's own rows drawn there with it)
   if (manifest.styleMeter && !manifest.manaHud && !manifest.events?.grammar) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, style: true }) };

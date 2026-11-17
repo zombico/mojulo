@@ -89,6 +89,10 @@ describe('the host carries a level\'s rows', () => {
     const js = manaHudScript(levelHud('console', { style: true }), { rows }), bare = manaHudScript(levelHud('console'), { rows });
     expect(js).toContain('window.__mojStyle');
     expect(bare).not.toContain('__mojStyle');
+    // (its motion is the host's, on the letters: there only with the meter)
+    expect(js).toContain('moj-style-up');
+    expect(js).toContain('--moj-style-fill');
+    expect(bare).not.toContain('moj-style');
     expect(bare).not.toContain('style: {');
     expect(() => new Function(js)).not.toThrow();
   });

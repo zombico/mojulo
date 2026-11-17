@@ -250,8 +250,22 @@ read off the world after each step:
 
 `window.__mojStyle.now()` on a level's page says the tier, how far through it, the combo, the peak and what was
 earned. The level's HUD draws it at the right (`game/hud-mana.js`, on the game UI runtime, in the game's look): the
-tier's name and the combo's count, standing only while there is style to show. The rank on a level's results is not
-built yet.
+tier's name and the combo's count, standing only while there is style to show. The letter fills from its foot as
+the tier is climbed, slams in on a tier gained and shakes on a tier lost; the count is struck by each blow and grows
+heavier as the combo runs.
+
+A level of such a game is **ranked** as it is won (`game/rank.js`, the level's `game.rank`): one letter of the
+meter's own tiers, the mean of three marks.
+
+| mark | what it reads |
+|---|---|
+| time | at or under the par, full; nothing at twice the par |
+| style | the highest tier the meter reached, of its top |
+| clean | the hits taken, of the hits a life holds |
+
+The par is counted from the level's tasks (`gameworld/style-meter.js` `PAR`: a fight's walk in, and each of its
+foes); a level with no tasks has no time mark. The rank, the time, the style earned and the longest combo go on the
+level's results, and the play shell keeps the best of each figure.
 
 A stylish action game's HUD holds to one principle: **no box is drawn**. Letters and figures stand over the play on
 no plate; a change is said by effects and motion on them, never by a frame; and nothing is explained in words the

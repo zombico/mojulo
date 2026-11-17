@@ -89,7 +89,7 @@ export function resolveGame(manifest, getSketch, levelSrc, worldSrc = levelSrc,
       catch (err) { errors.push(`level '${lv.ref}': ${err.message}`); continue; }
     }
     if (asksLevel(sketch.manifest)) {
-      try { sketch = { ...sketch, manifest: withBuildingLevel(sketch.manifest, row.ref ?? lv.ref) }; }
+      try { const rank = sketch.manifest.level.rank && typeof sketch.manifest.level.rank === 'object' ? sketch.manifest.level.rank : null; sketch = { ...sketch, manifest: withBuildingLevel(sketch.manifest, row.ref ?? lv.ref) }; if (rank && sketch.manifest.game) sketch.manifest.game = { ...sketch.manifest.game, rank }; }   // (a ranked level's `level.rank` is its game's, game/rank.js)
       catch (err) { errors.push(`level '${lv.ref}': ${err.message}`); continue; }
     }
     if (!sketch.manifest.game || typeof sketch.manifest.game !== 'object') {

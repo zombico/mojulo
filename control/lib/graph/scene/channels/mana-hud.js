@@ -30,6 +30,29 @@ import { hudSubst, fmtDelta } from '../../game/hud-widgets.js';
 
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 
+/**
+ * THE STYLE METER'S MOTION (a stylish action game's HUD draws no box: what changes is said on the letters). The tier's
+ * letter fills from its foot as the tier is climbed; a tier gained slams it in, a tier lost shakes it; the top tier glows.
+ * The combo's count is struck by each blow and grows heavier as the combo runs. In the theme's own colours and display
+ * face; held still for a player who asks for less motion. Only on a page whose level carries the meter.
+ */
+function styleMeterCss() {
+  const T = '#moj-mana-hud .mana-place[data-at=right] .mana-stack>.mana-text', F = 'calc(var(--moj-style-fill,0) * 100%)';
+  return [
+    `${T}{display:inline-block;font-family:var(--mana-display);font-weight:900;font-style:italic;line-height:.9;transform-origin:100% 60%;background-color:transparent}`,
+    `${T}:first-child{font-size:5.4em;letter-spacing:-.02em;background:linear-gradient(to top,var(--mana-accent) ${F},var(--mana-ink) ${F});-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;text-shadow:none;filter:drop-shadow(0 .04em 0 rgba(0,0,0,.7)) drop-shadow(0 0 .22em rgba(0,0,0,.55))}`,
+    `${T}:first-child[data-ch]{animation:moj-style-up .42s cubic-bezier(.2,1.5,.4,1) both}`,
+    `#moj-mana-hud[data-style-way=down] ${T.slice(14)}:first-child[data-ch]{animation:moj-style-down .5s ease-out both}`,
+    `#moj-mana-hud[data-style-top=yes] .mana-place[data-at=right] .mana-stack{filter:drop-shadow(0 0 .6em var(--mana-accent))}`,
+    `${T}:nth-child(2){font-size:calc(2.1em + 1.3em * var(--moj-style-heat,0));color:var(--mana-ink);text-shadow:0 .05em 0 rgba(0,0,0,.7),0 0 .3em rgba(0,0,0,.55)}`,
+    `${T}:nth-child(2)[data-ch]{animation:moj-style-hit .22s cubic-bezier(.2,1.8,.4,1) both}`,
+    '@keyframes moj-style-up{0%{opacity:0;transform:scale(2.8) rotate(-14deg)}55%{opacity:1;transform:scale(.92) rotate(3deg)}100%{transform:none}}',
+    '@keyframes moj-style-down{0%{opacity:.35;transform:translateX(0)}15%{transform:translateX(-.14em)}30%{transform:translateX(.11em)}45%{transform:translateX(-.07em)}60%{transform:translateX(.03em)}100%{opacity:1;transform:none}}',
+    '@keyframes moj-style-hit{0%{transform:scale(1.7) rotate(-6deg);color:var(--mana-accent)}100%{transform:none}}',
+    `@media (prefers-reduced-motion:reduce){${T}[data-ch]{animation:none!important}}`,
+  ].join('');
+}
+
 export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false } = {}) {
   // (a level whose HUD is its own rows, `rows: 'events'`: lowered here, where the page emits them, game/hud-mana.js)
   if (hud && hud.rows === 'events' && !hud.spec) { const L = hudToMana(rows, { register, hero: hud.hero !== false, touch, style: hud.style === true }); hud = { ...hud, spec: L.spec, feed: { ...L.feed, ...(hud.feed ?? {}) } }; }
@@ -49,7 +72,8 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     hud = { ...hud, spec: { ...hud.spec, hud: { ...hud.spec.hud, children: [...(hud.spec.hud.children ?? []), pad] } } };
   }
   const R = hud.feed && hud.feed.rows;
-  const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp' : ''}{display:none!important}`;
+  const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp' : ''}{display:none!important}${hud.feed && hud.feed.style ? styleMeterCss() : ''}`;
+  const styled = !!(hud.feed && hud.feed.style);
   return `
 // THE HUD on mana-ui (channels/mana-hud.js): the level's own spec over a state this page feeds
 (function () {
@@ -61,7 +85,7 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   const F = CFG.feed, of = Math.max(1, Math.round((F.to || 0) - (F.from || 0)));
   const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [], hint: '' }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {}${hud.feed && hud.feed.style ? ", style: { on: false, name: '', combo: 0 }" : ''} };
   let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
-  // a HUD part pressed (a level's button row): its event raised on the level's bus, as a key bound to it would
+${styled ? '  let sTier = 0;\n' : ''}  // a HUD part pressed (a level's button row): its event raised on the level's bus, as a key bound to it would
   // (a keyed one, game/screen-keys.js: that key pressed, heard by whatever listens for it)
   function press(e) {
     if (e && typeof e.key === 'string') { for (const t of ['keydown', 'keyup']) window.dispatchEvent(new KeyboardEvent(t, { key: e.key, code: e.code || e.key, bubbles: true, cancelable: true })); return; }
@@ -140,7 +164,7 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
       st.hero.sprints = bm > 0; st.hero.staminaMax = bm || 1; st.hero.stamina = Math.max(0, Math.min(bm, me.boost == null ? bm : me.boost));
     }
 ${hud.feed && hud.feed.style ? `    // the style meter (worlds/controllable/style.js), where the page says it: it stands while there is style to show
-    const SM = window.__mojStyle && window.__mojStyle.now(); if (SM) { st.style.on = SM.points > 0 || SM.combo > 0; st.style.name = SM.name; st.style.combo = SM.combo; }
+    const SM = window.__mojStyle && window.__mojStyle.now(); if (SM) { st.style.on = SM.points > 0 || SM.combo > 0; st.style.name = SM.name; st.style.combo = SM.combo; if (SM.tier !== sTier) { root.dataset.styleWay = SM.tier > sTier ? 'up' : 'down'; sTier = SM.tier; root.dataset.styleTop = SM.tier === SM.tiers.length - 1 ? 'yes' : 'no'; } root.style.setProperty('--moj-style-fill', String(SM.fill)); root.style.setProperty('--moj-style-heat', String(Math.min(1, SM.combo / 30))); }
 ` : ''}    const V = window.__mojBus && window.__mojBus.state && window.__mojBus.state.vars;
     if (V && V.coins != null) st.coins.count = V.coins;
     if (ROWS && V) rows(window.__mojBus.state, V);

@@ -90,7 +90,7 @@ export function hudToMana(rows, { register = null, hero = true, touch = false, s
   // alone: its tier's name, and under it the combo's count while there is one (each blow pops it); it stands while
   // there is style to show
   if (style) regions.push({ use: 'region', props: { at: 'right', variant: 'bare' }, when: B('style.on'), children: [{ use: 'stack', props: { gap: 'tight', align: 'end' }, children: [
-    { use: 'text', props: { value: B('style.name'), role: 'display' } },
+    { use: 'text', props: { value: B('style.name'), role: 'numeral' } },   // (a numeral: marked as it changes, so the host's motion plays)
     { use: 'text', props: { value: B('style.combo'), role: 'numeral' }, when: B('style.combo') },
   ] }] });
   return { spec: { screens: {}, hud: { use: 'hud', children: regions } }, feed: { rows: { vars, gates, banners, toasts, lines: Object.values(lines) }, ...(hero ? { hero: true } : {}), ...(style ? { style: true } : {}) } };

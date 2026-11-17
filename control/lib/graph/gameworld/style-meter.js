@@ -12,10 +12,29 @@
  *   styleMeterOfGame(G)        → { styleMeter, from: 'operator' | 'feel', why } every level's `styleMeter`, or null
  *   styleMeterSuggestion(G)    → what 'auto' would lay on a world that writes none, or null (offered, never laid unasked:
  *                                a meter changes every level's bytes)
+ *   levelRankOf(G, level)      → a level's `game.rank` on a game that carries the meter (game/rank.js: the rank on its
+ *                                results): { par? } the seconds it is judged against, counted on paper from its tasks
+ *                                (PAR: a fight's walk in, and each foe of it); a level with no tasks has no par, and
+ *                                is ranked on its style and how clean it was alone. null: the game carries no meter
  *
  * Pure.
  */
 import { readFeel } from './feel/lower.js';
+import { fightOf, fightWaves } from './fights.js';
+
+/** The par, on paper: the seconds a fight's walk in is given, and each of its foes. */
+export const PAR = Object.freeze({ task: 10, foe: 8 });
+export function levelRankOf(G, level) {
+  if (!styleMeterOfGame(G)) return null;
+  let par = 0;
+  for (const T of G?.levels?.[level]?.goal?.tasks ?? []) {
+    const F = fightOf(G, T.fight);
+    if (!F) continue;
+    par += PAR.task;
+    for (const W of fightWaves(G, F.kind, F.waves ?? null)) for (const n of Object.values(W)) par += PAR.foe * n;
+  }
+  return par ? { par } : {};
+}
 
 /** The feel templates whose game the meter is made for. */
 export const STYLISH = Object.freeze(['fallen-angel']);

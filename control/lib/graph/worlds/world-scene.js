@@ -296,7 +296,10 @@ export async function levelSketch(sketch) {
   }
   if (sketch.manifest?.level && typeof sketch.manifest.level === 'object' && !sketch.manifest.game) {
     const { withBuildingLevel } = await import('@/lib/graph/structure/level.js');
+    // (a level ranked on its results, game/rank.js: its `level.rank` is its game's)
+    const rank = sketch.manifest.level.rank && typeof sketch.manifest.level.rank === 'object' ? sketch.manifest.level.rank : null;
     sketch = { ...sketch, manifest: withBuildingLevel(sketch.manifest, sketch.ref) };
+    if (rank && sketch.manifest.game) sketch = { ...sketch, manifest: { ...sketch.manifest, game: { ...sketch.manifest.game, rank } } };
   }
   return sketch;
 }
