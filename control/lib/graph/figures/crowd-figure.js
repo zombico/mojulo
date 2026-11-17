@@ -6,10 +6,12 @@
  *   • ONE GRID FOR THE WHOLE BODY: every corner, of every part, is gathered onto one grid (a cell's corners become their
  *     mean), so where two parts meet (the neck and the head, the sleeve and the hand) their corners land on the same
  *     point and the figure stays closed; a grid a part would not share would open a seam at every joint. A triangle with
- *     two corners in one cell is dropped, two the same kept once; the grid is coarsened until the whole figure fits.
+ *     two corners in one cell is dropped, two the same kept once; the grid is coarsened until the whole figure fits. What
+     shows that already fits the budget is kept exactly as made, with no grid at all.
  *   • ONLY WHAT SHOWS: a dressed body is a stack of surfaces a centimetre or two apart; sampled coarser than that, a
  *     layer beneath would show through the one over it in patches. A triangle with another surface just outside it
- *     (`cover`) is dropped first.
+ *     (`cover`) at its middle and at every corner is dropped first; one a garment's edge half covers is kept, so nothing
+     opens where a sleeve or a belt ends.
  *   • EACH CORNER KEEPS ITS OWN COLOUR AND ITS OWN SKIN: its paint is never averaged with its neighbours' (a face's edge,
  *     a collar, an eye stay drawn where they were, not smeared into flat facets), and its bones and weights (`jnt`,
  *     `wgt`) are carried, so the walkers' one-skin path (scene/channels/walkers.js `blend`) and the runtime bend it at
@@ -27,7 +29,7 @@
  *
  * Pure and deterministic: no dice; a figure and a budget give one crowd figure.
  */
-export const CROWD = Object.freeze({ budget: 5000, cell: 1 / 140, coarsen: 1.12, tries: 40, cover: 0.025 / 1.75 });
+export const CROWD = Object.freeze({ budget: 8000, cell: 1 / 140, coarsen: 1.12, tries: 40, cover: 0.025 / 1.75 });
 
 const f32 = (s) => { const b = Buffer.from(s, 'base64'); return new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); };
 const u8 = (s) => { const b = Buffer.from(s, 'base64'); return new Uint8Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); };
@@ -82,25 +84,35 @@ function covered(src, cover) {
     return (e2[0] * qv[0] + e2[1] * qv[1] + e2[2] * qv[2]) / det;
   };
   const drop = src.map(() => new Set()), steps = Math.ceil(cover / h) + 1;
-  T.forEach((t, ti) => {
-    if (!t.n) { drop[t.pi].add(t.k); return; }
-    const o = [t.c[0] + t.n[0] * 1e-4, t.c[1] + t.n[1] * 1e-4, t.c[2] + t.n[2] * 1e-4], seen = new Set();
+  // (a point under cover: a surface within `cover` straight out from it)
+  const under = (ti, from, n) => {
+    const o = [from[0] + n[0] * 1e-4, from[1] + n[1] * 1e-4, from[2] + n[2] * 1e-4], seen = new Set();
     for (let s = 0; s <= steps; s++) {
-      const p = [0, 1, 2].map((i) => Math.floor((o[i] + t.n[i] * Math.min(cover, s * h)) / h));
+      const p = [0, 1, 2].map((i) => Math.floor((o[i] + n[i] * Math.min(cover, s * h)) / h));
       for (const j of cells.get(K(p[0], p[1], p[2])) ?? []) {
         if (j === ti || seen.has(j)) continue;
         seen.add(j);
-        const r = hit(o, t.n, T[j].q);
-        if (r > 0 && r < cover) { drop[t.pi].add(t.k); return; }
+        const r = hit(o, n, T[j].q);
+        if (r > 0 && r < cover) return true;
       }
     }
+    return false;
+  };
+  // (dropped only when it is under cover at its middle AND at each corner: a triangle a garment's edge half covers is
+  // kept, so where a sleeve or a belt ends nothing opens)
+  T.forEach((t, ti) => {
+    if (!t.n) { drop[t.pi].add(t.k); return; }
+    if (!under(ti, t.c, t.n)) return;
+    for (const q of t.q) if (!under(ti, [q[0] + (t.c[0] - q[0]) * 0.1, q[1] + (t.c[1] - q[1]) * 0.1, q[2] + (t.c[2] - q[2]) * 0.1], t.n)) return;
+    drop[t.pi].add(t.k);
   });
   return drop;
 }
 
 // every part's triangles on ONE grid of `cell`: { parts: [[{ c: [corner ids], keys }]] , cells }
 function gather(src, cell, hidden = null) {
-  const key = (x, y, z) => `${Math.round(x / cell)},${Math.round(y / cell)},${Math.round(z / cell)}`;
+  // (cell 0: every corner its own point, the triangles as they were made)
+  const key = cell > 0 ? (x, y, z) => `${Math.round(x / cell)},${Math.round(y / cell)},${Math.round(z / cell)}` : (x, y, z) => `${x},${y},${z}`;
   const cells = new Map();
   const keyed = src.map((S) => {
     if (!S) return null;
@@ -138,11 +150,15 @@ export function crowdFigure(fig, { budget = CROWD.budget, stand = false } = {}) 
   const src = fig.parts.map((p) => (p && p.pos ? cornersOf(p) : null)), H = fig.figH || 1.8;
   // (what a garment covers, dropped before the grid: the layers beneath never show through)
   const hidden = covered(src, H * CROWD.cover);
-  let cell = H * CROWD.cell, G = null;
-  for (let i = 0; i < CROWD.tries; i++) {
-    G = gather(src, cell, hidden);
-    if (G.tris <= budget) break;
-    cell *= CROWD.coarsen;
+  // (what shows already within the budget is kept exactly as it was made: no grid at all, cell 0; a grid only past it)
+  let cell = 0, G = gather(src, 0, hidden);
+  if (G.tris > budget) {
+    cell = H * CROWD.cell;
+    for (let i = 0; i < CROWD.tries; i++) {
+      G = gather(src, cell, hidden);
+      if (G.tris <= budget) break;
+      cell *= CROWD.coarsen;
+    }
   }
   const parts = G.parts.map((list, pi) => {
     const S = src[pi];

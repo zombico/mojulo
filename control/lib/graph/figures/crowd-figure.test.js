@@ -45,7 +45,13 @@ describe('the crowd grade', () => {
   });
   it('is the same every time, already-light figures are left near whole, and a figure with no walk is refused', () => {
     expect(JSON.stringify(crowdFigure(FIG, { budget: 600 }))).toBe(JSON.stringify(crowdFigure(FIG, { budget: 600 })));
-    expect(crowdFigure(FIG).cell).toBeCloseTo(1.8 * CROWD.cell, 3);
+    // (a figure whose shown triangles already fit is kept exactly as made: no grid, every corner where it was)
+    const whole = crowdFigure(FIG);
+    expect(whole.cell).toBe(0);
+    expect(whole.tris).toBe(FIG.parts[0].faces + FIG.parts[1].faces + 2);
+    expect(whole.parts[0].pos).toBe(FIG.parts[0].pos);
+    // (past it, the grid starts at its first cell)
+    expect(crowdFigure(FIG, { budget: 3000 }).cell).toBeGreaterThanOrEqual(Math.round(1.8 * CROWD.cell * 1e4) / 1e4);
     expect(() => crowdFigure({ ...FIG, clips: { idle: clip } })).toThrow(/no walk/);
     expect(() => crowdFigure({ faces: [] })).toThrow(/rig figure/);
   });
@@ -68,6 +74,14 @@ describe('the crowd grade', () => {
     for (const [k, p] of C.parts.entries()) { const J = Buffer.from(p.jnt, 'base64'), n = Buffer.from(p.pos, 'base64').length / 12; expect(J.length).toBe(n * 4); expect(J[0]).toBe(k); expect(Buffer.from(p.wgt, 'base64').length).toBe(n * 16); }
     // (a rigid figure stays rigid)
     expect(crowdFigure(FIG, { budget: 600 }).parts[0].jnt).toBeUndefined();
+  });
+  it('keeps the layer a garment\'s edge only half covers: nothing opens where a sleeve ends', () => {
+    // (a sleeve over the first half of an arm: the arm under it goes, the arm past its end stays, the ring at its end too)
+    const arm = tube(24, 20, 0.06), sleeve = { ...tube(24, 10, 0.07, 0.2), col: b64(new Uint8Array(24 * 10 * 18).fill(30)) };
+    const C = crowdFigure({ ...FIG, bones: [{ id: 'arm' }, { id: 'sleeve' }], parts: [arm, sleeve] }, { budget: 5000 });
+    const zs = []; const b = Buffer.from(C.parts[0].pos, 'base64'); for (let k = 8; k < b.length; k += 12) zs.push(b.readFloatLE(k));
+    expect(Math.min(...zs)).toBeLessThanOrEqual(0.2 + 1e-6); expect(Math.min(...zs)).toBeGreaterThan(0.15);
+    expect(C.parts[0].faces).toBeGreaterThanOrEqual(24 * 10 * 2);
   });
   it('samples only what shows: a layer under another a centimetre out is dropped, so it can never show through', () => {
     // (a body and a sleeve over it, 1 cm out: the sleeve stays, the body under it goes; with nothing over it, the body stays)

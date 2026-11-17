@@ -119,4 +119,6 @@
   in a way that broke them into loose pieces at the joints, smeared their colours into flat patches and let the shirt
   under a jacket show through in triangles. They are now cut down as one closed body that bends at the joints, each
   part keeps its own colour (a face, a collar, a scarf stay crisp), and anything a garment covers is left out first,
-  so a street of them carries about twice the detail it did for the same cost.
+  so a street of them carries about twice the detail it did for the same cost. A person's shown surface now fits
+  whole, so each is drawn exactly as the character was made: faces, eyes, a belt's buckle, a neckline, and nothing
+  opens where a sleeve or a belt ends.

@@ -674,7 +674,7 @@ function encounterCast(G, E, refs, hero) {
 }
 
 // a job's giver: how far from the start it stands at the least, how far from another giver, what it says unsaid (m)
-const GIVER = Object.freeze({ off: 18, apart: 14, says: 'I have a job for you.', budget: 6000, contact: 'contact' });
+const GIVER = Object.freeze({ off: 18, apart: 14, says: 'I have a job for you.', budget: 8000, contact: 'contact' });
 
 // The district's own cars stood at those spots: each one of its civilian fleet (geocity/fleets.js: the model and the
 // paint the city's dice pick for a car parked there), where no car of its lots stands within a walk of the start.
