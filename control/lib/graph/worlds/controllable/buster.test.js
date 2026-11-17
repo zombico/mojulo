@@ -69,5 +69,8 @@ describe('the buster', () => {
     const page = controllableChannelScript([hero(), foe(3)], null, {});
     expect(page).toContain('stepWithBuster');
     expect(page).toContain('p.pellet');
+    // (the arm cannon's swap: the hand for the cannon while the buster is out, on a page with a buster alone)
+    expect(page).toContain('__busterSwap');
+    expect(controllableChannelScript([foe(3)], null, {})).not.toContain('__busterSwap');
   });
 });

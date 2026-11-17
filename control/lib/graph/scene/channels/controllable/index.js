@@ -1695,7 +1695,29 @@ const __rigV = new THREE.Vector3(), __rigH = new THREE.Vector3(), __rigT = new T
 const __RIG_Z = new THREE.Vector3(0, 0, 1), __RIG_ONE = new THREE.Vector3(1, 1, 1);
 const __rigQT = new THREE.Quaternion(), __rigQZ = new THREE.Quaternion();
 const __rigAxis = new THREE.Vector3(), __rigPivot = new THREE.Vector3();
-// look-pitch aim scratch: rotate the weapon arm about the shoulder to follow vertical look.
+${busterOn ? `// THE ARM CANNON'S SWAP (polygonizer/hero-buster-rig.js: the cannon on a bone of its own, buster<S>): while the buster is
+// out (charging, or a shot just fired: worlds/controllable/buster.js) the cannon's bone grows to full and the hand's bones
+// shrink away, each about its own head, eased over a few frames; otherwise the hand, the cannon put away. A figure with
+// no cannon's bone: nothing (null)
+const __rigS = new THREE.Vector3(1, 1, 1), __BUSTER_HOLD = 0.35, __BUSTER_MIN = 0.001;
+function __busterSwap(e, fig, rig, dt) {
+  if (rig.bsw === undefined) {
+    const at = fig.bones.findIndex((b) => /^buster[LR]$/.test(b.id));
+    if (at < 0) rig.bsw = null;
+    else {
+      const S = fig.bones[at].id.slice(-1), hand = new RegExp('^(hand|wristBridge|thumb|index|middle|ring|little|pinky)[A-Za-z0-9]*' + S + '$');
+      rig.bsw = { at, hand: fig.bones.map((b, i) => (hand.test(b.id) ? i : -1)).filter((i) => i >= 0), k: 0, s: fig.bones.map(() => 1) };
+    }
+  }
+  const W = rig.bsw;
+  if (!W) return null;
+  const out = !!e.busterOn || !!(e.lastShot && __world.time - e.lastShot.t < __BUSTER_HOLD);
+  W.k += ((out ? 1 : 0) - W.k) * Math.min(1, (dt || 1 / 60) * 18);
+  W.s[W.at] = Math.max(__BUSTER_MIN, W.k);
+  for (const i of W.hand) W.s[i] = Math.max(__BUSTER_MIN, 1 - W.k);
+  return W;
+}
+` : ''}// look-pitch aim scratch: rotate the weapon arm about the shoulder to follow vertical look.
 const __RIG_X = new THREE.Vector3(1, 0, 0), __apQ = new THREE.Quaternion(), __apH = new THREE.Vector3();
 // PER-SLOT ARM OVERLAY (R17): read one overlay bone's [q, head] from an armOverlays curve (same
 // frame-pair nlerp as __rigBone, but indexed by the overlay's own small bone list). Returns false
@@ -2404,6 +2426,7 @@ function __sidearmProps(e, m, rig, fig, AL) {
   }
 ${figHasLive ? `  const LV = fig.live ? __rigLive(e, rig, dt) : null;
 ` : ''}${figHasLayers ? `  const PL = e.body && e.body.layers ? __poseLayers(e, fig, dt) : null;
+` : ''}${busterOn ? `  const BS = __busterSwap(e, fig, rig, dt);
 ` : ''}  for (let bi = 0; bi < fig.bones.length; bi++) {
     const mesh = rig.boneMeshes[bi];
     if (!mesh) continue;
@@ -2475,6 +2498,14 @@ ${figHasRide ? `      // (a ridden machine's front turns about the steering axis
         __rigPA[0] = P[0] + __lvH.x; __rigPA[1] = P[1] + __lvH.y; __rigPA[2] = P[2] + __lvH.z + LV.dz;
         __rigQA.premultiply(LV.body);
       }
+    }
+` : ''}${busterOn ? `    // (the arm cannon's swap: a bone scaled s about its rest head, M·v = head' + q·s(v − restHead))
+    if (BS && BS.s[bi] !== 1) {
+      const bs = BS.s[bi], bh = fig.bones[bi].head;
+      __rigH.set(bh[0] * bs, bh[1] * bs, bh[2] * bs).applyQuaternion(__rigQA);
+      __rigV.set(__rigPA[0] - __rigH.x, __rigPA[1] - __rigH.y, __rigPA[2] - __rigH.z);
+      mesh.matrix.compose(__rigV, __rigQA, __rigS.setScalar(bs));
+      continue;
     }
 ` : ''}    // M·v = head' + q·(v − restHead)  →  compose(position = head' − q·restHead, q, 1)
     const rh = fig.bones[bi].head;

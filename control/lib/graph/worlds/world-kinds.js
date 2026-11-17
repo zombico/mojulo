@@ -90,6 +90,7 @@ import { animePerformanceTrack } from '@/lib/graph/face-acting/anime-read';
 import { animeFormed } from '@/lib/graph/polygonizer/anime-looks';
 import { formBodied } from '@/lib/graph/polygonizer/hero-form';
 import { clothFlows, heroClothRig, bakeClothClips } from '@/lib/graph/polygonizer/hero-cloth';
+import { busterRig } from '@/lib/graph/polygonizer/hero-buster-rig';
 import { emoteTake, emoteClips } from '@/lib/graph/face-acting/emotes';
 import { actClipOn } from '@/lib/graph/actor/act';
 // a scene's takes on the page (ctx.takes): the body's keys a second, the face's frames a second (a take runs a scene's
@@ -1063,7 +1064,12 @@ export const WORLD_KINDS = {
         // the page and the skinned GLB play it as bones. A row minted before, or nothing that flows ⇒ the rig, the skin and
         // the clips as they were, byte for byte
         const cloth = m.hero && clothFlows(m.hero) ? heroClothRig(mesh, m.recipe, m.hero, m.plan) : null;
-        const packR = typeof ctx.ride === 'function' ? { ...(cloth ? cloth.R : R), reach: 'clamp' } : cloth ? cloth.R : R;
+        const packR0 = typeof ctx.ride === 'function' ? { ...(cloth ? cloth.R : R), reach: 'clamp' } : cloth ? cloth.R : R;
+        // THE ARM CANNON'S BONE (polygonizer/hero-buster-rig.js): a hero wearing the toy armour's cannon carries it on a bone
+        // of its own after every other (the body's and the cloth's), so the page swaps the hand for it while the buster is
+        // out and an export carries the swap. No cannon ⇒ the rig and the skin as they were
+        const buster = m.hero ? busterRig(mesh, packR0, cloth ? cloth.skin : skin) : null;
+        const packR = buster ? buster.R : packR0, packSkin = buster ? buster.skin : cloth ? cloth.skin : skin;
         if (typeof ctx.ride === 'function') clipsIn = { ...clipsIn, ...ctx.ride(R, dz) };
         // (a hero whose cloth flows plays every clip over ONE duration on the page and in an export, the one its cloth's
         // swing is baked at: hero-gesture.js clothClipSeconds. Before, a clip with none played three seconds on the page
@@ -1139,7 +1145,7 @@ export const WORLD_KINDS = {
         // the same lit, skinned export (its tile's UVs, each corner's tangent; the GLB's maps). Any other figure: none
         const coverKind = engineLit && ctx.face && !paintPack ? beastCoverStyleOf(m.hero) : null, cover = coverKind ? coverMap(mesh, m.recipe, engineLit, coverKind, beastCoatOf(m.hero)) : null;
         const clothClips = cloth ? bakeClothClips(cloth, clipsIn, R, { seconds, speeds }) : clipsIn, clothActs = cloth && acts ? bakeClothClips(cloth, acts, R) : acts;
-        const pack = packLayeredRig(mesh, cloth ? cloth.skin : skin, packR, { clips: clothClips, ...(clothActs ? { acts: clothActs } : {}), ...(correctives ? { correctives } : {}), ...(engineLit ? { engineLit: true } : {}), ...(relief ? { relief } : {}), ...(cover ? { cover } : {}), keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : engineLit ? { normals: engineLit } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
+        const pack = packLayeredRig(mesh, packSkin, packR, { clips: clothClips, ...(clothActs ? { acts: clothActs } : {}), ...(correctives ? { correctives } : {}), ...(engineLit ? { engineLit: true } : {}), ...(relief ? { relief } : {}), ...(cover ? { cover } : {}), keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : engineLit ? { normals: engineLit } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
         // (the page's face rows as 16-bit steps of each part's own scale, about a micron: an export keeps its floats)
         // (and said once and only where they move: a corner's row shared with its vertex's others, a target's column its own
         // rows alone, figures/morph-sparse.js; exact, the same steps)

@@ -40,6 +40,7 @@ import { levelCameras, shootCameraDefs, levelEntityNodes, levelSceneExtras, leve
 import { vrmSpacePack, humanoidParents, withProfileJoints } from '../figures/rig-tpose.js';
 import { humanoidBonesFor } from '../polygonizer/figure-humanoid-map.js';
 import { SKIN_ROUGH } from '../epidermis/cloth-relief.js';
+import { HAND_BONE } from '../polygonizer/hero-buster-rig.js';
 
 const COMPONENT_FLOAT = 5126;
 const COMPONENT_USHORT = 5123;
@@ -1216,6 +1217,9 @@ class GlbBuilder {
       animations++;
       if (!parents) animations += this.addBodyLayers(`emote:${clip}`, bones, jointNodes, E);
     }
+    // THE ARM CANNON'S SWAP (polygonizer/hero-buster-rig.js: a cannon on a bone of its own): `buster:out`, the hand to the
+    // cannon, played as an override layer over a body clip. A figure with no cannon's bone writes nothing
+    animations += this.addBusterSwap(fig.bones, jointNodes);
     return { nodes: 1, animations, vertices, triangles, skinned: true, soft: hasTails, humanoid: !!hb, authored: fig.parts.some((p) => p && typeof p.jnt === 'string'), ...(hasFace ? { face: true } : {}), ...(corr ? { correctives: corr.targets.length } : {}) };
   }
 
@@ -1228,6 +1232,26 @@ class GlbBuilder {
     const heads = Object.fromEntries(bones.map((b) => [b.id, b.head]));
     return (T.breath ? this.addLayerClip(`breath:${clipName}`, bones, jointNodes, T, breathBones(heads, T.breath)) : 0)
       + (T.head ? this.addLayerClip(`head:${clipName}`, bones, jointNodes, T, headBones(heads, T.head)) : 0);
+  }
+
+  /**
+   * THE ARM CANNON'S SWAP (polygonizer/hero-buster-rig.js, the page's __busterSwap): `buster:out`, two keys a tenth of a
+   * second apart, the cannon's bone (`buster<S>`) scaled from nothing to whole and the bones of that hand (the palm, the
+   * wrist's bridge, the fingers: HAND_BONE) from whole to nothing, each about its own head. An engine plays it forward to
+   * bring the cannon out (the buster fired or charging) and back to put it away; it moves no bone but these, so it lays
+   * over any body clip. → 1 when written, 0 for a figure with no cannon's bone.
+   */
+  addBusterSwap(bones, jointNodes) {
+    const at = bones.findIndex((b) => /^buster[LR]$/.test(b.id));
+    if (at < 0 || jointNodes[at] == null) return 0;
+    const hand = HAND_BONE(bones[at].id.slice(-1)), MIN = 0.001;
+    const times = Float32Array.from([0, 0.1]), input = this.floatAccessor(times, 1, { min: [0], max: [0.1] }, null), samplers = [], channels = [];
+    const scale = (node, from, to) => channels.push({ sampler: samplers.push({ input, output: this.floatAccessor(Float32Array.from([from, from, from, to, to, to]), 3, null, null), interpolation: 'LINEAR' }) - 1, target: { node, path: 'scale' } });
+    scale(jointNodes[at], MIN, 1);
+    bones.forEach((b, bi) => { if (hand.test(b.id) && jointNodes[bi] != null) scale(jointNodes[bi], 1, MIN); });
+    if (!this.json.animations) this.json.animations = [];
+    this.json.animations.push({ name: 'buster:out', samplers, channels, extras: { 'moj:layer': 'override', 'moj:swap': 'the hand to the arm cannon while the buster is out' } });
+    return 1;
   }
 
   /**
