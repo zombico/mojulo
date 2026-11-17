@@ -51,13 +51,14 @@ cd control
 export MOJULO_DATA_DIR="$(pwd)/data" MOJULO_OUTCOMES_DIR="$(pwd)/data/outcomes"
 # a world: write the plan in words and ask for its contact sheet in the same call (1 | 2 | 3 frames a shot)
 node scripts/mcp-stdio.mjs call forge_motion --json '{"subject":{"world_ref":"sk_…"},"shoot":{"contact":3,"plan":{"cameras":[{"id":"open","keys":[{"t":0,"move":{"kind":"crane_up","on":"walker:0","for":4}}]},{"id":"close","keys":[{"t":4,"frame":{"on":"walker:0","size":"mcu","side":"three-quarter-left"}}]}],"shots":[{"camera":"open","span":[0,4]},{"camera":"close","span":[4,7]}]}}}'
-# a scene: its storyboard (the default form) in a camera style
+# a scene: its storyboard (the default form) in a camera style, or its contact sheet on the set (export 'film', a minute)
 node scripts/mcp-stdio.mjs call forge_motion --json '{"title":"…","subject":{"screenplay":{"cast":{…},"script":"…","camera":"verite"}},"shot":{"motion":"coverage"}}'
+node scripts/mcp-stdio.mjs call forge_motion --json '{"title":"…","export":"film","subject":{"screenplay":{…,"camera":"verite"}},"shot":{"motion":"coverage","params":{"contact":2}}}'
 ```
 
 Read the answer first: `composition` (each shot's subject, size, headroom, eyes, place, facing) and its `notes`
 (lost, head-cut, loose-head, eyes-low, joint-cut, short-sided, jump-cut, direction-flip, each with a fix); for a scene,
-the director's notes. Then LOOK: Read the contact sheet's PNG (`contact.path`: a row a shot, start, middle and end, the
+its `framing` (the same read of its coverage) and the director's notes. Then LOOK: Read the contact sheet's PNG (`contact.path`: a row a shot, start, middle and end, the
 thirds over each frame) or the storyboard. The read measures where things land; only the picture shows whether the shot
 says what the brief asked: what stands in front, what the background does, whether the eye goes where it should.
 

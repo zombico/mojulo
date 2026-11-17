@@ -27,6 +27,9 @@ import { cameraStyleOf, cameraStyleErrors } from './camera-styles.js';
 import { solveFraming } from '../shoot/framing.js';
 import { hfovForFocal } from '../shoot/lens.js';
 import { readShake } from '../shoot/shake.js';
+import { SIZES } from '../shoot/frame.js';
+
+const SIZE_IDS = SIZES.map((z) => z.id);
 
 /** the framings: room round the subjects (m), height over the look point (m), yaw off the facing (quarter turns): the
  * scenes card's (rules-basic.js FRAMES, held equal by coverage.test.js) */
@@ -201,6 +204,11 @@ export function coverScene(S, opts = {}) {
 
 /** a figure's height the singles are framed on (m): an actor's eyes are scene.js EYES (1.55) at 0.93 of it */
 export const FIGURE = 1.67;
+/** how often a style's single on a walking actor is keyed through its shot (s) */
+export const RIDE = 0.5;
+/** the frame a scene is filmed in: the film shot in mojulo's and the Blender pack's (film/native.js NATIVE, 16:9); the
+ * styled framings are solved in it, so a close-up framed here is a close-up on the film */
+export const FILM_ASPECT = 16 / 9;
 
 /**
  * The scene's cuts shot in a camera style (camera-styles.js): each cut of the scene (cutsOf) read as the card's setup
@@ -220,6 +228,7 @@ export function coverStyled(S, card, { grain = null, rooms = null, sight = null 
       if (i === 0 && card.establish === 'none') return { kind: 'single', on: [first], size: sizes.single ?? 'ms' };
       const mover = c.why ? names.find((n) => c.why.startsWith(`${n} `)) : null;
       if (mover && card.cross === 'follow') return { kind: 'single', on: [mover], size: sizes.follow ?? 'mls' };
+      if (mover && card.cross === 'hold') return null;
       return { kind: 'wide', on: names };
     }
     const line = (who, to) => (card.dialogue === 'over' && to !== who ? { kind: 'over', on: [who, to] } : card.dialogue === 'two' && names.length > 1 ? { kind: 'two', on: [who, to] } : { kind: 'single', on: [who], size: sizes.single ?? 'ms' });
@@ -239,8 +248,12 @@ export function coverStyled(S, card, { grain = null, rooms = null, sight = null 
   const cuts = [];
   all.forEach((c, i) => {
     const u = c.frame === 'react' ? { kind: 'single', on: c.on, size: sizes.single ?? 'ms' } : setupOf(c, kept.indexOf(c));
+    if (!u) return;
     const id = `${u.kind}:${u.kind === 'two' ? [...u.on].sort().join('/') : u.on.join('/')}:${u.size ?? ''}`, last = cuts.at(-1);
     if (last && last.key === id) return;
+    // (the same actor again in a single within a size of the last is no new shot: the cut would jump; it holds)
+    const one = (x) => (x.kind === 'push' ? x.sizes[0] : x.size), k = (z) => SIZE_IDS.indexOf(z);
+    if (last && card.oner !== true && (u.kind === 'single' || u.kind === 'push') && (last.setup.kind === 'single' || last.setup.kind === 'push') && u.on[0] === last.setup.on[0] && Math.abs(k(one(u)) - k(one(last.setup))) <= 1) return;
     const t = last ? Math.max(c.t, last.t + card.least) : c.t, next = all[i + 1]?.t ?? S.seconds;
     if (last && (t >= next || S.seconds - t < Math.min(card.least, 1))) return;
     cuts.push({ t: r3(t), setup: u, key: id, why: c.why });
@@ -250,20 +263,29 @@ export function coverStyled(S, card, { grain = null, rooms = null, sight = null 
   const single = (w, size, s, close = false) => {
     const side = (card.side ?? 40) * (card.line ? closeSide(w, s) : 1);
     const glass = (close ? lens.close : null) ?? lens.single;
-    const r = solveFraming({ size, angle: card.angle ?? 'eye', side, place: card.place ?? 'lead', ...(glass ? { lens: glass } : {}) }, { pos: pt(w, s), heading: heading(w, s), height: FIGURE });
+    const r = solveFraming({ size, angle: card.angle ?? 'eye', side, place: card.place ?? 'lead', ...(glass ? { lens: glass } : {}) }, { pos: pt(w, s), heading: heading(w, s), height: FIGURE }, { aspect: FILM_ASPECT });
     return { pos: r.pos.map(r3), poi: r.poi.map(r3), fov: r3(hfovForFocal(r.focal_mm)) };
   };
   const fovOf = (mm) => (mm ? hfovForFocal(mm) : FOV);
+  // (a two: the pair framed in words as one figure at their middle, square to the line between them on the scene's side)
+  const two = (u, s) => {
+    const [A, B] = names.filter((w) => u.on.includes(w)).map((w) => pt(w, s)), side = wideSide(s);
+    const face = Math.atan2(B[1] - A[1], B[0] - A[0]) - (Math.PI / 2) * side, glass = lens.two ?? lens.single;
+    const r = solveFraming({ size: sizes.two ?? 'fs', angle: card.angle ?? 'eye', side: 'front', place: 'centre', ...(glass ? { lens: glass } : {}) }, { pos: [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2, 0], heading: face, height: FIGURE }, { aspect: FILM_ASPECT });
+    return { pos: r.pos.map(r3), poi: r.poi.map(r3), fov: r3(hfovForFocal(r.focal_mm)) };
+  };
   const frame = (u, s, size = u.size) => fitSight(fitRoom(
     u.kind === 'wide' ? rise(frameShot('wide', names.map((w) => pt(w, s)), { side: wideSide(s), fov: fovOf(lens.wide) }))
-      : u.kind === 'two' ? frameShot('two', u.on.map((w) => pt(w, s)), { side: wideSide(s), fov: fovOf(lens.single) })
+      : u.kind === 'two' ? two(u, s)
         : u.kind === 'over' ? frameShot('over', [pt(u.on[0], s), pt(u.on[1], s)], { side: overSide(u.on[0], u.on[1], s), fov: fovOf(lens.over) })
           : single(u.on[0], size, s, u.close), rooms), sight);
   const nameOf = (u) => (u.kind === 'wide' ? 'the wide' : u.kind === 'two' ? 'the two' : u.kind === 'over' ? `over on ${u.on[0]}` : u.kind === 'push' ? `push on ${u.on[0]}` : `${u.size} on ${u.on[0]}`);
   // ─── the setups keyed where their shots are ──────────────────────────────────────────────────────────────────────
   const cams = new Map(), shots = [], g = grain ?? card.grain ?? null;
   const camOf = (id, name) => { if (!cams.has(id)) cams.set(id, { id, name, type: 'two_node', film_mm: FILM, path: 'linear', keys: [], ...(card.shake ? { shake: readShake({ style: card.shake, amount: card.amount ?? 1, seed: id }).shake } : {}) }); return cams.get(id); };
-  const key = (f, t, ease) => ({ t: r3(t), pos: f.pos, poi: f.poi, focal_mm: focalOf(f.fov), ...(ease ? { ease } : {}) });
+  // (a single's keys say whom they frame, so a frame read takes the actor from the key, not from where the camera looks)
+  let about = null;
+  const key = (f, t, ease) => ({ t: r3(t), pos: f.pos, poi: f.poi, focal_mm: focalOf(f.fov), ...(ease ? { ease } : {}), ...(about ? { about } : {}) });
   const timeOf = (t0, t1, isLast) => (S.time ?? []).flatMap((m) => {
     if (m.at !== undefined) return m.at >= t0 && (m.at < t1 || (isLast && m.at <= t1)) ? [m] : [];
     const a = Math.max(t0, m.span[0]), b = Math.min(t1, m.span[1]);
@@ -273,17 +295,24 @@ export function coverStyled(S, card, { grain = null, rooms = null, sight = null 
   let prev = null;
   cuts.forEach((c, i) => {
     const t0 = r3(c.t), t1 = r3(cuts[i + 1]?.t ?? S.seconds), isLast = i === cuts.length - 1, u = c.setup;
+    about = u.kind === 'single' || u.kind === 'push' ? `actor:${u.on[0]}` : null;
     const label = `${i + 1} ${u.kind === 'single' ? u.size : u.kind}${c.why ? `: ${c.why}` : ''}`;
     const a = u.kind === 'push' ? frame(u, t0, u.sizes[0]) : frame(u, t0), b = u.kind === 'push' ? frame(u, t1, u.sizes[1]) : frame(u, t1);
     const cam = camOf(idOf(u), card.oner ? 'the long take' : nameOf(u)), end = r3(Math.max(t0 + 0.001, t1 - 0.001));
     if (card.oner && prev) {
       // the glide: from where the camera was to the new framing, a shot of its own, then the framing held
       const arrive = r3(Math.min(t1 - 0.002, t0 + Math.min(card.glide ?? 1.2, (t1 - t0) / 2)));
-      cam.keys.push(key(frame(u, arrive), arrive, 'easy_ease'), key(b, end));
+      // (the glide's two keys say so, shoot/frame.js reads no composition between them: the camera is on its way)
+      const glide = (k) => ({ ...k, framing: { move: 'glide' } }), from = cam.keys.at(-1);
+      cam.keys.push(glide({ ...from, t: t0 }), glide(key(frame(u, arrive), arrive, 'easy_ease')), key(b, end));
       shot(`${label} (glide)`, cam.id, t0, arrive, false);
       shot(label, cam.id, arrive, t1, isLast);
     } else {
-      cam.keys.push(key(a, t0, u.kind === 'push' || card.oner ? 'easy_ease' : null), key(b, end, u.kind === 'push' ? 'easy_ease' : null));
+      cam.keys.push(key(a, t0, u.kind === 'push' || card.oner ? 'easy_ease' : null));
+      // (a single on someone who walks is keyed through its shot, every RIDE seconds, so it keeps them framed)
+      const walking = u.kind === 'single' && S.actors[u.on[0]]?.walks?.some((x) => x.start < t1 && x.end > t0);
+      if (walking) for (let t = t0 + RIDE; t < end - RIDE / 2; t += RIDE) cam.keys.push(key(frame(u, t), t));
+      cam.keys.push(key(b, end, u.kind === 'push' ? 'easy_ease' : null));
       shot(label, cam.id, t0, t1, isLast);
     }
     prev = u;

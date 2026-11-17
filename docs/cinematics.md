@@ -104,6 +104,13 @@ shot as the card says:
 - **A style answers its own notes.** A card's `quiet` names the director's notes it answers by design: a oner's long
   takes are its point, and a frontal style crosses the line on purpose.
 
+- **Read in the frame it is filmed in.** A style's singles are solved in the film's 16:9 frame (`FILM_ASPECT`), and a
+  scene's coverage is read there (`actor/frame-read.js` `sceneFrameRead`, the actors its subjects): the answer's
+  `framing`, beside the director's notes. A single says whom it frames (its keys' `about`). The same actor twice in a
+  row within a size is no cut, and a long take's glide is on its way between framings, not a composition. The read
+  finds the classical coverage's closes and overs a little loose over the head: its eyes sit in the middle of the
+  frame, not on the upper third.
+
 `classical` is the coverage with no style, byte for byte. A new style is a card. The in-game scene runner still shoots
 classical (its directing camera frames by the scenes card's words).
 
@@ -564,7 +571,8 @@ then this department directs it (`playscape/ui/scene-script.js`), lowered at bui
 ## Where to look
 
 - **The contact sheet** (a shoot plan's `contact`, `shoot/contact.js`, `motion/contact-sheet.js`): each shot at its
-  start, middle and end on the world's own page, the thirds drawn over, the frame read under each frame. The skill
+  start, middle and end on the world's own page, the thirds drawn over, the frame read under each frame. A scene's
+  (a screenplay's `shot.params.contact` with `export: 'film'`) is the film shot in mojulo at those frames only. The skill
   `/direct` is the director's loop round it: the words, the why, the read, the sheet, three rounds at most.
 
 - **The dailies** (`control/scripts/spikes/actor/dailies.mjs`): every take on one clock, its timeline and its readings

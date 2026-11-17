@@ -59,7 +59,16 @@ forge_motion({ title: 'The key', export: 'storyboard',
   - `style`: a playing style for every part without one;
   - `grain`: `twos` | `threes`, the scene on twos with the camera on ones, as anime is keyed;
   - `grade`: a word (film, noir, bleach, vivid, pastel, cold, warm) or the dials;
-  - `hero`: the spec every part without a body plays.
+  - `hero`: the spec every part without a body plays;
+  - `contact`: `1` | `2` | `3` with `export: 'film'`: the film shot in mojulo at a few frames a shot, its CONTACT SHEET
+    (each cut's start, middle and end on the set's own page, a row a shot, the thirds over each frame and the frame read
+    under it: `contact.path`) instead of the whole take. Look at it before the film: about a minute for a short scene
+    where the film is several.
+
+  The answer's `framing` is the coverage read as a shoot plan is (each shot's actor and size, and the advice: a head
+  cut, a joint cut, a jump cut, short-siding, a screen-direction flip), beside the director's notes. A style's
+  framings are solved in the film's 16:9 frame. The read takes a figure as its height on its axis: hair stands a little
+  over the crown it measures, and at under a metre from the lens a face draws larger than it reads.
 
   `shot.fps` defaults to 24.
 

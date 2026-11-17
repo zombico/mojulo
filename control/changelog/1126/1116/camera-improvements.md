@@ -23,3 +23,8 @@
   over each frame and the frame read under it, one PNG in the world's outcome folder. Seconds where the film takes
   minutes: what an agent looks at before it renders. The skill `/direct` is the director's loop round it: the shots in
   words, the why, the read, the sheet, three rounds of words at most, the eyes gate the person's.
+- **A scene's frame and its contact sheet** (`actor/frame-read.js`; a screenplay's `shot.params.contact` with `export:
+  'film'`): a scene's coverage read as a shoot plan is, its actors the subjects, rides the screenplay's answer as
+  `framing` beside the director's notes; its contact sheet is the film shot in mojulo at each cut's start, middle and
+  end. A style's framings are solved in the film's 16:9 frame, its singles say whom they frame, the same actor within a
+  size is no cut, a two-shot is framed in words, and a long take's glides are read as on their way.

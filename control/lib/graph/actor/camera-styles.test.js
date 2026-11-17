@@ -1,12 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { CAMERA_STYLES, cameraStyleOf, cameraStyleErrors } from './camera-styles.js';
-import { coverScene, FIGURE } from './coverage.js';
+import { coverScene } from './coverage.js';
 import { actScene } from './scene.js';
 import { BASELINE } from './baseline.js';
 import { directorsNotes } from './notes.js';
 import { coverageCameraAt } from './scene-film.js';
-import { normalizeShoot } from '../shoot/plan.js';
-import { frameRead } from '../shoot/frame.js';
+import { sceneFrameRead } from './frame-read.js';
 import { SIZES } from '../shoot/frame.js';
 
 const S = actScene(BASELINE.blocked);
@@ -15,15 +14,6 @@ const by = (f) => CAMERA_STYLES.find(f);
 const noEstablish = by((c) => c.establish === 'none'), frontal = by((c) => c.side === 0 && c.place === 'centre'), oner = by((c) => c.oner);
 const pushes = by((c) => c.turn === 'push'), twos = by((c) => c.dialogue === 'two'), shaken = by((c) => c.shake && !c.oner), reacts = by((c) => c.react);
 const sizeOfShot = (s) => SIZES.find((z) => s.name.split(' ')[1].replace(':', '') === z.id)?.id;
-
-// the scene's actors as subjects a frame read can be about: their places over time, figures FIGURE tall
-const actorSubjects = (S) => new Map(Object.entries(S.actors).map(([w, A]) => [`actor:${w}`, { id: `actor:${w}`, kind: 'figure', box: { len: 0.4, wid: 0.4, hgt: FIGURE }, at: (t) => {
-  const K = A.root; let k = 0;
-  while (k + 1 < K.length && K[k + 1].t <= t) k++;
-  const a = K[k], b = K[k + 1] ?? a, u = b.t > a.t ? Math.min(1, Math.max(0, (t - a.t) / (b.t - a.t))) : 0;
-  const yaw = a.yaw + (b.yaw - a.yaw) * u;
-  return { pos: [a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u, 0], heading: ((90 - yaw) * Math.PI) / 180 };
-} }]));
 
 describe('camera styles', () => {
   it('classical is the coverage with no style, byte for byte', () => {
@@ -58,8 +48,8 @@ describe('camera styles', () => {
     }
   });
   it('a frontal style\'s singles face the lens and sit in the middle; the read says so', () => {
-    const C = coverScene(S, { style: frontal.id }), subjects = actorSubjects(S);
-    const read = frameRead(normalizeShoot(C, { subjects }).plan, { subjects });
+    const C = coverScene(S, { style: frontal.id });
+    const read = sceneFrameRead(S, C);
     const singles = read.shots.filter((r, i) => sizeOfShot(C.shots[i]) === frontal.sizes.single && r.about);
     expect(singles.length).toBeGreaterThan(0);
     for (const r of singles) { expect(r.size).toBe(frontal.sizes.single); expect(r.facing).toBe('toward'); expect(r.across).toBeCloseTo(0.5, 1); }

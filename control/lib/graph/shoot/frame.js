@@ -158,8 +158,9 @@ export function readFigure(cam, subject, { aspect = ASPECT } = {}) {
 }
 
 const sizeIndex = (id) => SIZES.findIndex((z) => z.id === id);
-// the moves (moves.js) whose frames in between are a blur on the way, not a composition
-const FAST = ['whip_pan', 'crash_zoom'];
+// the moves (moves.js, and a long take's glide, actor/coverage.js) whose frames in between are on the way, not a
+// composition
+const FAST = ['whip_pan', 'crash_zoom', 'glide'];
 // the subject a key's point of interest stands on, at an instant: within its own height of the point
 function standingAt(poi, subjects, t, heightOf) {
   let best = null;
@@ -227,7 +228,7 @@ export function frameRead(plan, { subjects = null, metersPerUnit = 1, aspect = A
     // ─── the advice on one shot ─────────────────────────────────────────────────────────────────────────────────────
     // (a whip pan leaves its subject between its keys on purpose: the blur is the move)
     const inMove = (x, ids) => { const ks = camOf(shot.camera).keys, ct = x.ct; return ks.some((k, j) => ids.includes(k.framing?.move) && ks[j + 1] && ks[j + 1].framing?.move === k.framing.move && k.t <= ct && ct < ks[j + 1].t); };
-    const lost = reads.find((x) => x.read && !x.read.in_frame && !inMove(x, ['whip_pan']));
+    const lost = reads.find((x) => x.read && !x.read.in_frame && !inMove(x, ['whip_pan', 'glide']));
     if (lost) note('lost', shot.name, lost.t, `${about.id} is out of the frame at ${r3(lost.t)}s`, 'aim the point of interest at it (follow it), or open the lens');
     const R = mid;
     // (a frame in a fast move, a whip or a crash zoom, is a blur on its way: its composition is the keys')
@@ -243,6 +244,8 @@ export function frameRead(plan, { subjects = null, metersPerUnit = 1, aspect = A
   // ─── the advice at each cut ──────────────────────────────────────────────────────────────────────────────────────
   for (let i = 1; i < shots.length; i++) {
     const A = shots[i - 1], B = shots[i], a = A._reads[2], b = B._reads[0];
+    // (one camera running on from one shot into the next, a long take's glide into its hold, is no cut)
+    if (A.camera === B.camera && Math.abs(program.shots[i].span[0] - program.shots[i - 1].span[1]) < 1e-3) continue;
     if (!a.s || !b.s || a.s.id !== b.s.id || !a.read?.size || !b.read?.size || !a.read.in_frame || !b.read.in_frame) continue;
     const pa = a.s.at(a.t).pos, pb = b.s.at(b.t).pos;
     const az = (cam, p) => Math.atan2(cam.pos[1] - p[1], cam.pos[0] - p[0]);

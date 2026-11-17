@@ -7,9 +7,9 @@
  *   dialogue    a line: `over` the listener's shoulder, a clean `single` on the speaker, or the `two` held
  *   turn        a line with a face of its own (a parenthetical): a `close` single, a `push` in on the speaker, or the
  *               `same` as any line
- *   cross       someone moving: back to the `wide`, or `follow` the mover in a single
- *   sizes       the singles' sizes (shoot/frame.js SIZES): `single`, `close`, `follow`, `push` [from, to]
- *   lens        focal lengths (mm) by setup: `wide`, `over`, `single`, `close`
+ *   cross       someone moving: back to the `wide`, `follow` the mover in a single, or `hold` the framing (no cut)
+ *   sizes       the sizes (shoot/frame.js SIZES): `single`, `close`, `follow`, `two` (the pair as one figure), `push` [from, to]
+ *   lens        focal lengths (mm) by setup: `wide`, `over`, `two`, `single`, `close`
  *   angle       the singles' tilt (shoot/framing.js ANGLES or degrees); `rise` the wide's height over its look point (m)
  *   side        how far round from the speaker's front a single stands (degrees: 40 a three-quarter, 0 frontal)
  *   line        whether every camera keeps to the scene's side of the line (the 180° rule)
@@ -39,11 +39,11 @@ export const CAMERA_STYLES = Object.freeze([
   { id: 'oner', says: 'one camera, no cuts: it glides from the room to whoever speaks and back out for a move, on a stabilised rig', after: 'the long take',
     establish: 'wide', dialogue: 'single', turn: 'close', cross: 'wide', sizes: { single: 'ms', close: 'mcu' }, lens: { wide: 28, single: 35, close: 35 },
     angle: 'eye', side: 35, line: true, place: 'lead', least: 1.2, oner: true, glide: 1.2, shake: 'steadicam', amount: 1, quiet: ['long-take', 'no-close'] },
-  { id: 'kinetic', says: 'fast and low: quick cuts, tight singles from below on a short lens, a push on the turn, the mover chased, the camera running', after: 'the action picture',
-    establish: 'wide', dialogue: 'single', turn: 'push', cross: 'follow', sizes: { single: 'cu', follow: 'mls', push: ['mcu', 'ecu'] }, lens: { wide: 20, single: 32, close: 40 },
+  { id: 'kinetic', says: 'fast and low: quick cuts, tight singles from below, a short lens on the wide, a push on the turn, the mover chased, the camera running', after: 'the action picture',
+    establish: 'wide', dialogue: 'single', turn: 'push', cross: 'follow', sizes: { single: 'mcu', follow: 'mls', push: ['mcu', 'cu'] }, lens: { wide: 20, single: 50, close: 50 },
     angle: 'low', side: 40, line: true, place: 'lead', least: 0.7, react: 1.4, shake: 'run', amount: 0.6, quiet: [] },
   { id: 'observational', says: 'from across the room on a long lens: the two held wide and loose, few cuts, a light hand on the camera', after: 'surveillance and the fly on the wall',
-    establish: 'wide', dialogue: 'two', turn: 'same', cross: 'wide', lens: { wide: 85, single: 135 },
+    establish: 'wide', dialogue: 'two', turn: 'same', cross: 'hold', sizes: { two: 'fs' }, lens: { wide: 85, two: 85, single: 135 },
     angle: 'eye', line: true, least: 3.5, shake: 'handheld', amount: 0.5, quiet: ['no-close', 'long-take'] },
 ]);
 const WORDS = { continuity: 'classical', hollywood: 'classical', standard: 'classical', handheld: 'verite', 'hand-held': 'verite', documentary: 'verite', 'vérité': 'verite', symmetrical: 'planimetric', symmetric: 'planimetric', frontal: 'planimetric', tableau: 'planimetric', flat: 'planimetric', low: 'still', patient: 'still', tatami: 'still', 'long-take': 'oner', 'one-take': 'oner', 'single-take': 'oner', steadicam: 'oner', action: 'kinetic', fast: 'kinetic', frantic: 'kinetic', surveillance: 'observational', 'fly-on-the-wall': 'observational', distant: 'observational', voyeur: 'observational' };
