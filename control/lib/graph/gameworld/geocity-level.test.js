@@ -286,6 +286,20 @@ describe('jobs across the district (errands on a played district: its shops thei
     for (const k of ['car:door', 'car:horn', 'car:crash']) expect(heard.audio.sfx.sheet.cues[k].length).toBeGreaterThan(0);
     expect(level.audio?.engine).toBeUndefined(); expect(level.audio?.bed).toBeUndefined();
   });
+  it('a job is driven: its giver a short drive from the start, and each stop a drive from the one before it, never the shop next door', () => {
+    const giver = M.find((m) => m.kind === 'offer'), trade = (item) => M.find((m) => m.kind === 'trade' && m.item === item), deliver = (id) => M.find((m) => m.kind === 'deliver' && m.id === id);
+    expect(d(giver.at, E.spawn)).toBeGreaterThanOrEqual(120);
+    // (the parcel: from its giver to the fee, to the gadget's counter, back to its giver; the fares: the pick-up, the drop)
+    const route = [giver.at, trade('fee').at, trade('gadget').at, deliver('parcel').at], fares = [trade('passenger').at, deliver('fare').at];
+    const legs = [...route.slice(1).map((p, k) => d(p, route[k])), d(fares[0], fares[1])];
+    for (const [k, m] of legs.entries()) expect(m, `leg ${k}: ${legs.map((x) => Math.round(x)).join(', ')} m`).toBeGreaterThan(150);
+  });
+  it('an athletic hero covers more ground: its run as fast as its longer stride carries it at the same cadence', () => {
+    const hero = (motion) => runSteps({ ...JOBS, id: 'jobs7', characters: { ...JOBS.characters, hero: { ...JOBS.characters.hero, motion } } }, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest.entities.find((e) => e.pilotable).rule;
+    const plain = hero({ vibe: ['bold'] }), fast = hero({ vibe: ['athletic'] });
+    expect(fast.speed / plain.speed).toBeGreaterThan(1.4);
+    expect(fast.speed / fast.stride).toBeCloseTo(plain.speed / plain.stride, 2);
+  });
   it('a standing job keeps the level open: the one-off pays and ends nothing; the guide leads through both, then round the fares', async () => {
     expect(M.find((m) => m.kind === 'deliver' && m.id === 'parcel')).toMatchObject({ open: true });
     expect(M.find((m) => m.kind === 'deliver' && m.id === 'fare')).toMatchObject({ repeat: true });

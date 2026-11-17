@@ -59,6 +59,7 @@ import { movesetLegend } from './input-map.js';
 import { quickFigure } from './cast-setting.js';
 import { jobQuests, contactName } from './city-guide.js';
 import { taskApps, appTitle } from './phone-ui.js';
+import { resolveMotion, GAIT_BASE } from './hero-vibe.js';
 import { turfRect, actLine } from './factions.js';
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
@@ -660,7 +661,22 @@ function kerbSpots(route, road, colliders, top = null, lanes = []) {
 }
 
 // a driven errand's places (a stage with cars): how far along its walk the first stands, and a kerb's reach (m)
-const ERRAND_DRIVE = Object.freeze({ from: 0.33, reach: 7 });
+// (`weigh`: how much more the drive from the stop before counts than the gap to any other stop taken, when a stop is
+// chosen: the drive matters most)
+const ERRAND_DRIVE = Object.freeze({ from: 0.33, reach: 7, weigh: 0.6 });
+// A HERO'S REACH (hero-vibe.js, its motion's `reach`: an athletic run, its legs opened wide): how much more ground its
+// run's stride takes than the gait as studied, so the level runs it that much faster at the same cadence (player.js
+// `reach`). 1 for a hero that does not say it.
+function heroReach(G) {
+  const M = G?.characters?.hero?.motion;
+  if (!M) return 1;
+  try {
+    const R = resolveMotion(M);
+    if (!R.axes?.reach || !R.motion?.jog?.strideLength) return 1;
+    return Math.round((R.motion.jog.strideLength / GAIT_BASE.jog.strideLength) * 1000) / 1000;
+  } catch { return 1; }
+}
+
 // AN ENCOUNTER (a faction's posting that is a fight, factions.js `act.fight`; free roam): where its foes stand, out on
 // the street before its place: how far out, how far apart, how near wakes them, and clear of anyone who stands
 const ENCOUNTER = Object.freeze({ out: 4.5, apart: 1.7, reach: 10, clear: 30 });
@@ -673,8 +689,9 @@ function encounterCast(G, E, refs, hero) {
   return { ...part, pilot: { ...(hero ? { rule: { stomp: stompOf(G) } } : {}), body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } } } };
 }
 
-// a job's giver: how far from the start it stands at the least, how far from another giver, what it says unsaid (m)
-const GIVER = Object.freeze({ off: 18, apart: 14, says: 'I have a job for you.', budget: 8000, contact: 'contact' });
+// a job's giver: how far from the start it stands at the least (a short drive), how far from another giver, what it
+// says unsaid (m)
+const GIVER = Object.freeze({ off: 120, apart: 14, says: 'I have a job for you.', budget: 8000, contact: 'contact' });
 
 // The district's own cars stood at those spots: each one of its civilian fleet (geocity/fleets.js: the model and the
 // paint the city's dice pick for a car parked there), where no car of its lots stands within a walk of the start.
@@ -941,7 +958,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const rule = struck ? { ...(rule0 ?? {}), ...struck } : rule0;
     // (a mascot pilot, egocube/mascot-pilot.js: its own clips, capsule, stride, camera and eye)
     const moves = heroMoves(G);
-    const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), ...(lane || stage.section === 'runner' ? { walk: false } : {}), id: 'hero', title: name, controls: G.mechanics?.legend === 'menu' ? '' : `${controls}${written?.dash && written.dash.ground !== false ? ' · F  dash' : written?.sprint ? ' · F  run' : rule?.stamina ? ` · F  sprint (stamina)${rule.dodge ? ' · F F  dodge' : ''}` : ''}${written?.sprintSpeed ? ' · Shift  sprint' : ''}${airKeys(written)}${actionOrbit ? ' · C  lock on' : ''}${movesLegend(moves)}`, ...(rule ? { rule } : {}), ...(takes ? { takes } : {}) }), moves, startingGrants(G));
+    const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), ...(lane || stage.section === 'runner' ? { walk: false } : {}), ...(heroReach(G) !== 1 ? { reach: heroReach(G) } : {}), id: 'hero', title: name, controls: G.mechanics?.legend === 'menu' ? '' : `${controls}${written?.dash && written.dash.ground !== false ? ' · F  dash' : written?.sprint ? ' · F  run' : rule?.stamina ? ` · F  sprint (stamina)${rule.dodge ? ' · F F  dodge' : ''}` : ''}${written?.sprintSpeed ? ' · Shift  sprint' : ''}${airKeys(written)}${actionOrbit ? ' · C  lock on' : ''}${movesLegend(moves)}`, ...(rule ? { rule } : {}), ...(takes ? { takes } : {}) }), moves, startingGrants(G));
     const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
     const camera = look ? { rule: 'eye', target: 'hero', height: pilot ? pilot.eye : HERO_EYE, mouseLook: true, hideTarget: true }
       : top ? { rule: 'overhead', target: 'hero', ...OVERHEAD }
@@ -1622,23 +1639,44 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined) {
     const named = new Map(), givers = [];
     let spots = open;
     if (driven && need > 0 && (ends.places?.length ?? 0) >= need) {
-      const taken2 = [ends.spawn], pool = ends.places.slice(), gap = (p) => Math.min(...taken2.map((q) => Math.hypot(p.at[0] - q[0], p.at[1] - q[1])));
-      spots = [];
-      for (let k = 0; k < need; k++) { const best = pool.reduce((m, p) => (gap(p) > gap(m) + 1e-9 ? p : m), pool[0]); pool.splice(pool.indexOf(best), 1); taken2.push(best.at); spots.push(best.at); named.set(best.at, best.card); }
-      // THE GIVERS: each job is TAKEN from someone, who stands before a shop near the start (the nearest not yet
-      // taken, a few strides off it and off each other), looking out from its door; coming to them takes the job
-      const near = (p) => Math.hypot(p.at[0] - ends.spawn[0], p.at[1] - ends.spawn[1]), stood = [];
+      const pool = ends.places.slice(), d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+      // THE GIVERS: each job is TAKEN from someone, who stands before a shop a short drive from the start (the nearest
+      // at least GIVER.off away, off each other), looking out from its door; coming to them takes the job
+      const near = (p) => d2(p.at, ends.spawn), stood = [];
       // (one giver a CONTACT, errand.js `contact`: the jobs of one contact share them. The first is taken where they
       // stand; they are on the phone after, and each next job is offered by a call when the one before it is done)
       for (const J of plan.errand.filter((l) => l.kind === 'deliver')) {
         if (taskApps(J, fus).length) continue;   // (a phone app's task: no one stands for it)
         const who = J.contact ?? GIVER.contact, id = J.id ?? 'errand', had = givers.find((g) => g.contact === who);
         if (had) { had.jobs.push({ id, says: J.offer ?? GIVER.says, repeat: J.repeat === true }); continue; }
-        const at = pool.filter((p) => near(p) >= GIVER.off && stood.every((q) => Math.hypot(p.at[0] - q[0], p.at[1] - q[1]) >= GIVER.apart)).reduce((m, p) => (!m || near(p) < near(m) - 1e-9 ? p : m), null);
+        const ok = (p) => stood.every((q) => d2(p.at, q) >= GIVER.apart);
+        // (a short drive off: the nearest that far; where the district has none so far, the farthest it has)
+        const far = pool.filter((p) => near(p) >= GIVER.off && ok(p)), at = far.length ? far.reduce((m, p) => (near(p) < near(m) - 1e-9 ? p : m)) : pool.filter(ok).reduce((m, p) => (!m || near(p) > near(m) + 1e-9 ? p : m), null);
         if (!at) continue;
         pool.splice(pool.indexOf(at), 1); stood.push(at.at);
         givers.push({ id: `giver-${who}`, contact: who, at: at.at.slice(), heading: r3(Math.atan2(at.N[1], at.N[0])), place: at.card, jobs: [{ id, says: J.offer ?? GIVER.says, repeat: J.repeat === true }] });
       }
+      // THE STOPS, in the order they are driven (each job: its giver, its pick-ups, its hand-in): every stop a drive
+      // from the one before it (ERRAND_DRIVE.apart) and from the one after it where that one is fixed (a till, a
+      // giver's door), each the place that keeps the nearest of those and of every stop already taken farthest, so a
+      // job crosses the district, never a shop to the shop next door
+      const tillsLeft = (ends.tills ?? []).map((t) => ({ ...t })), tillAt = (l) => { const k = l.shop ? tillsLeft.findIndex((t) => t.card === l.shop && !t.taken) : -1; if (k < 0) return null; tillsLeft[k].taken = true; return tillsLeft[k].at; };
+      const homeOf = (l) => { if (l.kind !== 'deliver' || l.repeat === true) return null; const g = givers.find((x) => x.jobs.some((J) => J.id === (l.id ?? 'errand'))); return g ? g.at : null; };
+      const legs0 = plan.errand.filter((l) => l.kind === 'trade' || l.kind === 'deliver'), fixed = legs0.map((l) => (l.kind === 'trade' ? tillAt(l) : homeOf(l)));
+      const taken2 = [ends.spawn, ...stood];
+      let prev = givers[0]?.at ?? ends.spawn;
+      spots = [];
+      legs0.forEach((l, k) => {
+        const id = l.kind === 'trade' ? l.job : l.id ?? 'errand', g = givers.find((x) => x.jobs[0]?.id === id);
+        if (g) prev = l.kind === 'trade' && legs0.findIndex((x) => (x.kind === 'trade' ? x.job : x.id ?? 'errand') === id) === k ? g.at : prev;
+        // (a till's or a giver's door stands where it stands; a stop on a spot of its own is chosen)
+        if (fixed[k] && l.kind === 'trade') { prev = fixed[k]; return; }
+        const next = fixed[k + 1] ?? null;
+        const score = (p) => Math.min(d2(p.at, prev) * ERRAND_DRIVE.weigh, next ? d2(p.at, next) * ERRAND_DRIVE.weigh : Infinity, ...taken2.map((q) => d2(p.at, q)));
+        const best = pool.reduce((m, p) => (!m || score(p) > score(m) + 1e-9 ? p : m), null);
+        pool.splice(pool.indexOf(best), 1); taken2.push(best.at); spots.push(best.at); named.set(best.at, best.card);
+        prev = fixed[k] ?? best.at;
+      });
     } else if (driven && need > 0 && open.length > need) {
       const along = Array.from({ length: need }, (_, k) => open[Math.min(open.length - 1, Math.round(open.length * ERRAND_DRIVE.from + ((open.length - 1 - open.length * ERRAND_DRIVE.from) * k) / Math.max(1, need - 1)))]).filter((p, k, arr) => arr.indexOf(p) === k);
       if (along.length >= need) spots = along;

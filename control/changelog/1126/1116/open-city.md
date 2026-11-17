@@ -122,3 +122,10 @@
   so a street of them carries about twice the detail it did for the same cost. A person's shown surface now fits
   whole, so each is drawn exactly as the character was made: faces, eyes, a belt's buckle, a neckline, and nothing
   opens where a sleeve or a belt ends.
+- **Jobs are driven.** The person who gives you work now stands a short drive from where you start, not across the
+  street, and every stop of a job is a real drive from the one before it: the shop you pick something up from is no
+  longer the shop next door to the counter you buy at. Stops are placed in the order you drive them, each the place
+  that keeps it far from the last stop, the next fixed one (a shop's counter, the giver's door) and every other stop.
+  In the demo city the legs run from about 300 to 550 m.
+- **An athletic hero runs further.** A hero whose run is `athletic` (its legs opened wide) now covers the ground its
+  longer stride covers: it runs about 60% faster at the same cadence, so its feet still keep pace with the street.
