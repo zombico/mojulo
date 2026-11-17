@@ -793,6 +793,12 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // lasts), the core passes the hook into the world, and the page wires it when its drive surface lays pads. A world with
 // no pads has no `padAt` and drives as before. Every fixture that embeds the controllable runtime re-pinned with it.
 //
+// Re-pinned 2026-11-17 (a race's held item on the pause sheet): the pilot scheme the page carries gains its `useItem`
+// action (controls/schemes.js: F, right Shift, the pad's left face, in a vehicle) and the sheet's two rows for it, and
+// the pause legend's flags gain `items` (a race whose boxes hand out items). A page with no item boxes shows no row.
+// The sheet's thrusters row is hidden in a vehicle too (the thrusters were never a vehicle's; a kart's F is its item).
+// Every fixture that embeds the controllable runtime re-pinned with it.
+//
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

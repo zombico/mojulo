@@ -2947,7 +2947,8 @@ ${touchLayer ? `  if (__touchOn()) return __touchRows();   // the screen's pad (
     suits: W.entities.filter((e) => e.pilotable).length > 1,
     ai: W.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')),
     follow: !!(W.camera && W.camera.rule && W.camera.rule.type === 'follow'),
-    interact: !!window.__mojUses,   // the world has somewhere to use (the events channel says)${hasForms ? `
+    interact: !!window.__mojUses,   // the world has somewhere to use (the events channel says)
+    items: !!window.__mojItems,     // a race whose boxes hand out items (kart-items-view.js)${hasForms ? `
     forms: true,                    // a body that transforms (forms.js)` : ''}
     active: { gamepad: __padOn && __padSeen }, layout: __padLayout,
   });

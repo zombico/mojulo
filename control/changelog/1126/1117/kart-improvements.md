@@ -114,9 +114,11 @@ In progress. Built so far:
 
   What a box hands out depends on where the kart stands (catch-up): the race ranks the field by each kart's progress
   round the lap, and the last mostly draws sugar rushes while the leader mostly draws toffee (`catchup: false` draws
-  flat). The pilot uses its item on E (or right Shift, or the pad's left face), and rivals use theirs by judgement. The race
-  HUD shows the item held at the top's middle, and the kart's juice pulses while one is held. Run by one step
-  inlined on the page as the boost pads' is (`scene/channels/controllable/kart-items-view.js`), emitted only on a
+  flat). The pilot uses its item on F (or right Shift, or the pad's left face; the pilot scheme's `useItem`, on the pause
+  sheet's controls), and rivals use theirs by judgement. The pause sheet lists the key on a race with boxes, and no
+  longer lists the thrusters' F in a vehicle, where they never ran. The race HUD has a held-item slot at the top's
+  middle, there all race (its word over the item's name, a dash while empty, the key beside a held one), and the
+  kart's juice pulses while one is held. Run by one step inlined on the page as the boost pads' is (`scene/channels/controllable/kart-items-view.js`), emitted only on a
   track with boxes. The roadway contract carries the rows.
 - **The principles a new map starts from** ([docs/track-design-principles.md](../../../../docs/track-design-principles.md))
   and the agent's card for them (`gameworld-track-language`, read by the levels chapter): a premise first, a small

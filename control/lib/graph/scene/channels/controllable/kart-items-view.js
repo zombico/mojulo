@@ -8,7 +8,7 @@
  *               on a tilted axis and bobbing; popped when taken, grown back when it returns
  *   the toffee  a squat glossy blob where it was dropped; a gumball a glossy ball rolling down the line
  *   the karts   every body on the drive or the racer rule takes and uses items; the pilot's item on E (or right Shift,
- *               or the pad's left face); a boost is the drive rule's own (`boostT`), a hit cuts the kart's speed and
+ *               the scheme's `useItem`, on the pause sheet too: F, right Shift, the pad's left face); a boost is the drive rule's own (`boostT`), a hit cuts the kart's speed and
  *               spins its body a turn; `e.item` is set while one is held (the kart's juice pulses on it)
  *   window.__mojItems   { held(id), says(kind) }: what the HUD reads
  *
@@ -21,8 +21,7 @@ export function kartItemsViewScript(seed = 1) {
 const __kiStep = ${kartItemsStep.toString()};
 const __kiState = (${itemState.toString()})(__surfaceT.items, ${(seed >>> 0) || 1});
 __kiState.T.line = __surfaceT.pts;
-let __kiUse = false, __kiPadWas = false;
-window.addEventListener('keydown', (ev) => { if ((ev.code === 'KeyE' || ev.code === 'ShiftRight') && !ev.repeat) __kiUse = true; });
+let __kiKeyWas = false, __kiPadWas = false;
 window.__mojItems = { held: (id) => __kiState.held[id] || null, says: (k) => (__kiState.T.kinds[k] ? __kiState.T.kinds[k].says : k) };
 // the box: a rounded cube (a box's vertices pulled onto a rounded hull) — its core with the "?" and its shell
 function __kiRounded(size, round) {
@@ -63,14 +62,15 @@ const __kiSpin = {};
 function __kiTick(dt) {
   const T = __kiState.T, now = performance.now() / 1000;
   // (the pad's left face: its press, not its hold)
+  // (the pilot's use item, its press: the key the scheme binds, controls/schemes.js useItem, and the pad's left face)
+  const keyOn = typeof __k === 'function' ? !!__k('useItem') : false, keyUse = keyOn && !__kiKeyWas; __kiKeyWas = keyOn;
   let padUse = false; try { const gp = navigator.getGamepads && navigator.getGamepads()[0]; const on = !!(gp && gp.buttons[2] && gp.buttons[2].pressed); padUse = on && !__kiPadWas; __kiPadWas = on; } catch (e) {}
   const karts = [];
   for (const e of __world.entities) {
     if (!e || !e.transform || e.gone || !e.rule || (e.rule.type !== 'drive' && e.rule.type !== 'racer')) continue;
     const pilot = e.id === __world.pilotId;
-    karts.push({ id: e.id, pos: e.transform.pos, heading: e.transform.heading || 0, speed: e.speed || 0, use: pilot && (__kiUse || padUse), ai: !pilot });
+    karts.push({ id: e.id, pos: e.transform.pos, heading: e.transform.heading || 0, speed: e.speed || 0, use: pilot && (keyUse || padUse), ai: !pilot });
   }
-  __kiUse = false;
   if (dt > 0 && !window.__mojFreeze) for (const f of __kiStep(__kiState, karts, dt)) {
     const e = __world.byId[f.id]; if (!e) continue;
     if (f.took) e.item = 1;
