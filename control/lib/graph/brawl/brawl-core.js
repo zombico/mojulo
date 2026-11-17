@@ -83,6 +83,13 @@
  *   • HIDING: a body HIDES (`pad.hide`: ducked down, its crouch's hurtboxes at 60% of their height, so a round at the
  *     chest passes over it) until a
  *     command brings it up (a blow, a shot, an aim, a step, `pad.pop`).
+ *   • A player's round meeting a BOX stops there and wears it: broken, it leaves what it holds (a gunner's way into a crate).
+ *   • DUCKING AND JUMPING (the run & gun's two ways out of a round's path beside stepping off its line): a round flies
+ *     at the height it left its muzzle (the chest) and lands only on a body's own boxes, so a body in the air over it is
+ *     missed, and so is one ducked under it. `pad.duck`, held, ducks a body as a hidden one is: it fires from the crouch,
+ *     its muzzle low, and stands when the pad lets go. A jump taken late is caught in the air and floored. A round
+ *     fired LOW (`pad.low`, the crowd's at a ducked body: brawl-crowd.js) leaves at the knee: it lands on a ducked body
+ *     and on a standing one, and a jump clears it.
  *   • COVER (the things' `cover`, brawl-things.js): a round meeting a cover piece is stopped there, wearing it down, unless
  *     its shooter stands right behind it (`coverReach`: a body fires over its own cover); a lobbed grenade goes over it
  *     and a burst reaches behind it and breaks it; blows break it; no body walks through it.
@@ -281,13 +288,17 @@ export function stepBrawl(prev, pads, ctx) {
 
 /** A gunner's commands this frame: its warning held, a shot at its gun's rate, a grenade; the aim it faces. */
 const CAN_FIRE = new Set(['stand', 'walk', 'air', 'prejump', 'land', 'ride']);
+// (a ducked body's muzzle, a share of its standing height: its rounds go out at the knee)
+const DUCK_MUZZLE = 55;
 function gunThink(s, p, pad, ctx) {
   if (p.lf !== undefined) p.lf++;
   if (p.fc > 0) p.fc--;
   if (p.lc > 0) p.lc--;
   const aim = pad.fire ?? pad.aim ?? pad.lob;
-  if (!aim || !CAN_FIRE.has(p.st)) { if (p.tl) p.tl = 0; return; }
+  if (!aim || !(CAN_FIRE.has(p.st) || (p.st === 'hide' && p.dk))) { if (p.tl) p.tl = 0; return; }
   p.ax = sgn(aim[0]); p.az = sgn(aim[1]); p.lf = 0;
+  // (`pad.low`: aimed low, at a ducked body; its round leaves at the knee)
+  if (pad.low) p.lw = 1; else if (p.lw) delete p.lw;
   if (p.ax && p.st !== 'ride') p.face = p.ax;
   if (pad.aim && !pad.fire) { p.tl = (p.tl ?? 0) + 1; return; }
   p.tl = 0;
@@ -312,7 +323,7 @@ function fire(s, p, G, gi) {
   const aim = [p.ax ?? p.face, p.az ?? 0], vs = roundsOf(G, aim, p.face, p.nf);
   // (from the muzzle: the end of the rifle held at the chest, out along the aim)
   const [ux, uz] = aimVector(aim, p.face);
-  const mx = p.x + Math.round((ux * GUN_MUZZLE[0]) / 1000), mz = p.z + Math.round((uz * GUN_MUZZLE[0]) / 1000), my = p.y + GUN_MUZZLE[1];
+  const mx = p.x + Math.round((ux * GUN_MUZZLE[0]) / 1000), mz = p.z + Math.round((uz * GUN_MUZZLE[0]) / 1000), my = p.y + (p.st === 'hide' || p.lw ? Math.round((GUN_MUZZLE[1] * DUCK_MUZZLE) / 100) : GUN_MUZZLE[1]);
   for (const [vx, vz] of vs) {
     s.shots.push({ id: s.nextShot++, o: p.id, side: p.side, gun: gi, x: mx, z: mz, y: my, vx, vz, w: G.size, h: G.size, life: G.life, hits: G.pierce, rehit: 0, hitAt: -999,
       dmg: G.damage, hitstun: G.stun, hitstop: G.hitstop ?? 2, freeze: G.freeze ?? 0, push: 40, sup: 0, meter: 0, hl: [], line: G.line, knock: G.knock, area: G.area, ...(G.lob ? { lob: 1, vy: G.vy, g: G.g } : {}) });
@@ -323,6 +334,14 @@ function fire(s, p, G, gi) {
 function think(s, p, pad, ctx) {
   if (p.gone || p.ko || p.hs > 0) return;
   const F = ctx.fighters[p.fi];
+  // A DUCK (`pad.duck`, held: a gunner's, brawl-gunner.js): down as a hidden body is, so a round at the chest goes over
+  // it; it fires from the crouch, its muzzle low, and never moves; let go, it stands. (`dk`: ducked by its own pad)
+  if (p.dk && p.st !== 'hide') delete p.dk;
+  if (p.dk && !pad.duck) { delete p.dk; p.st = 'stand'; p.sf = 0; }
+  if (pad.duck) {
+    if (p.st === 'hide') { p.dk = 1; if (p.gn !== undefined) gunThink(s, p, pad, ctx); return; }
+    if (p.st === 'stand' || p.st === 'walk' || p.st === 'land') { p.st = 'hide'; p.sf = 0; p.wx = 0; p.wz = 0; p.dk = 1; return; }
+  }
   // hidden: crouched until a command brings it up (a blow, a shot, an aim, a step, a pop)
   if (p.st === 'hide') {
     if (!(pad.pop || pad.mv || pad.fire || pad.aim || pad.lob || pad.x || pad.z || pad.jump)) return;
@@ -373,6 +392,8 @@ function think(s, p, pad, ctx) {
     if (pad.toss && p.wpn) { toss(s, p, ctx); return; }
     // (attack over a thing takes it, a player's)
     if (want && p.side === 'player') { const t = underfoot(s, p); if (t && pick(s, p, t, ctx)) return; }
+    // (a gunner has no hand free to stoop: what it walks over it takes, a blade aside)
+    if (p.gn !== undefined && p.side === 'player' && Number.isInteger(p.sd)) { const t = underfoot(s, p); if (t && t.kind !== 'weapon') pick(s, p, t, ctx, true); }
   }
   if (want && F.moves[want].stance !== 'air') { start(s, p, F, want); return; }
   if (pad.jump) { p.st = 'prejump'; p.sf = 0; p.jx = sgn(pad.x); p.jz = sgn(pad.z); delete p.rj; return; }
@@ -939,6 +960,17 @@ const BOX_REACH = 1600;
 /** the thing a body stands over (not a box, not one in flight), nearest first */
 /** a round meeting a cover piece is stopped there (unless its shooter stands right behind it), wearing it down */
 function coverStops(s, ctx) {
+  // (a player's ROUND ON A BOX: it stops there and the box takes it, broken open for what it holds: a gunner has no
+  // blow to open a crate with)
+  for (const t of s.shots) {
+    if (t.side !== 'player' || t.lob || t.hits <= 0 || t.done || t.gun === undefined) continue;
+    const c = s.things.find((b) => { if (b.kind !== 'box') return false; const hw = Math.round((THINGS.box[b.what].w * 1000) / 2), was = t.x - t.vx; return Math.abs(t.z - b.z) <= 450 && (Math.sign(was - b.x) !== Math.sign(t.x - b.x) || Math.abs(t.x - b.x) <= hw); });
+    if (!c) continue;
+    c.hp -= t.dmg;
+    s.events.push({ t: c.hp > 0 ? 'thud' : 'break', thing: c.id, what: c.what, p: t.o, x: c.x, z: c.z });
+    if (c.hp <= 0) breakBox(s, c);
+    if (t.area) { t.boom = 1; burst(s, ctx, t); } else { t.hits = 0; t.life = 0; }
+  }
   const covers = s.things.filter((c) => c.kind === 'cover');
   if (!covers.length) return;
   for (const t of s.shots) {
@@ -972,7 +1004,7 @@ function underfoot(s, p) {
   return best;
 }
 const takeThing = (s, t) => { s.things = s.things.filter((u) => u !== t); };
-function pick(s, p, t, ctx) {
+function pick(s, p, t, ctx, stride = false) {
   const F = ctx.fighters[p.fi];
   if (t.kind === 'weapon') {
     // (a body with its own weapon keeps it: it takes no other)
@@ -981,10 +1013,16 @@ function pick(s, p, t, ctx) {
     if (armed === undefined) return false;   // (a body with no armed self cannot hold it)
     if (p.wpn) drop(s, p);
     p.fb = p.fb ?? p.fi; p.fi = armed; p.wpn = t.what;
+  } else if (t.kind === 'gun') {
+    // (a gun taken up, the run & gun's: held over the sidearm, loaded; a body with no gun leaves it lying)
+    const gi = p.gn === undefined ? -1 : (ctx.guns ?? []).findIndex((g) => g.id === THINGS.gun[t.what].gun);
+    if (gi < 0) return false;
+    p.gn = gi; p.fc = 0; if (ctx.guns[gi].ammo === null) delete p.am; else p.am = ctx.guns[gi].ammo;
   } else if (t.kind === 'food') p.hp = Math.min(F.hp, p.hp + THINGS.food[t.what].hp);
   else if (t.kind === 'power') grantState(s, p.id, THINGS.power[t.what].state);
   takeThing(s, t);
-  p.st = 'pick'; p.sf = 0; p.mv = null; p.wx = 0; p.wz = 0;
+  // (a gunner takes it in its stride: no stoop)
+  if (!stride) { p.st = 'pick'; p.sf = 0; p.mv = null; p.wx = 0; p.wz = 0; }
   s.events.push({ t: 'pick', p: p.id, kind: t.kind, what: t.what, x: t.x, z: t.z });
   return true;
 }

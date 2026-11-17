@@ -18,3 +18,7 @@
   before the build even for a game you asked to be made in one go.
 - **The studio's guidance to the agent leads with the designed game.** It names designing your game first and the
   one-level path as the choice when one level is all that was asked.
+- **The first instructions an agent reads now agree with each other.** The studio's opening guidance, the game
+  tool's own description and the game guide all say the same thing: for a game of your own, ask what you brought
+  and begin from just a name; for a one-level game you asked for outright, make it at once. Before, one said to ask
+  first and another said to make one call, and an agent starting a design had to invent a level to begin.

@@ -61,6 +61,11 @@ session leaves.
 | an idea, or documents | `design_game({ world: { name } })` first (it answers what to ask, nothing stored), then `{ world }` with its levels and patches | the designed game: the agent writes the recipe |
 | a board game, a pen-and-paper RPG, a fight | `create_game` with its own key | game types with their own machines ([table-rpg.md](table-rpg.md), [broadcast.md](broadcast.md)) |
 
+A platformer has a rail of its own under the designed path: a world that plays a platformer's feel and has no course
+is offered its first level and the flow that plays it as a ready patch (`next: first-level`,
+`control/lib/graph/gameworld/platformer-game.js`). It is a side-scroller (one strip, one turn) unless the camera or the
+brief says the round; the 3D platformer lays courses up a hill, a turn each, entered from a courses screen.
+
 The sentence door is a keyword reader, not the agent's judgment. It is a starting recipe; the words it lists as
 `unread` are the agent's to write in.
 
@@ -116,7 +121,9 @@ What that shows:
   - The sentence door lays a level whose exit its own default hero cannot reach, advises against it, and builds it.
   - An action game from a sentence gets no weapons kit; an action game's foes cannot carry elements.
   - The scripted player has no dodge, specials or air strings, so some fights (the gallery) cannot be machine-proved.
-  - The brawler (the belt, its crowd, its practice yard) has no door yet: it is reached only from a world recipe.
+  - A beat-em-up and a run & gun are quick goals (`brawl`, `rungun`): one open screen of a street, the crowd in
+    waves, the heroes characters. The crowd is drawn as jointed figures, and the gated street and its boss are the
+    sim's alone.
   - Each page's own "Not yet" section is the list for its part; the flow's is in [game-flow.md](game-flow.md).
 
 What can be made, counted over rolled worlds, and what to build next is the generated
