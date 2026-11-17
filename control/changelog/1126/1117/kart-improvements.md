@@ -16,6 +16,10 @@ In progress. Built so far:
   light, a gloss on plastics. A kart track from words is drawn so unless a word says otherwise ("voxel", "blocky" and
   "cubes" still give the cubes; "chunky", "rounded" and "plastic" name it). Its light is baked: not yet lit by the
   page as the kart is.
+- **Built: a language's sky and what is seen to move.** The candy card says its own day (a blue sky over a pale
+  horizon, a sun) and its clouds, built as the track is: puffs of rounded chunks in a ring round the course. Its way
+  is laid in bands of two tones with a cream dash down the middle, and its verge is mown in stripes across the way,
+  so the pavement and its sides are seen to move at speed.
 - **A roadway level's gate says more.** Its laws now carry the language's and the trackscape's beside the track's
   own, for a kart track and a circuit alike.
 - **Fixed:** a world made from a track's words lost the track's drawing (its kit carried no pole).

@@ -28,7 +28,7 @@ import { mulberry32 } from '../vegetation/grow.js';
 import { trackKit } from './track-kit.js';
 import { racingLine } from './contract.js';
 import { moodOf, moodScene } from './race-mood.js';
-import { readLanguage, railFaces, postFaces, kerbFaces, edgeFaces, languageLaws } from './track-language.js';
+import { readLanguage, railFaces, postFaces, kerbFaces, edgeFaces, puffFaces, languageLaws } from './track-language.js';
 import { chunkyFaces, chunkyFlat } from './chunky-look.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -115,6 +115,11 @@ export function planTrack(m = {}) {
   const wayHex = lang && LP.way?.material ? lang.materials[LP.way.material].hex : null;
   const flatLit = (hex, c) => { const up = upFace(c); return { corners: up.c, fill: K?.pole === 'chunky' ? chunkyFlat(hex, up.n) : K ? K.tint(hex, up.c, up.n).fill : face(up.c, hex).fill }; };
   const railOpen = !!(lang && LP.rail);
+  // the way in bands (its second tone by turns), its centre dash, and the verge mown in stripes: what is seen to move
+  const bandHex = wayHex && LP.way.bands ? lang.materials[LP.way.bands.material].hex : null, dashHex = wayHex && LP.way.dash ? lang.materials[LP.way.dash.material].hex : null;
+  const wayAt = (s) => (bandHex && Math.floor(s / LP.way.bands.every) % 2 ? bandHex : wayHex);
+  const mown = lang && LP.verge?.mown ? LP.verge.mown : null;
+  const lift = (f, s) => { if (!mown || !(Math.floor(s / mown.every) % 2) || typeof f.fill !== 'string') return f; return { ...f, fill: `#${[1, 3, 5].map((i) => Math.min(255, Math.round(parseInt(f.fill.slice(i, i + 2), 16) * mown.lift)).toString(16).padStart(2, '0')).join('')}` }; };
 
   // the ground: built first, so the skirts know where it is
   const terrain = buildTerrain({ a, X, bank, baseZ, baseGrade });
@@ -127,17 +132,18 @@ export function planTrack(m = {}) {
     for (const side of [1, -1]) {
       const quad = (o0, o1, dz = 0) => [P(A, side * o0, dz), P(A, side * o1, dz), P(B, side * o1, dz), P(B, side * o0, dz)];
       const uv = (o0, o1, t = TILE) => [[sA / t, (side * o0) / t], [sA / t, (side * o1) / t], [sB / t, (side * o1) / t], [sB / t, (side * o0) / t]];
-      faces.push(wayHex ? flatLit(wayHex, quad(0, X.road)) : surf(T.road, quad(0, X.road), uv(0, X.road))); roadFaces.add(faces[faces.length - 1]);
+      faces.push(wayHex ? flatLit(wayAt((sA + sB) / 2), quad(0, X.road)) : surf(T.road, quad(0, X.road), uv(0, X.road))); roadFaces.add(faces[faces.length - 1]);
+      if (dashHex && side === 1 && ((sA + sB) / 2) % LP.way.dash.every < LP.way.dash.len) faces.push(flatLit(dashHex, quad(-LP.way.dash.w / 2, LP.way.dash.w / 2, 0.014)));
       if (LP.edge?.profile) raw.push(...edgeFaces(lang, { P, A, B, side, to: X.road }));
       else if (T.edgeLine) faces.push(paint('line', quad(X.road - 0.35 - T.edgeLine, X.road - 0.35, 0.012), COLOR.line));
       if (T.kerb) {
         if (corner && LP.kerb?.profile) raw.push(...kerbFaces(lang, { P, A, B, side, from: X.road, to: X.kerb, stripe: Math.floor((sA + sB) / 4) }));
         else if (corner) { const white = Math.floor((sA + sB) / 4) % 2; faces.push(paint(white ? 'kerbWhite' : 'kerbRed', quad(X.road, X.kerb, 0.02), white ? COLOR.kerbWhite : COLOR.kerbRed)); }
-        else faces.push(surf(T.runoffSurface, quad(X.road, X.kerb), uv(X.road, X.kerb, GRASS_TILE)));
+        else faces.push(lift(surf(T.runoffSurface, quad(X.road, X.kerb), uv(X.road, X.kerb, GRASS_TILE)), (sA + sB) / 2));
       }
       const outside = corner && Math.sign(kMid) * side < 0;
       // (a language's rail stands on posts: the ground runs on under it)
-      faces.push(surf(outside ? T.outside : T.runoffSurface, quad(X.kerb, railOpen ? X.outer : X.runoff), uv(X.kerb, railOpen ? X.outer : X.runoff, GRASS_TILE)));
+      faces.push(lift(surf(outside ? T.outside : T.runoffSurface, quad(X.kerb, railOpen ? X.outer : X.runoff), uv(X.kerb, railOpen ? X.outer : X.runoff, GRASS_TILE)), (sA + sB) / 2));
       if (T.barrier) {
         const b = T.barrier, f0a = P(A, side * X.runoff), f0b = P(B, side * X.runoff), f1a = P(A, side * X.outer), f1b = P(B, side * X.outer);
         const up = (p) => [p[0], p[1], p[2] + b.h], mid = [(f0a[0] + f1b[0]) / 2, (f0a[1] + f1b[1]) / 2];
@@ -197,9 +203,15 @@ export function planTrack(m = {}) {
   // the language's parts, lit in the track's drawing: smooth and glossy on the chunky look, else flat as a paint is
   const language = lang ? { id: lang.id, drawn: [...new Set(raw.map((f) => f.hex))], parts: raw.reduce((n, f) => ({ ...n, [f.part]: (n[f.part] ?? 0) + 1 }), {}), laws: null } : null;
   if (lang) {
-    language.laws = languageLaws(lang, { cls: course.class, drawn: wayHex ? [...language.drawn, wayHex] : language.drawn });
-    if (K?.pole === 'chunky') faces.push(...chunkyFaces(raw));
+    language.laws = languageLaws(lang, { cls: course.class, drawn: [...language.drawn, ...[wayHex, bandHex, dashHex].filter(Boolean)] });
+    if (lang.sky) language.sky = lang.sky;
+    if (K?.pole === 'chunky') {
+      faces.push(...chunkyFaces(raw));
+      // the sky's puffs (the chunky drawing's own clouds), in a ring round the course
+      if (lang.sky?.puffs) { const xs = st.map((p) => p.x), ys = st.map((p) => p.y), cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2; faces.push(...chunkyFaces(puffFaces(lang, { centre: [cx, cy, st[0].z], reach: Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys), 200) * 0.9, rnd: mulberry32((((Number.isInteger(m.seed) ? m.seed : 1) * 2654435761) ^ 0x51ed) >>> 0) }))); }
+    }
     else for (const f of raw) faces.push(K ? K.tint(f.hex, f.corners, f.normal) : face(f.corners, f.hex));
+
   }
   // the ground (its range kept: the surrounds, surrounds.js, draw it again on the land they shape)
   const g0 = faces.length;
@@ -468,15 +480,16 @@ export function assembleTrackScene(m = {}, opts = {}, planned = null) {
 function assembleNoonScene(m, opts, plan) {
   const first = trackViewCamera(plan, opts.view);
   const cameras = first ? [first, ...plan.cameras.filter((c) => c !== first)] : plan.cameras;
-  const V = 3000;
+  const V = 3000, LS = plan.language?.sky ?? null, hx = (c) => `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
   return {
     faces: plan.faces,
     cameras,
     viewBox: { width: 1120, height: 780 },
     title: opts.title || m.title || 'mojulo roadway',
-    bg: '#c6cfda',
-    sky: { preset: 'day', zenith: [96, 138, 190], horizon: [198, 207, 218], day: 1, stars: 0, seed: 7 },
-    haze: { color: '#c6cfda', density: 1.98 / V },
+    // (a language's own sky: its day, its sun; the roadway's noon without one)
+    bg: LS ? hx(LS.horizon) : '#c6cfda',
+    sky: LS ? { preset: 'day', zenith: LS.zenith, horizon: LS.horizon, day: 1, stars: 0, seed: 7, ...(LS.sun ? { sun: LS.sun } : {}) } : { preset: 'day', zenith: [96, 138, 190], horizon: [198, 207, 218], day: 1, stars: 0, seed: 7 },
+    haze: { color: LS ? hx(LS.horizon) : '#c6cfda', density: 1.98 / V },
     metersPerUnit: 1,
     // the barriers' walls (the drive rule's colliders); a level's own entities ride on them
     ...(plan.colliders.length ? { colliders: plan.colliders } : {}),

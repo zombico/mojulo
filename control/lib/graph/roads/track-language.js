@@ -7,12 +7,19 @@
  *
  *   material  { of, finish, hex }   of: what it is (plastic, fondant, steel …); finish: gloss | satin | matte
  *   parts     way    { material } | { from: 'kit' } (the look's own asphalt, its wear and its repairs)
+ *                    a way of its own material may be laid in BANDS (`bands: { every, material }`: its second tone by
+ *                    turns, so the way is seen to move) and carry a centre DASH (`dash: { every, len, w, material }`)
+ *             verge  { mown: { every, lift } }: the run-off mown in stripes across the way (the look's own grass, a
+ *                    stripe lighter by `lift`), so the sides are seen to move too
  *             edge   { profile: 'bead', w, h, material } | { from: 'kit' } (a painted line)
  *             kerb   { profile: 'pillow', h, materials: [a, b] } | { from: 'kit' } (flat paint), on the corners
  *             rail   { profile: 'tube', r, z, material, tell?: [a, b], post } | { profile: 'w-beam', material, post }
  *                    tell: the two materials the rail wears in stripes round the OUTSIDE of a corner, so a corner is
  *                    told by the rail before the kerb is reached
  *             post   { profile: 'round' | 'i', r, every, material, cap?: { r, material } } (inside `rail`)
+ *
+ * A language may say its SKY (`sky: { zenith, horizon, sun?, puffs? }`): the track's own day, and `puffs`, clouds built
+ * as the track is (rounded chunks, `puffFaces`), where the drawing is the chunky one.
  *
  * A language suits a tuning (`suits`: the design classes, classes.js). The first two: `candy`, a kart track of moulded
  * plastic, and `grand-prix`, a circuit's steel and paint. A new one is a card.
@@ -44,18 +51,21 @@ export const TRACK_LANGUAGES = Object.freeze({
     suits: Object.freeze(['kart']),
     materials: Object.freeze({
       fondant: { of: 'fondant', finish: 'matte', hex: '#7f7aae' },
+      icing: { of: 'fondant', finish: 'matte', hex: '#8d88bb' },
       cream: { of: 'plastic', finish: 'gloss', hex: '#fff3e2' },
       berry: { of: 'plastic', finish: 'gloss', hex: '#ff4f86' },
       sky: { of: 'plastic', finish: 'gloss', hex: '#35b4ff' },
       lemon: { of: 'plastic', finish: 'gloss', hex: '#ffd03a' },
     }),
     parts: Object.freeze({
-      way: { material: 'fondant' },
+      way: { material: 'fondant', bands: { every: 8, material: 'icing' }, dash: { every: 8, len: 3, w: 0.28, material: 'cream' } },
+      verge: { mown: { every: 4, lift: 1.1 } },
       edge: { profile: 'bead', w: 0.34, h: 0.08, material: 'cream' },
       kerb: { profile: 'pillow', h: 0.17, materials: ['berry', 'cream'] },
       rail: { profile: 'tube', r: 0.33, z: 0.6, material: 'sky', tell: ['berry', 'cream'],
         post: { profile: 'round', r: 0.24, every: 4, material: 'cream', cap: { r: 0.4, material: 'lemon' } } },
     }),
+    sky: Object.freeze({ zenith: [52, 128, 232], horizon: [198, 234, 255], sun: { u: 0.3, h: 0.5 }, puffs: { count: 28, hex: '#ffffff', alt: [45, 140], size: [20, 46] } }),
   }),
   'grand-prix': Object.freeze({
     reads: 'a circuit of asphalt, paint and galvanised steel: the look\'s own road and its flat painted kerbs, a W-beam guardrail on steel posts',
@@ -156,13 +166,36 @@ export function edgeFaces(card, { P, A, B, side, to }) {
   return sweep(pillow(P, A, side, to - E.w, to, E.h, 4), pillow(P, B, side, to - E.w, to, E.h, 4), M, 'edge', { closed: false, away: [0, 0, 1] });
 }
 
+/**
+ * The sky's PUFFS: clouds as rounded chunks, each a few flattened balls in a row, standing in a ring round `centre`
+ * between `reach` and three times it, at the card's heights and sizes. `rnd`: the track's seeded dice.
+ */
+export function puffFaces(card, { centre, reach, rnd }) {
+  const S = card.sky?.puffs, out = [];
+  if (!S) return out;
+  const M = { hex: S.hex, finish: 'matte' }, SEG = 8, RINGS = [-0.35, 0.15, 0.6, 0.92];
+  const ball = (c, r) => {
+    const ring = (f) => Array.from({ length: SEG }, (_, k) => { const t = (k / SEG) * 2 * Math.PI, q = Math.asin(f); return [c[0] + r * Math.cos(q) * Math.cos(t), c[1] + r * Math.cos(q) * Math.sin(t), c[2] + r * f * (f < 0 ? 0.5 : 0.8)]; });
+    const L = RINGS.map(ring), top = [c[0], c[1], c[2] + r * 0.8];
+    for (let i = 0; i < L.length - 1; i++) for (let k = 0; k < SEG; k++) { const q = [L[i][k], L[i][(k + 1) % SEG], L[i + 1][(k + 1) % SEG], L[i + 1][k]]; out.push(facing(q, sub(mean(q), c), M, 'puff')); }
+    for (let k = 0; k < SEG; k++) { const q = [L[L.length - 1][k], L[L.length - 1][(k + 1) % SEG], top]; out.push(facing(q, sub(mean(q), c), M, 'puff')); }
+    out.push(facing(L[0].slice().reverse(), [0, 0, -1], M, 'puff'));
+  };
+  for (let i = 0; i < S.count; i++) {
+    const t = ((i + rnd() * 0.7) / S.count) * 2 * Math.PI, d = reach * (1 + 2 * rnd()), size = S.size[0] + (S.size[1] - S.size[0]) * rnd(), alt = S.alt[0] + (S.alt[1] - S.alt[0]) * rnd() + d * 0.12;
+    const c = [centre[0] + d * Math.cos(t), centre[1] + d * Math.sin(t), centre[2] + alt], along = [-Math.sin(t), Math.cos(t)], n = 3 + Math.floor(rnd() * 3);
+    for (let b = 0; b < n; b++) { const u = (b - (n - 1) / 2) * size * 0.62, r = size * (0.5 + 0.28 * Math.sin((Math.PI * (b + 0.5)) / n) + 0.08 * rnd()); ball([c[0] + along[0] * u, c[1] + along[1] * u, c[2] + (r - size * 0.5) * 0.3], r); }
+  }
+  return out;
+}
+
 const lightness = (hex) => rgbToOklab(hexToRgb(hex))[0];
 export function languageLaws(card, { cls = null, drawn = null } = {}) {
   const laws = [], say = (law, detail) => laws.push({ law, detail });
   const M = card.materials ?? {}, parts = card.parts ?? {}, ids = Object.keys(M), R = parts.rail;
   if (typeof card.reads !== 'string' || card.reads.trim().length < 20) say('premise', 'the language does not say what the track is made of');
   if (ids.length > FAMILY_MAX) say('family', `${ids.length} materials (at most ${FAMILY_MAX}): a family is small`);
-  const named = [parts.way?.material, parts.edge?.material, ...(parts.kerb?.materials ?? []), R?.material, ...(R?.tell ?? []), R?.post?.material, R?.post?.cap?.material].filter((x) => x !== undefined);
+  const named = [parts.way?.material, parts.way?.bands?.material, parts.way?.dash?.material, parts.edge?.material, ...(parts.kerb?.materials ?? []), R?.material, ...(R?.tell ?? []), R?.post?.material, R?.post?.cap?.material].filter((x) => x !== undefined);
   for (const id of new Set(named)) if (!M[id]) say('family', `a part names '${id}', which the family does not hold`);
   for (const id of ids) if (!named.includes(id)) say('family', `'${id}' is in the family and no part wears it`);
   if (R && R.post && M[R.material] && M[R.post.material] && M[R.material].of !== M[R.post.material].of) say('one-metal', `the rail is ${M[R.material].of} and its post ${M[R.post.material].of}`);
