@@ -1,6 +1,5 @@
 ### The producer's rails: the size and the template picked before anything is built
 
-In progress. Each line is added as its phase lands.
 
 - **The rail roster** (`gameworld/rails.js`): one row per game type mojulo builds, under the name the producer says:
   the house titles (Fallen Angel, Fable of Artesia, Jumping Giuseppe, Steel Serpents, Mech Battle Kai, Mojulo Fighter
@@ -76,5 +75,16 @@ In progress. Each line is added as its phase lands.
   shows (the rail's first level) and the brief's first order. It proposes and raises nothing: the agent raises it
   with its own ticket (`ask: { intent }`), and the ledger runs as it always has (what the unit reads and has not
   settled is asked for first). It leads ahead of a goalpost, and is gone once the ledger holds a level.
-
-No routing card or listed card changes yet: the producer's own card, the preamble and the docs take these next.
+- **The producer's card, rewritten around its loop** (`gameworld-producer`): the seat that faces the creator, one
+  agent in both seats (as producer it asks and shapes, as director it builds), one question a turn. Five steps, each
+  the readout's own step: hear (the intake, its rows the table's), place (the rail, a template never the game, and
+  the size called), lock (the pitch said back; a lock on a book with no level stores it on the rail's starter), deepen
+  (the rail's sheet and the Game Brief, a real plan recommended only here) and hand off (the first level's req, raised
+  as the director). Its intake example now patches with the door's own op, `set` (it said `add`, which the door
+  refuses). The studio card's seats line says the same.
+- **Said where an agent first meets a game.** The `initialize` preamble: for a game the agent is its producer first,
+  `design_game({ world: { name } })` builds nothing and answers the one question to ask, the game is placed on a rail
+  (a template their game starts from) and its size called. The `game-design` routing card points at `producer.ask`
+  and the `gameworld-rails` card, inside its byte ceiling.
+- **Docs**: `docs/zero-to-level-one.md` says the producer's steps as the path's first step; `CLAUDE.md` says the
+  rails and the producer's loop and points at their modules.
