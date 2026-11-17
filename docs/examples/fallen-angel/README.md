@@ -4,7 +4,8 @@ A stylish action game made through `design_game`: Lucien fights through a citade
 to the knight in its sanctum. `world.json` is the whole recipe; everything else is made from it.
 
 - **The hero:** Lucien, on the realistic body (`form: 'realistic'`), long dark hair, a long pale coat open over
-  dark clothes (the world is dark: the coat is what reads against it), a sword in the right hand. The feel is the
+  dark clothes (the world is dark: the coat is what reads against it), its skirt long tails and side panels hung from
+  the waist so the legs pass between them in a fight, a sword in the right hand. The feel is the
   template's (`feel: 'fallen-angel'`) and the kit is its kit swung in the `wild` art
   (`arsenal: { from: 'fallen-angel', art: 'wild' }`): the sword and the fist, switched mid-string, the pistols.
 - **The foes:** zombies and armed skeletons (the undead form library's): the slow dead, the armed skeleton, the

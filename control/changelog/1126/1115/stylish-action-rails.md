@@ -107,6 +107,16 @@ In progress. Built so far, all in the practice door's game room
   be walked into. A level without it keeps every byte. Seen in a headless browser at the screen's edge, turned to a
   place out of view; the arrow over a place in view was not caught there, and nobody has played it. Not yet: an
   arrow to a level's way out.
+- **Lucien's coat redesigned** (Fallen Angel's recipe, `docs/examples/fallen-angel/world.json`). The coat's body to the
+  hip and its long skirt as drape panels from the waist: two long tails at the back, a panel at each side, so a
+  raised knee passes between them where it went through a skirt that was one tube round both legs. The dark top
+  painted on the body (a second skin) under it, so there is no shell of it to come through, and the coat at its full
+  wearing ease. Read in both canons; the advice left asks for a waist return, declined so the coat clears the body.
+- **Fixed: a coat's shoulders under a raised arm** (realistic laws 17, the realistic body's doc, "The correctives").
+  The tailor's cloth now carries the skin's correctives: each of its points moves as the skin nearest it moves. A
+  raised arm had pushed the shoulder's skin out through the coat (the marks on the shoulder blades, the deltoid
+  showing). Measured: of what the coat covers at rest, an arm raised overhead now shows under half. A hero minted under
+  laws 16 or before keeps its bytes. Left: the bare forearm at a bent elbow, a little.
 - **Built: the Halo Meter** (`worlds/controllable/style.js`, a meter's `halo`). The power a stylish hero builds by
   fighting, in stocks: blows landed fill it (more in the air), a hit taken fills it a little; it does not fall
   while it is not spent. The stylish template's meter carries one (`styleMeter: 'auto'`); a meter that does not say

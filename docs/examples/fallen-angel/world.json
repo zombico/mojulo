@@ -150,7 +150,8 @@
             "Bottom": "#202026",
             "Trim": "#8c2a30",
             "Shoes": "#141416",
-            "Outer": "#d9d0bf"
+            "Outer": "#d9d0bf",
+            "Panel": "#d9d0bf"
           }
         },
         "underlayer": {
@@ -162,7 +163,8 @@
           "language": {
             "top": {
               "family": "knit",
-              "sleeve": "long"
+              "sleeve": "short",
+              "fit": "skin"
             },
             "bottom": {
               "family": "woven",
@@ -172,9 +174,24 @@
             "outer": {
               "family": "woven",
               "sleeve": "long",
-              "hem": "knee",
+              "hem": "hip",
               "open": true
             },
+            "panels": [
+              {
+                "at": "back",
+                "width": 0.62,
+                "split": 2,
+                "length": "maxi",
+                "family": "woven"
+              },
+              {
+                "at": "sides",
+                "width": 0.3,
+                "length": "knee",
+                "family": "woven"
+              }
+            ],
             "feet": "boots"
           }
         }

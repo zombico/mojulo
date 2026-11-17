@@ -74,6 +74,13 @@ kit and the cloth are made by the rules in [garment-principles.md](garment-princ
   target (a blend shape) driven by the raise.
 - Today, per side: `pauldronBag`, `pauldronCap`, `pauldronDeltoid` (torso and upper arm), `shoulderLevel`,
   `shoulderOverhead` (torso).
+- **The clothes carry them** (`layered.js`). A garment copied ring for ring from a body segment takes that segment's
+  offsets, slot for slot (`garmentCorrectives`). Under realistic laws 17 the tailor's own cloth does too (its merged
+  tubes, a coat's `_body` and `_arm<S>`, a second skin): each of its points moves as the skin nearest it moves, its few
+  nearest skin points' offsets weighted by nearness, those a corrective leaves still counting as still
+  (`carriedCorrectives`). Before, a raised arm pushed the shoulder's skin out through a coat. Its test
+  (`body-relational-carry.test.js`) counts what a pose brings into view of what the coat covers at rest: an arm raised
+  overhead shows under half of it.
 
 ## The relief (realistic laws 5)
 

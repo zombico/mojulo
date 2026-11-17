@@ -767,6 +767,8 @@ function realisticExpand(plan, hero) {
     }
   }
   if (S.correctives) R.correctives = garmentCorrectives(S.correctives, R.parts);
+  // (under realistic laws 17 the tailor's cloth carries them too, by the skin nearest it: carriedCorrectives)
+  if (R.correctives && ((hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined) ?? 1) >= 17) R.correctives = carriedCorrectives(R.correctives, R);
   // (a down hood's LINING, shown where it lies folded on the back: its cloth's colour a shade down, unless the operator names it)
   for (const g of Object.values(R.parts)) if (typeof g.group === 'string' && g.group.endsWith(LINING) && !hero.palette?.[g.group]) { const c = R.palette?.[g.group.slice(0, -LINING.length)]; if (typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c)) R.palette = { ...R.palette, [g.group]: shadeHex(c, LINING_SHADE) }; }
   return R;
@@ -789,6 +791,42 @@ function garmentCorrectives(C, parts) {
         if (m) { const a = c.d[`${body}/${m[0]}.${sl}`], b = c.d[`${body}/${m[1]}.${sl}`], t = m[2]; if (a || b) o = [0, 1, 2].map((i) => Math.round(((a?.[i] ?? 0) * (1 - t) + (b?.[i] ?? 0) * t) * 1e6) / 1e6); }
         if (o) d[`${g}/${st.id}.${sl}`] = o;
       }
+    }
+    return { ...c, d };
+  });
+}
+/**
+ * THE CLOTH CARRIES THE SKIN'S CORRECTIVES (realistic laws 17). A raised arm's correctives (the pauldron, the shoulder
+ * level and overhead) push the skin round the shoulder out, and the tailor's cloth over it (its merged tubes, the coat's
+ * `_body` and `_arm<S>`, a second skin) was copied from no one body ring, so `garmentCorrectives` gave it none: the skin
+ * came out through the cloth, the shoulder blade and the deltoid shown through a coat. Here every cloth point no
+ * corrective names moves as the skin nearest it moves: the offsets of its `k` nearest skin points (those a corrective
+ * leaves still, still), weighted by nearness, within `far` of it. The points as the mesh names them (one compile of the
+ * dressed recipe: the cloth's rings resampled as the skin's are). → the correctives, each its `d` widened
+ */
+const CARRY = Object.freeze({ k: 4, far: 0.1, cell: 0.05 });
+function carriedCorrectives(C, R) {
+  const mesh = compileLayered(R, {}), at = new Map();
+  mesh.pointIds.forEach((id, i) => { if (!at.has(id)) at.set(id, mesh.vertices[i]); });
+  const isCloth = (id) => !!R.parts[id.split('/')[0]]?.garment, cloth = [...at.keys()].filter(isCloth);
+  // (every skin point, gridded: whichever the corrective moves and whichever it leaves)
+  const grid = new Map(), cellOf = (p) => p.map((v) => Math.floor(v / CARRY.cell));
+  for (const [id, p] of at) { if (isCloth(id)) continue; const k = cellOf(p).join(','); if (!grid.has(k)) grid.set(k, []); grid.get(k).push([id, p]); }
+  // (each cloth point's nearest skin points, found once for every corrective)
+  const near = new Map();
+  for (const id of cloth) {
+    const p = at.get(id), g = cellOf(p), list = [];
+    for (let x = -2; x <= 2; x++) for (let y = -2; y <= 2; y++) for (let z = -2; z <= 2; z++) for (const [sid, q] of grid.get(`${g[0] + x},${g[1] + y},${g[2] + z}`) ?? []) { const dd = Math.hypot(q[0] - p[0], q[1] - p[1], q[2] - p[2]); if (dd < CARRY.far) list.push([dd, sid]); }
+    if (list.length) near.set(id, list.sort((a, b) => a[0] - b[0]).slice(0, CARRY.k));
+  }
+  return C.map((c) => {
+    const d = { ...c.d };
+    for (const [id, list] of near) {
+      if (d[id]) continue;
+      let W = 0; const o = [0, 0, 0];
+      for (const [dd, sid] of list) { const w = 1 / (dd + 0.002); W += w; const q = c.d[sid]; if (q) for (let i = 0; i < 3; i++) o[i] += q[i] * w; }
+      if (!W || (!o[0] && !o[1] && !o[2])) continue;
+      d[id] = o.map((v) => Math.round((v / W) * 1e6) / 1e6);
     }
     return { ...c, d };
   });
@@ -982,7 +1020,7 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * rim, the skin beside each eye brought forward to the outer canthus's depth so it wraps the globe's side, the eye and
  * the front's silhouette kept), where laws 1 to 15 let the skin fall back a centimetre behind the canthus and the
  * globe's side show bare from 3/4 and the side */
-export const REALISTIC_LAWS_VERSION = 16;
+export const REALISTIC_LAWS_VERSION = 17;
 export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'headLaws', 'kit', 'headgear', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote', 'acting', 'animeStyle', 'animeBody', 'muscleShirt', 'attach', 'reference', 'xenoHeaddress', 'xenoSpecies'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
