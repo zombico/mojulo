@@ -45,6 +45,13 @@
  *                opening upright; low or slow, it only rights itself. `e.tumble` carries both (the page turns the whole
  *                body about its middle); a new line, a wall or the ground ends it. `hang: 0, flips: 0` is the body upright
  *
+ *   the glide    the jump held while falling, off a line, for `glideIn`: the body spreads and GLIDES, its height traded for
+ *                way. It keeps the speed it came with (a swing's, a launch's, bled off slowly) and never less than
+ *                `glideSpeed` once it has gathered it (`glideAccel`), sinking at `glideSink`: about six metres on for
+ *                each one down. Forward tips it into a stoop (faster, and sinking faster), back flares it (slower, and
+ *                sinking less), A / D turns it (`glideTurn`), banking. The key casts a line out of it with its speed; a
+ *                box met ends it into the wall (which runs with its speed), the ground into a run. `glideSpeed: 0` is
+ *                no glide: the platform rule's own (`glideFall`) is as it was
  *   the hand     the line leaves the hand on the anchor's side of the body's way (`hand`: 'L' | 'R'), the other hand
  *                where the anchor stands dead ahead and the last line was this one's: lines alternate down a street.
  *                A left-hand line plays `swing_left` (the swing's mirror; a zip, `zip_left`)
@@ -57,16 +64,18 @@
  *   swinger: { reach 60 m, ideal 0.7, elev 55°, minElev 25°, cone 75°, center 0.75, clear 3 m, pump 6 m/s², steer 1.6 rad/s,
  *              maxSpeed 45 m/s, zipSpeed 28 m/s, reel 20 m/s, lift 0.6, cool 0.25 s, stretch 0.22, spring 420 m/s²,
  *              recoil 1.8, fling 1.5, flingMax 1.35, hang 0.85, flips 1, flipTime 0.7 s, flipRoom 4 m, tapT 0.22 s, tapWin 0.4 s,
- *              pointLift 0.6, pointCarry 0.85, dive 2.2, diveDrive 6 m/s², diveLean 1.2 rad, key 'boost' }
+ *              pointLift 0.6, pointCarry 0.85, dive 2.2, diveDrive 6 m/s², diveLean 1.2 rad,
+ *              glideSpeed 18 m/s, glideSink 3 m/s, glideAccel 7 m/s², glideTurn 1.3 rad/s, glideIn 0.12 s, glideLean 1.3 rad,
+ *              key 'boost' }
  */
 export function buildSwing(E) {
   const { add, sub, scl, clamp, fwdXY } = E;
   const EPS = 0.05, DEG = Math.PI / 180;
   // the presets: the direction constraints a gear's line keeps (lengths in metres, × metre)
   const GEAR_PRESETS = {
-    swinger: { reach: 60, ideal: 0.7, elev: 55, minElev: 25, cone: 75, center: 0.75, clear: 3, pump: 6, steer: 1.6, maxSpeed: 45, zipSpeed: 28, reel: 20, lift: 0.6, cool: 0.25, stretch: 0.22, spring: 420, recoil: 1.8, fling: 1.5, flingMax: 1.35, hang: 0.85, flips: 1, flipTime: 0.7, flipRoom: 4, tapT: 0.22, tapWin: 0.4, pointLift: 0.6, pointCarry: 0.85, dive: 2.2, diveDrive: 6, diveLean: 1.2, key: 'boost' },
+    swinger: { reach: 60, ideal: 0.7, elev: 55, minElev: 25, cone: 75, center: 0.75, clear: 3, pump: 6, steer: 1.6, maxSpeed: 45, zipSpeed: 28, reel: 20, lift: 0.6, cool: 0.25, stretch: 0.22, spring: 420, recoil: 1.8, fling: 1.5, flingMax: 1.35, hang: 0.85, flips: 1, flipTime: 0.7, flipRoom: 4, tapT: 0.22, tapWin: 0.4, pointLift: 0.6, pointCarry: 0.85, dive: 2.2, diveDrive: 6, diveLean: 1.2, glideSpeed: 18, glideSink: 3, glideAccel: 7, glideTurn: 1.3, glideIn: 0.12, glideLean: 1.3, key: 'boost' },
   };
-  const LENGTHS = ['reach', 'clear', 'pump', 'maxSpeed', 'zipSpeed', 'reel', 'flipRoom', 'spring', 'diveDrive'];
+  const LENGTHS = ['reach', 'clear', 'pump', 'maxSpeed', 'zipSpeed', 'reel', 'flipRoom', 'spring', 'diveDrive', 'glideSpeed', 'glideSink', 'glideAccel'];
   const gearOf = (r) => {
     const g = typeof r.gear === 'string' ? { preset: r.gear } : r.gear, P = GEAR_PRESETS[g.preset || 'swinger'];
     if (!P) return null;
@@ -153,7 +162,7 @@ export function buildSwing(E) {
       if (e._diveA) { const fd = fwdXY(e.transform.heading); e.tumble = { axis: [-fd[1], fd[0], 0], angle: e._diveA }; e._diveOn = true; }
       else if (e._diveOn) { e.tumble = null; e._diveOn = false; }
     };
-    if (e.staggerT != null || e.dropping || e.dormant || e.downed || e.climbing || e.walling) { e.swinging = null; e.zipping = null; e.diving = 0; e._diveA = 0; if (e._diveOn) { e._diveOn = false; if (!e.walling) e.tumble = null; } upright(); return false; }
+    if (e.staggerT != null || e.dropping || e.dormant || e.downed || e.climbing || e.walling) { e.swinging = null; e.zipping = null; e.diving = 0; e.gliding = null; e._glideHold = 0; e._diveA = 0; if (e._diveOn) { e._diveOn = false; if (!e.walling) e.tumble = null; } upright(); return false; }
     // THE SOMERSAULT off a line let go (or the body righting itself): eased from the hang's angle to upright, `flips`
     // turns on the way; the ground ends it where it is
     if (e._gearTurn && e._gearTurn.flip) {
@@ -253,6 +262,43 @@ export function buildSwing(E) {
         const fd = fwdXY(t.heading), sp = Math.hypot(e.dashVel[0], e.dashVel[1]);
         if (sp < G.maxSpeed) e.dashVel = [e.dashVel[0] + fd[0] * G.diveDrive * dt, e.dashVel[1] + fd[1] * G.diveDrive * dt];
       }
+      // THE GLIDE: the jump held while falling. The gear carries the body itself: its speed kept or gathered along its
+      // heading, a steady sink, steered and banked; let go, it flies on with what it has
+      // (a glide that met a box is over until the jump is let go or the body lands: held on, it would hang on the face)
+      if (e._glideMet && (e.grounded || !inp.jumpHeld)) e._glideMet = false;
+      const glides = G.glideSpeed > 0 && !e.grounded && !!inp.jumpHeld && !key && !diving && !e._glideMet;
+      if (glides && !e.gliding) {
+        const v0 = scl(sub(t.pos, prev), 1 / Math.max(dt, 1e-6));
+        if (v0[2] < 0) { e._glideHold = (e._glideHold || 0) + dt; if (e._glideHold >= G.glideIn) { const s0 = Math.hypot(v0[0], v0[1]); if (s0 > 1) t.heading = Math.atan2(v0[1], v0[0]); e.gliding = { s: Math.min(s0, G.maxSpeed * G.flingMax), vz: Math.max(v0[2], -G.glideSink * 6), bank: 0 }; upright(); } }
+        else e._glideHold = 0;
+      } else if (!glides) e._glideHold = 0;
+      if (e.gliding) {
+        const Gl = e.gliding, f0 = fwdXY(t.heading);
+        const out = () => { e.gliding = null; e.vel = [0, 0, Gl.vz]; e.dashVel = [f0[0] * Gl.s, f0[1] * Gl.s]; e.grounded = false; e.coyote = 1; e.jumpBuf = 0; e._diveA = G.glideLean; e._diveOn = true; };
+        if (!glides) out();
+        else {
+          const fw = clamp(inp.forward || 0, -1, 1), turn = clamp((inp.turn || 0) + (inp.strafe || 0), -1, 1);
+          t.heading -= turn * G.glideTurn * dt;
+          const f = fwdXY(t.heading), stoop = Math.max(0, fw), flare = Math.max(0, -fw);
+          const want = G.glideSpeed * (1 + 0.6 * stoop - 0.35 * flare), sink = G.glideSink * (1 + 2.2 * stoop - 0.4 * flare);
+          // (what it came with is kept, bled off slowly; what it lacks is gathered)
+          Gl.s = Gl.s < want ? Math.min(want, Gl.s + G.glideAccel * dt) : Math.max(want, Gl.s - Gl.s * 0.12 * dt);
+          Gl.vz += (-sink - Gl.vz) * Math.min(1, dt * 3);
+          Gl.bank += (turn - Gl.bank) * Math.min(1, dt * 5);
+          const p = [t.pos[0] + f[0] * Gl.s * dt, t.pos[1] + f[1] * Gl.s * dt, t.pos[2] + Gl.vz * dt];
+          const feet = p[2] - eye, hit = inBox(cs, p, feet, R, H), gz = ground(p);
+          if (hit) { e._carry = { v: [f[0] * Gl.s, f[1] * Gl.s, Gl.vz], t: 0.25 }; out(); e._glideMet = true; e.vel = [0, 0, Gl.vz]; e.dashVel = null; e.swung = { end: 'met' }; e._diveA = 0; e.tumble = null; e._diveOn = false; return true; }
+          if (gz != null && feet <= gz + EPS) { t.pos = [p[0], p[1], gz + eye]; out(); e.vel = [0, 0, 0]; e._diveA = 0; e.tumble = null; e._diveOn = false; e.swung = { end: 'ground' }; return true; }
+          t.pos = p;
+          e.vel = [0, 0, 0]; e.dashVel = null; e.grounded = false; e.coyote = 1; e.jumpBuf = 0; e.diving = 0;
+          e.locomotion = 'glide'; e.moving = true; e.gaitPhase = ((e.gaitPhase || 0) + dt / 3) % 1;
+          // the body laid forward along its way and banked into its turn: one turn about an axis between its left and its way
+          const pitch = G.glideLean * (1 + 0.12 * stoop - 0.25 * flare), roll = -Gl.bank * 0.5, ang = Math.hypot(pitch, roll);
+          e.tumble = { axis: [(-f[1] * pitch + f[0] * roll) / ang, (f[0] * pitch + f[1] * roll) / ang, 0], angle: ang };
+          e._diveA = 0; e._diveOn = true;
+          return true;
+        }
+      }
       lean(diving ? G.diveLean : 0);
       // in the air the key held casts (again after `cool`, a line cut or met); on the ground a press zips, and in the
       // air a second tap does (the key pressed again within `tapWin` of a line let go as soon as it was cast)
@@ -265,7 +311,7 @@ export function buildSwing(E) {
         const to = [A.q[0], A.q[1], A.q[2] - H * 0.9 + eye];
         to[A.face.ax] = A.face.at + A.face.s * R;
         e.zipping = { to, face: A.face, anchor: A.q, top: A.top ?? null, hand: handFor(e, A.q) };
-        e.swinging = null; e._gearTap = 0; e.diving = 0; upright();
+        e.swinging = null; e._gearTap = 0; e.diving = 0; e.gliding = null; upright();
         return true;
       }
       // the PIVOT the body swings about: the anchor drawn `center` of the way in toward the hero's own line across the
@@ -284,7 +330,7 @@ export function buildSwing(E) {
       // the line starts at the cast's length and is REELED to its own at `reel` (never a snap across the gap)
       // (how far it may stretch: its share of its length, and never so far that the arc's bottom meets the street)
       e.swinging = { anchor: A.q, pivot, L: D, to: L, most: Math.max(L, Math.min(L * (1 + Math.max(0, G.stretch)), room - clear * 0.75)), face: A.face, v: [v0[0], v0[1], e.vel[2]], age: 0, hand: handFor(e, A.q) };
-      e.diving = 0;
+      e.diving = 0; e.gliding = null;
       e.launchedBy = null; e.launchLock = false;
     }
 

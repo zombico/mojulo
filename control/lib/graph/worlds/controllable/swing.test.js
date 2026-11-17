@@ -288,3 +288,72 @@ describe('the gear: the hand the line leaves', () => {
     for (let i = 1; i < hands.length; i++) expect(hands[i]).not.toBe(hands[i - 1]);
   });
 });
+
+describe('the gear: the glide', () => {
+  const SKY = [{ min: [5000, 5000, 0], max: [5010, 5010, 10] }];
+  // dropped from 60 m with a little way on, the jump held (or not) all the way down: how far it gets
+  const drop = (input, rule = {}, n = 2000) => {
+    const W = make(SKY, hero(rule, [0, 0, 60])), h = W.w.byId.hero;
+    h.dashVel = [6, 0];
+    let glided = 0, t = 0;
+    for (let i = 0; i < n && !(h.grounded && i > 5); i++) { step(W, typeof input === 'function' ? input(i, h) : input); if (h.gliding) glided++; t++; }
+    return { h, x: h.transform.pos[0], y: h.transform.pos[1], glided, t };
+  };
+  it('the jump held while falling spreads the body and trades its height for way: about six on for one down, and far past a fall', () => {
+    const G = drop({ jumpHeld: 1 }), F = drop({});
+    expect(G.glided).toBeGreaterThan(60);
+    expect(F.glided).toBe(0);
+    // 60 m of height: a fall lands almost under itself, a glide some hundreds of metres on
+    expect(G.x).toBeGreaterThan(250);
+    expect(G.x).toBeGreaterThan(F.x * 4);
+    expect(G.x / 60).toBeGreaterThan(4);
+    expect(G.x / 60).toBeLessThan(8);
+    expect(G.h.grounded).toBe(true);
+    expect(G.h.tumble ?? null).toBeNull();       // landed upright
+  });
+  it('is laid forward in the air, turned by A / D, stooped by forward (faster, and down sooner), and ended by letting go', () => {
+    const W = make(SKY, hero({}, [0, 0, 200])), h = W.w.byId.hero;
+    step(W, { jumpHeld: 1 }, 60);
+    expect(h.locomotion).toBe('glide');
+    expect(h.tumble.angle).toBeGreaterThan(1);
+    const s0 = h.gliding.s;
+    step(W, { jumpHeld: 1, turn: 1 }, 30);
+    expect(Math.abs(h.transform.heading)).toBeGreaterThan(0.4);
+    step(W, { jumpHeld: 1, forward: 1 }, 90);
+    expect(h.gliding.s).toBeGreaterThan(s0 + 5);
+    expect(h.gliding.vz).toBeLessThan(-6);
+    const sp = h.gliding.s;
+    step(W, {}, 2);
+    expect(h.gliding).toBeNull();
+    expect(Math.hypot(...h.dashVel)).toBeCloseTo(sp, 0);   // it flies on with what it had
+    // the same fall stooped lands sooner than held level
+    expect(drop({ jumpHeld: 1, forward: 1 }).t).toBeLessThan(drop({ jumpHeld: 1 }).t);
+  });
+  it('keeps the speed a swing gave it, takes a line cast out of it, and with glideSpeed 0 is no glide', () => {
+    const W = make(CANYON, hero({}, [5, 0, 60])), h = W.w.byId.hero;
+    step(W, { boost: 1, forward: 1 }, 50); step(W, {}, 1);
+    const off = Math.hypot(...h.dashVel);
+    step(W, { jumpHeld: 1 }, 40);
+    // (the air jump the press bought is spent first: then it falls, and glides)
+    for (let i = 0; i < 200 && !h.gliding; i++) step(W, { jumpHeld: 1 });
+    expect(h.gliding).toBeTruthy();
+    expect(h.gliding.s).toBeGreaterThan(Math.min(off, 18) - 3);
+    step(W, { boost: 1 }, 3);
+    expect(h.gliding).toBeNull();
+    expect(h.swinging).toBeTruthy();
+    expect(drop({ jumpHeld: 1 }, { gear: { preset: 'swinger', glideSpeed: 0 } }).glided).toBe(0);
+  });
+  it('met by a wall it does not hang there: the body drops, though the jump is still held', () => {
+    // a wall across the glide's way, 40 m on
+    const WALL = [{ min: [40, -30, 0], max: [50, 30, 120] }], W = make(WALL, hero({}, [0, 0, 60])), h = W.w.byId.hero;
+    let met = -1;
+    for (let i = 0; i < 900 && !h.grounded; i++) { step(W, { jumpHeld: 1 }); if (met < 0 && h.swung && h.swung.end === 'met') met = i; }
+    expect(met).toBeGreaterThan(0);
+    expect(h.grounded).toBe(true);
+    // (down within a few seconds of the wall: a fall, not a creep down its face)
+    const W2 = make(WALL, hero({}, [0, 0, 60])), h2 = W2.w.byId.hero;
+    let n = 0;
+    for (; n < 900 && !h2.grounded; n++) step(W2, { jumpHeld: 1 });
+    expect(n - met).toBeLessThan(60 * 4);
+  });
+});

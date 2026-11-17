@@ -43,3 +43,8 @@
   brightens the faster the hero moves, in a swing, a dive or a fall.
 - **Either hand.** The swing line now leaves the hand on the side of the building it lands on, and the hands take
   turns when the anchor is straight ahead. A left-hand swing and zip are the mirror of the right.
+- **A glide for low ground.** Hold jump while falling and a hero with the swing line spreads out and glides,
+  trading height for distance: about five metres forward for each metre down, so 40 m of height carries some 200 m
+  over streets with nothing tall enough to swing from. It keeps the speed a swing or launch gave it. Forward dives
+  for speed, back flares to slow and float, left and right turn and bank. Casting a line ends the glide into a
+  swing with its speed; meeting a wall drops the hero into a wall run or a fall, never a hang.

@@ -105,5 +105,17 @@ describe('a geocity level', () => {
     const base = { type: 'platform', collideRadius: 0.35, collideHeight: 1.7 };
     const plain = reachOf(level, base).reached.size, moved = reachOf(level, { ...base, wall: true, gear: 'swinger' }).reached.size;
     expect(moved).toBeGreaterThan(plain);
+    // THE GLIDE over the city's own boxes: from 40 m over the walk, the jump held, it carries on well past where a fall
+    // lands, on whatever ground or roof is under it at the end
+    const fly = (input) => {
+      const g = { id: 'hero', pilotable: true, rule: { type: 'platform', collideRadius: 0.35, collideHeight: 1.7, wall: true, gear: 'swinger' }, transform: { pos: [E.spawn[0], E.spawn[1], E.spawn[2] + 40], heading: E.heading } };
+      const gw = createWorld({ entities: [g], colliders: E.colliders }), gh = gw.byId.hero;
+      let n = 0;
+      for (let i = 0; i < 1500 && !((gh.grounded || gh.walling) && i > 5); i++) { stepWorld(gw, input, 1 / 60, { ground }); if (gh.gliding) n++; }
+      return { went: Math.hypot(gh.transform.pos[0] - E.spawn[0], gh.transform.pos[1] - E.spawn[1]), n };
+    };
+    const glide = fly({ jumpHeld: 1 }), fall = fly({});
+    expect(glide.n).toBeGreaterThan(30);
+    expect(glide.went).toBeGreaterThan(fall.went + 40);
   }, 120_000);
 });

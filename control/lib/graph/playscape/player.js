@@ -51,6 +51,7 @@ export const PLAYER_CLIPS = Object.freeze({
  *                   bottom, piked with the legs thrown ahead; one arm up the line, the other swept wide
  *    swing_release  the phase the somersault's: laid out as the line is let go, tucked through the turn, opened wide to land
  *    dive           head first off a line: laid long, the arms swept back
+ *    glide          spread on the air: the arms wide, the legs apart and trailing
  *    zip            pulled up a line to a wall: one arm leading, the other back, the legs trailing together */
 // a pose's mirror: left and right limbs changed over, what leans or looks to a side turned the other way
 const mirrorPose = (k) => Object.fromEntries(Object.entries(k).map(([key, v]) => {
@@ -77,6 +78,13 @@ const GEAR_RIGHT = {
   dive: { keys: [
     { support: 'none', spine: { arch: 0.22 }, head: { pitch: -28 }, legL: { x: -0.04, y: -0.12, z: -0.99 }, kneeL: 6, legR: { x: 0.04, y: -0.06, z: -0.99 }, kneeR: 10, armL: { x: -0.28, y: -0.32, z: -0.9 }, elbowL: 8, armR: { x: 0.28, y: -0.32, z: -0.9 }, elbowR: 8 },
     { support: 'none', spine: { arch: 0.26 }, head: { pitch: -30 }, legL: { x: -0.04, y: -0.16, z: -0.98 }, kneeL: 10, legR: { x: 0.04, y: -0.08, z: -0.99 }, kneeR: 14, armL: { x: -0.32, y: -0.36, z: -0.88 }, elbowL: 12, armR: { x: 0.32, y: -0.36, z: -0.88 }, elbowR: 12 },
+  ] },
+  // (the glide: the engine lays the whole body forward and banks it; here it is spread, the arms wide and a little back,
+  // the legs apart and trailing, the head up)
+  glide: { keys: [
+    { support: 'none', spine: { arch: 0.3 }, head: { pitch: -32 }, legL: { x: -0.22, y: -0.1, z: -0.97 }, kneeL: 8, legR: { x: 0.22, y: -0.1, z: -0.97 }, kneeR: 8, armL: { x: -0.94, y: -0.18, z: -0.28 }, elbowL: 10, armR: { x: 0.94, y: -0.18, z: -0.28 }, elbowR: 10 },
+    { support: 'none', spine: { arch: 0.34 }, head: { pitch: -34 }, legL: { x: -0.25, y: -0.14, z: -0.96 }, kneeL: 12, legR: { x: 0.25, y: -0.14, z: -0.96 }, kneeR: 12, armL: { x: -0.95, y: -0.12, z: -0.3 }, elbowL: 14, armR: { x: 0.95, y: -0.12, z: -0.3 }, elbowR: 14 },
+    { support: 'none', spine: { arch: 0.3 }, head: { pitch: -32 }, legL: { x: -0.22, y: -0.1, z: -0.97 }, kneeL: 8, legR: { x: 0.22, y: -0.1, z: -0.97 }, kneeR: 8, armL: { x: -0.94, y: -0.18, z: -0.28 }, elbowL: 10, armR: { x: 0.94, y: -0.18, z: -0.28 }, elbowR: 10 },
   ] },
   zip: { keys: [
     { support: 'none', spine: { arch: 0.22 }, head: { pitch: -12 }, legL: { x: -0.05, y: -0.3, z: -0.95 }, kneeL: 20, legR: { x: 0.05, y: -0.12, z: -0.99 }, kneeR: 45, armR: { x: 0.15, y: 0.45, z: 0.88 }, elbowR: 6, armL: { x: -0.35, y: -0.55, z: -0.75 }, elbowL: 15 },
@@ -173,6 +181,7 @@ export const TRAVERSAL_FALLBACK = Object.freeze({
   mantle: ['climb', 'squat', 'leap'],
   perch: ['kneel', 'squat', 'idle'],
   dive: ['leap'],
+  glide: ['dive', 'leap'],
   swing: ['leap'],
   swing_left: ['swing', 'leap'],
   swing_release: ['leap'],

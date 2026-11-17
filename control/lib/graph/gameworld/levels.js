@@ -322,7 +322,7 @@ function withMoves(P, moves, grants = []) {
 const walkRun = (pilot, extra = '') => (pilot || /\bF\s/.test(extra ?? '') ? 'W / S  run' : HERO_WALK_RUN);
 // (the air's own keys a feel gives: an air dash alone on F, `dash.ground: false`, and the glide held on the jump)
 export const airKeys = (R) => `${R?.dash?.ground === false ? ' · F in the air  air dash' : ''}${R?.glideFall > 0 ? ` · Space held in the air  glide${R.glideSpent ? ' (once the air jumps are spent)' : ''}` : ''}`;
-const movesLegend = (moves) => (moves && moves.gear ? ' · F  swing (in the air), zip (on the ground, or tapped twice in the air) · Space on a zip  launch · X in the air  dive' : '');
+const movesLegend = (moves) => (moves && moves.gear ? ' · F  swing (in the air), zip (on the ground, or tapped twice in the air) · Space on a zip  launch · Space held falling  glide · X in the air  dive' : '');
 
 /** A city segment's create_sketch call: its manifest with the levels of its neighbours by ref, and in a map the world's
  *  ways out of the city (`map`: mapPlan's for this stage) at its start (back) or its farthest crossing (on). The
