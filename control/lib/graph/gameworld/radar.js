@@ -2,7 +2,8 @@
  * THE RADAR AND THE MAP — where things are round the pilot, and where the pilot is in the level. Two reads of one
  * scene, each a list of marks mana-ui's minimap draws:
  *
- *   the radar   a round scope, the pilot at its middle and AHEAD AT THE TOP, so it turns as the pilot turns: every foe
+ *   the radar   a round scope, the pilot at its middle and AHEAD AT THE TOP, so it turns as the pilot turns, the level's
+ *               plan under it turning with it (a MINIMAP: the same plan the map draws, at the scope's scale): every foe
  *               awake within its range, and the task in hand (a place to go) pinned to the rim while it is further
  *               off. A foe asleep is not on it: a room's foes wake as it is walked into, and the radar keeps that.
  *   the map     the level's plan, NORTH AT THE TOP and still: what stands in a body's way on the ground drawn from
@@ -21,7 +22,7 @@
  *
  * The page's side only: every function here is inlined with toString() and references nothing outside itself.
  */
-export const RADAR = Object.freeze({ range: 30, most: 12, rim: 0.46 });
+export const RADAR = Object.freeze({ range: 40, most: 12, rim: 0.46 });
 
 /** The radar's marks (see the header). */
 export function radarMarks(pos, heading, things, cfg) {

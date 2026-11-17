@@ -889,3 +889,5 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // Re-pinned 2026-11-17 (1115-shooting-rails: one radar): `mission` only. Its sheet puts the page's own round radar away
 // (the controllable runtime's, by the class the candidate gave it) wherever the shooter's HUD stands, so a shooter has
 // one radar, the HUD's scope. No other fixture moved.
+// Re-pinned 2026-11-17 again (1115-shooting-rails: the radar a minimap): `mission` only. The scope is larger, reaches
+// 40 m, and carries the level's plan under its marks, turned so ahead is up. No other fixture moved.

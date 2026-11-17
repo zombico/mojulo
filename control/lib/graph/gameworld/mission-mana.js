@@ -197,7 +197,12 @@ export function missionManaCss(theme, { plain = false } = {}) {
     '#mana .mana-threat{width:min(46vh,46vw);height:min(46vh,46vw)}',
     // the radar: a round scope, the pilot its middle, its marks small, a foe in the harm's colour; the map: the plan under
     // its marks, large
-    '#mana .mana-minimap[data-scope=yes]{width:min(24vh,24vw);height:min(24vh,24vw)}',
+    '#mana .mana-minimap[data-scope=yes]{width:min(32vh,32vw);height:min(32vh,32vw)}',
+    // (a MINIMAP: the level's plan under the scope's marks, at its scale, turned so ahead is up, the pilot at its middle;
+    // it fades out before the bezel)
+    '#mana .ms-mm{position:absolute;inset:0;border-radius:50%;overflow:hidden;pointer-events:none;-webkit-mask:radial-gradient(closest-side,#000 80%,transparent 98%);mask:radial-gradient(closest-side,#000 80%,transparent 98%)}',
+    '#mana .ms-mm>i{position:absolute;display:block;width:var(--ms-mm-w,0);height:var(--ms-mm-w,0);left:var(--ms-mm-l,0);top:var(--ms-mm-t,0);transform-origin:var(--ms-mm-o,50% 50%);transform:rotate(var(--ms-mm-r,0rad));background:var(--ms-plan,none) center/100% 100% no-repeat;opacity:.8}',
+    '#mana .mana-minimap[data-scope=yes] .mana-marker,#mana .mana-minimap[data-scope=yes]>.mana-caption{z-index:1}',
     '#mana .mana-minimap[data-scope=yes]>.mana-caption{left:50%;bottom:9%;transform:translateX(-50%);font-size:1.2vh;opacity:.6}',
     '#mana .mana-minimap[data-scope=yes]::after{content:"▲";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:1.4vh;color:var(--mana-ink,#eef0e6)}',
     '#mana .mana-minimap[data-shape=square]{width:min(62vh,62vw);height:min(62vh,62vw);background:var(--ms-plan,none) center/100% 100% no-repeat #1c1f1c}',
@@ -311,6 +316,15 @@ export function missionManaRuntime(cfg) {
     if (me && me.transform) {
       const pos = me.transform.pos, things = __msThings(W, me, T && T.at ? T.at : null), box = planOf(W);
       P.radar.marks = __msRadar(pos, me.transform.heading, things, cfg.radar);
+      // THE MINIMAP: the plan under the scope, the pilot's place on it at the scope's middle, turned so ahead is up
+      // (a side of the plan is `box[2]` m; the scope's width is twice the radar's range)
+      {
+        const w = box[2] / (2 * cfg.radar.range), px = (pos[0] - box[0]) / box[2], py = 1 - (pos[1] - box[1]) / box[2], pc = (v) => Math.round(v * 10000) / 100 + '%';
+        root.style.setProperty('--ms-mm-w', pc(w)); root.style.setProperty('--ms-mm-l', pc(0.5 - px * w)); root.style.setProperty('--ms-mm-t', pc(0.5 - py * w));
+        root.style.setProperty('--ms-mm-o', pc(px) + ' ' + pc(py)); root.style.setProperty('--ms-mm-r', Math.round(((me.transform.heading || 0) - Math.PI / 2) * 1000) / 1000 + 'rad');
+        const sc = root.querySelector('.mana-minimap[data-scope=yes]');
+        if (sc && !sc.querySelector(':scope>.ms-mm')) { const d = document.createElement('div'); d.className = 'ms-mm'; d.appendChild(document.createElement('i')); sc.insertBefore(d, sc.firstChild); }
+      }
       // (north on the radar's bezel: where +y lies from where the pilot faces)
       P.radar.north = __msBearing(pos, me.transform.heading, [pos[0], pos[1] + 1, 0]);
       P.map.marks = up ? things.map((x) => Object.assign(__msPlanPoint(box, x.at), { kind: x.kind })).concat([Object.assign(__msPlanPoint(box, pos), { kind: 'self' })]) : [];

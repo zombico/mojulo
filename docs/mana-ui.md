@@ -1100,7 +1100,8 @@ same host. Not yet on the host: a board, a building or a tabletop level, and the
 Every page a gun is fired on wears one HUD: the first mission and its kin (a mission in a building, an industrial
 level), a quick shooter's level, a deathmatch and the firing range. It is the mission's page with nothing of a mission
 in it where there is none (`mission: { tasks: [], plain: true }`, `shooterHudUi`; `gameworld/mission-mana.js`): the gun
-in hand, the health, the screen's edge, the scope, the damage ring, the map and the pause. With no mission it shows no
+in hand, the health, the screen's edge, the scope (a minimap: the level's plan turning under its marks), the damage
+ring, the map and the pause. With no mission it shows no
 order, opens no briefing and leaves the end to the level; the level's own counters, lines and clock stay the page's (a
 bout's frags and place) and stand at the top right, clear of the scope; the page's own health row and its old radar
 give way, since this HUD draws both.

@@ -309,3 +309,6 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
 - **One radar.** A page wearing the shooter's HUD showed two: the HUD's scope and the page's own round radar, which the
   runtime draws whenever there are other bodies. The HUD's sheet now puts the page's own away on every such page (the
   missions, a quick shooter's level, a deathmatch, the firing range), by the class the runtime gives it.
+- **The radar is a minimap.** The shooter HUD's scope is a third larger, reaches 40 m (from 30), and carries the level's
+  plan under its marks (the same plan the map screen draws, from the scene's own colliders), at the scope's scale and
+  turned so ahead is up, the pilot at its middle; it fades out before the bezel.
