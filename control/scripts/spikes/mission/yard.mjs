@@ -47,7 +47,13 @@ const eye = dry.walk.minEye ?? 1.7, door = ends.doors.find((d) => /hangar/.test(
 if (!door || !barracks) { console.error('yard: the stage lays no hangar door or no barracks'); process.exit(1); }
 const dayRoom = barracks.rooms.find((r) => /^day-room-1/.test(r.id)).box, mid = (b) => [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, b.min[2]];
 const beat = (name, k = 0) => ends.beats.filter((b) => b.beat === name)[k]?.at;
-const start = r2([ends.spawn[0], ends.spawn[1], ends.spawn[2] + 0.3]), outside = r2([door.spawn[0], door.spawn[1], door.spawn[2] - eye + 0.3]);
+// (the start: the trail's head, stood clear of what is built beside it. The rail stands the hangar's shut shell along
+// the trail, its corner on the trailhead, so a chase camera behind a body there is in its wall: the body starts six
+// metres clear of any building's box, on the side the trail's bounds leave open)
+const shut = dry.colliders.filter((c) => /:shut$/.test(c.of ?? '') || /^(hangar-bay|barracks)/.test(c.of ?? ''));
+const clear = (x, y) => !shut.some((c) => x > c.min[0] - 6 && x < c.max[0] + 6 && y > c.min[1] - 2 && y < c.max[1] + 2);
+let sx = ends.spawn[0]; while (!clear(sx, ends.spawn[1] + 3.5) && sx > ends.spawn[0] - 20) sx -= 0.5;
+const start = r2([sx, ends.spawn[1] + 3.5, ends.spawn[2] + 1.2]), outside = r2([door.spawn[0], door.spawn[1], door.spawn[2] - eye + 0.3]);
 const mission = {
   items: [{ id: 'hangar-key', name: M.items['hangar-key'].reads, at: r2(mid(dayRoom)) }],
   exits: [{ id: 'hangar-door', name: 'The hangar\'s side door', at: outside, radius: 1.8, needs: { items: ['hangar-key'] }, to: opt('--hangar-page', 'level-1-hangar.html'), door: 'lobby-door' }],
@@ -64,7 +70,7 @@ const mission = {
 const g0 = room.manifest.entities.find((e) => e.id === 'guard-1'), lm = beat('landmark') ?? ends.exit, rv = beat('reveal') ?? ends.exit;
 const rounds = [{ id: 'guard-1', at: [lm[0] - 2, lm[1] - 6, lm[2] + 0.2], heading: Math.PI / 2 }, { id: 'guard-2', at: [rv[0], rv[1] + 4, rv[2] + 0.2], heading: -Math.PI / 2 }];
 const entities = [
-  ...room.manifest.entities.filter((e) => e.id === 'hero').map((e) => ({ ...e, rule: { ...e.rule, step: 0.35, mission }, transform: { pos: start, heading: ends.heading } })),
+  ...room.manifest.entities.filter((e) => e.id === 'hero').map((e) => ({ ...e, rule: { ...e.rule, step: 0.35, mission }, transform: { pos: start, heading: Math.PI / 2 } })),
   ...rounds.map((g) => ({ ...g0, id: g.id, transform: { pos: r2(g.at), heading: g.heading } })),
 ];
 console.log(`yard: start ${start} · hangar door ${outside} · key ${mission.items[0].at} (the barracks' ${barracks.rooms.find((r) => /^day-room-1/.test(r.id)).id}) · guards ${rounds.map((g) => r2(g.at)).join(' | ')}`);

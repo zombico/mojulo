@@ -2690,6 +2690,11 @@ function __driveCamera(dt) {
 ${freeRun ? '        if (__frSkip(hit)) continue;\n' : ''}${aimView ? `        // (the aim held, aim-view.js: a camera back from the eye must not be pulled in on what the eye alone draws, the
         // hands and the gun before it, hidden now: a thing not drawn hides nothing)
         { let v = ho, drawn = true; while (v) { if (v.visible === false) { drawn = false; break; } v = v.parent; } if (!drawn) continue; }
+        // (nor on what stands between the look point and the body: the look leads the body, so a body run up against a
+        // wall has its look point inside it, and the ray back from there met the wall's far face at once)
+        { const tg0 = __world.byId[c.rule.target]; if (tg0 && hit.distance < Math.hypot(look[0] - tg0.transform.pos[0], look[1] - tg0.transform.pos[1]) - 0.15) continue; }
+        // (nor on what grows: a crown, a bush, the grass, a cloud are seen through, not stood behind)
+        if (/(^|:)(crown|grass|culm|spray|cloud|hat|bush|flowers|carpet|leaf|leaves|canopy|frond|fern)/.test(String((ho.userData && ho.userData.g) || ''))) continue;
 ` : ''}        let o = ho, isOwn = false; while (o) { if (own.includes(o)) { isOwn = true; break; } o = o.parent; }
         if (isOwn) continue;   // never pull in on an entity body (suits) — world geometry only
         hitD = hit.distance; break;   // nearest world surface between subject and eye

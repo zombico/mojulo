@@ -181,3 +181,8 @@ or a recipe key; the spike mints through the real doors and measures.
   two guards on rounds along the trail, the hangar's key in the barracks' day room, the hangar's side door into the
   hangar's page and back, and the mission's one result at the trail's head with both proofs in hand. The trail's
   bounds give way to a perimeter round the trail and the buildings.
+- **The chase sees through what grows and past its own lead** (the aim held's pages): it is no longer pulled in on a
+  crown, a bush, the grass or a cloud, nor on what stands between its look point and the body (the look leads the
+  body, so a body run up against a wall had its look point inside it and the view jammed into its back).
+- **The yard starts clear of the hangar's wall**: the rail stands the hangar's shut shell along the trail with its
+  corner on the trailhead, so the body starts six metres clear of what is built, and the result is there.
