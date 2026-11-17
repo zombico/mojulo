@@ -489,7 +489,7 @@ const FORM_DEFS = {
   },
   'exhibit': {
     title: 'Exhibits (science, space, earth, life, math, history)',
-    makes: 'animated 3D study objects, science demos composed from laws and historic cities at their period, by hall',
+    makes: 'an exhibit made new at its scale (subatomic to outer space, the human view the base; a place in history; an idea), toured and joined as rooms; the halls hold samples. For someone\'s own people and time: `create_exhibit({ start: {} })` first',
     tools: ['create_exhibit', 'get_exhibit', 'save_recipe'],
   },
   'motion': {
@@ -603,7 +603,7 @@ mint dispatch — match the ask to a FORM:
   PLAY     make a world interactive (a lever, a door that opens, a HUD) → \`get_play_vocab\`
   PICTURE  diagram / data chart ("draw me X", "chart these numbers") → \`create_sketch\` · scene / figure illustration ("illustrate X", a portrait, a landscape) → \`sketch_what_possible\` (its \`architecturalConstruction\` family draws a house's FACADE — a picture, not a place; a house to walk is HOUSE) · a posed person / figure (even asked for as "a picture of…") → \`mint_solid\` · build from a PHOTO you can see → \`reference_protocol\` · direct an AI-generated image / comic page → \`create_sketch\` kind 'image-outcome'/'sequential-art'
   OBJECT   3D at literal scale — an everyday object / part, an assembly, a carved wordmark / logo, a spinning convex solid → \`mint_solid\` (kinds workbench / assembler / carved-solid / solid-turntable) · paint / emote one → \`edit_solid\` · measure one → \`measure_solid\` · which screws / bearings / hinges it needs, what to buy → \`fabricate_solid\` · mechanical feasibility of a minted object (joints, clearances, will-it-spin) → \`verify_machina\` (level completability is MOTION traversal, below)
-  WORLD    traversable — city / airport / drivable / flyable / platformer / walkable anything → \`compose_world\` (a BASE × a THEME) · a level's own look (rooms, an island) → a \`geocube\` first (\`create_sketch\`) · a study object or a historic city ("teach me fission") → \`create_exhibit\`
+  WORLD    traversable — city / airport / drivable / flyable / platformer / walkable anything → \`compose_world\` (a BASE × a THEME) · a level's own look (rooms, an island) → a \`geocube\` first (\`create_sketch\`) · a study object or a historic city ("teach me fission") → \`create_exhibit\` (their own people: \`start\` first)
   HOUSE    a house / apartment / cottage / townhouse / ONE furnished room / a store, restaurant, mall or school campus, its plans, drawing set, frame or IFC → \`mint_building\` (routing card \`house\`; NOT compose_world, NOT edifice) · decorating one room → \`design_interior\`
   BUILDING institutional / bespoke one-off (a terminal, a hall, a block of masses + concourses) → \`mint_solid\` kind edifice · a dwelling is HOUSE
   OBSERVE  animate / turntable / flythrough / slideshow deck / replay-a-run / walk-to-a-place-and-verify → \`forge_motion\` (families camera / deck / traversal / waypoints) · join clips into one film → \`stitch_motion\` · cameras keyed in a world, a shot list → \`forge_motion\` \`shoot\`

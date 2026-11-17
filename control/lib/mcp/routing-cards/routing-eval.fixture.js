@@ -70,6 +70,8 @@ export const FIXTURE = [
   ['show my class why the clocks on GPS satellites tick faster than ours on the ground', 'create_exhibit', 'science/relativistic'],
   // exhibits (1110): a curated interactive for a museum, a gallery or an encyclopedia, asked for by hall
   ['our museum wants an interactive showing how a hydroelectric dam turns falling water into electricity', 'create_exhibit'],
+  // someone fitting an exhibit to their own people and time is produced first: the door's `start`, nothing built
+  ['I teach ten year olds and have one forty minute lesson to get across how a dam makes electricity, can you build me something to show them', 'create_exhibit', 'start'],
   ['an encyclopedia-style piece where visitors can look around a Roman town before Vesuvius erupted', 'create_exhibit'],
   // the tour: an exhibit's stops, each a camera, a caption and the part it lights (create_exhibit's `tour`)
   ['a step-by-step walkthrough of a plant cell for our kiosk, each step lighting up one part with a caption', 'create_exhibit'],

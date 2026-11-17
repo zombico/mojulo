@@ -804,7 +804,10 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // Grown 2026-11-15 (8_880 -> 9_060, for one line): a Guards line for a visitor
   // with no ask yet (the four starts, and a game's first session running to its first level played), which had no
   // route in: the index dispatched an ask and said nothing to the agent whose operator has none.
-  const MODE_CEILINGS = { studio: 9_060 };
+  // Grown 2026-11-17 (9_060 -> 9_100; measured 9,085 widest cell, studio+plain+pedagogical): the WORLD row's exhibit
+  // says its `start` (someone fitting an exhibit to their own people and time is produced first: nothing built, the one
+  // question to ask), which had no route in: the row sent every exhibit ask straight to the making.
+  const MODE_CEILINGS = { studio: 9_100 };
 
   // A representative pulse: a workshop with something in every bucket. The
   // empty-workshop variant is shorter, so this is the honest worst case.
