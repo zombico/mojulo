@@ -18,7 +18,10 @@
  * from 0, era/storeys.js, so the basement is storey 0 and the building stands with storey 1 at its ground). It is the
  * ground plate's twin room for room, so every ground room stands over one: under the lobby a CONCOURSE, under the core
  * its stair's `core-0` (climbing to `core-1`), under each corridor its own (`corridor-0a`), under each wing room a store
- * (`store-001`), under an annex its undercroft; their doorways the ground's. `under.ports` names the basement's walls
+ * (`store-001`), under an annex its undercroft; their doorways the ground's. `basement: { hall: <metres> }` makes that
+ * undercroft a hall that high, so the whole storey is lodged that much deeper under the ground (its other rooms keep
+ * their height). The core's stair does not climb that far in its shaft: no flight is laid to it, and what joins it is
+ * its level's (a lift, a stairwell's door). `under.ports` names the basement's walls
  * that face out, where a network's passages may leave it (network/): the concourse's front and sides, each basement
  * corridor's far end.
  *
@@ -43,7 +46,8 @@ export function planCore(P, program, kit, rnd) {
   if (!(Number.isInteger(bays) && bays >= CORE.bays[0] && bays <= CORE.bays[1])) throw new Error(`program: bays is a wing's length in bays, ${CORE.bays.join(' to ')}`);
   const h = C.h, rooms = [], links = [], findings = [], off = program.basement ? 1 : 0;
   const free = (b) => !rooms.some((q) => (q.storey ?? 0) === (b.storey ?? 0) && overlaps(b, q));
-  if (program.basement !== undefined && typeof program.basement !== 'boolean') throw new Error('program: basement is true (a storey under the ground one: a concourse under the lobby, the plate\'s twin) or false');
+  const deepHall = program.basement && typeof program.basement === 'object' ? program.basement.hall : undefined;
+  if (program.basement !== undefined && typeof program.basement !== 'boolean' && !(program.basement && typeof program.basement === 'object' && !Array.isArray(program.basement) && Object.keys(program.basement).every((k) => k === 'hall') && (deepHall === undefined || (Number.isFinite(deepHall) && deepHall >= 3.5 && deepHall <= 20)))) throw new Error('program: basement is true (a storey under the ground one: a concourse under the lobby, the plate\'s twin), { hall: 3.5 to 20 } (the same, its annex\'s undercroft that many metres high: the storey lodged that much deeper), or false');
   const put = (b) => { rooms.push(b); return b; };
   // the corridors of one storey: their boxes and where their rooms go (a side: the box a bay's room fills)
   const plate = [];
@@ -117,10 +121,13 @@ export function planCore(P, program, kit, rnd) {
     for (const r of ground) {
       const id = r.id === 'lobby' ? 'concourse' : r.id === 'core-1' ? 'core-0' : /^corridor-1/.test(r.id) ? r.id.replace(/^corridor-1/, 'corridor-0') : r.id === P.annex?.role ? `${r.id}-under` : `${P.roles.basement ?? 'store'}-0${String(++k).padStart(2, '0')}`;
       twin.set(r.id, id);
-      rooms.push({ id, x: r.x, y: r.y, w: r.w, d: r.d, h: bh });
+      rooms.push({ id, x: r.x, y: r.y, w: r.w, d: r.d, h: deepHall !== undefined && r.id === P.annex?.role ? Math.max(bh, deepHall) : bh });
     }
     for (const l of [...links]) if (twin.has(l.from) && twin.has(l.to)) links.push({ from: twin.get(l.from), to: twin.get(l.to) });
-    links.unshift({ from: 'core-0', to: 'core-1' });
+    // (a storey lodged deeper than a storey's own height is past what the core's stair climbs in its shaft: no flight is
+    // laid, and it is reached as its level joins it, by a lift or a stairwell's door)
+    if (deepHall !== undefined && deepHall > bh) findings.push({ id: 'deep-floor', room: 'core-0', says: `floor 0 is lodged ${deepHall} m down: the core's stair does not reach it (a lift or a stairwell's door joins it)` });
+    else links.unshift({ from: 'core-0', to: 'core-1' });
     // (its walls that face out: the concourse's front and sides, each corridor's far end where no annex stands)
     const ports = [{ room: 'concourse', side: '-y' }, { room: 'concourse', side: '-x' }, { room: 'concourse', side: '+x' }];
     for (const W of plate) if (twin.has(`corridor-1${W.letter}`) && !(P.annex && W === plate[0] && rooms.some((r) => r.id === `${P.annex.role}-under`))) ports.push({ room: `corridor-0${W.letter}`, side: W.end.side });

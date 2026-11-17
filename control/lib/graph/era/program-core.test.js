@@ -57,3 +57,24 @@ describe('corridor and core', () => {
     expect(assembleStageScene({ kind: 'stage', program: { use, storeys: 2, bays: 2 } }, {}).bay.laws.filter((l) => !l.ok)).toEqual([]);
   });
 });
+
+describe('a floor 0 lodged deeper', () => {
+  // (a core building with an annex: the one whose undercroft is the hall)
+  const use = BUILDINGS.find((u) => PROGRAMS[u].annex), kit = PROGRAMS[use].kit, role = PROGRAMS[use].annex.role;
+  it('basement: { hall } makes the annex\'s undercroft that high and lays no flight to it; the storey over stands that much higher', () => {
+    const flat = planProgram({ use, basement: true }, kit), deep = planProgram({ use, basement: { hall: 10 } }, kit);
+    const under = (P) => P.rooms.find((r) => r.id === `${role}-under`);
+    expect(under(flat).h).toBeLessThan(5);
+    expect(under(deep).h).toBe(10);
+    expect(flat.links.some((l) => l.from === 'core-0' && l.to === 'core-1')).toBe(true);
+    expect(deep.links.some((l) => l.from === 'core-0' && l.to === 'core-1')).toBe(false);
+    expect(deep.findings.map((f) => f.id)).toContain('deep-floor');
+    const S = assembleStageScene({ kind: 'stage', kit, program: { use, basement: { hall: 10 } }, level: {}, compose: {} });
+    const z = (id) => S.rooms.find((r) => r.id.replace(/@\d+$/, '') === id).box.min[2];
+    expect(z(role) - z(`${role}-under`)).toBeGreaterThan(10);
+  });
+  it('refuses a hall that is no height, and a setting it does not know', () => {
+    expect(() => planProgram({ use, basement: { hall: 2 } }, kit)).toThrow(/hall/);
+    expect(() => planProgram({ use, basement: { depth: 10 } }, kit)).toThrow(/hall/);
+  });
+});

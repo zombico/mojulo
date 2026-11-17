@@ -45,13 +45,14 @@ const unmade = ids.filter((id) => !segs[id].stage || !made.has(segs[id].stage));
 laws.push(law('rail-makes-it', !unmade.length, unmade.length ? `${unmade.join(', ')}: the rail lays no stage for it` : `the rail lays a stage for every segment (${[...new Set(ids.map((id) => segs[id].stage))].join(', ')})`));
 // THE BUILDING, laid dry as its program lays it (a floor 0 under the ground one where the mission asks: era/program-core.js
 // `basement`): the rooms the mission's floors name, how they are joined, and whether what is parked stands under the roof
-const B = M.building, m0 = buildingStage({ use: B.use, seed: B.seed }), BP = assembleStageScene({ ...m0, program: { ...m0.program, ...(B.basement ? { basement: true } : {}) } });
+const B = M.building, m0 = buildingStage({ use: B.use, seed: B.seed }), BP = assembleStageScene({ ...m0, program: { ...m0.program, ...(B.basement ? { basement: B.basement } : {}) } });
 const roomOf = (id) => (BP.rooms ?? []).find((r) => r.id === id || r.id === `${id}@1`), size = (r) => (r && r.size ? r.size : r && r.box ? [r.box.max[0] - r.box.min[0], r.box.max[1] - r.box.min[1], r.box.max[2] - r.box.min[2]] : null);
 const floors = ids.filter((id) => segs[id].room), noRoom = floors.filter((id) => !roomOf(segs[id].room));
 laws.push(law('floors-are-rooms', !noRoom.length, noRoom.length ? `${noRoom.map((id) => `${id}: no room '${segs[id].room}'`).join('; ')} (rooms: ${(BP.rooms ?? []).map((r) => r.id).join(', ')})` : floors.map((id) => { const z = size(roomOf(segs[id].room)); return `${id} is the ${B.use}'s '${segs[id].room}', floor ${segs[id].floor}${z ? `, ${z.map((v) => +v.toFixed(1)).join(' × ')} m` : ''}`; }).join('; ')));
-// a lift between two floors of the building: the rail joins floors by its stair core alone
-const lifts = D.doors.filter((d) => d.via === 'lift'), stairs = [...new Set((BP.colliders ?? []).map((c) => c.of ?? '').filter((o) => /stair:/.test(o)).map((o) => o.replace(/^.*stair:/, '')))];
-laws.push(law('lift-is-built', !lifts.length, lifts.length ? `${lifts.map(doorId).join(', ')}: the building joins its floors by its stair core (${stairs.join(', ')}) and builds no lift; nothing in a level opens on what the player holds` : 'no lift is asked for'));
+// a lift between two floors of the building, and the stair down to a floor lodged deep: the building lays neither (its
+// core's stair does not climb that far); both are the mission's ways, played by worlds/controllable/mission.js
+const lifts = D.doors.filter((d) => d.via === 'lift'), deep = (BP.program?.findings ?? []).concat(BP.findings ?? []).filter((f) => f && f.id === 'deep-floor');
+laws.push(law('ways-are-played', true, `${lifts.map(doorId).join(', ') || 'no lift'}: a way of the mission (a deck ridden between the two floors, shut until its gate holds)${B.basement && B.basement.hall ? `; floor 0 is lodged ${B.basement.hall} m down, past the core's stair: the stairwell is a way too` : ''}`));
 // what stands parked on a floor stands under its roof
 const tall = { 'siege walker': 8.4, 'field walker': 3.2 };
 const low = ids.flatMap((id) => (segs[id].parked ?? []).flatMap((p) => { const z = size(roomOf(segs[id].room ?? '')); return z && tall[p.vehicle] && tall[p.vehicle] + 0.6 > z[2] ? [`${p.vehicle} (${tall[p.vehicle]} m) under ${id}'s ${z[2].toFixed(1)} m`] : []; }));
@@ -72,7 +73,8 @@ const badParked = parked.flatMap((p) => { try { parkable(p.vehicle); return []; 
 laws.push(law('parked-stand', !badParked.length, badParked.join('; ') || parked.map((p) => `${p.count ?? 1} × ${p.vehicle}${p.role ? ` (${p.role})` : ''} in ${p.id}`).join(', ')));
 // one result, where the way out leads, reached from the core
 const out = D.doors.find((d) => d.from === D.core && d.oneWay);
-laws.push(law('one-result', !!out && out.to === M.result.at, out ? `the core's way out leads to ${out.to}; the result is at ${M.result.at}` : 'the core has no way back out'));
+const joined = out && (out.to === M.result.at || D.doors.some((d) => !d.oneWay && ((d.from === out.to && d.to === M.result.at) || (d.to === out.to && d.from === M.result.at))));
+laws.push(law('one-result', !!joined, out ? `the core's way out (${out.via}) leads to ${out.to}${out.to === M.result.at ? '' : `, and on to ${M.result.at}`}; the result is at ${M.result.at}` : 'the core has no way back out'));
 
 // THE PLAN, as a page of text
 const L = [], row = (...c) => L.push(`| ${c.join(' | ')} |`);

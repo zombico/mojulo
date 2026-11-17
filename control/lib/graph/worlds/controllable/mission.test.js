@@ -1,0 +1,62 @@
+// A mission in one level (mission.js): things found, clues read, ways that open on them, a barrier, one result.
+import { describe, it, expect } from 'vitest';
+import { composeLive } from './compose.js';
+
+const E = composeLive();
+const hooks = { ground: (pos) => (pos[0] > 50 ? -10 : 0) };   // (the floor below, far along x)
+const MISSION = {
+  items: [{ id: 'lift-key', at: [4, 0, 0] }, { id: 'intel', at: [60, 0, -10] }],
+  clues: [{ id: 'pad', at: [0, 3, 0] }, { id: 'log', at: [0, 6, 0] }, { id: 'tracks', at: [0, 9, 0] }],
+  reveal: { needs: 2, of: ['pad', 'log', 'tracks'], flag: 'known', says: 'a floor below' },
+  ways: [{ id: 'lift', kind: 'lift', a: [8, 0, 0], b: [58, 0, -10], secs: 1, needs: { items: ['lift-key'], flags: ['known'] } }],
+  barriers: [{ id: 'stairwell', min: [-0.25, -6, 0], max: [0.25, -4, 3], needs: { items: ['intel'] } }],
+  objectives: [{ id: 'brief', says: 'get intel', done: 'lift-key' }, { id: 'true', says: 'what is below', after: 'known', done: 'intel' }],
+  result: { at: [-5, -5, 0], when: ['lift-key', 'intel'] },
+};
+const world = () => E.createWorld({ entities: [{ id: 'p', pilotable: true, rule: { type: 'platform', speed: 5, eye: 0, collideRadius: 0.3, collideHeight: 1.7, mission: MISSION }, body: { type: 'none' }, transform: { pos: [0, 0, 0], heading: 0 } }] });
+const run = (w, input, n) => { for (let k = 0; k < n; k++) E.stepWorld(w, input, 1 / 30, hooks); };
+const put = (w, at) => { w.byId.p.transform.pos = at.slice(); run(w, {}, 2); };
+const act = (w) => { run(w, { act: 1 }, 2); run(w, {}, 2); };
+
+describe('a mission in one level', () => {
+  it('a way stays shut until its key is held and its clues are read; then it is ridden to the other floor and back', () => {
+    const w = world(); run(w, {}, 2);
+    put(w, [8, 0, 0]); act(w);
+    expect(w.ms.ride).toBeNull();
+    expect(w.ms.locked).toEqual(['lift-key', 'known']);
+    put(w, [4, 0, 0]);
+    expect(w.ms.held['lift-key']).toBe(true);
+    put(w, [0, 3, 0]); act(w);
+    expect(w.ms.flags.known).toBeUndefined();
+    put(w, [0, 9, 0]); act(w);   // (any two of the three)
+    expect(w.ms.flags.known).toBe(true);
+    expect(E.missionObjective(w).id).toBe('true');
+    put(w, [8, 0, 0]); run(w, { act: 1 }, 2);
+    expect(w.ms.ride).toMatchObject({ way: 'lift' });
+    run(w, { forward: 1 }, 29);   // (held through the ride: it does not walk off)
+    expect(w.ms.ride).not.toBeNull();
+    run(w, {}, 3);
+    expect(w.ms.ride).toBeNull();
+    expect(w.byId.p.transform.pos.map((v) => Math.round(v))).toEqual([58, 0, -10]);
+    act(w); run(w, {}, 40);
+    expect(Math.round(w.byId.p.transform.pos[0])).toBe(8);
+  });
+  it('a barrier stands until what it needs is held, and holding everything at the way out is the one result', () => {
+    const w = world(); run(w, {}, 2);
+    expect(w.colliders.some((c) => c.of === 'mission:stairwell')).toBe(true);
+    put(w, [1, -5, 0]);
+    expect(w.ms.open.stairwell).toBeUndefined();
+    w.ms.held.intel = true; run(w, {}, 2);
+    expect(w.ms.open.stairwell).toBe(true);
+    expect(w.colliders.some((c) => c.of === 'mission:stairwell')).toBe(false);
+    put(w, [-5, -5, 0]);
+    expect(w.ms.done).toBe(false);
+    w.ms.held['lift-key'] = true; run(w, {}, 2);
+    expect(w.ms.done).toBe(true);
+  });
+  it('a rule with no mission is as it was', () => {
+    const w = E.createWorld({ entities: [{ id: 'p', pilotable: true, rule: { type: 'platform', speed: 5, eye: 0 }, body: { type: 'none' }, transform: { pos: [0, 0, 0], heading: 0 } }] });
+    run(w, { act: 1 }, 3);
+    expect(w.ms).toBeUndefined();
+  });
+});

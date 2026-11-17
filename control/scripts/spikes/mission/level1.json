@@ -87,7 +87,7 @@
       },
       {
         "from": "sub-hangar",
-        "to": "perimeter",
+        "to": "hangar",
         "via": "stair",
         "oneWay": true
       }
@@ -225,7 +225,7 @@
       "intel-manifest",
       "intel-siege"
     ],
-    "reads": "out by the service stair to the yard, and off the apron"
+    "reads": "up the stairwell, out through the lobby to the yard, and off the apron"
   },
   "scenes": [
     {
@@ -257,7 +257,9 @@
   "building": {
     "use": "hangar-bay",
     "seed": 2,
-    "basement": true,
-    "reads": "one building: the main hangar at the ground, flight ops over its wing, and floor 0 lodged under the ground: a second hall under the first, joined by the freight lift"
+    "basement": {
+      "hall": 10
+    },
+    "reads": "one building: the main hangar at the ground, flight ops over its wing, and floor 0 lodged ten metres under the ground: a second hall under the first, joined to it by the freight lift, its stairwell shut from above"
   }
 }

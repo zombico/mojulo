@@ -158,3 +158,17 @@ or a recipe key; the spike mints through the real doors and measures.
   (era/program-core.js `basement`) and says what it finds: the rail lays a stage for every segment and both halls are
   rooms of the one building; the hall under is a storey high (3.5 m) where the siege walker stands 8.4 m, the floors
   are joined by the stair core and no lift is built, and nothing inside a level opens on what the player holds.
+- **A floor 0 lodged deeper** (a core building's `basement: { hall: <metres> }`, era/program-core.js): the annex's
+  undercroft is a hall that high, so the whole storey lies that much further under the ground; its other rooms keep
+  their height. The core's stair does not climb that far in its shaft, so no flight is laid to it (a finding says so):
+  what joins it is its level's. `basement: true` is as it was.
+- **A mission in one level** (`rule.mission`, worlds/controllable/mission.js, opt-in; its page half
+  scene/channels/controllable/mission-view.js): things found by walking onto them, clues read with the action, a
+  reveal when enough are read, ways between two floors (a lift, a stairwell) ridden with the action once what they
+  need is held and set, barriers that stand until then, objectives in order and one result. It is the walled-core
+  dungeon's gate played inside a level, which was not built. The page marks each thing, says the objective, what the
+  action would do or what it still needs, and closes the screen over the middle of a ride. Plain DOM, not mana-ui's.
+- **Level 1's hangar, played** (`scripts/spikes/mission/hangar.mjs`): the hangar bay with its floor 0 ten metres down,
+  three assault walkers on the line in the main hall, the siege walker in the hall under it, the freight lift between
+  the two (its key in the parts store, and two of three clues read), the stairwell shut from above and the way back
+  out once the proof is in hand, the operative and its kit, two guards above and one below.
