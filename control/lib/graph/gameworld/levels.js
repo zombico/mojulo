@@ -60,7 +60,6 @@ import { quickFigure } from './cast-setting.js';
 import { jobQuests, contactName } from './city-guide.js';
 import { taskApps, appTitle } from './phone-ui.js';
 import { turfRect, actLine } from './factions.js';
-import { readBelt } from '../brawl/brawl-belt.js';
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
 import { concernIds } from './concerns.js';
@@ -88,7 +87,7 @@ import { flyCourse } from '../skyscape/autopilot.js';
 import { seatCraft, craftPilot } from '../skyscape/craft.js';
 import { battleRoster, laidBattles, PARTY_SLICE, BAG_SLICE, BAG_START } from './battles.js';
 import { mergeExtras, libraryFigure, fieldFigure, stand } from './stage-figures.js';
-import { standFoe, foePlacements } from './foes.js';
+import { standFoe, foePlacements, bestiaryOf, stompOf, targetRimOf } from './foes.js';
 import { streetLevel } from './brawl-cast.js';
 import { readTheme } from '../../mana-ui/theme.js';
 import { armLevel, heroStrikes, arsenalOfGame } from './arsenal.js';
@@ -662,21 +661,16 @@ function kerbSpots(route, road, colliders, top = null, lanes = []) {
 
 // a driven errand's places (a stage with cars): how far along its walk the first stands, and a kerb's reach (m)
 const ERRAND_DRIVE = Object.freeze({ from: 0.33, reach: 7 });
-// AN ENCOUNTER's belt and street (brawl/brawl-belt.js, brawl-street.js): one held screen along the fronts where its spot
-// is (a shop's place: `N` the way out of its door), the fronts on the far side and the camera out over the road; the
-// band between the walk and the roadway. Its crowd the street's own thugs, a knife among them from the third.
-const ENCOUNTER = Object.freeze({ length: 22, out: 4.5, depth: [-2.5, 2.5], reach: 9, again: 6, clear: 30 });
-export function encounterBrawl(E) {
-  const n = Math.hypot(E.N[0], E.N[1]) || 1, N = [E.N[0] / n, E.N[1] / n];
-  // (the band's far side is the fronts': across the belt is heading + 90°, so the belt heads 90° behind the way in)
-  const deg = Math.atan2(-N[1], -N[0]) * 180 / Math.PI - 90, t = deg * Math.PI / 180, along = [Math.cos(t), Math.sin(t)];
-  const mid = [E.at[0] + N[0] * ENCOUNTER.out, E.at[1] + N[1] * ENCOUNTER.out];
-  const knives = E.crowd >= 3 ? 1 : 0;
-  return {
-    belt: readBelt({ at: [r3(mid[0] - along[0] * ENCOUNTER.length / 2), r3(mid[1] - along[1] * ENCOUNTER.length / 2)], heading: r3(deg), floor: r3(E.at[2]), depth: [...ENCOUNTER.depth], screens: [{ length: ENCOUNTER.length, gate: true }] }),
-    encounter: { id: E.id, event: E.event, took: E.took, done: E.done, at: [r3(mid[0]), r3(mid[1]), r3(E.at[2])], radius: ENCOUNTER.reach, again: ENCOUNTER.again },
-    street: { players: [0], waves: [{ screen: 0, crowd: [{ type: 'thug', n: E.crowd - knives }, ...(knives ? [{ type: 'knife', n: knives }] : [])] }] },
-  };
+// AN ENCOUNTER (a faction's posting that is a fight, factions.js `act.fight`; free roam): where its foes stand, out on
+// the street before its place: how far out, how far apart, how near wakes them, and clear of anyone who stands
+const ENCOUNTER = Object.freeze({ out: 4.5, apart: 1.7, reach: 10, clear: 30 });
+/** An encounter's cast: the crew's bodies stood asleep where the stage laid them (foes.js standFoe: each its class, its
+ * figure, its hp), woken by the posting's own mechanic (game/errand-mechanics.js lowerAct `fight`); and the pilot made
+ * hittable, as a stage with foes makes it. */
+function encounterCast(G, E, refs, hero) {
+  const B = bestiaryOf(G), part = { figures: {}, entities: [] }, ctx = { rim: targetRimOf(G), sheets: {} };
+  for (const f of E.foes) standFoe(G, part, { id: f.id, eid: E.eid, entry: B[E.eid], at: f.at, heading: f.heading }, { ref: refs?.[E.eid] ?? null, more: { dormant: true, modeRefs: refs ?? {} }, ctx });
+  return { ...part, pilot: { ...(hero ? { rule: { stomp: stompOf(G) } } : {}), body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } } } };
 }
 
 // a job's giver: how far from the start it stands at the least, how far from another giver, what it says unsaid (m)
@@ -1010,7 +1004,9 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // (a job's GIVER stands where the stage laid it: the hero door's person, rolled by the world's keys on its job's own
   // path, at the crowd grade and standing; none without a hero to meet them)
   const giverPart = heroRef && ways?.givers?.length ? ways.givers.reduce((part, g) => stand(part, g.id, { hero: quickFigure(G, null, 'farmhand', undefined, { path: `giver/${g.contact}` }).spec, grade: 'play', crowd: true, budget: GIVER.budget, stand: true }, g.at.slice(), g.heading), { figures: {}, entities: [] }) : null;
-  const X = giverPart ? mergeExtras(X0, giverPart) : X0;
+  // (AN ENCOUNTER's crew, stood asleep where the stage laid them: encounterCast)
+  const encPart = ways?.encounter ? encounterCast(G, ways.encounter, foeRefs, !!heroRef) : null;
+  const X1 = giverPart ? mergeExtras(X0, giverPart) : X0, X = encPart ? mergeExtras(X1, encPart) : X1;
   if (X) {
     const p0 = pilotPart.entities[0];
     // (a written feel wins over a goal's own feet: a deathmatch's shooter pole moves the pilot only where no feel is written)
@@ -1145,9 +1141,6 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // drawn there too, in the same look, by the page's HUD host; a course's HUD is already its own (course-hud.js)
   // (a level with a HUD grammar, hud-grammar.js, has its HUD: its hearts, its compass and its actions stand in for the
   // rows, so they are not drawn a second time)
-  // AN ENCOUNTER (a faction's posting that is a fight, stageWays): the brawl laid on the district's own street where the
-  // posting's spot is, waiting on the page until its posting is taken and its place come to (brawl/brawl-yard.client.js)
-  if (ways?.encounter) manifest = { ...manifest, brawl: encounterBrawl(ways.encounter) };
   if (G.ui !== undefined && !manifest.manaHud && !manifest.events?.grammar) manifest = { ...manifest, manaHud: { ...levelHud(interfaceLook(G).theme, { screen: G.screen ?? null }), ...(G.ui.map !== undefined ? { map: G.ui.map } : {}), ...(G.ui.inventory !== undefined ? { inventory: G.ui.inventory } : {}), ...(G.ui.phone !== undefined ? { phone: G.ui.phone } : {}) } };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
@@ -1699,11 +1692,18 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined) {
         if (!givers.some((g) => g.faction === F.id)) continue;
         for (const Pn of F.board) {
           const tr = Pn.act.on ? turfRect(factions.find((o) => o.id === Pn.act.on), box) : r, tc = [(tr[0] + tr[2]) / 2, (tr[1] + tr[3]) / 2], spot = nearest(tc, (p) => free(p) && inside(tr)(p)) ?? nearest(tc, free) ?? nearest(tc, () => true);
-          // (a posting that is a FIGHT, factions.js `act.fight`: an encounter where its spot is, its belt along the fronts
-          // there; one a level: a page has one belt)
-          if (Pn.act.fight && !encounter) encounter = { id: Pn.id, event: `act:${Pn.act.verb}:${Pn.id}`, took: `flag-took-${Pn.id}`, done: `flag-done-${Pn.id}`, at: spot.at.slice(), N: spot.N.slice(), crowd: Pn.act.fight.crowd, name: F.name };
+          // (a posting that is a FIGHT, factions.js `act.fight`: the crew of the faction it is done on stood out on the
+          // street before its place, in a row along the fronts, facing out; one a level for now)
+          let fight = null;
+          if (Pn.act.fight && !encounter) {
+            const T = factions.find((o) => o.id === Pn.act.on), nn = Math.hypot(spot.N[0], spot.N[1]) || 1, N = [spot.N[0] / nn, spot.N[1] / nn], along = [-N[1], N[0]], n = Pn.act.fight.crowd;
+            const mid = [spot.at[0] + N[0] * ENCOUNTER.out, spot.at[1] + N[1] * ENCOUNTER.out], home = givers.find((g) => g.faction === F.id);
+            const foes = Array.from({ length: n }, (_, k) => { const o = (k - (n - 1) / 2) * ENCOUNTER.apart; return { id: `foe-${T.crew}-${Pn.id}-${k + 1}`, at: [r3(mid[0] + along[0] * o), r3(mid[1] + along[1] * o), r3(spot.at[2])], heading: r3(Math.atan2(N[1], N[0])) }; });
+            encounter = { id: Pn.id, eid: T.crew, foes };
+            fight = { foes: foes.map((f) => f.id), at: [r3(mid[0]), r3(mid[1]), r3(spot.at[2])], radius: ENCOUNTER.reach, ...(home ? { back: home.at.slice() } : {}) };
+          }
           offers.push({ kind: 'act', id: Pn.id, faction: F.id, verb: Pn.act.verb, ...(Pn.act.target ? { target: Pn.act.target } : {}), flag: `took-${Pn.id}`, done: `done-${Pn.id}`, at: spot.at.slice(), radius: r3(Math.max(ERRAND_DRIVE.reach, Math.min(tr[2] - tr[0], tr[3] - tr[1]) / 2)),
-            ...(Pn.reward.length ? { reward: Pn.reward } : {}), standing: Pn.standing, rank: Pn.rank, name: F.name, title: Pn.name, line: actLine(Pn, factions), ...(Pn.says ? { says: Pn.says } : {}) });
+            ...(Pn.reward.length ? { reward: Pn.reward } : {}), standing: Pn.standing, rank: Pn.rank, name: F.name, title: Pn.name, line: actLine(Pn, factions), ...(Pn.says ? { says: Pn.says } : {}), ...(fight ? { fight } : {}) });
         }
       }
     }

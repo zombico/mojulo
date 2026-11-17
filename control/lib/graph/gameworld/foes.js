@@ -60,6 +60,7 @@ import { LEVEL_GOAL, PERSON } from './quick.js';
 import { gauntletIds } from './gauntlet.js';
 import { taskFoeIds } from './fights.js';
 import { streetFoeIds } from './brawl-cast.js';
+import { factionFoeIds } from './factions.js';
 import { HERO } from '../foes/vocab.js';
 import { FEELS, FPS } from './feel/cards.js';
 import { feelCard } from './feel/lower.js';
@@ -213,6 +214,8 @@ export function fieldedIds(G) {
   for (const f of taskFoeIds(G)) used.add(f);
   // (and who its streets bring: brawl-cast.js)
   for (const f of streetFoeIds(G)) used.add(f);
+  // (and who its factions fight with: factions.js)
+  for (const f of factionFoeIds(G.factions)) used.add(f);
   // (and what a summoner it fields calls, and who a pair stands with)
   for (const id of [...used]) { const E = bestiaryOf(G)[id]; if (E?.summons) used.add(E.summons.foe); if (E?.pair) used.add(E.pair.foe); }
   // (and the modes each of them becomes)

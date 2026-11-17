@@ -11,18 +11,22 @@
  *               centre and the four corners), or a rectangle in fractions of the district's box (0 to 1, x east, y
  *               north). Two factions' turf may not overlap
  *       says    what its contact says as the player joins
+ *       crew    who fights for it: an entry of the world's bestiary (`foes`), by its id (a person dressed as a crew,
+ *               docs/foes.md). A faction that is fought has one
  *       board   what it posts: [{ id, act: { verb, target?, on? }, reward?: [{ item, n? }], standing?, rank?, name?,
  *               says? }]. An ACT is what is done (a verb on a target, on a rival's turf when `on` names one), not what
  *               is carried. `rank` is the standing it is posted at; it pays `reward` and `standing`. What DOES an act is
  *               not here: it is whatever raises the event act:<verb>:<id> (game/errand-mechanics.js lowerAct). An act
- *               that says `fight` (true, or { crowd }) is an ENCOUNTER: a street fight where its zone is, on the
- *               district's own street; won, it is done (brawl/brawl-yard.client.js)
+ *               that says `fight` (true, or { crowd }) is an ENCOUNTER, in free roam: the crew of the faction it is
+ *               done on stands asleep where its place is, wakes as the player comes with the posting taken, and
+ *               the act is done when every one of them is down
  *
  *   FACTIONS                         the turf words, the words said
  *   readFactions(spec)               → [{ id, name, colour, turf: [x0, y0, x1, y1], rivals, says, board }] | null (refuses a
  *                                      malformed one, teaching)
  *   turfRect(F, box)                 → its turf in the world: [x0, y0, x1, y1] (box: the district's, the same)
  *   factionAt(factions, box, x, y)   → the faction whose turf a point is on, or null
+ *   factionFoeIds(factions)          → the bestiary ids its fights field
  *   actLine(posting, factions)       → what a posting asks, as a line
  *   turfZones(factions, box)         → [{ id, name, colour, r }]: each turf in the world, for a map
  * Pure, no dice: what a faction is and where is its maker's.
@@ -42,7 +46,7 @@ export const FACTIONS = Object.freeze({
   // a posting that is a FIGHT: how many stand against the player unsaid, and at the most
   crowd: Object.freeze([3, 8]),
 });
-const KEYS = ['name', 'colour', 'turf', 'rivals', 'says', 'board'];
+const KEYS = ['name', 'colour', 'turf', 'rivals', 'says', 'board', 'crew'];
 const POST_KEYS = ['id', 'name', 'act', 'reward', 'standing', 'rank', 'says'], ACT_KEYS = ['verb', 'target', 'on', 'fight'];
 const posInt = (v) => Number.isInteger(v) && v >= 1;
 const cap = (id) => `${id[0].toUpperCase()}${id.slice(1).replace(/-/g, ' ')}`;
@@ -63,6 +67,7 @@ export function readFactions(spec) {
     if (!Array.isArray(turf) || turf.length !== 4 || turf.some((v) => !Number.isFinite(v) || v < 0 || v > 1) || !(turf[2] > turf[0]) || !(turf[3] > turf[1])) no(`${w}.turf is the part of the district that is its own: a side (${Object.keys(FACTIONS.turfs).join(', ')}) or [x0, y0, x1, y1] in fractions of the district, 0 to 1 (x east, y north)`);
     if (F.rivals !== undefined && (!Array.isArray(F.rivals) || F.rivals.some((r) => typeof r !== 'string' || r === id || !Object.hasOwn(spec, r)))) no(`${w}.rivals names other factions of this game (${Object.keys(spec).filter((k) => k !== id).join(', ') || 'none written'})`);
     if (F.says !== undefined && !(typeof F.says === 'string' && F.says.trim())) no(`${w}.says is what its contact says as the player joins, in words`);
+    if (F.crew !== undefined && (typeof F.crew !== 'string' || !WORD.test(F.crew))) no(`${w}.crew is who fights for it: an entry of the world's bestiary (foes), by its id`);
     // ITS BOARD: what it posts, each an ACT (a verb on a target: what is done, not what is carried)
     const board = [];
     if (F.board !== undefined) {
@@ -84,13 +89,15 @@ export function readFactions(spec) {
         board.push({ id: P.id, name: P.name?.trim() ?? cap(P.id), act: { verb: P.act.verb, ...(P.act.target ? { target: P.act.target } : {}), ...(P.act.on ? { on: P.act.on } : {}), ...(P.act.fight ? { fight: { crowd: P.act.fight === true ? FACTIONS.crowd[0] : P.act.fight.crowd } } : {}) }, reward: (P.reward ?? []).map((r) => ({ item: r.item, n: r.n ?? 1 })), standing: P.standing ?? FACTIONS.standing, rank: P.rank ?? 0, ...(P.says ? { says: P.says.trim() } : {}) });
       });
     }
-    out.push({ id, name: F.name?.trim() ?? cap(id), colour: F.colour.toLowerCase(), turf: turf.map(r4), rivals: (F.rivals ?? []).slice(), says: F.says?.trim() ?? FACTIONS.says, board });
+    out.push({ id, name: F.name?.trim() ?? cap(id), colour: F.colour.toLowerCase(), turf: turf.map(r4), rivals: (F.rivals ?? []).slice(), says: F.says?.trim() ?? FACTIONS.says, board, ...(F.crew ? { crew: F.crew } : {}) });
   }
   // (turf is one faction's: where two overlap, whose street it is cannot be said)
   for (let i = 0; i < out.length; i++) for (let j = i + 1; j < out.length; j++) {
     const a = out[i].turf, b = out[j].turf;
     if (Math.min(a[2], b[2]) - Math.max(a[0], b[0]) > 1e-6 && Math.min(a[3], b[3]) - Math.max(a[1], b[1]) > 1e-6) no(`: ${out[i].id} and ${out[j].id} claim the same ground: two factions' turf may not overlap`);
   }
+  // (a posting that is a fight is fought against someone: the faction it is done on, who must have a crew)
+  for (const F of out) for (const P of F.board) if (P.act.fight) { const T = out.find((o) => o.id === P.act.on); if (!T) no(`.${F.id}.board: '${P.id}' is a fight, so it is fought against someone: act.on names the faction`); if (!T.crew) no(`.${T.id}: '${P.id}' is a fight on ${T.name}'s turf, so ${T.name} needs a crew: an entry of the world's bestiary (foes) that fights for it`); }
   const posts = new Set();
   for (const F of out) for (const P of F.board) { if (posts.has(P.id)) no(`: '${P.id}' names two postings: one name, one posting, across every board`); posts.add(P.id); }
   return out;
@@ -114,4 +121,11 @@ export function turfZones(factions, box) {
 export function actLine(P, factions) {
   const where = P.act.on ? (factions ?? []).find((F) => F.id === P.act.on) : null, v = P.act.verb.replace(/-/g, ' ');
   return `${v[0].toUpperCase()}${v.slice(1)}${P.act.target ? ` a ${P.act.target.replace(/-/g, ' ')}` : ''}${where ? ` on ${where.name} turf` : ''}`;
+}
+
+/** The bestiary entries a world's factions fight with: the crew of every faction a fight posting is done on. */
+export function factionFoeIds(factions) {
+  const out = [];
+  for (const F of factions ?? []) for (const P of F.board) if (P.act.fight) { const T = (factions ?? []).find((o) => o.id === P.act.on); if (T?.crew && !out.includes(T.crew)) out.push(T.crew); }
+  return out;
 }

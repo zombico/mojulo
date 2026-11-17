@@ -231,8 +231,8 @@ describe('jobs across the district (errands on a played district: its shops thei
   });
   it('factions: each on its turf of the district, its contact at a shop there (joining is coming to them), its board\'s acts each with a zone; turf is on the map', async () => {
     const FACTIONS = { reds: { colour: '#c0392b', turf: 'north', rivals: ['dockers'], board: [{ id: 'torch', act: { verb: 'torch', target: 'car', on: 'dockers', fight: true }, reward: [{ item: 'coin', n: 50 }] }, { id: 'tag', act: { verb: 'tag' }, standing: 2, rank: 1 }] },
-      dockers: { name: 'The Dockers', colour: '#2e86c1', turf: 'south' } };
-    const sided = runSteps({ ...JOBS, id: 'jobs5', factions: FACTIONS }, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest, A = sided.game.mechanics;
+      dockers: { name: 'The Dockers', colour: '#2e86c1', turf: 'south', crew: 'thug' } };
+    const sided = runSteps({ ...JOBS, id: 'jobs5', factions: FACTIONS, foes: { thug: { class: 'pursuer', skin: { people: 'human' } } } }, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest, A = sided.game.mechanics;
     const joins = A.filter((m) => m.kind === 'join'), acts = A.filter((m) => m.kind === 'act');
     expect(joins.map((j) => [j.faction, j.name, j.others])).toEqual([['reds', 'Reds', ['dockers']], ['dockers', 'The Dockers', ['reds']]]);
     // (turf: the halves of the box the district's shops stand in; each contact at a shop on their own)
@@ -252,22 +252,21 @@ describe('jobs across the district (errands on a played district: its shops thei
     const map = cityMap({ box: [0, 0, 1000, 1000], shapes: [], places: [] }, sided);
     expect(map.shapes.filter((q) => q.kind === 'turf').map((q) => q.tint)).toEqual(['#c0392b', '#2e86c1']);
     expect(map.markers.map((m) => m.label)).toEqual(expect.arrayContaining(['Reds: join here', 'The Dockers: join here']));
-    // (THE ENCOUNTER: the posting that is a fight lays the brawl on the district's own street where its spot is: a belt
-    // along the fronts, the fronts on its far side; it waits for its posting taken and its place come to, and its end
-    // raises the act; the brawl's own readers take it)
-    const B = sided.brawl, spot = E.places.find((p) => p.at[0] === acts[0].at[0] && p.at[1] === acts[0].at[1]);
-    expect(B.encounter).toMatchObject({ id: 'torch', event: 'act:torch:torch', took: 'flag-took-torch', done: 'flag-done-torch' });
-    expect(B.street.waves).toEqual([{ screen: 0, crowd: [{ type: 'thug', n: 2 }, { type: 'knife', n: 1 }] }]);
-    const h = B.belt.heading * Math.PI / 180, far = [Math.cos(h + Math.PI / 2), Math.sin(h + Math.PI / 2)], nn = Math.hypot(spot.N[0], spot.N[1]);
-    expect(far[0]).toBeCloseTo(-spot.N[0] / nn, 3); expect(far[1]).toBeCloseTo(-spot.N[1] / nn, 3);
-    expect(Math.hypot(B.encounter.at[0] - spot.at[0], B.encounter.at[1] - spot.at[1])).toBeCloseTo(4.5, 2);
-    expect(B.belt.floor).toBe(acts[0].at[2]);
-    // (an act's place is clear of everyone who stands: a rival's contact is not walked into on the way to it)
-    for (const g of sided.entities.filter((e) => /^giver-/.test(e.id))) expect(d(g.transform.pos, acts[0].at)).toBeGreaterThan(30);
-    const { brawlYardData } = await import('../brawl/brawl-page.js');
-    const D = brawlYardData(B);
-    expect(D.encounter.id).toBe('torch'); expect(D.players).toEqual([0]);
-    expect(M.brawl).toBeUndefined(); expect(level.brawl).toBeUndefined();
+    // (THE ENCOUNTER, in free roam: the posting that is a fight stands the rival's crew asleep out on the street before
+    // its place, in a row; its mechanic wakes them as the hero comes with the posting taken, counts their falls, and the
+    // last fall is the act done; the hero is hittable, and going down puts them away and the hero back at its contact)
+    const spot = E.places.find((p) => p.at[0] === acts[0].at[0] && p.at[1] === acts[0].at[1]), crew = sided.entities.filter((e) => /^foe-thug-torch-/.test(e.id));
+    expect(crew.map((e) => e.id)).toEqual(['foe-thug-torch-1', 'foe-thug-torch-2', 'foe-thug-torch-3']);
+    for (const e of crew) { expect(e.dormant).toBe(true); expect(d(e.transform.pos, spot.at)).toBeLessThan(8); }
+    expect(acts[0].fight).toMatchObject({ foes: crew.map((e) => e.id), radius: 10, back: joins[0].at });
+    expect(d(acts[0].fight.at, spot.at)).toBeCloseTo(4.5, 2);
+    expect(sided.entities.find((e) => e.pilotable).body.hittable).toBe(true);
+    const { lowerAct } = await import('../game/errand-mechanics.js');
+    const W = lowerAct(acts[0], { i: 0, player: 'hero', resolve() {} }).world;
+    expect(W.reactions.filter((r) => r.do === 'ctrl' && r.op === 'spawn').map((r) => r.who)).toEqual(crew.map((e) => e.id));
+    expect(W.watches).toContainEqual({ type: 'act:torch:torch', when: { var: 'fight-fell-torch', gte: 3 } });
+    expect(W.reactions).toContainEqual({ on: 'encounter:lost:torch', do: 'move', target: 'hero', to: joins[0].at });
+    expect(acts[1].fight).toBeUndefined();
     // (a game with no factions has none of it)
     expect(M.some((m) => m.kind === 'join' || m.kind === 'act')).toBe(false);
   });

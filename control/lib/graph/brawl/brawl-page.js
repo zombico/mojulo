@@ -139,8 +139,6 @@ export function brawlYardData(block, bodies = null) {
     return { ...rest, recipe: roster[k].recipe, roster: k };
   });
   return {
-    // (AN ENCOUNTER, a fight inside free roam: the street waits for it; brawl-yard.client.js)
-    ...(block.encounter ? { encounter: block.encounter } : {}),
     belt: block.belt, register: block.register ?? null, ...(block.armed ? { armed: true } : {}), ...(block.sun ? { sun: block.sun } : {}),
     roster, players, dummies,
     things: P.things ?? [], health: P.health ?? 'chains',

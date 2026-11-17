@@ -874,6 +874,7 @@ export function readGameworld(W) {
   const errands = readErrands(W.errands, { levels, ids, links, start, topology: W.topology, foes });
   // the factions (factions.js): the sides of an open city, each its turf, its contact and its board; a posting's name is no errand's
   const factions = readFactions(W.factions);
+  for (const F of factions ?? []) if (F.crew && !(foes && Object.hasOwn(foes, F.crew))) throw new Error(`gameworld.factions.${F.id}.crew: '${F.crew}' is not in the world's bestiary (foes: ${foes ? Object.keys(foes).join(', ') : 'none written'})`);
   for (const F of factions ?? []) for (const P of F.board) if ((errands ?? []).some((E) => E.id === P.id)) throw new Error(`gameworld.factions.${F.id}.board: '${P.id}' is an errand's name: a posting has its own`);
   // the character book, the equipment and the mechanics: read here, so a world says what is wrong with them at once; kept only when present
   const characters = W.characters === undefined || W.characters === null ? null : readCharacters(W.characters);
