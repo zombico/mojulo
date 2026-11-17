@@ -33,6 +33,9 @@
  *                                                                is held, read and set and the body's health
  *     arrivals?: { <door id>: { at, heading? } }                 where a body that came in by that door stands
  *     leave?: [item ids]                                         (a page with no result: what the mission's result asks for)
+ *     hints?: [{ at: [x, y, z?], radius?: 3.5, says }]           a thing the player is told where it stands: state.ms.hint is
+ *                                                                the one the body is in (its index), or null. Height is not read
+ *                                                                where a hint gives none
  *   state.msCarry   { held?, read?, flags?, hp?, door? }: what came in from another segment's page, taken at the next step
  *   }
  *   input.act      an edge: reads a clue, or rides a way, where the body stands on one (else whatever the action is)
@@ -104,6 +107,9 @@ export function buildMission(E) {
     const q = p.transform.pos, edge = !!input.act && !S.prev; S.prev = !!input.act;
     // what is found
     for (const it of M.items || []) if (!S.held[it.id] && near(q, it.at, it.radius || 1.1)) { S.held[it.id] = true; say('Found: ' + (it.name || it.id)); }
+    // (the hint the body stands in: the nearest whose round it is inside)
+    S.hint = null;
+    if (M.hints) { let best = Infinity; for (let k = 0; k < M.hints.length; k++) { const h = M.hints[k], d = Math.hypot(q[0] - h.at[0], q[1] - h.at[1]); if (d <= (h.radius || 3.5) && d < best && (h.at[2] == null || Math.abs(q[2] - h.at[2]) < 2.5)) { best = d; S.hint = k; } } }
     // what is in reach of the action: a clue not yet read, or a way
     S.near = null; S.locked = null;
     let used = false;

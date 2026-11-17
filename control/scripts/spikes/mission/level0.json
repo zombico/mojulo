@@ -1,0 +1,256 @@
+{
+  "id": "level-0",
+  "name": "The approach",
+  "brief": "The jungle below the base. No buildings: land, a trail, what grows on it, and what a patrol has parked across it. The controls are taught on the way, and two places ask for a sneak.",
+  "template": "This file is a starter, not the game. Everything in it is a word to change: where cover stands, how each watcher walks and looks, what each hint says, where the two points begin and end. `plan.mjs`-style laws (level0.mjs --plan) say what a change did: whether the first try is still seen, whether a way unseen is left, what it costs.",
+  "section": "insertion",
+  "cube": "jungle-haze",
+  "hour": 17,
+  "cover": [
+    {
+      "id": "truck-west",
+      "vehicle": "cargo-truck",
+      "at": [
+        -3.7,
+        30
+      ],
+      "heading": 0
+    },
+    {
+      "id": "carrier",
+      "vehicle": "apc",
+      "at": [
+        5.9,
+        30
+      ],
+      "heading": 0
+    },
+    {
+      "id": "truck-mid",
+      "vehicle": "cargo-truck",
+      "at": [
+        13.6,
+        30
+      ],
+      "heading": 0
+    },
+    {
+      "id": "truck-east",
+      "vehicle": "cargo-truck",
+      "at": [
+        26.0,
+        30
+      ],
+      "heading": 0
+    },
+    {
+      "id": "camp-carrier",
+      "vehicle": "apc",
+      "at": [
+        9,
+        54
+      ],
+      "heading": 90
+    },
+    {
+      "id": "camp-jeep",
+      "vehicle": "jeep",
+      "at": [
+        12.5,
+        60
+      ],
+      "heading": 0
+    },
+    {
+      "id": "camp-crates",
+      "box": [
+        1.2,
+        2.4,
+        1.0
+      ],
+      "at": [
+        13.4,
+        51.4
+      ]
+    },
+    {
+      "id": "log-south",
+      "box": [
+        0.6,
+        8,
+        0.55
+      ],
+      "at": [
+        26.3,
+        50
+      ]
+    },
+    {
+      "id": "log-north",
+      "box": [
+        0.6,
+        8,
+        0.55
+      ],
+      "at": [
+        26.3,
+        58
+      ]
+    }
+  ],
+  "watchers": [
+    {
+      "id": "gate-patrol",
+      "kind": "patrol",
+      "at": [
+        19.8,
+        25
+      ],
+      "to": [
+        19.8,
+        38
+      ],
+      "reads": "walks through the gap in the convoy and back"
+    },
+    {
+      "id": "line-patrol",
+      "kind": "patrol",
+      "at": [
+        16,
+        26.5
+      ],
+      "to": [
+        3,
+        26.5
+      ],
+      "reads": "walks the front of the convoy"
+    },
+    {
+      "id": "lookout",
+      "kind": "post",
+      "at": [
+        17.5,
+        56
+      ],
+      "facing": [
+        26,
+        50
+      ],
+      "cone": 0.85,
+      "range": 14,
+      "reads": "stands at the camp's edge and watches the trail come up and the open ground east of it"
+    },
+    {
+      "id": "camp-guard",
+      "kind": "post",
+      "at": [
+        6.3,
+        56
+      ],
+      "facing": [
+        -8,
+        56
+      ],
+      "reads": "stands behind the carrier and watches the camp's back, up the slope"
+    },
+    {
+      "id": "trail-patrol",
+      "kind": "patrol",
+      "at": [
+        21,
+        47
+      ],
+      "to": [
+        17.5,
+        63
+      ],
+      "reads": "walks the trail past the camp"
+    }
+  ],
+  "points": [
+    {
+      "id": "chokepoint",
+      "reads": "a convoy parked across the land: one gap on the trail, walked by a patrol, and a slot at its far end",
+      "from": [
+        20.7,
+        16
+      ],
+      "to": [
+        19,
+        40
+      ],
+      "window": [
+        10,
+        44
+      ]
+    },
+    {
+      "id": "outpost",
+      "reads": "a camp beside the trail: a lookout on the trail, a guard on its back, a patrol past it",
+      "from": [
+        19,
+        41
+      ],
+      "to": [
+        18.6,
+        68
+      ],
+      "window": [
+        38,
+        72
+      ]
+    }
+  ],
+  "hints": [
+    {
+      "at": [
+        20.7,
+        5.5
+      ],
+      "says": "W A S D to run. The mouse looks."
+    },
+    {
+      "at": [
+        22,
+        11
+      ],
+      "says": "C crouches. Hold C to lie down, and hold it again to stand. Low, you are harder to see, and you make no sound."
+    },
+    {
+      "at": [
+        23,
+        17
+      ],
+      "says": "The fan on the ground is what a guard sees. Cover lower than you hides you only when you are lower than it."
+    },
+    {
+      "at": [
+        21,
+        21
+      ],
+      "says": "A run is heard from close by. A patrol walks a round: wait for its back."
+    },
+    {
+      "at": [
+        19,
+        41
+      ],
+      "says": "E behind a guard who has not seen you takes it down. Hold the right mouse to aim; a shot is heard a long way off."
+    },
+    {
+      "at": [
+        20,
+        45.5
+      ],
+      "says": "An outpost. The trail is watched. There is more than one way past, and the slow ones are the safe ones."
+    }
+  ],
+  "start": [
+    20.7,
+    4.2
+  ],
+  "exit": [
+    18.6,
+    71
+  ]
+}

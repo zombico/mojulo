@@ -210,3 +210,23 @@ or a recipe key; the spike mints through the real doors and measures.
   ends (mission-view.js on channels/shoot.js `cue` and `look`). Level 1's lift down is three framings on one camera,
   cut hard: the deck coming down seen from the lower hall's floor, the hall over the operative's shoulder as the
   walker rises into it, and the walker low and wide on a push.
+- **Stealth routes, found by search** (gameworld/stealth-routes.js): the ways through a watched place, so a sneak's
+  level is proved to have them. A grid over the ground, a metre a cell; a watcher sees as the runtime's minds do (a
+  cone, a range, a line from eye to eye that is in height too, so low cover hides a body only as low as it); a run is
+  heard from close by; a patrol's round is known second by second. For a start and a goal it says the way anyone
+  tries first and where it is seen, the fastest way never seen or heard (its waits, its crouch and crawl, its detour),
+  and a second way apart from the first; and it holds the place to four laws (the first try is seen, a way unseen, it
+  costs patience or a detour, a second way). Advice, never a refusal. Coarse on purpose: flat ground, the round from
+  the first second.
+- **Level 0, the approach** (`scripts/spikes/mission/level0.json`, `level0-plan.mjs`, `level0.mjs`): the starter's first
+  segment, on the geocube's land with nothing built on it. The controls are told where they are first needed
+  (mission.js `hints`). Two places ask for a sneak: a convoy parked across the land with one gap on the trail and a
+  slot at its far end, a patrol through the gap and one along its front; and a camp beside the trail with a lookout
+  on the trail and the open ground, a guard on its back and a patrol past it. Its cover is the registry's parked
+  vehicles, two logs and a stack of crates, and the land's own shrubs. The planner says each place's first try is
+  seen and each has two ways unseen: through the convoy's gap along the shrubs behind the patrol or round by the far
+  slot; through the camp behind the lookout or a crawl behind the logs. Its trail's end is the door to the yard.
+- **The starter says it is a template** (`scripts/spikes/mission/README.md`): what the three segments are, the word
+  that changes each thing a person will ask to change, and the rule that a change is tried on the planner before a
+  page is built. `lib.mjs` holds what every segment's builder does the same way (the land's height under a point
+  among them, so what is parked and laid stands on the ground as it was laid).

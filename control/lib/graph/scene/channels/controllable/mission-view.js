@@ -4,7 +4,7 @@
 //   things   each item a small turning marker until it is found; each clue a ring on the floor until it is read; each
 //            way's two ends a plate on the floor (a lift's deck, a stairwell's threshold); each barrier a slab across its
 //            passage until it opens
-//   words    the objective the mission stands at (top left); what the action would do where the body stands, or what it
+//   words    a hint, where the body stands in one; the objective the mission stands at (top left); what the action would do where the body stands, or what it
 //            still needs (bottom middle); the last thing found, read or opened, for a few seconds; the result
 //   a door   an exit's plate; taken, the screen closes and the page goes to the other segment's, what is held, read
 //            and set and the body's health carried in the address (#ms=…), read back there as it loads
@@ -21,6 +21,8 @@ const __MS = { things: {}, t: 0, gone: false, shot: null };
 const __msEl = (css) => { const d = document.createElement('div'); d.style.cssText = 'position:fixed;z-index:8;pointer-events:none;font:600 14px/1.35 ui-monospace,monospace;color:#e8ecef;text-shadow:0 1px 0 rgba(0,0,0,.7);' + css; document.body.appendChild(d); return d; };
 const __msObj = __msEl('left:18px;top:16px;max-width:44vw;padding:8px 12px;background:rgba(12,16,20,.62);border-left:3px solid #e0b040');
 const __msAct = __msEl('left:50%;bottom:19%;transform:translateX(-50%);padding:6px 12px;background:rgba(12,16,20,.62);display:none');
+// (a hint: what the player is told where it stands, low on the screen, plain)
+const __msHint = __msEl('left:50%;bottom:27%;transform:translateX(-50%);max-width:min(640px,80vw);padding:10px 16px;background:rgba(12,16,20,.72);border-left:3px solid #6fd6ff;font-size:15px;display:none');
 const __msSay = __msEl('left:50%;top:24%;transform:translateX(-50%);font-size:17px;letter-spacing:.06em;display:none');
 const __msFade = __msEl('inset:0;background:#05070a;opacity:0;z-index:7');
 // (a shot's bars: the frame closed top and bottom while the plan's camera has the view)
@@ -50,6 +52,7 @@ function __msThing(id, make) { let m = __MS.things[id]; if (!m) { m = __MS.thing
     else if (w) act = S.locked ? (w.name || w.id) + ' · locked: needs ' + S.locked.map((n) => { const it = (M.items || []).find((x) => x.id === n); return it ? (it.name || n) : 'to know where it goes'; }).join(', ') : 'E  ' + ((w.kind || 'lift') !== 'lift' ? 'take the stairs' : w.deck && S.decks && (S.decks[w.id] || w.at || 'a') !== (Math.abs(p.transform.pos[2] - w.a[2]) < Math.abs(p.transform.pos[2] - w.b[2]) ? 'a' : 'b') ? 'call the lift' : 'ride the lift');
   }
   __msAct.textContent = act; __msAct.style.display = act ? 'block' : 'none';
+  { const h = S && S.hint != null && !S.ride && M.hints ? M.hints[S.hint] : null; __msHint.textContent = h ? h.says : ''; __msHint.style.display = h ? 'block' : 'none'; }
   const said = S && S.said && now - S.said.t < 4 ? S.said.text : '';
   __msSay.textContent = said; __msSay.style.display = said ? 'block' : 'none';
   const R = S && S.ride, u = R ? R.t / R.secs : 0;

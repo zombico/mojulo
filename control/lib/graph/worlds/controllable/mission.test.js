@@ -96,6 +96,15 @@ describe('a mission in one level', () => {
     expect(w.byId.deck.transform.pos[2] + 0.15).toBeCloseTo(10, 2);
     expect(w.ms.decks.lift).toBe('a');
   });
+  it('a hint is said where the body stands in its round, the nearest of two, and not outside them', () => {
+    const w = E.createWorld({ entities: [{ id: 'p', pilotable: true, rule: { type: 'platform', speed: 5, eye: 0, mission: { hints: [{ at: [0, 0], says: 'run' }, { at: [5, 0], says: 'crouch' }], objectives: [] } }, body: { type: 'none' }, transform: { pos: [0, 0, 0], heading: 0 } }] });
+    run(w, {}, 2);
+    expect(w.ms.hint).toBe(0);
+    put(w, [3.4, 0, 0]);
+    expect(w.ms.hint).toBe(1);
+    put(w, [20, 0, 0]);
+    expect(w.ms.hint).toBeNull();
+  });
   it('a rule with no mission is as it was', () => {
     const w = E.createWorld({ entities: [{ id: 'p', pilotable: true, rule: { type: 'platform', speed: 5, eye: 0 }, body: { type: 'none' }, transform: { pos: [0, 0, 0], heading: 0 } }] });
     run(w, { act: 1 }, 3);

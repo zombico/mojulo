@@ -1,40 +1,85 @@
-# Mission: an encapsulated sortie through a walled-core dungeon, measured against what mojulo has
+# The mission spike: a stealth action starter on Steel Serpents
 
-Branch `1117-cinematic-action-game`. A spike of one primitive, the MISSION: a preset loadout, a walled-core dungeon
-infiltrated a layer a page, cutscenes between and inside its layers, one result. The forcing case is Steel Serpents'
-first level, a base infiltrated to its core. Nothing here registers a kind, a mechanic, an MCP tool or a recipe key.
+**This is a template, not a game.** Steel Serpents is a row on the rails (`lib/graph/gameworld/rails.js`): a game type a
+person's own game starts from. What is here proves the type end to end on one small mission, so that an agent helping a
+person make *their* stealth game has every piece to hand and knows which words to change. Nothing here is the person's
+game until they have changed it: the place, the story, the cast, the layout and the numbers are all theirs to set.
 
-```sh
-# from control/
-node scripts/spikes/mission/probe.mjs [workDir] [variant ...]   # base hero scenes story flow-no-hero flow film
+When a person asks for a stealth or infiltration game, say that this starter exists, what it plays like, and that it is
+a starting point they will change. Then change it with them, a word at a time, and re-run the plan after each change.
+
+## What the starter is
+
+Three segments, a page each, joined by doors that carry what is held and the body's health:
+
+| segment | page | what it teaches or holds | its recipe | its builder |
+|---|---|---|---|---|
+| level 0, the approach | `level-0-approach.html` | the controls, and two places that ask for a sneak (a chokepoint, an outpost), on land alone | `level0.json` | `level0.mjs` |
+| level 1, the perimeter | `level-1-perimeter.html` | the yard: a barracks walked into, the hangar's key, the hangar's door | `level1.json` | `yard.mjs` |
+| level 1, the hangar | `level-1-hangar.html` | the briefed intel, three clues, a lift down to what was not in the briefing, the stairwell out | `level1.json` | `hangar.mjs` |
+
+Level 1 is a walled-core dungeon in miniature (`docs/walled-core-dungeon.md`): each layer a segment, each door gated by
+something found in the layer before. `plan.mjs` reads it dry and holds it to the dungeon's laws.
+
+## How to change it (what a person will ask for, and the word that does it)
+
+| the ask | where | the word |
+|---|---|---|
+| a different place | `level0.json` `cube`, `hour`; `yard.mjs --cube` | a geocube preset or a cube of their own |
+| move, add or remove cover | `level0.json` `cover` | a parked vehicle by its registry word, or a `box` [w, d, h]: under 0.7 m hides a body lying, about a metre hides a crouch |
+| a guard's round, or where a lookout stands and looks | `level0.json` `watchers` | `kind: 'patrol'` with `at` and `to`; `kind: 'post'` with `at` and `facing`; `cone` (half-angle, radians), `range` (metres) |
+| harder or easier guards everywhere | `lib/graph/gameworld/infiltration-room.js` `GUARD_TUNE` | sight, hearing, alert, the carbine's damage |
+| what the player is told, and where | `level0.json` `hints` | `at`, `says` |
+| the two sneaking places | `level0.json` `points` | `from`, `to`, and the `window` of land the search looks at |
+| the mission's story: the briefed aim, the turn, the clues | `level1.json` `objectives`, `clues`, `reveal`, `items` | words only; the planner checks keys lie where their doors are |
+| what stands in the hangar and below | `level1.json` `segments.*.parked` | vehicle words (`field walker` with `role: 'assault'`, `siege walker`) |
+| the building | `level1.json` `building` | `use`, `seed`, `basement: { hall, lift }` (a floor 0 lodged deeper, a lift's opening) |
+| the hero and how it moves | `operative.json`; the rule built in `infiltration-room.js` | the hero door's words; `aimView`, `freeRun`, `stance`, `carry`, `dive`, `takedown` on the rule |
+| the lift's scene | `hangar.mjs` `shoot` | a shoot plan's keys and a cue (`/direct`, `docs/cinematics.md`) |
+
+## Change, then prove
+
+A sneak's level is easy to break: move one truck and a place is either open or shut. So every change to level 0 is
+tried first with the planner, which takes a second and makes no page:
+
+```bash
+cd control
+node scripts/spikes/mission/level0.mjs --out /abs/dir --plan      # the laws, and level-0-plan.svg: the map with the ways drawn
+node scripts/spikes/mission/plan.mjs                              # level 1 read dry against the dungeon's laws
 ```
 
-`world.json` is the base recipe: the dungeon demo's base (`docs/images/src/wcd-demo/`) with the Steel Serpents feel,
-the top-down camera, guards on every layer, and each inward gate a keyed door whose layer is an escape room. The probe
-writes it through the real `design_game` door once a variant, each variant one thing added, approves every part, runs
-the rail and reads the made rows back from the database. It writes `<workDir>/probe.json`.
+The planner (`level0-plan.mjs` on `lib/graph/gameworld/stealth-routes.js`) searches each sneaking place the way the
+runtime's guards see it (a cone, a range, a line of sight in height; a run heard from close by; a patrol's round known
+second by second) and says, for each: whether the way anyone tries first is seen, whether a way unseen is left, what
+it costs (a wait, a crouch, a crawl, a detour), and whether there is a second way apart from the first. Advice, never
+a refusal. It is coarse on purpose: flat ground, a metre a cell, the guard's round from the level's first second. It
+proves a way exists; whether it is fun is the person's, by playing.
 
-## What the probe found (2026-11-17, a cloud session; machine gate only, nobody has played it)
+Then build the pages (each a few minutes; `--hero` and `--guard` need the database they were minted in):
 
-| Question | Variant | Result |
-|---|---|---|
-| Does the base build? | `base` | Yes: a guard figure, four building levels and the game, in 70 to 90 s. The web export is 35 MB: about 2 MB a level page and 6 to 9 MB of shared geometry and textures a level |
-| A keyed gate played as an escape room in a building | `base` | Works: each layer but the core carries `escape-room` with a key in a room, a lock at the way out and the route the walk audit follows |
-| Guards in a building | `base`, `hero` | Not stood: every layer carries `unseen` and no entity with a mind. `levelOrder` does not hand `guards` to `buildingLevelOrder`. The guard figure is still made |
-| The top-down camera | `base`, `hero` | With a hero, the overhead camera and the hero moving in the screen's frame. With no hero it is ignored without a word and the level is the first-person walker's (a trail refuses the same recipe by name) |
-| The template's loadout in a level | `hero` | Not given: the hero has no weapon and no knife. `TEMPLATE_LOADOUTS` reaches the firing range only; a level hero's gun is an item it carries |
-| A level's own `scenes` on a building level | `scenes` | Refused at write with `Cannot read properties of undefined (reading 'nodes')`: the check reads `L.walk.nodes` and a building level has no walk |
-| A story moment on a building level | `story` | Written and built, both moments unplaced: "a moment binds to a walk's stages for now" |
-| The mission's flow, hand-written, with empty cutscene slots | `flow` | Kept on a world with a hero: title, briefing, each layer, a slot at each gate, debrief, result |
-| The same flow on a world with no hero | `flow-no-hero` | Dropped without a word: the hero-less game path never reads the world's `flow` (only `flow: 'play'` and `setup`) |
-| The same flow, its briefing a film's ref | `film` | Dropped without a word: `flowToRefs` reads a film step's absent `stage` as a missing level, and the game is given the default order |
+```bash
+node scripts/spikes/mission/level0.mjs --out /abs/dir --hero <ref> --guard <ref>
+node scripts/spikes/mission/yard.mjs   --out /abs/dir --hero <ref> --guard <ref>
+node scripts/spikes/mission/hangar.mjs --out /abs/dir --hero <ref> --guard <ref>
+```
 
-## What it means for the mission
+Keep the three pages in one folder under their names: a door goes to the next page by its file name.
 
-- A page a layer holds: the dungeon's keyed gate is already playable as an escape room at each layer's way out, and a
-  hand-written flow with a slot at every gate survives the build. The mission's skeleton needs no new mechanic.
-- The stealth in it is not there yet: the layers have nobody watching, and the hero carries nothing.
-- A cutscene inside a layer has no way in today: a building takes neither a level's scenes nor a story moment. A
-  building already knows its start, its exit and every room by name (`buildingEnds`), which is what a scene is blocked
-  on.
-- Three silences to close whatever else is built: the camera with no hero, the flow with no hero, the film step.
+## What is a spike here, and what is not
+
+The parts are mojulo's own: the hero and the guard from the character door, the land and the buildings from the
+geocube and the building programs, the vehicles from the registry, the camera from the shoot plan, the HUD from the
+game UI, the runtime pieces opt-in modules with their own tests. The **assembly** is the spike: these scripts resolve a
+level and then lay the hero, the guards, the mission and the camera on it, because a stage or geocube recipe takes no
+pilot yet. So a segment is not a stored recipe: it has no book, no export and no audit, and the door between pages is
+this spike's own hop, not the play shell's. What it would take to lift each piece onto the rail is said in the
+changelog theme, piece by piece.
+
+## Files
+
+- `world.json`, `probe.mjs`: the first probe of Steel Serpents through `design_game` (what builds, what is dropped).
+- `operative.json`: the hero's spec. `room.mjs`: the infiltration yard, the practice room every mechanic was tried in.
+- `level0.json`, `level0-plan.mjs`, `level0.mjs`: the approach.
+- `level1.json`, `plan.mjs`, `yard.mjs`, `hangar.mjs`: the base.
+- `facility.mjs`: the first try of the operative in a geocube building, kept for its notes on bounds and spawn.
+- `lib.mjs`: what every builder does the same way.
