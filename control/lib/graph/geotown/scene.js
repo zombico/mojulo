@@ -158,7 +158,7 @@ function breaks(lo, hi, extra, step) {
 }
 
 /** The town's colours, leant to the cube's: its paving and its lawns. */
-function coloursOf(cube) {
+export function coloursOf(cube) {
   const C = cube.colour;
   return {
     road: mix('#4d5055', C.floor, 0.15), walk: mix('#c8c2b4', C.stone, 0.3), kerb: mix('#b3ad9f', C.stone, 0.3), path: mix('#b7a68c', C.floor, 0.35),

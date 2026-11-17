@@ -948,7 +948,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const dress = town ? { ...DRESS_DEFAULT, rubble: 0, dust: 0, clay: 0, patches: [] } : { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
     // (the biocube's words the form render reads: the rock's moss, `flora.moss`; the grass's length, `flora.grass.sward`;
     // its drifts, `flora.grass.drifts` and `flora.flowers`; the recipe's biocube or else the cube's, none without)
-    // (a town's lawns are mown: the short sward, no meadow's drifts)
+    // (a town's lawns are mown: the short sward, no meadow's drifts; and kept: bare only in a few worn places, their fields'
+    // dice even, form/land-read.js LAWN)
     const cube = readGeocube(M.cube), bio = M.biocube ?? cube.biocube, F = bio ? readBiocube(bio).flora : null, moss = town ? 0 : F?.moss ?? 0, sward = town ? 'short' : F?.grass?.sward;
     const drifts = town ? [] : readDrifts({ drifts: F?.grass?.drifts, flowers: F?.grass ? F.flowers : null });
     // (a raised view's ground claimed, form/flora-read.js viewHeld: no crown over an overlook's eye in what it looks over)
@@ -959,7 +960,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const S0 = payload.snowMap ? readSnow(cube.snow) : null, winter = !!S0 && (S0.line === undefined || S0.line === null);
     // (a map carries no camera of its own: the land is read framed from the south over its middle, raised, as an island's)
     const mapCam = formMap && !(payload.cameras ?? []).length && payload.map ? (() => { const W = payload.map.cols * payload.map.tile, H = payload.map.rows * payload.map.tile; return [{ name: 'island', worldFraming: { cameraPosition: [W / 2, -H * 1.15, H * 0.55], lookAt: [W / 2, -H / 2, 0], horizontalFov: 60, pictureCenter: [560, 390] } }]; })() : null;
-    const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter || (F?.marine && !F.grass) ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
+    const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(town ? { lawn: {} } : {}), ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter || (F?.marine && !F.grass) ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
     if (read) formCast = { cube, ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}) };
     // (a map's far range, level/far-range.js, stands hundreds of metres out: its own haze, the page's fog thinned over it
