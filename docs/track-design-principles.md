@@ -33,7 +33,11 @@ the operator's to say on the page.
    tube for a rail. Smooth polygons, never cubes.
 8. **The sky is the track's.** Its day, its sun, and clouds built as the track is. Never an empty grey.
 9. **The land in the track's shapes.** Trees take the land's own greens and the language's forms.
-10. **One primitive, two tunings.** A realistic circuit answers the same questions soberly: the look's own asphalt and
+10. **The trackside is the track's too.** The arch, the braking boards, the castle and the bumpers are made in the
+    same family and the same shapes: a stand-in block for each set piece (`pieces.blocks`, taking the piece's own
+    params so it is sized in its slot the same way) and every surface group painted in the family's materials
+    (`pieces.paint`). A hoop on two balls for an arch, a lollipop for a braking board, balls for battlements.
+11. **One primitive, two tunings.** A realistic circuit answers the same questions soberly: the look's own asphalt and
     paint, one steel for the guardrail and its posts. A principle is a question, and candy is one answer to it.
 
 ## A card
@@ -51,6 +55,7 @@ the operator's to say on the page.
     verge:   { mown: { every, lift } },
     bunting: { min, every, h, sag, flags, drop, pole, materials: [...] },
     tree:    { profile: 'lollipop', blossom: { share, materials: [...] } },
+    pieces:  { blocks: { <set piece>: <its stand-in> }, paint: { <surface group>: <material> } },
   },
   sky: { zenith: [r, g, b], horizon: [r, g, b], sun: { u, h }, puffs: { count, hex, alt: [lo, hi], size: [lo, hi] } } }
 ```
@@ -75,6 +80,7 @@ A piece is judged as it is seen coming down the way from behind the kart, not fr
 
 ## Not yet
 
-The trackside pieces (the arch, the tower, the braking boards) are not built from the language. The flanks between
+The rock formations in the land (the arches, the buttes) and the stadium bowl a kart venue may stand in are not yet in
+the language. The flanks between
 the rail and the land are not laid in slices. The light is baked: the page does not yet light the track as it lights
 the kart.

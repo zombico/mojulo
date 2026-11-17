@@ -51,7 +51,7 @@ export function planScapedTrack(m = {}) {
   if (!m.scape) return plan;
   const opts = m.scape === true ? {} : m.scape;
   const set = opts.set ?? SET_OF_CLASS[plan.course.class] ?? 'gt', seed = Number.isInteger(opts.seed) ? opts.seed : Number.isInteger(m.seed) ? m.seed : 1;
-  const K = trackKit(m.kit ?? 'isekai-meadow'), X = plan.X, a = plan.alignment, L = a.length;
+  const K = trackKit(m.kit ?? 'isekai-meadow'), X = plan.X, a = plan.alignment, L = a.length, lang = plan.language?.card ?? null;
   // a stadium round the track (`venue`, stadium/stadium.js trackVenue): the bowl is the dressing, so no arena, no
   // surrounds and no set pieces unless the words ask for them
   if (opts.venue) return venueTrack(plan, opts, K);
@@ -75,8 +75,12 @@ export function planScapedTrack(m = {}) {
     if (z) { absorbed.push({ beat: slot.beat, zone: z.id }); continue; }
     const { c } = offOf(slot.at[0], slot.at[1]), across = slot.beat === 'span' || slot.beat === 'gantry';
     const k = (nth[slot.beat] = (nth[slot.beat] ?? -1) + 1);
-    let p = pieceFor(slot.landmark && opts.landmark ? { ...slot, beat: 'landmark' } : slot, set, { nth: k, toward: [c.x, c.y], heading: across ? slot.heading ?? c.heading : c.heading, ...(slot.landmark && opts.landmark ? { block: opts.landmark } : {}) });
+    const pick = { nth: k, toward: [c.x, c.y], heading: across ? slot.heading ?? c.heading : c.heading };
+    let p = pieceFor(slot.landmark && opts.landmark ? { ...slot, beat: 'landmark' } : slot, set, { ...pick, ...(slot.landmark && opts.landmark ? { block: opts.landmark } : {}) });
     if (!p) continue;
+    // the language's stand-in for this piece (track-language.js `pieces.blocks`), sized in the slot the same way
+    const swap = lang?.parts?.pieces?.blocks?.[p.block];
+    if (swap) p = pieceFor(slot.landmark && opts.landmark ? { ...slot, beat: 'landmark' } : slot, set, { ...pick, block: swap });
     let built = buildPiece(p, { seed: seed + k });
     // off the road: the footprint's nearest corner to the line past the barrier (a span's ends, past it both sides)
     if (!across) {
@@ -94,7 +98,7 @@ export function planScapedTrack(m = {}) {
     const { lo, hi } = built.box, under = Math.min(...[[lo[0], lo[1]], [hi[0], lo[1]], [hi[0], hi[1]], [lo[0], hi[1]], [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2]].map(([x, y]) => plan.groundAt(x, y)));
     const dz = under - 0.15 - p.at[2];
     const placed = built.faces.map((f) => ({ ...f, corners: f.corners.map((q) => [q[0], q[1], r3(q[2] + dz)]) }));
-    faces.push(...paintPiece(placed, K));
+    faces.push(...paintPiece(placed, K, { language: lang }));
     const box = { lo: [lo[0], lo[1], lo[2] + dz], hi: [hi[0], hi[1], hi[2] + dz] };
     pieces.push({ ...p, beat: slot.beat, box: { lo: box.lo.map(r3), hi: box.hi.map(r3) }, interest: INTEREST[slot.beat] ?? 'prop', ...(slot.landmark ? { landmark: true } : {}), ...(slot.corner !== undefined ? { corner: slot.corner } : {}) });
     // colliders: a span's legs (its two ends), else the whole footprint where a car can reach it

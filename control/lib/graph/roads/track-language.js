@@ -15,6 +15,9 @@
  *                    straight of `min` metres or more, down ONE side (the side by turns, straight to straight)
  *             tree   { profile: 'lollipop', blossom?: { share, materials } }: the land's trees built as the track is
  *                    (a stout trunk, a crown of balls set off-centre), a share of them in blossom
+ *             pieces { blocks?: { <set piece>: <its stand-in> }, paint?: { <surface group>: <material> } }: the
+ *                    trackside pieces (set-pieces.js) made as the track is: a block stood in for another (with the
+ *                    same params, sized in its slot alike), and every surface group in the family's materials
  *             verge  { mown: { every, lift } }: the run-off mown in stripes across the way (the look's own grass, a
  *                    stripe lighter by `lift`), so the sides are seen to move too
  *             edge   { profile: 'bead', w, h, material } | { from: 'kit' } (a painted line)
@@ -69,6 +72,10 @@ export const TRACK_LANGUAGES = Object.freeze({
       verge: { mown: { every: 4, lift: 1.1 } },
       bunting: { min: 34, every: 16, h: 4.6, sag: 0.9, flags: 9, drop: 0.85, pole: { r: 0.11, material: 'cream', cap: { r: 0.26, material: 'lemon' } }, materials: ['berry', 'lemon', 'sky', 'cream'] },
       tree: { profile: 'lollipop', blossom: { share: 0.16, materials: ['berry', 'lemon'] } },
+      pieces: {
+        blocks: { arch: 'hoop-arch', 'marker-board': 'lolly-board', 'castle-tower': 'candy-tower', castle: 'candy-castle', bumper: 'candy-bumper' },
+        paint: { 'tech:body': 'cream', 'tech:skin': 'cream', 'str:plaster': 'cream', 'tech:frame': 'cream', 'tech:trim': 'berry', 'tech:glass': 'sky', 'tech:cable': 'sky', 'tech:light': 'lemon', 'str:accent': 'lemon', 'str:stone': 'cream' },
+      },
       edge: { profile: 'bead', w: 0.34, h: 0.08, material: 'cream' },
       kerb: { profile: 'pillow', h: 0.17, materials: ['berry', 'cream'] },
       rail: { profile: 'tube', r: 0.33, z: 0.6, material: 'sky', tell: ['berry', 'cream'],
@@ -283,7 +290,7 @@ export function languageLaws(card, { cls = null, drawn = null } = {}) {
   const M = card.materials ?? {}, parts = card.parts ?? {}, ids = Object.keys(M), R = parts.rail;
   if (typeof card.reads !== 'string' || card.reads.trim().length < 20) say('premise', 'the language does not say what the track is made of');
   if (ids.length > FAMILY_MAX) say('family', `${ids.length} materials (at most ${FAMILY_MAX}): a family is small`);
-  const named = [parts.way?.material, parts.way?.bands?.material, parts.way?.dash?.material, ...(parts.way?.chevrons?.materials ?? []), ...(parts.bunting?.materials ?? []), parts.bunting?.pole?.material, parts.bunting?.pole?.cap?.material, ...(parts.tree?.blossom?.materials ?? []), parts.edge?.material, ...(parts.kerb?.materials ?? []), R?.material, ...(R?.tell ?? []), R?.post?.material, R?.post?.cap?.material].filter((x) => x !== undefined);
+  const named = [parts.way?.material, parts.way?.bands?.material, parts.way?.dash?.material, ...(parts.way?.chevrons?.materials ?? []), ...(parts.bunting?.materials ?? []), parts.bunting?.pole?.material, parts.bunting?.pole?.cap?.material, ...(parts.tree?.blossom?.materials ?? []), ...Object.values(parts.pieces?.paint ?? {}), parts.edge?.material, ...(parts.kerb?.materials ?? []), R?.material, ...(R?.tell ?? []), R?.post?.material, R?.post?.cap?.material].filter((x) => x !== undefined);
   for (const id of new Set(named)) if (!M[id]) say('family', `a part names '${id}', which the family does not hold`);
   for (const id of ids) if (!named.includes(id)) say('family', `'${id}' is in the family and no part wears it`);
   if (R && R.post && M[R.material] && M[R.post.material] && M[R.material].of !== M[R.post.material].of) say('one-metal', `the rail is ${M[R.material].of} and its post ${M[R.post.material].of}`);

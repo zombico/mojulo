@@ -24,6 +24,12 @@ In progress. Built so far:
   each corner, pointing into it, on the outside half. Bunting on tall poles down one side of a straight, the side by
   turns. On the chunky look the land's trees are a stout trunk under a crown of balls set off-centre, no two alike, a
   share in blossom. The two sides of a track never mirror.
+- **Built: the trackside in the language.** A language names a stand-in for each set piece and paints every surface
+  group in its own materials, so the arch, the braking boards, the castle and the bumpers are of the track's family.
+  Candy's: a fat hoop on two balls with a stripe and a banner hung off-centre, a lollipop board counting down in bars,
+  a cream tower with a band, balls for battlements and a berry roof, a castle whose tall tower stands off its middle,
+  bumpers of three rolls. The venue's own buildings take the family's paint too. Two primitives join the block library
+  for them: a ball, and a ring with a round section (a square one, as before, unless it says).
 - **The principles a new map starts from** ([docs/track-design-principles.md](../../../../docs/track-design-principles.md))
   and the agent's card for them (`gameworld-track-language`, read by the levels chapter): a premise first, a small
   family, a quiet way, a corner told three times, things seen to move, asymmetry, chunky, the track's own sky.

@@ -81,3 +81,31 @@ describe('the principles the candy card keeps', () => {
     expect(JSON.stringify(tree(5))).not.toBe(JSON.stringify(tree(6)));
   });
 });
+
+describe('the trackside pieces in the language', () => {
+  it('each stand-in exists, takes its piece\'s params, and builds round; every painted group is the family\'s', async () => {
+    const { TRACK_BLOCKS, paintPiece } = await import('./set-pieces.js');
+    const { buildBlock } = await import('../era/blocks.js');
+    const C = readLanguage('candy'), P = C.parts.pieces;
+    for (const [from, to] of Object.entries(P.blocks)) {
+      expect(TRACK_BLOCKS[to], to).toBeTruthy();
+      expect(Object.keys(TRACK_BLOCKS[to].params).sort(), to).toEqual(Object.keys(TRACK_BLOCKS[from].params).sort());
+    }
+    for (const id of Object.keys(P.paint)) expect(C.materials[P.paint[id]], id).toBeTruthy();
+    // one stand-in built and painted on the chunky look: only the family's colours go in, a gloss where the finish says
+    const b = buildBlock(TRACK_BLOCKS['lolly-board'], { params: { w: 1.6, h: 1.4, count: 3 }, library: TRACK_BLOCKS });
+    const seen = [];
+    const K = { pole: 'chunky', colourOf: () => { throw new Error('a group the language paints never reaches the kit'); } };
+    paintPiece(b.faces.map((f) => new Proxy(f, { get: (t, k) => (k === 'group' && seen.push(t.group), t[k]) })), K, { language: C });
+    expect(seen.every((g) => P.paint[g])).toBe(true);
+  });
+
+  it('a kart track from words is dressed in the stand-ins; a circuit keeps its own pieces', async () => {
+    const { composeTrack } = await import('./trackscape-compose.js');
+    const { planScapedTrack } = await import('./trackscape-dress.js');
+    const kart = planScapedTrack(composeTrack('a short kart track', { seed: 2 })).scape.pieces.map((p) => p.block);
+    const stand = new Set(Object.values(readLanguage('candy').parts.pieces.blocks)), plain = new Set(Object.keys(readLanguage('candy').parts.pieces.blocks));
+    expect(kart.some((b) => stand.has(b))).toBe(true);
+    expect(kart.some((b) => plain.has(b))).toBe(false);
+  });
+});

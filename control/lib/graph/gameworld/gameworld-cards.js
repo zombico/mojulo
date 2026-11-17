@@ -988,7 +988,7 @@ function trackLanguageCard() {
     '  POINTS for a new map: copy a card, change its premise, and keep what each principle asks.',
     `THE WORD   a level's roadway.language: ${Object.keys(TRACK_LANGUAGES).map((k) => `'${k}'`).join(' | ')} | a card written out. A track from words (quick.roadway:`,
     `  { intent }) takes its class's (${Object.entries(LANGUAGE_OF_CLASS).map(([c, l]) => `${c}: ${l}`).join(', ')}). A card: { reads, suits: [class…], materials: { <name>: { of, finish:`,
-    '  gloss | satin | matte, hex } }, parts: { way, edge, kerb, rail, verge, bunting, tree }, sky? }. Read a shelf card for',
+    '  gloss | satin | matte, hex } }, parts: { way, edge, kerb, rail, verge, bunting, tree, pieces }, sky? }. Read a shelf card for',
     '  each part\'s fields (roads/track-language.js); a part left out is the class\'s plain one.',
     'THE PRINCIPLES',
     '  1 A PREMISE FIRST   one sentence says what the track is made of (`reads`); every part is named in it.',
@@ -1005,12 +1005,14 @@ function trackLanguageCard() {
     '  7 CHUNKY   rounded and stout: nothing thinner than a hand could hold, a ball on every pole, pillows for kerbs.',
     '  8 THE SKY IS THE TRACK\'S   its day, its sun and clouds built as the track is (`sky.puffs`). Never an empty grey.',
     '  9 THE LAND IN THE TRACK\'S SHAPES   trees take the land\'s own greens and the language\'s forms.',
-    '  10 ONE PRIMITIVE, TWO TUNINGS   a realistic circuit answers the same questions soberly (grand-prix: the look\'s own',
+    '  10 THE TRACKSIDE IS THE TRACK\'S TOO   its arch, boards, castle and bumpers are stand-in blocks (pieces.blocks) in the',
+    '    family\'s paint (pieces.paint): a hoop on balls for an arch, a lollipop for a braking board, balls for battlements.',
+    '  11 ONE PRIMITIVE, TWO TUNINGS   a realistic circuit answers the same questions soberly (grand-prix: the look\'s own',
     '    asphalt and paint, one steel for the guardrail and its posts). A principle is a question, not candy.',
     'THE LAWS (machine; they advise)   premise, family, one-metal, finish, kerb-read, tell, suits, drawn (nothing drawn outside',
     '  the family). A roadway level\'s gate says them as language:<law>, beside the track\'s own and the trackscape\'s.',
     'LOOK   node scripts/trackscape.mjs "<the track in words>" out.html writes the page. How it looks is the operator\'s to say.',
-    'NOT YET   the trackside pieces (arch, tower, boards) in the language; flank slices; the page lighting it as it does the kart.',
+    'NOT YET   the land\'s rock formations and a stadium bowl in the language; flank slices; the page lighting it as the kart.',
   );
 }
 

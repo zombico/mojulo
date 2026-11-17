@@ -49,7 +49,7 @@ describe('the one door', () => {
     expect(M).toMatchObject({ kind: 'roadway', form: 'circuit', scape: { set: 'kart', landmark: 'castle' } });
     const p = planScapedTrack(M);
     expect(p.scape.laws).toEqual([]);
-    expect(p.scape.pieces.find((q) => q.landmark).block).toBe('castle');
+    expect(p.scape.pieces.find((q) => q.landmark).block).toBe('candy-castle');
     expect(JSON.stringify(composeTrack('a short cartoon kart track by a castle', { seed: 2 }))).toBe(JSON.stringify(M));
   }, 60000);
   it('the world and the track together: the world\'s look the words\', its track drawn in it', () => {
