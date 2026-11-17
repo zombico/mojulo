@@ -1,60 +1,263 @@
 {
   "id": "level-1",
   "name": "Get intel on the assault walkers",
-  "brief": "A hangar in the jungle is fielding assault walkers. Get in, get proof of what they are, get out. What the hangar is standing on is not in the briefing.",
+  "brief": "A hangar in the jungle is fielding assault walkers. Get in, get proof of what they are, get out. The hangar's lowest floor is not in the briefing.",
   "level": {
-    "name": "Infiltration", "seed": 4,
-    "walk": { "nodes": { "insertion": { "trail": true }, "perimeter": { "trail": true } } },
-    "places": { "buildings": [
-      { "use": "hangar-bay", "node": "perimeter", "enter": "door" },
-      { "use": "barracks", "node": "perimeter", "enter": "walk" }
-    ] }
+    "name": "Infiltration",
+    "seed": 4,
+    "walk": {
+      "nodes": {
+        "insertion": {
+          "trail": true
+        },
+        "perimeter": {
+          "trail": true
+        }
+      }
+    },
+    "places": {
+      "buildings": [
+        {
+          "use": "hangar-bay",
+          "node": "perimeter",
+          "enter": "door"
+        },
+        {
+          "use": "barracks",
+          "node": "perimeter",
+          "enter": "walk"
+        }
+      ]
+    }
   },
   "wcd": {
     "core": "sub-hangar",
     "spaces": {
-      "insertion": { "kind": "outer", "depth": 0 },
-      "perimeter": { "kind": "outer", "depth": 1 },
-      "hangar": { "kind": "inner", "depth": 2, "use": "hangar-bay", "look": { "construction": "military", "palette": "military" } },
-      "sub-hangar": { "kind": "inner", "depth": 3, "use": "hangar-bay", "look": { "construction": "bunker", "palette": "utility" } }
+      "insertion": {
+        "kind": "outer",
+        "depth": 0
+      },
+      "perimeter": {
+        "kind": "outer",
+        "depth": 1
+      },
+      "hangar": {
+        "kind": "inner",
+        "depth": 2,
+        "use": "hangar-bay",
+        "look": {
+          "construction": "military",
+          "palette": "military"
+        }
+      },
+      "sub-hangar": {
+        "kind": "inner",
+        "depth": 3,
+        "use": "hangar-bay",
+        "look": {
+          "construction": "bunker",
+          "palette": "utility"
+        }
+      }
     },
     "doors": [
-      { "from": "insertion", "to": "perimeter", "via": "door", "gate": { "clearance": 1 } },
-      { "from": "perimeter", "to": "hangar", "via": "door", "gate": { "keys": true } },
-      { "from": "hangar", "to": "sub-hangar", "via": "lift", "gate": { "keys": true } },
-      { "from": "sub-hangar", "to": "perimeter", "via": "stair", "oneWay": true }
+      {
+        "from": "insertion",
+        "to": "perimeter",
+        "via": "door",
+        "gate": {
+          "clearance": 1
+        }
+      },
+      {
+        "from": "perimeter",
+        "to": "hangar",
+        "via": "door",
+        "gate": {
+          "keys": true
+        }
+      },
+      {
+        "from": "hangar",
+        "to": "sub-hangar",
+        "via": "lift",
+        "gate": {
+          "keys": true
+        }
+      },
+      {
+        "from": "sub-hangar",
+        "to": "perimeter",
+        "via": "stair",
+        "oneWay": true
+      }
     ]
   },
   "segments": {
-    "insertion": { "stage": "insertion", "where": "outdoor", "reads": "the jungle trail down to the fence", "guards": 0, "teaches": ["crouch and prone", "cover against the cone"] },
-    "perimeter": { "stage": "perimeter", "where": "outdoor", "reads": "the floodlit apron: containers, the barracks, the hangar's door", "guards": 2, "holds": ["hangar-key"] },
-    "hangar": { "stage": "perimeter-hangar-bay-1", "where": "indoor", "reads": "the main hangar: assault walkers on the line", "guards": 2,
-      "parked": [{ "vehicle": "field walker", "role": "assault", "count": 3 }], "holds": ["intel-manifest", "lift-key"], "clues": ["pad", "log", "tracks"] },
-    "sub-hangar": { "stage": null, "below": "hangar", "where": "indoor", "reads": "a second hangar under the first, off the plans: the siege walker", "guards": 1,
-      "parked": [{ "vehicle": "siege walker" }], "holds": ["intel-siege"] }
+    "insertion": {
+      "stage": "insertion",
+      "where": "outdoor",
+      "reads": "the jungle trail down to the fence",
+      "guards": 0,
+      "teaches": [
+        "crouch and prone",
+        "cover against the cone"
+      ]
+    },
+    "perimeter": {
+      "stage": "perimeter",
+      "where": "outdoor",
+      "reads": "the floodlit apron: containers, the barracks, the hangar's door",
+      "guards": 2,
+      "holds": [
+        "hangar-key"
+      ]
+    },
+    "hangar": {
+      "stage": "perimeter-hangar-bay-1",
+      "where": "indoor",
+      "reads": "the main hangar: assault walkers on the line",
+      "guards": 2,
+      "parked": [
+        {
+          "vehicle": "field walker",
+          "role": "assault",
+          "count": 3
+        }
+      ],
+      "holds": [
+        "intel-manifest",
+        "lift-key"
+      ],
+      "clues": [
+        "pad",
+        "log",
+        "tracks"
+      ],
+      "floor": 1,
+      "room": "hangar"
+    },
+    "sub-hangar": {
+      "stage": "perimeter-hangar-bay-1",
+      "floor": 0,
+      "room": "hangar-under",
+      "where": "indoor",
+      "reads": "floor 0 of the same building, lodged under the ground and off the plans: the siege walker",
+      "guards": 1,
+      "parked": [
+        {
+          "vehicle": "siege walker"
+        }
+      ],
+      "holds": [
+        "intel-siege"
+      ]
+    }
   },
   "items": {
-    "hangar-key": { "reads": "a keycard for the hangar's side door", "in": "perimeter", "at": "the barracks' ready room", "opens": "perimeter>hangar" },
-    "intel-manifest": { "reads": "the assault walkers' manifest and photographs: the mission as briefed", "in": "hangar", "at": "flight ops, upstairs", "objective": "brief" },
-    "lift-key": { "reads": "the freight lift's key", "in": "hangar", "at": "the parts store", "opens": "hangar>sub-hangar" },
-    "intel-siege": { "reads": "proof of the siege walker", "in": "sub-hangar", "at": "under the walker", "objective": "true" }
+    "hangar-key": {
+      "reads": "a keycard for the hangar's side door",
+      "in": "perimeter",
+      "at": "the barracks' ready room",
+      "opens": "perimeter>hangar"
+    },
+    "intel-manifest": {
+      "reads": "the assault walkers' manifest and photographs: the mission as briefed",
+      "in": "hangar",
+      "at": "flight ops, upstairs",
+      "objective": "brief"
+    },
+    "lift-key": {
+      "reads": "the freight lift's key",
+      "in": "hangar",
+      "at": "the parts store",
+      "opens": "hangar>sub-hangar"
+    },
+    "intel-siege": {
+      "reads": "proof of the siege walker",
+      "in": "sub-hangar",
+      "at": "under the walker",
+      "objective": "true"
+    }
   },
   "clues": {
-    "pad": { "reads": "the pad marked on the hangar floor is a lift deck, far too big for an assault walker", "in": "hangar", "at": "the hall's middle" },
-    "log": { "reads": "the maintenance log lists a frame that is not on the line, its parts two and a half times the size", "in": "hangar", "at": "flight ops, beside the manifest" },
-    "tracks": { "reads": "foot plates have marked the floor from the pad to the doors, wider than anything standing here", "in": "hangar", "at": "between the pad and the main doors" }
+    "pad": {
+      "reads": "the pad marked on the hangar floor is a lift deck, far too big for an assault walker",
+      "in": "hangar",
+      "at": "the hall's middle"
+    },
+    "log": {
+      "reads": "the maintenance log lists a frame that is not on the line, its parts two and a half times the size",
+      "in": "hangar",
+      "at": "flight ops, beside the manifest"
+    },
+    "tracks": {
+      "reads": "foot plates have marked the floor from the pad to the doors, wider than anything standing here",
+      "in": "hangar",
+      "at": "between the pad and the main doors"
+    }
   },
-  "reveal": { "needs": 2, "of": ["pad", "log", "tracks"], "flag": "sub-hangar-known", "reads": "a second hangar beneath: the lift is called", "opens": "hangar>sub-hangar" },
+  "reveal": {
+    "needs": 2,
+    "of": [
+      "pad",
+      "log",
+      "tracks"
+    ],
+    "flag": "sub-hangar-known",
+    "reads": "the hangar has a floor 0: the freight lift is called",
+    "opens": "hangar>sub-hangar"
+  },
   "objectives": {
-    "brief": { "reads": "get intel on the assault walkers", "done": "intel-manifest" },
-    "true": { "reads": "find what is under the hangar", "after": "sub-hangar-known", "done": "intel-siege" }
+    "brief": {
+      "reads": "get intel on the assault walkers",
+      "done": "intel-manifest"
+    },
+    "true": {
+      "reads": "find what is on the hangar's lowest floor",
+      "after": "sub-hangar-known",
+      "done": "intel-siege"
+    }
   },
-  "result": { "at": "perimeter", "when": ["intel-manifest", "intel-siege"], "reads": "out by the service stair to the yard, and off the apron" },
+  "result": {
+    "at": "perimeter",
+    "when": [
+      "intel-manifest",
+      "intel-siege"
+    ],
+    "reads": "out by the service stair to the yard, and off the apron"
+  },
   "scenes": [
-    { "at": "insertion", "kind": "plate", "reads": "the briefing: art and text" },
-    { "at": "perimeter>hangar", "kind": "in-game", "reads": "the hangar's door: the walkers seen for the first time" },
-    { "at": "reveal", "kind": "in-game", "reads": "the radio: this was not in the briefing" },
-    { "at": "hangar>sub-hangar", "kind": "in-game", "reads": "the lift down: the siege walker out of the dark" },
-    { "at": "result", "kind": "plate", "reads": "the debrief" }
-  ]
+    {
+      "at": "insertion",
+      "kind": "plate",
+      "reads": "the briefing: art and text"
+    },
+    {
+      "at": "perimeter>hangar",
+      "kind": "in-game",
+      "reads": "the hangar's door: the walkers seen for the first time"
+    },
+    {
+      "at": "reveal",
+      "kind": "in-game",
+      "reads": "the radio: this was not in the briefing"
+    },
+    {
+      "at": "hangar>sub-hangar",
+      "kind": "in-game",
+      "reads": "the lift down: the siege walker out of the dark"
+    },
+    {
+      "at": "result",
+      "kind": "plate",
+      "reads": "the debrief"
+    }
+  ],
+  "building": {
+    "use": "hangar-bay",
+    "seed": 2,
+    "basement": true,
+    "reads": "one building: the main hangar at the ground, flight ops over its wing, and floor 0 lodged under the ground: a second hall under the first, joined by the freight lift"
+  }
 }

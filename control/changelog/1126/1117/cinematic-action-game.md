@@ -153,5 +153,8 @@ or a recipe key; the spike mints through the real doors and measures.
   Nothing is built: the level is laid through `gameStages` to say which segments the rail makes, the dungeon's laws
   are read on it by its own reader and the mission's beside them (a key in the space its door leaves, clues enough
   that one may be missed, what stands parked a vehicle the registry parks, one result where the core's way out
-  leads). What it says today: the rail lays the two outdoor sections and the hangar's inside; nothing lies below a
-  building yet, so the core has no stage.
+  leads). The core is no separate place: it is floor 0 of the same building, lodged under the ground, a hall under
+  the main hangar joined to it by the freight lift. The planner lays the building dry with its program's floor 0
+  (era/program-core.js `basement`) and says what it finds: the rail lays a stage for every segment and both halls are
+  rooms of the one building; the hall under is a storey high (3.5 m) where the siege walker stands 8.4 m, the floors
+  are joined by the stair core and no lift is built, and nothing inside a level opens on what the player holds.

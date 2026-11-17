@@ -21,6 +21,8 @@ const { readGameworld } = await import('../../../lib/graph/gameworld/index.js');
 const { gameStages } = await import('../../../lib/graph/gameworld/levels.js');
 const { readWcd } = await import('../../../lib/graph/wcd/wcd.js');
 const { parkable } = await import('../../../lib/graph/vehicle-registry/parked.js');
+const { buildingStage } = await import('../../../lib/graph/gameworld/levels.js');
+const { assembleStageScene } = await import('../../../lib/graph/era/stage.js');
 
 const M = JSON.parse(fs.readFileSync(opt('--mission', path.join(here, 'level1.json')), 'utf8'));
 const W0 = JSON.parse(fs.readFileSync(path.join(here, 'world.json'), 'utf8'));
@@ -40,7 +42,20 @@ const segs = M.segments, ids = Object.keys(segs);
 const unbound = Object.keys(M.wcd.spaces).filter((id) => !segs[id]);
 laws.push(law('a-segment-a-space', !unbound.length, unbound.length ? `${unbound.join(', ')}: a space with no segment` : 'every space of the dungeon is a segment of the level'));
 const unmade = ids.filter((id) => !segs[id].stage || !made.has(segs[id].stage));
-laws.push(law('rail-makes-it', !unmade.length, unmade.length ? `${unmade.join(', ')}: the rail lays no stage for it (a building's inside is by its door; nothing lies below a building yet)` : 'the rail lays a stage for every segment'));
+laws.push(law('rail-makes-it', !unmade.length, unmade.length ? `${unmade.join(', ')}: the rail lays no stage for it` : `the rail lays a stage for every segment (${[...new Set(ids.map((id) => segs[id].stage))].join(', ')})`));
+// THE BUILDING, laid dry as its program lays it (a floor 0 under the ground one where the mission asks: era/program-core.js
+// `basement`): the rooms the mission's floors name, how they are joined, and whether what is parked stands under the roof
+const B = M.building, m0 = buildingStage({ use: B.use, seed: B.seed }), BP = assembleStageScene({ ...m0, program: { ...m0.program, ...(B.basement ? { basement: true } : {}) } });
+const roomOf = (id) => (BP.rooms ?? []).find((r) => r.id === id || r.id === `${id}@1`), size = (r) => (r && r.size ? r.size : r && r.box ? [r.box.max[0] - r.box.min[0], r.box.max[1] - r.box.min[1], r.box.max[2] - r.box.min[2]] : null);
+const floors = ids.filter((id) => segs[id].room), noRoom = floors.filter((id) => !roomOf(segs[id].room));
+laws.push(law('floors-are-rooms', !noRoom.length, noRoom.length ? `${noRoom.map((id) => `${id}: no room '${segs[id].room}'`).join('; ')} (rooms: ${(BP.rooms ?? []).map((r) => r.id).join(', ')})` : floors.map((id) => { const z = size(roomOf(segs[id].room)); return `${id} is the ${B.use}'s '${segs[id].room}', floor ${segs[id].floor}${z ? `, ${z.map((v) => +v.toFixed(1)).join(' × ')} m` : ''}`; }).join('; ')));
+// a lift between two floors of the building: the rail joins floors by its stair core alone
+const lifts = D.doors.filter((d) => d.via === 'lift'), stairs = [...new Set((BP.colliders ?? []).map((c) => c.of ?? '').filter((o) => /stair:/.test(o)).map((o) => o.replace(/^.*stair:/, '')))];
+laws.push(law('lift-is-built', !lifts.length, lifts.length ? `${lifts.map(doorId).join(', ')}: the building joins its floors by its stair core (${stairs.join(', ')}) and builds no lift; nothing in a level opens on what the player holds` : 'no lift is asked for'));
+// what stands parked on a floor stands under its roof
+const tall = { 'siege walker': 8.4, 'field walker': 3.2 };
+const low = ids.flatMap((id) => (segs[id].parked ?? []).flatMap((p) => { const z = size(roomOf(segs[id].room ?? '')); return z && tall[p.vehicle] && tall[p.vehicle] + 0.6 > z[2] ? [`${p.vehicle} (${tall[p.vehicle]} m) under ${id}'s ${z[2].toFixed(1)} m`] : []; }));
+laws.push(law('headroom', !low.length, low.join('; ') || 'what is parked stands under its floor\'s roof'));
 const wheres = new Set(ids.map((id) => segs[id].where));
 laws.push(law('out-and-in', wheres.has('outdoor') && wheres.has('indoor'), `segments ${ids.map((id) => `${id} (${segs[id].where})`).join(', ')}`));
 // a keyed door's key lies in the space it leaves, and some segment holds it
@@ -61,11 +76,11 @@ laws.push(law('one-result', !!out && out.to === M.result.at, out ? `the core's w
 
 // THE PLAN, as a page of text
 const L = [], row = (...c) => L.push(`| ${c.join(' | ')} |`);
-L.push(`# ${M.name}`, '', M.brief, '', '## Segments (the dungeon\'s layers)', '');
+L.push(`# ${M.name}`, '', M.brief, '', `The building: ${M.building.reads}.`, '', '## Segments (the dungeon\'s layers)', '');
 row('Depth', 'Segment', 'Kind', 'Where', 'What it is', 'Guards', 'Parked', 'Rail stage'); row('---', '---', '---', '---', '---', '---', '---', '---');
 for (const id of Object.keys(D.spaces).sort((a, b) => D.spaces[a].depth - D.spaces[b].depth)) {
   const s = segs[id] ?? {}, sp = D.spaces[id], st = s.stage && made.get(s.stage);
-  row(sp.depth, `${id}${id === D.core ? ' (core)' : ''}`, sp.kind, s.where ?? '?', s.reads ?? '', s.guards ?? 0, (s.parked ?? []).map((p) => `${p.count ?? 1} × ${p.vehicle}${p.role ? `, ${p.role}` : ''}`).join('; ') || 'none', st ? `${s.stage} (${st.section})` : `not laid${s.below ? `: below ${s.below}` : ''}`);
+  row(sp.depth, `${id}${id === D.core ? ' (core)' : ''}`, sp.kind, `${s.where ?? '?'}${s.floor !== undefined ? `, floor ${s.floor}` : ''}`, s.reads ?? '', s.guards ?? 0, (s.parked ?? []).map((p) => `${p.count ?? 1} × ${p.vehicle}${p.role ? `, ${p.role}` : ''}`).join('; ') || 'none', st ? `${s.stage} (${st.section})${s.room ? `, room ${s.room}` : ''}` : 'not laid');
 }
 L.push('', '## Doors and gates', '');
 row('Door', 'Via', 'Opens on', 'Found', 'Back'); row('---', '---', '---', '---', '---');
