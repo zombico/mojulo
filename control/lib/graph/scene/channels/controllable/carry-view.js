@@ -28,10 +28,26 @@ const __cvEl = document.createElement('div');
 __cvEl.style.cssText = 'position:fixed;left:50%;bottom:16%;transform:translateX(-50%);display:none;z-index:7;pointer-events:none;font:17px/1.2 ui-monospace,monospace;color:#e8e6e1;text-align:center';
 document.body.appendChild(__cvEl);
 let __cvKey = '';
+// (what the menu holds, by name: nothing in hand and each weapon, or each consumable left)
+function __cvRows(p, C) {
+  const R = p.rule.carry || {}, lo = Array.isArray(p.rule.loadout) ? p.rule.loadout : [];
+  return C.menu === 'weapon' ? [{ name: 'unarmed' }].concat(lo.map((s, i) => ({ name: (s && s.name) || ('weapon ' + (i + 1)) })))
+    : (R.items || []).map((it, i) => ({ name: it.name || it.id, count: C.counts[i] })).filter((x) => x.count > 0);
+}
+// ON A PAGE WHOSE HUD IS THE GAME'S (channels/mana-hud.js): the held menu is its weapon wheel, each thing at its place
+// round the ring, the one stepped to lit; this strip is put away. The page's own selector answers when no menu is held.
+{ const own = window.__mojWc && window.__mojWc.view;
+  window.__mojWc = { view: () => {
+    const p = __world.pilotId && __world.byId[__world.pilotId], C = p && p.carry;
+    if (!C || !C.menu || !window.__mojHud) return own ? own() : { open: false, rows: [] };
+    const P = __cvRows(p, C), n = Math.max(1, P.length);
+    return { open: true, title: (C.menu === 'weapon' ? 'in hand' : 'use') + ' · look to step · let go to choose', rows: P.map((x, i) => ({ name: x.name, at: (360 * i) / n, key: '', on: i === C.sel, count: x.count ? '\u00d7' + x.count : '', sub: x.count ? '\u00d7' + x.count : '' })) };
+  } };
+}
 (function __cvFrame() {
   requestAnimationFrame(__cvFrame);
   const p = __world.pilotId && __world.byId[__world.pilotId], C = p && p.carry;
-  if (!C || !C.menu) { if (__cvKey) { __cvKey = ''; __cvEl.style.display = 'none'; } return; }
+  if (!C || !C.menu || window.__mojHud) { if (__cvKey) { __cvKey = ''; __cvEl.style.display = 'none'; } return; }
   const R = p.rule.carry || {}, lo = Array.isArray(p.rule.loadout) ? p.rule.loadout : [];
   const P = C.menu === 'weapon' ? [{ name: 'unarmed' }].concat(lo.map((s, i) => ({ name: (s && s.name) || ('weapon ' + (i + 1)) })))
     : (R.items || []).map((it, i) => ({ name: it.name || it.id, count: C.counts[i] })).filter((x) => x.count > 0);

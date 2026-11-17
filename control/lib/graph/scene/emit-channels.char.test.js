@@ -784,6 +784,44 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // hold, and the opener's count. A moveset that says no `swap` runs as before: the cycle mid-swing is dropped. Every
 // fixture that embeds the controllable runtime re-pinned with it.
 //
+// Re-pinned 2026-11-17 (1117-cinematic-action-game-ui merged into 1117-cinematic-action-game): the fixtures whose page
+// inlines the controllable runtime or the game UI kernel, and the two fixtures the UI branch added (`mission`,
+// `damage-ring`), written here for the first time. Each side had moved the runtime's and the page's text (this side:
+// the chase's pull-in on an aim-held page, the lying body's whole-body turn; that side: the ladder's hold, a mind's
+// ledges and flight, the HUD), so the merged text is neither side's pin. No fixture's behaviour is claimed changed.
+// Pinned 2026-11-15 (1115-shooting-rails: a mission's briefing, HUD, pause and debrief on mana-ui): the new `mission`
+// fixture only (the mission channel's block: mana-ui, the controls host and the mission's runtime in a scope of their
+// own). Every other fixture carries no `mission` and keeps its bytes: the channel adds nothing where it is absent.
+// Re-pinned 2026-11-15 (1115-shooting-rails: the damage ring): `mission` only. Its runtime reads the pilot's hits and
+// marks where each came from on mana-ui's ring, its bearing inlined beside it.
+// Re-pinned and pinned 2026-11-15 (1115-shooting-rails: the damage ring as its own concept): `mission` (its runtime
+// steps the shared tracker, inlined beside it) and the new `damage-ring` fixture (the ring's own channel, for a page whose
+// HUD is its own). No other fixture carries either.
+// Re-pinned 2026-11-15 (1105-rc merged into 1115-shooting-rails): `mission` only. Its page inlines the game UI kernel,
+// which the candidate changed (pictograms, the frame, the touchpad, the pick screen), as `brawl` and `holo` were re-pinned
+// for there; the mission's own block is as it was.
+// Re-pinned 2026-11-15 (1115-shooting-rails: a ladder climbed by holding jump): the seventeen fixtures whose page
+// inlines the controllable runtime (`controllable`, `controllable-lock`, `action-hero`, `controllable-shadows`,
+// `cast-shadows`, `live-shadows-actors`, `live-shadows-both`, `controllable-smoke`, `controllable-figure`,
+// `controllable-hangar`, `fx`, `shoot-live`, `toon-ink-controllable`, `toon-ink-fx`, `capture-controllable`,
+// `kitchen-sink`, `kitchen-sink-capture`). The climb's owner (worlds/controllable/rules-basic.js) reads a climbable's
+// opt-in `hold` and `holdReach`: stood under it, holding jump takes hold and goes up while it is held. No fixture
+// carries a climbable that asks, so every one plays as it did (the runtime's trace holds); only the runtime's text
+// moved. Every fixture with no controllable runtime holds byte for byte.
+// Re-pinned 2026-11-15 again (1115-shooting-rails: a mind's path kept to its ground): the same seventeen, for the same
+// reason. The pathfinder (worlds/controllable/nav.js) takes an opt-in `ledges`: a cell with no ground at the body's
+// height is shut as a wall is, asked of the ground a cell at a time as a path reaches it; a mind asks with
+// `rule.navLedges`. No fixture's mind asks, so every path is the colliders' as it was; only the runtime's text moved.
+// Re-pinned 2026-11-15 a third time (1115-shooting-rails: a wave crosses a building's storeys): the same seventeen,
+// for the same reason. A mind's flight (worlds/controllable/mind.js floorWay) takes an opt-in `way`, its points from the
+// foot up, walked a point at a time (a switchback's legs and landing). No fixture's flight carries one, so every walk
+// is foot to top as it was; only the runtime's text moved.
+// Re-pinned 2026-11-16 (1115-shooting-rails: a radar and a map): `mission` only. Its page's HUD carries the radar and
+// its screens the map (gameworld/radar.js, inlined beside the mission's runtime), and each task that is a place to go
+// its place. Every other fixture holds byte for byte.
+// Re-pinned 2026-11-16 again (1115-shooting-rails: a mission fills its window): `mission` only. A mission's page fills
+// its window where its game names no screen. Every other fixture holds byte for byte. (The gunplay view's own changes
+// of that day, the gun drawn after the world's glass and lit by the form render, moved no fixture: none carries it.)
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

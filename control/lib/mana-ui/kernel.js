@@ -142,7 +142,7 @@ export function buildManaUi() {
     party: 'Party', hp: 'HP', mp: 'MP', sp: 'SP', status: 'Status', attack: 'Attack', defence: 'Defence', magic: 'Magic', speed: 'Speed', equip: 'Equip', nothingWorn: 'Nothing worn', skills: 'Skills', noSkills: 'No skills yet',
     cost: 'Cost', levelUp: 'Level up', level: 'Level', weight: 'Weight', kg: 'kg', slots: 'Slots', swapFor: 'Swap for', nothingFits: 'Nothing fits this slot',
     gold: 'Gold', goldMark: 'G', held: 'Held', buy: 'Buy', sell: 'Sell', nothingToSell: 'Nothing to sell', quests: 'Quests', steps: 'Steps',
-    ammo: 'Ammo', time: 'Time', score: 'Score', lv: 'Lv', range: 'Range', super: 'Super', hits: 'hits', pos: 'Pos', lap: 'Lap', best: 'Best',
+    ammo: 'Ammo', reload: 'Reload', reloading: 'Reloading', lowAmmo: 'Low ammo', time: 'Time', score: 'Score', lv: 'Lv', range: 'Range', super: 'Super', hits: 'hits', pos: 'Pos', lap: 'Lap', best: 'Best',
     move: 'Move', atk: 'Atk', rng: 'Rng', forecast: 'Forecast', wave: 'Wave', lives: 'Lives', seen: 'Seen', map: 'Map', cancel: 'Cancel', headToHead: 'Head to head',
     turnOrder: 'Turn order', foes: 'Foes', command: 'Command', act: 'Act', close: 'Close', queue: 'Queue', orders: 'Orders',
     // a table's (idioms-table.js) and a skirmish's (idioms-live.js)
@@ -176,10 +176,11 @@ export function buildManaUi() {
     divider: { group: 'layout', about: 'a rule between groups, with an optional label', props: { label: [T] } },
     // in-game: the HUD's places
     hud: { group: 'hud', about: 'the in-game layer under the stack: its children are regions and the layers (anchors, edges, threat, letterbox)', props: {}, children: 'hud' },
-    region: { group: 'hud', about: 'one of the nine screen places; parts stack inside it (in a hud, or laid out over a screen); `subtitles` sits on the subtitles\' plate (its opacity the player\'s); `bare` sits on no plate, its parts their own frame with the halo (a fight\'s bars over the round)', props: { at: [REGIONS, 'top-left'], variant: [['plain', 'subtitles', 'bare'], 'plain'] }, children: true },
+    region: { group: 'hud', about: 'one of the nine screen places; parts stack inside it (in a hud, or laid out over a screen); `subtitles` sits on the subtitles\' plate (its opacity the player\'s); `bare` sits on no plate, its parts their own frame with the halo (a fight\'s bars over the round); `scrim` on no box either, a shade rising from its corner of the screen behind it (a shooter\'s corners); `rest` the game says nothing in it is news (a full magazine, full health): it fades back until it is woken', props: { at: [REGIONS, 'top-left'], variant: [['plain', 'subtitles', 'bare', 'scrim'], 'plain'], rest: [B, false] }, children: true },
     anchors: { group: 'hud', layer: true, about: 'one `row` drawn over each thing in the world at its screen place (x, y from 0 to 1): nameplates on a plate, damage numbers `bare` (a halo, no plate); a row with an `id` is its own element (a new id, a new one: its entrance plays); `pass` rows rise and fade once from where they land (damage numbers); a row\'s `world` ([x, y, z]) is its point in the game\'s world, where a headset draws it', props: { rows: [L, [], true], row: [ND, undefined, true], x: [T, 'x'], y: [T, 'y'], variant: [['plate', 'bare'], 'plate'], pass: [B, false] } },
     edges: { group: 'hud', layer: true, about: 'what is off screen, held at the screen\'s edge with an arrow toward it (x, y outside 0..1): an objective, a foe behind you', props: { markers: [L, [], true] } },
-    threat: { group: 'hud', layer: true, about: 'where harm came from: a mark on a ring round the centre for each bearing (degrees from where you face)', props: { markers: [L, [], true] } },
+    threat: { group: 'hud', layer: true, about: 'where harm came from: an arc on a ring round the centre for each bearing (degrees from where you face), its `fade` (0..1, the life it has left) how strongly it still shows', props: { markers: [L, [], true] } },
+    peril: { group: 'hud', layer: true, about: 'danger told by the screen itself: its edges close in, tinted, as `level` rises (0..1: the game says how near the end is, health running out); `high` from three quarters, where it beats slowly (under three a second; still under less motion or less flash); `tone` harm, or cold (a frost, a fall of oxygen)', props: { level: [N, 0, true], tone: [['harm', 'cold'], 'harm'] } },
     letterbox: { group: 'hud', layer: true, about: 'the cinema bars of a cutscene', props: {} },
     touchpad: { group: 'hud', about: 'the look of a touch screen\'s virtual pad: a stick and round buttons, each named by the gamepad control it is (a word, or { label, control: south | east | west | north | rb … }); the touch driver (controllable/touch.js) reads it, never this runtime; what the driver knows is drawn: `lane` a stick held to left and right, `held` the stick under a thumb ({ ox, oy: where it rose from its rest, dx, dy: its nub, in px }), `down` the controls pressed', props: { stick: [B, true], buttons: [L, ['A', 'B']], lane: [B, false], held: [A], down: [L, []] } },
     legend: { group: 'value', about: 'what the buttons do here (a row: { action | actions: [..], label }), each with the glyph of the control the player is holding (keys, an Xbox, a PlayStation or a Nintendo pad); a finger needs none, so a touch screen draws none', props: { rows: [L, [], true] } },
@@ -191,6 +192,9 @@ export function buildManaUi() {
     bar: { group: 'value', about: 'a value against its max; segments mark phases or chunks; `ghost` the value before the last hit (drawn hatched, the chip a fighting game shows; given as the value once the combo ends, it drains); rtl fills from the right (the second fighter); `size: large` a bar that is a frame (a fighter\'s health along the top), thicker, `thin` one that rides under another (a guard under the health), its meaning still its variant\'s; `figures: false` (or `numbers: false`) draws no value/max (a fight\'s health, a foe\'s, read by its length)', props: { value: [N, 0, true], max: [N, 1, true], variant: [['plain', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'], 'plain'], label: [T], segments: [N, 0], ghost: [N, 0], dir: [['ltr', 'rtl'], 'ltr'], size: [['normal', 'large', 'thin'], 'normal'], figures: [B, true], numbers: [B, true] } },
     pips: { group: 'value', about: 'a count as marks: hearts, pips', props: { value: [N, 0, true], max: [N, 3, true], shape: [Object.keys(PIP_SHAPES), 'pip'], label: [T] } },
     counter: { group: 'value', about: 'an icon and a count (ammo, coins, keys)', props: { label: [T, '', true], value: [T, '', true], max: [T], icon: [T] } },
+    charge: { group: 'value', about: 'a power that fills and is spent, as a ring round its pictogram (bullet time, a special, a shout): `value` 0..1 how full; `state` cooling (filling), ready (full: it glows), active (spending: the ring drains as it runs); `label` small beside it, what sets it off', props: { value: [N, 0, true], state: [['cooling', 'ready', 'active'], 'cooling'], icon: [T], label: [T] } },
+    wheel: { group: 'hud', about: 'what is carried, picked while a button is held (a weapon wheel): each row a slot round a ring at its `at` (degrees from the top, clockwise: a pad\'s face buttons are 0, 90, 180, 270), drawn as its gun\'s wireframe (`gun`, else its `name`) with its name, the control that picks it (`key`) and a `count`; the slot in hand (`on`) lit, its name and `sub` large in the middle. It takes no focus: the game\'s own input picks', props: { rows: [L, [], true], title: [T] } },
+    magazine: { group: 'value', about: 'the gun in hand as a shooter shows it: its wireframe over it (`gun`, else its `name`: rifle, carbine, bullpup, smg, shotgun, marksman, sniper, pistol, revolver, launcher, knife and the words for them; another name draws none), the rounds in the magazine as the big figure, the reserve small beside it, the magazine drawn round by round as cartridges (the `round` its gun feeds: rifle, pistol, shell, rocket; a spent one its empty outline; past 60, one track); its name and fire `mode` small over it; low (at `low` of its `size`) the figure turns to harm and says so, empty it says reload, `reloading` the rounds refill', props: { rounds: [N, 0, true], size: [N, 0], reserve: [T], name: [T], gun: [T], round: [T], mode: [T], reloading: [B, false], low: [N, 0.3] } },
     timer: { group: 'value', about: 'seconds as a clock', props: { seconds: [N, 0, true], format: [['mmss', 'ss', 'hmmss'], 'mmss'], label: [T] } },
     compare: { group: 'value', about: 'before → after, better or worse told by a shape (▲ ▼ =)', props: { label: [T, '', true], from: [N, 0, true], to: [N, 0, true], better: [['up', 'down'], 'up'] } },
     icon: { group: 'value', about: 'an icon\'s place, named', props: { name: [T, '', true], size: [['s', 'm', 'l'], 'm'] } },
@@ -206,7 +210,7 @@ export function buildManaUi() {
     prompt: { group: 'value', about: 'what a button does here: [E] Talk (the glyph is the host\'s legend, else the action)', props: { action: [T, 'accept'], label: [T, '', true], glyph: [T] } },
     // in-game: aim, maps, the feed, moments
     reticle: { group: 'hud', about: 'the aim; a hit adds a hitmarker shape', props: { shape: [Object.keys(RETICLES), 'cross'], hit: [B, false] } },
-    minimap: { group: 'hud', about: 'the map in a corner: markers at x, y from 0 to 1, each kind a shape', props: { markers: [L, []], shape: [['square', 'round'], 'square'], label: [T] } },
+    minimap: { group: 'hud', about: 'the map in a corner: markers at x, y from 0 to 1, each kind a shape; `scope` an instrument, not a picture in a box: a bezel of ticks, the wedge you see ahead (the top), its edge fading into the world; `north` where north lies on it (degrees clockwise from its top: a radar that turns with you)', props: { markers: [L, []], shape: [['square', 'round'], 'square'], label: [T], scope: [B, false], north: [N] } },
     compass: { group: 'hud', about: 'a heading strip with the bearings of markers', props: { heading: [N, 0, true], markers: [L, []] } },
     feed: { group: 'hud', about: 'the last few lines of a log (kills, pickups, chat from the world); a line said again in a row merges (×3)', props: { rows: [L, [], true], field: [T, 'text'], max: [N, 4] } },
     toast: { group: 'hud', about: 'a passing word', props: { value: [T, '', true] } },
@@ -273,6 +277,8 @@ export function buildManaUi() {
     }
     const C = COMPONENTS[node.use];
     if (!C) throw new Error(`${where}.use '${node.use}' is a component (${COMPONENT_IDS.join(', ')}) or a def (${Object.keys(defs).join(', ') || 'none given'})`);
+    // (a node whose `when` is a param the user did not give never draws: nothing it or what it holds would need is asked)
+    if (node.when === false) return { use: node.use, props: {}, on: {}, children: [], when: false };
     const props = { ...(node.props || {}) };
     for (const k in props) if (!C.props[k]) throw new Error(`${where}.props.${k}: ${node.use} takes ${Object.keys(C.props).join(', ') || 'no props'}`);
     for (const k in C.props) {
@@ -668,7 +674,7 @@ export function buildManaUi() {
           case 'window': return ['div', { class: cls, 'data-variant': p.variant }, p.variant === 'ghost' ? null : ['i', { class: 'mana-layers', 'aria-hidden': 'true' }, ['b', null]], p.title ? ['h3', { class: 'mana-heading' }, p.title] : null, ...kids()];
           case 'stack': return ['div', { class: cls, 'data-dir': p.dir, 'data-gap': p.gap, 'data-align': p.align, 'data-fill': p.fill ? 'yes' : null, 'data-fit': p.fit !== 'fixed' ? p.fit : null }, ...kids()];
           case 'split': return ['div', { class: cls, 'data-ratio': p.ratio }, ...n.children.map((c, i) => { const was = pane; pane = { split: key, i }; const t = draw(c, `${key}.${c.id || i}`, scope); pane = was; return t; })];
-          case 'tab': case 'region': return ['div', { class: cls, 'data-at': n.use === 'region' ? p.at : null, 'data-variant': n.use === 'region' && p.variant !== 'plain' ? p.variant : null }, ...kids()];
+          case 'tab': case 'region': return ['div', { class: cls, 'data-at': n.use === 'region' ? p.at : null, 'data-variant': n.use === 'region' && p.variant !== 'plain' ? p.variant : null, 'data-rest': n.use === 'region' && p.rest ? 'yes' : null }, ...kids()];
           case 'each': return ['div', { class: cls, 'data-dir': p.dir }, ...p.rows.map((item, i) => draw(n.props.row, `${key}.${i}`, { ...scope, item }))];
           case 'divider': return ['div', { class: cls }, p.label ? ['span', { class: 'mana-label' }, p.label] : null];
           case 'tabs': {
@@ -725,6 +731,37 @@ export function buildManaUi() {
             return ['div', { class: cls, 'data-shape': p.shape }, p.label ? ['span', { class: 'mana-label' }, p.label] : null, ['span', { class: 'mana-glyphs', ...chOf(changeOf(key, v)) }, on.repeat(v) + offc.repeat(max - v)]];
           }
           case 'counter': { const c = changeOf(key, p.value); return ['div', { class: cls }, p.icon ? ['span', { class: 'mana-icon', 'data-size': 's', 'data-icon': iconName(p.icon) }, initials(p.icon)] : null, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-num', ...chOf(c) }, words(counting(key, p.value, c, false)), p.max !== undefined ? ['span', { class: 'mana-max' }, `/${p.max}`] : null, gainOf(c)]]; }
+          case 'magazine': {
+            // the figure is the rounds; what they mean (low, empty, reloading) is a word that comes and goes beside it
+            const size = Math.max(0, Math.floor(p.size)), n = clamp(Math.round(p.rounds), 0, size || Infinity), c = changeOf(key, n);
+            const has = (v) => v !== undefined && v !== null && v !== '';
+            // (a blade, or a gun with nothing to count: no magazine, no reserve, nothing in it: its wireframe and name alone)
+            const counted = size > 0 || n > 0 || has(p.reserve) || p.reloading;
+            const empty = counted && n === 0 && !p.reloading, low = !empty && !p.reloading && size > 0 && n <= p.low * size;
+            const call = p.reloading ? W('reloading') : empty ? W('reload') : low ? W('lowAmmo') : null;
+            return ['div', { class: cls, 'data-gun': iconName(has(p.gun) ? p.gun : p.name), 'data-low': low ? 'yes' : null, 'data-empty': empty ? 'yes' : null, 'data-reloading': p.reloading ? 'yes' : null },
+              ['i', { class: 'mana-sil', 'aria-hidden': 'true' }],
+              has(p.name) || has(p.mode) ? ['span', { class: 'mana-gun' }, has(p.name) ? ['span', null, p.name] : null, has(p.mode) ? ['b', { class: 'mana-mode' }, p.mode] : null] : null,
+              counted ? ['span', { class: 'mana-rounds' }, ['span', { class: 'mana-num', ...chOf(c) }, words(n)], has(p.reserve) ? ['span', { class: 'mana-reserve' }, words(p.reserve)] : null] : null,
+              size > 0 && size <= 60 ? ['span', { class: 'mana-belt', 'data-round': has(p.round) ? iconName(p.round) : null, style: `width:calc(${Math.min(360, size * 13)} * var(--mana-du))` }, ...Array.from({ length: size }, (_, k) => ['i', { 'data-spent': k >= n ? 'yes' : null }])]
+                : size > 60 ? ['span', { class: 'mana-track' }, ['i', { style: `width:${pct(n / size)}` }]] : null,
+              call ? ['span', { class: 'mana-call', 'data-key': p.reloading ? 'reloading' : empty ? 'empty' : 'low' }, call] : null];
+          }
+          case 'charge': {
+            const r = clamp(Number(p.value) || 0, 0, 1);
+            return ['div', { class: cls, 'data-state': p.state, style: `--r:${Math.round(r * 100) / 100}` }, ['span', { class: 'mana-ring' }, p.icon ? ['span', { class: 'mana-icon', 'data-size': 'm', 'data-icon': iconName(p.icon) }, /^(clock|time)$/.test(iconName(p.icon)) ? '⧗' : initials(p.icon)] : null], p.label ? ['span', { class: 'mana-label' }, p.label] : null];
+          }
+          case 'wheel': {
+            const rows = p.rows.filter(isObj), on = rows.find((r) => r.on) || null, has = (v) => v !== undefined && v !== null && v !== '';
+            return ['div', { class: cls }, ['span', { class: 'mana-wring' }],
+              ...rows.map((r, i) => {
+                const a = ((has(r.at) && isFinite(Number(r.at)) ? Number(r.at) : (i * 360) / Math.max(1, rows.length)) * Math.PI) / 180;
+                return ['div', { class: 'mana-wslot', 'data-gun': iconName(has(r.gun) ? r.gun : r.name), 'data-on': r.on ? 'yes' : null, style: `left:${pct(0.5 + 0.4 * Math.sin(a))};top:${pct(0.5 - 0.4 * Math.cos(a))}` },
+                  ['i', { class: 'mana-sil', 'aria-hidden': 'true' }], ['span', { class: 'mana-name' }, words(r.name)],
+                  has(r.key) || has(r.count) ? ['span', { class: 'mana-wmeta' }, has(r.key) ? ['span', { class: 'mana-key' }, words(r.key)] : null, has(r.count) ? ['span', { class: 'mana-num' }, words(r.count)] : null] : null];
+              }),
+              ['div', { class: 'mana-whub' }, p.title ? ['span', { class: 'mana-caption' }, p.title] : null, on ? ['span', { class: 'mana-name' }, words(on.name)] : null, on && has(on.sub) ? ['span', { class: 'mana-caption' }, words(on.sub)] : null]];
+          }
           case 'timer': return ['div', { class: cls }, p.label ? ['span', { class: 'mana-label' }, p.label] : null, ['span', { class: 'mana-num' }, clock(p.seconds, p.format)]];
           case 'compare': {
             const d = p.to - p.from, good = p.better === 'up' ? d > 0 : d < 0;
@@ -798,11 +835,15 @@ export function buildManaUi() {
             return ['span', { class: 'mana-edge', 'data-kind': MARKERS[m.kind] ? m.kind : 'poi', style: `left:${pct(clamp(x, 0.03, 0.97))};top:${pct(clamp(y, 0.05, 0.95))}` }, arrow, MARKERS[m.kind] || MARKERS.poi, m.label ? ['span', { class: 'mana-caption' }, ` ${words(m.label)}`] : null];
           })];
           case 'threat': return ['div', { class: cls }, ...p.markers.map((m) => {
-            const b = Number(isObj(m) ? m.bearing : m);
+            // an arc of the ring, turned to the bearing (the sheet draws it centred on the top and tapering to its ends)
+            const b = Number(isObj(m) ? m.bearing : m), f = isObj(m) && m.fade !== undefined ? Number(m.fade) : 1;
             if (!isFinite(b)) return null;
-            const t = (b * Math.PI) / 180;
-            return ['span', { class: 'mana-arc', style: `left:${pct(0.5 + 0.45 * Math.sin(t))};top:${pct(0.5 - 0.45 * Math.cos(t))};transform:translate(-50%,-50%) rotate(${Math.round(b)}deg)` }, '▲'];
+            return ['span', { class: 'mana-arc', style: `transform:rotate(${Math.round(b)}deg)${isFinite(f) && f < 1 ? `;opacity:${Math.round(clamp(f, 0, 1) * 100) / 100}` : ''}` }];
           })];
+          case 'peril': {
+            const lv = clamp(Number(p.level) || 0, 0, 1);
+            return ['div', { class: cls, 'data-tone': p.tone === 'harm' ? null : p.tone, 'data-high': lv >= 0.75 ? 'yes' : null, style: `--mana-peril:${Math.round(lv * 100) / 100}` }];
+          }
           case 'letterbox': return ['div', { class: cls }, ['i', null], ['i', null]];
           case 'touchpad': { const H = isObj(p.held) ? p.held : null, px = (v) => `${Math.round(Number(v) || 0)}px`; return ['div', { class: cls }, p.stick ? ['span', { class: 'mana-stick', 'data-stick': 'left', 'data-lane': p.lane ? 'yes' : null, 'data-held': H ? 'yes' : null, style: H ? `transform:translate(${px(H.ox)},${px(H.oy)})` : null }, ['i', { style: H ? `transform:translate(${px(H.dx)},${px(H.dy)})` : null }]] : ['span', null], ['span', { class: 'mana-pads' }, ...p.buttons.map((b) => {
             const label = words(isObj(b) ? b.label : b), control = isObj(b) && b.control ? words(b.control) : PAD_FACES[label] || null;
@@ -812,7 +853,7 @@ export function buildManaUi() {
           case 'prompt': { const g = p.glyph || glyphOf(p.action) || p.action; return ['div', { class: cls }, ['span', { class: 'mana-key', 'data-icon': iconName(g) }, g], ['span', null, p.label]]; }
           case 'legend': return legendOf(p.rows);
           case 'reticle': return ['div', { class: cls, 'data-shape': p.shape, 'data-hit': p.hit ? 'yes' : null }, ['span', null, RETICLES[p.shape] || '+'], p.hit ? ['span', { class: 'mana-hit' }, '✕'] : null];
-          case 'minimap': return ['div', { class: cls, 'data-shape': p.shape }, ...p.markers.map((m) => {
+          case 'minimap': return ['div', { class: cls, 'data-shape': p.shape, 'data-scope': p.scope ? 'yes' : null }, p.scope ? ['span', { class: 'mana-bezel' }, ['i', { class: 'mana-cone' }], p.north !== undefined && isFinite(p.north) ? ['b', { class: 'mana-north', style: `transform:rotate(${Math.round(p.north)}deg)` }, ['span', { style: `transform:rotate(${-Math.round(p.north)}deg)` }, 'N']] : null] : null, ...p.markers.map((m) => {
             if (!isObj(m) || !isFinite(Number(m.x)) || !isFinite(Number(m.y))) return null;
             return ['span', { class: 'mana-marker', 'data-kind': MARKERS[m.kind] ? m.kind : 'poi', style: `left:${pct(m.x)};top:${pct(m.y)}`, title: m.label || null }, MARKERS[m.kind] || MARKERS.poi];
           }), p.label ? ['span', { class: 'mana-caption' }, p.label] : null];

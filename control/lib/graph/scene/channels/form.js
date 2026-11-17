@@ -436,9 +436,11 @@ ${cfg.reflect && cfg.sun ? `    // (a built thing out of doors is closed and dra
     const a0 = o.material.opacity;
     o.material = new THREE.ShaderMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
       uniforms: { uA: { value: a0 }, uF0: { value: F.f0 }, uUp: { value: up }, uDown: { value: down } },
-      vertexShader: 'varying vec3 vC;\\nvarying vec3 vW;\\nvoid main() { vC = color; vec4 w = modelMatrix * vec4( position, 1.0 ); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
-      fragmentShader: 'uniform float uA;\\nuniform float uF0;\\nuniform vec3 uUp;\\nuniform vec3 uDown;\\nvarying vec3 vC;\\nvarying vec3 vW;\\n'
-        + 'void main() { vec3 N = normalize( cross( dFdx( vW ), dFdy( vW ) ) ), V = normalize( cameraPosition - vW ); if ( dot( N, V ) < 0.0 ) N = - N;\\n'
+      // (the page's depth is logarithmic, scene-three.js: a shader of its own writes and tests it the same way, or its
+      // glass is drawn through every wall in front of it)
+      vertexShader: 'varying vec3 vC;\\nvarying vec3 vW;\\n#include <common>\\n#include <logdepthbuf_pars_vertex>\\nvoid main() { vC = color; vec4 w = modelMatrix * vec4( position, 1.0 ); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w;\\n#include <logdepthbuf_vertex>\\n}',
+      fragmentShader: 'uniform float uA;\\nuniform float uF0;\\nuniform vec3 uUp;\\nuniform vec3 uDown;\\nvarying vec3 vC;\\nvarying vec3 vW;\\n#include <common>\\n#include <logdepthbuf_pars_fragment>\\n'
+        + 'void main() {\\n#include <logdepthbuf_fragment>\\n  vec3 N = normalize( cross( dFdx( vW ), dFdy( vW ) ) ), V = normalize( cameraPosition - vW ); if ( dot( N, V ) < 0.0 ) N = - N;\\n'
         + '  float c = clamp( dot( N, V ), 0.0, 1.0 ), fr = uF0 + ( 1.0 - uF0 ) * pow( 1.0 - c, 5.0 ); vec3 R = reflect( - V, N );\\n'
         + '  vec3 env = mix( uDown, uUp, smoothstep( -0.25, 0.35, R.z ) ) + uUp * pow( max( R.z, 0.0 ), 12.0 ) * 0.6;\\n'
         + '  float k = clamp( fr * 2.2, 0.0, 1.0 ); gl_FragColor = vec4( mix( vC, env, k ), uA + ( 1.0 - uA ) * k * 0.85 ); }' });
@@ -458,6 +460,9 @@ ${cfg.reflect && cfg.sun ? `    // (a built thing out of doors is closed and dra
     for (const s of slots) if (s.next === s.lamp) s.next = null;
   };
   const probe = { lamps: lamps.length, live: slots.length, made, panes, reads: Object.fromEntries(Object.entries(F.maps).map(([k, m]) => [k, m.read])), on: () => slots.map((s) => (s.lamp ? s.lamp.i : -1)) };
+  // (the light a thing held before the eye is drawn under: the live lamps, in the camera's frame, and the ambient;
+  // channels/controllable/gunplay-view.js lights the gun and the hands by it)
+  probe.light = { U, K };
   const prev = scene.onBeforeRender;
   scene.onBeforeRender = function (r, s, cam, rt) {
     if (prev) prev.call(this, r, s, cam, rt);

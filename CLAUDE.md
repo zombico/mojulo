@@ -253,7 +253,9 @@ Pointers only; each target carries its own design notes.
   `headgear` word, and the helmets by tradition an outfit's `language.head` wears; a new look is a card.
 - Arms: [equipment/arms/](control/lib/graph/equipment/arms/) (modern and future guns and knives for the gen-7 look: a
   model row and its builder → tunable parts → a finish card, held to the laws in `laws.js`; a new look is a finish card,
-  a new archetype a model row). Manual: the `equipment` solid-vocab card; review: `scripts/render-arms.mjs`.
+  a new archetype a model row). Manual: the `equipment` solid-vocab card; review: `scripts/render-arms.mjs`. In a
+  shooter's hands a gun is its parts' boxes unless its slot asks for the arm itself (`gameworld/arms-kit.js` `armDetailed`;
+  the mission and the firing range ask).
 - Solids: [polygonizer/](control/lib/graph/polygonizer/) (`field-terms.js`, `code-realm.js`,
   `field-exact.js` for `exact: true` through Manifold), [worlds/workbench.js](control/lib/graph/worlds/workbench.js);
   manuals are the `solid-vocab/` cards. OpenSCAD both ways: [scad/scad-render.js](control/lib/graph/scad/scad-render.js)
@@ -325,6 +327,18 @@ Pointers only; each target carries its own design notes.
   blade (an arsenal's `art`: `SWORD_ARTS` in `polygonizer/hero-swing-body.js`): [docs/sword-arts.md](docs/sword-arts.md). A game's play
   tried before its levels (the action and platform rooms, the mount lane, the firing and artillery ranges, the roll room, the work room and the game room, chosen by how
   it plays): [gameworld/practice.js](control/lib/graph/gameworld/practice.js), [docs/practice-rooms.md](docs/practice-rooms.md).
+- Missions (a shooter's first level): [mission/](control/lib/graph/mission/) (the firing range stretched into sections,
+  each a band the world's guns are for with a task in it: the section table, the brief read from the guns, the seeded
+  composition, the laws; a new section is a row) and [gameworld/mission-level.js](control/lib/graph/gameworld/mission-level.js)
+  (the level: `levels.<id>.mission`, a quick shooter's `mission`, the practice door's `mission` room; its tasks the
+  `objectives` mechanic, `game/objectives.js`; its briefing, HUD, pause and debrief on mana-ui through the page's mission
+  channel, `gameworld/mission-mana.js`; proved on the bus and played headless, `gameworld/mission-proof.js`):
+  [docs/missions.md](docs/missions.md). Arena maps (a fighting map as blocks on a grid, the principles of line-of-sight
+  combat as laws, a generator that grows a template under them; laid as a mission's ground, `mission.map`, by `ground.js` and
+  `phases.js`; a building's `fight` dials are the geocube's answer to the same laws; a town's or a city's cut read as a map, `read-town.js`; an industrial yard found under the laws, `facility.js`; a mission laid on a place the geocube builds, read off its colliders, `read-colliders.js`, `gameworld/mission-site.js`; an industrial level, a yard designed piece by piece under the laws and built by the geocube, `yard.js`, `gameworld/mission-industrial.js`):
+  [arena-map/](control/lib/graph/arena-map/), [docs/arena-maps.md](docs/arena-maps.md). The damage ring (where a hit came from, round the aim) is its own concept,
+  `gameworld/damage-ring.js`: a mission draws it on mana-ui, a quick shooter's level and a deathmatch through the page's
+  damage ring channel.
 - Title cards: [game/title-carve.js](control/lib/graph/game/title-carve.js) (a HUD banner `as: 'title'`: its words carved
   by [motion/glyph-carver.js](control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,
   in the juice register's look; words by key in the world's `locale` from `control/messages/`: `game/title-words.js`);

@@ -2053,6 +2053,22 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       payload.audio = payload.audio ? { ...payload.audio, cues: { ...A.cues, ...(payload.audio.cues ?? {}) }, vary: payload.audio.vary ?? A.vary, mix: payload.audio.mix ?? A.mix } : A;
     }
   }
+  // the damage ring (gameworld/damage-ring.js): where each hit the pilot takes came from, round the aim, on a page whose
+  // HUD is its own (a quick shooter's level, a deathmatch). Absent ⇒ nothing (scene/channels/damage-ring.js).
+  if (payload && sketch.manifest.damageRing) {
+    const { readDamageRing } = await import('@/lib/graph/gameworld/damage-ring.js');
+    payload.damageRing = readDamageRing(sketch.manifest.damageRing, 'damageRing');
+  }
+  // the arm itself in the hands (gameworld/arms-kit.js): a pilot's slot that asks (`gunplay.view.detail: 'arm'`) is handed
+  // the arm as the arms library builds it, part by part; the recipe carries the ask and the build words, never the mesh.
+  // No slot asks ⇒ nothing (the view draws each arm as its parts' boxes, as before).
+  if (payload && Array.isArray(payload.entities) && payload.entities.some((e) => Array.isArray(e?.rule?.loadout) && e.rule.loadout.some((sl) => sl?.gunplay?.view?.detail === 'arm'))) {
+    const { withArmMeshes } = await import('@/lib/graph/gameworld/arms-kit.js');
+    payload.entities = withArmMeshes(payload.entities);
+  }
+  // a mission on the world (gameworld/mission-level.js): its plan, its tasks and its briefing; the page's mission channel
+  // draws its briefing, HUD, pause and debrief on mana-ui from them. Absent ⇒ nothing (scene/channels/mission.js).
+  if (payload && sketch.manifest.mission && typeof sketch.manifest.mission === 'object' && Array.isArray(sketch.manifest.mission.tasks)) payload.mission = sketch.manifest.mission;
   // a brawl on the world (brawl/brawl-levels.js brawlLevel): its practice yard, the belt and the practice (who plays,
   // the dummies, the things); the page's brawl channel plays it, its blows sounded from the SFX shelf as a fight's are.
   // Absent (or a brawl block with no practice yet) ⇒ nothing (scene/channels/brawl.js).

@@ -6,9 +6,10 @@
  * (breakables splice it at runtime). A box blocks a cell when it overlaps the cell's centre circle inflated by the body
  * radius and its z band meets the body's (the same gate as core.js resolveBlocking: a body walks under a raised slab
  * and over a box it stands on). One floor at the body's height: stairs, multi-level floors and space are out of scope.
+ * With `ledges` (opt-in) a cell with no ground at the body's height is shut as a wall is, so a path keeps to its floor.
  *
  *   navPath(world, from, to, opts) → [[x, y], ...] corners after `from` ending at `to`, [] when the line is clear, or
- *                                    null when no path exists (opts: { radius, height, footZ, step, cell })
+ *                                    null when no path exists (opts: { radius, height, footZ, step, cell, ledges?, drop? })
  *   navClear(world, from, to, opts) → true when the grid line between the two points is walkable
  *
  * BUILDER CONTRACT (compose.js): import-free; deterministic (ties broken by cell index, no dice).
@@ -51,11 +52,26 @@ export function buildNav(E) {
         }
       }
     }
-    return { x0, y0, cell, nx, ny, block };
+    // LEDGES (opt-in `ledges`): a cell with no ground to stand on at the body's height is shut too, so a path keeps to
+    // the floor it is on: round a well, along a gallery, never out over a drop. Asked of the world's ground a cell at a
+    // time, as a path reaches it (`shut`, below), never for the whole grid. Absent: the grid is its colliders', as it was
+    const ledge = o.ledges && world.ground ? { ground: world.ground, footZ: o.footZ, up: Math.max(o.step, cell), drop: o.drop } : null;
+    return { x0, y0, cell, nx, ny, block, ...(ledge ? { ledge, seen: new Uint8Array(nx * ny) } : {}) };
+  }
+  // is a cell shut: by a collider, or (ledges) by having no ground within a step and a cell's rise over the feet, or
+  // only lower than a body steps down
+  function shut(g, k) {
+    if (g.block[k]) return 1;
+    const L = g.ledge;
+    if (!L || g.seen[k]) return 0;
+    g.seen[k] = 1;
+    const x = g.x0 + ((k % g.nx) + 0.5) * g.cell, y = g.y0 + (Math.floor(k / g.nx) + 0.5) * g.cell, z = L.ground([x, y, L.footZ + L.up]);
+    if (z == null || z < L.footZ - L.drop) { g.block[k] = 1; return 1; }
+    return 0;
   }
 
   function gridOf(world, o) {
-    const key = collidersKey(world.colliders) + '|' + o.radius + '|' + o.height + '|' + Math.round(o.footZ * 10) + '|' + o.cell;
+    const key = collidersKey(world.colliders) + '|' + o.radius + '|' + o.height + '|' + Math.round(o.footZ * 10) + '|' + o.cell + (o.ledges ? '|ledges' + o.drop : '');
     const cache = world.navCache || (world.navCache = {});
     let g = cache[key];
     const inside = (g2, p) => p[0] >= g2.x0 && p[1] >= g2.y0 && p[0] < g2.x0 + g2.nx * g2.cell && p[1] < g2.y0 + g2.ny * g2.cell;
@@ -75,7 +91,7 @@ export function buildNav(E) {
 
   // the nearest open cell to a blocked one (a goal inside an inflated wall, or a body pressed against one)
   function nearestOpen(g, idx) {
-    if (!g.block[idx]) return idx;
+    if (!shut(g, idx)) return idx;
     const i0 = idx % g.nx, j0 = Math.floor(idx / g.nx);
     for (let rad = 1; rad < 12; rad++) {
       let best = -1, bd = Infinity;
@@ -84,7 +100,7 @@ export function buildNav(E) {
           if (i < 0 || j < 0 || i >= g.nx || j >= g.ny) continue;
           if (Math.max(Math.abs(i - i0), Math.abs(j - j0)) !== rad) continue;
           const k = j * g.nx + i;
-          if (g.block[k]) continue;
+          if (shut(g, k)) continue;
           const d = (i - i0) * (i - i0) + (j - j0) * (j - j0);
           if (d < bd || (d === bd && k < best)) { bd = d; best = k; }
         }
@@ -101,7 +117,7 @@ export function buildNav(E) {
     const n = Math.max(1, Math.ceil((Math.hypot(q[0] - p[0], q[1] - p[1]) / g.cell) * 4));
     for (let k = 0; k <= n; k++) {
       const x = p[0] + ((q[0] - p[0]) * k) / n, y = p[1] + ((q[1] - p[1]) * k) / n;
-      if (g.block[cellIdx(g, [x, y])]) return false;
+      if (shut(g, cellIdx(g, [x, y]))) return false;
     }
     return true;
   }
@@ -128,8 +144,8 @@ export function buildNav(E) {
           const ni = i + di, nj = j + dj;
           if (ni < 0 || nj < 0 || ni >= g.nx || nj >= g.ny) continue;
           const nk = nj * g.nx + ni;
-          if (g.block[nk] || closed[nk]) continue;
-          if (di && dj && (g.block[j * g.nx + ni] || g.block[nj * g.nx + i])) continue;   // no corner cutting
+          if (shut(g, nk) || closed[nk]) continue;
+          if (di && dj && (shut(g, j * g.nx + ni) || shut(g, nj * g.nx + i))) continue;   // no corner cutting
           const ng = G[k] + (di && dj ? Math.SQRT2 : 1);
           if (ng < G[nk]) { G[nk] = ng; from[nk] = k; push([ng + h(nk), nk]); }
         }
@@ -149,6 +165,8 @@ export function buildNav(E) {
       footZ: (opts && opts.footZ) ?? 0,
       step: (opts && opts.step) ?? 0.35,
       cell: (opts && opts.cell) || world.navCell || Math.max(1, radius),
+      // (ledges: keep to ground a body can stand on; `drop` is how far down it still steps, a step and a half unsaid)
+      ...(opts && opts.ledges ? { ledges: true, drop: Number.isFinite(opts.drop) ? opts.drop : 1.5 * ((opts && opts.step) ?? 0.35) } : {}),
     };
   }
 

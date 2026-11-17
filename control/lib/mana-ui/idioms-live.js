@@ -6,7 +6,13 @@
  *
  *   a fight      versus-bars (mirrored health with the chip of the last hit, rounds, the clock), super-meters, combo
  *   a race       race-standing (place, lap, lap and best times), speedometer
- *   a firefight  damage-direction, offscreen-markers, lock-on, ability-bar
+ *   a firefight  damage-direction, offscreen-markers, lock-on, ability-bar; and a shooter's own readouts, drawn as a
+ *                modern shooter draws them rather than as a dashboard: weapon-readout (the magazine's rounds the big figure,
+ *                the belt of rounds, reload said), health-strip (one long bar in cells, no label, no number), objective-order
+ *                (one order and how far, a hold's clock draining), radar-scope (an instrument that turns with you), peril-edge
+ *                (the screen's edge closing in as health runs out); a cinematic action game's own: bullet-time (the
+ *                slow-motion's charge as a ring), item-wheel (what is carried, picked round a ring at the pad's face
+ *                buttons). The principles: docs/mana-ui.md, "A HUD that reads as a game"
  *   survival     hotbar, world-labels
  *   strategy     resource-bar, turn-order, selection-grid, unit-card, combat-forecast, wave-status
  *   a match      score-bug, lower-third
@@ -77,6 +83,59 @@ export const LIVE_IDIOMS = {
     params: ['hits'],
     node: { use: 'threat', props: { markers: P('hits') } },
     example: { hits: { bind: 'shooter.threats' } },
+  },
+  'weapon-readout': {
+    kind: 'hud', about: 'the gun in hand as a shooter shows it (bottom right, on a scrim): the rounds in the magazine as the big figure, the reserve its caption, the magazine as a belt of rounds, its name and fire mode small; low, empty and reloading said beside it; at rest (a full magazine, nothing fired lately) it fades back',
+    reads: 'name, mode, rounds, size, reserve, reloading, rest', emits: '—',
+    params: ['name', 'mode', 'rounds', 'size', 'reserve', 'reloading', 'rest'],
+    node: { use: 'region', props: { at: 'bottom-right', variant: 'scrim', rest: P('rest') }, children: [{ use: 'magazine', props: { name: P('name'), mode: P('mode'), rounds: P('rounds'), size: P('size'), reserve: P('reserve'), reloading: P('reloading') } }] },
+    example: { name: { bind: 'shooter.gun.name' }, mode: { bind: 'shooter.gun.mode' }, rounds: { bind: 'shooter.gun.rounds' }, size: { bind: 'shooter.gun.size' }, reserve: { bind: 'shooter.gun.reserve' }, reloading: { bind: 'shooter.gun.reloading' }, rest: false },
+  },
+  'health-strip': {
+    kind: 'hud', about: 'the player\'s health as a shooter shows it (bottom left, on a scrim): one long bar in cells, read by its length, no label and no number; at rest (full) it fades back',
+    reads: 'hp, hpMax, cells, rest', emits: '—',
+    params: ['hp', 'hpMax', 'cells', 'rest'],
+    node: { use: 'region', props: { at: 'bottom-left', variant: 'scrim', rest: P('rest') }, children: [{ use: 'bar', props: { value: P('hp'), max: P('hpMax'), variant: 'hp', segments: P('cells'), size: 'large', figures: false } }] },
+    example: { hp: { bind: 'player.hp' }, hpMax: { bind: 'player.hpMax' }, cells: 4, rest: false },
+  },
+  'objective-order': {
+    kind: 'hud', about: 'what to do now as one order, not a checklist (top): a mark, the order, which of how many, how far; while a place is held, its clock drains under it (the list of every task is the pause\'s and the briefing\'s)',
+    reads: 'title, step (e.g. 2/3), distance, holding, hold (seconds in all), left (seconds left), label', emits: '—',
+    params: ['title', 'step', 'distance', 'holding', 'hold', 'left', 'label'],
+    node: { use: 'region', props: { at: 'top', variant: 'bare' }, children: [col([
+      row([txt('◆', 'heading'), txt(P('title'), 'heading'), txt(P('step'), 'caption')]),
+      { use: 'stack', props: { dir: 'row', gap: 'tight', align: 'center' }, when: P('distance'), children: [txt(P('distance'), 'caption')] },
+      { use: 'stack', props: { dir: 'row', gap: 'tight', align: 'center' }, when: P('holding'), children: [txt(P('label'), 'label'), { use: 'bar', props: { value: P('left'), max: P('hold'), size: 'thin', figures: false } }, { use: 'timer', props: { seconds: P('left'), format: 'ss' } }] },
+    ], 'center')] },
+    example: { title: { bind: 'shooter.order.title' }, step: { bind: 'shooter.order.step' }, distance: { bind: 'shooter.order.distance' }, holding: { bind: 'shooter.order.holding' }, hold: { bind: 'shooter.order.hold' }, left: { bind: 'shooter.order.left' }, label: 'Hold' },
+  },
+  'radar-scope': {
+    kind: 'hud', about: 'what is round you on a round scope (top left): you its middle, ahead at the top, so it turns as you turn; a bezel of ticks, the wedge you see, north riding the bezel; its edge fades into the world',
+    reads: 'markers: [{ x, y, kind }] (0..1, you at the middle, ahead up), north (degrees clockwise from the top), label', emits: '—',
+    params: ['markers', 'north', 'label'],
+    node: { use: 'region', props: { at: 'top-left', variant: 'bare' }, children: [{ use: 'minimap', props: { shape: 'round', scope: true, markers: P('markers'), north: P('north'), label: P('label') } }] },
+    example: { markers: { bind: 'shooter.radar' }, north: { bind: 'shooter.north' }, label: '30 m' },
+  },
+  'peril-edge': {
+    kind: 'hud', about: 'danger told by the screen itself: its edges close in, tinted harm, as the game\'s level rises (health running out: nothing at half and over, all of it near none); near the end it beats slowly',
+    reads: 'level (0..1)', emits: '—',
+    params: ['level'],
+    node: { use: 'peril', props: { level: P('level') } },
+    example: { level: { bind: 'shooter.peril' } },
+  },
+  'bullet-time': {
+    kind: 'hud', about: 'the slow-motion a cinematic action game spends, as a ring round a clock beside the health (bottom left, on a scrim): filling while it comes back, glowing when it is ready with what sets it off said beside it (a dodge, the last foe), draining while the world crawls',
+    reads: 'value (0..1), state (cooling | ready | active), label (what sets it off)', emits: '—',
+    params: ['value', 'state', 'label'],
+    node: { use: 'region', props: { at: 'bottom-left', variant: 'scrim' }, children: [{ use: 'charge', props: { value: P('value'), state: P('state'), icon: 'clock', label: P('label') } }] },
+    example: { value: { bind: 'shooter.focus.value' }, state: { bind: 'shooter.focus.state' }, label: { bind: 'shooter.focus.label' } },
+  },
+  'item-wheel': {
+    kind: 'hud', about: 'what is carried, held open on a button (a weapon wheel), centred over the slowed world: each slot at the face button that picks it, drawn as its wireframe with its name, its button and its rounds, the one in hand lit and named in the middle; it takes no focus (the game\'s own buttons pick)',
+    reads: 'open, title, slots: [{ name, gun?, at (degrees: 0 top, 90 right…), key, count?, on?, sub? }]', emits: '—',
+    params: ['open', 'title', 'slots'],
+    node: { use: 'region', props: { at: 'center', variant: 'bare' }, when: P('open'), children: [{ use: 'wheel', props: { rows: P('slots'), title: P('title') } }] },
+    example: { open: true, title: 'Hold RB · press a button', slots: { bind: 'shooter.wheel' } },
   },
   'offscreen-markers': {
     kind: 'hud', about: 'what matters off screen, held at the edge with an arrow toward it: an objective, a foe behind, an ally',

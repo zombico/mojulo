@@ -36,6 +36,9 @@
  *                                           // are a trail's (reach, collect, survive, avoid, race alone); a flier's the
  *                                           // fly goal, flown from its seat in the air
  *     climb?: true,                         // a climb after the trail, the exit at its top
+ *     mission?: true | { seed?, foes?, hold?, waves?, sections? },   // shoot, on foot: the level is a MISSION in
+ *                                           // place of the trail (gameworld/mission-level.js: the firing range stretched
+ *                                           // into sections, a task in each, on mana-ui), laid from the carried `arms`
  *     building?: { use, seed?, goal?, … },  // the level is a building in place of the trail (gameworld building levels):
  *                                           // entered at its way in, its goal room the end, pickups in its other rooms
  *     pickup?: '<word>',                    // collect: what lies along the way (its word picks the glyph: coin, key, star…)
@@ -173,6 +176,7 @@ import { mulberry32 } from '../vegetation/grow.js';
 import { beatPosts, padSites, askBoxes } from './lay-concerns.js';
 import { SIGHTS } from '../mind/vocab.js';
 import { shooterPole, readPole } from './shooter-pole.js';
+import { readMission } from '../mission/brief.js';
 import { poleArmory, roleLoadout } from './weapon-roles.js';
 import { racerSpec, solveRoster, racerRule } from '../car-designer/roster.js';
 import { composeSupercar, SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
@@ -255,13 +259,13 @@ export const QUICK_GOALS = Object.freeze({
 /** A dogfight's costs: what a hit on the craft takes off its hp, and what a crash does. */
 export const DOGFIGHT = Object.freeze({ hit: 4, crash: 25 });
 /** A shooter's foe: a hunter in a person's skin (foes/classes/hunter.js), and what the shooter plays it at. */
-const SHOOT_FOE = Object.freeze({ class: 'hunter', skin: { people: 'human' } });
+export const SHOOT_FOE = Object.freeze({ class: 'hunter', skin: { people: 'human' } });
 export const SHOOT = Object.freeze({
   hp: 100, hit: 8, health: 30, rounds: 24, foeHp: 4,
   rifle: { fireClass: 'sight', auto: false, cooldown: 0.3, magazine: 12, reserve: 36, reload: 1.5, damage: 1, impact: 1, range: 60, coreAngle: 1.5, round: ROUNDS.rifle },
   gun: { fireClass: 'sight', auto: false, cooldown: 0.7, magazine: 6, reload: 2.2, damage: 1, range: 28, coreAngle: 1.5, eye: 1.4, round: ROUNDS.rifle },
 });
-const SHOOT_TUNE = Object.freeze({ rule: { standoff: 12, speed: 3, turn: 3, burst: 0.3, pause: 1.2, navCell: 0.5 }, weapon: SHOOT.gun, body: { hp: SHOOT.foeHp, radius: 0.6 } });
+export const SHOOT_TUNE = Object.freeze({ rule: { standoff: 12, speed: 3, turn: 3, burst: 0.3, pause: 1.2, navCell: 0.5 }, weapon: SHOOT.gun, body: { hp: SHOOT.foeHp, radius: 0.6 } });
 // a person's hit volume (an egg: `a` its half-width, `c` its half-height), stood on its feet
 export const PERSON = Object.freeze({ a: 0.35, c: 0.9 });
 // a person's walk (m/s): the hero library's (playscape/player.js), a hero-less shooter's on the platform rule
@@ -284,7 +288,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown', 'card', 'challenge', 'serve'];
+const KEYS = ['mission', 'xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown', 'card', 'challenge', 'serve'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -583,6 +587,13 @@ export function readQuick(Q) {
   const most = Q.goal === 'shoot' ? 8 : BATTLE.foeHp.length;
   if (Q.foes !== undefined && !(Number.isInteger(Q.foes) && Q.foes >= 1 && Q.foes <= most)) throw fail(`.foes is 1 to ${most}`);
   if (Q.goal === 'shoot' && (Q.building !== undefined || Q.ride)) throw fail('.shoot fights along a trail on foot: no building, no ride');
+  // a shooter's mission (mission-level.js): the level in place of the trail, laid from the carried kit
+  if (Q.mission !== undefined) {
+    if (Q.goal !== 'shoot' || Q.craft !== undefined) throw fail('.mission belongs to the shoot goal on foot: the firing range stretched into a level');
+    if (!(Array.isArray(Q.arms) && Q.arms.length)) throw fail('.mission is laid from the guns carried: name .arms (a kit: rifle, shotgun, handgun, sniper…)');
+    if (Q.climb || Q.run !== undefined) throw fail('.mission is its own level: no climb or run beside it');
+    try { readMission(Q.mission, '.mission'); } catch (e) { throw fail(e.message); }
+  }
   // the player's carried arms (arms-kit.js): the shoot and deathmatch goals, on foot
   if (Q.arms !== undefined) {
     if (Q.goal !== 'shoot' && Q.goal !== 'deathmatch') throw fail('.arms belongs to the shoot and deathmatch goals');
@@ -943,6 +954,7 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
   const levels = flight ?? (quick.geotown ? { run: { name: name ?? id, geotown: quick.geotown } } : worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape, ...mood } } }
     : quick.roadway ? { run: { name: name ?? id, roadway: { course: quick.roadway, dress: true, ...mood } } } : quick.run
     ? Object.fromEntries(Array.from({ length: quick.run + 2 }, (_, k) => [`stretch-${k + 1}`, { name: `${name ?? id} ${k + 1}`, seed: s0 + 101 * (k + 1), walk: { nodes: { path: { trail: {} } } } }]))
+    : quick.mission !== undefined ? { run: { name: name ?? id, mission: quick.mission } }
     : { run: quick.building ? { name: name ?? id, building: quick.building } : { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) },
       // a deathmatch's arena: its words, a spawn for each in the match
       ...(quick.goal === 'deathmatch' ? { arena: { words: quick.arena ?? (quick.pole !== undefined ? shooterPole(quick.pole).arena : DEATHMATCH.arena), spawns: (quick.bots ?? DEATHMATCH.bots) + 1, ...(quick.weapons ? { weapons: poleArmory(quick.pole).slice(1) } : {}), ...(deathmatchSides(quick) ? { teams: 2 } : {}) } } : {}) } });

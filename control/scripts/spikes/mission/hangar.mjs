@@ -28,6 +28,7 @@ const { buildingStage } = await import('../../../lib/graph/gameworld/levels.js')
 const { assembleStageScene } = await import('../../../lib/graph/era/stage.js');
 const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scene.js');
 const { emitThreeWorld } = await import('../../../lib/graph/scene/scene-three.js');
+const { levelHud } = await import('../../../lib/graph/game/hud-mana.js');
 const M = JSON.parse(fss.readFileSync(path.join(here, 'level1.json'), 'utf8'));
 const pair = (k) => (opt(k) ? opt(k).split(',') : null);
 const G = { id: 'steel-serpents', name: 'Steel Serpents', feel: 'steel-serpents' };
@@ -94,7 +95,7 @@ if (argv.includes('--dry')) process.exit(0);
 const manifest = { ...stage, figures: room.manifest.figures, entities, fxStyle: room.manifest.fxStyle, parked };
 const { payload } = await resolveWorldScene({ ref: 'steel-serpents-level-1-hangar', title: `${M.name} · the hangar`, manifest }, { era: 'gen-7', live: true });
 const { walkers: _w, ...P } = payload;
-const html = emitThreeWorld({ ...P, camera: room.manifest.camera, events: room.manifest.events, walk: false, spin: false, hud: false, inline: true, ...(argv.includes('--capture') ? { capture: true } : {}) });
+const html = emitThreeWorld({ ...P, camera: room.manifest.camera, events: room.manifest.events, walk: false, spin: false, hud: false, manaHud: levelHud(opt('--theme', 'field-brief')), inline: true, ...(argv.includes('--capture') ? { capture: true } : {}) });
 await fs.mkdir(out, { recursive: true });
 const file = path.join(out, 'level-1-hangar.html');
 await fs.writeFile(file, html);

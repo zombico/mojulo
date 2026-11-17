@@ -43,26 +43,27 @@ describe('the door', () => {
   });
   it('a room the world does not have is refused, in words', () => {
     expect(() => practiceRoomOf({ feel: FIGHTER }, 'mount')).toThrow(/this world has no mount lane \(it has practice, room\)/);
-    expect(() => practiceRoomOf({ feel: FIGHTER }, 'yard')).toThrow(/room is practice, platform, mount, range, artillery, roll, room, work/);
-    expect(Object.keys(PRACTICE_ROOMS)).toEqual(['practice', 'platform', 'mount', 'range', 'artillery', 'roll', 'room', 'work']);
+    expect(() => practiceRoomOf({ feel: FIGHTER }, 'yard')).toThrow(/room is practice, platform, mount, range, mission, artillery, roll, room, work/);
+    expect(Object.keys(PRACTICE_ROOMS)).toEqual(['practice', 'platform', 'mount', 'range', 'mission', 'artillery', 'roll', 'room', 'work']);
   });
 });
 
 describe('the gun rooms', () => {
   it('a template that shoots has the firing range, its loadout the range\'s weapons', () => {
-    expect(practiceFor({ feel: SHOOTER }).rooms).toEqual(['range']);
+    // (and the range stretched into a level: every world with a firing range has its first mission)
+    expect(practiceFor({ feel: SHOOTER }).rooms).toEqual(['range', 'mission']);
     const { spec } = practiceRoomOf({ id: 'g', feel: SHOOTER }, 'range');
     expect(spec.weapons).toEqual(TEMPLATE_LOADOUTS[SHOOTER].weapons);
     expect(validateRange(spec)).toEqual([]);
   });
   it('the stealth game has the range and not the action room, and says its close quarters are the range\'s knife', () => {
     const D = practiceFor({ feel: STEALTH });
-    expect(D.rooms).toEqual(['range', 'room']);
+    expect(D.rooms).toEqual(['range', 'mission', 'room']);
     expect(D.elsewhere).toMatch(/knife/);
     expect(practiceRoomOf({ feel: STEALTH }, 'range').spec.weapons).toContainEqual({ name: 'knife', fire: 'melee' });
   });
   it('a world that carries a gun has the range whatever its template; one carrying none under a melee template, none', () => {
-    expect(practiceFor({ feel: FIGHTER, quick: { goal: 'shoot', arms: ['rifle'] } }).rooms).toEqual(['practice', 'range', 'room']);
+    expect(practiceFor({ feel: FIGHTER, quick: { goal: 'shoot', arms: ['rifle'] } }).rooms).toEqual(['practice', 'range', 'mission', 'room']);
     expect(practiceFor({ feel: FIGHTER }).rooms).not.toContain('range');
   });
   it('the range measured on the world\'s guns: its laws carried or lost, the same guns kept, none without a range', () => {
