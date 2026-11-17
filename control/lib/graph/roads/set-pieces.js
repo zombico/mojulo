@@ -282,6 +282,18 @@ export const TRACK_BLOCKS = Object.freeze({
       { id: 'crown', prim: 'drum', role: 'trim', r: 'w * 0.4', h: 'w * 0.3', sides: 16, at: [0, 'w / 2', 'h'], group: 'tech:trim', value: 0.55 },
       { id: 'top', prim: 'ball', role: 'trim', r: 'w * 0.16', sides: 12, at: [0, 'w / 2', 'h + w * 0.28'], group: 'tech:light', value: 0.7 },
     ], sig: ['body'], lead: 'body' },
+  'toy-tunnel': { id: 'toy-tunnel', read: 'an underpass: a toy building over the street, the way through its ground floor between two piers, a berry band and a row of balls over each mouth, lamps along its ceiling', tier: 'landmark', mounts: ['ground'], functions: ['pass'],
+    params: { span: [10, 30], l: [14, 34], h: [7, 16] },
+    parts: [
+      { id: 'piers', prim: 'box', role: 'pier', size: [1.4, 'l', 5.8], at: ['-span / 2 - 0.7', 0, 0], repeat: { n: 2, step: ['span + 1.4', 0, 0] }, group: 'tech:frame', value: 0.9 },
+      { id: 'deck', prim: 'box', role: 'span', size: ['span + 2.8', 'l', 0.9], at: [0, 0, 5.8], group: 'tech:frame', value: 0.9 },
+      { id: 'body', prim: 'box', role: 'body', size: ['span + 2.8', 'l', 'h'], at: [0, 0, 6.7], group: 'str:plaster', value: 0.7 },
+      { id: 'bands', prim: 'box', role: 'trim', size: ['span + 2.9', 0.5, 0.8], at: [0, '-l / 2 - 0.15', 5.4], repeat: { n: 2, step: [0, 'l + 0.3', 0] }, group: 'tech:trim', value: 0.55 },
+      { id: 'knobs', prim: 'ball', role: 'trim', r: 0.45, sides: 8, at: ['-span / 2 - 0.6', '-l / 2 - 0.2', 6.9], repeat: { n: 6, step: ['(span + 1.2) / 5', 0, 0] }, group: 'tech:light', value: 0.7 },
+      { id: 'front', prim: 'panel', role: 'readout', size: ['span * 0.86', 1.3], t: 0.12, at: [0, '-l / 2 - 0.05', 9], aim: [0, -1, 0], repeat: { n: 'max(1, floor((h - 2) / 3.4))', step: [0, 0, 3.4] }, group: 'tech:glass', value: 0.6 },
+      { id: 'back', prim: 'panel', role: 'readout', size: ['span * 0.86', 1.3], t: 0.12, at: [0, 'l / 2 + 0.05', 9], aim: [0, 1, 0], repeat: { n: 'max(1, floor((h - 2) / 3.4))', step: [0, 0, 3.4] }, group: 'tech:glass', value: 0.6 },
+      { id: 'ceiling', prim: 'panel', role: 'beacon', size: ['span * 0.6', 0.6], t: 0.08, at: [0, '-l / 2 + 3', 5.75], aim: [0, 0, -1], repeat: { n: 'max(2, floor(l / 6))', step: [0, 6, 0] }, group: 'tech:light', value: 0.8 },
+    ], sig: ['body', 'deck'], lead: 'body' },
   'candy-lamp': { id: 'candy-lamp', read: 'a street lamp as a lollipop: a round cream post, a lemon globe on top', tier: 'machine', ring: 'near', mounts: ['ground'], functions: ['light'],
     params: { h: [3.5, 6] },
     parts: [

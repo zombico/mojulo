@@ -31,6 +31,7 @@ import { moodOf, moodScene } from './race-mood.js';
 import { readLanguage, railFaces, postFaces, kerbFaces, edgeFaces, puffFaces, chevronFaces, buntingFaces, languageLaws } from './track-language.js';
 import { chunkyFaces, chunkyFlat, chunkyLightOf } from './chunky-look.js';
 import { trackForm } from './track-form.js';
+import { streetFeatures, splitGap } from './street-features.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const upFace = (c) => { let n = [0, 0, 0]; for (let i = 0; i < c.length; i++) { const a = c[i], b = c[(i + 1) % c.length]; n = [n[0] + (a[1] - b[1]) * (a[2] + b[2]), n[1] + (a[2] - b[2]) * (a[0] + b[0]), n[2] + (a[0] - b[0]) * (a[1] + b[1])]; } const l = Math.hypot(...n) || 1; n = n.map((v) => v / l); return n[2] < 0 ? { c: c.slice().reverse(), n: n.map((v) => -v) } : { c, n }; };
@@ -132,6 +133,8 @@ export function planTrack(m = {}) {
   const wayHex = lang && LP.way?.material ? lang.materials[LP.way.material].hex : null;
   const flatLit = (hex, c) => { const up = upFace(c); return { corners: up.c, fill: K?.pole === 'chunky' ? chunkyFlat(hex, up.n, chunkyLightOf(K)) : K ? K.tint(hex, up.c, up.n).fill : face(up.c, hex).fill }; };
   const railOpen = !!(lang && LP.rail), marks = new Set();
+  // a street circuit's features (street-features.js): the way split round an island, an underpass; none on any other
+  const feats = lang ? streetFeatures({ stations: st, alignment: a, X, course, card: lang }) : null, split = feats?.split ?? null;
   // the way in bands (its second tone by turns), its centre dash, and the verge mown in stripes: what is seen to move
   const bandHex = wayHex && LP.way.bands ? lang.materials[LP.way.bands.material].hex : null, dashHex = wayHex && LP.way.dash ? lang.materials[LP.way.dash.material].hex : null;
   const wayAt = (s) => (bandHex && Math.floor(s / LP.way.bands.every) % 2 ? bandHex : wayHex);
@@ -161,7 +164,8 @@ export function planTrack(m = {}) {
       const outside = corner && Math.sign(kMid) * side < 0;
       // (a language's rail stands on posts: the ground runs on under it)
       faces.push(lift(surf(outside ? T.outside : T.runoffSurface, quad(X.kerb, railOpen ? X.outer : X.runoff), uv(X.kerb, railOpen ? X.outer : X.runoff, GRASS_TILE)), (sA + sB) / 2));
-      if (T.barrier) {
+      // (the rail open at a split's mouths, where the branch leaves the way and comes back to it)
+      if (T.barrier && !splitGap(split, side, (sA + sB) / 2)) {
         const b = T.barrier, f0a = P(A, side * X.runoff), f0b = P(B, side * X.runoff), f1a = P(A, side * X.outer), f1b = P(B, side * X.outer);
         const up = (p) => [p[0], p[1], p[2] + b.h], mid = [(f0a[0] + f1b[0]) / 2, (f0a[1] + f1b[1]) / 2];
         const bm = BARRIER_OF[b.kind] ?? 'concrete';
@@ -227,7 +231,34 @@ export function planTrack(m = {}) {
       for (const f of chevronFaces(lang, { point, s: c.s - back, c: -c.d * X.road * 0.45, d: c.d, index: i })) { faces.push(flatLit(f.hex, f.corners)); marks.add(f.hex); }
     });
     // bunting down one side of each straight long enough, the side by turns (and by the seed)
-    if (LP.bunting) runs.straights.forEach((r, i) => { if (r.s1 - r.s0 >= LP.bunting.min) raw.push(...buntingFaces(lang, { point, s0: r.s0, s1: r.s1, off: ((i + (Number.isInteger(m.seed) ? m.seed : 1)) % 2 ? 1 : -1) * (X.outer + 0.8) })); });
+    if (LP.bunting) runs.straights.forEach((r, i) => {
+      const bs = ((i + (Number.isInteger(m.seed) ? m.seed : 1)) % 2 ? 1 : -1);
+      // (never across a split's mouths: on the split's own straight the flags go to its other side)
+      const side = split && bs === split.side && r.s0 <= split.s0 && r.s1 >= split.s1 ? -bs : bs;
+      if (r.s1 - r.s0 >= LP.bunting.min) raw.push(...buntingFaces(lang, { point, s0: r.s0, s1: r.s1, off: side * (X.outer + 0.8) }));
+    });
+  }
+  // THE SPLIT's branch (street-features.js): its way, its beads and its rail in the language, laid on the land beside
+  // the way, its rail open where it meets the way at each end; its rail's walls for the drive rule
+  if (split && wayHex) {
+    // (the branch leaves the way at an angle: its paving lies on the land, under the way's road where they meet, so the
+    // way covers it there; its beads and rail start where it clears the way's rail, nothing of them across the way)
+    const B = split.branch, BS = B.stations, Lb = B.alignment.length, open = X.outer / Math.sin(Math.atan2(split.offset, split.leg)) + 2;
+    const Pb = (q, off, dz = 0) => { const x = q.x - Math.sin(q.heading) * off, y = q.y + Math.cos(q.heading) * off; return [x, y, groundAt(x, y) + 0.04 + dz]; };
+    for (let i = 0; i < BS.length - 1; i++) {
+      const A = BS[i], Bq = BS[i + 1], sm = (A.s + Bq.s) / 2;
+      faces.push(flatLit(wayAt(sm), [Pb(A, -X.road), Pb(A, X.road), Pb(Bq, X.road), Pb(Bq, -X.road)]));
+      for (const sd of [1, -1]) {
+        if (LP.edge?.profile && sm > open && sm < Lb - open) raw.push(...edgeFaces(lang, { P: Pb, A, B: Bq, side: sd, to: X.road }));
+        if (railOpen && sm > open && sm < Lb - open) {
+          const at = (X.runoff + X.outer) / 2;
+          raw.push(...railFaces(lang, { P: Pb, A, B: Bq, side: sd, at }));
+          if (LP.rail.post?.every && Math.floor(A.s / LP.rail.post.every) !== Math.floor(Bq.s / LP.rail.post.every)) raw.push(...postFaces(lang, { P: Pb, st: Bq, side: sd, at }));
+          const p0 = Pb(A, sd * X.runoff), p1 = Pb(Bq, sd * X.outer);
+          colliders.push({ min: [r3(Math.min(p0[0], p1[0])), r3(Math.min(p0[1], p1[1])), r3(Math.min(p0[2], p1[2]))], max: [r3(Math.max(p0[0], p1[0])), r3(Math.max(p0[1], p1[1])), r3(Math.max(p0[2], p1[2]) + T.barrier.h)], of: 'roadway:barrier' });
+        }
+      }
+    }
   }
   if (K && !wayHex) faces.push(...roadWear({ a, X, K, P, seed: Number.isInteger(m.seed) ? m.seed : 1 }));
   // the language's parts, lit in the track's drawing: smooth and glossy on the chunky look, else flat as a paint is
@@ -254,7 +285,7 @@ export function planTrack(m = {}) {
   const props = m.dress ? dressProps({ a, X, terrain, dress: m.dress, seed: Number.isInteger(m.seed) ? m.seed : 1 }) : [];
   for (const q of props) faces.push(...propFaces(q));
   const cameras = trackCameras({ a, X, P, course, deck, crossings });
-  return { form: m.form, course, alignment: a, X, stations: st, faces, roadFaces, ground, sections, terrain, groundAt, lines, deck, crossings, colliders, props, cameras, advisories: course.advisories, length: L, ...(language ? { language } : {}) };
+  return { form: m.form, course, alignment: a, X, stations: st, faces, roadFaces, ground, sections, terrain, groundAt, lines, deck, crossings, colliders, props, cameras, advisories: course.advisories, length: L, ...(language ? { language } : {}), ...(feats ? { street: feats } : {}) };
 }
 
 // ── the ground ───────────────────────────────────────────────────────────────────────────────────

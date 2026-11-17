@@ -63,6 +63,14 @@ In progress. Built so far:
   for it: a toy shop, toy flats, a toy tower, a lollipop lamp and a signal of three balls, each held to the block laws.
   A realistic street circuit ("a street circuit") gets the square course and no town yet: only the kart language has
   one.
+- **Built: a split and an underpass on a street circuit** (`roads/street-features.js`, the language's `city.split` and
+  `city.tunnel`). The way divides down its longest straight round an island of shops, on the side away from the town's
+  middle, and comes back before the corner; either way is the lap: the branch is drawn in the language and driven as
+  road (its points join the drive surface), the rail opens at its two mouths, and no checkpoint stands between them.
+  Down another straight a toy building spans the street, the way passing under its ground floor (the `toy-tunnel`
+  block: two piers, a deck, the building over it, a berry band and a row of balls over each mouth, lamps along its
+  ceiling); the page's shadow darkens it. The town gives way to both: its rows stop at the mouths and the underpass, the
+  island has a row of shops facing the way, and the branch has fronts down its far side.
 - **The principles a new map starts from** ([docs/track-design-principles.md](../../../../docs/track-design-principles.md))
   and the agent's card for them (`gameworld-track-language`, read by the levels chapter): a premise first, a small
   family, a quiet way, a corner told three times, things seen to move, asymmetry, chunky, the track's own sky.

@@ -18,7 +18,7 @@
  *             pieces { blocks?: { <set piece>: <its stand-in> }, paint?: { <surface group>: <material> } }: the
  *                    trackside pieces (set-pieces.js) made as the track is: a block stood in for another (with the
  *                    same params, sized in its slot alike), and every surface group in the family's materials
- *             city   { sidewalk, margin, paving, crossing, zebra, lamps, facades, heights, blocks, kit }: a street
+ *             city   { sidewalk, margin, paving, crossing, zebra, lamps, facades, heights, split?, tunnel?, blocks, kit }: a street
  *                    circuit's town (street-frontage.js): fronts down each straight's sides in the facades' colours by
  *                    turns, tall toward the middle; the sidewalks paved, lamps and signals, zebras across the way
  *             verge  { mown: { every, lift } }: the run-off mown in stripes across the way (the look's own grass, a
@@ -112,7 +112,7 @@ export const TRACK_LANGUAGES = Object.freeze({
         paint: { 'tech:body': 'cream', 'tech:skin': 'cream', 'str:plaster': 'cream', 'tech:frame': 'cream', 'tech:trim': 'berry', 'tech:glass': 'sky', 'tech:cable': 'sky', 'tech:light': 'lemon', 'str:accent': 'lemon', 'str:stone': 'cream' },
       },
       city: { sidewalk: 4, margin: 14, paving: 'sugar', crossing: 'cream', zebra: 5, lamps: 22, facades: ['cream', 'icing', 'lemon', 'sky', 'berry'],
-        heights: { core: 34, edge: 7, flat: 10, tower: 27 }, blocks: { shop: 'toy-shop', flat: 'toy-flat', tower: 'toy-tower' }, kit: { lamp: 'candy-lamp', signal: 'toy-signal' } },
+        heights: { core: 34, edge: 7, flat: 10, tower: 27 }, split: { island: 10, leg: 30, run: 30 }, tunnel: { length: 26, block: 'toy-tunnel' }, blocks: { shop: 'toy-shop', flat: 'toy-flat', tower: 'toy-tower' }, kit: { lamp: 'candy-lamp', signal: 'toy-signal' } },
     }),
     sky: Object.freeze({ zenith: [52, 128, 232], horizon: [198, 234, 255], sun: { u: 0.3, h: 0.5 }, puffs: { count: 28, hex: '#ffffff', alt: [45, 140], size: [20, 46] } }),
   }),

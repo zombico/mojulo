@@ -27,12 +27,15 @@ describe('its town', () => {
   it('fronts the way down every straight\'s sides, past the rail and the sidewalk, none standing in another', () => {
     expect(T.lots.length).toBeGreaterThan(12);
     const near = (p) => Math.min(...plan.stations.map((s) => Math.hypot(s.x - p[0], s.y - p[1])));
-    for (const l of T.lots) for (const q of l.foot) expect(near(q)).toBeGreaterThan(plan.X.outer + card.parts.city.sidewalk - 0.5);
-    for (const l of T.lots) expect(FRONT_KINDS).toContain(l.kind);
+    // (but the underpass, whose footprint is the street's: it stands over the way)
+    for (const l of T.lots.filter((x) => x.kind !== 'tunnel')) for (const q of l.foot) expect(near(q)).toBeGreaterThan(plan.X.outer + card.parts.city.sidewalk - 0.5);
+    for (const l of T.lots.filter((x) => x.kind !== 'tunnel')) expect(FRONT_KINDS).toContain(l.kind);
   });
   it('never three alike in a row, each front a colour of the family, never the one beside it', () => {
     let run = 1;
-    for (let i = 1; i < T.lots.length; i++) { run = T.lots[i].row === T.lots[i - 1].row && T.lots[i].kind === T.lots[i - 1].kind ? run + 1 : 1; expect(run).toBeLessThan(3); }
+    // (a split's island is shops alone, as deep as one: its row is not held to it)
+    const L = T.lots.filter((l) => l.row !== 1000);
+    for (let i = 1; i < L.length; i++) { run = L[i].row === L[i - 1].row && L[i].kind === L[i - 1].kind ? run + 1 : 1; expect(run).toBeLessThan(3); }
     for (let i = 1; i < T.lots.length; i++) expect(T.lots[i].facade).not.toBe(T.lots[i - 1].facade);
     for (const l of T.lots) expect(card.parts.city.facades).toContain(l.facade);
   });
@@ -52,5 +55,34 @@ describe('its town', () => {
     expect(M.course.streets).toBe(true); expect(M.language).toBe('candy-city');
     expect(readTrackIntent('a kart track').track.streets).toBeUndefined();
     expect(composeTrack('a kart track', { seed: 3 }).language).toBe('candy');
+  });
+});
+
+describe('its features: a split round an island, an underpass', async () => {
+  const { surfaceAt, driveSurfaceTable } = await import('./surface.js');
+  const { trackContract } = await import('./contract.js');
+  const { splitGap } = await import('./street-features.js');
+  const card = readLanguage('candy-city'), big = { class: 'kart', length: 700, seed: 3, streets: true };
+  const plan = planTrack({ form: 'circuit', course: big, language: card.id }), F = plan.street;
+  it('the way splits down a long straight on the side away from the town\'s middle, and comes back to it', () => {
+    expect(F.split).toBeTruthy();
+    const { s0, s1, branch, side } = F.split, a = plan.alignment, B = branch.alignment, p0 = B.at(0), p1 = B.at(B.length), q0 = a.at(s0), q1 = a.at(s1);
+    expect(Math.hypot(p0.x - q0.x, p0.y - q0.y)).toBeLessThan(0.5); expect(Math.hypot(p1.x - q1.x, p1.y - q1.y)).toBeLessThan(0.5);
+    // (either way about as long: the branch is the island's other side)
+    expect(B.length / (s1 - s0)).toBeGreaterThan(1); expect(B.length / (s1 - s0)).toBeLessThan(1.6);
+    expect(splitGap(F.split, side, s0 + 5)).toBe(true); expect(splitGap(F.split, -side, s0 + 5)).toBe(false); expect(splitGap(F.split, side, (s0 + s1) / 2)).toBe(false);
+  });
+  it('either way is the lap: no checkpoint between the mouths, and the branch is road under a kart', () => {
+    const T = trackContract(plan), { s0, s1, branch } = F.split, a = plan.alignment, inSpan = (c) => [s0, s1].some(() => false) || (() => { let best = Infinity, bs = 0; for (let s = 0; s < a.length; s += 1) { const q = a.at(s), d = Math.hypot(q.x - c.at[0], q.y - c.at[1]); if (d < best) { best = d; bs = s; } } return bs > s0 && bs < s1; })();
+    expect(T.checkpoints.some(inSpan)).toBe(false);
+    const D = driveSurfaceTable(plan), mid = branch.alignment.at(branch.alignment.length / 2), road = surfaceAt(D, [mid.x, mid.y]);
+    expect(road.mu).toBe(D.bands[0][1]);
+  });
+  it('an underpass stands over another straight, and the town gives way to it; a language with no town has neither', () => {
+    expect(F.tunnel).toBeTruthy();
+    const T = planFrontage(plan, card, { seed: 3 }), tun = T.lots.filter((l) => l.kind === 'tunnel');
+    expect(tun).toHaveLength(1); expect(tun[0].params.span).toBeGreaterThan(2 * plan.X.outer);
+    expect(T.lots.filter((l) => l.row === 1001).length).toBeGreaterThan(0);   // (the branch's own fronts)
+    expect(planTrack({ form: 'circuit', course: big, language: 'candy' }).street).toBeUndefined();
   });
 });

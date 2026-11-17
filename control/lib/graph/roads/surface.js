@@ -20,6 +20,9 @@ export function driveSurfaceTable(plan) {
   const a = plan.alignment, X = plan.X, T = X.T, L = a.length, n = Math.max(8, Math.round(L / STEP)), count = a.closed ? n : n + 1;
   const pts = [];
   for (let i = 0; i < count; i++) { const p = a.at((i * L) / n); pts.push(r3(p.x), r3(p.y), r3(p.heading), Math.abs(p.k) > KERB_K ? Math.sign(p.k) : 0); }
+  // (a split's branch, street-features.js: its points join the line's, so a kart on it is on the road)
+  const B = plan.street?.split?.branch;
+  if (B) { const Lb = B.alignment.length, nb = Math.max(4, Math.round(Lb / STEP)); for (let i = 0; i <= nb; i++) { const p = B.alignment.at((i * Lb) / nb); pts.push(r3(p.x), r3(p.y), r3(p.heading), Math.abs(p.k) > KERB_K ? Math.sign(p.k) : 0); } }
   const S = (k) => [SURFACES[k].mu, SURFACES[k].roll], run = S(T.runoffSurface), out = S(T.outside), road = S(T.road);
   const bands = [
     [r3(X.road), ...road, ...road, ...road],

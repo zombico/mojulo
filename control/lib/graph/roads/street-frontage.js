@@ -61,37 +61,62 @@ export function planFrontage(plan, card, { seed = 1 } = {}) {
     return { kind: hh >= C.heights.tower ? 'tower' : hh >= C.heights.flat ? 'flat' : 'shop', h: hh };
   };
   let facadeIx = Math.floor(rnd() * C.facades.length);
+  // THE ROWS a front stands in: each straight's two sides, cut where the town's features stand (street-features.js): a
+  // split's mouths and the branch beside the way, an underpass's building over it. Between a split's mouths the way's
+  // own side is the island (shops only: it is as deep as one); the branch has a row down its far side
+  const F = plan.street ?? null, SP = F?.split ?? null, TU = F?.tunnel ?? null, rows = [];
+  const cut = (row, a0, a1) => (a1 <= row.s0 || a0 >= row.s1 ? [row] : [...(a0 > row.s0 ? [{ ...row, s1: a0 }] : []), ...(a1 < row.s1 ? [{ ...row, s0: a1 }] : [])]);
   runs.straights.forEach((r, ri) => {
-    if (r.s1 - r.s0 < C.margin * 2 + 6) return;
     for (const side of [1, -1]) {
-      let s = r.s0 + C.margin, last = [];
-      while (s < r.s1 - C.margin - 5) {
-        let { kind, h } = kindAt(P(s, side * set));
-        // never three alike in a row: the third stands in another kind
-        if (last.length >= 2 && last[last.length - 1] === kind && last[last.length - 2] === kind) kind = kind === 'shop' ? 'flat' : 'shop';
-        const B = TRACK_BLOCKS[C.blocks[kind]], wr = B.params.w, hr = B.params.h;
-        let w = wr[0] + (wr[1] - wr[0]) * rnd();
-        if (s + w > r.s1 - C.margin) w = r.s1 - C.margin - s;
-        if (w < wr[0]) break;
-        const hp = Math.max(hr[0], Math.min(hr[1], kind === 'shop' ? hr[0] + (hr[1] - hr[0]) * rnd() : h));
-        const depth = kind === 'tower' ? w : kind === 'flat' ? 10 : 8, mid = s + w / 2, at = P(mid, side * (set + 0.3)), q = P(mid, 0);
-        const dir = Math.atan2(P(mid + 1, 0)[1] - q[1], P(mid + 1, 0)[0] - q[0]), foot = rect(at, dir, side, w, depth);
-        if (!taken.some((f) => overlap(f, foot))) {
-          taken.push(foot);
-          facadeIx = (facadeIx + 1 + Math.floor(rnd() * (C.facades.length - 1))) % C.facades.length;
-          lots.push({ block: C.blocks[kind], kind, params: { w: r3(w), h: r3(hp) }, at: [r3(at[0]), r3(at[1])], yaw: r3(Math.atan2(q[1] - at[1], q[0] - at[0]) + Math.PI / 2), facade: C.facades[facadeIx], row: ri * 2 + (side > 0 ? 0 : 1), foot });
-          last.push(kind);
-        }
-        s += w + (rnd() < 0.2 ? 2.5 : 0.4);
-      }
-      // the lamps down this side, the sides by turns (a lamp a gap in the other side's)
-      for (let t = r.s0 + C.margin + (side > 0 ? 0 : C.lamps / 2); t < r.s1 - C.margin; t += C.lamps) kit.lamps.push({ at: P(t, side * (X.outer + 1.3)), toward: P(t, 0) });
+      let parts = [{ P, s0: r.s0 + C.margin, s1: r.s1 - C.margin, side, set, row: ri * 2 + (side > 0 ? 0 : 1) }];
+      if (TU) parts = parts.flatMap((q) => cut(q, TU.s - TU.l / 2 - 3, TU.s + TU.l / 2 + 3));
+      if (SP && side === SP.side) parts = parts.flatMap((q) => cut(q, SP.s0 - 4, SP.s1 + 4));
+      // (each part of a cut row its own: a row's rhythm runs to the cut, the next part starts its own)
+      rows.push(...parts.map((q, k) => ({ ...q, row: q.row * 10 + k })));
     }
-    kit.crossings.push({ s: r.s0 + 4, ri });
   });
+  if (SP) {
+    const Bp = pointer(SP.branch.alignment).P, Lb = SP.branch.alignment.length;
+    rows.push({ P, s0: SP.s0 + SP.leg + 4, s1: SP.s1 - SP.leg - 4, side: SP.side, set, row: 1000, only: 'shop' });
+    rows.push({ P: Bp, s0: SP.leg + 6, s1: Lb - SP.leg - 6, side: SP.side, set, row: 1001 });
+  }
+  for (const R of rows) {
+    if (R.s1 - R.s0 < 6) continue;
+    let s = R.s0, last = [];
+    while (s < R.s1 - 5) {
+      let { kind, h } = kindAt(R.P(s, R.side * R.set));
+      if (R.only) kind = R.only;
+      // never three alike in a row: the third stands in another kind
+      else if (last.length >= 2 && last[last.length - 1] === kind && last[last.length - 2] === kind) kind = kind === 'shop' ? 'flat' : 'shop';
+      const B = TRACK_BLOCKS[C.blocks[kind]], wr = B.params.w, hr = B.params.h;
+      let w = wr[0] + (wr[1] - wr[0]) * rnd();
+      if (s + w > R.s1) w = R.s1 - s;
+      if (w < wr[0]) break;
+      const hp = Math.max(hr[0], Math.min(hr[1], kind === 'shop' ? hr[0] + (hr[1] - hr[0]) * rnd() : h));
+      const depth = kind === 'tower' ? w : kind === 'flat' ? 10 : 8, mid = s + w / 2, at = R.P(mid, R.side * (R.set + 0.3)), q = R.P(mid, 0);
+      const dir = Math.atan2(R.P(mid + 1, 0)[1] - q[1], R.P(mid + 1, 0)[0] - q[0]), foot = rect(at, dir, R.side, w, depth);
+      if (!taken.some((f) => overlap(f, foot))) {
+        taken.push(foot);
+        facadeIx = (facadeIx + 1 + Math.floor(rnd() * (C.facades.length - 1))) % C.facades.length;
+        lots.push({ block: C.blocks[kind], kind, params: { w: r3(w), h: r3(hp) }, at: [r3(at[0]), r3(at[1])], yaw: r3(Math.atan2(q[1] - at[1], q[0] - at[0]) + Math.PI / 2), facade: C.facades[facadeIx], row: R.row, foot });
+        last.push(kind);
+      }
+      s += w + (rnd() < 0.2 ? 2.5 : 0.4);
+    }
+    // the lamps down this row's sidewalk, the sides by turns (a lamp a gap in the other side's)
+    for (let t = R.s0 + (R.side > 0 ? 0 : C.lamps / 2); t < R.s1; t += C.lamps) kit.lamps.push({ at: R.P(t, R.side * (X.outer + 1.3)), toward: R.P(t, 0) });
+  }
+  runs.straights.forEach((r, ri) => { if (r.s1 - r.s0 >= C.margin * 2 + 6) kit.crossings.push({ s: r.s0 + 4, ri }); });
+  // the underpass: a building over the street, the way through its ground floor
+  if (TU) {
+    const at = P(TU.s, 0), q = a.at(TU.s), t = Math.min(1, Math.hypot(at[0] - core[0], at[1] - core[1]) / reach), h = Math.max(7, Math.min(16, 7 + 9 * (1 - t)));
+    const foot = rect(P(TU.s - TU.l / 2, 0), q.heading, 1, TU.l, 1);   // (its own footprint is the street's)
+    facadeIx = (facadeIx + 1) % C.facades.length;
+    lots.push({ block: C.tunnel.block, kind: 'tunnel', params: { span: r3(2 * X.outer + 1.2), l: r3(TU.l), h: r3(h) }, at: [r3(at[0]), r3(at[1])], yaw: r3(q.heading + Math.PI / 2), facade: C.facades[facadeIx], row: 2000, foot });
+  }
   // a signal at the outside of every corner, where the straight before it ends
   for (const c of runs.corners) kit.signals.push({ at: P(c.s - 2, -c.d * (X.outer + 1.4)), toward: P(c.s - 2, 0) });
-  const keepOut = lots.map((l) => ({ at: l.at, r: Math.hypot(l.params.w, l.kind === 'tower' ? l.params.w : 10) / 2 + 2 }));
+  const keepOut = lots.map((l) => ({ at: l.at, r: l.kind === 'tunnel' ? l.params.l / 2 + l.params.span / 2 : Math.hypot(l.params.w, l.kind === 'tower' ? l.params.w : 10) / 2 + 2 }));
   return { lots, kit, keepOut, core: core.map(r3), reach: r3(reach) };
 }
 
@@ -110,7 +135,8 @@ export function buildFrontage(planned, plan, card, K) {
   };
   planned.lots.forEach((l, i) => {
     const b = stand(l.block, l.params, l.at, l.yaw, l.facade, i + 1);
-    colliders.push({ min: b.box.lo.map(r3), max: b.box.hi.map(r3), of: `street:${l.kind}` });
+    // (an underpass is driven through: its piers stand past the rail, which keeps the karts off them)
+    if (l.kind !== 'tunnel') colliders.push({ min: b.box.lo.map(r3), max: b.box.hi.map(r3), of: `street:${l.kind}` });
     const sz = b.box.hi.map((v, k) => v - b.box.lo[k]);
     things.push({ kind: 'front', interest: l.kind === 'tower' ? 'focus' : 'prop', at: b.box.hi.map((v, k) => r3((v + b.box.lo[k]) / 2)), span: r3(Math.min(Math.max(sz[0], sz[1]), sz[2])), top: r3(b.box.hi[2]) });
   });
@@ -120,10 +146,16 @@ export function buildFrontage(planned, plan, card, K) {
   // the sidewalks (the paving between the rail and the fronts) and the zebras across the way, in the card's own
   const raw = [], pave = card.materials[C.paving], zebra = card.materials[C.crossing];
   const runs = trackRuns(plan);
-  for (const r of runs.straights) for (const side of [1, -1]) for (let s = r.s0; s < r.s1 - 0.01; s += 4) {
-    const t = Math.min(r.s1, s + 4), q = [P(s, side * X.outer, 0.02), P(t, side * X.outer, 0.02), P(t, side * (X.outer + C.sidewalk), 0.02), P(s, side * (X.outer + C.sidewalk), 0.02)];
+  const SP = plan.street?.split ?? null, walk = (Pf, s0, s1, side) => { for (let s = s0; s < s1 - 0.01; s += 4) {
+    const t = Math.min(s1, s + 4), q = [Pf(s, side * X.outer, 0.02), Pf(t, side * X.outer, 0.02), Pf(t, side * (X.outer + C.sidewalk), 0.02), Pf(s, side * (X.outer + C.sidewalk), 0.02)];
     raw.push({ corners: side > 0 ? q : q.slice().reverse(), hex: pave.hex, normal: [0, 0, 1], gloss: 0, part: 'sidewalk' });
+  } };
+  for (const r of runs.straights) for (const side of [1, -1]) {
+    // (the split's mouths are the branch's: the island's sidewalk runs between them, and the branch has its own)
+    if (SP && side === SP.side && r.s0 <= SP.s0 && r.s1 >= SP.s1) { walk(P, r.s0, SP.s0 - 2, side); walk(P, SP.s0 + SP.leg + 4, SP.s1 - SP.leg - 4, side); walk(P, SP.s1 + 2, r.s1, side); }
+    else walk(P, r.s0, r.s1, side);
   }
+  if (SP) { const Bp = pointer(SP.branch.alignment).P, Lb = SP.branch.alignment.length; walk(Bp, SP.leg + 4, Lb - SP.leg - 4, SP.side); walk(Bp, SP.leg + 4, Lb - SP.leg - 4, -SP.side); }
   for (const z of planned.kit.crossings) for (let k = 0; k < C.zebra; k++) {
     const w = (2 * X.road) / (2 * C.zebra - 1), o0 = -X.road + 2 * k * w, o1 = o0 + w, q = [P(z.s, o0, 0.025), P(z.s, o1, 0.025), P(z.s + 3, o1, 0.025), P(z.s + 3, o0, 0.025)];
     raw.push({ corners: q.slice().reverse(), hex: zebra.hex, normal: [0, 0, 1], gloss: 0, part: 'crossing' });

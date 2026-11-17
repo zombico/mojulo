@@ -50,7 +50,12 @@ the operator's to say on the page.
     towers at the core); never three of a kind in a row; each a colour of the family by turns, never the one beside
     it. The street's kit near the eye: lollipop lamps down the sidewalks by turns, a signal of three balls at the
     outside of every corner, a zebra across the way at each straight's start. The corners stay open: the boards, the
-    arches and the landmark still tell them, and the side pieces give way to the fronts.
+    arches and the landmark still tell them, and the side pieces give way to the fronts. Two features make it more
+    than a loop (`roads/street-features.js`): **a split**, the way dividing down its longest straight round an island of
+    shops on the side away from the town's middle, either way the lap (the branch is driven as road, the rail opens at
+    its two mouths, no checkpoint stands between them); and **an underpass**, a toy building spanning another
+    straight, the street through its ground floor under a berry band and a row of balls, lamps along its ceiling. A
+    choice and a dark moment: a lap with both has something to learn and something to feel.
 12. **One primitive, two tunings.** A realistic circuit answers the same questions soberly: the look's own asphalt and
     paint, one steel for the guardrail and its posts. A principle is a question, and candy is one answer to it.
 
