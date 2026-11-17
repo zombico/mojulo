@@ -4,7 +4,13 @@
   "brief": "The jungle below the base. No buildings: land, a trail, what grows on it, and what a patrol has built across it. The first forty metres are quiet, to learn the controls in; then a checkpoint and an outpost ask for a sneak.",
   "template": "This file is a starter, not the game. Everything in it is a word to change: where cover stands, how each watcher walks and looks, what each hint says, where the two points begin and end. `plan.mjs`-style laws (level0.mjs --plan) say what a change did: whether the first try is still seen, whether a way unseen is left, what it costs. Places are said along the trail (`trail`: metres up it from its head; `off`: metres to its side, east positive), so a longer or shorter trail, or a different land, carries the layout with it.",
   "section": "insertion",
-  "cube": "jungle-haze",
+  "cube": {
+    "from": "jungle-haze",
+    "biocube": "upland",
+    "outside": {
+      "cliff": false
+    }
+  },
   "hour": 17,
   "cover": [
     {
@@ -355,7 +361,9 @@
     "occlusion": false,
     "cone": 20,
     "bodies": "blob",
-    "reads": "what the page may cost: its shadows at half (light.tier), no contact occlusion, real grass out to 20 m (the view cone); [ and ] move the grass's reach live; bodies 'blob' casts no body into the live shadow map, a soft pool at the feet instead ('live' for real shadows)"
+    "reads": "what the page may cost: its shadows at half (light.tier), no contact occlusion, real grass out to 20 m (the view cone); [ and ] move the grass's reach live; bodies 'blob' casts no body into the live shadow map, a soft pool at the feet instead ('live' for real shadows); parallax false: a lean ground (none of its height marched, most of the frame's cost; true for the full ground); density 1: the window's own pixels at most on a high-DPI screen (the page's cap is 1.5 unless said)",
+    "parallax": false,
+    "density": 1
   },
   "grass": [
     {
@@ -474,5 +482,6 @@
     "visibility": 450,
     "clear": 40,
     "blur": false
-  }
+  },
+  "cubeReads": "the jungle haze's look on open ground: no cliff walling the trail (a field both sides), lone trees on a short-grassed upland in place of bamboo groves; the ground most of the frame's cost, the jungle a tenth of it"
 }

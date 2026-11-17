@@ -33,6 +33,14 @@ describe('the ground\'s parallax kinds', () => {
     expect(page).toContain('smoothstep( 0.590, 0.710,');
   });
 
+  it('a lean ground marches no height and lays its kinds on the trail alone; a full one as it was', () => {
+    const full = formLandScript(land), lean = formLandScript({ ...land, parallax: false });
+    expect(full).not.toContain('false && ');
+    expect((lean.match(/if \( false && /g) || []).length).toBe(5);
+    expect(lean).toContain('bare = 0.0; fines = 0.0;');
+    expect(lean).toContain('float wK2 = 0.0,');
+  });
+
   it('draws the tall grass\'s stand only on a land that has it', () => {
     expect(formLandScript(land)).not.toContain("T.kind === 'stand'");
     expect(formLandScript({ ...land, grass: { stand: { scale: 2 } } })).toContain("T.kind === 'stand'");

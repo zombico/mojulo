@@ -23,3 +23,14 @@
   trail or its verge (none strewn by the stage, none of the form render's, its scree's kept off it too:
   form/land-stones.js `offTrail`); its pebbles marched in the ground's parallax instead, in clusters over a third of it
   (form/land-read.js ROAD_PEBBLES), the verge's scree texture lighter. Level 0's trail is laid so.
+- **A lean ground** (a geocube page's `parallax: false`, channels/form-land.js): none of the ground's height marched near
+  the eye (the scree's, the clay's, the undergrowth's and the rock's parallax, the procedural pebbles' and cracks'), the
+  pebbles and cracks on the trail alone. Measured by hiding each kind of thing on level 0's page in turn, the ground was
+  over half its frame (the jungle a tenth); lean, the frame fell about a fifth. Absent, every byte as it was.
+- **A page's pixel density** (a geocube page's `density`, 0.75 to 2): the pixel budget's cap, 1.5 unless said (the same
+  bytes). Level 0 asks for 1, so its full window on a high-DPI screen shades fewer pixels than a boxed page at 1.5.
+- **Level 0 on open ground**: the jungle haze's look over the upland's flora (lone trees, short grass) with no cliff walling
+  the trail, so the land is a field both sides and every patch of tall grass stands wholly on level ground. Its laws hold;
+  the checkpoint's first unseen way now crouches through the truck's grass.
+- **The spike's bench** (scripts/spikes/mission/bench.mjs): pages timed side by side in headless Chromium at one window
+  and one density, a relative yardstick. Hangar 229 ms a frame; level 0 as it was 283, open and lean 199.

@@ -986,6 +986,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     { const rain = read ? readWetness(M.wet !== undefined ? M.wet : M.buildings !== undefined ? wetOfWeather(M.weather) : null) : null;
       if (rain && rain.rain > 0) payload.form.land.rain = rain.rain; }
     if (read && M.cone !== undefined && M.cone !== null) payload.form.land.cone = readCone(M.cone);
+    // (a lean ground, `parallax: false`: none of the ground's height marches, its procedural kinds on the trail alone,
+    // channels/form-land.js; the page's ground the dearest of its frame on a laptop's GPU; absent, every byte as it was)
+    if (read && M.parallax === false) payload.form.land.parallax = false;
+    // (and the page's pixel density at most, `density`: its budget's cap, 1.5 unless said; a level played at a window's
+    // full size on a high-DPI screen shades fewer pixels at 1 than a boxed page does at 1.5)
+    if (M.density !== undefined) payload.density = M.density;
     // (a land's buildings under its hour's map: the map fitted to the built place (its aprons and a margin for what
     // stands by them and shades them), not to the whole land, which its own sun's map shades: channels/cast-shadows.js)
     if (payload && builtSun && payload.shadows && typeof payload.shadows === 'object' && payload.shadows.hour && payload.form.land) {

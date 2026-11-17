@@ -97,6 +97,11 @@ hung cloth sway in it; a physical level's blocks, dust, smoke and leaves feel th
   runtime's guards read: a body crouched or lying a stride into it, or low behind it, is unseen; standing, its head is
   over it; a guard within 2 m sees it, a lookout up a tower sees a crouch but not a body lying flat. Lay a patch on level
   green ground: on a bank little grows, and a patch where under half grows hides nothing.
+- **A lean ground** (a geocube page's `parallax: false`, gen-7): none of the ground's height marched near the eye (the
+  scree's stones, the rock's, the undergrowth's, the procedural pebbles and cracks), each layer its maps alone, the
+  pebbles and cracks on the trail only. The ground is most of a gen-7 frame's cost on a laptop's GPU (over half of it on
+  a stealth level); a level played at a window's full size asks for it. With it, `density` (0.75 to 2; 1.5 unless said) caps the page's
+  pixel density: at 1 a full window on a high-DPI laptop shades fewer pixels than a boxed page at 1.5.
 - **Snow** (`snow`): the cube's land under snow, its trail's stage and the far ridges. `true`, a depth (`dusting`,
   `cover`, `deep`), or `{ line?, depth?, hold?, drift?, lee? }`: `line` metres over the land's lowest ground where it
   begins (snowcapped crags; absent, the whole land), `depth` a word or metres, `hold` how level ground must be to hold

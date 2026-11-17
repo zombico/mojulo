@@ -64,8 +64,9 @@ const Pf = L0.performance ?? {}, occl = o.has('--no-occlusion') ? false : Pf.occ
 // (what the page may cost: its shadows' tier, the contact occlusion, the grass's real reach; and its bodies' shadows:
 // `bodies: 'blob'` draws no body into the live light's map each frame, a soft pool at each one's feet instead)
 const bodyShadows = Pf.bodies === 'blob' ? { actors: false, hour: true, feet: true, occlude: true, r: 0.5, alpha: 0.42, fade: 1.5 } : { actors: true, hour: true };
-const costs = { ...(occl !== undefined ? { occlusion: occl } : {}), ...(Pf.light ? { light: { tier: Pf.light } } : {}), ...(Number.isFinite(Pf.cone) ? { cone: Pf.cone } : {}) };
-const scene = { kind: 'geocube', cube: { from: L.cube, era: 'gen-7' }, show: 'path', seed: stage.seed, trail: stage.trail, hour: L.hour, shadows: bodyShadows, ...costs, ...(tallGrassOf(L) ? { tallGrass: tallGrassOf(L) } : {}), ...(L.path ? { path: Object.fromEntries(Object.entries(L.path).filter(([k]) => k !== 'reads')) } : {}), ...(L.air ? { air: L.air } : {}), ...(L.screen ? { screen: L.screen } : {}), parked: cover.parked,
+const costs = { ...(occl !== undefined ? { occlusion: occl } : {}), ...(Pf.light ? { light: { tier: Pf.light } } : {}), ...(Number.isFinite(Pf.cone) ? { cone: Pf.cone } : {}), ...(Pf.parallax === false ? { parallax: false } : {}), ...(Number.isFinite(Pf.density) ? { density: Pf.density } : {}) };
+// (the cube a preset's id, or the preset with the level's own changes: `{ from, biocube?, outside? }`)
+const scene = { kind: 'geocube', cube: { ...(typeof L.cube === 'string' ? { from: L.cube } : L.cube), era: 'gen-7' }, show: 'path', seed: stage.seed, trail: stage.trail, hour: L.hour, shadows: bodyShadows, ...costs, ...(tallGrassOf(L) ? { tallGrass: tallGrassOf(L) } : {}), ...(L.path ? { path: Object.fromEntries(Object.entries(L.path).filter(([k]) => k !== 'reads')) } : {}), ...(L.air ? { air: L.air } : {}), ...(L.screen ? { screen: L.screen } : {}), parked: cover.parked,
   figures: room.manifest.figures, entities: [h0, ...L.watchers.map((w) => ({ ...g0, id: w.id })), ...backupIds.map((id) => ({ ...g0, id, dormant: true }))], fxStyle: room.manifest.fxStyle, figureGrade: room.manifest.figureGrade };
 const { payload } = await resolveWorldScene({ ref: 'steel-serpents-level-0', title: `${L.name} · Steel Serpents`, manifest: scene }, { era: 'gen-7', live: true });
 
