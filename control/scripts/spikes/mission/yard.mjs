@@ -6,6 +6,8 @@
  * in the barracks' day room, the hangar's door as the way into the hangar's page (hangar.mjs) and the way back, and the
  * mission's one result at the trail's head (worlds/controllable/mission.js). A spike: the stage recipe takes no pilot,
  * so the hero's camera and events are laid on the resolved payload here, and the trail's bounds give way to a perimeter.
+ * The section is read as the geocube's own path in the seventh generation, so its land is the form render's, as the
+ * hangar's rooms are.
  *
  *   cd control
  *   node scripts/spikes/mission/yard.mjs --out /abs/dir [--dry] [--cube jungle-haze] [--hero <ref>] [--guard <ref>]
@@ -26,8 +28,7 @@ process.env.MOJULO_SEMANTIC_INDEX_DISABLED ??= '1';
 
 const { infiltrationRoom } = await import('../../../lib/graph/gameworld/infiltration-room.js');
 const { readGameworld } = await import('../../../lib/graph/gameworld/index.js');
-const { gameStages, stageEnds } = await import('../../../lib/graph/gameworld/levels.js');
-const { assembleStageScene } = await import('../../../lib/graph/era/stage.js');
+const { gameStages } = await import('../../../lib/graph/gameworld/levels.js');
 const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scene.js');
 const { emitThreeWorld } = await import('../../../lib/graph/scene/scene-three.js');
 const M = JSON.parse(fss.readFileSync(path.join(here, 'level1.json'), 'utf8')), W0 = JSON.parse(fss.readFileSync(path.join(here, 'world.json'), 'utf8'));
@@ -41,19 +42,35 @@ const SEG = M.segments.perimeter.stage, { wcd: _game, ...rest } = W0;
 const G = readGameworld({ ...rest, style: { ...W0.style, geocube: opt('--cube', 'jungle-haze') }, levels: { infiltration: M.level } });
 const laid = gameStages(G).find((s) => s.node === SEG);
 if (!laid) { console.error(`yard: the rail lays no stage '${SEG}'`); process.exit(1); }
-const stage = laid.manifest, dry = assembleStageScene(stage), ends = stageEnds(stage);
+// THE SEVENTH GENERATION. The rail's stage is `kind: 'stage'` painted by the level's geocube, and the form render (the
+// land, the trail and the plants as material under the cube's light) is a geocube scene's alone (worlds/world-scene.js),
+// so the stage read as it stands is the painted land beside a form-lit hangar. The same section is asked for here as
+// the geocube's own path, in gen-7: its cube, its seed, its trail and its buildings the rail's, dressed as a yard.
+const stage = laid.manifest, cubeName = opt('--cube', 'jungle-haze');
+const dress = (b) => (b.enter === 'door' ? b : { ...b, apron: 'slab', yard: { floods: 2, containers: 6 } });
+const scene = { kind: 'geocube', cube: { from: cubeName, era: 'gen-7' }, show: 'path', seed: stage.seed, trail: stage.trail, hour: Number(opt('--hour', 17)), shadows: { actors: true, hour: true }, solid: true,
+  buildings: stage.buildings.map(dress) };
 const r2 = (p) => p.map((v) => +v.toFixed(2));
-const eye = dry.walk.minEye ?? 1.7, door = ends.doors.find((d) => /hangar/.test(d.id)), barracks = dry.anchors.find((a) => a.kind === 'building' && a.use === 'barracks');
-if (!door || !barracks) { console.error('yard: the stage lays no hangar door or no barracks'); process.exit(1); }
-const dayRoom = barracks.rooms.find((r) => /^day-room-1/.test(r.id)).box, mid = (b) => [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, b.min[2]];
-const beat = (name, k = 0) => ends.beats.filter((b) => b.beat === name)[k]?.at;
+const g0 = room.manifest.entities.find((e) => e.id === 'guard-1'), h0 = room.manifest.entities.find((e) => e.id === 'hero');
+// (the bodies stand where the land is read to be: placed on the resolved payload, below)
+const manifest = { ...scene, figures: room.manifest.figures, entities: [h0, g0, { ...g0, id: 'guard-2' }], fxStyle: room.manifest.fxStyle };
+if (argv.includes('--dry')) { console.log(`yard: ${JSON.stringify(scene)}`); process.exit(0); }
+const { payload } = await resolveWorldScene({ ref: 'steel-serpents-level-1-perimeter', title: `${M.name} · the perimeter`, manifest }, { era: 'gen-7', live: true });
+
+// WHERE THINGS ARE, read off the land as it was laid
+const A = payload.anchors ?? [], eye = payload.walk?.minEye ?? 1.7;
+const hangar = A.find((a) => a.kind === 'building' && a.use === 'hangar-bay'), barracks = A.find((a) => a.kind === 'building' && a.use === 'barracks');
+if (!hangar?.door || !barracks?.rooms) { console.error(`yard: the land lays no hangar door or no barracks (${A.filter((a) => a.kind === 'building').map((a) => `${a.use} by ${a.enter}`).join(', ')})`); process.exit(1); }
+const door = hangar.door, dayRoomOf = barracks.rooms.find((r) => /^day-room-1/.test(r.id)), dayRoom = dayRoomOf.box, mid = (b) => [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, b.min[2]];
+const beats = A.filter((a) => a.kind === 'beat'), beat = (re) => beats.find((b) => re.test(b.id))?.at;
+const spawn = [payload.walk.spawn[0], payload.walk.spawn[1], payload.walk.spawn[2] - eye];
 // (the start: the trail's head, stood clear of what is built beside it. The rail stands the hangar's shut shell along
 // the trail, its corner on the trailhead, so a chase camera behind a body there is in its wall: the body starts six
-// metres clear of any building's box, on the side the trail's bounds leave open)
-const shut = dry.colliders.filter((c) => /:shut$/.test(c.of ?? '') || /^(hangar-bay|barracks)/.test(c.of ?? ''));
+// metres clear of any building's box)
+const shut = payload.colliders.filter((c) => /:shut$/.test(c.of ?? '') || /^(hangar-bay|barracks)/.test(c.of ?? ''));
 const clear = (x, y) => !shut.some((c) => x > c.min[0] - 6 && x < c.max[0] + 6 && y > c.min[1] - 2 && y < c.max[1] + 2);
-let sx = ends.spawn[0]; while (!clear(sx, ends.spawn[1] + 3.5) && sx > ends.spawn[0] - 20) sx -= 0.5;
-const start = r2([sx, ends.spawn[1] + 3.5, ends.spawn[2] + 1.2]), outside = r2([door.spawn[0], door.spawn[1], door.spawn[2] - eye + 0.3]);
+let sx = spawn[0]; while (!clear(sx, spawn[1] + 3.5) && sx > spawn[0] - 20) sx -= 0.5;
+const start = r2([sx, spawn[1] + 3.5, spawn[2] + 1.2]), outside = r2([door.spawn[0], door.spawn[1], door.spawn[2] - eye + 0.3]);
 const mission = {
   items: [{ id: 'hangar-key', name: M.items['hangar-key'].reads, at: r2(mid(dayRoom)) }],
   exits: [{ id: 'hangar-door', name: 'The hangar\'s side door', at: outside, radius: 1.8, needs: { items: ['hangar-key'] }, to: opt('--hangar-page', 'level-1-hangar.html'), door: 'lobby-door' }],
@@ -67,17 +84,11 @@ const mission = {
   result: { at: start, radius: 3.5, when: M.result.when },
 };
 // the guards: one on the trail between the pockets, one past the buildings, each walking a round along the trail
-const g0 = room.manifest.entities.find((e) => e.id === 'guard-1'), lm = beat('landmark') ?? ends.exit, rv = beat('reveal') ?? ends.exit;
-const rounds = [{ id: 'guard-1', at: [lm[0] - 2, lm[1] - 6, lm[2] + 0.2], heading: Math.PI / 2 }, { id: 'guard-2', at: [rv[0], rv[1] + 4, rv[2] + 0.2], heading: -Math.PI / 2 }];
-const entities = [
-  ...room.manifest.entities.filter((e) => e.id === 'hero').map((e) => ({ ...e, rule: { ...e.rule, step: 0.35, mission }, transform: { pos: start, heading: Math.PI / 2 } })),
-  ...rounds.map((g) => ({ ...g0, id: g.id, transform: { pos: r2(g.at), heading: g.heading } })),
-];
-console.log(`yard: start ${start} · hangar door ${outside} · key ${mission.items[0].at} (the barracks' ${barracks.rooms.find((r) => /^day-room-1/.test(r.id)).id}) · guards ${rounds.map((g) => r2(g.at)).join(' | ')}`);
-if (argv.includes('--dry')) process.exit(0);
-
-const manifest = { ...stage, figures: room.manifest.figures, entities, fxStyle: room.manifest.fxStyle };
-const { payload } = await resolveWorldScene({ ref: 'steel-serpents-level-1-perimeter', title: `${M.name} · the perimeter`, manifest }, { era: 'gen-7', live: true });
+const exitAt = beat(/^exit/) ?? spawn, lm = beat(/^landmark/) ?? exitAt, rv = beat(/^reveal/) ?? exitAt;
+const rounds = { 'guard-1': { at: [lm[0] - 2, lm[1] - 6, lm[2] + 0.2], heading: Math.PI / 2 }, 'guard-2': { at: [rv[0], rv[1] + 4, rv[2] + 0.2], heading: -Math.PI / 2 } };
+payload.entities = payload.entities.map((e) => (e.id === 'hero' ? { ...e, rule: { ...e.rule, step: 0.35, mission }, transform: { pos: start, heading: Math.PI / 2 } }
+  : rounds[e.id] ? { ...e, transform: { pos: r2(rounds[e.id].at), heading: rounds[e.id].heading } } : e));
+console.log(`yard: start ${start} · hangar door ${outside} · key ${mission.items[0].at} (the barracks' ${dayRoomOf.id}) · guards ${Object.values(rounds).map((g) => r2(g.at)).join(' | ')} · form ${payload.form ? 'yes' : 'NO'}`);
 // THE BOUNDS: the trail's walls give way to one perimeter round the trail and what is built beside it
 const isBound = (c) => /^bound:/.test(c.of ?? ''), bounds = payload.colliders.filter(isBound), built = payload.colliders.filter((c) => /^(hangar-bay|barracks)/.test(c.of ?? ''));
 if (bounds.length) {
