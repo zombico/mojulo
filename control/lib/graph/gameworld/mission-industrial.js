@@ -126,7 +126,8 @@ export function industrialPlan(G, I, { spec = {}, seed = null } = {}) {
  *    SCORE    two states (beats/adaptive-music.js): a held tension while the yard is crossed, the fight's score coming
  *             in on the bar line as the level's events raise the meter (a hit, a foe down, a wave) and going as it settles
  *  `score: false` leaves the music out. */
-export const INDUSTRIAL_SCORE = Object.freeze({ explore: 'tension', fight: 'battle' });
+// (electronic: a half-time drift while the yard is crossed, a driving techno for the fight; beats/club-score.js)
+export const INDUSTRIAL_SCORE = Object.freeze({ explore: 'club:drift', fight: 'club:drive' });
 // the yard's own sounds, each a few gestures: a drop falling into standing water; the hall's machines, a low fifth
 // held (sounded again before it ends, so it never stops); chain-link shaken by a gust
 const YARD_CUES = Object.freeze({
@@ -159,7 +160,7 @@ export function industrialAudio(heard, { score = true, places = null } = {}) {
     },
     wind: { vary: true },
     ...(emitters.length ? { emitters } : {}), ...(surfaces.length ? { surfaces } : {}),
-    ...(score ? { soundtrack: `field:${INDUSTRIAL_SCORE.explore}`, combat: `field:${INDUSTRIAL_SCORE.fight}` } : {}),
+    ...(score ? { soundtrack: INDUSTRIAL_SCORE.explore, combat: INDUSTRIAL_SCORE.fight } : {}),
   };
 }
 

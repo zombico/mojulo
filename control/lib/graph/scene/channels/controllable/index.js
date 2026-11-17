@@ -893,6 +893,8 @@ function __updateGearLines() {
   // scaled about its feet by the rule's `e.squash`. No rule carries one ⇒ not a byte of it
   const figHasSquash = (entities || []).some((e) => e && e.rule && e.rule.takes && e.rule.takes.squash > 0);
   const figHasForms = Object.values(figures || {}).some((f) => f && f.rig && f.forms);
+  // a body with a gun in its hands and a clip for firing it (`fire`, opt-in: a mission's crew): absent, not a byte
+  const fires = Object.values(figures || {}).some((f) => f && f.rig && f.clips && f.clips.fire);
   // a car's own light in a dark mood (car-designer/supercar-figure.js: the headlamps' pool on the road, the tail lamps'
   // ribbons) — emitted only when some figure's juice carries them.
   const figHasLights = figHasJuice && Object.values(figures || {}).some((f) => f && f.rig && f.juice && (f.juice.beams || f.juice.trails));
@@ -2311,12 +2313,15 @@ function __sidearmProps(e, m, rig, fig, AL) {
     if (q) m.scale.set(s0 * q[0], s0 * q[0], s0 * q[1]); else { m.scale.setScalar(s0); m.userData.s0 = null; }
   }
   ` : ''}const fig = rig.fig;
-  ${figHasForms || acts || moveset || takes ? 'let' : 'const'} mode = e.moving ? e.locomotion : ${moveset ? "(e.idleClip && rig.fig.clips && rig.fig.clips[e.idleClip] ? e.idleClip : 'idle')" : "'idle'"};${moveset ? '   // (a moveset\'s hero in combat idles in its fighting stance: mv_ready)' : ''}${moveset ? `
+  ${figHasForms || acts || moveset || takes || fires ? 'let' : 'const'} mode = e.moving ? e.locomotion : ${moveset ? "(e.idleClip && rig.fig.clips && rig.fig.clips[e.idleClip] ? e.idleClip : 'idle')" : "'idle'"};${moveset ? '   // (a moveset\'s hero in combat idles in its fighting stance: mv_ready)' : ''}${moveset ? `
   // A SIDEARM'S AIM (e.mvPose, combat-melee.js: the archer's draw at its share, the gunslinger's guns): the whole body
   // standing, the body above the hips over the walk (the aim layer in the bone loop, __aimLayer)
   const AP = e.mvPose && e.staggerT == null && fig.clips && fig.clips[e.mvPose.clip] ? e.mvPose : null;   // (none while reeling)
   if (AP && !e.moving) mode = AP.clip;
-  const AL = __aimLayer(rig, fig, AP, dt);` : ''}${figHasForms ? `
+  const AL = __aimLayer(rig, fig, AP, dt);` : ''}${fires ? `
+  // A GUN IN ITS HANDS (a figure with a \`fire\` clip): while its trigger is down, and for a breath after a round has
+  // gone, the body plays it, the weapon up, standing or on the move; never while it reels
+  if (fig.clips.fire && e.weapon && e.staggerT == null && !e.downed && (e.aiFire || (e.lastShot && __world.time - e.lastShot.t < 0.5))) mode = 'fire';` : ''}${figHasForms ? `
   if (fig.forms) mode = __formMode(fig, e, mode);` : ''}${acts ? `
   const act = __actMode(fig, e, m), phase = act ? act.phase : e.gaitPhase;
   if (act) mode = act.mode;` : ''}${takes ? `
@@ -2324,7 +2329,10 @@ function __sidearmProps(e, m, rig, fig, AL) {
   const tk = __world.take && !e.moving && fig.clips[__world.take.clip] ? __world.take : null;
   if (tk) mode = tk.clip;
   e.taking = tk ? tk.clip : null;` : ''}
-  const mix = __CW.advanceGaitMix(rig.mix, mode, ${takes ? `tk ? Math.min(tk.u, 0.999) : ` : ''}${moveset ? `(AP && mode === AP.clip ? AP.phase : ${acts ? 'phase' : 'e.gaitPhase'})` : acts ? 'phase' : 'e.gaitPhase'}, dt || 0, ${moveset ? "(typeof mode === 'string' && mode.indexOf('mv_') === 0 && e.rule && e.rule.moveset ? e.rule.moveset.blend : rig.blendTime)" : 'rig.blendTime'});${moveset ? '   // (into a move\'s own clip: the moveset\'s blend, its travel waiting it out: no foot slides)' : ''}
+${fires ? `  // (a hold is a clip played once and held: firing, it comes up over a fifth of a second and stays; standing in one, it
+  // is held; neither runs on the gait's phase, which stands still on a body that stands)
+  const heldU = mode === 'fire' ? (rig.fireU = Math.min(0.999, (rig.fireU || 0) + (dt || 0) / 0.2)) : (rig.fireU = 0, mode === 'idle' && fig.clips.idle && fig.clips.idle.held ? 0.999 : null);
+` : ''}  const mix = __CW.advanceGaitMix(rig.mix, mode, ${fires ? 'heldU != null ? heldU : ' : ''}${takes ? `tk ? Math.min(tk.u, 0.999) : ` : ''}${moveset ? `(AP && mode === AP.clip ? AP.phase : ${acts ? 'phase' : 'e.gaitPhase'})` : acts ? 'phase' : 'e.gaitPhase'}, dt || 0, ${moveset ? "(typeof mode === 'string' && mode.indexOf('mv_') === 0 && e.rule && e.rule.moveset ? e.rule.moveset.blend : rig.blendTime)" : 'rig.blendTime'});${moveset ? '   // (into a move\'s own clip: the moveset\'s blend, its travel waiting it out: no foot slides)' : ''}
   const w = mix.prevMode ? mix.w * mix.w * (3 - 2 * mix.w) : 1;
   // head-look-at overlay (renderer-convergence step 2, procedural rung): ease the head bone's
   // yaw toward a tracked entity, clamped to a natural range — a runtime joint override no

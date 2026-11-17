@@ -256,3 +256,10 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   `audio.surfaces: [{ box, step, land? }]`: the cues a step and a landing play where a body's feet stand in a box.
   The industrial level uses both: water drips off the tower's deck and its tallest stacks, the hall hums at its door,
   the fence rattles along its runs, and the tower's deck and stairs ring as steel under a boot.
+- **The crew shoulders its guns.** A crew's body carries the hero door's own holds for what it has in its hands (a
+  carbine: the aim and the low ready; `CREW_HOLDS`), and the page plays them: a figure with a `fire` clip brings its
+  weapon up while its trigger is down and for a breath after a round has gone, standing or on the move, and stands at
+  the low ready between (`scene/channels/controllable/index.js`; a hold is a clip played once and held, so it runs on
+  its own count and not on the gait's phase). A page whose figures carry no `fire` clip has not a byte of it.
+- **The yard's score is electronic.** A half-time drift while the yard is crossed, a driving techno for the fight
+  (`club:drift`, `club:drive`), in place of the orchestral cues.

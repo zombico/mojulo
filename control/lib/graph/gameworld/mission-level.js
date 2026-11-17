@@ -91,6 +91,8 @@ function box(x0, y0, x1, y1, h, fill, group) {
  *  '<faction>' | { faction, kind?, colourway?, bodies?, masks?: true (CREW_MASKS) | [headgear words] }. */
 /** What a masked crew wears over its faces, a body each in turn: the headgear shelf's words (headgear/cards.js). */
 export const CREW_MASKS = Object.freeze(['tacticalMask', 'gasMask', 'respirator']);
+/** The holds a crew's body plays by what it carries (the hero door's hold words): firing, and standing. */
+export const CREW_HOLDS = Object.freeze({ carbine: Object.freeze({ fire: 'carbineAim', idle: 'carbineLowReady' }), pistol: Object.freeze({ fire: 'pistolIsosceles', idle: 'pistolLowReady' }) });
 const CREW_MASK_TONES = Object.freeze({ Mask: '#1b1d20', MaskDomino: '#1b1d20', Helm: '#1b1d20', MaskMouth: '#15171a', MaskTrim: '#2c2f33', MaskSeam: '#2c2f33', MaskFilter: '#2c2f33', Trim: '#2c2f33', MaskLens: '#7d8a88' });
 export function crewFigures(crew, seed = 1) {
   const { bodies = 3, masks = null, ...C } = typeof crew === 'string' ? { faction: crew } : crew, kinds = Object.keys(GRUNT_STYLES[C.faction]?.kinds ?? {});
@@ -100,7 +102,11 @@ export function crewFigures(crew, seed = 1) {
     const worn = masks === true ? CREW_MASKS : Array.isArray(masks) && masks.length ? masks : null;
     // (the masks in the crew's own dark, their lenses a dull glass: never the shelf's showier tones)
     if (worn) { spec.headgear = worn[k % worn.length]; spec.palette = { ...spec.palette, ...CREW_MASK_TONES }; }
-    return { hero: spec, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop' } };
+    // (what it does with the gun in its hands: the hero door's own holds for it, hero-carry.js: the weapon up as it
+    // fires (`fire`, the page plays it while its trigger is down), at the low ready as it stands)
+    const held = CREW_HOLDS[spec.gear?.right?.item] ?? null;
+    if (held) spec.motion = { ...(spec.motion ?? {}), [held.fire]: true, [held.idle]: true };
+    return { hero: spec, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop', ...(held ? { fire: held.fire, idle: held.idle } : {}) } };
   });
 }
 const standIn = () => ({ hero: { cast: 'female' }, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop' } });

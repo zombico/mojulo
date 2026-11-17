@@ -68,6 +68,8 @@ describe('an industrial level, planned', () => {
     expect(figs.length).toBeGreaterThan(0);
     expect(figs.every((f) => f.hero.outfit.style === 'tactical')).toBe(true);
     expect(new Set(figs.map((f) => JSON.stringify(f.hero))).size).toBeGreaterThan(1);
+    // (a gun in its hands: each body carries the hold it fires in and the one it stands in, by what it carries)
+    for (const f of figs) { expect(f.clips.fire).toBeTruthy(); expect(f.hero.motion[f.clips.fire]).toBe(true); expect(f.hero.motion[f.clips.idle]).toBe(true); }
     // (masked: each body a mask of the crew's in turn; `masked: false` shows their faces)
     expect(new Set(figs.map((f) => f.hero.headgear))).toEqual(new Set(CREW_MASKS));
     expect(Object.values(industrialManifest(G, industrialPlan(G, readIndustrial({ masked: false }), { seed: 1 })).figures).some((f) => f.hero?.headgear)).toBe(false);
@@ -81,7 +83,8 @@ describe('an industrial level, planned', () => {
     expect(A.sfx.cues['yard:rounds'].length).toBeGreaterThan(0);
     expect(A.sfx.mix).toBeTruthy();
     expect(A.wind).toEqual({ vary: true });
-    expect(A).toMatchObject({ soundtrack: `field:${INDUSTRIAL_SCORE.explore}`, combat: `field:${INDUSTRIAL_SCORE.fight}` });
+    expect(A).toMatchObject({ soundtrack: INDUSTRIAL_SCORE.explore, combat: INDUSTRIAL_SCORE.fight });
+    expect(INDUSTRIAL_SCORE.explore).toMatch(/^club:/);
     expect(A.footsteps.jump.length).toBeGreaterThan(0);
     // (the sounds of its places: a drip where it is wet, the hall's hum at its door, the fence along its runs, each
     // inside the site and a cue of its own; the tower's steel under a boot, its deck and its two stairs)
