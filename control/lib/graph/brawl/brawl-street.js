@@ -98,10 +98,15 @@ const STREET_CSS = [
   '.mana-root .mana-place[data-at=right] .mana-text[data-role=display]{font-style:italic;animation:mana-pulse 1.1s ease-in-out infinite;animation-play-state:var(--mana-loop)}',
   '.mana-root .mana-place[data-at=left] .mana-text[data-role=numeral]{font:900 calc(84 * var(--mana-du))/.9 var(--mana-display)}',
   '.mana-root .mana-place[data-at=bottom]{max-width:62%}',
-  // (a run & gun's gun scaled to a quarter of the screen: four seats share the top)
-  '.mana-root .mana-place[data-at=top] .mana-magazine .mana-rounds>.mana-num{font-size:calc(52 * var(--mana-du))}',
-  '.mana-root .mana-place[data-at=top] .mana-magazine .mana-sil{width:calc(140 * var(--mana-du));height:calc(44 * var(--mana-du))}',
-  '.mana-root .mana-place[data-at=top] .mana-magazine>.mana-track{width:calc(220 * var(--mana-du))}',
+  // (a run & gun's gun as one small line under the seat's health, never a block over the street: its drawing, its rounds,
+  // a thin strip of what is left; four seats share the top)
+  '.mana-root .mana-place[data-at=top] .mana-magazine{flex-direction:row;align-items:center;gap:calc(8 * var(--mana-du))}',
+  '.mana-root .mana-place[data-at=top] .mana-magazine .mana-sil{width:calc(70 * var(--mana-du));height:calc(22 * var(--mana-du));margin:0}',
+  '.mana-root .mana-place[data-at=top] .mana-magazine .mana-rounds>.mana-num{font-size:calc(24 * var(--mana-du));line-height:1}',
+  '.mana-root .mana-place[data-at=top] .mana-magazine>.mana-track{width:calc(70 * var(--mana-du));height:calc(4 * var(--mana-du))}',
+  '.mana-root .mana-place[data-at=top] .mana-magazine>.mana-belt{width:calc(70 * var(--mana-du))!important;height:calc(14 * var(--mana-du))}',
+  '.mana-root .mana-place[data-at=top] .mana-magazine>.mana-call{font-size:calc(12 * var(--mana-du))}',
+  '.mana-root .mana-place[data-at=top] .mana-pips{font-size:calc(14 * var(--mana-du))}',
   // (the foe being hit under the seats, never over them)
   '.mana-root .mana-place[data-at=top-left]{top:calc(var(--mana-safe) * 100cqh + 150 * var(--mana-du))}',
   '.mana-root .mana-place[data-at=bottom] .mana-bar[data-variant=boss]{width:min(calc(760 * var(--mana-du)),58cqw)}',
