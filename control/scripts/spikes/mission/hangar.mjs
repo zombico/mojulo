@@ -62,18 +62,21 @@ const start0 = r2(mid(R.lobby)); start0[2] += 0.05;
 // it). Three framings on one camera, cut hard:
 //   the deck comes down   from the lower hall's floor, low and wide, looking up at the deck in the opening: the depth is
 //                         established, and a low lens makes the descent loom
-//   what he sees          behind the operative, a medium at his eye, riding him: the walker rises into the frame beyond his
+//   what he sees          behind the operative, over his right shoulder, riding him: the walker rises into the frame beyond his
 //                         shoulder as the deck goes down, so the reveal is his (the cut turns far more than 30 degrees)
 //   the machine           low on the hall's floor before the walker, wide, pushing in: its size, and the push lands the turn
-// The first and the last are placed, not said: the framing words size a person, and a machine eight metres tall is not one.
+// All three are placed, not said: the framing words size a person and stand round the way it faces; here the subject is
+// a deck in a shaft and a machine eight metres tall, and the ride fixes where everyone is.
 // (`--shot-scale k`: the plan's times stretched k times, for a headless check on a page that runs k times slower than
 // the clock the plan plays on; 1 in a build that is played)
-const SCALE = Number(opt('--shot-scale', 1)), RIDE = 10, A0 = r2([lift.b[0] + 2, lift.b[1] - 12, 1.3]), WK = r2([siege[0], siege[1], 5.4]);
+const SCALE = Number(opt('--shot-scale', 1)), RIDE = 10, A0 = r2([U.min[0] + 1.6, U.min[1] + 2.2, 1.0]), WK = r2([siege[0], siege[1], 5.4]);
 const shoot = { cameras: [{ id: 'lift', keys: [
-  { t: 0, pos: A0, poi: { follow: 'entity:hero', offset: [0, 0, 1] }, lens: '24mm' },
-  { t: 3.2, pos: A0, poi: { follow: 'entity:hero', offset: [0, 0, 1] }, lens: '24mm' },
-  { t: 3.25, frame: { on: 'entity:hero', size: 'ms', side: 'back', angle: 'eye', place: 'left' } },
-  { t: 6.8, frame: { on: 'entity:hero', size: 'ms', side: 'back', angle: 'eye', place: 'left' } },
+  // (looking a little under him, so the opening, the shaft's lip and the deck's underside are the frame)
+  { t: 0, pos: A0, poi: { follow: 'entity:hero', offset: [0, 0, -1.6] }, lens: '18mm' },
+  { t: 3.2, pos: A0, poi: { follow: 'entity:hero', offset: [0, 0, -1.6] }, lens: '18mm' },
+  // (over his right shoulder, in the world's frame: the ride holds him facing the walker, so behind him is away from it)
+  { t: 3.25, pos: { follow: 'entity:hero', offset: [-2.7, -1.0, 1.85] }, poi: { follow: 'entity:hero', offset: [7, 0.5, 1.9] }, lens: '28mm' },
+  { t: 6.8, pos: { follow: 'entity:hero', offset: [-2.7, -1.0, 1.85] }, poi: { follow: 'entity:hero', offset: [7, 0.5, 1.9] }, lens: '28mm' },
   { t: 6.85, pos: r2([siege[0] - 12, siege[1] - 7, 1.1]), poi: WK, lens: '28mm' },
   { t: RIDE, pos: r2([siege[0] - 9, siege[1] - 5, 1.1]), poi: WK, lens: '28mm', ease: 'easy ease' },
 ].map((k) => ({ ...k, t: k.t * SCALE })) }], shots: [{ name: 'lift-down', camera: 'lift', span: [0, RIDE * SCALE], on: 'lift:down' }] };
