@@ -19,11 +19,26 @@ describe('the mission on mana-ui', () => {
     const S = missionManaSpec();
     expect(() => manaUi.readSpec(S)).not.toThrow();
     expect(Object.keys(S.screens)).toEqual(['briefing', 'pause', 'how', 'controls', 'map', 'debrief']);
-    expect(S.hud.children.map((c) => c.use)).toEqual(['region', 'objective-tracker', 'region', 'ammo-counter', 'damage-direction', 'region']);
+    expect(S.hud.children.map((c) => c.use)).toEqual(['peril-edge', 'radar-scope', 'objective-order', 'health-strip', 'weapon-readout', 'damage-direction']);
+  });
+  it('draws its HUD as a shooter does, not as a dashboard: no labels, a figure for the rounds, one order, the edge for danger', () => {
+    const C = missionMana(UI), S = { ...C.state, ms: { ...C.state.ms, hp: 20, ammo: 4, magazine: 30, reserve: 60, weapon: 'Carbine', mode: 'Auto', peril: 0.7 } };
+    const rt = manaUi.runtime(C.spec, { read: (p) => manaUi.readPath(S, p) }), v = rt.view();
+    // (no "HP" and no "Ammo" said: the bar's length and the figure are their own label)
+    expect(v).not.toMatch(/>HP<|>Ammo</);
+    expect(v).toMatch(/class="mana-magazine" data-gun="carbine" data-low="yes"/);
+    expect(v).toContain('>Low ammo<');
+    expect(v).toContain('data-variant="scrim"');
+    expect(v).toContain('--mana-peril:0.7');
+    expect(v).toContain(`>1/${UI.tasks.length}<`);
+    // (the checklist is the map's, not the HUD's)
+    expect(v).not.toContain('☐');
+    expect(JSON.stringify(C.spec.screens.map)).toContain('objective.steps');
+    expect(C.hud.rest).toBeGreaterThan(0);
   });
   it('carries the radar in its HUD and the map on a screen, a key and the pause menu, each task its place where it has one', () => {
-    const S = missionManaSpec(), C = missionMana(UI), radar = S.hud.children.at(-1);
-    expect(radar.children[0]).toMatchObject({ use: 'minimap', props: { shape: 'round' } });
+    const S = missionManaSpec(), C = missionMana(UI), radar = S.hud.children.find((c) => c.use === 'radar-scope');
+    expect(radar.props).toMatchObject({ markers: { bind: 'ms.radar.marks' }, north: { bind: 'ms.radar.north' } });
     expect(JSON.stringify(S.screens.map)).toContain('"minimap"');
     expect(C.state.ms.menu.map((m) => m.then.open).filter(Boolean)).toContain('map');
     expect(C.radar.range).toBeGreaterThan(0);

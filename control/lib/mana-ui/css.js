@@ -39,6 +39,7 @@
  * a part of the UI).
  */
 import { contrast, DISTANCES, HALOS } from './theme.js';
+import { gunCss } from './guns.js';
 export const GREYBOX_VARS = Object.freeze({
   ink: '#111111', mid: '#6b6b6b', soft: '#bdbdbd', line: '#111111', panel: '#fafafa', paper: '#fafafa', wash: '#ececec',
   scrim: 'rgba(255,255,255,.72)', shade: '#000000',
@@ -59,6 +60,10 @@ export const GREYBOX_VARS = Object.freeze({
   stage: 'none',
   // text that has no window behind it keeps a halo in the panel's colour; the subtitles' plate (rt.subtitlePlate)
   halo: HALOS.outline, 'sub-plate': '.82',
+  // how near the end is (the peril layer's level, set on it by the runtime): nothing in the greybox's stand-in
+  peril: '0',
+  // a magazine's wireframe and its rounds (guns.js: masks the sheet sets on the names that draw them): none unset
+  gun: 'none', round: 'none', 'round-spent': 'none',
   // the focus: the ▶ (a shape, never a colour alone) and the room it keeps at an item's left (mark 0: none)
   cursor: '"\\25B6"', mark: '1',
   // the lean of tabs, bars, banners, keys and buttons (theme.js SLANTS); the rule an inner part is drawn with
@@ -354,6 +359,15 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-place>.mana-region:empty,${s} .mana-place>.mana-region:has(>.mana-stack:only-child:empty){display:none}`,
     `${s} .mana-place>.mana-region[data-variant=bare]{background:transparent;border:0;opacity:1;clip-path:none;box-shadow:none;outline:0;text-shadow:${v('halo')}}`,
     `${s} .mana-place>.mana-region[data-variant=bare] .mana-track{background:${v('panel')};box-shadow:0 0 0 ${u(3)} ${v('panel')}}`,
+    // A SCRIM: no box, a shade rising behind the region from nowhere in particular, so a corner's readout sits on the
+    // world as a shooter's does (darker where the words are, gone before any edge could show); the words haloed
+    // (over a theme's plate and its cut corners, which would clip the shade to a box)
+    `${s} .mana-place>.mana-region[data-variant=scrim][data-at]{position:relative;isolation:isolate;background:transparent;border:0;opacity:1;clip-path:none;box-shadow:none;outline:0;padding:${u(10)} ${u(14)};text-shadow:${v('halo')}}`,
+    `${s} .mana-place>.mana-region[data-variant=scrim]::before{content:"";position:absolute;inset:-55% -35%;z-index:-1;background:radial-gradient(closest-side,color-mix(in srgb,${v('panel')} 62%,transparent),color-mix(in srgb,${v('panel')} 34%,transparent) 55%,transparent);pointer-events:none}`,
+    `${s} .mana-place>.mana-region[data-variant=scrim] .mana-track{border:0;background:color-mix(in srgb,${v('panel')} 70%,transparent);box-shadow:0 0 0 ${u(2)} color-mix(in srgb,${v('panel')} 55%,transparent)}`,
+    // AT REST: what holds no news fades back (a full magazine, full health), and comes forward the moment it changes
+    `${s} .mana-place>.mana-region{transition:opacity calc(${v('dur')} * 3) ease-out}`,
+    `${s} .mana-place>.mana-region[data-rest=yes]{opacity:.38!important;transition-duration:calc(${v('dur')} * 8)}`,
     // A FIGHT'S BARS, over the round: lit, not flat. The track sunk (a shade inside its top edge), the bar standing off
     // the round on a soft shadow; each fill glossed (a highlight across its top, a shade at its foot) with a bright
     // leading edge. A hit: the fill drops quickly, the slice it took flashes once, the chip holds what the combo took and
@@ -391,6 +405,39 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-hit{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:${u(51)};font-weight:200}`,
     `${s} .mana-minimap{position:relative;width:${u(195)};height:${u(195)};border:${v('rule-w')} solid ${v('line')};background:${X_BOX} ${v('paper')}}`,
     `${s} .mana-minimap[data-shape=round]{border-radius:50%}`,
+    // A SCOPE: an instrument over the world, not a picture in a box. Its face fades out at its edge, a bezel of ticks
+    // rings it, the wedge ahead shows what you see, and north rides the bezel as it turns
+    `${s} .mana-minimap[data-scope=yes]{border:0;background:radial-gradient(closest-side,color-mix(in srgb,${v('panel')} 70%,transparent) 0 80%,color-mix(in srgb,${v('panel')} 38%,transparent) 92%,transparent);overflow:visible}`,
+    `${s} .mana-bezel{position:absolute;inset:0;pointer-events:none}`,
+    `${s} .mana-bezel::before{content:"";position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(${v('ink')} 0 1deg,transparent 1deg 15deg);-webkit-mask:radial-gradient(closest-side,transparent 86%,${v('ink')} 87% 91%,transparent 92%);mask:radial-gradient(closest-side,transparent 86%,${v('ink')} 87% 91%,transparent 92%);opacity:.55}`,
+    `${s} .mana-minimap[data-scope=yes]::before{content:"";position:absolute;inset:25%;border-radius:50%;border:1px solid color-mix(in srgb,${v('ink')} 22%,transparent);pointer-events:none}`,
+    `${s} .mana-cone{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from -35deg,color-mix(in srgb,${v('ink')} 24%,transparent) 0 70deg,transparent 70deg);-webkit-mask:radial-gradient(closest-side,${v('ink')},transparent 92%);mask:radial-gradient(closest-side,${v('ink')},transparent 92%)}`,
+    `${s} .mana-north{position:absolute;inset:0;font:800 ${t('caption')}/1 ${v('mono')};text-align:center;pointer-events:none}`,
+    `${s} .mana-north>span{display:inline-block;width:${u(24)};height:${u(24)};margin-top:${u(-6)};border-radius:50%;line-height:${u(24)};background:${v('accent')};color:${v('panel')};text-shadow:none}`,
+    // THE MAGAZINE: the rounds are the figure, the reserve its caption, the magazine itself a belt of rounds that empties
+    // toward the edge it sits by; a shot kicks the figure (no flash: firing is not news), low turns it to harm and says
+    // so, empty says reload, a reload sweeps the belt full
+    `${s} .mana-magazine{display:flex;flex-direction:column;align-items:flex-end;gap:${u(5)};font-variant-numeric:tabular-nums}`,
+    `${s} .mana-gun{display:flex;align-items:baseline;gap:${u(10)};font:700 ${t('label')}/1.1 ${v('font')};letter-spacing:.1em;text-transform:${v('case')}}`,
+    `${s} .mana-mode{font:700 ${t('caption')}/1 ${v('mono')};padding:${u(2)} ${u(6)};border:${v('rule-w')} solid currentColor;border-radius:calc(${v('radius')}*.5);opacity:.8}`,
+    `${s} .mana-rounds{display:flex;align-items:baseline;gap:${u(8)}}`,
+    `${s} .mana-rounds>.mana-num{display:inline-block;font:800 ${ts(80)}/.86 ${v('display')};letter-spacing:-.02em}`,
+    `${s} .mana-reserve{font:700 ${ts(30)}/1 ${v('mono')};opacity:.72}`,
+    `${s} .mana-reserve::before{content:"/";margin-right:${u(4)};opacity:.6}`,
+    // (the gun's wireframe over it all, and each round a cartridge cut from the ink: guns.js; a spent one its outline)
+    `${s} .mana-magazine .mana-sil{margin-bottom:${u(-4)};opacity:.92}`,
+    `${s} .mana-belt{display:flex;flex-direction:row-reverse;align-items:flex-end;gap:${u(2)}}`,
+    `${s} .mana-belt i{flex:1 1 0;min-width:1px;height:100%;background:${v('ink')};-webkit-mask:var(--mana-round) center bottom/contain no-repeat;mask:var(--mana-round) center bottom/contain no-repeat}`,
+    `${s} .mana-belt i[data-spent]{background:color-mix(in srgb,${v('ink')} 45%,transparent);-webkit-mask-image:var(--mana-round-spent);mask-image:var(--mana-round-spent)}`,
+    `${s} .mana-magazine>.mana-track{width:${u(300)};height:${u(8)}}`,
+    `${s} .mana-magazine .mana-num[data-ch]{animation:mana-kick calc(${v('dur')} * 1.4) ${v('ease')}}`,
+    `${s} .mana-magazine:is([data-low],[data-empty]) .mana-rounds>.mana-num{color:${v('harm')}}`,
+    `${s} .mana-magazine:is([data-low],[data-empty]) .mana-belt i:not([data-spent]){background:${v('harm')}}`,
+    `${s} .mana-call{font:800 ${t('label')}/1 ${v('font')};letter-spacing:.16em;text-transform:${v('case')};color:${v('harm')};animation:mana-fade calc(${v('dur')} * 2) ease-out both}`,
+    ...gunCss(s).split('\n'),
+    `${s} .mana-magazine[data-empty] .mana-call{animation:mana-pulse ${PULSE}s ease-in-out infinite;animation-play-state:${v('loop')}}`,
+    `${s} .mana-magazine[data-reloading] .mana-call{color:${v('accent')}}`,
+    `${s} .mana-magazine[data-reloading] .mana-belt i{background:${v('accent')};-webkit-mask-image:var(--mana-round-spent);mask-image:var(--mana-round-spent);animation:mana-pulse .75s ease-in-out infinite;animation-play-state:${v('loop')}}`,
     `${s} .mana-marker{position:absolute;transform:translate(-50%,-50%);font-size:${u(16)};line-height:1}`,
     `${s} .mana-minimap .mana-caption{position:absolute;left:${u(6)};bottom:${u(3)}}`,
     `${s} .mana-compass{position:relative;width:${u(450)};height:${u(33)};border:${v('rule-w')} solid ${v('line')};background:${v('paper')};overflow:hidden}`,
@@ -478,10 +525,17 @@ export function manaCss(scope = '.mana-root') {
     `${s} :is([data-st=focus],[data-press^=deny])>.mana-why{display:block}`,
     `@media (hover:hover){${s} :hover>.mana-why{display:block}}`,
     `${s} :is(.mana-button,.mana-slot):has(>.mana-why){position:relative;overflow:visible}`,
-    `${s} .mana-edges,${s} .mana-threat,${s} .mana-letterbox{position:absolute;inset:0;pointer-events:none}`,
+    `${s} .mana-edges,${s} .mana-threat,${s} .mana-letterbox,${s} .mana-peril{position:absolute;inset:0;pointer-events:none}`,
     `${s} .mana-edge{position:absolute;transform:translate(-50%,-50%);font:700 ${t('body')} ${v('mono')};padding:${u(1.5)} ${u(7.5)};background:${v('plate')};border:${v('rule-w')} solid ${v('line')};border-radius:calc(${v('radius')}*.5)}`,
     `${s} .mana-threat{inset:auto;left:50%;top:50%;width:${u(360)};height:${u(360)};transform:translate(-50%,-50%);border:1px dashed ${v('soft')};border-radius:50%}`,
-    `${s} .mana-arc{position:absolute;font-size:${u(33)};line-height:1;color:${v('harm')}}`,
+    // an arc of the ring where the harm came from, centred on its bearing and tapering to its ends; it fades as it ages
+    `${s} .mana-threat{border-color:transparent}`,
+    `${s} .mana-arc{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from -22deg,transparent,${v('harm')} 15deg 29deg,transparent 44deg);-webkit-mask:radial-gradient(closest-side,transparent 86%,${v('ink')} 88% 97%,transparent 99%);mask:radial-gradient(closest-side,transparent 86%,${v('ink')} 88% 97%,transparent 99%);transition:opacity ${v('glide')} linear;animation:mana-fade ${v('dur')} ease-out}`,
+    // PERIL: the screen's own edges close in, tinted, as the danger rises; near the end they beat slowly
+    `${s} .mana-peril{position:absolute;inset:0;pointer-events:none;opacity:${v('peril')};background:radial-gradient(ellipse 72% 68% at 50% 50%,transparent 46%,color-mix(in srgb,${v('harm')} 30%,transparent) 74%,color-mix(in srgb,${v('harm')} 72%,transparent));transition:opacity calc(${v('dur')} * 4) ease-out}`,
+    `${s} .mana-peril[data-tone=cold]{background:radial-gradient(ellipse 72% 68% at 50% 50%,transparent 46%,color-mix(in srgb,${v('accent2')} 30%,transparent) 74%,color-mix(in srgb,${v('accent2')} 72%,transparent))}`,
+    `${s} .mana-peril[data-high]{animation:mana-beat 1.1s ease-in-out infinite;animation-play-state:${v('loop')}}`,
+    `${s}[data-flash=reduced] .mana-peril{animation:none}`,
     `${s} .mana-letterbox i{position:absolute;left:0;right:0;height:11%;background:${v('shade')}}`,
     `${s} .mana-letterbox i:first-child{top:0}`, `${s} .mana-letterbox i:last-child{bottom:0}`,
     `${s} .mana-touchpad{display:flex;justify-content:space-between;align-items:flex-end;width:min(${u(1770)},90cqw);padding:0 ${u(18)}}`,
@@ -533,6 +587,10 @@ const KEYFRAMES = [
   `@keyframes mana-pick{from{translate:${v('snap-from')};scale:${pop(0.4)}}}`,
   // a prompt that waits for the player (press start): a slow breath, well under the 3 flashes a second XAG 118 allows
   `@keyframes mana-pulse{50%{opacity:.35}}`,
+  // a shot: the magazine's figure kicks and settles (the greybox's pop and travel are nothing: it only changes)
+  `@keyframes mana-kick{from{translate:0 calc(${v('travel')} * -.5);scale:${pop(0.6)}}}`,
+  // near the end of something: the peril's edge beats, a little over once a second
+  `@keyframes mana-beat{50%{opacity:calc(${v('peril')} * .62)}}`,
   // a load: the mark turns, an unknown load's sweep crosses its track, a tip fades in as it turns
   '@keyframes mana-spin{to{transform:rotate(1turn)}}',
   '@keyframes mana-sweep{from{transform:translateX(-100%)}to{transform:translateX(290%)}}',

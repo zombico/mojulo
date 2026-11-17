@@ -20,6 +20,9 @@ const scene = () => {
   return { W, me, foes, hit };
 };
 
+// the marks' bearings (each mark also says how much of its life it has left: its own test below)
+const bear = (marks) => marks.map((m) => ({ bearing: m.bearing }));
+
 describe('the damage ring', () => {
   it('reads a hit\'s bearing from where the body faces: ahead, its right, behind, its left', () => {
     const at = [0, 0, 0];
@@ -28,30 +31,37 @@ describe('the damage ring', () => {
   });
   it('marks a hit where it came from, for its life, the newest first; no hit, no mark', () => {
     const { W, me, hit } = scene(), T = ringTracker(RING, hitBearing);
-    expect(T.step(W, me)).toEqual([]);
-    hit('b'); expect(T.step(W, me)).toEqual([{ bearing: 180 }]);
-    W.time = 0.5; hit('c'); expect(T.step(W, me)).toEqual([{ bearing: 270 }, { bearing: 180 }]);
+    expect(bear(T.step(W, me))).toEqual([]);
+    hit('b'); expect(bear(T.step(W, me))).toEqual([{ bearing: 180 }]);
+    W.time = 0.5; hit('c'); expect(bear(T.step(W, me))).toEqual([{ bearing: 270 }, { bearing: 180 }]);
     // the first has stood its life; the second still stands
-    W.time = RING.life + 0.2; expect(T.step(W, me)).toEqual([{ bearing: 270 }]);
-    W.time = RING.life + 1; expect(T.step(W, me)).toEqual([]);
+    W.time = RING.life + 0.2; expect(bear(T.step(W, me))).toEqual([{ bearing: 270 }]);
+    W.time = RING.life + 1; expect(bear(T.step(W, me))).toEqual([]);
+  });
+  it('says how much of its life a mark has left, so it fades as it ages', () => {
+    const { W, me, hit } = scene(), T = ringTracker({ life: 2, most: 6 }, hitBearing);
+    T.step(W, me);
+    hit('a'); expect(T.step(W, me)[0].fade).toBe(1);
+    W.time = 1; expect(T.step(W, me)[0].fade).toBe(0.5);
+    W.time = 1.9; expect(T.step(W, me)[0].fade).toBe(0.1);
   });
   it('follows its attacker and turns with the pilot; another hit from the same one begins its moment again', () => {
     const { W, me, foes, hit } = scene(), T = ringTracker(RING, hitBearing);
     // (the ring counts from its first frame: what was taken before it stood is not marked)
     T.step(W, me);
-    hit('a'); expect(T.step(W, me)).toEqual([{ bearing: 0 }]);
-    foes.a.transform.pos = [0, -10, 0]; expect(T.step(W, me)).toEqual([{ bearing: 90 }]);
-    me.transform.heading = -Math.PI / 2; expect(T.step(W, me)).toEqual([{ bearing: 0 }]);
+    hit('a'); expect(bear(T.step(W, me))).toEqual([{ bearing: 0 }]);
+    foes.a.transform.pos = [0, -10, 0]; expect(bear(T.step(W, me))).toEqual([{ bearing: 90 }]);
+    me.transform.heading = -Math.PI / 2; expect(bear(T.step(W, me))).toEqual([{ bearing: 0 }]);
     W.time = RING.life - 0.1; hit('a'); T.step(W, me);
     W.time = RING.life + 0.5; expect(T.step(W, me).length).toBe(1);
   });
   it('marks nothing for a hit nobody dealt, and at most so many at once', () => {
     const { W, me, hit } = scene(), T = ringTracker({ life: RING.life, most: 2 }, hitBearing);
     T.step(W, me);
-    hit(null); expect(T.step(W, me)).toEqual([]);
-    hit('gone'); expect(T.step(W, me)).toEqual([]);
+    hit(null); expect(bear(T.step(W, me))).toEqual([]);
+    hit('gone'); expect(bear(T.step(W, me))).toEqual([]);
     for (const id of ['a', 'b', 'c']) { W.time += 0.1; hit(id); T.step(W, me); }
-    expect(T.step(W, me)).toEqual([{ bearing: 270 }, { bearing: 180 }]);
+    expect(bear(T.step(W, me))).toEqual([{ bearing: 270 }, { bearing: 180 }]);
   });
   it('is read as written, and a wrong one taught', () => {
     expect(readDamageRing(true)).toEqual({ life: RING.life, most: RING.most });

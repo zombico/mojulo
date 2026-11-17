@@ -14,7 +14,8 @@
  *   RING                       its numbers: how long a mark stands (s), how many at once
  *   hitBearing(pos, heading, from) → degrees clockwise from where a body faces to where a hit came from (0 ahead, 90 its
  *                                right, 180 behind, 270 its left), to the whole degree
- *   ringTracker(cfg, bearing)  → { step(W, me) → [{ bearing }] } the marks standing this frame, the newest first (page
+ *   ringTracker(cfg, bearing)  → { step(W, me) → [{ bearing, fade }] } the marks standing this frame, the newest first, each
+ *                                with the share of its life it has left (page
  *                                code: inlined with toString(), it references nothing outside itself)
  *   readDamageRing(v, at)      a world's `damageRing` as written: true | { life?, most? } → { life, most }; throws, teaching
  *   damageRingSource(cfg)      → the block the page's channel splices: the ring drawn in the page's own DOM
@@ -54,7 +55,8 @@ export function ringTracker(cfg, bearing) {
         live.push({ t: r.t, bearing: bearing(me.transform.pos, me.transform.heading, r.at) });
       }
       live.sort((a, b) => b.t - a.t);
-      return live.slice(0, cfg.most).map((x) => ({ bearing: x.bearing }));
+      // (and how much of its life it has left, 0..1 in tenths: a mark fades as it ages)
+      return live.slice(0, cfg.most).map((x) => ({ bearing: x.bearing, fade: Math.round(Math.max(0, 1 - (t - x.t) / cfg.life) * 10) / 10 }));
     },
   };
 }
