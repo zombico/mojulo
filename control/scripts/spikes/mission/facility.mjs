@@ -40,18 +40,30 @@ const floor = hall.min[2];
 console.log(`facility: hall ${JSON.stringify({ min: hall.min.map((v) => +v.toFixed(1)), max: hall.max.map((v) => +v.toFixed(1)) })} floor ${B.floor} entry ${JSON.stringify(B.entry)} goal ${JSON.stringify(B.goalAt ?? B.goal)} spawn feet ${feet.map((v) => +v.toFixed(2))}`);
 // the walker in the hall's middle, along its length; the guard walking its round down one side of it; the yard's
 // targets left behind
+// (its step a walker's, 0.35: a stair's tread rises 0.3)
 // (the hero starts in the hall's far corner (room behind it for the chase), on its floor: the level's own start is the walk's, under the hall's slab)
 const at = (dx, dy, z) => (long === 0 ? [mid[0] + dx, mid[1] + dy, z] : [mid[0] + dy, mid[1] + dx, z]);
 const start = at(-(hall.max[long] - hall.min[long]) / 2 + 8, (hall.max[1 - long] - hall.min[1 - long]) / 2 - 7, floor + 0.05);
-const entities = room.manifest.entities.filter((e) => !/^target-/.test(e.id)).map((e) => (e.id === 'hero' ? { ...e, transform: { pos: start, heading: Math.atan2(mid[1] - start[1], mid[0] - start[0]) } }
+const entities = room.manifest.entities.filter((e) => !/^target-/.test(e.id)).map((e) => (e.id === 'hero' ? { ...e, rule: { ...e.rule, step: 0.35 }, transform: { pos: start, heading: Math.atan2(mid[1] - start[1], mid[0] - start[0]) } }
   : e.id === 'guard-1' ? { ...e, transform: { pos: at(-5, -7, floor), heading: long === 0 ? 0 : Math.PI / 2 } } : e));
 const manifest = { ...base, figures: room.manifest.figures, entities, fxStyle: room.manifest.fxStyle,
   parked: [{ vehicle: 'siege walker', at: at(2, 2, floor), heading: long === 0 ? Math.PI : -Math.PI / 2 }] };
 const { payload } = await resolveWorldScene({ ref: 'steel-serpents-facility', title: `Facility · ${G.name}`, manifest }, { era: 'gen-7', live: true });
 const cdn = argv.includes('--cdn');
+// THE BOUNDS. The level's are its trail's: walls along the path a walking tour keeps to, and the building stands across
+// them (one splits its hall). A piloted body goes anywhere, so they give way to one perimeter round the trail and the
+// building together.
+const isBound = (c) => /^bound:/.test(c.of ?? ''), bounds = payload.colliders.filter(isBound), built = payload.colliders.filter((c) => /^hangar-bay/.test(c.of ?? ''));
+const lo = (k, m) => Math.min(...bounds.map((c) => c.max[k]), ...built.map((c) => c.min[k] - m)), hi = (k, m) => Math.max(...bounds.map((c) => c.min[k]), ...built.map((c) => c.max[k] + m));
+const X0 = lo(0, 3), X1 = hi(0, 3), Y0 = lo(1, 3), Y1 = hi(1, 3), Z0 = Math.min(...bounds.map((c) => c.min[2])) - 4, Z1 = Math.max(...bounds.map((c) => c.max[2])) + 12;
+const wallOf = (id, min, max) => ({ of: `bound:facility:${id}`, min: [min[0], min[1], Z0], max: [max[0], max[1], Z1] });
+payload.colliders = [...payload.colliders.filter((c) => !isBound(c)),
+  wallOf('-x', [X0 - 0.5, Y0 - 0.5], [X0, Y1 + 0.5]), wallOf('+x', [X1, Y0 - 0.5], [X1 + 0.5, Y1 + 0.5]), wallOf('-y', [X0 - 0.5, Y0 - 0.5], [X1 + 0.5, Y0]), wallOf('+y', [X0 - 0.5, Y1], [X1 + 0.5, Y1 + 0.5])];
+console.log(`facility: bounds ${bounds.length} of the trail's given way to a perimeter x ${X0.toFixed(1)}..${X1.toFixed(1)}, y ${Y0.toFixed(1)}..${Y1.toFixed(1)}`);
 const { walkers: _w, ...P } = payload;
 const html = emitThreeWorld({ ...P, camera: room.manifest.camera, events: room.manifest.events, walk: false, spin: false, hud: false, inline: !cdn, cdn, ...(argv.includes('--capture') ? { capture: true } : {}) });
 await fs.mkdir(out, { recursive: true });
+if (argv.includes('--dump')) await fs.writeFile(path.join(out, 'level.json'), JSON.stringify({ colliders: payload.colliders, anchors: payload.anchors, walk: payload.walk, keys: Object.keys(payload), hero: payload.entities.find((e) => e.id === 'hero').rule, form: payload.form && Object.keys(payload.form), roofs: payload.roofs && payload.roofs.length }));
 const file = path.join(out, 'facility.html');
 await fs.writeFile(file, html);
 console.log(`facility: ${file} (${(html.length / 1e6).toFixed(1)} MB) · hero ${room.hero} · entities ${payload.entities.map((e) => e.id).join(', ')} · colliders ${payload.colliders.length}`);
