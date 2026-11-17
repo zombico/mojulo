@@ -294,9 +294,10 @@ the crew's rank and file, dressed by the hero door's own words. Said: the crew's
 not build alone, one is several times the weight on the page).
 
 It is heard: its guns (the range's own), its events each a sound (a task, a wave's alarm, a supply taken), the wind's
-bed, and a score in two states that the level's own events move between. Said: no sound is placed in the yard (a
-hall's hum, a fence's rattle) and a step on the tower's steel sounds as one on concrete: the audio channel carries
-neither a placed loop nor a surface under the feet yet.
+bed, and a score in two states that the level's own events move between. Its places sound (the channel's `emitters`): water drips off
+the tower's deck and the tallest stacks, the hall hums at its door, the fence rattles along its runs; and the tower's
+deck and stairs ring as steel under a boot (the channel's `surfaces`). Said: a placed sound is a cue sounded again,
+its loudness set each time it starts, so a held one (the hum) follows the listener in steps.
 
 `bounded` now asks for what stops a body, a wall or a rail, on every floor: a fenced yard is bounded as a walled one is.
 

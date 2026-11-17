@@ -83,6 +83,14 @@ describe('an industrial level, planned', () => {
     expect(A.wind).toEqual({ vary: true });
     expect(A).toMatchObject({ soundtrack: `field:${INDUSTRIAL_SCORE.explore}`, combat: `field:${INDUSTRIAL_SCORE.fight}` });
     expect(A.footsteps.jump.length).toBeGreaterThan(0);
+    // (the sounds of its places: a drip where it is wet, the hall's hum at its door, the fence along its runs, each
+    // inside the site and a cue of its own; the tower's steel under a boot, its deck and its two stairs)
+    expect(A.emitters.map((e) => e.cue)).toEqual(expect.arrayContaining(['yard:drip', 'yard:hum', 'yard:fence']));
+    for (const e of A.emitters) expect(A.sfx.cues[e.cue]).toBeTruthy();
+    expect(A.surfaces).toHaveLength(3);
+    for (const sf of A.surfaces) { expect(sf.step).toBe('yard:step-steel'); expect(sf.box[2]).toBeGreaterThanOrEqual(SEAT.floor); }
+    const deck = A.surfaces[0].box, mid = P.mission.floors[0].area;
+    expect([deck[0], deck[1], deck[3], deck[4]]).toEqual(mid);
     const mute = industrialManifest(G, P, { score: false }).audio;
     expect(mute.soundtrack).toBeUndefined(); expect(mute.combat).toBeUndefined(); expect(mute.sfx.on).toEqual(A.sfx.on);
     // (heard: the range's own sound for its guns, unless it is asked quiet)

@@ -248,3 +248,11 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   wind's long bed is its air. Its score is two states: a held tension while the yard is crossed, the fight's score in
   on the bar line as hits, downed foes and waves raise the meter, and out as it settles. `score: false` leaves the
   music out.
+
+- **Sounds that belong to a place, and the ground by place.** Two words on a world's audio channel
+  (`beats/beats-world.js`, `scene/channels/audio.js`), each opt-in and not a byte where it is absent.
+  `audio.emitters: [{ at, cue, every, reach, level? }]`: a cue of the level's own sounded again and again from a point,
+  after a wait rolled between two bounds on its own dice, heard by the listener's distance and not past its reach.
+  `audio.surfaces: [{ box, step, land? }]`: the cues a step and a landing play where a body's feet stand in a box.
+  The industrial level uses both: water drips off the tower's deck and its tallest stacks, the hall hums at its door,
+  the fence rattles along its runs, and the tower's deck and stairs ring as steel under a boot.
