@@ -8,6 +8,7 @@
  *     audiences?: ['child', 'specialist'],  who it is written for besides everyone: a stop's `captions` say it their way
  *     claims?: [{ id, text, cite, grade }], what it states as fact, each with where it comes from and how sure it is
  *     expert?: { name, role? },           who answers for the claims (as the operator names them)
+ *     brought?: 'none' | [{ id, kind, says, placed | aside … }],  what they brought, as recorded (intake.js)
  *     signoff?: { by, on, claims },       the expert's sign-off, as signed: recorded ONLY when the operator says the
  *                                          expert signed; `claims: 'all'` is stamped at write with a copy of each claim
  *   }
@@ -18,12 +19,13 @@
  * Pure and deterministic.
  */
 import { TOUR_GRADES } from './tour.js';
+import { readExhibitIntake } from './intake.js';
 
 export const AUDIENCES = Object.freeze(['child', 'general', 'specialist']);
 export const AUDIENCE_WORDS = Object.freeze({ child: 'Young visitors', general: 'Everyone', specialist: 'In depth' });
 export const BRIEF_LIMITS = Object.freeze({ aims: 6, aim: 200, claims: 40, claim: 400, cite: 6, citeLength: 240, name: 90 });
 
-const KEYS = ['aims', 'audiences', 'claims', 'expert', 'signoff'];
+const KEYS = ['aims', 'audiences', 'claims', 'expert', 'signoff', 'brought'];
 const ID_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
@@ -74,6 +76,11 @@ export function readBrief(spec) {
   if (spec.expert !== undefined) {
     if (!isObj(spec.expert) || Object.keys(spec.expert).some((k) => !['name', 'role'].includes(k))) fail('expert', 'is { name, role? }');
     out.expert = { name: text(spec.expert.name, 'expert.name', BRIEF_LIMITS.name), ...(spec.expert.role !== undefined ? { role: text(spec.expert.role, 'expert.role', BRIEF_LIMITS.name) } : {}) };
+  }
+  // what the person brought (intake.js): the record, kept with the exhibit so the next session knows it. A brief
+  // without one is as it always was
+  if (spec.brought !== undefined) {
+    try { const R = readExhibitIntake(spec.brought); out.brought = R.none ? 'none' : R.items; } catch (e) { fail('brought', e.message.replace(/^exhibit: brought ?/, '')); }
   }
   if (spec.signoff !== undefined) {
     const so = spec.signoff;
