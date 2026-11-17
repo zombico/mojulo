@@ -571,5 +571,46 @@
     "face": 72,
     "reach": 30,
     "reads": "a cliff face down each side of the field, its high side out: the level boxed in a gorge (the trail's ground edits); the field between them as it was"
+  },
+  "audio": {
+    "soundtrack": "field:tension",
+    "combat": "field:battle",
+    "tension": {
+      "on": {
+        "alarm:found": 1,
+        "alarm:sweep": 0.5,
+        "alarm:call": 0.45,
+        "alarm:detected": 0.3,
+        "seen": 0.2
+      },
+      "enter": 0.6,
+      "exit": 0.25,
+      "hold": 4,
+      "decay": 10
+    },
+    "wind": true,
+    "bed": {
+      "bed": "forest",
+      "level": 0.35
+    },
+    "sfx": {
+      "sheet": {
+        "style": "realistic",
+        "slots": {
+          "step": "step-grass",
+          "shot": "pistol-shot"
+        },
+        "events": {
+          "seen": "alarm",
+          "alarm:detected": "dread-drone",
+          "alarm:call": "latch",
+          "alarm:found": "siren",
+          "down": "thud",
+          "mission:item": "pickup",
+          "mission:exit": "door"
+        }
+      }
+    },
+    "reads": "the score: the field's tension while sneaking, its battle when the garrison has found you (the alarm's turns and sweeps raise the tension, a guard's glimpse a little; it settles back once you have hidden). The gorge's wind and a low bed. Each thing the game does a shelf word: a guard's glimpse the alert's sting, a threat detected the dread, the radio's call a click, a threat found the siren, a guard put down a thud, a thing taken the pickup"
   }
 }

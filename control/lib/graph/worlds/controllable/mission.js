@@ -43,6 +43,8 @@
  * State (state.ms): { held: { id: true }, read: { id: true }, flags: { id: true }, exit: { id, to, door } | null, ride: { way, t, secs, to } | { way, deck, rides, t, secs, z0, z1, end } | null, decks: { way id: the end its deck is at },
  * open: { barrier id: true }, done: false, said: { text, t } (the last thing to tell the player), near: the id of the
  * clue or way in reach, and `locked` what it still needs }. The page draws it (scene/channels/controllable/mission-view.js).
+ * The bus hears its moments (castFacts, wrapped): mission:item, mission:clue, mission:reveal, mission:ride, mission:hint,
+ * mission:exit, mission:done.
  *
  * Wraps stepWorld, so the pinned pipeline order is untouched. Import-free (the page runs this source via toString(),
  * compose.js); emitted only into a page whose world has a rule with `mission`, so every other page keeps every byte.
@@ -165,5 +167,28 @@ export function buildMission(E) {
     const p = state.pilotId ? state.byId[state.pilotId] : null, M = p && p.rule && p.rule.mission, S = state.ms;
     if (!M) return null;
     return (M.objectives || []).find((o) => !(S && S.held[o.done]) && (!o.after || (S && S.flags[o.after]))) || null;
+  };
+  // THE BUS HEARS IT (the castFacts the events channel reads, wrapped): `mission:item` as a thing is taken, `mission:clue`
+  // as one is read, `mission:reveal` as a flag is raised, `mission:ride` as a way is taken, `mission:hint` as the player
+  // steps to a new one, `mission:exit` as an exit is taken, `mission:done` once: a page's sound takes them (a pickup, a
+  // page turned, the lift, a hint's ping)
+  const baseFacts = E.castFacts;
+  if (baseFacts) E.castFacts = function castFactsWithMission(state, prev) {
+    const out = baseFacts(state, prev), S = state.ms;
+    if (!S) return out;
+    const keys = (o) => Object.keys(o || {}).filter((k) => o[k]);
+    // (a bus already running that has not yet heard this mission hears it from rest)
+    const was = prev ? prev.__mission || { held: [], read: [], flags: [], ride: null, hint: null, exit: null, done: false } : null, cur = { held: keys(S.held), read: keys(S.read), flags: keys(S.flags), ride: S.ride ? S.ride.way : null, hint: S.hint ?? null, exit: S.exit ? S.exit.id : null, done: !!S.done };
+    out.prev.__mission = cur;
+    if (!was) return out;
+    const who = state.pilotId;
+    for (const id of cur.held) if (!was.held.includes(id)) out.events.push({ type: 'mission:item', entity: who, id });
+    for (const id of cur.read) if (!was.read.includes(id)) out.events.push({ type: 'mission:clue', entity: who, id });
+    for (const id of cur.flags) if (!was.flags.includes(id)) out.events.push({ type: 'mission:reveal', entity: who, id });
+    if (cur.ride && cur.ride !== was.ride) out.events.push({ type: 'mission:ride', entity: who, id: cur.ride });
+    if (cur.hint !== null && cur.hint !== was.hint) out.events.push({ type: 'mission:hint', entity: who, at: cur.hint });
+    if (cur.exit && cur.exit !== was.exit) out.events.push({ type: 'mission:exit', entity: who, id: cur.exit });
+    if (cur.done && !was.done) out.events.push({ type: 'mission:done', entity: who });
+    return out;
   };
 }

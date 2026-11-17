@@ -105,6 +105,18 @@ describe('a mission in one level', () => {
     put(w, [20, 0, 0]);
     expect(w.ms.hint).toBeNull();
   });
+  it('the bus hears its moments: a thing taken, clues read, the flag raised, the way taken', () => {
+    const w = world(), heard = [];
+    let prev = null;
+    const listen = (fn) => { fn(); const F = E.castFacts(w, prev); prev = F.prev; heard.push(...F.events.map((e) => e.type + (e.id ? ':' + e.id : ''))); };
+    listen(() => run(w, {}, 2));
+    listen(() => put(w, [4, 0, 0]));
+    listen(() => { put(w, [0, 3, 0]); act(w); });
+    listen(() => { put(w, [0, 9, 0]); act(w); });
+    listen(() => { put(w, [8, 0, 0]); run(w, { act: 1 }, 2); });
+    expect(heard).toEqual(['mission:item:lift-key', 'mission:clue:pad', 'mission:clue:tracks', 'mission:reveal:known', 'mission:ride:lift']);
+  });
+
   it('a rule with no mission is as it was', () => {
     const w = E.createWorld({ entities: [{ id: 'p', pilotable: true, rule: { type: 'platform', speed: 5, eye: 0 }, body: { type: 'none' }, transform: { pos: [0, 0, 0], heading: 0 } }] });
     run(w, { act: 1 }, 3);

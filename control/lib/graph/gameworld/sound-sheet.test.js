@@ -336,3 +336,12 @@ describe('a composed game\'s place (its stages carry no kit of their own: the wo
     for (const s of L) { expect(s.order.manifest.audio.sfx.sheet.slots.step).toBe('step-grass'); expect(s.order.manifest.audio.bed).toBeTruthy(); }
   });
 });
+
+describe('a sheet\'s events', () => {
+  it('voices any bus event by a shelf word, a cue of the level\'s each, over the mechanics\' own', () => {
+    const A = resolveWorldAudio({ sfx: { sheet: { style: 'realistic', events: { seen: 'spotted', 'alarm:found': 'siren', 'mission:item': 'pickup' } } } }, { ref: 'lv' });
+    expect(A.on).toMatchObject({ seen: 'ev-alarm', 'alarm:found': 'ev-siren', 'mission:item': 'ev-pickup' });
+    expect(A.cues['ev-alarm']).toBeTruthy();
+    expect(() => resolveWorldAudio({ sfx: { sheet: { events: { seen: 'no such sound' } } } }, { ref: 'lv' })).toThrow(/not a sound on the SFX shelf/);
+  });
+});

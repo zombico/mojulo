@@ -25,7 +25,8 @@
  *
  * State: state.alarm[team] = { phase: 'clear' | 'detected' | 'found', left (s), full (s), at ([x, y, z] the last known
  * place), cause ('glimpse' | 'sound' | 'body' | 'seen'), call: { by, t, of } | null, backup (sent), calls (made),
- * downs (calls cut) }. A page draws it (scene/channels/controllable/alarm-view.js). Per watcher: e.alarmSee (seconds it
+ * downs (calls cut), sweeps (the searchers spread) }. The bus hears its turns (castFacts, wrapped: alarm:<phase>,
+ * alarm:call, alarm:cut, alarm:sweep, alarm:backup). A page draws it (scene/channels/controllable/alarm-view.js). Per watcher: e.alarmSee (seconds it
  * has kept the intruder in sight), e.alarmGain (its sight's gain), e.alarmSt (its startle last step).
  *
  * Wraps stepWorld (after alert.js in compose.js, so its before runs first and its after last). Import-free (the page runs
@@ -118,7 +119,7 @@ export function buildAlarm(E) {
           // the intruder out of sight: the clock runs, and the searchers spread round the last known place
           S.left -= dt;
           if (now - (S.sweptAt ?? -1e9) >= (C.every ?? 6) && S.at) {
-            S.sweptAt = now;
+            S.sweptAt = now; S.sweeps = (S.sweeps || 0) + 1;
             const R = C.sweep ?? 4, n = list.length, turn = Math.floor(now / (C.every ?? 6));
             list.forEach((e, k) => {
               if (!live(e) || (e.lastSeen && now - e.lastSeen.t < 1)) return;
@@ -142,6 +143,29 @@ export function buildAlarm(E) {
         }
       }
     }
+    return out;
+  };
+  // THE BUS HEARS IT (the castFacts the events channel reads, wrapped): `alarm:detected`, `alarm:found` and `alarm:clear`
+  // as the phase turns (its team, the phase it left, its cause), `alarm:call` as a call starts (its caller), `alarm:cut`
+  // as a caller is downed first, `alarm:sweep` each time the searchers spread again, `alarm:backup` as backup is sent: a
+  // page's sound and music take them (the alert sting, the radio, the siren; the score's tension)
+  const baseFacts = E.castFacts;
+  if (baseFacts) E.castFacts = function castFactsWithAlarm(state, prev) {
+    const out = baseFacts(state, prev);
+    if (!state.alarm) return out;
+    // (a bus already running that has not yet heard this alarm hears it from rest: its first turn is heard)
+    const was = prev ? prev.__alarm || {} : null, cur = {}, REST = { phase: 'clear', call: false, downs: 0, sweeps: 0, backup: false };
+    for (const team of Object.keys(state.alarm)) {
+      const S = state.alarm[team], c = cur[team] = { phase: S.phase, call: !!S.call, downs: S.downs || 0, sweeps: S.sweeps || 0, backup: !!S.backup };
+      const w = was && (was[team] || REST);
+      if (!w) continue;
+      if (c.phase !== w.phase) out.events.push({ type: 'alarm:' + c.phase, team, from: w.phase, ...(S.cause ? { cause: S.cause } : {}) });
+      if (c.call && !w.call) out.events.push({ type: 'alarm:call', team, entity: S.call.by });
+      if (c.downs > w.downs) out.events.push({ type: 'alarm:cut', team });
+      if (c.sweeps > w.sweeps) out.events.push({ type: 'alarm:sweep', team });
+      if (c.backup && !w.backup) out.events.push({ type: 'alarm:backup', team });
+    }
+    out.prev.__alarm = cur;
     return out;
   };
 }

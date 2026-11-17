@@ -69,6 +69,16 @@ describe('the alarm', () => {
     hide(w, false); w.byId.p.transform.pos = [-6, 0, 0];
     expect(run(w, 0.1)).toMatchObject({ phase: 'detected', cause: 'body' });
   });
+  it('the bus hears its turns: detected, the call, found, backup, the sweeps, and back down to clear', () => {
+    const w = world();
+    let prev = E.castFacts(w, null).prev; const heard = [];
+    const tick = (s) => { for (let k = 0; k < Math.round(s * 60); k++) { E.stepWorld(w, {}, 1 / 60, hooks); const F = E.castFacts(w, prev); prev = F.prev; for (const e of F.events) if (e.type.startsWith('alarm:')) heard.push(e.type); } };
+    tick(1.2); hide(w, true); tick(3.5);
+    expect(heard.slice(0, 4)).toEqual(['alarm:detected', 'alarm:call', 'alarm:found', 'alarm:backup']);
+    expect(heard).toContain('alarm:sweep');
+    expect(heard.slice(-1)).toEqual(['alarm:clear']);
+  });
+
   it('a world without an alarm keeps none', () => {
     const w = E.createWorld({ entities: [{ id: 'p', pilotable: true, rule: { type: 'platform' }, body: { type: 'none' }, transform: { pos: [0, 0, 0], heading: 0 } }] });
     E.stepWorld(w, {}, 1 / 60, hooks);
