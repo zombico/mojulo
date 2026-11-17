@@ -1,6 +1,10 @@
 ### The traditional side-scroller map: a level as the camera's path, Galaxy Boy's first
 
-Planned; nothing here has shipped yet. Each line is added as its phase lands.
+Planned; nothing here has shipped yet but its principles. Each line is added as its phase lands.
+
+- **The principles, written first** (`docs/side-map-principles.md`): the map as the camera's path, the screen as a
+  measure, teaching by stakes, going up earned, falls and ladders, the closed parts painted, the look, and who makes it
+  (a level form of the cube's space, its look reality's through the geocube).
 
 - **The side strip's seams, mended.** A rolling trail no longer sinks below a strip's ground (its floors lowered to
   boxes upside down), and the joins between a strip's segments are held to a law of their own.
