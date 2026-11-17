@@ -150,7 +150,7 @@ export function goalposts({ world = {}, chapters = [], parts: parts_ = [], mainQ
 }
 
 // the steps that keep their lead over a goalpost: where it is seen, the ledger's open req, the creator's open verdicts
-const LEADS = new Set(['workshop', 'req', 'review', 'ask', 'intake', 'rail', 'lock', 'brief']);
+const LEADS = new Set(['workshop', 'req', 'review', 'ask', 'intake', 'rail', 'lock', 'brief', 'hand-off']);
 /** The readout's `next` with the first open goalpost's question placed in it (the doc above). */
 export function leadNext(next = [], posts = null, { mode = 'gated', quick = false, made = false, brought = false } = {}) {
   if (!posts || posts.next?.goalpost === 'first-level' || (quick && !made)) return next;

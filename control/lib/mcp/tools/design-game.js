@@ -71,6 +71,7 @@ import { askAdvice, needsAsk, unaskedStamp, runAdvice, ASK_SAYS } from '@/lib/gr
 import { intakeAdvice, intakeReport } from '@/lib/graph/gameworld/intake.js';
 import { railReport } from '@/lib/graph/gameworld/rails.js';
 import { pitchStart } from '@/lib/graph/gameworld/pitch-start.js';
+import { handOff } from '@/lib/graph/gameworld/hand-off.js';
 import { manualOrder } from '@/lib/graph/gameworld/battles-manual.js';
 import { treeOrder, treesOf } from '@/lib/graph/gameworld/battles-tree.js';
 import { beatPlan, stagePlan, walkReport } from '@/lib/graph/gameworld/level-plan.js';
@@ -635,7 +636,12 @@ function readout(ref, world, context = {}) {
   if (pitch?.replanned) advice.rail = [`the pitch was locked on '${pitch.replanned.was}' and now starts from '${pitch.from}': a re-plan. Say so to the creator, and read again what the chapters already settled`];
   // (a pitch not yet locked, and a designed game's brief not yet asked, are the producer's steps: they lead, after the
   // ask and the intake; a book with no pitch is read as it always was)
-  if (pitch) { const at = next.findIndex((s) => s.step !== 'ask' && s.step !== 'intake'); next.splice(at < 0 ? next.length : at, 0, ...producerSteps(world, { stored: true })); }
+  if (pitch) {
+    // (and once they are done, THE HAND-OFF, gameworld/hand-off.js: the chain's first unit, proposed to the director)
+    const handed = (() => { try { return handOff(world, { units: GameworldReqRepository.list(ref).map((r) => r.unit) }); } catch { return null; } })();
+    const at = next.findIndex((s) => s.step !== 'ask' && s.step !== 'intake');
+    next.splice(at < 0 ? next.length : at, 0, ...producerSteps(world, { stored: true }), ...(handed ? [handed] : []));
+  }
   if (pitch?.short) (advice.rail ||= []).push(`${pitch.name} is not made as ${pitch.short.wanted} yet (${pitch.short.waits}); it reaches ${pitch.short.reaches.join(', ')}`);
   // a lore part on a page is an order its chapter runs (gameworld/battles-manual.js): a manual on the battles, said with
   // how deep it has been taken; the rungs still derived are the battles chapter's next pass
@@ -1419,6 +1425,8 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   // the requisitions (gameworld/reqs.js): the unit being worked, the queue, and what a unit reads besides its chapter
   const ledger = workLedger(ref, W, full, req, reqDone);
   if (ledger.summary) full.reqs = ledger.summary;
+  // (the hand-off was read before this call's own req was raised: once the ledger holds a level, the director has it)
+  if (ledger.L.reqs.some((r) => typeof r.unit === 'string' && r.unit.startsWith('level:'))) full.next = full.next.filter((n) => n.step !== 'hand-off');
   // how the game is run, said wherever the ledger is (production.js): the style, the posture, the slice, who saw what
   const P = GameworldProductionRepository.get(ref);
   if (ledger.summary || P) {

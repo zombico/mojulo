@@ -68,5 +68,13 @@ In progress. Each line is added as its phase lands.
   game `brief`. The readout's `producer` says the seat and the one question this turn asks; the rest of `next` waits.
   A stored game with a pitch carries its `lock` and `brief` steps ahead of its goalpost and the same `producer` word.
   A stored game with no pitch reads as it always did.
+- **The hand-off** (`gameworld/hand-off.js`): where the producer's work ends and the director's begins. Once the pitch
+  is locked and a designed game's brief is written, the readout offers `next: hand-off`: the chain's first unit as a
+  req the ledger takes, ready to raise. Its unit is the main quest's first built beat, else the world's first level;
+  its remit is filled from what the producer settled: the template it starts from and that the game is theirs, what
+  it keeps and where it departs, and for a level with no quest behind it its place (the game's start, early), what it
+  shows (the rail's first level) and the brief's first order. It proposes and raises nothing: the agent raises it
+  with its own ticket (`ask: { intent }`), and the ledger runs as it always has (what the unit reads and has not
+  settled is asked for first). It leads ahead of a goalpost, and is gone once the ledger holds a level.
 
 No routing card or listed card changes yet: the producer's own card, the preamble and the docs take these next.
