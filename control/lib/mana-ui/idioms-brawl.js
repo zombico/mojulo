@@ -74,6 +74,23 @@ export const BRAWL_IDIOMS = {
     ], 'start')]), when: P('on') },
     example: { name: b('practice.gun.name'), ammo: b('practice.gun.ammo'), of: b('practice.gun.of'), grenades: b('practice.gun.grenades'), shots: b('practice.gun.shots'), on: b('practice.gun.on') },
   },
+  'street-players': {
+    kind: 'hud', about: 'a street\'s players (bottom left): each one\'s name and health, one to four of them',
+    reads: 'players: [{ name, hp, hpMax }]', emits: '—',
+    params: ['players'],
+    node: region('bottom-left', [{ use: 'each', props: { rows: P('players'), row: row([txt(I('name'), 'label'), { use: 'bar', props: { value: I('hp'), max: I('hpMax'), variant: 'hp' } }], 'center') } }]),
+    example: { players: b('street.players') },
+  },
+  'street-status': {
+    kind: 'hud', about: 'a street\'s (top right): the stop the players are at of how many (pips) with its name, and the falls they have left between them',
+    reads: 'stop, of, name, lives, livesMax', emits: '—',
+    params: ['stop', 'of', 'name', 'lives', 'livesMax'],
+    node: region('top-right', [col([
+      row([txt(P('name'), 'label'), { use: 'pips', props: { value: P('stop'), max: P('of') } }], 'center'),
+      { use: 'bar', props: { label: { word: 'lives' }, value: P('lives'), max: P('livesMax'), variant: 'hp' } },
+    ], 'end')]),
+    example: { stop: b('street.stop'), of: b('street.of'), name: b('street.name'), lives: b('street.lives'), livesMax: b('street.livesMax') },
+  },
   'wave-meter': {
     kind: 'hud', about: 'the wave tester\'s: which wave of how many (pips), its name, its formation and its attack pattern, the bodies left and its clock, and the last wave\'s clear (its time, the rounds taken)',
     reads: 'n, of, name, shape (words), left (words), last (words), on', emits: '—',

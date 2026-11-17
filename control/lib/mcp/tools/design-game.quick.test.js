@@ -67,13 +67,13 @@ describe('design_game quick', () => {
     expect(out.ran.map((r) => [r.key, r.action])).toEqual([['hero', 'make'], ['level-run-0', 'make'], ['game', 'make']]);
     const L = stored('rn-level-run-0');
     expect(L.runner).toMatchObject({ seed: expect.any(Number) });
-    expect(L.screen).toMatchObject({ pole: 'phone' });   // a new game is made for a phone
+    expect(L.screen).toBeUndefined();   // a new game is framed for no screen unless it names one
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('rn-level-run-0'));
     expect(payload.runner).toEqual(L.runner);
     const html = emitThreeWorld({ ...payload, inline: true });
     expect(html).toContain('function buildRunner(E)');
     expect(html).toContain('function __updateRunner(dt)');
-    expect(html).toContain('swipe ← →');
+    expect(html).not.toContain('swipe ← →');   // (the swipe legend is a touch screen's: a runner that names `screen: 'phone'` has it)
     expect(stored('rn-game').levels.map((l) => l.ref)).toEqual(['rn-level-run-0']);
   }, 240_000);
 

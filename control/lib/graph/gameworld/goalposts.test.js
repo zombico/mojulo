@@ -82,6 +82,16 @@ describe('the goalposts read the ledger', () => {
   });
 });
 
+describe('a level played through is proved', () => {
+  it('the first level\'s stage won by the scripted player meets the last goalpost; a lost one does not', () => {
+    const made = { [`level-${L1}-0`]: { ref: 'r', order: '0', stored: '0' } };
+    const open = goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, made });
+    expect(at(open, 'first-level').status).toBe('partial');
+    expect(goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, made, playthrough: { levels: [{ level: `level-${L1}-0`, pass: true }] } })).toBeNull();
+    expect(at(goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, made, playthrough: { levels: [{ level: `level-${L1}-0`, pass: false }] } }), 'first-level').status).toBe('partial');
+  });
+});
+
 describe('the goalpost leads the next moves', () => {
   // a book just begun: every design goalpost open, the first one the game's
   const open = goalposts({ world: {}, chapters: [] });
@@ -127,9 +137,10 @@ describe('the goalpost leads the next moves', () => {
   it('the start: a book with no level yet is answered with every question, nothing stored', () => {
     const start = startReadout({ name: 'My Game' });
     expect(start).toMatchObject({ ok: true, readout: 'start', stored: false, goalposts: { met: 0, of: GOALPOSTS.length } });
-    expect(ids(start.next)).toEqual(['intake', 'goalpost']);
+    // (the producer's steps lead: what was brought, then the rail the game is placed on; then the goalpost)
+    expect(ids(start.next)).toEqual(['intake', 'rail', 'goalpost']);
     expect(start.goalposts.posts.every((p) => typeof p.ask === 'string')).toBe(true);
     // (what the creator already said is read: an intent meets the first goalpost)
-    expect(startReadout({ intent: { from: 'long-rpg' } }).next[1].id).not.toBe('game');
+    expect(startReadout({ intent: { from: 'long-rpg' } }).next.find((x) => x.step === 'goalpost').id).not.toBe('game');
   });
 });

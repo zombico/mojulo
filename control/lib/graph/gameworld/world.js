@@ -153,6 +153,7 @@ import { readMainQuest, mainQuestContext } from './main-quest.js';
 import { readGameBrief } from './gmn.js';
 import { readBackdrop } from '../lorecube/backdrop.js';
 import { readIntake } from './intake.js';
+import { readRail } from './rails.js';
 import { readMegaworld } from './megaworld.js';
 import { readLoop } from './core-loop.js';
 import { readBookSkin } from './book-skin.js';
@@ -175,6 +176,7 @@ import { readEscapeGoal } from './escape.js';
 import { readErrands } from './errand.js';
 import { readGauntletGoal } from './gauntlet.js';
 import { readBestiary, readLevelFoes, bestiaryOf } from './foes.js';
+import { readLevelStreet, brawlStreet } from './brawl-cast.js';
 import { readCourse } from './course.js';
 import { readBossWin } from './first-level.js';
 import { readIntent, cubeOfWorld } from './intent.js';
@@ -285,7 +287,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'megaworld', 'made', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', 'fights', 'loadout', 'styleMeter', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'rail', 'megaworld', 'made', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', 'fights', 'loadout', 'styleMeter', ...RESERVED];
 /** The recipe's own keys, read here (the chapter registry, chapters.js, gives each its chapter). */
 export const GAMEWORLD_KEYS = Object.freeze([...KEYS]);
 // THE HUD'S LOOK (`hud`): a mana-ui theme preset its levels' HUD wears (mana-ui/theme.js: a bare HUD's parts on the scene
@@ -295,7 +297,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'mission', 'industrial'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'mission', 'industrial', 'street'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -305,7 +307,7 @@ export const gridOfGlyphs = (g) => Object.fromEntries(GRID_OF_GLYPHS.filter((k) 
 // (`sketch`: the planned map decided in miniature before it is built, level/map-sketch.js: its concept, its segments'
 // ground, heights and marks; read by the miniature, not yet by the build)
 // (`far`: a zoned map's pages see the rest of the map far off, level/far-view.js)
-const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments', 'kit', 'biocube', 'grass', 'wind', 'shrubs', 'zoned', 'apron', 'sketch', 'far', 'play', 'ways'];
+const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments', 'kit', 'biocube', 'grass', 'wind', 'shrubs', 'zoned', 'apron', 'sketch', 'far', 'play', 'ways', 'hats'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
 const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
@@ -602,7 +604,9 @@ export function readGameworld(W) {
   if (!isObj(W.levels) || !Object.keys(W.levels).length) throw new Error('gameworld: levels is { <id>: { walk, … } }, at least one');
   // the BESTIARY (foes.js): the foe classes the world fields, each resolved once so a bad word says so here
   const quickGame = W.quick !== undefined && W.quick !== null;
-  if (W.foes !== undefined && W.foes !== null && quickGame) throw new Error('gameworld: foes: a quick game\'s foes are its goal\'s (quick.foe)');
+  // (a quick brawl's or run & gun's crowd IS the world's bestiary: gameworld/brawl-cast.js)
+  const brawlGame = quickGame && isObj(W.quick) && (W.quick.goal === 'brawl' || W.quick.goal === 'rungun');
+  if (W.foes !== undefined && W.foes !== null && quickGame && !brawlGame) throw new Error('gameworld: foes: a quick game\'s foes are its goal\'s (quick.foe)');
   const foes = W.foes === undefined || W.foes === null ? null : readBestiary(W.foes);
   const ids = Object.keys(W.levels), levels = {}, sceneSets = {};
   for (const id of ids) {
@@ -733,6 +737,11 @@ export function readGameworld(W) {
       // an obstacle course: a lane of slots a seed fills, run at speed (roll-course.js), sized for the world's hero
       if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: an obstacle course is the lane alone: no walk, building, city, roadway, airspace, runner, places, ground or arena beside it`);
       try { readObstacles(L.obstacles); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
+    } else if (L.street !== undefined) {
+      // a street level: a beat-em-up's or a run & gun's street (brawl-cast.js), its stops and its boss the level's design,
+      // its crowd the world's bestiary
+      if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'places', 'ground', 'arena', 'goal', 'foes'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a street level is the street alone: no walk, building, city, roadway, airspace, runner, places, ground, arena, goal or foes beside it (its stops name who comes)`);
+      try { readLevelStreet(L.street); brawlStreet({ foes: W.foes ?? undefined }, readLevelStreet(L.street).design); } catch (e) { throw new Error(`gameworld: ${at}${e.message.replace(/^gameworld: brawl/, '')}`); }
     } else if (L.runner !== undefined) {
       // a runner level: an endless run down lanes (worlds/controllable/runner.js), its rows laid as it is played
       if (['walk', 'building', 'city', 'roadway', 'airspace', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a runner level is the run alone: no walk, building, city, roadway, airspace, places, ground or arena beside it`);
@@ -961,6 +970,8 @@ export function readGameworld(W) {
   // nothing on a level: a world without one is unchanged
   // what the creator brought, read before the first goalpost (intake.js): a record, never a page
   if (W.intake !== undefined) readIntake(W.intake);
+  // the pitch (rails.js): the template the game starts from and where it departs: a record, never a page
+  if (W.rail !== undefined && W.rail !== null) readRail(W.rail);
   if (W.backdrop !== undefined && W.backdrop !== null) { try { readBackdrop(W.backdrop); } catch (e) { throw new Error(`gameworld: backdrop${e.message.replace(/^lorecube: backdrop/, '')}`); } }
   const megaworld = readMegaworld(W.megaworld, W.levels);
   const minigames = W.minigames !== undefined ? readMinigameBook(W.minigames) : typeof W.brief?.prompt === 'string' ? minigamesOfWords(W.brief.prompt)?.games ?? null : null;
@@ -1070,6 +1081,8 @@ export function resolveLevel(world, id) {
   // a runner level: the run's settings, its seed the level's unless it names one (levels.js lays it)
   // an obstacle course: its settings (levels.js lays the lane for the world's hero)
   if (L.obstacles) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, obstacles: readObstacles(L.obstacles) };
+  // a street level: its words (levels.js lays it on the game's hero and foes: brawl-cast.js streetLevel)
+  if (L.street) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, brawlStreet: L.street };
   if (L.runner) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, runner: { ...(L.runner === true ? {} : L.runner), seed: (L.runner === true ? undefined : L.runner.seed) ?? (seed >>> 0) } };
   // a roadway level: its course and its form (a lap unless its course runs end to end), laid by levels.js
   if (L.roadway) {

@@ -176,6 +176,36 @@ export async function renderWorldPlan({ sketch, params = {}, fps }) {
   };
 }
 
+/**
+ * A world's shoot plan as a CONTACT SHEET (shoot/contact.js, motion/contact-sheet.js): each shot of the running order
+ * rendered at its start, middle and end (`params.per`: 1 the middle, 2 start and end, 3 all three) on the same page the
+ * film is captured from, laid a row a shot with the rule of thirds over each frame and the frame read's words under it.
+ * A handful of frames, not a film: what to look at before rendering one. → { png, rows, notes, width, height, cut? }
+ */
+export async function renderWorldContact({ sketch, params = {} }) {
+  const { normalizeShoot } = await import('@/lib/graph/shoot/plan');
+  const { contactFrames } = await import('@/lib/graph/shoot/contact');
+  const { shootSubjects, worldIsLive } = await import('@/lib/graph/shoot/subjects');
+  const { composeContactSheet } = await import('./contact-sheet.js');
+  const { payload } = (await resolveWorldScene(sketch, { view: params.view })) || {};
+  if (!payload) throw new Error(`sketch '${sketch?.ref}' (kind '${sketch?.manifest?.kind}') has no three.js World form to shoot.`);
+  const shoot = sketch.manifest.shoot ?? payload.defaultShoot;
+  if (!shoot) throw new Error(`'${sketch?.ref}' has no shoot plan — forge_motion's shoot: { plan } puts cameras in it first (get_motion_vocab({ id: 'shoot' })).`);
+  const subjects = shootSubjects(payload), mpu = payload.metersPerUnit ?? 1;
+  const { plan, warnings } = normalizeShoot(shoot, { subjects, metersPerUnit: mpu });
+  if (!plan) throw new Error(`the shoot plan on '${sketch.ref}' does not read: ${warnings.join('; ')}`);
+  const width = Math.round(params.width || DEFAULT_W), height = Math.round(params.height || DEFAULT_H), aspect = width / height;
+  const sheet = contactFrames(plan, { subjects, per: params.per ?? 3, metersPerUnit: mpu, aspect });
+  const specs = sheet.rows.flatMap((r) => r.frames.map((f) => ({
+    pos: f.framing.cameraPosition, target: f.framing.lookAt, vfov: verticalFov(f.framing.horizontalFov, aspect),
+    t: f.world_t * 1000, shot: plan.shots.findIndex((s) => s.name === r.shot), roll: f.roll,
+  })));
+  const html = emitThreeWorld({ ...payload, inline: true, capture: true, walk: false, decollide: params.decollide !== false });
+  const { pngs } = await renderWorldFrames(html, specs, { width, height });
+  const png = await composeContactSheet(sheet.rows, pngs, { width, height, cell: params.cell ?? 320, thirds: params.thirds !== false });
+  return { png, rows: sheet.rows, notes: sheet.notes, width, height, ...(sheet.cut ? { cut: sheet.cut } : {}), ...(worldIsLive(payload) ? { live: true } : {}) };
+}
+
 // a world's shoot plan read and sampled: the payload, the plan, the shots asked for (one by `params.shot`, else the
 // running order) and their frames at the rate — the one reading the render and the Blender film share
 async function planFrames({ sketch, params = {}, fps }) {

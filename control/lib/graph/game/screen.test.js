@@ -9,7 +9,7 @@ describe('screen: the screen a game is made for', () => {
     expect(readScreen('phone')).toEqual({ pole: 'phone', aspect: [9, 16], orientation: 'portrait' });
     expect(readScreen('tablet')).toEqual({ pole: 'tablet', aspect: [4, 3], orientation: 'landscape' });
     expect(readScreen('screen')).toEqual({ pole: 'screen', aspect: [16, 9], orientation: 'landscape' });
-    expect(SCREENS[NEW_GAME_SCREEN]).toBeTruthy();
+    expect(NEW_GAME_SCREEN === null || !!SCREENS[NEW_GAME_SCREEN]).toBe(true);   // none, or a screen it names
   });
 
   it('turns a pole to the orientation asked for, and reads a custom aspect', () => {

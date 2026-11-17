@@ -47,11 +47,11 @@ import { playerWorld, traversalStates, HERO_WALK_RUN } from '../playscape/player
 import { resolveEquipment } from './equipment.js';
 import { outTrailOf, outTrailStyle } from '../era/out-trail-board.js';
 import { outTrailSpan } from '../era/out-trail.js';
-import { SIDE_CUBE, sidePads } from '../era/geocube-side.js';
+import { SIDE_CUBE, sidePads, sideCameraWords } from '../era/geocube-side.js';
 import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
 import { fixedStations, uprightCamera, UPRIGHT, STEERED } from './cameras.js';
-import { SHOOT, PERSON, shoulderOf } from './quick.js';
+import { SHOOT, PERSON, shoulderOf, STREET_LAY } from './quick.js';
 import { HOLDER } from './mechanics.js';
 import { readScreen, screenPayload } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
@@ -85,6 +85,7 @@ import { seatCraft, craftPilot } from '../skyscape/craft.js';
 import { battleRoster, laidBattles, PARTY_SLICE, BAG_SLICE, BAG_START } from './battles.js';
 import { mergeExtras, libraryFigure, fieldFigure, stand } from './stage-figures.js';
 import { standFoe, foePlacements } from './foes.js';
+import { streetLevel } from './brawl-cast.js';
 import { readTheme } from '../../mana-ui/theme.js';
 import { armLevel, heroStrikes, arsenalOfGame } from './arsenal.js';
 import { missionPlan, missionStage, missionEnds, missionMechanics, missionCast, missionUi, missionBuildingCube } from './mission-level.js';
@@ -132,7 +133,8 @@ const SNEAK_TUNE = Object.freeze({ team: 'guards', rule: { guardRadius: 10, spee
 import { feelRule, readFeel, TAKES, feelCard, lowerFeel, feelVayo } from './feel/lower.js';
 import { reachOf } from './feel/reach.js';
 import { laidCasting, laidJoins } from './casting.js';
-import { readCourse, courseAt, coursePlan, courseLaws, lowerCourse } from './course.js';
+import { readCourse, courseAt, coursePlan, courseLaws, lowerCourse, slabOf } from './course.js';
+import { courseCube, courseColours, skinCourse } from './course-skin.js';
 import { juiceOfGame } from './juice.js';
 import { tempoOfGame } from './tempo.js';
 import { styleMeterOfGame } from './style-meter.js';
@@ -213,6 +215,9 @@ export function gameStages(world) {
     // a mission level is one stage: the firing range stretched into sections (mission-level.js), its ground its own; its
     // plan (the composition, the brief, the laws) rides the stage for the order that lays its pilot, cast and tasks
     if (R.mission) { const P = missionPlan(G, R.mission); out.push({ level, node: 'mission', section: 'mission', index: 0, label: G.levels[level]?.name ?? level, manifest: missionStage(G, P), mission: P }); continue; }
+    // a street level is one stage: the street (brawl-cast.js streetLevel), laid again on the game's hero and foes when
+    // its level is made (levelOrder)
+    if (R.brawlStreet) { out.push({ level, node: 'street', section: 'street', index: 0, street: R.brawlStreet, manifest: streetLevel(G, R.brawlStreet, { title: R.name, ...STREET_LAY }).manifest }); continue; }
     // a runner level is one stage: the run (worlds/controllable/runner.js), its ground a floor, its rows laid in play
     if (R.runner) { out.push({ level, node: 'runner', section: 'runner', index: 0, manifest: runnerStage(R.runner) }); continue; }
     // an obstacle course is one stage: the lane (roll-course.js), its slots filled by the level's roll, sized for the hero
@@ -757,7 +762,7 @@ function withBookUi(G, play) {
   return { ...play, ui: { seed: h % 2147483647 } };
 }
 
-function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null, gunnerRef = null } = {}) {
+function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null, gunnerRef = null, foeRefs = null } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
   // (a mission in a building: the mission's cast, tasks, camera and page over the building's rooms)
@@ -769,6 +774,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
       ends: { spawn: M.anchors.spawn.slice(), heading: M.heading, exit: M.anchors.exit.slice(), exitFrom: M.anchors.exit.slice(), beats: M.sections.map((S) => ({ beat: S.id, at: S.entry.slice() })), planar: true }, ...(laws.length ? { laws } : {}) };
   }
   if (stage.section === 'building' && stage.mission) return buildingMissionOrder(G, stage, { ref, heroRef, heroGaits, pilot, title, gunnerRef });
+  // a street level (brawl-cast.js): its own simulation and its own contract, the game's hero and made foes its bodies
+  if (stage.section === 'street') { const S = streetLevel(G, stage.street, { title: title ?? stageTitle(stage), ref, heroRef, foeRefs, party, ...STREET_LAY }); return { tool: 'create_sketch', args: { title: S.manifest.title, manifest: S.manifest }, laws: S.laws }; }
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, sheathRef, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
   const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stage.section === 'obstacles' ? obstacleEnds(stage.manifest) : stage.section === 'mission' ? missionEnds(stage.manifest) : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
@@ -782,8 +789,11 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   let course = courseSpec ? (() => {
     const lane = stageLane(stage), reach = reachOf(G.feel ? readFeel(G.feel) : null), length = lane.line.length - 1;
     const plan = coursePlan(reach, { teach: courseSpec.teach, verticality: courseSpec.verticality ?? 'flat', length });
-    const L = lowerCourse(plan, lane), at = (s, z) => { const i = Math.min(lane.line.length - 1, Math.max(0, Math.round(s))); return [lane.line[i][0], lane.line[i][1], r3(L.base + z)]; };
-    return { plan, lowered: L, laws: courseLaws(plan, reach), beats: plan.floors.map((f, k) => ({ beat: `floor-${k + 1}`, at: at((f.s0 + f.s1) / 2, f.z) })) };
+    // (in the round a floor is a slab as thick as the hero's jump asks, course.js slabOf, not a column to the ground)
+    const L = lowerCourse(plan, lane, { slab: slabOf(reach) }), at = (s, z) => { const i = Math.min(lane.line.length - 1, Math.max(0, Math.round(s))); return [lane.line[i][0], lane.line[i][1], r3(L.base + z)]; };
+    // (its coins, where the world lays them: mechanics.coins, below; on the line itself, between its metres)
+    const on = (s, z) => { const u = Math.min(lane.line.length - 1, Math.max(0, s)), i = Math.min(lane.line.length - 2, Math.floor(u)), t = u - i, A = lane.line[i], B = lane.line[i + 1] ?? A; return [r3(A[0] + (B[0] - A[0]) * t), r3(A[1] + (B[1] - A[1]) * t), r3(L.base + z)]; };
+    return { plan, lowered: L, laws: courseLaws(plan, reach), beats: plan.floors.map((f, k) => ({ beat: `floor-${k + 1}`, at: at((f.s0 + f.s1) / 2, f.z) })), ...(G.mechanics?.coins ? { coins: trailCoins(plan, on) } : {}) };
   })() : null;
   const stripped = isStrip(stage.manifest) ? stripCourse(G, stage) : null;
   if (stripped) course = stripped;
@@ -898,7 +908,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
     const camera = look ? { rule: 'eye', target: 'hero', height: pilot ? pilot.eye : HERO_EYE, mouseLook: true, hideTarget: true }
       : top ? { rule: 'overhead', target: 'hero', ...OVERHEAD }
-        : lane ? { rule: 'side', target: 'hero', ...(course ? { band: SIDE_BAND, ends: SIDE_ENDS } : {}) }
+        // (a strip drawn in a shape family, era/geocube-side.js: framed nearly level, so its sky and far rows are seen)
+        : lane ? { rule: 'side', target: 'hero', ...(course ? { band: SIDE_BAND, ends: SIDE_ENDS } : {}), ...(isStrip(stage.manifest) ? sideCameraWords(stage.manifest.cube, stage.manifest.side?.shapes) : {}) }
         : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) }
         : steered ? { ...P.camera, steer: steered, ...(actionOrbit ? ACTION_ORBIT : {}) }
         : stage.section === 'runner' ? { rule: 'follow', target: 'hero', ...RUNNER_CAMERA }
@@ -1009,7 +1020,10 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     strip = { side: { ...stage.manifest.side, boxes }, colliders: boxes.map(({ min, max }) => ({ min, max, of: 'side:course' })) };
   }
   if (course) {
-    if (!strip) blocks = [...(blocks ?? []), ...course.lowered.blocks];
+    // (a course in the round is SKINNED, course-skin.js: its floors the land it stands on lifted up, a turf cap over dirt
+    // over rock in the stage's own colours; its stairs and the floors up a wall masonry in the level's geocube, the one
+    // the level or the world names, else the one made for the kit it stands on)
+    if (!strip) blocks = [...(blocks ?? []), ...((K) => skinCourse(course.lowered, course.plan, courseColours(stage, K.cube, K.from)))(courseCube(G, stage))];
     const ev = pilotPart.events ?? {}, C = course.lowered.events;
     pilotPart = { ...pilotPart, events: { ...ev, sources: [...(ev.sources ?? []), ...C.sources], reactions: [...(ev.reactions ?? []), ...C.reactions] } };
     // LIVES (the world's `mechanics.lives`): a hit or a fall into one of the course's pits costs one, none left loses;
@@ -1017,7 +1031,9 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     // over each gap, where the hero's feet pass
     const M = G.mechanics ?? {};
     if (M.lives) game.mechanics = [...game.mechanics.filter((m) => m.kind !== 'fail-on-death'), { kind: 'lives', start: M.lives, falls: C.sources.map((x) => x.zone).filter((z) => typeof z === 'string' && z.startsWith('__course-')) }];
-    if (M.coins && strip) game.mechanics = [...game.mechanics, { kind: 'coins', pickups: courseCoins(course.plan), ...(M.coins.oneup ? { oneup: M.coins.oneup } : {}) }];
+    // (and along a trail's course, a 3D platformer's: the same rows and arcs on the trail's own line, trailCoins)
+    const coins = M.coins ? (strip ? courseCoins(course.plan) : course.coins ?? []) : [];
+    if (coins.length) game.mechanics = [...game.mechanics, { kind: 'coins', pickups: coins, ...(M.coins.oneup ? { oneup: M.coins.oneup } : {}) }];
   }
   if (ways && ways.arrive.length) {
     const pilot = pilotPart.entities[0].id, ev = pilotPart.events || {};
@@ -1335,6 +1351,22 @@ export function courseCoins(plan) {
     out.push(at(g.s0 + 0.2 * g.w, z + COIN.arc[0]), at((g.s0 + g.s1) / 2, z + COIN.arc[1]), at(g.s1 - 0.2 * g.w, z + COIN.arc[0]));
   }
   return out.sort((a, b) => a.at[1] - b.at[1]);
+}
+/** A TRAIL COURSE'S COINS (a 3D platformer's: the course over a trail's own line, course.js coursePlan): the strip's
+ * rows and arcs, a row of three along each floor at the height the feet pass, an arc of three over each gap, placed by
+ * `at(station, height over the course's base) → [x, y, z]` on the trail's line. In the order they are run past. */
+export function trailCoins(plan, at) {
+  const out = [], put = (s, z) => out.push({ s, at: at(s, z) });
+  for (const f of plan.floors) {
+    if (f.s1 - f.s0 < 3) continue;
+    for (let s = f.s0 + 2; s + 2 * COIN.gap <= f.s1 - 1; s += COIN.row) for (let k = 0; k < 3; k++) put(s + k * COIN.gap, f.z + COIN.walk);
+  }
+  plan.gaps.forEach((g, k) => {
+    if (g.kind === 'wall' || !(g.w > 0)) return;
+    const z = Math.max(plan.floors[k].z, plan.floors[k + 1].z);
+    put(g.s0 + 0.2 * g.w, z + COIN.arc[0]); put((g.s0 + g.s1) / 2, z + COIN.arc[1]); put(g.s1 - 0.2 * g.w, z + COIN.arc[0]);
+  });
+  return out.sort((a, b) => a.s - b.s).map((c) => ({ at: c.at }));
 }
 /** The side camera's height on a course: eased while the hero stands (a stair's risers), held through a jump inside it. */
 export const SIDE_BAND = Object.freeze([1, 2]);

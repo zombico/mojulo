@@ -263,7 +263,7 @@ const MECHANICS = {
             { on: 'oneup', do: 'inc', var: 'lives', by: 1, max },
           ],
           watches: [{ type: 'dead', when: { var: 'lives', lte: 0 } }],
-          hud: [{ var: 'lives', label: 'Lives' }],
+          hud: [{ var: 'lives', label: 'Lives', as: 'counter' }],   // (a counter: mana-ui draws its heart, hud-mana.js)
         },
         on: { dead: { end: 'fail' } },
       };
@@ -279,7 +279,7 @@ const MECHANICS = {
       const pickups = Array.isArray(p.pickups) ? p.pickups : [];
       if (!pickups.length) throw new Error(`coins[${ctx.i}]: needs pickups: [{ at }]`);
       const every = Number.isInteger(p.oneup) && p.oneup > 0 ? p.oneup : 30, run = `__coins_run_${ctx.i}`;
-      const world = { vars: { coins: 0, [run]: 0 }, sources: [], reactions: [], entities: [], watches: [{ type: 'oneup', when: { var: run, gte: every } }], hud: [{ var: 'coins', label: 'Coins' }] };
+      const world = { vars: { coins: 0, [run]: 0 }, sources: [], reactions: [], entities: [], watches: [{ type: 'oneup', when: { var: run, gte: every } }], hud: [{ var: 'coins', label: 'Coins', as: 'counter' }] };
       pickups.forEach((pk, j) => {
         const zone = `cn_${ctx.i}_${j}`, at = pk.at || [0, 0, 0];
         world.entities.push({ id: zone, on: true, position: at });
