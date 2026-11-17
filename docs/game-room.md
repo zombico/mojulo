@@ -254,6 +254,13 @@ tier's name and the combo's count, standing only while there is style to show. T
 the tier is climbed, slams in on a tier gained and shakes on a tier lost; the count is struck by each blow and grows
 heavier as the combo runs.
 
+Beside it the stylish template carries a **devil gauge** (the meter's `devil: { stocks, per, hit, hurt }`): blows
+landed fill it in stocks, more in the air, and a hit taken a little; it does not fall, and spending it is not built.
+The HUD draws the health and the gauge as one figure, the **vitals** (the meter's `vitals: { look, hp, devil }`):
+no box, a crest at their root, each bar at its share of the length it reaches by the game's end (`hp` and `devil`,
+the health twice its start and ten stocks unless said), so the figure reads from the first level to the last. Its
+`look` says how the two forms answer: `overlap`, `contrast` or `echo`.
+
 A level of such a game is **ranked** as it is won (`game/rank.js`, the level's `game.rank`): one letter of the
 meter's own tiers, the mean of three marks.
 

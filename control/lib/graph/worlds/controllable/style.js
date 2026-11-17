@@ -16,9 +16,13 @@
  *     decay?    points a second it falls after that (14)
  *   }
  *
+ *     devil?    { stocks: 3, per: 100 (the points a stock holds), hit: 6 (a blow landed, × air off the ground), hurt: 10
+ *               (a hit taken) }: THE DEVIL GAUGE, the power a stylish hero builds by fighting, in stocks; it fills and
+ *               does not fall (spending it is not built). Absent: no gauge.
+ *
  * `state.style` says where it is: { points, tier, name, fill (0 … 1 through the tier), combo (blows landed since the last
  * hit taken or the last fall to nothing), peak (the highest tier reached), earned (every point gained), hurt (hits
- * taken), best (the longest combo) }. `E.styleOf(state)` the same as a plain record, for a HUD and for a level's results.
+ * taken), best (the longest combo), devil? }. `E.styleOf(state)` the same as a plain record, for a HUD and for a level's results.
  *
  * Read after the step (as the hitstop reads a connect): combat-melee.js stamps `lastStrike` with the step's time, the
  * moveset says the move in hand and each press's verdict, the guard counts its parries. On the world's own clock: a held
@@ -43,6 +47,7 @@ export function buildStyle(E) {
     state.style = {
       cfg: { tiers, step: Math.max(1, num(S.step, 100)), gain, repeat: Math.max(0, Math.min(1, num(S.repeat, 0.5))), memory: Math.max(1, Math.round(num(S.memory, 6))), grace: Math.max(0, num(S.grace, 2)), decay: Math.max(0, num(S.decay, 14)) },
       points: 0, tier: 0, name: tiers[0], fill: 0, combo: 0, peak: 0, earned: 0, hurt: 0, best: 0, last: -1e9, recent: [],
+      ...(S.devil && typeof S.devil === 'object' ? { devil: { stocks: Math.max(1, Math.min(20, Math.round(num(S.devil.stocks, 3)))), per: Math.max(1, num(S.devil.per, 100)), hit: Math.max(0, num(S.devil.hit, 6)), hurt: Math.max(0, num(S.devil.hurt, 10)), points: 0 } } : {}),
       seen: { hits: (p && p.hits) || 0, parries: (p && p.parries) || 0, weapon: (p && p.weaponIdx) || 0, shot: (p && p.lastShot) || null, downed },
     };
   });
@@ -72,6 +77,7 @@ export function buildStyle(E) {
       add(T, G.hit * Math.pow(C.repeat, k) * (air ? G.air : 1) + (mv && mv.launch > 0 ? G.launch : 0), now);
       T.recent.push(key); if (T.recent.length > C.memory) T.recent.shift();
       T.combo++; if (T.combo > T.best) T.best = T.combo;
+      if (T.devil) T.devil.points += T.devil.hit * (air ? G.air : 1);
     }
     // A ROUND LANDED (the sidearm's: combat-ranged.js stamps `lastShot` with what it struck)
     const Sh = p.lastShot;
@@ -90,10 +96,12 @@ export function buildStyle(E) {
       else if (!e.downed && seen.downed[e.id]) delete seen.downed[e.id];
     }
     // A HIT TAKEN: a whole tier lost, the combo gone
+    if ((p.hits || 0) > seen.hits && T.devil) T.devil.points += T.devil.hurt * ((p.hits || 0) - seen.hits);
     if ((p.hits || 0) > seen.hits) { T.points -= C.step; T.hurt += (p.hits || 0) - seen.hits; T.combo = 0; T.recent.length = 0; }
     seen.hits = p.hits || 0;
     // TIME: past the grace, it falls; fallen to nothing, the combo is over
     if (now - T.last > C.grace && T.points > 0) { T.points -= C.decay * dt; if (T.points <= 0) { T.combo = 0; T.recent.length = 0; } }
+    if (T.devil) T.devil.points = Math.min(T.devil.points, T.devil.stocks * T.devil.per);
     settle(T);
   }
 
@@ -105,5 +113,5 @@ export function buildStyle(E) {
     read(state, t0, state.time - t0);
     return out;
   };
-  E.styleOf = (state) => { const T = state && state.style; return T ? { tier: T.tier, name: T.name, fill: T.fill, points: Math.round(T.points * 10) / 10, combo: T.combo, peak: T.peak, peakName: T.cfg.tiers[T.peak], earned: Math.round(T.earned * 10) / 10, hurt: T.hurt, best: T.best, tiers: T.cfg.tiers.slice() } : null; };
+  E.styleOf = (state) => { const T = state && state.style; return T ? { tier: T.tier, name: T.name, fill: T.fill, points: Math.round(T.points * 10) / 10, combo: T.combo, peak: T.peak, peakName: T.cfg.tiers[T.peak], earned: Math.round(T.earned * 10) / 10, hurt: T.hurt, best: T.best, tiers: T.cfg.tiers.slice(), ...(T.devil ? { devil: { fill: Math.round((T.devil.points / T.devil.per) * 1000) / 1000, stocks: T.devil.stocks } } : {}) } : null; };
 }

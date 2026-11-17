@@ -107,6 +107,19 @@ In progress. Built so far, all in the practice door's game room
   be walked into. A level without it keeps every byte. Seen in a headless browser at the screen's edge, turned to a
   place out of view; the arrow over a place in view was not caught there, and nobody has played it. Not yet: an
   arrow to a level's way out.
+- **Built: the devil gauge** (`worlds/controllable/style.js`, a meter's `devil`). The power a stylish hero builds by
+  fighting, in stocks: blows landed fill it (more in the air), a hit taken fills it a little; it does not fall.
+  Spending it is not built. The stylish template's meter carries one (`styleMeter: 'auto'`); a meter that does not
+  say it has none, and its pages keep every byte.
+- **Built: the vitals** (the HUD host; a meter's `vitals: { look, hp, devil }`). The health and the devil gauge
+  drawn as one figure, no box: a crest at their root, each bar drawn at its share of the length it reaches by the
+  game's end (the health twice its start unless said, ten stocks), so a short bar at the start reads as composed as
+  a long one at the end; one end cap at any length and one rhythm of stocks however many. A hit's chip is held a
+  moment, then drains. The sprint rides as a hairline over the health. Three looks for how the forms answer:
+  `overlap` (one slant, the gauge riding over the health's lower edge, both under the crest), `contrast` (the
+  health a thin pointed blade, the gauge heavy blocks, the crest round), `echo` (one form twice, the gauge a step in
+  and down). Lit as the letters are. Seen in a headless browser at a game's start, mid-hit, late and fully grown,
+  each look; nobody has played it.
 - **Fallen Angel remade with all of it**, through `design_game`, and its level's own page seen in a headless
   browser: Lucien in the gate court with the health bar, the weapon's count and the meter (its letter and its
   count) standing over the play on no plate. What that showed, and what was put right: the wave's banner and the

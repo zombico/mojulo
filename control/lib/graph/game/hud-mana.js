@@ -18,6 +18,7 @@
  *     rows      a level's `events.hud` (raw or normalized: normalizing is idempotent)
  *     hero      draw the pilot's own gauges (its health, its sprint) with the rows: true unless said
  *   levelHud(theme, { screen?, style?, ways? }) → a level manifest's `manaHud`: { rows: 'events', theme, style?, ways? }
+ *     vitals    { look, full: { hp?, devil } }: the health and the devil gauge drawn as one figure (style-meter.js vitalsOf)
  *     ways      { var, at: [[x, y, z] | null, …] }: the way on, an arrow toward the place a bus var names by its index
  *               (none while it names none); the page's HUD host draws it (the page lowers the level's
  *     rows where it emits them, so a mechanic's rows, merged late, are in)
@@ -32,7 +33,7 @@
  * A row's colour is not carried: the theme owns the look.
  *
  * The state the spec binds (the host writes it from the level's bus): v.<k> a var's value · on.<k> whether a gated or
- * timed row stands · lines.<k> a slot's passing lines · moments [] · hero { hp, hpMax, hasHp, stamina, staminaMax, sprints } · style { on, name, combo }.
+ * timed row stands · lines.<k> a slot's passing lines · moments [] · hero { hp, hpMax, hasHp, stamina, staminaMax, sprints, hpGhost } · style { on, name, combo } · devil { on, fill, stocks }.
  * Pure: a spec is data.
  */
 import { normalizeHud, HUD_SLOTS } from './hud-widgets.js';
@@ -45,7 +46,7 @@ const B = (path) => ({ bind: path });
 const MEANS = [[/^(hp|health|life|lives|hull)$/, 'hp'], [/^(mp|mana|magic|energy)$/, 'mp'], [/^(xp|exp|experience)$/, 'xp'], [/^(stamina|boost|sprint|breath|fuel)$/, 'stamina'], [/^(shield|armou?r|guard)$/, 'shield'], [/^boss/, 'boss']];
 const meaningOf = (w) => { for (const name of [w.var, w.label]) { const k = String(name ?? '').toLowerCase().trim(); for (const [re, v] of MEANS) if (re.test(k)) return v; } return 'plain'; };
 
-export function hudToMana(rows, { register = null, hero = true, touch = false, style = false, immersive = style } = {}) {
+export function hudToMana(rows, { register = null, hero = true, touch = false, style = false, immersive = style, vitals = null } = {}) {
   const { widgets } = normalizeHud(Array.isArray(rows) ? rows : [], register ? { register } : {});
   const vars = {}, keyOf = new Map(), gates = [], banners = [], toasts = [], lines = {};
   const varKey = (name) => { if (!keyOf.has(name)) { const k = `v${keyOf.size}`; keyOf.set(name, k); vars[k] = name; } return keyOf.get(name); };
@@ -81,8 +82,15 @@ export function hudToMana(rows, { register = null, hero = true, touch = false, s
     // (a title is carved letters in the scene: the title channel's, as before)
   });
   // the pilot's own gauges lead the top-left: its health (unless a row is already the health), its sprint
+  // THE VITALS (a stylish game's: `vitals`, the HUD host draws them as one figure, scene/channels/mana-hud.js): the health
+  // and the devil gauge in one cluster, laid out at their length at the game's end, the sprint a hairline over them
+  const cluster = hero && vitals ? [{ use: 'stack', props: { gap: 'tight', align: 'start' }, children: [
+    { use: 'bar', props: { value: B('hero.stamina'), max: B('hero.staminaMax'), variant: 'stamina', figures: false }, when: B('hero.sprints') },
+    { use: 'bar', props: { value: B('hero.hp'), max: B('hero.hpMax'), variant: 'hp', figures: false, ghost: B('hero.hpGhost') }, when: B('hero.hasHp') },
+    { use: 'bar', props: { value: B('devil.fill'), max: B('devil.stocks'), segments: B('devil.stocks'), variant: 'mp', figures: false }, when: B('devil.on') },
+  ] }] : null;
   const own = hero ? [...(hpRow ? [] : [{ use: 'bar', props: { value: B('hero.hp'), max: B('hero.hpMax'), variant: 'hp', label: 'HP' }, when: B('hero.hasHp') }]), { use: 'bar', props: { value: B('hero.stamina'), max: B('hero.staminaMax'), variant: 'stamina', figures: false }, when: B('hero.sprints') }] : [];
-  bySlot['top-left'] = [...own, ...bySlot['top-left']];
+  bySlot['top-left'] = [...(cluster ?? own), ...bySlot['top-left']];
   const regions = [];
   for (const slot of HUD_SLOTS) {
     const kids = [...bySlot[slot], ...(lines[slot] ? [{ use: 'feed', props: { rows: B(`lines.${lines[slot]}`), max: 6 } }] : []), ...(slot === 'center' && banners.length ? [{ use: 'moments', props: { rows: B('moments'), as: 'banner', hold: 1.6, read: 0.4 } }] : [])];
@@ -97,12 +105,12 @@ export function hudToMana(rows, { register = null, hero = true, touch = false, s
     { use: 'text', props: { value: B('style.name'), role: 'numeral' } },   // (a numeral: marked as it changes, so the host's motion plays)
     { use: 'text', props: { value: B('style.combo'), role: 'numeral' }, when: B('style.combo') },
   ] }] });
-  return { spec: { screens: {}, hud: { use: 'hud', children: regions } }, feed: { rows: { vars, gates, banners, toasts, lines: Object.values(lines) }, ...(hero ? { hero: true } : {}), ...(style ? { style: true } : {}), ...(immersive ? { immersive: true } : {}) } };
+  return { spec: { screens: {}, hud: { use: 'hud', children: regions } }, feed: { rows: { vars, gates, banners, toasts, lines: Object.values(lines) }, ...(hero ? { hero: true } : {}), ...(style ? { style: true } : {}), ...(immersive ? { immersive: true } : {}), ...(cluster ? { vitals } : {}) } };
 }
 
 /** A level's `manaHud` in a look (a mana-ui preset's name, a card's, or a theme object): its rows are the level's own. */
-export function levelHud(theme, { screen = null, style = false, ways = null } = {}) {
+export function levelHud(theme, { screen = null, style = false, ways = null, vitals = null } = {}) {
   const base = typeof theme === 'string' && !THEMES[theme] ? cardTheme(theme) : theme ?? 'console';
   const portrait = !!screen && (screen === 'phone' || screen.pole === 'phone' || screen.orientation === 'portrait');
-  return { rows: 'events', theme: portrait ? (typeof base === 'string' ? { from: base, distance: 'hand' } : { ...base, distance: 'hand' }) : base, ...(style ? { style: true } : {}), ...(ways ? { ways } : {}) };
+  return { rows: 'events', theme: portrait ? (typeof base === 'string' ? { from: base, distance: 'hand' } : { ...base, distance: 'hand' }) : base, ...(style ? { style: true } : {}), ...(ways ? { ways } : {}), ...(vitals ? { vitals } : {}) };
 }

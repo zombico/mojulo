@@ -56,12 +56,64 @@ function styleMeterCss() {
   ].join('');
 }
 
+/**
+ * THE VITALS' LOOKS (a stylish game's HUD: no box; the forms do the work). The health and the devil gauge are one figure
+ * anchored by a crest at their root, so a short bar at the game's start reads as composed as a long one at its end: each
+ * bar is drawn at its share of the length it reaches by the game's end (--moj-hp-span, --moj-dv-span), the end cap is one
+ * shape at any length, and the gauge's stocks keep one rhythm however many there are. Three ways the forms answer:
+ *   overlap    one slant; the gauge rides up over the health's lower edge and both run under the crest
+ *   contrast   unlike forms: the health a thin pointed blade, the gauge heavy blocks, the crest round
+ *   echo       one form twice: the same slant and cap, the gauge a step in and a step down, parallel
+ * Lit as the letters are (immersive-ui.js): a light rim in the theme's accents, then the dark that keeps it read.
+ */
+function vitalsCss(look) {
+  const V = '#moj-mana-hud .mana-stack:has(>.mana-bar[data-variant=hp])', H = `${V}>.mana-bar[data-variant=hp]`, D = `${V}>.mana-bar[data-variant=mp]`, S = `${V}>.mana-bar[data-variant=stamina]`;
+  const LIGHT = 'color-mix(in srgb,var(--mana-accent) 60%,#fff)', A2 = 'var(--mana-accent2)';
+  const DEVIL = 'color-mix(in srgb,color-mix(in srgb,var(--mana-mp) 35%,var(--mana-harm)) 85%,#000)';
+  const slant = (k) => `polygon(${k}em 0,100% 0,calc(100% - ${k}em) 100%,0 100%)`;
+  const LOOK = {
+    overlap: { crest: 'rotate(45deg)', crestW: 2.4, pad: 1.5, hp: { h: 1.05, clip: slant(0.55) }, dv: { h: 0.62, clip: slant(0.4), mt: -0.24, ml: 0.75, gap: 0.2 }, st: { mt: 0 } },
+    contrast: { crest: 'none', crestW: 2.1, pad: 2.5, round: true, hp: { h: 0.5, clip: 'polygon(0 0,calc(100% - 1.4em) 0,100% 50%,calc(100% - 1.4em) 100%,0 100%)' }, dv: { h: 1.05, clip: slant(0.3), mt: 0.38, ml: 0, gap: 0.42 }, st: { mt: 0 } },
+    echo: { crest: 'rotate(45deg) scale(.8)', crestW: 2, pad: 2.3, hp: { h: 0.8, clip: slant(0.5) }, dv: { h: 0.54, clip: slant(0.5), mt: 0.26, ml: 0.9, gap: 0.16 }, st: { mt: 0 } },
+  }[look] || null;
+  if (!LOOK) return '';
+  const L = LOOK;
+  return [
+    `${V}{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:0!important;padding:.35em 0 .35em ${L.pad}em;font-size:18px;--moj-full:min(40vw,520px)}`,
+    // the crest at the root: what the figure grows from
+    `${V}::before{content:"";position:absolute;z-index:3;left:0;top:50%;width:${L.crestW}em;height:${L.crestW}em;margin-top:-${L.crestW / 2}em;transform:${L.crest};${L.round ? 'border-radius:50%;' : ''}background:radial-gradient(circle at 35% 30%,${LIGHT},var(--mana-accent) 45%,color-mix(in srgb,var(--mana-accent) 50%,#000));filter:drop-shadow(.06em .06em 0 ${A2}) drop-shadow(-.03em -.03em 0 #fff8) drop-shadow(0 .12em .2em rgba(0,0,0,.6))}`,
+    `${V}>.mana-bar{display:block!important;min-width:0!important;position:relative;filter:drop-shadow(.07em .07em 0 ${A2}) drop-shadow(-.035em -.035em 0 ${LIGHT}) drop-shadow(0 .1em .18em rgba(0,0,0,.65));transition:width .6s cubic-bezier(.2,1.3,.4,1)}`,
+    `${V}>.mana-bar>:is(.mana-label,.mana-num){display:none!important}`,
+    // (every length in the figure is the figure's: the bar's own small type would shrink it)
+    `${V}>.mana-bar,${V}>.mana-bar .mana-track{font-size:18px!important;line-height:1}`,
+    `${V}>.mana-bar .mana-track{border:0!important;border-radius:0!important;box-shadow:none!important;background:color-mix(in srgb,#000 58%,transparent)!important;overflow:hidden}`,
+    // the health: its share of the full length, its cap, its fill lit from above, the chip a hit took held then drained
+    `${H}{width:calc(var(--moj-full) * var(--moj-hp-span,.5))}`,
+    `${H} .mana-track{height:${L.hp.h}em!important;clip-path:${L.hp.clip}}`,
+    `${H} .mana-track i{background:linear-gradient(180deg,color-mix(in srgb,var(--mana-hp) 35%,#fff) 0 24%,var(--mana-hp) 24% 68%,color-mix(in srgb,var(--mana-hp) 65%,#000))!important}`,
+    `${H} .mana-track u{background:color-mix(in srgb,#fff 70%,var(--mana-harm))!important;opacity:.9}`,
+    `${H}[data-low=yes] .mana-track i{background:linear-gradient(180deg,color-mix(in srgb,var(--mana-harm) 35%,#fff) 0 24%,var(--mana-harm) 24%)!important;animation:moj-vit-low .5s ease-in-out infinite alternate}`,
+    // the devil gauge: its share of the full stocks, one rhythm of stocks, a full stock alight
+    `${D}{width:calc(var(--moj-full) * var(--moj-dv-span,.3) * .82);margin-top:${L.dv.mt}em;margin-left:${L.dv.ml}em;z-index:2}`,
+    `${D} .mana-track{height:${L.dv.h}em!important;clip-path:${L.dv.clip}}`,
+    `${D} .mana-track i{background:linear-gradient(180deg,color-mix(in srgb,${DEVIL} 55%,#fff) 0 22%,${DEVIL} 22% 70%,color-mix(in srgb,${DEVIL} 60%,#000))!important}`,
+    `${D} .mana-track b{position:absolute;top:0;bottom:0;width:${L.dv.gap}em;margin-left:-${L.dv.gap / 2}em;background:#000!important;opacity:.85;transform:skewX(-28deg)}`,
+    `${D}[data-ready=yes]{filter:drop-shadow(.07em .07em 0 ${A2}) drop-shadow(-.035em -.035em 0 ${LIGHT}) drop-shadow(0 0 .35em ${DEVIL})}`,
+    // the sprint: a hairline over the health, as long as it
+    `${S}{width:calc(var(--moj-full) * var(--moj-hp-span,.5) * .9);margin:${L.st.mt}em 0 .14em .25em}`,
+    `${S} .mana-track{height:.2em!important;clip-path:${slant(0.12)};background:color-mix(in srgb,#000 40%,transparent)!important}`,
+    `${S} .mana-track i{background:${LIGHT}!important}`,
+    '@keyframes moj-vit-low{to{filter:brightness(1.5)}}',
+    `@media (prefers-reduced-motion:reduce){${V} *{animation:none!important}}`,
+  ].join('');
+}
+
 /** The way on's arrow: a letter like the rest (immersive-ui.js), breathing so it is found. */
 const wayCss = () => `#moj-way{position:absolute;display:none;pointer-events:none;font:900 2.4em/1 var(--mana-display,system-ui);color:var(--mana-accent,#ffe07a);text-shadow:${LETTER_RIM};animation:moj-way .8s ease-in-out infinite alternate}@keyframes moj-way{to{scale:1.25;opacity:.7}}@media (prefers-reduced-motion:reduce){#moj-way{animation:none}}`;
 
 export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false } = {}) {
   // (a level whose HUD is its own rows, `rows: 'events'`: lowered here, where the page emits them, game/hud-mana.js)
-  if (hud && hud.rows === 'events' && !hud.spec) { const L = hudToMana(rows, { register, hero: hud.hero !== false, touch, style: hud.style === true }); hud = { ...hud, spec: L.spec, feed: { ...L.feed, ...(hud.feed ?? {}) } }; }
+  if (hud && hud.rows === 'events' && !hud.spec) { const L = hudToMana(rows, { register, hero: hud.hero !== false, touch, style: hud.style === true, vitals: hud.vitals ?? null }); hud = { ...hud, spec: L.spec, feed: { ...L.feed, ...(hud.feed ?? {}) } }; }
   if (!hud || !hud.spec) return '';
   // (a HUD of the level's own making, a course's: the level's buttons for a touch screen alone, game/screen-keys.js, are
   // drawn by it too, since the page's own widget rows stand down beside it)
@@ -80,8 +132,9 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   // THE WAY ON (a level's `manaHud.ways`: { var, at }): an arrow, no words, toward the place the bus var names (a
   // gauntlet's next arena waiting to be walked into); only then
   const ways = hud.ways && typeof hud.ways.var === 'string' && Array.isArray(hud.ways.at) ? { var: hud.ways.var, at: hud.ways.at } : null;
+  const vit = hud.feed && hud.feed.vitals ? hud.feed.vitals : null;
   const R = hud.feed && hud.feed.rows;
-  const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp' : ''}{display:none!important}${hud.feed && hud.feed.immersive ? immersiveCss('#moj-mana-hud') : ''}${hud.feed && hud.feed.style ? styleMeterCss() : ''}${ways ? wayCss() : ''}`;
+  const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp' : ''}{display:none!important}${hud.feed && hud.feed.immersive ? immersiveCss('#moj-mana-hud') : ''}${hud.feed && hud.feed.style ? styleMeterCss() : ''}${ways ? wayCss() : ''}${vit ? vitalsCss(vit.look) : ''}`;
   const styled = !!(hud.feed && hud.feed.style);
   return `
 // THE HUD on mana-ui (channels/mana-hud.js): the level's own spec over a state this page feeds
@@ -92,9 +145,20 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   // (laid over the scene's own frame, as the level's widgets were: a letterboxed scene keeps its HUD inside it)
   const root = document.createElement('div'); root.id = 'moj-mana-hud'; (document.getElementById('wrap') || document.body).appendChild(root);
   const F = CFG.feed, of = Math.max(1, Math.round((F.to || 0) - (F.from || 0)));
-  const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [], hint: '' }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {}${hud.feed && hud.feed.style ? ", style: { on: false, name: '', combo: 0 }" : ''} };
+  const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [], hint: '' }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {}${hud.feed && hud.feed.style ? ", style: { on: false, name: '', combo: 0 }" : ''}${vit ? ", devil: { on: false, fill: 0, stocks: 1 }" : ''} };
   let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
-${styled ? '  let sTier = 0;\n' : ''}${hud.feed && hud.feed.immersive ? `  // (the immersive HUD, game/immersive-ui.js: the page's own weapon panel on no plate either)
+${styled ? '  let sTier = 0;\n' : ''}${vit ? `  // THE VITALS (game/hud-mana.js vitals): the hit's chip held a moment then drained; each bar's length its share of what it
+  // reaches by the game's end, so the figure grows across the game and is laid out for its end from the start
+  const VIT = CFG.feed.vitals; let vHp = null, vGhost = 0, vHold = 0, vFull = VIT.full.hp || 0;
+  root.dataset.vitals = VIT.look;
+  function vitals(me) {
+    const h = st.hero.hp; if (vHp !== null && h < vHp) { vGhost = Math.max(vGhost, vHp); vHold = clock + 0.7; } vHp = h; if (clock > vHold) vGhost = h; st.hero.hpGhost = vGhost;
+    if (!vFull && st.hero.hasHp) vFull = st.hero.hpMax * 2;
+    if (vFull) root.style.setProperty('--moj-hp-span', String(Math.min(1, st.hero.hpMax / vFull)));
+    const SM = window.__mojStyle && window.__mojStyle.now(), dv = SM && SM.devil; st.devil.on = !!dv;
+    if (dv) { st.devil.fill = dv.fill; st.devil.stocks = dv.stocks; root.style.setProperty('--moj-dv-span', String(Math.min(1, dv.stocks / (VIT.full.devil || 10)))); }
+  }
+` : ''}${hud.feed && hud.feed.immersive ? `  // (the immersive HUD, game/immersive-ui.js: the page's own weapon panel on no plate either)
   let bared = false;
   function bare() { const a = document.getElementById('__ammoTxt'), pnl = a && a.parentElement && a.parentElement.parentElement; if (pnl) { bared = true; pnl.style.background = 'transparent'; pnl.style.border = '0'; } }
 ` : ''}${ways ? `  // the way on: an arrow over the place while it is in view, at the screen's edge pointing to it while it is not
@@ -189,7 +253,7 @@ ${styled ? '  let sTier = 0;\n' : ''}${hud.feed && hud.feed.immersive ? `  // (t
     }
 ${hud.feed && hud.feed.style ? `    // the style meter (worlds/controllable/style.js), where the page says it: it stands while there is style to show
     const SM = window.__mojStyle && window.__mojStyle.now(); if (SM) { st.style.on = SM.points > 0 || SM.combo > 0; st.style.name = SM.name; st.style.combo = SM.combo; if (SM.tier !== sTier) { root.dataset.styleWay = SM.tier > sTier ? 'up' : 'down'; sTier = SM.tier; root.dataset.styleTop = SM.tier === SM.tiers.length - 1 ? 'yes' : 'no'; } root.style.setProperty('--moj-style-fill', String(SM.fill)); root.style.setProperty('--moj-style-heat', String(Math.min(1, SM.combo / 30))); }
-` : ''}    const V = window.__mojBus && window.__mojBus.state && window.__mojBus.state.vars;
+` : ''}${vit ? '    if (F.hero && me) vitals(me);\n' : ''}    const V = window.__mojBus && window.__mojBus.state && window.__mojBus.state.vars;
     if (V && V.coins != null) st.coins.count = V.coins;
 ${ways ? '    way(V);\n' : ''}${hud.feed && hud.feed.immersive ? '    if (!bared) bare();\n' : ''}    if (ROWS && V) rows(window.__mojBus.state, V);
     if (cue) {

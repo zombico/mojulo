@@ -132,7 +132,7 @@ import { readCourse, courseAt, coursePlan, courseLaws, lowerCourse, slabOf } fro
 import { courseCube, courseColours, skinCourse } from './course-skin.js';
 import { juiceOfGame } from './juice.js';
 import { tempoOfGame } from './tempo.js';
-import { styleMeterOfGame, levelRankOf } from './style-meter.js';
+import { styleMeterOfGame, levelRankOf, vitalsOf } from './style-meter.js';
 import { gradeOfGame } from './grade.js';
 import { readBuildingParked, parkIn, paintOfDress } from '../vehicle-registry/parked.js';
 import { roleOf } from '../era/stocking.js';
@@ -148,7 +148,8 @@ const tempoOf = (G) => { const T = tempoOfGame(G); return T ? { tempo: T.tempo }
 // the way on (game/hud-mana.js `ways`): a gauntlet whose arenas are walked into (a level's tasks, tasks.js) names the
 // one waiting in its arm var (game/wave-gauntlet.js); the arrow points to its ring
 const waysOf = (mechanics) => { const g = (mechanics ?? []).find((m) => m && m.kind === 'wave-gauntlet' && Array.isArray(m.arenas) && m.arenas.some((a) => a.enter)); return g ? { var: `__wg_${g.id ?? 'gauntlet'}_arm`, at: g.arenas.map((a) => (a.enter ? a.enter.at.slice() : null)) } : null; };
-const meterOf = (G) => { const M = styleMeterOfGame(G); return M ? { styleMeter: M.styleMeter } : {}; };
+// (the vitals are the HUD's, not the runtime's: kept off the page's meter)
+const meterOf = (G) => { const M = styleMeterOfGame(G); if (!M) return {}; const { vitals: _v, ...styleMeter } = M.styleMeter; return { styleMeter }; };
 // the world's grade (grade.js): the look over every frame of its levels; none written, nothing laid
 const gradeOf = (G) => { const R = gradeOfGame(G); return R ? { grade: R.grade } : {}; };
 // the grade its people are played at (figure-grades.js): a game's levels play the PLAY grade, the cinematics pose theirs
@@ -1070,7 +1071,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // (a level that carries the style meter is ranked on its results, game/rank.js)
   if (manifest.styleMeter && manifest.game) manifest = { ...manifest, game: { ...manifest.game, rank: levelRankOf(G, stage.level) ?? {} } };
   // (a level that carries the style meter, style-meter.js, shows it there, whether or not the world writes a `ui`)
-  if ((G.ui !== undefined || manifest.styleMeter) && !manifest.manaHud && !manifest.events?.grammar) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, ...(manifest.styleMeter ? { style: true } : {}) }) };
+  if ((G.ui !== undefined || manifest.styleMeter) && !manifest.manaHud && !manifest.events?.grammar) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, ...(manifest.styleMeter ? { style: true, vitals: vitalsOf(G) } : {}) }) };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
@@ -1822,6 +1823,6 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   if (manifest.styleMeter && manifest.level) manifest = { ...manifest, level: { ...manifest.level, rank: levelRankOf(G, stage.level) ?? {} } };
   // (a level that carries the style meter, style-meter.js, shows it: its HUD on the game UI runtime, in the game's look,
   // the level's own rows drawn there with it)
-  if (manifest.styleMeter && !manifest.manaHud && !manifest.events?.grammar) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, style: true, ways: waysOf(manifest.level?.mechanics) }) };
+  if (manifest.styleMeter && !manifest.manaHud && !manifest.events?.grammar) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, style: true, vitals: vitalsOf(G), ways: waysOf(manifest.level?.mechanics) }) };
   return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }

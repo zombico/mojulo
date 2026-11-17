@@ -71,6 +71,20 @@ describe('the style meter', () => {
     expect(styleOf(D.w).tiers).toEqual(['dull', 'keen', 'wild']);
     expect(['keen', 'wild']).toContain(styleOf(D.w).name);
   });
+  it('the devil gauge fills by fighting, in stocks, more on a hit taken, never past its stocks and never falling; none ⇒ no gauge', () => {
+    expect(styleOf(room().w).devil).toBeUndefined();
+    const A = room({ meter: { devil: { stocks: 2, per: 30, hit: 6, hurt: 10 } } });
+    A.lights(3);
+    const after = styleOf(A.w).devil;
+    expect(after.stocks).toBe(2);
+    expect(after.fill).toBeGreaterThan(0.5);
+    for (let f = 0; f < 600; f++) A.step();
+    expect(styleOf(A.w).devil.fill).toBe(after.fill);
+    A.p.hits = (A.p.hits || 0) + 1; A.step();
+    expect(styleOf(A.w).devil.fill).toBeCloseTo(after.fill + 10 / 30, 2);
+    A.lights(12);
+    expect(styleOf(A.w).devil.fill).toBe(2);
+  });
   it('is nothing on a world that asks for none', () => {
     const A = room({ meter: null });
     A.lights(3);
