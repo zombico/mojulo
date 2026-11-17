@@ -181,6 +181,16 @@ export function readBestiary(F) {
   return out;
 }
 
+/** THE CREW (a district's foes, the beat-em-up's crowd on the open street: brawl/brawl-crowd.js's rules, played by the
+ *  3D runtime's group, worlds/controllable/group.js): a street's foes stand in crews of `size` round a spot and fight
+ *  as one. They HOLD until the hero is `near`, RING it (an encircle that closes), then PRESS; `attackers` of them hold
+ *  an attack token at a time and the rest keep the ring, so the hero always has a moment between two blows; one member's
+ *  sighting is the crew's. The numbers are the crowd's: two attackers, the ring a few metres out. */
+export const CREW = Object.freeze({ size: 3, attackers: 2, near: 16, ring: 5.5, close: 0.8, press: 3.5, spread: 2.2 });
+const crewPlan = (C) => ['hold', { pattern: 'encircle', when: { dist: C.near }, radius: C.ring, close: C.close }, { pattern: 'close', when: { t: C.press } }];
+// a foe's rule in its crew: its mind's group, the crew's (a swarm's own pack keeps its own)
+const crewed = (rule, crew) => (crew && !(rule.mind && rule.mind.group) ? { ...rule, mind: { ...(rule.mind || {}), group: { id: crew.id, plan: crewPlan(crew), attackers: crew.attackers } } } : rule);
+
 // (a summoner on its stand-in calls the walker's)
 const fallback = () => Object.fromEntries(Object.keys(FOE_CLASSES).map((c) => [c, { class: c, ...(c === 'summoner' ? { summons: { foe: 'walker' } } : {}) }]));
 export const bestiaryOf = (G) => G.foes ?? fallback();
@@ -261,6 +271,19 @@ export function foePlacements(G, level, ends) {
   const free = freeBeats(ends);
   if (!free.length) return [];
   const read = readLevelFoes(LF, G.foes, `levels.${level}`), B = bestiaryOf(G), out = [];
+  // A DISTRICT's foes (a geocity level: its ends say `crew`) stand in CREWS: `count` of them in crews of the crew's size,
+  // each crew round a beat of its own spread along the street, its members the level's kinds in turn, one group
+  if (ends.crew) {
+    const C = ends.crew, count = read.count ?? Math.min(MAX_FOES, C.size * Math.min(3, free.length)), crews = Math.max(1, Math.ceil(count / C.size));
+    for (let k = 0, n = 0; k < crews; k++) {
+      const beat = free[Math.min(free.length - 1, Math.floor(((k + 0.5) * free.length) / crews))], size = Math.min(C.size, count - n);
+      for (let j = 0; j < size; j++, n++) {
+        const eid = read.from[n % read.from.length], entry = B[eid];
+        out.push({ id: `foe-${eid}-${out.filter((p) => p.eid === eid).length + 1}`, eid, entry, at: round(beat.at, j, size, C.spread), heading: facing(beat.at, ends.spawn), crew: { ...C, id: `crew-${k + 1}` }, encounter: `crew-${k + 1}` });
+      }
+    }
+    return out;
+  }
   // (a stage whose beats name their trail node, a side strip's segments: each node's beats at that node's density, in
   // order along the way; else the stage's node for all of them)
   const groups = free.some((b) => b.node !== undefined) ? free.reduce((g, b) => { const last = g[g.length - 1]; if (last && last.node === b.node) last.beats.push(b); else g.push({ node: b.node, beats: [b] }); return g; }, []) : [{ node: ends.node, beats: free }];
@@ -372,7 +395,7 @@ export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tun
   const T = tune ?? {}, weapon = T.weapon ?? f.entity.weapon;
   const e = {
     id: p.id, team: T.team ?? 'foes',
-    rule: { ...f.entity.rule, ...b.rule, ...loadout, ...(more.rule || {}), ...(T.rule || {}) },
+    rule: crewed({ ...f.entity.rule, ...b.rule, ...loadout, ...(more.rule || {}), ...(T.rule || {}) }, p.crew),
     ...(weapon ? { weapon: { ...weapon } } : {}),
     // (its hp bar over it only while the hero targets it, clear of its body: the World page's foe bars)
     // (and a rim of light round it while it is the one targeted, in the world's accent: the page's target rim)

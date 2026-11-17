@@ -10,6 +10,7 @@ import { gameStages, stageEnds, stageLevelOrder } from './levels.js';
 import { MEADOWMARK_HERO } from './examples.js';
 import { createWorld, stepWorld } from '../worlds/controllable-world.js';
 import { reachOf } from '../game/reach.js';
+import { runSteps } from './runner.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 
 const CITY = { metro: { from: 'lakeshore', rings: { core: 350, frame: 700 } }, extent: [1800, 1500], water: { sides: ['s'], depth: 200 }, core: [0.5, 0.2], evoke: 'neighbourhood' };
@@ -91,5 +92,54 @@ describe('the city stalker on a geocity level', () => {
     const glide = fly({ jumpHeld: 1 }), fall = fly({});
     expect(glide.n).toBeGreaterThan(30);
     expect(glide.went).toBeGreaterThan(fall.went + 40);
+  }, 120_000);
+});
+
+describe('a district\'s foes: crews', () => {
+  const W = { ...MEADOWMARK_HERO, levels: { downtown: { name: 'Downtown', geocity: CITY, foes: { from: ['thug', 'runner'], count: 6 } } }, foes: { thug: { class: 'brute' }, runner: { class: 'pursuer' } } };
+  for (const k of ['links', 'start', 'review', 'fights', 'mainQuest', 'errands']) delete W[k];
+  // the level as the run makes it (the runner stands the level's foes on it)
+  const levelOf = (world) => { const st = runSteps(world, { ref: 'gw' }).find((x) => /^level-/.test(x.key)); return st.order.args ? st.order.args.manifest : st.order.manifest; };
+  it('stand on a district\'s street in crews that fight as one: held until the hero is near, ringed, pressed two at a time', async () => {
+    const { readGameworld: read } = await import('./world.js'), { foePlacements, CREW } = await import('./foes.js');
+    const G = read(W), E2 = stageEnds(gameStages(W)[0].manifest), P = foePlacements(G, 'downtown', E2);
+    expect(P).toHaveLength(6);
+    // two crews of three, each round a spot of its own along the street, the level's kinds in turn
+    const crews = [...new Set(P.map((p) => p.crew.id))];
+    expect(crews).toEqual(['crew-1', 'crew-2']);
+    for (const id of crews) {
+      const mine = P.filter((p) => p.crew.id === id);
+      expect(mine).toHaveLength(CREW.size);
+      for (const p of mine) expect(Math.hypot(p.at[0] - mine[0].at[0], p.at[1] - mine[0].at[1])).toBeLessThanOrEqual(CREW.spread + 1e-6);
+      expect(new Set(mine.map((p) => p.eid)).size).toBe(2);
+    }
+    const a = P.find((p) => p.crew.id === 'crew-1').at, b = P.find((p) => p.crew.id === 'crew-2').at;
+    expect(Math.hypot(a[0] - b[0], a[1] - b[1])).toBeGreaterThan(10);
+    // on the level: each a foe with its crew as its mind's group (its plan, its attackers), in no building's box
+    const m = levelOf(W);
+    const foes = m.entities.filter((e) => e.team === 'foes');
+    expect(foes).toHaveLength(6);
+    for (const f of foes) {
+      expect(f.rule.mind.group).toMatchObject({ attackers: CREW.attackers });
+      expect(f.rule.mind.group.plan.map((s) => (typeof s === 'string' ? s : s.pattern))).toEqual(['hold', 'encircle', 'close']);
+      expect(E2.colliders.some((c) => f.transform.pos[0] > c.min[0] && f.transform.pos[0] < c.max[0] && f.transform.pos[1] > c.min[1] && f.transform.pos[1] < c.max[1] && f.transform.pos[2] + 0.5 > c.min[2] && f.transform.pos[2] + 0.5 < c.max[2])).toBe(false);
+    }
+    expect(m.game.mechanics.map((x) => x.kind)).toContain('fail-on-death');
+  }, 120_000);
+
+  it('in play a crew holds off, then closes on the hero, and never more than its attackers hold a token', () => {
+    const m = levelOf(W);
+    const crew1 = m.entities.filter((e) => e.rule.mind && e.rule.mind.group && e.rule.mind.group.id === 'crew-1');
+    const at = crew1[0].transform.pos, hero = m.entities.find((e) => e.pilotable);
+    // the hero stood 12 m from the crew, on the street
+    const ents = [{ ...hero, figure: undefined, body: { type: 'mesh', shape: 'box', hittable: true, hp: 1000 }, transform: { pos: [at[0] - 12, at[1], at[2]], heading: 0 } }, ...crew1.map((e) => ({ ...e, body: { ...e.body, type: 'mesh', shape: 'box' } }))];
+    const w = createWorld({ entities: ents, colliders: [] });
+    const dist = () => crew1.map((e) => Math.hypot(w.byId[e.id].transform.pos[0] - w.byId.hero.transform.pos[0], w.byId[e.id].transform.pos[1] - w.byId.hero.transform.pos[1]));
+    const d0 = Math.min(...dist());
+    let most = 0;
+    for (let i = 0; i < 60 * 8; i++) { stepWorld(w, {}, 1 / 60, { ground: () => at[2] }); most = Math.max(most, crew1.filter((e) => w.byId[e.id].groupToken).length); }
+    expect(Math.min(...dist())).toBeLessThan(d0 - 4);
+    expect(most).toBeGreaterThan(0);
+    expect(most).toBeLessThanOrEqual(2);
   }, 120_000);
 });

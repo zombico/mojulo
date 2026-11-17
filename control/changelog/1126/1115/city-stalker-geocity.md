@@ -45,3 +45,7 @@
   over streets with nothing tall enough to swing from. It keeps the speed a swing or launch gave it. Forward dives
   for speed, back flares to slow and float, left and right turn and bank. Casting a line ends the glide into a
   swing with its speed; meeting a wall drops the hero into a wall run or a fall, never a hang.
+- **Foes on a city level, in crews.** A city district level can now have foes. They stand on its streets in crews
+  of three at spots spread along the street, and each crew fights as one, the way a beat-em-up's crowd does: it
+  holds its corner until the hero comes near, rings the hero, then presses in, with only two of the crew attacking
+  at a time while the rest keep the ring. The hero always has a moment to act between two attackers' blows.
