@@ -5,6 +5,9 @@ import { SCALES, SCALE_IDS, HOME_SCALE, readScales, scaleReport } from './scales
 import { TOUR_SHAPES } from './tour.js';
 import { exhibitStart } from './producer.js';
 import { exhibitFit } from './fit.js';
+import { OBJECT_SIZES } from '../shoot/frame.js';
+import { ANGLES } from '../shoot/framing.js';
+import { MOVES } from '../shoot/moves.js';
 
 const ladder = SCALE_IDS.filter((s) => SCALES[s].rung !== null), beside = SCALE_IDS.filter((s) => SCALES[s].rung === null), off = beside[0];
 const below = ladder.find((s) => SCALES[s].rung < 0), above = ladder.find((s) => SCALES[s].rung > 0);
@@ -40,7 +43,7 @@ describe('the scales', () => {
     expect(one.says).toContain(SCALES[HOME_SCALE].name);
     const R = scaleReport([above, HOME_SCALE, below, off]);
     expect(R.home).toBe(above); expect(R.spans).toBe(true); expect(R.rungs.map((r) => r.id)).toEqual([above, HOME_SCALE, below, off]);
-    expect(R.zoom).toEqual([
+    expect(R.zoom.map(({ move: _m, ...z }) => z)).toEqual([
       { from: above, to: HOME_SCALE, way: 'in', steps: SCALES[above].rung },
       { from: HOME_SCALE, to: below, way: 'in', steps: -SCALES[below].rung },
       { from: below, to: off, way: 'aside', steps: 0 },
@@ -49,6 +52,21 @@ describe('the scales', () => {
     expect(R.says).toMatch(/spans 4 scales, a room each/);
     // a fresh read: changing it changes no table
     R.rungs[0].samples.push('x'); expect(SCALES[above].samples).not.toContain('x');
+  });
+
+  it('speaks the camera\'s own words: a rung\'s opening view, and the named move between two rooms', () => {
+    const sizes = OBJECT_SIZES.map((x) => x.id), angles = ANGLES.map((x) => x.id), moves = MOVES.map((x) => x.id);
+    for (const id of SCALE_IDS) { expect(sizes, `${id}: size`).toContain(SCALES[id].view.size); expect(angles, `${id}: angle`).toContain(SCALES[id].view.angle); }
+    // the macro is the bigger view from above; the base is met at eye level
+    expect(SCALES.macro.view.angle).not.toBe('eye'); expect(SCALES[HOME_SCALE].view.angle).toBe('eye');
+    expect(sizes.indexOf(SCALES.macro.view.size)).toBeGreaterThan(sizes.indexOf(SCALES[HOME_SCALE].view.size));
+    const z = (a, b) => scaleReport([a, b]).zoom[0];
+    for (const [a, b] of [[HOME_SCALE, below], [below, HOME_SCALE], [HOME_SCALE, 'macro'], ['macro', HOME_SCALE]]) expect(moves, `${a}→${b}`).toContain(z(a, b).move);
+    // up to a view from above is the boom, down from one too; between eye-level rooms the dolly
+    expect(z(HOME_SCALE, 'macro').move).toBe('crane_up'); expect(z('macro', HOME_SCALE).move).toBe('crane_down');
+    expect(z(HOME_SCALE, below).move).toBe('push_in'); expect(z(below, HOME_SCALE).move).toBe('pull_out');
+    expect(z(HOME_SCALE, off).move).toBeUndefined();
+    expect(scaleReport(['macro']).rungs[0].view).toEqual(SCALES.macro.view);
   });
 
   it('in the start: the agent names the scale, never the person; rungs become rooms and the map says the zoom', () => {

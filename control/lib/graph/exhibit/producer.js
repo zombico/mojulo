@@ -25,7 +25,8 @@
  *                                something (false: make it at once)?
  *   exhibitStart(start) → { ok, readout: 'start', built: false, says, producer: { seat, ask, step, holds } | null,
  *                                next: [{ step, ask? … }], like, fit? }
- *     next      the questions not yet answered, in order; once the four are answered, `make` (the fit's door)
+ *     next      the questions not yet answered, in order; once the four are answered, `make`: the fit's door and
+ *               the hand-off's `steps` (exhibitHandOff), a room at a time
  *     like      where the samples are, and that they are samples
  *     fit       once the time is known (people: everyone until said)
  *     scale     the rungs the concept lives at (scales.js), once the agent has named them (`scales`): what each shows,
@@ -37,7 +38,7 @@
  *
  * Builds nothing and stores nothing. Pure.
  */
-import { exhibitFit, readTime, TIMES, TIME_IDS } from './fit.js';
+import { exhibitFit, readTime, TIMES, TIME_IDS, EXHIBIT_SIZES } from './fit.js';
 import { AUDIENCES, AUDIENCE_WORDS } from './brief.js';
 import { readExhibitIntake, exhibitIntakeReport } from './intake.js';
 import { SCALE_IDS, readScales, scaleReport } from './scales.js';
@@ -90,6 +91,46 @@ export const LIKE = Object.freeze({
   read: 'get_exhibit() lists the halls, get_exhibit({ hall }) one hall, get_exhibit({ id }) a sample in full; the tour and the curation: get_view_vocab({ id: \'tour\' })',
 });
 
+/**
+ * THE HAND-OFF: where the producer's work ends and the making begins. Once the four are answered and the fit is said
+ * back, the steps that make it, in order, a room at a time: the world made new at its scale, its tour and curation set
+ * on it, then what joins the rooms, the machine gate, and the person's look. It PROPOSES: nothing is run, and nothing
+ * the person did not say is written for them (an aim, a caption and a claim are theirs).
+ *
+ *   exhibitHandOff({ start, fit, scale }) → [{ step, room?, at?, … }]
+ *     world    a room's world: how it is made at its scale (scales.js `made`), how it opens (its `view`), its parts
+ *              named so a stop can light them
+ *     tour     that world's tour and curation, set by update_sketch: how many stops the time holds, what the curation
+ *              carries from what was said (the audiences, what was brought), and what only they can give (the aims,
+ *              the claims and their sources)
+ *     states   with `wants.compare`: the world at several settings, switched
+ *     gallery  more than one room: the rooms joined, and the move between each two
+ *     audit    the machine gate: get_exhibit({ ref, audit: true })
+ *     show     the eyes gate, the person's; and the accuracy gate, the expert's
+ */
+export function exhibitHandOff({ start, fit, scale }) {
+  const rooms = fit.size === 'gallery' ? fit.rooms : 1;
+  const others = fit.audiences.filter((a) => a !== 'general');
+  const curation = { aims: 'theirs: what a visitor should leave understanding, in their words (one to six)', ...(fit.audiences.length > 1 ? { audiences: fit.audiences } : {}), claims: 'theirs: what it states as fact, each with where it comes from; none is written for them', ...(start.brought !== undefined ? { brought: start.brought } : {}) };
+  const steps = [];
+  for (let i = 0; i < rooms; i++) {
+    const R = scale?.rungs[i] ?? null, room = rooms > 1 ? { room: i + 1 } : {};
+    steps.push({ step: 'world', ...room, ...(R ? { at: R.id, made: R.made, view: R.view, like: R.samples } : { made: 'a world made new from the primitives, at the scale the concept lives at' }), says: 'make it new, for their concept; name its parts, so a stop can light the one it speaks of' });
+    if (fit.size !== 'view') {
+      steps.push({ step: 'tour', ...room, stops: fit.stops, door: 'update_sketch({ ref, patch: [{ op: \'set\', path: \'/curation\', value }, { op: \'set\', path: \'/tour\', value: { stops } }] })',
+        says: `up to ${fit.stops.about} stops (the time said holds no more). The first stands alone: someone who only passes leaves with the point. Each caption from what they said${others.length ? `, and said again for ${others.map((a) => AUDIENCE_WORDS[a].toLowerCase()).join(' and for ')} (the stop's \`captions\`)` : ''}; each stop frames the part it speaks of. Manual: get_view_vocab({ id: 'tour' })` });
+    } else {
+      steps.push({ step: 'tour', ...room, door: 'update_sketch({ ref, patch: [{ op: \'set\', path: \'/curation\', value }] })', says: 'no tour: the time holds one view. Its one sentence is the first aim, in their words' });
+    }
+  }
+  steps[1].curation = curation;
+  if (fit.states) steps.push({ step: 'states', door: EXHIBIT_SIZES.states.door, says: fit.states.says });
+  if (rooms > 1) steps.push({ step: 'gallery', door: EXHIBIT_SIZES.gallery.door, ...(scale?.zoom.length ? { zoom: scale.zoom } : {}), says: 'the rooms joined, in the order told: a lobby lists them, each walked in turn. The wing\'s own aims ride the gallery\'s curation' });
+  steps.push({ step: 'audit', door: 'get_exhibit({ ref, audit: true })', says: 'the machine gate: is there a story, is each claim graded and cited, can a stop be read in its time, does each stop show something' });
+  steps.push({ step: 'show', says: 'the person looks: the eyes gate is theirs, never claimed. Whether a claim is true is the expert\'s: their sign-off is recorded only when they say they signed' });
+  return steps;
+}
+
 const HOLDS = 'one question a turn: ask this, wait for the answer, call again with what they said; write nothing for them';
 
 export function exhibitStart(start) {
@@ -115,7 +156,7 @@ export function exhibitStart(start) {
   const next = [
     ...(S.concept && !scale ? [{ step: 'scale', says: 'read the concept and name the rungs it lives at, its home first (a concept that spans several is a room a rung): call again with `scales`. Yours to read, never a question for them', rungs: SCALE_IDS }] : []),
     ...open.map((q) => (read(q.id) ? { step: q.id, read: read(q.id), says: `their own material says it (${read(q.id).join(', ')}): write it as \`${q.id}\` from what it says and call again; do not ask them again` } : { step: q.id, ask: q.ask })),
-    ...(!open.length && fit ? [{ step: 'make', size: fit.size, door: fit.door, says: `${fit.says} Say it back; with their yes, make it new from the primitives. The stops and the claims are written from what they said, never for them` }] : []),
+    ...(!open.length && fit ? [{ step: 'make', size: fit.size, door: fit.door, says: `${fit.says} Say it back; with their yes, make it new from the primitives. The stops and the claims are written from what they said, never for them`, steps: exhibitHandOff({ start: S, fit, scale }) }] : []),
   ];
   const lead = next.find((s) => typeof s.ask === 'string');
   // a bare ask (a concept and nothing of people, time or material): made at once, the questions there if they are an exhibitor

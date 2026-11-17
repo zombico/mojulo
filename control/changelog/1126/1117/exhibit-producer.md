@@ -57,3 +57,15 @@ In progress. Each line is added as its phase lands.
   the way the visitor zooms (in, out, or aside to an idea). Nothing branches.
 - The tool list's payload pin is raised for `start` (an argument on the read-only door that owns the exhibit intent),
   with its reason beside the pin.
+- **The camera's own words** (after the camera work landed). A rung says how a room at it opens (`view`: a size by
+  how much of the frame the thing fills, an angle: the macro is the wide view from above, the geo a map of the place
+  from overhead), and the zoom between two rooms names the camera's move for it (a push in, a pull out; a crane up to
+  a view from above, a crane down from one; aside is a cut). The words are the shoot plan's own tables; a test holds
+  them to those tables.
+- **The hand-off** (`exhibitHandOff`, the `make` step's `steps`). Once the four are answered and the fit is said
+  back: the steps that make it, a room at a time. A room's world made new at its scale (how it is made, how it
+  opens, the samples like it, its parts named so a stop can light them); its tour and curation set on it (how many
+  stops the time holds, the first standing alone, each caption said again for each audience); the states where they
+  want to compare; the rooms joined, with the move between each two; then the machine gate and the person's look. It
+  proposes and runs nothing. The curation it carries is what was said (the audiences, what was brought); the aims
+  and the claims are marked theirs: none is written for them.
