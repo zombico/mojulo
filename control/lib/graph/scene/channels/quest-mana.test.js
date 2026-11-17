@@ -33,3 +33,20 @@ describe('the journal on mana-ui', () => {
     expect(flags(lowerDeliver({ id: 'parcel', at: [0, 0, 0], wants: [{ item: 'fee' }] }, ctx))).toEqual([]);
   });
 });
+
+describe('the offer (where a job is taken)', () => {
+  it('sets the job\'s flag once and says the giver\'s words; a leg after it is had only once it is set', async () => {
+    const { lowerOffer } = await import('../../game/errand-mechanics.js');
+    const ctx = { i: 0, player: 'hero', resolve: () => {} };
+    const O = lowerOffer({ id: 'parcel', at: [1, 2, 0], flag: 'took-parcel', says: 'Be quick.', radius: 7 }, ctx);
+    expect(O.world.sources[0]).toMatchObject({ zone: 'offer-parcel', radius: 7, watch: 'hero' });
+    expect(O.world.vars).toEqual({ 'flag-took-parcel': 0 });
+    expect(O.world.reactions[0]).toMatchObject({ on: 'enter', if: { var: 'flag-took-parcel', eq: 0 }, type: 'offer:parcel' });
+    expect(O.world.reactions.map((r) => r.type ?? r.var)).toEqual(['offer:parcel', 'flag-took-parcel', 'flag:took-parcel']);
+    expect(O.world.hud[0]).toMatchObject({ on: 'offer:parcel', text: 'Be quick.' });
+    expect(() => lowerOffer({ id: 'parcel', at: [1, 2, 0] }, ctx)).toThrow(/flag is the flag/);
+    const gated = lowerTrade({ item: 'fee', at: [0, 0, 0], after: 'took-parcel' }, ctx), open = lowerTrade({ item: 'fee', at: [0, 0, 0] }, ctx);
+    expect(gated.world.reactions[0]).toMatchObject({ on: 'enter', if: { var: 'flag-took-parcel', gte: 1 } });
+    expect(open.world.reactions[0].if).toBeUndefined();
+  });
+});

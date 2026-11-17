@@ -1360,7 +1360,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           const moves = swing ? (await import('@/lib/graph/gameworld/feel/hero-juice.js')).heroJuice(swing, figure) : null;
           // THE CROWD GRADE (figures/crowd-figure.js, a figure's `crowd: true`): a made character sampled again to a
           // crowd's budget, the walkers' own format: a street's people, each the hero door's person. Absent: as it was
-          if (rawSpec.crowd === true) { const { crowdFigure } = await import('@/lib/graph/figures/crowd-figure.js'); payload.figures[name] = crowdFigure(figure, Number.isFinite(rawSpec.budget) ? { budget: rawSpec.budget } : {}); continue; }
+          if (rawSpec.crowd === true) { const { crowdFigure } = await import('@/lib/graph/figures/crowd-figure.js'); payload.figures[name] = crowdFigure(figure, { ...(Number.isFinite(rawSpec.budget) ? { budget: rawSpec.budget } : {}), ...(rawSpec.stand === true ? { stand: true } : {}) }); continue; }
           payload.figures[name] = moves ? await atRigFidelity({ ...figure, juice: moves }) : figure;
           // THE POSE GRADE CUT IN (figure-grades.js): a play-grade world bakes the figures its close shots reach again at
           // the pose grade, `<name>@pose`, the page cutting it in while a close shot is on; two bakes that are not one

@@ -8,7 +8,7 @@
  * (figure-grades.js).
  *
  *   CROWD            the numbers: a figure's triangles, the grid's first cell as a share of its height, how it coarsens
- *   crowdFigure(fig, { budget? })   → { rig: true, crowd: true, bones, parts: [{ pos, col } | null], clips: { forward },
+ *   crowdFigure(fig, { budget?, stand? })   (`stand`: one that waits somewhere keeps its idle beside its walk) → { rig: true, crowd: true, bones, parts: [{ pos, col } | null], clips: { forward },
  *                    figH, tris, cell }: the walkers' format (scene/channels/walkers.js: unindexed corners and their
  *                    colours a bone, one `forward` clip, the figure's walk)
  *
@@ -48,7 +48,7 @@ function gather(tris, cell) {
   return out;
 }
 
-export function crowdFigure(fig, { budget = CROWD.budget } = {}) {
+export function crowdFigure(fig, { budget = CROWD.budget, stand = false } = {}) {
   if (!fig || fig.rig !== true || !Array.isArray(fig.bones) || !Array.isArray(fig.parts)) throw new Error('crowd figure: give a baked rig figure (bones, parts, clips)');
   const walk = fig.clips?.walk ?? fig.clips?.forward;
   if (!walk) throw new Error('crowd figure: the figure has no walk to walk a pavement with');
@@ -69,6 +69,7 @@ export function crowdFigure(fig, { budget = CROWD.budget } = {}) {
       p.forEach((t, k) => t.at.forEach((c, j) => { pos.set(c, k * 9 + j * 3); col.set(t.col, k * 9 + j * 3); }));
       return { pos: b64(pos), col: b64(col), faces: p.length };
     }),
-    clips: { forward: walk }, figH: fig.figH, tris, cell: Math.round(cell * 1e4) / 1e4,
+    // (one that stands, `stand`: its idle with it, so it waits as the character it was made from waits)
+    clips: { forward: walk, ...(stand && fig.clips?.idle ? { idle: fig.clips.idle } : {}) }, figH: fig.figH, tris, cell: Math.round(cell * 1e4) / 1e4,
   };
 }

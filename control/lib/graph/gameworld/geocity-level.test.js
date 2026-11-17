@@ -141,7 +141,7 @@ describe('jobs across the district (errands on a played district: its shops thei
     characters: { direction: { tradition: 'western' }, hero: { looks: { body: { cast: 'male' }, underlayer: { type: 'outfit', style: 'streetwear' } }, motion: { vibe: ['bold'] }, actions: { idiom: 'city-stalker-like' } } },
     errands: [
       // (a parcel run: paid at one shop, the goods bought over a counter with it, brought to another)
-      { id: 'parcel', giver: 'district', reward: [{ item: 'coin', n: 30 }], list: [{ item: 'fee', at: 'district', count: 1 }, { item: 'gadget', at: 'district', shop: 'electronics', needs: ['fee'] }] },
+      { id: 'parcel', giver: 'district', offer: 'The shop is waiting on this. Be quick.', reward: [{ item: 'coin', n: 30 }], list: [{ item: 'fee', at: 'district', count: 1 }, { item: 'gadget', at: 'district', shop: 'electronics', needs: ['fee'] }] },
       { id: 'fare', giver: 'district', repeat: true, reward: [{ item: 'coin', n: 12 }], list: [{ item: 'passenger', at: 'district' }] },
     ] };
   const level = runSteps(JOBS, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest, M = level.game.mechanics;
@@ -162,19 +162,42 @@ describe('jobs across the district (errands on a played district: its shops thei
     expect(level.play.quests.map((q) => q.id)).toEqual(['parcel', 'fare']);
     const parcel = level.play.quests[0];
     expect(parcel.steps.map((x) => x.done)).toEqual(['had-fee', 'had-gadget', 'done-parcel']);
-    expect(parcel.steps.map((x) => x.log)).toEqual(G.steps.slice(1, 4).map((x) => x.say));
+    expect(parcel.steps.map((x) => x.log)).toEqual(G.steps.slice(2, 5).map((x) => x.say));
     for (const l of legs) expect(l.flag).toBe(l.kind === 'trade' ? `had-${l.item}` : `done-${l.id}`);
     // (a world with an interface look: its level's HUD on mana-ui, and so its journal: scene-three's `questMana`)
     expect(level.manaHud).toMatchObject({ rows: 'events' });
+  });
+  it('each job has a giver and a start: someone before a shop near the start, whom the hero comes to; the job\'s stops open and its quest begins then', () => {
+    const offers = M.filter((m) => m.kind === 'offer'), by = Object.fromEntries(offers.map((o) => [o.id, o]));
+    expect(offers.map((o) => o.id)).toEqual(['parcel', 'fare']);
+    expect(by.parcel).toMatchObject({ flag: 'took-parcel', says: 'The shop is waiting on this. Be quick.', radius: 7 });
+    expect(by.fare).toMatchObject({ flag: 'took-fare', says: 'I have a job for you.' });
+    // (near the start, off it, and off each other; never where a stop stands)
+    for (const o of offers) { expect(d(o.at, E.spawn)).toBeGreaterThanOrEqual(18); expect(d(o.at, E.spawn)).toBeLessThan(150); for (const l of legs) expect(d(o.at, l.at)).toBeGreaterThan(1); }
+    expect(d(by.parcel.at, by.fare.at)).toBeGreaterThanOrEqual(14);
+    // (its stops are had only once it is taken; the hand-in asks for what they give)
+    for (const l of legs.filter((x) => x.kind === 'trade')) expect(l.after).toBe(`took-${l.job}`);
+    expect(level.play.quests.map((q) => q.starts)).toEqual(['took-parcel', 'took-fare']);
+    // (the giver stands there: a person of the world's own keys, at the crowd grade, waiting)
+    for (const o of offers) {
+      const g = level.entities.find((e) => e.id === `giver-${o.id}`);
+      expect(g).toBeTruthy();
+      expect(g.rule.type).toBe('static');
+      expect(g.transform.pos.slice(0, 2)).toEqual(o.at.slice(0, 2));
+      expect(level.figures[g.body.figure]).toMatchObject({ grade: 'play', crowd: true, stand: true });
+    }
+    expect(JSON.stringify(level.figures['giver-parcel'].hero)).not.toBe(JSON.stringify(level.figures['giver-fare'].hero));
   });
   it('a standing job keeps the level open: the one-off pays and ends nothing; the guide leads through both, then round the fares', async () => {
     expect(M.find((m) => m.kind === 'deliver' && m.id === 'parcel')).toMatchObject({ open: true });
     expect(M.find((m) => m.kind === 'deliver' && m.id === 'fare')).toMatchObject({ repeat: true });
     const { cityGuide } = await import('./city-guide.js'), G = cityGuide(level);
-    expect(G.steps.map((s) => s.id)).toEqual(['car', 'pick-fee', 'pick-gadget', 'deliver-parcel', 'pick-passenger', 'deliver-fare']);
-    expect(G.steps[1].say).toMatch(/^Pick up the fee at the /);
-    expect(G.steps[2].say).toMatch(/^Buy the gadget in the electronics/);
-    expect(G.steps[3].say).toMatch(/^Deliver the gadget to the /);
-    expect(G.loop).toBe(4);
+    expect(G.steps.map((s) => s.id)).toEqual(['car', 'take-parcel', 'pick-fee', 'pick-gadget', 'deliver-parcel', 'take-fare', 'pick-passenger', 'deliver-fare']);
+    expect(G.steps[1].say).toMatch(/^Take the job at the /);
+    expect(G.steps[2].say).toMatch(/^Pick up the fee at the /);
+    expect(G.steps[3].say).toMatch(/^Buy the gadget in the electronics/);
+    expect(G.steps[4].say).toMatch(/^Deliver the gadget to the /);
+    // (a standing job is taken once: it goes round again from its pick-up)
+    expect(G.loop).toBe(6);
   });
 });

@@ -54,10 +54,13 @@ export function jobsOf(mechanics) {
       // (bought over a counter where it has a price, `needs`; picked up otherwise; `place` the shop it stands at or in)
       steps.push({ id: `pick-${T.item}`, say: `${T.needs?.length ? 'Buy' : 'Pick up'} the ${words(T.item)}${T.place ? ` ${T.till ? 'in' : 'at'} the ${shop(T.place)}` : ''}`, at: at3(T.at), radius: T.radius ?? 2, says: `${words(T.item)[0].toUpperCase()}${words(T.item).slice(1)} ${T.needs?.length ? 'bought' : 'aboard'}`, ...(T.flag ? { flag: T.flag } : {}) });
     };
+    // (taken first, where it is offered: its giver before a shop; lowerOffer)
+    const O = M.find((m) => m && m.kind === 'offer' && m.id === (J.id ?? 'errand') && Array.isArray(m.at));
+    if (O) steps.push({ id: `take-${O.id}`, say: `Take the job${O.place ? ` at the ${shop(O.place)}` : ''}`, at: at3(O.at), radius: O.radius ?? 2.5, ...(O.says ? { says: O.says } : {}), take: true });
     for (const w of J.wants ?? []) had(w.item);
     const paid = (J.reward ?? []).map((r) => `${r.n ?? 1} ${words(r.item)}`).join(', '), id = J.id ?? 'errand';
     steps.push({ id: `deliver-${id}`, say: `Deliver the ${(J.wants ?? []).map((w) => words(w.item)).join(', ') || 'goods'}${J.place ? ` to the ${shop(J.place)}` : ''}`, at: at3(J.at), radius: J.radius ?? 2, ...(paid ? { says: `Paid ${paid}` } : {}), ...(J.flag ? { flag: J.flag } : {}) });
-    out.push({ id, name: `${words(id)[0].toUpperCase()}${words(id).slice(1)}`, repeat: J.repeat === true, steps });
+    out.push({ id, name: `${words(id)[0].toUpperCase()}${words(id).slice(1)}`, repeat: J.repeat === true, steps, ...(O ? { starts: O.flag } : {}) });
   }
   return out;
 }
@@ -65,7 +68,8 @@ export function jobsOf(mechanics) {
 /** A level's jobs as its QUESTS (playscape/ui/quests.js: the journal's, a step done when its flag is set): each job
  * whose every step carries a flag, its steps' lines the guide's own. */
 export function jobQuests(mechanics) {
-  return jobsOf(mechanics).filter((J) => J.steps.every((x) => x.flag)).map((J) => ({ id: J.id, name: J.name, steps: J.steps.map((x) => ({ log: x.say, done: x.flag })) }));
+  // (a job that is offered begins when it is taken, `starts`: it is not in the journal before; taking it is no step)
+  return jobsOf(mechanics).map((J) => ({ ...J, steps: J.steps.filter((x) => !x.take) })).filter((J) => J.steps.every((x) => x.flag)).map((J) => ({ id: J.id, name: J.name, ...(J.starts ? { starts: J.starts } : {}), steps: J.steps.map((x) => ({ log: x.say, done: x.flag })) }));
 }
 
 export function cityGuide(manifest) {
@@ -80,8 +84,9 @@ export function cityGuide(manifest) {
   let loop = null;
   const jobs = jobsOf(M.game?.mechanics);
   for (const J of jobs) {
-    if (J.repeat && loop === null) loop = steps.length;
-    for (const { flag: _flag, ...x } of J.steps) steps.push({ ...x, kind: 'find' });
+    // (a standing job goes round again from its pick-up: it is taken once)
+    if (J.repeat && loop === null) loop = steps.length + (J.steps[0]?.take ? 1 : 0);
+    for (const { flag: _flag, take: _take, ...x } of J.steps) steps.push({ ...x, kind: 'find' });
   }
   const job = jobs.length > 0;
   return {

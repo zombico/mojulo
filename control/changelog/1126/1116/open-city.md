@@ -68,3 +68,7 @@
 - **Key hints that match what you are doing.** The strip of key words along the bottom is replaced by key caps for
   the keys that work right now: Move and Jump on foot, with Get in when a car is in reach; Drive, Brake, Steer and
   Get out at the wheel; and Map, Bag and Journal throughout.
+- **Jobs have a giver and a start.** In a city game each job is now taken from someone: a person standing outside a
+  shop near where you begin. Go to them and they say what the job is; only then do its stops work and only then does
+  it appear in your journal. The on-screen guide leads you to them first, and an errand can carry the words its
+  giver says.

@@ -27,7 +27,10 @@
  * Names (recipe-derived, for a handoff): a trade's zone and marker `trade-<item>`, a deliver's zone `deliver-<id>`.
  * A deliver's audit is the walk to it (what the walk must hold first is the errand's order: gameworld/errand.js).
  *
- *   lowerTrade, lowerCargo, lowerBounty, lowerDeliver   (game/mechanics.js registers them)
+ *   offer    (emitter)  where a job is taken: coming to its giver sets its flag, once, and says the giver's words; a
+ *                       trade `after` that flag is had only once it is set.   { id, at, flag, says?, radius? }
+ *
+ *   lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer   (game/mechanics.js registers them)
  *
  * Pure, no dice.
  */
@@ -60,7 +63,9 @@ export function lowerTrade(p, ctx) {
   if (needs.some((n) => itemKey(n.item) === itemKey(p.item))) fail('an item cannot be its own price');
   const key = itemKey(p.item), zone = `trade-${key}`, frag = { vars: { [heldVar(BAG, key)]: 0 }, reactions: [], hud: [] };
   const want = `trade:${key}`;
-  frag.reactions.push({ on: 'enter', match: { zone }, do: 'emit', type: `${want}:try` });
+  // (a leg of a job that is offered, `after`: had only once the job is taken, its flag set: lowerOffer)
+  if (typeof p.after === 'string' && p.after) { frag.vars[`flag-${p.after}`] ??= 0; frag.reactions.push({ on: 'enter', match: { zone }, if: { var: `flag-${p.after}`, gte: 1 }, do: 'emit', type: `${want}:try` }); }
+  else frag.reactions.push({ on: 'enter', match: { zone }, do: 'emit', type: `${want}:try` });
   // only while the bag holds none of it (a shelf restocks for a carton spoiled on the way)
   frag.reactions.push({ on: `${want}:try`, if: { var: heldVar(BAG, key), eq: 0 }, do: 'emit', type: want });
   let paid = want;
@@ -124,6 +129,28 @@ export function lowerBounty(p, ctx) {
   lowerMove({ item: key, n, from: NOWHERE, to: BAG, on: fell }, frag);
   frag.hud.push({ on: fell, as: 'toast', text: `${key.replace(/-/g, ' ')} taken`, ttl: 1.4 });
   return { world: frag, produces: [{ type: 'grant', slice: BAG }], emits: [fell], ...(p.who ? {} : { needs: ['enemy:down'] }) };
+}
+
+/** THE OFFER (an emitter): where a job is TAKEN. Coming to its giver sets the job's flag, once (`flag:<flag>`: its quest
+ * begins in the journal, playscape/ui/quests.js; its legs, `after` that flag, can be had), and the giver's words are said.
+ *   { id, at, flag, says?, radius?, planar? } */
+export function lowerOffer(p, ctx) {
+  const at0 = `offer[${ctx.i}]`, fail = (m) => { throw new Error(`${at0}: ${m}`); };
+  if (typeof p.id !== 'string' || !WORD.test(p.id)) fail('id is the job\'s name, lower-case');
+  if (!isVec(p.at)) fail('at is [x, y, z]: where its giver stands');
+  if (typeof p.flag !== 'string' || !/^[a-z][a-z0-9-]{0,47}$/.test(p.flag)) fail('flag is the flag taking it sets (took-parcel)');
+  if (p.says !== undefined && (typeof p.says !== 'string' || !p.says.trim())) fail('says is what its giver says, in words');
+  const zone = `offer-${p.id}`, took = `offer:${p.id}`, v = `flag-${p.flag}`;
+  return {
+    world: {
+      vars: { [v]: 0 },
+      reactions: [{ on: 'enter', match: { zone }, if: { var: v, eq: 0 }, do: 'emit', type: took }, { on: took, do: 'set', var: v, to: 1 }, { on: took, do: 'emit', type: `flag:${p.flag}` }],
+      hud: p.says ? [{ on: took, as: 'toast', text: p.says, ttl: 3.2 }] : [],
+      sources: [{ type: 'zone', zone, at: p.at.slice(), radius: Number.isFinite(p.radius) ? p.radius : 2.5, planar: p.planar !== false, watch: ctx.player }],
+    },
+    emits: [took],
+    audit: { kind: 'walkto', target: p.at.slice() },
+  };
 }
 
 export function lowerDeliver(p, ctx) {

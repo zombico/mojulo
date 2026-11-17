@@ -56,6 +56,7 @@ import { readScreen, screenPayload } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
 import { genreHero } from './hero-rows.js';
 import { movesetLegend } from './input-map.js';
+import { quickFigure } from './cast-setting.js';
 import { jobQuests } from './city-guide.js';
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
@@ -612,7 +613,7 @@ function geocityEnds(manifest) {
   Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && a.store?.till).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
   // (its PLACES: each shop walked into as somewhere a job may send its hero, a stride out from its door on the walk or
   // the forecourt before it: where a pick-up or a hand-in stands, had from the kerb)
-  Object.defineProperty(out, 'places', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && Array.isArray(a.at) && Array.isArray(a.N) && a.store?.card).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: on([a.at[0] + a.N[0] * 2.4, a.at[1] + a.N[1] * 2.4, a.at[2]]) })), enumerable: false });
+  Object.defineProperty(out, 'places', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && Array.isArray(a.at) && Array.isArray(a.N) && a.store?.card).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: on([a.at[0] + a.N[0] * 2.4, a.at[1] + a.N[1] * 2.4, a.at[2]]), N: [r3(a.N[0]), r3(a.N[1])] })), enumerable: false });
   // (what it weighs: its faces, its boxes, its repeats' templates and instances; said by the level's audit and its book)
   Object.defineProperty(out, 'weight', { value: { faces: (P.faces ?? []).length, colliders: (P.colliders ?? []).length, templates: (P.repeats ?? []).reduce((a, r) => a + r.template.length, 0), instances: (P.repeats ?? []).reduce((a, r) => a + r.transforms.length, 0), shops: P.geocity?.stores?.shops ?? 0 }, enumerable: false });
   return out;
@@ -653,6 +654,8 @@ function kerbSpots(route, road, colliders, top = null, lanes = []) {
 
 // a driven errand's places (a stage with cars): how far along its walk the first stands, and a kerb's reach (m)
 const ERRAND_DRIVE = Object.freeze({ from: 0.33, reach: 7 });
+// a job's giver: how far from the start it stands at the least, how far from another giver, what it says unsaid (m)
+const GIVER = Object.freeze({ off: 18, apart: 14, says: 'I have a job for you.', budget: 4200 });
 
 // The district's own cars stood at those spots: each one of its civilian fleet (geocity/fleets.js: the model and the
 // paint the city's dice pick for a car parked there), where no car of its lots stands within a walk of the start.
@@ -973,7 +976,10 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // (a level's own goal, `goalCast`: quick.js levelGoalCast, the same shape, or null when it stands nothing; its play
   // laid beside the systems' own, never over it)
   let extraPlay = null, blocks = null, posts = null, pads = null;
-  const X = X0;
+  // (a job's GIVER stands where the stage laid it: the hero door's person, rolled by the world's keys on its job's own
+  // path, at the crowd grade and standing; none without a hero to meet them)
+  const giverPart = heroRef && ways?.givers?.length ? ways.givers.reduce((part, g) => stand(part, g.id, { hero: quickFigure(G, null, 'farmhand', undefined, { path: `giver/${g.job}` }).spec, grade: 'play', crowd: true, budget: GIVER.budget, stand: true }, g.at.slice(), g.heading), { figures: {}, entities: [] }) : null;
+  const X = giverPart ? mergeExtras(X0, giverPart) : X0;
   if (X) {
     const p0 = pilotPart.entities[0];
     // (a written feel wins over a goal's own feet: a deathmatch's shooter pole moves the pilot only where no feel is written)
@@ -1536,7 +1542,7 @@ function stageWays(stage, ends, plan) {
     spot.set(w, { at: z.exit, arrive: [z.arrive[0], z.arrive[1], r3(z.arrive[2] + 1)] });
   }
   const mechanics = [], arrive = [];
-  let quests = [];
+  let quests = [], stoodGivers = [];
   for (const w of [...gated, ...plan.on, ...plan.back]) {
     const s = spot.get(w);
     mechanics.push({ kind: 'reach-exit', exit: w.id, at: s.at, radius: w === plan.back[0] ? 1.2 : 2.5, ...(ends.planar ? {} : { planar: false }), ...(w.needs ? { needs: w.needs } : {}) });
@@ -1565,12 +1571,21 @@ function stageWays(stage, ends, plan) {
     // (its places: the stage's own, ends.places, a district's shops, where it has enough of them: each the one farthest
     // from the start and from every place already taken, so a job crosses the district; else along its walk, from a
     // third of the way to its far end)
-    const named = new Map();
+    const named = new Map(), givers = [];
     let spots = open;
     if (driven && need > 0 && (ends.places?.length ?? 0) >= need) {
       const taken2 = [ends.spawn], pool = ends.places.slice(), gap = (p) => Math.min(...taken2.map((q) => Math.hypot(p.at[0] - q[0], p.at[1] - q[1])));
       spots = [];
       for (let k = 0; k < need; k++) { const best = pool.reduce((m, p) => (gap(p) > gap(m) + 1e-9 ? p : m), pool[0]); pool.splice(pool.indexOf(best), 1); taken2.push(best.at); spots.push(best.at); named.set(best.at, best.card); }
+      // THE GIVERS: each job is TAKEN from someone, who stands before a shop near the start (the nearest not yet
+      // taken, a few strides off it and off each other), looking out from its door; coming to them takes the job
+      const near = (p) => Math.hypot(p.at[0] - ends.spawn[0], p.at[1] - ends.spawn[1]), stood = [];
+      for (const J of plan.errand.filter((l) => l.kind === 'deliver')) {
+        const at = pool.filter((p) => near(p) >= GIVER.off && stood.every((q) => Math.hypot(p.at[0] - q[0], p.at[1] - q[1]) >= GIVER.apart)).reduce((m, p) => (!m || near(p) < near(m) - 1e-9 ? p : m), null);
+        if (!at) continue;
+        pool.splice(pool.indexOf(at), 1); stood.push(at.at);
+        givers.push({ id: `giver-${J.id ?? 'errand'}`, job: J.id ?? 'errand', at: at.at.slice(), heading: r3(Math.atan2(at.N[1], at.N[0])), place: at.card, says: J.offer ?? GIVER.says });
+      }
     } else if (driven && need > 0 && open.length > need) {
       const along = Array.from({ length: need }, (_, k) => open[Math.min(open.length - 1, Math.round(open.length * ERRAND_DRIVE.from + ((open.length - 1 - open.length * ERRAND_DRIVE.from) * k) / Math.max(1, need - 1)))]).filter((p, k, arr) => arr.indexOf(p) === k);
       if (along.length >= need) spots = along;
@@ -1578,11 +1593,15 @@ function stageWays(stage, ends, plan) {
     const tills = ends.tills ?? [], laid = layErrand(plan.errand, spots, tills), placeOf = (l) => { const hit = spots.find((p) => named.has(p) && p[0] === l.at?.[0] && p[1] === l.at?.[1]); return l.till ? tills.find((t) => t.id === l.till)?.card : hit ? named.get(hit) : null; };
     // (each leg says where it is, `place`: the kind of shop it stands at or in, for the page's guide)
     // (and the flag it sets when it is done, `flag`: its job's step in the journal, city-guide.js jobQuests)
-    const legs = laid.map((l) => { if (l.kind !== 'trade' && l.kind !== 'deliver') return l; const place = placeOf(l); return { ...l, ...(driven && !l.till ? { radius: ERRAND_DRIVE.reach } : {}), ...(place ? { place } : {}), flag: l.kind === 'trade' ? `had-${l.item}` : `done-${l.id ?? 'errand'}` }; });
-    mechanics.push(...legs);
-    quests = jobQuests(legs);
+    const taken3 = new Set(givers.map((g) => g.job));
+    const legs = laid.map((l) => { if (l.kind !== 'trade' && l.kind !== 'deliver') return l; const place = placeOf(l); return { ...l, ...(driven && !l.till ? { radius: ERRAND_DRIVE.reach } : {}), ...(place ? { place } : {}), flag: l.kind === 'trade' ? `had-${l.item}` : `done-${l.id ?? 'errand'}`, ...(l.kind === 'trade' && taken3.has(l.job) ? { after: `took-${l.job}` } : {}) }; });
+    // (each giver's offer: where its job is taken, errand-mechanics.js lowerOffer; its legs are had after it)
+    const offers = givers.map((g) => ({ kind: 'offer', id: g.job, at: g.at.slice(), flag: `took-${g.job}`, says: g.says, radius: ERRAND_DRIVE.reach, place: g.place }));
+    mechanics.push(...offers, ...legs);
+    quests = jobQuests([...offers, ...legs]);
+    stoodGivers = givers;
   }
-  return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })), ...(quests.length ? { quests } : {}) };
+  return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })), ...(quests.length ? { quests } : {}), ...(stoodGivers.length ? { givers: stoodGivers } : {}) };
 }
 
 /**

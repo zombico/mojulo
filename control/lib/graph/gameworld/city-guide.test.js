@@ -34,4 +34,16 @@ describe('the city\'s guide', () => {
     expect(cityGuide(level([], [cab('car-1', [0, 0, 0])]))).toBeNull();
     expect(cityGuide({})).toBeNull();
   });
+  it('a job that is offered is taken first, where its giver stands; its quest starts then and taking it is no step', async () => {
+    const { jobsOf, jobQuests } = await import('./city-guide.js');
+    const offer = { kind: 'offer', id: 'fare', at: [10, 8, 0], flag: 'took-fare', says: 'Hop in.', radius: 7, place: 'diner' };
+    const M = [offer, { ...trade, flag: 'had-passenger', after: 'took-fare' }, deliver({ repeat: true, flag: 'done-fare' })];
+    const G = cityGuide(level(M));
+    expect(G.steps.map((s) => s.id)).toEqual(['car', 'take-fare', 'pick-passenger', 'deliver-fare']);
+    expect(G.steps[1]).toMatchObject({ say: 'Take the job at the diner', at: [10, 8, 0], radius: 7, says: 'Hop in.' });
+    expect(G.steps[1].take).toBeUndefined();
+    expect(G.loop).toBe(2);
+    expect(jobsOf(M)[0].starts).toBe('took-fare');
+    expect(jobQuests(M)).toEqual([{ id: 'fare', name: 'Fare', starts: 'took-fare', steps: [{ log: 'Pick up the passenger', done: 'had-passenger' }, { log: 'Deliver the passenger', done: 'done-fare' }] }]);
+  });
 });
