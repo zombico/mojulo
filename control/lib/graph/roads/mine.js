@@ -39,9 +39,9 @@
  * Pure, seeded (mulberry32).
  */
 import { mulberry32 } from '../vegetation/grow.js';
-import { CAVE_LIGHTS, lampScale } from '../era/cave.js';
+import { CAVE_LIGHTS, CRACK, lampScale } from '../era/cave.js';
 import { designClass } from './classes.js';
-import { chunkyFaces, chunkyLightOf, CHUNKY_LIGHT } from './chunky-look.js';
+import { chunkyFaces, chunkyLightOf, CHUNKY_LIGHT, CHUNKY_SUN } from './chunky-look.js';
 import { FINISHES } from './track-language.js';
 import { trackRuns } from './track.js';
 
@@ -170,8 +170,39 @@ export function planMine(plan, card, { seed = 1 } = {}) {
   const yard = P(g0.s0 - C.yard.back, side * (X.outer + C.yard.off));
   keepOut.push({ at: [r3(yard[0]), r3(yard[1])], r: C.yard.r });
   void seed;
-  return { galleries, side, yardOf, keepOut, hw: r3(hw), R: r3(R), yard: [r3(yard[0]), r3(yard[1])] };
+  return { galleries, side, yardOf, keepOut, hw: r3(hw), R: r3(R), yard: [r3(yard[0]), r3(yard[1])], ...(C.cavern ? { cavern: planCavern(plan, C, mid, yard) } : {}) };
 }
+
+/**
+ * THE CAVERN round the whole arena (the card's `mine.cavern`; era/cavern.js's idea, a trail underground under a pretend
+ * ceiling, laid round a lap): its outline a ring round the lap's middle, as far out at each bearing as the lap reaches
+ * there and a margin, so the track, its hills and its yard stand inside; its skylight over the yard, the one shaft of day.
+ */
+function planCavern(plan, C, mid, yard) {
+  const V = C.cavern, S = V.segs, a = plan.alignment, L = a.length, reach = new Array(S).fill(0);
+  const bucket = (x, y) => { const t = Math.atan2(y - mid[1], x - mid[0]); return ((Math.round((t / (2 * Math.PI)) * S) % S) + S) % S; };
+  for (let s = 0; s < L; s += 2) { const q = a.at(s), b = bucket(q.x, q.y); reach[b] = Math.max(reach[b], Math.hypot(q.x - mid[0], q.y - mid[1])); }
+  { const b = bucket(yard[0], yard[1]); reach[b] = Math.max(reach[b], Math.hypot(yard[0] - mid[0], yard[1] - mid[1])); }
+  // (no notch: a bearing reaches as far as its neighbours do, then the ring is eased)
+  let r = reach.map((_, j) => Math.max(...[-3, -2, -1, 0, 1, 2, 3].map((d) => reach[(j + d + S) % S])));
+  for (let pass = 0; pass < 3; pass++) r = r.map((v, j) => (r[(j + S - 1) % S] + 2 * v + r[(j + 1) % S]) / 4);
+  const zs = plan.stations.map((q) => q.z), outline = r.map((v) => v + V.margin), base = zs.reduce((m, v) => m + v, 0) / zs.length;
+  // the skylight where the day's sun, coming down through it, falls on the yard (its headframe in the shaft of day),
+  // kept inside the ceiling's reach
+  const cv0 = { at: mid, outline, base }, sun = CHUNKY_SUN.dir;
+  let sky = [...yard];
+  for (let k = 0; k < 8; k++) {
+    const R0 = ringAt(cv0, sky[0], sky[1]).r, u = Math.min(0.98, Math.hypot(sky[0] - mid[0], sky[1] - mid[1]) / R0), h = ceilingAt(cv0, V, u) - base;
+    sky = [yard[0] + (sun[0] / sun[2]) * h, yard[1] + (sun[1] / sun[2]) * h];
+    const d = Math.hypot(sky[0] - mid[0], sky[1] - mid[1]), Rk = ringAt(cv0, sky[0], sky[1]).r * 0.88;
+    if (d > Rk) sky = [mid[0] + ((sky[0] - mid[0]) * Rk) / d, mid[1] + ((sky[1] - mid[1]) * Rk) / d];
+  }
+  return { at: mid.map(r3), outline: outline.map(r3), base: r3(base), skylight: { at: sky.map(r3), r: V.skylight.r } };
+}
+/** A point's bearing round the cavern's middle, as the ring's index and the share between it and the next. */
+function ringAt(cv, x, y) { const S = cv.outline.length, t = Math.atan2(y - cv.at[1], x - cv.at[0]), f = ((t / (2 * Math.PI)) * S + S) % S, j = Math.floor(f) % S; return { j, k: f - Math.floor(f), r: cv.outline[j] * (1 - (f - Math.floor(f))) + cv.outline[(j + 1) % S] * (f - Math.floor(f)) }; }
+/** The ceiling's height over a point (u: its share of the way out to the wall). */
+const ceilingAt = (cv, V, u) => cv.base + V.wall + (V.crown - V.wall) * Math.sqrt(Math.max(0, 1 - u * u));
 
 /** Is a point under (or on) one of the planned galleries' hills? → the gallery, or null. */
 export function inMine(planned, plan, p, pad = 0) {
@@ -186,7 +217,7 @@ export function buildMine(planned, plan, card, K) {
   if (!planned) return null;
   const C = card.parts.mine, B = C.bore, a = plan.alignment, X = plan.X, { P, at } = framer(a, X), ground = plan.groundAt;
   const rnd = mulberry32(((plan.course?.seed ?? 1) * 2654435761 ^ 0x3a1e) >>> 0);
-  const dust = matOf(card, C.floor), frost = matOf(card, C.frost), rock = matOf(card, C.rock), timber = matOf(card, C.timber), lamp = matOf(card, C.lantern), iron = matOf(card, C.line.rail);
+  const dust = matOf(card, C.floor), frost = C.frost ? matOf(card, C.frost) : null, rock = matOf(card, C.rock), timber = matOf(card, C.timber), lamp = matOf(card, C.lantern), iron = matOf(card, C.line.rail);
   const way = trackRuns(plan), raw = [], glow = [], colliders = [], things = [], lamps = [], hw = planned.hw, R = planned.R, side = planned.side;
   // the lumps: a few slow waves along the way and round the section, seeded, so the rock is never a tube
   const waves = Array.from({ length: 4 }, () => ({ f: 0.04 + 0.1 * rnd(), g: 1 + Math.floor(rnd() * 4), p: rnd() * 6.283, q: rnd() * 6.283 }));
@@ -232,8 +263,8 @@ export function buildMine(planned, plan, card, K) {
         raw.push({ ...face(qo, sub(mean(qo), [ax[0], ax[1], ax[2] - B.spring - 4]), rock, 'hill'), group: 'mine:hill' });
         raw.push(face(qi, sub(ax, mean(qi)), rock, 'bore'));
       }
-      const Fa = FROST(ss[i]), Fb = FROST(ss[i + 1]);
-      for (let k = 0; k < FM - 1; k++) raw.push({ ...face([Fa[k], Fa[k + 1], Fb[k + 1], Fb[k]], [0, 0, 1], frost, 'frost'), group: 'mine:hill' });
+      const Fa = B.frost ? FROST(ss[i]) : [], Fb = B.frost ? FROST(ss[i + 1]) : [];
+      if (B.frost) for (let k = 0; k < FM - 1; k++) raw.push({ ...face([Fa[k], Fa[k + 1], Fb[k + 1], Fb[k]], [0, 0, 1], frost, 'frost'), group: 'mine:hill' });
     }
     // the portals: the hill's face round the bore at each end, looking out of the hill
     for (const [s, out] of [[g.s0, -1], [g.s1, 1]]) {
@@ -321,13 +352,81 @@ export function buildMine(planned, plan, card, K) {
   // (the spoil: a heap of rock balls beyond the headframe, the biggest at its heart)
   const sp = [Y[0] + t0[0] * 9 + n0[0] * 3, Y[1] + t0[1] * 9 + n0[1] * 3];
   for (let k = 0; k < 7; k++) { const t = rnd() * 6.283, d = k ? 1.2 + 2.6 * rnd() : 0, r = k ? 1 + 1.2 * rnd() : 2.6, c = [sp[0] + Math.cos(t) * d, sp[1] + Math.sin(t) * d]; raw.push(...ballFaces([c[0], c[1], ground(c[0], c[1]) + r * 0.3], r, rock, 'spoil', { squash: 0.7 })); }
+  // THE CAVERN: its walls and its ceiling round the whole arena, stalactites from the ceiling and stalagmites off the
+  // way, lantern posts down the lap, crystal clusters glowing on its floor; a shaft of day through its skylight
+  const cv = planned.cavern, V = C.cavern;
+  let caveLight = null;
+  if (cv) {
+    const S = cv.outline.length, RG = V.rings, cw = Array.from({ length: 6 }, () => ({ g: 2 + Math.floor(rnd() * 5), f: 0.4 + rnd() * 0.8, p: rnd() * 6.283, q: rnd() * 6.283 }));
+    const bump = (t, h) => cw.reduce((v, w) => v + Math.sin(t * w.g + w.p) * Math.cos(h * w.f + w.q), 0) / 3;
+    const ring = (j) => { const t = (j / S) * 2 * Math.PI; return [Math.cos(t), Math.sin(t), t]; };
+    const sky = cv.skylight, hole = (x, y) => Math.hypot(x - sky.at[0], y - sky.at[1]) < sky.r;
+    // the wall: from under the floor up to the ceiling's rim, bulging out at its middle, lumpy
+    const WH = [-1.5, V.wall * 0.3, V.wall * 0.65, V.wall], OUT = [0, 1.8, 1.2, 0];
+    const wallPt = (j, k) => { const [cx, cy, t] = ring(j), rr = cv.outline[j] + OUT[k] + V.lump * bump(t, k), x = cv.at[0] + cx * rr, y = cv.at[1] + cy * rr; return [x, y, k === 0 ? ground(x, y) - 1.5 : cv.base + WH[k] + V.lump * 0.4 * bump(t + 1, k)]; };
+    const ceilPt = (j, i) => { const [cx, cy, t] = ring(j), u = 1 - i / RG, rr = cv.outline[j] * u + (i === 0 ? V.lump * bump(t, 3) : 0), x = cv.at[0] + cx * rr, y = cv.at[1] + cy * rr; return [x, y, ceilingAt(cv, V, u) - (i > 0 && i < RG ? V.lump * Math.abs(bump(t * 1.7, i)) : 0)]; };
+    for (let j = 0; j < S; j++) {
+      const j1 = (j + 1) % S;
+      for (let k = 0; k < WH.length - 1; k++) { const q = [wallPt(j, k), wallPt(j1, k), wallPt(j1, k + 1), wallPt(j, k + 1)], m = mean(q); raw.push(face(q, [cv.at[0] - m[0], cv.at[1] - m[1], 0], rock, 'cave-wall')); }
+      // (the wall's top meets the ceiling's rim)
+      { const q = [wallPt(j, 3), wallPt(j1, 3), ceilPt(j1, 0), ceilPt(j, 0)], m = mean(q); raw.push(face(q, [cv.at[0] - m[0], cv.at[1] - m[1], -1], rock, 'cave-ceiling')); }
+      for (let i = 0; i < RG; i++) {
+        const q = i === RG - 1 ? [ceilPt(j, i), ceilPt(j1, i), ceilPt(j, RG)] : [ceilPt(j, i), ceilPt(j1, i), ceilPt(j1, i + 1), ceilPt(j, i + 1)], m = mean(q);
+        if (hole(m[0], m[1])) continue;
+        raw.push(face(q, [0, 0, -1], rock, 'cave-ceiling'));
+      }
+    }
+    // the skylight's rim: rocks round the hole, and the sky's light down it
+    const uSky = Math.min(0.98, Math.hypot(sky.at[0] - cv.at[0], sky.at[1] - cv.at[1]) / ringAt(cv, sky.at[0], sky.at[1]).r), top = ceilingAt(cv, V, uSky);
+    for (let k = 0; k < 9; k++) { const t = (k / 9) * 2 * Math.PI + rnd() * 0.4, rr = sky.r * (1.05 + 0.2 * rnd()), b = 1.6 + 1.4 * rnd(); raw.push(...ballFaces([sky.at[0] + Math.cos(t) * rr, sky.at[1] + Math.sin(t) * rr, top - b * 0.3], b, rock, 'skylight-rim', { squash: 0.7 })); }
+    lamps.push({ at: [sky.at[0], sky.at[1], top - 1], colour: CRACK.colour, strength: V.skylight.strength ?? 2.4, near: sky.r, reach: sky.r * 7 });
+    // the lap's line, sampled: what the cave's things keep clear of
+    const lap = Array.from({ length: Math.ceil(a.length / 3) }, (_, i) => a.at(i * 3)), clearOfWay = (x, y, pad) => lap.every((q) => Math.hypot(q.x - x, q.y - y) > X.outer + pad) && !(planned.keepOut ?? []).some((d) => Math.hypot(d.at[0] - x, d.at[1] - y) < d.r);
+    const inside = (u, t) => { const j = Math.floor((((t / (2 * Math.PI)) * S) % S + S) % S); return [cv.at[0] + Math.cos(t) * cv.outline[j] * u, cv.at[1] + Math.sin(t) * cv.outline[j] * u]; };
+    // stalactites: cones hanging from the ceiling, never in the skylight
+    for (let n = 0; n < V.stalactites; n++) {
+      const u = 0.15 + 0.8 * rnd(), t = rnd() * 2 * Math.PI, [x, y] = inside(u, t), z = ceilingAt(cv, V, u), l = 3 + 7 * rnd() * (1 - 0.4 * u);
+      if (hole(x, y) || Math.hypot(x - sky.at[0], y - sky.at[1]) < sky.r + 4) continue;
+      raw.push(...crystalFaces([x, y, z + 0.5], [0, 0, -1], l, 0.6 + l * 0.13, rock).map((f) => ({ ...f, part: 'stalactite' })));
+    }
+    // stalagmites: cones from the floor, off the way and the hills
+    for (let n = 0, made = 0; n < V.stalagmites * 3 && made < V.stalagmites; n++) {
+      const u = 0.1 + 0.88 * rnd(), t = rnd() * 2 * Math.PI, [x, y] = inside(u, t), h = 2 + 5 * rnd(), r = 0.7 + h * 0.18;
+      if (!clearOfWay(x, y, 3 + r)) continue;
+      raw.push(...crystalFaces([x, y, ground(x, y) - 0.3], [0, 0, 1], h, r, rock).map((f) => ({ ...f, part: 'stalagmite' }))); made++;
+    }
+    // lantern posts down the lap, the two sides by turns, but in a gallery (it has its own)
+    let side2 = 1;
+    for (let s = V.posts.every / 2; s < a.length; s += V.posts.every) {
+      if (planned.galleries.some((g) => s > g.s0 - 6 && s < g.s1 + 6)) continue;
+      side2 = -side2;
+      const foot = P(s, side2 * (X.outer + 1.4), -0.2), headP = P(s, side2 * (X.outer + 1.4), V.posts.h), armP = P(s, side2 * (X.outer + 1.4 - V.posts.arm), V.posts.h - 0.2);
+      raw.push(...logFaces(foot, headP, 0.22, timber, 'post'), ...logFaces([headP[0], headP[1], headP[2] - 0.2], armP, 0.13, timber, 'post', 6));
+      const c = [armP[0], armP[1], armP[2] - 0.9];
+      raw.push(...logFaces(armP, [c[0], c[1], c[2] + 0.4], 0.05, rock, 'chain', 4));
+      glow.push(...ballFaces(c, 0.45, lamp, 'lantern'));
+      raw.push(...ballFaces([c[0], c[1], c[2] + 0.47], 0.27, rock, 'lantern-cap', { squash: 0.6 }));
+      lamps.push({ at: c, colour: torch.colour, strength: torch.strength * (V.posts.gain ?? C.lanterns.gain), near: torch.near * scale, reach: torch.reach * scale });
+    }
+    // crystal clusters glowing on the floor: by the walls, and some near the way, the colours by turns
+    for (let n = 0, made = 0; n < V.crystals.count * 3 && made < V.crystals.count; n++) {
+      const near = n % 3 === 0, u = near ? 0.3 + 0.6 * rnd() : 0.8 + 0.17 * rnd(), t = rnd() * 2 * Math.PI, [x, y] = inside(u, t);
+      if (!clearOfWay(x, y, 4) || hole(x, y)) continue;
+      const M = matOf(card, C.gems.colours[made % C.gems.colours.length]), base = [x, y, ground(x, y) - 0.2], sz = V.crystals.size * (0.6 + 0.6 * rnd());
+      for (let k = 0; k < 6; k++) { const d = [(rnd() - 0.5) * 1.2, (rnd() - 0.5) * 1.2, 1], l = Math.hypot(...d); glow.push(...crystalFaces(base.map((v, i) => v + (i < 2 ? (rnd() - 0.5) * sz * 0.5 : 0)), d.map((v) => v / l), sz * (0.5 + 0.7 * rnd()), sz * 0.16, M)); }
+      const rgb = [1, 3, 5].map((i) => parseInt(M.hex.slice(i, i + 2), 16) / 255), pk = Math.max(...rgb);
+      lamps.push({ at: [x, y, base[2] + sz * 0.8], colour: rgb.map((v) => r3(v / pk)), strength: V.crystals.glow, near: 3 + 1.5 * sz, reach: 22 + 4 * sz });
+      made++;
+    }
+    caveLight = { at: cv.at, outline: cv.outline, base: cv.base, wall: V.wall, crown: V.crown, lump: V.lump, dark: V.dark, skylight: { at: sky.at, r: sky.r, top: r3(top) } };
+  }
   // drawn: the rock, the timber and the line under the kit's chunky light; the glowing things their own light
   const light = chunkyLightOf(K), hill = raw.filter((f) => f.group === 'mine:hill'), rest = raw.filter((f) => f.group !== 'mine:hill');
   const faces = [...chunkyFaces(hill, { light }).map((f) => ({ ...f, group: 'mine:hill' })), ...chunkyFaces(rest, { light }), ...chunkyFaces(glow, { light: CHUNKY_LIGHT }).map((f) => ({ ...f, group: MINE_GLOW }))];
   const st = (g) => Array.from({ length: Math.round(g.s1 - g.s0) + 9 }, (_, i) => { const s = g.s0 - 4 + i, q = at(s); return [r3(s), r3(q.x), r3(q.y), r3(q.z), r3(q.heading)]; });
   return {
     faces, colliders, things,
-    light: { galleries: galleries.map((g) => ({ ...g, stations: st(g) })), hw, crown: B.crown, lamps: lamps.map((l) => ({ ...l, at: l.at.map(r3) })), dark: C.dark, depth: C.depth },
+    light: { galleries: galleries.map((g) => ({ ...g, stations: st(g) })), hw, crown: B.crown, lamps: lamps.map((l) => ({ ...l, at: l.at.map(r3) })), dark: C.dark, depth: C.depth, ...(caveLight ? { cavern: caveLight } : {}) },
     report: { galleries: galleries.map((g) => ({ s0: g.s0, s1: g.s1, length: r3(g.s1 - g.s0) })), side, lamps: lamps.length, carts: cartAt.length, sets: Math.floor(galleries.reduce((n, g) => n + (g.s1 - g.s0), 0) / C.sets.every), class: designClass(plan.course.class) ? plan.course.class : null },
   };
 }
@@ -361,29 +460,47 @@ function lampsAt(light, p, n) {
   }
   return out;
 }
+/** In the cavern: { sky, sun } the shares of the day's sky and its sun a point gets (the sky the cave's dark, the sun only
+ *  down the skylight's shaft), or null out of it. */
+function caveOf(light, p) {
+  const cv = light.cavern;
+  if (!cv) return null;
+  const R = ringAt(cv, p[0], p[1]), d = Math.hypot(p[0] - cv.at[0], p[1] - cv.at[1]);
+  if (d > R.r + 2 * cv.lump + 2.5 || p[2] > cv.base + cv.crown + 2) return null;
+  const sun = CHUNKY_SUN.dir, K = cv.skylight;
+  let shaft = 0;
+  if (sun[2] > 0 && p[2] < K.top) { const t = (K.top - p[2]) / sun[2], q = [p[0] + sun[0] * t, p[1] + sun[1] * t], e = Math.hypot(q[0] - K.at[0], q[1] - K.at[1]); shaft = 1 - smooth(K.r * 0.6, K.r, e); }
+  return { sky: cv.dark, sun: shaft };
+}
 export function mineLight(faces, light) {
   if (!light || !light.galleries?.length) return faces;
-  const xs = light.galleries.flatMap((g) => g.stations.map((q) => q[1])), ys = light.galleries.flatMap((g) => g.stations.map((q) => q[2])), pad = light.hw + 2;
+  const cv = light.cavern;
+  const xs = cv ? cv.outline.map((r, j) => cv.at[0] + Math.cos((j / cv.outline.length) * 2 * Math.PI) * r) : light.galleries.flatMap((g) => g.stations.map((q) => q[1]));
+  const ys = cv ? cv.outline.map((r, j) => cv.at[1] + Math.sin((j / cv.outline.length) * 2 * Math.PI) * r) : light.galleries.flatMap((g) => g.stations.map((q) => q[2]));
+  const pad = cv ? 3 * cv.lump + 4 : light.hw + 2;
   const box = [Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) + pad, Math.max(...ys) + pad];
   const hex = (c) => `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v * 255))).toString(16).padStart(2, '0')).join('')}`, rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
   return faces.map((f) => {
     if (!f || !Array.isArray(f.corners) || f.group === MINE_GLOW || f.group === 'mine:hill' || f.group === 'track:cloud') return f;
     if (!f.corners.some((p) => p[0] > box[0] && p[0] < box[2] && p[1] > box[1] && p[1] < box[3])) return f;
-    const U = f.corners.map((p) => underOf(light, p));
+    // (each corner's shares of the day: a gallery's by its depth, the cavern's dark and its shaft)
+    const U = f.corners.map((p) => { const g = underOf(light, p), c = caveOf(light, p); if (!g && !c) return null; const day = g ? g.day : 1; return c ? { sky: c.sky * Math.min(1, day * 2), sun: g ? 0 : c.sun } : { sky: day, sun: day }; });
     if (!U.some(Boolean)) return f;
     const nOf = (i) => (Array.isArray(f.cornerNormals) ? f.cornerNormals[i] : f.normal ?? [0, 0, 1]);
     const lift = (i) => { const p = f.corners[i], n = nOf(i); return lampsAt(light, [p[0] + n[0] * 0.1, p[1] + n[1] * 0.1, p[2] + n[2] * 0.1], n); };
     if (Array.isArray(f.cornerLight)) {
       const cornerLight = [], sunShare = [];
       f.cornerLight.forEach((c, i) => {
-        const u = U[i], k = u ? u.day : 1, e = u ? lift(i) : [0, 0, 0], all = c.map((v, ch) => r3(v * k + e[ch])), y = lumOf(all), sun = (f.sunShare?.[i] ?? 0) * lumOf(c) * k;
+        // (the corner's light parted into the sun's share and the sky's, each dimmed by what reaches it, the lamps' added)
+        const u = U[i], sh = f.sunShare?.[i] ?? 0, ks = u ? u.sky : 1, ku = u ? u.sun : 1, e = u ? lift(i) : [0, 0, 0];
+        const all = c.map((v, ch) => r3(v * (1 - sh) * ks + v * sh * ku + e[ch])), y = lumOf(all), sun = sh * lumOf(c) * ku;
         cornerLight.push(all); sunShare.push(y > 1e-9 ? r3(Math.min(1, sun / y)) : 0);
       });
       return { ...f, cornerLight, sunShare };
     }
     // (a baked face: its colours dimmed and lit alike, the lamps' light on its paint)
     const fills = f.cornerFills ?? f.corners.map(() => f.fill);
-    const cornerFills = fills.map((h, i) => { const u = U[i]; if (!u) return h; const c = rgb(h), e = lift(i); return hex(c.map((v, ch) => v * u.day + v * e[ch] * 1.4)); });
+    const cornerFills = fills.map((h, i) => { const u = U[i]; if (!u) return h; const c = rgb(h), e = lift(i), k = 0.6 * u.sky + 0.4 * u.sun; return hex(c.map((v, ch) => v * k + v * e[ch] * 1.4)); });
     const avg = [0, 1, 2].map((ch) => cornerFills.reduce((s, h) => s + rgb(h)[ch], 0) / cornerFills.length);
     return { ...f, fill: hex(avg), cornerFills };
   });

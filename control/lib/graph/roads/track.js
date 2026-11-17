@@ -140,6 +140,8 @@ export function planTrack(m = {}) {
   const bandHex = wayHex && LP.way.bands ? lang.materials[LP.way.bands.material].hex : null, dashHex = wayHex && LP.way.dash ? lang.materials[LP.way.dash.material].hex : null;
   const wayAt = (s) => (bandHex && Math.floor(s / LP.way.bands.every) % 2 ? bandHex : wayHex);
   const mown = lang && LP.verge?.mown ? LP.verge.mown : null;
+  // (a language may lay its verge in one of its own materials, a cave's dust where there is no grass; the look's grass unsaid)
+  const vergeHex = lang && LP.verge?.material ? lang.materials[LP.verge.material]?.hex ?? null : null;
   const lift = (f, s) => { if (!mown || !(Math.floor(s / mown.every) % 2) || typeof f.fill !== 'string') return f; return { ...f, fill: `#${[1, 3, 5].map((i) => Math.min(255, Math.round(parseInt(f.fill.slice(i, i + 2), 16) * mown.lift)).toString(16).padStart(2, '0')).join('')}` }; };
 
   // the ground: built first, so the skirts know where it is
@@ -160,11 +162,11 @@ export function planTrack(m = {}) {
       if (T.kerb) {
         if (corner && LP.kerb?.profile) raw.push(...kerbFaces(lang, { P, A, B, side, from: X.road, to: X.kerb, stripe: Math.floor((sA + sB) / 4) }));
         else if (corner) { const white = Math.floor((sA + sB) / 4) % 2; faces.push(paint(white ? 'kerbWhite' : 'kerbRed', quad(X.road, X.kerb, 0.02), white ? COLOR.kerbWhite : COLOR.kerbRed)); }
-        else faces.push(lift(surf(T.runoffSurface, quad(X.road, X.kerb), uv(X.road, X.kerb, GRASS_TILE)), (sA + sB) / 2));
+        else faces.push(lift(vergeHex ? flatLit(vergeHex, quad(X.road, X.kerb)) : surf(T.runoffSurface, quad(X.road, X.kerb), uv(X.road, X.kerb, GRASS_TILE)), (sA + sB) / 2));
       }
       const outside = corner && Math.sign(kMid) * side < 0;
       // (a language's rail stands on posts: the ground runs on under it)
-      faces.push(lift(surf(outside ? T.outside : T.runoffSurface, quad(X.kerb, railOpen ? X.outer : X.runoff), uv(X.kerb, railOpen ? X.outer : X.runoff, GRASS_TILE)), (sA + sB) / 2));
+      faces.push(lift(vergeHex ? flatLit(vergeHex, quad(X.kerb, railOpen ? X.outer : X.runoff)) : surf(outside ? T.outside : T.runoffSurface, quad(X.kerb, railOpen ? X.outer : X.runoff), uv(X.kerb, railOpen ? X.outer : X.runoff, GRASS_TILE)), (sA + sB) / 2));
       // (the rail open at a split's mouths, where the branch leaves the way and comes back to it)
       if (T.barrier && !splitGap(split, side, (sA + sB) / 2)) {
         const b = T.barrier, f0a = P(A, side * X.runoff), f0b = P(B, side * X.runoff), f1a = P(A, side * X.outer), f1b = P(B, side * X.outer);
@@ -552,11 +554,23 @@ export function assembleTrackScene(m = {}, opts = {}, planned = null) {
     const half = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) / 2 + 40;
     const F = trackForm(scene.faces, { fit: { at: [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2, Math.min(...zs)], half }, ...(plan.mine ? { keep: [...TRACK_FORM_KEEP, MINE_GLOW] } : {}) });
     // (under a mine's hill, mine.js: the day dimmed by how deep, the lanterns' and the gems' light laid on)
-    return { ...scene, faces: plan.mine ? mineLight(F.faces, plan.mine) : F.faces, form: F.form, shadows: F.shadows, sky: { ...scene.sky, sun: { dir: F.sun, size: 1.4, glow: 1.3 } } };
+    const out = { ...scene, faces: plan.mine ? mineLight(F.faces, plan.mine) : F.faces, form: F.form, shadows: F.shadows, sky: { ...scene.sky, sun: { dir: F.sun, size: 1.4, glow: 1.3 } } };
+    return plan.mine?.cavern ? underground(out, plan) : out;
   }
-  if (plan.mine && !m.mood) return { ...scene, faces: mineLight(scene.faces, plan.mine) };
+  if (plan.mine && !m.mood) return plan.mine.cavern ? underground({ ...scene, faces: mineLight(scene.faces, plan.mine) }, plan) : { ...scene, faces: mineLight(scene.faces, plan.mine) };
   return m.mood ? moodScene(scene, plan, moodOf(m.mood), { isRoad: (f) => !!plan.roadFaces?.has(f) }) : scene;
 }
+// A track in a cavern (mine.js): the haze the cave's own dark, the far end of a hall lost in it; on the page-lit track the
+// light the karts are drawn under (the page's key and its ambient) dimmed toward the cave's, so a kart is not lit as by
+// the open day where its track is in the dark
+const CAVE_ACTOR = Object.freeze({ key: 0.55, ambient: 0.42, haze: 1 / 240 });
+function underground(scene, plan) {
+  const hz = plan.language?.card?.parts?.mine?.cavern?.haze ?? '#2b1a1c';
+  const town = scene.form?.town;
+  return { ...scene, bg: hz, haze: { color: hz, density: CAVE_ACTOR.haze },
+    ...(town ? { form: { ...scene.form, town: { ...town, ambient: town.ambient.map((v) => r5c(v * CAVE_ACTOR.ambient)), lights: town.lights.map((l) => ({ ...l, key: l.key.map((v) => r5c(v * CAVE_ACTOR.key)) })) } } } : {}) };
+}
+const r5c = (v) => Math.round(v * 1e5) / 1e5;
 function assembleNoonScene(m, opts, plan) {
   const first = trackViewCamera(plan, opts.view);
   const cameras = first ? [first, ...plan.cameras.filter((c) => c !== first)] : plan.cameras;

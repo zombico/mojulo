@@ -59,16 +59,25 @@ the operator's to say on the page.
     straight, the street through its ground floor under a berry band and a row of balls, lamps along its ceiling. A
     choice and a dark moment: a lap with both has something to learn and something to feel.
 12. **Underground is the track's too: a mine** (`candy-mine`, asked for as "a kart race through a gem mine",
-    "underground", "tunnels", "caves"; `roads/mine.js`, the card's `mine`). The lap runs through a chocolate mountain
-    the miners bored. Its galleries are laid where the way bends gently enough for their walls, never over the grid,
+    "underground", "tunnels", "caves"; `roads/mine.js`, the card's `mine`). The whole arena is underground: the lap
+    runs round the floor of one great cavern inside a chocolate mountain (`mine.cavern`). Its outline is a ring round
+    the lap, as far out at each bearing as the lap reaches and a margin past it. Its walls bulge and lump up to a domed
+    ceiling. Stalactites hang from the ceiling and stalagmites stand clear of the way. Its floor is the track's own
+    ground in the family's dust, and the verge is the rock's colour mown in stripes (a language's `verge.material`).
+    Lantern posts lean over the rail down the lap, the two sides by turns, and crystal clusters glow on the floor in the
+    family's bright colours, each a pool of its own colour. One skylight is the day: it is set where the sun, coming
+    down through it, falls toward the yard, and in its shaft a kart casts its shadow. The page's haze is the cave's
+    dark, and a kart is lit dimmer than the open day. The miners bored on through rock masses on the cavern's floor:
+    its galleries are laid where the way bends gently enough for their walls, never over the grid,
     the longest one first and a short one after it. Each is a bore past the rail with a ledge for the cart line, under a
     lumpy hill of the family's rock, frosted along its crest, that rises toward the gallery's middle and falls to each
     mouth as a hillside. Each mouth is a timber portal with a board of gems. Inside, the miners' sets (log posts and a
     cap, a set every few metres) mark the speed, lantern pairs hang over the kerbs, gems glow in the walls, and carts
     heaped with gems stand on the line. Outside its longest gallery is the yard: a headframe with its wheel and a heap
-    of spoil. Its light is the cave's (`era/cave.js`): under the hill a corner sees the day only through the mouths, less
+    of spoil, under the shaft of day. Its light is the cave's (`era/cave.js`): under the hill a corner sees the day only through the mouths, less
     the deeper it is, and the lanterns lay warm pools in the cave's torch register, scaled to the bore's width as a big
-    cave's lamps are. A dark moment, then the day again: the lap has a rhythm the open air cannot give it.
+    cave's lamps are. The open air has its own rhythm, light and dark; underground the rhythm is the lamps': a hall
+    of warm pools, a timbered gallery, a shaft of day.
 13. **One primitive, two tunings.** A realistic circuit answers the same questions soberly: the look's own asphalt and
     paint, one steel for the guardrail and its posts. A principle is a question, and candy is one answer to it.
 
@@ -84,13 +93,14 @@ the operator's to say on the page.
     kerb:    { profile: 'pillow', h, materials: [a, b] },
     rail:    { profile: 'tube' | 'w-beam', r, z, material, tell: [a, b],
                post: { profile: 'round' | 'i', r, every, material, cap: { r, material } } },
-    verge:   { mown: { every, lift } },
+    verge:   { material?, mown: { every, lift } },
     bunting: { min, every, h, sag, flags, drop, pole, materials: [...] },
     tree:    { profile: 'lollipop', blossom: { share, materials: [...] } },
     pieces:  { blocks: { <set piece>: <its stand-in> }, paint: { <surface group>: <material> } },
     city:    { sidewalk, margin, paving, crossing, zebra, lamps, facades: [...], heights: { core, edge, flat, tower },
                blocks: { shop, flat, tower }, kit: { lamp, signal } },   // a street circuit's town
-    mine:    { galleries: [{ share, least, most }], clearStart, apart, dark, depth,
+    mine:    { galleries: [{ share, least, most }], clearStart, apart, dark, depth, cavern?: { margin, wall, crown, segs,
+               rings, lump, floor, skylight: { r, strength }, dark, stalactites, stalagmites, posts, crystals, haze },
                bore: { ledge, flank, spring, crown, cover, lump, round, step, peak, frost, lean, boulders },
                rock, frost, floor, timber, lantern, sets: { every, r }, lanterns: { off, drop, r, gain },
                gems: { share, colours: [...], glow, size }, line: { gauge, rail }, carts: { inside, body, rim },

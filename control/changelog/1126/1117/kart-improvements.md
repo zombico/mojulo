@@ -78,11 +78,17 @@ In progress. Built so far:
   block: two piers, a deck, the building over it, a berry band and a row of balls over each mouth, lamps along its
   ceiling); the page's shadow darkens it. The town gives way to both: its rows stop at the mouths and the underpass, and
   the alley has fronts and a sidewalk down its far side.
-- **Built: a mine, a kart race through a chocolate mountain** ("a kart race through a gem mine", "underground",
+- **Built: a mine, a kart race inside a chocolate mountain** ("a kart race through a gem mine", "underground",
   "tunnels", "caves"; the `candy-mine` card's `mine`, `roads/mine.js`). Laid from what mojulo knew of the underground,
-  the trail's caves and caverns (`era/cave.js`, `era/cavern.js`), in the track's family. The lap runs through galleries
-  bored under a lumpy hill of cocoa rock, frosted cream along its crest, rising toward each gallery's middle and falling
-  to its mouths as a hillside. A gallery is laid only where the way bends gently enough for its walls, never over the
+  the trail's caves and caverns (`era/cave.js`, `era/cavern.js`), in the track's family. The whole arena is
+  underground: the lap runs round the floor of one great cavern (`mine.cavern`). Its outline is a ring round the lap
+  as far out as the lap reaches and a margin, its walls lumpy up to a domed ceiling. Stalactites hang from the ceiling,
+  stalagmites stand clear of the way, and the floor is the track's own ground repainted in the family's dust. Lantern
+  posts lean over the rail down the lap, crystal clusters glow on the floor each in its own colour, and one skylight
+  lets the day down a shaft toward the yard. A language may now lay its verge in one of its materials
+  (`verge.material`): here the rock's colour, mown. No meadow, farm or lake surrounds it; the page's haze is the
+  cave's dark, and the karts are lit dimmer than the open day. Through rock masses on its floor the lap runs into
+  galleries bored under the rock, rising toward each gallery's middle and falling to its mouths as a hillside. A gallery is laid only where the way bends gently enough for its walls, never over the
   grid: the longest first, a short one after it. Each mouth is a biscuit-timber portal with a lemon board of gems. Inside:
   - the miners' sets (log posts and a cap with knees, every eight metres), marking the speed
   - lantern pairs over the kerbs
@@ -94,7 +100,8 @@ In progress. Built so far:
   cave is lit. Under the hill a corner sees the day only through the mouths, less the deeper it is, and the lanterns
   lay warm pools in the cave's torch register and falloff, scaled to the bore's width as a big cave's lamps are. A light
   pass after the bake does it (`mineLight`), on the page-lit track and the baked one alike, with the gems and lanterns
-  kept as their own light. The hill casts the sun's shadow live. The rail and its posts are the mine's timber. A mine
+  kept as their own light; in the cavern every corner's sky is the cave's dark and the sun reaches only down the
+  skylight's shaft, where a kart casts its live shadow. The rail and its posts are the mine's timber. A mine
   has no venue beside it: the land, the set pieces and the trees keep clear of the hill and the yard.
 - **The principles a new map starts from** ([docs/track-design-principles.md](../../../../docs/track-design-principles.md))
   and the agent's card for them (`gameworld-track-language`, read by the levels chapter): a premise first, a small

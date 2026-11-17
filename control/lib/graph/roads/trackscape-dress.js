@@ -33,6 +33,7 @@ import { driverEye } from './eye.js';
 import { pieceFor, buildPiece, paintPiece, SET_OF_CLASS, SETS, TRACK_BLOCKS } from './set-pieces.js';
 import { planFrontage, buildFrontage } from './street-frontage.js';
 import { planMine, buildMine, inMine } from './mine.js';
+import { chunkyFlat, chunkyLightOf } from './chunky-look.js';
 import { buildBlock } from '../era/blocks.js';
 import { planArena, zoneOf, ARENA } from './arena-plan.js';
 import { buildLocalAreas } from './local-area.js';
@@ -73,9 +74,15 @@ export function planScapedTrack(m = {}) {
   const mine = lang?.parts?.mine ? planMine(plan, lang, { seed }) : null;
   const arena = opts.arena === false || town || mine ? null : planArena(plan, { scape, seed });
   // the surrounds (surrounds.js): the land beyond the venue shaped and stood on, before anything here stands on it
-  const SO = opts.surrounds === false ? null : opts.surrounds === true || opts.surrounds === undefined ? {} : opts.surrounds;
+  // (a mine's cavern is the land: no meadow round a track underground)
+  const SO = opts.surrounds === false || mine?.cavern ? null : opts.surrounds === true || opts.surrounds === undefined ? {} : opts.surrounds;
   const sur = SO ? planSurrounds(plan, { arena, scape, K, seed: Number.isInteger(SO.seed) ? SO.seed : seed, land: SO.land ?? landOf(m), settlement: SO.settlement ?? (town ? 'town' : 'village'), ...(town || mine ? { keepOut: [...(town?.keepOut ?? []), ...(mine?.keepOut ?? [])] } : {}) }) : null;
   if (sur) plan = sur.plan;
+  // (in a cavern the track's own ground is the cave's floor, in the language's dust)
+  if (mine?.cavern && Array.isArray(plan.ground)) {
+    const [g0, g1] = plan.ground, hex = lang.materials[lang.parts.mine.cavern.floor].hex, light = chunkyLightOf(K);
+    plan = { ...plan, faces: plan.faces.map((f, i) => (i >= g0 && i < g1 && Array.isArray(f.corners) ? floorFace(f.corners, hex, light) : f)) };
+  }
   const absorbed = [];
   const nth = {}, pieces = [], faces = [...(sur ? sur.faces : [])], colliders = [];
   for (const slot of scape.slots) {
@@ -183,4 +190,14 @@ export function zoneThings(arena, plan) {
     out.push({ kind: z.use, interest: z.use === 'grandstand' ? 'focus' : 'prop', at: [c[0], c[1], g + h / 2], span: Math.min(h, Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys))), top: g + h });
   }
   return out;
+}
+
+// a face of the ground repainted in one colour of the chunky look, lit as it lies
+function floorFace(corners, hex, light) {
+  let n = [0, 0, 0];
+  for (let i = 0; i < corners.length; i++) { const a = corners[i], b = corners[(i + 1) % corners.length]; n = [n[0] + (a[1] - b[1]) * (a[2] + b[2]), n[1] + (a[2] - b[2]) * (a[0] + b[0]), n[2] + (a[0] - b[0]) * (a[1] + b[1])]; }
+  const l = Math.hypot(...n) || 1;
+  n = n.map((v) => v / l);
+  if (n[2] < 0) { n = n.map((v) => -v); corners = corners.slice().reverse(); }
+  return { corners, fill: chunkyFlat(hex, n, light) };
 }
