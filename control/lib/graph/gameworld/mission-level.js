@@ -93,6 +93,8 @@ function box(x0, y0, x1, y1, h, fill, group) {
 export const CREW_MASKS = Object.freeze(['tacticalMask', 'gasMask', 'respirator']);
 /** The holds a crew's body plays by what it carries (the hero door's hold words): firing, and standing. */
 export const CREW_HOLDS = Object.freeze({ carbine: Object.freeze({ fire: 'carbineAim', idle: 'carbineLowReady' }), pistol: Object.freeze({ fire: 'pistolIsosceles', idle: 'pistolLowReady' }) });
+/** What a crew's body plays when a round lands on it: the figure library's hit, once through (the page's `flinch`). */
+export const CREW_FLINCH = 'Hit_Chest';
 const CREW_MASK_TONES = Object.freeze({ Mask: '#1b1d20', MaskDomino: '#1b1d20', Helm: '#1b1d20', MaskMouth: '#15171a', MaskTrim: '#2c2f33', MaskSeam: '#2c2f33', MaskFilter: '#2c2f33', Trim: '#2c2f33', MaskLens: '#7d8a88' });
 export function crewFigures(crew, seed = 1) {
   const { bodies = 3, masks = null, ...C } = typeof crew === 'string' ? { faction: crew } : crew, kinds = Object.keys(GRUNT_STYLES[C.faction]?.kinds ?? {});
@@ -106,7 +108,7 @@ export function crewFigures(crew, seed = 1) {
     // fires (`fire`, the page plays it while its trigger is down), at the low ready as it stands)
     const held = CREW_HOLDS[spec.gear?.right?.item] ?? null;
     if (held) spec.motion = { ...(spec.motion ?? {}), [held.fire]: true, [held.idle]: true };
-    return { hero: spec, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop', ...(held ? { fire: held.fire, idle: held.idle } : {}) } };
+    return { hero: spec, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop', flinch: CREW_FLINCH, ...(held ? { fire: held.fire, idle: held.idle } : {}) } };
   });
 }
 const standIn = () => ({ hero: { cast: 'female' }, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop' } });

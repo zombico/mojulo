@@ -4,7 +4,7 @@
 // land, inside the yard's own ground, the way out at the building's door; its tasks are proved on the bus; it is a
 // level's form, staged and ordered as one, and refuses what does not go beside it. The level whole is the e2e tier's.
 import { RISE } from '../arena-map/blocks.js';
-import { CREW_MASKS } from './mission-level.js';
+import { CREW_MASKS, CREW_FLINCH } from './mission-level.js';
 import { describe, expect, it } from 'vitest';
 import { readIndustrial, industrialPlan, industrialManifest, INDUSTRIAL, INDUSTRIAL_SCORE, SEAT } from './mission-industrial.js';
 import { proveMission } from './mission-proof.js';
@@ -69,7 +69,7 @@ describe('an industrial level, planned', () => {
     expect(figs.every((f) => f.hero.outfit.style === 'tactical')).toBe(true);
     expect(new Set(figs.map((f) => JSON.stringify(f.hero))).size).toBeGreaterThan(1);
     // (a gun in its hands: each body carries the hold it fires in and the one it stands in, by what it carries)
-    for (const f of figs) { expect(f.clips.fire).toBeTruthy(); expect(f.hero.motion[f.clips.fire]).toBe(true); expect(f.hero.motion[f.clips.idle]).toBe(true); }
+    for (const f of figs) { expect(f.clips.flinch).toBe(CREW_FLINCH); expect(f.clips.fire).toBeTruthy(); expect(f.hero.motion[f.clips.fire]).toBe(true); expect(f.hero.motion[f.clips.idle]).toBe(true); }
     // (masked: each body a mask of the crew's in turn; `masked: false` shows their faces)
     expect(new Set(figs.map((f) => f.hero.headgear))).toEqual(new Set(CREW_MASKS));
     expect(Object.values(industrialManifest(G, industrialPlan(G, readIndustrial({ masked: false }), { seed: 1 })).figures).some((f) => f.hero?.headgear)).toBe(false);

@@ -263,3 +263,5 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   its own count and not on the gait's phase). A page whose figures carry no `fire` clip has not a byte of it.
 - **The yard's score is electronic.** A half-time drift while the yard is crossed, a driving techno for the fight
   (`club:drift`, `club:drive`), in place of the orchestral cues.
+- **A round that lands is seen.** A crew's body flinches when it is hit: the figure library's hit clip, once through,
+  over whatever it was doing (`flinch`, beside `fire`). Seen only: the body is not stopped by it.

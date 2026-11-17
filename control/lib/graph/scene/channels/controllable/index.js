@@ -893,8 +893,9 @@ function __updateGearLines() {
   // scaled about its feet by the rule's `e.squash`. No rule carries one ⇒ not a byte of it
   const figHasSquash = (entities || []).some((e) => e && e.rule && e.rule.takes && e.rule.takes.squash > 0);
   const figHasForms = Object.values(figures || {}).some((f) => f && f.rig && f.forms);
-  // a body with a gun in its hands and a clip for firing it (`fire`, opt-in: a mission's crew): absent, not a byte
-  const fires = Object.values(figures || {}).some((f) => f && f.rig && f.clips && f.clips.fire);
+  // a body with a clip for firing its gun (`fire`) or for a round landing on it (`flinch`), opt-in (a mission's crew):
+  // absent, not a byte
+  const fires = Object.values(figures || {}).some((f) => f && f.rig && f.clips && (f.clips.fire || f.clips.flinch));
   // a car's own light in a dark mood (car-designer/supercar-figure.js: the headlamps' pool on the road, the tail lamps'
   // ribbons) — emitted only when some figure's juice carries them.
   const figHasLights = figHasJuice && Object.values(figures || {}).some((f) => f && f.rig && f.juice && (f.juice.beams || f.juice.trails));
@@ -2321,7 +2322,11 @@ function __sidearmProps(e, m, rig, fig, AL) {
   const AL = __aimLayer(rig, fig, AP, dt);` : ''}${fires ? `
   // A GUN IN ITS HANDS (a figure with a \`fire\` clip): while its trigger is down, and for a breath after a round has
   // gone, the body plays it, the weapon up, standing or on the move; never while it reels
-  if (fig.clips.fire && e.weapon && e.staggerT == null && !e.downed && (e.aiFire || (e.lastShot && __world.time - e.lastShot.t < 0.5))) mode = 'fire';` : ''}${figHasForms ? `
+  if (fig.clips.fire && e.weapon && e.staggerT == null && !e.downed && (e.aiFire || (e.lastShot && __world.time - e.lastShot.t < 0.5))) mode = 'fire';
+  // A HIT SHOWS (a figure with a \`flinch\` clip): a round that lands plays it once through, over whatever the body was
+  // doing; the body is not stopped by it (a stagger is the engine's, by poise: this is only seen)
+  const flinchU = fig.clips.flinch && e.hitFlash >= 0 && e.staggerT == null && !e.downed ? (__world.time - e.hitFlash) / 0.32 : 1;
+  if (flinchU < 1) mode = 'flinch';` : ''}${figHasForms ? `
   if (fig.forms) mode = __formMode(fig, e, mode);` : ''}${acts ? `
   const act = __actMode(fig, e, m), phase = act ? act.phase : e.gaitPhase;
   if (act) mode = act.mode;` : ''}${takes ? `
@@ -2331,7 +2336,7 @@ function __sidearmProps(e, m, rig, fig, AL) {
   e.taking = tk ? tk.clip : null;` : ''}
 ${fires ? `  // (a hold is a clip played once and held: firing, it comes up over a fifth of a second and stays; standing in one, it
   // is held; neither runs on the gait's phase, which stands still on a body that stands)
-  const heldU = mode === 'fire' ? (rig.fireU = Math.min(0.999, (rig.fireU || 0) + (dt || 0) / 0.2)) : (rig.fireU = 0, mode === 'idle' && fig.clips.idle && fig.clips.idle.held ? 0.999 : null);
+  const heldU = mode === 'flinch' ? Math.max(0, Math.min(0.999, flinchU)) : mode === 'fire' ? (rig.fireU = Math.min(0.999, (rig.fireU || 0) + (dt || 0) / 0.2)) : (rig.fireU = 0, mode === 'idle' && fig.clips.idle && fig.clips.idle.held ? 0.999 : null);
 ` : ''}  const mix = __CW.advanceGaitMix(rig.mix, mode, ${fires ? 'heldU != null ? heldU : ' : ''}${takes ? `tk ? Math.min(tk.u, 0.999) : ` : ''}${moveset ? `(AP && mode === AP.clip ? AP.phase : ${acts ? 'phase' : 'e.gaitPhase'})` : acts ? 'phase' : 'e.gaitPhase'}, dt || 0, ${moveset ? "(typeof mode === 'string' && mode.indexOf('mv_') === 0 && e.rule && e.rule.moveset ? e.rule.moveset.blend : rig.blendTime)" : 'rig.blendTime'});${moveset ? '   // (into a move\'s own clip: the moveset\'s blend, its travel waiting it out: no foot slides)' : ''}
   const w = mix.prevMode ? mix.w * mix.w * (3 - 2 * mix.w) : 1;
   // head-look-at overlay (renderer-convergence step 2, procedural rung): ease the head bone's
