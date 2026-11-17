@@ -17,8 +17,9 @@ import { safeJson } from '../emit-util.js';
 // controllable channel's), so it waits for it. Emitted only when the page has a guide: every other page byte-identical.
 // A guide that goes ROUND (`loop`: the step it returns to after its last, a standing job's pick-up: gameworld/city-guide.js)
 // one whose step is reached by being in a car (a step's `cab`), and one with its own last word (`done`, in place of "the way on lies past this place": an open city's) say so; a guide
-// with none of them is as it was, byte for byte.
-export function guideScript(guide) {
+// with none of them is as it was, byte for byte. `host` (a page whose guide is drawn by mana-ui, guide-mana.js): this
+// line stays down for that host as it does for the HUD grammar; unasked, not a byte.
+export function guideScript(guide, { host = false } = {}) {
   return `
 // --- the guide: the level's intro and the way on, one thing at a time (level/guide.js) ---
 (function () {
@@ -38,7 +39,7 @@ export function guideScript(guide) {
   const V = { mode: '', text: '', keys: [], goal: null };
   function put(m, html, text, keys) {
     V.mode = m; V.text = text || ''; V.keys = keys || [];
-    if (window.__mojHudGrammar) { if (shown !== '') { shown = ''; slot.className = 'moj-gd off'; slot.innerHTML = ''; } return; }
+    if (window.__mojHudGrammar${host ? ' || window.__mojGuideHost' : ''}) { if (shown !== '') { shown = ''; slot.className = 'moj-gd off'; slot.innerHTML = ''; } return; }
     if (m === mode && html === shown) return; mode = m; shown = html; slot.className = 'moj-gd ' + m + (html ? '' : ' off'); slot.innerHTML = html;
   }
   const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');

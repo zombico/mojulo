@@ -89,6 +89,7 @@ import { mountRideScript } from './channels/mount-ride.js';
 import { cabPoolScript } from './channels/cab-pool.js';
 import { mapScript } from './channels/map-channel.js';
 import { bagScript } from './channels/bag-channel.js';
+import { guideManaScript } from './channels/guide-mana.js';
 import { manaUiSource } from '../../mana-ui/kernel.js';
 import { manaCss } from '../../mana-ui/css.js';
 import { themeCss } from '../../mana-ui/theme.js';
@@ -889,7 +890,11 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, faces = [], camer
   // MANA-UI ONCE A PAGE: a page whose HUD is the game UI runtime's and which opens its screens too (the journal, the
   // map, the bag: each a host of its own) carries the runtime and the theme's sheet ONCE, in a prelude each host names
   // (`window.__mojMana`); a page with the HUD alone carries them in the HUD, as it did, byte for byte
-  const manaScreens = !!manaHud && !capture && (!!cityMap || !!bagUi || (manaHud.theme !== undefined && !!events && Array.isArray(events.quests) && events.quests.length > 0));
+  // (a guide drawn by mana-ui, channels/guide-mana.js: its keys stand where the level's line of key words stood, a HUD
+  // row that is words alone, hud-widgets.js's legend, so that row is not handed to the HUD; one that asks for it, `mana: true`, on a page with a mana HUD and
+  // no HUD grammar of its own)
+  const guideMana = !!manaHud && !capture && !!guide && guide.mana === true && Array.isArray(guide.steps) && !(events && events.grammar);
+  const manaScreens = !!manaHud && !capture && (guideMana || !!cityMap || !!bagUi || (manaHud.theme !== undefined && !!events && Array.isArray(events.quests) && events.quests.length > 0));
   const manaShared = manaScreens ? 'window.__mojMana' : null;
   const manaPrelude = manaScreens ? `// mana-ui, once for this page's HUD and screens (the game UI runtime and the theme's sheet)\nwindow.__mojMana = ${manaUiSource()};\n{ const __ms = document.createElement('style'); __ms.textContent = ${JSON.stringify(`${manaCss()}\n${themeCss(manaHud.theme ?? 'greybox')}`).replace(/</g, '\\u003c')}; document.head.appendChild(__ms); }\n` : '';
   const hasEvents = !!events && ((Array.isArray(events.reactions) && events.reactions.length > 0) || (Array.isArray(events.sequences) && events.sequences.length > 0) || (Array.isArray(events.hud) && events.hud.length > 0) || (Array.isArray(events.library) && events.library.length > 0));   // (a library alone is a channel: its shelf)
@@ -905,7 +910,7 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, faces = [], camer
   // (a level with a ROLL says it is shown only once it has started: its first picture is the rolled one)
   const gameBlock = game ? gameChannelScript(game, roll ? { shownOnStart: true } : {}) : '';
   // the level's in-play HUD on mana-ui (channels/mana-hud.js): a level that carries one; absent, not a byte
-  const manaHudBlock = manaHud && !capture ? manaHudScript(manaHud, { game: !!game, rows: events?.hud ?? null, register: events?.register ?? null, touch: !!screen && !courseTouch && !runner, ...(manaShared ? { shared: manaShared } : {}) }) : '';
+  const manaHudBlock = manaHud && !capture ? manaHudScript(manaHud, { game: !!game, rows: guideMana && Array.isArray(events?.hud) ? events.hud.filter((r) => !(r && typeof r === 'object' && typeof r.text === 'string' && r.var === undefined && r.on === undefined && r.press === undefined && r.as === undefined)) : events?.hud ?? null, register: events?.register ?? null, touch: !!screen && !courseTouch && !runner, ...(manaShared ? { shared: manaShared } : {}) }) : '';
   const versusBlock = versus && !capture ? versusChannelScript(versus) : '';
   // a brawl on the world (lib/graph/brawl: the practice yard): it owns the camera; never on a capture run
   const brawlBlock = brawl && !capture ? brawlChannelScript(brawl) : '';
@@ -1717,7 +1722,7 @@ window.addEventListener('message', (e) => {
 });
 try { window.parent.postMessage({ moj: '${MSG_VIEW_READY}', groups: Object.keys(meshes) }, '*'); } catch (err) { /* opaque or no parent */ }
 ${sunProbe}${formBlock}${hydraulics && (Array.isArray(hydraulics.mists) || Array.isArray(hydraulics.impacts)) ? hydraulicsScript(hydraulics) : ''}${Array.isArray(flames) && flames.length ? flamesScript(flames, { hot: !!bloomOn }) : ''}${channelSetupSection('pre-runtime', setupBlocks)}
-${channelRuntimeSection(chBlocks)}${manaHudBlock}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${flowBlock}${cabPoolBlock}${mapBlock}${bagBlock}${beaconsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${mountRideBlock}${wetRoadBlock}${airBlock}${weatherBlock}${toneBlock}${fabricBlock}${leafBlock}${grassBlock}${fireBlock}${shallowsBlock}${seawayBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${guide && Array.isArray(guide.steps) ? guideScript(guide) : ''}${events && events.grammar ? hudGrammarScript(events.grammar, events.hud) : ''}${hasTour ? tourScript(tour, { capture }) : ''}${sync === true ? syncScript() : ''}${snowPrintsBlock}${scienceBlock}${formLandBlock}${skyBlock2}${coneBlock}
+${channelRuntimeSection(chBlocks)}${manaHudBlock}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${flowBlock}${cabPoolBlock}${mapBlock}${bagBlock}${beaconsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${mountRideBlock}${wetRoadBlock}${airBlock}${weatherBlock}${toneBlock}${fabricBlock}${leafBlock}${grassBlock}${fireBlock}${shallowsBlock}${seawayBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${guide && Array.isArray(guide.steps) ? guideScript(guide, guideMana ? { host: true } : {}) : ''}${guideMana ? guideManaScript(manaHud.theme ?? null, manaShared ? { shared: manaShared } : {}) : ''}${events && events.grammar ? hudGrammarScript(events.grammar, events.hud) : ''}${hasTour ? tourScript(tour, { capture }) : ''}${sync === true ? syncScript() : ''}${snowPrintsBlock}${scienceBlock}${formLandBlock}${skyBlock2}${coneBlock}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit

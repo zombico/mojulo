@@ -61,3 +61,10 @@
 - **Lighter pages.** A level that has the journal, the map or the inventory alongside its HUD now carries the game
   interface system once instead of once for each, which takes about 0.7 MB off the open-city level page. Levels
   with only a HUD are unchanged.
+- **One interface, top to bottom.** In a city game with an interface look, the on-screen guide is now drawn by the
+  game interface system too: a compass strip that turns with your view and marks where to go, the instruction with
+  its distance under it, each key lesson as key caps with its place in the run, and the opening line and "passenger
+  aboard" style messages as cards. It takes the game's theme like the map, the inventory and the journal.
+- **Key hints that match what you are doing.** The strip of key words along the bottom is replaced by key caps for
+  the keys that work right now: Move and Jump on foot, with Get in when a car is in reach; Drive, Brake, Steer and
+  Get out at the wheel; and Map, Bag and Journal throughout.
