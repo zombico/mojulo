@@ -47,6 +47,8 @@ export const isOutfitBuild = (o) => !!(o && typeof o === 'object' && !Array.isAr
 const cardOf = (style) => (typeof style === 'string' ? SEEDED_OUTFITS[style] : style);
 const DIALS = ['stylize', 'fit', 'coverage', 'ornament'];
 
+/** the stocking's yoke: from this `u` of the torso up (a shirt's yoke is 3.2 … 4; a hand lower, so it reaches under the armhole) */
+const STOCKING_YOKE = 2.9;
 /** Validate a build → error strings naming the choices */
 export function validateOutfitBuild(build) {
   if (!isOutfitBuild(build)) return ["outfit: { type: 'outfit', style, dials?, language?, pieces?, intent? }"];
@@ -227,6 +229,10 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
       return f === 'fitted' ? { ...rest, ease: r6(E.ease * 0.45) } : { ...rest, ease: r6(E.ease * 1.5), ...(drape ? { drape: r6(drape * 0.3) } : {}), ...(flare ? { flare: flare.map((x) => r6(x * 1.5)) } : {}) }; }); };
   const tops2 = fitSlot(tops, top?.fit), bottoms2 = skirt ? bottoms : fitSlot(bottoms, bottom?.fit), outs2 = fitSlot(outs, outer?.fit === 'skin' ? 'fitted' : outer?.fit);
   tops.splice(0, tops.length, ...tops2); bottoms.splice(0, bottoms.length, ...bottoms2); outs.splice(0, outs.length, ...outs2);
+  // THE STOCKING (`outer.stocking`): a second skin of the outer layer's own colour under it at the shoulders, the whole
+  // upper arm and the yoke round them, worn over whatever second skin is under it there; so what a bent arm opens under a
+  // coat's shoulder and sleeve shows its own colour, not the top's or the skin
+  if (outer?.stocking) skinPaint.push({ part: ['upperArm'], run: [0, 1], group: 'Outer' }, { part: ['torso'], u: [STOCKING_YOKE, 4.2], group: 'Outer' });
   // GIRTH TARGETS: a slot's `girth` (cm of girth over the body at its landmarks, at scale 1) on each copy piece of it; the
   // kernel finds each landmark on the body's own rings and ignores those a piece's part has not (body-garment.js)
   const withGirth = (list, S) => (S?.girth ? list.map((E) => (E.fit ? E : { ...E, girth: Object.fromEntries(Object.entries(S.girth).map(([w, c]) => [w, r6(c / 100 * k)])) })) : list);

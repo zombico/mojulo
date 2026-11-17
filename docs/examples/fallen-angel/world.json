@@ -179,7 +179,9 @@
               "sleeve": "elbow",
               "hem": "hip",
               "open": true,
-              "cuff": "rolled"
+              "cuff": "rolled",
+              "epaulettes": true,
+              "stocking": true
             },
             "panels": [
               {
@@ -200,9 +202,6 @@
             "hands": "cavalierGloves"
           },
           "pieces": [
-            {
-              "kind": "harness"
-            },
             {
               "kind": "pauldron",
               "plain": true,

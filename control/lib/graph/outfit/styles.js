@@ -30,6 +30,8 @@
 //             collar), rib?: cuffs | waist | both (knit rib bands, the body and the sleeves bloused over them),
 //             hands?: a glove card of the handwear library (cavalierGloves, tacticalGloves …): worn on the hands as a
 //             word list's glove word is,
+//             stocking?: true (a second skin of the layer's own colour under it at the shoulders: the upper arms and the
+//             yoke, so a bent arm opening the shoulder shows the coat's colour),
 //             cuff?: rolled (the sleeve's end turned back on itself: a band of its cloth over the last hand's breadth, a
 //             layer out and a shade down, the sleeve pushed up),
 //             pockets?: flap (patch pockets low on the front, each under a flap with a snap), epaulettes?: true (a strap
@@ -466,6 +468,7 @@ export function validateOutfitCard(card, at = 'outfit.style') {
   if (L.outer !== undefined && L.outer !== false) { if (typeof L.outer !== 'object') errs.push(`${at}.language.outer: { family, sleeve, hem, open?, cut? } or false`);
     else { errs.push(...one(L.outer.family, FAMILY, `${at}.language.outer.family`), ...one(L.outer.sleeve, SLEEVE, `${at}.language.outer.sleeve`), ...one(L.outer.hem, COAT, `${at}.language.outer.hem`), ...one(L.outer.cut, CUT, `${at}.language.outer.cut`));
       if (L.outer.open !== undefined && typeof L.outer.open !== 'boolean') errs.push(`${at}.language.outer.open: true or false`);
+      if (L.outer.stocking !== undefined && typeof L.outer.stocking !== 'boolean') errs.push(`${at}.language.outer.stocking: true or false (a second skin of its colour under it at the shoulders)`);
       errs.push(...one(L.outer.front, OUTER_FRONTS, `${at}.language.outer.front`), ...one(L.outer.lapel, OUTER_LAPELS, `${at}.language.outer.lapel`), ...one(L.outer.shoulder, OUTER_SHOULDERS, `${at}.language.outer.shoulder`), ...one(L.outer.waist, OUTER_WAISTS, `${at}.language.outer.waist`));
       errs.push(...one(L.outer.cuff, OUTER_CUFFS, `${at}.language.outer.cuff`));
       errs.push(...one(L.outer.rib, OUTER_RIBS, `${at}.language.outer.rib`), ...one(L.outer.pockets, OUTER_POCKETS, `${at}.language.outer.pockets`), ...one(L.outer.cloth, CLOTH_WORDS, `${at}.language.outer.cloth`));

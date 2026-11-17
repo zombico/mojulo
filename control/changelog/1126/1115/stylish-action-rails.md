@@ -119,6 +119,13 @@ In progress. Built so far, all in the practice door's game room
   shade down) and `hands: '<a glove card>'` (gloves worn from the card, as a word list's glove word is: a game's
   hero, whose clothes are one card, wears gloves so). A card that says neither keeps every byte. Seen on the level in
   a headless browser: the shoulder blades and the elbows covered; the small of the back and the hip hem not yet.
+- **Lucien's shoulders, again.** The crossed harness gave way to the coat's own shoulder straps (`epaulettes`) over the
+  small caps, and a STOCKING under the coat (`outer.stocking: true`, a word new to an outfit card): a second skin of the
+  coat's own colour on the upper arms and the yoke, so what a bent arm opens under the coat's shoulder shows the coat's
+  pale and not the dark top. Measured on the body, the arm overhead: the dark top shown at the shoulders down by three
+  quarters. Found on the level: the sawtooth left is the page's, not the cloth's. A hero is drawn there as rigid parts,
+  each vertex carried by its one strongest bone, so at every joint the layers step past each other in teeth; the
+  fauna are drawn as one skin where it holds, a hero not yet.
 - **Fixed: a coat's shoulders under a raised arm** (realistic laws 17, the realistic body's doc, "The correctives").
   The tailor's cloth now carries the skin's correctives: each of its points moves as the skin nearest it moves. A
   raised arm had pushed the shoulder's skin out through the coat (the marks on the shoulder blades, the deltoid
