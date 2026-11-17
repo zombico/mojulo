@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { mergeableFigure, mergedFigureScript } from './merged-figure.js';
+import { mergeableFigure, mergedFigureScript, oneDrawFigure, oneDrawScript } from './merged-figure.js';
+import { suitShadowBlock } from './suit-shadows.js';
 import { pageFigures, controllableChannelScript } from './index.js';
 
 // ONE DRAW A FIGURE: a plain rigid rig is drawn as one skinned mesh, each part's corners bound wholly to its own bone, so
@@ -102,3 +103,69 @@ describe('the pose grade cut in', () => {
   });
 });
 
+
+// ONE DRAW A LIT FIGURE: a layered body (painted, lit, a face's morphs on some parts) keeps its bone meshes, hidden, as the
+// bones every reader poses and reads, and draws their corners as one skinned mesh a material.
+describe('one draw a lit figure', () => {
+  it('a layered rig may be; one whose bones or parts are read on their own may not', () => {
+    const P = { ...person(), paintTex: { url: 'x' }, face: { targets: [] }, cast: {} };
+    expect(oneDrawFigure(P)).toBe(true);
+    expect(oneDrawFigure({ ...P, skin: true })).toBe(false);
+    expect(oneDrawFigure({ ...P, muzzle: { bone: 'pelvis' } })).toBe(false);
+    expect(oneDrawFigure({ ...P, bones: [...P.bones, { id: 'shield' }] })).toBe(false);
+    expect(oneDrawFigure({ ...P, parts: [{ ...P.parts[0], metal: 'AA==' }, P.parts[1]] })).toBe(false);
+    expect(oneDrawFigure({ ...P, parts: [P.parts[0], null] })).toBe(false);   // (one part: nothing to merge)
+  });
+
+  it('the page carries it only for a figure the world marked', () => {
+    const ent = [{ id: 'hero', body: { type: 'figure-rig', figure: 'p' }, rule: { type: 'walk' }, transform: { pos: [0, 0, 0], heading: 0 } }];
+    const figs = (mark) => ({ p: { ...person(), paintTex: { url: 'x' }, ...(mark ? { oneDraw: true } : {}) } });
+    expect(controllableChannelScript(ent, null, figs(true))).toContain('if (fig.oneDraw) __oneDraw(fig, group, boneMeshes);');
+    expect(controllableChannelScript(ent, null, figs(false))).not.toContain('__oneDraw');
+    expect(controllableChannelScript(ent, null, figs(true), { toonInk: { width: 1 } })).not.toContain('__oneDraw');
+  });
+
+  it('draws every part but a morphing one in one skinned mesh, each corner where its bone mesh put it', async () => {
+    const THREE = await import(pathToFileURL(path.join(process.cwd(), 'public/vendor/three/three.module.min.js')).href);
+    const oneDraw = new Function('THREE', `${oneDrawScript()}\nreturn __oneDraw;`)(THREE);
+    const group = new THREE.Group(), mat = new THREE.MeshBasicMaterial({ vertexColors: true });
+    const tri = (dz, normals) => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, 0, dz, 1, 0, dz, 0, 1, dz]), 3));
+      g.setAttribute('color', new THREE.BufferAttribute(new Uint8Array([255, 0, 0, 0, 255, 0, 0, 0, 255]), 3, true));
+      // (a lit read's normals as bytes on one part, as floats on another)
+      g.setAttribute('normal', normals === 'bytes' ? new THREE.BufferAttribute(new Int8Array([0, 0, 127, 0, 0, 127, 0, 0, 127]), 3, true) : new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), 3));
+      if (normals === 'bytes') g.setIndex(new THREE.BufferAttribute(new Uint16Array([0, 1, 2]), 1));
+      const m = new THREE.Mesh(g, mat); m.matrixAutoUpdate = false; group.add(m); return m;
+    };
+    const face = tri(2, 'floats'); face.morphTargetInfluences = [0];
+    const bm = [tri(0, 'bytes'), tri(1, 'floats'), face];
+    group.userData.rigFig = { boneMeshes: bm };
+    oneDraw({ figH: 1.7 }, group, bm);
+    const rf = group.userData.rigFig, skin = rf.skin, geo = skin.geometry;
+    expect(skin.isSkinnedMesh).toBe(true);
+    expect(rf.merged).toBe(true);
+    expect(bm.map((m) => m.visible)).toEqual([false, false, true]);   // (the face's own mesh still drawn)
+    expect(geo.getAttribute('position').count).toBe(6);
+    expect(geo.index.count).toBe(6);
+    expect(geo.getAttribute('normal').array[2]).toBeCloseTo(1, 2);
+    expect(Array.from(geo.getAttribute('skinIndex').array).filter((_, i) => i % 4 === 0)).toEqual([0, 0, 0, 1, 1, 1]);
+    // posed: the sync moves bone 1's mesh up and turns it; its corners in the skin go with it
+    bm[1].matrix.makeRotationZ(Math.PI / 2).setPosition(0, 0, 0.5);
+    group.updateMatrixWorld(true); skin.skeleton.update();
+    const v = skin.applyBoneTransform(4, new THREE.Vector3().fromBufferAttribute(geo.getAttribute('position'), 4));
+    const want = new THREE.Vector3(1, 0, 1).applyMatrix4(bm[1].matrix);
+    expect([v.x, v.y, v.z].map((x) => +x.toFixed(4))).toEqual([want.x, want.y, want.z].map((x) => +x.toFixed(4)));
+  });
+});
+
+describe('a body\'s contact pool at its feet', () => {
+  it('sits at the feet without a probe through the scene; without it, the probe as it was', () => {
+    const feet = suitShadowBlock({ r: 0.5, alpha: 0.4, fade: 1.5, color: [0, 0, 0], feet: true });
+    expect(feet).toContain('const zc = p[2];');
+    expect(feet).not.toContain('const own = __bodySet();');
+    const probe = suitShadowBlock({ r: 12, alpha: 0.45, fade: 55, color: [0, 0, 0] });
+    expect(probe).toContain('const zc = __shProbe(own, p[0], p[1], p[2] + 2);');
+    expect(probe).toContain('zc + 0.4');
+  });
+});

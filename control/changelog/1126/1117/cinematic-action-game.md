@@ -277,3 +277,11 @@ or a recipe key; the spike mints through the real doors and measures.
   occlusion, real grass out to 20 m (the view cone; [ and ] move it live). The figure a player pilots is held to the
   hero's budget too, its face kept whole (the operative 160k to about 70k). The spike's pages carry a frame readout
   in a corner (frames a second, milliseconds a frame, the pixel budget's density), for the person to report.
+- **One draw a body.** A layered body (the realistic operative and guard: painted, lit, 64 parts) in a play-grade world
+  is drawn as one skinned mesh a material (controllable/merged-figure.js `oneDrawFigure`, `__oneDraw`), where only a
+  plain rigid rig was before: its bone meshes are built as ever and kept, hidden, as the bones the sync poses and every
+  reader reads (the aim, the held gun, the target rim, a hit), and a face's morphing parts stay their own. The world marks
+  such a figure `oneDraw` (world-scene.js, the play grade); none marked, not a byte.
+- **Bodies cast no live shadow** where a level asks (level0.json `performance.bodies: 'blob'`): no body in the live
+  light's map each frame, a soft pool at each one's feet instead (suit-shadows.js `feet`: no ray through the scene a body
+  a frame, the pool where the runtime stood the body). The land's own hour shadows stay.

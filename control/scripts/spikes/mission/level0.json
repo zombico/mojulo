@@ -347,6 +347,7 @@
     "light": "half",
     "occlusion": false,
     "cone": 20,
-    "reads": "what the page may cost: its shadows at half (light.tier), no contact occlusion, real grass out to 20 m (the view cone); [ and ] move the grass's reach live"
+    "bodies": "blob",
+    "reads": "what the page may cost: its shadows at half (light.tier), no contact occlusion, real grass out to 20 m (the view cone); [ and ] move the grass's reach live; bodies 'blob' casts no body into the live shadow map, a soft pool at the feet instead ('live' for real shadows)"
   }
 }

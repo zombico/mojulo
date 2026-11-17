@@ -36,6 +36,7 @@ something found in the layer before. `plan.mjs` reads it dry and holds it to the
 | what stands in the hangar and below | `level1.json` `segments.*.parked` | vehicle words (`field walker` with `role: 'assault'`, `siege walker`) |
 | the building | `level1.json` `building` | `use`, `seed`, `basement: { hall, lift }` (a floor 0 lodged deeper, a lift's opening) |
 | the hero and how it moves | `operative.json`; the rule built in `infiltration-room.js` | the hero door's words; `aimView`, `freeRun`, `stance`, `carry`, `dive`, `takedown` on the rule |
+| how much the page costs a frame | `level0.json` `performance` | `light` (`off` / `half` / `full`), `occlusion`, `cone` (real grass's reach), `bodies` (`blob`: no body drawn into the live shadow map, a pool at the feet; `live` for real shadows). The play grade (`figureGrade: 'play'`) also draws each body in one call, not one a part |
 | the lift's scene | `hangar.mjs` `shoot` | a shoot plan's keys and a cue (`/direct`, `docs/cinematics.md`) |
 
 ## Change, then prove

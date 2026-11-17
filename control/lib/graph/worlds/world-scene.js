@@ -1437,6 +1437,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
             // (the one a player pilots to the hero's budget, its face kept whole: it is seen, and its expressions with it)
             const held = lodFigure(payload.figures[name], gradeBudget('play', piloted ? 'hero' : 'foe'), { face: piloted });
             if (held.fig !== payload.figures[name]) payload.figures[name] = held.fig;
+            // (and drawn in one call a pass, not one a part: controllable/merged-figure.js oneDrawFigure)
+            const { oneDrawFigure } = await import('@/lib/graph/scene/channels/controllable/merged-figure.js');
+            if (oneDrawFigure(payload.figures[name])) payload.figures[name] = { ...payload.figures[name], oneDraw: true };
           }
           // THE POSE GRADE CUT IN (figure-grades.js): a play-grade world bakes the figures its close shots reach again at
           // the pose grade, `<name>@pose`, the page cutting it in while a close shot is on; two bakes that are not one

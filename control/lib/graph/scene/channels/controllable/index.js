@@ -23,7 +23,7 @@ import { sightScript } from './sight-view.js';
 import { alarmScript } from './alarm-view.js';
 import { missionScript } from './mission-view.js';
 import { specialsPaletteScript } from './specials-palette.js';
-import { mergeableFigure, mergedFigureScript } from './merged-figure.js';
+import { mergeableFigure, mergedFigureScript, oneDrawFigure, oneDrawScript } from './merged-figure.js';
 import { groundGridScript } from './ground-grid.js';
 import { turretScript } from './turret-view.js';
 import { boatWaterScript } from './boat-water.js';
@@ -896,6 +896,9 @@ function __updateGearLines() {
   const figMerge = !xr && !toonInk && Object.values(figures || {}).some(mergeableFigure);
   // (a figure with a pose twin, figure-grades.js: cut in while a close shot is on it; none, not a byte)
   const figPose = figMerge && Object.values(figures || {}).some((f) => f && typeof f.pose === 'string' && mergeableFigure(f));
+  // ONE DRAW A LIT FIGURE (merged-figure.js oneDrawScript): a layered body the world marked `oneDraw` (the play grade) drawn
+  // as one skinned mesh over its kept bone meshes. None marked ⇒ not a byte of it
+  const figOneDraw = !xr && !toonInk && Object.values(figures || {}).some((f) => f && f.oneDraw && oneDrawFigure(f));
   // a racer's JUICE (car-designer/juice.js: flames, puffs, smoke, dust, sparks, a landing ring at its anchors) —
   // emitted only when some figure carries one.
   const figHasJuice = Object.values(figures || {}).some((f) => f && f.rig && f.juice);
@@ -1456,7 +1459,7 @@ function __castMR(fig, c, n) {
   m.userData.cast = true;
   return m;
 }
-` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose, rig: figHasCast, resp: figHasResp }) : ''}function __makeRigGroup(fig, b) {
+` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose, rig: figHasCast, resp: figHasResp }) : ''}${figOneDraw ? oneDrawScript() : ''}function __makeRigGroup(fig, b) {
   const group = new THREE.Group();${figHasSkin ? `
   if (fig.skin) return __makeSkinGroup(fig, b, group);` : ''}${figMerge ? `
   if (__mergeable(fig)) return __makeMergedGroup(fig, b, group);` : ''}
@@ -1499,7 +1502,8 @@ function __castMR(fig, c, n) {
   scene.add(group);${bodyScaled ? `
   if (b.scale > 0) group.scale.setScalar(b.scale);` : ''}
   group.userData.rigFig = { fig, boneMeshes, mix: {}, blendTime: b.blendTime, lookA: 0,
-    yaw: b.yawOffset != null ? b.yawOffset : -Math.PI / 2, headTrack: b.headTrack || null };
+    yaw: b.yawOffset != null ? b.yawOffset : -Math.PI / 2, headTrack: b.headTrack || null };${figOneDraw ? `
+  if (fig.oneDraw) __oneDraw(fig, group, boneMeshes);   // one draw a lit figure (merged-figure.js)` : ''}
   // muzzle locator: an empty child of the weapon bone mesh at the muzzle's bone-local rest point,
   // so its world position IS the live weapon tip (rides every clip). Shot fx originate here.
   if (fig.muzzle) {
