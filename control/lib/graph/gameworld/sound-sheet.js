@@ -167,11 +167,14 @@ const GROUNDS = [
   { test: /swamp|bog|marsh|mire/, step: 'step-mud' }, { test: /autumn|fall-forest/, step: 'step-leaves' }, { test: /quarry|gravel|scree/, step: 'step-gravel' },
 ];
 /** The ground the hero walks: what the place's words say (its kit's name, its weather: snow, sand, mud, leaves,
- *  gravel), else grass on a stage grown on a nature, jungle or isekai kit, stone where it is built. */
+ *  gravel), a played town's or district's pavement, else grass on a stage grown on a nature, jungle or isekai kit,
+ *  stone where it is built. */
 function stepOf(G, manifest) {
   const P = placeOf(G, manifest), words = [P.kit, P.weather].filter(Boolean).join(' ');
   const named = words ? GROUNDS.find((x) => x.test.test(words)) : null;
   if (named) return { step: named.step, why: `${P.kit && named.test.test(P.kit) ? `a ${P.kit} stage` : `${P.weather} weather`}: ${SOUNDS[named.step].label}` };
+  // (a played town or district is walked on its pavements, whatever kit the world's other stages grow on)
+  if (playedCity(manifest)) return { step: 'step-pavement', why: 'a street: a pavement underfoot, a heel\'s click' };
   const a = (w) => `${/^[aeiou]/i.test(w) ? 'an' : 'a'} ${w}`;
   if (GRASS_SHELLS.has(P.shell)) return { step: 'step-grass', why: `${a(P.shell)} stage${P.own ? '' : ` (the world's kit, ${P.kit})`}: grass underfoot` };
   return { step: 'step-concrete', why: P.kit ? `${a(P.shell ?? P.kit)} stage: stone underfoot` : 'stone underfoot' };
@@ -404,12 +407,12 @@ const playedCity = (manifest) => !!manifest && manifest.kind === 'geocube' && (m
  * one-shots the door as a car is got into and out of, the horn (H, at the wheel) and a crash on a hard stop: the
  * shelf's words in the sheet's style, as cues the audio channel plays. → { engine, cues, why } or null (a game on no
  * sheet, a level that is no played city, or `sound.ride: false`). */
-export const CITY_CAR = Object.freeze({ top: 28, door: 'car-door', horn: 'car-horn', crash: 'car-crash' });
+export const CITY_CAR = Object.freeze({ top: 28, level: 0.55, door: 'car-door', horn: 'car-horn', crash: 'car-crash' });
 export function citySounds(G, { manifest = null, quick = G?.quick } = {}) {
   if (!onSheet(G, quick) || !playedCity(manifest)) return null;
   const R = rideSound(G, { quick, words: 'car', top: CITY_CAR.top });
   if (!R) return null;
   const style = soundSheet(G, { manifest }).style, cue = (w) => sfxSound(w, { style })?.gestures ?? sfxSound(w)?.gestures ?? null;
   const cues = Object.fromEntries([['car:door', CITY_CAR.door], ['car:horn', CITY_CAR.horn], ['car:crash', CITY_CAR.crash]].map(([k, w]) => [k, cue(w)]).filter(([, g]) => g));
-  return { engine: { ...R.engine, cab: true }, cues, why: `${R.why}, heard only at the wheel; the door, the horn, a crash` };
+  return { engine: { ...R.engine, level: CITY_CAR.level, cab: true }, cues, why: `${R.why}, heard only at the wheel; the door, the horn, a crash` };
 }

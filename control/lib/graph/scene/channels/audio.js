@@ -232,6 +232,8 @@ if (__AUDIO.footsteps) {
         // mech marching should not stomp full-volume in your ear (audio here is non-positional). No
         // pilot => every walker sounds (single-figure walk worlds unchanged).
         if (ctrl.pilotId && e.id !== ctrl.pilotId) continue;
+        // (a rider is carried, not walking: no steps while in a car or in a saddle; its ride is heard instead)
+        if (e.mountedOn || e.gone) continue;
         const last = __gaitLast[e.id] || (__gaitLast[e.id] = { ix: 0, jumped: false, landed: false });
         const ix = Math.floor((e.gaitPhase || 0) * 2);
         if (e.moving && e.grounded !== false && ix !== last.ix) __beatsCue(__AUDIO.footsteps.step, __AUDIO.footsteps.gain);

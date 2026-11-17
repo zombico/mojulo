@@ -278,6 +278,9 @@ describe('jobs across the district (errands on a played district: its shops thei
   it('heard: on the sound sheet a played district has the street\'s bed, a car\'s engine heard only at the wheel, its door, horn and crash, and its jobs\' sounds; off it, none', () => {
     const heard = runSteps({ ...JOBS, id: 'jobs6', sound: {}, music: {} }, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest;
     expect(heard.audio.bed).toBe('city');
+    // (its footsteps the pavement's, whatever the world's kit grows elsewhere; the engine louder than a ride game's)
+    expect(heard.audio.sfx.sheet.slots.step).toBe('step-pavement');
+    expect(heard.audio.engine.level).toBeGreaterThan(0.3);
     expect(heard.audio.engine).toMatchObject({ voice: 'car-engine', cab: true });
     expect(Object.keys(heard.audio.sfx.sheet.cues)).toEqual(expect.arrayContaining(['car:door', 'car:horn', 'car:crash']));
     for (const k of ['car:door', 'car:horn', 'car:crash']) expect(heard.audio.sfx.sheet.cues[k].length).toBeGreaterThan(0);

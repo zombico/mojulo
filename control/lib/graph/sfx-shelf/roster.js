@@ -130,6 +130,7 @@ const ROWS = {
   'armor-hit': made('body', 'hit', 'on', 'a machine\'s plating taking a hit', ['armor impact', 'plating hit', 'armour hit'], 'impact', { material: 'armor' }),
   'shield-hit': made('body', 'hit', 'on', 'a raised energy shield taking a hit', ['shield impact', 'energy hit'], 'impact', { material: 'energy' }),
   'step-concrete': made('movement', 'step', 'footsteps.step', 'a footstep on concrete', ['concrete step', 'concrete footstep'], 'footstep', { surface: 'concrete' }),
+  'step-pavement': made('movement', 'step', 'footsteps.step', 'a footstep on a pavement: a heel\'s clean click, barely a scuff', ['pavement step', 'sidewalk step', 'street footstep', 'heel step'], 'footstep', { surface: 'pavement' }),
   'step-metal': mouthed(made('movement', 'step', 'footsteps.step', 'a footstep on metal', ['metal step', 'metal footstep'], 'footstep', { surface: 'metal' }), { say: ['ガン', 'gan'] }),
   'step-dirt': mouthed(made('movement', 'step', 'footsteps.step', 'a footstep on dirt', ['dirt step', 'dirt footstep'], 'footstep', { surface: 'dirt' }), { say: ['ザッ', 'za'] }),
   'step-grass': mouthed(made('movement', 'step', 'footsteps.step', 'a footstep on grass', ['grass step', 'grass footstep'], 'footstep', { surface: 'grass' }), { say: ['サッ', 'sa'] }),

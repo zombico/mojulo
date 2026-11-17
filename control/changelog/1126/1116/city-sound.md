@@ -12,3 +12,7 @@
   down each have a sound.
 - **Lighter street people.** Each passer-by is now packed (each corner once, weights a byte each): a person is about
   a quarter of the size, so a street of them costs less than it did before they were cleaned up.
+- **Footsteps on a street are a heel's click.** A played town or district is walked on its pavement whatever the rest
+  of the world grows, so its steps are a new pavement footstep (a clean click and a knock, barely a scuff) in place of
+  the grass rustle it was getting. No footsteps sound while you are in a car (or riding anything); the car's engine
+  is what you hear, and it is louder than before.

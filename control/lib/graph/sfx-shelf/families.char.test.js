@@ -23,6 +23,7 @@ const PINS = {
   'armor-hit': '6b70934960f0',
   'shield-hit': '3c3a7ad30409',
   'step-concrete': '818649682593',
+  'step-pavement': '642f14c8c129',   // a new row (2026-11-17): a street's footstep, a heel's click
   'step-metal': 'eff697365f68',
   'step-dirt': 'd8c4a58c17ad',
   'step-grass': 'e532cbf02159',
