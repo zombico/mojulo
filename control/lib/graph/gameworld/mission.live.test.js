@@ -44,7 +44,9 @@ describe('the first mission, from a world', () => {
     for (let i = 0; i < 8 && (await st()).up; i++) { await page.keyboard.press(i % 2 ? 'Enter' : 'ArrowDown'); await wait(200); }
     const p0 = await st();
     expect(p0.up).toBe(false);
-    await wait(600);
+    // (the scene plays: the clock moves. A frame drawn in software can take most of a second, so it is waited for, not timed)
+    const T = (ms = 15000) => ({ timeout: ms });
+    await page.waitForFunction((t) => window.__mojCtrl.world.time > t, T(), p0.t);
     expect((await st()).t).toBeGreaterThan(p0.t);
     expect(p0.weapon).toBe(TEMPLATE_LOADOUTS[SHOOTER].weapons[0]);
     // (the gun as a shooter shows it: its magazine's size for the belt, its fire mode; full health puts no edge on the screen)
@@ -62,27 +64,32 @@ describe('the first mission, from a world', () => {
     const ring = () => page.evaluate(() => window.__mojMission.state.ms.ring);
     expect((await ring()).on).toBe(false);
     await page.evaluate(() => { const W = window.__mojCtrl.world, me = W.entities.find((e) => e.pilotable), f = W.entities.find((e) => e.team === 'foes'); f.transform.pos[0] = me.transform.pos[0] - 6; f.transform.pos[1] = me.transform.pos[1]; me.transform.heading = 0; me.hits = (me.hits || 0) + 1; me.lastHitBy = f.id; });
-    await wait(300);
+    await page.waitForFunction(() => window.__mojMission.state.ms.ring.on, T());
     expect(await ring()).toMatchObject({ on: true, hits: [{ bearing: 180 }] });
     await page.waitForFunction(() => !window.__mojMission.state.ms.ring.on, { timeout: 10000 });
     // a way on still sealed puts the body back
     const S0 = level.mission.sections[0];
-    await stand(S0.door.at); await wait(700);
+    await stand(S0.door.at);
+    await page.waitForFunction((b) => { const p = window.__mojCtrl.world.entities.find((e) => e.pilotable).transform.pos; return Math.hypot(p[0] - b[0], p[1] - b[1]) < 1; }, T(), S0.door.back);
     const back = await where();
     expect(Math.hypot(back[0] - S0.door.back[0], back[1] - S0.door.back[1])).toBeLessThan(1);
     // the rounds taken: the first task met, the tracker on the next
-    await stand(S0.task.at); await wait(900);
+    await stand(S0.task.at);
+    await page.waitForFunction(() => window.__mojMission.state.ms.objective.steps[0].done, T());
+    await page.waitForFunction((t) => window.__mojMission.state.ms.order.title === t, T(), level.mission.sections[1].task.text);
     const p1 = await st();
     expect(p1.done).toBe(1);
     expect(p1.title).toBe(level.mission.sections[1].task.text);
     expect(p1.step).toBe(`2/${level.mission.sections.length}`);
     // the pilot's pause: the menu up, the scene held
-    await page.keyboard.press('Escape'); await wait(400);
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => window.__mojMission.rt.state().screen === 'pause', T());
     const z = await st();
     expect(z.screen).toBe('pause');
     await wait(400);
     expect((await st()).t).toBe(z.t);
-    await page.keyboard.press('Escape'); await wait(400);
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !window.__mojMission.up, T());
     expect((await st()).up).toBe(false);
     // a level lost: its one envelope lands, the debrief opens
     // (low, the screen's edge closes in)
