@@ -1,3 +1,6 @@
+// Re-pinned 2026-11-17 (the street's health): every fixture that embeds the controllable runtime. A police car's hold
+// is its own count (rules-drive.js `chaser`: `helds`, `heldBy`) and the cast's facts raise it as `held:<id>` (cast.js
+// castFacts: one field more per body), so a hold is no hit. A body that is never held raises nothing new.
 // Re-pinned 2026-11-17 (the law's police cars): every fixture that embeds the controllable runtime. The drive builder
 // gained the `chaser` rule (rules-drive.js), the cast its `dismount` op and a `near` spawn's car reset, the mount step its
 // `eject` and a `carHull`'s place among the hulls, and the runtime keeps `posts`, `carBody` and `carHull` (two
