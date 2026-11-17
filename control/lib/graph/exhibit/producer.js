@@ -28,15 +28,19 @@
  *     next      the questions not yet answered, in order; once the four are answered, `make` (the fit's door)
  *     like      where the samples are, and that they are samples
  *     fit       once the time is known (people: everyone until said)
+ *     intake    what they brought, read back (intake.js): what was placed and where, what was set aside, which of
+ *               the questions their own material answered. Such a question is not asked: its step says `read`
  *
  * Builds nothing and stores nothing. Pure.
  */
 import { exhibitFit, readTime, TIMES, TIME_IDS } from './fit.js';
 import { AUDIENCES, AUDIENCE_WORDS } from './brief.js';
+import { readExhibitIntake, exhibitIntakeReport } from './intake.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`get_exhibit: start${m}`);
 
+// (the ids and their order are intake.js's QUESTION_IDS: a thing brought names the questions it answers by them)
 export const EXHIBIT_QUESTIONS = Object.freeze([
   Object.freeze({ id: 'concept', ask: 'what should people leave understanding?' }),
   Object.freeze({ id: 'people', ask: `who is it for: ${AUDIENCES.map((a) => AUDIENCE_WORDS[a].toLowerCase()).join(', ')}, or more than one?` }),
@@ -61,7 +65,7 @@ export function readStart(v) {
   }
   if (v.time !== undefined) { try { readTime(v.time); } catch (e) { throw fail(`.${e.message.replace(/^exhibit: a fit's /, '')}`); } out.time = v.time; }
   if (v.brought !== undefined) {
-    if (v.brought !== 'none' && !(Array.isArray(v.brought) && v.brought.length)) throw fail(`.brought is 'none' (asked, they bring nothing) or the list of what they brought`);
+    try { readExhibitIntake(v.brought); } catch (e) { throw fail(`.${e.message.replace(/^exhibit: /, '')}`); }
     out.brought = v.brought;
   }
   if (v.wants !== undefined) { try { exhibitFit({ time: 'visit', wants: v.wants }); } catch (e) { throw fail(`.${e.message.replace(/^exhibit: a fit's /, '')}`); } out.wants = v.wants; }
@@ -86,8 +90,12 @@ export function exhibitStart(start) {
   const open = EXHIBIT_QUESTIONS.filter((q) => S[q.id] === undefined);
   const leads = needsProducer(S);
   const fit = S.time !== undefined ? exhibitFit({ time: S.time, people: S.people, wants: S.wants }) : null;
+  // (what they brought, intake.js: a question their own material answered is never asked: it is READ, the agent writing
+  // the answer from the item and calling again with it)
+  const intake = exhibitIntakeReport(S.brought);
+  const read = (q) => (intake && !intake.none ? intake.answered[q] ?? null : null);
   const next = [
-    ...open.map((q) => ({ step: q.id, ask: q.ask })),
+    ...open.map((q) => (read(q.id) ? { step: q.id, read: read(q.id), says: `their own material says it (${read(q.id).join(', ')}): write it as \`${q.id}\` from what it says and call again; do not ask them again` } : { step: q.id, ask: q.ask })),
     ...(!open.length && fit ? [{ step: 'make', size: fit.size, door: fit.door, says: `${fit.says} Say it back; with their yes, make it new from the primitives. The stops and the claims are written from what they said, never for them` }] : []),
   ];
   const lead = next.find((s) => typeof s.ask === 'string');
@@ -101,6 +109,7 @@ export function exhibitStart(start) {
     producer: lead ? { seat: 'producer', ask: lead.ask, step: lead.step, holds: HOLDS } : null,
     next,
     like: LIKE,
+    ...(intake ? { intake } : {}),
     ...(fit ? { fit } : {}),
     ...(plain ? { plain: true } : {}),
   };

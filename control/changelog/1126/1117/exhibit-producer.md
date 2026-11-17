@@ -31,3 +31,13 @@ In progress. Each line is added as its phase lands.
   graded), read for their form (`like`) and never offered as the thing to make: nothing matches a concept's words to
   the catalog. A fit's sizes say how each rides a world made new: a tour and a curation are opt-in keys of any
   world's recipe, a prepared state and a gallery's room are any world.
+- **The intake** (`exhibit/intake.js`): what the person brought, read before they are asked anything it already
+  says. Each thing is recorded with what it says and where it went (`EXHIBIT_PLACES`: the aims, the claims, the
+  stops, the rooms, reference) or why it has no place yet; nothing brought is dropped. Its kinds (`EXHIBIT_INTAKE`:
+  learning goals or a lesson plan, label text, sources, a list of topics, pictures, a programme) each say what takes
+  it and the questions it usually answers; a new kind of material is a row. The start reads it as `brought`: a
+  question their own material answered is never asked, its step says `read` (the agent writes the answer from the
+  item and calls again), and `intake` reads back what was placed, what was set aside and what is still open. A
+  source is never a claim until they say what it shows. It records and never authors.
+- **Kept with the exhibit**: a curation may carry `brought`, the record as read, so the next session knows what was
+  brought. A curation without one is as it always was.
