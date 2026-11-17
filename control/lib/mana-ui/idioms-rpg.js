@@ -107,7 +107,7 @@ export const RPG_IDIOMS = {
       { use: 'window', children: [{ use: 'map', props: { shapes: P('shapes'), markers: P('markers'), view: P('view'), focus: P('focus'), heading: P('heading'), zoom: P('zoom'), size: 'full', labels: true } }] },
       { use: 'window', props: { title: { word: 'map' } }, children: [{ use: 'list', id: 'key', props: { rows: P('key'), row: row({ use: 'icon', props: { name: I('icon') } }, txt(I('name'))) }, on: { accept: { emit: 'find', icon: I('icon') } } }] },
     ] }]),
-    example: { title: 'Map', shapes: { bind: 'map.shapes' }, markers: { bind: 'map.markers' }, view: { bind: 'map.view' }, focus: { bind: 'map.focus' }, heading: { bind: 'map.heading' }, zoom: { bind: 'map.zoom' }, key: { bind: 'map.key' } },
+    example: { title: 'Map', shapes: { bind: 'city.shapes' }, markers: { bind: 'city.markers' }, view: { bind: 'city.view' }, focus: { bind: 'city.focus' }, heading: { bind: 'city.heading' }, zoom: { bind: 'city.zoom' }, key: { bind: 'city.key' } },
   },
   'quest-log': {
     kind: 'screen', about: 'the journal: quests beside the one in focus, its story and its steps (done ☑, to do ☐)',

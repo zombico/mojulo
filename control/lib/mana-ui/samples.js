@@ -27,6 +27,8 @@ export const SAMPLE_STATE = Object.freeze({
   boss: { name: 'The Hollow King', hp: 2100, hpMax: 3600, phases: 3, statuses: ['enraged'] },
   target: { name: 'Hound', level: 3, hp: 8, hpMax: 22, state: 'combat', distance: '12 m' },
   pops: [{ id: 1, x: 0.5, y: 0.52, value: 14, kind: 'hit' }, { id: 2, x: 0.37, y: 0.38, value: 38, kind: 'crit' }, { id: 3, x: 0.22, y: 0.7, value: 9, kind: 'heal' }],
+  // (a place as a map: its ground, what is on it, how it is seen, and the key to its icons)
+  city: { shapes: [{ kind: 'road', x: 0, y: 0, w: 1, h: 1 }, { kind: 'block', x: 0.1, y: 0.1, w: 0.3, h: 0.3, tall: 0.4 }, { kind: 'park', x: 0.55, y: 0.15, w: 0.3, h: 0.25 }, { kind: 'turf', tint: '#c0392b', x: 0, y: 0, w: 1, h: 0.5 }], markers: [{ x: 0.5, y: 0.5, you: true, heading: 30 }, { x: 0.3, y: 0.6, icon: 'shop', label: 'A shop', named: false }], view: 'plan', focus: [0.5, 0.5], heading: 30, zoom: 1, key: [{ icon: 'shop', name: 'A shop' }, { icon: 'car', name: 'A car' }] },
   map: [{ x: 0.5, y: 0.5, kind: 'self' }, { x: 0.3, y: 0.4, kind: 'foe' }, { x: 0.7, y: 0.6, kind: 'foe' }, { x: 0.8, y: 0.2, kind: 'goal', label: 'Gate' }, { x: 0.2, y: 0.8, kind: 'item' }],
   bearings: [{ bearing: 60, kind: 'goal' }, { bearing: 350, kind: 'foe' }],
   objective: { title: 'Reach the gatehouse', steps: [{ text: 'Find the crest key', done: true }, { text: 'Open the east gate', done: false }] },
