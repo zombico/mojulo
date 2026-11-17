@@ -57,6 +57,7 @@ import { roomEligible } from '@/lib/graph/gameworld/practice-room.js';
 import { practiceFor, mountSuggestion, rangeMeasured, rollMeasured } from '@/lib/graph/gameworld/practice.js';
 import { fightsReadout } from '@/lib/graph/gameworld/fights-readout.js';
 import { measureRoom, measuredSummary } from '@/lib/graph/gameworld/feel/measure.js';
+import { fightMeasured } from '@/lib/graph/gameworld/fight-measure.js';
 import { railOfGame } from '@/lib/graph/gameworld/game-bodies.js';
 import { quickWorld, sportConceptOf } from '@/lib/graph/gameworld/quick.js';
 import { quickVehicleWords, patchVehicleWords } from '@/lib/graph/vehicle-registry/doors.js';
@@ -543,6 +544,10 @@ function readout(ref, world, context = {}) {
   // gate beside the feel's; a law lost is advised as a feel step
   const rangeM = door.rooms.includes('range') ? rangeMeasured(world) : null;
   if (rangeM?.lost) next.push({ step: 'feel', range: rangeM.worst, card: 'gameworld-feel' });
+  // the fight measured (gameworld/fight-measure.js: the fight laws on each sideways map, before anyone plays it): the
+  // encounters' machine gate; a law lost is advised with the wave it names, never a refusal
+  const fightM = fightMeasured(world);
+  if (fightM?.lost) next.push({ step: 'fight', map: fightM.worst.map, law: fightM.worst.law, advice: fightM.worst.advice, maps: fightM.maps.filter((m) => m.lost.length).map((m) => ({ id: m.id, play: m.play, lost: m.lost })), card: 'gameworld-side-scroll' });
   // the roll room measured (roll-room.js: the seeds audit of its yard, the cover forms that stop this hero, before any
   // level): a law lost, or a hero no form of cover stops, is advised; never a refusal
   const rollM = door.rooms.includes('roll') ? rollMeasured(world) : null;
@@ -1428,7 +1433,7 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
     const receipt = ledger.received(r), jobs = GameworldReqJobRepository.list(ref, r.id);
     return { id: r.id, unit: r.unit, status: r.status, receipt, does: nextOf(jobs, { level: true, probe: probeState(receipt), presented: !!r.verdict?.presented }) };
   });
-  const posts = (() => { try { return goalposts({ world: W, chapters: full.chapters ?? [], parts: full.parts ?? [], mainQuest: full.mainQuest ?? null, made: W.made ?? {}, compile: full.compile ?? null, reqs: levelReqs }); } catch { return null; } })();
+  const posts = (() => { try { return goalposts({ world: W, chapters: full.chapters ?? [], parts: full.parts ?? [], mainQuest: full.mainQuest ?? null, made: W.made ?? {}, compile: full.compile ?? null, reqs: levelReqs, playthrough: full.playthrough ?? null }); } catch { return null; } })();
   if (posts) full.goalposts = posts;
   // the goalpost's question in `next` (goalposts.js leadNext): the list and the goalposts say the same move, and a game
   // built with design goalposts open is said to be a draft
@@ -1516,6 +1521,8 @@ export async function playReadout(W, { budgetMs = runBudgetMs(), clock = Date.no
   const made = Object.entries(W.made ?? {}).filter(([k, v]) => k.startsWith('level-') && v?.ref);
   const fights = made.map(([key, v]) => ({ key, ref: v.ref, row: SketchRepository.getByRef(v.ref) })).filter(({ row }) => {
     const ents = row?.manifest?.entities ?? [], pilot = ents.find((e) => e?.pilotable);
+    // (a street level is a fight: its own simulation, played by the brawl's scripted player, below)
+    if (row?.manifest?.brawl?.practice?.street) return true;
     return ents.some((e) => e?.team === 'foes') && !!(pilot?.rule?.moveset || pilot?.rule?.weapons);
   });
   if (!fights.length) return null;
@@ -1526,6 +1533,15 @@ export async function playReadout(W, { budgetMs = runBudgetMs(), clock = Date.no
     if (levels.length && budgetMs > 0 && clock() - t0 >= budgetMs) { unplayed.push(key); continue; }
     try {
       const { payload } = await resolveWorldScene(row);
+      // a street (brawl/brawl-playthrough.js): the room its page steps, played by the brawl's basic player and its still one
+      if (payload.brawl?.street) {
+        const { playStreet, streetSummary } = await import('@/lib/graph/brawl/brawl-playthrough.js');
+        const basic = playStreet(payload.brawl, { player: 'basic' }), still = playStreet(payload.brawl, { player: 'still' });
+        // (a street its basic player loses: where, and the two words that ease it; advice, the design is the creator's)
+        const eases = basic.won ? {} : { eases: `the basic player ${basic.outcome === 'lost' ? `ran out of falls at stop ${Math.min(basic.stops.of, basic.stops.cleared + 1)} of ${basic.stops.of}` : 'did not finish in time'}: allow more falls (street.lives), thin that stop's wave, or stand its boss at cpu: 'novice'` };
+        levels.push({ level: key, pass: basic.won && !still.won, basic: streetSummary(basic), still: streetSummary(still), ...eases });
+        continue;
+      }
       const basic = playLevel(payload, { player: 'basic' }), still = playLevel(payload, { player: 'still' });
       levels.push({ level: key, pass: basic.won && !still.won, basic: playthroughSummary(basic), still: playthroughSummary(still), hitsBy: basic.hitsBy });
     } catch (e) { levels.push({ level: key, pass: false, error: String(e?.message ?? e).slice(0, 200) }); }
@@ -1550,12 +1566,13 @@ export function registerDesignGameTools() {
     timeoutMs: RENDER_TOOL_TIMEOUT_MS,
     description:
       'The GAME rail: design a game top down and let mojulo make it. A gameworld (levels, hero, gear, systems) is '
-      + 'a sketch; this writes it (`world`, `patch`), takes the creator\'s verdicts (`approve`, `revise` { part, note }) and, '
-      + 'with `run: true`, makes every ready step through the real doors, keeping what did not move, leaving hand edits '
-      + '(`force` overwrites). Answers the stamps, what was made, the advice and the next moves as step ids '
-      + '(`readout: \'changed\'` for only what moved). Read '
-      + 'get_game_vocab({ id: \'gameworld-guide\' }) first. `example` makes a reference only when the creator asks; '
-      + '`compare` reads one against a made world. `compose: { prompt }`: words to a world. `chapter`: a chapter\'s view.',
+      + 'a sketch; this writes it (`world`, `patch`), takes verdicts (`approve`, `revise` { part, note }) and, '
+      + 'with `run: true`, makes every ready step through the real doors, keeping what did not move and hand edits '
+      + '(`force` overwrites). Answers stamps, what was made, advice and the next moves as step ids '
+      + '(`readout: \'changed\'`: only what moved). Read '
+      + 'get_game_vocab({ id: \'gameworld-guide\' }) first. `world: { name }` alone answers what to ask. '
+      + '`example`: a reference, only when asked; '
+      + '`compare`: one against a made world. `compose: { prompt }`: words to a world. `chapter`: a chapter\'s view.',
     inputSchema: {
       type: 'object',
       properties: {

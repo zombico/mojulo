@@ -5,7 +5,10 @@
  *   the stick       walks along the street and across it, and AIMS (eight ways) while it fires
  *   attack (A)      FIRES, held: at its gun's rate, the way the stick points (or the way the body faces)
  *   strong (St)     PLANTS, held: the body stands its ground and the stick only aims
- *   jump (J)        a jump the way the stick points; it fires in the air too
+ *   jump (J)        a jump the way the stick points; it fires in the air too. A jump OVER a round at the chest, taken
+ *                   early enough to be up as it passes: late, the body is caught in the air and floored
+ *   strong + down   DUCKS, held (planted, the stick pulled toward the camera): down under a round at the chest, firing
+ *                   from the crouch the way the body faces; let go, it stands
  *   special (S)     a GRENADE, lobbed the way the stick points (or ahead), while it has one
  *   the stick tapped twice the same way (along or across): the ROLL that way, untouchable as it goes
  *
@@ -32,6 +35,12 @@ export function readGunButtons(reader, buttons, body) {
   }
   r.px = x; r.pz = z;
   const plant = !!buttons.h, aim = x || z ? [x, z] : [body.face, 0];
+  // (DUCK: planted with the stick pulled toward the camera, held: down under a round at the chest, firing from the crouch
+  // the way it faces; a round's two other ways out are a step off its line and a jump over it)
+  if (plant && z === -1 && x === 0) {
+    r.pj = buttons.j ? 1 : 0; r.ps = buttons.s ? 1 : 0;
+    return [{ x: 0, z: 0, duck: true, ...(buttons.a ? { fire: [body.face, 0] } : {}) }, r];
+  }
   const pad = { x: plant ? 0 : x, z: plant ? 0 : z };
   if (roll) Object.assign(pad, { dash: 'roll', x, z });
   if (buttons.a) pad.fire = aim;
@@ -59,6 +68,7 @@ export function gunMoveList(guns, grenades = null) {
       { name: 'Fire', input: 'A (held)', about: 'at the gun\'s rate, the way the stick points; walking, slower', data: [] },
       { name: 'Aim', input: 'stick + A', about: 'eight ways: along the street, across it, and the four between (shallow across)', data: [] },
       { name: 'Plant', input: 'St (held)', about: 'stand your ground: the stick only aims', data: [] },
+      { name: 'Duck', input: 'St + ↓ (held)', about: 'down under a round at the chest; fire from the crouch. A foe aims low at you ducked: jump that one', data: [] },
       { name: 'Roll', input: '→ → / ↑ ↑', about: 'tapped twice any way: a roll, untouchable as it starts; a round passes through', data: [] },
       { name: 'Jump', input: 'J', about: 'the way the stick points; fire in the air too', data: [] },
       { name: 'Grenade', input: 'S', about: 'lobbed over the crowd, it bursts where it lands', data: grenades === null ? [] : [{ what: 'grenades', value: String(grenades) }] },

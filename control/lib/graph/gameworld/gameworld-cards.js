@@ -95,6 +95,8 @@ import { INTENT_LOOKS } from '../playscape/ui/interface-look.js';
 import { THEME_CARD_IDS } from '../playscape/ui/theme-cards/loader.js';
 import { THEME_WORDS, THEME_FAMILIES } from '../../mana-ui/theme.js';
 import { FLOW_KINDS, SCREEN_EVENTS, LEVEL_EVENTS, FLOW_SPECIALS, FLOW_GUARDS, FLOW_IN_PLAY } from '../game/flow.js';
+import { DRESS_SETTINGS, DRESS_SETTING_IDS, DRESS_PIECES, DRESS_PIECE_IDS } from '../brawl/brawl-dress.js';
+import { PLAY_TYPES, PLAY_IDS } from '../brawl/brawl-play.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -335,10 +337,12 @@ function guide() {
   return lines(
     'THE GAME BOOK — design a game top down, then let the rail make it. You DESIGN; design_game makes, keeps and remakes.',
     '',
-    'SIZE THE ASK first. One level, a simple goal (reach, collect, survive, avoid), no powers, stats or',
-    'progression: the QUICK path, one call; read gameworld-quick only. Several levels, no hero: COMPOSE,',
-    '{ compose: { prompt } }, then run. A hero, powers, gear or a story: the book below, by chapter (gameworld-studio).',
-    'The book starts from a ticket: `ask: { intent }` with its first patch (gameworld-ledger).',
+    'SIZE THE ASK first. THEIR game (a hero, powers, gear, a story, anything they brought): ask what they brought',
+    '(gameworld-producer), then { world: { name } }: it answers what to ask, nothing stored. Write `levels` once the',
+    'first can be named, never invented; then the book below, by chapter (gameworld-studio), from a ticket:',
+    '`ask: { intent }` with its first patch (gameworld-ledger). ONLY one level, a simple goal (reach, collect, survive,',
+    'avoid), no powers, stats or progression: the QUICK path, one call, made at once, nothing asked first; read',
+    'gameworld-quick only. Several levels, no hero: COMPOSE, { compose: { prompt } }, then run.',
     '',
     'THE LOOP (each page answers ONE question, from the brief and the pages above it; never from a default):',
     '  intent      what game is it? its cube; the world is laid for it (gameworld-intent)',
@@ -798,6 +802,30 @@ const QUICK_LEVERS = {
     '  seen from overhead and worked by a mascot unless camera or hero says otherwise (hero: false: first person); the work shown in pips',
     '  its work room: bible?book=practice&room=work (&cast=orb|sprout|toon&feel=<template>): the recipe on the floor, a mascot and a movement from the presets'],
   battle: () => [`  foes: n (3), foe: ${HERO_WORDS}`],
+  brawl: () => [
+    '  players: 1..4 on one screen   lives: 1..9, the falls they share (3)   register: the game\'s one look   armed: true, each hero its own weapon',
+    '  ASK FIRST who the enemies are and how the street runs:',
+    '  the world\'s `foes` (the bestiary, gameworld-foes) are the crowd: each fights as its class and rank, a person or a people in its',
+    '    own body (a beast as a jointed figure, said).',
+    '  street: { open?: m, stops: [{ wave: { <role or foe id>: n }, length?, name? }] (1..12), boss?: <role or foe id> | { foe, with?, hp?, cpu?, stages? } }',
+    '    boss.stages: 2..5 | [{ at?, cpu?, name?, calls?: { <id>: n } }]: its fight in acts.',
+    '    a free first screen, each stop held until its wave falls, then the boss\'s screen; the last wave fallen wins. Roles: grunt,',
+    '    shooter, elite, boss. Absent with `foes`: three stops that build, the cast\'s boss. The readout advises, never refuses.',
+    '  waves: [{ grunt: 3 }, { foes: { <id>: n }, formation?, name? }] alone: a wave set on one open screen.',
+    '  IN A DESIGNED GAME a street is a level: levels.<id>.street: { …the street, players?: 1..4, kit?, lives?, guns? }; its seats the hero and',
+    '    the cast who join; more levels are more streets, linked. Give the world screen: \'screen\': a street runs across it.',
+    '  OR BY STREETS (gameworld-side-scroll): streets, crowd, play; bare with no `foes`, the starter\'s dressed town street.',
+  ],
+  rungun: () => [
+    '  players: 1..4 on one screen   lives: 1..9 (3)   register: the game\'s one look',
+    '  guns: [<name> | { from, …dials }] (1..6, the first held over the sidearm; absent machine-gun, spread, flame, rocket)',
+    '  waves: as a brawl\'s (absent, four of the range\'s: a wall of rifles, a pincer, down the stairs, suppressed); its shooters',
+    '    (rifleman, gunner, grenadier, bazooka) fire on a warning, to the wave\'s pattern (volley, sweep, pincer, alternate).',
+    '  foes, street: as a brawl\'s (its cast all carry guns; its stops and its boss the same).',
+    '  tuning (a street\'s word): arcade (unsaid for a run & gun: soldiers fall to a couple of rounds, the hero to a few hits, an',
+    '    army at each stop, fire sooner and faster, five falls) | measured (the long fight). Ask which the game is.',
+    '  The same street as a brawl; what differs is the hitting: rounds fly and are stepped off or rolled through, a grenade lobs.',
+  ],
   fight: () => [
     '  roster (1..12): every fighter a CHARACTER. A sheet (egocube card) the run',
     '    makes into one: an archetype word, a brief in words, or { brief?, facets?, seed?, archetype?, role?, build?, age?,',
@@ -1152,6 +1180,7 @@ function foesCard() {
     'CAST    /bible?book=foes, the cast sheet: parts foes:cast, foes:<id>. None kept: design_game\'s `foes` step proposes one.',
     'A world or level without foes is laid as it was.',
     'GAUNTLET a level\'s goal: { gauntlet: { arenas: [{ waves: [{ <id>: <n> }] }], checkpoint? } }: sealed in waves (card wave-gauntlet).',
+    'STREET  a brawl\'s level: levels.<id>.street: { stops: [{ wave: { <role or id>: n } }], boss? }: the bestiary its crowd (gameworld-quick-brawl).',
   );
 }
 
@@ -1437,6 +1466,58 @@ export function genreCardById(id) {
   return { id, name: `What game it is: ${GENRES[genre].name}`, summary: GENRES[genre].why, when: `a ${GENRES[genre].name.toLowerCase()} game`, scope: 'rail', body: genreCard(genre) };
 }
 
+// THE SIDE-SCROLL MAP (brawl/brawl-dress.js): generated from the shelves, so a new setting, set or piece is in the card
+const sideScrollCard = () => {
+  const wrap = (label, words, width = 112) => { const out = []; let line = label; for (const w of words) { if ((line + ' ' + w).length > width) { out.push(line); line = '    ' + w; } else line += (line.trim().length === label.trim().length && line === label ? '' : ' ') + w; } out.push(line); return out; };
+  const floor = DRESS_PIECE_IDS.filter((id) => !DRESS_PIECES[id].wall), marks = DRESS_PIECE_IDS.filter((id) => DRESS_PIECES[id].wall);
+  return [
+    'THE SIDE-SCROLL MAP: a belt seen from one side (a brawl\'s street; docs/side-scroll-map-principles.md).',
+    'A map is DRESSED: beside the band, a set a screen, in a SETTING (the kind of place).',
+    '',
+    'THE PRINCIPLES (measured, advised; dressLaws):',
+    '  the band low, the backdrop over it (a dressed map takes the belt\'s `street` angle)',
+    '  nothing between the camera and the fight over a body\'s waist; the dress stands OUTSIDE the band',
+    '  a screen is a place: no two running alike; the turn tells a story; the boss\'s screen is HELD (its marks, its colour)',
+    '  layers: floor things AND wall marks, something overhead, a way through; no long bare run',
+    '  a mark belongs to one building or bay; a set draws on several different things',
+    '  wear is the place\'s own matter (skandart), its vessels in groups, some tipped or broken',
+    '  the walk may BEND (rise, turn, drift) and still scrolls sideways; a bend is where the map turns a page',
+    '',
+    'SETTINGS (each its sets, and the turn unsaid: way in → held screens → the boss\'s):',
+    ...DRESS_SETTING_IDS.map((id) => { const S = DRESS_SETTINGS[id], T = S.turn; return `  ${id}   ${S.sets.join(', ')}   (${T.way} → ${T.held.join(', ')} → ${T.boss})${S.kits.length ? `   kits: ${S.kits.join(', ')}` : ''}`; }),
+    '',
+    'IN A DESIGNED GAME a level is a street (gameworld-quick-brawl: its stops, its boss, its crowd the world\'s cast):',
+    '  levels.<id>.street: true | { …the street, ground?: <a level, below>, things?, scenes?: { … } | false }',
+    '    ground: its place in a kit\'s stead (a town, a stage, a blockout, dressed and bent), the stops laid along it;',
+    '    on a ground its play\'s things and the starter\'s scenes are laid unless said',
+    '',
+    `PLAYED by a play type (\`play\`: ${PLAY_IDS.join(' | ')}; on a quick brawl or one of its streets; a street level by guns). gun: the gunner\'s`,
+    '  kit, guns? (asked), grenades?; unsaid: shooters, cover, gun crates. An ungated screen\'s wave is fought on the move',
+    'MEASURED: the readout fights each map with bots (the fight laws); a `fight` step names the wave',
+    '',
+    'A LEVEL (a quick brawl\'s streets[i].level, or brawlLevel):',
+    '  { kind: \'town\', fronts?: \'rough\' | \'broken\', dress?: false | { sets?, colour?, seed? } }   a street',
+    '  { kind: \'stage\', kit, dress?: false | { setting?, sets?, colour?, seed?, kit? } }   a building\'s rooms; a kit',
+    '    with its own setting is dressed as it unsaid; any kit takes one said',
+    '  THE WALK BENDS, in any place (a room turns as a street does), by three words on a level (a belt\'s own):',
+    '    rise:  [[s, z], …]   the floor\'s height along the walk; the camera rises with it',
+    '           (a town: climb: grade, to 0.1)',
+    '    turn:  [[s, degrees], …]   the view swings down the walk (under 0, the other way), to 55°',
+    '    drift: [[s, n], …]   the band slides across the walk\'s line, the view following: a diagonal',
+    '    it plays straight and level, drawn bent',
+    '    the place goes with the walk',
+    '  sets: one a screen: a set\'s name, null (bare), or A SET OF ITS OWN:',
+    '    { says?, far: { piece: weight }, wall?: { piece: weight }, gap?: [m, m], marks?: [m, m], near?: { piece: weight } }',
+    '  colour: the holder\'s (#rrggbb): on its marks; a quick brawl gives its crowd\'s',
+    '',
+    ...wrap('FLOOR PIECES:', floor.map((id, i) => id + (i < floor.length - 1 ? ',' : ''))),
+    ...wrap('WALL MARKS:', marks.map((id, i) => id + (i < marks.length - 1 ? ',' : ''))),
+    '',
+    'A new kind of place is rows (a setting, its sets, its pieces) in brawl-dress.js; see it without a fight:',
+    '  node scripts/spikes/brawler/street.mjs --tour --level \'{"kind":"stage","kit":"bay-military"}\'',
+  ].join('\n');
+};
+
 const CARDS = [
   ['gameworld-guide', 'The game book', 'the loop and the principles: design a game top down, then let design_game make it', 'make a game, design a game, a game with a hero and powers, where do I start', guide],
   ['gameworld-studio', 'The studio', 'the book worked a chapter at a time: the departments in waves, a chapter\'s session, the build', 'a big game, many levels, several departments, who does what and in what order, subagents, a team of agents', studioCard],
@@ -1465,6 +1546,7 @@ const CARDS = [
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
   ['gameworld-roll', 'The roll', 'a different map each time: what a level\'s seed picks on it (cover, items, the start, a paced line), an obstacle course for a running game, a run of its maps', 'a different map every time, a roguelite, random levels, procedural, replayable, the level changes each run, an obstacle course, an endless runner with a finish, hurdles to jump, lanes to switch', rollCard],
   ['gameworld-course-dress', 'The course\'s dress', 'how an obstacle course looks: its way and asks, the walls beside it and the backdrop behind it, designed as one dress by role and held to one gate; the course sheet', 'the walls of the course, the background, the backdrop, the skyline, decorate the course, style the level, the sides of the track, scenery, the look of the runner, palette of the course', courseDressCard],
+  ['gameworld-side-scroll', 'The side-scroll map', 'a belt seen from one side, dressed as a place: its principles, its settings (a street, a facility, a base, an office), a set a screen, a set of the agent\'s own', 'a beat \'em up level, a side-scrolling stage, a street to fight down, a warehouse level, a military base level, an office level, dress the street, what makes a good brawler stage', sideScrollCard],
   ['gameworld-mounts', 'The mounts', 'horses the hero gets on and rides: their coats, where they stand, the ride', 'a horse to ride, mount a horse, ride a horse, horseback, get on my horse, a stable of horses, cavalry', mountsCard],
   ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight, minigames, a fishing minigame, an arcade in the inn', battlesCard],
   ['gameworld-foes', 'The foes', 'hostile classes on the trails: how each moves, hurts and decides, at any rank, on any body that fits', 'enemies in my level, goombas, monsters to fight, a wolf pack, a boss beast, dire wolves, foot soldiers, a turret, things that chase me, a swarm of rats', foesCard],
