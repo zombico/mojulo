@@ -27,9 +27,16 @@ said as its phase lands.
 - **The hero collides as tall as it stands.** Every level's hero collided as a 1.7 m person whatever its body. A hero's
   stature is read off its plan alone, no mesh compiled (`layered.js` `heroStature`, the tiered heads), once it is made,
   and each level's hero collides at it; a level ordered without it keeps 1.7 m, a mascot pilot its own capsule.
-- Planned: the arm cannon (the hand becomes the cannon while the buster is out), and the buster itself on the runtime:
-  its tap shots and its charge are the action lab's and not yet the game's (the feel's lowering reports the charge
-  lost).
+- **Galaxy Boy shoots: the buster on the runtime.** The run and gun's buster was the action lab's alone (the feel's
+  lowering reported its charge lost). A charge of kind `shot` now lowers to the rule's `buster`, played by a new opt-in
+  builder (`worlds/controllable/buster.js`): a tap shot on the press, three in flight at most; held, the charge builds
+  through anything; let go, the highest level reached fires, on the lab's beat (a level's frames after the press; a frame
+  sooner fizzles). Each round flies straight from the chest, swept against the bodies it meets and ended by a wall, its
+  damage a share of a hero's blow by level. Fired on J (the pad's right trigger as ever), drawn as glowing pellets in
+  the charge's colours, its charge lighting the hero juice's sparks; composed into a page only where a body carries one.
+- **The arm cannon** (`cannon: 'R' | 'L'`, the toy family's): a barrel round the hand from over the wrist past the
+  fingertips, a lip at its muzzle, the bore dark in its face. Planned: the hand that becomes the cannon only while the
+  buster is out.
 - **A level seen as an elevation.** The course map's sibling: a side-scroller's level as the camera's path through the
   along × up plane, a chain of zones (runs one screen thick, rooms that scroll both ways, full-screen corners), built
   only where the camera can see. Across develops, down is free or a commitment, up is earned.
