@@ -128,11 +128,14 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
   const Fi = B.fittings;
   if (Fi) structure.fittings = { leaves: 0, trays: 0, placards: 0 };
   // (the long wall the catwalk will stand on: the one with the fewest doorways)
-  const cwSide = [...sides.filter(isLong)].sort((p, q) => r.openings[p].length - r.openings[q].length || (p < q ? -1 : 1))[0];
+  // (a gallery's wall and height its own: program-core.js fight.gallery)
+  const gal = r.gallery && r.gallery.z !== undefined && sides.includes(r.gallery.side) ? r.gallery : null;
+  const cwSide = gal ? gal.side : [...sides.filter(isLong)].sort((p, q) => r.openings[p].length - r.openings[q].length || (p < q ? -1 : 1))[0];
   for (const s of sides) {
-    const F = wallFrameOf(r, s), cuts = r.openings[s].map((op) => [...openingU(F, op), op.top]).sort((p, q) => p[0] - q[0]);
+    // (a doorway at a gallery's height, `sill`: the wall whole under it)
+    const F = wallFrameOf(r, s), cuts = r.openings[s].map((op) => [...openingU(F, op), op.top, ...(op.sill ? [op.sill] : [])]).sort((p, q) => p[0] - q[0]);
     const n = Math.max(1, Math.round(F.len / kit.bay)), lines = [...Array(n + 1)].map((_, k) => (F.len * k) / n);
-    const framed = cuts.map(([c0, c1, top]) => [c0 - Dr.frame, c1 + Dr.frame, top + Dr.frame]);
+    const framed = cuts.map(([c0, c1, top, sill]) => [c0 - Dr.frame, c1 + Dr.frame, top + Dr.frame, ...(sill ? [sill - Dr.frame] : [])]);
     // the windows, where the wall faces out (bay-glass.js): a tall room's ribbon a bay at a time under its crown, a low
     // room's punched windows or a slot, each clear of the doorways; the field laid round them
     const G = B.glass, outside = G && rooms.length ? outsideSpans(r, rooms, F, s) : [], wins = [];
@@ -140,7 +143,7 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
     if (outside.length) {
       const Gr = G.ribbon, Gp = G.punched, Gs = G.slot;
       wz = tall ? [zc0 - Gr.below - Gr.h, zc0 - Gr.below] : G.low === 'punched' ? [Math.max(Gp.sill, Ba.h + 0.1), Math.min(Gp.head, zc0 - 0.15)] : [zc0 - Gs.below - Gs.h, zc0 - Gs.below];
-      if (tall && (s === cwSide ? wz[0] < B.catwalk.z + B.catwalk.rail + Gr.over : wz[0] < Dr.frame + kit.door.height + 0.3)) wz = null;
+      if (tall && (s === cwSide ? wz[0] < (gal ? gal.z : B.catwalk.z) + B.catwalk.rail + Gr.over : wz[0] < Dr.frame + kit.door.height + 0.3)) wz = null;
       if (wz && wz[1] - wz[0] < 0.4) wz = null;
       // (a building set into its slope, `B.ground`: no window where the land outside stands over its sill)
       const Gd = B.ground, buried = Gd && wz ? (a, b) => [a, b].some((u) => { const y = onWall(F, u, 0, 0)[1], t = Math.max(0, Math.min(1, (y - Gd.y0) / (Gd.y1 - Gd.y0))); return (Gd.lift ?? 0) + wz[0] < Gd.z0 + (Gd.z1 - Gd.z0) * t + 0.15; }) : null;
@@ -184,6 +187,7 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
       }
     }
     for (const [a, b, top] of framed) if (top < zc0) panel(out, onWall(F, a, 0, top), F.U, b - a, Z, zc0 - top, F.N, field, field.cell);
+    for (const [a, b, , under] of framed) if (under > Ba.h) { wallBox(out, F, a, b, 0, Ba.h, Ba.out, base, base.cell, true); fieldPanel(a, b, Ba.h, under); }
     for (const [a, b] of solidSpans(F.len, framed.filter(([, , top]) => top > zc0 - 0.05).map(([a, b]) => [a, b]))) wallBox(out, F, a, b, zc0, zc1, Cr.out, crown, crown.cell, true);
     if (zc1 < wallTop) panel(out, onWall(F, 0, 0, zc1), F.U, F.len, Z, wallTop - zc1, F.N, field, field.cell);
     // over the walls' top: a vault's gables on the end walls, a sawtooth's teeth on the long ones (the far end wall up
@@ -196,11 +200,14 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
     if (tooth > 0 && s === (alongY ? '+y' : '+x')) panel(out, onWall(F, 0, 0, wallTop), F.U, F.len, Z, tooth, F.N, field, field.cell);
     structure.layers.push({ side: s, bands: [Ba.h, zc0, zc1].filter((z, i, a) => i === 0 || z > a[i - 1] + 1e-6).length + 1 });
     // each doorway: jambs and a head in the secondary paint, a signal lamp over it, a hazard stripe on the floor at it
-    for (const [c0, c1, top] of cuts) {
-      wallBox(out, F, c0 - Dr.frame, c0, 0, top, Dr.out, paint, paint.cell);
-      wallBox(out, F, c1, c1 + Dr.frame, 0, top, Dr.out, paint, paint.cell);
+    for (const [c0, c1, top, sill = 0] of cuts) {
+      wallBox(out, F, c0 - Dr.frame, c0, sill, top, Dr.out, paint, paint.cell);
+      wallBox(out, F, c1, c1 + Dr.frame, sill, top, Dr.out, paint, paint.cell);
       wallBox(out, F, c0 - Dr.frame, c1 + Dr.frame, top, top + Dr.frame, Dr.out, paint, paint.cell, true);
-      quad(out, [onWall(F, c0 - Dr.frame, 0, LIFT * 2), onWall(F, c1 + Dr.frame, 0, LIFT * 2), onWall(F, c1 + Dr.frame, Dr.sill, LIFT * 2), onWall(F, c0 - Dr.frame, Dr.sill, LIFT * 2)], Z, hz, null, null,
+      if (sill) wallBox(out, F, c0 - Dr.frame, c1 + Dr.frame, sill - Dr.frame, sill, Dr.out, paint, paint.cell, true);
+      // (and the wall's thickness round it, its floor through to the storey's: a doorway a body walks through level)
+      if (sill) reveal(out, F, c0, c1, sill, top, kit.wall, field);
+      if (!sill) quad(out, [onWall(F, c0 - Dr.frame, 0, LIFT * 2), onWall(F, c1 + Dr.frame, 0, LIFT * 2), onWall(F, c1 + Dr.frame, Dr.sill, LIFT * 2), onWall(F, c0 - Dr.frame, Dr.sill, LIFT * 2)], Z, hz, null, null,
         [[0, 0], [(c1 - c0 + 2 * Dr.frame) / hz.scale, 0], [(c1 - c0 + 2 * Dr.frame) / hz.scale, Dr.sill / hz.scale], [0, Dr.sill / hz.scale]]);
       // (a bunker's door (B.fittings.leaf): its blast door parked over the opening, a slab as wide as the frame between
       // the jambs, and chevrons down the jambs' faces; the signal lamp then sits on the leaf)
@@ -540,13 +547,14 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
   }
 
   // ── a tall room's catwalk: railed but at its entries, entered by a stair, a long one by a second ──
+  // (a GALLERY, a building designed as a fighting map (program-core.js fight.gallery): the catwalk on the wall its
+  // `side` names, at the floor of the storey it is entered from, `z`, whatever the room's height or dice)
   const Cw = B.catwalk, longSides = sides.filter(isLong);
-  if (tall && wallTop >= Cw.min && longSides.length) {
-    const s = [...longSides].sort((p, q) => r.openings[p].length - r.openings[q].length || (p < q ? -1 : 1))[0], F = wallFrameOf(r, s);
-    const cz = Cw.z, o0 = Pl.out, o1 = Pl.out + Cw.d, going = Cw.going, nSteps = Math.ceil(cz / Cw.rise), riseH = cz / nSteps, sLen = nSteps * going;
-    // (the near stair's foot a clear landing off the end wall, so a walker comes to it square: `Cw.landing`)
-    const cuts = r.openings[s].map((op) => openingU(F, op)), startU = Cw.landing, landU = startU + sLen, endU = F.len - 0.6;
-    if (endU - landU > 4 && !cuts.some(([c0]) => c0 < landU + 1)) {
+  if (gal ? true : tall && wallTop >= Cw.min && longSides.length) {
+    const s = gal ? gal.side : [...longSides].sort((p, q) => r.openings[p].length - r.openings[q].length || (p < q ? -1 : 1))[0];
+    const Lw = catwalkLayout(r, kit, s, gal ? gal.z : Cw.z, !!gal);
+    if (Lw) {
+      const { F, cz, o0, o1, going, nSteps, riseH, sLen, startU, landU, endU } = Lw;
       const gr = surf('grate'), infill = surf('infill');
       const flat = (pts, sf, uw, vw) => quad(out, pts, Z, sf, null, null, [[0, 0], [uw / sf.scale, 0], [uw / sf.scale, vw / sf.scale], [0, vw / sf.scale]]);
       const slab = (u0, u1, oa, ob, z0, z1, sf, omit = []) => bbox(onWall(F, u0, oa, z0), onWall(F, u1, ob, z1), sf, omit);
@@ -559,8 +567,7 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
       const nb = Math.max(1, Math.round(F.len / kit.bay));
       for (let k = 1; k < nb; k++) { const u = (F.len * k) / nb; if (u > landU && u < endU) tubeAB(out, onWall(F, u, 0.05, cz - 1.6), onWall(F, u, o1 - 0.1, cz - Cw.fascia), 0.05, 6, steel); }
       // a long walkway's second entry: a stair coming in square to it through its front railing at its far end
-      const second = endU - landU >= Cw.twoStairs && s1 - s0 - o1 - sLen >= Cw.clear;
-      const gapA = endU - 0.8 - Cw.width, gapB = endU - 0.8;
+      const { second, gapA, gapB, deep } = Lw;
       // a railing run along the deck's front edge (posts, the top and the mid rail in the secondary paint, the infill,
       // a toe board): broken at the gap
       const rail = (u0, u1) => {
@@ -606,7 +613,7 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
           flat([onWall(F, ua, ob - Cw.nosing, z + LIFT), onWall(F, ub, ob - Cw.nosing, z + LIFT), onWall(F, ub, ob, z + LIFT), onWall(F, ua, ob, z + LIFT)], hz, ub - ua, Cw.nosing);
         }
         for (const u of [ua + 0.03, ub - 0.03]) banister(onWall(F, u, oOut, 0), onWall(F, u, o1, 0), riseH, cz);
-        entries.push({ by: 'stair', at: 'front', width: r5(ub - ua), landing: r5(s1 - s0 - oOut) });
+        entries.push({ by: 'stair', at: 'front', width: r5(ub - ua), landing: r5(deep - oOut) });
       }
       // cable bundles slung under the deck from bracket to bracket
       const brackets = [landU, ...[...Array(nb - 1)].map((_, k) => (F.len * (k + 1)) / nb).filter((u) => u > landU && u < endU), endU];
@@ -619,7 +626,7 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
         seats.push({ at: P(onWall(F, u, (o0 + o1) / 2, cz - Cw.fascia - 0.3)), n: DOWN, color: Ld.color, intensity: Ld.intensity, radius: Ld.radius, fixture: 'down' });
       }
       structure.walkways.push({ side: s, z: cz, deck: [r5(landU), r5(endU)], d: Cw.d, entries,
-        railed: { front: true, far: true, near: false }, infill: Cw.infill, stairs: [[r5(startU), r5(landU)], ...(second ? [[r5(gapA), r5(gapB)]] : [])] });
+        railed: { front: true, far: true, near: false }, infill: Cw.infill, stairs: [[r5(startU), r5(landU)], ...(second ? [[r5(gapA), r5(gapB)]] : [])], ...(gal ? { gallery: true, flipped: Lw.flipped } : {}) });
     }
   }
   // ── a tall room's glazed booth: in a corner on the long wall the catwalk is not on, at an end no doorway is near ──
@@ -648,6 +655,28 @@ export function bayRoom(out, r, ri, kit, surf, rooms = []) {
   return { seats, bays, structure };
 }
 const add3 = (p, d, k) => [p[0] + d[0] * k, p[1] + d[1] * k, p[2] + d[2] * k];
+
+/**
+ * A catwalk's layout on a room's wall `s` with its deck at `cz` (the plan's and the builder's one reckoning): the wall's
+ * frame, the deck's run along it and its stairs, or null where it does not fit (its run under 4 m past the near stair,
+ * or a doorway at its foot). A floor doorway keeps a metre past the near stair's head; a doorway at the deck's height
+ * (`op.sill`, a gallery's entry) opens onto the deck. `gallery`: the frame may run either way along the wall, so the near
+ * stair falls at the end its doorways leave clear (`flipped`).
+ */
+export function catwalkLayout(r, kit, s, cz, gallery = false) {
+  const B = kit.B, Cw = B.catwalk, Pl = B.pilaster;
+  const deep = s.endsWith('x') ? r.x1 - r.x0 : r.y1 - r.y0, o0 = Pl.out, o1 = Pl.out + Cw.d, going = Cw.going, nSteps = Math.ceil(cz / Cw.rise), riseH = cz / nSteps, sLen = nSteps * going;
+  const F0 = wallFrameOf(r, s), sg = F0.U[0] + F0.U[1];
+  const frames = gallery ? [F0, { ...F0, o: [F0.o[0] + F0.U[0] * F0.len, F0.o[1] + F0.U[1] * F0.len, 0], U: [-F0.U[0], -F0.U[1], 0], start: F0.start + sg * F0.len, flipped: true }] : [F0];
+  for (const F of frames) {
+    // (the near stair's foot a clear landing off the end wall, so a walker comes to it square: `Cw.landing`)
+    const cuts = r.openings[s].map((op) => [...openingU(F, op), op.sill ?? 0]), startU = Cw.landing, landU = startU + sLen, endU = F.len - 0.6;
+    if (!(endU - landU > 4) || cuts.some(([c0, c1, sill]) => (sill ? c0 < landU + 0.2 || c1 > endU - 0.2 : c0 < landU + 1))) continue;
+    const second = endU - landU >= Cw.twoStairs && deep - o1 - sLen >= Cw.clear;
+    return { F, cz, o0, o1, going, nSteps, riseH, sLen, startU, landU, endU, second, gapA: endU - 0.8 - Cw.width, gapB: endU - 0.8, deep, ...(F.flipped ? { flipped: true } : {}) };
+  }
+  return null;
+}
 
 // a cable sagging from a to b by `sag` at its middle (a parabola: a slack cable's catenary, near enough), in n lengths
 /** A cable laid ALONG A WALL in its plane, bent at angles: `pts` its points as [u, z] on the wall frame `F`, `off` its

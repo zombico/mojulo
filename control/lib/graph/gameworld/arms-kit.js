@@ -16,7 +16,7 @@
 // The numbers are a game's, by the arm's archetype (an assault rifle's automatic fire, a sniper's bolt, a shotgun's
 // pellets thinning with range), scaled to the goal's own base round (a shoot level's foe takes four, a pole's damage
 // its time to kill) so a kit fits the game it is carried in. Pure data and arithmetic; no dice.
-import { armHandling, armBoxes } from '../equipment/arms/handling.js';
+import { armHandling, armBoxes, armMesh } from '../equipment/arms/handling.js';
 import { ARM_MODELS } from '../equipment/arms/models.js';
 import { roundOf } from './rounds.js';
 
@@ -129,6 +129,25 @@ const station = (s) => ({ at: s.at.map(r2), c: s.c.map(r3), a: s.a.map(r3) });
 function handsOf(st) {
   const sup = st.support;
   return { strong: station(st.strong), ...(sup ? { support: { ...station(sup), ...(sup.alt ? { alt: station(sup.alt) } : {}) } } : {}), ...(st.butt ? { butt: st.butt.at.map(r2) } : {}) };
+}
+
+/**
+ * THE ARM ITSELF IN THE HANDS (opt-in). A slot's view is the arm's proxy: its parts' boxes. A slot that asks
+ * (`gunplay.view.detail: 'arm'`) is drawn by the page as the arms library builds it (equipment/arms: every part's own
+ * faces, its rail, its controls, its muzzle), on the same stations, sights and hands. The recipe carries the ask and the
+ * arm's build words (`gunplay.arm`), never the mesh: the page's resolve builds it (worlds/world-scene.js), so a level
+ * stays its recipe. A slot with no arm of the library (a graybox weapon, a bow) keeps its boxes.
+ *   armDetailed(slot)        → the slot asking for its arm (identity where it has none)
+ *   withArmMeshes(entities)  → the entities with each asking slot's `view.mesh` built (the same array where none asks)
+ */
+export const ARM_DETAIL = 'arm';
+const asksArm = (slot) => !!slot && !!slot.gunplay?.arm && slot.gunplay.view?.detail === ARM_DETAIL && !slot.gunplay.view.mesh;
+export const armDetailed = (slot) => (slot?.gunplay?.arm && Array.isArray(slot.gunplay.view?.boxes) ? { ...slot, gunplay: { ...slot.gunplay, view: { ...slot.gunplay.view, detail: ARM_DETAIL } } } : slot);
+export function withArmMeshes(entities) {
+  if (!Array.isArray(entities) || !entities.some((e) => Array.isArray(e?.rule?.loadout) && e.rule.loadout.some(asksArm))) return entities;
+  return entities.map((e) => (Array.isArray(e?.rule?.loadout) && e.rule.loadout.some(asksArm)
+    ? { ...e, rule: { ...e.rule, loadout: e.rule.loadout.map((slot) => (asksArm(slot) ? { ...slot, gunplay: { ...slot.gunplay, view: { ...slot.gunplay.view, mesh: armMesh(slot.gunplay.arm) } } } : slot)) } }
+    : e));
 }
 
 /** A kit's loadout on a base round: its slots in order (kitSlot). */

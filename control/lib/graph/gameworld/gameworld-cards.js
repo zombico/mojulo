@@ -96,6 +96,8 @@ import { INTENT_LOOKS } from '../playscape/ui/interface-look.js';
 import { THEME_CARD_IDS } from '../playscape/ui/theme-cards/loader.js';
 import { THEME_WORDS, THEME_FAMILIES } from '../../mana-ui/theme.js';
 import { FLOW_KINDS, SCREEN_EVENTS, LEVEL_EVENTS, FLOW_SPECIALS, FLOW_GUARDS, FLOW_IN_PLAY } from '../game/flow.js';
+import { SECTIONS, BANDS, TASKS, MISSION_LIMITS, MISSION_DEFAULTS, MISSION_MAPS, MISSION_BUILDINGS } from '../mission/index.js';
+import { TEMPLATE_IDS } from '../arena-map/templates.js';
 import { DRESS_SETTINGS, DRESS_SETTING_IDS, DRESS_PIECES, DRESS_PIECE_IDS } from '../brawl/brawl-dress.js';
 import { PLAY_TYPES, PLAY_IDS } from '../brawl/brawl-play.js';
 
@@ -987,6 +989,44 @@ function mountsCard() {
   );
 }
 
+function missionCard() {
+  return lines(
+    'THE MISSION — a shooter\'s first level: the firing range stretched into sections, each with one task. The range is',
+    '  where the game\'s guns are written and tried (bible?book=practice&room=range); the mission is the same guns, the same',
+    '  body and the same bands laid down one line, briefed, played and debriefed on mana-ui.',
+    '',
+    'levels.<id>.mission   true (what the guns ask for) | { seed?, sections?, foes?, hold?, waves?, map? }',
+    '  in place of `walk`: its ground, its foes and its tasks are its own (no goal, foes, course or arena beside it).',
+    '  Laid from the guns the world carries (a quick shooter\'s arms, a gun in the hero\'s right hand, a feel whose',
+    '  template shoots): a world that carries none has no mission.',
+    `  foes   how many the lane stands, ${MISSION_LIMITS.foes[0]} to ${MISSION_LIMITS.foes[1]} (${MISSION_DEFAULTS.foes}): every fight in proportion`,
+    `  hold   the yard's clock, ${MISSION_LIMITS.hold[0]} to ${MISSION_LIMITS.hold[1]} s (${MISSION_DEFAULTS.hold}); waves ${MISSION_LIMITS.waves[0]} to ${MISSION_LIMITS.waves[1]} (${MISSION_DEFAULTS.waves})`,
+    '  sections   the sections in order, in place of the ones the kit\'s bands choose; it ends at a way out',
+    `  map    fought on a FIGHTING MAP, not down a line: true (the kit picks: ${Object.entries(MISSION_MAPS).map(([b, m]) => `${b} ${m.template}`).join(', ')}) | a`,
+    `         template (${TEMPLATE_IDS.join(', ')}), grown under the arena laws; arm up, a clear a band, hold the heart, get out`,
+    'IN A BUILDING   levels.<id>: { building: { use, fight? }, mission: true | { seed?, foes?, hold?, waves? } } (no map, no',
+    '  sections): fought in its rooms, its fight true unless false, read in the seventh generation (the form render draws',
+    '  it); its plan read as a fighting map, the phases placed in real rooms, from its door to a way out. design_game',
+    `  proposes one by the kit's band (${Object.entries(MISSION_BUILDINGS).map(([b, r]) => `${b} ${r.use}`).join(', ')}): the step's \`building\`.`,
+    'INDUSTRIAL   levels.<id>: { industrial: true | { use?, depth?, hour?, weather?, wet?, tower?, walker?, crew?, masked? } }:',
+    '  a fenced yard before a base building, laid by the arena laws, built by the geocube; out by its door.',
+    'CAMPAIGN     the step\'s `campaign`: the opening mission as legs (yard, street, building, works), each a level and a',
+    '  checkpoint, played in order. Apply its patch whole.',
+    'SECTIONS (each a room across the mission, a doorway to the next, sealed until its task is met)',
+    ...Object.entries(SECTIONS).map(([k, v]) => `  ${k.padEnd(12)} ${v.task.padEnd(6)} ${v.band ? `${v.band} band, ${BANDS[v.band].m} m` : 'no fight'}: ${v.teaches}${v.gap ? ' (a GAP: designed, not built; refused with what it waits on)' : ''}`),
+    `TASKS  ${Object.entries(TASKS).map(([k, v]) => `${k}: ${v.says}`).join('; ')}.`,
+    'A kit that serves the mid band gets the lane; a long gun the long line too; close guns alone a room and a yard.',
+    'A room\'s foes are woken as it is walked into. The hp is the level\'s; rounds and health lie on the floor.',
+    'Its HUD is mana-ui\'s: the hp, the gun in hand, the objective tracker, and the DAMAGE RING: a mark on a ring round the',
+    '  aim where each hit came from (the top ahead, the bottom behind), for a moment, turning as the player turns.',
+    'BEFORE IT IS A LEVEL: the practice door\'s first mission (bible?book=practice&room=mission) plays it from the world',
+    '  alone. design_game proposes it (a `mission` step with its patch) for a world with a firing range and none yet.',
+    'GATES (machine): the laws (walkable, sealed, banded, covered, entry-safe, in-order, armed, paced) ride the level\'s',
+    '  step; a run reads `mission_proof`: the tasks done in order on the bus, and the level won headless by a gunner that',
+    '  walks, aims and reloads. Whether it is a good first level is the creator\'s to say in play.',
+  );
+}
+
 function rollCard() {
   return lines(
     'THE ROLL — a game that plays a different map each time. The recipe never changes: the seed its shell sends each play',
@@ -1599,6 +1639,7 @@ const CARDS = [
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],
   ['gameworld-wcd', 'The walled-core dungeon', 'layers on a critical path toward a core: inners, outers and the doors between, each gated', 'a dungeon of layers to the core, a base to infiltrate, keycards to the next area, walls within walls', wcdCard],
   ['gameworld-course', 'The course', 'a platformer\'s level: floors and gaps over a trail sized by the hero\'s reach, each teaching a move', 'a platformer level, a side-scroller, a 3D platformer, jumps over gaps, a tutorial level, teach the double jump, a wall jump section, platforming, level 1', courseCard],
+  ['gameworld-mission', 'The mission', 'a shooter\'s first level: the firing range stretched into sections, each with a task, on mana-ui', 'a first level for my shooter, a mission with objectives, an FPS level, clear the room then move on, a tutorial level for the guns, hold the point then extract, level 1 of my shooter', missionCard],
   ['gameworld-qow', 'The quest open world', 'regions joined sideways, loaded as they are passed, never gated on the way on: the WCD\'s opposite pole', 'an open world, a city to roam, an island to explore, side quests anywhere, no forced path, an errand, a fetch quest, a delivery run, a bounty board', qowCard],
   ['gameworld-direction', 'The direction', 'how characters are drawn: tradition, elements, motif', 'anime or western, the colours of my hero', directionCard],
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],

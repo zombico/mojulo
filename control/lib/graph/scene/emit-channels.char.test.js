@@ -804,6 +804,46 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // stands inside its round, the pads fill from the screen's edge, the HUD's bottom corners stand over a pad, a region
 // whose every part is gated off draws no plate, and a glass theme no longer blurs behind a bare region; neither page
 // draws a touch pad or an empty region, and every other fixture holds byte for byte.
+// Pinned 2026-11-15 (1115-shooting-rails: a mission's briefing, HUD, pause and debrief on mana-ui): the new `mission`
+// fixture only (the mission channel's block: mana-ui, the controls host and the mission's runtime in a scope of their
+// own). Every other fixture carries no `mission` and keeps its bytes: the channel adds nothing where it is absent.
+// Re-pinned 2026-11-15 (1115-shooting-rails: the damage ring): `mission` only. Its runtime reads the pilot's hits and
+// marks where each came from on mana-ui's ring, its bearing inlined beside it.
+// Re-pinned and pinned 2026-11-15 (1115-shooting-rails: the damage ring as its own concept): `mission` (its runtime
+// steps the shared tracker, inlined beside it) and the new `damage-ring` fixture (the ring's own channel, for a page whose
+// HUD is its own). No other fixture carries either.
+// Re-pinned 2026-11-15 (1105-rc merged into 1115-shooting-rails): `mission` only. Its page inlines the game UI kernel,
+// which the candidate changed (pictograms, the frame, the touchpad, the pick screen), as `brawl` and `holo` were re-pinned
+// for there; the mission's own block is as it was.
+// Re-pinned 2026-11-15 (1115-shooting-rails: a ladder climbed by holding jump): the seventeen fixtures whose page
+// inlines the controllable runtime (`controllable`, `controllable-lock`, `action-hero`, `controllable-shadows`,
+// `cast-shadows`, `live-shadows-actors`, `live-shadows-both`, `controllable-smoke`, `controllable-figure`,
+// `controllable-hangar`, `fx`, `shoot-live`, `toon-ink-controllable`, `toon-ink-fx`, `capture-controllable`,
+// `kitchen-sink`, `kitchen-sink-capture`). The climb's owner (worlds/controllable/rules-basic.js) reads a climbable's
+// opt-in `hold` and `holdReach`: stood under it, holding jump takes hold and goes up while it is held. No fixture
+// carries a climbable that asks, so every one plays as it did (the runtime's trace holds); only the runtime's text
+// moved. Every fixture with no controllable runtime holds byte for byte.
+// Re-pinned 2026-11-15 again (1115-shooting-rails: a mind's path kept to its ground): the same seventeen, for the same
+// reason. The pathfinder (worlds/controllable/nav.js) takes an opt-in `ledges`: a cell with no ground at the body's
+// height is shut as a wall is, asked of the ground a cell at a time as a path reaches it; a mind asks with
+// `rule.navLedges`. No fixture's mind asks, so every path is the colliders' as it was; only the runtime's text moved.
+// Re-pinned 2026-11-15 a third time (1115-shooting-rails: a wave crosses a building's storeys): the same seventeen,
+// for the same reason. A mind's flight (worlds/controllable/mind.js floorWay) takes an opt-in `way`, its points from the
+// foot up, walked a point at a time (a switchback's legs and landing). No fixture's flight carries one, so every walk
+// is foot to top as it was; only the runtime's text moved.
+// Re-pinned 2026-11-16 (1115-shooting-rails: a radar and a map): `mission` only. Its page's HUD carries the radar and
+// its screens the map (gameworld/radar.js, inlined beside the mission's runtime), and each task that is a place to go
+// its place. Every other fixture holds byte for byte.
+// Re-pinned 2026-11-16 again (1115-shooting-rails: a mission fills its window): `mission` only. A mission's page fills
+// its window where its game names no screen. Every other fixture holds byte for byte. (The gunplay view's own changes
+// of that day, the gun drawn after the world's glass and lit by the form render, moved no fixture: none carries it.)
+// Re-pinned 2026-11-17 (1115-shooting-rails: every shooter wears the HUD): `mission` only. The mission's page gained a
+// plain form (no order, briefing or debrief, for a shooter with no mission), its order stands only where there is one,
+// its health falls back to the pilot's own body where the bus keeps none, and its map is drawn at the floor the pilot
+// stands on and boxed on the ground a level says it is fought on. No other fixture moved.
+// Re-pinned 2026-11-17 again (1115-shooting-rails: orders are spoken): `mission` only. Its HUD carries a line for the
+// order as it is given (mana-ui's subtitles, who gives it and what is said), each task its line. No other fixture moved.
+//
 // Re-pinned 2026-11-15 (the switch cancel): the runtime the page embeds gained the moveset's `swap` (combat-melee.js
 // stepMoveset: the weapon cycle pressed mid-swing held to the live move's switch point, the next weapon's string
 // opened on the press that was waiting, the string's count carried on). Five places in that one function: a block
@@ -841,3 +881,13 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
     }
   });
 });
+//
+// Re-pinned 2026-11-17 (1116-rc merged into 1115-shooting-rails): the fixtures whose page inlines the controllable runtime
+// (the seventeen named above, with the candidate's own that carry it) and `mission`. Each page carries both sides' changes
+// at once: the candidate's (the switch cancel, the street, the sea) and this branch's (a climb held by jump, a path kept
+// to its ground, a flight's way, the mission's HUD); each is said above, and neither changes how a fixture plays.
+// Re-pinned 2026-11-17 (1115-shooting-rails: one radar): `mission` only. Its sheet puts the page's own round radar away
+// (the controllable runtime's, by the class the candidate gave it) wherever the shooter's HUD stands, so a shooter has
+// one radar, the HUD's scope. No other fixture moved.
+// Re-pinned 2026-11-17 again (1115-shooting-rails: the radar a minimap): `mission` only. The scope is larger, reaches
+// 40 m, and carries the level's plan under its marks, turned so ahead is up. No other fixture moved.

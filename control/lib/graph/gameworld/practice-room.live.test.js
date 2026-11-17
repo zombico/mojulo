@@ -80,10 +80,13 @@ describe('the practice room in a browser', () => {
     await p.mouse.click(640, 360); await wait(300);
     const z = () => p.evaluate(() => window.__mojCtrl.world.entities.find((e) => e.pilotable).transform.pos[2]);
     const z0 = await z();
-    let top = z0;
+    // (the hero leaves the ground: watched on the page each frame while Space is held, the highest it rose kept, up to
+    // 10 s; a frame drawn in software beside a busy shard can take most of a second, so a fixed window can miss the top)
+    await p.evaluate((z) => { window.__top = z; const me = () => window.__mojCtrl.world.entities.find((e) => e.pilotable); (function f() { window.__top = Math.max(window.__top, me().transform.pos[2]); if (!window.__topDone) requestAnimationFrame(f); })(); }, z0);
     await p.keyboard.down('Space');
-    for (let i = 0; i < 12; i++) { await wait(60); top = Math.max(top, await z()); }
+    await p.waitForFunction((z) => window.__top - z > 0.5, { timeout: 10000 }, z0).catch(() => {});
     await p.keyboard.up('Space');
+    const top = await p.evaluate(() => { window.__topDone = true; return window.__top; });
     expect(top - z0).toBeGreaterThan(0.5);
     expect(await p.evaluate(() => window.__mojCtrl.world.entities.filter((e) => e.team === 'foes').length)).toBe(4);
     expect(errors).toEqual([]);

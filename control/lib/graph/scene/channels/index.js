@@ -23,6 +23,8 @@ import { boardChannelScript } from './board.js';
 import { meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, inningsChannelScript } from './contest.js';
 import { holoChannelScript } from './holo.js';
 import { broadcastScreenScript } from './broadcast-screen.js';
+import { missionChannelScript } from './mission.js';
+import { damageRingChannelScript } from './damage-ring.js';
 import { glowSpriteScript } from './glow.js';
 import { heatSphereChannelScript } from './heat-sphere.js';
 import { inkDecalScript } from './ink-decal.js';
@@ -294,6 +296,16 @@ export const SETUP_CHANNELS = [
     normalizeIn: 'emitThreeWorld',     // a persona's read on a screen in the world (lib/graph/persona/screen.js)
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
     provides: ['__mojBroadcasts'] },   // each screen's frame: its time, caption, gesture and fidelity, for probes
+  { key: 'mission', anchor: 'post-capture', script: missionChannelScript,
+    normalizeIn: 'emitThreeWorld',     // a mission's briefing, HUD, pause and debrief on mana-ui (gameworld/mission-mana.js)
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojMission'],        // the runtime, its state and whether a screen is up, for probes
+    requiresOptional: ['__mojCtrl', '__mojGame'] },   // the pilot's weapon and the level's outcome, read where the page has them
+  { key: 'damageRing', anchor: 'post-capture', script: damageRingChannelScript,
+    normalizeIn: 'emitThreeWorld',     // where each hit came from, round the aim, on a page with its own HUD (gameworld/damage-ring.js)
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojDamageRing'],     // the marks standing, for probes
+    requiresOptional: ['__mojCtrl'] }, // the pilot's hits, read where the page has a pilot
 ];
 
 // load-time contract assertion (S1): a row's hard `requires` must be provided by an
@@ -383,6 +395,8 @@ export { boardChannelScript } from './board.js';
 export { meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, inningsChannelScript } from './contest.js';
 export { holoChannelScript } from './holo.js';
 export { broadcastScreenScript } from './broadcast-screen.js';
+export { missionChannelScript } from './mission.js';
+export { damageRingChannelScript } from './damage-ring.js';
 export { specularChannelScript } from './specular.js';
 export { pickChannelScript } from './pick.js';
 export { signageChannelScript } from './signage.js';

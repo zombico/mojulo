@@ -265,10 +265,45 @@ describe('mana-ui: the live game', () => {
     expect(v).toMatch(/↑✕/);
     expect(v).not.toContain('data-kind="ally"');
   });
-  it('harm\'s bearing becomes a mark on the ring, turned toward it', () => {
-    const v = hudOf([{ use: 'threat', props: { markers: [{ bearing: 90 }, { bearing: 180 }] } }]).view();
-    expect(v).toContain('left:95%;top:50%;transform:translate(-50%,-50%) rotate(90deg)');
-    expect(v).toContain('left:50%;top:95%');
+  it('harm\'s bearing becomes an arc of the ring, turned toward it, fading as it ages', () => {
+    const v = hudOf([{ use: 'threat', props: { markers: [{ bearing: 90 }, { bearing: 180, fade: 0.4 }] } }]).view();
+    expect(v).toContain('<span class="mana-arc" style="transform:rotate(90deg)"></span>');
+    expect(v).toContain('transform:rotate(180deg);opacity:0.4');
+  });
+  it('a shooter\'s readouts: the magazine is a figure and a belt that says low, empty and reloading; the screen\'s edge is the peril', () => {
+    const mag = (props) => hudOf([at({ use: 'magazine', props: { name: 'Carbine', size: 30, reserve: 90, ...props } })]).view();
+    const full = mag({ rounds: 30 });
+    expect(full).toMatch(/<span class="mana-num">30<\/span><span class="mana-reserve">90<\/span>/);
+    expect((full.match(/<i><\/i>/g) || []).length).toBe(30);
+    expect(full).not.toContain('mana-call');
+    // a quarter left: low, the spent rounds hollow, and said; none: reload; reloading: said, and not low
+    const low = mag({ rounds: 6 });
+    expect(low).toContain('data-low="yes"');
+    expect((low.match(/data-spent="yes"/g) || []).length).toBe(24);
+    expect(low).toContain('>Low ammo<');
+    expect(mag({ rounds: 0 })).toMatch(/data-empty="yes".*>Reload</);
+    expect(mag({ rounds: 0, reloading: true })).toMatch(/data-reloading="yes".*>Reloading</);
+    expect(mag({ rounds: 0, reloading: true })).not.toContain('data-empty');
+    // its wireframe by its name (or the gun it names), its rounds the ones it names; a blade counts nothing
+    expect(full).toContain('data-gun="carbine"');
+    expect(full).toContain('<i aria-hidden="true" class="mana-sil"></i>');
+    expect(mag({ rounds: 5, size: 8, gun: 'Shotgun', round: 'shell' })).toMatch(/data-gun="shotgun".*class="mana-belt" data-round="shell"/);
+    const blade = hudOf([at({ use: 'magazine', props: { name: 'Knife', rounds: 0 } })]).view();
+    expect(blade).toContain('data-gun="knife"');
+    expect(blade).not.toMatch(/mana-rounds|mana-call|data-empty/);
+    // a drum past sixty is one track, not a belt
+    expect(mag({ rounds: 50, size: 100 })).toMatch(/mana-track"><i style="width:50%"/);
+    const peril = (level) => hudOf([{ use: 'peril', props: { level } }]).view();
+    expect(peril(0.5)).toContain('style="--mana-peril:0.5"');
+    expect(peril(0.5)).not.toContain('data-high');
+    expect(peril(0.9)).toContain('data-high="yes"');
+    expect(peril(4)).toContain('--mana-peril:1"');
+  });
+  it('a radar is a scope: a bezel, the wedge ahead, north on the bezel; a region may rest, or sit on a scrim', () => {
+    const v = hudOf([{ use: 'region', props: { at: 'top-left', variant: 'scrim', rest: true }, children: [{ use: 'minimap', props: { shape: 'round', scope: true, north: 90, markers: [{ x: 0.5, y: 0.1, kind: 'foe' }] } }] }]).view();
+    expect(v).toContain('data-rest="yes" data-variant="scrim"');
+    expect(v).toContain('data-scope="yes" data-shape="round"><span class="mana-bezel"><i class="mana-cone"></i><b class="mana-north" style="transform:rotate(90deg)"><span style="transform:rotate(-90deg)">N</span>');
+    expect(hudOf([{ use: 'region', props: { at: 'top-left' }, children: [{ use: 'minimap', props: {} }] }]).view()).not.toContain('mana-bezel');
   });
   it('a table marks your row by a shape; a slot shows its key, cooldown and the one in hand; a dial turns with its value', () => {
     const t = hudOf([at({ use: 'table', props: { columns: ['name', { key: 'score', align: 'right' }], rows: [{ name: 'A', score: 3 }, { name: 'B', score: 2, self: true }] } })]).view();
@@ -280,7 +315,7 @@ describe('mana-ui: the live game', () => {
     expect(hudOf([at({ use: 'gauge', props: { value: 120, max: 240 } })]).view()).toContain('rotate(0deg)');
   });
   it('a hud holds regions and layers only; a screen lays its own parts out in regions over the held game', () => {
-    expect(() => manaUi.readNode({ use: 'hud', children: [{ use: 'gauge', props: { value: 1, max: 2 } }] })).toThrow(/a region .* or a layer \(anchors, edges, threat, letterbox\)/);
+    expect(() => manaUi.readNode({ use: 'hud', children: [{ use: 'gauge', props: { value: 1, max: 2 } }] })).toThrow(/a region .* or a layer \(anchors, edges, threat, peril, letterbox\)/);
     const rt = run(screen([{ use: 'region', props: { at: 'bottom-left' }, children: [{ use: 'list', props: { rows: [{ label: 'Attack', active: true }, { label: 'Guard' }] } }] }]));
     expect(rt.view()).toContain('class="mana-region" data-at="bottom-left"');
     rt.press('down');
