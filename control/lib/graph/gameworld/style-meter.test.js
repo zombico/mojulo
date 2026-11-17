@@ -1,6 +1,6 @@
 // A GAME'S STYLE METER (style-meter.js): read on the world, laid on its levels where it is asked for, nothing where not.
 import { describe, it, expect } from 'vitest';
-import { readStyleMeter, styleMeterOfGame, styleMeterSuggestion, levelRankOf, vitalsOf, PAR, STYLISH, VITALS_LOOKS, DEVIL_FULL } from './style-meter.js';
+import { readStyleMeter, styleMeterOfGame, styleMeterSuggestion, levelRankOf, vitalsOf, PAR, STYLISH, VITALS_LOOKS, HALO_FULL } from './style-meter.js';
 import { MEADOWMARK_HERO, readGameworld } from './index.js';
 import { gameStages, stageLevelOrder } from './levels.js';
 import { layTasks, tasksCast } from './tasks.js';
@@ -44,13 +44,13 @@ describe('a game\'s style meter', () => {
     expect(plain.manaHud).toBeUndefined();
     expect(levelRankOf(world({}), 'citadel')).toBeNull();
   }, 120000);
-  it('the vitals: the stylish template lays a devil gauge, drawn with the health in a look, at their lengths at the game\'s end', () => {
-    expect(styleMeterOfGame({ feel: STYLISH[0], styleMeter: 'auto' }).styleMeter.devil).toEqual({});
-    expect(vitalsOf({ feel: STYLISH[0], styleMeter: 'auto' })).toEqual({ look: VITALS_LOOKS[0], full: { devil: DEVIL_FULL } });
-    const own = { feel: STYLISH[0], styleMeter: { devil: { stocks: 2 }, vitals: { look: VITALS_LOOKS[1], hp: 300, devil: 8 } } };
-    expect(vitalsOf(own)).toEqual({ look: VITALS_LOOKS[1], full: { hp: 300, devil: 8 } });
+  it('the vitals: the stylish template lays a Halo Meter, drawn with the health in a look, at their lengths at the game\'s end', () => {
+    expect(styleMeterOfGame({ feel: STYLISH[0], styleMeter: 'auto' }).styleMeter.halo).toEqual({});
+    expect(vitalsOf({ feel: STYLISH[0], styleMeter: 'auto' })).toEqual({ look: VITALS_LOOKS[0], full: { halo: HALO_FULL } });
+    const own = { feel: STYLISH[0], styleMeter: { halo: { stocks: 2 }, vitals: { look: VITALS_LOOKS[1], hp: 300, halo: 8 } } };
+    expect(vitalsOf(own)).toEqual({ look: VITALS_LOOKS[1], full: { hp: 300, halo: 8 } });
     expect(vitalsOf({ feel: STYLISH[0] })).toBeNull();
     expect(() => readStyleMeter({ vitals: { look: 'bold' } })).toThrow(/vitals.look/);
-    expect(() => readStyleMeter({ devil: { stocks: 0 } })).toThrow(/devil.stocks/);
+    expect(() => readStyleMeter({ halo: { stocks: 0 } })).toThrow(/halo.stocks/);
   });
 });

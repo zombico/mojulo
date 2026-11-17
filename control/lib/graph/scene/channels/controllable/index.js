@@ -885,6 +885,8 @@ function __updateGearLines() {
   // a body with FORMS (controllable/forms.js) and a figure baked to be both (transformation/compose.js): the transform
   // press, the clip each form plays, a flying form's attitude. Emitted only when some entity or figure carries forms.
   const hasForms = (entities || []).some((e) => e && e.forms);
+  // the transform press is heard too where the hero carries a Halo Meter (style.js): it buys the transformation
+  const haloOn = !!(styleMeter && typeof styleMeter === 'object' && styleMeter.halo), transforms = hasForms || haloOn;
   // a moveset's beats (gameworld/combos.js): the heavy and special presses read, only where a body carries one
   const moveset = (entities || []).some((e) => e && e.rule && e.rule.moveset);
   // a guard (combat-melee.js stepGuard, a feel card's lowered): the guard held, read only where a body carries one
@@ -2922,7 +2924,7 @@ ${seats ? `  // SEATS: seat 1 reads only its own pad (none when the keyboard is 
     jump: pb('jump', rb),                      // A / PS cross — ascend in space
     cycle, slot,                               // RB tap / RB chord (the selector)
     swap: pb('swapSuit'), ai: pb('aiToggle'),  // D-pad up = switch suit · select = AI toggle
-    lock: pb('lock'),                          // R3 (right stick click) = target lock (lock.js)${hasForms ? `
+    lock: pb('lock'),                          // R3 (right stick click) = target lock (lock.js)${transforms ? `
     transform: pb('transform'),                // L3 (left stick click) = transform (forms.js)` : ''}
     interact: pb('interact', rb),              // X / PS square — use / talk where the figure stands in reach (silent inside an RB chord)${vayoOn ? `
     vayo: !!(g.buttons && g.buttons[13] && g.buttons[13].pressed),   // D-pad down — a vayo move (vayo-move.js)` : ''}
@@ -2943,7 +2945,7 @@ ${touchLayer ? `  if (__touchOn()) return __touchRows();   // the screen's pad (
     suits: W.entities.filter((e) => e.pilotable).length > 1,
     ai: W.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')),
     follow: !!(W.camera && W.camera.rule && W.camera.rule.type === 'follow'),
-    interact: !!window.__mojUses,   // the world has somewhere to use (the events channel says)${hasForms ? `
+    interact: !!window.__mojUses,   // the world has somewhere to use (the events channel says)${transforms ? `
     forms: true,                    // a body that transforms (forms.js)` : ''}
     active: { gamepad: __padOn && __padSeen }, layout: __padLayout,
   });
@@ -2954,7 +2956,7 @@ let __prevCycle = false, __prevSlot = 0;   // weapon-cycling press edges (R / 1-
 let __prevSwap = false;                    // suit-switcher press edge (T)
 let __prevTackle = false;                  // tackle press edge (Shift) — platform rule, opt-in r.tackle
 let __prevAi = false;                      // AI-attack toggle press edge (G / HUD button)
-let __prevLock = false;                    // target-lock press edge (C / middle mouse / R3) — lock.js${hasForms ? `
+let __prevLock = false;                    // target-lock press edge (C / middle mouse / R3) — lock.js${transforms ? `
 let __prevTransform = false;               // transform press edge (B / L3) — forms.js` : ''}
 let __aiBtnPress = false;                  // HUD button click injects one toggle edge
 // shell AI switch (practice mode): the pause menu posts a DESIRED state over the game-ai sidecar;
@@ -3006,7 +3008,7 @@ function __readInput() {
   // TARGET LOCK press edge (lock.js): C / middle mouse / pad R3 — acquire, cycle, release
   const lk = ${lock ? "__k('lock') || __midDown || !!(__pad && __pad.lock)" : 'false'};
   const lock = lk && !__prevLock ? 1 : 0;
-  __prevLock = lk;${hasForms ? `
+  __prevLock = lk;${transforms ? `
   // TRANSFORM press edge (forms.js): B / pad L3 turns the pilot into its next form
   const tf = __k('transform') || !!(__pad && __pad.transform);
   const transform = tf && !__prevTransform ? 1 : 0;
@@ -3058,7 +3060,7 @@ function __readInput() {
     swap,                            // suit switcher (T): transfer the pilot between pilotable suits
     tackle,                          // tackle (Shift): the platform rule's invincible offensive dash (opt-in r.tackle)
     aiToggle,                        // AI attack switch (G): ai-ambient suits stand down / wake up
-    lock,                            // target lock (C): lock.js acquires / cycles / releases on the edge${hasForms ? `
+    lock,                            // target lock (C): lock.js acquires / cycles / releases on the edge${transforms ? `
     transform,                       // transform (B): a body with forms turns into its next one (forms.js)` : ''}
     missile: __k('missile') || window.__mojAltFire ? 1 : 0,   // a craft's missile (R, or the right mouse, pointer-locked: the flight block's)
     flare: __k('flare') ? 1 : 0,     // a craft's flare (X)${vayoOn ? `
@@ -4727,6 +4729,31 @@ ${hangarHook}  __msHookParams();
 };
 ${styleMeter ? `// the style meter (worlds/controllable/style.js): where it stands, for a HUD and a level's results
 window.__mojStyle = { now: () => __CW.styleOf(__world) };
+` : ''}${haloOn ? `// THE HALO (style.js): the transformation seen. A ring of light over the hero's head and its light on the hero while
+// it lasts, a burst of light as it begins; nothing while it does not
+(function __halo() {
+  const g = new THREE.Group(), ring = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.022, 10, 48), new THREE.MeshBasicMaterial({ color: 0xffe6a0, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const glow = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.06, 10, 48), new THREE.MeshBasicMaterial({ color: 0xf2b630, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const burst = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 64), new THREE.MeshBasicMaterial({ color: 0xffe6a0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  const lamp = new THREE.PointLight(0xffd27a, 0, 7, 1.6);
+  g.add(ring, glow); g.visible = false; scene.add(g); scene.add(burst); scene.add(lamp);
+  let was = false, k = 0, bt = 9, last = performance.now();
+  (function tick() {
+    requestAnimationFrame(tick);
+    const now = performance.now(), dt = Math.min(0.1, (now - last) / 1000); last = now;
+    const H = __world.style && __world.style.halo, p = __world.pilotId && __world.byId[__world.pilotId];
+    const on = !!(H && H.on && p && p.transform);
+    if (on && !was) bt = 0;
+    was = on; k += ((on ? 1 : 0) - k) * Math.min(1, dt * 8);
+    g.visible = k > 0.02; lamp.intensity = 2.4 * k;
+    if (p && p.transform) {
+      const P = p.transform.pos, top = Math.max(1.6, p.body && p.body.egg && p.body.egg.cz ? p.body.egg.cz * 2 : 1.85) + 0.22;
+      g.position.set(P[0], P[1], P[2] + top + 0.04 * Math.sin(now / 260)); g.rotation.z = now / 900; g.scale.setScalar(0.4 + 0.6 * k);
+      lamp.position.set(P[0], P[1], P[2] + 1.4); burst.position.set(P[0], P[1], P[2] + 0.05);
+    }
+    bt += dt; burst.visible = bt < 0.6; if (burst.visible) { burst.scale.setScalar(0.5 + bt * 9); burst.material.opacity = 0.9 * (1 - bt / 0.6); }
+  })();
+})();
 ` : ''}${tempo ? `let __tmLast = null;${tempoLook ? ' const __tmAt = new THREE.Vector3();' : ''}
 window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on, who) => __CW.tempoMoment(__world, on, who), end: (on) => __CW.tempoEnd(__world, on) };
 ` : ''}${backdrop ? `// THE ENCOUNTER'S BACKDROP (a fight staged on its own arena, rpg rules.stage 'backdrop'): the map drawn once from a pose

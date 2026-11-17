@@ -125,24 +125,24 @@ describe('the host carries a level\'s rows', () => {
     expect(bare).not.toContain('ways');
     expect(() => new Function('THREE', 'camera', js)).not.toThrow();
   });
-  it('the vitals: the health and the devil gauge as one figure, the sprint over them, in its look; none ⇒ the gauges as they were', () => {
-    const rows = [{ var: 'score', label: 'Score' }], vitals = { look: 'echo', full: { hp: 200, devil: 10 } };
+  it('the vitals: the health and the Halo Meter as one figure, the sprint over them, in its look; none ⇒ the gauges as they were', () => {
+    const rows = [{ var: 'score', label: 'Score' }], vitals = { look: 'echo', full: { hp: 200, halo: 10 } };
     const L = hudToMana(rows, { style: true, vitals }), plain = hudToMana(rows, { style: true });
     const tl = (x) => x.spec.hud.children.find((r) => r.props.at === 'top-left');
     const fig = JSON.stringify(tl(L));
-    for (const b of ['vit.hp', 'vit.ghost', 'devil.fill', 'devil.stocks', 'hero.stamina']) expect(fig).toContain(`"bind":"${b}"`);
+    for (const b of ['vit.hp', 'vit.ghost', 'halo.fill', 'halo.stocks', 'hero.stamina']) expect(fig).toContain(`"bind":"${b}"`);
     expect(L.feed.vitals).toEqual({ ...vitals, hp: { value: 'hero.hp', max: 'hero.hpMax', has: 'hero.hasHp' } });
     // (a level whose health is its own row: the row is drawn in the figure, not in its slot)
     const own = hudToMana([{ var: 'hp', as: 'bar', max: 100, slot: 'top' }], { style: true, vitals });
     expect(own.feed.vitals.hp).toEqual({ value: 'v.v0', max: 100 });
     expect(own.spec.hud.children.find((r) => r.props.at === 'top')).toBeUndefined();
-    expect(JSON.stringify(plain)).not.toMatch(/devil|vit\.|vitals/);
+    expect(JSON.stringify(plain)).not.toMatch(/halo|vit\.|vitals/);
     const js = manaHudScript(levelHud('console', { style: true, vitals }), { rows }), bare = manaHudScript(levelHud('console', { style: true }), { rows });
     expect(js).toContain('--moj-hp-span');
     expect(js).toContain('data-variant=mp');
     expect(bare).not.toMatch(/moj-hp-span|vitals/);
     expect(() => new Function(js)).not.toThrow();
     // (each look draws: an unknown one draws nothing of its own)
-    for (const look of ['overlap', 'contrast', 'echo']) expect(manaHudScript(levelHud('console', { style: true, vitals: { look, full: { devil: 10 } } }), { rows })).toContain('moj-vit-low');
+    for (const look of ['overlap', 'contrast', 'echo']) expect(manaHudScript(levelHud('console', { style: true, vitals: { look, full: { halo: 10 } } }), { rows })).toContain('moj-vit-low');
   });
 });

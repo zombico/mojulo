@@ -71,19 +71,52 @@ describe('the style meter', () => {
     expect(styleOf(D.w).tiers).toEqual(['dull', 'keen', 'wild']);
     expect(['keen', 'wild']).toContain(styleOf(D.w).name);
   });
-  it('the devil gauge fills by fighting, in stocks, more on a hit taken, never past its stocks and never falling; none ⇒ no gauge', () => {
-    expect(styleOf(room().w).devil).toBeUndefined();
-    const A = room({ meter: { devil: { stocks: 2, per: 30, hit: 6, hurt: 10 } } });
+  it('the Halo Meter fills by fighting, in stocks, more on a hit taken, never past its stocks and never falling; none ⇒ no gauge', () => {
+    expect(styleOf(room().w).halo).toBeUndefined();
+    const A = room({ meter: { halo: { stocks: 2, per: 30, hit: 6, hurt: 10 } } });
     A.lights(3);
-    const after = styleOf(A.w).devil;
+    const after = styleOf(A.w).halo;
     expect(after.stocks).toBe(2);
     expect(after.fill).toBeGreaterThan(0.5);
     for (let f = 0; f < 600; f++) A.step();
-    expect(styleOf(A.w).devil.fill).toBe(after.fill);
+    expect(styleOf(A.w).halo.fill).toBe(after.fill);
     A.p.hits = (A.p.hits || 0) + 1; A.step();
-    expect(styleOf(A.w).devil.fill).toBeCloseTo(after.fill + 10 / 30, 2);
+    expect(styleOf(A.w).halo.fill).toBeCloseTo(after.fill + 10 / 30, 2);
     A.lights(12);
-    expect(styleOf(A.w).devil.fill).toBe(2);
+    expect(styleOf(A.w).halo.fill).toBe(2);
+  });
+  it('the transformation: bought with the stocks it takes, the blows harder and the run faster while the meter drains, given back as it ends', () => {
+    const A = room({ meter: { halo: { stocks: 2, per: 20, at: 2, drain: 1, might: 2, swift: 1.5, heal: 0 } } });
+    // (short of its stocks: the press does nothing)
+    A.lights(1); A.step({ transform: 1 }); A.step();
+    expect(styleOf(A.w).halo.on).toBe(false);
+    A.lights(10);
+    expect(styleOf(A.w).halo).toMatchObject({ fill: 2, ready: true, on: false });
+    const before = { dmg: A.p.rule.strikeDamage, speed: A.p.rule.speed };
+    A.step({ transform: 1 }); A.step({ transform: 1 });   // (held: one press)
+    expect(styleOf(A.w).halo).toMatchObject({ on: true, count: 1 });
+    expect(A.p.halo).toBe(true);
+    expect(A.p.rule.strikeDamage).toBe(before.dmg * 2);
+    expect(A.p.rule.speed).toBe(before.speed * 1.5);
+    // (transformed, it fills no further: blows landed while it drains)
+    A.lights(3);
+    expect(styleOf(A.w).halo.fill).toBeLessThan(2);
+    for (let f = 0; f < 140; f++) A.step();
+    expect(styleOf(A.w).halo).toMatchObject({ on: false, fill: 0 });
+    expect({ dmg: A.p.rule.strikeDamage, speed: A.p.rule.speed }).toEqual(before);
+    expect(A.p.halo).toBe(false);
+  });
+  it('a second press ends it early, the stocks left kept; a body\'s own health heals while it lasts', () => {
+    const A = room({ meter: { halo: { stocks: 3, per: 20, at: 1, drain: 0.5, heal: 60 } } });
+    A.lights(12);
+    A.p.hpMax = 1e6; A.p.body.hp = 1e6 - 100;
+    A.step({ transform: 1 }); for (let f = 0; f < 30; f++) A.step();
+    expect(A.p.body.hp).toBeGreaterThan(1e6 - 100 + 25);
+    const mid = styleOf(A.w).halo.fill;
+    A.step({ transform: 1 }); A.step();
+    expect(styleOf(A.w).halo.on).toBe(false);
+    expect(styleOf(A.w).halo.fill).toBeCloseTo(mid, 1);
+    expect(A.p.rule.speed).toBe(6);
   });
   it('is nothing on a world that asks for none', () => {
     const A = room({ meter: null });

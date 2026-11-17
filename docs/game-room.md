@@ -254,10 +254,22 @@ tier's name and the combo's count, standing only while there is style to show. T
 the tier is climbed, slams in on a tier gained and shakes on a tier lost; the count is struck by each blow and grows
 heavier as the combo runs.
 
-Beside it the stylish template carries a **devil gauge** (the meter's `devil: { stocks, per, hit, hurt }`): blows
-landed fill it in stocks, more in the air, and a hit taken a little; it does not fall, and spending it is not built.
-The HUD draws the health and the gauge as one figure, the **vitals** (the meter's `vitals: { look, hp, devil }`):
-no box, a crest at their root, each bar at its share of the length it reaches by the game's end (`hp` and `devil`,
+Beside it the stylish template carries a **Halo Meter** (the meter's `halo`): blows landed fill it in stocks, more in
+the air, and a hit taken a little. With the stocks it takes full, the transform press (B, a pad's left stick)
+**transforms** the hero until the meter runs dry or the press comes again:
+
+| `halo` | what it says |
+|---|---|
+| `stocks`, `per` | the stocks it holds now, and the points a stock is |
+| `hit`, `hurt` | what a blow landed and a hit taken put in |
+| `at` | the stocks it takes to transform |
+| `drain` | stocks a second while transformed |
+| `might`, `swift`, `heal` | the blows' damage and the run raised while it lasts, and the hero's own health healed a second |
+
+Transformed, a ring of light stands over the hero's head and the meter fills no further. A level whose health is
+its fights' row on the bus is not healed by it yet.
+The HUD draws the health and the gauge as one figure, the **vitals** (the meter's `vitals: { look, hp, halo }`):
+no box, a crest at their root, each bar at its share of the length it reaches by the game's end (`hp` and `halo`,
 the health twice its start and ten stocks unless said), so the figure reads from the first level to the last. Its
 `look` says how the two forms answer: `overlap`, `contrast` or `echo`.
 

@@ -18,7 +18,7 @@
  *     rows      a level's `events.hud` (raw or normalized: normalizing is idempotent)
  *     hero      draw the pilot's own gauges (its health, its sprint) with the rows: true unless said
  *   levelHud(theme, { screen?, style?, ways? }) → a level manifest's `manaHud`: { rows: 'events', theme, style?, ways? }
- *     vitals    { look, full: { hp?, devil } }: the health and the devil gauge drawn as one figure (style-meter.js vitalsOf)
+ *     vitals    { look, full: { hp?, halo } }: the health and the Halo Meter drawn as one figure (style-meter.js vitalsOf)
  *     ways      { var, at: [[x, y, z] | null, …] }: the way on, an arrow toward the place a bus var names by its index
  *               (none while it names none); the page's HUD host draws it (the page lowers the level's
  *     rows where it emits them, so a mechanic's rows, merged late, are in)
@@ -33,7 +33,7 @@
  * A row's colour is not carried: the theme owns the look.
  *
  * The state the spec binds (the host writes it from the level's bus): v.<k> a var's value · on.<k> whether a gated or
- * timed row stands · lines.<k> a slot's passing lines · moments [] · hero { hp, hpMax, hasHp, stamina, staminaMax, sprints } · style { on, name, combo } · devil { on, fill, stocks } · vit { hp,
+ * timed row stands · lines.<k> a slot's passing lines · moments [] · hero { hp, hpMax, hasHp, stamina, staminaMax, sprints } · style { on, name, combo } · halo { on, fill, stocks } · vit { hp,
  * max, has, ghost } (the vitals' health: the level's own health row where it has one, else the pilot's; feed.vitals.hp says
  * which paths it reads).
  * Pure: a spec is data.
@@ -87,11 +87,11 @@ export function hudToMana(rows, { register = null, hero = true, touch = false, s
   });
   // the pilot's own gauges lead the top-left: its health (unless a row is already the health), its sprint
   // THE VITALS (a stylish game's: `vitals`, the HUD host draws them as one figure, scene/channels/mana-hud.js): the health
-  // and the devil gauge in one cluster, laid out at their length at the game's end, the sprint a hairline over them
+  // and the Halo Meter in one cluster, laid out at their length at the game's end, the sprint a hairline over them
   const cluster = hero && vitals ? [{ use: 'stack', props: { gap: 'tight', align: 'start' }, children: [
     { use: 'bar', props: { value: B('hero.stamina'), max: B('hero.staminaMax'), variant: 'stamina', figures: false }, when: B('hero.sprints') },
     { use: 'bar', props: { value: B('vit.hp'), max: B('vit.max'), variant: 'hp', figures: false, ghost: B('vit.ghost') }, when: vitHp?.when ?? B('vit.has') },
-    { use: 'bar', props: { value: B('devil.fill'), max: B('devil.stocks'), segments: B('devil.stocks'), variant: 'mp', figures: false }, when: B('devil.on') },
+    { use: 'bar', props: { value: B('halo.fill'), max: B('halo.stocks'), segments: B('halo.stocks'), variant: 'mp', figures: false }, when: B('halo.on') },
   ] }] : null;
   const own = hero ? [...(hpRow ? [] : [{ use: 'bar', props: { value: B('hero.hp'), max: B('hero.hpMax'), variant: 'hp', label: 'HP' }, when: B('hero.hasHp') }]), { use: 'bar', props: { value: B('hero.stamina'), max: B('hero.staminaMax'), variant: 'stamina', figures: false }, when: B('hero.sprints') }] : [];
   bySlot['top-left'] = [...(cluster ?? own), ...bySlot['top-left']];

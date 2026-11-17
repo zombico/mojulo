@@ -107,11 +107,19 @@ In progress. Built so far, all in the practice door's game room
   be walked into. A level without it keeps every byte. Seen in a headless browser at the screen's edge, turned to a
   place out of view; the arrow over a place in view was not caught there, and nobody has played it. Not yet: an
   arrow to a level's way out.
-- **Built: the devil gauge** (`worlds/controllable/style.js`, a meter's `devil`). The power a stylish hero builds by
-  fighting, in stocks: blows landed fill it (more in the air), a hit taken fills it a little; it does not fall.
-  Spending it is not built. The stylish template's meter carries one (`styleMeter: 'auto'`); a meter that does not
-  say it has none, and its pages keep every byte.
-- **Built: the vitals** (the HUD host; a meter's `vitals: { look, hp, devil }`). The health and the devil gauge
+- **Built: the Halo Meter** (`worlds/controllable/style.js`, a meter's `halo`). The power a stylish hero builds by
+  fighting, in stocks: blows landed fill it (more in the air), a hit taken fills it a little; it does not fall
+  while it is not spent. The stylish template's meter carries one (`styleMeter: 'auto'`); a meter that does not say
+  it has none, and its pages keep every byte.
+- **Built: the transformation the Halo Meter buys.** With the stocks it takes full (three unless said), the transform
+  press (B, a pad's left stick) transforms the hero: its blows hit harder and it runs faster while the meter drains,
+  its own health heals, and it ends when the meter runs dry or on a second press, everything given back. While it
+  lasts the meter fills no further. It is seen: a ring of light over the hero's head and its light on the hero, a
+  burst as it begins; the HUD says it without a word (the meter breathes when it is ready, the figure glows while
+  it lasts). Measured on the runtime and seen on Fallen Angel's level in a headless browser (the meter full, B held,
+  the ring over Lucien's head). Not yet: the level's own health (the fights' row on the bus) is not healed by it,
+  and no new body, moves or sound come with it. Nobody has played it.
+- **Built: the vitals** (the HUD host; a meter's `vitals: { look, hp, halo }`). The health and the Halo Meter
   drawn as one figure, no box: a crest at their root, each bar drawn at its share of the length it reaches by the
   game's end (the health twice its start unless said, ten stocks), so a short bar at the start reads as composed as
   a long one at the end; one end cap at any length and one rhythm of stocks however many. A hit's chip is held a
