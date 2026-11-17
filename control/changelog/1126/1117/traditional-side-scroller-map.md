@@ -43,8 +43,14 @@ said as its phase lands.
 - **A level seen as an elevation.** The course map's sibling: a side-scroller's level as the camera's path through the
   along × up plane, a chain of zones (runs one screen thick, rooms that scroll both ways, full-screen corners), built
   only where the camera can see. Across develops, down is free or a commitment, up is earned.
-- **Keyed in the cosmos cube**, so the studio can lay one for any game: a level form and its beats registered, the
-  zones and climbs words a level writes.
+- **Keyed in the cosmos cube**, so the studio can lay one for any game: the side map a level form of space
+  (`space.levelForm=side-map`, partial: written and read, not yet laid; priced as the `side-map` package, requiring a
+  side camera and the platform rule) and its closed parts' fills reality's (`reality.fill`: none, or rock, built,
+  machine, padded, a row each in `side-map/fills.js`; the painting absent). The words a map writes
+  (`gameworld/side-map/zones.js`): a chain of runs (across, up, down; a length in screens) and rooms (a size), each with
+  what it teaches (the first level's words) or a beat (rest, reveal, landing, commit), an up run's climb (ledges, a
+  switchback, a chimney, a stair, a ladder; `rises`: the screen from below), a down run's drop (a cascade, or a chute:
+  a commit), its place and fill, its spawners, pillars and ceiling; refused with teaching.
 - **The screen as a measure** beside the hero's reach (`gameworld/side-map/screen.js`): what one screen is in metres for
   a side camera at 16:9, the camera that holds a hero at an eighth of the frame's height with the lane two thirds down
   it (for the toy hero robot's 1.67 m, 22.8 m back and a screen 13.4 m by 23.8 m), and a distance read in screens.

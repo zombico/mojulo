@@ -127,6 +127,10 @@ of the cosmos cube's **space** (where every level form is keyed), its beats with
 every level's is: the geocube it is built in (its places, its matter by role, its surfaces) and the fills its closed
 parts are painted in. The map is the level's final output: one recipe played as a page and drawn as an elevation.
 
+The words are `control/lib/graph/gameworld/side-map/zones.js` (a chain of runs and rooms, each with its beat, its climb
+or its drop, its place and its fill, read and refused with teaching), keyed as `space.levelForm=side-map` and
+`reality.fill` (`side-map/fills.js`, a row a fill).
+
 The hero's body sets the screen. Galaxy Boy's is the toy hero robot's (`proportions: 'herobot'`, about four and a half
 heads, adult-limbed): a game body of its own, too real for a mascot's.
 
