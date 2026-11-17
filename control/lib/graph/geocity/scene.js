@@ -75,7 +75,8 @@ import { rooftopTemplates, rooftopPlan, beaconsOf, BEACON } from './rooftop.js';
 import { assembleGeotownScene, coloursOf as townColoursOf } from '../geotown/scene.js';
 import { PATTERNS } from '../geotown/pattern.js';
 import { rowYards, shopYards, residentsLot, blockPark, schoolPitch, volunteers } from './backs.js';
-import { materialContext, wordTile } from '../era/arch-style.js';
+import { drawnGround, settleStamps, settleTrees, SETTLE } from './settle.js';
+import { materialContext, wordTile, MATERIAL_WORD_IDS } from '../era/arch-style.js';
 import { dressTownFace } from '../era/town-dress.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
 import { litFactor } from '../polygonizer/vexar.js';
@@ -272,7 +273,8 @@ export function assembleGeocityScene(m, ctx = {}) {
   const spec = cubeLookSpec(paint), lit = lookLight(spec, paint), LIGHT = lit.light, sun = LIGHT.toLight, air = spec.air ?? spec.ref.air, night = lit.night;
   // (the finishes in the cube's material context, each a tile; geotown/scene.js finishesOf)
   const MX = materialContext(cube), FIN = {};
-  Object.entries(FINISHES).forEach(([group, [word, as]], k) => { const T = wordTile(word, MX, 211 + 17 * k); if (T) FIN[group] = { spec: T.spec, metres: T.metres, ...(as === 'floor' ? { floor: true } : {}) }; });
+  // (one tile a word, seeded by the word: every group that wears a brick wears the same brick, drawn and shipped once)
+  Object.entries(FINISHES).forEach(([group, [word, as]]) => { const T = wordTile(word, MX, 211 + 17 * MATERIAL_WORD_IDS.indexOf(word)); if (T) FIN[group] = { spec: T.spec, metres: T.metres, ...(as === 'floor' ? { floor: true } : {}) }; });
   const col = coloursOf(cube), faces = [], counts = { towers: 0, buildings: 0, houses: 0, panes: 0, detailed: 0 };
   // the analytic hull (worlds/controllable/core.js resolveBlocking, an engine's static boxes, the route audit): a box
   // round every mass a walker can reach, `of` its block and its group; `holder` the block being built at block scale
@@ -980,9 +982,9 @@ export function assembleGeocityScene(m, ctx = {}) {
     } else if (b.kind === 'construction') going(b, { x0, y0, x1, y1, longY, zAt, Rb, far });
     else if (b.kind === 'parking') parked(b, { x0, y0, x1, y1, longY, zAt, Rb });
     // (a vacant block by its neighbourhood's sites its contractor's yard, fleets.js: their machines staged on it)
-    else if (b.kind === 'vacant' && d.yards?.[b.id]) { fenced(b, { x0, y0, x1, y1 }, zAt((x0 + x1) / 2, (y0 + y1) / 2), 'fence'); yardOf(b, d.yards[b.id], { x0, y0, x1, y1, longY, zAt }); }
+    else if (b.kind === 'vacant' && d.yards?.[b.id]) { fenced(b, { x0, y0, x1, y1 }, zAt, 'fence'); yardOf(b, d.yards[b.id], { x0, y0, x1, y1, longY, zAt }); }
     else if (b.kind === 'vacant') {
-      fenced(b, { x0, y0, x1, y1 }, zAt((x0 + x1) / 2, (y0 + y1) / 2), 'fence');
+      fenced(b, { x0, y0, x1, y1 }, zAt, 'fence');
       // (its young trees, seeded where they fell, backs.js)
       if (BACKS_ON && !far) { const Fr = backFrame([x0, y0], null); growBack(Fr, volunteers([0, 0, x1 - x0, y1 - y0], { zAt: (u, v) => zAt(...Fr.xy(u, v)), R: streamOf(seed, 'backs', b.id) }).trees, b.id); }
     }
@@ -1032,7 +1034,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     // near: scaffolding up its two long faces, a bay every 2 m along and every lift up
     const faces2 = longY ? [['w', q[0], 'y', q[1], q[3]], ['e', q[2], 'y', q[1], q[3]]] : [['s', q[1], 'x', q[0], q[2]], ['n', q[3], 'x', q[0], q[2]]];
     for (const [f, at2, along, a, c] of faces2) for (let t = a + 1; t <= c - 1; t += 2) for (let z = zc; z + 2 <= top + 1e-6; z += 2) stamp(`scaffold:${f}`, along === 'y' ? [at2, t, z] : [t, at2, z], 0);
-    fenced(b, { x0, y0, x1, y1 }, zc, 'hoarding');
+    fenced(b, { x0, y0, x1, y1 }, zAt, 'hoarding');
     // barriers and cones on the walk along a street side (the one it fronts first)
     const s = ['s', 'n', 'w', 'e'].find((k) => b.sides[k]?.kind === 'street' || b.sides[k]?.kind === 'arterial') ?? 's', o = WALK / 2;
     for (let k = 0; k < 5; k++) {
@@ -1042,10 +1044,12 @@ export function assembleGeocityScene(m, ctx = {}) {
     for (let k = 0; k < 4; k++) { const p = s === 's' ? [x0 + 17 + k * 1.6, y0 - o] : s === 'n' ? [x0 + 17 + k * 1.6, y1 + o] : s === 'w' ? [x0 - o, y0 + 17 + k * 1.6] : [x1 + o, y0 + 17 + k * 1.6]; stamp('cone', [p[0], p[1], S(p[0], p[1]) + KERB], 0); }
   }
   /** A block's edge fenced near the camera: hoarding along its streets (a site's), temporary panels along the rest. */
+  // (each panel on the terrace it stands on: `z` the block's zAt, or one height)
   function fenced(b, { x0, y0, x1, y1 }, z, street) {
+    const zf = typeof z === 'function' ? z : () => z;
     for (const [k, a, c, fixed, ax] of [['s', x0, x1, y0 + 0.4, 'x'], ['n', x0, x1, y1 - 0.4, 'x'], ['w', y0, y1, x0 + 0.4, 'y'], ['e', y0, y1, x1 - 0.4, 'y']]) {
       const kind = street === 'hoarding' && (b.sides[k]?.kind === 'street' || b.sides[k]?.kind === 'arterial') ? 'hoarding' : 'fence', len = kind === 'hoarding' ? 2.4 : 3.5;
-      for (let t = a + len / 2; t <= c - len / 2 + 1e-6; t += len) stamp(kind, ax === 'x' ? [t, fixed, z] : [fixed, t, z], ax === 'x' ? 0 : Math.PI / 2);
+      for (let t = a + len / 2; t <= c - len / 2 + 1e-6; t += len) stamp(kind, ax === 'x' ? [t, fixed, zf(t, fixed)] : [fixed, t, zf(fixed, t)], ax === 'x' ? 0 : Math.PI / 2);
     }
   }
   /** A surface parking lot (segments.js `parking`): rows of stalls across its short side, an aisle between each two,
@@ -1958,6 +1962,13 @@ export function assembleGeocityScene(m, ctx = {}) {
       const dx = st.pos[0] - Fc.a[0], dy = st.pos[1] - Fc.a[1], u = dx * Fc.t[0] + dy * Fc.t[1], v = dx * Fc.n[0] + dy * Fc.n[1];
       if (u >= 0 && u <= Fc.L && v >= 0 && v <= FORE.depth && st.pos[2] < Fc.zTop(u)) st.pos = P3([st.pos[0], st.pos[1], Fc.zTop(u)]);
     }
+  }
+  // SETTLED ON WHAT IS DRAWN (settle.js): the street's paint and its furniture, and its trees, were stood on the land; the
+  // road and the walk under them are drapes, flat across each cell: each re-seated on the surface drawn under it
+  {
+    const ground = { carriage: drawnGround(faces, SETTLE.carriage), walked: drawnGround(faces, SETTLE.walked) };
+    const st = settleStamps(stamps, ground), tr = settleTrees(trees, ground.walked);
+    counts.settled = { pieces: st.seated, trees: tr.seated, left: st.left + tr.left };
   }
   // PLAYED, NOTHING STANDS ON A ROAD: what the street stands (a signal, a lamp, a pole, a hydrant, a bin, a bench, a
   // sign) and every tree is kept only off the carriageway: one found over road surface with no other ground under it

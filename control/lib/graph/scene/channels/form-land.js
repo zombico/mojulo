@@ -16,6 +16,7 @@
  * it). A live light's own sun (channels/cast-shadows.js) is shadow only here too: its intensity is taken to nothing, so
  * the land is lit once. `window.__formReady` when it has drawn (its textures load first).
  */
+import { deflateSync } from 'node:zlib';
 import { safeJson } from '../emit-util.js';
 import { formGrassScript } from './form-grass.js';
 import { viewConeScript } from './view-cone.js';
@@ -46,14 +47,39 @@ export const FAR_LAND = Object.freeze({ rise: Object.freeze([0.35, 0.85]), tone:
 // fog thinned to `fog` of its density over it (exponential-squared, as the page's; a linear fog's far end pushed out as
 // far), so mountains a few hundred metres off read through a morning's haze; absent, the page's own fog, as it always was
 const hazeFog = (k0) => { const k = Number(k0).toFixed(3); return `#ifdef USE_FOG\\n  #ifdef FOG_EXP2\\n    float fogFactor = 1.0 - exp( - ${k} * fogDensity * fogDensity * vFogDepth * vFogDepth );\\n  #else\\n    float fogFactor = smoothstep( fogNear, fogFar / ${k}, vFogDepth );\\n  #endif\\n  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );\\n#endif`; };
-export function formLandScript(form, flora = null, { capture = false } = {}) {
+/** THE PAGE'S LAND PACKED: an array of the read this large or larger (its base64's length) rides deflated, `z:` and its
+ *  base64 (a city's grass map, a metre's half over a whole metro, is mostly the same few bytes: some twenty times less),
+ *  inflated by the page's own DecompressionStream before anything reads it. A smaller land rides as it always did, its
+ *  page byte for byte. */
+export const LAND_PACK = Object.freeze({ from: 1 << 20, keys: Object.freeze([['pos'], ['c7'], ['spl'], ['nrm'], ['grass', 'px'], ['grass', 'drifts', 'px'], ['path', 'px'], ['depth', 'px'], ['stones', 'px'], ['relief', 'px'], ['dunes', 'px'], ['snow', 'px']]) });
+export function packLand(form) {
+  let out = form, n = 0;
+  for (const keys of LAND_PACK.keys) {
+    let o = out;
+    for (const k of keys.slice(0, -1)) o = o?.[k];
+    const k = keys[keys.length - 1], v = o?.[k];
+    if (typeof v !== 'string' || v.length < LAND_PACK.from) continue;
+    // (copied down its path, so the payload the caller holds is left as it was)
+    if (out === form) out = { ...form };
+    let w = out;
+    for (const kk of keys.slice(0, -1)) { w[kk] = { ...w[kk] }; w = w[kk]; }
+    w[k] = `z:${deflateSync(Buffer.from(v, 'base64'), { level: 6 }).toString('base64')}`;
+    n++;
+  }
+  return n ? { ...out, packed: n } : form;
+}
+export function formLandScript(form0, flora = null, { capture = false } = {}) {
+  const form = packLand(form0);
   return `
 // --- the form render (gen-7): the land as material, lit by the cube's light (channels/form-land.js) ---
 (async function () {
   const D = ${safeJson(form)}, __formMeshes = [];
   // (what was drawn before it keeps its look: the tone curve is the form's)
   const __formBefore = []; scene.traverse((o) => { if (o.material) __formBefore.push(o); });
-  const bytes = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  const bytes = (s) => ${form.packed ? "(typeof s === 'string' ? Uint8Array.from(atob(s), (c) => c.charCodeAt(0)) : s)" : 'Uint8Array.from(atob(s), (c) => c.charCodeAt(0))'};${form.packed ? `
+  // (the packed arrays, LAND_PACK: inflated where they lie, before anything reads them)
+  const __unz = async (s) => new Uint8Array(await new Response(new Blob([Uint8Array.from(atob(s.slice(2)), (c) => c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer());
+  for (const keys of ${JSON.stringify(LAND_PACK.keys)}) { let o = D; for (const k of keys.slice(0, -1)) o = o && o[k]; const k = keys[keys.length - 1]; if (o && typeof o[k] === 'string' && o[k].startsWith('z:')) o[k] = await __unz(o[k]); }` : ''}
   // (the fills and colours are sRGB bytes; three's vertex colours are linear)
   const LIN = Float32Array.from({ length: 256 }, (_, v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
   const linear = (b) => Float32Array.from(b, (v, i) => (i % 4 === 3 ? v / 255 : LIN[v]));

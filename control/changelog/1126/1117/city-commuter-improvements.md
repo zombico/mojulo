@@ -19,3 +19,16 @@
   which read as a pattern rather than as wear. Islands and trails are drawn as they were.
 - **Houses are house-sized.** A pair of semi-detached houses along a main road stood as tall as the five- and
   six-storey buildings beside it. A house is now three storeys at most.
+- **Street paint lies on the street.** Lane lines, centre lines, crosswalk bars, streetcar rails, parking-space lines
+  and tree pits were placed by the lie of the land, but the road and pavement are drawn in flat panels, so on a hill
+  a piece could float up to half a metre over the road or sink into it. Every piece of paint now sits on the road
+  that is actually drawn under it, following its slope from end to end, a centimetre over it (it used to be five, enough
+  to cast its own shadow). Lamps, signals, poles, hydrants, bins, benches, bike stands and street trees stand on the
+  pavement drawn under them in the same way.
+- **Site fences follow the ground.** The temporary fences and hoardings round a building site or a vacant lot stood at
+  one height for the whole block, so on a terraced block some panels hung in the air and others were buried. Each
+  panel now stands on the terrace under it.
+- **Smaller, faster-loading city pages.** In the most detailed look a city district's page is about a third smaller
+  (158 MB to 101 MB for a played district). Buildings and grounds that are finished in the same material now share
+  one texture rather than each carrying its own copy, and the large maps behind the land (where grass grows, the
+  ground's shape) are compressed in the page and unpacked by the browser as it loads. Smaller lands are unchanged.
