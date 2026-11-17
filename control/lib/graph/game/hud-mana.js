@@ -33,7 +33,9 @@
  * A row's colour is not carried: the theme owns the look.
  *
  * The state the spec binds (the host writes it from the level's bus): v.<k> a var's value · on.<k> whether a gated or
- * timed row stands · lines.<k> a slot's passing lines · moments [] · hero { hp, hpMax, hasHp, stamina, staminaMax, sprints, hpGhost } · style { on, name, combo } · devil { on, fill, stocks }.
+ * timed row stands · lines.<k> a slot's passing lines · moments [] · hero { hp, hpMax, hasHp, stamina, staminaMax, sprints } · style { on, name, combo } · devil { on, fill, stocks } · vit { hp,
+ * max, has, ghost } (the vitals' health: the level's own health row where it has one, else the pilot's; feed.vitals.hp says
+ * which paths it reads).
  * Pure: a spec is data.
  */
 import { normalizeHud, HUD_SLOTS } from './hud-widgets.js';
@@ -54,12 +56,14 @@ export function hudToMana(rows, { register = null, hero = true, touch = false, s
   // a row that is gated (a part's id, its phases) or timed stands while the host says so
   const gate = (w, i, ttl = 0) => { if (!w.id && !w.when && !ttl) return {}; const k = `r${i}`; gates.push({ k, ...(w.id ? { id: w.id } : {}), ...(w.when ? { when: w.when } : {}), ...(ttl ? { ttl } : {}) }); return { when: B(`on.${k}`) }; };
   const cond = (w) => ({ ...(w.id ? { id: w.id } : {}), ...(w.when ? { when: w.when } : {}) });
-  let hpRow = false;
+  let hpRow = false, vitHp = null;
   widgets.forEach((w, i) => {
     if (w.kind === 'readout') {
       const value = B(`v.${varKey(w.var)}`), label = w.label ?? '';
       if (w.as === 'bar') {
         const variant = meaningOf(w); if (variant === 'hp') hpRow = true;
+        // (the vitals take the level's health into their figure: it is drawn there, not in its slot)
+        if (hero && vitals && variant === 'hp' && !vitHp) { vitHp = { value: `v.${varKey(w.var)}`, max: typeof w.max === 'string' ? `v.${varKey(w.max)}` : w.max, ...gate(w, i) }; return; }
         bySlot[w.slot].push({ use: 'bar', props: { value, max: typeof w.max === 'string' ? B(`v.${varKey(w.max)}`) : w.max, ...(variant !== 'plain' ? { variant } : {}), ...(label ? { label } : {}) }, ...gate(w, i) });
       } else if (w.as === 'clock') bySlot[w.slot].push({ use: 'timer', props: { seconds: value, ...(label ? { label } : {}) }, ...gate(w, i) });
       else if (w.as === 'counter') { const icon = iconOf(label) ?? iconOf(w.var); bySlot[w.slot].push({ use: 'counter', props: { label, value, ...(icon ? { icon } : {}) }, ...gate(w, i) }); }
@@ -86,7 +90,7 @@ export function hudToMana(rows, { register = null, hero = true, touch = false, s
   // and the devil gauge in one cluster, laid out at their length at the game's end, the sprint a hairline over them
   const cluster = hero && vitals ? [{ use: 'stack', props: { gap: 'tight', align: 'start' }, children: [
     { use: 'bar', props: { value: B('hero.stamina'), max: B('hero.staminaMax'), variant: 'stamina', figures: false }, when: B('hero.sprints') },
-    { use: 'bar', props: { value: B('hero.hp'), max: B('hero.hpMax'), variant: 'hp', figures: false, ghost: B('hero.hpGhost') }, when: B('hero.hasHp') },
+    { use: 'bar', props: { value: B('vit.hp'), max: B('vit.max'), variant: 'hp', figures: false, ghost: B('vit.ghost') }, when: vitHp?.when ?? B('vit.has') },
     { use: 'bar', props: { value: B('devil.fill'), max: B('devil.stocks'), segments: B('devil.stocks'), variant: 'mp', figures: false }, when: B('devil.on') },
   ] }] : null;
   const own = hero ? [...(hpRow ? [] : [{ use: 'bar', props: { value: B('hero.hp'), max: B('hero.hpMax'), variant: 'hp', label: 'HP' }, when: B('hero.hasHp') }]), { use: 'bar', props: { value: B('hero.stamina'), max: B('hero.staminaMax'), variant: 'stamina', figures: false }, when: B('hero.sprints') }] : [];
@@ -105,7 +109,7 @@ export function hudToMana(rows, { register = null, hero = true, touch = false, s
     { use: 'text', props: { value: B('style.name'), role: 'numeral' } },   // (a numeral: marked as it changes, so the host's motion plays)
     { use: 'text', props: { value: B('style.combo'), role: 'numeral' }, when: B('style.combo') },
   ] }] });
-  return { spec: { screens: {}, hud: { use: 'hud', children: regions } }, feed: { rows: { vars, gates, banners, toasts, lines: Object.values(lines) }, ...(hero ? { hero: true } : {}), ...(style ? { style: true } : {}), ...(immersive ? { immersive: true } : {}), ...(cluster ? { vitals } : {}) } };
+  return { spec: { screens: {}, hud: { use: 'hud', children: regions } }, feed: { rows: { vars, gates, banners, toasts, lines: Object.values(lines) }, ...(hero ? { hero: true } : {}), ...(style ? { style: true } : {}), ...(immersive ? { immersive: true } : {}), ...(cluster ? { vitals: { ...vitals, hp: vitHp ? { value: vitHp.value, max: vitHp.max } : { value: 'hero.hp', max: 'hero.hpMax', has: 'hero.hasHp' } } } : {}) } };
 }
 
 /** A level's `manaHud` in a look (a mana-ui preset's name, a card's, or a theme object): its rows are the level's own. */

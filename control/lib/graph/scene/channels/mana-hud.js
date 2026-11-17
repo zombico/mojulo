@@ -69,7 +69,8 @@ function styleMeterCss() {
 function vitalsCss(look) {
   const V = '#moj-mana-hud .mana-stack:has(>.mana-bar[data-variant=hp])', H = `${V}>.mana-bar[data-variant=hp]`, D = `${V}>.mana-bar[data-variant=mp]`, S = `${V}>.mana-bar[data-variant=stamina]`;
   const LIGHT = 'color-mix(in srgb,var(--mana-accent) 60%,#fff)', A2 = 'var(--mana-accent2)';
-  const DEVIL = 'color-mix(in srgb,color-mix(in srgb,var(--mana-mp) 35%,var(--mana-harm)) 85%,#000)';
+  // (the gauge's own hue, as health is green whatever the theme: a devil's crimson-violet)
+  const DEVIL = 'color-mix(in srgb,#d0124e 40%,#7b2cff)';
   const slant = (k) => `polygon(${k}em 0,100% 0,calc(100% - ${k}em) 100%,0 100%)`;
   const LOOK = {
     overlap: { crest: 'rotate(45deg)', crestW: 2.4, pad: 1.5, hp: { h: 1.05, clip: slant(0.55) }, dv: { h: 0.62, clip: slant(0.4), mt: -0.24, ml: 0.75, gap: 0.2 }, st: { mt: 0 } },
@@ -98,6 +99,7 @@ function vitalsCss(look) {
     `${D} .mana-track{height:${L.dv.h}em!important;clip-path:${L.dv.clip}}`,
     `${D} .mana-track i{background:linear-gradient(180deg,color-mix(in srgb,${DEVIL} 55%,#fff) 0 22%,${DEVIL} 22% 70%,color-mix(in srgb,${DEVIL} 60%,#000))!important}`,
     `${D} .mana-track b{position:absolute;top:0;bottom:0;width:${L.dv.gap}em;margin-left:-${L.dv.gap / 2}em;background:#000!important;opacity:.85;transform:skewX(-28deg)}`,
+    `${D} .mana-track s{background:color-mix(in srgb,${DEVIL} 35%,#fff)!important}`,
     `${D}[data-ready=yes]{filter:drop-shadow(.07em .07em 0 ${A2}) drop-shadow(-.035em -.035em 0 ${LIGHT}) drop-shadow(0 0 .35em ${DEVIL})}`,
     // the sprint: a hairline over the health, as long as it
     `${S}{width:calc(var(--moj-full) * var(--moj-hp-span,.5) * .9);margin:${L.st.mt}em 0 .14em .25em}`,
@@ -145,16 +147,19 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   // (laid over the scene's own frame, as the level's widgets were: a letterboxed scene keeps its HUD inside it)
   const root = document.createElement('div'); root.id = 'moj-mana-hud'; (document.getElementById('wrap') || document.body).appendChild(root);
   const F = CFG.feed, of = Math.max(1, Math.round((F.to || 0) - (F.from || 0)));
-  const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [], hint: '' }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {}${hud.feed && hud.feed.style ? ", style: { on: false, name: '', combo: 0 }" : ''}${vit ? ", devil: { on: false, fill: 0, stocks: 1 }" : ''} };
+  const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [], hint: '' }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {}${hud.feed && hud.feed.style ? ", style: { on: false, name: '', combo: 0 }" : ''}${vit ? ", devil: { on: false, fill: 0, stocks: 1 }, vit: { hp: 0, max: 1, has: false, ghost: 0 }" : ''} };
   let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
 ${styled ? '  let sTier = 0;\n' : ''}${vit ? `  // THE VITALS (game/hud-mana.js vitals): the hit's chip held a moment then drained; each bar's length its share of what it
   // reaches by the game's end, so the figure grows across the game and is laid out for its end from the start
   const VIT = CFG.feed.vitals; let vHp = null, vGhost = 0, vHold = 0, vFull = VIT.full.hp || 0;
   root.dataset.vitals = VIT.look;
-  function vitals(me) {
-    const h = st.hero.hp; if (vHp !== null && h < vHp) { vGhost = Math.max(vGhost, vHp); vHold = clock + 0.7; } vHp = h; if (clock > vHold) vGhost = h; st.hero.hpGhost = vGhost;
-    if (!vFull && st.hero.hasHp) vFull = st.hero.hpMax * 2;
-    if (vFull) root.style.setProperty('--moj-hp-span', String(Math.min(1, st.hero.hpMax / vFull)));
+  const at = (path) => (typeof path === 'number' ? path : String(path).split('.').reduce((o, k) => (o == null ? o : o[k]), st));
+  function vitals() {
+    const P = VIT.hp, h = Number(at(P.value)) || 0, mx = Math.max(1, Number(at(P.max)) || 1);
+    st.vit.hp = h; st.vit.max = mx; st.vit.has = P.has ? !!at(P.has) : true;
+    if (vHp !== null && h < vHp) { vGhost = Math.max(vGhost, vHp); vHold = clock + 0.7; } vHp = h; if (clock > vHold) vGhost = h; st.vit.ghost = vGhost;
+    if (!vFull && st.vit.has) vFull = mx * 2;
+    if (vFull) root.style.setProperty('--moj-hp-span', String(Math.min(1, mx / vFull)));
     const SM = window.__mojStyle && window.__mojStyle.now(), dv = SM && SM.devil; st.devil.on = !!dv;
     if (dv) { st.devil.fill = dv.fill; st.devil.stocks = dv.stocks; root.style.setProperty('--moj-dv-span', String(Math.min(1, dv.stocks / (VIT.full.devil || 10)))); }
   }
@@ -253,10 +258,10 @@ ${styled ? '  let sTier = 0;\n' : ''}${vit ? `  // THE VITALS (game/hud-mana.js 
     }
 ${hud.feed && hud.feed.style ? `    // the style meter (worlds/controllable/style.js), where the page says it: it stands while there is style to show
     const SM = window.__mojStyle && window.__mojStyle.now(); if (SM) { st.style.on = SM.points > 0 || SM.combo > 0; st.style.name = SM.name; st.style.combo = SM.combo; if (SM.tier !== sTier) { root.dataset.styleWay = SM.tier > sTier ? 'up' : 'down'; sTier = SM.tier; root.dataset.styleTop = SM.tier === SM.tiers.length - 1 ? 'yes' : 'no'; } root.style.setProperty('--moj-style-fill', String(SM.fill)); root.style.setProperty('--moj-style-heat', String(Math.min(1, SM.combo / 30))); }
-` : ''}${vit ? '    if (F.hero && me) vitals(me);\n' : ''}    const V = window.__mojBus && window.__mojBus.state && window.__mojBus.state.vars;
+` : ''}    const V = window.__mojBus && window.__mojBus.state && window.__mojBus.state.vars;
     if (V && V.coins != null) st.coins.count = V.coins;
 ${ways ? '    way(V);\n' : ''}${hud.feed && hud.feed.immersive ? '    if (!bared) bare();\n' : ''}    if (ROWS && V) rows(window.__mojBus.state, V);
-    if (cue) {
+${vit ? '    if (F.hero) vitals();\n' : ''}    if (cue) {
       const k = Math.floor((clock - cue.t0) / F.cue.every);
       if (k < F.cue.beats.length) st.start.count = F.cue.beats[k];
       else { cue = null; rt.close(); st.moments = st.moments.concat([{ id: 'go', text: F.cue.go, weight: 'major' }]); if (hintUntil > 0) hintUntil = clock + F.hint.seconds; }
