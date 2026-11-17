@@ -114,6 +114,7 @@ const PINS = {
   'backfire': 'a41ad1b70e0b',
   'car-door': 'ef4a9a177b85',
   'kart-engine': '43dfb6c0858e',
+  'road-car-engine': '3bff9d8db5e6',   // a new row (2026-11-17): a road car's engine for a small speaker
   'boat-engine': '0447bec3c238',
   // (new rows: the heavy diesel and the tracked engine, a walking machine's hydraulics: the artillery range's bases)
   'diesel-engine': 'c096cf2c7466',

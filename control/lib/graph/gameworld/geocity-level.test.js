@@ -281,7 +281,7 @@ describe('jobs across the district (errands on a played district: its shops thei
     // (its footsteps the pavement's, whatever the world's kit grows elsewhere; the engine louder than a ride game's)
     expect(heard.audio.sfx.sheet.slots.step).toBe('step-pavement');
     expect(heard.audio.engine.level).toBeGreaterThan(0.3);
-    expect(heard.audio.engine).toMatchObject({ voice: 'car-engine', cab: true });
+    expect(heard.audio.engine).toMatchObject({ voice: 'road-car-engine', cab: true });
     expect(Object.keys(heard.audio.sfx.sheet.cues)).toEqual(expect.arrayContaining(['car:door', 'car:horn', 'car:crash']));
     for (const k of ['car:door', 'car:horn', 'car:crash']) expect(heard.audio.sfx.sheet.cues[k].length).toBeGreaterThan(0);
     expect(level.audio?.engine).toBeUndefined(); expect(level.audio?.bed).toBeUndefined();

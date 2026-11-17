@@ -413,7 +413,11 @@ ${audio.moves ? `// a MOVESET's sounds (audio.moves, beats-world.js; gameworld/c
 // unlock; silent while muted or with no pilot. Read-only and presentation-only. (No backticks.)
 (function () {
   const E = __AUDIO.engine, K = { pos: null, t: 0, speed: 0 };
-  let H = null;
+${audio.engine.cab ? `  // (a car's revs through its GEARS: in each gear the engine climbs from a third of its range to the top and drops back
+  // as the next gear takes up, so a car pulling away is heard changing up, not one long rising whine; stopped, it idles)
+  const __GEARS = [0.18, 0.36, 0.56, 0.78, 1];
+  const __rev = (v) => { const f = Math.max(0, Math.min(1, v / E.top)); if (f < 0.01) return E.idle; let lo = 0; for (const hi of __GEARS) { if (f <= hi) return E.idle + (1 - E.idle) * (lo ? 0.34 : 0.06 + 0.28 * Math.min(1, f / 0.04)) + (1 - E.idle) * 0.66 * ((f - lo) / (hi - lo)); lo = hi; } return 1; };
+` : ''}  let H = null;
   (function __beatsEngine() {
     requestAnimationFrame(__beatsEngine);
     if (!__beatsEng) return;
@@ -445,7 +449,7 @@ ${audio.engine.cab ? `    // (a city's cars, its cab: heard only while the pilot
       K.pos = [p[0], p[1], p[2] || 0]; K.t = now;
     } else K.speed *= 0.9;
     const x = E.idle + (1 - E.idle) * Math.max(0, Math.min(1, K.speed / E.top));
-    ${audio.engine.cab ? 'if (H) ' : ''}H.set(__beatsMuted || !P ? 0 : x);
+    ${audio.engine.cab ? 'if (H) H.set(__beatsMuted || !P ? 0 : __rev(K.speed));' : 'H.set(__beatsMuted || !P ? 0 : x);'}
   })();
 ${audio.engine.cab ? `  // (the horn: H at the wheel)
   if (E.cab) addEventListener('keydown', function (ev) { const c = window.__mojCtrl && window.__mojCtrl.world, P = c && c.byId && c.byId[c.pilotId]; if (ev.code === 'KeyH' && !ev.repeat && P && P.mountedOn && !window.__mojMenuOpen) __beatsCue(__AUDIO.cues && __AUDIO.cues['car:horn']); });

@@ -17,3 +17,7 @@
   the grass rustle it was getting. No footsteps sound while you are in a car (or riding anything); the car's engine
   is what you hear, and it is louder than before. The engine runs only while you are in the car: it starts as you get
   in and stops as you get out, with no idle hum while you walk.
+- **You can hear the car.** The car's engine was pitched like a real car's, too low for a laptop's or a phone's
+  speaker to play. Cars in the city now have an engine voiced for small speakers (a new road-car engine: its note
+  higher, a burble, the tyres' hiss growing with speed), and it changes up through its gears as you pull away instead
+  of one long rising whine.

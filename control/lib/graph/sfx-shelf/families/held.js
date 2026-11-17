@@ -4,7 +4,7 @@
  *
  *   booster  a thruster: `jet` a boost whine, the audio channel's thruster synth (scene/channels/audio.js) ported
  *            range for range; `rocket` a rough combustion roar; `ion` a sci-fi drive's hum
- *   engine   a motor by its throttle, idling at 0: a car, a motorbike, a jet's turbine, a propeller's chop, a heavy diesel, a
+ *   engine   a motor by its throttle, idling at 0: a car, a road car voiced for small speakers, a motorbike, a jet's turbine, a propeller's chop, a heavy diesel, a
  *            tracked vehicle's diesel and its tracks, a multirotor drone's motors and props
  *   beam     a held beam weapon by its power: a laser's buzz, a plasma stream's roar
  *   servo    a machine gathering itself: the audio channel's jump servo and its piston chuffs, ported; a walking
@@ -63,7 +63,7 @@ export const engine = {
   label: 'a motor by its throttle, idling at 0',
   sustain: true,
   ordered: [],
-  dials: { kind: ['car', 'motorbike', 'jet', 'prop', 'kart', 'boat', 'helicopter', 'diesel', 'tracked', 'multirotor'] },
+  dials: { kind: ['car', 'motorbike', 'jet', 'prop', 'kart', 'boat', 'helicopter', 'diesel', 'tracked', 'multirotor', 'road'] },
   defaults: { kind: 'car' },
   idle: 'running',
   build(d) {
@@ -83,6 +83,16 @@ export const engine = {
         osc('sawtooth', [30, 110], [0.2, 0.4], { cutoff: [300, 1500], lfo: { to: 'gain', rate: [15, 55], depth: 0.7 } }),
         noise([0.05, 0.2], { cutoff: [800, 2500], lfo: { to: 'gain', rate: [15, 55], depth: 0.5 } }),
         osc('square', [15, 55], [0.08, 0.15], { cutoff: [200, 500] }),
+      ] };
+      case 'road': return { attack: 0.1, release: 0.3, layers: [
+        // a road car as a game plays it: the car's note an octave and more above the real thing's, where a laptop's or
+        // a phone's speaker can sound it (a car's own fundamental, 30 to 160 Hz, is felt on big speakers and lost on
+        // small ones); its firing a burble, its second harmonic for the rasp, a body under it for the big speakers,
+        // and the tyres' and the wind's hiss growing with the speed
+        osc('sawtooth', [95, 380], [0.22, 0.5], { cutoff: [1100, 4200], q: 1.1, lfo: { to: 'gain', rate: [18, 75], depth: 0.35 } }),
+        osc('square', [190, 760], [0.05, 0.14], { cutoff: [1400, 5000], pan: 0.1 }),
+        osc('sine', [48, 190], [0.12, 0.22]),
+        noise([0.02, 0.24], { band: { lo: 400 }, cutoff: [1200, 4200], pan: -0.15 }),
       ] };
       case 'kart': return { attack: 0.08, release: 0.2, layers: [
         // a small two-stroke: high, buzzy, its firing fast and hard

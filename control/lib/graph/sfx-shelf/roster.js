@@ -223,6 +223,7 @@ const ROWS = {
   backfire: made('machinery', 'thud', 'on', 'an exhaust backfiring', ['exhaust pop'], 'motoring', { act: 'backfire' }),
   'car-door': made('machinery', 'door', 'on', 'a car door slammed', ['door slam car', 'car door slam'], 'motoring', { act: 'door-slam' }),
   'kart-engine': made('machinery', null, 'hold', 'a kart\'s engine by its throttle', ['kart', 'go kart'], 'engine', { kind: 'kart' }),
+  'road-car-engine': made('machinery', null, 'hold', 'a road car\'s engine as a game plays it: its note high enough for a small speaker, a burble, the tyres\' hiss', ['road car engine', 'street car engine', 'driving engine'], 'engine', { kind: 'road' }),
   'diesel-engine': made('machinery', null, 'hold', 'a heavy diesel by its throttle: a truck, a carrier, a walking machine\'s power pack', ['diesel', 'truck engine', 'heavy engine'], 'engine', { kind: 'diesel' }),
   'tank-engine': made('machinery', null, 'hold', 'a tracked vehicle by its throttle: its diesel and its tracks clanking', ['tank engine', 'tracked engine', 'track clatter'], 'engine', { kind: 'tracked' }),
   'walker-hydraulics': made('machinery', null, 'hold', 'a walking machine\'s hydraulics by its pace: its pump straining, its valves chuffing with its steps', ['hydraulics', 'walker servo', 'mech hydraulics'], 'servo', { kind: 'walker' }),

@@ -23,7 +23,12 @@ describe('the city\'s cars, heard', () => {
     // (the engine runs only while a car is ridden: started on getting in, stopped on getting out; no idle on foot)
     expect(cab).toContain('if (__rides && !H) {');
     expect(cab).toContain('else if (!__rides && H) { H.stop(); H = null; }');
-    expect(cab).toContain('if (H) H.set(');
+    expect(cab).toContain('if (H) H.set(__beatsMuted || !P ? 0 : __rev(K.speed));');
+    // (its revs through gears: each gear climbs and the next drops it back)
+    const rev = new Function('E', `${cab.match(/const __GEARS = [^\n]*\n/)[0]}${cab.match(/const __rev = [^\n]*\n/)[0]}return __rev;`)({ idle: 0.12, top: 28 });
+    expect(rev(0)).toBe(0.12);
+    expect(rev(4.9)).toBeGreaterThan(rev(2)); expect(rev(5.4)).toBeLessThan(rev(4.9));
+    expect(rev(28)).toBeCloseTo(1, 5);
     expect(() => new Function(cab.replace(/^[^\n]*\n/, ''))).not.toThrow();
   });
   it('the level\'s audio keeps the engine\'s `cab` through the world\'s read', () => {
