@@ -22,6 +22,12 @@ describe('what a watcher sees', () => {
     expect(sees(post, [5, 0], E.prone.eye, 0, wall(0.5))).toBe(false);
     expect(sees(post, [9, 0], E.prone.eye, 0, wall(0.5))).toBe(true);
   });
+  it('a wire is seen through: it stops a body walking, never a line of sight', () => {
+    const wire = [{ min: [4, -3, 0], max: [4.5, 3, 1.5], sight: false }];
+    expect(sees(post, [6, 0], E.prone.eye, 0, wire)).toBe(true);
+    const R = sneakRoutes({ bounds: [0, 0, 9, 12], start: [4.5, 1], goal: [4.5, 11], boxes: [{ min: [0, 5, 0], max: [9, 5.5, 1], sight: false }], watchers: [], seconds: 60 });
+    expect(R.direct).toBeNull();
+  });
   it('a patrol walks its round and looks the way it walks', () => {
     const p = { id: 'p', at: [0, 0], to: [8, 0], speed: 2 };
     expect(watcherAt(p, 2)).toMatchObject({ pos: [4, 0], heading: 0 });

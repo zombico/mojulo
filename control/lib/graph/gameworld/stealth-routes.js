@@ -18,13 +18,14 @@
  *                                or a patrol on its round ({ at, to, speed })
  *   sees(w, at, eye, t, boxes)   → is a body's eye there seen by that watcher at t?
  *   sneakRoutes(place)           → { direct, sneak, other, verdicts }
- *       place: { bounds: [x0, y0, x1, y1], boxes: [{ min, max }], watchers: [{ id, at, to?, speed?, heading?, cone?,
+ *       place: { bounds: [x0, y0, x1, y1], boxes: [{ min, max, sight?: false (seen through: a wire), walk?: false
+ *                (walked under or over) }], watchers: [{ id, at, to?, speed?, heading?, cone?,
  *                range?, eye?, hear? }], start: [x, y], goal: [x, y], goalRadius?: 2, seconds?: 300, cell?: 1 }
  *       direct  the shortest way with no watcher in mind (anyone's first try): { path, seconds, seen: { at, by, t } | null }
  *       sneak   the fastest way never seen or heard: { path: [{ at, t, stance }], seconds, waits (seconds stood still),
  *               crawl, crouch (metres in each), detour (its length over the direct way's), nearest (metres to a watcher) }
  *               or null when there is none
- *       other   the fastest unseen way that keeps `apart` metres (4) from the first one's middle half: a second way that
+ *       other   the fastest unseen way that keeps `apart` metres (3) from the first one's middle third: a second way that
  *               is not the first again, or null
  *       verdicts  the laws, each { law, holds, says }: the-first-try-is-seen, a-way-unseen, it-costs-patience-or-a-detour,
  *               a-second-way
@@ -51,6 +52,7 @@ export function watcherAt(w, t) {
 function blocked(ax, ay, az, bx, by, bz, boxes) {
   const dx = bx - ax, dy = by - ay;
   for (const b of boxes) {
+    if (b.sight === false) continue;
     let t0 = 0, t1 = 1, miss = false;
     for (let k = 0; k < 2; k++) {
       const o = k ? ay : ax, d = k ? dy : dx, lo = b.min[k], hi = b.max[k];
@@ -80,7 +82,7 @@ export function sneakRoutes(place) {
   const cellOf = (p) => Math.min(H - 1, Math.max(0, Math.floor((p[1] - Y0) / C))) * W + Math.min(W - 1, Math.max(0, Math.floor((p[0] - X0) / C)));
   // a cell a body cannot stand in: inside a box taller than a step (inflated by the body)
   const R = 0.35, solid = new Uint8Array(N);
-  for (let i = 0; i < N; i++) { const x = cx(i), y = cy(i); if (boxes.some((b) => b.max[2] > 0.4 && b.min[2] < 1.2 && x > b.min[0] - R && x < b.max[0] + R && y > b.min[1] - R && y < b.max[1] + R)) solid[i] = 1; }
+  for (let i = 0; i < N; i++) { const x = cx(i), y = cy(i); if (boxes.some((b) => b.walk !== false && b.max[2] > 0.4 && b.min[2] < 1.2 && x > b.min[0] - R && x < b.max[0] + R && y > b.min[1] - R && y < b.max[1] + R)) solid[i] = 1; }
   const start = cellOf(place.start), goalR = place.goalRadius ?? 2, atGoal = (i) => Math.hypot(cx(i) - place.goal[0], cy(i) - place.goal[1]) <= goalR;
   const NB = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.4], [1, -1, 1.4], [-1, 1, 1.4], [-1, -1, 1.4]];
 
@@ -159,8 +161,8 @@ export function sneakRoutes(place) {
   const first = unseenWay(), sneak = describe(first, dLen);
   let other = null;
   if (first) {
-    // (a second way keeps `apart` metres off the first one's middle half)
-    const apart = place.apart ?? 4, mid = first.slice(Math.floor(first.length / 4), Math.ceil((first.length * 3) / 4)), avoid = new Uint8Array(N);
+    // (a second way keeps `apart` metres off the first one's middle third: two ways to one goal meet near their ends)
+    const apart = place.apart ?? 3, mid = first.slice(Math.floor(first.length / 3), Math.ceil((first.length * 2) / 3)), avoid = new Uint8Array(N);
     for (let i = 0; i < N; i++) { const x = cx(i), y = cy(i); if (mid.some((p) => Math.hypot(p.at[0] - x, p.at[1] - y) < apart)) avoid[i] = 1; }
     other = describe(unseenWay(avoid), dLen);
   }

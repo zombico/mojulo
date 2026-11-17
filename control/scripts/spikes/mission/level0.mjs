@@ -21,10 +21,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 register('../../mcp-stdio-loader.mjs', import.meta.url);
 const here = path.dirname(fileURLToPath(import.meta.url));
-const { options, database, starterRoom, groundOf, writePage } = await import('./lib.mjs');
+const { options, database, starterRoom, groundOf, writePage, boxFaces } = await import('./lib.mjs');
 const o = options(process.argv.slice(2)), out = path.resolve(o.opt('--out', 'level-0'));
 database(o.opt('--hero'), o.opt('--guard'));
-const { planLevel, planSvg, coverOf, watchersOf, GUARD, spineFrom, spineOf, placeRecipe } = await import('./level0-plan.mjs');
+const { planLevel, planSvg, coverOf, watchersOf, GUARD, spineFrom, spineOf, placeRecipe, structureBoxes, STRUCTURE } = await import('./level0-plan.mjs');
 const { assembleStageScene } = await import('../../../lib/graph/era/stage.js');
 const { readGameworld } = await import('../../../lib/graph/gameworld/index.js');
 const { gameStages } = await import('../../../lib/graph/gameworld/levels.js');
@@ -60,8 +60,10 @@ const { room, hero: h0, guard: g0 } = await starterRoom(o);
 const backupIds = Array.from({ length: L.backup?.count ?? 0 }, (_, k) => `backup-${k + 1}`);
 // (`occlusion`: the seventh generation's live contact occlusion, on by default; `--no-occlusion` or the recipe's
 // `occlusion: false` leaves it out, its prepass a second draw of the whole scene every frame)
-const occl = o.has('--no-occlusion') ? false : L0.occlusion;
-const scene = { kind: 'geocube', cube: { from: L.cube, era: 'gen-7' }, show: 'path', seed: stage.seed, trail: stage.trail, hour: L.hour, shadows: { actors: true, hour: true }, ...(occl !== undefined ? { occlusion: occl } : {}), parked: cover.parked,
+const Pf = L0.performance ?? {}, occl = o.has('--no-occlusion') ? false : Pf.occlusion ?? L0.occlusion;
+// (what the page may cost: its shadows' tier, the contact occlusion, the grass's real reach)
+const costs = { ...(occl !== undefined ? { occlusion: occl } : {}), ...(Pf.light ? { light: { tier: Pf.light } } : {}), ...(Number.isFinite(Pf.cone) ? { cone: Pf.cone } : {}) };
+const scene = { kind: 'geocube', cube: { from: L.cube, era: 'gen-7' }, show: 'path', seed: stage.seed, trail: stage.trail, hour: L.hour, shadows: { actors: true, hour: true }, ...costs, parked: cover.parked,
   figures: room.manifest.figures, entities: [h0, ...L.watchers.map((w) => ({ ...g0, id: w.id })), ...backupIds.map((id) => ({ ...g0, id, dormant: true }))], fxStyle: room.manifest.fxStyle, figureGrade: room.manifest.figureGrade };
 const { payload } = await resolveWorldScene({ ref: 'steel-serpents-level-0', title: `${L.name} · Steel Serpents`, manifest: scene }, { era: 'gen-7', live: true });
 
@@ -85,6 +87,18 @@ for (const b of cover.laid) {
   payload.entities.push({ id: `cover-${b.id}`, rule: { type: 'static' }, transform: { pos: [b.at[0], b.at[1], z + b.size[2] / 2], heading: 0 }, body: { type: 'mesh', shape: 'box', size: b.size, color: low ? LOOK.log : LOOK.crate, marker: false } });
   payload.colliders.push({ of: `cover:${b.id}`, min: [b.at[0] - b.size[0] / 2, b.at[1] - b.size[1] / 2, z - 0.4], max: [b.at[0] + b.size[0] / 2, b.at[1] + b.size[1] / 2, z + b.size[2]] });
 }
+// THE STRUCTURES: sandbags, wire and towers, as the static world's own faces on the ground (cheap; a tower's deck is
+// ground a guard stands on) and their boxes as colliders (a tower's deck and rails are walked under)
+const extraFaces = [];
+for (const t of L.structures ?? []) {
+  const z = zAt(t.at ?? t.from);
+  for (const b of structureBoxes(t)) {
+    extraFaces.push(...boxFaces([b.min[0], b.min[1], z + b.min[2] - (b.min[2] ? 0 : 0.3)], [b.max[0], b.max[1], z + b.max[2]], b.fill, `cover:${t.kind}`));
+    if (b.walk !== false) payload.colliders.push({ of: `cover:${t.id}`, min: [b.min[0], b.min[1], z + b.min[2] - 0.4], max: [b.max[0], b.max[1], z + b.max[2]] });
+  }
+}
+payload.faces = [...(payload.faces ?? []), ...extraFaces];
+const deckOf = (w) => { const T = w.on && (L.structures ?? []).find((t) => t.id === w.on); return T ? zAt(T.at) + (T.height ?? STRUCTURE.tower.height) : null; };
 // THE WATCHERS: the starter's guard on each round (a patrol between its posts; a post stood still, looking one way)
 const W = Object.fromEntries(L.watchers.map((w) => [w.id, w]));
 const mission = {
@@ -100,7 +114,7 @@ payload.entities = payload.entities.map((e) => {
   const w = W[e.id]; if (!w) return e;
   const to = w.kind === 'patrol' ? w.to : w.facing, heading = Math.atan2(to[1] - w.at[1], to[0] - w.at[0]);
   return { ...e, rule: { ...e.rule, alarm, speed: w.kind === 'patrol' ? (w.speed ?? GUARD.speed) : 0, sightCone: w.cone ?? GUARD.cone, sightRange: w.range ?? GUARD.range,
-    foe: { ...e.rule.foe, stretch: w.kind === 'patrol' ? +Math.hypot(to[0] - w.at[0], to[1] - w.at[1]).toFixed(2) : 10 } }, transform: { pos: on(w.at, 0.2), heading } };
+    foe: { ...e.rule.foe, stretch: w.kind === 'patrol' ? +Math.hypot(to[0] - w.at[0], to[1] - w.at[1]).toFixed(2) : 10 }, ...(w.on ? { guardRadius: 0.3 } : {}) }, transform: { pos: deckOf(w) != null ? r2([w.at[0], w.at[1], deckOf(w) + 0.05]) : on(w.at, 0.2), heading } };
 });
 console.log(`level 0: start ${on(L.start)} · exit ${on(L.exit)} · watchers ${watchersOf(L).map((w) => w.id).join(', ')} · parked ${parkedIds.length} · laid ${cover.laid.length} · form ${payload.form ? 'yes' : 'NO'}`);
 const page = await writePage(payload, room, path.join(out, 'level-0-approach.html'), { capture: o.has('--capture'), events: { ...(room.manifest.events ?? {}), hud: [] } });

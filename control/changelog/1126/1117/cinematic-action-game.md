@@ -265,3 +265,15 @@ or a recipe key; the spike mints through the real doors and measures.
   quiet: the controls are told there a few at a time (moving, aiming and the menus, the crouch and the prone, the dive
   and the vault, the radar's wedges, the alarm), before the convoy. The planner holds both places to their laws on the
   new ground. `--no-occlusion` builds a page without the seventh generation's contact occlusion, for its cost.
+- **Level 0 built rather than parked**: one truck, and the rest of the cover a patrol builds where it stands, as the
+  static world's own faces (a few boxes each, drawn with the land, never a body): sandbags a metre high (they hide a
+  crouch), wire on stakes (it stops a body and hides nothing: the route search reads a box `sight: false`), and two
+  watchtowers whose lookouts stand on the deck and see from four metres up, over what a guard on the ground cannot
+  (a box `walk: false` is walked under). The convoy is now a checkpoint: sandbags with a gate on the trail, wire either
+  side, a tower over the gate, a slot beside the truck; the camp sits behind sandbags under its tower. The planner
+  holds both places to all four laws; a second way now keeps off the first one's middle third only, since two ways to
+  one goal meet near their ends.
+- **What the page may cost** (level0.json `performance`): its shadows at the half tier (`light.tier`), no contact
+  occlusion, real grass out to 20 m (the view cone; [ and ] move it live). The figure a player pilots is held to the
+  hero's budget too, its face kept whole (the operative 160k to about 70k). The spike's pages carry a frame readout
+  in a corner (frames a second, milliseconds a frame, the pixel budget's density), for the person to report.

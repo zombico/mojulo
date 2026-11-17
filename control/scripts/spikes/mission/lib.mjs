@@ -52,12 +52,29 @@ export function groundOf(payload) {
   };
 }
 
+/** A box as the static world's faces (its five seen sides, its bottom left out), one colour, under a group the page
+ *  draws as one with the rest of the static world: cheap, and ground a body stands on. */
+export function boxFaces(mn, mx, fill, group) {
+  const [x0, y0, z0] = mn, [x1, y1, z1] = mx, f = (corners, n) => ({ corners, fill, cornerFills: corners.map(() => fill), normal: n, outNormal: n, group });
+  return [
+    f([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], [0, 0, 1]),
+    f([[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], [0, -1, 0]),
+    f([[x1, y1, z0], [x0, y1, z0], [x0, y1, z1], [x1, y1, z1]], [0, 1, 0]),
+    f([[x0, y1, z0], [x0, y0, z0], [x0, y0, z1], [x0, y1, z1]], [-1, 0, 0]),
+    f([[x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1]], [1, 0, 0]),
+  ];
+}
+
+// (a frame-time readout in a corner, the spike's own: what the person reports when a page is slow)
+const FPS = `<script>(function(){var d=document.createElement('div');d.style.cssText='position:fixed;left:8px;bottom:8px;z-index:50;font:600 12px ui-monospace,monospace;color:#cfe;background:rgba(0,0,0,.45);padding:3px 6px;pointer-events:none';document.body.appendChild(d);var n=0,t0=performance.now(),w=0;(function f(t){requestAnimationFrame(f);n++;var dt=t-t0;if(dt>=1000){var fps=n*1000/dt,B=window.__mojBudget;d.textContent=Math.round(fps)+' fps · '+(1000/fps).toFixed(1)+' ms'+(B?' · dpr '+B.dpr:'');n=0;t0=t;}})(t0);})();</script>`;
+
 export async function writePage(payload, room, file, { capture = false, theme = 'field-brief', events = null } = {}) {
   const { emitThreeWorld } = await import('../../../lib/graph/scene/scene-three.js');
   const { levelHud } = await import('../../../lib/graph/game/hud-mana.js');
   const { walkers: _w, ...P } = payload;
   const html = emitThreeWorld({ ...P, camera: room.manifest.camera, events: events ?? room.manifest.events, walk: false, spin: false, hud: false, manaHud: levelHud(theme), inline: true, ...(capture ? { capture: true } : {}) });
   await fs.mkdir(path.dirname(file), { recursive: true });
-  await fs.writeFile(file, html);
-  return { file, mb: +(html.length / 1e6).toFixed(1) };
+  const out = html.includes('</body>') ? html.replace('</body>', FPS + '</body>') : html + FPS;
+  await fs.writeFile(file, out);
+  return { file, mb: +(out.length / 1e6).toFixed(1) };
 }

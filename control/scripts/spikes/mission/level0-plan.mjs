@@ -36,9 +36,42 @@ export function spineOf(samples) {
  *  east positive) set down as [x, y] on this land's trail; a place already [x, y] stays as it is. */
 export function placeRecipe(L, spine) {
   const at = (p) => (Array.isArray(p) ? p : p && typeof p === 'object' ? [+(spine.x(p.trail) + (p.off ?? 0)).toFixed(2), p.trail] : p);
-  return { ...L, start: at(L.start), exit: at(L.exit), ...(L.backup ? { backup: { ...L.backup, from: at(L.backup.from) } } : {}),
-    cover: L.cover.map((c) => ({ ...c, at: at(c.at) })), watchers: L.watchers.map((w) => ({ ...w, at: at(w.at), ...(w.to ? { to: at(w.to) } : {}), ...(w.facing ? { facing: at(w.facing) } : {}) })),
+  const structures = (L.structures ?? []).map((t) => ({ ...t, ...(t.at ? { at: at(t.at) } : {}), ...(t.from ? { from: at(t.from), to: at(t.to) } : {}) }));
+  // (a watcher posted on a tower stands where the tower does)
+  const posted = (w) => (w.on ? (structures.find((t) => t.id === w.on) ?? {}).at : at(w.at));
+  return { ...L, structures, start: at(L.start), exit: at(L.exit), ...(L.backup ? { backup: { ...L.backup, from: at(L.backup.from) } } : {}),
+    cover: L.cover.map((c) => ({ ...c, at: at(c.at) })), watchers: L.watchers.map((w) => ({ ...w, at: posted(w), ...(w.to ? { to: at(w.to) } : {}), ...(w.facing ? { facing: at(w.facing) } : {}) })),
     points: L.points.map((P) => ({ ...P, from: at(P.from), to: at(P.to) })), hints: L.hints.map((h) => ({ ...h, at: at(h.at) })) };
+}
+
+/**
+ * THE STRUCTURES a patrol builds where it stands, static and cheap (a few boxes each, drawn as the static world's own
+ * faces, never a body): `sandbags` a run of bags a metre high from `from` to `to` (it hides a crouch); `wire` a run of
+ * coiled wire on stakes (it stops a body, it hides nothing); `tower` a watchtower at `at`, its platform `height` up on
+ * four legs (a watcher posted `on` it sees from there, over what a guard on the ground cannot).
+ */
+export const STRUCTURE = Object.freeze({
+  sandbags: Object.freeze({ h: 1.0, d: 0.75, fill: '#8a7a55', top: '#9c8b62' }),
+  wire: Object.freeze({ h: 0.9, d: 0.6, fill: '#3a3d40', stake: '#5a4630' }),
+  tower: Object.freeze({ height: 4, side: 2.6, leg: 0.22, deck: 0.18, rail: 1.0, fill: '#5d4a33', deckFill: '#6d5a40' }),
+});
+/** A structure's boxes: { min, max, fill, sight?, walk? } (a box the search and the page both read). */
+export function structureBoxes(t) {
+  const out = [];
+  if (t.kind === 'sandbags' || t.kind === 'wire') {
+    const S = STRUCTURE[t.kind], [a, b] = [t.from, t.to], L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(L / 1.2));
+    // (a run laid as short boxes along its line, so a slanted run is still axis-aligned boxes)
+    for (let k = 0; k < n; k++) {
+      const u0 = k / n, u1 = (k + 1) / n, x0 = a[0] + (b[0] - a[0]) * u0, y0 = a[1] + (b[1] - a[1]) * u0, x1 = a[0] + (b[0] - a[0]) * u1, y1 = a[1] + (b[1] - a[1]) * u1, r = S.d / 2;
+      out.push({ min: [Math.min(x0, x1) - r, Math.min(y0, y1) - r, 0], max: [Math.max(x0, x1) + r, Math.max(y0, y1) + r, S.h], fill: k % 2 ? S.fill : (S.top ?? S.fill), ...(t.kind === 'wire' ? { sight: false } : {}) });
+    }
+  } else if (t.kind === 'tower') {
+    const T = STRUCTURE.tower, H = t.height ?? T.height, h = T.side / 2, [x, y] = t.at;
+    for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) out.push({ min: [x + sx * h - (sx > 0 ? T.leg : 0), y + sy * h - (sy > 0 ? T.leg : 0), 0], max: [x + sx * h + (sx < 0 ? T.leg : 0), y + sy * h + (sy < 0 ? T.leg : 0), H], fill: T.fill, sight: false });
+    out.push({ min: [x - h, y - h, H - T.deck], max: [x + h, y + h, H], fill: T.deckFill, sight: false, walk: false, deck: true });
+    for (const [mn, mx] of [[[x - h, y - h], [x + h, y - h + 0.08]], [[x - h, y + h - 0.08], [x + h, y + h]], [[x - h, y - h], [x - h + 0.08, y + h]], [[x + h - 0.08, y - h], [x + h, y + h]]]) out.push({ min: [mn[0], mn[1], H], max: [mx[0], mx[1], H + T.rail], fill: T.fill, sight: false, walk: false });
+  }
+  return out;
 }
 
 export const GUARD = Object.freeze({ cone: 0.6, range: 14, speed: 1.6, eye: 1.35, hear: 7 });
@@ -56,6 +89,7 @@ export function coverBoxes(L, colliders = []) {
   // (a parked vehicle's box, the registry's own, on flat ground)
   const P = parked.length ? withParked({ parked }).colliders : [];
   P.forEach((c, i) => out.push({ id: L.cover.filter((x) => x.vehicle)[i].id, min: [c.min[0], c.min[1], 0], max: [c.max[0], c.max[1], c.max[2] - c.min[2]] }));
+  for (const t of L.structures ?? []) for (const b of structureBoxes(t)) out.push({ id: t.id, ...b });
   for (const b of laid) out.push({ id: b.id, min: [b.at[0] - b.size[0] / 2, b.at[1] - b.size[1] / 2, 0], max: [b.at[0] + b.size[0] / 2, b.at[1] + b.size[1] / 2, b.size[2]] });
   // (what the land grew: a shrub's box, its height its own over its foot)
   for (const c of colliders) if (/^shrub/.test(c.of ?? '')) out.push({ id: c.of, min: [c.min[0], c.min[1], 0], max: [c.max[0], c.max[1], c.max[2] - c.min[2]] });
@@ -63,8 +97,10 @@ export function coverBoxes(L, colliders = []) {
 }
 
 export function watchersOf(L) {
-  return L.watchers.map((w) => ({ id: w.id, at: w.at, ...(w.kind === 'patrol' ? { to: w.to, speed: w.speed ?? GUARD.speed } : { heading: Math.atan2(w.facing[1] - w.at[1], w.facing[0] - w.at[0]) }),
-    cone: w.cone ?? GUARD.cone, range: w.range ?? GUARD.range, eye: GUARD.eye, hear: w.hear ?? GUARD.hear }));
+  // (a watcher posted on a tower sees from its deck)
+  const up = (w) => { const T = w.on && (L.structures ?? []).find((t) => t.id === w.on); return T ? (T.height ?? STRUCTURE.tower.height) : 0; };
+  return L.watchers.map((w) => ({ id: w.id, at: w.at, elevation: up(w), ...(w.kind === 'patrol' ? { to: w.to, speed: w.speed ?? GUARD.speed } : { heading: Math.atan2(w.facing[1] - w.at[1], w.facing[0] - w.at[0]) }),
+    cone: w.cone ?? GUARD.cone, range: w.range ?? GUARD.range, eye: GUARD.eye + up(w), hear: w.hear ?? GUARD.hear }));
 }
 
 export function planLevel(L, colliders = [], field = [-8, 0, 30, 75.5]) {
@@ -79,7 +115,7 @@ export function planSvg(L, plan, field = [-8, 0, 30, 75.5], trail = []) {
   const line = (pts, style) => `<polyline fill="none" ${style} points="${pts.map((p) => `${px(p[0]).toFixed(1)},${py(p[1]).toFixed(1)}`).join(' ')}"/>`;
   const out = [`<svg xmlns="http://www.w3.org/2000/svg" width="${W + 260}" height="${H}" viewBox="0 0 ${W + 260} ${H}" font-family="ui-monospace,monospace" font-size="11">`, `<rect width="${W + 260}" height="${H}" fill="#101418"/>`, `<rect width="${W}" height="${H}" fill="#1c2a1e"/>`];
   if (trail.length) out.push(line(trail, 'stroke="#6b5a40" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" opacity=".55"'));
-  for (const b of plan.boxes) { const sh = /^shrub/.test(b.id); out.push(`<rect x="${px(b.min[0])}" y="${py(b.max[1])}" width="${(b.max[0] - b.min[0]) * S}" height="${(b.max[1] - b.min[1]) * S}" fill="${sh ? '#3f6b3a' : b.max[2] < 0.7 ? '#7a5c3a' : b.max[2] < 1.2 ? '#8a8060' : '#59636b'}" stroke="#0b0e10"/>`); }
+  for (const b of plan.boxes) { if (b.fill) { if (b.walk === false && !b.deck) continue; out.push(`<rect x="${px(b.min[0])}" y="${py(b.max[1])}" width="${(b.max[0] - b.min[0]) * S}" height="${(b.max[1] - b.min[1]) * S}" fill="${b.fill}" opacity="${b.deck ? 0.55 : 1}" stroke="${b.sight === false && !b.deck ? '#aab' : '#0b0e10'}" stroke-dasharray="${b.sight === false && !b.deck ? '3 2' : ''}"/>`); continue; } const sh = /^shrub/.test(b.id); out.push(`<rect x="${px(b.min[0])}" y="${py(b.max[1])}" width="${(b.max[0] - b.min[0]) * S}" height="${(b.max[1] - b.min[1]) * S}" fill="${sh ? '#3f6b3a' : b.max[2] < 0.7 ? '#7a5c3a' : b.max[2] < 1.2 ? '#8a8060' : '#59636b'}" stroke="#0b0e10"/>`); }
   for (const w of plan.watchers) {
     if (w.to) out.push(line([w.at, w.to], 'stroke="#ff7a59" stroke-width="1.5" stroke-dasharray="5 4"'));
     for (const t of w.to ? [0, (Math.hypot(w.to[0] - w.at[0], w.to[1] - w.at[1]) / w.speed) * 1.5] : [0]) {
@@ -103,7 +139,7 @@ export function planSvg(L, plan, field = [-8, 0, 30, 75.5], trail = []) {
     out.push(`<text x="${px(L.points.find((p) => p.id === P.id).from[0]) + 10}" y="${py(L.points.find((p) => p.id === P.id).from[1]) + 4}" fill="#e8ecef" font-size="13">${P.id}</text>`);
   }
   key('#ff5a4a', 'the first try: seen at the ring'); key('#5fe08a', 'the way unseen'); key('#5fb8ff', 'a second way'); row++;
-  for (const t of ['thin: a run', 'thick: a crouch', 'dotted: a crawl', '', 'grey: parked (tall)', 'tan: crates (1 m)', 'brown: logs (0.55 m)', 'green: shrubs', 'red fans: what a watcher', '  sees (two moments)']) { out.push(`<text x="${W + 14}" y="${24 + row * 18}" fill="#9aa4aa">${t}</text>`); row++; }
+  for (const t of ['thin: a run', 'thick: a crouch', 'dotted: a crawl', '', 'grey: parked (tall)', 'khaki: sandbags (1 m)', 'dashed: wire, seen through', 'square: a tower', 'tan: crates (1 m)', 'brown: logs (0.55 m)', 'green: shrubs', 'red fans: what a watcher', '  sees (two moments)']) { out.push(`<text x="${W + 14}" y="${24 + row * 18}" fill="#9aa4aa">${t}</text>`); row++; }
   out.push('</svg>');
   return out.join('\n');
 }

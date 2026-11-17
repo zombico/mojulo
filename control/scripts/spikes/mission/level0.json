@@ -1,63 +1,18 @@
 {
   "id": "level-0",
   "name": "The approach",
-  "brief": "The jungle below the base. No buildings: land, a trail, what grows on it, and what a patrol has parked across it. The first forty metres are quiet, to learn the controls in; then two places ask for a sneak.",
+  "brief": "The jungle below the base. No buildings: land, a trail, what grows on it, and what a patrol has built across it. The first forty metres are quiet, to learn the controls in; then a checkpoint and an outpost ask for a sneak.",
   "template": "This file is a starter, not the game. Everything in it is a word to change: where cover stands, how each watcher walks and looks, what each hint says, where the two points begin and end. `plan.mjs`-style laws (level0.mjs --plan) say what a change did: whether the first try is still seen, whether a way unseen is left, what it costs. Places are said along the trail (`trail`: metres up it from its head; `off`: metres to its side, east positive), so a longer or shorter trail, or a different land, carries the layout with it.",
   "section": "insertion",
   "cube": "jungle-haze",
   "hour": 17,
   "cover": [
     {
-      "id": "truck-west",
+      "id": "truck",
       "vehicle": "cargo-truck",
       "at": {
-        "trail": 70,
-        "off": -20.1
-      },
-      "heading": 0
-    },
-    {
-      "id": "carrier",
-      "vehicle": "apc",
-      "at": {
-        "trail": 70,
-        "off": -10.5
-      },
-      "heading": 0
-    },
-    {
-      "id": "truck-mid",
-      "vehicle": "cargo-truck",
-      "at": {
-        "trail": 70,
-        "off": -2.8
-      },
-      "heading": 0
-    },
-    {
-      "id": "truck-east",
-      "vehicle": "cargo-truck",
-      "at": {
-        "trail": 70,
-        "off": 7.0
-      },
-      "heading": 0
-    },
-    {
-      "id": "camp-carrier",
-      "vehicle": "apc",
-      "at": {
-        "trail": 94,
-        "off": -3.34
-      },
-      "heading": 90
-    },
-    {
-      "id": "camp-jeep",
-      "vehicle": "jeep",
-      "at": {
-        "trail": 100,
-        "off": -4.0
+        "trail": 68,
+        "off": -8.6
       },
       "heading": 0
     },
@@ -69,8 +24,8 @@
         1.0
       ],
       "at": {
-        "trail": 91.4,
-        "off": 2.26
+        "trail": 93,
+        "off": -5.5
       }
     },
     {
@@ -82,7 +37,7 @@
       ],
       "at": {
         "trail": 90,
-        "off": 15.8
+        "off": 8.5
       }
     },
     {
@@ -93,8 +48,8 @@
         0.55
       ],
       "at": {
-        "trail": 98,
-        "off": 11.28
+        "trail": 99,
+        "off": 8.5
       }
     }
   ],
@@ -103,81 +58,90 @@
       "id": "gate-patrol",
       "kind": "patrol",
       "at": {
-        "trail": 65,
-        "off": 3.2
+        "trail": 64,
+        "off": 0
       },
       "to": {
-        "trail": 78,
-        "off": 6.78
+        "trail": 77,
+        "off": 0
       },
-      "reads": "walks through the gap in the convoy and back"
+      "reads": "walks through the checkpoint's gate and back"
     },
     {
       "id": "line-patrol",
       "kind": "patrol",
       "at": {
-        "trail": 66.5,
-        "off": -0.54
+        "trail": 66,
+        "off": 6
       },
       "to": {
-        "trail": 66.5,
-        "off": -13.54
+        "trail": 66,
+        "off": -14
       },
-      "reads": "walks the front of the convoy"
+      "reads": "walks the front of the checkpoint"
+    },
+    {
+      "id": "gate-lookout",
+      "kind": "post",
+      "on": "gate-tower",
+      "facing": {
+        "trail": 58,
+        "off": -2
+      },
+      "cone": 0.55,
+      "range": 18,
+      "reads": "watches the approach from the checkpoint's tower"
     },
     {
       "id": "lookout",
       "kind": "post",
-      "at": {
-        "trail": 96,
-        "off": 3.96
-      },
+      "on": "camp-tower",
       "facing": {
-        "trail": 90,
-        "off": 15.5
+        "trail": 84,
+        "off": -1
       },
-      "cone": 0.85,
-      "range": 14,
-      "reads": "stands at the camp's edge and watches the trail come up and the open ground east of it"
+      "cone": 0.7,
+      "range": 15,
+      "reads": "watches the trail come up to the camp from its tower"
     },
     {
       "id": "camp-guard",
       "kind": "post",
       "at": {
-        "trail": 96,
-        "off": -7.24
+        "trail": 93,
+        "off": -9
       },
       "facing": {
-        "trail": 96,
-        "off": -21.54
+        "trail": 102,
+        "off": -18
       },
-      "reads": "stands behind the carrier and watches the camp's back, up the slope"
+      "reads": "watches the camp's back, up the slope"
     },
     {
       "id": "trail-patrol",
       "kind": "patrol",
       "at": {
         "trail": 87,
-        "off": 10.86
+        "off": 1
       },
       "to": {
-        "trail": 103,
-        "off": -0.26
+        "trail": 104,
+        "off": 0
       },
       "reads": "walks the trail past the camp"
     }
   ],
   "points": [
     {
-      "id": "chokepoint",
-      "reads": "a convoy parked across the land: one gap on the trail, walked by a patrol, and a slot at its far end",
+      "id": "checkpoint",
+      "reads": "sandbags across the land with a gate on the trail, wire either side, a tower over the gate, a patrol through the gate and one along the front",
       "from": {
         "trail": 56,
-        "off": 3.64
+        "off": 0
       },
       "to": {
         "trail": 80,
-        "off": 6.9
+        "off": 0
       },
       "window": [
         50,
@@ -186,14 +150,14 @@
     },
     {
       "id": "outpost",
-      "reads": "a camp beside the trail: a lookout on the trail, a guard on its back, a patrol past it",
+      "reads": "a camp beside the trail behind sandbags: a lookout on its tower, a guard on its back, a patrol on the trail",
       "from": {
         "trail": 81,
-        "off": 7.34
+        "off": 0
       },
       "to": {
         "trail": 108,
-        "off": -0.12
+        "off": 0
       },
       "window": [
         78,
@@ -249,7 +213,7 @@
         "trail": 50,
         "off": 0
       },
-      "says": "A convoy blocks the trail ahead, and patrols walk it. Wait for a patrol's back, or find the long way round."
+      "says": "A checkpoint ahead: sandbags with a gate on the trail, wire either side, a tower over it. Wait for a patrol's back, or find the long way round."
     },
     {
       "at": {
@@ -286,5 +250,103 @@
     "found": 30,
     "detected": 40
   },
-  "run": 20
+  "run": 20,
+  "structures": [
+    {
+      "id": "bags-west",
+      "kind": "sandbags",
+      "from": {
+        "trail": 68,
+        "off": -4
+      },
+      "to": {
+        "trail": 68,
+        "off": -2.2
+      }
+    },
+    {
+      "id": "bags-east",
+      "kind": "sandbags",
+      "from": {
+        "trail": 68,
+        "off": 2.2
+      },
+      "to": {
+        "trail": 68,
+        "off": 7
+      }
+    },
+    {
+      "id": "wire-east",
+      "kind": "wire",
+      "from": {
+        "trail": 68,
+        "off": 7.4
+      },
+      "to": {
+        "trail": 68,
+        "off": 11.5
+      }
+    },
+    {
+      "id": "wire-west",
+      "kind": "wire",
+      "from": {
+        "trail": 68,
+        "off": -15
+      },
+      "to": {
+        "trail": 68,
+        "off": -22
+      }
+    },
+    {
+      "id": "gate-tower",
+      "kind": "tower",
+      "at": {
+        "trail": 73,
+        "off": 5.5
+      },
+      "height": 4
+    },
+    {
+      "id": "camp-bags-south",
+      "kind": "sandbags",
+      "from": {
+        "trail": 89,
+        "off": -12
+      },
+      "to": {
+        "trail": 89,
+        "off": -4
+      }
+    },
+    {
+      "id": "camp-bags-east",
+      "kind": "sandbags",
+      "from": {
+        "trail": 89,
+        "off": -4
+      },
+      "to": {
+        "trail": 95,
+        "off": -3.5
+      }
+    },
+    {
+      "id": "camp-tower",
+      "kind": "tower",
+      "at": {
+        "trail": 97,
+        "off": 3
+      },
+      "height": 4
+    }
+  ],
+  "performance": {
+    "light": "half",
+    "occlusion": false,
+    "cone": 20,
+    "reads": "what the page may cost: its shadows at half (light.tier), no contact occlusion, real grass out to 20 m (the view cone); [ and ] move the grass's reach live"
+  }
 }
