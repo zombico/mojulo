@@ -151,7 +151,10 @@
             "Trim": "#8c2a30",
             "Shoes": "#141416",
             "Outer": "#d9d0bf",
-            "Panel": "#d9d0bf"
+            "Panel": "#d9d0bf",
+            "Gloves": "#2b1d16",
+            "Cuff": "#3a2a20",
+            "Gilt": "#9aa0a6"
           }
         },
         "underlayer": {
@@ -173,9 +176,10 @@
             },
             "outer": {
               "family": "woven",
-              "sleeve": "long",
+              "sleeve": "elbow",
               "hem": "hip",
-              "open": true
+              "open": true,
+              "cuff": "rolled"
             },
             "panels": [
               {
@@ -192,7 +196,30 @@
                 "family": "woven"
               }
             ],
-            "feet": "boots"
+            "feet": "boots",
+            "hands": "cavalierGloves"
+          },
+          "pieces": [
+            {
+              "kind": "harness"
+            },
+            {
+              "kind": "pauldron",
+              "plain": true,
+              "pair": true,
+              "size": 0.7,
+              "colour": "leather"
+            }
+          ],
+          "intent": {
+            "palette": {
+              "base": "#d9d0bf",
+              "secondary": "#2a2a30",
+              "trim": "#9aa0a6",
+              "accent": "#8c2a30",
+              "leather": "#2b1d16"
+            },
+            "symmetry": "symmetric"
           }
         }
       },

@@ -112,6 +112,13 @@ In progress. Built so far, all in the practice door's game room
   raised knee passes between them where it went through a skirt that was one tube round both legs. The dark top
   painted on the body (a second skin) under it, so there is no shell of it to come through, and the coat at its full
   wearing ease. Read in both canons; the advice left asks for a waist return, declined so the coat clears the body.
+- **Lucien dressed over his seams.** Where the coat still shows its joins in play, it is dressed over them: a leather
+  harness crossed on the back with small strapped shoulder caps over the shoulder blades, the coat's sleeves rolled
+  to the elbow so no cloth crosses its bend, and flared leather gauntlets. Two words new to an outfit card for it:
+  an outer layer's `cuff: 'rolled'` (the sleeve's end turned back on itself, a band of its cloth a layer out and a
+  shade down) and `hands: '<a glove card>'` (gloves worn from the card, as a word list's glove word is: a game's
+  hero, whose clothes are one card, wears gloves so). A card that says neither keeps every byte. Seen on the level in
+  a headless browser: the shoulder blades and the elbows covered; the small of the back and the hip hem not yet.
 - **Fixed: a coat's shoulders under a raised arm** (realistic laws 17, the realistic body's doc, "The correctives").
   The tailor's cloth now carries the skin's correctives: each of its points moves as the skin nearest it moves. A
   raised arm had pushed the shoulder's skin out through the coat (the marks on the shoulder blades, the deltoid

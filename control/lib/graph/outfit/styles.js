@@ -28,6 +28,10 @@
 //             CONSTRUCTION (a jacket's, on either body: body-relational-jacket.js, authored-jacket.js): front: 'zip' (closed on a zip
 //             down the centre, no V), collar: 'shirt' (a falling collar, its points snapped to the chest; true the stand
 //             collar), rib?: cuffs | waist | both (knit rib bands, the body and the sleeves bloused over them),
+//             hands?: a glove card of the handwear library (cavalierGloves, tacticalGloves …): worn on the hands as a
+//             word list's glove word is,
+//             cuff?: rolled (the sleeve's end turned back on itself: a band of its cloth over the last hand's breadth, a
+//             layer out and a shade down, the sleeve pushed up),
 //             pockets?: flap (patch pockets low on the front, each under a flap with a snap), epaulettes?: true (a strap
 //             over each shoulder buttoned at the collar), cloth?: leather or a cloth word (how it folds and shines)
 //             panels: [{ at: back | front | sides | sideR | sideL, length: micro … maxi, width?: 0–1 (a share of the half
@@ -54,8 +58,12 @@
 import { rigidityErrors } from '../polygonizer/rigidity.js';
 import { GIRTH_LANDMARKS } from '../polygonizer/body-garment.js';
 import { FOOTWEAR } from '../footwear/styles.js';
+import { HANDWEAR } from '../handwear/styles.js';
 import { CAMOS } from './camouflage.js';
 import { validateHead } from '../headgear/helmets.js';
+
+/** how an outer layer's sleeve ends, beside its length: `rolled`, its end turned back on itself (expand.js `rollCuff`) */
+export const OUTER_CUFFS = Object.freeze(['rolled']);
 
 export const SEEDED_OUTFITS = Object.freeze({
   casual: {
@@ -459,6 +467,7 @@ export function validateOutfitCard(card, at = 'outfit.style') {
     else { errs.push(...one(L.outer.family, FAMILY, `${at}.language.outer.family`), ...one(L.outer.sleeve, SLEEVE, `${at}.language.outer.sleeve`), ...one(L.outer.hem, COAT, `${at}.language.outer.hem`), ...one(L.outer.cut, CUT, `${at}.language.outer.cut`));
       if (L.outer.open !== undefined && typeof L.outer.open !== 'boolean') errs.push(`${at}.language.outer.open: true or false`);
       errs.push(...one(L.outer.front, OUTER_FRONTS, `${at}.language.outer.front`), ...one(L.outer.lapel, OUTER_LAPELS, `${at}.language.outer.lapel`), ...one(L.outer.shoulder, OUTER_SHOULDERS, `${at}.language.outer.shoulder`), ...one(L.outer.waist, OUTER_WAISTS, `${at}.language.outer.waist`));
+      errs.push(...one(L.outer.cuff, OUTER_CUFFS, `${at}.language.outer.cuff`));
       errs.push(...one(L.outer.rib, OUTER_RIBS, `${at}.language.outer.rib`), ...one(L.outer.pockets, OUTER_POCKETS, `${at}.language.outer.pockets`), ...one(L.outer.cloth, CLOTH_WORDS, `${at}.language.outer.cloth`));
       if (L.outer.collar !== undefined && ![true, false, 'shirt'].includes(L.outer.collar)) errs.push(`${at}.language.outer.collar: true (a stand collar), 'shirt' (a falling collar, its points snapped) or false`);
       if (L.outer.epaulettes !== undefined && typeof L.outer.epaulettes !== 'boolean') errs.push(`${at}.language.outer.epaulettes: true or false`);
@@ -479,6 +488,7 @@ export function validateOutfitCard(card, at = 'outfit.style') {
   if (L.dress !== undefined && typeof L.dress !== 'boolean') errs.push(`${at}.language.dress: true or false`);
   if (L.dress && L.bottom?.kind !== 'skirt') errs.push(`${at}.language.dress: a dress is a top and a skirt (bottom.kind 'skirt')`);
   // (feet: the plain words, or a footwear library card by its name: footwear/styles.js FOOTWEAR, combatBoots, jungleBoots …)
+  if (L.hands !== undefined && !(typeof L.hands === 'string' && HANDWEAR[L.hands])) errs.push(`${at}.language.hands: '${L.hands}' — a glove card (${Object.keys(HANDWEAR).slice(0, 8).join(', ')} …)`);
   errs.push(...(L.feet === undefined || FEET.includes(L.feet) || FOOTWEAR[L.feet] ? [] : [`${at}.language.feet: '${L.feet}' — one of ${FEET.join(', ')}, or a footwear card (${Object.keys(FOOTWEAR).filter((w) => !FEET.includes(w)).slice(0, 8).join(', ')} …)`]), ...one(L.focal, FOCAL, `${at}.language.focal`));
   errs.push(...validateHead(L.head, `${at}.language.head`, Object.keys(CAMOS)));
   if (L.tuck !== undefined && typeof L.tuck !== 'boolean') errs.push(`${at}.language.tuck: true or false`);

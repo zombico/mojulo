@@ -196,6 +196,10 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
     const fore = sleeve === 'threeQuarter' || sleeve === 'long' ? [0, sleeve === 'long' ? 0.9 : 0.5] : null;
     if (arm) outs.push({ id: 'outerSleeve', part: 'upperArm', run: arm, ease: e, ...(arm[1] < 1 ? { flare: [0, h] } : {}), ...(fore ? {} : { rings: { run: [arm[1] - EDGE.cuff] } }), group: 'Outer' });
     if (fore) outs.push({ id: 'outerCuff', part: 'foreArm', run: fore, ease: e, ...(sleeve === 'long' ? {} : { flare: [0, h * 0.6] }), rings: { run: [fore[1] - EDGE.cuff] }, group: 'Outer' });
+    // a sleeve ROLLED (`cuff: 'rolled'`): its end turned back on itself, a band of the same cloth over the sleeve's last
+    // hand's breadth, a layer out over it (its own piece: the wear lays it over the sleeve) and toned a shade down (Roll)
+    if (outer.cuff === 'rolled' && arm) { const endOn = fore ? 'foreArm' : 'upperArm', end = fore ? fore[1] : arm[1], span = fore ? 0.2 : 0.24;
+      outs.push({ id: 'rollCuff', part: endOn, run: [r6(end - span), end], ease: r6(e * 1.6), rings: { run: [r6(end - span / 2)] }, group: 'Roll' }); }
     if (outer.collar) outs.push({ id: 'outerCollar', part: 'neck', run: [0, 0.4], ease: e * 1.5, flare: [0, e], rings: { run: [0.3] }, group: 'Outer' });
   }
   // DRAPE PANELS (law 2's other half: the flow is in pieces cut to hang, not in loose tubes): open cloth hung from the
@@ -358,6 +362,7 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
   if (top && bottom && T.Top && T.Bottom && Math.abs(lightness(T.Top) - lightness(T.Bottom)) < 12) warnings.push(`value step: Top and Bottom differ by under 12 L* (law 4) — the layers may read as one`);
   if (outer && top && T.Outer && T.Top && Math.abs(lightness(T.Outer) - lightness(T.Top)) < 12) warnings.push(`value step: Outer and Top differ by under 12 L* (law 4) — the layers may read as one`);
   if (outer) tones.Outer = T.Outer ?? shade(T.Top ?? '#888888', 0.62);
+  if (outer?.cuff === 'rolled') tones.Roll = T.Roll ?? shade(tones.Outer, 0.86);
   if (panels.length) tones.Panel = T.Panel ?? tones.Outer ?? shade(T.Bottom ?? T.Top ?? '#888888', 0.7);
   // (a waistcoat the suit's cloth, a three-piece, unless the card names its own)
   if (vests.length) tones.Waistcoat = T.Waistcoat ?? tones.Outer ?? shade(T.Bottom ?? T.Top ?? '#888888', 0.9);

@@ -62,7 +62,7 @@ import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings, w
 import { validateCast, resolveCast, CAST_KEYS, CAST_PRESET_NAMES } from '@/lib/graph/polygonizer/figure-cast';
 import { isOutfitBuild, outfitReadout, outfitTones, outfitLanguage, outfitPieces, OUTFIT_LAWS_VERSION } from '@/lib/graph/outfit/expand';
 import { headOf as helmetOf } from '@/lib/graph/headgear/helmets';
-import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS, validateOutfit, OUTFIT_WORDS, dressPlan, kitPalette, dressContext, libraryFeet } from '@/lib/graph/polygonizer/hero-dress';
+import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS, validateOutfit, OUTFIT_WORDS, dressPlan, kitPalette, dressContext, libraryFeet, libraryHands } from '@/lib/graph/polygonizer/hero-dress';
 import { isArmorBuild, armorReadout, armorFamily, armorMaterials, armorLanguage, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
 import { validateStatueBuild, normalizeStatue, statueHero, statueHair, statueRecipe, STATUE_LAWS_VERSION, STATUE_STYLES } from '@/lib/graph/statue/expand';
 import { undeadWords, undeadFlesh, undeadCard } from '@/lib/graph/undead/tiered';
@@ -600,7 +600,8 @@ function realisticExpand(plan, hero) {
   // PLATING: a suit word (lib/graph/plating SUITS: a powered suit's undersuit and plates) is the library's
   const suitWords = words.filter((w) => SUITS[w]);
   // HANDWEAR: a glove word (lib/graph/handwear HANDWEAR) is the library's
-  const handWords = words.filter((w) => HANDWEAR[w]);
+  // (an outfit card's `hands` naming a glove card, as a word list's word: hero-dress.js libraryHands)
+  const handWords = [...words.filter((w) => HANDWEAR[w]), ...(Array.isArray(hero.outfit) || typeof hero.outfit === 'string' ? [] : libraryHands(hero.outfit))];
   // LOOSE garments (body-relational-drape.js LOOSE_GARMENTS: martialPants; body-relational-gi.js LOOSE_TOPS: gi): the
   // drape's, in place of their segment pieces
   const looseWords = words.filter((w) => LOOSE_GARMENTS[w] || LOOSE_TOPS[w]);
