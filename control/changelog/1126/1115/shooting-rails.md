@@ -241,3 +241,10 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   hand where a bare figure stood. `missionCast` takes a `crew`; a made figure given still wins.
 - **The crew is masked.** An industrial level's crew wears the headgear shelf's masks, a body each in turn (a tactical
   mask, a gas mask, a respirator: `CREW_MASKS`); `masked: false` shows their faces.
+- **The yard is heard whole.** Over its guns an industrial level carries effects, an ambient bed and a score
+  (`industrialAudio`, on the world's audio channel). Its own events each sound: a task begun, a task met, the mission
+  done, the pilot down, a supply taken (the rounds a magazine seated and racked), a wave an alarm; the foley palette
+  in the score's key, on the range's mix in the open, so a shot across the yard is quieter than one at the ear. The
+  wind's long bed is its air. Its score is two states: a held tension while the yard is crossed, the fight's score in
+  on the bar line as hits, downed foes and waves raise the meter, and out as it settles. `score: false` leaves the
+  music out.

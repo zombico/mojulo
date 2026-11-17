@@ -14,7 +14,7 @@
  *   INDUSTRIAL                 what one is when it names nothing; where it is seated on its land
  *   readIndustrial(v, at?)     as written → { use, depth, hour, weather, walker, cube? }; throws, teaching
  *   industrialPlan(G, I, { spec?, seed? }) → { brief, recipe, design, map, mission, laws, seat } | null (no gun)
- *   industrialManifest(G, P, { refs?, title?, quiet? }) → the level's manifest: the recipe with the mission's cast, tasks and page
+ *   industrialManifest(G, P, { refs?, title?, quiet?, score? }) → the level's manifest: the recipe with the mission's cast, tasks and page
  *
  * Said: the yard is one level, flat; its fence stops a body and, to a mind, a sight (a collider), where the laws read it
  * as a rail a line crosses; the walker is a box to walk round; a hold's wave comes on the ground.
@@ -27,6 +27,7 @@ import { phasesOnMap, phaseLaws } from '../arena-map/phases.js';
 import { kitOf } from '../arena-map/laws.js';
 import { CELL, RISE } from '../arena-map/blocks.js';
 import { buildingSeat } from '../era/stage-buildings.js';
+import { sfxSound } from '../sfx-shelf/resolve.js';
 import { INDUSTRIAL, readIndustrial } from './industrial-words.js';
 
 export { INDUSTRIAL, readIndustrial };
@@ -100,8 +101,35 @@ export function industrialPlan(G, I, { spec = {}, seed = null } = {}) {
   return { brief, recipe, design, map: design.map, mission, laws, seat, ...(I.crew ? { crew: { faction: I.crew, ...(I.masked ? { masks: true } : {}) } } : {}), grid: { nx, ny, xa: r2(xa), ya: r2(ya), door } };
 }
 
+/** What the yard sounds like, over its guns (the range's own: combat/range-sound.js), on the world's audio channel
+ *  (beats/beats-world.js):
+ *    EFFECTS  the level's own events, each a sound: a task begun, a task met, a wave sent (an alarm), the mission done,
+ *             the pilot down, a supply taken (the rounds a magazine seated and racked; a medkit the palette's pickup); the
+ *             foley palette in the score's key, the shelf's words where they are nearer the thing; on the range's mix
+ *             in the open, so a shot across the yard is quieter than one beside the ear
+ *    AMBIENT  the open yard's air: the wind's long bed
+ *    SCORE    two states (beats/adaptive-music.js): a held tension while the yard is crossed, the fight's score coming
+ *             in on the bar line as the level's events raise the meter (a hit, a foe down, a wave) and going as it settles
+ *  `score: false` leaves the music out. */
+export const INDUSTRIAL_SCORE = Object.freeze({ explore: 'tension', fight: 'battle' });
+export function industrialAudio(heard, { score = true } = {}) {
+  if (!heard) return null;
+  const { cues = {}, mix = null, ...own } = heard, word = (w) => sfxSound(w).gestures, later = (g, t) => g.map((x) => ({ ...x, at: Math.round(((x.at ?? 0) + t) * 1000) / 1000 }));
+  return {
+    ...own,
+    sfx: {
+      auto: 'foley',
+      cues: { ...cues, 'yard:rounds': [...word('mag in'), ...later(word('rack'), 0.22)], 'yard:alarm': word('alarm') },
+      on: { 'supply:ammo': 'yard:rounds', wave: 'yard:alarm' },
+      ...(mix ? { mix } : {}),
+    },
+    wind: { vary: true },
+    ...(score ? { soundtrack: `field:${INDUSTRIAL_SCORE.explore}`, combat: `field:${INDUSTRIAL_SCORE.fight}` } : {}),
+  };
+}
+
 /** The level's manifest: the place's recipe with the mission's cast on it, the pilot at the eye on the platform rule. */
-export function industrialManifest(G, P, { refs = {}, title = null, quiet = false } = {}) {
+export function industrialManifest(G, P, { refs = {}, title = null, quiet = false, score = true } = {}) {
   // (heard: its guns' shots, reloads, draws and hits, the range's own sound, combat/range-sound.js; `quiet` for none)
   const M = P.mission, C = missionCast(G, M, { refs, quiet, crew: P.crew ?? null }), felt = G?.feel != null ? feelRule(G.feel) : null;
   const rule = { type: 'platform', speed: 4.5, walkSpeed: 1.6, turn: 2.4, eye: EYE, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(felt ?? {}), turnMode: 'look', lookPitch: true, strafe: 1, ...C.pilot.rule };
@@ -110,7 +138,7 @@ export function industrialManifest(G, P, { refs = {}, title = null, quiet = fals
     ...P.recipe, seed: M.seed, title: title ?? `Mission · ${G?.name ?? G?.id ?? 'game'}`,
     figures: C.figures, entities: [player, ...C.entities], camera: C.eyeCamera,
     events: { hud: [{ text: `W / S  walk · A / D  step aside · mouse  look · ${C.legend}${C.pilot.rule.knife ? ' · V  knife' : ''}`, ttl: 20 }] },
-    ...(C.audio ? { audio: C.audio } : {}),
+    ...(C.audio ? { audio: industrialAudio(C.audio, { score }) } : {}),
     mission: missionUi(G, M, P.brief, { laws: P.laws }),
     game: { levelRef: `${G?.id ?? 'game'}-industrial`, mechanics: missionMechanics(M, { lift: EYE }), fall: { mode: 'respawn' }, complete: false },
   };

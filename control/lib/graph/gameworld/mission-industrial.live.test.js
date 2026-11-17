@@ -37,6 +37,11 @@ describe('an industrial level, on its page', () => {
     // (a stack stands where the design put it: the first, carried from the plan onto the land)
     const [sx, sy] = P.seat.toWorld(Y.stacks[0].at);
     expect(tall.some((c) => sx > c.min[0] - 0.01 && sx < c.max[0] + 0.01 && sy > c.min[1] - 0.01 && sy < c.max[1] + 0.01)).toBe(true);
+    // (heard on its page: its events wired to cues that are there, the wind, a score and the fight's, the meter that
+    // changes between them)
+    for (const id of Object.values(Pg.audio.on)) expect(Pg.audio.cues[id], id).toBeTruthy();
+    expect(Pg.audio.wind).toBeTruthy();
+    expect(Pg.audio.soundtrack && Pg.audio.combat && Pg.audio.tension).toBeTruthy();
     // (played on the place: its result said, never forced; a still player does not win; and through the run's gate)
     const R = playMission(Pg, P.mission, { seconds: 240 });
     expect(R.tasks.length).toBeGreaterThan(0);

@@ -6,7 +6,7 @@
 import { RISE } from '../arena-map/blocks.js';
 import { CREW_MASKS } from './mission-level.js';
 import { describe, expect, it } from 'vitest';
-import { readIndustrial, industrialPlan, industrialManifest, INDUSTRIAL, SEAT } from './mission-industrial.js';
+import { readIndustrial, industrialPlan, industrialManifest, INDUSTRIAL, INDUSTRIAL_SCORE, SEAT } from './mission-industrial.js';
 import { proveMission } from './mission-proof.js';
 import { readGameworld } from './world.js';
 import { gameStages, stageLevelOrder } from './levels.js';
@@ -74,6 +74,17 @@ describe('an industrial level, planned', () => {
     const plain = industrialPlan(G, readIndustrial({ crew: false }), { seed: 1 });
     expect(Object.values(industrialManifest(G, plain).figures).some((f) => f.hero?.outfit)).toBe(false);
     expect(() => readIndustrial({ crew: 'pirates' })).toThrow(/a crew its foes are dressed as/);
+    // (heard: over its guns, its events each a sound (the rounds taken its own, a wave an alarm), the yard's wind, and
+    // a score in two states; `score: false` leaves the music out, the rest as it was)
+    const A = industrialManifest(G, P).audio;
+    expect(A.sfx.on).toMatchObject({ 'supply:ammo': 'yard:rounds', wave: 'yard:alarm' });
+    expect(A.sfx.cues['yard:rounds'].length).toBeGreaterThan(0);
+    expect(A.sfx.mix).toBeTruthy();
+    expect(A.wind).toEqual({ vary: true });
+    expect(A).toMatchObject({ soundtrack: `field:${INDUSTRIAL_SCORE.explore}`, combat: `field:${INDUSTRIAL_SCORE.fight}` });
+    expect(A.footsteps.jump.length).toBeGreaterThan(0);
+    const mute = industrialManifest(G, P, { score: false }).audio;
+    expect(mute.soundtrack).toBeUndefined(); expect(mute.combat).toBeUndefined(); expect(mute.sfx.on).toEqual(A.sfx.on);
     // (heard: the range's own sound for its guns, unless it is asked quiet)
     expect(industrialManifest(G, P).audio).toBeTruthy();
     expect(industrialManifest(G, P, { quiet: true }).audio).toBeUndefined();

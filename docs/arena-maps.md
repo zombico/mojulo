@@ -293,6 +293,11 @@ Who holds it is a crew (`crew`, a faction of the grunts: private military where 
 the crew's rank and file, dressed by the hero door's own words. Said: the crew's other kinds are not stood (one does
 not build alone, one is several times the weight on the page).
 
+It is heard: its guns (the range's own), its events each a sound (a task, a wave's alarm, a supply taken), the wind's
+bed, and a score in two states that the level's own events move between. Said: no sound is placed in the yard (a
+hall's hum, a fence's rattle) and a step on the tower's steel sounds as one on concrete: the audio channel carries
+neither a placed loop nor a surface under the feet yet.
+
 `bounded` now asks for what stops a body, a wall or a rail, on every floor: a fenced yard is bounded as a walled one is.
 
 What the first run found (machine gate; the shooter feel, seed 1): the default yard, nineteen cells by ten with its
