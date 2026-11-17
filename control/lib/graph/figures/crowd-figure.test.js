@@ -49,4 +49,32 @@ describe('the crowd grade', () => {
     expect(() => crowdFigure({ ...FIG, clips: { idle: clip } })).toThrow(/no walk/);
     expect(() => crowdFigure({ faces: [] })).toThrow(/rig figure/);
   });
+  it('stays one skin: two parts that meet still meet, each corner keeps its own colour, and its bones and weights ride with it', () => {
+    // (a sleeve and a hand: two tubes end to end, the second offset a hair off the first's end, in two colours, skinned)
+    const skin = (part, bone) => { const n = Buffer.from(part.pos, 'base64').length / 12; return { ...part, jnt: b64(new Uint8Array(n * 4).map((_, i) => (i % 4 ? 0 : bone))), wgt: b64(new Float32Array(n * 4).map((_, i) => (i % 4 ? 0 : 1))) }; };
+    const sleeve = skin(tube(24, 20), 0), hand0 = tube(24, 20), hb = Buffer.from(hand0.pos, 'base64'), hp = new Float32Array(hb.buffer.slice(hb.byteOffset, hb.byteOffset + hb.byteLength));
+    for (let k = 2; k < hp.length; k += 3) hp[k] += 0.4 + 0.0004;
+    const hand = skin({ ...hand0, pos: b64(hp), col: b64(new Uint8Array(hp.length).map((_, i) => [230, 190, 160][i % 3])) }, 1);
+    const C = crowdFigure({ ...FIG, bones: [{ id: 'sleeve' }, { id: 'hand' }], parts: [sleeve, hand] }, { budget: 500 });
+    const pts = (p) => { const b = Buffer.from(p.pos, 'base64'), out = []; for (let k = 0; k + 11 < b.length; k += 12) out.push([b.readFloatLE(k), b.readFloatLE(k + 4), b.readFloatLE(k + 8)]); return out; };
+    const key = (q) => q.map((v) => v.toFixed(5)).join(',');
+    const sleeveEnd = new Set(pts(C.parts[0]).filter((q) => q[2] > 0.38).map(key)), handStart = pts(C.parts[1]).filter((q) => q[2] < 0.42).map(key);
+    // (the hand's first ring sits on the sleeve's last: the very same points, no seam)
+    expect(handStart.length).toBeGreaterThan(0);
+    expect(handStart.every((k) => sleeveEnd.has(k))).toBe(true);
+    // (the hand's skin colour is its own, never the sleeve's mixed in)
+    expect([...new Set(Buffer.from(C.parts[1].col, 'base64'))].sort((a, b) => a - b)).toEqual([160, 190, 230]);
+    // (each corner's bones and weights carried, four a corner)
+    for (const [k, p] of C.parts.entries()) { const J = Buffer.from(p.jnt, 'base64'), n = Buffer.from(p.pos, 'base64').length / 12; expect(J.length).toBe(n * 4); expect(J[0]).toBe(k); expect(Buffer.from(p.wgt, 'base64').length).toBe(n * 16); }
+    // (a rigid figure stays rigid)
+    expect(crowdFigure(FIG, { budget: 600 }).parts[0].jnt).toBeUndefined();
+  });
+  it('samples only what shows: a layer under another a centimetre out is dropped, so it can never show through', () => {
+    // (a body and a sleeve over it, 1 cm out: the sleeve stays, the body under it goes; with nothing over it, the body stays)
+    const body = tube(24, 20, 0.06), sleeve = { ...tube(24, 20, 0.07), col: b64(new Uint8Array(24 * 20 * 18).fill(30)) };
+    const C = crowdFigure({ ...FIG, bones: [{ id: 'body' }, { id: 'sleeve' }], parts: [body, sleeve] }, { budget: 5000 });
+    expect(C.parts[0]).toBeNull();
+    expect(C.parts[1].faces).toBeGreaterThan(400);
+    expect(crowdFigure({ ...FIG, bones: [{ id: 'body' }], parts: [body] }, { budget: 5000 }).parts[0].faces).toBeGreaterThan(400);
+  });
 });

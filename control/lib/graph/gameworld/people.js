@@ -15,7 +15,7 @@
  */
 import { quickFigure, settingOfGame } from './cast-setting.js';
 
-export const PEOPLE = Object.freeze({ pool: 6, budget: 2400, height: 0.06 });
+export const PEOPLE = Object.freeze({ pool: 6, budget: 5000, height: 0.06 });
 export const PERSON = /^person-\d+$/;
 
 export function streetPeople(G, setting = settingOfGame(G, null)) {

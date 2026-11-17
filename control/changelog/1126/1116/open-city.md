@@ -115,3 +115,8 @@
 - **An athletic run.** A hero's movement can be called `athletic` (or `bounding`): the legs open wide and a stride
   takes a lot of ground, with a longer flight. It is meant to look fast, not to be measured. Behind it is a new
   `reach` dial for how far a stride goes.
+- **Cleaner people on the street.** Passers-by and the people who give you jobs were cut down from the full character
+  in a way that broke them into loose pieces at the joints, smeared their colours into flat patches and let the shirt
+  under a jacket show through in triangles. They are now cut down as one closed body that bends at the joints, each
+  part keeps its own colour (a face, a collar, a scarf stay crisp), and anything a garment covers is left out first,
+  so a street of them carries about twice the detail it did for the same cost.
