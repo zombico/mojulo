@@ -12,6 +12,35 @@
 import { sneakRoutes, watcherAt } from '../../../lib/graph/gameworld/stealth-routes.js';
 import { withParked } from '../../../lib/graph/vehicle-registry/parked.js';
 
+/** The trail's line from its own faces (the land's `trail` group): x across the site at each metre up it, the mean of
+ *  the faces' middles there, read between the metres. → { x(y), samples: [[y, x]] } */
+export function spineFrom(faces) {
+  const by = new Map();
+  for (const f of faces) {
+    if (!/trail/.test(String(f.group ?? '')) || !Array.isArray(f.corners)) continue;
+    const n = f.corners.length, cx = f.corners.reduce((a, q) => a + q[0], 0) / n, cy = f.corners.reduce((a, q) => a + q[1], 0) / n, k = Math.round(cy);
+    const b = by.get(k) ?? [0, 0]; b[0] += cx; b[1]++; by.set(k, b);
+  }
+  return spineOf([...by].sort((a, b) => a[0] - b[0]).map(([y, [sx, n]]) => [y, +(sx / n).toFixed(3)]));
+}
+export function spineOf(samples) {
+  const x = (y) => {
+    if (!samples.length) return 0;
+    if (y <= samples[0][0]) return samples[0][1];
+    for (let k = 1; k < samples.length; k++) if (y <= samples[k][0]) { const [y0, x0] = samples[k - 1], [y1, x1] = samples[k]; return x0 + ((x1 - x0) * (y - y0)) / (y1 - y0 || 1); }
+    return samples[samples.length - 1][1];
+  };
+  return { x, samples };
+}
+/** The recipe with every place said along the trail (`{ trail, off }`: metres up it from its head, metres to its side,
+ *  east positive) set down as [x, y] on this land's trail; a place already [x, y] stays as it is. */
+export function placeRecipe(L, spine) {
+  const at = (p) => (Array.isArray(p) ? p : p && typeof p === 'object' ? [+(spine.x(p.trail) + (p.off ?? 0)).toFixed(2), p.trail] : p);
+  return { ...L, start: at(L.start), exit: at(L.exit), ...(L.backup ? { backup: { ...L.backup, from: at(L.backup.from) } } : {}),
+    cover: L.cover.map((c) => ({ ...c, at: at(c.at) })), watchers: L.watchers.map((w) => ({ ...w, at: at(w.at), ...(w.to ? { to: at(w.to) } : {}), ...(w.facing ? { facing: at(w.facing) } : {}) })),
+    points: L.points.map((P) => ({ ...P, from: at(P.from), to: at(P.to) })), hints: L.hints.map((h) => ({ ...h, at: at(h.at) })) };
+}
+
 export const GUARD = Object.freeze({ cone: 0.6, range: 14, speed: 1.6, eye: 1.35, hear: 7 });
 const rad = (d) => (d * Math.PI) / 180;
 

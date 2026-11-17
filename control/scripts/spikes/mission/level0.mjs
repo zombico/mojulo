@@ -24,24 +24,33 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const { options, database, starterRoom, groundOf, writePage } = await import('./lib.mjs');
 const o = options(process.argv.slice(2)), out = path.resolve(o.opt('--out', 'level-0'));
 database(o.opt('--hero'), o.opt('--guard'));
-const { planLevel, planSvg, coverOf, watchersOf, GUARD } = await import('./level0-plan.mjs');
+const { planLevel, planSvg, coverOf, watchersOf, GUARD, spineFrom, spineOf, placeRecipe } = await import('./level0-plan.mjs');
+const { assembleStageScene } = await import('../../../lib/graph/era/stage.js');
 const { readGameworld } = await import('../../../lib/graph/gameworld/index.js');
 const { gameStages } = await import('../../../lib/graph/gameworld/levels.js');
 const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scene.js');
-const L = JSON.parse(fss.readFileSync(path.join(here, 'level0.json'), 'utf8')), M1 = JSON.parse(fss.readFileSync(path.join(here, 'level1.json'), 'utf8')), W0 = JSON.parse(fss.readFileSync(path.join(here, 'world.json'), 'utf8'));
-const factsFile = path.join(out, 'level-0-facts.json'), r2 = (p) => p.map((v) => +v.toFixed(2));
+const factsFile = path.join(out, 'level-0-facts.json');
+const L0 = JSON.parse(fss.readFileSync(path.join(here, 'level0.json'), 'utf8')), M1 = JSON.parse(fss.readFileSync(path.join(here, 'level1.json'), 'utf8')), W0 = JSON.parse(fss.readFileSync(path.join(here, 'world.json'), 'utf8'));
+const r2 = (p) => p.map((v) => +v.toFixed(2));
 
 // THE LAND, as the rail lays the level's section, asked for as the geocube's own path in the seventh generation
 const { wcd: _game, ...rest } = W0;
-const G = readGameworld({ ...rest, style: { ...W0.style, geocube: L.cube }, levels: { infiltration: M1.level } });
-const stage = gameStages(G).find((s) => s.node === L.section)?.manifest;
-if (!stage) { console.error(`level 0: the rail lays no section '${L.section}'`); process.exit(1); }
+const G = readGameworld({ ...rest, style: { ...W0.style, geocube: L0.cube }, levels: { infiltration: M1.level } });
+const stage0 = gameStages(G).find((s) => s.node === L0.section)?.manifest;
+if (!stage0) { console.error(`level 0: the rail lays no section '${L0.section}'`); process.exit(1); }
+// (the trail at the recipe's run: its length, so a level that wants a longer approach asks for it)
+const stage = L0.run ? { ...stage0, trail: { ...stage0.trail, run: L0.run } } : stage0;
+// THE RECIPE SET DOWN ON THIS LAND: its places are said along the trail, read off the trail's own line (a dry lay of
+// the stage, a second or two; the plan alone reads the line kept from the last build)
+const facts0 = o.has('--plan') && fss.existsSync(factsFile) ? JSON.parse(fss.readFileSync(factsFile, 'utf8')) : null;
+const spine = facts0?.spine ? spineOf(facts0.spine) : spineFrom(assembleStageScene(stage).faces);
+const L = placeRecipe(L0, spine);
 const cover = coverOf(L);
 const report = (plan) => { for (const P of plan.points) { const R = P.routes, w = (x) => (x ? `${x.seconds} s (waits ${x.waits}, crouches ${x.crouch} m, crawls ${x.crawl} m, ${x.detour}× the straight way)` : 'none'); console.log(`level 0: ${P.id}: first try ${R.direct?.seen ? `seen by ${R.direct.seen.by} after ${R.direct.seen.t} s` : 'not seen'} · unseen ${w(R.sneak)} · second ${w(R.other)}`); } for (const l of plan.laws) console.log(`level 0:   ${l.holds ? 'holds' : 'ADVISED'} · ${l.law}: ${l.says}`); };
 const fieldOf = (colliders) => { const B = colliders.filter((c) => /^bound:/.test(c.of ?? '')); return B.length === 4 ? [Math.min(...B.map((c) => c.max[0])), Math.min(...B.map((c) => c.max[1])), Math.max(...B.map((c) => c.min[0])), Math.max(...B.map((c) => c.min[1]))] : [-8, 0, 30, 75.5]; };
 
-if (o.has('--plan') && fss.existsSync(factsFile)) {
-  const F = JSON.parse(fss.readFileSync(factsFile, 'utf8')), plan = planLevel(L, F.colliders, F.field);
+if (facts0) {
+  const F = facts0, plan = planLevel(L, F.colliders, F.field);
   report(plan); await fs.writeFile(path.join(out, 'level-0-plan.svg'), planSvg(L, plan, F.field, F.trail));
   console.log(`level 0: ${path.join(out, 'level-0-plan.svg')}`); process.exit(0);
 }
@@ -49,15 +58,18 @@ if (o.has('--plan') && fss.existsSync(factsFile)) {
 const { room, hero: h0, guard: g0 } = await starterRoom(o);
 // (backup: the starter's guard, minted asleep, sent down the trail when a call goes through: alarm.js)
 const backupIds = Array.from({ length: L.backup?.count ?? 0 }, (_, k) => `backup-${k + 1}`);
-const scene = { kind: 'geocube', cube: { from: L.cube, era: 'gen-7' }, show: 'path', seed: stage.seed, trail: stage.trail, hour: L.hour, shadows: { actors: true, hour: true }, parked: cover.parked,
-  figures: room.manifest.figures, entities: [h0, ...L.watchers.map((w) => ({ ...g0, id: w.id })), ...backupIds.map((id) => ({ ...g0, id, dormant: true }))], fxStyle: room.manifest.fxStyle };
+// (`occlusion`: the seventh generation's live contact occlusion, on by default; `--no-occlusion` or the recipe's
+// `occlusion: false` leaves it out, its prepass a second draw of the whole scene every frame)
+const occl = o.has('--no-occlusion') ? false : L0.occlusion;
+const scene = { kind: 'geocube', cube: { from: L.cube, era: 'gen-7' }, show: 'path', seed: stage.seed, trail: stage.trail, hour: L.hour, shadows: { actors: true, hour: true }, ...(occl !== undefined ? { occlusion: occl } : {}), parked: cover.parked,
+  figures: room.manifest.figures, entities: [h0, ...L.watchers.map((w) => ({ ...g0, id: w.id })), ...backupIds.map((id) => ({ ...g0, id, dormant: true }))], fxStyle: room.manifest.fxStyle, figureGrade: room.manifest.figureGrade };
 const { payload } = await resolveWorldScene({ ref: 'steel-serpents-level-0', title: `${L.name} · Steel Serpents`, manifest: scene }, { era: 'gen-7', live: true });
 
 // THE GROUND: everything stands on the land as it was laid
 const ground = groundOf(payload), zAt = (p) => ground(p[0], p[1]) ?? 0, on = (p, lift = 0) => r2([p[0], p[1], zAt(p) + lift]);
 const field = fieldOf(payload.colliders), trail = (payload.anchors ?? []).filter((a) => a.kind === 'beat').map((a) => a.at);
 await fs.mkdir(out, { recursive: true });
-await fs.writeFile(factsFile, JSON.stringify({ field, trail, colliders: payload.colliders.filter((c) => /^(shrub|bound)/.test(c.of ?? '')) }));
+await fs.writeFile(factsFile, JSON.stringify({ field, trail, spine: spine.samples, colliders: payload.colliders.filter((c) => /^(shrub|bound)/.test(c.of ?? '')) }));
 const plan = planLevel(L, payload.colliders, field);
 report(plan); await fs.writeFile(path.join(out, 'level-0-plan.svg'), planSvg(L, plan, field, trail));
 if (o.has('--plan')) process.exit(0);

@@ -250,3 +250,18 @@ or a recipe key; the spike mints through the real doors and measures.
   goes back. So the way out of an alert is to hide. The page says the state at the top in place of SEEN, its clock as a
   draining bar, the call's progress while it is made, and the screen's edge in the state's colour. The starter's guards
   carry it; level 0 sends two guards down the trail from the base as backup.
+- **The play grade held** (figures/figure-lod.js, worlds/world-scene.js): a play-grade world's figure that no player
+  pilots and that bakes over its budget (a hero on a head that does not lower its own sampling: the realistic body, its
+  garments, its gear) is simplified part by part under the foe's budget: each part welded where every corner buffer
+  agrees (a seam stays a seam), its open edges locked (a hem, an opening keeps its line), quadric edge collapses
+  (polygonizer/skin-net.js), and a soup again, each surviving corner keeping its own colour, joints, weights, uv and
+  normal. The face's morphs go with the face, never framed close at this grade; the bones, clips and height stay. The
+  starter's guard goes from 130k triangles to 36k and reads the same at play distance. The figure a player pilots, and
+  every other grade, as it was. A level on a geocube place may ask for the grade (`figureGrade`, geocube.js), and
+  every segment of the starter does; they had not, so their guards were baked at the full grade.
+- **Level 0 starts forty metres back**: its trail is laid longer (`run: 20`), and its places are said along the trail
+  (`{ trail, off }`: metres up it, metres to its side), set down on the trail's own line as it is laid (level0-plan.mjs
+  `spineFrom`, `placeRecipe`), so a longer or another trail carries the layout with it. The first forty metres are
+  quiet: the controls are told there a few at a time (moving, aiming and the menus, the crouch and the prone, the dive
+  and the vault, the radar's wedges, the alarm), before the convoy. The planner holds both places to their laws on the
+  new ground. `--no-occlusion` builds a page without the seventh generation's contact occlusion, for its cost.

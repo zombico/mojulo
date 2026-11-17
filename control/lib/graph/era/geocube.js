@@ -463,7 +463,9 @@ const no = (msg) => { throw new Error(`geocube: ${msg}`); };
 // A LEVEL LAID ON THE PLACE AS IT STANDS (gameworld/mission-site.js: a mission on a cube's building, its yard and its
 // weather): the page's own channels a level rides, each read by the world's resolve as on any kind and by nothing here;
 // and a camera that is the page's (an entity's, with a `rule`) is not a still. Absent, the kind is as it was.
-const LEVEL_KEYS = Object.freeze(['events', 'audio', 'mission', 'game', 'parked']);
+// (and `figureGrade`: the grade its bodies are baked at, figures/figure-grades.js: a level played on the place asks for
+// the play grade, as every other level does)
+const LEVEL_KEYS = Object.freeze(['events', 'audio', 'mission', 'game', 'parked', 'figureGrade']);
 const pageCamera = (c) => !!c && typeof c === 'object' && typeof c.rule === 'string';
 // a relief checked where the cube names it: its own words, said as the cube's
 const reliefOrNo = (v, at) => { try { readRelief(v); } catch (e) { no(`${at}: ${e.message.replace(/^relief: /, '')}`); } };

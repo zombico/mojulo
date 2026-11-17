@@ -1427,6 +1427,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // fidelity a machine's takes; any other game type's hero as it was)
           const moves = swing ? (await import('@/lib/graph/gameworld/feel/hero-juice.js')).heroJuice(swing, figure) : null;
           payload.figures[name] = moves ? await atRigFidelity({ ...figure, juice: moves }) : figure;
+          // THE PLAY GRADE HELD (figures/figure-lod.js): a play-grade world's figure that no player pilots and that bakes over
+          // its budget (a hero on a head that does not lower its own sampling: the realistic body, its garments, its gear)
+          // is simplified part by part under it, its face's morphs dropped (never framed close at this grade); its bones,
+          // clips and height as they were. The figure a player pilots, and every other grade, as it was
+          if (sketch.manifest.figureGrade === 'play' && !piloted && !rawSpec.grade) {
+            const { gradeBudget } = await import('@/lib/graph/figures/figure-grades.js'), { lodFigure } = await import('@/lib/graph/figures/figure-lod.js');
+            const held = lodFigure(payload.figures[name], gradeBudget('play', 'foe'), { face: false });
+            if (held.fig !== payload.figures[name]) payload.figures[name] = held.fig;
+          }
           // THE POSE GRADE CUT IN (figure-grades.js): a play-grade world bakes the figures its close shots reach again at
           // the pose grade, `<name>@pose`, the page cutting it in while a close shot is on; two bakes that are not one
           // character (bones, clips, height) keep the play grade alone. Any other world: nothing more

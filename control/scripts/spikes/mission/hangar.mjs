@@ -122,7 +122,7 @@ console.log(`hangar: hall ${JSON.stringify({ min: r2(H.min), max: r2(H.max) })} 
 console.log(`hangar: items ${mission.items.map((i) => `${i.id}@${i.at}`).join(' ')} · clues ${mission.clues.map((i) => `${i.id}@${i.at}`).join(' ')} · stairwell ${mission.ways[1].a} ↔ ${mission.ways[1].b} · out ${mission.exits[0].at}`);
 if (argv.includes('--dry')) process.exit(0);
 
-const manifest = { ...stage, figures: room.manifest.figures, entities, fxStyle: room.manifest.fxStyle, parked, shoot };
+const manifest = { ...stage, figures: room.manifest.figures, entities, fxStyle: room.manifest.fxStyle, parked, shoot, figureGrade: room.manifest.figureGrade };
 const { payload } = await resolveWorldScene({ ref: 'steel-serpents-level-1-hangar', title: `${M.name} · the hangar`, manifest }, { era: 'gen-7', live: true });
 console.log(`hangar: shoot ${payload.shoot ? `${payload.shoot.cameras.length} camera, cues ${JSON.stringify((payload.shoot.cues ?? []).map((c) => c.on))}, live ${!!payload.shoot.live}` : 'NONE'}`);
 const { walkers: _w, ...P } = payload;

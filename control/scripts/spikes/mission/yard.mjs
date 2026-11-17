@@ -54,7 +54,7 @@ const scene = { kind: 'geocube', cube: { from: cubeName, era: 'gen-7' }, show: '
 const r2 = (p) => p.map((v) => +v.toFixed(2));
 const g0 = room.manifest.entities.find((e) => e.id === 'guard-1'), h0 = room.manifest.entities.find((e) => e.id === 'hero');
 // (the bodies stand where the land is read to be: placed on the resolved payload, below)
-const manifest = { ...scene, figures: room.manifest.figures, entities: [h0, g0, { ...g0, id: 'guard-2' }], fxStyle: room.manifest.fxStyle };
+const manifest = { ...scene, figures: room.manifest.figures, entities: [h0, g0, { ...g0, id: 'guard-2' }], fxStyle: room.manifest.fxStyle, figureGrade: room.manifest.figureGrade };
 if (argv.includes('--dry')) { console.log(`yard: ${JSON.stringify(scene)}`); process.exit(0); }
 const { payload } = await resolveWorldScene({ ref: 'steel-serpents-level-1-perimeter', title: `${M.name} · the perimeter`, manifest }, { era: 'gen-7', live: true });
 
