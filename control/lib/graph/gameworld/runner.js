@@ -748,7 +748,10 @@ function worldSteps(world, G, ref, composite) {
     // (a world that STARTS IN PLAY, as one laid from a sentence does: flow.js startInPlay over the flow its levels and
     // front make; it has no story yet, so its opening cutscene is the empty slot, passed at once)
     const game0 = withCues(steps, gameBare, runScore, G, ref);
-    const flow0 = G.flow === FLOW_IN_PLAY ? startInPlay(defaultFlow(game0)) : null;
+    // (and a flow of its own, game-flow.js: its levels the refs of their first stages, as a world with a book carries it;
+    // one that names a level this game has not got is left out, the game playing as it always has)
+    const ownFlow = isObj(G.flow) ? flowToRefs(G.flow, (level) => { const k = C.stages.findIndex((st) => st.level === level); return k >= 0 ? C.refs[k] : null; }) : null;
+    const flow0 = G.flow === FLOW_IN_PLAY ? startInPlay(defaultFlow(game0)) : ownFlow && !ownFlow.missing.length ? ownFlow.flow : null;
     // (THE SET-UP, setup.js: what is asked before a level loads)
     const flowS = G.setup ? withSetup(flow0 ?? defaultFlow(game0), G.setup) : flow0;
     const game = flowS ? { ...game0, flow: flowS } : game0;

@@ -38,6 +38,7 @@
  *   startReadout(world) → { readout: 'start', … }
  *     a book with no level yet cannot be stored; the door answers this instead of refusing: every goalpost with its
  *     question, the producer's intake step first, nothing built. The designed path's first call, as cheap as a quick one.
+ *     (design_game adds the platformer's rail to it, platformer-game.js platformerStart, where the book points at one)
  *
  * Pure.
  */

@@ -44,7 +44,7 @@ import { playerWorld, traversalStates, HERO_WALK_RUN } from '../playscape/player
 import { resolveEquipment } from './equipment.js';
 import { outTrailOf, outTrailStyle } from '../era/out-trail-board.js';
 import { outTrailSpan } from '../era/out-trail.js';
-import { SIDE_CUBE, sidePads } from '../era/geocube-side.js';
+import { SIDE_CUBE, sidePads, sideCameraWords } from '../era/geocube-side.js';
 import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
 import { fixedStations, uprightCamera, UPRIGHT, STEERED } from './cameras.js';
@@ -128,7 +128,8 @@ const SNEAK_TUNE = Object.freeze({ team: 'guards', rule: { guardRadius: 10, spee
 import { feelRule, readFeel, TAKES, feelCard, lowerFeel, feelVayo } from './feel/lower.js';
 import { reachOf } from './feel/reach.js';
 import { laidCasting, laidJoins } from './casting.js';
-import { readCourse, courseAt, coursePlan, courseLaws, lowerCourse } from './course.js';
+import { readCourse, courseAt, coursePlan, courseLaws, lowerCourse, slabOf } from './course.js';
+import { courseCube, courseColours, skinCourse } from './course-skin.js';
 import { juiceOfGame } from './juice.js';
 import { tempoOfGame } from './tempo.js';
 import { styleMeterOfGame } from './style-meter.js';
@@ -760,8 +761,11 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   let course = courseSpec ? (() => {
     const lane = stageLane(stage), reach = reachOf(G.feel ? readFeel(G.feel) : null), length = lane.line.length - 1;
     const plan = coursePlan(reach, { teach: courseSpec.teach, verticality: courseSpec.verticality ?? 'flat', length });
-    const L = lowerCourse(plan, lane), at = (s, z) => { const i = Math.min(lane.line.length - 1, Math.max(0, Math.round(s))); return [lane.line[i][0], lane.line[i][1], r3(L.base + z)]; };
-    return { plan, lowered: L, laws: courseLaws(plan, reach), beats: plan.floors.map((f, k) => ({ beat: `floor-${k + 1}`, at: at((f.s0 + f.s1) / 2, f.z) })) };
+    // (in the round a floor is a slab as thick as the hero's jump asks, course.js slabOf, not a column to the ground)
+    const L = lowerCourse(plan, lane, { slab: slabOf(reach) }), at = (s, z) => { const i = Math.min(lane.line.length - 1, Math.max(0, Math.round(s))); return [lane.line[i][0], lane.line[i][1], r3(L.base + z)]; };
+    // (its coins, where the world lays them: mechanics.coins, below; on the line itself, between its metres)
+    const on = (s, z) => { const u = Math.min(lane.line.length - 1, Math.max(0, s)), i = Math.min(lane.line.length - 2, Math.floor(u)), t = u - i, A = lane.line[i], B = lane.line[i + 1] ?? A; return [r3(A[0] + (B[0] - A[0]) * t), r3(A[1] + (B[1] - A[1]) * t), r3(L.base + z)]; };
+    return { plan, lowered: L, laws: courseLaws(plan, reach), beats: plan.floors.map((f, k) => ({ beat: `floor-${k + 1}`, at: at((f.s0 + f.s1) / 2, f.z) })), ...(G.mechanics?.coins ? { coins: trailCoins(plan, on) } : {}) };
   })() : null;
   const stripped = isStrip(stage.manifest) ? stripCourse(G, stage) : null;
   if (stripped) course = stripped;
@@ -871,7 +875,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
     const camera = look ? { rule: 'eye', target: 'hero', height: pilot ? pilot.eye : HERO_EYE, mouseLook: true, hideTarget: true }
       : top ? { rule: 'overhead', target: 'hero', ...OVERHEAD }
-        : lane ? { rule: 'side', target: 'hero', ...(course ? { band: SIDE_BAND, ends: SIDE_ENDS } : {}) }
+        // (a strip drawn in a shape family, era/geocube-side.js: framed nearly level, so its sky and far rows are seen)
+        : lane ? { rule: 'side', target: 'hero', ...(course ? { band: SIDE_BAND, ends: SIDE_ENDS } : {}), ...(isStrip(stage.manifest) ? sideCameraWords(stage.manifest.cube, stage.manifest.side?.shapes) : {}) }
         : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) }
         : steered ? { ...P.camera, steer: steered, ...(actionOrbit ? ACTION_ORBIT : {}) }
         : stage.section === 'runner' ? { rule: 'follow', target: 'hero', ...RUNNER_CAMERA }
@@ -981,7 +986,10 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     strip = { side: { ...stage.manifest.side, boxes }, colliders: boxes.map(({ min, max }) => ({ min, max, of: 'side:course' })) };
   }
   if (course) {
-    if (!strip) blocks = [...(blocks ?? []), ...course.lowered.blocks];
+    // (a course in the round is SKINNED, course-skin.js: its floors the land it stands on lifted up, a turf cap over dirt
+    // over rock in the stage's own colours; its stairs and the floors up a wall masonry in the level's geocube, the one
+    // the level or the world names, else the one made for the kit it stands on)
+    if (!strip) blocks = [...(blocks ?? []), ...((K) => skinCourse(course.lowered, course.plan, courseColours(stage, K.cube, K.from)))(courseCube(G, stage))];
     const ev = pilotPart.events ?? {}, C = course.lowered.events;
     pilotPart = { ...pilotPart, events: { ...ev, sources: [...(ev.sources ?? []), ...C.sources], reactions: [...(ev.reactions ?? []), ...C.reactions] } };
     // LIVES (the world's `mechanics.lives`): a hit or a fall into one of the course's pits costs one, none left loses;
@@ -989,7 +997,9 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     // over each gap, where the hero's feet pass
     const M = G.mechanics ?? {};
     if (M.lives) game.mechanics = [...game.mechanics.filter((m) => m.kind !== 'fail-on-death'), { kind: 'lives', start: M.lives, falls: C.sources.map((x) => x.zone).filter((z) => typeof z === 'string' && z.startsWith('__course-')) }];
-    if (M.coins && strip) game.mechanics = [...game.mechanics, { kind: 'coins', pickups: courseCoins(course.plan), ...(M.coins.oneup ? { oneup: M.coins.oneup } : {}) }];
+    // (and along a trail's course, a 3D platformer's: the same rows and arcs on the trail's own line, trailCoins)
+    const coins = M.coins ? (strip ? courseCoins(course.plan) : course.coins ?? []) : [];
+    if (coins.length) game.mechanics = [...game.mechanics, { kind: 'coins', pickups: coins, ...(M.coins.oneup ? { oneup: M.coins.oneup } : {}) }];
   }
   if (ways && ways.arrive.length) {
     const pilot = pilotPart.entities[0].id, ev = pilotPart.events || {};
@@ -1303,6 +1313,22 @@ export function courseCoins(plan) {
     out.push(at(g.s0 + 0.2 * g.w, z + COIN.arc[0]), at((g.s0 + g.s1) / 2, z + COIN.arc[1]), at(g.s1 - 0.2 * g.w, z + COIN.arc[0]));
   }
   return out.sort((a, b) => a.at[1] - b.at[1]);
+}
+/** A TRAIL COURSE'S COINS (a 3D platformer's: the course over a trail's own line, course.js coursePlan): the strip's
+ * rows and arcs, a row of three along each floor at the height the feet pass, an arc of three over each gap, placed by
+ * `at(station, height over the course's base) → [x, y, z]` on the trail's line. In the order they are run past. */
+export function trailCoins(plan, at) {
+  const out = [], put = (s, z) => out.push({ s, at: at(s, z) });
+  for (const f of plan.floors) {
+    if (f.s1 - f.s0 < 3) continue;
+    for (let s = f.s0 + 2; s + 2 * COIN.gap <= f.s1 - 1; s += COIN.row) for (let k = 0; k < 3; k++) put(s + k * COIN.gap, f.z + COIN.walk);
+  }
+  plan.gaps.forEach((g, k) => {
+    if (g.kind === 'wall' || !(g.w > 0)) return;
+    const z = Math.max(plan.floors[k].z, plan.floors[k + 1].z);
+    put(g.s0 + 0.2 * g.w, z + COIN.arc[0]); put((g.s0 + g.s1) / 2, z + COIN.arc[1]); put(g.s1 - 0.2 * g.w, z + COIN.arc[0]);
+  });
+  return out.sort((a, b) => a.s - b.s).map((c) => ({ at: c.at }));
 }
 /** The side camera's height on a course: eased while the hero stands (a stair's risers), held through a jump inside it. */
 export const SIDE_BAND = Object.freeze([1, 2]);

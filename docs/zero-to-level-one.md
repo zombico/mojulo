@@ -61,6 +61,11 @@ session leaves.
 | an idea, or documents | `design_game({ world: { name } })` first (it answers what to ask, nothing stored), then `{ world }` with its levels and patches | the designed game: the agent writes the recipe |
 | a board game, a pen-and-paper RPG, a fight | `create_game` with its own key | game types with their own machines ([table-rpg.md](table-rpg.md), [broadcast.md](broadcast.md)) |
 
+A platformer has a rail of its own under the designed path: a world that plays a platformer's feel and has no course
+is offered its first level and the flow that plays it as a ready patch (`next: first-level`,
+`control/lib/graph/gameworld/platformer-game.js`). It is a side-scroller (one strip, one turn) unless the camera or the
+brief says the round; the 3D platformer lays courses up a hill, a turn each, entered from a courses screen.
+
 The sentence door is a keyword reader, not the agent's judgment. It is a starting recipe; the words it lists as
 `unread` are the agent's to write in.
 
@@ -113,9 +118,6 @@ What that shows:
   room, fights kept on the world and laid into a building, sound and score, the flow from title to results, menus
   and HUD in a look. Each has machine gates; most have not been played by a person.
 - **Known seams** (each stated by the code or its theme, none hidden):
-  - A new game was framed for a phone unless the world said `screen`, so the measured game above opened upright on a
-    desktop. A new game is now made for a monitor on its side; one that runs up the screen (a runner, an obstacle
-    course) is still made for a phone.
   - The sentence door lays a level whose exit its own default hero cannot reach, advises against it, and builds it.
   - An action game from a sentence gets no weapons kit; an action game's foes cannot carry elements.
   - The scripted player has no dodge, specials or air strings, so some fights (the gallery) cannot be machine-proved.

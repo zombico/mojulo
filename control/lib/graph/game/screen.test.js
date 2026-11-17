@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SCREENS, NEW_GAME_SCREEN, UPRIGHT_GAME_SCREEN, newGameScreen, REACH, readScreen, screenFrame, screenPayload, fitScreen, payloadFrame } from './screen.js';
+import { SCREENS, NEW_GAME_SCREEN, REACH, readScreen, screenFrame, screenPayload, fitScreen, payloadFrame } from './screen.js';
 import { verticalFov } from '../scene/scene-three.js';
 
 const hfov = (vfov, aspect) => 2 * Math.atan(Math.tan(vfov * Math.PI / 360) * aspect) * 180 / Math.PI;
@@ -9,14 +9,7 @@ describe('screen: the screen a game is made for', () => {
     expect(readScreen('phone')).toEqual({ pole: 'phone', aspect: [9, 16], orientation: 'portrait' });
     expect(readScreen('tablet')).toEqual({ pole: 'tablet', aspect: [4, 3], orientation: 'landscape' });
     expect(readScreen('screen')).toEqual({ pole: 'screen', aspect: [16, 9], orientation: 'landscape' });
-    expect(SCREENS[NEW_GAME_SCREEN]).toBeTruthy();
-    // (a new game is made for a monitor on its side; one that runs up the screen for a phone held upright)
-    expect(NEW_GAME_SCREEN).toBe('screen');
-    expect(newGameScreen({ levels: { a: { walk: {} } } })).toBe('screen');
-    expect(newGameScreen({ levels: { a: { street: { stops: [] } } } })).toBe('screen');
-    expect(newGameScreen({ quick: { goal: 'runner' }, levels: {} })).toBe(UPRIGHT_GAME_SCREEN);
-    expect(newGameScreen({ levels: { a: { runner: true } } })).toBe('phone');
-    expect(newGameScreen({ levels: { a: { obstacles: true } } })).toBe('phone');
+    expect(NEW_GAME_SCREEN === null || !!SCREENS[NEW_GAME_SCREEN]).toBe(true);   // none, or a screen it names
   });
 
   it('turns a pole to the orientation asked for, and reads a custom aspect', () => {

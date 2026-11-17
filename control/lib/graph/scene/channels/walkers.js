@@ -36,8 +36,69 @@ import { HELD_WALK_SOURCE } from './traffic-model.js';
 // it, so the view still turns and zooms round it; a 'follow' button lets it go, and the walk (walk.js) takes the camera
 // while it is on, the chase seated again behind the walker after. A still capture (`capture`) keeps its own camera.
 // Absent ⇒ byte-identical.
+// `blend` (a walker's own, on a figure whose parts carry their corners' skin, `jnt` and `wgt`: every layered pack's): the
+// figure is ONE SKIN, each corner placed by the bones it is weighed to, in the vertex shader. A rigid part rides one bone,
+// and a triangle is handed whole to the bone its corners vote for, so where a body bends along its whole length (a fish,
+// a ray, an eel: anything that goes forward in an S) the parts' edges open in a sawtooth; blended, two triangles that
+// share a corner meet in every frame. The bones are posed as before (the same clip, the same frame pair), their
+// transforms handed to the skin's material in place of the part meshes' matrices; the depth prepass is told the same
+// move (`userData.prepass`, channels/creases.js). No walker asking, or no figure carrying its skin ⇒ byte-identical.
+// `WALKER_BLEND`: `most` the bones a corner is weighed to (the pack's); `holds` the most a blended skin may stretch one of
+// its own edges, as a share of the body's size, and still be drawn as one skin (walkerSkinStretch): past it the figure's
+// own binding sets neighbouring corners on bones that part, which rigid parts hide as a seam and one skin shows as a spike.
+export const WALKER_BLEND = Object.freeze({ most: 4, holds: 0.1 });
+
+/**
+ * A SKIN'S MEASURE: how far the blend stretches the worst of a figure's edges over its `forward` clip, as a share of the
+ * body's size (its rest extent). Each corner is placed as the page places it (its bones' transforms by its weights);
+ * a skin that holds keeps every edge near its rest length. → { stretch, size, holds } (a figure with no skin: null).
+ * Pure; the figure as packed (base64 parts, a clip of { k, b }).
+ */
+export function walkerSkinStretch(fig, { clips = null } = {}) {
+  if (!fig || !Array.isArray(fig.parts) || !fig.parts.some((p) => p && p.jnt && p.wgt)) return null;
+  // (`clips: 'all'`: over every clip the figure carries, a body that also eats, flinches and falls; the worst of them)
+  if (clips === 'all') {
+    const each = [...new Set(Object.values(fig.clips || {}))].filter((c) => c && c.k && c.b).map((c) => walkerSkinStretch({ ...fig, clips: { forward: c } }));
+    if (!each.length) return null;
+    const worst = each.reduce((m, e) => (e.stretch > m.stretch ? e : m));
+    return { ...worst, holds: worst.stretch <= WALKER_BLEND.holds };
+  }
+  const clip = fig.clips && (fig.clips.forward || fig.clips[Object.keys(fig.clips)[0]]);
+  if (!clip) return null;
+  const buf = (s) => Buffer.from(s, 'base64'), f32 = (s) => { const u = buf(s); return new Float32Array(u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength)); };
+  const nb = fig.bones.length, K = clip.k, B = Array.isArray(clip.b) ? clip.b : f32(clip.b);
+  const one = (key, j, p, o) => {
+    const q = (key * nb + j) * 7, x = B[q], y = B[q + 1], z = B[q + 2], w = B[q + 3], h = fig.bones[j].head, a = p[0] - h[0], b = p[1] - h[1], c = p[2] - h[2];
+    const tx = 2 * (y * c - z * b), ty = 2 * (z * a - x * c), tz = 2 * (x * b - y * a);
+    o[0] = B[q + 4] + a + w * tx + (y * tz - z * ty); o[1] = B[q + 5] + b + w * ty + (z * tx - x * tz); o[2] = B[q + 6] + c + w * tz + (x * ty - y * tx);
+  };
+  let worst = 0, lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  const m = [0, 0, 0], P = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], R = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  fig.parts.forEach((part, bi) => {
+    if (!part) return;
+    const pos = f32(part.pos), J = part.jnt ? buf(part.jnt) : null, W = part.wgt ? f32(part.wgt) : null, n = pos.length / 3;
+    for (let v = 0; v < n; v++) for (let c = 0; c < 3; c++) { lo[c] = Math.min(lo[c], pos[v * 3 + c]); hi[c] = Math.max(hi[c], pos[v * 3 + c]); }
+    for (let key = 0; key < K; key++) for (let t = 0; t + 2 < n; t += 3) {
+      for (let k = 0; k < 3; k++) {
+        const v = t + k, r = R[k], o = P[k]; r[0] = pos[v * 3]; r[1] = pos[v * 3 + 1]; r[2] = pos[v * 3 + 2];
+        let ws = 0; o[0] = o[1] = o[2] = 0;
+        if (J) for (let i = 0; i < 4; i++) { const w = W[v * 4 + i]; if (!(w > 0)) continue; one(key, J[v * 4 + i], r, m); o[0] += w * m[0]; o[1] += w * m[1]; o[2] += w * m[2]; ws += w; }
+        if (ws > 1e-4) { o[0] /= ws; o[1] /= ws; o[2] /= ws; } else one(key, bi, r, o);
+      }
+      for (const [a, b] of [[0, 1], [1, 2], [2, 0]]) {
+        const d = Math.abs(Math.hypot(P[a][0] - P[b][0], P[a][1] - P[b][1], P[a][2] - P[b][2]) - Math.hypot(R[a][0] - R[b][0], R[a][1] - R[b][1], R[a][2] - R[b][2]));
+        if (d > worst) worst = d;
+      }
+    }
+  });
+  const size = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1, stretch = Math.round((worst / size) * 1e4) / 1e4;
+  return { stretch, size: Math.round(size * 1e4) / 1e4, holds: stretch <= WALKER_BLEND.holds };
+}
 export function walkersChannelScript(walkers, bank, { cast = false, signals = null, capture = false } = {}) {
   const held = walkers.some((w) => Array.isArray(w.holds));
+  const skinOf = (f) => !!f && Array.isArray(f.parts) && f.parts.some((p) => p && p.jnt && p.wgt);
+  const blend = walkers.some((w) => w.blend && skinOf(bank[w.figure]));
+  const bones = blend ? Math.max(...walkers.filter((w) => w.blend && skinOf(bank[w.figure])).map((w) => bank[w.figure].bones.length)) : 0;
   const follow = !capture && walkers.some((w) => w.follow);
   return `
 // ---- walkers channel (ambient rig figures on looped paths) ----
@@ -69,7 +130,34 @@ function __buildWalkerRig(fig) {
   });
   scene.add(group);
   return { fig, group, boneMeshes };
+}${blend ? `
+// ONE SKIN (a walker's \`blend\`): the figure's parts as they are packed, each corner carrying the bones it is weighed to
+// and their weights; the bones' transforms are the material's (one array a walker, written each frame), so a corner
+// between two bones is placed between them and no part's edge opens.
+const __wSkinPars = 'attribute vec4 aWJ;\\nattribute vec4 aWW;\\nuniform mat4 uWB[ ${bones} ];\\n';
+const __wSkinMove = '#include <begin_vertex>\\n  { vec4 wp = vec4( position, 1.0 ); float ws = aWW.x + aWW.y + aWW.z + aWW.w;\\n    if ( ws > 1e-4 ) transformed = ( aWW.x * ( uWB[ int( aWJ.x ) ] * wp ).xyz + aWW.y * ( uWB[ int( aWJ.y ) ] * wp ).xyz + aWW.z * ( uWB[ int( aWJ.z ) ] * wp ).xyz + aWW.w * ( uWB[ int( aWJ.w ) ] * wp ).xyz ) / ws; }';
+function __buildWalkerSkin(fig) {
+  const group = new THREE.Group(), B = Array.from({ length: ${bones} }, () => new THREE.Matrix4()), U = { value: B };
+  const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  mat.onBeforeCompile = (sh) => { sh.uniforms.uWB = U; sh.vertexShader = __wSkinPars + sh.vertexShader.replace('#include <begin_vertex>', __wSkinMove); };
+  mat.customProgramCacheKey = () => 'walker-skin';
+  mat.userData.prepass = (vs) => ({ vertexShader: __wSkinPars + vs.replace('#include <begin_vertex>', __wSkinMove), uniforms: { uWB: U } });
+  fig.parts.forEach((part, bi) => {
+    if (!part) return;
+    const geo = new THREE.BufferGeometry(), n = part.faces * 3;
+    geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(part.pos), 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));
+    // (a part with no skin of its own, a held thing, rides its bone whole)
+    const J = part.jnt ? Float32Array.from(decodeU8(part.jnt)) : Float32Array.from({ length: n * 4 }, () => bi), W = part.wgt ? decodeF32(part.wgt) : Float32Array.from({ length: n * 4 }, (_, i) => (i % 4 ? 0 : 1));
+    geo.setAttribute('aWJ', new THREE.BufferAttribute(J, 4)); geo.setAttribute('aWW', new THREE.BufferAttribute(W, 4));
+    const mesh = new THREE.Mesh(geo, mat);${cast ? '\n    mesh.castShadow = true;' : ''}
+    mesh.matrixAutoUpdate = false; mesh.frustumCulled = false;
+    group.add(mesh);
+  });
+  scene.add(group);
+  return { fig, group, boneMeshes: [], B };
 }
+const __wCanBlend = (fig) => fig.parts.some((p) => p && p.jnt && p.wgt);` : ''}
 // arc-length table: cumulative length at each path vertex + total. Lets us place the body by DISTANCE
 // (constant ground speed) rather than by raw parameter. For a closed loop the path repeats its first
 // point at the end, so the closing segment is included and s % total wraps seamlessly.
@@ -112,7 +200,7 @@ function __walkerBone(fig, clip, p, bi, outQ, outP) {
 }
 const __walkerRigs = WALKERS.map((w) => {
   const fig = WBANK[w.figure];
-  const rig = __buildWalkerRig(fig);
+  const rig = ${blend ? '(w.blend && __wCanBlend(fig)) ? __buildWalkerSkin(fig) : ' : ''}__buildWalkerRig(fig);
   const at = __arcTable(w.path);
   const clip = fig.clips.forward || fig.clips[Object.keys(fig.clips)[0]];
   // scale the whole rig group (a world-scaled bake dropped into a differently-scaled world — e.g. a
@@ -147,13 +235,13 @@ stepWalkers = (t) => {
     const phase = s / r.stride;                 // clip phase from ground distance (no skate)
     for (let bi = 0; bi < fig.bones.length; bi++) {
       const mesh = r.rig.boneMeshes[bi];
-      if (!mesh) continue;
+      if (!mesh${blend ? ' && !r.rig.B' : ''}) continue;
       __walkerBone(fig, r.clip, phase, bi, __wq, __wheadP);
       // M·v = head' + q·(v − restHead)  →  compose(position = head' − q·restHead, q, 1)
       const rh = fig.bones[bi].head;
       __wh.set(rh[0], rh[1], rh[2]).applyQuaternion(__wq);
       __wv.set(__wheadP[0] - __wh.x, __wheadP[1] - __wh.y, __wheadP[2] - __wh.z);
-      mesh.matrix.compose(__wv, __wq, __wONE);
+      ${blend ? '(r.rig.B ? r.rig.B[bi] : mesh.matrix)' : 'mesh.matrix'}.compose(__wv, __wq, __wONE);
     }
     const wo = window.__mojWalkers[wi];
     wo.pos[0] = p[0]; wo.pos[1] = p[1]; wo.pos[2] = p[2]; wo.heading = heading; wo.phase = phase;

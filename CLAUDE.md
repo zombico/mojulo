@@ -325,6 +325,14 @@ Pointers only; each target carries its own design notes.
   blade (an arsenal's `art`: `SWORD_ARTS` in `polygonizer/hero-swing-body.js`): [docs/sword-arts.md](docs/sword-arts.md). A game's play
   tried before its levels (the action and platform rooms, the mount lane, the firing and artillery ranges, the roll room, the work room and the game room, chosen by how
   it plays): [gameworld/practice.js](control/lib/graph/gameworld/practice.js), [docs/practice-rooms.md](docs/practice-rooms.md).
+- The platformer's rail (a mascot platformer from its feel to a first level and the flow that plays it, in two
+  dimensions: `2d` the side-scroller, one strip and one turn, its home the title; `3d` opt-in, courses up a hill, a
+  turn each, its home the courses screen; both on one flow shape, a start menu, a screen on its side, the
+  `hilltop` theme card and the `sherbet-orchard` geocube; offered by `design_game` as `next: first-level`, never laid): [gameworld/platformer-game.js](control/lib/graph/gameworld/platformer-game.js) over
+  [gameworld/first-level.js](control/lib/graph/gameworld/first-level.js); manual: the `gameworld-course` card. A course in
+  the round is skinned by [gameworld/course-skin.js](control/lib/graph/gameworld/course-skin.js) (floors the land's turf,
+  dirt and rock; stairs and walls a geocube's stone and trim, the cube read from the level, the world or the kit). The
+  land behind a side strip's lane is dressed by [docs/side-strip-principles.md](docs/side-strip-principles.md).
 - Title cards: [game/title-carve.js](control/lib/graph/game/title-carve.js) (a HUD banner `as: 'title'`: its words carved
   by [motion/glyph-carver.js](control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,
   in the juice register's look; words by key in the world's `locale` from `control/messages/`: `game/title-words.js`);
@@ -399,5 +407,12 @@ Pointers only; each target carries its own design notes.
   say, voiced by style, the palettes frozen behind it; recipes, never samples: cues, held voices, and families that
   build them from dials, a variation a dial point; measured on `measure.js`'s yardstick and held to `register.js`; a new
   sound is a row first, a new variation a dial value): [docs/sfx-shelf.md](docs/sfx-shelf.md).
+- Underwater: [scene/channels/sea.js](control/lib/graph/scene/channels/sea.js) (a geocube's `sea`: its land put under
+  water by light alone on a gen-7 page, the air's sibling on three's fog chunk; waters and depth zones are rows, a zone
+  says what the read stands on; lamps where the sun does not reach) and what grows on the bed,
+  [marine/](control/lib/graph/marine/) (a biocube's `flora.marine`: primitives in one kernel the page inlines, a roster by
+  depth, mixes, a lay made as an aquarium is; the `seabed` biocube and biome; a new thing is a row, a new composition a
+  mix) and who lives there (`marine/fauna.js`, a biocube's `fauna.sea`: the encyclopedia's sea animals called by depth,
+  room, habitat and a pyramid, searched by `searchMarine` and `scripts/marine.mjs`, swum on loops by the walkers channel): [docs/underwater.md](docs/underwater.md).
 - Rendering docs: [docs/scene-css3d-lighting.md](docs/scene-css3d-lighting.md),
   [docs/raymarch-effects-layer.md](docs/raymarch-effects-layer.md), [docs/local-blender-worker.md](docs/local-blender-worker.md).
