@@ -43,8 +43,8 @@
  *
  * THE `chaser` RULE — a driver no one pilots, after a body (`target`, or what it rides): the law's police car. Far off
  * it keeps to the `roads` ([[axis, cross, lo, hi], …], the streets' middle lines), routed over their junctions; near it
- * drives straight at it; beside a target that stands, it holds and counts a blow on it every `every` s (`pin` m): its
- * `hits`, `lastHitBy` this car. Facts: `chaseRoute`, `chaseAt`.
+ * drives straight at it; beside a target that stands, it holds it, counted every `every` s (`pin` m): its `helds`,
+ * `heldBy` this car (the bus's `held:<target>`: a hold, no wound). Facts: `chaseRoute`, `chaseAt`.
  *
  * PHYSICS (opt-in, the vehicle classes' rule: roads/vehicles.js vehicleRule): `drivenShare` (grip through the driven
  * wheels only), `brakeEff` (brakes capped by grip), `lateralGrip` (no tighter than μ g holds), `surfaceGrip` (the
@@ -276,8 +276,8 @@ export function buildRulesDrive(E) {
   // cross, lo, hi], …], the street's middle lines): a route from the road nearest it to the road nearest the target,
   // over the junctions where they cross (the shortest by distance), replanned every `replan` s; near (`near` m) it drives
   // straight at it, and beside it holds there. Slowing into a turn ahead at speed, backing off a second when stuck.
-  // PINNED: the target barely moving and this car at it (`pin` m), a blow every `every` s, counted on the target as a
-  // hit by this car (its `hits` and `lastHitBy`, the bus's `hit:<target>`): boxed in, the player is caught as on foot.
+  // PINNED: the target barely moving and this car at it (`pin` m), a hold every `every` s, counted on the target (its
+  // `helds` and `heldBy`, the bus's `held:<target>`): boxed in, the player is caught as on foot, unhurt.
   function roadRoute(R, from, to, join) {
     const near = (p) => { let best = null; for (let i = 0; i < R.length; i++) { const [a, c, lo, hi] = R[i], u = clamp(a ? p[1] : p[0], lo, hi), d = Math.hypot(a ? p[0] - c : p[1] - c, (a ? p[1] : p[0]) - u); if (!best || d < best.d) best = { i, u, d }; } return best; };
     const A = near(from), B = near(to);
@@ -354,7 +354,7 @@ export function buildRulesDrive(E) {
     // PINNED: a blow every `every` s while the target stands and this car is at it
     if (dT < (r.pin > 0 ? r.pin : 6) && still && Math.abs(e.speed || 0) < 3) {
       e.pinT = (e.pinT || 0) + dt;
-      if (e.pinT >= (r.every > 0 ? r.every : 1)) { e.pinT = 0; T.hits = (T.hits || 0) + 1; T.lastHitBy = e.id; }
+      if (e.pinT >= (r.every > 0 ? r.every : 1)) { e.pinT = 0; T.helds = (T.helds || 0) + 1; T.heldBy = e.id; }
     } else e.pinT = 0;
   }
 

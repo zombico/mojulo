@@ -272,7 +272,10 @@ describe('jobs across the district (errands on a played district: its shops thei
     const W = lowerAct(acts[0], { i: 0, player: 'hero', resolve() {} }).world;
     expect(W.reactions.filter((r) => r.do === 'ctrl' && r.op === 'spawn').map((r) => r.who)).toEqual(crew.map((e) => e.id));
     expect(W.watches).toContainEqual({ type: 'act:torch:torch', when: { var: 'fight-fell-torch', gte: 3 } });
-    expect(W.reactions).toContainEqual({ on: 'encounter-lost:torch', do: 'move', target: 'hero', to: joins[0].at });
+    // (lost when the player is wasted: the street's health, vitals-mechanics.js, laid with it; it keeps none of its own)
+    expect(acts[0].fight.wasted).toBe('wasted');
+    expect(W.reactions).toContainEqual({ on: 'wasted', do: 'emit', type: 'falling:torch' });
+    expect(A.find((m) => m.kind === 'vitals')).toMatchObject({ hp: 100, bill: 25, back: E.spawn });
     expect(acts[1].fight).toBeUndefined();
     // (a game with no factions has none of it)
     expect(M.some((m) => m.kind === 'join' || m.kind === 'act')).toBe(false);
@@ -321,9 +324,11 @@ describe('jobs across the district (errands on a played district: its shops thei
     expect(cars[0].posts.length).toBeGreaterThan(0);
     // (the law is no faction: no contact, no board)
     expect(lawful.game.mechanics.some((m) => m.kind === 'join')).toBe(false);
-    // (a game without law has none of it)
+    // (the street's health with it: something here can hurt the player)
+    expect(lawful.game.mechanics.filter((m) => m.kind === 'vitals')).toHaveLength(1);
+    // (a game without law has none of it, nor health: nothing in it hurts)
     expect(level.entities.some((e) => /^police-/.test(e.id))).toBe(false);
-    expect(M.some((m) => m.kind === 'wanted')).toBe(false);
+    expect(M.some((m) => m.kind === 'wanted' || m.kind === 'vitals')).toBe(false);
   });
   it('every hero in the city runs fast: an athletic one on its longer stride at the same cadence, any other on quicker legs', () => {
     const hero = (motion) => runSteps({ ...JOBS, id: 'jobs7', characters: { ...JOBS.characters, hero: { ...JOBS.characters.hero, motion } } }, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest.entities.find((e) => e.pilotable).rule;

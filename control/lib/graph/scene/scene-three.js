@@ -1048,7 +1048,9 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, f
     ...(Number.isFinite(castShadows.fitMin) && castShadows.fitMin > 0 ? { fitMin: castShadows.fitMin } : {}),
   }) : '';
   // walkers that wait at signalled crossings (the planned city's) read the cars' signals; any other walks as before
-  const walkersBlock = walkerList.length ? walkersChannelScript(walkerList, walkerBank, { cast: castsActors, capture: !!capture, ...(walkerList.some((w) => Array.isArray(w.holds)) ? { signals: Array.isArray(signals) ? signals : [] } : {}) }) : '';
+  // (a played district's people react to the street, walkers.js `react`: where its pilot gets into cars, a played city)
+  const walkersReact = !capture && walkerList.some((w) => w.blend) && (Array.isArray(entities) ? entities : []).some((e) => e && e.mount && e.mount.cab);
+  const walkersBlock = walkerList.length ? walkersChannelScript(walkerList, walkerBank, { cast: castsActors, capture: !!capture, ...(walkerList.some((w) => Array.isArray(w.holds)) ? { signals: Array.isArray(signals) ? signals : [] } : {}), ...(walkersReact ? { react: true } : {}) }) : '';
   // rig preview channel (rig-preview plan): a packed figure carrying `preview` plays its clips in place
   // on this page (the eyes gate for a rigged layered solid). The bank carries the figure once, without
   // its preview key. Absent ⇒ zero bytes.

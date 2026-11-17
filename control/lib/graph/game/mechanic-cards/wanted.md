@@ -16,7 +16,7 @@
 - `per`, `stars` — police a star brings; the most stars (to 5).
 - `calm` — seconds with no mayhem and no police blow that take a star off.
 - `busted`, `fine`, `back` — police blows that take the player down; the coin it costs (when held); where the player is set down.
-- `mayhem` — events that raise a star, beside `mayhem:carjack` and `mayhem:crash` (the page presses them) and a police body's `down`.
+- `mayhem` — events that raise a star, beside `mayhem:carjack`, `mayhem:crash`, `mayhem:runover` and `mayhem:assault` (the page presses them: a car taken, a crash into traffic, a passer-by run down or struck) and a police body's `down`.
 - `ring` — how far from the player its police are set down, `[near, far]` m (`[14, 30]`).
 
 ## Lowers to

@@ -257,7 +257,8 @@ export function lowerJoin(p, ctx) {
  * whatever does it: THE SEAM the action is wired behind) and it was taken, it is paid: its `reward` into the bag, its
  * `standing` onto the faction's, once.
  *   { id, faction, verb, flag, done, target?, at?, radius?, reward?: [{ item, n? }], standing?, rank?, name?, line?,
- *     fight?: { foes, at, radius?, back?, hp?, hits? } }   (`fight`: an encounter in free roam, below) */
+ *     fight?: { foes, at, radius?, back?, hp?, hits?, wasted? } }   (`fight`: an encounter in free roam, below; `wasted`:
+ *     the event the city's own health raises at none, vitals-mechanics.js: the fight keeps none of its own and is lost with it) */
 export function lowerAct(p, ctx) {
   const at0 = `act[${ctx.i}]`, fail = (m) => { throw new Error(`${at0}: ${m}`); };
   if (typeof p.id !== 'string' || !WORD.test(p.id)) fail('id is the posting\'s name, lower-case');
@@ -294,15 +295,20 @@ export function lowerAct(p, ctx) {
     frag.reactions.push({ on: 'enter', match: { zone }, if: { var: tv, gte: 1 }, do: 'emit', type: `waking:${p.id}:1` }, { on: `waking:${p.id}:1`, if: { var: dv, eq: 0 }, do: 'emit', type: `waking:${p.id}:2` }, { on: `waking:${p.id}:2`, if: { var: on, eq: 0 }, do: 'emit', type: woke });
     frag.reactions.push({ on: woke, do: 'set', var: on, to: 1 });
     for (const f of F.foes) frag.reactions.push({ on: woke, do: 'ctrl', op: 'spawn', who: f, fresh: true }, { on: 'down', match: { entity: f }, do: 'inc', var: fell, by: 1 });
-    frag.watches = [{ type: did, when: { var: fell, gte: F.foes.length } }, { type: `falling:${p.id}`, when: { var: hp, lte: 0 } }];
+    // (a fight in a city with health of its own, `wasted`: vitals-mechanics.js; it is lost when the player is, and keeps
+    // no health of its own)
+    const own = typeof F.wasted !== 'string' || !F.wasted;
+    if (!own) delete frag.vars[hp];
+    frag.watches = [{ type: did, when: { var: fell, gte: F.foes.length } }, ...(own ? [{ type: `falling:${p.id}`, when: { var: hp, lte: 0 } }] : [])];
     frag.reactions.push({ on: ok, do: 'set', var: on, to: 0 });
+    if (!own) frag.reactions.push({ on: F.wasted, do: 'emit', type: `falling:${p.id}` });
     // (the hero's hits count only while it is fought)
-    frag.reactions.push({ on: `hit:${ctx.player}`, if: { var: on, gte: 1 }, do: 'inc', var: hp, by: -hits, min: 0 });
+    if (own) frag.reactions.push({ on: `hit:${ctx.player}`, if: { var: on, gte: 1 }, do: 'inc', var: hp, by: -hits, min: 0 });
     frag.reactions.push({ on: `falling:${p.id}`, if: { var: on, gte: 1 }, do: 'emit', type: lost });
     for (const f of F.foes) frag.reactions.push({ on: lost, do: 'ctrl', op: 'vanish', who: f });
-    frag.reactions.push({ on: lost, do: 'set', var: fell, to: 0 }, { on: lost, do: 'set', var: hp, to: hp0 }, { on: lost, do: 'set', var: on, to: 0 });
-    if (F.back) frag.reactions.push({ on: lost, do: 'move', target: ctx.player, to: F.back.slice() });
-    frag.hud.push({ var: hp, label: 'health', as: 'bar', max: hp0 }, { on: woke, as: 'toast', text: `${F.foes.length} of them. Put them down.`, ttl: 3 }, { on: lost, as: 'toast', text: 'You went down. They are still there.', ttl: 3.2 });
+    frag.reactions.push({ on: lost, do: 'set', var: fell, to: 0 }, ...(own ? [{ on: lost, do: 'set', var: hp, to: hp0 }] : []), { on: lost, do: 'set', var: on, to: 0 });
+    if (F.back && own) frag.reactions.push({ on: lost, do: 'move', target: ctx.player, to: F.back.slice() });
+    frag.hud.push(...(own ? [{ var: hp, label: 'health', as: 'bar', max: hp0 }] : []), { on: woke, as: 'toast', text: `${F.foes.length} of them. Put them down.`, ttl: 3 }, { on: lost, as: 'toast', text: 'You went down. They are still there.', ttl: 3.2 });
   }
   const name = typeof p.name === 'string' && p.name ? p.name : p.faction, paid = reward.map((r) => `${r.n ?? 1} ${itemKey(r.item).replace(/-/g, ' ')}`).join(', ');
   frag.hud.push({ on: took, as: 'toast', text: `${name}: job taken`, ttl: 3.2 }, { on: ok, as: 'toast', text: `${name}: done${paid ? `, paid ${paid}` : ''} · standing +${standing}`, ttl: 3.6 });

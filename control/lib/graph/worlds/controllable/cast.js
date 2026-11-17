@@ -323,7 +323,7 @@ export function buildCast(E) {
     const seed = !prev, next = {}, events = [];
     for (const e of state.entities) {
       if (e.isCamera) continue;
-      const cur = { d: !!e.downed, g: !!e.gone, a: e.arrivals || 0, s: e.stucks || 0, h: e.hits || 0, n: e.sightings || 0 };
+      const cur = { d: !!e.downed, g: !!e.gone, a: e.arrivals || 0, s: e.stucks || 0, h: e.hits || 0, n: e.sightings || 0, k: e.helds || 0 };
       next[e.id] = cur;
       const p = !seed && prev[e.id];
       if (!p) continue;
@@ -333,6 +333,8 @@ export function buildCast(E) {
       if (cur.a > p.a) events.push({ type: 'arrive', entity: e.id, at: e.arrivedAt, last: e.arrivedLast ? 1 : 0, ...(e.arrivedLast && e.pose ? { pose: e.pose } : {}) });
       if (cur.s > p.s) events.push({ type: 'stuck', entity: e.id });
       if (cur.n > (p.n || 0)) events.push({ type: 'seen', entity: e.id, target: e.seenId || null });
+      // (held: a police car's hold on one who stands, rules-drive.js `chaser`)
+      for (let k = p.k || 0; k < cur.k; k++) events.push({ type: `held:${e.id}`, entity: e.id, by: e.heldBy || null });
       // a hit's damage (and whether it was to the head) when a round said it (combat-ranged.js): a bus hp takes it
       for (let k = p.h || 0; k < cur.h; k++) events.push({ type: `hit:${e.id}`, entity: e.id, by: e.lastHitBy || null, ...(Number.isFinite(e.lastHitDmg) && e.lastHitDmgN === cur.h ? { dmg: e.lastHitDmg, harm: -e.lastHitDmg, head: e.lastHitHead ? 1 : 0 } : {}) });
       // statuses run out on the world clock; a lifted one was queued by the op

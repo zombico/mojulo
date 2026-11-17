@@ -62,7 +62,7 @@ describe('the wanted level', () => {
     expect(held.vars.wanted).toBe(1);
   });
   it('a police car\'s blows (holding a player who stands) count as an officer\'s', () => {
-    const car = { event: 'hit:hero', by: 'police-car-1' };
+    const car = { event: 'held:hero', by: 'police-car-1' };
     expect(play([jack, car, car, car]).log).toContain('busted');
   });
   it('police blows bust the player: fined when it holds the coin, set down at the start, wanted no more', () => {

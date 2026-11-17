@@ -3,7 +3,8 @@
  * vars, watches and timer, the cast's spawn and vanish, and the hero's own hits.
  *
  *   wanted   (emitter)  stars, raised by MAYHEM: each of `mayhem`'s events (a street fight started, a car taken from its
- *                       driver, a crash into traffic: the page presses `mayhem:carjack` and `mayhem:crash`) and each
+ *                       driver, a crash into traffic, a passer-by run down or struck: the page presses `mayhem:carjack`,
+ *                       `mayhem:crash`, `mayhem:runover`, `mayhem:assault`) and each
  *                       police body downed, up to `stars`. Each star brings `per` of `police` (the bodies minted asleep),
  *                       set down near the player (the cast's spawn `near`, out of reach), who chase and strike. Every
  *                       `calm` seconds with no mayhem and no police blow on the player, a star is taken off and its police
@@ -11,7 +12,7 @@
  *                       coin when it holds that much, taken out of what it drives, set down at `back`, and wanted no more.
  *                       POLICE CARS (`cars`, the `chaser` rule's bodies minted asleep): the k-th star brings the k-th,
  *                       set down farther off (`carRing`, at a junction), after the player along the streets; one that
- *                       holds a player who stands counts a blow as an officer's does.
+ *                       holds a player who stands (`held:<player>`) counts as an officer's blow.
  *                       { police: [entity id], cars?: [entity id], per? (2), stars? (5), calm? (12), busted? (6),
  *                         fine? (0), back?, mayhem?: [event], ring? ([14, 30]), carRing? ([45, 90]) }
  *
@@ -26,7 +27,7 @@ import { lowerMove, NOWHERE } from '../playscape/ui/items.js';
 const isVec = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
 const posInt = (v) => Number.isInteger(v) && v >= 1;
 const EVENT = /^[a-z][a-z0-9:-]{0,63}$/;
-export const WANTED = Object.freeze({ per: 2, stars: 5, calm: 12, busted: 6, ring: Object.freeze([14, 30]), carRing: Object.freeze([45, 90]), mayhem: Object.freeze(['mayhem:carjack', 'mayhem:crash']) });
+export const WANTED = Object.freeze({ per: 2, stars: 5, calm: 12, busted: 6, ring: Object.freeze([14, 30]), carRing: Object.freeze([45, 90]), mayhem: Object.freeze(['mayhem:carjack', 'mayhem:crash', 'mayhem:runover', 'mayhem:assault']) });
 
 export function lowerWanted(p, ctx) {
   const at0 = `wanted[${ctx.i}]`, fail = (m) => { throw new Error(`${at0}: ${m}`); };
@@ -67,8 +68,12 @@ export function lowerWanted(p, ctx) {
   // (shaken off: none left, from a chase and not a bust)
   frag.reactions.push({ on: 'unwanted:1', if: { var: was, gte: 1 }, do: 'emit', type: 'wanted-lost' }, { on: 'unwanted:1', do: 'set', var: was, to: 0 }, { on: 'unwanted:1', do: 'set', var: H, to: 0 });
   // BUSTED: the police blows counted while wanted
-  for (const id of [...police, ...cars]) frag.reactions.push({ on: `hit:${ctx.player}`, match: { by: id }, if: { var: W, gte: 1 }, do: 'inc', var: H, by: 1 }, { on: `hit:${ctx.player}`, match: { by: id }, do: 'set', var: C, to: 0 });
+  // (a police car's hold on a player who stands, `held:<player>`: the runtime's chaser, a blow that is no wound)
+  for (const id of cars) frag.reactions.push({ on: `held:${ctx.player}`, match: { by: id }, if: { var: W, gte: 1 }, do: 'inc', var: H, by: 1 }, { on: `held:${ctx.player}`, match: { by: id }, do: 'set', var: C, to: 0 });
+  for (const id of police) frag.reactions.push({ on: `hit:${ctx.player}`, match: { by: id }, if: { var: W, gte: 1 }, do: 'inc', var: H, by: 1 }, { on: `hit:${ctx.player}`, match: { by: id }, do: 'set', var: C, to: 0 });
   frag.watches.push({ type: 'busted', when: { var: H, gte: busted } });
+  // (WASTED, the street's health at none: vitals-mechanics.js. The law lets the player go, as a bust would, unfined)
+  frag.reactions.push({ on: 'wasted', do: 'set', var: was, to: 0 }, { on: 'wasted', do: 'set', var: W, to: 0 }, { on: 'wasted', do: 'set', var: H, to: 0 }, { on: 'wasted', do: 'set', var: C, to: 0 });
   frag.reactions.push({ on: 'busted', do: 'set', var: was, to: 0 }, { on: 'busted', do: 'set', var: W, to: 0 }, { on: 'busted', do: 'set', var: H, to: 0 }, { on: 'busted', do: 'set', var: C, to: 0 });
   // (out of the car first, if it drives one, set down where it is put)
   frag.reactions.push({ on: 'busted', do: 'ctrl', op: 'dismount', who: ctx.player, ...(p.back ? { to: p.back.slice() } : {}) });

@@ -924,7 +924,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
   const doorMechs = (ends.doors ?? []).map(({ inside: _i, ...d }) => ({ kind: 'door', ...d }));
   // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot
-  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps, G.factions, G.law ? { ...G.law, bag: !!G.errands?.length } : null) : null;
+  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps, G.factions, G.law ? { ...G.law, bag: !!G.errands?.length } : null, { bag: !!G.errands?.length }) : null;
   // (a glyph map with no way on, a megaworld's core: its goal stays its own, reaching it the level's win, no exit taken)
   // (a zone holding the walk's goal keeps it too: reaching it is the game's end, its gates travel)
   const keepsGoal = ways && stage.section === 'map' && (!map.on.length || !!ends.holdsGoal);
@@ -1620,7 +1620,7 @@ function heldWays(G, stage, ends, plan, mechanics) {
   return Object.assign(out, { hold });
 }
 
-function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law = null) {
+function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law = null, city = {}) {
   // (a glyph map's ends carry its ways as a trail's do, level/grid-ends.js: a zone of a megaworld)
   // (a town's and a district's walk carries them too: its far end the way on, its start the way back, levels.js geotownEnds)
   if (stage.manifest.trail === undefined && !['map', 'geotown', 'geocity'].includes(stage.section)) throw new Error(`levels: a map world's stages are trails, glyph maps, towns or districts, whose ends and pockets carry its ways; '${stage.level}/${stage.node}' is a climb`);
@@ -1776,7 +1776,8 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
             const mid = [spot.at[0] + N[0] * ENCOUNTER.out, spot.at[1] + N[1] * ENCOUNTER.out], home = givers.find((g) => g.faction === F.id);
             const foes = Array.from({ length: n }, (_, k) => { const o = (k - (n - 1) / 2) * ENCOUNTER.apart; return { id: `foe-${T.crew}-${Pn.id}-${k + 1}`, at: [r3(mid[0] + along[0] * o), r3(mid[1] + along[1] * o), r3(spot.at[2])], heading: r3(Math.atan2(N[1], N[0])) }; });
             encounter = { id: Pn.id, eid: T.crew, foes };
-            fight = { foes: foes.map((f) => f.id), at: [r3(mid[0]), r3(mid[1]), r3(spot.at[2])], radius: ENCOUNTER.reach, ...(home ? { back: home.at.slice() } : {}) };
+            // (lost when the player is wasted: the street's own health, VITALS below)
+            fight = { foes: foes.map((f) => f.id), at: [r3(mid[0]), r3(mid[1]), r3(spot.at[2])], radius: ENCOUNTER.reach, ...(home ? { back: home.at.slice() } : {}), wasted: 'wasted' };
           }
           offers.push({ kind: 'act', id: Pn.id, faction: F.id, verb: Pn.act.verb, ...(Pn.act.target ? { target: Pn.act.target } : {}), flag: `took-${Pn.id}`, done: `done-${Pn.id}`, at: spot.at.slice(), radius: r3(Math.max(ERRAND_DRIVE.reach, Math.min(tr[2] - tr[0], tr[3] - tr[1]) / 2)),
             ...(Pn.reward.length ? { reward: Pn.reward } : {}), standing: Pn.standing, rank: Pn.rank, name: F.name, title: Pn.name, line: actLine(Pn, factions), ...(Pn.says ? { says: Pn.says } : {}), ...(fight ? { fight } : {}) });
@@ -1799,8 +1800,14 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
     police = { eid: law.police, ids, at: ends.spawn.slice(), heading: ends.heading, posts: lawPosts(ends), ...(nc ? { cars: { ids: cars, roads, posts: roadPosts(roads, ends) } } : {}) };
     mechanics.push({ kind: 'wanted', police: ids, ...(nc ? { cars } : {}), per: law.per, stars: law.stars, calm: law.calm, busted: law.busted, ...(law.bag && law.fine ? { fine: law.fine } : {}), back: ends.spawn.slice(), ...(encounter ? { mayhem: [`encounter:${encounter.id}`] } : {}) });
   }
+  // THE STREET'S HEALTH (game/vitals-mechanics.js): a driven city where something can hurt the player (its law, a
+  // faction's fight): blows cost it, quiet mends it, and at none the player is wasted, billed and set down at the start
+  if (cityStage(stage) && (ends.parked?.length ?? 0) > 0 && (police || encounter)) mechanics.push({ kind: 'vitals', ...VITALS_CITY, ...(city.bag ? { bill: VITALS_BILL } : {}), back: ends.spawn.slice() });
   return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })), ...(quests.length ? { quests } : {}), ...(stoodGivers.length ? { givers: stoodGivers } : {}), ...(encounter ? { encounter } : {}), ...(police ? { police } : {}) };
 }
+
+// the street's health in a played city (game/vitals-mechanics.js): a blow's cost, the mending, and the hospital's bill
+const VITALS_CITY = Object.freeze({ hp: 100, hit: 10, mend: 3, after: 5 }), VITALS_BILL = 25;
 
 // WHERE A POLICE CAR MAY BE SET DOWN: the junctions of the district's streets, on the ground there; at the most
 // POLICE_POSTS.most of them, taken evenly

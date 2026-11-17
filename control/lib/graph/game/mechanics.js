@@ -19,6 +19,7 @@ import { heldVar, itemKey } from '../playscape/ui/items.js';
 import { lowerEscapeRoom } from './escape-room.js';
 import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer, lowerCall, lowerTask, lowerJoin, lowerAct } from './errand-mechanics.js';
 import { lowerWanted } from './law-mechanics.js';
+import { lowerVitals } from './vitals-mechanics.js';
 import { lowerWaveGauntlet } from './wave-gauntlet.js';
 import { lowerWork } from './work-mechanics.js';
 
@@ -1029,6 +1030,8 @@ const MECHANICS = {
   act: { role: 'emitter', lower: lowerAct },
   // (THE LAW, gameworld/law.js: the wanted level, raised by mayhem, its police coming star by star; game/law-mechanics.js)
   wanted: { role: 'emitter', lower: lowerWanted },
+  // (the street's health: blows off it, mended when quiet, WASTED at none; game/vitals-mechanics.js)
+  vitals: { role: 'emitter', lower: lowerVitals },
 
   // the PARTY carried (an emitter): the battle party of play.rpg (playscape/rpg) goes from level to level in a party
   // slice: each member's level, xp, hp, mp, class, class ranks and points, and the skills learned (the kernel's save:

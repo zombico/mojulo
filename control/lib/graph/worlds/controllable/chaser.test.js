@@ -46,11 +46,13 @@ describe('the police car', () => {
     for (let k = 0; k < 4 * 30; k++) { run(w, DT); backed ||= C.backT > 0; }
     expect(backed).toBe(true);
   });
-  it('beside a player who stands, a blow each second, by this car; one who keeps moving is not caught', () => {
+  it('beside a player who stands, a hold each second, by this car (no wound); one who keeps moving is not caught', () => {
     const st = world({ hero: [0, 12, 0], police: [0, -2, 0] });
     run(st, 6);
-    expect(st.byId.hero.hits).toBeGreaterThanOrEqual(2);
-    expect(st.byId.hero.lastHitBy).toBe('police-car-1');
+    expect(st.byId.hero.helds).toBeGreaterThanOrEqual(2);
+    expect(st.byId.hero.heldBy).toBe('police-car-1');
+    // (a hold, no wound)
+    expect(st.byId.hero.hits || 0).toBe(0);
   });
   it('brought near the player (the cast\'s spawn `near`), it stands on one of its own posts in the ring, facing them; its hull and body kept', () => {
     const st = world({ hero: [0, 0, 0], police: [500, 500, 0] }), P = st.byId['police-car-1'];
@@ -67,7 +69,7 @@ describe('the police car', () => {
     st.byId['police-car-1'].gone = true; st.byId['police-car-1'].dormant = true;
     run(st, 3);
     expect(st.byId['police-car-1'].transform.pos).toEqual([0, -2, 0]);
-    expect(st.byId.hero.hits || 0).toBe(0);
+    expect(st.byId.hero.helds || 0).toBe(0);
   });
   it('busted in a car: the cast\'s dismount takes the rider out at once, set down where it is told', () => {
     const st = world({ hero: [-30, 0, 0], police: [-30, -60, 0], car: [-28, 1, 0] });
