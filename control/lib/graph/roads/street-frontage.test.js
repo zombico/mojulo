@@ -33,8 +33,7 @@ describe('its town', () => {
   });
   it('never three alike in a row, each front a colour of the family, never the one beside it', () => {
     let run = 1;
-    // (a split's island is shops alone, as deep as one: its row is not held to it)
-    const L = T.lots.filter((l) => l.row !== 1000);
+    const L = T.lots;
     for (let i = 1; i < L.length; i++) { run = L[i].row === L[i - 1].row && L[i].kind === L[i - 1].kind ? run + 1 : 1; expect(run).toBeLessThan(3); }
     for (let i = 1; i < T.lots.length; i++) expect(T.lots[i].facade).not.toBe(T.lots[i - 1].facade);
     for (const l of T.lots) expect(card.parts.city.facades).toContain(l.facade);
@@ -58,25 +57,26 @@ describe('its town', () => {
   });
 });
 
-describe('its features: a split round an island, an underpass', async () => {
+describe('its features: an alley across a corner, an underpass', async () => {
   const { surfaceAt, driveSurfaceTable } = await import('./surface.js');
   const { trackContract } = await import('./contract.js');
   const { splitGap } = await import('./street-features.js');
   const card = readLanguage('candy-city'), big = { class: 'kart', length: 700, seed: 3, streets: true };
   const plan = planTrack({ form: 'circuit', course: big, language: card.id }), F = plan.street;
-  it('the way splits down a long straight on the side away from the town\'s middle, and comes back to it', () => {
-    expect(F.split).toBeTruthy();
+  it('the way splits before a corner into an alley across its inside, which comes back to the way after it', () => {
+    expect(F.split.kind).toBe('alley');
     const { s0, s1, branch, side } = F.split, a = plan.alignment, B = branch.alignment, p0 = B.at(0), p1 = B.at(B.length), q0 = a.at(s0), q1 = a.at(s1);
     expect(Math.hypot(p0.x - q0.x, p0.y - q0.y)).toBeLessThan(0.5); expect(Math.hypot(p1.x - q1.x, p1.y - q1.y)).toBeLessThan(0.5);
-    // (either way about as long: the branch is the island's other side)
-    expect(B.length / (s1 - s0)).toBeGreaterThan(1); expect(B.length / (s1 - s0)).toBeLessThan(1.6);
-    expect(splitGap(F.split, side, s0 + 5)).toBe(true); expect(splitGap(F.split, -side, s0 + 5)).toBe(false); expect(splitGap(F.split, side, (s0 + s1) / 2)).toBe(false);
+    // (the corner's inside: the alley's middle lies on that side of the way)
+    const c = a.at(F.split.corner), m = B.at(B.length / 2), o = -(m.x - c.x) * Math.sin(c.heading) + (m.y - c.y) * Math.cos(c.heading);
+    expect(Math.sign(o)).toBe(side);
+    expect(splitGap(F.split, side, s0 + 5)).toBe(true); expect(splitGap(F.split, -side, s0 + 5)).toBe(false); expect(splitGap(F.split, side, F.split.corner)).toBe(false);
   });
-  it('either way is the lap: no checkpoint between the mouths, and the branch is road under a kart', () => {
+  it('either way is the lap: no checkpoint between the mouths, and the alley is its own road under a kart', () => {
     const T = trackContract(plan), { s0, s1, branch } = F.split, a = plan.alignment, inSpan = (c) => [s0, s1].some(() => false) || (() => { let best = Infinity, bs = 0; for (let s = 0; s < a.length; s += 1) { const q = a.at(s), d = Math.hypot(q.x - c.at[0], q.y - c.at[1]); if (d < best) { best = d; bs = s; } } return bs > s0 && bs < s1; })();
     expect(T.checkpoints.some(inSpan)).toBe(false);
     const D = driveSurfaceTable(plan), mid = branch.alignment.at(branch.alignment.length / 2), road = surfaceAt(D, [mid.x, mid.y]);
-    expect(road.mu).toBe(D.bands[0][1]);
+    expect([road.mu, road.roll]).toEqual(D.rough);   // (road under a kart: the alley's own cobbles)
   });
   it('an underpass stands over another straight, and the town gives way to it; a language with no town has neither', () => {
     expect(F.tunnel).toBeTruthy();

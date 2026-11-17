@@ -788,6 +788,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Its minimap gains a `route` (a way drawn as a dotted line under its markers, gameworld/race-hud.js's track map): one
 // prop, its draw and two sheet rules; a minimap that names no route draws as it did. Every other page byte-identical.
 //
+// Re-pinned 2026-11-17 (boost pads on a street circuit's alley): the drive rule gains an opt-in boost read through the
+// world's `padAt` (rules-drive.js: a wheel on a pad lights a boost, its top and pull past the kart's own while it
+// lasts), the core passes the hook into the world, and the page wires it when its drive surface lays pads. A world with
+// no pads has no `padAt` and drives as before. Every fixture that embeds the controllable runtime re-pinned with it.
+//
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

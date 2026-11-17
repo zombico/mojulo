@@ -51,9 +51,11 @@ the operator's to say on the page.
     it. The street's kit near the eye: lollipop lamps down the sidewalks by turns, a signal of three balls at the
     outside of every corner, a zebra across the way at each straight's start. The corners stay open: the boards, the
     arches and the landmark still tell them, and the side pieces give way to the fronts. Two features make it more
-    than a loop (`roads/street-features.js`): **a split**, the way dividing down its longest straight round an island of
-    shops on the side away from the town's middle, either way the lap (the branch is driven as road, the rail opens at
-    its two mouths, no checkpoint stands between them); and **an underpass**, a toy building spanning another
+    than a loop (`roads/street-features.js`): **a split**, a cobbled alley leaving the way before a corner and cutting
+    across its inside to the straight after it, either way the lap (the alley is driven as road, the rail opens at its
+    two mouths, no checkpoint stands between them). It is shorter than the way round, but its cobbles drag a kart
+    taken over them bare; two boost pads down it pay it back: a racer who hits them gains on the turn, one who misses
+    them loses. A shortcut is worth taking only if it asks for something; and **an underpass**, a toy building spanning another
     straight, the street through its ground floor under a berry band and a row of balls, lamps along its ceiling. A
     choice and a dark moment: a lap with both has something to learn and something to feel.
 12. **One primitive, two tunings.** A realistic circuit answers the same questions soberly: the look's own asphalt and

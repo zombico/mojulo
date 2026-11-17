@@ -28,7 +28,7 @@ import { mulberry32 } from '../vegetation/grow.js';
 import { trackKit } from './track-kit.js';
 import { racingLine } from './contract.js';
 import { moodOf, moodScene } from './race-mood.js';
-import { readLanguage, railFaces, postFaces, kerbFaces, edgeFaces, puffFaces, chevronFaces, buntingFaces, languageLaws } from './track-language.js';
+import { readLanguage, railFaces, postFaces, kerbFaces, edgeFaces, puffFaces, chevronFaces, buntingFaces, padFaces, languageLaws } from './track-language.js';
 import { chunkyFaces, chunkyFlat, chunkyLightOf } from './chunky-look.js';
 import { trackForm } from './track-form.js';
 import { streetFeatures, splitGap } from './street-features.js';
@@ -133,7 +133,7 @@ export function planTrack(m = {}) {
   const wayHex = lang && LP.way?.material ? lang.materials[LP.way.material].hex : null;
   const flatLit = (hex, c) => { const up = upFace(c); return { corners: up.c, fill: K?.pole === 'chunky' ? chunkyFlat(hex, up.n, chunkyLightOf(K)) : K ? K.tint(hex, up.c, up.n).fill : face(up.c, hex).fill }; };
   const railOpen = !!(lang && LP.rail), marks = new Set();
-  // a street circuit's features (street-features.js): the way split round an island, an underpass; none on any other
+  // a street circuit's features (street-features.js): an alley across a corner, an underpass; none on any other
   const feats = lang ? streetFeatures({ stations: st, alignment: a, X, course, card: lang }) : null, split = feats?.split ?? null;
   // the way in bands (its second tone by turns), its centre dash, and the verge mown in stripes: what is seen to move
   const bandHex = wayHex && LP.way.bands ? lang.materials[LP.way.bands.material].hex : null, dashHex = wayHex && LP.way.dash ? lang.materials[LP.way.dash.material].hex : null;
@@ -234,7 +234,7 @@ export function planTrack(m = {}) {
     if (LP.bunting) runs.straights.forEach((r, i) => {
       const bs = ((i + (Number.isInteger(m.seed) ? m.seed : 1)) % 2 ? 1 : -1);
       // (never across a split's mouths: on the split's own straight the flags go to its other side)
-      const side = split && bs === split.side && r.s0 <= split.s0 && r.s1 >= split.s1 ? -bs : bs;
+      const side = split && bs === split.side && r.s1 > split.s0 && r.s0 < split.s1 ? -bs : bs;
       if (r.s1 - r.s0 >= LP.bunting.min) raw.push(...buntingFaces(lang, { point, s0: r.s0, s1: r.s1, off: side * (X.outer + 0.8) }));
     });
   }
@@ -243,11 +243,13 @@ export function planTrack(m = {}) {
   if (split && wayHex) {
     // (the branch leaves the way at an angle: its paving lies on the land, under the way's road where they meet, so the
     // way covers it there; its beads and rail start where it clears the way's rail, nothing of them across the way)
-    const B = split.branch, BS = B.stations, Lb = B.alignment.length, open = X.outer / Math.sin(Math.atan2(split.offset, split.leg)) + 2;
+    const B = split.branch, BS = B.stations, Lb = B.alignment.length, open = split.clear, cob = lang.parts.city.split.cobbles;
     const Pb = (q, off, dz = 0) => { const x = q.x - Math.sin(q.heading) * off, y = q.y + Math.cos(q.heading) * off; return [x, y, groundAt(x, y) + 0.04 + dz]; };
     for (let i = 0; i < BS.length - 1; i++) {
       const A = BS[i], Bq = BS[i + 1], sm = (A.s + Bq.s) / 2;
-      faces.push(flatLit(wayAt(sm), [Pb(A, -X.road), Pb(A, X.road), Pb(Bq, X.road), Pb(Bq, -X.road)]));
+      // (an alley's paving cobbled: two tones of the family in a checker, a metre and a half each way)
+      if (cob) { const k = Math.floor(sm / 1.5); for (let h = 0, n = 4; h < n; h++) { const o0 = -X.road + (2 * X.road * h) / n, o1 = o0 + (2 * X.road) / n; faces.push(flatLit(lang.materials[cob[(k + h) % 2]].hex, [Pb(A, o0), Pb(A, o1), Pb(Bq, o1), Pb(Bq, o0)])); } }
+      else faces.push(flatLit(wayAt(sm), [Pb(A, -X.road), Pb(A, X.road), Pb(Bq, X.road), Pb(Bq, -X.road)]));
       for (const sd of [1, -1]) {
         if (LP.edge?.profile && sm > open && sm < Lb - open) raw.push(...edgeFaces(lang, { P: Pb, A, B: Bq, side: sd, to: X.road }));
         if (railOpen && sm > open && sm < Lb - open) {
@@ -259,6 +261,11 @@ export function planTrack(m = {}) {
         }
       }
     }
+  }
+  // (and its boost pads, glossy plates with arrows pointing on: the branch is the quicker way)
+  if (split?.pads && wayHex) {
+    const PD = lang.parts.city.split.pads, ba = split.branch.alignment, bp = (s, off, dz = 0) => { const q = ba.at(s), x = q.x - Math.sin(q.heading) * off, y = q.y + Math.cos(q.heading) * off; return [x, y, groundAt(x, y) + 0.04 + dz]; };
+    for (const pd of split.pads) raw.push(...padFaces(lang, { point: bp, s: pd.s, len: pd.len, w: pd.w, materials: [PD.material, PD.arrows] }));
   }
   if (K && !wayHex) faces.push(...roadWear({ a, X, K, P, seed: Number.isInteger(m.seed) ? m.seed : 1 }));
   // the language's parts, lit in the track's drawing: smooth and glossy on the chunky look, else flat as a paint is

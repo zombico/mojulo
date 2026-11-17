@@ -81,6 +81,13 @@ export function buildRulesDrive(E) {
     const vFloor = r.vFloor > 0 ? r.vFloor : 2;
     const eye = r.eye ?? 0;
     let v = e.speed || 0;
+    // BOOST PADS (opt-in: a track's pads, roads/surface.js padAt, the world's `padAt(pos)` → seconds): a wheel on one
+    // lights a boost that long: a push past the engine's while the throttle is held, and a top speed raised by `boostTop`
+    // (1.6) while it lasts.
+    // A world with no pads has no hook: a drive is as it was
+    if (world && world.padAt && !airborne) { const b = world.padAt(t.pos); if (b > 0) e.boostT = Math.max(e.boostT || 0, b); }
+    const boostOn = (e.boostT || 0) > 0;
+    if (boostOn) e.boostT = Math.max(0, e.boostT - dt);
 
     // ── longitudinal force: throttle / brake / reverse ──
     const throttle = clamp(input.forward, 0, 1);
@@ -102,7 +109,9 @@ export function buildRulesDrive(E) {
     // resistive forces stop a coasting car — they never reverse it (no throttle → clamp at 0)
     if (F === 0 && v0 !== 0 && Math.sign(v) !== Math.sign(v0)) v = 0;
     if (F === 0 && Math.abs(v) < 0.15) v = 0;                       // rest deadband: a parked car stays parked
-    v = clamp(v, -reverseSpeed, r.topSpeed > 0 ? r.topSpeed : Infinity);
+    // (a boost pushes on at `boostAccel` m/s² up to the raised top while the throttle is held: lifting for a bend spends it)
+    if (boostOn && throttle > 0 && v > -1e-3) { const top = (r.topSpeed > 0 ? r.topSpeed : 30) * (r.boostTop ?? 1.6); if (v < top) v = Math.min(top, v + (r.boostAccel ?? 18) * throttle * dt); }
+    v = clamp(v, -reverseSpeed, r.topSpeed > 0 ? r.topSpeed * (boostOn ? (r.boostTop ?? 1.6) : 1) : Infinity);
 
     // ── steering: slewed bicycle model, tightened with speed ──
     let effMax = steerMax / (1 + Math.abs(v) * (r.steerTighten ?? 0.03));
@@ -129,6 +138,7 @@ export function buildRulesDrive(E) {
 
     // ── the affordance facts (D5): named once, surfaced every frame ──
     e.speed = v;
+    if (world && world.padAt) e.boosting = boostOn;
     e.wheelPhase = (e.wheelPhase || 0) + v * dt / (TAU * wheelR);   // distance-true roll
     e.wheelSpin = v / (TAU * wheelR);                                // cycles/sec (engine-tone macro)
     e.throttle = throttle;

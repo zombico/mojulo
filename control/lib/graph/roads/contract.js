@@ -111,7 +111,7 @@ export function trackContract(plan, { leg = 20, slots = 8 } = {}) {
       for (let k = 0; k < 8 && !away(s); k++) s += X.outer;
       if (s > s0 + gap * (j + 1) - gap / 3) continue;          // pushed onto the next: that one stands for both
     }
-    // (none between a split's mouths, street-features.js: either way round its island is the lap)
+    // (none between a split's mouths, street-features.js: the way round the corner or the alley across it, either is the lap)
     const sp = plan.street?.split;
     if (sp && s > sp.s0 - X.outer && s < sp.s1 + X.outer) continue;
     checkpoints.push({ at: pt(s), radius: r3(X.road + 1) });

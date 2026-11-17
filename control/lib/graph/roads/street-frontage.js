@@ -62,8 +62,8 @@ export function planFrontage(plan, card, { seed = 1 } = {}) {
   };
   let facadeIx = Math.floor(rnd() * C.facades.length);
   // THE ROWS a front stands in: each straight's two sides, cut where the town's features stand (street-features.js): a
-  // split's mouths and the branch beside the way, an underpass's building over it. Between a split's mouths the way's
-  // own side is the island (shops only: it is as deep as one); the branch has a row down its far side
+  // split's mouths and the alley beside the way, an underpass's building over it. Between a split's mouths the corner's
+  // inside is the alley's; the alley has a row down its far side
   const F = plan.street ?? null, SP = F?.split ?? null, TU = F?.tunnel ?? null, rows = [];
   const cut = (row, a0, a1) => (a1 <= row.s0 || a0 >= row.s1 ? [row] : [...(a0 > row.s0 ? [{ ...row, s1: a0 }] : []), ...(a1 < row.s1 ? [{ ...row, s0: a1 }] : [])]);
   runs.straights.forEach((r, ri) => {
@@ -77,8 +77,7 @@ export function planFrontage(plan, card, { seed = 1 } = {}) {
   });
   if (SP) {
     const Bp = pointer(SP.branch.alignment).P, Lb = SP.branch.alignment.length;
-    rows.push({ P, s0: SP.s0 + SP.leg + 4, s1: SP.s1 - SP.leg - 4, side: SP.side, set, row: 1000, only: 'shop' });
-    rows.push({ P: Bp, s0: SP.leg + 6, s1: Lb - SP.leg - 6, side: SP.side, set, row: 1001 });
+    rows.push({ P: Bp, s0: SP.clear + 4, s1: Lb - SP.clear - 4, side: SP.side, set, row: 1001 });
   }
   for (const R of rows) {
     if (R.s1 - R.s0 < 6) continue;
@@ -151,11 +150,11 @@ export function buildFrontage(planned, plan, card, K) {
     raw.push({ corners: side > 0 ? q : q.slice().reverse(), hex: pave.hex, normal: [0, 0, 1], gloss: 0, part: 'sidewalk' });
   } };
   for (const r of runs.straights) for (const side of [1, -1]) {
-    // (the split's mouths are the branch's: the island's sidewalk runs between them, and the branch has its own)
-    if (SP && side === SP.side && r.s0 <= SP.s0 && r.s1 >= SP.s1) { walk(P, r.s0, SP.s0 - 2, side); walk(P, SP.s0 + SP.leg + 4, SP.s1 - SP.leg - 4, side); walk(P, SP.s1 + 2, r.s1, side); }
+    // (the split's mouths are the alley's: the way's sidewalk stops at them, and the alley has its own)
+    if (SP && side === SP.side && r.s1 > SP.s0 && r.s0 < SP.s1) { walk(P, r.s0, Math.max(r.s0, SP.s0 - 2), side); walk(P, Math.min(r.s1, SP.s1 + 2), r.s1, side); }
     else walk(P, r.s0, r.s1, side);
   }
-  if (SP) { const Bp = pointer(SP.branch.alignment).P, Lb = SP.branch.alignment.length; walk(Bp, SP.leg + 4, Lb - SP.leg - 4, SP.side); walk(Bp, SP.leg + 4, Lb - SP.leg - 4, -SP.side); }
+  if (SP) { const Bp = pointer(SP.branch.alignment).P, Lb = SP.branch.alignment.length; walk(Bp, SP.clear + 2, Lb - SP.clear - 2, SP.side); }
   for (const z of planned.kit.crossings) for (let k = 0; k < C.zebra; k++) {
     const w = (2 * X.road) / (2 * C.zebra - 1), o0 = -X.road + 2 * k * w, o1 = o0 + w, q = [P(z.s, o0, 0.025), P(z.s, o1, 0.025), P(z.s + 3, o1, 0.025), P(z.s + 3, o0, 0.025)];
     raw.push({ corners: q.slice().reverse(), hex: zebra.hex, normal: [0, 0, 1], gloss: 0, part: 'crossing' });

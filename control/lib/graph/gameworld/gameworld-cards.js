@@ -1010,7 +1010,7 @@ function trackLanguageCard() {
     '    family\'s paint (pieces.paint): a hoop on balls for an arch, a lollipop for a braking board, balls for battlements.',
     '  11 A TOWN, A STREET CIRCUIT   "a kart street circuit": round a grid\'s blocks, square corners; fronts down each straight',
     '    facing the way (taller toward the middle, never three alike, the family\'s colours by turns); lamps, signals, zebras;',
-    '    a split round an island (either way the lap) and an underpass under a building (city.split, city.tunnel).',
+    '    an alley across a corner (shorter, cobbled, boost pads: either way the lap) and an underpass (city.split, .tunnel).',
     '  12 ONE PRIMITIVE, TWO TUNINGS   a realistic circuit answers the same questions soberly (grand-prix: the look\'s own',
     '    asphalt and paint, one steel for the guardrail and its posts). A principle is a question, not candy.',
     'THE LAWS (machine; they advise)   premise, family, one-metal, finish, kerb-read, tell, suits, drawn (nothing drawn outside',

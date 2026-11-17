@@ -112,7 +112,7 @@ export const TRACK_LANGUAGES = Object.freeze({
         paint: { 'tech:body': 'cream', 'tech:skin': 'cream', 'str:plaster': 'cream', 'tech:frame': 'cream', 'tech:trim': 'berry', 'tech:glass': 'sky', 'tech:cable': 'sky', 'tech:light': 'lemon', 'str:accent': 'lemon', 'str:stone': 'cream' },
       },
       city: { sidewalk: 4, margin: 14, paving: 'sugar', crossing: 'cream', zebra: 5, lamps: 22, facades: ['cream', 'icing', 'lemon', 'sky', 'berry'],
-        heights: { core: 34, edge: 7, flat: 10, tower: 27 }, split: { island: 10, leg: 30, run: 30 }, tunnel: { length: 26, block: 'toy-tunnel' }, blocks: { shop: 'toy-shop', flat: 'toy-flat', tower: 'toy-tower' }, kit: { lamp: 'candy-lamp', signal: 'toy-signal' } },
+        heights: { core: 34, edge: 7, flat: 10, tower: 27 }, split: { cut: 30, surface: 'cobbles', cobbles: ['sugar', 'icing'], pads: { at: [0.1, 0.55], len: 5, seconds: 1.6, material: 'lemon', arrows: 'berry' } }, tunnel: { length: 26, block: 'toy-tunnel' }, blocks: { shop: 'toy-shop', flat: 'toy-flat', tower: 'toy-tower' }, kit: { lamp: 'candy-lamp', signal: 'toy-signal' } },
     }),
     sky: Object.freeze({ zenith: [52, 128, 232], horizon: [198, 234, 255], sun: { u: 0.3, h: 0.5 }, puffs: { count: 28, hex: '#ffffff', alt: [45, 140], size: [20, 46] } }),
   }),
@@ -233,6 +233,23 @@ function poleFaces(base, Q, h, M, C, part) {
 }
 
 /**
+ * A BOOST PAD on the way: a glossy plate `len` long and `w` wide, its middle at `s`, with three arrows on it pointing
+ * on (the way's own direction). `point(s, off, dz)`: the way's frame. → raw faces.
+ */
+export function padFaces(card, { point, s, len, w, materials }) {
+  const P0 = matOf(card, materials[0]), A = matOf(card, materials[1]), out = [], h = w / 2, N = 4;
+  for (let i = 0; i < N; i++) {
+    const a = s - len / 2 + (len * i) / N, b = s - len / 2 + (len * (i + 1)) / N;
+    out.push({ corners: [point(a, -h, 0.05), point(a, h, 0.05), point(b, h, 0.05), point(b, -h, 0.05)], hex: P0.hex, normal: [0, 0, 1], gloss: FINISHES[P0.finish] ?? 0, part: 'pad' });
+  }
+  for (let k = 0; k < 3; k++) {
+    const tip = s - len / 2 + len * (0.3 + 0.27 * k), back = tip - len * 0.22, t = 0.32;
+    for (const sd of [1, -1]) out.push({ corners: [point(back, sd * h * 0.7, 0.07), point(back + t, sd * h * 0.7, 0.07), point(tip + t, 0, 0.07), point(tip, 0, 0.07)].map((p) => p), hex: A.hex, normal: [0, 0, 1], gloss: FINISHES[A.finish] ?? 0, part: 'pad' });
+  }
+  return out;
+}
+
+/**
  * One CHEVRON on the way: an arrow lying across it, pointing to `d` (+1 left, −1 right), its middle at `s` metres along
  * and `c` metres off the line. `point(s, off, dz)`: the track's frame along the line. → { corners, hex }[] (flat paint).
  */
@@ -324,7 +341,7 @@ export function languageLaws(card, { cls = null, drawn = null } = {}) {
   if (typeof card.reads !== 'string' || card.reads.trim().length < 20) say('premise', 'the language does not say what the track is made of');
   if (ids.length > FAMILY_MAX) say('family', `${ids.length} materials (at most ${FAMILY_MAX}): a family is small`);
   const C = parts.city;
-  const named = [parts.way?.material, parts.way?.bands?.material, parts.way?.dash?.material, ...(parts.way?.chevrons?.materials ?? []), ...(parts.bunting?.materials ?? []), parts.bunting?.pole?.material, parts.bunting?.pole?.cap?.material, ...(parts.tree?.blossom?.materials ?? []), ...Object.values(parts.pieces?.paint ?? {}), ...(C ? [C.paving, C.crossing, ...C.facades] : []), parts.edge?.material, ...(parts.kerb?.materials ?? []), R?.material, ...(R?.tell ?? []), R?.post?.material, R?.post?.cap?.material].filter((x) => x !== undefined);
+  const named = [parts.way?.material, parts.way?.bands?.material, parts.way?.dash?.material, ...(parts.way?.chevrons?.materials ?? []), ...(parts.bunting?.materials ?? []), parts.bunting?.pole?.material, parts.bunting?.pole?.cap?.material, ...(parts.tree?.blossom?.materials ?? []), ...Object.values(parts.pieces?.paint ?? {}), ...(C ? [C.paving, C.crossing, ...C.facades, ...(C.split?.pads ? [C.split.pads.material, C.split.pads.arrows] : []), ...(C.split?.cobbles ?? [])] : []), parts.edge?.material, ...(parts.kerb?.materials ?? []), R?.material, ...(R?.tell ?? []), R?.post?.material, R?.post?.cap?.material].filter((x) => x !== undefined);
   for (const id of new Set(named)) if (!M[id]) say('family', `a part names '${id}', which the family does not hold`);
   for (const id of ids) if (!named.includes(id)) say('family', `'${id}' is in the family and no part wears it`);
   if (R && R.post && M[R.material] && M[R.post.material] && M[R.material].of !== M[R.post.material].of) say('one-metal', `the rail is ${M[R.material].of} and its post ${M[R.post.material].of}`);

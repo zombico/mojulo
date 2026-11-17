@@ -64,13 +64,20 @@ In progress. Built so far:
   A realistic street circuit ("a street circuit") gets the square course and no town yet: only the kart language has
   one.
 - **Built: a split and an underpass on a street circuit** (`roads/street-features.js`, the language's `city.split` and
-  `city.tunnel`). The way divides down its longest straight round an island of shops, on the side away from the town's
-  middle, and comes back before the corner; either way is the lap: the branch is drawn in the language and driven as
-  road (its points join the drive surface), the rail opens at its two mouths, and no checkpoint stands between them.
+  `city.tunnel`). Before a corner a cobbled alley leaves the way and cuts across the corner's inside to the straight
+  after it, leaving and rejoining along the way's own line; either way is the lap: the alley is drawn in the language
+  (cobbles in two of its colours) and driven as road (its points join the drive surface), the rail opens at its two
+  mouths, and no checkpoint stands between them. It is shorter than the way round but its cobbles drag (a new drive
+  surface, `cobbles`), and two lemon boost pads with berry arrows lie down it: a racer over them gains on the turn, one
+  who misses them loses (measured: a kart round the corner 11.8 s, down the alley over the pads 10.5 s, down it bare
+  12.7 s). **Boost pads** are a track feature any drive can read: the drive rule gains an opt-in boost
+  (`rules-drive.js`, through the world's `padAt`: a wheel on a pad lights a boost, its top and its pull past the kart's
+  own while the throttle is held), the drive surface table carries a track's pads (`roads/surface.js` `padAt`), and a
+  page wires the hook only when its track lays pads: a drive on a track without them is as it was.
   Down another straight a toy building spans the street, the way passing under its ground floor (the `toy-tunnel`
   block: two piers, a deck, the building over it, a berry band and a row of balls over each mouth, lamps along its
-  ceiling); the page's shadow darkens it. The town gives way to both: its rows stop at the mouths and the underpass, the
-  island has a row of shops facing the way, and the branch has fronts down its far side.
+  ceiling); the page's shadow darkens it. The town gives way to both: its rows stop at the mouths and the underpass, and
+  the alley has fronts and a sidewalk down its far side.
 - **The principles a new map starts from** ([docs/track-design-principles.md](../../../../docs/track-design-principles.md))
   and the agent's card for them (`gameworld-track-language`, read by the levels chapter): a premise first, a small
   family, a quiet way, a corner told three times, things seen to move, asymmetry, chunky, the track's own sky.
