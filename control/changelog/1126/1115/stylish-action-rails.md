@@ -69,7 +69,18 @@ In progress. Built so far, all in the practice door's game room
   whole tier on a hit taken. Tiers are letters (D to S) unless the game says its own words. `styleMeter: 'auto'`
   lays it on a game whose feel is the stylish template; a game that writes none carries none, and its pages keep
   every byte. The page says where it stands (`window.__mojStyle`), and the scripted player's readout says the tier
-  it peaked at and its longest combo. Not yet: the meter on the HUD, and the rank on a level's results.
+  it peaked at and its longest combo. Not yet: the rank on a level's results.
+- **Built: the style meter on the HUD** (`game/hud-mana.js`, the page's HUD host). A level that carries the meter
+  draws it at the right on the game UI runtime, in the game's look: the tier's name and, under it, the combo's count
+  while there is one; it stands only while there is style to show. Such a level's own rows are drawn there with it,
+  whether or not the world writes a `ui`. A level with no meter keeps every byte of its HUD.
+- **A principle: a stylish action game's HUD draws no box.** What stands on the screen is letters and figures over
+  the play, on no plate; what changes is said by effects and motion on them, never by a frame; and nothing is
+  explained in words the play shows (a legend row is not drawn; a mark or an arrow says where to go). The level's
+  HUD holds to it wherever the meter is carried: every region sits on no plate, the meter is its letter and its
+  count alone. Seen on an action hero's page in a headless browser (the letter, the count rising blow by blow);
+  nobody has played it. Not yet: the motion design on the letters (a tier gained, a tier lost, the count's weight),
+  the same principle on the game's menus and results, arrows for the way on.
 - **A building level has its action hero.** A world played under the orbit camera with a hero that strikes now
   gets, in a building as on a trail, the orbit that locks on, movement in the camera's frame and its sheathed
   twin, so the fist is in its hands and the weapon switch has two weapons to switch between. Before, a building

@@ -78,4 +78,33 @@ describe('the host carries a level\'s rows', () => {
     expect(at('bottom-right')).toContain('{"use":"button","props":{"label":"whistle"},"on":{"accept":{"emit":"whistle"}}}');
     expect(at('top-right')).toMatch(/"on":\{"accept":\{"emit":"map"\}\},"when":\{"bind":"on\.r1"\}/);
   });
+  it('a level that carries a style meter: its tier and its combo at the right, fed off the page; none ⇒ not a byte', () => {
+    const rows = [{ var: 'score', label: 'Score' }];
+    const plain = hudToMana(rows), styled = hudToMana(rows, { style: true });
+    expect(JSON.stringify(plain)).not.toContain('style');
+    const at = JSON.stringify(styled.spec.hud.children.find((r) => r.props.at === 'right'));
+    for (const b of ['style.on', 'style.name', 'style.combo']) expect(at).toContain(`"bind":"${b}"`);
+    expect(styled.feed.style).toBe(true);
+    expect(levelHud('console').style).toBeUndefined();
+    const js = manaHudScript(levelHud('console', { style: true }), { rows }), bare = manaHudScript(levelHud('console'), { rows });
+    expect(js).toContain('window.__mojStyle');
+    expect(bare).not.toContain('__mojStyle');
+    expect(bare).not.toContain('style: {');
+    expect(() => new Function(js)).not.toThrow();
+  });
+  it('the immersive HUD (a stylish action game\'s): no box is drawn, and nothing is explained in words', () => {
+    const rows = [{ var: 'score', label: 'Score' }, { kind: 'legend', slot: 'bottom', text: 'W A S D move' }, { var: 'hp', as: 'bar', max: 100, slot: 'top' }];
+    const { spec } = hudToMana(rows, { style: true });
+    expect(spec.hud.children.length).toBeGreaterThan(2);
+    expect(spec.hud.children.every((r) => r.props.variant === 'bare')).toBe(true);
+    expect(JSON.stringify(spec)).not.toContain('W A S D');
+    // (the meter is letters and figures alone: no bar, no caption)
+    const meter = JSON.stringify(spec.hud.children.find((r) => r.props.at === 'right'));
+    expect(meter).not.toMatch(/"use":"(bar|window|badge)"/);
+    expect(meter).not.toContain('"word"');
+    // (said not: a meter on a HUD that keeps its plates and its words)
+    const kept = hudToMana(rows, { style: true, immersive: false }).spec;
+    expect(kept.hud.children.some((r) => r.props.variant !== 'bare')).toBe(true);
+    expect(JSON.stringify(kept)).toContain('W A S D');
+  });
 });

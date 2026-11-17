@@ -249,4 +249,11 @@ read off the world after each step:
 | the hero is hit | a whole tier lost, the combo gone |
 
 `window.__mojStyle.now()` on a level's page says the tier, how far through it, the combo, the peak and what was
-earned. The meter on the HUD and the rank on a level's results are not built yet.
+earned. The level's HUD draws it at the right (`game/hud-mana.js`, on the game UI runtime, in the game's look): the
+tier's name and the combo's count, standing only while there is style to show. The rank on a level's results is not
+built yet.
+
+A stylish action game's HUD holds to one principle: **no box is drawn**. Letters and figures stand over the play on
+no plate; a change is said by effects and motion on them, never by a frame; and nothing is explained in words the
+play shows, so a legend row is not drawn and a mark or an arrow says where to go. A level that carries the meter
+gets this HUD (`hudToMana`'s `immersive`, said with `style` unless said not).

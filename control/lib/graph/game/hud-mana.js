@@ -4,11 +4,19 @@
  * (scene/channels/mana-hud.js). The rows keep their meaning and their slots; what changes is who draws them: the
  * theme the game's screens wear, so a level's readouts, its moments and its menus are one look.
  *
- *   hudToMana(rows, { register?, hero?, touch? }) → { spec: { hud }, feed: { rows, hero } }   (touch: the level is steered
- *                                              by a virtual pad: a legend says the thumbs while the pad is up)
+ *   hudToMana(rows, { register?, hero?, touch?, style? }) → { spec: { hud }, feed: { rows, hero } }   (touch: the level is
+ *                                              steered by a virtual pad: a legend says the thumbs while the pad is up;
+ *                                              style: the level carries a style meter, drawn at the right: its tier
+ *                                              and the combo; feed.style says the host feeds it; immersive: the HUD
+ *                                              of a stylish action game, below: said with the meter unless said not)
+ *
+ * THE IMMERSIVE HUD (a stylish action game's): NO BOX IS DRAWN. Every region sits on no plate (`bare`): what stands on
+ * the screen is letters and figures over the play, haloed, and what changes is said by effects and motion on them (a
+ * figure pops as it changes), never by a frame. NO EXPLAINING WORDS: a legend row is not drawn and a readout carries no
+ * caption the play does not need; a mark or an arrow says where to go.
  *     rows      a level's `events.hud` (raw or normalized: normalizing is idempotent)
  *     hero      draw the pilot's own gauges (its health, its sprint) with the rows: true unless said
- *   levelHud(theme, { screen? }) → a level manifest's `manaHud`: { rows: 'events', theme } (the page lowers the level's
+ *   levelHud(theme, { screen?, style? }) → a level manifest's `manaHud`: { rows: 'events', theme, style? } (the page lowers the level's
  *     rows where it emits them, so a mechanic's rows, merged late, are in)
  *
  * What each row becomes:
@@ -21,7 +29,7 @@
  * A row's colour is not carried: the theme owns the look.
  *
  * The state the spec binds (the host writes it from the level's bus): v.<k> a var's value · on.<k> whether a gated or
- * timed row stands · lines.<k> a slot's passing lines · moments [] · hero { hp, hpMax, hasHp, stamina, staminaMax, sprints }.
+ * timed row stands · lines.<k> a slot's passing lines · moments [] · hero { hp, hpMax, hasHp, stamina, staminaMax, sprints } · style { on, name, combo }.
  * Pure: a spec is data.
  */
 import { normalizeHud, HUD_SLOTS } from './hud-widgets.js';
@@ -34,7 +42,7 @@ const B = (path) => ({ bind: path });
 const MEANS = [[/^(hp|health|life|lives|hull)$/, 'hp'], [/^(mp|mana|magic|energy)$/, 'mp'], [/^(xp|exp|experience)$/, 'xp'], [/^(stamina|boost|sprint|breath|fuel)$/, 'stamina'], [/^(shield|armou?r|guard)$/, 'shield'], [/^boss/, 'boss']];
 const meaningOf = (w) => { for (const name of [w.var, w.label]) { const k = String(name ?? '').toLowerCase().trim(); for (const [re, v] of MEANS) if (re.test(k)) return v; } return 'plain'; };
 
-export function hudToMana(rows, { register = null, hero = true, touch = false } = {}) {
+export function hudToMana(rows, { register = null, hero = true, touch = false, style = false, immersive = style } = {}) {
   const { widgets } = normalizeHud(Array.isArray(rows) ? rows : [], register ? { register } : {});
   const vars = {}, keyOf = new Map(), gates = [], banners = [], toasts = [], lines = {};
   const varKey = (name) => { if (!keyOf.has(name)) { const k = `v${keyOf.size}`; keyOf.set(name, k); vars[k] = name; } return keyOf.get(name); };
@@ -61,6 +69,7 @@ export function hudToMana(rows, { register = null, hero = true, touch = false } 
       // (a keyed one presses its key; one for a touch screen alone stands while the virtual pad does)
       bySlot[w.slot].push({ use: 'button', props: { label: w.label }, on: { accept: w.key ? { key: w.key, code: w.code } : { emit: w.press } }, ...(w.touch ? { when: B('touch.on') } : gate(w, i)) });
     } else if (w.kind === 'legend') {
+      if (immersive) return;   // (the immersive HUD says nothing in words that the play shows)
       const keys = { use: 'text', props: { value: w.text, role: 'label' } };
       // (a level steered by a virtual pad, `touch`: while the pad is up the line says what the thumbs do, not the keys)
       bySlot[w.slot].push(touch ? { use: 'stack', props: { gap: 'tight' }, ...gate(w, i, w.ttl || 0), children: [{ ...keys, unless: B('touch.on') }, { use: 'text', props: { value: B('touch.hint'), role: 'label' }, when: B('touch.on') }] } : { ...keys, ...gate(w, i, w.ttl || 0) });
@@ -75,14 +84,21 @@ export function hudToMana(rows, { register = null, hero = true, touch = false } 
     const kids = [...bySlot[slot], ...(lines[slot] ? [{ use: 'feed', props: { rows: B(`lines.${lines[slot]}`), max: 6 } }] : []), ...(slot === 'center' && banners.length ? [{ use: 'moments', props: { rows: B('moments'), as: 'banner', hold: 1.6, read: 0.4 } }] : [])];
     if (!kids.length) continue;
     const align = slot.endsWith('left') ? 'start' : slot.endsWith('right') ? 'end' : 'center', bare = kids.every((k) => k.use === 'feed' || k.use === 'moments');
-    regions.push({ use: 'region', props: { at: slot, ...(bare ? { variant: 'bare' } : {}) }, children: kids.length === 1 ? kids : [{ use: 'stack', props: { dir: 'column', gap: 'tight', align }, children: kids }] });
+    regions.push({ use: 'region', props: { at: slot, ...(bare || immersive ? { variant: 'bare' } : {}) }, children: kids.length === 1 ? kids : [{ use: 'stack', props: { dir: 'column', gap: 'tight', align }, children: kids }] });
   }
-  return { spec: { screens: {}, hud: { use: 'hud', children: regions } }, feed: { rows: { vars, gates, banners, toasts, lines: Object.values(lines) }, ...(hero ? { hero: true } : {}) } };
+  // THE STYLE METER (worlds/controllable/style.js), where the level carries one: at the right, on no plate, in letters
+  // alone: its tier's name, and under it the combo's count while there is one (each blow pops it); it stands while
+  // there is style to show
+  if (style) regions.push({ use: 'region', props: { at: 'right', variant: 'bare' }, when: B('style.on'), children: [{ use: 'stack', props: { gap: 'tight', align: 'end' }, children: [
+    { use: 'text', props: { value: B('style.name'), role: 'display' } },
+    { use: 'text', props: { value: B('style.combo'), role: 'numeral' }, when: B('style.combo') },
+  ] }] });
+  return { spec: { screens: {}, hud: { use: 'hud', children: regions } }, feed: { rows: { vars, gates, banners, toasts, lines: Object.values(lines) }, ...(hero ? { hero: true } : {}), ...(style ? { style: true } : {}) } };
 }
 
 /** A level's `manaHud` in a look (a mana-ui preset's name, a card's, or a theme object): its rows are the level's own. */
-export function levelHud(theme, { screen = null } = {}) {
+export function levelHud(theme, { screen = null, style = false } = {}) {
   const base = typeof theme === 'string' && !THEMES[theme] ? cardTheme(theme) : theme ?? 'console';
   const portrait = !!screen && (screen === 'phone' || screen.pole === 'phone' || screen.orientation === 'portrait');
-  return { rows: 'events', theme: portrait ? (typeof base === 'string' ? { from: base, distance: 'hand' } : { ...base, distance: 'hand' }) : base };
+  return { rows: 'events', theme: portrait ? (typeof base === 'string' ? { from: base, distance: 'hand' } : { ...base, distance: 'hand' }) : base, ...(style ? { style: true } : {}) };
 }
