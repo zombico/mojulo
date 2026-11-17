@@ -286,3 +286,10 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
 - **The map is of the floor it is fought on.** The map screen and the radar's plan are drawn at the height the pilot
   stands at and boxed on the ground a level says it is fought on (a bout's arena), where they assumed a floor at zero
   and the whole site: a yard on its land and an arena on a hill were blank.
+- **A campaign's opening mission.** The first level of a shooter's campaign as a run of places, each a beat of one
+  loop and a level of its own (`mission/campaign.js`): the loop and its seven beats set down (cold open, kit check,
+  insertion, first contact, push, set piece, run out), each built from what a world already has (a mission's sections,
+  the ground the arena's laws grow or read, the level played as a turn). `openingMission` lays the legs as one world's
+  levels in order: a staging yard, a street, a building where the kit asks for one, the works. A leg is a checkpoint.
+  `design_game` offers it beside the first mission, with its patch
+  ([docs/missions.md](../../../../docs/missions.md), "A campaign's opening mission").

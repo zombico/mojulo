@@ -3,3 +3,4 @@ export { SECTIONS, SECTION_IDS, BANDS, BAND_IDS, TASKS, TASK_IDS, ARCHETYPE_BAND
 export { readMission, missionBrief, MISSION_LIMITS, MISSION_DEFAULTS, MISSION_MAPS, MISSION_BUILDINGS } from './brief.js';
 export { composeMission, missionWalls, MISSION } from './compose.js';
 export { missionLaws, missionGrid } from './laws.js';
+export { BEATS, BEAT_IDS, OPENING, openingMission } from './campaign.js';

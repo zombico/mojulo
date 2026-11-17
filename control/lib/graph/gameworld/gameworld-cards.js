@@ -895,6 +895,8 @@ function missionCard() {
     'INDUSTRIAL   levels.<id>: { industrial: true | { use?, depth?, hour?, weather?, wet?, tower?, walker?, crew?, masked? }, mission?: { seed?, foes?, hold?, waves? } }: out',
     '  of doors, a fenced yard before a base building, its containers, barriers and floodlights stood by the arena laws, a',
     '  tower to climb (or a walker parked), built by the geocube (sunset on wet ground where it names none); out by its door.',
+    'CAMPAIGN     the step\'s `campaign`: the opening mission as legs, each a level played in order and a checkpoint: a',
+    '  yard, a street, a building, the works; between them the loop\'s beats (cold open … run out). Apply its patch whole.',
     'SECTIONS (each a room across the mission, a doorway to the next, sealed until its task is met)',
     ...Object.entries(SECTIONS).map(([k, v]) => `  ${k.padEnd(12)} ${v.task.padEnd(6)} ${v.band ? `${v.band} band, ${BANDS[v.band].m} m` : 'no fight'}: ${v.teaches}${v.gap ? ' (a GAP: designed, not built; refused with what it waits on)' : ''}`),
     `TASKS  ${Object.entries(TASKS).map(([k, v]) => `${k}: ${v.says}`).join('; ')}.`,
