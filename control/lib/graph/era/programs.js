@@ -238,7 +238,7 @@ export function planProgram(program, kitId = 'gothic-stone', { civilization = nu
     const rooms = C.rooms.map((r) => ({ ...r, x: r.x - x0, y: r.y - y0 }));
     // (a link's doorway set along its wall, `along`, is in the plan's frame too)
     const links = fight ? C.links.map(({ alongX, ...l }) => (l.along === undefined ? l : { ...l, along: +(l.along - (alongX ? x0 : y0)).toFixed(6) })) : C.links;
-    return { use, reads: P.reads, rooms, links, ways: C.ways, entry: C.entry, goal: C.goal, front: '-y', language: lang, findings: C.findings, plan: C.plan, ...(C.under ? { under: C.under } : {}), ...(fight ? { fight } : {}) };
+    return { use, reads: P.reads, rooms, links, ways: C.ways, entry: C.entry, goal: C.goal, front: '-y', language: lang, findings: C.findings, plan: C.plan, ...(C.under ? { under: C.under } : {}), ...(C.lifts ? { lifts: C.lifts } : {}), ...(fight ? { fight } : {}) };
   }
   const g = kit.grid, need = kit.door.width + 2 * kit.door.frame + kit.wall;   // the wall a doorway needs (stage.js planStage)
   // (scale: the template's rooms laid larger, the plan scale times, its rooms' heights by its root: a party fights in
@@ -374,6 +374,7 @@ export function withProgram(m) {
     rooms: rest.rooms ?? P.rooms,
     links: rest.links ?? P.links,
     ...(P.ways && rest.ways === undefined && rest.rooms === undefined ? { ways: P.ways } : {}),
+    ...(P.lifts && rest.lifts === undefined && rest.rooms === undefined ? { lifts: P.lifts } : {}),
     ...(PROGRAMS[program.use]?.kit && m.kit === undefined && !cube ? { kit: kitId } : {}),
     // (a building climbs by a game's stair: construction/circulation.js `game`, a switchback with room at its ends)
     ...(PROGRAMS[program.use]?.shape === 'core' && rest.stair === undefined ? { stair: 'game' } : {}),

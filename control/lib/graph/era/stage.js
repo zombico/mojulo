@@ -91,7 +91,7 @@ import { withCondition } from './condition.js';
 import { withWeathering, weatherKit } from './weathering.js';
 import { readTarget, RESOLUTIONS, DEFAULT_TARGET } from './target.js';
 import { normalizeJets } from '../materials/jet.js';
-import { readStoreys, placeStairs, storeyCut, stairFaces, inStairs, boxInStairs, assembleStoreys } from './storeys.js';
+import { readStoreys, placeStairs, placeLifts, storeyCut, stairFaces, inStairs, boxInStairs, assembleStoreys } from './storeys.js';
 import { resolveTerrainWind } from '../vegetation/wind.js';
 import { standsRepeats } from './stands.js';
 
@@ -665,6 +665,9 @@ export function planStage(m = {}) {
   // (a stage's stairs: a keep's steep flight, or a building's switchback, construction/circulation.js STAIR_PROFILES)
   if (m.stair !== undefined && !STAIR_PROFILE_IDS.includes(m.stair)) throw new Error(`stage: stair is ${STAIR_PROFILE_IDS.join(' or ')} (a keep's steep flight, or a building's switchback)`);
   const stairs = storeyed ? placeStairs(rooms, stairLinks, links, ways, kit, m.stair ?? 'keep') : null;
+  // a stage's LIFTS (`lifts: [{ lower, upper, w?, d?, at? }]`, storeys.js): each an opening through the floor between a
+  // room and the one over it, where they overlap, for a deck that travels it
+  const lifts = storeyed && Array.isArray(m.lifts) && m.lifts.length ? placeLifts(rooms, m.lifts) : null;
   const first = rooms[0];
   // `time: 'night'`: the style card's night takes the reference's light and air; its moon is the key (the bake's sun)
   const time = m.time ?? 'day';
@@ -720,7 +723,7 @@ export function planStage(m = {}) {
     ...(m._program?.base || (composed && composed.dressing === 'vernacular' && m._program?.use) ? { use: m._program.use } : m._program?.hospital ? { use: m._program.use, stock: 'hospital' } : {}),
     // (a composed interior's rooms read for their parts in the walk: compose-roles.js)
     ...(composed ? { compose: { axes: composed, mood: composed.mood ?? 'even', beats: beatsPinned(m), roles: m._composeRoles ?? roomRoles({ rooms, links, ways, stairs }, { goal: m._program?.goal, pinned: rolesPinned(m) }) } } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}),
-    ...(St ? { storeys: St.z0s.map((z0, index) => ({ index, z0 })), flat: St.flat, stairs } : {}), ...(m._storey ? { cuts: m._storey } : {}) };
+    ...(St ? { storeys: St.z0s.map((z0, index) => ({ index, z0 })), flat: St.flat, stairs, ...(lifts ? { lifts } : {}) } : {}), ...(m._storey ? { cuts: m._storey } : {}) };
   // a composed interior's things (compose-dress.js): the recipe's own (`props`, laid at authoring time and edited since),
   // else laid now; `props: false` none. A storey takes the ones in its rooms. A building designed as a fighting map
   // (programs.js FIGHT `cover`) lays its halls' cover over them, composed or not (compose-dress.js layCover)

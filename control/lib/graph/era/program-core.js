@@ -21,7 +21,9 @@
  * (`store-001`), under an annex its undercroft; their doorways the ground's. `basement: { hall: <metres> }` makes that
  * undercroft a hall that high, so the whole storey is lodged that much deeper under the ground (its other rooms keep
  * their height). The core's stair does not climb that far in its shaft: no flight is laid to it, and what joins it is
- * its level's (a lift, a stairwell's door). `under.ports` names the basement's walls
+ * its level's (a lift, a stairwell's door). `basement: { lift: true | { w?, d?, at? } }` asks for the lift: an opening
+ * through the floor between the annex and the hall under it, for a deck that travels it (era/storeys.js; the deck is
+ * the level's, a moving thing). `under.ports` names the basement's walls
  * that face out, where a network's passages may leave it (network/): the concourse's front and sides, each basement
  * corridor's far end.
  *
@@ -80,7 +82,10 @@ export function planCore(P, program, kit, rnd) {
   const h = C.h + (roomy ? ROOMY.rise : 0), rooms = [], links = [], findings = [], off = program.basement ? 1 : 0;
   const free = (b) => !rooms.some((q) => (q.storey ?? 0) === (b.storey ?? 0) && overlaps(b, q));
   const deepHall = program.basement && typeof program.basement === 'object' ? program.basement.hall : undefined;
-  if (program.basement !== undefined && typeof program.basement !== 'boolean' && !(program.basement && typeof program.basement === 'object' && !Array.isArray(program.basement) && Object.keys(program.basement).every((k) => k === 'hall') && (deepHall === undefined || (Number.isFinite(deepHall) && deepHall >= 3.5 && deepHall <= 20)))) throw new Error('program: basement is true (a storey under the ground one: a concourse under the lobby, the plate\'s twin), { hall: 3.5 to 20 } (the same, its annex\'s undercroft that many metres high: the storey lodged that much deeper), or false');
+  // (a LIFT between the annex and its undercroft: a deck's opening through the floor between them, era/storeys.js)
+  const liftAsk = program.basement && typeof program.basement === 'object' ? program.basement.lift : undefined;
+  if (liftAsk !== undefined && liftAsk !== true && !(liftAsk && typeof liftAsk === 'object' && !Array.isArray(liftAsk) && Object.keys(liftAsk).every((k) => ['w', 'd', 'at'].includes(k)))) throw new Error('program: basement.lift is true (a deck between the annex and the hall under it) or { w?, d?, at?: [u, v] } (its size in metres, where it stands across the hall, 0 to 1 each way)');
+  if (program.basement !== undefined && typeof program.basement !== 'boolean' && !(program.basement && typeof program.basement === 'object' && !Array.isArray(program.basement) && Object.keys(program.basement).every((k) => k === 'hall' || k === 'lift') && (deepHall === undefined || (Number.isFinite(deepHall) && deepHall >= 3.5 && deepHall <= 20)))) throw new Error('program: basement is true (a storey under the ground one: a concourse under the lobby, the plate\'s twin), { hall: 3.5 to 20 } (the same, its annex\'s undercroft that many metres high: the storey lodged that much deeper), or false');
   const put = (b) => { rooms.push(b); return b; };
   // (designed as a fighting map: programs.js FIGHT, each dial opt-in; `ring` a doorway that is a dial's, never a tree's)
   const F = program.fight ?? null, ring = (l) => links.push(l);
@@ -241,5 +246,7 @@ export function planCore(P, program, kit, rnd) {
   for (const r of rooms) if (depth.has(r.id) && r.id.indexOf('core-') !== 0 && r.id !== 'lobby' && (r.storey ?? 0) >= off && coreDepth(r) > CORE.deep) findings.push({ id: 'deep', room: r.id, says: `the ${r.id} is ${coreDepth(r)} doors from the stair` });
   // (the goal's doorway last: a kit seats its set piece in the walk's last room)
   const ordered = goal ? [...links.filter((l) => l.to !== goal), ...links.filter((l) => l.to === goal)] : links;
-  return { rooms, links: ordered, ways, entry: 'lobby', goal, findings, plan: { storeys, wings, loading, bays, corridor: cw, ...(off ? { basement: true } : {}), ...(F ? { fight: Object.keys(F).filter((k) => F[k]) } : {}) }, ...(under ? { under } : {}) };
+  const lifts = liftAsk && P.annex && rooms.some((r) => r.id === `${P.annex.role}-under`) ? [{ lower: `${P.annex.role}-under`, upper: P.annex.role, ...(liftAsk === true ? {} : liftAsk) }] : null;
+  if (liftAsk && !lifts) findings.push({ id: 'no-lift', says: 'a lift stands between an annex and the hall under it: this building has no annex' });
+  return { rooms, links: ordered, ways, entry: 'lobby', goal, findings, plan: { storeys, wings, loading, bays, corridor: cw, ...(off ? { basement: true } : {}), ...(F ? { fight: Object.keys(F).filter((k) => F[k]) } : {}) }, ...(under ? { under } : {}), ...(lifts ? { lifts } : {}) };
 }

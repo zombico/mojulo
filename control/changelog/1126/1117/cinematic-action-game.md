@@ -195,3 +195,18 @@ or a recipe key; the spike mints through the real doors and measures.
   the game's look (`levelHud`, the `field-brief` theme), and the held carry menu is its weapon wheel
   (carry-view.js answers `window.__mojWc` while a menu is held on a page with that HUD; its own strip is put away).
   The mission's own words (objective, prompt, found) are still plain DOM.
+- **A lift's opening in a building** (a core building's `basement: { lift: true | { w?, d?, at? } }`, era/program-core.js;
+  a stage's `lifts`, era/storeys.js `placeLifts`): an opening through the floor between the annex and the hall under
+  it, cut as a stair's is (the ceiling under it, the floor over it), its shaft lined between them, its edge a marked
+  curb on the upper floor, an anchor of kind `lift` saying where. No flight and no rail is laid: what travels it is the
+  level's. A building that asks for none is as it was.
+- **A lift ridden for real** (mission.js, a way's `deck`): the deck is an entity, a slab that fills the opening; ridden,
+  it travels its shaft eased over the way's seconds and the body is carried on it, where the ride was the screen
+  closed and the body stood on the other floor. Pressed at the end the deck is not at, the deck is called and comes
+  alone. The page's ground is the world's meshes, never a body's, so a deck is stood on through the mission's own
+  ground. The opening is open when the deck is away.
+- **A ride's shot** (a way's `shot: { <end>: '<cue>' }`, `face`): a carried ride to that end plays the cued shot of the
+  page's shoot plan with the view the plan's through it and bars top and bottom, and hands the view back as the ride
+  ends (mission-view.js on channels/shoot.js `cue` and `look`). Level 1's lift down is three framings on one camera,
+  cut hard: the deck coming down seen from the lower hall's floor, the hall over the operative's shoulder as the
+  walker rises into it, and the walker low and wide on a push.

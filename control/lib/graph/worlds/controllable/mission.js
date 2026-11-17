@@ -8,10 +8,19 @@
  *     clues:   [{ id, at, radius?: 1.6, name? }]                 read with the action pressed beside them
  *     reveal?: { needs, of: [clue ids], flag, says? }            that many of them read sets the flag
  *     ways:    [{ id, kind: 'lift' | 'stair', a: [x, y, z], b: [x, y, z], radius?: 1.8, secs?: 3,
- *                 needs?: { items?: [ids], flags?: [ids] }, name? }]
+ *                 needs?: { items?: [ids], flags?: [ids] }, name?, deck?: '<entity id>', at?: 'a' | 'b',
+ *                 face?: <heading>, shot?: { a?: '<cue>', b?: '<cue>' } }]
  *                                                                a way between two floors, ridden with the action pressed
  *                                                                on either end once what it needs is held and set: the
  *                                                                body is held for `secs` and stands at the other end
+ *                                                                A way with a `deck` is RIDDEN FOR REAL: the deck (an entity,
+ *                                                                a slab the body stands on) travels from the end it is at
+ *                                                                (`at`, 'a' unless said) to the other over `secs`, eased,
+ *                                                                the body carried on it; pressed at the end the deck is not
+ *                                                                at, it is called and comes alone
+ *                                                                (`face`: the way the carried body is turned; `shot`: the
+ *                                                                cue of the page's shoot plan a ride TO that end plays,
+ *                                                                the view the plan's through it: mission-view.js)
  *     barriers?: [{ id, min, max, needs?: { items?, flags? } }]  a box that holds a passage shut until what it needs is
  *                                                                held and set and the body comes within 2.5 m of it
  *     objectives: [{ id, says, done: <item id>, after?: <flag> }] in order; the current one is the first not done
@@ -28,7 +37,7 @@
  *   }
  *   input.act      an edge: reads a clue, or rides a way, where the body stands on one (else whatever the action is)
  *
- * State (state.ms): { held: { id: true }, read: { id: true }, flags: { id: true }, exit: { id, to, door } | null, ride: { way, t, secs, to } | null,
+ * State (state.ms): { held: { id: true }, read: { id: true }, flags: { id: true }, exit: { id, to, door } | null, ride: { way, t, secs, to } | { way, deck, rides, t, secs, z0, z1, end } | null, decks: { way id: the end its deck is at },
  * open: { barrier id: true }, done: false, said: { text, t } (the last thing to tell the player), near: the id of the
  * clue or way in reach, and `locked` what it still needs }. The page draws it (scene/channels/controllable/mission-view.js).
  *
@@ -43,9 +52,22 @@ export function buildMission(E) {
     const p = state.pilotId ? state.byId[state.pilotId] : null, M = p && p.rule && p.rule.mission;
     if (!M || !input) return step(state, input, dt, hooks);
     const now = state.time || 0;
+    // A DECK IS GROUND: the page's ground is the world's own meshes, never a body's, so a deck (an entity) is stood on
+    // through this: over its slab, at or above its top, the ground is its top
+    if (hooks && hooks.ground && (M.ways || []).some((w) => w.deck)) {
+      const g0 = hooks.ground, decks = M.ways.filter((w) => w.deck).map((w) => state.byId[w.deck]).filter((D) => D && D.body && Array.isArray(D.body.size));
+      hooks = { ...hooks, ground: (pos) => {
+        const g = g0(pos);
+        for (const D of decks) {
+          const q = D.transform.pos, hx = D.body.size[0] / 2, hy = D.body.size[1] / 2, top = q[2] + D.body.size[2] / 2;
+          if (Math.abs(pos[0] - q[0]) <= hx && Math.abs(pos[1] - q[1]) <= hy && pos[2] >= top - 0.6 && (g == null || top > g)) return top;
+        }
+        return g;
+      } };
+    }
     let S = state.ms;
     if (!S) {
-      S = state.ms = { held: {}, read: {}, flags: {}, exit: null, ride: null, open: {}, done: false, said: null, near: null, locked: null, prev: false };
+      S = state.ms = { held: {}, read: {}, flags: {}, decks: {}, exit: null, ride: null, open: {}, done: false, said: null, near: null, locked: null, prev: false };
       // (the barriers stand as colliders from the first step)
       if (M.barriers && M.barriers.length) state.colliders = [...(state.colliders || []), ...M.barriers.map((b) => ({ min: b.min.slice(), max: b.max.slice(), of: 'mission:' + b.id }))];
     }
@@ -61,6 +83,17 @@ export function buildMission(E) {
     // (leaving: the body is held where it stands until the page goes)
     if (S.exit) return step(state, { ...input, forward: 0, back: 0, left: 0, right: 0, moveX: 0, moveY: 0, fire: 0, jump: 0, jumpHeld: 0, dive: 0, act: 0, crouch: 0, aim: 0 }, dt, hooks);
     // a ride: the body held, and stood at the other end when it is over
+    if (S.ride && S.ride.deck) {
+      // a deck's ride: it travels its shaft, eased; the body on it is carried (held still, its feet on the deck's top)
+      const R = S.ride, D = state.byId[R.deck];
+      R.t += dt;
+      const u = Math.min(1, R.t / R.secs), e = u * u * (3 - 2 * u), top = R.z0 + (R.z1 - R.z0) * e;
+      if (D) D.transform.pos[2] = top - R.half;
+      const out = step(state, R.rides ? { ...input, forward: 0, back: 0, left: 0, right: 0, moveX: 0, moveY: 0, fire: 0, jump: 0, jumpHeld: 0, dive: 0, act: 0, crouch: 0, aim: 0 } : input, dt, hooks);
+      if (R.rides) { p.transform.pos[2] = top + (p.rule.eye || 0); p.vz = 0; if (p.vel) p.vel[2] = 0; p.grounded = true; }
+      if (u >= 1) { S.decks[R.way] = R.end; S.ride = null; }
+      return out;
+    }
     if (S.ride) {
       S.ride.t += dt;
       const out = step(state, { ...input, forward: 0, back: 0, left: 0, right: 0, moveX: 0, moveY: 0, fire: 0, jump: 0, jumpHeld: 0, dive: 0, act: 0, crouch: 0, aim: 0 }, dt, hooks);
@@ -90,6 +123,14 @@ export function buildMission(E) {
       S.near = w.id;
       const need = lacks(S, w.needs);
       if (need.length) { S.locked = need; if (edge) { used = true; say((w.name || w.id) + ': locked'); } }
+      else if (edge && w.deck) {
+        // (the deck where the body stands: ridden to the other end; the deck at the other end: called here, alone)
+        const here = atA ? 'a' : 'b', at = S.decks[w.id] || (S.decks[w.id] = w.at || 'a'), D = state.byId[w.deck], half = D && D.body && Array.isArray(D.body.size) ? D.body.size[2] / 2 : 0.15;
+        const end = at === 'a' ? 'b' : 'a';
+        used = true; S.ride = { way: w.id, kind: 'lift', deck: w.deck, rides: at === here, t: 0, secs: w.secs || 8, z0: w[at][2], z1: w[end][2], end, half };
+        // (carried, the body faces where the way says: what the ride is there to show)
+        if (at === here && Number.isFinite(w.face)) { p.transform.heading = w.face; if (state.camera) state.camera.camYaw = w.face; }
+      }
       else if (edge) { used = true; S.ride = { way: w.id, kind: w.kind || 'lift', t: 0, secs: w.secs || 3, to: atA ? w.b : w.a, moved: false }; }
       break;
     }

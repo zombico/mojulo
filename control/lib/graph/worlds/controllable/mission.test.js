@@ -72,6 +72,30 @@ describe('a mission in one level', () => {
     expect(v.byId.p.body.hp).toBe(40);
     expect(v.byId.p.transform.pos.slice(0, 2).map(Math.round)).toEqual([20, 20]);
   });
+  it('a way with a deck is ridden for real: the deck travels and carries the body; called from the other end, it comes alone', () => {
+    const M3 = { ways: [{ id: 'lift', kind: 'lift', a: [0, 0, 10], b: [0, 0, 0], secs: 2, deck: 'deck' }], objectives: [] };
+    const w = E.createWorld({ entities: [
+      { id: 'p', pilotable: true, rule: { type: 'platform', speed: 5, eye: 0, mission: M3 }, body: { type: 'none' }, transform: { pos: [0, 0, 10], heading: 0 } },
+      { id: 'deck', rule: { type: 'static' }, body: { type: 'mesh', shape: 'box', size: [6, 6, 0.3] }, transform: { pos: [0, 0, 9.85], heading: 0 } }] });
+    // (the page's ground knows no body: the hall's floor round the opening, the lower floor under it; the deck is the mission's)
+    const ground = { ground: (pos) => (Math.abs(pos[0]) < 3 && Math.abs(pos[1]) < 3 ? 0 : 10) };
+    const go = (input, n) => { for (let k = 0; k < n; k++) E.stepWorld(w, input, 1 / 30, ground); };
+    go({}, 2); go({ act: 1 }, 2); go({}, 28);
+    expect(w.ms.ride).toMatchObject({ deck: 'deck', rides: true });
+    const mid = w.byId.p.transform.pos[2];
+    expect(mid).toBeGreaterThan(0.5); expect(mid).toBeLessThan(9.5);               // (on its way down, not teleported)
+    expect(w.byId.deck.transform.pos[2] + 0.15).toBeCloseTo(mid, 3);              // (its feet on the deck's top)
+    go({ forward: 1 }, 40);
+    expect(w.ms.ride).toBeNull();
+    expect(w.byId.p.transform.pos[2]).toBeCloseTo(0, 1);
+    expect(w.ms.decks.lift).toBe('b');
+    // back at the top by other means, the deck below: pressed there, it is called and comes alone
+    w.byId.p.transform.pos = [0, 0, 10.2]; ground.ground = () => 10; go({}, 2); go({ act: 1 }, 2);
+    expect(w.ms.ride).toMatchObject({ rides: false });
+    go({}, 70);
+    expect(w.byId.deck.transform.pos[2] + 0.15).toBeCloseTo(10, 2);
+    expect(w.ms.decks.lift).toBe('a');
+  });
   it('a rule with no mission is as it was', () => {
     const w = E.createWorld({ entities: [{ id: 'p', pilotable: true, rule: { type: 'platform', speed: 5, eye: 0 }, body: { type: 'none' }, transform: { pos: [0, 0, 0], heading: 0 } }] });
     run(w, { act: 1 }, 3);
