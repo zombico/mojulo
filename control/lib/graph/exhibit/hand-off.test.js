@@ -15,7 +15,7 @@ const kinds = (steps) => steps.map((x) => x.step);
 describe('the exhibit\'s hand-off', () => {
   it('is offered only once the four are answered, on the make step', () => {
     expect(exhibitStart({ concept: 'a dam', time: 'visit' }).next.find((x) => x.step === 'make')).toBeUndefined();
-    expect(kinds(stepsOf(answered()))).toEqual(['world', 'tour', 'audit', 'show']);
+    expect(kinds(stepsOf(answered()))).toEqual(['world', 'tour', 'audit', 'sheet', 'show']);
   });
 
   it('one room: a world made new at its scale, then its tour and curation, the gates last', () => {
@@ -23,7 +23,7 @@ describe('the exhibit\'s hand-off', () => {
     expect(S[0]).toMatchObject({ step: 'world', at: above, made: SCALES[above].made, view: SCALES[above].view, like: SCALES[above].samples });
     expect(S[0].room).toBeUndefined(); expect(S[0].says).toMatch(/make it new/);
     expect(S[1]).toMatchObject({ step: 'tour', stops: F.stops }); expect(S[1].says).toContain(`up to ${F.stops.about} stops`); expect(S[1].says).toMatch(/stands alone/);
-    expect(S[S.length - 2].door).toBe('get_exhibit({ ref, audit: true })'); expect(S[S.length - 1].says).toMatch(/never claimed/);
+    expect(S.find((x) => x.step === 'audit').door).toBe('get_exhibit({ ref, audit: true })'); expect(S[S.length - 1].says).toMatch(/never claimed/);
     // with no scale named yet the world is still made new
     expect(stepsOf(answered())[0].made).toMatch(/made new from the primitives/);
   });
@@ -44,7 +44,7 @@ describe('the exhibit\'s hand-off', () => {
 
   it('a concept that spans rungs is a room a rung, joined, with the camera\'s move between each two', () => {
     const scales = [above, HOME_SCALE, below], S = stepsOf(answered({ scales })), R = scaleReport(scales);
-    expect(kinds(S)).toEqual(['world', 'tour', 'world', 'tour', 'world', 'tour', 'gallery', 'audit', 'show']);
+    expect(kinds(S)).toEqual(['world', 'tour', 'world', 'tour', 'world', 'tour', 'gallery', 'audit', 'sheet', 'show']);
     expect(S.filter((x) => x.step === 'world').map((x) => [x.room, x.at])).toEqual(scales.map((s, i) => [i + 1, s]));
     const G = S.find((x) => x.step === 'gallery');
     expect(G.door).toBe(EXHIBIT_SIZES.gallery.door); expect(G.zoom).toEqual(R.zoom); expect(G.zoom.every((z) => typeof z.move === 'string')).toBe(true);
@@ -55,7 +55,7 @@ describe('the exhibit\'s hand-off', () => {
     const view = stepsOf(answered({ time: 10 }));
     expect(kinds(view)).toEqual(['world', 'tour', 'audit', 'show']); expect(view[1].stops).toBeUndefined(); expect(view[1].says).toMatch(/no tour/);
     const cmp = stepsOf(answered({ wants: { compare: true } }));
-    expect(kinds(cmp)).toEqual(['world', 'tour', 'states', 'audit', 'show']); expect(cmp.find((x) => x.step === 'states').door).toBe(EXHIBIT_SIZES.states.door);
+    expect(kinds(cmp)).toEqual(['world', 'tour', 'states', 'audit', 'sheet', 'show']); expect(cmp.find((x) => x.step === 'states').door).toBe(EXHIBIT_SIZES.states.door);
   });
 
   it('its tour budget is one a tour can hold', () => {

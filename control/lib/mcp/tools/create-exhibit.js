@@ -136,6 +136,39 @@ async function mintStates(input) {
   return { ...res, exhibit: resolveOrTeach('create_exhibit', input.id).id, page: `/api/sketches/${encodeURIComponent(res.ref)}/states`, states: made.map((m) => ({ ref: m.ref, label: m.label })), audit: auditStatesOf(getSketch(res.ref).manifest) };
 }
 
+/**
+ * A made exhibit's CONTACT SHEET (motion/tour-contact.js): every stop of its tour as a visitor meets it, a row a stop,
+ * shot on its own page and written into its outcome folder as `tour-contact-<stamp>.png` (the stamp of the tour and the
+ * sheet's size, so the same tour's sheet is the same file). What the person looks at before the tour is finished.
+ */
+async function tourContactSheet({ ref, size = null }) {
+  const sketch = getSketch(ref);
+  if (!sketch) throw new Error(`create_exhibit: no exhibit with ref '${ref}'`);
+  if (['gallery', 'exhibit-states'].includes(sketch.manifest?.kind)) throw new Error(`create_exhibit: '${ref}' is a ${sketch.manifest.kind}: a contact sheet is one room's tour; ask for each room by its own ref`);
+  const params = { ...(size?.width ? { width: size.width } : {}), ...(size?.height ? { height: size.height } : {}) };
+  const { createHash } = await import('node:crypto');
+  const { mkdirSync, writeFileSync } = await import('node:fs');
+  const path = (await import('node:path')).default;
+  const { outcomeDirFor, outcomeUrlFor } = await import('@/lib/outcomes-paths');
+  const { renderTourContact } = await import('@/lib/motion/tour-contact');
+  const { withChromiumFetch } = await import('@/lib/graph/scene/chromium-consent');
+  const { value: sheet, fetched } = await withChromiumFetch(() => renderTourContact({ sketch, params }));
+  const stamp = createHash('sha256').update(JSON.stringify({ tour: sketch.manifest.tour, params })).digest('hex').slice(0, 12);
+  const dir = outcomeDirFor(ref), file = `tour-contact-${stamp}.png`;
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(dir, file), sheet.png);
+  return {
+    ok: true, ref, contact: {
+      path: path.join(dir, file), url: `${outcomeUrlFor(ref)}${file}`, stops: sheet.rows.length,
+      rows: sheet.rows.map((r) => ({ stop: r.shot, ...(r.about ? { about: r.about } : {}), ...(r.frames[0].size ? { size: r.frames[0].size } : {}), ...(r.notes.length ? { notes: r.notes } : {}), seconds: r.frames[0].world_t })),
+      ...(sheet.audit.findings.length ? { findings: sheet.audit.findings } : {}),
+      ...(sheet.cut ? { cut: sheet.cut } : {}),
+      ...(fetched ? { browser_download: fetched } : {}),
+      note: 'a row a stop, as a visitor meets it: the view, the lit part, the caption. Look at the PNG and show it to the person (the machine has only measured it): whether it reads is the eyes gate, theirs',
+    },
+  };
+}
+
 export async function createExhibitHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('create_exhibit requires { id, params? } (id: <hall>/<id>), or { rooms }');
   // THE START (exhibit/producer.js): a person with a concept to display, before anything is made. It builds nothing:
@@ -145,6 +178,11 @@ export async function createExhibitHandler(input) {
     const others = Object.keys(input).filter((k) => k !== 'start' && input[k] !== undefined);
     if (others.length) throw new Error(`create_exhibit: \`start\` is asked alone: what the person has said so far (not with ${others.join(', ')})`);
     return exhibitStart(input.start);
+  }
+  if (input.contact !== undefined) {
+    const others = Object.keys(input).filter((k) => !['contact', 'viewBox'].includes(k) && input[k] !== undefined);
+    if (typeof input.contact !== 'string' || !input.contact || others.length) throw new Error("create_exhibit: `contact` is a made exhibit's ref, asked alone (viewBox sizes its frames): its tour's contact sheet");
+    return tourContactSheet({ ref: input.contact, size: input.viewBox });
   }
   if (input.rooms !== undefined) {
     if (input.id !== undefined) throw new Error('create_exhibit: `id` makes one exhibit, `rooms` joins made ones as a gallery; pass one of them');
@@ -244,6 +282,7 @@ export function registerExhibitTools() {
         states: { type: 'object', description: "Prepared versions of `id`, switched in one page: { label?, control?: slider|toggle|carousel, of: [{ label, params, caption? }] }." },
         rooms: { type: 'array', items: { type: 'string' }, description: 'Instead of id: made exhibits (refs) joined as one gallery; params: { intro, kiosk, curation }.' },
         start: { type: 'object', description: "A person's exhibit before it is made: { concept?, people?, time?, brought?, scales? } → the one question to ask, the fit. Builds nothing." },
+        contact: { type: 'string', description: "A made exhibit's ref: its tour's contact sheet, a PNG a row a stop." },
       },
       required: [],
     },

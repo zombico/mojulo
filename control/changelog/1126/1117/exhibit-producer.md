@@ -79,3 +79,12 @@ In progress. Each line is added as its phase lands.
   row, with its reason beside the pin.
 - **`CLAUDE.md` kept light**: a pointer to the exhibit producer's modules, and the game producer's paragraph and
   architecture entry cut to pointers. The steps live in the routing cards and the readouts.
+- **A tour's contact sheet** (`create_exhibit({ contact: '<ref>' })`; `exhibit/contact.js`, `motion/tour-contact.js`):
+  every stop of a made exhibit's tour as a visitor meets it, a row a stop, on one PNG in the exhibit's outcome folder.
+  The exhibit's own page is opened, each stop seated and photographed (its view, the part it lights, its caption on
+  the plate), the rule of thirds over each frame, and under it how long the stop is held and how much of the view its
+  lit part fills, in the camera's own words; the page audit's findings ride beside the stop they are about. The page
+  is the truth: it already seats and measures each stop, so nothing is solved a second time. It is what the agent
+  looks at first and what the person with the concept is shown before the tour is finished; whether it reads is the
+  eyes gate, theirs. The hand-off carries it as a step (`sheet`) between the machine gate and the person's look.
+  A gallery or a states page is asked for a room at a time.

@@ -218,6 +218,9 @@ describe('get_exhibit', () => {
     const { SCALES } = await import('@/lib/graph/exhibit/scales');
     const held = new Set((await getExhibitHandler({})).cards.map((c) => c.id));
     for (const [id, S] of Object.entries(SCALES)) for (const x of S.samples) expect(held.has(x), `${id}: ${x}`).toBe(true);
+    // a contact sheet is asked for one made, toured exhibit, alone
+    await expect(createExhibitHandler({ contact: 'no-such-ref' })).rejects.toThrow(/no exhibit with ref/);
+    await expect(createExhibitHandler({ contact: 'x', id: 'earth/hydro' })).rejects.toThrow(/`contact` is a made exhibit's ref, asked alone/);
     // without it the door reads as it always did
     expect((await getExhibitHandler({})).halls.length).toBeGreaterThan(0);
   });

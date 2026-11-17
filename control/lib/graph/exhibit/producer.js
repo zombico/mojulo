@@ -106,6 +106,8 @@ export const LIKE = Object.freeze({
  *     states   with `wants.compare`: the world at several settings, switched
  *     gallery  more than one room: the rooms joined, and the move between each two
  *     audit    the machine gate: get_exhibit({ ref, audit: true })
+ *     sheet    a toured room's contact sheet (create_exhibit({ contact: ref })): every stop as a visitor meets it,
+ *              what the agent looks at first and the person before the tour is finished
  *     show     the eyes gate, the person's; and the accuracy gate, the expert's
  */
 export function exhibitHandOff({ start, fit, scale }) {
@@ -127,6 +129,7 @@ export function exhibitHandOff({ start, fit, scale }) {
   if (fit.states) steps.push({ step: 'states', door: EXHIBIT_SIZES.states.door, says: fit.states.says });
   if (rooms > 1) steps.push({ step: 'gallery', door: EXHIBIT_SIZES.gallery.door, ...(scale?.zoom.length ? { zoom: scale.zoom } : {}), says: 'the rooms joined, in the order told: a lobby lists them, each walked in turn. The wing\'s own aims ride the gallery\'s curation' });
   steps.push({ step: 'audit', door: 'get_exhibit({ ref, audit: true })', says: 'the machine gate: is there a story, is each claim graded and cited, can a stop be read in its time, does each stop show something' });
+  if (fit.size !== 'view') steps.push({ step: 'sheet', door: 'create_exhibit({ contact: ref })', says: 'each room\'s contact sheet: every stop as a visitor meets it, a row a stop. Look at it yourself first, mend the stops in words (three rounds at most), then put it in front of them' });
   steps.push({ step: 'show', says: 'the person looks: the eyes gate is theirs, never claimed. Whether a claim is true is the expert\'s: their sign-off is recorded only when they say they signed' });
   return steps;
 }
