@@ -30,7 +30,7 @@ import { hudSubst, fmtDelta } from '../../game/hud-widgets.js';
 
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 
-export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false } = {}) {
+export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false, shared = null } = {}) {
   // (a level whose HUD is its own rows, `rows: 'events'`: lowered here, where the page emits them, game/hud-mana.js)
   if (hud && hud.rows === 'events' && !hud.spec) { const L = hudToMana(rows, { register, hero: hud.hero !== false, touch }); hud = { ...hud, spec: L.spec, feed: { ...L.feed, ...(hud.feed ?? {}) } }; }
   if (!hud || !hud.spec) return '';
@@ -49,12 +49,14 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     hud = { ...hud, spec: { ...hud.spec, hud: { ...hud.spec.hud, children: [...(hud.spec.hud.children ?? []), pad] } } };
   }
   const R = hud.feed && hud.feed.rows;
-  const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp' : ''}{display:none!important}`;
+  // (`shared`: the page carries the runtime and the theme's sheet once for its HUD and its screens, scene-three's
+  // prelude: this host names it and adds only its own rules; alone on a page, it carries both itself, as it did)
+  const css = `${shared ? '' : `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n`}#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp' : ''}{display:none!important}`;
   return `
 // THE HUD on mana-ui (channels/mana-hud.js): the level's own spec over a state this page feeds
 (function () {
   const CFG = ${json({ spec: hud.spec, feed: hud.feed ?? {} })}, GAME = ${game ? 'true' : 'false'};
-  const manaUi = ${manaUiSource()};
+  const manaUi = ${shared || manaUiSource()};
   const sheet = document.createElement('style'); sheet.textContent = ${json(css)}; document.head.appendChild(sheet);
   // (laid over the scene's own frame, as the level's widgets were: a letterboxed scene keeps its HUD inside it)
   const root = document.createElement('div'); root.id = 'moj-mana-hud'; (document.getElementById('wrap') || document.body).appendChild(root);

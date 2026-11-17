@@ -72,3 +72,36 @@ describe('the city\'s map', () => {
     expect(rt.view()).not.toMatch(/#[0-9a-f]{6}/i);
   });
 });
+
+describe('mana-ui once a page, and legends that say their keys', () => {
+  it('a page with the HUD and a screen carries the runtime once; each host names it; the HUD alone carries its own', async () => {
+    const { emitThreeWorld } = await import('../scene/scene-three.js');
+    const { bagUi } = await import('./bag-ui.js');
+    const quad = { corners: [[-9, -9, 0], [9, -9, 0], [9, 9, 0], [-9, 9, 0]], normal: [0, 0, 1], fill: '#777777', group: 'ground' };
+    const hero = { id: 'hero', pilotable: true, rule: { type: 'platform', speed: 5 }, body: { type: 'none' }, transform: { pos: [0, 0, 0], heading: 0 } };
+    const events = { hud: [{ var: 'coins', label: 'coins', as: 'counter', slot: 'top-right' }], reactions: [{ on: 'x', do: 'inc', var: 'coins', by: 1 }], vars: { coins: 0 } };
+    const manaHud = { rows: 'events', theme: 'console' };
+    const count = (html) => html.split('function buildManaUi').length - 1;
+    const alone = emitThreeWorld({ faces: [quad], entities: [hero], events, manaHud });
+    expect(count(alone)).toBe(1);
+    expect(alone).not.toContain('window.__mojMana');
+    const both = emitThreeWorld({ faces: [quad], entities: [hero], events, manaHud, cityMap: cityMap(PLAN, LEVEL), bagUi: bagUi({ game: { mechanics: [{ kind: 'bag', slice: 'bag' }, ...LEVEL.game.mechanics] } }) });
+    expect(count(both)).toBe(1);
+    expect(both.split('window.__mojMana').length - 1).toBeGreaterThanOrEqual(4);
+    for (const s of ['__mojMap', '__mojBag', 'moj-mana-hud']) expect(both).toContain(s);
+    const src = [...both.matchAll(/<script type="module">([\s\S]*?)<\/script>/g)].map((m) => m[1]).join('\n');
+    let bad = null;
+    try { execFileSync(process.execPath, ['--input-type=module', '--check'], { input: src, stdio: ['pipe', 'pipe', 'pipe'] }); } catch (e) { bad = String(e.stderr || e.message).slice(0, 300); }
+    expect(bad).toBe(null);
+  });
+  it('the map\'s legend names its keys, never an action\'s name', () => {
+    const M = cityMap(PLAN, LEVEL), spec = mapSpec(M);
+    const S = { map: { shapes: M.shapes, all: M.markers, near: [], you: { x: 0.5, y: 0.5 }, focus: { x: 0.5, y: 0.5 }, heading: 0, north: 0, zoom: 1, view: 'plan', key: M.key } };
+    const rt = manaUi.runtime(spec, { read: (p) => manaUi.readPath(S, p), act() {}, now: () => 0 });
+    rt.glyphs({ keys: { tabNext: 'V', up: '+', down: '−', back: 'M' } }); rt.input('keys');
+    rt.open('map');
+    const html = rt.view();
+    for (const k of ['>V<', '>+<', '>M<', 'View', 'Zoom']) expect(html).toContain(k);
+    for (const k of ['TABNEXT', 'ACCEPT', 'BACK<']) expect(html).not.toContain(k);
+  });
+});

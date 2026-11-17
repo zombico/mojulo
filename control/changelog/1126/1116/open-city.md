@@ -55,3 +55,9 @@
   the journal. Its title and the icon for any item are settings on the game's interface; an item with no icon named
   is drawn by its own word where there is a picture for it, otherwise as money, a person or a parcel.
 - **One screen at a time.** The journal, the map and the inventory no longer open on top of one another.
+- **Menus name the real keys.** The map, the inventory and the journal now show the keys that work them along the
+  bottom (V to change view, + and - to zoom, Q and E for tabs, the key that closes each) instead of internal action
+  names.
+- **Lighter pages.** A level that has the journal, the map or the inventory alongside its HUD now carries the game
+  interface system once instead of once for each, which takes about 0.7 MB off the open-city level page. Levels
+  with only a HUD are unchanged.

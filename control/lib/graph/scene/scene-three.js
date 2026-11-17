@@ -89,6 +89,9 @@ import { mountRideScript } from './channels/mount-ride.js';
 import { cabPoolScript } from './channels/cab-pool.js';
 import { mapScript } from './channels/map-channel.js';
 import { bagScript } from './channels/bag-channel.js';
+import { manaUiSource } from '../../mana-ui/kernel.js';
+import { manaCss } from '../../mana-ui/css.js';
+import { themeCss } from '../../mana-ui/theme.js';
 import { wetRoadScript } from './channels/wet-road.js';
 import { weatherScript, weatherForces } from './channels/weather.js';
 import { toneScript } from './channels/tone.js';
@@ -883,9 +886,15 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, faces = [], camer
   // reactions or sequences — it reacts to physics FACTS (via __mojSim, when physics is live) and/or
   // timer-driven sequences, reflecting verb effects onto marker meshes. No reactions/sequences → no
   // block (a bare `sources` list with nothing listening is inert, so it is not worth emitting).
+  // MANA-UI ONCE A PAGE: a page whose HUD is the game UI runtime's and which opens its screens too (the journal, the
+  // map, the bag: each a host of its own) carries the runtime and the theme's sheet ONCE, in a prelude each host names
+  // (`window.__mojMana`); a page with the HUD alone carries them in the HUD, as it did, byte for byte
+  const manaScreens = !!manaHud && !capture && (!!cityMap || !!bagUi || (manaHud.theme !== undefined && !!events && Array.isArray(events.quests) && events.quests.length > 0));
+  const manaShared = manaScreens ? 'window.__mojMana' : null;
+  const manaPrelude = manaScreens ? `// mana-ui, once for this page's HUD and screens (the game UI runtime and the theme's sheet)\nwindow.__mojMana = ${manaUiSource()};\n{ const __ms = document.createElement('style'); __ms.textContent = ${JSON.stringify(`${manaCss()}\n${themeCss(manaHud.theme ?? 'greybox')}`).replace(/</g, '\\u003c')}; document.head.appendChild(__ms); }\n` : '';
   const hasEvents = !!events && ((Array.isArray(events.reactions) && events.reactions.length > 0) || (Array.isArray(events.sequences) && events.sequences.length > 0) || (Array.isArray(events.hud) && events.hud.length > 0) || (Array.isArray(events.library) && events.library.length > 0));   // (a library alone is a channel: its shelf)
   // the effect light reads the level's sky: an effect lights a night world fully, a noon one a quarter as much
-  const eventsBlock = hasEvents ? eventsChannelScript(events, { ...(events.fxLight === true ? { fxDay: fxDay(sky && Array.isArray(sky.zenith) ? sky.zenith : hexRgb255(bg)) } : {}), ...(roll && roll.items ? { rollItems: true } : {}), ...(manaHud && !capture && manaHud.theme !== undefined ? { questMana: manaHud.theme ?? true } : {}) }) : '';
+  const eventsBlock = hasEvents ? eventsChannelScript(events, { ...(events.fxLight === true ? { fxDay: fxDay(sky && Array.isArray(sky.zenith) ? sky.zenith : hexRgb255(bg)) } : {}), ...(roll && roll.items ? { rollItems: true } : {}), ...(manaHud && !capture && manaHud.theme !== undefined ? { questMana: manaHud.theme ?? true, ...(manaShared ? { manaShared } : {}) } : {}) }) : '';
   // audio channel: never emitted on capture runs (headless bakes carry no sound and must stay
   // byte-identical to a muted live run); absent audio interpolates '' so no-audio worlds are
   // byte-identical to today.
@@ -896,7 +905,7 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, faces = [], camer
   // (a level with a ROLL says it is shown only once it has started: its first picture is the rolled one)
   const gameBlock = game ? gameChannelScript(game, roll ? { shownOnStart: true } : {}) : '';
   // the level's in-play HUD on mana-ui (channels/mana-hud.js): a level that carries one; absent, not a byte
-  const manaHudBlock = manaHud && !capture ? manaHudScript(manaHud, { game: !!game, rows: events?.hud ?? null, register: events?.register ?? null, touch: !!screen && !courseTouch && !runner }) : '';
+  const manaHudBlock = manaHud && !capture ? manaHudScript(manaHud, { game: !!game, rows: events?.hud ?? null, register: events?.register ?? null, touch: !!screen && !courseTouch && !runner, ...(manaShared ? { shared: manaShared } : {}) }) : '';
   const versusBlock = versus && !capture ? versusChannelScript(versus) : '';
   // a brawl on the world (lib/graph/brawl: the practice yard): it owns the camera; never on a capture run
   const brawlBlock = brawl && !capture ? brawlChannelScript(brawl) : '';
@@ -1069,9 +1078,9 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, faces = [], camer
   // a metro's traffic (channels/flow.js): its lanes stepped and its vehicles drawn near the camera; none ⇒ ''
   // (a played page with a car to get into: the traffic gives way to it and stands in its way, flow.js `play`)
   // a played city's map (channels/map-channel.js): a radar in the corner and the map on M, on mana-ui in the HUD's look; none ⇒ ''
-  const mapBlock = cityMap && manaHud && !capture ? mapScript(cityMap, manaHud.theme ?? null) : '';
+  const mapBlock = cityMap && manaHud && !capture ? mapScript(cityMap, manaHud.theme ?? null, manaShared ? { shared: manaShared } : {}) : '';
   // what the hero carries as a screen (channels/bag-channel.js): the inventory on I, on mana-ui in the HUD's look; none ⇒ ''
-  const bagBlock = bagUi && manaHud && !capture ? bagScript(bagUi, manaHud.theme ?? null) : '';
+  const bagBlock = bagUi && manaHud && !capture ? bagScript(bagUi, manaHud.theme ?? null, manaShared ? { shared: manaShared } : {}) : '';
   // the city's cars as bodies (channels/cab-pool.js): a cab drawn from the pooled templates, one taken from the traffic; none ⇒ ''
   const cabPoolBlock = hasPool && entityList.some((e) => e.mount && e.mount.cab && (e.mount.pool || e.mount.spare)) ? cabPoolScript() : '';
   const flowSpec = readFlow(flow), flowBlock = flowSpec && hasPool ? flowChannelScript(flowSpec, { play: entityList.some((e) => e.mount && e.mount.cab) }) : '';
@@ -1286,7 +1295,7 @@ const CAMS = ${safeJson(cams)};
 const BG = ${safeJson(bg)};
 const TEXTURES = ${hasTextures ? safeJson(textures) : '{}'};${resampled ? resampleScript(resampled) : ''}${movedTex ? `\nconst __MOVED = ${safeJson(Object.fromEntries([...movedGroups].map((g) => [g, 1])))};` : ''}${cutKeys.length ? `\nconst __CUT = ${safeJson(Object.fromEntries(cutKeys.map((k) => [k, 1])))};` : ''}${softKeys.length ? `\nconst __SOFT = ${safeJson(Object.fromEntries(softKeys.map((k) => [k, 1])))};` : ''}
 const WIREFRAME0 = ${wireframe ? 'true' : 'false'};   // start in construction-wireframe mode?
-function decodeF32(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new Float32Array(u.buffer); }${hasCompact ? `\nfunction __q16(s, b){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); const q=new Int16Array(u.buffer), o=new Float32Array(q.length); for(let i=0;i<q.length;i++){ const k=i%3; o[i]=b[k]+(q[i]+32768)*b[3+k]; } return o; }\nfunction __c8(s){ const bin=atob(s); const o=new Float32Array(bin.length); for(let i=0;i<bin.length;i++){ const v=bin.charCodeAt(i)/255; o[i]=v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4); } return o; }` : ''}
+${manaPrelude}function decodeF32(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new Float32Array(u.buffer); }${hasCompact ? `\nfunction __q16(s, b){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); const q=new Int16Array(u.buffer), o=new Float32Array(q.length); for(let i=0;i<q.length;i++){ const k=i%3; o[i]=b[k]+(q[i]+32768)*b[3+k]; } return o; }\nfunction __c8(s){ const bin=atob(s); const o=new Float32Array(bin.length); for(let i=0;i<bin.length;i++){ const v=bin.charCodeAt(i)/255; o[i]=v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4); } return o; }` : ''}
 function decodeU8(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }${pack ? "\nconst __SRGB_LIN = Float32Array.from({ length: 256 }, (_, i) => { const c = i / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });" : ''}
 
 const wrap = document.getElementById('wrap'), canvas = document.getElementById('c'), hud = document.getElementById('hud');

@@ -16,12 +16,14 @@ const txt = (value, role) => ({ use: 'text', props: { value, ...(role ? { role }
 
 /** The spec it draws: mana's inventory, each item by its own icon (an item's `icon`, a name the shelf may not have). */
 export function bagSpec(G) {
-  return { screens: { bag: { use: 'screen', props: { title: G.title, layer: 'modal', place: 'full' }, children: [
+  return { screens: { bag: { use: 'screen', props: { title: G.title, layer: 'modal', place: 'full', legend: 'none' }, children: [
     ...(G.money ? [{ use: 'counter', props: { label: { word: 'gold' }, value: B('money'), icon: 'coin' } }] : []),
     { use: 'window', children: [{ use: 'tabs', props: { pages: B('categories'), page: { use: 'split', props: { ratio: 'wide' }, children: [
       { use: 'grid', id: 'bag', props: { cells: I('items'), columns: 4, empty: 'Nothing carried', cell: { use: 'stack', props: { align: 'center', gap: 'tight' }, children: [{ use: 'icon', props: { name: I('icon'), size: 'l' } }, txt(I('name'), 'caption'), { use: 'badge', props: { value: { format: 'x{count}' } } }] } } },
       { use: 'stack', props: { gap: 'normal' }, children: [txt(K('bag.name'), 'title'), txt(K('bag.kind'), 'label'), txt(K('bag.about')), { use: 'stat', props: { label: { word: 'held' }, value: K('bag.count') } }] },
     ] } } }] },
+    // (a legend of its own keys: nothing in it is used yet, so no accept is offered)
+    { use: 'legend', props: { rows: [{ actions: ['tabPrev', 'tabNext'], label: { word: 'tabs' } }, { action: 'back', label: { word: 'back' } }] } },
   ] } } };
 }
 const BAG_CSS = '.moj-bag{position:absolute;inset:0;pointer-events:none;z-index:8}.moj-bag .mana-root{background:none}.moj-bag.open{z-index:34;pointer-events:auto}';
@@ -32,6 +34,8 @@ export function bagPage(G, ui, spec, css) {
   const root = document.createElement('div'); root.className = 'moj-bag'; (document.getElementById('wrap') || document.body).appendChild(root);
   const S = { bag: { categories: [], money: 0 } };
   const rt = ui.runtime(spec, { read: (p) => ui.readPath(S, p), act: function () {}, now: () => performance.now() / 1000 });
+  // (its legend says the keys that work it)
+  rt.glyphs({ keys: { tabPrev: 'Q', tabNext: 'E', back: 'I' } }); rt.input('keys');
   ui.mount(root, rt, { auto: true });
   let open = false, sig = '';
   function read() {
@@ -65,12 +69,12 @@ export function bagPage(G, ui, spec, css) {
 }
 
 /** The page's script ('' for none). `theme`: the look the level's HUD wears. */
-export function bagScript(G, theme = null) {
+export function bagScript(G, theme = null, { shared = null } = {}) {
   if (!G || !Array.isArray(G.items)) return '';
   const spec = bagSpec(G);
   manaUi.readSpec(spec);
   return `
 // THE BAG (scene/channels/bag-channel.js): what is carried, on I, mana-ui's inventory; laid by gameworld/bag-ui.js
-window.__mojBag = (${bagPage.toString()})(${json(G)}, ${manaUiSource()}, ${json(spec)}, ${json(`${manaCss()}\n${themeCss(theme ?? 'greybox')}\n${BAG_CSS}`)});
+window.__mojBag = (${bagPage.toString()})(${json(G)}, ${shared || manaUiSource()}, ${json(spec)}, ${json(shared ? BAG_CSS : `${manaCss()}\n${themeCss(theme ?? 'greybox')}\n${BAG_CSS}`)});
 `;
 }

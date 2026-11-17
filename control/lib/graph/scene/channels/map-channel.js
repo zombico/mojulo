@@ -17,8 +17,16 @@ const B = (p) => ({ bind: `map.${p}` });
 
 /** The spec it draws: the radar (where the map asks for one) and the opened map. */
 export function mapSpec(M) {
+  // (mana's `map-screen`, with a legend of its own keys: the view turned, the zoom, the way out)
+  const screen = { use: 'screen', props: { title: 'Map', layer: 'modal', place: 'full', legend: 'none' }, children: [
+    { use: 'split', props: { ratio: 'wide' }, children: [
+      { use: 'window', children: [{ use: 'map', props: { shapes: B('shapes'), markers: B('all'), view: B('view'), focus: B('focus'), heading: B('heading'), zoom: B('zoom'), size: 'full', labels: true } }] },
+      { use: 'window', props: { title: { word: 'map' } }, children: [{ use: 'each', props: { rows: B('key'), row: { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [{ use: 'icon', props: { name: { item: 'icon' } } }, { use: 'text', props: { value: { item: 'name' } } }] } } }] },
+    ] },
+    { use: 'legend', props: { rows: [...(M.views.length > 1 ? [{ action: 'tabNext', label: 'View' }] : []), { actions: ['up', 'down'], label: 'Zoom' }, { action: 'back', label: { word: 'back' } }] } },
+  ] };
   return withIdioms({
-    screens: { map: { use: 'map-screen', props: { title: 'Map', shapes: B('shapes'), markers: B('all'), view: B('view'), focus: B('focus'), heading: B('heading'), zoom: B('zoom'), key: B('key') } } },
+    screens: { map: screen },
     hud: { use: 'hud', children: M.corner ? [{ use: 'radar-corner', props: { shapes: B('shapes'), markers: B('near'), focus: B('you'), heading: B(M.corner === 'follow' ? 'heading' : 'north'), zoom: M.zoom } }] : [] },
   });
 }
@@ -30,6 +38,8 @@ export function mapPage(M, ui, spec, css) {
   const root = document.createElement('div'); root.className = 'moj-map'; (document.getElementById('wrap') || document.body).appendChild(root);
   const S = { map: { shapes: M.shapes, all: M.markers, near: [], you: { x: 0.5, y: 0.5 }, focus: { x: 0.5, y: 0.5 }, heading: 0, north: 0, zoom: 1, view: M.views[0], key: M.key } };
   const rt = ui.runtime(spec, { read: (p) => ui.readPath(S, p), act: function () {}, now: () => performance.now() / 1000 });
+  // (its legend says the keys that work it)
+  rt.glyphs({ keys: { tabNext: 'V', up: '+', down: '−', back: 'M' } }); rt.input('keys');
   ui.mount(root, rt, { auto: true });
   const X = (x) => (x - M.box[0]) / M.side, Y = (y) => 1 - (y - M.box[1]) / M.side, r4 = (v) => Math.round(v * 1e4) / 1e4;
   let open = false, vi = 0, zoom = 1, last = 0, sig = '';
@@ -72,12 +82,12 @@ export function mapPage(M, ui, spec, css) {
 }
 
 /** The page's script ('' for none). `theme`: the look the level's HUD wears. */
-export function mapScript(M, theme = null) {
+export function mapScript(M, theme = null, { shared = null } = {}) {
   if (!M || !Array.isArray(M.shapes) || !Array.isArray(M.views) || !M.views.length) return '';
   const spec = mapSpec(M);
   manaUi.readSpec(spec);
   return `
 // THE MAP (scene/channels/map-channel.js): a radar in the corner and the map on M, mana-ui's; its ground gameworld/city-map.js
-window.__mojMap = (${mapPage.toString()})(${json(M)}, ${manaUiSource()}, ${json(spec)}, ${json(`${manaCss()}\n${themeCss(theme ?? 'greybox')}\n${MAP_CSS}`)});
+window.__mojMap = (${mapPage.toString()})(${json(M)}, ${shared || manaUiSource()}, ${json(spec)}, ${json(shared ? MAP_CSS : `${manaCss()}\n${themeCss(theme ?? 'greybox')}\n${MAP_CSS}`)});
 `;
 }

@@ -40,6 +40,8 @@ export function questManaPage(ui, spec, css) {
   const root = document.createElement('div'); root.className = 'moj-qm'; (document.getElementById('wrap') || document.body).appendChild(root);
   const S = { quests: [], questToasts: [] };
   const rt = ui.runtime(spec, { read: (p) => ui.readPath(S, p), act: function () {}, now: () => performance.now() / 1000 });
+  // (its legend says the keys that work it)
+  rt.glyphs({ keys: { back: 'J', accept: 'Enter', up: '↑', down: '↓' } }); rt.input('keys');
   ui.mount(root, rt, { auto: true });
   let open = false, nth = 0;
   const WORD = { begun: 'New quest', step: 'Done', done: 'Quest complete' }, WEIGHT = { begun: 'normal', step: 'minor', done: 'major' };
@@ -53,7 +55,7 @@ export function questManaPage(ui, spec, css) {
   };
 }
 
-export function questScript({ mana = null } = {}) {
+export function questScript({ mana = null, shared = null } = {}) {
   if (mana) {
     const spec = questManaSpec();
     manaUi.readSpec(spec);
@@ -61,7 +63,7 @@ export function questScript({ mana = null } = {}) {
 // QUESTS on mana-ui: the journal (playscape/ui/quests.js) its quest-log screen, its words its quest toasts; J to open
 const __QV = ${questView.toString()};
 const __QN = ${questNews.toString()};
-const __qm = (${questManaPage.toString()})(${manaUiSource()}, ${json(spec)}, ${json(`${manaCss()}\n${themeCss(mana === true ? 'greybox' : mana)}\n${QM_CSS}`)});
+const __qm = (${questManaPage.toString()})(${shared || manaUiSource()}, ${json(spec)}, ${json(shared ? QM_CSS : `${manaCss()}\n${themeCss(mana === true ? 'greybox' : mana)}\n${QM_CSS}`)});
 let __qSeen = 0;
 function __qShow(open) {
   if (open && ((window.__mojScenes && window.__mojScenes.on()) || window.__mojManaOpen)) return;   // not over a scene, nor over another mana screen (the map, the bag)
