@@ -295,6 +295,8 @@ export function sheetBed(G, { manifest = null } = {}) {
   const words = [P.weather, P.hour, P.own, P.world && WOODED.test(P.world) ? P.world : null].filter(Boolean).join(' ');
   const hit = words ? ENVIRONMENTS.find((x) => x.test.test(words)) : null;
   if (hit) return hit.bed;
+  // (a played town or district: the street's own bed)
+  if (playedCity(manifest)) return 'city';
   return P.own && (P.shell === 'nature' || P.shell === 'jungle') ? 'forest' : null;
 }
 
@@ -392,4 +394,22 @@ export function rideSound(G, { words = '', top = null, quick = G?.quick } = {}) 
   const hit = own ? null : ENGINES.find((e) => e.test.test(String(words).toLowerCase()));
   const voice = own ? resolveSoundId(own) : hit.voice;
   return { engine: { voice, top: Math.round(top * 100) / 100 }, why: own ? 'the game says so' : `${SOUNDS[voice].label}${words ? ` (${String(words).trim()})` : ''}` };
+}
+
+// a level that is a played town or district (a geocube's geotown or geocity, played: its entities or its game)
+const playedCity = (manifest) => !!manifest && manifest.kind === 'geocube' && (manifest.show === 'geocity' || manifest.show === 'geotown');
+
+/** THE CITY'S CARS, HEARD: a sheet game's played town or district, where every parked car can be got into (cars.js).
+ * Its engine is the car's (a held voice by the speed of the car the pilot rides, `cab`: silent on foot), and its
+ * one-shots the door as a car is got into and out of, the horn (H, at the wheel) and a crash on a hard stop: the
+ * shelf's words in the sheet's style, as cues the audio channel plays. → { engine, cues, why } or null (a game on no
+ * sheet, a level that is no played city, or `sound.ride: false`). */
+export const CITY_CAR = Object.freeze({ top: 28, door: 'car-door', horn: 'car-horn', crash: 'car-crash' });
+export function citySounds(G, { manifest = null, quick = G?.quick } = {}) {
+  if (!onSheet(G, quick) || !playedCity(manifest)) return null;
+  const R = rideSound(G, { quick, words: 'car', top: CITY_CAR.top });
+  if (!R) return null;
+  const style = soundSheet(G, { manifest }).style, cue = (w) => sfxSound(w, { style })?.gestures ?? sfxSound(w)?.gestures ?? null;
+  const cues = Object.fromEntries([['car:door', CITY_CAR.door], ['car:horn', CITY_CAR.horn], ['car:crash', CITY_CAR.crash]].map(([k, w]) => [k, cue(w)]).filter(([, g]) => g));
+  return { engine: { ...R.engine, cab: true }, cues, why: `${R.why}, heard only at the wheel; the door, the horn, a crash` };
 }

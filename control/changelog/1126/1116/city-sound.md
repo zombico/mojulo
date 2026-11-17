@@ -1,0 +1,14 @@
+### City sound: the open city heard
+
+- **The city has a sound of its own.** A game on the sound sheet (`sound: {}`) hears a played town or district as a
+  street: a horn now and then, a siren far off, sparrows (a new `city` bed, also asked for as street, town or
+  downtown). Footsteps, the punches, a crew's shouts and grunts, and the score (`music: {}`) with the fight cue coming
+  in as a fight starts all come from what the game already is.
+- **The cars are heard, but only at the wheel.** A car's engine rises and falls with the speed of the car you are
+  driving, and is silent on foot. A car door sounds as you get in or out, H sounds the horn, and hitting something at
+  speed sounds a crash.
+- **The jobs are heard.** Taking a job from someone, a call with the next one (two pips, until the shelf has a phone
+  ring), a TaskFu task, subscribing, joining a faction, taking a posting, finishing it, a fight starting and going
+  down each have a sound.
+- **Lighter street people.** Each passer-by is now packed (each corner once, weights a byte each): a person is about
+  a quarter of the size, so a street of them costs less than it did before they were cleaned up.

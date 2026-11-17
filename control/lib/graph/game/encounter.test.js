@@ -49,7 +49,7 @@ describe('an encounter in free roam', () => {
     const hit = play([take, there, { event: 'hit:hero' }, { event: 'hit:hero' }]);
     expect(hit.vars['fight-hp-torch']).toBe(60);
     const lost = play([take, there, fall(0), ...Array.from({ length: 5 }, () => ({ event: 'hit:hero' }))]);
-    expect(lost.log).toContain('encounter:lost:torch');
+    expect(lost.log).toContain('encounter-lost:torch');
     expect(lost.vars).toMatchObject({ 'fight-hp-torch': 100, 'fight-fell-torch': 0, 'fight-on-torch': 0, 'flag-done-torch': 0 });
     const back = play([take, there, ...Array.from({ length: 5 }, () => ({ event: 'hit:hero' })), away, there, fall(0), fall(1)]);
     expect(back.log.filter((t) => t === 'encounter:torch')).toHaveLength(2);

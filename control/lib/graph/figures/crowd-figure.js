@@ -23,9 +23,10 @@
  *
  *   CROWD            the numbers: a figure's triangles, the grid's first cell as a share of its height, how it coarsens
  *   crowdFigure(fig, { budget?, stand? })   (`stand`: one that waits somewhere keeps its idle beside its walk) →
- *                    { rig: true, crowd: true, bones, parts: [{ pos, col, faces, jnt?, wgt? } | null], clips: { forward },
- *                    figH, tris, cell }: the walkers' format (scene/channels/walkers.js: unindexed corners, their colours
- *                    and, skinned, their bones and weights; one `forward` clip, the figure's walk)
+ *                    { rig: true, crowd: true, bones, parts: [{ pos, col, idx, n, faces, jnt?, wgt?, wq? } | null],
+ *                    clips: { forward }, figH, tris, cell }: the walkers' format (scene/channels/walkers.js: its corners
+ *                    once each, the triangles an index into them, their colours and, skinned, their bones and their
+ *                    weights a byte each, `wq: 8`; one `forward` clip, the figure's walk)
  *
  * Pure and deterministic: no dice; a figure and a budget give one crowd figure.
  */
@@ -142,6 +143,26 @@ function gather(src, cell, hidden = null) {
   return { parts, keyed, cells, tris };
 }
 
+// PACKED for a street of them (a crowd figure is inlined on the page, a person a few hundred kilobytes): the corners
+// that are the same corner (the same point, colour, bones and weights) kept once and the triangles an index into them
+// (`idx`, `n`); the weights in eighths of a byte's range (`wq: 8`: a byte each, 0..255 for 0..1, four to a corner)
+function packed(pos, col, jnt, wgt, faces) {
+  const seen = new Map(), P = [], C = [], J = [], W = [], I = new Array(pos.length / 3);
+  for (let o = 0; o < pos.length / 3; o++) {
+    const w8 = jnt ? [0, 1, 2, 3].map((c) => Math.round(Math.max(0, Math.min(1, wgt[4 * o + c])) * 255)) : null;
+    const k = `${pos[3 * o]},${pos[3 * o + 1]},${pos[3 * o + 2]}|${col[3 * o]},${col[3 * o + 1]},${col[3 * o + 2]}${jnt ? `|${jnt[4 * o]},${jnt[4 * o + 1]},${jnt[4 * o + 2]},${jnt[4 * o + 3]}|${w8.join(',')}` : ''}`;
+    let v = seen.get(k);
+    if (v === undefined) {
+      v = P.length / 3; seen.set(k, v);
+      P.push(pos[3 * o], pos[3 * o + 1], pos[3 * o + 2]); C.push(col[3 * o], col[3 * o + 1], col[3 * o + 2]);
+      if (jnt) { J.push(jnt[4 * o], jnt[4 * o + 1], jnt[4 * o + 2], jnt[4 * o + 3]); W.push(...w8); }
+    }
+    I[o] = v;
+  }
+  const n = P.length / 3, idx = n > 65535 ? Uint32Array.from(I) : Uint16Array.from(I);
+  return { pos: b64(Float32Array.from(P)), col: b64(Uint8Array.from(C)), idx: b64(idx), n, faces, ...(jnt ? { jnt: b64(Uint8Array.from(J)), wgt: b64(Uint8Array.from(W)), wq: 8 } : {}) };
+}
+
 export function crowdFigure(fig, { budget = CROWD.budget, stand = false } = {}) {
   if (!fig || fig.rig !== true || !Array.isArray(fig.bones) || !Array.isArray(fig.parts)) throw new Error('crowd figure: give a baked rig figure (bones, parts, clips)');
   const walk = fig.clips?.walk ?? fig.clips?.forward;
@@ -172,7 +193,7 @@ export function crowdFigure(fig, { budget = CROWD.budget, stand = false } = {}) 
       for (let c = 0; c < 3; c++) col[3 * o + c] = S.C ? S.C[3 * v + c] : 200;
       if (jnt) for (let c = 0; c < 4; c++) { jnt[4 * o + c] = S.J[4 * v + c]; wgt[4 * o + c] = S.W[4 * v + c]; }
     }
-    return { pos: b64(pos), col: b64(col), faces: list.length, ...(jnt ? { jnt: b64(jnt), wgt: b64(wgt) } : {}) };
+    return packed(pos, col, jnt, wgt, list.length);
   });
   return {
     rig: true, crowd: true, bones: fig.bones, parts,

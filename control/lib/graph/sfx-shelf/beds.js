@@ -31,6 +31,10 @@ export const BEDS = Object.freeze({
     { word: 'frog', hits: 4, vel: [0.4, 0.6], pan: -0.3 }, { word: 'frog', hits: 3, vel: [0.3, 0.5], pan: 0.4 },
     { word: 'cricket', hits: 3, vel: [0.25, 0.4], pan: 0.1 }, { word: 'bubbling', hits: 2, vel: [0.3, 0.45], pan: -0.1 },
     { word: 'fly', hits: 1, vel: [0.25, 0.35], pan: 0.3 }] },
+  city: { label: 'a city street: a horn now and then, a siren far off, sparrows', aliases: ['city', 'street', 'town', 'downtown', 'urban', 'district'], bpm: 90, tracks: [
+    { word: 'car-horn', hits: 1, vel: [0.12, 0.2], pan: -0.6 }, { word: 'car-horn', hits: 1, vel: [0.08, 0.14], pan: 0.55 },
+    { word: 'siren', hits: 1, vel: [0.06, 0.09], pan: 0.3 }, { word: 'bird-chirp', hits: 3, vel: [0.2, 0.35], pan: -0.3 },
+    { word: 'sparrow', hits: 2, vel: [0.18, 0.3], pan: 0.45 }] },
   farm: { label: 'a farmyard: hens, ducks, a goose, the rooster now and then', aliases: ['farm', 'farmyard', 'barnyard'], bpm: 90, tracks: [
     { word: 'chicken', hits: 3, vel: [0.35, 0.55], pan: -0.4 }, { word: 'duck', hits: 2, vel: [0.3, 0.5], pan: 0.4 },
     { word: 'goose', hits: 1, vel: [0.3, 0.45], pan: 0.2 }, { word: 'rooster', hits: 1, vel: [0.4, 0.5], pan: -0.1 }] },

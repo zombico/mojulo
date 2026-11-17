@@ -97,6 +97,8 @@ export function walkerSkinStretch(fig, { clips = null } = {}) {
 export function walkersChannelScript(walkers, bank, { cast = false, signals = null, capture = false } = {}) {
   const held = walkers.some((w) => Array.isArray(w.holds));
   const skinOf = (f) => !!f && Array.isArray(f.parts) && f.parts.some((p) => p && p.jnt && p.wgt);
+  // (a crowd figure's packed parts, figures/crowd-figure.js: an index into its corners; none packed ⇒ not a byte)
+  const packedIn = Object.values(bank || {}).some((f) => f && Array.isArray(f.parts) && f.parts.some((p) => p && p.idx));
   const blend = walkers.some((w) => w.blend && skinOf(bank[w.figure]));
   const bones = blend ? Math.max(...walkers.filter((w) => w.blend && skinOf(bank[w.figure])).map((w) => bank[w.figure].bones.length)) : 0;
   const follow = !capture && walkers.some((w) => w.follow);
@@ -111,7 +113,9 @@ const __wONE = new THREE.Vector3(1, 1, 1);${held ? `
 const WSIGNALS = ${safeJson(signals || [])};
 ${HELD_WALK_SOURCE}
 const __wStep = (r, sec) => heldWalk(r.w.holds, r.w.speed, r.held, r.total, sec, WSIGNALS);` : ''}
-// build one rig group per walker from its referenced bake — a compact __makeRigGroup (bone meshes
+${packedIn ? `// a packed part's index (a crowd figure's, figures/crowd-figure.js: its corners once each): 16-bit, or 32 past 65535
+const __wIdx = (part) => { const b = decodeU8(part.idx).slice(); return part.n > 65535 ? new Uint32Array(b.buffer) : new Uint16Array(b.buffer); };
+` : ''}// build one rig group per walker from its referenced bake — a compact __makeRigGroup (bone meshes
 // only; no muzzle / thruster / weapon locators, since ambient walkers never fight).
 function __buildWalkerRig(fig) {
   const group = new THREE.Group();
@@ -121,7 +125,7 @@ function __buildWalkerRig(fig) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(part.pos), 3));
     geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));
-    geo.computeBoundingSphere();
+${packedIn ? '    if (part.idx) geo.setIndex(new THREE.BufferAttribute(__wIdx(part), 1));\n' : ''}    geo.computeBoundingSphere();
     const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));${cast ? '\n    mesh.castShadow = true;' : ''}
     mesh.matrixAutoUpdate = false;   // one composed matrix per bone per frame
     mesh.frustumCulled = false;      // matrices mutate every frame
@@ -144,11 +148,12 @@ function __buildWalkerSkin(fig) {
   mat.userData.prepass = (vs) => ({ vertexShader: __wSkinPars + vs.replace('#include <begin_vertex>', __wSkinMove), uniforms: { uWB: U } });
   fig.parts.forEach((part, bi) => {
     if (!part) return;
-    const geo = new THREE.BufferGeometry(), n = part.faces * 3;
+    const geo = new THREE.BufferGeometry(), n = ${packedIn ? 'part.idx ? part.n : ' : ''}part.faces * 3;
     geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(part.pos), 3));
-    geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));
+    geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));${packedIn ? `
+    if (part.idx) geo.setIndex(new THREE.BufferAttribute(__wIdx(part), 1));` : ''}
     // (a part with no skin of its own, a held thing, rides its bone whole)
-    const J = part.jnt ? Float32Array.from(decodeU8(part.jnt)) : Float32Array.from({ length: n * 4 }, () => bi), W = part.wgt ? decodeF32(part.wgt) : Float32Array.from({ length: n * 4 }, (_, i) => (i % 4 ? 0 : 1));
+    const J = part.jnt ? Float32Array.from(decodeU8(part.jnt)) : Float32Array.from({ length: n * 4 }, () => bi), W = part.wgt ? (${packedIn ? 'part.wq === 8 ? Float32Array.from(decodeU8(part.wgt), (x) => x / 255) : ' : ''}decodeF32(part.wgt)) : Float32Array.from({ length: n * 4 }, (_, i) => (i % 4 ? 0 : 1));
     geo.setAttribute('aWJ', new THREE.BufferAttribute(J, 4)); geo.setAttribute('aWW', new THREE.BufferAttribute(W, 4));
     const mesh = new THREE.Mesh(geo, mat);${cast ? '\n    mesh.castShadow = true;' : ''}
     mesh.matrixAutoUpdate = false; mesh.frustumCulled = false;
