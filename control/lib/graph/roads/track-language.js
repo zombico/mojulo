@@ -9,6 +9,12 @@
  *   parts     way    { material } | { from: 'kit' } (the look's own asphalt, its wear and its repairs)
  *                    a way of its own material may be laid in BANDS (`bands: { every, material }`: its second tone by
  *                    turns, so the way is seen to move) and carry a centre DASH (`dash: { every, len, w, material }`)
+ *                    and CHEVRONS (`chevrons: { before: [m…], w, len, t, materials }`): arrows on the way before a
+ *                    corner, pointing into it, laid on the OUTSIDE half (where the corner is come at from)
+ *             bunting { min, every, h, sag, flags, drop, pole, materials }: a line of pennants on tall poles along a
+ *                    straight of `min` metres or more, down ONE side (the side by turns, straight to straight)
+ *             tree   { profile: 'lollipop', blossom?: { share, materials } }: the land's trees built as the track is
+ *                    (a stout trunk, a crown of balls set off-centre), a share of them in blossom
  *             verge  { mown: { every, lift } }: the run-off mown in stripes across the way (the look's own grass, a
  *                    stripe lighter by `lift`), so the sides are seen to move too
  *             edge   { profile: 'bead', w, h, material } | { from: 'kit' } (a painted line)
@@ -58,8 +64,11 @@ export const TRACK_LANGUAGES = Object.freeze({
       lemon: { of: 'plastic', finish: 'gloss', hex: '#ffd03a' },
     }),
     parts: Object.freeze({
-      way: { material: 'fondant', bands: { every: 8, material: 'icing' }, dash: { every: 8, len: 3, w: 0.28, material: 'cream' } },
+      way: { material: 'fondant', bands: { every: 8, material: 'icing' }, dash: { every: 8, len: 3, w: 0.28, material: 'cream' },
+        chevrons: { before: [12, 26, 40], w: 3.1, len: 8, t: 2.2, materials: ['berry', 'cream'] } },
       verge: { mown: { every: 4, lift: 1.1 } },
+      bunting: { min: 34, every: 16, h: 4.6, sag: 0.9, flags: 9, drop: 0.85, pole: { r: 0.11, material: 'cream', cap: { r: 0.26, material: 'lemon' } }, materials: ['berry', 'lemon', 'sky', 'cream'] },
+      tree: { profile: 'lollipop', blossom: { share: 0.16, materials: ['berry', 'lemon'] } },
       edge: { profile: 'bead', w: 0.34, h: 0.08, material: 'cream' },
       kerb: { profile: 'pillow', h: 0.17, materials: ['berry', 'cream'] },
       rail: { profile: 'tube', r: 0.33, z: 0.6, material: 'sky', tell: ['berry', 'cream'],
@@ -166,6 +175,85 @@ export function edgeFaces(card, { P, A, B, side, to }) {
   return sweep(pillow(P, A, side, to - E.w, to, E.h, 4), pillow(P, B, side, to - E.w, to, E.h, 4), M, 'edge', { closed: false, away: [0, 0, 1] });
 }
 
+// a ball of `seg` sides, flattened by `squash`, each face looking out of it
+function ballFaces(c, r, M, part, { seg = 8, squash = 1 } = {}) {
+  const out = [], F = [-0.8, -0.35, 0.15, 0.6, 0.92];
+  const ring = (f) => Array.from({ length: seg }, (_, k) => { const t = (k / seg) * 2 * Math.PI, q = Math.cos(Math.asin(f)); return [c[0] + r * q * Math.cos(t), c[1] + r * q * Math.sin(t), c[2] + r * f * squash]; });
+  const L = F.map(ring), top = [c[0], c[1], c[2] + r * squash], bot = [c[0], c[1], c[2] - r * squash];
+  for (let i = 0; i < L.length - 1; i++) for (let k = 0; k < seg; k++) { const q = [L[i][k], L[i][(k + 1) % seg], L[i + 1][(k + 1) % seg], L[i + 1][k]]; out.push(facing(q, sub(mean(q), c), M, part)); }
+  for (let k = 0; k < seg; k++) { const a = [L[L.length - 1][k], L[L.length - 1][(k + 1) % seg], top], b = [L[0][(k + 1) % seg], L[0][k], bot]; out.push(facing(a, sub(mean(a), c), M, part), facing(b, sub(mean(b), c), M, part)); }
+  return out;
+}
+// a round pole standing on `base`, `h` high, and the ball on its head
+function poleFaces(base, Q, h, M, C, part) {
+  const out = [], n = 7, ring = (z) => Array.from({ length: n }, (_, k) => { const t = (k / n) * 2 * Math.PI; return [base[0] + Q.r * Math.cos(t), base[1] + Q.r * Math.sin(t), base[2] + z]; }), lo = ring(-0.2), hi = ring(h);
+  for (let k = 0; k < n; k++) { const q = [lo[k], lo[(k + 1) % n], hi[(k + 1) % n], hi[k]]; out.push(facing(q, sub(mean(q), [base[0], base[1], mean(q)[2]]), M, part)); }
+  if (C) out.push(...ballFaces([base[0], base[1], base[2] + h + Q.cap.r * 0.6], Q.cap.r, C, 'cap', { seg: 8 }));
+  return out;
+}
+
+/**
+ * One CHEVRON on the way: an arrow lying across it, pointing to `d` (+1 left, −1 right), its middle at `s` metres along
+ * and `c` metres off the line. `point(s, off, dz)`: the track's frame along the line. → { corners, hex }[] (flat paint).
+ */
+export function chevronFaces(card, { point, s, c, d, index = 0 }) {
+  const V = card.parts.way.chevrons, M = matOf(card, V.materials[index % V.materials.length]), z = 0.03, h = V.w / 2, L = V.len / 2;
+  const tail = c - d * h, tip = c + d * h;
+  // each arm in pieces, so it lies on a way that banks and bends under it
+  const out = [], N = 4, lerp = (p, q, u) => [p[0] + (q[0] - p[0]) * u, p[1] + (q[1] - p[1]) * u];
+  for (const [a0, a1] of [[s - L, s - L + V.t], [s + L - V.t, s + L]]) for (let i = 0; i < N; i++) {
+    const A = [lerp([a0, tail], [s - V.t / 2, tip], i / N), lerp([a1, tail], [s + V.t / 2, tip], i / N)], B = [lerp([a0, tail], [s - V.t / 2, tip], (i + 1) / N), lerp([a1, tail], [s + V.t / 2, tip], (i + 1) / N)];
+    out.push({ corners: [point(A[0][0], A[0][1], z), point(A[1][0], A[1][1], z), point(B[1][0], B[1][1], z), point(B[0][0], B[0][1], z)], hex: M.hex });
+  }
+  return out;
+}
+
+/**
+ * BUNTING along one side of a straight from `s0` to `s1`: poles every `every` metres, `off` metres off the line, a
+ * sagging line of pennants between each pair, their colours by turns. → raw faces.
+ */
+export function buntingFaces(card, { point, s0, s1, off }) {
+  const B = card.parts.bunting, out = [], P0 = matOf(card, B.pole.material), C0 = B.pole.cap ? matOf(card, B.pole.cap.material) : null;
+  const n = Math.floor((s1 - s0 - 8) / B.every);
+  if (n < 1) return out;
+  const lead = (s1 - s0 - n * B.every) / 2;
+  let flag = 0;
+  for (let j = 0; j <= n; j++) {
+    const s = s0 + lead + j * B.every;
+    out.push(...poleFaces(point(s, off, 0), B.pole, B.h, P0, C0, 'pole'));
+    if (j === n) break;
+    const at = (u) => point(s + u * B.every, off, B.h - B.sag * 4 * u * (1 - u));
+    for (let k = 0; k < B.flags; k++, flag++) {
+      const u0 = (k + 0.12) / B.flags, u1 = (k + 0.88) / B.flags, a = at(u0), b = at(u1), m = at((u0 + u1) / 2), M = matOf(card, B.materials[flag % B.materials.length]);
+      // a pennant hangs in the plane of its line: it looks across the way
+      const along = sub(b, a), across = [-along[1], along[0], 0];
+      out.push(facing([a, b, [m[0], m[1], m[2] - B.drop]], across, M, 'bunting'));
+    }
+  }
+  return out;
+}
+
+/**
+ * A TREE as the track is built: a stout trunk and a crown of balls, the lobes set off-centre (no two alike, none
+ * symmetric). `leaf`: the land's greens (three hexes, dark to light), `bark` its trunk's; a share in blossom wears
+ * the language's own colours, paled. → raw faces.
+ */
+export function treeFaces(card, { at, h, rnd, leaf, bark }) {
+  const T = card.parts.tree, out = [], r = h * (0.27 + 0.07 * rnd()), top = h * 0.42;
+  const pale = (hex) => `#${[1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * 0.72 + 255 * 0.28).toString(16).padStart(2, '0')).join('')}`;
+  const bloom = T.blossom && rnd() < T.blossom.share ? pale(matOf(card, T.blossom.materials[Math.floor(rnd() * T.blossom.materials.length)]).hex) : null;
+  const tone = (i) => ({ hex: bloom ?? leaf[i], finish: 'matte' });
+  out.push(...poleFaces(at, { r: h * 0.055 }, top + r * 0.3, { hex: bark, finish: 'matte' }, null, 'trunk'));
+  const c = [at[0], at[1], at[2] + top + r * 0.75];
+  out.push(...ballFaces(c, r, tone(1), 'crown', { squash: 0.9 }));
+  const lobes = 1 + Math.floor(rnd() * 2.4), t0 = rnd() * 2 * Math.PI;
+  for (let i = 0; i < lobes; i++) {
+    const t = t0 + i * (1.9 + rnd() * 0.9), rr = r * (0.58 + 0.24 * rnd()), d = r * (0.62 + 0.2 * rnd());
+    out.push(...ballFaces([c[0] + d * Math.cos(t), c[1] + d * Math.sin(t), c[2] - r * (0.15 + 0.3 * rnd()) + (i === 1 ? r * 0.5 : 0)], rr, tone(i === 0 ? 2 : 0), 'crown', { squash: 0.9 }));
+  }
+  return out;
+}
+
 /**
  * The sky's PUFFS: clouds as rounded chunks, each a few flattened balls in a row, standing in a ring round `centre`
  * between `reach` and three times it, at the card's heights and sizes. `rnd`: the track's seeded dice.
@@ -195,7 +283,7 @@ export function languageLaws(card, { cls = null, drawn = null } = {}) {
   const M = card.materials ?? {}, parts = card.parts ?? {}, ids = Object.keys(M), R = parts.rail;
   if (typeof card.reads !== 'string' || card.reads.trim().length < 20) say('premise', 'the language does not say what the track is made of');
   if (ids.length > FAMILY_MAX) say('family', `${ids.length} materials (at most ${FAMILY_MAX}): a family is small`);
-  const named = [parts.way?.material, parts.way?.bands?.material, parts.way?.dash?.material, parts.edge?.material, ...(parts.kerb?.materials ?? []), R?.material, ...(R?.tell ?? []), R?.post?.material, R?.post?.cap?.material].filter((x) => x !== undefined);
+  const named = [parts.way?.material, parts.way?.bands?.material, parts.way?.dash?.material, ...(parts.way?.chevrons?.materials ?? []), ...(parts.bunting?.materials ?? []), parts.bunting?.pole?.material, parts.bunting?.pole?.cap?.material, ...(parts.tree?.blossom?.materials ?? []), parts.edge?.material, ...(parts.kerb?.materials ?? []), R?.material, ...(R?.tell ?? []), R?.post?.material, R?.post?.cap?.material].filter((x) => x !== undefined);
   for (const id of new Set(named)) if (!M[id]) say('family', `a part names '${id}', which the family does not hold`);
   for (const id of ids) if (!named.includes(id)) say('family', `'${id}' is in the family and no part wears it`);
   if (R && R.post && M[R.material] && M[R.post.material] && M[R.material].of !== M[R.post.material].of) say('one-metal', `the rail is ${M[R.material].of} and its post ${M[R.post.material].of}`);

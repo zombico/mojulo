@@ -1,0 +1,80 @@
+# A track's design language: the principles a new map starts from
+
+A raced track (`control/lib/graph/roads/`) is drawn from one **design language**: a card that says what the track is
+made of and how its parts are shaped (`roads/track-language.js`). These are the principles a card is written by. They
+are starting points: an agent authoring a new map copies a card, changes its premise, and keeps what each principle
+asks. They follow from where the eye is on a course run from behind
+([course-dress-principles.md](course-dress-principles.md)): the way's far end is where what is coming is read, the
+middle of the screen is where a thing is made interesting, and the sides are where speed is seen.
+
+The agent's card is `gameworld-track-language`. The laws are machine laws and advise; whether a track looks right is
+the operator's to say on the page.
+
+## The principles
+
+1. **A premise first.** One sentence says what the track is made of (`reads`), and every part is named in it. Candy:
+   *a toy track of moulded plastic*. Grand-prix: *a circuit of asphalt, paint and galvanised steel*. Parts chosen one
+   by one (a road from one place, a wall from another, a toy from a third) do not make a track.
+2. **A small family of materials.** A material is a stuff, a finish and a colour. Few of them. The rail and the posts
+   it stands on are one stuff. Two finishes at most on the hard parts: gloss for what is moulded, matte for the way and
+   the turf.
+3. **The way is quiet and light.** It is the largest thing on the screen. Matte, mid-light, never as vivid as a kerb.
+   The kerb parts from it by lightness, and the kerb's two colours part from each other.
+4. **A corner is told three times.** Far off, the rail wears its tell in stripes round the *outside* of the corner, so
+   the corner is read at the vanishing point. In the middle, chevrons on the way point into it. Near, the kerb. All
+   three wear the tell's two colours, and nothing else on the track does.
+5. **Seen to move.** The way's own centre does not move across the screen, so speed is read off what passes: the way
+   laid in bands of two tones, a centre dash, the verge mown in stripes, posts at one spacing, bunting. A straight
+   carries at least two of them.
+6. **Asymmetry.** The two sides never mirror. Bunting runs down one side of a straight, the side by turns from
+   straight to straight. Chevrons lie on the outside half of the way, where the corner is come at from. The rail's
+   tell is on the outside only. A tree's crown is lopsided, no two alike, and a share of the trees are in blossom.
+7. **Chunky.** Rounded and stout. Nothing thinner than a hand could hold, a ball on every pole, pillows for kerbs, a
+   tube for a rail. Smooth polygons, never cubes.
+8. **The sky is the track's.** Its day, its sun, and clouds built as the track is. Never an empty grey.
+9. **The land in the track's shapes.** Trees take the land's own greens and the language's forms.
+10. **One primitive, two tunings.** A realistic circuit answers the same questions soberly: the look's own asphalt and
+    paint, one steel for the guardrail and its posts. A principle is a question, and candy is one answer to it.
+
+## A card
+
+```js
+{ reads: '<the premise>', suits: ['kart'],
+  materials: { fondant: { of: 'fondant', finish: 'matte', hex: '#7f7aae' }, /* … */ },
+  parts: {
+    way:     { material, bands: { every, material }, dash: { every, len, w, material },
+               chevrons: { before: [m…], w, len, t, materials: [a, b] } },   // or { from: 'kit' }: the look's asphalt
+    edge:    { profile: 'bead', w, h, material },
+    kerb:    { profile: 'pillow', h, materials: [a, b] },
+    rail:    { profile: 'tube' | 'w-beam', r, z, material, tell: [a, b],
+               post: { profile: 'round' | 'i', r, every, material, cap: { r, material } } },
+    verge:   { mown: { every, lift } },
+    bunting: { min, every, h, sag, flags, drop, pole, materials: [...] },
+    tree:    { profile: 'lollipop', blossom: { share, materials: [...] } },
+  },
+  sky: { zenith: [r, g, b], horizon: [r, g, b], sun: { u, h }, puffs: { count, hex, alt: [lo, hi], size: [lo, hi] } } }
+```
+
+A part left out is the class's plain one. The shelf is `TRACK_LANGUAGES`; `LANGUAGE_OF_CLASS` says which a track from
+words takes. A new language is a card, by name on the shelf or written out in a level's `roadway.language`.
+
+## The laws
+
+`languageLaws` (machine; they advise): `premise`, `family` (small, and every part draws from it), `one-metal` (the rail
+and its post of one stuff), `finish`, `kerb-read`, `tell` (the tell is not the rail's colour), `suits` (the class it
+is laid on), `drawn` (nothing drawn outside the family). A roadway level's gate says them as `language:<law>` beside
+the track's own laws and the trackscape's.
+
+## Looking
+
+```bash
+cd control && node scripts/trackscape.mjs "a kart track" out.html
+```
+
+A piece is judged as it is seen coming down the way from behind the kart, not from above.
+
+## Not yet
+
+The trackside pieces (the arch, the tower, the braking boards) are not built from the language. The flanks between
+the rail and the land are not laid in slices. The light is baked: the page does not yet light the track as it lights
+the kart.

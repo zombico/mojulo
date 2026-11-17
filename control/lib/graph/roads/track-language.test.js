@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TRACK_LANGUAGES, LANGUAGE_OF_CLASS, readLanguage, languageLaws, railFaces, postFaces, kerbFaces } from './track-language.js';
+import { TRACK_LANGUAGES, LANGUAGE_OF_CLASS, readLanguage, languageLaws, railFaces, postFaces, kerbFaces, buntingFaces, chevronFaces, treeFaces } from './track-language.js';
 import { planTrack } from './track.js';
 
 const course = { class: 'kart', length: 260, twist: 0.5, seed: 2 };
@@ -47,5 +47,37 @@ describe('a track\'s design language', () => {
     const P = planTrack({ form: 'circuit', course: { class: 'circuit', length: 700, twist: 0.4, seed: 2 }, language: 'grand-prix' });
     expect(P.language.laws).toEqual([]);
     expect(Object.keys(P.language.parts).sort()).toEqual(['post', 'rail']);
+  });
+});
+
+describe('the principles the candy card keeps', () => {
+  const P = planTrack({ form: 'circuit', course: { class: 'kart', length: 420, twist: 0.5, seed: 2 }, language: 'candy', kit: { look: 'stylized', seed: 2, pole: 'chunky' } });
+  const C = readLanguage('candy');
+  it('seen to move and told: the way in two tones, its dash, chevrons, bunting, all of the family', () => {
+    expect(P.language.laws).toEqual([]);
+    expect(P.language.parts.bunting).toBeGreaterThan(0);
+    const own = new Set(Object.values(C.materials).map((m) => m.hex));
+    for (const h of P.language.drawn) expect(own.has(h)).toBe(true);
+  });
+  it('asymmetry: bunting stands down one side of a straight, never both', () => {
+    const point = (s, off, dz = 0) => [s, off, dz], F = buntingFaces(C, { point, s0: 0, s1: 60, off: 7 });
+    expect(F.length).toBeGreaterThan(0);
+    expect(new Set(F.map((f) => Math.sign(f.corners[0][1]))).size).toBe(1);
+    expect(buntingFaces(C, { point, s0: 0, s1: 10, off: 7 })).toEqual([]);
+  });
+  it('a chevron points into its corner, and a tree is lopsided and seeded', () => {
+    // the tip is the point furthest toward `d`, and it lies in the arrow's middle along the way
+    const point = (s, off, dz = 0) => [s, off, dz], V = C.parts.way.chevrons;
+    for (const d of [1, -1]) {
+      const ps = chevronFaces(C, { point, s: 0, c: 0, d }).flatMap((f) => f.corners), far = Math.max(...ps.map((p) => d * p[1]));
+      expect(far).toBeCloseTo(V.w / 2, 6);
+      for (const p of ps.filter((q) => d * q[1] > far - 1e-6)) expect(Math.abs(p[0])).toBeLessThanOrEqual(V.t / 2 + 1e-6);
+    }
+    const dice = (seed) => { let a = seed; return () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; }; };
+    const tree = (seed) => treeFaces(C, { at: [0, 0, 0], h: 8, rnd: dice(seed), leaf: ['#2a6a2a', '#3a8a3a', '#56a856'], bark: '#6a4a3a' });
+    const crown = tree(5).filter((f) => f.part === 'crown').flatMap((f) => f.corners), mx = crown.reduce((s, p) => s + p[0], 0) / crown.length, my = crown.reduce((s, p) => s + p[1], 0) / crown.length;
+    expect(Math.hypot(mx, my)).toBeGreaterThan(0.05);
+    expect(JSON.stringify(tree(5))).toBe(JSON.stringify(tree(5)));
+    expect(JSON.stringify(tree(5))).not.toBe(JSON.stringify(tree(6)));
   });
 });

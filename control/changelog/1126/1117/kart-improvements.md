@@ -20,6 +20,13 @@ In progress. Built so far:
   horizon, a sun) and its clouds, built as the track is: puffs of rounded chunks in a ring round the course. Its way
   is laid in bands of two tones with a cream dash down the middle, and its verge is mown in stripes across the way,
   so the pavement and its sides are seen to move at speed.
+- **Built: a corner told on the way, flags down a straight, trees built as the track is.** Chevrons on the way before
+  each corner, pointing into it, on the outside half. Bunting on tall poles down one side of a straight, the side by
+  turns. On the chunky look the land's trees are a stout trunk under a crown of balls set off-centre, no two alike, a
+  share in blossom. The two sides of a track never mirror.
+- **The principles a new map starts from** ([docs/track-design-principles.md](../../../../docs/track-design-principles.md))
+  and the agent's card for them (`gameworld-track-language`, read by the levels chapter): a premise first, a small
+  family, a quiet way, a corner told three times, things seen to move, asymmetry, chunky, the track's own sky.
 - **A roadway level's gate says more.** Its laws now carry the language's and the trackscape's beside the track's
   own, for a kart track and a circuit alike.
 - **Fixed:** a world made from a track's words lost the track's drawing (its kit carried no pole).

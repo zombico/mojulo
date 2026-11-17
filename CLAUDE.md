@@ -269,6 +269,10 @@ Pointers only; each target carries its own design notes.
   vehicle word through it, and a new vehicle is a row first. The shelves that build them (road, the car shelf's
   personal cars, the mecha shelf's legged frames, the craft shelf's aircraft and boats, the rail shelf), file by file:
   [docs/vehicles.md](docs/vehicles.md).
+- A track's design language: [roads/track-language.js](control/lib/graph/roads/track-language.js) (one card says what a raced
+  track is made of and how its parts are shaped: way, kerb, rail, flags, trees, sky; a kart track's chunky drawing,
+  `roads/chunky-look.js`; a new map is a card), the principles a card is written by:
+  [docs/track-design-principles.md](docs/track-design-principles.md).
 - Airports: [airport/](control/lib/graph/airport/) (the transport hub's grammar laid at an airport's real figures, `plan.js`:
   piers, nose-in stands sized to the craft shelf's liners and their jet bridges, the taxiway and runway at their
   separations, the tower and hangar, each concourse a wing; drawn whole as a miniature on a plinth, `miniature.js`, or one

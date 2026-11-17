@@ -68,6 +68,7 @@ import { RACE_MOOD_IDS } from '../roads/race-mood.js';
 import { VEHICLES, TUNINGS, CONDITIONS, wheelLayout } from '../roads/vehicles.js';
 import { MILITARY_CLASSES } from '../car-designer/road-military.js';
 import { COURSE_PRESETS } from '../roads/course.js';
+import { TRACK_LANGUAGES, LANGUAGE_OF_CLASS } from '../roads/track-language.js';
 import { SPORT_PRESETS } from '../contest/sport-presets.js';
 import { MATCH_SPORT_IDS, TURN_SPORT_IDS, TEAM_SPORT_IDS, INNINGS_SPORT_IDS } from '../contest/sports.js';
 import { GENRES, genreCube } from './intent.js';
@@ -980,6 +981,39 @@ function rollCard() {
   );
 }
 
+function trackLanguageCard() {
+  return lines(
+    'THE TRACK\'S LANGUAGE — what a raced track (a level\'s `roadway`) is made of and how its parts are shaped, said once, so',
+    '  the way, its kerbs, its rail, its posts, its flags and its trees are one family. The principles below are STARTING',
+    '  POINTS for a new map: copy a card, change its premise, and keep what each principle asks.',
+    `THE WORD   a level's roadway.language: ${Object.keys(TRACK_LANGUAGES).map((k) => `'${k}'`).join(' | ')} | a card written out. A track from words (quick.roadway:`,
+    `  { intent }) takes its class's (${Object.entries(LANGUAGE_OF_CLASS).map(([c, l]) => `${c}: ${l}`).join(', ')}). A card: { reads, suits: [class…], materials: { <name>: { of, finish:`,
+    '  gloss | satin | matte, hex } }, parts: { way, edge, kerb, rail, verge, bunting, tree }, sky? }. Read a shelf card for',
+    '  each part\'s fields (roads/track-language.js); a part left out is the class\'s plain one.',
+    'THE PRINCIPLES',
+    '  1 A PREMISE FIRST   one sentence says what the track is made of (`reads`); every part is named in it.',
+    '  2 A SMALL FAMILY   few materials, each a stuff, a finish and a colour. The rail and its posts are one stuff. Two',
+    '    finishes at most on the hard parts: gloss for what is moulded, matte for the way and the turf.',
+    '  3 THE WAY IS QUIET AND LIGHT   the largest thing on the screen: matte, mid-light, never as vivid as a kerb. The kerb',
+    '    parts from it by lightness, and the kerb\'s two colours from each other.',
+    '  4 A CORNER IS TOLD THREE TIMES   far: the rail wears its `tell` stripes round the OUTSIDE of the corner. Middle:',
+    '    chevrons on the way point into it. Near: the kerb. All three in the tell\'s two colours, used for nothing else.',
+    '  5 SEEN TO MOVE   speed is read off what passes: the way in bands of two tones, a centre dash, the verge mown in',
+    '    stripes, posts at one spacing, bunting. Give a straight at least two of them.',
+    '  6 ASYMMETRY   the two sides never mirror. Bunting runs down ONE side, the side by turns. Chevrons lie on the outside',
+    '    half. The tell is on the outside only. A tree\'s crown is lopsided, and a share of trees are in blossom.',
+    '  7 CHUNKY   rounded and stout: nothing thinner than a hand could hold, a ball on every pole, pillows for kerbs.',
+    '  8 THE SKY IS THE TRACK\'S   its day, its sun and clouds built as the track is (`sky.puffs`). Never an empty grey.',
+    '  9 THE LAND IN THE TRACK\'S SHAPES   trees take the land\'s own greens and the language\'s forms.',
+    '  10 ONE PRIMITIVE, TWO TUNINGS   a realistic circuit answers the same questions soberly (grand-prix: the look\'s own',
+    '    asphalt and paint, one steel for the guardrail and its posts). A principle is a question, not candy.',
+    'THE LAWS (machine; they advise)   premise, family, one-metal, finish, kerb-read, tell, suits, drawn (nothing drawn outside',
+    '  the family). A roadway level\'s gate says them as language:<law>, beside the track\'s own and the trackscape\'s.',
+    'LOOK   node scripts/trackscape.mjs "<the track in words>" out.html writes the page. How it looks is the operator\'s to say.',
+    'NOT YET   the trackside pieces (arch, tower, boards) in the language; flank slices; the page lighting it as it does the kart.',
+  );
+}
+
 function courseDressCard() {
   return lines(
     'THE COURSE\'S DRESS — how an obstacle course (a level\'s `obstacles`, gameworld-roll) looks: its way and asks, the WALLS',
@@ -1460,6 +1494,7 @@ const CARDS = [
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
   ['gameworld-roll', 'The roll', 'a different map each time: what a level\'s seed picks on it (cover, items, the start, a paced line), an obstacle course for a running game, a run of its maps', 'a different map every time, a roguelite, random levels, procedural, replayable, the level changes each run, an obstacle course, an endless runner with a finish, hurdles to jump, lanes to switch', rollCard],
   ['gameworld-course-dress', 'The course\'s dress', 'how an obstacle course looks: its way and asks, the walls beside it and the backdrop behind it, designed as one dress by role and held to one gate; the course sheet', 'the walls of the course, the background, the backdrop, the skyline, decorate the course, style the level, the sides of the track, scenery, the look of the runner, palette of the course', courseDressCard],
+  ['gameworld-track-language', 'The track\'s language', 'how a raced track looks: one design language for its way, kerbs, rail, flags, trees and sky, and the principles a new map starts from', 'design a race track, a new kart map, the look of the track, track theme, the barriers and kerbs, a candy track, decorate the circuit, track materials, make the road more interesting, the sky over the track', trackLanguageCard],
   ['gameworld-mounts', 'The mounts', 'horses the hero gets on and rides: their coats, where they stand, the ride', 'a horse to ride, mount a horse, ride a horse, horseback, get on my horse, a stable of horses, cavalry', mountsCard],
   ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight, minigames, a fishing minigame, an arcade in the inn', battlesCard],
   ['gameworld-foes', 'The foes', 'hostile classes on the trails: how each moves, hurts and decides, at any rank, on any body that fits', 'enemies in my level, goombas, monsters to fight, a wolf pack, a boss beast, dire wolves, foot soldiers, a turret, things that chase me, a swarm of rats', foesCard],

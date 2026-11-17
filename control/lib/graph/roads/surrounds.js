@@ -29,6 +29,8 @@ import { buildBlock } from '../era/blocks.js';
 import { inPoly } from './arena-plan.js';
 import { terrainAt, GRASS_TILE } from './track.js';
 import { TRACK_BLOCKS, paintPiece } from './set-pieces.js';
+import { treeFaces } from './track-language.js';
+import { chunkyFaces } from './chunky-look.js';
 
 /** A land's character: its relief's shape, its height in the infield, its steepest rise from what stays flat, its height
  *  near the venue and far from it (reached `reach` m out), its wavelength (m), steps (a mesa's terraces), the snow line
@@ -410,7 +412,12 @@ export function planSurrounds(plan, { arena = null, scape = null, K, seed = 1, l
   }
   // each wood tile one paint (one voxel grid per tile on the voxel pole)
   const TILE = 160, tiles = new Map(), into = (p) => { const k = `${Math.floor(p[0] / TILE)},${Math.floor(p[1] / TILE)}`; if (!tiles.has(k)) tiles.set(k, { near: [], far: [], dv: keep.dist([(Math.floor(p[0] / TILE) + 0.5) * TILE, (Math.floor(p[1] / TILE) + 0.5) * TILE]).dv }); return tiles.get(k); };
+  // (the chunky drawing with a language that says its tree: the trees built as the track is, track-language.js)
+  const card = K.pole === 'chunky' ? plan.language?.card : null, chunkTrees = [];
+  const hexOf = (c) => `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v * 255))).toString(16).padStart(2, '0')).join('')}`;
+  const leaf = card?.parts.tree ? [0.4, 0.55, 0.7].map((v) => hexOf(K.colourOf({ material: 'foliage' }, v).lit)) : null, bark = card?.parts.tree ? hexOf(K.colourOf({ material: 'bark' }, 0.45).lit) : null;
   for (const t of kept) {
+    if (leaf) { chunkTrees.push(...treeFaces(card, { at: [r3(t.p[0]), r3(t.p[1]), r3(groundAt(t.p[0], t.p[1]) - 0.2)], h: t.h * 0.8, rnd, leaf, bark })); continue; }
     const b = buildBlock(TRACK_BLOCKS.tree, { params: { h: t.h }, library: TRACK_BLOCKS, ring: 'mid', at: [r3(t.p[0]), r3(t.p[1]), r3(groundAt(t.p[0], t.p[1]) - 0.2)], yaw: rnd() * 360, seed: 1 });
     into(t.p).near.push(...b.faces);
   }
@@ -419,6 +426,7 @@ export function planSurrounds(plan, { arena = null, scape = null, K, seed = 1, l
   for (const p of scree) { const rr = 1.2 + rnd() * 2.5; lump(into(p).far, [p[0], p[1], groundAt(p[0], p[1]) - rr * 0.3], { r: rr, h: rr * (0.7 + rnd() * 0.6), profile: BOULDER, sides: 6, rnd, value: 0.56 }); }
   n0 = faces.length;
   for (const k of [...tiles.keys()].sort()) { const t = tiles.get(k); if (t.near.length) faces.push(...paintPiece(t.near, K, { voxel: voxelAt(t.dv) })); }
+  if (chunkTrees.length) faces.push(...chunkyFaces(chunkTrees));
   mark('trees', n0); n0 = faces.length;
   for (const k of [...tiles.keys()].sort()) { const t = tiles.get(k); if (t.far.length) faces.push(...paintPiece(t.far, K, { voxel: Math.max(6, voxelAt(t.dv)) })); }
   mark('canopy', n0); count.ground = ground.length;

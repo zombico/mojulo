@@ -28,7 +28,7 @@ import { mulberry32 } from '../vegetation/grow.js';
 import { trackKit } from './track-kit.js';
 import { racingLine } from './contract.js';
 import { moodOf, moodScene } from './race-mood.js';
-import { readLanguage, railFaces, postFaces, kerbFaces, edgeFaces, puffFaces, languageLaws } from './track-language.js';
+import { readLanguage, railFaces, postFaces, kerbFaces, edgeFaces, puffFaces, chevronFaces, buntingFaces, languageLaws } from './track-language.js';
 import { chunkyFaces, chunkyFlat } from './chunky-look.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -114,7 +114,7 @@ export function planTrack(m = {}) {
   const lang = readLanguage(m.language), LP = lang?.parts ?? {}, raw = [];
   const wayHex = lang && LP.way?.material ? lang.materials[LP.way.material].hex : null;
   const flatLit = (hex, c) => { const up = upFace(c); return { corners: up.c, fill: K?.pole === 'chunky' ? chunkyFlat(hex, up.n) : K ? K.tint(hex, up.c, up.n).fill : face(up.c, hex).fill }; };
-  const railOpen = !!(lang && LP.rail);
+  const railOpen = !!(lang && LP.rail), marks = new Set();
   // the way in bands (its second tone by turns), its centre dash, and the verge mown in stripes: what is seen to move
   const bandHex = wayHex && LP.way.bands ? lang.materials[LP.way.bands.material].hex : null, dashHex = wayHex && LP.way.dash ? lang.materials[LP.way.dash.material].hex : null;
   const wayAt = (s) => (bandHex && Math.floor(s / LP.way.bands.every) % 2 ? bandHex : wayHex);
@@ -199,11 +199,31 @@ export function planTrack(m = {}) {
   for (const r of course.ramps) if (r.lip) across(r.lip.s - 0.6, 0.5, COLOR.lip);
 
   // the kit's wear on the road: the racing line rubbered dark through every corner, and repairs
+  // the corners' starts and the straights between them, off the stations' curvature (a lap's last straight runs on
+  // past its length): where a language lays its chevrons (before a corner) and its bunting (down a straight)
+  const runs = { corners: [], straights: [] };
+  if (lang && (LP.way?.chevrons || LP.bunting)) {
+    const isC = (i) => Math.abs(st[i].k) > KERB_K, first = a.closed ? st.findIndex((p, i) => isC(i)) : 0;
+    if (first >= 0) for (let q = 0, open = null; q <= n; q++) {
+      const i = (first + q) % n, s = st[i].s + (first + q >= n && a.closed ? L : 0), c = q < n ? isC(i) : true;
+      if (!c && open === null) open = s;
+      if (c && open !== null) { runs.straights.push({ s0: open, s1: s }); if (q < n || a.closed) runs.corners.push({ s, d: Math.sign(st[i].k) || 1, run: s - open }); open = null; }
+    }
+    const point = (s, off, dz = 0) => P(a.at(a.closed ? ((s % L) + L) % L : Math.max(0, Math.min(L, s))), off, dz);
+    // chevrons on the outside half of the way before each corner, pointing into it, as far back as the straight runs
+    if (LP.way?.chevrons && wayHex) for (const c of runs.corners) LP.way.chevrons.before.forEach((back, i) => {
+      if (back + LP.way.chevrons.len > c.run) return;
+      for (const f of chevronFaces(lang, { point, s: c.s - back, c: -c.d * X.road * 0.45, d: c.d, index: i })) { faces.push(flatLit(f.hex, f.corners)); marks.add(f.hex); }
+    });
+    // bunting down one side of each straight long enough, the side by turns (and by the seed)
+    if (LP.bunting) runs.straights.forEach((r, i) => { if (r.s1 - r.s0 >= LP.bunting.min) raw.push(...buntingFaces(lang, { point, s0: r.s0, s1: r.s1, off: ((i + (Number.isInteger(m.seed) ? m.seed : 1)) % 2 ? 1 : -1) * (X.outer + 0.8) })); });
+  }
   if (K && !wayHex) faces.push(...roadWear({ a, X, K, P, seed: Number.isInteger(m.seed) ? m.seed : 1 }));
   // the language's parts, lit in the track's drawing: smooth and glossy on the chunky look, else flat as a paint is
   const language = lang ? { id: lang.id, drawn: [...new Set(raw.map((f) => f.hex))], parts: raw.reduce((n, f) => ({ ...n, [f.part]: (n[f.part] ?? 0) + 1 }), {}), laws: null } : null;
   if (lang) {
-    language.laws = languageLaws(lang, { cls: course.class, drawn: [...language.drawn, ...[wayHex, bandHex, dashHex].filter(Boolean)] });
+    language.laws = languageLaws(lang, { cls: course.class, drawn: [...language.drawn, ...[wayHex, bandHex, dashHex].filter(Boolean), ...marks] });
+    Object.defineProperty(language, 'card', { value: lang, enumerable: false });
     if (lang.sky) language.sky = lang.sky;
     if (K?.pole === 'chunky') {
       faces.push(...chunkyFaces(raw));
