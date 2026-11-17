@@ -5,8 +5,8 @@ Planned; nothing here has shipped yet. Each line is added as its phase lands.
 - **The side strip's seams, mended.** A rolling trail no longer sinks below a strip's ground (its floors lowered to
   boxes upside down), and the joins between a strip's segments are held to a law of their own.
 - **Galaxy Boy's body: the herobot, on the modern hero.** The toy hero robot's proportions (about 4.5 heads, adult
-  limbs) on the game body at the current laws, its own game body, its armour from the wearable libraries and an arm
-  cannon on the arms shelf. A hero's height reaches the play: its collision and the side camera's distance follow its
+  limbs) on the game body at the current laws, a game body of its own (too realistic for the mascot's), its armour
+  from the wearable libraries and an arm cannon on the arms shelf. A hero's height reaches the play: its collision and the side camera's distance follow its
   body.
 - **A level seen as an elevation.** The course map's sibling: a side-scroller's level as the camera's path through the
   along × up plane, a chain of zones (runs one screen thick, rooms that scroll both ways, full-screen corners), built
@@ -25,6 +25,8 @@ Planned; nothing here has shipped yet. Each line is added as its phase lands.
 - **The map's laws and its camera**: one screen thick, both walls of a chimney in the frame, rests within three kicks,
   the next place seen before it is reached, the closed parts painted, the boss's colour its own; a side camera that
   holds a zone's locked axis, hands over at a corner and rises with a climb.
+- **Falls and ladders.** Falling out of the bottom of the frame costs a life and brings the hero back at its zone's
+  checkpoint; a ladder is climbed with the hero's back to the camera.
 - **A render benchmark**: a run, a chimney and a boss's room measured on the page by role (the hero's share of the
   frame, the lane's place in it, play and place on opposite hues, recession and sharpness by layer, light from sources
   that are seen).
