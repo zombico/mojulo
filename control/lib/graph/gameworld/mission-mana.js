@@ -164,16 +164,16 @@ export function missionMana(ui) {
     menu: [{ label: 'Resume', then: { close: true } }, { label: 'The map', then: { open: 'map' } }, ...(plain ? [] : [{ label: 'The briefing', then: { open: 'briefing' } }]), { label: 'How to play', then: { open: 'how' } }, { label: 'Controls', then: { open: 'controls' } }, { label: 'Start again', then: { emit: 'mission:restart' } }],
     hp: 100, hpMax: 100, peril: 0, weapon: '', mode: '', ammo: 0, magazine: 0, reserve: '', reloading: false,
     rest: { hp: false, gun: false },
-    objective: { title: 'The mission', steps: ui.tasks.map((t) => ({ text: t.text, done: false })) },
+    objective: { title: plain ? ui.title : 'The mission', steps: ui.tasks.map((t) => ({ text: t.text, done: false })) },
     order: { on: ui.tasks.length > 0, title: ui.tasks[0]?.text ?? '', step: ui.tasks.length ? `1/${ui.tasks.length}` : '', distance: '' },
     hold: { on: false, left: 0, total: 0, label: 'Hold' },
     ring: { on: false, hits: [] },
     radar: { marks: [], north: 0, label: `${RADAR.range} m` },
-    map: { marks: [], label: 'north up', legend: [{ text: '▲ you' }, { text: '★ the task in hand' }, { text: '✕ a foe awake' }] },
+    map: { marks: [], label: 'north up', legend: [{ text: '▲ you' }, ...(plain ? [] : [{ text: '★ the task in hand' }]), { text: '✕ a foe awake' }] },
     result: { outcome: '', stats: [], rank: '', items: [{ label: 'Play it again', then: { emit: 'mission:restart' } }, { label: 'The briefing', then: { open: 'briefing' } }] },
   } };
   const C = manaControls();
-  return { theme: themeOf(ui.theme), ...(plain ? { plain: true } : {}), spec: missionManaSpec(), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad }, open: openControls(), state, tasks: ui.tasks, hud: { ...HUD }, ring: { life: RING.life, most: RING.most }, radar: { ...RADAR }, mapKey: 'KeyM', water: ((R) => (R?.water ?? []).map(([i, j]) => [i * R.cell, j * R.cell, (i + 1) * R.cell, (j + 1) * R.cell]))(ui.plan?.map?.blocks?.read), msg: { pause: MSG_PAUSE, controls: MSG_CONTROLS } };
+  return { theme: themeOf(ui.theme), ...(plain ? { plain: true } : {}), ...(Array.isArray(ui.rect) ? { rect: ui.rect.slice(0, 4) } : {}), spec: missionManaSpec(), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad }, open: openControls(), state, tasks: ui.tasks, hud: { ...HUD }, ring: { life: RING.life, most: RING.most }, radar: { ...RADAR }, mapKey: 'KeyM', water: ((R) => (R?.water ?? []).map(([i, j]) => [i * R.cell, j * R.cell, (i + 1) * R.cell, (j + 1) * R.cell]))(ui.plan?.map?.blocks?.read), msg: { pause: MSG_PAUSE, controls: MSG_CONTROLS } };
 }
 
 /**
@@ -257,8 +257,10 @@ export function missionManaRuntime(cfg) {
   let plan = null;
   function planOf(W) {
     if (plan) return plan;
-    plan = __msPlanBox(W.colliders, cfg.water);
-    try { root.style.setProperty('--ms-plan', 'url("data:image/svg+xml,' + encodeURIComponent(__msPlanSvg(W.colliders, cfg.water, plan)) + '")'); } catch (e) { /* a page with no style */ }
+    // (the floor it is of: the pilot's own feet when the plan is first drawn)
+    const me = W.entities.find((x) => x.pilotable), z0 = me && me.transform ? me.transform.pos[2] - ((me.rule && me.rule.eye) || 0) : 0;
+    plan = __msPlanBox(W.colliders, cfg.water, cfg.rect || null);
+    try { root.style.setProperty('--ms-plan', 'url("data:image/svg+xml,' + encodeURIComponent(__msPlanSvg(W.colliders, cfg.water, plan, Math.abs(z0) < 0.6 ? 0 : z0)) + '")'); } catch (e) { /* a page with no style */ }
     return plan;
   }
   function read() {

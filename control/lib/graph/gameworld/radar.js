@@ -38,7 +38,9 @@ export function radarMarks(pos, heading, things, cfg) {
 }
 
 /** The square a level's plan is drawn in: its colliders' and its water's reach, a margin round it. */
-export function planBox(colliders, water) {
+export function planBox(colliders, water, rect) {
+  // (`rect`, a level that says where it is fought: [x0, y0, x1, y1], the plan boxed on it and not on the whole site)
+  if (rect) { const side = Math.max(rect[2] - rect[0], rect[3] - rect[1]) + 4; return [(rect[0] + rect[2]) / 2 - side / 2, (rect[1] + rect[3]) / 2 - side / 2, side]; }
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const c of colliders || []) { if (!c || !c.min || !c.max) continue; x0 = Math.min(x0, c.min[0]); y0 = Math.min(y0, c.min[1]); x1 = Math.max(x1, c.max[0]); y1 = Math.max(y1, c.max[1]); }
   for (const q of water || []) { x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[2]); y1 = Math.max(y1, q[3]); }
@@ -53,13 +55,14 @@ export function planPoint(box, p) {
 
 /** The plan drawn: what stands in a body's way on the ground (a mass over a head's height dark, a low thing lighter),
  *  the water under them. A floor over the ground (a slab a body walks under) is not in the way and is not drawn. */
-export function planSvg(colliders, water, box) {
+export function planSvg(colliders, water, box, z = 0) {
   const S = 512, k = S / box[2], f = (v) => Math.round(v * 10) / 10;
   const rect = (x0, y0, x1, y1, fill) => `<rect x="${f((x0 - box[0]) * k)}" y="${f(S - (y1 - box[1]) * k)}" width="${f(Math.max(1, (x1 - x0) * k))}" height="${f(Math.max(1, (y1 - y0) * k))}" fill="${fill}"/>`;
   const wet = (water || []).map((q) => rect(q[0], q[1], q[2], q[3], '#3f6f8f')), low = [], tall = [];
   for (const c of colliders || []) {
-    if (!c || !c.min || !c.max || c.min[2] > 1.2 || c.max[2] < 0.75) continue;
-    (c.max[2] >= 1.6 ? tall : low).push(rect(c.min[0], c.min[1], c.max[0], c.max[1], c.max[2] >= 1.6 ? '#d9d2bd' : '#8f8a78'));
+    // (`z`: the floor the plan is of, where it is not the world's zero: a yard on its land, an arena on a hill)
+    if (!c || !c.min || !c.max || c.min[2] - z > 1.2 || c.max[2] - z < 0.75) continue;
+    (c.max[2] - z >= 1.6 ? tall : low).push(rect(c.min[0], c.min[1], c.max[0], c.max[1], c.max[2] - z >= 1.6 ? '#d9d2bd' : '#8f8a78'));
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}"><rect width="${S}" height="${S}" fill="#1c1f1c"/>${wet.join('')}${low.join('')}${tall.join('')}</svg>`;
 }

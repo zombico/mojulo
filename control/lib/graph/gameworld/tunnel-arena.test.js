@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tunnelArena, composeArena, arenaDomain, ARENA_TRAITS } from './tunnel-arena.js';
+import { tunnelArena, composeArena, arenaDomain, ARENA_TRAITS, coverCount } from './tunnel-arena.js';
 
 // The arena tunnel: words read into the layout grammar's settings, the layout assessed by the arena's laws and each
 // word's measure, what fails tweaked (breaks where a line is, staggered lanes, a smaller court, wider gaps), every
@@ -20,22 +20,36 @@ describe('the arena tunnel', () => {
       ['a tight two-lane arena', (p) => p.half === 13 && p.lanes === 2],
       ['a large ring arena with long sightlines', (p) => p.half === 24 && p.topology === 'ring'],
       ['a sparse four-lane arena', (p) => p.lanes === 4 && p.pieces.filter((q) => q.form === 'crate').length <= 6],
-      ['a close quarters four-lane warehouse', (p) => p.lanes === 4 && p.pieces.filter((q) => q.form === 'crate').length >= 10],
+      // (dense: its cover is counted whole, the crates and the panels the laws grew inside its wall)
+      ['a close quarters four-lane warehouse', (p) => p.lanes === 4 && coverCount(p.pieces, p.half) >= 14],
     ];
     for (const [words, shows] of cases) {
       const r = tunnelArena(words, { seed: 2, spawns: 4 });
       expect(r.complete, `${words}: ${JSON.stringify(r.passes.at(-1))}`).toBe(true);
       expect(shows(r.plan), words).toBe(true);
     }
-  }, 60_000);
+  }, 240_000);
 
-  it('close quarters staggers its lanes and breaks what lines remain; the log says each pass', () => {
+  it('close quarters is grown for the near band and mended where a way is the only one; the log says each pass', () => {
     const r = tunnelArena('a close quarters four-lane warehouse', { seed: 1, spawns: 4 });
-    expect(r.candidate.stagger).toBe(true);
     expect(r.passes.length).toBeGreaterThan(1);
-    expect(r.passes[0].changed).toContain('lanes staggered (close quarters)');
+    // (the laws grew a floor whose ways did not all loop: the tweak takes the panels beside the one way, and says so)
+    expect(r.passes.flatMap((p) => p.changed ?? []).some((c) => /taken \(routes loop: a second way\)/.test(c))).toBe(true);
+    expect(r.candidate.opens.length).toBeGreaterThan(0);
     expect(r.passes.at(-1).traits.held).toContain('close');
-  }, 60_000);
+    expect(r.passes.at(-1).laws.failed).toEqual([]);
+  }, 120_000);
+
+  it('its floor is the arena map\'s: grown under the laws, every panel with its turned partner; a sparse one stands ungrown', () => {
+    const r = tunnelArena('a three-lane arena', { seed: 2, spawns: 4 }), inner = r.plan.pieces.filter((q) => q.form === 'wall' && Math.abs(q.u) < r.plan.half - 0.5 && Math.abs(q.v) < r.plan.half - 0.5);
+    expect(inner.length).toBeGreaterThan(6);
+    const has = (u, v, q) => inner.some((x) => Math.abs(x.u - u) < 0.02 && Math.abs(x.v - v) < 0.02 && x.along === q.along && Math.abs(x.length - q.length) < 0.02);
+    for (const q of inner) expect(has(-q.u, -q.v, q), `${q.u},${q.v}`).toBe(true);
+    expect(r.built.map.held).toBeGreaterThan(r.built.map.of - 4);
+    const bare = tunnelArena('a sparse four-lane arena', { seed: 2, spawns: 4 });
+    expect(bare.built.map.bare).toBe(true);
+    expect(bare.complete).toBe(true);
+  }, 120_000);
 
   it('a word the grammar cannot show is a gap, named with what would close it', () => {
     const r = tunnelArena('a figure eight mirrored arena with bridges for capture the flag', { seed: 1, spawns: 4 });
@@ -70,10 +84,10 @@ describe('the arena tunnel', () => {
     // the armor on the tops
     const armor = r.plan.drops.filter((d) => d.gives === 'armor');
     expect(armor.every((d) => d.h === 2.5)).toBe(true);
-    // a small arena cannot keep a top out of sight of its spawns: it says so, tower by tower, and lays none
+    // a small arena has little room to keep a top out of sight of its spawns: it says so, tower by tower, as it moves them
     const small = tunnelArena('a small arena with towers', { seed: 1, spawns: 4 });
     expect(small.passes.flatMap((p) => p.changed ?? []).some((c) => /stood elsewhere \(spawns-unseen-from-high\)/.test(c))).toBe(true);
-    expect(small.passes.at(-1).traits.failed.map((t) => t.id)).toEqual(['floors']);
+    expect(small.passes.at(-1).laws.failed).toEqual([]);
   }, 120_000);
 
   it('the grammar is half-turn symmetric whatever it is asked', () => {

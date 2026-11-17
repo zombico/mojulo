@@ -41,6 +41,7 @@
  *   askBoxes(blocks) / blindSpots(post, ends, boxes)   the asks' boxes; the places on an approach out of a watcher's sight
  *   concernLaws(ids, { ends, blocks, posts, watchers, mechanics }) → [{ concern, law, holds, says }] the laws over a laid stage
  */
+import { pushMap, pushPieces, PUSH, BOUT_CELL } from '../arena-map/bout.js';
 import { buildNav } from '../worlds/controllable/nav.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -262,21 +263,24 @@ export function beatPosts(ends, n) {
   });
 }
 
-/** Cover at each post: a wall across the approach (taller than a person: cover is round its ends, not over it) 1.2 m
- * in front of the post and starting half a metre to one side, so the post sees down the way it holds and its cover is
- * a sidestep away; a crate stack on the other side; and a wall half way back for whoever comes on. Walls run square to
- * the world (colliders are boxes), across the approach's main axis; each stands on the land (`ends.ground`). */
-export function coverBlocks(posts, ends) {
+/** Cover at each post, LAID BY THE ARENA'S LAWS (arena-map/bout.js pushMap): the stretch a body fights up to the post,
+ * from half way back (or the strip's most), is a strip of the arena map grown for a push: its panels and masses stand
+ * where the laws left them, the post's own cover a sidestep from it, the way on and the post's cell clear, always a way
+ * up. Panels run square to the world (colliders are boxes), in the approach's main axes; each stands on the land
+ * (`ends.ground`). `seed`: the world's, a post's strip rolled on it and the post's place in the line. */
+export function coverBlocks(posts, ends, { seed = 1 } = {}) {
   const blocks = [];
   const at = (x, y, z0) => { const z = ends.ground ? ends.ground(x, y) : null; return [r3(x), r3(y), z ?? z0]; };
   const axes = (from) => { const N = Math.abs(from[0]) >= Math.abs(from[1]) ? [Math.sign(from[0]) || 1, 0] : [0, Math.sign(from[1]) || 1]; return [N, [-N[1], N[0]]]; };
-  const wall = (c, N, z0, length) => blocks.push({ form: 'wall', at: at(c[0], c[1], z0), N, length, height: 2, thick: 0.5, value: 0.5 });
   posts.forEach((p, k) => {
-    const [N, U] = axes(p.from), side = k % 2 ? -1 : 1, L = 3, off = (L / 2 + 0.5) * side;
-    wall([p.at[0] - N[0] * 1.2 + U[0] * off, p.at[1] - N[1] * 1.2 + U[1] * off], N, p.at[2], L);
-    blocks.push({ form: 'crate', at: at(p.at[0] - N[0] * 1.2 - U[0] * 2 * side, p.at[1] - N[1] * 1.2 - U[1] * 2 * side, p.at[2]), stack: 2, value: 0.42 });
-    const mid = [(p.at[0] + p.back[0]) / 2, (p.at[1] + p.back[1]) / 2];
-    wall([mid[0] - U[0] * 2.5 * side, mid[1] - U[1] * 2.5 * side], N, p.at[2], 2.5);
+    const [N, U] = axes(p.from), side = k % 2 ? -1 : 1, reach = Math.hypot(p.at[0] - p.back[0], p.at[1] - p.back[1]);
+    // (the strip: the post in its last row's middle, as deep as the way back to the post before allows)
+    const d = Math.max(PUSH.d[0], Math.min(PUSH.d[1], Math.floor((reach - 1) / BOUT_CELL))), B = pushMap({ d, side, seed: (seed | 0) + 31 * (k + 1) });
+    const o = [p.at[0] - N[0] * (d - 0.5) * BOUT_CELL, p.at[1] - N[1] * (d - 0.5) * BOUT_CELL];
+    for (const q of pushPieces(B.map)) {
+      const x = o[0] + N[0] * q.b + U[0] * q.a, y = o[1] + N[1] * q.b + U[1] * q.a;
+      blocks.push({ form: 'wall', at: at(x, y, p.at[2]), N: q.across ? N : U, length: q.length, height: q.height, thick: q.thick ?? 0.5, value: 0.5 });
+    }
   });
   return blocks;
 }

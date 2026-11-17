@@ -933,7 +933,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   let cover = [];
   if ((concerns.includes('cover') || (rolls && rolls.cover)) && stage.section === 'trail' && !ends.arena) {
     posts ??= beatPosts(ends);
-    cover = coverBlocks(posts, ends);
+    cover = coverBlocks(posts, ends, { seed: Number.isInteger(G.seed) ? G.seed : 1 });
   }
   const coverFrom = (blocks ?? []).length;
   if (cover.length) blocks = [...(blocks ?? []), ...cover];
@@ -1018,7 +1018,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // THE DAMAGE RING (damage-ring.js): a quick shooter's level on foot and a deathmatch say where each hit came from, round
   // the aim (their HUD is the page's own; a mission draws it in its own HUD). Any other level, as it was
   const ringed = !MX && stage.section !== 'airspace' && (G.quick?.goal === 'deathmatch' || (G.quick?.goal === 'shoot' && G.quick.craft === undefined)) && !!X0?.pilot?.weapon;
-  let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(ringed ? { damageRing: true, mission: shooterHudUi(G) } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
+  let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(ringed ? { damageRing: true, mission: shooterHudUi(G, ends.arena ? { rect: [ends.arena.centre[0] - ends.arena.plan.half, ends.arena.centre[1] - ends.arena.plan.half, ends.arena.centre[0] + ends.arena.plan.half, ends.arena.centre[1] + ends.arena.plan.half] } : {}) } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
   // ONE HUD (game/hud-mana.js): a world whose screens are the game UI runtime's (its `ui`) has its levels' own rows
   // drawn there too, in the same look, by the page's HUD host; a course's HUD is already its own (course-hud.js), and
   // a mission's is its own channel's (mission-mana.js)

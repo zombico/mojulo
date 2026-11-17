@@ -274,8 +274,8 @@ export function missionUi(G, M, brief, { laws = [], map = null } = {}) {
 /** THE SHOOTER'S HUD WITH NO MISSION (a quick shooter's level, a deathmatch): the mission's page with nothing of a
  *  mission in it: the gun in hand, the health, the screen's edge, the radar, the damage ring, the map and the pause, in
  *  the world's own look (its `ui`), the level's own counters and end left the page's. A world's `mission` key, as a
- *  mission's is (scene/channels/mission.js). */
-export const shooterHudUi = (G) => ({ title: G?.name ?? G?.id ?? 'game', theme: G?.ui !== undefined ? interfaceLook(G).theme : MISSION_LOOK, tasks: [], plain: true });
+ *  mission's is (scene/channels/mission.js). `rect`: where it is fought ([x0, y0, x1, y1], a bout's arena), the map's box. */
+export const shooterHudUi = (G, { rect = null } = {}) => ({ title: G?.name ?? G?.id ?? 'game', theme: G?.ui !== undefined ? interfaceLook(G).theme : MISSION_LOOK, tasks: [], plain: true, ...(rect ? { rect: rect.map((v) => Math.round(v * 100) / 100) } : {}) });
 
 /** A mission level's stage (levels.js gameStages): its ground and what its page draws from, the pilot and the cast laid
  * over it by levelOrder. `P`: missionPlan's. */
