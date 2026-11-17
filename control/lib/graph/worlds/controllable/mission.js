@@ -17,10 +17,18 @@
  *     objectives: [{ id, says, done: <item id>, after?: <flag> }] in order; the current one is the first not done
  *     unsure?: '<words>'                                         said while none stands and the result's things are not all held
  *     result?: { at: [x, y, z], radius?: 3, when: [item ids] }   holding them all there ends the mission
+ *     exits?: [{ id, at, radius?: 1.8, needs?, to: '<page>', door: '<the arrival there>', name? }]
+ *                                                                a way out of this page into another segment's, taken with
+ *                                                                the action once what it needs is held: state.ms.exit says
+ *                                                                where, and the page goes (mission-view.js), carrying what
+ *                                                                is held, read and set and the body's health
+ *     arrivals?: { <door id>: { at, heading? } }                 where a body that came in by that door stands
+ *     leave?: [item ids]                                         (a page with no result: what the mission's result asks for)
+ *   state.msCarry   { held?, read?, flags?, hp?, door? }: what came in from another segment's page, taken at the next step
  *   }
  *   input.act      an edge: reads a clue, or rides a way, where the body stands on one (else whatever the action is)
  *
- * State (state.ms): { held: { id: true }, read: { id: true }, flags: { id: true }, ride: { way, t, secs, to } | null,
+ * State (state.ms): { held: { id: true }, read: { id: true }, flags: { id: true }, exit: { id, to, door } | null, ride: { way, t, secs, to } | null,
  * open: { barrier id: true }, done: false, said: { text, t } (the last thing to tell the player), near: the id of the
  * clue or way in reach, and `locked` what it still needs }. The page draws it (scene/channels/controllable/mission-view.js).
  *
@@ -37,11 +45,21 @@ export function buildMission(E) {
     const now = state.time || 0;
     let S = state.ms;
     if (!S) {
-      S = state.ms = { held: {}, read: {}, flags: {}, ride: null, open: {}, done: false, said: null, near: null, locked: null, prev: false };
+      S = state.ms = { held: {}, read: {}, flags: {}, exit: null, ride: null, open: {}, done: false, said: null, near: null, locked: null, prev: false };
       // (the barriers stand as colliders from the first step)
       if (M.barriers && M.barriers.length) state.colliders = [...(state.colliders || []), ...M.barriers.map((b) => ({ min: b.min.slice(), max: b.max.slice(), of: 'mission:' + b.id }))];
     }
     const say = (text) => { S.said = { text, t: now }; };
+    // what came in from another segment's page: held, read and set there; the body's health; the door it came by
+    if (state.msCarry) {
+      const C = state.msCarry; state.msCarry = null;
+      for (const k of ['held', 'read', 'flags']) for (const id of Object.keys(C[k] || {})) S[k][id] = true;
+      if (Number.isFinite(C.hp) && p.body && Number.isFinite(p.body.hp)) p.body.hp = Math.max(1, Math.min(p.body.hpMax || p.body.hp, C.hp));
+      const A = C.door && M.arrivals && M.arrivals[C.door];
+      if (A) { p.transform.pos = A.at.slice(); if (A.heading != null) { p.transform.heading = A.heading; if (state.camera) state.camera.camYaw = A.heading; } p.vz = 0; }
+    }
+    // (leaving: the body is held where it stands until the page goes)
+    if (S.exit) return step(state, { ...input, forward: 0, back: 0, left: 0, right: 0, moveX: 0, moveY: 0, fire: 0, jump: 0, jumpHeld: 0, dive: 0, act: 0, crouch: 0, aim: 0 }, dt, hooks);
     // a ride: the body held, and stood at the other end when it is over
     if (S.ride) {
       S.ride.t += dt;
@@ -73,6 +91,14 @@ export function buildMission(E) {
       const need = lacks(S, w.needs);
       if (need.length) { S.locked = need; if (edge) { used = true; say((w.name || w.id) + ': locked'); } }
       else if (edge) { used = true; S.ride = { way: w.id, kind: w.kind || 'lift', t: 0, secs: w.secs || 3, to: atA ? w.b : w.a, moved: false }; }
+      break;
+    }
+    if (!S.near) for (const x of M.exits || []) {
+      if (!near(q, x.at, x.radius || 1.8)) continue;
+      S.near = x.id;
+      const need = lacks(S, x.needs);
+      if (need.length) { S.locked = need; if (edge) { used = true; say((x.name || x.id) + ': locked'); } }
+      else if (edge) { used = true; S.exit = { id: x.id, to: x.to, door: x.door, t: now }; }
       break;
     }
     // a barrier gives way to a body that holds what it needs and comes up to it

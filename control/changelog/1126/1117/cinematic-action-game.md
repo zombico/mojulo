@@ -172,3 +172,12 @@ or a recipe key; the spike mints through the real doors and measures.
   three assault walkers on the line in the main hall, the siege walker in the hall under it, the freight lift between
   the two (its key in the parts store, and two of three clues read), the stairwell shut from above and the way back
   out once the proof is in hand, the operative and its kit, two guards above and one below.
+- **A door between two segments' pages** (mission.js `exits`, `arrivals`, `state.msCarry`): an exit taken with the
+  action, once what it needs is held, sends the page to the other segment's; what is held, read and set and the
+  body's health go with it in the address, and the body stands at the door it came in by. A spike's own hop: the play
+  shell's door transit and its store are the rail's, and this does not use them yet.
+- **Level 1's perimeter yard, played** (`scripts/spikes/mission/yard.mjs`): the stage the rail lays for the level's
+  `perimeter` section (its trail on the land, the hangar behind its door, the barracks walked into), the operative and
+  two guards on rounds along the trail, the hangar's key in the barracks' day room, the hangar's side door into the
+  hangar's page and back, and the mission's one result at the trail's head with both proofs in hand. The trail's
+  bounds give way to a perimeter round the trail and the buildings.

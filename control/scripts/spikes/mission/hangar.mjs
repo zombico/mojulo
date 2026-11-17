@@ -49,6 +49,7 @@ const H = R.hangar, U = R['hangar-under'], hx = H.max[0] - H.min[0], hy = H.max[
 const lift = { a: r2([H.min[0] + hx * 0.3, H.min[1] + hy * 0.5, H.min[2]]), b: r2([U.min[0] + hx * 0.3, U.min[1] + hy * 0.5, U.min[2]]) };
 const line = [0.22, 0.5, 0.78].map((u) => r2([H.min[0] + hx * u, H.max[1] - 4.5, H.min[2]]));
 const siege = r2([U.min[0] + hx * 0.68, U.min[1] + hy * 0.5, U.min[2]]);
+const start0 = r2(mid(R.lobby)); start0[2] += 0.05;
 const mission = {
   items: [
     { id: 'intel-manifest', name: M.items['intel-manifest'].reads, at: r2(mid(R['flight-ops'])) },
@@ -67,13 +68,17 @@ const mission = {
     { id: 'stairwell', kind: 'stair', name: 'The stairwell', a: r2(mid(R['core-0'], 0, -3)), b: r2(mid(R['core-1'], 0, -3)), radius: 1.6, secs: 3, needs: { items: ['intel-siege'] } },
   ],
   objectives: [
+    { id: 'key', says: 'find a way into the hangar', done: 'hangar-key' },
     { id: 'brief', says: M.objectives.brief.reads, done: 'intel-manifest' },
     { id: 'true', says: M.objectives.true.reads, after: M.reveal.flag, done: 'intel-siege' },
   ],
-  result: { at: r2(mid(R.lobby, 0, -2)), radius: 2.5, when: M.result.when },
+  // (the lobby's door: out to the yard, where the mission ends; a body that came in by it stands in the lobby)
+  exits: [{ id: 'lobby-door', name: 'Out to the yard', at: r2(mid(R.lobby, 0, -2.6)), radius: 1.6, to: opt('--yard-page', 'level-1-perimeter.html'), door: 'hangar-bay-1' }],
+  arrivals: { 'lobby-door': { at: start0, heading: Math.PI / 2 } },
+  leave: M.result.when,
   unsure: 'something in this hangar does not add up: look around',
 };
-const start = r2(mid(R.lobby)); start[2] += 0.05;
+const start = start0;
 // the guards: two on the main hall's floor, one below, each the yard's guard on a round of its own
 const g0 = room.manifest.entities.find((e) => e.id === 'guard-1');
 const rounds = [{ id: 'guard-1', at: [H.min[0] + 4, H.min[1] + 5, H.min[2]], heading: 0 }, { id: 'guard-2', at: [H.max[0] - 5, H.max[1] - 9, H.min[2]], heading: Math.PI }, { id: 'guard-3', at: [U.min[0] + 4, U.max[1] - 5, U.min[2]], heading: 0 }];
@@ -83,7 +88,7 @@ const entities = [
 ];
 const parked = [...line.map((at) => ({ vehicle: 'field walker', role: 'assault', at, heading: -Math.PI / 2 })), { vehicle: 'siege walker', at: siege, heading: Math.PI }];
 console.log(`hangar: hall ${JSON.stringify({ min: r2(H.min), max: r2(H.max) })} · under ${JSON.stringify({ min: r2(U.min), max: r2(U.max) })} · lift ${JSON.stringify(lift)} · start ${start}`);
-console.log(`hangar: items ${mission.items.map((i) => `${i.id}@${i.at}`).join(' ')} · clues ${mission.clues.map((i) => `${i.id}@${i.at}`).join(' ')} · stairwell ${mission.ways[1].a} ↔ ${mission.ways[1].b} · result ${mission.result.at}`);
+console.log(`hangar: items ${mission.items.map((i) => `${i.id}@${i.at}`).join(' ')} · clues ${mission.clues.map((i) => `${i.id}@${i.at}`).join(' ')} · stairwell ${mission.ways[1].a} ↔ ${mission.ways[1].b} · out ${mission.exits[0].at}`);
 if (argv.includes('--dry')) process.exit(0);
 
 const manifest = { ...stage, figures: room.manifest.figures, entities, fxStyle: room.manifest.fxStyle, parked };
@@ -91,7 +96,7 @@ const { payload } = await resolveWorldScene({ ref: 'steel-serpents-level-1-hanga
 const { walkers: _w, ...P } = payload;
 const html = emitThreeWorld({ ...P, camera: room.manifest.camera, events: room.manifest.events, walk: false, spin: false, hud: false, inline: true, ...(argv.includes('--capture') ? { capture: true } : {}) });
 await fs.mkdir(out, { recursive: true });
-const file = path.join(out, 'hangar.html');
+const file = path.join(out, 'level-1-hangar.html');
 await fs.writeFile(file, html);
 console.log(`hangar: ${file} (${(html.length / 1e6).toFixed(1)} MB) · hero ${room.hero} · entities ${payload.entities.map((e) => e.id).join(', ')} · colliders ${payload.colliders.length}`);
 process.exit(0);

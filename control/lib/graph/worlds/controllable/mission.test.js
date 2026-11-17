@@ -54,6 +54,24 @@ describe('a mission in one level', () => {
     w.ms.held['lift-key'] = true; run(w, {}, 2);
     expect(w.ms.done).toBe(true);
   });
+  it('an exit is taken once its key is held, and what was held comes in on the other page at its door', () => {
+    const M2 = { ...MISSION, exits: [{ id: 'side-door', at: [0, -9, 0], needs: { items: ['lift-key'] }, to: 'hangar.html', door: 'lobby' }], arrivals: { yard: { at: [20, 20, 0], heading: 1 } } };
+    const mk = () => E.createWorld({ entities: [{ id: 'p', pilotable: true, rule: { type: 'platform', speed: 5, eye: 0, mission: M2 }, body: { type: 'none', hittable: true, hp: 100 }, transform: { pos: [0, 0, 0], heading: 0 } }] });
+    const w = mk(); run(w, {}, 2);
+    put(w, [0, -9, 0]); act(w);
+    expect(w.ms.exit).toBeNull();
+    expect(w.ms.locked).toEqual(['lift-key']);
+    w.ms.held['lift-key'] = true; act(w);
+    expect(w.ms.exit).toMatchObject({ to: 'hangar.html', door: 'lobby' });
+    const at = w.byId.p.transform.pos.slice(); run(w, { forward: 1 }, 20);
+    expect(w.byId.p.transform.pos[0]).toBeCloseTo(at[0], 1);   // (held until the page goes)
+    // the other page: what came in
+    const v = mk(); v.msCarry = { held: { 'lift-key': true }, flags: { known: true }, hp: 40, door: 'yard' }; run(v, {}, 2);
+    expect(v.ms.held['lift-key']).toBe(true);
+    expect(v.ms.flags.known).toBe(true);
+    expect(v.byId.p.body.hp).toBe(40);
+    expect(v.byId.p.transform.pos.slice(0, 2).map(Math.round)).toEqual([20, 20]);
+  });
   it('a rule with no mission is as it was', () => {
     const w = E.createWorld({ entities: [{ id: 'p', pilotable: true, rule: { type: 'platform', speed: 5, eye: 0 }, body: { type: 'none' }, transform: { pos: [0, 0, 0], heading: 0 } }] });
     run(w, { act: 1 }, 3);

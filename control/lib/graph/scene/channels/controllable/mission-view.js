@@ -6,12 +6,16 @@
 //            passage until it opens
 //   words    the objective the mission stands at (top left); what the action would do where the body stands, or what it
 //            still needs (bottom middle); the last thing found, read or opened, for a few seconds; the result
+//   a door   an exit's plate; taken, the screen closes and the page goes to the other segment's, what is held, read
+//            and set and the body's health carried in the address (#ms=…), read back there as it loads
 //   a ride   the screen closed over the middle of it, so the body is seen leaving one floor and arriving on the other
 // It reads the world and draws; it changes nothing the simulation reads. Plain DOM for now, not mana-ui's.
 export function missionScript() {
   return `
 // ── A MISSION, SHOWN ──
-const __MS = { things: {}, t: 0 };
+// (what came in from another segment's page, in the address: taken by the simulation at its next step)
+try { const m = /[#&]ms=([^&]*)/.exec(location.hash || ''); if (m) { __world.msCarry = JSON.parse(decodeURIComponent(m[1])); history.replaceState(null, '', location.pathname + location.search); } } catch (e) {}
+const __MS = { things: {}, t: 0, gone: false };
 const __msEl = (css) => { const d = document.createElement('div'); d.style.cssText = 'position:fixed;z-index:8;pointer-events:none;font:600 14px/1.35 ui-monospace,monospace;color:#e8ecef;text-shadow:0 1px 0 rgba(0,0,0,.7);' + css; document.body.appendChild(d); return d; };
 const __msObj = __msEl('left:18px;top:16px;max-width:44vw;padding:8px 12px;background:rgba(12,16,20,.62);border-left:3px solid #e0b040');
 const __msAct = __msEl('left:50%;bottom:19%;transform:translateX(-50%);padding:6px 12px;background:rgba(12,16,20,.62);display:none');
@@ -28,18 +32,24 @@ function __msThing(id, make) { let m = __MS.things[id]; if (!m) { m = __MS.thing
   for (const c of M.clues || []) { const m = __msThing('c:' + c.id, () => { const g = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.62, 28), __msMat(0x6fd6ff, 0.8)); g.position.set(c.at[0], c.at[1], c.at[2] + 0.05); return g; }); m.visible = !(S && S.read[c.id]); m.scale.setScalar(1 + 0.08 * Math.sin(__MS.t * 2)); }
   for (const w of M.ways || []) for (const k of ['a', 'b']) __msThing('w:' + w.id + k, () => { const lift = (w.kind || 'lift') === 'lift', r = (w.radius || 1.8); const g = new THREE.Mesh(lift ? new THREE.PlaneGeometry(r * 2, r * 2) : new THREE.PlaneGeometry(r * 1.4, r * 0.7), __msMat(lift ? 0xe0b040 : 0x8fd08c, 0.34)); g.position.set(w[k][0], w[k][1], w[k][2] + 0.04); return g; });
   for (const b of M.barriers || []) { const m = __msThing('b:' + b.id, () => { const g = new THREE.Mesh(new THREE.BoxGeometry(b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]), new THREE.MeshBasicMaterial({ color: 0x39424a })); g.position.set((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2); return g; }); m.visible = !(S && S.open[b.id]); }
+  for (const x of M.exits || []) __msThing('x:' + x.id, () => { const r = (x.radius || 1.8); const g = new THREE.Mesh(new THREE.PlaneGeometry(r * 1.4, r * 1.4), __msMat(0x8fd08c, 0.34)); g.position.set(x.at[0], x.at[1], x.at[2] + 0.06); return g; });
+  // leaving for another segment's page: what is held, read and set and the body's health go with it, in the address
+  if (S && S.exit && !__MS.gone && now - S.exit.t > 0.6) { __MS.gone = true; const carry = { held: S.held, read: S.read, flags: S.flags, hp: p.body && p.body.hp, door: S.exit.door }; location.href = S.exit.to + '#ms=' + encodeURIComponent(JSON.stringify(carry)); }
   const O = __CW.missionObjective ? __CW.missionObjective(__world) : null;
-  __msObj.textContent = S && S.done ? 'MISSION COMPLETE' : O ? 'OBJECTIVE  ' + O.says : M.result && M.result.when.every((id) => S && S.held[id]) ? 'OBJECTIVE  get out' : (M.unsure ? 'OBJECTIVE  ' + M.unsure : '');
+  __msObj.textContent = S && S.done ? 'MISSION COMPLETE' : O ? 'OBJECTIVE  ' + O.says : (M.result ? M.result.when : M.leave || []).length && (M.result ? M.result.when : M.leave).every((id) => S && S.held[id]) ? 'OBJECTIVE  get out' : (M.unsure ? 'OBJECTIVE  ' + M.unsure : '');
   let act = '';
   if (S && S.near && !S.ride) {
     const c = (M.clues || []).find((x) => x.id === S.near), w = (M.ways || []).find((x) => x.id === S.near);
-    if (c) act = 'E  look closer';
+    const x = (M.exits || []).find((y) => y.id === S.near);
+    if (x) act = S.locked ? (x.name || x.id) + ' · locked: needs ' + S.locked.map((n) => { const it = (M.items || []).find((y) => y.id === n); return it ? (it.name || n) : n; }).join(', ') : 'E  ' + (x.name || 'go through');
+    else if (c) act = 'E  look closer';
     else if (w) act = S.locked ? (w.name || w.id) + ' · locked: needs ' + S.locked.map((n) => { const it = (M.items || []).find((x) => x.id === n); return it ? (it.name || n) : 'to know where it goes'; }).join(', ') : 'E  ' + ((w.kind || 'lift') === 'lift' ? 'ride the lift' : 'take the stairs');
   }
   __msAct.textContent = act; __msAct.style.display = act ? 'block' : 'none';
   const said = S && S.said && now - S.said.t < 4 ? S.said.text : '';
   __msSay.textContent = said; __msSay.style.display = said ? 'block' : 'none';
   const R = S && S.ride, u = R ? R.t / R.secs : 0;
+  if (S && S.exit) __msFade.style.opacity = String(Math.min(1, (now - S.exit.t) / 0.5)); else
   __msFade.style.opacity = R ? String(Math.max(0, Math.min(1, 1 - Math.abs(u - 0.5) * 4 + 1))) : '0';
   window.__mojMission = S || null;
 })();
