@@ -297,7 +297,10 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
       float dryF = smoothstep( 0.45, 0.65, vn( vWPos.xy / ${GROUND_PARALLAX.dry.toFixed(1)} + 4.2 ) );
       float tvF = vn( vWPos.xy / ${GROUND_PARALLAX.stretch.toFixed(1)} + 55.0 ), tPeb = 1.0 - smoothstep( 0.28, 0.38, tvF ), tCrk = smoothstep( 0.62, 0.72, tvF );
       float fines = vSplat.y * ( 1.0 - kept ) * smoothstep( 0.55, 0.8, nW.z ) * ( 1.0 - pw );
-      float wK0 = clamp( bare * ( 1.0 - dryF ) + tsh * tPeb + fines * 0.9, 0.0, 1.0 ), wK1 = clamp( bare * dryF + tsh * tCrk, 0.0, 1.0 );
+${form.dress && form.dress.pebbles ? `      // (a trail whose rubble is the shader's, path.rubble 'parallax': its pebbles in clusters over its share of the trail
+      // and its verge, where the stones would have lain; none stood up)
+      float roadP = ( tsh + ( pd < 98.0 ? exp( -pow( ( pd - 0.45 ) / 0.7, 2.0 ) ) : 0.0 ) * smoothstep( 0.6, 0.85, nW.z ) ) * smoothstep( ${(1 - form.dress.pebbles - 0.06).toFixed(3)}, ${(1 - form.dress.pebbles + 0.06).toFixed(3)}, vn( vWPos.xy / 1.4 + 91.0 ) * 0.7 + vn( vWPos.xy / 0.45 + 13.0 ) * 0.3 );
+` : ''}      float wK0 = clamp( bare * ( 1.0 - dryF ) + tsh * tPeb + fines * 0.9${form.dress && form.dress.pebbles ? ' + roadP' : ''}, 0.0, 1.0 ), wK1 = clamp( bare * dryF + tsh * tCrk, 0.0, 1.0 );
       float wK2 = rS * 0.85 * smoothstep( 0.5, 0.62, vn( vWPos.xy / 6.0 + vWPos.z * 0.35 + 9.0 ) ), wMax = max( wK0, max( wK1, wK2 ) );
       if ( wMax > 0.02 ) {
         int kd = wK0 >= wMax ? 0 : wK1 >= wMax ? 1 : 2;

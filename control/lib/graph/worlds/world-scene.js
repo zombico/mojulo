@@ -65,7 +65,7 @@ import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf, 
 import { lowerWaterworks } from '@/lib/graph/era/water-live';
 import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
-import { landRead, formPayload, DRESS_DEFAULT, GRASS_CARDS } from '@/lib/graph/form/land-read';
+import { landRead, formPayload, DRESS_DEFAULT, ROAD_PEBBLES, GRASS_CARDS } from '@/lib/graph/form/land-read';
 import { readWetness, wetOfWeather } from '@/lib/graph/era/wetness';
 // (the margin round a land's buildings their shadow map reaches: what stands by them and shades them, metres)
 const BUILT_SHADE = 12;
@@ -950,7 +950,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (a metro's land a town's too, geocity/scene.js: its lawns mown, no trail's rubble)
     const M = formMap ? { ...sketch.manifest.level, cube: sketch.manifest.level.geocube } : sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {}, town = M.show === 'geotown' || M.show === 'geocity';
     // (a town, geotown: its land a lawn's, no trail's rubble, dust, clay or patches)
-    const dress = town ? { ...DRESS_DEFAULT, rubble: 0, dust: 0, clay: 0, patches: [] } : { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
+    const dress = town ? { ...DRESS_DEFAULT, rubble: 0, dust: 0, clay: 0, patches: [] } : { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : path.rubble === 'parallax' ? { rubble: ROAD_PEBBLES.verge, pebbles: ROAD_PEBBLES.share } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
     // (the biocube's words the form render reads: the rock's moss, `flora.moss`; the grass's length, `flora.grass.sward`;
     // its drifts, `flora.grass.drifts` and `flora.flowers`; the recipe's biocube or else the cube's, none without)
     // (a town's lawns are mown: the short sward, no meadow's drifts)

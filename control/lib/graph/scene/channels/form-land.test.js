@@ -26,6 +26,18 @@ describe('the ground\'s parallax kinds', () => {
     expect(page).toContain('uStoneBase * tone');
   });
 
+  it('draws a trail\'s rubble as its pebbles only where its dress says so, in clusters over its share', () => {
+    expect(formLandScript(land)).not.toContain('roadP');
+    const page = formLandScript({ ...land, dress: { pebbles: 0.35 } });
+    expect(page).toContain('+ roadP');
+    expect(page).toContain('smoothstep( 0.590, 0.710,');
+  });
+
+  it('draws the tall grass\'s stand only on a land that has it', () => {
+    expect(formLandScript(land)).not.toContain("T.kind === 'stand'");
+    expect(formLandScript({ ...land, grass: { stand: { scale: 2 } } })).toContain("T.kind === 'stand'");
+  });
+
   it('carries the view cone before its grass, the reach fixed only when the world fixes it', () => {
     const page = formLandScript(land), cone = page.indexOf('window.__mojCone = K;');
     expect(cone).toBeGreaterThan(-1);

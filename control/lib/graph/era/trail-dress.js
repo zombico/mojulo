@@ -8,10 +8,13 @@
  *             rock) and, on a gritty land, takes its tile as a detail. An outdoor one is laid in the dirt: leant part of
  *             the way, its edge the dirt trail's (the verge from the dirt, the dirt spilled over its outer stones, the
  *             rubble beside it). A made one is kept: its fringe turf to its edge, no rubble
- *   rubble    false: no stones along a gritty dirt trail's edges (local-meru/broken-land.js strewEdge); true the default
+ *   rubble    false: no stones along a gritty dirt trail's edges (local-meru/broken-land.js strewEdge); true the default;
+ *             'parallax': none stood up as stones (none strewn here, none of the form render's), the trail's pebbles drawn
+ *             in its ground's shader instead, fewer (form/land-read.js ROAD_PEBBLES), a page's cheaper road
  *   patches   false, or the patch kinds a gritty dirt trail is worn in (PATCH_KINDS); absent, PATCH_DEFAULT
  *
- *   readTrailDress(trail)   → { surface, rubble, patches } (the recipe's, checked; the defaults where it says nothing)
+ *   readTrailDress(trail)   → { surface, rubble, patches, pebbles? } (the recipe's, checked; the defaults where it says
+ *                             nothing; `rubble` whether stones are strewn, `pebbles` true where they are the shader's)
  *
  * Pure.
  */
@@ -36,7 +39,7 @@ export function readTrailDress(trail) {
   const t = trail && typeof trail === 'object' ? trail : {};
   const surface = t.surface ?? 'earth';
   if (!TRAIL_SURFACES.includes(surface)) throw new Error(`stage: trail.surface '${surface}' is not a ground word (${TRAIL_SURFACES.join(', ')})`);
-  if (t.rubble !== undefined && typeof t.rubble !== 'boolean') throw new Error('stage: trail.rubble is true (stones along a gritty dirt trail\'s edges, the default) or false');
+  if (t.rubble !== undefined && typeof t.rubble !== 'boolean' && t.rubble !== 'parallax') throw new Error('stage: trail.rubble is true (stones along a gritty dirt trail\'s edges, the default), false, or \'parallax\' (fewer, drawn in the ground\'s shader, none stood up)');
   let patches = PATCH_DEFAULT;
   if (t.patches === false) patches = [];
   else if (t.patches !== undefined && t.patches !== true) {
@@ -44,7 +47,7 @@ export function readTrailDress(trail) {
     for (const k of t.patches) if (!PATCH_KINDS.includes(k)) throw new Error(`stage: trail.patches: '${k}' is not a patch kind (${PATCH_KINDS.join(', ')})`);
     patches = [...new Set(t.patches)];
   }
-  return { surface, rubble: t.rubble !== false, patches };
+  return { surface, rubble: t.rubble !== false && t.rubble !== 'parallax', patches, ...(t.rubble === 'parallax' ? { pebbles: true } : {}) };
 }
 
 // ── patches ─────────────────────────────────────────────────────────────────────────────────────────────────────────

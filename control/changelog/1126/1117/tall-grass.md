@@ -18,3 +18,8 @@
   checkpoint's second way now crouches through the grass at the truck. The build says each patch's share of level
   ground, and the plan draws the land's relief (a bank's cells lit and shaded) so a patch is not laid on one.
 - **The geocube card** (`sketch-vocab/geocube.md`) teaches `tallGrass`.
+- **Thinner**: the stand's clumps set 0.336 m apart, not 0.26 (three fifths as many a square metre).
+- **A road whose rocks are drawn** (a geocube's `path.rubble: 'parallax'`, era/trail-dress.js): no stone stood up on the
+  trail or its verge (none strewn by the stage, none of the form render's, its scree's kept off it too:
+  form/land-stones.js `offTrail`); its pebbles marched in the ground's parallax instead, in clusters over a third of it
+  (form/land-read.js ROAD_PEBBLES), the verge's scree texture lighter. Level 0's trail is laid so.

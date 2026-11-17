@@ -13,7 +13,7 @@
  *       `rubble` (0–1, a trail's dress): stones along the trail too (its mask, `layers.path`), most just past its edge
  *       (the verge, RUBBLE_AT metres out, wearing out over RUBBLE_SPREAD), a few on it (RUBBLE_ON), as many as `rubble`
  *       of a scree's at the most, and smaller (RUBBLE_SIZES) where the trail's share is the face's larger; none without a
- *       trail.
+ *       trail. `offTrail`: none on the trail or its verge at all (a trail whose rubble the ground's shader draws).
  *
  *   stoneForms({ rock?, seed?, aspect? }) → { near: [{ pos, nrm }], far: [{ pos, nrm }] }: the SHAPES shapes the stones are
  *       drawn from, as the rock studies break a rock (polygonizer/rock-fracture.js: the minerals' cleavage, a block of
@@ -41,8 +41,11 @@ export const RUBBLE_SIZES = Object.freeze([0.035, 0.18]);
 
 const u01 = (seed, tag, k) => strHash(`${seed}|${tag}|${k}`) / 4294967296;
 
-export function landStones(faces, layers, { seed = 1, density = STONE_DENSITY, sizes = STONE_SIZES, rubble = 0, clear = null } = {}) {
-  const out = [], M = rubble > 0 ? layers.path : null;
+export function landStones(faces, layers, { seed = 1, density = STONE_DENSITY, sizes = STONE_SIZES, rubble = 0, clear = null, offTrail = false } = {}) {
+  const out = [], M = rubble > 0 ? layers.path : null, T = offTrail ? layers.path : null;
+  // (off the trail, `offTrail`: none on it nor on its verge, out to RUBBLE_AT + RUBBLE_SPREAD past its edge, where its
+  // pebbles are the ground shader's: a trail whose rubble is drawn, not stood up)
+  const onTrail = (x, y) => { if (!T) return false; const i = Math.round((x - T.origin[0]) / T.cell), j = Math.round((y - T.origin[1]) / T.cell); return i >= 0 && j >= 0 && i < T.size[0] && j < T.size[1] && T.dist[j * T.size[0] + i] <= RUBBLE_AT + RUBBLE_SPREAD; };
   // (a trail's verge: the rubble's share at a point, by its distance to the trail)
   const verge = (c) => {
     const i = Math.round((c[0] - M.origin[0]) / M.cell), j = Math.round((c[1] - M.origin[1]) / M.cell);
@@ -72,6 +75,7 @@ export function landStones(faces, layers, { seed = 1, density = STONE_DENSITY, s
         const at = [0, 1, 2].map((d) => a[d] + (b[d] - a[d]) * p + (c[d] - a[d]) * q + n[d] * r * (1 - SINK));
         // (none in ground a thing has claimed, `clear` [[x, y, r]]: a boulder's, a trunk's, a bush's)
         if (clear && clear.some(([x, y, R]) => Math.hypot(at[0] - x, at[1] - y) < R + r)) continue;
+        if (T && onTrail(at[0], at[1])) continue;
         out.push({ at: at.map((v) => Math.round(v * 1e4) / 1e4), r: Math.round(r * 1e4) / 1e4, n, tone: Math.round((0.85 + 0.3 * u01(seed, 'stone-t', key)) * 1e3) / 1e3, v: Math.floor(u01(seed, 'stone-v', key) * SHAPES) });
       }
     }

@@ -63,6 +63,18 @@ describe('the scree\'s stones', () => {
     expect(landStones(faces, L, { seed: 2, rubble: 1 })).toEqual(S);
   });
 
+  it('a trail whose rubble the ground\'s shader draws has no stone on it or its verge, and the land past it its own', () => {
+    const T = field();
+    for (let x = 12; x < 30; x += 0.5) { T.faces.push({ corners: [[x, 17.2, 0.04], [x + 0.5, 17.2, 0.04], [x + 0.5, 18.8, 0.04], [x, 18.8, 0.04]], normal: [0, 0, 1] }); T.form.faces.push({ cls: 'trail' }); }
+    const LT = landLayers(T.faces, T.form, { seed: 2 }), near = (st) => st.filter((s) => s.at[0] > 16 && s.at[0] < 28 && Math.abs(s.at[1] - 18) < 1.6).length;
+    const stood = landStones(T.faces, LT, { seed: 2, rubble: 1 }), drawn = landStones(T.faces, LT, { seed: 2, offTrail: true });
+    expect(near(stood)).toBeGreaterThan(0);
+    expect(near(drawn)).toBe(0);
+    // (off the trail's reach, the scree's stones as they were)
+    const far = (st) => st.filter((s) => Math.abs(s.at[1] - 18) > 4);
+    expect(far(drawn)).toEqual(far(landStones(T.faces, LT, { seed: 2 })));
+  });
+
   it('the stones\' shapes are broken rock: chipped near, the block\'s facets far, each of a stone\'s bulk, the same each time', () => {
     const F = stoneForms({ rock: 'granite', seed: 5 });
     expect(F.near.length).toBe(SHAPES);

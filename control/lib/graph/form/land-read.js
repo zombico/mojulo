@@ -74,6 +74,10 @@ export const GRASS_CARDS = 'isekai:grass';
 export const RELIEF_DEFAULT = 'ledged';
 /** A trail's dress when none is written: rubble half, a little dust, some clay, the three patch kinds. */
 export const DRESS_DEFAULT = Object.freeze({ surface: 'earth', rubble: 0.5, dust: 0.3, clay: 0.45, patches: Object.freeze(['worn', 'damp', 'gravel']) });
+/** A trail whose rubble is the shader's (`path.rubble: 'parallax'`, era/trail-dress.js): no stone stood up on or beside it;
+ *  its pebbles marched in the ground's parallax in clusters over `share` of it and its verge, the verge's scree texture at
+ *  `verge` (a dress's rubble), the half default's half. */
+export const ROAD_PEBBLES = Object.freeze({ share: 0.35, verge: 0.25 });
 
 /** The layer atlas's cells in order (`LAYERS` in landRead): the four the corners weigh (`spl`: rock, scree, soil, sand), the
  *  trail's two dirts and the undergrowth; an engine's terrain shader reads the atlas by them. */
@@ -234,7 +238,7 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   const dirtBase = Object.fromEntries(Object.entries(tones).map(([k, t]) => [k, lin(hexRgb(t)).map((v, c) => Math.round(light.linearBases.floor[c] * v / Math.max(1e-6, floorLin[c]) * 1e4) / 1e4)]));
   // (the ground the trail's things claim, era/isekai.js ALLOT: its plants' `clear`, [x, y, r] each; no stone and no grass there)
   const CLAIMS = P0.plants?.clear?.length ? P0.plants.clear : null;
-  const STONES = landStones(P.faces, LY, { seed: 3, rubble: dress.rubble, ...(CLAIMS ? { clear: CLAIMS } : {}) }), stoneBase = light.linearBases.stone;
+  const STONES = landStones(P.faces, LY, { seed: 3, rubble: dress.pebbles ? 0 : dress.rubble, ...(dress.pebbles ? { offTrail: true } : {}), ...(CLAIMS ? { clear: CLAIMS } : {}) }), stoneBase = light.linearBases.stone;
   const stonePack = Float32Array.from(STONES.flatMap((q) => [...q.at, q.r, ...q.n, q.tone, q.v]));
   // THE GRASS (gen-7): the ground seen from above at GCELL (its height, and where grass grows: a green land's level ground,
   // off the trail), read by the near blades on the page; and the FAR, rows of brushes laid along the ground both ways
@@ -387,7 +391,7 @@ export function formPayload(R) {
     ranges, pos: b64(Float32Array.from(pos)), c7: b64(Uint8Array.from(c7)), spl: b64(Uint8Array.from(spl)), nrm: b64(Int8Array.from(nrm)),
     wet: { z: L.waterZ, band: WET_BAND, tone: WET_TONE, rough: WET_ROUGH },
     light: { sun: light.sun.linear, ambient: light.ambient.linear, sea: { base: bases.water } },
-    dress: { surface: dress.surface, clay: dress.clay, rubble: dress.rubble, dust: dress.dust, patches: ['worn', 'damp', 'gravel'].map((k) => (dress.patches.includes(k) ? 1 : 0)), reach: PATH_REACH, sdIn: SD_IN },
+    dress: { surface: dress.surface, clay: dress.clay, rubble: dress.rubble, dust: dress.dust, patches: ['worn', 'damp', 'gravel'].map((k) => (dress.patches.includes(k) ? 1 : 0)), reach: PATH_REACH, sdIn: SD_IN, ...(dress.pebbles ? { pebbles: dress.pebbles } : {}) },
     // (the stones' shapes as the rock studies break a rock, form/land-stones.js stoneForms: chipped near, the block far)
     stones: { n: STONES.length, shapes: SHAPES, base: stoneBase, px: b64(new Uint8Array(stonePack.buffer)),
       forms: Object.fromEntries(Object.entries(stoneForms()).map(([k, L]) => [k, L.map((f) => ({ pos: b64(new Uint8Array(f.pos.buffer)), nrm: b64(Int8Array.from(f.nrm, (x) => Math.round(x * 127))) }))])) },

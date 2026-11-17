@@ -28,7 +28,8 @@ const fz = Object.freeze;
  *  the cell its wander is read over, and the clump (blades, spread, spacing) against the land's tall tier. */
 export const TALL_GRASS = fz({
   r: 3, rMin: 0.8, rMax: 14, h: 1.2, hMin: 0.6, hMax: 2.4, edge: 0.9, edgeCell: 1.6, share: 0.5,
-  clump: fz({ blades: 9, spread: fz([0.05, 0.17]), width: fz([0.022, 0.032]), lean: fz([0.1, 0.26]) }), spacing: 0.26,
+  // (the clumps 0.336 m apart: three fifths as many a square metre as at 0.26, the stand's first spacing, thinned on play)
+  clump: fz({ blades: 9, spread: fz([0.05, 0.17]), width: fz([0.022, 0.032]), lean: fz([0.1, 0.26]) }), spacing: 0.336,
   // (the land's tall clump's mean tip, form-grass.js GRASS_TIERS 'tall' × BLADE_RISE: a stand's scale is its height over it)
   tip: 0.62,
 });
