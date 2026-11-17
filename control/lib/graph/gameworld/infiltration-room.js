@@ -76,6 +76,10 @@ const GUARD_TUNE = Object.freeze({ team: 'guards', rule: Object.freeze({ speed: 
   // (once it has seen the hero it keeps it: its sight wider and longer, where it lost it searched, the guards near it
   // called, the carbine up before its first round: alert.js)
   alert: Object.freeze({ cone: 1.3, range: 1.6, hold: 12, search: 6, pace: 1.8, leash: 2, raise: 0.45, call: 14 }),
+  // (and the team holds an ALARM: a glimpse is a threat detected, a sure sighting radioed in over 2.5 s is a threat found,
+  // the whole team searching the last known place; it dies down only while no guard sees the hero: alarm.js. A level
+  // sends its own backup: `alarm.backup`, `alarm.from`)
+  alarm: Object.freeze({ confirm: 0.6, radio: 2.5, found: 30, detected: 40, vigilant: 1.25, sweep: 4, every: 6 }),
   // (the carbine in its hands, carried low on its round and shouldered once it has the hero: gunplay-view.js)
   armHeld: true,
   // (the carbine its one slot, in place of the patrol's own blow: a body with a loadout fires what its slot carries)

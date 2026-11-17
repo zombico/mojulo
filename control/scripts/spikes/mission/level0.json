@@ -228,7 +228,7 @@
         21,
         21
       ],
-      "says": "A run is heard from close by. A patrol walks a round: wait for its back."
+      "says": "A run is heard from close by. A patrol walks a round: wait for its back. If a guard is sure of you he radios it in: put him down before the call goes through, or break his line of sight and hide until the alert dies down."
     },
     {
       "at": [
@@ -252,5 +252,17 @@
   "exit": [
     18.6,
     71
-  ]
+  ],
+  "backup": {
+    "from": [
+      18.6,
+      70
+    ],
+    "count": 2,
+    "reads": "two more guards come down the trail from the base when a call goes through, and go back when it is clear"
+  },
+  "alarm": {
+    "found": 30,
+    "detected": 40
+  }
 }

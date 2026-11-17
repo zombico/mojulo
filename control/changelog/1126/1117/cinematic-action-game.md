@@ -238,3 +238,15 @@ or a recipe key; the spike mints through the real doors and measures.
   on the ground (sight-view.js still says a sighting); `true` lays it on the ground as before. The HUD's radar reads
   the pilot's own `radarRange` where it names one. The starter's guards show their sight on the radar, and the
   infiltration yard's page takes the game's HUD so it is drawn there too.
+- **The alarm: a garrison's state of alert** (`rule.alarm`, worlds/controllable/alarm.js, opt-in; its page half
+  scene/channels/controllable/alarm-view.js): read from the stealth games' phases (infiltration, caution, evasion,
+  alert), the team holds one state where each guard alone knew only what it saw. A glimpse, a sound or a blow from
+  nowhere, or a downed teammate in a guard's sight is a THREAT DETECTED (orange): every guard of the team is vigilant,
+  its sight reaching farther (alert.js reads the gain). A guard that keeps the intruder in sight long enough to be sure
+  radios it in, and the call takes seconds: put down first, the call is never made. Through, it is a THREAT FOUND (red):
+  every guard has the last known place and searches round it, spread over a sweep that moves on every few seconds,
+  and backup (bodies minted asleep) is sent from where it comes from. Red's clock is full while any guard sees the
+  intruder and runs only while none does; out, it falls to orange, and orange's out, the team stands down and backup
+  goes back. So the way out of an alert is to hide. The page says the state at the top in place of SEEN, its clock as a
+  draining bar, the call's progress while it is made, and the screen's edge in the state's colour. The starter's guards
+  carry it; level 0 sends two guards down the trail from the base as backup.

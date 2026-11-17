@@ -47,8 +47,10 @@ if (o.has('--plan') && fss.existsSync(factsFile)) {
 }
 
 const { room, hero: h0, guard: g0 } = await starterRoom(o);
+// (backup: the starter's guard, minted asleep, sent down the trail when a call goes through: alarm.js)
+const backupIds = Array.from({ length: L.backup?.count ?? 0 }, (_, k) => `backup-${k + 1}`);
 const scene = { kind: 'geocube', cube: { from: L.cube, era: 'gen-7' }, show: 'path', seed: stage.seed, trail: stage.trail, hour: L.hour, shadows: { actors: true, hour: true }, parked: cover.parked,
-  figures: room.manifest.figures, entities: [h0, ...L.watchers.map((w) => ({ ...g0, id: w.id }))], fxStyle: room.manifest.fxStyle };
+  figures: room.manifest.figures, entities: [h0, ...L.watchers.map((w) => ({ ...g0, id: w.id })), ...backupIds.map((id) => ({ ...g0, id, dormant: true }))], fxStyle: room.manifest.fxStyle };
 const { payload } = await resolveWorldScene({ ref: 'steel-serpents-level-0', title: `${L.name} · Steel Serpents`, manifest: scene }, { era: 'gen-7', live: true });
 
 // THE GROUND: everything stands on the land as it was laid
@@ -80,9 +82,12 @@ const mission = {
 };
 payload.entities = payload.entities.map((e) => {
   if (e.id === 'hero') return { ...e, rule: { ...e.rule, step: 0.35, mission }, transform: { pos: on(L.start, 0.3), heading: Math.PI / 2 } };
+  // (the garrison's alarm on every guard of it: the level's numbers over the starter's, its backup and where it comes from)
+  const alarm = { ...(e.rule.alarm ?? {}), ...(L.alarm ?? {}), ...(backupIds.length ? { backup: backupIds, from: on(L.backup.from, 0.2) } : {}) };
+  if (backupIds.includes(e.id)) return { ...e, rule: { ...e.rule, alarm }, transform: { pos: on(L.backup.from, 0.2), heading: -Math.PI / 2 } };
   const w = W[e.id]; if (!w) return e;
   const to = w.kind === 'patrol' ? w.to : w.facing, heading = Math.atan2(to[1] - w.at[1], to[0] - w.at[0]);
-  return { ...e, rule: { ...e.rule, speed: w.kind === 'patrol' ? (w.speed ?? GUARD.speed) : 0, sightCone: w.cone ?? GUARD.cone, sightRange: w.range ?? GUARD.range,
+  return { ...e, rule: { ...e.rule, alarm, speed: w.kind === 'patrol' ? (w.speed ?? GUARD.speed) : 0, sightCone: w.cone ?? GUARD.cone, sightRange: w.range ?? GUARD.range,
     foe: { ...e.rule.foe, stretch: w.kind === 'patrol' ? +Math.hypot(to[0] - w.at[0], to[1] - w.at[1]).toFixed(2) : 10 } }, transform: { pos: on(w.at, 0.2), heading } };
 });
 console.log(`level 0: start ${on(L.start)} · exit ${on(L.exit)} · watchers ${watchersOf(L).map((w) => w.id).join(', ')} · parked ${parkedIds.length} · laid ${cover.laid.length} · form ${payload.form ? 'yes' : 'NO'}`);

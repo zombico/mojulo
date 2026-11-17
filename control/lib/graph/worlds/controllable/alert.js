@@ -48,7 +48,8 @@ export function buildAlert(E) {
     };
     return (e.alertK = { A, calm, hot });
   }
-  function wear(e, set) { for (const k of FIELDS) { if (set[k] === undefined) delete e.rule[k]; else e.rule[k] = set[k]; } }
+  // (a team's raised alarm, alarm.js, makes its sight reach farther: `e.alarmGain`, 1 when calm or absent)
+  function wear(e, set) { for (const k of FIELDS) { if (set[k] === undefined) delete e.rule[k]; else e.rule[k] = set[k]; } if (e.alarmGain > 1 && e.rule.sightRange != null) e.rule.sightRange *= e.alarmGain; }
   const live = (e) => !(e.downed || e.gone || e.dormant || (e.body && Number.isFinite(e.body.hp) && e.body.hp <= 0));
   E.stepWorld = function stepWithAlert(state, input, dt, hooks) {
     const now = state.time || 0, list = state.entities.filter((e) => e.rule && e.rule.alert);

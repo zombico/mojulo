@@ -86,6 +86,8 @@ function __svSpans(x, y, dx, dy, E, pe, feet, far, out) {
     F.m.material.color.setHex(hot ? 0xff5a4a : look ? 0xf2b33d : 0x6fd08c); F.m.material.opacity = hot ? 0.42 : look ? 0.34 : 0.28;
     if ((e.sightings || 0) > F.count) { fresh += (e.sightings || 0) - F.count; F.count = e.sightings || 0; }
   }
+  // (a garrison with an alarm says its state itself, alarm-view.js: no SEEN here)
+  if (__world.alarm) fresh = 0;
   if (fresh) { __SV.seen += fresh; __SV.at = now; __svEl.textContent = 'SEEN' + (__SV.seen > 1 ? ' ×' + __SV.seen : ''); __svEl.style.display = 'block'; window.__mojSeen = __SV.seen; }
   else if (__svEl.style.display !== 'none' && now - __SV.at > 1.6) __svEl.style.display = 'none';
 })();
