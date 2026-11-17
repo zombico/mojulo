@@ -83,6 +83,6 @@ describe('the scales', () => {
     // their own count of rooms wins over the rungs
     expect(exhibitStart({ concept: 'a dam', scales: [above, HOME_SCALE], time: 'visit', wants: { rooms: 4 } }).fit.rooms).toBe(4);
     expect(exhibitStart({ concept: 'a dam', scales: [above] }).map).toBeUndefined();
-    expect(() => exhibitStart({ scales: ['cosmic'] })).toThrow(/get_exhibit: start\.scales/);
+    expect(() => exhibitStart({ scales: ['cosmic'] })).toThrow(/create_exhibit: start\.scales/);
   });
 });

@@ -18,8 +18,8 @@ In progress. Each line is added as its phase lands.
   study) and says the fit in a line. Its arithmetic is the tour's own (`holdSeconds`), so a fit's stops played as the
   exhibit's audit plays them fit the time they were called for: a test holds that. A stop count is a ceiling, read
   end to end. Advice, never a refusal.
-- **The start** (`exhibit/producer.js`; the door: `get_exhibit({ start: { concept?, people?, time?, brought?,
-  wants? } })`, read-only). A person with a concept to display is answered before anything is made: the four
+- **The start** (`exhibit/producer.js`; the door: `create_exhibit({ start: { concept?, people?, time?, brought?,
+  scales?, wants? } })`, asked alone). A person with a concept to display is answered before anything is made: the four
   questions only they can answer, in order (what people should leave understanding, who it is for, how long they have
   with it, what material they bring), each dropped once answered, and `producer.ask`, the one to ask this turn. With
   their time, the fit. When all four are answered, `make`: the fit's door, said back first, the stops and claims
@@ -55,8 +55,8 @@ In progress. Each line is added as its phase lands.
 - **The map** (`map` on the start, once there is a fit): a spine and its sequences. One page stepped through, or a
   lobby of rooms each stepped through in order, each room's scale and stops, and between rooms at different scales
   the way the visitor zooms (in, out, or aside to an idea). Nothing branches.
-- The tool list's payload pin is raised for `start` (an argument on the read-only door that owns the exhibit intent),
-  with its reason beside the pin.
+- The tool list's payload pin is raised for `start` (an argument on the door that owns the exhibit intent), with its
+  reason beside the pin.
 - **The camera's own words** (after the camera work landed). A rung says how a room at it opens (`view`: a size by
   how much of the frame the thing fills, an angle: the macro is the wide view from above, the geo a map of the place
   from overhead), and the zoom between two rooms names the camera's move for it (a push in, a pull out; a crane up to
@@ -69,3 +69,13 @@ In progress. Each line is added as its phase lands.
   want to compare; the rooms joined, with the move between each two; then the machine gate and the person's look. It
   proposes and runs nothing. The curation it carries is what was said (the audiences, what was brought); the aims
   and the claims are marked theirs: none is written for them.
+- **Said where the exhibit option is chosen.** The start is an argument of `create_exhibit`, the door that owns the
+  intent of making an exhibit (it began on `get_exhibit`): its first call builds nothing and says what to ask, as
+  `design_game`'s does. `forward_context`'s WORLD row sends someone's own people to its `start` first; the exhibit
+  form says an exhibit is made new at its scale and that the halls hold samples; `create_exhibit`'s line in the tool
+  index says the start. A routing card of its own, `exhibit-producer`, takes the exhibitor's phrasing (a class, a
+  gallery's visitors, a lesson plan brought) and carries the producer's steps: ask, scale, fit, make. The plain
+  "show me" ask stays the `exhibit` card's and is made at once. `forward_context`'s body ceiling is grown for the
+  row, with its reason beside the pin.
+- **`CLAUDE.md` kept light**: a pointer to the exhibit producer's modules, and the game producer's paragraph and
+  architecture entry cut to pointers. The steps live in the routing cards and the readouts.

@@ -94,7 +94,7 @@ export const TOOL_LINES = {
   create_cover: L('create', 'A publication cover: illustration, title and metadata under one art direction, ready to bind onto a `cook` outcome.'),
   reference_protocol: L('orient', 'Step 1 of reading a picture YOU can see into dials (a scene, a pose, an object, a landscape or a character); returns the protocol and the `capture_reference` call to make.'),
   capture_reference: L('create', 'Step 2: file what you read from a picture into a stash (a cage sketch, or for a character the hero itself, drawn back); feeds `mint_solid` pose, `update_character`, `forge_motion` or `cook`.'),
-  create_exhibit: L('create', 'An exhibit by hall (`science/fission`, `earth/hydro`, `life/dna`, `math/derivative`, `history/pompeii`): a study object, a science demo or a historic city.'),
+  create_exhibit: L('create', 'An exhibit: a study object, a science demo, a historic city (`<hall>/<id>`), or, for someone\'s own people and time, `start` first: the one question to ask, the fit. Nothing built.'),
   get_exhibit: L('orient', "An exhibit's card, a hall's rows, or a made exhibit's SI time series (`ref`). Omit `id` for the halls."),
   get_view_vocab: L('orient', 'A `compose_world` manual: a base, an override, a stage kit or look, the city plan; `themes` lists the theme packs. Omit `id` for the index.'),
   save_recipe: L('maintain', "Keep a tuned study object, beats loop or solid in the operator's cookbook, recallable by intent through `semantic_search`."),

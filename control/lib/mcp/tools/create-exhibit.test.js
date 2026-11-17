@@ -206,14 +206,14 @@ describe('prepared states: one exhibit at several settings', () => {
 
 describe('get_exhibit', () => {
   it('start: a person with a concept is answered the producer\'s one question and the fit, and nothing is made', async () => {
-    const out = await getExhibitHandler({ start: { concept: 'how a dam makes electricity from falling water', time: 'visit' } });
+    const out = await createExhibitHandler({ start: { concept: 'how a dam makes electricity from falling water', time: 'visit' } });
     expect(out).toMatchObject({ ok: true, readout: 'start', built: false, producer: { seat: 'producer', step: 'people' } });
     // (made new: the halls are samples, and nothing is matched to the catalog)
     expect(out.nearest).toBeUndefined(); expect(out.like.says).toMatch(/SAMPLES/);
     expect(out.fit.says).toMatch(/holds one exhibit/);
     expect(out.ref).toBeUndefined();
-    await expect(getExhibitHandler({ start: {}, id: 'earth/hydro' })).rejects.toThrow(/`start` is asked alone/);
-    await expect(getExhibitHandler({ start: { topic: 'x' } })).rejects.toThrow(/topic is not one/);
+    await expect(createExhibitHandler({ start: {}, id: 'earth/hydro' })).rejects.toThrow(/`start` is asked alone/);
+    await expect(createExhibitHandler({ start: { topic: 'x' } })).rejects.toThrow(/topic is not one/);
     // (a scale's samples are exhibits the halls hold)
     const { SCALES } = await import('@/lib/graph/exhibit/scales');
     const held = new Set((await getExhibitHandler({})).cards.map((c) => c.id));

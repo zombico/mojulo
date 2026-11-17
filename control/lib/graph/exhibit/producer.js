@@ -44,7 +44,7 @@ import { readExhibitIntake, exhibitIntakeReport } from './intake.js';
 import { SCALE_IDS, readScales, scaleReport } from './scales.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const fail = (m) => new Error(`get_exhibit: start${m}`);
+const fail = (m) => new Error(`create_exhibit: start${m}`);
 
 // (the ids and their order are intake.js's QUESTION_IDS: a thing brought names the questions it answers by them)
 export const EXHIBIT_QUESTIONS = Object.freeze([

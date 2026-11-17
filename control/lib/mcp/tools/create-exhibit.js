@@ -138,6 +138,14 @@ async function mintStates(input) {
 
 export async function createExhibitHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('create_exhibit requires { id, params? } (id: <hall>/<id>), or { rooms }');
+  // THE START (exhibit/producer.js): a person with a concept to display, before anything is made. It builds nothing:
+  // the producer's one question and the fit once their time is known. The exhibit is made new; the halls are samples.
+  // On this door because making an exhibit is its intent (as design_game's first call builds nothing and says what to ask)
+  if (input.start !== undefined) {
+    const others = Object.keys(input).filter((k) => k !== 'start' && input[k] !== undefined);
+    if (others.length) throw new Error(`create_exhibit: \`start\` is asked alone: what the person has said so far (not with ${others.join(', ')})`);
+    return exhibitStart(input.start);
+  }
   if (input.rooms !== undefined) {
     if (input.id !== undefined) throw new Error('create_exhibit: `id` makes one exhibit, `rooms` joins made ones as a gallery; pass one of them');
     return mintGallery(input);
@@ -183,13 +191,7 @@ function measureExhibit({ ref, every }) {
 }
 
 export async function getExhibitHandler(input) {
-  const { id, hall, ref, every, detail, audit, start } = input && typeof input === 'object' ? input : {};
-  // THE START (exhibit/producer.js): a person with a concept to display, before anything is made. It builds nothing:
-  // the producer's one question and the fit once their time is known. The exhibit is made new; the halls are samples
-  if (start !== undefined) {
-    if (id !== undefined || ref !== undefined || hall !== undefined) throw new Error('get_exhibit: `start` is asked alone: what the person has said so far');
-    return exhibitStart(start);
-  }
+  const { id, hall, ref, every, detail, audit } = input && typeof input === 'object' ? input : {};
   if (ref !== undefined) {
     if (typeof ref !== 'string' || !ref) throw new Error('get_exhibit: `ref` is a made exhibit\'s sketch ref');
     if (audit === true) {
@@ -241,6 +243,7 @@ export function registerExhibitTools() {
         curation: { type: 'object', description: "Optional, the expert's brief: { aims, audiences?, claims: [{ id, text, cite, grade }], expert? }. Manual: get_view_vocab({ id: 'tour' })." },
         states: { type: 'object', description: "Prepared versions of `id`, switched in one page: { label?, control?: slider|toggle|carousel, of: [{ label, params, caption? }] }." },
         rooms: { type: 'array', items: { type: 'string' }, description: 'Instead of id: made exhibits (refs) joined as one gallery; params: { intro, kiosk, curation }.' },
+        start: { type: 'object', description: "A person's exhibit before it is made: { concept?, people?, time?, brought?, scales? } → the one question to ask, the fit. Builds nothing." },
       },
       required: [],
     },
@@ -264,7 +267,7 @@ export function registerExhibitTools() {
         ref: { type: 'string', description: 'A made exhibit to measure.' },
         every: { type: 'number', description: 'With `ref`: every Nth sample (default 1).' },
         audit: { type: 'boolean', description: 'With `ref`: its audit (tour, claims, reading) instead.' },
-        start: { type: 'object', description: "A person's exhibit before it is made: { concept?, people?, time?, brought?, scales? } → the one question to ask, the fit. Builds nothing." },
+
       },
       required: [],
     },

@@ -473,9 +473,9 @@ const DESCRIPTION_ALLOWLIST = {
 // `film` as a screenplay's export and a film's run (the scene played on its set's own World page, a video with no other
 // program). Three words on the door that owns the film intent; the manuals carry the rest.
 // Raised 2026-11-17 on 1117-exhibit-producer (180_500 -> 180_700; measured 180,578) for the exhibit's start:
-// get_exhibit's `start` argument (what a person with a concept to display has said so far, answered with the one
-// question to ask and the fit; it builds nothing). An argument on the read-only door that owns the exhibit intent
-// rather than a new tool; its manual is the producer's card, its description one line.
+// create_exhibit's `start` argument (what a person with a concept to display has said so far, answered with the one
+// question to ask and the fit; it builds nothing). An argument on the door that owns the exhibit intent rather than
+// a new tool; its steps are the `exhibit-producer` routing card's, its description one line.
 const PAYLOAD_CEILING = 180_700;
 
 async function listedTools() {

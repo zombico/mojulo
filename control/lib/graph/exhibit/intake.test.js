@@ -61,7 +61,7 @@ describe('the exhibit\'s intake', () => {
     expect(exhibitStart({ brought, [A[0]]: A[0] === 'concept' ? 'what the plan says' : A[0] === 'people' ? ['general'] : 'visit' }).next.find((x) => x.step === A[0])).toBeUndefined();
     // nothing brought, and not asked yet
     expect(exhibitStart({ brought: 'none' }).intake).toEqual({ none: true }); expect(exhibitStart({}).intake).toBeUndefined();
-    expect(() => exhibitStart({ brought: [{ id: 'a', kind: answering, says: 'x' }] })).toThrow(/get_exhibit: start\.brought/);
+    expect(() => exhibitStart({ brought: [{ id: 'a', kind: answering, says: 'x' }] })).toThrow(/create_exhibit: start\.brought/);
   });
 
   it('is kept with the exhibit on its curation; a brief without one is as it was', () => {
