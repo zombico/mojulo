@@ -64,10 +64,10 @@ const __QN = ${questNews.toString()};
 const __qm = (${questManaPage.toString()})(${manaUiSource()}, ${json(spec)}, ${json(`${manaCss()}\n${themeCss(mana === true ? 'greybox' : mana)}\n${QM_CSS}`)});
 let __qSeen = 0;
 function __qShow(open) {
-  if (open && window.__mojScenes && window.__mojScenes.on()) return;   // not over a scene
+  if (open && ((window.__mojScenes && window.__mojScenes.on()) || window.__mojManaOpen)) return;   // not over a scene, nor over another mana screen (the map, the bag)
   if (open) __qm.set(__QV(EVENTS.quests, __busState.vars));
   __qm.show(open);
-  window.__mojMenuOpen = open; window.__mojFreeze = open;   // the journal freezes the world as a menu does
+  window.__mojManaOpen = open ? 'journal' : null; window.__mojMenuOpen = open; window.__mojFreeze = open;   // the journal freezes the world as a menu does
 }
 window.addEventListener('keydown', (ev) => {
   if (ev.code === 'KeyJ' && !ev.repeat) { ev.preventDefault(); __qShow(!__qm.isOpen()); }

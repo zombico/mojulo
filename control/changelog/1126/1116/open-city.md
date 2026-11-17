@@ -48,3 +48,10 @@
   game's interface: whether there is a radar and which way up, which views it turns through and which opens first,
   how far the radar sees, whether shops and cars are marked, and which icon stands for each kind of marker.
 - **Three new icons**: a car, a shop and a parcel, in every icon style the themes offer.
+- **An inventory.** Press I to see what you are carrying: a grid of items, each with its icon and how many you hold,
+  and beside the one in focus what it is and which job it is for. Money is counted at the top and has its own tab.
+  It lists only what the level's jobs can put in your hands, and pauses the world while open.
+- **The inventory is the game's interface too.** It is drawn by the same interface system and theme as the map and
+  the journal. Its title and the icon for any item are settings on the game's interface; an item with no icon named
+  is drawn by its own word where there is a picture for it, otherwise as money, a person or a parcel.
+- **One screen at a time.** The journal, the map and the inventory no longer open on top of one another.

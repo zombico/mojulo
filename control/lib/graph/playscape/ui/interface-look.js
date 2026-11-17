@@ -11,6 +11,8 @@
  *     languages?: { <code>: { <key>: word } }, language?: '<code>'   the game's languages (mana-ui's words.test.js)
  *     map?:       false | { corner?, views?, radius?, shops?, cars?, icons? }   a played city's map: its radar, the
  *                 views it turns through, what it marks and with which pictograms (gameworld/city-map.js)
+ *     inventory?: false | { title?, icons?: { <item>: '<pictogram>' } }   the screen of what is carried: what it is
+ *                 called and each item's pictogram (gameworld/bag-ui.js)
  *   }
  *
  * THE WORLD'S LOOK, absent a theme, is the art director's: the register the game's intent sets (a souls-like grave, a
@@ -30,9 +32,10 @@ import { THEME_CARDS, THEME_CARD_IDS, cardTheme } from './theme-cards/loader.js'
 import { solvePalette } from '../../color-theorist/solve.js';
 import { juiceOfGame, juiceSuggestion } from '../../gameworld/juice.js';
 import { readMapUi } from '../../gameworld/city-map.js';
+import { readBagUi } from '../../gameworld/bag-ui.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const KEYS = ['theme', 'colour', 'languages', 'language', 'map'];
+const KEYS = ['theme', 'colour', 'languages', 'language', 'map', 'inventory'];
 
 // the art director's register by the game's intent (gameworld/intent.js GENRES): where its look starts
 export const INTENT_LOOKS = Object.freeze({
@@ -94,6 +97,8 @@ export function readUi(ui, where = 'ui') {
   }
   // (the map: what a played city's shows and how it is seen, gameworld/city-map.js)
   if (ui.map !== undefined) errors.push(...readMapUi(ui.map, `${where}.map`));
+  // (the inventory: how what is carried is shown, gameworld/bag-ui.js)
+  if (ui.inventory !== undefined) errors.push(...readBagUi(ui.inventory, `${where}.inventory`));
   return errors;
 }
 

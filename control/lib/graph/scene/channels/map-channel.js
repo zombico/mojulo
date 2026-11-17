@@ -54,10 +54,10 @@ export function mapPage(M, ui, spec, css) {
   }
   function show(on) {
     if (on === open) return;
-    if (on && ((window.__mojScenes && window.__mojScenes.on()) || window.__mojMenuOpen)) return;   // not over a scene or another menu
+    if (on && ((window.__mojScenes && window.__mojScenes.on()) || window.__mojMenuOpen || window.__mojManaOpen)) return;   // not over a scene or another menu (`__mojManaOpen`: the mana screen that is up, the journal's, the map's, the bag's)
     open = on; root.classList.toggle('open', on); sig = ''; read();
     if (on) rt.open('map'); else rt.close();
-    window.__mojMenuOpen = on; window.__mojFreeze = on;
+    window.__mojManaOpen = on ? 'map' : null; window.__mojMenuOpen = on; window.__mojFreeze = on;
   }
   window.addEventListener('keydown', (ev) => {
     if (ev.code === 'KeyM' && !ev.repeat) { ev.preventDefault(); show(!open); return; }
