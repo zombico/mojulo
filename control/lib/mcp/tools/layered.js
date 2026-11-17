@@ -1790,6 +1790,21 @@ export function faceMeasures(hero, plan) {
   return { head_m: r3(a.crown[2] - a.menton[2]), cheekbones_m: r3(2 * a.zygionR[0]), jaw_m: r3(2 * a.gonionR[0]), pupils_m: r3(2 * a.eyeR[0]) };
 }
 
+/** A hero's STATURE in metres, the crown over the soles, off its plan alone (no mesh compiled): the head's include
+ * placed on the body and the head's own crown over it, as the readout's heads-tall reads it. The bare body: a helm or a
+ * boot's sole adds to it. The tiered heads (anime, landmark); null for any other (the realistic form, the relational
+ * head, a figure with no head), whose height is read off its mesh. */
+export function heroStature(hero, plan = heroPlanOf(hero)) {
+  const inc = plan?.include?.find((i) => i.name === 'head');
+  if (!inc || !Array.isArray(inc.shift)) return null;
+  const r3 = (x) => Math.round(x * 1000) / 1000;
+  if (hero.head === 'anime') { const fm = faceMeasures(hero, plan); return fm && Number.isFinite(fm.crown_z) ? r3(inc.shift[2] + fm.crown_z) : null; }
+  if ((hero.head ?? 'landmark') !== 'landmark' || hero.form === 'realistic') return null;
+  const props = hero.proportions ?? 'hero', scale = planScale({ cast: hero.cast, tune: hero.tune, proportions: props });
+  const headScale = (hero.headScale ?? castOf(hero.cast, props)?.headScale ?? 1) * (hero.tune?.head ?? 1);
+  return r3(inc.shift[2] + humanoidAnchors(headPoleOf(hero), hero.face ?? {}).crown[2] * scale * headScale);
+}
+
 /** What the tune did, in the operator's units: height off the compiled stats, the yoke and the pelvis off the plan's rings. */
 export function heroMeasures(plan, stats) {
   const r3 = (x) => Math.round(x * 1000) / 1000;

@@ -117,6 +117,12 @@ describe('laid in a world', () => {
     expect(stages).toHaveLength(1);
     expect(isStrip(stages[0].manifest)).toBe(true);
   });
+  it('the hero collides as tall as it stands: the run\'s stature on its rule, the person\'s 1.7 m when none is read', () => {
+    const W = world('2d'), G = readGameworld(W), [s] = gameStages(W);
+    const height = (o) => o.args.manifest.entities.find((e) => e.id === 'hero').rule.collideHeight;
+    expect(height(stageLevelOrder(G, s, { ref: 'lv', heroRef: 'gw-hero', heroStature: 1.67 }))).toBe(1.67);
+    expect(height(stageLevelOrder(G, s, { ref: 'lv', heroRef: 'gw-hero' }))).toBe(1.7);
+  });
 
   describe('3d', () => {
     const W = world('3d', { boss: true }), G = readGameworld(W), stages = gameStages(W);

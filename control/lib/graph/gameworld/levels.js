@@ -743,12 +743,12 @@ function withBookUi(G, play) {
   return { ...play, ui: { seed: h % 2147483647 } };
 }
 
-function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null, foeRefs = null } = {}) {
+function levelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null, foeRefs = null } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
   // a street level (brawl-cast.js): its own simulation and its own contract, the game's hero and made foes its bodies
   if (stage.section === 'street') { const S = streetLevel(G, stage.street, { title: title ?? stageTitle(stage), ref, heroRef, foeRefs, party, ...STREET_LAY }); return { tool: 'create_sketch', args: { title: S.manifest.title, manifest: S.manifest }, laws: S.laws }; }
-  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, sheathRef, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
+  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, heroStature, pilot, mechanics, title, sheathRef, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
   const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stage.section === 'obstacles' ? obstacleEnds(stage.manifest) : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
   // reads them: the field the ground was flattened for, a race's checkpoint spacing; cover stands after the goal's cast
@@ -868,7 +868,10 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const rule0 = written ? { ...written, ...(camRule ?? {}) } : camRule, struck = strikeWindow(G, rule0);
     // (a feel that asks for its takes: the hero plays its own jumps on the rule's flight, feel/lower.js TAKES)
     const takes = G.feel && readFeel(G.feel).takes ? TAKES : null;
-    const rule = struck ? { ...(rule0 ?? {}), ...struck } : rule0;
+    const rule1 = struck ? { ...(rule0 ?? {}), ...struck } : rule0;
+    // (the hero collides as tall as it stands, `heroStature`, the run's read of its made body; a mascot pilot keeps its
+    // own capsule; none read, the person's 1.7 m as before)
+    const rule = heroStature && !pilot ? { ...(rule1 ?? {}), collideHeight: heroStature } : rule1;
     // (a mascot pilot, egocube/mascot-pilot.js: its own clips, capsule, stride, camera and eye)
     const moves = heroMoves(G);
     const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), ...(lane || stage.section === 'runner' ? { walk: false } : {}), id: 'hero', title: name, controls: G.mechanics?.legend === 'menu' ? '' : `${controls}${written?.dash && written.dash.ground !== false ? ' · F  dash' : written?.sprint ? ' · F  run' : rule?.stamina ? ` · F  sprint (stamina)${rule.dodge ? ' · F F  dodge' : ''}` : ''}${written?.sprintSpeed ? ' · Shift  sprint' : ''}${airKeys(written)}${actionOrbit ? ' · C  lock on' : ''}${movesLegend(moves)}`, ...(rule ? { rule } : {}), ...(takes ? { takes } : {}) }), moves, startingGrants(G));
@@ -1756,7 +1759,7 @@ export function buildingEnds(stage, lowered = withBuildingLevel({ ...stage.manif
   return ends;
 }
 
-function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, sheathRef = null, goal = null, goalCast = null, extra = null, legend = null, story = null, carryFrom = null, party = null, castFigures = null } = {}) {
+function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, mechanics = null, title, sheathRef = null, goal = null, goalCast = null, extra = null, legend = null, story = null, carryFrom = null, party = null, castFigures = null } = {}) {
   const name = title ?? `${G.name ?? G.id} · ${stage.level}`;
   let base = { ...stage.manifest, title: name, ...(mechanics?.play ? { play: mechanics.play } : {}) };
   const lowered = withBuildingLevel(base, ref), walker = lowered.entities[0];
@@ -1804,7 +1807,7 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   // (AN ACTION HERO indoors, the orbit and a blow, as on a trail: it moves in the camera's frame under the orbit that
   // locks on, and where the run made its sheathed twin its blade goes to its back and the fist is in its hands)
   const actionOrbit = cam === 'orbit' && carriesStrike(G);
-  const brule = { ...(top ? { move: 'world', moveYaw: OVERHEAD.yaw } : actionOrbit ? { move: 'camera' } : {}), ...(strikeWindow(G, null) ?? {}) };
+  const brule = { ...(top ? { move: 'world', moveYaw: OVERHEAD.yaw } : actionOrbit ? { move: 'camera' } : {}), ...(strikeWindow(G, null) ?? {}), ...(heroStature && !pilot ? { collideHeight: heroStature } : {}) };
   const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls, ...(Object.keys(brule).length ? { rule: brule } : {}) }), moves, startingGrants(G));
   const inputs = [...(P.events?.inputs ?? []), ...(mechanics?.inputs ?? []), ...(X?.inputs ?? [])];
   const events = { ...(P.events || {}), ...(inputs.length > (P.events?.inputs?.length ?? 0) ? { inputs } : {}) };
