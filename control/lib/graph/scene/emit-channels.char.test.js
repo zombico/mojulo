@@ -803,6 +803,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // `data-icon`, as an icon's and a counter's do) and takes a `size` (l: a slot read at a glance), and the sheet sizes it.
 // `brawl` and `holo`, the two whose page inlines the game UI runtime; a slot of the size unsaid draws as it did.
 //
+// Re-pinned 2026-11-18 (screen effects): mana-ui gains its `effect` layer (confetti, streamers, sparkles, burst, petals,
+// a flash: pure CSS over everything, catching nothing) and the sheet its rules and motions. `brawl` and `holo`, the two
+// whose page inlines the game UI runtime; a HUD that lays no effect draws as it did.
+//
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

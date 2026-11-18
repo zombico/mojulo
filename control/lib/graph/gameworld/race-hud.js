@@ -31,6 +31,7 @@
  *   race { place, of, placeSays, field, lap, laps, lapSays, time, best, hasBest, speed, speedMax, markers, solo, hasItem, itemSays,
  *          itemIcon }
  *   start { lit, of, lights, sub } (lights: the lit ones said as marks)   moments [{ id, text, sub?, weight? }]
+ *   fx { finish, best }   the screen effects' triggers: the finish (confetti), each lap better than the best (sparkles)
  * Pure: a spec is data.
  */
 import { THEMES } from '../../mana-ui/theme.js';
@@ -44,6 +45,7 @@ export const RACE_HUD_STATE = Object.freeze({
     markers: [{ x: 0.3, y: 0.4, kind: 'self' }, { x: 0.35, y: 0.32, kind: 'foe' }] },
   start: { lit: 3, of: 5, lights: '● ● ● ○ ○', sub: 'get ready' },
   moments: [],
+  fx: { finish: 0, best: 0 },
 });
 /** The look a race wears unless its game says one: its track's language's, else a kart's or a circuit's. */
 export const RACE_LOOKS = Object.freeze({ candy: 'kart-candy', 'grand-prix': 'pit-wall', kart: 'kart-candy', circuit: 'pit-wall' });
@@ -94,7 +96,10 @@ export function raceHud(race, { theme = null, screen = null, words = {} } = {}) 
     { use: 'region', props: { at: 'top-right' }, unless: TALL, children: [{ use: 'stack', props: { dir: 'column', gap: 'tight', align: 'end' }, children: [...(laps > 1 ? [lap] : []), times] }] },
     ...(map ? [{ use: 'region', props: { at: 'right' }, unless: TALL, children: [{ use: 'minimap', props: { markers: B('race.markers'), route: map.route, shape: 'round' } }] }] : []),
     { use: 'region', props: { at: 'top' }, when: TALL, children: [{ use: 'stack', props: { dir: 'row', gap: 'loose', align: 'center' }, children: [...(field ? [place] : []), ...(laps > 1 ? [lap] : []), { use: 'timer', props: { seconds: B('race.time'), format: 'mmss' } }] }] },
-    ...item, speed, moments] };
+    ...item, speed, moments,
+    // the screen's effects (mana-ui's `effect`: pure CSS over everything, catching nothing): confetti on the finish,
+    // sparkles on a lap better than the best
+    { use: 'effect', props: { kind: 'confetti', on: B('fx.finish') } }, { use: 'effect', props: { kind: 'sparkles', on: B('fx.best'), count: 24 } }] };
   // the lights are a SCREEN: while one is up the karts are held, and the host freezes the race's clock until GO
   // (the lights as large as the title's words, on a plate: read at a glance, as a gantry's are from the grid)
   const ready = { use: 'screen', props: { layer: 'overlay', place: 'center', legend: 'none' }, children: [{ use: 'window', props: { variant: 'plain' }, children: [{ use: 'stack', props: { dir: 'column', gap: 'tight', align: 'center' }, children: [

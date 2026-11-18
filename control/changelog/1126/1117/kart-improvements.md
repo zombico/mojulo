@@ -127,6 +127,12 @@ In progress. Built so far:
   pictograms in the chunky style, each in the colour of what it means, each readable on the berry plate: the sweet in
   the accent's lemon, the gumball in the second accent's sky (the gumball rolled on the track is sky now too), the
   splat in the cream ink.
+- **Built: screen effects on the game UI** (mana-ui's `effect`, a HUD layer): confetti (falling from the top, popped
+  from the centre or fired from the bottom), streamers, sparkles, a burst of stars, petals and a flash. Each plays
+  once on a new trigger, or holds while it loops. Its pieces come from its own dice, in the theme's colours. It is pure
+  CSS and never touches play: it catches no pointer, is laid out alone, moves transform and opacity only, pauses with
+  a held clock, and plays only a fade under reduced motion. A race lays confetti on the finish and sparkles on a lap
+  better than the best.
 - **Spike: boxless UI** (`scripts/spikes/boxless-ui/`, not shipped). The race HUD drawn with its plates stripped and
   the decoration moved onto the letters, in four letter dresses (candy, sticker, chrome, extrude): a fill, rings, an
   extrusion and a drop, as one SVG filter a size. It covers about a third of the screen the boxed HUD does (18.1% to

@@ -954,6 +954,23 @@ a loading screen that says which map is next, and a result with the map, the sec
 its level hosts a HUD of its own (`scene/channels/mana-hud.js`, composed by `gameworld/course-hud.js`). Both wear the
 look the course's dress names (`toybox`, the toy family's first card).
 
+### Screen effects
+
+A moment worth celebrating gets a screen effect: the HUD's `effect` layer, beside its regions. Its kinds are
+`confetti`, `streamers`, `sparkles`, `burst`, `petals` and a `flash`. Confetti falls from the top, pops from the centre
+or fires up from the bottom (`from`).
+- **Trigger:** it plays once each time its `on` takes a new value (a finish, a best lap, a level up: bind it to a count
+  the game raises), or holds while `loop`. A new trigger is a new element (its `data-key`), so its animation plays
+  again; with no trigger the layer is empty and hidden.
+- **Pieces:** thrown by the effect's own dice (`seed` and the trigger: the same moment throws the same pieces), in the
+  theme's colours by name (`tones`: accent, accent2, hp, ink by default) or a hex, as many as `count` (at most 160) for
+  `seconds`.
+- **It never touches play.** It is pure CSS: it catches no pointer, is laid out alone (`contain: strict`), and its
+  motions move transform and opacity only, the compositor's, so it asks the game for no frame. It holds with a held
+  clock, as every HUD animation does, and under less motion its pieces stay home and only a flash, a fade, plays.
+
+A race lays two: confetti on the finish and sparkles on a lap better than the best (`fx.finish`, `fx.best`).
+
 ### A race's HUD
 
 A level raced by laps on a roadway (the `laps` mechanic round a track) hosts a HUD of its own too, composed by

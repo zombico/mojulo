@@ -47,7 +47,7 @@
  *   the HUD's motion. Never on the first draw: what was there when a screen opened is not news.
  *
  *   COMPONENTS / COMPONENT_IDS    name → { about, group, props: { <prop>: [type, default?, required?] }, children?, verbs? }
- *   REGIONS · AWARENESS · MARKERS · PIP_SHAPES   the closed words some components take
+ *   REGIONS · AWARENESS · MARKERS · PIP_SHAPES · EFFECTS   the closed words some components take
  *   readNode(node, defs?, where?) → the node with its defs expanded, or throws, teaching
  *   readSpec(spec)                → { screens, hud, start }
  *   runtime(spec, host)           → the running UI. host: { read(path) → value, act(effect, from), now?() → the game's
@@ -113,6 +113,10 @@ export function buildManaUi() {
   // a moment's weight: a number, or the words (the broadcast's tones, weightiest last)
   const WEIGHTS = { minor: 0, normal: 1, major: 2, decisive: 3 };
   const RETICLES = { cross: '+', dot: '·', circle: '◯', bracket: '[ ]' };
+  // SCREEN EFFECTS (`effect`): what each kind throws by default, how many pieces and for how long; the pieces at most;
+  // the theme's colours a piece may take by name (or a hex)
+  const EFFECTS = { confetti: { count: 90, seconds: 2.8 }, streamers: { count: 26, seconds: 3.4 }, sparkles: { count: 34, seconds: 1.6 }, burst: { count: 36, seconds: 1.3 }, petals: { count: 30, seconds: 4.6 }, flash: { count: 1, seconds: 0.5 } };
+  const EFFECT_MAX = 160, EFFECT_TONES = ['accent', 'accent2', 'ink', 'hp', 'mp', 'xp', 'harm', 'stamina', 'shield', 'boss', 'gleam'];
   const STYLE_KEYS = ['style', 'class', 'className', 'color', 'colour', 'font', 'css', 'border', 'theme', 'skin', 'tokens', 'register'];
   const ACTIONS = ['up', 'down', 'left', 'right', 'accept', 'back', 'tabNext', 'tabPrev'];
   const INPUTS = ['keys', 'pad', 'xr', 'touch', 'mouse'];
@@ -175,12 +179,13 @@ export function buildManaUi() {
     each: { group: 'layout', about: 'a `row` drawn for each item, not itself focusable (the stats in a detail, the fields of an options page)', props: { rows: [L, [], true], row: [ND, undefined, true], dir: [['column', 'row'], 'column'] } },
     divider: { group: 'layout', about: 'a rule between groups, with an optional label', props: { label: [T] } },
     // in-game: the HUD's places
-    hud: { group: 'hud', about: 'the in-game layer under the stack: its children are regions and the layers (anchors, edges, threat, letterbox)', props: {}, children: 'hud' },
+    hud: { group: 'hud', about: 'the in-game layer under the stack: its children are regions and the layers (anchors, edges, threat, letterbox, effect)', props: {}, children: 'hud' },
     region: { group: 'hud', about: 'one of the nine screen places; parts stack inside it (in a hud, or laid out over a screen); `subtitles` sits on the subtitles\' plate (its opacity the player\'s); `bare` sits on no plate, its parts their own frame with the halo (a fight\'s bars over the round)', props: { at: [REGIONS, 'top-left'], variant: [['plain', 'subtitles', 'bare'], 'plain'] }, children: true },
     anchors: { group: 'hud', layer: true, about: 'one `row` drawn over each thing in the world at its screen place (x, y from 0 to 1): nameplates on a plate, damage numbers `bare` (a halo, no plate); a row with an `id` is its own element (a new id, a new one: its entrance plays); `pass` rows rise and fade once from where they land (damage numbers); a row\'s `world` ([x, y, z]) is its point in the game\'s world, where a headset draws it', props: { rows: [L, [], true], row: [ND, undefined, true], x: [T, 'x'], y: [T, 'y'], variant: [['plate', 'bare'], 'plate'], pass: [B, false] } },
     edges: { group: 'hud', layer: true, about: 'what is off screen, held at the screen\'s edge with an arrow toward it (x, y outside 0..1): an objective, a foe behind you', props: { markers: [L, [], true] } },
     threat: { group: 'hud', layer: true, about: 'where harm came from: a mark on a ring round the centre for each bearing (degrees from where you face)', props: { markers: [L, [], true] } },
     letterbox: { group: 'hud', layer: true, about: 'the cinema bars of a cutscene', props: {} },
+    effect: { group: 'hud', layer: true, about: `a screen effect over everything, pure CSS: ${Object.keys(EFFECTS).join(', ')}; played once each time \`on\` takes a new value (a finish, a best lap, a level up) or held while \`loop\`; confetti falls from the top, pops from the centre or fires from the bottom (\`from\`); its pieces by its own dice (\`seed\` and the trigger), in the theme's colours (\`tones\`: ${EFFECT_TONES.join(', ')} or a hex); it never catches a pointer, never asks the game for a frame, holds with a held clock, and is a fade alone under reduced motion`, props: { kind: [Object.keys(EFFECTS), 'confetti'], on: [A, null], loop: [B, false], from: [['top', 'center', 'bottom'], 'top'], count: [N, 0], seconds: [N, 0], tones: [L, []], seed: [N, 1] } },
     touchpad: { group: 'hud', about: 'the look of a touch screen\'s virtual pad: a stick and round buttons, each named by the gamepad control it is (a word, or { label, control: south | east | west | north | rb … }); the touch driver (controllable/touch.js) reads it, never this runtime; what the driver knows is drawn: `lane` a stick held to left and right, `held` the stick under a thumb ({ ox, oy: where it rose from its rest, dx, dy: its nub, in px }), `down` the controls pressed', props: { stick: [B, true], buttons: [L, ['A', 'B']], lane: [B, false], held: [A], down: [L, []] } },
     legend: { group: 'value', about: 'what the buttons do here (a row: { action | actions: [..], label }), each with the glyph of the control the player is holding (keys, an Xbox, a PlayStation or a Nintendo pad); a finger needs none, so a touch screen draws none', props: { rows: [L, [], true] } },
     // values
@@ -804,6 +809,20 @@ export function buildManaUi() {
             return ['span', { class: 'mana-arc', style: `left:${pct(0.5 + 0.45 * Math.sin(t))};top:${pct(0.5 - 0.45 * Math.cos(t))};transform:translate(-50%,-50%) rotate(${Math.round(b)}deg)` }, '▲'];
           })];
           case 'letterbox': return ['div', { class: cls }, ['i', null], ['i', null]];
+          case 'effect': {
+            // a new trigger is a new element (its data-key), so its animation plays again; nothing playing, an empty layer
+            const E = EFFECTS[p.kind] || EFFECTS.confetti, on = p.on === undefined || p.on === null || p.on === '' || p.on === false || p.on === 0 ? null : String(p.on);
+            if (on === null && !p.loop) return ['div', { class: cls, 'data-kind': p.kind, 'data-idle': 'yes', 'aria-hidden': 'true' }];
+            const many = clamp(Math.round(p.count > 0 ? p.count : E.count), 1, EFFECT_MAX), sec = p.seconds > 0 ? p.seconds : E.seconds, f3 = (x) => Math.round(x * 1000) / 1000;
+            // (its own dice, from its seed and the trigger: the same moment throws the same pieces)
+            let h = ((Math.floor(p.seed) || 1) ^ 0x9e3779b9) >>> 0;
+            for (const ch of on ?? 'loop') h = Math.imul(h ^ ch.charCodeAt(0), 0x01000193) >>> 0;
+            const rnd = () => { h = (h + 0x6d2b79f5) >>> 0; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+            const tones = (Array.isArray(p.tones) && p.tones.length ? p.tones : ['accent', 'accent2', 'hp', 'ink']).map((t) => (/^#[0-9a-f]{3,8}$/i.test(String(t)) ? String(t) : EFFECT_TONES.includes(t) ? `var(--mana-${t})` : 'var(--mana-accent)'));
+            const spread = p.loop ? sec : sec * 0.3;
+            const pieces = p.kind === 'flash' ? [['i', null]] : Array.from({ length: many }, (_, i) => ['i', { style: `--x:${f3(rnd() * 100)}%;--y:${f3(rnd() * 100)}%;--dx:${f3(rnd() * 2 - 1)};--dy:${f3(rnd())};--t:${f3(rnd() * spread)}s;--r:${Math.round(rnd() * 1440 - 720)}deg;--s:${f3(0.6 + rnd() * 0.8)};--c:${tones[i % tones.length]}` }]);
+            return ['div', { class: cls, 'data-kind': p.kind, 'data-from': p.kind === 'confetti' ? p.from : null, 'data-loop': p.loop ? 'yes' : null, 'data-key': `fx${on ?? 'loop'}`, 'aria-hidden': 'true', style: `--fx-d:${f3(sec)}s` }, ...pieces];
+          }
           case 'touchpad': { const H = isObj(p.held) ? p.held : null, px = (v) => `${Math.round(Number(v) || 0)}px`; return ['div', { class: cls }, p.stick ? ['span', { class: 'mana-stick', 'data-stick': 'left', 'data-lane': p.lane ? 'yes' : null, 'data-held': H ? 'yes' : null, style: H ? `transform:translate(${px(H.ox)},${px(H.oy)})` : null }, ['i', { style: H ? `transform:translate(${px(H.dx)},${px(H.dy)})` : null }]] : ['span', null], ['span', { class: 'mana-pads' }, ...p.buttons.map((b) => {
             const label = words(isObj(b) ? b.label : b), control = isObj(b) && b.control ? words(b.control) : PAD_FACES[label] || null;
             // (a pad named for what it does wears its pictogram where the theme draws them: jump, fire, use)
@@ -1396,7 +1415,7 @@ export function buildManaUi() {
     return { paint };
   }
 
-  return { WORDS, COMPONENTS, COMPONENT_IDS, FRAME_WORDS, ROLES, REGIONS, AWARENESS, MARKERS, PIP_SHAPES, ACTIONS, INPUTS, readNode, readSpec, runtime, toHtml, readPath, mount };
+  return { WORDS, COMPONENTS, COMPONENT_IDS, FRAME_WORDS, ROLES, REGIONS, AWARENESS, MARKERS, PIP_SHAPES, EFFECTS, ACTIONS, INPUTS, readNode, readSpec, runtime, toHtml, readPath, mount };
 }
 
 export const manaUi = buildManaUi();
