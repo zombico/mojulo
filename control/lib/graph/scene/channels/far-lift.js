@@ -62,7 +62,8 @@ float liftAt( vec2 p, out vec2 ck ) {
 }
 `;
 
-/** The lift's page source; `lift` a read lift (readFarLift). Expects the form channel's scope after the grass and the
+/** The lift's page source; `lift` a read lift (readFarLift), with a level's own `from` (the share of the reach the
+ *  blades are whole to, where the lift begins) and `stand` (its height over the grass's mean) where it names them. Expects the form channel's scope after the grass and the
  *  far field: THREE, scene, D, LAYER_U (the ground's uniforms: the grass map, the blanket's), __formMeshes. */
 export function farLiftScript(lift) {
   if (!lift) return '';
@@ -73,12 +74,12 @@ export function farLiftScript(lift) {
     // (the field: the far map's strands, their mean round each cell, read smoothly)
     const FF = window.__formFar, fd = FF.tex.image.data, h8 = new Uint8Array(FF.n[0] * FF.n[1]); for (let q = 0; q < h8.length; q++) h8[q] = fd[q * 4];
     const lt = new THREE.DataTexture(liftField(h8, FF.n[0], FF.n[1], Math.max(1, Math.round(${FAR_LIFT.mean} / FF.cell))), FF.n[0], FF.n[1], THREE.RedFormat); lt.magFilter = lt.minFilter = THREE.LinearFilter; lt.needsUpdate = true;
-    const LR = { value: 1e6 }, LD = { value: new THREE.Vector2(1e6, 2e6) }, FLT = ${JSON.stringify({ from: FAR_LIFT.from, full: FAR_LIFT.full, blend: FAR_FIELD.blend })};
+    const LR = { value: 1e6 }, LD = { value: new THREE.Vector2(1e6, 2e6) }, FLT = ${JSON.stringify({ from: lift.from ?? FAR_LIFT.from, full: FAR_LIFT.full, blend: FAR_FIELD.blend })};
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
     m.onBeforeCompile = (sh) => {
       // (the ground's uniforms, with a reach of the lift's own for the blanket's colour: it begins where the lift does)
       Object.assign(sh.uniforms, LAYER_U, { uFarR: LR, uLiftR: LD, tLift: { value: lt }, uLiftH: { value: FF.hMax } });
-      sh.vertexShader = ${JSON.stringify(LIFT_GLSL)} + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n  vLiftP = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz; transformed.z += liftAt( vLiftP.xy, vLiftC );');
+      sh.vertexShader = ${JSON.stringify(Number.isFinite(lift.stand) ? LIFT_GLSL.replace(`m * ${f(FAR_LIFT.stand)} * smoothstep`, `m * ${f(lift.stand)} * smoothstep`) : LIFT_GLSL)} + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n  vLiftP = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz; transformed.z += liftAt( vLiftP.xy, vLiftC );');
       sh.fragmentShader = 'varying vec3 vLiftP; varying vec2 vLiftC;\\n' + ${JSON.stringify(lift && lift.calm ? farBlanketGlsl(true) : FAR_BLANKET_GLSL)} + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\\n  { vec4 fb = farBlanket( vLiftP, vec3( 0.0, 0.0, 1.0 ) ); float hs = farHash( floor( vLiftP.xy / ${f(FAR_LIFT.cell)} ) + 3.7 ); if ( uFarOn < 0.5 || vLiftC.x < ${f(FAR_LIFT.least)} || hs > vLiftC.y * 1.1 || hs > smoothstep( ${f(FAR_LIFT.least)}, ${f(FAR_LIFT.wall)}, vLiftC.x ) * 1.2 ) discard; if ( fb.a <= 0.0 ) fb.rgb = uFGcol[ 0 ]; diffuseColor.rgb = fb.rgb * ${f(FAR_LIFT.gain)}; }');
     };
     // (the ground's meshes: the land's parts that carry its layers)

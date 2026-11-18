@@ -996,7 +996,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (read && M.cone !== undefined && M.cone !== null) payload.form.land.cone = readCone(M.cone);
     // (ONE FAR GRASS, `farGrass: 'lift'`: past the reach the grass is the far lift alone, the ground raised to its height
     // (channels/far-lift.js), coloured calm (the blanket's colour, no speck); the tall cover's blades end at the reach too)
-    if (read && M.farGrass === 'lift') { payload.form.land.farLift = true; payload.form.land.farCalm = true; }
+    // (`{ as: 'lift', blades?, raise? }`: the share of the reach the blades are whole to, where the lift begins, and the
+    // lift's height over the grass's mean, its platform)
+    if (read && (M.farGrass === 'lift' || (M.farGrass && M.farGrass.as === 'lift'))) {
+      payload.form.land.farLift = true; payload.form.land.farCalm = true;
+      if (Number.isFinite(M.farGrass.blades)) payload.form.land.farBlades = M.farGrass.blades;
+      if (Number.isFinite(M.farGrass.raise)) payload.form.land.farRaise = M.farGrass.raise;
+    }
     // (a lean ground, `parallax: false`: none of the ground's height marches, its procedural kinds on the trail alone,
     // channels/form-land.js; the page's ground the dearest of its frame on a laptop's GPU; absent, every byte as it was)
     if (read && (M.parallax === false || M.parallax === 'cliffs')) payload.form.land.parallax = false;

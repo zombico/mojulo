@@ -131,3 +131,7 @@
   for; the word wires it. Level 0 asks for it.
 - **The camera in on the body** (gameworld/infiltration-room.js, every level of the starter): four fifths of the feel's
   distance and height, its angle kept, so the operative is more of the frame and less of it is ground to paint.
+- **One far grass, tuned** (`farGrass: { as: 'lift', blades?, raise? }`): `blades` the share of the view's reach the
+  blades are drawn whole to (0.42 to 0.9; 0.42 before, where each tile dropped to half its clumps and the rest shrank
+  away, the band where grass is seen coming and going), the lift beginning there; `raise` the lift's height over the
+  grass's mean (1 to 4, 1.5 before), so far off it reads as a raised platform. Level 0: blades 0.7, raise 2.5.

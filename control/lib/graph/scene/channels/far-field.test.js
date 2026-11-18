@@ -50,3 +50,16 @@ describe('one far grass (farGrass: lift)', () => {
     expect(farLiftScript({})).not.toContain('(calm: the colour alone');
   });
 });
+
+describe('one far grass, tuned', () => {
+  it('a level\'s blades (whole further) and raise (a higher platform) reach the grass and the lift; unnamed, as they were', async () => {
+    const { formGrassScript, POV_GRASS } = await import('./form-grass.js'), { farLiftScript, FAR_LIFT } = await import('./far-lift.js');
+    expect(formGrassScript({ stand: true, thin: 0.7 })).toContain('"thin":0.7');
+    expect(formGrassScript({ stand: true })).toContain(`"thin":${POV_GRASS.thin}`);
+    const tuned = farLiftScript({ from: 0.7, stand: 2.5 }), plain = farLiftScript({});
+    expect(tuned).toContain('"from":0.7');
+    expect(tuned).toContain('m * 2.500 * smoothstep');
+    expect(plain).toContain(`m * ${FAR_LIFT.stand.toFixed(3)} * smoothstep`);
+    expect(plain).toContain(`"from":${FAR_LIFT.from}`);
+  });
+});

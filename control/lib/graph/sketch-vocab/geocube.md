@@ -114,7 +114,9 @@ hung cloth sway in it; a physical level's blocks, dust, smoke and leaves feel th
   into the live light each frame; every other body keeps a soft pool at its feet.
 - **One far grass** (`farGrass: 'lift'`): past the view's reach the grass is the ground raised to its own height (taller
   over tall cover), coloured calm, no speck; the near blades, the cover's included, end at the reach as it begins. One
-  impression of the far grass, not a painted field with blades standing out of it.
+  impression of the far grass, not a painted field with blades standing out of it. `{ as: 'lift', blades?, raise? }`:
+  `blades` the share of the reach the blades are drawn whole to (0.42 to 0.9; further, less of the grass is seen thinning
+  in), `raise` the lift's height over the grass's mean (1 to 4, 1.5 unless said; higher, a raised platform far off).
 - **Far figures** (a level's `farFigures: { at?, budget? }`): each body no player pilots baked a second time coarse
   (`budget` triangles, 4000 unless said; its face dropped) and drawn so past `at` metres from the eye (24), the same
   bones and clips; with the `air` drawn in to swallow the far land, the far background costs little.

@@ -92,7 +92,7 @@ const STILL_HEAD = 'vec3 fgBend( vec2 root, float hgt, float s, float ph ) { ret
  *  the stops. Absent, the form render's lit blades, the page as it was. `stand`: a land with tall grass (form/tall-grass.js,
  *  the map's `stand`): its tall clump raised to the patches' height, more blades a clump set closer, drawn at every
  *  distance (it is little, and it is cover), and no far strands. Absent, not a byte of it. */
-export function formGrassScript({ ramp = false, stand = false, paint = false, reach = false } = {}) {
+export function formGrassScript({ ramp = false, stand = false, paint = false, reach = false, thin = null } = {}) {
   return `
   // --- the form render's grass (channels/form-grass.js) ---
   if (D.grass) {
@@ -146,7 +146,7 @@ export function formGrassScript({ ramp = false, stand = false, paint = false, re
     // (the FIELD: every tuft and every drift plant placed once, over the whole map: the sward's lengths and seams, the
     // cover, the claims, the trail; nothing that follows the eye)
     (function () {
-      const SF = ${JSON.stringify(STILL_FIELD)}, PG = ${JSON.stringify(POV_GRASS)}, GH = ${JSON.stringify(GRASS_HEIGHT)}, [nx, ny] = Gm.size, cAt = (i, j) => (Math.min(ny - 1, Math.max(0, j)) * nx + Math.min(nx - 1, Math.max(0, i))) * 4;
+      const SF = ${JSON.stringify(STILL_FIELD)}, PG = ${JSON.stringify(Number.isFinite(thin) ? { ...POV_GRASS, thin } : POV_GRASS)}, GH = ${JSON.stringify(GRASS_HEIGHT)}, [nx, ny] = Gm.size, cAt = (i, j) => (Math.min(ny - 1, Math.max(0, j)) * nx + Math.min(nx - 1, Math.max(0, i))) * 4;
       const zT = (q) => Gm.z[0] + ((gpx[q] * 256 + gpx[q + 1]) / 65535) * Gm.z[1], dpx = Dr ? bytes(Dr.px) : null;
       const zAt = (x, y) => { const u = (x - Gm.origin[0]) / Gm.cell, v = (y - Gm.origin[1]) / Gm.cell, i = Math.floor(u), j = Math.floor(v), f = u - i, g = v - j;
         return (zT(cAt(i, j)) * (1 - f) + zT(cAt(i + 1, j)) * f) * (1 - g) + (zT(cAt(i, j + 1)) * (1 - f) + zT(cAt(i + 1, j + 1)) * f) * g; };

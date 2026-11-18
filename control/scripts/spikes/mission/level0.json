@@ -662,6 +662,10 @@
     }
   ],
   "suppliesReads": "supplies where a body that came the quiet way would look: a ration behind the truck in its grass, rounds by the camp's crates, a ration behind the south log",
-  "farGrass": "lift",
-  "farGrassReads": "one far grass: past the view's reach the ground raised to the grass's height, calm; the meadow's and the cover's blades end at the reach as it begins"
+  "farGrass": {
+    "as": "lift",
+    "blades": 0.7,
+    "raise": 2.5
+  },
+  "farGrassReads": "one far grass: the blades whole to seven tenths of the view's reach (less of them seen thinning in), past it the ground raised as a platform, two and a half times the grass's own height, calm"
 }
