@@ -49,7 +49,10 @@ for (const file of pages) {
     const R = await page.evaluate(async (span) => {
       const S = window.__bench, n0 = S.frames.length;
       await new Promise((r) => setTimeout(r, span * 1000));
-      const F = S.frames.slice(n0), ms = F.length > 1 ? (F[F.length - 1] - F[0]) / (F.length - 1) : NaN;
+      // (a frame once: a page runs several animation loops, the game's, its HUD's, its readouts', each called with the
+      // frame's own timestamp, so the callbacks are counted by their distinct timestamps; counted each, a page with more
+      // loops read faster than it ran)
+      const F = [...new Set(S.frames.slice(n0))], ms = F.length > 1 ? (F[F.length - 1] - F[0]) / (F.length - 1) : NaN;
       // (one frame's work: counted between two frames)
       S.count();
       await new Promise((r) => requestAnimationFrame(() => { S.tri = 0; S.draws = 0; S.on = true; requestAnimationFrame(() => { S.on = false; r(); }); }));

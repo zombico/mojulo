@@ -75,3 +75,14 @@
   `shadows.actors: 'pilot'`: scene/live-light.js, controllable/index.js `__pilotCasts`, suit-shadows.js `others`).
   Density 1; the haze out to 250 m, the base seen at the trail's end. Bench at one density: 247 ms a frame (172 lean,
   264 with the whole ground's relief), the hangar 265.
+- **The bench corrected** (scripts/spikes/mission/bench.mjs): a page runs several animation loops (the game's, its
+  HUD's, its readouts'), each called with the frame's one timestamp, and the bench counted every call a frame, so every
+  page read faster than it ran and a page with more loops faster still. Frames are now counted by their distinct
+  timestamps. Read again at one density: the hangar 2.66 s a frame in software, level 0 lean 3.67, the yard 4.61, level 0
+  as committed 6.17 (the middle above read 247 ms against the hangar's 265: wrong). Taken apart, the ground's material is
+  about three quarters of level 0's frame; the plates and the rock's march about a twentieth; the live shadows' passes,
+  the figures' light and the grass next to nothing.
+- **Layers** (scripts/spikes/mission/layers.mjs): a built page with a panel that takes it apart on the machine it is played
+  on: each layer of the scene on or off (the ground, the grass, stones and plants, trees and far sheets, structures,
+  characters, the rest, each with its triangles), the ground as plain paint, the live shadows' passes, the haze, the HUD,
+  the pixel density, and a frame readout that counts each frame once; a line to copy back. The level is not changed.
