@@ -22,19 +22,43 @@
  *   layoutSideMap(map, { reach, stature }) → {
  *     screen, camera,                         the screen in metres and the side map's camera (screen.js)
  *     zones: [{ i, kind, run?, rect, exit, lock }]   each zone's swept rectangle, where the walk leaves it, the axis its
- *                                             camera holds ('z' across, 's' up and down, null a room)
+ *                                             camera holds ('z' across, 's' up and a chute, null a room and a cascade)
  *     swept, open, solids: [{ s0, s1, z0, z1, zone, role }]   the camera's area, the play's, the closed parts
  *     blocks: [{ min, max, role }]            the solids as the level's boxes
- *     gaps, rests, ladders, doors, spawners, pickups, checkpoints, rises, advice
+ *     gaps, rests, ladders, doors, spawners, pickups, checkpoints, advice
+ *     rises: [{ zone, from, to, pace }]       a rising frame and its pace, a share of the bot's (RISE_SHARE, climbTime)
  *   }
  *
  * Pure and deterministic.
  */
 import { coursePlan } from '../course.js';
+import { FPS } from '../feel/cards.js';
 import { sideMapCamera } from './screen.js';
 import { readSideMap } from './zones.js';
 
 const HALF = 1.5, TH = 0.4, PAD = 1.5, LAND = 4, LEDGE = 1.2, LADDER_SHAFT = 2.4;
+/** the rising frame's share of the bot's pace up its climb (the frame takes this much longer than the bot: a margin) */
+export const RISE_SHARE = 0.7;
+/** a ladder climbed hand over hand, metres a second (the runtime's ladder, phase 8, climbs at it) */
+export const LADDER_RATE = 2;
+const PAUSE = 0.5, FRAME = 1 / FPS;
+
+/**
+ * How long the bot takes up a climb on the shipped rule, seconds: a chimney by its kicks (each a jump's rise long) and a
+ * breath on each rest; ledges, a stair or a switchback a jump a stand and a walk across the shaft for each; a ladder at
+ * its rate. Read off the reach: a running jump's rise, its height, the run's speed.
+ */
+export function climbTime({ climb, from, to, rests = [], width = 0 }, reach) {
+  const run = reach.moves.run, A = run.arc, apex = A.reduce((i, p, k) => (p[1] > A[i][1] ? k : i), 0) * FRAME, L = to - from;
+  if (climb === 'ladder') return L / LADDER_RATE;
+  const zs = [from, ...rests.map((r) => r.z), to];
+  if (climb === 'chimney') {
+    const kick = reach.wall?.climb || run.height;
+    let kicks = 0; for (let k = 1; k < zs.length; k++) kicks += Math.ceil((zs[k] - zs[k - 1]) / kick - 1e-9);
+    return kicks * apex + rests.length * PAUSE;
+  }
+  return (zs.length - 1) * (2 * apex + PAUSE + width / 2 / (reach.speed ?? 5));
+}
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 /** The zone chain laid on the plane. */
@@ -60,6 +84,8 @@ export function layoutSideMap(map, { reach, stature }) {
         at += gap;
         if (at + LAND > L) advise(i, `${Z.pillars} pillars need ${r3(at + LAND)} m and the run is ${r3(L)} m: it is laid longer`);
         floors.push({ s0: at, s1: Math.max(L, at + LAND), z: 0 });
+        // (each gap between the tops a pit, crossed by the running jump)
+        for (let k = 1; k < floors.length; k++) { const a = floors[k - 1], b = floors[k]; out.gaps.push({ zone: i, s0: r3(s + a.s1), s1: r3(s + b.s0), w: r3(b.s0 - a.s1), dz: r3(b.z - a.z), teaches: 'run', kind: 'pillar' }); }
       } else {
         const teach = Z.teach && Z.teach !== 'boss' ? Z.teach : 'boss';
         let plan;
@@ -95,8 +121,11 @@ export function layoutSideMap(map, { reach, stature }) {
       const rests = [];
       if (form === 'chimney' || form === 'stair' || form === 'ledges') {
         // a rest, on alternate walls: a chimney's within three kicks, a ledge stair's a jump up, a stair's a short step
-        const step = form === 'chimney' ? 0.9 * Math.min(3 * (kick || J), L) : form === 'stair' ? 0.45 * J : 0.75 * J;
-        for (let k = 1, at = z + step; at < top - 0.5; k++, at = z + k * step) {
+        const most = form === 'chimney' ? 0.9 * Math.min(3 * (kick || J), L) : form === 'stair' ? 0.45 * J : 0.75 * J;
+        // (evenly spaced, no further apart than the form allows, an even count so the last is on the far wall: the way out)
+        let n = Math.ceil(L / most) - 1; if (n % 2) n++;
+        const step = L / (n + 1);
+        for (let k = 1, at = z + step; k <= n; k++, at = z + k * step) {
           const left = k % 2 === 1, s0 = left ? c : c + w - (form === 'chimney' ? LEDGE : 0.45 * w), s1 = left ? c + (form === 'chimney' ? LEDGE : 0.45 * w) : c + w;
           solid(s0, s1, at - TH, at, i, 'rest');
           rests.push({ zone: i, s0: r3(s0), s1: r3(s1), z: r3(at), side: left ? 'near' : 'far' });
@@ -104,8 +133,11 @@ export function layoutSideMap(map, { reach, stature }) {
         }
       } else if (form === 'switchback') {
         // floors across the shaft, a gap at alternate ends to jump up through
-        const step = 0.8 * J, gap = Math.max(LEDGE * 2, 0.6 * LJ);
-        for (let k = 1, at = z + step; at < top - 0.5; k++, at = z + k * step) {
+        const gap = Math.max(LEDGE * 2, 0.6 * LJ);
+        // (evenly spaced, at most four fifths of a jump, an odd count so the last reaches the far wall: the way out)
+        let n = Math.ceil(L / (0.8 * J)) - 1; if (n % 2 === 0) n++;
+        const step = L / (n + 1);
+        for (let k = 1, at = z + step; k <= n; k++, at = z + k * step) {
           const s0 = k % 2 ? c + gap : c, s1 = k % 2 ? c + w : c + w - gap;
           solid(s0, s1, at - TH, at, i, 'rest');
           rests.push({ zone: i, s0: r3(s0), s1: r3(s1), z: r3(at), side: k % 2 ? 'far' : 'near' });
@@ -114,7 +146,7 @@ export function layoutSideMap(map, { reach, stature }) {
         out.ladders.push({ zone: i, foot: [r3(c + w / 2), r3(z)], lip: [r3(c + w), r3(top)], face: 'camera' });
       }
       out.rests.push(...rests);
-      if (Z.rises) out.rises.push({ zone: i, from: r3(z), to: r3(top) });
+      if (Z.rises) { const t = climbTime({ climb: form, from: z, to: top, rests, width: w }, reach); out.rises.push({ zone: i, from: r3(z), to: r3(top), pace: r3((RISE_SHARE * L) / t) }); }
       rect(out.swept, c - side, c + w + side, band(z)[0], top + (2 * H) / 3, i);
       out.checkpoints.push({ zone: i, at: [r3(c + w / 2), r3(z)] });
       return { rect: [c - side, c + w + side, band(z)[0], top + (2 * H) / 3], exit: [c + w, top], lock: 's' };
@@ -132,18 +164,19 @@ export function layoutSideMap(map, { reach, stature }) {
         out.checkpoints.push({ zone: i, at: [r3(c + w / 2), r3(foot)] });
         return { rect: [c - side, c + w + side, band(foot)[0], band(z)[1]], exit: [c + w, foot], lock: 's' };
       }
-      // a CASCADE: steps down, each a jump high and a landing long
-      const n = Math.max(1, Math.round(L / J)), d = L / n;
+      // a CASCADE: steps down, each a jump high and a landing long, the camera following both ways down them: a step
+      // is seen from every frame within half a screen of it, so its solid goes as deep as the lowest of those frames
+      const n = Math.max(1, Math.round(L / J)), d = L / n, m = Math.ceil((W / 2 + LAND / 2) / LAND);
       let lo = z;
       for (let k = 1; k <= n; k++) {
-        const zk = z - k * d, s0 = c + (k - 1) * LAND, s1 = c + k * LAND;
-        solid(s0, s1, band(z - L)[0], zk, i, 'step');
-        rect(out.swept, s0, s1, band(zk)[0], band(zk)[1], i);
+        const zk = z - k * d, s0 = c + (k - 1) * LAND, s1 = c + k * LAND, deep = band(z - Math.min(n, k + m) * d)[0];
+        solid(s0, s1, deep, zk, i, 'step');
+        rect(out.swept, s0, s1, deep, band(zk)[1], i);
         rect(out.open, s0, s1, zk, band(zk)[1], i);
         lo = zk;
       }
       out.checkpoints.push({ zone: i, at: [r3(c + LAND / 2), r3(z - d)] });
-      return { rect: [c, c + n * LAND, band(lo)[0], band(z)[1]], exit: [c + n * LAND, lo], lock: 's' };
+      return { rect: [c, c + n * LAND, band(lo)[0], band(z)[1]], exit: [c + n * LAND, lo], lock: null };
     },
     room(Z, i, s, z) {
       const wR = Z.room[0] * W, hR = Z.room[1] * H, c = s, zb = z - H / 3, top = zb + hR, wall = 0.6;
@@ -152,6 +185,7 @@ export function layoutSideMap(map, { reach, stature }) {
       solid(c, c + wall, z + door, top - wall, i, 'wall');
       solid(c + wR - wall, c + wR, z, top - wall, i, 'wall');
       rect(out.open, c + wall, c + wR - wall, z, top - wall, i);
+      rect(out.open, c, c + wall, z, z + door, i);
       rect(out.swept, c, c + wR, zb, top, i);
       if (Z.teach === 'boss') out.doors.push({ zone: i, at: [r3(c), r3(z)], kind: 'shutter', why: 'the boss\'s room: its door shuts behind' });
       out.checkpoints.push({ zone: i, at: [r3(c + wall + 1), r3(z)] });

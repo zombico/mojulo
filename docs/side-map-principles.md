@@ -147,6 +147,7 @@ The map's laws, measured on its layout: one screen thick, both walls of a shaft 
 by the move it teaches (across zones too), rests within three kicks, a rising frame the climb outpaces, light at the
 top, the next place seen first, a checkpoint a zone, ladders on floors, stakes that only rise, one new thing a zone, the
 closed parts painted, the boss's colour its own, nothing built outside the camera's path. They advise; none refuses.
+They are `control/lib/graph/gameworld/side-map/laws.js`, read over the layout and, where it is given, its dress.
 
 The eyes gate is the operator's: the map read as a drawing, the level played on its page.
 

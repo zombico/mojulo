@@ -5,12 +5,14 @@
  *
  *   a place a zone      each zone a PLACE (its own word, else one dealt from the premise's SETTING by the zone's role),
  *                       each place a material FAMILY (fills.js) and its own key colour, the places' order the story
- *   solid over void     the closed parts lighter and more saturated than the dark, cool open space behind the play
+ *   solid over void     the closed parts lighter and more saturated than the dark, cool open space behind the play,
+ *                       every standable top a lit edge lighter still (`edge`)
  *   play against place  what the hero stands on, fights, climbs and takes on one side of the colour wheel, the place on
  *                       the other; the setting picks which way round
  *   the boss's colour   reserved: none before the zones that lead to its room, growing toward it, its room's back wall
  *   rhythm              a run's back wall in BAYS a screen and a quarter wide, A (lit, a lamp, its things) and B (a recess)
- *                       by the walls' rule (era/wall-rhythm.js), a pillar between bays; a hatch at each spawner
+ *                       by the walls' rule (era/wall-rhythm.js), a pillar between bays and a seam down each, so one
+ *                       is always in the frame; a hatch at each spawner
  *   the next place      the last half screen of a zone carries the next zone's family and key at its edge (`peek`)
  *   threads             the setting's pipes, cables, roots or channel carried through the closed parts zone to zone
  *   light               a lamp an A bay; every up run's top open to the next zone's light; a shaft's back wall drawing
@@ -23,7 +25,7 @@
  *                       its orientation); a new setting is a row
  *   settingOf(premise)  → the setting a premise's words name (the plant unsaid)
  *   dressSideMap(layout, map, { seed? }) → { setting, palette: { play, place, boss, void }, zones: [{ zone, place,
- *                       family, indoor, key, void, boss, bays, pillars, lamps, hatches, mark, peek, light, foreshadow,
+ *                       family, indoor, key, edge, void, boss, bays, pillars, seams, lamps, hatches, mark, peek, light, foreshadow,
  *                       backdrop, wear }], threads: [{ kind, from, to }] }
  *
  * Pure and deterministic: seeded dice (city/plan/dice.js streamOf), never Math.random.
@@ -79,13 +81,15 @@ export function dressSideMap(layout, map, { seed = 1 } = {}) {
     const place = Z.place ?? dealt.name, family = Z.fill ?? M.fill ?? dealt.family, indoor = Z.place ? true : dealt.indoor;
     const h = (placeHue + SPREAD[i % SPREAD.length] + (d() - 0.5) * 6 + 360) % 360;
     const boss = bossAt < 0 ? 0 : i === bossAt ? 1 : i > bossAt - 3 && i < bossAt ? r3((3 - (bossAt - i)) / 3) : 0;
-    const LZ = layout.zones[i], [s0, s1, z0, z1] = LZ.rect, out = { zone: i, place, family, indoor, key: hex(h, 0.45, 0.58), void: hex(h, 0.28, 0.1), boss, wear: r3(0.2 + 0.5 * d()) };
+    const LZ = layout.zones[i], [s0, s1, z0, z1] = LZ.rect, out = { zone: i, place, family, indoor, key: hex(h, 0.45, 0.58), edge: hex(h, 0.4, 0.78), void: hex(h, 0.28, 0.1), boss, wear: r3(0.2 + 0.5 * d()) };
     if (role === 'across') {
       // the back wall in bays, a screen and a quarter each, by the walls' rule; a pillar between, a lamp an A bay
       const n = Math.max(1, Math.round((s1 - s0) / (1.25 * W))), order = wallRhythm(n, { pick: d() }) ?? 'A', bw = (s1 - s0) / n;
       out.bays = [...order];
       out.pillars = Array.from({ length: n - 1 }, (_, k) => r3(s0 + (k + 1) * bw));
-      out.lamps = out.bays.map((b, k) => (b === 'A' ? r3(s0 + (k + 0.5) * bw) : null)).filter((x) => x !== null);
+      // (a seam down each bay's middle, so a pillar or a seam is always in the frame; an A bay's lamp hangs on it)
+      out.seams = out.bays.map((b, k) => r3(s0 + (k + 0.5) * bw));
+      out.lamps = out.seams.filter((x, k) => out.bays[k] === 'A');
       out.hatches = layout.spawners.filter((sp) => sp.zone === i).map((sp) => sp.at);
     }
     if (role === 'up') { out.mark = { kind: 'climbs', says: 'the back wall\'s railings step up the shaft: the way is up' }; out.light = { at: 'top', says: 'the shaft\'s top open to the next zone\'s light' }; }

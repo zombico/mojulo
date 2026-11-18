@@ -81,9 +81,19 @@ said as its phase lands.
   cube's, and its closed parts painted as places (rock, built, machine), never left a plain face.
 - **Galaxy Boy's first level** laid as a zone chain from its teaching order, ending in its first power; the mascot
   platformer's strip as it was.
-- **The map's laws and its camera**: one screen thick, both walls of a chimney in the frame, rests within three kicks,
-  the next place seen before it is reached, the closed parts painted, the boss's colour its own; a side camera that
-  holds a zone's locked axis, hands over at a corner and rises with a climb.
+- **The map's laws** (`gameworld/side-map/laws.js`), advisory, measured on the layout and its dress: a run one screen
+  thick across its held axis; a shaft's two walls in the frame; every pit crossed by the move that teaches it and every
+  stand up a climb a jump away; no more than three kicks between a chimney's rests, its top counted; a rising frame
+  slower than the bot's climb on the shipped rule by a margin; every climb's top opening into the next zone's space and
+  lit; no pit in the first zone and climbs that lengthen; a checkpoint in every zone; ladders on floors; the teaching in
+  its order and no zone the one before it again; nothing built outside the camera's path and nothing it sees left
+  unbuilt but a pit; the boss's room shut behind and marked. The dress's: a place a zone, solid lighter than void, a lit
+  edge on every top, play against place, the boss's colour its own and growing, bays by the walls' rule with a pillar or
+  a seam in every frame and spawners a screen apart, the next place at the edge, the thread unbroken, every closed part
+  named its fill. Laid to them: a cascade's steps go as deep as the frames that see them, a climb's rests are spaced
+  evenly with the last on the way out's wall, a pit between pillars is a pit, a room's doorway is open, and a rising
+  frame's pace is set from the bot's climb.
+- **The map's camera**: a side camera that holds a zone's locked axis, hands over at a corner and rises with a climb.
 - **Falls and ladders.** Falling out of the bottom of the frame costs a life and brings the hero back at its zone's
   checkpoint; a ladder is climbed with the hero's back to the camera.
 - **A render benchmark**: a run, a chimney and a boss's room measured on the page by role (the hero's share of the
