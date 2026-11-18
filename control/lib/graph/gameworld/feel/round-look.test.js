@@ -4,7 +4,7 @@
 // stretch, tail, halo), the tap no rings; the colour leads (another colour, another hue, the same shape); a lowered
 // buster's looks one a level, the tap's first, the full charge's head round and bigger (as tall as it hits).
 import { describe, it, expect } from 'vitest';
-import { roundLook, roundLooks, ROUND_LOOK } from './round-look.js';
+import { roundLook, roundLooks, ROUND_LOOK, blastLook, BLAST_LOOK } from './round-look.js';
 import { feelRule } from './lower.js';
 
 const hue = (h) => { const n = parseInt(h.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255, M = Math.max(r, g, b), d = M - Math.min(r, g, b); if (!d) return null; return ((M === r ? 60 * (((g - b) / d) % 6) : M === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4)) + 360) % 360; };
@@ -47,5 +47,21 @@ describe('the round\'s look', () => {
     expect(full.bulk).toBeGreaterThan(1);
     expect(one.head).toBe(one.stretch);
     expect(one.bulk).toBe(1);
+  });
+});
+
+describe('the blast\'s look', () => {
+  it('the same light as the round: a white core, the hue saturated then deep, an accent far round the wheel', () => {
+    const B = blastLook(0xffd23a, 'blast'), R = roundLook({ color: 0xffd23a, size: 0.4 }, 2);
+    expect(B.ramp).toEqual(R.ramp);
+    expect(B.accent).toBe(R.accent);
+  });
+  it('an explosion lasts longer than an impact, with more rings and sparks', () => {
+    const I = blastLook(0x5dff7a, 'impact'), X = blastLook(0x5dff7a, 'blast');
+    for (const k of ['life', 'rings', 'sparks', 'halo']) expect(X[k]).toBeGreaterThan(I[k]);
+  });
+  it('runs as the page runs it (its own source, given its numbers)', () => {
+    const again = new Function(`return (${blastLook.toString()})`)();
+    expect(again(0xff3060, 'impact', BLAST_LOOK)).toEqual(blastLook(0xff3060, 'impact'));
   });
 });

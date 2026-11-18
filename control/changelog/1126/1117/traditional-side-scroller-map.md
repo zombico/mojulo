@@ -235,3 +235,9 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   (rupa's matter, a breakable) and a body destroyed (dismantle, a cleave) flash as they come apart, in the colour of the
   round that burst there, fading like a burst; and the shot light reaches every piece of matter as it comes into the
   scene, so a crate's chunks and a wreck's pieces take its light as they fly. Glows stay as they are.
+- **Impacts and explosions in the shot's light** (`gameworld/feel/round-look.js` `blastLook`): on a page with a buster, a
+  round's impact, a hitscan hit, a block blown apart (rupa) and a body destroyed (dismantle, a cleave) are drawn as the
+  shot is: a white-hot core flashing first and fading fastest, the hue saturated round it and deeper at its edge, a halo,
+  shock rings in the accent with their near arc bright, sparks flung out; an impact quick and small, an explosion longer
+  with more rings and sparks; each in the colour of the round that did it (a full charge's hit an explosion), drawn in
+  front of what it struck. Every other page keeps its effects as they were.

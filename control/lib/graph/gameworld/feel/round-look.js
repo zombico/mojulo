@@ -25,12 +25,29 @@
  *                                            bulk, streaks, tail, accent, rings, sparks }
  *   roundLooks(buster) → [tap's, level 1's, …]   (a lowered `rule.buster`, gameworld/feel/lower.js; the last the full charge)
  *
+ * THE BLAST'S LOOK, drawn in the same light: a shot's IMPACT (a round bursting on what it meets) and an EXPLOSION (a block
+ * blown apart, a body destroyed, a big round's burst) as the same layers (a white-hot core flashing first and fading
+ * fastest, the hue saturated round it, deeper at its edge, a halo; shock rings in the accent, their near arc bright; sparks
+ * flung out, the accent's and white), each layer on its own clock over the blast's life (BLAST_LOOK: an impact quick and
+ * small, an explosion longer, with more rings and sparks). Any colour at all (a foe's round's) has its blast: blastLook
+ * runs on the page as its own source.
+ *
+ *   BLAST_LOOK, blastLook(color, kind, B = BLAST_LOOK) → { ramp, accent, halo, rings, sparks, life, core }
+ *
  * Pure: the same round, the same look.
  */
 import { FX_STYLE } from '../../scene/effect-style.js';
 import { JUICE_LOOKS } from '../../scene/juice-style.js';
 
 export const ROUND_LOOK = Object.freeze({ core: 0.55, halo: 4.5, tail: 3, rings: [0, 1, 2], sparks: [2, 5, 8], streaks: [1, 2, 3], accent: JUICE_LOOKS.cel.hue, chroma: 0.92, deep: 0.45, headFull: 1.08, bulkFull: 1.3, coreFull: 0.85 });
+
+// an IMPACT and an EXPLOSION: life (s), the core's share of the size, the halo over the size, rings, sparks; the ramp and
+// the accent as a round's (ROUND_LOOK's chroma, depth and accent)
+export const BLAST_LOOK = Object.freeze({
+  impact: Object.freeze({ life: 0.24, core: 0.6, halo: 3.5, rings: 1, sparks: 6 }),
+  blast: Object.freeze({ life: 0.5, core: 0.55, halo: 4.5, rings: 2, sparks: 14 }),
+  chroma: ROUND_LOOK.chroma, deep: ROUND_LOOK.deep, accent: ROUND_LOOK.accent,
+});
 
 const hsv = (n) => {
   const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255, M = Math.max(r, g, b), d = M - Math.min(r, g, b);
@@ -67,4 +84,13 @@ export function roundLooks(buster) {
   if (!buster) return [];
   const n = (buster.levels ?? []).length;
   return [roundLook(buster.tap, 0), ...(buster.levels ?? []).map((L, i) => roundLook(L, i + 1, { full: i + 1 === n }))];
+}
+
+/** A blast's look from its colour: an impact or an explosion. Self-contained: the page runs this source. */
+export function blastLook(color, kind, B) {
+  const K = (B || BLAST_LOOK)[kind === 'blast' ? 'blast' : 'impact'], X = B || BLAST_LOOK, n = Number.isInteger(color) ? color : 0xffd890;
+  const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255, M = Math.max(r, g, b), d = M - Math.min(r, g, b);
+  const h = (((!d ? 0 : M === r ? 60 * (((g - b) / d) % 6) : M === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4)) + 360) % 360), s = M ? d / M : 0;
+  const hx = (hh, ss, vv) => { const f = (k) => { const x = (k + hh / 60) % 6; return vv - vv * ss * Math.max(0, Math.min(x, 4 - x, 1)); }; return '#' + [f(5), f(3), f(1)].map((c) => Math.round(c * 255).toString(16).padStart(2, '0')).join(''); };
+  return { ramp: ['#ffffff', hx(h, Math.max(s, X.chroma), 1), hx(h, 1, X.deep)], accent: hx((h + X.accent) % 360, 0.85, 1), halo: K.halo, rings: K.rings, sparks: K.sparks, life: K.life, core: K.core };
 }

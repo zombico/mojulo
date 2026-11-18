@@ -23,7 +23,7 @@ import { groundGridScript } from './ground-grid.js';
 import { turretScript } from './turret-view.js';
 import { boatWaterScript } from './boat-water.js';
 import { shotLightScript } from './shot-light-view.js';
-import { roundLooks } from '../../../gameworld/feel/round-look.js';
+import { roundLooks, blastLook, BLAST_LOOK } from '../../../gameworld/feel/round-look.js';
 import { castKitSource } from '../cast-rig.js';
 import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
 
@@ -3842,7 +3842,8 @@ ${flow ? `// on the flow (rupa-vayo): a hit is a soft flash and a ring of air, s
 const __fxSoftTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(255,255,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
 const __fxRingTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 18, 32, 32, 31); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.7, 'rgba(255,255,255,0.8)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
 const __fxSprite = (tex, col) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: new THREE.Color(col), transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false })); s.geometry = s.geometry.clone(); s.raycast = function () {}; s.visible = false; scene.add(s); return s; };   // (its own quad: a dropped effect frees what it holds)
-function __spawnImpactFx(b, col, sz, dir, at) {
+function __spawnImpactFx(b, col, sz, dir, at) {${busterOn ? `
+  __blast(b, col, Math.max(0.2, sz * 0.25), 'impact', at); return;` : ''}
   const flash = __fxSprite(__fxSoftTex, 0xffffff); flash.position.set(b[0], b[1], b[2]); flash.scale.setScalar(sz * 0.42);
   __fx.push({ obj: flash, born: at, ttl: 0.13, kind: 'impact', base: sz * 0.85 });
   const glow = __fxSprite(__fxSoftTex, col); glow.position.set(b[0], b[1], b[2]);
@@ -3850,7 +3851,8 @@ function __spawnImpactFx(b, col, sz, dir, at) {
   const ring = __fxSprite(__fxRingTex, col); ring.position.set(b[0], b[1], b[2]);
   __fx.push({ obj: ring, born: at, ttl: 0.2, kind: 'burst', base: sz * 0.9, dim: 0.7 });
 }
-` : ''}function __spawnImpactFx${flow ? 'Mesh' : ''}(b, col, sz, dir, at) {
+` : ''}function __spawnImpactFx${flow ? 'Mesh' : ''}(b, col, sz, dir, at) {${busterOn ? `
+  __blast(b, col, Math.max(0.2, sz * 0.25), 'impact', at); return;` : ''}
   const flash = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), __fxMat(0xffffff));
   flash.position.set(b[0], b[1], b[2]); flash.scale.setScalar(sz * 0.42); flash.raycast = function () {}; flash.visible = false; scene.add(flash);
   __fx.push({ obj: flash, born: at, ttl: 0.13, kind: 'impact', base: sz * 0.85 });
@@ -4113,6 +4115,65 @@ const __rlTex = (() => {
 })();
 const __rlSprite = (tex, col, op) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: new THREE.Color(col), transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false })); s.raycast = function () {}; return s; };
 const __rlA = new THREE.Vector3(), __rlB = new THREE.Vector3(), __rlDir = new THREE.Vector3(), __rlPerp = new THREE.Vector3(), __rlFwd = new THREE.Vector3(), __rlZ = new THREE.Vector3(0, 0, 1);
+// THE BLAST (gameworld/feel/round-look.js blastLook): a shot's impact and an explosion drawn in the shot's own light: a
+// white-hot core flashing first and fading fastest, the hue saturated round it and deeper at its edge, a halo; shock
+// rings in the accent, their near arc bright; sparks flung out across the camera's plane, the accent's and white; each
+// layer on its own clock over the blast's life. Any colour has its blast (a foe's round's), from its born time (a hitscan
+// impact waits for its bolt)
+const __BLAST = ${safeJson(BLAST_LOOK)};
+const __blastLook = ${blastLook.toString()};
+const __blasts = [];
+function __blast(at, color, size, kind, bornAt) {
+  const L = __blastLook(color, kind, __BLAST), g = new THREE.Group(), born = bornAt != null ? bornAt : __world.time;
+  // (drawn before what it struck: brought toward the camera past the lane's half depth, so a face it burst on, or inside,
+  // never hides it)
+  camera.getWorldDirection(__rlFwd);
+  g.position.set(at[0] - __rlFwd.x * 1.6, at[1] - __rlFwd.y * 1.6, at[2] - __rlFwd.z * 1.6); g.visible = false; scene.add(g);
+  const halo = __rlSprite(__rlTex.soft, L.ramp[1], 0), deep = __rlSprite(__rlTex.soft, L.ramp[2], 0), mid = __rlSprite(__rlTex.soft, L.ramp[1], 0), core = __rlSprite(__rlTex.soft, L.ramp[0], 0);
+  for (const s of [halo, deep, mid, core]) g.add(s);
+  camera.getWorldDirection(__rlFwd);
+  const right = new THREE.Vector3().crossVectors(__rlFwd, __rlZ).normalize(), up = new THREE.Vector3().crossVectors(right, __rlFwd).normalize(), acc = new THREE.Color(L.accent);
+  const rings = [];
+  for (let k = 0; k < L.rings; k++) {
+    const geo = new THREE.TorusGeometry(size, Math.max(0.01, size * 0.05), 6, 48), m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    m.raycast = function () {};
+    // (facing the camera, tipped back about the screen's horizontal so it reads as an ellipse, a shock round the blast)
+    m.quaternion.setFromUnitVectors(__rlZ, __rlB.copy(__rlFwd).negate()); m.rotateOnWorldAxis(right, 1.05 + 0.25 * k);
+    g.add(m); g.updateMatrixWorld(true);
+    const pos = geo.getAttribute('position'), col = new Float32Array(pos.count * 3), w = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) { w.fromBufferAttribute(pos, i).applyQuaternion(m.quaternion); const near = Math.max(0, Math.min(1, 0.5 - w.dot(__rlFwd) / (2 * size))), c = 0.25 + 0.75 * near * near; col[3 * i] = acc.r * c; col[3 * i + 1] = acc.g * c; col[3 * i + 2] = acc.b * c; }
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    rings.push({ m, k });
+  }
+  // (sparks: each its own way across the camera's plane, seeded by where and when it went off)
+  let a = (Math.floor(at[0] * 97 + at[1] * 131 + at[2] * 71 + born * 977) | 0) || 1;
+  const rnd = () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const sparks = [];
+  for (let k = 0; k < L.sparks; k++) {
+    const th = (2 * Math.PI * (k + rnd() * 0.8)) / L.sparks, sp = 2 + 2.5 * rnd(), s = __rlSprite(__rlTex.soft, k % 3 ? L.accent : '#ffffff', 0);
+    g.add(s); sparks.push({ s, d: [right.x * Math.cos(th) + up.x * Math.sin(th), right.y * Math.cos(th) + up.y * Math.sin(th), right.z * Math.cos(th) + up.z * Math.sin(th)], sp });
+  }
+  __blasts.push({ g, born, L, size, halo, deep, mid, core, rings, sparks });
+}
+function __blastAge() {
+  for (let i = __blasts.length - 1; i >= 0; i--) {
+    const B = __blasts[i], u = (__world.time - B.born) / B.L.life, z = B.size;
+    if (u >= 1) { scene.remove(B.g); B.g.traverse((o) => { if (o.geometry && !o.isSprite) o.geometry.dispose(); if (o.material) o.material.dispose(); }); __blasts.splice(i, 1); continue; }
+    B.g.visible = u >= 0;
+    if (u < 0) continue;
+    const out = 1 - (1 - u) * (1 - u), set = (s, sc, op) => { s.scale.set(sc, sc, 1); s.material.opacity = Math.max(0, op); };
+    // (the core first and gone first; the hue blooming out after it; the deep edge and the halo last)
+    set(B.core, z * B.L.core * 2.6 * (1 + 0.4 * out), 1 - Math.min(1, u * 2.2));
+    set(B.mid, z * 2.2 * (0.55 + 0.8 * out), 1 - u * u);
+    set(B.deep, z * 3 * (0.6 + 0.9 * out), (1 - u) * 0.95);
+    set(B.halo, z * B.L.halo * (0.7 + 0.6 * out), 0.32 * (1 - u));
+    for (const R of B.rings) { const v = Math.max(0, (u - 0.08 * R.k) / (1 - 0.08 * R.k)), o = 1 - (1 - v) * (1 - v); R.m.scale.setScalar(0.35 + 1.7 * o); R.m.material.opacity = v > 0 ? 1 - v : 0; }
+    for (const S of B.sparks) { const r = z * S.sp * out; S.s.position.set(S.d[0] * r, S.d[1] * r, S.d[2] * r); const sz = Math.max(0.04, z * 0.22) * (1 - 0.6 * u); S.s.scale.set(sz, sz, 1); S.s.material.opacity = 1 - u; }
+  }
+}
+// (the colour of what broke a thing or destroyed a body: the round that burst there then, else warm)
+function __blastTint(at, when) { let c = 0xffc070, best = 1e9; for (const b of (__world.bursts || [])) { const d = Math.hypot(b.pos[0] - at[0], b.pos[1] - at[1], b.pos[2] - at[2]); if (Math.abs((b.t != null ? b.t : -1e9) - when) <= 0.1 && d <= 3 && d < best && b.fxColor != null) { best = d; c = b.fxColor; } } return c; }
+const __blastWrecks = new Set(), __rlGone = [];
 // the RINGS a charged round leaves at the firing point (not on the round): each round its flight, turned off the camera's
 // axis so it reads as an ellipse, its near arc bright and its far faded, in the accent; each a beat after the last,
 // growing out and fading where it was fired, aged on the world's clock whether or not its round still flies
@@ -4179,14 +4240,18 @@ function __rlRound(p) {
       const sz = Math.max(0.06, r * 0.32) * (1 - 0.5 * u); s.scale.set(sz, sz, 1); s.material.opacity = 1 - u;
     });
   };
-  return { g, tick };
+  return { g, tick, pellet: { size: r, lv: p.busterLv || 0 } };
 }
 ` : ''}const __projMeshes = {};    // projectile id -> { g } group tracking one live round
 let __burstSeen = -1;       // highest burst seq drawn (the engine's monotonic burstSeq)
 const __projUpY = new THREE.Vector3(0, 1, 0);   // the cone axis (apex +Y) rotated onto each round's velocity
 const __projDir = new THREE.Vector3();
 function __updateProjectiles() {${busterOn ? `
-  __rlAge();   // (the muzzle rings, aged whether or not their rounds still fly)` : ''}
+  __rlAge();   // (the muzzle rings, aged whether or not their rounds still fly)
+  __blastAge();
+  for (let i = __rlGone.length - 1; i >= 0; i--) if (__world.time - __rlGone[i].t > 0.2) __rlGone.splice(i, 1);
+  // (a body destroyed, dismantled or cleaved: an explosion where it went down, in the colour of the round that did it)
+  for (const e of __world.entities) { const W = e.wreck; if (!W || !e.transform) continue; const key = e.id + ':' + (W.t0 || 0); if (__blastWrecks.has(key)) continue; __blastWrecks.add(key); const at = [e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + ((e.rule && e.rule.collideHeight) || 1.6) * 0.5]; __blast(at, __blastTint(at, W.t0 || 0), 0.9, 'blast'); }` : ''}
   const ps = __world.projectiles || [];
   const live = {};
   for (const p of ps) {
@@ -4225,7 +4290,8 @@ ${busterOn ? `    // (a buster's round, buster.js, drawn in its level's LOOK, ga
   }
   for (const id in __projMeshes) {   // drop rounds that burst/expired this frame
     if (live[id]) continue;
-    const rec = __projMeshes[id];
+    const rec = __projMeshes[id];${busterOn ? `
+    if (rec.pellet) __rlGone.push({ at: rec.g.position.toArray(), size: rec.pellet.size, lv: rec.pellet.lv, t: __world.time });   // (a buster's round gone: its burst is its size's)` : ''}
     scene.remove(rec.g);
     rec.g.traverse(function (o) { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
     delete __projMeshes[id];
@@ -4241,13 +4307,18 @@ ${busterOn ? `    // (a buster's round, buster.js, drawn in its level's LOOK, ga
     // white flash marks the detonation point. A record may carry fxRadius (the DEATH BURST, R34.1):
     // the spectacle outsizes the shove — safe, because the stagger is adjudicated the frame the
     // record spawns, so the bigger shell never overstates a circle anyone could still dodge.
-    const shell = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), __fxMat(col));
+${busterOn ? `    // (in the shot's light, the blast: an impact for a small round, an explosion for a big one or a death)
+    // (a buster's round's burst its size's, the full charge's an explosion; any other's by its blast)
+    { const R = b.fxRadius || b.radius || 0.3, P = __rlGone.find((q) => Math.abs(q.t - __world.time) < 0.1 && Math.hypot(q.at[0] - b.pos[0], q.at[1] - b.pos[1], q.at[2] - b.pos[2]) < 1.5);
+      if (P) __blast(b.pos, col, Math.max(0.3, P.size * 3.2), P.lv && P.lv === __RL.length - 1 ? 'blast' : 'impact');
+      else __blast(b.pos, col, Math.max(0.3, R * 3), R >= 0.6 || b.debris ? 'blast' : 'impact'); }
+` : `    const shell = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), __fxMat(col));
     shell.position.set(b.pos[0], b.pos[1], b.pos[2]); shell.raycast = function () {}; scene.add(shell);
     __fx.push({ obj: shell, born: __world.time, ttl: 0.4, kind: 'burst', base: (b.fxRadius || b.radius || 0) * 0.9, dim: 0.5 });
     const flash = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), __fxMat(0xffffff));
     flash.position.set(b.pos[0], b.pos[1], b.pos[2]); flash.raycast = function () {}; scene.add(flash);
     __fx.push({ obj: flash, born: __world.time, ttl: 0.16, kind: 'burst', base: (b.fxScale != null ? b.fxScale : 3) * 0.5, dim: 1 });
-    // SUIT-DEATH fragment shower (operator 2026-08-13): a suit blows APART into many pieces flung out
+`}    // SUIT-DEATH fragment shower (operator 2026-08-13): a suit blows APART into many pieces flung out
     // and up, arcing down under gravity to rest on the ground — so the death reads as an explosion of
     // debris ahead of the smoke, not just one ball flash. Deterministic (golden-angle directions +
     // modulo speeds, no Math.random), so capture stays byte-identical. Only death bursts carry the flag.
@@ -4729,13 +4800,15 @@ function __spawnBreak(br) {
   const blk = (__world.breakables || []).find((q) => q.id === br.id)${loose ? ' || (__world.loose || []).find((q) => q.id === br.id)' : ''};
   const ext = blk ? Math.max(blk.max[0] - blk.min[0], blk.max[1] - blk.min[1], blk.max[2] - blk.min[2]) : 1;
   const floor = blk ? blk.min[2] : 0;
-  const flash = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), __fxMat(0xffffff));
+${busterOn ? `  // (in the shot's light: an explosion where it broke, in the colour of the round that broke it)
+  __blast(br.at, __blastTint(br.at, br.t != null ? br.t : __world.time), Math.max(0.4, ext * 0.6), 'blast');
+` : `  const flash = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), __fxMat(0xffffff));
   flash.position.set(br.at[0], br.at[1], br.at[2]); flash.raycast = function () {}; scene.add(flash);
   __fx.push({ obj: flash, born: __world.time, ttl: 0.16, kind: 'burst', base: ext * 0.7, dim: 0.9 });
   const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.08, 6, 24), __fxMat(0xffe2b0));
   ring.position.set(br.at[0], br.at[1], floor + 0.05); ring.raycast = function () {}; scene.add(ring);
   __fx.push({ obj: ring, born: __world.time, ttl: 0.3, kind: 'shock', base: ext * 0.8 });
-  const show = __breakPieces[br.id], set = show && show.pieces[show.cuts[br.how] || 'chip'];
+`}  const show = __breakPieces[br.id], set = show && show.pieces[show.cuts[br.how] || 'chip'];
   if (!set) return;
   const by = br.by && __world.entities.find((e) => e.id === br.by);
   let bx = 0, byy = 0;
