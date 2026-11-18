@@ -122,3 +122,12 @@
 - **The grid for every mesh of two hundred triangles** (ground-grid.js `__gridMeshes`, a thousand before): an indoor camera's
   rays crossed many smaller walls and props, each tested triangle by triangle; the hangar's rays a frame 3.7 ms to 1.8.
   And the grid is built by the camera's first ray too, so none of its rays before the first ground probe goes slow.
+- **One far grass** (a geocube's `farGrass: 'lift'`, worlds/world-scene.js; channels/far-field.js `farBlanketGlsl`,
+  far-lift.js, form-grass.js): the far grass was three at once (the blanket's painted colour with its flecks, flowers
+  and weeds; the tall cover's blades standing out of it at every distance; and, where asked, the lift), so the eye read
+  them apart. Now, past the view's reach, the far lift alone (the ground raised to the grass's mean height, taller over
+  tall cover, filling in as the blades thin, so they are never seen to stop), coloured calm (the blanket's colour, no
+  speck), and the near blades, the cover's included, end at the reach. The lift was a land's opt-in no recipe could ask
+  for; the word wires it. Level 0 asks for it.
+- **The camera in on the body** (gameworld/infiltration-room.js, every level of the starter): four fifths of the feel's
+  distance and height, its angle kept, so the operative is more of the frame and less of it is ground to paint.

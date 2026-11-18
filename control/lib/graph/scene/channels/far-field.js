@@ -61,6 +61,15 @@ vec4 farBlanket( vec3 P, vec3 nW ) {
 }
 `;
 
+/** The blanket CALM (a land's one far grass, `farGrass: 'lift'`): its colour alone, no speck, no flower, no weed, no
+ *  fleck, so what is far is one quiet surface; `calm` false, the blanket as it is. */
+export function farBlanketGlsl(calm = false) {
+  if (!calm) return FAR_BLANKET_GLSL;
+  const out = FAR_BLANKET_GLSL.replace(/  \/\/ \(the specks:[\s\S]*?else if \( h > [^\n]*\n  else if \( h > [^\n]*\n/, '  // (calm: the colour alone, no speck)\n');
+  if (out === FAR_BLANKET_GLSL) throw new Error('far-field: the calm blanket found no specks to leave out');
+  return out;
+}
+
 /** The blanket's uniforms, the ground's, set by the grass (its far map) and each frame (on, the reach, the pixel). */
 export const farBlanketUniforms = () => `{ uFarOn: { value: 0 }, uFarR: { value: 1e6 }, uFarPxm: { value: 0.001 }, tFarG: { value: new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat) }, uFGo: { value: new THREE.Vector2() }, uFGn: { value: new THREE.Vector2(1, 1) }, uFGc: { value: 1 }, uFGfl: { value: new Array(16).fill(0) }, uFGcol: { value: Array.from({ length: 16 }, () => new THREE.Vector3()) }, uFGweed: { value: Array.from({ length: 4 }, () => new THREE.Vector3()) }, uFGweedN: { value: 0 }, uFGweedS: { value: 0 }, uFGweedC: { value: 1 } }`;
 

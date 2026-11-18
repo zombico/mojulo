@@ -92,7 +92,7 @@ const STILL_HEAD = 'vec3 fgBend( vec2 root, float hgt, float s, float ph ) { ret
  *  the stops. Absent, the form render's lit blades, the page as it was. `stand`: a land with tall grass (form/tall-grass.js,
  *  the map's `stand`): its tall clump raised to the patches' height, more blades a clump set closer, drawn at every
  *  distance (it is little, and it is cover), and no far strands. Absent, not a byte of it. */
-export function formGrassScript({ ramp = false, stand = false, paint = false } = {}) {
+export function formGrassScript({ ramp = false, stand = false, paint = false, reach = false } = {}) {
   return `
   // --- the form render's grass (channels/form-grass.js) ---
   if (D.grass) {
@@ -226,7 +226,7 @@ ${ramp ? `      // (a blade in the host's ramp: unlit, the stop its height picks
         });
         const bm = new THREE.MeshStandardMaterial({ color: grassCol, roughness: 0.75, metalness: 0, side: THREE.DoubleSide });
         bm.onBeforeCompile = (sh) => {
-          Object.assign(sh.uniforms, GU, ${stand ? "ST ? PVS : PV" : 'PV'}, { uShort: { value: T.sward === 'short' ? 1 : 0 } });
+          Object.assign(sh.uniforms, GU, ${stand && !reach ? "ST ? PVS : PV" : 'PV'}, { uShort: { value: T.sward === 'short' ? 1 : 0 } });${stand && reach ? '   // (the stand too ends at the reach: the far lift carries it past, far-lift.js)' : ''}
           sh.vertexShader = GHEAD + windHead(sh) + ROOT + 'attribute float bt;\\nvarying float vBt;\\nvarying float vTone;\\n' + sh.vertexShader
             .replace('#include <beginnormal_vertex>', [
               POVH,

@@ -148,7 +148,9 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, ro
     kind: 'controllable', title: `Infiltration yard · ${G?.name ?? G?.id ?? 'game'}`, bg: '#1b1d22', faces, colliders, figures, entities: [heroE, ...targets],
     // (a clear line, `clear`: where a wall, a crate or a ceiling would pull the eye in onto a body crouched against it, the
     // camera looks for a line over or beside it instead: channels/controllable/index.js THE CLEAR LINE)
-    camera: { ...P.camera, steer: 'orbit', mouseLook: true, clear: true }, events: { ...(P.events ?? {}) },
+    // (and in on the body: four fifths of the feel's distance and height, its angle kept, so the body is more of the frame
+    // and less of it is ground to paint)
+    camera: { ...P.camera, ...(Number.isFinite(P.camera?.dist) ? { dist: Math.round(P.camera.dist * 80) / 100 } : {}), ...(Number.isFinite(P.camera?.height) ? { height: Math.round(P.camera.height * 80) / 100 } : {}), steer: 'orbit', mouseLook: true, clear: true }, events: { ...(P.events ?? {}) },
     blocks: BLOCKS.map((b) => ({ ...b, at: b.at.slice() })),
     // (the hero baked as a level bakes it: the play grade, figure-grades.js)
     figureGrade: PLAY_GRADE,

@@ -21,7 +21,7 @@
 // Opt-in (a land's `farLift: true`); absent, the page carries none of it. Height and coverage only: no blade's edge, no
 // wind. `window.__formFarLift` ({ on, set(bool), meshes }) and B toggle it on a walkable page. Mojulo web only.
 import { POV_GRASS } from './form-grass.js';
-import { FAR_BLANKET_GLSL, FAR_FIELD } from './far-field.js';
+import { FAR_BLANKET_GLSL, FAR_FIELD, farBlanketGlsl } from './far-field.js';
 
 /** The lift's numbers: how far over the grass's mean height it stands (over it: far off, the sheet is all that hides
  *  the ground and what stands in it); the radius the mean is taken over (m); the least mean height it is drawn at
@@ -79,7 +79,7 @@ export function farLiftScript(lift) {
       // (the ground's uniforms, with a reach of the lift's own for the blanket's colour: it begins where the lift does)
       Object.assign(sh.uniforms, LAYER_U, { uFarR: LR, uLiftR: LD, tLift: { value: lt }, uLiftH: { value: FF.hMax } });
       sh.vertexShader = ${JSON.stringify(LIFT_GLSL)} + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n  vLiftP = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz; transformed.z += liftAt( vLiftP.xy, vLiftC );');
-      sh.fragmentShader = 'varying vec3 vLiftP; varying vec2 vLiftC;\\n' + ${JSON.stringify(FAR_BLANKET_GLSL)} + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\\n  { vec4 fb = farBlanket( vLiftP, vec3( 0.0, 0.0, 1.0 ) ); float hs = farHash( floor( vLiftP.xy / ${f(FAR_LIFT.cell)} ) + 3.7 ); if ( uFarOn < 0.5 || vLiftC.x < ${f(FAR_LIFT.least)} || hs > vLiftC.y * 1.1 || hs > smoothstep( ${f(FAR_LIFT.least)}, ${f(FAR_LIFT.wall)}, vLiftC.x ) * 1.2 ) discard; if ( fb.a <= 0.0 ) fb.rgb = uFGcol[ 0 ]; diffuseColor.rgb = fb.rgb * ${f(FAR_LIFT.gain)}; }');
+      sh.fragmentShader = 'varying vec3 vLiftP; varying vec2 vLiftC;\\n' + ${JSON.stringify(lift && lift.calm ? farBlanketGlsl(true) : FAR_BLANKET_GLSL)} + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\\n  { vec4 fb = farBlanket( vLiftP, vec3( 0.0, 0.0, 1.0 ) ); float hs = farHash( floor( vLiftP.xy / ${f(FAR_LIFT.cell)} ) + 3.7 ); if ( uFarOn < 0.5 || vLiftC.x < ${f(FAR_LIFT.least)} || hs > vLiftC.y * 1.1 || hs > smoothstep( ${f(FAR_LIFT.least)}, ${f(FAR_LIFT.wall)}, vLiftC.x ) * 1.2 ) discard; if ( fb.a <= 0.0 ) fb.rgb = uFGcol[ 0 ]; diffuseColor.rgb = fb.rgb * ${f(FAR_LIFT.gain)}; }');
     };
     // (the ground's meshes: the land's parts that carry its layers)
     const meshes = __formMeshes.filter((q) => q.geometry && q.geometry.attributes.splat).map((q) => { const l = new THREE.Mesh(q.geometry, m); l.receiveShadow = true; l.frustumCulled = false; scene.add(l); return l; });

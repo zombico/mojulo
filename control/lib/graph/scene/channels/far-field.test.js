@@ -32,3 +32,21 @@ describe('the far field', () => {
     expect(page.indexOf('window.__formFar = {')).toBeLessThan(page.indexOf('the far field: the grass past'));
   });
 });
+
+describe('one far grass (farGrass: lift)', () => {
+  it('the calm blanket is the colour alone, no speck; asked for nothing, the blanket as it was', async () => {
+    const { farBlanketGlsl, FAR_BLANKET_GLSL } = await import('./far-field.js');
+    expect(farBlanketGlsl()).toBe(FAR_BLANKET_GLSL);
+    const calm = farBlanketGlsl(true);
+    expect(calm).not.toMatch(/flowering && h|weedy && h|h > /);
+    expect(calm).toContain('return vec4( a, k );');
+    expect(calm).toContain('// (calm: the colour alone, no speck)');
+  });
+  it('the tall stand ends at the reach only where the lift carries it past; the lift takes the calm colour', async () => {
+    const { formGrassScript } = await import('./form-grass.js'), { farLiftScript } = await import('./far-lift.js');
+    expect(formGrassScript({ stand: true, reach: true })).toContain("Object.assign(sh.uniforms, GU, PV, {");
+    expect(formGrassScript({ stand: true })).toContain('ST ? PVS : PV');
+    expect(farLiftScript({ calm: true })).toContain('(calm: the colour alone, no speck)');
+    expect(farLiftScript({})).not.toContain('(calm: the colour alone');
+  });
+});

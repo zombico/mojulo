@@ -20,7 +20,7 @@ import { safeJson } from '../emit-util.js';
 import { formGrassScript } from './form-grass.js';
 import { viewConeScript } from './view-cone.js';
 import { formSkyScript } from './form-sky.js';
-import { farFieldScript, FAR_BLANKET_GLSL, farBlanketUniforms } from './far-field.js';
+import { farFieldScript, FAR_BLANKET_GLSL, farBlanketGlsl, farBlanketUniforms } from './far-field.js';
 import { farLiftScript, readFarLift } from './far-lift.js';
 import { farStructuresScript } from './far-structures.js';
 import { formFloraScript } from './form-flora.js';
@@ -139,7 +139,7 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
       Object.assign(sh.uniforms, LAYER_U, { uRough: { value: roughScale } });
       sh.vertexShader = 'attribute vec4 splat;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vSplat = splat; vWPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
       sh.fragmentShader = 'uniform sampler2DArray tBase, tNorm, tOrm;\\nuniform sampler2D tPath, tDice;\\nuniform float uTile[7];\\nuniform vec3 uMean[7];\\nuniform float uRough, uHasPath;\\nuniform vec2 uPathO, uPathM, uPathZ;\\nuniform vec3 uPathBase, uStoneBase, uClayBase;\\nuniform float uClay, uUnder, uHasG, uMoss;\\nuniform sampler2D tGrassL;\\nuniform vec2 uGOl, uGMl;\\nuniform vec3 uUnderBase;\\nuniform vec4 uWet;\\nuniform vec3 uDress, uPatch;\\nuniform float uSdIn;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\nfloat hn( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\\nfloat vn( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( hn( i ), hn( i + vec2( 1.0, 0.0 ) ), f.x ), mix( hn( i + vec2( 0.0, 1.0 ) ), hn( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\\n'
-        + ${JSON.stringify(FAR_BLANKET_GLSL)}
+        + ${JSON.stringify(form.farCalm ? farBlanketGlsl(true) : FAR_BLANKET_GLSL)}
         // (the ground's own parallax kinds, procedural: a Voronoi cell's distance, its edge and its dice; and each kind's
         // height over its cells, GROUND_PARALLAX)
         + 'vec3 vor5( vec2 p ) { vec2 i = floor( p ), f = fract( p ); float d1 = 8.0, d2 = 8.0; vec2 id = vec2( 0.0 ); for ( int y = -1; y <= 1; y++ ) for ( int x = -1; x <= 1; x++ ) { vec2 g = vec2( float( x ), float( y ) ), o = vec2( hn( i + g ), hn( i + g + 17.3 ) ) * 0.8 + 0.1; float d = length( g + o - f ); if ( d < d1 ) { d2 = d1; d1 = d; id = i + g; } else if ( d < d2 ) d2 = d; } return vec3( d1, d2 - d1, hn( id + 5.1 ) ); }\\n'
@@ -517,7 +517,7 @@ ${form.rain ? `    // (in rain the land's film takes the sky, as the sea does)
   }
 
   // (the gen-7 sky over a land that has one: a cavern has none)
-  if (D.sky) {${formSkyScript({ capture })}}${viewConeScript(form.cone || null)}${formGrassScript(form.grass && form.grass.stand ? { stand: true, ...(form.grass.field && form.grass.field.paint ? { paint: true } : {}) } : {})}${flora ? formFloraScript(flora, { snow: !!form.snow, capture }) : ''}${farFieldScript(form.grass && form.grass.field && form.grass.field.paint ? { paint: true } : {})}${farLiftScript(readFarLift(form.farLift))}
+  if (D.sky) {${formSkyScript({ capture })}}${viewConeScript(form.cone || null)}${formGrassScript(form.grass && form.grass.stand ? { stand: true, ...(form.grass.field && form.grass.field.paint ? { paint: true } : {}), ...(form.farLift ? { reach: true } : {}) } : {})}${flora ? formFloraScript(flora, { snow: !!form.snow, capture }) : ''}${farFieldScript(form.grass && form.grass.field && form.grass.field.paint ? { paint: true } : {})}${farLiftScript(form.farLift ? { ...readFarLift(form.farLift), ...(form.farCalm ? { calm: true } : {}) } : null)}
   // open sea: deep water's colour under it, where the recipe lays no floor (the shallows' floor fades into the same colour)
   if (D.seabed) { const B = D.seabed, g = new THREE.PlaneGeometry(B.x[1] - B.x[0], B.y[1] - B.y[0]); g.translate((B.x[0] + B.x[1]) / 2, (B.y[0] + B.y[1]) / 2, B.z);
     scene.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: rgb(D.deep), roughness: 1, metalness: 0 }))); }

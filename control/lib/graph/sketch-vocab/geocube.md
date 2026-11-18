@@ -112,6 +112,9 @@ hung cloth sway in it; a physical level's blocks, dust, smoke and leaves feel th
   cut. A gorge or a canyon level asks for it: lean, its walls read as plaster.
 - **One body's live shadow** (a page's `shadows: { actors: 'pilot', hour?, feet?, … }`): the body the player pilots casts
   into the live light each frame; every other body keeps a soft pool at its feet.
+- **One far grass** (`farGrass: 'lift'`): past the view's reach the grass is the ground raised to its own height (taller
+  over tall cover), coloured calm, no speck; the near blades, the cover's included, end at the reach as it begins. One
+  impression of the far grass, not a painted field with blades standing out of it.
 - **Far figures** (a level's `farFigures: { at?, budget? }`): each body no player pilots baked a second time coarse
   (`budget` triangles, 4000 unless said; its face dropped) and drawn so past `at` metres from the eye (24), the same
   bones and clips; with the `air` drawn in to swallow the far land, the far background costs little.
