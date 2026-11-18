@@ -45,7 +45,8 @@ export const SIDE_MAP_LIGHT = Object.freeze({
   chute: 0.45,               // a chute darker by this at its foot
   boss: 0.25,                // the boss's colour in the light of its lead-in, at a whole share
 });
-const KEEP = new Set(['sidemap:lamp', 'sidemap:emblem', 'sidemap:hills', 'sidemap:range']);
+// (the foreground's doodads a silhouette nearer the camera than the lane: the light leaves them their own dark tone)
+const KEEP = new Set(['sidemap:lamp', 'sidemap:emblem', 'sidemap:hills', 'sidemap:range', 'sidemap:doodad-foreground']);
 const CLOSED = (g) => /^sidemap:(rock|built|machine|padded|paint-)/.test(g);
 const lin = (h) => [1, 3, 5].map((i) => decodeSrgb(parseInt(h.slice(i, i + 2), 16) / 255));
 const hexOf = (c) => `#${c.map((v) => Math.round(encodeSrgb(Math.min(1, Math.max(0, v))) * 255).toString(16).padStart(2, '0')).join('')}`;

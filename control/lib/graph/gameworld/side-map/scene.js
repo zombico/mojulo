@@ -10,6 +10,9 @@
  *   the BACK           an indoor zone's back wall in its void across what the camera sees, and on it the dress: its bays'
  *                      pillars and seams, a lamp an A bay, a hatch at each spawner, the next place's key at the edge,
  *                      a shaft's railings, a chute's stripes, the boss's mark; an outdoor zone's back is the cube's sky
+ *   the DOODADS        what stands on the icing and blocks nothing (doodads.js), at its depth: behind the hero on the
+ *                      top's rear, low on its lip (or hung under it), dark in the foreground under the feet line; boxes,
+ *                      their face to the camera, their top and their ends, never in the layout's blocks
  *   the PLAY           shutters, ladders and pickups in the play's colour, on the other side of the wheel from the place
  *   the LIGHT          lit (`light: 'lit'`, the default: light.js): each face's colour its base, lit per corner by its
  *                      zone's lamps or the cube's sun and sky, contact under tops, a climb's light at its top; flat
@@ -37,6 +40,7 @@ import { dressSideMap } from './dress.js';
 import { sideMapLaws } from './laws.js';
 import { paintSideMap, backdropOf } from './paint.js';
 import { lightSideMap, sideMapTextures } from './light.js';
+import { doodadsOf } from './doodads.js';
 
 export const SIDE_MAP_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed', 'sidemap', 'feel', 'stature', 'light', 'title', 'viewBox']);
 /** How the map is lit: 'lit' (light.js: lamps, the cube's sun and sky, contact, a climb's light) or 'flat' (one baked key). */
@@ -139,6 +143,24 @@ export function assembleSideMap(m, ctx = {}) {
       const cs = (o0.s0 + o0.s1) / 2, cz = (o0.z0 + o0.z1) / 2, r = Math.min(o0.s1 - o0.s0, o0.z1 - o0.z0) * 0.18;
       quad(faces, [[at(2), cs, cz - r], [at(2), cs + r, cz], [at(2), cs, cz + r], [at(2), cs - r, cz]], FACE.px, lit(D.palette.boss, FACE.px, 1.1), 'sidemap:emblem');
     }
+  }
+  // the icing's doodads (doodads.js): boxes at their depth, none a block (the runtime's colliders are the layout's)
+  for (const d of doodadsOf(L, D)) {
+    const g = `sidemap:doodad-${d.depth}`, a = d.s - d.w / 2, b = d.s + d.w / 2;
+    if (d.kind === 'icicles') {
+      // (hung teeth under the icing's lip, each its own length on one rhythm)
+      for (let i = 0, n = Math.max(2, Math.round(d.w / 0.25)); i < n; i++) { const t0 = a + (i * d.w) / n, len = (d.top - d.z) * [1, 0.55, 0.8, 0.4, 0.7][i % 5]; face(faces, d.x1, t0 + 0.03, t0 + d.w / n - 0.03, d.top - len, d.top, lit(d.fill, FACE.px), g); }
+      continue;
+    }
+    const box = (a, b, z0, z1) => {
+      face(faces, d.x1, a, b, z0, z1, lit(d.fill, FACE.px), g);
+      quad(faces, [[d.x0, a, z1], [d.x1, a, z1], [d.x1, b, z1], [d.x0, b, z1]], FACE.top, lit(d.fill, FACE.top, 1.12), g);
+      for (const [s, n] of [[a, FACE.ny], [b, FACE.py]]) quad(faces, [[d.x0, s, z0], [d.x1, s, z0], [d.x1, s, z1], [d.x0, s, z1]], n, lit(d.fill, FACE.px, 0.78), g);
+    };
+    // (the foreground's silhouettes: a girder a frame, a mound stepped up to its top; the rest a box)
+    if (d.kind === 'girder') { box(a, a + 0.3, d.z, d.top); box(b - 0.3, b, d.z, d.top); box(a, b, d.top - 0.25, d.top); continue; }
+    if (d.depth === 'foreground') { box(a, b, d.z, d.top - 0.4); box(a + d.w * 0.15, b - d.w * 0.2, d.top - 0.4, d.top - 0.15); box(a + d.w * 0.35, b - d.w * 0.4, d.top - 0.15, d.top); continue; }
+    box(a, b, d.z, d.top);
   }
   // the play: shutters, ladders, pickups
   for (const d of L.doors) face(faces, HALF + 0.03, d.at[0] - DOOR_W / 2, d.at[0] + DOOR_W / 2, d.at[1], d.at[1] + 3.6, lit(play, FACE.px), 'sidemap:door');

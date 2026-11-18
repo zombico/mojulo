@@ -8,7 +8,8 @@
  *                    hero on a rest halfway up), the boss's room; each framed as the side map's camera frames its hero
  *   the ROLES        top (a standable top's lit edge and its cap), jamb (a wall's edge and its face into the open), closed (the closed parts and their paint), back (an indoor zone's
  *                    wall and its dress), hills and range (an outdoor zone's backdrop, a layer each), play (shutters, ladders, pickups,
- *                    hatches), lamp, boss (its emblem), hero (the stand-in), sky (nothing drawn)
+ *                    hatches), lamp, boss (its emblem), hero (the stand-in), fore (the
+ *                    foreground's doodads), sky (nothing drawn)
  *   the MEASURES     hero      the hero's share of the frame's height (1/8)
  *                    lane      how far down the frame the top under the hero stands (2/3), a run's
  *                    hue       play against place: the hue between the play's pixels and the closed parts' (opposite)
@@ -20,7 +21,8 @@
  *                    boss      the boss's mark on its room's back wall
  *                    light     a lamp's falloff on the back, a ledge's shadow (a closed face darker under its lip), the
  *                              lane lit a step over the back, a climb's frame lighter at its top (light.js)
- *                    fore      a foreground under the feet (not built: said, never claimed)
+ *                    fore      a foreground under the feet: its share of the frame (the icing's foreground doodads,
+ *                              doodads.js), and how many of its pixels stand over the hero's feet in the hero's columns
  *                    moving    something moving beside the way (the map moves nothing yet: said)
  *
  *   ROLE_COLOURS, roleOf(group)
@@ -34,7 +36,7 @@
  */
 import { srgbToLab } from '../../scene/visual-gate.js';
 
-export const ROLE_COLOURS = Object.freeze({ top: '#ffffff', jamb: '#8000ff', closed: '#3060ff', back: '#00ff00', hills: '#ffff00', range: '#808000', play: '#ff00ff', lamp: '#00ffff', boss: '#ff8000', hero: '#ff0000', sky: '#000000' });
+export const ROLE_COLOURS = Object.freeze({ top: '#ffffff', jamb: '#8000ff', closed: '#3060ff', back: '#00ff00', hills: '#ffff00', range: '#808000', play: '#ff00ff', lamp: '#00ffff', boss: '#ff8000', hero: '#ff0000', fore: '#008080', sky: '#000000' });
 const SLIVER = 0.003, LAMP_WHOLE = 600, ROLES = Object.keys(ROLE_COLOURS), RGB = ROLES.map((k) => [1, 3, 5].map((i) => parseInt(ROLE_COLOURS[k].slice(i, i + 2), 16)));
 /** The role a face of the side map's build plays, by its group. */
 export function roleOf(group = '') {
@@ -46,6 +48,9 @@ export function roleOf(group = '') {
   if (['door', 'ladder', 'pickup', 'hatch'].includes(g)) return 'play';
   if (g === 'lamp') return 'lamp';
   if (g === 'emblem') return 'boss';
+  // (the icing's doodads: the foreground's its own layer, the rest the lane's detail)
+  if (g === 'doodad-foreground') return 'fore';
+  if (g.startsWith('doodad-')) return 'closed';
   return 'back';
 }
 
@@ -85,7 +90,9 @@ export function rolePayload(payload, shot, stature) {
   return { ...payload, bg: ROLE_COLOURS.sky, sky: null, haze: null, ao: null, faces: [...payload.faces.map(({ cornerFills: _c, texture: _t, uv: _u, textureLit: _l, ...f }) => ({ ...f, fill: ROLE_COLOURS[roleOf(f.group)] })), hero] };
 }
 
-const nearest = (r, g, b) => { let k = 0, d = Infinity; RGB.forEach((c, i) => { const e = (c[0] - r) ** 2 + (c[1] - g) ** 2 + (c[2] - b) ** 2; if (e < d) { d = e; k = i; } }); return ROLES[k]; };
+// (the foreground's colour is where two others blend at an edge (the closed parts' and the back's): read only near its own)
+const FORE = ROLES.indexOf('fore');
+const nearest = (r, g, b) => { let k = 0, d = Infinity; RGB.forEach((c, i) => { const e = (c[0] - r) ** 2 + (c[1] - g) ** 2 + (c[2] - b) ** 2; if (e < d && (i !== FORE || e < 900)) { d = e; k = i; } }); return ROLES[k]; };
 const r2 = (v) => (Number.isFinite(v) ? Math.round(v * 100) / 100 : v), r3 = (v) => Math.round(v * 1000) / 1000;
 /** The measures of one shot: its page and its role pass, decoded. */
 export function measureShot({ page, roles, flat = null }, shot) {
@@ -135,7 +142,9 @@ export function measureShot({ page, roles, flat = null }, shot) {
     material: shot.material ?? null,
     shares: Object.fromEntries(ROLES.map((k) => [k, r2(of(k).length / n)])),
     light: lightOf({ W, H, n, role, L, of, screenH: shot.screenH ?? 13.36 }),
-    fore: false, moving: false,
+    // (the foreground: its share, and its pixels over the hero's feet in the hero's columns: under the feet line, none)
+    fore: (() => { const f = of('fore'); if (!f.length || !xc) return f.length ? { share: r3(f.length / n), over: null } : null; let x0 = W, x1 = -1; for (let i = 0; i < n; i++) if (role[i] === 'hero') { const x = i % W; x0 = Math.min(x0, x); x1 = Math.max(x1, x); } let over = 0; for (const i of f) { const x = i % W; if (x >= x0 && x <= x1 && Math.floor(i / W) <= y1) over++; } return { share: r3(f.length / n), over }; })(),
+    moving: false,
   };
 }
 
@@ -200,7 +209,9 @@ export function benchmarkLaws(measures) {
     if (['kibble', 'plate', 'snow'].includes(M.material) && M.glint !== null) law('reflective', M.shot, M.glint >= 8, `the lane's glints ${M.glint} L* over its median, over the paint (${M.material}: 8 or more)`);
     if (M.jambStd !== null && M.jambStd !== undefined) law('walls-segmented', M.shot, M.jambStd >= 3, `the walls' edges vary by ${M.jambStd} L* (one smooth band: under 3)`);
     if (M.topStd !== null && M.topStd !== undefined) law('top-segmented', M.shot, M.topStd >= 3, `the tops' lightness varies by ${M.topStd} L* (one smooth band: under 3)`);
-    law('foreground', M.shot, M.fore, 'no foreground under the feet: the map builds none yet');
+    if (M.fore) law('foreground', M.shot, M.fore.over === 0, M.fore.over ? `the foreground (${Math.round(1000 * M.fore.share) / 10}% of the frame) stands over the hero's feet by ${M.fore.over} px` : `a foreground under the feet, ${Math.round(1000 * M.fore.share) / 10}% of the frame`);
+    // (a run's frame carries the icing's foreground; a climb's and a room's say only where one stands in it)
+    else if (M.shot === 'run') law('foreground', M.shot, false, 'no foreground in the run\'s frame');
     law('moving', M.shot, M.moving, 'nothing moves beside the way: the map animates nothing yet');
   }
   return out;

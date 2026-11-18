@@ -2,7 +2,8 @@
 // measure says is known. A face's group says its role; one shot a zone kind, its hero standing on a top; the role pass
 // is every face in its role's colour with the hero's stand-in among them; on a frame, the hero's share and the lane's
 // place are read off the role pass, the lit tops, the painting, the sharpness and the recession off the page; a flat
-// closed part is not painted; a top of one colour is one smooth band (`top-segmented` lost); the foreground and moving things are said missing, never claimed.
+// closed part is not painted; a top of one colour is one smooth band (`top-segmented` lost); a foreground under the feet holds `foreground` and one over the hero loses it; moving things are said
+// missing, never claimed.
 import { describe, it, expect } from 'vitest';
 import { roleOf, benchmarkShots, rolePayload, measureShot, benchmarkLaws, ROLE_COLOURS } from './benchmark.js';
 import { layoutSideMap } from './layout.js';
@@ -14,7 +15,8 @@ import { readFeel } from '../feel/lower.js';
 const reach = reachOf(readFeel({ pole: 'galaxy-boy', takes: true }));
 const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 // a 40 × 40 frame: back over a top row over the closed parts, the hero 5 rows tall standing on the top
-function frame({ stripes = true } = {}) {
+// (fore: a foreground band in the frame's rows from it, under the feet at 30, over the hero at 20)
+function frame({ stripes = true, fore = null } = {}) {
   const W = 40, H = 40, roles = new Uint8Array(W * H * 3), page = new Uint8Array(W * H * 3);
   const put = (img, x, y, c) => { img.set(c, 3 * (y * W + x)); };
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -23,12 +25,13 @@ function frame({ stripes = true } = {}) {
     put(page, x, y, r === 'back' ? [30, 34, 44] : r === 'top' ? [200, 210, 230] : stripes && (x + y) % 2 ? [70, 90, 150] : [50, 70, 130]);
   }
   for (let y = 22; y <= 26; y++) for (let x = 19; x <= 21; x++) put(roles, x, y, hex(ROLE_COLOURS.hero));
+  if (fore !== null) for (let y = fore; y < H; y++) for (let x = 15; x <= 25; x++) { put(roles, x, y, hex(ROLE_COLOURS.fore)); put(page, x, y, [12, 14, 16]); }
   return { page: { W, H, rgb: page }, roles: { W, H, rgb: roles } };
 }
 
 describe('the render benchmark', () => {
   it('a face\'s group says its role', () => {
-    expect(['sidemap:edge', 'sidemap:rock', 'sidemap:paint-bed', 'sidemap:hills', 'sidemap:ladder', 'sidemap:lamp', 'sidemap:emblem', 'sidemap:back'].map(roleOf)).toEqual(['top', 'closed', 'closed', 'hills', 'play', 'lamp', 'boss', 'back']);
+    expect(['sidemap:edge', 'sidemap:rock', 'sidemap:paint-bed', 'sidemap:hills', 'sidemap:ladder', 'sidemap:lamp', 'sidemap:emblem', 'sidemap:back', 'sidemap:doodad-back', 'sidemap:doodad-foreground'].map(roleOf)).toEqual(['top', 'closed', 'closed', 'hills', 'play', 'lamp', 'boss', 'back', 'closed', 'fore']);
   });
   it('one shot a zone kind, the hero standing on a top in each; the role pass carries the hero', () => {
     const map = firstSideMap(), L = layoutSideMap(map, { reach, stature: 1.67 }), shots = benchmarkShots(L, dressSideMap(L, map));
@@ -46,6 +49,12 @@ describe('the render benchmark', () => {
     expect(M.sharp.closed).toBeGreaterThan(M.sharp.back);
     const laws = Object.fromEntries(benchmarkLaws([M]).map((l) => [l.id, l.holds]));
     expect(laws).toMatchObject({ 'hero-share': true, 'lane-down': true, 'lit-tops': true, painted: true, 'lane-sharpest': true, 'top-segmented': false, foreground: false, moving: false });
+  });
+  it('a foreground under the feet holds; one standing over the hero loses; a run with none says so', () => {
+    const law = (fore) => benchmarkLaws([measureShot(frame({ fore }), { name: 'run' })]).find((l) => l.id === 'foreground');
+    expect(law(30).holds).toBe(true);
+    expect(law(20).holds).toBe(false);
+    expect(law(null)).toMatchObject({ holds: false, says: expect.stringMatching(/no foreground/) });
   });
   it('a flat closed part is not painted', () => {
     const M = measureShot(frame({ stripes: false }), { name: 'run' });

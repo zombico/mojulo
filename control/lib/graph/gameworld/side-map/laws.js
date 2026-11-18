@@ -29,6 +29,8 @@
  *     threads             the setting's thread runs unbroken from zone to zone
  *     painted             every zone with closed parts names what they are painted as; with the paint, every closed
  *                         face carries its fill and no zone's slices repeat
+ *     doodads             what stands on the icing blocks nothing and hides nothing: none sunk in a closed part or at a
+ *                         pit's lip, the lip's low, the foreground's under the feet line (doodads.js)
  *
  *   sideMapLaws(layout, reach, { dress?, paint? }) → [{ id, holds, says, zones? }]  (zones: where a law is lost)
  *   SIDE_MAP_LAWS        the ids, in order
@@ -41,9 +43,10 @@ import { rhythmFaults } from '../../era/wall-rhythm.js';
 import { FILLS } from './fills.js';
 import { climbTime, RISE_SHARE } from './layout.js';
 import { wallSurfaces } from './paint.js';
+import { doodadsOf, doodadFaults } from './doodads.js';
 
 export const SIDE_MAP_LAWS = Object.freeze(['one-screen', 'both-walls', 'reach', 'rests', 'outclimbs', 'light-at-the-top', 'stakes', 'checkpoints', 'ladders', 'one-new-thing', 'varied', 'swept', 'the-boss-owns-it',
-  'a-place-a-zone', 'solid-over-void', 'lit-tops', 'play-against-place', 'boss-colour', 'rhythm', 'peeks-in', 'threads', 'painted']);
+  'a-place-a-zone', 'solid-over-void', 'lit-tops', 'play-against-place', 'boss-colour', 'rhythm', 'peeks-in', 'threads', 'painted', 'doodads']);
 
 const EPS = 1e-3, MARGIN = 0.35, SEEN = 1, OUTCLIMB = 1.25, CELL = 0.5;
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -307,6 +310,11 @@ export function sideMapLaws(layout, reach, { dress, paint } = {}) {
       }
     }
     law('painted', lost, paint ? `every closed face painted in its fill (${paint.marks.length} marks), every zone's slices by the walls' rule, every top capped and every wall jambed in segments` : 'every zone\'s closed parts named a fill and a wear to be painted in', (x) => x.map((y) => y.says).join('; '));
+  }
+  // doodads: on the icing, never a collider (they are not the layout's blocks), and hiding nothing the play needs
+  {
+    const all = doodadsOf(L, D), lost = doodadFaults(L, all);
+    law('doodads', lost, all.length ? `${all.length} things on the icing at their depths, none a collider, none sunk or at a pit's lip, the foreground under the feet line` : 'nothing stands on the icing', (x) => x.map((y) => y.says).join('; '));
   }
   return laws;
 }
