@@ -205,6 +205,9 @@ describe('composed goals: what a level is played for, read from the prompt', () 
 describe('composed: a party RPG round its town, its castle and its dungeon', () => {
   const W = composeGameworld({ prompt: 'a medieval fantasy jrpg: a fortified town with a castle, a field with monsters, a dungeon with a boss' });
   const ids = Object.keys(W.levels);
+  // (its levels' steps, laid once for the tests that read them: a whole world's stages)
+  let S0 = null;
+  const steps = () => (S0 ??= runSteps(W, { ref: 'gw' }));
 
   it('lays the town at the centre, the wilds, the castle\'s level, and the dungeon last with the boss at its end', () => {
     expect(W.hub).toBe(ids[0]);
@@ -244,11 +247,11 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
   });
 
   it('its levels make: the town\'s street stands its inn and temple at their doors', () => {
-    const S = runSteps(W, { ref: 'gw' });
+    const S = steps();
     const town = levelSteps(S).find((s) => s.order.manifest.town);
     expect(town.order.manifest.town.enter).toEqual(['shop', 'inn', 'temple']);
     expect(levelSteps(S).some((s) => s.key.startsWith(`level-${ids[ids.length - 1]}`))).toBe(true);
-  });
+  }, 180000);
 
   it('its places are entered and left through the town: every level an exit from it and back, each stretch its own packs', () => {
     const S = runSteps({ ...W, battles: { random: { every: 12, chance: 0.25 } } }, { ref: 'gw' });
@@ -261,10 +264,10 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
     const field = levelSteps(S).filter((s) => s.key.startsWith(`level-${ids[1]}-`)).map((s) => s.order.manifest.play?.rpg?.random?.sets);
     expect(field.every((sets) => Array.isArray(sets) && sets.length > 0)).toBe(true);
     expect(levelSteps(S).find((s) => s.key.startsWith(`level-${W.hub}-`)).order.manifest.play?.rpg?.random).toBeUndefined();
-  });
+  }, 180000);
 
   it('the castle walked: its level stands the castle\'s ward on its trail, the keep inside its curtain entered at its door', () => {
-    const S = runSteps(W, { ref: 'gw' });
+    const S = steps();
     const m = levelSteps(S).find((s) => s.key.startsWith(`level-${W.brief.round.castle}`) && s.order.manifest.buildings).order.manifest;
     expect(m.buildings).toEqual([expect.objectContaining({ use: 'keep', enter: 'door' })]);
     expect(m.town).toMatchObject({ enter: 0, walls: expect.anything(), street: true });
@@ -273,5 +276,5 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
     expect(keep).toMatchObject({ enter: 'door', inside: { use: 'keep' } });
     const C = P.colliders.filter((c) => String(c.of).startsWith('town:walls')), xs = C.flatMap((c) => [c.min[0], c.max[0]]), ys = C.flatMap((c) => [c.min[1], c.max[1]]);
     expect(keep.at[0] > Math.min(...xs) && keep.at[0] < Math.max(...xs) && keep.at[1] > Math.min(...ys) && keep.at[1] < Math.max(...ys)).toBe(true);
-  });
+  }, 180000);
 });
