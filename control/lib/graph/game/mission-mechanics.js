@@ -6,10 +6,11 @@
  *                       HUD. `heat`: as its goods are had (`flag:<hot>`), that many stars from the law. It is PASSED as
  *                       its job is done (`errand:done:<id>`). It FAILS while it is on when the player is wasted or
  *                       busted, or its clock runs out: MISSION FAILED, and `again` seconds after it starts once more
- *                       (what was had is kept; the clock whole again).
+ *                       (what was had is kept; the clock whole again). A game continued (`resumed`, the level's save
+ *                       handed back) picks up one taken and not yet passed.
  *                       { id, flag, name?, time?, heat?, hot?, again? (5), final? }
  *
- * Its vars: `mission-on-<id>`, `mission-time-<id>`, `mission-again-<id>`, `ui-mission-clock-<id>` (its clock shown while
+ * Its vars: `mission-done-<id>` (passed: what a save keeps), `mission-on-<id>`, `mission-time-<id>`, `mission-again-<id>`, `ui-mission-clock-<id>` (its clock shown while
  * it is on). Its events: `mission:<id>` (started), `mission-failed:<id>`, `mission-passed:<id>`.
  *
  *   lowerMission   (game/mechanics.js registers it)
@@ -29,10 +30,13 @@ export function lowerMission(p, ctx) {
   const id = p.id, name = typeof p.name === 'string' && p.name ? p.name : id.replace(/-/g, ' ');
   const ON = `mission-on-${id}`, T = `mission-time-${id}`, AG = `mission-again-${id}`, UI = `ui-mission-clock-${id}`;
   const start = `mission:${id}`, failed = `mission-failed:${id}`, passed = `mission-passed:${id}`;
-  const frag = { vars: { [ON]: 0, [AG]: 0, ...(p.time ? { [T]: p.time, [UI]: 0 } : {}) }, reactions: [], hud: [], timers: [], watches: [] };
+  const DONE = `mission-done-${id}`, TOOK = `flag-${p.flag}`;
+  const frag = { vars: { [ON]: 0, [AG]: 0, [DONE]: 0, [TOOK]: 0, ...(p.time ? { [T]: p.time, [UI]: 0 } : {}) }, reactions: [], hud: [], timers: [], watches: [] };
   // STARTED: as the job is taken, and again after a failure
   frag.reactions.push({ on: `flag:${p.flag}`, if: { var: ON, eq: 0 }, do: 'emit', type: start }, { on: `again:${id}`, do: 'emit', type: start });
   frag.reactions.push({ on: start, do: 'set', var: ON, to: 1 }, { on: start, do: 'set', var: AG, to: 0 });
+  // (a game CONTINUED, the level's save handed back: game channel `resumed`; one taken and not done picks up again)
+  frag.reactions.push({ on: 'resumed', if: { var: TOOK, gte: 1 }, do: 'emit', type: `resuming:${id}` }, { on: `resuming:${id}`, if: { var: DONE, eq: 0 }, do: 'emit', type: start });
   if (p.time) frag.reactions.push({ on: start, do: 'set', var: T, to: p.time }, { on: start, do: 'set', var: UI, to: 1 });
   // HEAT: the goods had, that many stars (the law's own raise: law-mechanics.js `raising:wanted`), while it is on
   if (p.heat) { frag.reactions.push({ on: `flag:${p.hot}`, if: { var: ON, gte: 1 }, do: 'emit', type: `heating:${id}` }); for (let k = 0; k < p.heat; k++) frag.reactions.push({ on: `heating:${id}`, do: 'emit', type: 'raising:wanted' }); }
@@ -52,7 +56,7 @@ export function lowerMission(p, ctx) {
   frag.reactions.push({ on: `waiting:${id}`, if: { var: AG, gte: 1 }, do: 'emit', type: `again:${id}` });
   // PASSED: its job done while on
   // (and handed in while it waits to start again: passed all the same, the restart called off)
-  frag.reactions.push({ on: `errand:done:${id}`, if: { var: ON, gte: 1 }, do: 'emit', type: passed }, { on: `errand:done:${id}`, if: { var: AG, gte: 1 }, do: 'emit', type: passed }, { on: passed, do: 'set', var: ON, to: 0 }, { on: passed, do: 'set', var: AG, to: 0 });
+  frag.reactions.push({ on: `errand:done:${id}`, if: { var: ON, gte: 1 }, do: 'emit', type: passed }, { on: `errand:done:${id}`, if: { var: AG, gte: 1 }, do: 'emit', type: passed }, { on: passed, do: 'set', var: ON, to: 0 }, { on: passed, do: 'set', var: AG, to: 0 }, { on: passed, do: 'set', var: DONE, to: 1 });
   if (p.time) frag.reactions.push({ on: passed, do: 'set', var: UI, to: 0 });
   frag.hud.push(
     { on: start, as: 'banner', text: name.toUpperCase(), ttl: 2.6 },

@@ -63,6 +63,14 @@ describe('a story mission', () => {
   });
 });
 
+describe('a mission in a game continued', () => {
+  it('the save handed back (`resumed`): one taken and not passed starts again; one passed, or never taken, does not', () => {
+    expect(play([MISSION, WANT], [{ event: 'resumed' }], { vars: { 'flag-took-heist': 1 } }).log).toContain('mission:heist');
+    expect(play([MISSION, WANT], [{ event: 'resumed' }], { vars: { 'flag-took-heist': 1, 'mission-done-heist': 1 } }).log).not.toContain('mission:heist');
+    expect(play([MISSION, WANT], [{ event: 'resumed' }]).log).not.toContain('mission:heist');
+  });
+});
+
 describe('a story told in jobs (gameworld/errand.js `mission`)', () => {
   it('its missions keep the level open but the last, whose hand-in ends it; a clean one asks for no stars', async () => {
     const { errandLegs } = await import('../gameworld/errand.js');

@@ -943,6 +943,9 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // what the game lets break stays broken (the aftermath mechanic: the breaks kept in the world's aftermath slice)
   const after = mechanics?.destruction && mechanics.destruction !== 'none' ? [{ kind: 'aftermath', slice: AFTERMATH_SLICE }] : [];
   const game = { levelRef: ref, mechanics: [...doorMechs, ...(lane ? placed.map((m) => onLane(m, lane)) : placed), ...after], fall: { mode: 'respawn' }, ...(ways && ways.arrive.length ? { arrive: ways.arrive.map((a) => a.from) } : {}) };
+  // THE LEVEL'S OWN SAVE (a played city with jobs: one long level, scene/channels/game.js `save`): what it keeps, and the
+  // moments it is kept at; the game's shell holds it and hands it back on a continue
+  if (ways?.save) game.save = ways.save;
   let pilotPart, seatable = false;
   if (stage.section === 'airspace') {
     // THE CRAFT (skyscape/craft.js): an airspace is flown, whoever the hero is: the map's craft on the fly rule its class
@@ -1829,9 +1832,14 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
   // THE STREET'S HEALTH (game/vitals-mechanics.js): a driven city where something can hurt the player (its law, a
   // faction's fight): blows cost it, quiet mends it, and at none the player is wasted, billed and set down at the start
   if (cityStage(stage) && (ends.parked?.length ?? 0) > 0 && (police || encounter)) mechanics.push({ kind: 'vitals', ...VITALS_CITY, ...(city.bag ? { bill: VITALS_BILL } : {}), back: ends.spawn.slice() });
-  return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })), ...(quests.length ? { quests } : {}), ...(stoodGivers.length ? { givers: stoodGivers } : {}), ...(encounter ? { encounter } : {}), ...(police ? { police } : {}) };
+  const save = cityStage(stage) && (ends.parked?.length ?? 0) > 0 && (stoodGivers.length || mechanics.some((m) => m.kind === 'task' || m.kind === 'join')) ? CITY_SAVE : null;
+  return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })), ...(quests.length ? { quests } : {}), ...(stoodGivers.length ? { givers: stoodGivers } : {}), ...(encounter ? { encounter } : {}), ...(police ? { police } : {}), ...(save ? { save } : {}) };
 }
 
+// A PLAYED CITY'S SAVE (scene/channels/game.js `save`): the bus vars that hold its progress (the jobs' and factions'
+// flags, the bag, standing, a faction's contact opened, a one-off handed in, a mission passed), and the moments it is
+// kept (a job taken or done, a mission passed, a side joined, an app subscribed, a gun's rounds bought, a respray)
+const CITY_SAVE = Object.freeze({ vars: Object.freeze(['flag-', 'held:bag:', 'standing-', 'join-open-', 'delivered-', 'mission-done-']), on: Object.freeze(['flag:took-', 'errand:done:', 'mission-passed:', 'join:', 'app:sub:', 'act:', 'gunshop:bought', 'respray:done']) });
 // where a city's shops stand (m): the gun shop at least this far from the start, the respray this far; apart from any
 // place a job uses, and the respray clear of a parked car
 const SHOP_AT = Object.freeze({ guns: 60, respray: 90, apart: 20, clear: 9 });
