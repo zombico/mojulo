@@ -261,3 +261,7 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   reached's colour, more as the charge fills, pulsing slow and deep (faster once a level is reached), and its energy
   gathers over its whole body: a bloom wrapping it head to foot, sparks drawn in from all round onto it and motes
   circling it, a burst at its middle at each level reached, the charge's light pulsing round it.
+- **The side map's foes**: a side map stands its own foes (`levels.<id>.foes` beside a `sidemap`), on its spawners and
+  its runs, on the side strip's rail, drawn in cel like its hero. The side scroller's bestiary is the toy hero robot's
+  design language carried to animals (the herobot ooze: helmets, ear domes, gems, antennae, ball joints, their faces
+  their own, never a person's) and the game's critters (the mascot ooze).
