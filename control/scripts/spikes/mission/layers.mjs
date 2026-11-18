@@ -98,7 +98,7 @@ const PANEL = `<script>(function(){
   // the frame readout: its own loop, one entry a frame, over the last two seconds
   (function tick() { requestAnimationFrame(tick); var t = performance.now(); frames.push(t); while (frames.length > 2 && t - frames[1] > 2000) frames.shift();
     if (hazeOff) { var s = scene(); if (s && s.fog && 'density' in s.fog) s.fog.density = 0; }
-    if (frames.length >= 2) { var ms = (frames[frames.length - 1] - frames[0]) / (frames.length - 1); var txt = (1000 / ms).toFixed(0) + ' fps · ' + ms.toFixed(1) + ' ms'; if (txt !== readout) { readout = txt; var d = panel.querySelector('div'); if (d) d.textContent = readout; } } })();
+    if (frames.length >= 2) { var ms = (frames[frames.length - 1] - frames[0]) / (frames.length - 1); var C = window.__mojCost, sl = C ? Object.keys(C.slow) : []; var txt = (1000 / ms).toFixed(0) + ' fps · ' + ms.toFixed(1) + ' ms' + (C ? ' · logic ' + C.logic.toFixed(1) + ' (rays ' + C.rays.toFixed(1) + ') · draw ' + C.render.toFixed(1) : '') + (sl.length ? ' · SLOW RAYS: ' + sl.join(', ') : ''); if (txt !== readout) { readout = txt; var d = panel.querySelector('div'); if (d) d.textContent = readout; } } })();
   setInterval(function () { reread(); draw(); }, 2000);
   setTimeout(function () { reread(); draw(); }, 500);
 })();</script>`;

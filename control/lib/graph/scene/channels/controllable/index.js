@@ -2746,7 +2746,8 @@ function __clearSees(e, H, own) {
   return true;
 }` : ''}
 const __followPullIn = ${followPullIn.toString()};
-function __driveCamera(dt) {
+function __driveCamera(dt) { const __t0 = performance.now(); __driveCameraBy(dt); __mojCost._r += performance.now() - __t0; }
+function __driveCameraBy(dt) {
   const c = __world.camera; if (!c) return;
   const p = c.transform.pos;
   let look = c.lookAt;
@@ -2831,12 +2832,18 @@ const __surface = (p) => __surfaceAt(__surfaceT, p);
 ` : ''}${groundGridScript()}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
 const __groundRay = new THREE.Raycaster();
 const __bodySet = () => Object.values(__bodies);
+// WHAT A FRAME COSTS, by side (window.__mojCost): the game's logic (the controllable step, every ray it casts with it),
+// the rays alone (the ground probe, the camera's), and the render call's own time on the CPU; each a running mean (ms).
+// \`slow\`: each big mesh a ray has tested triangle by triangle, by name, with its count (a mesh the grids missed)
+const __mojCost = window.__mojCost = { logic: 0, rays: 0, render: 0, slow: {}, _r: 0,
+  tick(logic, render) { const k = 0.1; this.logic += (logic - this.logic) * k; this.render += (render - this.render) * k; this.rays += (this._r - this.rays) * k; this._r = 0; } };
 // (what a ray through the world tests: the scene's children but the bodies, whose hits every such ray throws away. Tested
 // and then skipped, a body's triangles cost the whole frame: a ray down from each walker, every frame, through its own
 // skinned mesh, each corner posed by its bones before it is tested. A body nested deeper is still skipped after the hit)
 const __rayRoots = (own) => { const R = []; for (const c of scene.children) if (!own.includes(c)) R.push(c); return R; };
 let __gridN = -1, __gridK = 0;
-function __ground(pos) {
+function __ground(pos) { const __t0 = performance.now(), __g = __groundBy(pos); __mojCost._r += performance.now() - __t0; return __g; }
+function __groundBy(pos) {
   // (the big static meshes take straight-down rays by grid: indexed at the first probe and again whenever the scene's
   // top changes, and every so many probes for what is built inside a group, so a land built after the first probe (the
   // gen-7 form's, laid when its maps arrive) is on the grid too; untaken, its every triangle was tested each probe)

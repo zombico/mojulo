@@ -811,6 +811,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // hold, and the opener's count. A moveset that says no `swap` runs as before: the cycle mid-swing is dropped. Every
 // fixture that embeds the controllable runtime re-pinned with it.
 //
+// Re-pinned 2026-11-19 again (1117-cinematic-action-game: what a frame costs, by side): the same seventeen. The page
+// keeps window.__mojCost, the game's logic, its rays and the render call's time a frame, each a running mean, and each
+// big mesh a ray has tested triangle by triangle (the grid's slow path, named); the frame loop times its step and its
+// render where a page has controllable bodies. What runs and what it draws are as they were.
 // Re-pinned 2026-11-19 (1117-cinematic-action-game: the world's rays made cheap): the seventeen fixtures whose page
 // embeds the controllable runtime. Every ray through the world (the ground probe, the camera's pull-in and its clear line,
 // a gun's sightline) now tests the scene's children but the bodies (`__rayRoots`), whose hits each ray threw away after

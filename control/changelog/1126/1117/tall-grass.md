@@ -95,3 +95,11 @@
   120 probes (ray time over eight seconds 242 ms to 27). And every ray through the world leaves the bodies out
   (`__rayRoots`), whose hits each threw away after testing their every triangle, a skinned body's posed by its bones
   first. What each ray finds is as it was.
+- **What a frame costs, by side** (`window.__mojCost`, channels/controllable/index.js, scene-three.js's frame loop): a page
+  with controllable bodies keeps the game's logic a frame (its step), its rays alone (the ground probe, the camera's) and
+  the render call's own time, each a running mean; the spike's corner readout, the layers panel and the bench say them
+  (a level slow with nothing drawn is its logic, not its looks). And each big mesh a ray tested triangle by triangle, by
+  name (`slow`: the grid's slow path, only where a ray reached the mesh).
+- **The ray budget, guarded** (controllable/ray-budget.chrome.test.js, the e2e tier): a walker on a gen-7 land in headless
+  Chrome; no ray may test a big mesh triangle by triangle. With the grid indexed once, as before, it names the land's two
+  meshes and fails.

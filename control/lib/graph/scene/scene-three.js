@@ -1997,14 +1997,17 @@ if (_capture) {
   // (__pauseOffset rebases __mojStep's clock so movers/effects don't jump the gap).
   if (__mojPaused) { if (__pausedAt === null) __pausedAt = t; ${prePass}renderer.render(scene, camera); return; }
   if (__pausedAt !== null) { __pauseOffset += t - __pausedAt; __pausedAt = null; walkPrevT = t; }
-  const dt = walkPrevT ? Math.min((t - walkPrevT) / 1000, 0.05) : 0; walkPrevT = t;
+  const dt = walkPrevT ? Math.min((t - walkPrevT) / 1000, 0.05) : 0; walkPrevT = t;${hasControllable ? `
+  const __cA = performance.now();   // (what a frame costs, by side: channels/controllable/index.js __mojCost)` : ''}
   ${xrBlock ? 'if (__xrOn) __xrStep(dt);\n  else ' : ''}if (walkOn) stepWalk(dt);
   else {
     if (__ctrlActive) stepControllable(dt);                 // step entities (clock/walk/glide/follow)
     if (!__ctrlOwnsCamera) controls.update();               // OrbitControls unless a camera entity owns the view
   }
-  __mojStep(${shootBlock ? '__shClock(t - __pauseOffset)' : 't - __pauseOffset'});
-  updateCutaway(); ${prePass}renderer.render(scene, camera);${pixelBudget ? `
+  __mojStep(${shootBlock ? '__shClock(t - __pauseOffset)' : 't - __pauseOffset'});${hasControllable ? `
+  const __cB = performance.now();` : ''}
+  updateCutaway(); ${prePass}renderer.render(scene, camera);${hasControllable ? `
+  window.__mojCost.tick(__cB - __cA, performance.now() - __cB);` : ''}${pixelBudget ? `
   __budget(t);` : ''}
 });
 </script>

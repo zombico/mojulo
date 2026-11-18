@@ -118,12 +118,26 @@ const __gridRayDown = ${gridRayDown.toString()};
 const __gridRayCast = ${gridRayCast.toString()};
 const __gridFit = ${gridFit.toString().replace(/\bgridIndex\(/g, '__gridIndex(')};
 const __gridSlow = THREE.Mesh.prototype.raycast;
+// (a big mesh a ray reaches and tests triangle by triangle, the grid not taking it: named in the frame's cost,
+// window.__mojCost.slow, by its name, its group or its material and size, with its count. Only a ray that reaches its
+// sphere counts: a miss costs nothing)
+let __slowS = null;
+function __gridSlowNoted(rc, out) {
+  const g = this.geometry, n = g && (g.index ? g.index.count : g.attributes.position ? g.attributes.position.count : 0);
+  if (n >= 9000 && window.__mojCost) {
+    if (!g.boundingSphere) g.computeBoundingSphere();
+    (__slowS || (__slowS = new THREE.Sphere())).copy(g.boundingSphere).applyMatrix4(this.matrixWorld);
+    if (rc.ray.intersectsSphere(__slowS)) { const k = this.name || (this.userData && this.userData.g) || ((this.material && this.material.type) + ' ' + Math.round(n / 3) + ' tri'); window.__mojCost.slow[k] = (window.__mojCost.slow[k] || 0) + 1; }
+  }
+  return __gridSlow.call(this, rc, out);
+}
+THREE.Mesh.prototype.raycast = __gridSlowNoted;
 function __gridRaycast(rc, out) {
   const d = rc.ray.direction, o = rc.ray.origin, mat = this.material;
   // (a mesh that stands where it was built: the grid; one that has moved, or a slanting ray on a mesh of several
   // materials: three's own)
   const down = d.z <= -0.9999;
-  if (!this.matrixWorld.equals(__gridI) || (!down && (!mat || Array.isArray(mat)))) return __gridSlow.call(this, rc, out);
+  if (!this.matrixWorld.equals(__gridI) || (!down && (!mat || Array.isArray(mat)))) return __gridSlowNoted.call(this, rc, out);
   const g = this.geometry, pos = g.attributes.position.array, idx = g.index ? g.index.array : null;
   const G = g.userData.__grid || (g.userData.__grid = __gridFit(pos, idx));
   if (!down) {
@@ -141,7 +155,7 @@ function __gridRaycast(rc, out) {
 const __gridI = new THREE.Matrix4();
 // (every big static mesh: the solids and the groups' textured faces, a thousand triangles or more)
 function __gridMeshes() {
-  scene.traverse((m) => { if (m.isMesh && !m.isInstancedMesh && !m.isSkinnedMesh && m.geometry && m.raycast === __gridSlow && (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) >= 3000) m.raycast = __gridRaycast; });
+  scene.traverse((m) => { if (m.isMesh && !m.isInstancedMesh && !m.isSkinnedMesh && m.geometry && m.raycast === __gridSlowNoted && (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) >= 3000) m.raycast = __gridRaycast; });
 }
 `;
 }

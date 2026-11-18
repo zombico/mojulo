@@ -67,7 +67,7 @@ export function boxFaces(mn, mx, fill, group) {
 }
 
 // (a frame-time readout in a corner, the spike's own: what the person reports when a page is slow)
-const FPS = `<script>(function(){var d=document.createElement('div');d.style.cssText='position:fixed;left:8px;bottom:8px;z-index:50;font:600 12px ui-monospace,monospace;color:#cfe;background:rgba(0,0,0,.45);padding:3px 6px;pointer-events:none';document.body.appendChild(d);var n=0,t0=performance.now(),w=0;(function f(t){requestAnimationFrame(f);n++;var dt=t-t0;if(dt>=1000){var fps=n*1000/dt,B=window.__mojBudget;d.textContent=Math.round(fps)+' fps · '+(1000/fps).toFixed(1)+' ms'+(B?' · dpr '+B.dpr:'');n=0;t0=t;}})(t0);})();</script>`;
+const FPS = `<script>(function(){var d=document.createElement('div');d.style.cssText='position:fixed;left:8px;bottom:8px;z-index:50;font:600 12px ui-monospace,monospace;color:#cfe;background:rgba(0,0,0,.45);padding:3px 6px;pointer-events:none';document.body.appendChild(d);var n=0,t0=performance.now(),w=0;(function f(t){requestAnimationFrame(f);n++;var dt=t-t0;if(dt>=1000){var fps=n*1000/dt,B=window.__mojBudget;var C=window.__mojCost;d.textContent=Math.round(fps)+' fps · '+(1000/fps).toFixed(1)+' ms'+(C?' · logic '+C.logic.toFixed(1)+' (rays '+C.rays.toFixed(1)+') · draw '+C.render.toFixed(1):'')+(B?' · dpr '+B.dpr:'');n=0;t0=t;}})(t0);})();</script>`;
 
 export async function writePage(payload, room, file, { capture = false, theme = 'field-brief', events = null } = {}) {
   const { emitThreeWorld } = await import('../../../lib/graph/scene/scene-three.js');

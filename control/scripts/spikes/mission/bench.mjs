@@ -56,9 +56,10 @@ for (const file of pages) {
       // (one frame's work: counted between two frames)
       S.count();
       await new Promise((r) => requestAnimationFrame(() => { S.tri = 0; S.draws = 0; S.on = true; requestAnimationFrame(() => { S.on = false; r(); }); }));
-      return { ms, frames: F.length, dpr: window.__mojBudget ? window.__mojBudget.dpr : null, tri: S.tri, draws: S.draws };
+      const C = window.__mojCost;
+      return { ms, frames: F.length, dpr: window.__mojBudget ? window.__mojBudget.dpr : null, tri: S.tri, draws: S.draws, logic: C ? C.logic : null, rays: C ? C.rays : null, render: C ? C.render : null, slow: C ? Object.entries(C.slow).map(([k, n]) => `${k} ×${n}`) : [] };
     }, span);
-    console.log(`${path.basename(path.dirname(file))}/${path.basename(file)}: ${R.ms.toFixed(0)} ms a frame (${R.frames} frames) · dpr ${R.dpr ?? '—'} · ${(R.tri / 1e6).toFixed(2)}M triangles · ${R.draws} draws`);
+    console.log(`${path.basename(path.dirname(file))}/${path.basename(file)}: ${R.ms.toFixed(0)} ms a frame (${R.frames} frames) · dpr ${R.dpr ?? '—'} · ${(R.tri / 1e6).toFixed(2)}M triangles · ${R.draws} draws${R.logic != null ? ` · logic ${R.logic.toFixed(1)} ms (rays ${R.rays.toFixed(1)}) · draw call ${R.render.toFixed(1)} ms` : ''}${R.slow.length ? ` · SLOW RAYS: ${R.slow.join(', ')}` : ''}`);
     await page.close();
   } finally { await browser.close(); }
 }
