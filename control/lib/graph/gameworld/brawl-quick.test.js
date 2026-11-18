@@ -278,6 +278,18 @@ describe('a heroes brawl designed', () => {
     expect(boss.recipe.specials.neutral.id).toBe('power.nova');
     expect(brawlCrowd({ goal: 'brawl', heroes: { villain: 'brute' } }, 1).members.find((m) => m.as === 'boss').name).toBe('The brute');
   });
+  it('a hero described with long hair and a cape is made with them, over its sheet; one made already keeps its own look', () => {
+    const W = runSteps(world({ heroes: { team: [{ brief: 'a weather witch with long white hair down to her waist and a flowing cape', pole: 'female', power: 'gale' }, { brief: 'a courier', look: { hair: 'buzz' } }] } }), { ref: 'gw' });
+    const one = W.find((s) => s.key === 'fighter-hero-1').order.spec, two = W.find((s) => s.key === 'fighter-hero-2').order.spec;
+    expect(one.hair).toEqual(['long', { length: 2 }]);
+    expect(one.outfit.pieces.find((p) => p.kind === 'cloak')).toEqual({ kind: 'cloak', hem: 'ankle' });
+    expect(two.hair).toBe('buzz');
+    expect(two.outfit).toBeUndefined();
+    // (a hero no one described the look of is the brawler's body over its sheet, as before)
+    expect(steps.find((s) => s.key === 'fighter-hero-1').order.spec.hair).toBeUndefined();
+    expect(() => world({ heroes: { team: [{ hero: { ref: 'x' }, look: { hair: 'bob' } }] } })).toThrow(/already made/);
+    expect(() => world({ heroes: { team: [{ brief: 'b', look: { hair: 'mohawk' } }] } })).toThrow(/team\[0\]\.look\.hair/);
+  });
   it('its words are read before anything is made; a power far from its kind\'s measure is advised on the game', () => {
     expect(() => world({ heroes: { team: [{ hero: { ref: 'x' }, brief: 'b' }] } })).toThrow(/already made/);
     expect(() => world({ heroes: { team: [{ brief: 'b', build: 'enormous' }] } })).toThrow(/build/);

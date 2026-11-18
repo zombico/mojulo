@@ -88,6 +88,17 @@
   edges no longer follow the arms, so it is not pinched in to the fists while the arms strike or hold them at the
   waist. Seen on the page in headless Chrome on a hero made with long hair and a cloak: the cloak and the hair swept
   back as it glided, the cloak blown across it in a gale at its back, and a slow billow as it hovered still.
+- **Describe how your hero looks, and it looks that way.** A hero you design used to take only who it is from your
+  sentence: its hair and clothes were rolled, so "long white hair and a flowing cape" could come out a short brown
+  bun. Your sentence now sets the hair and what hangs loose on the hero. That covers the hair's style (long, a
+  ponytail, a braid, a bun, a bob, a buzz cut, bald), how far it falls ("down to her waist", "to the shoulders") and
+  its colour ("white hair", "silver-haired"). It also covers a cape or cloak, a gown, dress or skirt, and a robe, each
+  falling as you say ("a long cape", "a short skirt"). You can also say it outright: `look: { hair, length, colour,
+  cape, gown, robe }`, whose words win over the sentence's. Everything else (the face, the build, the rest of the
+  clothes) is still rolled. A cape or gown is added to the hero's rolled outfit, so nothing it was wearing is taken off.
+  The look is laid in the words each head wears, the anime one or the western one. A hero you made already keeps its
+  own look, and a look given with one is turned down: change it with the character's own edits. The studio now asks
+  for each hero's hair and cape along with who it is. A hero whose look nobody described is made as before.
 - **A power's round can floor what it hits.** A special's projectile now knocks down when its move says so, and a
   power's round passes through as many bodies as its card says. Before, a projectile knocked nobody down and
   stopped at the first body.

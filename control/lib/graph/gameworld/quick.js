@@ -243,6 +243,7 @@ import { SCENARIOS } from '../worksim/scenarios.js';
 import { readCard } from '../worksim/card.js';
 import { solve as solveWork, targetOf } from '../worksim/solve.js';
 import { layWork } from '../game/work-mechanics.js';
+import { heroLook, lookSpec } from './hero-look.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -886,8 +887,11 @@ export function brawlCrowd(Q, seed = 1, title = 'brawl') {
  *   heroes: true | { team?: [<power> | <hero>] (1 to 4, in seat order), villain?: <member> | { member, power?, name? } }
  *     team     who plays and the power each throws; unsaid, HERO_TEAM (the leader's beam, the rival's storm, the
  *              sidekick's phase, the strongman's might). A power alone keeps the team's member at that seat. A hero:
- *              { name?, brief?, archetype?, build?, age?, pole?, role?, member?, hero?, power?, style? }:
+ *              { name?, brief?, archetype?, build?, age?, pole?, role?, member?, hero?, power?, style?, look? }:
  *                the person's OWN hero: a brief (a sentence: who it is) and the sheet's words, no member: rolled from them
+ *                its look (hero-look.js): its hair and a cape, a gown or a robe, read from its brief ("long white hair
+ *                down to her waist, a flowing cape") or said (`look: { hair, length, colour, cape, gown, robe }`), laid
+ *                over what its sheet rolled
  *                a pack member: `member` (another of the comic pack's cast), the person's words over its sheet
  *                one already made: `hero: { ref }` (a character from create_character), its sheet its own
  *              its power one of the shelf's, or DESIGNED (brawl-powers.js readPower: { kind, name?, beam?, stock?,
@@ -898,7 +902,7 @@ export function brawlCrowd(Q, seed = 1, title = 'brawl') {
  *   heroAdvice(H)          → [lines]: a designed power far from what the street was measured with (advice, never refused)
  *   powerLabel(power)      → what a seat's power is called on the set-up's pick (its name and its kind)
  *   HERO_TEAM, HERO_VILLAINS, HERO_ARMY
- *   readHeroes(v)          → { team: [{ member | null, power, name?, brief?, facets?, hero?, style }], villain: { member,
+ *   readHeroes(v)          → { team: [{ member | null, power, name?, brief?, look?, facets?, hero?, style }], villain: { member,
  *                          power, name } } checked (throws, teaching; a hero's words read as a fighter's are)
  *   heroFighters(H)        → the fight's roster words (versus-sheet.js fighterSpec) a member each: its sheet, its style
  *   heroVillain(H, seed)   → { name, power, mint } the villain as a character the hero door mints, on the brawler's body
@@ -919,7 +923,7 @@ const MEMBER_STYLE = Object.freeze({ frontline: 'grappler', flanker: 'rushdown',
 // a team member's words: who it is (the pack's member it is cast from, or the person's own: a sentence and the sheet's
 // words, or a character already made) and its power (one of the shelf's, or designed: brawl-powers.js readPower)
 const SHEET_WORDS = ['archetype', 'build', 'age', 'pole', 'role'];
-const TEAM_WORDS = ['power', 'member', 'name', 'brief', 'style', 'hero', ...SHEET_WORDS];
+const TEAM_WORDS = ['power', 'member', 'name', 'brief', 'style', 'hero', 'look', ...SHEET_WORDS];
 const VILLAIN_WORDS = ['member', 'power', 'name'];
 export function readHeroes(v, at = '.heroes') {
   if (v === undefined || v === false) return null;
@@ -935,7 +939,7 @@ export function readHeroes(v, at = '.heroes') {
     // (WHO: a character already made (hero: { ref }, its sheet its own); the person's own, said in a sentence and the
     // sheet's words (a brief and no member); else the pack's member at that seat, or the one named, its words over it)
     const said = SHEET_WORDS.filter((w) => t[w] !== undefined);
-    if (t.hero !== undefined && (t.member !== undefined || t.brief !== undefined || said.length)) throw fail(`${here}: a hero already made (hero) has its own sheet: drop ${[...(t.member !== undefined ? ['member'] : []), ...(t.brief !== undefined ? ['brief'] : []), ...said].join(', ')}`);
+    if (t.hero !== undefined && (t.member !== undefined || t.brief !== undefined || t.look !== undefined || said.length)) throw fail(`${here}: a hero already made (hero) has its own sheet and look (change them with update_character): drop ${[...(t.member !== undefined ? ['member'] : []), ...(t.brief !== undefined ? ['brief'] : []), ...(t.look !== undefined ? ['look'] : []), ...said].join(', ')}`);
     const own = t.hero === undefined && t.member === undefined && t.brief !== undefined;
     const member = t.hero !== undefined || own ? null : t.member ?? seat.member;
     if (member) { try { castMember(member); } catch (e) { throw fail(`${here}.member: ${e.message.replace(/^comic-hero: /, '')}`); } }
@@ -945,7 +949,11 @@ export function readHeroes(v, at = '.heroes') {
     const base = member && t.member === undefined ? seat : {};
     const name = t.name ?? base.name, brief = t.brief ?? base.brief;
     const role = t.role ?? (member ? castMember(member).facets.role : null);
-    const entry = { member, power, ...(name ? { name } : {}), ...(brief ? { brief } : {}), ...(said.length ? { facets: Object.fromEntries(said.map((w) => [w, t[w]])) } : {}), ...(t.hero !== undefined ? { hero: t.hero } : {}), style: t.style ?? base.style ?? MEMBER_STYLE[role] ?? seat.style };
+    // (HOW IT LOOKS where the person said: its hair and what hangs loose on it, from its description and its `look`,
+    // hero-look.js; the sheet rolls the rest)
+    let look;
+    try { look = heroLook(t.brief, t.look); } catch (e) { throw fail(`${here}.${e.message.replace(/^gameworld: /, '')}`); }
+    const entry = { member, power, ...(name ? { name } : {}), ...(brief ? { brief } : {}), ...(look ? { look } : {}), ...(said.length ? { facets: Object.fromEntries(said.map((w) => [w, t[w]])) } : {}), ...(t.hero !== undefined ? { hero: t.hero } : {}), style: t.style ?? base.style ?? MEMBER_STYLE[role] ?? seat.style };
     // (its words read as a fighter's are, so a fault is said here and not when the run rolls it)
     try { fighterSpec(heroFighter(entry, k), k); } catch (e) { throw fail(`${here}: ${e.message.replace(/^versus: /, '')}`); }
     return entry;
@@ -1060,13 +1068,16 @@ const BRAWLER_BODY = (pole, heavy) => ({ head: 'landmark', animeBody: (heavy ? {
  * the base pair, the hulking pair for a heavy) in their muscular form (the muscle shirt, every muscle drawn), under the
  * WESTERN head (the landmark head: styled, never the anime head and never the realistic one). `created` is the sheet's
  * own create order (egocube/kind.js egocubeCreate); null for one that is not a person. A sheet rolled in the anime
- * tradition keeps the anime head (an anime brawl's: the western head refuses that head's hair, face and expression). */
-export function brawlBody(created, heavy = false) {
+ * tradition keeps the anime head (an anime brawl's: the western head refuses that head's hair, face and expression).
+ * `look` a designed hero's (hero-look.js), laid over the sheet's words in that head's. */
+export function brawlBody(created, heavy = false, look = null) {
   if (created?.create?.as !== 'hero') return null;
   const base = created.create.spec ?? {}, pole = (typeof base.cast === 'string' ? base.cast : base.cast?.pole) === 'female' ? 'female' : 'male';
   // (a sheet rolled in the ANIME tradition (an anime brawl's `register`) keeps the anime head: its hair, its face and its
   // expression are that head's words, which the western head refuses, and the brawler's bodies are the anime frame's own)
-  return base.head === 'anime' ? { ...BRAWLER_BODY(pole, heavy), head: 'anime' } : BRAWLER_BODY(pole, heavy);
+  const body = base.head === 'anime' ? { ...BRAWLER_BODY(pole, heavy), head: 'anime' } : BRAWLER_BODY(pole, heavy);
+  // (a designed hero's LOOK where the person said it: its hair, its colour, a cape or a gown, over the sheet's: hero-look.js)
+  return look ? { ...body, ...lookSpec(look, base, body.head) } : body;
 }
 /**
  * HOW A MAP IS PLAYED, laid (brawl/brawl-play.js, the play types): the street's words for its play, and what holds it

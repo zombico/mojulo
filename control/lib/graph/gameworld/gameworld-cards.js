@@ -52,6 +52,7 @@ import { STRUCTURE_KITS } from '../era/out-structures.js';
 import { ISEKAI_STYLES } from '../era/isekai.js';
 import { SEEDED_STYLES } from '../equipment/styles.js';
 import { QUICK_GOALS, RHYTHM_MOODS, RACE, DEFEND, DEATHMATCH_MODES, HERO_VILLAINS, HERO_TEAM, HERO_ARMY } from './quick.js';
+import { LOOK_WORDS } from './hero-look.js';
 import { SCORE_MOODS } from '../beats/field-score.js';
 import { CLUB_MOODS } from '../beats/club-score.js';
 import { CAMERAS } from './cameras.js';
@@ -1633,7 +1634,7 @@ function heroesCard() {
     `Its ENERGY is rupa's knockback (joules: light bodies fly, heavy ones stagger; an impact's shock falls off with distance): ${POWER_IDS.filter((id) => POWERS[id].knock).map((id) => `${id} ${POWERS[id].knock.kinetic ? 'pushes' : 'lands'}`).join(', ')}.`,
     '',
     'ASK FIRST, before making it (the heroes and their powers are the person\'s to design; offer the defaults if they have none):',
-    '  1. who the heroes are (1..4): a name and a sentence each (who they are, how they look), or ones already made',
+    '  1. who the heroes are (1..4): a name and a sentence each (who they are, their hair, a cape?), or ones made',
     '  2. each hero\'s power: what it does (pick the nearest kind below), what it is called, what it looks like, how strong',
     '  3. the villain at the end and its power; the army (a crew of the comic pack)',
     '',
@@ -1644,9 +1645,9 @@ function heroesCard() {
     '  e.g. { kind: \'beam\', name: \'Solar lance\', beam: \'laser\', strength: 120, pierce: 3 }. Far from its kind\'s measure: a balance law advises.',
     '',
     'QUICK (one call, by streets): design_game({ quick: { goal: \'brawl\', heroes: true | { team?, villain? } } })',
-    '  team: 1..4 in seat order, each a power or a hero: { name?, brief?, archetype?, build?, age?, pole?, role?, power?, style? }',
-    '    a brief and no member: the person\'s OWN hero, rolled from their words and made a character; hero: { ref }: one already',
-    `    made; member: another of the comic pack\'s cast. Unsaid: ${HERO_TEAM.map((t) => `${t.member} ${t.power}`).join(', ')}.`,
+    '  team: 1..4 in seat order, each a power or a hero: { name?, brief?, archetype?, build?, age?, pole?, role?, power?, style?, look? }',
+    '    a brief, no member: the person\'s OWN hero, rolled from it; its hair and cape read from it ("long white hair, a cape")',
+    `    or look: { ${LOOK_WORDS.join(', ')} }. hero: { ref }: one made; member: one of the pack. Unsaid: ${HERO_TEAM.map((t) => `${t.member} ${t.power}`).join(', ')}.`,
     `  villain: ${Object.keys(HERO_VILLAINS).map((v) => `${v} (${HERO_VILLAINS[v]})`).join(' | ')}, or { member, power?, name? }; crowd: a faction (unsaid ${HERO_ARMY}).`,
     '  "A superhero beat em up ..." from a sentence lays its streets on this tuning (then design the heroes as above).',
     'DESIGNED: a street level: tuning: \'heroes\', powers?: [<power> | null] in seat order (unsaid: the hero\'s own actions page',

@@ -959,7 +959,9 @@ function quickSteps(world, G, ref, lookup) {
       steps.push({ key: sheetKey, ref: sheetRef, ready: true, order: { title: `${title} · ${name} (sheet)`, manifest }, print: fingerprint(manifest) });
       // (a BRAWLER's body, quick.js brawlBody: the anime frame's muscular body under the western head, laid over the
       // sheet's person as a foe's body words are)
-      const bodyOf = Q.goal === 'brawl' ? brawlBody(egocubeCreate(rollStored(manifest))) : null;
+      // (a designed hero's look, its hair and what hangs loose on it, laid over the brawler's body: quick.js readHeroes)
+      const look = heroes && !Q.roster ? heroes.team[roster.length % heroes.team.length]?.look ?? null : null;
+      const bodyOf = Q.goal === 'brawl' ? brawlBody(egocubeCreate(rollStored(manifest)), false, look) : null;
       steps.push({ key, ref: charRef, ready: true, order: { egocube: sheetRef, title: `${title} · ${name}`, ...(bodyOf ? { spec: bodyOf } : {}) }, print: fingerprint({ roll, ...(bodyOf ? { spec: bodyOf } : {}) }) });
       roster.push({ ...own, hero: { ref: charRef }, ...over, ...strikesOf(moves, over) });
       playable.push({ id: own.id, name, ...(over?.style ? { about: over.style } : {}) });
