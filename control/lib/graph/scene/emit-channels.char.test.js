@@ -1,3 +1,7 @@
+// Re-pinned 2026-11-18 (the open city's shops and guns): every fixture that embeds the controllable runtime. A weapon
+// may start with fewer rounds than it holds (combat-ranged.js `loaded`), the cast gains `repaint` (a respray), and a
+// moveset's hero may carry its sidearm in a holster (combat-melee.js `holster`, its trigger in combat-ranged.js). Each
+// is taken only by a weapon, an op or a rule that names it (no fixture's does): their worlds step as before.
 // Re-pinned 2026-11-17 (the street's health): every fixture that embeds the controllable runtime. A police car's hold
 // is its own count (rules-drive.js `chaser`: `helds`, `heldBy`) and the cast's facts raise it as `held:<id>` (cast.js
 // castFacts: one field more per body), so a hold is no hit. A body that is never held raises nothing new.
