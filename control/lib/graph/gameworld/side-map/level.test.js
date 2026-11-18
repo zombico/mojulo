@@ -32,6 +32,8 @@ describe('a side map level', () => {
     // (and their line, round each part, the bodies' alone, dark and never black)
     expect(m.toon.ink).toMatchObject({ only: 'bodies', lines: false });
     expect(m.toon.ink.color).not.toBe('#000000');
+    // (and its key a zone: the lamps of the zones lit by lamps on the camera's zones, the page lights a cel body by them)
+    expect(m.camera.zones.some((z) => Array.isArray(z.lamps) && z.lamps.length)).toBe(true);
     expect(hero.rule).toMatchObject({ move: 'lane', collideHeight: 1.67 });
     expect(hero.transform.pos[1]).toBeCloseTo(Z[0].checkpoint[0], 2);
     expect(ladders.every((l) => l.rule.type === 'climbable')).toBe(true);

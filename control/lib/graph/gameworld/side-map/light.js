@@ -66,6 +66,18 @@ function cells(f, cell) {
   return out;
 }
 
+/** The lamps the map is lit by (scene.js hangs them: an A bay's, at its seam, under its open space's top), each
+ * { at: [x, s, z], zone }: the bake's, and a cel body's key indoors (level.js, the side map's camera zones). */
+export function sideMapLamps(layout, dress) {
+  const out = [];
+  for (const z of dress.zones) {
+    if (!z.indoor || !z.lamps) continue;
+    const o = layout.open.find((r) => r.zone === z.zone);
+    if (o) for (const s of z.lamps) out.push({ at: [-2.6, s, o.z1 - 1.4], zone: z.zone });
+  }
+  return out;
+}
+
 /** The built map's faces lit per corner. */
 export function lightSideMap(faces, layout, dress, cube, { sky = null } = {}) {
   const L = layout, D = dress, W = L.screen.width, H = L.screen.height, S = SIDE_MAP_LIGHT;
@@ -89,13 +101,8 @@ export function lightSideMap(faces, layout, dress, cube, { sky = null } = {}) {
     for (const Z of L.zones) { const [s0, s1, z0, z1] = Z.rect, d = Math.max(s0 - s, 0, s - s1) + Math.max(z0 - z, 0, z - z1); if (d < bd) { bd = d; best = Z.i; } }
     return best;
   };
-  // the lamps, where the build hangs them (scene.js: an A bay's, at its seam, under its open space's top)
-  const lamps = [];
-  for (const z of D.zones) {
-    if (!z.indoor || !z.lamps) continue;
-    const o = L.open.find((r) => r.zone === z.zone), tone = unit(lin(z.edge)).map((v, k) => 0.5 * v + 0.5 * unit(lin(S.warm))[k]);
-    if (o) for (const s of z.lamps) lamps.push({ at: [-2.6, s, o.z1 - 1.4], zone: z.zone, tone });
-  }
+  // the lamps, where the build hangs them (sideMapLamps), each in its zone's edge warmed
+  const lamps = sideMapLamps(L, D).map((l) => ({ ...l, tone: unit(lin(D.zones[l.zone].edge)).map((v, k) => 0.5 * v + 0.5 * unit(lin(S.warm))[k]) }));
   const R = S.radius * W, ref = falloff(ROOM_LIGHT.at, R);
   const bossTone = unit(lin(D.palette.boss));
   const ups = new Map(L.zones.filter((Z) => Z.run === 'up').map((Z) => [Z.i, Z.exit[1]]));

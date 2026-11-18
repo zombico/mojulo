@@ -22,6 +22,7 @@ import { playerWorld } from '../../playscape/player.js';
 import { feelRule } from '../feel/lower.js';
 import { sideMapOf, SIDE_MAP_STATURE } from './scene.js';
 import { sideMapPlay, SIDE_FALL } from './play.js';
+import { sideMapLamps } from './light.js';
 import { bodyLightOf, CEL_INK } from '../game-bodies.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -41,6 +42,10 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
   const hero = { ...W0.entities[0], transform: { pos: P.spawn, heading: Math.PI / 2 } };
   // its bodies in their rail's light (game-bodies.js BODY_LIGHTS: the side scroller's cel); a rail with none, as they were
   const light = bodyLightOf({ feel: G.feel?.pole ?? (typeof G.feel === 'string' ? G.feel : null) });
+  // (a cel body's key a zone: its lamps where it is lit by lamps, on the camera's zones the page reads; index.js
+  // __toonKeyOf; the land's key where it has none)
+  const lampsAt = light === 'cel' ? sideMapLamps(L, M.dress) : [];
+  const lamped = lampsAt.length ? { ...P.camera, zones: P.camera.zones.map((z, i) => { const ls = lampsAt.filter((l) => l.zone === i).map((l) => l.at); return ls.length ? { ...z, lamps: ls } : z; }) } : P.camera;
   const figures = light ? Object.fromEntries(Object.entries(W0.figures ?? {}).map(([k, f]) => [k, { ...f, light }])) : W0.figures;
   // the goal: the last zone's far side; the falls: the catch zone in limbo, a life each where the world keeps lives
   const last = L.zones.at(-1), goal = { kind: 'reach-exit', at: [0, r3(last.rect[1] - 2.5), r3(last.exit[1] + 1)], radius: 2.5, planar: false };
@@ -49,7 +54,7 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
   const events = { ...ev, sources: [...(ev.sources ?? []), P.catch] };
   const manifest = {
     ...manifest0, title: name,
-    figures, entities: [hero, ...P.ladders], camera: P.camera, events, colliders: P.colliders,
+    figures, entities: [hero, ...P.ladders], camera: lamped, events, colliders: P.colliders,
     ...(mechanics?.play ? { play: mechanics.play } : {}),
     // (a cel body's line round each of its parts, the bodies' alone, CEL_INK px wide on the side map's screen: 720 rows)
     ...(light === 'cel' && !manifest0.toon ? { toon: { ink: { only: 'bodies', color: CEL_INK.color, widthAbs: r3((CEL_INK.px * L.screen.height) / 720), lines: false } } } : {}),

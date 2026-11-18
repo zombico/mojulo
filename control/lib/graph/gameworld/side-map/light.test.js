@@ -3,7 +3,7 @@
 // a lamp than far from it; a closed face darker just under its lip; a climb's top lighter than its foot and a chute
 // darker at its foot; the same map lights the same way; asked flat, the build is the one baked key it was, no corners.
 import { describe, it, expect } from 'vitest';
-import { lightSideMap, SIDE_MAP_LIGHT } from './light.js';
+import { lightSideMap, SIDE_MAP_LIGHT, sideMapLamps } from './light.js';
 import { assembleSideMap, sideMapOf } from './scene.js';
 import { sideMapTexture, TEXTURE_KINDS } from './texture.js';
 
@@ -60,5 +60,11 @@ describe('the side map\'s light', () => {
   });
   it('a texture tile is near white and the same every time', () => {
     for (const k of TEXTURE_KINDS) { const a = sideMapTexture(k); expect(a).toBe(sideMapTexture(k)); expect(a.startsWith('data:image/png;base64,')).toBe(true); }
+  });
+  it('its lamps: one an A bay of an indoor zone, at its seam, behind the lane, under its open space\'s top', () => {
+    const M = sideMapOf({ kind: 'geocube', show: 'sidemap', cube: 'city-night', seed: 3, sidemap: { premise: 'into the plant', zones: [{ run: 'across', screens: 3, beat: 'rest' }, { room: [1, 1], teach: 'boss' }] } });
+    const L = sideMapLamps(M.layout, M.dress), z = M.dress.zones[0];
+    expect(L.filter((l) => l.zone === 0).map((l) => l.at[1])).toEqual(z.indoor ? z.lamps : []);
+    for (const l of L) { const o = M.layout.open.find((r) => r.zone === l.zone); expect(l.at[0]).toBeLessThan(0); expect(l.at[2]).toBeLessThan(o.z1); }
   });
 });

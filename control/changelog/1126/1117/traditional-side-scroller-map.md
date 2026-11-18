@@ -254,4 +254,5 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   dark navy line, never black, runs round each of a cel body's parts (the land takes none: the toon ink's new
   `only: 'bodies'`), so the forms that adorn it read as its segments; and on a side map a body turns its head toward the
   screen, its face seen, most when it stands. The toy hero robot's helm ends its cheek guards at the jaw line instead of
-  making a chin of them.
+  making a chin of them. Where a zone is lit by lamps, each body is lit from its nearest lamp's side and height (its face
+  still toward the camera's side), and a shot or a blast cuts a hard rim in its colour down the edges that face it.

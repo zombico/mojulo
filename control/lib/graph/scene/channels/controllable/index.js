@@ -78,7 +78,8 @@ function poolFigureBuffers(figures) {
 /** THE CEL BODY's step on the page (world-scene.js heroFigure `cel`): the key the side strip lights its land from
  * (era/geocube-side.js SIDE.key), so a body and its land agree, and the N·L past which a face is lit (a form's turning half
  * in shade: at 0.05 a key behind the camera lit nearly all of it). */
-export const CEL_BODY = Object.freeze({ key: SIDE.key, step: 0.3 });
+// (the key read when asked: this module and the era's side strip import each other through the scene's channels)
+export const CEL_BODY = Object.freeze({ get key() { return SIDE.key; }, step: 0.3, lamp: 0.45 });
 /** A side map's bodies turn their heads toward the screen (radians, the most): standing, and on the move. */
 export const FACE_SCREEN = Object.freeze({ rest: 0.5, moving: 0.22 });
 const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8', 'colS'];
@@ -924,7 +925,7 @@ function __updateGearLines() {
   const figHasCast = Object.values(figures || {}).some((f) => f && f.rig && f.cast && Array.isArray(f.parts));
   // (a CEL body, world-scene.js heroFigure `cel`: each part's lit tone and its shade tone, stepped by the world's key)
   const figHasToon = Object.values(figures || {}).some((f) => f && f.rig && f.toon && Array.isArray(f.parts) && f.parts.some((p) => p && p.colS));
-  const toonHook = figHasToon ? '\n    if (fig.toon && part.colS) mesh.material = __toonMat(mesh.material);' : '';
+  const toonHook = figHasToon ? '\n    if (fig.toon && part.colS) mesh.material = __toonMat(mesh.material, group);' : '';
   // (a body that carries its relief, a realistic hero's: its normal map and its occlusion, roughness and metal, on its
   // paint's own atlas; the cast material reads them. None carries one: nothing emitted)
   const figHasRelief = figHasCast && Object.values(figures || {}).some((f) => f && f.cast && f.paintTex && (f.normalTex || f.ormTex));
@@ -1385,12 +1386,33 @@ function __rigTex(fig) { if (!fig.__tex) { fig.__tex = new THREE.TextureLoader()
 // one where the surface faces the world's key past the step, over a narrow band so the line holds without stairs. The
 // key is the world's (\`__toonKey\`), never the body's: a body turned the other way keeps its light where the world has it
 const __toonKey = new THREE.Vector3(${CEL_BODY.key.join(', ')}).normalize(), __TOON_STEP = ${CEL_BODY.step};
-function __toonMat(base) {
+// (a KEY A BODY: on a side map, a zone lit by lamps lights a cel body from its nearest lamp's side and height, the land's
+// key's turn toward the camera kept so its face still reads; each body its own key, eased as it moves, CEL_BODY.lamp the
+// lamp's share)
+const __TOON_ZONES = ${safeJson(camera && camera.rule === 'side-map' && Array.isArray(camera.zones) ? camera.zones.map((z) => ({ rect: z.rect, ...(z.lamps ? { lamps: z.lamps } : {}) })) : [])};
+const __toonV = new THREE.Vector3();
+function __toonKeyOf(e, g) {
+  const K = g.userData.toonKey; if (!K || !e.transform) return;
+  const p = e.transform.pos, s = p[1], z = p[2] + 1, Z = __TOON_ZONES.find((q) => q.lamps && s >= q.rect[0] && s <= q.rect[1] && z >= q.rect[2] - 1 && z <= q.rect[3] + 1);
+  __toonV.copy(__toonKey);
+  if (Z) {
+    let best = null, bd = Infinity;
+    for (const l of Z.lamps) { const d = Math.abs(l[1] - s); if (d < bd) { bd = d; best = l; } }
+    // (the lamp says which side and how high, never from behind: the key keeps the land's turn toward the camera, its
+    // along-the-lane and its up taken toward the lamp's)
+    if (best) { const ly = best[1] - p[1], lz = best[2] - z, ll = Math.hypot(ly, lz) || 1, k = ${CEL_BODY.lamp}, side = Math.hypot(__toonKey.y, __toonKey.z); __toonV.set(__toonKey.x, (1 - k) * __toonKey.y + k * side * ly / ll, (1 - k) * __toonKey.z + k * side * lz / ll).normalize(); }
+  }
+  K.lerp(__toonV, 0.15).normalize();
+}
+function __toonMat(base, g) {
   const m = base.clone();
+  if (g && !g.userData.toonKey) g.userData.toonKey = __toonKey.clone();
+  const key = g ? g.userData.toonKey : __toonKey;
+  m.userData.cel = true;
   const prev = m.onBeforeCompile, prevKey = m.customProgramCacheKey;
   m.onBeforeCompile = function (sh, r) {
     if (prev) prev.call(this, sh, r);
-    sh.uniforms.uToonKey = { value: __toonKey }; sh.uniforms.uToonStep = { value: __TOON_STEP };
+    sh.uniforms.uToonKey = { value: key }; sh.uniforms.uToonStep = { value: __TOON_STEP };
     sh.vertexShader = 'attribute vec3 colorShade;\\nvarying vec3 vToonShade;\\nvarying vec3 vToonN;\\n' + sh.vertexShader.replace('#include <fog_vertex>', '#include <fog_vertex>\\n  vToonShade = colorShade;\\n  vToonN = normalize(mat3(modelMatrix) * normal);');
     sh.fragmentShader = 'uniform vec3 uToonKey;\\nuniform float uToonStep;\\nvarying vec3 vToonShade;\\nvarying vec3 vToonN;\\n' + sh.fragmentShader.replace('#include <color_fragment>',
       '#if defined( USE_COLOR )\\n  float toonLit = smoothstep(uToonStep - 0.03, uToonStep + 0.03, dot(normalize(vToonN) * (gl_FrontFacing ? 1.0 : -1.0), uToonKey));\\n  diffuseColor.rgb *= mix(vToonShade, vColor.rgb, toonLit);\\n#endif');
@@ -2650,7 +2672,8 @@ function __applyShieldBreak(e, rigFig) {
   }
 }
 function __syncEntity(e, dt) {
-  let m = __bodies[e.id]; if (!m) return;
+  let m = __bodies[e.id]; if (!m) return;${figHasToon ? `
+  if (m.userData.toonKey) __toonKeyOf(e, m);` : ''}
   if (e.gone) { if (m.visible) m.visible = false; return; }   // wreck finisher: the body detonated and is gone
   // loadout swap: the rule changed e.body.figure — show that variant's group from here on. The
   // gait-mix state carries over so the new body continues the crossfade instead of snapping.

@@ -13,6 +13,8 @@
 //               its edges, a face turned from the eye (a top seen edge-on, a slice's end) taking it as a rim; in the
 //               surface's own hue (its baked colour over its brightest channel, toward white), the whole capped
 //               (SHOT_LIGHT_CAP): spill, not flood; no shadows, a light reaches what is near it
+//   A CEL BODY  (index.js __toonMat, its material marked cel) takes the shot as it takes any light, in a step: a hard band
+//               in the shot's colour where a part turns toward it, within its reach (SHOT_LIGHT_CEL)
 //
 // `window.__mojCtrl.shotLight()` says the lights laid this frame and how many materials carry them (a page's check).
 import { shotLights } from '../../../worlds/controllable/shot-light.js';
@@ -20,9 +22,13 @@ import { shotLights } from '../../../worlds/controllable/shot-light.js';
 export const SHOT_LIGHT_K = 6;
 /** The most the shot light adds to a face (linear): the world keeps its key under any number of shots. */
 export const SHOT_LIGHT_CAP = 0.09;
+/** The shot on a cel body (a hard RIM, not a pool): the face's N·L toward the shot past `step`, turned from the eye past
+ * `edge` (1 − |N·V|: the silhouette's band), within `reach` of the
+ * light's reach, its colour × `gain`, held under `cap` (linear): a rim in the round's colour on the side it comes from. */
+export const SHOT_LIGHT_CEL = Object.freeze({ step: 0.35, reach: 0.7, gain: 0.9, cap: 0.5, edge: 0.45 });
 
 export function shotLightScript() {
-  const K = SHOT_LIGHT_K, CAP = SHOT_LIGHT_CAP;
+  const K = SHOT_LIGHT_K, CAP = SHOT_LIGHT_CAP, { step: CEL_STEP, reach: CEL_REACH, gain: CEL_GAIN, cap: CEL_CAP, edge: CEL_EDGE } = SHOT_LIGHT_CEL;
   return `
 // ── THE SHOT LIGHT ──
 const __shotLights = ${shotLights.toString()};
@@ -30,6 +36,8 @@ const __SL = { last: [], patched: 0, U: { uSlN: { value: 0 }, uSlP: { value: Arr
 // (a material lit by the shot light: three's MeshBasicMaterial, opaque matter, never a glow: what adds light is left as it is)
 function __slPatch(mat) {
     if (!mat || !mat.isMeshBasicMaterial || mat.__shotLight || mat.blending === THREE.AdditiveBlending) return;
+    // (a cel body's part, index.js __toonMat: lit as cel, a hard band on its side toward the shot, on its own smooth normal)
+    const cel = !!(mat.userData && mat.userData.cel);
     const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey;
     mat.onBeforeCompile = function (sh, r) {
       if (prev) prev.call(this, sh, r);
@@ -40,13 +48,20 @@ function __slPatch(mat) {
         + '  vec3 V = normalize( cameraPosition - vSlW ); float rim = clamp( 1.0 - abs( dot( N, V ) ), 0.0, 1.0 ); rim *= rim;\\n'
         + '  for ( int k = 0; k < ${K}; k++ ) { if ( k >= uSlN ) break; vec3 d = uSlP[ k ] - vSlW; float r = length( d ), f = clamp( 1.0 - r / uSlR[ k ], 0.0, 1.0 ), nl = dot( N, d / max( r, 1e-3 ) ); g += uSlC[ k ] * ( f * f * ( 0.35 * ( 0.5 + 0.5 * nl ) + 1.2 * rim * clamp( nl + 0.4, 0.0, 1.0 ) ) ); }\\n'
         + '  return min( ( 0.3 + 0.7 * c / max( max( c.r, c.g ), max( c.b, 0.03 ) ) ) * g, vec3( ${CAP} ) );\\n}\\n'
-        + sh.fragmentShader.replace('vec3 outgoingLight = reflectedLight.indirectDiffuse;', 'vec3 outgoingLight = reflectedLight.indirectDiffuse + slGlow( diffuseColor.rgb );');
+        // (the cel rim reads the toon patch's own normal, declared in its header: set just before main, after every one)
+        + sh.fragmentShader.replace('void main() {', (cel ? CEL_GLOW : '') + 'void main() {').replace('vec3 outgoingLight = reflectedLight.indirectDiffuse;', 'vec3 outgoingLight = reflectedLight.indirectDiffuse + ' + (cel ? 'slCel( diffuseColor.rgb )' : 'slGlow( diffuseColor.rgb )') + ';');
     };
-    mat.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|shot-light'; };
+    mat.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + (cel ? '|shot-light-cel' : '|shot-light'); };
     mat.__shotLight = true; mat.needsUpdate = true; __SL.patched++;
 }
 // (every such material in the scene, and again every few frames for what comes into it: a block's chunks as it breaks
 // (rupa), a destroyed body's pieces (dismantle, a cleave), the bodies themselves)
+// THE SHOT ON A CEL BODY: no soft pool but a hard rim, the shot's colour where the part turns toward it past the step and
+// away from the eye (its silhouette's edge), within its reach, as a cel body takes any light: in steps (vToonN, its own)
+const CEL_GLOW = 'vec3 slCel( vec3 c ) {\\n  if ( uSlN == 0 ) return vec3( 0.0 );\\n  vec3 N = normalize( vToonN ) * ( gl_FrontFacing ? 1.0 : -1.0 ), g = vec3( 0.0 );\\n'
+  + '  vec3 V = normalize( cameraPosition - vSlW ); float edge = smoothstep( ${CEL_EDGE} - 0.04, ${CEL_EDGE} + 0.04, 1.0 - abs( dot( N, V ) ) );\\n'
+  + '  for ( int k = 0; k < ${K}; k++ ) { if ( k >= uSlN ) break; vec3 d = uSlP[ k ] - vSlW; float r = length( d ), nl = dot( N, d / max( r, 1e-3 ) ); g += uSlC[ k ] * ( step( r, uSlR[ k ] * ${CEL_REACH} ) * smoothstep( ${CEL_STEP} - 0.03, ${CEL_STEP} + 0.03, nl ) * edge ); }\\n'
+  + '  return min( ( 0.35 + 0.65 * c / max( max( c.r, c.g ), max( c.b, 0.03 ) ) ) * g * ${CEL_GAIN}, vec3( ${CEL_CAP} ) );\\n}\\n';
 const __slSweep = () => scene.traverse((o) => { if (o.isMesh && o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(__slPatch); });
 __slSweep();
 let __slTick = 0;

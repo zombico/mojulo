@@ -2,10 +2,12 @@
 // (`colS`) is drawn part by part (never merged) in the toon step, keyed by the side strip's key; a page whose figures
 // carry none of it keeps every byte (no toon code). The concepts: emitted only for a cel figure; a cel figure is never
 // merged; the step's key is the land's. On a side map's page a body turns its head toward the screen (more standing
-// than moving), and on no other page; a dial inking the bodies alone (`only: 'bodies'`) leaves the world's faces unlined.
+// than moving), and on no other page; each cel body keyed by its zone's nearest lamp (the camera's zones carry them), and
+// the shot light takes a cel body as a hard rim (its edge turned toward the shot); a dial inking the bodies alone (`only: 'bodies'`) leaves the world's faces unlined.
 import { describe, it, expect } from 'vitest';
 import { controllableChannelScript, CEL_BODY, FACE_SCREEN } from './index.js';
 import { emitThreeWorld } from '../../scene-three.js';
+import { shotLightScript, SHOT_LIGHT_CEL } from './shot-light-view.js';
 import { mergeableFigure } from './merged-figure.js';
 import { SIDE } from '../../../era/geocube-side.js';
 import { b64 } from '../../emit-util.js';
@@ -39,5 +41,14 @@ describe('the cel body on the page', () => {
     const all = emitThreeWorld({ faces: [floor], toon: { ink: {} }, inline: true }), bodies = emitThreeWorld({ faces: [floor], toon: { ink: { only: 'bodies' } }, inline: true });
     expect(all).toMatch(/"ink":\{/);
     expect(bodies).not.toMatch(/"ink":\{/);
+  });
+  it('on a side map a cel body is keyed by its zone\'s lamps, and the shot takes it as a hard rim', () => {
+    const sideMap = { rule: 'side-map', target: 'hero', screen: [24, 13.5], dist: 18, zones: [{ rect: [-20, 20, -2, 10], lock: 'z', checkpoint: [0, 0], lamps: [[-2.6, 3, 4]] }] };
+    const page = controllableChannelScript([hero], sideMap, { body: fig(true) });
+    expect(page).toContain('__toonKeyOf');
+    expect(page).toContain('[[-2.6,3,4]]');
+    const shot = shotLightScript();
+    expect(shot).toContain('slCel');
+    expect(SHOT_LIGHT_CEL.cap).toBeGreaterThan(0.09);
   });
 });
