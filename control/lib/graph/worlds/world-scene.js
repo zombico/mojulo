@@ -194,7 +194,28 @@ function movesOf(rule, name) {
   const art = mine.map((W) => W.moveset.art).find(Boolean);
   return { moves, readies, ...(aims.length ? { aims } : {}), ...(art ? { art } : {}) };
 }
-export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null, takes = null, lit = false, pilot = false } = {}) {
+/** A cel body: the character light baked lit and in shade (no highlight, so neither bake splits a face and both carry the
+ * same corners); the lit bake's scene with each part's shade tones as `colS` and the body's `toon` set, or null when the
+ * two bakes do not line up. */
+async function celBody(manifest, ctx) {
+  const { expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
+  const groups = Object.keys(expandLayeredManifest(manifest).recipe?.palette ?? {});
+  if (!groups.length) return null;
+  const stepped = (t) => expandLayeredManifest({ ...manifest, toon: { ...(manifest.toon ?? {}), light: { threshold: t, thresholds: Object.fromEntries(groups.map((g) => [g, t])), highlight: false } } });
+  // (the step at the ends of N·L's range, the most the light allows (vexar.js toonLightErrors: [-1, 1]): at -1 every group
+  // lit, at 1 every group in shade; past them the light is refused and the default stands, both bakes the same)
+  const [L, S] = await Promise.all([-1, 1].map((t) => WORLD_KINDS.layered.resolve(stepped(t), ctx)));
+  const A = L?.figures?.body, B = S?.figures?.body;
+  if (!A?.parts || !B?.parts || A.parts.length !== B.parts.length) return null;
+  // (each part whose two bakes carry the same corners steps between them; one that does not (a piece the light splits
+  // its own way) keeps its lit bake; two bakes of one tone are no cel, the light was not stepped)
+  const lines = (p, q) => !!p && !!q && p.pos === q.pos && typeof p.col === 'string' && typeof q.col === 'string';
+  const parts = A.parts.map((p, i) => (lines(p, B.parts[i]) && p.col !== B.parts[i].col ? { ...p, colS: B.parts[i].col } : p));
+  if (!parts.some((p) => p && p.colS)) return null;
+  return { ...L, figures: { ...L.figures, body: { ...A, toon: true, parts } } };
+}
+
+export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null, takes = null, lit = false, pilot = false, cel = false } = {}) {
   let manifest, body;
   // a MODEL made elsewhere (`modelRef`: a sketch a rigged humanoid .glb is bound onto, stood `height` metres): its pack read
   // by scene/rig-import.js, played as a hero's is (worlds/controllable/model-figure.js)
@@ -246,7 +267,13 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
     // the lit export reads it and a fight plays it, versus-character.js characterBody; its rig, its clips and what it
     // holds are the same read's. Absent: the body as it always was, its light baked)
     // (`pilot`: a body a player pilots plays it: its run the engagement run's body, world-kinds.js ctx.pilot)
-    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(lit ? { light: FLAT_LIGHT, unshaded: true, face: true } : {}), ...(pilot ? { pilot: true } : {}) });
+    const ctx = { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(lit ? { light: FLAT_LIGHT, unshaded: true, face: true } : {}), ...(pilot ? { pilot: true } : {}) };
+    // (`cel`: THE CEL BODY, a body's light and not its face's: the character light (station-loft-shade.js, its shade swatches
+    // and its metal by materials/toon-materials.js) baked twice, every group stepped lit and every group in shade, as a
+    // fight plays a toon body (versus-character.js toonBody), so each corner carries both tones (`colS` the shade's) and
+    // the page steps between them by its world's key as the body turns. The bakes that do not line up: as it always was)
+    const toon = cel && !lit && manifest ? await celBody(manifest, ctx) : null;
+    const scene = toon ?? await WORLD_KINDS.layered.resolve(manifest, ctx);
     body = scene.figures && scene.figures.body;
     if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);
   }
@@ -1398,7 +1425,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // (the one a player pilots among them plays the engagement run's body: heroFigure's `pilot`)
           const piloted = (payload.entities || []).some((e) => e && e.pilotable && e.body && (e.body.figure === name || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
           const castFig = !!formCast && typeof rawSpec.modelRef !== 'string' && (payload.entities || []).some((e) => e && e.body && (e.body.figure === name || (Array.isArray(e.body.modes) && e.body.modes.some((m) => m && m.figure === name)) || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
-          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(piloted ? { pilot: true } : {}), ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(castFig ? { lit: true } : {}) });
+          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(piloted ? { pilot: true } : {}), ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(castFig ? { lit: true } : {}), ...(rawSpec.light === 'cel' && !castFig ? { cel: true } : {}) });
           if (castFig) {
             const { castRig, CAST_REGISTERS } = await import('@/lib/graph/color-theorist/cast-rig.js'), { castRigInput } = await import('@/lib/graph/scene/channels/cast-rig.js');
             const reg = sketch.manifest.fxStyle && CAST_REGISTERS.includes(sketch.manifest.fxStyle.register) ? sketch.manifest.fxStyle.register : 'western';

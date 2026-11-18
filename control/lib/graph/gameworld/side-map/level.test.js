@@ -27,6 +27,8 @@ describe('a side map level', () => {
     const O = stageLevelOrder(W, stage, { heroRef: 'hero-ref', heroStature: 1.67, ref: 'lvl' }), m = O.args.manifest;
     const [hero, ...ladders] = m.entities, Z = m.camera.zones;
     expect(m.camera.rule).toBe('side-map');
+    // (its bodies in their rail's light: the side scroller's cel, game-bodies.js BODY_LIGHTS)
+    expect(Object.values(m.figures).every((f) => f.light === 'cel')).toBe(true);
     expect(hero.rule).toMatchObject({ move: 'lane', collideHeight: 1.67 });
     expect(hero.transform.pos[1]).toBeCloseTo(Z[0].checkpoint[0], 2);
     expect(ladders.every((l) => l.rule.type === 'climbable')).toBe(true);

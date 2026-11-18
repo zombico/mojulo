@@ -142,21 +142,26 @@ The cake is `control/lib/graph/gameworld/side-map/cake.js` (the materials), `tex
     is data (`control/lib/graph/gameworld/feel/round-look.js`); the benchmark reads it on the page (`measureRound`).
     What it hits is its own: a regular round meets a body with less than it shows, the full charge with a tall capsule
     (its head drawn round and as big as it hits), so a charged shot is the answer to what stands under the line.
+30. **The bodies are drawn in cel.** A side scroller's characters keep the character light while they play: each
+    piece in its lit tone or its shade tone (metal by its dark and its gloss), stepped by the land's own key, so a body
+    turning keeps its light where the world has it. It is a body's light, never its face's (`BODY_LIGHTS` in
+    `control/lib/graph/gameworld/game-bodies.js`; the body, `heroFigure`'s `cel` in
+    `control/lib/graph/worlds/world-scene.js`).
 
 ## The look
 
-30. **Five layers.** The foreground, below the hero's feet and darkest; the lane; the near place; the far landmark; the
+31. **Five layers.** The foreground, below the hero's feet and darkest; the lane; the near place; the far landmark; the
     sky. Each layer back is quieter and nearer the sky's colour, and the lane is the sharpest thing in the frame.
-31. **The lane is a thing.** It has a front face, and the face is designed: a bridge's arches, a gantry's lamps, a
+32. **The lane is a thing.** It has a front face, and the face is designed: a bridge's arches, a gantry's lamps, a
     ledge's strata. A gap is the place's own break: a bridge that fell, a shaft cut through.
-32. **Play and place are opposite hues.** What the hero stands on, fights and climbs is on one side of the colour wheel
+33. **Play and place are opposite hues.** What the hero stands on, fights and climbs is on one side of the colour wheel
     and the place on the other. A stage picks which way round.
-33. **Something moves beside the way**, and light comes from sources that are seen: a lamp, a furnace, a window.
+34. **Something moves beside the way**, and light comes from sources that are seen: a lamp, a furnace, a window.
     The light is `control/lib/graph/gameworld/side-map/light.js`: an indoor zone lit by its lamps (each with its falloff
     and bounce), an outdoor zone by the cube's sky and sun, a ledge's shadow, a climb's top lit, baked per corner.
-34. **A place a zone, and the turn tells the story.** Each zone is one place in one material (the gate, the tunnel,
+35. **A place a zone, and the turn tells the story.** Each zone is one place in one material (the gate, the tunnel,
     the factory floor, the shaft, the gallery), and their order is the stage's story.
-35. **The boss owns its room.** Its colour is used nowhere before it; its room is one screen, its walls the frame's
+36. **The boss owns its room.** Its colour is used nowhere before it; its room is one screen, its walls the frame's
     edges, and its back wall carries its mark.
 
     Its path is designed from the top down by `control/lib/graph/gameworld/side-map/path.js`, on the bay grid the back

@@ -248,3 +248,6 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   anchors it as a crate, the play makes its collider its own, and the level breaks `objects` where its game names no
   degree, so a world's breakability makes each a block that breaks: one shot and it bursts in the round's light, its
   chunks lit as they fly. A law (`crates`) holds them to it; the bot hops them. Galaxy Boy's first level has four.
+- **The cel body**: a `cel` body register, a body's light and not its face's, picked by the side scroller's and the run
+  and gun's rails: their characters keep the character light while they play (each piece's lit tone and its shade tone,
+  metal drawn by its dark and its gloss), stepped by the side map's own light, so the hero and the land agree.

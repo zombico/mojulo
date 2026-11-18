@@ -2,7 +2,7 @@
 // the world's (the tradition, the look, the medium), never the rail's; a role's words resolve their pole and mint through
 // the hero door; a body word is a rail, 'game' or { rail, style }.
 import { describe, it, expect } from 'vitest';
-import { GAME_BODIES, GAME_BODY_NAMES, GAME_BODY_ROLES, railOfGame, styleOf, gameBody, readBodyWord } from './game-bodies.js';
+import { GAME_BODIES, GAME_BODY_NAMES, GAME_BODY_ROLES, railOfGame, styleOf, gameBody, readBodyWord, BODY_LIGHTS, bodyLightOf } from './game-bodies.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { withDefaultForm } from '../polygonizer/motion-stamp.js';
 import { GENRES } from './intent.js';
@@ -74,5 +74,12 @@ describe('the body rails', () => {
     expect(() => readBodyWord({ rail: 'game', style: 'ink' })).toThrow(/name the rail/);
     expect(readBodyWord({ rail: 'game', muscle: true })).toEqual({ rail: 'game', muscle: true });
     expect(() => readBodyWord({ rail: 'comic', muscle: 2 })).toThrow(/definition 0 to 1/);
+  });
+  it('a rail\'s body light: the side scroller\'s and the mascot\'s cel, a body\'s light and never its face\'s; the others none', () => {
+    expect(bodyLightOf({ feel: 'galaxy-boy' })).toBe('cel');
+    expect(Object.keys(BODY_LIGHTS).every((r) => GAME_BODY_NAMES.includes(r))).toBe(true);
+    const other = GAME_BODY_NAMES.find((r) => !BODY_LIGHTS[r] && GAME_BODIES[r].feels.length);
+    if (other) expect(bodyLightOf({ feel: GAME_BODIES[other].feels[0] })).toBeNull();
+    expect(bodyLightOf({})).toBeNull();
   });
 });

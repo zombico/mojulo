@@ -125,6 +125,15 @@ const BY_GENRE = Object.fromEntries(GAME_BODY_NAMES.flatMap((r) => GAME_BODIES[r
 const BY_GOAL = Object.fromEntries(GAME_BODY_NAMES.flatMap((r) => GAME_BODIES[r].goals.map((g) => [g, r])));
 const BY_FEEL = Object.fromEntries(GAME_BODY_NAMES.flatMap((r) => GAME_BODIES[r].feels.map((f) => [f, r])));
 
+/** A rail's BODY LIGHT (a body's light, never its face's: the head stays the tradition's): `cel` the character light played
+ * in its two tones, stepped by the world's key (world-scene.js heroFigure `cel`); a rail not named here, the body as it
+ * always was. The side scroller's and the mascot platformer's are cel: a fixed side camera and a key a zone keep the
+ * bands from swimming, hard armour reads in two tones and a gloss, and the shots' flat-band effects ask for bodies drawn
+ * in the same language. */
+export const BODY_LIGHTS = Object.freeze({ herobot: 'cel', mascot: 'cel' });
+/** The body light a game's rail plays its characters in (its feel's rail, railOfGame), or null. */
+export const bodyLightOf = (game = {}) => { const R = railOfGame(game); return (R && BODY_LIGHTS[R.rail]) ?? null; };
+
 /** The rail a game reads: its feel template's (how the hero moves says what it is), else its genre's, else its quick
  * goal's; null when none names one (the door as it is). */
 export function railOfGame({ genre = null, goal = null, feel = null } = {}) {

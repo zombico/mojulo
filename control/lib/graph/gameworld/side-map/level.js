@@ -4,7 +4,8 @@
  * laid for the hero's own height and reach, so the map, its laws and its play agree.
  *
  *   the HERO     the world's hero on the platform rule its feel lowers (feel/lower.js), running the lane the map is laid
- *                along (+y at x 0), standing at the first zone's checkpoint
+ *                along (+y at x 0), standing at the first zone's checkpoint, in its rail's body light (game-bodies.js
+ *                BODY_LIGHTS: the side scroller's `cel`)
  *   the CAMERA   the side map's (worlds/controllable/sidemap.js): its zones, their checkpoints, their rising frames
  *   the LEVEL    the layout's blocks its colliders, its ladders climbables (play.js)
  *   a FALL       out of the frame's bottom: counted in the catch zone in limbo (`side-fall`), a life where the world's
@@ -21,6 +22,7 @@ import { playerWorld } from '../../playscape/player.js';
 import { feelRule } from '../feel/lower.js';
 import { sideMapOf, SIDE_MAP_STATURE } from './scene.js';
 import { sideMapPlay, SIDE_FALL } from './play.js';
+import { bodyLightOf } from '../game-bodies.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -37,6 +39,9 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
   const controls = `A / D  run · Space  jump${written?.dash ? ' · F  dash' : ''}${written?.buster ? ' · J  fire (hold: charge)' : ''}${L.ladders.length ? ' · W / S  climb' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   const W0 = playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), walk: false, id: 'hero', title: name, controls, rule });
   const hero = { ...W0.entities[0], transform: { pos: P.spawn, heading: Math.PI / 2 } };
+  // its bodies in their rail's light (game-bodies.js BODY_LIGHTS: the side scroller's cel); a rail with none, as they were
+  const light = bodyLightOf({ feel: G.feel?.pole ?? (typeof G.feel === 'string' ? G.feel : null) });
+  const figures = light ? Object.fromEntries(Object.entries(W0.figures ?? {}).map(([k, f]) => [k, { ...f, light }])) : W0.figures;
   // the goal: the last zone's far side; the falls: the catch zone in limbo, a life each where the world keeps lives
   const last = L.zones.at(-1), goal = { kind: 'reach-exit', at: [0, r3(last.rect[1] - 2.5), r3(last.exit[1] + 1)], radius: 2.5, planar: false };
   const lives = G.mechanics?.lives ? [{ kind: 'lives', start: G.mechanics.lives, falls: [SIDE_FALL] }] : [];
@@ -44,7 +49,7 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
   const events = { ...ev, sources: [...(ev.sources ?? []), P.catch] };
   const manifest = {
     ...manifest0, title: name,
-    figures: W0.figures, entities: [hero, ...P.ladders], camera: P.camera, events, colliders: P.colliders,
+    figures, entities: [hero, ...P.ladders], camera: P.camera, events, colliders: P.colliders,
     ...(mechanics?.play ? { play: mechanics.play } : {}),
     // (its crates break: the game's own degree where it says one, else `objects`, the action game's, crates.js)
     ...(L.crates?.length && !manifest0.destruction ? { destruction: mechanics?.destruction ?? 'objects' } : {}),

@@ -24,6 +24,7 @@ import { turretScript } from './turret-view.js';
 import { boatWaterScript } from './boat-water.js';
 import { shotLightScript } from './shot-light-view.js';
 import { roundLooks, blastLook, BLAST_LOOK } from '../../../gameworld/feel/round-look.js';
+import { SIDE } from '../../../era/geocube-side.js';
 import { castKitSource } from '../cast-rig.js';
 import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
 
@@ -74,7 +75,11 @@ function poolFigureBuffers(figures) {
 // correctives, normals, metal). A skinned figure (`skin: true`, one mesh skinned in the page: __makeSkinGroup) keeps it
 // all. And a figure byte-identical to one before it (a battle's foe slots, one sheet each) is emitted once and named
 // again (`same`). A bank with none of these is returned as it came, so its page is byte for byte as before.
-const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8'];
+/** THE CEL BODY's step on the page (world-scene.js heroFigure `cel`): the key the side strip lights its land from
+ * (era/geocube-side.js SIDE.key), so a body and its land agree, and the N·L past which a face is lit (a form's turning half
+ * in shade: at 0.05 a key behind the camera lit nearly all of it). */
+export const CEL_BODY = Object.freeze({ key: SIDE.key, step: 0.3 });
+const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8', 'colS'];
 // A PART WITH ITS PAINT, ITS NORMALS AND ITS FACE (a realistic hero's: a corner a triangle, every number a float32), as
 // the page reads it (`full: 1`): the corners that are the same corner are one (its place, its colour, its paint's place,
 // its normal and its face's row all the same), the places on a uint16 grid over the part's own box as a unit rig's are
@@ -915,6 +920,9 @@ function __updateGearLines() {
   // parts carry their normals where its form writes them, else its mesh's own) and carrying a rig is drawn with the cast
   // material, lit by the page's one sun, its sky and its rim its own; no baked rim over it. Absent, the page carries none
   const figHasCast = Object.values(figures || {}).some((f) => f && f.rig && f.cast && Array.isArray(f.parts));
+  // (a CEL body, world-scene.js heroFigure `cel`: each part's lit tone and its shade tone, stepped by the world's key)
+  const figHasToon = Object.values(figures || {}).some((f) => f && f.rig && f.toon && Array.isArray(f.parts) && f.parts.some((p) => p && p.colS));
+  const toonHook = figHasToon ? '\n    if (fig.toon && part.colS) mesh.material = __toonMat(mesh.material);' : '';
   // (a body that carries its relief, a realistic hero's: its normal map and its occlusion, roughness and metal, on its
   // paint's own atlas; the cast material reads them. None carries one: nothing emitted)
   const figHasRelief = figHasCast && Object.values(figures || {}).some((f) => f && f.cast && f.paintTex && (f.normalTex || f.ormTex));
@@ -1370,6 +1378,45 @@ function __rigFace(rig, clipName, phase) {
 }
 ` : ''}${figHasPaint ? `// the painted body's atlas, once per figure (shared by every entity wearing it)
 function __rigTex(fig) { if (!fig.__tex) { fig.__tex = new THREE.TextureLoader().load(fig.paintTex.url); fig.__tex.colorSpace = THREE.SRGBColorSpace; } return fig.__tex; }
+` : ''}${figHasToon ? `// THE CEL BODY (world-scene.js heroFigure \`cel\`, the fighter's toon step, versus-arena.client.js): each corner carries its
+// lit tone (its colour) and its shade tone (\`colorShade\`), the character light's own swatches; the fragment takes the lit
+// one where the surface faces the world's key past the step, over a narrow band so the line holds without stairs. The
+// key is the world's (\`__toonKey\`), never the body's: a body turned the other way keeps its light where the world has it
+const __toonKey = new THREE.Vector3(${CEL_BODY.key.join(', ')}).normalize(), __TOON_STEP = ${CEL_BODY.step};
+function __toonMat(base) {
+  const m = base.clone();
+  const prev = m.onBeforeCompile, prevKey = m.customProgramCacheKey;
+  m.onBeforeCompile = function (sh, r) {
+    if (prev) prev.call(this, sh, r);
+    sh.uniforms.uToonKey = { value: __toonKey }; sh.uniforms.uToonStep = { value: __TOON_STEP };
+    sh.vertexShader = 'attribute vec3 colorShade;\\nvarying vec3 vToonShade;\\nvarying vec3 vToonN;\\n' + sh.vertexShader.replace('#include <fog_vertex>', '#include <fog_vertex>\\n  vToonShade = colorShade;\\n  vToonN = normalize(mat3(modelMatrix) * normal);');
+    sh.fragmentShader = 'uniform vec3 uToonKey;\\nuniform float uToonStep;\\nvarying vec3 vToonShade;\\nvarying vec3 vToonN;\\n' + sh.fragmentShader.replace('#include <color_fragment>',
+      '#if defined( USE_COLOR )\\n  float toonLit = smoothstep(uToonStep - 0.03, uToonStep + 0.03, dot(normalize(vToonN) * (gl_FrontFacing ? 1.0 : -1.0), uToonKey));\\n  diffuseColor.rgb *= mix(vToonShade, vColor.rgb, toonLit);\\n#endif');
+  };
+  m.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|cel-body'; };
+  return m;
+}
+// (each corner's normal: the faces round its point that turn within the character light's crease (35°) of its own,
+// summed by area, so a rounded part bands smoothly and an armour's edge stays an edge)
+function __toonNormals(pos, idx) {
+  const tri = idx ? idx.length / 3 : pos.length / 9, at = (t, k) => (idx ? idx[t * 3 + k] : t * 3 + k), fn = new Float32Array(tri * 3), by = new Map();
+  const key = (v) => Math.round(pos[v * 3] * 2e4) + ',' + Math.round(pos[v * 3 + 1] * 2e4) + ',' + Math.round(pos[v * 3 + 2] * 2e4);
+  for (let t = 0; t < tri; t++) {
+    const a = at(t, 0), b = at(t, 1), c = at(t, 2), ax = pos[b * 3] - pos[a * 3], ay = pos[b * 3 + 1] - pos[a * 3 + 1], az = pos[b * 3 + 2] - pos[a * 3 + 2], bx = pos[c * 3] - pos[a * 3], by2 = pos[c * 3 + 1] - pos[a * 3 + 1], bz = pos[c * 3 + 2] - pos[a * 3 + 2];
+    fn[t * 3] = ay * bz - az * by2; fn[t * 3 + 1] = az * bx - ax * bz; fn[t * 3 + 2] = ax * by2 - ay * bx;
+    for (let k = 0; k < 3; k++) { const kk = key(at(t, k)); let L = by.get(kk); if (!L) by.set(kk, L = []); L.push(t); }
+  }
+  const out = new Float32Array(pos.length), unit = (t) => { const l = Math.hypot(fn[t * 3], fn[t * 3 + 1], fn[t * 3 + 2]) || 1; return [fn[t * 3] / l, fn[t * 3 + 1] / l, fn[t * 3 + 2] / l]; };
+  for (let t = 0; t < tri; t++) {
+    const u = unit(t);
+    for (let k = 0; k < 3; k++) {
+      const v = at(t, k); let x = 0, y = 0, z = 0;
+      for (const q of by.get(key(v))) { const w = unit(q); if (u[0] * w[0] + u[1] * w[1] + u[2] * w[2] > 0.82) { x += fn[q * 3]; y += fn[q * 3 + 1]; z += fn[q * 3 + 2]; } }
+      const l = Math.hypot(x, y, z) || 1; out[v * 3] = x / l; out[v * 3 + 1] = y / l; out[v * 3 + 2] = z / l;
+    }
+  }
+  return out;
+}
 ` : ''}${figHasSkin ? `// a SKINNED rig: its bones (posed by the sync as a rigid rig's bone meshes are) drive one skinned mesh bound at the rest,
 // every part's corners in it with their joints and weights; it never raycasts (no footing, no target)
 function __makeSkinGroup(fig, b, group) {
@@ -1459,7 +1506,9 @@ function __castMR(fig, c, n) {
     geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(part.pos), 3));`}
     // rig-part colour is packed as normalized uint8 (rig-bake b64u8, 4× smaller than float32) →
     // read it back as a NORMALIZED uint8 attribute so the GPU dequantizes ÷255 to the same [0,1].
-    geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));${figHasPaint ? `
+    geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));${figHasToon ? `
+    // (a cel body's part: its shade tone a corner, and its normals smoothed within the character light's crease)
+    if (fig.toon && part.colS) { geo.setAttribute('colorShade', new THREE.BufferAttribute(decodeU8(part.colS), 3, true)); if (!geo.getAttribute('normal')) geo.setAttribute('normal', new THREE.BufferAttribute(__toonNormals(geo.getAttribute('position').array, geo.index ? geo.index.array : null), 3)); }` : ''}${figHasPaint ? `
     const map = fig.paintTex && ((part.uv && !part.q) || part.uq) ? __rigTex(fig) : null;
     if (map) { if (part.uq) { const u = __decodeU16(part.uq), f = new Float32Array(u.length); for (let i = 0; i < u.length; i += 2) { f[i] = part.uo[0] + u[i] * part.us[0]; f[i + 1] = part.uo[1] + u[i + 1] * part.us[1]; } geo.setAttribute('uv', new THREE.BufferAttribute(f, 2)); } else geo.setAttribute('uv', new THREE.BufferAttribute(decodeF32(part.uv), 2)); }` : ''}${figHasFace ? `
     if (fig.face && part.morph && (!part.q || part.full)) __rigMorph(fig, part, geo);` : ''}${figHasCast ? `
@@ -1469,7 +1518,7 @@ function __castMR(fig, c, n) {
     geo.computeBoundingSphere();
     const mesh = new THREE.Mesh(geo, ${figHasCast ? `fig.cast ? __castMat(fig, { vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''}${figHasRelief ? ', ...(map ? __castRelief(fig) : {})' : ''} }) : ` : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''} }));${figHasCast ? `
     if (fig.cast) mesh.receiveShadow = true;` : ''}${figHasFace ? `
-    if (geo.morphAttributes.position) mesh.updateMorphTargets();` : ''}${rigSpecHook}${rigMetalHook}${rigRimHook}${rigInkHook}${castHook}
+    if (geo.morphAttributes.position) mesh.updateMorphTargets();` : ''}${toonHook}${rigSpecHook}${rigMetalHook}${rigRimHook}${rigInkHook}${castHook}
     mesh.matrixAutoUpdate = false;
     mesh.frustumCulled = false;   // matrices mutate per frame
     group.add(mesh);
