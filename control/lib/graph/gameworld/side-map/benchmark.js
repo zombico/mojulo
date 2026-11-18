@@ -31,6 +31,12 @@
  *   measureShot({ page, roles, flat? }, shot) → the measures (the images decoded: visual-gate.js decodeImage; `flat`: the
  *                    shot's flat twin, where its material reflects: the glints read as what the bake adds)
  *   benchmarkLaws(shots) → [{ id, shot, holds, says }]  advisory, each against the frame's principle
+ *   measureRound({ page, quiet }, { r }) → a round in flight read on the page against the same frame without it (the
+ *                    shot's look, gameworld/feel/round-look.js): `core` its brightest 1%'s L*, `peakAt` where its chroma
+ *                    peaks out from its centre (a share of r), `chroma` that peak, `accent` the share of its own pixels in
+ *                    a hue 90° or more from its body's
+ *   roundLaws(M) → [{ id, holds, says }]  white-core (≥ 92 L*), hue-in-falloff (the chroma peaks off the core, vivid),
+ *                    accent-thin (present, under a sixth of the round)
  *
  * Pure: the rendering is the script's (scripts/side-map.mjs --bench).
  */
@@ -215,4 +221,41 @@ export function benchmarkLaws(measures) {
     law('moving', M.shot, M.moving, 'nothing moves beside the way: the map animates nothing yet');
   }
   return out;
+}
+
+/** A round in flight read on the page: the frame with it over the same frame without (the shot's look). */
+export function measureRound({ page, quiet }, { r = 40 } = {}) {
+  const { W, H } = page, n = W * H, lab = new Array(n), lift = new Float32Array(n);
+  for (let i = 0; i < n; i++) { lab[i] = srgbToLab(page.rgb[3 * i], page.rgb[3 * i + 1], page.rgb[3 * i + 2]); lift[i] = lab[i][0] - srgbToLab(quiet.rgb[3 * i], quiet.rgb[3 * i + 1], quiet.rgb[3 * i + 2])[0]; }
+  // (its centre: the middle of the brightest of what it lifted, its core)
+  let top = -Infinity, sx = 0, sy = 0, sn = 0;
+  for (let i = 0; i < n; i++) if (lift[i] > 10) top = Math.max(top, lab[i][0]);
+  if (top === -Infinity) return null;
+  for (let i = 0; i < n; i++) if (lift[i] > 10 && lab[i][0] >= top - 2) { sx += i % W; sy += Math.floor(i / W); sn++; }
+  const cx = Math.round(sx / sn), cy = Math.round(sy / sn), RINGS = 8, sum = Array.from({ length: RINGS }, () => [0, 0, 0, 0]), own = [];
+  for (let y = Math.max(0, cy - r); y <= Math.min(H - 1, cy + r); y++) for (let x = Math.max(0, cx - r); x <= Math.min(W - 1, cx + r); x++) {
+    const i = y * W + x, d = Math.hypot(x - cx, y - cy);
+    if (d > r || lift[i] <= 5) continue;
+    own.push(i);
+    const k = Math.min(RINGS - 1, Math.floor((d / r) * RINGS)), S = sum[k];
+    S[0] += Math.hypot(lab[i][1], lab[i][2]); S[1] += lab[i][1]; S[2] += lab[i][2]; S[3]++;
+  }
+  if (!own.length) return null;
+  const Ls = own.map((i) => lab[i][0]).sort((a, b) => a - b), core = Ls[Math.floor(0.99 * (Ls.length - 1))];
+  let pk = 0;
+  for (let k = 1; k < RINGS; k++) if (sum[k][3] && sum[k][0] / sum[k][3] > (sum[pk][3] ? sum[pk][0] / sum[pk][3] : -1)) pk = k;
+  const body = (Math.atan2(sum[pk][2], sum[pk][1]) * 180) / Math.PI;
+  let acc = 0;
+  for (const i of own) { const C = Math.hypot(lab[i][1], lab[i][2]); if (C < 20) continue; const h = (Math.atan2(lab[i][2], lab[i][1]) * 180) / Math.PI, d = Math.abs(h - body) % 360; if (Math.min(d, 360 - d) >= 90) acc++; }
+  return { at: [cx, cy], core: r2(core), peakAt: r3((pk + 0.5) / RINGS), chroma: r2(sum[pk][3] ? sum[pk][0] / sum[pk][3] : 0), accent: r3(acc / own.length), pixels: own.length };
+}
+
+/** The shot's look's laws over a round's reading: advisory. */
+export function roundLaws(M) {
+  if (!M) return [{ id: 'round', holds: false, says: 'no round read in the frame' }];
+  return [
+    { id: 'white-core', holds: M.core >= 92, says: `the round's core ${M.core} L* (white-hot: 92 or more)` },
+    { id: 'hue-in-falloff', holds: M.peakAt > 1 / 8 && M.chroma >= 30, says: `its chroma peaks ${Math.round(M.peakAt * 100)}% out from its centre at ${M.chroma} (off the core, vivid: 30 or more)` },
+    { id: 'accent-thin', holds: M.accent > 0.002 && M.accent < 1 / 6, says: `${Math.round(M.accent * 1000) / 10}% of it in an accent hue (present, under a sixth)` },
+  ];
 }

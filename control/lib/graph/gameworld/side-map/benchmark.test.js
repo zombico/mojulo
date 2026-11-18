@@ -3,9 +3,10 @@
 // is every face in its role's colour with the hero's stand-in among them; on a frame, the hero's share and the lane's
 // place are read off the role pass, the lit tops, the painting, the sharpness and the recession off the page; a flat
 // closed part is not painted; a top of one colour is one smooth band (`top-segmented` lost); a foreground under the feet holds `foreground` and one over the hero loses it; moving things are said
-// missing, never claimed.
+// missing, never claimed. A round read on the page (the shot's look): a white core, its hue peaking in the falloff and a
+// thin accent hold; a flat disc of the hue loses the white core, one with no accent loses the accent.
 import { describe, it, expect } from 'vitest';
-import { roleOf, benchmarkShots, rolePayload, measureShot, benchmarkLaws, ROLE_COLOURS } from './benchmark.js';
+import { roleOf, benchmarkShots, rolePayload, measureShot, benchmarkLaws, ROLE_COLOURS, measureRound, roundLaws } from './benchmark.js';
 import { layoutSideMap } from './layout.js';
 import { dressSideMap } from './dress.js';
 import { firstSideMap } from './first.js';
@@ -72,5 +73,27 @@ describe('the render benchmark', () => {
     };
     expect(measureShot(mk(true), { name: 'run' }).light.lamp).toBeGreaterThan(5);
     expect(Math.abs(measureShot(mk(false), { name: 'run' }).light.lamp)).toBeLessThan(1);
+  });
+});
+
+describe('a round read on the page', () => {
+  // a 80 × 80 dark frame and the same with a round on it: a white core, the gold in its falloff, a thin cyan ring
+  const frames = ({ core = true, accent = true } = {}) => {
+    const W = 80, H = 80, quiet = new Uint8Array(W * H * 3).fill(20), page = new Uint8Array(W * H * 3).fill(20);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const d = Math.hypot(x - 40, y - 40), i = 3 * (y * W + x);
+      if (accent && Math.abs(d - 18) < 0.45) { page.set([60, 230, 255], i); continue; }
+      if (d < 4 && core) page.set([255, 255, 255], i);
+      else if (d < 16) { const k = 1 - d / 16; page.set([Math.round(40 + 215 * Math.min(1, k * 1.6)), Math.round(30 + 180 * Math.min(1, k * 1.6)), 25], i); }
+    }
+    return { page: { W, H, rgb: page }, quiet: { W, H, rgb: quiet } };
+  };
+  it('a white core, the hue in the falloff, a thin accent: all hold', () => {
+    const M = measureRound(frames(), { r: 24 });
+    expect(Object.fromEntries(roundLaws(M).map((l) => [l.id, l.holds]))).toEqual({ 'white-core': true, 'hue-in-falloff': true, 'accent-thin': true });
+  });
+  it('no white core loses it; no accent loses it', () => {
+    expect(roundLaws(measureRound(frames({ core: false }), { r: 24 })).find((l) => l.id === 'white-core').holds).toBe(false);
+    expect(roundLaws(measureRound(frames({ accent: false }), { r: 24 })).find((l) => l.id === 'accent-thin').holds).toBe(false);
   });
 });

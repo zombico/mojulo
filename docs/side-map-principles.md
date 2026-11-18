@@ -129,22 +129,27 @@ The cake is `control/lib/graph/gameworld/side-map/cake.js` (the materials), `tex
     muzzle's flash and a charge filling at the hero's chest are laid over it while they last, in their own colours, so
     a shot lights the wall it passes and the top it skims. They are read off the world each frame
     (`control/lib/graph/worlds/controllable/shot-light.js`) and laid by the side map's page
-    (`control/lib/graph/scene/channels/controllable/shot-light-view.js`).
+    (`control/lib/graph/scene/channels/controllable/shot-light-view.js`). Their light is spill, not flood: the shot's hue
+    on the edges near it, capped, the world kept in its key.
+29. **A shot is drawn as light.** A white-hot core, its hue saturated in the falloff and deeper at its edge, every layer
+    additive under a halo in its hue; intensity at its head, streaks along its flight, a short tail and trailing sparks;
+    an accent hue far round the wheel kept thin (rings at its head, near arc bright, one more a charge level). Its look
+    is data (`control/lib/graph/gameworld/feel/round-look.js`); the benchmark reads it on the page (`measureRound`).
 
 ## The look
 
-29. **Five layers.** The foreground, below the hero's feet and darkest; the lane; the near place; the far landmark; the
+30. **Five layers.** The foreground, below the hero's feet and darkest; the lane; the near place; the far landmark; the
     sky. Each layer back is quieter and nearer the sky's colour, and the lane is the sharpest thing in the frame.
-30. **The lane is a thing.** It has a front face, and the face is designed: a bridge's arches, a gantry's lamps, a
+31. **The lane is a thing.** It has a front face, and the face is designed: a bridge's arches, a gantry's lamps, a
     ledge's strata. A gap is the place's own break: a bridge that fell, a shaft cut through.
-31. **Play and place are opposite hues.** What the hero stands on, fights and climbs is on one side of the colour wheel
+32. **Play and place are opposite hues.** What the hero stands on, fights and climbs is on one side of the colour wheel
     and the place on the other. A stage picks which way round.
-32. **Something moves beside the way**, and light comes from sources that are seen: a lamp, a furnace, a window.
+33. **Something moves beside the way**, and light comes from sources that are seen: a lamp, a furnace, a window.
     The light is `control/lib/graph/gameworld/side-map/light.js`: an indoor zone lit by its lamps (each with its falloff
     and bounce), an outdoor zone by the cube's sky and sun, a ledge's shadow, a climb's top lit, baked per corner.
-33. **A place a zone, and the turn tells the story.** Each zone is one place in one material (the gate, the tunnel,
+34. **A place a zone, and the turn tells the story.** Each zone is one place in one material (the gate, the tunnel,
     the factory floor, the shaft, the gallery), and their order is the stage's story.
-34. **The boss owns its room.** Its colour is used nowhere before it; its room is one screen, its walls the frame's
+35. **The boss owns its room.** Its colour is used nowhere before it; its room is one screen, its walls the frame's
     edges, and its back wall carries its mark.
 
     Its path is designed from the top down by `control/lib/graph/gameworld/side-map/path.js`, on the bay grid the back
