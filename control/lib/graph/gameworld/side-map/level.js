@@ -22,7 +22,7 @@ import { playerWorld } from '../../playscape/player.js';
 import { feelRule } from '../feel/lower.js';
 import { sideMapOf, SIDE_MAP_STATURE } from './scene.js';
 import { sideMapPlay, SIDE_FALL } from './play.js';
-import { bodyLightOf } from '../game-bodies.js';
+import { bodyLightOf, CEL_INK } from '../game-bodies.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -51,6 +51,8 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
     ...manifest0, title: name,
     figures, entities: [hero, ...P.ladders], camera: P.camera, events, colliders: P.colliders,
     ...(mechanics?.play ? { play: mechanics.play } : {}),
+    // (a cel body's line round each of its parts, the bodies' alone, CEL_INK px wide on the side map's screen: 720 rows)
+    ...(light === 'cel' && !manifest0.toon ? { toon: { ink: { only: 'bodies', color: CEL_INK.color, widthAbs: r3((CEL_INK.px * L.screen.height) / 720), lines: false } } } : {}),
     // (its crates break: the game's own degree where it says one, else `objects`, the action game's, crates.js)
     ...(L.crates?.length && !manifest0.destruction ? { destruction: mechanics?.destruction ?? 'objects' } : {}),
     game: { levelRef: ref, mechanics: [goal, ...lives], fall: 'none' },

@@ -131,6 +131,9 @@ const BY_FEEL = Object.fromEntries(GAME_BODY_NAMES.flatMap((r) => GAME_BODIES[r]
  * bands from swimming, hard armour reads in two tones and a gloss, and the shots' flat-band effects ask for bodies drawn
  * in the same language. */
 export const BODY_LIGHTS = Object.freeze({ herobot: 'cel', mascot: 'cel' });
+/** A cel body's LINE: round each of its parts (the silhouette alone, so a segment's form is drawn and the forms that adorn
+ * it read as one), dark but never black (a navy, the cel's dark), `px` wide on the screen the level is seen on. */
+export const CEL_INK = Object.freeze({ color: '#1c2438', px: 1.6 });
 /** The body light a game's rail plays its characters in (its feel's rail, railOfGame), or null. */
 export const bodyLightOf = (game = {}) => { const R = railOfGame(game); return (R && BODY_LIGHTS[R.rail]) ?? null; };
 

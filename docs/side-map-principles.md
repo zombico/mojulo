@@ -144,7 +144,8 @@ The cake is `control/lib/graph/gameworld/side-map/cake.js` (the materials), `tex
     (its head drawn round and as big as it hits), so a charged shot is the answer to what stands under the line.
 30. **The bodies are drawn in cel.** A side scroller's characters keep the character light while they play: each
     piece in its lit tone or its shade tone (metal by its dark and its gloss), stepped by the land's own key, so a body
-    turning keeps its light where the world has it. It is a body's light, never its face's (`BODY_LIGHTS` in
+    turning keeps its light where the world has it. A dark line, never black, runs round each of its segments (the land
+    takes none), and its head turns toward the screen, so its face is seen. It is a body's light, never its face's (`BODY_LIGHTS` in
     `control/lib/graph/gameworld/game-bodies.js`; the body, `heroFigure`'s `cel` in
     `control/lib/graph/worlds/world-scene.js`).
 

@@ -250,4 +250,8 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   chunks lit as they fly. A law (`crates`) holds them to it; the bot hops them. Galaxy Boy's first level has four.
 - **The cel body**: a `cel` body register, a body's light and not its face's, picked by the side scroller's and the run
   and gun's rails: their characters keep the character light while they play (each piece's lit tone and its shade tone,
-  metal drawn by its dark and its gloss), stepped by the side map's own light, so the hero and the land agree.
+  metal drawn by its dark and its gloss), stepped by the side map's own light, so the hero and the land agree. A
+  dark navy line, never black, runs round each of a cel body's parts (the land takes none: the toon ink's new
+  `only: 'bodies'`), so the forms that adorn it read as its segments; and on a side map a body turns its head toward the
+  screen, its face seen, most when it stands. The toy hero robot's helm ends its cheek guards at the jaw line instead of
+  making a chin of them.

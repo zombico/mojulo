@@ -79,6 +79,8 @@ function poolFigureBuffers(figures) {
  * (era/geocube-side.js SIDE.key), so a body and its land agree, and the N·L past which a face is lit (a form's turning half
  * in shade: at 0.05 a key behind the camera lit nearly all of it). */
 export const CEL_BODY = Object.freeze({ key: SIDE.key, step: 0.3 });
+/** A side map's bodies turn their heads toward the screen (radians, the most): standing, and on the move. */
+export const FACE_SCREEN = Object.freeze({ rest: 0.5, moving: 0.22 });
 const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8', 'colS'];
 // A PART WITH ITS PAINT, ITS NORMALS AND ITS FACE (a realistic hero's: a corner a triangle, every number a float32), as
 // the page reads it (`full: 1`): the corners that are the same corner are one (its place, its colour, its paint's place,
@@ -2415,7 +2417,14 @@ function __sidearmProps(e, m, rig, fig, AL) {
       lookWant = Math.max(-1.0, Math.min(1.0, a));
     }
   }
-  rig.lookA += (lookWant - rig.lookA) * Math.min(1, (dt || 0) * 6);
+${camera && camera.rule === 'side-map' ? `  // (on a side map, a body with nothing to look at turns its head toward the screen: the face seen, not the helm's
+  // side; most when it stands, less on the move, FACE_SCREEN)
+  if (!rig.headTrack) {
+    m.updateMatrixWorld(); __rigT.copy(camera.position); m.worldToLocal(__rigT);
+    const a = Math.atan2(-__rigT.x, __rigT.y), moving = !!e.vel && Math.hypot(e.vel[0], e.vel[1]) > 0.6, cap = moving ? ${FACE_SCREEN.moving} : ${FACE_SCREEN.rest};
+    lookWant = Math.max(-cap, Math.min(cap, a));
+  }
+` : ''}  rig.lookA += (lookWant - rig.lookA) * Math.min(1, (dt || 0) * 6);
   // A bake may carry an explicit 'idle' clip (an armed unit's standing hold —
   // unit-rig.js aim lock); standing still then plays it instead of snapping to
   // the raw rest pose. Bakes without one keep the statik rest, byte-identical.
