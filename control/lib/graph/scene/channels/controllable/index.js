@@ -24,6 +24,7 @@ import { alarmScript } from './alarm-view.js';
 import { missionScript } from './mission-view.js';
 import { specialsPaletteScript } from './specials-palette.js';
 import { mergeableFigure, mergedFigureScript, oneDrawFigure, oneDrawScript, farFigureScript } from './merged-figure.js';
+import { groundIndexScript } from './ground-index.js';
 import { groundGridScript } from './ground-grid.js';
 import { turretScript } from './turret-view.js';
 import { boatWaterScript } from './boat-water.js';
@@ -2829,8 +2830,7 @@ ${driveSurface ? `// surface hook (roads/surface.js): what a car's tyres are on,
 const __surfaceT = ${safeJson(driveSurface)};
 const __surfaceAt = ${surfaceAt.toString()};
 const __surface = (p) => __surfaceAt(__surfaceT, p);
-` : ''}${groundGridScript()}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
-const __groundRay = new THREE.Raycaster();
+` : ''}${groundGridScript()}${groundIndexScript()}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
 const __bodySet = () => Object.values(__bodies);
 // WHAT A FRAME COSTS, by side (window.__mojCost): the game's logic (the controllable step, every ray it casts with it),
 // the rays alone (the ground probe, the camera's), and the render call's own time on the CPU; each a running mean (ms).
@@ -2847,22 +2847,17 @@ function __groundBy(pos) {
   // (the big static meshes take straight-down rays by grid: indexed at the first probe and again whenever the scene's
   // top changes, and every so many probes for what is built inside a group, so a land built after the first probe (the
   // gen-7 form's, laid when its maps arrive) is on the grid too; untaken, its every triangle was tested each probe)
-  if (scene.children.length !== __gridN || ++__gridK % 120 === 0) { __gridN = scene.children.length; __gridMeshes(); }
+  // (and the probe reads the GROUND'S INDEX, ground-index.js: the surfaces over its own cell, baked with the grid and
+  // again when the scene's surfaces change; a surface that moves is tested wherever it stands. It never walks the scene)
+  const own = __bodySet();
+  if (scene.children.length !== __gridN || ++__gridK % 120 === 0) { __gridN = scene.children.length; __gridMeshes(); __giBake(own); }
   // Probe straight down FROM the passed origin — the CALLER chooses the height. The walk rule passes
   // its eye position (finds the floor below it); the platform rule passes feet+step (so it lands on the
   // surface under the FEET and ignores platforms whose tops sit above them — you jump onto a ledge, you
   // do not warp up into it by walking into its base). (Was pos.z+20, which grabbed any overhead surface.)
-  __groundRay.set(new THREE.Vector3(pos[0], pos[1], pos[2] + 0.05), new THREE.Vector3(0, 0, -1));
-  // decoration safety (E8): only MESHES are footing. THREE.Sprite.raycast dereferences
-  // raycaster.camera — without it, ONE glow sprite anywhere in the scene (a tracer/comet head)
-  // kills the first ground probe of a walk/platform entity; and THREE.Line raycasts with a fat
-  // default threshold, so an orbit/track line reads as a floor 0.6 units up. Set the camera so
-  // the traverse survives whatever channels add, and skip every non-mesh hit.
-  __groundRay.camera = camera;
-  const own = __bodySet();
-  const hits = __groundRay.intersectObjects(__rayRoots(own), true);
-  for (const hit of hits) { if (!hit.object.isMesh) continue; let o = hit.object; while (o) { if (own.includes(o)) break; o = o.parent; } if (!o) return hit.point.z; }
-  return null;
+  // decoration safety (E8): only MESHES are footing (a sprite's raycast needs the camera, a line's reads a floor
+  // from afar): the index takes meshes alone, and the ray carries the camera all the same
+  return __giGround(pos, own);
 }
 // input: keys → normalized axes, mouse → look deltas (consumed each frame). Which key, pad button or
 // mouse button serves an action is the pilot scheme's (controls/schemes.js), read through the controls

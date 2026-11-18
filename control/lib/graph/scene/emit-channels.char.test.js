@@ -811,6 +811,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // hold, and the opener's count. A moveset that says no `swap` runs as before: the cycle mid-swing is dropped. Every
 // fixture that embeds the controllable runtime re-pinned with it.
 //
+// Re-pinned 2026-11-19 a third time (1117-cinematic-action-game: the ground's index): the same seventeen. The ground
+// probe reads the surfaces over its own cell (controllable/ground-index.js, baked with the grid and again when the
+// scene's surfaces change, a surface that moves tested wherever it stands) instead of a ray through the whole scene; what
+// it finds is what that ray found.
 // Re-pinned 2026-11-19 again (1117-cinematic-action-game: what a frame costs, by side): the same seventeen. The page
 // keeps window.__mojCost, the game's logic, its rays and the render call's time a frame, each a running mean, and each
 // big mesh a ray has tested triangle by triangle (the grid's slow path, named); the frame loop times its step and its

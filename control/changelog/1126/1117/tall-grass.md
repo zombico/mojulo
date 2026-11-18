@@ -103,3 +103,10 @@
 - **The ray budget, guarded** (controllable/ray-budget.chrome.test.js, the e2e tier): a walker on a gen-7 land in headless
   Chrome; no ray may test a big mesh triangle by triangle. With the grid indexed once, as before, it names the land's two
   meshes and fails.
+- **The ground's index** (channels/controllable/ground-index.js): the ground probe under each walker reads the surfaces over
+  its own 4 m cell and tests those alone (a big static one through its own triangle grid), never a ray through the whole
+  scene. Every mesh a world ray would test is baked into the index with the grid, and again when the scene's surfaces
+  change; one wider than the index (a far land's ring) is in every cell; a surface that moves after the bake is noticed
+  once a frame and tested wherever it stands. What it finds is what the full-scene ray found (tested point by point
+  against it in three: a floor on its grid, a deck by a transform, instanced steps, a decoration that is no footing, a
+  body, a far plane, the deck moved).
