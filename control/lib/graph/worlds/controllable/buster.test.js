@@ -1,6 +1,7 @@
 // The buster's laws (buster.js): a press fires a tap shot at once, never more than its cap in flight; held, the charge
 // builds and the release fires the highest level reached, a short hold none; each round flies straight along the facing
-// and a body it meets takes its level's damage; the builder is emitted only into a page whose world has a body with a
+// and a body it meets takes its level's damage; its hitbox is its own (the regular rounds tinier than they look, the full
+// charge a tall capsule): a crawler under the line lets a tap shot sail over it and is caught by the full charge; the builder is emitted only into a page whose world has a body with a
 // buster, so a page without one keeps every byte.
 import { describe, it, expect } from 'vitest';
 import { composeLive, emissionSource } from './compose.js';
@@ -62,6 +63,21 @@ describe('the buster', () => {
     const st = world(hero(), foe(3));
     step(st, true); step(st, false, 30);
     expect(st.byId.foe.body.hp).toBeCloseTo(100 - BUSTER.tap.damage, 6);
+  });
+  it('its hitbox is its own: the regular rounds tinier than they look, the full charge tall', () => {
+    const full = BUSTER.levels[BUSTER.levels.length - 1];
+    expect(BUSTER.tap.hit.r).toBeLessThan(BUSTER.tap.size);
+    expect(BUSTER.tap.hit.tall).toBeUndefined();
+    expect(full.hit.tall).toBeGreaterThan(full.hit.r);
+    // (a crawler under the line, its egg below the muzzle: the tap passes over it, the full charge meets it)
+    const crawler = (x) => ({ id: 'foe', team: 'foes', rule: { type: 'static' }, body: { type: 'mesh', hittable: true, hp: 100, egg: { a: 0.3, c: 0.25, cz: 0.25 } }, transform: { pos: [x, 0, 0], heading: Math.PI } });
+    const tap = world(hero(), crawler(3)); step(tap, true); step(tap, false, 40);
+    expect(tap.byId.foe.body.hp).toBe(100);
+    const L = Math.round(full.at / DT) + 2, charged = world(hero(), crawler(4)); step(charged, true, L); step(charged, false, 40);
+    expect(charged.byId.foe.body.hp).toBeCloseTo(100 - full.damage, 6);
+    // (and the tall round bursts at the height it met the crawler, not over its head)
+    const b = charged.bursts[charged.bursts.length - 1];
+    expect(b.pos[2]).toBeLessThan(1.7 * BUSTER.chest - 0.2);
   });
   it('is emitted only into a page with a body that carries it', () => {
     expect(emissionSource()).not.toContain('stepWithBuster');

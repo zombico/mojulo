@@ -3,10 +3,15 @@
  * the anime register draws a charged shot, as data the page draws (scene/channels/controllable/index.js, the buster's
  * branch). Nothing per level is authored but its colour; the rest follows from it and the register's numbers:
  *
- *   core      white-hot: the hue is never painted at the centre (a white core over the ramp, CORE of the round's size)
+ *   core      white-hot: the hue is never painted at the centre (a white core over the ramp, `core` of the round's size;
+ *             the full charge's bigger, `coreFull`, its head a white ball)
  *   ramp      the hue by intensity: [white, the hue saturated, the hue deep] from the core out, each layer additive
  *   halo      a soft disc in the hue round it all (HALO × its size), dim: the effect bleeds into the world
- *   stretch   the head drawn long along its flight (1 + FX_STYLE.stretch, more a level), its intensity at the head
+ *   stretch   the body drawn long along its flight (1 + FX_STYLE.stretch, more a level), its intensity at the head
+ *   head      how long its head is drawn (its core and its saturated layer): the stretch, but the FULL charge's round
+ *             (ROUND_LOOK.headFull), a ball leading its stretched body
+ *   bulk      how big its head and body are drawn over its size: the full charge's bigger (ROUND_LOOK.bulkFull), as tall as the tall
+ *             hitbox it carries (gameworld/feel/lower.js BUSTER_HIT)
  *   streaks   thin bright lines inside the body along its flight, one more a level
  *   tail      a fading streak behind (TAIL × its size, longer a level)
  *   accent    a hue far round the wheel (the cel look's `hue`, scene/juice-style.js JUICE_LOOKS.cel), kept thin: the
@@ -14,16 +19,16 @@
  *   rings     at the head, round the flight, one a charge level (the tap none), their near arc bright, their far faded
  *   sparks    a few trailing on the world's clock (more a level), the accent's and white
  *
- *   ROUND_LOOK, roundLook(round, level) → { color, size, core, ramp: [hex, hex, hex], halo, stretch, streaks, tail,
- *                                            accent, rings, sparks }
- *   roundLooks(buster) → [tap's, level 1's, …]   (a lowered `rule.buster`, gameworld/feel/lower.js)
+ *   ROUND_LOOK, roundLook(round, level, { full? }) → { color, size, core, ramp: [hex, hex, hex], halo, stretch, head,
+ *                                            bulk, streaks, tail, accent, rings, sparks }
+ *   roundLooks(buster) → [tap's, level 1's, …]   (a lowered `rule.buster`, gameworld/feel/lower.js; the last the full charge)
  *
  * Pure: the same round, the same look.
  */
 import { FX_STYLE } from '../../scene/effect-style.js';
 import { JUICE_LOOKS } from '../../scene/juice-style.js';
 
-export const ROUND_LOOK = Object.freeze({ core: 0.55, halo: 4.5, tail: 3, rings: [0, 1, 2], sparks: [2, 5, 8], streaks: [1, 2, 3], accent: JUICE_LOOKS.cel.hue, chroma: 0.92, deep: 0.45 });
+export const ROUND_LOOK = Object.freeze({ core: 0.55, halo: 4.5, tail: 3, rings: [0, 1, 2], sparks: [2, 5, 8], streaks: [1, 2, 3], accent: JUICE_LOOKS.cel.hue, chroma: 0.92, deep: 0.45, headFull: 1.08, bulkFull: 1.3, coreFull: 0.85 });
 
 const hsv = (n) => {
   const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255, M = Math.max(r, g, b), d = M - Math.min(r, g, b);
@@ -36,15 +41,17 @@ const hex = (h, s, v) => {
 };
 
 /** A round's look: its colour leads, the register's numbers do the rest. */
-export function roundLook(round, level = 0) {
+export function roundLook(round, level = 0, { full = false } = {}) {
   const R = ROUND_LOOK, k = Math.max(0, Math.min(level, R.rings.length - 1)), color = Number.isInteger(round?.color) ? round.color : 0xfff2a8;
   const [h, s] = hsv(color), sat = Math.max(s, R.chroma);
   return {
     color: hex(h, s, hsv(color)[2]), size: round?.size ?? 0.08,
-    core: R.core,
+    core: full ? R.coreFull : R.core,
     ramp: ['#ffffff', hex(h, sat, 1), hex(h, 1, R.deep)],
     halo: R.halo + k,
     stretch: Math.round((1 + FX_STYLE.stretch * (1 + 0.5 * k)) * 1000) / 1000,
+    head: full ? R.headFull : Math.round((1 + FX_STYLE.stretch * (1 + 0.5 * k)) * 1000) / 1000,
+    bulk: full ? R.bulkFull : 1,
     streaks: R.streaks[k],
     tail: R.tail + 2 * k,
     accent: hex((h + R.accent) % 360, 0.85, 1),
@@ -56,5 +63,6 @@ export function roundLook(round, level = 0) {
 /** Every level's look of a lowered buster: the tap's first. */
 export function roundLooks(buster) {
   if (!buster) return [];
-  return [roundLook(buster.tap, 0), ...(buster.levels ?? []).map((L, i) => roundLook(L, i + 1))];
+  const n = (buster.levels ?? []).length;
+  return [roundLook(buster.tap, 0), ...(buster.levels ?? []).map((L, i) => roundLook(L, i + 1, { full: i + 1 === n }))];
 }

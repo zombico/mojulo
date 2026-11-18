@@ -14,16 +14,23 @@
  * page, which draws a glowing ball in its level's colour.
  *
  *   rule.buster  { max, chest (the muzzle's height, a share of the body's), tap: ROUND, levels: [{ at (s held), ...ROUND }] }
- *   ROUND        { speed (m/s), size (m, its radius), life (s), damage, impact, color }
+ *   ROUND        { speed (m/s), size (m, its radius), life (s), damage, impact, color, hit? }
+ *   hit          its HITBOX, not its drawing (gameworld/feel/lower.js BUSTER_HIT): { r (m, the radius it meets a body with),
+ *                tall? (m, the half height of a tall capsule over its centre) }; none, its size
+ *
+ * A TALL round (the full charge's) meets a body anywhere in its height: before each step its capsule is swept along the
+ * step's travel against every hittable body (the engine's own egg test, E.pointInEgg), and where it first meets one the
+ * round is moved up or down to the height it met it at, so the engine's own contact (a sphere of `r`, combat-ranged.js)
+ * meets the body there and bursts it there. The engine's sweep is untouched, so no other round changes.
  *
  * Wraps stepWorld (as vanish.js and hitstop.js do), so the pinned pipeline is untouched; import-free (the page runs this
  * source, compose.js); emitted only into a page whose world has a body with a buster, so every other page keeps every
- * byte. Field ownership: e.busterOn, e.busterT, e.busterPrev, e.busterShots, e.chargeLevel, e.lastShot; it lays its charge over
+ * byte. Field ownership (its rounds' projTall too): e.busterOn, e.busterT, e.busterPrev, e.busterShots, e.chargeLevel, e.lastShot; it lays its charge over
  * e.charging and e.chargeFrac after the step (the platform rule writes its own there).
  */
 
 export function buildBuster(E) {
-  const step = E.stepWorld, fwdXY = E.fwdXY;
+  const step = E.stepWorld, fwdXY = E.fwdXY, pointInEgg = E.pointInEgg;
   // one round of a level (0 the tap), from the chest along the facing
   function fire(state, e, lv, B) {
     const at = lv ? B.levels[lv - 1] : B.tap, f = fwdXY(e.transform.heading), r = e.rule;
@@ -32,12 +39,31 @@ export function buildBuster(E) {
     if (!state.projectiles) { state.projectiles = []; state.bursts = []; state.projSeq = 0; state.burstSeq = 0; }
     state.projectiles.push({
       id: 'proj-' + (state.projSeq++), owner: e.id, pos: from.slice(), vel: [f[0] * at.speed, f[1] * at.speed, 0],
-      gravity: 0, splashRadius: 0, projRadius: at.size, prox: 0, damage: at.damage || 0, impact: at.impact || 0,
+      gravity: 0, splashRadius: 0, projRadius: at.hit ? at.hit.r : at.size, projTall: at.hit && at.hit.tall ? at.hit.tall : 0, prox: 0, damage: at.damage || 0, impact: at.impact || 0,
       born: state.time, age: 0, armTime: 0, fuse: at.life, noGround: true,
       fxColor: at.color != null ? at.color : null, fxScale: at.size, smokeTrail: false, pellet: true, busterLv: lv,
     });
     e.lastShot = { mode: 'launch', t: state.time, from, to: null, charged: lv > 0 };
     e.busterShots = (e.busterShots || 0) + 1;
+  }
+  // a tall round's capsule swept along this step's travel: where it first meets a body, the height it meets it at (the
+  // offset from its centre), else null. Samples along the travel a tenth of a metre apart (capped), and up and down its
+  // height its radius apart: the first along the travel wins, the nearest its centre at that point
+  function tallMeet(state, p, d) {
+    const r = p.projRadius || 0.05, T = p.projTall, v = p.vel, len = Math.hypot(v[0] * d, v[1] * d, v[2] * d);
+    const n = Math.min(24, Math.max(1, Math.ceil(len / 0.1))), m = Math.max(1, Math.ceil(T / Math.max(0.05, r)));
+    for (let k = 1; k <= n; k++) {
+      const f = k / n, at = [p.pos[0] + v[0] * d * f, p.pos[1] + v[1] * d * f, p.pos[2] + v[2] * d * f];
+      for (let j = 0; j <= m; j++) for (const sgn of j ? [1, -1] : [1]) {
+        const dz = sgn * (T * j) / m, pt = [at[0], at[1], at[2] + dz];
+        for (const tg of state.entities) {
+          if (tg.id === p.owner || tg.invincible || !(tg.body && tg.body.hittable)) continue;
+          const hit = tg.body.egg && pointInEgg ? pointInEgg(pt, tg, r) : Math.hypot(tg.transform.pos[0] - pt[0], tg.transform.pos[1] - pt[1], tg.transform.pos[2] - pt[2]) <= (tg.body.radius || 0.5) + r;
+          if (hit) return dz;
+        }
+      }
+    }
+    return null;
   }
   // the level a charge held `t` seconds has reached (0: none)
   const levelAt = (B, t) => { let lv = 0; for (let i = 0; i < B.levels.length; i++) if (t >= B.levels[i].at - 1e-9) lv = i + 1; return lv; };
@@ -63,6 +89,12 @@ export function buildBuster(E) {
         }
       }
       e.busterPrev = held;
+    }
+    // (a tall round meets a body anywhere in its height: moved to the height it meets it at, for the engine's contact)
+    for (const p of state.projectiles || []) {
+      if (!p.projTall || p.age + d < (p.armTime || 0)) continue;
+      const dz = tallMeet(state, p, d);
+      if (dz) p.pos[2] += dz;
     }
     const out = step(state, input, dt, hooks);
     // (published after the step: the platform rule writes its own jump charge to e.charging and e.chargeFrac each frame,

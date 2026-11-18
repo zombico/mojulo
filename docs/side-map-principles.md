@@ -135,6 +135,8 @@ The cake is `control/lib/graph/gameworld/side-map/cake.js` (the materials), `tex
     additive under a halo in its hue; intensity at its head, streaks along its flight, a short tail and trailing sparks;
     an accent hue far round the wheel kept thin (rings at its head, near arc bright, one more a charge level). Its look
     is data (`control/lib/graph/gameworld/feel/round-look.js`); the benchmark reads it on the page (`measureRound`).
+    What it hits is its own: a regular round meets a body with less than it shows, the full charge with a tall capsule
+    (its head drawn round and as big as it hits), so a charged shot is the answer to what stands under the line.
 
 ## The look
 

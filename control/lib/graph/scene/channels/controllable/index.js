@@ -4137,9 +4137,11 @@ function __rlRound(p) {
     const ang = Math.atan2((__rlB.y - __rlA.y) * innerHeight, (__rlB.x - __rlA.x) * innerWidth), st = L.stretch, fl = 0.9 + 0.1 * Math.sin(t * 47);
     const at = (s, along, across, sx, sy) => { s.position.set(__rlDir.x * along + __rlPerp.x * across, __rlDir.y * along + __rlPerp.y * across, __rlDir.z * along + __rlPerp.z * across); s.scale.set(sx, sy, 1); s.material.rotation = ang; };
     at(halo, 0, 0, r * L.halo * 2, r * L.halo * 2);
-    at(deep, 0, 0, r * 3.6 * st, r * 3.2);
-    at(mid, r * 0.25, 0, r * 2.5 * st * fl, r * 2.3 * fl);
-    at(core, r * 0.45, 0, r * L.core * 2.4 * st, r * L.core * 2.4);
+    // (the body stretched behind, the head its own length: the full charge's a ball leading it, drawn as big as it hits)
+    const hd = L.head || st, bk = L.bulk || 1;
+    at(deep, -r * 0.5 * (st - hd), 0, r * 3.6 * st * bk, r * 3.2 * bk);
+    at(mid, r * 0.25, 0, r * 2.5 * hd * bk * fl, r * 2.4 * bk * fl);
+    at(core, r * 0.45, 0, r * L.core * 2.4 * hd * bk, r * L.core * 2.4 * bk);
     at(tail, -r * (1 + L.tail * 0.3), 0, r * L.tail * 0.9, r * 1.4);
     streaks.forEach((s, k) => at(s, -r * 0.15, r * 0.55 * (k - (streaks.length - 1) / 2) / Math.max(1, streaks.length - 1) * 1.4, r * 1.7 * st, r * 0.14));
     rings.forEach((R) => {

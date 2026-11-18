@@ -2,7 +2,7 @@
 // concepts: the core white and the hue in the falloff (the ramp white, then the hue saturated, then the hue deep, one
 // hue); the accent far round the wheel from the round's own; a charge level more of everything (rings, sparks, streaks,
 // stretch, tail, halo), the tap no rings; the colour leads (another colour, another hue, the same shape); a lowered
-// buster's looks one a level, the tap's first.
+// buster's looks one a level, the tap's first, the full charge's head round and bigger (as tall as it hits).
 import { describe, it, expect } from 'vitest';
 import { roundLook, roundLooks, ROUND_LOOK } from './round-look.js';
 import { feelRule } from './lower.js';
@@ -40,5 +40,12 @@ describe('the round\'s look', () => {
     expect(looks.length).toBe(1 + B.levels.length);
     expect(looks[0].rings).toBe(0);
     expect(looks[looks.length - 1].size).toBe(B.levels[B.levels.length - 1].size);
+    // (the full charge's head round and drawn bigger, its body still stretched; the others' heads as long as their bodies)
+    const full = looks[looks.length - 1], one = looks[1];
+    expect(full.head).toBeLessThan(full.stretch);
+    expect(full.head).toBeLessThan(1.15);
+    expect(full.bulk).toBeGreaterThan(1);
+    expect(one.head).toBe(one.stretch);
+    expect(one.bulk).toBe(1);
   });
 });

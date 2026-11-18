@@ -42,7 +42,8 @@ describe('the shot light on a side map\'s page', () => {
     await p.setContent(page('side-map'), { waitUntil: 'domcontentloaded' });
     await p.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.shotLight, { timeout: 20000 });
     const frames = (n) => p.evaluate((n) => new Promise((r) => { const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n);
-    await frames(10);
+    // (the side map's camera settled on its hero first: a frame still easing in would read as light)
+    await frames(60);
     expect(errors).toEqual([]);
     expect((await p.evaluate(() => window.__mojCtrl.shotLight())).patched).toBeGreaterThan(0);
     // (the frame's lightness, the round held a little in front of the wall: its own drawing a few pixels of it, its light
@@ -88,7 +89,7 @@ describe('the shot light on a side map\'s page', () => {
     await p.setContent(page('side-map', buster), { waitUntil: 'domcontentloaded' });
     await p.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.shotLight, { timeout: 20000 });
     const frames = (n) => p.evaluate((n) => new Promise((r) => { const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n);
-    await frames(10);
+    await frames(60);
     const quiet = await p.screenshot();
     await p.evaluate(() => { const W = window.__mojCtrl.world, B = W.byId.p1.rule.buster, L = B.levels[B.levels.length - 1]; W.projectiles = [{ id: 'x', owner: 'f', pos: [-0.6, -3, 2.2], vel: [0, 0.01, 0], pellet: true, busterLv: B.levels.length, fxScale: L.size, fxColor: L.color, fuse: 999, age: 0, born: W.time, gravity: 0, projRadius: 0.01, noGround: true }]; W.bursts = W.bursts || []; W.projSeq = 1; W.burstSeq = 0; });
     await frames(10);
