@@ -289,6 +289,14 @@ describe('jobs across the district (errands on a played district: its shops thei
     expect(heard.audio.engine).toMatchObject({ voice: 'road-car-engine', cab: true });
     expect(Object.keys(heard.audio.sfx.sheet.cues)).toEqual(expect.arrayContaining(['car:door', 'car:horn', 'car:crash']));
     for (const k of ['car:door', 'car:horn', 'car:crash']) expect(heard.audio.sfx.sheet.cues[k].length).toBeGreaterThan(0);
+    // (the car's sound design: its growl, its road and its screech held beside the engine; the door opened, the engine
+    // started and stopped, the brakes, a gear; the city's traffic far off)
+    expect(Object.keys(heard.audio.engine.drive)).toEqual(['load', 'road', 'skid']);
+    for (const k of ['car:open', 'car:start', 'car:off', 'car:brake', 'car:shift']) expect(heard.audio.sfx.sheet.cues[k].length).toBeGreaterThan(0);
+    expect(heard.audio.ambience.voice).toBe('traffic-hum');
+    // (its score: ambient beats under its streets, the club's chill; no law or fight here, so no chase)
+    expect(heard.audio.soundtrack).toMatchObject({ score: { mood: 'chill', style: 'club' } });
+    expect(heard.audio.combat).toBeUndefined();
     expect(level.audio?.engine).toBeUndefined(); expect(level.audio?.bed).toBeUndefined();
   });
   it('a job is driven: its giver a short drive from the start, and each stop a drive from the one before it, never the shop next door', () => {

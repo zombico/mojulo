@@ -224,6 +224,15 @@ const ROWS = {
   'car-door': made('machinery', 'door', 'on', 'a car door slammed', ['door slam car', 'car door slam'], 'motoring', { act: 'door-slam' }),
   'kart-engine': made('machinery', null, 'hold', 'a kart\'s engine by its throttle', ['kart', 'go kart'], 'engine', { kind: 'kart' }),
   'road-car-engine': made('machinery', null, 'hold', 'a road car\'s engine as a game plays it: its note high enough for a small speaker, a burble, the tyres\' hiss', ['road car engine', 'street car engine', 'driving engine'], 'engine', { kind: 'road' }),
+  // (the road car's sound design, the open city's: its growl under load, its tyres rolling, the city's traffic far off;
+  // its door opened, its engine started and stopped, its brakes)
+  'road-car-load': made('machinery', null, 'hold', 'a road car under load: the exhaust\'s growl and the intake as the pedal goes down, silent coasting', ['engine load', 'exhaust growl', 'throttle growl'], 'engine', { kind: 'road-load' }),
+  'road-roar': made('machinery', null, 'hold', 'a car rolling on the road: its tyres\' roar and the wind past it, by the speed', ['road noise', 'tyre roar', 'tire roar', 'rolling'], 'tires', { surface: 'road' }),
+  'traffic-hum': made('world', null, 'hold', 'a city\'s traffic far off and all round: its tyres\' wash, its engines\' murmur', ['traffic', 'city traffic', 'distant traffic', 'city hum'], 'ambience', { kind: 'traffic' }),
+  'car-door-open': made('machinery', 'door', 'on', 'a car door opened: the latch, the door\'s swing', ['open car door', 'door latch car'], 'motoring', { act: 'door-open' }),
+  'car-ignition': made('machinery', null, 'on', 'a car started: the starter cranking, the engine catching and revving', ['ignition', 'engine start', 'starter', 'start the car'], 'motoring', { act: 'ignition' }),
+  'car-engine-off': made('machinery', null, 'on', 'a car\'s engine stopped: its note falling away, a click, a tick as it cools', ['engine off', 'engine stop', 'turn off the car'], 'motoring', { act: 'engine-off' }),
+  'brake-squeal': made('machinery', null, 'on', 'a car\'s brakes squealing as it stops hard', ['brakes', 'brake', 'squealing brakes'], 'motoring', { act: 'brake-squeal' }),
   'diesel-engine': made('machinery', null, 'hold', 'a heavy diesel by its throttle: a truck, a carrier, a walking machine\'s power pack', ['diesel', 'truck engine', 'heavy engine'], 'engine', { kind: 'diesel' }),
   'tank-engine': made('machinery', null, 'hold', 'a tracked vehicle by its throttle: its diesel and its tracks clanking', ['tank engine', 'tracked engine', 'track clatter'], 'engine', { kind: 'tracked' }),
   'walker-hydraulics': made('machinery', null, 'hold', 'a walking machine\'s hydraulics by its pace: its pump straining, its valves chuffing with its steps', ['hydraulics', 'walker servo', 'mech hydraulics'], 'servo', { kind: 'walker' }),

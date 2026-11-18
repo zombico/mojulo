@@ -406,17 +406,26 @@ const playedCity = (manifest) => !!manifest && manifest.kind === 'geocube' && (m
  * Its engine is the car's (a held voice by the speed of the car the pilot rides, `cab`: silent on foot), and its
  * one-shots the door as a car is got into and out of, the horn (H, at the wheel), a crash on a hard stop and, where the
  * law watches the city, the siren of a police car near the player (`law:siren`): the
- * shelf's words in the sheet's style, as cues the audio channel plays. → { engine, cues, why } or null (a game on no
+ * shelf's words in the sheet's style, as cues the audio channel plays. Its car's SOUND DESIGN: the door opened as the
+ * driver reaches it, the engine started and stopped, its growl under load, its tyres' roar and screech, the brakes, a
+ * gear changed up (`engine.drive`, the cues); and the city's traffic far off (`ambience`). → { engine, cues, ambience, why } or null (a game on no
  * sheet, a level that is no played city, or `sound.ride: false`). */
-export const CITY_CAR = Object.freeze({ top: 28, level: 0.55, engine: 'road-car-engine', door: 'car-door', horn: 'car-horn', crash: 'car-crash', siren: 'siren' });
+export const CITY_CAR = Object.freeze({ top: 28, level: 0.55, engine: 'road-car-engine', door: 'car-door', horn: 'car-horn', crash: 'car-crash', siren: 'siren',
+  // (its SOUND DESIGN: the door opened, the engine started and stopped, the brakes, a gear changed up; and held beside the
+  // engine its growl under load, its tyres' roar by the speed, their screech as they slip)
+  open: 'car-door-open', start: 'car-ignition', off: 'car-engine-off', brake: 'brake-squeal', shift: 'gear-shift',
+  drive: Object.freeze({ load: Object.freeze({ voice: 'road-car-load', level: 0.45 }), road: Object.freeze({ voice: 'road-roar', level: 0.35 }), skid: Object.freeze({ voice: 'tire-squeal', level: 0.4 }) }),
+  // (the city's traffic far off, held under the street's bed)
+  ambience: Object.freeze({ voice: 'traffic-hum', level: 0.32 }) });
 export function citySounds(G, { manifest = null, quick = G?.quick } = {}) {
   if (!onSheet(G, quick) || !playedCity(manifest)) return null;
   const R = rideSound(G, { quick, words: 'car', top: CITY_CAR.top });
   if (!R) return null;
   const style = soundSheet(G, { manifest }).style, cue = (w) => sfxSound(w, { style })?.gestures ?? sfxSound(w)?.gestures ?? null;
   // (and where the law watches the city, gameworld/law.js, its cars' siren: the audio channel sounds it near one)
-  const cues = Object.fromEntries([['car:door', CITY_CAR.door], ['car:horn', CITY_CAR.horn], ['car:crash', CITY_CAR.crash], ...(G?.law ? [['law:siren', CITY_CAR.siren]] : [])].map(([k, w]) => [k, cue(w)]).filter(([, g]) => g));
+  const cues = Object.fromEntries([['car:door', CITY_CAR.door], ['car:horn', CITY_CAR.horn], ['car:crash', CITY_CAR.crash], ['car:open', CITY_CAR.open], ['car:start', CITY_CAR.start], ['car:off', CITY_CAR.off], ['car:brake', CITY_CAR.brake], ['car:shift', CITY_CAR.shift], ...(G?.law ? [['law:siren', CITY_CAR.siren]] : [])].map(([k, w]) => [k, cue(w)]).filter(([, g]) => g));
   // (the car's engine the road car's, voiced for a small speaker, unless the game names its own ride)
   const own = readSound(G?.sound).ride;
-  return { engine: { ...R.engine, ...(own ? {} : { voice: CITY_CAR.engine }), level: CITY_CAR.level, cab: true }, cues, why: `${R.why}, heard only at the wheel; the door, the horn, a crash` };
+  return { engine: { ...R.engine, ...(own ? {} : { voice: CITY_CAR.engine }), level: CITY_CAR.level, cab: true, drive: { load: { ...CITY_CAR.drive.load }, road: { ...CITY_CAR.drive.road }, skid: { ...CITY_CAR.drive.skid } } }, cues, ambience: { ...CITY_CAR.ambience },
+    why: `${R.why}, heard only at the wheel: started as its driver gets in and stopped as they get out, its growl under the pedal, its tyres on the road and in a slide, the brakes, a gear changed; the door, the horn, a crash; the city's traffic far off` };
 }

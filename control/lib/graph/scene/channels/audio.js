@@ -408,6 +408,19 @@ ${audio.moves ? `// a MOVESET's sounds (audio.moves, beats-world.js; gameworld/c
     }
   })();
 })();
+` : ''}${audio.ambience ? `// a place's own held sound (audio.ambience: a city's traffic far off, gameworld/sound-sheet.js citySounds): held under
+// the bed while the level plays, quieter from inside a car. Read-only and presentation-only. (No backticks.)
+(function () {
+  const A = __AUDIO.ambience; let H = null, lv = 1;
+  (function __beatsAmbience() {
+    requestAnimationFrame(__beatsAmbience);
+    if (!__beatsEng) return;
+    if (!H) { try { H = __beatsEng.sustain(Object.assign({}, A.voice, { level: (A.voice.level == null ? 1 : A.voice.level) * A.level })); } catch (e) { return; } }
+    const c = window.__mojCtrl && window.__mojCtrl.world, P = c && c.byId && c.byId[c.pilotId], inside = !!(P && P.mount && P.riderId);
+    lv += ((inside ? 0.25 : 0.6) - lv) * 0.03;
+    H.set(__beatsMuted ? 0 : lv);
+  })();
+})();
 ` : ''}${audio.engine ? `// a ride's ENGINE (audio.engine, beats-world.js; gameworld/sound-sheet.js rideSound): a held voice driven by the
 // pilot's own travel speed over the ride's top, from its idle up, smoothed so a stop winds down. Built lazily on
 // unlock; silent while muted or with no pilot. Read-only and presentation-only. (No backticks.)
@@ -417,24 +430,39 @@ ${audio.engine.cab ? `  // (a car's revs through its GEARS: in each gear the eng
   // as the next gear takes up, so a car pulling away is heard changing up, not one long rising whine; stopped, it idles)
   const __GEARS = [0.18, 0.36, 0.56, 0.78, 1];
   const __rev = (v) => { const f = Math.max(0, Math.min(1, v / E.top)); if (f < 0.01) return E.idle; let lo = 0; for (const hi of __GEARS) { if (f <= hi) return E.idle + (1 - E.idle) * (lo ? 0.34 : 0.06 + 0.28 * Math.min(1, f / 0.04)) + (1 - E.idle) * 0.66 * ((f - lo) / (hi - lo)); lo = hi; } return 1; };
+  const __gearOf = (v) => { const f = Math.max(0, Math.min(1, v / E.top)); let i = 0; while (i < __GEARS.length - 1 && f > __GEARS[i]) i++; return i; };
 ` : ''}  let H = null;
   (function __beatsEngine() {
     requestAnimationFrame(__beatsEngine);
     if (!__beatsEng) return;
-${audio.engine.cab ? `    // (a city's car: its engine RUNS only while a car is ridden: started as the pilot gets in, stopped as it gets out;
-    // walking is its own sound and hears no engine, not even an idle)
-    const __cw = window.__mojCtrl && window.__mojCtrl.world, __cp = __cw && __cw.byId && __cw.byId[__cw.pilotId], __rides = !!(__cp && __cp.mountedOn);
-    if (__rides && !H) { try { H = __beatsEng.sustain(Object.assign({}, E.voice, { level: (E.voice.level == null ? 1 : E.voice.level) * E.level })); } catch (e) { return; } }
-    else if (!__rides && H) { H.stop(); H = null; }
+${audio.engine.cab ? `    // (THE CAR'S SOUND DESIGN, a city's: gameworld/sound-sheet.js citySounds. Whoever is at the wheel: while a car is
+    // driven the pilot is the car, the one who got in its rider. Getting in: the door opened as they reach it, shut as
+    // they sit, the starter cranking and the engine catching a moment on. Getting out: the engine stopped, the door
+    // opened and shut. Walking is its own sound and hears no engine, not even an idle)
+    const __cw = window.__mojCtrl && window.__mojCtrl.world, __cp = __cw && __cw.byId && __cw.byId[__cw.pilotId];
+    const __hero = __cp && __cp.mount ? __cw.byId[__cp.riderId] || null : __cp, __phase = __hero && __hero.mountedOn ? __hero.mountPhase || 'ride' : null;
+    const __t = performance.now() / 1000, __cue = function (k, g) { __beatsCue(__AUDIO.cues && __AUDIO.cues[k], g); };
+    if (__phase !== K.phase) {
+      if (__phase === 'mount') __cue('car:open');
+      if (__phase === 'ride' && K.phase !== 'ride') { __cue('car:door'); K.startAt = __t + 0.3; }
+      if (__phase === 'dismount') { if (K.started) __cue('car:off'); K.started = false; K.startAt = 0; K.runAt = 0; __cue('car:open', 0.8); }
+      if (!__phase && K.phase) { __cue('car:door'); K.started = false; K.startAt = 0; K.runAt = 0; }
+      K.phase = __phase;
+    }
+    if (K.startAt && __t >= K.startAt) { K.startAt = 0; __cue('car:start'); K.runAt = __t + 0.75; }
+    if (K.runAt && __t >= K.runAt) { K.runAt = 0; K.started = true; }
+    const __rides = !!K.started && __phase === 'ride';
+    const __held = function (v, lv) { return __beatsEng.sustain(Object.assign({}, v, { level: (v.level == null ? 1 : v.level) * lv })); };
+    if (__rides && !H) { try { H = __held(E.voice, E.level); const D = E.drive || {}; for (const k of ['load', 'road', 'skid']) K[k] = D[k] ? __held(D[k].voice, D[k].level) : null; } catch (e) { return; } }
+    else if (!__rides && H) { H.stop(); H = null; for (const k of ['load', 'road', 'skid']) if (K[k]) { K[k].stop(); K[k] = null; } }
 ` : `    if (!H) { try { H = __beatsEng.sustain(Object.assign({}, E.voice, { level: (E.voice.level == null ? 1 : E.voice.level) * E.level })); } catch (e) { return; } }
 `}    const ctrl = window.__mojCtrl && window.__mojCtrl.world, P${audio.engine.cab ? '0' : ''} = ctrl && ctrl.byId && ctrl.byId[ctrl.pilotId];
     const now = performance.now() / 1000;
 ${audio.engine.cab ? `    // (a city's cars, its cab: heard only while the pilot rides one, by that car's own speed; the door as it is got into
     // and out of, a crash on a hard stop)
-    const P = E.cab ? (P0 && P0.mountedOn && ctrl.byId[P0.mountedOn]) || null : P0;
+    const P = E.cab ? (P0 && P0.mount && P0.riderId ? P0 : null) : P0;
     if (E.cab) {
-      const riding = !!(P0 && P0.mountedOn), was = K.riding;
-      if (riding !== was && was !== undefined) __beatsCue(__AUDIO.cues && __AUDIO.cues['car:door']);
+      const riding = !!P;
       K.riding = riding;
       if (!riding) { K.pos = null; K.speed = 0; }
       // (a hard stop: its speed fallen faster than any brake drops it)
@@ -455,7 +483,23 @@ ${audio.cues && audio.cues['law:siren'] ? `    // (the law's cars, gameworld/law
       K.pos = [p[0], p[1], p[2] || 0]; K.t = now;
     } else K.speed *= 0.9;
     const x = E.idle + (1 - E.idle) * Math.max(0, Math.min(1, K.speed / E.top));
-    ${audio.engine.cab ? 'if (H) H.set(__beatsMuted || !P ? 0 : __rev(K.speed));' : 'H.set(__beatsMuted || !P ? 0 : x);'}
+${audio.engine.cab ? `    // (the car at the wheel: its pedal (the growl under load, silent coasting), its speed (the tyres' roar and the wind),
+    // its tyres past their grip in a turn or under hard braking (their screech), the brakes as it stops hard, a gear
+    // changed up under the pedal)
+    if (H && P) {
+      const spd = Math.abs(P.speed || 0), thr = Math.max(0, P.throttle || 0), rpm = __rev(K.speed);
+      K.thr = (K.thr || 0) + (thr - (K.thr || 0)) * 0.15;
+      if (K.load) K.load.set(__beatsMuted ? 0 : K.thr * (0.35 + 0.65 * rpm));
+      if (K.road) K.road.set(__beatsMuted ? 0 : Math.min(1, K.speed / E.top));
+      const wb = (P.rule && P.rule.wheelbase) || 2.7, grip = (P.rule && P.rule.grip) || 1, slip = (spd * spd * Math.abs(Math.tan(P.steerAngle || 0))) / wb / (grip * 9.81);
+      if (K.skid) K.skid.set(__beatsMuted ? 0 : Math.max(P.braking && spd > 8 ? 0.4 : 0, Math.min(1, (slip - 0.8) * 2.5)));
+      if (P.braking && !K.braking && spd > 9 && !(now - (K.brakeT || -9) < 1.5)) { K.brakeT = now; __beatsCue(__AUDIO.cues && __AUDIO.cues['car:brake'], Math.min(1, spd / 25)); }
+      K.braking = !!P.braking;
+      const gear = __gearOf(K.speed);
+      if (K.gear != null && gear > K.gear && K.thr > 0.5) __beatsCue(__AUDIO.cues && __AUDIO.cues['car:shift'], 0.45);
+      K.gear = gear;
+    }
+    if (H) H.set(__beatsMuted || !P ? 0 : __rev(K.speed));` : '    H.set(__beatsMuted || !P ? 0 : x);'}
   })();
 ${audio.engine.cab ? `  // (the horn: H at the wheel)
   if (E.cab) addEventListener('keydown', function (ev) { const c = window.__mojCtrl && window.__mojCtrl.world, P = c && c.byId && c.byId[c.pilotId]; if (ev.code === 'KeyH' && !ev.repeat && P && P.mountedOn && !window.__mojMenuOpen) __beatsCue(__AUDIO.cues && __AUDIO.cues['car:horn']); });

@@ -68,7 +68,7 @@ import { LANE_KITS } from '../broadcast/broadcast-package.js';
 import { SPORT_KITS } from '../sportswear/kits.js';
 import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, brawlStreets, brawlCrowd, brawlBody, brawlSetup, brawlGuns, BRAWL_SCENES, brawlArenas, brawlHeroes, castWaves, BRAWL_STREET, brawlByDesign, brawlAsStreets, withStreetScenes, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { sheetAudio, sheetBed, onSheet, levelSheet, citySounds, rideSound, rideTop } from './sound-sheet.js';
-import { cueSheet, levelScore, onScore } from './cue-sheet.js';
+import { cueSheet, levelScore, onScore, cityScore } from './cue-sheet.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { castingOf, laidCasting, laidJoins } from './casting.js';
 import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
@@ -215,7 +215,11 @@ const sheetOf = (G, s, score = null) => {
   const audio = sheet || cue ? { ...(sheet ?? own ?? {}), ...(cue ?? {}) } : null;
   // (a played town or district: its cars heard, the engine only at the wheel, the door, the horn, a crash: sound-sheet.js citySounds)
   const city = sheet ? citySounds(G, { manifest: s.manifest ?? null }) : null;
-  if (city && audio) { audio.engine = city.engine; audio.sfx = { ...audio.sfx, sheet: { ...audio.sfx.sheet, cues: { ...(audio.sfx.sheet.cues ?? {}), ...city.cues } } }; }
+  if (city && audio) { audio.engine = city.engine; audio.ambience = city.ambience; audio.sfx = { ...audio.sfx, sheet: { ...audio.sfx.sheet, cues: { ...(audio.sfx.sheet.cues ?? {}), ...city.cues } } }; }
+  // (and its score: ambient beats under its streets, a chase when the law or a fight comes: cue-sheet.js cityScore; a
+  // game that writes the level's cue, or a stage its own soundtrack, keeps its own)
+  const tune = city && audio && score && own?.soundtrack === undefined && G.music?.cues?.[`level:${s.level}`] === undefined ? cityScore(G, score.sheet) : null;
+  if (tune) Object.assign(audio, tune);
   return audio ? { audio } : {};
 };
 // THE SCORE'S CUES A GAME NAMES BY REF (cue-sheet.js): a game's shell plays stored beats sketches, so each cue the game

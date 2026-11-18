@@ -76,6 +76,7 @@ export const FAMILY_FACETS = Object.freeze({
   shield: { matter: ['energy'], genres: g('shooting', 'melee', 'mecha') },
   booster: { matter: ['machine', 'fire'], genres: g('flight', 'mecha') },
   engine: { matter: ['machine'], genres: g('racing', 'flight', 'city') },
+  ambience: { matter: ['machine', 'air'], genres: g('city') },
   beam: { matter: ['energy'], genres: g('shooting', 'mecha') },
   charge: { matter: ['energy'], genres: g('shooting', 'mecha') },
   fire: { matter: ['fire', 'wood'], genres: g('adventure', 'life', 'horror') },
