@@ -126,6 +126,11 @@ In progress. Built so far, all in the practice door's game room
   quarters. Found on the level: the sawtooth left is the page's, not the cloth's. A hero is drawn there as rigid parts,
   each vertex carried by its one strongest bone, so at every joint the layers step past each other in teeth; the
   fauna are drawn as one skin where it holds, a hero not yet.
+- **A realistic body keeps the realistic head.** A game in the western tradition drew its hero with the landmark head
+  even on the realistic body, whose own head is the realistic one. Now a hero on the realistic form wears it,
+  with a face (the world's seed unless the head page writes one, so the hair grows: the realistic head grows its
+  hair from a face). The head page takes the face's `skin` too (its beard, the hair's colour on the brows). Lucien:
+  the realistic head, a western face, clean-shaven, light-brown hair cut to the jaw (`angled`), the face clear.
 - **Built: a hero drawn as one skin** (realistic laws 17, the realistic body's doc, "One skin on the page"). A realistic
   hero minted under them is drawn on the page as skinned parts on one skeleton, every corner carried by its own bones,
   keeping its paint, normals, face and light; the page's bank keeps its weights. The sawtooth where the cloth's layers

@@ -116,9 +116,12 @@ export function heroLooks(G) {
   const colour = own('colour');
   const palette = { ...(D.palette ? paletteOfDirection(D.palette) : {}), ...tint, ...(colour.palette || {}) };
   const B = bodyOfGame(G, D, own('body'));
+  // (a body on the REALISTIC form keeps its own head, the realistic one, whatever head the tradition draws; it grows its
+  // hair from a face, the world's seed's unless the head page writes one)
+  const realistic = (own('body').form ?? B?.spec?.form) === 'realistic';
   const elements = {
     body: page('body', { ...(B?.spec ?? {}), ...ownBody(own('body'), B), proportions: T.proportions }, { tradition: D.tradition, proportions: T.proportions, ...(B ? { body: `${B.rail} · ${B.style}`, why: B.why } : {}) }),
-    head: page('head', { head: T.head, ...own('head') }, { tradition: D.tradition, head: T.head }),
+    head: page('head', realistic ? { head: 'relational', face: { seed: Number.isInteger(G.seed) ? G.seed : 1 }, ...own('head') } : { head: T.head, ...own('head') }, { tradition: D.tradition, head: realistic ? 'relational' : T.head }),
     hair: page('hair', own('hair'), { ...(motif ? { motif } : {}), ...(D.primary ? { primary: D.primary } : {}) }),
     colour: page('colour', Object.keys(palette).length ? { palette } : {}, { ...(D.palette ? { palette: D.palette } : {}), ...(Object.keys(tint).length ? { tints: tint } : {}) }),
   };

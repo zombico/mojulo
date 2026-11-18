@@ -142,10 +142,12 @@
           "form": "realistic",
           "physique": "athletic"
         },
-        "hair": "long",
+        "hair": {
+          "hair": "angled"
+        },
         "colour": {
           "palette": {
-            "Hair": "#17120f",
+            "Hair": "#8b6a48",
             "Top": "#2a2a30",
             "Bottom": "#202026",
             "Trim": "#8c2a30",
@@ -219,6 +221,16 @@
               "leather": "#2b1d16"
             },
             "symmetry": "symmetric"
+          }
+        },
+        "head": {
+          "face": {
+            "seed": 1,
+            "ethnicity": "western"
+          },
+          "skin": {
+            "beard": 0,
+            "hairColour": "#8b6a48"
           }
         }
       },
