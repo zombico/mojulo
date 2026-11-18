@@ -6,6 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { assembleStageScene, planStage } from './stage.js';
+import { streetLots } from './stage-buildings.js';
 
 const TRAIL = { kind: 'stage', kit: 'isekai-meadow', trail: true };
 const plain = assembleStageScene(TRAIL);
@@ -113,6 +114,17 @@ describe("a town's street", () => {
     const D = P.anchors.find((a) => (a.kind === 'building' || a.kind === 'house') && a.use === 'dwelling' && a.enter);
     expect(D).toMatchObject({ enter: 'door' });
     expect(() => assembleStageScene({ ...TRAIL, town: { houses: 3, enter: ['observatory'] } })).toThrow(/no observatory left/);
+  });
+  it('a trade: an inn, a temple, a smithy stands on a lot of a shape it may, the street drawn as it was, its inside the trade\'s', () => {
+    const P = assembleStageScene({ ...TRAIL, town: { houses: 4, enter: ['shop', 'inn', 'temple'] } });
+    const H = (re) => P.anchors.find((a) => (a.kind === 'house' || a.kind === 'building') && re.test(a.id));
+    // (the inn on the next shop, else a house letting beds; entered at its door into a taproom)
+    expect(H(/town-inn-2$/)).toMatchObject({ use: 'tavern', enter: 'door', inside: { use: 'tavern' } });
+    expect(H(/town-temple-3$/)).toMatchObject({ use: 'temple', enter: 'door', inside: { use: 'temple' } });
+    // the same lots as a street that names their shapes: only the keeping changes, never where the houses stand
+    const Q = streetLots({ houses: 4, enter: ['shop', 'inn', 'temple'] }, 'isekai-meadow', 1);
+    expect(Q.lots.map(({ l }) => l.trade ?? null).slice(0, 3)).toEqual([null, 'inn', 'temple']);
+    expect(Q.town.lots.some((l) => l.trade)).toBe(false);
   });
   it('walls: the street closed by its fortification, a gatehouse over the trail at each end, its gates open', () => {
     const W = assembleStageScene({ ...TRAIL, town: { houses: 4, enter: 1, street: true, walls: true } });

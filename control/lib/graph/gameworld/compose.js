@@ -140,6 +140,8 @@ export const LEXICON = Object.freeze({
 // dressed in unless a word named that (a temple's nave; else the dungeon's stone)
 const ROOM_USE_WORDS = Object.freeze({ keep: 'keep', castle: 'keep', temple: 'temple', shrine: 'temple' });
 const ROOM_KIT_OF_USE = Object.freeze({ temple: 'gothic-nave' });
+// the words that name a castle: round a hub, a level of its own (its castle walked); elsewhere a building's use
+const CASTLE_WORDS = new Set(['castle', 'castles', 'keep', 'citadel']);
 
 // the cube a word points at (era/geocube.js): one style for the level's inside and outside, its colours the color
 // theorist's (the stamp seeds its palette, and the world takes it). The first word to name one decides it
@@ -423,7 +425,17 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // ways (a map
   // world, world.js hub), each
   // a stretch of the wilds; a building, a form or a single level is laid as before
-  const hubbed = !!genre && !form && !indoors && n >= 2 && cubeOfWorld({ intent: { from: genre.id } }).cube.space?.topology === 'hub';
+  // A PARTY RPG ROUND ITS TOWN (a hub genre whose words name a dungeon or a castle): the dungeon does not turn the world
+  // indoors; it is the last level, a building of its use with the boss at its end, and a castle named is a level of its
+  // own before it; the wilds between the town and them. A turn-based game's town keeps an inn and a temple on its
+  // street (era/town-trades.js), the party's rest and its priest
+  const hubbed = !!genre && !form && n >= 2 && cubeOfWorld({ intent: { from: genre.id } }).cube.space?.topology === 'hub';
+  const castled = hubbed && P.words.some((w) => CASTLE_WORDS.has(w)), dungeoned = hubbed && !!indoors;
+  const N = hubbed ? Math.max(n, 2 + (castled ? 1 : 0) + (dungeoned ? 1 : 0)) : n;
+  const castleAt = castled ? (dungeoned ? N - 2 : N - 1) : -1;
+  const turnBased = hubbed && [].concat(cubeOfWorld({ intent: { from: genre.id } }).cube.power?.combat ?? []).includes('turn-based');
+  // (the dungeon's use: the word's, but a castle named beside it is the castle's level, and the dungeon stays a crypt)
+  const dungeonUse = dungeoned ? (indoors.use === 'keep' && castled ? room : indoors.use) : null;
   const hubId = `${wid}-1`.slice(0, 48);
   // a genre whose cube asks for a WORLD MAP (space.worldMap 'zones' on levelForm 'map': the action RPG) is laid as one: a
   // planned map walked block by block and travelled zone to zone, its first zone laid in teaching order (world-map.js),
@@ -438,8 +450,8 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     // (how it starts: the opening block a page of its own, the controls and the enemy trail on it; then the first zone)
     world.brief.worldMap = { level: mid, blocks: level.glyphs.plan.route.length, opening: level.glyphs.plan.route.slice(0, WORLD_MAP.opening), ...(level.glyphs.zoned ? { firstZone: level.glyphs.zoned[0] } : {}) };
   }
-  for (let i = 0; i < (mapped ? 0 : n); i++) {
-    const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = !hubbed && i % 2 === 0 && fills.climb !== false && camera !== 'side' && !(goal.gauntlet && last && !goal.boss);
+  for (let i = 0; i < (mapped ? 0 : N); i++) {
+    const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === N - 1, climb = !hubbed && i % 2 === 0 && fills.climb !== false && camera !== 'side' && !(goal.gauntlet && last && !goal.boss);
     // the level's goal: what is collected and the health on every level, the boss at the end of the last; a horde's
     // gauntlet at the end of the last level a boss does not end (it owns the hero's hp there, so no health); held in an
     // escape room on every level neither ends
@@ -447,16 +459,18 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     const lg = goals ? (({ boss, escape, gauntlet, health, ...g }) => ({ ...g, ...(health && !held ? { health } : {}), ...(boss && last ? { boss } : held ? { gauntlet: gauntlet === 'holdout' ? { ...DEFAULT_HOLDOUT, arenas: DEFAULT_HOLDOUT.arenas.map((A) => ({ waves: A.waves.map((W) => ({ ...W })) })) } : { arenas: DEFAULT_GAUNTLET.arenas.map((A) => ({ waves: A.waves.map((W) => ({ ...W })) })) } } : escape ? { escape } : {}) }))(goals) : null;
     const lgoal = lg && Object.keys(lg).length ? { goal: lg } : {};
     // (a side camera runs a trail's lane: a side-scroller's levels stay out of doors)
-    const inside = indoors && i >= indoors.from && camera !== 'side';
+    const inside = indoors && (hubbed ? dungeoned && last : i >= indoors.from) && camera !== 'side';
     const nodes = { [`${SUFFIX[i] ?? 'stage'}-a`]: { trail: true }, [`${SUFFIX[i] ?? 'stage'}-b`]: { trail: true }, ...(climb ? { lookout: { meru: true } } : {}) };
     // (a genre's book form, genre-forms.js: its levels laid in it, a flight sim's courses; no town, no walk goal)
-    const L = hubbed && i === 0 ? { name: `${cap(landscape)} town`, walk: { nodes: { square: { trail: true } } }, places: { town: true, street: { houses: 6, enter: 2, walk: ['shop'], walls: true, inside: true } } }
+    const L = hubbed && i === 0 ? { name: `${cap(landscape)} town`, walk: { nodes: { square: { trail: true } } }, places: { town: true, street: turnBased ? { houses: 7, enter: ['shop', 'inn', 'temple'], walk: ['shop'], walls: true, inside: true } : { houses: 6, enter: 2, walk: ['shop'], walls: true, inside: true } } }
       : form ? { name: `${form.name} ${i + 1}`, ...form.level(i, n) }
+      : inside && hubbed ? { name: `The ${dungeonUse}`, building: { use: dungeonUse, kit: dungeonUse === indoors.use ? indoors.kit : ROOM_KIT_OF_USE[dungeonUse] ?? 'gothic-stone' }, ...lgoal }
+      : hubbed && i === castleAt ? { name: 'The castle', walk: { nodes }, ...lgoal, places: { castle: civIds[1] ? { civilization: civIds[1] } : true } }
       : inside ? { name: `${cap(indoors.use)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, building: { use: indoors.use, kit: indoors.kit }, ...lgoal }
       : { name: `${cap(landscape)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, walk: { nodes }, ...lgoal };
     if (i > 0 && !inside && !form && !hubbed) L.places = { town: true, ...(last || n === 1 ? { castle: civIds[1] ? { civilization: civIds[1] } : true } : {}) };
     // (round a hub, the wilds: no town of their own, the last raising its castle)
-    if (i > 0 && hubbed && last) L.places = { castle: civIds[1] ? { civilization: civIds[1] } : true };
+    if (i > 0 && hubbed && last && !castled && !dungeoned) L.places = { castle: civIds[1] ? { civilization: civIds[1] } : true };
     // the agent checks its own work: a level whose town's laws advise is laid again on the next seed
     let s = seed * 100 + i * 7 + 1, tries = 0, laws = [];
     for (; tries < 6; tries++, s++) {
@@ -466,19 +480,23 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
       if (!laws.length) break;
     }
     decided.push({ level: lid, seed: s, tries: tries + 1, laws });
-    if (i > 0) world.links.push({ from: hubbed ? hubId : `${wid}-${i}`.slice(0, 48), to: lid, kind: last && n > 2 ? 'gate' : 'road' });
+    if (i > 0) world.links.push({ from: hubbed ? hubId : `${wid}-${i}`.slice(0, 48), to: lid, kind: last && N > 2 ? 'gate' : 'road' });
   }
   if (hubbed) Object.assign(world, { topology: 'interconnected', hub: hubId, start: hubId });
+  // (a party RPG's levels carry the game's UI on mana-ui in the world's look: its folk speak in the talk box)
+  if (turnBased && world.ui === undefined) world.ui = { theme: 'world' };
   if (hubbed) world.brief.hub = hubId;
+  // (round a hub: its castle's level, its dungeon, the trades on its town's street, said as the world was laid)
+  if (hubbed && (castled || dungeoned || turnBased)) world.brief.round = { ...(castled ? { castle: `${wid}-${castleAt + 1}`.slice(0, 48) } : {}), ...(dungeoned ? { dungeon: `${wid}-${N}`.slice(0, 48) } : {}), ...(turnBased ? { trades: ['inn', 'temple'] } : {}) };
   world.brief.levels = decided;
   // what the levels are played for, and which are buildings: said only when a word decided it
   // (a genre's form: what its levels were laid as, said in the brief)
   if (form) world.brief.levelForm = { genre: genre.id, form: form.form };
-  if (goals && !form && !mapped) world.brief.goal = { ...goals, ...(goals.boss ? { boss: `${wid}-${n}`.slice(0, 48) } : {}) };
+  if (goals && !form && !mapped) world.brief.goal = { ...goals, ...(goals.boss ? { boss: `${wid}-${N}`.slice(0, 48) } : {}) };
   // what the composer filled of the genre's form: said only when it filled something
   if (Object.keys(fills).length) world.brief.form = fills;
   if (indoors && !form) {
-    world.brief.indoors = { use: indoors.use, kit: indoors.kit, levels: Object.keys(world.levels).slice(indoors.from) };
+    world.brief.indoors = hubbed ? { use: dungeonUse, kit: world.levels[`${wid}-${N}`.slice(0, 48)].building?.kit ?? indoors.kit, levels: dungeoned ? [`${wid}-${N}`.slice(0, 48)] : [] } : { use: indoors.use, kit: indoors.kit, levels: Object.keys(world.levels).slice(indoors.from) };
     // the word that named the use is read (as a cube's word is): it decides the building's use
     if (indoors.useWord) {
       const r = world.brief.read.find((x) => x.word === indoors.useWord);

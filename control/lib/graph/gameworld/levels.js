@@ -1154,7 +1154,7 @@ function seatPart(G, pilotPart, ends, lane) {
 
 // the systems' play and what a goal or the battles bring: the lists (cues, menus, parts, spots, routines) one after the
 // other, the items together, the rest the extra's (a quick goal has no systems, so its play is the extra's own, as it was)
-const PLAY_LISTS = ['cues', 'menus', 'parts', 'spots', 'routines', 'quests'];
+const PLAY_LISTS = ['cues', 'menus', 'parts', 'spots', 'routines', 'quests', 'scenes'];
 function mergePlay(base, extra) {
   if (!base) return extra;
   const out = { ...base, ...extra };
@@ -1240,7 +1240,7 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
     const asks = sceneNeeds({ scenes }), from = carryFrom && (asks.items.length || asks.done.length) ? carryFrom : null;
     // (and how each acts a script: the cast's and the hero's `actor`, playscape/ui/scene-script.js; none said, none carried)
     const actors = storyActors(G);
-    play = { ...(play ?? {}), spots: [...(play?.spots ?? []), ...spots], scenes, ...(storyCarried(G) ? { carry: STORY_SLICE } : {}), ...(from ? { carryFrom: from } : {}), ...(actors ? { actors } : {}) };
+    play = { ...(play ?? {}), spots: [...(play?.spots ?? []), ...spots], scenes: [...(play?.scenes ?? []), ...scenes], ...(storyCarried(G) ? { carry: STORY_SLICE } : {}), ...(from ? { carryFrom: from } : {}), ...(actors ? { actors } : {}) };
   }
   return { pilotPart, play };
 }

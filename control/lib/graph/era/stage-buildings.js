@@ -38,6 +38,7 @@
  * Pure: a function of the outdoor payload and the recipe. Colliders stay axis-aligned, so a building turns in
  * quarter turns.
  */
+import { TOWN_TRADES, usedAs } from './town-trades.js';
 import { assembleStageScene, planStage } from './stage.js';
 import { withProgram, PROGRAMS } from './programs.js';
 import { stageLevel } from '../structure/level.js';
@@ -272,6 +273,8 @@ const paintRaw = (kitId, repoint) => paintFor(kitId, repoint);
  * standing as the town draws them.
  */
 const USE_ORDER = ['hall', 'shop', 'workshop', 'tower', 'barn', 'dwelling'];
+// (a town's trades, era/town-trades.js: a lot kept for an inn, a temple, a smithy, its door and inside the trade's)
+export { TOWN_TRADES };
 const DOOR_USES = new Set(['dwelling', 'shop', 'tavern', 'keep', 'temple', 'crypt', 'guardhouse', 'library', 'lab']);
 const RING_ORDER = { near: 0, mid: 1, far: 2 };
 /** The lots a town's street stands, in its order (the focus, then the near ring, a counter before a dwelling), the
@@ -287,8 +290,14 @@ export function streetLots(town, kitId, seed0, solid = false) {
   // order, entered first, and the street's own order after them; a house from the next ring stands on the street)
   if (!named) return { seed, houses, enter, town: T, lots: all.slice(0, houses) };
   const picked = [];
-  for (const use of town.enter.slice(0, enter)) { const hit = all.find((x) => x.l.use === use && !picked.includes(x)); if (!hit) throw new Error(`stage: town.enter names '${use}', and the town has no ${use} left to walk into (its uses: ${[...new Set(T.lots.map((l) => l.use))].join(', ')})`); picked.push(hit); }
-  return { seed, houses, enter, town: T, lots: [...picked, ...all.filter((x) => !picked.includes(x))].slice(0, houses) };
+  for (const use of town.enter.slice(0, enter)) {
+    // (a trade stands on the first lot of the uses it may: an inn on a shop, else a house letting beds)
+    const T0 = TOWN_TRADES[use];
+    if (T0) { const hit = T0.on.map((u) => all.find((x) => x.l.use === u && !picked.includes(x))).find(Boolean); if (!hit) throw new Error(`stage: town.enter names the trade '${use}', and the town has no ${T0.on.join(' or ')} left for it (its uses: ${[...new Set(T.lots.map((l) => l.use))].join(', ')})`); picked.push(hit); hit.trade = use; continue; }
+    const hit = all.find((x) => x.l.use === use && !picked.includes(x)); if (!hit) throw new Error(`stage: town.enter names '${use}', and the town has no ${use} left to walk into (its uses: ${[...new Set(T.lots.map((l) => l.use))].join(', ')})`); picked.push(hit); }
+  // (a lot kept for a trade carries it: a copy, the designed town untouched)
+  const out = [...picked, ...all.filter((x) => !picked.includes(x))].slice(0, houses).map((x) => (x.trade ? { l: { ...x.l, trade: x.trade }, k: x.k } : { l: x.l, k: x.k }));
+  return { seed, houses, enter, town: T, lots: out };
 }
 function townStreet(town, kitId, seed0, solid = false) {
   if (!town || typeof town !== 'object') throw new Error('stage: town is { anchor?, seed?, houses?, enter?, goal?, recipe?, paint?, street? }');
@@ -305,11 +314,12 @@ function townStreet(town, kitId, seed0, solid = false) {
   // how each is entered: a household or a counter changes the scene at its door; a hall, a tower, a barn, a work floor
   // is walked into as terrain (the recipe's `doors: false` walks into all of them; `walk` names the uses that are, a
   // single room's shop part of the world while a house keeps its door)
-  return lots.map(({ l }, n) => (n < enter
-    ? (town.doors !== false && DOOR_USES.has(l.use) && !(town.walk ?? []).includes(l.use)
-      ? { id: `town-${l.use}-${n + 1}`, use: l.use, lot: l, enter: 'door', seed: seed + n, civilization: anchor }
-      : { id: `town-${l.use}-${n + 1}`, use: l.use, seed: seed + n, civilization: anchor, ...(town.goal && n === 0 ? { goal: true } : {}), ...insideLook(town, kitId, seed) })
-    : { id: `town-${l.use}-${n + 1}`, use: l.use, lot: l }));
+  // (a lot kept for a trade is named for it, `town-inn-<n>`, and entered as its program: the inn's taproom, the temple's nave)
+  return lots.map(({ l }, n) => { const as = usedAs(l), name = l.trade ?? l.use, walked = (town.walk ?? []).includes(name); return (n < enter
+    ? (town.doors !== false && DOOR_USES.has(as) && !walked
+      ? { id: `town-${name}-${n + 1}`, use: as, lot: l, enter: 'door', seed: seed + n, civilization: anchor }
+      : { id: `town-${name}-${n + 1}`, use: as, seed: seed + n, civilization: anchor, ...(town.goal && n === 0 ? { goal: true } : {}), ...insideLook(town, kitId, seed) })
+    : { id: `town-${name}-${n + 1}`, use: l.use, lot: l }); });
 }
 
 // (a town's walked-in buildings laid as a town's, `town.inside`: the vernacular register composed, its palette the

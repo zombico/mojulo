@@ -5,6 +5,7 @@ import { FLOW_IN_PLAY } from '../game/flow.js';
 import { composeMechanics } from '../game/mechanics.js';
 import { readBattle } from '../playscape/ui/battles.js';
 import { withBuildingLevel } from '../structure/level.js';
+import { assembleStageScene } from '../era/stage.js';
 
 const levelSteps = (S) => S.filter((s) => s.key.startsWith('level-'));
 // a made level's game channel as it plays (a building's is lowered from its `level` on every read)
@@ -198,4 +199,64 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     const before = levelSteps(runSteps(MEADOWMARK_HERO, { ref: 'gw' })).filter((s) => s.key.startsWith('level-shell-shore-'));
     expect(levelSteps(S).filter((s) => s.key.startsWith('level-shell-shore-')).map((s) => s.print)).toEqual(before.map((s) => s.print));
   }, 300000);
+});
+
+// a party RPG round its town: the dungeon and the castle named do not turn the world indoors; each is a level of the hub
+describe('composed: a party RPG round its town, its castle and its dungeon', () => {
+  const W = composeGameworld({ prompt: 'a medieval fantasy jrpg: a fortified town with a castle, a field with monsters, a dungeon with a boss' });
+  const ids = Object.keys(W.levels);
+
+  it('lays the town at the centre, the wilds, the castle\'s level, and the dungeon last with the boss at its end', () => {
+    expect(W.hub).toBe(ids[0]);
+    expect(W.start).toBe(ids[0]);
+    expect(W.levels[ids[0]].places.street).toMatchObject({ enter: ['shop', 'inn', 'temple'], walls: true });
+    const last = W.levels[ids[ids.length - 1]];
+    expect(last.building).toMatchObject({ use: 'crypt' });
+    expect(last.goal).toMatchObject({ boss: true });
+    expect(W.levels[W.brief.round.castle].places.castle).toBeTruthy();
+    // (every level joined to the town: a road to each, a gate to the dungeon)
+    expect(W.links.every((l) => l.from === W.hub)).toBe(true);
+    expect(W.links.find((l) => l.to === ids[ids.length - 1]).kind).toBe('gate');
+    expect(W.brief.round).toMatchObject({ dungeon: ids[ids.length - 1], trades: ['inn', 'temple'] });
+  });
+
+  it('a hub game that names neither keeps its old shape: the town, the wilds, the last raising its castle', () => {
+    const V = composeGameworld({ prompt: 'a jrpg in a green valley' }), vid = Object.keys(V.levels);
+    expect(V.hub).toBe(vid[0]);
+    expect(V.levels[vid[vid.length - 1]].places).toMatchObject({ castle: true });
+    expect(V.brief.round).toMatchObject({ trades: ['inn', 'temple'] });
+    expect(V.brief.round.castle).toBeUndefined();
+  });
+
+  it('its levels make: the town\'s street stands its inn and temple at their doors', () => {
+    const S = runSteps(W, { ref: 'gw' });
+    const town = levelSteps(S).find((s) => s.order.manifest.town);
+    expect(town.order.manifest.town.enter).toEqual(['shop', 'inn', 'temple']);
+    expect(levelSteps(S).some((s) => s.key.startsWith(`level-${ids[ids.length - 1]}`))).toBe(true);
+  });
+
+  it('its places are entered and left through the town: every level an exit from it and back, each stretch its own packs', () => {
+    const S = runSteps({ ...W, battles: { random: { every: 12, chance: 0.25 } } }, { ref: 'gw' });
+    const game = S.find((s) => s.key === 'game').order, exits = (lvl) => game.levels.find((l) => l.ref === `gw-level-${lvl}-0`).exits.map((e) => e.to);
+    for (const id of ids.slice(1)) {
+      expect(exits(W.hub)).toContain(`gw-level-${id}-0`);
+      expect(exits(id)).toContain(`gw-level-${W.hub}-0`);
+    }
+    // (the field's stretches each roll their own packs: a region's encounters are the stage's)
+    const field = levelSteps(S).filter((s) => s.key.startsWith(`level-${ids[1]}-`)).map((s) => s.order.manifest.play?.rpg?.random?.sets);
+    expect(field.every((sets) => Array.isArray(sets) && sets.length > 0)).toBe(true);
+    expect(levelSteps(S).find((s) => s.key.startsWith(`level-${W.hub}-`)).order.manifest.play?.rpg?.random).toBeUndefined();
+  });
+
+  it('the castle walked: its level stands the castle\'s ward on its trail, the keep inside its curtain entered at its door', () => {
+    const S = runSteps(W, { ref: 'gw' });
+    const m = levelSteps(S).find((s) => s.key.startsWith(`level-${W.brief.round.castle}`) && s.order.manifest.buildings).order.manifest;
+    expect(m.buildings).toEqual([expect.objectContaining({ use: 'keep', enter: 'door' })]);
+    expect(m.town).toMatchObject({ enter: 0, walls: expect.anything(), street: true });
+    const P = assembleStageScene(m);
+    const keep = P.anchors.find((a) => a.kind === 'building' && a.use === 'keep');
+    expect(keep).toMatchObject({ enter: 'door', inside: { use: 'keep' } });
+    const C = P.colliders.filter((c) => String(c.of).startsWith('town:walls')), xs = C.flatMap((c) => [c.min[0], c.max[0]]), ys = C.flatMap((c) => [c.min[1], c.max[1]]);
+    expect(keep.at[0] > Math.min(...xs) && keep.at[0] < Math.max(...xs) && keep.at[1] > Math.min(...ys) && keep.at[1] < Math.max(...ys)).toBe(true);
+  });
 });
