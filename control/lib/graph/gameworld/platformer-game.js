@@ -140,20 +140,47 @@ export function platformerFront(dimension = '2d') {
 /** The platformer templates whose first level in two dimensions is a side map (side-map/first.js), not a strip. */
 export const SIDE_MAP_POLES = Object.freeze(['galaxy-boy']);
 
+/**
+ * THE SIDE SCROLLER'S FOES: its bestiary in the hero's own design language. The ROBOTS are animals carried into the toy
+ * hero robot (the mutagen's `herobot` ooze: a helmet over a big head, ear domes, a gem, antennae, ball joints, panel
+ * seams, LED eyes, moulded plastic), each keeping its own animal's face, never a person's; the CRITTERS are the game's
+ * own (the `mascot` ooze: a big round head, big eyes, stumpy limbs, one signature piece). Each a class of the foe shelf,
+ * so it moves and hurts as its class does; the level names them in the order it teaches them (side-map/cast.js lays
+ * them on its spawners in turn).
+ */
+export const SIDE_MAP_FOES = Object.freeze({
+  // a hard-hatted runner: walks at the hero, a stomp or a pellet downs it
+  'hardhat': { class: 'walker', skin: { species: 'guineaPig', ooze: 'herobot' } },
+  // a hopping critter: met in the air as often as on the floor
+  'hopfrog': { class: 'hopper', skin: { species: 'frog', ooze: 'mascot' } },
+  // a ram: braces, then charges down the lane
+  'ram': { class: 'charger', skin: { species: 'wildBoar', ooze: 'herobot' } },
+  // a batwing: weaves overhead and swoops
+  'batwing': { class: 'swooper', skin: { species: 'fruitBat', ooze: 'herobot' } },
+  // a shell gun: never moves, turns and fires
+  'shellgun': { class: 'turret', skin: { species: 'tortoise', ooze: 'herobot' } },
+  // a spiky critter: paces its floor
+  'prickle': { class: 'walker', skin: { species: 'hedgehog', ooze: 'mascot' } },
+});
+/** The first level's foes, in the order it meets them (its `meet` zone's two, then its gauntlet's four). */
+export const SIDE_MAP_FIRST_FOES = Object.freeze(['hardhat', 'hopfrog', 'ram', 'batwing', 'shellgun', 'prickle']);
+
 /** The rail's game in a dimension: the words to write on a gameworld (see the header). */
 export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id, name, seed, kit, boss = false, camera } = {}) {
   const D = PLATFORMER_DIMENSIONS[readDimension(dimension)];
   if (!POLES[pole] || POLES[pole].base !== 'platformer') throw new Error(`platformer: '${pole}' is not a platformer's template (${Object.keys(POLES).filter((p) => POLES[p].base === 'platformer').join(', ')})`);
   if (D.poles && !D.poles.includes(pole)) throw new Error(`platformer: ${POLES[pole].name} is played in 2d (${D.after} is ${D.poles.map((p) => POLES[p].name).join(', ')}'s)`);
   if (camera !== undefined && !D.cameras.includes(camera)) throw new Error(`platformer: a ${dimension} game is played through ${D.cameras.join(' | ')} (not '${camera}')`);
-  const level = id ?? D.level, flow = platformerFlow(dimension), front = platformerFront(dimension);
+  const level = id ?? D.level, flow = platformerFlow(dimension), front = platformerFront(dimension), sideMap = SIDE_MAP_POLES.includes(pole) && D === PLATFORMER_DIMENSIONS['2d'];
   const words = {
     feel: { pole, takes: true },
     camera: camera ?? D.camera,
     mechanics: { lives: 3, coins: true, legend: 'menu' },
     // (the run and gun's first level is a SIDE MAP, side-map/first.js: its zones, climbs and boss's room seen from the
     // side; the mascot platformer's the strip of trails it always was)
-    levels: { [level]: SIDE_MAP_POLES.includes(pole) && D === PLATFORMER_DIMENSIONS['2d'] ? { ...(name ? { name } : {}), ...(seed !== undefined ? { seed } : {}), sidemap: firstSideMap() } : firstLevel({ name, seed, kit, boss, dimension }) },
+    levels: { [level]: sideMap ? { ...(name ? { name } : {}), ...(seed !== undefined ? { seed } : {}), sidemap: firstSideMap(), foes: { from: [...SIDE_MAP_FIRST_FOES] } } : firstLevel({ name, seed, kit, boss, dimension }) },
+    // (a side map's foes: the side scroller's bestiary)
+    ...(sideMap ? { foes: structuredClone({ ...SIDE_MAP_FOES }) } : {}),
     // (made for a screen on its side: a lane is read across its width, a chase camera needs it; game/screen.js)
     screen: 'screen',
     style: { geocube: PLATFORMER_CUBE },

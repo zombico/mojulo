@@ -8,11 +8,12 @@
  *   a chimney  the next stand (a rest, then the way out over the far wall's top): kicked up the wall across from it, kick
  *              after kick, until the feet are over it, then over onto it. Each kick counted; the least the feet stood
  *              over the rising frame's bottom is the climb's MARGIN
+ *   a foe      ahead on its floor within FOE_AHEAD m (cast.js): fired at, a tap every FOE_TAP frames; hopped when it reaches it
  *   a ladder   walked to, held up to its top
  *   a drop     walked off (a cascade's steps, a chute)
  *   a room     crossed to its far wall: the end
  *
- *   playSideMap(layout, reach, { stature, seconds?, trace?, drive? }) → { done, time, falls, climbs: [{ zone, climb, kicks, margin,
+ *   playSideMap(layout, reach, { stature, seconds?, trace?, drive? }) → { done, time, falls, downed, climbs: [{ zone, climb, kicks, margin,
  *                time }], at }   done: the hero stood in the last zone at its far side within `seconds` (240)
  *
  * Deterministic: a fixed step, the same map plays the same way.
@@ -21,7 +22,7 @@ import { createWorld, stepWorld } from '../../worlds/controllable-world.js';
 import { groundOf } from '../../playscape/terrain.js';
 import { sideMapPlay } from './play.js';
 
-const DT60 = 1 / 60, LIP = 0.35, DASH_LEAD = 5;
+const DT60 = 1 / 60, LIP = 0.35, DASH_LEAD = 5, FOE_AHEAD = 9, FOE_TAP = 8;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 /** A laid map played to its end by the bot, on the rule its game ships (`reach.rule`). */
@@ -97,6 +98,14 @@ export function playSideMap(layout, reach, { stature = 1.7, seconds = 240, trace
       // (a crate in the way, crates.js, hopped as a step is, while it stands)
       ?? (L.crates ?? []).find((c) => c.s0 >= s - 0.05 && c.s0 - s < LIP + 0.45 && Math.abs(c.z0 - z) < 0.3 && !(w.breakables || []).some((b) => b.id === c.id && b.broken));
     if (st && h.grounded && !input.jump) input.jump = true;
+    // a FOE ahead (cast.js): shot at, tap after tap, while one stands within a screen's half on its floor; one that reaches
+    // it hopped (a stomp, or over it)
+    const foe = (w.entities || []).filter((e) => e.team === 'foes' && !e.gone && !e.downed && !e.dormant && e.transform)
+      .map((e) => ({ e, d: e.transform.pos[1] - s, dz: e.transform.pos[2] - z })).filter((x) => x.d > -0.3 && x.d < FOE_AHEAD && Math.abs(x.dz) < 2.5).sort((a, b) => a.d - b.d)[0];
+    if (foe) {
+      input.fire = (f % FOE_TAP) < FOE_TAP / 2;
+      if (foe.d < 1.4 && h.grounded && !input.jump) input.jump = true;
+    }
     if (!h.grounded && dashAt !== null) input.boost = true;
     if (h.grounded && !input.boost) dashAt = null;
     // an air dash at the apex of a jump over the gap that teaches it
@@ -105,5 +114,6 @@ export function playSideMap(layout, reach, { stature = 1.7, seconds = 240, trace
     press(input);
   }
   for (const c of climbs) if (c.t0 !== null && c.time === null) c.time = r3(w.time - c.t0);
-  return { done, time: r3(w.time), falls: w.sideFalls || 0, climbs: climbs.map((c) => ({ zone: c.zone, climb: c.climb, kicks: c.kicks, margin: c.margin === Infinity ? null : r3(c.margin), time: c.time })), at: h.transform.pos.map(r3) };
+  const downed = (w.entities || []).filter((e) => e.team === 'foes' && (e.gone || e.downed || (e.body && e.body.hp <= 0))).length;
+  return { done, time: r3(w.time), falls: w.sideFalls || 0, downed, climbs: climbs.map((c) => ({ zone: c.zone, climb: c.climb, kicks: c.kicks, margin: c.margin === Infinity ? null : r3(c.margin), time: c.time })), at: h.transform.pos.map(r3) };
 }

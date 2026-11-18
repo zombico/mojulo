@@ -13,7 +13,7 @@ const galaxy = () => ({ id: 'gb', name: 'Galaxy Boy', ...platformerGame({ pole: 
 
 describe('a side map level', () => {
   it('the rail writes the run and gun\'s first level as a side map, the mascot platformer\'s as its strip', () => {
-    expect(Object.keys(galaxy().levels.first)).toEqual(['sidemap']);
+    expect(Object.keys(galaxy().levels.first)).toEqual(['sidemap', 'foes']);
     expect(platformerGame({ pole: 'jumping-giuseppe' }).words.levels.first.course).toBeDefined();
   });
   it('a world refuses a side map with no side camera, or beside another level form', () => {

@@ -638,7 +638,8 @@ export function readGameworld(W) {
     if (L.foes !== undefined) {
       if (quickGame) throw new Error(`gameworld: ${at}.foes: a quick game's foes are its goal's (quick.foe)`);
       // (a glyph map's: on its walk's beats, or where its approved sketch marks its fights: gameworld/foes.js)
-      if (L.walk === undefined && L.glyphs === undefined && (L.building === undefined || L.building?.ref !== undefined)) throw new Error(`gameworld: ${at}.foes stand on a walk's trails, a glyph map or a building's rooms (a building made by ref, a city, a road or a run takes none yet)`);
+      // (and on a side map's spawners and runs: side-map/cast.js)
+      if (L.walk === undefined && L.glyphs === undefined && L.sidemap === undefined && (L.building === undefined || L.building?.ref !== undefined)) throw new Error(`gameworld: ${at}.foes stand on a walk's trails, a glyph map, a side map or a building's rooms (a building made by ref, a city, a road or a run takes none yet)`);
       readLevelFoes(L.foes, foes, at);
     }
     // a match's arena in words (tunnel-arena.js), or { words, spawns }: laid where the world's cube asks for one
@@ -653,7 +654,8 @@ export function readGameworld(W) {
     if (L.sidemap !== undefined) {
       // a SIDE MAP level (side-map/zones.js): a traditional side-scroller's level as the camera's path, a chain of camera
       // zones laid in the hero's screens and reach, built as the geocube's `show: 'sidemap'`; the map is the whole level
-      const other = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'geocity', 'glyphs', 'places', 'ground', 'arena', 'course', 'obstacles', 'street', 'foes'].filter((k) => L[k] !== undefined);
+      const other = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'geocity', 'glyphs', 'places', 'ground', 'arena', 'course', 'obstacles', 'street'].filter((k) => L[k] !== undefined);
+      // (its foes beside it: stood on its spawners and its runs, side-map/cast.js)
       if (other.length) throw new Error(`gameworld: ${at}: a side map level is the map alone: no ${other.join(', ')} beside it`);
       if (W.camera !== 'side') throw new Error(`gameworld: ${at}.sidemap is seen from the side: set camera: 'side' (the side map's camera holds its zones)`);
       try { readSideMap(L.sidemap); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^side map:\s*sidemap\.?/, 'sidemap.').replace(/^side map:\s*/, '')}`); }

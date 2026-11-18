@@ -203,6 +203,13 @@ or its drop, its place and its fill, read and refused with teaching), keyed as `
 A game's level is `levels.<id>.sidemap` (`control/lib/graph/gameworld/side-map/level.js`); the run and gun's first is
 `side-map/first.js`, and `side-map/bot.js` plays a laid map to its end on the shipped rule, saying what it took.
 
+Its foes are the level's `foes` beside its `sidemap`, one at each spawner, in the order the level names them, held to the
+lane as a side strip's are (`control/lib/graph/gameworld/side-map/cast.js`). They stand at a game's scale, never under
+0.6 of the hero, so a round fired level meets them. The run and gun's bestiary is written in the hero's own design
+language (`SIDE_MAP_FOES` in `control/lib/graph/gameworld/platformer-game.js`). Its robots are animals carried into the
+toy hero robot by the herobot ooze, each keeping its own animal's face, never a person's. Its critters are the game's own,
+made by the mascot ooze. The foes are drawn in the hero's cel light.
+
 The hero's body sets the screen. Galaxy Boy's is the toy hero robot's (`proportions: 'herobot'`, about four and a half
 heads, adult-limbed): a game body of its own, too real for a mascot's.
 
@@ -219,6 +226,6 @@ The eyes gate is the operator's: the map read as a drawing, the level played on 
 
 ## Not yet
 
-Things that move beside the way (the benchmark says them missing), the boss's fight in
+Things that move beside the way (the benchmark says them missing), a hit costing health and not a life, the boss's fight in
 its room, the hero's climb clip seen from behind. After them: a metroidvania (the zones as rooms on a grid, doors gated by powers, the map
 shown in the game), and the 3D platformer's courses told the same way.
