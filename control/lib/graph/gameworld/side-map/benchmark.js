@@ -18,6 +18,8 @@
  *                    recedes   each layer back quieter: the closed parts' contrast over the back's, the backdrop's
  *                    lamps     lights with a source in an indoor run's frame
  *                    boss      the boss's mark on its room's back wall
+ *                    light     a lamp's falloff on the back, a ledge's shadow (a closed face darker under its lip), the
+ *                              lane lit a step over the back, a climb's frame lighter at its top (light.js)
  *                    fore      a foreground under the feet (not built: said, never claimed)
  *                    moving    something moving beside the way (the map moves nothing yet: said)
  *
@@ -32,7 +34,7 @@
 import { srgbToLab } from '../../scene/visual-gate.js';
 
 export const ROLE_COLOURS = Object.freeze({ top: '#ffffff', closed: '#3060ff', back: '#00ff00', hills: '#ffff00', range: '#808000', play: '#ff00ff', lamp: '#00ffff', boss: '#ff8000', hero: '#ff0000', sky: '#000000' });
-const SLIVER = 0.003, ROLES = Object.keys(ROLE_COLOURS), RGB = ROLES.map((k) => [1, 3, 5].map((i) => parseInt(ROLE_COLOURS[k].slice(i, i + 2), 16)));
+const SLIVER = 0.003, LAMP_WHOLE = 600, ROLES = Object.keys(ROLE_COLOURS), RGB = ROLES.map((k) => [1, 3, 5].map((i) => parseInt(ROLE_COLOURS[k].slice(i, i + 2), 16)));
 /** The role a face of the side map's build plays, by its group. */
 export function roleOf(group = '') {
   const g = String(group).replace(/^sidemap:/, '');
@@ -59,16 +61,16 @@ export function benchmarkShots(layout, dress) {
   if (run) {
     const want = run.rect[0] + W * 0.6, F = L.solids.filter((r) => r.zone === run.i && r.role === 'floor' && r.s1 - r.s0 > 1).sort((a, b) => Math.abs((a.s0 + a.s1) / 2 - want) - Math.abs((b.s0 + b.s1) / 2 - want))[0];
     const s = F ? clamp(want, F.s0 + 0.5, F.s1 - 0.5) : want, z = topAt(run.i, s);
-    out.push({ name: 'run', zone: run.i, hero: [s, z], pose: frame(run, s, z) });
+    out.push({ name: 'run', zone: run.i, hero: [s, z], screenH: H, pose: frame(run, s, z) });
   }
   const up = L.zones.find((Z) => Z.run === 'up');
   if (up) {
     const R = L.rests.filter((r) => r.zone === up.i), mid = R[Math.floor(R.length / 2)];
     const at = mid ? [(mid.s0 + mid.s1) / 2, mid.z] : [(up.rect[0] + up.rect[1]) / 2, (up.rect[2] + up.rect[3]) / 2];
-    out.push({ name: 'climb', zone: up.i, hero: at, pose: frame(up, at[0], at[1]) });
+    out.push({ name: 'climb', zone: up.i, hero: at, screenH: H, pose: frame(up, at[0], at[1]) });
   }
   const room = L.zones.find((Z) => Z.kind === 'room' && Z.teach === 'boss') ?? L.zones.find((Z) => Z.kind === 'room');
-  if (room) { const s = (room.rect[0] + room.rect[1]) / 2, z = room.exit[1]; out.push({ name: 'boss', zone: room.i, hero: [s, z], pose: frame(room, s, z) }); }
+  if (room) { const s = (room.rect[0] + room.rect[1]) / 2, z = room.exit[1]; out.push({ name: 'boss', zone: room.i, hero: [s, z], screenH: H, pose: frame(room, s, z) }); }
   return out;
 }
 
@@ -76,7 +78,7 @@ export function benchmarkShots(layout, dress) {
 export function rolePayload(payload, shot, stature) {
   const [s, z] = shot.hero, w = 0.35 * stature;
   const hero = { corners: [[0.6, s - w / 2, z], [0.6, s + w / 2, z], [0.6, s + w / 2, z + stature], [0.6, s - w / 2, z + stature]], normal: [1, 0, 0], fill: ROLE_COLOURS.hero, group: 'sidemap:hero' };
-  return { ...payload, bg: ROLE_COLOURS.sky, sky: null, haze: null, ao: null, faces: [...payload.faces.map((f) => ({ ...f, fill: ROLE_COLOURS[roleOf(f.group)] })), hero] };
+  return { ...payload, bg: ROLE_COLOURS.sky, sky: null, haze: null, ao: null, faces: [...payload.faces.map(({ cornerFills: _c, ...f }) => ({ ...f, fill: ROLE_COLOURS[roleOf(f.group)] })), hero] };
 }
 
 const nearest = (r, g, b) => { let k = 0, d = Infinity; RGB.forEach((c, i) => { const e = (c[0] - r) ** 2 + (c[1] - g) ** 2 + (c[2] - b) ** 2; if (e < d) { d = e; k = i; } }); return ROLES[k]; };
@@ -115,8 +117,42 @@ export function measureShot({ page, roles }, shot) {
     // (a lamp and the boss's mark are small things by design: counted whole, past a few dozen pixels)
     lamps: count('lamp'), boss: count('boss'),
     shares: Object.fromEntries(ROLES.map((k) => [k, r2(of(k).length / n)])),
+    light: lightOf({ W, H, n, role, L, of, screenH: shot.screenH ?? 13.36 }),
     fore: false, moving: false,
   };
+}
+
+// the light, read on the page by role: the back near a lamp against far from one, a closed face just under its lip against
+// lower down, the lane's layer against the back, and the frame's top third of back against its foot's
+function lightOf({ W, H, n, role, L, of, screenH }) {
+  const mean = (ix) => (ix.length ? ix.reduce((m, i) => m + L[i], 0) / ix.length : null);
+  const lamps = [], back = of('back');
+  for (let i = 0; i < n; i += 3) if (role[i] === 'lamp') lamps.push(i);
+  let lamp = null;
+  // (a lamp's own pool in the frame: a whole lamp's pixels, not a neighbour's corner at its edge)
+  if (lamps.length * 3 >= LAMP_WHOLE && back.length) {
+    const near = [], far = [], dNear = 0.06 * W, dFar = 0.22 * W;
+    for (const i of back) { const x = i % W, y = (i - x) / W; let d = Infinity; for (const j of lamps) { const dx = (j % W) - x, dy = ((j - (j % W)) / W) - y; d = Math.min(d, dx * dx + dy * dy); } d = Math.sqrt(d); if (d < dNear) near.push(i); else if (d > dFar) far.push(i); }
+    const a = mean(near), b = mean(far);
+    lamp = a !== null && b !== null ? r2(a - b) : null;
+  }
+  // (each column: closed pixels a hand under a top, past its lit edge and a built fill's trim (0.45 to 0.9 m), against those
+  // a body's height under it (1.3 to 2 m), where the column stays closed; in screen rows at the frame's own metres)
+  const lipNear = [], lipFar = [];
+  const m = H / screenH, a0 = Math.round(0.45 * m), a1 = Math.round(0.9 * m), b0 = Math.round(1.3 * m), b1 = Math.round(2 * m);
+  for (let x = 0; x < W; x += 4) for (let y = 1; y < H - b1 - 1; y++) {
+    const i = y * W + x;
+    if (role[i] !== 'top' || role[i + W] === 'top') continue;
+    let ok = true; for (let k = 2; k <= b1 && ok; k++) ok = role[i + k * W] === 'closed' || (k < a0 && role[i + k * W] === 'top');
+    if (!ok) continue;
+    for (let k = a0; k <= a1; k++) lipNear.push(i + k * W);
+    for (let k = b0; k <= b1; k++) lipFar.push(i + k * W);
+  }
+  const lip = lipNear.length ? r2(mean(lipFar) - mean(lipNear)) : null;
+  const closed = of('closed'), laneOverBack = closed.length && back.length ? r2(mean(closed) - mean(back)) : null;
+  const third = (lo, hi) => back.filter((i) => { const y = Math.floor(i / W); return y >= lo * H && y < hi * H; });
+  const t = mean(third(0, 1 / 3)), f = mean(third(2 / 3, 1)), topOverFoot = t !== null && f !== null ? r2(t - f) : null;
+  return { lamp, lip, laneOverBack, topOverFoot };
 }
 
 /** The benchmark's laws over the shots' measures: advisory, each against its principle. */
@@ -134,6 +170,12 @@ export function benchmarkLaws(measures) {
     if (R.closed !== null && back.length) law('recedes', M.shot, back.every((v) => R.closed >= v), `contrast ${R.closed} in the lane's layer, ${back.join(', ')} behind it`);
     if (M.shot === 'run' && M.shares.back > 0) law('lamps', M.shot, M.lamps > 0, M.lamps ? `${M.lamps} px of lamps: light with a source` : 'no lamp in an indoor run\'s frame');
     if (M.shot === 'boss') law('boss-mark', M.shot, M.boss > 0, M.boss ? 'the boss\'s mark on its room\'s back wall' : 'no mark of the boss\'s in its room');
+    const G = M.light ?? {};
+    if (G.lamp !== null && G.lamp !== undefined) law('lamp-falloff', M.shot, G.lamp >= 5, `the back ${G.lamp} L* lighter near a lamp than far from it (its light falls off: 5 or more)`);
+    // (a climb's own light rises up its frame: under a lip there is read against it, so the climb's shot does not say)
+    if (M.shot !== 'climb' && G.lip !== null && G.lip !== undefined) law('ledge-shadow', M.shot, G.lip >= 1.5, `a closed face ${G.lip} L* darker just under its lip than lower down (contact: 1.5 or more)`);
+    if (M.shares.back > 0.05 && G.laneOverBack !== null && G.laneOverBack !== undefined) law('lane-lit', M.shot, G.laneOverBack >= 10, `the lane's layer ${G.laneOverBack} L* over the back (a step: 10 or more)`);
+    if (M.shot === 'climb' && G.topOverFoot !== null && G.topOverFoot !== undefined) law('light-at-the-top', M.shot, G.topOverFoot >= 3, `the shaft's back ${G.topOverFoot} L* lighter at the frame's top than at its foot (the way up a patch of light: 3 or more)`);
     law('foreground', M.shot, M.fore, 'no foreground under the feet: the map builds none yet');
     law('moving', M.shot, M.moving, 'nothing moves beside the way: the map animates nothing yet');
   }

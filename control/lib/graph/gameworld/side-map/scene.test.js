@@ -15,13 +15,14 @@ describe('the side map built', () => {
     expect(JSON.stringify(assembleSideMap(M()))).toBe(JSON.stringify(assembleSideMap(M())));
   });
   it('every closed part has its face in its zone\'s family and its top a lit edge', () => {
-    const p = assembleSideMap(M()), { layout } = p.sidemap;
+    // (counted on the flat build: lit, each face is cut into cells for its light, light.test.js)
+    const p = assembleSideMap(M({ light: 'flat' })), { layout } = p.sidemap;
     const fronts = p.faces.filter((f) => f.group.startsWith('sidemap:') && ['rock', 'built', 'machine', 'padded'].includes(f.group.slice(8)) && f.normal[0] === 1);
     expect(fronts.length).toBe(layout.solids.length);
     expect(p.faces.filter((f) => f.group === 'sidemap:edge' && f.normal[2] === 1)).toHaveLength(layout.solids.length);
   });
   it('an indoor zone has its back wall; an outdoor one the sky', () => {
-    const inside = assembleSideMap(M()), out = assembleSideMap(M({ sidemap: chain('up the volcano') }));
+    const inside = assembleSideMap(M({ light: 'flat' })), out = assembleSideMap(M({ sidemap: chain('up the volcano'), light: 'flat' }));
     expect(inside.faces.some((f) => f.group === 'sidemap:back')).toBe(true);
     const D = out.sidemap.dress, outdoor = D.zones.filter((z) => !z.indoor).map((z) => z.zone);
     expect(outdoor.length).toBeGreaterThan(0);

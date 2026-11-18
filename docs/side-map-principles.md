@@ -122,6 +122,8 @@ edges and breaks, the threads), which also stands an outdoor zone's backdrop at 
 27. **Play and place are opposite hues.** What the hero stands on, fights and climbs is on one side of the colour wheel
     and the place on the other. A stage picks which way round.
 28. **Something moves beside the way**, and light comes from sources that are seen: a lamp, a furnace, a window.
+    The light is `control/lib/graph/gameworld/side-map/light.js`: an indoor zone lit by its lamps (each with its falloff
+    and bounce), an outdoor zone by the cube's sky and sun, a ledge's shadow, a climb's top lit, baked per corner.
 29. **A place a zone, and the turn tells the story.** Each zone is one place in one material (the gate, the tunnel,
     the factory floor, the shaft, the gallery), and their order is the stage's story.
 30. **The boss owns its room.** Its colour is used nowhere before it; its room is one screen, its walls the frame's

@@ -11,7 +11,10 @@
  *                      pillars and seams, a lamp an A bay, a hatch at each spawner, the next place's key at the edge,
  *                      a shaft's railings, a chute's stripes, the boss's mark; an outdoor zone's back is the cube's sky
  *   the PLAY           shutters, ladders and pickups in the play's colour, on the other side of the wheel from the place
- *   the LIGHT          the cube's outside card (its key colour, ambient and sky), the key from behind the camera
+ *   the LIGHT          lit (`light: 'lit'`, the default: light.js): each face's colour its base, lit per corner by its
+ *                      zone's lamps or the cube's sun and sky, contact under tops, a climb's light at its top; flat
+ *                      (`light: 'flat'`): the cube's outside card (its key colour and ambient), one key from behind the
+ *                      camera baked into each face's colour, as it was
  *
  *   SIDE_MAP_SCENE_KEYS   the manifest's words
  *   SIDE_MAP_STATURE      the hero a map is laid for when its manifest names none: the toy hero robot's height (Galaxy Boy)
@@ -33,8 +36,11 @@ import { layoutSideMap } from './layout.js';
 import { dressSideMap } from './dress.js';
 import { sideMapLaws } from './laws.js';
 import { paintSideMap, backdropOf } from './paint.js';
+import { lightSideMap } from './light.js';
 
-export const SIDE_MAP_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed', 'sidemap', 'feel', 'stature', 'title', 'viewBox']);
+export const SIDE_MAP_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed', 'sidemap', 'feel', 'stature', 'light', 'title', 'viewBox']);
+/** How the map is lit: 'lit' (light.js: lamps, the cube's sun and sky, contact, a climb's light) or 'flat' (one baked key). */
+export const SIDE_MAP_LIGHTS = Object.freeze(['lit', 'flat']);
 export const SIDE_MAP_STATURE = 1.67;
 const HALF = 1.5, BACK = -3, LIT = 0.14, DOOR_W = 0.6;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -49,7 +55,8 @@ export function readSideMapScene(m) {
   if (m.stature !== undefined && !(Number.isFinite(m.stature) && m.stature > 0.3 && m.stature < 5)) no('stature is the hero\'s height in metres (the screen is sized from it)');
   if (m.seed !== undefined && !Number.isInteger(m.seed)) no('seed is an integer');
   const feel = readFeel(m.feel === undefined ? { pole: 'galaxy-boy', takes: true } : typeof m.feel === 'string' ? { pole: m.feel, takes: true } : m.feel);
-  return { map: m.sidemap, read: map, cube: readGeocube(m.cube ?? SIDE_CUBE), seed: m.seed ?? 1, reach: reachOf(feel), stature: m.stature ?? SIDE_MAP_STATURE };
+  if (m.light !== undefined && !SIDE_MAP_LIGHTS.includes(m.light)) no(`light is ${SIDE_MAP_LIGHTS.join(' | ')} (its lamps, sun and sky, or one baked key)`);
+  return { map: m.sidemap, read: map, cube: readGeocube(m.cube ?? SIDE_CUBE), seed: m.seed ?? 1, reach: reachOf(feel), stature: m.stature ?? SIDE_MAP_STATURE, light: m.light ?? 'lit' };
 }
 
 /** The map as data: laid, dressed in the cube's hue, held to its laws. */
@@ -57,7 +64,7 @@ export function sideMapOf(m) {
   // (a played level's manifest carries its pilot, camera and game beside the scene's words: read the scene's only)
   const R = readSideMapScene(Object.fromEntries(Object.entries(m).filter(([k]) => SIDE_MAP_SCENE_KEYS.includes(k)))), layout = layoutSideMap(R.map, { reach: R.reach, stature: R.stature });
   const dress = dressSideMap(layout, R.map, { seed: R.seed, cube: R.cube }), paint = paintSideMap(layout, dress, { seed: R.seed });
-  return { layout, dress, paint, laws: sideMapLaws(layout, R.reach, { dress, paint }), reach: R.reach, stature: R.stature, cube: R.cube };
+  return { layout, dress, paint, laws: sideMapLaws(layout, R.reach, { dress, paint }), reach: R.reach, stature: R.stature, cube: R.cube, light: R.light };
 }
 
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -83,7 +90,9 @@ function lightOf(cube) {
 
 /** The `geocube` kind's `show: 'sidemap'`. */
 export function assembleSideMap(m, ctx = {}) {
-  const D0 = sideMapOf(m), { layout: L, dress: D } = D0, { st, lit } = lightOf(D0.cube), faces = [];
+  const D0 = sideMapOf(m), { layout: L, dress: D } = D0, flat = D0.light === 'flat', L0 = lightOf(D0.cube), st = L0.st, faces = [];
+  // (lit, the faces are built in their own colours, each a base the light pass multiplies: light.js; flat, as it was)
+  const lit = flat ? L0.lit : (hex, n, k = 1) => (k === 1 ? hex : rgbHex(hexRgb(hex).map((v) => Math.min(1, v * k))));
   const Z = D.zones, play = D.palette.play;
   // the back: an indoor zone's wall in its void, behind everything the camera sees of it
   // (widened by what a frame sees at the wall's depth past the lane's: the camera's perspective shows more of it)
@@ -139,7 +148,7 @@ export function assembleSideMap(m, ctx = {}) {
   const C = L.camera, cp = L.checkpoints[0]?.at ?? [0, 0], hfov = (2 * Math.atan(Math.tan((C.vfov * Math.PI) / 360) * (L.screen.width / L.screen.height)) * 180) / Math.PI;
   const s0 = cp[0] + L.screen.width / 2 - 2, look = cp[1] + C.lookH, sky = st.palette.sky;
   const payload = {
-    faces,
+    faces: flat ? faces : lightSideMap(faces, L, D, D0.cube),
     lights: [],
     cameras: [{ name: 'side-map', worldFraming: { cameraPosition: [r5(C.dist), r5(s0), r5(look + C.dist * C.tilt)], lookAt: [0, r5(s0), r5(look)], horizontalFov: r5(hfov) } }],
     viewBox: m.viewBox || { width: 1280, height: 720 },

@@ -1,8 +1,8 @@
 ### The traditional side-scroller map: a level as the camera's path, Galaxy Boy's first
 
 Built through its render benchmark: the principles, the strip's seams, Galaxy Boy's game body, the side map from its
-words to a game's level its bot plays, and the benchmark that measures its frames. Not yet: a foreground and things that
-move beside the way, the boss's fight in its room, the hero's climb seen from behind, a metroidvania's rooms on a grid.
+words to a game's level its bot plays, and the benchmark that measures its frames. Lit by its lamps and the cube's sky. Not yet: a foreground and things that
+move beside the way, the hero under the cast rig, the boss's fight in its room, the hero's climb seen from behind, a metroidvania's rooms on a grid.
 
 - **The principles, written first** (`docs/side-map-principles.md`): the map as the camera's path, the screen as a
   measure, teaching by stakes, going up earned, falls and ladders, the closed parts painted, the look, and who makes it
@@ -160,9 +160,15 @@ move beside the way, the boss's fight in its room, the hero's climb seen from be
   volcano stage every law the map builds holds. Measured, the look was mended: an outdoor zone's hills and range no
   longer stand over the next zone's at one depth (they flickered), and a shaft's climbing rails are a guide behind the
   lane, quieter than it.
-- **The light** (planned): the map lit as the gen-7 form render lights a room and a town, baked per corner so the page
-  stays as cheap: an indoor zone by its lamps (each lamp a light with its falloff, the bays read in light), an outdoor
-  zone by the cube's sun and sky, a ledge's shadow on the wall under it, light at the top of every climb, the boss's
-  room in its own light, the hero under the cast rig; the benchmark measures it (a lamp's falloff, a ledge's shadow, the
-  lane lit over the back). Today it is one baked key from behind the camera and the cube's ambient: the lamps light
-  nothing.
+- **The light** (`gameworld/side-map/light.js`, the default; `light: 'flat'` keeps the one baked key it was): the map lit
+  per corner and baked as the page's vertex colours, so the page draws it as cheaply. Each face's colour is its base. An
+  indoor zone is lit by a quiet ambient, the camera's fill on the lane alone (the lane the lit layer, the back a step
+  down) and each of the dress's lamps with the house's falloff (`form/room-light.js`) and its bounce, so an A bay glows
+  and a B bay falls to its shade; an outdoor zone by the cube's sky and sun (`era/cube-light.js`), the sun from the side
+  map's key. A closed face darkens under its own lip and the back wall under a top over it; a climb's top screen takes
+  the next zone's light and a chute darkens as it drops; the zones leading to the boss take its colour in their light.
+  What gives light (the lamps, the boss's emblem, the far layers) is left as it is. Large faces are cut into cells two
+  and a half metres across for a lamp's pool to fall over (the first level about three times the flat build's faces).
+  The benchmark measures it: a lamp's falloff on the back, a ledge's shadow, the lane lit a step over the back, a climb's
+  frame lighter at its top; on Galaxy Boy's first level and the volcano stage every one holds lit and the flat build
+  loses the falloff, the shadow and the climb's light. Not yet: the hero under the cast rig on a side map's page.

@@ -1,0 +1,129 @@
+/**
+ * THE SIDE MAP'S LIGHT (docs/side-map-principles.md "The look": light from sources that are seen; the benchmark measures
+ * it): the built map's faces lit per corner, baked as the page's vertex colours (`cornerFills`, figures/face-mesh.js), so
+ * the page draws it as cheaply as the flat build. Each face's colour is its BASE (the colour the dress gave it); the light
+ * at each corner multiplies it, in linear light.
+ *
+ *   an INDOOR zone   a quiet ambient; the camera's fill on the lane only (what stands at the lane's plane and in front of
+ *                    it), so the lane is the lit layer and the back a step down; each LAMP of the dress (an A bay's, at its
+ *                    seam, near the top) a light with the house's falloff (form/room-light.js `falloff`, its radius a share
+ *                    of the screen) and its bounce, so an A bay glows and a B bay falls to its shade between lamps
+ *   an OUTDOOR zone  the cube's sky and sun (era/cube-light.js `cubeLight`): the sky by how much a face looks up, the sun by
+ *                    its cosine, its direction the side map's key (from behind the camera, above: the cube's own azimuth
+ *                    would light faces the camera never sees)
+ *   CONTACT          a closed face darkens under its own lip, and the back wall under a ledge, a rest or a top above it
+ *   a CLIMB          the next zone's light carried down a shaft's top screen: the goal of a climb is a patch of light
+ *   a CHUTE          darker as it drops
+ *   the BOSS         the zones that lead to its room take its colour in their light, by the dress's share
+ *   what GIVES light a lamp, the boss's emblem, the backdrop's far layers: as they are, never lit
+ *
+ *   SIDE_MAP_LIGHT   the light's measures
+ *   lightSideMap(faces, layout, dress, cube) → the faces, the large ones cut into cells (a lamp's pool needs corners to
+ *                    fall across), each with `cornerFills` and its `fill` their mean
+ *
+ * Pure and deterministic.
+ */
+import { falloff, ROOM_LIGHT } from '../../form/room-light.js';
+import { decodeSrgb, encodeSrgb } from '../../color-theorist/light.js';
+import { cubeLight } from '../../era/cube-light.js';
+import { SIDE } from '../../era/geocube-side.js';
+
+export const SIDE_MAP_LIGHT = Object.freeze({
+  cell: 2.5,                 // m: a face larger than this is cut into cells this size (a lamp's pool is four of them)
+  ambient: 0.4, fill: 0.6,   // indoors: the ambient, and the camera's fill on the lane (a lane face square to it: 1)
+  back: 0.45,                // indoors: the back wall's ambient (no fill reaches it)
+  lamp: 2.2, radius: 0.42,   // a lamp's light at the reference distance, its radius a share of the screen's width
+  warm: '#ffd9a8',           // a lamp's light, half its zone's edge colour
+  lip: 0.4, lipH: 1.2,       // a closed face darkened by this under its own lip, over this many metres
+  contact: 0.4, under: 1.6,  // the back wall darkened by this under a top, over this many metres below it
+  top: 1.2,                  // a climb's top screen: the next zone's light, rising to this at its top
+  chute: 0.45,               // a chute darker by this at its foot
+  boss: 0.25,                // the boss's colour in the light of its lead-in, at a whole share
+});
+const KEEP = new Set(['sidemap:lamp', 'sidemap:emblem', 'sidemap:hills', 'sidemap:range']);
+const CLOSED = (g) => /^sidemap:(rock|built|machine|padded|paint-)/.test(g);
+const lin = (h) => [1, 3, 5].map((i) => decodeSrgb(parseInt(h.slice(i, i + 2), 16) / 255));
+const hexOf = (c) => `#${c.map((v) => Math.round(encodeSrgb(Math.min(1, Math.max(0, v))) * 255).toString(16).padStart(2, '0')).join('')}`;
+const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+const unit = (c) => { const y = lum(c) || 1; return c.map((v) => v / y); };
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const KEY = ((v) => { const l = Math.hypot(...v); return v.map((x) => x / l); })(SIDE.key), FRONT = KEY[0];
+const r5 = (v) => Math.round(v * 1e5) / 1e5;
+
+// a planar quad cut into cells of at most `cell` along both its sides, each cell in the quad's own winding
+function cells(f, cell) {
+  const [a, b, c, d] = f.corners, nu = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) / cell)), nv = Math.max(1, Math.ceil(Math.hypot(d[0] - a[0], d[1] - a[1], d[2] - a[2]) / cell));
+  if (nu === 1 && nv === 1) return [f];
+  const at = (u, v) => [0, 1, 2].map((k) => r5(a[k] + (b[k] - a[k]) * u + (d[k] - a[k]) * v + (a[k] - b[k] + c[k] - d[k]) * u * v));
+  const out = [];
+  for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) out.push({ ...f, corners: [at(i / nu, j / nv), at((i + 1) / nu, j / nv), at((i + 1) / nu, (j + 1) / nv), at(i / nu, (j + 1) / nv)] });
+  return out;
+}
+
+/** The built map's faces lit per corner. */
+export function lightSideMap(faces, layout, dress, cube) {
+  const L = layout, D = dress, W = L.screen.width, H = L.screen.height, S = SIDE_MAP_LIGHT;
+  const CL = cubeLight(cube), sun = CL.sun.linear, amb = CL.ambient.linear, norm = sun.map((v, k) => amb[k] + v * FRONT);
+  // the zone a point stands in: the first whose swept area holds it, else the nearest
+  const zoneAt = (s, z) => {
+    const r = L.swept.find((q) => s >= q.s0 - 1e-3 && s <= q.s1 + 1e-3 && z >= q.z0 - 1e-3 && z <= q.z1 + 1e-3);
+    if (r) return r.zone;
+    let best = 0, bd = Infinity;
+    for (const Z of L.zones) { const [s0, s1, z0, z1] = Z.rect, d = Math.max(s0 - s, 0, s - s1) + Math.max(z0 - z, 0, z - z1); if (d < bd) { bd = d; best = Z.i; } }
+    return best;
+  };
+  // the lamps, where the build hangs them (scene.js: an A bay's, at its seam, under its open space's top)
+  const lamps = [];
+  for (const z of D.zones) {
+    if (!z.indoor || !z.lamps) continue;
+    const o = L.open.find((r) => r.zone === z.zone), tone = unit(lin(z.edge)).map((v, k) => 0.5 * v + 0.5 * unit(lin(S.warm))[k]);
+    if (o) for (const s of z.lamps) lamps.push({ at: [-2.6, s, o.z1 - 1.4], zone: z.zone, tone });
+  }
+  const R = S.radius * W, ref = falloff(ROOM_LIGHT.at, R);
+  const bossTone = unit(lin(D.palette.boss));
+  const ups = new Map(L.zones.filter((Z) => Z.run === 'up').map((Z) => [Z.i, Z.exit[1]]));
+  const chutes = new Map(L.zones.filter((Z) => Z.drop === 'chute').map((Z) => [Z.i, [Z.i ? L.zones[Z.i - 1].exit[1] : 0, Z.exit[1]]]));
+  // the top over a point on a closed part (its own lip), and the nearest underside over a point on the back wall
+  const lipOver = (s, z) => { let t = Infinity; for (const r of L.solids) if (s >= r.s0 - 1e-3 && s <= r.s1 + 1e-3 && z >= r.z0 - 1e-3 && z <= r.z1 + 1e-3) t = Math.min(t, r.z1); return t; };
+  const underOver = (s, z) => { let g = Infinity; for (const r of L.solids) if (s > r.s0 && s < r.s1 && r.z0 >= z - 1e-3) g = Math.min(g, r.z0 - z); return g; };
+
+  const light = (p, n, f) => {
+    const zi = zoneAt(p[1], p[2]), Z = D.zones[zi], indoor = Z?.indoor !== false, lane = p[0] >= -0.5;
+    let c;
+    if (indoor) {
+      const a = lane ? S.ambient + S.fill * Math.max(0, dot(n, KEY)) / FRONT : S.back;
+      c = [a, a, a];
+      for (const l of lamps) {
+        const to = [l.at[0] - p[0], l.at[1] - p[1], l.at[2] - p[2]], d = Math.hypot(...to);
+        if (d >= R * ROOM_LIGHT.reach) continue;
+        const ndl = d > 1e-6 ? dot(n, to.map((v) => v / d)) : 1;
+        const w = S.lamp * ((ndl > 0 && d < R ? falloff(d, R) * ndl : 0) + ROOM_LIGHT.bounce * falloff(d, R * ROOM_LIGHT.reach)) / ref;
+        if (w > 0) c = c.map((v, k) => v + w * l.tone[k]);
+      }
+    } else {
+      // the sky by how far the face looks up, the sun by its cosine, normalised so a lane face square to the camera shows its base
+      const t = 0.5 + 0.5 * n[2], cos = Math.max(0, dot(n, KEY));
+      c = amb.map((v, k) => (v * (0.55 + 0.45 * t) + sun[k] * cos) / norm[k]);
+    }
+    // contact: a closed face under its own lip; the back wall under a top over it
+    if (CLOSED(f.group)) { const t = lipOver(p[1], p[2]); if (t < Infinity) c = c.map((v) => v * (1 - S.lip * Math.max(0, 1 - (t - p[2]) / S.lipH))); }
+    if (f.group === 'sidemap:back') { const g = underOver(p[1], p[2]); if (g < S.under) c = c.map((v) => v * (1 - S.contact * (1 - g / S.under))); }
+    // a climb's top: the next zone's light carried down its top screen; a chute darker as it drops
+    if (ups.has(zi)) { const top = ups.get(zi), u = Math.min(1, 1 - (top - p[2]) / H); if (u > 0) c = c.map((v) => v + S.top * u); }
+    if (chutes.has(zi)) { const [z0, z1] = chutes.get(zi), u = z0 > z1 ? Math.min(1, Math.max(0, (z0 - p[2]) / (z0 - z1))) : 0; c = c.map((v) => v * (1 - S.chute * u)); }
+    if (Z && Z.boss > 0) c = c.map((v, k) => v * (1 + S.boss * Z.boss * (bossTone[k] - 1)));
+    return c;
+  };
+
+  const out = [];
+  for (const f of faces) {
+    if (!f || KEEP.has(f.group) || !Array.isArray(f.corners) || f.corners.length !== 4) { out.push(f); continue; }
+    const base = lin(f.fill);
+    for (const q of cells(f, S.cell)) {
+      const cols = q.corners.map((p) => { const c = light(p, q.normal, q); return hexOf(base.map((v, k) => v * c[k])); });
+      const mean = hexOf([0, 1, 2].map((k) => cols.reduce((s, h) => s + lin(h)[k], 0) / 4));
+      out.push({ ...q, fill: mean, cornerFills: cols });
+    }
+  }
+  return out;
+}

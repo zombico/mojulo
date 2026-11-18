@@ -51,4 +51,17 @@ describe('the render benchmark', () => {
     const M = measureShot(frame({ stripes: false }), { name: 'run' });
     expect(benchmarkLaws([M]).find((l) => l.id === 'painted').holds).toBe(false);
   });
+  it('reads a lamp\'s falloff on the back: lighter near the lamp than far from it; an even back has none', () => {
+    const W = 200, H = 100, mk = (pool) => {
+      const roles = new Uint8Array(W * H * 3), page = new Uint8Array(W * H * 3);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const i = 3 * (y * W + x), lamp = x >= 20 && x < 40 && y >= 10 && y < 50, d = Math.hypot(x - 30, y - 30), v = pool ? Math.max(20, 120 - d) : 40;
+        roles.set(hex(ROLE_COLOURS[lamp ? 'lamp' : 'back']), i);
+        page.set(lamp ? [255, 255, 230] : [v, v, v], i);
+      }
+      return { page: { W, H, rgb: page }, roles: { W, H, rgb: roles } };
+    };
+    expect(measureShot(mk(true), { name: 'run' }).light.lamp).toBeGreaterThan(5);
+    expect(Math.abs(measureShot(mk(false), { name: 'run' }).light.lamp)).toBeLessThan(1);
+  });
 });
