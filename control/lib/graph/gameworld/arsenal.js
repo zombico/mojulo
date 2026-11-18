@@ -13,7 +13,8 @@
  *     an arsenal   { timing?, weapons, ranged?, juggle?, art?, mp? } as combos.js readArsenal reads it
  *
  *   readGameArsenal(raw)   → raw, or throws naming what it takes (the world's read)
- *   arsenalOfGame(G)       → { arsenal, from: 'operator' | 'template' | 'feel', template?, why } or null (none written,
+ *   arsenalOfGame(G)       → { arsenal, from: 'operator' | 'template' | 'feel' | 'bare', template?, holster?, why } or null
+ *                            (`holster`: the bare hands' pistol carried in one, drawn or put away: combat-melee.js) (none written,
  *                            false, or 'auto' on a feel whose template has no kit)
  *   arsenalSuggestion(G)   → { suggest: 'auto', template, why } for a world that writes none, whose hero strikes and whose
  *                            feel's template has a kit; else null. Never laid unasked: a kit changes every level's bytes
@@ -143,7 +144,7 @@ export function arsenalOfGame(G) {
   const own = G?.arsenal;
   // (bare hands, the default of a hero that must fight and carries nothing: its fists)
   // (and where its city sells rounds, shops.js `guns`, the pistol the bare hands carry empty: CITY_PISTOL)
-  if ((own === undefined || own === null) && bareHanded(G)) return { arsenal: { ...structuredClone(FISTS), ...(G?.shops?.guns ? { ranged: [cityPistol()] } : {}) }, from: 'bare', why: `its hero must fight and carries nothing: its fists${G?.shops?.guns ? ', and a pistol carried empty, its rounds bought at the gun shop' : ''}` };
+  if ((own === undefined || own === null) && bareHanded(G)) return { arsenal: { ...structuredClone(FISTS), ...(G?.shops?.guns ? { ranged: [cityPistol()] } : {}) }, ...(G?.shops?.guns ? { holster: true } : {}), from: 'bare', why: `its hero must fight and carries nothing: its fists${G?.shops?.guns ? ', and a pistol carried empty, its rounds bought at the gun shop' : ''}` };
   if (own === undefined || own === null || own === false) return null;
   if (own === 'auto') {
     const K = arsenalFor(G.feel);
@@ -195,7 +196,8 @@ export function armLevel(G, manifest) {
     if (!A.weapons.length) return e;
     if (!lowered.has(A)) lowered.set(A, lowerArsenal(A));
     const weapons = lowered.get(A), side = weapons[0].sidearm;
-    return { ...e, rule: { ...e.rule, weapons, moveset: weapons[0].moveset, ...(side ? { weapon: side.weapon } : {}) } };
+    // (a pistol carried in a holster, the open city's: drawn or put away, combat-melee.js `holster`)
+    return { ...e, rule: { ...e.rule, weapons, moveset: weapons[0].moveset, ...(side ? { weapon: side.weapon } : {}), ...(side && R.holster ? { holster: true } : {}) } };
   };
   // (the JUGGLE's rules on each foe's body: its hitstun, its air time, its recovery; a foe that writes its own keeps it)
   const combo = R.arsenal.juggle ? lowerJuggle(R.arsenal.juggle).combo : null;

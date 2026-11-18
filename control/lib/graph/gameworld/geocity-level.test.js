@@ -305,6 +305,12 @@ describe('jobs across the district (errands on a played district: its shops thei
     // (two a star, three stars: six; asleep and gone at the start; on the patrol's figure; keeping up with a city's run)
     expect(cops.map((e) => e.id)).toEqual(['police-1', 'police-2', 'police-3', 'police-4', 'police-5', 'police-6']);
     for (const e of cops) { expect(e).toMatchObject({ dormant: true, gone: true }); expect(e.rule.speed).toBeGreaterThan(5); expect(e.rule.sightRange).toBeGreaterThanOrEqual(45); }
+    // (from the third star the tactical unit, its pistol a loadout slot before its blow; the first two stars' bare-handed)
+    const gun = (e) => (e.rule.loadout ?? []).find((c) => c.weapon);
+    expect(cops.map((e) => !!gun(e))).toEqual([false, false, false, false, true, true]);
+    expect(gun(cops[4]).weapon).toMatchObject({ fireClass: 'sight', auto: true });
+    // (and the hero fights: a city the law watches has a hero with its fists)
+    expect(lawful.entities.find((e) => e.pilotable).rule.weapons.map((w) => w.id)).toEqual(['fist']);
     expect(cops[0].posts.length).toBeGreaterThan(4);
     for (const p of cops[0].posts) expect(p).toHaveLength(3);
     expect(W).toMatchObject({ police: cops.map((e) => e.id), per: 2, stars: 3, fine: 20, back: E.spawn });
@@ -341,6 +347,8 @@ describe('jobs across the district (errands on a played district: its shops thei
     const pilot = shopped.entities.find((e) => e.pilotable);
     expect(pilot.rule.weapons.map((w) => w.id)).toEqual(['fist']);
     expect(pilot.rule.weapon).toMatchObject({ magazine: 12, reserve: 0, loaded: 0 });
+    // (in a holster: drawn on R or 2, put away on 1; drawn, the click fires it: combat-melee.js)
+    expect(pilot.rule.holster).toBe(true);
     const { cityMap } = await import('./city-map.js');
     const map = cityMap({ box: [0, 0, 1000, 1000], shapes: [], places: [] }, shopped);
     expect(map.markers.map((m) => m.label)).toEqual(expect.arrayContaining(['Respray (40)', 'Gun shop: rounds (25)']));

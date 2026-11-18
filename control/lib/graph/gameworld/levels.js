@@ -709,11 +709,15 @@ function encounterCast(G, E, refs, hero) {
  * figure), each with the posts it may be set down on; brought by the wanted level (game/law-mechanics.js lowerWanted). */
 function policeCast(G, L, refs, hero) {
   const B = bestiaryOf(G), part = { figures: {}, entities: [] }, ctx = { rim: targetRimOf(G), sheets: {} };
-  for (const id of L.ids) {
-    const e = standFoe(G, part, { id, eid: L.eid, entry: B[L.eid], at: L.at, heading: L.heading }, { ref: refs?.[L.eid] ?? null, more: { dormant: true, gone: true, posts: L.posts, modeRefs: refs ?? {} }, ctx });
+  L.ids.forEach((id, k) => {
+    // (from the `armed` star on, the tactical unit with its pistol: law.js LAW.gun, fired by the ai's own trigger)
+    const armed = L.armed && Math.floor(k / L.armed.per) + 1 >= L.armed.from, eid = armed ? L.armed.eid : L.eid;
+    const e = standFoe(G, part, { id, eid, entry: B[eid], at: L.at, heading: L.heading }, { ref: refs?.[eid] ?? null, more: { dormant: true, gone: true, posts: L.posts, modeRefs: refs ?? {} }, ctx });
+    // (its pistol a loadout slot before its blow: a pursuer's weapons are its loadout's, the mind picking the gun at range)
+    if (armed && e.rule) e.rule = { ...e.rule, loadout: [{ name: 'pistol', weapon: { ...LAW.gun } }, ...(e.rule.loadout ?? [])] };
     // (sent for the player, they know where to look and keep up: at least LAW.chase of a city's run, and a long sight)
     if (e.rule) e.rule = { ...e.rule, speed: Math.max(e.rule.speed ?? 0, r3(LAW.chase.run * CITY_RUN)), sightRange: Math.max(e.rule.sightRange ?? 0, LAW.chase.sight) };
-  }
+  });
   // (its cars: the fleets' police car, asleep and gone at the start, after the hero on the streets: cars.js patrolCar)
   if (L.cars) {
     const V = fleetOf(LAW.car.fleet)[0];
@@ -1797,7 +1801,7 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
     const ids = Array.from({ length: policeCount(law) }, (_, k) => `police-${k + 1}`);
     // (its cars: one a star while the law has them, kept to the district's streets, set down at their junctions)
     const roads = ends.roads ?? [], nc = roads.length >= 2 ? policeCars(law) : 0, cars = Array.from({ length: nc }, (_, k) => `police-car-${k + 1}`);
-    police = { eid: law.police, ids, at: ends.spawn.slice(), heading: ends.heading, posts: lawPosts(ends), ...(nc ? { cars: { ids: cars, roads, posts: roadPosts(roads, ends) } } : {}) };
+    police = { eid: law.police, ids, at: ends.spawn.slice(), heading: ends.heading, posts: lawPosts(ends), ...(law.armed ? { armed: { from: law.armed, per: law.per, eid: law.armedId } } : {}), ...(nc ? { cars: { ids: cars, roads, posts: roadPosts(roads, ends) } } : {}) };
     mechanics.push({ kind: 'wanted', police: ids, ...(nc ? { cars } : {}), per: law.per, stars: law.stars, calm: law.calm, busted: law.busted, ...(law.bag && law.fine ? { fine: law.fine } : {}), back: ends.spawn.slice(), ...(encounter ? { mayhem: [`encounter:${encounter.id}`] } : {}) });
   }
   // THE CITY'S SHOPS (shops.js, game/shop-mechanics.js), on a driven city with a bag to pay from: the gun shop at a shop

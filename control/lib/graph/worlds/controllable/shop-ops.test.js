@@ -35,3 +35,38 @@ describe('a respray', () => {
     expect(st.byId['car-1'].mount.pool.tint).toEqual([0, 0, 1]);
   });
 });
+
+describe('the holster (the open city\'s pistol)', () => {
+  it('put away, the click punches and the gun fires not even on Q; drawn (R, or 2), the click fires and swings nothing; 1 puts it away', async () => {
+    const { lowerArsenal } = await import('../../gameworld/combos.js');
+    const { FISTS, cityPistol } = await import('../../gameworld/arsenal.js');
+    const weapons = lowerArsenal({ ...structuredClone(FISTS), ranged: [{ ...cityPistol(), loaded: 12 }] }), side = weapons[0].sidearm;
+    const st = E.createWorld({ entities: [
+      { id: 'hero', pilotable: true, rule: { type: 'platform', speed: 5, strike: 'melee', strikeContact: [0.3, 0.6], weapons, moveset: weapons[0].moveset, weapon: side.weapon, holster: true }, weapon: side.weapon, body: { type: 'figure-rig', figure: 'hero' }, transform: { pos: [0, 0, 0] } },
+      { id: 'cam', isCamera: true, rule: { type: 'follow', target: 'hero' } }] });
+    const H = st.byId.hero, shots = () => (H.weapon ? H.weapon.shots || 0 : 0);
+    // (put away: a click is a swing, Q nothing)
+    run(st, DT, { fire: 1 });
+    expect(H.swingT).not.toBeNull();
+    run(st, 1); run(st, 0.5, { special: 1 });
+    expect(shots()).toBe(0); expect(!!H.gunOut).toBe(false);
+    // (R: drawn; the click fires, no swing)
+    run(st, DT, { cycle: 1 }); run(st, 0.2);
+    expect(H.gunOut).toBe(true);
+    run(st, 1, { fire: 1 });
+    expect(shots()).toBeGreaterThan(0); expect(H.swingT).toBeNull();
+    // (1: put away again; 2: drawn)
+    run(st, DT, { slot: 1 }); expect(H.gunOut).toBe(false);
+    run(st, DT, { slot: 2 }); expect(H.gunOut).toBe(true);
+  });
+  it('a sidearm with no holster fires on Q as it always did', async () => {
+    const { lowerArsenal } = await import('../../gameworld/combos.js');
+    const { FISTS, cityPistol } = await import('../../gameworld/arsenal.js');
+    const weapons = lowerArsenal({ ...structuredClone(FISTS), ranged: [{ ...cityPistol(), loaded: 12 }] }), side = weapons[0].sidearm;
+    const st = E.createWorld({ entities: [
+      { id: 'hero', pilotable: true, rule: { type: 'platform', speed: 5, strike: 'melee', strikeContact: [0.3, 0.6], weapons, moveset: weapons[0].moveset, weapon: side.weapon }, weapon: side.weapon, body: { type: 'figure-rig', figure: 'hero' }, transform: { pos: [0, 0, 0] } },
+      { id: 'cam', isCamera: true, rule: { type: 'follow', target: 'hero' } }] });
+    run(st, 1, { special: 1 });
+    expect(st.byId.hero.weapon.shots).toBeGreaterThan(0);
+  });
+});
