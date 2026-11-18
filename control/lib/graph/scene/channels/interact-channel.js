@@ -3,6 +3,7 @@ import { menuHtml, viewLive } from '../../playscape/ui/menus.js';
 import { buildControlsKernel } from '../../controls/controls-kernel.js';
 import { SCHEMES } from '../../controls/schemes.js';
 import { DEVICES } from '../../controls/devices.js';
+import { SEATS } from '../../controls/seats-kernel.js';
 
 /**
  * interact-channel — the page's side of a play block's interaction, riding the events channel (its bus state, input
@@ -20,6 +21,12 @@ import { DEVICES } from '../../controls/devices.js';
  *                           and the interact press (__mojCtrl.interacts) turned into use-<place> on the bus; where
  *                           usable zones overlap (usesOf gives those their centres), the nearest the walker is the one
  *                           in reach, not the last entered (a town's folk a step apart: the one faced answers)
+ *   seatUsesOf(sources)     the usable places a SEAT has (a level with seats, a mechanic a seat works: the work shift's
+ *                           `seatUse` zones, `s<n>:use-<place>` watching seat n's body) → zone → { n, id, body, at, prompt }
+ *   seatReachScript(uses)   seats 2 to 4's reach: the place each seat's body stands in (the nearest centre), a plate over
+ *                           its head in its colour with its key and the place's word, and its own interact press
+ *                           (window.__mojSeatUses, the seats block's count) turned into s<n>:use-<place> on the bus.
+ *                           Seat 1 is the pilot's reach, as it was. Emitted only for a world with seat uses
  */
 
 // A play block's menus over the play: centred, solid, taking the pointer; the guide's register and border dress them
@@ -178,6 +185,43 @@ export const usesOf = (sources) => {
   const over = (a) => Array.isArray(a.at) && Z.some((b) => b !== a && Array.isArray(b.at) && Math.hypot(a.at[0] - b.at[0], a.at[1] - b.at[1]) < reachOf(a) + reachOf(b));
   return Object.fromEntries(Z.map((s) => [s.zone, { id: s.use, prompt: s.prompt || '', ...(over(s) ? { at: [s.at[0], s.at[1]] } : {}) }]));
 };
+
+// a seat's usable places: zone → { n, id, body, at, prompt } (the zones a seated mechanic lays a seat its own)
+export const seatUsesOf = (sources) => Object.fromEntries((sources || []).filter((s) => s && s.type === 'zone' && s.seatUse && Number.isInteger(s.seat) && Array.isArray(s.at))
+  .map((s) => [s.zone, { n: s.seat, id: s.seatUse, body: s.watch, at: [s.at[0], s.at[1]], prompt: s.prompt || '' }]));
+
+export function seatReachScript(uses) {
+  return `
+// SEAT REACH: seats 2 to 4 each stand in their own usable places (s<n>:use-<place>, watching their own body); the nearest
+// centre is in reach, a plate over the head in the seat's colour says the key and the place, and the seat's own interact
+// press (window.__mojSeatUses) sends s<n>:use-<place> into the bus
+const __SUSES = ${safeJson(uses)}, __SCOL = ${safeJson(SEATS.SEAT_COLORS)}, __SLAB = ${safeJson(SEATS.SEAT_LABELS)};
+const __sReach = {}, __sPrev = {}, __sEl = {}, __sShown = {}, __sBody = {};
+for (const z in __SUSES) __sBody[__SUSES[z].n] = __SUSES[z].body;
+const __sV = new THREE.Vector3();
+function __stepSeatReach(zoneEvents, incoming) {
+  for (const ev of zoneEvents) {
+    const u = __SUSES[ev.zone]; if (!u) continue;
+    const L = (__sReach[u.n] = (__sReach[u.n] || []).filter((z) => z !== ev.zone));
+    if (ev.type === 'enter') L.push(ev.zone);
+  }
+  const W = window.__mojCtrl && window.__mojCtrl.world;
+  for (const n in __sBody) {
+    const L = __sReach[n] || [], e = W && W.byId[__sBody[n]], p = e && !e.gone && e.transform && e.transform.pos;
+    let top = L.length ? L[L.length - 1] : null, d0 = Infinity;
+    if (p) for (const z of L) { const a = __SUSES[z].at, d = Math.hypot(a[0] - p[0], a[1] - p[1]); if (d < d0) { d0 = d; top = z; } }
+    const c = window.__mojSeatUses ? window.__mojSeatUses(+n) : 0;
+    if (__sPrev[n] !== undefined && c !== __sPrev[n] && top && !window.__mojMenuOpen) incoming.push({ type: 's' + n + ':use-' + __SUSES[top].id });
+    __sPrev[n] = c;
+    let el = __sEl[n];
+    if (!el) { el = __sEl[n] = document.createElement('div'); el.className = 'moj-reach'; el.style.bottom = 'auto'; el.style.borderColor = __SCOL[n - 1]; el.style.transform = 'translate(-50%,-100%)'; wrap.appendChild(el); }
+    const key = top && window.__mojSeatLabel ? window.__mojSeatLabel(+n) : '';
+    const h = top && p && !window.__mojMenuOpen ? '<b style="color:' + __SCOL[n - 1] + '">' + (key || __SLAB[n - 1]).replace(/[<&]/g, '') + '</b>' + (__SUSES[top].prompt || 'use').replace(/[<&]/g, '') : '';
+    if (h !== __sShown[n]) { __sShown[n] = h; el.innerHTML = h; el.style.display = h ? 'block' : 'none'; }
+    if (h) { __sV.set(p[0], p[1], p[2] + 2.1).project(camera); el.style.left = ((__sV.x + 1) / 2 * 100) + '%'; el.style.top = ((1 - __sV.y) / 2 * 100) + '%'; }
+  }
+}`;
+}
 
 export function reachScript(uses) {
   // (where usable zones overlap, the one whose centre is nearest the walker is in reach, not the last entered)

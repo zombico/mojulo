@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { usesOf, reachScript } from './interact-channel.js';
+import { usesOf, reachScript, seatUsesOf, seatReachScript } from './interact-channel.js';
 
 // the reach prompt run on a stub page: the walker at `pos`, the zones entered in the order given
 function reachIn(uses, pos, entered) {
@@ -24,5 +24,33 @@ describe('the reach prompt where usable zones overlap', () => {
     const apart = usesOf([zone('za', [0, 0], 'a'), zone('zc', [30, 0], 'c')]);
     expect(Object.values(apart).some((u) => u.at)).toBe(false);
     expect(reachScript(apart)).not.toContain('__nearest');
+  });
+});
+
+// a seat's reach on a stub page: seat 2's body at `pos`, its zones entered, its own presses counted by the seats block
+function seatReachIn(uses, pos, entered, presses) {
+  const el = () => ({ className: '', innerHTML: '', style: {}, textContent: '', appendChild() {} });
+  let n = 0;
+  const window = { __mojCtrl: { world: { byId: { 'hero-2': { transform: { pos } } } } }, __mojSeatUses: () => n, __mojSeatLabel: () => 'X' };
+  const THREE = { Vector3: class { set() { return this; } project() { this.x = 0; this.y = 0; return this; } } };
+  const step = new Function('document', 'wrap', 'window', 'THREE', 'camera', `${seatReachScript(uses)}; return __stepSeatReach;`)({ createElement: el, head: el() }, el(), window, THREE, {});
+  const sent = [];
+  step(entered.map((zone) => ({ type: 'enter', zone })), sent);
+  for (let k = 0; k < presses; k++) { n++; step([], sent); }
+  return sent.map((e) => e.type);
+}
+
+describe('a seat\'s own reach', () => {
+  const S = [{ type: 'zone', zone: 'use-w0-crate-fish', at: [0, 0], radius: 1.1, use: 'w0-crate-fish', watch: 'hero', prompt: 'take fish' },
+    { type: 'zone', zone: 's2:use-w0-crate-fish', at: [0, 0], radius: 1.1, seatUse: 'w0-crate-fish', seat: 2, watch: 'hero-2', prompt: 'take fish' },
+    { type: 'zone', zone: 's2:use-w0-crate-rice', at: [1.5, 0], radius: 1.1, seatUse: 'w0-crate-rice', seat: 2, watch: 'hero-2', prompt: 'take rice' }];
+  it('a seat\'s zones never reach the pilot\'s, and a seat\'s press sends its own use of the place nearest its body', () => {
+    expect(Object.keys(usesOf(S))).toEqual(['use-w0-crate-fish']);
+    const U = seatUsesOf(S);
+    expect(Object.keys(U)).toEqual(['s2:use-w0-crate-fish', 's2:use-w0-crate-rice']);
+    expect(seatReachIn(U, [1.2, 0, 0], ['s2:use-w0-crate-fish', 's2:use-w0-crate-rice'], 1)).toEqual(['s2:use-w0-crate-rice']);
+    expect(seatReachIn(U, [0.2, 0, 0], ['s2:use-w0-crate-rice', 's2:use-w0-crate-fish'], 2)).toEqual(['s2:use-w0-crate-fish', 's2:use-w0-crate-fish']);
+    expect(seatReachIn(U, [9, 0, 0], [], 1)).toEqual([]);   // in no place: a press does nothing
+    expect(seatUsesOf([S[0]])).toEqual({});
   });
 });

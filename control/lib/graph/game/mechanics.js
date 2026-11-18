@@ -57,7 +57,8 @@ const CMP_KEYS = ['gte', 'gt', 'lte', 'lt', 'eq', 'ne'];
 // ── the mechanic registry ───────────────────────────────────────────────────────────────────────
 // role: terminal | emitter | gate ; ends (terminals only): which results it can end in.
 // requires: store slice KINDS. lower(params, ctx) → { world, produces?, on?, consumes?, audit? }.
-// ctx = { i (index, for namespacing), player, spawn, storeSchema }.
+// ctx = { i (index, for namespacing), player, spawn, storeSchema, seats? (a level with seats: the bodies seats 2 … take;
+// a mechanic a seat works lowers a hand a seat, the work shift's) }.
 const MECHANICS = {
   // reach a goal zone → success. The walkability audit IS its completability check.
   'reach-exit': {
@@ -1426,6 +1427,7 @@ export function lowerMechanic(kind, params, ctx) {
     spawn: (ctx && ctx.spawn) || [0, 0, 2],
     storeSchema: ctx && ctx.storeSchema,
     hints: (ctx && ctx.hints) || {},
+    ...(ctx && Array.isArray(ctx.seats) && ctx.seats.length ? { seats: ctx.seats } : {}),
     resolve(reqKind, named, where) {
       const r = resolveSlice(ctx && ctx.storeSchema, reqKind, named, where);
       if (r.error) { errors.push(r.error); return null; }
@@ -1483,7 +1485,7 @@ export function composeMechanics(mechanics, ctx = {}) {
   list.forEach((m, i) => {
     if (!m || !m.kind) { errors.push(`mechanics[${i}] must be { kind, ... }`); return; }
     let low;
-    try { low = lowerMechanic(m.kind, m, { i, player, spawn, storeSchema: ctx.storeSchema, hints }); }
+    try { low = lowerMechanic(m.kind, m, { i, player, spawn, storeSchema: ctx.storeSchema, hints, ...(Array.isArray(ctx.seats) && ctx.seats.length ? { seats: ctx.seats } : {}) }); }
     catch (e) { errors.push(e.message); return; }
     low.errors.forEach((e) => errors.push(e));
     (low.emits || []).forEach((e) => emitted.add(e));

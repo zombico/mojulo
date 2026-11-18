@@ -212,10 +212,28 @@ hand: rice in the pot, fish chopped, rice taken off, plated and handed in. Serve
 
 What the proof does not cover: walls (the walk is straight), the hero's own speed, a newcomer, and the fun.
 
+### Seats: two to four cooks
+
+A level with seats (a cube's `soul.seats`, the level's `seats.bodies`) lowers the mechanic once a seat. Seat 1 is the
+pilot as above. Seat n has its own hands (the holder `hands<n>`, its carry `w<i>:carry:<n>`), its own zones on its own
+body (`s<n>:use-<place>`, never in the pilot's reach) and its own press: on the page, its controller's interact,
+with a plate over its head in its colour naming the place. The stations, shelves, tickets and clock stay one,
+shared. A slot remembers who works it: walking off pauses only that cook's work, and what a run with no wait makes
+comes into that cook's hands. A shelf is the pass: one cook puts down, another takes up. With no seats the mechanic
+lowers what it always did, byte for byte.
+
+The proof plays several cooks (`cooks: [{ spawn, reach }]`), each on the same policy with its own hands at the places
+its reach allows; a made thing a cook holds and can use nowhere it can reach goes on the pass. On the kitchen laid in
+two halves (crates and prep on one side, plating and the hand-in on the other, the shelves on the line between), two
+cooks win only through the pass: cook 2 serves every order, from what cook 1 put across. With nobody on the far side
+nothing is served.
+
 ## How it joins next (not built)
 
-- **Seats.** Two to four players on one kitchen: `crew.workers` as seats, a handoff as a bucket between seats. This is
-  what the co-op kitchen probe is blocked on (`soul.dependence=handoff`).
+- **Seats, the rest.** A kitchen laid as a designed arena (a layout grammar and its laws, the handoff measured), the
+  simulator's workers each with their own reach and travel by distance, a spot that holds any one thing, each seat's
+  corner on the HUD, and the co-op kitchen as a rail. What the co-op kitchen probe is still blocked on is
+  `soul.dependence=handoff` and `soul.frame=fixed` in the registry.
 - **The look on a level.** The work room is dressed and stands in its area; a quick shift's level still draws counters
   and markers. The dress and the area belong on the level too, read by the verb and the item.
 - **The book.** A gameworld's `work` page in the game design and production chapter: the card, its target and the
@@ -228,5 +246,7 @@ What the proof does not cover: walls (the walk is straight), the hero's own spee
 ## Gates
 
 Machine: `worksim.test.js` (the card, routes, determinism, absence, the solver's targets), `work-mechanics.test.js`
-(the mechanic on the bus) and `work-proof.test.js` (a level won by a walker who knows the card, near the simulator).
+(the mechanic on the bus, seated too), `work-proof.test.js` (a level won by a walker who knows the card, near the
+simulator; a split kitchen won by two cooks only through the pass) and the seats page suite
+(`seats.live.test.js`: a seat's own press works the shift with its own hands, in headless Chromium).
 Eyes: not run.

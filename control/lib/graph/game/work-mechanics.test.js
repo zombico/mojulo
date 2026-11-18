@@ -127,3 +127,59 @@ describe('the work mechanic', () => {
     expect(L.said('work:won')).toBe(true);
   });
 });
+
+// SEATED (ctx.seats): every seat works the shift with its own hands; the stations, shelves and tickets are one
+function seated(params = {}) {
+  const c = composeMechanics([{ kind: 'work', card: CARD, ...params }], { player: 'hero', spawn: [0, 0, 0], fall: 'none', seats: ['hero-2'] });
+  const s = B.createBusState(c.events, c.events.entities);
+  const pump = (list) => { B.processEvents(s, list); let w = B.watchEvents(s); while (w.length) { B.processEvents(s, w); w = B.watchEvents(s); } };
+  pump([]);
+  const press = (n, id) => pump([{ type: n === 1 ? `use-w0-${id}` : `s${n}:use-w0-${id}` }]);
+  const leave = (n, id) => pump([{ type: 'exit', zone: n === 1 ? `use-w0-${id}` : `s${n}:use-w0-${id}`, entity: n === 1 ? 'hero' : `hero-${n}` }]);
+  const wait = (sec) => { for (let k = 0; k < sec * 4; k++) pump(B.tickTimers(s, 0.25)); };
+  return { c, s, V: s.vars, press, leave, wait };
+}
+
+describe('the work mechanic, seated', () => {
+  it('no seats lays what it always did; seats lay each seat its own zones on its own body, never in the pilot\'s reach', () => {
+    const ctx = { i: 0, player: 'hero', spawn: [0, 0, 0] };
+    expect(lowerMechanic('work', { card: CARD, show: true }, { ...ctx, seats: [] })).toEqual(lowerMechanic('work', { card: CARD, show: true }, ctx));
+    const m = lowerMechanic('work', { card: CARD }, { ...ctx, seats: ['hero-2'] });
+    const one = m.world.sources.filter((z) => z.use), two = m.world.sources.filter((z) => z.seatUse);
+    expect(two.map((z) => z.seatUse)).toEqual(one.map((z) => z.use));
+    expect(two.every((z) => z.watch === 'hero-2' && z.seat === 2 && z.zone === `s2:use-${z.seatUse}`)).toBe(true);
+    expect(one.every((z) => z.watch === 'hero' && !z.seat)).toBe(true);
+    expect(m.work.seats).toEqual([{ n: 1, body: 'hero', hands: 'bag', carry: 'w0:carry' }, { n: 2, body: 'hero-2', hands: 'hands2', carry: 'w0:carry:2' }]);
+  });
+  it('each seat takes into its own hands, and walking off pauses only the work the walker was doing', () => {
+    const L = seated();
+    L.press(2, 'crate-fish');
+    expect([L.V['held:hands2:fish'], L.V['held:bag:fish'], L.V['w0:carry:2'], L.V['w0:carry']]).toEqual([1, 0, 1, 0]);
+    L.press(2, 'chop-0');
+    expect(L.V['__w0:chop:0:by']).toBe(2);
+    L.wait(1);
+    L.leave(1, 'chop-0');   // seat 1 passing by: the chopping goes on
+    expect(L.V['__w0:chop:0']).toBe(2);
+    L.leave(2, 'chop-0');   // its own cook walks off: it waits
+    expect(L.V['__w0:chop:0']).toBe(1);
+    L.press(1, 'chop-0');   // seat 1 takes it up: done, it comes into seat 1's hands
+    L.wait(1.25);
+    expect([L.V['held:bag:cut'], L.V['held:hands2:cut']]).toEqual([1, 0]);
+  });
+  it('the shelf is the pass: one seat puts down, another takes up, and that seat serves', () => {
+    const L = seated({ goal: 1, hands: 4 });
+    L.press(1, 'crate-fish'); L.press(1, 'chop-0'); L.wait(2.25);
+    L.press(1, 'shelf-cut-put');
+    L.press(1, 'crate-rice'); L.press(1, 'pot-0'); L.wait(1.25); L.wait(3.25); L.press(1, 'pot-0');
+    L.press(1, 'shelf-cooked-put');
+    expect([L.V['held:w0-shelf-cut:cut'], L.V['held:w0-shelf-cooked:cooked'], L.V['w0:carry']]).toEqual([1, 1, 0]);
+    L.press(2, 'shelf-cut-take'); L.press(2, 'shelf-cooked-take');
+    L.press(2, 'plate-0'); L.wait(1.25);
+    expect([L.V['held:hands2:dish'], L.V['held:bag:dish']]).toEqual([1, 0]);
+    L.press(1, 'serve');   // seat 1's hands hold no dish: nothing served
+    L.wait(0.25);
+    expect(L.V['w0:served']).toBe(0);
+    L.press(2, 'serve');
+    expect([L.V['w0:served'], L.V['held:hands2:dish'], L.V['w0:carry:2']]).toEqual([1, 0, 0]);
+  });
+});
