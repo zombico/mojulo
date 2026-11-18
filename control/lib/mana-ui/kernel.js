@@ -202,7 +202,7 @@ export function buildManaUi() {
     card: { group: 'value', about: 'a card on the table: its face (a band in its side\'s kit, the name, the cost, what it does, its tags, its power and guard, how many lie under it), `state` what can be done with it as a shape (playable an edge alight, picked lifted, spent turned on its side), `face: down` its back and a count; with `on.accept` a touch screen taps it (a cell of a grid picks it with the cursor)', props: { name: [T, ''], cost: [T], text: [T], tags: [L, []], power: [T], guard: [T], count: [T], side: [A], state: [['plain', 'playable', 'picked', 'spent'], 'plain'], face: [['up', 'down'], 'up'], size: [['s', 'm'], 'm'] }, verbs: ['accept'] },
     log: { group: 'value', about: 'the whole of what happened, kept (a move list, a game\'s log): the last `visible` rows shown, pinned to the newest, the rest counted above; `numbered` counts the rows from one; a row\'s `side` its chip', props: { rows: [L, [], true], field: [T, 'text'], numbered: [B, false], visible: [N, 8] } },
     spark: { group: 'value', about: 'a small series as bars (an army over a match, a score by round): each value against the largest, the last said as a number', props: { values: [L, [], true], max: [N], label: [T] } },
-    slot: { group: 'value', about: 'an action or a hotbar slot: what is in it, its key, a cooldown left (0..1), a count; active when it is the one in hand; `disabled` it cannot be done now and `why` says so; with `on.accept` a touch screen taps it', props: { name: [T, ''], key: [T], cooldown: [N, 0], count: [T], active: [B, false], disabled: [B, false], why: [T] }, verbs: ['accept'] },
+    slot: { group: 'value', about: 'an action or a hotbar slot: what is in it (drawn as its pictogram where the theme has one), its key, a cooldown left (0..1), a count; active when it is the one in hand; `disabled` it cannot be done now and `why` says so; with `on.accept` a touch screen taps it; `size` l a slot read at a glance (a race\'s held item)', props: { name: [T, ''], key: [T], cooldown: [N, 0], count: [T], active: [B, false], disabled: [B, false], why: [T], size: [['m', 'l'], 'm'] }, verbs: ['accept'] },
     prompt: { group: 'value', about: 'what a button does here: [E] Talk (the glyph is the host\'s legend, else the action)', props: { action: [T, 'accept'], label: [T, '', true], glyph: [T] } },
     // in-game: aim, maps, the feed, moments
     reticle: { group: 'hud', about: 'the aim; a hit adds a hitmarker shape', props: { shape: [Object.keys(RETICLES), 'cross'], hit: [B, false] } },
@@ -765,8 +765,8 @@ export function buildManaUi() {
           }
           case 'slot': {
             const cd = clamp(p.cooldown, 0, 1);
-            return ['div', { class: cls, 'data-active': p.active ? 'yes' : null, 'data-empty': p.name ? null : 'yes', 'data-cool': cd > 0 ? 'yes' : null, 'data-st': p.disabled ? 'disabled' : null, title: p.name || null, 'data-tap': p.disabled ? null : tappable(n, key, scope) },
-              p.name ? ['span', { class: 'mana-icon', 'data-size': 'l' }, initials(p.name)] : null, cd > 0 ? ['span', { class: 'mana-cool', style: `height:${pct(cd)}` }] : null,
+            return ['div', { class: cls, 'data-active': p.active ? 'yes' : null, 'data-empty': p.name ? null : 'yes', 'data-cool': cd > 0 ? 'yes' : null, 'data-st': p.disabled ? 'disabled' : null, 'data-size': p.size === 'm' ? null : p.size, title: p.name || null, 'data-tap': p.disabled ? null : tappable(n, key, scope) },
+              p.name ? ['span', { class: 'mana-icon', 'data-size': 'l', 'data-icon': iconName(p.name) }, initials(p.name)] : null, cd > 0 ? ['span', { class: 'mana-cool', style: `height:${pct(cd)}` }] : null,
               p.key !== undefined ? ['span', { class: 'mana-key' }, p.key] : null, p.count !== undefined && p.count !== '' ? ['span', { class: 'mana-count' }, p.count] : null, whyOf(p.disabled, p.why)];
           }
           case 'card': {

@@ -450,6 +450,8 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-count{position:absolute;right:${u(4)};bottom:${u(1.5)};font:700 ${t('caption')} ${v('mono')}}`,
     `${s} .mana-slot[data-active=yes]{border:2px solid ${v('accent')};box-shadow:inset 0 0 0 1px ${v('accent')}}`,
     `${s} .mana-slot[data-empty=yes]{border-style:dashed;border-color:${v('soft')}}`,
+    // (a slot read at a glance: larger, its pictogram filling it, its key larger in its corner)
+    `${s} .mana-slot[data-size=l]{width:${u(150)};height:${u(150)};border-width:calc(${v('rule-w')} * 2)}`, `${s} .mana-slot[data-size=l]>.mana-icon{width:${u(112)};height:${u(112)}}`, `${s} .mana-slot[data-size=l] .mana-key{font-size:${u(22)};left:${u(8)};top:${u(6)}}`, `${s} .mana-slot[data-size=l][data-active=yes]{border-width:calc(${v('rule-w')} * 3)}`,
     // a card on the table: values first (its state a shape: an edge alight, lifted, turned on its side; its back hatched)
     `${s} .mana-card{position:relative;display:inline-flex;flex-direction:column;gap:${u(4)};width:${u(132)};height:${u(184)};padding:0 0 ${u(6)};border:${v('rule-w')} solid ${v('line')};border-radius:calc(${v('radius')}*.6);background:${v('paper')};overflow:hidden;vertical-align:top;text-align:left}`,
     `${s} .mana-card[data-size=s]{width:${u(96)};height:${u(134)}}`,

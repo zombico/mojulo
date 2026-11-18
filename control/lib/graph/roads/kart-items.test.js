@@ -130,10 +130,11 @@ describe('the race HUD shows the item held', () => {
   });
   it('a race with items has its slot and its feed says so; one without, neither', () => {
     const on = raceHud({ mech: 0, laps: 3, racers: 4, items: true }), off = raceHud({ mech: 0, laps: 3, racers: 4 });
-    expect(JSON.stringify(on.spec)).toContain('race.itemSays');
-    expect(JSON.stringify(on.spec)).toContain('"use":"icon","props":{"name":{"bind":"race.itemIcon"}');
+    // (one large slot, its pictogram the held item's, no words)
+    expect(JSON.stringify(on.spec)).toContain('{"use":"slot","props":{"name":{"bind":"race.itemIcon"},"key":"F","size":"l","active":{"bind":"race.hasItem"}}}');
+    expect(JSON.stringify(on.spec)).not.toContain('race.itemSays');
     expect(on.feed.items).toBe(true);
-    expect(JSON.stringify(off.spec)).not.toContain('race.itemSays');
+    expect(JSON.stringify(off.spec)).not.toContain('race.itemIcon');
     expect(off.feed.items).toBeUndefined();
   });
 });

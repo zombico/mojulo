@@ -799,6 +799,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // The sheet's thrusters row is hidden in a vehicle too (the thrusters were never a vehicle's; a kart's F is its item).
 // Every fixture that embeds the controllable runtime re-pinned with it.
 //
+// Re-pinned 2026-11-18 (a race's held item as one large slot): mana-ui's `slot` draws its pictogram (its icon carries
+// `data-icon`, as an icon's and a counter's do) and takes a `size` (l: a slot read at a glance), and the sheet sizes it.
+// `brawl` and `holo`, the two whose page inlines the game UI runtime; a slot of the size unsaid draws as it did.
+//
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

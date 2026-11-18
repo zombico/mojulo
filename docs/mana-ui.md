@@ -965,9 +965,10 @@ the top right; the track's map on the right edge, the track's own line drawn as 
 a screen, so the karts are held, and the world frozen with the race's clock until they go out. A tall frame lays the
 place and the lap on one plate at the top, with no map. Its look is its track's: `kart-candy` (the toy family) for a
 candy track, `pit-wall` (the clean family: the timing tower) for a circuit; a world that names its own theme wears it.
-A race on a track with item boxes (`roads/kart-items.js`) has a held-item slot, a plate at the top's middle there all
-race: "held item" over the item's pictogram and name (a dash while it is empty) and the key that uses it, read off
-the page's `window.__mojItems`. Each item names its pictogram on the icon shelf (`icons.js`: a wrapped sweet with a
+A race on a track with item boxes (`roads/kart-items.js`) shows its held item as one large `slot` (`size: 'l'`) at the
+top's middle, there all race and in no words: dashed while empty, the item's pictogram filling it and its frame the
+accent (`active`) while one is held, the key that uses it in its corner; read off the page's `window.__mojItems`. A
+slot draws its pictogram where the theme has one (its icon carries `data-icon`), its initials where not. Each item names its pictogram on the icon shelf (`icons.js`: a wrapped sweet with a
 bolt through it, a toffee splat, a gumball), and Candy Kart draws its pictograms chunky, toned by what they mean.
 
 ### Layout that adapts

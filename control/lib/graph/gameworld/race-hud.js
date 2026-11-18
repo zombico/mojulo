@@ -21,9 +21,10 @@
  *             laps      times round; racers: the field, you included (1 alone)
  *             outline   the track's line, [[x, y], …] in metres (its stations): drawn as the map's route
  *             speedMax  the dial's top, km/h; language: the track's design language (its `ui` is its HUD's look)
- *             items     the track lays item boxes (roads/kart-items.js): the held item's slot at the top's middle
+ *             items     the track lays item boxes (roads/kart-items.js): the held item's slot at the top's middle,
+ *                       its pictogram alone (no words), its key in its corner
  *     theme   a mana-ui theme (a preset's or a card's name, or a child theme): the language's look unsaid
- *     words   the HUD's words (pos, lap, time, best, go, final, finish, unit, ready, held, use), so a game in another language says its own
+ *     words   the HUD's words (pos, lap, time, best, go, final, finish, unit, ready, use), so a game in another language says its own
  *   RACE_HUD_STATE   the state's shape, with the values a sheet or a test draws it on
  *
  * The state the spec binds (the host writes it):
@@ -68,7 +69,7 @@ export function raceMap(outline) {
 
 export function raceHud(race, { theme = null, screen = null, words = {} } = {}) {
   const portrait = !!screen && (screen === 'phone' || screen.pole === 'phone' || screen.orientation === 'portrait');
-  const w = { pos: 'pos', lap: 'lap', time: 'time', best: 'best', go: 'go', final: 'final lap', finish: 'finish', unit: 'km/h', ready: 'get ready', held: 'held item', use: 'F', ...words };
+  const w = { pos: 'pos', lap: 'lap', time: 'time', best: 'best', go: 'go', final: 'final lap', finish: 'finish', unit: 'km/h', ready: 'get ready', use: 'F', ...words };
   const laps = Number.isInteger(race.laps) && race.laps > 0 ? race.laps : 1, racers = Number.isInteger(race.racers) && race.racers > 0 ? race.racers : 1;
   const map = raceMap(race.outline), TALL = { frame: 'portrait' }, field = racers > 1;
   // the parts
@@ -79,13 +80,12 @@ export function raceHud(race, { theme = null, screen = null, words = {} } = {}) 
     { use: 'timer', props: { seconds: B('race.time'), format: 'mmss', label: w.time } },
     { use: 'timer', props: { seconds: B('race.best'), format: 'mmss', label: w.best }, when: B('race.hasBest') }] };
   const speed = { use: 'region', props: { at: 'bottom-right' }, children: [{ use: 'gauge', props: { value: B('race.speed'), max: B('race.speedMax'), unit: w.unit } }] };
-  // the HELD ITEM (a race with item boxes): a plate at the top's middle, there all race so the slot is known before it is
-  // filled: its word over the item's pictogram and name (a dash while it is empty), the key that uses it beside the name
-  // (the region's own plate frames it, as the place's and the laps' are framed)
-  const held = { use: 'stack', props: { dir: 'column', gap: 'tight', align: 'center' }, children: [
-    { use: 'text', props: { value: w.held, role: 'label' } },
-    { use: 'stack', props: { dir: 'row', gap: 'tight', align: 'center' }, children: [{ use: 'icon', props: { name: B('race.itemIcon'), size: 'l' }, when: B('race.hasItem') }, { use: 'text', props: { value: B('race.itemSays'), role: 'title' } }, { use: 'text', props: { value: w.use, role: 'label' }, when: B('race.hasItem') }] }] };
-  const item = race.items ? [{ use: 'region', props: { at: 'top' }, unless: TALL, children: [held] }] : [];
+  // the HELD ITEM (a race with item boxes): one large slot at the top's middle, there all race, its pictogram filling it
+  // and the key that uses it in its corner; empty, its frame dashed. No words: it is read at a glance, as a genre's
+  // item box is, never read through (mana-ui's `slot`, its own frame: the region under it bare)
+  // (active while one is held: its frame the accent, so a box just taken catches the eye)
+  const held = { use: 'slot', props: { name: B('race.itemIcon'), key: w.use, size: 'l', active: B('race.hasItem') } };
+  const item = race.items ? [{ use: 'region', props: { at: 'top', variant: 'bare' }, unless: TALL, children: [held] }] : [];
   const moments = { use: 'region', props: { at: 'center', variant: 'bare' }, children: [{ use: 'moments', props: { rows: B('moments'), as: 'banner', hold: 1.1, read: 0.4 } }] };
   // ONE composition, laid by the frame it is drawn in. A wide frame: the place in the top-left corner, the laps and the
   // times in the top-right, the map on the right edge; a tall one: the place and the lap on one plate in the top's middle
