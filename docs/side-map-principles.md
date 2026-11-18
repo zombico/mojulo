@@ -133,6 +133,8 @@ The cake is `control/lib/graph/gameworld/side-map/cake.js` (the materials), `tex
     on the edges near it, capped, the world kept in its key. What a shot breaks (rupa's matter) or destroys (a dismantle)
     flashes as it comes apart in the round's colour, and its pieces take the light as they fly. Its impact and the
     explosion are drawn in the shot's own light (`blastLook`): a white-hot core, the hue round it, accent rings, sparks.
+    Crates stand on the runs for it (`control/lib/graph/gameworld/side-map/crates.js`): in the way, a hand over the
+    muzzle so a tap meets them and under the jump so they can be hopped, in the bays that rest.
 29. **A shot is drawn as light.** A white-hot core, its hue saturated in the falloff and deeper at its edge, every layer
     additive under a halo in its hue; the ball always at its head, where it hits, and nothing ahead of it (streaks, a
     short tail and sparks trail behind); an accent hue far round the wheel kept thin (rings left at the firing point,

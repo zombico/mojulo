@@ -46,6 +46,8 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
     ...manifest0, title: name,
     figures: W0.figures, entities: [hero, ...P.ladders], camera: P.camera, events, colliders: P.colliders,
     ...(mechanics?.play ? { play: mechanics.play } : {}),
+    // (its crates break: the game's own degree where it says one, else `objects`, the action game's, crates.js)
+    ...(L.crates?.length && !manifest0.destruction ? { destruction: mechanics?.destruction ?? 'objects' } : {}),
     game: { levelRef: ref, mechanics: [goal, ...lives], fall: 'none' },
   };
   return { tool: 'create_sketch', args: { title: name, manifest }, laws: M.laws.map((l) => ({ ...l, id: `sidemap:${l.id}` })) };

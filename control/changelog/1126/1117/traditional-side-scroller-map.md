@@ -241,3 +241,10 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   shock rings in the accent with their near arc bright, sparks flung out; an impact quick and small, an explosion longer
   with more rings and sparks; each in the colour of the round that did it (a full charge's hit an explosion), drawn in
   front of what it struck. Every other page keeps its effects as they were.
+- **Crates** (`gameworld/side-map/crates.js`, the chain's `crates: true`): breakable crates on a side map's runs, the
+  buster's other target. Each stands across the lane's middle in a resting bay (the bays with doodads left to them),
+  clear of every pit, step, door, ladder and checkpoint, as tall as a hand over the buster's muzzle (so a tap shot meets
+  it) and under the hero's jump (so it is hopped or shot apart), with room to stand on it. The scene names its faces and
+  anchors it as a crate, the play makes its collider its own, and the level breaks `objects` where its game names no
+  degree, so a world's breakability makes each a block that breaks: one shot and it bursts in the round's light, its
+  chunks lit as they fly. A law (`crates`) holds them to it; the bot hops them. Galaxy Boy's first level has four.

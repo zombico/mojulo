@@ -4,9 +4,10 @@
  * reach by the side map's layout. The words are keyed in the cosmos cube: the form a level form of space
  * (`space.levelForm=side-map`), its fills reality's (`reality.fill`, fills.js).
  *
- *   sidemap: { premise?, fill?, zones: [ZONE, …] }
+ *   sidemap: { premise?, fill?, crates?, zones: [ZONE, …] }
  *     premise   one sentence: who goes through this place, and toward what
  *     fill      the closed parts' fill where a zone names none (fills.js)
+ *     crates    true: breakable crates on its runs (crates.js), hopped or shot apart; the level breaks `objects`
  *   ZONE (a RUN or a ROOM, never both):
  *     run       'across' | 'up' | 'down': a run, one screen thick, scrolling along its axis
  *     screens   its length in screens (a run's; at least one)
@@ -20,7 +21,7 @@
  *     spawners  the places foes come from along it (a count); `pillars` over a gap (a count); `ceiling` true: a held one
  *     reveal    true: the next place is shown off as it is reached
  *
- *   readSideMap(v, at?) → the chain as read: { premise?, fill?, zones: [{ kind: 'run' | 'room', … }] }; throws, teaching
+ *   readSideMap(v, at?) → the chain as read: { premise?, fill?, crates?, zones: [{ kind: 'run' | 'room', … }] }; throws, teaching
  *   SIDE_MAP_KEYS, ZONE_KEYS, RUN_AXES, BEATS, CLIMBS, DROPS
  *
  * Pure.
@@ -28,7 +29,7 @@
 import { TEACH } from '../course.js';
 import { FILLS } from './fills.js';
 
-export const SIDE_MAP_KEYS = Object.freeze(['premise', 'fill', 'zones']);
+export const SIDE_MAP_KEYS = Object.freeze(['premise', 'fill', 'crates', 'zones']);
 export const ZONE_KEYS = Object.freeze(['run', 'screens', 'room', 'teach', 'beat', 'climb', 'rises', 'drop', 'place', 'fill', 'spawners', 'pillars', 'ceiling', 'reveal']);
 export const RUN_AXES = Object.freeze(['across', 'up', 'down']);
 /** the beats that teach nothing new (a zone's `teach` is the first level's own words) */
@@ -101,6 +102,7 @@ export function readSideMap(v, at = 'sidemap') {
   const out = {};
   if (v.premise !== undefined) { if (!(typeof v.premise === 'string' && v.premise.trim())) throw new Error(`side map: ${at}.premise is one sentence: who goes through this place, and toward what`); out.premise = v.premise.trim(); }
   if (v.fill !== undefined) { if (!FILLS[v.fill]) throw new Error(`side map: ${at}.fill is ${list(FILLS)}`); out.fill = v.fill; }
+  if (v.crates !== undefined) { if (typeof v.crates !== 'boolean') throw new Error(`side map: ${at}.crates is true or false (breakable crates on its runs)`); if (v.crates) out.crates = true; }
   out.zones = v.zones.map((z, i) => readZone(z, `${at}.zones[${i}]`));
   return out;
 }

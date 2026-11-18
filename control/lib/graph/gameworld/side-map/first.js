@@ -27,6 +27,8 @@ export const FIRST_SIDE_MAP_PREMISE = 'Galaxy Boy breaks into the plant to stop 
 export function firstSideMap({ premise = FIRST_SIDE_MAP_PREMISE } = {}) {
   return {
     premise,
+    // (crates on its runs, the buster's other target: hopped or shot apart, crates.js)
+    crates: true,
     zones: [
       { run: 'across', screens: 2, beat: 'rest' },
       { run: 'across', screens: 4, teach: 'basic' },

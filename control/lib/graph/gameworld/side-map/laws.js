@@ -29,6 +29,7 @@
  *     threads             the setting's thread runs unbroken from zone to zone
  *     painted             every zone with closed parts names what they are painted as; with the paint, every closed
  *                         face carries its fill and no zone's slices repeat
+ *     crates              each crate hopped (under the hero's jump), clear of a pit, on a floor, with room to stand on it
  *     doodads             what stands on the icing blocks nothing and hides nothing: none sunk in a closed part or at a
  *                         pit's lip, the lip's low, the foreground's under the feet line (doodads.js)
  *
@@ -44,9 +45,10 @@ import { FILLS } from './fills.js';
 import { climbTime, RISE_SHARE } from './layout.js';
 import { wallSurfaces } from './paint.js';
 import { doodadsOf, doodadFaults } from './doodads.js';
+import { crateFaults } from './crates.js';
 
 export const SIDE_MAP_LAWS = Object.freeze(['one-screen', 'both-walls', 'reach', 'rests', 'outclimbs', 'light-at-the-top', 'stakes', 'checkpoints', 'ladders', 'one-new-thing', 'varied', 'swept', 'the-boss-owns-it',
-  'a-place-a-zone', 'solid-over-void', 'lit-tops', 'play-against-place', 'boss-colour', 'rhythm', 'peeks-in', 'threads', 'painted', 'doodads']);
+  'a-place-a-zone', 'solid-over-void', 'lit-tops', 'play-against-place', 'boss-colour', 'rhythm', 'peeks-in', 'threads', 'painted', 'doodads', 'crates']);
 
 const EPS = 1e-3, MARGIN = 0.35, SEEN = 1, OUTCLIMB = 1.25, CELL = 0.5;
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -315,6 +317,11 @@ export function sideMapLaws(layout, reach, { dress, paint } = {}) {
   {
     const all = doodadsOf(L, D), lost = doodadFaults(L, all);
     law('doodads', lost, all.length ? `${all.length} things on the icing at their depths, none a collider, none sunk or at a pit's lip, the foreground under the feet line` : 'nothing stands on the icing', (x) => x.map((y) => y.says).join('; '));
+  }
+  // crates: in the way, but hopped or shot (crates.js)
+  {
+    const C = L.crates ?? [], lost = crateFaults(L, C, { stature: L.stature, jump: reach.moves?.run?.height ?? null });
+    law('crates', lost, C.length ? `${C.length} crates on the runs, each under the hero's jump, clear of the pits, with room to stand on it` : 'no crates', (x) => x.map((y) => y.says).join('; '));
   }
   return laws;
 }

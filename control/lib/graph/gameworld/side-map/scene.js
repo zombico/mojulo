@@ -13,6 +13,8 @@
  *   the DOODADS        what stands on the icing and blocks nothing (doodads.js), at its depth: behind the hero on the
  *                      top's rear, low on its lip (or hung under it), dark in the foreground under the feet line; boxes,
  *                      their face to the camera, their top and their ends, never in the layout's blocks
+ *   the CRATES         where the chain asks for them (crates.js): boxes across the lane, their faces named for them and
+ *                      an anchor each (a crate), so a world's breakability makes each a block that breaks
  *   the PLAY           shutters, ladders and pickups in the play's colour, on the other side of the wheel from the place
  *   the LIGHT          lit (`light: 'lit'`, the default: light.js): each face's colour its base, lit per corner by its
  *                      zone's lamps or the cube's sun and sky, contact under tops, a climb's light at its top; flat
@@ -41,6 +43,7 @@ import { sideMapLaws } from './laws.js';
 import { paintSideMap, backdropOf } from './paint.js';
 import { lightSideMap, sideMapTextures } from './light.js';
 import { doodadsOf } from './doodads.js';
+import { cratesOf, CRATE } from './crates.js';
 
 export const SIDE_MAP_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed', 'sidemap', 'feel', 'stature', 'light', 'title', 'viewBox']);
 /** How the map is lit: 'lit' (light.js: lamps, the cube's sun and sky, contact, a climb's light) or 'flat' (one baked key). */
@@ -68,6 +71,8 @@ export function sideMapOf(m) {
   // (a played level's manifest carries its pilot, camera and game beside the scene's words: read the scene's only)
   const R = readSideMapScene(Object.fromEntries(Object.entries(m).filter(([k]) => SIDE_MAP_SCENE_KEYS.includes(k)))), layout = layoutSideMap(R.map, { reach: R.reach, stature: R.stature });
   const dress = dressSideMap(layout, R.map, { seed: R.seed, cube: R.cube }), paint = paintSideMap(layout, dress, { seed: R.seed });
+  // (its crates, where the chain asks for them: on the layout, so its play, its bot and its laws see them, crates.js)
+  if (R.read.crates) layout.crates = cratesOf(layout, dress, { stature: R.stature });
   return { layout, dress, paint, laws: sideMapLaws(layout, R.reach, { dress, paint }), reach: R.reach, stature: R.stature, cube: R.cube, light: R.light };
 }
 
@@ -162,6 +167,20 @@ export function assembleSideMap(m, ctx = {}) {
     if (d.depth === 'foreground') { box(a, b, d.z, d.top - 0.4); box(a + d.w * 0.15, b - d.w * 0.2, d.top - 0.4, d.top - 0.15); box(a + d.w * 0.35, b - d.w * 0.4, d.top - 0.15, d.top); continue; }
     box(a, b, d.z, d.top);
   }
+  // the crates (crates.js): each a box across the lane's middle, its faces named for it (`node`: a world's breakability
+  // moves them to its own group, break:<id>, to hide when it breaks), a frame and a brace on its face
+  for (const c of L.crates ?? []) {
+    const z = Z[c.zone], wood = mixHex('#9a6a34', z.key, 0.18), dark = mixHex(wood, '#000000', 0.38), lite = mixHex(wood, '#ffffff', 0.18), h = CRATE / 2;
+    const named = (from) => { for (let i = from; i < faces.length; i++) faces[i].node = c.id; };
+    const n0 = faces.length, g = 'sidemap:crate';
+    face(faces, h, c.s0, c.s1, c.z0, c.z1, lit(wood, FACE.px), g);
+    quad(faces, [[-h, c.s0, c.z1], [h, c.s0, c.z1], [h, c.s1, c.z1], [-h, c.s1, c.z1]], FACE.top, lit(lite, FACE.top), g);
+    for (const [sv, n] of [[c.s0, FACE.ny], [c.s1, FACE.py]]) quad(faces, [[-h, sv, c.z0], [h, sv, c.z0], [h, sv, c.z1], [-h, sv, c.z1]], n, lit(wood, FACE.px, 0.78), g);
+    const t = 0.1, x = h + 0.004;
+    for (const [a, b, d, e] of [[c.s0, c.s1, c.z1 - t, c.z1], [c.s0, c.s1, c.z0, c.z0 + t], [c.s0, c.s0 + t, c.z0, c.z1], [c.s1 - t, c.s1, c.z0, c.z1]]) face(faces, x, a, b, d, e, lit(dark, FACE.px), g);
+    quad(faces, [[x, c.s0 + t, c.z0 + t], [x, c.s0 + t + 0.12, c.z0 + t], [x, c.s1 - t, c.z1 - t], [x, c.s1 - t - 0.12, c.z1 - t]], FACE.px, lit(dark, FACE.px), g);
+    named(n0);
+  }
   // the play: shutters, ladders, pickups
   for (const d of L.doors) face(faces, HALF + 0.03, d.at[0] - DOOR_W / 2, d.at[0] + DOOR_W / 2, d.at[1], d.at[1] + 3.6, lit(play, FACE.px), 'sidemap:door');
   for (const l of L.ladders) {
@@ -187,6 +206,7 @@ export function assembleSideMap(m, ctx = {}) {
     bg: rgbHex(sky[sky.length - 1].map((v) => v / 255)),
     sky: { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1 },
     pack: true,
+    ...(L.crates?.length ? { anchors: L.crates.map((c) => ({ id: c.id, kind: 'crate' })) } : {}),
   };
   Object.defineProperty(payload, 'sidemap', { value: { layout: L, dress: D, paint: D0.paint, laws: D0.laws, cube: D0.cube.id, stature: D0.stature }, enumerable: false });
   return payload;

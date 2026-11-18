@@ -11,7 +11,7 @@
  *                back to it), stepped off at its lip onto the floor beyond, climbed at LADDER_RATE
  *     catch      { type: 'zone', zone: SIDE_FALL, … }  the zone in limbo a fall out of the frame is counted in (the lives
  *                mechanic's `falls: [SIDE_FALL]`)
- *     colliders  the layout's blocks, the level's solids
+ *     colliders  the layout's blocks, the level's solids, and its crates (each `of` its id: a block that breaks)
  *     spawn      [x, y, z] the first checkpoint's, on the lane
  *   }
  *   SIDE_FALL, LIMBO
@@ -19,6 +19,7 @@
  * Pure. The lane is the layout's: along +y at x 0, the camera on the +x side.
  */
 import { LADDER_RATE } from './layout.js';
+import { CRATE } from './crates.js';
 
 export const SIDE_FALL = 'side-fall';
 export const LIMBO = -5000;
@@ -45,7 +46,8 @@ export function sideMapPlay(layout, { stature, target = 'hero' } = {}) {
     camera: { rule: 'side-map', target, screen: [L.screen.width, L.screen.height], dist: C.dist, tilt: C.tilt, lookH: C.lookH, ...(stature ? { stature } : {}), limbo: LIMBO, zones },
     ladders,
     catch: { type: 'zone', zone: SIDE_FALL, at: [0, 0, LIMBO], half: [1e6, 1e6, 200], watch: target },
-    colliders: L.blocks.map((b) => ({ min: b.min, max: b.max })),
+    // (and its crates, each its own collider by its id: a world's breakability makes it a block that breaks, crates.js)
+    colliders: [...L.blocks.map((b) => ({ min: b.min, max: b.max })), ...(L.crates ?? []).map((c) => ({ min: [-CRATE / 2, c.s0, c.z0], max: [CRATE / 2, c.s1, c.z1], of: c.id }))],
     spawn: [0, cp0[0], cp0[1] + 0.05],
   };
 }
