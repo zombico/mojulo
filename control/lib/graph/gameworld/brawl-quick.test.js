@@ -290,6 +290,24 @@ describe('a heroes brawl designed', () => {
     expect(() => world({ heroes: { team: [{ hero: { ref: 'x' }, look: { hair: 'bob' } }] } })).toThrow(/already made/);
     expect(() => world({ heroes: { team: [{ brief: 'b', look: { hair: 'mohawk' } }] } })).toThrow(/team\[0\]\.look\.hair/);
   });
+  it('a hero and the villain take the hero door\'s own words (create_character\'s spec) over their sheets; a villain made already is drawn as made', () => {
+    const SPEC = { hair: ['braid', { length: 1.4 }], headgear: 'circlet', palette: { Hair: '#eeeeee' } };
+    const W = runSteps(world({ heroes: { team: [{ brief: 'a witch with short black hair', pole: 'female', spec: SPEC }], villain: { member: 'brute', look: { cape: 'ankle' }, spec: { expression: 'smile' } } } }), { ref: 'gw' });
+    const one = W.find((s) => s.key === 'fighter-hero-1').order.spec;
+    // (its own words win over the look its brief gave, and over the brawler's body; the brawler's body under them)
+    expect(one).toMatchObject(SPEC);
+    expect(one.animeBody).toBeTruthy();
+    const boss = W.find((s) => s.key === 'foes-crowd-boss').order.spec;
+    expect(boss.expression).toBe('smile');
+    expect(boss.outfit.pieces.some((p) => p.kind === 'cloak')).toBe(true);
+    const made = runSteps(world({ heroes: { villain: { hero: { ref: 'my-villain' }, name: 'Umbra', power: 'nova' } } }), { ref: 'gw' });
+    expect(made.some((s) => s.key === 'foes-crowd-boss')).toBe(false);
+    const street = made.find((s) => s.key === 'level-street-street').order.manifest.brawl.street;
+    expect(street.roster.find((r) => r.id === 'crowd-boss')).toMatchObject({ name: 'Umbra', hero: { ref: 'my-villain' } });
+    expect(() => world({ heroes: { team: [{ brief: 'b', spec: 'tall' }] } })).toThrow(/hero door's words/);
+    expect(() => world({ heroes: { team: [{ hero: { ref: 'x' }, spec: { hair: 'bob' } }] } })).toThrow(/already made/);
+    expect(() => world({ heroes: { villain: { hero: { ref: 'x' }, member: 'brute' } } })).toThrow(/already made/);
+  });
   it('its words are read before anything is made; a power far from its kind\'s measure is advised on the game', () => {
     expect(() => world({ heroes: { team: [{ hero: { ref: 'x' }, brief: 'b' }] } })).toThrow(/already made/);
     expect(() => world({ heroes: { team: [{ brief: 'b', build: 'enormous' }] } })).toThrow(/build/);

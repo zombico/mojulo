@@ -243,7 +243,7 @@ import { SCENARIOS } from '../worksim/scenarios.js';
 import { readCard } from '../worksim/card.js';
 import { solve as solveWork, targetOf } from '../worksim/solve.js';
 import { layWork } from '../game/work-mechanics.js';
-import { heroLook, lookSpec } from './hero-look.js';
+import { heroLook, lookSpec, readLook } from './hero-look.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -872,7 +872,7 @@ export function brawlCrowd(Q, seed = 1, title = 'brawl') {
   });
   // (its boss: its heaviest kind, on the hulking body)
   const top = kinds.find((k) => S.kinds[k].builds.includes('brute')) ?? kinds.find((k) => S.kinds[k].builds.some((b) => BIG.has(b) || b === 'heroic')) ?? kinds[kinds.length - 1];
-  if (H) { const V = heroVillain(H, seed); members.push({ id: 'crowd-boss', name: V.name, as: 'boss', heavy: true, grunt: null, mint: { ...V.mint, title: `${title} · ${V.name}` } }); }
+  if (H) { const V = heroVillain(H, seed); members.push({ id: 'crowd-boss', name: V.name, as: 'boss', heavy: true, grunt: null, ...(V.hero ? { hero: V.hero } : { mint: { ...V.mint, title: `${title} · ${V.name}` } }) }); }
   else members.push(member(roll(n, top), 'crowd-boss', 'boss', true, `${S.name} boss`));
   // (its colour: the colourway's trim, what the street it holds is marked in)
   const colour = S.colourways[colourway].palette?.Trim ?? null;
@@ -923,8 +923,8 @@ const MEMBER_STYLE = Object.freeze({ frontline: 'grappler', flanker: 'rushdown',
 // a team member's words: who it is (the pack's member it is cast from, or the person's own: a sentence and the sheet's
 // words, or a character already made) and its power (one of the shelf's, or designed: brawl-powers.js readPower)
 const SHEET_WORDS = ['archetype', 'build', 'age', 'pole', 'role'];
-const TEAM_WORDS = ['power', 'member', 'name', 'brief', 'style', 'hero', 'look', ...SHEET_WORDS];
-const VILLAIN_WORDS = ['member', 'power', 'name'];
+const TEAM_WORDS = ['power', 'member', 'name', 'brief', 'style', 'hero', 'look', 'spec', ...SHEET_WORDS];
+const VILLAIN_WORDS = ['member', 'power', 'name', 'hero', 'look', 'spec'];
 export function readHeroes(v, at = '.heroes') {
   if (v === undefined || v === false) return null;
   const H = v === true ? {} : v;
@@ -939,7 +939,11 @@ export function readHeroes(v, at = '.heroes') {
     // (WHO: a character already made (hero: { ref }, its sheet its own); the person's own, said in a sentence and the
     // sheet's words (a brief and no member); else the pack's member at that seat, or the one named, its words over it)
     const said = SHEET_WORDS.filter((w) => t[w] !== undefined);
-    if (t.hero !== undefined && (t.member !== undefined || t.brief !== undefined || t.look !== undefined || said.length)) throw fail(`${here}: a hero already made (hero) has its own sheet and look (change them with update_character): drop ${[...(t.member !== undefined ? ['member'] : []), ...(t.brief !== undefined ? ['brief'] : []), ...(t.look !== undefined ? ['look'] : []), ...said].join(', ')}`);
+    if (t.hero !== undefined && (t.member !== undefined || t.brief !== undefined || t.look !== undefined || t.spec !== undefined || said.length)) throw fail(`${here}: a hero already made (hero) has its own sheet and look (change them with update_character): drop ${[...(t.member !== undefined ? ['member'] : []), ...(t.brief !== undefined ? ['brief'] : []), ...(t.look !== undefined ? ['look'] : []), ...(t.spec !== undefined ? ['spec'] : []), ...said].join(', ')}`);
+    if (t.hero !== undefined && !(isObj(t.hero) && typeof t.hero.ref === 'string')) throw fail(`${here}.hero is { ref }: a character made with create_character`);
+    // (its OWN WORDS, the hero door's (create_character's spec): laid over what its sheet rolled word by word, as
+    // create_character lays a spec over a sheet; the door reads them when the game is designed (design_game))
+    if (t.spec !== undefined && !isObj(t.spec)) throw fail(`${here}.spec is the hero door's words (create_character's spec: hair, face, outfit, palette, headgear …), laid over its sheet's`);
     const own = t.hero === undefined && t.member === undefined && t.brief !== undefined;
     const member = t.hero !== undefined || own ? null : t.member ?? seat.member;
     if (member) { try { castMember(member); } catch (e) { throw fail(`${here}.member: ${e.message.replace(/^comic-hero: /, '')}`); } }
@@ -953,7 +957,7 @@ export function readHeroes(v, at = '.heroes') {
     // hero-look.js; the sheet rolls the rest)
     let look;
     try { look = heroLook(t.brief, t.look); } catch (e) { throw fail(`${here}.${e.message.replace(/^gameworld: /, '')}`); }
-    const entry = { member, power, ...(name ? { name } : {}), ...(brief ? { brief } : {}), ...(look ? { look } : {}), ...(said.length ? { facets: Object.fromEntries(said.map((w) => [w, t[w]])) } : {}), ...(t.hero !== undefined ? { hero: t.hero } : {}), style: t.style ?? base.style ?? MEMBER_STYLE[role] ?? seat.style };
+    const entry = { member, power, ...(name ? { name } : {}), ...(brief ? { brief } : {}), ...(look ? { look } : {}), ...(t.spec ? { spec: t.spec } : {}), ...(said.length ? { facets: Object.fromEntries(said.map((w) => [w, t[w]])) } : {}), ...(t.hero !== undefined ? { hero: t.hero } : {}), style: t.style ?? base.style ?? MEMBER_STYLE[role] ?? seat.style };
     // (its words read as a fighter's are, so a fault is said here and not when the run rolls it)
     try { fighterSpec(heroFighter(entry, k), k); } catch (e) { throw fail(`${here}: ${e.message.replace(/^versus: /, '')}`); }
     return entry;
@@ -962,11 +966,18 @@ export function readHeroes(v, at = '.heroes') {
   const V = typeof H.villain === 'string' || H.villain === undefined ? { member: H.villain ?? 'mastermind' } : H.villain;
   if (!isObj(V)) throw fail(`${at}.villain is one of ${Object.keys(HERO_VILLAINS).join(', ')}, or { member, power?, name? }`);
   for (const w of Object.keys(V)) if (!VILLAIN_WORDS.includes(w)) throw fail(`${at}.villain.${w} is not a villain's word (${VILLAIN_WORDS.join(', ')})`);
-  if (!HERO_VILLAINS[V.member]) throw fail(`${at}.villain${typeof H.villain === 'object' ? '.member' : ''} is one of the pack's villains: ${Object.keys(HERO_VILLAINS).join(', ')}`);
-  const vpower = V.power ?? HERO_VILLAINS[V.member];
+  // (a villain already made, create_character's: its own body and look; else the pack's member, the person's words over it)
+  const made = V.hero !== undefined;
+  if (made && !(isObj(V.hero) && typeof V.hero.ref === 'string')) throw fail(`${at}.villain.hero is { ref }: a character made with create_character`);
+  if (made && ['member', 'look', 'spec'].some((w) => H.villain[w] !== undefined)) throw fail(`${at}.villain: a villain already made (hero) has its own look (change it with update_character): drop ${['member', 'look', 'spec'].filter((w) => H.villain[w] !== undefined).join(', ')}`);
+  if (!made && !HERO_VILLAINS[V.member]) throw fail(`${at}.villain${typeof H.villain === 'object' ? '.member' : ''} is one of the pack's villains: ${Object.keys(HERO_VILLAINS).join(', ')}`);
+  if (V.spec !== undefined && !isObj(V.spec)) throw fail(`${at}.villain.spec is the hero door's words (create_character's spec), laid over the villain's`);
+  let vlook;
+  try { vlook = readLook(V.look, 'look'); } catch (e) { throw fail(`${at}.villain.${e.message.replace(/^gameworld: /, '')}`); }
+  const vpower = V.power ?? HERO_VILLAINS[made ? 'mastermind' : V.member];
   try { readPower(vpower, 'power'); } catch (e) { throw fail(`${at}.villain.${e.message.replace(/^brawl: /, '')}`); }
   if (V.name !== undefined && !(typeof V.name === 'string' && V.name.trim() && V.name.length <= 40)) throw fail(`${at}.villain.name is a short name (at most 40 letters)`);
-  return { team, villain: { member: V.member, power: vpower, name: V.name ?? castMember(V.member).name } };
+  return { team, villain: { member: made ? null : V.member, power: vpower, name: V.name ?? (made ? 'The villain' : castMember(V.member).name), ...(made ? { hero: V.hero } : {}), ...(vlook ? { look: vlook } : {}), ...(V.spec ? { spec: V.spec } : {}) } };
 }
 /** One team member as the fight's roster words: a character already made, or rolled from a sheet (the member's facets
  * under the person's own words, its brief, its style). */
@@ -985,10 +996,15 @@ export const powerLabel = (power) => { const R = readPower(power); return R.name
 export const heroAdvice = (H) => [...H.team.flatMap((t, k) => powerAdvice(t.power, t.name ?? (t.member ? castMember(t.member).name : `hero ${k + 1}`))), ...powerAdvice(H.villain.power, H.villain.name).map((l) => `${l} (against the heroes)`)];
 /** The villain: the pack's member as a character, on the brawler's hulking body, out of the pack's own light. */
 export function heroVillain(H, seed = 1) {
+  // (one already made is used as made: no mint)
+  if (H.villain.hero) return { name: H.villain.name, power: H.villain.power, hero: H.villain.hero };
   const O = memberOrders(H.villain.member, 'dcau-golden', { seed });
   const { geocube: _cube, gear: _gear, ...spec } = O.mint.args.spec;
   const pole = (typeof spec.cast === 'string' ? spec.cast : spec.cast?.pole) === 'female' ? 'female' : 'male';
-  return { name: H.villain.name, power: H.villain.power, mint: { kind: 'layered', via: 'hero', title: O.mint.args.title, spec: { ...spec, ...BRAWLER_BODY(pole, true) } } };
+  // (the person's look and words over the member's, on the brawler's body: hero-look.js, create_character's spec)
+  const body = BRAWLER_BODY(pole, true), over = { ...lookSpec(H.villain.look ?? null, spec, body.head), ...(H.villain.spec ?? {}) };
+  const own = Object.fromEntries(Object.entries({ ...spec, ...body, ...over }).filter(([, v]) => v !== null));
+  return { name: H.villain.name, power: H.villain.power, mint: { kind: 'layered', via: 'hero', title: O.mint.args.title, spec: own } };
 }
 /** The boss a heroes street ends on: the villain's fighter with its power, in three stages. */
 export function villainBoss(H) {
@@ -1069,15 +1085,17 @@ const BRAWLER_BODY = (pole, heavy) => ({ head: 'landmark', animeBody: (heavy ? {
  * WESTERN head (the landmark head: styled, never the anime head and never the realistic one). `created` is the sheet's
  * own create order (egocube/kind.js egocubeCreate); null for one that is not a person. A sheet rolled in the anime
  * tradition keeps the anime head (an anime brawl's: the western head refuses that head's hair, face and expression).
- * `look` a designed hero's (hero-look.js), laid over the sheet's words in that head's. */
-export function brawlBody(created, heavy = false, look = null) {
+ * `look` a designed hero's (hero-look.js), laid over the sheet's words in that head's; `spec` its own words, the hero
+ * door's (create_character's spec), over all of it. */
+export function brawlBody(created, heavy = false, look = null, spec = null) {
   if (created?.create?.as !== 'hero') return null;
   const base = created.create.spec ?? {}, pole = (typeof base.cast === 'string' ? base.cast : base.cast?.pole) === 'female' ? 'female' : 'male';
   // (a sheet rolled in the ANIME tradition (an anime brawl's `register`) keeps the anime head: its hair, its face and its
   // expression are that head's words, which the western head refuses, and the brawler's bodies are the anime frame's own)
   const body = base.head === 'anime' ? { ...BRAWLER_BODY(pole, heavy), head: 'anime' } : BRAWLER_BODY(pole, heavy);
   // (a designed hero's LOOK where the person said it: its hair, its colour, a cape or a gown, over the sheet's: hero-look.js)
-  return look ? { ...body, ...lookSpec(look, base, body.head) } : body;
+  // (and its own words, the hero door's: create_character's spec over the sheet's, word by word; null leaves one off)
+  return look || spec ? { ...body, ...(look ? lookSpec(look, base, spec?.head ?? body.head) : {}), ...(spec ?? {}) } : body;
 }
 /**
  * HOW A MAP IS PLAYED, laid (brawl/brawl-play.js, the play types): the street's words for its play, and what holds it

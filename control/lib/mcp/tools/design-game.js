@@ -29,7 +29,8 @@ import { mintSolidHandler } from './mint-solid.js';
 import { createCharacterHandler } from './create-character.js';
 import { createGameHandler, auditGameLevel } from './create-game.js';
 import { heroMintArgs, heroRemakeOps } from './hero-mint.js';
-import { HERO_FIELDS } from './layered.js';
+import { HERO_FIELDS, validateHeroSpec, heroKeyHint } from './layered.js';
+import { egocubeCreate, rollStored } from '@/lib/graph/egocube/kind.js';
 import { LAWS_VERSION } from '@/lib/graph/equipment/expand.js';
 import {
   GAMEWORLD_KIND, isGameworldKind, gameworldOf, readGameworld, resolveBook, reviewState, approve as approveWorldPart, reviewParts,
@@ -766,6 +767,31 @@ async function varyGame(ref, vary, chapter) {
   };
 }
 
+/**
+ * A HEROES BRAWL's heroes and villain given words of their own (a `look`, the hero door's `spec`: quick.js readHeroes) read
+ * by the hero door before anything is made: each one's spec as its mint will have it (its sheet's words, the brawler's
+ * body, the look and the person's words over them), so a word the door refuses is said now, not at the run. Throws.
+ */
+export function heroWordsChecked(world, heroes) {
+  const own = (t) => isObj(t) && (t.look !== undefined || t.spec !== undefined);
+  if (!(Array.isArray(heroes.team) && heroes.team.some(own)) && !own(heroes.villain)) return;
+  const steps = runSteps(world, { ref: 'heroes-check' }), bad = [];
+  for (const st of steps) {
+    const O = st.order ?? {};
+    let spec = null;
+    if (O.egocube && O.spec) {
+      const sheet = steps.find((x) => x.ref === O.egocube);
+      if (!sheet) continue;
+      spec = Object.fromEntries(Object.entries({ ...egocubeCreate(rollStored(sheet.order.manifest)).create.spec, ...O.spec }).filter(([, v]) => v !== null));
+    } else if (st.key === 'foes-crowd-boss' && O.spec) spec = O.spec;
+    if (!spec) continue;
+    // (a word the door does not take, said as the door says it: where it belongs, or the word it is near)
+    const errs = [...Object.keys(spec).filter((k) => !HERO_FIELDS.includes(k) && k !== 'vibe').map(heroKeyHint), ...validateHeroSpec(spec)];
+    if (errs.length) bad.push(`${(O.title ?? st.key).split(' · ').pop()}: ${errs.join('; ')}`);
+  }
+  if (bad.length) throw new Error(`design_game: quick.heroes: the hero door refuses these words (create_character's spec, get_solid_vocab({ id: 'layered' })): ${bad.join(' | ')}`);
+}
+
 export async function designGameHandler(input, context = {}) {
   if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, compose?, patch?, approve?, revise?, note?, run?, force?, check?, example?, compare?, chapter?, req?, ask?, trace?, preview?, production?, as?, vary? }');
   const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, check, example, compare, quick, compose, readout: shape, chapter: named, req, ask, trace, preview, production, as } = input;
@@ -819,6 +845,7 @@ export async function designGameHandler(input, context = {}) {
   const painted = compose !== undefined ? paintedCast(stampWorldPalette(stampGeocubes(composedWorld(compose)))) : null;
   const composed = painted ? (painted.painted.length ? { ...painted.world, brief: { ...painted.world.brief, colour: { ...(painted.world.brief.colour ?? {}), cast: painted.painted } } } : painted.world) : undefined;
   const world = withNamedHero(compose !== undefined ? composed : quickQ !== undefined ? quickWorld({ ...(isObj(quickQ.world) ? quickQ.world : {}), quick: Object.fromEntries(Object.entries(quickQ).filter(([k]) => k !== 'world')) }) : written);
+  if (quickQ?.goal === 'brawl' && isObj(quickQ.heroes)) heroWordsChecked(world, quickQ.heroes);
   const run = asked ?? (quick !== undefined ? true : undefined);
   // a reference, made on request (the creator asked to see one): a gameworld of its own, never mixed into theirs
   if (example !== undefined) {

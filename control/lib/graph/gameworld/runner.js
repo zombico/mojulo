@@ -960,8 +960,9 @@ function quickSteps(world, G, ref, lookup) {
       // (a BRAWLER's body, quick.js brawlBody: the anime frame's muscular body under the western head, laid over the
       // sheet's person as a foe's body words are)
       // (a designed hero's look, its hair and what hangs loose on it, laid over the brawler's body: quick.js readHeroes)
-      const look = heroes && !Q.roster ? heroes.team[roster.length % heroes.team.length]?.look ?? null : null;
-      const bodyOf = Q.goal === 'brawl' ? brawlBody(egocubeCreate(rollStored(manifest)), false, look) : null;
+      // (and its own words, the hero door's: create_character's spec over all of it)
+      const seat = heroes && !Q.roster ? heroes.team[roster.length % heroes.team.length] : null;
+      const bodyOf = Q.goal === 'brawl' ? brawlBody(egocubeCreate(rollStored(manifest)), false, seat?.look ?? null, seat?.spec ?? null) : null;
       steps.push({ key, ref: charRef, ready: true, order: { egocube: sheetRef, title: `${title} · ${name}`, ...(bodyOf ? { spec: bodyOf } : {}) }, print: fingerprint({ roll, ...(bodyOf ? { spec: bodyOf } : {}) }) });
       roster.push({ ...own, hero: { ref: charRef }, ...over, ...strikesOf(moves, over) });
       playable.push({ id: own.id, name, ...(over?.style ? { about: over.style } : {}) });
@@ -978,8 +979,12 @@ function quickSteps(world, G, ref, lookup) {
       const crowd = brawlCrowd(Q, seed, title), cast = {}, types = [];
       for (const m of crowd.members) {
         const key = `foes-${m.id}`, charRef = childRef(ref, key), k = roster.length;
-        steps.push({ key, ref: charRef, ready: true, order: { spec: m.mint.spec, mint: m.mint, motion: null }, print: fingerprint({ spec: m.mint.spec, crowd: crowd.faction }) });
-        roster.push({ id: m.id, name: m.name, hero: { ref: charRef } });
+        // (a villain already made, create_character's, is drawn as made: no mint of its own)
+        if (m.hero) roster.push({ id: m.id, name: m.name, hero: m.hero });
+        else {
+          steps.push({ key, ref: charRef, ready: true, order: { spec: m.mint.spec, mint: m.mint, motion: null }, print: fingerprint({ spec: m.mint.spec, crowd: crowd.faction }) });
+          roster.push({ id: m.id, name: m.name, hero: { ref: charRef } });
+        }
         (cast[m.as] ??= []).push(k);
         if (m.as !== 'boss') { (cast['*'] ??= []).push(k); types.push(m.as); }
       }

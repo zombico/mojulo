@@ -99,6 +99,15 @@
   The look is laid in the words each head wears, the anime one or the western one. A hero you made already keeps its
   own look, and a look given with one is turned down: change it with the character's own edits. The studio now asks
   for each hero's hair and cape along with who it is. A hero whose look nobody described is made as before.
+- **Every word the character maker takes, on a designed hero and on the villain.** A hero you design can carry
+  `spec`, the same words `create_character` takes for a person. That means the hair with all its controls, the face,
+  the expression, the whole outfit, the palette, headgear, gear, the build and the rest. They are laid over what its
+  sheet rolled, word by word, the way `create_character` lays words over a rolled sheet, and they win over the look
+  read from its sentence. The villain takes the same `spec` and `look`. The villain can also now be a character you
+  made with `create_character` (`villain: { hero: { ref } }`), drawn as you made it, as a team hero already could be.
+  The words are checked by the character maker itself as soon as the game is designed, each hero's as it will be
+  made, so a word it does not take is pointed out then, with where it belongs or the word it is near, before anything
+  is made.
 - **A power's round can floor what it hits.** A special's projectile now knocks down when its move says so, and a
   power's round passes through as many bodies as its card says. Before, a projectile knocked nobody down and
   stopped at the first body.
