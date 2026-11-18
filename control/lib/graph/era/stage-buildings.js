@@ -275,6 +275,29 @@ const paintRaw = (kitId, repoint) => paintFor(kitId, repoint);
 const USE_ORDER = ['hall', 'shop', 'workshop', 'tower', 'barn', 'dwelling'];
 // (a town's trades, era/town-trades.js: a lot kept for an inn, a temple, a smithy, its door and inside the trade's)
 export { TOWN_TRADES };
+/**
+ * A WINDOW GLAZED: a pane (a standing face of a building's openings, `str:opening`, a window's size) as glass. It catches
+ * the sky over it (its upper corners lit toward `GLASS.sky`) and the dark of the room behind (its lower ones toward
+ * `GLASS.deep`, over the opening's own paint), carries a highlight the page draws live (`spec`, scene/channels/specular.js),
+ * and is crossed by its glazing bars (a mullion and a transom, proud of the glass by a hair). A face too big or lying flat
+ * (a door's void, an arch) stays as it was. → [faces]
+ */
+export const GLASS = Object.freeze({ sky: '#a9c1d6', deep: '#1c2630', mix: [0.62, 0.3], spec: Object.freeze([0.6, 48]), bar: 0.05, most: 4.5 });
+function glazed(F, nn, frame) {
+  const c = F.corners;
+  if (c.length !== 4 || Math.abs(nn[2]) > 0.3) return [F];
+  const u = sub3(c[1], c[0]), v = sub3(c[3], c[0]), w = Math.hypot(...u), h = Math.hypot(...v);
+  if (w * h > GLASS.most || w < 0.25 || h < 0.25) return [F];
+  const rgb = (x) => [1, 3, 5].map((i) => parseInt(x.slice(i, i + 2), 16)), hex = (a) => '#' + a.map((q) => Math.max(0, Math.min(255, Math.round(q))).toString(16).padStart(2, '0')).join('');
+  const base = typeof F.fill === 'string' && /^#[0-9a-f]{6}$/i.test(F.fill) ? rgb(F.fill) : rgb(GLASS.deep), sky = rgb(GLASS.sky), deep = rgb(GLASS.deep);
+  const zs = c.map((p) => p[2]), z0 = Math.min(...zs), z1 = Math.max(...zs);
+  const at = (p) => { const t = z1 > z0 ? (p[2] - z0) / (z1 - z0) : 0.5, m = GLASS.mix[1] + (GLASS.mix[0] - GLASS.mix[1]) * t; return hex(base.map((q, i) => (q * 0.25 + deep[i] * 0.75) * (1 - m) + sky[i] * m)); };
+  const fills = c.map(at), glass = { ...F, fill: fills[0], cornerFills: fills, spec: [...GLASS.spec] };
+  // the glazing bars: a mullion up its middle, a transom across it, a hair proud of the pane
+  const o = nn.map((q) => q * 0.012), P = (s, t, du, dv) => [0, 1, 2].map((i) => r5(c[0][i] + u[i] * s + v[i] * t + o[i] + du * u[i] / w + dv * v[i] / h));
+  const b = GLASS.bar / 2, bar = (cs) => ({ ...quad(cs, F.group, frame), normal: F.normal, outNormal: F.outNormal });
+  return [glass, bar([P(0.5, 0, -b, 0), P(0.5, 0, b, 0), P(0.5, 1, b, 0), P(0.5, 1, -b, 0)]), bar([P(0, 0.55, 0, -b), P(1, 0.55, 0, -b), P(1, 0.55, 0, b), P(0, 0.55, 0, b)])];
+}
 const DOOR_USES = new Set(['dwelling', 'shop', 'tavern', 'keep', 'temple', 'crypt', 'guardhouse', 'library', 'lab']);
 const RING_ORDER = { near: 0, mid: 1, far: 2 };
 /** The lots a town's street stands, in its order (the focus, then the near ring, a counter before a dwelling), the
@@ -833,7 +856,9 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const Pt = paintRaw(kitId, manifest.town?.paint), lit = (n) => 0.55 + 0.45 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
       // (a cube's street dressed: its walls painted from relief, town-dress.js; absent, the paint alone)
       const Dr = manifest.town?.dress, dressed = (face, grp) => (Dr ? dressTownFace(face, grp, Dr) : face);
-      const shellF = lot.design.faces.map((f) => { const c = f.corners.map(Wl), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))); return dressed({ ...quad(c, `town:${f.part}`, Pt(f.group, Math.min(1, (f.value ?? 0.6) * lit(nn)))), normal: P3(nn), outNormal: P3(nn) }, f.group); });
+      // (its windows GLAZED, glazed(): a pane standing in its wall catches the sky over it and the dark of the room behind,
+      // a highlight, its glazing bars across it; its other faces painted, and dressed where the cube is gritty)
+      const shellF = lot.design.faces.flatMap((f) => { const c = f.corners.map(Wl), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))), F0 = { ...quad(c, `town:${f.part}`, Pt(f.group, Math.min(1, (f.value ?? 0.6) * lit(nn)))), normal: P3(nn), outNormal: P3(nn) }; return f.group === 'str:opening' ? glazed(F0, nn, Pt('str:timber', 0.3)) : [dressed(F0, f.group)]; });
       const [x0, y0, x1, y1] = rects[0], plinth = [[[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]].map(([a, c]) => { const cs = [Wl([...a, -below0]), Wl([...c, -below0]), Wl([...c, 0]), Wl([...a, 0])], nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[3], cs[0]))); return dressed({ ...quad(cs, 'town:plinth', Pt('str:stone', 0.45 * lit(nn))), normal: P3(nn), outNormal: P3(nn) }, 'plinth'); });
       // (a screen over a light: one card, its star field a cutout texture, era/screen-tiles.js)
       const screenF = (lot.design.screens || []).map((f) => { const c = f.corners.map(Wl), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))), fill = Pt(f.group, Math.min(1, (f.value ?? 0.6) * lit(nn))); cutouts.add(f.texture); return { corners: c.map(P3), group: 'town:screen', fill, cornerFills: c.map(() => fill), normal: P3(nn), outNormal: P3(nn), texture: f.texture, textureLit: true, uv: f.uv }; });

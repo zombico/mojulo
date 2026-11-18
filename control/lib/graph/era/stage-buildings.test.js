@@ -6,7 +6,9 @@
 
 import { describe, it, expect } from 'vitest';
 import { assembleStageScene, planStage } from './stage.js';
-import { streetLots } from './stage-buildings.js';
+import { streetLots, GLASS } from './stage-buildings.js';
+import { wallStructure, gateLeaves, WALL_STRUCTURE, GATE_LEAVES } from './stage-walls.js';
+import { composeFort } from './out-fortress.js';
 
 const TRAIL = { kind: 'stage', kit: 'isekai-meadow', trail: true };
 const plain = assembleStageScene(TRAIL);
@@ -125,6 +127,37 @@ describe("a town's street", () => {
     const Q = streetLots({ houses: 4, enter: ['shop', 'inn', 'temple'] }, 'isekai-meadow', 1);
     expect(Q.lots.map(({ l }) => l.trade ?? null).slice(0, 3)).toEqual([null, 'inn', 'temple']);
     expect(Q.town.lots.some((l) => l.trade)).toBe(false);
+  });
+  it('glazed: a house\'s window panes catch the sky above and the room\'s dark below, a highlight on them, their bars across', () => {
+    const P = assembleStageScene({ ...TRAIL, town: { houses: 3, enter: 0, street: true } });
+    const panes = P.faces.filter((f) => f.group === 'town:opening' && f.spec);
+    expect(panes.length).toBeGreaterThan(0);
+    for (const g of panes) {
+      expect(g.spec).toEqual([...GLASS.spec]);
+      // (lighter at its head than its sill: the sky over it, the room behind)
+      const lum = (h) => [1, 3, 5].reduce((a, i) => a + parseInt(h.slice(i, i + 2), 16), 0);
+      const zs = g.corners.map((c) => c[2]), hi = g.cornerFills[zs.indexOf(Math.max(...zs))], lo = g.cornerFills[zs.indexOf(Math.min(...zs))];
+      expect(lum(hi)).toBeGreaterThan(lum(lo));
+    }
+    // (each pane's two bars, a hair proud of it)
+    expect(P.faces.filter((f) => f.group === 'town:opening' && !f.spec).length).toBeGreaterThanOrEqual(panes.length * 2);
+  });
+  it('walls: their structure (a plinth, buttresses, a string course) and an open gate: its leaves swung back, its portcullis raised', () => {
+    const F = composeFort('crenellated'), H = 7, t = F.curtain.t;
+    // the structure: the buttresses stand proud of the field's face (−y), the pilasters of the street's, clear of the gate
+    const o = []; wallStructure(o, 30, F, H, { u: 15, w: 9 });
+    const ys = o.flatMap((f) => f.corners.map((c) => c[1]));
+    expect(Math.min(...ys)).toBeLessThan(-t / 2 - WALL_STRUCTURE.buttress.proud + 0.01);
+    expect(Math.max(...ys)).toBeGreaterThan(t / 2 + WALL_STRUCTURE.pilaster.proud - 0.01);
+    expect(o.every((f) => f.corners.every((c) => c[0] <= 15 - 4.5 + 1e-6 || c[0] >= 15 + 4.5 - 1e-6))).toBe(true);
+    // the gate: below the portcullis's teeth, nothing stands in the way (the leaves are against its sides)
+    const g = [], pw = 9; gateLeaves(g, F, pw);
+    const low = g.filter((f) => f.corners.some((c) => c[2] < F.gate.clear - GATE_LEAVES.drop - 1e-6));
+    expect(low.length).toBeGreaterThan(0);
+    expect(low.every((f) => f.corners.every((c) => Math.abs(c[0]) >= pw / 2 - 0.2 - 1e-6))).toBe(true);
+    // on the street, each gatehouse keeps its way open: its two tower colliders, none across the trail
+    const W = assembleStageScene({ ...TRAIL, town: { houses: 4, enter: 1, street: true, walls: true } });
+    expect(W.colliders.filter((c) => c.of === 'town:walls:gate').length).toBe(4);
   });
   it('walls: the street closed by its fortification, a gatehouse over the trail at each end, its gates open', () => {
     const W = assembleStageScene({ ...TRAIL, town: { houses: 4, enter: 1, street: true, walls: true } });
