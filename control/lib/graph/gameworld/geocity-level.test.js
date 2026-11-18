@@ -352,6 +352,9 @@ describe('jobs across the district (errands on a played district: its shops thei
     const { cityMap } = await import('./city-map.js');
     const map = cityMap({ box: [0, 0, 1000, 1000], shapes: [], places: [] }, shopped);
     expect(map.markers.map((m) => m.label)).toEqual(expect.arrayContaining(['Respray (40)', 'Gun shop: rounds (25)']));
+    // (a played city with jobs keeps its own save: what it keeps, and when; scene/channels/game.js `save`)
+    expect(shopped.game.save.vars).toEqual(expect.arrayContaining(['flag-', 'held:bag:', 'standing-', 'mission-done-']));
+    expect(shopped.game.save.on).toEqual(expect.arrayContaining(['errand:done:', 'mission-passed:', 'flag:took-']));
     // (none written, none laid; no gun carried)
     expect(M.some((m) => m.kind === 'gunshop' || m.kind === 'respray')).toBe(false);
   });
