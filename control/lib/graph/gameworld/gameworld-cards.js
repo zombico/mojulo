@@ -14,7 +14,7 @@
  * Pure.
  */
 import { MOTIVATIONS, LABOURS, WORLD_SHAPES, ORDER_KINDS, SIDE_SHARE } from './gmn.js';
-import { RAIL_IDS, SIZES, OWN, seenSays, railOf, railShapes, railSheet } from './rails.js';
+import { RAIL_IDS, SIZES, OWN, seenSays, railOf, railShapes, railSheet, variantOf } from './rails.js';
 import { COATS } from '../mount/coats.js';
 import { ERRAND_LAWS } from './errand.js';
 import { GAME_BODIES, GAME_BODY_NAMES } from './game-bodies.js';
@@ -51,7 +51,7 @@ import { STAGE_KITS, resolveKitId, GROUND_KITS } from '../era/stage.js';
 import { STRUCTURE_KITS } from '../era/out-structures.js';
 import { ISEKAI_STYLES } from '../era/isekai.js';
 import { SEEDED_STYLES } from '../equipment/styles.js';
-import { QUICK_GOALS, RHYTHM_MOODS, RACE, DEFEND, DEATHMATCH_MODES, HERO_VILLAINS, HERO_TEAM, HERO_ARMY } from './quick.js';
+import { QUICK_GOALS, RHYTHM_MOODS, RACE, DEFEND, DEATHMATCH_MODES, HERO_VILLAINS, HERO_TEAM, HERO_ARMY, HERO_CAMPAIGN } from './quick.js';
 import { LOOK_WORDS } from './hero-look.js';
 import { SCORE_MOODS } from '../beats/field-score.js';
 import { CLUB_MOODS } from '../beats/club-score.js';
@@ -1578,8 +1578,8 @@ function railsCard() {
   );
 }
 
-function railCard(id) {
-  const S = railSheet(id);
+function railCard(id, variant = null) {
+  const S = railSheet(id, variant);
   const say = (v) => (Array.isArray(v) ? `[${v.map(say).join(', ')}]` : typeof v === 'string' ? `'${v}'` : String(v));
   const set = (o) => (o ? `{ ${Object.entries(o).map(([k, v]) => `${k}: ${say(v)}`).join(', ')} }` : 'read from the ask: no cube of its own');
   return lines(
@@ -1602,16 +1602,21 @@ function railCard(id) {
     'THE CHAIN, by size (pull a step\'s card when it is reached, not before):',
     ...S.chain.flatMap((c) => [`  ${c.size}:`, ...c.steps.map((st, i) => `    ${i + 1}. ${st.step.padEnd(12)}${st.does}${st.card ? `  (${st.card})` : ''}`)]),
     ...(S.lacks.length ? ['', 'WHAT IT DOES NOT DO YET (say it when the ask reaches for it):', ...S.lacks.map((l) => `  ${l}`)] : []),
+    ...(S.variants ? ['', 'ITS VARIANTS (the ask\'s words name one: pull its own sheet, its chain asks its own question first):',
+      ...S.variants.map((v) => `  ${v.name}: ${v.like} (gameworld-rail-${S.id}-${v.id}; the pitch's rail: { from: '${S.id}', variant: '${v.id}' })`)] : []),
   );
 }
 
 /** The rails' shape (`gameworld-rails`) or one rail's sheet (`gameworld-rail-<id>`), or null. Served by id, not listed. */
 export function railCardById(id) {
   if (id === 'gameworld-rails') return { id, name: 'The rails', summary: 'the game types mojulo builds, each a template a person\'s game starts from; the size called first', when: 'what kind of game, which template, a game like one I know, how big a game', scope: 'rail', body: railsCard() };
-  const rail = typeof id === 'string' && id.startsWith('gameworld-rail-') ? id.slice('gameworld-rail-'.length) : null;
-  if (!rail || !RAIL_IDS.includes(rail)) return null;
-  const R = railOf(rail);
-  return { id, name: `The rail: ${R.name}`, summary: R.like, when: `a game started from ${R.name}`, scope: 'rail', body: railCard(rail) };
+  const at = typeof id === 'string' && id.startsWith('gameworld-rail-') ? id.slice('gameworld-rail-'.length) : null;
+  if (!at) return null;
+  // (a rail's variant: `gameworld-rail-<rail>-<variant>`)
+  const rail = RAIL_IDS.includes(at) ? at : RAIL_IDS.find((r) => at.startsWith(`${r}-`) && railOf(r).variants?.[at.slice(r.length + 1)]);
+  if (!rail) return null;
+  const variant = rail === at ? null : at.slice(rail.length + 1), S = variant ? variantOf(rail, variant) : railOf(rail);
+  return { id, name: `The rail: ${S.name}`, summary: S.like, when: `a game started from ${S.name}`, scope: 'rail', body: railCard(rail, variant) };
 }
 
 /** One genre's card by id (`gameworld-intent-<genre>`), or null. Served by id, not listed with the rail. */
@@ -1627,11 +1632,12 @@ function heroesCard() {
   const D = Object.entries(POWER_DIALS).map(([k, d]) => `${k} ${d.min}..${d.max}${d.round ? '*' : ''}`).join(', ');
   return lines(
     'THE SUPERHERO BEAT-EM-UP: the side-scroll beat-em-up tuned for heroes. Every player a hero with ONE power on the special',
-    '(S; a few uses a life, filled at each fall), an army that drops in and falls fast, five falls, a villain with a power, in stages.',
+    `(S; a few uses a life), an army that drops in, five falls. A CAMPAIGN (${HERO_CAMPAIGN.map((c) => c.id).join(', ')}) climbs to the villain;`,
+    'an arcade front (attract, title, end card, credits); their own streets replace it.',
     'A power called up is a SUPER BEAT: the street holds a moment, the air round the caster marked.',
-    `EARTH (${POWER_IDS.filter((id) => POWERS[id].wall).join(', ')}): S raises a slab as cover, S again shoves it (free); its blow by its speed.`,
+    `EARTH (${POWER_IDS.filter((id) => POWERS[id].wall).join(', ')}): S raises a slab as cover, S again shoves it (free).`,
     `AIR: ${POWER_IDS.filter((id) => POWERS[id].float).join(', ')} carry their hero (it floats: drifts, glides, no footing).`,
-    `Its ENERGY is rupa's knockback (joules: light bodies fly, heavy ones stagger; an impact fades with distance): ${POWER_IDS.filter((id) => POWERS[id].knock).map((id) => `${id} ${POWERS[id].knock.kinetic ? 'pushes' : 'lands'}`).join(', ')}.`,
+    `Its ENERGY is rupa's knockback (light bodies fly, heavy ones stagger): ${POWER_IDS.filter((id) => POWERS[id].knock).map((id) => `${id} ${POWERS[id].knock.kinetic ? 'pushes' : 'lands'}`).join(', ')}.`,
     '',
     'ASK FIRST, before making it (the heroes and their powers are the person\'s to design; offer the defaults if they have none):',
     '  1. who the heroes are (1..4): a name and a sentence each (who they are, their hair, a cape?), or ones made',
@@ -1654,7 +1660,7 @@ function heroesCard() {
     'DESIGNED: a street level: tuning: \'heroes\', powers?: [<power> | null] in seat order (unsaid: the hero\'s own actions page',
     '  attack, the rest the team\'s). Its seats the game\'s hero and those who join; its crowd the game\'s own foes.',
     '',
-    'MEASURED (brawl-playthrough.js `hero`): one hero wins the default street alone; a designed power is not; nobody has played it.',
+    'MEASURED (brawl-playthrough.js `hero`): one hero wins each campaign street; a designed power is not; nobody played it.',
   );
 }
 

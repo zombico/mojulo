@@ -67,7 +67,7 @@ import { resolveSport } from '../contest/sports.js';
 import { STADIUM_PRESETS } from '../stadium/stadium-words.js';
 import { LANE_KITS } from '../broadcast/broadcast-package.js';
 import { SPORT_KITS } from '../sportswear/kits.js';
-import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, brawlStreets, brawlCrowd, brawlBody, brawlSetup, brawlGuns, BRAWL_SCENES, brawlArenas, brawlHeroes, readHeroes, heroFighters, heroAdvice, powerLabel, castWaves, BRAWL_STREET, brawlByDesign, brawlAsStreets, withStreetScenes, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
+import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, brawlStreets, brawlCrowd, brawlBody, brawlSetup, brawlGuns, BRAWL_SCENES, brawlArenas, brawlHeroes, readHeroes, heroFighters, heroAdvice, heroFront, powerLabel, castWaves, BRAWL_STREET, brawlByDesign, brawlAsStreets, withStreetScenes, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { sheetAudio, sheetBed, onSheet, levelSheet, rideSound, rideTop } from './sound-sheet.js';
 import { cueSheet, levelScore, onScore } from './cue-sheet.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
@@ -986,12 +986,16 @@ function quickSteps(world, G, ref, lookup) {
           roster.push({ id: m.id, name: m.name, hero: { ref: charRef } });
         }
         (cast[m.as] ??= []).push(k);
-        if (m.as !== 'boss') { (cast['*'] ??= []).push(k); types.push(m.as); }
+        if (m.as !== 'boss' && m.as !== 'villain') { (cast['*'] ??= []).push(k); types.push(m.as); }
       }
       const streets = brawlStreets(Q, { title, roster, cast, types, colour: crowd.colour, holder: crowd.name }).map((s) => ({ ...s, key: `level-street-${s.id}`, ref: childRef(ref, `level-street-${s.id}`) }));
       const lv = streets.map((s) => ({ key: s.key, ref: s.ref, ready: true, order: { title: s.manifest.title, manifest: s.manifest }, print: fingerprint(s.manifest) }));
       const ui = shellUi(G).ui ?? { theme: cardTheme('brawl-street') };
-      const game0 = { title, store: quickStore(Q), levels: streets.map((s) => ({ ref: s.ref, title: s.name })), allow_unaudited: true, shell: 'play', ui, ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), ...(G.screen ? { screen: G.screen } : {}) };
+      // (its FRONT: the world's own, else a heroes game's arcade front (quick.js heroFront): attract, title, the end card
+      // once the villain falls, the roll; the streets one after another between them)
+      const front = G.front ?? (heroes ? heroFront(heroes) : undefined);
+      // (a CAMPAIGN: each street after the first opens once the one before it is cleared, the store's progression)
+      const game0 = { title, store: quickStore(Q), levels: streets.map((s, i) => ({ ref: s.ref, title: s.name, ...(i ? { gate: { completed: streets[i - 1].ref } } : {}) })), allow_unaudited: true, shell: 'play', ui, ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), ...(G.screen ? { screen: G.screen } : {}), ...(front ? { front } : {}) };
       // EACH STREET A TURN (game/turn.js): the game's flow, every street's step asking the brawl's set-up before it
       // loads (how hard, asked once; who plays, asked each time), so the shell stitches the streets: set up, load,
       // play, results, the next street. A world's own set-up is kept

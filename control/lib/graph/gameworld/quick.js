@@ -824,6 +824,14 @@ const STREETS_KEYS = ['goal', 'roster', 'streets', 'crowd', 'play', 'register', 
 // block of the town with its shops on the far side and its margin open to the camera, the road, the walks, the lamps
 // and the fronts the town's own; a stage kit's rooms and the greybox street are named)
 export const STARTER_STREET = Object.freeze({ id: 'street', name: 'The street', level: Object.freeze({ kind: 'town' }) });
+/** A HEROES CAMPAIGN, a heroes brawl's streets when it names none: the city street the army has taken, the ground it
+ * holds (a works it runs from), and the villain's lair; the army's boss holds the first two, the villain the last, and
+ * the army comes harder at the end. Level 1 and what comes after it, played one after another in the play shell. */
+export const HERO_CAMPAIGN = Object.freeze([
+  STARTER_STREET,
+  Object.freeze({ id: 'works', name: 'The works', level: Object.freeze({ kind: 'stage', kit: 'bay-utility' }) }),
+  Object.freeze({ id: 'lair', name: 'The lair', level: Object.freeze({ kind: 'stage', kit: 'research-lab' }) }),
+]);
 /** THE CROWD, a crew of the comic pack's (cosmos/packs/comic-hero/grunts.js GRUNT_STYLES: a street gang, a crime
  * family, a shadow clan, a motorcycle club, a private military, a cult, punks, corporate security): a brawl's `crowd` is
  * a faction's name or { faction, colourway?, size? }; none said, the street gang. One crew in ONE colourway (the
@@ -860,7 +868,8 @@ function gruntBrawler(O, type, heavy) {
 /** A brawl's crowd, cast: → { faction, colourway, members: [{ id, name, as: a crowd type | 'boss', heavy, grunt, mint }] },
  * each member a character the hero door mints (mint: { kind: 'layered', via: 'hero', title, spec }). */
 export function brawlCrowd(Q, seed = 1, title = 'brawl') {
-  // (a heroes brawl's crowd is an army, unless it names its own; its boss the pack's villain)
+  // (a heroes brawl's crowd is an army, unless it names its own; its boss holds the streets on the way, and the pack's
+  // villain waits at the end of the last: `villain`, drawn as the last street's boss)
   const H = readHeroes(Q.heroes);
   const C = readCrowd(Q.crowd ?? (H ? HERO_ARMY : undefined)), S = GRUNT_STYLES[C.faction], kinds = Object.keys(S.kinds), ways = Object.keys(S.colourways);
   const colourway = C.colourway ?? ways[Math.abs(seed) % ways.length], n = C.size ?? Math.max(4, kinds.length);
@@ -872,8 +881,8 @@ export function brawlCrowd(Q, seed = 1, title = 'brawl') {
   });
   // (its boss: its heaviest kind, on the hulking body)
   const top = kinds.find((k) => S.kinds[k].builds.includes('brute')) ?? kinds.find((k) => S.kinds[k].builds.some((b) => BIG.has(b) || b === 'heroic')) ?? kinds[kinds.length - 1];
-  if (H) { const V = heroVillain(H, seed); members.push({ id: 'crowd-boss', name: V.name, as: 'boss', heavy: true, grunt: null, ...(V.hero ? { hero: V.hero } : { mint: { ...V.mint, title: `${title} · ${V.name}` } }) }); }
-  else members.push(member(roll(n, top), 'crowd-boss', 'boss', true, `${S.name} boss`));
+  members.push(member(roll(n, top), 'crowd-boss', 'boss', true, `${S.name} boss`));
+  if (H) { const V = heroVillain(H, seed); members.push({ id: 'crowd-villain', name: V.name, as: 'villain', heavy: true, grunt: null, ...(V.hero ? { hero: V.hero } : { mint: { ...V.mint, title: `${title} · ${V.name}` } }) }); }
   // (its colour: the colourway's trim, what the street it holds is marked in)
   const colour = S.colourways[colourway].palette?.Trim ?? null;
   return { faction: C.faction, name: `the ${S.name.toLowerCase()}`, colourway, ...(typeof colour === 'string' && /^#[0-9a-f]{6}$/i.test(colour) ? { colour } : {}), members };
@@ -906,6 +915,8 @@ export function brawlCrowd(Q, seed = 1, title = 'brawl') {
  *                          power, name } } checked (throws, teaching; a hero's words read as a fighter's are)
  *   heroFighters(H)        → the fight's roster words (versus-sheet.js fighterSpec) a member each: its sheet, its style
  *   heroVillain(H, seed)   → { name, power, mint } the villain as a character the hero door mints, on the brawler's body
+ *   heroFront(H)           → the game's front when its world names none: attract, title, the end card, the roll
+ *   HERO_CAMPAIGN          the streets a heroes brawl names none of: the city street, the works, the lair
  *   villainBoss(H)         → the boss a heroes street ends on (a wave's `boss`): the villain's fighter, its power its
  *                          every special and a play of it, in three stages (a novice, then harder, its power more often)
  */
@@ -1005,6 +1016,19 @@ export function heroVillain(H, seed = 1) {
   const body = BRAWLER_BODY(pole, true), over = { ...lookSpec(H.villain.look ?? null, spec, body.head), ...(H.villain.spec ?? {}) };
   const own = Object.fromEntries(Object.entries({ ...spec, ...body, ...over }).filter(([, v]) => v !== null));
   return { name: H.villain.name, power: H.villain.power, mint: { kind: 'layered', via: 'hero', title: O.mint.args.title, spec: own } };
+}
+/**
+ * A HEROES GAME'S FRONT (game/play-front.js), when its world names none: the arcade's attract screen, the title saying
+ * who fights whom, the card once the villain falls on the last street, and a roll of the heroes and the villain. The
+ * whole game, from the first screen to the end: its streets one after another between them.
+ */
+export function heroFront(H) {
+  const names = H.team.map((t, k) => t.name ?? (t.member ? castMember(t.member).name : `Hero ${k + 1}`));
+  return {
+    press: true, tagline: `${names.join(', ')} against ${H.villain.name}`,
+    end: { text: `${H.villain.name} is beaten, and the city is safe again.` },
+    credits: { roll: [{ role: names.length > 1 ? 'The heroes' : 'The hero', names }, { role: 'The villain', names: [H.villain.name] }] },
+  };
 }
 /** The boss a heroes street ends on: the villain's fighter with its power, in three stages. */
 export function villainBoss(H) {
@@ -1129,14 +1153,20 @@ export function tunedWaves(waves, card) {
   });
 }
 export function brawlStreets(Q, { title, roster, cast, types, colour, holder } = {}) {
-  // (a heroes brawl: its streets tuned as the heroes card says, each ending on the pack's villain)
-  const H = readHeroes(Q.heroes), card = H ? tuningOf('heroes') : null, boss = H ? villainBoss(H) : null;
-  return (Q.streets ?? [STARTER_STREET]).map(({ id, name, level, waves, things, scenes, play, guns, grenades }) => {
+  // (a heroes brawl: its streets tuned as the heroes card says, a campaign of them unless it names its own; the army's
+  // boss at the end of each on the way, the villain at the end of the last, the army a body stronger there)
+  const H = readHeroes(Q.heroes), card0 = H ? tuningOf('heroes') : null, list = Q.streets ?? (H ? HERO_CAMPAIGN : [STARTER_STREET]);
+  const { villain: villainCast, ...cast0 } = cast ?? {};
+  return list.map(({ id, name, level, waves, things, scenes, play, guns, grenades }, i) => {
+    const last = i === list.length - 1, boss = H && last ? villainBoss(H) : null;
+    const card = card0 && last && list.length > 1 && card0.army ? { ...card0, army: card0.army + 1 } : card0;
+    const drawn = cast ? { ...cast0, ...(H && last && villainCast ? { boss: villainCast } : {}) } : null;
+    const holds = H && last ? H.villain.name : holder;
     // (a town street's dress wears the crew's colour, unless the street says its own)
     const L0 = level ?? STARTER_STREET.level, L = colour && (L0.kind === 'town' || (L0.kind === 'stage' && (isObj(L0.dress) || (L0.dress === undefined && brawlLevel(L0).brawl.dress)))) && L0.dress !== false && !L0.dress?.colour ? { ...L0, dress: { ...(isObj(L0.dress) ? L0.dress : {}), colour } } : L0, t = `${title ?? 'brawl'} · ${name ?? id}`, reg = Q.register ? { register: Q.register } : {};
     const B0 = brawlLevel(L, { title: t }).brawl, belt = B0.belt;
     const laid = streetPlay(play ?? Q.play, belt, { waves, things, types, setting: B0.dress?.setting ?? null, dress: B0.dress ?? null, guns, grenades, boss });
-    const street = { players: [0], ...laid, ...(card && !waves ? { waves: tunedWaves(laid.waves, card) } : {}), ...(card ? { tuning: 'heroes' } : {}), ...(scenes === false ? {} : { scenes: scenes ?? defaultScenes(belt, { name: name ?? id, holder }) }), ...(roster ? { roster } : {}), ...(cast ? { cast } : {}) };
+    const street = { players: [0], ...laid, ...(card && !waves ? { waves: tunedWaves(laid.waves, card) } : {}), ...(card ? { tuning: 'heroes' } : {}), ...(scenes === false ? {} : { scenes: scenes ?? defaultScenes(belt, { name: name ?? id, holder: holds }) }), ...(roster ? { roster } : {}), ...(drawn ? { cast: drawn } : {}) };
     readStreet(street, belt, `streets.${id}`);
     const contract = { levelRef: 'street', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: false };
     return { id, name: name ?? id, manifest: { ...brawlLevel(L, { title: t, ...reg, street }), game: contract } };

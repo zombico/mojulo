@@ -1,7 +1,7 @@
 // A WORLD THAT IS A BRAWLER (quick goal `brawl`, quick.js; runner.js): its players made as a fight's are, its streets
 // its levels (each a brawl level with its waves and the hosted level's contract), the game in the play shell.
 import { describe, it, expect } from 'vitest';
-import { quickWorld, brawlStreets, defaultWaves, defaultThings, defaultScenes, BRAWL_SCENES, brawlSetup, brawlGuns, QUICK_GUNS, brawlCrowd, brawlBody, crowdTypeOf, BRAWL_STREET, BRAWL_FACTION, QUICK_GOALS, readHeroes, HERO_TEAM, HERO_ARMY, HERO_VILLAINS } from './quick.js';
+import { quickWorld, HERO_CAMPAIGN, brawlStreets, defaultWaves, defaultThings, defaultScenes, BRAWL_SCENES, brawlSetup, brawlGuns, QUICK_GUNS, brawlCrowd, brawlBody, crowdTypeOf, BRAWL_STREET, BRAWL_FACTION, QUICK_GOALS, readHeroes, HERO_TEAM, HERO_ARMY, HERO_VILLAINS } from './quick.js';
 import { POWER_IDS } from '../brawl/brawl-powers.js';
 import { TUNINGS } from '../brawl/brawl-tunings.js';
 import { runSteps } from './runner.js';
@@ -16,6 +16,7 @@ import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
 
 const ME = { archetype: 'hero', style: 'all-rounder' };
 const world = (quick) => quickWorld({ id: 'w', name: 'Brawl', quick: { goal: 'brawl', ...quick } });
+const quickWorldOf = (quick, over) => quickWorld({ id: 'w', name: 'Brawl', ...over, quick: { goal: 'brawl', ...quick } });
 
 describe('the goal, read', () => {
   it('is a quick goal with a genre its players are rolled in', () => { expect(QUICK_GOALS.brawl).toBeTruthy(); expect(GENRES.brawl).toBeTruthy(); });
@@ -221,6 +222,7 @@ describe('a brawl played as a run & gun (brawl/brawl-play.js)', () => {
 describe('a heroes brawl', () => {
   const H = world({ heroes: true }), steps = runSteps(H, { ref: 'gw' });
   const street = steps.find((s) => s.key === 'level-street-street').order.manifest.brawl.street;
+  const lair = steps.find((s) => s.key === 'level-street-lair').order.manifest.brawl.street;
   it('is read: a team of 1 to 4 of the pack\'s cast, each a power; one of the pack\'s villains; never with guns', () => {
     expect(readHeroes(true)).toMatchObject({ team: HERO_TEAM.map((t) => ({ member: t.member, power: t.power })), villain: { member: 'mastermind', power: HERO_VILLAINS.mastermind } });
     expect(readHeroes({ team: [POWER_IDS[1]] }).team[0]).toMatchObject({ member: HERO_TEAM[0].member, power: POWER_IDS[1] });
@@ -236,17 +238,51 @@ describe('a heroes brawl', () => {
     const sheet = steps.find((s) => s.key === 'fighter-hero-1-sheet').order.manifest.roll;
     expect(sheet.facets).toMatchObject({ archetype: 'hero' });
   });
-  it('an army that falls fast and drops in, the pack\'s villain at the end with a power of its own, in stages', () => {
+  it('an army that falls fast and drops in, the pack\'s villain at the end of the last street with a power of its own, in stages', () => {
     const crowd = brawlCrowd({ goal: 'brawl', heroes: true }, 1);
     expect(crowd.faction).toBe(HERO_ARMY);
-    expect(crowd.members.find((m) => m.as === 'boss')).toMatchObject({ name: 'The mastermind', mint: { via: 'hero' } });
+    expect(crowd.members.find((m) => m.as === 'villain')).toMatchObject({ name: 'The mastermind', mint: { via: 'hero' } });
+    expect(crowd.members.filter((m) => m.as === 'boss')).toHaveLength(1);
     expect(street.tuning).toBe('heroes');
-    const boss = street.waves.find((w) => w.boss).boss;
+    const boss = lair.waves.find((w) => w.boss).boss;
     expect(boss.recipe.name).toBe('The mastermind');
     expect(Object.values(boss.recipe.specials).every((sp) => sp.id === `power.${HERO_VILLAINS.mastermind}`)).toBe(true);
     expect(boss.plays).toContain('special.neutral');
     expect(boss.stages.length).toBeGreaterThan(1);
     expect(new Set(street.waves.flatMap((w) => w.crowd.map((c) => c.entrance ?? 'walk')))).toEqual(new Set(TUNINGS.heroes.entrances));
+  });
+  // LEVEL 1 AND BEYOND: a campaign of streets climbing to the villain, the whole game between its front's first screen and
+  // its end card
+  it('is a campaign: the city street, the works and the lair, each opened by the one before; the army\'s boss on the way, the villain last', () => {
+    const game = steps.find((s) => s.key === 'game').order;
+    expect(game.levels.map((l) => l.title)).toEqual(HERO_CAMPAIGN.map((c) => c.name));
+    expect(game.levels[0].gate).toBeUndefined();
+    for (let i = 1; i < game.levels.length; i++) expect(game.levels[i].gate).toEqual({ completed: game.levels[i - 1].ref });
+    const firstBoss = street.waves.find((w) => w.boss).boss;
+    expect(firstBoss.recipe.specials?.neutral?.id).not.toBe(`power.${HERO_VILLAINS.mastermind}`);
+    const villainAt = steps.find((s) => s.key === 'foes-crowd-villain'), bossAt = steps.find((s) => s.key === 'foes-crowd-boss');
+    expect(street.roster[street.cast.boss[0]].hero.ref).toBe(bossAt.ref);
+    expect(lair.roster[lair.cast.boss[0]].hero.ref).toBe(villainAt.ref);
+    expect(lair.cast.villain).toBeUndefined();
+    // (the army comes a body stronger on the last street)
+    const most = (st) => Math.max(...st.waves.flatMap((w) => w.crowd.map((c) => c.n)));
+    expect(most(lair)).toBeGreaterThanOrEqual(most(street));
+    expect(lair.scenes.arrive.find((b) => b.title).sub).toMatch(/The mastermind/);
+  });
+  it('plays from the arcade\'s first screen to its end: attract, title, the streets, the end card once the villain falls, the roll', () => {
+    const game = steps.find((s) => s.key === 'game').order, F = game.flow.steps;
+    expect(game.front).toMatchObject({ press: true, end: { text: expect.stringMatching(/The mastermind/) } });
+    expect(game.front.credits.roll.map((r) => r.role)).toEqual(['The heroes', 'The villain']);
+    expect(F.attract.on.press).toBe('title');
+    expect(F.title.on.play).toBe('$first');
+    expect(F.play.on.won[0]).toEqual({ when: 'complete', go: 'end' });
+    expect(F.end.on.done).toBe('credits');
+    expect(readFlow(game.flow, { levels: game.levels.map((l) => l.ref) })).toBeTruthy();
+    // (its own streets are its own; a world's own front wins)
+    const own = runSteps(world({ heroes: true, streets: [{ id: 'one' }] }), { ref: 'gw' }).find((s) => s.key === 'game').order;
+    expect(own.levels).toHaveLength(1);
+    const fronted = runSteps(quickWorldOf({ heroes: true }, { front: { tagline: 'theirs' } }), { ref: 'gw' }).find((s) => s.key === 'game').order;
+    expect(fronted.front).toEqual({ tagline: 'theirs' });
   });
   it('another brawl is as it was: no power, no tuning, the street gang\'s boss', () => {
     const plain = runSteps(world({}), { ref: 'gw' }).find((s) => s.key === 'level-street-street').order.manifest.brawl.street;
@@ -273,10 +309,10 @@ describe('a heroes brawl designed', () => {
     expect(street.roster[0].power).toEqual(OWN.power);
     const setup = steps.find((s) => s.key === 'game').order.flow;
     expect(JSON.stringify(setup)).toContain('Starfall (beam)');
-    const boss = street.waves.find((w) => w.boss).boss;
+    const boss = steps.find((s) => s.key === 'level-street-lair').order.manifest.brawl.street.waves.find((w) => w.boss).boss;
     expect(boss.recipe.name).toBe('Gravel King');
     expect(boss.recipe.specials.neutral.id).toBe('power.nova');
-    expect(brawlCrowd({ goal: 'brawl', heroes: { villain: 'brute' } }, 1).members.find((m) => m.as === 'boss').name).toBe('The brute');
+    expect(brawlCrowd({ goal: 'brawl', heroes: { villain: 'brute' } }, 1).members.find((m) => m.as === 'villain').name).toBe('The brute');
   });
   it('a hero described with long hair and a cape is made with them, over its sheet; one made already keeps its own look', () => {
     const W = runSteps(world({ heroes: { team: [{ brief: 'a weather witch with long white hair down to her waist and a flowing cape', pole: 'female', power: 'gale' }, { brief: 'a courier', look: { hair: 'buzz' } }] } }), { ref: 'gw' });
@@ -297,13 +333,14 @@ describe('a heroes brawl designed', () => {
     // (its own words win over the look its brief gave, and over the brawler's body; the brawler's body under them)
     expect(one).toMatchObject(SPEC);
     expect(one.animeBody).toBeTruthy();
-    const boss = W.find((s) => s.key === 'foes-crowd-boss').order.spec;
+    const boss = W.find((s) => s.key === 'foes-crowd-villain').order.spec;
     expect(boss.expression).toBe('smile');
     expect(boss.outfit.pieces.some((p) => p.kind === 'cloak')).toBe(true);
     const made = runSteps(world({ heroes: { villain: { hero: { ref: 'my-villain' }, name: 'Umbra', power: 'nova' } } }), { ref: 'gw' });
-    expect(made.some((s) => s.key === 'foes-crowd-boss')).toBe(false);
-    const street = made.find((s) => s.key === 'level-street-street').order.manifest.brawl.street;
-    expect(street.roster.find((r) => r.id === 'crowd-boss')).toMatchObject({ name: 'Umbra', hero: { ref: 'my-villain' } });
+    expect(made.some((s) => s.key === 'foes-crowd-villain')).toBe(false);
+    const street = made.find((s) => s.key === 'level-street-lair').order.manifest.brawl.street;
+    expect(street.roster.find((r) => r.id === 'crowd-villain')).toMatchObject({ name: 'Umbra', hero: { ref: 'my-villain' } });
+    expect(street.roster[street.cast.boss[0]].hero.ref).toBe('my-villain');
     expect(() => world({ heroes: { team: [{ brief: 'b', spec: 'tall' }] } })).toThrow(/hero door's words/);
     expect(() => world({ heroes: { team: [{ hero: { ref: 'x' }, spec: { hair: 'bob' } }] } })).toThrow(/already made/);
     expect(() => world({ heroes: { villain: { hero: { ref: 'x' }, member: 'brute' } } })).toThrow(/already made/);

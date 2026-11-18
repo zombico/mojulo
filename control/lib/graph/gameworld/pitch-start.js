@@ -15,7 +15,7 @@
  *
  * Pure: the same pitch lays the same starter.
  */
-import { readRail, railOf, railSheet } from './rails.js';
+import { readRail, railOf, railSheet, variantOf } from './rails.js';
 import { platformerStart } from './platformer-game.js';
 import { composeGameworld } from './compose.js';
 import { GENRES, readGenre } from './intent.js';
@@ -30,7 +30,7 @@ const genrePrompt = (genre) => (GENRES[genre]?.words ?? []).map((w) => `a ${w} g
 
 export function pitchStart(world, { title } = {}) {
   if (!isObj(world) || world.levels !== undefined || !isObj(world.rail) || world.rail.locked !== true) return null;
-  const P = readRail(world.rail), R = railOf(P.from), S = railSheet(P.from);
+  const P = readRail(world.rail), R = railOf(P.from), S = railSheet(P.from, P.variant ?? null);
   if (P.size !== undefined && P.size !== 'designed') return { unlaid: `a ${P.size} game is made in its own call (${S.sizes.find((z) => z.size === P.size)?.door ?? 'its door'}): it needs no starter` };
   if (!R.sizes.includes('designed')) return { unlaid: `${R.name} is not laid as a designed game yet: it reaches ${R.sizes.join(', ')}` };
   const named = { ...(title && world.name === undefined ? { name: title } : {}) };
@@ -46,6 +46,9 @@ export function pitchStart(world, { title } = {}) {
   const name = world.name ?? title;
   const C = composeGameworld({ prompt, levels: 1, ...(typeof name === 'string' && name.trim() ? { name } : {}), ...(Number.isInteger(world.seed) ? { seed: world.seed } : {}) });
   const starter = Object.fromEntries(Object.entries(C).filter(([k]) => !NOT_THE_STARTERS.includes(k)));
-  const W = { ...starter, ...withFeel, ...named, ...(world.intent === undefined ? { intent: C.intent ?? { from: S.starts } } : {}) };
-  return { world: W, laid: { by: 'compose', from: S.starts, levels: Object.keys(W.levels), says: SAYS } };
+  const W0 = { ...starter, ...withFeel, ...named, ...(world.intent === undefined ? { intent: C.intent ?? { from: S.starts } } : {}) };
+  // (a VARIANT's street words on each street the starter lays: the heroes' tuning on a beat-em-up's, rails.js variants)
+  const V = P.variant ? variantOf(R, P.variant) : null;
+  const W = V?.street ? { ...W0, levels: Object.fromEntries(Object.entries(W0.levels).map(([k, L]) => [k, isObj(L?.street) ? { ...L, street: { ...V.street, ...L.street } } : L])) } : W0;
+  return { world: W, laid: { by: 'compose', from: S.starts, ...(V ? { variant: V.id } : {}), levels: Object.keys(W.levels), says: SAYS } };
 }

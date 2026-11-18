@@ -41,6 +41,20 @@
   Every other street's page is unchanged. Measured with the freeze in: one hero still wins the default street alone
   with each power, losing two or three of five falls, and four heroes lose one. Seen in headless Chrome: the street
   held, and the air round the hero inked as the ball of force was called up.
+- **The whole game, from the first screen to the end.** A superhero beat-em-up is now a campaign rather than one
+  street. You fight down the city street the army has taken, then the works it runs from, then the villain's lair.
+  Each opens once the one before is cleared, and your progress is kept. The army's own boss holds the first two
+  streets and the villain waits at the end of the last, where the army also comes harder. The game opens like an
+  arcade: an attract screen to press start, then a title saying who fights whom, with continue, play, a street picker,
+  options and credits. When the villain falls, an ending card plays, then a roll of the heroes and the villain, then
+  back to the title. Name your own streets and they are the campaign instead. A world's own title screen and credits
+  win over these. Measured with the simple players: one hero wins each of the three streets alone, its boss down. On
+  the city street, the works and the lair the power-using player fell 0, 2 and 0 times of five, and the plain one 0,
+  1 and 1. So the works is the hardest of the three; the streets do not yet get steadily harder.
+- **The producer knows the superhero variant.** Asking for "a superhero beat em up" now picks the beat-em-up's heroes
+  variant by name, with its own plan of steps. That plan asks who the heroes are, each one's power and the villain
+  first, before anything is made, for a quick game and a designed one alike. A designed game started from it gets
+  the heroes' tuning on its first street. The plain beat-em-up's plan lists the variant and is otherwise unchanged.
 - **Powers throw bodies by their weight.** Some powers now carry energy as well as damage, by the studio's own
   destruction physics: a blow is measured in joules and a body holds by its footing. What gets past the footing
   throws it, so a light grunt flies and a heavy brute only staggers under the same blast. The beam and the flame shove

@@ -783,7 +783,7 @@ export function heroWordsChecked(world, heroes) {
       const sheet = steps.find((x) => x.ref === O.egocube);
       if (!sheet) continue;
       spec = Object.fromEntries(Object.entries({ ...egocubeCreate(rollStored(sheet.order.manifest)).create.spec, ...O.spec }).filter(([, v]) => v !== null));
-    } else if (st.key === 'foes-crowd-boss' && O.spec) spec = O.spec;
+    } else if (st.key === 'foes-crowd-villain' && O.spec) spec = O.spec;
     if (!spec) continue;
     // (a word the door does not take, said as the door says it: where it belongs, or the word it is near)
     const errs = [...Object.keys(spec).filter((k) => !HERO_FIELDS.includes(k) && k !== 'vibe').map(heroKeyHint), ...validateHeroSpec(spec)];
