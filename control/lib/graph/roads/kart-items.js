@@ -4,7 +4,8 @@
  * shell lit at its rim in colours that run round it (a fresnel), so it reads at a distance as a thing to drive at.
  * Driving through one takes an item if the racer holds none; the box pops and comes back after `back` seconds.
  *
- *   ITEMS   the shelf (original to mojulo, in the candy family's words; a new item is a row of a known kind):
+ *   ITEMS   the shelf (original to mojulo, in the candy family's words; a new item is a row of a known kind, its `icon`
+ *           a pictogram of the game UI's (mana-ui/icons.js), drawn in the held-item slot):
  *     sugar-rush  boost   a burst of speed the moment it is used (the drive rule's boost: rules-drive.js `boostT`)
  *     toffee      trap    a sticky blob dropped behind: a kart that drives over it is slowed and wobbles
  *     gumball     shot    a ball rolled ahead down the track's own line: the kart it meets is knocked and spun
@@ -31,9 +32,9 @@
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 export const ITEMS = Object.freeze({
-  'sugar-rush': Object.freeze({ kind: 'boost', says: 'sugar rush', seconds: 1.8, hex: '#ffd03a' }),
-  toffee: Object.freeze({ kind: 'trap', says: 'toffee', r: 1.5, slow: 0.4, spin: 0.7, life: 30, hex: '#d9892b' }),
-  gumball: Object.freeze({ kind: 'shot', says: 'gumball', speed: 30, r: 0.55, life: 3.5, slow: 0.25, spin: 1.1, hex: '#ff4f86' }),
+  'sugar-rush': Object.freeze({ kind: 'boost', says: 'sugar rush', icon: 'sweet', seconds: 1.8, hex: '#ffd03a' }),
+  toffee: Object.freeze({ kind: 'trap', says: 'toffee', icon: 'blob', r: 1.5, slow: 0.4, spin: 0.7, life: 30, hex: '#d9892b' }),
+  gumball: Object.freeze({ kind: 'shot', says: 'gumball', icon: 'ball', speed: 30, r: 0.55, life: 3.5, slow: 0.25, spin: 1.1, hex: '#35b4ff' }),
 });
 /** How the boxes are laid and how often each item comes out of one. */
 export const ITEM_BOXES = Object.freeze({ every: 170, least: 30, clear: 40, across: 4, size: 1.4, lift: 1.05, r: 1.5, back: 2.5,

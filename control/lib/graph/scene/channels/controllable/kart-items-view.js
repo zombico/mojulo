@@ -10,7 +10,7 @@
  *   the karts   every body on the drive or the racer rule takes and uses items; the pilot's item on E (or right Shift,
  *               the scheme's `useItem`, on the pause sheet too: F, right Shift, the pad's left face); a boost is the drive rule's own (`boostT`), a hit cuts the kart's speed and
  *               spins its body a turn; `e.item` is set while one is held (the kart's juice pulses on it)
- *   window.__mojItems   { held(id), says(kind) }: what the HUD reads
+ *   window.__mojItems   { held(id), says(kind), icon(kind) }: what the HUD reads
  *
  *   kartItemsViewScript(seed) → the page's script (after the drive surface's table, `__surfaceT`)
  */
@@ -22,7 +22,7 @@ const __kiStep = ${kartItemsStep.toString()};
 const __kiState = (${itemState.toString()})(__surfaceT.items, ${(seed >>> 0) || 1});
 __kiState.T.line = __surfaceT.pts;
 let __kiKeyWas = false, __kiPadWas = false;
-window.__mojItems = { held: (id) => __kiState.held[id] || null, says: (k) => (__kiState.T.kinds[k] ? __kiState.T.kinds[k].says : k) };
+window.__mojItems = { held: (id) => __kiState.held[id] || null, says: (k) => (__kiState.T.kinds[k] ? __kiState.T.kinds[k].says : k), icon: (k) => (__kiState.T.kinds[k] && __kiState.T.kinds[k].icon) || k };
 // the box: a rounded cube (a box's vertices pulled onto a rounded hull) — its core with the "?" and its shell
 function __kiRounded(size, round) {
   const g = new THREE.BoxGeometry(size, size, size, 8, 8, 8), p = g.attributes.position, h = size / 2 - round, v = new THREE.Vector3(), c = new THREE.Vector3();

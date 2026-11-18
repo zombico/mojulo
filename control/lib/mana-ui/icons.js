@@ -84,6 +84,11 @@ export const ICONS = Object.freeze({
   'swipe-up': 'M12 2l5.5 6H14v7h-4V8H6.5zM9 17h6v2H9zM10 20.5h4V22h-4z',
   hold: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM12 5.5a6.5 6.5 0 1 1 0 13a6.5 6.5 0 1 1 0-13zM12 8.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7z',
   jump: 'M12 3l6 6.5h-4V15h-4V9.5H6zM4 18h16v3H4z',
+  // a race's items (roads/kart-items.js): a wrapped sweet with a bolt through it (a burst of speed), a sticky splat with
+  // its droplets and its shine (dropped behind), a ball with its shine (rolled ahead)
+  sweet: 'M12 6.5a5.5 5.5 0 1 0 0 11a5.5 5.5 0 1 0 0-11zM6.4 10.2L2 6.8v10.4l4.4-3.4zM17.6 10.2L22 6.8v10.4l-4.4-3.4zM12.9 8.4L9.5 12.8h2.2l-.8 2.8 3.6-4.5h-2.3z',
+  blob: 'M18.0 13.6C20.4 16.1 19.6 17.3 15.7 17.4C14.5 19.4 12.9 19.7 10.7 18.3C6.7 20.0 5.4 19.1 6.6 15.7C3.9 14.3 3.9 12.9 6.6 11.5C5.6 8.3 6.9 7.4 10.7 8.9C12.8 7.6 14.5 7.9 15.7 9.8C19.3 10.0 20.1 11.3 18.0 13.6zM2.6 3.2a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3zM21.4 2.6a1.2 1.2 0 1 0 0 2.4a1.2 1.2 0 1 0 0-2.4zM9.2 10.4a2.1 1.4 0 1 0 0 2.8a2.1 1.4 0 1 0 0-2.8z',
+  ball: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM8.7 6.3a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z',
 });
 export const ICON_IDS = Object.freeze(Object.keys(ICONS));
 /** The other words a game says for an icon (a HUD's label, an action's name): each draws the icon it names. */
@@ -93,6 +98,7 @@ export const ICON_ALIASES = Object.freeze({
   attack: 'sword', defeat: 'skull', deaths: 'skull', energy: 'bolt', stamina: 'bolt', power: 'bolt', fire: 'flame', water: 'drop', mana: 'drop', mp: 'drop', nature: 'leaf',
   player: 'person', hero: 'person', fast: 'speed', sprint: 'speed', waypoint: 'pin', objective: 'target', aim: 'target', look: 'eye', title: 'home',
   settings: 'gear', options: 'gear', volume: 'sound', resume: 'play', start: 'play', retry: 'restart', again: 'restart', quit: 'close', cancel: 'close', done: 'check', ok: 'check', accept: 'check',
+  'sugar-rush': 'sweet', candy: 'sweet', sweets: 'sweet', toffee: 'blob', trap: 'blob', gumball: 'ball',
   add: 'plus', remove: 'minus', use: 'tap', interact: 'tap', talk: 'tap', items: 'bag', inventory: 'bag', 'swipe-left': 'swipe', 'swipe-right': 'swipe', steer: 'swipe', press: 'tap', touch: 'tap',
 });
 const slug = (s) => String(s ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -103,6 +109,8 @@ export function iconOf(name) { const k = slug(name); return ICONS[k] ? k : ICON_
 export const ICON_MEANING = Object.freeze({
   heart: 'hp', potion: 'mp', drop: 'mp', bolt: 'stamina', speed: 'stamina', leaf: 'stamina', check: 'stamina', shield: 'shield',
   skull: 'harm', flame: 'harm', close: 'harm', mute: 'harm', coin: 'accent', star: 'accent', trophy: 'accent', crown: 'accent', key: 'accent', flag: 'accent', gem: 'accent2', ticket: 'accent2',
+  // (a race's items: the sweet the accent, as its burst is lemon; the ball the second accent; the splat the ink, cream)
+  sweet: 'accent', ball: 'accent2',
 });
 export const ICON_TONES = Object.freeze(['ink', 'meaning']);
 

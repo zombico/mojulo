@@ -27,7 +27,8 @@
  *   RACE_HUD_STATE   the state's shape, with the values a sheet or a test draws it on
  *
  * The state the spec binds (the host writes it):
- *   race { place, of, placeSays, field, lap, laps, lapSays, time, best, hasBest, speed, speedMax, markers, solo, hasItem, itemSays }
+ *   race { place, of, placeSays, field, lap, laps, lapSays, time, best, hasBest, speed, speedMax, markers, solo, hasItem, itemSays,
+ *          itemIcon }
  *   start { lit, of, lights, sub } (lights: the lit ones said as marks)   moments [{ id, text, sub?, weight? }]
  * Pure: a spec is data.
  */
@@ -38,7 +39,7 @@ const B = (path) => ({ bind: path });
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 export const RACE_HUD_STATE = Object.freeze({
-  race: { place: 2, of: 6, placeSays: '2nd', field: '/ 6', lap: 2, laps: 3, lapSays: '2/3', time: 41.3, best: 39.8, hasBest: true, speed: 62, speedMax: 90, solo: false, hasItem: true, itemSays: 'GUMBALL',
+  race: { place: 2, of: 6, placeSays: '2nd', field: '/ 6', lap: 2, laps: 3, lapSays: '2/3', time: 41.3, best: 39.8, hasBest: true, speed: 62, speedMax: 90, solo: false, hasItem: true, itemSays: 'GUMBALL', itemIcon: 'ball',
     markers: [{ x: 0.3, y: 0.4, kind: 'self' }, { x: 0.35, y: 0.32, kind: 'foe' }] },
   start: { lit: 3, of: 5, lights: '● ● ● ○ ○', sub: 'get ready' },
   moments: [],
@@ -79,11 +80,11 @@ export function raceHud(race, { theme = null, screen = null, words = {} } = {}) 
     { use: 'timer', props: { seconds: B('race.best'), format: 'mmss', label: w.best }, when: B('race.hasBest') }] };
   const speed = { use: 'region', props: { at: 'bottom-right' }, children: [{ use: 'gauge', props: { value: B('race.speed'), max: B('race.speedMax'), unit: w.unit } }] };
   // the HELD ITEM (a race with item boxes): a plate at the top's middle, there all race so the slot is known before it is
-  // filled: its word over the item's name (a dash while it is empty), the key that uses it beside the name
+  // filled: its word over the item's pictogram and name (a dash while it is empty), the key that uses it beside the name
   // (the region's own plate frames it, as the place's and the laps' are framed)
   const held = { use: 'stack', props: { dir: 'column', gap: 'tight', align: 'center' }, children: [
     { use: 'text', props: { value: w.held, role: 'label' } },
-    { use: 'stack', props: { dir: 'row', gap: 'tight', align: 'center' }, children: [{ use: 'text', props: { value: B('race.itemSays'), role: 'title' } }, { use: 'text', props: { value: w.use, role: 'label' }, when: B('race.hasItem') }] }] };
+    { use: 'stack', props: { dir: 'row', gap: 'tight', align: 'center' }, children: [{ use: 'icon', props: { name: B('race.itemIcon'), size: 'l' }, when: B('race.hasItem') }, { use: 'text', props: { value: B('race.itemSays'), role: 'title' } }, { use: 'text', props: { value: w.use, role: 'label' }, when: B('race.hasItem') }] }] };
   const item = race.items ? [{ use: 'region', props: { at: 'top' }, unless: TALL, children: [held] }] : [];
   const moments = { use: 'region', props: { at: 'center', variant: 'bare' }, children: [{ use: 'moments', props: { rows: B('moments'), as: 'banner', hold: 1.1, read: 0.4 } }] };
   // ONE composition, laid by the frame it is drawn in. A wide frame: the place in the top-left corner, the laps and the

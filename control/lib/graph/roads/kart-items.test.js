@@ -4,6 +4,7 @@ import { ITEMS, ITEM_BOXES, readItems, itemRows, itemTable, itemState, kartItems
 import { composeTrack } from './trackscape-compose.js';
 import { driveSurfaceTable } from './surface.js';
 import { raceHud } from '../gameworld/race-hud.js';
+import { iconOf, ICON_MEANING } from '../../mana-ui/icons.js';
 
 const plan = planTrack({ form: 'circuit', course: { class: 'kart', length: 420, twist: 0.5, seed: 1 }, items: true });
 
@@ -121,9 +122,16 @@ describe('catch-up: what a box hands out by where the kart stands', () => {
 });
 
 describe('the race HUD shows the item held', () => {
+  it('each item is drawn by a pictogram of the game UI\'s, by its own icon or its name, none two alike', () => {
+    const drawn = Object.entries(ITEMS).map(([id, I]) => { expect(iconOf(I.icon)).toBe(I.icon); expect(iconOf(id)).toBe(I.icon); return I.icon; });
+    expect(new Set(drawn).size).toBe(drawn.length);
+    // (in a theme that tones its icons by meaning, the items take the accents or the ink: never the harm's, on a berry plate)
+    for (const id of drawn) expect(['accent', 'accent2', undefined]).toContain(ICON_MEANING[id]);
+  });
   it('a race with items has its slot and its feed says so; one without, neither', () => {
     const on = raceHud({ mech: 0, laps: 3, racers: 4, items: true }), off = raceHud({ mech: 0, laps: 3, racers: 4 });
     expect(JSON.stringify(on.spec)).toContain('race.itemSays');
+    expect(JSON.stringify(on.spec)).toContain('"use":"icon","props":{"name":{"bind":"race.itemIcon"}');
     expect(on.feed.items).toBe(true);
     expect(JSON.stringify(off.spec)).not.toContain('race.itemSays');
     expect(off.feed.items).toBeUndefined();
