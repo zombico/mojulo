@@ -42,7 +42,7 @@ import { hitBearing } from '../../gameworld/damage-ring.js';
 
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 
-export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false } = {}) {
+export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false, shared = null } = {}) {
   // (a level whose HUD is its own rows, `rows: 'events'`: lowered here, where the page emits them, game/hud-mana.js)
   if (hud && hud.rows === 'events' && !hud.spec) { const L = hudToMana(rows, { register, hero: hud.hero !== false, touch }); hud = { ...hud, spec: L.spec, feed: { ...L.feed, ...(hud.feed ?? {}) } }; }
   if (!hud || !hud.spec) return '';
@@ -63,13 +63,18 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   const R = hud.feed && hud.feed.rows;
   // (a race's feed, gameworld/race-hud.js: its lights, laps, times and map; any other HUD carries none of it)
   const race = !!(hud.feed && hud.feed.kind === 'race');
-  const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp,#__radar,#__wc,#__damageRing,div:has(>#__wepIcon)' : ''}{display:none!important}`;
+  // (`shared`: the page carries the runtime and the theme's sheet once for its HUD and its screens, scene-three's
+  // prelude: this host names it and adds only its own rules; alone on a page, it carries both itself, as it did)
+  const css = `${shared ? '' : `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n`}#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp,#__radar,#__wc,#__damageRing,div:has(>#__wepIcon)' : ''}{display:none!important}`
+    // (money in a corner: the coin and a figure that leads, large, the way an open world shows the cash in hand)
+    + '#moj-mana-hud .mana-place:is([data-at=top-right],[data-at=top-left])>.mana-region>.mana-counter:has(>[data-icon=coin]) .mana-num{font:800 38px/1 var(--mana-display);letter-spacing:-.5px}'
+    + '#moj-mana-hud .mana-place>.mana-region>.mana-counter:has(>[data-icon=coin]){gap:10px;align-items:center}';
   const H = !!(hud.feed && hud.feed.hero);
   return `
 // THE HUD on mana-ui (channels/mana-hud.js): the level's own spec over a state this page feeds
 (function () {
   const CFG = ${json({ spec: hud.spec, feed: hud.feed ?? {} })}, GAME = ${game ? 'true' : 'false'};
-  const manaUi = ${manaUiSource()};${H ? `
+  const manaUi = ${shared || manaUiSource()};${H ? `
   const __hRadar = ${radarMarks.toString()}, __hThings = ${sceneThings.toString()}, __hBearing = ${hitBearing.toString()}, __hR = ${json({ ...RADAR, range: 40 })};` : ''}
   const sheet = document.createElement('style'); sheet.textContent = ${json(css)}; document.head.appendChild(sheet);
   // (laid over the scene's own frame, as the level's widgets were: a letterboxed scene keeps its HUD inside it)
@@ -155,7 +160,8 @@ ${race ? `    // (a race's lights: the karts held and the race's clock frozen, t
     h.rest = share >= 1 && clock - calm.hpT > 3;
     // the gun in hand: its slot on the loadout, else the weapon it carries
     const lo = me.rule && me.rule.loadout, slot = lo ? lo[me.loadoutIdx || 0] : null, w = me.weapon, G = st.gun;
-    G.on = !!(slot || w);
+    // (a holstered sidearm, the open city's: its readout only while it is drawn, worlds/controllable/combat-melee.js gunOut)
+    G.on = !!(slot || w) && !(me.rule && me.rule.holster && !me.gunOut);
     if (G.on) {
       const melee = !!(slot && (slot.fire === 'melee' || slot.strike) && !slot.weapon);
       G.name = (slot && slot.name) || (w && w.name) || '';

@@ -42,6 +42,8 @@ import { cardTheme } from '../playscape/ui/theme-cards/loader.js';
 const B = (path) => ({ bind: path });
 // a bar's meaning, read off what it is called
 const MEANS = [[/^(hp|health|life|lives|hull)$/, 'hp'], [/^(mp|mana|magic|energy)$/, 'mp'], [/^(xp|exp|experience)$/, 'xp'], [/^(stamina|boost|sprint|breath|fuel)$/, 'stamina'], [/^(shield|armou?r|guard)$/, 'shield'], [/^boss/, 'boss']];
+// money, read off what a counter is called (a coin, cash, gold): drawn as money
+const MONEY = /^(coins?|cash|money|gold|dollars?|credits?|bucks)$/i;
 const meaningOf = (w) => { for (const name of [w.var, w.label]) { const k = String(name ?? '').toLowerCase().trim(); for (const [re, v] of MEANS) if (re.test(k)) return v; } return 'plain'; };
 
 export function hudToMana(rows, { register = null, hero = true, touch = false } = {}) {
@@ -61,7 +63,10 @@ export function hudToMana(rows, { register = null, hero = true, touch = false } 
       if (w.as === 'bar') {
         const variant = meaningOf(w); if (variant === 'hp') hpRow = true;
         bySlot[w.slot].push({ use: 'bar', props: { value, max: typeof w.max === 'string' ? B(`v.${varKey(w.max)}`) : w.max, ...(variant !== 'plain' ? { variant } : {}), ...(label ? { label } : {}) }, ...gate(w, i) });
-      } else if (w.as === 'clock') bySlot[w.slot].push({ use: 'timer', props: { seconds: value, ...(label ? { label } : {}) }, ...gate(w, i) });
+      } else if (w.as === 'stars') bySlot[w.slot].push({ use: 'pips', props: { value, max: w.max, shape: 'star', ...(label ? { label } : {}) }, ...gate(w, i) });
+      else if (w.as === 'clock') bySlot[w.slot].push({ use: 'timer', props: { seconds: value, ...(label ? { label } : {}) }, ...gate(w, i) });
+      // (money is a coin and a figure, never the word beside a number: the shape is the label)
+      else if (w.as === 'counter' && MONEY.test(String(label || w.var).trim())) bySlot[w.slot].push({ use: 'counter', props: { label: '', value, icon: 'coin' }, ...gate(w, i) });
       else if (w.as === 'counter') { const icon = iconOf(label) ?? iconOf(w.var); bySlot[w.slot].push({ use: 'counter', props: { label, value, ...(icon ? { icon } : {}) }, ...gate(w, i) }); }
       else bySlot[w.slot].push({ use: 'stat', props: { label, value }, ...gate(w, i) });
     } else if (w.kind === 'banner') banners.push({ on: w.on, text: w.text, ...cond(w) });

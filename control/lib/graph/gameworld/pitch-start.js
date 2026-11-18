@@ -8,7 +8,8 @@
  *   pitchStart(world, { title? }) → null | { world, laid: { by, levels, says } } | { unlaid: '<why>' }
  *     null     not a locked pitch with no level (nothing to do: the start readout answers as it always has)
  *     world    the written world with the starter under it: every key the creator wrote wins
- *     by       'platformer' (the platformer's rail: its first level and the flow that plays it, platformer-game.js) or
+ *     by       'platformer' (the platformer's rail: its first level and the flow that plays it, platformer-game.js),
+ *              'hijack-city' (Hijack City's: its district, story, law and shops, hijack-city.js) or
  *              'compose' (a first reading of the genre the rail starts from, compose.js, one level)
  *     unlaid   a rail with no starter the book lays yet, or a size that is not the designed game's: said, the pitch
  *              answered and not stored
@@ -17,6 +18,7 @@
  */
 import { readRail, railOf, railSheet } from './rails.js';
 import { platformerStart } from './platformer-game.js';
+import { hijackCityStart } from './hijack-city.js';
 import { composeGameworld } from './compose.js';
 import { GENRES, readGenre } from './intent.js';
 
@@ -40,6 +42,11 @@ export function pitchStart(world, { title } = {}) {
   if (plat) {
     const W = { ...plat.world, ...withFeel, ...named };
     return { world: W, laid: { by: 'platformer', dimension: plat.dimension, levels: Object.keys(W.levels), says: SAYS } };
+  }
+  // Hijack City's rail: its own starter, the district, the story, the law and the shops (hijack-city.js)
+  if (R.id === 'hijack-city') {
+    const H = hijackCityStart({ ...withFeel, ...named });
+    if (H) return { world: { ...H.world, ...(world.intent === undefined ? { intent: { from: 'open-city-crime' } } : {}) }, laid: { by: 'hijack-city', levels: Object.keys(H.world.levels), says: SAYS } };
   }
   const prompt = S.starts ? genrePrompt(S.starts) : null;
   if (!prompt) return { unlaid: `${R.name} has no starter the book lays from its cube yet: write its first level (gameworld-guide), and the pitch is kept with it` };

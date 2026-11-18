@@ -3,8 +3,8 @@
 import { execFileSync } from 'node:child_process';
 import { describe, it, expect } from 'vitest';
 import { emitThreeWorld } from '../scene-three.js';
-import { readFlow, flowChannelScript } from './flow.js';
-import { TRAFFIC, buildSignals, pairLanes } from './traffic-model.js';
+import { readFlow, flowChannelScript, laneBlocks, stepFlowYielding } from './flow.js';
+import { TRAFFIC, buildSignals, pairLanes, createTrafficModel, stepTraffic, trafficTick } from './traffic-model.js';
 
 const quad = (z, hex, s = 1) => ({ corners: [[-s, -s, z], [s, -s, z], [s, s, z], [-s, s, z]], normal: [0, 0, 1], fill: hex });
 const floor = { ...quad(0, '#777777', 200), group: 'ground' };
@@ -41,5 +41,46 @@ describe('the flow channel', () => {
     expect(bare).not.toContain('stepFlow');
     expect(bare).not.toContain('__POOLS');
     expect(emitThreeWorld({ faces: [floor], flow })).not.toContain('stepFlow');
+  });
+});
+
+describe('the flow played (a page with a car a hero gets into: the traffic gives way and stands in the way)', () => {
+  const zAt = () => 0, L = lanes[0];
+  const cabAt = (y, heading = Math.PI / 2) => ({ id: 'car-1', rule: { type: 'drive' }, mount: { cab: true, hull: [0.9, 2.2], reach: 3, stand: [-1.4, 0.2], mount: { s: 0.3 }, dismount: { s: 0.3 } }, body: { type: 'figure-rig', figure: 'c' }, transform: { pos: [3, y, 0], heading } });
+  it('a page with no cab is the page it was, byte for byte; one with a cab carries the yield and parses', () => {
+    expect(flowChannelScript(flow, { play: false })).toBe(flowChannelScript(flow));
+    const plain = emitThreeWorld({ faces: [floor], repeats: pools, flow });
+    const played = emitThreeWorld({ faces: [floor], repeats: pools, flow, entities: [cabAt(-60)] });
+    expect(plain).not.toContain('flowYield');
+    for (const s of ['flowYield', 'stepFlowYielding', 'laneBlocks', 'trafficHulls']) expect(played).toContain(s);
+    expect(parses(played)).toBe(null);
+    // (the functions' sources stand alone on the page: no name a bundler gave an import)
+    expect(played).not.toMatch(/__vi_import|__vite_ssr|WEBPACK/);
+  });
+  it('a body in a lane is a block where it lies; beside the lane, off its ends or over it, it is none', () => {
+    const body = (x, y, f = [0, 1], z = 0) => ({ p: [x, y, z], f, hw: 0.9, hl: 2.2 });
+    expect(laneBlocks(L, [body(3, -60)], T, zAt)).toEqual([{ s: 140, half: 2.2 }]);
+    // (turned across the lane: its width along it)
+    expect(laneBlocks(L, [body(3, -60, [1, 0])], T, zAt)[0].half).toBeCloseTo(0.9);
+    expect(laneBlocks(L, [body(9, -60), body(3, -260), body(3, -60, [0, 1], 6)], T, zAt)).toEqual([]);
+    // (the lane that drives the other way counts from its far end)
+    expect(laneBlocks({ ...L, dir: -1 }, [body(3, -60)], T, zAt)[0].s).toBe(260);
+  });
+  it('the vehicles behind a block stop a gap short of it and queue, never touching; the block gone, they drive on', () => {
+    const cars = [0, 1, 2].map(() => ({ lane: 0, startFrac: 0, len: 4.8 })), m = createTrafficModel([L], cars, signals, T);
+    const lead = () => m.cars.slice().sort((a, b) => b.s - a.s);
+    // (a block a way ahead of the lane's leading vehicle, short of the crossing)
+    const at = Math.min(lead()[0].s + 60, (L.crossings[0]?.sStop ?? L.total) - 12), blocks = [{ s: at, half: 2.2 }];
+    // (on a slow page's clock: a frame many of the model's ticks long)
+    for (let t = 0.6; t < 60; t += 0.6) stepFlowYielding(m, t, blocks, { ...T, MAX_STEPS: 1800 }, trafficTick);
+    const behind = m.cars.filter((c) => c.s < at).sort((a, b) => b.s - a.s);
+    expect(behind.length).toBeGreaterThan(0);
+    expect(behind[0].v).toBe(0);
+    expect(at - 2.2 - (behind[0].s + 2.4)).toBeGreaterThanOrEqual(T.GAP - 1e-6);
+    expect(at - 2.2 - (behind[0].s + 2.4)).toBeLessThan(T.GAP + 1);
+    for (let k = 1; k < behind.length; k++) expect(behind[k - 1].s - behind[k].s).toBeGreaterThanOrEqual(4.8 + T.GAP - 1e-6);
+    const was = behind[0].s;
+    for (let t = 60.05; t < 66; t += 0.05) stepTraffic(m, t);
+    expect(behind[0].s).toBeGreaterThan(was + 5);
   });
 });

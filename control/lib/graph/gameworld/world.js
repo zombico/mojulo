@@ -174,6 +174,9 @@ import { readMade } from './made.js';
 import { readQuick, LEVEL_GOAL_PARTS } from './quick.js';
 import { readEscapeGoal } from './escape.js';
 import { readErrands } from './errand.js';
+import { readFactions } from './factions.js';
+import { readLaw, lawBestiary } from './law.js';
+import { readShops } from './shops.js';
 import { readGauntletGoal } from './gauntlet.js';
 import { readBestiary, readLevelFoes, bestiaryOf } from './foes.js';
 import { readLevelStreet, brawlStreet } from './brawl-cast.js';
@@ -289,7 +292,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'rail', 'megaworld', 'made', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', 'fights', 'loadout', 'styleMeter', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'rail', 'megaworld', 'made', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'factions', 'law', 'shops', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', 'fights', 'loadout', 'styleMeter', ...RESERVED];
 /** The recipe's own keys, read here (the chapter registry, chapters.js, gives each its chapter). */
 export const GAMEWORLD_KEYS = Object.freeze([...KEYS]);
 // THE HUD'S LOOK (`hud`): a mana-ui theme preset its levels' HUD wears (mana-ui/theme.js: a bare HUD's parts on the scene
@@ -609,7 +612,9 @@ export function readGameworld(W) {
   // (a quick brawl's or run & gun's crowd IS the world's bestiary: gameworld/brawl-cast.js)
   const brawlGame = quickGame && isObj(W.quick) && (W.quick.goal === 'brawl' || W.quick.goal === 'rungun');
   if (W.foes !== undefined && W.foes !== null && quickGame && !brawlGame) throw new Error('gameworld: foes: a quick game\'s foes are its goal\'s (quick.foe)');
-  const foes = W.foes === undefined || W.foes === null ? null : readBestiary(W.foes);
+  const foes0 = W.foes === undefined || W.foes === null ? null : readBestiary(W.foes);
+  // THE LAW (law.js): an open city the law watches; its police a bestiary entry, the maker's or the patrol added here
+  const law = readLaw(W.law, foes0), foes = law && !law.own ? readBestiary(lawBestiary(law, W.foes ?? bestiaryOf({}))) : foes0;
   const ids = Object.keys(W.levels), levels = {}, sceneSets = {};
   for (const id of ids) {
     const L = W.levels[id], at = `levels.${id}`;
@@ -923,6 +928,10 @@ export function readGameworld(W) {
   if (!levels[start]) throw new Error(`gameworld: start '${start}' is not a level (levels: ${ids.join(', ')})`);
   // the errands (errand.js): sent out across the map with a list, home to a giver; malformed refused here, laws advise
   const errands = readErrands(W.errands, { levels, ids, links, start, topology: W.topology, foes });
+  // the factions (factions.js): the sides of an open city, each its turf, its contact and its board; a posting's name is no errand's
+  const factions = readFactions(W.factions);
+  for (const F of factions ?? []) if (F.crew && !(foes && Object.hasOwn(foes, F.crew))) throw new Error(`gameworld.factions.${F.id}.crew: '${F.crew}' is not in the world's bestiary (foes: ${foes ? Object.keys(foes).join(', ') : 'none written'})`);
+  for (const F of factions ?? []) for (const P of F.board) if ((errands ?? []).some((E) => E.id === P.id)) throw new Error(`gameworld.factions.${F.id}.board: '${P.id}' is an errand's name: a posting has its own`);
   // the character book, the equipment and the mechanics: read here, so a world says what is wrong with them at once; kept only when present
   const characters = W.characters === undefined || W.characters === null ? null : readCharacters(W.characters);
   const equipment = W.equipment === undefined || W.equipment === null ? null : readEquipment(W.equipment);
@@ -992,7 +1001,7 @@ export function readGameworld(W) {
   // laws advise (design_game's readout), a malformed one is refused here. Its core loop (core-loop.js) is read the same
   const mainQuest = W.mainQuest === undefined || W.mainQuest === null ? null : (() => { try { return readMainQuest(W.mainQuest, mainQuestContext(W)); } catch (e) { throw new Error(`gameworld: ${e.message}`); } })();
   try { readLoop(W.loop); } catch (e) { throw new Error(`gameworld: ${e.message}`); }
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(megaworld ? { megaworld } : {}), ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(mainQuest ? { mainQuest } : {}), ...(errands ? { errands } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.arsenal !== undefined ? { arsenal: W.arsenal } : {}), ...(W.sound !== undefined ? { sound: W.sound } : {}), ...(W.music !== undefined ? { music: W.music } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.grade !== undefined ? { grade: W.grade } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.mounts != null && W.mounts !== false ? { mounts: readMounts(W.mounts) } : {}), ...(W.roll != null && W.roll !== false ? { roll: readWorldRoll(W.roll) } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.xr ? { xr: W.xr } : {}), ...(W.room !== undefined ? { room: W.room } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.hub !== undefined ? { hub: W.hub } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.hud !== undefined ? { hud: readHudLook(W.hud) } : {}), ...(W.ui !== undefined ? { ui: W.ui } : {}), ...(W.flow !== undefined ? { flow: W.flow } : {}), ...(W.setup !== undefined ? { setup: W.setup } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), ...(W.fights !== undefined ? { fights: W.fights } : {}), ...(W.loadout !== undefined ? { loadout: W.loadout } : {}), ...(W.styleMeter !== undefined ? { styleMeter: W.styleMeter } : {}), [READ]: true };
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(megaworld ? { megaworld } : {}), ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(mainQuest ? { mainQuest } : {}), ...(errands ? { errands } : {}), ...(factions ? { factions } : {}), ...(law ? { law } : {}), ...(W.shops !== undefined && readShops(W.shops) ? { shops: readShops(W.shops) } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.arsenal !== undefined ? { arsenal: W.arsenal } : {}), ...(W.sound !== undefined ? { sound: W.sound } : {}), ...(W.music !== undefined ? { music: W.music } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.grade !== undefined ? { grade: W.grade } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.mounts != null && W.mounts !== false ? { mounts: readMounts(W.mounts) } : {}), ...(W.roll != null && W.roll !== false ? { roll: readWorldRoll(W.roll) } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.xr ? { xr: W.xr } : {}), ...(W.room !== undefined ? { room: W.room } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.hub !== undefined ? { hub: W.hub } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.hud !== undefined ? { hud: readHudLook(W.hud) } : {}), ...(W.ui !== undefined ? { ui: W.ui } : {}), ...(W.flow !== undefined ? { flow: W.flow } : {}), ...(W.setup !== undefined ? { setup: W.setup } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), ...(W.fights !== undefined ? { fights: W.fights } : {}), ...(W.loadout !== undefined ? { loadout: W.loadout } : {}), ...(W.styleMeter !== undefined ? { styleMeter: W.styleMeter } : {}), [READ]: true };
 }
 
 /**

@@ -151,7 +151,7 @@ export function testCourse() {
 }
 
 /** A controllable world with the hero as the pilot. */
-export function playerWorld({ hero, heroRef, gaits, id = 'hero', library: lib = 'quaternius-ual', level, controls, title, clips: given, rule, pilot = null, walk: walks = true, takes = null } = {}) {
+export function playerWorld({ hero, heroRef, gaits, id = 'hero', library: lib = 'quaternius-ual', level, controls, title, clips: given, rule, pilot = null, walk: walks = true, takes = null, reach = 1, runSpeed = null } = {}) {
   if (!hero && !heroRef) throw new Error('player: give a hero (inline, as the hero door takes it) or a heroRef');
   // a MASCOT pilot (egocube/mascot-pilot.js): its own clips (no library), its body's capsule, stride and camera
   const library = pilot ? null : lib, clips = pilot ? pilot.clips : given;
@@ -165,7 +165,13 @@ export function playerWorld({ hero, heroRef, gaits, id = 'hero', library: lib = 
   const states = jumpTakes ? { ...states0, ...jumpTakes } : states0;
   // the game's run speed stands; the stride is the clip forward plays, so its feet keep pace with the ground
   const base = (library && LIBRARY_STRIDE[library]) || { speed: 4, stride: 3.2 };
-  const pace = pilot ? { speed: base.speed, stride: pilot.rule.stride } : HERO_GAIT_STRIDE[states.forward] ? { speed: base.speed, stride: HERO_GAIT_STRIDE[states.forward] } : base;
+  const pace0 = pilot ? { speed: base.speed, stride: pilot.rule.stride } : HERO_GAIT_STRIDE[states.forward] ? { speed: base.speed, stride: HERO_GAIT_STRIDE[states.forward] } : base;
+  // (`reach`: a hero whose run opens its legs wider, a long stride: each stride covers that much more ground at the same
+  // cadence, so it runs that much faster and its feet still keep pace with the ground; 1, as it was)
+  const pace1 = reach !== 1 && !pilot ? { speed: Math.round(pace0.speed * reach * 100) / 100, stride: Math.round(pace0.stride * reach * 1000) / 1000 } : pace0;
+  // (`runSpeed`: the least a place asks its runner to run, a city's: under it the run is quickened, its stride the clip's,
+  // so the legs turn over faster and the feet still keep pace; a hero already that fast runs as it does)
+  const pace = runSpeed > pace1.speed && !pilot ? { speed: runSpeed, stride: pace1.stride } : pace1;
   // a hero on a library RUNS on the keys and WALKS with Z held, and on a pad walks with the stick tilted and runs with it
   // pushed (the platform rule's `walkSpeed`): the library's walk at its own pace, the run at the game's speed (a mascot
   // keeps its own clips and runs)

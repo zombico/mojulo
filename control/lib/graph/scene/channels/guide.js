@@ -15,7 +15,11 @@ import { safeJson } from '../emit-util.js';
 // is reached within its radius (a fight once its foes about it are down); the last one reached, the way is the page's.
 // Its words sit on the scene, outlined, never on a card. It reads the pilot and the cast through window.__mojCtrl (the
 // controllable channel's), so it waits for it. Emitted only when the page has a guide: every other page byte-identical.
-export function guideScript(guide) {
+// A guide that goes ROUND (`loop`: the step it returns to after its last, a standing job's pick-up: gameworld/city-guide.js)
+// one whose step is reached by being in a car (a step's `cab`), one waited on (a step's `when`: a bus var set, a task taken on the phone), and one with its own last word (`done`, in place of "the way on lies past this place": an open city's) say so; a guide
+// with none of them is as it was, byte for byte. `host` (a page whose guide is drawn by mana-ui, guide-mana.js): this
+// line stays down for that host as it does for the HUD grammar; unasked, not a byte.
+export function guideScript(guide, { host = false } = {}) {
   return `
 // --- the guide: the level's intro and the way on, one thing at a time (level/guide.js) ---
 (function () {
@@ -35,7 +39,7 @@ export function guideScript(guide) {
   const V = { mode: '', text: '', keys: [], goal: null };
   function put(m, html, text, keys) {
     V.mode = m; V.text = text || ''; V.keys = keys || [];
-    if (window.__mojHudGrammar) { if (shown !== '') { shown = ''; slot.className = 'moj-gd off'; slot.innerHTML = ''; } return; }
+    if (window.__mojHudGrammar${host ? ' || window.__mojGuideHost' : ''}) { if (shown !== '') { shown = ''; slot.className = 'moj-gd off'; slot.innerHTML = ''; } return; }
     if (m === mode && html === shown) return; mode = m; shown = html; slot.className = 'moj-gd ' + m + (html ? '' : ' off'); slot.innerHTML = html;
   }
   const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -86,8 +90,8 @@ export function guideScript(guide) {
         dx = s.at[0] - p.transform.pos[0]; dy = s.at[1] - p.transform.pos[1]; d = Math.hypot(dx, dy);
         near = s.fight ? W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - s.at[0], e.transform.pos[1] - s.at[1]) < s.radius) : false;
         // (a fight that counts its falls is won by them, wherever it was fought; any other beat by reaching it)
-        const won = s.downs ? W.entities.filter(fell).length >= s.downs : d < s.radius && !near;
-        if (won) { if (s.says) { sayText = s.says; sayUntil = performance.now() + 4500; } k++; plant(); }
+        const won = ${guide.steps.some((x) => x && x.cab) ? 's.cab ? !!(p.mount && p.mount.cab) : ' : ''}${guide.steps.some((x) => x && x.when) ? 's.when ? !!(window.__mojBus && window.__mojBus.state.vars[s.when] >= 1) : ' : ''}s.downs ? W.entities.filter(fell).length >= s.downs : d < s.radius && !near;
+        if (won) { if (s.says) { sayText = s.says; sayUntil = performance.now() + 4500; } k++;${Number.isInteger(guide.loop) ? ' if (k >= GD.steps.length) k = GD.loop;' : ''} plant(); }
       }
       const now = performance.now(), cur = GD.steps[k];
       // (the lessons give way to a fight: a foe come within a few strides is the trail begun, its own keys the ones to show)
@@ -103,7 +107,7 @@ export function guideScript(guide) {
       else if (atHeld) put('held', 'The way on is held while foes stand here', 'The way on is held while foes stand here');
       // (a lesson at hand: near its place, or its fight come to the hero: a foe standing within a few strides)
       else if (cur && cur.keys && cur.keys.length && p && (d < Math.max(cur.radius * 2, 18) || (cur.fight && W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - p.transform.pos[0], e.transform.pos[1] - p.transform.pos[1]) < 14)))) put('keys', cur.keys.map(capped).join(''), '', cur.keys);
-      else if (!cur) put('way', 'The way on lies past this place', 'The way on lies past this place');
+      else if (!cur) put('way', ${typeof guide.done === 'string' ? 'esc(GD.done), GD.done' : "'The way on lies past this place', 'The way on lies past this place'"});
       else if (p) {
         let yaw = p.transform.heading;
         if (view && typeof camera !== 'undefined') { camera.getWorldDirection(view); yaw = Math.atan2(view.y, view.x); }
