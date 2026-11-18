@@ -52,6 +52,10 @@ export const SWARD_MEDIUM = Object.freeze({ share: 0.45, cell: 11 });
 /** A town's LAWN (landRead `lawn`): where its grass goes bare (the bare field's threshold: a wild land's 0.27 leaves a
  *  stretch in five or so bare; a kept lawn only its few worn places), its fields' dice EVEN (finalised: evenHash). */
 export const LAWN = Object.freeze({ bare: 0.12 });
+/** A TOWN'S FLORA in the form render (a geotown's, a metro's: worlds/world-scene.js): its lawns' blades drawn out to
+ *  `grass` × the view cone's reach (past it the field's impression, channels/form-grass.js), so a city's verges cost
+ *  what they show; its street trees lay no litter (a kept street is swept, channels/form-flora.js). */
+export const TOWN_FLORA = Object.freeze({ grass: 0.4, litter: false });
 /** A 32-bit hash's bits mixed through (murmur3's finaliser): every bit of the key moves every bit of the dice. */
 export const evenHash = (h0) => { let h = h0 >>> 0; h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b) >>> 0; h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35) >>> 0; h ^= h >>> 16; return h >>> 0; };
 /** How far past a claimed ground (era/isekai.js ALLOT) the grass grows back to its full (m): none inside the claim, short

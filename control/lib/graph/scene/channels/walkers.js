@@ -99,6 +99,9 @@ export function walkerSkinStretch(fig, { clips = null } = {}) {
   const size = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1, stretch = Math.round((worst / size) * 1e4) / 1e4;
   return { stretch, size: Math.round(size * 1e4) / 1e4, holds: stretch <= WALKER_BLEND.holds };
 }
+/** How far a passer-by is drawn, in its own heights (a 1.8 m figure: 144 m): `far` in the camera's view, `near` all
+ *  round (its shadow may fall into the view). Past them it walks on, unposed and undrawn. A capture draws them all. */
+export const WALKER_DRAW = Object.freeze({ far: 80, near: 12 });
 export function walkersChannelScript(walkers, bank, { cast = false, signals = null, capture = false, react = false } = {}) {
   const held = walkers.some((w) => Array.isArray(w.holds));
   const skinOf = (f) => !!f && Array.isArray(f.parts) && f.parts.some((p) => p && p.jnt && p.wgt);
@@ -151,19 +154,27 @@ function __buildWalkerSkin(fig) {
   mat.onBeforeCompile = (sh) => { sh.uniforms.uWB = U; sh.vertexShader = __wSkinPars + sh.vertexShader.replace('#include <begin_vertex>', __wSkinMove); };
   mat.customProgramCacheKey = () => 'walker-skin';
   mat.userData.prepass = (vs) => ({ vertexShader: __wSkinPars + vs.replace('#include <begin_vertex>', __wSkinMove), uniforms: { uWB: U } });
+  // (its parts one mesh: one skin, one material, the bones the material's, so a passer-by is one draw and one shadow)
+  const P = [], C = [], JJ = [], WW = [], I = [];
+  let base = 0;
   fig.parts.forEach((part, bi) => {
     if (!part) return;
-    const geo = new THREE.BufferGeometry(), n = ${packedIn ? 'part.idx ? part.n : ' : ''}part.faces * 3;
-    geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(part.pos), 3));
-    geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));${packedIn ? `
-    if (part.idx) geo.setIndex(new THREE.BufferAttribute(__wIdx(part), 1));` : ''}
+    const n = ${packedIn ? 'part.idx ? part.n : ' : ''}part.faces * 3, pos = decodeF32(part.pos), col = decodeU8(part.col);
     // (a part with no skin of its own, a held thing, rides its bone whole)
-    const J = part.jnt ? Float32Array.from(decodeU8(part.jnt)) : Float32Array.from({ length: n * 4 }, () => bi), W = part.wgt ? (${packedIn ? 'part.wq === 8 ? Float32Array.from(decodeU8(part.wgt), (x) => x / 255) : ' : ''}decodeF32(part.wgt)) : Float32Array.from({ length: n * 4 }, (_, i) => (i % 4 ? 0 : 1));
-    geo.setAttribute('aWJ', new THREE.BufferAttribute(J, 4)); geo.setAttribute('aWW', new THREE.BufferAttribute(W, 4));
-    const mesh = new THREE.Mesh(geo, mat);${cast ? '\n    mesh.castShadow = true;' : ''}
-    mesh.matrixAutoUpdate = false; mesh.frustumCulled = false;
-    group.add(mesh);
+    const J = part.jnt ? decodeU8(part.jnt) : null, W = part.wgt ? (${packedIn ? 'part.wq === 8 ? Float32Array.from(decodeU8(part.wgt), (x) => x / 255) : ' : ''}decodeF32(part.wgt)) : null;
+    for (let k = 0; k < n * 3; k++) { P.push(pos[k]); C.push(col[k]); }
+    for (let k = 0; k < n * 4; k++) { JJ.push(J ? J[k] : bi); WW.push(W ? W[k] : (k % 4 ? 0 : 1)); }${packedIn ? `
+    if (part.idx) { const ix = __wIdx(part); for (let k = 0; k < ix.length; k++) I.push(base + ix[k]); } else` : ''} for (let k = 0; k < n; k++) I.push(base + k);
+    base += n;
   });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(P), 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(Uint8Array.from(C), 3, true));
+  geo.setAttribute('aWJ', new THREE.BufferAttribute(Float32Array.from(JJ), 4)); geo.setAttribute('aWW', new THREE.BufferAttribute(Float32Array.from(WW), 4));
+  geo.setIndex(new THREE.BufferAttribute(base > 65535 ? Uint32Array.from(I) : Uint16Array.from(I), 1));
+  const mesh = new THREE.Mesh(geo, mat);${cast ? '\n  mesh.castShadow = true;' : ''}
+  mesh.matrixAutoUpdate = false; mesh.frustumCulled = false;
+  group.add(mesh);
   scene.add(group);
   return { fig, group, boneMeshes: [], B };
 }
@@ -265,9 +276,18 @@ function __wReact(r, wi, p, sec, S) {
   return R;
 }
 ` : ''}// probe/debug seam (a traversal audit surface, like __mojCtrl entities): the live pose of every walker.
-window.__mojWalkers = __walkerRigs.map((r) => ({ figure: r.w.figure, style: r.w.style || null, pos: [0, 0, 0], heading: 0, phase: 0 }));
+window.__mojWalkers = __walkerRigs.map((r) => ({ figure: r.w.figure, style: r.w.style || null, pos: [0, 0, 0], heading: 0, phase: 0 }));${capture ? '' : `
+// (a passer-by drawn only where it can be seen: in the camera's view within WALKER_DRAW.far of its height, or within
+// WALKER_DRAW.near, where its shadow may fall into the view; one unseen is walked on but not posed, and draws nothing)
+const __wDraw = ${safeJson(WALKER_DRAW)}, __wFr = new THREE.Frustum(), __wPM = new THREE.Matrix4(), __wIV = new THREE.Matrix4(), __wSph = new THREE.Sphere();
+const __wSeen = (p, h) => {
+  __wSph.center.set(p[0], p[1], p[2] + h * 0.5); __wSph.radius = h;
+  const d = __wSph.center.distanceTo(camera.position);
+  return d < __wDraw.near * h || (d < __wDraw.far * h && __wFr.intersectsSphere(__wSph));
+};`}
 stepWalkers = (t) => {
-  const sec = t / 1000;${react ? `
+  const sec = t / 1000;${capture ? '' : `
+  camera.updateMatrixWorld(); __wFr.setFromProjectionMatrix(__wPM.multiplyMatrices(camera.projectionMatrix, __wIV.copy(camera.matrixWorld).invert()));`}${react ? `
   const __wS = __wStreet(sec);` : ''}
   for (let wi = 0; wi < __walkerRigs.length; wi++) {
     const r = __walkerRigs[wi], w = r.w, fig = r.rig.fig, g = r.rig.group;
@@ -297,7 +317,9 @@ ${react ? `    // (a passer-by who reacts: off its own walk's clock by what it h
     g.position.set(p[0], p[1], p[2]);
     g.rotation.set(0, 0, heading + r.yaw);
     const phase = s / r.stride;                 // clip phase from ground distance (no skate)`}
-    for (let bi = 0; bi < fig.bones.length; bi++) {
+${capture ? '' : `    const __seen = __wSeen(p, (fig.figH || 1.8) * r.scale);
+    if (g.visible !== __seen) g.visible = __seen;
+`}    ${capture ? '' : 'if (__seen) '}for (let bi = 0; bi < fig.bones.length; bi++) {
       const mesh = r.rig.boneMeshes[bi];
       if (!mesh${blend ? ' && !r.rig.B' : ''}) continue;
       __walkerBone(fig, r.clip, phase, bi, __wq, __wheadP);

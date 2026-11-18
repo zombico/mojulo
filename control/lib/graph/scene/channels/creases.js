@@ -235,6 +235,10 @@ void main() {
  * The prepass block with OCCLUSION on (`occ`: readOcclusion's terms), the creases' with it when `cfg` is set (null: the
  * occlusion alone). One prepass into two targets; the ink pass when creases are on, the occlusion pass, their composites.
  */
+/** How far the occlusion's prepass draws a mesh, in its reaches (the default half metre: 120 m). Past it a contact's
+ *  reach spans under two pixels of the pass, so it draws nothing a pixel keeps; the mesh is left out of the prepass and
+ *  costs the frame no second draw. Only a page with occlusion alone: the creases' ink and outline read the far too. */
+export const OCCLUSION_FAR = 240;
 function prepassWithOcclusion(cfg, occ, metersPerUnit, aoHalf = false) {
   const unit = Number.isFinite(metersPerUnit) && metersPerUnit > 0 ? metersPerUnit : 1;
   // THE HALF TIER (aoHalf, scene/live-light.js TIER_TERMS): the occlusion at half the cost. Alone, the prepass at half the
@@ -302,7 +306,10 @@ const __mojCreases = window.__mojCreases = { on: true, set(on) { this.on = !!on;
 const __mojOcclusion = window.__mojOcclusion = { on: true, set(on) { this.on = !!on; } };
 // (its own name for the shared probe: the live light's script declares __mojLight on the same page)
 const __crLight = window.__mojLight = Object.assign(window.__mojLight || {}, { prepassCalls: 0, prepasses: 0, aoPasses: 0 });
-// the prepass, before every frame's render: solids drawn with the override materials into both targets at once
+${cfg ? '' : `// (how far a mesh is drawn into the prepass: OCCLUSION_FAR reaches past its nearest point, the contact under a pixel there)
+const __aoFarD = ${Math.round(occReach * OCCLUSION_FAR * 1e4) / 1e4}, __aoS = new THREE.Sphere();
+const __aoFar = (o) => { const g = o.geometry; if (!g) return false; if (!g.boundingSphere) g.computeBoundingSphere(); if (!g.boundingSphere) return false; __aoS.copy(g.boundingSphere).applyMatrix4(o.matrixWorld); return __aoS.center.distanceTo(camera.position) - __aoS.radius > __aoFarD; };
+`}// the prepass, before every frame's render: solids drawn with the override materials into both targets at once
 const __creasePrepass = () => {
   __crLight.prepassCalls++;
   const __persp = !!camera.isPerspectiveCamera;${cfg ? `
@@ -317,7 +324,9 @@ const __creasePrepass = () => {
     if (o === scene) return;
     const m = o.material;
     const solid = (o.isMesh || o.isInstancedMesh) && !o.userData.ink && !o.userData.blades && m && (Array.isArray(m) || (m.depthTest !== false && m.depthWrite !== false && (!m.transparent || (o.userData.crease && m.opacity > 0.5))));
-    const water = !solid && o.isMesh && m && m.transparent && o.geometry && o.geometry.getAttribute('color') && o.geometry.getAttribute('color').itemSize === 4;
+    const water = !solid && o.isMesh && m && m.transparent && o.geometry && o.geometry.getAttribute('color') && o.geometry.getAttribute('color').itemSize === 4;${cfg ? '' : `
+    // (a mesh wholly past OCCLUSION_FAR reaches, where a contact spans under a pixel or two: not drawn again for it)
+    if (solid && !o.isInstancedMesh && __aoFar(o)) { __sw.push([o, null]); o.visible = false; return; }`}
     if (solid || water) { __sw.push([o, m]); const __cls = ${cfg ? "o.userData.crease === 1 ? __crA : o.userData.crease === 0.5 ? __crL : __crB" : '__crB'}; o.material = !Array.isArray(m) && m.userData && m.userData.prepass ? __crMoved(__cls, m) : !Array.isArray(m) && m.alphaTest > 0 && m.map ? __crCut(__cls, m) : __cls; }
     else if (o.isMesh || o.isLine || o.isPoints || o.isSprite) { __sw.push([o, null]); o.visible = false; }
   });

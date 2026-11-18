@@ -536,6 +536,7 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
     })();
     // the LITTER: a disc round each tree's foot lying on the ground (the grass map's heights where it has them), its
     // leaves drawn in the fragment: the tree's outline in cells, in layers a parallax apart, nothing between them
+    // (a town's street trees lay none, \`litter: false\`, form/land-read.js TOWN_FLORA: a kept street is swept)
     (function () {
       const LT = ${safeJson(LITTER)}, SH = ${safeJson(LITTER_SHAPES)}, Gm = D.grass, gp = Gm ? bytes(Gm.px) : null, AU = FL.autumn || 0;
       const zAt = (x, y, z0) => { if (!gp) return z0; const [nx, ny] = Gm.size, u = (x - Gm.origin[0]) / Gm.cell, v = (y - Gm.origin[1]) / Gm.cell, i = Math.floor(u), j = Math.floor(v), f = u - i, g = v - j;
@@ -543,7 +544,7 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
         return (zq(i, j) * (1 - f) + zq(i + 1, j) * f) * (1 - g) + (zq(i, j + 1) * (1 - f) + zq(i + 1, j + 1) * f) * g; };
       const pos = [], loc = [], tree = [], col = [], cov = [], idx = [], RINGS = 7, SEGS = 18;
       for (let i = 0; i < N; i++) {
-        const b = i * STRIDE, t = FL.templates[P[b + 11]]; if (t.kind !== 'tree' || !t.litter || P[b + 12] > 1.5) continue;
+        const b = i * STRIDE, t = FL.templates[P[b + 11]]; if (FL.litter === false || t.kind !== 'tree' || !t.litter || P[b + 12] > 1.5) continue;
         const R = Math.min(LT.most + LT.fall.most * AU, (LT.reach + LT.fall.reach * AU) * t.radius * P[b + 3]), base = pos.length / 3, sh = Math.max(0, SH.indexOf(t.litter));
         for (let r = 0; r <= RINGS; r++) for (let k = 0; k < (r ? SEGS : 1); k++) {
           const a = (2 * Math.PI * k) / SEGS, d = (R * r) / RINGS, x = P[b] + d * Math.cos(a), y = P[b + 1] + d * Math.sin(a);
