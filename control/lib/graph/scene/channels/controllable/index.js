@@ -84,6 +84,10 @@ export const CEL_BODY = Object.freeze({ get key() { return SIDE.key; }, step: 0.
 export const FACE_SCREEN = Object.freeze({ rest: 0.5, moving: 0.22 });
 /** A cel body charging its buster lit up by its charge: its whole body `body`, its silhouette's band (past `edge` of
  * 1 − |N·V|) `rim` more, by its fill, flickering at `rate` (Hz: before a level, after one) between full and `low`. */
+/** The charge's energy at the muzzle (__chargeFx): the bloom's size (m: at none, the fill's share, a level's), the halo
+ * over it, the aura round the body (× its height), the sparks (before a level, after one), their turns a second, how far
+ * they are drawn in from (m), the beat's low, and the burst a level sets off (m: its base, a level's). */
+export const CHARGE_FX = Object.freeze({ size: Object.freeze([0.12, 0.22, 0.1]), halo: 3.2, aura: 1.3, sparks: Object.freeze([8, 16]), rate: Object.freeze([1.6, 2.6]), reach: 0.7, low: 0.6, burst: Object.freeze([0.14, 0.05]) });
 export const CEL_CHARGE = Object.freeze({ body: 0.12, rim: 0.55, edge: 0.5, rate: Object.freeze([9, 16]), low: 0.5 });
 const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8', 'colS'];
 // A PART WITH ITS PAINT, ITS NORMALS AND ITS FACE (a realistic hero's: a corner a triangle, every number a float32), as
@@ -4251,6 +4255,53 @@ function __blast(at, color, size, kind, bornAt) {
   }
   __blasts.push({ g, born, L, size, halo, deep, mid, core, rings, sparks });
 }
+// THE CHARGE'S ENERGY (a buster charging, worlds/controllable/buster.js; the round's look, round-look.js): at the muzzle a
+// BLOOM (a soft glow in the level's hue round a white-hot core, growing with the fill, beating with it) and a faint HALO
+// round the body; SPARKS drawn in from all round onto the muzzle, the accent's and white, more and faster once a level is
+// reached, each on the world's clock (its way seeded by its turn); and a small burst in the shot's light at each level
+// reached. CHARGE_FX the numbers
+const __chg = {};
+function __chargeFx(e) {
+  const B = e.rule && e.rule.buster, on = !!(B && e.charging && e.busterOn && (e.chargeFrac || 0) > 0 && !e.gone);
+  let C = __chg[e.id];
+  if (!on) { if (C) C.g.visible = false; if (C) C.lv = 0; return; }
+  const lvN = e.chargeLevel || 0, L = __RL[lvN] || __RL[0];
+  if (!C) {
+    const g = new THREE.Group(), halo = __rlSprite(__rlTex.soft, L.ramp[1], 0), glow = __rlSprite(__rlTex.soft, L.ramp[1], 0), core = __rlSprite(__rlTex.soft, '#ffffff', 0), aura = __rlSprite(__rlTex.soft, L.ramp[1], 0);
+    g.add(aura); g.add(halo); g.add(glow); g.add(core);
+    const sparks = [];
+    for (let k = 0; k < ${CHARGE_FX.sparks[1]}; k++) { const sp = __rlSprite(__rlTex.soft, k % 3 ? L.accent : '#ffffff', 0); g.add(sp); sparks.push(sp); }
+    scene.add(g); C = __chg[e.id] = { g, halo, glow, core, aura, sparks, lv: 0, look: -1 };
+  }
+  // (its colours the level reached's: re-tinted when it changes; a burst as it does)
+  if (C.look !== lvN) {
+    C.halo.material.color.set(L.ramp[1]); C.glow.material.color.set(L.ramp[1]); C.aura.material.color.set(L.ramp[1]);
+    C.sparks.forEach((sp, k) => sp.material.color.set(k % 3 ? L.accent : '#ffffff'));
+    if (lvN > C.lv && C.look >= 0) __blast(C.at || e.transform.pos, B.levels[lvN - 1].color, ${CHARGE_FX.burst[0]} + ${CHARGE_FX.burst[1]} * lvN, 'impact');
+    C.look = lvN; C.lv = lvN;
+  }
+  const r = e.rule, h = e.transform.heading || 0, ahead = (r.collideRadius || 0.3) + 0.15, up = (r.collideHeight || 1.7) * (B.chest || 0.7) - (r.eye || 0);
+  const at = C.at = [e.transform.pos[0] + Math.cos(h) * ahead, e.transform.pos[1] + Math.sin(h) * ahead, e.transform.pos[2] + up];
+  C.g.position.set(at[0], at[1], at[2]); C.g.visible = true;
+  const t = __world.time, fr = Math.min(1, e.chargeFrac), beat = Math.floor(t * (lvN ? ${CEL_CHARGE.rate[1]} : ${CEL_CHARGE.rate[0]})) % 2 ? 1 : ${CHARGE_FX.low}, size = ${CHARGE_FX.size[0]} + ${CHARGE_FX.size[1]} * fr + ${CHARGE_FX.size[2]} * lvN;
+  const set = (sp, sc, op) => { sp.scale.set(sc, sc, 1); sp.material.opacity = Math.max(0, Math.min(1, op)); };
+  set(C.core, size * 0.45 * (0.85 + 0.15 * beat), 0.9 * fr);
+  set(C.glow, size * (0.8 + 0.2 * beat), 0.85 * fr * beat);
+  set(C.halo, size * ${CHARGE_FX.halo}, 0.28 * fr * beat);
+  // (the halo round the body: from the muzzle back to its middle, a body's height, faint)
+  C.aura.position.set(-Math.cos(h) * ahead, -Math.sin(h) * ahead, -up * 0.35); set(C.aura, (r.collideHeight || 1.7) * ${CHARGE_FX.aura}, 0.16 * fr * beat);
+  // (the sparks drawn in: each from a seeded way at its turn's start, onto the muzzle over its turn)
+  const n = lvN ? ${CHARGE_FX.sparks[1]} : ${CHARGE_FX.sparks[0]}, rate = lvN ? ${CHARGE_FX.rate[1]} : ${CHARGE_FX.rate[0]}, R = ${CHARGE_FX.reach} * (1 + 0.3 * lvN);
+  C.sparks.forEach((sp, k) => {
+    if (k >= n) { sp.material.opacity = 0; return; }
+    const ph = t * rate + k / n, turn = Math.floor(ph), u = ph - turn;
+    let a = (Math.imul(k + 1, 2654435761) ^ Math.imul(turn + 7, 40503)) >>> 0; a = (a ^ (a >>> 15)) >>> 0;
+    const th = (a % 6283) / 1000, el = (((a >>> 13) % 2000) / 1000 - 1) * 0.9, d = R * (1 - u * u);
+    sp.position.set(Math.cos(th) * Math.cos(el) * d * 0.6, Math.sin(th) * Math.cos(el) * d, Math.sin(el) * d);
+    const sz = Math.max(0.025, 0.05 + 0.03 * lvN) * (0.6 + 0.6 * u);
+    sp.scale.set(sz, sz, 1); sp.material.opacity = Math.sin(Math.PI * u) * fr;
+  });
+}
 function __blastAge() {
   for (let i = __blasts.length - 1; i >= 0; i--) {
     const B = __blasts[i], u = (__world.time - B.born) / B.L.life, z = B.size;
@@ -4345,6 +4396,7 @@ const __projDir = new THREE.Vector3();
 function __updateProjectiles() {${busterOn ? `
   __rlAge();   // (the muzzle rings, aged whether or not their rounds still fly)
   __blastAge();
+  for (const e of __world.entities) if (e.rule && e.rule.buster) __chargeFx(e);
   for (let i = __rlGone.length - 1; i >= 0; i--) if (__world.time - __rlGone[i].t > 0.2) __rlGone.splice(i, 1);
   // (a body destroyed, dismantled or cleaved: an explosion where it went down, in the colour of the round that did it)
   for (const e of __world.entities) { const W = e.wreck; if (!W || !e.transform) continue; const key = e.id + ':' + (W.t0 || 0); if (__blastWrecks.has(key)) continue; __blastWrecks.add(key); const at = [e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + ((e.rule && e.rule.collideHeight) || 1.6) * 0.5]; __blast(at, __blastTint(at, W.t0 || 0), 0.9, 'blast'); }` : ''}

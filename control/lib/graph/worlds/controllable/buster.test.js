@@ -87,6 +87,9 @@ describe('the buster', () => {
     expect(page).toContain('p.pellet');
     // (the arm cannon's swap: the hand for the cannon while the buster is out, on a page with a buster alone)
     expect(page).toContain('__busterSwap');
+    // (and the charge's energy at the muzzle: its bloom, its sparks drawn in, a burst a level)
+    expect(page).toContain('__chargeFx');
+    expect(controllableChannelScript([foe(3)], null, {})).not.toContain('__chargeFx');
     expect(controllableChannelScript([foe(3)], null, {})).not.toContain('__busterSwap');
   });
 });
