@@ -108,7 +108,7 @@ export function layoutSideMap(map, { reach, stature }) {
         // on the bay grid the back wall's pillars and seams stand on, never at a pit's lip or on a dash's runway
         const N = M.zones[i + 1], toward = N?.run === 'up' ? 1 : N?.run === 'down' ? -1 : 0;
         const role = Z.teach ?? (Z.beat === 'rest' || Z.beat === 'landing' ? Z.beat : 'run');
-        const P = shapeRun(laid, { role, toward, W, H, J, gaps: plan.gaps, length: Math.max(L, laid.at(-1).s1) });
+        const P = shapeRun(laid, { role, toward, W, H, J, gaps: plan.gaps, length: Math.max(L, laid.at(-1).s1), stepUp: reach.rule?.step ?? 0.35 });
         floors.push(...P.floors);
         for (const st of P.steps) out.steps.push({ zone: i, s: r3(s + st.s), dz: st.dz });
         for (const g of plan.gaps) out.gaps.push({ zone: i, s0: r3(s + g.s0), s1: r3(s + g.s1), w: g.w, dz: g.dz, teaches: g.teaches, kind: g.kind });

@@ -82,7 +82,7 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   run's floor shaped on its own BAY GRID, the one the back wall's pillars and seams stand on (`bayGrid`, the dress lays
   them on it too), so the floor keeps the walls' rhythm. Its PROFILE says what happens at each pillar and at each seam
   and gives the whole run one step HEIGHT, a share of the hero's jump, as a stair's steps are all one rise: a rest's low
-  terraces, the basics rolling up at each seam and down at each pillar, a fight's raised block centred on every seam,
+  terraces walked up, never jumped (under what the body steps up by itself: nothing asked), the basics rolling up at each seam and down at each pillar, a fight's raised block centred on every seam,
   the dash's runways level between steps at its pillars, a gauntlet's blocks on its seams and steps at its pillars, a
   landing's one rise, a boss's floor one floor; toward a climb its steps go up, toward a drop down, inside the frame the
   camera holds; never at a pit's lip or on a dash's runway. A new law, `varied`: no run (but a landing's and a boss's

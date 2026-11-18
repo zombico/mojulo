@@ -16,7 +16,7 @@
  *
  *   PATH_PROFILES
  *   bayGrid(length, W) → { n, width }   the run's bays (dress.js lays its pillars and seams on the same grid)
- *   shapeRun(floors, { role, toward, W, H, J, gaps, length? }) → { floors, steps: [{ s, dz }] }
+ *   shapeRun(floors, { role, toward, W, H, J, gaps, length?, stepUp? }) →   (stepUp: what the body steps up unasked) { floors, steps: [{ s, dz }] }
  *     floors  the run's floors as the course laid them ({ s0, s1, z }, the pits between), each cut where a feature
  *             changes its height, every floor after a feature at its new height (a pit keeps its own rise)
  *     steps   each change where it stands (metres along the run)
@@ -24,7 +24,7 @@
  * Pure: no dice. The same run is the same path.
  */
 export const PATH_PROFILES = Object.freeze({
-  rest: Object.freeze({ says: 'a breath: low terraces, up at each seam and down at the pillar after, the place shown', seams: ['up'], pillars: ['down'], rise: 0.25 }),
+  rest: Object.freeze({ says: 'a breath: low terraces walked up, never jumped (nothing asked), up at each seam and down at the pillar after', seams: ['up'], pillars: ['down'], rise: 'walk' }),
   basic: Object.freeze({ says: 'rolling ground: a step up at every seam, down at every pillar', seams: ['up'], pillars: ['down'], rise: 0.5 }),
   meet: Object.freeze({ says: 'terraces to fight on: a raised block on every seam to shoot from, the floor between level', seams: ['block'], pillars: [], rise: 0.55 }),
   advanced: Object.freeze({ says: 'the dash\'s runways kept level: a step at each pillar, up then down', seams: [], pillars: ['up', 'down'], rise: 0.45 }),
@@ -41,8 +41,9 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 export const bayGrid = (length, W) => { const n = Math.max(1, Math.round(length / (1.25 * W))); return { n, width: length / n }; };
 
 /** An across run's floors shaped from the top down. */
-export function shapeRun(floors, { role = 'run', toward = 0, W, H, J, gaps = [], length = null }) {
-  const P = PATH_PROFILES[role] ?? PATH_PROFILES.run, lo = -H / 6, hi = H / 4, h = r3(J * P.rise);
+export function shapeRun(floors, { role = 'run', toward = 0, W, H, J, gaps = [], length = null, stepUp = 0.35 }) {
+  // (a `walk` rise: under what the body steps up by itself, the platform rule's `step`: walked, never jumped)
+  const P = PATH_PROFILES[role] ?? PATH_PROFILES.run, lo = -H / 6, hi = H / 4, h = r3(P.rise === 'walk' ? 0.9 * stepUp : J * P.rise);
   const len = length ?? Math.max(...floors.map((f) => f.s1)), G = bayGrid(len, W);
   const onFloor = (u) => floors.some((f) => !f.pillar && u > f.s0 + CLEAR && u < f.s1 - CLEAR);
   const clear = (u) => onFloor(u) && !gaps.some((g) => u > g.s0 - (g.teaches === 'dash' ? RUNWAY : CLEAR) && u < g.s1 + CLEAR);
