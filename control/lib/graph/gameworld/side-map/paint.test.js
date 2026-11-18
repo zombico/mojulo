@@ -5,7 +5,7 @@
 // the foot of a climb sees hills and a range, one at the top only a low horizon, one inside none; the same seed, the
 // same paint; a plain face loses `painted`.
 import { describe, it, expect } from 'vitest';
-import { paintSideMap, backdropOf, BACKDROP, SIDE_CAP } from './paint.js';
+import { paintSideMap, backdropOf, BACKDROP, SIDE_CAP, SIDE_JAMB, wallSurfaces } from './paint.js';
 import { layoutSideMap } from './layout.js';
 import { dressSideMap } from './dress.js';
 import { sideMapLaws } from './laws.js';
@@ -91,6 +91,37 @@ describe('the cap', () => {
     for (const m of pier) expect(pillars.some(([z, p]) => z === m.zone && Math.abs((m.s0 + m.s1) / 2 - p) < 1e-3)).toBe(true);
     const M = all(chain('into the plant', 'machine'));
     expect(M.P.marks.some((m) => m.what === 'cap-hazard')).toBe(true);
+  });
+});
+
+describe('the jamb', () => {
+  it('every wall a hero kicks off wears its jamb in segments, down its edge and on its face into the open', () => {
+    for (const fill of FILL_IDS) {
+      const { L, P } = all(chain('into the plant', fill)), walls = wallSurfaces(L);
+      expect(walls.length, fill).toBeGreaterThan(1);
+      for (const W0 of walls) {
+        const on = P.marks.filter((m) => m.zone === W0.zone && m.z1 > W0.z0 && m.z0 < W0.z1);
+        expect(on.filter((m) => m.what === 'jamb' && Math.abs((W0.dir > 0 ? m.s1 : m.s0) - W0.e) < 1e-3).length, `${fill} ${W0.e}`).toBeGreaterThan(1);
+        expect(on.some((m) => m.side && Math.abs(m.s0 - W0.e) < 1e-3)).toBe(true);
+      }
+      const bare = { ...P, marks: P.marks.filter((m) => !/^jamb/.test(m.what)) };
+      expect(sideMapLaws(L, reach, { dress: all(chain('into the plant', fill)).D, paint: bare }).find((l) => l.id === 'painted').holds).toBe(false);
+    }
+  });
+  it('chunky, never past the plane the hero kicks off: a notch at most 0.15 m into the wall', () => {
+    const { L, P } = all(chain('into the plant', 'rock')), walls = wallSurfaces(L), notches = P.marks.filter((m) => m.what === 'jamb-notch');
+    expect(notches.length).toBeGreaterThan(0);
+    for (const m of notches) {
+      expect(m.s1 - m.s0).toBeLessThanOrEqual(SIDE_JAMB.notch.rock.reduce((a, b) => Math.max(a, b), 0) + 1e-6);
+      expect(walls.some((W0) => W0.zone === m.zone && (W0.dir > 0 ? Math.abs(m.s1 - W0.e) < 1e-3 : Math.abs(m.s0 - W0.e) < 1e-3))).toBe(true);
+    }
+    expect(Math.max(...Object.values(SIDE_JAMB.notch).flat())).toBeLessThanOrEqual(0.15);
+  });
+  it('a bracket under each rest against a wall', () => {
+    const map = { premise: 'into the plant', zones: [{ run: 'across', screens: 1 }, { run: 'up', screens: 2, climb: 'chimney' }, { run: 'across', screens: 1 }] };
+    const L = layoutSideMap(map, { reach, stature: 1.67 }), P = paintSideMap(L, dressSideMap(L, map, { seed: 4 }), { seed: 4 });
+    const rests = L.rests.filter((r) => r.zone === 1), brackets = P.marks.filter((m) => m.what === 'bracket');
+    for (const r of rests) expect(brackets.some((b) => b.z1 <= r.z - 0.39 && b.z1 >= r.z - 0.41)).toBe(true);
   });
 });
 

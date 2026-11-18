@@ -96,6 +96,15 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   run's cushions on its block grid, a rock's slabs on one rhythm of lengths, chipped every third joint; each segment a
   tone of the zone's own in a fixed cycle. `painted` holds every top capped; the benchmark's `top-segmented` reads the
   tops' lightness varying on the page.
+- **The jamb** (`paint.js` `SIDE_JAMB`, `wallSurfaces`): every wall a hero kicks off or runs into (a shaft's, a chute's,
+  a room's: a closed part's face on open space a body tall or more) is the cap turned on its side, so walls and floors
+  are one terrain: a band down its edge and its face into the open, the kicking surface itself, cut on the fill's own
+  module and grid (built quoins long and short in turn, machine plates with seams and rivets, padded cushions, rock
+  slabs on one rhythm) in the cap's tones, joints and lit edge. Chunky: the edge steps in and out on that rhythm, a notch
+  the open shows through, never deeper than 0.15 m and never past the plane the hero kicks off (the climb is the
+  collider's, untouched); a string course every few courses as a floor has its pier caps; a bracket under each rest in
+  the wall's own matter. `painted` holds every wall jambed; the benchmark gives walls a role of their own and reads
+  `walls-segmented` on the page.
 - **The map is a geocube** (`gameworld/side-map/scene.js`, the geocube's `show: 'sidemap'`): a zone chain laid for the
   hero it names (a feel and a stature, Galaxy Boy's unsaid), dressed in the cube's hue (its stone the place's, play the
   other side of the wheel) and built where the camera sees: the closed parts in their zone's key, every top a lit edge;

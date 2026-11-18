@@ -40,7 +40,7 @@ export function drawSideMap({ layout: L, dress: D, paint, laws = [], reach }, { 
     out.push(`<line x1="${X(r.s0)}" y1="${Y(r.z1)}" x2="${X(r.s1)}" y2="${Y(r.z1)}" stroke="${z?.edge ?? '#cfd8e8'}" stroke-width="2"/>`);
   }
   // the paint: each closed part's fill, motifs, middles, edges and threads
-  for (const k of [...(paint?.marks ?? [])].filter((k) => !k.top).sort((a, b) => a.layer - b.layer)) out.push(box(k, `fill="${k.fill}"`));
+  for (const k of [...(paint?.marks ?? [])].filter((k) => !k.top && !k.side).sort((a, b) => a.layer - b.layer)) out.push(box(k, `fill="${k.fill}"`));
   // the cells: what the dress places, zone by zone
   for (const z of Z) {
     const LZ = L.zones[z.zone], [a, b, lo, hi] = LZ.rect, o = L.open.find((r) => r.zone === z.zone);

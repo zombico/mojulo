@@ -16,6 +16,10 @@
  *                   coping in half bond with a pier cap at each pillar, machine deck plates with seams, rivets and a
  *                   hazard band at a pit's lip, padded cushions, rock slabs on one rhythm; down its lit edge and across
  *                   the walking surface (a mark with `top`: drawn level on the top, not on the face)
+ *   the JAMB        every wall a hero kicks off or runs into the cap on its side (SIDE_JAMB, wallSurfaces): a band down
+ *                   its edge and its face into the open (a mark with `side`: drawn on that face) in segments on the
+ *                   fill's module, chunky (notches the open shows through, never past the kicking plane), a string
+ *                   course every few courses, a bracket under each rest
  *   the THREADS     the dress's thread (pipes, cables, roots, a channel) carried through the closed parts from one zone into
  *                   the next under the way, up a shaft's wall and down a chute's, drawn wherever it passes behind a face
  *
@@ -32,6 +36,32 @@ import { streamOf } from '../../city/plan/dice.js';
 export const SLICE = 0.25;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const BIG = 5, LINE = 0.07, THREAD = 0.32, UNDER = 2.2, BESIDE = 1.3;
+/** The jamb a wall a hero kicks off wears (the cap on its side): each fill's course (m) up the wall, its band's widths
+ *  in turn (built: long and short quoins), its tones' cycle, its notches' depths in turn (chunky: never past 0.15 m, the
+ *  plane the hero kicks off untouched), how many courses to a string course, the rock's rhythm of heights. */
+export const SIDE_JAMB = Object.freeze({
+  module: Object.freeze({ built: 0.5, machine: 1.6, padded: 1.2 }),
+  width: Object.freeze({ built: [0.6, 0.34], machine: [0.4], padded: [0.45], rock: [0.34, 0.5, 0.4, 0.6, 0.3] }),
+  cycle: Object.freeze({ built: [0, 1], machine: [0, 1], padded: [0, 1], rock: [0, 2, 1, 0, 1] }),
+  notch: Object.freeze({ built: [0, 0.13], machine: [0, 0.14], padded: [0, 0.11], rock: [0, 0.15, 0.07, 0.13, 0.03] }),
+  string: Object.freeze({ built: 6, machine: 3, padded: 4, rock: 5 }),
+  rock: Object.freeze([1.1, 0.7, 1.5, 0.9, 1.3]),
+});
+/** The walls a hero kicks off or runs into: each end of a closed part standing on open space a body tall or more →
+ *  [{ zone, solid, e (its end), dir (+1: the open beyond it, at greater s), z0, z1 }]. */
+export function wallSurfaces(L, tall = 2) {
+  const out = [];
+  for (const r of L.solids) {
+    if (r.role === 'ceiling') continue;
+    for (const [e, dir] of [[r.s0, -1], [r.s1, 1]]) {
+      let z0 = Infinity, z1 = -Infinity;
+      for (const o of L.open) if (Math.abs((dir > 0 ? o.s0 : o.s1) - e) < 0.02) { const a = Math.max(r.z0, o.z0), b = Math.min(r.z1, o.z1); if (b - a > 0) { z0 = Math.min(z0, a); z1 = Math.max(z1, b); } }
+      if (z1 - z0 >= tall) out.push({ zone: r.zone, solid: r, e, dir, z0: r3(z0), z1: r3(z1) });
+    }
+  }
+  return out;
+}
+
 /** The cap a top a hero stands on wears: its band's height, each fill's module (m) and its tones' cycle, the rock's rhythm. */
 export const SIDE_CAP = Object.freeze({
   height: 0.34,
@@ -152,6 +182,45 @@ export function paintSideMap(layout, dress, { seed = 1 } = {}) {
       const a = end === r.s1 ? end - 1.2 : end;
       for (let u = a, k = 0; u < a + 1.2 - 1e-6; u += 0.3, k++) C(u, u + 0.3, r.z1 - CAP, r.z1 - 0.06, k % 2 ? joint : shine, 'cap-hazard');
     }
+  }
+  // THE JAMB: every wall a hero kicks off or runs into (a face of a closed part, a body tall or more, standing on open
+  // space: a shaft's walls, a chute's, a room's) is the cap turned on its side, so the walls and the floors are one
+  // terrain: a band down its edge on the front, and its face into the open (the kicking surface itself, seen aslant),
+  // cut on the fill's own module on the level's own grid (built quoins, long and short in turn; machine plates with
+  // their seams and rivets; padded cushions; rock slabs on one rhythm), in the cap's tones and joints and its lit edge.
+  // CHUNKY: the edge steps in and out on that rhythm (a notch the open space shows through, never past the plane the
+  // hero kicks off: the climb is the collider's, untouched), a string course every few courses as a floor has its pier
+  // caps, and under each rest a bracket in the wall's own matter
+  for (const W0 of wallSurfaces(L)) {
+    const r = W0.solid, z = dress.zones[r.zone], fam = z.family, J = SIDE_JAMB, e = W0.e, dir = W0.dir;
+    const tone = [mix(z.edge, z.key, 0.4), mix(z.edge, z.key, 0.2), mix(z.edge, z.key, 0.55)], joint = mix(z.key, '#000000', 0.45), shine = z.edge, hole = mix(z.void, z.key, 0.15);
+    const band = (w) => (dir > 0 ? [e - w, e] : [e, e + w]);
+    const C = (w, z0, z1, fill, what) => { const [a, b] = band(w); mark(r.zone, a, b, z0, z1, fill, 4, what, r); };
+    const S = (z0, z1, fill, what) => { const a = Math.max(z0, W0.z0), b = Math.min(z1, W0.z1); if (b - a > 1e-3) marks.push({ zone: r.zone, s0: r3(e), s1: r3(e), z0: r3(a), z1: r3(b), fill, layer: 4, what, side: dir > 0 ? 'py' : 'ny' }); };
+    // the courses up the wall, on the level's grid
+    const segs = [];
+    if (fam === 'rock') { const R = J.rock, sum = R.reduce((a, b) => a + b, 0); let u = Math.floor(W0.z0 / sum) * sum, k = 0; while (u < W0.z1) { segs.push([u, u + R[k % R.length], k]); u += R[k % R.length]; k++; } }
+    else { const m = J.module[fam]; for (let u = Math.floor(W0.z0 / m) * m, k = Math.floor(W0.z0 / m); u < W0.z1; u += m, k++) segs.push([u, u + m, k]); }
+    for (const [a, b, k] of segs) {
+      const kk = ((k % 1000) + 1000) % 1000, t = tone[J.cycle[fam][kk % J.cycle[fam].length]], w = J.width[fam][kk % J.width[fam].length], jh = fam === 'machine' ? 0.08 : fam === 'padded' ? 0.1 : 0.05;
+      C(w, a, b, t, 'jamb'); C(w, a, a + jh, joint, 'jamb-joint'); C(0.06, a, b, shine, 'jamb-shine');
+      S(a, b, mix(t, joint, 0.15), 'jamb-face'); S(a, a + jh, joint, 'jamb-face-joint');
+      if (fam === 'machine') C(0.1, (a + b) / 2 - 0.05, (a + b) / 2 + 0.05, joint, 'jamb-rivet');
+      if (fam === 'padded') C(w - 0.12, a + 0.12, b - 0.12, mix(t, shine, 0.35), 'jamb-cushion');
+      // (chunky: a notch the open shows through, on the fill's rhythm, never past the plane the hero kicks off)
+      const d = J.notch[fam][kk % J.notch[fam].length];
+      if (d > 0) { const [na, nb] = band(d); marks.push({ zone: r.zone, s0: r3(Math.max(na, r.s0)), s1: r3(Math.min(nb, r.s1)), z0: r3(Math.max(a + jh, W0.z0)), z1: r3(Math.min(b, W0.z1)), fill: hole, layer: 5, what: 'jamb-notch' }); }
+      // (a string course every few courses: the wall's beat, as a floor's pier caps are its)
+      if (kk % J.string[fam] === 0) { C(Math.min(0.7, w + 0.25), b - 0.1, b, shine, 'jamb-string'); S(b - 0.1, b, shine, 'jamb-face-string'); }
+    }
+  }
+  // (under each rest against a wall, a bracket in the wall's matter: the ledge is held, not hung)
+  for (const q of L.solids.filter((x) => x.role === 'rest')) {
+    const w = L.solids.find((x) => x.role === 'wall' && x.zone === q.zone && (Math.abs(x.s1 - q.s0) < 0.02 || Math.abs(x.s0 - q.s1) < 0.02) && x.z0 < q.z1 && x.z1 > q.z0 - 0.5);
+    if (!w) continue;
+    const z = dress.zones[q.zone], at = Math.abs(w.s1 - q.s0) < 0.02 ? q.s0 : q.s1, out = at === q.s0 ? 1 : -1, t = mix(z.edge, z.key, 0.4), joint = mix(z.key, '#000000', 0.45);
+    const rect = (w0, z0, z1, fill, what) => { const [a, b] = out > 0 ? [at, at + w0] : [at - w0, at]; marks.push({ zone: q.zone, s0: r3(a), s1: r3(b), z0: r3(z0), z1: r3(z1), fill, layer: 4, what }); };
+    rect(0.7, q.z0 - 0.26, q.z0, t, 'bracket'); rect(0.4, q.z0 - 0.5, q.z0 - 0.26, t, 'bracket'); rect(0.7, q.z0 - 0.3, q.z0 - 0.26, joint, 'bracket-joint');
   }
   // the threads: under each run's way, up a shaft's far wall, down a chute's near wall, joined zone to zone
   const kind = dress.threads[0]?.kind ?? 'pipes', path = [];

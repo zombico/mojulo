@@ -113,6 +113,8 @@ export function assembleSideMap(m, ctx = {}) {
   // (a cap's mark on the walking surface itself: level on the top, a hair over it)
   for (const k of D0.paint.marks) {
     if (k.top) { const zt = k.z1 + 0.003 * k.layer; quad(faces, [[-HALF, k.s0, zt], [HALF, k.s0, zt], [HALF, k.s1, zt], [-HALF, k.s1, zt]], FACE.top, lit(k.fill, FACE.top), `sidemap:paint-${k.what}`); continue; }
+    // (a jamb's mark on a wall's face into the open, the surface the hero kicks off: a hair proud of it)
+    if (k.side) { const n = FACE[k.side], ss = k.s0 + n[1] * 0.003 * k.layer; quad(faces, [[-HALF, ss, k.z0], [HALF, ss, k.z0], [HALF, ss, k.z1], [-HALF, ss, k.z1]], n, lit(k.fill, FACE.px, 0.85), `sidemap:paint-${k.what}`); continue; }
     face(faces, HALF + 0.004 * k.layer, k.s0, k.s1, k.z0, k.z1, lit(k.fill, FACE.px), `sidemap:paint-${k.what}`);
   }
   // the dress on an indoor zone's back wall

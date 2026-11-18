@@ -133,7 +133,9 @@ edges and breaks, the threads), which also stands an outdoor zone's backdrop at 
     wall's pillars and seams stand on: a profile by what the run is and where it leads, a word for each pillar and each
     seam, one step height for the whole run; the `varied` law holds that no run is one smooth floor for more than a
     screen and a quarter. Its top is a CAP in segments on its fill's module (coping, deck plates, cushions, slabs:
-    `paint.js` SIDE_CAP), never one smooth band of colour.
+    `paint.js` SIDE_CAP), never one smooth band of colour; every wall a hero kicks off is the cap on its side (its JAMB,
+    SIDE_JAMB): segments on the same module, chunky notches that never pass the kicking plane, a string course every few
+    courses, a bracket under each rest.
 
 The look is dealt over a laid map by `control/lib/graph/gameworld/side-map/dress.js`: the setting a premise names, a
 place a zone, the palette, the bays, the peeks, the threads, the marks, the foreshadowing and the backdrop, as data the

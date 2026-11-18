@@ -40,6 +40,7 @@ import { TEACH } from '../course.js';
 import { rhythmFaults } from '../../era/wall-rhythm.js';
 import { FILLS } from './fills.js';
 import { climbTime, RISE_SHARE } from './layout.js';
+import { wallSurfaces } from './paint.js';
 
 export const SIDE_MAP_LAWS = Object.freeze(['one-screen', 'both-walls', 'reach', 'rests', 'outclimbs', 'light-at-the-top', 'stakes', 'checkpoints', 'ladders', 'one-new-thing', 'varied', 'swept', 'the-boss-owns-it',
   'a-place-a-zone', 'solid-over-void', 'lit-tops', 'play-against-place', 'boss-colour', 'rhythm', 'peeks-in', 'threads', 'painted']);
@@ -293,6 +294,11 @@ export function sideMapLaws(layout, reach, { dress, paint } = {}) {
         if (!on) lost.push({ zone: r.zone, says: `zone ${r.zone}'s ${r.role} (${r2(r.s1 - r.s0)} by ${r2(r.z1 - r.z0)} m) is a plain face` });
       });
       for (const LZ of L.zones) { const ab = paint.slices.filter((x) => x.zone === LZ.i).map((x) => x.ab).join(''); if (rhythmFaults(ab).length) lost.push({ zone: LZ.i, says: `zone ${LZ.i}'s slices ${ab} repeat` }); }
+      // (every wall a hero kicks off wears its jamb in segments, paint.js wallSurfaces: the cap on its side)
+      for (const W0 of wallSurfaces(L)) {
+        const n = paint.marks.filter((m) => m.zone === W0.zone && m.what === 'jamb' && m.z1 > W0.z0 && m.z0 < W0.z1 && Math.abs((W0.dir > 0 ? m.s1 : m.s0) - W0.e) < 1e-3).length;
+        if (n < Math.floor((W0.z1 - W0.z0) / 2)) lost.push({ zone: W0.zone, says: `zone ${W0.zone}'s wall at ${r2(W0.e)} m (${r2(W0.z1 - W0.z0)} m tall) is one smooth band` });
+      }
       // (every top a hero stands on wears its cap in segments: never one smooth band)
       for (const r of L.solids) {
         if (r.role === 'ceiling' || r.role === 'wall' || r.s1 - r.s0 < 1 || L.solids.some((o) => o !== r && Math.abs(o.z0 - r.z1) < 0.05 && Math.min(o.s1, r.s1) - Math.max(o.s0, r.s0) > 0.3)) continue;
@@ -300,7 +306,7 @@ export function sideMapLaws(layout, reach, { dress, paint } = {}) {
         if (caps.length < Math.max(1, Math.floor((r.s1 - r.s0) / 3))) lost.push({ zone: r.zone, says: `zone ${r.zone}'s ${r.role} top (${r2(r.s1 - r.s0)} m) is one smooth band` });
       }
     }
-    law('painted', lost, paint ? `every closed face painted in its fill (${paint.marks.length} marks), every zone's slices by the walls' rule, every top capped in segments` : 'every zone\'s closed parts named a fill and a wear to be painted in', (x) => x.map((y) => y.says).join('; '));
+    law('painted', lost, paint ? `every closed face painted in its fill (${paint.marks.length} marks), every zone's slices by the walls' rule, every top capped and every wall jambed in segments` : 'every zone\'s closed parts named a fill and a wear to be painted in', (x) => x.map((y) => y.says).join('; '));
   }
   return laws;
 }

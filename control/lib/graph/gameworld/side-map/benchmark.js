@@ -6,7 +6,7 @@
  *
  *   the SHOTS        one a zone kind: a run (the first with hatches, else the first), a climb (the first up run, the
  *                    hero on a rest halfway up), the boss's room; each framed as the side map's camera frames its hero
- *   the ROLES        top (a standable top's lit edge), closed (the closed parts and their paint), back (an indoor zone's
+ *   the ROLES        top (a standable top's lit edge and its cap), jamb (a wall's edge and its face into the open), closed (the closed parts and their paint), back (an indoor zone's
  *                    wall and its dress), hills and range (an outdoor zone's backdrop, a layer each), play (shutters, ladders, pickups,
  *                    hatches), lamp, boss (its emblem), hero (the stand-in), sky (nothing drawn)
  *   the MEASURES     hero      the hero's share of the frame's height (1/8)
@@ -33,12 +33,13 @@
  */
 import { srgbToLab } from '../../scene/visual-gate.js';
 
-export const ROLE_COLOURS = Object.freeze({ top: '#ffffff', closed: '#3060ff', back: '#00ff00', hills: '#ffff00', range: '#808000', play: '#ff00ff', lamp: '#00ffff', boss: '#ff8000', hero: '#ff0000', sky: '#000000' });
+export const ROLE_COLOURS = Object.freeze({ top: '#ffffff', jamb: '#8000ff', closed: '#3060ff', back: '#00ff00', hills: '#ffff00', range: '#808000', play: '#ff00ff', lamp: '#00ffff', boss: '#ff8000', hero: '#ff0000', sky: '#000000' });
 const SLIVER = 0.003, LAMP_WHOLE = 600, ROLES = Object.keys(ROLE_COLOURS), RGB = ROLES.map((k) => [1, 3, 5].map((i) => parseInt(ROLE_COLOURS[k].slice(i, i + 2), 16)));
 /** The role a face of the side map's build plays, by its group. */
 export function roleOf(group = '') {
   const g = String(group).replace(/^sidemap:/, '');
   if (g === 'edge' || g.startsWith('paint-cap')) return 'top';
+  if ((g.startsWith('paint-jamb') && g !== 'paint-jamb-notch') || g.startsWith('paint-bracket')) return 'jamb';
   if (['rock', 'built', 'machine', 'padded'].includes(g) || g.startsWith('paint-')) return 'closed';
   if (g === 'hills' || g === 'range') return g;
   if (['door', 'ladder', 'pickup', 'hatch'].includes(g)) return 'play';
@@ -98,7 +99,7 @@ export function measureShot({ page, roles }, shot) {
   const stat = (ix) => { if (!ix.length) return null; let m = 0; for (const i of ix) m += L[i]; m /= ix.length; let v = 0; for (const i of ix) v += (L[i] - m) ** 2; return { n: ix.length, mean: r2(m), std: r2(Math.sqrt(v / ix.length)) }; };
   // (a role's Laplacian energy on the page's lightness, over its pixels whose four neighbours share the role)
   // (the lane's layer is its closed parts and its tops together: the caps on them are the lane's own detail)
-  const layerOf = (r) => (r === 'top' ? 'closed' : r);
+  const layerOf = (r) => (r === 'top' || r === 'jamb' ? 'closed' : r);
   const sharp = (k) => { if (!of(k).length) return null; let e = 0, c = 0; for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) { const i = y * W + x; if (layerOf(role[i]) !== k || layerOf(role[i - 1]) !== k || layerOf(role[i + 1]) !== k || layerOf(role[i - W]) !== k || layerOf(role[i + W]) !== k) continue; const l = 4 * L[i] - L[i - 1] - L[i + 1] - L[i - W] - L[i + W]; e += l * l; c++; } return c ? r2(e / c) : null; };
   const hueOf = (ix) => { let a = 0, b = 0; for (const i of ix) { a += lab[i][1]; b += lab[i][2]; } return ix.length && Math.hypot(a, b) > 1e-6 ? ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360 : null; };
   // the hero's rows (its stand-in's extent down the frame), the top under it (the first top row below its feet, at its column)
@@ -121,6 +122,7 @@ export function measureShot({ page, roles }, shot) {
     // (a lamp and the boss's mark are small things by design: counted whole, past a few dozen pixels)
     lamps: count('lamp'), boss: count('boss'),
     topStd: top.length ? stat(top).std : null,
+    jambStd: of('jamb').length ? stat(of('jamb')).std : null,
     shares: Object.fromEntries(ROLES.map((k) => [k, r2(of(k).length / n)])),
     light: lightOf({ W, H, n, role, L, of, screenH: shot.screenH ?? 13.36 }),
     fore: false, moving: false,
@@ -184,6 +186,7 @@ export function benchmarkLaws(measures) {
     if (M.shares.back > 0.05 && G.laneOverBack !== null && G.laneOverBack !== undefined) law('lane-lit', M.shot, G.laneOverBack >= 10, `the lane's layer ${G.laneOverBack} L* over the back (a step: 10 or more)`);
     if (M.shot === 'climb' && G.topOverFoot !== null && G.topOverFoot !== undefined) law('light-at-the-top', M.shot, G.topOverFoot >= 3, `the shaft's back ${G.topOverFoot} L* lighter at the frame's top than at its foot (the way up a patch of light: 3 or more)`);
     // (the top a hero stands on in segments, never one smooth band: its lightness varies along it)
+    if (M.jambStd !== null && M.jambStd !== undefined) law('walls-segmented', M.shot, M.jambStd >= 3, `the walls' edges vary by ${M.jambStd} L* (one smooth band: under 3)`);
     if (M.topStd !== null && M.topStd !== undefined) law('top-segmented', M.shot, M.topStd >= 3, `the tops' lightness varies by ${M.topStd} L* (one smooth band: under 3)`);
     law('foreground', M.shot, M.fore, 'no foreground under the feet: the map builds none yet');
     law('moving', M.shot, M.moving, 'nothing moves beside the way: the map animates nothing yet');
