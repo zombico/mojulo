@@ -119,3 +119,6 @@
   level 1's yard has it, real blades at their full clump in its own short and medium areas, never tall: the tall sward
   is the patches' alone, the cover. Level 0 laid so, its grass at the page's own reach again (the cut to 6 m and the
   painted field were the ray cost misread as the grass's).
+- **The grid for every mesh of two hundred triangles** (ground-grid.js `__gridMeshes`, a thousand before): an indoor camera's
+  rays crossed many smaller walls and props, each tested triangle by triangle; the hangar's rays a frame 3.7 ms to 1.8.
+  And the grid is built by the camera's first ray too, so none of its rays before the first ground probe goes slow.

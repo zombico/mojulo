@@ -811,6 +811,8 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // hold, and the opener's count. A moveset that says no `swap` runs as before: the cycle mid-swing is dropped. Every
 // fixture that embeds the controllable runtime re-pinned with it.
 //
+// Re-pinned 2026-11-19 a fifth time (1117-cinematic-action-game: the grid for meshes of two hundred triangles and the
+// camera's first ray): the same seventeen; the grid's threshold and one line before the camera's drive.
 // Re-pinned 2026-11-19 a fourth time (1117-cinematic-action-game: the grid for every big mesh): the same seventeen. The
 // ground grid's raycast takes a mesh placed by a transform (the ray carried into its own frame) and one of several
 // materials (each face its group's side), where three's own raycast took them triangle by triangle; what a ray finds is

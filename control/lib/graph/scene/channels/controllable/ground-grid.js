@@ -170,9 +170,10 @@ function __gridRaycast(rc, out) {
   }
 }
 const __gridI = new THREE.Matrix4();
-// (every big static mesh: the solids and the groups' textured faces, a thousand triangles or more)
+// (every mesh of two hundred triangles or more: the solids, the groups' textured faces, a room's walls and props; under
+// a thousand they were left to three, and an indoor camera's rays crossed many: the hangar's rays a frame halved)
 function __gridMeshes() {
-  scene.traverse((m) => { if (m.isMesh && !m.isInstancedMesh && !m.isSkinnedMesh && m.geometry && m.raycast === __gridSlowNoted && (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) >= 3000) m.raycast = __gridRaycast; });
+  scene.traverse((m) => { if (m.isMesh && !m.isInstancedMesh && !m.isSkinnedMesh && m.geometry && m.raycast === __gridSlowNoted && (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) >= 600) m.raycast = __gridRaycast; });
 }
 `;
 }

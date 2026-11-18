@@ -2747,7 +2747,7 @@ function __clearSees(e, H, own) {
   return true;
 }` : ''}
 const __followPullIn = ${followPullIn.toString()};
-function __driveCamera(dt) { const __t0 = performance.now(); __driveCameraBy(dt); __mojCost._r += performance.now() - __t0; }
+function __driveCamera(dt) { const __t0 = performance.now(); if (__gridN < 0) { __gridN = scene.children.length; __gridMeshes(); } __driveCameraBy(dt); __mojCost._r += performance.now() - __t0; }   // (the grid built by the camera's first ray too, not only the ground's)
 function __driveCameraBy(dt) {
   const c = __world.camera; if (!c) return;
   const p = c.transform.pos;
