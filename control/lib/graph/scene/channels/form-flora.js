@@ -255,7 +255,8 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       for (const i of use) {
         const b = i * 12, G = geos[i % geos.length], p = new THREE.Vector3(S[b], S[b + 1], S[b + 2]), fo = new THREE.Vector3(S[b + 3], S[b + 4], S[b + 5]), d = new THREE.Vector3(S[b + 6], S[b + 7], S[b + 8]);
         const s = S[b + 9] * grow, tone = 0.62 + 0.38 * S[b + 10], r = S[b + 11];
-        if (kind === 'clump' && pad === 'cross') {
+        if (kind === 'blob') q.identity();
+        else if (kind === 'clump' && pad === 'cross') {
           // (a cross, vegetation/twigs.js: its slot along d, its lying card's face o)
           const x = d.clone().normalize(), z = fo.clone().normalize(); q.setFromRotationMatrix(basis.makeBasis(x, z.clone().cross(x), z));
         } else if (kind === 'clump' && pad) {
@@ -266,12 +267,21 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
         for (let k = 0; k < G.n * 3; k++, o++) {
           v.set(G.p[k * 3], G.p[k * 3 + 1], G.p[k * 3 + 2]).applyMatrix4(m4); pos.set([v.x, v.y, v.z], o * 3);
           col.set([(G.c[k * 3] / 128) * tone, (G.c[k * 3 + 1] / 128) * tone, (G.c[k * 3 + 2] / 128) * tone], o * 3);
-          out.set([fo.x, fo.y, fo.z], o * 3); site.set([p.x, p.y, p.z], o * 3);
+          // (a blob's vertex leans out from its blob's middle, so the leaf's light rounds it; any other piece's out of the crown)
+          if (kind === 'blob') { const dv = v.clone().sub(p).normalize(); out.set([dv.x, dv.y, dv.z], o * 3); } else out.set([fo.x, fo.y, fo.z], o * 3);
+          site.set([p.x, p.y, p.z], o * 3);
         }
       }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3));
       g.setAttribute('aOut', new THREE.BufferAttribute(out, 3)); g.setAttribute('aSite', new THREE.BufferAttribute(site, 3)); g.computeVertexNormals(); g.computeBoundingSphere();
       return { g, tris: tv / 3 };
+    }
+    // two merged pieces as one: their attributes end to end, their normals again
+    function joined(A, B) {
+      const g = new THREE.BufferGeometry();
+      for (const k of ['position', 'color', 'aOut', 'aSite']) { const a = A.g.getAttribute(k).array, b = B.g.getAttribute(k).array, c = new Float32Array(a.length + b.length); c.set(a, 0); c.set(b, a.length); g.setAttribute(k, new THREE.BufferAttribute(c, 3)); }
+      g.computeVertexNormals(); g.computeBoundingSphere();
+      return { g, tris: A.tris + B.tris };
     }
     // a needled crown's sleeves: the tube, each vertex's offset from its run's axis and the axis's run, its coordinates
     function sleeveGeo(W) {
@@ -375,7 +385,8 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       // its own crown)
       const parts = {
         wood: mk(woodGeo(t.wood), wood, true, false), ...(t.culm || !(t.nClumps > 0) ? { woodFar: mk(woodGeo(t.woodFar || t.wood), wood, true, false) } : {}),
-        crown: mk(merged(t.clumps, t.nClumps, cg, 'clump', t.cross ? 'cross' : t.pad, () => true), leaf, true, true),
+        // (a mass crown, form/tree-form.js massCrown: its big blobs drawn with its bundles, one mesh in the leaf's material)
+        crown: mk(t.blobs ? joined(merged(t.clumps, t.nClumps, cg, 'clump', t.cross ? 'cross' : t.pad, () => true), merged(t.blobs, t.nBlobs, variants(t.blobGeo), 'blob', false, () => true)) : merged(t.clumps, t.nClumps, cg, 'clump', t.cross ? 'cross' : t.pad, () => true), leaf, true, true),
         sprays: mk(merged(t.sites, t.nSites, sg, 'spray', false, () => true), leafMat(true, detail, phi), false, true),
       };
       // (a shrub's season: its blossoms facing out, its berries hanging, with its near crown)

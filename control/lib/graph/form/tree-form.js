@@ -359,3 +359,40 @@ export function crossClumps(form, { keep = CROSSES.keep } = {}) {
     return { p: c.p, o: o.map(r4), d: (len(d) > 1e-6 ? d : [1, 0, 0]).map(r4), s: r4(c.s * grow), e: c.e, r: c.r, ...(c.f ? { f: 1 } : {}) };
   });
 }
+
+/**
+ * THE MASS CROWN (a stage's `crowns: 'masses'`): a crown read as a few BIG BLOBS round its branches, the leaf mass the
+ * eye reads there, and its leaf bundles moved off the branch tips to ADORN the blobs' surfaces. The bundles (crossClumps)
+ * are gathered into `k` groups (a seeded k-means over their places, first centres the farthest apart: `per` bundles a
+ * group, `least` to `most` groups), each group a blob at its middle as wide as its bundles spread (`fit`, plus `pad` of a
+ * bundle's size); each bundle stands on its blob's surface where its own direction from the blob's middle meets it,
+ * facing out (its `o` that direction), its slot level round it; `drop` of a bundle's size it sinks into the surface, so
+ * its leaves break it. → { blobs: [{ p, o, d, s, e, r }], clumps } (a blob's `s` its radius, `o` up).
+ */
+export const MASSES = Object.freeze({ per: 7, least: 3, most: 9, fit: 1.05, pad: 0.3, drop: 0.25, rounds: 6 });
+export function massCrown(clumps, { per = MASSES.per } = {}) {
+  const n = clumps.length;
+  if (!n) return { blobs: [], clumps };
+  const k = Math.max(Math.min(MASSES.least, n), Math.min(MASSES.most, Math.round(n / per)));
+  const d2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
+  // (the first centre the highest bundle, each next the one farthest from those chosen)
+  const top = clumps.reduce((a, c, i) => (c.p[2] > clumps[a].p[2] ? i : a), 0), C = [clumps[top].p.slice()];
+  while (C.length < k) { let best = 0, far = -1; clumps.forEach((c, i) => { const m = Math.min(...C.map((q) => d2(q, c.p))); if (m > far) { far = m; best = i; } }); C.push(clumps[best].p.slice()); }
+  let of = new Array(n).fill(0);
+  for (let r = 0; r < MASSES.rounds; r++) {
+    of = clumps.map((c) => C.reduce((a, q, j) => (d2(q, c.p) < d2(C[a], c.p) ? j : a), 0));
+    C.forEach((q, j) => { const m = clumps.filter((_, i) => of[i] === j); if (m.length) for (let t = 0; t < 3; t++) q[t] = m.reduce((a, c) => a + c.p[t], 0) / m.length; });
+  }
+  const sMid = [...clumps.map((c) => c.s)].sort((a, b) => a - b)[Math.floor(n / 2)];
+  const blobs = C.map((q, j) => {
+    const m = clumps.filter((_, i) => of[i] === j);
+    const spread = m.length ? Math.sqrt(m.reduce((a, c) => a + d2(c.p, q), 0) / m.length) : 0;
+    return { p: q.map(r4), o: [0, 0, 1], d: [1, 0, 0], s: r4(spread * MASSES.fit + sMid * MASSES.pad + 0.05), e: r4(m.length ? m.reduce((a, c) => a + c.e, 0) / m.length : 1), r: r4(j / k), n: m.length };
+  }).filter((b) => b.n > 0).map(({ n: _n, ...b }) => b);
+  const up = [0, 0, 1], near = (p) => blobs.reduce((a, b) => (d2(b.p, p) < d2(a.p, p) ? b : a), blobs[0]);
+  const moved = clumps.map((c) => {
+    const B = near(c.p), v = sub(c.p, B.p), o = len(v) > 1e-6 ? unit(v) : [0, 0, 1], t = unit(sub(up, mul(o, dot(up, o))));
+    return { ...c, p: add(B.p, mul(o, Math.max(0.05, B.s - c.s * MASSES.drop))).map(r4), o: o.map(r4), d: (len(t) > 1e-6 ? t : [1, 0, 0]).map(r4) };
+  });
+  return { blobs, clumps: moved };
+}

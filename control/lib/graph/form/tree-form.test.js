@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { treeForm, TREE_FORM, SLEEVE } from './tree-form.js';
+import { treeForm, massCrown, TREE_FORM, SLEEVE, MASSES } from './tree-form.js';
 import { BARK_TILE_M } from '../vegetation/tiles.js';
 import { leafHolds, needleHabit } from '../vegetation/sprays.js';
 import { SPECIES } from '../vegetation/species.js';
@@ -105,4 +105,29 @@ describe('treeForm', () => {
       expect(Math.abs(W.ax[i] * W.out[i] + W.ax[i + 1] * W.out[i + 1] + W.ax[i + 2] * W.out[i + 2])).toBeLessThan(r * 0.05 + 1e-3);
     }
   }, 60_000);
+});
+
+describe('the mass crown', () => {
+  // (two crowns of bundles round two branches: a seeded spread round each)
+  const rnd = (i) => { const x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x); };
+  const at = (c, i) => [c[0] + (rnd(i) - 0.5) * 2, c[1] + (rnd(i + 99) - 0.5) * 2, c[2] + (rnd(i + 199) - 0.5) * 1.4];
+  const clumps = Array.from({ length: 28 }, (_, i) => ({ p: at(i < 14 ? [-2.5, 0, 6] : [2.5, 0, 7], i), o: [0, 0, 1], d: [1, 0, 0], s: 0.8, e: 0.6, r: i / 28 }));
+
+  it('gathers the bundles into a few big blobs round their branches, and stands each bundle on its blob, facing out', () => {
+    const M = massCrown(clumps);
+    expect(M.blobs.length).toBeGreaterThanOrEqual(MASSES.least);
+    expect(M.blobs.length).toBeLessThanOrEqual(MASSES.most);
+    expect(M.clumps.length).toBe(clumps.length);
+    for (const c of M.clumps) {
+      const B = M.blobs.reduce((a, b) => (Math.hypot(...b.p.map((v, k) => v - c.p[k])) < Math.hypot(...a.p.map((v, k) => v - c.p[k])) ? b : a));
+      const v = c.p.map((x, k) => x - B.p[k]), dist = Math.hypot(...v);
+      // (on its blob's surface, sunk by its share, its face the way out from the blob's middle)
+      expect(dist).toBeCloseTo(Math.max(0.05, B.s - c.s * MASSES.drop), 2);
+      expect(c.o.reduce((a, x, k) => a + x * v[k] / dist, 0)).toBeGreaterThan(0.99);
+    }
+    // (each blob as wide as the bundles it gathers spread)
+    for (const b of M.blobs) expect(b.s).toBeGreaterThan(0.3);
+    // (the same bundles, the same crown)
+    expect(JSON.stringify(massCrown(clumps))).toBe(JSON.stringify(M));
+  });
 });
