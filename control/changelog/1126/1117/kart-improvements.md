@@ -126,6 +126,12 @@ In progress. Built so far:
   pictograms in the chunky style, each in the colour of what it means, each readable on the berry plate: the sweet in
   the accent's lemon, the gumball in the second accent's sky (the gumball rolled on the track is sky now too), the
   splat in the cream ink.
+- **Spike: boxless UI** (`scripts/spikes/boxless-ui/`, not shipped). The race HUD drawn with its plates stripped and
+  the decoration moved onto the letters, in four letter dresses (candy, sticker, chrome, extrude): a fill, rings, an
+  extrusion and a drop, as one SVG filter a size. It covers about a third of the screen the boxed HUD does (18.1% to
+  5–7% at the busiest moment). The rings scale with the type, or a small number reads as a chip. The README says what
+  shipping it would take: a theme word `letters`, `hud: 'bare'` read by mana-ui's regions, the filters laid at mount,
+  and a ring-contrast law.
 - **The principles a new map starts from** ([docs/track-design-principles.md](../../../../docs/track-design-principles.md))
   and the agent's card for them (`gameworld-track-language`, read by the levels chapter): a premise first, a small
   family, a quiet way, a corner told three times, things seen to move, asymmetry, chunky, the track's own sky.
