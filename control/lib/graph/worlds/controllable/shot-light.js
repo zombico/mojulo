@@ -10,7 +10,7 @@
  *   a BREAK      a block that broke (state.breaks: rupa's matter, a breakable's), and a body DESTROYED (e.wreck: dismantle's
  *                or a cleave's), lit as it comes apart: a flash at it fading over BREAK_LIFE, in the colour of the round
  *                that burst there then (its burst's), else warm, so what a shot destroys is lit by the shot's light
- *   the CHARGE   the pilot's buster charging (e.charging, e.chargeFrac): at its muzzle, before its chest, growing as it fills, in the colour
+ *   the CHARGE   the pilot's buster charging (e.charging, e.chargeFrac): from its body, at its chest, growing as it fills, in the colour
  *                of the level reached, pulsing on the world's clock
  *
  * SPILL, NOT FLOOD (the shot's look, the reference's eighth principle): a light reaches a little way and gives a little,
@@ -75,9 +75,9 @@ export function shotLights(state, opts) {
     if (B && e.charging && e.busterOn && (e.chargeFrac || 0) > 0) {
       const fr = Math.min(1, e.chargeFrac), lv = e.chargeLevel ? B.levels[e.chargeLevel - 1] : B.tap, tr = e.transform, r = e.rule;
       const pulse = 0.8 + 0.2 * Math.sin(t * (e.chargeLevel ? 36 : 18));
-      // (at the muzzle, before the chest where the round will leave (buster.js fire): a light inside the body lights none of it)
-      const h = tr ? tr.heading || 0 : 0, ahead = (r.collideRadius || 0.3) + 0.15;
-      if (tr && tr.pos) add([tr.pos[0] + Math.cos(h) * ahead, tr.pos[1] + Math.sin(h) * ahead, tr.pos[2] + (r.collideHeight || 1.7) * (B.chest || 0.7) - (r.eye || 0)], lv && lv.color != null ? lv.color : S.warm, S.charge[0] + S.charge[1] * fr, (0.15 + 0.45 * fr) * pulse);
+      // (from the body itself, at its chest: the charge is over the whole body, and it lights what is round it; the body's
+      // own glow is its cel's, index.js uToonCharge)
+      if (tr && tr.pos) add([tr.pos[0], tr.pos[1], tr.pos[2] + (r.collideHeight || 1.7) * (B.chest || 0.7) - (r.eye || 0)], lv && lv.color != null ? lv.color : S.warm, S.charge[0] + S.charge[1] * fr, (0.15 + 0.45 * fr) * pulse);
     }
   }
   // the K that matter most where the camera looks: power over distance (a far light is a light the frame does not see)

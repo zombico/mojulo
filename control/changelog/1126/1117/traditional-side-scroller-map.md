@@ -257,5 +257,6 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   making a chin of them. Where a zone is lit by lamps, each body is lit from its nearest lamp's side and height (its face
   still toward the camera's side), and a shot or a blast cuts a hard rim in its colour down the edges that face it While
   the hero charges its buster it is lit up by the charge: its outline glows in the level reached's colour, more as the
-  charge fills, beating faster once a level is reached, and the charge's light falls from its muzzle, where its energy
-  gathers: a bloom round a white-hot core, sparks drawn in from all round, a burst at each level reached.
+  charge fills, beating faster once a level is reached, and its energy gathers over its whole body: a bloom wrapping it
+  head to foot, sparks drawn in from all round onto it, a burst at its middle at each level reached, the charge's light
+  falling round it.

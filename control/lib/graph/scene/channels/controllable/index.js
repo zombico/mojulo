@@ -84,10 +84,11 @@ export const CEL_BODY = Object.freeze({ get key() { return SIDE.key; }, step: 0.
 export const FACE_SCREEN = Object.freeze({ rest: 0.5, moving: 0.22 });
 /** A cel body charging its buster lit up by its charge: its whole body `body`, its silhouette's band (past `edge` of
  * 1 − |N·V|) `rim` more, by its fill, flickering at `rate` (Hz: before a level, after one) between full and `low`. */
-/** The charge's energy at the muzzle (__chargeFx): the bloom's size (m: at none, the fill's share, a level's), the halo
- * over it, the aura round the body (× its height), the sparks (before a level, after one), their turns a second, how far
- * they are drawn in from (m), the beat's low, and the burst a level sets off (m: its base, a level's). */
-export const CHARGE_FX = Object.freeze({ size: Object.freeze([0.12, 0.22, 0.1]), halo: 3.2, aura: 1.3, sparks: Object.freeze([8, 16]), rate: Object.freeze([1.6, 2.6]), reach: 0.7, low: 0.6, burst: Object.freeze([0.14, 0.05]) });
+/** The charge's energy over the whole body (__chargeFx): the bloom's growth (× its height: at none, the fill's share, a
+ * level's), its opacity, the halo over it and its opacity, the heart's, the sparks (before a level, after one), their turns
+ * a second, how far round the body they are drawn in from (× its height), the beat's low, and the burst a level sets off
+ * (× its height: its base, a level's). */
+export const CHARGE_FX = Object.freeze({ size: Object.freeze([0.75, 0.25, 0.08]), glow: 0.45, halo: 1, haloOp: 0.18, heart: 0.35, sparks: Object.freeze([10, 20]), rate: Object.freeze([1.6, 2.6]), reach: 0.75, low: 0.6, burst: Object.freeze([0.12, 0.04]) });
 export const CEL_CHARGE = Object.freeze({ body: 0.12, rim: 0.55, edge: 0.5, rate: Object.freeze([9, 16]), low: 0.5 });
 const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8', 'colS'];
 // A PART WITH ITS PAINT, ITS NORMALS AND ITS FACE (a realistic hero's: a corner a triangle, every number a float32), as
@@ -4255,50 +4256,48 @@ function __blast(at, color, size, kind, bornAt) {
   }
   __blasts.push({ g, born, L, size, halo, deep, mid, core, rings, sparks });
 }
-// THE CHARGE'S ENERGY (a buster charging, worlds/controllable/buster.js; the round's look, round-look.js): at the muzzle a
-// BLOOM (a soft glow in the level's hue round a white-hot core, growing with the fill, beating with it) and a faint HALO
-// round the body; SPARKS drawn in from all round onto the muzzle, the accent's and white, more and faster once a level is
-// reached, each on the world's clock (its way seeded by its turn); and a small burst in the shot's light at each level
-// reached. CHARGE_FX the numbers
+// THE CHARGE'S ENERGY (a buster charging, worlds/controllable/buster.js; the round's look, round-look.js), over the WHOLE
+// BODY: a BLOOM wrapping it head to foot (the level's hue, a paler heart at its chest, growing with the fill, beating with
+// it) and a wider faint HALO; SPARKS drawn in from all round onto its length, the accent's and white, more and faster
+// once a level is reached, each on the world's clock (its way seeded by its turn); a burst in the shot's light at its
+// middle at each level reached. CHARGE_FX the numbers
 const __chg = {};
 function __chargeFx(e) {
   const B = e.rule && e.rule.buster, on = !!(B && e.charging && e.busterOn && (e.chargeFrac || 0) > 0 && !e.gone);
   let C = __chg[e.id];
-  if (!on) { if (C) C.g.visible = false; if (C) C.lv = 0; return; }
+  if (!on) { if (C) { C.g.visible = false; C.lv = 0; } return; }
   const lvN = e.chargeLevel || 0, L = __RL[lvN] || __RL[0];
   if (!C) {
-    const g = new THREE.Group(), halo = __rlSprite(__rlTex.soft, L.ramp[1], 0), glow = __rlSprite(__rlTex.soft, L.ramp[1], 0), core = __rlSprite(__rlTex.soft, '#ffffff', 0), aura = __rlSprite(__rlTex.soft, L.ramp[1], 0);
-    g.add(aura); g.add(halo); g.add(glow); g.add(core);
+    const g = new THREE.Group(), halo = __rlSprite(__rlTex.soft, L.ramp[1], 0), glow = __rlSprite(__rlTex.soft, L.ramp[1], 0), heart = __rlSprite(__rlTex.soft, '#ffffff', 0);
+    g.add(halo); g.add(glow); g.add(heart);
     const sparks = [];
     for (let k = 0; k < ${CHARGE_FX.sparks[1]}; k++) { const sp = __rlSprite(__rlTex.soft, k % 3 ? L.accent : '#ffffff', 0); g.add(sp); sparks.push(sp); }
-    scene.add(g); C = __chg[e.id] = { g, halo, glow, core, aura, sparks, lv: 0, look: -1 };
+    scene.add(g); C = __chg[e.id] = { g, halo, glow, heart, sparks, lv: 0, look: -1 };
   }
-  // (its colours the level reached's: re-tinted when it changes; a burst as it does)
+  const r = e.rule, H = r.collideHeight || 1.7, mid = [e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + H * 0.5 - (r.eye || 0)];
+  // (its colours the level reached's: re-tinted when it changes; a burst at its middle as it does)
   if (C.look !== lvN) {
-    C.halo.material.color.set(L.ramp[1]); C.glow.material.color.set(L.ramp[1]); C.aura.material.color.set(L.ramp[1]);
+    C.halo.material.color.set(L.ramp[1]); C.glow.material.color.set(L.ramp[1]);
     C.sparks.forEach((sp, k) => sp.material.color.set(k % 3 ? L.accent : '#ffffff'));
-    if (lvN > C.lv && C.look >= 0) __blast(C.at || e.transform.pos, B.levels[lvN - 1].color, ${CHARGE_FX.burst[0]} + ${CHARGE_FX.burst[1]} * lvN, 'impact');
+    if (lvN > C.lv && C.look >= 0) __blast(mid, B.levels[lvN - 1].color, H * (${CHARGE_FX.burst[0]} + ${CHARGE_FX.burst[1]} * lvN), 'impact');
     C.look = lvN; C.lv = lvN;
   }
-  const r = e.rule, h = e.transform.heading || 0, ahead = (r.collideRadius || 0.3) + 0.15, up = (r.collideHeight || 1.7) * (B.chest || 0.7) - (r.eye || 0);
-  const at = C.at = [e.transform.pos[0] + Math.cos(h) * ahead, e.transform.pos[1] + Math.sin(h) * ahead, e.transform.pos[2] + up];
-  C.g.position.set(at[0], at[1], at[2]); C.g.visible = true;
-  const t = __world.time, fr = Math.min(1, e.chargeFrac), beat = Math.floor(t * (lvN ? ${CEL_CHARGE.rate[1]} : ${CEL_CHARGE.rate[0]})) % 2 ? 1 : ${CHARGE_FX.low}, size = ${CHARGE_FX.size[0]} + ${CHARGE_FX.size[1]} * fr + ${CHARGE_FX.size[2]} * lvN;
-  const set = (sp, sc, op) => { sp.scale.set(sc, sc, 1); sp.material.opacity = Math.max(0, Math.min(1, op)); };
-  set(C.core, size * 0.45 * (0.85 + 0.15 * beat), 0.9 * fr);
-  set(C.glow, size * (0.8 + 0.2 * beat), 0.85 * fr * beat);
-  set(C.halo, size * ${CHARGE_FX.halo}, 0.28 * fr * beat);
-  // (the halo round the body: from the muzzle back to its middle, a body's height, faint)
-  C.aura.position.set(-Math.cos(h) * ahead, -Math.sin(h) * ahead, -up * 0.35); set(C.aura, (r.collideHeight || 1.7) * ${CHARGE_FX.aura}, 0.16 * fr * beat);
-  // (the sparks drawn in: each from a seeded way at its turn's start, onto the muzzle over its turn)
-  const n = lvN ? ${CHARGE_FX.sparks[1]} : ${CHARGE_FX.sparks[0]}, rate = lvN ? ${CHARGE_FX.rate[1]} : ${CHARGE_FX.rate[0]}, R = ${CHARGE_FX.reach} * (1 + 0.3 * lvN);
+  C.g.position.set(mid[0], mid[1], mid[2]); C.g.visible = true;
+  const t = __world.time, fr = Math.min(1, e.chargeFrac), beat = Math.floor(t * (lvN ? ${CEL_CHARGE.rate[1]} : ${CEL_CHARGE.rate[0]})) % 2 ? 1 : ${CHARGE_FX.low}, grow = ${CHARGE_FX.size[0]} + ${CHARGE_FX.size[1]} * fr + ${CHARGE_FX.size[2]} * lvN;
+  // (the bloom a body tall and a body's width, stretched up its length; its heart at the chest)
+  const sp2 = (sp, w, h, op) => { sp.scale.set(w, h, 1); sp.material.opacity = Math.max(0, Math.min(1, op)); };
+  sp2(C.glow, H * 0.75 * grow, H * 1.25 * grow, ${CHARGE_FX.glow} * fr * beat);
+  sp2(C.halo, H * 1.3 * grow * ${CHARGE_FX.halo}, H * 1.6 * grow * ${CHARGE_FX.halo}, ${CHARGE_FX.haloOp} * fr * beat);
+  C.heart.position.set(0, 0, H * 0.18); sp2(C.heart, H * 0.35 * grow, H * 0.45 * grow, ${CHARGE_FX.heart} * fr * (0.8 + 0.2 * beat));
+  // (the sparks drawn in: from a seeded way round the body at its turn's start, onto a point of its length over its turn)
+  const n = lvN ? ${CHARGE_FX.sparks[1]} : ${CHARGE_FX.sparks[0]}, rate = lvN ? ${CHARGE_FX.rate[1]} : ${CHARGE_FX.rate[0]}, R = H * ${CHARGE_FX.reach} * (1 + 0.25 * lvN);
   C.sparks.forEach((sp, k) => {
     if (k >= n) { sp.material.opacity = 0; return; }
     const ph = t * rate + k / n, turn = Math.floor(ph), u = ph - turn;
     let a = (Math.imul(k + 1, 2654435761) ^ Math.imul(turn + 7, 40503)) >>> 0; a = (a ^ (a >>> 15)) >>> 0;
-    const th = (a % 6283) / 1000, el = (((a >>> 13) % 2000) / 1000 - 1) * 0.9, d = R * (1 - u * u);
-    sp.position.set(Math.cos(th) * Math.cos(el) * d * 0.6, Math.sin(th) * Math.cos(el) * d, Math.sin(el) * d);
-    const sz = Math.max(0.025, 0.05 + 0.03 * lvN) * (0.6 + 0.6 * u);
+    const th = (a % 6283) / 1000, along = (((a >>> 13) % 2000) / 1000 - 1) * 0.45 * H, d = R * (1 - u * u);
+    sp.position.set(Math.cos(th) * d * 0.5, Math.sin(th) * d, along * (0.4 + 0.6 * (1 - u)) + Math.sin(th * 1.7) * d * 0.6);
+    const sz = Math.max(0.03, 0.05 + 0.03 * lvN) * (0.6 + 0.6 * u);
     sp.scale.set(sz, sz, 1); sp.material.opacity = Math.sin(Math.PI * u) * fr;
   });
 }
