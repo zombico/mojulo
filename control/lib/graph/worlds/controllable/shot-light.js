@@ -24,10 +24,10 @@
  *
  * Import-free: the page runs this exact source (toString), as it runs the controllable world's.
  */
-export const SHOT_LIGHT = Object.freeze({ k: 6, burstLife: 0.35, flashLife: 0.09, pellet: [1.4, 5], shell: 0.9, burst: 1.6, flash: 2, charge: [0.8, 1.8], warm: 0xffd890, chroma: 1.6, breakLife: 0.45, broke: [2.6, 1.3], wreck: [3, 1.5] });
+export const SHOT_LIGHT = Object.freeze({ k: 6, burstLife: 0.35, flashLife: 0.09, pellet: [1.4, 5], shell: 0.9, burst: 1.6, flash: 2, charge: [0.8, 1.8], warm: 0xffd890, chroma: 1.6, breakLife: 0.45, broke: [2.6, 1.3], wreck: [3, 1.5], pulse: [3, 6] });
 
 export function shotLights(state, opts) {
-  const S = { k: 6, burstLife: 0.35, flashLife: 0.09, pellet: [1.4, 5], shell: 0.9, burst: 1.6, flash: 2, charge: [0.8, 1.8], warm: 0xffd890, chroma: 1.6, breakLife: 0.45, broke: [2.6, 1.3], wreck: [3, 1.5] };
+  const S = { k: 6, burstLife: 0.35, flashLife: 0.09, pellet: [1.4, 5], shell: 0.9, burst: 1.6, flash: 2, charge: [0.8, 1.8], warm: 0xffd890, chroma: 1.6, breakLife: 0.45, broke: [2.6, 1.3], wreck: [3, 1.5], pulse: [3, 6] };
   const o = opts || {}, K = o.k || S.k, focus = o.focus || null, t = state && state.time ? state.time : 0, out = [];
   if (!state) return out;
   // (its colour the hue saturated, the body's: a shot's white core is its own, never what it throws on the world)
@@ -74,7 +74,8 @@ export function shotLights(state, opts) {
     }
     if (B && e.charging && e.busterOn && (e.chargeFrac || 0) > 0) {
       const fr = Math.min(1, e.chargeFrac), lv = e.chargeLevel ? B.levels[e.chargeLevel - 1] : B.tap, tr = e.transform, r = e.rule;
-      const pulse = 0.8 + 0.2 * Math.sin(t * (e.chargeLevel ? 36 : 18));
+      // (a slow deep pulse, faster once a level is reached: the body's glow and its bloom beat with it, index.js CEL_CHARGE)
+      const pulse = 0.55 + 0.45 * Math.sin(2 * Math.PI * t * S.pulse[e.chargeLevel ? 1 : 0]);
       // (from the body itself, at its chest: the charge is over the whole body, and it lights what is round it; the body's
       // own glow is its cel's, index.js uToonCharge)
       if (tr && tr.pos) add([tr.pos[0], tr.pos[1], tr.pos[2] + (r.collideHeight || 1.7) * (B.chest || 0.7) - (r.eye || 0)], lv && lv.color != null ? lv.color : S.warm, S.charge[0] + S.charge[1] * fr, (0.15 + 0.45 * fr) * pulse);

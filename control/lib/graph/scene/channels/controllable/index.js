@@ -82,14 +82,15 @@ function poolFigureBuffers(figures) {
 export const CEL_BODY = Object.freeze({ get key() { return SIDE.key; }, step: 0.3, lamp: 0.45 });
 /** A side map's bodies turn their heads toward the screen (radians, the most): standing, and on the move. */
 export const FACE_SCREEN = Object.freeze({ rest: 0.5, moving: 0.22 });
-/** A cel body charging its buster lit up by its charge: its whole body `body`, its silhouette's band (past `edge` of
- * 1 − |N·V|) `rim` more, by its fill, flickering at `rate` (Hz: before a level, after one) between full and `low`. */
+/** A cel body charging its buster lit up by its charge, on its FRESNEL: its whole body `body`, toward its silhouette
+ * `rim` more ((1 − |N·V|)^`power`), by its fill, pulsing at `rate` (Hz: before a level, after one) down to `low`. */
 /** The charge's energy over the whole body (__chargeFx): the bloom's growth (× its height: at none, the fill's share, a
  * level's), its opacity, the halo over it and its opacity, the heart's, the sparks (before a level, after one), their turns
- * a second, how far round the body they are drawn in from (× its height), the beat's low, and the burst a level sets off
- * (× its height: its base, a level's). */
-export const CHARGE_FX = Object.freeze({ size: Object.freeze([0.75, 0.25, 0.08]), glow: 0.45, halo: 1, haloOp: 0.18, heart: 0.35, sparks: Object.freeze([10, 20]), rate: Object.freeze([1.6, 2.6]), reach: 0.75, low: 0.6, burst: Object.freeze([0.12, 0.04]) });
-export const CEL_CHARGE = Object.freeze({ body: 0.12, rim: 0.55, edge: 0.5, rate: Object.freeze([9, 16]), low: 0.5 });
+ * a second, how far round the body they are drawn in from (× its height), the motes circling it (before a level, after
+ * one), their turns (radians a second) and their ring (× its height), and the burst a level sets off (× its height: its
+ * base, a level's); the pulse is the body's glow's (CEL_CHARGE). */
+export const CHARGE_FX = Object.freeze({ size: Object.freeze([0.75, 0.25, 0.08]), glow: 0.45, halo: 1, haloOp: 0.18, heart: 0.35, sparks: Object.freeze([24, 48]), motes: Object.freeze([14, 28]), spin: Object.freeze([1.4, 2.4]), ring: 0.42, rate: Object.freeze([1.6, 2.6]), reach: 0.75, burst: Object.freeze([0.12, 0.04]) });
+export const CEL_CHARGE = Object.freeze({ body: 0.15, rim: 1.1, power: 2.2, rate: Object.freeze([3, 6]), low: 0.35 });
 const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8', 'colS'];
 // A PART WITH ITS PAINT, ITS NORMALS AND ITS FACE (a realistic hero's: a corner a triangle, every number a float32), as
 // the page reads it (`full: 1`): the corners that are the same corner are one (its place, its colour, its paint's place,
@@ -1411,18 +1412,20 @@ function __toonKeyOf(e, g) {
     if (best) { const ly = best[1] - p[1], lz = best[2] - z, ll = Math.hypot(ly, lz) || 1, k = ${CEL_BODY.lamp}, side = Math.hypot(__toonKey.y, __toonKey.z); __toonV.set(__toonKey.x, (1 - k) * __toonKey.y + k * side * ly / ll, (1 - k) * __toonKey.z + k * side * lz / ll).normalize(); }
   }
   K.lerp(__toonV, 0.15).normalize();
-  // (CHARGING: the buster's charge lights its body up, in the level reached's colour, as much as it is full, flickering on
-  // the world's clock, faster once a level is reached: the whole body a little, its silhouette's band most)
+  // (CHARGING: the buster's charge lights its body up on its FRESNEL, in the level reached's colour, as much as it is full,
+  // pulsing on the world's clock, faster once a level is reached: the whole body a little, toward its silhouette most)
   const Cg = g.userData.toonCharge, B = e.rule && e.rule.buster;
   if (Cg) {
     if (B && e.charging && e.busterOn && (e.chargeFrac || 0) > 0) {
       const lv = e.chargeLevel ? B.levels[e.chargeLevel - 1] : B.tap, c = __toonC.set(lv && lv.color != null ? lv.color : 0xfff2a8);
-      const on = Math.floor(__world.time * (e.chargeLevel ? ${CEL_CHARGE.rate[1]} : ${CEL_CHARGE.rate[0]})) % 2 ? 1 : ${CEL_CHARGE.low};
+      const on = __chargePulse(e);
       Cg.set(c.r, c.g, c.b, Math.min(1, e.chargeFrac) * on);
     } else Cg.w = 0;
   }
 }
 const __toonC = new THREE.Color();
+// (the charge's pulse, one for its glow, its bloom and its light: slow and deep, faster once a level is reached)
+const __chargePulse = (e) => ${CEL_CHARGE.low} + (1 - ${CEL_CHARGE.low}) * (0.5 + 0.5 * Math.sin(2 * Math.PI * __world.time * (e.chargeLevel ? ${CEL_CHARGE.rate[1]} : ${CEL_CHARGE.rate[0]})));
 function __toonMat(base, g) {
   const m = base.clone();
   if (g && !g.userData.toonKey) { g.userData.toonKey = __toonKey.clone(); g.userData.toonCharge = new THREE.Vector4(0, 0, 0, 0); }
@@ -1435,7 +1438,7 @@ function __toonMat(base, g) {
     sh.vertexShader = 'attribute vec3 colorShade;\\nvarying vec3 vToonShade;\\nvarying vec3 vToonN;\\nvarying vec3 vToonW;\\n' + sh.vertexShader.replace('#include <fog_vertex>', '#include <fog_vertex>\\n  vToonShade = colorShade;\\n  vToonN = normalize(mat3(modelMatrix) * normal);\\n  vToonW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = 'uniform vec3 uToonKey;\\nuniform float uToonStep;\\nuniform vec4 uToonCharge;\\nvarying vec3 vToonShade;\\nvarying vec3 vToonN;\\nvarying vec3 vToonW;\\n' + sh.fragmentShader.replace('#include <color_fragment>',
       '#if defined( USE_COLOR )\\n  vec3 toonN = normalize(vToonN) * (gl_FrontFacing ? 1.0 : -1.0);\\n  float toonLit = smoothstep(uToonStep - 0.03, uToonStep + 0.03, dot(toonN, uToonKey));\\n  diffuseColor.rgb *= mix(vToonShade, vColor.rgb, toonLit);\\n'
-      + '  if (uToonCharge.a > 0.0) { float toonEdge = smoothstep(${CEL_CHARGE.edge} - 0.03, ${CEL_CHARGE.edge} + 0.03, 1.0 - abs(dot(toonN, normalize(cameraPosition - vToonW)))); diffuseColor.rgb += uToonCharge.rgb * uToonCharge.a * (${CEL_CHARGE.body} + ${CEL_CHARGE.rim} * toonEdge); }\\n#endif');
+      + '  if (uToonCharge.a > 0.0) { float toonF = pow(clamp(1.0 - abs(dot(toonN, normalize(cameraPosition - vToonW))), 0.0, 1.0), ${CEL_CHARGE.power}); diffuseColor.rgb += uToonCharge.rgb * uToonCharge.a * (${CEL_CHARGE.body} + ${CEL_CHARGE.rim} * toonF); }\\n#endif');
   };
   m.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|cel-body'; };
   return m;
@@ -4272,18 +4275,21 @@ function __chargeFx(e) {
     g.add(halo); g.add(glow); g.add(heart);
     const sparks = [];
     for (let k = 0; k < ${CHARGE_FX.sparks[1]}; k++) { const sp = __rlSprite(__rlTex.soft, k % 3 ? L.accent : '#ffffff', 0); g.add(sp); sparks.push(sp); }
-    scene.add(g); C = __chg[e.id] = { g, halo, glow, heart, sparks, lv: 0, look: -1 };
+    const motes = [];
+    for (let k = 0; k < ${CHARGE_FX.motes[1]}; k++) { const sp = __rlSprite(__rlTex.soft, k % 2 ? L.ramp[1] : L.accent, 0); g.add(sp); motes.push(sp); }
+    scene.add(g); C = __chg[e.id] = { g, halo, glow, heart, sparks, motes, lv: 0, look: -1 };
   }
   const r = e.rule, H = r.collideHeight || 1.7, mid = [e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + H * 0.5 - (r.eye || 0)];
   // (its colours the level reached's: re-tinted when it changes; a burst at its middle as it does)
   if (C.look !== lvN) {
     C.halo.material.color.set(L.ramp[1]); C.glow.material.color.set(L.ramp[1]);
     C.sparks.forEach((sp, k) => sp.material.color.set(k % 3 ? L.accent : '#ffffff'));
+    C.motes.forEach((sp, k) => sp.material.color.set(k % 2 ? L.ramp[1] : L.accent));
     if (lvN > C.lv && C.look >= 0) __blast(mid, B.levels[lvN - 1].color, H * (${CHARGE_FX.burst[0]} + ${CHARGE_FX.burst[1]} * lvN), 'impact');
     C.look = lvN; C.lv = lvN;
   }
   C.g.position.set(mid[0], mid[1], mid[2]); C.g.visible = true;
-  const t = __world.time, fr = Math.min(1, e.chargeFrac), beat = Math.floor(t * (lvN ? ${CEL_CHARGE.rate[1]} : ${CEL_CHARGE.rate[0]})) % 2 ? 1 : ${CHARGE_FX.low}, grow = ${CHARGE_FX.size[0]} + ${CHARGE_FX.size[1]} * fr + ${CHARGE_FX.size[2]} * lvN;
+  const t = __world.time, fr = Math.min(1, e.chargeFrac), beat = __chargePulse(e), grow = ${CHARGE_FX.size[0]} + ${CHARGE_FX.size[1]} * fr + ${CHARGE_FX.size[2]} * lvN;
   // (the bloom a body tall and a body's width, stretched up its length; its heart at the chest)
   const sp2 = (sp, w, h, op) => { sp.scale.set(w, h, 1); sp.material.opacity = Math.max(0, Math.min(1, op)); };
   sp2(C.glow, H * 0.75 * grow, H * 1.25 * grow, ${CHARGE_FX.glow} * fr * beat);
@@ -4299,6 +4305,15 @@ function __chargeFx(e) {
     sp.position.set(Math.cos(th) * d * 0.5, Math.sin(th) * d, along * (0.4 + 0.6 * (1 - u)) + Math.sin(th * 1.7) * d * 0.6);
     const sz = Math.max(0.03, 0.05 + 0.03 * lvN) * (0.6 + 0.6 * u);
     sp.scale.set(sz, sz, 1); sp.material.opacity = Math.sin(Math.PI * u) * fr;
+  });
+  // (the motes: a ring circling the body, each its own height up its length, bobbing, brighter on the pulse)
+  const nm = lvN ? ${CHARGE_FX.motes[1]} : ${CHARGE_FX.motes[0]}, spin = lvN ? ${CHARGE_FX.spin[1]} : ${CHARGE_FX.spin[0]};
+  C.motes.forEach((sp, k) => {
+    if (k >= nm) { sp.material.opacity = 0; return; }
+    const a = t * spin + (2 * Math.PI * k) / nm, rr = H * ${CHARGE_FX.ring} * (1 + 0.15 * Math.sin(t * 2.3 + k)), up = ((k * 0.618) % 1 - 0.5) * H * 0.9 + Math.sin(t * 3.1 + k * 1.7) * H * 0.06;
+    sp.position.set(Math.cos(a) * rr * 0.5, Math.sin(a) * rr, up);
+    const sz = Math.max(0.025, 0.04 + 0.02 * lvN) * (0.7 + 0.3 * beat);
+    sp.scale.set(sz, sz, 1); sp.material.opacity = fr * (0.35 + 0.65 * beat) * (0.55 + 0.45 * Math.max(0, Math.cos(a)));
   });
 }
 function __blastAge() {
