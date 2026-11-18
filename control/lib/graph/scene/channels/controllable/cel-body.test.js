@@ -55,6 +55,9 @@ describe('the cel body on the page', () => {
   it('charging, a cel body is lit up by its charge: its silhouette most, flickering faster once a level is reached', () => {
     const page = controllableChannelScript([hero], null, { body: fig(true) });
     expect(page).toContain('uToonCharge');
+    // (its body and limbs all over, its face only at its edge)
+    expect(page).toContain('uToonFace');
+    expect(CEL_CHARGE.faceRim).toBeLessThan(CEL_CHARGE.rim);
     expect(CEL_CHARGE.rim).toBeGreaterThan(CEL_CHARGE.body);
     expect(CEL_CHARGE.rate[1]).toBeGreaterThan(CEL_CHARGE.rate[0]);
     expect(controllableChannelScript([hero], null, { body: fig(false) })).not.toContain('uToonCharge');

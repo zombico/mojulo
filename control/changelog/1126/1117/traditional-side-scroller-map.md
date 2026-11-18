@@ -256,7 +256,8 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   screen, its face seen, most when it stands. The toy hero robot's helm ends its cheek guards at the jaw line instead of
   making a chin of them. Where a zone is lit by lamps, each body is lit from its nearest lamp's side and height (its face
   still toward the camera's side), and a shot or a blast cuts a hard rim in its colour down the edges that face it While
-  the hero charges its buster it is lit up by the charge on its fresnel, brightest at its silhouette, in the level
+  the hero charges its buster its body and limbs are lit up by the charge (its face never, only edged), all over and on
+  their fresnel, brightest at the silhouette, from a white-hot heart at its chest, in the level
   reached's colour, more as the charge fills, pulsing slow and deep (faster once a level is reached), and its energy
   gathers over its whole body: a bloom wrapping it head to foot, sparks drawn in from all round onto it and motes
   circling it, a burst at its middle at each level reached, the charge's light pulsing round it.
