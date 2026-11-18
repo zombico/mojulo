@@ -10,12 +10,13 @@ import { quickWorld } from '../gameworld/quick.js';
 describe('reading a track from words', () => {
   it('what is raced sets the class, the set, the car and the pole; a word can turn the pole', () => {
     const k = readTrackIntent('a kart track'), g = readTrackIntent('a GT circuit'), r = readTrackIntent('a realistic kart track');
-    expect([k.track.class, k.set, k.vehicle, k.pole]).toEqual(['kart', 'kart', 'kart', 'voxel']);
+    expect([k.track.class, k.set, k.vehicle, k.pole]).toEqual(['kart', 'kart', 'kart', 'chunky']);
     expect(readTrackIntent('a cartoon kart track').pole).toBe('banded');
     expect(readTrackIntent('a battle racer arena').set).toBe('kart');
     // a look word is the look's, wherever it stands: "battle racer" names what is raced, not how it is drawn
     expect(readTrackIntent('a sunshine battle racer track').pole).toBe('shaded');
-    expect(readTrackIntent('a battle racer track').pole).toBe('voxel');
+    expect(readTrackIntent('a battle racer track').pole).toBe('chunky');
+    expect(readTrackIntent('a voxel kart track').pole).toBe('voxel');
     expect([g.track.class, g.set, g.pole]).toEqual(['circuit', 'gt', 'material']);
     expect(r.pole).toBe('material');
     expect(readTrackIntent('a rally stage').track.form).toBe('stage');
@@ -48,7 +49,7 @@ describe('the one door', () => {
     expect(M).toMatchObject({ kind: 'roadway', form: 'circuit', scape: { set: 'kart', landmark: 'castle' } });
     const p = planScapedTrack(M);
     expect(p.scape.laws).toEqual([]);
-    expect(p.scape.pieces.find((q) => q.landmark).block).toBe('castle');
+    expect(p.scape.pieces.find((q) => q.landmark).block).toBe('candy-castle');
     expect(JSON.stringify(composeTrack('a short cartoon kart track by a castle', { seed: 2 }))).toBe(JSON.stringify(M));
   }, 60000);
   it('the world and the track together: the world\'s look the words\', its track drawn in it', () => {
@@ -61,5 +62,15 @@ describe('the one door', () => {
     const W = quickWorld({ id: 'q', quick: { goal: 'race', ride: 'car', roadway: { intent: 'a short kart track' } } });
     expect(W.levels.run.roadway).toMatchObject({ form: 'circuit', scape: { set: 'kart' }, kit: { look: expect.any(String) } });
     expect(() => quickWorld({ id: 'q', quick: { goal: 'race', ride: 'car', roadway: { intent: '' } } })).toThrow(/roadway.intent is the track in words/);
+  });
+});
+
+describe('a track\'s drawing and its language reach the game', () => {
+  it('a world from a kart track\'s words keeps the chunky drawing and the candy language, and its gate says the language\'s laws', () => {
+    const W = composeTrackWorld('a short kart track', { seed: 2 }), st = gameStages(W).find((x) => x.section === 'roadway');
+    expect(st.manifest.kit.pole).toBe('chunky');
+    expect(st.manifest.language).toBe('candy');
+    const Q = quickWorld({ id: 'q', quick: { goal: 'race', ride: 'car', roadway: { intent: 'a short kart track' } } });
+    expect(gameStages(Q).find((x) => x.section === 'roadway').manifest.language).toBe('candy');
   });
 });
