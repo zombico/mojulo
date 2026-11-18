@@ -60,4 +60,12 @@ describe('emitThreeWorld controllable channel', () => {
     expect(html).toContain('__ctrlActive = __world.entities.length > 0;'); // entities are stepped
     expect(html).toContain('if (__world.camera) { controls.enabled = false; __ctrlOwnsCamera = true;'); // ownership only when a camera entity exists (none here → OrbitControls stays)
   });
+  it('a building\'s stairs give the follow camera its stair rule; a world without stairs carries none of it', () => {
+    const ents = [{ id: 'd', rule: { type: 'walk' }, body: { type: 'mesh', shape: 'box' } }], camera = { rule: 'follow', target: 'd' };
+    const stair = { kind: 'stair', at: [0, 0, 0], to: [3, 0, 2.8], rect: [-1, -1, 4, 1] };
+    const with_ = emitThreeWorld({ faces: [floor], entities: ents, camera, anchors: [stair, { kind: 'lift', at: [0, 0, 0], to: [0, 0, 4] }] });
+    expect(with_).toContain('const __STAIRS = [{"rect":[-1,-1,4,1],"z0":0,"z1":2.8}];');
+    expect(with_).toContain('ON A STAIR');
+    expect(emitThreeWorld({ faces: [floor], entities: ents, camera, anchors: [{ kind: 'lift', at: [0, 0, 0], to: [0, 0, 4] }] })).not.toContain('__STAIRS');
+  });
 });

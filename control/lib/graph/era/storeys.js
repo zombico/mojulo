@@ -507,7 +507,8 @@ export function assembleStoreys(manifest, ctx, plan, assemble) {
   const anchors = parts.flatMap(({ s, z, P: Q }) => (Q.anchors || []).map((a) => ({ ...lift(a, z), id: tag(s)(a.id), ...(a.node ? { node: tag(s)(a.node) } : {}), storey: s })));
   const rooms = parts.flatMap(({ s, z, P: Q }) => (Q.rooms || []).map((r) => ({ ...r, box: { min: P([r.box.min[0], r.box.min[1], r.box.min[2] + z]), max: P([r.box.max[0], r.box.max[1], r.box.max[2] + z]) }, storey: s,
     doorways: r.doorways.map(tag(s)), stairs: plan.stairs.filter((x) => x.lower === r.id || x.upper === r.id).map((x) => `stair-${x.lower}-${x.upper}`) })));
-  const stairs = plan.stairs.map((x) => ({ id: `stair-${x.lower}-${x.upper}`, kind: 'stair', room: x.lower, between: [x.lower, x.upper], at: P([x.approach[0], x.approach[1], x.z0]), to: P([x.arrival[0], x.arrival[1], x.z1]), rise: x.rise, treads: x.n }));
+  // (each with its footprint, `rect`: where a walker is on it, a page's follow camera reads it: controllable/index.js)
+  const stairs = plan.stairs.map((x) => ({ id: `stair-${x.lower}-${x.upper}`, kind: 'stair', room: x.lower, between: [x.lower, x.upper], at: P([x.approach[0], x.approach[1], x.z0]), to: P([x.arrival[0], x.arrival[1], x.z1]), rise: x.rise, treads: x.n, ...(Array.isArray(x.rect) ? { rect: x.rect.slice() } : {}) }));
   const cutouts = [...new Set(parts.flatMap(({ P: Q }) => Q.cutouts || []))].sort();
   const fires = parts.flatMap(({ z, P: Q }) => (Q.fireSources || []).map((f) => lift(f, z)));
   const mote = parts.map(({ z, P: Q }) => Q.motes && { ...Q.motes, boxes: Q.motes.boxes.map((b) => [b[0], b[1], r5(b[2] + z), b[3], b[4], r5(b[5] + z)]), lights: Q.motes.lights.map((l) => [l[0], l[1], r5(l[2] + z), l[3]]) }).filter(Boolean);

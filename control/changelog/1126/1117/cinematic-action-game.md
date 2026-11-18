@@ -299,3 +299,11 @@ or a recipe key; the spike mints through the real doors and measures.
   `relief` and `trail`): the land's heights and its trail's mask read when the level is built (its grass map, every
   1.5 m; its path mask), the page drawing them under the plan once: contours a metre apart and a brighter one every five
   (the gorge's walls a crowd of lines), the trail in its own colour. Level 0 asks for it. Bench: no frame cost.
+- **No zoom onto the body on a stair** (channels/controllable/index.js, the follow camera's stair rule): a building's stairs
+  reach the page with their footprints (era/storeys.js anchors carry each flight's `rect`; the page's `__STAIRS`, absent
+  without stairs), and on one, where the ceiling or the flight overhead would pull the eye in to the body, the camera
+  looks for a clear line nearby instead, a little flatter, steeper or swung aside, and eases onto it. Measured up the
+  hangar's two flights: as it was, the eye came to 2.4 m from the head where they turn at the landing; now 4.6 m or more.
+- **A played building's top floor stands taller** (a stage's `ceilings: { top }`, era/stage.js `withCeilings`, carried
+  by a level's building, gameworld/levels.js): metres added to every room of its highest storey, so its ceiling clears
+  the follow camera. The hangar asks for 1.5 m.

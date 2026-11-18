@@ -756,7 +756,7 @@ function __updateSmoke() {
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, formSun = null, formLand = false, acts = false, tempo = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null, veils = null } = {}) {
+export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, formSun = null, formLand = false, acts = false, tempo = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null, veils = null, stairs = null } = {}) {
   // the bank as the page reads it (pageFigures): every flag below reads it, so the branches it needs are emitted
   const PAGE = pageFigures(figures0 || {}), figures = PAGE.figs;
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
@@ -787,6 +787,8 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const sightShown = entities.some((e) => e && e.rule && e.rule.sightShown);
   // a garrison's alarm (worlds/controllable/alarm.js, alarm-view.js): watchers whose rule carries one
   const alarm = entities.some((e) => e && e.rule && e.rule.alarm);
+  // a building's stairs (their footprints): the follow camera's stair rule, below; none, not a byte
+  const stairsOn = Array.isArray(stairs) && stairs.length > 0;
   // tall grass (veil.js): the world's veils, a watcher's sight lost in them; none, not a byte
   const veilsOn = Array.isArray(veils) && veils.length > 0;
   // a mission in one level (worlds/controllable/mission.js, mission-view.js): a pilot whose rule carries one
@@ -2678,7 +2680,20 @@ ${acts ? `    const act = __actMode(fig, e, m);
 // stays visible. View-only (never touches sim state); mirrors __ground's mesh-only / skip-own-body
 // filter, so it collides on level geometry but never on suit bodies.
 const __camRay = new THREE.Raycaster();
-let __camCd = 1;   // current eye distance as a fraction of the full follow distance (1 = no pull-in)
+let __camCd = 1;   // current eye distance as a fraction of the full follow distance (1 = no pull-in)${stairsOn ? `
+// a building's stairs, their footprints (storeys.js anchors): the follow camera keeps off a walker's back on them
+const __STAIRS = ${safeJson(stairs)};
+let __stEl = 0, __stYw = 0;   // the eye's turn on a stair (radians: up or down, and round), eased
+// the nearest world surface on a line from the look point (the pull-in's own reading: meshes, no overlay, no body)
+function __stairHit(look, d, full, own) {
+  __camRay.set(new THREE.Vector3(look[0], look[1], look[2]), new THREE.Vector3(d[0], d[1], d[2])); __camRay.far = full; __camRay.camera = camera;
+  for (const hit of __camRay.intersectObjects(scene.children, true)) {
+    const ho = hit.object; if (!ho.isMesh || (ho.material && ho.material.depthTest === false)) continue;
+    let o = ho, isOwn = false; while (o) { if (own.includes(o)) { isOwn = true; break; } o = o.parent; }
+    if (!isOwn) return hit.distance;
+  }
+  return full;
+}` : ''}
 const __followPullIn = ${followPullIn.toString()};
 function __driveCamera(dt) {
   const c = __world.camera; if (!c) return;
@@ -2721,7 +2736,28 @@ ${freeRun ? '        if (__frSkip(hit)) continue;\n' : ''}${aimView ? `        /
       else __camCd += (target - __camCd) * (1 - Math.exp(-6 * (dt || 0)));
       px = look[0] + ux * full * __camCd;
       py = look[1] + uy * full * __camCd;
-      pz = look[2] + uz * full * __camCd;
+      pz = look[2] + uz * full * __camCd;${stairsOn ? `
+      // ON A STAIR (a building's stair, its footprint: storeys.js): a flight overhead, a landing's wall behind the turn, a
+      // ceiling over the shoulder all stand on the line back from the walker, and pulling in along it puts the eye on the
+      // walker's back. So, there, the clearest line that keeps the eye out is looked for: flatter toward level, steeper over
+      // the walker (a played building's top floor stood taller for it: era/stage.js withCeilings), or swung to either side
+      // over the stairwell, each a little dearer the further it strays from the rule's own; the eye eased onto it, and off
+      // the stair back. Only where no line is clearer does it pull in
+      { const q = tg && tg.transform.pos, on = !!q && __STAIRS.some((S) => q[0] > S.rect[0] - 0.6 && q[0] < S.rect[2] + 0.6 && q[1] > S.rect[1] - 0.6 && q[1] < S.rect[3] + 0.6 && q[2] > S.z0 - 0.6 && q[2] < S.z1 + 0.6);
+        const hz = Math.hypot(ux, uy) || 1e-6, el0 = Math.atan2(uz, hz), yw0 = Math.atan2(uy, ux), ht = (tg && tg.rule && tg.rule.collideHeight) || 0;
+        const along = (el, yw) => { const d = [Math.cos(yw) * Math.cos(el), Math.sin(yw) * Math.cos(el), Math.sin(el)]; return { d, f: __followPullIn(full, __stairHit(look, d, full, own), lead, Math.cos(el), rad, ht, camera.near, c.rule.standOff) }; };
+        let wEl = 0, wYw = 0;
+        if (on && target < 0.6) {
+          let best = target;
+          for (const dy of [0, -0.5, 0.5, -1, 1]) for (const de of [0, -0.5 * (el0 - 0.05), 0.05 - el0, 0.35, 0.7]) {
+            if (!dy && !de) continue;
+            const el = Math.min(1.35, el0 + de), L = along(el, yw0 + dy), score = L.f - 0.12 * Math.abs(dy) - 0.08 * Math.abs(de);
+            if (score > best + 0.08) { best = score; wEl = el - el0; wYw = dy; }
+          }
+        }
+        const ease = 1 - Math.exp(-5 * (dt || 0));
+        __stEl += (wEl - __stEl) * ease; __stYw += (wYw - __stYw) * ease;
+        if (Math.abs(__stEl) > 1e-3 || Math.abs(__stYw) > 1e-3) { const L = along(el0 + __stEl, yw0 + __stYw); px = look[0] + L.d[0] * full * L.f; py = look[1] + L.d[1] * full * L.f; pz = look[2] + L.d[2] * full * L.f; } }` : ''}
     }
   }
   camera.position.set(px, py, pz);
