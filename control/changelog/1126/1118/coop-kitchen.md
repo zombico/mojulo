@@ -30,4 +30,13 @@ station to station and handed between them.
   no recipe on the floor (the practice room's arrows teach; in the game the cooks work out what comes next), each cook
   on its own side, a seat nobody sits in held still, one fixed overhead
   station framing the whole room. One cook and no kitchen named is the line by the trail, as it was.
+- **Each cook's corner.** Seated, each other seat's hands and what it holds stand in its own corner in its colour (P2
+  bottom right, P3 top right, P4 top); seat 1's are where they were.
+- **Made, not refused.** The registry marks `soul.dependence=handoff` (the work mechanic's kitchen) and
+  `soul.frame=fixed` (the kitchen's fixed station, besides the versus fighter's) built: the co-op kitchen probe is
+  makeable. The shared kitchen joins the Work Sim rail (its words point there; the not-yet list is empty), a quick work
+  goal with cooks reads as the co-op kitchen genre, and a sentence asking for one is told the quick door that makes it,
+  with its cooks. Proved through the real door: `design_game({ quick: { goal: 'work', cooks: 2 } })` made the game in
+  one call, `export_game` wrote it, and in headless Chromium its shell's play button opened the kitchen, two pads sat
+  down and a fish crossed the pass into the second cook's corner.
 

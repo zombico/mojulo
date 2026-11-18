@@ -190,7 +190,7 @@ const put = (cube, f, s, v) => { (cube[f] ||= {})[s] = v; };
  * sport's genre. */
 export function quickGenre(Q) {
   if (!Q) return null;
-  return (Q.goal === 'race' && Q.rivals ? 'kart-racer' : Q.goal === 'shoot' && Q.craft ? (CRAFT[Q.craft]?.space ? 'space-shooter' : 'air-combat') : Q.goal === 'contest' ? contestGenre(Q.sport) : QUICK_GENRE[Q.goal]) ?? null;
+  return (Q.goal === 'race' && Q.rivals ? 'kart-racer' : Q.goal === 'work' && Q.cooks > 1 ? 'co-op-kitchen' : Q.goal === 'shoot' && Q.craft ? (CRAFT[Q.craft]?.space ? 'space-shooter' : 'air-combat') : Q.goal === 'contest' ? contestGenre(Q.sport) : QUICK_GENRE[Q.goal]) ?? null;
 }
 
 export function cubeOfWorld(world) {

@@ -47,6 +47,7 @@ import { readCard, isRaw } from '../worksim/card.js';
 import { arrivalsOf, simulate, TPS } from '../worksim/sim.js';
 import { SCENARIOS } from '../worksim/scenarios.js';
 import { lowerMove, heldVar, itemKey, NOWHERE } from '../playscape/ui/items.js';
+import { SEATS } from '../controls/seats-kernel.js';
 
 const BAG = 'bag';
 const STEP = 1 / TPS;
@@ -63,6 +64,8 @@ const SHELF = 4;
 export const WORK_COLORS = Object.freeze({ shovel: '#e4875f', bucket: '#5fa3c7', wait: '#a98fd6', hold: '#e8604c', stock: '#e9b949', busy: '#f0a020', ready: '#5cc46a', crate: '#c9a978', shelf: '#a99f90', serve: '#f6f2ea' });
 const COLOR = WORK_COLORS;
 const TICKETS = ['#e05a5a', '#5a9be0', '#e0c25a', '#a05ae0', '#5ae0b4', '#e07f5a'];
+// (seated: each seat's corner of the screen, its own state there in its colour; seat 1's is the bottom left, as it was)
+const CORNER = [null, 'bottom-left', 'bottom-right', 'top-right', 'top'];
 
 // one guard after another (the bus's `if` takes one predicate): `on` → … → `ok` when every guard holds; the first that
 // fails emits `no` (at most one: a later guard is asked only when the earlier held)
@@ -195,6 +198,8 @@ export function lowerWork(p, ctx) {
     { var: served, label: `Served (of ${goal})`, as: 'counter' }, { var: missed, label: 'Lost', as: 'counter' },
     { var: left, label: 'Time', as: 'counter' }, { var: carry, label: 'Hands', as: 'bar', max: hands },
   );
+  // (seated: each other seat's hands in its own corner, in its colour: no seat's state is anonymous or another's)
+  for (const H of HANDS.slice(1)) F.hud.push({ var: H.carry, label: `${SEATS.SEAT_LABELS[H.n - 1]} hands`, as: 'bar', max: hands, slot: CORNER[H.n], color: SEATS.SEAT_COLORS[H.n - 1] });
   toast('work:won', `${goal} served: the shift is done`, { ttl: 3 });
   toast('work:lost', `the bell: ${goal} were wanted`, { ttl: 3 });
   toast('work:full', 'hands full');
@@ -275,14 +280,15 @@ export function lowerWork(p, ctx) {
   // IN HAND (shown): what the bag holds, a readout an item that stands only while one is held (its ui-<id> gate)
   if (show) {
     const carried = [...new Set([...Object.values(C.stations).flatMap((st) => Object.keys(st.takes)), ...Object.values(C.stations).map((st) => st.item)])];
-    for (const item of carried) {
-      const key = itemKey(item), hid = `${W}-held-${key}`, gate = `ui-${hid}`, mine = heldVar(BAG, key);
+    for (const H of HANDS) for (const item of carried) {
+      // (seat 1's as it always was; seated, each other seat's in its own corner, said as its own)
+      const key = itemKey(item), sfx = H.n === 1 ? '' : `-${H.n}`, hid = `${W}-held-${key}${sfx}`, gate = `ui-${hid}`, mine = heldVar(H.bag, key);
       F.vars[mine] ??= 0;
       F.vars[gate] = 0;
-      F.hud.push({ id: hid, var: mine, label: words(key), as: 'counter', slot: 'bottom-left' });
-      F.watches.push({ type: `${I}:holds:${key}`, when: { var: mine, gte: 1 } }, { type: `${I}:empty:${key}`, when: { var: mine, lt: 1 } });
-      R({ on: `${I}:holds:${key}`, do: 'set', var: gate, to: 1 });
-      R({ on: `${I}:empty:${key}`, do: 'set', var: gate, to: 0 });
+      F.hud.push(H.n === 1 ? { id: hid, var: mine, label: words(key), as: 'counter', slot: 'bottom-left' } : { id: hid, var: mine, label: `${SEATS.SEAT_LABELS[H.n - 1]} ${words(key)}`, as: 'counter', slot: CORNER[H.n], color: SEATS.SEAT_COLORS[H.n - 1] });
+      F.watches.push({ type: `${I}:holds:${key}${sfx}`, when: { var: mine, gte: 1 } }, { type: `${I}:empty:${key}${sfx}`, when: { var: mine, lt: 1 } });
+      R({ on: `${I}:holds:${key}${sfx}`, do: 'set', var: gate, to: 1 });
+      R({ on: `${I}:empty:${key}${sfx}`, do: 'set', var: gate, to: 0 });
     }
   }
 

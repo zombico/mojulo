@@ -377,7 +377,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const refused = genre ? refusalOf(genre.id, suggestGenres(prompt, Infinity).map((g) => g.id)) : null;
   if (refused) throw new Error(`gameworld: compose: ${GENRES[genre.id].name.toLowerCase()} is ${refused.verdict === 'blocked' ? 'not makeable yet' : 'not wholly makeable yet'}: it waits on ${refused.waits.join(', ')}. Nothing is laid in its place.${refused.others.length ? ` The words also point at ${refused.others.map((g) => GENRES[g].name.toLowerCase()).join(', ')}, which can be made.` : ''}`);
   const pending = genre ? pendingOf(genre.id) : null;
-  if (pending) throw new Error(`gameworld: compose: ${GENRES[genre.id].name.toLowerCase()} is not laid from a sentence yet: it waits on ${pending.waits}. Nothing is laid in its place.${pending.one ? ` One level of it alone is design_game({ quick: { goal: '${pending.one}' } }).` : ''}`);
+  if (pending) throw new Error(`gameworld: compose: ${GENRES[genre.id].name.toLowerCase()} is not laid from a sentence yet: it waits on ${pending.waits}. Nothing is laid in its place.${pending.one ? ` One level of it alone is design_game({ quick: ${pending.call} }).` : ''}`);
   const form = genre ? GENRE_FORMS[genre.id] ?? null : null;
   // the frame a genre on foot is laid in (genre-forms.js heroFrameOf): a hero by default, the camera its cube asks, a
   // monitor's screen; written before the levels are laid (a side camera runs a trail's line: no climbs)

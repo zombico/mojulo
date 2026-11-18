@@ -8,6 +8,7 @@ import { readActions, resolveActions } from './actions.js';
 import { GENRES, readGenre, genreCube } from './intent.js';
 import { dryRun } from '../cosmos/cosmos.js';
 import { composeGameworld } from './compose.js';
+import { DOOR_PROBES } from './door-probes.js';
 import { readGameworld } from './world.js';
 import { runSteps } from './runner.js';
 
@@ -33,11 +34,17 @@ describe('the genre\'s form', () => {
   });
 
   it('a genre the registry cannot make yet is refused with what it waits on, nothing laid in its place', () => {
-    const R = refusalOf('co-op-kitchen');
-    expect(R.verdict).toBe('blocked');
-    expect(R.waits.length).toBeGreaterThan(0);
+    // (a blocked genre, picked from the probes in code: one whose prompt the composer reads as itself)
+    const P = DOOR_PROBES.find((p) => refusalOf(p.genre)?.verdict === 'blocked' && readGenre(p.prompt)?.id === p.genre);
     expect(refusalOf('flight-sim')).toBeNull();
-    expect(() => composeGameworld({ prompt: 'a co-op kitchen game: four friends cook the orders together', seed: 1 })).toThrow(new RegExp(`waits on ${R.waits[0].replace(/[.=]/g, '\\$&')}`));
+    if (!P) return;   // (none left blocked among the probes: nothing to refuse)
+    const R = refusalOf(P.genre);
+    expect(R.waits.length).toBeGreaterThan(0);
+    expect(() => composeGameworld({ prompt: P.prompt, seed: 1 })).toThrow(new RegExp(`waits on ${R.waits[0].replace(/[.=]/g, '\\$&')}`));
+  });
+  it('a co-op kitchen is no longer refused: from a sentence it names the quick door that plays it, with its cooks', () => {
+    expect(refusalOf('co-op-kitchen')).toBeNull();
+    expect(() => composeGameworld({ prompt: 'a co-op kitchen game: four friends cook the orders together', seed: 1 })).toThrow(/design_game\(\{ quick: \{ goal: 'work', cooks: 2 \} \}\)/);
   });
 
   it('a genre the book lays in its own walks is laid as before: walks and buildings, its words\' goals', () => {
@@ -50,7 +57,7 @@ describe('the genre\'s form', () => {
 describe('a genre the book cannot lay from a sentence yet', () => {
   it('is refused with what it waits on and the one level it plays alone, nothing laid in its place', () => {
     for (const [id, why] of Object.entries(PENDING)) { expect(GENRES[id], id).toBeTruthy(); expect(WAITS[why], id).toBeTruthy(); expect(GENRE_FORMS[id], id).toBeUndefined(); }
-    expect(pendingOf('kart-racer')).toEqual({ waits: WAITS.ride, one: 'race' });
+    expect(pendingOf('kart-racer')).toEqual({ waits: WAITS.ride, one: 'race', call: "{ goal: 'race' }" });
     expect(() => composeGameworld({ prompt: 'a kart racer: three laps against rival drivers', seed: 1 })).toThrow(/waits on a ride the book drives[\s\S]*design_game\(\{ quick: \{ goal: 'race' \} \}\)/);
     // (one per kind of wait: a ride, a form)
     expect(() => composeGameworld({ prompt: 'an arena shooter: a deathmatch against bots', seed: 1 })).toThrow(/waits on its kernel as a book level[\s\S]*goal: 'deathmatch'/);

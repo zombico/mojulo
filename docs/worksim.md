@@ -250,16 +250,19 @@ in a split kitchen four cooks serve little more than two.
 The quick door's `cooks` (1, 2 or 4) and `kitchen` make the level a kitchen room of its own
 (`gameworld/kitchen-level.js`), never a line by a trail: the game room's area for the trade (its floor, its walls cut
 away on the camera's side, what stands outside), each place dressed as the trade's thing, each cook on its own side, a seat nobody sits in held still, and one fixed overhead station framing the whole room. The floor carries no recipe: the work room's arrows are for
-practice, and in the game working out what comes next is the cooks' job. In
-headless Chromium with two stub pads, seat 1 took a fish, chopped it and put it on the pass; seat 2 took it up from the
+practice, and in the game working out what comes next is the cooks' job. Each seat's
+state is in its own corner in its colour (P1 bottom left, P2 bottom right, P3 top right, P4 top): its hands, and what
+it holds while it holds it. The registry marks `soul.dependence=handoff` (the work mechanic's) and `soul.frame=fixed`
+built, so the co-op kitchen probe is makeable; the Work Sim rail carries its words, and a sentence asking for one is
+told the quick door. In headless Chromium with two stub pads, seat 1 took a fish, chopped it and put it on the pass; seat 2 took it up from the
 other side with its own button.
 
 ## How it joins next (not built)
 
-- **Seats, the rest.** Each seat's corner on the HUD (what it holds; the Hands bar and the held readouts are seat 1's),
-  the order rail, a spot that holds any one thing (a plate), the simulator's workers each with their own reach (the
-  proof stands in), hazards (a belt, fire), and the co-op kitchen as a rail. The registry still says
-  `soul.dependence=handoff` absent and `soul.frame=fixed` partial; they are marked when the rail lands.
+- **Seats, the rest.** The order rail (tickets with their patience), a spot that holds any one thing (a plate), the
+  simulator's workers each with their own reach (the proof stands in), hazards (a belt, fire), each cook drawn apart
+  (today the same hero, told apart by its ring and corner), and the co-op kitchen laid from a sentence (today the
+  composer names the quick door: `design_game({ quick: { goal: 'work', cooks: 2 } })`).
 - **The look on a level.** The work room is dressed and stands in its area; a quick shift's level still draws counters
   and markers. The dress and the area belong on the level too, read by the verb and the item.
 - **The book.** A gameworld's `work` page in the game design and production chapter: the card, its target and the

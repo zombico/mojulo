@@ -189,7 +189,8 @@ describe('the two depths: the shape, then the sheet', () => {
     expect(S.rails.length).toBe(RAIL_IDS.length); expect(S.notYet.length).toBe(Object.keys(NOT_YET).length);
     expect(S.rails.every((l) => !/\n/.test(l))).toBe(true);
     expect(S.rails[0].startsWith(`${RAIL_IDS[0]}: `)).toBe(true);
-    expect(S.notYet[0]).toContain('Not a game yet');
+    // (none waiting today, the shared kitchen having joined the Work Sim rail: no line said)
+    if (S.notYet.length) expect(S.notYet[0]).toContain('Not a game yet');
   });
 
   it('a sheet reads the four tunings from the rail\'s own cube, copying none', () => {
@@ -241,9 +242,10 @@ describe('the two depths: the shape, then the sheet', () => {
   });
 
   it('a type not made yet is said by its own words', () => {
+    expect(notYetFor('a quiet walk')).toEqual([]);
+    if (!Object.keys(NOT_YET).length) return;   // (none waiting today: nothing is said of one)
     const [id, N] = Object.entries(NOT_YET)[0];
     expect(notYetFor(`I want a ${N.words[0]} game`)[0]).toMatchObject({ id, waits: N.waits });
-    expect(notYetFor('a quiet walk')).toEqual([]);
     // (a word may also be a rail's: the producer then says both, the type not made yet and the nearest rail)
     for (const v of Object.values(NOT_YET)) expect(v.words.length).toBeGreaterThan(0);
   });
@@ -251,7 +253,8 @@ describe('the two depths: the shape, then the sheet', () => {
   it('is served as two cards by id: the shape, and a rail\'s sheet', () => {
     const all = railCardById('gameworld-rails');
     for (const id of [RAIL_IDS[0], RAIL_IDS[RAIL_IDS.length - 1]]) expect(all.body).toContain(RAILS[id].name);
-    expect(all.body).toMatch(/TEMPLATE/); expect(all.body).toContain(Object.values(NOT_YET)[0].name);
+    expect(all.body).toMatch(/TEMPLATE/);
+    if (Object.keys(NOT_YET).length) expect(all.body).toContain(Object.values(NOT_YET)[0].name);
     const one = railCardById(`gameworld-rail-${designed}`);
     expect(one.body).toContain(RAILS[designed].name); expect(one.body).toMatch(/TEMPLATE/); expect(one.body).toContain('THE CHAIN');
     expect(one.body).toContain(railLacks(designed)[0]);
@@ -361,7 +364,9 @@ describe('the producer leads: one question a turn, before the goalposts', () => 
     const w = railWords(id)[0], N = Object.values(NOT_YET)[0];
     const R = producerSteps({ intake: 'none', brief: `a ${w} game` }).find((s) => s.step === 'rail');
     expect(R.nearest.map((r) => r.id)).toContain(id);
-    expect(producerSteps({ intake: 'none', name: N.words[0] }).find((s) => s.step === 'rail').notYet[0].waits).toBe(N.waits);
+    if (N) expect(producerSteps({ intake: 'none', name: N.words[0] }).find((s) => s.step === 'rail').notYet[0].waits).toBe(N.waits);
+    // (the words of a type that joined a rail point at the rail: a co-op kitchen at the Work Sim)
+    expect(producerSteps({ intake: 'none', brief: 'a co-op kitchen game' }).find((s) => s.step === 'rail').nearest.map((r) => r.id)).toContain('work-sim');
     expect(producerSteps({ intake: 'none' }).find((s) => s.step === 'rail').nearest).toBeUndefined();
   });
 

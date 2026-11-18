@@ -151,6 +151,16 @@ describe('the work mechanic, seated', () => {
     expect(one.every((z) => z.watch === 'hero' && !z.seat)).toBe(true);
     expect(m.work.seats).toEqual([{ n: 1, body: 'hero', hands: 'bag', carry: 'w0:carry' }, { n: 2, body: 'hero-2', hands: 'hands2', carry: 'w0:carry:2' }]);
   });
+  it('each seat\'s state in its own corner, in its colour: its hands, and what it holds only while it holds it', () => {
+    const L = seated({ show: true });
+    const hud = L.c.events.hud;
+    expect(hud.find((h) => h.var === 'w0:carry:2')).toMatchObject({ label: 'P2 hands', as: 'bar', slot: 'bottom-right', color: '#3b7be5' });
+    const fish2 = hud.find((h) => h.id === 'w0-held-fish-2');
+    expect(fish2).toMatchObject({ var: 'held:hands2:fish', slot: 'bottom-right', label: 'P2 fish' });
+    expect(hud.find((h) => h.id === 'w0-held-fish')).toMatchObject({ var: 'held:bag:fish', slot: 'bottom-left' });
+    L.press(2, 'crate-fish');
+    expect([L.V['ui-w0-held-fish-2'], L.V['ui-w0-held-fish']]).toEqual([1, 0]);
+  });
   it('each seat takes into its own hands, and walking off pauses only the work the walker was doing', () => {
     const L = seated();
     L.press(2, 'crate-fish');

@@ -188,10 +188,9 @@ export const RAILS = Object.freeze({
   'table-rpg': row({ name: 'Table RPG', like: 'a pen-and-paper RPG played in text, with its printed game book',
     handles: row({ genres: list([]), table: 'table-rpg' }), sizes: list(['table']), level1: 'a first session of the module',
     words: list(['pen and paper', 'pen-and-paper', 'dungeons and dragons', 'tabletop rpg', 'game master', 'dice']) }),
-  'work-sim': row({ name: 'Work Sim', like: 'a work shift: a kitchen, a farm stand, a workshop: orders worked station to station before the bell',
-    handles: row({ genres: list([]), quick: list(['work']) }), sizes: list(['quick']), level1: 'a shift: the orders served by the bell',
-    words: list(['cooking', 'cooking sim', 'kitchen', 'restaurant', 'shift', 'orders']),
-    lacks: list(['one cook: the shared kitchen (two to four on one screen) waits on its seats']) }),
+  'work-sim': row({ name: 'Work Sim', like: 'a work shift: a kitchen, a farm stand, a workshop: orders worked station to station before the bell; alone, or two or four cooks sharing a kitchen of its own on one screen (quick.cooks), handing what they make across a pass',
+    handles: row({ genres: list(['co-op-kitchen']), quick: list(['work']) }), sizes: list(['quick']), level1: 'a shift: the orders served by the bell (with cooks: in a kitchen of its own, each cook on a side of its counter)',
+    words: list(['cooking', 'cooking sim', 'kitchen', 'restaurant', 'shift', 'orders', 'co-op kitchen', 'co-op cooking', 'cooking together', 'cook together', 'overcooked']) }),
   farming: row({ name: 'Farming', like: 'a farm: plant, let the days ripen it, harvest and sell',
     handles: row({ genres: list(['farming']), quick: list(['farm']) }), sizes: list(['quick']), level1: 'a day: the gold made before it ends' }),
   'tower-defense': row({ name: 'Tower Defense', like: 'tower defense: foes walk the path in waves, towers built beside it hold the base',
@@ -207,9 +206,7 @@ export const RAILS = Object.freeze({
 export const RAIL_IDS = Object.freeze(Object.keys(RAILS));
 
 /** Game types built apart that no door makes a game from yet: said to the person, never offered as a rail. */
-export const NOT_YET = Object.freeze({
-  'shared-kitchen': row({ name: 'Shared kitchen', like: 'two to four cooks on one screen', genres: list(['co-op-kitchen']), words: list(['co-op kitchen', 'co-op cooking', 'cooking together', 'cook together', 'overcooked']), waits: 'the work shift\'s seats; one cook plays today (the Work Sim rail)' }),
-});
+export const NOT_YET = Object.freeze({});
 
 const fail = (m) => new Error(`gameworld: rail${m}`);
 
