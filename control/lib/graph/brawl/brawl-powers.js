@@ -10,17 +10,22 @@
  * stock. Its LOOK is a beam of the elements' shelf (playscape/elements/beams.js BEAMS: the same words the game book's
  * actions page writes a power's `attack` in), whose colour the page draws it in.
  *
- *   POWERS[id] = { says, beam, stock, special, pierce? }
+ *   POWERS[id] = { says, beam, stock, special, pierce?, beat }
  *     beam     its look, a BEAMS word (the colour it is drawn in; a hero's own `attack` in its place)
  *     stock    its uses a life (1 to 9): spent as it starts, filled again at a fall (brawl-crowd.js)
  *     special  the move: { from, …its changes } over the shipped special, as a recipe's library writes one
  *     pierce   the bodies its round passes through on its line (a projectile's; one unsaid, the fight's)
+ *     beat     its SUPER BEAT, the moment it is called up: { freeze, screen } the street held still `freeze` frames
+ *              (brawl-core.js, a fight super's freeze), and the camera's glass round the caster for it, `screen` a lens
+ *              strike's kind (mana-ui's lens: lift, ring, shade, ink). Read while every figure stands still, which is
+ *              the lens's own law (a still figure's place is where the page last drew it)
  *   POWER_IDS
  *   ATTACK_POWER     { <beam word>: <power id> } the power a hero's own `attack` (the actions page's beam) plays on the street
  *   powerOf(id)      → the card (throws naming the ids)
- *   readPower(v)     → { id, stock, beam, name?, dials?, colour? } a power as a roster entry or a seat writes it: an id,
- *                    or a power DESIGNED, a kind made the person's own: { kind (or id), name?, stock?, beam?, strength?,
- *                    speed?, size?, pierce? } (POWER_DIALS, each bounded; its colour the page's, brawl-power-look.js)
+ *   readPower(v)     → { id, stock, beam, screen, name?, dials?, colour? } a power as a roster entry or a seat writes it:
+ *                    an id, or a power DESIGNED, a kind made the person's own: { kind (or id), name?, stock?, beam?,
+ *                    screen?, strength?, speed?, size?, pierce? } (POWER_DIALS, each bounded; POWER_SCREENS its super
+ *                    beat's screen, 'none' for none; its colour the page's, brawl-power-look.js)
  *   POWER_DIALS, isRound(id)   the dials a designed power turns; is a kind's move a round down the street
  *   powerHeft(power) → its hits by its uses as a share of its kind's card (1 the card as measured)
  *   powerAdvice(power, who?) → [lines]: a designed power far from what the street was measured with (advice, never a refusal)
@@ -36,31 +41,39 @@
 import { SPECIAL_SLOTS } from '../versus/versus-library.js';
 
 const card = (says, beam, stock, special, extra = {}) => Object.freeze({ says, beam, stock, special: Object.freeze(special), ...extra });
+// (its SUPER BEAT: the street held still `freeze` frames as it is called up, and the camera's glass round the caster for
+// the beat, `screen`, a lens strike's kind (mana-ui: lift lights the air round it, ring bends it, shade darkens it, ink
+// turns it to its negative, a comic's impact frame): the moment a super is, read while every figure stands still)
+const beat = (freeze, screen) => Object.freeze({ freeze, screen });
 
 export const POWERS = Object.freeze({
   // ── AT RANGE: a round down the street, through what is lined up on it ──
   beam: card('a beam from the eyes or the hands: there almost at once, down the street\'s whole length, through every body lined up on it', 'ray', 3,
     { from: 'fireball', says: 'the hero\'s beam: fast and long, it passes through the line', damage: 170, projectile: { w: 900, h: 260, y: -260, life: 70 }, at: { speed: 150, startup: 10, recovery: 26 }, hitstop: 8, push: 220, knock: 'down' },
-    { pierce: 6 }),
+    { pierce: 6, beat: beat(8, 'lift') }),
   nova: card('a great ball of force raised and sent slowly down the street: it floors everything it meets on its way', 'nova', 2,
     { from: 'fireball', says: 'the hero\'s nova: slow and huge, it floors all it meets', damage: 260, projectile: { w: 700, h: 700, y: -500, life: 150 }, at: { speed: 40, startup: 18, recovery: 30 }, hitstop: 12, push: 300, knock: 'down' },
-    { pierce: 8 }),
+    { pierce: 8, beat: beat(16, 'ink') }),
   barrage: card('a fistful of charged darts or cards flung down the street: quick to throw, through the first few bodies', 'barrage', 4,
     { from: 'boom', says: 'the hero\'s barrage: quick, through a few', damage: 130, projectile: { w: 500, h: 300, y: -260, life: 90 }, at: { speed: 95, startup: 8, recovery: 20 }, hitstop: 8, push: 200 },
-    { pierce: 3 }),
+    { pierce: 3, beat: beat(6, 'lift') }),
   flame: card('a gout of fire thrown from the hand: it burns through the first bodies it meets and knocks them down', 'fireball', 3,
     { from: 'fireball', says: 'the hero\'s flame', damage: 180, projectile: { w: 600, h: 320, y: -260, life: 80 }, at: { speed: 80, startup: 11, recovery: 26 }, hitstop: 10, push: 240, knock: 'down' },
-    { pierce: 2 }),
+    { pierce: 2, beat: beat(8, 'lift') }),
   // ── ALL ROUND: the crowd that surrounds the hero ──
   storm: card('lightning called down all round: untouchable while it strikes, it floors every body near, before and behind', 'lightning', 2,
-    { from: 'whirl', says: 'the hero\'s storm: all round, untouchable, it floors what is near', price: undefined, at: { damage: 200, startup: 6, active: 20, recovery: 22 }, push: 420 }),
+    { from: 'whirl', says: 'the hero\'s storm: all round, untouchable, it floors what is near', price: undefined, at: { damage: 200, startup: 6, active: 20, recovery: 22 }, push: 420 },
+    { beat: beat(14, 'ink') }),
   // ── CLOSE: through the crowd, or a body taken ──
   frenzy: card('a berserk rush: on down the street through the crowd, a run of cuts that floors whoever it reaches, unstoppable', 'barrage', 3,
-    { from: 'rush', says: 'the hero\'s frenzy: a rush of cuts that does not flinch', hits: 4, armor: [1, 23, 3], at: { damage: 220, startup: 8, active: 16, recovery: 20, travel: 120 }, knock: 'down', push: 300 }),
+    { from: 'rush', says: 'the hero\'s frenzy: a rush of cuts that does not flinch', hits: 4, armor: [1, 23, 3], at: { damage: 220, startup: 8, active: 16, recovery: 20, travel: 120 }, knock: 'down', push: 300 },
+    { beat: beat(8, 'shade') }),
   phase: card('a step through space: through the crowd, untouchable, and a blow from where it comes out', 'braid', 3,
-    { from: 'spin', says: 'the hero\'s phase: through them untouchable, striking as it passes', hits: 2, through: true, invuln: ['strike', 'projectile', 'throw'], at: { damage: 160, startup: 6, active: 14, recovery: 18, travel: 170 }, knock: 'down' }),
+    { from: 'spin', says: 'the hero\'s phase: through them untouchable, striking as it passes', hits: 2, through: true, invuln: ['strike', 'projectile', 'throw'], at: { damage: 160, startup: 6, active: 14, recovery: 18, travel: 170 }, knock: 'down' },
+    { beat: beat(6, 'ring') }),
   might: card('a strongman\'s grip: a body taken from further than a hand reaches and slammed down for half its life', 'nova', 3,
-    { from: 'grab', says: 'the hero\'s might: a body taken and slammed', at: { damage: 300, reach: 1.5, startup: 6, recovery: 30 } }),
+    { from: 'grab', says: 'the hero\'s might: a body taken and slammed', at: { damage: 300, reach: 1.5, startup: 6, recovery: 30 } },
+    { beat: beat(10, 'shade') }),
 });
 export const POWER_IDS = Object.freeze(Object.keys(POWERS));
 
@@ -88,7 +101,9 @@ export const POWER_DIALS = Object.freeze({
   size: Object.freeze({ min: 50, max: 200, round: true, says: 'how big its round is, % of its kind' }),
   pierce: Object.freeze({ min: 1, max: 8, round: true, says: 'how many bodies its round passes through' }),
 });
-const WORDS = ['id', 'kind', 'name', 'stock', 'beam', 'colour', ...Object.keys(POWER_DIALS)];
+/** A super beat's screen: a lens strike's kind round the caster as it is called up, or none. */
+export const POWER_SCREENS = Object.freeze(['lift', 'ring', 'shade', 'ink', 'none']);
+const WORDS = ['id', 'kind', 'name', 'stock', 'beam', 'screen', 'colour', ...Object.keys(POWER_DIALS)];
 /** Is a kind's move a round down the street (a projectile)? */
 export const isRound = (id) => !!POWERS[id]?.special.projectile;
 
@@ -105,6 +120,7 @@ export function readPower(v, at = 'power') {
   if (W.stock !== undefined && !(Number.isInteger(W.stock) && W.stock >= 1 && W.stock <= 9)) throw fail(`${at}.stock is its uses a life, 1 to 9`);
   if (W.beam !== undefined && !(typeof W.beam === 'string' && /^[a-z-]{2,24}$/.test(W.beam))) throw fail(`${at}.beam is its look, a beam's word (playscape/elements/beams.js)`);
   if (W.colour !== undefined && !(typeof W.colour === 'string' && /^#[0-9a-f]{6}$/i.test(W.colour))) throw fail(`${at}.colour is '#rrggbb' (its beam's, brawl-power-look.js)`);
+  if (W.screen !== undefined && !POWER_SCREENS.includes(W.screen)) throw fail(`${at}.screen is its super beat round the caster: ${POWER_SCREENS.join(' | ')}`);
   const dials = {};
   for (const [k, D] of Object.entries(POWER_DIALS)) {
     if (W[k] === undefined) continue;
@@ -112,7 +128,7 @@ export function readPower(v, at = 'power') {
     if (!(Number.isInteger(W[k]) && W[k] >= D.min && W[k] <= D.max)) throw fail(`${at}.${k} is ${D.says}, ${D.min} to ${D.max}`);
     dials[k] = W[k];
   }
-  return { id, stock: W.stock ?? P.stock, beam: W.beam ?? P.beam, ...(W.name ? { name: W.name.trim() } : {}), ...(Object.keys(dials).length ? { dials } : {}), ...(W.colour ? { colour: W.colour } : {}) };
+  return { id, stock: W.stock ?? P.stock, beam: W.beam ?? P.beam, screen: W.screen ?? P.beat.screen, ...(W.name ? { name: W.name.trim() } : {}), ...(Object.keys(dials).length ? { dials } : {}), ...(W.colour ? { colour: W.colour } : {}) };
 }
 
 /** How much a designed power asks over its kind: its hits by its uses, as a share of the card's (1 the card as it is). */
@@ -157,7 +173,8 @@ export function powerMoves(F, power) {
   for (const [slot, m] of Object.entries(F.moves)) {
     if (m.kind !== 'special' || m.id !== libId(id)) continue;
     // (a round's pierce, and its knock where the card floors what it meets: a projectile's own stun is the fight's)
-    out[slot] = { ...m, power: 1, ...(m.projectile && (pierce || P.special.knock === 'down') ? { projectile: { ...m.projectile, ...(pierce ? { hits: pierce } : {}), ...(P.special.knock === 'down' ? { knock: 'down' } : {}) } } : {}) };
+    // (its super beat: the street held still as it starts, brawl-core.js)
+    out[slot] = { ...m, power: 1, ...(P.beat.freeze ? { freeze: P.beat.freeze } : {}), ...(m.projectile && (pierce || P.special.knock === 'down') ? { projectile: { ...m.projectile, ...(pierce ? { hits: pierce } : {}), ...(P.special.knock === 'down' ? { knock: 'down' } : {}) } } : {}) };
   }
   return out;
 }

@@ -3,6 +3,7 @@ import { POWERS, POWER_IDS, ATTACK_POWER, POWER_DIALS, powerOf, readPower, power
 import { beamColour, powerLook } from './brawl-power-look.js';
 import { brawlFighter, newReader, readButtons } from './brawl-moves.js';
 import { streetOf, stepStreet } from './brawl-crowd.js';
+import { newBrawl, stepBrawl } from './brawl-core.js';
 import { readBelt } from './brawl-belt.js';
 import { SPECIAL_SLOTS } from '../versus/versus-library.js';
 import { BEAM_NAMES } from '../playscape/elements/beams.js';
@@ -33,7 +34,7 @@ const events = (log, t) => log.flatMap((st) => st.s.events.filter((e) => e.t ===
 
 describe('a hero\'s power', () => {
   it('is a card read by its id or its words; its look a beam of the elements\' shelf, in that beam\'s colour', () => {
-    expect(readPower(ROUND)).toEqual({ id: ROUND, stock: POWERS[ROUND].stock, beam: POWERS[ROUND].beam });
+    expect(readPower(ROUND)).toEqual({ id: ROUND, stock: POWERS[ROUND].stock, beam: POWERS[ROUND].beam, screen: POWERS[ROUND].beat.screen });
     expect(readPower({ id: ROUND, stock: 1 }).stock).toBe(1);
     expect(() => powerOf('telekinesis')).toThrow(/a power is one of/);
     expect(() => readPower({ id: ROUND, stock: 0 })).toThrow(/stock/);
@@ -95,7 +96,9 @@ describe('a power designed', () => {
   const moveOf = (power, arch = 'all-rounder') => powerMoves(brawlFighter(powerRecipe(recipe(arch), power), { style: arch }), power)['special.neutral.M'];
   it('is a kind with a name, a look, its uses and its dials; read back as it was written', () => {
     const P = readPower({ kind: ROUND, name: 'Solar lance', beam: 'laser', stock: 2, strength: 120, pierce: 3 });
-    expect(P).toEqual({ id: ROUND, stock: 2, beam: 'laser', name: 'Solar lance', dials: { strength: 120, pierce: 3 } });
+    expect(P).toEqual({ id: ROUND, stock: 2, beam: 'laser', screen: POWERS[ROUND].beat.screen, name: 'Solar lance', dials: { strength: 120, pierce: 3 } });
+    expect(readPower({ kind: ROUND, screen: 'none' }).screen).toBe('none');
+    expect(() => readPower({ kind: ROUND, screen: 'sparkle' })).toThrow(/super beat/);
     expect(readPower(P)).toEqual(P);
     expect(() => readPower({ kind: ROUND, id: ROUND })).toThrow(/said once/);
     expect(() => readPower({ kind: ROUND, strength: POWER_DIALS.strength.max + 1 })).toThrow(/strength/);
@@ -119,5 +122,30 @@ describe('a power designed', () => {
     expect(powerAdvice(ROUND)).toEqual([]);
     expect(powerAdvice({ kind: ROUND, strength: 200, stock: 9 }, 'Nova Girl')[0]).toMatch(new RegExp(`Nova Girl's ${ROUND} hits .*× as much`));
     expect(powerAdvice({ kind: ROUND, strength: 50, stock: 1 })[0]).toMatch(/hardly worth/);
+  });
+});
+
+// ITS SUPER BEAT: the moment a power is called up, the street held still and told, so the screen can mark it round a
+// figure that stands where it was drawn.
+describe('a power\'s super beat', () => {
+  it('holds the whole street still its frames as it starts, for a hero and for a body with no stock alike', () => {
+    const log = presses(ROUND, { frames: 40, every: 999 });
+    const k = log.findIndex((st) => st.s.events.some((e) => e.t === 'power'));
+    expect(log[k].s.freeze).toBe(POWERS[ROUND].beat.freeze);
+    const before = log[k + 1].s.bodies.map((b) => [b.x, b.z, b.st]);
+    expect(log[k + 2].s.bodies.map((b) => [b.x, b.z, b.st])).toEqual(before);
+    // (a villain's: no stock, the beat and its telling all the same, no uses left to say)
+    const V = { ...brawlFighter(powerRecipe(recipe('grappler'), ROUNDABOUT), { style: 'grappler' }) };
+    const ctx = { fighters: [brawlFighter(recipe()), { ...V, moves: powerMoves(V, ROUNDABOUT) }] };
+    let s = newBrawl(ctx, { bodies: [{ fighter: 0, side: 'player', x: 0, z: 0 }, { fighter: 1, side: 'crowd', x: 1500, z: 0, face: -1 }] });
+    s = stepBrawl(s, [{}, { mv: 'special.neutral.M' }], ctx);
+    const told = s.events.find((e) => e.t === 'power');
+    expect(told).toMatchObject({ p: 1 });
+    expect(told.left).toBeUndefined();
+    expect(s.freeze).toBe(POWERS[ROUNDABOUT].beat.freeze);
+  });
+
+  it('each card\'s screen is one of the lens\'s strikes', () => {
+    for (const id of new Set(POWER_IDS.map((x) => POWERS[x].beat.screen))) expect(['lift', 'ring', 'shade', 'ink']).toContain(id);
   });
 });

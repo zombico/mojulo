@@ -31,6 +31,16 @@
   drawn in that beam. The cast who join the party and any stand-ins take the team's powers in seat order. A street
   can also name each seat's power itself, one of the eight or one you designed. The street's enemies are still your
   game's own.
+- **A power is a super moment.** When a hero calls up a power, the whole street holds still for an instant, as a
+  fighting game's super does: longest for the ball of force and the storm, a blink for the phase. While it holds,
+  the screen marks the hero. The air round them goes to its negative like a comic's impact frame (the ball of force,
+  the storm), lights up (the beam, the flame, the barrage), bends (the phase) or darkens (the frenzy, the grip). The
+  hero's own body is left alone; the effect is in the air round it. A villain calling up its power gets the same
+  moment against you, and so does a fighting-game super thrown on the street. You can choose a designed power's
+  moment (`screen`: lift, ring, shade, ink or none). Only a street whose heroes have powers carries this layer.
+  Every other street's page is unchanged. Measured with the freeze in: one hero still wins the default street alone
+  with each power, losing two or three of five falls, and four heroes lose one. Seen in headless Chrome: the street
+  held, and the air round the hero inked as the ball of force was called up.
 - **A power's round can floor what it hits.** A special's projectile now knocks down when its move says so, and a
   power's round passes through as many bodies as its card says. Before, a projectile knocked nobody down and
   stopped at the first body.
@@ -40,7 +50,8 @@
 - **Measured, by a simple player that presses its power.** The studio's simple player now has a `hero` version.
   It uses its power when two or more enemies are lined up with room before the nearest, or three are around it.
   On the default street with the heroes tuning, one hero won alone with each of the eight powers, losing two to four
-  of its five falls. The plain player, which never uses a power, lost four. Four heroes together won with no falls,
+  of its five falls (two or three with the super moment in). The plain player, which never uses a power, lost four.
+  Four heroes together won with no falls (one with the super moment in),
   and a player that does nothing cleared no stop. On the street a superhero sentence makes, the hero player won with
   one fall. The plain player won there with none, so on that street the power is not yet shown to make the game
   easier. Seen on the page in headless Chrome: the beam flew in its colour down the line and hit, the storm flashed

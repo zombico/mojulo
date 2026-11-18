@@ -5,7 +5,8 @@
  * and the two ends (the street cleared, the player down), each with a way to fight it again.
  *
  *   streetSpec(play?, { powers? })  the spec: the HUD and its screens (`won`, `lost`, and `moves`, the brawler's move
- *                       list); `powers` each seat's power stock as pips (a heroes street's: brawl-powers.js)
+ *                       list); `powers` each seat's power stock as pips and the LENS, mana-ui's screen layer, for a
+ *                       power's super beat round its caster (a heroes street's: brawl-powers.js `beat`)
  *   streetScreenOf(play?, { powers? }) → { spec, css, theme } for the street's page
  *   readStreet(street, belt, where?) → the settled `{ players, waves, things?, cast? }` of a world's `brawl.street` (throws
  *                       naming the fault before the page is made)
@@ -19,7 +20,7 @@
  */
 import { readScenes } from './brawl-scenes.js';
 import { IDIOMS } from '../../mana-ui/idioms.js';
-import { manaCss } from '../../mana-ui/css.js';
+import { manaCss, lensCss } from '../../mana-ui/css.js';
 import { themeCss } from '../../mana-ui/theme.js';
 import { cardTheme } from '../playscape/ui/theme-cards/loader.js';
 import { readWaves } from './brawl-crowd.js';
@@ -91,8 +92,16 @@ export function streetSpec(play = 'brawl', { powers = false } = {}) {
       lost: end('Down', 'the street is still theirs', false),
       moves: { use: 'command-list', props: { title: 'Moves', kinds: b('moves') } },
     },
+    // THE LENS (mana-ui's screen layer, beside the world's canvas): a hero's SUPER BEAT, the camera's glass round whoever
+    // calls up a power (brawl-powers.js `beat`), each row its own kind. The street is held still for the beat, so the
+    // figure stands where the page drew it: the lens's own law. Only where the street's heroes have powers
+    ...(powers && play !== 'gun' ? { lens: { use: 'lens', children: [{ use: 'strike', props: { rows: b('strikes'), kind: 'lift', seconds: STRIKE_SECONDS, most: 4 } }] } } : {}),
   };
 }
+/** how long a super beat's strike plays (s): the freeze and the caster's move, which it stands still through */
+export const STRIKE_SECONDS = 0.5;
+/** the lens's scope on a street's page: its host beside the canvas (brawl-yard.client.js), never raised */
+export const STREET_LENS = '.moj-brawl-lens';
 
 // the street's own touches over the sheet: a seat low on health beats (co-op cannot say whose with one screen edge), the
 // way on's arrow leans and pulses (under three times a second), the combo's figure large, the boss's bar held to the
@@ -117,7 +126,8 @@ const STREET_CSS = [
 ].join('\n');
 
 export function streetScreenOf(play = 'brawl', opts = {}) {
-  return { spec: streetSpec(play, opts), css: `${manaCss()}\n${themeCss(cardTheme('brawl-street'))}\n${STREET_CSS}`, theme: 'brawl-street', sides: cardTheme('brawl-street').sides };
+  const spec = streetSpec(play, opts);
+  return { spec, css: `${manaCss()}\n${themeCss(cardTheme('brawl-street'))}\n${STREET_CSS}${spec.lens ? `\n${lensCss(`${STREET_LENS} .mana-lens`)}` : ''}`, theme: 'brawl-street', sides: cardTheme('brawl-street').sides };
 }
 
 /** A world's `brawl.street`, settled: who plays (roster indices, one to four), the waves a held screen (read against

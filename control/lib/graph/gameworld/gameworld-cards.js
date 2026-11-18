@@ -101,7 +101,7 @@ import { SECTIONS, BANDS, TASKS, MISSION_LIMITS, MISSION_DEFAULTS, MISSION_MAPS,
 import { TEMPLATE_IDS } from '../arena-map/templates.js';
 import { DRESS_SETTINGS, DRESS_SETTING_IDS, DRESS_PIECES, DRESS_PIECE_IDS } from '../brawl/brawl-dress.js';
 import { PLAY_TYPES, PLAY_IDS } from '../brawl/brawl-play.js';
-import { POWERS, POWER_IDS, POWER_DIALS } from '../brawl/brawl-powers.js';
+import { POWERS, POWER_IDS, POWER_DIALS, POWER_SCREENS } from '../brawl/brawl-powers.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -1627,6 +1627,7 @@ function heroesCard() {
   return lines(
     'THE SUPERHERO BEAT-EM-UP: the side-scroll beat-em-up tuned for heroes. Every player a hero with ONE power on the special',
     '(S; a few uses a life, filled at each fall), an army that drops in and falls fast, five falls, a villain with a power, in stages.',
+    'A power called up is a SUPER BEAT: the street held still a moment, the air round the caster lit, bent, darkened or inked.',
     '',
     'ASK FIRST, before making it (the heroes and their powers are the person\'s to design; offer the defaults if they have none):',
     '  1. who the heroes are (1..4): a name and a sentence each (who they are, how they look), or ones already made',
@@ -1636,6 +1637,7 @@ function heroesCard() {
     'POWER KINDS (each a card): ' + POWER_IDS.map((id) => `${id} (${POWERS[id].stock})`).join(', ') + '.',
     ...POWER_IDS.map((id) => `  ${id}: ${POWERS[id].says}`),
     `A DESIGNED POWER: { kind, name?, beam? (its look: ${BEAM_NAMES.join(', ')}), stock? 1..9, ${D} } (* a round's kinds only).`,
+    `  screen?: its SUPER BEAT round the caster as the street holds still for it (${POWER_SCREENS.join(' | ')}; the kind's unsaid: ${POWER_IDS.map((id) => `${id} ${POWERS[id].beat.screen}`).join(', ')}).`,
     '  e.g. { kind: \'beam\', name: \'Solar lance\', beam: \'laser\', strength: 120, pierce: 3 }. Far from its kind\'s measure: a balance law advises.',
     '',
     'QUICK (one call, by streets): design_game({ quick: { goal: \'brawl\', heroes: true | { team?, villain? } } })',

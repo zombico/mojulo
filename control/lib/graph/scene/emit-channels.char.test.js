@@ -934,3 +934,6 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // written): `brawl` only, the shelf's lines alone.
 // Re-pinned 2026-11-18 (1117-reactive-z-layer merged into 1117-hero-beat-em-up): `brawl` only. Its page carries both
 // sides' runtime at once: the lens's still-figure runtime (that branch's) and the powers shelf (this one's).
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: a power's super beat): `brawl` only. Its page inlines the core (a power
+// holds the street still as it starts, and is told for a body with no stock too), the shelf (each card's beat) and the
+// client (the lens's host and its strikes, laid only where the street's spec carries a lens). The fixture has no power.

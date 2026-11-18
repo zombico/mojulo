@@ -102,6 +102,11 @@ describe('the heroes tuning', () => {
     // (the street's screen shows each seat's stock only where its heroes have powers)
     expect(JSON.stringify(Y.yard.spec)).toContain('powerOn');
     expect(JSON.stringify(yard({}, B).yard.spec)).not.toContain('powerOn');
+    // (and its lens, the super beat's screen layer, with its sheet; a street with no powers carries neither)
+    expect(Y.yard.spec.lens).toMatchObject({ use: 'lens', children: [{ use: 'strike' }] });
+    expect(Y.yard.css).toContain('.moj-brawl-lens .mana-lens');
+    expect(yard({}, B).yard.spec.lens).toBeUndefined();
+    expect(yard({}, B).yard.css).not.toContain('mana-lens');
   });
 
   it('the game\'s hero throws its own actions page\'s attack, drawn in that beam', () => {

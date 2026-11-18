@@ -610,6 +610,29 @@ function placeGun(B, p, N) {
 }
 const ROUND_MINE = new THREE.MeshBasicMaterial({ color: 0xffe28a }), ROUND_FOE = new THREE.MeshBasicMaterial({ color: 0xff5a2a });
 const ROUND_SHADOW = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false });
+// A SUPER BEAT on the lens (a powered street's): whoever calls up a power, or throws a fight's super, struck round for
+// STRIKE_FOR steps in its power's screen (a seat's own, else its move's card's: a villain's), a super's the ink; drawn
+// round the body as it stands (the street is held still for the beat, and the caster stands through its move)
+const STRIKE_FOR = 30, STRIKES = [];
+let strikeN = 0;
+function superBeat(e) {
+  const b = room.s.bodies[e.p], F = b && room.ctx.fighters[b.fi], mv = b && b.mv && F.moves[b.mv];
+  const card = mv && typeof mv.id === 'string' && mv.id.startsWith('power.') ? POWERS[mv.id.slice(6)] : null;
+  const kind = e.t === 'super' ? 'ink' : (F && F.power && F.power.screen) || (card && card.beat.screen) || 'lift';
+  if (kind === 'none') return;
+  STRIKES.push({ p: e.p, n: ++strikeN, kind, at: t, power: e.t === 'super' || kind === 'ink' ? 0.9 : 0.6 });
+}
+function strikeRows() {
+  while (STRIKES.length && t - STRIKES[0].at > STRIKE_FOR) STRIKES.shift();
+  const rows = [];
+  for (const k of STRIKES) {
+    const b = room.s.bodies[k.p];
+    if (!b || b.gone) continue;
+    const F = room.ctx.fighters[b.fi], h = (F.body && F.body.height) || 1800, m = project(b.x, b.z, b.y + h * 0.5), top = project(b.x, b.z, b.y + h);
+    rows.push({ id: k.p, n: k.n, x: Math.round(m[0] * 1000) / 1000, y: Math.round(m[1] * 1000) / 1000, r: Math.round(Math.max(0.02, Math.abs(top[1] - m[1]) * 1.1) * 1000) / 1000, kind: k.kind, power: k.power });
+  }
+  return rows;
+}
 // (a SPECIAL's round, a projectile of the fight's (a fireball, a hero's power: brawl-powers.js): a glowing body its
 // box's size, in its thrower's power's colour, else the fight's own)
 const SPECIAL_LOOK = '#ffe9b0', POWER_LOOKS = new Map();
@@ -838,7 +861,11 @@ const UI = (() => {
     ...(RANGE ? [{ kind: 'cycler', label: 'Gun', var: 'brawl.practice.set.gun', options: RANGE.names }] : []),
     ...((RANGE && RANGE.waves) || BY.waves ? [{ kind: 'toggle', label: 'Waves', var: 'brawl.practice.set.waves' }] : []),
     ...BY.yard.settings.map((f) => (f.label === 'Type' ? { ...f, options: [...f.options, ...BY.roster.map((r) => r.name)] } : f))];
-  const state = { brawl: { street: { p1: {}, p2: {}, p3: {}, p4: {}, gun: { on: false, name: '', ammo: '', grenades: 0 }, accuracy: '—', hp: 1, hpMax: 1, name: '', cleared: 0, of: 1, left: 0, boss: { on: false, name: '', hp: 0, hpMax: 1 }, moments: [], time: '0:00', rank: '', moves: [] }, practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' } } } };
+  const state = { brawl: { street: { strikes: [], p1: {}, p2: {}, p3: {}, p4: {}, gun: { on: false, name: '', ammo: '', grenades: 0 }, accuracy: '—', hp: 1, hpMax: 1, name: '', cleared: 0, of: 1, left: 0, boss: { on: false, name: '', hp: 0, hpMax: 1 }, moments: [], time: '0:00', rank: '', moves: [] }, practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' } } } };
+  // (THE LENS, a powered street's (brawl-street.js STREET_LENS): its host over the world's canvas and under the HUD,
+  // never raised (a z-index or a contain would make it its own, and its regions would filter nothing of the world))
+  const lensHost = BY.yard.spec.lens ? document.createElement('div') : null;
+  if (lensHost) { lensHost.className = 'moj-brawl-lens'; (document.getElementById('wrap') || document.body).appendChild(lensHost); }
   // (inside the scene's frame, so the HUD's corners are the street's, never the page's margin)
   const el = document.createElement('div');
   (document.getElementById('wrap') || document.body).appendChild(el);
@@ -851,6 +878,7 @@ const UI = (() => {
   rt.glyphs({ keys: { up: 'W', down: 'S', left: 'A', right: 'D', tabPrev: 'A', tabNext: 'D', back: 'Esc', accept: 'J' }, pad: { xbox: { up: '↑', down: '↓', left: '←', right: '→', tabPrev: '←', tabNext: '→', back: 'B', accept: 'A' } } });
   rt.input('keys');
   const view = manaUi.mount(el, rt, { auto: true });
+  if (lensHost) manaUi.mount(lensHost, rt, { part: 'lens', auto: true });
   return { state, rt, view, press: (a) => { rt.press(a); view.paint(); } };
 })();
 // the settings applied as the screen closes: the fighter, the dummies, their health
@@ -923,8 +951,10 @@ function tick() {
   for (const e of room.s.events) {
     if (e.t === 'hit') flash(e, (e.w ?? 1) >= 2, e.kind === 'round' && !e.flinch);
     if (e.t === 'clash') flash(e, true);
-    // (a hero's power: a burst in its colour where it is called up)
+    // (a hero's power: a burst in its colour where it is called up; and its SUPER BEAT on the lens, round whoever calls
+    // it up, the street held still for it: the power's own screen (brawl-powers.js `beat`), a fight super's its negative)
     if (e.t === 'power') flash({ ...e, y: 1000 }, true, false, powerColour(e.p));
+    if (BY.yard.spec.lens && (e.t === 'power' || e.t === 'super')) superBeat(e);
     if (e.t === 'break') wreckAt(e);
     if (e.t === 'burst') flash({ ...e, y: 600 }, true);
     // (a round on cover sparks on its face; a body coming up out of the ground throws its dirt up)
@@ -964,6 +994,7 @@ function draw() {
 // a held screen is beaten, the boss's name as it comes in), and its end opened once
 function streetScreen() {
   const R = streetRead(room, hp0), S = UI.state.brawl.street, secs = Math.floor(R.f / 60);
+  if (BY.yard.spec.lens) S.strikes = strikeRows();
   const say = (text, weight) => { S.moments = S.moments.slice(-4).concat([{ id: 'm' + (said++), text, ...(weight ? { weight } : {}) }]); };
   // (a held screen beaten: the way on opens, an arrow at the right edge for a few seconds, not a word over the fight)
   if (R.cleared > seenClear) { seenClear = R.cleared; if (!R.won) goUntil = t + 180; }

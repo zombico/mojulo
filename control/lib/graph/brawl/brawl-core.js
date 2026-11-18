@@ -56,7 +56,8 @@
  *     dodge: `roll` frames along or across the street, untouchable its first `rollInv`.
  *   • A POWER (brawl-powers.js: a hero's, a move marked `power`): a body given a stock (`power: n`) has `pw` uses of it
  *     left (`pwm` a life): a power is not started with none, and spends one as it starts (event `power`); a fall fills
- *     it again (brawl-crowd.js). A body with no stock throws its power freely (a villain's). A round of a power's passes
+ *     it again (brawl-crowd.js). A body with no stock throws its power freely (a villain's). Its SUPER BEAT: a power move
+ *     with a `freeze` holds the whole street still that many frames as it starts, as a fight super does. A round of a power's passes
  *     through its `hits` bodies on its line, and one whose projectile says `knock: 'down'` floors each it meets.
  *   • COOLDOWN: a move with a `cool` (the brawler's strong blows) leaves its body unable to start another with one for
  *     `cool` frames from its start (`cd`, frames left; absent when none); asked for meanwhile, it is not started.
@@ -435,7 +436,12 @@ function start(s, p, F, slot) {
   }
   if (m.kind === 'special') s.events.push({ t: 'special', p: p.id, slot });
   // (a power spends one of its body's stock as it starts; a body with no stock spends none)
-  if (m.power && p.pw !== undefined) { p.pw--; s.events.push({ t: 'power', p: p.id, left: p.pw, x: p.x, z: p.z }); }
+  // (its super beat: the street held still its `freeze` frames as it is called up, told as `power` for whoever throws it)
+  if (m.power) {
+    if (p.pw !== undefined) p.pw--;
+    if (m.freeze) s.freeze = Math.max(s.freeze, m.freeze);
+    s.events.push({ t: 'power', p: p.id, ...(p.pw !== undefined ? { left: p.pw } : {}), x: p.x, z: p.z });
+  }
 }
 
 // ── motion ───────────────────────────────────────────────────────────────────────────────────────────────────
