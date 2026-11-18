@@ -255,4 +255,6 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   `only: 'bodies'`), so the forms that adorn it read as its segments; and on a side map a body turns its head toward the
   screen, its face seen, most when it stands. The toy hero robot's helm ends its cheek guards at the jaw line instead of
   making a chin of them. Where a zone is lit by lamps, each body is lit from its nearest lamp's side and height (its face
-  still toward the camera's side), and a shot or a blast cuts a hard rim in its colour down the edges that face it.
+  still toward the camera's side), and a shot or a blast cuts a hard rim in its colour down the edges that face it While
+  the hero charges its buster it is lit up by the charge: its outline glows in the level reached's colour, more as the
+  charge fills, beating faster once a level is reached, and the charge's light falls from its muzzle.

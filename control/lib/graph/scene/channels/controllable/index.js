@@ -82,6 +82,9 @@ function poolFigureBuffers(figures) {
 export const CEL_BODY = Object.freeze({ get key() { return SIDE.key; }, step: 0.3, lamp: 0.45 });
 /** A side map's bodies turn their heads toward the screen (radians, the most): standing, and on the move. */
 export const FACE_SCREEN = Object.freeze({ rest: 0.5, moving: 0.22 });
+/** A cel body charging its buster lit up by its charge: its whole body `body`, its silhouette's band (past `edge` of
+ * 1 − |N·V|) `rim` more, by its fill, flickering at `rate` (Hz: before a level, after one) between full and `low`. */
+export const CEL_CHARGE = Object.freeze({ body: 0.12, rim: 0.55, edge: 0.5, rate: Object.freeze([9, 16]), low: 0.5 });
 const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8', 'colS'];
 // A PART WITH ITS PAINT, ITS NORMALS AND ITS FACE (a realistic hero's: a corner a triangle, every number a float32), as
 // the page reads it (`full: 1`): the corners that are the same corner are one (its place, its colour, its paint's place,
@@ -1403,19 +1406,31 @@ function __toonKeyOf(e, g) {
     if (best) { const ly = best[1] - p[1], lz = best[2] - z, ll = Math.hypot(ly, lz) || 1, k = ${CEL_BODY.lamp}, side = Math.hypot(__toonKey.y, __toonKey.z); __toonV.set(__toonKey.x, (1 - k) * __toonKey.y + k * side * ly / ll, (1 - k) * __toonKey.z + k * side * lz / ll).normalize(); }
   }
   K.lerp(__toonV, 0.15).normalize();
+  // (CHARGING: the buster's charge lights its body up, in the level reached's colour, as much as it is full, flickering on
+  // the world's clock, faster once a level is reached: the whole body a little, its silhouette's band most)
+  const Cg = g.userData.toonCharge, B = e.rule && e.rule.buster;
+  if (Cg) {
+    if (B && e.charging && e.busterOn && (e.chargeFrac || 0) > 0) {
+      const lv = e.chargeLevel ? B.levels[e.chargeLevel - 1] : B.tap, c = __toonC.set(lv && lv.color != null ? lv.color : 0xfff2a8);
+      const on = Math.floor(__world.time * (e.chargeLevel ? ${CEL_CHARGE.rate[1]} : ${CEL_CHARGE.rate[0]})) % 2 ? 1 : ${CEL_CHARGE.low};
+      Cg.set(c.r, c.g, c.b, Math.min(1, e.chargeFrac) * on);
+    } else Cg.w = 0;
+  }
 }
+const __toonC = new THREE.Color();
 function __toonMat(base, g) {
   const m = base.clone();
-  if (g && !g.userData.toonKey) g.userData.toonKey = __toonKey.clone();
-  const key = g ? g.userData.toonKey : __toonKey;
+  if (g && !g.userData.toonKey) { g.userData.toonKey = __toonKey.clone(); g.userData.toonCharge = new THREE.Vector4(0, 0, 0, 0); }
+  const key = g ? g.userData.toonKey : __toonKey, charge = g ? g.userData.toonCharge : new THREE.Vector4(0, 0, 0, 0);
   m.userData.cel = true;
   const prev = m.onBeforeCompile, prevKey = m.customProgramCacheKey;
   m.onBeforeCompile = function (sh, r) {
     if (prev) prev.call(this, sh, r);
-    sh.uniforms.uToonKey = { value: key }; sh.uniforms.uToonStep = { value: __TOON_STEP };
-    sh.vertexShader = 'attribute vec3 colorShade;\\nvarying vec3 vToonShade;\\nvarying vec3 vToonN;\\n' + sh.vertexShader.replace('#include <fog_vertex>', '#include <fog_vertex>\\n  vToonShade = colorShade;\\n  vToonN = normalize(mat3(modelMatrix) * normal);');
-    sh.fragmentShader = 'uniform vec3 uToonKey;\\nuniform float uToonStep;\\nvarying vec3 vToonShade;\\nvarying vec3 vToonN;\\n' + sh.fragmentShader.replace('#include <color_fragment>',
-      '#if defined( USE_COLOR )\\n  float toonLit = smoothstep(uToonStep - 0.03, uToonStep + 0.03, dot(normalize(vToonN) * (gl_FrontFacing ? 1.0 : -1.0), uToonKey));\\n  diffuseColor.rgb *= mix(vToonShade, vColor.rgb, toonLit);\\n#endif');
+    sh.uniforms.uToonKey = { value: key }; sh.uniforms.uToonStep = { value: __TOON_STEP }; sh.uniforms.uToonCharge = { value: charge };
+    sh.vertexShader = 'attribute vec3 colorShade;\\nvarying vec3 vToonShade;\\nvarying vec3 vToonN;\\nvarying vec3 vToonW;\\n' + sh.vertexShader.replace('#include <fog_vertex>', '#include <fog_vertex>\\n  vToonShade = colorShade;\\n  vToonN = normalize(mat3(modelMatrix) * normal);\\n  vToonW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = 'uniform vec3 uToonKey;\\nuniform float uToonStep;\\nuniform vec4 uToonCharge;\\nvarying vec3 vToonShade;\\nvarying vec3 vToonN;\\nvarying vec3 vToonW;\\n' + sh.fragmentShader.replace('#include <color_fragment>',
+      '#if defined( USE_COLOR )\\n  vec3 toonN = normalize(vToonN) * (gl_FrontFacing ? 1.0 : -1.0);\\n  float toonLit = smoothstep(uToonStep - 0.03, uToonStep + 0.03, dot(toonN, uToonKey));\\n  diffuseColor.rgb *= mix(vToonShade, vColor.rgb, toonLit);\\n'
+      + '  if (uToonCharge.a > 0.0) { float toonEdge = smoothstep(${CEL_CHARGE.edge} - 0.03, ${CEL_CHARGE.edge} + 0.03, 1.0 - abs(dot(toonN, normalize(cameraPosition - vToonW)))); diffuseColor.rgb += uToonCharge.rgb * uToonCharge.a * (${CEL_CHARGE.body} + ${CEL_CHARGE.rim} * toonEdge); }\\n#endif');
   };
   m.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|cel-body'; };
   return m;

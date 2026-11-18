@@ -3,9 +3,10 @@
 // carry none of it keeps every byte (no toon code). The concepts: emitted only for a cel figure; a cel figure is never
 // merged; the step's key is the land's. On a side map's page a body turns its head toward the screen (more standing
 // than moving), and on no other page; each cel body keyed by its zone's nearest lamp (the camera's zones carry them), and
-// the shot light takes a cel body as a hard rim (its edge turned toward the shot); a dial inking the bodies alone (`only: 'bodies'`) leaves the world's faces unlined.
+// the shot light takes a cel body as a hard rim (its edge turned toward the shot); charging, a cel body is lit up by its
+// charge (its silhouette's band most, flickering faster past a level); a dial inking the bodies alone (`only: 'bodies'`) leaves the world's faces unlined.
 import { describe, it, expect } from 'vitest';
-import { controllableChannelScript, CEL_BODY, FACE_SCREEN } from './index.js';
+import { controllableChannelScript, CEL_BODY, FACE_SCREEN, CEL_CHARGE } from './index.js';
 import { emitThreeWorld } from '../../scene-three.js';
 import { shotLightScript, SHOT_LIGHT_CEL } from './shot-light-view.js';
 import { mergeableFigure } from './merged-figure.js';
@@ -50,5 +51,12 @@ describe('the cel body on the page', () => {
     const shot = shotLightScript();
     expect(shot).toContain('slCel');
     expect(SHOT_LIGHT_CEL.cap).toBeGreaterThan(0.09);
+  });
+  it('charging, a cel body is lit up by its charge: its silhouette most, flickering faster once a level is reached', () => {
+    const page = controllableChannelScript([hero], null, { body: fig(true) });
+    expect(page).toContain('uToonCharge');
+    expect(CEL_CHARGE.rim).toBeGreaterThan(CEL_CHARGE.body);
+    expect(CEL_CHARGE.rate[1]).toBeGreaterThan(CEL_CHARGE.rate[0]);
+    expect(controllableChannelScript([hero], null, { body: fig(false) })).not.toContain('uToonCharge');
   });
 });

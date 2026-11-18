@@ -56,6 +56,8 @@ describe('the shot light', () => {
     expect(low.color[0]).toBe(1); expect(low.color[2]).toBeLessThan(0xa8 / 255);
     expect(full.color[0]).toBe(1); expect(full.color[2]).toBeLessThan(0x3a / 255); expect(full.color[1]).toBeGreaterThan(full.color[2]);
     expect(full.pos[2]).toBeCloseTo(1.6 * 0.7, 6);
+    // (at the muzzle, ahead of the chest along the facing: inside the body it would light none of it)
+    expect(full.pos[0]).toBeGreaterThan(0.3);
   });
   it('past K, the strongest near the focus are kept', () => {
     const ps = Array.from({ length: 10 }, (_, i) => pellet([0, i * 10, 1], 0.08, 0xffffff));
