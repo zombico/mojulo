@@ -71,6 +71,12 @@ describe('emitThreeWorld controllable channel', () => {
     expect(none).not.toContain('__STAIRS');
     expect(none).not.toContain('THE CLEAR LINE');
   });
+  it('every ray through the world leaves the bodies out, and the ground grid takes what is built after the first probe', () => {
+    const html = emitThreeWorld({ faces: [floor], entities: [{ id: 'd', rule: { type: 'walk' }, body: { type: 'mesh', shape: 'box' } }], camera: { rule: 'follow', target: 'd' } });
+    expect(html).not.toContain('intersectObjects(scene.children, true)');
+    expect(html).toContain('__groundRay.intersectObjects(__rayRoots(own), true)');
+    expect(html).toContain('if (scene.children.length !== __gridN || ++__gridK % 120 === 0)');
+  });
   it('a follow camera that asks for a clear line looks for one at every wall, with no stairs at all', () => {
     const ents = [{ id: 'd', rule: { type: 'walk' }, body: { type: 'mesh', shape: 'box' } }];
     const html = emitThreeWorld({ faces: [floor], entities: ents, camera: { rule: 'follow', target: 'd', clear: true } });

@@ -86,3 +86,12 @@
   on: each layer of the scene on or off (the ground, the grass, stones and plants, trees and far sheets, structures,
   characters, the rest, each with its triangles), the ground as plain paint, the live shadows' passes, the haze, the HUD,
   the pixel density, and a frame readout that counts each frame once; a line to copy back. The level is not changed.
+- **What made level 0 slow was its rays, not its pixels** (channels/controllable/index.js): with every layer of the page
+  off (the layers panel, played on the person's own machine) it still ran at 8 frames a second. Profiled, seven tenths of
+  its time was rays tested against triangles: the ground probe under each walker every frame, the camera's pull-in.
+  The ground grid (ground-grid.js, a straight-down ray testing only the cells it crosses) indexed the big static meshes
+  once, at the first probe, before the gen-7 land was built, so the land the walkers stand on (43k and 32k triangles)
+  took three's own raycast, every triangle, every probe; it now indexes again whenever the scene's top changes and every
+  120 probes (ray time over eight seconds 242 ms to 27). And every ray through the world leaves the bodies out
+  (`__rayRoots`), whose hits each threw away after testing their every triangle, a skinned body's posed by its bones
+  first. What each ray finds is as it was.

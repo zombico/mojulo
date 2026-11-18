@@ -811,6 +811,12 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // hold, and the opener's count. A moveset that says no `swap` runs as before: the cycle mid-swing is dropped. Every
 // fixture that embeds the controllable runtime re-pinned with it.
 //
+// Re-pinned 2026-11-19 (1117-cinematic-action-game: the world's rays made cheap): the seventeen fixtures whose page
+// embeds the controllable runtime. Every ray through the world (the ground probe, the camera's pull-in and its clear line,
+// a gun's sightline) now tests the scene's children but the bodies (`__rayRoots`), whose hits each ray threw away after
+// testing their every triangle (a skinned body's each corner posed by its bones first); and the ground grid indexes again
+// whenever the scene's top changes and every 120 probes, so a mesh built after the first probe (a gen-7 land's) takes the
+// grid. What each ray finds is as it was; emission changes by those lines alone.
 // Re-pinned 2026-11-18 a third time (1117-cinematic-action-game: the minimap translucent): `brawl`, `holo` and `mission`,
 // the three fixtures whose page inlines the game UI's styles. A scope's face is now a third of the panel's colour at its
 // middle (it was seven tenths) and the map under it at 0.55 (0.8): the world is seen through it. Emission changes by

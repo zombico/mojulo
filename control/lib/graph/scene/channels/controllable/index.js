@@ -2725,7 +2725,7 @@ let __stEl = 0, __stYw = 0, __clEl = 0, __clYw = 0, __clT = 0;
 // and what the eye's line skips: camSkips)
 function __clearHit(look, d, full, own, c) {
   __camRay.set(new THREE.Vector3(look[0], look[1], look[2]), new THREE.Vector3(d[0], d[1], d[2])); __camRay.far = full; __camRay.camera = camera;
-  for (const hit of __camRay.intersectObjects(scene.children, true)) {
+  for (const hit of __camRay.intersectObjects(__rayRoots(own), true)) {
     const ho = hit.object; if (!ho.isMesh || (ho.material && ho.material.depthTest === false)) continue;
 ${clearSkips}    let o = ho, isOwn = false; while (o) { if (own.includes(o)) { isOwn = true; break; } o = o.parent; }
     if (!isOwn) return hit.distance;
@@ -2737,7 +2737,7 @@ ${clearSkips}    let o = ho, isOwn = false; while (o) { if (own.includes(o)) { i
 function __clearSees(e, H, own) {
   const dx = H[0] - e[0], dy = H[1] - e[1], dz = H[2] - e[2], L = Math.hypot(dx, dy, dz); if (L < 1e-3) return true;
   __camRay.set(new THREE.Vector3(e[0], e[1], e[2]), new THREE.Vector3(dx / L, dy / L, dz / L)); __camRay.far = L - 0.25; __camRay.camera = camera;
-  for (const hit of __camRay.intersectObjects(scene.children, true)) {
+  for (const hit of __camRay.intersectObjects(__rayRoots(own), true)) {
     const ho = hit.object; if (!ho.isMesh || (ho.material && ho.material.depthTest === false)) continue;
     let v = ho, drawn = true, isOwn = false; while (v) { if (v.visible === false) drawn = false; if (own.includes(v)) isOwn = true; v = v.parent; }
     if (!drawn || isOwn || /(^|:)(crown|grass|culm|spray|cloud|hat|bush|flowers|carpet|leaf|leaves|canopy|frond|fern)/.test(String((ho.userData && ho.userData.g) || ''))) continue;
@@ -2761,7 +2761,7 @@ function __driveCamera(dt) {
       __camRay.far = full; __camRay.camera = camera;   // sprite-safe traverse (see __ground's E8 note)
       const own = __bodySet();
       let hitD = full;
-      for (const hit of __camRay.intersectObjects(scene.children, true)) {
+      for (const hit of __camRay.intersectObjects(__rayRoots(own), true)) {
         const ho = hit.object;
         if (!ho.isMesh || (ho.material && ho.material.depthTest === false)) continue;   // meshes only; skip overlay quads (fog/effects)
 ${camSkips}        let o = ho, isOwn = false; while (o) { if (own.includes(o)) { isOwn = true; break; } o = o.parent; }
@@ -2831,10 +2831,16 @@ const __surface = (p) => __surfaceAt(__surfaceT, p);
 ` : ''}${groundGridScript()}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
 const __groundRay = new THREE.Raycaster();
 const __bodySet = () => Object.values(__bodies);
-let __gridOn = false;
+// (what a ray through the world tests: the scene's children but the bodies, whose hits every such ray throws away. Tested
+// and then skipped, a body's triangles cost the whole frame: a ray down from each walker, every frame, through its own
+// skinned mesh, each corner posed by its bones before it is tested. A body nested deeper is still skipped after the hit)
+const __rayRoots = (own) => { const R = []; for (const c of scene.children) if (!own.includes(c)) R.push(c); return R; };
+let __gridN = -1, __gridK = 0;
 function __ground(pos) {
-  // (the big static meshes take straight-down rays by grid, indexed at the first probe: every mesh is built by then)
-  if (!__gridOn) { __gridOn = true; __gridMeshes(); }
+  // (the big static meshes take straight-down rays by grid: indexed at the first probe and again whenever the scene's
+  // top changes, and every so many probes for what is built inside a group, so a land built after the first probe (the
+  // gen-7 form's, laid when its maps arrive) is on the grid too; untaken, its every triangle was tested each probe)
+  if (scene.children.length !== __gridN || ++__gridK % 120 === 0) { __gridN = scene.children.length; __gridMeshes(); }
   // Probe straight down FROM the passed origin — the CALLER chooses the height. The walk rule passes
   // its eye position (finds the floor below it); the platform rule passes feet+step (so it lands on the
   // surface under the FEET and ignores platforms whose tops sit above them — you jump onto a ledge, you
@@ -2847,7 +2853,7 @@ function __ground(pos) {
   // the traverse survives whatever channels add, and skip every non-mesh hit.
   __groundRay.camera = camera;
   const own = __bodySet();
-  const hits = __groundRay.intersectObjects(scene.children, true);
+  const hits = __groundRay.intersectObjects(__rayRoots(own), true);
   for (const hit of hits) { if (!hit.object.isMesh) continue; let o = hit.object; while (o) { if (own.includes(o)) break; o = o.parent; } if (!o) return hit.point.z; }
   return null;
 }
@@ -3623,7 +3629,7 @@ function __aimLocked(ent, W, tr) {
     __wep.ray.far = Math.max(0, d - latR);
     __wep.ray.camera = camera;   // sprite-safe traverse (see __ground's E8 note)
     let blocked = false;
-    for (const h of __wep.ray.intersectObjects(scene.children, true)) {
+    for (const h of __wep.ray.intersectObjects(__rayRoots(own), true)) {
       if (!h.object.isMesh) continue;
       let o = h.object; while (o) { if (own.includes(o)) break; o = o.parent; }
       if (!o) { blocked = true; break; }
