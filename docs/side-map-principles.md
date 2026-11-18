@@ -125,20 +125,26 @@ edges and breaks, the threads), which also stands an outdoor zone's backdrop at 
 The cake is `control/lib/graph/gameworld/side-map/cake.js` (the materials), `texture.js` (their tiles) and `doodads.js`
 (the icing's things); the light that bakes it is `light.js`.
 
+28. **What shines in a fight lights the map.** The bake is the map's light; a round in flight, a burst going off, a
+    muzzle's flash and a charge filling at the hero's chest are laid over it while they last, in their own colours, so
+    a shot lights the wall it passes and the top it skims. They are read off the world each frame
+    (`control/lib/graph/worlds/controllable/shot-light.js`) and laid by the side map's page
+    (`control/lib/graph/scene/channels/controllable/shot-light-view.js`).
+
 ## The look
 
-28. **Five layers.** The foreground, below the hero's feet and darkest; the lane; the near place; the far landmark; the
+29. **Five layers.** The foreground, below the hero's feet and darkest; the lane; the near place; the far landmark; the
     sky. Each layer back is quieter and nearer the sky's colour, and the lane is the sharpest thing in the frame.
-29. **The lane is a thing.** It has a front face, and the face is designed: a bridge's arches, a gantry's lamps, a
+30. **The lane is a thing.** It has a front face, and the face is designed: a bridge's arches, a gantry's lamps, a
     ledge's strata. A gap is the place's own break: a bridge that fell, a shaft cut through.
-30. **Play and place are opposite hues.** What the hero stands on, fights and climbs is on one side of the colour wheel
+31. **Play and place are opposite hues.** What the hero stands on, fights and climbs is on one side of the colour wheel
     and the place on the other. A stage picks which way round.
-31. **Something moves beside the way**, and light comes from sources that are seen: a lamp, a furnace, a window.
+32. **Something moves beside the way**, and light comes from sources that are seen: a lamp, a furnace, a window.
     The light is `control/lib/graph/gameworld/side-map/light.js`: an indoor zone lit by its lamps (each with its falloff
     and bounce), an outdoor zone by the cube's sky and sun, a ledge's shadow, a climb's top lit, baked per corner.
-32. **A place a zone, and the turn tells the story.** Each zone is one place in one material (the gate, the tunnel,
+33. **A place a zone, and the turn tells the story.** Each zone is one place in one material (the gate, the tunnel,
     the factory floor, the shaft, the gallery), and their order is the stage's story.
-33. **The boss owns its room.** Its colour is used nowhere before it; its room is one screen, its walls the frame's
+34. **The boss owns its room.** Its colour is used nowhere before it; its room is one screen, its walls the frame's
     edges, and its back wall carries its mark.
 
     Its path is designed from the top down by `control/lib/graph/gameworld/side-map/path.js`, on the bay grid the back

@@ -1,0 +1,55 @@
+// The shot light on a side map's page (shot-light-view.js; an e2e suite: a real browser, skipped when none is installed).
+// The concepts: only a side map's page carries it; on one, the map's materials carry the light, a round in flight is a
+// light the page lays, and the frame with the round is lighter than the same frame without (its pool on the wall).
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { emitThreeWorld } from '../../scene-three.js';
+import { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } from '../../chromium.js';
+
+const hero = { id: 'p1', pilotable: true, transform: { pos: [0, 0, 0], heading: Math.PI / 2 }, rule: { type: 'platform', eye: 1, speed: 6, collideHeight: 1.6 }, ambient: { type: 'static' }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.6] } };
+// (the lane along +y, the camera on +x: a floor, and a wall facing the camera behind the lane)
+const floor = { corners: [[-2, -20, 0], [2, -20, 0], [2, 20, 0], [-2, 20, 0]], normal: [0, 0, 1], fill: '#3a4048', group: 'sidemap:rock' };
+const wall = { corners: [[-1.5, -20, 0], [-1.5, 20, 0], [-1.5, 20, 8], [-1.5, -20, 8]], normal: [1, 0, 0], fill: '#30363e', group: 'sidemap:back' };
+const zone = { rect: [-20, 20, -2, 10], lock: 'z', checkpoint: [0, 0] };
+const camera = (rule) => (rule === 'side-map' ? { rule, target: 'p1', screen: [24, 13.5], dist: 18, tilt: 0.05, lookH: 1.2, zones: [zone] } : { rule, target: 'p1' });
+const page = (rule) => emitThreeWorld({ faces: [floor, wall], entities: [hero], camera: camera(rule), inline: true });
+
+let browser = null;
+beforeAll(async () => {
+  let exe;
+  try { exe = await resolveChromium({ allowFetch: false }); } catch { return; }
+  browser = await launchChromium({ executablePath: exe, headless: true, args: CHROMIUM_WEBGL_ARGS });
+}, 60000);
+afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
+
+describe('the shot light on a side map\'s page', () => {
+  it('only a side map\'s page carries it', () => {
+    expect(page('side')).not.toContain('__shotLights');
+    expect(page('side-map')).toContain('__shotLights');
+  });
+
+  it('a round beside the wall lights it', async () => {
+    if (!browser) return;
+    const p = await browser.newPage();
+    const errors = [];
+    p.on('pageerror', (e) => errors.push(String(e)));
+    await p.setContent(page('side-map'), { waitUntil: 'domcontentloaded' });
+    await p.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.shotLight, { timeout: 20000 });
+    const frames = (n) => p.evaluate((n) => new Promise((r) => { const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n);
+    await frames(10);
+    expect(errors).toEqual([]);
+    expect((await p.evaluate(() => window.__mojCtrl.shotLight())).patched).toBeGreaterThan(0);
+    // (the frame's lightness, the round held a little in front of the wall: its own drawing a few pixels of it, its light
+    // a pool on the wall around it)
+    const band = () => p.screenshot();
+    const quiet = await band();
+    await p.evaluate(() => { const W = window.__mojCtrl.world; W.projectiles = [{ id: 'x', owner: 'f', pos: [-1.2, -3, 2.2], vel: [0, 0, 0], pellet: true, fxScale: 0.3, fxColor: 0x5dff7a, fuse: 999, age: 0, born: W.time, gravity: 0, projRadius: 0.01, noGround: true }]; W.bursts = W.bursts || []; W.projSeq = 1; W.burstSeq = 0; });
+    await frames(3);
+    const L = await p.evaluate(() => window.__mojCtrl.shotLight().lights);
+    expect(L.length).toBe(1);
+    const lit = await band();
+    expect(Buffer.compare(quiet, lit)).not.toBe(0);
+    const sum = async (buf) => p.evaluate(async (b64) => { const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode(); const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const x = c.getContext('2d'); x.drawImage(img, 0, 0); const d = x.getImageData(0, 0, c.width, c.height).data; let s = 0; for (let i = 0; i < d.length; i += 4) s += d[i] + d[i + 1] + d[i + 2]; return s / (d.length / 4); }, buf.toString('base64'));
+    expect(await sum(lit)).toBeGreaterThan((await sum(quiet)) + 3);
+    await p.close();
+  }, 90000);
+});
