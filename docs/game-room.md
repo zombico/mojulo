@@ -266,7 +266,8 @@ the air, and a hit taken a little. With the stocks it takes full, the transform 
 | `drain` | stocks a second while transformed |
 | `might`, `swift`, `heal` | the blows' damage and the run raised while it lasts, and the hero's own health healed a second |
 
-Transformed, a ring of light stands over the hero's head and the meter fills no further. A level whose health is
+Transformed, the hero grows black angel's wings behind his back, a golden halo stands over his head, his hair turns
+white and his skin dark grey, and the meter fills no further. A level whose health is
 its fights' row on the bus is not healed by it yet.
 The HUD draws the health and the gauge as one figure, the **vitals** (the meter's `vitals: { look, hp, halo }`):
 no box, a crest at their root, each bar at its share of the length it reaches by the game's end (`hp` and `halo`,

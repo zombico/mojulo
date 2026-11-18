@@ -6,8 +6,11 @@ import { heroFigure } from './world-scene.js';
 
 describe('a realistic hero drawn as one skin', () => {
   it('from realistic laws 17, and not before', { timeout: 1_200_000 }, async () => {
-    const at = (laws) => heroFigure('hero', { hero: { cast: 'male', form: 'realistic', physique: { from: 'athletic', laws } } });
-    const [now, before] = [await at(17), await at(16)];
+    const at = (laws, more = {}) => heroFigure('hero', { hero: { cast: 'male', form: 'realistic', physique: { from: 'athletic', laws } } }, more);
+    const [now, before] = [await at(17, { marks: { Skin: 2 } }), await at(16)];
+    // (asked for marks, the halo's: its skin's corners marked; a figure not asked carries none)
+    expect(now.parts.some((p) => p && p.hc)).toBe(true);
+    expect(before.parts.some((p) => p && p.hc)).toBe(false);
     expect(now.skinParts).toBe(true);
     expect(now.parts.filter(Boolean).every((p) => p.jnt && p.wgt)).toBe(true);
     expect(before.skinParts).toBeUndefined();

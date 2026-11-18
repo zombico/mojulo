@@ -11,7 +11,9 @@ describe('the halo on a page', () => {
     expect(halo).toContain("const tf = __k('transform')");
     expect(halo).toContain('THE HALO (style.js)');
     expect(halo).toContain('transform,                       // transform (B)');
-    for (const no of ["__k('transform')", 'THE HALO', '__prevTransform']) expect(meter).not.toContain(no);
+    expect(halo).toContain('function __haloMat(m, fig)');
+    expect(halo).toContain('__haloWing(1)');
+    for (const no of ["__k('transform')", 'THE HALO', '__prevTransform', '__haloMat', '__haloWing']) expect(meter).not.toContain(no);
     expect(() => new Function(halo)).not.toThrow();   // (it parses: the page's own script, whole)
   });
 });

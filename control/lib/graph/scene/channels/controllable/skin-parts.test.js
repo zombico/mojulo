@@ -38,6 +38,12 @@ describe('one skin a hero', () => {
     expect(Array.from(dec(p.wq, Uint8Array).slice(8, 12))).toEqual([128, 128, 0, 0]);
     expect(p.wgt).toBeUndefined();
   });
+  it('a part marked by what it is (the halo\'s hair and skin) keeps its marks, welded with its corners', () => {
+    const marked = { ...part(), hc: b64(Uint8Array.from([1, 1, 2, 0, 0, 0, 0, 0, 0])) }, p = pageFigures({ a: fig({ skinParts: true, parts: [marked, null] }) }).figs.a.parts[0];
+    const I = dec(p.idx, Uint16Array), H = dec(p.hc, Uint8Array);
+    expect(H.length).toBe(p.n);
+    expect([H[I[0]], H[I[2]], H[I[3]]]).toEqual([1, 2, 0]);
+  });
   it('a figure that does not say it drops them, as before', () => {
     const p = pageFigures({ a: fig() }).figs.a.parts[0];
     expect(p.jq).toBeUndefined();

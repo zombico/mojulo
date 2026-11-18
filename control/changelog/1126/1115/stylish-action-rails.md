@@ -137,6 +137,13 @@ In progress. Built so far, all in the practice door's game room
   met at a joint is gone from Lucien at rest and in a swing (seen in a headless browser on Fallen Angel's level). A
   hero minted before, and every page without such a hero, byte for byte as it was. Its page carries the weights, a byte
   each: Fallen Angel's export went from 39.6 MB to 48.6 MB.
+- **Built: the transformation seen.** Transformed by the Halo Meter, the hero grows a pair of black angel's wings on
+  his back behind the coat (feathers in rows along each arm, unfolding as it begins and beating slowly while it lasts),
+  a golden halo stands tilted just over his head, his hair turns white and his skin dark grey. The hair and the skin
+  are told apart by marks the level asks of the piloted hero's figure (`packLayeredRig` `marks`: each corner its
+  triangle's class), and, where a realistic head's hair is painted into its skin, by the hair's own colour on the
+  page. Only a game whose meter carries a halo; every other page as it was. Seen on Fallen Angel's level in a
+  headless browser; nobody has played it.
 - **Fixed: a coat's shoulders under a raised arm** (realistic laws 17, the realistic body's doc, "The correctives").
   The tailor's cloth now carries the skin's correctives: each of its points moves as the skin nearest it moves. A
   raised arm had pushed the shoulder's skin out through the coat (the marks on the shoulder blades, the deltoid

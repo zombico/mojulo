@@ -72,7 +72,7 @@ function poolFigureBuffers(figures) {
 // correctives, normals, metal). A skinned figure (`skin: true`, one mesh skinned in the page: __makeSkinGroup) keeps it
 // all. And a figure byte-identical to one before it (a battle's foe slots, one sheet each) is emitted once and named
 // again (`same`). A bank with none of these is returned as it came, so its page is byte for byte as before.
-const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8'];
+const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8', 'hc'];
 // A PART WITH ITS PAINT, ITS NORMALS AND ITS FACE (a realistic hero's: a corner a triangle, every number a float32), as
 // the page reads it (`full: 1`): the corners that are the same corner are one (its place, its colour, its paint's place,
 // its normal and its face's row all the same), the places on a uint16 grid over the part's own box as a unit rig's are
@@ -87,7 +87,9 @@ function pageFullPart(rest, skin = null) {
   // (a part of a figure drawn as one skin, `skin`: each corner's four bones and weights, welded with it: the corners one only
   // where they also ride alike)
   const J = skin ? new Uint8Array(raw(skin.jnt)) : null, W = skin ? new Float32Array(raw(skin.wgt)) : null;
-  if (!nV || col.length !== nV * 3 || (uv && uv.length !== nV * 2) || (nrm && nrm.length !== nV * 3) || (M && !M.z) || (J && (J.length !== nV * 4 || W.length !== nV * 4))) return skin ? { ...rest, ...skin } : rest;
+  // (and its corners' marks, `hc`: a corner one only with its mark the same)
+  const HC = rest.hc ? new Uint8Array(raw(rest.hc)) : null;
+  if (!nV || col.length !== nV * 3 || (uv && uv.length !== nV * 2) || (nrm && nrm.length !== nV * 3) || (M && !M.z) || (J && (J.length !== nV * 4 || W.length !== nV * 4)) || (HC && HC.length !== nV)) return skin ? { ...rest, ...skin } : rest;
   // each corner's face row (its unique row's number), or -1: two corners with different rows are never one
   const rowOf = new Int32Array(nV).fill(-1);
   let mI = null, mU = null;
@@ -102,13 +104,14 @@ function pageFullPart(rest, skin = null) {
   const ub = uv ? [0, 1].map((k) => box(uv, 2, k)) : null, uo = ub ? ub.map((b) => r6(b[0])) : null, us = ub ? ub.map((b) => grid(b[0], b[1])) : null;
   const qz = (v, lo, st) => { if (!st) return 0; const q = Math.round((v - lo) / st); return q <= 0 ? 0 : q >= 65535 ? 65535 : q; };
   const n8 = (v) => { const q = Math.round(v * 127); return q < -127 ? -127 : q > 127 ? 127 : q; };
-  const seen = new Map(), idx = new (nV > 65535 ? Uint32Array : Uint16Array)(nV), Q = [], C = [], UQ = [], NQ = [], rows = [], JQ = [], WQ = [];
+  const seen = new Map(), idx = new (nV > 65535 ? Uint32Array : Uint16Array)(nV), Q = [], C = [], UQ = [], NQ = [], rows = [], JQ = [], WQ = [], HQ = [];
   const w8 = (v) => { const q = Math.round(v * 255); return q < 0 ? 0 : q > 255 ? 255 : q; };
   for (let i = 0; i < nV; i++) {
     const a = [qz(pos[3 * i], o[0], sp[0]), qz(pos[3 * i + 1], o[1], sp[1]), qz(pos[3 * i + 2], o[2], sp[2]), col[3 * i], col[3 * i + 1], col[3 * i + 2]];
     if (uv) a.push(qz(uv[2 * i], uo[0], us[0]), qz(uv[2 * i + 1], uo[1], us[1]));
     if (nrm) a.push(n8(nrm[3 * i]), n8(nrm[3 * i + 1]), n8(nrm[3 * i + 2]));
     a.push(rowOf[i]);
+    if (HC) a.push(HC[i]);
     if (J) a.push(J[4 * i], J[4 * i + 1], J[4 * i + 2], J[4 * i + 3], w8(W[4 * i]), w8(W[4 * i + 1]), w8(W[4 * i + 2]), w8(W[4 * i + 3]));
     const key = a.join(',');
     let u = seen.get(key);
@@ -118,6 +121,7 @@ function pageFullPart(rest, skin = null) {
       let k = 6; if (uv) { UQ.push(a[k], a[k + 1]); k += 2; } if (nrm) NQ.push(a[k], a[k + 1], a[k + 2]);
       rows.push(rowOf[i]);
       if (J) { const e = a.length - 8; JQ.push(a[e], a[e + 1], a[e + 2], a[e + 3]); WQ.push(a[e + 4], a[e + 5], a[e + 6], a[e + 7]); }
+      if (HC) HQ.push(HC[i]);
     }
     idx[i] = u;
   }
@@ -129,6 +133,7 @@ function pageFullPart(rest, skin = null) {
   if (uv) Object.assign(out, { uq: b64(Uint16Array.from(UQ)), uo, us });
   if (nrm) out.nq = b64(Int8Array.from(NQ));
   if (J) Object.assign(out, { jq: b64(Uint8Array.from(JQ)), wq: b64(Uint8Array.from(WQ)) });
+  if (HC) out.hc = b64(Uint8Array.from(HQ));
   if (M) {
     const at = [], ur = [];
     for (let u = 0; u < n; u++) if (rows[u] >= 0) { at.push(u); ur.push(rows[u]); }
@@ -1484,14 +1489,17 @@ ${figSkinParts ? '  let __skinned = null;\n' : ''}  const boneMeshes = fig.bones
     // (a body under the cast rig: each corner's normal as the lit read wrote it, else its mesh's own)
     if (fig.cast) { if (part.nq) geo.setAttribute('normal', new THREE.BufferAttribute(new Int8Array(decodeU8(part.nq).buffer), 3, true)); else if (part.nrm) geo.setAttribute('normal', new THREE.BufferAttribute(decodeF32(part.nrm), 3)); else geo.computeVertexNormals(); }${figHasResp ? `
     if (fig.cast && Array.isArray(fig.response)) { const cc = geo.getAttribute('color'); geo.setAttribute('aMR', new THREE.BufferAttribute(__castMR(fig, cc.array, cc.count), 2, true)); }` : ''}` : ''}
-${figSkinParts ? `    // (one skin: its bones and weights, welded with the part or as they came; a part with none rides its bone rigidly)
+${haloOn ? `    // (a part marked by what it is, the halo's hair and skin: style.js; its corners' class, the recolour's)
+    if (part.hc) geo.setAttribute('aHc', new THREE.BufferAttribute(decodeU8(part.hc), 1));
+` : ''}${figSkinParts ? `    // (one skin: its bones and weights, welded with the part or as they came; a part with none rides its bone rigidly)
     const SK = fig.skinParts && !fig.wreck && (part.jq || part.jnt) && !/^(weapon_|shield$)/.test(fig.bones[bi].id);
     if (SK) { if (part.jq) { geo.setAttribute('skinIndex', new THREE.BufferAttribute(decodeU8(part.jq), 4)); geo.setAttribute('skinWeight', new THREE.BufferAttribute(decodeU8(part.wq), 4, true)); } else { geo.setAttribute('skinIndex', new THREE.BufferAttribute(decodeU8(part.jnt), 4)); geo.setAttribute('skinWeight', part.wq ? new THREE.BufferAttribute(decodeU8(part.wq), 4, true) : new THREE.BufferAttribute(decodeF32(part.wgt), 4)); } }
 ` : ''}    geo.computeBoundingSphere();
     const mesh = new ${figSkinParts ? '(SK ? THREE.SkinnedMesh : THREE.Mesh)' : 'THREE.Mesh'}(geo, ${figHasCast ? `fig.cast ? __castMat(fig, { vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''}${figHasRelief ? ', ...(map ? __castRelief(fig) : {})' : ''} }) : ` : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''} }));${figHasCast ? `
     if (fig.cast) mesh.receiveShadow = true;` : ''}${figHasFace ? `
     if (geo.morphAttributes.position) mesh.updateMorphTargets();` : ''}${rigSpecHook}${rigMetalHook}${rigRimHook}${rigInkHook}${castHook}
-    mesh.matrixAutoUpdate = false;
+${haloOn ? `    if (part.hc) __haloMat(mesh.material, fig);
+` : ''}    mesh.matrixAutoUpdate = false;
     mesh.frustumCulled = false;   // matrices mutate per frame
     group.add(mesh);
 ${figSkinParts ? `    // (a skinned part leaves a bone in its place for the sync to pose; it never raycasts, as the bone meshes are kept from it:
@@ -4764,6 +4772,47 @@ ${styleMeter ? `// the style meter (worlds/controllable/style.js): where it stan
 window.__mojStyle = { now: () => __CW.styleOf(__world) };
 ` : ''}${haloOn ? `// THE HALO (style.js): the transformation seen. A ring of light over the hero's head and its light on the hero while
 // it lasts, a burst of light as it begins; nothing while it does not
+// (the hair turned white and the skin dark grey as it fades in: a marked corner's colour drawn toward its class's, by one
+// shared amount; every material that draws a marked part)
+function __haloMat(m, fig) {
+  const U = __haloMat.U || (__haloMat.U = { value: 0 });   // (on the function: a body may be built before this line runs)
+  for (const M of [].concat(m)) {
+    const prev = M.onBeforeCompile, prevKey = M.customProgramCacheKey;
+    M.onBeforeCompile = function (sh, r) {
+      if (prev) prev.call(this, sh, r);
+      sh.uniforms.uHalo = U; sh.uniforms.uHair = { value: new THREE.Color(fig && fig.haloHair ? fig.haloHair : '#000000') }; sh.uniforms.uHairOn = { value: fig && fig.haloHair ? 1 : 0 };
+      sh.vertexShader = 'attribute float aHc;\\nvarying float vHc;\\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n  vHc = aHc;');
+      sh.fragmentShader = 'uniform float uHalo;\\nuniform vec3 uHair;\\nuniform float uHairOn;\\nvarying float vHc;\\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\\n  if (vHc > 0.5) { float hl = vHc < 1.5 ? 1.0 : uHairOn * (1.0 - smoothstep(0.06, 0.16, distance(diffuseColor.rgb, uHair))); vec3 hT = mix(vec3(0.03, 0.03, 0.034) * (0.55 + 1.6 * dot(diffuseColor.rgb, vec3(0.333))), vec3(0.82, 0.82, 0.86), hl); diffuseColor.rgb = mix(diffuseColor.rgb, hT, uHalo); }');
+    };
+    M.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|halo'; };
+    M.needsUpdate = true;
+  }
+}
+// THE WINGS: a pair of black angel's wings on the hero's back, behind the coat, each its feathers in rows along its arm
+// (the long ones at the tip), unfolded with the transformation and beating slowly while it lasts; on the torso's bone,
+// in the rest frame its bone moves (the hero's back is −y)
+function __haloWing(side) {
+  const P = [], tri = (a, b, c) => P.push(...a, ...b, ...c);
+  const nrm = [0, -1, 0], cr = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], un = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+  const feather = (at, dir, len, w) => {
+    const d = un(dir), sd = un(cr(d, nrm)), q = (f, ww) => [at[0] + d[0] * len * f + sd[0] * ww, at[1] + d[1] * len * f + sd[1] * ww, at[2] + d[2] * len * f + sd[2] * ww];
+    const a = q(0, -w / 2), b = q(0, w / 2), c = q(0.72, w * 0.42), e = q(0.72, -w * 0.42), t = q(1, 0);
+    tri(a, b, c); tri(a, c, e); tri(e, c, t);
+  };
+  // the arm: up and out from the root to the wrist, a little back
+  const wrist = [side * 0.5, -0.16, 0.42];
+  for (let i = 0; i < 9; i++) { const u = i / 8, at = [wrist[0] * u, wrist[1] * u, wrist[2] * u];
+    feather(at, [side * (0.25 + 0.75 * u), -0.12, -(1 - 0.55 * u)], 0.34 + 0.62 * u, 0.1);          // the flight feathers, longest at the tip
+    feather([at[0], at[1] - 0.012, at[2] + 0.02], [side * (0.2 + 0.5 * u), -0.1, -0.9], 0.2 + 0.18 * u, 0.09);   // the coverts over them
+  }
+  for (let i = 0; i < 4; i++) feather([wrist[0], wrist[1], wrist[2]], [side * (1 - 0.18 * i), -0.08, 0.3 - 0.35 * i], 0.42 - 0.04 * i, 0.08);   // the tip's fan
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P), 3)); geo.computeVertexNormals();
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x0b0b0f, roughness: 0.42, metalness: 0.12, side: THREE.DoubleSide }));
+  m.raycast = function () {}; m.castShadow = true; m.frustumCulled = false;
+  const pivot = new THREE.Group(); pivot.add(m); return pivot;
+}
+const __wings = new THREE.Group(), __wingR = __haloWing(1), __wingL = __haloWing(-1);
+__wings.add(__wingR, __wingL); __wings.visible = false;
 (function __halo() {
   const g = new THREE.Group(), ring = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.022, 10, 48), new THREE.MeshBasicMaterial({ color: 0xffe6a0, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
   const glow = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.06, 10, 48), new THREE.MeshBasicMaterial({ color: 0xf2b630, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false }));
@@ -4780,11 +4829,19 @@ window.__mojStyle = { now: () => __CW.styleOf(__world) };
     was = on; k += ((on ? 1 : 0) - k) * Math.min(1, dt * 8);
     g.visible = k > 0.02; lamp.intensity = 2.4 * k;
     if (p && p.transform) {
-      const P = p.transform.pos, top = Math.max(1.6, p.body && p.body.egg && p.body.egg.cz ? p.body.egg.cz * 2 : 1.85) + 0.22;
-      g.position.set(P[0], P[1], P[2] + top + 0.04 * Math.sin(now / 260)); g.rotation.z = now / 900; g.scale.setScalar(0.4 + 0.6 * k);
+      // (just over the head's top, the figure's own height where it has one; tilted back off the brow, as a halo is drawn,
+      // so it reads as a ring from a camera at the head's height)
+      const G0 = __bodies[p.id], fh = G0 && G0.userData.rigFig && G0.userData.rigFig.fig.figH, P = p.transform.pos, top = (fh > 1 ? fh : Math.max(1.6, p.body && p.body.egg && p.body.egg.cz ? p.body.egg.cz * 2 : 1.85)) + 0.1;
+      g.position.set(P[0], P[1], P[2] + top + 0.02 * Math.sin(now / 260)); g.rotation.set(0, 0, p.transform.heading || 0); g.rotateY(-0.45); g.rotateZ(now / 1800); g.scale.setScalar(0.4 + 0.6 * k);
       lamp.position.set(P[0], P[1], P[2] + 1.4); burst.position.set(P[0], P[1], P[2] + 0.05);
     }
     bt += dt; burst.visible = bt < 0.6; if (burst.visible) { burst.scale.setScalar(0.5 + bt * 9); burst.material.opacity = 0.9 * (1 - bt / 0.6); }
+    if (__haloMat.U) __haloMat.U.value = k;
+    // (the wings on the torso's bone of whichever figure the hero plays now, their root on its upper back)
+    const G = p && __bodies[p.id], rf = G && G.userData.rigFig, ti = rf ? rf.fig.bones.findIndex((b) => b.id === 'torso') : -1, bone = ti >= 0 ? rf.boneMeshes[ti] : null;
+    if (bone && __wings.parent !== bone) { const T = rf.fig.bones[ti].tail; bone.add(__wings); __wings.position.set(T[0], T[1] - 0.13, T[2] - 0.13); }
+    __wings.visible = k > 0.02 && !!bone;
+    if (__wings.visible) { const f = 0.12 * Math.sin(now / 420) * k; __wings.scale.setScalar(0.05 + 0.95 * k); __wingR.rotation.y = -f; __wingL.rotation.y = f; }
   })();
 })();
 ` : ''}${tempo ? `let __tmLast = null;${tempoLook ? ' const __tmAt = new THREE.Vector3();' : ''}
