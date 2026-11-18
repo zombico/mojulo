@@ -64,7 +64,7 @@ export function gridRayDown(G, pos, idx, x, y, z) {
 
 /** Every triangle a ray (origin `o`, unit direction `d`) meets between `near` and `far`: the cells its line crosses over
  * the grid's xy walked in order, each triangle tested once. `side` as three reads a material's: 0 its front only, 1 its
- * back only, 2 both. [{ t, x, y, z, f }] nearest first (`f` the triangle). */
+ * back only, 2 both; or one a face (a mesh of several materials, each face its group's). [{ t, x, y, z, f }] nearest first (`f` the triangle). */
 export function gridRayCast(G, pos, idx, o, d, near, far, side) {
   const out = [], seen = new Set(), C = G.cell, at = (t, k) => (idx ? idx[t * 3 + k] : t * 3 + k) * 3;
   let t0 = near, t1 = far;
@@ -90,7 +90,8 @@ export function gridRayCast(G, pos, idx, o, d, near, far, side) {
       const vx = pos[c] - pos[a], vy = pos[c + 1] - pos[a + 1], vz = pos[c + 2] - pos[a + 2];
       // (its face as three reads it: the normal of a, b, c in turn, its front met against that normal)
       const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, dn = d.x * nx + d.y * ny + d.z * nz;
-      if (Math.abs(dn) < 1e-12 || (side === 0 && dn > 0) || (side === 1 && dn < 0)) continue;
+      const sd = typeof side === 'number' ? side : side[f];
+      if (Math.abs(dn) < 1e-12 || (sd === 0 && dn > 0) || (sd === 1 && dn < 0)) continue;
       const wx = o.x - pos[a], wy = o.y - pos[a + 1], wz = o.z - pos[a + 2];
       const t = -(wx * nx + wy * ny + wz * nz) / dn;
       if (t < near || t > far) continue;
@@ -124,7 +125,7 @@ const __gridSlow = THREE.Mesh.prototype.raycast;
 let __slowS = null;
 function __gridSlowNoted(rc, out) {
   const g = this.geometry, n = g && (g.index ? g.index.count : g.attributes.position ? g.attributes.position.count : 0);
-  if (n >= 9000 && window.__mojCost) {
+  if (n >= 9000 && typeof window !== 'undefined' && window.__mojCost) {
     if (!g.boundingSphere) g.computeBoundingSphere();
     (__slowS || (__slowS = new THREE.Sphere())).copy(g.boundingSphere).applyMatrix4(this.matrixWorld);
     if (rc.ray.intersectsSphere(__slowS)) { const k = this.name || (this.userData && this.userData.g) || ((this.material && this.material.type) + ' ' + Math.round(n / 3) + ' tri'); window.__mojCost.slow[k] = (window.__mojCost.slow[k] || 0) + 1; }
@@ -133,17 +134,33 @@ function __gridSlowNoted(rc, out) {
 }
 THREE.Mesh.prototype.raycast = __gridSlowNoted;
 function __gridRaycast(rc, out) {
-  const d = rc.ray.direction, o = rc.ray.origin, mat = this.material;
-  // (a mesh that stands where it was built: the grid; one that has moved, or a slanting ray on a mesh of several
-  // materials: three's own)
-  const down = d.z <= -0.9999;
-  if (!this.matrixWorld.equals(__gridI) || (!down && (!mat || Array.isArray(mat)))) return __gridSlowNoted.call(this, rc, out);
-  const g = this.geometry, pos = g.attributes.position.array, idx = g.index ? g.index.array : null;
+  const mat = this.material, g = this.geometry, pos = g.attributes.position.array, idx = g.index ? g.index.array : null;
   const G = g.userData.__grid || (g.userData.__grid = __gridFit(pos, idx));
+  // (the ray in the mesh's own frame, where its grid is: a mesh placed by a transform, or moved since, takes its grid all
+  // the same. The direction is carried, not made unit, so a distance along the ray is the world's)
+  const M = this.matrixWorld, still = M.equals(__gridI);
+  let o = rc.ray.origin, d = rc.ray.direction;
+  if (!still) {
+    const U = this.userData.__gridInv || (this.userData.__gridInv = { at: new THREE.Matrix4(), inv: new THREE.Matrix4() });
+    if (!U.at.equals(M)) { U.at.copy(M); U.inv.copy(M).invert(); }
+    const o2 = o.clone().applyMatrix4(U.inv), e2 = o.clone().add(d).applyMatrix4(U.inv);
+    o = o2; d = e2.sub(o2);
+  }
+  // (each face's side as its material shows it: one material's for all, or each face its group's)
+  const sideOf = (m) => (m && m.side === THREE.BackSide ? 1 : m && m.side === THREE.DoubleSide ? 2 : 0);
+  let side;
+  if (Array.isArray(mat)) {
+    if (!G.sides) { G.sides = new Uint8Array(idx ? idx.length / 3 : pos.length / 9).fill(2); for (const q of g.groups || []) { const s = sideOf(mat[q.materialIndex]); for (let f = Math.floor(q.start / 3), e = Math.floor((q.start + q.count) / 3); f < e; f++) G.sides[f] = s; } }
+    side = G.sides;
+  } else side = sideOf(mat);
+  // (a face's side read in the mesh's own frame, as three reads it: a mirrored mesh's faces are not turned)
+  const down = still && d.z <= -0.9999;
   if (!down) {
-    // (any other ray: the cells its line crosses, each face as its material shows it)
-    const side = mat.side === THREE.BackSide ? 1 : mat.side === THREE.DoubleSide ? 2 : 0;
-    for (const h of __gridRayCast(G, pos, idx, o, d, rc.near, rc.far, side)) out.push({ distance: h.t, point: new THREE.Vector3(h.x, h.y, h.z), object: this, faceIndex: h.f });
+    // (any other ray: the cells its line crosses, each face as its material shows it; its points back in the world)
+    for (const h of __gridRayCast(G, pos, idx, o, d, rc.near, rc.far, side)) {
+      const p = new THREE.Vector3(h.x, h.y, h.z); if (!still) p.applyMatrix4(M);
+      out.push({ distance: h.t, point: p, object: this, faceIndex: h.f });
+    }
     return;
   }
   for (const h of __gridRayDown(G, pos, idx, o.x, o.y, o.z)) {

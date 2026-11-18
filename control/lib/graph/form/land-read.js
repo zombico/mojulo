@@ -294,7 +294,7 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
     // the claims' masks not read inside them, so what is drawn is what hides; elsewhere none, or the land's own)
     if (tallGrass) for (let j = 0; j < ny; j++) for (let ii = 0; ii < nx; ii++) {
       const q = j * nx + ii, pc = green0[q] * patchCover(x0 + ii * GCELL, y0 + j * GCELL, tallGrass.patches);
-      cov[q] = tallGrass.elsewhere === 'grass' || tallGrass.elsewhere === 'paint' ? Math.max(cov[q], pc) : pc;
+      cov[q] = tallGrass.elsewhere === 'grass' || tallGrass.elsewhere === 'paint' || tallGrass.elsewhere === 'meadow' ? Math.max(cov[q], pc) : pc;
     }
     // (and how each patch stands: the share of its ground that is level and green, where its grass grows, and that ground's
     // mean height, its foot; world-scene.js lays its veil there, or none where too little grows)
@@ -327,7 +327,8 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
     const shortAt = areaAt(shortShare, ranked(shortShare, swardF), swardF), mediumAt = areaAt(mediumShare, ranked(mediumShare, mediumF), mediumF);
     // (a stealth land's TALL GRASS, form/tall-grass.js: its patches the tall sward, the page's stand; the land's own grass
     // round them, where it has any, short, never the stand: grass that hides nothing is never drawn as grass that does)
-    const lengthAt = tallGrass ? (x, y) => (patchCover(x, y, tallGrass.patches) > 0.35 ? 0 : 1) : (x, y) => Math.max(shortAt(x, y), 0.5 * mediumAt(x, y));
+    // (a MEADOW round the patches, `elsewhere: 'meadow'`: the land's own lengths there, short and medium, never tall)
+    const lengthAt = tallGrass ? (tallGrass.elsewhere === 'meadow' ? (x, y) => (patchCover(x, y, tallGrass.patches) > 0.35 ? 0 : Math.max(0.5, shortAt(x, y), 0.5 * mediumAt(x, y))) : (x, y) => (patchCover(x, y, tallGrass.patches) > 0.35 ? 0 : 1)) : (x, y) => Math.max(shortAt(x, y), 0.5 * mediumAt(x, y));
     for (let q = 0; q < nx * ny; q++) { const zq = top[q] === -Infinity ? 0 : Math.round(((top[q] - zlo) / span) * 65535); px[q * 4] = zq >> 8; px[q * 4 + 1] = zq & 255; px[q * 4 + 2] = Math.round(cov[q] * 255); px[q * 4 + 3] = Math.round(lengthAt(...cellXY(q)) * 255); }
     // (the drifts: each its own field at a finer cell, ranked to its share over the grass's cells no drift named before it
     // has taken, a channel each; so each holds its share of the land's grass, and no two share a cell)

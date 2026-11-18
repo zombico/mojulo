@@ -110,3 +110,12 @@
   once a frame and tested wherever it stands. What it finds is what the full-scene ray found (tested point by point
   against it in three: a floor on its grid, a deck by a transform, instanced steps, a decoration that is no footing, a
   body, a far plane, the deck moved).
+- **The grid for every big mesh** (controllable/ground-grid.js `__gridRaycast`): a mesh placed by a transform, or moved
+  since, takes its grid (the ray carried into its own frame, a distance along it the world's), and one of several
+  materials too (each face its group's side); three's own raycast had taken them triangle by triangle. Tested ray by ray
+  against three on a placed, a mirrored and a two-material mesh. The hangar's columns and painted walls were its rays'
+  slow meshes (`__mojCost.slow`), 11.7 ms of a frame's 16 in rays.
+- **A meadow round the cover** (a geocube's `tallGrass.elsewhere: 'meadow'`, form/land-read.js): the land's own grass as
+  level 1's yard has it, real blades at their full clump in its own short and medium areas, never tall: the tall sward
+  is the patches' alone, the cover. Level 0 laid so, its grass at the page's own reach again (the cut to 6 m and the
+  painted field were the ray cost misread as the grass's).

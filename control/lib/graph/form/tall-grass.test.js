@@ -36,7 +36,8 @@ describe('a geocube\'s tall grass', () => {
 describe('a painted field (elsewhere: paint)', () => {
   it('is read, and the page builds no short sward and paints the field from the eye out; asked for nothing, neither', async () => {
     expect(readTallGrass({ patches: [{ at: [0, 0] }], elsewhere: 'paint' }).elsewhere).toBe('paint');
-    expect(readTallGrass({ patches: [{ at: [0, 0] }], elsewhere: 'meadow' }).elsewhere).toBe('none');
+    expect(readTallGrass({ patches: [{ at: [0, 0] }], elsewhere: 'lawn' }).elsewhere).toBe('none');
+    expect(readTallGrass({ patches: [{ at: [0, 0] }], elsewhere: 'meadow' }).elsewhere).toBe('meadow');   // (the land's meadow, never tall)
     const { formGrassScript } = await import('../scene/channels/form-grass.js'), { farFieldScript } = await import('../scene/channels/far-field.js');
     expect(formGrassScript({ stand: true, paint: true })).toContain('if (FD && FD.paint) return;');
     expect(formGrassScript({ stand: true })).not.toContain('FD.paint');
