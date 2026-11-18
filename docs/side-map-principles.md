@@ -120,6 +120,10 @@ this map every closed part the camera sees is a place.
 30. **The boss owns its room.** Its colour is used nowhere before it; its room is one screen, its walls the frame's
     edges, and its back wall carries its mark.
 
+The look is dealt over a laid map by `control/lib/graph/gameworld/side-map/dress.js`: the setting a premise names, a
+place a zone, the palette, the bays, the peeks, the threads, the marks, the foreshadowing and the backdrop, as data the
+build paints from.
+
 ## Who makes it
 
 The studio lays a map from words, for any game whose camera is side-on and whose hero platforms: the map is a level form

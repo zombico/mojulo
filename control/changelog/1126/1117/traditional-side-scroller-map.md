@@ -60,13 +60,17 @@ said as its phase lands.
   what the camera sees (its swept area, one screen thick on its locked axis), what the play moves in and what is
   closed, its checkpoint, and what it could not fit (a run too short for what it teaches is laid as one floor, and
   says so).
-- **The dress** (planned: `gameworld/side-map/dress.js`): the design that makes a side map look good, dealt over the
-  layout as data the build paints from and the laws read. A place a zone, each a material family and a key colour, the
-  places' order the story; the closed parts lighter than the dark open space, every standable top lit; play and place
-  on opposite hues; the boss's colour reserved for the zones that lead to it; bays in a rhythm with a pillar in every
-  frame and a spawner a screen apart; the next place peeking in at a zone's edge; pipes, cables or roots threading from
-  zone to zone; light from lamps and windows that are seen, every climb's top open to light; what the stage is about
-  shown small, then larger, then whole; an outdoor backdrop by the height it stands at; wear one dial a place.
+- **The dress** (`gameworld/side-map/dress.js`): the design that makes a side map look good, dealt over the layout as
+  data the build paints from and the laws read, placing nothing. A premise names its setting (a plant, a mountain, a
+  temple, a base; a new setting is a row), and the setting deals a place a zone by its role (an across run, a climb, a
+  drop, a room), never the same place twice running, each a material family and a key colour, the places' order the
+  story. The closed parts lighter than the dark open space; play and place on opposite hues; the boss's colour unused
+  until the zones that lead to its room, growing toward it, its mark across its room's back wall. A run's back wall in
+  bays a screen and a quarter wide by the walls' rule, a pillar between, a lamp an A bay, a hatch at each spawner; the
+  next place's family and key at a zone's last half screen; the setting's pipes, cables, roots or channels threaded
+  from zone to zone; a shaft's railings stepping up its back wall, its top lit, a chute striped; what the stage is about
+  shown small, then large, then whole in the boss's room; an outdoor zone's backdrop by the height it stands at; wear one
+  dial a place.
 - **The screen as a measure** beside the hero's reach (`gameworld/side-map/screen.js`): what one screen is in metres for
   a side camera at 16:9, the camera that holds a hero at an eighth of the frame's height with the lane two thirds down
   it (for the toy hero robot's 1.67 m, 22.8 m back and a screen 13.4 m by 23.8 m), and a distance read in screens.
