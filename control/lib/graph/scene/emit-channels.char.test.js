@@ -35,6 +35,9 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-18 (gen 7's city frame, channels/creases.js OCCLUSION_FAR): `occlusion` only. A page with occlusion
+// alone leaves a mesh wholly past 240 reaches of the camera out of the prepass; the creases' rows read the far and are
+// unchanged.
 // Re-pinned 2026-11-17 (a rider's footsteps): the audio channel's footsteps skip a body that rides (in a car, in a
 // saddle) or is gone: a carried body was heard walking under its ride.
 // Re-pinned 2026-11-17 (the release candidate merged into the open city): the candidate's pins moved by this branch's
