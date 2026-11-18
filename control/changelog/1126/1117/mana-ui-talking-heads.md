@@ -18,5 +18,10 @@ boxes, or the same scene acted out in the world.
   lips follow the words, their face takes the line's expression (worried, determined and so on), and they blink and
   look as a speaking face does. It shows in the world and in the talk box's picture. Lines written as a script keep
   the acting they already had. The default (landmark) face does not talk yet.
+- **Recorded voices, if you want them.** A line can carry a recording (a WAV from the voice worker, another speech
+  engine or a person). It is saved with the world, the level plays it as the line begins and stops it when the line
+  moves on, and the speaker's lips follow the recording. A level can also note which voice each character is cast in.
+  Lines without a recording stay silent, as before. A browser plays no sound until the player has clicked or pressed a
+  key, so a line that starts before then is picked up partway through.
 - **Nothing else changes.** Advancing, holding to skip, Esc and picking a choice by number, arrows or a click work as
   before. A world without the game's interface keeps its box as it was, though its characters' faces now talk too.

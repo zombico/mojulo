@@ -1856,6 +1856,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (playEv.register) ev = { ...ev, register: playEv.register };
     if (playEv.menus) ev = { ...ev, menus: playEv.menus };
     if (playEv.scenes) ev = { ...ev, scenes: playEv.scenes };   // the scene runner's program (playscape/ui/scenes.js)
+    // (the RECORDED lines' audio, playscape/ui/talk-lines.js: each recording the program's lines name, carried in the page
+    // as its bytes so a self-contained page speaks them; one this machine does not hold stays silent)
+    const vox = playEv.scenes ? [...new Set(playEv.scenes.flatMap((sc) => (sc.beats || []).filter((b) => b && b.kind === 'line' && b.voice && b.voice.recording).map((b) => b.voice.recording)))] : [];
+    if (vox.length) {
+      const { readRecording } = await import('@/lib/graph/face-acting/recordings.js'), voices = {};
+      for (const id of vox) { const bytes = readRecording(id); if (bytes) voices[id] = Buffer.from(bytes).toString('base64'); }
+      if (Object.keys(voices).length) ev = { ...ev, voices };
+    }
     if (playEv.speakers) ev = { ...ev, speakers: playEv.speakers };   // how each speaks in the talk box (talk-box.js)
     if (playEv.quests) ev = { ...ev, quests: playEv.quests };   // the quests' journal (playscape/ui/quests.js)
     if (playEv.library) ev = { ...ev, library: playEv.library };   // the library's shelf (playscape/ui/library.js)

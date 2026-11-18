@@ -17,10 +17,12 @@
  * A line shows its words as typed so far; ▼ once they are whole (a press goes on). A choice shows its question as the
  * line and its answers numbered, the one in hand marked.
  *
- * THE SPEAKERS SHEET, `play.speakers: { <who>: { portrait?: 'live' | 'none' } }`, `who` a scene's speaker (an entity's
- * id, `hero` the player's): how each is shown as they speak. `live` (the default for anyone with a body on the page): their
- * own figure, head and shoulders, drawn live in the box's face (scene/channels/talk-face.js); `none`: the box alone. A
- * level with no sheet shows everyone live. Pure.
+ * THE SPEAKERS SHEET, `play.speakers: { <who>: { portrait?: 'live' | 'none', voice? } }`, `who` a scene's speaker (an
+ * entity's id, `hero` the player's): how each is shown as they speak. `live` (the default for anyone with a body on the
+ * page): their own figure, head and shoulders, drawn live in the box's face (scene/channels/talk-face.js); `none`: the
+ * box alone. A level with no sheet shows everyone live. `voice`: the voice their recorded lines are made in (a voice
+ * worker's voice, `am_adam`, or a person's name): the casting, kept with the level so every line of theirs is recorded
+ * alike; the lines themselves carry the recordings (scenes.js `voice`). Pure.
  */
 import { TALK_IDIOMS } from '../../../mana-ui/idioms-talk.js';
 
@@ -62,9 +64,10 @@ export function readSpeakers(play) {
   for (const [who, v] of Object.entries(S)) {
     if (!WHO.test(who)) throw err(`.${who}: a speaker is an entity's id (lowercase), or hero`);
     if (!v || typeof v !== 'object' || Array.isArray(v)) throw err(`.${who} is { portrait?: ${SPEAKER_PORTRAITS.join(' | ')} }`);
-    for (const k of Object.keys(v)) if (k !== 'portrait') throw err(`.${who}.${k} is not part of a speaker (portrait)`);
+    for (const k of Object.keys(v)) if (!['portrait', 'voice'].includes(k)) throw err(`.${who}.${k} is not part of a speaker (portrait, voice)`);
     if (v.portrait !== undefined && !SPEAKER_PORTRAITS.includes(v.portrait)) throw err(`.${who}.portrait is ${SPEAKER_PORTRAITS.join(' or ')}: their own figure live in the box, or the box alone`);
-    out[who] = { portrait: v.portrait ?? 'live' };
+    if (v.voice !== undefined && !(typeof v.voice === 'string' && v.voice.trim() && v.voice.length <= 64)) throw err(`.${who}.voice is the voice their lines are recorded in: a voice worker's voice (am_adam) or a person's name`);
+    out[who] = { portrait: v.portrait ?? 'live', ...(v.voice !== undefined ? { voice: v.voice.trim() } : {}) };
   }
   return out;
 }

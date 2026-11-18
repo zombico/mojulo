@@ -940,6 +940,14 @@ host (`scene/channels/mana-hud.js`) runs a second runtime on its own kernel and 
   speaker's figure, and the line gets a face-only take on its own clock (`talk:<scene>:<beat>`). The scene runner plays
   it as it plays a script's take; the page's face plays the track while it runs, in the world and in the portrait. A
   script's lines keep their own takes; the landmark head's mouth is its jaw bone and does not talk yet.
+- **Recorded voices, when the creator wants them.** A line's `voice` takes a WAV's path (the voice worker's, a native
+  speech engine's, a person's): `create_sketch` / `update_sketch` bind it as a hero's recorded lines are bound
+  (`face-acting/recordings.js` `bindSceneVoices`: saved by its content under the outcomes, timed by the engine's
+  `.timings.json`, else by its words aligned, else by its loudness). The speaker's face says it on the recording's own
+  timeline, a recorded line has a take whoever says it, and the page carries the recording's bytes and plays it as the
+  take begins, stopping it as the line goes (`scene-channel.js`, `window.__mojVoice`). A browser plays no sound before a
+  press, so a line already under way when the first press comes is taken up where its take has got to.
+  `play.speakers.<who>.voice` keeps each speaker's casting with the level. Lines with no recording stay silent.
 
 ### The RPG's battles, party menu and shops
 

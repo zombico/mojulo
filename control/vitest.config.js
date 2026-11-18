@@ -96,6 +96,8 @@ export const E2E = [
   'lib/graph/playscape/ui/talk-box.live.test.js',
   // a scene's lines said by a realistic and an anime face: each face's weights move while its line plays
   'lib/graph/playscape/ui/talk-mouth.live.test.js',
+  // a recorded line heard: its bytes on the page, played after a press while its line is up, stopped at the next
+  'lib/graph/playscape/ui/talk-voice.live.test.js',
 ];
 
 // What no tier but its own runs (the e2e config takes this, less the e2e suites themselves).

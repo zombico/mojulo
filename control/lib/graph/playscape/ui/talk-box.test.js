@@ -78,7 +78,7 @@ describe('the talk box: the scene runner said through mana-ui', () => {
     expect(readSpeakers({})).toEqual({});
     expect(readSpeakers({ speakers: { mayor: {}, hero: { portrait: 'none' } } })).toEqual({ mayor: { portrait: 'live' }, hero: { portrait: 'none' } });
     expect(() => readSpeakers({ speakers: { mayor: { portrait: 'drawn' } } })).toThrow(/live or none/);
-    expect(() => readSpeakers({ speakers: { mayor: { voice: 'low' } } })).toThrow(/not part of a speaker/);
+    expect(() => readSpeakers({ speakers: { mayor: { side: 'left' } } })).toThrow(/not part of a speaker/);
     expect(() => readSpeakers({ speakers: [] })).toThrow(/how each speaker is shown/);
   });
 
