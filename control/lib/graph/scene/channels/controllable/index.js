@@ -24,7 +24,6 @@ import { turretScript } from './turret-view.js';
 import { boatWaterScript } from './boat-water.js';
 import { shotLightScript } from './shot-light-view.js';
 import { roundLooks, blastLook, BLAST_LOOK } from '../../../gameworld/feel/round-look.js';
-import { SIDE } from '../../../era/geocube-side.js';
 import { castKitSource } from '../cast-rig.js';
 import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
 
@@ -78,8 +77,9 @@ function poolFigureBuffers(figures) {
 /** THE CEL BODY's step on the page (world-scene.js heroFigure `cel`): the key the side strip lights its land from
  * (era/geocube-side.js SIDE.key), so a body and its land agree, and the N·L past which a face is lit (a form's turning half
  * in shade: at 0.05 a key behind the camera lit nearly all of it). */
-// (the key read when asked: this module and the era's side strip import each other through the scene's channels)
-export const CEL_BODY = Object.freeze({ get key() { return SIDE.key; }, step: 0.3, lamp: 0.45 });
+// (the key the side strip's own, written here: importing the era's side strip into this module reorders the server's boot
+// and leaves a module read before it is made; cel-body.test.js holds the two equal)
+export const CEL_BODY = Object.freeze({ key: Object.freeze([0.52, -0.3, 0.8]), step: 0.3, lamp: 0.45 });
 /** A side map's bodies turn their heads toward the screen (radians, the most): standing, and on the move. */
 export const FACE_SCREEN = Object.freeze({ rest: 0.5, moving: 0.22 });
 /** A cel body charging its buster lit up by its charge, on its FRESNEL: its body and limbs `body` all over, toward their
