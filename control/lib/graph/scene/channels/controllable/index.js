@@ -4872,7 +4872,7 @@ function __mojBackdrop(from, look, shift) {
 // and a dark at its feet; drawn on one plane that each pixel darkens once (the floor never moves: a projection is the
 // shadow, as the seventh generation drew an actor's on a baked room)
 (function __roomLight() {
-  const K = 6, U = { uRlP: { value: Array.from({ length: K }, () => new THREE.Vector3()) }, uRlK: { value: Array.from({ length: K }, () => new THREE.Vector3()) },
+  const K = 6, FILL = 0.3, U = { uRlP: { value: Array.from({ length: K }, () => new THREE.Vector3()) }, uRlK: { value: Array.from({ length: K }, () => new THREE.Vector3()) },
     uRlR: { value: new Array(K).fill(1) }, uRlAmb: { value: new THREE.Vector3() }, uRlFall: { value: 2 }, uRlRim: { value: new THREE.Vector3(0.22, 0.27, 0.42) } };
   const lit = new WeakSet(), twinned = new WeakSet();
   // the bodies' shading: on their own material, after everything the material already does
@@ -4942,7 +4942,9 @@ function __mojBackdrop(from, look, shift) {
     if (at) {
       const near = R.lamps.map((l) => [l, Math.hypot(l.at[0] - at[0], l.at[1] - at[1], l.at[2] - at[2])]).sort((a, b) => a[1] - b[1]);
       for (let i = 0; i < K; i++) { const l = near[i] && near[i][0]; U.uRlP.value[i].set(...(l ? l.at : [0, 0, -100])); U.uRlK.value[i].set(...(l ? l.key : [0, 0, 0])); U.uRlR.value[i] = l ? l.r : 1; }
-      U.uRlAmb.value.set(...R.amb); U.uRlFall.value = R.fall;
+      // (a body keeps a deeper shade than the stone round it: its fill a share of the room's, so the lamps model it in a room
+      // lit to be read, as the seventh generation lit its cast harder than its set)
+      U.uRlAmb.value.set(R.amb[0] * FILL, R.amb[1] * FILL, R.amb[2] * FILL); U.uRlFall.value = R.fall;
     }
     for (const id in __bodies) {
       const g = __bodies[id], e = __world.byId[id]; if (!g || !e || !e.transform) continue;

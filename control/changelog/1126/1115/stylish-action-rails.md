@@ -236,3 +236,5 @@ What the theme will hold:
 - **Fallen Angel's citadel lifted.** With the figures lit and shadowed by its lamps, the room no longer has to be as
   dark to read: its shade keeps a little over a third of the torches' light (`shade: 0.38`, from 0.06), and its grade is
   `tenebrae` with the vignette eased and a quarter stop more exposure.
+- **A body's shade kept deeper than the room's.** A body lit by the room takes a share of its fill (a third), not the
+  whole: the room can be lit to be read and its cast still modelled hard by the lamps, a lit side against a dark one.
