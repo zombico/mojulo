@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { GEOCUBE_PRESETS, readGeocube, lowerGeocube, geocubeRamps, cubeContrast, geocubeContrastOf } from './geocube.js';
+import { GEOCUBE_PRESETS, readGeocube, lowerGeocube, geocubeRamps, cubeContrast, geocubeContrastOf, assembleGeocubeScene } from './geocube.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { facesToGlb } from '../scene/scene-gltf.js';
 import { assembleStageScene } from './stage.js';
@@ -136,5 +136,18 @@ describe('geocube: its contrast, the shaping in the vertex', () => {
     const a = facesToGlb(shaped.payload), b = facesToGlb(plain.payload), c = facesToGlb({ ...shaped.payload, vertexContrast: undefined });
     expect(Buffer.from(a.bytes ?? a).equals(Buffer.from(b.bytes ?? b))).toBe(false);
     expect(Buffer.from(c.bytes ?? c).equals(Buffer.from(b.bytes ?? b))).toBe(true);   // absent ⇒ the same bytes
+  });
+});
+
+describe('a path\'s grass and crowns', () => {
+  it('carries its stage\'s grass and crowns words to the stage, a path\'s or a town\'s alone', async () => {
+    // (the stage the scene lowers to, caught as it is handed to the builder)
+    const STOP = new Error('caught');
+    const at = (m) => { let low = null; try { assembleGeocubeScene({ kind: 'geocube', cube: 'valley-morning', seed: 7, ...m }, {}, (l) => { low = l; throw STOP; }); } catch (e) { if (e !== STOP) throw e; } return low; };
+    expect(at({ show: 'path', grass: { form: true }, crowns: 'hybrid' })).toMatchObject({ grass: { form: true }, crowns: 'hybrid' });
+    const plain = at({ show: 'path' });
+    expect(plain.grass).toBeUndefined();
+    expect(plain.crowns).toBeUndefined();
+    expect(() => assembleGeocubeScene({ kind: 'geocube', cube: 'valley-morning', show: 'land', crowns: 'hybrid' }, {}, () => ({}))).toThrow(/grass and crowns/);
   });
 });

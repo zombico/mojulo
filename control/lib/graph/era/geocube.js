@@ -1449,7 +1449,7 @@ function withTownCameras(payload, site) {
     cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'sea', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart', 'fxStyle', ...LEVEL_KEYS].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, sea, words, hall, skandart; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'sea', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart', 'fxStyle', 'crowns', 'grass', ...LEVEL_KEYS].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, sea, words, hall, skandart; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
   // (`camera`: the still it is first seen from, STILLS: a camera glyph's, gameworld/glyph-words.js)
   if (manifest.camera !== undefined && !pageCamera(manifest.camera) && !STILLS.includes(manifest.camera)) no(`camera is the still it is first seen from: ${STILLS.join(', ')}`);
   // (`words`, and its `brief`: the words a scene was asked in and what each decided, written at authoring time into the
@@ -1523,6 +1523,11 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   // trail is laid over, so the form render draws their land, their outsides and their rooms under the cube's one sun)
   if (manifest.buildings !== undefined && !(low.kind === 'stage' && low.trail !== undefined)) no('buildings stand on a land a trail is laid over: show \'path\' or \'town\'');
   if (manifest.buildings !== undefined) low.buildings = manifest.buildings;
+  // (`grass` and `crowns`: how the path's stage draws its grass and its broadleaves' crowns, era/isekai.js: the form
+  // field and its raised ground; the hybrid crown, each leaf bundle round a blob, form/flora-read.js)
+  if ((manifest.grass !== undefined || manifest.crowns !== undefined) && !(low.kind === 'stage' && low.trail !== undefined)) no('grass and crowns are a path\'s stage\'s: show \'path\' or \'town\'');
+  if (manifest.grass !== undefined) low.grass = manifest.grass;
+  if (manifest.crowns !== undefined) low.crowns = manifest.crowns;
   // (`wet`: it has just rained, a stage's word: the hard standing films the sky)
   if (manifest.wet !== undefined) low.wet = manifest.wet;
   // (and where it names a weather and no wetness, the weather's own: rain is raining, era/wetness.js)
