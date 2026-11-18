@@ -1268,7 +1268,8 @@ export function withBuildings(payload, manifest, ctx = {}) {
       if (manifest.town.walls) {
         const Wl = wallsOf(y0, y1), Pw = paintRaw(kitId, manifest.town?.paint);
         for (const P of Wl.pieces) {
-          for (const f of P.faces) { const nn = unit(cross(sub3(f.corners[1], f.corners[0]), sub3(f.corners[f.corners.length - 1], f.corners[0]))); faces.push({ ...quad(f.corners, 'town:wall', Pw(f.group ?? 'str:stone', Math.min(1, (f.value ?? 0.6) * lit(nn)))), normal: P3(nn), outNormal: P3(nn) }); }
+          // (on a gritty cube, dressed as its houses are: each face its stone's or its render's relief, era/town-dress.js)
+          for (const f of P.faces) { const nn = unit(cross(sub3(f.corners[1], f.corners[0]), sub3(f.corners[f.corners.length - 1], f.corners[0]))), F0 = { ...quad(f.corners, 'town:wall', Pw(f.group ?? 'str:stone', Math.min(1, (f.value ?? 0.6) * lit(nn)))), normal: P3(nn), outNormal: P3(nn) }; faces.push(manifest.town.dress ? dressTownFace(F0, f.group ?? 'str:stone', manifest.town.dress) : F0); }
           for (const B of P.boxes) colliders.push({ min: P3([B[0], B[1], P.z0]), max: P3([B[2], B[3], P.z1]), of: `town:walls${P.gatehouse ? ':gate' : P.tower ? ':tower' : ''}` });
         }
         anchors.push({ id: 'town-walls', kind: 'walls', fort: Wl.fort.read ?? null, gates: Wl.pieces.filter((P) => P.gatehouse).length, height: Wl.H });

@@ -140,6 +140,10 @@ export const LEXICON = Object.freeze({
 // dressed in unless a word named that (a temple's nave; else the dungeon's stone)
 const ROOM_USE_WORDS = Object.freeze({ keep: 'keep', castle: 'keep', temple: 'temple', shrine: 'temple' });
 const ROOM_KIT_OF_USE = Object.freeze({ temple: 'gothic-nave' });
+// a party RPG round its town: the cube it stands on when no word names one, and its places' character on it (their
+// flora, era/biocube.js; the first wilds' water, era/out-water.js; the cube's grit, so its town is drawn from relief)
+const ROUND_CUBE = 'valley-morning';
+const ROUND_PLACES = Object.freeze({ grit: 0.5, wilds: 'grove', castle: 'upland', water: Object.freeze({ lake: true }) });
 // the words that name a castle: round a hub, a level of its own (its castle walked); elsewhere a building's use
 const CASTLE_WORDS = new Set(['castle', 'castles', 'keep', 'citadel']);
 
@@ -507,10 +511,13 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // the cube: the one the words name, else the kit's nearest, drawn on the kit's own card so its flora stay; the
   // color theorist decides its colours when it is stored (color-theorist/stamp.js)
   const cubeWord = P.words.find((w) => CUBE_WORDS[w] ?? CUBE_WORDS[w.replace(/s$/, '')]);
-  const cubeId = cubeOfWords(P, style.kit);
+  // (a party RPG round its town, no word naming a cube, on the meadow's kit: the green valley's limestone, red roofs and
+  // meadow, ROUND_CUBE, not the kit's nearest, an island's stucco under a hard sun)
+  const roundCube = !cubeWord && turnBased && style.kit === 'isekai-meadow';
+  const cubeId = roundCube ? ROUND_CUBE : cubeOfWords(P, style.kit);
   if (cubeId) {
     style.geocube = GEOCUBE_PRESETS[cubeId].outside.base === style.kit ? cubeId : { from: cubeId, outside: { base: style.kit } };
-    world.brief.cube = { id: cubeId, ...(cubeWord ? { word: cubeWord } : { from: `the kit, ${style.kit}` }) };
+    world.brief.cube = { id: cubeId, ...(cubeWord ? { word: cubeWord } : roundCube ? { from: 'a party RPG round its town' } : { from: `the kit, ${style.kit}` }) };
     // every word that names a cube is read: the first decides it, one naming the same cube agrees, another gives way
     const cubeOf = (w) => CUBE_WORDS[w] ?? CUBE_WORDS[w.replace(/s$/, '')];
     for (const w of [...new Set(P.words.filter(cubeOf))]) {
@@ -593,6 +600,25 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
       cube.light = { ...(cube.light ?? {}), outsideFog: share, sky: { zenith: rgbToHex(dome[0]).toLowerCase(), horizon: rgbToHex(dome[dome.length - 1]).toLowerCase(), fog: fog.color } };
       style.geocube = cube;
     }
+  }
+  // THE ROUND'S PLACES ON ITS CUBE (a party RPG round its town): the cube gritty, so its town is drawn from relief (its
+  // render worn to its stone, its roofs in lapped courses, its lane in setts: era/town-dress.js), and each place its own
+  // flora on the one style (ROUND_PLACES): the town the cube's own, the wilds in groves with a lake beside the first, the
+  // castle on the windswept upland. Unless a word named what grows (a biome, a biocube): then every place grows it
+  if (hubbed && turnBased && style.geocube !== undefined) {
+    const base = typeof style.geocube === 'string' ? { from: style.geocube } : { ...style.geocube };
+    if (base.grit === undefined) { base.grit = ROUND_PLACES.grit; style.geocube = base; }
+    const said = !!(biome || biocube), places = {};
+    if (!said) {
+      const wilds = Object.keys(world.levels).filter((lid, i) => i > 0 && world.levels[lid].walk && lid !== world.brief.round?.castle);
+      wilds.forEach((lid, k) => {
+        world.levels[lid].style = { ...(world.levels[lid].style ?? {}), geocube: cubeWithLand(base, { biocube: ROUND_PLACES.wilds, ...(k === 0 ? { water: ROUND_PLACES.water } : {}) }) };
+        places[lid] = `${ROUND_PLACES.wilds}${k === 0 ? ', a lake beside the way' : ''}`;
+      });
+      const castle = world.brief.round?.castle;
+      if (castle) { world.levels[castle].style = { ...(world.levels[castle].style ?? {}), geocube: cubeWithLand(base, { biocube: ROUND_PLACES.castle }) }; places[castle] = ROUND_PLACES.castle; }
+    }
+    world.brief.round = { ...(world.brief.round ?? {}), grit: base.grit, ...(Object.keys(places).length ? { places } : {}) };
   }
   // the games inside the game the words ask for (minigames.js): read, laid once the world has its people
   for (const w of minigamesOfWords(prompt)?.words ?? []) {

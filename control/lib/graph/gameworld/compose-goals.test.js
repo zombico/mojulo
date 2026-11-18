@@ -220,6 +220,21 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
     expect(W.brief.round).toMatchObject({ dungeon: ids[ids.length - 1], trades: ['inn', 'temple'] });
   });
 
+  it('stands on the green valley\'s cube, gritty, each place its own flora: the wilds in groves by a lake, the castle on the upland', () => {
+    expect(W.brief.cube).toMatchObject({ id: 'valley-morning', from: 'a party RPG round its town' });
+    expect(W.style.geocube).toMatchObject({ from: 'valley-morning', grit: 0.5 });
+    const castle = W.brief.round.castle, wilds = ids.filter((id, i) => i > 0 && W.levels[id].walk && id !== castle);
+    expect(wilds.length).toBeGreaterThan(0);
+    expect(W.levels[wilds[0]].style.geocube).toMatchObject({ from: 'valley-morning', biocube: 'grove', outside: { water: { lake: true } } });
+    expect(W.levels[castle].style.geocube).toMatchObject({ biocube: 'upland' });
+    expect(W.levels[W.hub].style?.geocube).toBeUndefined();
+    // (a word naming a cube or what grows is the world's: it is kept, and every place grows it)
+    const N = composeGameworld({ prompt: 'a gothic jrpg: a fortified town with a castle, a dungeon with a boss' });
+    expect(N.brief.cube).toMatchObject({ id: 'gothic-night', word: 'gothic' });
+    const D = composeGameworld({ prompt: 'a desert jrpg: a fortified town with a castle, a dungeon with a boss' });
+    expect(Object.values(D.levels).every((L) => L.style?.geocube?.biocube === undefined)).toBe(true);
+  });
+
   it('a hub game that names neither keeps its old shape: the town, the wilds, the last raising its castle', () => {
     const V = composeGameworld({ prompt: 'a jrpg in a green valley' }), vid = Object.keys(V.levels);
     expect(V.hub).toBe(vid[0]);
