@@ -100,7 +100,15 @@ function trunkOf(chains) {
 export function hashN(n) { let h = (n * 2654435761) >>> 0; h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; h ^= h >>> 13; return (h >>> 0) / 4294967296; }
 
 const YOUNG = new Map();
-export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.mature, minDiameter = TREE_FORM.minDiameter, cell = TREE_FORM.cell, clumpCell = TREE_FORM.clumpCell, far = false, twigs = false } = {}) {
+/**
+ * A broadleaf's CANOPY FORM (`treeForm(…, { canopy: true })`, the crowns a stage's `crowns` reads): a tree grown up to a
+ * canopy, its stem bare higher (its limbs shed below `bole` of its height, its leafy crown from `lift`), its spread WIDER
+ * (× `narrow` about its foot, in place of TREE_FORM's drawn-in spread) and FLARING up the crown (× 1 + `flare` from the
+ * bole to its top): an umbrella over a bare trunk, not a branchy column.
+ */
+export const CANOPY = Object.freeze({ lift: 0.5, bole: Object.freeze([0.42, 0.52]), narrow: 1.15, flare: 0.45 });
+
+export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.mature, minDiameter = TREE_FORM.minDiameter, cell = TREE_FORM.cell, clumpCell = TREE_FORM.clumpCell, far = false, twigs = false, canopy = false } = {}) {
   const S = SPECIES[species]; if (!S || (S.kind !== 'tree' && S.kind !== 'conifer')) throw new Error(`tree-form: '${species}' is not a tree species`);
   const conifer = S.kind === 'conifer', needles = needleHabit(species);
   let plant, height, k = 1;
@@ -120,7 +128,7 @@ export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.m
     // (re-stood toward the species' mature height, or to `aim` metres where a level asks its trees' own)
     if (mature && mature.scale === undefined) { const h0 = young.nodes.reduce((a, n) => (n.died ? a : Math.max(a, n.pos[2])), 0); mature = { scale: Math.min(mature.range[1], Math.max(mature.range[0], (mature.aim ?? S.heights[1] * mature.toHeight) / Math.max(1e-6, h0))), cambium: mature.cambium }; }
     k = mature ? mature.scale : 1; plant = restand(young, mature ? { scale: k, cambium: mature.cambium } : {}); height = plant.height;
-    if (!needles) plant = growUp(plant, height, seed);
+    if (!needles) plant = growUp(plant, height, seed, canopy ? CANOPY : null);
   }
   // (the cut, and a clump's bounds, follow the re-standing: the same limbs drawn, the same masses held; needles, a
   // conifer's or a needled row's, sit on slender limbs: their cut, their cell and their fill)
@@ -154,7 +162,7 @@ export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.m
   // the clumps and the sites: the leafy shoots gathered into cells a clump wide and a spray long, each facing out of the
   // crown, each scaled to hold its cell's leaves
   // (a broadleaf's crown lifted off its trunk, TREE_FORM.lift: no leafy shoot low on it, the stem and its first limbs bare)
-  const lift = needles ? 0 : TREE_FORM.lift * height;
+  const lift = needles ? 0 : (canopy ? CANOPY.lift : TREE_FORM.lift) * height;
   const leafy = plant.nodes.filter((n) => !n.died && n.leaves && n.pos[2] >= lift), holds = leafHolds(species);
   const centre = mul(leafy.reduce((a, n) => add(a, n.pos), [0, 0, 0]), 1 / Math.max(1, leafy.length));
   const gather = (size, per, salt, cap) => {
@@ -274,9 +282,9 @@ export function rimTwigs(form, { per = RIM.per } = {}) {
 
 // a broadleaf grown up: every limb that rises below the crown's base shed with all it carries (its stem bare to there),
 // and the tree drawn in toward its stem (its spread × `narrow`, about its foot)
-function growUp(plant, height, seed = 1) {
+function growUp(plant, height, seed = 1, shape = null) {
   const V = TREE_FORM.vary, h = (k) => hashN(seed * 7919 + k), mixv = ([a, b], t) => a + (b - a) * t;
-  const { nodes, axes } = plant, bole = mixv(V.bole, h(1)) * height, shed = new Set(), root = nodes.find((n) => n.parent < 0) || nodes[0];
+  const { nodes, axes } = plant, bole = mixv(shape ? shape.bole : V.bole, h(1)) * height, shed = new Set(), root = nodes.find((n) => n.parent < 0) || nodes[0];
   const kids = (id) => plant.children.get(id) || [];
   const firstOf = new Map(); for (const n of nodes) if (n.parent >= 0 && !firstOf.has(n.axis)) firstOf.set(n.axis, n);
   for (const [a, first] of firstOf) {
@@ -284,8 +292,10 @@ function growUp(plant, height, seed = 1) {
     const stack = [first.id]; while (stack.length) { const id = stack.pop(); if (shed.has(id)) continue; shed.add(id); stack.push(...kids(id)); }
   }
   // (drawn in, and leaning a few degrees its own way: the higher, the further over)
-  const nw = TREE_FORM.narrow * mixv(V.narrow, h(2)) / ((V.narrow[0] + V.narrow[1]) / 2), [rx, ry, rz] = root.pos, az = 2 * Math.PI * h(3), lean = Math.tan((V.lean * (h(4) * 2 - 1)) * Math.PI / 180);
-  return { ...plant, nodes: nodes.map((n) => { const up = n.pos[2] - rz; return { ...n, pos: [rx + (n.pos[0] - rx) * nw + Math.cos(az) * lean * up, ry + (n.pos[1] - ry) * nw + Math.sin(az) * lean * up, n.pos[2]], ...(shed.has(n.id) ? { died: true } : {}) }; }) };
+  const nw0 = (shape ? shape.narrow : TREE_FORM.narrow) * mixv(V.narrow, h(2)) / ((V.narrow[0] + V.narrow[1]) / 2), [rx, ry, rz] = root.pos, az = 2 * Math.PI * h(3), lean = Math.tan((V.lean * (h(4) * 2 - 1)) * Math.PI / 180);
+  // (a canopy's spread flaring up its crown: wider the higher, from its bole to its top)
+  const top = Math.max(...nodes.map((n) => n.pos[2] - rz)), nwAt = (up) => (shape ? nw0 * (1 + shape.flare * Math.max(0, Math.min(1, (up - bole) / Math.max(1e-6, top - bole)))) : nw0);
+  return { ...plant, nodes: nodes.map((n) => { const up = n.pos[2] - rz, nw = nwAt(up); return { ...n, pos: [rx + (n.pos[0] - rx) * nw + Math.cos(az) * lean * up, ry + (n.pos[1] - ry) * nw + Math.sin(az) * lean * up, n.pos[2]], ...(shed.has(n.id) ? { died: true } : {}) }; }) };
 }
 
 /** The crown as CROSSES (vegetation/twigs.js leafCross), fewer and aimed: of its clumps the share `keep` (the envelope's

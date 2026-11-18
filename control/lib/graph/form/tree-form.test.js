@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { treeForm, massCrown, tipBlobs, anchorBlobs, TREE_FORM, SLEEVE, MASSES, TIP_BLOBS, BLOB_HOLD } from './tree-form.js';
+import { treeForm, massCrown, tipBlobs, anchorBlobs, TREE_FORM, SLEEVE, MASSES, TIP_BLOBS, BLOB_HOLD, CANOPY } from './tree-form.js';
 import { BARK_TILE_M } from '../vegetation/tiles.js';
 import { leafHolds, needleHabit } from '../vegetation/sprays.js';
 import { SPECIES } from '../vegetation/species.js';
@@ -149,4 +149,15 @@ describe('the mass crown', () => {
     expect(near.p).toEqual([0.3, 0, 4]);
     expect(Math.hypot(far.p[0], far.p[1], far.p[2] - 4)).toBeCloseTo(0.5 * BLOB_HOLD, 3);
   });
+});
+
+describe('the canopy form', () => {
+  it('stands a broadleaf on a bare stem with a wider crown: no leaf below its lift, its spread over the plain tree\'s', () => {
+    const at = (canopy) => treeForm('beech', { seed: 3, mature: { toHeight: 0.95, range: [1, 2], cambium: 2.2, aim: 12 }, canopy });
+    const plain = at(false), canopy = at(true);
+    const lowest = (F) => Math.min(...F.clumps.map((c) => c.p[2])), spread = (F) => Math.max(...F.clumps.map((c) => Math.hypot(c.p[0], c.p[1])));
+    expect(lowest(canopy)).toBeGreaterThanOrEqual(CANOPY.lift * canopy.height - 1e-6);
+    expect(lowest(canopy)).toBeGreaterThan(lowest(plain));
+    expect(spread(canopy)).toBeGreaterThan(spread(plain));
+  }, 120000);
 });

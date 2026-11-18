@@ -150,7 +150,8 @@ function treeTemplate(species, height, crowns = null) {
     // of its own outline along each drawn shoot, no sprays; far off, its card, baked from these same leaves
     // (channels/form-flora.js FLORA_FAR). A needled crown keeps its clumps and sprays)
     const crossed = !needleHabit(species);
-    const F = treeForm(species, { seed: SPECIES[species].specimen ?? 1, far: true, twigs: crossed, mature: { toHeight: 0.95, range: [1, 2], cambium: 2.2, aim: height } });
+    // (a crown a stage's `crowns` reads stands in the CANOPY FORM, form/tree-form.js CANOPY: a bare stem, a wider crown)
+    const F = treeForm(species, { seed: SPECIES[species].specimen ?? 1, far: true, twigs: crossed, mature: { toHeight: 0.95, range: [1, 2], cambium: 2.2, aim: height }, ...(crowns && crossed ? { canopy: true } : {}) });
     // (a needled crown: its needles in sleeves round its leafy shoots, channels/form-flora.js; no needle a polygon)
     if (!crossed) CACHE.set(key, { ...template('tree', species, F, species), ...(F.sleeve ? { sleeve: packSleeve(F.sleeve) } : {}) });
     else {
