@@ -1104,8 +1104,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: WALK_EYE, gravity: 22, radius: 0.4 },
     // (the form render's read, ctx.form: where each plant stands, as data, for it to grow its own there: form/flora-read.js;
     // world-scene takes it off the payload once read. Any other read: none, every byte as it was)
-    // (`crowns: 'hybrid'`: its broadleaves' crowns drawn as bundles each round a blob, form/flora-read.js treeTemplate `core`)
-    ...(ctx.form ? { plants: { ...withClaims(plantItems(st, site, { trees, thickets: TH, shrubs: shr, rocks, avoid: near.filter((a) => !trees.includes(a)), skirt: skirtTrees }), [...(LP?.claims ?? []), ...(TRK?.claims ?? []), ...(DF?.claims ?? [])]), ...(manifest.crowns === 'hybrid' ? { crowns: 'hybrid' } : {}) } } : {}),
+    // (`crowns`, CROWNS: how its broadleaves' crowns are read, form/flora-read.js treeTemplate)
+    ...(ctx.form ? { plants: { ...withClaims(plantItems(st, site, { trees, thickets: TH, shrubs: shr, rocks, avoid: near.filter((a) => !trees.includes(a)), skirt: skirtTrees }), [...(LP?.claims ?? []), ...(TRK?.claims ?? []), ...(DF?.claims ?? [])]), ...(manifest.crowns !== undefined ? { crowns: crownsOf(manifest.crowns) } : {}) } } : {}),
     // (and its dunes as a map, for the form render's sand: era/out-dunes.js duneMap)
     ...(ctx.form && DS ? { dunes: duneMap(site) } : {}),
     // (and its snow as a map, for the form render to lay it over the ground: era/snow.js snowMap)
@@ -1340,6 +1340,10 @@ function grittyGrass(LG, grit, st) {
     // (its crowns are chipped: the core and the chips sway with the wood)
     ...(LG.crowns ? { crowns: { ...LG.crowns, groups: [...LG.crowns.groups, CORE_GROUP, CHIP_GROUP, ...(st.thickets ? [SOFT_BRUSH.core, SOFT_BRUSH.chips] : [])] } } : {}) };
 }
+// a stage's `crowns`, how its broadleaves' crowns are read in the form render (form/flora-read.js treeTemplate): 'hybrid'
+// (each leaf bundle round a blob) or 'masses' (big blobs round the branches, the bundles on their surfaces)
+export const CROWNS = Object.freeze(['hybrid', 'masses']);
+const crownsOf = (c) => { if (!CROWNS.includes(c)) throw new Error(`isekai: crowns is ${CROWNS.join(' or ')} (how the form render reads its broadleaves' crowns)`); return c; };
 const GRASS_KEYS = ['look', 'contact', 'density', 'height', 'flowers', 'far', 'sway', 'form'];
 // (a grass that says only HOW it is drawn, `{ form: true }`, asks for no grass of its own: it draws whatever grass the
 // stage grows, over the defaults that grass would take)
