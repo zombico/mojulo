@@ -486,3 +486,37 @@ export function anchorBlobs(blobs, wood, { hold = BLOB_HOLD } = {}) {
     return { ...b, p: add(b.p, mul(sub(w, b.p), t)).map(r4) };
   });
 }
+
+/**
+ * THE MAJOR BALLS (a stage's `crowns: 'blobs'`, the crown's form reconsolidated): the crown read as its 3 or 4 great
+ * masses. Its branch ends (crossClumps) gathered by a seeded k-means into `k` groups (`k[0]`, or `k[1]` from `many` ends
+ * up), each a ball at its group's middle, as big as holds `hold` of its ends (the share nearest, plus `pad` of a bundle),
+ * SOLVED OUTWARD: moved out along its way out of the crown until its surface reaches its group's outermost end (never
+ * past `push` of its own radius), so the crown's silhouette is its ends' and its mass fills in behind.
+ * → { blobs: [{ p, o, d, s, e, r }] }.
+ */
+export const BALLS = Object.freeze({ k: Object.freeze([3, 4]), many: 40, hold: 0.8, pad: 0.6, push: 0.35, rounds: 8 });
+export function majorBalls(clumps) {
+  const n = clumps.length;
+  if (!n) return { blobs: [] };
+  const k = Math.min(n, n >= BALLS.many ? BALLS.k[1] : BALLS.k[0]), d2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
+  const C0 = mul(clumps.reduce((a, c) => add(a, c.p), [0, 0, 0]), 1 / n);
+  // (first centres: the highest end, then each the farthest from those chosen)
+  const top = clumps.reduce((a, c, i) => (c.p[2] > clumps[a].p[2] ? i : a), 0), C = [clumps[top].p.slice()];
+  while (C.length < k) { let best = 0, far = -1; clumps.forEach((c, i) => { const m = Math.min(...C.map((q) => d2(q, c.p))); if (m > far) { far = m; best = i; } }); C.push(clumps[best].p.slice()); }
+  let of = new Array(n).fill(0);
+  for (let r = 0; r < BALLS.rounds; r++) {
+    of = clumps.map((c) => C.reduce((a, q, j) => (d2(q, c.p) < d2(C[a], c.p) ? j : a), 0));
+    C.forEach((q, j) => { const m = clumps.filter((_, i) => of[i] === j); if (m.length) for (let t = 0; t < 3; t++) q[t] = m.reduce((a, c) => a + c.p[t], 0) / m.length; });
+  }
+  const sMid = [...clumps.map((c) => c.s)].sort((a, b) => a - b)[Math.floor(n / 2)];
+  const blobs = C.map((q, j) => {
+    const M = clumps.filter((_, i) => of[i] === j);
+    if (!M.length) return null;
+    const ds = M.map((c) => Math.sqrt(d2(c.p, q))).sort((a, b) => a - b), R = ds[Math.min(ds.length - 1, Math.floor(ds.length * BALLS.hold))] + sMid * BALLS.pad;
+    const u0 = sub(q, C0), u = len(u0) > 1e-6 ? unit(u0) : [0, 0, 1];
+    const reach = Math.max(...M.map((c) => dot(sub(c.p, q), u))), shift = Math.max(0, Math.min(BALLS.push * R, reach - R));
+    return { p: add(q, mul(u, shift)).map(r4), o: u.map(r4), d: [1, 0, 0], s: r4(R), e: r4(M.reduce((a, c) => a + c.e, 0) / M.length), r: r4(j / k) };
+  }).filter(Boolean);
+  return { blobs };
+}

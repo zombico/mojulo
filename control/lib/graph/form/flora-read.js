@@ -21,7 +21,7 @@
  *       bark's own), template, soft (1 a bush walked through, SKIRT_FLAG a skirt's tree)
  * Deterministic; templates cached a process (the grower is the cost).
  */
-import { treeForm, crossClumps, massCrown, tipBlobs, anchorBlobs } from './tree-form.js';
+import { treeForm, crossClumps, massCrown, majorBalls, anchorBlobs } from './tree-form.js';
 import { bambooForm } from './bamboo-form.js';
 import { bushForm, bushBlossom, bushBerries, ADORN } from './bush-form.js';
 import { barkMaterial } from './bark-material.js';
@@ -100,8 +100,9 @@ export function budgeted(form, { clumpTris, leanTris, sprayTris, woodTris, canLe
 export const FLORA_LOD = Object.freeze({ detail: Object.freeze([6, 16]), mid: 25, sprayed: 6 });
 
 /** A mass crown's blob (form/tree-form.js massCrown): a sphere of `detail` subdivisions, squashed `squash` up, its colour
- *  the leaf's × `shade` (the crown's inside), scaled to each blob's radius on the page. */
-export const MASS_BLOB = Object.freeze({ detail: 1, squash: 0.85, shade: 0.82 });
+ *  the leaf's × `shade` (the crown's inside), scaled to each blob's radius on the page; a major ball `ball` subdivisions
+ *  (it is big: a coarse one shows its facets). */
+export const MASS_BLOB = Object.freeze({ detail: 1, ball: 2, squash: 0.85, shade: 0.82 });
 const CACHE = new Map();
 const b64 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64');
 const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
@@ -157,10 +158,10 @@ function treeTemplate(species, height, crowns = null) {
     else {
       // (within the plants' budget, FLORA_BUDGET: its bundles by rank, each grown)
       const C0 = crossClumps(F), xt = leafCross(species, { seed: 17, core }).tris.length;
-      // ('blobs': a blob at each branch end, its leaves set aside, tree-form.js tipBlobs: the crown's form studied alone)
-      const M0 = masses ? massCrown(C0) : tips ? { ...tipBlobs(C0), clumps: C0 } : null;
+      // ('blobs': the crown's 3 or 4 major balls, its leaves set aside, tree-form.js majorBalls: its form studied alone)
+      const M0 = masses ? massCrown(C0) : tips ? { ...majorBalls(C0), clumps: C0 } : null;
       // (each blob held to the wood that is drawn: none floats over a twig the cut left out)
-      const M = M0 && tips ? { ...M0, blobs: anchorBlobs(M0.blobs, F.wood.pos) } : M0, blobGeo = M ? packGeo(blobTris([0, 0, 0], [1, 1, MASS_BLOB.squash], TONES.leaf.map((v) => Math.round(v * MASS_BLOB.shade)), { detail: MASS_BLOB.detail })) : null;
+      const M = M0 && tips ? { ...M0, blobs: anchorBlobs(M0.blobs, F.wood.pos) } : M0, blobGeo = M ? packGeo(blobTris([0, 0, 0], [1, 1, MASS_BLOB.squash], TONES.leaf.map((v) => Math.round(v * MASS_BLOB.shade)), { detail: tips ? MASS_BLOB.ball : MASS_BLOB.detail })) : null;
       // (a mass crown's blobs spend from its budget as its wood does: its bundles give up what they cost)
       // (and never more triangles than the crown it stands for: as many of its least bundles given up as its blobs cost)
       const giveUp = M && masses ? Math.ceil((M.blobs.length * blobGeo.n) / Math.max(1, xt)) : 0;

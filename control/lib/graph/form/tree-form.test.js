@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { treeForm, massCrown, tipBlobs, anchorBlobs, TREE_FORM, SLEEVE, MASSES, TIP_BLOBS, BLOB_HOLD, CANOPY } from './tree-form.js';
+import { treeForm, massCrown, tipBlobs, anchorBlobs, majorBalls, TREE_FORM, SLEEVE, MASSES, TIP_BLOBS, BLOB_HOLD, CANOPY, BALLS } from './tree-form.js';
 import { BARK_TILE_M } from '../vegetation/tiles.js';
 import { leafHolds, needleHabit } from '../vegetation/sprays.js';
 import { SPECIES } from '../vegetation/species.js';
@@ -141,6 +141,16 @@ describe('the mass crown', () => {
     for (const b of blobs) { expect(b.s).toBeLessThanOrEqual(TIP_BLOBS.merge.cap * TIP_BLOBS.most * mid + 1e-9); expect(b.s).toBeGreaterThanOrEqual(TIP_BLOBS.least * mid * (1 - TIP_BLOBS.taper) - 1e-9); }
     // (the same ends, the same blobs)
     expect(JSON.stringify(tipBlobs(clumps))).toBe(JSON.stringify({ blobs }));
+  });
+
+  it('the major balls: the crown as its 3 or 4 great masses, each holding most of its ends, reaching its outermost', () => {
+    const { blobs } = majorBalls(clumps);
+    expect(blobs.length).toBe(BALLS.k[0]);
+    expect(majorBalls([...clumps, ...clumps.map((c) => ({ ...c, p: [c.p[0], c.p[1] + 4, c.p[2]] }))]).blobs.length).toBe(BALLS.k[1]);
+    // (most of the ends inside a ball: its `hold` share, and a bundle's pad)
+    const inside = clumps.filter((c) => blobs.some((b) => Math.hypot(...b.p.map((v, k) => v - c.p[k])) <= b.s + 1e-6)).length;
+    expect(inside / clumps.length).toBeGreaterThanOrEqual(BALLS.hold - 0.05);
+    expect(JSON.stringify(majorBalls(clumps))).toBe(JSON.stringify({ blobs }));
   });
 
   it('holds each blob to the wood that is drawn: one floating past it drawn in until it touches', () => {
