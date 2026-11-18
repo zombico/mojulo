@@ -11,6 +11,8 @@
  *     jumps, wall kick and stomp beside the live ones (each jump's top, the double jump, wall kicks, stomps, touches)
  *   mountLaneHtml(G, { refs?, cast?, coat?, sound?, cdn? }) → { html, room, card }: the mount lane, each gait's speed, the
  *     jump's clearance and the rein-back beside the live speed, the 100 m split, the jumps and the fences cleared or refused
+ *   missionHtml(G, { refs?, sound?, cdn?, seed? }) → { html, level, proof }: the first mission (mission-level.js), its
+ *     tasks proved on the bus
  *   rollRoomHtml(G, { refs?, cast?, sound?, cdn? }) → { html, room, measured }: the roll room, the roll being played (its
  *     seed, what stands, what lies, where it started) beside the seeds audit and the cover forms that stop this hero;
  *     R rolls the next seed, Shift+R the one before (the page's own ?seed=)
@@ -444,6 +446,18 @@ export async function gameRoomHtml(G, { refs = {}, cast = null, feel = null, dre
 }
 const N0 = (room) => room.needs;
 
+/**
+ * The first mission's page: the firing range stretched into a level (mission-level.js) on the runtime, its briefing,
+ * HUD, pause and debrief drawn by mana-ui from the manifest's `mission` (the page's mission channel).
+ */
+export async function missionHtml(G, { refs = {}, sound = 'realistic', cdn = false, seed = null } = {}) {
+  const { missionLevel } = await import('./mission-level.js');
+  const { proveMission } = await import('./mission-proof.js');
+  const level = missionLevel(G, { refs, seed, quiet: sound === 'none' });
+  const payload = await resolved(level.manifest, `${G.id ?? 'game'}-mission`);
+  return { html: await emitted(payload, cdn), level, proof: proveMission(level.manifest) };
+}
+
 /** The page of one of the door's rooms. */
 export async function practiceHtml(G, id, opts = {}) {
   const { practiceFor, PRACTICE_ROOMS } = await import('./practice.js');
@@ -457,6 +471,7 @@ export async function practiceHtml(G, id, opts = {}) {
     const { artilleryHtml } = await import('./combat/artillery.js');
     return { html: artilleryHtml({ ...artilleryFor(G), ...(opts.sound === 'none' ? { quiet: true } : {}) }) };
   }
+  if (id === 'mission') return missionHtml(G, opts);
   // (the roll room's course as its MAP, course-map.js: the book's diagram of a running game's course, `view: 'map'`)
   if (id === 'roll' && opts.view === 'map') {
     const room = rollRoom(G, opts);

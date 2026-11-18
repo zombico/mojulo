@@ -44,6 +44,7 @@ import { tunnel } from './tunnel.js';
 import { ARENA, TOWER, towerFloor, arenaAsks, arenaSpawns, arenaBases, arenaLongest, arenaSightlines, askBoxes, concernLaws, lineBlocked } from './lay-concerns.js';
 import { WEAPON_ROLES, bandShare, servedRoles } from './weapon-roles.js';
 import { mulberry32 } from '../vegetation/grow.js';
+import { boutMap, boutPieces, BOUT_CELL } from '../arena-map/bout.js';
 
 const r2 = (v) => Math.round(v * 100) / 100;
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -51,14 +52,14 @@ const S = (words, read, set) => ({ words, read, set });
 const G = (words, read, gap) => ({ words, read, gap });
 
 // the grammar's rails
-const RAILS = Object.freeze({ half: [12, 26], lanes: [2, 4], gapEnd: [2.5, 6], gapMid: [3, 8], court: [0.25, 0.45], many: [0, 1] });
+const RAILS = Object.freeze({ half: [12, 30], lanes: [2, 4], gapEnd: [2.5, 6], gapMid: [3, 8], court: [0.25, 0.45], many: [0, 1] });
 const clamp = (k, v) => Math.max(RAILS[k][0], Math.min(RAILS[k][1], v));
 
 /** What the words ask, and what each sets in the grammar. */
 export const ARENA_TRAITS = Object.freeze({
-  small: S(['small', 'tight', 'compact', 'little', 'cramped'], 'small: 26 m across', { half: 13 }),
-  medium: S(['medium', 'mid-size', 'midsize'], 'medium: 36 m across', { half: 18 }),
-  large: S(['large', 'big', 'huge', 'wide', 'sprawling', 'vast'], 'large: 48 m across', { half: 24 }),
+  small: S(['small', 'tight', 'compact', 'little', 'cramped'], 'small: 32 m across', { half: 16 }),
+  medium: S(['medium', 'mid-size', 'midsize'], 'medium: 44 m across', { half: 22 }),
+  large: S(['large', 'big', 'huge', 'wide', 'sprawling', 'vast'], 'large: 56 m across', { half: 28 }),
   'two-lanes': S(['two lanes', 'two-lane', '2 lanes', 'two-lanes'], 'two lanes, side by side', { topology: 'lanes', lanes: 2 }),
   'three-lanes': S(['three lanes', 'three-lane', '3 lanes', 'three-lanes', 'lanes', 'lane'], 'three lanes: a middle and two flanks', { topology: 'lanes', lanes: 3 }),
   'four-lanes': S(['four lanes', 'four-lane', '4 lanes', 'four-lanes'], 'four lanes', { topology: 'lanes', lanes: 4 }),
@@ -83,36 +84,6 @@ export function composeArena(c, seed = 1) {
   // the wall round it
   wall(0, H, 'u', 2 * H + 0.6, ARENA.wall, 0.6); wall(0, -H, 'u', 2 * H + 0.6, ARENA.wall, 0.6);
   wall(H, 0, 'v', 2 * H, ARENA.wall, 0.6); wall(-H, 0, 'v', 2 * H, ARENA.wall, 0.6);
-  const lanes = [];
-  if (c.topology === 'ring') {
-    const R = c.court * 2 * H, seg = (2 * R - c.gapMid) / 2;
-    // the court's four sides, each two pieces either side of its doorway
-    for (const s of [1, -1]) {
-      wall(s * (c.gapMid / 2 + seg / 2), R, 'u', seg, ARENA.wall); wall(s * (c.gapMid / 2 + seg / 2), -R, 'u', seg, ARENA.wall);
-      wall(R, s * (c.gapMid / 2 + seg / 2), 'v', seg, ARENA.wall); wall(-R, s * (c.gapMid / 2 + seg / 2), 'v', seg, ARENA.wall);
-    }
-    // a pillar in the court (a crate stack), no line through its doorways
-    P.push({ form: 'crate', u: 0, v: 0, stack: 2 });
-    lanes.push({ u0: R, u1: H, mid: (R + H) / 2 });
-  } else {
-    const n = c.lanes, w = (2 * H) / n;
-    for (let k = 1; k < n; k++) {
-      const u = r2(-H + k * w);
-      // staggered, a divider's middle gap is offset (up one side of the centre, down the other, so its turned partner
-      // matches): the gaps no longer line up across the lanes
-      const g = c.stagger ? -Math.sign(u) * H / 4 : 0, lo = -H + c.gapEnd, hi = H - c.gapEnd, a = g - c.gapMid / 2, b = g + c.gapMid / 2;
-      if (a - lo > 1) wall(u, (lo + a) / 2, 'v', a - lo, ARENA.wall);
-      if (hi - b > 1) wall(u, (b + hi) / 2, 'v', hi - b, ARENA.wall);
-    }
-    // a blocker across each lane's middle: round it either side
-    for (let j = 0; j < n; j++) {
-      const uc = -H + (j + 0.5) * w, u0 = -H + j * w, u1 = u0 + w;
-      wall(uc, 0, 'u', Math.min(Math.abs(uc) < 1e-9 ? 4 : 6, w * 0.5));
-      // STAGGERED: a blocker at each quarter against alternate sides, so the way zig-zags and no line runs the lane
-      if (c.stagger) { wall(u0 + 0.3 * w, H / 2, 'u', w * 0.6); wall(u1 - 0.3 * w, -H / 2, 'u', w * 0.6); }
-      lanes.push({ u0, u1, mid: uc });
-    }
-  }
   // TOWERS (high ground): `towers` turned pairs, each where its top sees the most of the floor, its stair running out
   // toward the middle (else another way round), the whole of it (block and stair) clear of the walls, its partner and
   // every other box by 2 m (a way round); where none fits, a smaller tower 1.5 m clear; stood before the tweaks' breaks
@@ -141,6 +112,26 @@ export function composeArena(c, seed = 1) {
     if (!best) break;
     P.push(best.q, { ...best.q, u: -best.q.u, v: -best.q.v, dir: best.q.dir.map((x) => (x ? -x : 0)) });
   }
+  // THE FLOOR'S LAYOUT IS THE ARENA MAP'S (arena-map/bout.js): the words' kind is where the laws start (lanes, or a
+  // court), the laws grow it for the bout's sight, and the half they liked best is turned onto the other, so every
+  // panel has its partner. It gives way to the bout's own means: a panel stands clear of a tower and its stair (the
+  // high ground is stood first, on the bare floor), and is taken where the tweak found it closing a way (`opens`, each
+  // with its turned partner); how much of it stands is the words' (`many`: sparse keeps its longer runs alone)
+  // (twelve cells a side at most: a bigger arena is the same grid drawn larger, its ways wider, and no slower to grow)
+  const cells = Math.max(6, Math.min(12, Math.round((2 * H) / BOUT_CELL))), B = boutMap({ n: cells, topology: c.topology, lanes: c.lanes, court: c.court, stagger: !!c.stagger, sight: c.sight ?? null, seed, bare: c.many < 0.3 });
+  {
+    const T0 = askBoxes(arenaAsks(P.filter((q) => q.form === 'tower'), (u, v) => [u, v, 0])), opens = (c.opens ?? []).flatMap(([u, v]) => [[u, v], [-u, -v]]);
+    for (const q of boutPieces(B.map, H)) {
+      const hu = (q.along === 'u' ? q.length : q.thick ?? 0.5) / 2, hv = (q.along === 'v' ? q.length : q.thick ?? 0.5) / 2;
+      const nearBox = T0.some((X) => q.u - hu < X.max[0] + 2 && q.u + hu > X.min[0] - 2 && q.v - hv < X.max[1] + 2 && q.v + hv > X.min[1] - 2);
+      const opened = opens.some(([u, v]) => u > q.u - hu - 2.2 && u < q.u + hu + 2.2 && v > q.v - hv - 2.2 && v < q.v + hv + 2.2);
+      if (nearBox || opened) continue;
+      P.push(q);
+    }
+  }
+  const lanes = [];
+  if (c.topology === 'ring') { const R = c.court * 2 * H; lanes.push({ u0: R, u1: H, mid: (R + H) / 2 }); }
+  else { const n = c.lanes, w = (2 * H) / n; for (let j = 0; j < n; j++) lanes.push({ u0: -H + j * w, u1: -H + (j + 1) * w, mid: -H + (j + 0.5) * w }); }
   for (const [u, v, along, length] of c.breaks ?? []) pair(u, v, along, length);
   // crates at seeded places, off the walls and the spawns' ring, in turned pairs
   const dice = mulberry32((seed * 7919 + 13) >>> 0), boxes = () => askBoxes(arenaAsks(P, (u, v) => [u, v, 0]));
@@ -152,8 +143,11 @@ export function composeArena(c, seed = 1) {
     P.push({ form: 'crate', u, v, stack }, { form: 'crate', u: -u, v: -v, stack });
     put++;
   }
-  return { half: H, pieces: P, lanes };
+  return { half: H, pieces: P, lanes, map: { held: B.held, of: B.of, seed: B.seed, bare: c.many < 0.3, not: B.laws.filter((l) => !l.holds).map((l) => l.law) } };
 }
+
+/** The cover standing on an arena's floor: its crates and the panels and masses inside its wall (the wall round it is none). */
+export const coverCount = (pieces, half) => pieces.filter((q) => q.form === 'crate' || (q.form === 'wall' && Math.abs(q.u) < half - 0.5 && Math.abs(q.v) < half - 0.5)).length;
 
 // the floor point (a 2 m grid inside the wall) farthest from any box: where cover is wanted most
 function barest(built) {
@@ -199,7 +193,7 @@ export function arenaDomain({ spawns = 8, weapons = null } = {}) {
   const frame = (H, extra) => ({ centre: [0, 0], half: H, z: 0, ...extra });
   return {
     id: 'arena', TRAITS: ARENA_TRAITS,
-    start: (seed, base) => ({ half: ARENA.half, topology: 'lanes', lanes: 3, gapEnd: 3, gapMid: 5, court: 0.33, many: 0.45, sight: null, stagger: false, teams: 0, towers: 0, cutTowers: [], breaks: [], cut: [], setBy: {}, ...(base ?? {}) }),
+    start: (seed, base) => ({ half: ARENA.half, topology: 'lanes', lanes: 3, gapEnd: 3, gapMid: 5, court: 0.33, many: 0.45, sight: null, stagger: false, teams: 0, towers: 0, cutTowers: [], breaks: [], cut: [], opens: [], setBy: {}, ...(base ?? {}) }),
     pull(cand, T, id) {
       if (T.gap) return { gap: T.gap };
       const c = clone(cand), changed = [];
@@ -230,7 +224,7 @@ export function arenaDomain({ spawns = 8, weapons = null } = {}) {
       if (T.set.teams) return { ok: !!built.bases && built.bases.every((b) => b.length >= 2), value: built.bases ? `two bases of ${built.bases[0].length}` : 'no bases' };
       if (T.set.topology === 'ring') return { ok: cand.topology === 'ring', value: cand.topology };
       if (T.set.lanes) return { ok: cand.topology === 'lanes' && built.lanes.length === T.set.lanes, value: `${built.lanes.length} lanes` };
-      if (T.set.many !== undefined) { const n = built.pieces.filter((p) => p.form === 'crate').length; return { ok: T.set.many > 0.5 ? n >= 10 : n <= 6, value: `${n} crates` }; }
+      if (T.set.many !== undefined) { const n = coverCount(built.pieces, built.half); const crates = built.pieces.filter((p) => p.form === 'crate').length; return T.set.many > 0.5 ? { ok: n >= 14, value: `${n} pieces of cover` } : { ok: crates <= 6 && built.map.bare, value: `${crates} crates, ${built.map.bare ? 'nothing grown on the floor' : 'a grown floor'}` }; }
       if (T.set.sight === 'close') return { ok: long <= 1.15 * H, value: `longest line ${long.toFixed(1)} m (${(1.15 * H).toFixed(1)} at most)` };
       if (T.set.sight === 'long') return { ok: long >= 1.5 * H, value: `longest line ${long.toFixed(1)} m (${(1.5 * H).toFixed(1)} wanted)` };
       return { ok: true, value: '' };
@@ -258,6 +252,11 @@ export function arenaDomain({ spawns = 8, weapons = null } = {}) {
         } else if (l.law === 'no-line-across' && built.line.from) breakAt(built.line.from, built.line.to, 'a line across');
         else if (l.law === 'routes-loop') {
           if (c.breaks?.length) { const b = c.breaks.pop(); (c.cut ||= []).push(b); changed.push(`the break at [${b[0]}, ${b[1]}] taken away: it cut a way (routes loop)`); }
+          else if (/\[(-?[\d.]+),\s*(-?[\d.]+)\]/.test(String(l.value)) && (c.opens ?? []).filter((o) => o[2] !== 'long').length < 10) {
+            // (the way the law names is the only one: the map's panels beside it are taken, and their partners)
+            const m = String(l.value).match(/\[(-?[\d.]+),\s*(-?[\d.]+)\]/), at = [r2(+m[1]), r2(+m[2])];
+            (c.opens ||= []).push(at); changed.push(`the panels at [${at}] taken (routes loop: a second way)`);
+          }
           else if (c.stagger && c.setBy.sight !== 'close') { c.stagger = false; changed.push('lanes unstaggered (routes loop)'); }
           else if (c.topology === 'ring') { c.court = r2(clamp('court', c.court - 0.05)); c.many = r2(clamp('many', c.many - 0.15)); changed.push(`court ${c.court}, many ${c.many} (routes loop: room round the court)`); }
           else { c.gapMid = r2(clamp('gapMid', c.gapMid + 1)); c.gapEnd = r2(clamp('gapEnd', c.gapEnd + 0.5)); changed.push(`gaps ${c.gapEnd} / ${c.gapMid} (routes loop)`); }
@@ -274,6 +273,12 @@ export function arenaDomain({ spawns = 8, weapons = null } = {}) {
       for (const t of failed.traits) {
         if (t.id === 'close' && c.topology === 'lanes' && !c.stagger) { c.stagger = true; changed.push('lanes staggered (close quarters)'); }
         else if (t.id === 'close' && built.line.from) breakAt(built.line.from, built.line.to, 'close quarters');
+        else if (t.id === 'long' && !(c.opens ?? []).some((o) => o[2] === 'long') && built.lanes?.length) {
+          // (a lane cleared end to end: the map's panels along its middle taken, and their partners)
+          const mid = r2(built.lanes[built.lanes.length - 1].mid);
+          for (const k of [-0.75, -0.45, -0.15, 0.15, 0.45, 0.75]) (c.opens ||= []).push([mid, r2(k * H), 'long']);
+          changed.push(`the panels down the lane at u ${mid} taken (long sightlines)`);
+        }
         else if (t.id === 'long') { if (c.breaks?.length) { c.breaks.pop(); changed.push('a break taken away (long sightlines)'); } else { c.many = r2(clamp('many', c.many - 0.2)); changed.push(`many ${c.many} (long sightlines)`); } }
       }
       return { candidate: c, changed: changed.length ? changed : [`reseed ${seed + 1}`], reseed: changed.length ? undefined : seed + 1 };

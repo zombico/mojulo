@@ -11,7 +11,7 @@
  *   its hit           a round landing on a body; a burst (a rocket's) sounds where it went off, by its size
  *   its draw          the switch to it: the weapon drawn
  *   the blade         its swing and its connect (the quick knife: the melee strike's slots)
- *   the feet          a person on the range's concrete
+ *   the feet          a person on the range's concrete: a step, a jump's push-off, a landing on both feet
  * `sounds` ({ <weapon name>: { shot?, reload?, hit?, draw? } }, each a shelf word) is the game's own choice over these.
  * The page plays them on a mix in the open (the shelf's mixer): ducks, a voice cap, a cue placed by its distance.
  */
@@ -95,7 +95,13 @@ export function rangeAudio({ slots = [], knife = null, sounds = {}, vary = false
     // (each weapon's own cues in the book of cues too, so the page's kernel carries every gesture they use)
     cues,
     weapon: { hit: cue('flesh impact'), switch: cue('weapon switch') },
-    footsteps: { step: cue('step concrete'), land: cue('step concrete') },
+    // (a jump is a body's: the boots pushing off the concrete and the kit shifting, never the gait's default chirp; a
+    // landing both feet at once, the weight under them)
+    footsteps: {
+      step: cue('step concrete'),
+      jump: [...cue('step concrete'), { type: 'burst', decay: 0.07, vol: 0.1, lowpass: 2200, at: 0.01, send: 0.1 }],
+      land: [...cue('step concrete'), ...later(cue('step concrete'), 0.025), { type: 'thump', from: 'A2', to: 'E1', decay: 0.12, vol: 0.28, send: 0.05 }, { type: 'burst', decay: 0.09, vol: 0.1, lowpass: 1800, at: 0.03, send: 0.1 }],
+    },
     ...(knife ? { strike: { swing: cue(word(knife.name ?? 'knife', 'swing', 'blade swing')), hit: cue(word(knife.name ?? 'knife', 'hit', 'blade hit')) } } : {}),
     ...(blast ? { burst: blast } : {}),
     ...(vary ? { vary: true } : {}),

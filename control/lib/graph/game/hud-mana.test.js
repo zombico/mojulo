@@ -45,10 +45,25 @@ describe('a level\'s rows on mana-ui', () => {
     expect(own(hudToMana([{ var: 'score' }]))).toBe(1);
     expect(JSON.stringify(hudToMana(ROWS, { hero: false }))).not.toContain('hero.');
   });
-  it('no rows: the pilot\'s gauges alone', () => {
+  it('no rows: the pilot\'s parts alone, each standing only where the page has the thing', () => {
     const E = hudToMana([]);
     expect(() => manaUi.readSpec(E.spec)).not.toThrow();
-    expect(E.spec.hud.children).toHaveLength(1);
+    const C = E.spec.hud.children;
+    // (the screen's edge and the damage ring under the places; the pilot's strip, its gun, the radar, the wheel)
+    expect(C.map((c) => c.use)).toEqual(['peril', 'threat', 'region', 'region', 'region', 'region']);
+    expect(C.slice(3).map((c) => c.when && c.when.bind)).toEqual(['gun.on', 'radar.on', 'wheel.open']);
+    expect(C[2].props).toMatchObject({ at: 'bottom-left', variant: 'scrim', rest: { bind: 'hero.rest' } });
+    expect(hudToMana([], { hero: false }).spec.hud.children).toEqual([]);
+  });
+  it('draws as a game: the health a strip in cells with no label, the corners on a scrim, the rest bare', () => {
+    const E = hudToMana([{ var: 'hp', label: 'HP' }, { var: 'down', label: 'Down', as: 'counter', slot: 'top-left' }, { text: 'W walk', slot: 'bottom', ttl: 9 }]), J = JSON.stringify(E.spec);
+    // (the level's health row is the strip: its var, the highest it has stood as its max)
+    expect(J).not.toContain('"label":"HP"');
+    expect(J).toContain('"segments":4,"size":"large","figures":false');
+    expect(E.feed.hpVar).toBe('v0');
+    const at = (slot) => E.spec.hud.children.filter((c) => c.props && c.props.at === slot).map((c) => c.props.variant);
+    expect(at('top-left')).toEqual(['scrim']);
+    expect(at('bottom')).toEqual(['bare']);
   });
 });
 
@@ -62,6 +77,16 @@ describe('the host carries a level\'s rows', () => {
   it('a card\'s name is the theme it is; a phone is held in the hand', () => {
     expect(typeof levelHud('toybox').theme).toBe('object');
     expect(levelHud('console', { screen: 'phone' }).theme).toEqual({ from: 'console', distance: 'hand' });
+  });
+  it('draws the pilot\'s parts in place of the page\'s own: the radar, the wheel, the damage ring and the weapon panel put away', () => {
+    const js = manaHudScript(levelHud('console'), { game: true, rows: ROWS });
+    expect(js).toContain('#__radar,#__wc,#__damageRing,div:has(>#__wepIcon)');
+    for (const fn of ['__hRadar = ', '__hThings = ', '__hBearing = ']) expect(js).toContain(fn);
+    expect(js).toContain('function pilot(W, me, V)');
+    // (a level of a course, its own HUD and no pilot's parts, carries none of it)
+    const course = manaHudScript({ spec: { hud: { use: 'hud', children: [] } }, theme: 'console', feed: {} });
+    expect(course).not.toContain('function pilot(');
+    expect(course).not.toContain('#__radar');
   });
   it('none ⇒ not a byte', () => { expect(manaHudScript(null, { rows: ROWS })).toBe(''); });
   it('a level steered by a virtual pad: its legend says the thumbs while the pad is up, the keys otherwise', () => {

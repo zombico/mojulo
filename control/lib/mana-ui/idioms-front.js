@@ -72,7 +72,7 @@ export const FRONT_IDIOMS = {
   },
   'pick-screen': {
     kind: 'screen', about: 'one choice before a level (a difficulty, a character, a squad, a kit), one screen a choice: what is asked and how far along the choices it is, what was chosen before it, the rows beside the one in focus (its words, its figures); `faces` lays the rows as a grid of faces; a row that cannot be taken says why; a choice of several marks its rows and is confirmed',
-    reads: 'title, ask, hint, step, steps, chosen: [{ label, value }], rows: [{ id, name, tag?, about?, stats?: [{ label, value, max }], mark?, disabled?, why?, then }], faces, many, short, shortWhy, why, confirm', emits: 'a row\'s then; confirm on continue (a choice of several)',
+    reads: 'title, ask, hint, step, steps, chosen: [{ label, value }], rows: [{ id, name, tag?, gun? (drawn as its wireframe), about?, stats?: [{ label, value, max }], mark?, disabled?, why?, then }], faces, many, short, shortWhy, why, confirm', emits: 'a row\'s then; confirm on continue (a choice of several)',
     params: ['title', 'ask', 'hint', 'step', 'steps', 'chosen', 'rows', 'faces', 'many', 'short', 'shortWhy', 'why', 'confirm'],
     node: screen({ title: P('title'), place: 'full' }, [{ use: 'stack', props: { gap: 'loose' }, children: [
       // what is asked, and how far along the choices this one is
@@ -87,7 +87,11 @@ export const FRONT_IDIOMS = {
       { use: 'split', props: { ratio: 'even' }, children: [
         { use: 'window', props: { title: { word: 'choose' } }, children: [
           { use: 'list', id: 'rows', unless: P('faces'), props: { rows: P('rows'), row: { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [
-            { use: 'stack', props: { gap: 'tight', align: 'start' }, children: [txt(I('name'), 'heading'), { use: 'text', props: { value: I('tag'), role: 'caption' }, when: I('tag') }] },
+            // (a row that is a gun is drawn as its wireframe beside its name: a picture before a word)
+            { use: 'stack', props: { dir: 'row', gap: 'normal', align: 'center' }, children: [
+              { use: 'magazine', props: { gun: I('gun'), rounds: 0 }, when: I('gun') },
+              { use: 'stack', props: { gap: 'tight', align: 'start' }, children: [txt(I('name'), 'heading'), { use: 'text', props: { value: I('tag'), role: 'caption' }, when: I('tag') }] },
+            ] },
             { use: 'badge', props: { value: I('mark'), variant: 'strong' }, when: I('mark') },
           ] } }, on: { accept: I('then') } },
           { use: 'grid', id: 'rows', when: P('faces'), props: { cells: P('rows'), columns: 3, cell: { use: 'stack', props: { align: 'center', gap: 'tight' }, children: [
@@ -136,11 +140,18 @@ export const FRONT_IDIOMS = {
     example: { title: 'Choose an arena', arenas: { bind: 'arenas' }, value: { bind: 'arena' } },
   },
   'pause-menu': {
-    kind: 'screen', about: 'the pause over the held game: resume, then what the game offers (party, options, quit)',
-    reads: 'items: [{ label, then, disabled? }]', emits: 'each item\'s then (back resumes: the stack closes)',
-    params: ['title', 'items'],
-    node: screen({ title: P('title'), layer: 'modal', place: 'center' }, [{ use: 'window', children: [{ use: 'list', id: 'pause', props: { rows: P('items'), variant: 'menu' }, on: { accept: I('then') } }] }, legend(['accept', 'pick'], ['back', 'resume'])]),
-    example: { title: 'Paused', items: [{ label: 'Resume', then: { close: true } }, { label: 'Party', then: { open: 'party' } }, { label: 'Options', then: { open: 'options' } }, { label: 'Save', disabled: true }, { label: 'Quit to title', then: { emit: 'quit' } }] },
+    kind: 'screen', about: 'the pause over the held game, read as a game\'s and not a dialog: the world veiled behind (the theme\'s backdrop), PAUSED large at the left with where you are under it, the menu at a title\'s size (resume, then what the game offers: party, options, quit), and what the run stands at, bare at the right (the level, the time, the task); back resumes',
+    reads: 'title, sub (where you are), items: [{ label, then, disabled? }], aside?: [{ label, value }] (what the run stands at; none, no column)', emits: 'each item\'s then (back resumes: the stack closes)',
+    params: ['title', 'sub', 'items', 'aside'],
+    node: screen({ title: P('title'), layer: 'modal', place: 'left' }, [
+      { use: 'window', props: { variant: 'ghost' }, children: [{ use: 'stack', children: [
+        { use: 'text', props: { value: P('sub'), role: 'label' }, when: P('sub') },
+        { use: 'list', id: 'pause', props: { rows: P('items'), variant: 'menu' }, on: { accept: I('then') } },
+      ] }] },
+      { use: 'region', props: { at: 'right', variant: 'bare' }, when: P('aside'), children: [{ use: 'stack', props: { gap: 'loose', align: 'end' }, children: [{ use: 'each', props: { rows: P('aside'), row: { use: 'stack', props: { gap: 'tight', align: 'end' }, children: [{ use: 'text', props: { value: I('label'), role: 'caption' } }, { use: 'text', props: { value: I('value'), role: 'heading' } }] } } }] }] },
+      legend(['accept', 'pick'], ['back', 'resume']),
+    ]),
+    example: { title: 'Paused', sub: 'Level 2 · The Lane', aside: [{ label: 'Time', value: '4:12' }, { label: 'Objective', value: 'Clear the lane' }], items: [{ label: 'Resume', then: { close: true } }, { label: 'Party', then: { open: 'party' } }, { label: 'Options', then: { open: 'options' } }, { label: 'Save', disabled: true }, { label: 'Quit to title', then: { emit: 'quit' } }] },
   },
   'options-screen': {
     kind: 'screen', about: 'options in sections (video, audio, controls, gameplay, accessibility): each field a toggle, cycler, slider or keybind bound to the var it sets; the game\'s language picked under them when it ships more than one',

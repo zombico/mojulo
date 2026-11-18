@@ -88,7 +88,7 @@ import { makeSunShadow } from '../era/sun.js';
 import { readHour } from '../era/geocube-hours.js';
 import { unlift } from '../matte-paint/detail.js';
 
-export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'geocity', 'walk', 'shadows', 'occlusion', 'light', 'cone', 'air', 'level', 'game',
+export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'geocity', 'walk', 'shadows', 'occlusion', 'light', 'cone', 'air', 'sea', 'level', 'game',
   // (what plays in it: the world reads these, worlds/world-scene.js; a city with nobody in it reads none)
   'entities', 'camera', 'pilot', 'play', 'destruction', 'matter', 'scars', 'wind',
   // (its traffic: on unless `flow: false`, flow.js)

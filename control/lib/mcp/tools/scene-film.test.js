@@ -52,10 +52,35 @@ describe('the cast', () => {
     expect(screenplayErrors(scene({ mara: { voice: 'x' } })).join()).toMatch(/not voice/);
     expect(screenplayErrors({ cast: {}, script: '' })).toHaveLength(2);
     expect(screenplayErrors({ ...BASELINE.blocked, shots: [] }).join()).toMatch(/not shots/);
+    expect(screenplayErrors({ ...BASELINE.blocked, camera: 'wobbly' }).join()).toMatch(/a camera style/);
+    expect(screenplayErrors({ ...BASELINE.blocked, camera: 'symmetrical' })).toEqual([]);
   });
 });
 
 describe('the plan, before any mint', () => {
+  it('reads the coverage as a shoot plan is read, beside the notes: each shot\'s subject and size, the advice', () => {
+    const P = planSceneFilm(BASELINE.blocked, { getRow: () => null });
+    expect(P.framing.shots).toHaveLength(P.coverage.shots.length);
+    expect(P.framing.shots.filter((s) => s.about).every((s) => s.about.startsWith('actor:'))).toBe(true);
+    expect(P.framing.notes.every((n) => P.coverage.shots.some((s) => s.name === n.shot))).toBe(true);
+    // a camera style's coverage reads clean on the baseline (camera-styles.deep.test.js sweeps them all)
+    expect(planSceneFilm({ ...BASELINE.blocked, camera: 'verite' }, { getRow: () => null }).framing.notes).toEqual([]);
+  });
+
+  it('a contact sheet is the film shot in mojulo at a few frames a shot: asked of another form, it is refused', async () => {
+    await expect(forgeMotionHandler({ title: 's', subject: { screenplay: BASELINE.blocked }, shot: { motion: 'coverage', params: { contact: 3 } } })).rejects.toThrow(/export: 'film'/);
+  // (the first forge_motion call in the file loads the film's modules before it refuses: about 20 s alone, past 30 s on a
+  // macOS runner, 2026-11-17, so the test has room)
+  }, 120000);
+
+  it('a screenplay\'s camera says how its cuts are shot: the coverage in that style, its notes the style\'s', () => {
+    const plain = planSceneFilm(BASELINE.blocked, { getRow: () => null }), oner = planSceneFilm({ ...BASELINE.blocked, camera: 'long take' }, { getRow: () => null });
+    expect(plain.coverage.style).toBeUndefined();
+    expect(oner.coverage.style).toBe('oner');
+    expect(oner.coverage.cameras).toHaveLength(1);
+    expect(oner.notes.map((n) => n.id)).not.toContain('long-take');
+  });
+
   it('blocks, covers and notes the scene the persona plays', () => {
     const P = planSceneFilm(scene({ mara: { persona: 'pp_news', mark: 'door' } }), { getRow });
     expect(Object.keys(P.S.actors)).toEqual(['mara', 'jon']);
@@ -86,7 +111,7 @@ describe("forge_motion's screenplay family", () => {
   it('is filmed in Blender, shot by its coverage, with its own params', async () => {
     await expect(forge({ export: 'gif' })).rejects.toThrow(/'storyboard' \(the board, the default\), 'mp4'.*not 'gif'/);
     await expect(forge({ shot: { motion: 'orbit' } })).rejects.toThrow(/shot by its coverage/);
-    await expect(forge({ shot: { params: { frames: 3 } } })).rejects.toThrow(/look, style, grain, grade, hero, render \(not frames/);
+    await expect(forge({ shot: { params: { frames: 3 } } })).rejects.toThrow(/look, style, grain, grade, hero, render, contact \(not frames/);
     await expect(forge({ shot: { params: { look: 'noir' } } })).rejects.toThrow(/film \| anime/);
     await expect(forgeMotionHandler({ title: 't', subject: { screenplay: BASELINE.blocked, world_ref: 'sk_x' } })).rejects.toThrow(/family of its own/);
   });

@@ -3,7 +3,8 @@
  * game is not done at the end of a session; at the end of a good first one these hold. Each is read from what the book
  * already says (its chapters' states, its main quest, its record), never asked for twice:
  *
- *   game         what game it is: its intent (and its core loop, read from it)
+ *   game         what game it is: its intent (and its core loop, read from it); a rail picked and no intent yet is
+ *                partial, and its move the rail's own cube (rails.js railMoves)
  *   shape        how long it is, where it is set, where the story takes it: the main quest and the world
  *   look         the hero's look and the world's (the cast and the foes when there are any)
  *   play         how it feels to play, and the hero's powers
@@ -20,6 +21,7 @@
  *     chapters    the readout's chapter book ([{ id, state }]); parts its review parts ([{ id, status }])
  *     mainQuest   the readout's main quest report (its plays), or null
  *     made        the record (made.js); compile the pre-compile check, when one ran
+ *     playthrough a check's playthrough readout, when one ran ({ levels: [{ level, pass }] }): a stage it won is proved
  *     reqs        the ledger's level reqs ([{ id, unit, status, does, receipt }], reqs.js): with one for the first level,
  *                 goalposts 6 and 7 are its: the plan met once its proposal is kept with its decisions cited, the level
  *                 met once it is received (the machine gate) or accepted; each partial one says the req's failing
@@ -34,12 +36,18 @@
  *     proved) is the build's own, so there the run leads as before. A world whose creator BROUGHT material (`brought`)
  *     is asked first like a gated one, whatever its mode. A QUICK game is what was asked for, so nothing leads it and
  *     nothing is a draft; once it is built the question rides last (`grow`): how one level becomes their game.
+ *   producerSteps(world, { stored? }) → the producer's steps before the goalposts: intake, rail, lock, brief, each with
+ *     its one question; producerSays(next) → { seat, ask, step, holds }: the one question this turn asks
  *   startReadout(world) → { readout: 'start', … }
  *     a book with no level yet cannot be stored; the door answers this instead of refusing: every goalpost with its
  *     question, the producer's intake step first, nothing built. The designed path's first call, as cheap as a quick one.
+ *     (design_game adds the platformer's rail to it, platformer-game.js platformerStart, where the book points at one)
  *
  * Pure.
  */
+import { railMoves, railReport, nearestRails, notYetFor } from './rails.js';
+import { resolveGmn, LABOURS, MOTIVATIONS } from './gmn.js';
+
 export const GOALPOSTS = Object.freeze([
   { id: 'game', says: 'what game it is: its intent and its core loop', ask: 'what game is it? a genre to start from, what the player does again and again, and how it is run: yeoman, auteur or avant-garde', chapter: 'intent' },
   { id: 'shape', says: 'how long it is, where it is set, where the story takes it', ask: 'how long does it play, where is it set, and where does the story take the hero (an ending can wait)?', chapter: 'main-quest' },
@@ -58,25 +66,34 @@ const done = (st) => st === 'settled' || st === 'written';
 const begun = (st) => st !== 'empty';
 
 /** The goalposts as the book stands; null when every one is met (the first session's work is done). */
-export function goalposts({ world = {}, chapters = [], parts: parts_ = [], mainQuest = null, made = {}, compile = null, reqs = [] } = {}) {
+export function goalposts({ world = {}, chapters = [], parts: parts_ = [], mainQuest = null, made = {}, compile = null, reqs = [], playthrough = null } = {}) {
   const posts = [];
   // (a met goalpost is its id and its state; an open or partial one says what is missing, the question and the move)
   // (only the next one's move is said: it is the one to make now)
   const moves = {};
-  const post = (id, status, why, move) => { if (move) moves[id] = move; posts.push(status === 'met' ? { id, status } : { id, status, says: why ?? BY[id].says, ask: BY[id].ask }); };
+  // (a question something already answered is not asked again: a picked rail, a written brief change what is asked)
+  const post = (id, status, why, move, ask) => { if (move) moves[id] = move; posts.push(status === 'met' ? { id, status } : { id, status, says: why ?? BY[id].says, ask: ask ?? BY[id].ask }); };
   const st = (id) => stateOf(chapters, id);
+  // (a picked rail pre-answers two moves: the cube its game starts from, the feel it plays: rails.js)
+  const rail = railMoves(world), picked = world.rail !== undefined && world.rail !== null;
 
   // 1 what game it is
   const intent = world.intent !== undefined || isObj(world.quick);
-  post('game', intent ? 'met' : 'open', intent ? null : 'no intent written: what game it is is read from the brief alone', 'write intent (gameworld-intent), and the loop if the book does not say it');
+  post('game', intent ? 'met' : picked ? 'partial' : 'open', intent ? null : picked ? 'a rail is picked; no intent written yet' : 'no intent written: what game it is is read from the brief alone', rail.game ?? 'write intent (gameworld-intent), and the loop if the book does not say it',
+    picked ? 'where does their game leave the template: its levels, its action, its hero, its world? and how is it run: yeoman, auteur or avant-garde' : undefined);
 
   // 2 its length, its setting, where its story goes
   const Q = isObj(world.mainQuest) ? world.mainQuest : null;
   const parts = Q ? Q.chapters ?? Q.acts ?? [] : [];
   const shaped = Q && Q.length !== undefined && parts.length > 0, set = done(st('world'));
-  post('shape', shaped && set ? 'met' : Q || set ? 'partial' : 'open',
-    shaped && set ? null : [!Q ? 'no main quest' : Q.length === undefined ? 'the main quest says no length' : null, !set ? 'the world is not settled' : null].filter(Boolean).join('; '),
-    'write the main quest (gameworld-main-quest): its length, its acts or chapters; settle the world');
+  // (the Game Brief, gmn.js, has decided the stakes and the structure when it is written: the question left is its
+  // length and whether its spine reads right, never the shape again)
+  const B = (() => { try { const g = world.gameBrief; return isObj(g) ? g.resolved ?? (isObj(g.gmn) ? resolveGmn(g.gmn) : null) : null; } catch { return null; } })();
+  const briefed = B && (B.labour || B.motivation) ? [B.motivation ? MOTIVATIONS[B.motivation].name : null, B.labour ? `${LABOURS[B.labour].name} (${B.structure.shape})` : null].filter(Boolean).join(', ') : null;
+  post('shape', shaped && set ? 'met' : Q || set || briefed ? 'partial' : 'open',
+    shaped && set ? null : [briefed && !Q ? `the brief decided ${briefed}; no main quest is written from it` : !Q ? 'no main quest' : Q.length === undefined ? 'the main quest says no length' : null, !set ? 'the world is not settled' : null].filter(Boolean).join('; '),
+    briefed && !Q ? 'write the main quest from the brief\'s spine (the readout\'s intent.gameBrief; gameworld-main-quest): its length, its acts; settle the world' : 'write the main quest (gameworld-main-quest): its length, its acts or chapters; settle the world',
+    briefed && !Q ? 'how long does it play, and does the brief\'s spine read right as its acts (an ending can wait)?' : undefined);
 
   // 3 the look
   // (an adopted hero is the creator's own row: its look is theirs already)
@@ -88,7 +105,7 @@ export function goalposts({ world = {}, chapters = [], parts: parts_ = [], mainQ
   // 4 play: the feel and the powers
   const playChapters = ['motion', 'actions'].map(st), felt = world.feel !== undefined && world.feel !== null;
   const playMet = playChapters.every(done) && felt;
-  post('play', playMet ? 'met' : playChapters.some(begun) || felt ? 'partial' : 'open', playMet ? null : [...['motion', 'actions'].filter((c, i) => !done(playChapters[i])).map((c) => `${c} open`), ...(felt ? [] : ['no feel written'])].join('; '), 'write the motion and the actions, and a feel (gameworld-feel)');
+  post('play', playMet ? 'met' : playChapters.some(begun) || felt ? 'partial' : 'open', playMet ? null : [...['motion', 'actions'].filter((c, i) => !done(playChapters[i])).map((c) => `${c} open`), ...(felt ? [] : ['no feel written'])].join('; '), (!felt && rail.play) || 'write the motion and the actions, and a feel (gameworld-feel)');
 
   // 5 the plan: the quest's beats, the first buildable, nothing blocking
   const first = parts[0]?.beats?.[0] ?? null;
@@ -116,7 +133,11 @@ export function goalposts({ world = {}, chapters = [], parts: parts_ = [], mainQ
   const stages = firstLevel ? Object.keys(made).filter((k) => k.startsWith(`level-${firstLevel}-`)).sort() : [];
   const walks = stages.map((k) => made[`audit-${k}`] ?? null);
   const unwalked = stages.filter((k, i) => !walks[i]), failed = walks.filter((a) => a && a.verdict?.completable !== true);
-  const proved = stages.length > 0 && !unwalked.length && !failed.length;
+  // (a level played through by the scripted player, a check's `playthrough`: each of its stages won by the basic one and
+  // not by the still one is proved as a walked one is; a street has no walk, so this is its proof)
+  const played = new Map((playthrough?.levels ?? []).map((l) => [l.level, l.pass === true]));
+  const playedAll = stages.length > 0 && stages.every((k) => (made[`audit-${k}`]?.verdict?.completable === true) || played.get(k) === true);
+  const proved = stages.length > 0 && ((!unwalked.length && !failed.length) || playedAll);
   const received = R && (R.status === 'received' || R.status === 'accepted');
   // (why a check walked none: the plan's first finding, else the first stage the walk cannot prove: level-plan.js)
   const notWalked = compile?.walk ? (compile.walk.plan?.[0]?.says ?? compile.walk.unwalked?.[0]?.why ?? null) : null;
@@ -134,7 +155,7 @@ export function goalposts({ world = {}, chapters = [], parts: parts_ = [], mainQ
 }
 
 // the steps that keep their lead over a goalpost: where it is seen, the ledger's open req, the creator's open verdicts
-const LEADS = new Set(['workshop', 'req', 'review', 'ask', 'intake']);
+const LEADS = new Set(['workshop', 'req', 'review', 'ask', 'intake', 'rail', 'lock', 'brief', 'hand-off']);
 /** The readout's `next` with the first open goalpost's question placed in it (the doc above). */
 export function leadNext(next = [], posts = null, { mode = 'gated', quick = false, made = false, brought = false } = {}) {
   if (!posts || posts.next?.goalpost === 'first-level' || (quick && !made)) return next;
@@ -154,18 +175,54 @@ export function leadNext(next = [], posts = null, { mode = 'gated', quick = fals
 /** What a draft's share offer says in place of "the game is complete" (share-offer.js `ask`). */
 export const draftAsk = (posts) => `A draft, not the game yet: ${posts.met} of ${posts.of} first-session goalposts met. Show it (the play step), then ask the next goalpost's question (next: goalpost). Share it when the creator asks; never export unasked.`;
 
+// ══════════ the producer's steps: what is asked before the goalposts, one question a turn ══════════
+
+const INTAKE_ASK = 'do you have drawings, plans or documents for this game?';
+const wordsOf = (world) => [typeof world.brief === 'string' ? world.brief : world.brief?.prompt, world.name].filter((w) => typeof w === 'string').join(' ');
+
+/**
+ * The producer's steps for a book as it stands (the client talks to the producer; the producer hands the director the
+ * work): the intake while nobody has asked, then the RAIL placed (the nearest templates its words point at, and any
+ * type not made yet, said before anything is built), the pitch LOCKED once the person has heard it back, and for a
+ * designed game the Game BRIEF. Each carries the one question it asks. `stored`: the book is a row already.
+ */
+export function producerSteps(world = {}, { stored = false } = {}) {
+  const steps = [];
+  const pitch = (() => { try { return railReport(world); } catch { return null; } })();
+  if (!stored && world.intake === undefined) steps.push({ step: 'intake', ask: INTAKE_ASK, card: 'gameworld-producer' });
+  if (!pitch) {
+    if (!stored) {
+      const near = nearestRails(wordsOf(world)), notYet = notYetFor(wordsOf(world));
+      steps.push({ step: 'rail', ask: 'what kind of game is it, and how big: one level, or a game of several with a hero and a world of their own?', ...(near.length ? { nearest: near } : {}), ...(notYet.length ? { notYet } : {}), move: 'place it on a rail and call its size (gameworld-rails), then write rail: { from, size }', card: 'gameworld-rails' });
+    }
+    return steps;
+  }
+  if (!pitch.locked) steps.push({ step: 'lock', ask: `said back: their game, started from ${pitch.name}; what it keeps, where it departs, what the template does not do yet. Is this the game?`, move: stored ? 'with their yes, write /rail/locked: true' : 'with their yes, write rail.locked: true: the rail\'s starter first level is laid and the pitch is stored (nothing is built)', card: pitch.card });
+  if ((pitch.size ?? 'designed') === 'designed' && world.gameBrief === undefined && !world.quick) steps.push({ step: 'brief', ask: 'why does the hero go on, and what does the game ask of the player?', card: 'gameworld-brief' });
+  return steps;
+}
+
+/** The producer's word on a readout: the seat, and the ONE question this turn asks (the rest of `next` waits). */
+export function producerSays(next = []) {
+  const lead = next.find((s) => typeof s.ask === 'string');
+  return lead ? { seat: 'producer', ask: lead.ask, step: lead.step, holds: 'one question a turn: say this, wait for the answer, keep the rest of `next` and the chapters\' detail for the director' } : null;
+}
+
 /** The designed path's first call (the doc above): a book with no level yet, answered with what to ask. Not stored. */
 export function startReadout(world = {}) {
   const posts = goalposts({ world, chapters: [] });
   const n = posts.posts.find((p) => p.id === posts.next.goalpost);
+  // (the pitch, when a rail is picked: said back, with the rail's sheet to pull; a malformed one is the door's to refuse)
+  const pitch = railReport(world);
+  // (the producer's steps lead, each with its one question: the intake, the rail, the lock, the brief; then the goalpost)
+  const next = [...producerSteps(world), { step: 'goalpost', id: n.id, met: posts.met, of: posts.of, ask: n.ask, chapter: posts.next.chapter, card: 'gameworld-next' }];
   return {
     ok: true, readout: 'start', stored: false,
-    says: 'Nothing is stored or built yet: a book begins with its first level. Ask what the creator brought (intake), then each open goalpost\'s question. When the first level can be named, write the world with its `levels` (gameworld-guide), or lay a first reading from a sentence (`compose: { prompt }`) and edit it. A build is fast: build to show a draft, then go on asking.',
+    says: 'Nothing is stored or built yet: a book begins with its first level. You are the PRODUCER here: ask one question a turn (`producer.ask`), what the creator brought first (intake), then place the game on a rail and call its size (gameworld-rails), say the pitch back and lock it, then each open goalpost\'s question. When the first level can be named, write the world with its `levels` (gameworld-guide), or lay a first reading from a sentence (`compose: { prompt }`) and edit it. A build is fast: build to show a draft, then go on asking.',
+    ...(pitch ? { rail: pitch } : {}),
     goalposts: posts,
-    next: [
-      { step: 'intake', card: 'gameworld-producer' },
-      { step: 'goalpost', id: n.id, met: posts.met, of: posts.of, ask: n.ask, chapter: posts.next.chapter, card: 'gameworld-next' },
-    ],
-    cards: ['gameworld-guide', 'gameworld-studio', 'gameworld-producer'],
+    producer: producerSays(next),
+    next,
+    cards: ['gameworld-guide', 'gameworld-studio', 'gameworld-producer', ...(pitch ? [pitch.card] : ['gameworld-rails'])],
   };
 }

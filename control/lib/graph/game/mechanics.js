@@ -19,6 +19,7 @@ import { heldVar, itemKey } from '../playscape/ui/items.js';
 import { lowerEscapeRoom } from './escape-room.js';
 import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver } from './errand-mechanics.js';
 import { lowerWaveGauntlet } from './wave-gauntlet.js';
+import { lowerObjectives } from './objectives.js';
 import { lowerWork } from './work-mechanics.js';
 
 const ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs', 'hud', 'sources', 'sequences', 'initial'];
@@ -262,7 +263,7 @@ const MECHANICS = {
             { on: 'oneup', do: 'inc', var: 'lives', by: 1, max },
           ],
           watches: [{ type: 'dead', when: { var: 'lives', lte: 0 } }],
-          hud: [{ var: 'lives', label: 'Lives' }],
+          hud: [{ var: 'lives', label: 'Lives', as: 'counter' }],   // (a counter: mana-ui draws its heart, hud-mana.js)
         },
         on: { dead: { end: 'fail' } },
       };
@@ -278,7 +279,7 @@ const MECHANICS = {
       const pickups = Array.isArray(p.pickups) ? p.pickups : [];
       if (!pickups.length) throw new Error(`coins[${ctx.i}]: needs pickups: [{ at }]`);
       const every = Number.isInteger(p.oneup) && p.oneup > 0 ? p.oneup : 30, run = `__coins_run_${ctx.i}`;
-      const world = { vars: { coins: 0, [run]: 0 }, sources: [], reactions: [], entities: [], watches: [{ type: 'oneup', when: { var: run, gte: every } }], hud: [{ var: 'coins', label: 'Coins' }] };
+      const world = { vars: { coins: 0, [run]: 0 }, sources: [], reactions: [], entities: [], watches: [{ type: 'oneup', when: { var: run, gte: every } }], hud: [{ var: 'coins', label: 'Coins', as: 'counter' }] };
       pickups.forEach((pk, j) => {
         const zone = `cn_${ctx.i}_${j}`, at = pk.at || [0, 0, 0];
         world.entities.push({ id: zone, on: true, position: at });
@@ -808,6 +809,10 @@ const MECHANICS = {
   // THE WAVE GAUNTLET (a terminal): sealed in until nothing is left alive, arenas × waves, each wave after the last is
   // down, death beginning the arena (or its checkpoint) again (game/wave-gauntlet.js; "gauntlet" alone is the glove)
   'wave-gauntlet': { role: 'terminal', ends: ['success', 'fail'], requires: [], lower: lowerWaveGauntlet },
+
+  // OBJECTIVES (objectives.js): a level's tasks done in order, a section each: walked into, it begins (its foes woken);
+  // met, its way on opens; the last met wins. A mission's structure (gameworld/mission-level.js)
+  objectives: { role: 'terminal', ends: ['success'], requires: [], lower: lowerObjectives },
 
   // PUSH (a terminal): a grid of cells (`cols` × `rows`, `cell` metres, from `origin` its corner) with boulders on some
   // and plates on others. Walking into a boulder's cell from a side pushes it one cell on, if that cell is free (in

@@ -94,10 +94,12 @@ export { HAND_POSES };
  * The right hand of the structured hero: `wrist`, `elbow` (rest, m), `len` the palm's length (the wrist to the middle
  * knuckle: the hand bone's tail, `knuckles`), `X` the cast's extremities, `girth` the plan's radial scale, `female`,
  * `group` the palette group the palm and digits wear (`Skin`; a gloved cast's `Glove`).
+ * `curl` ({ <digit>: deg }, a hand word's angles: HAND_POSES) builds the hand closed by it past its rest, for a hand drawn
+ * alone at a pose (equipment/arms/view-hand.js); absent, the rest hand.
  * Returns { segments, joints, bones, hands, wrist }: the six rings parts (mirrored by name), the rig joints and bones
  * (`$S`), the rig's `hands` block for both sides, and the hand's section at the wrist (the forearm's last ring).
  */
-export function heroHand({ wrist, elbow, len, X = 1, girth = 1, wide = 1, female = false, group = 'Skin', wristDepth = 1 }) {
+export function heroHand({ wrist, elbow, len, X = 1, girth = 1, wide = 1, female = false, group = 'Skin', wristDepth = 1, curl = null }) {
   const F = HAND_FORM[female ? 'female' : 'male'];
   const A = unit(sub(wrist, elbow)), V = unit(sub([0, 1, 0], mul(A, A[1]))), N = unit(cross(V, A));   // along, across (toward the thumb), out of the palm
   const at = (u, v, w) => add(wrist, add(add(mul(A, u), mul(V, v)), mul(N, w)));
@@ -168,7 +170,7 @@ export function heroHand({ wrist, elbow, len, X = 1, girth = 1, wide = 1, female
     // the hinge joints (a bone's aux, on the axis its own link turns about): the root's, and the thumb's knuckle's
     const hinge = add(js[0], mul(ax[0], 0.01 * x)); let knuckle = thumb ? add(js[1], mul(ax[1], 0.01 * x)) : null;
     for (let k = 0; k < 3; k++) {
-      const a = G.rest * W[k], p = [...jp[k]];
+      const a = (G.rest + (curl ? curl[d] ?? 0 : 0)) * W[k], p = [...jp[k]];
       jp = jp.map((q, i) => (i > k ? rotLine(q, p, ax[k], a) : q));
       tipCap = rotLine(tipCap, p, ax[k], a);
       if (knuckle && k === 0) knuckle = rotLine(knuckle, p, ax[k], a);

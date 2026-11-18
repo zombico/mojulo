@@ -556,6 +556,7 @@ export function playShellRuntime(cfg, K) {
       if (Object.keys(picked.picks).length) params.__picks = picked.picks;
       // (the difficulty picked is the dial the level's foes read: the engine's tier, params.difficulty)
       if (typeof picked.picks.difficulty === 'string') params.difficulty = picked.picks.difficulty;
+      if (picked.end) params.__end = picked.end;
       for (const sl in picked.slices) {
         const v = state[sl], key = v && v.roster ? 'roster' : 'items', out = {};
         if (!v || !v[key]) continue;
@@ -864,7 +865,7 @@ export function playShellRuntime(cfg, K) {
     if (onOf('again')) items.push({ label: won ? 'play again' : 'try again', then: { emit: 'again' } });
     if (onOf('home')) items.push({ label: homeWord(), then: { emit: 'home' } });
     const kept = env.stats && Array.isArray(env.stats.kept) ? env.stats.kept.map((k) => ({ label: k.label, value: String(k.value) + (k.unit || '') })) : [];
-    return { outcome: (won ? 'cleared' : env.result === 'fail' ? 'failed' : 'left') + ' · ' + lv.title, stats: (o.ok ? gainsOf(env.events || []) : []).map((g) => ({ label: g, value: '' })).concat(kept), rank: o.fin && M.final ? 'complete' : '', items };
+    return { outcome: (won ? 'cleared' : env.result === 'fail' ? 'failed' : 'left') + ' · ' + lv.title, stats: (o.ok ? gainsOf(env.events || []) : []).map((g) => ({ label: g, value: '' })).concat(kept), rank: o.fin && M.final ? 'complete' : (env.stats && typeof env.stats.rank === 'string' ? env.stats.rank : ''), items };
   }
   // a run's end as data (the run is over once it is said)
   function runInfo() {
@@ -896,6 +897,8 @@ export function playShellRuntime(cfg, K) {
       sound: () => { settings.sfxOn = !settings.sfxOn; saveSettings(); pushPrefs(); }, homeWord,
       rows: () => ctlRows || [['W A S D / arrows', 'move'], ['mouse', 'look'], ['Space', 'jump']],
       owner: () => { const o = pauseBy && seatList.find((x) => x.controller === pauseBy); return o ? o.label : ''; },
+      // where the run stands as it pauses: the level's name, which of how many, the seconds played
+      where: () => { if (!session || !session.level) return null; const i = LEVELS.findIndex((l) => l.ref === session.level.ref); return { title: session.level.title || '', at: i + 1, of: LEVELS.length, secs: playedSecs() }; },
     },
   }) : null;
 
@@ -1016,7 +1019,7 @@ export function playShellRuntime(cfg, K) {
   // members of the slice as the store holds it (a party member's tags, level and figures, each figure against the
   // most anyone in the roster has; a carried thing's count)
   function turnRows(p) {
-    if (p.from.options) return p.from.options.map((o) => ({ id: o.id, name: o.name, about: o.about || '' }));
+    if (p.from.options) return p.from.options.map((o) => Object.assign({ id: o.id, name: o.name, about: o.about || '' }, o.gun ? { gun: o.gun } : {}));
     const sl = state[p.from.slice] || {};
     if (sl.roster) {
       const most = {};
@@ -1065,7 +1068,10 @@ export function playShellRuntime(cfg, K) {
     const kept = TK.keptPicks(T, turn.s);
     if (Object.keys(kept).length) { seenSteps.$picks = Object.assign({}, seenSteps.$picks, kept); try { storage.setItem(SEEN_KEY, JSON.stringify(seenSteps)); } catch (e) { /* session only */ } }
     const t = peek && peek.sub === 'start' ? peek.trigger : null, stage = t && t.scene ? { scene: t.scene, ...(t.skip ? {} : { skip: false }) } : null;
-    launch(turn.lv, turn.arrive, turn.carry, stage, TK.turnParams(T, turn.s));
+    // (an END trigger that is a scene is the level's to play: named to it as it loads (__end), played on its page once
+    // its outcome is known and before it says so, so the store's write and the results come after it)
+    const endT = T.end && T.end.scene ? { scene: T.end.scene, when: T.end.when, ...(T.end.skip ? {} : { skip: false }) } : null;
+    launch(turn.lv, turn.arrive, turn.carry, stage, Object.assign(TK.turnParams(T, turn.s), endT ? { end: endT } : {}));
     // (a level that never says its scene ended, a page from before stages, is given two minutes)
     if (stage) { pauseBtn.style.display = 'none'; setTimeout(() => { if (turn === me) turnSceneEnd(); }, 120000); }
   }

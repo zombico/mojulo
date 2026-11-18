@@ -14,6 +14,7 @@ the feel chapter's choices are played and measured, and where a game's weapons a
 | `platform`, the platform room | a platformer's template (its base feel, or a wall kick or a stomp among its moves) | steps, a gap, the double jump's ledge, the wall kick's chimney, foes to stomp |
 | `mount`, the mount lane | a world with `mounts` | the horse's gaits, its jump's clearance, the fences, the turn |
 | `range`, the firing range | a world that carries guns (below) | the guns from the eye: rounds and seconds to drop a body at 5, 15 and 30 m, cone and climb, marks by matter, switching, the knife |
+| `mission`, the first mission | a world that carries guns (it has a firing range) | the range stretched into a level: a section for each band its guns are for, a task in each, the way on sealed until it is met; briefed, played and debriefed on mana-ui: [missions.md](missions.md) |
 | `artillery`, the artillery range | a template that owns a machine (`TEMPLATE_FRAMES`) | the machine walking, transforming and driving, its own guns laid by hand onto stands of matter |
 | `roll`, the roll room | a world whose levels roll (`roll`) | a yard whose cover, gems and start a seed picks, on the game's own hero: a different map each time, and which forms of cover stop this hero |
 | `room`, the game room | a world that fights hand to hand, works a shift or has foes (a shooter and a platformer keep to their own rooms) | one room composed for the game out of room primitives (cover, pillars, decks, counters), its brief read from the world, held to the room laws, played by its hero (its own, or a mascot) with its foes on their spots; or composed for one fight of a kind, from what the kit's moves ask, and played wave by wave with its ways sealed: [game-room.md](game-room.md) |
@@ -27,7 +28,8 @@ Each room is served at `bible?book=practice&room=<id>`, listed by `design_game`'
 rail, each with its own icon.
 
 The work room and the game room keep their readout and their choices in a menu drawn by mana-ui and driven by the
-controls layer, opened by the pilot's pause ([mana-ui.md](mana-ui.md#the-practice-rooms-menu)); the others still keep a
+controls layer, opened by the pilot's pause ([mana-ui.md](mana-ui.md#the-practice-rooms-menu)). The first mission is on
+mana-ui whole: its briefing, its HUD, its pause and its debrief ([missions.md](missions.md)). The others still keep a
 panel and keys of their own.
 
 ## The gun rooms
@@ -45,6 +47,9 @@ A world's guns are read from what it already carries (`gameworld/loadout.js` `lo
 
 A world that writes none of these and whose template shoots none has no firing range.
 
+On the range's page, and in the first mission, each gun is drawn in the hands as the arms library builds it, not as
+its parts' boxes ([missions.md](missions.md#the-level)).
+
 ## Measured
 
 Both kinds of room carry a machine gate before any level, read by `design_game`:
@@ -54,6 +59,8 @@ Both kinds of room carry a machine gate before any level, read by `design_game`:
   `practice.measured.range`. The range's body is a stand-in person, so only the guns are held to the laws, never its
   run. The measures take a few seconds a gun and are kept by the guns they were taken on.
 
+- the first mission's structure on the bus and a headless player's win on the runtime (`mission-proof.js`), as
+  `mission_proof` after a run.
 - the roll room's yard (`roll-room.js` `rollRoomMeasured`), as `practice.measured.roll`: a sample of its seeds walked by
   the seeds audit (`game/roll-audit.js`), and each form of cover laid across a lane with the hero run at it, jumping. A
   wall is cover only while the hero cannot go over it, and that is its feel's to say: a hero on its feet is stopped by a

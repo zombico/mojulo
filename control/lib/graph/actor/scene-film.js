@@ -29,7 +29,7 @@
  */
 import { filmShot, emitBlenderFilm, BLENDER_FILM_VERSION } from '../../motion/blender-film.js';
 import { directorsNotes } from './notes.js';
-import { programOf, shotAt } from '../shoot/sample.js';
+import { programOf, shotAt, shaken } from '../shoot/sample.js';
 import { warped } from '../shoot/time.js';
 import { placeOn } from './scene.js';
 import { heightAt } from './relief.js';
@@ -56,9 +56,16 @@ const r6 = (v) => Math.round(v * 1e6) / 1e6;
 export function coverageCameraAt(coverage, t, shot = null) {
   const s = shot ?? coverage.shots.find((x) => t >= x.span[0] && t < x.span[1]) ?? coverage.shots.at(-1);
   const cam = coverage.cameras.find((c) => c.id === s.camera), ks = cam.keys.filter((k) => k.t >= s.span[0] - 1e-3 && k.t <= s.span[1] + 1e-3);
-  const a = ks[0], b = ks.at(-1), u = b.t > a.t ? Math.min(1, Math.max(0, (t - a.t) / (b.t - a.t))) : 0, lerp = (p, q) => p.map((v, i) => v + (q[i] - v) * u);
+  // (between the two keys about t: a shot keyed only at its ends, as a classical one is, lerps its ends; a camera keyed
+  //  through its shot, a style's single riding a walk, goes key to key)
+  let j = 0;
+  while (j + 2 < ks.length && ks[j + 1].t <= t) j++;
+  const a = ks[j], b = ks[Math.min(ks.length - 1, j + 1)], u = b.t > a.t ? Math.min(1, Math.max(0, (t - a.t) / (b.t - a.t))) : 0, lerp = (p, q) => p.map((v, i) => v + (q[i] - v) * u);
   const focal = a.focal_mm + (b.focal_mm - a.focal_mm) * u, film = cam.film_mm ?? 36;
-  return { shot: s, framing: { cameraPosition: lerp(a.pos, b.pos), lookAt: lerp(a.poi, b.poi), horizontalFov: (2 * Math.atan(film / (2 * focal)) * 180) / Math.PI } };
+  const hfov = (2 * Math.atan(film / (2 * focal)) * 180) / Math.PI;
+  // (a camera style's shake, shoot/shake.js, laid over the keyed camera; a camera with none is as it was)
+  if (cam.shake) { const c = shaken({ pos: lerp(a.pos, b.pos), look: lerp(a.poi, b.poi), hfov, roll: 0 }, cam.shake, t); return { shot: s, framing: { cameraPosition: c.pos, lookAt: c.look, horizontalFov: hfov } }; }
+  return { shot: s, framing: { cameraPosition: lerp(a.pos, b.pos), lookAt: lerp(a.poi, b.poi), horizontalFov: hfov } };
 }
 
 /** The pack's files (see the header) */

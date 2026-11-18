@@ -103,7 +103,9 @@ export function readRangeWaves(waves0) {
       if (!CROWD_TYPES[c?.type]) throw new Error(`brawl: ${at}.crowd[${j}].type is one of ${Object.keys(CROWD_TYPES).join(', ')}`);
       if (!(Number.isInteger(c.n) && c.n >= 1 && c.n <= 8)) throw new Error(`brawl: ${at}.crowd[${j}].n is 1 to 8`);
       for (const k of ['hp', 'poise']) if (c[k] !== undefined && !(Number.isInteger(c[k]) && c[k] >= 1 && c[k] <= 9999)) throw new Error(`brawl: ${at}.crowd[${j}].${k} is a whole number from 1 to 9999`);
-      return { type: c.type, n: c.n, ...(c.hp ? { hp: c.hp } : {}), ...(c.poise ? { poise: c.poise } : {}) };
+      // (`roster`: the page's roster entry these bodies are drawn as, a game's own cast: gameworld/brawl-cast.js)
+      if (c.roster !== undefined && !(Number.isInteger(c.roster) && c.roster >= 0)) throw new Error(`brawl: ${at}.crowd[${j}].roster is a roster index`);
+      return { type: c.type, n: c.n, ...(c.hp ? { hp: c.hp } : {}), ...(c.poise ? { poise: c.poise } : {}), ...(c.roster !== undefined ? { roster: c.roster } : {}) };
     });
     if (crowd.reduce((a, c) => a + c.n, 0) > 12) throw new Error(`brawl: ${at} is 12 bodies at most`);
     const formation = w.formation ?? 'line', pattern = w.pattern ?? 'tokens';

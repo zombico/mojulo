@@ -12,7 +12,7 @@
  *
  * What a level step says of its turn (all optional; a step that says none plays as it always has):
  *
- *   picks: [{ id, from: { slice: '<a slice the level consumes>' } | { options: ['<id>' | { id, name?, about? }, …] },
+ *   picks: [{ id, from: { slice: '<a slice the level consumes>' } | { options: ['<id>' | { id, name?, about?, gun? }, …] },
  *            min?, max?, ask?, hint?, keep? }]
  *          what the player chooses before the level loads, in order; `id` is the name the choice lands under in the
  *          session; from a slice the choice is which of its members go in (the contract's consumes pick), from
@@ -67,7 +67,8 @@ export const TURN_KEYS = Object.freeze(['picks', 'start', 'end']);
 
 const PICK_KEYS = ['id', 'from', 'min', 'max', 'ask', 'hint', 'keep'];
 export const PICK_KEEPS = Object.freeze(['level', 'game']);
-const OPTION_KEYS = ['id', 'name', 'about'];
+// (an option may say what gun it is: the pick draws it as its wireframe, mana-ui's guns.js)
+const OPTION_KEYS = ['id', 'name', 'about', 'gun'];
 // an option as written: a word, or { id, name?, about? }
 const optionId = (o) => (isObj(o) ? o.id : o);
 const optionOk = (o) => isStr(o) || (isObj(o) && isStr(o.id) && Object.keys(o).every((k) => OPTION_KEYS.includes(k) && isStr(o[k])));

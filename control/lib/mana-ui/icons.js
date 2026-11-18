@@ -31,6 +31,9 @@ export const ICONS = Object.freeze({
   // what is counted and kept
   coin: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM12 6.5a5.5 5.5 0 1 1 0 11a5.5 5.5 0 1 1 0-11zM12 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z',
   gem: 'M7 4h10l4 5-9 11L3 9z',
+  // what is fired and thrown (a shooter's rounds, its grenades)
+  bullet: 'M9 21V10c0-3 1.2-5.5 3-7c1.8 1.5 3 4 3 7v11zM9 16.5h6v1.5H9z',
+  grenade: 'M12 8a6.5 6.5 0 1 0 0 13a6.5 6.5 0 1 0 0-13zM10 4h4v3.2h-4zM14 4.4h4.6v2H14z',
   heart: 'M12 20s-8-5-8-10.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 8 3.5C20 15 12 20 12 20z',
   star: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z',
   key: 'M7.5 7.5a4.5 4.5 0 1 0 4.2 6H14v2.5h2.5v-2.5H19v2h2.5v-5H11.7a4.5 4.5 0 0 0-4.2-3zM7.5 10.4a1.6 1.6 0 1 1 0 3.2a1.6 1.6 0 1 1 0-3.2z',
@@ -93,6 +96,7 @@ export const ICONS = Object.freeze({
 export const ICON_IDS = Object.freeze(Object.keys(ICONS));
 /** The other words a game says for an icon (a HUD's label, an action's name): each draws the icon it names. */
 export const ICON_ALIASES = Object.freeze({
+  ammo: 'bullet', rounds: 'bullet', bullets: 'bullet', grenades: 'grenade', bomb: 'grenade', bombs: 'grenade',
   coins: 'coin', gold: 'coin', money: 'coin', gems: 'gem', hp: 'heart', health: 'heart', lives: 'heart', life: 'heart', stars: 'star', keys: 'key', locked: 'lock',
   time: 'clock', timer: 'clock', goal: 'flag', finish: 'flag', exit: 'flag', rank: 'trophy', best: 'trophy', score: 'star', armor: 'shield', armour: 'shield', guard: 'shield',
   attack: 'sword', defeat: 'skull', deaths: 'skull', energy: 'bolt', stamina: 'bolt', power: 'bolt', fire: 'flame', water: 'drop', mana: 'drop', mp: 'drop', nature: 'leaf',
@@ -108,7 +112,7 @@ export function iconOf(name) { const k = slug(name); return ICONS[k] ? k : ICON_
  * colour, a bolt the stamina's, a skull the harm's, what is won the accent. An icon with no meaning stays the ink. */
 export const ICON_MEANING = Object.freeze({
   heart: 'hp', potion: 'mp', drop: 'mp', bolt: 'stamina', speed: 'stamina', leaf: 'stamina', check: 'stamina', shield: 'shield',
-  skull: 'harm', flame: 'harm', close: 'harm', mute: 'harm', coin: 'accent', star: 'accent', trophy: 'accent', crown: 'accent', key: 'accent', flag: 'accent', gem: 'accent2', ticket: 'accent2',
+  bullet: 'accent', grenade: 'harm', skull: 'harm', flame: 'harm', close: 'harm', mute: 'harm', coin: 'accent', star: 'accent', trophy: 'accent', crown: 'accent', key: 'accent', flag: 'accent', gem: 'accent2', ticket: 'accent2',
   // (a race's items: the sweet the accent, as its burst is lemon; the ball the second accent; the splat the ink, cream)
   sweet: 'accent', ball: 'accent2',
 });

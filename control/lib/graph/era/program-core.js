@@ -22,10 +22,41 @@
  * that face out, where a network's passages may leave it (network/): the concourse's front and sides, each basement
  * corridor's far end.
  *
+ * DESIGNED AS A FIGHTING MAP (`program.fight`, programs.js FIGHT: each dial opt-in, absent the plan as it was):
+ *   rings    a room along a wing opens onto its neighbour on the same side; the first rooms onto the lobby (or the
+ *            core, on a building with no stair in it); the lobby a second doorway into the core, at the other end of its
+ *            front (the annex is not rung: its corridor's doorway and its gallery are its two ways, and a room's doorway
+ *            into it would open a line from the core into the hall)
+ *   stagger  of two opposite wings (±x) one leaves the core from its back (the −x, or the +x where a +y wing stands on
+ *            the −x side's back), so the core's two side doorways do not face (a single-loaded one keeps its rooms on the
+ *            core's side, against its flank); where a wing leaves the core's back (+y), the lobby's doorway stands at the
+ *            other end of the core's front
+ *   stairs   a STAIR ROOM (`stair-<storey><wing>`) past the far end of each wing with no annex, on every storey, entered
+ *            from its corridor near one end and climbed by the building's stair (storeys.js), sized for it: a
+ *            switchback's flights and well with a passage beside them, its run with a doorway's floor clear at its foot
+ *   gallery  the annex (where it stands taller than two storeys) takes `gallery: { side, from }`: its catwalk on the wall
+ *            the wing meets, at the floor of the storey over the ground, opening from that storey's corridor (stage.js
+ *            planStage opens it, era/bay.js builds the deck, its rail and its stairs)
+ *   (cover is the stage's: compose-dress.js layCover)
+ *
  * Layout in plan: the core at the origin, x to its right, y to its back; the lobby on its front (−y), the way in on the
  * lobby's front. Pure: the dice are the program's.
  */
+import { STAIR_PROFILES } from '../construction/circulation.js';
+
 export const CORE = Object.freeze({ w: 10, d: 12, room: 6, bays: [1, 6], storeys: [1, 6], wings: ['I', 'L', 'T', 'U'], loading: ['single', 'double'], deep: 4 });
+/** A building designed with room to fight in (programs.js FIGHT `room`): what a storey gains, its corridors' width, and what its core
+ *  gains each way so its stair still finds its run up the taller storey (m). */
+export const ROOMY = Object.freeze({ rise: 1, corridor: 6, core: Object.freeze([2, 4]) });
+const SLAB_M = 0.5;   // a floor's thickness between storeys (storeys.js SLAB)
+const PASSAGE = 2.4;  // a stair room's floor beside its stair's well, so the floor round the hole leads on
+// the length two boxes ({ x, y, w, d }) share along a common wall (0 when they do not touch)
+const sharedOf = (a, b) => {
+  const e = 1e-6;
+  if (Math.abs(a.x + a.w - b.x) < e || Math.abs(b.x + b.w - a.x) < e) return Math.max(0, Math.min(a.y + a.d, b.y + b.d) - Math.max(a.y, b.y));
+  if (Math.abs(a.y + a.d - b.y) < e || Math.abs(b.y + b.d - a.y) < e) return Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+  return 0;
+};
 
 // the wings each shape lays: a direction off the core, or an arm turning +y off another wing's far end
 const SHAPES = { I: ['+x', '-x'], L: ['+x', '+y'], T: ['+x', '-x', '+y'], U: ['+x', '-x', 'arm:+x', 'arm:-x'] };
@@ -35,27 +66,37 @@ export function planCore(P, program, kit, rnd) {
   const C = P.core, g = kit.grid, need = kit.door.width + 2 * kit.door.frame + kit.wall;
   // (every size on the kit's grid: a gothic kit's is not a metre)
   const snap = (v) => +(Math.max(1, Math.round(v / g)) * g).toFixed(6), up = (v) => +(Math.ceil(v / g - 1e-9) * g).toFixed(6);
-  const cw = up(Math.max(3, need + 0.4)), D = snap(CORE.room), bay = snap(kit.bay ?? CORE.room), CW = snap(CORE.w), CD = snap(CORE.d), LD = snap(P.lobby.d);
+  // (room, programs.js FIGHT: the corridors ROOMY.corridor wide and every storey ROOMY.rise taller, the lobby with them)
+  const roomy = program.fight?.room === true;
+  const cw = up(Math.max(roomy ? ROOMY.corridor : 3, need + 0.4)), D = snap(CORE.room), bay = snap(kit.bay ?? CORE.room), CW = snap(CORE.w + (roomy ? ROOMY.core[0] : 0)), CD = snap(CORE.d + (roomy ? ROOMY.core[1] : 0)), LD = snap(P.lobby.d);
   const storeys = program.storeys ?? C.storeys, wings = program.wings ?? C.wings, loading = program.loading ?? C.loading, bays = program.bays ?? C.bays;
   if (!(Number.isInteger(storeys) && storeys >= CORE.storeys[0] && storeys <= CORE.storeys[1])) throw new Error(`program: storeys is a whole number, ${CORE.storeys.join(' to ')}`);
   if (!SHAPES[wings]) throw new Error(`program: wings is ${CORE.wings.join(', ')} (the plan's shape round its core)`);
   if (!CORE.loading.includes(loading)) throw new Error(`program: loading is single (rooms on one side of the corridor) or double (both)`);
   if (!(Number.isInteger(bays) && bays >= CORE.bays[0] && bays <= CORE.bays[1])) throw new Error(`program: bays is a wing's length in bays, ${CORE.bays.join(' to ')}`);
-  const h = C.h, rooms = [], links = [], findings = [], off = program.basement ? 1 : 0;
+  const h = C.h + (roomy ? ROOMY.rise : 0), rooms = [], links = [], findings = [], off = program.basement ? 1 : 0;
   const free = (b) => !rooms.some((q) => (q.storey ?? 0) === (b.storey ?? 0) && overlaps(b, q));
   if (program.basement !== undefined && typeof program.basement !== 'boolean') throw new Error('program: basement is true (a storey under the ground one: a concourse under the lobby, the plate\'s twin) or false');
   const put = (b) => { rooms.push(b); return b; };
+  // (designed as a fighting map: programs.js FIGHT, each dial opt-in; `ring` a doorway that is a dial's, never a tree's)
+  const F = program.fight ?? null, ring = (l) => links.push(l);
+  const g0 = (v) => +(Math.round(v / g) * g).toFixed(6);
+  // (a doorway's middle along a wall [a, b] (the box's edges), as near its `end` (0 the low, 1 the high) as the stage's
+  // clearance lets it stand: half a wall, a frame and half a doorway in from that end; a doorway need not sit on the grid)
+  const doorAt = (a, b, end) => { const m = kit.wall / 2 + kit.door.frame + kit.door.width / 2 + 0.01; return +(end ? b - m : a + m).toFixed(6); };
+  // (stagger: the opposite wing that leaves from the core's back)
+  const back = F?.stagger && SHAPES[wings].includes('+x') && SHAPES[wings].includes('-x') ? (SHAPES[wings].includes('+y') ? '+x' : '-x') : null;
   // the corridors of one storey: their boxes and where their rooms go (a side: the box a bay's room fills)
   const plate = [];
   const wingOf = (dir, letter) => {
-    const L = +(bays * bay).toFixed(6);
-    if (dir === '+x') return { letter, box: { x: CW, y: 0, w: L, d: cw }, along: 'x', sides: [{ y: cw, d: D }, { y: -D, d: D }], end: { x: CW + L, y: 0, side: '+x' } };
-    if (dir === '-x') return { letter, box: { x: -L, y: 0, w: L, d: cw }, along: 'x', sides: [{ y: cw, d: D }, { y: -D, d: D }], end: { x: -L, y: 0, side: '-x' } };
+    const L = +(bays * bay).toFixed(6), y0 = dir === back ? +(CD - cw).toFixed(6) : 0;
+    if (dir === '+x') return { letter, box: { x: CW, y: y0, w: L, d: cw }, along: 'x', sides: [{ y: +(y0 + cw).toFixed(6), d: D }, { y: +(y0 - D).toFixed(6), d: D }], end: { x: CW + L, y: y0, side: '+x' } };
+    if (dir === '-x') return { letter, box: { x: -L, y: y0, w: L, d: cw }, along: 'x', sides: [{ y: +(y0 + cw).toFixed(6), d: D }, { y: +(y0 - D).toFixed(6), d: D }], end: { x: -L, y: y0, side: '-x' } };
     if (dir === '+y') return { letter, box: { x: 0, y: CD, w: cw, d: L }, along: 'y', sides: [{ x: cw, w: D }, { x: -D, w: D }], end: { x: 0, y: CD + L, side: '+y' } };
     // an arm: up +y off a wing's far end, its corridor against that wing's corridor's back
     const base = plate.find((p) => p.dir === dir.slice(4));
-    const x = +(base.dir === '+x' ? base.box.x + base.box.w - cw : base.box.x).toFixed(6);
-    return { letter, box: { x, y: cw, w: cw, d: L }, along: 'y', sides: [{ x: x + cw, w: D }, { x: x - D, w: D }], joins: base, end: { x, y: cw + L, side: '+y' } };
+    const x = +(base.dir === '+x' ? base.box.x + base.box.w - cw : base.box.x).toFixed(6), ya = base.box.y ? +(base.box.y + cw).toFixed(6) : cw;
+    return { letter, box: { x, y: ya, w: cw, d: L }, along: 'y', sides: [{ x: x + cw, w: D }, { x: x - D, w: D }], joins: base, end: { x, y: base.box.y ? +(ya + L).toFixed(6) : cw + L, side: '+y' } };
   };
   SHAPES[wings].forEach((dir, i) => plate.push({ dir, ...wingOf(dir, 'abcd'[i]) }));
   // the roles along each storey's wings: the near rooms the service ones, the far ones the use's own, the top storey's
@@ -63,12 +104,24 @@ export function planCore(P, program, kit, rnd) {
   const R = P.roles;
   let goal = null;
   const flip = rnd() < 0.5;
+  // (fight.stairs: a stair room past each wing's far end with no annex, sized for the building's switchback: its two
+  // flights and well across with a passage beside them, its approach, flights and landing along with a doorway's floor
+  // clear at its foot)
+  const SP = STAIR_PROFILES.game, rise = (off ? Math.max(h, 3.5) : h) + SLAB_M, half = Math.ceil(rise / (2 * SP.riser) - 1e-9);
+  const stairW = up(2 * SP.width + SP.well + 2 * SP.in + PASSAGE + kit.wall), stairL = up(cw + SP.foot + half * SP.going + SP.landing + 2 * SP.body + 0.4 + kit.wall);
+  const stairBox = (W, cor, tries) => {
+    const e = W.end, across = W.along === 'x' ? cor.y : cor.x, alongBox = (lo) => (W.along === 'x' ? { x: +(e.side === '+x' ? e.x : e.x - stairW).toFixed(6), y: lo, w: stairW, d: stairL } : { x: lo, y: +e.y.toFixed(6), w: stairL, d: stairW });
+    return tries.map((t) => alongBox(+(t ? across + cw - stairL : across).toFixed(6)));
+  };
+  const stairsOn = F?.stairs && storeys + off > 1 ? new Map() : null;
   for (let s = 0; s < storeys; s++) {
     const n = s + 1, at = (b) => ({ ...b, h, ...(s + off ? { storey: s + off } : {}) });
     // (the lobby first: the plan's first room is its way in)
-    if (!s) put({ id: 'lobby', x: 0, y: -LD, w: CW, d: LD, h: P.lobby.h ?? h, ...(off ? { storey: off } : {}) });
+    if (!s) put({ id: 'lobby', x: 0, y: -LD, w: CW, d: LD, h: (P.lobby.h ?? C.h) + (roomy ? ROOMY.rise : 0), ...(off ? { storey: off } : {}) });
     const core = put(at({ id: `core-${n}`, x: 0, y: 0, w: CW, d: CD }));
-    links.push({ from: s ? `core-${s}` : 'lobby', to: core.id });
+    // (stagger, a wing off the core's back: the lobby's doorway to the far end of the core's front from it)
+    const lobbyAt = !s && F?.stagger && SHAPES[wings].includes('+y') ? doorAt(0, CW, 1) : null;
+    links.push({ from: s ? `core-${s}` : 'lobby', to: core.id, ...(lobbyAt !== null ? { along: lobbyAt, alongX: true } : {}) });
     // the corridors first (an arm claims its corner before the wing's rooms fill it), then each wing's rooms
     const cors = [];
     for (const W of plate) {
@@ -78,8 +131,11 @@ export function planCore(P, program, kit, rnd) {
       links.push({ from: W.joins ? `corridor-${n}${W.joins.letter}` : core.id, to: cor.id });
     }
     let k = 0, far = null;
+    // (rings: the hubs a wing's first room may open onto, the lobby, or the core where no stair stands in it)
+    const hubs = [...(!s ? [rooms.find((q) => q.id === 'lobby')] : []), ...(storeys === 1 && !off ? [core] : [])];
     for (const [W, cor] of cors) {
-      const sides = loading === 'double' ? W.sides : W.sides.slice(0, 1);
+      // (a single-loaded wing off the core's back keeps its rooms on the core's side, against its flank)
+      const sides = loading === 'double' ? W.sides : W.dir === back ? W.sides.slice(1) : W.sides.slice(0, 1), prev = new Map();
       for (let b = 0; b < bays; b++) for (const [si, S] of sides.entries()) {
         // (bays counted out from the core: a −x wing's first bay is its last in x)
         const bx = +(W.dir === '-x' ? W.box.x + (bays - 1 - b) * bay : W.box.x + b * bay).toFixed(6);
@@ -89,13 +145,36 @@ export function planCore(P, program, kit, rnd) {
         if (!free(r)) continue;
         put(r); links.push({ from: cor.id, to: r.id });
         if (role === R.far) far = r;
+        if (F?.rings) {
+          // (onto its neighbour on the same side; the first onto a hub it stands against)
+          // (the doorways between neighbours at either end of their wall by turns, so no line runs room to room down
+          // the wing)
+          const p = prev.get(si);
+          if (p && sharedOf(p, r) >= need) { const lo = W.along === 'x' ? r.y : r.x, hi = lo + (W.along === 'x' ? r.d : r.w); ring({ from: p.id, to: r.id, along: doorAt(lo, hi, b % 2), alongX: W.along !== 'x' }); }
+          if (b === 0) { const hub = hubs.find((q) => q && sharedOf(q, r) >= need); if (hub) ring({ from: hub.id, to: r.id }); }
+          prev.set(si, r);
+        }
       }
+    }
+    // (rings: the lobby's second doorway into the core where no front room rings it, at the other end of its front, or
+    // its middle where stagger set the first at an end)
+    if (!s && F?.rings && !links.some((l) => (l.from === 'lobby' || l.to === 'lobby') && !/^core-/.test(l.from === 'lobby' ? l.to : l.from)))
+      ring({ from: core.id, to: 'lobby', along: lobbyAt !== null ? g0(CW / 2) : doorAt(0, CW, 0), alongX: true });
+    // (fight.stairs: each wing's stair room, its place found on the ground and kept up every storey)
+    if (stairsOn) for (const [W, cor] of cors) {
+      if (P.annex && W === plate[0]) continue;
+      if (!s) { const box = stairBox(W, cor, [0, 1]).find((bx) => free(at({ ...bx }))); stairsOn.set(W.letter, box ?? null); if (!box) findings.push({ id: 'fight', says: `the ${W.dir} wing's second stair finds no ground past its end` }); }
+      const box = stairsOn.get(W.letter);
+      if (!box || !free(at({ ...box }))) continue;
+      const st = put(at({ id: `stair-${n}${W.letter}`, ...box }));
+      links.push({ from: cor.id, to: st.id });
+      if (s) links.push({ from: `stair-${s}${W.letter}`, to: st.id });
     }
     // the top storey's farthest room (its last wing's last bay) is the goal
     if (s === storeys - 1 && far) {
       const old = far.id;
       goal = far.id = R.goal;
-      for (const l of links) if (l.to === old) l.to = goal;
+      for (const l of links) { if (l.to === old) l.to = goal; if (l.from === old) l.from = goal; }
     }
   }
   if (!goal) findings.push({ id: 'no-goal', says: `no wing reached a ${R.far} on the top storey: the level's goal falls to the deepest room` });
@@ -107,8 +186,17 @@ export function planCore(P, program, kit, rnd) {
     if (free(box)) {
       put(box); links.push({ from: `corridor-1${W.letter}`, to: box.id });
       for (const side of A.ways ?? []) ways.push({ room: box.id, side });
+      // (gallery: its catwalk on the wall the wing meets, at the floor of the storey over the ground, entered from that
+      // storey's corridor; a hall no taller than two storeys has no gallery to overlook it from)
+      if (F?.gallery) {
+        const from = `corridor-2${W.letter}`, side = { '+x': '-x', '-x': '+x', '+y': '-y', '-y': '+y' }[e.side];
+        if (!rooms.some((q) => q.id === from)) findings.push({ id: 'fight', says: `the ${A.role} has no storey over the ground beside it to overlook it from: no gallery` });
+        else if (A.h < 2 * h + SLAB_M) findings.push({ id: 'fight', says: `the ${A.role} stands ${A.h} m, no taller than two storeys: no gallery` });
+        else box.gallery = { side, from };
+      }
     } else findings.push({ id: 'unseated', room: A.role, says: `the ${A.role} finds no ground at the ${W.dir} wing's end` });
   }
+  if (F?.gallery && !P.annex) findings.push({ id: 'fight', says: 'a building with no tall annex has no hall to lay a gallery round' });
   // the basement: the ground plate's twin, room for room, under it; the ground's doorways its own, and the stair up
   let under = null;
   if (off) {
@@ -119,7 +207,7 @@ export function planCore(P, program, kit, rnd) {
       twin.set(r.id, id);
       rooms.push({ id, x: r.x, y: r.y, w: r.w, d: r.d, h: bh });
     }
-    for (const l of [...links]) if (twin.has(l.from) && twin.has(l.to)) links.push({ from: twin.get(l.from), to: twin.get(l.to) });
+    for (const l of [...links]) if (twin.has(l.from) && twin.has(l.to)) links.push({ ...l, from: twin.get(l.from), to: twin.get(l.to) });
     links.unshift({ from: 'core-0', to: 'core-1' });
     // (its walls that face out: the concourse's front and sides, each corridor's far end where no annex stands)
     const ports = [{ room: 'concourse', side: '-y' }, { room: 'concourse', side: '-x' }, { room: 'concourse', side: '+x' }];
@@ -146,5 +234,5 @@ export function planCore(P, program, kit, rnd) {
   for (const r of rooms) if (depth.has(r.id) && r.id.indexOf('core-') !== 0 && r.id !== 'lobby' && (r.storey ?? 0) >= off && coreDepth(r) > CORE.deep) findings.push({ id: 'deep', room: r.id, says: `the ${r.id} is ${coreDepth(r)} doors from the stair` });
   // (the goal's doorway last: a kit seats its set piece in the walk's last room)
   const ordered = goal ? [...links.filter((l) => l.to !== goal), ...links.filter((l) => l.to === goal)] : links;
-  return { rooms, links: ordered, ways, entry: 'lobby', goal, findings, plan: { storeys, wings, loading, bays, corridor: cw, ...(off ? { basement: true } : {}) }, ...(under ? { under } : {}) };
+  return { rooms, links: ordered, ways, entry: 'lobby', goal, findings, plan: { storeys, wings, loading, bays, corridor: cw, ...(off ? { basement: true } : {}), ...(F ? { fight: Object.keys(F).filter((k) => F[k]) } : {}) }, ...(under ? { under } : {}) };
 }
