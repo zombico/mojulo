@@ -109,7 +109,9 @@ export function buildManaUi() {
   // an enemy's awareness, each a SHAPE (never a colour alone): what it knows of you
   const AWARENESS = { unaware: '–', suspicious: '?', searching: '??', alert: '!', combat: '!!', fleeing: '»', down: '✕' };
   const MARKERS = { self: '▲', ally: '●', foe: '✕', goal: '★', item: '◆', poi: '○' };
-  const PIP_SHAPES = { pip: ['●', '○'], heart: ['♥', '♡'], square: ['■', '□'], diamond: ['◆', '◇'] };
+  // a map's ground, by kind (a kind it does not know is land), and how its miniature is tilted (degrees: back, round)
+  const MAP_KINDS = ['land', 'road', 'walk', 'block', 'building', 'park', 'water', 'lot', 'turf'], MAP_TILT = [56, -32];
+  const PIP_SHAPES = { pip: ['●', '○'], heart: ['♥', '♡'], square: ['■', '□'], diamond: ['◆', '◇'], star: ['★', '☆'] };
   // a moment's weight: a number, or the words (the broadcast's tones, weightiest last)
   const WEIGHTS = { minor: 0, normal: 1, major: 2, decisive: 3 };
   const RETICLES = { cross: '+', dot: '·', circle: '◯', bracket: '[ ]' };
@@ -149,7 +151,7 @@ export function buildManaUi() {
     party: 'Party', hp: 'HP', mp: 'MP', sp: 'SP', status: 'Status', attack: 'Attack', defence: 'Defence', magic: 'Magic', speed: 'Speed', equip: 'Equip', nothingWorn: 'Nothing worn', skills: 'Skills', noSkills: 'No skills yet',
     cost: 'Cost', levelUp: 'Level up', level: 'Level', weight: 'Weight', kg: 'kg', slots: 'Slots', swapFor: 'Swap for', nothingFits: 'Nothing fits this slot',
     gold: 'Gold', goldMark: 'G', held: 'Held', buy: 'Buy', sell: 'Sell', nothingToSell: 'Nothing to sell', quests: 'Quests', steps: 'Steps',
-    ammo: 'Ammo', reload: 'Reload', reloading: 'Reloading', lowAmmo: 'Low ammo', time: 'Time', score: 'Score', lv: 'Lv', range: 'Range', super: 'Super', hits: 'hits', pos: 'Pos', lap: 'Lap', best: 'Best',
+    ammo: 'Ammo', reload: 'Reload', noAmmo: 'No ammo', reloading: 'Reloading', lowAmmo: 'Low ammo', time: 'Time', score: 'Score', lv: 'Lv', range: 'Range', super: 'Super', hits: 'hits', pos: 'Pos', lap: 'Lap', best: 'Best',
     move: 'Move', atk: 'Atk', rng: 'Rng', forecast: 'Forecast', wave: 'Wave', lives: 'Lives', seen: 'Seen', map: 'Map', cancel: 'Cancel', headToHead: 'Head to head',
     turnOrder: 'Turn order', foes: 'Foes', command: 'Command', act: 'Act', close: 'Close', queue: 'Queue', orders: 'Orders',
     // a table's (idioms-table.js) and a skirmish's (idioms-live.js)
@@ -221,6 +223,7 @@ export function buildManaUi() {
     // in-game: aim, maps, the feed, moments
     reticle: { group: 'hud', about: 'the aim; a hit adds a hitmarker shape', props: { shape: [Object.keys(RETICLES), 'cross'], hit: [B, false] } },
     minimap: { group: 'hud', about: 'the map in a corner: markers at x, y from 0 to 1, each kind a shape; `route` the way drawn under them as a dotted line (a track, a road: points x, y from 0 to 1), in the place of the blank map; `scope` an instrument, not a picture in a box: a bezel of ticks, the wedge you see ahead (the top), its edge fading into the world; `north` where north lies on it (degrees clockwise from its top: a radar that turns with you)', props: { markers: [L, []], route: [L, []], shape: [['square', 'round'], 'square'], label: [T], scope: [B, false], north: [N] } },
+    map: { group: 'hud', about: `a MAP of the place: its ground as shapes (each { kind: ${MAP_KINDS.join(' | ')}, x, y, w, h } from 0 to 1, north up, a \`tall\` one raised in the miniature) and what is on it as markers ({ x, y, kind?, icon?, label?, named?, heading?, you? }: an icon by its name, else its kind's shape; \`you\` turned to its heading; \`named: false\` keeps its name off the map where names are written), seen one of three ways: \`plan\` from straight above, north up; \`follow\` from above with the heading up and the focus at the centre (a corner's radar); \`miniature\` tilted, a model on a table, its tall shapes standing. \`focus\` { x, y } and \`zoom\` say what part; \`size\` how big it is drawn; \`labels\` writes each marker's name`, props: { shapes: [L, []], markers: [L, []], view: [['plan', 'follow', 'miniature'], 'plan'], focus: [A], heading: [N, 0], zoom: [N, 1], size: [['corner', 'panel', 'full'], 'panel'], labels: [B, false], label: [T] } },
     compass: { group: 'hud', about: 'a heading strip with the bearings of markers', props: { heading: [N, 0, true], markers: [L, []] } },
     feed: { group: 'hud', about: 'the last few lines of a log (kills, pickups, chat from the world); a line said again in a row merges (×3)', props: { rows: [L, [], true], field: [T, 'text'], max: [N, 4] } },
     toast: { group: 'hud', about: 'a passing word', props: { value: [T, '', true] } },
@@ -757,14 +760,16 @@ export function buildManaUi() {
             const counted = size > 0 || n > 0 || has(p.reserve) || p.reloading || p.endless;
             // (an endless gun, a sidearm that is never out: its figure ∞, no belt, never low or empty)
             const empty = counted && !p.endless && n === 0 && !p.reloading, low = !p.endless && !empty && !p.reloading && size > 0 && n <= p.low * size;
-            const call = p.reloading ? W('reloading') : empty ? W('reload') : low ? W('lowAmmo') : null;
+            // (empty with none in reserve: nothing to reload with, said so)
+            const dry = empty && has(p.reserve) && Number(p.reserve) === 0;
+            const call = p.reloading ? W('reloading') : dry ? W('noAmmo') : empty ? W('reload') : low ? W('lowAmmo') : null;
             return ['div', { class: cls, 'data-gun': iconName(has(p.gun) ? p.gun : p.name), 'data-low': low ? 'yes' : null, 'data-empty': empty ? 'yes' : null, 'data-reloading': p.reloading ? 'yes' : null },
               ['i', { class: 'mana-sil', 'aria-hidden': 'true' }],
               has(p.name) || has(p.mode) ? ['span', { class: 'mana-gun' }, has(p.name) ? ['span', null, p.name] : null, has(p.mode) ? ['b', { class: 'mana-mode' }, p.mode] : null] : null,
               counted ? ['span', { class: 'mana-rounds' }, ['span', { class: 'mana-num', ...chOf(c) }, p.endless ? '∞' : words(n)], has(p.reserve) ? ['span', { class: 'mana-reserve' }, words(p.reserve)] : null] : null,
               p.endless ? null : size > 0 && size <= 60 ? ['span', { class: 'mana-belt', 'data-round': has(p.round) ? iconName(p.round) : null, style: `width:calc(${Math.min(360, size * 13)} * var(--mana-du))` }, ...Array.from({ length: size }, (_, k) => ['i', { 'data-spent': k >= n ? 'yes' : null }])]
                 : size > 60 ? ['span', { class: 'mana-track' }, ['i', { style: `width:${pct(n / size)}` }]] : null,
-              call ? ['span', { class: 'mana-call', 'data-key': p.reloading ? 'reloading' : empty ? 'empty' : 'low' }, call] : null];
+              call ? ['span', { class: 'mana-call', 'data-key': p.reloading ? 'reloading' : dry ? 'dry' : empty ? 'empty' : 'low' }, call] : null];
           }
           case 'charge': {
             const r = clamp(Number(p.value) || 0, 0, 1);
@@ -899,6 +904,27 @@ export function buildManaUi() {
             if (!isObj(m) || !isFinite(Number(m.x)) || !isFinite(Number(m.y))) return null;
             return ['span', { class: 'mana-marker', 'data-kind': MARKERS[m.kind] ? m.kind : 'poi', style: `left:${pct(m.x)};top:${pct(m.y)}`, title: m.label || null }, MARKERS[m.kind] || MARKERS.poi];
           }), p.label ? ['span', { class: 'mana-caption' }, p.label] : null];
+          case 'map': {
+            const view = p.view, mini = view === 'miniature', rot = view === 'follow' ? (Number(p.heading) || 0) : 0, z = clamp(Number(p.zoom) || 1, 1, 16);
+            const f = isObj(p.focus) ? p.focus : {}, fx = clamp(isFinite(Number(f.x)) ? Number(f.x) : 0.5, 0, 1), fy = clamp(isFinite(Number(f.y)) ? Number(f.y) : 0.5, 0, 1);
+            const r2 = (x) => Math.round(x * 100) / 100;
+            // the plane: scaled and turned about the focus, the focus brought to the middle; the miniature tilted after
+            const plane = `transform-origin:${pct(fx)} ${pct(fy)};transform:translate(${r2((0.5 - fx) * 100)}%,${r2((0.5 - fy) * 100)}%)${mini ? ` rotateX(${MAP_TILT[0]}deg) rotateZ(${MAP_TILT[1]}deg)` : rot ? ` rotate(${r2(-rot)}deg)` : ''} scale(${r2(z)})`;
+            // a marker stays its own size and upright whatever the plane does (in the miniature it stands on it)
+            const stand = mini ? `rotateZ(${-MAP_TILT[1]}deg) rotateX(${-MAP_TILT[0]}deg)` : rot ? `rotate(${r2(rot)}deg)` : '';
+            const shapes = p.shapes.filter((q) => isObj(q) && [q.x, q.y, q.w, q.h].every((n) => isFinite(Number(n)))).map((q) => {
+              const tall = mini && Number(q.tall) > 0 ? clamp(Number(q.tall), 0, 1) : 0;
+              return ['span', { class: 'mana-map-shape', 'data-kind': MAP_KINDS.includes(q.kind) ? q.kind : 'land', 'data-tall': tall ? 'yes' : null, style: `left:${pct(q.x)};top:${pct(q.y)};width:${pct(q.w)};height:${pct(q.h)}${tall ? `;--tall:${r2(tall)}` : ''}${q.kind === 'turf' && /^#[0-9a-f]{6}$/i.test(q.tint || '') ? `;--tint:${q.tint}` : ''}` }, tall ? ['span', { class: 'mana-map-roof' }] : null];
+            });
+            const marks = p.markers.filter((m) => isObj(m) && isFinite(Number(m.x)) && isFinite(Number(m.y))).map((m) => {
+              const turn = m.you && isFinite(Number(m.heading)) && !mini ? ` rotate(${r2(Number(m.heading) - rot)}deg)` : '';
+              return ['span', { class: 'mana-map-mark', 'data-kind': MARKERS[m.kind] ? m.kind : 'poi', 'data-you': m.you ? 'yes' : null, style: `left:${pct(m.x)};top:${pct(m.y)};transform:translate(-50%,${mini ? '-100%' : '-50%'}) ${stand} scale(${r2(1 / z)})`, title: m.label || null },
+                m.icon ? ['span', { class: 'mana-icon', 'data-size': 's', 'data-icon': iconName(m.icon), style: turn ? `transform:${turn.trim()}` : null }, initials(m.icon)] : ['span', { class: 'mana-map-glyph', style: turn ? `transform:${turn.trim()}` : null }, MARKERS[m.kind] || MARKERS.poi],
+                p.labels && m.label && m.named !== false ? ['span', { class: 'mana-caption' }, words(m.label)] : null];
+            });
+            // (its frame a square in the middle of whatever box it is given: a metre is a metre both ways)
+            return ['div', { class: cls, 'data-view': view, 'data-size': p.size }, ['div', { class: 'mana-map-frame' }, ['div', { class: 'mana-map-plane', style: plane }, ...shapes, ...marks]], p.label ? ['span', { class: 'mana-caption' }, p.label] : null];
+          }
           case 'compass': {
             const at = (b) => ((((Number(b) || 0) - p.heading) % 360) + 540) % 360 - 180;
             const marks = [['N', 0], ['E', 90], ['S', 180], ['W', 270]].map(([w, b]) => ({ w, d: at(b), cardinal: true })).concat(p.markers.filter(isObj).map((m) => ({ w: MARKERS[m.kind] || MARKERS.poi, d: at(m.bearing) })));

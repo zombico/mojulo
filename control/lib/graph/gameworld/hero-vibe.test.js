@@ -114,4 +114,16 @@ describe('the hero\'s motion, by vibe', () => {
     const G = readGameworld(world({ vibe: ['cocky'] }));
     expect(heroOrders(G).motion.args.patch[0].path).toBe('/hero/motion');
   });
+  it('athletic is a runner\'s run: the reach axis opens the legs and lengthens the flight, most in the run, and the door takes it', () => {
+    const R = resolveMotion({ vibe: ['athletic'] }), plain = resolveMotion({ vibe: ['spirited'] });
+    expect(R.axes).toMatchObject({ reach: 1, energy: 0.6, confidence: 0.3 });
+    expect(R.errors).toEqual([]);
+    // (the run takes far more ground than a spirited one, and more than the walk gains)
+    expect(R.motion.jog.strideLength).toBeGreaterThan(plain.motion.jog.strideLength + 0.2);
+    expect(R.motion.jog.strideLength - GAIT_BASE.jog.strideLength).toBeGreaterThan(R.motion.walk.strideLength - GAIT_BASE.walk.strideLength);
+    expect(R.motion.jog.flightLift).toBeGreaterThan(GAIT_BASE.jog.flightLift);
+    expect(R.motion.sprint.strideLength).toBeLessThanOrEqual(0.9);
+    // (its ends read as opposites)
+    expect(resolveMotion({ axes: { reach: -1 } }).motion.jog.strideLength).toBeLessThan(GAIT_BASE.jog.strideLength);
+  });
 });

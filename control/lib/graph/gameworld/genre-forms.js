@@ -20,6 +20,7 @@
  */
 import { dryRun } from '../cosmos/cosmos.js';
 import { genreCube, GENRES } from './intent.js';
+import { HIJACK_DISTRICT } from './hijack-city.js';
 
 // (the street a sentence lays: three stops that build to the cast's boss, a novice for a first street, and five falls
 // allowed: measured with a hero the sentence door made, the brawl's basic player lost it at three and won it at five,
@@ -50,6 +51,8 @@ export const GENRE_FORMS = Object.freeze({
   // the screen, and a hero plays it (a stand-in where the world has none yet)
   'co-op-brawler': Object.freeze({ form: 'street', name: 'Street', hero: Object.freeze({}), screen: 'screen', level: () => ({ street: STREET_FROM_A_SENTENCE }) }),
   'run-and-gun': Object.freeze({ form: 'street', name: 'Street', hero: Object.freeze({}), screen: 'screen', level: () => ({ street: STREET_FROM_A_SENTENCE }) }),
+  // (the open city's crime game: a district of a metro, gameworld/hijack-city.js's; its law and its story are the world's)
+  'open-city-crime': Object.freeze({ form: 'geocity', name: 'District', hero: Object.freeze({}), screen: 'screen', level: () => ({ geocity: JSON.parse(JSON.stringify(HIJACK_DISTRICT)) }) }),
   'city-stalker': Object.freeze({ form: 'city', name: 'District', hero: Object.freeze({ moves: Object.freeze(['wall', 'swinger']) }), level: () => ({ city: { stalker: true } }) }),
 });
 

@@ -88,6 +88,7 @@ const WORDS = Object.freeze({
   'driver-and-gunner': ['driver and gunner', 'one drives one shoots', 'turret', 'gunner'],
   'split-deathmatch': ['split screen', 'split-screen', 'splitscreen', 'goldeneye', 'couch deathmatch'],
   'city-stalker': ['web swing', 'web-swing', 'web-slinging', 'swing between', 'rooftop', 'rooftops', 'skyscraper', 'skyscrapers', 'wall crawl', 'crawl the walls', 'grappling hook', 'superhero', 'vigilante', 'open-world city'],
+  'open-city-crime': ['gta', 'grand theft auto', 'gta-like', 'gta like', 'carjack', 'carjacking', 'car jacking', 'steal cars', 'steal a car', 'wanted level', 'crime game', 'open world crime', 'crime sandbox', 'sandbox city', 'hijack', 'getaway', 'police chase', 'heist'],
   // battle city (10-25): sports. A sport named is its shape's words; "football" is the team game, "race" stays the car's
   'athletics-meet': ['athletics', 'athletic', 'olympic', 'olympics', 'track and field', 'sprint', 'sprinting', '100m', 'hurdles', 'long jump', 'high jump', 'javelin', 'shot put', 'decathlon', 'relay', 'meet'],
   'net-game': ['tennis', 'volleyball', 'badminton', 'table tennis', 'ping pong', 'pong', 'pickleball', 'squash', 'rally', 'serve', 'net game', 'racket', 'racquet'],
@@ -144,6 +145,7 @@ const NAMES = Object.freeze({
   // (a brief's `&` is read as a space, so 'run gun' is how "run & gun" arrives)
   'run-and-gun': ['run and gun', 'run gun', 'run-and-gun', 'run n gun', 'side-scrolling shooter', 'side scrolling shooter', 'contra', 'metal slug'],
   'split-deathmatch': ['split screen', 'split-screen', 'splitscreen'], 'city-stalker': ['web swing', 'web-swing', 'web-slinging'],
+  'open-city-crime': ['gta', 'grand theft auto', 'carjacking', 'wanted level', 'crime sandbox'],
   'athletics-meet': ['athletics', 'track and field', 'decathlon', 'olympics'],
   'net-game': ['tennis', 'volleyball', 'badminton', 'table tennis', 'ping pong', 'pickleball', 'squash'],
   'turn-sport': ['golf', 'mini golf', 'minigolf', 'bowling', 'curling', 'darts', 'billiards', 'snooker', 'baseball', 'softball'],

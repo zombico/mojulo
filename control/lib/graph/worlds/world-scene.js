@@ -46,11 +46,11 @@ import { WORLD_KINDS, ROOM_FALLBACK, resolveWrapTextures } from '@/lib/graph/wor
 import { bookWorldKind } from '@/lib/graph/views/recipe-book/registry';
 import { ensureBookLoaded } from '@/lib/graph/views/recipe-book/loader';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
-import { formRoomMaps } from '@/lib/graph/form/room-form';
+import { formRoomMaps, ROOM_MAPS } from '@/lib/graph/form/room-form';
 import { readFinish } from '@/lib/graph/scene/page-light';
 import { solveHydraulics, mistAir, hydraulicsFaces } from '@/lib/graph/materials/hydraulics';
 import { normalizeJets } from '@/lib/graph/materials/jet';
-import { resamplePlans } from '@/lib/graph/matte-paint/detail';
+import { resamplePlans, firstReading } from '@/lib/graph/matte-paint/detail';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/procedural-material';
 import { FLAT_LIGHT, resolveToon } from '@/lib/graph/polygonizer/vexar';
@@ -65,7 +65,7 @@ import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf, 
 import { lowerWaterworks } from '@/lib/graph/era/water-live';
 import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
-import { landRead, formPayload, DRESS_DEFAULT, GRASS_CARDS } from '@/lib/graph/form/land-read';
+import { landRead, formPayload, DRESS_DEFAULT, GRASS_CARDS, TOWN_FLORA } from '@/lib/graph/form/land-read';
 import { readWetness, wetOfWeather } from '@/lib/graph/era/wetness';
 // (the margin round a land's buildings their shadow map reaches: what stands by them and shades them, metres)
 const BUILT_SHADE = 12;
@@ -94,7 +94,7 @@ import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
 import { lowerFaunaUnits } from '@/lib/graph/worlds/fauna-units';
 import { declaredUnits, metersPerUnitFor } from '@/lib/graph/scene/world-units';
 import { optionalPackModule } from '@/lib/graph/content-pack';
-import { wieldsFigure, armHeld } from '@/lib/graph/worlds/held-strike';
+import { wieldsFigure, armHeld, FIST } from '@/lib/graph/worlds/held-strike';
 
 export { resolveWrapTextures };
 
@@ -743,6 +743,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // manifest.textures (custom dataURL / an image-worker bound PNG). emitThreeWorld + facesToGlb read
   // payload.textures. Additive: a face list with no `texture` opt-ins leaves the payload untouched.
   if (payload && Array.isArray(payload.faces) && payload.faces.length) {
+    // (a town in the form render, gen-7: each dressed tile drawn at its first reading, matte-paint/detail.js firstReading.
+    // The page reads every tile again at seeded shifts, channels/resample.js, so its second seed adds nothing the eye
+    // keeps, and on this page each tile carries a normal and an ORM beside it: half the tiles, half the relief)
+    if (payload.form && payload.form.town && Array.isArray(payload.form.town.lights)) {
+      const first = (f) => (f && typeof f.texture === 'string' && firstReading(f.texture) !== f.texture ? { ...f, texture: firstReading(f.texture) } : f);
+      payload.faces = payload.faces.map(first);
+      if (Array.isArray(payload.repeats)) payload.repeats = payload.repeats.map((r) => (Array.isArray(r?.template) ? { ...r, template: r.template.map(first) } : r));
+    }
     // (and the instanced repeats' templates: a key only a template draws, a stock tree's leaves, is resolved too)
     const reps = Array.isArray(payload.repeats) ? payload.repeats : Array.isArray(sketch.manifest.repeats) ? sketch.manifest.repeats : [];
     const repeatFaces = reps.flatMap((r) => (Array.isArray(r?.template) ? r.template : []));
@@ -764,9 +772,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (and a town's buildings baked for it, form/sun-light.js: the tiles their faces wear, read the same way)
     if (payload.form && payload.form.town && Array.isArray(payload.form.town.lights)) {
       const keys = payload.faces.filter((f) => typeof f.texture === 'string' && textures[f.texture] && f.cornerLight !== undefined).map((f) => f.texture);
-      // (no budget on a town's maps: the page is the person's, on their own machine, and a second, smaller read of
-      // every tile doubles what the first resolve costs)
-      const R = payload.form.town, F = formRoomMaps(keys, { budget: Infinity });
+      // (a town's relief read at the smaller size outright, ROOM_MAPS.small: it is drawn only near the eye, `pom` and
+      // `relief`, where a street's wall is a few hundred pixels a tile, and a city wears many tiles; never read twice)
+      const R = payload.form.town, F = formRoomMaps(keys, { reliefSize: ROOM_MAPS.small });
       Object.assign(textures, F.textures);
       payload.form = { ...payload.form, town: { ...R, maps: F.maps, ...(F.reliefSize ? { reliefSize: F.reliefSize } : {}) } };
     }
@@ -952,7 +960,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const dress = town ? { ...DRESS_DEFAULT, rubble: 0, dust: 0, clay: 0, patches: [] } : { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
     // (the biocube's words the form render reads: the rock's moss, `flora.moss`; the grass's length, `flora.grass.sward`;
     // its drifts, `flora.grass.drifts` and `flora.flowers`; the recipe's biocube or else the cube's, none without)
-    // (a town's lawns are mown: the short sward, no meadow's drifts)
+    // (a town's lawns are mown: the short sward, no meadow's drifts; and kept: bare only in a few worn places, their fields'
+    // dice even, form/land-read.js LAWN)
     const cube = readGeocube(M.cube), bio = M.biocube ?? cube.biocube, F = bio ? readBiocube(bio).flora : null, moss = town ? 0 : F?.moss ?? 0, sward = town ? 'short' : F?.grass?.sward;
     const drifts = town ? [] : readDrifts({ drifts: F?.grass?.drifts, flowers: F?.grass ? F.flowers : null });
     // (a raised view's ground claimed, form/flora-read.js viewHeld: no crown over an overlook's eye in what it looks over)
@@ -963,8 +972,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const S0 = payload.snowMap ? readSnow(cube.snow) : null, winter = !!S0 && (S0.line === undefined || S0.line === null);
     // (a map carries no camera of its own: the land is read framed from the south over its middle, raised, as an island's)
     const mapCam = formMap && !(payload.cameras ?? []).length && payload.map ? (() => { const W = payload.map.cols * payload.map.tile, H = payload.map.rows * payload.map.tile; return [{ name: 'island', worldFraming: { cameraPosition: [W / 2, -H * 1.15, H * 0.55], lookAt: [W / 2, -H / 2, 0], horizontalFov: 60, pictureCenter: [560, 390] } }]; })() : null;
-    const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter || (F?.marine && !F.grass) ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
+    const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(town ? { lawn: {} } : {}), ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter || (F?.marine && !F.grass) ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (a town's lawns drawn near the eye only, form/land-read.js TOWN_FLORA)
+    if (read && town && payload.form.land.grass) payload.form.land.grass = { ...payload.form.land.grass, reach: TOWN_FLORA.grass };
     if (read) formCast = { cube, ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}) };
     // (a map's far range, level/far-range.js, stands hundreds of metres out: its own haze, the page's fog thinned over it
     // and less of the sky's air, so its mountains read through a morning's haze; channels/form-land.js)
@@ -997,6 +1008,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (its plants grown as form where the trail's placement stood them, form/flora-read.js: the painted trees, bushes and
     // shrubs hidden in their place; a bamboo or a blossom card keeps its own)
     const flora = read && payload.plants ? floraRead(payload.plants, { kinds: payload.plants.kinds, bushKinds: payload.plants.bushKinds, colours: cube.colour, bases: read.light.linearBases, autumn: F?.autumn ?? 0 }) : null;
+    // (a town's street trees lay no litter, TOWN_FLORA)
+    if (flora && town) flora.litter = TOWN_FLORA.litter;
     // (the fall's leaf piles, era/leaf-piles.js: each in its tree's own leaves, packed beside the trees; the level says how
     // many the page draws)
     if (payload._leafPiles) { const LP = leafPilesRead(flora, payload._leafPiles); if (LP) flora.piles = LP; payload.leafPiles = { ...payload.leafPiles, drawn: LP ? LP.n : 0 }; delete payload._leafPiles; }
@@ -1347,7 +1360,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       return f === 'paint' ? fig : { ...fig, juice: { ...fig.juice, fidelity: f } };
     };
     if (figs && typeof figs === 'object') {
-      payload.figures = {};
+      // (the kind's own ambient walkers keep their rigs, a played district's people: world-kinds.js attachCityWalkers;
+      // a scene with none starts empty, as it always did)
+      const ambient = Array.isArray(payload.walkers) && payload.figures ? Object.fromEntries(Object.entries(payload.figures).filter(([k]) => payload.walkers.some((w) => w && w.figure === k))) : {};
+      payload.figures = { ...ambient };
       let poseNames = null;
       // THE SCENES' TAKES (playscape/ui/scene-takes.js): a page whose scenes are written as scripts gives each figure that
       // plays in them its acts and face takes, blocked on the stage the scripts are lowered on below (lowerPlay). None ⇒
@@ -1426,6 +1442,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // (the same game type's movement juice, a platformer's or pinball's: gameworld/feel/hero-juice.js, at the
           // fidelity a machine's takes; any other game type's hero as it was)
           const moves = swing ? (await import('@/lib/graph/gameworld/feel/hero-juice.js')).heroJuice(swing, figure) : null;
+          // THE CROWD GRADE (figures/crowd-figure.js, a figure's `crowd: true`): a made character sampled again to a
+          // crowd's budget, the walkers' own format: a street's people, each the hero door's person. Absent: as it was
+          if (rawSpec.crowd === true) { const { crowdFigure } = await import('@/lib/graph/figures/crowd-figure.js'); payload.figures[name] = crowdFigure(figure, { ...(Number.isFinite(rawSpec.budget) ? { budget: rawSpec.budget } : {}), ...(rawSpec.stand === true ? { stand: true } : {}) }); continue; }
           payload.figures[name] = moves ? await atRigFidelity({ ...figure, juice: moves }) : figure;
           // THE POSE GRADE CUT IN (figure-grades.js): a play-grade world bakes the figures its close shots reach again at
           // the pose grade, `<name>@pose`, the page cutting it in while a close shot is on; two bakes that are not one
@@ -1438,6 +1457,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // (a moveset's hero whose figure carries its moves' own clips plays them: combat-melee.js `moveClips`)
           const moveClips = !!(figure.clips && Object.keys(figure.clips).some((k) => k.startsWith('mv_')));
           if (held) payload.entities = payload.entities.map((e) => (wields(e) ? armHeld(e, held, moveClips) : e));
+          // (BARE HANDS, gameworld/arsenal.js FISTS: a moveset's hero that holds nothing and carries only its fists
+          // strikes with them, the fist's reach, a light blow's seconds; held-strike.js FIST)
+          else payload.entities = payload.entities.map((e) => (wields(e) && Array.isArray(e.rule.weapons) && e.rule.weapons.length && e.rule.weapons.every((W) => W && W.id === 'fist') ? armHeld(e, FIST, moveClips) : e));
           continue;
         }
         // RACER bodies (car-designer/roster.js): a figures-map entry may be a cartoon racer's recipe (`racer`: { facets,

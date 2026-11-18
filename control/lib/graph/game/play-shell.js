@@ -32,7 +32,7 @@
  */
 
 import { buildGameStoreKernel } from './store-kernel.js';
-import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_MENU, MSG_GAMEPAD, MSG_SEATS, MSG_SHOWN, MSG_CARD_DONE, MSG_SCENE_END } from './level-contract.js';
+import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_SAVE, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_MENU, MSG_GAMEPAD, MSG_SEATS, MSG_SHOWN, MSG_CARD_DONE, MSG_SCENE_END } from './level-contract.js';
 import { FONTS, FONT_IDS, STYLE_TOKENS, hexToRgba } from './hud-widgets.js';
 import { THEMES } from '../../mana-ui/theme.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
@@ -132,7 +132,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ...(manifest.run ? { run: { length: manifest.run.length, ...(manifest.run.repeat ? { repeat: true } : {}) } } : {}),
     // the result's stingers (music.victory / music.defeat, resolved to srcs): absent, no key
     ...(stingers && (stingers.victory || stingers.defeat) ? { stingers: { victory: stingers.victory || null, defeat: stingers.defeat || null } } : {}),
-    wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, menu: MSG_MENU, gamepad: MSG_GAMEPAD, seats: MSG_SEATS, shown: MSG_SHOWN, cardDone: MSG_CARD_DONE, sceneEnd: MSG_SCENE_END, ...(links ? { door: MSG_DOOR } : {}) },
+    wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, menu: MSG_MENU, gamepad: MSG_GAMEPAD, seats: MSG_SEATS, shown: MSG_SHOWN, cardDone: MSG_CARD_DONE, sceneEnd: MSG_SCENE_END, ...(levelTable.some((l) => l.contract && l.contract.save) ? { save: MSG_SAVE } : {}), ...(links ? { door: MSG_DOOR } : {}) },
     pauseButtons: PAUSE_BUTTONS,
     // THE FRONT (play-front.js): a title over a cover, the start menu, options, credits, the end; absent, no key
     ...(manifest.front ? { front: frontConfig(manifest.front, frontArt, { levels: levelTable.length, run: !!manifest.run }) } : {}),
@@ -311,7 +311,14 @@ export function playShellRuntime(cfg, K) {
   function freshStore() { state = K.createStore(SCHEMA); runLog = []; }
   // a reset (the player's, the drawer's): the store anew, and what the flow has shown forgotten with it (a first boot's
   // fresh store keeps it: a player who has seen the opening and not yet finished a level has no save, and has seen it)
-  function resetStore() { freshStore(); seenSteps = {}; try { storage.removeItem(SEEN_KEY); } catch (e) { /* session only */ } }
+  // THE LEVEL'S OWN SAVE (level-contract.js MSG_SAVE, a level that keeps its progress: the open city, one long level):
+  // the newest of each level's, kept beside the store; continue goes to the last one saved and hands it back on its
+  // launch (params.__resume); a reset or a new game forgets it. A game whose levels keep none: nothing of it runs
+  const PROGRESS_KEY = SAVE_KEY + ':progress';
+  let progress = {};
+  if (W.save) { try { const v = JSON.parse(storage.getItem(PROGRESS_KEY) || 'null'); if (v && typeof v === 'object') progress = v; } catch (e) { /* none kept */ } }
+  const keepProgress = () => { try { storage.setItem(PROGRESS_KEY, JSON.stringify(progress)); } catch (e) { /* session only */ } };
+  function resetStore() { freshStore(); seenSteps = {}; try { storage.removeItem(SEEN_KEY); } catch (e) { /* session only */ } if (W.save) { progress = {}; try { storage.removeItem(PROGRESS_KEY); } catch (e) { /* session only */ } } }
   (function boot() {
     const raw = storage.getItem(SAVE_KEY);
     if (raw) {
@@ -549,6 +556,7 @@ export function playShellRuntime(cfg, K) {
     // (a megaworld: the map loaded is the current map; resumed, it is arrived at by the way it was last come in by)
     if (ATLAS) { const F = atlas(); if (!arrive && !carry && F.at === lv.ref && F.from) arrive = F.from; setAtlas({ at: lv.ref, from: arrive || '', ['been:' + lv.ref]: true }); persist(); }
     const params = carry || paramsFor(lv);
+    if (W.save && progress[lv.ref]) params.__resume = progress[lv.ref];
     if (arrive) params.arrive = arrive;
     if (stage) params.__stage = stage;
     // (a turn's picks: the game's own words as __picks, and of a consumed slice the members picked and no others)
@@ -607,6 +615,7 @@ export function playShellRuntime(cfg, K) {
     if (d.moj === W.sceneEnd) { if (turn && turn.s.phase === 'main' && turn.s.sub === 'start' && d.scene === turn.s.trigger.scene) { turnSceneEnd(); return; } const cs = FLOW.steps[at.step]; if (cs && (cs.kind === 'cinematic' || cs.kind === 'cutscene') && d.scene === cs.scene) go('next', { keepPage: !!cs.keep }); return; }
     // the level's own end card read (or put away): the flow goes on
     if (d.moj === W.cardDone) { if (waitCard) { const f = waitCard; waitCard = null; f(); } signal('card-done'); return; }
+    if (W.save && d.moj === W.save && session && d.levelRef === session.level.ref && d.vars && typeof d.vars === 'object') { progress[d.levelRef] = d.vars; progress.__last = d.levelRef; keepProgress(); toast('Progress saved'); return; }
     if (d.moj === W.ready) {
       clearTimeout(veilCap); clearTimeout(veilHint); veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); }, 1200);
       if (d.contractVersion !== W.version) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); toast('This level speaks a newer contract (v' + d.contractVersion + '); re-make the game.'); return; }
@@ -908,7 +917,8 @@ export function playShellRuntime(cfg, K) {
     return Object.assign({
       resolve: (sp, c) => {
         const i = c.level ? LEVELS.findIndex((l) => l.ref === c.level) : -1;
-        if (sp === '$first') return LEVELS[0] ? LEVELS[0].ref : null;
+        // (a game whose level keeps its own save: play is a NEW game, what was kept forgotten)
+        if (sp === '$first') { if (W.save && progress.__last) { resetStore(); persist(); } return LEVELS[0] ? LEVELS[0].ref : null; }
         if (sp === '$again') { againTurn = true; againSeed = !run && c.level ? lastSeed : null; return c.level || null; }
         if (sp === '$next') { const nx = MAP || i < 0 ? null : LEVELS[i + 1]; return nx && isOpen(nx) ? nx.ref : null; }
         if (sp === '$continue') { const lv = continueTo(); return lv ? lv.ref : null; }
@@ -926,6 +936,8 @@ export function playShellRuntime(cfg, K) {
   function continueTo() {
     // (a megaworld: continue is the current map, where the player is)
     if (ATLAS) return LEVELS.find((l) => l.ref === atlas().at) || null;
+    // (a level's own save: the last one saved, where the player was)
+    if (W.save && progress.__last) return LEVELS.find((l) => l.ref === progress.__last) || null;
     const last = runLog.length ? runLog[runLog.length - 1].levelRef || null : null;
     if (!last) return null;
     const i = LEVELS.findIndex((l) => l.ref === last);

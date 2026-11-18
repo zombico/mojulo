@@ -149,6 +149,10 @@ export const RAILS = Object.freeze({
     seen: list(['free']) }),
   'vigilante-justice': row({ name: 'Vigilante Justice', like: 'a hero over a city: rooftops, a glide or a swing, a crowd fought with counters',
     handles: row({ pole: 'vigilante-justice', genres: list(['city-stalker']) }), sizes: list(['designed']), level1: 'a district crossed by its rooftops' }),
+  'hijack-city': row({ name: 'Hijack City', like: 'an open city crime game: any car taken, a contact\'s missions, a wanted level and the police after it, shops, the street alive',
+    // (its starter is its own, gameworld/hijack-city.js: the district, the story, the law and the shops laid together)
+    handles: row({ genres: list(['open-city-crime']) }), sizes: list(['designed']), level1: 'a district: its streets and cars, its law, a contact\'s first missions',
+    seen: list(['free']), words: list(['gta', 'grand theft auto', 'gta-like', 'open world crime', 'crime sandbox', 'carjacking', 'wanted level', 'police chase', 'steal cars']) }),
   'mech-battle-kai': row({ name: 'Mech Battle Kai', like: 'robot action: a heavy machine that boosts, hovers, shoots and transforms',
     handles: row({ pole: 'mech-battle-kai', genres: list([]) }), sizes: list(['designed']), level1: 'a battlefield crossed in the machine',
     lacks: list(['no genre cube of its own: a designed game names its feel and starts from the cube nearest the ask']) }),

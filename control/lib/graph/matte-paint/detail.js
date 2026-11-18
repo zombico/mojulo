@@ -16,6 +16,7 @@
  *   resamplePlan(key)                     how the page may resample the tile so it does not repeat at scale, read off
  *                                         how the tile is built (scene/channels/resample.js), or null
  *   resamplePlans(keys)                   → { key: plan } for the detail tiles among `keys`
+ *   firstReading(key)                     a `-b` key's `-a` (a page that resamples draws one seed of each tile)
  *
  * The tiles are served by a texture resolver (`detail:`), painted once a key. Pure.
  */
@@ -40,6 +41,10 @@ export function detailKey(params, seed, metres, v) {
   if (!SPECS.has(key)) SPECS.set(key, { cfg: { ...params, metres }, seed: detailSeed(seed, v) });
   return key;
 }
+/** A detail key's FIRST READING: its `-a`, for a `-b` (the same tile at its second seed), any other key as it is. A page
+ *  that reads each tile again at seeded shifts (scene/channels/resample.js) breaks the repeat the two seeds were for,
+ *  so it draws the first alone: half the tiles, and on a gen-7 page half their relief (worlds/world-scene.js). */
+export const firstReading = (key) => (typeof key === 'string' && key.startsWith('detail:dressed-') && key.endsWith('-b') ? `${key.slice(0, -1)}a` : key);
 // (a tile's texels, painted and shown, kept for the few keys in use: the page's resolver, the cutouts painted from a
 // tile (era/sand-tiles.js, era/scree-tiles.js) and the readers of its pattern each ask again; read only, never written)
 const TEXELS = new Map(), SHOWN = new Map();

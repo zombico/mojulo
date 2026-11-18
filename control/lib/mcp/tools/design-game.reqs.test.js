@@ -601,7 +601,7 @@ describe('design_game: the production (crews, the assistant director, the direct
     // each author reads its own unit, writes its own pages, in its own seat
     const lv = await designGameHandler({ ref: 'gq', chapter: `level:${M2}` });
     expect(lv.req.crew).toEqual([`level:${M2}`, 'foes']);
-    expect(lv.req.jobs.find((j) => j.job === 'j2')).toMatchObject({ role: 'gq:author:foes', read: { args: { chapter: 'foes' } }, writes: ['/foes'] });
+    expect(lv.req.jobs.find((j) => j.job === 'j2')).toMatchObject({ role: 'gq:author:foes', read: { args: { chapter: 'foes' } }, writes: ['/foes', '/law'] });
     expect(lv.req.jobs.find((j) => j.job === 'j1')).toMatchObject({ role: 'gq:author:worlds', writes: [`/levels/${M2}`] });
     // the notebook: what one found, the other reads, in either unit's view
     await designGameHandler({ ref: 'gq', req: { id, job: 'j1', post: 'the strand is 40 m wide: a foe that charges has room' } });
@@ -617,7 +617,7 @@ describe('design_game: the production (crews, the assistant director, the direct
     expect(back.reqs.raised).toEqual([`${id} j4 author foes issued (rework of j2)`]);
     const jobs = (await designGameHandler({ ref: 'gq', chapter: 'foes' })).req.jobs;
     expect(jobs.find((j) => j.job === 'j1')).toMatchObject({ status: 'kept' });
-    expect(jobs.find((j) => j.job === 'j4')).toMatchObject({ status: 'issued', writes: ['/foes'] });
+    expect(jobs.find((j) => j.job === 'j4')).toMatchObject({ status: 'issued', writes: ['/foes', '/law'] });
     await expect(designGameHandler({ ref: 'gq', req: { id, direct: 'creator', jobs: ['j2'] } })).rejects.toThrow(/jobs names the authors a rework sends back/);
     void M1;
   });

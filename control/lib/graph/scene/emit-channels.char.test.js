@@ -1,3 +1,18 @@
+// Re-pinned 2026-11-18 (the open city's shops and guns): every fixture that embeds the controllable runtime. A weapon
+// may start with fewer rounds than it holds (combat-ranged.js `loaded`), the cast gains `repaint` (a respray), and a
+// moveset's hero may carry its sidearm in a holster (combat-melee.js `holster`, its trigger in combat-ranged.js). Each
+// is taken only by a weapon, an op or a rule that names it (no fixture's does): their worlds step as before.
+// Re-pinned 2026-11-17 (the street's health): every fixture that embeds the controllable runtime. A police car's hold
+// is its own count (rules-drive.js `chaser`: `helds`, `heldBy`) and the cast's facts raise it as `held:<id>` (cast.js
+// castFacts: one field more per body), so a hold is no hit. A body that is never held raises nothing new.
+// Re-pinned 2026-11-17 (the law's police cars): every fixture that embeds the controllable runtime. The drive builder
+// gained the `chaser` rule (rules-drive.js), the cast its `dismount` op and a `near` spawn's car reset, the mount step its
+// `eject` and a `carHull`'s place among the hulls, and the runtime keeps `posts`, `carBody` and `carHull` (two
+// normalizers). Each is taken only by an entity or an op that names it (no fixture's does): their worlds step as before.
+// Re-pinned 2026-11-17 (the open city's wanted level): every fixture that embeds the controllable runtime. The cast's
+// `spawn` gained `near` and `ring` (worlds/controllable/cast.js: a body set down at a ring's distance from another, on
+// one of its own `posts`, the law's police), a branch taken only by an op that names `near` (no fixture's does): their
+// worlds step as before.
 import { createHash } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
@@ -20,6 +35,27 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-18 (1116-rc's lens merged into Hijack City): `brawl`, `mission` and `holo`, the runtime they embed
+// now carrying both the candidate's lens and this branch's "No ammo" word.
+// Re-pinned 2026-11-18 (Hijack City, mana-ui's magazine): `brawl`, `mission` and `holo`, the pages that embed the game UI
+// runtime whole. Its magazine says "No ammo" for a gun empty with none in reserve (kernel.js: one word, one condition).
+// Re-pinned 2026-11-18 (the release candidate merged into gen 7's city): the candidate's pins moved by this branch's
+// emission changes since the last merge: the passers-by drawn where seen and one mesh each (channels/walkers.js), the
+// occlusion prepass's reach (channels/creases.js), the cab's sounds (channels/audio.js), the level's save and the event
+// bus's city rows (channels/game.js), the walkers that react and the patrol (cab-pool.js). Nothing else moved.
+// Re-pinned 2026-11-18 (gen 7's city frame, channels/creases.js OCCLUSION_FAR): `occlusion` only. A page with occlusion
+// alone leaves a mesh wholly past 240 reaches of the camera out of the prepass; the creases' rows read the far and are
+// unchanged.
+// Re-pinned 2026-11-17 (a rider's footsteps): the audio channel's footsteps skip a body that rides (in a car, in a
+// saddle) or is gone: a carried body was heard walking under its ride.
+// Re-pinned 2026-11-17 (the release candidate merged into the open city): the candidate's pins moved by this branch's
+// two changes below (the event bus's zone rule; mana-ui's map, now with a side's turf as a shape kind).
+// Re-pinned 2026-11-17 (mana-ui's map): the game UI runtime and its sheet, which a page with a mana screen embeds whole,
+// gained the `map` component (kernel.js: a catalogue row and its draw; css.js: its rules), the corner radar and the map
+// screen idioms. The two fixtures that embed the runtime (brawl, holo) re-pinned; they draw as before.
+// Re-pinned 2026-11-16 (the open city: a driver in a cab stands in zones where its car is): the event bus the page
+// embeds reads a body sent away that rides in a cab as present (worlds/event-bus.js deriveZoneEvents: one line replaced),
+// so an errand is done from a car. Every fixture that embeds the bus re-pinned; the pages draw and play as before.
 // Re-pinned 2026-11-14 (the action RPG: foes that never lock blades, steps at their own level): the runtime's melee
 // contact reads `rule.clash === false` on either body before a clash (combat-melee.js: one line replaced in place; a
 // rule that says nothing clashes as before), and the audio channel plays a step at `footsteps.gain` (audio.js: one

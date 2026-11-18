@@ -992,6 +992,33 @@ function mountsCard() {
     'A world whose levels walk lays them on each; a level whose hero is a car or a craft leaves them standing loose.',
     'The mount lane (`bible?book=practice&room=mount`, before any level) tunes the ride: the gaits, the jump, the fences.',
     'A template that rides (the action-adventure) is suggested two (a `mounts` step in design_game\'s readout), never laid.',
+    'CARS — a level on a town or a district (a geotown\'s, a geocity\'s) needs none asked for: the cars it parks nearest its\n' +
+    '  start are the hero\'s to get into, each its own model and paint where it stands. E in reach walks to the driver\'s door\n' +
+    '  and gets in: W throttle, S brake then reverse, A/D steer; E when nearly stopped gets out at the door, on foot again.',
+  );
+}
+
+function hijackCityCard() {
+  return lines(
+    'HIJACK CITY — the open city\'s crime game (rail `hijack-city`, genre `open-city-crime`): a district roamed on foot and in',
+    '  any car taken, a contact\'s missions, a wanted level and the police after it, a respray and a gun shop, the money in',
+    '  hand, a phone\'s fares, crews with turf. A STARTER for a person\'s own GTA-like: theirs to rename and grow, never the game.',
+    '',
+    'START design_game({ name, rail: { from: \'hijack-city\', locked: true } }): the starter laid whole (hijack-city.js), every',
+    '  key the person wrote winning; then design_game({ ref, run: true }) builds it and export_game({ ref: \'<ref>-game\' })',
+    '  ships it with its title screen, a save and continue. A sentence ("a GTA-like game") finds the rail (gameworld-producer).',
+    '',
+    'WHAT IS IN IT, each a word of the world:',
+    '  levels.<id>.geocity   the district of a metro (its cars parked to take; traffic; passers-by who flee and fall)',
+    '  errands[].mission     { heat?: stars, clean?: lose them first, time?: seconds, final?: the end } on a contact\'s job',
+    '  law: true | { stars, per, cars, armed, calm, busted, fine }   mayhem raises stars; police on foot and in cars',
+    '  shops: { respray, guns }   repaint and lose the police; rounds for the sidearm (Q fires, R holsters it)',
+    '  factions.<id>          crews: turf, rivals, a board of acts (torch, tag, take)   app: \'taskfu\' fares on the phone',
+    '  ui.theme, sound, music  the look (theme cards), the car\'s sounds, the score (walk, chase, tension)',
+    '',
+    'GROW IT: rename it; the hero (create_character words); another metro (`geocity.metro.from`); the story (missions); the',
+    '  crews; the law\'s numbers; the shops\' prices; a theme card. Era: gen-7 by default (the sun\'s shadows, the actors\'',
+    '  and the buildings\' light), `style.geocube.era: \'gen-6\'` for a lighter page.',
   );
 }
 
@@ -1781,7 +1808,8 @@ const CARDS = [
   ['gameworld-heroes', 'The superhero beat-em-up', 'a team of heroes, each its power on its own button with a few uses a life, against an army and a villain with powers: a beat-em-up tuned for heroes', 'a superhero beat em up, heroes with powers, mutants against an army, an X-Men style arcade brawler, a team of heroes', heroesCard],
   ['gameworld-villains', 'Supervillains', 'the bosses a superhero street ends on, each a row of the foe shelf\'s idioms (a summoner, a pair, a form it is defeated into, acts that call henchmen), and how to design one', 'a supervillain, a boss that summons, twin bosses, a boss with a second form, the villain at the end, henchmen', villainsCard],
   ['gameworld-track-language', 'The track\'s language', 'how a raced track looks: one design language for its way, kerbs, rail, flags, trees and sky, and the principles a new map starts from', 'design a race track, a new kart map, the look of the track, track theme, the barriers and kerbs, a candy track, decorate the circuit, track materials, make the road more interesting, the sky over the track', trackLanguageCard],
-  ['gameworld-mounts', 'The mounts', 'horses the hero gets on and rides: their coats, where they stand, the ride', 'a horse to ride, mount a horse, ride a horse, horseback, get on my horse, a stable of horses, cavalry', mountsCard],
+  ['gameworld-hijack-city', 'Hijack City', 'the open city\'s crime game, a starter for a GTA-like: a district, cars to take, missions, the law, shops', 'a gta-like game, grand theft auto, an open world crime game, steal cars, a wanted level, police chases, a crime sandbox, hijack city, a city to drive around and cause trouble', hijackCityCard],
+  ['gameworld-mounts', 'The mounts', 'horses the hero gets on and rides: their coats, where they stand, the ride', 'a horse to ride, mount a horse, ride a horse, horseback, get on my horse, a stable of horses, cavalry, a car to drive, get in a car, a parked car, drive around town', mountsCard],
   ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight, minigames, a fishing minigame, an arcade in the inn', battlesCard],
   ['gameworld-foes', 'The foes', 'hostile classes on the trails: how each moves, hurts and decides, at any rank, on any body that fits', 'enemies in my level, goombas, monsters to fight, a wolf pack, a boss beast, dire wolves, foot soldiers, a turret, things that chase me, a swarm of rats', foesCard],
   ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal, a companion, a party member who joins, a cast rolled for my game, a party, a rival, a villain and his lieutenant, a familiar or summon, beastfolk or a mascot in the party', storyCard],

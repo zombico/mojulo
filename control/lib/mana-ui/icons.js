@@ -63,6 +63,10 @@ export const ICONS = Object.freeze({
   eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 8.5a3.5 3.5 0 1 1 0 7a3.5 3.5 0 1 1 0-7z',
   home: 'M12 3l9 8h-2.5v9h-5v-6h-3v6h-5v-9H3z',
   train: 'M7 3h10a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3l2 3h-2.5l-1.5-2h-6l-1.5 2H5l2-3a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zM7 6v5h10V6zM8.5 13a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3zM15.5 13a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3z',
+  // a city's: what is driven, where things are bought, what is carried
+  car: 'M5 11l1.6-4.2A2 2 0 0 1 8.5 5.5h7a2 2 0 0 1 1.9 1.3L19 11h.5A1.5 1.5 0 0 1 21 12.5V17h-2v1.5a1.5 1.5 0 0 1-3 0V17H8v1.5a1.5 1.5 0 0 1-3 0V17H3v-4.5A1.5 1.5 0 0 1 4.5 11zM7.3 10.5h9.4l-1.2-3H8.5zM6.5 12.8a1.2 1.2 0 1 0 0 2.4a1.2 1.2 0 1 0 0-2.4zM17.5 12.8a1.2 1.2 0 1 0 0 2.4a1.2 1.2 0 1 0 0-2.4z',
+  shop: 'M4 4h16l1.5 5a2.5 2.5 0 0 1-1.5 2.3V20H4v-8.7A2.5 2.5 0 0 1 2.5 9zM6 12v6h4v-4.5h4V18h4v-6a2.6 2.6 0 0 1-2-.9 2.6 2.6 0 0 1-4 0 2.6 2.6 0 0 1-4 0 2.6 2.6 0 0 1-2 .9z',
+  box: 'M12 2.5l9 4.5v10l-9 4.5L3 17V7zM12 4.7L6.2 7.6 12 10.5l5.8-2.9zM5 9.2v6.6l6 3V12.2zM13 12.2v6.6l6-3V9.2z',
   // what a menu does
   gear: 'M10 2h4l.6 2.6 2.3 1.3 2.5-.8 2 3.4-1.9 1.8v2.6l1.9 1.8-2 3.4-2.5-.8-2.3 1.3L14 22h-4l-.6-2.6-2.3-1.3-2.5.8-2-3.4 1.9-1.8v-2.6L2.6 9.3l2-3.4 2.5.8 2.3-1.3zM12 8.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7z',
   sound: 'M4 9h4l5-4v14l-5-4H4zM15.5 8.5a5 5 0 0 1 0 7l-1.2-1.3a3.2 3.2 0 0 0 0-4.4zM18 6a8.5 8.5 0 0 1 0 12l-1.2-1.3a6.7 6.7 0 0 0 0-9.4z',
@@ -96,6 +100,7 @@ export const ICONS = Object.freeze({
 export const ICON_IDS = Object.freeze(Object.keys(ICONS));
 /** The other words a game says for an icon (a HUD's label, an action's name): each draws the icon it names. */
 export const ICON_ALIASES = Object.freeze({
+  vehicle: 'car', taxi: 'car', store: 'shop', market: 'shop', parcel: 'box', package: 'box', crate: 'box', cargo: 'box',
   ammo: 'bullet', rounds: 'bullet', bullets: 'bullet', grenades: 'grenade', bomb: 'grenade', bombs: 'grenade',
   coins: 'coin', gold: 'coin', money: 'coin', gems: 'gem', hp: 'heart', health: 'heart', lives: 'heart', life: 'heart', stars: 'star', keys: 'key', locked: 'lock',
   time: 'clock', timer: 'clock', goal: 'flag', finish: 'flag', exit: 'flag', rank: 'trophy', best: 'trophy', score: 'star', armor: 'shield', armour: 'shield', guard: 'shield',

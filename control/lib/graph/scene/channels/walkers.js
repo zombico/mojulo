@@ -46,6 +46,11 @@ import { HELD_WALK_SOURCE } from './traffic-model.js';
 // `WALKER_BLEND`: `most` the bones a corner is weighed to (the pack's); `holds` the most a blended skin may stretch one of
 // its own edges, as a share of the body's size, and still be drawn as one skin (walkerSkinStretch): past it the figure's
 // own binding sets neighbouring corners on bones that part, which rigid parts hide as a seam and one skin shows as a spike.
+// `react` (a played district's people, the open city: scene-three passes it where the level's pilot gets into cars):
+// a passer-by struck by the player or run down by a car falls and lies a while, then gets up and runs; trouble near (a
+// blow, a fall, mayhem, a fight begun, a car bearing down) sends those near running away along their own walk, faster,
+// then they walk on from where they ran to. A walker downed is mayhem the page tells the bus (`mayhem:assault`,
+// `mayhem:runover`: the law's wanted level). Absent ⇒ byte-identical.
 export const WALKER_BLEND = Object.freeze({ most: 4, holds: 0.1 });
 
 /**
@@ -94,9 +99,14 @@ export function walkerSkinStretch(fig, { clips = null } = {}) {
   const size = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1, stretch = Math.round((worst / size) * 1e4) / 1e4;
   return { stretch, size: Math.round(size * 1e4) / 1e4, holds: stretch <= WALKER_BLEND.holds };
 }
-export function walkersChannelScript(walkers, bank, { cast = false, signals = null, capture = false } = {}) {
+/** How far a passer-by is drawn, in its own heights (a 1.8 m figure: 144 m): `far` in the camera's view, `near` all
+ *  round (its shadow may fall into the view). Past them it walks on, unposed and undrawn. A capture draws them all. */
+export const WALKER_DRAW = Object.freeze({ far: 80, near: 12 });
+export function walkersChannelScript(walkers, bank, { cast = false, signals = null, capture = false, react = false } = {}) {
   const held = walkers.some((w) => Array.isArray(w.holds));
   const skinOf = (f) => !!f && Array.isArray(f.parts) && f.parts.some((p) => p && p.jnt && p.wgt);
+  // (a crowd figure's packed parts, figures/crowd-figure.js: an index into its corners; none packed ⇒ not a byte)
+  const packedIn = Object.values(bank || {}).some((f) => f && Array.isArray(f.parts) && f.parts.some((p) => p && p.idx));
   const blend = walkers.some((w) => w.blend && skinOf(bank[w.figure]));
   const bones = blend ? Math.max(...walkers.filter((w) => w.blend && skinOf(bank[w.figure])).map((w) => bank[w.figure].bones.length)) : 0;
   const follow = !capture && walkers.some((w) => w.follow);
@@ -111,7 +121,9 @@ const __wONE = new THREE.Vector3(1, 1, 1);${held ? `
 const WSIGNALS = ${safeJson(signals || [])};
 ${HELD_WALK_SOURCE}
 const __wStep = (r, sec) => heldWalk(r.w.holds, r.w.speed, r.held, r.total, sec, WSIGNALS);` : ''}
-// build one rig group per walker from its referenced bake — a compact __makeRigGroup (bone meshes
+${packedIn ? `// a packed part's index (a crowd figure's, figures/crowd-figure.js: its corners once each): 16-bit, or 32 past 65535
+const __wIdx = (part) => { const b = decodeU8(part.idx).slice(); return part.n > 65535 ? new Uint32Array(b.buffer) : new Uint16Array(b.buffer); };
+` : ''}// build one rig group per walker from its referenced bake — a compact __makeRigGroup (bone meshes
 // only; no muzzle / thruster / weapon locators, since ambient walkers never fight).
 function __buildWalkerRig(fig) {
   const group = new THREE.Group();
@@ -121,7 +133,7 @@ function __buildWalkerRig(fig) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(part.pos), 3));
     geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));
-    geo.computeBoundingSphere();
+${packedIn ? '    if (part.idx) geo.setIndex(new THREE.BufferAttribute(__wIdx(part), 1));\n' : ''}    geo.computeBoundingSphere();
     const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));${cast ? '\n    mesh.castShadow = true;' : ''}
     mesh.matrixAutoUpdate = false;   // one composed matrix per bone per frame
     mesh.frustumCulled = false;      // matrices mutate every frame
@@ -142,18 +154,27 @@ function __buildWalkerSkin(fig) {
   mat.onBeforeCompile = (sh) => { sh.uniforms.uWB = U; sh.vertexShader = __wSkinPars + sh.vertexShader.replace('#include <begin_vertex>', __wSkinMove); };
   mat.customProgramCacheKey = () => 'walker-skin';
   mat.userData.prepass = (vs) => ({ vertexShader: __wSkinPars + vs.replace('#include <begin_vertex>', __wSkinMove), uniforms: { uWB: U } });
+  // (its parts one mesh: one skin, one material, the bones the material's, so a passer-by is one draw and one shadow)
+  const P = [], C = [], JJ = [], WW = [], I = [];
+  let base = 0;
   fig.parts.forEach((part, bi) => {
     if (!part) return;
-    const geo = new THREE.BufferGeometry(), n = part.faces * 3;
-    geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(part.pos), 3));
-    geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));
+    const n = ${packedIn ? 'part.idx ? part.n : ' : ''}part.faces * 3, pos = decodeF32(part.pos), col = decodeU8(part.col);
     // (a part with no skin of its own, a held thing, rides its bone whole)
-    const J = part.jnt ? Float32Array.from(decodeU8(part.jnt)) : Float32Array.from({ length: n * 4 }, () => bi), W = part.wgt ? decodeF32(part.wgt) : Float32Array.from({ length: n * 4 }, (_, i) => (i % 4 ? 0 : 1));
-    geo.setAttribute('aWJ', new THREE.BufferAttribute(J, 4)); geo.setAttribute('aWW', new THREE.BufferAttribute(W, 4));
-    const mesh = new THREE.Mesh(geo, mat);${cast ? '\n    mesh.castShadow = true;' : ''}
-    mesh.matrixAutoUpdate = false; mesh.frustumCulled = false;
-    group.add(mesh);
+    const J = part.jnt ? decodeU8(part.jnt) : null, W = part.wgt ? (${packedIn ? 'part.wq === 8 ? Float32Array.from(decodeU8(part.wgt), (x) => x / 255) : ' : ''}decodeF32(part.wgt)) : null;
+    for (let k = 0; k < n * 3; k++) { P.push(pos[k]); C.push(col[k]); }
+    for (let k = 0; k < n * 4; k++) { JJ.push(J ? J[k] : bi); WW.push(W ? W[k] : (k % 4 ? 0 : 1)); }${packedIn ? `
+    if (part.idx) { const ix = __wIdx(part); for (let k = 0; k < ix.length; k++) I.push(base + ix[k]); } else` : ''} for (let k = 0; k < n; k++) I.push(base + k);
+    base += n;
   });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(P), 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(Uint8Array.from(C), 3, true));
+  geo.setAttribute('aWJ', new THREE.BufferAttribute(Float32Array.from(JJ), 4)); geo.setAttribute('aWW', new THREE.BufferAttribute(Float32Array.from(WW), 4));
+  geo.setIndex(new THREE.BufferAttribute(base > 65535 ? Uint32Array.from(I) : Uint16Array.from(I), 1));
+  const mesh = new THREE.Mesh(geo, mat);${cast ? '\n  mesh.castShadow = true;' : ''}
+  mesh.matrixAutoUpdate = false; mesh.frustumCulled = false;
+  group.add(mesh);
   scene.add(group);
   return { fig, group, boneMeshes: [], B };
 }
@@ -217,23 +238,88 @@ const __walkerRigs = WALKERS.map((w) => {
     stride: w.stride > 0 ? w.stride : Math.max(0.05, (fig.figH || 1.8) * 0.72 * scale)${held ? `,
     held: Array.isArray(w.holds) ? { s0: ((w.startFrac || 0) % 1) * at.total, s: ((w.startFrac || 0) % 1) * at.total, t: 0 } : null` : ''} };
 });
-// probe/debug seam (a traversal audit surface, like __mojCtrl entities): the live pose of every walker.
-window.__mojWalkers = __walkerRigs.map((r) => ({ figure: r.w.figure, style: r.w.style || null, pos: [0, 0, 0], heading: 0, phase: 0 }));
+${react ? `// PASSERS-BY WHO REACT: what the street does to them this frame (the pilot, its car, its swing, the trouble heard)
+const WREACT = { run: 4.2, flee: 7, near: 22, down: 6, carR: 0.5, carV: 4, dodge: 9, dodgeV: 6, swingR: 1.8, press: 1.5 };
+let __wT = null, __wLogN = 0, __wSwing = false, __wPressT = {};
+function __wPress(type, sec) { const B = window.__mojBus; if (!B || !B.press || sec - (__wPressT[type] || -9) < WREACT.press) return; __wPressT[type] = sec; B.press(type); }
+function __wStreet(sec) {
+  const dt = __wT === null ? 0 : Math.min(0.1, Math.max(0, sec - __wT)); __wT = sec;
+  const C = window.__mojCtrl && window.__mojCtrl.world, out = { dt, alarms: [], cars: [], swing: null };
+  if (!C || !C.byId) return out;
+  const P = C.byId[C.pilotId], hero = P && P.mount ? C.byId[P.riderId] : P;
+  // (trouble the bus has heard, at whoever it was, else the player)
+  const B = window.__mojBus, log = B && B.state && B.state.log;
+  if (log) { if (log.length < __wLogN) __wLogN = 0; for (let i = __wLogN; i < log.length; i++) { const ty = log[i] && log[i].type; if (!ty || !/^(hit:|down$|mayhem:|encounter:|busted$|wasted$)/.test(ty)) continue; const at = log[i].entity && C.byId[log[i].entity], q = at || P; if (q && q.transform) out.alarms.push(q.transform.pos); } __wLogN = log.length; }
+  // (the cars that move: the one the pilot drives, the law's)
+  for (const e of C.entities) if (!e.gone && (e.carHull || (e.mount && e.mount.cab && e === P)) && Math.abs(e.speed || 0) > 0.5) out.cars.push({ p: e.transform.pos, h: e.transform.heading, v: e.speed, hull: e.carHull || e.mount.hull || [1, 2.3], mine: e === P });
+  // (a swing begun by the player on foot)
+  const sw = !!(hero && !hero.mountedOn && hero.swingT != null);
+  if (sw && !__wSwing && hero.transform) out.swing = { p: hero.transform.pos, h: hero.transform.heading };
+  __wSwing = sw;
+  return out;
+}
+function __wReact(r, wi, p, sec, S) {
+  const R = r.react || (r.react = { ds: 0, ph: 0, prev0: null, prevS: null, flee: 0, dir: 1, down: 0, from: null });
+  if (R.down > 0) { R.down -= S.dt; if (R.down <= 0) { R.flee = WREACT.flee; } return R; }
+  const away = (q) => { const dx = p[0] - q[0], dy = p[1] - q[1]; return { d: Math.hypot(dx, dy), dx, dy }; };
+  // struck: the player's swing, before them, in reach
+  if (S.swing) { const a = away(S.swing.p), f = Math.cos(S.swing.h) * a.dx + Math.sin(S.swing.h) * a.dy; if (a.d < WREACT.swingR && f > 0.2 * a.d) { R.down = WREACT.down; R.from = S.swing.p; __wPress('mayhem:assault', sec); return R; } }
+  for (const c of S.cars) {
+    const dx = p[0] - c.p[0], dy = p[1] - c.p[1], fx = Math.cos(c.h), fy = Math.sin(c.h), u = dx * fx + dy * fy, v = -dx * fy + dy * fx;
+    // run down: inside its box, at speed
+    if (Math.abs(c.v) > WREACT.carV && Math.abs(u) < c.hull[1] + WREACT.carR && Math.abs(v) < c.hull[0] + WREACT.carR) { R.down = WREACT.down; R.from = c.p; if (c.mine) __wPress('mayhem:runover', sec); return R; }
+    // a car bearing down: ahead of it, near its line, coming fast
+    if (Math.abs(c.v) > WREACT.dodgeV && u * Math.sign(c.v) > 0 && Math.abs(u) < WREACT.dodge && Math.abs(v) < 3 && R.flee <= 0) { R.flee = WREACT.flee * 0.5; R.from = c.p; }
+  }
+  for (const q of S.alarms) if (away(q).d < WREACT.near && R.flee <= 0) { R.flee = WREACT.flee; R.from = q; }
+  if (R.flee > 0) R.flee -= S.dt;
+  return R;
+}
+` : ''}// probe/debug seam (a traversal audit surface, like __mojCtrl entities): the live pose of every walker.
+window.__mojWalkers = __walkerRigs.map((r) => ({ figure: r.w.figure, style: r.w.style || null, pos: [0, 0, 0], heading: 0, phase: 0 }));${capture ? '' : `
+// (a passer-by drawn only where it can be seen: in the camera's view within WALKER_DRAW.far of its height, or within
+// WALKER_DRAW.near, where its shadow may fall into the view; one unseen is walked on but not posed, and draws nothing)
+const __wDraw = ${safeJson(WALKER_DRAW)}, __wFr = new THREE.Frustum(), __wPM = new THREE.Matrix4(), __wIV = new THREE.Matrix4(), __wSph = new THREE.Sphere();
+const __wSeen = (p, h) => {
+  __wSph.center.set(p[0], p[1], p[2] + h * 0.5); __wSph.radius = h;
+  const d = __wSph.center.distanceTo(camera.position);
+  return d < __wDraw.near * h || (d < __wDraw.far * h && __wFr.intersectsSphere(__wSph));
+};`}
 stepWalkers = (t) => {
-  const sec = t / 1000;
+  const sec = t / 1000;${capture ? '' : `
+  camera.updateMatrixWorld(); __wFr.setFromProjectionMatrix(__wPM.multiplyMatrices(camera.projectionMatrix, __wIV.copy(camera.matrixWorld).invert()));`}${react ? `
+  const __wS = __wStreet(sec);` : ''}
   for (let wi = 0; wi < __walkerRigs.length; wi++) {
     const r = __walkerRigs[wi], w = r.w, fig = r.rig.fig, g = r.rig.group;
     // ground distance travelled. loop (bumble) wraps the arc length; open (pacman) clamps at the end
     // until it laps, at which point the wrap relands it at the far edge.
-    const s = ${held ? 'r.held ? __wStep(r, sec) : ' : ''}w.loop === false
+    const ${react ? 's0' : 's'} = ${held ? 'r.held ? __wStep(r, sec) : ' : ''}w.loop === false
       ? Math.min(r.total, (sec / r.period) * r.total)
       : ((sec / r.period) % 1) * r.total;
-    const at = __atArc(w.path, r.cum, s), p = at.pos, tan = at.tan;
+${react ? `    // (a passer-by who reacts: off its own walk's clock by what it has run, frozen while it lies, running away)
+    const R = r.react || (r.react = { ds: 0, ph: 0, prev0: null, prevS: null, flee: 0, dir: 1, down: 0, from: null });
+    let d0 = R.prev0 === null ? 0 : s0 - R.prev0; if (d0 < -r.total / 2) d0 += r.total; R.prev0 = s0;
+    if (R.down > 0) R.ds -= d0;
+    else if (R.flee > 0) R.ds += R.dir * WREACT.run * __wS.dt - d0;
+    const s = ((s0 + R.ds) % r.total + r.total) % r.total;
+    let at = __atArc(w.path, r.cum, s), p = at.pos;
+    __wReact(r, wi, p, sec, __wS);
+    // (which way it runs: along its walk, the way that takes it from the trouble)
+    if (R.flee > 0 && R.from && R.fleeFrom !== R.from) { R.fleeFrom = R.from; R.dir = at.tan[0] * (p[0] - R.from[0]) + at.tan[1] * (p[1] - R.from[1]) >= 0 ? 1 : -1; }
+    const tan = at.tan;
+    let mv = R.prevS === null ? 0 : Math.abs(s - R.prevS); if (mv > r.total / 2) mv = r.total - mv; R.prevS = s;
+    if (R.down <= 0) R.ph += mv / r.stride;
+    const heading = Math.atan2(tan[1], tan[0]) + (R.flee > 0 && R.dir < 0 ? Math.PI : 0);
+    g.position.set(p[0], p[1], p[2] + (R.down > 0 ? 0.12 : 0));
+    if (R.down > 0) g.rotation.set(-Math.PI / 2, 0, heading + r.yaw, 'ZXY'); else g.rotation.set(0, 0, heading + r.yaw, 'XYZ');
+    const phase = R.ph;` : `    const at = __atArc(w.path, r.cum, s), p = at.pos, tan = at.tan;
     const heading = Math.atan2(tan[1], tan[0]);
     g.position.set(p[0], p[1], p[2]);
     g.rotation.set(0, 0, heading + r.yaw);
-    const phase = s / r.stride;                 // clip phase from ground distance (no skate)
-    for (let bi = 0; bi < fig.bones.length; bi++) {
+    const phase = s / r.stride;                 // clip phase from ground distance (no skate)`}
+${capture ? '' : `    const __seen = __wSeen(p, (fig.figH || 1.8) * r.scale);
+    if (g.visible !== __seen) g.visible = __seen;
+`}    ${capture ? '' : 'if (__seen) '}for (let bi = 0; bi < fig.bones.length; bi++) {
       const mesh = r.rig.boneMeshes[bi];
       if (!mesh${blend ? ' && !r.rig.B' : ''}) continue;
       __walkerBone(fig, r.clip, phase, bi, __wq, __wheadP);
@@ -245,7 +331,8 @@ stepWalkers = (t) => {
     }
     const wo = window.__mojWalkers[wi];
     wo.pos[0] = p[0]; wo.pos[1] = p[1]; wo.pos[2] = p[2]; wo.heading = heading; wo.phase = phase;
-  }${follow ? `
+${react ? `    wo.down = R.down > 0; wo.fleeing = R.flee > 0;
+` : ''}  }${follow ? `
   __wFollow();` : ''}
 };${follow ? `
 // the followed walker: seated behind and above it along its heading, then carried with it (a pure translation, so the
