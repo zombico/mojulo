@@ -1,13 +1,14 @@
 // In-page script: THE SHOT LIGHT on a side map's page (worlds/controllable/shot-light.js): the map's light is baked into
 // its faces (gameworld/side-map/light.js), and what shines in a fight is laid over that bake while it lasts: a buster's
 // rounds in their level's colours, a foe's shots in theirs, a burst as it goes off, a muzzle's flash, the hero's charge
-// at its chest. Appended after the controllable channel's own script (it wraps stepControllable) on a page whose camera
+// at its chest, and what a shot breaks or destroys as it comes apart (its pieces lit by it as they fly). Appended after the controllable channel's own script (it wraps stepControllable) on a page whose camera
 // is the side map's only, so every other page keeps every byte.
 //
 //   THE LIGHTS  read off the world each frame (shotLights, the same source the tests run), the strongest few near the
 //               pilot, into shared uniforms
-//   THE MAP     every baked face of it (the scene's solids drawn as three's MeshBasicMaterial: the baked groups and
-//               their textured faces, the doodads among them) adds, over its baked colour, each light's falloff (the
+//   THE MATTER  every opaque thing drawn as three's MeshBasicMaterial (the map's baked groups and their textured faces,
+//               the doodads among them; the bodies; and, found every few frames as they come, what breaks: a block's
+//               chunks (rupa), a destroyed body's pieces (dismantle, a cleave)), never a glow (an additive one) adds, over its baked colour, each light's falloff (the
 //               square of what is left of its reach): a little by how the face turns to it (half-Lambert), and most at
 //               its edges, a face turned from the eye (a top seen edge-on, a slice's end) taking it as a rim; in the
 //               surface's own hue (its baked colour over its brightest channel, toward white), the whole capped
@@ -26,11 +27,9 @@ export function shotLightScript() {
 // ── THE SHOT LIGHT ──
 const __shotLights = ${shotLights.toString()};
 const __SL = { last: [], patched: 0, U: { uSlN: { value: 0 }, uSlP: { value: Array.from({ length: ${K} }, () => new THREE.Vector3()) }, uSlC: { value: Array.from({ length: ${K} }, () => new THREE.Vector3()) }, uSlR: { value: new Array(${K}).fill(1) } } };
-(function __slPatch() {
-  const list = typeof solids !== 'undefined' ? solids : [];
-  for (const m of list) {
-    const mat = m && m.material;
-    if (!mat || !mat.isMeshBasicMaterial || mat.__shotLight) continue;
+// (a material lit by the shot light: three's MeshBasicMaterial, opaque matter, never a glow: what adds light is left as it is)
+function __slPatch(mat) {
+    if (!mat || !mat.isMeshBasicMaterial || mat.__shotLight || mat.blending === THREE.AdditiveBlending) return;
     const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey;
     mat.onBeforeCompile = function (sh, r) {
       if (prev) prev.call(this, sh, r);
@@ -45,8 +44,12 @@ const __SL = { last: [], patched: 0, U: { uSlN: { value: 0 }, uSlP: { value: Arr
     };
     mat.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|shot-light'; };
     mat.__shotLight = true; mat.needsUpdate = true; __SL.patched++;
-  }
-})();
+}
+// (every such material in the scene, and again every few frames for what comes into it: a block's chunks as it breaks
+// (rupa), a destroyed body's pieces (dismantle, a cleave), the bodies themselves)
+const __slSweep = () => scene.traverse((o) => { if (o.isMesh && o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(__slPatch); });
+__slSweep();
+let __slTick = 0;
 // (the lights' colours are sRGB; the bake's colours on the page are linear)
 const __slLin = (v) => Math.pow(v, 2.2);
 function __slFrame() {
@@ -56,7 +59,7 @@ function __slFrame() {
   U.uSlN.value = L.length; __SL.last = L;
 }
 const __slStep0 = stepControllable;
-stepControllable = (dt, inputOverride) => { __slStep0(dt, inputOverride); __slFrame(); };
+stepControllable = (dt, inputOverride) => { __slStep0(dt, inputOverride); if (++__slTick % 6 === 0) __slSweep(); __slFrame(); };
 window.__mojCtrl.shotLight = () => ({ lights: __SL.last, patched: __SL.patched });
 `;
 }

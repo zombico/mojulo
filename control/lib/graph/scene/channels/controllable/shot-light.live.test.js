@@ -2,14 +2,18 @@
 // The concepts: only a side map's page carries it; on one, the map's materials carry the light, a round in flight is a
 // light the page lays; its light on the wall is spill, not flood: a pool round it, its lift held by the cap, none far off.
 // A buster's full charge in flight is drawn in its look: read on the page, a white-hot core, its hue peaking in its
-// falloff, a thin accent (the rings it leaves where it was fired, read as it leaves them) (the shot's look's laws,
+// falloff, a thin accent (the rings it leaves where it was fired, read as it leaves them). A crate a round blows apart
+// (rupa) is lit as it comes apart, in the round's colour, and the chunks it scatters take the shot light (the shot's look's laws,
 // benchmark.js roundLaws).
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { emitThreeWorld } from '../../scene-three.js';
 import { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } from '../../chromium.js';
 import { decodeImage } from '../../visual-gate.js';
 import { feelRule } from '../../../gameworld/feel/lower.js';
+import { SHOT_LIGHT } from '../../../worlds/controllable/shot-light.js';
 import { measureRound, roundLaws } from '../../../gameworld/side-map/benchmark.js';
+import { blockMatter } from '../../../rupa/matter.js';
+import { piecesOf } from '../../../playscape/destruct/breakability.js';
 
 const hero = { id: 'p1', pilotable: true, transform: { pos: [0, 0, 0], heading: Math.PI / 2 }, rule: { type: 'platform', eye: 1, speed: 6, collideHeight: 1.6 }, ambient: { type: 'static' }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.6] } };
 // (the lane along +y, the camera on +x: a floor, and a wall facing the camera behind the lane)
@@ -102,6 +106,36 @@ describe('the shot light on a side map\'s page', () => {
     const M = measureRound({ page: l, quiet: q }, { r: Math.round(l.W * 0.1) });
     const laws = Object.fromEntries(roundLaws(M).map((x) => [x.id, x]));
     for (const id of ['white-core', 'hue-in-falloff', 'accent-thin']) expect(laws[id].holds, laws[id].says).toBe(true);
+    await p.close();
+  }, 90000);
+
+  it('a crate blown apart is lit as it comes apart, in the round\'s colour, and its chunks take the light', async () => {
+    if (!browser) return;
+    const box = { min: [-0.5, -3.5, 0], max: [0.5, -2.5, 1] }, crate = { id: 'crate', ...box, hp: 1, ...blockMatter(box, 'pine') };
+    const [x0, y0, z0] = box.min, [x1, y1, z1] = box.max, f = (corners, normal) => ({ corners, normal, fill: '#8a6a3a', group: 'break:crate' });
+    const faces = [f([[x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1]], [1, 0, 0]), f([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], [0, 0, 1]),
+      f([[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], [0, -1, 0]), f([[x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1]], [0, 1, 0]), f([[x0, y0, z0], [x0, y1, z0], [x0, y1, z1], [x0, y0, z1]], [-1, 0, 0])];
+    const html = emitThreeWorld({ faces: [floor, wall, ...faces], entities: [hero], breakables: [crate], breakPieces: piecesOf([crate], faces), rupa: {}, camera: camera('side-map'), inline: true });
+    const p = await browser.newPage();
+    const errors = [];
+    p.on('pageerror', (e) => errors.push(String(e)));
+    await p.setContent(html, { waitUntil: 'domcontentloaded' });
+    await p.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.shotLight, { timeout: 20000 });
+    const frames = (n) => p.evaluate((n) => new Promise((r) => { const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n);
+    await frames(30);
+    const before = await p.evaluate(() => window.__mojCtrl.shotLight().patched);
+    // (a green round bursts on it and the blow breaks it)
+    await p.evaluate(() => { const C = window.__mojCtrl, W = C.world; W.bursts = W.bursts || []; W.bursts.push({ seq: 99, pos: [0, -3, 0.5], t: W.time, radius: 0.4, fxColor: 0x5dff7a }); W.burstSeq = 100; C.strike('crate', 1e7, 'blast', { at: [0, -3, 0.5] }); });
+    await frames(8);
+    const after = await p.evaluate(() => ({ s: window.__mojCtrl.shotLight(), broke: (window.__mojCtrl.world.breaks || []).length }));
+    expect(errors).toEqual([]);
+    expect(after.broke).toBeGreaterThan(0);
+    // (its light: a break's reach, the green round's colour)
+    const L = after.s.lights.find((l) => l.reach === SHOT_LIGHT.broke[0]);
+    expect(L).toBeTruthy();
+    expect(L.color[1]).toBe(1);
+    // (the chunks it scattered, each its own material, found and lit)
+    expect(after.s.patched).toBeGreaterThan(before);
     await p.close();
   }, 90000);
 });

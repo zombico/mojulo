@@ -1,6 +1,7 @@
 // The shot light (worlds/controllable/shot-light.js): what shines in a fight, read off the world. The concepts: a quiet
 // world has no lights; a round in flight is a light in its own colour, a bigger round reaching further; a burst is bright
-// as it goes off and gone after its life; a light's colour is its hue saturated (the body's, never the white core's); a muzzle's flash lasts a few frames; the pilot's charge grows as it fills, in
+// as it goes off and gone after its life; what breaks (a block, a body destroyed) is lit as it comes apart, in the colour of
+// the round that burst there; a light's colour is its hue saturated (the body's, never the white core's); a muzzle's flash lasts a few frames; the pilot's charge grows as it fills, in
 // the level reached's colour; past K, the strongest near the focus are kept; the function runs as the page runs it
 // (its own source, import-free) and its numbers are SHOT_LIGHT's; the same world, the same lights.
 import { describe, it, expect } from 'vitest';
@@ -32,6 +33,20 @@ describe('the shot light', () => {
     const shot = (time) => shotLights({ time, entities: [hero({ lastShot: { t: 1, from: [0.5, 2, 1.1], charged: false } })] });
     expect(shot(1.02).length).toBe(1);
     expect(shot(1 + SHOT_LIGHT.flashLife + 0.01)).toEqual([]);
+  });
+  it('what breaks and what is destroyed is lit as it comes apart, in the colour of the round that burst there', () => {
+    const burst = { seq: 0, pos: [0, 4, 1], t: 2, radius: 0.4, fxColor: 0x5dff7a };
+    const at = (time, extra = {}) => shotLights({ time, bursts: [burst], breaks: [{ seq: 0, id: 'crate', t: 2, at: [0, 4.2, 1], by: 'h', how: 'shatter' }], ...extra });
+    const lit = at(2.05).find((l) => l.reach === SHOT_LIGHT.broke[0]);
+    expect(lit.color[1]).toBe(1);   // (the green round's)
+    expect(at(2.05).find((l) => l.reach === SHOT_LIGHT.broke[0]).power).toBeGreaterThan(at(2.3).find((l) => l.reach === SHOT_LIGHT.broke[0]).power);
+    expect(at(2 + SHOT_LIGHT.breakLife + 0.01).filter((l) => l.reach === SHOT_LIGHT.broke[0])).toEqual([]);
+    // (a body destroyed: a wreck lights where it stood; nothing burst there, warm)
+    const foe = { id: 'f', transform: { pos: [0, 9, 0] }, rule: { collideHeight: 1.6 }, wreck: { die: 'dismantle', t0: 2 } };
+    const w = shotLights({ time: 2.1, entities: [foe] })[0];
+    expect(w.reach).toBe(SHOT_LIGHT.wreck[0]);
+    expect(w.pos[2]).toBeCloseTo(0.8, 6);
+    expect(shotLights({ time: 2 + SHOT_LIGHT.breakLife + 0.01, entities: [foe] })).toEqual([]);
   });
   it('the charge grows as it fills, in the level reached\'s colour', () => {
     const at = (chargeFrac, chargeLevel) => shotLights({ time: 2, entities: [hero({ charging: true, busterOn: true, chargeFrac, chargeLevel })] })[0];

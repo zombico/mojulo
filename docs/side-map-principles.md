@@ -130,7 +130,8 @@ The cake is `control/lib/graph/gameworld/side-map/cake.js` (the materials), `tex
     a shot lights the wall it passes and the top it skims. They are read off the world each frame
     (`control/lib/graph/worlds/controllable/shot-light.js`) and laid by the side map's page
     (`control/lib/graph/scene/channels/controllable/shot-light-view.js`). Their light is spill, not flood: the shot's hue
-    on the edges near it, capped, the world kept in its key.
+    on the edges near it, capped, the world kept in its key. What a shot breaks (rupa's matter) or destroys (a dismantle)
+    flashes as it comes apart in the round's colour, and its pieces take the light as they fly.
 29. **A shot is drawn as light.** A white-hot core, its hue saturated in the falloff and deeper at its edge, every layer
     additive under a halo in its hue; the ball always at its head, where it hits, and nothing ahead of it (streaks, a
     short tail and sparks trail behind); an accent hue far round the wheel kept thin (rings left at the firing point,

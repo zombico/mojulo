@@ -231,3 +231,7 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
 - **A round's hitbox is its own** (`gameworld/feel/lower.js` `BUSTER_HIT`, `worlds/controllable/buster.js`): the tap and
   the first charge meet a body with less than their drawn size; the full charge is a tall capsule, so it catches what
   stands anywhere in its height (a crawler under the line a tap shot sails over) and bursts at the height it met it.
+- **What a shot destroys is lit by it** (`worlds/controllable/shot-light.js`, `shot-light-view.js`): a block that breaks
+  (rupa's matter, a breakable) and a body destroyed (dismantle, a cleave) flash as they come apart, in the colour of the
+  round that burst there, fading like a burst; and the shot light reaches every piece of matter as it comes into the
+  scene, so a crate's chunks and a wreck's pieces take its light as they fly. Glows stay as they are.
