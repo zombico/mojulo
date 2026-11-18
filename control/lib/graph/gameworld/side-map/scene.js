@@ -117,7 +117,8 @@ export function assembleSideMap(m, ctx = {}) {
       if (P.s0 !== undefined) face(faces, at(1.5), P.s0, P.s1, zb, zb + (zt - zb) * 0.18, c, 'sidemap:peek');
       else face(faces, at(1.5), s0, s0 + (s1 - s0) * 0.12, P.z0, P.z1, c, 'sidemap:peek');
     }
-    if (o0 && z.mark?.kind === 'climbs') for (let y = o0.z0 + 1, k = 0; y < o0.z1 - 1; y += 1.2, k++) face(faces, at(2), o0.s0 + 0.2, o0.s1 - 0.2, y, y + 0.12, lit(z.edge, FACE.px, 0.6), 'sidemap:rails');
+    // (the rails a shaft's back wall climbs by: a guide behind the lane, quieter than it, the benchmark's `lane-sharpest`)
+    if (o0 && z.mark?.kind === 'climbs') for (let y = o0.z0 + 1, k = 0; y < o0.z1 - 1; y += 1.2, k++) face(faces, at(2), o0.s0 + 0.2, o0.s1 - 0.2, y, y + 0.12, lit(z.key, FACE.px, 0.4), 'sidemap:rails');
     if (o0 && z.mark?.kind === 'stripes') for (let y = o0.z0, k = 0; y < o0.z1; y += 0.9, k++) face(faces, at(2), o0.s0 + 0.3, o0.s1 - 0.3, y, y + 0.45, k % 2 ? lit('#1a1a1a', FACE.px) : lit(play, FACE.px, 0.9), 'sidemap:stripes');
     if (o0 && z.mark?.kind === 'emblem') {
       const cs = (o0.s0 + o0.s1) / 2, cz = (o0.z0 + o0.z1) / 2, r = Math.min(o0.s1 - o0.s0, o0.z1 - o0.z0) * 0.18;

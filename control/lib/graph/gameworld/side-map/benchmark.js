@@ -1,0 +1,141 @@
+/**
+ * THE RENDER BENCHMARK (docs/side-map-principles.md "It is rendered to the modern benchmark", "The look"): a built side
+ * map shot on its page at the frames a player sees and MEASURED BY ROLE, the house's modern side-scroller read off the
+ * studied frames held to numbers. Each shot is rendered twice: as the page draws it, and as a ROLE PASS (every face its
+ * role's flat colour, a hero stand-in where the hero stands), so each pixel of the page knows what it shows.
+ *
+ *   the SHOTS        one a zone kind: a run (the first with hatches, else the first), a climb (the first up run, the
+ *                    hero on a rest halfway up), the boss's room; each framed as the side map's camera frames its hero
+ *   the ROLES        top (a standable top's lit edge), closed (the closed parts and their paint), back (an indoor zone's
+ *                    wall and its dress), hills and range (an outdoor zone's backdrop, a layer each), play (shutters, ladders, pickups,
+ *                    hatches), lamp, boss (its emblem), hero (the stand-in), sky (nothing drawn)
+ *   the MEASURES     hero      the hero's share of the frame's height (1/8)
+ *                    lane      how far down the frame the top under the hero stands (2/3), a run's
+ *                    hue       play against place: the hue between the play's pixels and the closed parts' (opposite)
+ *                    litTops   the tops lighter than the closed parts under them
+ *                    painted   the closed parts' lightness varied (a plain face is flat)
+ *                    sharp     the lane's layer (the closed parts) the sharpest: its Laplacian energy against the back's
+ *                    recedes   each layer back quieter: the closed parts' contrast over the back's, the backdrop's
+ *                    lamps     lights with a source in an indoor run's frame
+ *                    boss      the boss's mark on its room's back wall
+ *                    fore      a foreground under the feet (not built: said, never claimed)
+ *                    moving    something moving beside the way (the map moves nothing yet: said)
+ *
+ *   ROLE_COLOURS, roleOf(group)
+ *   benchmarkShots(layout, dress) → [{ name, zone, hero: [s, z], pose: { at, look, vfov } }]
+ *   rolePayload(payload, shot, stature) → the payload's faces in their roles' colours, the hero's stand-in among them
+ *   measureShot({ page, roles }, shot) → the measures (both images decoded: visual-gate.js decodeImage)
+ *   benchmarkLaws(shots) → [{ id, shot, holds, says }]  advisory, each against the frame's principle
+ *
+ * Pure: the rendering is the script's (scripts/side-map.mjs --bench).
+ */
+import { srgbToLab } from '../../scene/visual-gate.js';
+
+export const ROLE_COLOURS = Object.freeze({ top: '#ffffff', closed: '#3060ff', back: '#00ff00', hills: '#ffff00', range: '#808000', play: '#ff00ff', lamp: '#00ffff', boss: '#ff8000', hero: '#ff0000', sky: '#000000' });
+const SLIVER = 0.003, ROLES = Object.keys(ROLE_COLOURS), RGB = ROLES.map((k) => [1, 3, 5].map((i) => parseInt(ROLE_COLOURS[k].slice(i, i + 2), 16)));
+/** The role a face of the side map's build plays, by its group. */
+export function roleOf(group = '') {
+  const g = String(group).replace(/^sidemap:/, '');
+  if (g === 'edge') return 'top';
+  if (['rock', 'built', 'machine', 'padded'].includes(g) || g.startsWith('paint-')) return 'closed';
+  if (g === 'hills' || g === 'range') return g;
+  if (['door', 'ladder', 'pickup', 'hatch'].includes(g)) return 'play';
+  if (g === 'lamp') return 'lamp';
+  if (g === 'emblem') return 'boss';
+  return 'back';
+}
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+/** One shot a zone kind, each framed as the side map's camera frames its hero there. */
+export function benchmarkShots(layout, dress) {
+  const L = layout, W = L.screen.width, H = L.screen.height, C = L.camera, out = [];
+  const topAt = (zone, s, under = Infinity) => L.solids.filter((r) => r.zone === zone && r.s0 <= s && r.s1 >= s && r.z1 <= under + 1e-3 && r.role !== 'ceiling').reduce((m, r) => Math.max(m, r.z1), -Infinity);
+  const frame = (Z, s, foot) => {
+    const [s0, s1, z0, z1] = Z.rect, cs = s1 - s0 <= W ? (s0 + s1) / 2 : clamp(s, s0 + W / 2, s1 - W / 2), cz = z1 - z0 <= H ? (z0 + z1) / 2 : clamp(foot + C.lookH, z0 + H / 2, z1 - H / 2);
+    return { at: [C.dist * Math.cos(C.tilt), cs, cz + C.dist * Math.sin(C.tilt)], look: [0, cs, cz], vfov: C.vfov };
+  };
+  const runs = L.zones.filter((Z) => Z.run === 'across'), run = runs.find((Z) => (dress.zones[Z.i].hatches ?? []).length) ?? runs[0];
+  // (the hero on a floor, the one nearest three fifths of a screen in: never over a pit)
+  if (run) {
+    const want = run.rect[0] + W * 0.6, F = L.solids.filter((r) => r.zone === run.i && r.role === 'floor' && r.s1 - r.s0 > 1).sort((a, b) => Math.abs((a.s0 + a.s1) / 2 - want) - Math.abs((b.s0 + b.s1) / 2 - want))[0];
+    const s = F ? clamp(want, F.s0 + 0.5, F.s1 - 0.5) : want, z = topAt(run.i, s);
+    out.push({ name: 'run', zone: run.i, hero: [s, z], pose: frame(run, s, z) });
+  }
+  const up = L.zones.find((Z) => Z.run === 'up');
+  if (up) {
+    const R = L.rests.filter((r) => r.zone === up.i), mid = R[Math.floor(R.length / 2)];
+    const at = mid ? [(mid.s0 + mid.s1) / 2, mid.z] : [(up.rect[0] + up.rect[1]) / 2, (up.rect[2] + up.rect[3]) / 2];
+    out.push({ name: 'climb', zone: up.i, hero: at, pose: frame(up, at[0], at[1]) });
+  }
+  const room = L.zones.find((Z) => Z.kind === 'room' && Z.teach === 'boss') ?? L.zones.find((Z) => Z.kind === 'room');
+  if (room) { const s = (room.rect[0] + room.rect[1]) / 2, z = room.exit[1]; out.push({ name: 'boss', zone: room.i, hero: [s, z], pose: frame(room, s, z) }); }
+  return out;
+}
+
+/** The payload as its ROLE PASS: each face its role's flat colour, the hero's stand-in where the shot stands it. */
+export function rolePayload(payload, shot, stature) {
+  const [s, z] = shot.hero, w = 0.35 * stature;
+  const hero = { corners: [[0.6, s - w / 2, z], [0.6, s + w / 2, z], [0.6, s + w / 2, z + stature], [0.6, s - w / 2, z + stature]], normal: [1, 0, 0], fill: ROLE_COLOURS.hero, group: 'sidemap:hero' };
+  return { ...payload, bg: ROLE_COLOURS.sky, sky: null, haze: null, ao: null, faces: [...payload.faces.map((f) => ({ ...f, fill: ROLE_COLOURS[roleOf(f.group)] })), hero] };
+}
+
+const nearest = (r, g, b) => { let k = 0, d = Infinity; RGB.forEach((c, i) => { const e = (c[0] - r) ** 2 + (c[1] - g) ** 2 + (c[2] - b) ** 2; if (e < d) { d = e; k = i; } }); return ROLES[k]; };
+const r2 = (v) => (Number.isFinite(v) ? Math.round(v * 100) / 100 : v), r3 = (v) => Math.round(v * 1000) / 1000;
+/** The measures of one shot: its page and its role pass, decoded. */
+export function measureShot({ page, roles }, shot) {
+  const { W, H } = roles, n = W * H, role = new Array(n), L = new Float32Array(n), lab = new Array(n);
+  for (let i = 0; i < n; i++) {
+    role[i] = nearest(roles.rgb[3 * i], roles.rgb[3 * i + 1], roles.rgb[3 * i + 2]);
+    lab[i] = srgbToLab(page.rgb[3 * i], page.rgb[3 * i + 1], page.rgb[3 * i + 2]); L[i] = lab[i][0];
+  }
+  const count = (k) => { let c = 0; for (let i = 0; i < n; i++) if (role[i] === k) c++; return c >= 40 ? c : 0; };
+  // (a role on a sliver of the frame is the role pass's own antialiasing, two colours blended at an edge: not read)
+  const of = (k) => { const out = []; for (let i = 0; i < n; i++) if (role[i] === k) out.push(i); return out.length >= SLIVER * n ? out : []; };
+  const stat = (ix) => { if (!ix.length) return null; let m = 0; for (const i of ix) m += L[i]; m /= ix.length; let v = 0; for (const i of ix) v += (L[i] - m) ** 2; return { n: ix.length, mean: r2(m), std: r2(Math.sqrt(v / ix.length)) }; };
+  // (a role's Laplacian energy on the page's lightness, over its pixels whose four neighbours share the role)
+  const sharp = (k) => { if (!of(k).length) return null; let e = 0, c = 0; for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) { const i = y * W + x; if (role[i] !== k || role[i - 1] !== k || role[i + 1] !== k || role[i - W] !== k || role[i + W] !== k) continue; const l = 4 * L[i] - L[i - 1] - L[i + 1] - L[i - W] - L[i + W]; e += l * l; c++; } return c ? r2(e / c) : null; };
+  const hueOf = (ix) => { let a = 0, b = 0; for (const i of ix) { a += lab[i][1]; b += lab[i][2]; } return ix.length && Math.hypot(a, b) > 1e-6 ? ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360 : null; };
+  // the hero's rows (its stand-in's extent down the frame), the top under it (the first top row below its feet, at its column)
+  let y0 = H, y1 = -1, xs = 0, xc = 0;
+  for (let i = 0; i < n; i++) if (role[i] === 'hero') { const y = Math.floor(i / W); y0 = Math.min(y0, y); y1 = Math.max(y1, y); xs += i % W; xc++; }
+  const hx = xc ? Math.round(xs / xc) : Math.round(W / 2);
+  let lane = null;
+  if (xc) for (let y = y1; y < H; y++) if (role[y * W + hx] === 'top') { lane = y; break; }
+  const closed = of('closed'), back = of('back'), hills = of('hills'), range = of('range'), play = of('play'), top = of('top');
+  const hp = hueOf(play), hc = hueOf(closed), apart = hp === null || hc === null ? null : Math.min(Math.abs(hp - hc), 360 - Math.abs(hp - hc));
+  return {
+    shot: shot.name,
+    hero: xc ? r3((y1 - y0 + 1) / H) : null,
+    lane: lane === null ? null : r3(lane / H),
+    hue: apart === null ? null : r2(apart),
+    litTops: top.length && closed.length ? r2(stat(top).mean - stat(closed).mean) : null,
+    painted: closed.length ? stat(closed).std : null,
+    sharp: { closed: sharp('closed'), back: sharp('back'), hills: sharp('hills'), range: sharp('range') },
+    recedes: { closed: stat(closed)?.std ?? null, back: stat(back)?.std ?? null, hills: stat(hills)?.std ?? null, range: stat(range)?.std ?? null },
+    // (a lamp and the boss's mark are small things by design: counted whole, past a few dozen pixels)
+    lamps: count('lamp'), boss: count('boss'),
+    shares: Object.fromEntries(ROLES.map((k) => [k, r2(of(k).length / n)])),
+    fore: false, moving: false,
+  };
+}
+
+/** The benchmark's laws over the shots' measures: advisory, each against its principle. */
+export function benchmarkLaws(measures) {
+  const out = [], law = (id, shot, holds, says) => out.push({ id, shot, holds: !!holds, says });
+  for (const M of measures) {
+    if (M.hero !== null) law('hero-share', M.shot, Math.abs(M.hero - 1 / 8) <= 0.02, `the hero stands ${Math.round(1000 * M.hero) / 10}% of the frame's height (an eighth: 12.5%)`);
+    if (M.shot === 'run') law('lane-down', M.shot, M.lane !== null && Math.abs(M.lane - 2 / 3) <= 0.05, M.lane === null ? 'no top under the hero in the frame' : `the top under the hero ${Math.round(1000 * M.lane) / 10}% down the frame (two thirds: 66.7%)`);
+    if (M.hue !== null) law('play-against-place', M.shot, M.hue >= 90, `play and place ${M.hue}° apart (opposite: past 90°)`);
+    if (M.litTops !== null) law('lit-tops', M.shot, M.litTops >= 5, `the tops ${M.litTops} L* over the closed parts`);
+    if (M.painted !== null) law('painted', M.shot, M.painted >= 3, `the closed parts' lightness varies by ${M.painted} L* (a plain face: under 3)`);
+    const S = M.sharp, behind = [S.back, S.hills, S.range].filter((v) => v !== null);
+    if (S.closed !== null && behind.length) law('lane-sharpest', M.shot, behind.every((v) => S.closed >= v), `the lane's layer ${S.closed}, behind it ${behind.join(', ')} (Laplacian energy)`);
+    const R = M.recedes, back = [R.back, R.hills, R.range].filter((v) => v !== null);
+    if (R.closed !== null && back.length) law('recedes', M.shot, back.every((v) => R.closed >= v), `contrast ${R.closed} in the lane's layer, ${back.join(', ')} behind it`);
+    if (M.shot === 'run' && M.shares.back > 0) law('lamps', M.shot, M.lamps > 0, M.lamps ? `${M.lamps} px of lamps: light with a source` : 'no lamp in an indoor run\'s frame');
+    if (M.shot === 'boss') law('boss-mark', M.shot, M.boss > 0, M.boss ? 'the boss\'s mark on its room\'s back wall' : 'no mark of the boss\'s in its room');
+    law('foreground', M.shot, M.fore, 'no foreground under the feet: the map builds none yet');
+    law('moving', M.shot, M.moving, 'nothing moves beside the way: the map animates nothing yet');
+  }
+  return out;
+}

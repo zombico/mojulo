@@ -15,8 +15,8 @@ zones on a grid and its doors gated by powers.
 They are laws in the house sense: measured where they can be, and they advise. A map that loses one is still made, and
 says which.
 
-**Status.** Planned. These principles are written ahead of the code; the map, its laws and its words are being built to
-them, and each section here gains the module that holds it as it lands.
+**Status.** Built, but for the foreground, things that move beside the way, the boss's fight, the hero's climb seen from
+behind and a metroidvania's grid; each section names the module that holds it.
 
 ## The map is the camera's path
 
@@ -131,6 +131,10 @@ The look is dealt over a laid map by `control/lib/graph/gameworld/side-map/dress
 place a zone, the palette, the bays, the peeks, the threads, the marks, the foreshadowing and the backdrop, as data the
 build paints from.
 
+The look is measured on the page by `control/lib/graph/gameworld/side-map/benchmark.js` (`node scripts/side-map.mjs
+<manifest.json> --bench`): each shot rendered as the page draws it and as a role pass, read by role. The foreground and
+things that move are not built yet, and the benchmark says so.
+
 ## Who makes it
 
 The studio lays a map from words, for any game whose camera is side-on and whose hero platforms: the map is a level form
@@ -166,5 +170,6 @@ The eyes gate is the operator's: the map read as a drawing, the level played on 
 
 ## Not yet
 
-Everything above is planned. After it: a metroidvania (the zones as rooms on a grid, doors gated by powers, the map
+A foreground under the feet and things that move beside the way (the benchmark says both missing), the boss's fight in
+its room, the hero's climb clip seen from behind. After them: a metroidvania (the zones as rooms on a grid, doors gated by powers, the map
 shown in the game), and the 3D platformer's courses told the same way.

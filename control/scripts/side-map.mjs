@@ -4,7 +4,10 @@
  * held to its laws, written as its elevation (the drawing, SVG and PNG) and, with --shots, its page seen from the side
  * map's camera at a few places (each zone's start, a climb's top, the boss's room).
  *
- *   node scripts/side-map.mjs [manifest.json] [--out dir] [--shots]
+ *   node scripts/side-map.mjs [manifest.json] [--out dir] [--shots] [--bench]
+ *
+ * --bench: the render benchmark (gameworld/side-map/benchmark.js): a run, a climb and the boss's room shot on the page and
+ * as a role pass, measured by role and held to the frame's principles; bench.html (a contact sheet) and bench.json.
  *
  * With no manifest, a stage of every kind of zone (a rest, a lesson, a chimney that rises, a landing, a cascade, a fight,
  * a chute, the boss's room) in the plant. Prints the laws.
@@ -49,4 +52,28 @@ if (flag('--shots')) {
     writeFileSync(path.join(out, `${name}.png`), await renderWorldToPng(html, { width: 1280, height: 720, deviceScaleFactor: 1 }));
   }
   console.log(`wrote ${shots.length} shots`);
+}
+
+if (flag('--bench')) {
+  const { emitThreeWorld } = await import('../lib/graph/scene/scene-three.js');
+  const { resolveWorldScene } = await import('../lib/graph/worlds/world-scene.js');
+  const { decodeImage } = await import('../lib/graph/scene/visual-gate.js');
+  const { benchmarkShots, rolePayload, measureShot, benchmarkLaws } = await import('../lib/graph/gameworld/side-map/benchmark.js');
+  const { payload } = await resolveWorldScene({ manifest: m });
+  const shots = benchmarkShots(M.layout, M.dress), measures = [], rows = [];
+  for (const shot of shots) {
+    const hfov = (2 * Math.atan(Math.tan((shot.pose.vfov * Math.PI) / 360) * (16 / 9)) * 180) / Math.PI;
+    const cams = [{ name: shot.name, worldFraming: { cameraPosition: shot.pose.at, lookAt: shot.pose.look, horizontalFov: hfov, pictureCenter: [640, 360] } }];
+    const pagePng = await renderWorldToPng(emitThreeWorld({ ...payload, cameras: cams, inline: true, hud: false }), { width: 1280, height: 720, deviceScaleFactor: 1 });
+    const rolePng = await renderWorldToPng(emitThreeWorld({ ...rolePayload(payload, shot, M.stature), cameras: cams, inline: true, hud: false }), { width: 1280, height: 720, deviceScaleFactor: 1 });
+    writeFileSync(path.join(out, `bench-${shot.name}.png`), pagePng); writeFileSync(path.join(out, `bench-${shot.name}-roles.png`), rolePng);
+    const ms = measureShot({ page: decodeImage(pagePng), roles: decodeImage(rolePng) }, shot);
+    measures.push(ms); rows.push(shot.name);
+  }
+  const laws = benchmarkLaws(measures);
+  writeFileSync(path.join(out, 'bench.json'), JSON.stringify({ measures, laws }, null, 2));
+  const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const html = `<!doctype html><meta charset="utf-8"><title>Side map benchmark</title><style>body{background:#111;color:#ddd;font:14px Helvetica,Arial,sans-serif;margin:20px}img{width:560px;margin-right:8px}h2{font-size:16px;margin:18px 0 6px}li.lost{color:#ff8a7a}</style><h1>The side map's render benchmark</h1><p>The machine gate's measures by role, on the page and its role pass. The eyes gate is the operator's.</p>${rows.map((n) => `<h2>${n}</h2><img src="bench-${n}.png"><img src="bench-${n}-roles.png"><ul>${laws.filter((l) => l.shot === n).map((l) => `<li class="${l.holds ? '' : 'lost'}">${l.holds ? 'holds' : 'lost'} · ${esc(l.id)}: ${esc(l.says)}</li>`).join('')}</ul>`).join('')}`;
+  writeFileSync(path.join(out, 'bench.html'), html);
+  for (const l of laws) console.log(`${l.holds ? 'holds' : 'LOST '}  bench ${l.shot} ${l.id}: ${l.says}`);
 }

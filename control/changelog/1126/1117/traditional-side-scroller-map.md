@@ -1,7 +1,8 @@
 ### The traditional side-scroller map: a level as the camera's path, Galaxy Boy's first
 
-Partly built: the principles, the strip's seams and Galaxy Boy's game body have landed; the rest is planned, each line
-said as its phase lands.
+Built through its render benchmark: the principles, the strip's seams, Galaxy Boy's game body, the side map from its
+words to a game's level its bot plays, and the benchmark that measures its frames. Not yet: a foreground and things that
+move beside the way, the boss's fight in its room, the hero's climb seen from behind, a metroidvania's rooms on a grid.
 
 - **The principles, written first** (`docs/side-map-principles.md`): the map as the camera's path, the screen as a
   measure, teaching by stakes, going up earned, falls and ladders, the closed parts painted, the look, and who makes it
@@ -148,6 +149,14 @@ said as its phase lands.
   hero never walks into a ladder's face), the climb owns the body from there, facing into the place with its back to the
   camera, and its top steps it off onto the floor; no shot leaves on a ladder unless the body's rule says so. The hero's
   climb clip, seen from behind, is still to come: on a ladder it plays what it has.
-- **A render benchmark**: a run, a chimney and a boss's room measured on the page by role (the hero's share of the
-  frame, the lane's place in it, play and place on opposite hues, recession and sharpness by layer, light from sources
-  that are seen).
+- **The render benchmark** (`side-map/benchmark.js`, `node scripts/side-map.mjs <manifest> --bench`): a run, a climb and
+  the boss's room shot on the page as the side map's camera frames its hero, each rendered twice (as the page draws it,
+  and as a role pass: every face its role's flat colour, a stand-in where the hero stands), so every pixel of the page
+  knows what it shows, and measured by role against the frame's principles: the hero an eighth of the frame's height,
+  the top under it two thirds down, play and place on opposite hues, the tops lit, the closed parts painted, the lane's
+  layer the sharpest and each layer behind it quieter, a lamp in an indoor run's frame, the boss's mark in its room. A
+  contact sheet (`bench.html`: the page beside its role pass, each law's reading) and `bench.json`. Missing and said
+  so, never claimed: a foreground under the feet and anything moving beside the way. On Galaxy Boy's first level and a
+  volcano stage every law the map builds holds. Measured, the look was mended: an outdoor zone's hills and range no
+  longer stand over the next zone's at one depth (they flickered), and a shaft's climbing rails are a guide behind the
+  lane, quieter than it.

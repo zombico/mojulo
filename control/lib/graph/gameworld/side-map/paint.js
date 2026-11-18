@@ -147,7 +147,14 @@ export function backdropOf(layout, dress, { seed = 1 } = {}) {
       const u = B.crest[z.backdrop];
       if (u === undefined) continue;
       const f = (C.dist - B.x) / C.dist, d = streamOf(seed, 'side-map-backdrop', `${z.zone}-${layer}`);
-      const s0 = Z.rect[0] + W / 2 - (W / 2) * f - 2, s1 = Z.rect[1] - W / 2 + (W / 2) * f + 2, foot = zc - H * f;
+      // (wide enough for anywhere along the zone the camera stands; cut where the next outdoor zone's layer begins, at the
+      // middle between the two, so no two layers stand at one depth over each other: they would flicker)
+      let s0 = Z.rect[0] + W / 2 - (W / 2) * f - 2, s1 = Z.rect[1] - W / 2 + (W / 2) * f + 2;
+      const prev = [...dress.zones].reverse().find((y) => y.zone < z.zone && !y.indoor && y.backdrop && B.crest[y.backdrop] !== undefined);
+      const next = dress.zones.find((y) => y.zone > z.zone && !y.indoor && y.backdrop && B.crest[y.backdrop] !== undefined);
+      if (prev) s0 = Math.max(s0, (L.zones[prev.zone].rect[1] + Z.rect[0]) / 2);
+      if (next) s1 = Math.min(s1, (Z.rect[1] + L.zones[next.zone].rect[0]) / 2);
+      const foot = zc - H * f;
       const at = (v) => zc + (lane + v * H - zc) * f, rects = [];
       for (let s = s0; s < s1; ) { const w = (B.bump[0] + (B.bump[1] - B.bump[0]) * d()) * f, top = at(u + B.rise * (d() - 0.5)); rects.push({ s0: r3(s), s1: r3(Math.min(s1, s + w)), z0: r3(foot), z1: r3(top) }); s += w; }
       out.push({ zone: z.zone, layer, x: B.x, rects, haze: B.haze });
