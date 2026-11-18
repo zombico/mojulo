@@ -1043,12 +1043,29 @@ const __rimPatch = (m, rim) => {
   // over once as the live light's FOCUS, which the pass before every render asks: captures never step, and the box is
   // tight round the pilot from the first frame.
   const actors = !!(sh && typeof shadows === 'object' && shadows.actors);
+  // (`actors: 'pilot'`: the pilot alone casts into the live map; every other body keeps its pool at its feet, its meshes,
+  // and its far twin's, kept out of the map once each)
+  const pilotCasts = actors && shadows.actors === 'pilot';
   const cast = !!(sh && typeof shadows === 'object' && shadows.cast) || actors;
-  const shadowBlock = cast ? '' : sh ? suitShadowBlock(sh) : '';
+  const shadowBlock = pilotCasts ? suitShadowBlock({ ...sh, others: true }) + `
+// THE PILOT ALONE CASTS (shadows.actors 'pilot'): every other body's meshes out of the live map, once each, and its far
+// twin's when it is built
+const __uncast = new Set();
+function __pilotCasts() {
+  for (const id in __bodies) {
+    if (id === __world.pilotId) continue;
+    const g = __bodies[id], rf = g && g.userData && g.userData.rigFig;
+    if (g && !__uncast.has(id)) { g.traverse((o) => { o.castShadow = false; }); __uncast.add(id); }
+    if (rf && rf.farG && !rf.farG.userData.uncast) { rf.farG.traverse((o) => { o.castShadow = false; }); rf.farG.userData.uncast = true; }
+  }
+}
+` : cast ? '' : sh ? suitShadowBlock(sh) : '';
   const focusHook = actors
     ? 'if (window.__mojCast && window.__mojCast.focus) window.__mojCast.focus(() => { const __pe = (__world.pilotId && __world.byId[__world.pilotId]) || __world.entities[0], __ps = __pe && __pe.transform ? [__pe] : []; if (__world.seatOf) for (const id in __world.seatOf) { const e = __world.byId[id]; if (e && e.transform && !e.gone && e !== __pe) __ps.push(e); } if (!__ps.length) return null; const __c = [0, 0, 0]; for (const e of __ps) for (let k = 0; k < 3; k++) __c[k] += e.transform.pos[k] / __ps.length; let __r = 0; for (const e of __ps) __r = Math.max(__r, Math.hypot(e.transform.pos[0] - __c[0], e.transform.pos[1] - __c[1])); return [__c[0], __c[1], __c[2], __r]; });   // the live light\'s box follows the pilot (or the seats\' centre)\n'
     : '';
-  const shadowHook = actors
+  const shadowHook = pilotCasts
+    ? '\n    __updateSuitShadows(); __pilotCasts();'
+    : actors
     ? ''
     : cast
       ? '\n    if (window.__mojCast) { const __pe = (__world.pilotId && __world.byId[__world.pilotId]) || __world.entities[0]; if (__pe && __pe.transform) window.__mojCast.follow(__pe.transform.pos[0], __pe.transform.pos[1], __pe.transform.pos[2]); }'

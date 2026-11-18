@@ -87,6 +87,8 @@ describe('geocube: the two specimens share one style', () => {
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', show: 'trail', seed: 1.5 }, {})).toThrow(/seed is an integer/);
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', hour: 'noon' }, {})).toThrow(/hour is the outside's/);
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', rooms: [] }, {})).toThrow(/'rooms' is not a setting/);
+    // (a lean ground: false, true or 'cliffs', its cliffs' relief kept; nothing else)
+    expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', parallax: 'ground' }, {})).toThrow(/parallax is true .*'cliffs'/);
     // (a level's far figures: a distance and a budget, each in its range, and nothing else)
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', farFigures: { at: 3 } }, {})).toThrow(/farFigures is \{ at\?/);
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', farFigures: { far: 30 } }, {})).toThrow(/farFigures is/);

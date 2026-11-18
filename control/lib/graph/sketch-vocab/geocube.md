@@ -105,6 +105,11 @@ hung cloth sway in it; a physical level's blocks, dust, smoke and leaves feel th
   pebbles and cracks on the trail only. The ground is most of a gen-7 frame's cost on a laptop's GPU (over half of it on
   a stealth level); a level played at a window's full size asks for it. With it, `density` (0.75 to 2; 1.5 unless said) caps the page's
   pixel density: at 1 a full window on a high-DPI laptop shades fewer pixels than a boxed page at 1.5.
+- **A lean ground that keeps its rock** (`parallax: 'cliffs'`): the ground as lean as `false`, but its rock as rock: the
+  fractured plates over it (the blocks a wall reads by), its own march near the eye, and its cliffs' relief at a coarser
+  cut. A gorge or a canyon level asks for it: lean, its walls read as plaster.
+- **One body's live shadow** (a page's `shadows: { actors: 'pilot', hour?, feet?, … }`): the body the player pilots casts
+  into the live light each frame; every other body keeps a soft pool at its feet.
 - **Far figures** (a level's `farFigures: { at?, budget? }`): each body no player pilots baked a second time coarse
   (`budget` triangles, 4000 unless said; its face dropped) and drawn so past `at` metres from the eye (24), the same
   bones and clips; with the `air` drawn in to swallow the far land, the far background costs little.

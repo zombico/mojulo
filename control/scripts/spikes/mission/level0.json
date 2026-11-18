@@ -372,10 +372,10 @@
     "light": "half",
     "occlusion": false,
     "cone": 6,
-    "bodies": "blob",
-    "reads": "what the page may cost: its shadows at half (light.tier), no contact occlusion, real grass out to 6 m (past it the field's grass is painted on the ground) (the view cone; 10 until the frame was cut again); [ and ] move the grass's reach live; bodies 'blob' casts no body into the live shadow map, a soft pool at the feet instead ('live' for real shadows); parallax false: a lean ground (none of its height marched, most of the frame's cost; true for the full ground); density 0.85: a little under the window's own pixels (the page's cap is 1.5 unless said); far 24 m / 4000: each guard past 24 m from the eye drawn as its far twin (its triangles to 4000, its face dropped), the haze drawn in to 180 m so the far land and what stands on it fade and are culled",
-    "parallax": false,
-    "density": 0.85,
+    "bodies": "pilot",
+    "reads": "what the page may cost, the middle found after the frame was cut hard and the hangar measured beside it: its shadows at half (light.tier); no contact occlusion; real grass out to 6 m where any stands (the cover; the field is painted); bodies 'pilot': the operative casts its live shadow, every guard a soft pool at its feet; parallax 'cliffs': the ground lean (none of its height marched) and the gorge's cliffs keep their relief at a coarser cut (they fill much of the frame, and flat they read as plaster); density 1: the window's own pixels; far 24 m / 4000: each guard past 24 m drawn as its far twin; the haze out to 250 m, the base at the trail's end seen through it",
+    "parallax": "cliffs",
+    "density": 1,
     "far": {
       "at": 24,
       "budget": 4000
@@ -559,7 +559,7 @@
   "screen": "screen",
   "air": {
     "kind": "haze",
-    "visibility": 180,
+    "visibility": 250,
     "clear": 30,
     "blur": false
   },

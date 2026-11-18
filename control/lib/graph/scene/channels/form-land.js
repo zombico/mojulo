@@ -202,7 +202,7 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
       else { rk2 = vec2( vWPos.y * sign( nW.x ), vWPos.z ); rT2 = vec3( 0.0, sign( nW.x ), 0.0 ); rkB = 0.5 * ( 1.0 - smoothstep( 0.0, 0.12, 0.5 - bx ) ); }
       rB2 = vec3( 0.0, 0.0, 1.0 ); rk2 /= uTile[ 0 ];
     }
-    if ( ${form.parallax === false ? 'false && ' : ''}vSplat.x > 0.05 && camD < 26.0 ) {
+    if ( ${form.parallax === false && !form.rockParallax ? 'false && ' : ''}vSplat.x > 0.05 && camD < 26.0 ) {${form.parallax === false && form.rockParallax ? '   // (the rock\'s march kept on a lean ground: its cliffs read as rock near the eye, parallax \'cliffs\')' : ''}
       vec3 V4 = normalize( cameraPosition - vWPos ), vt4 = vec3( dot( V4, tT ), dot( V4, tB ), dot( V4, nW ) );
       vec2 gx4 = dFdx( rkUV ), gy4 = dFdy( rkUV ), dR = vt4.xy / max( vt4.z, 0.3 ) * ( 0.06 / uTile[ 0 ] ) * ( 1.0 - smoothstep( 14.0, 26.0, camD ) ) / 8.0;
       float l4 = 0.0, h4 = 1.0 - textureGrad( tOrm, vec3( rkUV, 0.0 ), gx4, gy4 ).b;
@@ -303,7 +303,7 @@ ${form.dress && form.dress.pebbles ? `      // (a trail whose rubble is the shad
       // and its verge, where the stones would have lain; none stood up)
       float roadP = ( tsh + ( pd < 98.0 ? exp( -pow( ( pd - 0.45 ) / 0.7, 2.0 ) ) : 0.0 ) * smoothstep( 0.6, 0.85, nW.z ) ) * smoothstep( ${(1 - form.dress.pebbles - 0.06).toFixed(3)}, ${(1 - form.dress.pebbles + 0.06).toFixed(3)}, vn( vWPos.xy / 1.4 + 91.0 ) * 0.7 + vn( vWPos.xy / 0.45 + 13.0 ) * 0.3 );
 ` : ''}      float wK0 = clamp( bare * ( 1.0 - dryF ) + tsh * tPeb + fines * 0.9${form.dress && form.dress.pebbles ? ' + roadP' : ''}, 0.0, 1.0 ), wK1 = clamp( bare * dryF + tsh * tCrk, 0.0, 1.0 );
-      float wK2 = ${form.parallax === false ? '0.0' : 'rS * 0.85 * smoothstep( 0.5, 0.62, vn( vWPos.xy / 6.0 + vWPos.z * 0.35 + 9.0 ) )'}, wMax = max( wK0, max( wK1, wK2 ) );
+      float wK2 = ${form.parallax === false && !form.rockParallax ? '0.0' : 'rS * 0.85 * smoothstep( 0.5, 0.62, vn( vWPos.xy / 6.0 + vWPos.z * 0.35 + 9.0 ) )'}, wMax = max( wK0, max( wK1, wK2 ) );
       if ( wMax > 0.02 ) {
         int kd = wK0 >= wMax ? 0 : wK1 >= wMax ? 1 : 2;
         float cellK = kd == 0 ? ${GROUND_PARALLAX.pebbles.cell.toFixed(3)} : kd == 1 ? ${GROUND_PARALLAX.cracks.cell.toFixed(3)} : ${GROUND_PARALLAX.plates.cell.toFixed(3)};
@@ -371,7 +371,7 @@ ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace(
     return st * ((1 - w2) * samp(u1, z) + w2 * samp(u2, z));
   }
   function reliefPart(R) {
-    const key = (x, y, z) => Math.round(x * 500) + ',' + Math.round(y * 500) + ',' + Math.round(z * 500), NS = 6;
+    const key = (x, y, z) => Math.round(x * 500) + ',' + Math.round(y * 500) + ',' + Math.round(z * 500), NS = ${Number.isInteger(form.reliefCut) && form.reliefCut >= 1 && form.reliefCut <= 6 ? form.reliefCut : 6};
     const others = new Set(); for (const Q of D.ranges) if (Q !== R) for (let v = Q.start; v < Q.start + Q.count; v++) others.add(key(POS[v * 3], POS[v * 3 + 1], POS[v * 3 + 2]));
     const P = [], CO = [], SP = [], NI = [], WK = [], cut = [];
     const push = (p, c, s, n, w, k) => { P.push(p[0], p[1], p[2]); CO.push(c[0], c[1], c[2], c[3]); SP.push(s[0], s[1], s[2], s[3]); NI.push(n[0], n[1], n[2]); WK.push(w); cut.push(k); };

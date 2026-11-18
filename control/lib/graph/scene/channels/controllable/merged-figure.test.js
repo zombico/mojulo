@@ -203,3 +203,18 @@ describe('far figures', () => {
     expect(rf.farG.visible).toBe(false); expect(skin.visible).toBe(true); expect(built).toBe(1);
   });
 });
+
+// THE PILOT ALONE CASTS (shadows.actors 'pilot'): the pilot into the live map, every other body a pool at its feet.
+describe('the pilot alone casts', () => {
+  it('the page keeps the others\' pools, skips the pilot\'s, and takes the others out of the map; asked for every body, none of it', () => {
+    const ent = [{ id: 'hero', pilotable: true, body: { type: 'figure-rig', figure: 'p' }, rule: { type: 'walk' }, transform: { pos: [0, 0, 0], heading: 0 } }, { id: 'g', body: { type: 'figure-rig', figure: 'p' }, rule: { type: 'walk' }, transform: { pos: [3, 0, 0], heading: 0 } }];
+    const figs = { p: person() };
+    const pilot = controllableChannelScript(ent, null, figs, { shadows: { actors: 'pilot', hour: true, feet: true, r: 0.5 } });
+    expect(pilot).toContain('__updateSuitShadows(); __pilotCasts();');
+    expect(pilot).toContain("if (e.id === __world.pilotId) { const ps = __suitShadows[e.id];");
+    expect(pilot).toContain('mesh.castShadow = true;');
+    const all = controllableChannelScript(ent, null, figs, { shadows: { actors: true, hour: true } });
+    expect(all).not.toContain('__pilotCasts');
+    expect(all).not.toContain('__updateSuitShadows');
+  });
+});

@@ -20,6 +20,9 @@ import { safeJson } from '../../emit-util.js';
 // AT THE FEET (`feet: true`, a body that casts no live shadow on a page that must stay cheap): no down-probe (a ray through
 // the whole scene a body a frame); the blob sits at the body's own feet, a few centimetres up, where its runtime already
 // stood it. Without it, the probe's strings as they were.
+//
+// THE OTHERS (`others: true`, a page whose pilot alone casts a live shadow, shadows.actors 'pilot'): every body but the
+// pilot. Without it, every body as it was.
 export function suitShadowBlock(cfg) {
   return `
 // --- suit contact shadows (opt-in world 'shadows') ---
@@ -79,7 +82,8 @@ function __updateSuitShadows() {
     ${cfg.key
     ? `if (!rf && !(e.body && e.body.type === 'mesh' && e.body.hittable)) continue;   // under a key: suits + hittable mesh props`
     : `if (!rf) continue;   // blobs are a SUIT dressing — rig-figure bodies only`}
-    if (e.gone) { const gs = __suitShadows[e.id]; if (gs) gs.m.visible = false; continue; }   // vanished wreck casts no blob
+    if (e.gone) { const gs = __suitShadows[e.id]; if (gs) gs.m.visible = false; continue; }   // vanished wreck casts no blob${cfg.others ? `
+    if (e.id === __world.pilotId) { const ps = __suitShadows[e.id]; if (ps) ps.m.visible = false; continue; }   // (the pilot casts its own: shadows.actors 'pilot')` : ''}
     const s = __shadowFor(e.id), p = e.transform.pos;
     ${cfg.feet ? 'const zc = p[2];   // at the feet: where the runtime stood the body' : 'const zc = __shProbe(own, p[0], p[1], p[2] + 2);   // one probe: seat height + the altitude fade'}
     const k = zc == null ? 0 : 1 - Math.max(0, p[2] - zc) / __SH.fade;

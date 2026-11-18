@@ -66,3 +66,12 @@
   while its body is. Level 0 asks for it, and its haze drawn in (visibility 180 m, clear 30) so the far land and what
   stands on it fade and the far flora is culled. Bench, all at one density: 199 ms a frame (the last cut) to 176, its
   triangles 0.95M to 0.60M; in play the six guards past 24 m are drawn at 4498 each.
+- **Level 0's middle** (after level 1 was measured beside it: the yard 372 ms a frame, the hangar 251, level 0 171): what
+  the cut had overdone given back where it shows. The gorge's walls rock again (a geocube's `parallax: 'cliffs'`: the
+  ground lean, its rock kept: the fractured plates over it, `wK2`, the blocks a wall reads by; the rock's own march near
+  the eye; its cliffs' relief at a 3 x 3 cut, not 6 x 6, a quarter of its triangles: channels/form-land.js,
+  worlds/world-scene.js). Found by elimination: the relief alone at any cut and the march alone left the walls plaster;
+  the plates are the look. The operative's own live shadow, every guard a pool at its feet (a page's
+  `shadows.actors: 'pilot'`: scene/live-light.js, controllable/index.js `__pilotCasts`, suit-shadows.js `others`).
+  Density 1; the haze out to 250 m, the base seen at the trail's end. Bench at one density: 247 ms a frame (172 lean,
+  264 with the whole ground's relief), the hangar 265.

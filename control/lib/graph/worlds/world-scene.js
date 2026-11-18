@@ -67,8 +67,11 @@ import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
 import { landRead, formPayload, DRESS_DEFAULT, ROAD_PEBBLES, GRASS_CARDS } from '@/lib/graph/form/land-read';
 // (a lean ground, a geocube's `parallax: false`: no detail marched or displaced, its cliffs plain faces (no relief), and
-// a third of its scree's stones stood up)
-const LEAN_STONES = 0.33;
+// a third of its scree's stones stood up; `parallax: 'cliffs'` the same ground with its rock kept: the fractured plates
+// over the rock (the blocks a gorge's wall reads by, at every distance), the rock's own march near the eye
+// (channels/form-land.js), and its cliffs' relief, each steep triangle cut LEAN_CUT x LEAN_CUT for it, not the full
+// cut's 6 x 6, a quarter of its triangles)
+const LEAN_STONES = 0.33, LEAN_CUT = 3;
 import { readWetness, wetOfWeather } from '@/lib/graph/era/wetness';
 // (the margin round a land's buildings their shadow map reaches: what stands by them and shades them, metres)
 const BUILT_SHADE = 12;
@@ -969,7 +972,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const S0 = payload.snowMap ? readSnow(cube.snow) : null, winter = !!S0 && (S0.line === undefined || S0.line === null);
     // (a map carries no camera of its own: the land is read framed from the south over its middle, raised, as an island's)
     const mapCam = formMap && !(payload.cameras ?? []).length && payload.map ? (() => { const W = payload.map.cols * payload.map.tile, H = payload.map.rows * payload.map.tile; return [{ name: 'island', worldFraming: { cameraPosition: [W / 2, -H * 1.15, H * 0.55], lookAt: [W / 2, -H / 2, 0], horizontalFov: 60, pictureCenter: [560, 390] } }]; })() : null;
-    const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter || (F?.marine && !F.grass) ? false : 'map', ...(moss ? { moss } : {}), ...(TG ? { sward: { short: 0, medium: 0 }, tallGrass: TG } : sward !== undefined ? { sward } : {}), ...(M.parallax === false ? { relief: false, stones: LEAN_STONES } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
+    const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter || (F?.marine && !F.grass) ? false : 'map', ...(moss ? { moss } : {}), ...(TG ? { sward: { short: 0, medium: 0 }, tallGrass: TG } : sward !== undefined ? { sward } : {}), ...(M.parallax === false ? { relief: false, stones: LEAN_STONES } : M.parallax === 'cliffs' ? { stones: LEAN_STONES } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
     // (and each patch a VEIL the runtime's sight reads, worlds/controllable/veil.js: its foot on the ground the map has)
     // (each standing on the level ground its grass grows on, none where too little grows; how each stood is said beside it)
@@ -993,7 +996,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (read && M.cone !== undefined && M.cone !== null) payload.form.land.cone = readCone(M.cone);
     // (a lean ground, `parallax: false`: none of the ground's height marches, its procedural kinds on the trail alone,
     // channels/form-land.js; the page's ground the dearest of its frame on a laptop's GPU; absent, every byte as it was)
-    if (read && M.parallax === false) payload.form.land.parallax = false;
+    if (read && (M.parallax === false || M.parallax === 'cliffs')) payload.form.land.parallax = false;
+    if (read && M.parallax === 'cliffs') { payload.form.land.reliefCut = LEAN_CUT; payload.form.land.rockParallax = true; }
     // (and the page's pixel density at most, `density`: its budget's cap, 1.5 unless said; a level played at a window's
     // full size on a high-DPI screen shades fewer pixels at 1 than a boxed page does at 1.5)
     if (M.density !== undefined) payload.density = M.density;
