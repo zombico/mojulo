@@ -249,7 +249,7 @@ export const CROSS = Object.freeze({ size: 1.15, aspect: 0.8, tips: 16, stand: 0
  * triangles than it did. `size` its half-widths × the bundle's reach (across, across × the cross's aspect, out), its
  * corners nudged by `lumps` of a half-width so no two blobs are one shape.
  */
-export const CORE = Object.freeze({ size: Object.freeze([0.62, 0.62, 0.5]), shade: 0.68, lumps: 0.18 });
+export const CORE = Object.freeze({ size: Object.freeze([1.2, 1.2, 0.9]), shade: 0.68, lumps: 0.18 });
 // an icosahedron: its 12 corners and 20 faces, the blob's bones
 const ICO = (() => { const t = (1 + Math.sqrt(5)) / 2, v = [[-1, t, 0], [1, t, 0], [-1, -t, 0], [1, -t, 0], [0, -1, t], [0, 1, t], [0, -1, -t], [0, 1, -t], [t, 0, -1], [t, 0, 1], [-t, 0, -1], [-t, 0, 1]].map(unit3);
   const f = [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]];
