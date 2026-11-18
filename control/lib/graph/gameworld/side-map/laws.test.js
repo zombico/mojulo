@@ -68,6 +68,9 @@ describe('the side map\'s laws', () => {
     expect(read(out).swept.holds).toBe(false);
     hole.solids = hole.solids.filter((r) => !(r.zone === 2 && r.role === 'wall'));
     expect(read(hole).swept.says).toMatch(/neither open nor built/);
+    const hung = clone(L), o = hung.open.find((r) => r.zone === 1);
+    hung.solids.push({ s0: o.s1 - 4, s1: o.s1, z0: o.z1 - 3, z1: o.z1, zone: 2, role: 'wall' });
+    expect(read(hung).swept.says).toMatch(/stands in zone 1's open space/);
   });
   it('a map that ends on a climb has no light at its top; a ladder off its floor loses ladders', () => {
     expect(read(lay({ zones: [{ run: 'across', screens: 1 }, { run: 'up', screens: 1 }] }))['light-at-the-top'].holds).toBe(false);

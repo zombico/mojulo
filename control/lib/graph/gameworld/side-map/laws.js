@@ -14,7 +14,8 @@
  *     checkpoints         every zone has a checkpoint inside it, never further back than its start
  *     ladders             a ladder's foot on a floor and its top at a floor's lip, both in the open
  *     one-new-thing       what a stage teaches comes in its order, and no zone repeats the one before it
- *     swept               nothing built outside the camera's swept area; nothing in it left unbuilt but a pit
+ *     swept               nothing built outside the camera's swept area, nor in another zone's open space; nothing in it
+ *                         left unbuilt but a pit
  *     the-boss-owns-it    the boss's room shuts behind (and, dressed, carries its mark)
  *   the dress's (with a dress)
  *     a-place-a-zone      no two zones running are one place or one key; each a fill's family
@@ -178,6 +179,8 @@ export function sideMapLaws(layout, reach, { dress } = {}) {
       for (let s = r.s0 + CELL / 2; s < r.s1; s += CELL) for (let z = r.z0 + CELL / 2; z < r.z1; z += CELL) if (!seen(s, z)) { outside.push(r.zone); s = r.s1; break; }
     }
     if (outside.length) lost.push(...[...new Set(outside)].map((zone) => ({ zone, says: `zone ${zone} builds outside the camera's path` })));
+    // (and no solid stands in another zone's open space: a wall hung into the run before it)
+    for (const r of L.solids) for (const o of L.open) if (o.zone !== r.zone && o.s0 < r.s1 - 0.01 && o.s1 > r.s0 + 0.01 && o.z0 < r.z1 - 0.01 && o.z1 > r.z0 + 0.01) lost.push({ zone: r.zone, says: `zone ${r.zone}'s ${r.role} stands in zone ${o.zone}'s open space` });
     const pit = (s, z) => L.gaps.some((g) => s > g.s0 && s < g.s1 && z < (byZone(L.open, g.zone)[0]?.z0 ?? -Infinity));
     const done = new Set();
     let blank = 0, area = 0;

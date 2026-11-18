@@ -47,7 +47,7 @@ describe('the zone chain', () => {
   });
   it('its words are the cube\'s: the form a level form of space, its fills reality\'s', () => {
     const reg = capabilityRegistry();
-    expect(reg.space.levelForm.values['side-map']).toMatchObject({ lowers: 'lib/graph/gameworld/side-map/zones.js', requires: ['space.camera=side', 'power.rules=platform'] });
+    expect(reg.space.levelForm.values['side-map']).toMatchObject({ lowers: 'lib/graph/gameworld/side-map/scene.js', requires: ['space.camera=side', 'power.rules=platform'] });
     expect(Object.keys(reg.reality.fill.values)).toEqual(['none', ...FILL_IDS]);
     expect(reg.reality.fill.values.none.status).toBe('built');
   });

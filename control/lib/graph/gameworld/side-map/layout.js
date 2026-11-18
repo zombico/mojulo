@@ -60,6 +60,14 @@ export function climbTime({ climb, from, to, rests = [], width = 0 }, reach) {
   return (zs.length - 1) * (2 * apex + PAUSE + width / 2 / (reach.speed ?? 5));
 }
 const r3 = (v) => Math.round(v * 1000) / 1000;
+// a rectangle less another: what is left of it, in at most four pieces (none thinner than a millimetre)
+const cut = (r, o) => {
+  if (!(o.s0 < r.s1 - 1e-3 && o.s1 > r.s0 + 1e-3 && o.z0 < r.z1 - 1e-3 && o.z1 > r.z0 + 1e-3)) return [r];
+  const a = Math.max(r.s0, o.s0), b = Math.min(r.s1, o.s1), out = [];
+  const add = (s0, s1, z0, z1) => { if (s1 - s0 > 1e-3 && z1 - z0 > 1e-3) out.push({ ...r, s0: r3(s0), s1: r3(s1), z0: r3(z0), z1: r3(z1) }); };
+  add(r.s0, a, r.z0, r.z1); add(b, r.s1, r.z0, r.z1); add(a, b, r.z0, Math.min(r.z1, o.z0)); add(a, b, Math.max(r.z0, o.z1), r.z1);
+  return out;
+};
 
 /** The zone chain laid on the plane. */
 export function layoutSideMap(map, { reach, stature }) {
@@ -199,6 +207,15 @@ export function layoutSideMap(map, { reach, stature }) {
     out.zones.push({ i, kind: Z.kind, ...(Z.run ? { run: Z.run } : {}), rect: F.rect.map(r3), exit: F.exit.map(r3), lock: F.lock, ...(Z.teach ? { teach: Z.teach } : {}), ...(Z.beat ? { beat: Z.beat } : {}), ...(Z.climb ? { climb: Z.climb } : {}), ...(Z.drop ? { drop: Z.drop } : {}) });
     [s, z] = F.exit;
   });
+  // a zone's solids never stand in another zone's open space, nor over another zone's solids: each is cut to what is
+  // left (a shaft's near wall would hang into the run before it, a chute's far wall into the room after it)
+  const kept = [];
+  for (const r of out.solids) {
+    let parts = [r];
+    for (const o of [...out.open.filter((o) => o.zone !== r.zone), ...kept.filter((k) => k.zone !== r.zone)]) parts = parts.flatMap((p) => cut(p, o));
+    kept.push(...parts);
+  }
+  out.solids = kept;
   out.blocks = out.solids.map((r) => ({ min: [-HALF, r.s0, r.z0], max: [HALF, r.s1, r.z1], role: r.role }));
   return out;
 }

@@ -56,6 +56,10 @@ describe('the side map\'s layout', () => {
     const L = lay([{ run: 'across', screens: 1, teach: 'advanced' }]);
     expect(L.advice[0].says).toMatch(/holds no advanced course/);
   });
+  it('a zone\'s solids never stand in another zone\'s open space', () => {
+    const L = lay([{ run: 'across', screens: 2 }, { run: 'up', screens: 2 }, { run: 'across', screens: 1 }, { run: 'down', screens: 2, drop: 'chute' }, { room: [1, 1], teach: 'boss' }]);
+    for (const r of L.solids) for (const o of L.open.filter((o) => o.zone !== r.zone)) expect(o.s0 < r.s1 - 0.01 && o.s1 > r.s0 + 0.01 && o.z0 < r.z1 - 0.01 && o.z1 > r.z0 + 0.01).toBe(false);
+  });
   it('the same words lay the same map', () => {
     const Z = [{ run: 'across', screens: 2, teach: 'gauntlet', spawners: 2 }, { run: 'up', screens: 1, climb: 'switchback' }, { room: [2, 1] }];
     expect(JSON.stringify(lay(Z))).toBe(JSON.stringify(lay(Z)));

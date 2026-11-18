@@ -134,6 +134,9 @@ parts are painted in. The map is the level's final output: one recipe played as 
 They are laid by `control/lib/graph/gameworld/side-map/layout.js`: each zone in screens and the hero's reach, what
 the camera sees, what the play moves in and what is closed.
 
+It is built as the geocube's `show: 'sidemap'` by `control/lib/graph/gameworld/side-map/scene.js` and drawn as an
+elevation by `drawing.js` beside it (`node scripts/side-map.mjs [manifest.json] --shots` writes both for the eyes gate).
+
 The words are `control/lib/graph/gameworld/side-map/zones.js` (a chain of runs and rooms, each with its beat, its climb
 or its drop, its place and its fill, read and refused with teaching), keyed as `space.levelForm=side-map` and
 `reality.fill` (`side-map/fills.js`, a row a fill).

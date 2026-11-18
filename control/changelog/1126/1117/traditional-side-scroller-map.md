@@ -77,8 +77,20 @@ said as its phase lands.
 - **Going up, earned.** Climbs in their forms (ledges, a switchback, a chimney with rests, a stair, a ladder, pillars
   over a gap), light at the top of every climb, a backdrop that knows how high the hero is, and the screen from below:
   a climb's frame that rises on its own.
-- **The map is a geocube**, the final output: the chain built in a cube's style, its places, matter and surfaces the
-  cube's, and its closed parts painted as places (rock, built, machine), never left a plain face.
+- **The map is a geocube** (`gameworld/side-map/scene.js`, the geocube's `show: 'sidemap'`): a zone chain laid for the
+  hero it names (a feel and a stature, Galaxy Boy's unsaid), dressed in the cube's hue (its stone the place's, play the
+  other side of the wheel) and built where the camera sees: the closed parts in their zone's key, every top a lit edge;
+  an indoor zone's back wall in its void carrying the dress (pillars and seams, a lamp an A bay, a hatch at each spawner,
+  the next place at the edge, a shaft's railings, a chute's stripes, the boss's emblem), an outdoor zone's back the
+  cube's sky; shutters, ladders and pickups in the play's colour; lit by the cube's key from behind the camera, framed
+  by the side map's camera. A zone's solids are cut where they would stand in another zone's space (a shaft's near wall
+  hung into the run before it, a chute's far wall into the room after it), and the `swept` law says so where one does.
+- **The map drawn** (`gameworld/side-map/drawing.js`, `scripts/side-map.mjs`): the elevation the studied maps are read
+  as, the camera's area on black, read left to right: the zones outlined and numbered with their places, rulers in
+  screens, metres and seconds at the run, the bot's line (an arc over a pit, a chimney's kicks counted between its
+  rests), checkpoints, doors, ladders, pickups and a rising frame's pace, the dress's cells (bays, pillars, seams, lamps,
+  hatches, the next place's band, the boss's emblem), and the laws: each lost one named, or all held. The script writes
+  the drawing and, asked, the page seen from the side map's camera at every zone.
 - **Galaxy Boy's first level** laid as a zone chain from its teaching order, ending in its first power; the mascot
   platformer's strip as it was.
 - **The map's laws** (`gameworld/side-map/laws.js`), advisory, measured on the layout and its dress: a run one screen

@@ -8,7 +8,7 @@
  *   solid over void     the closed parts lighter and more saturated than the dark, cool open space behind the play,
  *                       every standable top a lit edge lighter still (`edge`)
  *   play against place  what the hero stands on, fights, climbs and takes on one side of the colour wheel, the place on
- *                       the other; the setting picks which way round
+ *                       the other; the setting picks which way round, or a cube given (reality's) its stone's hue the place's
  *   the boss's colour   reserved: none before the zones that lead to its room, growing toward it, its room's back wall
  *   rhythm              a run's back wall in BAYS a screen and a quarter wide, A (lit, a lamp, its things) and B (a recess)
  *                       by the walls' rule (era/wall-rhythm.js), a pillar between bays and a seam down each, so one
@@ -24,7 +24,7 @@
  *   SETTINGS            the settings a premise names (a row each: its words, its places by role, its threads, its subject,
  *                       its orientation); a new setting is a row
  *   settingOf(premise)  → the setting a premise's words name (the plant unsaid)
- *   dressSideMap(layout, map, { seed? }) → { setting, palette: { play, place, boss, void }, zones: [{ zone, place,
+ *   dressSideMap(layout, map, { seed?, cube? }) → { setting, palette: { play, place, boss, void }, zones: [{ zone, place,
  *                       family, indoor, key, edge, void, boss, bays, pillars, seams, lamps, hatches, mark, peek, light, foreshadow,
  *                       backdrop, wear }], threads: [{ kind, from, to }] }
  *
@@ -59,16 +59,21 @@ export function settingOf(premise = '') {
 
 // the colour wheel: play and place a half turn apart, the boss's a third of the way round from both
 const HUE = { warm: 30, cool: 205 }, BOSS_OFF = 115, SPREAD = [0, 26, -22, 14, -12, 8];
+const hueOf = (h) => {
+  const n = parseInt(h.slice(1), 16), [r, g, b] = [n >> 16, (n >> 8) & 255, n & 255].map((v) => v / 255), M = Math.max(r, g, b), d = M - Math.min(r, g, b);
+  return d ? Math.round(((M === r ? ((g - b) / d) % 6 : M === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60 + 360) % 360) : 0;
+};
 const hex = (h, s, l) => {
   const a = s * Math.min(l, 1 - l), f = (n) => { const k = (n + h / 30) % 12, c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); return Math.round(255 * c).toString(16).padStart(2, '0'); };
   return `#${f(0)}${f(8)}${f(4)}`;
 };
 
 /** The dress over a laid map: what each zone looks like. `map` the zone chain as written (its premise and its words). */
-export function dressSideMap(layout, map, { seed = 1 } = {}) {
+export function dressSideMap(layout, map, { seed = 1, cube } = {}) {
   const M = readSideMap(map), key = settingOf(M.premise), S = SETTINGS[key], W = layout.screen.width, H = layout.screen.height;
   const dice = (k) => streamOf(seed, 'side-map-dress', k);
-  const playHue = HUE[S.play], placeHue = (playHue + 180) % 360, bossHue = (playHue + BOSS_OFF) % 360;
+  // (a cube given, reality's: the place takes the hue of the cube's stone, and play the other side of the wheel)
+  const placeHue = cube?.colour?.stone ? hueOf(cube.colour.stone) : (HUE[S.play] + 180) % 360, playHue = (placeHue + 180) % 360, bossHue = (playHue + BOSS_OFF) % 360;
   const palette = { play: hex(playHue, 0.78, 0.55), place: hex(placeHue, 0.42, 0.55), boss: hex(bossHue, 0.6, 0.5), void: hex(placeHue, 0.28, 0.1) };
   const roleOf = (Z) => (Z.kind === 'room' ? 'room' : Z.run), seen = { across: 0, up: 0, room: 0 };
   // the zones that lead to the boss's room take its colour, growing toward it
