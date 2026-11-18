@@ -31,7 +31,7 @@
  * The state the spec binds (the host writes it from the level's bus): v.<k> a var's value · on.<k> whether a gated or
  * timed row stands · lines.<k> a slot's passing lines · moments [] · hero { hp, hpMax, hasHp, stamina, staminaMax, sprints,
  * rest, peril } · gun { on, name, mode, rounds, size, reserve, reloading, rest } · focus { on, value, state, label } ·
- * radar { on, marks, north } · ring { on, hits } · wheel { open, title, slots }.
+ * radar { on, marks, north, plan? } · ring { on, hits } · wheel { open, title, slots }.
  * Pure: a spec is data.
  */
 import { normalizeHud, HUD_SLOTS } from './hud-widgets.js';
@@ -101,7 +101,7 @@ export function hudToMana(rows, { register = null, hero = true, touch = false } 
     // THE GUN IN HAND, at the bottom right: its wireframe, its rounds as cartridges; resting while full
     regions.push({ use: 'region', props: { at: 'bottom-right', variant: 'scrim', rest: B('gun.rest') }, when: B('gun.on'), children: [{ use: 'magazine', props: { name: B('gun.name'), mode: B('gun.mode'), rounds: B('gun.rounds'), size: B('gun.size'), reserve: B('gun.reserve'), reloading: B('gun.reloading') } }] });
     // THE RADAR, a scope at the top right (where the page's stood), and the wheel while it is held open
-    regions.push({ use: 'region', props: { at: 'top-right', variant: 'bare' }, when: B('radar.on'), children: [{ use: 'minimap', props: { shape: 'round', scope: true, markers: B('radar.marks'), north: B('radar.north') } }] });
+    regions.push({ use: 'region', props: { at: 'top-right', variant: 'bare' }, when: B('radar.on'), children: [{ use: 'minimap', props: { shape: 'round', scope: true, markers: B('radar.marks'), north: B('radar.north'), plan: B('radar.plan') } }] });
     regions.push({ use: 'region', props: { at: 'center', variant: 'bare' }, when: B('wheel.open'), children: [{ use: 'wheel', props: { rows: B('wheel.slots'), title: B('wheel.title') } }] });
     // the screen's edge, closing in as the health runs out; where a hit came from, as arcs round the aim
     layers.push({ use: 'peril', props: { level: B('hero.peril') } }, { use: 'threat', props: { markers: B('ring.hits') }, when: B('ring.on') });

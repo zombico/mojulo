@@ -74,7 +74,8 @@ describe('the alarm', () => {
     let prev = E.castFacts(w, null).prev; const heard = [];
     const tick = (s) => { for (let k = 0; k < Math.round(s * 60); k++) { E.stepWorld(w, {}, 1 / 60, hooks); const F = E.castFacts(w, prev); prev = F.prev; for (const e of F.events) if (e.type.startsWith('alarm:')) heard.push(e.type); } };
     tick(1.2); hide(w, true); tick(3.5);
-    expect(heard.slice(0, 4)).toEqual(['alarm:detected', 'alarm:call', 'alarm:found', 'alarm:backup']);
+    expect(heard.slice(0, 5)).toEqual(['alarm:detected', 'alarm:spotted', 'alarm:call', 'alarm:found', 'alarm:backup']);
+    expect(heard.filter((t) => t === 'alarm:spotted')).toHaveLength(1);   // (once an alarm, however often it is seen)
     expect(heard).toContain('alarm:sweep');
     expect(heard.slice(-1)).toEqual(['alarm:clear']);
   });

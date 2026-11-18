@@ -291,3 +291,7 @@ or a recipe key; the spike mints through the real doors and measures.
   hide the World page's orbit hint.
 - **Thinner air**: level 0's `air` a light haze (visibility 450 m, clear to 40 m, no far blur) in place of the land's
   distance haze (about 130 m).
+- **The map under the radar** (gameworld/radar.js `radarPlan`, mana-ui's minimap `plan`): the level's plan, from its own
+  colliders and its tall grass, drawn once on the page and laid under the scope at the radar's scale, the pilot at its
+  middle and ahead at the top, turning as the pilot turns. `planSvg` takes `rel` (each thing by its own height, a land
+  that rises and falls) and `veils` (tall grass). Level 0's radar reaches 25 m (the pilot's `radarRange`).

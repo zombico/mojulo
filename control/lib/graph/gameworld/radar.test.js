@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { RADAR, radarMarks, planBox, planPoint, planSvg, sceneThings } from './radar.js';
+import { RADAR, radarMarks, planBox, planPoint, planSvg, radarPlan, sceneThings } from './radar.js';
 
 const at = (m) => [m.x, m.y];
 describe('the radar', () => {
@@ -50,6 +50,21 @@ describe('the map', () => {
     expect(rects('#8f8a78')).toBe(1);   // the low wall; the slab at 2.8 m and the 0.3 m kerb are not in the way
     expect(rects('#3f6f8f')).toBe(1);
     expect(svg.startsWith('<svg') && svg.endsWith('</svg>')).toBe(true);
+  });
+});
+
+describe('the map under the radar', () => {
+  it('lays the plan with the pilot at the middle and ahead at the top, at the radar\'s scale', () => {
+    const box = [0, 0, 80];
+    expect(radarPlan(box, [20, 60], Math.PI / 2, 40)).toEqual({ x: 0.25, y: 0.25, size: 1, turn: 0 });   // (facing north: as drawn)
+    expect(radarPlan(box, [20, 60], 0, 40).turn).toBe(-90);                                            // (facing east: east up)
+    expect(radarPlan(box, [20, 60], Math.PI / 2, 20).size).toBe(2);                                     // (a closer radar, a bigger map)
+  });
+  it('draws a land\'s things by their own heights, and its tall grass, where asked; as it was where not', () => {
+    const raised = [{ min: [0, 0, 5], max: [2, 2, 7] }], box = [0, 0, 10];
+    expect(planSvg(raised, null, box)).not.toContain('<rect x="0"');                 // (a thing on a rise: over a head, as it was)
+    expect(planSvg(raised, null, box, { rel: true })).toContain('fill="#d9d2bd"');     // (by its own height: a mass)
+    expect(planSvg([], null, box, { veils: [{ at: [5, 5, 0], r: 2 }] })).toContain('<circle cx="256" cy="256" r="102.4"');
   });
 });
 

@@ -319,6 +319,11 @@ describe('mana-ui: the live game', () => {
     expect(v).toContain('data-rest="yes" data-variant="scrim"');
     expect(v).toContain('data-scope="yes" data-shape="round"><span class="mana-bezel"><i class="mana-cone"></i><b class="mana-north" style="transform:rotate(90deg)"><span style="transform:rotate(-90deg)">N</span>');
     expect(hudOf([{ use: 'region', props: { at: 'top-left' }, children: [{ use: 'minimap', props: {} }] }]).view()).not.toContain('mana-bezel');
+    // (a map under it: the picture, its point at the middle, turned about it; none without one)
+    const mapped = hudOf([{ use: 'region', props: { at: 'top-left' }, children: [{ use: 'minimap', props: { shape: 'round', scope: true, plan: { src: 'data:image/svg+xml,x', x: 0.25, y: 0.75, size: 2, turn: -90 } } }] }]).view();
+    expect(mapped).toContain('mana-planclip');
+    expect(mapped).toMatch(/width:200%;height:200%;left:0%;top:-100%;transform-origin:25% 75%;transform:rotate\(-90deg\)/);
+    expect(hudOf([{ use: 'region', props: { at: 'top-left' }, children: [{ use: 'minimap', props: { scope: true } }] }]).view()).not.toContain('mana-planclip');
     // a marker with a fan: what it sees, drawn under it as a wedge cut to the fan, in its state; a plain marker has none
     const seen = hudOf([{ use: 'region', props: { at: 'top-left' }, children: [{ use: 'minimap', props: { shape: 'round', scope: true, markers: [{ x: 0.5, y: 0.2, kind: 'foe', state: 'search', fan: [[0.5, 0.2], [0.4, 0.4], [0.6, 0.4]] }, { x: 0.2, y: 0.2, kind: 'foe' }] } }] }]).view();
     expect(seen).toContain('mana-sight');

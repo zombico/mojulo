@@ -17,3 +17,6 @@
   found the siren, a guard put down a thud, a thing taken the pickup, an exit the door, the steps on grass, the pistol.
   Proved on the page: spotted, the combat score comes in on the bar; hidden, the alarm falls to detected and the
   tension leaks back toward the explore score.
+- **The first sighting, once** (`alarm:spotted`, alarm.js): said as the garrison leaves calm because a watcher saw the
+  intruder, never at each glimpse after; level 0's sting plays on it (a glimpse still raises the score's tension a
+  little).

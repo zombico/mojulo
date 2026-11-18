@@ -18,7 +18,10 @@
  *                                (things: [{ at: [x, y], kind, pin?, sight? }]; heading radians, counter-clockwise from +x)
  *   planBox(colliders, water?) → [x0, y0, side]   the square the plan is drawn in (metres)
  *   planPoint(box, p)          → { x, y }   a place on the plan, 0 to 1, north at the top
- *   planSvg(colliders, water, box) → the plan as an SVG document (a string): masses, low things, water
+ *   planSvg(colliders, water, box, { rel?, veils? }?) → the plan as an SVG document (a string): masses, low things, water;
+ *                                `rel` each thing by its own height (a land that rises and falls), `veils` tall grass
+ *   radarPlan(box, pos, heading, range) → { x, y, size, turn }   the plan laid under the radar's scope: the pilot's place on
+ *                                it, its side in scope diameters, its turn (degrees clockwise) so ahead is at the top
  *   sceneThings(W, me, goal)   → the things of a scene the two read: the pilot's foes awake, the task's place
  *
  * The page's side only: every function here is inlined with toString() and references nothing outside itself.
@@ -81,15 +84,26 @@ export function planPoint(box, p) {
 
 /** The plan drawn: what stands in a body's way on the ground (a mass over a head's height dark, a low thing lighter),
  *  the water under them. A floor over the ground (a slab a body walks under) is not in the way and is not drawn. */
-export function planSvg(colliders, water, box) {
-  const S = 512, k = S / box[2], f = (v) => Math.round(v * 10) / 10;
+export function planSvg(colliders, water, box, opts) {
+  const S = 512, k = S / box[2], f = (v) => Math.round(v * 10) / 10, o = opts || {};
   const rect = (x0, y0, x1, y1, fill) => `<rect x="${f((x0 - box[0]) * k)}" y="${f(S - (y1 - box[1]) * k)}" width="${f(Math.max(1, (x1 - x0) * k))}" height="${f(Math.max(1, (y1 - y0) * k))}" fill="${fill}"/>`;
   const wet = (water || []).map((q) => rect(q[0], q[1], q[2], q[3], '#3f6f8f')), low = [], tall = [];
   for (const c of colliders || []) {
-    if (!c || !c.min || !c.max || c.min[2] > 1.2 || c.max[2] < 0.75) continue;
-    (c.max[2] >= 1.6 ? tall : low).push(rect(c.min[0], c.min[1], c.max[0], c.max[1], c.max[2] >= 1.6 ? '#d9d2bd' : '#8f8a78'));
+    // (`rel`: a land that rises and falls, each thing read by its own height, its foot wherever the ground is)
+    const lo = o.rel ? 0 : c && c.min ? c.min[2] : 0, hi = o.rel && c && c.min ? c.max[2] - c.min[2] : c && c.max ? c.max[2] : 0;
+    if (!c || !c.min || !c.max || lo > 1.2 || hi < 0.75) continue;
+    (hi >= 1.6 ? tall : low).push(rect(c.min[0], c.min[1], c.max[0], c.max[1], hi >= 1.6 ? '#d9d2bd' : '#8f8a78'));
   }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}"><rect width="${S}" height="${S}" fill="#1c1f1c"/>${wet.join('')}${low.join('')}${tall.join('')}</svg>`;
+  // (`veils`: tall grass, a stealth land's cover, its patches under what stands)
+  const grass = (o.veils || []).map((v) => `<circle cx="${f((v.at[0] - box[0]) * k)}" cy="${f(S - (v.at[1] - box[1]) * k)}" r="${f(v.r * k)}" fill="#6f9442"/>`);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}"><rect width="${S}" height="${S}" fill="#1c1f1c"/>${wet.join('')}${grass.join('')}${low.join('')}${tall.join('')}</svg>`;
+}
+
+/** The plan under the radar (the scope's map): where the pilot is on it (0 to 1), how many scope diameters its side spans
+ *  at the radar's range, and its turn so that ahead is at the top (degrees clockwise, north's own bearing on the scope). */
+export function radarPlan(box, pos, heading, range) {
+  const r = (v) => Math.round(v * 1000) / 1000;
+  return { x: r((pos[0] - box[0]) / box[2]), y: r(1 - (pos[1] - box[1]) / box[2]), size: r(box[2] / (2 * range)), turn: r((((heading || 0) - Math.PI / 2) * 180) / Math.PI) };
 }
 
 /** The things of a scene the radar and the map read: the pilot's foes awake and standing, and the place of the task

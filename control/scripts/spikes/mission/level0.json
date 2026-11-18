@@ -601,7 +601,7 @@
           "shot": "pistol-shot"
         },
         "events": {
-          "seen": "alarm",
+          "alarm:spotted": "alarm",
           "alarm:detected": "dread-drone",
           "alarm:call": "latch",
           "alarm:found": "siren",
@@ -611,6 +611,10 @@
         }
       }
     },
-    "reads": "the score: the field's tension while sneaking, its battle when the garrison has found you (the alarm's turns and sweeps raise the tension, a guard's glimpse a little; it settles back once you have hidden). The gorge's wind and a low bed. Each thing the game does a shelf word: a guard's glimpse the alert's sting, a threat detected the dread, the radio's call a click, a threat found the siren, a guard put down a thud, a thing taken the pickup"
+    "reads": "the score: the field's tension while sneaking, its battle when the garrison has found you (the alarm's turns and sweeps raise the tension, a guard's glimpse a little; it settles back once you have hidden). The gorge's wind and a low bed. Each thing the game does a shelf word: the first sighting the alert's sting (once an alarm, alarm:spotted), a threat detected the dread, the radio's call a click, a threat found the siren, a guard put down a thud, a thing taken the pickup"
+  },
+  "radar": {
+    "range": 25,
+    "reads": "the radar's reach (m): the scope 50 m across, the level's map under it at that scale, ahead at the top"
   }
 }

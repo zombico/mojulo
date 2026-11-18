@@ -811,6 +811,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // hold, and the opener's count. A moveset that says no `swap` runs as before: the cycle mid-swing is dropped. Every
 // fixture that embeds the controllable runtime re-pinned with it.
 //
+// Re-pinned 2026-11-18 (1117-cinematic-action-game: the map under the radar): `brawl`, `holo` and `mission`, the three
+// fixtures whose page inlines the game UI kernel and its styles. The kernel's minimap takes an optional `plan` (a picture
+// of the place laid under it, its point at the middle, turned about it), and `mission` also inlines the radar's plan,
+// which now draws a land's things by their own heights and its tall grass where asked. No fixture's minimap carries a
+// plan and no plan asks either, so each draws as it did; only the inlined text moved. Every other fixture holds.
 // Re-pinned 2026-11-17 a fifth time (1117-cinematic-action-game: tall grass as cover): the seventeen fixtures whose page
 // inlines the controllable runtime. The engine's step hands a world's `veils` to its minds (core.js, one spread in the
 // world record: none, none handed), and a mind's sight asks them (mind.js perceive: a line lost in tall grass,

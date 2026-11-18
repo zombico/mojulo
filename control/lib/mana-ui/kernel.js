@@ -210,7 +210,7 @@ export function buildManaUi() {
     prompt: { group: 'value', about: 'what a button does here: [E] Talk (the glyph is the host\'s legend, else the action)', props: { action: [T, 'accept'], label: [T, '', true], glyph: [T] } },
     // in-game: aim, maps, the feed, moments
     reticle: { group: 'hud', about: 'the aim; a hit adds a hitmarker shape', props: { shape: [Object.keys(RETICLES), 'cross'], hit: [B, false] } },
-    minimap: { group: 'hud', about: 'the map in a corner: markers at x, y from 0 to 1, each kind a shape, and one with a `fan` (points, itself first) its sight drawn under it as a wedge in its `state` (calm, search, seen); `scope` an instrument, not a picture in a box: a bezel of ticks, the wedge you see ahead (the top), its edge fading into the world; `north` where north lies on it (degrees clockwise from its top: a radar that turns with you)', props: { markers: [L, []], shape: [['square', 'round'], 'square'], label: [T], scope: [B, false], north: [N] } },
+    minimap: { group: 'hud', about: 'the map in a corner: markers at x, y from 0 to 1, each kind a shape, and one with a `fan` (points, itself first) its sight drawn under it as a wedge in its `state` (calm, search, seen); `scope` an instrument, not a picture in a box: a bezel of ticks, the wedge you see ahead (the top), its edge fading into the world; `north` where north lies on it (degrees clockwise from its top: a radar that turns with you); `plan` the map under it, { src, x, y, size, turn }: a picture of the place, the point x, y of it (0 to 1) at the middle, its side `size` times the minimap\'s, turned `turn` degrees clockwise about that point', props: { markers: [L, []], shape: [['square', 'round'], 'square'], label: [T], scope: [B, false], north: [N], plan: [A] } },
     compass: { group: 'hud', about: 'a heading strip with the bearings of markers', props: { heading: [N, 0, true], markers: [L, []] } },
     feed: { group: 'hud', about: 'the last few lines of a log (kills, pickups, chat from the world); a line said again in a row merges (×3)', props: { rows: [L, [], true], field: [T, 'text'], max: [N, 4] } },
     toast: { group: 'hud', about: 'a passing word', props: { value: [T, '', true] } },
@@ -853,13 +853,18 @@ export function buildManaUi() {
           case 'prompt': { const g = p.glyph || glyphOf(p.action) || p.action; return ['div', { class: cls }, ['span', { class: 'mana-key', 'data-icon': iconName(g) }, g], ['span', null, p.label]]; }
           case 'legend': return legendOf(p.rows);
           case 'reticle': return ['div', { class: cls, 'data-shape': p.shape, 'data-hit': p.hit ? 'yes' : null }, ['span', null, RETICLES[p.shape] || '+'], p.hit ? ['span', { class: 'mana-hit' }, '✕'] : null];
-          case 'minimap': return ['div', { class: cls, 'data-shape': p.shape, 'data-scope': p.scope ? 'yes' : null }, p.scope ? ['span', { class: 'mana-bezel' }, ['i', { class: 'mana-cone' }], p.north !== undefined && isFinite(p.north) ? ['b', { class: 'mana-north', style: `transform:rotate(${Math.round(p.north)}deg)` }, ['span', { style: `transform:rotate(${-Math.round(p.north)}deg)` }, 'N']] : null] : null, ...p.markers.map((m) => {
+          case 'minimap': { const M = isObj(p.plan) && typeof p.plan.src === 'string' && isFinite(Number(p.plan.x)) && isFinite(Number(p.plan.y)) && Number(p.plan.size) > 0 ? p.plan : null;
+            // (the map under it: the place's picture, its point x, y at the middle, turned about it; clipped to the minimap)
+            // (its own percentages, never clamped: the picture is larger than the minimap and runs past its edges)
+            const pf = (v) => Math.round(Number(v) * 1000) / 10 + '%';
+            const plan = M ? ['span', { class: 'mana-planclip' }, ['img', { class: 'mana-plan', src: M.src, alt: '', style: `width:${pf(M.size)};height:${pf(M.size)};left:${pf(0.5 - M.x * M.size)};top:${pf(0.5 - M.y * M.size)};transform-origin:${pf(M.x)} ${pf(M.y)};transform:rotate(${Math.round(Number(M.turn) || 0)}deg)` }]] : null;
+            return ['div', { class: cls, 'data-shape': p.shape, 'data-scope': p.scope ? 'yes' : null }, plan, p.scope ? ['span', { class: 'mana-bezel' }, ['i', { class: 'mana-cone' }], p.north !== undefined && isFinite(p.north) ? ['b', { class: 'mana-north', style: `transform:rotate(${Math.round(p.north)}deg)` }, ['span', { style: `transform:rotate(${-Math.round(p.north)}deg)` }, 'N']] : null] : null, ...p.markers.map((m) => {
             if (!isObj(m) || !isFinite(Number(m.x)) || !isFinite(Number(m.y))) return null;
             const mark = ['span', { class: 'mana-marker', 'data-kind': MARKERS[m.kind] ? m.kind : 'poi', style: `left:${pct(m.x)};top:${pct(m.y)}`, title: m.label || null }, MARKERS[m.kind] || MARKERS.poi];
             // (what it sees: a marker's `fan`, points on the map with itself first, drawn under it as a wedge in its `state`)
             const fan = Array.isArray(m.fan) && m.fan.length >= 3 && m.fan.every((q) => Array.isArray(q) && isFinite(Number(q[0])) && isFinite(Number(q[1]))) ? m.fan : null;
             return fan ? ['span', { class: 'mana-seen' }, ['i', { class: 'mana-sight', 'data-state': ['search', 'seen'].includes(m.state) ? m.state : 'calm', style: `clip-path:polygon(${fan.map((q) => `${pct(q[0])} ${pct(q[1])}`).join(',')})` }], mark] : mark;
-          }), p.label ? ['span', { class: 'mana-caption' }, p.label] : null];
+          }), p.label ? ['span', { class: 'mana-caption' }, p.label] : null]; }
           case 'compass': {
             const at = (b) => ((((Number(b) || 0) - p.heading) % 360) + 540) % 360 - 180;
             const marks = [['N', 0], ['E', 90], ['S', 180], ['W', 270]].map(([w, b]) => ({ w, d: at(b), cardinal: true })).concat(p.markers.filter(isObj).map((m) => ({ w: MARKERS[m.kind] || MARKERS.poi, d: at(m.bearing) })));
