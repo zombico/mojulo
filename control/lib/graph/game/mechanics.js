@@ -20,6 +20,7 @@ import { lowerEscapeRoom } from './escape-room.js';
 import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer, lowerCall, lowerTask, lowerJoin, lowerAct } from './errand-mechanics.js';
 import { lowerWanted } from './law-mechanics.js';
 import { lowerVitals } from './vitals-mechanics.js';
+import { lowerRespray, lowerGunshop } from './shop-mechanics.js';
 import { lowerWaveGauntlet } from './wave-gauntlet.js';
 import { lowerWork } from './work-mechanics.js';
 
@@ -1032,6 +1033,9 @@ const MECHANICS = {
   wanted: { role: 'emitter', lower: lowerWanted },
   // (the street's health: blows off it, mended when quiet, WASTED at none; game/vitals-mechanics.js)
   vitals: { role: 'emitter', lower: lowerVitals },
+  // (the city's shops: a respray that loses the law, a gun shop's rounds; game/shop-mechanics.js)
+  respray: { role: 'emitter', requires: ['inventory'], lower: lowerRespray },
+  gunshop: { role: 'emitter', requires: ['inventory'], lower: lowerGunshop },
 
   // the PARTY carried (an emitter): the battle party of play.rpg (playscape/rpg) goes from level to level in a party
   // slice: each member's level, xp, hp, mp, class, class ranks and points, and the skills learned (the kernel's save:

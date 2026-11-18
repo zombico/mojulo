@@ -1,0 +1,54 @@
+// THE CITY'S SHOPS (shop-mechanics.js), walked on the bus: the respray takes a car driven in by a wanted player with the
+// price, repaints it and the law loses them; the gun shop sells a box of rounds into the player's gun.
+import { describe, it, expect } from 'vitest';
+import { composeMechanics } from './mechanics.js';
+import { buildBus } from '../worlds/event-bus.js';
+
+const B = buildBus();
+const ctx = { storeSchema: { slices: [{ name: 'bag', kind: 'inventory' }, { name: 'hero', kind: 'character' }] }, player: 'hero', spawn: [0, 0, 0] };
+const WANT = { kind: 'wanted', police: ['police-1', 'police-2'], per: 2, stars: 2 };
+const RESPRAY = { kind: 'respray', at: [50, 0, 0], price: 40 };
+const GUNS = { kind: 'gunshop', at: [20, 0, 0], price: 30, rounds: 24 };
+
+function play(M, script, { coin = 0 } = {}) {
+  const c = composeMechanics([{ kind: 'bag', slice: 'bag' }, ...M, { kind: 'reach-exit', at: [999, 999, 0] }], ctx), ev = c.events, s = B.createBusState(ev, ev.entities);
+  const pump = (list) => { B.processEvents(s, list); let w = B.watchEvents(s), g = 0; while (w.length && g++ < 8) { B.processEvents(s, w); w = B.watchEvents(s); } };
+  pump([]);
+  s.vars['held:bag:coin'] = coin;
+  s._ctrlOps = [];
+  let prev;
+  for (const step of script) {
+    if (step.event) pump([{ type: step.event }]);
+    // (a body come to a place: the zones' own derivation, twice, so it is an onset)
+    if (step.at) for (let f = 0; f < 2; f++) { const z = B.deriveZoneEvents([{ id: step.who ?? 'hero', position: step.at }], prev, ev.sources); prev = z.prev; pump(z.events); }
+  }
+  return { vars: s.vars, log: s.log.map((r) => r.type), ops: s._ctrlOps || [] };
+}
+const jack = { event: 'mayhem:carjack' }, inCar = { at: [50, 0, 0], who: 'car-1' };
+
+describe('the respray', () => {
+  it('a car driven in by a wanted player with the price: paid, repainted, and the law loses them', () => {
+    const r = play([WANT, RESPRAY], [jack, jack, inCar], { coin: 100 });
+    expect(r.log).toContain('respray:done');
+    expect(r.vars).toMatchObject({ wanted: 0, 'held:bag:coin': 60 });
+    expect(r.ops.find((o) => o.op === 'repaint')).toMatchObject({ who: 'hero' });
+    expect(r.ops.filter((o) => o.op === 'vanish').map((o) => o.who)).toEqual(expect.arrayContaining(['police-1', 'police-2']));
+  });
+  it('with no stars, nothing to hide; short of the price, it says so and takes nothing; on foot it is no garage', () => {
+    expect(play([WANT, RESPRAY], [inCar], { coin: 100 }).log).toContain('respray:clean');
+    const short = play([WANT, RESPRAY], [jack, inCar], { coin: 10 });
+    expect(short.log).toContain('respray:short'); expect(short.vars).toMatchObject({ wanted: 1, 'held:bag:coin': 10 });
+    expect(play([WANT, RESPRAY], [jack, { at: [50, 0, 0] }], { coin: 100 }).log).not.toContain('respray:done');
+  });
+});
+
+describe('the gun shop', () => {
+  it('walked into with the price: a box of rounds into the player\'s gun; short, nothing', () => {
+    const r = play([GUNS], [{ at: [20, 0, 0] }], { coin: 45 });
+    expect(r.log).toContain('gunshop:bought');
+    expect(r.vars['held:bag:coin']).toBe(15);
+    expect(r.ops.find((o) => o.op === 'rearm')).toMatchObject({ who: 'hero', by: 24 });
+    const poor = play([GUNS], [{ at: [20, 0, 0] }], { coin: 5 });
+    expect(poor.log).toContain('gunshop:short'); expect(poor.ops.some((o) => o.op === 'rearm')).toBe(false);
+  });
+});

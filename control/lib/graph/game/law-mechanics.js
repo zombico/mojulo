@@ -73,6 +73,8 @@ export function lowerWanted(p, ctx) {
   for (const id of police) frag.reactions.push({ on: `hit:${ctx.player}`, match: { by: id }, if: { var: W, gte: 1 }, do: 'inc', var: H, by: 1 }, { on: `hit:${ctx.player}`, match: { by: id }, do: 'set', var: C, to: 0 });
   frag.watches.push({ type: 'busted', when: { var: H, gte: busted } });
   // (WASTED, the street's health at none: vitals-mechanics.js. The law lets the player go, as a bust would, unfined)
+  // (and a respray, shop-mechanics.js: `cleared:wanted`, the law loses the player)
+  frag.reactions.push({ on: 'cleared:wanted', do: 'set', var: was, to: 0 }, { on: 'cleared:wanted', do: 'set', var: W, to: 0 }, { on: 'cleared:wanted', do: 'set', var: H, to: 0 }, { on: 'cleared:wanted', do: 'set', var: C, to: 0 });
   frag.reactions.push({ on: 'wasted', do: 'set', var: was, to: 0 }, { on: 'wasted', do: 'set', var: W, to: 0 }, { on: 'wasted', do: 'set', var: H, to: 0 }, { on: 'wasted', do: 'set', var: C, to: 0 });
   frag.reactions.push({ on: 'busted', do: 'set', var: was, to: 0 }, { on: 'busted', do: 'set', var: W, to: 0 }, { on: 'busted', do: 'set', var: H, to: 0 }, { on: 'busted', do: 'set', var: C, to: 0 });
   // (out of the car first, if it drives one, set down where it is put)

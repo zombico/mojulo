@@ -21,6 +21,7 @@
  *     spawn { near, ring? }   (near: a body's id) at a ring's distance from it ([14, 30] m), facing it: on one of the spawned
  *                         body's own `posts` there (its id picks which), else the post nearest the ring, else behind it
  *     dismount { to? }        a rider made to get out of what it rides at once (the car stopped), set down `to`: the law's bust
+ *     repaint { tints }       what it drives (or itself) in the next of `tints` (linear rgb) that it does not wear: a respray
  *     walk { points, names?, speed?, then?, face?, pose?, reach? }   a DUMB PATH: straight lines from point to point
  *                         (turn toward it, step, ground snap, collider push-out); `then` at the last point: 'stay' (hold
  *                         there, take `face` / `pose`), 'loop', 'back' (walk the points back, then stay)
@@ -306,6 +307,14 @@ export function buildCast(E) {
           face: Number.isFinite(o.face) ? o.face * DEG : null, pose: typeof o.pose === 'string' ? o.pose : null,
         };
       } else if (o.op === 'stop') { e.route = null; e.held = false; e.moving = false; }
+      // (what it drives given a new coat, the next of `tints` that is not the one it wears: a respray)
+      else if (o.op === 'repaint') {
+        const C = e.mountedOn ? state.byId[e.mountedOn] : e, P = C && C.mount && C.mount.pool, T = Array.isArray(o.tints) ? o.tints.filter(Array.isArray) : [];
+        if (!P || !T.length) continue;
+        const same = (a, b) => a && b && a.length === b.length && a.every((v, i) => Math.abs(v - b[i]) < 1e-3);
+        for (let k = 0; k < T.length; k++) { C.paints = ((C.paints || 0) + 1) % T.length; if (!same(T[C.paints], P.tint)) break; }
+        C.mount.pool = { ...P, tint: T[C.paints].slice(0, 3) };
+      }
       // (made to get out of what it rides, now, and set down `to`: the mount step does it, mount.js `eject`)
       else if (o.op === 'dismount') { if (e.mountedOn) e.eject = Array.isArray(o.to) ? { to: pt3(o.to, e.transform.pos[2]) } : {}; }
       else if (o.op === 'status') {

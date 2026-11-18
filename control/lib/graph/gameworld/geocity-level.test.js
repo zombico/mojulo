@@ -330,6 +330,23 @@ describe('jobs across the district (errands on a played district: its shops thei
     expect(level.entities.some((e) => /^police-/.test(e.id))).toBe(false);
     expect(M.some((m) => m.kind === 'wanted' || m.kind === 'vitals')).toBe(false);
   });
+  it('the city\'s shops (shops.js): the gun shop at a free shop front a walk off, the respray at a junction a drive off clear of the parked cars; the hero carries the pistol empty; on the map', async () => {
+    const shopped = runSteps({ ...JOBS, id: 'jobs10', law: true, shops: { respray: true, guns: { price: 25 } } }, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest, A = shopped.game.mechanics;
+    const G = A.find((m) => m.kind === 'gunshop'), R = A.find((m) => m.kind === 'respray');
+    expect(G).toMatchObject({ price: 25, rounds: 24 }); expect(R).toMatchObject({ price: 40 });
+    expect(d(G.at, E.spawn)).toBeGreaterThanOrEqual(60); expect(d(R.at, E.spawn)).toBeGreaterThanOrEqual(90);
+    expect(E.places.some((p) => p.at[0] === G.at[0] && p.at[1] === G.at[1])).toBe(true);
+    for (const m of A.filter((x) => Array.isArray(x.at) && x !== G && x !== R)) { expect(d(m.at, G.at)).toBeGreaterThan(20); expect(d(m.at, R.at)).toBeGreaterThan(20); }
+    // (the bare hands' sidearm: the pistol, carried empty)
+    const pilot = shopped.entities.find((e) => e.pilotable);
+    expect(pilot.rule.weapons.map((w) => w.id)).toEqual(['fist']);
+    expect(pilot.rule.weapon).toMatchObject({ magazine: 12, reserve: 0, loaded: 0 });
+    const { cityMap } = await import('./city-map.js');
+    const map = cityMap({ box: [0, 0, 1000, 1000], shapes: [], places: [] }, shopped);
+    expect(map.markers.map((m) => m.label)).toEqual(expect.arrayContaining(['Respray (40)', 'Gun shop: rounds (25)']));
+    // (none written, none laid; no gun carried)
+    expect(M.some((m) => m.kind === 'gunshop' || m.kind === 'respray')).toBe(false);
+  });
   it('every hero in the city runs fast: an athletic one on its longer stride at the same cadence, any other on quicker legs', () => {
     const hero = (motion) => runSteps({ ...JOBS, id: 'jobs7', characters: { ...JOBS.characters, hero: { ...JOBS.characters.hero, motion } } }, { ref: 'gw' }).find((x) => x.key.startsWith('level-')).order.manifest.entities.find((e) => e.pilotable).rule;
     const plain = hero({ vibe: ['bold'] }), fast = hero({ vibe: ['athletic'] });

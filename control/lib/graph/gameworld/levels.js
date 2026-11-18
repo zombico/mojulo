@@ -924,7 +924,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
   const doorMechs = (ends.doors ?? []).map(({ inside: _i, ...d }) => ({ kind: 'door', ...d }));
   // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot
-  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps, G.factions, G.law ? { ...G.law, bag: !!G.errands?.length } : null, { bag: !!G.errands?.length }) : null;
+  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps, G.factions, G.law ? { ...G.law, bag: !!G.errands?.length } : null, { bag: !!G.errands?.length, shops: G.shops ?? null }) : null;
   // (a glyph map with no way on, a megaworld's core: its goal stays its own, reaching it the level's win, no exit taken)
   // (a zone holding the walk's goal keeps it too: reaching it is the game's end, its gates travel)
   const keepsGoal = ways && stage.section === 'map' && (!map.on.length || !!ends.holdsGoal);
@@ -1800,12 +1800,30 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
     police = { eid: law.police, ids, at: ends.spawn.slice(), heading: ends.heading, posts: lawPosts(ends), ...(nc ? { cars: { ids: cars, roads, posts: roadPosts(roads, ends) } } : {}) };
     mechanics.push({ kind: 'wanted', police: ids, ...(nc ? { cars } : {}), per: law.per, stars: law.stars, calm: law.calm, busted: law.busted, ...(law.bag && law.fine ? { fine: law.fine } : {}), back: ends.spawn.slice(), ...(encounter ? { mayhem: [`encounter:${encounter.id}`] } : {}) });
   }
+  // THE CITY'S SHOPS (shops.js, game/shop-mechanics.js), on a driven city with a bag to pay from: the gun shop at a shop
+  // front a short walk off that no one stands at and no job sends the player to; the respray at a street's junction a
+  // drive off, clear of the cars parked there
+  if (city.shops && city.bag && cityStage(stage) && (ends.parked?.length ?? 0) > 0) {
+    const d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]), taken = mechanics.filter((m) => Array.isArray(m.at)).map((m) => m.at);
+    const pick = (list, lo) => list.filter((q) => d2(q, ends.spawn) >= lo).sort((a, b) => d2(a, ends.spawn) - d2(b, ends.spawn) || a[0] - b[0] || a[1] - b[1])[0] ?? null;
+    if (city.shops.guns) {
+      const at = pick((ends.places ?? []).map((q) => q.at).filter((q) => taken.every((t) => d2(t, q) > SHOP_AT.apart)), SHOP_AT.guns);
+      if (at) mechanics.push({ kind: 'gunshop', at: at.slice(), price: city.shops.guns.price, rounds: city.shops.guns.rounds });
+    }
+    if (city.shops.respray) {
+      const parked = ends.parked ?? [], at = pick(roadPosts(ends.roads ?? [], ends).filter((q) => parked.every((c) => d2(c.at, q) > SHOP_AT.clear) && taken.every((t) => d2(t, q) > SHOP_AT.apart)), SHOP_AT.respray);
+      if (at) mechanics.push({ kind: 'respray', at: at.slice(), price: city.shops.respray.price });
+    }
+  }
   // THE STREET'S HEALTH (game/vitals-mechanics.js): a driven city where something can hurt the player (its law, a
   // faction's fight): blows cost it, quiet mends it, and at none the player is wasted, billed and set down at the start
   if (cityStage(stage) && (ends.parked?.length ?? 0) > 0 && (police || encounter)) mechanics.push({ kind: 'vitals', ...VITALS_CITY, ...(city.bag ? { bill: VITALS_BILL } : {}), back: ends.spawn.slice() });
   return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })), ...(quests.length ? { quests } : {}), ...(stoodGivers.length ? { givers: stoodGivers } : {}), ...(encounter ? { encounter } : {}), ...(police ? { police } : {}) };
 }
 
+// where a city's shops stand (m): the gun shop at least this far from the start, the respray this far; apart from any
+// place a job uses, and the respray clear of a parked car
+const SHOP_AT = Object.freeze({ guns: 60, respray: 90, apart: 20, clear: 9 });
 // the street's health in a played city (game/vitals-mechanics.js): a blow's cost, the mending, and the hospital's bill
 const VITALS_CITY = Object.freeze({ hp: 100, hit: 10, mend: 3, after: 5 }), VITALS_BILL = 25;
 

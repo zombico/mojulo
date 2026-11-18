@@ -24,7 +24,7 @@ import { iconOf } from '../../mana-ui/icons.js';
 import { jobsOf } from './city-guide.js';
 
 export const CITY_MAP = Object.freeze({ corner: 'follow', views: Object.freeze(['plan', 'miniature', 'follow']), radius: 130, shops: true, cars: true,
-  icons: Object.freeze({ goal: 'target', job: 'flag', shop: 'shop', car: 'car' }) });
+  icons: Object.freeze({ goal: 'target', job: 'flag', shop: 'shop', car: 'car', respray: 'car', guns: 'shop' }) });
 const VIEWS = ['plan', 'miniature', 'follow'], KEYS = ['corner', 'views', 'radius', 'shops', 'cars', 'icons'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
@@ -65,6 +65,8 @@ export function cityMap(plan, manifest, ui = undefined) {
   // (each job's stops, over the shops they stand at: the last drawn is on top)
   for (const J of jobsOf(manifest?.game?.mechanics)) for (const s of J.steps) markers.push({ x: r4(X(s.at[0])), y: r4(Y(s.at[1])), kind: 'item', icon: icons.job, label: `${J.name}: ${s.say}` });
   for (const F of sides) markers.push({ x: r4(X(F.at[0])), y: r4(Y(F.at[1])), kind: 'npc', icon: 'person', label: `${F.name}: join here` });
+  // (the city's shops, game/shop-mechanics.js: the respray, the gun shop)
+  for (const m of manifest?.game?.mechanics ?? []) if ((m?.kind === 'respray' || m?.kind === 'gunshop') && Array.isArray(m.at)) markers.push({ x: r4(X(m.at[0])), y: r4(Y(m.at[1])), kind: 'poi', icon: m.kind === 'respray' ? icons.respray : icons.guns, label: m.kind === 'respray' ? `Respray (${m.price})` : `Gun shop: rounds (${m.price})` });
   const radius = U.radius ?? CITY_MAP.radius, cars = (U.cars ?? CITY_MAP.cars) !== false;
   return {
     box: [r4(ox), r4(oy)], side: r4(side), shapes, markers,

@@ -201,7 +201,8 @@ export function buildCombatRanged(E) {
       // distance of a hittable body — a near-miss bursts beside the target and the splash catches
       // it, instead of sailing past. 0 (default) = contact-only, byte-identical.
       proximity: Number.isFinite(w.proximityRadius) && w.proximityRadius > 0 ? w.proximityRadius : 0,
-      ammo: magazine, cooldownT: 0, reloading: false, reloadT: 0, prevFire: false, shots: 0,
+      // (`loaded`: a weapon carried with fewer rounds in it than it holds, a gun bought empty; absent, full)
+      ammo: Number.isFinite(w.loaded) ? Math.max(0, Math.min(magazine, Math.round(w.loaded))) : magazine, cooldownT: 0, reloading: false, reloadT: 0, prevFire: false, shots: 0,
       burstLeft: 0,                       // rounds still owed to the current trigger pull
       energy: Number.isFinite(w.energyMax ?? w.energy) && (w.energyMax ?? w.energy) > 0 ? (w.energyMax ?? w.energy) : 0,
       energyLock: false,

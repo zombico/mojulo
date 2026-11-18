@@ -142,7 +142,8 @@ export function readGameArsenal(raw) {
 export function arsenalOfGame(G) {
   const own = G?.arsenal;
   // (bare hands, the default of a hero that must fight and carries nothing: its fists)
-  if ((own === undefined || own === null) && bareHanded(G)) return { arsenal: structuredClone(FISTS), from: 'bare', why: 'its hero must fight and carries nothing: its fists' };
+  // (and where its city sells rounds, shops.js `guns`, the pistol the bare hands carry empty: CITY_PISTOL)
+  if ((own === undefined || own === null) && bareHanded(G)) return { arsenal: { ...structuredClone(FISTS), ...(G?.shops?.guns ? { ranged: [cityPistol()] } : {}) }, from: 'bare', why: `its hero must fight and carries nothing: its fists${G?.shops?.guns ? ', and a pistol carried empty, its rounds bought at the gun shop' : ''}` };
   if (own === undefined || own === null || own === false) return null;
   if (own === 'auto') {
     const K = arsenalFor(G.feel);
@@ -159,7 +160,11 @@ const carriesBlow = (G) => (G?.characters?.hero?.adornment?.items ?? []).some((i
  * shoot with fights with its FISTS, the default weapon: the body's own strikes (the jab, the cross, the hook, the
  * uppercut), the kit's fist drawn on the hero as it stands. Carrying a blade or a gun, or writing an arsenal, is the
  * world's own word and stands over it. */
-export const bareHanded = (G) => !carriesBlow(G) && factionFoeIds(G?.factions).length > 0 && !(G?.characters?.hero?.adornment?.items ?? []).some((it) => it.slot === 'right' && (it.serves ?? []).includes('shoot'));
+// (a hero must fight where its factions post a fight, where the law can come for it, or where it can buy a gun)
+export const bareHanded = (G) => !carriesBlow(G) && (factionFoeIds(G?.factions).length > 0 || !!G?.law || !!G?.shops?.guns) && !(G?.characters?.hero?.adornment?.items ?? []).some((it) => it.slot === 'right' && (it.serves ?? []).includes('shoot'));
+/** THE CITY'S PISTOL (shops.js `guns`): the bare hands' sidearm, carried empty, its rounds bought at the gun shop; three
+ * rounds put a minion down, a dozen to the magazine. */
+export const cityPistol = () => ({ id: 'pistol', name: 'Pistol', mode: 'auto', rof: 3, damage: Math.round((foeHealth('minion', FISTS) / 3) * 100) / 100, impact: 6, range: 35, magazine: 12, reload: 1.4, hand: 'right', reserve: 0, loaded: 0 });
 export const FISTS = Object.freeze({ timing: BASIC_ARSENAL.timing, weapons: [{ ...BASIC_ARSENAL.weapons.find((W) => W.id === 'fist'), figure: 'drawn' }] });
 export const heroStrikes = (G) => carriesBlow(G) || bareHanded(G);
 

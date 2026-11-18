@@ -94,7 +94,7 @@ import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
 import { lowerFaunaUnits } from '@/lib/graph/worlds/fauna-units';
 import { declaredUnits, metersPerUnitFor } from '@/lib/graph/scene/world-units';
 import { optionalPackModule } from '@/lib/graph/content-pack';
-import { wieldsFigure, armHeld } from '@/lib/graph/worlds/held-strike';
+import { wieldsFigure, armHeld, FIST } from '@/lib/graph/worlds/held-strike';
 
 export { resolveWrapTextures };
 
@@ -1441,6 +1441,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // (a moveset's hero whose figure carries its moves' own clips plays them: combat-melee.js `moveClips`)
           const moveClips = !!(figure.clips && Object.keys(figure.clips).some((k) => k.startsWith('mv_')));
           if (held) payload.entities = payload.entities.map((e) => (wields(e) ? armHeld(e, held, moveClips) : e));
+          // (BARE HANDS, gameworld/arsenal.js FISTS: a moveset's hero that holds nothing and carries only its fists
+          // strikes with them, the fist's reach, a light blow's seconds; held-strike.js FIST)
+          else payload.entities = payload.entities.map((e) => (wields(e) && Array.isArray(e.rule.weapons) && e.rule.weapons.length && e.rule.weapons.every((W) => W && W.id === 'fist') ? armHeld(e, FIST, moveClips) : e));
           continue;
         }
         // RACER bodies (car-designer/roster.js): a figures-map entry may be a cartoon racer's recipe (`racer`: { facets,
