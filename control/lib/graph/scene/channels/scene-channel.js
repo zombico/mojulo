@@ -13,6 +13,12 @@
  * meanwhile waits its turn, so a scene on the level's start starts once the level is up. A STAGE (window.__mojStage, the
  * game channel's, from the shell's flow): the scene it asks for plays, unskippable when it says so, and the shell is told
  * as it ends (game-scene-end), or at once when the level has no such scene, or after a second when it never started.
+ *
+ * THE VOICES (`voices`: the page carries recorded lines, playscape/ui/talk-lines.js, their bytes in EVENTS.voices): a
+ * recorded line's audio plays as its take begins, the words `at` into it, and stops as the line goes (the next line, a
+ * skip, the scene's end); a press that shows the words whole lets it play on. A browser plays no sound before the page
+ * has had a press, so the audio is decoded on the first one, and a line already under way is taken up where its take
+ * has got to. `window.__mojVoice` ({ playing(), context() }) for a headless driver.
  */
 import { buildSceneRunner } from '../../playscape/ui/scene-runner.js';
 import { MSG_SCENE_END } from '../../game/level-contract.js';
@@ -34,10 +40,13 @@ export const SCENE_CSS = `
 /** Whether a page's scene program plays takes: a line of it names its script's clip (scene-script.js). */
 export const sceneTakesOn = (program) => (program || []).some((sc) => (sc.beats || []).some((b) => b && b.kind === 'line' && b.take && typeof b.take.clip === 'string'));
 
+/** Whether a page's events carry recorded lines to play: a line with a voice and a take, and its bytes (talk-lines.js). */
+export const sceneVoicesOn = (events) => !!(events && events.voices && Object.keys(events.voices).length) && (events.scenes || []).some((sc) => (sc.beats || []).some((b) => b && b.kind === 'line' && b.voice && b.take && events.voices[b.voice.recording]));
+
 /** Whether a page's scene program has tempo beats (the world clock's: scenes.js), which the scene channel hands the clock. */
 export const sceneTempoOn = (program) => (program || []).some((sc) => (sc.beats || []).some((b) => b && b.kind === 'tempo'));
 
-export function sceneScript({ takes = false, tempo = false } = {}) {
+export function sceneScript({ takes = false, tempo = false, voices = false } = {}) {
   return `
 // SCENES: the runner (playscape/ui/scene-runner.js), the bars, the box, the keys
 const __SCN = (${buildSceneRunner.toString()})();
@@ -60,7 +69,35 @@ window.addEventListener('keydown', (ev) => {
   else if (__SCN_MOVE[ev.code]) { ev.preventDefault(); ev.stopImmediatePropagation(); __scnMove = __SCN_MOVE[ev.code]; }
   else if (digit >= 0) { ev.preventDefault(); ev.stopImmediatePropagation(); __scnPick = digit; }
 }, true);
-window.addEventListener('keyup', (ev) => { if (__SCN_KEYS[ev.code]) __scnHeld = false; }, true);
+window.addEventListener('keyup', (ev) => { if (__SCN_KEYS[ev.code]) __scnHeld = false; }, true);${voices ? `
+// THE VOICES (see the header): a recorded line's audio on its take's clock
+const __VOX = {}, __voxBuf = {};
+for (const sc of EVENTS.scenes) for (const b of sc.beats) if (b && b.kind === 'line' && b.voice && b.take && EVENTS.voices[b.voice.recording]) __VOX[b.take.clip] = b.voice;
+let __voxCtx = null, __voxSrc = null, __voxClip = null, __voxOn = false;
+function __voxWake() {
+  if (!__voxCtx) { try { __voxCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; } }
+  if (__voxCtx.state === 'suspended') __voxCtx.resume();
+  for (const id in EVENTS.voices) if (!(id in __voxBuf)) {
+    __voxBuf[id] = null;
+    const s = atob(EVENTS.voices[id]), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+    __voxCtx.decodeAudioData(u.buffer).then((b) => { __voxBuf[id] = b; }, () => {});
+  }
+}
+window.addEventListener('pointerdown', __voxWake, true); window.addEventListener('keydown', __voxWake, true);
+function __voxStop() { if (__voxSrc) { try { __voxSrc.stop(); } catch (e) { /* already done */ } __voxSrc = null; } __voxOn = false; }
+function __voxStep(v) {
+  const T = v.on && v.line && v.line.take, clip = T ? T.clip : null;
+  if (clip !== __voxClip) { __voxStop(); __voxClip = clip; }
+  const V = clip && __VOX[clip];
+  if (!V || __voxOn || !__voxCtx || __voxCtx.state !== 'running' || !__voxBuf[V.recording]) return;
+  const buf = __voxBuf[V.recording], into = T.t - V.at;   // (how far into the words the take has got)
+  __voxOn = true;
+  if (into >= buf.duration) return;
+  const src = __voxCtx.createBufferSource(); src.buffer = buf; src.connect(__voxCtx.destination);
+  if (into > 0) src.start(0, into); else src.start(__voxCtx.currentTime - into);
+  __voxSrc = src;
+}
+window.__mojVoice = { playing: () => (__voxSrc ? __voxClip : null), context: () => (__voxCtx ? __voxCtx.state : null) };` : ''}
 window.addEventListener('pointerdown', (ev) => {
   if (!__scnHolding) return;
   const opt = ev.target && ev.target.closest ? ev.target.closest('.moj-scene-opt') : null;
@@ -95,7 +132,8 @@ function __stepScenes(dtSec) {
   // the world clock (worlds/controllable/world-clock.js): a scene's moments fired, or ended early (a page without a clock
   // has none to fire)
   if (o.tempo.length && window.__mojTempo) for (const x of o.tempo) { if (x.end) window.__mojTempo.end(x.on); else window.__mojTempo.fire(x.on); }` : ''}
-  const v = __SCN.view(__scn), bar = (v.bars * 11).toFixed(2) + 'vh';${takes ? `
+  const v = __SCN.view(__scn), bar = (v.bars * 11).toFixed(2) + 'vh';${voices ? `
+  __voxStep(v);` : ''}${takes ? `
   // THE TAKES (scene-takes.js): while a script's line plays, its cast plays the script's clip at the line's phase; held
   // (played out, waiting on the press) or between lines, each goes back to its own clips, the idle's breath and blink
   const __tk = v.line && v.line.take && v.line.take.clip && !v.line.take.held ? v.line.take : null;

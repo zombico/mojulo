@@ -105,7 +105,8 @@ const skinPpm = (plan) => { try { return pxPerMetre(readTarget((typeof plan.styl
 import { paintFaceRig, paintFaceBase } from '@/lib/graph/polygonizer/face-paint-rig';
 import { sparseMorph, quantMorph } from '@/lib/graph/figures/morph-sparse';
 import { heroFaceTracks } from '@/lib/graph/polygonizer/anime-face-tracks';
-import { westernFaceRig } from '@/lib/graph/polygonizer/western-face-rig';
+import { westernFaceRig, westernKnots } from '@/lib/graph/polygonizer/western-face-rig';
+import { westernPerformanceTrack } from '@/lib/graph/face-acting/western-read';
 import { gearMounts, gearFaces, gearPackParts, gearRestPoint } from '@/lib/graph/polygonizer/hero-gear';
 import { xrHands } from '@/lib/graph/polygonizer/hero-xr-hands';
 import { attachMounts } from '@/lib/graph/polygonizer/hero-attach';
@@ -954,7 +955,9 @@ export const WORLD_KINDS = {
         // the face's blend shapes: the anime head's (drawn, or painted), the landmark head's (western-face-rig.js)
         // (the REALISTIC face plays on the page too, relational-face-rig.js: its morphs and tracks ride the page's pack, and
         // the rig preview drives them; the anime and the landmark faces ride an export alone, as before)
-        const pageFace = !ctx.face && rigged && realisticSkinned(m.hero) && m.hero.head === 'relational';
+        // (and the ANIME face, drawn, or the LANDMARK face, its mouth its jaw bone, of a hero that speaks in the page's scenes:
+        // ctx.talks, playscape/ui/talk-lines.js)
+        const pageFace = !ctx.face && rigged && ((realisticSkinned(m.hero) && m.hero.head === 'relational') || (!!ctx.talks && ((m.hero?.head === 'anime' && !m.hero.painterly) || (m.hero && (m.hero.head ?? 'landmark') === 'landmark'))));
         const face = (ctx.face || pageFace) && rigged && m.hero ? (m.hero.head === 'anime' ? (m.hero.painterly && facePaint ? paintFaceRig(m, mesh, facePaint) : heroFaceRig(m, mesh)) : (m.hero.head ?? 'landmark') === 'landmark' ? westernFaceRig(m, mesh) : m.hero.head === 'relational' ? relationalFaceRig(m, mesh) : null) : null;
         // CLIP TIMING (hero-gesture.js heroClipSeconds): the anime hero's clips each carry a designed duration (`s` on the
         // packed clip), which the World page's clip preview and the GLB both play; every other row's clips
@@ -1100,6 +1103,16 @@ export const WORLD_KINDS = {
           const { t, w } = performanceTrack(perform(ctx.takes[k].perform), { fps: TAKE_FACE_FPS });
           face.meta.tracks[k] = { t, w };
           if (Array.isArray(face.meta.ambientOver)) face.meta.ambientOver = face.meta.ambientOver.filter((c) => c !== k);
+        }
+        // THE TALKING FACE (ctx.talks, playscape/ui/talk-lines.js): each line this figure says, its face's take under the
+        // line's clip (talk:<scene>:<beat>), played on the page while the line's take runs: the realistic face's
+        // performance track, the anime face's drawings, the landmark face's drawings with its jaw's degrees beside them
+        // (face-acting/western-read.js: its mouth is the jaw bone, `jaws`). Absent ⇒ as before
+        if (face?.meta?.tracks && ctx.talks) for (const [k, P] of Object.entries(ctx.talks)) {
+          const head = m.hero.head ?? 'landmark';
+          const T = head === 'anime' ? animePerformanceTrack(perform(P), face.K ?? faceKnots(face.authored), { sevenG: !!face.sevenG }) : head === 'relational' ? performanceTrack(perform(P), { fps: TAKE_FACE_FPS }) : head === 'landmark' ? westernPerformanceTrack(perform(P), face.K ?? westernKnots(face.authored)) : null;
+          if (T) face.meta.tracks[k] = { t: T.t, w: T.w };
+          if (T?.jaw) (face.meta.jaws ||= {})[k] = T.jaw;
         }
         if (face?.meta && m.hero.head === 'relational' && m.hero.perform) face.meta.performances = Object.fromEntries(Object.entries(m.hero.perform).map(([k, P]) => [k, performanceTrack(perform(P))]));
         // (the ANIME face's: each take read as drawings, face-acting/anime-read.js, a STEP track on its targets: the 7G

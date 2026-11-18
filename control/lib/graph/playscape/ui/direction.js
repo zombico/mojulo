@@ -37,6 +37,8 @@ import { STAT_OPS } from '../stats/kernel.js';
 import { readSpots, spotAnchors, withStands, CAST_WHEN } from './cast.js';
 import { withChapterCues, chapterBus } from './chapters.js';
 import { withSceneCues, sceneProgram, sceneBus } from './scenes.js';
+import { readSpeakers } from './talk-box.js';
+import { talkLines, withTalkTakes } from './talk-lines.js';
 import { hasScripts, withScripts, scriptStage } from './scene-script.js';
 import { questProgram } from './quests.js';
 import { libraryProgram } from './library.js';
@@ -221,16 +223,23 @@ export function uiSettled(ui) {
 export const uiPending = (ui) => UI_ITEMS.filter((k) => !(isObj(ui) && isObj(ui.status) && (ui.status[k] === 'approved' || ui.status[k] === 'auto')));
 
 /**
+ * The play the build reads: chapters (chapters.js) and scenes (scenes.js) lowered to cues, so the play reads them as its
+ * own; a scene's script beats (scene-script.js) lowered first, on the page's characters and places, into the beats the
+ * scenes read as their own. The figures' build reads the scenes' program from it too (talk-lines.js), so a line's take
+ * names the clip its speaker carries.
+ */
+export function lowerablePlay(manifest, { anchors = [], player = null } = {}) {
+  const base = manifest && manifest.play, scripted = hasScripts(base) ? withScripts(base, scriptStage(manifest, base, anchors, player)) : base;
+  return withMinigames(withRpg(withBattle(withRoutineCues(withPartyCues(withSceneCues(withChapterCues(scripted)))))));
+}
+
+/**
  * THE BUILD'S READ (pure, no dice): play.parts lowered to hud rows, play.cues and play.menus to their rows and bus
  * channels (`anchors`, the built map's, place a cue named by an anchor); with a direction, the style tokens and the
  * register's dials once it is settled, the greybox until then. Absent `play` ⇒ null (zero bytes).
  */
 export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
-  // chapters (chapters.js) and scenes (scenes.js) lower to cues, so the play below reads them as its own
-  // a scene's script beats (scene-script.js) are lowered first, on the page's characters and places, into the beats the
-  // scenes below read as their own
-  const base = manifest && manifest.play, scripted = hasScripts(base) ? withScripts(base, scriptStage(manifest, base, anchors, player)) : base;
-  const play = withMinigames(withRpg(withBattle(withRoutineCues(withPartyCues(withSceneCues(withChapterCues(scripted)))))));
+  const play = lowerablePlay(manifest, { anchors, player });
   if (!isObj(play)) return null;
   phasesOf(play);
   // the cues (cues.js) and the menus' picks (menus.js) ride beside the parts' rows: their hud rows after, their bus
@@ -247,7 +256,10 @@ export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   if (flags.vars) out.vars = { ...(out.vars || {}), ...flags.vars };
   for (const k of ['sources', 'reactions', 'watches', 'initial', 'sequences', 'timers']) { const v = [...(cues[k] || []), ...(menus[k] || []), ...(chapters[k] || []), ...(flags[k] || [])]; if (v.length) out[k] = v; }
   // the scenes' program: the page's runner (scene-runner.js) paces their beats, frames their shots, draws the box
-  if (play.scenes !== undefined) { const scenes = sceneProgram(play); if (scenes.length) out.scenes = scenes; }
+  // (each line a figure with a talking face says, a face take on its own clock: talk-lines.js)
+  if (play.scenes !== undefined) { const scenes = sceneProgram(play); if (scenes.length) out.scenes = withTalkTakes(scenes, talkLines(manifest, scenes).takes); }
+  // the speakers sheet (talk-box.js): how each is shown as they speak in the talk box; only a sheet that says something
+  if (play.speakers !== undefined) { const speakers = readSpeakers(play); if (Object.keys(speakers).length) out.speakers = speakers; }
   // the quests' journal (quests.js): the page keeps it over the flags
   if (play.quests !== undefined) { const quests = questProgram(play); if (quests.length) out.quests = quests; }
   // the library's shelf (library.js): the page keeps it over the flags and opens a book as its reader
