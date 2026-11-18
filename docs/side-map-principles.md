@@ -92,6 +92,10 @@ that holds a hero of a given stature at the frame's share, the lane at its place
     the camera, for as long as it holds on. Up or down at a ladder takes hold; up off its top steps onto the floor. A
     ladder's foot is on a floor and its top at a floor's lip. It is never the test.
 
+The camera on the zones, the fall out of the frame and the ladder taken from the side are
+`control/lib/graph/worlds/controllable/sidemap.js` (the camera rule `side-map`), handed a laid map by
+`control/lib/graph/gameworld/side-map/play.js`.
+
 ## The closed parts are painted
 
 What a strip never did. A strip dresses its ground a little way under its top and leaves the rest one plain face. On

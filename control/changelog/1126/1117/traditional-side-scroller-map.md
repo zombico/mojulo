@@ -117,9 +117,19 @@ said as its phase lands.
   named its fill. Laid to them: a cascade's steps go as deep as the frames that see them, a climb's rests are spaced
   evenly with the last on the way out's wall, a pit between pillars is a pit, a room's doorway is open, and a rising
   frame's pace is set from the bot's climb.
-- **The map's camera**: a side camera that holds a zone's locked axis, hands over at a corner and rises with a climb.
-- **Falls and ladders.** Falling out of the bottom of the frame costs a life and brings the hero back at its zone's
-  checkpoint; a ladder is climbed with the hero's back to the camera.
+- **The map's camera** (`worlds/controllable/sidemap.js`, the camera rule `side-map`, opt-in): the hero's zone holds
+  the frame inside its rectangle, its locked axis fixed and its free axis followed (a run's height held as the hero runs
+  it, a shaft's side held as it climbs, a room both ways); the zone is the next one along as soon as the hero is in it,
+  so a corner turns toward the way on, eased and never snapped; a zone a door shuts behind (a chute's foot, a boss's
+  room) is never left backward; a rising zone's frame climbs on its own at the layout's pace: the screen from below.
+  `side-map/play.js` hands a laid map to it: the camera's zones with their checkpoints, the ladders as climbables, the
+  level's solids.
+- **Falls and ladders.** A hero wholly under the frame's bottom has fallen out: it is taken to limbo, where a catch
+  zone stands that the lives mechanic counts a fall in (`side-fall`), and a beat later it is back at its zone's
+  checkpoint with the camera cut to it. Under the side map's camera, up or down at a ladder takes hold of it (the lane's
+  hero never walks into a ladder's face), the climb owns the body from there, facing into the place with its back to the
+  camera, and its top steps it off onto the floor; no shot leaves on a ladder unless the body's rule says so. The hero's
+  climb clip, seen from behind, is still to come: on a ladder it plays what it has.
 - **A render benchmark**: a run, a chimney and a boss's room measured on the page by role (the hero's share of the
   frame, the lane's place in it, play and place on opposite hues, recession and sharpness by layer, light from sources
   that are seen).
