@@ -226,3 +226,10 @@ What the theme will hold:
   by how far the ceiling stands over it, never through the ceiling. A building level played with the action orbit
   asks for it (`tall: true`, `gameworld/levels.js`); the page fills in the stage's rooms over the threshold
   (`worlds/world-scene.js`), and a building with none so tall keeps its page as it was.
+- **Built: the figures lit and shadowed by the room.** In a room that asks its shade, a body is no longer tinted by
+  one number: each surface is lit as the room is (the ambient, the six lamps nearest the pilot each by its falloff and
+  how the surface turns to it, a cold rim where it turns from the eye), on its own material, so a body has a lit side,
+  a shade side and an edge against the dark. And each throws its shadows on the floor it stands on: from the two lamps
+  that light it most, its silhouette laid flat away from each flame, as dark as that lamp's share of its light and
+  fading with its length, and a dark at its feet; one plane each pixel darkens once (the floor never moves: the
+  projection is the shadow). The form probe hands the lamps over (`__mojForm.lit`). Walls take no actor shadow yet.

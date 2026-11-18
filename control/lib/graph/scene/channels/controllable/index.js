@@ -1489,7 +1489,9 @@ ${figSkinParts ? '  let __skinned = null;\n' : ''}  const boneMeshes = fig.bones
     // (a body under the cast rig: each corner's normal as the lit read wrote it, else its mesh's own)
     if (fig.cast) { if (part.nq) geo.setAttribute('normal', new THREE.BufferAttribute(new Int8Array(decodeU8(part.nq).buffer), 3, true)); else if (part.nrm) geo.setAttribute('normal', new THREE.BufferAttribute(decodeF32(part.nrm), 3)); else geo.computeVertexNormals(); }${figHasResp ? `
     if (fig.cast && Array.isArray(fig.response)) { const cc = geo.getAttribute('color'); geo.setAttribute('aMR', new THREE.BufferAttribute(__castMR(fig, cc.array, cc.count), 2, true)); }` : ''}` : ''}
-${haloOn ? `    // (a part marked by what it is, the halo's hair and skin: style.js; its corners' class, the recolour's)
+${roomLit ? `    // (a body a room lights, the room's light below: its normals, the lit read's where it wrote them, else its mesh's own)
+    if (!geo.getAttribute('normal')) geo.computeVertexNormals();
+` : ''}${haloOn ? `    // (a part marked by what it is, the halo's hair and skin: style.js; its corners' class, the recolour's)
     if (part.hc) geo.setAttribute('aHc', new THREE.BufferAttribute(decodeU8(part.hc), 1));
 ` : ''}${figSkinParts ? `    // (one skin: its bones and weights, welded with the part or as they came; a part with none rides its bone rigidly)
     const SK = fig.skinParts && !fig.wreck && (part.jq || part.jnt) && !/^(weapon_|shield$)/.test(fig.bones[bi].id);
@@ -4861,32 +4863,102 @@ function __mojBackdrop(from, look, shift) {
   scene.add(quad);
   return { dispose: () => { scene.remove(quad); quad.geometry.dispose(); quad.material.dispose(); rt.dispose(); } };
 }
-` : ''}${roomLit ? `// THE ROOM'S LIGHT ON ITS BODIES (a room that asks for its shade, era/stage.js \`shade\`): a body is drawn as its paint
-// under the light that paint was made for; here it takes the room's light where it stands instead (channels/form.js
-// lightAt: the lamps and the ambient there, over that light), held to a floor so a body in black shade still reads and to
-// a ceiling by a flame. Set on each mesh as it draws, so bodies that share a material are each lit where they stand
+` : ''}${roomLit ? `// THE ROOM'S LIGHT ON ITS BODIES (a room that asks for its shade, era/stage.js \`shade\`; its lamps over the light its
+// paint was made under, channels/form.js \`__mojForm.lit\`). A body's paint is what it shows by a lamp at arm's length;
+// here each surface is lit as the room is: the ambient, the lamps nearest the pilot each by its falloff and how the
+// surface turns to it (wrapped, as cloth and skin take light), and a cold rim where it turns from the eye, so a body
+// has a lit side, a shade side and an edge against the dark. And each throws its SHADOWS on the floor it stands on:
+// from the two lamps that light it most, its own silhouette laid flat away from each flame and fading with its length,
+// and a dark at its feet; drawn on one plane that each pixel darkens once (the floor never moves: a projection is the
+// shadow, as the seventh generation drew an actor's on a baked room)
 (function __roomLight() {
-  const LO = 0.3, HI = 1.35, tint = {}, seen = new WeakSet();
-  const own = (o, id) => {
-    if (seen.has(o)) return; seen.add(o);
-    const prev = o.onBeforeRender;
-    o.onBeforeRender = function (r, s, c, g, m) {
-      if (prev) prev.apply(this, arguments);
-      const t = tint[id]; if (!t || !m || !m.color || m.isShaderMaterial) return;
-      if (!m.userData.c0) m.userData.c0 = m.color.clone();
-      m.color.copy(m.userData.c0).multiply(t); m.uniformsNeedUpdate = true;
+  const K = 6, U = { uRlP: { value: Array.from({ length: K }, () => new THREE.Vector3()) }, uRlK: { value: Array.from({ length: K }, () => new THREE.Vector3()) },
+    uRlR: { value: new Array(K).fill(1) }, uRlAmb: { value: new THREE.Vector3() }, uRlFall: { value: 2 }, uRlRim: { value: new THREE.Vector3(0.22, 0.27, 0.42) } };
+  const lit = new WeakSet(), twinned = new WeakSet();
+  // the bodies' shading: on their own material, after everything the material already does
+  const shade = (m) => {
+    if (!m || lit.has(m) || !m.isMeshBasicMaterial || m.userData.rlTwin) return; lit.add(m);
+    const prev = m.onBeforeCompile, prevKey = m.customProgramCacheKey;
+    m.onBeforeCompile = function (sh, r) {
+      if (prev) prev.call(this, sh, r);
+      Object.assign(sh.uniforms, U);
+      sh.vertexShader = 'varying vec3 vRlW;\\nvarying vec3 vRlN;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vRlW = (modelMatrix * vec4(transformed, 1.0)).xyz;\\n#if defined( USE_ENVMAP ) || defined( USE_SKINNING )\\n  vRlN = mat3(modelMatrix) * objectNormal;\\n#else\\n  vRlN = mat3(modelMatrix) * normal;\\n#endif');
+      sh.fragmentShader = 'uniform vec3 uRlP[' + K + '];\\nuniform vec3 uRlK[' + K + '];\\nuniform float uRlR[' + K + '];\\nuniform vec3 uRlAmb;\\nuniform float uRlFall;\\nuniform vec3 uRlRim;\\nvarying vec3 vRlW;\\nvarying vec3 vRlN;\\n'
+        + sh.fragmentShader.replace('#include <aomap_fragment>', '{ vec3 N = vRlN; if ( dot( N, N ) < 1e-4 ) N = cross( dFdx( vRlW ), dFdy( vRlW ) ); N = normalize( N ); if ( !gl_FrontFacing ) N = - N;\\n'
+        + '  vec3 V = normalize( cameraPosition - vRlW ), L = uRlAmb;\\n'
+        + '  for ( int i = 0; i < ' + K + '; i++ ) { vec3 d = uRlP[ i ] - vRlW; float r = length( d ); float t = clamp( 1.0 - max( r, 1.1 ) / uRlR[ i ], 0.0, 1.0 );\\n'
+        + '    L += uRlK[ i ] * pow( t * t, uRlFall ) * clamp( ( dot( N, d / max( r, 1e-3 ) ) + 0.35 ) / 1.35, 0.0, 1.0 ); }\\n'
+        + '  L += uRlRim * pow( 1.0 - clamp( dot( N, V ), 0.0, 1.0 ), 4.0 );\\n'
+        + '  reflectedLight.indirectDiffuse *= clamp( L, vec3( 0.05 ), vec3( 1.6 ) ); }\\n#include <aomap_fragment>');
     };
+    m.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|roomlit'; };
+    m.needsUpdate = true;
+  };
+  // the shadows: a body's twins on one plane, from one lamp each
+  const SLOTS = 2, MAX = 4.2;
+  const slotMat = () => {
+    const S = { uShL: { value: new THREE.Vector3(0, 0, 10) }, uShZ: { value: 0 }, uShO: { value: new THREE.Vector2() } };
+    const m = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthWrite: true, depthFunc: THREE.LessDepth, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    m.userData.rlTwin = true; m.userData.S = S;
+    m.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, S);
+      sh.vertexShader = 'uniform vec3 uShL;\\nuniform float uShZ;\\nuniform vec2 uShO;\\nvarying float vShD;\\n' + sh.vertexShader.replace('#include <project_vertex>',
+        'vec4 rw = modelMatrix * vec4( transformed, 1.0 ); float den = max( uShL.z - rw.z, 0.05 ); vec3 pp = uShL + ( rw.xyz - uShL ) * ( ( uShL.z - uShZ ) / den );\\n'
+        + '  vec2 off = pp.xy - uShO; vShD = length( off ); if ( vShD > ' + MAX.toFixed(1) + ' ) pp.xy = uShO + off / vShD * ' + MAX.toFixed(1) + '; pp.z = uShZ + 0.01;\\n'
+        + '  vec4 mvPosition = viewMatrix * vec4( pp, 1.0 ); gl_Position = projectionMatrix * mvPosition;');
+      sh.fragmentShader = 'varying float vShD;\\n' + sh.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( diffuse, opacity * ( 1.0 - smoothstep( ' + (MAX * 0.3).toFixed(2) + ', ' + MAX.toFixed(1) + ', vShD ) ) );');
+    };
+    m.customProgramCacheKey = () => 'roomshadow';
+    return m;
+  };
+  const feetMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.7, depthWrite: true, depthFunc: THREE.LessDepth, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+    alphaMap: (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 2, 32, 32, 32); gr.addColorStop(0, '#fff'); gr.addColorStop(1, '#000'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })() });
+  feetMat.userData.rlTwin = true;
+  const bodies = {};
+  const twin = (o, mat, list) => {
+    let t;
+    if (o.isSkinnedMesh) { t = new THREE.SkinnedMesh(o.geometry, mat); t.bind(o.skeleton, o.bindMatrix); t.bindMode = o.bindMode; }
+    else t = new THREE.Mesh(o.geometry, mat);
+    t.userData.rlTwin = true; t.frustumCulled = false; t.castShadow = false; t.raycast = function () {}; t.renderOrder = -1;
+    t.matrixAutoUpdate = false; t.matrix = o.matrix; o.parent.add(t); list.push({ o, t });
+  };
+  const own = (id, g) => {
+    const B = bodies[id] || (bodies[id] = { slots: Array.from({ length: SLOTS }, () => ({ mat: slotMat(), twins: [] })), feet: null, z: null });
+    g.traverse((o) => {
+      if (!o.isMesh || o.userData.rlTwin || twinned.has(o) || !o.parent) return;
+      for (const m of [].concat(o.material)) shade(m);
+      if (o.material && o.material.transparent && o.material.opacity < 0.5) return;
+      twinned.add(o);
+      for (const S of B.slots) twin(o, S.mat, S.twins);
+    });
+    if (!B.feet) { B.feet = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), feetMat); B.feet.userData.rlTwin = true; B.feet.raycast = function () {}; B.feet.renderOrder = -1; scene.add(B.feet); }
+    return B;
   };
   let n = 0;
   (function tick() {
     requestAnimationFrame(tick);
-    const F = window.__mojForm; if (!F || !F.lightAt) return;
-    const scan = n++ % 30 === 0;
+    const F = window.__mojForm, R = F && F.lit; if (!R) return;
+    const scan = n++ % 30 === 0, p = __world.pilotId && __world.byId[__world.pilotId], at = p && p.transform ? p.transform.pos : null;
+    if (at) {
+      const near = R.lamps.map((l) => [l, Math.hypot(l.at[0] - at[0], l.at[1] - at[1], l.at[2] - at[2])]).sort((a, b) => a[1] - b[1]);
+      for (let i = 0; i < K; i++) { const l = near[i] && near[i][0]; U.uRlP.value[i].set(...(l ? l.at : [0, 0, -100])); U.uRlK.value[i].set(...(l ? l.key : [0, 0, 0])); U.uRlR.value[i] = l ? l.r : 1; }
+      U.uRlAmb.value.set(...R.amb); U.uRlFall.value = R.fall;
+    }
     for (const id in __bodies) {
       const g = __bodies[id], e = __world.byId[id]; if (!g || !e || !e.transform) continue;
-      const P = e.transform.pos, L = F.lightAt(P[0], P[1], (P[2] || 0) + 1.2), y = 0.2126 * L[0] + 0.7152 * L[1] + 0.0722 * L[2], k = y > 1e-6 ? Math.min(HI, Math.max(LO, y)) / y : 1;
-      (tint[id] || (tint[id] = new THREE.Color())).setRGB(L[0] * k, L[1] * k, L[2] * k);
-      if (scan) g.traverse((o) => { if (o.isMesh) own(o, id); });
+      const B = scan || !bodies[id] ? own(id, g) : bodies[id], P = e.transform.pos, live = g.visible !== false && !e.gone;
+      // (the floor under it: where it last stood, held through a jump)
+      if (B.z === null || e.grounded !== false) B.z = P[2] || 0;
+      // the lamps that light it most, by what each gives at its chest
+      const W = R.lamps.map((l) => { const d = Math.hypot(l.at[0] - P[0], l.at[1] - P[1], l.at[2] - (P[2] || 0) - 1.2), t = Math.max(0, 1 - Math.max(d, 1.1) / l.r); return [l, (0.2126 * l.key[0] + 0.7152 * l.key[1] + 0.0722 * l.key[2]) * Math.pow(t * t, R.fall)]; })
+        .filter((x) => x[1] > 1e-4).sort((a, b) => b[1] - a[1]);
+      const all = W.reduce((s, x) => s + x[1], 0) + (0.2126 * R.amb[0] + 0.7152 * R.amb[1] + 0.0722 * R.amb[2]);
+      B.slots.forEach((S, i) => {
+        const w = W[i], a = live && w ? Math.min(0.75, 1.4 * w[1] / Math.max(all, 1e-4)) : 0;
+        S.mat.opacity = a; S.mat.visible = a > 0.02;
+        if (w) { S.mat.userData.S.uShL.value.set(w[0].at[0], w[0].at[1], Math.max(w[0].at[2], B.z + 2.2)); S.mat.userData.S.uShZ.value = B.z; S.mat.userData.S.uShO.value.set(P[0], P[1]); }
+      });
+      B.feet.visible = live; B.feet.position.set(P[0], P[1], B.z + 0.012); const up = Math.max(0, (P[2] || 0) - B.z); B.feet.scale.setScalar(1 / (1 + up)); feetMat.opacity = 0.7;
     }
   })();
 })();

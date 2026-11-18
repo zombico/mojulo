@@ -39,12 +39,18 @@ describe('a room\'s shade', () => {
     expect(() => readGeocube({ from: 'gothic-night', light: { shade: 1 } })).toThrow(/light.shade/);
   });
 
-  it('the page: the room\'s light at a point only where its figures are lit by it, and the bodies take it only then', () => {
+  it('the page: the room\'s light at a point and its lamps only where its figures are lit by it, and the bodies shaded and shadowed only then', () => {
     const cfg = { ...FORM_PAGE, lights: [{ at: [0, 0, 3], key: [0.5, 0.5, 0.5], radius: 8, live: true }], ambient: [0.01, 0.01, 0.01], fall: 2, maps: {} };
     expect(formScript(cfg)).not.toMatch(/lightAt/);
     expect(formScript({ ...cfg, figures: true })).toMatch(/probe\.lightAt = /);
+    expect(formScript({ ...cfg, figures: true })).toMatch(/probe\.lit = /);
     const ent = [{ id: 'p', transform: { pos: [0, 0, 0], heading: 0 }, rule: { type: 'platform' }, body: { type: 'box', size: [0.5, 0.5, 1.8] }, pilotable: true }];
     expect(controllableChannelScript(ent, null, {}, {})).not.toMatch(/__roomLight/);
-    expect(controllableChannelScript(ent, null, {}, { roomLit: true })).toMatch(/function __roomLight\(\)/);
+    const lit = controllableChannelScript(ent, null, {}, { roomLit: true });
+    expect(lit).toMatch(/function __roomLight\(\)/);
+    // (each body shaded by the room's lamps on its own material, and its shadows thrown on the floor from the two that light it most)
+    expect(lit).toContain("'|roomlit'");
+    expect(lit).toContain("'roomshadow'");
+    expect(() => new Function('THREE', 'scene', 'camera', 'renderer', lit)).not.toThrow();
   });
 });

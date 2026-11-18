@@ -472,6 +472,8 @@ ${cfg.figures ? `  // THE ROOM'S LIGHT AT A POINT (\`figures\`: a room that asks
     for (const l of LA) { const d = Math.hypot(l.at[0] - x, l.at[1] - y, l.at[2] - z); if (d < l.radius) { const w = fo(d, l.radius); o[0] += l.key[0] * w; o[1] += l.key[1] * w; o[2] += l.key[2] * w; } }
     return [o[0] / LREF, o[1] / LREF, o[2] / LREF];
   };
+  // (and the lamps themselves over the same light, for the bodies' own shading and their shadows: channels/controllable)
+  probe.lit = { lamps: LA.map((l) => ({ at: l.at, key: l.key.map((v) => v / LREF), r: l.radius })), amb: F.ambient.map((v) => v / LREF), fall: F.fall };
 ` : ''}  const prev = scene.onBeforeRender;
   scene.onBeforeRender = function (r, s, cam, rt) {
     if (prev) prev.call(this, r, s, cam, rt);
