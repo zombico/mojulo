@@ -539,7 +539,6 @@ function placeBody(B, p, F) {
 // ── what hangs loose on a character's body (brawl-sway.js): its long hair below the neck and its cloth below the hips
 // (a skirt, a coat's tails, a cape's hem), bent about their roots by the air the body moves through: its own motion,
 // a gale it stands in, a floater's updraft. Read from its rest positions once; drawn only (the sim never sees it) ──
-const SWAY_REST = new WeakMap();
 function swayRegionsOf(B) {
   if (B.sway !== undefined) return B.sway;
   const pack = B.skin.pack, bi = (id) => pack.bones.findIndex((b) => b.id === id);
@@ -554,8 +553,7 @@ function swayRegionsOf(B) {
   const out = [];
   const add = (kind, geo, carrier, pick, root, at) => {
     const pos = geo.attributes.position.array, R = swayRegion(pos, root, pivotOf(pos, root, pick, at), pick, BRAWL_SWAY[kind].least);
-    if (!SWAY_REST.has(geo)) SWAY_REST.set(geo, pos.slice());
-    if (R) out.push({ kind, P: BRAWL_SWAY[kind], geo, rest: SWAY_REST.get(geo), R, carrier, st: { wx: 0, wy: 0, vx: 0, vy: 0 }, still: true });
+    if (R) out.push({ kind, P: BRAWL_SWAY[kind], geo, R, carrier, st: { wx: 0, wy: 0, vx: 0, vy: 0 }, still: true });
   };
   // (the face and the throat ahead of the neck are not hair: a lock hangs behind it or beside it)
   const behind = (pos, i) => pos[i * 3 + 1] < neck[1] + 0.03;
@@ -596,7 +594,7 @@ function swayBody(B, p, F) {
     if (dfr > 0) swayStep(G.st, swayHang(SWAY_IN, G.P), SWAY_IN, G.P, Math.min(dfr, 6), f, p.id * 1.37, float);
     const still = Math.hypot(G.st.wx, G.st.wy) < 1e-3;
     if (still && G.still) continue;
-    swayBend(G.geo.attributes.position.array, G.rest, G.R, G.st.wx, G.st.wy);
+    swayBend(G.geo.attributes.position.array, G.R, G.st.wx, G.st.wy);
     // (only the span it bent goes up to the card: a played body is one buffer of every part)
     const A = G.geo.attributes.position, lo = G.R.idx[0], hi = G.R.idx[G.R.idx.length - 1];
     A.addUpdateRange(lo * 3, (hi - lo + 1) * 3);

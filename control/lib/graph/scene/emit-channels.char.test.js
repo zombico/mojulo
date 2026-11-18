@@ -957,3 +957,6 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // crowd's summoner and its summons (a pool held offstage, called a few at a time, cut down with it), a pair (one down, the
 // other enraged), a boss's form at a stage, the caster, drone and blaster crowd types, and the client's dust, flashes and
 // banner for them. The fixture's street says none of them: it plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: the review's fixes): `brawl` only. Its page inlines the sway keeping each
+// region's own rest positions (no copy of a part's buffer), and a boss stage's form read as any fighter's recipe. The
+// fixture plays as it did.

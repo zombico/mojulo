@@ -995,8 +995,9 @@ function quickSteps(world, G, ref, lookup) {
       // (its FRONT: the world's own, else a heroes game's arcade front (quick.js heroFront): attract, title, the end card
       // once the villain falls, the roll; the streets one after another between them)
       const front = G.front ?? (heroes ? heroFront(heroes) : undefined);
-      // (a CAMPAIGN: each street after the first opens once the one before it is cleared, the store's progression)
-      const game0 = { title, store: quickStore(Q), levels: streets.map((s, i) => ({ ref: s.ref, title: s.name, ...(i ? { gate: { completed: streets[i - 1].ref } } : {}) })), allow_unaudited: true, shell: 'play', ui, ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), ...(G.screen ? { screen: G.screen } : {}), ...(front ? { front } : {}) };
+      // (a heroes CAMPAIGN: each street after the first opens once the one before it is cleared, the store's progression;
+      // another brawl's streets are picked freely, as they were)
+      const game0 = { title, store: quickStore(Q), levels: streets.map((s, i) => ({ ref: s.ref, title: s.name, ...(i && heroes ? { gate: { completed: streets[i - 1].ref } } : {}) })), allow_unaudited: true, shell: 'play', ui, ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), ...(G.screen ? { screen: G.screen } : {}), ...(front ? { front } : {}) };
       // EACH STREET A TURN (game/turn.js): the game's flow, every street's step asking the brawl's set-up before it
       // loads (how hard, asked once; who plays, asked each time), so the shell stitches the streets: set up, load,
       // play, results, the next street. A world's own set-up is kept

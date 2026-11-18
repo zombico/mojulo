@@ -184,7 +184,7 @@ function readStages(stages, where) {
     if (st.plays !== undefined && Array.isArray(st.plays) && st.plays.includes('grab')) throw new Error(`brawl: ${where}[${k}].plays: a boss's grab is the fight's throw, its CPU's (no 'grab' play)`);
     // (`form`: the fighter it is DEFEATED INTO as the stage begins (the foe shelf's modes: `becomes`), a recipe: its moves
     // and its power from there, its health carried on)
-    if (st.form !== undefined && (k === 0 || !st.form || typeof st.form !== 'object' || !st.form.archetype)) throw new Error(`brawl: ${where}[${k}].form is the fighter it becomes as that stage begins, a fighter's recipe (not its first stage)`);
+    if (st.form !== undefined && (k === 0 || !st.form || typeof st.form !== 'object' || Array.isArray(st.form))) throw new Error(`brawl: ${where}[${k}].form is the fighter it becomes as that stage begins, a fighter's recipe (not its first stage)`);
     return { at, ...(st.cpu ? { cpu: st.cpu } : {}), ...(st.plays ? { plays: st.plays } : {}), ...(typeof st.name === 'string' && st.name ? { name: st.name } : {}), ...(st.form ? { form: st.form } : {}) };
   });
 }

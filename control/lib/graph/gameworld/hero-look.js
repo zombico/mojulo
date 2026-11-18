@@ -16,7 +16,8 @@
  *   heroLook(brief, look)   → the look its description gives, its explicit words over it, or null when neither says any
  *   lookSpec(look, sheet, head)  → the hero door's words over the sheet's (`hair`, `palette`, `outfit`) for `head`
  *                           ('anime' or the western 'landmark'): the hair a style that head wears, its colour the palette's
- *                           Hair, each piece added to the sheet's outfit (its own of that kind replaced)
+ *                           Hair, each piece added to the sheet's outfit build (its own of that kind replaced; none
+ *                           rolled, an outfit of the pieces; one garment's word kept, the pieces left off)
  * Pure.
  */
 
@@ -63,8 +64,11 @@ export function readLook(v, at = 'look') {
 }
 
 // ── the words found in a sentence ──
-const STYLE_WORDS = Object.freeze({ ponytail: 'ponytail', 'pony-tail': 'ponytail', braid: 'braid', braids: 'braid', braided: 'braid', plait: 'braid', plaits: 'braid', bun: 'bun', topknot: 'bun', bob: 'bob', pixie: 'pixie', buzzcut: 'buzz', buzz: 'buzz', shaved: 'buzz', crewcut: 'crew', undercut: 'undercut', quiff: 'quiff', pompadour: 'quiff', bald: 'none', wavy: 'wavy', curly: 'wavy', curls: 'wavy', hime: 'hime' });
+const STYLE_WORDS = Object.freeze({ ponytail: 'ponytail', pigtails: 'braid', braid: 'braid', braids: 'braid', braided: 'braid', plait: 'braid', plaits: 'braid', bun: 'bun', topknot: 'bun', bob: 'bob', pixie: 'pixie', buzzcut: 'buzz', buzz: 'buzz', shaved: 'buzz', crewcut: 'crew', undercut: 'undercut', quiff: 'quiff', pompadour: 'quiff', bald: 'none', wavy: 'wavy', curly: 'wavy', curls: 'wavy', hime: 'hime' });
 const HAIR_NOUNS = new Set(['hair', 'haired', 'mane', 'locks', 'tresses']);
+// (the words that mean a hairstyle wherever they stand; the rest (a bob, a bun, a braid, shaved) are read only beside the
+// hair, as a name, a pastry, a uniform's gold braid or a clean-shaved jaw are not hair)
+const HAIR_ONLY = new Set(['ponytail', 'topknot', 'pompadour', 'quiff', 'undercut', 'buzzcut', 'crewcut', 'bald', 'pigtails']);
 const PIECE_WORDS = Object.freeze({ cape: 'cape', capes: 'cape', cloak: 'cape', mantle: 'cape', gown: 'gown', dress: 'gown', skirt: 'gown', robe: 'robe', robes: 'robe' });
 // (how long a piece hangs, from the words just before it)
 const HEM_WORDS = Object.freeze({ long: 'ankle', flowing: 'ankle', trailing: 'ankle', sweeping: 'ankle', billowing: 'ankle', floor: 'ankle', short: 'knee', mini: 'thigh' });
@@ -81,13 +85,14 @@ export function lookOfBrief(brief) {
       const before = near(i, 4).slice(0, -1), after = words.slice(i + 1, i + 6);
       const colour = before.map((x) => HAIR_COLOURS[x]).filter(Boolean).pop();
       if (colour && look.colour === undefined) { look.colour = colour; read.push(`${before.find((x) => HAIR_COLOURS[x] === colour)} ${w}`); }
-      const style = before.map((x) => STYLE_WORDS[x] ?? (x === 'long' ? 'long' : x === 'short' ? 'short' : x === 'spiky' ? 'animeShort' : null)).filter(Boolean).pop();
+      const style = before.map((x) => STYLE_WORDS[x] ?? (x === 'long' ? 'long' : x === 'short' ? 'short' : x === 'spiky' ? 'animeShort' : null)).filter(Boolean).pop()
+        ?? after.map((x) => STYLE_WORDS[x]).find(Boolean);
       if (style && look.hair === undefined) { look.hair = style; read.push(`${style} ${w}`); }
       if ([...before, ...after].includes('waist') || after.includes('hips')) { look.hair ??= 'long'; look.length = 2; read.push('to the waist'); }
       else if ([...before, ...after].includes('shoulder') || [...before, ...after].includes('shoulders')) { look.hair ??= 'layers'; read.push('to the shoulders'); }
       continue;
     }
-    if (STYLE_WORDS[w] && w !== 'wavy' && w !== 'curly' && look.hair === undefined) { look.hair = STYLE_WORDS[w]; read.push(w); continue; }
+    if (HAIR_ONLY.has(w) && look.hair === undefined) { look.hair = STYLE_WORDS[w]; read.push(w); continue; }
     // what hangs loose: its hem from the word just before it ("a long cape", "a flowing cloak", "a short skirt")
     const piece = PIECE_WORDS[w];
     if (piece && look[piece] === undefined) {
@@ -124,8 +129,11 @@ export function lookSpec(look, sheet = {}, head = 'landmark') {
   // WHAT HANGS LOOSE: each piece on the sheet's outfit, the sheet's own of that kind replaced; none is taken off
   const pieces = PIECES.filter((p) => look[p] !== undefined && look[p] !== false).map((p) => ({ kind: PIECE_KIND[p], ...(typeof look[p] === 'string' ? { hem: look[p] } : {}) }));
   if (pieces.length) {
+    // (an outfit build takes them beside its own; none rolled (an armour look), an outfit of the pieces alone; an outfit
+    // said as one garment's word takes no pieces without being replaced, so it is kept and they are left off)
     const O = isObj(sheet.outfit) ? sheet.outfit : null, kinds = new Set(pieces.map((p) => p.kind));
-    out.outfit = O ? { ...O, pieces: [...(Array.isArray(O.pieces) ? O.pieces.filter((p) => !kinds.has(p?.kind)) : []), ...pieces] } : { type: 'outfit', style: 'adventurer', pieces };
+    if (O) out.outfit = { ...O, pieces: [...(Array.isArray(O.pieces) ? O.pieces.filter((p) => !kinds.has(p?.kind)) : []), ...pieces] };
+    else if (sheet.outfit === undefined || sheet.outfit === null) out.outfit = { type: 'outfit', style: 'adventurer', pieces };
   }
   return out;
 }

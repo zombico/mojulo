@@ -228,7 +228,8 @@ export function brawlStreet(G, street, { gun = false, plays = null } = {}) {
     const written = stagesIn ? stagesIn.map(({ calls: _c, ...st }) => st) : null;
     // (its forms laid on its acts in turn: the acts it has, else one an act a form, its health shared evenly)
     const stages0 = written ?? (forms.length ? Array.from({ length: forms.length + 1 }, () => ({})) : null);
-    const stages = stages0 ? stages0.map((st, k) => (k > 0 && forms[k - 1] ? { ...st, form: { foe: forms[k - 1] }, ...(st.name ? {} : { name: forms[k - 1] }) } : st)) : null;
+    // (the act keeps its own name, else the street's own banner for it: a bestiary id is no name for a player)
+    const stages = stages0 ? stages0.map((st, k) => (k > 0 && forms[k - 1] ? { ...st, form: { foe: forms[k - 1] } } : st)) : null;
     if (written && forms.length > written.length - 1) says.push(`${id} becomes ${forms.length} forms but its fight has ${written.length - 1} acts after the first: the last ${forms.length - (written.length - 1)} are not reached`);
     waves.push({ screen: screens.length - 1, crowd: [...(bossWords.with ? C.waves[withAt].crowd : []), ...called], boss: { foe: id, ...(bossWords.hp ? { hp: bossWords.hp } : {}), ...(bossWords.cpu ? { cpu: bossWords.cpu } : {}), ...(stages ? { stages } : {}), ...(pairWords ? { pair: pairWords } : {}) } });
   } else says.push('the street ends on its last stop: it names no boss');

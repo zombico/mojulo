@@ -248,6 +248,7 @@ describe('a designed street plays the bestiary\'s idioms', () => {
     const B = S.waves.at(-1).boss;
     expect(B.pair).toEqual({ foe: 'queen', down: 'enrage' });
     expect(B.stages.map((st) => st.form?.foe ?? null)).toEqual([null, 'kingBare']);
+    expect(B.stages[1].name).toBeUndefined();
     for (const id of ['imp', 'witch', 'king', 'kingBare', 'queen']) expect(S.foes).toContain(id);
   });
   it('laid as a level, the yard reads every idiom by its bodies, drawn in the order the street makes them', () => {

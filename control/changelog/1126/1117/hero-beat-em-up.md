@@ -5,7 +5,7 @@
   them that drops in from above and comes out of doors as well as walking on. More of them come at once, and each
   falls to a few blows. At the end waits a villain who has a power of its own and fights in stages. You have five
   falls. "A superhero beat em up in a port town" now lays its streets this way. A plain "beat em up" is unchanged.
-- **Eight powers, each a card.** A beam from the eyes or the hands that passes through everyone lined up on it. A
+- **Powers, each a card.** A beam from the eyes or the hands that passes through everyone lined up on it. A
   great slow ball of force. A barrage of darts. A gout of flame. Lightning called down all round you. A berserk
   rush through the crowd. A step through space. A strongman's grip that slams a body down. Each is drawn in its own
   colour as it flies, and each hero's uses left show as pips under its health. Using one spends one; falling fills
@@ -20,7 +20,7 @@
   are and what each one's power is, and offers the defaults if you have none in mind. A hero can be your own,
   described in a sentence with its build, age and whether it is a man or a woman. It is rolled from your words and
   made as a character. It can also be a character you have already made, or another of the comic pack's cast. A
-  power is one of the eight kinds made yours: give it a name and a look (any beam, a laser or lightning or a ball
+  power is one of the kinds made yours: give it a name and a look (any beam, a laser or lightning or a ball
   of fire), how many uses it has each life, and how strong it is. A power thrown down the street also takes how
   fast it flies, how big it is and how many enemies it passes through. Each setting has limits. The villain can be
   chosen too, with a name and a power of its own. The hero picker shows each hero's power by name. A power far
@@ -29,7 +29,7 @@
 - **A designed game's street can be a superhero one.** Give a street level `tuning: 'heroes'`. Your game's hero
   then plays its own power: the first attack its actions page throws is played as the street power of that kind and
   drawn in that beam. The cast who join the party and any stand-ins take the team's powers in seat order. A street
-  can also name each seat's power itself, one of the eight or one you designed. The street's enemies are still your
+  can also name each seat's power itself, one of the shelf's or one you designed. The street's enemies are still your
   game's own.
 - **A power is a super moment.** When a hero calls up a power, the whole street holds still for an instant, as a
   fighting game's super does: longest for the ball of force and the storm, a blink for the phase. While it holds,
@@ -165,7 +165,7 @@
   colour. A hero calling up a power flashes in that colour.
 - **Measured, by a simple player that presses its power.** The studio's simple player now has a `hero` version.
   It uses its power when two or more enemies are lined up with room before the nearest, or three are around it.
-  On the default street with the heroes tuning, one hero won alone with each of the eight powers, losing two to four
+  On the default street with the heroes tuning, one hero won alone with each power, losing two to four
   of its five falls (two or three with the super moment in). The plain player, which never uses a power, lost four.
   Four heroes together won with no falls (one with the super moment in),
   and a player that does nothing cleared no stop. On the street a superhero sentence makes, the hero player won with

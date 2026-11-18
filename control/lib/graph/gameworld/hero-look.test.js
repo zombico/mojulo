@@ -17,6 +17,9 @@ describe('a look read from a description (lookOfBrief)', () => {
   it('a style said alone, a colour said as "-haired", a skirt\'s hem from the word before it', () => {
     expect(lookOfBrief('a swordswoman with a black ponytail and a long red skirt').look).toEqual({ hair: 'ponytail', gown: 'ankle' });
     expect(lookOfBrief('a silver-haired knight in a short skirt').look).toEqual({ colour: HAIR_COLOURS.silver, gown: 'knee' });
+    // (a style word read only beside the hair where it could mean something else: a name, a uniform's braid, a jaw)
+    expect(lookOfBrief('Bob, a retired firefighter in a coat with gold braid, clean shaved').look).toBe(null);
+    expect(lookOfBrief('her hair in a tight bun').look).toEqual({ hair: 'bun' });
   });
 });
 
@@ -53,6 +56,10 @@ describe('a look laid over a sheet (lookSpec, brawlBody)', () => {
     const C = sheet('western', 'male');
     expect(brawlBody(C, false, null)).toEqual(brawlBody(C));
     expect(lookSpec(null, C.create.spec)).toEqual({});
+  });
+  it('a piece takes nothing off: beside an outfit build, alone where none was rolled, never over one garment\'s word', () => {
+    expect(lookSpec({ cape: true }, { cast: 'female' }).outfit).toEqual({ type: 'outfit', style: 'adventurer', pieces: [{ kind: 'cloak' }] });
+    expect(lookSpec({ cape: true }, { cast: 'female', outfit: 'tee' }).outfit).toBeUndefined();
   });
   it('a length alone lengthens the sheet\'s own style', () => {
     const C = sheet('anime');

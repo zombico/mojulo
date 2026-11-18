@@ -81,7 +81,8 @@ export function swayStep(st, hang, a, P, frames, f, seed, float = false) {
 
 /**
  * A region of a part's rest positions (`pos`, xyz): the vertices `pick(i)` takes that hang below `root` (z), measured
- * from the pivot [x, y] on the root → { idx, u (depth below the root), ox, oy (offset from the hang's axis), L, pivot },
+ * from the pivot [x, y] on the root → { idx, u (depth below the root), ox, oy (offset from the hang's axis), L, pivot,
+ * rest (its vertices' own rest positions, xyz in its order) },
  * or null when nothing hangs `least` (m) below it.
  */
 export function swayRegion(pos, root, pivot, pick = () => true, least = 0.02) {
@@ -89,9 +90,10 @@ export function swayRegion(pos, root, pivot, pick = () => true, least = 0.02) {
   let L = 0;
   for (let i = 0; i < pos.length / 3; i++) { const u = root - pos[i * 3 + 2]; if (u > 0 && pick(i)) { idx.push(i); if (u > L) L = u; } }
   if (!idx.length || L < least) return null;
-  const n = idx.length, u = new Float32Array(n), ox = new Float32Array(n), oy = new Float32Array(n);
-  idx.forEach((i, k) => { u[k] = root - pos[i * 3 + 2]; ox[k] = pos[i * 3] - pivot[0]; oy[k] = pos[i * 3 + 1] - pivot[1]; });
-  return { idx: Int32Array.from(idx), u, ox, oy, L, pivot: [pivot[0], pivot[1], root] };
+  // (its own vertices' rest positions kept with it: a still air writes them back, and nothing else of the part is copied)
+  const n = idx.length, u = new Float32Array(n), ox = new Float32Array(n), oy = new Float32Array(n), rest = new Float32Array(n * 3);
+  idx.forEach((i, k) => { u[k] = root - pos[i * 3 + 2]; ox[k] = pos[i * 3] - pivot[0]; oy[k] = pos[i * 3 + 1] - pivot[1]; rest.set(pos.subarray ? pos.subarray(i * 3, i * 3 + 3) : pos.slice(i * 3, i * 3 + 3), k * 3); });
+  return { idx: Int32Array.from(idx), u, ox, oy, L, pivot: [pivot[0], pivot[1], root], rest };
 }
 
 /**
@@ -99,9 +101,9 @@ export function swayRegion(pos, root, pivot, pick = () => true, least = 0.02) {
  * from the root, the tip turned the whole angle, each vertex's offset from the axis turned with it. Under a thousandth
  * of a radian ⇒ the rest positions, as they were.
  */
-export function swayBend(out, rest, R, wx, wy) {
-  const th = hyp(wx, wy), { idx, u, ox, oy, L, pivot } = R;
-  if (th < 1e-3) { for (let k = 0; k < idx.length; k++) { const j = idx[k] * 3; out[j] = rest[j]; out[j + 1] = rest[j + 1]; out[j + 2] = rest[j + 2]; } return out; }
+export function swayBend(out, R, wx, wy) {
+  const th = hyp(wx, wy), { idx, u, ox, oy, L, pivot, rest } = R;
+  if (th < 1e-3) { for (let k = 0; k < idx.length; k++) { const j = idx[k] * 3; out[j] = rest[k * 3]; out[j + 1] = rest[k * 3 + 1]; out[j + 2] = rest[k * 3 + 2]; } return out; }
   const kx = wx / th, ky = wy / th, ex = -ky, ey = kx, r = L / th;
   for (let k = 0; k < idx.length; k++) {
     const j = idx[k] * 3, phi = (th * Math.min(u[k], L)) / L, c = Math.cos(phi), s = Math.sin(phi);

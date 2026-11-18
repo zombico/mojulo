@@ -871,6 +871,12 @@ function gruntBrawler(O, type, heavy) {
   const swings = typeof gesture === 'string' && SWING_HAND[gesture] && !(keeps && gear[SWING_HAND[gesture]]);
   return { ...spec, ...(keeps ? { gear } : {}), ...(gesture !== undefined && !swings ? { gesture } : {}), ...BRAWLER_BODY(pole, heavy) };
 }
+/** Whether a heroes brawl's streets call drones: a lieutenant's or its villain's summons, an act's call or a henchman */
+export function heroDrones(Q, H) {
+  const list = Q.streets ?? HERO_CAMPAIGN;
+  const rows = [...list.slice(0, -1).map((_, i) => readVillain(LIEUTENANT_KINDS[i % LIEUTENANT_KINDS.length])), readVillain({ kind: H.villain.kind ?? 'mastermind', ...(H.villain.design ?? {}), power: H.villain.power })];
+  return rows.some((R) => R.summons?.type === 'drone' || R.stages.some((st) => st.calls?.drone) || (R.henchmen ?? []).some((h) => h.type === 'drone'));
+}
 /** how tall a summoned drone stands, a share of its crew's height */
 export const DRONE_STATURE = 0.8;
 /** A brawl's crowd, cast: → { faction, colourway, members: [{ id, name, as: a crowd type | 'boss', heavy, grunt, mint }] },
@@ -890,12 +896,15 @@ export function brawlCrowd(Q, seed = 1, title = 'brawl') {
   // (its boss: its heaviest kind, on the hulking body)
   const top = kinds.find((k) => S.kinds[k].builds.includes('brute')) ?? kinds.find((k) => S.kinds[k].builds.some((b) => BIG.has(b) || b === 'heroic')) ?? kinds[kinds.length - 1];
   members.push(member(roll(n, top), 'crowd-boss', 'boss', true, `${S.name} boss`));
-  if (H) {
+  if (H && heroDrones(Q, H)) {
     // (THE DRONES a summoner calls, brawl-crowd.js `drone`: one of the crew's lightest kind in another of its colourways,
-    // smaller, so a summons reads as one on the page; drawn only as summons, never in a wave of its own)
+    // smaller, so a summons reads as one on the page; drawn only as summons, never in a wave of its own; made only where
+    // a street's lieutenant or villain calls them)
     const light = kinds.find((k) => S.kinds[k].builds.includes('lithe')) ?? kinds[0], other = ways[(ways.indexOf(colourway) + 1) % ways.length];
     const D = gruntOrders(C.faction, 'dcau-golden', { seed, index: n + 1, kind: light, colourway: other }), d = member(D, 'crowd-drone', 'drone', false, `${S.name} drone`);
     members.push({ ...d, mint: { ...d.mint, spec: { ...d.mint.spec, tune: { ...(isObj(d.mint.spec.tune) ? d.mint.spec.tune : {}), stature: DRONE_STATURE } } } });
+  }
+  if (H) {
     const V = heroVillain(H, seed);
     members.push({ id: 'crowd-villain', name: V.name, as: 'villain', heavy: true, grunt: null, ...(V.hero ? { hero: V.hero } : { mint: { ...V.mint, title: `${title} · ${V.name}` } }) });
     // (A PAIR's second, brawl-villains.js: its own character, rolled from the same member another way; one already made

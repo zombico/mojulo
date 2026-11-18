@@ -83,12 +83,12 @@ describe('the bend (swayRegion, swayBend)', () => {
   it('no turn gives back the rest positions, byte for byte', () => {
     const out = pos.slice();
     out.fill(7);
-    swayBend(out, pos, R, 0, 0);
+    swayBend(out, R, 0, 0);
     for (const i of R.idx) for (let c = 0; c < 3; c++) expect(out[i * 3 + c]).toBe(pos[i * 3 + c]);
   });
   it('bends the tip the way the turn says and keeps the strand its length', () => {
     const out = pos.slice();
-    swayBend(out, pos, R, -0.8, 0);
+    swayBend(out, R, -0.8, 0);
     // the tip (the middle vertex at the bottom) swung back (−y) and up
     const tip = 3 * (6 * 3 + 1);
     expect(out[tip + 1]).toBeLessThan(pos[tip + 1] - 0.05);
@@ -104,7 +104,7 @@ describe('the bend (swayRegion, swayBend)', () => {
   });
   it('a vertex at the root does not move', () => {
     const R0 = swayRegion(pos, 1.5 + 1e-4, [0, -0.08]), out = pos.slice(), first = R0.idx[0] * 3;
-    swayBend(out, pos, R0, 0.9, 0.4);
+    swayBend(out, R0, 0.9, 0.4);
     expect(Math.hypot(out[first] - pos[first], out[first + 1] - pos[first + 1], out[first + 2] - pos[first + 2])).toBeLessThan(0.001);
   });
 });

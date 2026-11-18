@@ -284,6 +284,8 @@ describe('a heroes brawl', () => {
     expect(lair.roster[lair.cast.drone[0]].hero.ref).toBe(droneAt.ref);
     expect(lair.cast['*']).not.toContain(lair.cast.drone[0]);
     expect(lair.waves.flatMap((w) => w.crowd).some((c) => c.type === 'drone')).toBe(false);
+    // (a game whose streets call no drones makes none: one street, the twins at its end)
+    expect(brawlCrowd({ goal: 'brawl', heroes: { villain: 'rival' }, streets: [{ id: 'one' }] }, 1).members.some((m) => m.as === 'drone')).toBe(false);
     // (the twins: a pair, its second its own character, the last street drawing both)
     const T = lairOf({ villain: { member: 'rival', name: 'Castor' } });
     const pairBoss = T.lair.waves.find((w) => w.boss).boss;
@@ -313,6 +315,9 @@ describe('a heroes brawl', () => {
     // (its own streets are its own; a world's own front wins)
     const own = runSteps(world({ heroes: true, streets: [{ id: 'one' }] }), { ref: 'gw' }).find((s) => s.key === 'game').order;
     expect(own.levels).toHaveLength(1);
+    // (another brawl's streets are picked freely: no gates)
+    const plain = runSteps(world({ streets: [{ id: 'one' }, { id: 'two' }] }), { ref: 'gw' }).find((s) => s.key === 'game').order;
+    expect(plain.levels.every((l) => l.gate === undefined)).toBe(true);
     const fronted = runSteps(quickWorldOf({ heroes: true }, { front: { tagline: 'theirs' } }), { ref: 'gw' }).find((s) => s.key === 'game').order;
     expect(fronted.front).toEqual({ tagline: 'theirs' });
   });
