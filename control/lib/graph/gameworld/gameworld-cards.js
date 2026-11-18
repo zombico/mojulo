@@ -51,7 +51,7 @@ import { STAGE_KITS, resolveKitId, GROUND_KITS } from '../era/stage.js';
 import { STRUCTURE_KITS } from '../era/out-structures.js';
 import { ISEKAI_STYLES } from '../era/isekai.js';
 import { SEEDED_STYLES } from '../equipment/styles.js';
-import { QUICK_GOALS, RHYTHM_MOODS, RACE, DEFEND, DEATHMATCH_MODES } from './quick.js';
+import { QUICK_GOALS, RHYTHM_MOODS, RACE, DEFEND, DEATHMATCH_MODES, HERO_VILLAINS, HERO_TEAM, HERO_ARMY } from './quick.js';
 import { SCORE_MOODS } from '../beats/field-score.js';
 import { CLUB_MOODS } from '../beats/club-score.js';
 import { CAMERAS } from './cameras.js';
@@ -100,6 +100,7 @@ import { SECTIONS, BANDS, TASKS, MISSION_LIMITS, MISSION_DEFAULTS, MISSION_MAPS,
 import { TEMPLATE_IDS } from '../arena-map/templates.js';
 import { DRESS_SETTINGS, DRESS_SETTING_IDS, DRESS_PIECES, DRESS_PIECE_IDS } from '../brawl/brawl-dress.js';
 import { PLAY_TYPES, PLAY_IDS } from '../brawl/brawl-play.js';
+import { POWERS, POWER_IDS } from '../brawl/brawl-powers.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -827,6 +828,7 @@ const QUICK_LEVERS = {
     '  IN A DESIGNED GAME a street is a level: levels.<id>.street: { …the street, players?: 1..4, kit?, lives?, guns? }; its seats the hero and',
     '    the cast who join; more levels are more streets, linked. Give the world screen: \'screen\': a street runs across it.',
     '  OR BY STREETS (gameworld-side-scroll): streets, crowd, play; bare with no `foes`, the starter\'s dressed town street.',
+    '  heroes: gameworld-heroes',
   ],
   rungun: () => [
     '  players: 1..4 on one screen   lives: 1..9 (3)   register: the game\'s one look',
@@ -1575,6 +1577,30 @@ export function genreCardById(id) {
   return { id, name: `What game it is: ${GENRES[genre].name}`, summary: GENRES[genre].why, when: `a ${GENRES[genre].name.toLowerCase()} game`, scope: 'rail', body: genreCard(genre) };
 }
 
+// THE SUPERHERO BEAT-EM-UP (brawl/brawl-powers.js, brawl-tunings.js `heroes`, quick.js readHeroes): generated from the
+// shelves, so a new power, villain or team member is in the card
+function heroesCard() {
+  return lines(
+    'THE SUPERHERO BEAT-EM-UP: the side-scroll beat-em-up tuned for heroes. Every player a hero with ONE power on the special',
+    '(S; a few uses a life, filled at each fall), an army that drops in and comes out of doors and falls fast, five falls,',
+    'and at the end a villain who throws a power of its own, in stages. The street, its stops and its scenes are a brawl\'s.',
+    '',
+    'POWERS (a card each; a new power is a card): ' + POWER_IDS.map((id) => `${id} (${POWERS[id].stock})`).join(', ') + '.',
+    ...POWER_IDS.map((id) => `  ${id}: ${POWERS[id].says}`),
+    '  drawn in its beam\'s colour (playscape/elements beams); a hero\'s own `attack` (its actions page) plays as the power of that form.',
+    '',
+    'QUICK (one call, by streets): design_game({ quick: { goal: \'brawl\', heroes: true | { team?, villain? } } })',
+    `  team: 1..4 in seat order, each a power or { power?, member?, name? } (members: the comic pack\'s cast; unsaid ${HERO_TEAM.map((t) => `${t.member} ${t.power}`).join(', ')})`,
+    `  villain: ${Object.keys(HERO_VILLAINS).map((v) => `${v} (${HERO_VILLAINS[v]})`).join(' | ')}; unsaid the mastermind. crowd: a faction (unsaid ${HERO_ARMY}); streets: as a brawl\'s.`,
+    '  "A superhero beat em up ..." from a sentence lays its streets on this tuning.',
+    'DESIGNED: a street level takes tuning: \'heroes\': its seats the game\'s hero (its own attack) and those who join, the rest the team\'s',
+    '  powers in seat order; its crowd the game\'s own foes, made once.',
+    '',
+    'MEASURED by the scripted hero (brawl-playthrough.js `hero`: presses its power when a crowd is lined up or round it): one',
+    'hero wins the default street alone with falls to spare. Nobody has played it: the eyes gate is the person\'s.',
+  );
+}
+
 // THE SIDE-SCROLL MAP (brawl/brawl-dress.js): generated from the shelves, so a new setting, set or piece is in the card
 const sideScrollCard = () => {
   const wrap = (label, words, width = 112) => { const out = []; let line = label; for (const w of words) { if ((line + ' ' + w).length > width) { out.push(line); line = '    ' + w; } else line += (line.trim().length === label.trim().length && line === label ? '' : ' ') + w; } out.push(line); return out; };
@@ -1657,6 +1683,7 @@ const CARDS = [
   ['gameworld-roll', 'The roll', 'a different map each time: what a level\'s seed picks on it (cover, items, the start, a paced line), an obstacle course for a running game, a run of its maps', 'a different map every time, a roguelite, random levels, procedural, replayable, the level changes each run, an obstacle course, an endless runner with a finish, hurdles to jump, lanes to switch', rollCard],
   ['gameworld-course-dress', 'The course\'s dress', 'how an obstacle course looks: its way and asks, the walls beside it and the backdrop behind it, designed as one dress by role and held to one gate; the course sheet', 'the walls of the course, the background, the backdrop, the skyline, decorate the course, style the level, the sides of the track, scenery, the look of the runner, palette of the course', courseDressCard],
   ['gameworld-side-scroll', 'The side-scroll map', 'a belt seen from one side, dressed as a place: its principles, its settings (a street, a facility, a base, an office), a set a screen, a set of the agent\'s own', 'a beat \'em up level, a side-scrolling stage, a street to fight down, a warehouse level, a military base level, an office level, dress the street, what makes a good brawler stage', sideScrollCard],
+  ['gameworld-heroes', 'The superhero beat-em-up', 'a team of heroes, each its power on its own button with a few uses a life, against an army and a villain with powers: a beat-em-up tuned for heroes', 'a superhero beat em up, heroes with powers, mutants against an army, an X-Men style arcade brawler, a team of heroes', heroesCard],
   ['gameworld-mounts', 'The mounts', 'horses the hero gets on and rides: their coats, where they stand, the ride', 'a horse to ride, mount a horse, ride a horse, horseback, get on my horse, a stable of horses, cavalry', mountsCard],
   ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight, minigames, a fishing minigame, an arcade in the inn', battlesCard],
   ['gameworld-foes', 'The foes', 'hostile classes on the trails: how each moves, hurts and decides, at any rank, on any body that fits', 'enemies in my level, goombas, monsters to fight, a wolf pack, a boss beast, dire wolves, foot soldiers, a turret, things that chase me, a swarm of rats', foesCard],

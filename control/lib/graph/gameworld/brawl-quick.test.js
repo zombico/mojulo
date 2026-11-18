@@ -1,7 +1,9 @@
 // A WORLD THAT IS A BRAWLER (quick goal `brawl`, quick.js; runner.js): its players made as a fight's are, its streets
 // its levels (each a brawl level with its waves and the hosted level's contract), the game in the play shell.
 import { describe, it, expect } from 'vitest';
-import { quickWorld, brawlStreets, defaultWaves, defaultThings, defaultScenes, BRAWL_SCENES, brawlSetup, brawlGuns, QUICK_GUNS, brawlCrowd, crowdTypeOf, BRAWL_STREET, BRAWL_FACTION, QUICK_GOALS } from './quick.js';
+import { quickWorld, brawlStreets, defaultWaves, defaultThings, defaultScenes, BRAWL_SCENES, brawlSetup, brawlGuns, QUICK_GUNS, brawlCrowd, crowdTypeOf, BRAWL_STREET, BRAWL_FACTION, QUICK_GOALS, readHeroes, HERO_TEAM, HERO_ARMY, HERO_VILLAINS } from './quick.js';
+import { POWER_IDS } from '../brawl/brawl-powers.js';
+import { TUNINGS } from '../brawl/brawl-tunings.js';
 import { runSteps } from './runner.js';
 import { brawlPreset } from '../brawl/brawl-levels.js';
 import { GENRES } from '../egocube/setting.js';
@@ -209,5 +211,44 @@ describe('a brawl played as a run & gun (brawl/brawl-play.js)', () => {
     expect(brawlSetup(undefined, [], brawlGuns(streets)).picks[0].from.options.map((o) => o.id)).toEqual([...QUICK_GUNS]);
     expect(brawlSetup(undefined, [], ['rocket']).picks).toBeUndefined();
     expect(brawlGuns(brawlStreets({ goal: 'brawl', streets: [{ id: 'a', level }] }))).toEqual([]);
+  });
+});
+
+// A HEROES BRAWL (`heroes`, the superhero beat-em-up): the comic pack's team, each with a power, against an army and the
+// pack's villain, its streets tuned as the heroes card says.
+describe('a heroes brawl', () => {
+  const H = world({ heroes: true }), steps = runSteps(H, { ref: 'gw' });
+  const street = steps.find((s) => s.key === 'level-street-street').order.manifest.brawl.street;
+  it('is read: a team of 1 to 4 of the pack\'s cast, each a power; one of the pack\'s villains; never with guns', () => {
+    expect(readHeroes(true)).toMatchObject({ team: HERO_TEAM.map((t) => ({ member: t.member, power: t.power })), villain: 'mastermind' });
+    expect(readHeroes({ team: [POWER_IDS[1]] }).team[0]).toMatchObject({ member: HERO_TEAM[0].member, power: POWER_IDS[1] });
+    expect(() => world({ heroes: { team: ['telekinesis'] } })).toThrow(/power/);
+    expect(() => world({ heroes: { team: [{ member: 'nobody' }] } })).toThrow(/member/);
+    expect(() => world({ heroes: { villain: 'sidekick' } })).toThrow(/villain/);
+    expect(() => world({ heroes: true, play: 'gun' })).toThrow(/not played with guns/);
+  });
+  it('its team rolled from the members\' sheets, each roster seat carrying its power; the crowd carries none', () => {
+    const heroes = street.roster.filter((r) => r.power);
+    expect(heroes.map((r) => r.power)).toEqual(HERO_TEAM.map((t) => t.power));
+    for (const [k, r] of heroes.entries()) expect(r.hero.ref).toBe(steps.find((s) => s.key === `fighter-hero-${k + 1}`).ref);
+    const sheet = steps.find((s) => s.key === 'fighter-hero-1-sheet').order.manifest.roll;
+    expect(sheet.facets).toMatchObject({ archetype: 'hero' });
+  });
+  it('an army that falls fast and drops in, the pack\'s villain at the end with a power of its own, in stages', () => {
+    const crowd = brawlCrowd({ goal: 'brawl', heroes: true }, 1);
+    expect(crowd.faction).toBe(HERO_ARMY);
+    expect(crowd.members.find((m) => m.as === 'boss')).toMatchObject({ name: 'The mastermind', mint: { via: 'hero' } });
+    expect(street.tuning).toBe('heroes');
+    const boss = street.waves.find((w) => w.boss).boss;
+    expect(boss.recipe.name).toBe('The mastermind');
+    expect(Object.values(boss.recipe.specials).every((sp) => sp.id === `power.${HERO_VILLAINS.mastermind}`)).toBe(true);
+    expect(boss.plays).toContain('special.neutral');
+    expect(boss.stages.length).toBeGreaterThan(1);
+    expect(new Set(street.waves.flatMap((w) => w.crowd.map((c) => c.entrance ?? 'walk')))).toEqual(new Set(TUNINGS.heroes.entrances));
+  });
+  it('another brawl is as it was: no power, no tuning, the street gang\'s boss', () => {
+    const plain = runSteps(world({}), { ref: 'gw' }).find((s) => s.key === 'level-street-street').order.manifest.brawl.street;
+    expect(plain.tuning).toBeUndefined();
+    expect(plain.roster.some((r) => r.power)).toBe(false);
   });
 });

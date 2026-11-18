@@ -3,7 +3,7 @@
 // book's: a genre it cannot lay from a sentence yet), and a genre the book lays in its own walks laid as it was.
 import { describe, expect, it } from 'vitest';
 
-import { GENRE_FORMS, HAND_OFFS, PENDING, WAITS, pendingOf, refusalOf, heroFrameOf } from './genre-forms.js';
+import { GENRE_FORMS, HAND_OFFS, PENDING, WAITS, pendingOf, refusalOf, heroFrameOf, heroStreetWords } from './genre-forms.js';
 import { readActions, resolveActions } from './actions.js';
 import { GENRES, readGenre, genreCube } from './intent.js';
 import { dryRun } from '../cosmos/cosmos.js';
@@ -156,5 +156,16 @@ describe('the street genres are registered', () => {
     const feel = composeGameworld({ prompt: 'a mega man style run and gun across stormy cliffs', seed: 1 });
     expect(feel.intent).toBeUndefined();
     expect(Object.values(feel.levels)[0].street).toBeUndefined();
+  });
+
+  it('a superhero beat-em-up lays its streets on the heroes tuning, the word read as deciding it; a plain one does not', () => {
+    const W = composeGameworld({ prompt: 'a superhero beat em up in a port town', levels: 1, seed: 1 });
+    expect(W.intent).toEqual({ from: 'co-op-brawler' });
+    expect(Object.values(W.levels)[0].street).toMatchObject({ tuning: 'heroes', lives: 5 });
+    expect(W.brief.read.find((r) => r.word === 'superhero')?.decides).toContain('levels.street.tuning=heroes');
+    expect(W.brief.unread).not.toContain('superhero');
+    expect(() => readGameworld(W)).not.toThrow();
+    expect(Object.values(composeGameworld({ prompt: 'a beat em up in a port town', levels: 1, seed: 1 }).levels)[0].street.tuning).toBeUndefined();
+    expect(heroStreetWords('a superheroic run')).toEqual([]);
   });
 });

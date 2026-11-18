@@ -540,6 +540,8 @@ function rules(room) {
     if (p.ko && p.st === 'ko') {
       if (yard.stakes !== undefined && !yard.over && ++yard.falls >= yard.stakes) { yard.over = 'lost'; continue; }
       p.ko = 0; p.hp = ctx.fighters[p.fi].hp; p.st = 'rise'; p.sf = 0;
+      // (a hero's power stock filled again, as a street's fall fills it: brawl-crowd.js)
+      if (p.pwm !== undefined) p.pw = p.pwm;
     }
   }
   if (yard.wave) waveStep(room);

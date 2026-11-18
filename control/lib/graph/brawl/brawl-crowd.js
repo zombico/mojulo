@@ -42,7 +42,8 @@
  *   CROWD_TYPES, CROWD_RULES
  *   readWaves(waves, belt)                  → the waves, settled (throws naming the fault)
  *   streetOf({ belt, players, waves, things?, rules?, crowd? }) → a street: { ctx, s, mind } (players: [{ recipe,
- *                                           style? }]; things the street's, brawl-things.js, in the belt's metres: each
+ *                                           style?, power? }]: `power` a hero's (brawl-powers.js readPower), its every
+ *                                           special the power and its body the stock; things the street's, brawl-things.js, in the belt's metres: each
  *                                           player's armed self compiled for every weapon on the street)
  *   stepStreet(street, playerPads)          → the street a frame on: the crowd's pads, the core's step, the waves
  *   crowdPads(s, ctx, M), newCrowdMind(type) the crowd's mind alone, for bodies already on the street (a practice room's)
@@ -58,6 +59,7 @@ import { readGun, ACROSS } from './brawl-guns.js';
 import { newBrawl, stepBrawl, enterBody } from './brawl-core.js';
 import { viewHalf } from './brawl-belt.js';
 import { readThings, THINGS, MOUNTS, MOUNT_IDS } from './brawl-things.js';
+import { readPower, powerRecipe, powerMoves } from './brawl-powers.js';
 
 /** THE PLAYS: a player's own moves, as the crowd throws them (each a body's command, as a player's buttons make it) */
 export const CROWD_PLAYS = Object.freeze({
@@ -262,6 +264,13 @@ export function readPlays(plays, F, where = 'plays') {
   return plays;
 }
 
+/** A player's fighter: the brawler's, its power (brawl-powers.js) its every special where it has one. */
+function playerFighter(recipe, style, power) {
+  if (!power) return brawlFighter(recipe, { style });
+  const F = brawlFighter(powerRecipe(recipe, power), { style });
+  return { ...F, moves: powerMoves(F, power), power: { id: power.id, beam: power.beam, ...(power.colour ? { colour: power.colour } : {}) } };
+}
+
 /** A street to fight down: the players at its start, every wave's crowd waiting offstage, the crowd's mind. */
 export function streetOf({ belt, players: players0, waves = [], things, rules, crowd: crowd0, gunner: gunner0, range, foeGuns: foeGuns0, lives, tune } = {}) {
   if (!belt) throw new Error('brawl: a street needs its belt');
@@ -277,7 +286,9 @@ export function streetOf({ belt, players: players0, waves = [], things, rules, c
   const players = tune?.playerHp ? players0.map((p) => ({ ...p, recipe: { ...p.recipe, hp: tune.playerHp } })) : players0;
   const foeGuns = foeGuns0 ?? tune?.foeGuns, crowd = tune?.crowd || crowd0 ? { ...(tune?.crowd ?? {}), ...(crowd0 ?? {}) } : undefined;
   const W = readWaves(waves, belt);
-  const fighters = players.map((p) => brawlFighter(p.recipe, { style: p.style }));
+  // (A HERO'S POWER, a player's `power` (brawl-powers.js): its fighter's every special the power, its body the stock)
+  const powers = players.map((p, i) => (p.power === undefined ? null : readPower(p.power, `players[${i}].power`)));
+  const fighters = players.map((p, i) => playerFighter(p.recipe, p.style, powers[i]));
   const types = [...new Set(W.flatMap((w) => [...w.crowd.map((c) => c.type), ...(w.boss?.type ? [w.boss.type, ...(w.boss.phases ?? []).flatMap((ph) => [...(ph.type ? [ph.type] : []), ...(ph.calls ?? []).map((c) => c.type)])] : [])]))];
   const typeAt = {};
   for (const t of types) { typeAt[t] = fighters.length; fighters.push(crowdFighter(t)); }
@@ -289,7 +300,7 @@ export function streetOf({ belt, players: players0, waves = [], things, rules, c
   // (A SEAT NOT YET TAKEN, a player `away: true`: its body made and waiting off the street until it joins, joinStreet)
   // (those who play from the start share the band's width between them: a seat that waits moves no one)
   const here = players.filter((p) => !p.away).length || 1;
-  const bodies = players.map((p, i) => ({ fighter: i, side: 'player', x: Math.round((half - 3 + i * 0.6) * 1000), z: Math.round(n0 + ((Math.min(i, here - 1) + 1) * (n1 - n0)) / (here + 1)) }));
+  const bodies = players.map((p, i) => ({ fighter: i, side: 'player', x: Math.round((half - 3 + i * 0.6) * 1000), z: Math.round(n0 + ((Math.min(i, here - 1) + 1) * (n1 - n0)) / (here + 1)), ...(powers[i] ? { power: powers[i].stock } : {}) }));
   const kinds = [];
   const bosses = {};
   // (a crowd body's own entrance or ambush, by its id)
@@ -334,7 +345,7 @@ export function streetOf({ belt, players: players0, waves = [], things, rules, c
   const T = T0;
   const weapons = gunner ? [] : [...new Set(T.flatMap((t) => [t, t.holds].filter(Boolean)).filter((t) => t.kind === 'weapon').map((t) => t.what))];
   const armed = {};
-  players.forEach((pl, i) => { for (const w of weapons) { armed[`${i}:${w}`] = fighters.length; fighters.push(brawlFighter({ ...pl.recipe, weapon: w }, { style: pl.style })); } });
+  players.forEach((pl, i) => { for (const w of weapons) { armed[`${i}:${w}`] = fighters.length; fighters.push(playerFighter({ ...pl.recipe, weapon: w }, pl.style, powers[i])); } });
   const ctx = { fighters, belt, ...(weapons.length ? { armed } : {}), ...(armory.guns.length ? { guns: armory.guns } : {}) };
   const s = newBrawl(ctx, { bodies, rules, ...(T.length ? { things: T } : {}) });
   if (tune?.crowdHp) for (const b of s.bodies) if (b.side === 'crowd' && !bosses[b.id]) b.hp = Math.max(1, Math.round(b.hp * tune.crowdHp));
@@ -376,13 +387,15 @@ export function stepStreet(street, playerPads = []) {
   const s = stepBrawl(street.s, pads, ctx);
   waves(s, ctx, mind);
   // (A FALL, where the street has lives: a player knocked out and lying is back on its feet where it fell, whole and
-  // untouchable a moment, its gun loaded again; at the last fall allowed it stays down)
+  // untouchable a moment, its gun loaded again, its power's stock full; at the last fall allowed it stays down)
   if (mind.lives) for (const p of s.bodies) {
     if (p.side !== 'player' || p.aw || !p.ko || p.st !== 'ko' || p.fell) continue;
     if (mind.lives.falls + 1 >= mind.lives.of) { mind.lives = { ...mind.lives, falls: mind.lives.of }; p.fell = 1; continue; }
     mind.lives = { ...mind.lives, falls: mind.lives.falls + 1 };
     p.ko = 0; p.hp = ctx.fighters[p.fb ?? p.fi].hp; p.st = 'rise'; p.sf = 0; p.inv = Math.max(p.inv, 90);
     if (p.gn !== undefined && ctx.guns[p.gn].ammo !== null) p.am = ctx.guns[p.gn].ammo;
+    // (a hero's power stock filled again: its uses a life)
+    if (p.pwm !== undefined) p.pw = p.pwm;
     s.events.push({ t: 'fall', p: p.id, left: mind.lives.of - mind.lives.falls, x: p.x, z: p.z });
   }
   return { ctx, s, mind };

@@ -166,7 +166,9 @@ export const RAILS = Object.freeze({
   // ── down a street, side on: named for their type ──
   'beat-em-up': row({ name: 'Side-scroll Beat-em-up', like: 'a beat-em-up down a street: wave after wave fought hand to hand, one to four players on one screen',
     handles: row({ genres: list(['co-op-brawler']), quick: list(['brawl']) }), sizes: list(['quick', 'designed']), level1: 'a street: its stops held wave by wave, a boss at the end',
-    seen: list(['side']), words: list(['streets of rage', 'double dragon']) }),
+    // (its heroes variant: a team of heroes each with a power, an army, a villain at the end; the street's `heroes` tuning,
+    // brawl/brawl-tunings.js, and a quick brawl's `heroes`)
+    seen: list(['side']), words: list(['streets of rage', 'double dragon', 'superhero beat em up', 'hero beat em up', 'x-men arcade']) }),
   'run-and-gun': row({ name: 'Run and Gun', like: 'a run and gun down a street: the same waves fought with guns, a roll, grenades, a crowd that shoots back',
     handles: row({ genres: list(['run-and-gun']), quick: list(['rungun']) }), sizes: list(['quick', 'designed']), level1: 'a street: its stops shot through wave by wave, a boss at the end',
     seen: list(['side']) }),

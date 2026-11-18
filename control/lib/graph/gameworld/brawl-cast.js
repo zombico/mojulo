@@ -49,13 +49,15 @@
  *                Everyone who has a body can be played: a second controller drops in as the next of them
  *       kit    the stage kit its rooms are built in (brawl-levels.js BRAWL_STAGE_KITS; the open-air plaza unsaid)
  *       lives  the falls the player may take (1 to 9; 3)
- *       tuning how hard it hits, a card (brawl/brawl-tunings.js: measured | arcade). Unsaid, a run & gun's street is
+ *       tuning how hard it hits, a card (brawl/brawl-tunings.js: measured | arcade | heroes: every seat a hero with a
+ *              power, the game's hero its own actions page's `attack`, heroPower). Unsaid, a run & gun's street is
  *              the arcade's (soldiers fall to a couple of rounds, the hero to a few hits, five falls) and a
  *              beat-em-up's the sim's own numbers
  *       guns   a run & gun's street: true, or the guns carried, the first held; unsaid, the game's intent decides
  *              (`intent.from: 'run-and-gun'`)
  *   readLevelStreet(v)     → { design, kit, lives, guns } checked (throws, teaching)
  *   streetFoeIds(G)        → the bestiary ids the world's streets bring, each one figure to make (foes.js fieldedIds)
+ *   heroPower(G)           → { id, beam } | null the street power the game's hero throws (its actions page's `attack`)
  *   streetLevel(G, words, { title?, ref?, heroRef?, foeRefs? }) → { manifest, laws }: the level's world, its brawl block
  *                          and its game contract; the hero the game's own (a stand-in fighter, said, where it has none),
  *                          each foe with a body drawn from its made ref
@@ -66,7 +68,8 @@ import { bestiaryOf, isPeople, isModel } from './foes.js';
 import { brawlLevel, readBrawlLevel, BRAWL_STAGE_KITS } from '../brawl/brawl-levels.js';
 import { readGun } from '../brawl/brawl-guns.js';
 import { readScreen } from '../game/screen.js';
-import { TUNINGS, STREET_TUNINGS, tuningOf, roomTune } from '../brawl/brawl-tunings.js';
+import { TUNINGS, STREET_TUNINGS, tuningOf, roomTune, seatPower } from '../brawl/brawl-tunings.js';
+import { ATTACK_POWER } from '../brawl/brawl-powers.js';
 import { castRoles, FIGHT_ROLES } from './fights.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { CROWD_TYPES } from '../brawl/brawl-crowd.js';
@@ -272,6 +275,13 @@ export function streetFoeIds(G) {
   return out;
 }
 
+/** The street power a game's hero throws: its actions page's first power with an `attack` (a beam), played as the
+ * street's power of that form (brawl-powers.js ATTACK_POWER) and drawn in that beam; null where it throws none. */
+export function heroPower(G) {
+  const P = (G?.characters?.hero?.actions?.powers ?? []).find((p) => isObj(p) && typeof p.attack === 'string' && ATTACK_POWER[p.attack]);
+  return P ? { id: ATTACK_POWER[P.attack], beam: P.attack } : null;
+}
+
 /** A street level of a designed game: its world, its brawl and its contract. */
 export function streetLevel(G, words, { title, ref, heroRef = null, foeRefs = null, party = null, layThings = null, layScenes = null } = {}) {
   const L = readLevelStreet(words), gun = gunsOf(G, L);
@@ -288,7 +298,12 @@ export function streetLevel(G, words, { title, ref, heroRef = null, foeRefs = nu
   // nobody fills is a stand-in fighter, said)
   const made = [...(heroRef ? [{ id: 'hero', hero: { ref: heroRef } }] : []), ...(party ?? []).filter((m) => m?.ref).map((m) => ({ id: m.id, name: m.name ?? m.id, hero: { ref: m.ref } }))].slice(0, STREET_SEATS);
   const short = Math.max(0, L.players - made.length);
-  const heroes = [...made, ...Array.from({ length: made.length ? short : Math.max(1, L.players) }, (_, k) => ({ id: `stand-in-${made.length + k + 1}`, name: `P${made.length + k + 1}`, archetype: STAND_INS[(made.length + k) % STAND_INS.length] }))];
+  const seated = [...made, ...Array.from({ length: made.length ? short : Math.max(1, L.players) }, (_, k) => ({ id: `stand-in-${made.length + k + 1}`, name: `P${made.length + k + 1}`, archetype: STAND_INS[(made.length + k) % STAND_INS.length] }))];
+  // (a card that gives POWERS (the heroes'): each seat a hero with its power, brawl/brawl-powers.js: the game's hero its
+  // own where its actions page throws one (its first `attack`, played as the street's power of that form, drawn in that
+  // beam), every other seat the team's in seat order)
+  const own = heroPower(G);
+  const heroes = card.powers ? seated.map((h, k) => ({ ...h, power: seatPower(card, k, h.id === 'hero' && heroRef ? own : null) })) : seated;
   const rosterAt = Object.fromEntries(bodied.map((id, k) => [id, heroes.length + k]));
   const roster = [...heroes, ...bodied.map((id) => ({ id: `foe-${id}`, name: id, hero: { ref: foeRefs[id] } }))];
   const register = ['anime', 'western'].includes(G?.juice?.register) ? G.juice.register : null;

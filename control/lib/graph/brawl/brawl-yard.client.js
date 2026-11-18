@@ -157,7 +157,7 @@ function build() {
   // (the brawler yard's own waves while the settings' Waves is on)
   const melee = !RANGE && BY.waves && SET.waves ? { waves: BY.waves, loop: BY.loop } : {};
   SPARE = spareSeats();
-  const who = seatsOf().map((i, k) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style, ...(k >= picks.length ? { away: true } : {}) }));
+  const who = seatsOf().map((i, k) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style, ...(STREET && BY.roster[i].power ? { power: BY.roster[i].power } : {}), ...(k >= picks.length ? { away: true } : {}) }));
   if (STREET) {
     // (how hard the street fights, by the game's turn: the tier's crowd rules over the street's, its bosses' minds)
     const tier = SESSION.difficulty ? STREET_DIFFICULTY[SESSION.difficulty] : null, minds = Object.keys(CPU_LEVELS);
@@ -610,10 +610,28 @@ function placeGun(B, p, N) {
 }
 const ROUND_MINE = new THREE.MeshBasicMaterial({ color: 0xffe28a }), ROUND_FOE = new THREE.MeshBasicMaterial({ color: 0xff5a2a });
 const ROUND_SHADOW = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false });
+// (a SPECIAL's round, a projectile of the fight's (a fireball, a hero's power: brawl-powers.js): a glowing body its
+// box's size, in its thrower's power's colour, else the fight's own)
+const SPECIAL_LOOK = '#ffe9b0', POWER_LOOKS = new Map();
+const powerColour = (id) => { const b = room.s.bodies[id], P = b && room.ctx.fighters[b.fi].power; return (P && P.colour) || SPECIAL_LOOK; };
+const lookOf = (c) => { if (!POWER_LOOKS.has(c)) POWER_LOOKS.set(c, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.85, depthWrite: false })); return POWER_LOOKS.get(c); };
+function placeSpecial(r) {
+  let m = rounds.get(r.id);
+  if (!m) {
+    m = { tracer: new THREE.Mesh(BALL, lookOf(powerColour(r.o))), shadow: new THREE.Mesh(new THREE.CircleGeometry(1, 12), ROUND_SHADOW), big: true };
+    YARD.add(m.tracer, m.shadow);
+    rounds.set(r.id, m);
+  }
+  m.tracer.position.set(r.x / 1000, r.z / 1000 + DR(r.x), r.y / 1000 + FL(r.x));
+  m.tracer.scale.set(r.w / 2000, 0.18, r.h / 2000);
+  m.shadow.position.set(r.x / 1000, r.z / 1000 + DR(r.x), 0.006 + FL(r.x));
+  m.shadow.scale.setScalar(Math.min(0.6, r.w / 2400));
+}
 function placeRounds() {
   const seen = new Set();
   for (const r of room.s.shots) {
-    if (r.gun === undefined || r.life <= 0 || r.done) continue;
+    if (r.life <= 0 || r.done) continue;
+    if (r.gun === undefined) { if (r.hits > 0) { seen.add(r.id); placeSpecial(r); } continue; }
     seen.add(r.id);
     let m = rounds.get(r.id);
     if (!m) {
@@ -674,8 +692,8 @@ function placeThings() {
 
 const FLASHES = [];
 const FLASH_GEO = new THREE.SphereGeometry(1, 12, 8);
-function flash(e, heavy, spark = false) {
-  const m = new THREE.Mesh(FLASH_GEO, new THREE.MeshBasicMaterial({ color: spark ? 0xffb347 : heavy ? 0xffd23a : 0xffffff, transparent: true, opacity: 0.9, depthWrite: false }));
+function flash(e, heavy, spark = false, colour = null) {
+  const m = new THREE.Mesh(FLASH_GEO, new THREE.MeshBasicMaterial({ color: colour || (spark ? 0xffb347 : heavy ? 0xffd23a : 0xffffff), transparent: true, opacity: 0.9, depthWrite: false }));
   m.position.set(e.x / 1000, (e.z ?? 0) / 1000 + DR(e.x), (e.y ?? 1100) / 1000 + FL(e.x));
   // (a round's spark small and quick; a blow's flash; a heavy one's, or a burst's, big)
   YARD.add(m); FLASHES.push({ m, k: 0, n: spark ? 5 : heavy ? 12 : 8, r: spark ? 0.14 : heavy ? 0.45 : 0.3 });
@@ -905,6 +923,8 @@ function tick() {
   for (const e of room.s.events) {
     if (e.t === 'hit') flash(e, (e.w ?? 1) >= 2, e.kind === 'round' && !e.flinch);
     if (e.t === 'clash') flash(e, true);
+    // (a hero's power: a burst in its colour where it is called up)
+    if (e.t === 'power') flash({ ...e, y: 1000 }, true, false, powerColour(e.p));
     if (e.t === 'break') wreckAt(e);
     if (e.t === 'burst') flash({ ...e, y: 600 }, true);
     // (a round on cover sparks on its face; a body coming up out of the ground throws its dirt up)
@@ -963,7 +983,7 @@ function streetScreen() {
     if (k >= picks.length) return k < picks.length + SPARE.length ? { ...OFF, open: true } : OFF;
     const p = room.s.bodies[k], G = p.gn !== undefined ? room.ctx.guns[p.gn] : null;
     grTop[k] = Math.max(grTop[k] || 0, p.gr || 0);
-    return { ...OFF, on: true, name: BY.roster[picks[k]].name, hp: Math.max(0, p.hp), hpMax: hp0[k] || 1, ...(G ? { gun: gunCode(G), gunId: G.id || '', ammo: p.am === undefined ? '∞' : String(p.am), rounds: p.am === undefined ? 0 : p.am, size: G.ammo || 0, endless: p.am === undefined, low: !!(p.am !== undefined && G.ammo && p.am <= G.ammo * 0.2), grenades: p.gr || 0, grenadesMax: grTop[k] } : {}) };
+    return { ...OFF, on: true, name: BY.roster[picks[k]].name, hp: Math.max(0, p.hp), hpMax: hp0[k] || 1, ...(p.pwm !== undefined ? { powerOn: true, power: p.pw, powerMax: p.pwm } : {}), ...(G ? { gun: gunCode(G), gunId: G.id || '', ammo: p.am === undefined ? '∞' : String(p.am), rounds: p.am === undefined ? 0 : p.am, size: G.ammo || 0, endless: p.am === undefined, low: !!(p.am !== undefined && G.ammo && p.am <= G.ammo * 0.2), grenades: p.gr || 0, grenadesMax: grTop[k] } : {}) };
   };
   Object.assign(S, { hp: R.hp, hpMax: R.hpMax, name: BY.roster[picks[0]].name, cleared: R.cleared, of: R.of, left: R.left, lives: R.lives ? { on: true, left: R.lives.left, of: R.lives.of } : { on: false, left: 0, of: 1 }, boss: { ...R.boss, phased: !!R.phase, phase: R.phase ? R.phase.at : 0, phases: R.phase ? R.phase.of : 1 }, p1: seat(0), p2: seat(1), p3: seat(2), p4: seat(3), ...(R.gun ? { gun: R.gun, accuracy: accuracyOf(tally) === null ? '—' : accuracyOf(tally) + '%' } : {}) });
   // the danger (one player: the screen's edge, closing in under half its health), the foe being hit, the combo, the way on

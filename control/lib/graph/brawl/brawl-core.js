@@ -6,7 +6,7 @@
  *   brawlHash(state)                               a short, stable fingerprint (replays, determinism)
  *   ctx = { fighters: [compiled, …], belt?, guns? } (versus-compile.js; brawl-belt.js readBelt; brawl-guns.js readGun:
  *                                                   the guns its bodies carry; constant through a brawl)
- *   body = { fighter, side: 'player' | 'crowd', x, z, face?, grabs?, wave?, gun?, grenades?, poise? }    x mm along the belt, z mm across it (the
+ *   body = { fighter, side: 'player' | 'crowd', x, z, face?, grabs?, wave?, gun?, grenades?, poise?, power? }    x mm along the belt, z mm across it (the
  *          band), y up; `grabs: false` never takes hold, `wave: k` waits offstage until its wave comes in (brawl-crowd.js)
  *   pad  = { x: -1 | 0 | 1, z: -1 | 0 | 1, mv?, jump?, dash? }    the stick along and across, and a command: `mv` a move's
  *                                                                 slot to start (or cancel into), `jump` a jump, `dash`
@@ -54,6 +54,10 @@
  *     `freeze` frames. Firing, a body walks at `fireWalk`
  *     % and faces its aim. A pick-up gun holds its `ammo`; spent, the body is back on its sidearm. `roll` is the gunner's
  *     dodge: `roll` frames along or across the street, untouchable its first `rollInv`.
+ *   • A POWER (brawl-powers.js: a hero's, a move marked `power`): a body given a stock (`power: n`) has `pw` uses of it
+ *     left (`pwm` a life): a power is not started with none, and spends one as it starts (event `power`); a fall fills
+ *     it again (brawl-crowd.js). A body with no stock throws its power freely (a villain's). A round of a power's passes
+ *     through its `hits` bodies on its line, and one whose projectile says `knock: 'down'` floors each it meets.
  *   • COOLDOWN: a move with a `cool` (the brawler's strong blows) leaves its body unable to start another with one for
  *     `cool` frames from its start (`cd`, frames left; absent when none); asked for meanwhile, it is not started.
  *   • WAKE-UP: a body rising from the floor is untouchable `wake` frames more, so a crowd cannot keep it down.
@@ -155,6 +159,8 @@ function newBody(i, b, ctx) {
     // (a gunner: its sidearm, its grenades)
     ...(Number.isInteger(b.poise) ? { po: b.poise } : {}),
     ...(Number.isInteger(b.gun) ? { gn: b.gun, sd: b.gun, fc: 0, nf: 0, ...(Number.isInteger(b.grenades) ? { gr: b.grenades, gi: b.grenadeGun } : {}) } : {}),
+    // (a hero's power stock: its uses left and its uses a life)
+    ...(Number.isInteger(b.power) ? { pw: b.power, pwm: b.power } : {}),
     // (a body of a wave waits offstage, gone, until its wave comes in: brawl-crowd.js)
     ...(b.wave !== undefined ? { gone: 1, wv: b.wave } : {}),
   };
@@ -350,7 +356,7 @@ function think(s, p, pad, ctx) {
   }
   if (p.gn !== undefined) gunThink(s, p, pad, ctx);
   // (a move on its body's cooldown is not started: the command waits, or its reader lets it go)
-  const want = pad.mv && F.moves[pad.mv] && !(F.moves[pad.mv].cool && p.cd > 0) ? pad.mv : null;
+  const want = pad.mv && F.moves[pad.mv] && !(F.moves[pad.mv].cool && p.cd > 0) && !(F.moves[pad.mv].power && p.pw === 0) ? pad.mv : null;
   // held: only the desperation breaks out
   if (p.st === 'held') {
     if (want && F.moves[want].price) { letGo(s, s.bodies[p.hold]); start(s, p, F, want); }
@@ -428,6 +434,8 @@ function start(s, p, F, slot) {
     if (m.install) grantState(s, p.id, m.install);
   }
   if (m.kind === 'special') s.events.push({ t: 'special', p: p.id, slot });
+  // (a power spends one of its body's stock as it starts; a body with no stock spends none)
+  if (m.power && p.pw !== undefined) { p.pw--; s.events.push({ t: 'power', p: p.id, left: p.pw, x: p.x, z: p.z }); }
 }
 
 // ── motion ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -530,7 +538,7 @@ function advance(s, p, ctx) {
 
 function shoot(s, p, m) {
   const fr = m.frames[m.startup], [sx, sy] = fr.spawn ?? [400, 1200], P = m.projectile;
-  s.shots.push({ id: s.nextShot++, o: p.id, side: p.side, x: p.x + sx * p.face, z: p.z, y: p.y + sy + P.y, vx: P.speed * p.face, w: P.w, h: P.h, life: P.life, hits: P.hits, rehit: P.rehit, hitAt: -999, dmg: P.damage, hitstun: P.hitstun, hitstop: P.hitstop, push: P.push, sup: m.kind === 'super' ? 1 : 0, meter: m.meter ?? 0, hl: [] });
+  s.shots.push({ id: s.nextShot++, o: p.id, side: p.side, x: p.x + sx * p.face, z: p.z, y: p.y + sy + P.y, vx: P.speed * p.face, w: P.w, h: P.h, life: P.life, hits: P.hits, rehit: P.rehit, hitAt: -999, dmg: P.damage, hitstun: P.hitstun, hitstop: P.hitstop, push: P.push, sup: m.kind === 'super' ? 1 : 0, meter: m.meter ?? 0, hl: [], ...(P.knock ? { knock: P.knock } : {}) });
 }
 
 // a throw's end: the held body flung away (behind on a back throw), hurt, a blow of its own until it lands
