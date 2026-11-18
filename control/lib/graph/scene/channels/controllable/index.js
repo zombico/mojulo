@@ -23,6 +23,7 @@ import { groundGridScript } from './ground-grid.js';
 import { turretScript } from './turret-view.js';
 import { boatWaterScript } from './boat-water.js';
 import { shotLightScript } from './shot-light-view.js';
+import { roundLooks } from '../../../gameworld/feel/round-look.js';
 import { castKitSource } from '../cast-rig.js';
 import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
 
@@ -4097,7 +4098,73 @@ function __updateChargeRings() {
 // and pop an expanding shell when the engine records a burst in __world.bursts. The engine owns all
 // motion + hit adjudication (deterministic); this only reflects positions and spawns transient fx —
 // a muzzle flash on a round's birth, a glowing round while it flies, an expanding shell on its burst.
-const __projMeshes = {};    // projectile id -> { g } group tracking one live round
+${busterOn ? `// THE SHOT'S LOOK (gameworld/feel/round-look.js): a buster's round as the anime register draws a charged shot, every layer
+// additive: a halo in its hue round it all; the ramp (the hue deep, the hue saturated, a white-hot core) as soft discs
+// stretched along its flight on screen, the core toward its head; streaks inside along its flight; a tail fading behind;
+// rings at its head in the accent hue, round its flight and turned off the camera's axis so they read as ellipses, the
+// near arc bright and the far faded; sparks trailing on the world's clock. Its level's look by busterLv (0 the tap)
+const __RL = ${safeJson(roundLooks((entities.find((e) => e && e.rule && e.rule.buster) || {}).rule?.buster))};
+const __rlTex = (() => {
+  const mk = (w, h, paint) => { const c = document.createElement('canvas'); c.width = w; c.height = h; paint(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
+  return {
+    soft: mk(64, 64, (x, w, h) => { const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.3, 'rgba(255,255,255,0.6)'); g.addColorStop(0.7, 'rgba(255,255,255,0.12)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, w, h); }),
+    streak: mk(128, 8, (x, w) => { const g = x.createLinearGradient(0, 0, w, 0); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.75, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 3, w, 2); x.globalAlpha = 0.35; x.fillRect(0, 1, w, 6); }),
+  };
+})();
+const __rlSprite = (tex, col, op) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: new THREE.Color(col), transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false })); s.raycast = function () {}; return s; };
+const __rlA = new THREE.Vector3(), __rlB = new THREE.Vector3(), __rlDir = new THREE.Vector3(), __rlPerp = new THREE.Vector3(), __rlFwd = new THREE.Vector3(), __rlZ = new THREE.Vector3(0, 0, 1);
+function __rlRound(p) {
+  const L = __RL[p.busterLv || 0] || __RL[0] || { size: 0.08, core: 0.55, ramp: ['#ffffff', '#fff2a8', '#7a6a20'], halo: 4.5, stretch: 1.8, streaks: 1, tail: 3, accent: '#a8c8ff', rings: 0, sparks: 2 };
+  const r = p.fxScale != null ? p.fxScale : L.size, g = new THREE.Group();
+  const halo = __rlSprite(__rlTex.soft, L.ramp[1], 0.32), deep = __rlSprite(__rlTex.soft, L.ramp[2], 0.95), mid = __rlSprite(__rlTex.soft, L.ramp[1], 1), core = __rlSprite(__rlTex.soft, L.ramp[0], 1);
+  const tail = __rlSprite(__rlTex.streak, L.ramp[1], 0.55), streaks = [], rings = [], sparks = [];
+  for (const s of [halo, tail, deep, mid]) g.add(s);
+  for (let k = 0; k < L.streaks; k++) { const s = __rlSprite(__rlTex.streak, k % 2 ? L.ramp[1] : L.ramp[0], 0.9); streaks.push(s); g.add(s); }
+  g.add(core);
+  for (let k = 0; k < L.rings; k++) {
+    const R = r * (1.25 + 0.4 * k), geo = new THREE.TorusGeometry(R, Math.max(0.008, r * 0.07), 6, 48), m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    m.raycast = function () {}; g.add(m); rings.push({ m, R, k, coloured: false });
+  }
+  for (let k = 0; k < L.sparks; k++) { const s = __rlSprite(__rlTex.soft, k % 3 ? L.accent : '#ffffff', 1); sparks.push(s); g.add(s); }
+  scene.add(g);
+  const acc = new THREE.Color(L.accent);
+  const tick = (q) => {
+    const v = q.vel || [0, 1, 0], vl = Math.hypot(v[0], v[1], v[2]) || 1, t = __world.time;
+    __rlDir.set(v[0] / vl, v[1] / vl, v[2] / vl);
+    camera.getWorldDirection(__rlFwd); __rlPerp.crossVectors(__rlDir, __rlFwd).normalize();
+    // (the flight's line on screen: the angle every stretched layer is turned to)
+    __rlA.set(q.pos[0], q.pos[1], q.pos[2]).project(camera); __rlB.set(q.pos[0] + __rlDir.x, q.pos[1] + __rlDir.y, q.pos[2] + __rlDir.z).project(camera);
+    const ang = Math.atan2((__rlB.y - __rlA.y) * innerHeight, (__rlB.x - __rlA.x) * innerWidth), st = L.stretch, fl = 0.9 + 0.1 * Math.sin(t * 47);
+    const at = (s, along, across, sx, sy) => { s.position.set(__rlDir.x * along + __rlPerp.x * across, __rlDir.y * along + __rlPerp.y * across, __rlDir.z * along + __rlPerp.z * across); s.scale.set(sx, sy, 1); s.material.rotation = ang; };
+    at(halo, 0, 0, r * L.halo * 2, r * L.halo * 2);
+    at(deep, 0, 0, r * 3.6 * st, r * 3.2);
+    at(mid, r * 0.25, 0, r * 2.5 * st * fl, r * 2.3 * fl);
+    at(core, r * 0.45, 0, r * L.core * 2.4 * st, r * L.core * 2.4);
+    at(tail, -r * (1 + L.tail * 0.3), 0, r * L.tail * 0.9, r * 1.4);
+    streaks.forEach((s, k) => at(s, -r * 0.15, r * 0.55 * (k - (streaks.length - 1) / 2) / Math.max(1, streaks.length - 1) * 1.4, r * 1.7 * st, r * 0.14));
+    rings.forEach((R) => {
+      // (round its flight at the head, turned off the camera's axis so it reads as an ellipse; a beat in its size)
+      R.m.position.set(__rlDir.x * r * (0.9 - 0.55 * R.k), __rlDir.y * r * (0.9 - 0.55 * R.k), __rlDir.z * r * (0.9 - 0.55 * R.k));
+      R.m.quaternion.setFromUnitVectors(__rlZ, __rlDir); R.m.rotateOnWorldAxis(__rlPerp, 0.9);
+      R.m.scale.setScalar(1 + 0.08 * Math.sin(t * 30 + R.k * 2));
+      if (!R.coloured) {
+        // (its near arc bright, its far faded: each vertex by how far toward the camera it stands, once its turn is set)
+        R.m.updateMatrixWorld(true); const pos = R.m.geometry.getAttribute('position'), col = new Float32Array(pos.count * 3), w = new THREE.Vector3(), c0 = new THREE.Vector3();
+        R.m.getWorldPosition(c0);
+        for (let i = 0; i < pos.count; i++) { w.fromBufferAttribute(pos, i).applyMatrix4(R.m.matrixWorld).sub(c0); const near = Math.max(0, Math.min(1, 0.5 - w.dot(__rlFwd) / (2 * R.R))); const k = 0.25 + 0.75 * near * near; col[3 * i] = acc.r * k; col[3 * i + 1] = acc.g * k; col[3 * i + 2] = acc.b * k; }
+        R.m.geometry.setAttribute('color', new THREE.BufferAttribute(col, 3)); R.coloured = true;
+      }
+    });
+    // (sparks trailing back along its flight on the world's clock, each its own phase, spreading and fading as they go)
+    sparks.forEach((s, k) => {
+      const u = (t * 2.4 + k * 0.618) % 1, side = Math.sin(k * 2.39) * r * (0.4 + 1.2 * u), lift = Math.cos(k * 1.71) * r * 0.8 * u;
+      s.position.set(-__rlDir.x * u * r * L.tail * 1.2 + __rlPerp.x * side, -__rlDir.y * u * r * L.tail * 1.2 + __rlPerp.y * side, -__rlDir.z * u * r * L.tail * 1.2 + __rlPerp.z * side + lift);
+      const sz = Math.max(0.06, r * 0.32) * (1 - 0.5 * u); s.scale.set(sz, sz, 1); s.material.opacity = 1 - u;
+    });
+  };
+  return { g, tick };
+}
+` : ''}const __projMeshes = {};    // projectile id -> { g } group tracking one live round
 let __burstSeen = -1;       // highest burst seq drawn (the engine's monotonic burstSeq)
 const __projUpY = new THREE.Vector3(0, 1, 0);   // the cone axis (apex +Y) rotated onto each round's velocity
 const __projDir = new THREE.Vector3();
@@ -4116,14 +4183,8 @@ function __updateProjectiles() {
         scene.add(g); rec = __projMeshes[p.id] = { g: g };
       }
     }` : ''}
-${busterOn ? `    // (a buster's round, buster.js: a PELLET, a glowing ball its level's size and colour, a white core, no flash)
-    if (!rec && p.pellet) {
-        const col = p.fxColor != null ? p.fxColor : 0xfff2a8, r = p.fxScale != null ? p.fxScale : 0.08;
-        const glow = new THREE.Mesh(new THREE.SphereGeometry(r * 1.6, 12, 8), __fxMat(col)), core = new THREE.Mesh(new THREE.SphereGeometry(r * 0.75, 10, 6), __fxMat(0xffffff));
-        glow.raycast = function () {}; core.raycast = function () {};
-        const g = new THREE.Group(); g.add(glow); g.add(core); scene.add(g);
-        rec = __projMeshes[p.id] = { g: g };
-      }
+${busterOn ? `    // (a buster's round, buster.js, drawn in its level's LOOK, gameworld/feel/round-look.js: the shot's look)
+    if (!rec && p.pellet) rec = __projMeshes[p.id] = __rlRound(p);
 ` : ''}    if (!rec) {
       const col = p.fxColor != null ? p.fxColor : 0xffcc66, sz = p.fxScale != null ? p.fxScale : 3;
       // the round is a POINTED SHELL (a hot nose-cone, not a beachball): a long thin cone whose TIP
@@ -4139,7 +4200,8 @@ ${busterOn ? `    // (a buster's round, buster.js: a PELLET, a glowing ball its 
       mf.position.set(p.pos[0], p.pos[1], p.pos[2]); mf.raycast = function () {}; scene.add(mf);
       __fx.push({ obj: mf, born: __world.time, ttl: 0.1, kind: 'burst', base: sz * 0.4, dim: 0.9 });
     }
-    rec.g.position.set(p.pos[0], p.pos[1], p.pos[2]);
+    rec.g.position.set(p.pos[0], p.pos[1], p.pos[2]);${busterOn ? `
+    if (rec.tick) { rec.tick(p); continue; }` : ''}
     // point the nose along the round's velocity (cone apex is +Y → rotate +Y onto the travel direction)
     if (p.vel) { const vl = Math.hypot(p.vel[0], p.vel[1], p.vel[2]); if (vl > 1e-4) rec.g.quaternion.setFromUnitVectors(__projUpY, __projDir.set(p.vel[0] / vl, p.vel[1] / vl, p.vel[2] / vl)); }
   }
