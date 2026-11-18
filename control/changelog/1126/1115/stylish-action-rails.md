@@ -233,3 +233,6 @@ What the theme will hold:
   that light it most, its silhouette laid flat away from each flame, as dark as that lamp's share of its light and
   fading with its length, and a dark at its feet; one plane each pixel darkens once (the floor never moves: the
   projection is the shadow). The form probe hands the lamps over (`__mojForm.lit`). Walls take no actor shadow yet.
+- **Fallen Angel's citadel lifted.** With the figures lit and shadowed by its lamps, the room no longer has to be as
+  dark to read: its shade keeps a little over a third of the torches' light (`shade: 0.38`, from 0.06), and its grade is
+  `tenebrae` with the vignette eased and a quarter stop more exposure.

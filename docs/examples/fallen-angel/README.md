@@ -21,11 +21,12 @@ to the knight in its sanctum. `world.json` is the whole recipe; everything else 
   ribs) has the height it was drawn for; the candle rings hang over each room's walk at a reachable height and the
   vault above them is left to the dark. The action camera stands back and looks up in the tall rooms, more the taller
   the room, so the height is seen in play.
-- **Lit as tenebrae:** the cube's inside asks for its shade (`light: { shade: 0.06 }`: the shade keeps a twentieth of
-  the torches' light, so it falls to black, its air darkened with it, and the figures take the torches' light where
-  they stand), its palette warmed (`heat: 0.15`, the stone's hue `32`: the stone is seen only where a torch reaches it, so warm
-  stone is a warm pool), and the frame graded `tenebrae` (hard, the frame's edge in the dark). The white coat is the brightest
-  thing in a room.
+- **Lit as tenebrae:** the cube's inside asks for its shade (`light: { shade: 0.38 }`: the shade keeps a little over a
+  third of the torches' light, so it falls toward black away from them and the room still reads; its air darkened with
+  it), its palette warmed (`heat: 0.15`, the stone's hue `32`: warm stone where a torch reaches it), and the frame graded
+  from `tenebrae`, its vignette eased and its exposure lifted a quarter stop. The figures are lit by the torches where
+  they stand, a lit side, a shade side and a cold rim, and throw their shadows on the floor away from each flame. The
+  white coat is the brightest thing in a room.
 - **Played as an action hero:** `camera: 'orbit'` (the orbit that locks on, the blade sheathed out of a fight) and
   `screen: 'screen'` (written out; a new game is made for a monitor unless it says otherwise).
 

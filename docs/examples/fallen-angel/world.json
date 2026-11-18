@@ -117,7 +117,7 @@
             "bones": "gothic-ashlar"
           },
           "light": {
-            "shade": 0.06
+            "shade": 0.38
           },
           "palette": {
             "intent": "a stone night lit by fire, its shade black",
@@ -296,5 +296,9 @@
   "camera": "orbit",
   "screen": "screen",
   "styleMeter": "auto",
-  "grade": "tenebrae"
+  "grade": {
+    "from": "tenebrae",
+    "vignette": 0.35,
+    "exposure": 0.25
+  }
 }
