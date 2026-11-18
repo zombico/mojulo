@@ -221,3 +221,8 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   it goes off, a muzzle's flash, and the hero's charge at its chest growing as it fills. The strongest few near the
   camera each frame, added over the baked colour in the surface's own hue by how it turns to the light, no shadows.
   Only a side map's page carries it.
+- **The shot's look** (`gameworld/feel/round-look.js`): a buster's round drawn as the anime register draws a charged
+  shot: a white-hot core, its colour saturated in the falloff and deeper at the edge, all of it additive under a halo
+  in its hue; streaks along its flight, brightest at its head, a tail fading behind and sparks trailing; rings at its
+  head in an accent hue far round the wheel (the cel look's), one more a charge level, their near arc bright. Its light
+  on the map is spill, not flood: its hue on the edges near it, the world kept in its key.
