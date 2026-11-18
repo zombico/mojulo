@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { treeForm, massCrown, tipBlobs, TREE_FORM, SLEEVE, MASSES, TIP_BLOBS } from './tree-form.js';
+import { treeForm, massCrown, tipBlobs, anchorBlobs, TREE_FORM, SLEEVE, MASSES, TIP_BLOBS, BLOB_HOLD } from './tree-form.js';
 import { BARK_TILE_M } from '../vegetation/tiles.js';
 import { leafHolds, needleHabit } from '../vegetation/sprays.js';
 import { SPECIES } from '../vegetation/species.js';
@@ -131,16 +131,22 @@ describe('the mass crown', () => {
     expect(JSON.stringify(massCrown(clumps))).toBe(JSON.stringify(M));
   });
 
-  it('blobs at the branch ends: one at each end, out past its tip, smaller where the ends crowd and up the crown', () => {
+  it('blobs at the branch ends: one at each end just past its tip, about a third gathered into masses solved outward', () => {
     const { blobs } = tipBlobs(clumps);
-    expect(blobs.length).toBe(clumps.length);
-    // (out past its tip along its way out of the crown)
-    blobs.forEach((b, i) => { const v = b.p.map((x, k) => x - clumps[i].p[k]); expect(Math.hypot(...v)).toBeCloseTo(b.s * TIP_BLOBS.out, 3); });
-    // (a crowded end's blob no bigger than a lone one's: the same end alone grows to its room)
-    const lone = tipBlobs([...clumps, { p: [9, 0, 6.5], o: [1, 0, 0], d: [0, 0, 1], s: 0.8, e: 0.6, r: 0.5 }]).blobs.at(-1);
-    expect(lone.s).toBeGreaterThanOrEqual(Math.max(...blobs.map((b) => b.s)) - 1e-9);
-    // (and within the crown's own sizes)
+    // (about a third gathered: fewer blobs than ends, the masses each standing for two or three)
+    expect(blobs.length).toBeLessThan(clumps.length);
+    expect(blobs.length).toBeGreaterThanOrEqual(Math.round(clumps.length * (1 - TIP_BLOBS.merge.share)) - Math.round(clumps.length * TIP_BLOBS.merge.share * 0.5) - 1);
+    // (every blob within the crown's own sizes, a mass at most its cap over the largest end's)
     const mid = 0.8;
-    for (const b of blobs) { expect(b.s).toBeLessThanOrEqual(TIP_BLOBS.most * mid + 1e-9); expect(b.s).toBeGreaterThanOrEqual(TIP_BLOBS.least * mid * (1 - TIP_BLOBS.taper) - 1e-9); }
+    for (const b of blobs) { expect(b.s).toBeLessThanOrEqual(TIP_BLOBS.merge.cap * TIP_BLOBS.most * mid + 1e-9); expect(b.s).toBeGreaterThanOrEqual(TIP_BLOBS.least * mid * (1 - TIP_BLOBS.taper) - 1e-9); }
+    // (the same ends, the same blobs)
+    expect(JSON.stringify(tipBlobs(clumps))).toBe(JSON.stringify({ blobs }));
+  });
+
+  it('holds each blob to the wood that is drawn: one floating past it drawn in until it touches', () => {
+    const wood = [0, 0, 0, 0, 0, 4];
+    const [near, far] = anchorBlobs([{ p: [0.3, 0, 4], s: 0.5 }, { p: [3, 0, 4], s: 0.5 }], wood);
+    expect(near.p).toEqual([0.3, 0, 4]);
+    expect(Math.hypot(far.p[0], far.p[1], far.p[2] - 4)).toBeCloseTo(0.5 * BLOB_HOLD, 3);
   });
 });

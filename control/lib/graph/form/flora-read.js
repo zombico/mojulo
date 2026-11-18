@@ -21,7 +21,7 @@
  *       bark's own), template, soft (1 a bush walked through, SKIRT_FLAG a skirt's tree)
  * Deterministic; templates cached a process (the grower is the cost).
  */
-import { treeForm, crossClumps, massCrown, tipBlobs } from './tree-form.js';
+import { treeForm, crossClumps, massCrown, tipBlobs, anchorBlobs } from './tree-form.js';
 import { bambooForm } from './bamboo-form.js';
 import { bushForm, bushBlossom, bushBerries, ADORN } from './bush-form.js';
 import { barkMaterial } from './bark-material.js';
@@ -157,7 +157,9 @@ function treeTemplate(species, height, crowns = null) {
       // (within the plants' budget, FLORA_BUDGET: its bundles by rank, each grown)
       const C0 = crossClumps(F), xt = leafCross(species, { seed: 17, core }).tris.length;
       // ('blobs': a blob at each branch end, its leaves set aside, tree-form.js tipBlobs: the crown's form studied alone)
-      const M = masses ? massCrown(C0) : tips ? { ...tipBlobs(C0), clumps: C0 } : null, blobGeo = M ? packGeo(blobTris([0, 0, 0], [1, 1, MASS_BLOB.squash], TONES.leaf.map((v) => Math.round(v * MASS_BLOB.shade)), { detail: MASS_BLOB.detail })) : null;
+      const M0 = masses ? massCrown(C0) : tips ? { ...tipBlobs(C0), clumps: C0 } : null;
+      // (each blob held to the wood that is drawn: none floats over a twig the cut left out)
+      const M = M0 && tips ? { ...M0, blobs: anchorBlobs(M0.blobs, F.wood.pos) } : M0, blobGeo = M ? packGeo(blobTris([0, 0, 0], [1, 1, MASS_BLOB.squash], TONES.leaf.map((v) => Math.round(v * MASS_BLOB.shade)), { detail: MASS_BLOB.detail })) : null;
       // (a mass crown's blobs spend from its budget as its wood does: its bundles give up what they cost)
       // (and never more triangles than the crown it stands for: as many of its least bundles given up as its blobs cost)
       const giveUp = M && masses ? Math.ceil((M.blobs.length * blobGeo.n) / Math.max(1, xt)) : 0;

@@ -403,9 +403,16 @@ export function massCrown(clumps, { per = MASSES.per } = {}) {
  * bundle's way out of the crown, so the branch runs into it: lollipops on the limbs. Each blob is as big as its room:
  * `touch` × the distance to the nearest other end (where the ends crowd, the blobs are small and meet; where they are
  * few, large), within `least`..`most` of the crown's middle bundle, and narrowing up the crown by `taper` (the top's a
- * share smaller than the bottom's). → { blobs: [{ p, o, d, s, e, r }] } (a blob's `s` its radius, `o` its way out).
+ * share smaller than the bottom's). About a third of them are then gathered into larger masses, solved outward
+ * (TIP_BLOBS.merge). → { blobs: [{ p, o, d, s, e, r }] } (a blob's `s` its radius, `o` its way out).
  */
-export const TIP_BLOBS = Object.freeze({ touch: 0.62, least: 0.35, most: 1.15, taper: 0.35, out: 0.35 });
+export const TIP_BLOBS = Object.freeze({ touch: 0.62, least: 0.35, most: 1.15, taper: 0.35, out: 0.1,
+  // (MERGED: about `share` of the blobs gathered into larger masses, the most crowded first, each with up to `group` - 1
+  // of its nearest unmerged neighbours within `reach` × their two radii; the mass as big as encloses them (× `fit`, at
+  // least `grow` × its largest, at most `cap` × it), SOLVED OUTWARD: its outer surface where its group's outermost
+  // reached, the crown's silhouette kept and the mass filling in behind it, never past its outermost member's middle: it
+  // stays on its branches)
+  merge: Object.freeze({ share: 1 / 3, group: 3, reach: 1.2, fit: 0.92, grow: 1.3, cap: 2.2 }) });
 export function tipBlobs(clumps) {
   const n = clumps.length;
   if (!n) return { blobs: [] };
@@ -419,5 +426,53 @@ export function tipBlobs(clumps) {
     const r = Math.min(TIP_BLOBS.most * sMid, Math.max(TIP_BLOBS.least * sMid, TIP_BLOBS.touch * dn)) * (1 - TIP_BLOBS.taper * up);
     return { p: add(c.p, mul(c.o, r * TIP_BLOBS.out)).map(r4), o: c.o, d: c.d, s: r4(r), e: c.e, r: c.r };
   });
-  return { blobs };
+  return { blobs: mergeOutward(blobs) };
+}
+// about a third of the blobs gathered into larger masses, each solved outward (TIP_BLOBS.merge)
+function mergeOutward(blobs) {
+  const G = TIP_BLOBS.merge, n = blobs.length;
+  if (n < 3) return blobs;
+  const C = mul(blobs.reduce((a, b) => add(a, b.p), [0, 0, 0]), 1 / n), dist = (a, b) => len(sub(a.p, b.p));
+  // (the most crowded first: the nearest other end the closest, by its two radii)
+  const room = blobs.map((b, i) => Math.min(...blobs.map((o, j) => (j === i ? Infinity : dist(b, o) / (b.s + o.s)))));
+  const order = blobs.map((_, i) => i).sort((a, b) => room[a] - room[b] || a - b);
+  const used = new Set(), groups = [], goal = Math.round(n * G.share);
+  let merged = 0;
+  for (const i of order) {
+    if (merged >= goal) break;
+    if (used.has(i)) continue;
+    const near = blobs.map((_, j) => j).filter((j) => j !== i && !used.has(j) && dist(blobs[i], blobs[j]) <= G.reach * (blobs[i].s + blobs[j].s))
+      .sort((a, b) => dist(blobs[i], blobs[a]) - dist(blobs[i], blobs[b]) || a - b).slice(0, G.group - 1);
+    if (!near.length) continue;
+    const g = [i, ...near]; g.forEach((k) => used.add(k)); groups.push(g); merged += g.length;
+  }
+  const masses = groups.map((g) => {
+    const M = g.map((k) => blobs[k]), mid = mul(M.reduce((a, b) => add(a, b.p), [0, 0, 0]), 1 / M.length), u0 = sub(mid, C), u = len(u0) > 1e-6 ? unit(u0) : [0, 0, 1];
+    const big = Math.max(...M.map((b) => b.s)), R = Math.min(G.cap * big, Math.max(G.grow * big, G.fit * Math.max(...M.map((b) => len(sub(b.p, mid)) + b.s))));
+    // (outward: the mass's outer surface where its group's outermost blob's was, along its way out of the crown)
+    const reach = Math.max(...M.map((b) => dot(sub(b.p, C), u) + b.s)), along = dot(sub(mid, C), u), outMost = Math.max(...M.map((b) => dot(sub(b.p, C), u)));
+    const p = add(add(C, mul(u, Math.min(outMost, Math.max(along, reach - R)))), sub(mid, mul(u, along)));
+    const top = M.reduce((a, b) => (b.r < a.r ? b : a));
+    return { p: p.map(r4), o: u.map(r4), d: top.d, s: r4(R), e: r4(M.reduce((a, b) => a + b.e, 0) / M.length), r: top.r };
+  });
+  return [...blobs.filter((_, k) => !used.has(k)), ...masses];
+}
+
+/**
+ * Blobs ANCHORED to the wood that is drawn (a crown's wood is cut where an axis thins, TREE_FORM.minDiameter: the twigs
+ * past it are not drawn): a blob whose middle stands farther than `hold` × its radius from the nearest drawn wood is drawn
+ * in toward it until it touches, so no blob floats over a twig no one sees. `wood` the wood's positions, flat (x y z…).
+ */
+export const BLOB_HOLD = 0.9;
+export function anchorBlobs(blobs, wood, { hold = BLOB_HOLD } = {}) {
+  const n = Math.floor(wood.length / 3);
+  if (!n) return blobs;
+  return blobs.map((b) => {
+    let best = -1, bd = Infinity;
+    for (let i = 0; i < n; i++) { const d = (wood[i * 3] - b.p[0]) ** 2 + (wood[i * 3 + 1] - b.p[1]) ** 2 + (wood[i * 3 + 2] - b.p[2]) ** 2; if (d < bd) { bd = d; best = i; } }
+    const d = Math.sqrt(bd), lim = hold * b.s;
+    if (d <= lim) return b;
+    const w = [wood[best * 3], wood[best * 3 + 1], wood[best * 3 + 2]], t = (d - lim) / d;
+    return { ...b, p: add(b.p, mul(sub(w, b.p), t)).map(r4) };
+  });
 }
