@@ -897,6 +897,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // the candidate's), and `brawl`, `holo` and `mission`, whose pages inline the game UI runtime (this line's slot, effect
 // layer and minimap route merged with the candidate's peril, scope and magazine). Nothing else moved.
 //
+// Re-pinned 2026-11-18 (the lens, mana-ui's screen layer): `brawl`, `holo` and `mission`, whose pages inline the game UI
+// runtime. The runtime gains the lens's part (a spec's `lens`, drawn apart and mounted beside the canvas) and its
+// `strike`; a HUD that lays no lens draws as it did, and no pinned page lays one.
+//
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

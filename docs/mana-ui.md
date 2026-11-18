@@ -1113,6 +1113,32 @@ a loading screen that says which map is next, and a result with the map, the sec
 its level hosts a HUD of its own (`scene/channels/mana-hud.js`, composed by `gameworld/course-hud.js`). Both wear the
 look the course's dress names (`toybox`, the toy family's first card).
 
+### The lens: the screen layer
+
+The HUD sits on the picture. The lens acts on it: a spec's `lens` is a second part of the same runtime, drawn apart
+from the HUD's root (`rt.lens()`, mounted with `mount(el, rt, { part: 'lens' })`). The host lays it beside the world's
+canvas and under the HUD. Its regions filter the world's own pixels, so its root is never its own stacking context:
+no z-index, no `contain`, no `container-type`, no opacity, transform or filter on it (`lensCss`). Anything that
+isolated it would leave its regions filtering nothing; the reactive layer's spike found it
+(`scripts/spikes/reactive-layer/`).
+
+Its first effect is the **strike**: the foe just struck, at its place on the screen.
+- **What it draws:** the air round the foe's body, a band from its silhouette out, bent and lit (`ring`), lit
+  (`lift`), darkened (`shade`) or turned to its negative for a beat (`ink`, a lift under less flash).
+- **Where it draws:** each row `{ id, n, x, y, r, power }` is the foe's middle and its body's radius on the screen. A
+  new `n` (its hits) plays again; a row followed moves with it.
+- **Its cost:** each strike is a region the size of its band (a region filters only its own area), and at most
+  `most` play at once.
+
+**It never overlaps the world's own effects.** The world flashes the struck body itself and throws its sparks at the
+contact, so the strike's mask leaves a hole over the body. The world's moments (a tempo look's full-screen flash,
+invert, zoom and shake) answer the hits they play on, so the feed stands down while one plays. The pilot's own hurt
+is the HUD's peril edge and damage ring, never the lens's.
+
+The host feeds it (`scene/channels/lens-feed.js`): each foe's `hits` counted, its power from the hit's damage against
+its health, its place projected on the page's own camera. A level HUD with the pilot's parts carries it (`hudToMana`
+with `hero`).
+
 ### Screen effects
 
 A moment worth celebrating gets a screen effect: the HUD's `effect` layer, beside its regions. Its kinds are

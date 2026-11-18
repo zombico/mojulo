@@ -93,10 +93,10 @@
  *     .type(text, seat?)  text typed into the text entry in focus: each character in its charset (a lower-case letter
  *                         read as its capital) up to its max, the rest dropped → whether any was taken
  *     .erase(seat?)       the draft's last character off;  .submit(seat?)  the entry done, as its Done does
- *     .view() → html .tree() .state() (the stack, the screen up, each seat's focus, what it is, the open screen's tabs)
+ *     .view() → html .tree() .lens() .lensView() (the lens's part, a spec's `lens`) .state() (the stack, the screen up, each seat's focus, what it is, the open screen's tabs)
  *     actions (the controls kernel's `menu` scheme): up, down, left, right, accept, back, tabNext, tabPrev
  *   toHtml(tree) · readPath(obj, path)
- *   mount(el, rt, { auto?, swipe? }) → { paint }: the DOM backend, a VIEW: it draws into el (patching what is there, by
+ *   mount(el, rt, { auto?, swipe?, part?: 'lens', tick? }) → { paint }: the DOM backend, a VIEW: it draws into el (patching what is there, by
  *     position: an element lives on while its tag and its data-key hold, so a transition runs and an entrance plays
  *     once; a new data-key is a new element), holds the page while a screen
  *     is up (window.__mojMenuOpen) and hit-tests its own widgets under a pointer. It reads no device: the controls layer
@@ -116,6 +116,9 @@ export function buildManaUi() {
   // SCREEN EFFECTS (`effect`): what each kind throws by default, how many pieces and for how long; the pieces at most;
   // the theme's colours a piece may take by name (or a hex)
   const EFFECTS = { confetti: { count: 90, seconds: 2.8 }, streamers: { count: 26, seconds: 3.4 }, sparkles: { count: 34, seconds: 1.6 }, burst: { count: 36, seconds: 1.3 }, petals: { count: 30, seconds: 4.6 }, flash: { count: 1, seconds: 0.5 } };
+  // THE LENS (a spec's \`lens\`): what the camera's glass does to the picture, drawn beside the world's canvas and not in
+  // the HUD's root; its strike's kinds, and how many strikes it draws at once at most (each a region filtered: a budget)
+  const STRIKES = ['ring', 'lift', 'shade', 'ink'], STRIKE_MOST = 6;
   const EFFECT_MAX = 160, EFFECT_TONES = ['accent', 'accent2', 'ink', 'hp', 'mp', 'xp', 'harm', 'stamina', 'shield', 'boss', 'gleam'];
   const STYLE_KEYS = ['style', 'class', 'className', 'color', 'colour', 'font', 'css', 'border', 'theme', 'skin', 'tokens', 'register'];
   const ACTIONS = ['up', 'down', 'left', 'right', 'accept', 'back', 'tabNext', 'tabPrev'];
@@ -186,6 +189,8 @@ export function buildManaUi() {
     threat: { group: 'hud', layer: true, about: 'where harm came from: an arc on a ring round the centre for each bearing (degrees from where you face), its `fade` (0..1, the life it has left) how strongly it still shows', props: { markers: [L, [], true] } },
     peril: { group: 'hud', layer: true, about: 'danger told by the screen itself: its edges close in, tinted, as `level` rises (0..1: the game says how near the end is, health running out); `high` from three quarters, where it beats slowly (under three a second; still under less motion or less flash); `tone` harm, or cold (a frost, a fall of oxygen)', props: { level: [N, 0, true], tone: [['harm', 'cold'], 'harm'] } },
     letterbox: { group: 'hud', layer: true, about: 'the cinema bars of a cutscene', props: {} },
+    lens: { group: 'lens', about: 'the screen layer: what the camera\'s glass does to the picture, in a part of its own (a spec\'s `lens`) the host lays beside the world\'s canvas and under the HUD, so it acts on the world\'s pixels; its children are its effects (strike)', props: {}, children: 'lens' },
+    strike: { group: 'lens', about: `a foe struck, at its place on the screen: the air round its body (never the body: the world flashes that) bent or lit for a beat, each \`row\` { id, n, x, y, r, power? } (x, y its middle 0..1, r its body's radius as a share of the screen's height, n its hits: a new n plays again); \`kind\` ${STRIKES.join(', ')} (ink an impact frame round it, a lift under less flash); at most \`most\` at once (each a region the page filters)`, props: { rows: [L, [], true], kind: [STRIKES, 'ring'], seconds: [N, 0.42], most: [N, STRIKE_MOST] } },
     effect: { group: 'hud', layer: true, about: `a screen effect over everything, pure CSS: ${Object.keys(EFFECTS).join(', ')}; played once each time \`on\` takes a new value (a finish, a best lap, a level up) or held while \`loop\`; confetti falls from the top, pops from the centre or fires from the bottom (\`from\`); its pieces by its own dice (\`seed\` and the trigger), in the theme's colours (\`tones\`: ${EFFECT_TONES.join(', ')} or a hex); it never catches a pointer, never asks the game for a frame, holds with a held clock, and is a fade alone under reduced motion`, props: { kind: [Object.keys(EFFECTS), 'confetti'], on: [A, null], loop: [B, false], from: [['top', 'center', 'bottom'], 'top'], count: [N, 0], seconds: [N, 0], tones: [L, []], seed: [N, 1] } },
     touchpad: { group: 'hud', about: 'the look of a touch screen\'s virtual pad: a stick and round buttons, each named by the gamepad control it is (a word, or { label, control: south | east | west | north | rb … }); the touch driver (controllable/touch.js) reads it, never this runtime; what the driver knows is drawn: `lane` a stick held to left and right, `held` the stick under a thumb ({ ox, oy: where it rose from its rest, dx, dy: its nub, in px }), `down` the controls pressed', props: { stick: [B, true], buttons: [L, ['A', 'B']], lane: [B, false], held: [A], down: [L, []] } },
     legend: { group: 'value', about: 'what the buttons do here (a row: { action | actions: [..], label }), each with the glyph of the control the player is holding (keys, an Xbox, a PlayStation or a Nintendo pad); a finger needs none, so a touch screen draws none', props: { rows: [L, [], true] } },
@@ -299,6 +304,7 @@ export function buildManaUi() {
     if (kids.length && !C.children) throw new Error(`${where}: ${node.use} holds no children`);
     const children = kids.map((k, i) => readNode(k, defs, `${where}.children[${i}]`, depth));
     if (C.children === 'tab') children.forEach((k, i) => { if (k.use !== 'tab') throw new Error(`${where}.children[${i}] is a tab { use: 'tab', props: { label } }`); });
+    if (C.children === 'lens') children.forEach((k, i) => { if (COMPONENTS[k.use].group !== 'lens') throw new Error(`${where}.children[${i}] is one of the lens's effects (${COMPONENT_IDS.filter((c) => COMPONENTS[c].group === 'lens' && c !== 'lens').join(', ')}) (it is ${k.use})`); });
     if (C.children === 'hud') children.forEach((k, i) => { if (k.use !== 'region' && !COMPONENTS[k.use].layer) throw new Error(`${where}.children[${i}] is a region { use: 'region', props: { at } } or a layer (${COMPONENT_IDS.filter((c) => COMPONENTS[c].layer).join(', ')}) (it is ${k.use})`); });
     const out = { use: node.use, props, on, children };
     for (const k of ['id', 'when', 'unless']) if (node[k] !== undefined) out[k] = node[k];
@@ -320,6 +326,8 @@ export function buildManaUi() {
     }
     const hud = spec.hud === undefined ? null : readNode(spec.hud, defs, 'hud');
     if (hud && hud.use !== 'hud') throw new Error(`hud is a hud { use: 'hud', children: [regions, anchors] } (it is ${hud.use})`);
+    const lens = spec.lens === undefined ? null : readNode(spec.lens, defs, 'lens');
+    if (lens && lens.use !== 'lens') throw new Error(`lens is a lens { use: 'lens', children: [strike] } (it is ${lens.use})`);
     const start = spec.start === undefined ? null : spec.start;
     if (start !== null && !screens[start]) throw new Error(`start '${start}' is one of the screens: ${Object.keys(screens).join(', ')}`);
     // the game's languages: each a table of words by key (its own keys and the runtime's), the one it starts in
@@ -332,7 +340,7 @@ export function buildManaUi() {
     }
     const language = spec.language === undefined ? (languages.en || !Object.keys(languages).length ? 'en' : Object.keys(languages)[0]) : spec.language;
     if (spec.language !== undefined && !languages[language]) throw new Error(`language '${language}' is one of the game's languages: ${Object.keys(languages).join(', ') || 'none given'}`);
-    return { screens, hud, start, languages, language };
+    return { screens, hud, lens, start, languages, language };
   }
 
   // ── form: the tree as HTML ────────────────────────────────────────────────────────────────────────────────────────
@@ -385,7 +393,7 @@ export function buildManaUi() {
 
   // ── the runtime ───────────────────────────────────────────────────────────────────────────────────────────────────
   function runtime(spec, host) {
-    const { screens, hud, start, languages, language: startLanguage } = readSpec(spec);
+    const { screens, hud, lens, start, languages, language: startLanguage } = readSpec(spec);
     const H = host || {};
     if (H.cues !== undefined && !CUES[H.cues]) throw new Error(`host.cues is one of: ${Object.keys(CUES).join(', ')} (the UI's sounds the host plays)`);
     const heard = new Set(CUES[H.cues || 'silent']);
@@ -609,7 +617,10 @@ export function buildManaUi() {
       // the cover over the stage as one screen gives way to the next (a new key each time: the theme's transition plays)
       if (S.tx) parts.push(['div', { class: 'mana-transition', 'data-key': `tx${S.tx}`, 'data-way': S.txWay }]);
       const tree = ['div', { class: 'mana-root', 'data-open': id || 'none', 'data-hud': hud ? 'yes' : null, 'data-input': S.input, 'data-layout': S.input === 'pad' ? S.layout : null, 'data-clock': S.held ? 'held' : null, 'data-motion': S.calm ? 'reduced' : null, 'data-flash': S.dim ? 'reduced' : null, 'data-nav': id ? S.nav : null, style: own || null }, ...parts];
-      last = { tree, ...ctx };
+      // the lens: its own part, drawn after the HUD (it reads the same state), never in the root (the host mounts it beside
+      // the world's canvas, where its regions act on the world's pixels)
+      const lensTree = lens ? drawIn(lens, '$lens', {}, ctx, uiOf('$lens'), false, 1) : null;
+      last = { tree, lens: lensTree, ...ctx };
       // what this draw set going (a moment up, a number ticking) is heard once it is drawn
       // (one of each, the counts summed: a draw that brought three rows is one appear of three)
       const q = S.queued.splice(0), by = new Map();
@@ -853,6 +864,15 @@ export function buildManaUi() {
             return ['div', { class: cls, 'data-tone': p.tone === 'harm' ? null : p.tone, 'data-high': lv >= 0.75 ? 'yes' : null, style: `--mana-peril:${Math.round(lv * 100) / 100}` }];
           }
           case 'letterbox': return ['div', { class: cls }, ['i', null], ['i', null]];
+          // THE LENS: its own part, its root carrying the runtime's motion, flash and clock as the HUD's root does
+          case 'lens': return ['div', { class: cls, 'data-motion': S.calm ? 'reduced' : null, 'data-flash': S.dim ? 'reduced' : null, 'data-clock': S.held ? 'held' : null, 'aria-hidden': 'true' }, ...kids()];
+          case 'strike': {
+            // each foe struck a region round it (its element the band's size: a region filters only its own area), keyed
+            // by the foe and its hits so a new hit plays again; at most \`most\`, the latest kept
+            const rows = (Array.isArray(p.rows) ? p.rows : []).filter((r) => isObj(r) && isFinite(Number(r.x)) && isFinite(Number(r.y)) && Number(r.r) > 0);
+            const keep = rows.slice(Math.max(0, rows.length - clamp(Math.floor(p.most), 1, STRIKE_MOST))), f3 = (x) => Math.round(Number(x) * 1000) / 1000;
+            return ['div', { class: cls, 'data-kind': p.kind, style: `--d:${f3(clamp(Number(p.seconds) || 0.42, 0.1, 3))}s` }, ...keep.map((r) => ['i', { class: 'mana-struck', 'data-key': `s${r.id ?? ''}:${r.n ?? ''}`, style: `left:${pct(clamp(Number(r.x), -0.2, 1.2))};top:${pct(clamp(Number(r.y), -0.2, 1.2))};--r:${f3(clamp(Number(r.r), 0.005, 0.5))};--p:${f3(clamp(r.power === undefined ? 0.6 : Number(r.power), 0, 1))}` }])];
+          }
           case 'effect': {
             // a new trigger is a new element (its data-key), so its animation plays again; nothing playing, an empty layer
             const E = EFFECTS[p.kind] || EFFECTS.confetti, on = p.on === undefined || p.on === null || p.on === '' || p.on === false || p.on === 0 ? null : String(p.on);
@@ -1310,6 +1330,9 @@ export function buildManaUi() {
       languages: () => codesOf(),
       view: () => toHtml((last || render()).tree),
       tree: () => (last || render()).tree,
+      // the lens's part (a spec's \`lens\`), or null: mounted apart from the root (mount(el, rt, { part: 'lens' }))
+      lens: () => (last || render()).lens,
+      lensView: () => { const L = (last || render()).lens; return L ? toHtml(L) : ''; },
       state: () => {
         const id = top(), U = id ? uiOf(id) : null;
         // (tabs: each of the open screen's tabs, the one open)
@@ -1408,6 +1431,16 @@ export function buildManaUi() {
       const item = scr && scr.querySelector(`[data-k="${P.k}"]`);
       if (item) item.setAttribute('data-press', `${P.verb}-${P.n % 2 ? 'a' : 'b'}`);
     };
+    // THE LENS'S MOUNT (opts.part 'lens'): its part alone, patched as the root is, beside the world's canvas; it catches
+    // nothing (no pointer is read), holds no menu, and draws what the runtime last drew (the HUD's mount ticks it; a
+    // lens mounted alone ticks it itself, opts.tick)
+    if (o.part === 'lens') {
+      let lh = null;
+      const lpaint = () => { if (o.tick) rt.tick(); const v = rt.lensView(); if (v !== lh) { lh = v; const t = rt.lens(); patch(el, t ? [t] : []); } };
+      lpaint();
+      if (o.auto && typeof requestAnimationFrame === 'function') { const loop = () => { lpaint(); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+      return { paint: lpaint };
+    }
     const paint = () => { const h = rt.view(); if (h !== html) { html = h; pressMark(); const before = places(); patch(el, [rt.tree()]); glide(before); } hold(); };
     const near = (ev, sel) => (ev.target && ev.target.closest ? ev.target.closest(sel) : null);
     // where across its target a pointer is, on the rect taken when the press began (a repaint replaces the element)

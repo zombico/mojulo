@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { manaUi, manaUiSource, withIdioms, IDIOMS, manaUiPage, manaUiBoard, SAMPLE_STATE, coverageOverlap, manaCss } from './index.js';
+import { manaUi, manaUiSource, withIdioms, IDIOMS, manaUiPage, manaUiBoard, SAMPLE_STATE, coverageOverlap, manaCss, lensCss } from './index.js';
 
 // The runtime's concepts, each on the smallest spec that exercises it: reading that teaches, props down (literals and
 // bindings), three owners of state, function as effects, focus in one and two directions, seats, the in-game layer,
@@ -209,6 +209,39 @@ describe('mana-ui: in game', () => {
     expect(first.getAttribute('data-key')).toBe('a1');
     S.pops = [{ id: 2, x: 0.5, y: 0.5, value: 4 }]; rt.tick(); m.paint();
     expect(el.querySelector('.mana-anchor')).not.toBe(first);   // the same place, the same words: a new number all the same
+  });
+  it('the lens is a part apart: drawn beside the root, never in it; its effects only; a strike a region round each foe, a new hit a new element', () => {
+    const S = { lens: { hits: [{ id: 'f', n: 1, x: 0.6, y: 0.5, r: 0.08, power: 0.7 }] } };
+    const rt = manaUi.runtime({ hud: { use: 'hud', children: [] }, lens: { use: 'lens', children: [{ use: 'strike', props: { rows: { bind: 'lens.hits' }, kind: 'ring' } }] }, screens: {} }, host(S));
+    expect(rt.view()).not.toContain('mana-lens');
+    expect(rt.lensView()).toContain('class="mana-lens"');
+    expect(rt.lensView()).toContain('data-key="sf:1"');
+    expect(rt.lensView()).toMatch(/left:60%;top:50%;--r:0\.08;--p:0\.7/);
+    // (its effects only: a HUD part is not the lens's)
+    expect(() => manaUi.readSpec({ lens: { use: 'lens', children: [{ use: 'gauge', props: { value: 1, max: 2 } }] }, screens: {} })).toThrow(/one of the lens's effects \(strike\)/);
+    // (mounted apart, it plays again on a new hit: a new element)
+    const el = new JSDOM('<div></div>').window.document.querySelector('div'), m = manaUi.mount(el, rt, { part: 'lens', tick: true });
+    const first = el.querySelector('.mana-struck');
+    expect(first.getAttribute('data-key')).toBe('sf:1');
+    S.lens.hits = [{ ...S.lens.hits[0], x: 0.61 }]; m.paint();
+    expect(el.querySelector('.mana-struck')).toBe(first);   // the same hit followed: the same element, moved
+    S.lens.hits = [{ ...S.lens.hits[0], n: 2 }]; m.paint();
+    expect(el.querySelector('.mana-struck')).not.toBe(first);
+    // (at most `most` at once, the latest kept; none without a lens)
+    const many = manaUi.runtime({ lens: { use: 'lens', children: [{ use: 'strike', props: { rows: Array.from({ length: 9 }, (_, i) => ({ id: i, n: 1, x: 0.5, y: 0.5, r: 0.05 })), most: 3 } }] }, screens: {} }, host({}));
+    expect(many.lensView().match(/mana-struck/g)).toHaveLength(3);
+    expect(many.lensView()).toContain('data-key="s8:1"');
+    expect(manaUi.runtime({ screens: {} }, host({})).lensView()).toBe('');
+  });
+  it('the lens\'s sheet never isolates its root, opens a hole for the body, and moves by opacity and scale alone', () => {
+    const css = lensCss('.L'), root = css.match(/^\.L\{([^}]*)\}/m)[1];
+    for (const w of ['z-index', 'contain', 'container', 'opacity', 'transform', 'filter', 'isolation', 'mix-blend']) expect(root).not.toContain(w);
+    // (the band's element is 2.4 bodies across each way: its mask's hole must reach the body's edge)
+    const hole = Number(css.match(/radial-gradient\(closest-side,transparent 0 (\d+)%/)[1]) / 100;
+    expect(hole * 2.4).toBeGreaterThanOrEqual(0.95);
+    for (const f of css.match(/@keyframes mana-lens-[a-z]+\{.*\}\}/g)) for (const [, prop] of f.matchAll(/[{;]([a-z-]+):/g)) expect(['opacity', 'scale']).toContain(prop);
+    expect(css).toMatch(/\.L\[data-flash=reduced\] \.mana-strike\[data-kind=ink\]/);
+    expect(css).toMatch(/\.L\[data-clock=held\] \.mana-struck\{animation-play-state:paused\}/);
   });
   it('a screen effect plays once a trigger: idle without one, a new element a new trigger, the same moment the same pieces', () => {
     const S = { fx: { win: 0 } }, el = new JSDOM('<div></div>').window.document.querySelector('div');

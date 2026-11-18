@@ -104,3 +104,11 @@ describe('the host carries a level\'s rows', () => {
     expect(at('top-right')).toMatch(/"on":\{"accept":\{"emit":"map"\}\},"when":\{"bind":"on\.r1"\}/);
   });
 });
+
+describe('the lens on a level the pilot fights in', () => {
+  it('a HUD with the pilot\'s parts carries the lens\'s strike, fed the foes struck; one without them, no lens', () => {
+    const fights = hudToMana([], { hero: true }).spec, plain = hudToMana([], { hero: false }).spec;
+    expect(fights.lens).toEqual({ use: 'lens', children: [{ use: 'strike', props: { rows: { bind: 'lens.hits' }, kind: 'ring' } }] });
+    expect(plain.lens).toBeUndefined();
+  });
+});

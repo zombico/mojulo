@@ -81,6 +81,13 @@ as it is up: they suit moments and states, not a whole level.
 | time | slow motion (drained, the edge pressed in) | canvas + blend |
 | focus | scope (all but a circle blurred), x-ray lens (one place's negative), night vision | backdrop, canvas, blend |
 
+## Built from it: the lens and its strike
+
+The first of the primitive argued for below is built: mana-ui's `lens` (`docs/mana-ui.md`, "The lens"), the screen
+layer as a part of its own beside the canvas, and its `strike`, an effect in the air round the foe just struck that
+never draws over the body and stands down while a world moment plays. `lens-proof.mjs` shows it in Chrome through the
+real HUD host.
+
 ## If we fork from here: what I think
 
 **Yes, as a second layer of mana-ui, a screen layer beside the HUD.** It is a high-leverage primitive:

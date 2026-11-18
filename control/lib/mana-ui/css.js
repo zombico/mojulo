@@ -784,3 +784,42 @@ export const FRAME_CSS = [
   '.mana-frame[data-device=phone]{aspect-ratio:390/844;max-width:300px;margin:0 auto;border:6px solid #111;border-radius:30px}',
   '.mana-stage[data-device=phone]{width:390px;height:844px}',
 ].join('\n');
+
+/**
+ * THE LENS'S SHEET (a spec's `lens`, kernel.js): its own scope, its root laid over the world's canvas and NEVER made a
+ * stacking context of its own (no z-index, no contain, no container-type, no opacity, transform or filter on it): a
+ * region inside it filters the world's own pixels only while nothing between it and the canvas isolates it (the
+ * reactive layer's finding, scripts/spikes/reactive-layer/FINDINGS.md). The HUD's root, raised over it, stays its own.
+ *
+ * A STRIKE is a ring-shaped region round the foe struck: its element the band's size (a region filters only its own
+ * area: the cost is the band's), its mask's hole the foe's body (r: the world flashes the body itself; the lens bends
+ * only the air round it), its motion transform and opacity alone. Its kinds:
+ *   ring    the air round it bent and lit, a band that opens out as it fades (the default)
+ *   lift    the air round it lit and saturated, fading
+ *   shade   the air round it darkened and drained, so the foe stands out of it, fading
+ *   ink     the air round it to its negative for a beat, then gone (an impact frame round the foe; a lift under less flash)
+ *
+ *   lensCss(scope?) → the lens's rules (default scope `.mana-lens`)
+ */
+export function lensCss(scope = '.mana-lens') {
+  const s = scope, BF = (f) => `backdrop-filter:${f};-webkit-backdrop-filter:${f}`;
+  const hole = 'radial-gradient(closest-side,transparent 0 40%,#000 47% 68%,transparent 100%)';
+  return [
+    `${s}{position:absolute;inset:0;pointer-events:none;overflow:hidden}`,
+    `${s} .mana-strike{position:absolute;inset:0;pointer-events:none}`,
+    // (2.4 times the body's radius each way: the hole the body, the band the air out to its edge)
+    `${s} .mana-struck{position:absolute;height:calc(var(--r) * 480%);aspect-ratio:1;translate:-50% -50%;border-radius:50%;-webkit-mask:${hole};mask:${hole};will-change:opacity,scale;animation:mana-lens-fade var(--d) ease-out both}`,
+    `${s} .mana-strike[data-kind=ring] .mana-struck{${BF('blur(calc(2px + var(--p) * 3px)) brightness(1.32) saturate(1.35)')};animation-name:mana-lens-ring}`,
+    `${s} .mana-strike[data-kind=lift] .mana-struck{${BF('brightness(calc(1.15 + var(--p) * .35)) saturate(1.75)')}}`,
+    `${s} .mana-strike[data-kind=shade] .mana-struck{${BF('brightness(calc(.78 - var(--p) * .28)) saturate(.5)')}}`,
+    `${s} .mana-strike[data-kind=ink] .mana-struck{${BF('grayscale(1) invert(1) contrast(1.25)')};animation-name:mana-lens-ink;animation-timing-function:linear}`,
+    // (less flash: an impact frame is a lift; less motion: nothing opens out, it fades where it is; a held clock holds it)
+    `${s}[data-flash=reduced] .mana-strike[data-kind=ink] .mana-struck{${BF('brightness(1.25) saturate(1.5)')};animation-name:mana-lens-fade;animation-timing-function:ease-out}`,
+    `${s}[data-motion=reduced] .mana-struck{animation-name:mana-lens-fade}`,
+    `@media (prefers-reduced-motion:reduce){${s} .mana-struck{animation-name:mana-lens-fade}}`,
+    `${s}[data-clock=held] .mana-struck{animation-play-state:paused}`,
+    '@keyframes mana-lens-fade{0%{opacity:1}100%{opacity:0}}',
+    '@keyframes mana-lens-ring{0%{scale:.62;opacity:1}100%{scale:1.22;opacity:0}}',
+    '@keyframes mana-lens-ink{0%,52%{opacity:1}53%,100%{opacity:0}}',
+  ].join('\n');
+}
