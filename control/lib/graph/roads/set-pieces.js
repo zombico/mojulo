@@ -20,8 +20,9 @@
  *   pieceFor(slot, set, { nth, toward, heading, block? }) → { block, params, yaw, at } (a slot's piece, sized and
  *                                            turned; `block` names one in place of the set's)
  *   buildPiece(piece, { seed })              → the block built (era/blocks.js buildBlock) at its slot
- *   paintPiece(faces, K, { voxel? })         → World faces in the kit (four corners at most; `voxel` the cube's size on the
- *                                            voxel pole, for a far thing)
+ *   paintPiece(faces, K, { voxel?, language? }) → World faces in the kit (four corners at most; `voxel` the cube's size
+ *                                            on the voxel pole, for a far thing; `language` a design language whose
+ *                                            `pieces.paint` colours each group in its own materials)
  *
  * Pure, deterministic.
  */
@@ -29,6 +30,8 @@ import { buildBlock } from '../era/blocks.js';
 import { STRUCTURE_RINGS } from '../era/out-structures.js';
 import { voxelize, voxelFaces, voxelSizeFor } from './voxel-look.js';
 import { shadeFaces } from './shaded-look.js';
+import { chunkyLightOf } from './chunky-look.js';
+import { FINISHES } from './track-language.js';
 
 // ── the library ──
 const status = { id: 'lamps', prim: 'lamp', role: 'beacon', r: 0.18, group: 'str:accent' };
@@ -189,6 +192,124 @@ export const TRACK_BLOCKS = Object.freeze({
       { id: 'poles', prim: 'tube', role: 'frame', r: 0.07, from: ['-w / 2', 'rows * 0.85', 0], to: ['-w / 2', 'rows * 0.85', 'rows * 0.45 + 3'], repeat: { n: 'round(w / 5) + 1', step: ['w / round(w / 5)', 0, 0] }, group: 'tech:frame', value: 0.4 },
       { id: 'flags', prim: 'fin', role: 'trim', l: 1.6, h: 1, t: 0.03, at: ['-w / 2', 'rows * 0.85', 'rows * 0.45 + 2.2'], repeat: { n: 'round(w / 5) + 1', step: ['w / round(w / 5)', 0, 0] }, group: 'tech:trim', value: 0.55 },
     ], sig: ['tiers'], lead: 'tiers' },
+  // ── a design language's own (track-language.js `pieces.blocks`): the kart set's pieces made as the track is, round
+  // and stout, each with the params of the piece it stands in for, so it is sized in its slot the same way ──
+  'hoop-arch': { id: 'hoop-arch', read: 'a hoop over the track: a fat round half-hoop standing on two balls, a stripe in front of it, a ball at its crown and a banner hung off-centre under it', tier: 'landmark', mounts: ['ground'], functions: ['pass'],
+    params: { span: [8, 44] },
+    parts: [
+      { id: 'hoop', prim: 'ring', role: 'span', r: 'span / 2 + 1', tube: 'max(0.45, span * 0.045)', round: 8, sides: 20, arc: 180, axis: 'y', group: 'tech:glass', value: 0.6 },
+      { id: 'stripe', prim: 'ring', role: 'trim', r: 'span / 2 + 1', tube: 'max(0.28, span * 0.028)', round: 6, sides: 20, arc: 180, axis: 'y', at: [0, '-max(0.45, span * 0.045) * 0.95', 0], group: 'tech:trim', value: 0.55 },
+      { id: 'feet', prim: 'ball', role: 'pier', r: 'max(0.9, span * 0.08)', squash: 0.75, sides: 10, at: ['-span / 2 - 1', 0, 0], repeat: { n: 2, step: ['span + 2', 0, 0] }, group: 'tech:light', value: 0.7 },
+      { id: 'crown', prim: 'ball', role: 'trim', r: 'max(0.7, span * 0.06)', sides: 10, at: [0, 0, 'span / 2 + 1 + max(0.45, span * 0.045) * 0.6'], group: 'tech:light', value: 0.7 },
+      { id: 'banner', prim: 'panel', role: 'readout', size: ['span * 0.34', 'max(0.8, span * 0.07)'], t: 0.22, at: ['span * 0.09', -0.3, 'span * 0.4'], aim: [0, -1, 0], group: 'tech:skin', value: 0.95 },
+      { id: 'band', prim: 'panel', role: 'trim', size: ['span * 0.3', 'max(0.3, span * 0.022)'], t: 0.05, at: ['span * 0.09', -0.44, 'span * 0.4'], aim: [0, -1, 0], group: 'tech:trim', value: 0.55 },
+      { id: 'band-back', prim: 'panel', role: 'trim', size: ['span * 0.3', 'max(0.3, span * 0.022)'], t: 0.05, at: ['span * 0.09', -0.16, 'span * 0.4'], aim: [0, 1, 0], group: 'tech:trim', value: 0.55 },
+    ], sig: ['hoop'], lead: 'hoop' },
+  'lolly-board': { id: 'lolly-board', read: 'a braking board as a lollipop: a round cream board in a berry rim counting down in bars, on a fat post with a ball at its foot and its head', tier: 'machine', mounts: ['ground'], functions: ['signal'],
+    params: { w: [1, 2.6], h: [1, 2.4], count: [1, 3, 'i'] },
+    parts: [
+      { id: 'disc', prim: 'wheel', role: 'readout', r: 'w * 0.55', w: 0.26, sides: 18, axis: 'y', at: [0, 0, 'h'], group: 'tech:skin', value: 0.95 },
+      { id: 'post', prim: 'drum', role: 'frame', r: 'w * 0.09', h: 'h + w * 0.55', sides: 10, group: 'tech:frame', value: 0.9 },
+      { id: 'foot', prim: 'ball', role: 'pier', r: 'w * 0.24', squash: 0.55, sides: 10, group: 'tech:light', value: 0.7 },
+      { id: 'rim', prim: 'ring', role: 'trim', r: 'w * 0.55', tube: 'w * 0.07', round: 6, sides: 18, axis: 'y', at: [0, 0, 'h + w * 0.55'], group: 'tech:trim', value: 0.55 },
+      { id: 'bars', prim: 'panel', role: 'trim', size: ['w * 0.6', 'w * 0.13'], t: 0.04, at: [0, -0.15, 'h + w * 0.55 - (count - 1) * w * 0.12'], aim: [0, -1, 0], repeat: { n: 'count', step: [0, 0, 'w * 0.24'] }, group: 'tech:trim', value: 0.5 },
+      { id: 'head', prim: 'ball', role: 'trim', r: 'w * 0.13', sides: 8, at: [0, 0, 'h + w * 1.12'], group: 'tech:light', value: 0.7 },
+    ], sig: ['disc'], lead: 'disc' },
+  'candy-tower': { id: 'candy-tower', read: 'a candy tower: a round keep with a band round it, balls for battlements, a tall pointed roof with a ball on its tip and a pennant', tier: 'landmark', mounts: ['ground'], functions: [],
+    params: { r: [2, 9], h: [6, 30] },
+    sockets: { top: [0, 0, 'h'] },
+    parts: [
+      { id: 'drum', prim: 'drum', role: 'body', r: 'r', h: 'h', sides: 14, group: 'str:stone', value: 0.65 },
+      { id: 'band', prim: 'ring', role: 'trim', r: 'r', tube: 'r * 0.09', round: 5, sides: 14, at: [0, 0, 'h * 0.62'], group: 'tech:glass', value: 0.6 },
+      { id: 'merlons', prim: 'ball', role: 'trim', r: 'r * 0.26', sides: 6, at: [0, 0, 'h - r * 0.14'], repeat: { n: 6, around: 'r * 0.92' }, group: 'tech:light', value: 0.7 },
+      { id: 'roof', prim: 'cone', role: 'body', r: 'r * 1.12', r2: 0, h: 'r * 2.3', at: [0, 0, 'h + r * 0.2'], sides: 14, group: 'tech:trim', value: 0.55 },
+      { id: 'tip', prim: 'ball', role: 'trim', r: 'r * 0.17', sides: 6, at: [0, 0, 'h + r * 2.35'], group: 'tech:light', value: 0.7 },
+      { id: 'pole', prim: 'tube', role: 'frame', r: 'max(0.08, r * 0.03)', sides: 6, from: [0, 0, 'h + r * 2.6'], to: [0, 0, 'h + r * 3.4'], group: 'tech:frame', value: 0.9 },
+      { id: 'pennant', prim: 'fin', role: 'trim', l: 'r * 0.9', h: 'r * 0.5', t: 0.08, at: [0, 0, 'h + r * 2.9'], group: 'tech:glass', value: 0.6 },
+    ], sig: ['drum', 'roof'], lead: 'drum' },
+  'candy-turret': { id: 'candy-turret', read: 'a candy turret: a round drum under a berry cone with a ball on its tip', tier: 'landmark', mounts: ['ground'], functions: [],
+    params: { r: [1.2, 3], h: [4, 16] },
+    parts: [
+      { id: 'drum', prim: 'drum', role: 'body', r: 'r', h: 'h', sides: 12, group: 'str:stone', value: 0.65 },
+      { id: 'roof', prim: 'cone', role: 'body', r: 'r * 1.1', r2: 0, h: 'r * 1.4', at: [0, 0, 'h'], sides: 12, group: 'tech:trim', value: 0.55 },
+      { id: 'tip', prim: 'ball', role: 'trim', r: 'r * 0.2', sides: 6, at: [0, 0, 'h + r * 1.3'], group: 'tech:light', value: 0.7 },
+    ], sig: ['drum', 'roof'], lead: 'drum' },
+  'candy-castle': { id: 'candy-castle', read: 'a candy castle: a broad keep, its tall tower set off its middle, a turret at each corner', tier: 'landmark', mounts: ['ground'], functions: [],
+    params: { w: [22, 50], h: [20, 34] },
+    parts: [
+      { id: 'keep', prim: 'box', role: 'body', size: ['w * 0.8', 'w * 0.8', 'h'], group: 'str:stone', value: 0.6 },
+      { id: 'tall', block: 'candy-tower', role: 'body', params: { r: 4, h: 22 }, at: ['w * 0.05', 'w * 0.04', 0] },
+      { id: 'corners', block: 'candy-turret', role: 'body', params: { r: 2.4, h: 12 }, repeat: { n: 4, around: 'max(w * 0.48, 9.6)' } },
+    ], sig: ['keep', 'tall'], lead: 'keep' },
+  'candy-bumper': { id: 'candy-bumper', read: 'a candy bumper: three fat rolls lying along the track, berry, cream, berry', tier: 'machine', mounts: ['ground'], functions: [],
+    params: { l: [1.6, 4], h: [0.6, 1.2] },
+    parts: [
+      { id: 'red', prim: 'drum', role: 'body', r: 'h / 2', h: 'l / 3', sides: 14, axis: 'x', at: ['-l / 2', 0, 'h / 2'], repeat: { n: 2, step: ['l * 2 / 3', 0, 0] }, group: 'tech:trim', value: 0.55 },
+      { id: 'white', prim: 'drum', role: 'body', r: 'h / 2', h: 'l / 3', sides: 14, axis: 'x', at: ['-l / 6', 0, 'h / 2'], group: 'tech:skin', value: 0.95 },
+    ], sig: ['red'], lead: 'red' },
+  // ── a town a street circuit runs through (street-frontage.js): its fronts face the way (−y), set back past the
+  // sidewalk; a front's body is `str:plaster`, the colour a design language gives each building in turn ──
+  'toy-shop': { id: 'toy-shop', read: 'a toy shop: two storeys, two windows over a berry door, a rolled awning, a row of balls along its roof', tier: 'installation', mounts: ['ground'], functions: ['keep'],
+    params: { w: [6, 14], h: [5, 8] },
+    parts: [
+      { id: 'body', prim: 'box', role: 'shell', size: ['w', 8, 'h'], at: [0, 4, 0], group: 'str:plaster', value: 0.7 },
+      { id: 'windows', prim: 'panel', role: 'readout', size: ['w * 0.26', 'h * 0.26'], t: 0.12, at: ['-w * 0.25', -0.05, 'h * 0.66'], aim: [0, -1, 0], repeat: { n: 2, step: ['w * 0.5', 0, 0] }, group: 'tech:glass', value: 0.6 },
+      { id: 'door', prim: 'panel', role: 'door', size: [1.3, 2.2], t: 0.12, at: [0, -0.05, 1.1], aim: [0, -1, 0], group: 'tech:trim', value: 0.55 },
+      { id: 'awning', prim: 'drum', role: 'trim', r: 0.55, h: 'w * 0.86', sides: 10, axis: 'x', at: ['-w * 0.43', -0.45, 2.75], group: 'tech:trim', value: 0.55 },
+      { id: 'roof', prim: 'box', role: 'trim', size: ['w + 0.4', 8.4, 0.4], at: [0, 4, 'h'], group: 'tech:frame', value: 0.9 },
+      { id: 'knobs', prim: 'ball', role: 'trim', r: 0.38, sides: 8, at: ['-w * 0.42', 0.2, 'h + 0.3'], repeat: { n: 4, step: ['w * 0.28', 0, 0] }, group: 'tech:light', value: 0.7 },
+    ], sig: ['body'], lead: 'body' },
+  'toy-flat': { id: 'toy-flat', read: 'a block of toy flats: a fat body banded with windows, a berry balcony under each, a cap and a round tank on the roof', tier: 'landmark', mounts: ['ground'], functions: ['keep'],
+    params: { w: [10, 20], h: [10, 24] },
+    parts: [
+      { id: 'body', prim: 'box', role: 'shell', size: ['w', 10, 'h'], at: [0, 5, 0], group: 'str:plaster', value: 0.7 },
+      { id: 'door', prim: 'panel', role: 'door', size: [1.8, 2.4], t: 0.12, at: ['-w * 0.3', -0.05, 1.2], aim: [0, -1, 0], group: 'tech:trim', value: 0.55 },
+      { id: 'bands', prim: 'panel', role: 'readout', size: ['w * 0.8', 1.2], t: 0.12, at: [0, -0.05, 3.6], aim: [0, -1, 0], repeat: { n: 'max(1, floor(h / 3.4) - 1)', step: [0, 0, 3.4] }, group: 'tech:glass', value: 0.6 },
+      { id: 'balconies', prim: 'box', role: 'trim', size: ['w * 0.84', 0.7, 0.32], at: [0, -0.35, 2.8], repeat: { n: 'max(1, floor(h / 3.4) - 1)', step: [0, 0, 3.4] }, group: 'tech:trim', value: 0.55 },
+      { id: 'side-l', prim: 'panel', role: 'trim', size: [7, 1.2], t: 0.12, at: ['-w / 2 - 0.05', 5, 3.6], aim: [-1, 0, 0], repeat: { n: 'max(1, floor(h / 3.4) - 1)', step: [0, 0, 3.4] }, group: 'tech:glass', value: 0.6 },
+      { id: 'side-r', prim: 'panel', role: 'trim', size: [7, 1.2], t: 0.12, at: ['w / 2 + 0.05', 5, 3.6], aim: [1, 0, 0], repeat: { n: 'max(1, floor(h / 3.4) - 1)', step: [0, 0, 3.4] }, group: 'tech:glass', value: 0.6 },
+      { id: 'cap', prim: 'box', role: 'trim', size: ['w + 0.6', 10.6, 0.6], at: [0, 5, 'h'], group: 'tech:frame', value: 0.9 },
+      { id: 'tank', prim: 'ball', role: 'trim', r: 1.3, sides: 10, at: ['w * 0.26', 6, 'h + 0.3'], group: 'tech:light', value: 0.7 },
+    ], sig: ['body'], lead: 'body' },
+  'toy-tower': { id: 'toy-tower', read: 'a toy tower: a tall square shaft banded with windows, a fat berry drum for its crown, a ball on top', tier: 'landmark', mounts: ['ground'], functions: ['keep'],
+    params: { w: [12, 22], h: [26, 60] },
+    parts: [
+      { id: 'body', prim: 'box', role: 'shell', size: ['w', 'w', 'h'], at: [0, 'w / 2', 0], group: 'str:plaster', value: 0.7 },
+      { id: 'door', prim: 'panel', role: 'door', size: [2.4, 2.8], t: 0.12, at: [0, -0.05, 1.4], aim: [0, -1, 0], group: 'tech:trim', value: 0.55 },
+      { id: 'bands', prim: 'panel', role: 'readout', size: ['w * 0.86', 1.5], t: 0.14, at: [0, -0.05, 4], aim: [0, -1, 0], repeat: { n: 'max(1, floor(h / 4) - 1)', step: [0, 0, 4] }, group: 'tech:glass', value: 0.6 },
+      { id: 'side-l', prim: 'panel', role: 'trim', size: ['w * 0.86', 1.5], t: 0.14, at: ['-w / 2 - 0.05', 'w / 2', 4], aim: [-1, 0, 0], repeat: { n: 'max(1, floor(h / 4) - 1)', step: [0, 0, 4] }, group: 'tech:glass', value: 0.6 },
+      { id: 'side-r', prim: 'panel', role: 'trim', size: ['w * 0.86', 1.5], t: 0.14, at: ['w / 2 + 0.05', 'w / 2', 4], aim: [1, 0, 0], repeat: { n: 'max(1, floor(h / 4) - 1)', step: [0, 0, 4] }, group: 'tech:glass', value: 0.6 },
+      { id: 'crown', prim: 'drum', role: 'trim', r: 'w * 0.4', h: 'w * 0.3', sides: 16, at: [0, 'w / 2', 'h'], group: 'tech:trim', value: 0.55 },
+      { id: 'top', prim: 'ball', role: 'trim', r: 'w * 0.16', sides: 12, at: [0, 'w / 2', 'h + w * 0.28'], group: 'tech:light', value: 0.7 },
+    ], sig: ['body'], lead: 'body' },
+  'toy-tunnel': { id: 'toy-tunnel', read: 'an underpass: a toy building over the street, the way through its ground floor between two piers, a berry band and a row of balls over each mouth, lamps along its ceiling', tier: 'landmark', mounts: ['ground'], functions: ['pass'],
+    params: { span: [10, 30], l: [14, 34], h: [7, 16] },
+    parts: [
+      { id: 'piers', prim: 'box', role: 'pier', size: [1.4, 'l', 5.8], at: ['-span / 2 - 0.7', 0, 0], repeat: { n: 2, step: ['span + 1.4', 0, 0] }, group: 'tech:frame', value: 0.9 },
+      { id: 'deck', prim: 'box', role: 'span', size: ['span + 2.8', 'l', 0.9], at: [0, 0, 5.8], group: 'tech:frame', value: 0.9 },
+      { id: 'body', prim: 'box', role: 'body', size: ['span + 2.8', 'l', 'h'], at: [0, 0, 6.7], group: 'str:plaster', value: 0.7 },
+      { id: 'bands', prim: 'box', role: 'trim', size: ['span + 2.9', 0.5, 0.8], at: [0, '-l / 2 - 0.15', 5.4], repeat: { n: 2, step: [0, 'l + 0.3', 0] }, group: 'tech:trim', value: 0.55 },
+      { id: 'knobs', prim: 'ball', role: 'trim', r: 0.45, sides: 8, at: ['-span / 2 - 0.6', '-l / 2 - 0.2', 6.9], repeat: { n: 6, step: ['(span + 1.2) / 5', 0, 0] }, group: 'tech:light', value: 0.7 },
+      { id: 'front', prim: 'panel', role: 'readout', size: ['span * 0.86', 1.3], t: 0.12, at: [0, '-l / 2 - 0.05', 9], aim: [0, -1, 0], repeat: { n: 'max(1, floor((h - 2) / 3.4))', step: [0, 0, 3.4] }, group: 'tech:glass', value: 0.6 },
+      { id: 'back', prim: 'panel', role: 'readout', size: ['span * 0.86', 1.3], t: 0.12, at: [0, 'l / 2 + 0.05', 9], aim: [0, 1, 0], repeat: { n: 'max(1, floor((h - 2) / 3.4))', step: [0, 0, 3.4] }, group: 'tech:glass', value: 0.6 },
+      { id: 'ceiling', prim: 'panel', role: 'beacon', size: ['span * 0.6', 0.6], t: 0.08, at: [0, '-l / 2 + 3', 5.75], aim: [0, 0, -1], repeat: { n: 'max(2, floor(l / 6))', step: [0, 6, 0] }, group: 'tech:light', value: 0.8 },
+    ], sig: ['body', 'deck'], lead: 'body' },
+  'candy-lamp': { id: 'candy-lamp', read: 'a street lamp as a lollipop: a round cream post, a lemon globe on top', tier: 'machine', ring: 'near', mounts: ['ground'], functions: ['light'],
+    params: { h: [3.5, 6] },
+    parts: [
+      { id: 'post', prim: 'drum', role: 'frame', r: 0.13, h: 'h', sides: 10, group: 'tech:frame', value: 0.9 },
+      { id: 'globe', prim: 'ball', role: 'lamp', r: 0.42, sides: 12, at: [0, 0, 'h - 0.1'], group: 'tech:light', value: 0.8 },
+      { id: 'collar', prim: 'ring', role: 'trim', r: 0.2, tube: 0.07, round: 6, sides: 10, at: [0, 0, 'h - 0.15'], group: 'tech:trim', value: 0.55 },
+    ], sig: ['globe'], lead: 'post' },
+  'toy-signal': { id: 'toy-signal', read: 'a toy traffic signal: a cream post and housing, its three lights round balls in berry, lemon and sky', tier: 'machine', ring: 'near', mounts: ['ground'], functions: ['signal'],
+    params: { h: [3, 4.5] },
+    parts: [
+      { id: 'pole', prim: 'drum', role: 'frame', r: 0.12, h: 'h', sides: 10, group: 'tech:frame', value: 0.9 },
+      { id: 'housing', prim: 'box', role: 'body', size: [0.6, 0.5, 1.7], at: [0, 0, 'h'], group: 'tech:frame', value: 0.9 },
+      { id: 'stop', prim: 'ball', role: 'beacon', r: 0.2, sides: 10, at: [0, -0.27, 'h + 1.22'], group: 'tech:trim', value: 0.6 },
+      { id: 'wait', prim: 'ball', role: 'beacon', r: 0.2, sides: 10, at: [0, -0.27, 'h + 0.72'], group: 'tech:light', value: 0.7 },
+      { id: 'go', prim: 'ball', role: 'beacon', r: 0.2, sides: 10, at: [0, -0.27, 'h + 0.22'], group: 'tech:glass', value: 0.6 },
+    ], sig: ['housing'], lead: 'housing' },
   // ── the surrounds (surrounds.js): what stands beyond the venue ──
   house: { id: 'house', read: 'a house: plastered walls, windows and a door under a hipped roof', tier: 'installation', mounts: ['ground'], functions: ['keep'],
     params: { w: [6, 12], h: [3, 7] },
@@ -301,7 +422,11 @@ const tintColours = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, 
 /** A built piece's faces in the kit (track-kit.js): each group its material or flat colour, its value a stop, lit by the
  *  roadway's light (the kit's pole decides: a tile × light, or the band's stop); polygons fanned to four corners. A face
  *  with a `tint` (a '#rrggbb' of the caller's: a stand's seats, its crowd) is that colour, lit as a paint. */
-export function paintPiece(faces, K, { voxel = null } = {}) {
+export function paintPiece(faces, K, { voxel = null, language = null } = {}) {
+  // a design language's own paint (track-language.js `pieces.paint`): each group its material's colour and finish, so
+  // a piece is of the track's family; a group it does not name keeps the kit's paint
+  const own = language?.parts?.pieces?.paint ?? null;
+  if (own) faces = faces.map((f) => { const M = !f.tint && own[f.group] ? language.materials[own[f.group]] : null; if (!M) return f; const k = f.tile ? 0.85 : 1; return { ...f, tint: k === 1 ? M.hex : `#${[1, 3, 5].map((i) => Math.round(parseInt(M.hex.slice(i, i + 2), 16) * k).toString(16).padStart(2, '0')).join('')}`, gloss: FINISHES[M.finish] ?? 0 }; });
   // the voxel look: the piece a shell of cubes on its grid, under the isekai light (voxel-look.js); `voxel` a coarser
   // grid for a far thing (the surrounds: a wood, a butte, a village)
   if (K.pole === 'voxel' && faces.length) {
@@ -310,7 +435,7 @@ export function paintPiece(faces, K, { voxel = null } = {}) {
     return voxelFaces(vox, { light: K.light });
   }
   // the shaded look: the piece's own polygons, lit per corner the sixth generation's way (shaded-look.js)
-  if (K.pole === 'shaded') return shadeFaces(faces, { colourOf: (f) => (f.tint ? tintColours(f.tint).lit : K.colourOf(GROUP_PAINT[f.group] ?? GROUP_PAINT['tech:body'], f.value ?? 0.6, !!f.tile).lit) });
+  if (K.pole === 'shaded' || K.pole === 'chunky') return shadeFaces(faces, { ...(K.pole === 'chunky' ? { light: chunkyLightOf(K), ...(K.form ? { normals: true } : {}) } : {}), colourOf: (f) => (f.tint ? tintColours(f.tint).lit : K.colourOf(GROUP_PAINT[f.group] ?? GROUP_PAINT['tech:body'], f.value ?? 0.6, !!f.tile).lit) });
   const out = [];
   for (const f of faces) {
     const G = GROUP_PAINT[f.group] ?? GROUP_PAINT['tech:body'];

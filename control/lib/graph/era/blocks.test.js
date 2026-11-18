@@ -35,7 +35,7 @@ describe('blocks: the vocabulary and expressions', () => {
 describe('blocks: built at a ring', () => {
   it('every primitive builds closed-looking faces with a least span', () => {
     const demo = { box: { size: [1, 2, 3] }, drum: { r: 0.5, h: 1 }, tube: { r: 0.1, from: [0, 0, 0], to: [0, 0, 2] }, cone: { r: 1, h: 2 }, dish: { r: 1, depth: 0.3 }, truss: { from: [0, 0, 0], to: [0, 0, 3], w: 0.8, member: 0.2 },
-      panel: { size: [2, 1] }, wheel: { r: 0.5, w: 0.3 }, track: { len: 2, r: 0.3, w: 0.6 }, arm: { segs: [1, 1], bend: [10, 40], r: 0.2 }, fin: { l: 1, h: 1 }, lamp: { r: 0.2 }, ring: { r: 1, tube: 0.1 } };
+      panel: { size: [2, 1] }, wheel: { r: 0.5, w: 0.3 }, track: { len: 2, r: 0.3, w: 0.6 }, arm: { segs: [1, 1], bend: [10, 40], r: 0.2 }, fin: { l: 1, h: 1 }, lamp: { r: 0.2 }, ring: { r: 1, tube: 0.1 }, ball: { r: 0.5, squash: 0.8 } };
     expect(Object.keys(demo).sort()).toEqual([...PRIMITIVE_IDS].sort());
     for (const id of PRIMITIVE_IDS) {
       const b = buildBlock(one(id, demo[id]), { ring: 'near' });

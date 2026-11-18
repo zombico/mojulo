@@ -211,6 +211,14 @@ describe('the pilot legend', () => {
     ]);
   });
 
+  it('a race with item boxes teaches the item\'s key in a vehicle, and only there; the thrusters are not a kart\'s', () => {
+    const kart = rows({ vehicle: true, follow: true, items: true });
+    expect(kart).toContainEqual(['F', 'use item']);
+    expect(kart.some((r) => r[1] === 'boost thrusters')).toBe(false);
+    expect(rows({ vehicle: true, follow: true }).some((r) => r[1] === 'use item')).toBe(false);
+    expect(rows({ armed: true }).some((r) => r[1] === 'use item')).toBe(false);
+  });
+
   it('in space, with a mouselook camera', () => {
     expect(rows({ space: true, mouselook: true }).slice(0, 5)).toEqual([
       ['W A S D / arrows', 'thrust & turn'],

@@ -150,6 +150,7 @@ export const MECHANIC_SFX = {
   waves: { wave: 'wave', leak: 'hit', 'base:fallen': 'lose', 'waves:cleared': 'goal' },
   notes: { 'note:hit': 'beat-hit', 'note:miss': 'beat-miss', 'notes:failed': 'lose', 'notes:done': 'goal' },
   'wave-gauntlet': { wave: 'wave', 'gauntlet:arena': 'chime', 'gauntlet:again': 'lose', 'gauntlet:sealed:*': 'thud', 'gauntlet:clear:*': 'chime', 'gauntlet:out:*': 'goal' },
+  objectives: { 'objective:begin': 'chime', 'objective:done': 'checkpoint', 'objective:sealed': 'thud', wave: 'wave', 'objectives:done': 'goal' },
   push: { pushed: 'thud', 'plates:held': 'goal' },
   clock: { dawn: 'chime', dusk: 'chime' },
   crops: { planted: 'thud', harvested: 'pickup', 'crops:late': 'lose' },

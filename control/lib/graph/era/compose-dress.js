@@ -23,7 +23,8 @@
  */
 import { box, r5 } from './geom.js';
 import { STAIR_PROFILES } from '../construction/circulation.js';
-import { STOCK, HOSPITAL_STOCK, GREAT, EXTINGUISHER, roleOf, stockLaws, TOWN_STOCK, TOWN_GREAT } from './stocking.js';
+import { STOCK, HOSPITAL_STOCK, GREAT, EXTINGUISHER, roleOf, stockLaws, TOWN_STOCK, TOWN_GREAT, HALL_COVER } from './stocking.js';
+import { CELL as ARENA_CELL } from '../arena-map/blocks.js';
 import { resolveFurniture } from '../furnishings/forms.js';
 import { lockedFurnitureFaces } from '../construction/facades.js';
 
@@ -324,6 +325,81 @@ export function layProps(plan) {
   }
   return items;
 }
+
+/**
+ * A HALL'S COVER (a building designed as a fighting map, programs.js FIGHT `cover`): each hall stocking.js HALL_COVER
+ * names broken by its own stock. Its BLOCKS stand on a seeded lattice of the arena's cells (arena-map/blocks.js CELL: a
+ * block a standing place across), every other cell of every other row, the rows offset, some left open by the dice; a
+ * BAFFLE stands off each of its doorways, square to it, past the doorway's own floor; its LINES (low cover end to end)
+ * where a block will not fit. Kept clear: the doorways' floors and the stairs (keepOuts, and a gallery's stairs), a
+ * LANE round the walls, a body's width between any two things. → items as layProps lays them.
+ */
+export function layCover(plan, items = []) {
+  const keep = keepOuts(plan).filter((k) => k.kind !== 'sight'), out = [], C = COVER_CELL;
+  // (a gallery's stairs: its near flight along the wall from its foot, a long one's second coming in square to it)
+  for (const g of (plan.galleries ?? []).filter((x) => !x.lost)) {
+    const X = g.side.endsWith('x'), into = g.side.startsWith('-') ? 1 : -1;
+    const band = (a, b, deep) => { const v = [g.at, g.at + into * deep].sort((p, q) => p - q); keep.push({ room: g.hall, kind: 'stair', min: X ? [v[0], a] : [a, v[0]], max: X ? [v[1], b] : [b, v[1]] }); };
+    band(Math.min(g.foot, g.near[0]) - 0.6, Math.max(g.foot, g.near[1]) + 0.6, g.depth[1] + 1.2);
+    if (g.front) band(g.front[0] - 1.2, g.front[1] + 1.2, g.reach + 1.8);
+  }
+  const all = () => [...items, ...out];
+  const clear = (r, f, gap) => f.min[0] >= r.x0 + LANE && f.max[0] <= r.x1 - LANE && f.min[1] >= r.y0 + LANE && f.max[1] <= r.y1 - LANE
+    && !keep.some((k) => k.room === r.id && hits(k, f.min, f.max))
+    && !all().some((o) => { if (o.room !== r.id || o.wall) return false; const q = footprintOf(o); return f.min[0] < q.max[0] + gap && f.max[0] > q.min[0] - gap && f.min[1] < q.max[1] + gap && f.max[1] > q.min[1] - gap; });
+  // blocks of `kind` about each of `cs` (abreast, one mass), their long side along x (`alongX`) or y: the piece in rows
+  // back to back where it is thin
+  const blocks = (r, kind, cs, alongX, tag) => {
+    const P = PIECES[kind], rows = Math.max(1, Math.min(4, Math.round(BLOCK / P.d))), set = [];
+    for (const c of cs) for (let k = 0; k < rows; k++) {
+      const off = (k - (rows - 1) / 2) * P.d, facing = alongX ? (k % 2 ? '-y' : '+y') : (k % 2 ? '-x' : '+x');
+      set.push({ id: `${r.id}/cover/${tag}`, kind, room: r.id, at: alongX ? [r5(c[0]), r5(c[1] + off)] : [r5(c[0] + off), r5(c[1])], facing });
+    }
+    const fs = set.map(footprintOf), f = { min: [Math.min(...fs.map((q) => q.min[0])), Math.min(...fs.map((q) => q.min[1]))], max: [Math.max(...fs.map((q) => q.max[0])), Math.max(...fs.map((q) => q.max[1]))] };
+    if (!clear(r, f, WAY)) return false;
+    for (const it of set) out.push({ ...it, id: `${it.id}-${out.filter((o) => o.id.startsWith(`${it.id}-`)).length + 1}` });
+    return true;
+  };
+  const block = (r, kind, c, alongX, tag) => blocks(r, kind, [c], alongX, tag);
+  // a line of `kind` end to end about `c` (two pieces), along x or y
+  const line = (r, kind, c, alongX, tag) => {
+    const P = PIECES[kind], set = [-0.5, 0.5].map((t) => ({ id: `${r.id}/cover/${tag}`, kind, room: r.id, at: alongX ? [r5(c[0] + t * (P.w + GAP)), r5(c[1])] : [r5(c[0]), r5(c[1] + t * (P.w + GAP))], facing: alongX ? '+y' : '+x' }));
+    if (!set.every((it) => clear(r, footprintOf(it), WAY))) return false;
+    for (const it of set) out.push({ ...it, id: `${it.id}-${out.filter((o) => o.id.startsWith(`${it.id}-`)).length + 1}` });
+    return true;
+  };
+  for (const r of plan.rooms) {
+    const shelf = HALL_COVER[roleOf(r.id)];
+    if (!shelf) continue;
+    const dice = mulberry32(hashOf(`cover|${r.id}`)), [blk, ...lows] = shelf.map(([k]) => k), low = lows[0] ?? null, P = PIECES[blk];
+    // (a piece two cells long stands on the edge between them, any other in its cell's middle)
+    const long = P.w >= 2 * C - 0.6, half = long ? C / 2 : 0;
+    // the baffles first: off each doorway, square to it, in the first cell past its floor, as long as the doorway and a
+    // body's width either side (blocks abreast)
+    for (const o of openingsOf(plan, r)) {
+      const m = (o.lo + o.hi) / 2, keep0 = o.at + o.into * (STAIR_PROFILES.game.door + 0.6);
+      const v = (Math.floor(keep0 / C + (o.into > 0 ? 1 - 1e-9 : 0)) + (o.into > 0 ? 0.5 : -0.5)) * C, n = Math.max(1, Math.ceil((o.hi - o.lo + 2 * BAFFLE) / P.w - 1e-9));
+      const row = (k) => [...Array(n)].map((_, q) => { const u = m + k + (q - (n - 1) / 2) * (P.w + GAP); return o.X ? [v, u] : [u, v]; });
+      // (slid along the wall a little where another baffle or the hall's stock stands in the way)
+      const laid = [0, 1.5, -1.5].some((k) => blocks(r, blk, row(k), !o.X, 'baffle'));
+      if (!laid && low) line(r, low, o.X ? [v, m] : [m, v], !o.X, 'baffle');
+    }
+    // the lattice: every other cell of every other row, the rows offset, by the room's dice
+    const phase = Math.floor(dice() * 2), i0 = Math.ceil(r.x0 / C), i1 = Math.floor(r.x1 / C), j0 = Math.ceil(r.y0 / C), j1 = Math.floor(r.y1 / C);
+    for (let j = j0; j < j1; j++) for (let i = i0; i < i1; i++) {
+      if (j % 2 !== 0 || (i + j / 2 + phase) % 2 !== 0) continue;
+      const roll = dice(), alongX = dice() < 0.5;
+      if (roll < 0.15) continue;
+      // (the dice's way first, else turned)
+      const at = (ax) => [(i + 0.5) * C + (long && ax ? half : 0), (j + 0.5) * C + (long && !ax ? half : 0)];
+      if (![alongX, !alongX].some((ax) => block(r, blk, at(ax), ax, 'block')) && low) line(r, low, [(i + 0.5) * C, (j + 1) * C], true, 'line');
+    }
+  }
+  return out;
+}
+// (a hall's cover: the arena's cell (arena-map/blocks.js CELL), a block's depth, the lane kept round its walls, a body's
+// width between things)
+const COVER_CELL = ARENA_CELL, BLOCK = 2.4, LANE = 1.2, WAY = 1.2, BAFFLE = 2.4;
 
 // an item's part as a world box: the piece's frame turned to face the room (u along its wall, v out of it)
 function partBox(it, p, z0) {

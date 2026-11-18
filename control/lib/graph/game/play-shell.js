@@ -906,6 +906,8 @@ export function playShellRuntime(cfg, K) {
       sound: () => { settings.sfxOn = !settings.sfxOn; saveSettings(); pushPrefs(); }, homeWord,
       rows: () => ctlRows || [['W A S D / arrows', 'move'], ['mouse', 'look'], ['Space', 'jump']],
       owner: () => { const o = pauseBy && seatList.find((x) => x.controller === pauseBy); return o ? o.label : ''; },
+      // where the run stands as it pauses: the level's name, which of how many, the seconds played
+      where: () => { if (!session || !session.level) return null; const i = LEVELS.findIndex((l) => l.ref === session.level.ref); return { title: session.level.title || '', at: i + 1, of: LEVELS.length, secs: playedSecs() }; },
     },
   }) : null;
 
@@ -1029,7 +1031,7 @@ export function playShellRuntime(cfg, K) {
   // members of the slice as the store holds it (a party member's tags, level and figures, each figure against the
   // most anyone in the roster has; a carried thing's count)
   function turnRows(p) {
-    if (p.from.options) return p.from.options.map((o) => ({ id: o.id, name: o.name, about: o.about || '' }));
+    if (p.from.options) return p.from.options.map((o) => Object.assign({ id: o.id, name: o.name, about: o.about || '' }, o.gun ? { gun: o.gun } : {}));
     const sl = state[p.from.slice] || {};
     if (sl.roster) {
       const most = {};

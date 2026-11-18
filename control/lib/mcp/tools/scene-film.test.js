@@ -69,7 +69,9 @@ describe('the plan, before any mint', () => {
 
   it('a contact sheet is the film shot in mojulo at a few frames a shot: asked of another form, it is refused', async () => {
     await expect(forgeMotionHandler({ title: 's', subject: { screenplay: BASELINE.blocked }, shot: { motion: 'coverage', params: { contact: 3 } } })).rejects.toThrow(/export: 'film'/);
-  });
+  // (the first forge_motion call in the file loads the film's modules before it refuses: about 20 s alone, past 30 s on a
+  // macOS runner, 2026-11-17, so the test has room)
+  }, 120000);
 
   it('a screenplay\'s camera says how its cuts are shot: the coverage in that style, its notes the style\'s', () => {
     const plain = planSceneFilm(BASELINE.blocked, { getRow: () => null }), oner = planSceneFilm({ ...BASELINE.blocked, camera: 'long take' }, { getRow: () => null });

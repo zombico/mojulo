@@ -1,7 +1,7 @@
 /**
  * glyph-forms — the game UI language's FORM SHELF (game-ui-language.plan.md, U1).
  *
- * Icon-grade procedural solids (gem coin key heart star orb flag skull, and the rhythm game's note blocks) built from the
+ * Icon-grade procedural solids (gem coin key heart medkit ammo-crate star orb flag skull, and the rhythm game's note blocks) built from the
  * lathe/extrude primitives, vexar-lit, one semantic tint each — the closed, player-facing pickup/
  * marker vocabulary. Not workbench-grade objects: these are silhouettes designed to read at
  * gameplay distance, the substrate's equivalent of a tinted icon set, kept pure-vector.
@@ -117,6 +117,36 @@ export const GLYPH_FORMS = {
         profile: { points: pts },
         axisFrom: { x: 0, y: -0.11, z: 0 }, axisTo: { x: 0, y: 0.11, z: 0 },
       }, { tint });
+    },
+  },
+
+  medkit: {
+    name: 'Medkit',
+    summary: 'A first-aid case, a red cross on its faces — health where a heart would be out of place.',
+    when: 'health pickups in a shooter, a mission, a survival game: a supply that heals',
+    tint: '#f1f0ea',
+    symmetry: 'bilateral',
+    idle: 'bob',
+    fit: { height: 0.72, cz: 0.36 },
+    build: ({ tint }) => {
+      const slab = (w, h, d, z, c) => extrudeToFaces({ profile: { rect: { w, h } }, axisFrom: { x: 0, y: -d / 2, z }, axisTo: { x: 0, y: d / 2, z } }, { tint: c });
+      // (the case; its cross proud of both faces; the handle on its lid)
+      return [...slab(0.84, 0.54, 0.4, 0.33, tint), ...slab(0.13, 0.36, 0.44, 0.33, '#d8262c'), ...slab(0.36, 0.13, 0.44, 0.33, '#d8262c'), ...slab(0.3, 0.07, 0.1, 0.635, '#3a3d42')];
+    },
+  },
+
+  'ammo-crate': {
+    name: 'Ammo crate',
+    summary: 'A drab steel ammunition box, a stencil band across it — rounds, a resupply.',
+    when: 'ammunition pickups, a resupply point, grenades and rounds in a shooter or a mission',
+    tint: '#5d6b3a',
+    symmetry: 'bilateral',
+    idle: 'bob',
+    fit: { height: 0.6, cz: 0.3 },
+    build: ({ tint }) => {
+      const slab = (w, h, d, z, c) => extrudeToFaces({ profile: { rect: { w, h } }, axisFrom: { x: 0, y: -d / 2, z }, axisTo: { x: 0, y: d / 2, z } }, { tint: c });
+      // (the box; its lid a lip wider; the stencil band proud of both faces; the carry handle on its lid)
+      return [...slab(0.86, 0.4, 0.46, 0.2, tint), ...slab(0.9, 0.09, 0.5, 0.445, '#444f2a'), ...slab(0.5, 0.08, 0.5, 0.2, '#e3c33b'), ...slab(0.34, 0.06, 0.08, 0.52, '#2d3033')];
     },
   },
 

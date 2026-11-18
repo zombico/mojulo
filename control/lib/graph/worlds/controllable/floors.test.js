@@ -45,4 +45,31 @@ describe('floors for the minds', () => {
     expect(a.transform.pos[2]).toBeCloseTo(0, 5);
     expect(lowestOverTower).toBeGreaterThan(2.4);   // over the tower it stayed on its top
   });
+  it('a flight that turns (`way`) is walked a point at a time: up one leg, across the landing, up the other', () => {
+    // a switchback beside a floor: the first leg up +y at x 0, a landing past y 4, the second leg back down -y at x 2
+    const ground = (p) => {
+      const [x, y] = p;
+      if (y >= 4 && y <= 5.2 && x > -1 && x < 3) return 1.25;
+      if (y >= 0 && y < 4 && x > -1 && x < 1) return (y / 4) * 1.25;
+      if (y >= 0 && y < 4 && x >= 1 && x < 3) return 1.25 + ((4 - y) / 4) * 1.25;
+      if (y < 0 && x >= 1 && x < 12 && y > -8) return 2.5;
+      return 0;
+    };
+    const way = [[0, -0.5], [0, 2], [0, 4.5], [2, 4.5], [2, 2], [2, -0.5]];
+    const turned = [{ area: [1, -8, 12, 0], z: 2.5, flights: [{ bottom: way[0], top: way.at(-1), way }] }];
+    const w = E.createWorld({ colliders: [], entities: [walker([-4, -3, 0], { floors: turned, objective: { at: [8, -4, 2.5], radius: 1 } })] });
+    const a = w.byId.a;
+    let far = -Infinity, low = Infinity;
+    for (let k = 0; k < 30 * 16; k++) {
+      E.stepWorld(w, {}, 1 / 30, { ground });
+      const p = a.transform.pos;
+      far = Math.max(far, p[1]);
+      if (p[1] < -0.6 && p[0] > 1.2) low = Math.min(low, p[2]);
+    }
+    expect(far).toBeGreaterThan(4);                 // round by the landing, never straight from the foot to the top
+    expect(Math.hypot(a.transform.pos[0] - 8, a.transform.pos[1] + 4)).toBeLessThanOrEqual(1.2);
+    expect(a.transform.pos[2]).toBeCloseTo(2.5, 5);
+    expect(low).toBeGreaterThan(2.4);               // on the floor it stayed on the floor
+    expect(a.flight ?? null).toBeNull();
+  });
 });
