@@ -1173,6 +1173,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   if (payload && Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.length) {
     payload.entities = sketch.manifest.entities;
     if (sketch.manifest.camera && sketch.manifest.camera.rule) payload.camera = sketch.manifest.camera;
+    // (a chase that asks a tall room's pull-back, `tall: true | { from?, … }`, controllable/rules-basic.js: the stage's
+    // rooms that stand over its `from`, as boxes; a world with none so tall drops the word and its page is as it was)
+    if (payload.camera && payload.camera.tall !== undefined) {
+      const { tall, ...cam } = payload.camera, T = tall && typeof tall === 'object' ? tall : {}, from = T.from ?? 7;
+      const rooms = tall ? (payload.rooms || []).filter((q) => q && q.box && q.h > from).map((q) => [q.box.min[0], q.box.min[1], q.box.max[0], q.box.max[1], q.h]) : [];
+      payload.camera = rooms.length ? { ...cam, tall: { ...T, rooms } } : cam;
+    }
     // suit switcher: `pilot` names the initially-piloted `pilotable` entity (default: the first one)
     if (typeof sketch.manifest.pilot === 'string') payload.pilot = sketch.manifest.pilot;
     // spectate: NO pilot — the whole cast runs its ai brain and the

@@ -221,3 +221,8 @@ What the theme will hold:
   (`building.rooms`: the gate court 10 m, the gallery 14 m, the great hall 16 m, the sanctum 18 m, from 7 m and
   10.5 m). The law checks (`era/law-checks.js`) fold a building's faces for its crown and its darkest corner instead
   of spreading them into one call, which overflowed the stack on a stage this size.
+- **Built: the chase sees a tall room.** The follow camera takes `tall: { rooms, from?, span?, back?, rise?, look? }`
+  (`worlds/controllable/rules-basic.js`): standing in a room over `from` (7 m), it eases back and up and lifts its look,
+  by how far the ceiling stands over it, never through the ceiling. A building level played with the action orbit
+  asks for it (`tall: true`, `gameworld/levels.js`); the page fills in the stage's rooms over the threshold
+  (`worlds/world-scene.js`), and a building with none so tall keeps its page as it was.

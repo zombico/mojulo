@@ -123,7 +123,24 @@ export function buildRulesBasic(E) {
       lkMix = lkTgt ? e.lockMix : 0;
       e._lkLook = lo.mix ?? 0.5; e._lkDist = lo.dist ?? 1.2;
     }
-    const dist = (r.dist ?? 6) * (lkMix ? 1 + (e._lkDist - 1) * lkMix : 1), height = r.height ?? 3, shoulder = r.shoulder ?? 0, lead = r.lead ?? 4, lookH = r.lookH ?? 1.5, lerp = r.lerp ?? 8;
+    // A TALL ROOM (opt-in `tall: { rooms: [[x0, y0, x1, y1, h]], from?, span?, back?, rise?, look?, rate? }`, a building's
+    // rooms over `from` metres, worlds/world-scene.js): standing in one, the chase eases back (× 1 + `back`) and up (+
+    // `rise` m) and its look lifts (+ `look` m), by how far the ceiling stands over `from` across `span` metres, so the
+    // height is seen; never over the ceiling, and never back past `fit` of the room's narrower side (a tall court too
+    // small to stand back in is looked up in from where the chase stands, its height kept, as a wall's doorway stands over
+    // a chase with its back to it). Out of them, or absent, the chase as it was.
+    let tlMix = 0, tlCeil = Infinity, tlFit = Infinity;
+    if (r.tall && Array.isArray(r.tall.rooms)) {
+      const T = r.tall, q = tgt.transform.pos;
+      let hh = 0;
+      for (const b of T.rooms) if (q[0] >= b[0] && q[0] <= b[2] && q[1] >= b[1] && q[1] <= b[3]) { hh = b[4]; tlFit = (T.fit ?? 0.5) * Math.min(b[2] - b[0], b[3] - b[1]); break; }
+      const from = T.from ?? 7, want = hh > from ? Math.min(1, (hh - from) / (T.span ?? 9)) : 0;
+      if (e.tallMix == null) e.tallMix = want;
+      e.tallMix += (want - e.tallMix) * smooth(T.rate ?? 1.5, dt);
+      tlMix = e.tallMix; if (hh) tlCeil = hh - 1;
+    }
+    const tl = (k, d) => (tlMix && r.tall ? (r.tall[k] ?? d) * tlMix : 0);
+    const dist0 = (r.dist ?? 6) * (lkMix ? 1 + (e._lkDist - 1) * lkMix : 1), dist = tlMix ? Math.max(dist0, Math.min(dist0 * (1 + tl('back', 0.55)), tlFit)) : dist0, tlBack = tlMix ? Math.min(1, (dist - dist0) / Math.max(1e-6, dist0 * tl('back', 0.55))) : 0, height = (r.height ?? 3) + tl('rise', 2.6) * tlBack, shoulder = r.shoulder ?? 0, lead = r.lead ?? 4, lookH = (r.lookH ?? 1.5) + tl('look', 1.4), lerp = r.lerp ?? 8;
     const wantFlip = r.reverse ? 1 : 0;
     if (e.flipMix == null) e.flipMix = wantFlip;   // start settled (no swing on load)
     e.flipMix += (wantFlip - e.flipMix) * smooth(r.flipRate ?? 3, dt);
@@ -182,6 +199,7 @@ export function buildRulesBasic(E) {
     // the start; eased back down into the chase over its last third. Absent → the chase as it was.
     const vT = r.vista && Array.isArray(r.vista.at) ? r.vista.secs ?? 6 : 0, vq = vT && world.time < vT ? 1 - Math.max(0, (world.time - vT * 2 / 3) / (vT / 3)) : 0, vs = vq * vq * (3 - 2 * vq);
     if (vs) want[2] += (r.vista.rise ?? 16) * vs;
+    if (tlMix && want[2] > tlCeil) want[2] = Math.max(tz + 1, tlCeil);
     const k = smooth(lerp, dt);
     e.transform.pos = add(e.transform.pos, scl(sub(want, e.transform.pos), k));
     e.lookAt = [

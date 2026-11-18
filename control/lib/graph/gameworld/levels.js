@@ -1806,13 +1806,15 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   const controls = `${top ? `W A S D  move${!pilot && !moves?.gear ? ' · Z  walk' : ''}` : `${walkRun(pilot, moves?.gear ? 'F ' : '')} · A / D  turn`} · Space  jump${carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${movesLegend(moves)}${X?.legend ? ` · ${X.legend}` : ''}${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   // (AN ACTION HERO indoors, the orbit and a blow, as on a trail: it moves in the camera's frame under the orbit that
   // locks on, and where the run made its sheathed twin its blade goes to its back and the fist is in its hands)
+  // (and in a tall room it stands back and looks up, so the height is seen: `tall`, controllable/rules-basic.js; a building
+  // with no room over seven metres, as it was)
   const actionOrbit = cam === 'orbit' && carriesStrike(G);
   const brule = { ...(top ? { move: 'world', moveYaw: OVERHEAD.yaw } : actionOrbit ? { move: 'camera' } : {}), ...(strikeWindow(G, null) ?? {}) };
   const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls, ...(Object.keys(brule).length ? { rule: brule } : {}) }), moves, startingGrants(G));
   const inputs = [...(P.events?.inputs ?? []), ...(mechanics?.inputs ?? []), ...(X?.inputs ?? [])];
   const events = { ...(P.events || {}), ...(inputs.length > (P.events?.inputs?.length ?? 0) ? { inputs } : {}) };
   const A = armedPilot(G, { ...P.entities[0], transform: { pos: cx ? spawn : steppedIn(plan, spawn, heading), heading } }, cam);
-  const camera = top ? { rule: 'overhead', target: 'hero', ...OVERHEAD } : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) } : actionOrbit ? { ...P.camera, steer: 'orbit', ...ACTION_ORBIT } : A.camera ?? partyChase(G, P.camera);
+  const camera = top ? { rule: 'overhead', target: 'hero', ...OVERHEAD } : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) } : actionOrbit ? { ...P.camera, steer: 'orbit', ...ACTION_ORBIT, tall: true } : A.camera ?? partyChase(G, P.camera);
   const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef) : null, figs0 = fighter ? fighter.figures : P.figures;
   const pilot0 = { figures: X?.figures ? { ...figs0, ...X.figures } : figs0, entities: [piloted(fighter ? fighter.entity : A.entity), ...(X?.entities ?? [])], camera, events, ...(actionOrbit ? { lock: true } : {}) };
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's
