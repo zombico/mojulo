@@ -96,6 +96,20 @@
       "name": "The citadel",
       "building": {
         "use": "citadel",
+        "rooms": {
+          "gate": {
+            "h": 10
+          },
+          "hall": {
+            "h": 16
+          },
+          "gallery": {
+            "h": 14
+          },
+          "sanctum": {
+            "h": 18
+          }
+        },
         "geocube": {
           "from": "gothic-night",
           "era": "gen-7",

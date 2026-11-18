@@ -15,6 +15,11 @@ to the knight in its sanctum. `world.json` is the whole recipe; everything else 
   era: 'gen-7', inside: { bones: 'gothic-ashlar' } }`), four fights kept on the world (`fights`) and laid in
   its rooms (`goal.tasks`): a duel in the gate court, a melee in the great hall, a gallery fight in the long
   gallery, the boss in the sanctum.
+- **Built tall:** the citadel's rooms raised over what its use gives (`building.rooms`: the gate court 10 m, the
+  gallery 14 m, the great hall 16 m, the sanctum 18 m, the room the level ends in the tallest), so the kit's wall
+  (`gothic-ashlar`, made for height: its string course at six tenths of a wall, a blind arcade over it, a vault on
+  ribs) has the height it was drawn for; the candle rings hang over each room's walk at a reachable height and the
+  vault above them is left to the dark.
 - **Lit as tenebrae:** the cube's inside asks for its shade (`light: { shade: 0.06 }`: the shade keeps a twentieth of
   the torches' light, so it falls to black, its air darkened with it, and the figures take the torches' light where
   they stand), its palette warmed (`heat: 0.15`, the stone's hue `32`: the stone is seen only where a torch reaches it, so warm

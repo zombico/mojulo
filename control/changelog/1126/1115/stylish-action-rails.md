@@ -217,3 +217,7 @@ What the theme will hold:
   light): a body walks out of the torchlight into the dark. A grade word, `tenebrae`, joins the grades. Fallen Angel's
   citadel is lit so. A room that asks none, and every other page, as it was. Machine gate only: seen in headless
   shots, nobody has played it.
+- **Built: the citadel raised.** Fallen Angel's citadel takes the height its seventh-generation kit was drawn for
+  (`building.rooms`: the gate court 10 m, the gallery 14 m, the great hall 16 m, the sanctum 18 m, from 7 m and
+  10.5 m). The law checks (`era/law-checks.js`) fold a building's faces for its crown and its darkest corner instead
+  of spreading them into one call, which overflowed the stack on a stage this size.
