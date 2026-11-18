@@ -1,4 +1,5 @@
 import { safeJson } from '../emit-util.js';
+import { ROOM_LIGHT } from '../../form/room-light.js';
 
 // In-page script: THE FORM RENDER INDOORS (gen-7: form/room-light.js, form/room-form.js, era/stage.js). The build baked the
 // room as a lightmap is, its colour and its light apart: each corner its base (the colour its palette asks for under no
@@ -36,7 +37,8 @@ import { safeJson } from '../emit-util.js';
 //          void?: '#rrggbb' (a toned room's), sun?: { ground: [r, g, b] } (linear: a town's, the light a face turned down takes),
 //          reflect?: { env: { zenith, horizon, ground } (linear), surfaces: { group: { rough, metal?, clear?, film? } }, wet?: { amount, seed, groups, damp?, walls?, pools?, rain?, spots?: [{ at, r, amount, pool }], mask?: { rect, size, data } (rupa/splatter.js, base64) }, floods?: [{ at, key, radius }] (lamps out of doors the page lays whole: the nearest four),
 //          probe?: { at: [x, y, z], box: [[x0, y0, z0], [x1, y1, z1]] } (a room's capture and the box it is corrected to), size? } }
-//          instanced?: true (a room under no sun whose instanced repeats carry their baked light: lit as the town's are) }
+//          instanced?: true (a room under no sun whose instanced repeats carry their baked light: lit as the town's are),
+//          figures?: true (a room that asks for its shade: `__mojForm.lightAt(x, y, z)`, its light at a point over its paint's) }
 // WHAT A SURFACE GIVES BACK (`cfg.reflect`, a page whose built things stand under a sky): the sky by Fresnel, blurred by
 // the surface's roughness, and the sun's highlight where the bake says the sun reaches; a metal's base colours both and
 // it keeps no diffuse. WET (`reflect.wet`): one field of water over the ground, by the world's own place (so the same
@@ -458,7 +460,19 @@ ${cfg.reflect && cfg.sun ? `    // (a built thing out of doors is closed and dra
     for (const s of slots) if (s.next === s.lamp) s.next = null;
   };
   const probe = { lamps: lamps.length, live: slots.length, made, panes, reads: Object.fromEntries(Object.entries(F.maps).map(([k, m]) => [k, m.read])), on: () => slots.map((s) => (s.lamp ? s.lamp.i : -1)) };
-  const prev = scene.onBeforeRender;
+${cfg.figures ? `  // THE ROOM'S LIGHT AT A POINT (\`figures\`: a room that asks for its shade, era/stage.js): its ambient and every lamp
+  // there (no shadow test and no cosine: a body is lit whole), over the light its paint was made under (the median lamp
+  // at the reference, form/room-light.js ROOM_LIGHT.at); the room's figures take it where they stand (channels/controllable)
+  const LA = F.lights.filter((l) => l.radius < 1e8);
+  const fo = (d, r) => { const t = Math.min(1, Math.max(0, 1 - Math.max(d, ${ROOM_LIGHT.near}) / r)); return Math.pow(t * t, F.fall); };
+  const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  const LREF = Math.max(1e-4, lum(F.ambient) + (LA.map((l) => lum(l.key) * fo(${ROOM_LIGHT.at}, l.radius)).sort((a, b) => a - b)[LA.length >> 1] || 0));
+  probe.lightAt = (x, y, z) => {
+    const o = F.ambient.slice();
+    for (const l of LA) { const d = Math.hypot(l.at[0] - x, l.at[1] - y, l.at[2] - z); if (d < l.radius) { const w = fo(d, l.radius); o[0] += l.key[0] * w; o[1] += l.key[1] * w; o[2] += l.key[2] * w; } }
+    return [o[0] / LREF, o[1] / LREF, o[2] / LREF];
+  };
+` : ''}  const prev = scene.onBeforeRender;
   scene.onBeforeRender = function (r, s, cam, rt) {
     if (prev) prev.call(this, r, s, cam, rt);
     if (rt) return;

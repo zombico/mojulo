@@ -46,7 +46,7 @@ forge_motion({ title: 'The key', export: 'storyboard',
   - `look`: `film` (default) or `anime`;
   - `style`: a playing style for every part without one;
   - `grain`: `twos` | `threes`, the scene on twos with the camera on ones, as anime is keyed;
-  - `grade`: a word (film, noir, bleach, vivid, pastel, cold, warm) or the dials;
+  - `grade`: a word (film, noir, bleach, vivid, pastel, cold, warm, tenebrae) or the dials;
   - `hero`: the spec every part without a body plays.
 
   `shot.fps` defaults to 24.

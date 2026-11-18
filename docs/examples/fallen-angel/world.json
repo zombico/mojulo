@@ -101,6 +101,24 @@
           "era": "gen-7",
           "inside": {
             "bones": "gothic-ashlar"
+          },
+          "light": {
+            "shade": 0.06
+          },
+          "palette": {
+            "intent": "a stone night lit by fire, its shade black",
+            "key": "low",
+            "heat": 0.15,
+            "weight": 0.6,
+            "activity": -0.4,
+            "scheme": "mono-accent",
+            "hues": {
+              "rock": 32
+            },
+            "lock": {
+              "accent": "#8a1c1c"
+            },
+            "seed": 975289134
           }
         }
       },
@@ -263,5 +281,6 @@
   },
   "camera": "orbit",
   "screen": "screen",
-  "styleMeter": "auto"
+  "styleMeter": "auto",
+  "grade": "tenebrae"
 }

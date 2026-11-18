@@ -773,7 +773,7 @@ function __updateSmoke() {
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, formSun = null, formLand = false, acts = false, tempo = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null } = {}) {
+export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, formSun = null, formLand = false, acts = false, tempo = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null, roomLit = false } = {}) {
   // the bank as the page reads it (pageFigures): every flag below reads it, so the branches it needs are emitted
   const PAGE = pageFigures(figures0 || {}), figures = PAGE.figs;
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
@@ -4861,6 +4861,35 @@ function __mojBackdrop(from, look, shift) {
   scene.add(quad);
   return { dispose: () => { scene.remove(quad); quad.geometry.dispose(); quad.material.dispose(); rt.dispose(); } };
 }
+` : ''}${roomLit ? `// THE ROOM'S LIGHT ON ITS BODIES (a room that asks for its shade, era/stage.js \`shade\`): a body is drawn as its paint
+// under the light that paint was made for; here it takes the room's light where it stands instead (channels/form.js
+// lightAt: the lamps and the ambient there, over that light), held to a floor so a body in black shade still reads and to
+// a ceiling by a flame. Set on each mesh as it draws, so bodies that share a material are each lit where they stand
+(function __roomLight() {
+  const LO = 0.3, HI = 1.35, tint = {}, seen = new WeakSet();
+  const own = (o, id) => {
+    if (seen.has(o)) return; seen.add(o);
+    const prev = o.onBeforeRender;
+    o.onBeforeRender = function (r, s, c, g, m) {
+      if (prev) prev.apply(this, arguments);
+      const t = tint[id]; if (!t || !m || !m.color || m.isShaderMaterial) return;
+      if (!m.userData.c0) m.userData.c0 = m.color.clone();
+      m.color.copy(m.userData.c0).multiply(t); m.uniformsNeedUpdate = true;
+    };
+  };
+  let n = 0;
+  (function tick() {
+    requestAnimationFrame(tick);
+    const F = window.__mojForm; if (!F || !F.lightAt) return;
+    const scan = n++ % 30 === 0;
+    for (const id in __bodies) {
+      const g = __bodies[id], e = __world.byId[id]; if (!g || !e || !e.transform) continue;
+      const P = e.transform.pos, L = F.lightAt(P[0], P[1], (P[2] || 0) + 1.2), y = 0.2126 * L[0] + 0.7152 * L[1] + 0.0722 * L[2], k = y > 1e-6 ? Math.min(HI, Math.max(LO, y)) / y : 1;
+      (tint[id] || (tint[id] = new THREE.Color())).setRGB(L[0] * k, L[1] * k, L[2] * k);
+      if (scan) g.traverse((o) => { if (o.isMesh) own(o, id); });
+    }
+  })();
+})();
 ` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${backdrop ? ' backdrop: __mojBackdrop,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''}${gusts ? ' air: __CW.vayoAir,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay ? gunplayScript() : ''}${vayoOn ? vayoTrailScript() : ''}${knock ? knockFxScript() : ''}${turretOn ? turretScript() : ''}${boatOn ? boatWaterScript() : ''}${moveset ? specialsPaletteScript() : ''}${roll ? `
 // ---- THE ROLL (worlds/controllable/roll.js): what this level's seed picks on it. Applied once, where the level starts:
 // by the seed its shell sends with game-init${rollWaits ? '' : ' (this page has no game channel: the reference roll, seed 1)'}. A thing rolled away never stood: it leaves the colliders

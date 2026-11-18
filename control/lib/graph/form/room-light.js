@@ -13,7 +13,8 @@
  *   falloff(d, radius) → the share a lamp gives at d
  *   paintMean(key) → a tile's painted mean (linear rgb, the paint the sixth generation draws): what its colour stands for
  *   solveDayLight({ targets, ambient, sun, lights?, neutral?, contrast? })   the same under a sun or a moon (below)
- *   solveRoomLight({ targets, ambient, lights, neutral?, contrast? }) → { ambient, keys, bases, level, unreached }
+ *   solveRoomLight({ targets, ambient, lights, neutral?, contrast? }) → { ambient, keys, bases, level, contrast, own, unreached }
+ *               (`own` the contrast its paint's ambient gives, whatever was asked)
  *     targets   { role: '#rrggbb' } what each surface shows at the reference, its lamp the median one
  *     neutral   a light without hue (a toned room: its colour is its ramps', tone.js), its lamps and ambient too;
  *               `contrast` one asked for
@@ -95,7 +96,7 @@ export function solveRoomLight({ targets, ambient, lights, neutral = false, cont
   // the contrast the paint keeps: its ambient against the ambient and the median lamp at the reference (held at
   // CONTRAST_MOST: under no sun the lamps are the light, so a paint whose ambient drowns them, a room toned off an
   // outdoor look's sky, still takes its shape from them)
-  const contrast = Math.min(CONTRAST_MOST, Math.max(0.02, asked ?? luminance(amb) / Math.max(1e-4, luminance(lit))));
+  const own = Math.min(CONTRAST_MOST, Math.max(0.02, luminance(amb) / Math.max(1e-4, luminance(lit)))), contrast = asked === undefined ? own : Math.min(CONTRAST_MOST, Math.max(0.02, asked));
   // the LEVELS are solved under a light without hue, so each base keeps its paint's own hue (its target is the paint
   // under such a light: era/stage.js formLightFaces); the ambient and each lamp then bring their own hue, as the paint's
   // light does, so a surface by a warm lamp warms and one in the shade cools wherever it is, not only at the reference
@@ -105,7 +106,7 @@ export function solveRoomLight({ targets, ambient, lights, neutral = false, cont
   // each lamp's light where its falloff is whole (square to it, inside `near`): its hue as the paint shows it, the solved
   // key's luminance brought back from the reference, in the median's share
   const keys = lights.map((l) => (neutral ? [1, 1, 1] : hue(shown(l))).map((v) => v * keyY * (l.intensity / ref.intensity)));
-  return { ambient: neutral ? S.ambient : hue(amb.map((v) => Math.max(v, 1e-5))).map((v) => v * ambY), keys, bases: S.bases, level: S.level, contrast, unreached: S.unreached };
+  return { ambient: neutral ? S.ambient : hue(amb.map((v) => Math.max(v, 1e-5))).map((v) => v * ambY), keys, bases: S.bases, level: S.level, contrast, own, unreached: S.unreached };
 }
 
 /** The most of the light a surface turned from the sun keeps under a day's (or a moon's) sky. */

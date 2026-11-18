@@ -538,6 +538,12 @@ export function planStage(m = {}) {
   // degrees (0 hard); `cells` the finest a surface is cut for light to land on (metres), so a shadow has corners to
   // fall on. Absent ⇒ today's bake: no torch shadows, a hard sun, the kit's cells.
   const shadows = m.shadows !== undefined ? readShadows(m.shadows) : null;
+  // SHADE (`shade: 0.02…0.6`, opt-in, the form render's): how much of the light a surface turned from every lamp keeps
+  // (form/room-light.js, the solve's contrast; left out, what the look's ambient gives). Low, a room of black shade and
+  // lamp-lit pools, its figures lit by its lamps where they stand (scene/channels/form.js lightAt); the paint render
+  // keeps its own bake
+  if (m.shade !== undefined && !(typeof m.shade === 'number' && m.shade >= 0.02 && m.shade <= 0.6)) throw new Error('stage: shade is the share of the light a surface turned from every lamp keeps, 0.02 (black shade) to 0.6');
+  const shade = m.shade ?? null;
   if (shadows && shadows.cells) kitG = { ...kitG, cells: Object.fromEntries(Object.entries(kitG.cells).map(([k, v]) => [k, Math.min(v, shadows.cells)])) };
   // DRESS (`dress: false`): the kit's bones only, its dressing left out: no set piece, no accent, no doodads, no blends.
   // A specimen of a room's structure and light, before anything is placed in it. Absent ⇒ the kit as dressed.
@@ -686,7 +692,7 @@ export function planStage(m = {}) {
     // compose-dress.js layProps)
     ...(m._program?.base || (composed && composed.dressing === 'vernacular' && m._program?.use) ? { use: m._program.use } : m._program?.hospital ? { use: m._program.use, stock: 'hospital' } : {}),
     // (a composed interior's rooms read for their parts in the walk: compose-roles.js)
-    ...(composed ? { compose: { axes: composed, mood: composed.mood ?? 'even', beats: beatsPinned(m), roles: m._composeRoles ?? roomRoles({ rooms, links, ways, stairs }, { goal: m._program?.goal, pinned: rolesPinned(m) }) } } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}),
+    ...(composed ? { compose: { axes: composed, mood: composed.mood ?? 'even', beats: beatsPinned(m), roles: m._composeRoles ?? roomRoles({ rooms, links, ways, stairs }, { goal: m._program?.goal, pinned: rolesPinned(m) }) } } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}), ...(shade !== null ? { shade } : {}),
     ...(St ? { storeys: St.z0s.map((z0, index) => ({ index, z0 })), flat: St.flat, stairs } : {}), ...(m._storey ? { cuts: m._storey } : {}) };
   // a composed interior's things (compose-dress.js): the recipe's own (`props`, laid at authoring time and edited since),
   // else laid now; `props: false` none. A storey takes the ones in its rooms
@@ -1183,7 +1189,7 @@ export function waterWorks(w) {
  *  the sun by its cosine where its shadow test reaches the corner, what the ground throws back onto a face turned down,
  *  and the lamps in the sun's share; with `sun.share` each corner carries the share of its light the sun gives.
  *  → { faces, light: the solve (under a sun, `sun`: { key, dir, ground: the light a face turned down takes with no sun }) } */
-export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { tone = null, roomOf = () => null, tune = null, sun = null, probes = null, paints = null } = {}) {
+export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { tone = null, roomOf = () => null, tune = null, sun = null, probes = null, paints = null, shade = null } = {}) {
   const lin = decodeSrgb, keep = tone ? new Set(tone.keep) : new Set();
   // each lamp's share at every corner (its falloff, its cosine where it sees the corner, its bounce in its own room),
   // worked first: the solve's level scales them, so they need it not
@@ -1234,7 +1240,10 @@ export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { 
   };
   for (const f of raw) if (f.tint) roleOf(f);
   const ramp0 = tone ? ramps[tone.default] : null;
-  const S0 = (sun ? solveDayLight : solveRoomLight)({ targets, ambient: ambient6, lights, ...(sun ? { sun } : {}), ...(tone ? { neutral: true, contrast: grey(onRamp(ramp0, tone.key / 2).map(lin)) / Math.max(1e-4, grey(onRamp(ramp0, tone.key).map(lin))) } : {}) });
+  const toneC = tone ? grey(onRamp(ramp0, tone.key / 2).map(lin)) / Math.max(1e-4, grey(onRamp(ramp0, tone.key).map(lin))) : null;
+  const S1 = (sun ? solveDayLight : solveRoomLight)({ targets, ambient: ambient6, lights, ...(sun ? { sun } : {}), ...(tone ? { neutral: true, contrast: toneC } : {}), ...(shade !== null ? { contrast: shade } : {}) });
+  // (asked a shade, `dim` is how far below the room's own the shade was taken: its air darkened with it, era/stage.js)
+  const S0 = shade !== null ? { ...S1, dim: Math.min(1, shade / Math.max(1e-4, toneC ?? S1.own ?? shade)) } : S1;
   // (a sun that stands over its paint, `sun.over`: the solve lays the sunlit colour as painted, and the sun is then this
   // many times that, so a sunlit floor is brighter than its paint: a daylight's `gain`)
   const S = sun && sun.over && sun.over !== 1 ? { ...S0, sun: S0.sun.map((v) => v * sun.over) } : S0;
@@ -1558,7 +1567,9 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // the sixth generation's 640×448, or the form render's target's lines)
   const skLaid = plan.skandart && plan.skandart.amount > 0 ? skandartLay(plan, geom, form ? skandartRead(manifest.target !== undefined ? readTarget(manifest.target).screenPx : RESOLUTIONS[DEFAULT_TARGET.resolution]) : skandartRead()) : null;
   const formLit = form ? formLightFaces(raw, formTest(formLamps), ambient, dirt(), { roomOf: (p) => roomAt(plan, p),
-    ...(plan.tone ? { tone: plan.tone } : {}), ...(tuner ? { tune: tuner } : {}), ...(sun || liveDay ? { sun: sun || liveDay } : {}), ...(skLaid ? { probes: skLaid.probes, paints: skLaid.paints } : {}) }) : null;
+    ...(plan.tone ? { tone: plan.tone } : {}), ...(plan.shade !== undefined ? { shade: plan.shade } : {}), ...(tuner ? { tune: tuner } : {}), ...(sun || liveDay ? { sun: sun || liveDay } : {}), ...(skLaid ? { probes: skLaid.probes, paints: skLaid.paints } : {}) }) : null;
+  // (a room asked its shade: its air is lit as its shade is, the fog and the void darkened with it; any other, as written)
+  const airDim = (hex) => (formLit && formLit.light.dim !== undefined && formLit.light.dim < 1 ? rgbHex(hexRgb(hex).map((v) => encodeSrgb(decodeSrgb(v) * formLit.light.dim))) : hex);
   // (the paint's lights, with their shadow tests where asked: the room's bake and its debris's are one light)
   const paintLs = ctx.unshaded || formLit ? null
     : (dress && dress.pools.length) || braziers.length ? [...shadowed([...lights, ...braziers]), ...(dress ? dress.pools : [])] : shadowed(lights);
@@ -1645,18 +1656,18 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // (a composed room's axes, mood, rooms' roles and what its plot reached: compose.js)
     ...(plan.compose ? { compose: { ...plan.compose, ...(plotted ? { plot: plotted.plot, report: composeReport(plan, formLit ? formLit.faces : null, { unreached: formLit?.light.unreached, plot: plotted.plot, tuned: tuner?.record }) } : {}) } } : {}),
     ...(geom.bayRooms ? { bay: { rooms: geom.bayRooms.map((R) => ({ id: R.r.id, roof: R.roof, surfaces: R.surfaces, walkways: R.walkways, ...(R.crane ? { crane: true } : {}) })), laws: bayLaws(geom.bayRooms, geom.faces, plan.kit) } } : {}),
-    ...(formLit ? { form: { room: { lights: [...readFormLight(formLamps, formLit.light.keys), ...(formLit.light.sun ? [{ at: formLit.light.sun.dir.map((v) => r5(v * 1e6)), key: formLit.light.sun.key, radius: 1e9, live: true }] : [])], ...(formLit.light.sun ? { sun: { ground: formLit.light.sun.ground, ...(liveDay ? { live: true } : {}) } } : {}), ...((formLit.light.sun && plan.samples) || (plan.wet && isRoomWet) ? { reflect: { env: { zenith: formLit.light.ambient.map((v) => r5(v * 0.3)), horizon: formLit.light.ambient.map((v) => r5(v * 0.7)), ground: formLit.light.ambient.map((v) => r5(v * 0.35)) }, ...(plan.wet && isRoomWet ? { wet: { ...plan.wet, pools: 0, rain: 0, seed: r5(((manifest.seed ?? 1) * 7.31) % 50), groups: [...WET_GROUPS, ...looseGroups()], damp: true } } : {}),   // (under a roof: no rain falls and no hollow fills; a spot may pool)
+    ...(formLit ? { form: { room: { ...(plan.shade !== undefined ? { figures: true } : {}), lights: [...readFormLight(formLamps, formLit.light.keys), ...(formLit.light.sun ? [{ at: formLit.light.sun.dir.map((v) => r5(v * 1e6)), key: formLit.light.sun.key, radius: 1e9, live: true }] : [])], ...(formLit.light.sun ? { sun: { ground: formLit.light.sun.ground, ...(liveDay ? { live: true } : {}) } } : {}), ...((formLit.light.sun && plan.samples) || (plan.wet && isRoomWet) ? { reflect: { env: { zenith: formLit.light.ambient.map((v) => r5(v * 0.3)), horizon: formLit.light.ambient.map((v) => r5(v * 0.7)), ground: formLit.light.ambient.map((v) => r5(v * 0.35)) }, ...(plan.wet && isRoomWet ? { wet: { ...plan.wet, pools: 0, rain: 0, seed: r5(((manifest.seed ?? 1) * 7.31) % 50), groups: [...WET_GROUPS, ...looseGroups()], damp: true } } : {}),   // (under a roof: no rain falls and no hollow fills; a spot may pool)
       surfaces: Object.fromEntries([...(plan.wet && isRoomWet ? [...WET_GROUPS, ...looseGroups()].map((g) => [g, { rough: 0.82 }]) : []), ...[...new Set((plan.samples || []).map((q) => q.of))].map((of) => [`stage:sample-${of}`, { rough: SAMPLES[of].rough, metal: SAMPLES[of].metal, ...(SAMPLES[of].clear ? { clear: SAMPLES[of].clear } : {}), ...(SAMPLES[of].film ? { film: SAMPLES[of].film } : {}) }])]),
       // (its pools, for what a footfall does in one: where each lies, its outline's own waves, how its liquid answers)
       pools: (plan.samples || []).map((q, i) => ({ q, i })).filter(({ q }) => SAMPLES[q.of].pool).map(({ q, i }) => ({ group: `stage:sample-${q.of}`, at: q.at, r: r5((q.size ?? 3) / 2), ph: [1, 2, 3].map((j) => r5(hash3(i, j, 4441) * 2 * Math.PI)),
         z: SAMPLES[q.of].thick, tint: SAMPLES[q.of].tint, ripple: SAMPLES[q.of].ripple, print: SAMPLES[q.of].print })),
       // (the room's capture, the form render's: from the middle of the first room at a standing eye, corrected to that room's box)
-      probe: (({ x0, y0, x1, y1, h }) => ({ at: [r5((x0 + x1) / 2), r5((y0 + y1) / 2), r5(Math.min(h * 0.45, 1.7))], box: [[x0, y0, 0], [x1, y1, h]].map((c) => c.map(r5)) }))(plan.rooms[0]) } } : {}), ambient: formLit.light.ambient.map(r5), fall: ROOM_LIGHT.fall, ...(plan.tone ? { detail: plan.tone.detail, void: plan.tone.ramps[plan.tone.default][0] } : {}) } } } : {}),
+      probe: (({ x0, y0, x1, y1, h }) => ({ at: [r5((x0 + x1) / 2), r5((y0 + y1) / 2), r5(Math.min(h * 0.45, 1.7))], box: [[x0, y0, 0], [x1, y1, h]].map((c) => c.map(r5)) }))(plan.rooms[0]) } } : {}), ambient: formLit.light.ambient.map(r5), fall: ROOM_LIGHT.fall, ...(plan.tone ? { detail: plan.tone.detail, void: airDim(plan.tone.ramps[plan.tone.default][0]) } : {}) } } } : {}),
     cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }, ...(dress && dress.cameras ? dress.cameras : [])],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },
     title: ctx.title || manifest.title || `mojulo stage · ${lookOfReference(plan.refId).replace('-', ' ')}`,
-    bg: daylight ? rgbHex(air.dome.horizon.map((v) => v / 255)) : air.fog.color,
-    haze: { color: air.fog.color, density: plan.atmosphere && plan.atmosphere.fog ? +(air.fog.density * plan.atmosphere.fog).toFixed(5) : air.fog.density },
+    bg: daylight ? rgbHex(air.dome.horizon.map((v) => v / 255)) : airDim(air.fog.color),
+    haze: { color: airDim(air.fog.color), density: plan.atmosphere && plan.atmosphere.fog ? +(air.fog.density * plan.atmosphere.fog).toFixed(5) : air.fog.density },
     // dust hanging in the air (channels/motes.js), lit by the lights near it; about one mote per two cubic metres at full
     // a biocube's fauna under a roof (era/biocube-fauna.js placeIndoorFauna): the kinds that live indoors, along the
     // rooms' walls (channels/fauna.js); nothing grows under a roof, so its flora is not laid. None ⇒ no key

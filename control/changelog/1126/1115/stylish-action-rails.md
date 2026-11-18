@@ -209,3 +209,11 @@ What the theme will hold:
   `game/level-synth.js`), as his own body's health already was. The bus hears `halo:ready`, `halo:on` and `halo:off`,
   and the HUD marks the instant the gauge comes full once (a ring off the vitals' crest, the gauge struck white) before
   it breathes. A level without the Halo Meter, or with no health of its own, gains no rule.
+- **Built: tenebrae, a room's shade asked.** A stage asks its `shade` (0.02 to 0.6, a geocube's `light.shade`): the
+  share of the light a surface turned from every lamp keeps, asked of the form render's solve (`era/stage.js`,
+  `form/room-light.js`, which now says the contrast its paint would take, `own`), so its shade falls to black and its
+  lamps light pools. Its air is lit as its shade is (the fog and the void darkened with it), and its figures, drawn
+  unlit, take the room's light where they stand (`scene/channels/form.js` `lightAt`, the controllable channel's room
+  light): a body walks out of the torchlight into the dark. A grade word, `tenebrae`, joins the grades. Fallen Angel's
+  citadel is lit so. A room that asks none, and every other page, as it was. Machine gate only: seen in headless
+  shots, nobody has played it.
