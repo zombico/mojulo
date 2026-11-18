@@ -113,20 +113,32 @@ this map every closed part the camera sees is a place.
 They are painted by `control/lib/graph/gameworld/side-map/paint.js` (the fill, the slices, the middle of a mass, the
 edges and breaks, the threads), which also stands an outdoor zone's backdrop at its depth by the height it is at.
 
+25. **Every segment is a slice of cake.** Its icing is its top and its jamb (the cap, the jamb: designed surfaces, never
+    one smooth band). Under the icing its layers are its world's material, never bricks everywhere: a plant's
+    machinery, a base's plate, a mountain's strata, the snow on a cold land. A new material is a row.
+26. **The light is baked into the material.** The map is static and its camera always on one side, so a material's
+    finish (its glint, a metal's sheen, the sky in ice) and its texture are baked where they are seen.
+27. **Icing can be layered on.** Things stand on the icing that block nothing (none a collider): behind the hero on the
+    top's rear, low on its lip, and in the foreground under the feet line, so they parallax against the lane. A bay
+    that carries the dress carries them; one that rests stays bare; none stands at a pit's lip.
+
+The cake is `control/lib/graph/gameworld/side-map/cake.js` (the materials), `texture.js` (their tiles) and `doodads.js`
+(the icing's things); the light that bakes it is `light.js`.
+
 ## The look
 
-25. **Five layers.** The foreground, below the hero's feet and darkest; the lane; the near place; the far landmark; the
+28. **Five layers.** The foreground, below the hero's feet and darkest; the lane; the near place; the far landmark; the
     sky. Each layer back is quieter and nearer the sky's colour, and the lane is the sharpest thing in the frame.
-26. **The lane is a thing.** It has a front face, and the face is designed: a bridge's arches, a gantry's lamps, a
+29. **The lane is a thing.** It has a front face, and the face is designed: a bridge's arches, a gantry's lamps, a
     ledge's strata. A gap is the place's own break: a bridge that fell, a shaft cut through.
-27. **Play and place are opposite hues.** What the hero stands on, fights and climbs is on one side of the colour wheel
+30. **Play and place are opposite hues.** What the hero stands on, fights and climbs is on one side of the colour wheel
     and the place on the other. A stage picks which way round.
-28. **Something moves beside the way**, and light comes from sources that are seen: a lamp, a furnace, a window.
+31. **Something moves beside the way**, and light comes from sources that are seen: a lamp, a furnace, a window.
     The light is `control/lib/graph/gameworld/side-map/light.js`: an indoor zone lit by its lamps (each with its falloff
     and bounce), an outdoor zone by the cube's sky and sun, a ledge's shadow, a climb's top lit, baked per corner.
-29. **A place a zone, and the turn tells the story.** Each zone is one place in one material (the gate, the tunnel,
+32. **A place a zone, and the turn tells the story.** Each zone is one place in one material (the gate, the tunnel,
     the factory floor, the shaft, the gallery), and their order is the stage's story.
-30. **The boss owns its room.** Its colour is used nowhere before it; its room is one screen, its walls the frame's
+33. **The boss owns its room.** Its colour is used nowhere before it; its room is one screen, its walls the frame's
     edges, and its back wall carries its mark.
 
     Its path is designed from the top down by `control/lib/graph/gameworld/side-map/path.js`, on the bay grid the back
@@ -173,13 +185,14 @@ heads, adult-limbed): a game body of its own, too real for a mascot's.
 The map's laws, measured on its layout: one screen thick, both walls of a shaft in the frame, every gap and ledge made
 by the move it teaches (across zones too), rests within three kicks, a rising frame the climb outpaces, light at the
 top, the next place seen first, a checkpoint a zone, ladders on floors, stakes that only rise, one new thing a zone, the
-closed parts painted, the boss's colour its own, nothing built outside the camera's path. They advise; none refuses.
+closed parts painted, the boss's colour its own, nothing built outside the camera's path, the icing's things blocking
+and hiding nothing. They advise; none refuses.
 They are `control/lib/graph/gameworld/side-map/laws.js`, read over the layout and, where it is given, its dress.
 
 The eyes gate is the operator's: the map read as a drawing, the level played on its page.
 
 ## Not yet
 
-A foreground under the feet and things that move beside the way (the benchmark says both missing), the boss's fight in
+Things that move beside the way (the benchmark says them missing), the boss's fight in
 its room, the hero's climb clip seen from behind. After them: a metroidvania (the zones as rooms on a grid, doors gated by powers, the map
 shown in the game), and the 3D platformer's courses told the same way.

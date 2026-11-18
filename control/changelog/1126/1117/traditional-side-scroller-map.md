@@ -105,6 +105,23 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   collider's, untouched); a string course every few courses as a floor has its pier caps; a bracket under each rest in
   the wall's own matter. `painted` holds every wall jambed; the benchmark gives walls a role of their own and reads
   `walls-segmented` on the page.
+- **The cake** (`gameworld/side-map/cake.js`, `texture.js`, `doodads.js`): every wall or floor segment is a slice of
+  cake. Its icing is the cap and the jamb; under it, its layers are its world's MATERIAL, a row each, never bricks
+  everywhere: techno kibble in a plant (a conduit on its brackets, panels with vents or a status light, ribbed machinery),
+  bolted plate in a base, the built and padded fills as they were, rock's strata (soil, a band of rubble on one rhythm,
+  bedrock on the level's beds, a copper vein in a works), snow on a cold cube's open land or a mountain's heights (a
+  snowpack under an icing of snow, a band of ice, rock below). Its strata hang from each slice's own top, so a pit shows
+  the same layers either side.
+  The material is baked with the light: each its finish (specular, gloss, metal, the share of sky it reflects), the
+  side camera's view fixed so a glint and a metal's sheen bake truly, and a procedural texture tile (rock's grain,
+  snow's sparkle, brushed metal, stone, cloth) on world uvs, multiplied by the baked light (`textures`, `textureLit`).
+  On the icing stand things that block nothing, none a collider, at three depths that parallax against the lane: a
+  material's set on its A bays (pipes, vent stacks and crates on a plant's rear; urns and column stubs on a temple's;
+  boulders, tufts and pebbles on rock; snow lumps, and icicles hung under snow's lip), and a dark foreground
+  silhouette in front (a girder's frame, a stepped hummock, a fallen block, a drift) under the hero's feet line. The
+  `doodads` law (none sunk in a closed part or at a pit's lip, the lip's things low, the foreground under the feet line);
+  the benchmark reads `reflective` (a metal or snow lane's glints over its flat twin) and, in a run's frame, the
+  `foreground` under the feet, which it had said missing. On Galaxy Boy's first level and the volcano stage both hold.
 - **The map is a geocube** (`gameworld/side-map/scene.js`, the geocube's `show: 'sidemap'`): a zone chain laid for the
   hero it names (a feel and a stature, Galaxy Boy's unsaid), dressed in the cube's hue (its stone the place's, play the
   other side of the wheel) and built where the camera sees: the closed parts in their zone's key, every top a lit edge;
@@ -183,7 +200,7 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   the top under it two thirds down, play and place on opposite hues, the tops lit, the closed parts painted, the lane's
   layer the sharpest and each layer behind it quieter, a lamp in an indoor run's frame, the boss's mark in its room. A
   contact sheet (`bench.html`: the page beside its role pass, each law's reading) and `bench.json`. Missing and said
-  so, never claimed: a foreground under the feet and anything moving beside the way. On Galaxy Boy's first level and a
+  so, never claimed: anything moving beside the way (the foreground under the feet came with the cake, below). On Galaxy Boy's first level and a
   volcano stage every law the map builds holds. Measured, the look was mended: an outdoor zone's hills and range no
   longer stand over the next zone's at one depth (they flickered), and a shaft's climbing rails are a guide behind the
   lane, quieter than it.
