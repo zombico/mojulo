@@ -26,7 +26,8 @@
  *   ROLE_COLOURS, roleOf(group)
  *   benchmarkShots(layout, dress) → [{ name, zone, hero: [s, z], pose: { at, look, vfov } }]
  *   rolePayload(payload, shot, stature) → the payload's faces in their roles' colours, the hero's stand-in among them
- *   measureShot({ page, roles }, shot) → the measures (both images decoded: visual-gate.js decodeImage)
+ *   measureShot({ page, roles, flat? }, shot) → the measures (the images decoded: visual-gate.js decodeImage; `flat`: the
+ *                    shot's flat twin, where its material reflects: the glints read as what the bake adds)
  *   benchmarkLaws(shots) → [{ id, shot, holds, says }]  advisory, each against the frame's principle
  *
  * Pure: the rendering is the script's (scripts/side-map.mjs --bench).
@@ -64,16 +65,16 @@ export function benchmarkShots(layout, dress) {
     const want = run.rect[0] + W * 0.6, z0 = run.i ? L.zones[run.i - 1].exit[1] : 0, all = L.solids.filter((r) => r.zone === run.i && r.role === 'floor' && r.s1 - r.s0 > 1);
     const level = all.filter((r) => Math.abs(r.z1 - z0) < 0.05), F = (level.length ? level : all).sort((a, b) => Math.abs((a.s0 + a.s1) / 2 - want) - Math.abs((b.s0 + b.s1) / 2 - want))[0];
     const s = F ? clamp(want, F.s0 + 0.5, F.s1 - 0.5) : want, z = topAt(run.i, s);
-    out.push({ name: 'run', zone: run.i, hero: [s, z], screenH: H, pose: frame(run, s, z) });
+    out.push({ name: 'run', zone: run.i, material: dress.zones[run.i]?.material, hero: [s, z], screenH: H, pose: frame(run, s, z) });
   }
   const up = L.zones.find((Z) => Z.run === 'up');
   if (up) {
     const R = L.rests.filter((r) => r.zone === up.i), mid = R[Math.floor(R.length / 2)];
     const at = mid ? [(mid.s0 + mid.s1) / 2, mid.z] : [(up.rect[0] + up.rect[1]) / 2, (up.rect[2] + up.rect[3]) / 2];
-    out.push({ name: 'climb', zone: up.i, hero: at, screenH: H, pose: frame(up, at[0], at[1]) });
+    out.push({ name: 'climb', zone: up.i, material: dress.zones[up.i]?.material, hero: at, screenH: H, pose: frame(up, at[0], at[1]) });
   }
   const room = L.zones.find((Z) => Z.kind === 'room' && Z.teach === 'boss') ?? L.zones.find((Z) => Z.kind === 'room');
-  if (room) { const s = (room.rect[0] + room.rect[1]) / 2, z = room.exit[1]; out.push({ name: 'boss', zone: room.i, hero: [s, z], screenH: H, pose: frame(room, s, z) }); }
+  if (room) { const s = (room.rect[0] + room.rect[1]) / 2, z = room.exit[1]; out.push({ name: 'boss', zone: room.i, material: dress.zones[room.i]?.material, hero: [s, z], screenH: H, pose: frame(room, s, z) }); }
   return out;
 }
 
@@ -81,13 +82,13 @@ export function benchmarkShots(layout, dress) {
 export function rolePayload(payload, shot, stature) {
   const [s, z] = shot.hero, w = 0.35 * stature;
   const hero = { corners: [[0.6, s - w / 2, z], [0.6, s + w / 2, z], [0.6, s + w / 2, z + stature], [0.6, s - w / 2, z + stature]], normal: [1, 0, 0], fill: ROLE_COLOURS.hero, group: 'sidemap:hero' };
-  return { ...payload, bg: ROLE_COLOURS.sky, sky: null, haze: null, ao: null, faces: [...payload.faces.map(({ cornerFills: _c, ...f }) => ({ ...f, fill: ROLE_COLOURS[roleOf(f.group)] })), hero] };
+  return { ...payload, bg: ROLE_COLOURS.sky, sky: null, haze: null, ao: null, faces: [...payload.faces.map(({ cornerFills: _c, texture: _t, uv: _u, textureLit: _l, ...f }) => ({ ...f, fill: ROLE_COLOURS[roleOf(f.group)] })), hero] };
 }
 
 const nearest = (r, g, b) => { let k = 0, d = Infinity; RGB.forEach((c, i) => { const e = (c[0] - r) ** 2 + (c[1] - g) ** 2 + (c[2] - b) ** 2; if (e < d) { d = e; k = i; } }); return ROLES[k]; };
 const r2 = (v) => (Number.isFinite(v) ? Math.round(v * 100) / 100 : v), r3 = (v) => Math.round(v * 1000) / 1000;
 /** The measures of one shot: its page and its role pass, decoded. */
-export function measureShot({ page, roles }, shot) {
+export function measureShot({ page, roles, flat = null }, shot) {
   const { W, H } = roles, n = W * H, role = new Array(n), L = new Float32Array(n), lab = new Array(n);
   for (let i = 0; i < n; i++) {
     role[i] = nearest(roles.rgb[3 * i], roles.rgb[3 * i + 1], roles.rgb[3 * i + 2]);
@@ -123,6 +124,15 @@ export function measureShot({ page, roles }, shot) {
     lamps: count('lamp'), boss: count('boss'),
     topStd: top.length ? stat(top).std : null,
     jambStd: of('jamb').length ? stat(of('jamb')).std : null,
+    // (the glints: what the bake adds over the paint, the page against its flat twin (one baked key, no finish), on the
+    // lane: how far its brightest thirty-third stands over its median; read only where a twin is given)
+    glint: (() => {
+      if (!flat) return null;
+      const ix = [...closed, ...top]; if (ix.length < 100) return null;
+      const v = ix.map((i) => L[i] - srgbToLab(flat.rgb[3 * i], flat.rgb[3 * i + 1], flat.rgb[3 * i + 2])[0]).sort((a, b) => a - b);
+      return r2(v[Math.floor(0.97 * (v.length - 1))] - v[Math.floor(v.length / 2)]);
+    })(),
+    material: shot.material ?? null,
     shares: Object.fromEntries(ROLES.map((k) => [k, r2(of(k).length / n)])),
     light: lightOf({ W, H, n, role, L, of, screenH: shot.screenH ?? 13.36 }),
     fore: false, moving: false,
@@ -186,6 +196,8 @@ export function benchmarkLaws(measures) {
     if (M.shares.back > 0.05 && G.laneOverBack !== null && G.laneOverBack !== undefined) law('lane-lit', M.shot, G.laneOverBack >= 10, `the lane's layer ${G.laneOverBack} L* over the back (a step: 10 or more)`);
     if (M.shot === 'climb' && G.topOverFoot !== null && G.topOverFoot !== undefined) law('light-at-the-top', M.shot, G.topOverFoot >= 3, `the shaft's back ${G.topOverFoot} L* lighter at the frame's top than at its foot (the way up a patch of light: 3 or more)`);
     // (the top a hero stands on in segments, never one smooth band: its lightness varies along it)
+    // (a material that reflects shows it: its glints and sheen stand over the lane's median, cake.js finishes)
+    if (['kibble', 'plate', 'snow'].includes(M.material) && M.glint !== null) law('reflective', M.shot, M.glint >= 8, `the lane's glints ${M.glint} L* over its median, over the paint (${M.material}: 8 or more)`);
     if (M.jambStd !== null && M.jambStd !== undefined) law('walls-segmented', M.shot, M.jambStd >= 3, `the walls' edges vary by ${M.jambStd} L* (one smooth band: under 3)`);
     if (M.topStd !== null && M.topStd !== undefined) law('top-segmented', M.shot, M.topStd >= 3, `the tops' lightness varies by ${M.topStd} L* (one smooth band: under 3)`);
     law('foreground', M.shot, M.fore, 'no foreground under the feet: the map builds none yet');

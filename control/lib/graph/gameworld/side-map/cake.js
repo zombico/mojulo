@@ -26,7 +26,7 @@
  * Pure: no dice. The same slice is the same cake.
  */
 export const MATERIALS = Object.freeze({
-  kibble: Object.freeze({ says: 'techno kibble: a conduit on its brackets, panels with vents and a status light, ribbed machinery', finish: Object.freeze({ rough: 0.5, spec: 0.35, gloss: 24, metal: 0.4, sky: 0.08 }), texture: 'brushed' }),
+  kibble: Object.freeze({ says: 'techno kibble: a conduit on its brackets, panels with vents and a status light, ribbed machinery', finish: Object.freeze({ rough: 0.5, spec: 0.35, gloss: 24, metal: 0.4, sky: 0.12 }), texture: 'brushed' }),
   plate: Object.freeze({ says: 'big bolted plates, reflective', finish: Object.freeze({ rough: 0.25, spec: 0.7, gloss: 48, metal: 0.8, sky: 0.22 }), texture: 'brushed' }),
   masonry: Object.freeze({ says: 'the built fill\'s courses', finish: Object.freeze({ rough: 0.9, spec: 0.06, gloss: 8, metal: 0, sky: 0 }), texture: 'stone' }),
   padded: Object.freeze({ says: 'the padded fill\'s blocks', finish: Object.freeze({ rough: 0.8, spec: 0.12, gloss: 12, metal: 0, sky: 0 }), texture: 'cloth' }),

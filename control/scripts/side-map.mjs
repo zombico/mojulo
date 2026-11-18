@@ -61,13 +61,20 @@ if (flag('--bench')) {
   const { benchmarkShots, rolePayload, measureShot, benchmarkLaws } = await import('../lib/graph/gameworld/side-map/benchmark.js');
   const { payload } = await resolveWorldScene({ manifest: m });
   const shots = benchmarkShots(M.layout, M.dress), measures = [], rows = [];
+  let flatPayload = null;
   for (const shot of shots) {
     const hfov = (2 * Math.atan(Math.tan((shot.pose.vfov * Math.PI) / 360) * (16 / 9)) * 180) / Math.PI;
     const cams = [{ name: shot.name, worldFraming: { cameraPosition: shot.pose.at, lookAt: shot.pose.look, horizontalFov: hfov, pictureCenter: [640, 360] } }];
     const pagePng = await renderWorldToPng(emitThreeWorld({ ...payload, cameras: cams, inline: true, hud: false }), { width: 1280, height: 720, deviceScaleFactor: 1 });
     const rolePng = await renderWorldToPng(emitThreeWorld({ ...rolePayload(payload, shot, M.stature), cameras: cams, inline: true, hud: false }), { width: 1280, height: 720, deviceScaleFactor: 1 });
     writeFileSync(path.join(out, `bench-${shot.name}.png`), pagePng); writeFileSync(path.join(out, `bench-${shot.name}-roles.png`), rolePng);
-    const ms = measureShot({ page: decodeImage(pagePng), roles: decodeImage(rolePng) }, shot);
+    // (a material that reflects: its flat twin, one baked key and no finish, for the glints the bake adds)
+    let flatImg = null;
+    if (['kibble', 'plate', 'snow'].includes(shot.material)) {
+      flatPayload ??= (await resolveWorldScene({ manifest: { ...m, light: 'flat' } })).payload;
+      flatImg = decodeImage(await renderWorldToPng(emitThreeWorld({ ...flatPayload, cameras: cams, inline: true, hud: false }), { width: 1280, height: 720, deviceScaleFactor: 1 }));
+    }
+    const ms = measureShot({ page: decodeImage(pagePng), roles: decodeImage(rolePng), flat: flatImg }, shot);
     measures.push(ms); rows.push(shot.name);
   }
   const laws = benchmarkLaws(measures);

@@ -18,7 +18,10 @@
  *   what GIVES light a lamp, the boss's emblem, the backdrop's far layers: as they are, never lit
  *
  *   SIDE_MAP_LIGHT   the light's measures
- *   lightSideMap(faces, layout, dress, cube) → the faces, the large ones cut into cells (a lamp's pool needs corners to
+ *   sideMapTextures(faces) → the payload's `textures` for the tiles the faces name
+ *   the MATERIAL     its finish baked with the camera's fixed view (cake.js): a glint at the key's half-vector, the sky
+ *                    on what looks up, a metal's sheen in bands; its texture tile on world uvs (texture.js, `textureLit`)
+ *   lightSideMap(faces, layout, dress, cube, { sky? }) → the faces, the large ones cut into cells (a lamp's pool needs corners to
  *                    fall across), each with `cornerFills` and its `fill` their mean
  *
  * Pure and deterministic.
@@ -27,6 +30,8 @@ import { falloff, ROOM_LIGHT } from '../../form/room-light.js';
 import { decodeSrgb, encodeSrgb } from '../../color-theorist/light.js';
 import { cubeLight } from '../../era/cube-light.js';
 import { SIDE } from '../../era/geocube-side.js';
+import { MATERIALS } from './cake.js';
+import { sideMapTexture, textureKey, TEXTURE_TILE } from './texture.js';
 
 export const SIDE_MAP_LIGHT = Object.freeze({
   cell: 2.5,                 // m: a face larger than this is cut into cells this size (a lamp's pool is four of them)
@@ -61,7 +66,7 @@ function cells(f, cell) {
 }
 
 /** The built map's faces lit per corner. */
-export function lightSideMap(faces, layout, dress, cube) {
+export function lightSideMap(faces, layout, dress, cube, { sky = null } = {}) {
   const L = layout, D = dress, W = L.screen.width, H = L.screen.height, S = SIDE_MAP_LIGHT;
   const CL = cubeLight(cube), sun = CL.sun.linear, amb = CL.ambient.linear, norm = sun.map((v, k) => amb[k] + v * FRONT);
   // the zone a face belongs to: the solid it is part of, else the open space it stands in (the latest, a doorway the
@@ -126,15 +131,39 @@ export function lightSideMap(faces, layout, dress, cube) {
     return c;
   };
 
+  // THE MATERIAL, BAKED (cake.js finishes): the side map's camera always stands on the +x side, so what depends on the view
+  // bakes truly. Over the light: a glint where the key's half-vector meets the face (its finish's spec and gloss), the
+  // sky on what looks up (its share of the sky), and a metal's broad sheen across its faces (the sky it reflects, in
+  // diagonal bands on world position: continuous from cell to cell), on the material's own surfaces (its slices, their
+  // icing), never the back wall behind them. Added light, not multiplied: a glint is the light's
+  const V = ((v) => { const l = Math.hypot(...v); return v.map((x) => x / l); })([1, 0, 0.05]);
+  const HV = ((v) => { const l = Math.hypot(...v); return v.map((x) => x / l); })([KEY[0] + V[0], KEY[1] + V[1], KEY[2] + V[2]]);
+  const skyLin = sky ? lin(sky) : amb.map((v) => v / Math.max(1e-6, lum(amb))), keyLin = unit(sun).map((v) => v * 0.9);
+  const finishAt = (zi) => MATERIALS[D.zones[zi]?.material]?.finish ?? null;
+  const glint = (p, n, F) => {
+    if (!F) return null;
+    const sp = F.spec * Math.max(0, dot(n, HV)) ** F.gloss, up = F.sky * Math.max(0, n[2]);
+    const sheen = F.metal > 0.3 && n[0] > 0.5 ? F.sky * Math.max(0, Math.sin(0.55 * p[2] + 0.32 * p[1])) ** 4 : 0;
+    return [0, 1, 2].map((k) => sp * keyLin[k] + (up + sheen) * skyLin[k]);
+  };
+  // (its texture: a near-white tile on world uvs a material wears, multiplied by the baked light: texture.js)
+  const uvOf = (q) => { const n = q.normal, T = TEXTURE_TILE; return q.corners.map((c) => (Math.abs(n[2]) > 0.5 ? [c[1] / T, c[0] / T] : Math.abs(n[1]) > 0.5 ? [c[0] / T, c[2] / T] : [c[1] / T, c[2] / T]).map((v) => r5(v))); };
+  const textured = (g) => CLOSED(g) || g === 'sidemap:edge' || /^sidemap:paint-(cap|jamb)/.test(g);
   const out = [];
   for (const f of faces) {
     if (!f || KEEP.has(f.group) || !Array.isArray(f.corners) || f.corners.length !== 4) { out.push(f); continue; }
-    const base = lin(f.fill), zi = zoneOfFace(f);
+    const base = lin(f.fill), zi = zoneOfFace(f), F = finishAt(zi), tex = MATERIALS[D.zones[zi]?.material]?.texture;
     for (const q of cells(f, S.cell)) {
-      const cols = q.corners.map((p) => { const c = light(p, q.normal, q, zi); return hexOf(base.map((v, k) => v * c[k])); });
+      const mine = textured(q.group), cols = q.corners.map((p) => { const c = light(p, q.normal, q, zi), g = mine ? glint(p, q.normal, F) : null; return hexOf(base.map((v, k) => v * c[k] + (g ? g[k] : 0))); });
       const mean = hexOf([0, 1, 2].map((k) => cols.reduce((s, h) => s + lin(h)[k], 0) / 4));
-      out.push({ ...q, fill: mean, cornerFills: cols });
+      out.push({ ...q, fill: mean, cornerFills: cols, ...(tex && textured(q.group) ? { texture: textureKey(tex), uv: uvOf(q), textureLit: true } : {}) });
     }
   }
   return out;
+}
+
+/** The texture tiles a lit map's faces name, for the payload's `textures`. */
+export function sideMapTextures(faces) {
+  const keys = [...new Set(faces.map((f) => f && f.texture).filter((k) => typeof k === 'string' && k.startsWith('sidemap:')))].sort();
+  return Object.fromEntries(keys.map((k) => [k, sideMapTexture(k.slice('sidemap:'.length))]));
 }

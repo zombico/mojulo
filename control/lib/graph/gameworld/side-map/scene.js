@@ -36,7 +36,7 @@ import { layoutSideMap } from './layout.js';
 import { dressSideMap } from './dress.js';
 import { sideMapLaws } from './laws.js';
 import { paintSideMap, backdropOf } from './paint.js';
-import { lightSideMap } from './light.js';
+import { lightSideMap, sideMapTextures } from './light.js';
 
 export const SIDE_MAP_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed', 'sidemap', 'feel', 'stature', 'light', 'title', 'viewBox']);
 /** How the map is lit: 'lit' (light.js: lamps, the cube's sun and sky, contact, a climb's light) or 'flat' (one baked key). */
@@ -153,8 +153,11 @@ export function assembleSideMap(m, ctx = {}) {
   // the camera at the first checkpoint, framed as the side map frames the hero (screen.js)
   const C = L.camera, cp = L.checkpoints[0]?.at ?? [0, 0], hfov = (2 * Math.atan(Math.tan((C.vfov * Math.PI) / 360) * (L.screen.width / L.screen.height)) * 180) / Math.PI;
   const s0 = cp[0] + L.screen.width / 2 - 2, look = cp[1] + C.lookH, sky = st.palette.sky;
+  // (lit, the material baked and textured: light.js; the horizon the sky a metal and the snow reflect)
+  const litFaces = flat ? faces : lightSideMap(faces, L, D, D0.cube, { sky: rgbHex(st.palette.sky[st.palette.sky.length - 1].map((v) => v / 255)) });
   const payload = {
-    faces: flat ? faces : lightSideMap(faces, L, D, D0.cube),
+    faces: litFaces,
+    ...(litFaces !== faces ? { textures: sideMapTextures(litFaces) } : {}),
     lights: [],
     cameras: [{ name: 'side-map', worldFraming: { cameraPosition: [r5(C.dist), r5(s0), r5(look + C.dist * C.tilt)], lookAt: [0, r5(s0), r5(look)], horizontalFov: r5(hfov) } }],
     viewBox: m.viewBox || { width: 1280, height: 720 },
