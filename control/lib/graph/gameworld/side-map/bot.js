@@ -12,7 +12,7 @@
  *   a drop     walked off (a cascade's steps, a chute)
  *   a room     crossed to its far wall: the end
  *
- *   playSideMap(layout, reach, { stature, seconds?, trace? }) → { done, time, falls, climbs: [{ zone, climb, kicks, margin,
+ *   playSideMap(layout, reach, { stature, seconds?, trace?, drive? }) → { done, time, falls, climbs: [{ zone, climb, kicks, margin,
  *                time }], at }   done: the hero stood in the last zone at its far side within `seconds` (240)
  *
  * Deterministic: a fixed step, the same map plays the same way.
@@ -21,20 +21,23 @@ import { createWorld, stepWorld } from '../../worlds/controllable-world.js';
 import { groundOf } from '../../playscape/terrain.js';
 import { sideMapPlay } from './play.js';
 
-const DT = 1 / 60, LIP = 0.35, DASH_LEAD = 5;
+const DT60 = 1 / 60, LIP = 0.35, DASH_LEAD = 5;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 /** A laid map played to its end by the bot, on the rule its game ships (`reach.rule`). */
-export function playSideMap(layout, reach, { stature = 1.7, seconds = 240, trace = null } = {}) {
+export function playSideMap(layout, reach, { stature = 1.7, seconds = 240, trace = null, drive = null } = {}) {
   const L = layout, P = sideMapPlay(L, { stature }), rule = reach.rule;
-  const w = createWorld({
+  // (its own world by default; `drive`: another's, { world, dt, step(input) }: a level resolved as its page resolves it,
+  // played on its bus, game/level-sim.js)
+  const own = drive ? null : createWorld({
     entities: [{ id: 'hero', pilotable: true, rule: { ...rule, type: 'platform', eye: 0, collideRadius: 0.3, collideHeight: stature, move: 'lane', lane: [[0, -50], [0, 1e5]] }, transform: { pos: P.spawn, heading: Math.PI / 2 } }, ...P.ladders],
     camera: P.camera, pilot: 'hero', colliders: P.colliders,
   });
-  const hooks = { ground: groundOf(P.colliders, -1e4) }, h = w.byId.hero, last = L.zones.at(-1);
+  const hooks = { ground: groundOf(P.colliders, -1e4) }, w = drive ? drive.world : own, DT = drive?.dt ?? DT60, h = w.byId.hero, last = L.zones.at(-1);
+  const kickGap = Math.max(1, Math.round(2 / 60 / DT)), lead = Math.max(1, Math.round((DASH_LEAD / 60) / DT));
   const climbs = L.zones.filter((Z) => Z.run === 'up').map((Z) => ({ zone: Z.i, climb: Z.climb, kicks: 0, margin: Infinity, t0: null, time: null }));
   let f = 0, dashAt = null, lastKick = -99, done = false, aim = null, standZ = null;
-  const press = (input) => { if (trace) trace(f, h, w.camera.frame, input); return stepWorld(w, input, DT, hooks); };
+  const press = (input) => { if (trace) trace(f, h, w.camera.frame, input); return drive ? drive.step(input) : stepWorld(w, input, DT, hooks); };
   for (; f < seconds / DT && !done; f++) {
     // (its zone: the furthest along whose open space it stands in, not the camera's, which turns a corner early)
     const p = h.transform.pos, s = p[1], z = p[2], inOpen = L.open.filter((r) => s >= r.s0 - 0.05 && s <= r.s1 + 0.05 && z >= r.z0 - 0.5 && z <= r.z1);
@@ -63,7 +66,7 @@ export function playSideMap(layout, reach, { stature = 1.7, seconds = 240, trace
         press({ strafe: dir, jump, jumpHeld: true });
       } else {
         // under it: kick up the wall across from it
-        const wallDir = onNear ? 1 : -1, kick = (h.grounded || h.cling) && f - lastKick > 2;
+        const wallDir = onNear ? 1 : -1, kick = (h.grounded || h.cling) && f - lastKick > kickGap;
         if (kick && h.cling) { C.kicks++; lastKick = f; } else if (kick) lastKick = f;
         press({ strafe: wallDir, jump: kick, jumpHeld: true });
       }
@@ -82,7 +85,7 @@ export function playSideMap(layout, reach, { stature = 1.7, seconds = 240, trace
     let input = { strafe: 1, jumpHeld: true };
     if (g && h.grounded) {
       const d = g.s0 - s;
-      if (g.teaches === 'dash' && d < (DASH_LEAD * DT) * 10 + LIP + 0.6) { dashAt ??= f; input.boost = true; if (d < LIP + 0.2 && f - dashAt >= DASH_LEAD) input.jump = true; }
+      if (g.teaches === 'dash' && d < (DASH_LEAD / 60) * 10 + LIP + 0.6) { dashAt ??= f; input.boost = true; if (d < LIP + 0.2 && f - dashAt >= lead) input.jump = true; }
       else if (d < LIP) input.jump = true;
     }
     // (the top past the pit aimed at: once over a narrow one, the stick let go, so the run does not carry past it)

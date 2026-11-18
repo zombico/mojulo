@@ -54,7 +54,8 @@ export function readSideMapScene(m) {
 
 /** The map as data: laid, dressed in the cube's hue, held to its laws. */
 export function sideMapOf(m) {
-  const R = readSideMapScene(m), layout = layoutSideMap(R.map, { reach: R.reach, stature: R.stature });
+  // (a played level's manifest carries its pilot, camera and game beside the scene's words: read the scene's only)
+  const R = readSideMapScene(Object.fromEntries(Object.entries(m).filter(([k]) => SIDE_MAP_SCENE_KEYS.includes(k)))), layout = layoutSideMap(R.map, { reach: R.reach, stature: R.stature });
   const dress = dressSideMap(layout, R.map, { seed: R.seed, cube: R.cube }), paint = paintSideMap(layout, dress, { seed: R.seed });
   return { layout, dress, paint, laws: sideMapLaws(layout, R.reach, { dress, paint }), reach: R.reach, stature: R.stature, cube: R.cube };
 }

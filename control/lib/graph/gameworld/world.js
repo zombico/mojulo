@@ -205,6 +205,7 @@ import { readMounts } from '../worlds/mount-units.js';
 import { validateAirspace, isSpace } from '../skyscape/airspace.js';
 import { readGeotown } from '../geotown/read.js';
 import { readGeocity } from '../geocity/metro.js';
+import { readSideMap } from './side-map/zones.js';
 /** The uses a town level opens at their doors when it names none: a shop, the hall (an old town's church), a dwelling. */
 export const GEOTOWN_ENTER = Object.freeze(['shop', 'hall', 'dwelling']);
 // the evocations a geocity level may be (geocity/metro.js EVOKES): a district, never the metro or its skyline
@@ -278,7 +279,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'sidemap'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -649,7 +650,14 @@ export function readGameworld(W) {
       if (isObj(A) && A.spawns !== undefined && !(Number.isInteger(A.spawns) && A.spawns >= 2 && A.spawns <= 8)) throw new Error(`gameworld: ${at}.arena.spawns is how many spawns it lays, 2 to 8`);
       if (L.walk === undefined) throw new Error(`gameworld: ${at}.arena is laid on a walk's first trail`);
     }
-    if (L.glyphs !== undefined) {
+    if (L.sidemap !== undefined) {
+      // a SIDE MAP level (side-map/zones.js): a traditional side-scroller's level as the camera's path, a chain of camera
+      // zones laid in the hero's screens and reach, built as the geocube's `show: 'sidemap'`; the map is the whole level
+      const other = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'geocity', 'glyphs', 'places', 'ground', 'arena', 'course', 'obstacles', 'street', 'foes'].filter((k) => L[k] !== undefined);
+      if (other.length) throw new Error(`gameworld: ${at}: a side map level is the map alone: no ${other.join(', ')} beside it`);
+      if (W.camera !== 'side') throw new Error(`gameworld: ${at}.sidemap is seen from the side: set camera: 'side' (the side map's camera holds its zones)`);
+      try { readSideMap(L.sidemap); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^side map:\s*sidemap\.?/, 'sidemap.').replace(/^side map:\s*/, '')}`); }
+    } else if (L.glyphs !== undefined) {
       // a glyph-map level: the whole level one world written as a glyph grid (its paths, its places, its regions), walked
       // end to end on one page; the map is its own ground
       if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'geocity', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a glyph-map level is the map alone: no walk, building, city, roadway, airspace, runner, geotown, places, ground or arena beside it`);
@@ -1014,6 +1022,8 @@ export function resolveLevel(world, id) {
     const cube = painted ? { geocube: cubeInPalette(style.geocube, style.palette), ...(style.terrain !== undefined ? { terrain: style.terrain } : {}), ...(style.hour !== undefined ? { hour: style.hour } : {}) } : {};
     return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, glyphs: { ...(painted ? {} : { kit }), seed: seed >>> 0, grid, ...cube, ...words } };
   }
+  // a side map level: its zone chain as written (levels.js lays it on the level's geocube for the world's hero)
+  if (L.sidemap) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, sidemap: L.sidemap };
   // a geocity level: the district on the level's geocube (a morning valley unless the style names one), as a geotown's
   if (L.geocity) {
     const c0 = cubeInPalette(style.geocube ?? 'valley-morning', style.palette), c1 = typeof c0 === 'string' ? { from: c0 } : c0, cube = c1.era ? c1 : { ...c1, era: 'gen-7' };

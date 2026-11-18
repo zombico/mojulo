@@ -45,6 +45,7 @@ import { resolveEquipment } from './equipment.js';
 import { outTrailOf, outTrailStyle } from '../era/out-trail-board.js';
 import { outTrailSpan } from '../era/out-trail.js';
 import { SIDE_CUBE, sidePads, sideCameraWords } from '../era/geocube-side.js';
+import { sideMapLevelOrder } from './side-map/level.js';
 import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
 import { fixedStations, uprightCamera, UPRIGHT, STEERED } from './cameras.js';
@@ -184,6 +185,8 @@ export function gameStages(world) {
       continue;
     }
     if (R.glyphs) { out.push({ level, node: 'map', section: 'map', index: 0, manifest: { kind: 'map', level: R.glyphs } }); continue; }
+    // a side map level is one stage: the map on its cube (side-map/scene.js), laid for the hero its level order makes
+    if (R.sidemap) { out.push({ level, node: 'map', section: 'sidemap', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', show: 'sidemap', cube: R.style?.geocube ?? G.style?.geocube ?? SIDE_CUBE, seed: R.seed, sidemap: R.sidemap } }); continue; }
     // a geocity level is one stage: the district on its cube (geocity/scene.js: an evocation), walked from its streets
     if (R.geocity) { out.push({ level, node: 'district', section: 'geocity', index: 0, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...(R.geocity.hour !== undefined ? { hour: R.geocity.hour } : {}) } }); continue; }
     // a geotown level is one stage: the town on its cube (geotown/scene.js), walked from its streets
@@ -746,6 +749,8 @@ function withBookUi(G, play) {
 function levelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null, foeRefs = null } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
+  // a side map (side-map/level.js): its hero on the lane, its camera on the zones, its falls out of the frame
+  if (stage.section === 'sidemap') return sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits, heroStature, pilot, title, mechanics });
   // a street level (brawl-cast.js): its own simulation and its own contract, the game's hero and made foes its bodies
   if (stage.section === 'street') { const S = streetLevel(G, stage.street, { title: title ?? stageTitle(stage), ref, heroRef, foeRefs, party, ...STREET_LAY }); return { tool: 'create_sketch', args: { title: S.manifest.title, manifest: S.manifest }, laws: S.laws }; }
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, heroStature, pilot, mechanics, title, sheathRef, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });

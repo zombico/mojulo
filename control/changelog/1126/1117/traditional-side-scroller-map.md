@@ -103,8 +103,26 @@ said as its phase lands.
 - **The backdrop by height** (`paint.js` `backdropOf`): an outdoor zone's hills and range at their depth behind the lane,
   sized for the side map's camera to see them where the frame should and wide enough for anywhere along the zone; at the
   foot both in the frame, higher the hills gone and the range lower, at the top only sky over a low horizon.
-- **Galaxy Boy's first level** laid as a zone chain from its teaching order, ending in its first power; the mascot
-  platformer's strip as it was.
+- **Galaxy Boy's first level, a side map** (`side-map/first.js`; a world's `levels.<id>.sidemap`, `side-map/level.js`):
+  the first level's teaching order seen from the side, with the beats a strip never had: a rest with no pit, the
+  basics, the buster's first foes from hatches a screen apart, a cascade, the dash's gaps, a chimney under a rising
+  frame, a landing, a gauntlet, a chute and a one-screen boss's room. The platformer's rail writes it for the run and
+  gun (`SIDE_MAP_POLES`); Jumping Giuseppe's strip is as it was. A world refuses one with no side camera or beside
+  another level form; its level puts the hero on the lane at the first checkpoint under the side map's camera, its
+  ladders and solids, its falls counted as lives in the catch zone (the game's own fall box off: a chute goes deeper),
+  its goal the far side of the boss's room.
+- **The bot** (`side-map/bot.js`), the machine gate's player: a laid map played on the shipped rule as a player who
+  knows it would (a jump at each pit's lip, a dash jump for the dash's gaps, the stick let go over a narrow top, a
+  chimney kicked up the wall across from its next rest, a ledge jumped to from within reach of it, a ladder held up), and
+  what it took said: the time, each fall, each climb's kicks and the least its feet stood over the rising frame. It
+  plays Galaxy Boy's first level to its end in about two minutes without a fall, and every climb form under a rising
+  frame; played on a level resolved as its page resolves it, on the level's own bus, the goal is reached and no life is
+  lost, and a frame that rises five times too fast costs lives.
+- **Played, the map was mended**: a run carries no wall face (the wall kick is a climb's: `coursePlan`'s `walls`); a
+  shaft's near wall rises from a doorway at its foot, so a chimney has both walls from the floor up; a ledge stair's
+  first rest is on the far wall, away from the doorway; a stair's steps leave a standing hero room under the next; a
+  switchback's floors are a hero apart with a step under each opening (it was a stack of floors no one could stand
+  between); the reach law reads the room over every rest; the camera never lets a drop down a chute outrun its frame.
 - **The map's laws** (`gameworld/side-map/laws.js`), advisory, measured on the layout and its dress: a run one screen
   thick across its held axis; a shaft's two walls in the frame; every pit crossed by the move that teaches it and every
   stand up a climb a jump away; no more than three kicks between a chimney's rests, its top counted; a rising frame

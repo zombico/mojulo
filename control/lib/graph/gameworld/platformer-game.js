@@ -53,6 +53,7 @@
  * Pure: words in, a recipe out.
  */
 import { firstLevel, firstLevelSegments, FIRST_LEVEL_DIMENSIONS } from './first-level.js';
+import { firstSideMap } from './side-map/first.js';
 import { POLES } from './feel/cards.js';
 import { feelSuggestion } from './feel/suggest.js';
 import { STEERED } from './cameras.js';
@@ -136,6 +137,9 @@ export function platformerFront(dimension = '2d') {
   return { menu: readDimension(dimension) === '3d' ? ['continue', 'play', 'levels'] : ['continue', 'play'] };
 }
 
+/** The platformer templates whose first level in two dimensions is a side map (side-map/first.js), not a strip. */
+export const SIDE_MAP_POLES = Object.freeze(['galaxy-boy']);
+
 /** The rail's game in a dimension: the words to write on a gameworld (see the header). */
 export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id, name, seed, kit, boss = false, camera } = {}) {
   const D = PLATFORMER_DIMENSIONS[readDimension(dimension)];
@@ -147,7 +151,9 @@ export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id
     feel: { pole, takes: true },
     camera: camera ?? D.camera,
     mechanics: { lives: 3, coins: true, legend: 'menu' },
-    levels: { [level]: firstLevel({ name, seed, kit, boss, dimension }) },
+    // (the run and gun's first level is a SIDE MAP, side-map/first.js: its zones, climbs and boss's room seen from the
+    // side; the mascot platformer's the strip of trails it always was)
+    levels: { [level]: SIDE_MAP_POLES.includes(pole) && D === PLATFORMER_DIMENSIONS['2d'] ? { ...(name ? { name } : {}), ...(seed !== undefined ? { seed } : {}), sidemap: firstSideMap() } : firstLevel({ name, seed, kit, boss, dimension }) },
     // (made for a screen on its side: a lane is read across its width, a chase camera needs it; game/screen.js)
     screen: 'screen',
     style: { geocube: PLATFORMER_CUBE },
@@ -222,7 +228,8 @@ function patchFor(world, dimension, pole, boss) {
   const held = (isObj(world.characters?.hero?.adornment) && Array.isArray(world.characters.hero.adornment.items) ? world.characters.hero.adornment.items : []).map((i) => i?.id).filter(Boolean);
   const hands = held.length ? `its hero carries ${held.join(', ')}: a platformer's hero runs, jumps and stomps with empty hands (take the items off characters.hero.adornment.items, or keep them if the game is about them)` : null;
   const needs = isObj(world.characters) ? null : `a hero: the world has no character book yet (characters: { direction: { tradition, body: '${body}' }, hero }, gameworld-direction; ${body === PLATFORMER_BODY ? 'the mascot\'s body is the platformer\'s, chibi' : `the ${body} body is this template's`}-sized). Until it has one its levels are walked first person, the camera kept for the run that has its hero`;
-  return { dimension, level: id, courses: firstLevelSegments(dimension, !!boss).map((s) => s.id), says: G.says, patch: ops, turn: G.turn, ...(needs ? { needs } : {}), ...(advise || hands ? { advise: [advise, hands].filter(Boolean).join('; ') } : {}) };
+  const sideMap = !!G.words.levels[id]?.sidemap;
+  return { dimension, level: id, courses: sideMap ? G.words.levels[id].sidemap.zones.map((z, k) => `${k}:${z.teach ?? z.beat ?? z.climb ?? z.drop ?? z.run ?? 'room'}`) : firstLevelSegments(dimension, !!boss).map((s) => s.id), says: G.says, patch: ops, turn: G.turn, ...(needs ? { needs } : {}), ...(advise || hands ? { advise: [advise, hands].filter(Boolean).join('; ') } : {}) };
 }
 
 /** The rail as a patch over a world (see the header); null where it has nothing to offer. */
@@ -231,7 +238,7 @@ export function platformerSuggestion(world, { boss = false } = {}) {
   const P = platformerPole(world);
   if (!P) return null;
   // (a level with a course is the rail already ridden, or the creator's own course: nothing to offer)
-  if (Object.values(isObj(world.levels) ? world.levels : {}).some((L) => isObj(L) && L.course !== undefined)) return null;
+  if (Object.values(isObj(world.levels) ? world.levels : {}).some((L) => isObj(L) && (L.course !== undefined || L.sidemap !== undefined))) return null;
   const cam = world.camera;
   if (cam !== undefined && cam !== null && !dimensionOf(world)) return null;
   const round = PLATFORMER_DIMENSIONS['3d'].poles.includes(P.pole);

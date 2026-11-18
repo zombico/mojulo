@@ -148,6 +148,9 @@ The words are `control/lib/graph/gameworld/side-map/zones.js` (a chain of runs a
 or its drop, its place and its fill, read and refused with teaching), keyed as `space.levelForm=side-map` and
 `reality.fill` (`side-map/fills.js`, a row a fill).
 
+A game's level is `levels.<id>.sidemap` (`control/lib/graph/gameworld/side-map/level.js`); the run and gun's first is
+`side-map/first.js`, and `side-map/bot.js` plays a laid map to its end on the shipped rule, saying what it took.
+
 The hero's body sets the screen. Galaxy Boy's is the toy hero robot's (`proportions: 'herobot'`, about four and a half
 heads, adult-limbed): a game body of its own, too real for a mascot's.
 

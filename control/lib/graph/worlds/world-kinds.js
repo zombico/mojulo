@@ -27,7 +27,7 @@ import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer'
 import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene, geocubeReadout } from '@/lib/graph/era/geocube';
 import { assembleSideStrip } from '@/lib/graph/era/geocube-side';
-import { assembleSideMap } from '@/lib/graph/gameworld/side-map/scene';
+import { assembleSideMap, SIDE_MAP_SCENE_KEYS } from '@/lib/graph/gameworld/side-map/scene';
 import { geocubeCity, withSidewalkCamera } from '@/lib/graph/era/geocube-city';
 import { assembleGeotownScene, GEOTOWN_KEYS } from '@/lib/graph/geotown/scene';
 import { assembleGeocityScene, GEOCITY_KEYS } from '@/lib/graph/geocity/scene';
@@ -601,7 +601,8 @@ export const WORLD_KINDS = {
       if (m.show === 'side') return assembleSideStrip(m, { title: ctx.title });
       // a traditional side-scroller's map (gameworld/side-map/scene.js): a zone chain laid in screens and the hero's
       // reach, dressed and built where the camera sees, lit by the cube
-      if (m.show === 'sidemap') return assembleSideMap(m, { title: ctx.title });
+      // (played, a level's: its pilot, camera and game layered over it by the page, the scene reading its own words only)
+      if (m.show === 'sidemap') return assembleSideMap(Object.fromEntries(Object.entries(m).filter(([k]) => SIDE_MAP_SCENE_KEYS.includes(k))), { title: ctx.title });
       // a metro on the cube's own land (geocity/scene.js): its major streets first, its blocks as massing, in metres
       // (formBuildings: its massing baked for the form render, form/sun-light.js; a page's read only, the handoff's as it was)
       // (a game's level stands on one, a district: the level's pilot and its game layered over it by the page, and no
