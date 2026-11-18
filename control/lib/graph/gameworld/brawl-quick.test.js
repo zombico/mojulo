@@ -220,7 +220,7 @@ describe('a heroes brawl', () => {
   const H = world({ heroes: true }), steps = runSteps(H, { ref: 'gw' });
   const street = steps.find((s) => s.key === 'level-street-street').order.manifest.brawl.street;
   it('is read: a team of 1 to 4 of the pack\'s cast, each a power; one of the pack\'s villains; never with guns', () => {
-    expect(readHeroes(true)).toMatchObject({ team: HERO_TEAM.map((t) => ({ member: t.member, power: t.power })), villain: 'mastermind' });
+    expect(readHeroes(true)).toMatchObject({ team: HERO_TEAM.map((t) => ({ member: t.member, power: t.power })), villain: { member: 'mastermind', power: HERO_VILLAINS.mastermind } });
     expect(readHeroes({ team: [POWER_IDS[1]] }).team[0]).toMatchObject({ member: HERO_TEAM[0].member, power: POWER_IDS[1] });
     expect(() => world({ heroes: { team: ['telekinesis'] } })).toThrow(/power/);
     expect(() => world({ heroes: { team: [{ member: 'nobody' }] } })).toThrow(/member/);
@@ -250,5 +250,39 @@ describe('a heroes brawl', () => {
     const plain = runSteps(world({}), { ref: 'gw' }).find((s) => s.key === 'level-street-street').order.manifest.brawl.street;
     expect(plain.tuning).toBeUndefined();
     expect(plain.roster.some((r) => r.power)).toBe(false);
+  });
+});
+
+// A HEROES BRAWL OF THE PERSON'S OWN: heroes said in their words (or made already), powers designed, a villain chosen.
+describe('a heroes brawl designed', () => {
+  const OWN = { name: 'Nova Girl', brief: 'a teenage astronomer who caught a falling star', build: 'lithe', age: 'youth', pole: 'female', power: { kind: 'beam', name: 'Starfall', beam: 'laser', strength: 120 } };
+  const MADE = { hero: { ref: 'made-hero' }, name: 'Ironside', power: 'might' };
+  const H = world({ heroes: { team: [OWN, MADE], villain: { member: 'brute', power: { kind: 'nova', name: 'Quake' }, name: 'Gravel King' } } });
+  const steps = runSteps(H, { ref: 'gw' });
+  const street = steps.find((s) => s.key === 'level-street-street').order.manifest.brawl.street;
+  it('the person\'s own hero is rolled from their words alone, not a pack member\'s sheet; one already made is used as made', () => {
+    const roll = steps.find((s) => s.key === 'fighter-hero-1-sheet').order.manifest.roll;
+    expect(roll).toMatchObject({ brief: OWN.brief, facets: { build: 'lithe', age: 'youth', pole: 'female' } });
+    expect(roll.facets.archetype).toBeUndefined();
+    expect(steps.some((s) => s.key === 'fighter-hero-2-sheet')).toBe(false);
+    expect(street.roster.slice(0, 2).map((r) => [r.name, r.hero.ref === 'made-hero'])).toEqual([['Nova Girl', false], ['Ironside', true]]);
+  });
+  it('each seat carries its designed power, the set-up\'s pick says it, and the villain is the one chosen with its own', () => {
+    expect(street.roster[0].power).toEqual(OWN.power);
+    const setup = steps.find((s) => s.key === 'game').order.flow;
+    expect(JSON.stringify(setup)).toContain('Starfall (beam)');
+    const boss = street.waves.find((w) => w.boss).boss;
+    expect(boss.recipe.name).toBe('Gravel King');
+    expect(boss.recipe.specials.neutral.id).toBe('power.nova');
+    expect(brawlCrowd({ goal: 'brawl', heroes: { villain: 'brute' } }, 1).members.find((m) => m.as === 'boss').name).toBe('The brute');
+  });
+  it('its words are read before anything is made; a power far from its kind\'s measure is advised on the game', () => {
+    expect(() => world({ heroes: { team: [{ hero: { ref: 'x' }, brief: 'b' }] } })).toThrow(/already made/);
+    expect(() => world({ heroes: { team: [{ brief: 'b', build: 'enormous' }] } })).toThrow(/build/);
+    expect(() => world({ heroes: { team: [{ power: { kind: 'storm', pierce: 2 } }] } })).toThrow(/throws no round/);
+    expect(() => world({ heroes: { villain: { member: 'brute', mood: 'grim' } } })).toThrow(/villain's word/);
+    expect(steps.find((s) => s.key === 'game').laws).toBeUndefined();
+    const heavy = runSteps(world({ heroes: { team: [{ power: { kind: 'beam', strength: 200, stock: 9 } }] } }), { ref: 'gw' }).find((s) => s.key === 'game');
+    expect(heavy.laws[0]).toMatchObject({ concern: 'balance', law: 'power', holds: false });
   });
 });

@@ -232,7 +232,7 @@ import { gunName } from '../brawl/brawl-street-read.js';
 import { GRUNT_STYLES, GRUNT_STYLE_IDS, gruntOrders } from '../cosmos/packs/comic-hero/grunts.js';
 import { castMember } from '../cosmos/packs/comic-hero/cast.js';
 import { memberOrders } from '../cosmos/packs/comic-hero/characters.js';
-import { POWER_IDS, powerRecipe, readPower } from '../brawl/brawl-powers.js';
+import { POWER_IDS, powerRecipe, readPower, powerAdvice } from '../brawl/brawl-powers.js';
 import { tuningOf } from '../brawl/brawl-tunings.js';
 import { CPU_LEVELS } from '../versus/versus-cpu.js';
 import { readRangeWaves, RANGE_WAVES } from '../brawl/brawl-waves.js';
@@ -883,13 +883,23 @@ export function brawlCrowd(Q, seed = 1, title = 'brawl') {
  * special (brawl/brawl-powers.js), against an ARMY (a crew of the pack's: the shadow clan, blades and a staff, unless it names
  * its crowd) with the pack's VILLAIN at the end, in its own body, throwing a power of its own, in stages. Its streets are
  * tuned as the heroes card says (falls, an army that drops in and comes out of doors, a crowd that falls fast).
- *   heroes: true | { team?: [<power id> | { power?, member?, name? }] (1 to 4, in seat order), villain?: <a villain> }
- *     team     who plays and the power each throws: a power alone keeps the team's member at that seat, a member names
- *              another of the pack's cast; unsaid, HERO_TEAM (the leader's beam, the rival's storm, the sidekick's
- *              phase, the strongman's might). A brawl's own `roster` plays in its place, each seat the team's power
- *     villain  the pack's member the street ends on (HERO_VILLAINS: the mastermind unsaid), and the power it throws
+ *   heroes: true | { team?: [<power> | <hero>] (1 to 4, in seat order), villain?: <member> | { member, power?, name? } }
+ *     team     who plays and the power each throws; unsaid, HERO_TEAM (the leader's beam, the rival's storm, the
+ *              sidekick's phase, the strongman's might). A power alone keeps the team's member at that seat. A hero:
+ *              { name?, brief?, archetype?, build?, age?, pole?, role?, member?, hero?, power?, style? }:
+ *                the person's OWN hero: a brief (a sentence: who it is) and the sheet's words, no member: rolled from them
+ *                a pack member: `member` (another of the comic pack's cast), the person's words over its sheet
+ *                one already made: `hero: { ref }` (a character from create_character), its sheet its own
+ *              its power one of the shelf's, or DESIGNED (brawl-powers.js readPower: { kind, name?, beam?, stock?,
+ *              strength?, speed?, size?, pierce? }, a kind made theirs). A brawl's own `roster` plays in its place,
+ *              each seat the team's power
+ *     villain  the pack's member the street ends on (HERO_VILLAINS: the mastermind unsaid), its power its own unless
+ *              said or designed, its name the member's unless said
+ *   heroAdvice(H)          → [lines]: a designed power far from what the street was measured with (advice, never refused)
+ *   powerLabel(power)      → what a seat's power is called on the set-up's pick (its name and its kind)
  *   HERO_TEAM, HERO_VILLAINS, HERO_ARMY
- *   readHeroes(v)          → { team: [{ member, power, name?, brief?, style }], villain } checked (throws, teaching)
+ *   readHeroes(v)          → { team: [{ member | null, power, name?, brief?, facets?, hero?, style }], villain: { member,
+ *                          power, name } } checked (throws, teaching; a hero's words read as a fighter's are)
  *   heroFighters(H)        → the fight's roster words (versus-sheet.js fighterSpec) a member each: its sheet, its style
  *   heroVillain(H, seed)   → { name, power, mint } the villain as a character the hero door mints, on the brawler's body
  *   villainBoss(H)         → the boss a heroes street ends on (a wave's `boss`): the villain's fighter, its power its
@@ -906,40 +916,75 @@ export const HERO_VILLAINS = Object.freeze({ mastermind: 'nova', brute: 'might',
 export const HERO_ARMY = 'shadowClan';
 const HERO_WORDS = ['team', 'villain'];
 const MEMBER_STYLE = Object.freeze({ frontline: 'grappler', flanker: 'rushdown', ranged: 'zoner', controller: 'all-rounder' });
+// a team member's words: who it is (the pack's member it is cast from, or the person's own: a sentence and the sheet's
+// words, or a character already made) and its power (one of the shelf's, or designed: brawl-powers.js readPower)
+const SHEET_WORDS = ['archetype', 'build', 'age', 'pole', 'role'];
+const TEAM_WORDS = ['power', 'member', 'name', 'brief', 'style', 'hero', ...SHEET_WORDS];
+const VILLAIN_WORDS = ['member', 'power', 'name'];
 export function readHeroes(v, at = '.heroes') {
   if (v === undefined || v === false) return null;
   const H = v === true ? {} : v;
   if (!isObj(H)) throw fail(`${at} is true, or { team?, villain? }`);
   for (const k of Object.keys(H)) if (!HERO_WORDS.includes(k)) throw fail(`${at}.${k} is not a heroes word (${HERO_WORDS.join(', ')})`);
-  if (H.team !== undefined && (!Array.isArray(H.team) || H.team.length < 1 || H.team.length > 4)) throw fail(`${at}.team is 1 to 4 heroes, each a power (${POWER_IDS.join(', ')}) or { power?, member?, name? }`);
+  if (H.team !== undefined && (!Array.isArray(H.team) || H.team.length < 1 || H.team.length > 4)) throw fail(`${at}.team is 1 to 4 heroes, each a power (${POWER_IDS.join(', ')}) or { name?, brief?, ${SHEET_WORDS.join('?, ')}?, member?, hero?, power?, style? }`);
   const team = (H.team ?? HERO_TEAM).map((t0, k) => {
-    const t = typeof t0 === 'string' ? { power: t0 } : t0;
-    if (!isObj(t)) throw fail(`${at}.team[${k}] is a power or { power?, member?, name? }`);
-    for (const w of Object.keys(t)) if (!['power', 'member', 'name', 'brief', 'style'].includes(w)) throw fail(`${at}.team[${k}].${w} is not a hero's word (power, member, name)`);
-    const base = t.member !== undefined ? { member: t.member } : HERO_TEAM[k] ?? HERO_TEAM[k % HERO_TEAM.length];
-    try { castMember(base.member); } catch (e) { throw fail(`${at}.team[${k}].member: ${e.message.replace(/^comic-hero: /, '')}`); }
-    const power = t.power ?? base.power ?? HERO_TEAM[k % HERO_TEAM.length].power;
-    try { readPower(power); } catch (e) { throw fail(`${at}.team[${k}].power: ${e.message.replace(/^brawl: /, '')}`); }
-    if (t.name !== undefined && !(typeof t.name === 'string' && t.name.trim() && t.name.length <= 24)) throw fail(`${at}.team[${k}].name is a few words (at most 24 letters)`);
-    const name = t.name ?? base.name;
-    return { member: base.member, power, ...(name ? { name } : {}), ...(t.brief ?? base.brief ? { brief: t.brief ?? base.brief } : {}), style: t.style ?? base.style ?? MEMBER_STYLE[castMember(base.member).facets.role] ?? 'all-rounder' };
+    const t = typeof t0 === 'string' ? { power: t0 } : t0, here = `${at}.team[${k}]`;
+    if (!isObj(t)) throw fail(`${here} is a power or { name?, brief?, ${SHEET_WORDS.join('?, ')}?, member?, hero?, power?, style? }`);
+    for (const w of Object.keys(t)) if (!TEAM_WORDS.includes(w)) throw fail(`${here}.${w} is not a hero's word (${TEAM_WORDS.join(', ')})`);
+    const seat = HERO_TEAM[k % HERO_TEAM.length];
+    // (WHO: a character already made (hero: { ref }, its sheet its own); the person's own, said in a sentence and the
+    // sheet's words (a brief and no member); else the pack's member at that seat, or the one named, its words over it)
+    const said = SHEET_WORDS.filter((w) => t[w] !== undefined);
+    if (t.hero !== undefined && (t.member !== undefined || t.brief !== undefined || said.length)) throw fail(`${here}: a hero already made (hero) has its own sheet: drop ${[...(t.member !== undefined ? ['member'] : []), ...(t.brief !== undefined ? ['brief'] : []), ...said].join(', ')}`);
+    const own = t.hero === undefined && t.member === undefined && t.brief !== undefined;
+    const member = t.hero !== undefined || own ? null : t.member ?? seat.member;
+    if (member) { try { castMember(member); } catch (e) { throw fail(`${here}.member: ${e.message.replace(/^comic-hero: /, '')}`); } }
+    // (its power: its own, else the team's at that seat)
+    const power = t.power ?? seat.power;
+    try { readPower(power, 'power'); } catch (e) { throw fail(`${here}.${e.message.replace(/^brawl: /, '')}`); }
+    const base = member && t.member === undefined ? seat : {};
+    const name = t.name ?? base.name, brief = t.brief ?? base.brief;
+    const role = t.role ?? (member ? castMember(member).facets.role : null);
+    const entry = { member, power, ...(name ? { name } : {}), ...(brief ? { brief } : {}), ...(said.length ? { facets: Object.fromEntries(said.map((w) => [w, t[w]])) } : {}), ...(t.hero !== undefined ? { hero: t.hero } : {}), style: t.style ?? base.style ?? MEMBER_STYLE[role] ?? seat.style };
+    // (its words read as a fighter's are, so a fault is said here and not when the run rolls it)
+    try { fighterSpec(heroFighter(entry, k), k); } catch (e) { throw fail(`${here}: ${e.message.replace(/^versus: /, '')}`); }
+    return entry;
   });
-  const villain = H.villain ?? 'mastermind';
-  if (!HERO_VILLAINS[villain]) throw fail(`${at}.villain is one of the pack's villains: ${Object.keys(HERO_VILLAINS).join(', ')}`);
-  return { team, villain };
+  // (THE VILLAIN: the pack's member, its power its own unless one is said or designed, its name the member's unless said)
+  const V = typeof H.villain === 'string' || H.villain === undefined ? { member: H.villain ?? 'mastermind' } : H.villain;
+  if (!isObj(V)) throw fail(`${at}.villain is one of ${Object.keys(HERO_VILLAINS).join(', ')}, or { member, power?, name? }`);
+  for (const w of Object.keys(V)) if (!VILLAIN_WORDS.includes(w)) throw fail(`${at}.villain.${w} is not a villain's word (${VILLAIN_WORDS.join(', ')})`);
+  if (!HERO_VILLAINS[V.member]) throw fail(`${at}.villain${typeof H.villain === 'object' ? '.member' : ''} is one of the pack's villains: ${Object.keys(HERO_VILLAINS).join(', ')}`);
+  const vpower = V.power ?? HERO_VILLAINS[V.member];
+  try { readPower(vpower, 'power'); } catch (e) { throw fail(`${at}.villain.${e.message.replace(/^brawl: /, '')}`); }
+  if (V.name !== undefined && !(typeof V.name === 'string' && V.name.trim() && V.name.length <= 40)) throw fail(`${at}.villain.name is a short name (at most 40 letters)`);
+  return { team, villain: { member: V.member, power: vpower, name: V.name ?? castMember(V.member).name } };
 }
-/** The fight's roster words for the team: a member each, rolled from its sheet (its facets and its brief). */
-export const heroFighters = (H) => H.team.map((t, k) => { const m = castMember(t.member); return { id: `hero-${k + 1}`, name: t.name ?? m.name, brief: t.brief ?? m.brief, facets: m.facets, style: t.style }; });
+/** One team member as the fight's roster words: a character already made, or rolled from a sheet (the member's facets
+ * under the person's own words, its brief, its style). */
+function heroFighter(t, k) {
+  const id = `hero-${k + 1}`;
+  if (t.hero) return { id, ...(t.name ? { name: t.name } : {}), hero: t.hero, style: t.style };
+  const m = t.member ? castMember(t.member) : null;
+  // (the person's words beside the member's facets, where the fighter's reader checks them and lays them over)
+  return { id, name: t.name ?? m?.name ?? `Hero ${k + 1}`, ...(t.brief ?? m?.brief ? { brief: t.brief ?? m.brief } : {}), facets: { ...(m ? m.facets : {}) }, ...(t.facets ?? {}), style: t.style };
+}
+/** The fight's roster words for the team. */
+export const heroFighters = (H) => H.team.map(heroFighter);
+/** What a team member's power is called on the set-up's pick: its own name, else its kind. */
+export const powerLabel = (power) => { const R = readPower(power); return R.name ? `${R.name} (${R.id})` : R.id; };
+/** What a heroes brawl's designed powers are told (brawl-powers.js powerAdvice): a power far from the street's measure. */
+export const heroAdvice = (H) => [...H.team.flatMap((t, k) => powerAdvice(t.power, t.name ?? (t.member ? castMember(t.member).name : `hero ${k + 1}`))), ...powerAdvice(H.villain.power, H.villain.name).map((l) => `${l} (against the heroes)`)];
 /** The villain: the pack's member as a character, on the brawler's hulking body, out of the pack's own light. */
 export function heroVillain(H, seed = 1) {
-  const m = castMember(H.villain), O = memberOrders(H.villain, 'dcau-golden', { seed });
+  const O = memberOrders(H.villain.member, 'dcau-golden', { seed });
   const { geocube: _cube, gear: _gear, ...spec } = O.mint.args.spec;
   const pole = (typeof spec.cast === 'string' ? spec.cast : spec.cast?.pole) === 'female' ? 'female' : 'male';
-  return { name: m.name, power: HERO_VILLAINS[H.villain], mint: { kind: 'layered', via: 'hero', title: O.mint.args.title, spec: { ...spec, ...BRAWLER_BODY(pole, true) } } };
+  return { name: H.villain.name, power: H.villain.power, mint: { kind: 'layered', via: 'hero', title: O.mint.args.title, spec: { ...spec, ...BRAWLER_BODY(pole, true) } } };
 }
 /** The boss a heroes street ends on: the villain's fighter with its power, in three stages. */
 export function villainBoss(H) {
-  const name = castMember(H.villain).name, power = HERO_VILLAINS[H.villain];
+  const { name, power } = H.villain;
   const recipe = { ...powerRecipe(solveFighter({ id: 'villain', archetype: 'grappler' }).recipe, power), archetype: 'grappler', name };
   const plays = ['strong', 'break', 'run', 'special.neutral'];
   return { recipe, plays, cpu: Object.keys(CPU_LEVELS)[0], hp: 400, stages: [{}, { cpu: Object.keys(CPU_LEVELS)[1], name: 'Unleashed', plays: [...plays, 'special.neutral'] }, { cpu: Object.keys(CPU_LEVELS)[2], name: 'Desperate', plays: [...plays, 'special.neutral', 'special.neutral', 'desperate'] }] };

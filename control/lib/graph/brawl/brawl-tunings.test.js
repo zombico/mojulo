@@ -120,6 +120,22 @@ describe('the heroes tuning', () => {
     expect(Y.tune).toEqual(roomTune(TUNINGS.heroes));
   });
 
+  it('a street says its seats\' own powers, designed or of the shelf; a far one is advised, a run & gun refuses them', () => {
+    const mine = { kind: HERO_TEAM[1], name: 'Thunderclap', strength: 110 };
+    const L = streetLevel(B, { ...design, tuning: 'heroes', players: 2, powers: [null, mine] }, {});
+    const R = L.manifest.brawl.practice.roster;
+    expect(R[0].power).toBe(HERO_TEAM[0]);
+    expect(R[1].power).toEqual(mine);
+    expect(L.laws.some((l) => l.concern === 'balance')).toBe(false);
+    expect(brawlYardData(L.manifest.brawl).roster[1].power).toMatchObject({ id: HERO_TEAM[1], name: 'Thunderclap', dials: { strength: 110 } });
+    // (powers on a street with no card that gives them: the seats it says alone)
+    expect(streetLevel(B, { ...design, powers: [HERO_TEAM[0]] }, {}).manifest.brawl.practice.roster[0].power).toBe(HERO_TEAM[0]);
+    const far = streetLevel(B, { ...design, tuning: 'heroes', powers: [{ kind: HERO_TEAM[0], strength: 200, stock: 9 }] }, {});
+    expect(far.laws.find((l) => l.concern === 'balance')).toMatchObject({ holds: false });
+    expect(() => readLevelStreet({ ...design, powers: [{ kind: 'telekinesis' }] })).toThrow(/powers\[0\]/);
+    expect(() => readLevelStreet({ ...design, guns: true, powers: [HERO_TEAM[0]] })).toThrow(/run & gun/);
+  });
+
   it('held by the scripted hero: one hero wins the default street alone, using its power, with falls to spare', () => {
     const Y = heroes(), one = playStreet(Y, { player: 'hero' }), still = playStreet(Y, { player: 'still', seconds: 60 });
     expect(one).toMatchObject({ won: true, boss: { down: true } });

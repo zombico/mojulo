@@ -894,4 +894,5 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // Re-pinned 2026-11-18 (1117-hero-beat-em-up: a hero's power): `brawl` only. Its page inlines the brawl's core, crowd,
 // practice and client, and now the powers shelf (brawl-powers.js): a power's stock spent and filled at a fall, a special's
 // round carrying its knock, a special's round drawn (it was not) and a power's burst. The fixture's fighters have no power:
-// it plays as it did.
+// it plays as it did. Re-pinned again the same day for a power DESIGNED (brawl-powers.js: a kind's dials, read back as
+// written): `brawl` only, the shelf's lines alone.

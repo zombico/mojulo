@@ -18,8 +18,12 @@
  *   POWER_IDS
  *   ATTACK_POWER     { <beam word>: <power id> } the power a hero's own `attack` (the actions page's beam) plays on the street
  *   powerOf(id)      → the card (throws naming the ids)
- *   readPower(v)     → { id, stock, beam, colour? } a power as a roster entry or a seat writes it: an id, or { id, stock?,
- *                    beam?, colour? } (its colour the page's: brawl-power-look.js powerLook)
+ *   readPower(v)     → { id, stock, beam, name?, dials?, colour? } a power as a roster entry or a seat writes it: an id,
+ *                    or a power DESIGNED, a kind made the person's own: { kind (or id), name?, stock?, beam?, strength?,
+ *                    speed?, size?, pierce? } (POWER_DIALS, each bounded; its colour the page's, brawl-power-look.js)
+ *   POWER_DIALS, isRound(id)   the dials a designed power turns; is a kind's move a round down the street
+ *   powerHeft(power) → its hits by its uses as a share of its kind's card (1 the card as measured)
+ *   powerAdvice(power, who?) → [lines]: a designed power far from what the street was measured with (advice, never a refusal)
  *   powerRecipe(recipe, power) → the fighter's recipe with its power as every direction's special (its own library
  *                    special, `power.<id>`), its other specials gone: S is the power, whichever way the stick points
  *   powerMoves(F, power) → the compiled fighter's moves with its power's marked (`power: 1`, the core's stock reads it)
@@ -75,40 +79,85 @@ export function powerOf(id) {
   return P;
 }
 
-/** A power as written: an id, or { id, stock?, beam? } (its uses a life, its look). */
+/** THE DIALS a designed power turns over its kind's card, each bounded: a person's own power is a kind made theirs, never
+ * a new move. `strength` the share of the kind's damage, `speed` and `size` of its round's (a round down the street's
+ * kinds only), `pierce` the bodies its round passes through. */
+export const POWER_DIALS = Object.freeze({
+  strength: Object.freeze({ min: 50, max: 200, says: 'how hard it hits, % of its kind' }),
+  speed: Object.freeze({ min: 50, max: 200, round: true, says: 'how fast its round flies, % of its kind' }),
+  size: Object.freeze({ min: 50, max: 200, round: true, says: 'how big its round is, % of its kind' }),
+  pierce: Object.freeze({ min: 1, max: 8, round: true, says: 'how many bodies its round passes through' }),
+});
+const WORDS = ['id', 'kind', 'name', 'stock', 'beam', 'colour', ...Object.keys(POWER_DIALS)];
+/** Is a kind's move a round down the street (a projectile)? */
+export const isRound = (id) => !!POWERS[id]?.special.projectile;
+
+/** A power as written: an id, or a power DESIGNED: { kind (or id), name?, stock?, beam?, strength?, speed?, size?, pierce? }. */
 export function readPower(v, at = 'power') {
-  const W = typeof v === 'string' ? { id: v } : v;
-  if (!isObj(W)) throw fail(`${at} is a power (${POWER_IDS.join(', ')}) or { id, stock?, beam? }`);
-  for (const k of Object.keys(W)) if (!['id', 'stock', 'beam', 'colour'].includes(k)) throw fail(`${at}.${k} is not a power's word (id, stock, beam, colour)`);
-  const P = POWERS[W.id];
-  if (!P) throw fail(`${at}.id is one of ${POWER_IDS.join(', ')}`);
+  // (a power read once comes back with its dials together, `dials`: read again as written)
+  const W = typeof v === 'string' ? { id: v } : isObj(v) && isObj(v.dials) ? (({ dials, ...rest }) => ({ ...rest, ...dials }))(v) : v;
+  if (!isObj(W)) throw fail(`${at} is a power (${POWER_IDS.join(', ')}) or one designed: { kind, name?, stock?, beam?, ${Object.keys(POWER_DIALS).join('?, ')}? }`);
+  for (const k of Object.keys(W)) if (!WORDS.includes(k)) throw fail(`${at}.${k} is not a power's word (${WORDS.filter((w) => w !== 'colour').join(', ')})`);
+  if (W.id !== undefined && W.kind !== undefined) throw fail(`${at}: its kind is said once (kind, or id)`);
+  const id = W.kind ?? W.id, P = POWERS[id];
+  if (!P) throw fail(`${at}.${W.kind !== undefined ? 'kind' : 'id'} is one of ${POWER_IDS.join(', ')}`);
+  if (W.name !== undefined && !(typeof W.name === 'string' && W.name.trim() && W.name.length <= 24)) throw fail(`${at}.name is what the hero calls it, a few words (at most 24 letters)`);
   if (W.stock !== undefined && !(Number.isInteger(W.stock) && W.stock >= 1 && W.stock <= 9)) throw fail(`${at}.stock is its uses a life, 1 to 9`);
   if (W.beam !== undefined && !(typeof W.beam === 'string' && /^[a-z-]{2,24}$/.test(W.beam))) throw fail(`${at}.beam is its look, a beam's word (playscape/elements/beams.js)`);
   if (W.colour !== undefined && !(typeof W.colour === 'string' && /^#[0-9a-f]{6}$/i.test(W.colour))) throw fail(`${at}.colour is '#rrggbb' (its beam's, brawl-power-look.js)`);
-  return { id: W.id, stock: W.stock ?? P.stock, beam: W.beam ?? P.beam, ...(W.colour ? { colour: W.colour } : {}) };
+  const dials = {};
+  for (const [k, D] of Object.entries(POWER_DIALS)) {
+    if (W[k] === undefined) continue;
+    if (D.round && !isRound(id)) throw fail(`${at}.${k}: a ${id} throws no round (${k} is for ${POWER_IDS.filter(isRound).join(', ')})`);
+    if (!(Number.isInteger(W[k]) && W[k] >= D.min && W[k] <= D.max)) throw fail(`${at}.${k} is ${D.says}, ${D.min} to ${D.max}`);
+    dials[k] = W[k];
+  }
+  return { id, stock: W.stock ?? P.stock, beam: W.beam ?? P.beam, ...(W.name ? { name: W.name.trim() } : {}), ...(Object.keys(dials).length ? { dials } : {}), ...(W.colour ? { colour: W.colour } : {}) };
+}
+
+/** How much a designed power asks over its kind: its hits by its uses, as a share of the card's (1 the card as it is). */
+export function powerHeft(power) {
+  const R = readPower(power), P = POWERS[R.id];
+  return Math.round(((R.dials?.strength ?? 100) / 100) * (R.stock / P.stock) * 100) / 100;
+}
+/** What a designed power is told (advice, never a refusal): one that asks much more than its kind is measured on. */
+export function powerAdvice(power, who = 'a hero') {
+  const h = powerHeft(power), R = readPower(power);
+  return h > 1.5 ? [`${who}'s ${R.name ?? R.id} hits ${h}× as much in a life as the ${R.id} the street was measured with: the crowd will melt (lower its strength or its stock)`]
+    : h < 0.5 ? [`${who}'s ${R.name ?? R.id} is ${h}× the ${R.id} the street was measured with: hardly worth its button (raise its strength or its stock)`] : [];
 }
 
 const libId = (id) => `power.${id}`;
+const pct = (v, p) => Math.max(1, Math.round((v * p) / 100));
+
+/** The kind's move with a designed power's dials turned (strength on its damage wherever the card says it, speed and size on
+ * its round). */
+function dialled(P, dials = {}) {
+  if (!dials.strength && !dials.speed && !dials.size) return P.special;
+  const sp = { ...P.special, at: { ...(P.special.at ?? {}) } };
+  if (dials.strength) { if (sp.at.damage !== undefined) sp.at.damage = pct(sp.at.damage, dials.strength); if (sp.damage !== undefined) sp.damage = pct(sp.damage, dials.strength); }
+  if (dials.speed && sp.at.speed !== undefined) sp.at.speed = pct(sp.at.speed, dials.speed);
+  if (dials.size && sp.projectile) sp.projectile = { ...sp.projectile, w: pct(sp.projectile.w, dials.size), h: pct(sp.projectile.h, dials.size) };
+  return sp;
+}
 
 /** The fighter's recipe with its power as every direction's special. */
 export function powerRecipe(recipe, power) {
-  const { id } = readPower(power);
-  const P = POWERS[id];
+  const R = readPower(power);
   return {
     ...recipe,
-    library: { ...(recipe.library ?? {}), specials: { ...(recipe.library?.specials ?? {}), [libId(id)]: P.special } },
-    specials: Object.fromEntries(SPECIAL_SLOTS.map((d) => [d, { id: libId(id) }])),
+    library: { ...(recipe.library ?? {}), specials: { ...(recipe.library?.specials ?? {}), [libId(R.id)]: dialled(POWERS[R.id], R.dials) } },
+    specials: Object.fromEntries(SPECIAL_SLOTS.map((d) => [d, { id: libId(R.id) }])),
   };
 }
 
 /** The compiled fighter's moves with its power's marked and its round's pierce laid. */
 export function powerMoves(F, power) {
-  const { id } = readPower(power);
-  const P = POWERS[id], out = { ...F.moves };
+  const R = readPower(power), id = R.id, P = POWERS[id], pierce = R.dials?.pierce ?? P.pierce, out = { ...F.moves };
   for (const [slot, m] of Object.entries(F.moves)) {
     if (m.kind !== 'special' || m.id !== libId(id)) continue;
     // (a round's pierce, and its knock where the card floors what it meets: a projectile's own stun is the fight's)
-    out[slot] = { ...m, power: 1, ...(m.projectile && (P.pierce || P.special.knock === 'down') ? { projectile: { ...m.projectile, ...(P.pierce ? { hits: P.pierce } : {}), ...(P.special.knock === 'down' ? { knock: 'down' } : {}) } } : {}) };
+    out[slot] = { ...m, power: 1, ...(m.projectile && (pierce || P.special.knock === 'down') ? { projectile: { ...m.projectile, ...(pierce ? { hits: pierce } : {}), ...(P.special.knock === 'down' ? { knock: 'down' } : {}) } } : {}) };
   }
   return out;
 }

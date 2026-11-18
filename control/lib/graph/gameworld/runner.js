@@ -67,7 +67,7 @@ import { resolveSport } from '../contest/sports.js';
 import { STADIUM_PRESETS } from '../stadium/stadium-words.js';
 import { LANE_KITS } from '../broadcast/broadcast-package.js';
 import { SPORT_KITS } from '../sportswear/kits.js';
-import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, brawlStreets, brawlCrowd, brawlBody, brawlSetup, brawlGuns, BRAWL_SCENES, brawlArenas, brawlHeroes, readHeroes, heroFighters, castWaves, BRAWL_STREET, brawlByDesign, brawlAsStreets, withStreetScenes, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
+import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, brawlStreets, brawlCrowd, brawlBody, brawlSetup, brawlGuns, BRAWL_SCENES, brawlArenas, brawlHeroes, readHeroes, heroFighters, heroAdvice, powerLabel, castWaves, BRAWL_STREET, brawlByDesign, brawlAsStreets, withStreetScenes, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { sheetAudio, sheetBed, onSheet, levelSheet, rideSound, rideTop } from './sound-sheet.js';
 import { cueSheet, levelScore, onScore } from './cue-sheet.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
@@ -964,7 +964,8 @@ function quickSteps(world, G, ref, lookup) {
       roster.push({ ...own, hero: { ref: charRef }, ...over, ...strikesOf(moves, over) });
       playable.push({ id: own.id, name, ...(over?.style ? { about: over.style } : {}) });
     }
-    if (heroes) roster.forEach((r, k) => { r.power = heroes.team[k % heroes.team.length].power; });
+    // (each seat its power, and the set-up's pick says it: the hero's name, its power's under it)
+    if (heroes) roster.forEach((r, k) => { r.power = heroes.team[k % heroes.team.length].power; if (playable[k]) playable[k] = { ...playable[k], about: powerLabel(r.power) }; });
     if (Q.goal === 'brawl') {
       // each street a level the brawl is fought down (quick.js brawlStreets: a brawl level with its waves and the hosted
       // level's contract), then the game that runs them one after another in the play shell, its screens the game UI
@@ -992,7 +993,10 @@ function quickSteps(world, G, ref, lookup) {
       const turned = withSetup(defaultFlow(game0), brawlSetup(G.setup, playable, brawlGuns(streets))), staged = streets.some((s) => s.manifest.brawl.street.scenes);
       const flow = staged ? { ...turned, steps: Object.fromEntries(Object.entries(turned.steps).map(([k, st]) => [k, st.kind === 'level' ? { ...st, ...(st.start ? {} : { start: { scene: BRAWL_SCENES.start, once: false } }), ...(st.end ? {} : { end: { scene: BRAWL_SCENES.end, when: 'won' } }) } : st])) } : turned;
       const game = { ...game0, flow };
-      return [...steps, ...lv, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game) }];
+      // (a heroes brawl's designed powers far from what its street was measured with: advised, never refused)
+      const told = heroes ? heroAdvice(heroes) : [];
+      const laws = told.length ? [{ concern: 'balance', law: 'power', holds: false, says: told.join('; ') }] : null;
+      return [...steps, ...lv, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game), ...(laws ? { laws } : {}) }];
     }
     const arenas = fightArenas(Q, { title, roster }).map((a) => ({ ...a, key: `level-arena-${a.id}`, ref: childRef(ref, `level-arena-${a.id}`) }));
     const levels = arenas.map((a) => ({ key: a.key, ref: a.ref, ready: true, order: { title: a.manifest.title, manifest: a.manifest }, print: fingerprint(a.manifest) }));

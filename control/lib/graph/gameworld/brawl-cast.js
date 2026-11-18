@@ -53,6 +53,9 @@
  *              power, the game's hero its own actions page's `attack`, heroPower). Unsaid, a run & gun's street is
  *              the arcade's (soldiers fall to a couple of rounds, the hero to a few hits, five falls) and a
  *              beat-em-up's the sim's own numbers
+ *       powers the seats' own powers in seat order (null keeps a seat's): each a power of the shelf's or one DESIGNED
+ *              (brawl/brawl-powers.js readPower: { kind, name?, beam?, stock?, strength?, speed?, size?, pierce? }); a
+ *              designed one far from what the street was measured with is advised (a `balance` law), never refused
  *       guns   a run & gun's street: true, or the guns carried, the first held; unsaid, the game's intent decides
  *              (`intent.from: 'run-and-gun'`)
  *   readLevelStreet(v)     → { design, kit, lives, guns } checked (throws, teaching)
@@ -69,7 +72,7 @@ import { brawlLevel, readBrawlLevel, BRAWL_STAGE_KITS } from '../brawl/brawl-lev
 import { readGun } from '../brawl/brawl-guns.js';
 import { readScreen } from '../game/screen.js';
 import { TUNINGS, STREET_TUNINGS, tuningOf, roomTune, seatPower } from '../brawl/brawl-tunings.js';
-import { ATTACK_POWER } from '../brawl/brawl-powers.js';
+import { ATTACK_POWER, POWER_IDS, readPower, powerAdvice } from '../brawl/brawl-powers.js';
 import { castRoles, FIGHT_ROLES } from './fights.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { CROWD_TYPES } from '../brawl/brawl-crowd.js';
@@ -226,7 +229,7 @@ export function withStreetBodies(waves, rosterAt) {
   }));
 }
 
-const LEVEL_WORDS = ['kit', 'ground', 'things', 'scenes', 'lives', 'guns', 'players', 'tuning'];
+const LEVEL_WORDS = ['kit', 'ground', 'things', 'scenes', 'lives', 'guns', 'players', 'tuning', 'powers'];
 /** the street a level takes when it says no stops: three that build, the cast's boss on a novice's mind (a first
  * street's: measured, brawl/brawl-playthrough.js) */
 export const STREET_UNSAID = Object.freeze({ stops: [{ wave: { grunt: 2 } }, { wave: { grunt: 3, shooter: 1 } }, { wave: { elite: 1, grunt: 3 } }], boss: Object.freeze({ foe: 'boss', cpu: 'novice' }) });
@@ -237,7 +240,7 @@ const STAND_INS = ['all-rounder', 'rushdown', 'zoner', 'grappler'];
 export function readLevelStreet(v0) {
   // (`true`, or a street that says no stops: the street unsaid, on the place it names)
   const v = v0 === true ? {} : v0;
-  if (!isObj(v)) throw fail('.street is true, or { open?, stops?, boss?, ground? | kit?, things?, scenes?, lives?, guns?, players?, tuning? }');
+  if (!isObj(v)) throw fail('.street is true, or { open?, stops?, boss?, ground? | kit?, things?, scenes?, lives?, guns?, players?, tuning?, powers? }');
   const said = Object.fromEntries(Object.entries(v).filter(([k]) => !LEVEL_WORDS.includes(k)));
   const design = said.stops === undefined ? { ...STREET_UNSAID, ...said } : said;
   readStreet(design);
@@ -258,7 +261,15 @@ export function readLevelStreet(v0) {
   }
   if (v.players !== undefined && !(Number.isInteger(v.players) && v.players >= 1 && v.players <= STREET_SEATS)) throw fail(`.street.players is how many play from its start, 1 to ${STREET_SEATS} on one screen`);
   if (v.tuning !== undefined && !STREET_TUNINGS.includes(v.tuning)) throw fail(`.street.tuning is one of ${STREET_TUNINGS.map((id) => `${id} (${TUNINGS[id].says})`).join('; ')}`);
-  return { design, kit: v.kit ?? STREET.kit, ground: v.ground ?? null, things: v.things ?? null, scenes: v.scenes === undefined ? null : v.scenes, lives: v.lives ?? null, guns: v.guns ?? null, players: v.players ?? 1, tuning: v.tuning ?? null };
+  // (ITS POWERS: the seats' own, in seat order, each a power of the shelf's or one designed (brawl/brawl-powers.js
+  // readPower); a seat it does not say takes the card's (the hero's own attack, the team's), and a street with no card
+  // that gives powers gives those it says alone)
+  if (v.powers !== undefined) {
+    if (!Array.isArray(v.powers) || !v.powers.length || v.powers.length > STREET_SEATS) throw fail(`.street.powers is 1 to ${STREET_SEATS} powers in seat order, each one of ${POWER_IDS.join(', ')} or designed: { kind, name?, beam?, stock?, strength?, speed?, size?, pierce? } (null keeps a seat's own)`);
+    v.powers.forEach((P, k) => { if (P !== null) { try { readPower(P, 'power'); } catch (e) { throw fail(`.street.powers[${k}]${e.message.replace(/^brawl: power/, '')}`); } } });
+    if (v.guns !== undefined) throw fail('.street.powers: a run & gun\'s street is fought with guns (powers are a beat-em-up\'s)');
+  }
+  return { design, kit: v.kit ?? STREET.kit, ground: v.ground ?? null, things: v.things ?? null, scenes: v.scenes === undefined ? null : v.scenes, lives: v.lives ?? null, guns: v.guns ?? null, players: v.players ?? 1, tuning: v.tuning ?? null, powers: v.powers ?? null };
 }
 const gunsOf = (G, L) => L.guns !== null || G?.intent?.from === 'run-and-gun';
 
@@ -303,7 +314,10 @@ export function streetLevel(G, words, { title, ref, heroRef = null, foeRefs = nu
   // own where its actions page throws one (its first `attack`, played as the street's power of that form, drawn in that
   // beam), every other seat the team's in seat order)
   const own = heroPower(G);
-  const heroes = card.powers ? seated.map((h, k) => ({ ...h, power: seatPower(card, k, h.id === 'hero' && heroRef ? own : null) })) : seated;
+  const powerAt = (h, k) => L.powers?.[k] ?? seatPower(card, k, h.id === 'hero' && heroRef ? own : null);
+  const heroes = card.powers || L.powers ? seated.map((h, k) => { const P = powerAt(h, k); return P ? { ...h, power: P } : h; }) : seated;
+  // (a designed power far from what the street was measured with: advised, never refused)
+  const told = L.powers ? L.powers.flatMap((P, k) => (P && typeof P === 'object' ? powerAdvice(P, seated[k]?.name ?? (seated[k]?.id === 'hero' ? 'the hero' : `seat ${k + 1}`)) : [])) : [];
   const rosterAt = Object.fromEntries(bodied.map((id, k) => [id, heroes.length + k]));
   const roster = [...heroes, ...bodied.map((id) => ({ id: `foe-${id}`, name: id, hero: { ref: foeRefs[id] } }))];
   const register = ['anime', 'western'].includes(G?.juice?.register) ? G.juice.register : null;
@@ -320,7 +334,7 @@ export function streetLevel(G, words, { title, ref, heroRef = null, foeRefs = nu
   const game = { levelRef: ref ?? 'street', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: { text: 'the street' } };
   const standIns = heroes.length - made.length;
   const says = [...S.says, ...(standIns ? [made.length ? `${standIns} of its ${L.players} seats ${standIns === 1 ? 'is a stand-in fighter' : 'are stand-in fighters'}: the game has a hero and ${made.length - (heroRef ? 1 : 0)} who join its party (a cast member that \`joins\` takes a seat)` : `the street is played by ${standIns === 1 ? 'a stand-in fighter' : 'stand-in fighters'}: the world has no hero yet`] : [])];
-  const laws = [{ concern: 'cast', law: 'street', holds: !says.length, says: says.length ? says.join('; ') : `the street's ${S.waves.length} stops are met by the game's own cast (${S.foes.join(', ')})` }];
+  const laws = [{ concern: 'cast', law: 'street', holds: !says.length, says: says.length ? says.join('; ') : `the street's ${S.waves.length} stops are met by the game's own cast (${S.foes.join(', ')})` }, ...(told.length ? [{ concern: 'balance', law: 'power', holds: false, says: told.join('; ') }] : [])];
   // (a street runs across the screen: an upright one shows a sliver of it. Advised, never refused, as a fight's is)
   const upright = (() => { try { return G?.screen ? readScreen(G.screen).orientation === 'portrait' : false; } catch { return false; } })();
   if (upright) laws.push({ concern: 'screen', law: 'frame-fits', holds: false, says: 'a street runs across the screen, and this game is made for an upright one: its players and the crowd are cut off at the sides. Give the world `screen: \'screen\'` (or a tablet) for a beat-em-up or a run & gun' });

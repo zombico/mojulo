@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { POWERS, POWER_IDS, ATTACK_POWER, powerOf, readPower, powerRecipe, powerMoves } from './brawl-powers.js';
+import { POWERS, POWER_IDS, ATTACK_POWER, POWER_DIALS, powerOf, readPower, powerRecipe, powerMoves, powerHeft, powerAdvice, isRound } from './brawl-powers.js';
 import { beamColour, powerLook } from './brawl-power-look.js';
 import { brawlFighter, newReader, readButtons } from './brawl-moves.js';
 import { streetOf, stepStreet } from './brawl-crowd.js';
@@ -87,5 +87,37 @@ describe('a hero\'s power', () => {
     expect('pw' in log[0].s.bodies[0]).toBe(false);
     expect(events(log, 'power')).toEqual([]);
     expect(events(log, 'special').length).toBeGreaterThan(0);
+  });
+});
+
+// A POWER DESIGNED: a kind made the person's own, its dials bounded; never a new move.
+describe('a power designed', () => {
+  const moveOf = (power, arch = 'all-rounder') => powerMoves(brawlFighter(powerRecipe(recipe(arch), power), { style: arch }), power)['special.neutral.M'];
+  it('is a kind with a name, a look, its uses and its dials; read back as it was written', () => {
+    const P = readPower({ kind: ROUND, name: 'Solar lance', beam: 'laser', stock: 2, strength: 120, pierce: 3 });
+    expect(P).toEqual({ id: ROUND, stock: 2, beam: 'laser', name: 'Solar lance', dials: { strength: 120, pierce: 3 } });
+    expect(readPower(P)).toEqual(P);
+    expect(() => readPower({ kind: ROUND, id: ROUND })).toThrow(/said once/);
+    expect(() => readPower({ kind: ROUND, strength: POWER_DIALS.strength.max + 1 })).toThrow(/strength/);
+    expect(() => readPower({ kind: ROUNDABOUT, speed: 120 })).toThrow(/throws no round/);
+    expect(isRound(ROUND)).toBe(true);
+    expect(isRound(ROUNDABOUT)).toBe(false);
+  });
+
+  it('its dials turn its kind\'s numbers: strength its damage, speed and size its round, pierce the bodies passed through', () => {
+    const base = moveOf(ROUND), strong = moveOf({ kind: ROUND, strength: 150, speed: 50, size: 200, pierce: 2 });
+    expect(strong.damage).toBeGreaterThan(base.damage);
+    expect(strong.projectile.speed).toBeLessThan(base.projectile.speed);
+    expect(strong.projectile.w).toBeGreaterThan(base.projectile.w);
+    expect(strong.projectile.hits).toBe(2);
+    // (a kind whose damage is in its rows is turned there too)
+    expect(moveOf({ kind: ROUNDABOUT, strength: 150 }).damage).toBeGreaterThan(moveOf(ROUNDABOUT).damage);
+  });
+
+  it('far from its kind\'s measure it is advised, never refused', () => {
+    expect(powerHeft(ROUND)).toBe(1);
+    expect(powerAdvice(ROUND)).toEqual([]);
+    expect(powerAdvice({ kind: ROUND, strength: 200, stock: 9 }, 'Nova Girl')[0]).toMatch(new RegExp(`Nova Girl's ${ROUND} hits .*× as much`));
+    expect(powerAdvice({ kind: ROUND, strength: 50, stock: 1 })[0]).toMatch(/hardly worth/);
   });
 });

@@ -100,7 +100,7 @@ import { SECTIONS, BANDS, TASKS, MISSION_LIMITS, MISSION_DEFAULTS, MISSION_MAPS,
 import { TEMPLATE_IDS } from '../arena-map/templates.js';
 import { DRESS_SETTINGS, DRESS_SETTING_IDS, DRESS_PIECES, DRESS_PIECE_IDS } from '../brawl/brawl-dress.js';
 import { PLAY_TYPES, PLAY_IDS } from '../brawl/brawl-play.js';
-import { POWERS, POWER_IDS } from '../brawl/brawl-powers.js';
+import { POWERS, POWER_IDS, POWER_DIALS } from '../brawl/brawl-powers.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -1580,24 +1580,32 @@ export function genreCardById(id) {
 // THE SUPERHERO BEAT-EM-UP (brawl/brawl-powers.js, brawl-tunings.js `heroes`, quick.js readHeroes): generated from the
 // shelves, so a new power, villain or team member is in the card
 function heroesCard() {
+  const D = Object.entries(POWER_DIALS).map(([k, d]) => `${k} ${d.min}..${d.max}${d.round ? '*' : ''}`).join(', ');
   return lines(
     'THE SUPERHERO BEAT-EM-UP: the side-scroll beat-em-up tuned for heroes. Every player a hero with ONE power on the special',
-    '(S; a few uses a life, filled at each fall), an army that drops in and comes out of doors and falls fast, five falls,',
-    'and at the end a villain who throws a power of its own, in stages. The street, its stops and its scenes are a brawl\'s.',
+    '(S; a few uses a life, filled at each fall), an army that drops in and falls fast, five falls, a villain with a power, in stages.',
     '',
-    'POWERS (a card each; a new power is a card): ' + POWER_IDS.map((id) => `${id} (${POWERS[id].stock})`).join(', ') + '.',
+    'ASK FIRST, before making it (the heroes and their powers are the person\'s to design; offer the defaults if they have none):',
+    '  1. who the heroes are (1..4): a name and a sentence each (who they are, how they look), or ones already made',
+    '  2. each hero\'s power: what it does (pick the nearest kind below), what it is called, what it looks like, how strong',
+    '  3. the villain at the end and its power; the army (a crew of the comic pack)',
+    '',
+    'POWER KINDS (each a card): ' + POWER_IDS.map((id) => `${id} (${POWERS[id].stock})`).join(', ') + '.',
     ...POWER_IDS.map((id) => `  ${id}: ${POWERS[id].says}`),
-    '  drawn in its beam\'s colour (playscape/elements beams); a hero\'s own `attack` (its actions page) plays as the power of that form.',
+    `A DESIGNED POWER: { kind, name?, beam? (its look: ${BEAM_NAMES.join(', ')}), stock? 1..9, ${D} } (* a round's kinds only).`,
+    '  e.g. { kind: \'beam\', name: \'Solar lance\', beam: \'laser\', strength: 120, pierce: 3 }. Far from its kind\'s measure: a balance law advises.',
     '',
     'QUICK (one call, by streets): design_game({ quick: { goal: \'brawl\', heroes: true | { team?, villain? } } })',
-    `  team: 1..4 in seat order, each a power or { power?, member?, name? } (members: the comic pack\'s cast; unsaid ${HERO_TEAM.map((t) => `${t.member} ${t.power}`).join(', ')})`,
-    `  villain: ${Object.keys(HERO_VILLAINS).map((v) => `${v} (${HERO_VILLAINS[v]})`).join(' | ')}; unsaid the mastermind. crowd: a faction (unsaid ${HERO_ARMY}); streets: as a brawl\'s.`,
-    '  "A superhero beat em up ..." from a sentence lays its streets on this tuning.',
-    'DESIGNED: a street level takes tuning: \'heroes\': its seats the game\'s hero (its own attack) and those who join, the rest the team\'s',
-    '  powers in seat order; its crowd the game\'s own foes, made once.',
+    '  team: 1..4 in seat order, each a power or a hero: { name?, brief?, archetype?, build?, age?, pole?, role?, power?, style? }',
+    '    a brief and no member: the person\'s OWN hero, rolled from their words and made a character; hero: { ref }: one already',
+    `    made; member: another of the comic pack\'s cast. Unsaid: ${HERO_TEAM.map((t) => `${t.member} ${t.power}`).join(', ')}.`,
+    `  villain: ${Object.keys(HERO_VILLAINS).map((v) => `${v} (${HERO_VILLAINS[v]})`).join(' | ')}, or { member, power?, name? }; crowd: a faction (unsaid ${HERO_ARMY}).`,
+    '  "A superhero beat em up ..." from a sentence lays its streets on this tuning (then design the heroes as above).',
+    'DESIGNED: a street level: tuning: \'heroes\', powers?: [<power> | null] in seat order (unsaid: the hero\'s own actions page',
+    '  attack, the rest the team\'s). Its seats the game\'s hero and those who join; its crowd the game\'s own foes.',
     '',
-    'MEASURED by the scripted hero (brawl-playthrough.js `hero`: presses its power when a crowd is lined up or round it): one',
-    'hero wins the default street alone with falls to spare. Nobody has played it: the eyes gate is the person\'s.',
+    'MEASURED by the scripted hero (brawl-playthrough.js `hero`) on the cards as they are: one hero wins the default street alone',
+    'with falls to spare. A designed power is not measured. Nobody has played it: the eyes gate is the person\'s.',
   );
 }
 

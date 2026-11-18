@@ -16,10 +16,21 @@
   of the pack's cast or rename a hero. The villain is the pack's mastermind with the ball of force unless you pick
   another (the brute with the grip, the rival with the beam). It is made as a character too and stands at the end
   of every street. The army is the pack's shadow clan, with blades and a staff, unless you name another crew.
+- **Design your own heroes and powers.** When you ask for this game, the studio now asks first who your heroes
+  are and what each one's power is, and offers the defaults if you have none in mind. A hero can be your own,
+  described in a sentence with its build, age and whether it is a man or a woman. It is rolled from your words and
+  made as a character. It can also be a character you have already made, or another of the comic pack's cast. A
+  power is one of the eight kinds made yours: give it a name and a look (any beam, a laser or lightning or a ball
+  of fire), how many uses it has each life, and how strong it is. A power thrown down the street also takes how
+  fast it flies, how big it is and how many enemies it passes through. Each setting has limits. The villain can be
+  chosen too, with a name and a power of its own. The hero picker shows each hero's power by name. A power far
+  stronger or weaker than the ones the street was tuned with is pointed out for you to decide on, never refused.
+  A designed power is not measured by the studio's simple player.
 - **A designed game's street can be a superhero one.** Give a street level `tuning: 'heroes'`. Your game's hero
   then plays its own power: the first attack its actions page throws is played as the street power of that kind and
-  drawn in that beam. The cast who join the party and any stand-ins take the team's powers in seat order. The
-  street's enemies are still your game's own.
+  drawn in that beam. The cast who join the party and any stand-ins take the team's powers in seat order. A street
+  can also name each seat's power itself, one of the eight or one you designed. The street's enemies are still your
+  game's own.
 - **A power's round can floor what it hits.** A special's projectile now knocks down when its move says so, and a
   power's round passes through as many bodies as its card says. Before, a projectile knocked nobody down and
   stopped at the first body.
