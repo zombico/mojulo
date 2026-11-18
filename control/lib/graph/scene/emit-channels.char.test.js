@@ -35,6 +35,8 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-18 (1116-rc's lens merged into Hijack City): `brawl`, `mission` and `holo`, the runtime they embed
+// now carrying both the candidate's lens and this branch's "No ammo" word.
 // Re-pinned 2026-11-18 (Hijack City, mana-ui's magazine): `brawl`, `mission` and `holo`, the pages that embed the game UI
 // runtime whole. Its magazine says "No ammo" for a gun empty with none in reserve (kernel.js: one word, one condition).
 // Re-pinned 2026-11-18 (the release candidate merged into gen 7's city): the candidate's pins moved by this branch's
@@ -930,6 +932,14 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // seventeen that embed the controllable runtime (this line's boost pads and its use-item key in the pilot scheme, over
 // the candidate's), and `brawl`, `holo` and `mission`, whose pages inline the game UI runtime (this line's slot, effect
 // layer and minimap route merged with the candidate's peril, scope and magazine). Nothing else moved.
+//
+// Re-pinned 2026-11-18 (the lens, mana-ui's screen layer): `brawl`, `holo` and `mission`, whose pages inline the game UI
+// runtime. The runtime gains the lens's part (a spec's `lens`, drawn apart and mounted beside the canvas) and its
+// `strike`; a HUD that lays no lens draws as it did, and no pinned page lays one.
+//
+// Re-pinned 2026-11-18 (the lens for still figures): `brawl`, `holo` and `mission`, whose pages inline the game UI
+// runtime. A strike's row may name its own kind, and its description speaks of a turn-based fight's figure; the level
+// HUD lays no lens again. Nothing else moved.
 //
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
