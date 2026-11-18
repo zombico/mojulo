@@ -92,6 +92,8 @@ export const E2E = [
   'lib/graph/gameworld/combat/range-sound.chrome.test.js',
   'lib/graph/gameworld/combat/artillery.chrome.test.js',
   'lib/graph/scene/visual-gate.chrome.test.js',
+  // a level's scene said through mana-ui's talk box: its page in headless Chrome, a line, a choice clicked
+  'lib/graph/playscape/ui/talk-box.live.test.js',
 ];
 
 // What no tier but its own runs (the e2e config takes this, less the e2e suites themselves).

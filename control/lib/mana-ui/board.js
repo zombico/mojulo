@@ -52,6 +52,7 @@ export const BOARD_HUDS = Object.freeze({
   'tower defence HUD': ['wave-status', 'world-labels', 'event-feed'],
   'match broadcast': ['score-bug', 'lower-third', 'event-feed'],
   'cutscene': ['cinema-bars', 'subtitles'],
+  'talk': ['cinema-bars', 'talk-box'],
   'stealth HUD': ['stealth-meter', 'enemy-plates', 'minimap-corner', 'interact-prompt'],
 });
 

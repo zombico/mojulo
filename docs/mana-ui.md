@@ -571,6 +571,9 @@ A game's HUD is a `hud` holding the HUD idioms it uses. A screen idiom is used a
 - `idioms-fight.js` — a fighting game's own language (below): the top frame, the meters, a side's combo and callouts, the
   announcer, training's readouts; the face-off, fighter select, the fight's pause, the command list, training's settings,
   the match's results.
+- `idioms-talk.js` — people talking, as presenters a host feeds (below, "A level's scenes"): the talk box, with the
+  speaker's nameplate, a place for a face, the line typed on, ▼ once it is whole, the answers numbered with the one in
+  hand marked, and the legend.
 
 ### The live game
 
@@ -911,6 +914,20 @@ audit. `manaUiPage(spec, { state })` is a self-contained page over a plain state
   nothing to press until it is ready), and a HUD part takes no focus.
 
 ## The surfaces on it
+
+### A level's scenes
+
+A level's scenes (`playscape/ui/scenes.js`) speak through the talk box on a page whose level has a mana-ui HUD. The HUD
+host (`scene/channels/mana-hud.js`) runs a second runtime on its own kernel and sheet, over a root of its own
+(`#moj-mana-talk`), so the box wears the game's theme and the page carries no second kernel.
+
+- **The state** is the scene runner's view, lowered each frame by `playscape/ui/talk-box.js` `talkState`: the speaker's
+  name, the words typed so far, whether the line is whole, the answers with the one in hand, and the legend (no skip on a
+  flow's stage that cannot be skipped).
+- **The input stays the scene channel's** (`scene-channel.js`): a press goes on, holding or Esc skips, a number or the
+  arrows pick. A choice's row pressed is that answer.
+- **While a scene plays** the page's own box and hint are put away and the HUD steps aside.
+- A page with scenes and no mana-ui HUD keeps the scene channel's own box.
 
 ### The RPG's battles, party menu and shops
 
