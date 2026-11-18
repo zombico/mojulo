@@ -46,11 +46,11 @@ import { WORLD_KINDS, ROOM_FALLBACK, resolveWrapTextures } from '@/lib/graph/wor
 import { bookWorldKind } from '@/lib/graph/views/recipe-book/registry';
 import { ensureBookLoaded } from '@/lib/graph/views/recipe-book/loader';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
-import { formRoomMaps } from '@/lib/graph/form/room-form';
+import { formRoomMaps, ROOM_MAPS } from '@/lib/graph/form/room-form';
 import { readFinish } from '@/lib/graph/scene/page-light';
 import { solveHydraulics, mistAir, hydraulicsFaces } from '@/lib/graph/materials/hydraulics';
 import { normalizeJets } from '@/lib/graph/materials/jet';
-import { resamplePlans } from '@/lib/graph/matte-paint/detail';
+import { resamplePlans, firstReading } from '@/lib/graph/matte-paint/detail';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/procedural-material';
 import { FLAT_LIGHT, resolveToon } from '@/lib/graph/polygonizer/vexar';
@@ -743,6 +743,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // manifest.textures (custom dataURL / an image-worker bound PNG). emitThreeWorld + facesToGlb read
   // payload.textures. Additive: a face list with no `texture` opt-ins leaves the payload untouched.
   if (payload && Array.isArray(payload.faces) && payload.faces.length) {
+    // (a town in the form render, gen-7: each dressed tile drawn at its first reading, matte-paint/detail.js firstReading.
+    // The page reads every tile again at seeded shifts, channels/resample.js, so its second seed adds nothing the eye
+    // keeps, and on this page each tile carries a normal and an ORM beside it: half the tiles, half the relief)
+    if (payload.form && payload.form.town && Array.isArray(payload.form.town.lights)) {
+      const first = (f) => (f && typeof f.texture === 'string' && firstReading(f.texture) !== f.texture ? { ...f, texture: firstReading(f.texture) } : f);
+      payload.faces = payload.faces.map(first);
+      if (Array.isArray(payload.repeats)) payload.repeats = payload.repeats.map((r) => (Array.isArray(r?.template) ? { ...r, template: r.template.map(first) } : r));
+    }
     // (and the instanced repeats' templates: a key only a template draws, a stock tree's leaves, is resolved too)
     const reps = Array.isArray(payload.repeats) ? payload.repeats : Array.isArray(sketch.manifest.repeats) ? sketch.manifest.repeats : [];
     const repeatFaces = reps.flatMap((r) => (Array.isArray(r?.template) ? r.template : []));
@@ -764,9 +772,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (and a town's buildings baked for it, form/sun-light.js: the tiles their faces wear, read the same way)
     if (payload.form && payload.form.town && Array.isArray(payload.form.town.lights)) {
       const keys = payload.faces.filter((f) => typeof f.texture === 'string' && textures[f.texture] && f.cornerLight !== undefined).map((f) => f.texture);
-      // (no budget on a town's maps: the page is the person's, on their own machine, and a second, smaller read of
-      // every tile doubles what the first resolve costs)
-      const R = payload.form.town, F = formRoomMaps(keys, { budget: Infinity });
+      // (a town's relief read at the smaller size outright, ROOM_MAPS.small: it is drawn only near the eye, `pom` and
+      // `relief`, where a street's wall is a few hundred pixels a tile, and a city wears many tiles; never read twice)
+      const R = payload.form.town, F = formRoomMaps(keys, { reliefSize: ROOM_MAPS.small });
       Object.assign(textures, F.textures);
       payload.form = { ...payload.form, town: { ...R, maps: F.maps, ...(F.reliefSize ? { reliefSize: F.reliefSize } : {}) } };
     }

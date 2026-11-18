@@ -787,7 +787,7 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, f
   // (a room under no sun, or a town's buildings under the day's: channels/form.js draws either)
   const formRoom = form && form.room && Array.isArray(form.room.lights) ? form.room : form && form.town && Array.isArray(form.town.lights) ? form.town : null;
   // (a room under no sun whose repeats carry their baked light, era/skandart.js's debris: the form render lights them too)
-  const formBlock = formRoom ? formScript({ ...FORM_PAGE, ...formRoom, ...(hasRepLit && !formRoom.sun ? { instanced: true } : {}), pom: { ...FORM_PAGE.pom, ...(formRoom.pom || {}) }, relief: { ...FORM_PAGE.relief, ...(formRoom.relief || {}) }, maps: formRoom.maps || {} }) : '';
+  const formBlock = formRoom ? formScript({ ...FORM_PAGE, ...formRoom, ...(hasRepLit && !formRoom.sun ? { instanced: true } : {}), pom: { ...FORM_PAGE.pom, ...(formRoom.pom || {}) }, relief: { ...FORM_PAGE.relief, ...(formRoom.relief || {}) }, maps: formRoom.maps || {} }, { resample: !!resampled }) : '';
   // a level's field fauna (channels/fauna.js: swarms, birds, ducks, a room's roaches and mice, a biocube's); absent ⇒ no bytes
   const faunaBlock = fauna && ['gnats', 'fireflies', 'butterflies', 'birds', 'ducks', 'roaches', 'mice'].some((k) => fauna[k]) ? faunaScript(fauna, (liveShadows && liveShadows.actors) ? { cast: true } : {}) : '';
   // a wet road (roads/race-mood.js): the sky and the lamps thrown back off the road's film; absent ⇒ not emitted

@@ -17,8 +17,8 @@
  *                                        seventh generation's own tools pulled a normal map from a photograph; its colour
  *                                        keeps the light it was painted with, so this is an approximation and says so
  *                         null: a key no generator paints, or a cutout (a card keeps its paint)
- *   formRoomMaps(keys, { detail, budget }) → { textures: { key: base }, maps: { key: { normal, orm, read, depth, mean } },
- *     reliefSize? } (past `budget`, ROOM_MAPS, the dressed tiles' normal and ORM at `ROOM_MAPS.small`, their colour whole; a key no
+ *   formRoomMaps(keys, { detail, budget, reliefSize }) → { textures: { key: base }, maps: { key: { normal, orm, read, depth, mean } },
+ *     reliefSize? } (past `budget`, ROOM_MAPS, or at `reliefSize` outright, the dressed tiles' normal and ORM at that size, their colour whole; a key no
  *                         material is read from: { read: 'paint', mean }, its paint kept)   `detail`: a toned
  *                         room's (era/tone.js), how far a twin's own light and dark move its colour
  *   readFormLight(lights, keys) → the page's lamp list: each lamp at its flame, its solved key (form/room-light.js), its
@@ -170,7 +170,7 @@ function blur(src, W, H, r, tile) {
   return out;
 }
 
-export function formRoomMaps(keys, { detail = 1, budget = ROOM_MAPS.budget } = {}) {
+export function formRoomMaps(keys, { detail = 1, budget = ROOM_MAPS.budget, reliefSize = null } = {}) {
   const read = (reliefSize) => {
     const textures = {}, maps = {};
     let bytes = 0;
@@ -185,6 +185,8 @@ export function formRoomMaps(keys, { detail = 1, budget = ROOM_MAPS.budget } = {
     }
     return { textures, maps, bytes };
   };
+  // (a size asked outright, a town's: read once at it)
+  if (reliefSize) { const r = read(reliefSize); return { textures: r.textures, maps: r.maps, reliefSize }; }
   // a page whose maps would pass the budget (a building of many materials) draws its relief at the smaller size
   const whole = read(null);
   if (whole.bytes <= budget) return { textures: whole.textures, maps: whole.maps };
