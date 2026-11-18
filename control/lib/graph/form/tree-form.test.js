@@ -147,9 +147,10 @@ describe('the mass crown', () => {
     const { blobs } = majorBalls(clumps);
     expect(blobs.length).toBe(BALLS.k[0]);
     expect(majorBalls([...clumps, ...clumps.map((c) => ({ ...c, p: [c.p[0], c.p[1] + 4, c.p[2]] }))]).blobs.length).toBe(BALLS.k[1]);
-    // (most of the ends inside a ball: its `hold` share, and a bundle's pad)
-    const inside = clumps.filter((c) => blobs.some((b) => Math.hypot(...b.p.map((v, k) => v - c.p[k])) <= b.s + 1e-6)).length;
-    expect(inside / clumps.length).toBeGreaterThanOrEqual(BALLS.hold - 0.05);
+    // (each ball a real mass: within its crown, no ball a speck)
+    for (const b of blobs) expect(b.s).toBeGreaterThan(0.4);
+    // (gaps between them: no two balls' surfaces meet, sky between the masses)
+    for (let i = 0; i < blobs.length; i++) for (let j = 0; j < i; j++) expect(blobs[i].s + blobs[j].s).toBeLessThanOrEqual(BALLS.sep * Math.hypot(...blobs[i].p.map((v, k) => v - blobs[j].p[k])) + 1e-3);
     expect(JSON.stringify(majorBalls(clumps))).toBe(JSON.stringify({ blobs }));
   });
 

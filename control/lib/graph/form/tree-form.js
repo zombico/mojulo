@@ -492,10 +492,13 @@ export function anchorBlobs(blobs, wood, { hold = BLOB_HOLD } = {}) {
  * masses. Its branch ends (crossClumps) gathered by a seeded k-means into `k` groups (`k[0]`, or `k[1]` from `many` ends
  * up), each a ball at its group's middle, as big as holds `hold` of its ends (the share nearest, plus `pad` of a bundle),
  * SOLVED OUTWARD: moved out along its way out of the crown until its surface reaches its group's outermost end (never
- * past `push` of its own radius), so the crown's silhouette is its ends' and its mass fills in behind.
- * → { blobs: [{ p, o, d, s, e, r }] }.
+ * past `push` of its own radius), so the crown's silhouette is its ends' and its mass fills in behind; and a GAP between
+ * them (`sep`): the crown read as separate masses, sky between. → { blobs: [{ p, o, d, s, e, r }] }.
  */
-export const BALLS = Object.freeze({ k: Object.freeze([3, 4]), many: 40, hold: 0.8, pad: 0.6, push: 0.35, rounds: 8 });
+export const BALLS = Object.freeze({ k: Object.freeze([3, 4]), many: 40, hold: 0.6, pad: 0.3, push: 0.35, rounds: 8,
+  // (a GAP between the balls: two whose surfaces would meet both shrunk until their radii add to `sep` of the distance
+  // between their middles, `passes` times round, none under `least` of its own size: the crown read as separate masses)
+  sep: 0.92, passes: 3, least: 0.45 });
 export function majorBalls(clumps) {
   const n = clumps.length;
   if (!n) return { blobs: [] };
@@ -518,5 +521,11 @@ export function majorBalls(clumps) {
     const reach = Math.max(...M.map((c) => dot(sub(c.p, q), u))), shift = Math.max(0, Math.min(BALLS.push * R, reach - R));
     return { p: add(q, mul(u, shift)).map(r4), o: u.map(r4), d: [1, 0, 0], s: r4(R), e: r4(M.reduce((a, c) => a + c.e, 0) / M.length), r: r4(j / k) };
   }).filter(Boolean);
-  return { blobs };
+  // (the gaps between them)
+  const r0 = blobs.map((b) => b.s), r = r0.slice();
+  for (let pass = 0; pass < BALLS.passes; pass++) for (let i = 0; i < blobs.length; i++) for (let j = 0; j < i; j++) {
+    const d = len(sub(blobs[i].p, blobs[j].p)), room = BALLS.sep * d;
+    if (r[i] + r[j] > room) { const f = room / (r[i] + r[j]); r[i] = Math.max(BALLS.least * r0[i], r[i] * f); r[j] = Math.max(BALLS.least * r0[j], r[j] * f); }
+  }
+  return { blobs: blobs.map((b, i) => ({ ...b, s: r4(r[i]) })) };
 }
