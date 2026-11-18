@@ -21,12 +21,21 @@
  * It reads no device: a HUD is seen. A part that is pressed (a level's button row, tapped or clicked) raises its event on
  * the level's bus (`window.__mojBus.press`, there only for a level with such a row). The page's own gauge and its widget rows are hidden while this stands (by a rule
  * on its class: the runtime that draws it is untouched). `window.__mojHud = { rt, state }` for a headless driver.
+ *
+ * THE PILOT'S PARTS (a level's rows with `hero`, game/hud-mana.js), read each frame off what the page already has and
+ * drawn in its stead: the health (the pilot's, or the level's health row: its highest as its max) at rest while full and
+ * the screen's edge closing in under half; the gun in hand off its loadout or its weapon (the page's own weapon panel put
+ * away); the world clock's slow-motion as a charge (the moment a dodge sets off, else the first); the page's radar as a
+ * scope (radar.js marks; the canvas put away), its damage ring as arcs (window.__mojDamageRing; its bars put away) and
+ * its weapon selector as the wheel (window.__mojWc; its panel put away). What the page lacks stands down.
  */
 import { manaUiSource } from '../../../mana-ui/kernel.js';
 import { manaCss } from '../../../mana-ui/css.js';
 import { themeCss } from '../../../mana-ui/theme.js';
 import { hudToMana } from '../../game/hud-mana.js';
 import { hudSubst, fmtDelta } from '../../game/hud-widgets.js';
+import { radarMarks, sceneThings, RADAR } from '../../gameworld/radar.js';
+import { hitBearing } from '../../gameworld/damage-ring.js';
 
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 
@@ -49,17 +58,19 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     hud = { ...hud, spec: { ...hud.spec, hud: { ...hud.spec.hud, children: [...(hud.spec.hud.children ?? []), pad] } } };
   }
   const R = hud.feed && hud.feed.rows;
-  const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp' : ''}{display:none!important}`;
+  const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp,#__radar,#__wc,#__damageRing,div:has(>#__wepIcon)' : ''}{display:none!important}`;
+  const H = !!(hud.feed && hud.feed.hero);
   return `
 // THE HUD on mana-ui (channels/mana-hud.js): the level's own spec over a state this page feeds
 (function () {
   const CFG = ${json({ spec: hud.spec, feed: hud.feed ?? {} })}, GAME = ${game ? 'true' : 'false'};
-  const manaUi = ${manaUiSource()};
+  const manaUi = ${manaUiSource()};${H ? `
+  const __hRadar = ${radarMarks.toString()}, __hThings = ${sceneThings.toString()}, __hBearing = ${hitBearing.toString()}, __hR = ${json({ ...RADAR, range: 40 })};` : ''}
   const sheet = document.createElement('style'); sheet.textContent = ${json(css)}; document.head.appendChild(sheet);
   // (laid over the scene's own frame, as the level's widgets were: a letterboxed scene keeps its HUD inside it)
   const root = document.createElement('div'); root.id = 'moj-mana-hud'; (document.getElementById('wrap') || document.body).appendChild(root);
   const F = CFG.feed, of = Math.max(1, Math.round((F.to || 0) - (F.from || 0)));
-  const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [], hint: '' }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {} };
+  const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [], hint: '' }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, gun: { on: false }, focus: { on: false }, radar: { on: false, marks: [], north: 0 }, ring: { on: false, hits: [] }, wheel: { open: false, slots: [], title: '' }, top: {}, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {} };
   let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
   // a HUD part pressed (a level's button row): its event raised on the level's bus, as a key bound to it would
   // (a keyed one, game/screen-keys.js: that key pressed, heard by whatever listens for it)
@@ -120,7 +131,49 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     });
     for (let i = live.length - 1; i >= 0; i--) if (clock >= live[i].until) { const l = live[i]; live.splice(i, 1); const at = st.lines[l.k].findIndex(function (r) { return r.text === l.text; }); if (at >= 0) st.lines[l.k] = st.lines[l.k].filter(function (_, j) { return j !== at; }); }
   }` : 'function rows() {}'}
-  (function tick() {
+  ${H ? `// THE PILOT'S PARTS (see the header): read off the page, each standing only where the page has the thing
+  const calm = { gun: '', gunT: 0, hp: -1, hpT: 0 }, SAY = { dodge: 'Dodge', strike: 'Strike', 'last-down': 'Last foe', down: 'A foe down', 'down:foe': 'A foe down' };
+  function pilot(W, me, V) {
+    const h = st.hero;
+    // (the health: the level's row where one is the health, its highest as its max; else the pilot's own)
+    if (F.hpVar && V) { const v = Number(st.v[F.hpVar]) || 0; st.top[F.hpVar] = Math.max(st.top[F.hpVar] || 1, v); h.hp = v; h.hpMax = st.top[F.hpVar]; }
+    const share = h.hpMax > 0 && (F.hpVar || h.hasHp) ? h.hp / h.hpMax : 1;
+    h.peril = Math.round(Math.min(1, Math.max(0, (0.5 - share) / 0.45)) * 20) / 20;
+    if (h.hp !== calm.hp) { calm.hp = h.hp; calm.hpT = clock; }
+    h.rest = share >= 1 && clock - calm.hpT > 3;
+    // the gun in hand: its slot on the loadout, else the weapon it carries
+    const lo = me.rule && me.rule.loadout, slot = lo ? lo[me.loadoutIdx || 0] : null, w = me.weapon, G = st.gun;
+    G.on = !!(slot || w);
+    if (G.on) {
+      const melee = !!(slot && (slot.fire === 'melee' || slot.strike) && !slot.weapon);
+      G.name = (slot && slot.name) || (w && w.name) || '';
+      G.mode = melee || !w ? '' : w.fireClass === 'lob' ? 'Launcher' : w.auto ? 'Auto' : w.burst > 1 ? 'Burst' : 'Semi';
+      G.reloading = !melee && !!(w && w.reloading);
+      G.rounds = melee || !w || w.reloading ? 0 : (w.ammo == null ? 0 : w.ammo);
+      G.size = melee || !w || !Number.isFinite(w.magazine) ? 0 : w.magazine;
+      G.reserve = melee || !w ? '' : Number.isFinite(w.reserve) ? w.reserve : '∞';
+      const key = [G.name, G.rounds, G.reloading].join('|');
+      if (key !== calm.gun) { calm.gun = key; calm.gunT = clock; }
+      G.rest = G.size > 0 && G.rounds >= G.size && !G.reloading && clock - calm.gunT > 3;
+    }
+    // the slow-motion: the moment a dodge sets off (else the first), filling as it comes back, draining as it runs
+    const T = W.tempo, ms = T && T.moments, Fc = st.focus;
+    Fc.on = !!(ms && ms.length);
+    if (Fc.on) {
+      let i = ms.findIndex(function (m) { return m.on === 'dodge'; }); if (i < 0) i = 0;
+      const m = ms[i], P = T.playing;
+      if (P && P.m === m) { const all = 2 * (m.ramp || 0) + m.hold; Fc.state = 'active'; Fc.value = Math.round(Math.max(0, 1 - P.t / (all || 1)) * 20) / 20; Fc.label = ''; }
+      else { const cd = m.cooldown || 0, r = cd > 0 ? Math.min(1, (T.real - T.fired[i]) / cd) : 1; Fc.value = Math.round((isFinite(r) ? r : 1) * 20) / 20; Fc.state = Fc.value >= 1 ? 'ready' : 'cooling'; Fc.label = Fc.state === 'ready' ? (SAY[m.on] || m.on) : ''; }
+    }
+    // the page's radar, as a scope; its damage ring, as arcs; its weapon selector, as the wheel
+    const R = st.radar; R.on = !!document.getElementById('__radar');
+    if (R.on && me.transform) { const p = me.transform.pos; R.marks = __hRadar(p, me.transform.heading, __hThings(W, me, null), __hR); R.north = __hBearing(p, me.transform.heading, [p[0], p[1] + 1, 0]); }
+    const D = window.__mojDamageRing; st.ring.on = !!(D && D.hits && D.hits.length); st.ring.hits = st.ring.on ? D.hits : [];
+    const C = window.__mojWc && window.__mojWc.view ? window.__mojWc.view() : null;
+    st.wheel.open = !!(C && C.open);
+    if (st.wheel.open) { st.wheel.title = C.title || ''; st.wheel.slots = C.rows; }
+  }
+  ` : ''}(function tick() {
     requestAnimationFrame(tick);
     // (hooked once the game's channel is up, which on a level of a game may be some frames after this one: its start
     // hands over the shell's params, the run among them. A page with no game begins at once)
@@ -140,6 +193,7 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
       st.hero.sprints = bm > 0; st.hero.staminaMax = bm || 1; st.hero.stamina = Math.max(0, Math.min(bm, me.boost == null ? bm : me.boost));
     }
     const V = window.__mojBus && window.__mojBus.state && window.__mojBus.state.vars;
+    ${H ? 'if (me) pilot(W, me, V);' : ''}
     if (V && V.coins != null) st.coins.count = V.coins;
     if (ROWS && V) rows(window.__mojBus.state, V);
     if (cue) {

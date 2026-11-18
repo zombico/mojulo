@@ -675,6 +675,67 @@ Not yet drawn, and next on this road (the UI only):
 - the equipment (grenades, a melee charge) as counted slots beside the gun
 - a pickup said where it was taken ("+30 rounds" rising off the belt)
 
+### A cinematic action game: its HUD, its item select and its pause
+
+A cinematic action game (the genre's slow motion on a dodge, a hero fighting through set pieces) holds to the same
+principles on its three surfaces. Each is drawn by mana-ui in the game's look, in place of what the level page drew on
+its own.
+
+- **The HUD** (the level's rows lowered by `game/hud-mana.js`, hosted by `scene/channels/mana-hud.js`):
+  - **The pilot, bottom left.** The health is one strip in cells with no label and no number. A level row that is the
+    health is folded into it, so the screen shows one health (its max is the highest the row has stood). The sprint is
+    a thin bar under it, and the strip rests while the health is full.
+  - **The slow motion.** Beside the strip, a charge (`charge`, the `bullet-time` idiom) is a ring round an hourglass.
+    It fills while the moment comes back, glows when it is ready with what sets it off said beside it ("Dodge"), and
+    drains while the world crawls.
+  - **The rest.** The gun in hand sits bottom right (`magazine`: its wireframe, its rounds as cartridges). The page's
+    radar becomes a scope at the top right, its damage ring becomes arcs, and the screen's edge closes in under half
+    health. Every other row is bare or on a scrim, never boxed.
+  - Each part stands only where the page has the thing; the page's own versions are put away.
+- **The item select** (`wheel`, the `item-wheel` idiom): held open on RB, what is carried lies round a ring at the face
+  button that picks it (Y at the top, B right, A at the foot, X left), as the pad's own diamond. Each slot is drawn as
+  its wireframe with its name, its button in the pad's own print and its rounds. The one in hand is lit and named large
+  in the middle, over a shade with no box, the world showing through. It takes no focus: the level's own buttons pick,
+  and the page says what it shows through `window.__mojWc.view()`.
+- **The pause** (`pause-menu`, as every game's pause now is): the world is veiled behind (the theme's backdrop), PAUSED is
+  large at the left with where you are under it, and the menu is set at a title's size. What the run stands at sits bare
+  at the right: which level of how many, and the time played (the play shell's `pause.where()`). The controls screen
+  shows each key as a cap beside what it does.
+
+### The street: the beat 'em up and the run and gun
+
+Both draw one street HUD (`brawl/brawl-street.js` `streetSpec`, its `gun` variant the run and gun's), inside the
+street's frame (the HUD's root is the scene's, never the page's margin: every `.mana-root` in a world page's `#wrap` is
+placed in it).
+
+- **The seats** are four quarters across the top on one shade, never boxes. A seat taken is its tag and its name, and its
+  health as a strip in cells in its own colour (`bar` `side`), read by its length. The run and gun's seat adds the gun
+  in its hands as its wireframe, its rounds as the figure over a belt (or a track past sixty), the sidearm endless (`∞`,
+  never low: `magazine` `endless`), and its grenades as pips. The arcade guns have their own wireframes (machine gun,
+  spread, flame).
+- **Danger:** with one player the screen's edge closes in under half health (`peril`); in co-op the low seat's bar
+  beats, since one edge cannot say whose.
+- **The foe being hit** is named, with a short bar, under the seats for two seconds after the last hit. **The combo** is
+  a large figure at the hitter's edge, with a word at each rung.
+- **Shapes over words:** the way on is an arrow pulsing at the right edge ("GO ➜"), not a word over the fight. The
+  boss's name is a title over its bar, its phases ticks inside it. The stages and the foes left are marks with no label.
+- **A scene** (an arrive or leave card) clears the HUD from the screen. The street's own end says no health on a loss,
+  and the rank is stamped.
+- A choice of gun before the street shows each gun's wireframe beside its name (an option's `gun`).
+
+### Fable of Artesia: the action-adventure's HUD
+
+The action-adventure's HUD grammar (`scene/channels/hud-grammar.js`) holds to the same principles.
+
+- **The hearts empty by quarters** (`pips` takes a fraction: the last heart drawn that far full).
+- **What is held** (the weapon, the sidearm, the item and its count) sits small at the top right. What the body does
+  (the guard, the sprint, the lock) is not equipment: its keys are the controls screen's.
+- **The stamina** is a ring by the hero's shoulder, shown only while it is spent, harm when nearly gone. **The lock**
+  is brackets over the locked foe's drawn top with its health thin under them, in place of the runtime's own diamond
+  and bar. Both are drawn on `anchors` at points the page's camera projects.
+- **The map** is a round scope at the bottom right that turns with the hero, with the foes awake and the way on.
+- **Passing words** (an item used up, a pickup) sit at the foot's left, haloed dark, off the aim.
+
 ## The fight's language
 
 A fighting game's UI is its own language, not a party game's: quiet so the fight reads, side against side. It is grown
@@ -1089,9 +1150,11 @@ reading the level's bus each frame. So a level's readouts, its moments and the g
 | legend | words in its slot, for its ttl |
 | title | the carved letters, as before (`game/title-carve.js`) |
 
-A row's `id` and `when` gate it as they did. The pilot's own gauges (its health, its sprint) lead the top-left corner,
-read off the runtime; the runtime's own gauges and the old widget columns are hidden, not removed. A row's colour is
-not carried: the theme owns the look. A level manifest asks for it with `manaHud: { rows: 'events', theme }`
+A row's `id` and `when` gate it as they did. The pilot's parts (its health as a strip in cells, with a level's
+health row folded in; its sprint; the slow motion's charge; the gun in hand; the radar, the damage ring and the weapon
+wheel) are drawn as the cinematic action game's are (above), read off the runtime. The runtime's own gauges, its radar,
+weapon panel, wheel and damage ring, and the old widget columns are hidden, not removed. A row's colour is not carried:
+the theme owns the look. A corner's rows sit on a scrim and the others bare, never boxed. A level manifest asks for it with `manaHud: { rows: 'events', theme }`
 (`levelHud`); a world without a `ui` lays its levels as before, and a course's HUD stays its own composition on the
 same host. Not yet on the host: a board, a building or a tabletop level, and the level-complete card.
 

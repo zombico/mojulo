@@ -357,7 +357,8 @@ export function manaCss(scope = '.mana-root') {
     // a bare region: no plate, its parts their own frame (a fight's bars, its combo over the round), the words haloed
     // (a region whose every part is gated off draws nothing: no empty plate left standing over the world)
     `${s} .mana-place>.mana-region:empty,${s} .mana-place>.mana-region:has(>.mana-stack:only-child:empty){display:none}`,
-    `${s} .mana-place>.mana-region[data-variant=bare]{background:transparent;border:0;opacity:1;clip-path:none;box-shadow:none;outline:0;text-shadow:${v('halo')}}`,
+    `${s} .mana-screen>.mana-region[data-variant=bare][data-at]>:not(.mana-window){background:transparent;border:0;padding:0;clip-path:none;box-shadow:none;opacity:1}`,
+    `${s} :is(.mana-place,.mana-screen)>.mana-region[data-variant=bare][data-at]{background:transparent;border:0;opacity:1;clip-path:none;box-shadow:none;outline:0;text-shadow:${v('halo')}}`,
     `${s} .mana-place>.mana-region[data-variant=bare] .mana-track{background:${v('panel')};box-shadow:0 0 0 ${u(3)} ${v('panel')}}`,
     // A SCRIM: no box, a shade rising behind the region from nowhere in particular, so a corner's readout sits on the
     // world as a shooter's does (darker where the words are, gone before any edge could show); the words haloed
@@ -426,6 +427,39 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-reserve::before{content:"/";margin-right:${u(4)};opacity:.6}`,
     // (the gun's wireframe over it all, and each round a cartridge cut from the ink: guns.js; a spent one its outline)
     `${s} .mana-magazine .mana-sil{margin-bottom:${u(-4)};opacity:.92}`,
+    // (a mark part full: the filled glyph over the empty one, cut to its share from the left)
+    `${s} .mana-pip-part{position:relative;display:inline-block}`,
+    `${s} .mana-pip-part>b{position:absolute;left:0;top:0;width:calc(var(--f,0) * 100%);overflow:hidden;font-weight:inherit;white-space:nowrap}`,
+    // (a bar in its side's colour: a seat's health in its own kit, so whose it is reads without its tag)
+    ...Array.from({ length: 8 }, (_, k) => `${s} .mana-bar[data-side="${k}"]:not([data-low]) .mana-track i{background:${v(`side-${k}`)}}`),
+    // A CHARGE: a ring round its pictogram that fills as the power comes back, glows when it is ready and drains as it
+    // is spent; what sets it off said small beside it
+    `${s} .mana-charge{display:flex;align-items:center;gap:${u(10)}}`,
+    `${s} .mana-ring{position:relative;display:grid;place-items:center;width:${u(56)};height:${u(56)};border-radius:50%}`,
+    `${s} .mana-ring::before{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(${v('accent2')} calc(var(--r,0) * 1turn),color-mix(in srgb,${v('ink')} 18%,transparent) 0);-webkit-mask:radial-gradient(closest-side,transparent 74%,${v('ink')} 76%);mask:radial-gradient(closest-side,transparent 74%,${v('ink')} 76%)}`,
+    `${s} .mana-ring>.mana-icon{position:relative;border:0;background:transparent;opacity:.55}`,
+    `${s} .mana-charge[data-state=ready] .mana-ring::before{background:${v('accent')}}`,
+    `${s} .mana-charge[data-state=ready] .mana-ring{box-shadow:0 0 ${u(16)} color-mix(in srgb,${v('accent')} 55%,transparent)}`,
+    `${s} .mana-charge:is([data-state=ready],[data-state=active]) .mana-ring>.mana-icon{opacity:1}`,
+    `${s} .mana-charge[data-state=active] .mana-ring::before{background:conic-gradient(${v('accent')} calc(var(--r,0) * 1turn),transparent 0)}`,
+    `${s} .mana-charge[data-state=active] .mana-ring{animation:mana-pulse .9s ease-in-out infinite;animation-play-state:${v('loop')}}`,
+    `${s} .mana-charge>.mana-label{font:700 ${t('label')}/1 ${v('font')};letter-spacing:.12em;text-transform:${v('case')}}`,
+    `${s} .mana-charge:not([data-state=ready])>.mana-label{opacity:.6}`,
+    // THE WHEEL: what is carried round a ring, each at the control that picks it, drawn as its wireframe; the one in
+    // hand lit and named in the middle. A shade under it all, no box: the world still shows through
+    `${s} .mana-wheel{position:relative;width:${u(600)};height:${u(600)};text-shadow:${v('halo')}}`,
+    `${s} .mana-wring{position:absolute;inset:0;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,${v('panel')} 72%,transparent) 0 60%,color-mix(in srgb,${v('panel')} 40%,transparent) 82%,transparent)}`,
+    `${s} .mana-wring::after{content:"";position:absolute;inset:22%;border-radius:50%;border:1px solid color-mix(in srgb,${v('ink')} 28%,transparent)}`,
+    `${s} .mana-wslot{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:${u(4)};opacity:.62;transition:opacity ${v('dur')} ease-out,scale ${v('dur')} ${v('ease')}}`,
+    `${s} .mana-wslot .mana-sil{width:${u(150)};height:${u(48)};-webkit-mask-position:center;mask-position:center}`,
+    `${s} .mana-wslot>.mana-name{font:700 ${t('label')}/1 ${v('font')};letter-spacing:.1em;text-transform:${v('case')}}`,
+    `${s} .mana-wmeta{display:flex;align-items:center;gap:${u(8)}}`,
+    `${s} .mana-wmeta>.mana-key{min-width:${u(30)};padding:${u(2)} ${u(7)};border:${v('rule-w')} solid currentColor;border-radius:${u(15)};font:700 ${t('caption')}/1.3 ${v('mono')};text-align:center}`,
+    `${s} .mana-wmeta>.mana-num{font:600 ${t('caption')}/1 ${v('mono')};opacity:.8}`,
+    `${s} .mana-wslot[data-on]{opacity:1;scale:1.12;color:${v('accent')}}`,
+    `${s} .mana-wslot[data-on] .mana-sil{background:${v('accent')}}`,
+    `${s} .mana-whub{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:${u(4)};max-width:40%;text-align:center}`,
+    `${s} .mana-whub>.mana-name{font:800 ${t('title')}/1 ${v('display')};text-transform:${v('case')};letter-spacing:.02em}`,
     `${s} .mana-belt{display:flex;flex-direction:row-reverse;align-items:flex-end;gap:${u(2)}}`,
     `${s} .mana-belt i{flex:1 1 0;min-width:1px;height:100%;background:${v('ink')};-webkit-mask:var(--mana-round) center bottom/contain no-repeat;mask:var(--mana-round) center bottom/contain no-repeat}`,
     `${s} .mana-belt i[data-spent]{background:color-mix(in srgb,${v('ink')} 45%,transparent);-webkit-mask-image:var(--mana-round-spent);mask-image:var(--mana-round-spent)}`,
