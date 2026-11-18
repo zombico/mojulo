@@ -80,7 +80,11 @@ describe('a level\'s HUD as a game draws it', () => {
     const E = hudToMana([{ var: 'coins', label: 'coin', as: 'counter', slot: 'top-right' }, { var: 'keys', label: 'keys', as: 'counter', slot: 'top-left' }]), J = JSON.stringify(E.spec);
     expect(J).toContain('{"use":"counter","props":{"label":"","value":{"bind":"v.v0"},"icon":"coin"}}');
     expect(J).toContain('"label":"keys"');
-    expect(E.spec.hud.children.every((c) => c.use !== 'region' || c.props.variant === (c.props.at.includes('-') ? 'scrim' : 'bare'))).toBe(true);
+    // (the level's own places: a corner on a scrim, else bare; the radar's scope stands bare, an instrument)
+    const own = E.spec.hud.children.filter((c) => c.use === 'region' && !c.when);
+    expect(own.length).toBeGreaterThan(0);
+    expect(own.every((c) => c.props.variant === (c.props.at.includes('-') ? 'scrim' : 'bare'))).toBe(true);
+    expect(E.spec.hud.children.find((c) => c.use === 'region' && c.when?.bind === 'radar.on').props.variant).toBe('bare');
   });
 });
 
