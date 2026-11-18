@@ -789,6 +789,22 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const alarm = entities.some((e) => e && e.rule && e.rule.alarm);
   // a building's stairs (their footprints): the follow camera's stair rule, below; none, not a byte
   const stairsOn = Array.isArray(stairs) && stairs.length > 0;
+  // the follow camera's CLEAR LINE (its rule's `clear: true`): the stair rule's search for a clear line wherever a wall
+  // or a ceiling would pull the eye in onto the body, not on a stair alone; absent, not a byte
+  const clearAll = !!(camera && camera.clear === true), clearOn = stairsOn || clearAll;
+  // (what the eye's line back from the look point passes through, read by the wall pull-in and the clear line's search alike)
+  const camSkips = `${freeRun ? '        if (__frSkip(hit)) continue;\n' : ''}${aimView ? `        // (the aim held, aim-view.js: a camera back from the eye must not be pulled in on what the eye alone draws, the
+        // hands and the gun before it, hidden now: a thing not drawn hides nothing)
+        { let v = ho, drawn = true; while (v) { if (v.visible === false) { drawn = false; break; } v = v.parent; } if (!drawn) continue; }
+        // (nor on what stands between the look point and the body: the look leads the body, so a body run up against a
+        // wall has its look point inside it, and the ray back from there met the wall's far face at once)
+        { const tg0 = __world.byId[c.rule.target]; if (tg0 && hit.distance < Math.hypot(look[0] - tg0.transform.pos[0], look[1] - tg0.transform.pos[1]) - 0.15) continue; }
+        // (nor on what grows: a crown, a bush, the grass, a cloud are seen through, not stood behind)
+        if (/(^|:)(crown|grass|culm|spray|cloud|hat|bush|flowers|carpet|leaf|leaves|canopy|frond|fern)/.test(String((ho.userData && ho.userData.g) || ''))) continue;
+` : ''}`;
+  // (the clear line's lines are not the eye's: one swung or tipped off it does not pass the body, so what stands near the
+  // look point on it is skipped only where the line runs past the body, within a body's width of it)
+  const clearSkips = camSkips.replace("        { const tg0 = __world.byId[c.rule.target]; if (tg0 && hit.distance < Math.hypot(look[0] - tg0.transform.pos[0], look[1] - tg0.transform.pos[1]) - 0.15) continue; }\n", "        { const tg0 = __world.byId[c.rule.target]; if (tg0) { const bx = tg0.transform.pos[0] - look[0], by = tg0.transform.pos[1] - look[1], hz = Math.hypot(d[0], d[1]) || 1e-6; if (Math.abs(bx * d[1] - by * d[0]) / hz < 0.8 && hit.distance * hz < (bx * d[0] + by * d[1]) / hz - 0.15) continue; } }\n");
   // tall grass (veil.js): the world's veils, a watcher's sight lost in them; none, not a byte
   const veilsOn = Array.isArray(veils) && veils.length > 0;
   // a mission in one level (worlds/controllable/mission.js, mission-view.js): a pilot whose rule carries one
@@ -2680,19 +2696,35 @@ ${acts ? `    const act = __actMode(fig, e, m);
 // stays visible. View-only (never touches sim state); mirrors __ground's mesh-only / skip-own-body
 // filter, so it collides on level geometry but never on suit bodies.
 const __camRay = new THREE.Raycaster();
-let __camCd = 1;   // current eye distance as a fraction of the full follow distance (1 = no pull-in)${stairsOn ? `
+let __camCd = 1;   // current eye distance as a fraction of the full follow distance (1 = no pull-in)${clearOn ? `${stairsOn ? `
 // a building's stairs, their footprints (storeys.js anchors): the follow camera keeps off a walker's back on them
-const __STAIRS = ${safeJson(stairs)};
-let __stEl = 0, __stYw = 0;   // the eye's turn on a stair (radians: up or down, and round), eased
-// the nearest world surface on a line from the look point (the pull-in's own reading: meshes, no overlay, no body)
-function __stairHit(look, d, full, own) {
+const __STAIRS = ${safeJson(stairs)};` : ''}
+// THE CLEAR LINE: the eye's turn off the rule's own line (radians: up or down, and round), eased; the turn it holds, and
+// when it next looks again
+let __stEl = 0, __stYw = 0, __clEl = 0, __clYw = 0, __clT = 0;
+// the nearest world surface on a line from the look point: the wall pull-in's own reading (meshes, no overlay, no body,
+// and what the eye's line skips: camSkips)
+function __clearHit(look, d, full, own, c) {
   __camRay.set(new THREE.Vector3(look[0], look[1], look[2]), new THREE.Vector3(d[0], d[1], d[2])); __camRay.far = full; __camRay.camera = camera;
   for (const hit of __camRay.intersectObjects(scene.children, true)) {
     const ho = hit.object; if (!ho.isMesh || (ho.material && ho.material.depthTest === false)) continue;
-    let o = ho, isOwn = false; while (o) { if (own.includes(o)) { isOwn = true; break; } o = o.parent; }
+${clearSkips}    let o = ho, isOwn = false; while (o) { if (own.includes(o)) { isOwn = true; break; } o = o.parent; }
     if (!isOwn) return hit.distance;
   }
   return full;
+}
+// whether the body is in sight from an eye: the line from the eye to it meets nothing drawn first (an eye clear of the
+// look point's line can still stand behind a column from the body it frames)
+function __clearSees(e, H, own) {
+  const dx = H[0] - e[0], dy = H[1] - e[1], dz = H[2] - e[2], L = Math.hypot(dx, dy, dz); if (L < 1e-3) return true;
+  __camRay.set(new THREE.Vector3(e[0], e[1], e[2]), new THREE.Vector3(dx / L, dy / L, dz / L)); __camRay.far = L - 0.25; __camRay.camera = camera;
+  for (const hit of __camRay.intersectObjects(scene.children, true)) {
+    const ho = hit.object; if (!ho.isMesh || (ho.material && ho.material.depthTest === false)) continue;
+    let v = ho, drawn = true, isOwn = false; while (v) { if (v.visible === false) drawn = false; if (own.includes(v)) isOwn = true; v = v.parent; }
+    if (!drawn || isOwn || /(^|:)(crown|grass|culm|spray|cloud|hat|bush|flowers|carpet|leaf|leaves|canopy|frond|fern)/.test(String((ho.userData && ho.userData.g) || ''))) continue;
+    return false;
+  }
+  return true;
 }` : ''}
 const __followPullIn = ${followPullIn.toString()};
 function __driveCamera(dt) {
@@ -2713,15 +2745,7 @@ function __driveCamera(dt) {
       for (const hit of __camRay.intersectObjects(scene.children, true)) {
         const ho = hit.object;
         if (!ho.isMesh || (ho.material && ho.material.depthTest === false)) continue;   // meshes only; skip overlay quads (fog/effects)
-${freeRun ? '        if (__frSkip(hit)) continue;\n' : ''}${aimView ? `        // (the aim held, aim-view.js: a camera back from the eye must not be pulled in on what the eye alone draws, the
-        // hands and the gun before it, hidden now: a thing not drawn hides nothing)
-        { let v = ho, drawn = true; while (v) { if (v.visible === false) { drawn = false; break; } v = v.parent; } if (!drawn) continue; }
-        // (nor on what stands between the look point and the body: the look leads the body, so a body run up against a
-        // wall has its look point inside it, and the ray back from there met the wall's far face at once)
-        { const tg0 = __world.byId[c.rule.target]; if (tg0 && hit.distance < Math.hypot(look[0] - tg0.transform.pos[0], look[1] - tg0.transform.pos[1]) - 0.15) continue; }
-        // (nor on what grows: a crown, a bush, the grass, a cloud are seen through, not stood behind)
-        if (/(^|:)(crown|grass|culm|spray|cloud|hat|bush|flowers|carpet|leaf|leaves|canopy|frond|fern)/.test(String((ho.userData && ho.userData.g) || ''))) continue;
-` : ''}        let o = ho, isOwn = false; while (o) { if (own.includes(o)) { isOwn = true; break; } o = o.parent; }
+${camSkips}        let o = ho, isOwn = false; while (o) { if (own.includes(o)) { isOwn = true; break; } o = o.parent; }
         if (isOwn) continue;   // never pull in on an entity body (suits) — world geometry only
         hitD = hit.distance; break;   // nearest world surface between subject and eye
       }
@@ -2736,28 +2760,45 @@ ${freeRun ? '        if (__frSkip(hit)) continue;\n' : ''}${aimView ? `        /
       else __camCd += (target - __camCd) * (1 - Math.exp(-6 * (dt || 0)));
       px = look[0] + ux * full * __camCd;
       py = look[1] + uy * full * __camCd;
-      pz = look[2] + uz * full * __camCd;${stairsOn ? `
-      // ON A STAIR (a building's stair, its footprint: storeys.js): a flight overhead, a landing's wall behind the turn, a
-      // ceiling over the shoulder all stand on the line back from the walker, and pulling in along it puts the eye on the
-      // walker's back. So, there, the clearest line that keeps the eye out is looked for: flatter toward level, steeper over
-      // the walker (a played building's top floor stood taller for it: era/stage.js withCeilings), or swung to either side
-      // over the stairwell, each a little dearer the further it strays from the rule's own; the eye eased onto it, and off
-      // the stair back. Only where no line is clearer does it pull in
-      { const q = tg && tg.transform.pos, on = !!q && __STAIRS.some((S) => q[0] > S.rect[0] - 0.6 && q[0] < S.rect[2] + 0.6 && q[1] > S.rect[1] - 0.6 && q[1] < S.rect[3] + 0.6 && q[2] > S.z0 - 0.6 && q[2] < S.z1 + 0.6);
+      pz = look[2] + uz * full * __camCd;${clearOn ? `
+      // THE CLEAR LINE (the camera's \`clear\`, anywhere; a building's stairs, their footprints: storeys.js). A wall behind
+      // the walker, a flight overhead, a landing's wall behind the turn, a ceiling over the shoulder all stand on the line
+      // back from the walker, and pulling in along it puts the eye on the walker's back. So there the clearest line that
+      // keeps the eye out is looked for: flatter toward level, steeper over the walker (a played building's top floor
+      // stood taller for it: era/stage.js withCeilings), or swung to either side (no more than about fifty degrees, so the
+      // stick's forward still reads forward), each a little dearer the further it strays from the rule's own, rising
+      // cheaper than swinging. It looks again eight times a second, keeps the line it holds unless another is clearly
+      // clearer, and eases onto it, and back once the rule's own line is clear. Only where no line is clearer does it pull in
+      { const q = tg && tg.transform.pos, on = ${clearAll ? '!!q' : '!!q && __STAIRS.some((S) => q[0] > S.rect[0] - 0.6 && q[0] < S.rect[2] + 0.6 && q[1] > S.rect[1] - 0.6 && q[1] < S.rect[3] + 0.6 && q[2] > S.z0 - 0.6 && q[2] < S.z1 + 0.6)'};
         const hz = Math.hypot(ux, uy) || 1e-6, el0 = Math.atan2(uz, hz), yw0 = Math.atan2(uy, ux), ht = (tg && tg.rule && tg.rule.collideHeight) || 0;
-        const along = (el, yw) => { const d = [Math.cos(yw) * Math.cos(el), Math.sin(yw) * Math.cos(el), Math.sin(el)]; return { d, f: __followPullIn(full, __stairHit(look, d, full, own), lead, Math.cos(el), rad, ht, camera.near, c.rule.standOff) }; };
-        let wEl = 0, wYw = 0;
-        if (on && target < 0.6) {
-          let best = target;
-          for (const dy of [0, -0.5, 0.5, -1, 1]) for (const de of [0, -0.5 * (el0 - 0.05), 0.05 - el0, 0.35, 0.7]) {
+        // (a line's eye never past the wall it meets: the pull-in's floor, the subject's own width across the ground, grows
+        // as a line steepens and would stand a steep line's eye through the wall behind)
+        const along = (el, yw) => { const d = [Math.cos(yw) * Math.cos(el), Math.sin(yw) * Math.cos(el), Math.sin(el)], hd = __clearHit(look, d, full, own, c); return { d, f: Math.min(__followPullIn(full, hd, lead, Math.cos(el), rad, ht, camera.near, c.rule.standOff), hd < full ? Math.max(0, hd - 0.35 - camera.near) / full : 1) }; };
+        __clT -= dt || 0;
+        if (!on || target >= 0.6) { __clEl = 0; __clYw = 0; __clT = 0; }
+        else if (__clT <= 0) {
+          __clT = 0.12;
+          const cost = (de, dy) => 0.12 * Math.abs(dy) + 0.08 * Math.abs(de);
+          let best = target, bEl = 0, bYw = 0;
+          // (the line it holds, if it still keeps the eye out, at no premium: another must beat it clearly; the last of the
+          // lines looked at all but overhead, the one a body backed into a wall or a corner is seen from)
+          if (__clEl || __clYw) { const L = along(Math.min(1.35, el0 + __clEl), yw0 + __clYw), sc = L.f - cost(__clEl, __clYw); if (sc > best && (!q || __clearSees([look[0] + L.d[0] * full * L.f, look[1] + L.d[1] * full * L.f, look[2] + L.d[2] * full * L.f], [q[0], q[1], look[2]], own))) { best = sc; bEl = __clEl; bYw = __clYw; } }
+          for (const dy of [0, -0.45, 0.45, -0.9, 0.9]) for (const de of [0, -0.5 * (el0 - 0.05), 0.05 - el0, 0.35, 0.7, 1.3 - el0]) {
             if (!dy && !de) continue;
-            const el = Math.min(1.35, el0 + de), L = along(el, yw0 + dy), score = L.f - 0.12 * Math.abs(dy) - 0.08 * Math.abs(de);
-            if (score > best + 0.08) { best = score; wEl = el - el0; wYw = dy; }
+            const el = Math.min(1.35, el0 + de), L = along(el, yw0 + dy), sc = L.f - cost(el - el0, dy);
+            if (sc > best + 0.08 && (!q || __clearSees([look[0] + L.d[0] * full * L.f, look[1] + L.d[1] * full * L.f, look[2] + L.d[2] * full * L.f], [q[0], q[1], look[2]], own))) { best = sc; bEl = el - el0; bYw = dy; }
           }
+          __clEl = bEl; __clYw = bYw;
         }
         const ease = 1 - Math.exp(-5 * (dt || 0));
-        __stEl += (wEl - __stEl) * ease; __stYw += (wYw - __stYw) * ease;
-        if (Math.abs(__stEl) > 1e-3 || Math.abs(__stYw) > 1e-3) { const L = along(el0 + __stEl, yw0 + __stYw); px = look[0] + L.d[0] * full * L.f; py = look[1] + L.d[1] * full * L.f; pz = look[2] + L.d[2] * full * L.f; } }` : ''}
+        __stEl += (__clEl - __stEl) * ease; __stYw += (__clYw - __stYw) * ease;
+        if (Math.abs(__stEl) > 1e-3 || Math.abs(__stYw) > 1e-3) { let L = along(Math.min(1.35, el0 + __stEl), yw0 + __stYw);
+          // (an eye on its way between two lines can pass behind what neither stands behind: there it cuts to the line)
+          if (q && (__stEl !== __clEl || __stYw !== __clYw) && !__clearSees([look[0] + L.d[0] * full * L.f, look[1] + L.d[1] * full * L.f, look[2] + L.d[2] * full * L.f], [q[0], q[1], look[2]], own)) { __stEl = __clEl; __stYw = __clYw; L = along(Math.min(1.35, el0 + __stEl), yw0 + __stYw); }
+          px = look[0] + L.d[0] * full * L.f; py = look[1] + L.d[1] * full * L.f; pz = look[2] + L.d[2] * full * L.f;
+          // (and the eye aimed back toward the body as it turns off the rule's line: the look point leads the body, and an
+          // eye risen over the body or swung beside it, aimed there, drops the body out of the frame)
+          if (q) { const w = Math.min(1, Math.max(0, __stEl) / 0.7 + Math.abs(__stYw) / 0.9); look = [look[0] + (q[0] - look[0]) * w, look[1] + (q[1] - look[1]) * w, look[2]]; } } }` : ''}
     }
   }
   camera.position.set(px, py, pz);

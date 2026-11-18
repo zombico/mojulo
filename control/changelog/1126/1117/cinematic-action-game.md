@@ -302,8 +302,17 @@ or a recipe key; the spike mints through the real doors and measures.
 - **No zoom onto the body on a stair** (channels/controllable/index.js, the follow camera's stair rule): a building's stairs
   reach the page with their footprints (era/storeys.js anchors carry each flight's `rect`; the page's `__STAIRS`, absent
   without stairs), and on one, where the ceiling or the flight overhead would pull the eye in to the body, the camera
-  looks for a clear line nearby instead, a little flatter, steeper or swung aside, and eases onto it. Measured up the
-  hangar's two flights: as it was, the eye came to 2.4 m from the head where they turn at the landing; now 4.6 m or more.
+  looks for a clear line nearby instead.
+- **Nor at a wall: the clear line** (a follow camera's `clear: true`; the infiltration room's camera, both of the starter's
+  levels, asks for it): the stair rule's search wherever a wall, a crate, a column or a ceiling would pull the eye in onto
+  the body. Lines a little flatter, steeper, all but overhead or swung up to about fifty degrees aside are read from the
+  look point, each eye stood short of the wall its line meets (the pull-in's floor no longer stands a steep line's eye
+  through it) and taken only if the body is in sight from it; rising is cheaper than swinging, the line held is kept
+  unless another is clearly clearer, the eye eases onto it (cutting where the way between would lose the body) and aims
+  back toward the body as it turns off the rule's line. It looks again eight times a second, only while pulled in.
+  Measured in the hangar, the operative backed against each of the hall's walls and into a corner: as it was, the eye
+  stood 0.3 to 0.4 m from the head at three of them; now 2 to 6 m, the head and the waist in frame and in sight at every
+  one, and at every point up both flights (the stair rule alone had come to 0.44 m on one). Absent, every byte as it was.
 - **A played building's top floor stands taller** (a stage's `ceilings: { top }`, era/stage.js `withCeilings`, carried
   by a level's building, gameworld/levels.js): metres added to every room of its highest storey, so its ceiling clears
   the follow camera. The hangar asks for 1.5 m.

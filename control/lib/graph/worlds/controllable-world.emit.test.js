@@ -65,7 +65,18 @@ describe('emitThreeWorld controllable channel', () => {
     const stair = { kind: 'stair', at: [0, 0, 0], to: [3, 0, 2.8], rect: [-1, -1, 4, 1] };
     const with_ = emitThreeWorld({ faces: [floor], entities: ents, camera, anchors: [stair, { kind: 'lift', at: [0, 0, 0], to: [0, 0, 4] }] });
     expect(with_).toContain('const __STAIRS = [{"rect":[-1,-1,4,1],"z0":0,"z1":2.8}];');
-    expect(with_).toContain('ON A STAIR');
-    expect(emitThreeWorld({ faces: [floor], entities: ents, camera, anchors: [{ kind: 'lift', at: [0, 0, 0], to: [0, 0, 4] }] })).not.toContain('__STAIRS');
+    expect(with_).toContain('THE CLEAR LINE');
+    expect(with_).toContain('on = !!q && __STAIRS.some(');                 // on a stair only
+    const none = emitThreeWorld({ faces: [floor], entities: ents, camera, anchors: [{ kind: 'lift', at: [0, 0, 0], to: [0, 0, 4] }] });
+    expect(none).not.toContain('__STAIRS');
+    expect(none).not.toContain('THE CLEAR LINE');
+  });
+  it('a follow camera that asks for a clear line looks for one at every wall, with no stairs at all', () => {
+    const ents = [{ id: 'd', rule: { type: 'walk' }, body: { type: 'mesh', shape: 'box' } }];
+    const html = emitThreeWorld({ faces: [floor], entities: ents, camera: { rule: 'follow', target: 'd', clear: true } });
+    expect(html).toContain('THE CLEAR LINE');
+    expect(html).toContain('on = !!q;');                                    // anywhere, not on a stair alone
+    expect(html).not.toContain('__STAIRS');
+    expect(html).toContain('function __clearHit(look, d, full, own, c)');
   });
 });
