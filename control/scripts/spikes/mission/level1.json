@@ -260,8 +260,8 @@
     "basement": {
       "hall": 10
     },
-    "reads": "one building: the main hangar at the ground, flight ops over its wing, and floor 0 lodged ten metres under the ground: a second hall under the first, joined to it by the freight lift, its stairwell shut from above; its highest floor's rooms 1.5 m taller (ceilings.top), clear of the follow camera",
-    "ceilings": {
+    "reads": "one building: the main hangar at the ground, flight ops over its wing, and floor 0 lodged ten metres under the ground: a second hall under the first, joined to it by the freight lift, its stairwell shut from above; its highest floor's rooms 1.5 m taller (headroom.top), clear of the follow camera",
+    "headroom": {
       "top": 1.5
     }
   }

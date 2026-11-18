@@ -42,7 +42,7 @@ export function placeRecipe(L, spine) {
   const posted = (w) => (w.on ? (structures.find((t) => t.id === w.on) ?? {}).at : at(w.at));
   return { ...L, structures, start: at(L.start), exit: at(L.exit), ...(L.backup ? { backup: { ...L.backup, from: at(L.backup.from) } } : {}),
     cover: L.cover.map((c) => ({ ...c, at: at(c.at) })), watchers: L.watchers.map((w) => ({ ...w, at: posted(w), ...(w.to ? { to: at(w.to) } : {}), ...(w.facing ? { facing: at(w.facing) } : {}) })),
-    points: L.points.map((P) => ({ ...P, from: at(P.from), to: at(P.to) })), hints: L.hints.map((h) => ({ ...h, at: at(h.at) })),
+    points: L.points.map((P) => ({ ...P, from: at(P.from), to: at(P.to) })), hints: L.hints.map((h) => ({ ...h, at: at(h.at) })), ...(L.supplies ? { supplies: L.supplies.map((x) => ({ ...x, at: at(x.at) })) } : {}),
     // (its tall grass, each patch's middle along the trail too: form/tall-grass.js)
     ...(L.grass ? { grass: L.grass.map((g) => ({ ...g, at: at(g.at) })) } : {}) };
 }

@@ -1456,18 +1456,18 @@ function assembleHall(manifest, ctx) {
 }
 
 /**
- * CEILINGS: a building's highest floor stood taller (`ceilings: { top }`, metres added to the height of every room on its
+ * HEADROOM: a building's highest floor stood taller (`headroom: { top }`, metres added to the height of every room on its
  * highest storey; a building of one storey, every room). Nothing stands over those rooms, so no floor moves; their walls,
  * their doors' heads and their ceilings rise with them. A played building asks for it so that a follow camera over the
  * walker's shoulder, which stands higher than the walker's head, is not pushed down onto the walker by the ceiling.
  */
-export const CEILINGS = Object.freeze({ most: 6 });
-export function withCeilings(manifest) {
-  const C = manifest.ceilings;
-  if (!C || typeof C !== 'object' || Array.isArray(C) || Object.keys(C).some((k) => k !== 'top') || !(typeof C.top === 'number' && C.top >= 0 && C.top <= CEILINGS.most)) throw new Error(`stage: ceilings is { top }: metres added to the rooms of the highest storey, 0 to ${CEILINGS.most}`);
+export const HEADROOM = Object.freeze({ most: 6 });
+export function withHeadroom(manifest) {
+  const C = manifest.headroom;
+  if (!C || typeof C !== 'object' || Array.isArray(C) || Object.keys(C).some((k) => k !== 'top') || !(typeof C.top === 'number' && C.top >= 0 && C.top <= HEADROOM.most)) throw new Error(`stage: headroom is { top }: metres added to the rooms of the highest storey, 0 to ${HEADROOM.most}`);
   const rooms = Array.isArray(manifest.rooms) ? manifest.rooms : [];
   const top = rooms.reduce((t, r) => Math.max(t, (r && r.storey) ?? 0), 0);
-  return { ...manifest, _ceilings: true, rooms: rooms.map((r) => (r && ((r.storey ?? 0) === top) && Number.isFinite(r.h) ? { ...r, h: Math.round((r.h + C.top) * 100) / 100 } : r)) };
+  return { ...manifest, _headroom: true, rooms: rooms.map((r) => (r && ((r.storey ?? 0) === top) && Number.isFinite(r.h) ? { ...r, h: Math.round((r.h + C.top) * 100) / 100 } : r)) };
 }
 
 /** manifest → World payload (the WORLD_KINDS resolver). */
@@ -1519,9 +1519,9 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // (a room's condition, condition.js, filled into the recipe before anything reads it: the bake's grime reads the recipe)
   if (manifest.condition !== undefined && !manifest._condition) return assembleStageScene(withCondition(manifest, kit), ctx);
   if (manifest.weathering !== undefined && !manifest._weathering) return assembleStageScene(withWeathering(manifest, kit), ctx);
-  // (the CEILINGS of its highest floor raised, `ceilings: { top }`, withCeilings: a played building's top storey clear of a
-  // follow camera over its walker's shoulder)
-  if (manifest.ceilings !== undefined && !manifest._ceilings) return assembleStageScene(withCeilings(manifest), ctx);
+  // (the HEADROOM of its highest floor, `headroom: { top }`, withHeadroom: a played building's top storey clear of a
+  // follow camera over its walker's shoulder; not `ceilings`, which lays each room's ceiling as a collider)
+  if (manifest.headroom !== undefined && !manifest._headroom) return assembleStageScene(withHeadroom(manifest), ctx);
   if (Array.isArray(manifest.rooms) && manifest.rooms.some((r) => r && r.storey !== undefined && r.storey !== 0)) return assembleStoreys(manifest, ctx, planStage(manifest), assembleStageScene);
   const plan = planStage(manifest);
   const Bio = manifest.biocube !== undefined ? readBiocube(manifest.biocube) : null;

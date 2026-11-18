@@ -4,7 +4,15 @@
  * was not built). Opt-in on the pilot's rule:
  *
  *   rule.mission: {
- *     items:   [{ id, at: [x, y, z], radius?: 1.1, name? }]      found by walking onto them: held from then on
+ *     items:   [{ id, at: [x, y, z], radius?: 1.1, name?, look?, gives? }]
+ *                                                                found by walking onto them: held from then on
+ *                                                                (`look`: how the page draws it, mission-view.js: 'keycard'
+ *                                                                | 'document' | 'ration' | 'ammo' | 'case', the default)
+ *                                                                A SUPPLY (`gives: { hp?, rounds? }`) is used as it is
+ *                                                                found: health back to the body (to its most), rounds into
+ *                                                                the reserve of the gun in hand (else the first gun carried
+ *                                                                that keeps one). One that would give nothing (health full,
+ *                                                                no such gun) is left where it lies, and the player told
  *     clues:   [{ id, at, radius?: 1.6, name? }]                 read with the action pressed beside them
  *     reveal?: { needs, of: [clue ids], flag, says? }            that many of them read sets the flag
  *     ways:    [{ id, kind: 'lift' | 'stair', a: [x, y, z], b: [x, y, z], radius?: 1.8, secs?: 3,
@@ -108,7 +116,22 @@ export function buildMission(E) {
     }
     const q = p.transform.pos, edge = !!input.act && !S.prev; S.prev = !!input.act;
     // what is found
-    for (const it of M.items || []) if (!S.held[it.id] && near(q, it.at, it.radius || 1.1)) { S.held[it.id] = true; say('Found: ' + (it.name || it.id)); }
+    let full = null;
+    for (const it of M.items || []) {
+      if (S.held[it.id] || !near(q, it.at, it.radius || 1.1)) continue;
+      const g = it.gives;
+      if (!g) { S.held[it.id] = true; say('Found: ' + (it.name || it.id)); continue; }
+      // a supply: what it gives, used as it is found
+      const hpMax = Number.isFinite(p.hpMax) ? p.hpMax : null, hp = p.body && Number.isFinite(p.body.hp) ? p.body.hp : null;
+      const heal = Number.isFinite(g.hp) && g.hp > 0 && hp != null && hpMax != null ? Math.min(g.hp, Math.max(0, hpMax - hp)) : 0;
+      const gun = Number.isFinite(g.rounds) && g.rounds > 0 ? [p.weapon, ...(p.loadoutWeapons || [])].find((w) => w && w.reserve != null) : null;
+      if (!(heal > 0) && !gun) { full = it.id; if (S.full !== it.id) say((it.name || it.id) + ' · ' + (Number.isFinite(g.hp) ? 'health full' : 'no gun takes it')); continue; }
+      if (heal > 0) p.body.hp = hp + heal;
+      if (gun) gun.reserve += Math.round(g.rounds);
+      S.held[it.id] = true;
+      say((it.name || it.id) + (heal > 0 ? ' · +' + Math.round(heal) + ' health' : '') + (gun ? ' · +' + Math.round(g.rounds) + ' rounds' : ''));
+    }
+    S.full = full;
     // (the hint the body stands in: the nearest whose round it is inside)
     S.hint = null;
     if (M.hints) { let best = Infinity; for (let k = 0; k < M.hints.length; k++) { const h = M.hints[k], d = Math.hypot(q[0] - h.at[0], q[1] - h.at[1]); if (d <= (h.radius || 3.5) && d < best && (h.at[2] == null || Math.abs(q[2] - h.at[2]) < 2.5)) { best = d; S.hint = k; } } }

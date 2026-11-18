@@ -313,6 +313,23 @@ or a recipe key; the spike mints through the real doors and measures.
   Measured in the hangar, the operative backed against each of the hall's walls and into a corner: as it was, the eye
   stood 0.3 to 0.4 m from the head at three of them; now 2 to 6 m, the head and the waist in frame and in sight at every
   one, and at every point up both flights (the stair rule alone had come to 0.44 m on one). Absent, every byte as it was.
-- **A played building's top floor stands taller** (a stage's `ceilings: { top }`, era/stage.js `withCeilings`, carried
+- **A played building's top floor stands taller** (a stage's `headroom: { top }`, era/stage.js `withHeadroom`; not `ceilings`, which lays a room's ceiling as a collider; carried
   by a level's building, gameworld/levels.js): metres added to every room of its highest storey, so its ceiling clears
   the follow camera. The hangar asks for 1.5 m.
+- **Things to find, drawn as what they are** (a mission item's `look`, channels/controllable/mission-view.js): a keycard
+  (the card, its access stripe, chip, photo and lanyard), a document (a folder with its papers showing, a stamp, typing
+  and a photograph clipped on), a ration (a foil pouch, crimped, its label), an ammo can (its lid, handle, latch, stencil
+  and rounds stood by it) or a case, each a few boxes at twice a thing's size, a little lit from within, turning low over
+  a ring the colour of its kind; never hit by the camera's or the ground's rays. Until now each was a yellow diamond.
+  The hangar's keys and intel, and the yard's key, wear theirs.
+- **Supplies** (a mission item's `gives: { hp?, rounds? }`, worlds/controllable/mission.js): used as they are found,
+  health back to the body (to its most) and rounds into the reserve of the gun in hand (else the first gun carried that
+  keeps one); one that would give nothing (health full, no such gun) stays where it lies and the player is told why.
+  Rations and ammo laid in the hangar (by the parts store, in the shops above, in from the hall's doors, both corners of
+  the hall below, a storeroom on the way out) and on level 0 (behind the truck in its grass, by the camp's crates, behind
+  the south log: the level's `supplies`, laid on the trail).
+- **The crawl crawls** (the operative's `proneIdle` and `proneCrawl`, scripts/spikes/mission/operative.json): the keys
+  were posed for a body standing, so lying, a drawn-up leg crossed the other (its yaw pulled it in), the reaching arm
+  swept its forearm over the head and the resting hands floated over it. Now a low crawl: the forearms flat before the
+  face, one arm reaching as the other elbow draws in and the opposite knee comes up and out along the floor (the hip
+  turned out), every channel keeping its side through the cycle, so nothing sweeps through the body between keys.

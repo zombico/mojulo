@@ -73,7 +73,7 @@ const clear = (x, y) => !shut.some((c) => x > c.min[0] - 6 && x < c.max[0] + 6 &
 let sx = spawn[0]; while (!clear(sx, spawn[1] + 3.5) && sx > spawn[0] - 20) sx -= 0.5;
 const start = r2([sx, spawn[1] + 3.5, spawn[2] + 1.2]), outside = r2([door.spawn[0], door.spawn[1], door.spawn[2] - eye + 0.3]);
 const mission = {
-  items: [{ id: 'hangar-key', name: M.items['hangar-key'].reads, at: r2(mid(dayRoom)) }],
+  items: [{ id: 'hangar-key', name: M.items['hangar-key'].reads, look: 'keycard', at: r2(mid(dayRoom)) }],
   exits: [{ id: 'hangar-door', name: 'The hangar\'s side door', at: outside, radius: 1.8, needs: { items: ['hangar-key'] }, to: opt('--hangar-page', 'level-1-hangar.html'), door: 'lobby-door' }],
   // (from the hangar, at its door; from level 0, the approach, at the trail's head)
   arrivals: { 'hangar-bay-1': { at: outside, heading: door.heading }, trailhead: { at: start, heading: Math.PI / 2 } },

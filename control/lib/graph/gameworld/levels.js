@@ -1802,7 +1802,7 @@ export function buildingStage(B) {
     level: { ...(goal !== undefined ? { goal } : {}), ...(from !== undefined ? { from } : {}) },
     ...composed, ...(tone !== undefined ? { tone } : {}),
     // (its highest floor stood taller, era/stage.js withCeilings: a played building's top storey clear of the follow camera)
-    ...(B.ceilings !== undefined ? { ceilings: B.ceilings } : {}),
+    ...(B.headroom !== undefined ? { headroom: B.headroom } : {}),
   };
 }
 

@@ -2765,7 +2765,7 @@ ${camSkips}        let o = ho, isOwn = false; while (o) { if (own.includes(o)) {
       // the walker, a flight overhead, a landing's wall behind the turn, a ceiling over the shoulder all stand on the line
       // back from the walker, and pulling in along it puts the eye on the walker's back. So there the clearest line that
       // keeps the eye out is looked for: flatter toward level, steeper over the walker (a played building's top floor
-      // stood taller for it: era/stage.js withCeilings), or swung to either side (no more than about fifty degrees, so the
+      // stood taller for it: era/stage.js withHeadroom), or swung to either side (no more than about fifty degrees, so the
       // stick's forward still reads forward), each a little dearer the further it strays from the rule's own, rising
       // cheaper than swinging. It looks again eight times a second, keeps the line it holds unless another is clearly
       // clearer, and eases onto it, and back once the rule's own line is clear. Only where no line is clearer does it pull in

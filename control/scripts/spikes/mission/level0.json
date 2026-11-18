@@ -617,5 +617,44 @@
     "range": 25,
     "map": "topo",
     "reads": "the radar's reach (m): the scope 50 m across; the level's map under it at that scale, ahead at the top, topographical (map 'topo': the land's contours a metre apart, the trail, the tall grass, what stands)"
-  }
+  },
+  "supplies": [
+    {
+      "id": "ration-truck",
+      "look": "ration",
+      "gives": {
+        "hp": 40
+      },
+      "name": "A ration",
+      "at": {
+        "trail": 65,
+        "off": -12.2
+      }
+    },
+    {
+      "id": "ammo-camp",
+      "look": "ammo",
+      "gives": {
+        "rounds": 15
+      },
+      "name": "Rounds for the handgun",
+      "at": {
+        "trail": 93,
+        "off": -3.6
+      }
+    },
+    {
+      "id": "ration-camp",
+      "look": "ration",
+      "gives": {
+        "hp": 40
+      },
+      "name": "A ration",
+      "at": {
+        "trail": 90,
+        "off": 10.4
+      }
+    }
+  ],
+  "suppliesReads": "supplies where a body that came the quiet way would look: a ration behind the truck in its grass, rounds by the camp's crates, a ration behind the south log"
 }

@@ -121,6 +121,8 @@ const deckOf = (w) => { const T = w.on && (L.structures ?? []).find((t) => t.id 
 const W = Object.fromEntries(L.watchers.map((w) => [w.id, w]));
 const mission = {
   hints: L.hints.map((h) => ({ at: on(h.at), says: h.says, radius: h.radius ?? 3.5 })),
+  // (the level's supplies, laid on the trail as its other places are: a ration, rounds; mission.js \`gives\`)
+  items: (L.supplies ?? []).map((x) => ({ id: x.id, name: x.name, look: x.look, gives: x.gives, at: on(x.at) })),
   exits: [{ id: 'trail-end', name: 'On to the base', at: on(L.exit, 0.3), radius: 3, to: o.opt('--next', 'level-1-perimeter.html'), door: 'trailhead' }],
   objectives: [{ id: 'reach', says: 'follow the trail up to the base, unseen', done: 'the-base' }],
 };

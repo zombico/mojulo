@@ -38,7 +38,7 @@ const room = infiltrationRoom(G, { refs: { ...(hero ? { hero } : {}), ...(guard 
 
 // THE BUILDING: the hangar bay with its floor 0 a hall high enough for what stands in it
 const B = M.building, HALL = Number(opt('--hall', 10));
-const m0 = buildingStage({ use: B.use, seed: B.seed, ...(B.ceilings ? { ceilings: B.ceilings } : {}) }), stage = { ...m0, program: { ...m0.program, basement: { hall: HALL, lift: { at: [0.3, 0.5] } } } };
+const m0 = buildingStage({ use: B.use, seed: B.seed, ...(B.headroom ? { headroom: B.headroom } : {}) }), stage = { ...m0, program: { ...m0.program, basement: { hall: HALL, lift: { at: [0.3, 0.5] } } } };
 const dry = assembleStageScene(stage), R = Object.fromEntries(dry.rooms.map((r) => [r.id.replace(/@\d+$/, ''), r.box]));
 const need = ['lobby', 'core-0', 'core-1', 'hangar', 'hangar-under', 'flight-ops'].filter((id) => !R[id]);
 if (need.length) { console.error(`hangar: the building lays no ${need.join(', ')} (rooms: ${Object.keys(R).join(', ')})`); process.exit(1); }
@@ -80,11 +80,18 @@ const shoot = { cameras: [{ id: 'lift', keys: [
   { t: 6.85, pos: r2([siege[0] - 12, siege[1] - 7, 1.1]), poi: WK, lens: '28mm' },
   { t: RIDE, pos: r2([siege[0] - 9, siege[1] - 5, 1.1]), poi: WK, lens: '28mm', ease: 'easy ease' },
 ].map((k) => ({ ...k, t: k.t * SCALE })) }], shots: [{ name: 'lift-down', camera: 'lift', span: [0, RIDE * SCALE], on: 'lift:down' }] };
+// (a supply: a ration gives health back, an ammo can rounds for the gun in hand: mission.js \`gives\`)
+const supply = (k, where, at) => (k === 'ration' ? { id: `ration-${where}`, name: 'A ration', look: 'ration', gives: { hp: 40 }, at } : { id: `ammo-${where}`, name: 'Rounds for the handgun', look: 'ammo', gives: { rounds: 15 }, at });
 const mission = {
   items: [
-    { id: 'intel-manifest', name: M.items['intel-manifest'].reads, at: r2(mid(R['flight-ops'])) },
-    { id: 'lift-key', name: M.items['lift-key'].reads, at: r2(mid(R[parts])) },
-    { id: 'intel-siege', name: M.items['intel-siege'].reads, at: r2([siege[0] - 7, siege[1] + 5, siege[2]]) },
+    { id: 'intel-manifest', name: M.items['intel-manifest'].reads, look: 'document', at: r2(mid(R['flight-ops'])) },
+    { id: 'lift-key', name: M.items['lift-key'].reads, look: 'keycard', at: r2(mid(R[parts])) },
+    { id: 'intel-siege', name: M.items['intel-siege'].reads, look: 'document', at: r2([siege[0] - 7, siege[1] + 5, siege[2]]) },
+    // (its supplies, along the way it is played: rounds by the parts store and in from the hall's doors, a ration in the
+    // shops above; a ration and rounds in the hall below before the walker; a ration on the way back out)
+    ...[['ration', 'shop-105', 0, 0], ['ammo', 'shop-102', 0, 0], ['ration', 'shop-205', 0, 0], ['ammo', 'store-002', 0, 0]].filter(([, r]) => R[r]).map(([k, r]) => supply(k, r, r2(mid(R[r])))),
+    supply('ammo', 'hall', r2([H.min[0] + 2.2, H.min[1] + 2.5, H.min[2]])),
+    supply('ration', 'under-s', r2([U.min[0] + 2.2, U.min[1] + 2.5, U.min[2]])), supply('ammo', 'under-n', r2([U.min[0] + 2.2, U.max[1] - 2.5, U.min[2]])),
   ],
   clues: [
     { id: 'pad', name: M.clues.pad.reads, at: r2([lift.a[0], LA.rect[1] - 1.6, lift.a[2]]) },

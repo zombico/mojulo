@@ -123,3 +123,29 @@ describe('a mission in one level', () => {
     expect(w.ms).toBeUndefined();
   });
 });
+
+describe('supplies', () => {
+  const SUP = { items: [{ id: 'ration-1', at: [4, 0, 0], look: 'ration', gives: { hp: 40 }, name: 'A ration' }, { id: 'ammo-1', at: [8, 0, 0], look: 'ammo', gives: { rounds: 15 }, name: 'Rounds' }], objectives: [] };
+  const armed = () => E.createWorld({ entities: [{ id: 'p', pilotable: true, rule: { type: 'platform', speed: 5, eye: 0, collideRadius: 0.3, collideHeight: 1.7, mission: SUP },
+    weapon: { magazine: 15, reserve: 30, damage: 10, fireRate: 4 }, body: { type: 'mesh', hittable: true, hp: 100, radius: 0.4 }, transform: { pos: [0, 0, 0], heading: 0 } }] });
+  it('a ration is left where it lies while health is full, and says so; hurt, it heals to the most and is used up', () => {
+    const w = armed(), p = w.byId.p;
+    run(w, {}, 1);
+    expect(p.hpMax).toBe(100);
+    put(w, [4, 0, 0]);
+    expect(w.ms.held['ration-1']).toBeFalsy();
+    expect(w.ms.said.text).toMatch(/health full/);
+    p.body.hp = 80; put(w, [4, 0.1, 0]);
+    expect(w.ms.held['ration-1']).toBe(true);
+    expect(p.body.hp).toBe(100);                                    // 40 given, 20 taken: never past the most
+    expect(w.ms.said.text).toMatch(/\+20 health/);
+  });
+  it('ammo goes into the reserve of the gun in hand', () => {
+    const w = armed(), p = w.byId.p;
+    run(w, {}, 1);
+    const before = p.weapon.reserve;
+    put(w, [8, 0, 0]);
+    expect(w.ms.held['ammo-1']).toBe(true);
+    expect(p.weapon.reserve).toBe(before + 15);
+  });
+});
