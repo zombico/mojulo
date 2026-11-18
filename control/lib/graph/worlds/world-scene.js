@@ -1457,6 +1457,19 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
             // (and drawn in one call a pass, not one a part: controllable/merged-figure.js oneDrawFigure)
             const { oneDrawFigure } = await import('@/lib/graph/scene/channels/controllable/merged-figure.js');
             if (oneDrawFigure(payload.figures[name])) payload.figures[name] = { ...payload.figures[name], oneDraw: true };
+            // FAR FIGURES (a world's `farFigures: { at?, budget? }`): a figure no player pilots baked again coarse, its face
+            // dropped (figures/figure-lod.js to `budget` triangles, 4000 unless said), `<name>@far`, the page drawing it past
+            // `at` metres from the eye (24 unless said: controllable/merged-figure.js farFigureScript). Absent, not a byte
+            const FF = sketch.manifest.farFigures;
+            if (FF && typeof FF === 'object' && !piloted) {
+              const at = Number.isFinite(FF.at) && FF.at > 0 ? FF.at : 24, budget = Number.isFinite(FF.budget) && FF.budget > 0 ? FF.budget : 4000;
+              const far = lodFigure(payload.figures[name], budget, { face: false, loose: true, floor: 0.05 });
+              if (far.fig !== payload.figures[name]) {
+                const { oneDraw: _o, pose: _p, far: _f, farAt: _a, ...ff } = far.fig;
+                payload.figures[`${name}@far`] = oneDrawFigure(ff) ? { ...ff, oneDraw: true } : ff;
+                payload.figures[name] = { ...payload.figures[name], far: `${name}@far`, farAt: at };
+              }
+            }
           }
           // THE POSE GRADE CUT IN (figure-grades.js): a play-grade world bakes the figures its close shots reach again at
           // the pose grade, `<name>@pose`, the page cutting it in while a close shot is on; two bakes that are not one

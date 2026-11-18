@@ -16,9 +16,10 @@
  * the face is kept (the hero a player pilots: its face is seen); otherwise (`face: false`) the figure's face is dropped
  * with its morphs and that part is simplified too (a foe's face is never framed close at the play grade).
  *
- *   lodFigure(fig, budget, { face? = true, floor? = 0.15, least? = 12 }) → { fig, before, after } — the figure (the same
- *       object when it is already under its budget), its triangles before and after. `floor`: the least share of a
- *       part's faces kept; `least`: the fewest faces a part keeps.
+ *   lodFigure(fig, budget, { face? = true, floor? = 0.15, least? = 12, loose? = false }) → { fig, before, after } — the
+ *       figure (the same object when it is already under its budget), its triangles before and after. `floor`: the least
+ *       share of a part's faces kept; `least`: the fewest faces a part keeps; `loose` (a figure seen far off): welded by
+ *       position alone and no edge locked, so a dressed figure's seams and hems no longer hold it near its triangles.
  *
  * Pure and deterministic (the simplifier breaks its ties by index).
  */
@@ -31,7 +32,7 @@ const LAYOUT = { pos: [Float32Array, 3], col: [Uint8Array, 3], jnt: [Uint8Array,
 /** a part's triangles; 0 for an indexed or empty part (not simplified here) */
 const partFaces = (p) => (p && Number.isFinite(p.faces) && typeof p.pos === 'string' && !p.idx ? p.faces : 0);
 
-function simplifyPart(p, keep) {
+function simplifyPart(p, keep, loose = false) {
   const F = p.faces, A = {};
   // every per-corner buffer the part carries, the known ones by their type and any other (a lit read's normals, its
   // tangents) as bytes, a corner's share; a buffer that is not a corner's each leaves the part whole
@@ -45,7 +46,9 @@ function simplifyPart(p, keep) {
   }
   if (!A.pos) return p;
   // WELD: a corner is a vertex where every attribute it carries agrees, byte for byte
-  const keyOf = (c) => Object.keys(A).map((k) => { const { a, n } = A[k]; let s = ''; for (let q = 0; q < n; q++) s += a[c * n + q] + ','; return s; }).join('|');
+  // (LOOSE, a figure seen far off: welded by its position alone, so a seam in its colour, its uv or its weights no longer
+  // holds the mesh; the surviving corner's own attributes are drawn on both sides of it)
+  const keyOf = loose ? (c) => A.pos.a[c * 3] + ',' + A.pos.a[c * 3 + 1] + ',' + A.pos.a[c * 3 + 2] : (c) => Object.keys(A).map((k) => { const { a, n } = A[k]; let s = ''; for (let q = 0; q < n; q++) s += a[c * n + q] + ','; return s; }).join('|');
   const vid = new Map(), first = [], V = [], tris = [];
   for (let c = 0; c < F * 3; c++) {
     const k = keyOf(c);
@@ -58,7 +61,8 @@ function simplifyPart(p, keep) {
   const uses = new Map(), ek = (a, b) => (a < b ? a * 1e7 + b : b * 1e7 + a);
   for (const t of Ftris) for (let q = 0; q < 3; q++) { const e = ek(t[q], t[(q + 1) % 3]); uses.set(e, (uses.get(e) || 0) + 1); }
   const locked = new Uint8Array(V.length);
-  for (const [e, n] of uses) if (n === 1) { locked[Math.floor(e / 1e7)] = 1; locked[e % 1e7] = 1; }
+  // (loose: none locked; a hem or an opening is not seen from far off)
+  if (!loose) for (const [e, n] of uses) if (n === 1) { locked[Math.floor(e / 1e7)] = 1; locked[e % 1e7] = 1; }
   const S = simplifyMesh(V, Ftris, { target: keep, locked, turn: 0.2 });
   if (!S.F.length || S.F.length >= F) return p;
   // back to a soup: a surviving corner keeps its own attributes and takes its collapsed position
@@ -79,7 +83,7 @@ function simplifyPart(p, keep) {
   return out;
 }
 
-export function lodFigure(fig, budget, { face = true, floor = 0.15, least = 12 } = {}) {
+export function lodFigure(fig, budget, { face = true, floor = 0.15, least = 12, loose = false } = {}) {
   const parts = fig && Array.isArray(fig.parts) ? fig.parts : [];
   const before = parts.reduce((n, p) => n + partFaces(p), 0);
   if (!(budget > 0) || before <= budget) return { fig, before, after: before };
@@ -90,7 +94,7 @@ export function lodFigure(fig, budget, { face = true, floor = 0.15, least = 12 }
     const n = partFaces(p);
     if (!n || kept(p)) return p;
     const keep = Math.max(least, Math.round(n * share));
-    return keep >= n ? p : simplifyPart(p, keep);
+    return keep >= n ? p : simplifyPart(p, keep, loose);
   });
   const next = { ...fig, parts: out };
   if (!face && next.face) delete next.face;

@@ -66,7 +66,7 @@ export const farBlanketUniforms = () => `{ uFarOn: { value: 0 }, uFarR: { value:
 
 /** The far field's page source, after the grass and the view cone, in the form channel's scope (THREE, scene, LAYER_U:
  *  the ground's uniforms, which carry the blanket's). */
-export function farFieldScript() {
+export function farFieldScript({ paint = false } = {}) {
   return `
   // --- the far field: the grass past the view cone's reach as its colour, speckled (channels/far-field.js) ---
   (function () {
@@ -83,7 +83,7 @@ export function farFieldScript() {
       if (prev) prev.call(this, r, s, cam, rt);
       if (!cam.isPerspectiveCamera) return;
       const live = on && FF.pov() && CO.reach < 1e5;
-      LAYER_U.uFarOn.value = live ? 1 : 0; LAYER_U.uFarR.value = live ? CO.reach : 1e6; LAYER_U.uFarPxm.value = CO.px;
+      LAYER_U.uFarOn.value = live ? 1 : 0; LAYER_U.uFarR.value = live ? ${paint ? '0.5' : 'CO.reach'} : 1e6; LAYER_U.uFarPxm.value = CO.px;${paint ? '   // (a painted field: the blanket from the eye out, no blade built: tall-grass.js `paint`)' : ''}
     };
   })();
 `;

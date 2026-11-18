@@ -294,7 +294,7 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
     // the claims' masks not read inside them, so what is drawn is what hides; elsewhere none, or the land's own)
     if (tallGrass) for (let j = 0; j < ny; j++) for (let ii = 0; ii < nx; ii++) {
       const q = j * nx + ii, pc = green0[q] * patchCover(x0 + ii * GCELL, y0 + j * GCELL, tallGrass.patches);
-      cov[q] = tallGrass.elsewhere === 'grass' ? Math.max(cov[q], pc) : pc;
+      cov[q] = tallGrass.elsewhere === 'grass' || tallGrass.elsewhere === 'paint' ? Math.max(cov[q], pc) : pc;
     }
     // (and how each patch stands: the share of its ground that is level and green, where its grass grows, and that ground's
     // mean height, its foot; world-scene.js lays its veil there, or none where too little grows)
@@ -344,7 +344,7 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
     const at = (x, y) => { const ii = Math.round((x - x0) / GCELL), j = Math.round((y - y0) / GCELL); if (ii < 0 || j < 0 || ii >= nx || j >= ny) return null; const q = j * nx + ii; return top[q] === -Infinity ? null : { z: top[q], c: cov[q] }; };
     // (no grass anywhere, a land wholly under snow: no grass on the page at all)
     if (!cov.some((v) => v > 1e-3)) return null;
-    return { origin: [x0, y0], cell: GCELL, size: [nx, ny], z: [zlo, span], px: b64(px), at, ...(dpx ? { drift: b64(dpx) } : {}), ...(tallGrass ? { stand: standOf(tallGrass.patches), patches: patchRead, ...(tallGrass.elsewhere === 'grass' ? { field: fieldOf() } : {}) } : {}) };
+    return { origin: [x0, y0], cell: GCELL, size: [nx, ny], z: [zlo, span], px: b64(px), at, ...(dpx ? { drift: b64(dpx) } : {}), ...(tallGrass ? { stand: standOf(tallGrass.patches), patches: patchRead, ...(tallGrass.elsewhere === 'grass' ? { field: fieldOf() } : tallGrass.elsewhere === 'paint' ? { field: { paint: true } } : {}) } : {}) };
   })() : null;
   // the far: fins along the ground in rows three ways (60° apart, ROW apart, SEG long), each row's line wandering so the
   // rows weave rather than rule, each fin from the ground up a height that wanders (its bristles drawn on the page), only

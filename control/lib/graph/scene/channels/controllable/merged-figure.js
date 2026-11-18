@@ -193,3 +193,43 @@ function __mergedGeo(pos, col, jnt, idx) {
 }
 `;
 }
+
+/**
+ * FAR FIGURES — a figure seen far off drawn as its far twin (`fig.far`, its name in the bank: the same character baked
+ * coarse, figures/figure-lod.js, its face dropped; world-scene.js under a world's `farFigures`) past `fig.farAt` metres
+ * from the eye, two metres' grace back: a second rig group built the first time it is wanted, never hit by a ray, posed
+ * each frame from the figure's own bones (each bone's matrix copied) and placed where its body stands, shown only while
+ * the body is. The figure's own skins and bone meshes are hidden while its twin shows; nothing else of it is touched.
+ *
+ *   farFigureScript() → `__farFrame()`, run each frame after the camera moves (needs the page's `__bodies`, `__FIG`,
+ *                       `__makeRigGroup`, `__world`, `camera`)
+ */
+export function farFigureScript() {
+  return `
+// FAR FIGURES (merged-figure.js farFigureScript): past its far distance a figure shows its far twin, posed from its bones
+function __farFrame() {
+  const cx = camera.position.x, cy = camera.position.y, cz = camera.position.z;
+  for (const id in __bodies) {
+    const g = __bodies[id], rf = g && g.userData && g.userData.rigFig, e = __world.byId[id];
+    if (!rf || !rf.fig.far || !e) continue;
+    const F = __FIG[rf.fig.far];
+    if (!F) continue;
+    const q = e.transform.pos, d = Math.hypot(q[0] - cx, q[1] - cy, q[2] - cz), at = rf.fig.farAt || 24;
+    const far = rf.farOn ? d > at - 2 : d > at;
+    if (far && !rf.farG) {
+      rf.farG = __makeRigGroup(F, e.body || {});
+      rf.farG.traverse((o) => { o.raycast = function () {}; });
+      rf.drawn = [...(rf.skins || (rf.skin ? [rf.skin] : [])), ...rf.boneMeshes.filter((m) => m && m.visible)];
+    }
+    if (far !== !!rf.farOn && rf.drawn) { for (const o of rf.drawn) o.visible = !far; rf.farOn = far; }
+    if (!rf.farG) continue;
+    const G = rf.farG;
+    G.visible = far && g.visible;
+    if (!G.visible) continue;
+    G.position.copy(g.position); G.quaternion.copy(g.quaternion); G.scale.copy(g.scale);
+    const A = rf.boneMeshes, B = G.userData.rigFig.boneMeshes;
+    for (let k = 0; k < A.length; k++) if (A[k] && B[k]) B[k].matrix.copy(A[k].matrix);
+  }
+}
+`;
+}

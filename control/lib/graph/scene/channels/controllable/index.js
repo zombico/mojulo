@@ -23,7 +23,7 @@ import { sightScript } from './sight-view.js';
 import { alarmScript } from './alarm-view.js';
 import { missionScript } from './mission-view.js';
 import { specialsPaletteScript } from './specials-palette.js';
-import { mergeableFigure, mergedFigureScript, oneDrawFigure, oneDrawScript } from './merged-figure.js';
+import { mergeableFigure, mergedFigureScript, oneDrawFigure, oneDrawScript, farFigureScript } from './merged-figure.js';
 import { groundGridScript } from './ground-grid.js';
 import { turretScript } from './turret-view.js';
 import { boatWaterScript } from './boat-water.js';
@@ -916,6 +916,8 @@ function __updateGearLines() {
   const figMerge = !xr && !toonInk && Object.values(figures || {}).some(mergeableFigure);
   // (a figure with a pose twin, figure-grades.js: cut in while a close shot is on it; none, not a byte)
   const figPose = figMerge && Object.values(figures || {}).some((f) => f && typeof f.pose === 'string' && mergeableFigure(f));
+  // (a figure with a far twin, merged-figure.js farFigureScript: drawn coarse far off; none, not a byte)
+  const figFar = Object.values(figures || {}).some((f) => f && typeof f.far === 'string' && f.farAt > 0);
   // ONE DRAW A LIT FIGURE (merged-figure.js oneDrawScript): a layered body the world marked `oneDraw` (the play grade) drawn
   // as one skinned mesh over its kept bone meshes. None marked ⇒ not a byte of it
   const figOneDraw = !xr && !toonInk && Object.values(figures || {}).some((f) => f && f.oneDraw && oneDrawFigure(f));
@@ -1479,7 +1481,7 @@ function __castMR(fig, c, n) {
   m.userData.cast = true;
   return m;
 }
-` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose, rig: figHasCast, resp: figHasResp }) : ''}${figOneDraw ? oneDrawScript() : ''}function __makeRigGroup(fig, b) {
+` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose, rig: figHasCast, resp: figHasResp }) : ''}${figOneDraw ? oneDrawScript() : ''}${figFar ? farFigureScript() : ''}function __makeRigGroup(fig, b) {
   const group = new THREE.Group();${figHasSkin ? `
   if (fig.skin) return __makeSkinGroup(fig, b, group);` : ''}${figMerge ? `
   if (__mergeable(fig)) return __makeMergedGroup(fig, b, group);` : ''}
@@ -4851,7 +4853,8 @@ ${hangarHook}  __msHookParams();
   // place is drawn on, the rest stand as they were)
   else if (dt > 0) for (const e of __world.entities) if (e.act || e.staged) __syncEntity(e, dt);` : ''}
   if (__ctrlOwnsCamera${xr ? ' && !__xrCtl' : ''}) __driveCamera(dt);${xr ? '   // (in the headset the head is the camera)' : ''}${figPose ? `
-  __poseFrame();   // (the pose grade cut in on the figures a close shot is on)` : ''}${tempoLook ? `
+  __poseFrame();   // (the pose grade cut in on the figures a close shot is on)` : ''}${figFar ? `
+  __farFrame();   // (a figure far off drawn as its far twin)` : ''}${tempoLook ? `
   // a moment's look over the world's grade (channels/grade.js), by the moment's weight; its impact frame hard for its
   // frames as it fires; its zoom aimed at whom it is about, on the screen as the camera now stands
   if (window.__mojGrade) {

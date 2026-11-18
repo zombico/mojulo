@@ -5,9 +5,11 @@
  * level's, little, and it plays.
  *
  *   recipe (a geocube's `tallGrass`):
- *     { patches: [{ at: [x, y], r, h? }], elsewhere?: 'none' | 'grass' }
+ *     { patches: [{ at: [x, y], r, h? }], elsewhere?: 'none' | 'grass' | 'paint' }
  *       patches    each a clump of tall grass: its middle, its radius (m, TALL_GRASS.r), its height (m, TALL_GRASS.h)
- *       elsewhere  'none' (the default): no grass outside the patches; 'grass': the land's own grass too
+ *       elsewhere  'none' (the default): no grass outside the patches; 'grass': the land's own grass too; 'paint': the
+ *                  land's own grass as its colour on the ground from the eye out (the far field's blanket, no blade
+ *                  built), so a field reads as grass and only the patches, the cover, stand
  *
  *   readTallGrass(spec)          → { patches, elsewhere } | null (null: no tall grass; a malformed patch left out)
  *   patchCover(x, y, patches)    → 0..1, how much of a patch is there: whole inside, thinning over its ragged edge
@@ -48,7 +50,7 @@ export function readTallGrass(spec) {
     return [{ at: [p.at[0], p.at[1]], r: clampN(num(p.r) ? p.r : TALL_GRASS.r, TALL_GRASS.rMin, TALL_GRASS.rMax), h: clampN(num(p.h) ? p.h : TALL_GRASS.h, TALL_GRASS.hMin, TALL_GRASS.hMax) }];
   });
   if (!patches.length) return null;
-  return { patches, elsewhere: spec.elsewhere === 'grass' ? 'grass' : 'none' };
+  return { patches, elsewhere: spec.elsewhere === 'grass' || spec.elsewhere === 'paint' ? spec.elsewhere : 'none' };
 }
 
 // (a place's own dice, 0..1, smooth over `cell` m)

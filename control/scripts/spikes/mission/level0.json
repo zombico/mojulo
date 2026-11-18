@@ -373,9 +373,13 @@
     "occlusion": false,
     "cone": 6,
     "bodies": "blob",
-    "reads": "what the page may cost: its shadows at half (light.tier), no contact occlusion, real grass out to 6 m (past it the field's grass is painted on the ground) (the view cone; 10 until the frame was cut again); [ and ] move the grass's reach live; bodies 'blob' casts no body into the live shadow map, a soft pool at the feet instead ('live' for real shadows); parallax false: a lean ground (none of its height marched, most of the frame's cost; true for the full ground); density 0.85: a little under the window's own pixels (the page's cap is 1.5 unless said)",
+    "reads": "what the page may cost: its shadows at half (light.tier), no contact occlusion, real grass out to 6 m (past it the field's grass is painted on the ground) (the view cone; 10 until the frame was cut again); [ and ] move the grass's reach live; bodies 'blob' casts no body into the live shadow map, a soft pool at the feet instead ('live' for real shadows); parallax false: a lean ground (none of its height marched, most of the frame's cost; true for the full ground); density 0.85: a little under the window's own pixels (the page's cap is 1.5 unless said); far 24 m / 4000: each guard past 24 m from the eye drawn as its far twin (its triangles to 4000, its face dropped), the haze drawn in to 180 m so the far land and what stands on it fade and are culled",
     "parallax": false,
-    "density": 0.85
+    "density": 0.85,
+    "far": {
+      "at": 24,
+      "budget": 4000
+    }
   },
   "grass": [
     {
@@ -547,7 +551,7 @@
       "r": 2.2
     }
   ],
-  "grassReads": "tall grass in tight clumps, none elsewhere: a body crouched or lying a stride into it is unseen (a lookout up a tower sees a crouch, not a body lying flat; a guard within 2 m sees whatever); standing, the eye is over it",
+  "grassReads": "tall grass in tight clumps, the field's own grass only painted on the ground (no blade built): grass is cover, laid where it hides; a body crouched or lying a stride into it is unseen (a lookout up a tower sees a crouch, not a body lying flat; a guard within 2 m sees whatever); standing, the eye is over it",
   "path": {
     "rubble": "parallax",
     "reads": "the trail's rubble drawn in the ground's shader (parallax pebbles in clusters), none stood up as stones: fewer and cheaper"
@@ -555,12 +559,12 @@
   "screen": "screen",
   "air": {
     "kind": "haze",
-    "visibility": 450,
-    "clear": 40,
+    "visibility": 180,
+    "clear": 30,
     "blur": false
   },
   "cubeReads": "the jungle haze's look on open ground: no cliff walling the trail (a field both sides), lone trees on a short-grassed upland in place of bamboo groves; the ground most of the frame's cost, the jungle a tenth of it",
-  "grassElsewhere": "grass",
+  "grassElsewhere": "paint",
   "checkpointReads": "a line across the whole field: wire to its edges, sandbags either side of a gate on the trail, a tower over the gate, the truck parked on the line with a slot beside it; and a cut in the west wire, screened by tall grass both sides, that the patrol along the line walks past",
   "gorge": {
     "west": -7.5,

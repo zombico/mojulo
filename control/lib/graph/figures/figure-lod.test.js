@@ -39,6 +39,14 @@ describe('the play grade held', () => {
     expect(Math.min(...xs)).toBeCloseTo(2, 5); expect(Math.max(...xs)).toBeCloseTo(3, 5);
     expect(Math.min(...ys)).toBeCloseTo(0, 5); expect(Math.max(...ys)).toBeCloseTo(1, 5);
   });
+  it('loose (a figure seen far off): no edge locked, welded by position, so it goes further toward a small budget', () => {
+    const strict = lodFigure(fig(), 120, { face: false, floor: 0.05 }), loose = lodFigure(fig(), 120, { face: false, floor: 0.05, loose: true });
+    expect(loose.after).toBeLessThan(strict.after);
+    expect(loose.after).toBeLessThan(120 * 1.6);                         // (near its budget; a border held, the strict one is not)
+    expect(loose.fig.bones).toEqual(fig().bones);
+    const J = dec(loose.fig.parts[2].jnt, Uint8Array);
+    for (let c = 0; c < J.length / 4; c++) expect(J[c * 4]).toBe(1);   // (each corner still its own joint's)
+  });
   it('with the face kept, the part that carries its morphs is left whole; without it, the face and its morphs go', () => {
     const kept = lodFigure(fig(), 2000, { face: true });
     expect(kept.fig.parts[0].faces).toBe(1800);

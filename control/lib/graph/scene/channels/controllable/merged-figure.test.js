@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { mergeableFigure, mergedFigureScript, oneDrawFigure, oneDrawScript } from './merged-figure.js';
+import { mergeableFigure, mergedFigureScript, oneDrawFigure, oneDrawScript, farFigureScript } from './merged-figure.js';
 import { suitShadowBlock } from './suit-shadows.js';
 import { pageFigures, controllableChannelScript } from './index.js';
 
@@ -167,5 +167,39 @@ describe('a body\'s contact pool at its feet', () => {
     const probe = suitShadowBlock({ r: 12, alpha: 0.45, fade: 55, color: [0, 0, 0] });
     expect(probe).toContain('const zc = __shProbe(own, p[0], p[1], p[2] + 2);');
     expect(probe).toContain('zc + 0.4');
+  });
+});
+
+// FAR FIGURES: past its far distance a figure shows its far twin (the same bones, baked coarse), posed from its bones.
+describe('far figures', () => {
+  it('the page carries it only for a figure with a far twin', () => {
+    const ent = [{ id: 'g', body: { type: 'figure-rig', figure: 'p' }, rule: { type: 'walk' }, transform: { pos: [0, 0, 0], heading: 0 } }];
+    const figs = (far) => ({ p: { ...person(), ...(far ? { far: 'p@far', farAt: 24 } : {}) }, ...(far ? { 'p@far': person() } : {}) });
+    expect(controllableChannelScript(ent, null, figs(true))).toContain('__farFrame();');
+    expect(controllableChannelScript(ent, null, figs(false))).not.toContain('__farFrame');
+  });
+
+  it('shows the twin past the distance (two metres\' grace back), posed from the figure\'s bones, only while the body shows', async () => {
+    const THREE = await import(pathToFileURL(path.join(process.cwd(), 'public/vendor/three/three.module.min.js')).href);
+    const bone = () => { const m = new THREE.Mesh(new THREE.BufferGeometry()); m.matrixAutoUpdate = false; return m; };
+    const g = new THREE.Group(), main = [bone(), bone()], skin = new THREE.Mesh(new THREE.BufferGeometry());
+    g.userData.rigFig = { fig: { far: 'p@far', farAt: 24 }, boneMeshes: main, skin, skins: [skin] };
+    let built = 0;
+    const make = () => { built++; const G = new THREE.Group(), B = [bone(), bone()]; for (const b of B) G.add(b); G.userData.rigFig = { boneMeshes: B }; return G; };
+    const world = { byId: { g: { transform: { pos: [0, 0, 0] }, body: {} } } }, camera = new THREE.PerspectiveCamera();
+    const farFrame = new Function('THREE', '__bodies', '__FIG', '__makeRigGroup', '__world', 'camera', `${farFigureScript()}\nreturn __farFrame;`)(THREE, { g }, { 'p@far': {} }, make, world, camera);
+    const rf = g.userData.rigFig;
+    camera.position.set(10, 0, 0); farFrame();
+    expect(built).toBe(0); expect(skin.visible).toBe(true);                 // near: as it was, no twin built
+    main[1].matrix.makeTranslation(1, 2, 3);
+    camera.position.set(30, 0, 0); farFrame();
+    expect(built).toBe(1); expect(skin.visible).toBe(false); expect(rf.farG.visible).toBe(true);
+    expect(rf.farG.userData.rigFig.boneMeshes[1].matrix.equals(main[1].matrix)).toBe(true);
+    camera.position.set(23, 0, 0); farFrame();
+    expect(rf.farG.visible).toBe(true);                                      // inside the grace: still far
+    g.visible = false; farFrame();
+    expect(rf.farG.visible).toBe(false);                                     // the body hidden: its twin too
+    g.visible = true; camera.position.set(20, 0, 0); farFrame();
+    expect(rf.farG.visible).toBe(false); expect(skin.visible).toBe(true); expect(built).toBe(1);
   });
 });

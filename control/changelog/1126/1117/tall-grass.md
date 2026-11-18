@@ -54,3 +54,15 @@
   hangar 259 on the same run. The live light off was tried and bought nothing (its bodies cast blob shadows, so the map
   draws next to nothing). The opening view side by side reads the same. `level0.mjs --perf '{…}'` tries a setting over
   the recipe's without editing it.
+- **Grass is cover, and only cover** (a geocube's `tallGrass.elsewhere: 'paint'`, form/tall-grass.js): the land's own grass
+  kept as its colour on the ground from the eye out (the far field's blanket brought to the feet, channels/far-field.js;
+  the short sward's tier built no blade, channels/form-grass.js), so the field reads as grass and only the patches, the
+  cover, stand. Level 0 laid so: no short grass anywhere (`none` left the field bare earth, dark under where the blades
+  had been).
+- **Far figures** (a geocube level's `farFigures: { at?, budget? }`, worlds/world-scene.js, controllable/merged-figure.js
+  `farFigureScript`): each body no player pilots baked a second time coarse (figures/figure-lod.js `loose`: welded by
+  position alone, no edge locked, so a dressed figure's seams and hems no longer hold it: the guard 39070 triangles to
+  4498) and drawn past `at` metres from the eye (24; two metres' grace back), the same bones posed each frame, shown only
+  while its body is. Level 0 asks for it, and its haze drawn in (visibility 180 m, clear 30) so the far land and what
+  stands on it fade and the far flora is culled. Bench, all at one density: 199 ms a frame (the last cut) to 176, its
+  triangles 0.95M to 0.60M; in play the six guards past 24 m are drawn at 4498 each.

@@ -407,11 +407,14 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-minimap{position:relative;width:${u(195)};height:${u(195)};border:${v('rule-w')} solid ${v('line')};background:${X_BOX} ${v('paper')}}`,
     `${s} .mana-minimap[data-shape=round]{border-radius:50%}`,
     `${s} .mana-minimap .mana-planclip{position:absolute;inset:0;overflow:hidden;pointer-events:none;opacity:.8}`,
+    // (a scope's map lighter still: the world reads through it)
+    `${s} .mana-minimap[data-scope=yes] .mana-planclip{opacity:.55}`,
     `${s} .mana-minimap[data-shape=round] .mana-planclip{border-radius:50%}`,
     `${s} .mana-minimap .mana-plan{position:absolute;max-width:none;display:block}`,
     // A SCOPE: an instrument over the world, not a picture in a box. Its face fades out at its edge, a bezel of ticks
-    // rings it, the wedge ahead shows what you see, and north rides the bezel as it turns
-    `${s} .mana-minimap[data-scope=yes]{border:0;background:radial-gradient(closest-side,color-mix(in srgb,${v('panel')} 70%,transparent) 0 80%,color-mix(in srgb,${v('panel')} 38%,transparent) 92%,transparent);overflow:visible}`,
+    // rings it, the wedge ahead shows what you see, and north rides the bezel as it turns; its face TRANSLUCENT, the world
+    // seen through it (a third of the panel's colour), so it never stands over the play as a solid disc
+    `${s} .mana-minimap[data-scope=yes]{border:0;background:radial-gradient(closest-side,color-mix(in srgb,${v('panel')} 35%,transparent) 0 80%,color-mix(in srgb,${v('panel')} 18%,transparent) 92%,transparent);overflow:visible}`,
     `${s} .mana-bezel{position:absolute;inset:0;pointer-events:none}`,
     `${s} .mana-bezel::before{content:"";position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(${v('ink')} 0 1deg,transparent 1deg 15deg);-webkit-mask:radial-gradient(closest-side,transparent 86%,${v('ink')} 87% 91%,transparent 92%);mask:radial-gradient(closest-side,transparent 86%,${v('ink')} 87% 91%,transparent 92%);opacity:.55}`,
     `${s} .mana-minimap[data-scope=yes]::before{content:"";position:absolute;inset:25%;border-radius:50%;border:1px solid color-mix(in srgb,${v('ink')} 22%,transparent);pointer-events:none}`,

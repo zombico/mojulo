@@ -92,7 +92,7 @@ const STILL_HEAD = 'vec3 fgBend( vec2 root, float hgt, float s, float ph ) { ret
  *  the stops. Absent, the form render's lit blades, the page as it was. `stand`: a land with tall grass (form/tall-grass.js,
  *  the map's `stand`): its tall clump raised to the patches' height, more blades a clump set closer, drawn at every
  *  distance (it is little, and it is cover), and no far strands. Absent, not a byte of it. */
-export function formGrassScript({ ramp = false, stand = false } = {}) {
+export function formGrassScript({ ramp = false, stand = false, paint = false } = {}) {
   return `
   // --- the form render's grass (channels/form-grass.js) ---
   if (D.grass) {
@@ -213,7 +213,9 @@ ${ramp ? `      // (a blade in the host's ramp: unlit, the stop its height picks
         rm.customProgramCacheKey = () => 'form-grass-ramp-' + T.id + (windU() ? '-wind' : ''); return rm; };
 ` : ''}      GTIERS.forEach((${stand ? 'T0' : 'T'}, ti) => {${stand ? `
         // (a land's tall grass: the tall clump its patches', form/tall-grass.js standOf; the short sward round them thinned, fieldOf)
-        const ST = Gm.stand && T0.sward === 'tall' ? Gm.stand : null, FD = Gm.field && T0.sward === 'short' ? Gm.field : null, T = ST ? { ...T0, id: 'stand', scale: T0.scale * ST.scale, spacing: ST.spacing, clump: { ...T0.clump, ...ST.clump } } : FD ? { ...T0, id: 'field', clump: { ...T0.clump, ...FD.clump } } : T0;` : ''}
+        const ST = Gm.stand && T0.sward === 'tall' ? Gm.stand : null, FD = Gm.field && T0.sward === 'short' ? Gm.field : null, T = ST ? { ...T0, id: 'stand', scale: T0.scale * ST.scale, spacing: ST.spacing, clump: { ...T0.clump, ...ST.clump } } : FD ? { ...T0, id: 'field', clump: { ...T0.clump, ...FD.clump } } : T0;${paint ? `
+        // (a painted field, tall-grass.js \`paint\`: no short sward built; the far field paints it on the ground from the eye)
+        if (FD && FD.paint) return;` : ''}` : ''}
         const tg = clumpGeometry(T.clump, ti * 31, T.spacing), R = [];
         each(T.spacing * SF.spread[T.sward], ti, (x, y, m, h) => {
           const dL = Math.abs(m.sw - SL[T.sward]) / SL.band; if (dL >= 1) return;

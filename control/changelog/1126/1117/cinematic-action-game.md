@@ -333,3 +333,5 @@ or a recipe key; the spike mints through the real doors and measures.
   swept its forearm over the head and the resting hands floated over it. Now a low crawl: the forearms flat before the
   face, one arm reaching as the other elbow draws in and the opposite knee comes up and out along the floor (the hip
   turned out), every channel keeping its side through the cycle, so nothing sweeps through the body between keys.
+- **The radar a glass** (mana-ui css.js, a scope minimap): its face a third of the panel's colour at its middle (seven
+  tenths) and the map under it at 0.55 (0.8), so the world reads through it and it never stands over the play as a disc.
