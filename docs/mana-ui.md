@@ -934,6 +934,12 @@ host (`scene/channels/mana-hud.js`) runs a second runtime on its own kernel and 
   then draws over the corner. Nothing is baked: their idle, a walk, a script's take play in the portrait as they do in
   the world. The level's speakers sheet, `play.speakers: { <who>: { portrait: 'live' | 'none' } }`, shows a speaker by
   the box alone (`none`); a speaker with no body on the page, or one hidden (the player's in first person), has no face.
+- **A speaker's face says the line** (`playscape/ui/talk-lines.js`): a plain line said by a hero with a talking head
+  (the realistic face, or the anime face, which then plays on the page) is performed at build (`face-acting/perform.js`:
+  its expression, its words lip-synced by `speech.js`, the blinks and gaze of a speaking face) into a face track on the
+  speaker's figure, and the line gets a face-only take on its own clock (`talk:<scene>:<beat>`). The scene runner plays
+  it as it plays a script's take; the page's face plays the track while it runs, in the world and in the portrait. A
+  script's lines keep their own takes; the landmark head's mouth is its jaw bone and does not talk yet.
 
 ### The RPG's battles, party menu and shops
 

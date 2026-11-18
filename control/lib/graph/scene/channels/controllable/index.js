@@ -852,6 +852,9 @@ function __updateGearLines() {
   // one play it while the scene channel names it (world.take), at the line's phase. None ⇒ not a byte of it
   const takes = Object.values(figures || {}).some((f) => f && f.rig && f.clips && Object.keys(f.clips).some((k) => k.indexOf('scene:') === 0));
   const figHasFace = Object.values(figures || {}).some((f) => f && f.rig && f.face && Array.isArray(f.face.targets) && Array.isArray(f.parts) && f.parts.some((p) => p && p.morph));
+  // a TALKING face (playscape/ui/talk-lines.js: a line a hero says, its face's take under the line's clip, talk:<scene>:<beat>):
+  // the face plays it while the scene channel names it (world.take), the body as it was. None ⇒ not a byte of it
+  const talking = figHasFace && Object.values(figures || {}).some((f) => f && f.face && f.face.tracks && Object.keys(f.face.tracks).some((k) => k.indexOf('talk:') === 0));
   // a PAINTED body (the realistic hero's skin, dermal-hero.js heroSkinPaint, packed as station-loft-rig.js `paintTex` and
   // each part's `uv`): its bone meshes drawn on the atlas (texel × the part's lit colour), as the World page draws it.
   // No painted body → the emitted channel is byte-identical.
@@ -2494,7 +2497,12 @@ ${figHasRide ? `      // (a ridden machine's front turns about the steering axis
     mesh.matrix.compose(__rigV, __rigQA, __RIG_ONE);
   }${moveset ? `
   __sidearmProps(e, m, rig, fig, AL);` : ''}${figHasFace ? `
-  if (fig.face) __rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);` : ''}${takes && figHasFace ? `
+  if (fig.face) ${talking ? `{
+    // (a line it says: its face's take on the line's clock, while the scene channel plays it)
+    const tf = __world.take && fig.face.tracks && fig.face.tracks[__world.take.clip] && __world.take.clip.indexOf('talk:') === 0 ? __world.take : null;
+    if (tf) __rigFace(rig, tf.clip, Math.min(tf.u, 0.999));
+    else __rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);
+  }` : `__rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);`}` : ''}${takes && figHasFace ? `
   // (a taking face's weights, where a headless driver reads them: e.takeFace)
   if (fig.face) { const fm = tk ? rig.boneMeshes.find((x) => x && x.morphTargetInfluences && x.morphTargetInfluences.length) : null; e.takeFace = fm ? Array.from(fm.morphTargetInfluences) : null; }` : ''}
   // i-frame SHIMMER: while INVINCIBLE the whole rig flickers translucent — the

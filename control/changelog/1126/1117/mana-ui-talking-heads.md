@@ -14,5 +14,9 @@ boxes, or the same scene acted out in the world.
   what they do in the world (standing, breathing, acting a scene) is what the picture shows.
   - A level's speakers sheet can show someone by the box alone, for a scene that is already close on their face.
   - Someone with no body in the level, or the player seen from their own eyes, has no picture.
+- **Faces say their lines.** A character with a realistic or an anime face now moves their face as they speak: their
+  lips follow the words, their face takes the line's expression (worried, determined and so on), and they blink and
+  look as a speaking face does. It shows in the world and in the talk box's picture. Lines written as a script keep
+  the acting they already had. The default (landmark) face does not talk yet.
 - **Nothing else changes.** Advancing, holding to skip, Esc and picking a choice by number, arrows or a click work as
-  before. A world without the game's interface keeps its box as it was.
+  before. A world without the game's interface keeps its box as it was, though its characters' faces now talk too.

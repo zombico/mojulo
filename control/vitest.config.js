@@ -94,6 +94,8 @@ export const E2E = [
   'lib/graph/scene/visual-gate.chrome.test.js',
   // a level's scene said through mana-ui's talk box: its page in headless Chrome, a line, a choice clicked
   'lib/graph/playscape/ui/talk-box.live.test.js',
+  // a scene's lines said by a realistic and an anime face: each face's weights move while its line plays
+  'lib/graph/playscape/ui/talk-mouth.live.test.js',
 ];
 
 // What no tier but its own runs (the e2e config takes this, less the e2e suites themselves).
