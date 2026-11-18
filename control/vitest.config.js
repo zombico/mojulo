@@ -12,7 +12,10 @@ const here = dirname(fileURLToPath(import.meta.url));
 // leg of the matrix. Listed here so both configs read one list; the e2e config re-exports it.
 // A list, not a suffix: a rename would collide with every branch still editing these files.
 export const E2E = [
+  'lib/graph/gameworld/race-hud.e2e.test.js',
   'lib/graph/gameworld/door-probes.e2e.test.js',
+  // a shoot plan's contact sheet rendered through the door: its frames captured in headless Chrome and composed
+  'lib/mcp/tools/shoot-contact.e2e.test.js',
   // the exhibit starters made through create_exhibit: Pompeii resolves a whole historic town and its people
   'lib/graph/exhibit/starters.e2e.test.js',
   // a glyph map built whole through the kit's builder, tile by tile, and its laws measured (level/grid-scene.js)
@@ -30,6 +33,7 @@ export const E2E = [
   'lib/mcp/tools/design-game.proof.test.js',
   'lib/mcp/tools/design-game.climb.test.js',
   'lib/mcp/tools/design-game.quest.test.js',
+  'lib/mcp/tools/design-game.mission.test.js',
   'lib/graph/car-designer/racer-live.test.js',
   'lib/graph/gameworld/feel/hero-juice.live.test.js',
   'lib/graph/gameworld/practice-room.live.test.js',
@@ -39,6 +43,10 @@ export const E2E = [
   'lib/graph/gameworld/citadel-play.test.js',
   'lib/graph/scene/action-hero.live.test.js',
   'lib/graph/gameworld/gun-rooms.live.test.js',
+  'lib/graph/gameworld/mission.live.test.js',
+  'lib/graph/gameworld/mission-building.live.test.js',
+  'lib/graph/gameworld/mission-site.live.test.js',
+  'lib/graph/gameworld/mission-industrial.live.test.js',
   'lib/graph/car-designer/form-render.live.test.js',
   'lib/graph/cycle-shelf/cycle-ride.live.test.js',
   'lib/mcp/tools/export-model.realistic.test.js',

@@ -68,7 +68,7 @@ import { makeSunShadow } from '../era/sun.js';
 import { readHour } from '../era/geocube-hours.js';
 import { unlift } from '../matte-paint/detail.js';
 
-export const GEOTOWN_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'style', 'geotown', 'walk', 'shadows', 'occlusion', 'light', 'air', 'cone']);
+export const GEOTOWN_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'style', 'geotown', 'walk', 'shadows', 'occlusion', 'light', 'air', 'sea', 'cone']);
 // the faces a geotown draws at most (its trees are repeats, budgeted apart): a law, advice. The town to scale's is one
 // budget; an evocation spends its own on each segment's buildings, so its budget is a segment's times its segments,
 // or a building's times its buildings where a dense streetscape stands more
@@ -158,7 +158,7 @@ function breaks(lo, hi, extra, step) {
 }
 
 /** The town's colours, leant to the cube's: its paving and its lawns. */
-function coloursOf(cube) {
+export function coloursOf(cube) {
   const C = cube.colour;
   return {
     road: mix('#4d5055', C.floor, 0.15), walk: mix('#c8c2b4', C.stone, 0.3), kerb: mix('#b3ad9f', C.stone, 0.3), path: mix('#b7a68c', C.floor, 0.35),
@@ -247,7 +247,7 @@ export function assembleGeotownScene(m, ctx = {}) {
   // ── the light: the cube's at its hour, under its clouds (city/plan/look.js: as it lights a city) ──
   const paint = readPaint({ geocube: m.cube, amount: 1, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}) });
   const spec = cubeLookSpec(paint), lit = lookLight(spec, paint), LIGHT = lit.light, sun = LIGHT.toLight, air = spec.air ?? spec.ref.air;
-  const col = coloursOf(cube), faces = [], colliders = [], anchors = [], finish = finishesOf(P, cube);
+  const col = coloursOf(cube), faces = [], colliders = [], anchors = [], finish = finishesOf(d.spec.fronts && P.grounds?.[d.spec.fronts] ? { ...P, finishes: { ...P.finishes, ...P.grounds[d.spec.fronts] } } : P, cube);
   // a face, wound to `want` (else up), shaded by the cube's light, its ground's finish laid where it has one (a floor's
   // on a face that lies flat)
   const put = (corners, group, hex, want = null) => {
@@ -289,7 +289,7 @@ export function assembleGeotownScene(m, ctx = {}) {
   const litV = formB ? () => 1 : (n) => 0.55 + 0.45 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
   const [sLo, sHi] = P.house.storeys, spoken = new Map();
   // an EVOCATION's buildings each a kit of their row's kind (houses.js), no two neighbours alike; each yard its own
-  const evoked = !!d.evoked, kits = evoked ? buildingKits(P, m.style ?? P.style, cube, kitId, seed) : null, types = new Map();
+  const evoked = !!d.evoked, kits = evoked ? buildingKits(P, m.style ?? P.style, cube, kitId, seed, { fronts: d.spec.fronts ?? null }) : null, types = new Map();
   if (kits) for (const B of d.blocks) for (const r of B.rows ?? []) {
     const R = streamOf(seed, 'types', `${B.id}:${r.side}`);
     let prev = null;
@@ -1153,7 +1153,13 @@ export function assembleGeotownScene(m, ctx = {}) {
     laws.push({ law: 'entered', ok: entered.length > 0 && shut === 0 && heavy === 0, value: `${entered.length} shops walked into on ${stores.size} templates; ${shut} with a box in the door's way; ${heavy} over ${SLOT.faces} faces`, want: 'every shop asked for is walked into through its own door, its inside drawn near the camera only and under its faces' });
   }
   // (the town's cars: each model a repeat for its paint and one for its trim, cars.js)
-  repeats.push(...carRepeats(carsAt, { group: 'geotown:car' }));
+  // (a played level's cars a hero gets into, gameworld/cars.js: `ctx.driven` their places, each a body of the level's
+  // and so never drawn here; `ctx.parked`, a list the caller hands, is filled with every car parked)
+  // (and their models pooled, `pool`: the templates those bodies are drawn from, scene/channels/cab-pool.js)
+  const isDriven = (c) => (ctx.driven ?? []).some((q) => Math.abs(q[0] - c.pos[0]) < 0.02 && Math.abs(q[1] - c.pos[1]) < 0.02);
+  if (Array.isArray(ctx.parked)) ctx.parked.push(...carsAt);
+  const drivenModels = [...new Set(carsAt.filter(isDriven).map((c) => c.model))].sort();
+  repeats.push(...carRepeats(drivenModels.length ? carsAt.filter((c) => !isDriven(c)) : carsAt, { group: 'geotown:car', ...(drivenModels.length ? { pool: drivenModels.map((model) => ({ model })) } : {}) }));
   const night = lit.night, bg = night ? air.fog.color : rgbToHex(air.dome.horizon);
   const counts = { plots: d.plots.length, units: d.units ?? d.plots.length, duplexes: d.plots.filter((pl) => pl.duplex).length, buildings: built, ...builtOf, hedges, gated, parked, pads: d.parking?.pads ?? 0, padCars, cars: carsAt.length, carModels: [...new Set(carsAt.map((c) => c.model))].length, lights: d.traffic?.lights.length ?? 0, signals: d.traffic?.signals ?? 0, stops: d.traffic?.stops ?? 0, trees: Object.values(kept).reduce((a, l) => a + l.length, 0), crowded, faces: faces.length, treeFaces };
   // (read by the seventh generation: its soft ground the form's own, `isekai:ground`, its land read draws it and grows its

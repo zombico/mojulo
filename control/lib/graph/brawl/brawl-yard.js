@@ -12,6 +12,8 @@
  *   inputRun(runs, buttons)    → the input strip's runs after a frame's buttons (a direction and its buttons, how long
  *                              held; the newest at the right, ten at most)
  *   YARD_SETTINGS              the settings screen's fields (each bound to the var it sets)
+ *   streetSpec(), streetYardOf()   a street level's screen (below): the game's, not the practice room's
+ *   streetHud(room, names), streetMoments(moments, events, stops)   what that screen reads (brawl-yard-read.js)
  *
  * Pure: no clock, no dice.
  */
@@ -21,7 +23,7 @@ import { themeCss } from '../../mana-ui/theme.js';
 import { cardTheme } from '../playscape/ui/theme-cards/loader.js';
 import { PRACTICE_MODE_IDS } from './brawl-practice.js';
 import { CROWD_TYPES } from './brawl-crowd.js';
-export { yardHud, inputRun } from './brawl-yard-read.js';
+export { yardHud, inputRun, streetHud, streetMoments } from './brawl-yard-read.js';
 
 const USES = ['line-marks', 'token-marks', 'chain-beats', 'clinch-meter', 'gun-meter', 'wave-meter', 'press-log', 'input-display', 'command-list', 'training-settings'];
 const b = (path) => ({ bind: `brawl.practice.${path}` });
@@ -59,4 +61,29 @@ export function yardSpec() {
 
 export function yardOf() {
   return { spec: yardSpec(), css: `${manaCss()}\n${themeCss(cardTheme('brawl-yard'))}`, theme: 'brawl-yard' };
+}
+
+const STREET_USES = ['street-players', 'street-status', 'boss-bar', 'moment-banner', 'clinch-meter', 'gun-meter', 'command-list'];
+/**
+ * A STREET's screen (a level's, brawl-practice.js streetRoomOf): the game's own, none of the practice room's readouts.
+ * Each player's name and health (street-players), the stop they are at and the falls they have left (street-status),
+ * the boss across the top while it stands, a moment as a stop clears or the boss comes in, the clinch and, on a run &
+ * gun, the gun held. Its one screen is the move list: a level's pause and its settings are the game shell's.
+ */
+export function streetSpec() {
+  return {
+    defs: Object.fromEntries(STREET_USES.map((k) => [k, { params: IDIOMS[k].params, node: IDIOMS[k].node }])),
+    hud: { use: 'hud', children: [
+      { use: 'street-players', props: { players: b('party') } },
+      { use: 'street-status', props: { stop: b('street.stop'), of: b('street.of'), name: b('street.name'), lives: b('street.lives'), livesMax: b('street.livesMax') } },
+      { use: 'boss-bar', props: { name: b('boss.name'), hp: b('boss.hp'), hpMax: b('boss.hpMax'), phases: b('boss.phases'), statuses: b('boss.statuses') }, when: b('boss.on') },
+      { use: 'moment-banner', props: { moments: b('moments') } },
+      { use: 'gun-meter', props: { name: b('gun.name'), ammo: b('gun.ammo'), of: b('gun.of'), grenades: b('gun.grenades'), shots: b('gun.shots'), on: b('gun.on') } },
+      { use: 'clinch-meter', props: { left: b('clinch.left'), of: b('clinch.of'), knees: b('clinch.knees'), behind: b('clinch.behind'), holding: b('clinch.holding') } },
+    ] },
+    screens: { moves: { use: 'command-list', props: { title: 'Moves', kinds: b('moves') } } },
+  };
+}
+export function streetYardOf() {
+  return { spec: streetSpec(), css: `${manaCss()}\n${themeCss(cardTheme('brawl-yard'))}`, theme: 'brawl-yard' };
 }

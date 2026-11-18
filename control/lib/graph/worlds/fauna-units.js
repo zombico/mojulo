@@ -8,7 +8,8 @@
  *   animalFigure({ species, gait, behaviors, reactions? })  → the packed rig figure: its gait plays the runtime's
  *                                                 `forward`, its eating `graze` (a grazer's head down in the grass), and
  *                                                 a killable one's flinch, fall and rise the runtime's `stagger`, `topple`
- *                                                 and `getup` (as a beast foe's: egocube/moves.js beastMovesOf)
+ *                                                 and `getup` (as a beast foe's: egocube/moves.js beastMovesOf); drawn as
+ *                                                 one skin (`skin: true`) where its skin holds the blend
  *   lowerFaunaUnits(payload)                    → the payload's `faunaUnits` taken off it and laid on: its entities after
  *                                                 the world's own, its figures beside them. None, the payload untouched
  */
@@ -16,6 +17,7 @@ import { WORLD_KINDS } from './world-kinds.js';
 import { speciesPlan } from '../fauna/species.js';
 import { withMotion } from '../fauna/rig.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
+import { walkerSkinStretch } from '../scene/channels/walkers.js';
 
 // (a stride's keys: enough for a walk read across a field, a fraction of a hero's)
 const KEYS = 12;
@@ -30,7 +32,11 @@ export async function animalFigure({ species, gait, behaviors = [], reactions = 
     const scene = await WORLD_KINDS.layered.resolve({ kind: 'layered', recipe }, { title: species });
     const { preview, embodies, ...pack } = scene.figures.body;
     const reacts = Object.fromEntries(Object.entries(REACT_STATES).filter(([, w]) => pack.clips[w]).map(([st, w]) => [st, pack.clips[w]]));
-    return { ...pack, clips: { ...pack.clips, forward: pack.clips[gait], ...(behaviors.includes('eat') ? { graze: pack.clips.eat } : {}), ...reacts } };
+    const fig = { ...pack, clips: { ...pack.clips, forward: pack.clips[gait], ...(behaviors.includes('eat') ? { graze: pack.clips.eat } : {}), ...reacts } };
+    // (ONE SKIN where the skin holds it: `skin: true`, the controllable drawer's skinned mesh, each corner placed by the
+    // bones it is weighed to, so a back that bends opens no seam between its parts; measured over every clip it carries,
+    // scene/channels/walkers.js walkerSkinStretch. A skin that does not hold rides its bones in rigid parts, as before)
+    return walkerSkinStretch(fig, { clips: 'all' })?.holds ? { ...fig, skin: true } : fig;
   })());
   return FIGURES.get(key);
 }

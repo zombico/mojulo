@@ -15,7 +15,7 @@
  *   playShellManaRuntime(cfg, api) → (inlined) { draw(name), close(), loading(place), loaded(), pause(), unpause(),
  *                                  moment(text, sub?) }: the shell's api is
  *                                  { go, onOf, show, app, title, front, levels(), result(), run(), settings(),
- *                                  saveSettings, pushPrefs, reset, continueTo, runTitle(), pause: { resume, restart,
+ *                                  saveSettings, pushPrefs, reset, continueTo, runTitle(), pause: { resume, restart, where (the level, which of how many, the seconds played),
  *                                  quit, sound, rows(), owner(), homeWord(), open }, playing() }
  */
 import { manaUi, manaUiSource, withIdioms, manaCss, themeCss, readTheme } from '../../mana-ui/index.js';
@@ -59,11 +59,13 @@ export function shellManaSpec(ui = {}, { picks = false } = {}) {
       button('continue', 'done'),
     ] }] },
     result: { use: 'results-screen', props: { outcome: B('result.outcome'), stats: B('result.stats'), rank: B('result.rank'), items: B('result.items'), bare: B('result.bare') } },
-    // the pause over a held level: resume, restart, the controls, the sound, the way out (back resumes)
-    pause: { use: 'pause-menu', props: { title: B('pause.title'), items: B('pause.items') } },
-    // what the level's controls are, as the level says them (its live bindings): read, and back
-    controls: { use: 'screen', props: { title: B('pause.controlsTitle'), layer: 'modal', place: 'center' }, children: [{ use: 'window', children: [{ use: 'stack', children: [
-      { use: 'each', props: { rows: B('pause.rows'), row: { use: 'stack', props: { dir: 'row', align: 'apart', gap: 'loose' }, children: [{ use: 'text', props: { value: { item: 'does' }, role: 'label' } }, { use: 'text', props: { value: { item: 'keys' } } }] } } },
+    // the pause over a held level: resume, restart, the controls, the sound, the way out (back resumes); where you are
+    // under its name, and what the run stands at beside it (the level, which of how many, the time played)
+    pause: { use: 'pause-menu', props: { title: B('pause.title'), sub: B('pause.sub'), items: B('pause.items'), aside: B('pause.aside') } },
+    // what the level's controls are, as the level says them (its live bindings): each key a cap beside what it does, read,
+    // and back
+    controls: { use: 'screen', props: { title: B('pause.controlsTitle'), layer: 'modal', place: 'left' }, children: [{ use: 'window', props: { variant: 'ghost' }, children: [{ use: 'stack', children: [
+      { use: 'each', props: { rows: B('pause.rows'), row: { use: 'stack', props: { dir: 'row', align: 'center', gap: 'normal' }, children: [{ use: 'badge', props: { value: { item: 'keys' }, variant: 'strong' } }, { use: 'text', props: { value: { item: 'does' } } }] } } },
       { use: 'button', props: { label: { word: 'back' } }, on: { accept: { back: true } } },
     ] }] }] },
     // over a level's frame while it loads: no number to claim, ready on its first frame, gone by itself (a quick load never shows)
@@ -105,7 +107,7 @@ const __mojMana = (${playShellManaRuntime.toString()});`;
  * stack to it, and closes it for a level. A close the runner makes is never the player's back.
  */
 export function playShellManaRuntime(cfg, api) {
-  const M = cfg.mana, UI = { ui: { title: api.title, version: '', settings: { sound: api.settings().sfxOn ? 1 : 0 }, load: { place: '', ready: false }, moments: [], pause: { title: 'paused', controlsTitle: 'controls', items: [], rows: [] } } };
+  const M = cfg.mana, UI = { ui: { title: api.title, version: '', settings: { sound: api.settings().sfxOn ? 1 : 0 }, load: { place: '', ready: false }, moments: [], pause: { title: 'paused', sub: '', controlsTitle: 'controls', items: [], rows: [], aside: null } } };
   // (whether a level is the player's now, asked of the shell each time it is read: the pause button's)
   Object.defineProperty(UI.ui, 'playing', { enumerable: true, get: () => !!api.playing() });
   const root = document.createElement('div');
@@ -154,6 +156,11 @@ export function playShellManaRuntime(cfg, api) {
     u.items = [{ label: 'resume', then: { emit: 'pause:resume' } }, { label: 'restart', then: { emit: 'pause:restart' } }, { label: 'controls', then: { open: 'controls' } },
       { label: 'sound: ' + (api.settings().sfxOn ? 'on' : 'off'), then: { emit: 'pause:sound' } }, { label: 'quit to ' + P.homeWord(), then: { emit: 'pause:quit' } }];
     u.rows = P.rows().map((r) => ({ keys: r[0], does: r[1] }));
+    // (where the run stands: the level's name under the pause's, and beside it which of how many and the time played)
+    const at = P.where ? P.where() : null, clock = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+    u.sub = at && at.title ? at.title : '';
+    u.aside = at ? [...(at.of > 1 ? [{ label: 'level', value: at.at + ' / ' + at.of }] : []), ...(Number.isFinite(at.secs) ? [{ label: 'time', value: clock(at.secs) }] : [])] : null;
+    if (u.aside && !u.aside.length) u.aside = null;
   }
   function open(id) { hush(() => { rt.close(); rt.open(id); }); up = id; view.paint(); }
 

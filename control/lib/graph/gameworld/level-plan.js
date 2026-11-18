@@ -62,6 +62,9 @@ export function stagePlan(steps) {
     const kinds = kindsOf(s);
     // (a stage with no game contract at all is a place, not a level played to a win: a hub's square, a viewer)
     if (!s.order.manifest.game) continue;
+    // (a street is won on its own simulation, brawl/brawl-practice.js: its last wave fallen, a game on its room; played by
+    // the brawl's scripted player, not walked)
+    if (s.order.manifest.brawl?.practice?.street && s.order.manifest.brawl.practice.stakes) continue;
     if (!kinds.some((k) => WINS.has(k))) { out.push({ level: levelOf(s.key), step: s.key, says: `stage '${s.key}' lays no win: nothing ends it (${kinds.join(', ') || 'no mechanics'})` }); continue; }
     if (kinds.includes('defeat-all') && !(s.order.manifest.entities ?? []).some((e) => /^foe-/.test(e?.id ?? ''))) out.push({ level: levelOf(s.key), step: s.key, says: `stage '${s.key}' is won by clearing it, with nothing stood to clear` });
   }

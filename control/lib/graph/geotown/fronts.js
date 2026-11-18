@@ -184,8 +184,10 @@ export function frontOf(front = {}, house) {
   // ── a low-rise's balconies, stacked over its front from its second storey up, in bays clear of its door: each a slab,
   // its solid balustrade, its glazed door ──
   if (front.balconies) {
-    const B = FRONT.balcony, k = Math.max(1, Math.floor((W - 2 * B.edge) / B.stride)), xs = Array.from({ length: k }, (_, i) => B.edge + B.stride * (i + 0.5) * ((W - 2 * B.edge) / (k * B.stride)));
-    for (const x of xs.filter((x) => Math.abs(x - doorX) > B.w / 2 + doorW / 2 + 0.6)) for (let s = 1; s < n; s++) {
+    // (`balconies` may say its own: { w, d, stride, edge, rail } over the low-rise's; over a shop, whose door is under
+    // its awning, a balcony may hang above the door)
+    const B = front.balconies && typeof front.balconies === 'object' ? { ...FRONT.balcony, ...front.balconies } : FRONT.balcony, k = Math.max(1, Math.floor((W - 2 * B.edge) / B.stride)), xs = Array.from({ length: k }, (_, i) => B.edge + B.stride * (i + 0.5) * ((W - 2 * B.edge) / (k * B.stride)));
+    for (const x of xs.filter((x) => !!front.shop || Math.abs(x - doorX) > B.w / 2 + doorW / 2 + 0.6)) for (let s = front.shop ? 2 : 1; s < n; s++) {
       const z = s * sh, a = x - B.w / 2, b = x + B.w / 2, d = B.d;
       out.push(...box(a, -d, b, 0, z - 0.16, z, 'trim'));
       out.push({ corners: [P(a, -d, z), P(b, -d, z), P(b, -d, z + B.rail), P(a, -d, z + B.rail)], out: [0, -1, 0], role: 'trim' });

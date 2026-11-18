@@ -159,6 +159,26 @@ describe('routing eval held-out set — frozen', () => {
   });
 });
 
+// The character loop's cards name the wardrobe by the registry's words: the hero card every card of the fantasy
+// wardrobe (outfit/styles.js FANTASY_OUTFITS), its hood's `worn` words and headgear words that are cards; the
+// revise card the same headgear and the wardrobe's first and last card. A card that drifts from the registry fails.
+describe('the character cards name the wardrobe', () => {
+  it('the hero and revise-character cards name the registry\'s outfit cards, hood words and headgear', async () => {
+    const { FANTASY_OUTFITS, SEEDED_OUTFITS } = await import('@/lib/graph/outfit/styles.js');
+    const { headgearOf } = await import('@/lib/graph/headgear/wear.js');
+    const { HOOD_WORDS } = await import('@/lib/graph/polygonizer/body-garment.js');
+    const cards = getRoutingCardCatalog(), hero = cards.get('hero').body, revise = cards.get('revise-character').body;
+    expect(FANTASY_OUTFITS.filter((w) => !SEEDED_OUTFITS[w] || !hero.includes(`\`${w}\``)), 'a fantasy card the hero card does not name').toEqual([]);
+    expect(revise).toContain(`\`${FANTASY_OUTFITS[0]}\` … \`${FANTASY_OUTFITS.at(-1)}\``);
+    const worn = hero.match(/worn: ([^,}]+)/)[1].match(/'(\w+)'/g).map((w) => w.slice(1, -1));
+    expect(worn.filter((w) => !HOOD_WORDS.worn.includes(w))).toEqual([]);
+    const hats = hero.match(/`headgear: ([^`]+)`/)[1].match(/'(\w+)'/g).map((w) => w.slice(1, -1));
+    expect(hats.length).toBeGreaterThan(0);
+    expect(hats.filter((w) => !headgearOf(w)), 'a headgear word that is not a card').toEqual([]);
+    expect(hats.filter((w) => !revise.includes(`\`${w}\``)), 'a headgear word the revise card does not name').toEqual([]);
+  });
+});
+
 describe('fixture rows with a mode', () => {
   it('each names a tool whose routing card teaches that mode (the tool name alone passed any call of it)', async () => {
     const { getRoutingCardCatalog } = await import('./loader.js');

@@ -20,6 +20,9 @@
  *     grid?:    [cols, rows],                                       // the town laid to scale (metro): blocks across (x,
  *                                                                   // east) and along (y, north), 1–4
  *     hills?:   false | { height?, span?, from? },                  // the land: metres from its lowest to its highest
+ *     fronts?:  'broken' | 'rough',                                 // a shop row's buildings each their own (render,
+ *                                                                   // shutters, height, roof; 'rough': brick, grime,
+ *                                                                   // flat roofs), an alley or a setback between some
  *     profile?: true | { walkable?, curve? },                       // its streets on profiles (profile.js): crossings level
  *     slope?:   { toward?, grade?, streets? },                      // THIS CLIMBS: its land tilted, rising `toward` a side
  *                                                                   // (n e s w) at `grade` (rise over run, 0–0.3) over
@@ -62,7 +65,9 @@ import { PATTERNS, PATTERN_IDS, DEFAULT_PATTERN, SEGMENTS, SEGMENT_IDS, SEGMENT_
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const no = (msg) => { throw new Error(`geotown: ${msg}`); };
-const KEYS = ['evoke', 'segment', 'neighbourhood', 'pattern', 'streetscape', 'grid', 'hills', 'blocks', 'margin', 'profile', 'access', 'slope', 'shops'];
+/** how a shop row is broken up (pattern.js: the row's table of that name, and its `breaks`) */
+export const FRONTS = Object.freeze(['broken', 'rough']);
+const KEYS = ['evoke', 'segment', 'neighbourhood', 'pattern', 'streetscape', 'grid', 'hills', 'blocks', 'margin', 'profile', 'access', 'slope', 'fronts', 'shops'];
 const SIDES = Object.freeze(['n', 'e', 's', 'w']);
 // a houses block's ACCESS (pattern.js `access`): how its households reach their cars
 export const ACCESS_IDS = Object.freeze(['none', 'lane', 'mutual', 'compact', 'alley']);
@@ -274,8 +279,11 @@ export function readGeotown(spec = {}) {
     slope = { ...S, ...(S.streets ? { streets: { ...S.streets } } : {}) };
     if (slope.streets && !profile) profile = {};
   }
+  // ITS FRONTS: 'broken' breaks a shop row up (pattern.js a shops row's `broken`): each shop's house its own render,
+  // paint, height and roof; unsaid, the row as it was
+  if (spec.fronts !== undefined && !FRONTS.includes(spec.fronts)) no(`fronts is ${FRONTS.map((f) => `'${f}'`).join(' | ')} (a shop row broken up: 'broken' each building its own render, shutters, height and roof; 'rough' the same gone to brick, grime and flat roofs, its road asphalt and its walks concrete; either way an alley or a setback between some)`);
   // (its shops walked into, retail/store-slot.js: each shop of a row a store from a card, entered by its own door)
   // (`shops`, not `enter`: a game's level keeps `enter` for the uses whose doors open on a scene of their own)
   const shops = readEnter(spec.shops, no);
-  return { evoke, pattern, grid, cells, mains, majors, bikes, hills, blocks, margin, ...(profile ? { profile } : {}), ...(spec.access !== undefined ? { access: spec.access } : {}), ...(slope ? { slope } : {}), ...(shops ? { shops } : {}) };
+  return { evoke, pattern, grid, cells, mains, majors, bikes, hills, blocks, margin, ...(profile ? { profile } : {}), ...(spec.access !== undefined ? { access: spec.access } : {}), ...(slope ? { slope } : {}), ...(shops ? { shops } : {}), ...(spec.fronts ? { fronts: spec.fronts } : {}) };
 }

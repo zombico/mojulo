@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readRangeWaves, stationsOf, entryOf, volleyAt, FORMATION_IDS, PATTERN_IDS, WAVE_RULES } from './brawl-waves.js';
-import { practiceOf, stepYard, resetYard, yardRead } from './brawl-practice.js';
+import { practiceOf, stepYard, resetYard, yardRead, yardOver } from './brawl-practice.js';
 import { brawlPreset } from './brawl-levels.js';
 import { brawlHash } from './brawl-core.js';
 import { solveFighter } from '../versus/versus-solver.js';
@@ -119,5 +119,40 @@ describe('brawl waves: a run', () => {
     expect(back.s.bodies.slice(1).every((b) => b.gone)).toBe(true);
     const go = () => brawlHash(run(range(two), 600, clearer).r.s);
     expect(go()).toBe(go());
+  });
+});
+
+// A GAME ON THE ROOM (`stakes`, a quick brawl's or run & gun's level): the same room, ended. Won when its waves' last
+// falls, lost at the last fall its players are allowed; a practice room (no stakes) never ends.
+describe('brawl waves: a game on the room', () => {
+  const two = [{ crowd: [{ type: 'rifleman', n: 2, hp: 30 }], formation: 'line', pattern: 'volley', after: 40 }, { crowd: [{ type: 'gunner', n: 2, hp: 30 }], formation: 'column', pattern: 'sweep', after: 40 }];
+  const game = (o = {}) => practiceOf({ belt, players: [{ recipe }], dummies: [], range: { guns: ['machine-gun'], waves: two, loop: false }, stakes: 3, ...o });
+  it('won when the last wave falls, and it steps no further', () => {
+    const { r, ev } = run(game(), 2400, clearer);
+    // (the ended room is handed back as it stands, its last frame's events with it: each clear counted once)
+    expect([...new Set(ev.filter((e) => e.t === 'waveCleared').map((e) => e.k))]).toEqual([0, 1]);
+    expect(yardOver(r)).toBe('won');
+    expect(stepYard(r, [{}])).toBe(r);
+  });
+  it('lost at the last fall allowed, the player left down; a reset starts it again', () => {
+    let r = game({ stakes: 2 });
+    const fell = (x) => { const y = { ...x, s: { ...x.s, bodies: x.s.bodies.map((b, i) => (i === 0 ? { ...b, ko: 1, st: 'ko', hp: 0 } : b)) } }; return stepYard(y, [{}]); };
+    r = fell(r);
+    expect(yardOver(r)).toBeNull();
+    expect(r.yard.falls).toBe(1);
+    expect(r.s.bodies[0].ko).toBe(0);
+    r = fell(r);
+    expect(yardOver(r)).toBe('lost');
+    expect(r.s.bodies[0].ko).toBe(1);
+    const again = resetYard(r);
+    expect(yardOver(again)).toBeNull();
+    expect(again.yard.falls).toBe(0);
+  });
+  it('a practice room has no stakes: its set done, nothing ends; the stakes are 1 to 9', () => {
+    const { r } = run(practiceOf({ belt, players: [{ recipe }], dummies: [], range: { guns: ['machine-gun'], waves: two, loop: false } }), 2400, clearer);
+    expect(yardRead(r).wave.state).toBe('done');
+    expect(yardOver(r)).toBeNull();
+    expect(r.yard.over).toBeUndefined();
+    expect(() => game({ stakes: 0 })).toThrow(/stakes/);
   });
 });

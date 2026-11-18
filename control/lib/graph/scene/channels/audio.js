@@ -25,6 +25,9 @@ export function audioChannelScript(audio) {
   // kilometres off; absent, the arena's 900)
   const reach = mixFar && mix.reach > 900 ? mix.reach : 0;
   // held voices (the sustain feature): a thruster or a jump charge given a `voice` plays it, not its own synth
+  // the ground by place (audio.surfaces, opt-in) and the sounds of a place (audio.emitters, opt-in): absent, not a byte
+  const surf = !!(audio.surfaces && audio.surfaces.length), fsOf = surf ? '__fsOf(e)' : '__AUDIO.footsteps';
+  const emit = !!(audio.emitters && audio.emitters.length);
   const thrHeld = !!(audio.thruster && audio.thruster.voice), jumpHeld = !!(audio.jump && audio.jump.charge && audio.jump.charge.voice);
   // an environment's bed (audio.bed, sfx-shelf/beds.js): a pattern of the shelf's one-shots on its own engine, under the
   // score at its own level. Absent, not a byte of it is emitted.
@@ -218,7 +221,14 @@ if (__AUDIO.on && typeof __BUS !== 'undefined') {
 // footsteps: two sources, both read-only. Controllable entities expose gait edges (gaitPhase /
 // jumped / landed — controllable-world.js computes them for exactly this); first-person walk mode
 // has no entity, so accumulated camera travel stands in for stride. Half-gait crossings = steps.
-if (__AUDIO.footsteps) {
+if (__AUDIO.footsteps) {${surf ? `
+  // the ground by place: the first box the body's feet stand in gives its step and its landing; outside every box the
+  // level's own
+  const __fsOf = (e) => {
+    const p = e.transform.pos, z = p[2] - ((e.rule && e.rule.eye) || 0);
+    for (const s of __AUDIO.surfaces) { const b = s.box; if (p[0] >= b[0] && p[1] >= b[1] && z >= b[2] && p[0] <= b[3] && p[1] <= b[4] && z <= b[5]) return { step: __AUDIO.cues[s.step], land: s.land ? __AUDIO.cues[s.land] : __AUDIO.footsteps.land }; }
+    return __AUDIO.footsteps;
+  };` : ''}
   const __gaitLast = {};
   let __walkAcc = 0;
   const __walkPrev = { x: null, y: null };
@@ -232,11 +242,13 @@ if (__AUDIO.footsteps) {
         // mech marching should not stomp full-volume in your ear (audio here is non-positional). No
         // pilot => every walker sounds (single-figure walk worlds unchanged).
         if (ctrl.pilotId && e.id !== ctrl.pilotId) continue;
+        // (a rider is carried, not walking: no steps while in a car or in a saddle; its ride is heard instead)
+        if (e.mountedOn || e.gone) continue;
         const last = __gaitLast[e.id] || (__gaitLast[e.id] = { ix: 0, jumped: false, landed: false });
         const ix = Math.floor((e.gaitPhase || 0) * 2);
-        if (e.moving && e.grounded !== false && ix !== last.ix) __beatsCue(__AUDIO.footsteps.step, __AUDIO.footsteps.gain);
+        if (e.moving && e.grounded !== false && ix !== last.ix) __beatsCue(${fsOf}.step, __AUDIO.footsteps.gain);
         if (e.jumped && !last.jumped) __beatsCue(__AUDIO.footsteps.jump);
-        if (e.landed && !last.landed) __beatsCue(__AUDIO.footsteps.land);
+        if (e.landed && !last.landed) __beatsCue(${fsOf}.land);
         last.ix = ix; last.jumped = !!e.jumped; last.landed = !!e.landed;
       }
     }
@@ -249,7 +261,27 @@ if (__AUDIO.footsteps) {
     } else { __walkPrev.x = null; __walkPrev.y = null; }
   })();
 }
-// weapon SFX: watch controllable entities' weapon state (read-only, presentation-only — the same
+${emit ? `// the sounds of a place (audio.emitters): each sounds its cue again after a wait rolled between its bounds, on its
+// own dice, heard by the listener's distance and not past its reach. Presentation only: nothing reads it back.
+{
+  const __emS = __AUDIO.emitters.map((E, i) => ({ s: (Math.imul(i + 1, 2654435761) + 12345) >>> 0, t: 0 }));
+  const __emR = (S) => { S.s = (Math.imul(S.s, 1664525) + 1013904223) >>> 0; return S.s / 4294967296; };
+  __emS.forEach((S, i) => { S.t = __emR(S) * __AUDIO.emitters[i].every[1]; });
+  let __emT = performance.now() / 1000;
+  (function __beatsPlaces() {
+    requestAnimationFrame(__beatsPlaces);
+    const now = performance.now() / 1000, dt = Math.min(0.25, now - __emT); __emT = now;
+    if (!__beatsEng || __beatsMuted) return;
+    for (let i = 0; i < __AUDIO.emitters.length; i++) {
+      const E = __AUDIO.emitters[i], S = __emS[i];
+      S.t -= dt; if (S.t > 0) continue;
+      S.t = E.every[0] + (E.every[1] - E.every[0]) * __emR(S);
+      const g = Math.max(0, 1 - Math.hypot(camera.position.x - E.at[0], camera.position.y - E.at[1], camera.position.z - E.at[2]) / E.reach), gain = g * g * (E.level == null ? 1 : E.level);
+      if (gain > 0.02) __beatsCue(__AUDIO.cues[E.cue], gain);
+    }
+  })();
+}
+` : ''}// weapon SFX: watch controllable entities' weapon state (read-only, presentation-only — the same
 // posture as footsteps) and fire a cue on each new round (weapon.shots increments), and optionally
 // on a landed hit / on a reload. Muted-capture-safe: the whole audio channel is absent on captures.
 if (__AUDIO.weapon) {
@@ -406,27 +438,102 @@ ${audio.moves ? `// a MOVESET's sounds (audio.moves, beats-world.js; gameworld/c
     }
   })();
 })();
+` : ''}${audio.ambience ? `// a place's own held sound (audio.ambience: a city's traffic far off, gameworld/sound-sheet.js citySounds): held under
+// the bed while the level plays, quieter from inside a car. Read-only and presentation-only. (No backticks.)
+(function () {
+  const A = __AUDIO.ambience; let H = null, lv = 1;
+  (function __beatsAmbience() {
+    requestAnimationFrame(__beatsAmbience);
+    if (!__beatsEng) return;
+    if (!H) { try { H = __beatsEng.sustain(Object.assign({}, A.voice, { level: (A.voice.level == null ? 1 : A.voice.level) * A.level })); } catch (e) { return; } }
+    const c = window.__mojCtrl && window.__mojCtrl.world, P = c && c.byId && c.byId[c.pilotId], inside = !!(P && P.mount && P.riderId);
+    lv += ((inside ? 0.25 : 0.6) - lv) * 0.03;
+    H.set(__beatsMuted ? 0 : lv);
+  })();
+})();
 ` : ''}${audio.engine ? `// a ride's ENGINE (audio.engine, beats-world.js; gameworld/sound-sheet.js rideSound): a held voice driven by the
 // pilot's own travel speed over the ride's top, from its idle up, smoothed so a stop winds down. Built lazily on
 // unlock; silent while muted or with no pilot. Read-only and presentation-only. (No backticks.)
 (function () {
   const E = __AUDIO.engine, K = { pos: null, t: 0, speed: 0 };
-  let H = null;
+${audio.engine.cab ? `  // (a car's revs through its GEARS: in each gear the engine climbs from a third of its range to the top and drops back
+  // as the next gear takes up, so a car pulling away is heard changing up, not one long rising whine; stopped, it idles)
+  const __GEARS = [0.18, 0.36, 0.56, 0.78, 1];
+  const __rev = (v) => { const f = Math.max(0, Math.min(1, v / E.top)); if (f < 0.01) return E.idle; let lo = 0; for (const hi of __GEARS) { if (f <= hi) return E.idle + (1 - E.idle) * (lo ? 0.34 : 0.06 + 0.28 * Math.min(1, f / 0.04)) + (1 - E.idle) * 0.66 * ((f - lo) / (hi - lo)); lo = hi; } return 1; };
+  const __gearOf = (v) => { const f = Math.max(0, Math.min(1, v / E.top)); let i = 0; while (i < __GEARS.length - 1 && f > __GEARS[i]) i++; return i; };
+` : ''}  let H = null;
   (function __beatsEngine() {
     requestAnimationFrame(__beatsEngine);
     if (!__beatsEng) return;
-    if (!H) { try { H = __beatsEng.sustain(Object.assign({}, E.voice, { level: (E.voice.level == null ? 1 : E.voice.level) * E.level })); } catch (e) { return; } }
-    const ctrl = window.__mojCtrl && window.__mojCtrl.world, P = ctrl && ctrl.byId && ctrl.byId[ctrl.pilotId];
+${audio.engine.cab ? `    // (THE CAR'S SOUND DESIGN, a city's: gameworld/sound-sheet.js citySounds. Whoever is at the wheel: while a car is
+    // driven the pilot is the car, the one who got in its rider. Getting in: the door opened as they reach it, shut as
+    // they sit, the starter cranking and the engine catching a moment on. Getting out: the engine stopped, the door
+    // opened and shut. Walking is its own sound and hears no engine, not even an idle)
+    const __cw = window.__mojCtrl && window.__mojCtrl.world, __cp = __cw && __cw.byId && __cw.byId[__cw.pilotId];
+    const __hero = __cp && __cp.mount ? __cw.byId[__cp.riderId] || null : __cp, __phase = __hero && __hero.mountedOn ? __hero.mountPhase || 'ride' : null;
+    const __t = performance.now() / 1000, __cue = function (k, g) { __beatsCue(__AUDIO.cues && __AUDIO.cues[k], g); };
+    if (__phase !== K.phase) {
+      if (__phase === 'mount') __cue('car:open');
+      if (__phase === 'ride' && K.phase !== 'ride') { __cue('car:door'); K.startAt = __t + 0.3; }
+      if (__phase === 'dismount') { if (K.started) __cue('car:off'); K.started = false; K.startAt = 0; K.runAt = 0; __cue('car:open', 0.8); }
+      if (!__phase && K.phase) { __cue('car:door'); K.started = false; K.startAt = 0; K.runAt = 0; }
+      K.phase = __phase;
+    }
+    if (K.startAt && __t >= K.startAt) { K.startAt = 0; __cue('car:start'); K.runAt = __t + 0.75; }
+    if (K.runAt && __t >= K.runAt) { K.runAt = 0; K.started = true; }
+    const __rides = !!K.started && __phase === 'ride';
+    const __held = function (v, lv) { return __beatsEng.sustain(Object.assign({}, v, { level: (v.level == null ? 1 : v.level) * lv })); };
+    if (__rides && !H) { try { H = __held(E.voice, E.level); const D = E.drive || {}; for (const k of ['load', 'road', 'skid']) K[k] = D[k] ? __held(D[k].voice, D[k].level) : null; } catch (e) { return; } }
+    else if (!__rides && H) { H.stop(); H = null; for (const k of ['load', 'road', 'skid']) if (K[k]) { K[k].stop(); K[k] = null; } }
+` : `    if (!H) { try { H = __beatsEng.sustain(Object.assign({}, E.voice, { level: (E.voice.level == null ? 1 : E.voice.level) * E.level })); } catch (e) { return; } }
+`}    const ctrl = window.__mojCtrl && window.__mojCtrl.world, P${audio.engine.cab ? '0' : ''} = ctrl && ctrl.byId && ctrl.byId[ctrl.pilotId];
     const now = performance.now() / 1000;
-    if (P && P.transform && P.transform.pos) {
+${audio.engine.cab ? `    // (a city's cars, its cab: heard only while the pilot rides one, by that car's own speed; the door as it is got into
+    // and out of, a crash on a hard stop)
+    const P = E.cab ? (P0 && P0.mount && P0.riderId ? P0 : null) : P0;
+    if (E.cab) {
+      const riding = !!P;
+      K.riding = riding;
+      if (!riding) { K.pos = null; K.speed = 0; }
+      // (a hard stop: its speed fallen faster than any brake drops it)
+      // (the speed is smoothed, an eighth of the way a frame: a fall of more than a tenth of it in a frame is the car
+      // stopped near dead at once, which no brake does; once in a second and a half)
+      if (riding && K.prev !== undefined && K.prev > 6 && K.prev - K.speed > 0.1 * K.prev && !(now - (K.crashT || -9) < 1.5)) { K.crashT = now; __beatsCue(__AUDIO.cues && __AUDIO.cues['car:crash'], Math.min(1, K.prev / 20)); }
+      K.prev = K.speed;
+    }
+${audio.cues && audio.cues['law:siren'] ? `    // (the law's cars, gameworld/law.js: the nearest one's siren while one is about, louder the nearer, a call at a time)
+    if (P0 && P0.transform) {
+      let sd = Infinity;
+      for (const c of ctrl.entities) if (c.carBody && !c.gone) sd = Math.min(sd, Math.hypot(c.transform.pos[0] - P0.transform.pos[0], c.transform.pos[1] - P0.transform.pos[1]));
+      if (sd < 110 && !(now - (K.sirenT || -9) < 2.3)) { K.sirenT = now; __beatsCue(__AUDIO.cues['law:siren'], Math.max(0.15, 1 - sd / 110)); }
+    }
+` : ''}` : ''}    if (P && P.transform && P.transform.pos) {
       const p = P.transform.pos, dt = now - K.t;
       if (K.pos && dt > 0 && dt < 0.5) { const d = Math.hypot(p[0] - K.pos[0], p[1] - K.pos[1], (p[2] || 0) - (K.pos[2] || 0)); K.speed += (d / dt - K.speed) * 0.12; }
       K.pos = [p[0], p[1], p[2] || 0]; K.t = now;
     } else K.speed *= 0.9;
     const x = E.idle + (1 - E.idle) * Math.max(0, Math.min(1, K.speed / E.top));
-    H.set(__beatsMuted || !P ? 0 : x);
+${audio.engine.cab ? `    // (the car at the wheel: its pedal (the growl under load, silent coasting), its speed (the tyres' roar and the wind),
+    // its tyres past their grip in a turn or under hard braking (their screech), the brakes as it stops hard, a gear
+    // changed up under the pedal)
+    if (H && P) {
+      const spd = Math.abs(P.speed || 0), thr = Math.max(0, P.throttle || 0), rpm = __rev(K.speed);
+      K.thr = (K.thr || 0) + (thr - (K.thr || 0)) * 0.15;
+      if (K.load) K.load.set(__beatsMuted ? 0 : K.thr * (0.35 + 0.65 * rpm));
+      if (K.road) K.road.set(__beatsMuted ? 0 : Math.min(1, K.speed / E.top));
+      const wb = (P.rule && P.rule.wheelbase) || 2.7, grip = (P.rule && P.rule.grip) || 1, slip = (spd * spd * Math.abs(Math.tan(P.steerAngle || 0))) / wb / (grip * 9.81);
+      if (K.skid) K.skid.set(__beatsMuted ? 0 : Math.max(P.braking && spd > 8 ? 0.4 : 0, Math.min(1, (slip - 0.8) * 2.5)));
+      if (P.braking && !K.braking && spd > 9 && !(now - (K.brakeT || -9) < 1.5)) { K.brakeT = now; __beatsCue(__AUDIO.cues && __AUDIO.cues['car:brake'], Math.min(1, spd / 25)); }
+      K.braking = !!P.braking;
+      const gear = __gearOf(K.speed);
+      if (K.gear != null && gear > K.gear && K.thr > 0.5) __beatsCue(__AUDIO.cues && __AUDIO.cues['car:shift'], 0.45);
+      K.gear = gear;
+    }
+    if (H) H.set(__beatsMuted || !P ? 0 : __rev(K.speed));` : '    H.set(__beatsMuted || !P ? 0 : x);'}
   })();
-})();
+${audio.engine.cab ? `  // (the horn: H at the wheel)
+  if (E.cab) addEventListener('keydown', function (ev) { const c = window.__mojCtrl && window.__mojCtrl.world, P = c && c.byId && c.byId[c.pilotId]; if (ev.code === 'KeyH' && !ev.repeat && P && P.mountedOn && !window.__mojMenuOpen) __beatsCue(__AUDIO.cues && __AUDIO.cues['car:horn']); });
+` : ''}})();
 ` : ''}// thruster ROAR (boost, the F key): a SUSTAINED rocket-engine voice — the acoustic twin of the
 // visual jets. Unlike the one-shot cues above it is a continuous, gain-modulated noise bed that
 // SWELLS with e.thrust (the same 0..1 the platform rule flags on boost and the jets read) and dies

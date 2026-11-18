@@ -47,6 +47,11 @@ export const MSG_OUTCOME = 'game-outcome';
 // links to, entered at the door it pairs with (game-init params.__entry: { door }).
 //   level → shell  { moj: MSG_DOOR, levelRef, door, envelope }
 export const MSG_DOOR = 'game-door';
+// THE SAVE (presentation-side, safe to ignore): a level that keeps its own progress (its manifest's `game.save`: the
+// open city, one long level) sends what it keeps as a moment worth keeping passes; the shell holds the newest, and on a
+// continue hands it back in game-init's params.__resume, the level setting it again before its play goes on.
+//   level → shell  { moj: MSG_SAVE, levelRef, vars: { <bus var>: number } }
+export const MSG_SAVE = 'game-save';
 // presentation-only sidecars (unversioned, safe to ignore):
 //   shell → level  { moj: MSG_AUDIO, on, volume }        — settings panel audio prefs → beats channel
 //   shell → level  { moj: MSG_PAUSE, on }                — pause menu freezes / resumes the sim

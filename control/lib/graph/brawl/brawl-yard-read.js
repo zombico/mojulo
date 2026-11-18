@@ -4,6 +4,12 @@
  *
  *   yardHud(read, F, project, inputs?)   → the `brawl.practice` state (brawl-yard.js says what each part is)
  *   inputRun(runs, buttons)              → the input strip's runs after a frame's buttons
+ *   streetHud(room, names)               → what a street's screen reads beside the clinch and the gun (brawl-yard.js
+ *                                          streetSpec): `party` each player's name and health, `street` the stop they are
+ *                                          at of how many, its name and the falls left, `boss` the boss while it stands
+ *   streetMoments(moments, events, stops) → the moments after a frame's events: a stop's name as its wave comes in, GO
+ *                                          as it clears (the street is open), the boss's name as it comes in; the last
+ *                                          few kept (`stops`: each wave's name, by its order)
  *
  * Pure: no clock, no dice.
  */
@@ -70,4 +76,33 @@ export function inputRun(runs, { x = 0, z = 0, a, h, j, s } = {}) {
   if (last && last.key === key) return [...runs.slice(0, -1), { ...last, n: last.n + 1, text: `${dir}${btn ? ` + ${btn}` : ''} (${last.n + 1}f)` }];
   if (key === '•' && !btn && last && last.key === '•') return runs;
   return [...runs, { key, n: 1, text: `${dir}${btn ? ` + ${btn}` : ''}` }].slice(-10);
+}
+
+/** What a street's screen reads from its room (a room of streetRoomOf: its sim, its mind, its stakes). */
+export function streetHud(room, names = []) {
+  const { s, yard, ctx, mind } = room, P = yard.players;
+  const party = s.bodies.slice(0, P).map((p, i) => ({ name: names[i] ?? `P${i + 1}`, hp: Math.max(0, p.hp), hpMax: ctx.fighters[p.fi].hp }));
+  const of = mind.waves.length, at = Math.min(of, mind.wave + 1);
+  const bossId = Object.keys(mind.bosses ?? {}).map(Number).find((id) => !s.bodies[id].gone && !s.bodies[id].ko);
+  const B = bossId === undefined ? null : s.bodies[bossId];
+  return {
+    party,
+    street: { stop: at, of, name: mind.begun === mind.wave ? (yard.spec?.waves?.[mind.wave]?.name ?? '') : '', lives: Math.max(0, yard.stakes - yard.falls), livesMax: yard.stakes },
+    boss: B ? { on: true, name: mind.bosses[bossId].name, hp: Math.max(0, B.hp), hpMax: yard.hp[bossId], phases: mind.bosses[bossId].stages ? mind.bosses[bossId].stages.length : 1, statuses: [] } : { on: false, name: '', hp: 0, hpMax: 1, phases: 1, statuses: [] },
+  };
+}
+
+/** The moments after a frame's events (a street's banner): the last four kept, each its own id. */
+export function streetMoments(moments, events, stops = []) {
+  let out = moments, n = moments.length ? moments[moments.length - 1].n + 1 : 0;
+  const add = (text, weight, sub) => { out = [...out, { id: `m${n}`, n: n++, text, weight, ...(sub ? { sub } : {}) }].slice(-4); };
+  for (const e of events) {
+    if (e.t === 'wave' && e.screen !== undefined) { const name = stops[e.screen]; if (name) add(name, 'minor'); }
+    else if (e.t === 'boss') add(e.name, 'major');
+    // (a boss's stage begun: its name, or which of how many)
+    else if (e.t === 'bossStage') add(e.name ?? `STAGE ${e.k}`, 'major', `${e.k} / ${e.of}`);
+    else if (e.t === 'stageClear') add('CLEAR', 'decisive');
+    else if (e.t === 'cleared') add('GO', 'normal');
+  }
+  return out;
 }

@@ -67,8 +67,10 @@ describe('the intake step', () => {
   it('has a card that teaches it, its rows the table\'s', () => {
     const body = gameworldCards().get('gameworld-producer').body;
     for (const id of INTAKE_KIND_IDS) expect(body, id).toContain(INTAKE_KINDS[id].door);
-    expect(body).toMatch(/THE INTAKE, before the first goalpost/);
-    expect(body).toMatch(/the director +decides/);
+    // (the card is the producer's loop: the intake is its first step, and the patch it teaches is the door's own op)
+    expect(body).toMatch(/1 HEAR \(next: intake\)/);
+    expect(body).toMatch(/op: 'set', path: '\/intake'/);
+    expect(body).toMatch(/as PRODUCER you ask and shape, as DIRECTOR you build/);
     expect(Buffer.byteLength(body)).toBeLessThan(4096);
   });
 });

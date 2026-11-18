@@ -332,6 +332,50 @@ export const GEOCUBE_PRESETS = Object.freeze({
       { line: 'Muddy values with no clear masses.', law: 'value-groups' },
     ],
   },
+  // TOY HILL: a mascot platformer's land (the platformer's rail, gameworld/platformer-game.js). Where the valley is a
+  // place with a history (limestone, red roofs), this is a toy: few colours, each clean, the values in three masses so a
+  // platform reads at a glance. Light in weight and high in activity, the two dials no other cube turns up
+  'toy-hill': {
+    id: 'toy-hill', title: 'Toy hill', reads: 'Clean greens, cream blocks and a bright clear sky', biocube: 'meadow',
+    light: { reference: 'island-noon', outsideFog: 0.8 },
+    colour: { stone: '#e2d6bf', floor: '#b18465', trim: '#fff4d6', accent: '#c9371e', grass: '#62b24a', foliage: '#2e8f4a', water: '#3fb0e8', sand: '#f0dfae', shade: 250 },
+    register: { steps: 0, key: 0.6 },
+    contrast: 'wii',
+    surfaces: { wall: QUIET_STONE, floor: QUIET_FLAGS, accent: ROCK },
+    inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
+    // (rounded land: shallow creases and soft ridges, and no far cliff: a hill to run over, open on both sides)
+    outside: { base: 'isekai-meadow', tiers: MERU_BASES, island: MERU_ISLE, land: { ...LAND, crevice: 0.25, ridge: 0.15 }, cliff: false },
+    why: [
+      'Three masses of value: a pale sky, a mid green ground, cream blocks lighter than the ground they stand on.',
+      'Few colours, each clean: green for the land, cream for what is built, sky blue for the air.',
+      'One tomato red, for what matters; nothing else on the land is red.',
+      'Shade is a clear blue-violet, never grey: a toy in daylight.',
+      'Quiet surfaces: the shape of a platform is read before its texture.',
+    ],
+  },
+  // SHERBET ORCHARD: the mascot platformer's own land (the platformer's rail's cube). Warm pastels, the lightest cube
+  // there is: a peach floor under blossom trees, cream blocks, and one mint accent, cool against everything else
+  'sherbet-orchard': {
+    id: 'sherbet-orchard', title: 'Sherbet orchard', reads: 'Peach ground, pink blossom, cream blocks and a mint accent', biocube: 'meadow',
+    // (the seventh generation's light, era/eras.js: what moves casts a shadow each frame, the land its own at its hour,
+    // contact occlusion where things meet; the land in the round read as material under the cube's light)
+    era: 'gen-7',
+    light: { reference: 'island-noon', outsideFog: 1.1 },
+    colour: { stone: '#e6d4c5', floor: '#b18373', trim: '#fff1e0', accent: '#1fc7a0', grass: '#dba465', foliage: '#e07f98', water: '#7fd6e8', sand: '#f6e2c0', shade: 305 },
+    register: { steps: 0, key: 0.62 },
+    contrast: 'wii',
+    surfaces: { wall: QUIET_STONE, floor: QUIET_FLAGS, accent: ROCK },
+    inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
+    // (rounded land: shallow creases and soft ridges, and no far cliff: an orchard to run through, open on both sides)
+    outside: { base: 'isekai-meadow', tiers: MERU_BASES, island: MERU_ISLE, land: { ...LAND, crevice: 0.25, ridge: 0.15 }, cliff: false },
+    why: [
+      'Warm and light: peach, pink and cream, every value high, nothing heavy.',
+      'Neighbouring hues, so the land is one family; it is told apart by value, in three masses.',
+      'One mint accent, the only cool colour on the land: what matters is the thing that is not warm.',
+      'Shade is plum, never grey: the warm side of violet.',
+      'Quiet surfaces: the shape of a platform is read before its texture.',
+    ],
+  },
 });
 
 /**
@@ -350,6 +394,8 @@ export const GEOCUBE_BUILDINGS = Object.freeze({
   'city-night': { anchor: 'tiered', uses: [{ use: 'shop', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'lab', enter: 'door' }, { use: 'hall', enter: 'walk' }, { use: 'tower', enter: 'walk' }, { use: 'dwelling', enter: 'door' }] },
   'theatre-grey': { anchor: 'tiered', uses: [{ use: 'lab', enter: 'door' }, { use: 'workshop', enter: 'walk' }, { use: 'tower', enter: 'walk' }, { use: 'dwelling', enter: 'door' }] },
   'limestone-crags': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'temple', enter: 'door' }, { use: 'tower', enter: 'walk' }] },
+  'sherbet-orchard': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'tower', enter: 'walk' }] },
+  'toy-hill': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tower', enter: 'walk' }, { use: 'hall', enter: 'walk' }] },
 });
 /**
  * The levels a preset makes, beyond its own room and land: its other terrains and interiors, and the domains that
@@ -389,10 +435,14 @@ export const GEOCUBE_PALETTES = Object.freeze({
   'upland-morning': { intent: 'limestone, red roofs and a rocky green upland in the morning', key: 'high', heat: 0.3, weight: 0, activity: 0.25, scheme: 'complementary', hues: { sky: 222, rock: 50, soil: 34, ground: 108, foliage: 126, accent: '#b8442c' } },
   'theatre-grey': { intent: 'a grey, quiet world staged in pools of light, one red for what matters', key: 'mid', heat: -0.25, weight: 0.35, activity: -0.8, scheme: 'mono-accent', hues: { rock: 230 }, lock: { accent: '#b8261e' } },
   'limestone-crags': { intent: 'pale limestone crags, dry olive scrub and a high clear sky', key: 'high', heat: 0.3, weight: 0.1, activity: -0.2, scheme: 'complementary', hues: { soil: 36, ground: 78, foliage: 96 }, lock: { rock: '#c4b69c', sky: '#8db8e4' }, values: { groups: 3 } },
+  'toy-hill': { intent: 'a toy hill on a clear day: clean greens, cream blocks, a bright sky, one tomato red', key: 'high', heat: 0.3, weight: -0.6, activity: 0.8, scheme: 'triad', hues: { sky: 235, ground: 135, foliage: 150, rock: 85, soil: 55 }, lock: { accent: '#c9371e' }, values: { groups: 3 } },
+  // (the blossom is LOCKED pink: the solve's own foliage is a dark plum, in the land's value group; a pink blossom is
+  // lighter than that group, which the value-groups law says, and it is the orchard's point)
+  'sherbet-orchard': { intent: 'sherbet pastels: peach ground, pink blossom, a mint accent', key: 'high', heat: 0.6, weight: -0.8, activity: 0.7, scheme: 'analogous', hues: { sky: 215, ground: 70, foliage: 10, rock: 60, soil: 40, accent: '#3fc9a0' }, lock: { foliage: '#e8789a' }, values: { groups: 3 } },
   'city-night': { intent: 'concrete, asphalt and neon under a glowing night sky', key: 'low', heat: -0.3, weight: 0.4, activity: 0.5, scheme: 'mono-accent', hues: { rock: 220 }, lock: { accent: '#ff3d7f' } },
 });
 // each preset's principles that name its colours: under a solved palette they give way to the palette's own reading
-const COLOUR_WHY = Object.freeze({ 'gothic-night': [0, 1, 2, 3], 'island-noon': [0, 1], 'jungle-haze': [0, 2, 3], 'valley-morning': [2, 4], 'upland-morning': [2, 4], 'theatre-grey': [1, 2], 'limestone-crags': [2, 5] , 'city-night': [0, 1] });
+const COLOUR_WHY = Object.freeze({ 'gothic-night': [0, 1, 2, 3], 'island-noon': [0, 1], 'jungle-haze': [0, 2, 3], 'valley-morning': [2, 4], 'upland-morning': [2, 4], 'theatre-grey': [1, 2], 'limestone-crags': [2, 5] , 'city-night': [0, 1], 'toy-hill': [0, 1, 2, 3], 'sherbet-orchard': [0, 1, 2, 3] });
 // a written colour with a role of its own is a lock the solve fits the rest round; trim, water and sand are kept as written
 const LOCK_ROLE = Object.freeze({ stone: 'rock', floor: 'soil', grass: 'ground', foliage: 'foliage', accent: 'accent' });
 /** A palette the cube is solved from: a spec with its seed (stamped at authoring time). */
@@ -410,6 +460,11 @@ const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
+// A LEVEL LAID ON THE PLACE AS IT STANDS (gameworld/mission-site.js: a mission on a cube's building, its yard and its
+// weather): the page's own channels a level rides, each read by the world's resolve as on any kind and by nothing here;
+// and a camera that is the page's (an entity's, with a `rule`) is not a still. Absent, the kind is as it was.
+const LEVEL_KEYS = Object.freeze(['events', 'audio', 'mission', 'game', 'parked']);
+const pageCamera = (c) => !!c && typeof c === 'object' && typeof c.rule === 'string';
 // a relief checked where the cube names it: its own words, said as the cube's
 const reliefOrNo = (v, at) => { try { readRelief(v); } catch (e) { no(`${at}: ${e.message.replace(/^relief: /, '')}`); } };
 const groundOrNo = (v, at) => { try { readGround(v); } catch (e) { no(`${at}${e.message.replace(/^local-meru: ground/, '')}`); } };
@@ -1394,9 +1449,9 @@ function withTownCameras(payload, site) {
     cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart', 'fxStyle'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, words, hall, skandart; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'sea', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart', 'fxStyle', ...LEVEL_KEYS].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, sea, words, hall, skandart; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
   // (`camera`: the still it is first seen from, STILLS: a camera glyph's, gameworld/glyph-words.js)
-  if (manifest.camera !== undefined && !STILLS.includes(manifest.camera)) no(`camera is the still it is first seen from: ${STILLS.join(', ')}`);
+  if (manifest.camera !== undefined && !pageCamera(manifest.camera) && !STILLS.includes(manifest.camera)) no(`camera is the still it is first seen from: ${STILLS.join(', ')}`);
   // (`words`, and its `brief`: the words a scene was asked in and what each decided, written at authoring time into the
   // keys above, gameworld/scene-words.js; the build reads the keys. And the page's live light, which world-scene reads:
   // shadows, occlusion, light.tier; scene/live-light.js)
@@ -1414,7 +1469,7 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   if (!SHOW.includes(show)) no(`show is ${SHOW.slice(0, -1).map((s) => `'${s}'`).join(', ')} or '${SHOW[SHOW.length - 1]}'`);
   // (inside: the cube's room, or a hall walked through its interior: in-hall.js)
   const inside = show === 'room' || show === 'hall';
-  if (manifest.camera !== undefined && inside) no('camera is a still of the outside: show \'land\', \'trail\', \'path\' or \'town\'');
+  if (manifest.camera !== undefined && !pageCamera(manifest.camera) && inside) no('camera is a still of the outside: show \'land\', \'trail\', \'path\' or \'town\'');
   // (`cone`: gameplay's view cone, its reach in metres, read by the outside's form render; scene/channels/view-cone.js)
   if (manifest.cone !== undefined) { if (inside) no('cone is the view cone over the outside\'s grass: show \'land\', \'trail\', \'path\' or \'town\''); readCone(manifest.cone); }
   if (manifest.hall !== undefined && show !== 'hall') no('hall is the walk through the cube\'s interior (era/in-hall.js): show \'hall\'');
@@ -1480,7 +1535,7 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   if (show === 'room') withAccent(payload, onInterior(cube, D?.interior).inside.accentWall, cube.surfaces.accent);
   else if (show === 'hall') withAccent(payload, '+y', cube.surfaces.accent, ((B) => (B ? [B.min[0], B.min[1], B.max[0], B.max[1]] : null))((payload.rooms || []).find((r) => r.id === payload.hall.beats.find((b) => b.kind === 'landmark')?.room)?.box), false);
   else withIslandCamera(payload);
-  if (manifest.camera !== undefined) withStill(payload, manifest.camera);
+  if (manifest.camera !== undefined && !pageCamera(manifest.camera)) withStill(payload, manifest.camera);
   // (what its ground is, era/substrate.js: a street's land, read off the trail it stands on)
   const sub = low.kind === 'stage' && low.trail !== undefined && low.meru === undefined ? substrateOf(low).shares : null;
   payload.geocube = { ...geocubeReadout(cube, show, P, manifest), ...(sub ? { substrate: sub } : {}),

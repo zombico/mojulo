@@ -21,8 +21,10 @@ export const SCREENS = Object.freeze({
   tablet: Object.freeze({ aspect: Object.freeze([4, 3]), says: 'a tablet on its side, iPad-shaped (4:3; orientation portrait stands it up)' }),
   screen: Object.freeze({ aspect: Object.freeze([16, 9]), says: 'a monitor or a TV (16:9; a wider one shows more at the sides)' }),
 });
-/** The screen design_game writes into a gameworld it starts when none is named. */
-export const NEW_GAME_SCREEN = 'phone';
+/** The screen design_game writes into a gameworld it starts when none is named: none (null), so a new game fills the
+ * window it is given; a game for a phone names it (`screen: 'phone'`). Until 2026-11-16 this was 'phone', which stood
+ * every new game upright in a strip on a desktop. */
+export const NEW_GAME_SCREEN = null;
 /** How much longer than the frame a device's long axis may show before the page bars it. */
 export const REACH = 4 / 3;
 const ORIENTATIONS = ['portrait', 'landscape'];

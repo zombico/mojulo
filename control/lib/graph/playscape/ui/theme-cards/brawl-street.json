@@ -1,0 +1,62 @@
+{
+  "id": "brawl-street",
+  "name": "Brawl Street",
+  "about": "A side-scrolling action game in play: a beat-'em-up's street or a run & gun's. Four seats across the top, a quarter of the screen each, every seat in its own colour; health read by its length, the gun and its rounds in stencilled pictograms; asphalt plates and a hazard yellow, upper case and heavy, read across a couch. The middle of the screen is the fight's.",
+  "family": "brawl",
+  "tags": [
+    "beat em up",
+    "brawler",
+    "run and gun",
+    "side-scroller",
+    "couch co-op"
+  ],
+  "author": "mojulo",
+  "tokens": {
+    "ink": "#f4f1e8",
+    "panel": "#15161a",
+    "line": "#4a4c52",
+    "accent": "#ffc61a",
+    "accent2": "#ff5a2a",
+    "harm": "#e8402a",
+    "hp": "#ffc61a",
+    "xp": "#3ad2ff",
+    "stamina": "#7ad26a",
+    "shield": "#9ad2ff",
+    "boss": "#e8402a"
+  },
+  "type": {
+    "body": "system",
+    "display": "display",
+    "mono": "mono"
+  },
+  "frame": "heavy",
+  "corner": "cut",
+  "plate": "flat",
+  "focus": "bar",
+  "motion": "snap",
+  "fills": "solid",
+  "scale": "normal",
+  "case": "upper",
+  "distance": "couch",
+  "halo": "outline",
+  "cues": "ticks",
+  "slant": "none",
+  "transition": "wipe",
+  "backdrop": "dim",
+  "material": "none",
+  "backing": "none",
+  "crest": "none",
+  "breakout": "none",
+  "overlay": "none",
+  "stage": "none",
+  "sounds": "chip",
+  "ornaments": [],
+  "sides": [
+    "#ffc61a",
+    "#3ad2ff",
+    "#ff5a2a",
+    "#7ad26a"
+  ],
+  "icons": "stencil",
+  "iconTone": "meaning"
+}

@@ -19,11 +19,22 @@
  *     (`in` is the transition into the shot: 'cut' | 'fade' | 'wipe' | 'iris' | 'pipe', or { type, duration, … })
  *   add_piece { piece }   set_piece { piece, …fields }   piece_key { piece, key }   remove_piece { piece }
  *   set { fps }
+ *   frame { camera, t, on, size?, angle?, side?, place?, lens?, dutch?, follow?, ease?, shot? }   a key said in words
+ *     (framing.js): the camera placed on the subject `on` at `t`, riding it unless `follow: false`; a camera not there
+ *     yet is added (with a shot over its keys unless `shot: false`); the key at `t` is replaced
+ *   move { camera, t, move, on, for?, …its words }   a named move (moves.js: push_in, arc, crane_up, whip_pan, …) laid
+ *     from `t`: its keys replace the camera's keys in its span; a shake (handheld, steadicam, run, rumble) is the
+ *     camera's shake over it; a camera not there yet is added, with a shot over the move unless `shot: false`
+ *   set_camera { …, shake }                     a shake style, { style, amount, span }, or null to take it off
  */
 import { parseLens } from './lens.js';
+import { moveOf, moveSeconds, MOVES } from './moves.js';
 
 export const SHOOT_OPS = ['add_camera', 'remove_camera', 'set_camera', 'add_key', 'set_key', 'remove_key', 'ease', 'retime',
-  'add_shot', 'set_shot', 'remove_shot', 'move_shot', 'add_piece', 'set_piece', 'piece_key', 'remove_piece', 'set'];
+  'add_shot', 'set_shot', 'remove_shot', 'move_shot', 'add_piece', 'set_piece', 'piece_key', 'remove_piece', 'set', 'frame', 'move'];
+
+/** the words a `frame` op carries to its key (framing.js) */
+const FRAME_WORDS = ['on', 'size', 'angle', 'side', 'place', 'lens', 'dutch', 'follow', 'heading', 'height'];
 
 const AIM_M = 10;   // where a one-node camera's new point of interest goes: this far down its view axis (sample.js)
 const sameT = (a, b) => Math.abs(a - b) < 1e-6;
@@ -70,6 +81,8 @@ function convertType(cam, to) {
 
 function keyPatch(k, f) {
   const out = { ...k };
+  // a key moved or re-aimed by hand is no longer the framing its words said
+  if (f.pos !== undefined || f.poi !== undefined || f.yaw !== undefined || f.pitch !== undefined) { delete out.about; delete out.framing; }
   for (const name of ['pos', 'poi', 'yaw', 'pitch', 'roll', 'ease']) if (f[name] !== undefined) out[name] = f[name];
   const lens = f.lens ?? f.focal_mm;
   if (lens !== undefined) {
@@ -111,6 +124,7 @@ export function applyShootOp(plan, op) {
       if (op.name !== undefined) cam.name = op.name;
       if (op.path !== undefined) cam.path = op.path;
       if (op.film_mm !== undefined) cam.film_mm = op.film_mm;
+      if (op.shake !== undefined) { if (op.shake === null || op.shake === false) delete cam.shake; else cam.shake = op.shake; }
       if (op.lens !== undefined || op.focal_mm !== undefined) cam.keys = cam.keys.map((k) => keyPatch(k, { lens: op.lens ?? op.focal_mm }));
       if (op.type !== undefined) {
         const to = String(op.type).toLowerCase().replace(/[\s-]+/g, '_').replace(/^(\d)_?node$/, (m, d) => (d === '1' ? 'one_node' : 'two_node')).replace(/^twonode$/, 'two_node').replace(/^onenode$/, 'one_node');
@@ -119,6 +133,47 @@ export function applyShootOp(plan, op) {
       }
       put(cam);
       return { plan: next, note: `set camera ${cam.id}` };
+    }
+    case 'frame': {
+      if (!Number.isFinite(op.t) || op.t < 0) throw new Error('frame needs `t`, the key\'s time in seconds');
+      if (op.on == null) throw new Error('frame needs `on`: a subject\'s id (walker:0, car:2, entity:hero) or a point [x,y,z]');
+      const id = typeof op.camera === 'string' && op.camera.trim() ? op.camera.trim() : null;
+      const words = Object.fromEntries(FRAME_WORDS.filter((w) => op[w] !== undefined).map((w) => [w, op[w]]));
+      const key = { t: op.t, frame: words, ...(op.ease !== undefined ? { ease: op.ease } : {}) };
+      const was = id && next.cameras.find((c) => c.id === id);
+      if (!was) {
+        let cid = id, n = next.cameras.length + 1;
+        while (!cid || next.cameras.some((c) => c.id === cid)) cid = `cam${n++}`;
+        next.cameras.push({ id: cid, type: 'two_node', keys: [key] });
+        if (op.shot !== false) next.shots.push({ name: cid, camera: cid });
+        return { plan: next, note: `added camera ${cid} framing ${typeof op.on === 'string' ? op.on : 'a point'}${op.shot !== false ? ', and a shot for it' : ''}` };
+      }
+      if (was.type !== 'two_node') throw new Error(`${was.id} is a one-node camera; set_camera { type: 'two-node' } first, or frame with a new camera`);
+      const keys = was.keys.filter((k) => !sameT(k.t, op.t));
+      put({ ...was, keys: [...keys, key] });
+      return { plan: next, note: `${keys.length < was.keys.length ? 'reframed' : 'framed'} ${was.id} at ${op.t}s on ${typeof op.on === 'string' ? op.on : 'a point'}` };
+    }
+    case 'move': {
+      const kind = op.move ?? op.kind, row = moveOf(kind);
+      if (!row) throw new Error(`unknown move '${kind}' (moves: ${MOVES.map((m) => m.id).join(', ')})`);
+      if (!Number.isFinite(op.t) || op.t < 0) throw new Error('move needs `t`, the second it starts');
+      if (!row.shake && op.on == null) throw new Error(`${row.id} needs \`on\`: a subject's id (walker:0, car:2, entity:hero) or a point [x,y,z]`);
+      const { op: _o, camera: _c, t, move: _m, kind: _k, shot, ...words } = op;
+      const spec = { kind: row.id, ...words };
+      const key = { t, move: spec }, dur = moveSeconds(spec);
+      const id = typeof op.camera === 'string' && op.camera.trim() ? op.camera.trim() : null;
+      const was = id && next.cameras.find((c) => c.id === id);
+      if (!was) {
+        if (row.shake) throw new Error(`a shake is laid over a camera's keys: ${id ? `no camera '${id}'` : 'name the camera'}`);
+        let cid = id, n = next.cameras.length + 1;
+        while (!cid || next.cameras.some((c) => c.id === cid)) cid = `cam${n++}`;
+        next.cameras.push({ id: cid, type: 'two_node', keys: [key] });
+        if (shot !== false) next.shots.push({ name: cid, camera: cid, span: [t, t + dur] });
+        return { plan: next, note: `added camera ${cid} with a ${row.id.replace(/_/g, ' ')} from ${t}s for ${dur}s${shot !== false ? ', and a shot for it' : ''}` };
+      }
+      if (!row.shake && was.type !== 'two_node') throw new Error(`${was.id} is a one-node camera; set_camera { type: 'two-node' } first, or move a new camera`);
+      put({ ...was, keys: [...was.keys, key] });
+      return { plan: next, note: row.shake ? `${was.id} shakes ${row.id}${dur ? ` from ${t}s for ${dur}s` : ''}` : `${was.id}: a ${row.id.replace(/_/g, ' ')} from ${t}s for ${dur}s` };
     }
     case 'add_key': {
       const cam = cameraOf(next, op.camera);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readBelt, beltPoint, screenAt, heldAt, viewHalf, beltScroll, beltBounds, beltCamera, BELT_ANGLES, BELT_ANGLE_IDS } from './brawl-belt.js';
+import { readBelt, beltPoint, screenAt, heldAt, viewHalf, beltScroll, beltBounds, beltCamera, BELT_ANGLES, BELT_ANGLE_IDS, beltFloor, RISE_LIMITS, beltTurn, TURN_LIMITS, beltDrift, DRIFT_LIMITS } from './brawl-belt.js';
 import { brawlLevel, brawlPreset, readBrawlLevel, BRAWL_PRESETS, BRAWL_STAGE_KITS } from './brawl-levels.js';
 import { STAGE_KITS } from '../era/stage.js';
 import { readGreybox } from '../level/greybox-scene.js';
@@ -162,5 +162,75 @@ describe('brawl levels: the belt in the indoor designer\'s rooms', () => {
   });
   it('refuses a kit it has no rooms for', () => {
     expect(() => readBrawlLevel({ kind: 'stage', kit: 'moon-base' })).toThrow(/kit/);
+  });
+});
+
+describe('a belt that rises', () => {
+  const flat = { at: [0, 0], heading: 0, depth: [-2.5, 2.5], screens: [{ length: 20 }, { length: 20, gate: true }] };
+  const rise = [[0, 0], [10, 0], [14, 1.2], [40, 1.2]];
+  it('its floor is a line through its points, level before the first and past the last; a flat belt\'s is 0', () => {
+    const B = readBelt({ ...flat, rise }, 'belt');
+    expect(beltFloor(B, 5)).toBe(0); expect(beltFloor(B, 12)).toBeCloseTo(0.6, 6); expect(beltFloor(B, 30)).toBe(1.2); expect(beltFloor(B, 99)).toBe(1.2);
+    expect(beltFloor(readBelt(flat, 'belt'), 12)).toBe(0);
+    // (a rise that never leaves the floor is no rise: the belt as it was, not a word more)
+    expect(readBelt({ ...flat, rise: [[0, 0], [40, 0]] }, 'belt')).toEqual(readBelt(flat, 'belt'));
+  });
+  it('the camera rises with the floor it looks at, and looks the same way', () => {
+    const B = readBelt({ ...flat, rise }, 'belt'), F = readBelt(flat, 'belt'), a = beltCamera(B, 30), b = beltCamera(F, 30);
+    expect(a.lookAt[2] - b.lookAt[2]).toBeCloseTo(1.2, 6); expect(a.cameraPosition[2] - b.cameraPosition[2]).toBeCloseTo(1.2, 6);
+    expect(a.cameraPosition.slice(0, 2)).toEqual(b.cameraPosition.slice(0, 2));
+  });
+  it('a fault is said: a point off the belt, out of order, or steeper than a stair', () => {
+    expect(() => readBelt({ ...flat, rise: [[0, 0], [50, 1]] }, 'belt')).toThrow(/along the belt/);
+    expect(() => readBelt({ ...flat, rise: [[10, 0], [5, 1]] }, 'belt')).toThrow(/after the point before/);
+    expect(() => readBelt({ ...flat, rise: [[10, 0], [11, RISE_LIMITS.grade + 0.5]] }, 'belt')).toThrow(/steeper than a stair/);
+  });
+});
+
+describe('a belt that turns', () => {
+  const flat = { at: [0, 0], heading: 0, depth: [-2.5, 2.5], screens: [{ length: 20 }, { length: 20, gate: true }] };
+  const turn = [[0, 0], [10, 0], [20, 30], [40, 30]];
+  it('its swing is held before its first point and past its last, eased between two; an unturned belt\'s is 0', () => {
+    const B = readBelt({ ...flat, turn }, 'belt');
+    expect(beltTurn(B, 4)).toBe(0); expect(beltTurn(B, 15)).toBeCloseTo(15, 6); expect(beltTurn(B, 12)).toBeLessThan(6); expect(beltTurn(B, 33)).toBe(30);
+    expect(beltTurn(readBelt(flat, 'belt'), 15)).toBe(0);
+    expect(readBelt({ ...flat, turn: [[0, 0], [40, 0]] }, 'belt')).toEqual(readBelt(flat, 'belt'));
+  });
+  it('the camera swings round the point it looks at: the same point, the same height, turned down the street', () => {
+    const B = readBelt({ ...flat, turn }, 'belt'), F = readBelt(flat, 'belt'), a = beltCamera(B, 30), b = beltCamera(F, 30);
+    expect(a.lookAt).toEqual(b.lookAt);
+    expect(a.cameraPosition[2]).toBeCloseTo(b.cameraPosition[2], 6);
+    // (turned to look the way the belt runs: it stands back along the belt, and less far to the near side)
+    expect(a.cameraPosition[0]).toBeLessThan(b.cameraPosition[0]);
+    expect(a.cameraPosition[1]).toBeGreaterThan(b.cameraPosition[1]);
+    const d = (c) => Math.hypot(c.cameraPosition[0] - c.lookAt[0], c.cameraPosition[1] - c.lookAt[1]);
+    expect(d(a)).toBeCloseTo(d(b), 3);
+    expect(beltCamera(B, 5)).toEqual(beltCamera(F, 5));
+  });
+  it('a fault is said: past the side view, snapped, off the belt', () => {
+    expect(() => readBelt({ ...flat, turn: [[0, 0], [30, TURN_LIMITS.yaw + 10]] }, 'belt')).toThrow(/either way/);
+    expect(() => readBelt({ ...flat, turn: [[10, 0], [11, 40]] }, 'belt')).toThrow(/walked round/);
+    expect(() => readBelt({ ...flat, turn: [[0, 0], [50, 10]] }, 'belt')).toThrow(/along the belt/);
+  });
+});
+
+describe('a belt that drifts', () => {
+  const flat = { at: [0, 0], heading: 0, depth: [-2.5, 2.5], screens: [{ length: 20 }, { length: 20, gate: true }] };
+  const drift = [[0, 0], [10, 0], [20, 6], [40, 6]];
+  it('its band slides across on a line through its points; a straight belt\'s is 0', () => {
+    const B = readBelt({ ...flat, drift }, 'belt');
+    expect(beltDrift(B, 4)).toBe(0); expect(beltDrift(B, 15)).toBeCloseTo(3, 6); expect(beltDrift(B, 33)).toBe(6);
+    expect(beltDrift(readBelt(flat, 'belt'), 15)).toBe(0);
+    expect(readBelt({ ...flat, drift: [[0, 0], [40, 0]] }, 'belt')).toEqual(readBelt(flat, 'belt'));
+  });
+  it('the camera follows the band across, square to the street as ever', () => {
+    const B = readBelt({ ...flat, drift }, 'belt'), F = readBelt(flat, 'belt'), a = beltCamera(B, 30), b = beltCamera(F, 30);
+    expect(a.lookAt[1] - b.lookAt[1]).toBeCloseTo(6, 6); expect(a.cameraPosition[1] - b.cameraPosition[1]).toBeCloseTo(6, 6);
+    expect(a.cameraPosition[0]).toBe(b.cameraPosition[0]); expect(a.cameraPosition[2]).toBe(b.cameraPosition[2]);
+  });
+  it('a fault is said: too far, too fast, off the belt', () => {
+    expect(() => readBelt({ ...flat, drift: [[0, 0], [40, DRIFT_LIMITS.across + 5]] }, 'belt')).toThrow(/across/);
+    expect(() => readBelt({ ...flat, drift: [[10, 0], [11, 3]] }, 'belt')).toThrow(/up the screen/);
+    expect(() => readBelt({ ...flat, drift: [[0, 0], [50, 1]] }, 'belt')).toThrow(/along the belt/);
   });
 });

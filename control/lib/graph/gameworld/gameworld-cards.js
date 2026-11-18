@@ -14,6 +14,7 @@
  * Pure.
  */
 import { MOTIVATIONS, LABOURS, WORLD_SHAPES, ORDER_KINDS, SIDE_SHARE } from './gmn.js';
+import { RAIL_IDS, SIZES, OWN, seenSays, railOf, railShapes, railSheet } from './rails.js';
 import { COATS } from '../mount/coats.js';
 import { ERRAND_LAWS } from './errand.js';
 import { GAME_BODIES, GAME_BODY_NAMES } from './game-bodies.js';
@@ -68,6 +69,7 @@ import { RACE_MOOD_IDS } from '../roads/race-mood.js';
 import { VEHICLES, TUNINGS, CONDITIONS, wheelLayout } from '../roads/vehicles.js';
 import { MILITARY_CLASSES } from '../car-designer/road-military.js';
 import { COURSE_PRESETS } from '../roads/course.js';
+import { TRACK_LANGUAGES, LANGUAGE_OF_CLASS } from '../roads/track-language.js';
 import { SPORT_PRESETS } from '../contest/sport-presets.js';
 import { MATCH_SPORT_IDS, TURN_SPORT_IDS, TEAM_SPORT_IDS, INNINGS_SPORT_IDS } from '../contest/sports.js';
 import { GENRES, genreCube } from './intent.js';
@@ -95,6 +97,10 @@ import { INTENT_LOOKS } from '../playscape/ui/interface-look.js';
 import { THEME_CARD_IDS } from '../playscape/ui/theme-cards/loader.js';
 import { THEME_WORDS, THEME_FAMILIES } from '../../mana-ui/theme.js';
 import { FLOW_KINDS, SCREEN_EVENTS, LEVEL_EVENTS, FLOW_SPECIALS, FLOW_GUARDS, FLOW_IN_PLAY } from '../game/flow.js';
+import { SECTIONS, BANDS, TASKS, MISSION_LIMITS, MISSION_DEFAULTS, MISSION_MAPS, MISSION_BUILDINGS } from '../mission/index.js';
+import { TEMPLATE_IDS } from '../arena-map/templates.js';
+import { DRESS_SETTINGS, DRESS_SETTING_IDS, DRESS_PIECES, DRESS_PIECE_IDS } from '../brawl/brawl-dress.js';
+import { PLAY_TYPES, PLAY_IDS } from '../brawl/brawl-play.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -147,33 +153,42 @@ function ledgerCard() {
   );
 }
 
-// the producer: the seat that runs the work (its intake of what the creator brought, the order of the units), beside
-// the director, who decides, and the assistant director, who holds a unit to its remit. Its intake rows are the table's
+// the producer: the seat that faces the creator (the client talks to the producer, the producer to the director). It
+// knows the SHAPE of what mojulo makes (the rails) before any detail, calls the size, says the pitch back and locks it,
+// then hands the director the work. Its intake rows are the table's own
 function producerCard() {
   return lines(
-    'THE PRODUCER — the seat that runs the work, versed in doing it, not in making the art. Three seats work a game:',
-    '  the director            decides: what the game is, which proposal is kept, the vertical slice (gameworld-ledger)',
-    '  the assistant director  holds a unit to its remit: assistive, strict or elevating (the production\'s style)',
-    '  the producer            runs the work: what was brought, what is answered, what is open, which unit is next',
-    'One agent may sit in all three; say which seat a move is made from. The producer never picks between two looks and',
-    'never fills a gap with taste: what is ambiguous is listed as open and asked, the director\'s or the creator\'s to say.',
+    'THE PRODUCER — the seat that faces the creator. The creator talks to the producer; the producer hands the director',
+    'the work. One agent wears both: as PRODUCER you ask and shape, as DIRECTOR you build (gameworld-ledger); say which',
+    'seat a move is made from. The assistant director holds a unit to its remit. The producer never picks between two',
+    'looks and never fills a gap with taste: what is ambiguous is asked, the creator\'s to say.',
     '',
-    'THE INTAKE, before the first goalpost. A game starts from what the creator HAS: expect attachments. Ask once:',
-    '"do you have drawings, plans or documents for this game?" Then, for each thing brought, by its kind:',
+    'ONE QUESTION A TURN: the readout\'s `producer.ask` is the one to ask now; the rest of `next` waits. Know the SHAPE',
+    'first (gameworld-rails: a line a game type); pull detail only when the creator\'s wish reaches for it.',
+    '',
+    '1 HEAR (next: intake). A game starts from what the creator HAS: ask once for drawings, plans or documents.',
     ...Object.entries(INTAKE_KINDS).map(([id, K]) => `  ${id.padEnd(10)}${K.name} → ${K.door}  (answers: ${K.answers.join(', ')})`),
-    'You read it (you can see it); the pages are yours to write by `patch`, each from what the attachment SAYS, never',
-    'from what it might have meant. Then write the record, so the next session knows what was brought:',
-    '  { ref, patch: [{ op: \'add\', path: \'/intake\', value: { items: [{ id, kind, says, placed | aside, answers?, basis? }] } }] }',
-    '  placed  the page it went to (a JSON pointer) or a chapter\'s id        aside  why it has no place yet',
-    '  basis   stated (it says so) | inferred (read between its lines: say so to the creator)',
-    'Nothing brought is dropped: an item is placed or set aside, with why. Brought nothing: `intake: \'none\'`.',
-    'The readout\'s `intake` then says which goalposts their material answered and which are open: run the loop on',
-    'the open ones only, and do not ask again what a document already said.',
+    '  Write each from what it SAYS, never what it might have meant, then the record:',
+    '  { ref, patch: [{ op: \'set\', path: \'/intake\', value: { items: [{ id, kind, says, placed | aside, answers?, basis? }] } }] }',
+    '  placed: the page it went to; aside: why it has no place yet; basis: stated | inferred (say so). Nothing brought',
+    '  is dropped. Brought nothing: `intake: \'none\'`. Never ask again what a document already said.',
+    '2 PLACE (next: rail). Read gameworld-rails. A rail is a TEMPLATE, never the game: they are making a stealth action',
+    '  game of their own, started from Steel Serpents. The step\'s `nearest` are the rails their words point at; `notYet`',
+    '  a type no door makes yet: say it before anything is built. CALL THE SIZE, the least that answers the ask: a',
+    '  pixelizer game, a quick game, a table game, or the designed game (more than one level, or a hero, world or story',
+    '  of their own). Say what the next size up would add. Write rail: { from, size, departs? }.',
+    '3 LOCK (next: lock). Say the pitch back: the template, what their game keeps of it, where it departs (level,',
+    '  action, character, world), what the template does not do yet. With their yes write rail.locked: true: structure',
+    '  is locked, content never. On a book with no level this lays the rail\'s STARTER first level and stores the game',
+    '  (`pitch.stored`; nothing built). A locked pitch moved to another rail is a re-plan: say so.',
+    '4 DEEPEN. Now pull the rail\'s sheet (gameworld-rail-<id>: its tunings, its chain of tools, a card a step) and, for',
+    '  a designed game, ask the Game Brief (next: brief, gameworld-brief): why it is played, how it is shaped. Recommend',
+    '  a real plan only here, with the build chapter\'s estimate.',
+    '5 HAND OFF (next: hand-off). The step carries the first level as a `req`, its remit filled from the pitch. Raise',
+    '  it as the DIRECTOR with your ticket: { ref, ask: { intent }, req }. From there the ledger runs the work.',
     '',
-    'THE WORK, after it: the readout\'s `goalposts` are the path from 0 to level 1 and `next` the move. Raise a unit',
-    'for what is open ({ req: { unit } }, gameworld-ledger), one at a time, each with its `ask`. Level 1 is proved by',
-    'the machine gate (`check: true`) and approved by the creator, who plays it: it is the game they want to play.',
-    'What a thing brought asks for that nothing makes yet is said by name and set aside, never quietly left out.',
+    'The goalposts are the path from 0 to level 1 and `next` the move. Level 1 is proved by the machine gate',
+    '(`check: true`) and approved by the creator, who plays it: it is the game they want to play.',
   );
 }
 
@@ -223,7 +238,7 @@ function studioCard() {
     'next picks up. A good first session leaves:',
     ...GOALPOSTS.map((g, i) => `  ${i + 1}. ${g.id.padEnd(12)} ${g.says}`),
     '',
-    'THE SEATS: the director decides, the assistant director holds the remit, the producer runs the work (gameworld-producer).',
+    'THE SEATS: the producer faces the creator and hands on, the director builds, the assistant holds the remit (gameworld-producer).',
     'One level, a simple goal: the quick path (gameworld-quick).',
   );
 }
@@ -335,10 +350,12 @@ function guide() {
   return lines(
     'THE GAME BOOK — design a game top down, then let the rail make it. You DESIGN; design_game makes, keeps and remakes.',
     '',
-    'SIZE THE ASK first. One level, a simple goal (reach, collect, survive, avoid), no powers, stats or',
-    'progression: the QUICK path, one call; read gameworld-quick only. Several levels, no hero: COMPOSE,',
-    '{ compose: { prompt } }, then run. A hero, powers, gear or a story: the book below, by chapter (gameworld-studio).',
-    'The book starts from a ticket: `ask: { intent }` with its first patch (gameworld-ledger).',
+    'SIZE THE ASK first. THEIR game (a hero, powers, gear, a story, anything they brought): ask what they brought',
+    '(gameworld-producer), then { world: { name } }: it answers what to ask, nothing stored. Write `levels` once the',
+    'first can be named, never invented; then the book below, by chapter (gameworld-studio), from a ticket:',
+    '`ask: { intent }` with its first patch (gameworld-ledger). ONLY one level, a simple goal (reach, collect, survive,',
+    'avoid), no powers, stats or progression: the QUICK path, one call, made at once, nothing asked first; read',
+    'gameworld-quick only. Several levels, no hero: COMPOSE, { compose: { prompt } }, then run.',
     '',
     'THE LOOP (each page answers ONE question, from the brief and the pages above it; never from a default):',
     '  intent      what game is it? its cube; the world is laid for it (gameworld-intent)',
@@ -420,7 +437,7 @@ function worldCard() {
     '  in a map, a link may take key: \'<item>\', keyAt: \'<level>\': the item there opens it (a trail, or a city roof in reach);',
     '  a hero\'s power as the key also gives the hero its move.',
     '  needs: \'<flag>\' (a quest\'s): the way shut till the story sets it (no dungeon before its quest).',
-    `screen: ${Object.keys(SCREENS).join(' | ')} | { aspect } (a new game: ${NEW_GAME_SCREEN}).`,
+    `screen: ${Object.keys(SCREENS).join(' | ')} | { aspect } (a new game: ${NEW_GAME_SCREEN ?? 'none, it fills its window'}).`,
     '',
     'ANSWER FROM: the brief\'s places and moods. One level that promises the rest beats many; the world bible draws each.',
   );
@@ -696,7 +713,7 @@ function systemsCard() {
     'legend: screen (the default: the controls on the play screen for a level\'s first seconds) | menu (only in the pause',
     '  menu, nothing over the play: a demo or a release).',
     'lives: 1-9, a platformer\'s lives for hp (a hit or a fall costs one, none left loses; no hp bar). coins: true |',
-    '  { oneup }: coins along a side strip\'s course, a life every 30.',
+    '  { oneup }: coins along a course (a strip\'s, a 3D trail\'s), a life every 30.',
     `scale (the coarse dials): ${Object.entries(SCALE).map(([k, v]) => `${k} ${v}`).join(', ')}.`,
     `stages → epochs reached by level: ${Object.entries(EPOCH_LEVEL).map(([k, v]) => `${k} ${v}`).join(', ')}.`,
     `how a power is gained, by system kind: ${Object.entries(GAINED).map(([k, v]) => `${k}: ${v.why}`).join('; ')}.`,
@@ -798,6 +815,30 @@ const QUICK_LEVERS = {
     '  seen from overhead and worked by a mascot unless camera or hero says otherwise (hero: false: first person); the work shown in pips',
     '  its work room: bible?book=practice&room=work (&cast=orb|sprout|toon&feel=<template>): the recipe on the floor, a mascot and a movement from the presets'],
   battle: () => [`  foes: n (3), foe: ${HERO_WORDS}`],
+  brawl: () => [
+    '  players: 1..4 on one screen   lives: 1..9, the falls they share (3)   register: the game\'s one look   armed: true, each hero its own weapon',
+    '  ASK FIRST who the enemies are and how the street runs:',
+    '  the world\'s `foes` (the bestiary, gameworld-foes) are the crowd: each fights as its class and rank, a person or a people in its',
+    '    own body (a beast as a jointed figure, said).',
+    '  street: { open?: m, stops: [{ wave: { <role or foe id>: n }, length?, name? }] (1..12), boss?: <role or foe id> | { foe, with?, hp?, cpu?, stages? } }',
+    '    boss.stages: 2..5 | [{ at?, cpu?, name?, calls?: { <id>: n } }]: its fight in acts.',
+    '    a free first screen, each stop held until its wave falls, then the boss\'s screen; the last wave fallen wins. Roles: grunt,',
+    '    shooter, elite, boss. Absent with `foes`: three stops that build, the cast\'s boss. The readout advises, never refuses.',
+    '  waves: [{ grunt: 3 }, { foes: { <id>: n }, formation?, name? }] alone: a wave set on one open screen.',
+    '  IN A DESIGNED GAME a street is a level: levels.<id>.street: { …the street, players?: 1..4, kit?, lives?, guns? }; its seats the hero and',
+    '    the cast who join; more levels are more streets, linked. Give the world screen: \'screen\': a street runs across it.',
+    '  OR BY STREETS (gameworld-side-scroll): streets, crowd, play; bare with no `foes`, the starter\'s dressed town street.',
+  ],
+  rungun: () => [
+    '  players: 1..4 on one screen   lives: 1..9 (3)   register: the game\'s one look',
+    '  guns: [<name> | { from, …dials }] (1..6, the first held over the sidearm; absent machine-gun, spread, flame, rocket)',
+    '  waves: as a brawl\'s (absent, four of the range\'s: a wall of rifles, a pincer, down the stairs, suppressed); its shooters',
+    '    (rifleman, gunner, grenadier, bazooka) fire on a warning, to the wave\'s pattern (volley, sweep, pincer, alternate).',
+    '  foes, street: as a brawl\'s (its cast all carry guns; its stops and its boss the same).',
+    '  tuning (a street\'s word): arcade (unsaid for a run & gun: soldiers fall to a couple of rounds, the hero to a few hits, an',
+    '    army at each stop, fire sooner and faster, five falls) | measured (the long fight). Ask which the game is.',
+    '  The same street as a brawl; what differs is the hitting: rounds fly and are stepped off or rolled through, a grenade lobs.',
+  ],
   fight: () => [
     '  roster (1..12): every fighter a CHARACTER. A sheet (egocube card) the run',
     '    makes into one: an archetype word, a brief in words, or { brief?, facets?, seed?, archetype?, role?, build?, age?,',
@@ -859,7 +900,7 @@ const quickShared = () => [
   `  hero: ${HERO_WORDS} | { ref } (a hero from create_character): looks, gear, the motion's feel (get_solid_vocab({ id: 'layered' }));`,
   '    { mascot: true | { brief?, facets?, seed? } } a mascot on foot, its own walk, run and jump; absent or false: first person',
   `  camera: ${Object.keys(CAMERAS).join(' | ')}   absent: third person, or first person with no hero`,
-  `  screen: ${Object.keys(SCREENS).join(' | ')} | { pole?, aspect?, orientation?, fov? }   the screen it is for (absent: ${NEW_GAME_SCREEN})`,
+  `  screen: ${Object.keys(SCREENS).join(' | ')} | { pole?, aspect?, orientation?, fov? }   the screen it is for (absent: ${NEW_GAME_SCREEN ?? 'none'})`,
   '  climb: true   a climb after the trail;   run: n   a pool of n + 2 trails, each run draws n, a death ends it',
   '  building: { use, seed?, goal?, … }   a building as the level (reach, collect or survive; card game-building)',
   '  cast: true | { scale?: hero | rival | party, n?, cast?, bodies?, … }   on foot: people rolled for the game (the casting',
@@ -946,6 +987,71 @@ function mountsCard() {
     'A world whose levels walk lays them on each; a level whose hero is a car or a craft leaves them standing loose.',
     'The mount lane (`bible?book=practice&room=mount`, before any level) tunes the ride: the gaits, the jump, the fences.',
     'A template that rides (the action-adventure) is suggested two (a `mounts` step in design_game\'s readout), never laid.',
+    'CARS — a level on a town or a district (a geotown\'s, a geocity\'s) needs none asked for: the cars it parks nearest its\n' +
+    '  start are the hero\'s to get into, each its own model and paint where it stands. E in reach walks to the driver\'s door\n' +
+    '  and gets in: W throttle, S brake then reverse, A/D steer; E when nearly stopped gets out at the door, on foot again.',
+  );
+}
+
+function hijackCityCard() {
+  return lines(
+    'HIJACK CITY — the open city\'s crime game (rail `hijack-city`, genre `open-city-crime`): a district roamed on foot and in',
+    '  any car taken, a contact\'s missions, a wanted level and the police after it, a respray and a gun shop, the money in',
+    '  hand, a phone\'s fares, crews with turf. A STARTER for a person\'s own GTA-like: theirs to rename and grow, never the game.',
+    '',
+    'START design_game({ name, rail: { from: \'hijack-city\', locked: true } }): the starter laid whole (hijack-city.js), every',
+    '  key the person wrote winning; then design_game({ ref, run: true }) builds it and export_game({ ref: \'<ref>-game\' })',
+    '  ships it with its title screen, a save and continue. A sentence ("a GTA-like game") finds the rail (gameworld-producer).',
+    '',
+    'WHAT IS IN IT, each a word of the world:',
+    '  levels.<id>.geocity   the district of a metro (its cars parked to take; traffic; passers-by who flee and fall)',
+    '  errands[].mission     { heat?: stars, clean?: lose them first, time?: seconds, final?: the end } on a contact\'s job',
+    '  law: true | { stars, per, cars, armed, calm, busted, fine }   mayhem raises stars; police on foot and in cars',
+    '  shops: { respray, guns }   repaint and lose the police; rounds for the sidearm (Q fires, R holsters it)',
+    '  factions.<id>          crews: turf, rivals, a board of acts (torch, tag, take)   app: \'taskfu\' fares on the phone',
+    '  ui.theme, sound, music  the look (theme cards), the car\'s sounds, the score (walk, chase, tension)',
+    '',
+    'GROW IT: rename it; the hero (create_character words); another metro (`geocity.metro.from`); the story (missions); the',
+    '  crews; the law\'s numbers; the shops\' prices; a theme card. Era: gen-7 by default (the sun\'s shadows, the actors\'',
+    '  and the buildings\' light), `style.geocube.era: \'gen-6\'` for a lighter page.',
+  );
+}
+
+function missionCard() {
+  return lines(
+    'THE MISSION — a shooter\'s first level: the firing range stretched into sections, each with one task. The range is',
+    '  where the game\'s guns are written and tried (bible?book=practice&room=range); the mission is the same guns, the same',
+    '  body and the same bands laid down one line, briefed, played and debriefed on mana-ui.',
+    '',
+    'levels.<id>.mission   true (what the guns ask for) | { seed?, sections?, foes?, hold?, waves?, map? }',
+    '  in place of `walk`: its ground, its foes and its tasks are its own (no goal, foes, course or arena beside it).',
+    '  Laid from the guns the world carries (a quick shooter\'s arms, a gun in the hero\'s right hand, a feel whose',
+    '  template shoots): a world that carries none has no mission.',
+    `  foes   how many the lane stands, ${MISSION_LIMITS.foes[0]} to ${MISSION_LIMITS.foes[1]} (${MISSION_DEFAULTS.foes}): every fight in proportion`,
+    `  hold   the yard's clock, ${MISSION_LIMITS.hold[0]} to ${MISSION_LIMITS.hold[1]} s (${MISSION_DEFAULTS.hold}); waves ${MISSION_LIMITS.waves[0]} to ${MISSION_LIMITS.waves[1]} (${MISSION_DEFAULTS.waves})`,
+    '  sections   the sections in order, in place of the ones the kit\'s bands choose; it ends at a way out',
+    `  map    fought on a FIGHTING MAP, not down a line: true (the kit picks: ${Object.entries(MISSION_MAPS).map(([b, m]) => `${b} ${m.template}`).join(', ')}) | a`,
+    `         template (${TEMPLATE_IDS.join(', ')}), grown under the arena laws; arm up, a clear a band, hold the heart, get out`,
+    'IN A BUILDING   levels.<id>: { building: { use, fight? }, mission: true | { seed?, foes?, hold?, waves? } } (no map, no',
+    '  sections): fought in its rooms, its fight true unless false, read in the seventh generation (the form render draws',
+    '  it); its plan read as a fighting map, the phases placed in real rooms, from its door to a way out. design_game',
+    `  proposes one by the kit's band (${Object.entries(MISSION_BUILDINGS).map(([b, r]) => `${b} ${r.use}`).join(', ')}): the step's \`building\`.`,
+    'INDUSTRIAL   levels.<id>: { industrial: true | { use?, depth?, hour?, weather?, wet?, tower?, walker?, crew?, masked? } }:',
+    '  a fenced yard before a base building, laid by the arena laws, built by the geocube; out by its door.',
+    'CAMPAIGN     the step\'s `campaign`: the opening mission as legs (yard, street, building, works), each a level and a',
+    '  checkpoint, played in order. Apply its patch whole.',
+    'SECTIONS (each a room across the mission, a doorway to the next, sealed until its task is met)',
+    ...Object.entries(SECTIONS).map(([k, v]) => `  ${k.padEnd(12)} ${v.task.padEnd(6)} ${v.band ? `${v.band} band, ${BANDS[v.band].m} m` : 'no fight'}: ${v.teaches}${v.gap ? ' (a GAP: designed, not built; refused with what it waits on)' : ''}`),
+    `TASKS  ${Object.entries(TASKS).map(([k, v]) => `${k}: ${v.says}`).join('; ')}.`,
+    'A kit that serves the mid band gets the lane; a long gun the long line too; close guns alone a room and a yard.',
+    'A room\'s foes are woken as it is walked into. The hp is the level\'s; rounds and health lie on the floor.',
+    'Its HUD is mana-ui\'s: the hp, the gun in hand, the objective tracker, and the DAMAGE RING: a mark on a ring round the',
+    '  aim where each hit came from (the top ahead, the bottom behind), for a moment, turning as the player turns.',
+    'BEFORE IT IS A LEVEL: the practice door\'s first mission (bible?book=practice&room=mission) plays it from the world',
+    '  alone. design_game proposes it (a `mission` step with its patch) for a world with a firing range and none yet.',
+    'GATES (machine): the laws (walkable, sealed, banded, covered, entry-safe, in-order, armed, paced) ride the level\'s',
+    '  step; a run reads `mission_proof`: the tasks done in order on the bus, and the level won headless by a gunner that',
+    '  walks, aims and reloads. Whether it is a good first level is the creator\'s to say in play.',
   );
 }
 
@@ -977,6 +1083,48 @@ function rollCard() {
     '  next seed. &view=map is the course map: the course from above, on its side, read left to right. Its measures are in',
     '  design_game\'s readout (practice.measured.roll). Whether a roll reads as designed is the operator\'s to see.',
     'NOT YET   foes a seed picks; the layout itself rolled; a start rolled by the world\'s word.',
+  );
+}
+
+function trackLanguageCard() {
+  return lines(
+    'THE TRACK\'S LANGUAGE — what a raced track (a level\'s `roadway`) is made of and how its parts are shaped, said once, so',
+    '  the way, its kerbs, its rail, its posts, its flags and its trees are one family. The principles below are STARTING',
+    '  POINTS for a new map: copy a card, change its premise, and keep what each principle asks.',
+    `THE WORD   a level's roadway.language: ${Object.keys(TRACK_LANGUAGES).map((k) => `'${k}'`).join(' | ')} | a card written out. A track from words (quick.roadway:`,
+    `  { intent }) takes its class's (${Object.entries(LANGUAGE_OF_CLASS).map(([c, l]) => `${c}: ${l}`).join(', ')}). A card: { reads, suits: [class…], materials: { <name>: { of, finish:`,
+    '  gloss | satin | matte, hex } }, parts: { way, edge, kerb, rail, verge, bunting, tree, pieces, city }, sky? }. Read a shelf card for',
+    '  each part\'s fields (roads/track-language.js); a part left out is the class\'s plain one.',
+    'THE PRINCIPLES',
+    '  1 A PREMISE FIRST   one sentence says what the track is made of (`reads`); every part is named in it.',
+    '  2 A SMALL FAMILY   few materials, each a stuff, a finish and a colour. The rail and its posts are one stuff. Two',
+    '    finishes at most on the hard parts: gloss for what is moulded, matte for the way and the turf.',
+    '  3 THE WAY IS QUIET AND LIGHT   the largest thing on the screen: matte, mid-light, never as vivid as a kerb. The kerb',
+    '    parts from it by lightness, and the kerb\'s two colours from each other.',
+    '  4 A CORNER IS TOLD THREE TIMES   far: the rail wears its `tell` stripes round the OUTSIDE of the corner. Middle:',
+    '    chevrons on the way point into it. Near: the kerb. All three in the tell\'s two colours, used for nothing else.',
+    '  5 SEEN TO MOVE   speed is read off what passes: the way in bands of two tones, a centre dash, the verge mown in',
+    '    stripes, posts at one spacing, bunting. Give a straight at least two of them.',
+    '  6 ASYMMETRY   the two sides never mirror. Bunting runs down ONE side, the side by turns. Chevrons lie on the outside',
+    '    half. The tell is on the outside only. A tree\'s crown is lopsided, and a share of trees are in blossom.',
+    '  7 CHUNKY   rounded and stout: nothing thinner than a hand could hold, a ball on every pole, pillows for kerbs.',
+    '  8 THE SKY IS THE TRACK\'S, ITS SUN CASTS   its day, its sun, clouds built as it is (`sky.puffs`). Page-lit (gen 7): the',
+    '    sun low (36°) so shadows read from the kart, soft blue; the palette held on what lies flat. "baked" bakes it.',
+    '  9 THE LAND IN THE TRACK\'S SHAPES   trees take the land\'s own greens and the language\'s forms.',
+    '  10 THE TRACKSIDE IS THE TRACK\'S TOO   its arch, boards, castle and bumpers are stand-in blocks (pieces.blocks) in the',
+    '    family\'s paint (pieces.paint): a hoop on balls for an arch, a lollipop for a braking board, balls for battlements.',
+    '  11 A TOWN, A STREET CIRCUIT   "a kart street circuit": round a grid\'s blocks, square corners; fronts down each straight',
+    '    facing the way (taller toward the middle, never three alike, the family\'s colours by turns); lamps, signals, zebras;',
+    '    an alley across a corner (shorter, cobbled, boost pads: either way the lap) and an underpass (city.split, .tunnel).',
+    '  12 UNDERGROUND, A MINE   "a kart race through a gem mine": the arena one cavern (a ring round the lap, a dome,',
+    '    stalactites, lantern posts, glowing crystals, one skylight shaft) and galleries bored through its rock: timber',
+    '    portals and sets, lanterns, gems, a cart line, a headframe yard; lit as a cave (mine.js).',
+    '  13 ONE PRIMITIVE, TWO TUNINGS   a realistic circuit answers the same questions soberly (grand-prix: the look\'s own',
+    '    asphalt and paint, one steel for the guardrail and its posts). A principle is a question, not candy.',
+    'THE LAWS (machine; they advise)   premise, family, one-metal, finish, kerb-read, tell, suits, drawn (nothing drawn outside',
+    '  the family). A roadway level\'s gate says them as language:<law>, beside the track\'s own and the trackscape\'s.',
+    'LOOK   node scripts/trackscape.mjs "<the track in words>" out.html writes the page. How it looks is the operator\'s to say.',
+    'NOT YET   the land\'s rock formations and a stadium bowl in the language; flank slices; the page lighting it as the kart.',
   );
 }
 
@@ -1071,7 +1219,12 @@ function courseCard() {
     'foes\' density a node each (levels.<id>.foes.density: { meet: \'sparse\', gauntlet: \'dense\' }, gameworld-foes). A boss',
     'only when the creator asks: a fifth node, course { teach: boss }, and goal: { boss: { win: jobber | rival | boss } }: a jobber',
     'thrown away, a rival or a boss a story hook. The win changes no fight; the next level reads it, the story keeps it.',
-    'Side (camera: side) runs the trail\'s line; 3D runs it free: camera follow | orbit.',
+    'IN TWO DIMENSIONS. 2D (camera: side): the trails are one strip, one page, ONE TURN; its home is the title. 3D',
+    '(camera: orbit | follow): each trail is a COURSE, a page and a TURN of its own (nodes grounds, meadow, climb, ridge,',
+    'summit?: no foes on the grounds), its home the courses screen. Both: coins along the course, a start menu (front), a',
+    'screen on its side, the hilltop look (ui.theme), and one flow shape: title → the level → its result → the next, or',
+    'home; a level quit goes home with no result. A world that plays a platformer\'s feel and has no course is offered',
+    'both as a patch (next: first-level; 2D unless the camera or the brief says the round, the other as `or`). Never laid.',
     'The readout\'s laws (course:gap-n) say each gap\'s width, its rise and what the move it teaches reaches; a fall into',
     'a gap puts the hero back on the floor it left. Its floors are the stage\'s beats: what stands on it stands on them.',
   );
@@ -1147,6 +1300,7 @@ function foesCard() {
     'CAST    /bible?book=foes, the cast sheet: parts foes:cast, foes:<id>. None kept: design_game\'s `foes` step proposes one.',
     'A world or level without foes is laid as it was.',
     'GAUNTLET a level\'s goal: { gauntlet: { arenas: [{ waves: [{ <id>: <n> }] }], checkpoint? } }: sealed in waves (card wave-gauntlet).',
+    'STREET  a brawl\'s level: levels.<id>.street: { stops: [{ wave: { <role or id>: n } }], boss? }: the bestiary its crowd (gameworld-quick-brawl).',
   );
 }
 
@@ -1425,6 +1579,65 @@ export function workshopCardById(id) {
   return id === 'gameworld-workshop' ? { id, name: 'The workshop', summary: 'where a big game is made and where it is seen: the laptop, a desktop download, or kept small', when: 'a game too big to see in a cloud box, a level over the page limit, where do I play it', scope: 'rail', body: workshopCard() } : null;
 }
 
+// THE RAILS (rails.js): the game types as templates, the producer's two depths. The shape is every rail in a line; a
+// rail's sheet is pulled once it is picked. Both generated from the roster; served by id, not listed.
+function railsCard() {
+  const S = railShapes();
+  return lines(
+    'THE RAILS — the game types mojulo builds, each a TEMPLATE a person\'s game starts from, never the game itself: they',
+    'are making a stealth action game of their own design, started from Steel Serpents. The template\'s name is ours;',
+    'the game\'s name, hero, world and story are theirs. This is the shape; pull a rail\'s sheet only once it is picked:',
+    'get_game_vocab({ id: \'gameworld-rail-<id>\' }).',
+    '',
+    ...S.rails.map((l) => `  ${l}`),
+    '',
+    'NOT A GAME YET (say so before anything is built; offer the nearest rail):',
+    ...S.notYet.map((l) => `  ${l}`),
+    '',
+    `THE SIZE, called first: ${Object.entries(SIZES).map(([id, z]) => `${id} (${z.name}: ${z.says})`).join('; ')}.`,
+    'Call the least that answers the ask and say what the next size up would add. More than one level, or anything that',
+    `is theirs to design (${Object.keys(OWN).join(', ')}), asks for a designed game; only a designed game is asked the`,
+    'Game Brief (gameworld-brief). An ask past what a rail reaches is made at its largest and what it waits on is said.',
+    'How a game is played THROUGH (levels in turns, an open world) is the brief\'s labour, not the rail\'s.',
+  );
+}
+
+function railCard(id) {
+  const S = railSheet(id);
+  const say = (v) => (Array.isArray(v) ? `[${v.map(say).join(', ')}]` : typeof v === 'string' ? `'${v}'` : String(v));
+  const set = (o) => (o ? `{ ${Object.entries(o).map(([k, v]) => `${k}: ${say(v)}`).join(', ')} }` : 'read from the ask: no cube of its own');
+  return lines(
+    `THE RAIL: ${S.name} — ${S.like}. A TEMPLATE: the person's game starts from it and is theirs (its name, hero, world`,
+    'and story). Say what they keep from it and where their game departs.',
+    '',
+    `seen: ${S.seen.length ? seenSays(S.seen) : 'as its page lays it'}${S.seen.length > 1 ? ' (a choice: ask which)' : ''}.   first: ${S.level1}.`,
+    ...S.sizes.map((z) => `  ${z.size.padEnd(9)}${z.door}   ${set(z.with)}`),
+    '',
+    `ITS TUNINGS${S.from ? ` (its own cube, '${S.from}'; each value theirs to change)` : ''}:`,
+    `  level      ${set(S.tunings.level)}`,
+    `  action     ${set(S.tunings.action)}`,
+    `  character  ${set(S.tunings.character)}`,
+    `  world      ${set(S.tunings.world)}`,
+    ...(S.gaps ? [`not built yet in its own cube: ${S.gaps.map((g) => `${g.facet}.${g.setting} '${g.value}' (${g.status})`).join(', ')}.`,
+      S.starts && S.starts !== S.from ? `so a designed game starts from '${S.starts}' today and changes the values that differ: say so before it is built.` : 'so it is not laid as a designed game yet.'] : []),
+    ...(S.asks.length ? [`what it asks of a world: ${S.asks.join(', ')}.`] : []),
+    ...(S.labours.length ? [`labours that suit it (gameworld-brief; any may be mixed): ${S.labours.join(', ')}.`] : []),
+    '',
+    'THE CHAIN, by size (pull a step\'s card when it is reached, not before):',
+    ...S.chain.flatMap((c) => [`  ${c.size}:`, ...c.steps.map((st, i) => `    ${i + 1}. ${st.step.padEnd(12)}${st.does}${st.card ? `  (${st.card})` : ''}`)]),
+    ...(S.lacks.length ? ['', 'WHAT IT DOES NOT DO YET (say it when the ask reaches for it):', ...S.lacks.map((l) => `  ${l}`)] : []),
+  );
+}
+
+/** The rails' shape (`gameworld-rails`) or one rail's sheet (`gameworld-rail-<id>`), or null. Served by id, not listed. */
+export function railCardById(id) {
+  if (id === 'gameworld-rails') return { id, name: 'The rails', summary: 'the game types mojulo builds, each a template a person\'s game starts from; the size called first', when: 'what kind of game, which template, a game like one I know, how big a game', scope: 'rail', body: railsCard() };
+  const rail = typeof id === 'string' && id.startsWith('gameworld-rail-') ? id.slice('gameworld-rail-'.length) : null;
+  if (!rail || !RAIL_IDS.includes(rail)) return null;
+  const R = railOf(rail);
+  return { id, name: `The rail: ${R.name}`, summary: R.like, when: `a game started from ${R.name}`, scope: 'rail', body: railCard(rail) };
+}
+
 /** One genre's card by id (`gameworld-intent-<genre>`), or null. Served by id, not listed with the rail. */
 export function genreCardById(id) {
   const genre = typeof id === 'string' && id.startsWith('gameworld-intent-') ? id.slice('gameworld-intent-'.length) : null;
@@ -1432,11 +1645,63 @@ export function genreCardById(id) {
   return { id, name: `What game it is: ${GENRES[genre].name}`, summary: GENRES[genre].why, when: `a ${GENRES[genre].name.toLowerCase()} game`, scope: 'rail', body: genreCard(genre) };
 }
 
+// THE SIDE-SCROLL MAP (brawl/brawl-dress.js): generated from the shelves, so a new setting, set or piece is in the card
+const sideScrollCard = () => {
+  const wrap = (label, words, width = 112) => { const out = []; let line = label; for (const w of words) { if ((line + ' ' + w).length > width) { out.push(line); line = '    ' + w; } else line += (line.trim().length === label.trim().length && line === label ? '' : ' ') + w; } out.push(line); return out; };
+  const floor = DRESS_PIECE_IDS.filter((id) => !DRESS_PIECES[id].wall), marks = DRESS_PIECE_IDS.filter((id) => DRESS_PIECES[id].wall);
+  return [
+    'THE SIDE-SCROLL MAP: a belt seen from one side (a brawl\'s street; docs/side-scroll-map-principles.md).',
+    'A map is DRESSED: beside the band, a set a screen, in a SETTING (the kind of place).',
+    '',
+    'THE PRINCIPLES (measured, advised; dressLaws):',
+    '  the band low, the backdrop over it (a dressed map takes the belt\'s `street` angle)',
+    '  nothing between the camera and the fight over a body\'s waist; the dress stands OUTSIDE the band',
+    '  a screen is a place: no two running alike; the turn tells a story; the boss\'s screen is HELD (its marks, its colour)',
+    '  layers: floor things AND wall marks, something overhead, a way through; no long bare run',
+    '  a mark belongs to one building or bay; a set draws on several different things',
+    '  wear is the place\'s own matter (skandart), its vessels in groups, some tipped or broken',
+    '  the walk may BEND (rise, turn, drift) and still scrolls sideways; a bend is where the map turns a page',
+    '',
+    'SETTINGS (each its sets, and the turn unsaid: way in → held screens → the boss\'s):',
+    ...DRESS_SETTING_IDS.map((id) => { const S = DRESS_SETTINGS[id], T = S.turn; return `  ${id}   ${S.sets.join(', ')}   (${T.way} → ${T.held.join(', ')} → ${T.boss})${S.kits.length ? `   kits: ${S.kits.join(', ')}` : ''}`; }),
+    '',
+    'IN A DESIGNED GAME a level is a street (gameworld-quick-brawl: its stops, its boss, its crowd the world\'s cast):',
+    '  levels.<id>.street: true | { …the street, ground?: <a level, below>, things?, scenes?: { … } | false }',
+    '    ground: its place in a kit\'s stead (a town, a stage, a blockout, dressed and bent), the stops laid along it;',
+    '    on a ground its play\'s things and the starter\'s scenes are laid unless said',
+    '',
+    `PLAYED by a play type (\`play\`: ${PLAY_IDS.join(' | ')}; on a quick brawl or one of its streets; a street level by guns). gun: the gunner\'s`,
+    '  kit, guns? (asked), grenades?; unsaid: shooters, cover, gun crates. An ungated screen\'s wave is fought on the move',
+    'MEASURED: the readout fights each map with bots (the fight laws); a `fight` step names the wave',
+    '',
+    'A LEVEL (a quick brawl\'s streets[i].level, or brawlLevel):',
+    '  { kind: \'town\', fronts?: \'rough\' | \'broken\', dress?: false | { sets?, colour?, seed? } }   a street',
+    '  { kind: \'stage\', kit, dress?: false | { setting?, sets?, colour?, seed?, kit? } }   a building\'s rooms; a kit',
+    '    with its own setting is dressed as it unsaid; any kit takes one said',
+    '  THE WALK BENDS, in any place (a room turns as a street does), by three words on a level (a belt\'s own):',
+    '    rise:  [[s, z], …]   the floor\'s height along the walk; the camera rises with it',
+    '           (a town: climb: grade, to 0.1)',
+    '    turn:  [[s, degrees], …]   the view swings down the walk (under 0, the other way), to 55°',
+    '    drift: [[s, n], …]   the band slides across the walk\'s line, the view following: a diagonal',
+    '    it plays straight and level, drawn bent',
+    '    the place goes with the walk',
+    '  sets: one a screen: a set\'s name, null (bare), or A SET OF ITS OWN:',
+    '    { says?, far: { piece: weight }, wall?: { piece: weight }, gap?: [m, m], marks?: [m, m], near?: { piece: weight } }',
+    '  colour: the holder\'s (#rrggbb): on its marks; a quick brawl gives its crowd\'s',
+    '',
+    ...wrap('FLOOR PIECES:', floor.map((id, i) => id + (i < floor.length - 1 ? ',' : ''))),
+    ...wrap('WALL MARKS:', marks.map((id, i) => id + (i < marks.length - 1 ? ',' : ''))),
+    '',
+    'A new kind of place is rows (a setting, its sets, its pieces) in brawl-dress.js; see it without a fight:',
+    '  node scripts/spikes/brawler/street.mjs --tour --level \'{"kind":"stage","kit":"bay-military"}\'',
+  ].join('\n');
+};
+
 const CARDS = [
   ['gameworld-guide', 'The game book', 'the loop and the principles: design a game top down, then let design_game make it', 'make a game, design a game, a game with a hero and powers, where do I start', guide],
   ['gameworld-studio', 'The studio', 'the book worked a chapter at a time: the departments in waves, a chapter\'s session, the build', 'a big game, many levels, several departments, who does what and in what order, subagents, a team of agents', studioCard],
   ['gameworld-ledger', 'The ledger', 'a game made one unit at a time: a req per chapter or level, its jobs for agents, its received gate, the game built up to the last accepted level', 'one level at a time, requisition, req, remit, precedent, subagents, jobs, author, diverge, critic, probe, received, accepted, composite', ledgerCard],
-  ['gameworld-producer', 'The producer', 'the seat that runs the work: the intake of what the creator brought (drawings, plans, docs), what it answers and what is open, the order of the units; beside the director and the assistant director', 'I have a design doc, here are my sketches, turn my notes into a game, I drew a map, my game plan, where do we start, who does what, producer, planner', producerCard],
+  ['gameworld-producer', 'The producer', 'the seat that faces the creator: what they brought (drawings, plans, docs), the rail their game starts from and its size, the pitch said back and locked, the hand-off to the director; one question a turn', 'I have a design doc, here are my sketches, turn my notes into a game, I drew a map, my game plan, where do we start, who does what, producer, planner', producerCard],
   ['gameworld-main-quest', 'The main quest', 'the game\'s spine: acts of beats, each played as a level, a dungeon, an open world, a gauntlet, an errand; the core loop', 'a long game, an RPG, a campaign, the story from start to end, acts, how long is the game, beginning middle and end, the core loop', mainQuestCard],
   ['gameworld-quick', 'The quick path', `one level and a simple goal in one call: ${Object.keys(QUICK_GOALS).join(', ')}`, 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a race against the clock, a kart race against rivals, a stealth level, a rhythm game, drive a car, tower defence, a boulder puzzle, a farm, a turn-based fight, a shooter, a deathmatch with bots, a quick game', quickCard],
   ['gameworld-brief', 'The Game Brief', 'what the game is about, above its genre: the motivations and labours, and the orders they make for the composer', 'what my game is about, the story and its shape, save the princess, storm the citadel, catch them all', briefCard],
@@ -1444,6 +1709,7 @@ const CARDS = [
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],
   ['gameworld-wcd', 'The walled-core dungeon', 'layers on a critical path toward a core: inners, outers and the doors between, each gated', 'a dungeon of layers to the core, a base to infiltrate, keycards to the next area, walls within walls', wcdCard],
   ['gameworld-course', 'The course', 'a platformer\'s level: floors and gaps over a trail sized by the hero\'s reach, each teaching a move', 'a platformer level, a side-scroller, a 3D platformer, jumps over gaps, a tutorial level, teach the double jump, a wall jump section, platforming, level 1', courseCard],
+  ['gameworld-mission', 'The mission', 'a shooter\'s first level: the firing range stretched into sections, each with a task, on mana-ui', 'a first level for my shooter, a mission with objectives, an FPS level, clear the room then move on, a tutorial level for the guns, hold the point then extract, level 1 of my shooter', missionCard],
   ['gameworld-qow', 'The quest open world', 'regions joined sideways, loaded as they are passed, never gated on the way on: the WCD\'s opposite pole', 'an open world, a city to roam, an island to explore, side quests anywhere, no forced path, an errand, a fetch quest, a delivery run, a bounty board', qowCard],
   ['gameworld-direction', 'The direction', 'how characters are drawn: tradition, elements, motif', 'anime or western, the colours of my hero', directionCard],
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],
@@ -1460,7 +1726,10 @@ const CARDS = [
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
   ['gameworld-roll', 'The roll', 'a different map each time: what a level\'s seed picks on it (cover, items, the start, a paced line), an obstacle course for a running game, a run of its maps', 'a different map every time, a roguelite, random levels, procedural, replayable, the level changes each run, an obstacle course, an endless runner with a finish, hurdles to jump, lanes to switch', rollCard],
   ['gameworld-course-dress', 'The course\'s dress', 'how an obstacle course looks: its way and asks, the walls beside it and the backdrop behind it, designed as one dress by role and held to one gate; the course sheet', 'the walls of the course, the background, the backdrop, the skyline, decorate the course, style the level, the sides of the track, scenery, the look of the runner, palette of the course', courseDressCard],
-  ['gameworld-mounts', 'The mounts', 'horses the hero gets on and rides: their coats, where they stand, the ride', 'a horse to ride, mount a horse, ride a horse, horseback, get on my horse, a stable of horses, cavalry', mountsCard],
+  ['gameworld-side-scroll', 'The side-scroll map', 'a belt seen from one side, dressed as a place: its principles, its settings (a street, a facility, a base, an office), a set a screen, a set of the agent\'s own', 'a beat \'em up level, a side-scrolling stage, a street to fight down, a warehouse level, a military base level, an office level, dress the street, what makes a good brawler stage', sideScrollCard],
+  ['gameworld-track-language', 'The track\'s language', 'how a raced track looks: one design language for its way, kerbs, rail, flags, trees and sky, and the principles a new map starts from', 'design a race track, a new kart map, the look of the track, track theme, the barriers and kerbs, a candy track, decorate the circuit, track materials, make the road more interesting, the sky over the track', trackLanguageCard],
+  ['gameworld-hijack-city', 'Hijack City', 'the open city\'s crime game, a starter for a GTA-like: a district, cars to take, missions, the law, shops', 'a gta-like game, grand theft auto, an open world crime game, steal cars, a wanted level, police chases, a crime sandbox, hijack city, a city to drive around and cause trouble', hijackCityCard],
+  ['gameworld-mounts', 'The mounts', 'horses the hero gets on and rides: their coats, where they stand, the ride', 'a horse to ride, mount a horse, ride a horse, horseback, get on my horse, a stable of horses, cavalry, a car to drive, get in a car, a parked car, drive around town', mountsCard],
   ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight, minigames, a fishing minigame, an arcade in the inn', battlesCard],
   ['gameworld-foes', 'The foes', 'hostile classes on the trails: how each moves, hurts and decides, at any rank, on any body that fits', 'enemies in my level, goombas, monsters to fight, a wolf pack, a boss beast, dire wolves, foot soldiers, a turret, things that chase me, a swarm of rats', foesCard],
   ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal, a companion, a party member who joins, a cast rolled for my game, a party, a rival, a villain and his lieutenant, a familiar or summon, beastfolk or a mascot in the party', storyCard],

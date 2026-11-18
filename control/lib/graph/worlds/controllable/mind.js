@@ -321,7 +321,8 @@ export function buildMind(E) {
     if (!(r.mind && r.mind.pathing === 'navmesh') || !world || !world.colliders || !navPath) return false;
     const t = e.transform, eye = r.eye ?? 0;
     // `navCell`: the grid's cell (a person among walls wants finer than the default, a metre or its radius)
-    const opts = { radius: r.collideRadius || 0.5, height: r.collideHeight ?? 24, footZ: t.pos[2] - eye, step: r.step ?? 0.35, ...(r.navCell > 0 ? { cell: r.navCell } : {}) };
+    // `navLedges` (opt-in): its path keeps to ground it can stand on, round a well and along a gallery (nav.js ledges)
+    const opts = { radius: r.collideRadius || 0.5, height: r.collideHeight ?? 24, footZ: t.pos[2] - eye, step: r.step ?? 0.35, ...(r.navCell > 0 ? { cell: r.navCell } : {}), ...(r.navLedges ? { ledges: true } : {}) };
     if (navClear(world, t.pos, goal, opts)) { e.navPath = null; return false; }
     const cell = opts.cell || world.navCell || Math.max(1, opts.radius);
     e.navT = (e.navT || 0) - dt;
@@ -526,7 +527,7 @@ export function buildMind(E) {
     }
     if (!navTo(e, r, dt, world, goal, speed)) walkToward(e, r, Math.atan2(goal[1] - t.pos[1], goal[0] - t.pos[0]), dt, world, speed);
   }
-  // FLOORS: `rule.floors` [{ area: [x0, y0, x1, y1], z, flights: [{ bottom: [x, y], top: [x, y] }] }], each a floor over
+  // FLOORS: `rule.floors` [{ area: [x0, y0, x1, y1], z, flights: [{ bottom: [x, y], top: [x, y], way? }] }], each a floor over
   // the ground (a tower's top, gameworld/lay-concerns.js towerFloor) and the stair up to it. A point is on a floor when it
   // stands over its area within 0.6 m of its height (a body's feet, or its eye on the ground below the floor's height).
   const floorAt = (F, p, footZ) => F.findIndex((f) => p[0] >= f.area[0] && p[0] <= f.area[2] && p[1] >= f.area[1] && p[1] <= f.area[3] && footZ >= f.z - 0.6);
@@ -537,8 +538,18 @@ export function buildMind(E) {
     const F = r.floors, t = e.transform, me = floorAt(F, t.pos, t.pos[2] - (r.eye ?? 0)), there = floorAt(F, goal, Number.isFinite(goal[2]) ? goal[2] : 0);
     const d = (p) => Math.hypot(p[0] - t.pos[0], p[1] - t.pos[1]);
     if (e.flight) {
-      const fl = F[e.flight.f].flights[e.flight.k], to = e.flight.to === 'up' ? fl.top : fl.bottom;
-      if (d(to) > 0.5) return [to[0], to[1], goal[2]];
+      const fl = F[e.flight.f].flights[e.flight.k], up = e.flight.to === 'up';
+      // a flight that turns (`way`: its points from the foot up, a switchback's legs and landing) is walked a point at a time
+      const W = Array.isArray(fl.way) && fl.way.length > 2 ? fl.way : null;
+      if (W) {
+        let i = e.flight.i ?? 1;
+        while (i < W.length && d(up ? W[i] : W[W.length - 1 - i]) <= 0.35) i++;
+        e.flight.i = i;
+        if (i < W.length) { const to = up ? W[i] : W[W.length - 1 - i]; return [to[0], to[1], goal[2]]; }
+      } else {
+        const to = up ? fl.top : fl.bottom;
+        if (d(to) > 0.5) return [to[0], to[1], goal[2]];
+      }
       e.flight = null;
     }
     if (me === there) return goal;

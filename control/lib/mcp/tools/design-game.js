@@ -13,6 +13,7 @@
  * In one call, in order: the recipe (`world` creates or replaces it, `patch` edits it by part), then the verdicts
  * (`approve`, `revise`), then the run (`run: true`). Each is optional; a call with only `ref` reads.
  */
+import { openingMission } from '@/lib/graph/mission/campaign';
 import { NEW_GAME_SCREEN } from '@/lib/graph/game/screen';
 import { registerTool, clientTakesJobAgents } from '@/lib/mcp/server';
 import { getClientInfo } from '@/lib/mcp/client-bindings';
@@ -44,18 +45,20 @@ import { applyManifestPatch } from './manifest-patch.js';
 import { chapterView } from '@/lib/graph/gameworld/chapter-view.js';
 import { readMainQuest, mainQuestContext, mainQuestReport } from '@/lib/graph/gameworld/main-quest.js';
 import { questPlays, withQuestLevels } from '@/lib/graph/gameworld/main-quest-lay.js';
-import { goalposts, leadNext, draftAsk, startReadout } from '@/lib/graph/gameworld/goalposts.js';
+import { goalposts, leadNext, draftAsk, startReadout, producerSteps, producerSays } from '@/lib/graph/gameworld/goalposts.js';
 import { loopOf, loopLaws } from '@/lib/graph/gameworld/core-loop.js';
 import { compileCheck, planError } from './design-game-check.js';
 import { combatGame } from '@/lib/graph/gameworld/combat/game.js';
 import { feelReport } from '@/lib/graph/gameworld/feel/lower.js';
 import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
+import { platformerSuggestion, platformerStart } from '@/lib/graph/gameworld/platformer-game.js';
 import { juiceOfGame, juiceSuggestion } from '@/lib/graph/gameworld/juice.js';
 import { arsenalOfGame, arsenalSuggestion, heroStrikes } from '@/lib/graph/gameworld/arsenal.js';
 import { roomEligible } from '@/lib/graph/gameworld/practice-room.js';
 import { practiceFor, mountSuggestion, rangeMeasured, rollMeasured } from '@/lib/graph/gameworld/practice.js';
 import { fightsReadout } from '@/lib/graph/gameworld/fights-readout.js';
 import { measureRoom, measuredSummary } from '@/lib/graph/gameworld/feel/measure.js';
+import { fightMeasured } from '@/lib/graph/gameworld/fight-measure.js';
 import { railOfGame } from '@/lib/graph/gameworld/game-bodies.js';
 import { quickWorld, sportConceptOf } from '@/lib/graph/gameworld/quick.js';
 import { quickVehicleWords, patchVehicleWords } from '@/lib/graph/vehicle-registry/doors.js';
@@ -68,6 +71,9 @@ import { STYLES, DIRECTS, checkProduction, postureOf, roleOf, maySettle, checkpo
 import { checkAsk, traceStart, traceOf } from '@/lib/graph/gameworld/asks.js';
 import { askAdvice, needsAsk, unaskedStamp, runAdvice, ASK_SAYS } from '@/lib/graph/gameworld/routing.js';
 import { intakeAdvice, intakeReport } from '@/lib/graph/gameworld/intake.js';
+import { railReport } from '@/lib/graph/gameworld/rails.js';
+import { pitchStart } from '@/lib/graph/gameworld/pitch-start.js';
+import { handOff } from '@/lib/graph/gameworld/hand-off.js';
 import { manualOrder } from '@/lib/graph/gameworld/battles-manual.js';
 import { treeOrder, treesOf } from '@/lib/graph/gameworld/battles-tree.js';
 import { beatPlan, stagePlan, walkReport } from '@/lib/graph/gameworld/level-plan.js';
@@ -81,6 +87,8 @@ import { withoutWarm } from '@/lib/graph/scene/scene-png-warm';
 import { firstFrameReadout } from '@/lib/graph/game/first-frame-check.js';
 import { gauntletLaws } from '@/lib/graph/gameworld/gauntlet.js';
 import { proveGauntlets } from '@/lib/graph/gameworld/gauntlet-proof.js';
+import { proveMissions, missionStageManifests } from '@/lib/graph/gameworld/mission-proof.js';
+import { missionBuildingFor } from '@/lib/graph/gameworld/mission-building.js';
 import { proveErrands, lastStageManifests } from '@/lib/graph/gameworld/errand-proof.js';
 
 
@@ -191,7 +199,8 @@ async function realize(step, action) {
     return {};
   }
   if (key === 'ride') {
-    // a quick game's ride: the vehicle's build (an assembler sketch), its manifest whole in place
+    // a quick game's ride: the vehicle's build (an assembler sketch), its manifest
+    // whole in place
     if (action === 'make') await createSketchHandler({ ...order, ref });
     else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
     return {};
@@ -542,6 +551,10 @@ function readout(ref, world, context = {}) {
   // gate beside the feel's; a law lost is advised as a feel step
   const rangeM = door.rooms.includes('range') ? rangeMeasured(world) : null;
   if (rangeM?.lost) next.push({ step: 'feel', range: rangeM.worst, card: 'gameworld-feel' });
+  // the fight measured (gameworld/fight-measure.js: the fight laws on each sideways map, before anyone plays it): the
+  // encounters' machine gate; a law lost is advised with the wave it names, never a refusal
+  const fightM = fightMeasured(world);
+  if (fightM?.lost) next.push({ step: 'fight', map: fightM.worst.map, law: fightM.worst.law, advice: fightM.worst.advice, maps: fightM.maps.filter((m) => m.lost.length).map((m) => ({ id: m.id, play: m.play, lost: m.lost })), card: 'gameworld-side-scroll' });
   // the roll room measured (roll-room.js: the seeds audit of its yard, the cover forms that stop this hero, before any
   // level): a law lost, or a hero no form of cover stops, is advised; never a refusal
   const rollM = door.rooms.includes('roll') ? rollMeasured(world) : null;
@@ -555,6 +568,18 @@ function readout(ref, world, context = {}) {
   // THE FIRST SLICE: the combat room, then the first level. A hero that fights hand to hand plays its room before any
   // level is made: said until one is (the creator's to play; its kit tuned on their notes)
   if (door.rooms.includes('practice') && !Object.keys(world.made ?? {}).some((k) => k.startsWith('level-'))) next.push({ step: 'room', room: 'practice', url: `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=practice`, card: 'gameworld-next' });
+  // THE FIRST MISSION (gameworld/mission-level.js): a world with a firing range and no mission level yet is shown its
+  // mission in the practice door and proposed it as a level, with its patch (suggested, never laid)
+  if (door.rooms.includes('mission') && !Object.values(world.levels ?? {}).some((L) => L?.mission !== undefined || L?.industrial !== undefined) && !isObj(world.quick)) {
+    const id = Object.keys(world.levels ?? {}).includes('mission-1') ? 'first-mission' : 'mission-1';
+    // (or fought inside a building designed as a fighting map, read in the seventh generation: gameworld/mission-building.js,
+    // the core building by the kit's longest band)
+    const inside = missionBuildingFor(world);
+    next.push({ step: 'mission', why: 'its guns have a firing range: the range stretched into a first level, a section for each band they are for, a task in each', url: `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=mission`, patch: [{ op: 'set', path: `/levels/${id}`, value: { name: 'First mission', mission: true } }], ...(inside ? { building: { use: inside.use, why: `or inside a building drawn by the seventh generation's form render: ${inside.why}; its plan read as a fighting map, the phases placed in its rooms`, patch: [{ op: 'set', path: `/levels/${id}`, value: { name: 'First mission', building: { use: inside.use, fight: true }, mission: true } }] } } : {}), card: 'gameworld-mission' , campaign: (() => { const C = openingMission(world, { building: inside?.use ?? null });
+      // (or the whole opening mission of a campaign: a run of places, each a beat of the loop and a level of its own, so a
+      // leg is a checkpoint: mission/campaign.js)
+      return { why: `or a campaign's opening mission, ${C.legs.length} legs played in order, each a level of its own (a leg is a checkpoint): ${C.legs.map((L) => `${L.name.split(' · ').pop()} (${L.beats.join(', ')})`).join('; ')}`, legs: C.legs.map((L) => ({ level: L.level, beats: L.beats, place: L.place })), patch: C.patch }; })(), industrial: { why: 'or out of doors: an industrial yard before a base building, its containers, barriers and floodlights stood under the arena\'s laws and built by the geocube (at sunset on wet ground, a tower to climb in it)', patch: [{ op: 'set', path: `/levels/${id}`, value: { name: 'First mission', industrial: true } }] } });
+  }
   // A WORLD MAP (gameworld/world-map.js): its blocks laid as the floor (the default ways, the scenario's beats on them);
   // each block's sketch is its author's, then level design's play layer, block by block. LOOKED AT FIRST: `look`, the map
   // designer's miniature (gameworld/map-designer.js), before a block is written or a page built
@@ -563,6 +588,12 @@ function readout(ref, world, context = {}) {
   // none written: the template its brief, its shooter pole or its genre points at, suggested (a default is written, never laid)
   const feelSuggest = feel ? null : feelSuggestion(world);
   if (feelSuggest) next.push({ step: 'feel', suggest: feelSuggest.feel, why: feelSuggest.why, from: feelSuggest.from, card: 'gameworld-feel' });
+  // THE PLATFORMER'S RAIL (gameworld/platformer-game.js): a world that plays a platformer's template and has no course
+  // yet is offered its first level and the flow that plays it, as a patch: the side-scroller (one strip, one turn) by
+  // default, the 3D platformer (courses, a turn each, its own flow) as its other reading or where its camera or its
+  // brief says the round. Offered, never laid
+  const railSuggest = (() => { try { return platformerSuggestion(world); } catch { return null; } })();
+  if (railSuggest) next.push({ step: 'first-level', rail: 'platformer', ...railSuggest, card: 'gameworld-course' });
   // how its effects are drawn and timed (gameworld/juice.js): the floor its levels carry, or what 'auto' would lay
   const JW = feel ? { ...world, feel: { pole: feel.pole } } : world;
   const juice = juiceOfGame(JW), juiceSuggest = juice ? null : juiceSuggestion(JW);
@@ -620,6 +651,19 @@ function readout(ref, world, context = {}) {
   const unread = intakeAdvice(world);
   if (unread) { advice.intake = [unread.says]; next.splice(unasked ? 1 : 0, 0, unread.next); }
   const brought = (() => { try { return intakeReport(world); } catch { return null; } })();
+  // the pitch (gameworld/rails.js): the template the game starts from and where it departs, said back beside the
+  // intake; a locked pitch moved to another rail is a re-plan, said
+  const pitch = (() => { try { return railReport(world, context?.priorWorld ?? null); } catch { return null; } })();
+  if (pitch?.replanned) advice.rail = [`the pitch was locked on '${pitch.replanned.was}' and now starts from '${pitch.from}': a re-plan. Say so to the creator, and read again what the chapters already settled`];
+  // (a pitch not yet locked, and a designed game's brief not yet asked, are the producer's steps: they lead, after the
+  // ask and the intake; a book with no pitch is read as it always was)
+  if (pitch) {
+    // (and once they are done, THE HAND-OFF, gameworld/hand-off.js: the chain's first unit, proposed to the director)
+    const handed = (() => { try { return handOff(world, { units: GameworldReqRepository.list(ref).map((r) => r.unit) }); } catch { return null; } })();
+    const at = next.findIndex((s) => s.step !== 'ask' && s.step !== 'intake');
+    next.splice(at < 0 ? next.length : at, 0, ...producerSteps(world, { stored: true }), ...(handed ? [handed] : []));
+  }
+  if (pitch?.short) (advice.rail ||= []).push(`${pitch.name} is not made as ${pitch.short.wanted} yet (${pitch.short.waits}); it reaches ${pitch.short.reaches.join(', ')}`);
   // a lore part on a page is an order its chapter runs (gameworld/battles-manual.js): a manual on the battles, said with
   // how deep it has been taken; the rungs still derived are the battles chapter's next pass
   const manual = (() => { try { return world.battles?.manual !== undefined ? manualOrder(world.battles.manual) : null; } catch { return null; } })();
@@ -630,7 +674,7 @@ function readout(ref, world, context = {}) {
     (advice.lore ||= []).push(`the battles' tree '${T.id}' is at its ${T.rung}: its ${T.open.join(' and ')} ${T.open.length === 1 ? 'is' : 'are'} derived (learned rank by rank as written, dearer the deeper); write them to make them yours`);
     next.push({ step: 'lore', part: 'tree', id: T.id, at: T.rung, open: T.open, chapter: 'battles', card: 'gameworld-battles' });
   }
-  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(brought ? { intake: brought } : {}), ...(manual || trees.length ? { lore: { ...(manual ? { manual } : {}), ...(trees.length ? { trees } : {}) } } : {}), ...(MQ ? { mainQuest: (({ laws: _l, ...r }) => r)(MQ) } : {}), ...(loop ? { loop } : {}), ...(feel ? { feel: { ...feel, ...(measured ? { measured } : {}) } } : {}), ...(arsenal ? { arsenal } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(door.rooms.length ? { practice: { rooms: Object.fromEntries(door.rooms.map((r) => [r, `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=${r}`])), ...(rangeM || rollM ? { measured: { ...(rangeM ? { range: rangeM } : {}), ...(rollM ? { roll: rollM } : {}) } } : {}), ...(fightsR ? { fights: fightsR } : {}) } } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), ...(combatGame(world) && world.made?.game?.ref ? { combatBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=combat` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(chapters.length ? { chapters } : {}), ...(Object.keys(made).length ? { made } : {}), ...(audits ? { audits } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}), ...(told.notes?.length ? { notes: told.notes.map((n) => ({ moment: n.id, script: n.script, says: n.notes.map((x) => `${x.id}: ${x.says} ${x.try}`) })) } : {}) } } : {}), next };
+  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(brought ? { intake: brought } : {}), ...(pitch ? { rail: pitch } : {}), ...(manual || trees.length ? { lore: { ...(manual ? { manual } : {}), ...(trees.length ? { trees } : {}) } } : {}), ...(MQ ? { mainQuest: (({ laws: _l, ...r }) => r)(MQ) } : {}), ...(loop ? { loop } : {}), ...(feel ? { feel: { ...feel, ...(measured ? { measured } : {}) } } : {}), ...(arsenal ? { arsenal } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(door.rooms.length ? { practice: { rooms: Object.fromEntries(door.rooms.map((r) => [r, `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=${r}`])), ...(rangeM || rollM ? { measured: { ...(rangeM ? { range: rangeM } : {}), ...(rollM ? { roll: rollM } : {}) } } : {}), ...(fightsR ? { fights: fightsR } : {}) } } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), ...(combatGame(world) && world.made?.game?.ref ? { combatBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=combat` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(chapters.length ? { chapters } : {}), ...(Object.keys(made).length ? { made } : {}), ...(audits ? { audits } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}), ...(told.notes?.length ? { notes: told.notes.map((n) => ({ moment: n.id, script: n.script, says: n.notes.map((x) => `${x.id}: ${x.says} ${x.try}`) })) } : {}) } } : {}), next };
 }
 
 /** The verdicts as the review to write. */
@@ -757,7 +801,18 @@ export async function designGameHandler(input, context = {}) {
   if (compose !== undefined && (written !== undefined || patch !== undefined || quick !== undefined)) throw new Error('design_game: `compose` writes the world from its words; give it alone, then edit the world with `patch`');
   // THE START (goalposts.js startReadout): a new book with no level yet is answered with what to ask, never refused;
   // nothing is stored (a gameworld begins with its first level)
-  if (written !== undefined && given === undefined && isObj(written) && written.levels === undefined && patch === undefined) return startReadout({ ...written, ...(title && written.name === undefined ? { name: title } : {}) });
+  // (a book that points at a platformer, by its feel, its brief or its genre, is offered the platformer's rail beside
+  // the questions: its first level and the flow that plays it as words to write, platformer-game.js platformerStart)
+  if (written !== undefined && given === undefined && isObj(written) && written.levels === undefined && patch === undefined) {
+    // THE PITCH KEPT (gameworld/pitch-start.js): a LOCKED pitch is given the rail's starter first level and stored, so
+    // what the person agreed to outlives the session; said as a starter, nothing built. A rail with none is said
+    const kept = pitchStart(written, { title });
+    if (kept?.world) return { ...(await designGameHandler({ ...input, world: kept.world }, context)), pitch: { stored: true, ...kept.laid } };
+    const S0 = startReadout({ ...written, ...(title && written.name === undefined ? { name: title } : {}) });
+    const S = kept?.unlaid ? { ...S0, pitch: { stored: false, why: kept.unlaid } } : S0;
+    const rail = (() => { try { return platformerStart(written); } catch { return null; } })();
+    return rail ? { ...S, next: [...S.next, { step: 'first-level', rail: 'platformer', ...rail, card: 'gameworld-course' }], cards: [...S.cards, 'gameworld-course'] } : S;
+  }
   // a hero named by its name (a named hero, create_character spec.name) is found on this machine: its ref is written
   const quickQ = quick !== undefined && isObj(quick.hero) && quick.hero.name !== undefined ? { ...quick, hero: { ref: namedHeroRef(quick.hero.name, quick.hero.ref) } } : quick;
   // (a composed world's cast is PAINTED against its ground (gameworld/colour.js paintedCast): its palette stamped here,
@@ -792,8 +847,9 @@ export async function designGameHandler(input, context = {}) {
         await updateSketchHandler({ ref, ...(title ? { title } : {}), manifest: next });
       }
     } else {
-      // a new game is made for a screen (game/screen.js): a phone unless the creator names another, or null for none
-      ref = (await createSketchHandler({ title: title ?? world.name ?? world.id, manifest: world.screen === undefined ? { ...manifest, screen: NEW_GAME_SCREEN } : manifest, ...(ref ? { ref } : {}) })).ref;
+      // a new game is made for the screen its creator names (game/screen.js); none named, it is framed for none and
+      // fills its window (NEW_GAME_SCREEN: null writes nothing)
+      ref = (await createSketchHandler({ title: title ?? world.name ?? world.id, manifest: world.screen === undefined && NEW_GAME_SCREEN ? { ...manifest, screen: NEW_GAME_SCREEN } : manifest, ...(ref ? { ref } : {}) })).ref;
     }
   } else {
     if (!ref) throw new Error('design_game: name the gameworld (`ref`), or give a `world` to start one');
@@ -1360,7 +1416,7 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
     if (!W.made?.hero) throw new Error('design_game: compare after you have made your own world (run it first): a reference read before the design is a template, and this one is not');
     comparison = { reference: compare, ...compareWorlds(W, REFERENCES[compare]) };
   }
-  const full = { ...readout(ref, W, context), ...(await fightReadout(W)) };
+  const full = { ...readout(ref, W, { ...context, priorWorld: before ?? null }), ...(await fightReadout(W)) };
   // the pre-compile check, on a run (what is left of the build) and on a chapter's view (each department its own
   // blockers): what a run would hit, found before it is made; a next move while anything blocks
   if (run || chapter) {
@@ -1390,6 +1446,8 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   // the requisitions (gameworld/reqs.js): the unit being worked, the queue, and what a unit reads besides its chapter
   const ledger = workLedger(ref, W, full, req, reqDone);
   if (ledger.summary) full.reqs = ledger.summary;
+  // (the hand-off was read before this call's own req was raised: once the ledger holds a level, the director has it)
+  if (ledger.L.reqs.some((r) => typeof r.unit === 'string' && r.unit.startsWith('level:'))) full.next = full.next.filter((n) => n.step !== 'hand-off');
   // how the game is run, said wherever the ledger is (production.js): the style, the posture, the slice, who saw what
   const P = GameworldProductionRepository.get(ref);
   if (ledger.summary || P) {
@@ -1414,12 +1472,14 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
     const receipt = ledger.received(r), jobs = GameworldReqJobRepository.list(ref, r.id);
     return { id: r.id, unit: r.unit, status: r.status, receipt, does: nextOf(jobs, { level: true, probe: probeState(receipt), presented: !!r.verdict?.presented }) };
   });
-  const posts = (() => { try { return goalposts({ world: W, chapters: full.chapters ?? [], parts: full.parts ?? [], mainQuest: full.mainQuest ?? null, made: W.made ?? {}, compile: full.compile ?? null, reqs: levelReqs }); } catch { return null; } })();
+  const posts = (() => { try { return goalposts({ world: W, chapters: full.chapters ?? [], parts: full.parts ?? [], mainQuest: full.mainQuest ?? null, made: W.made ?? {}, compile: full.compile ?? null, reqs: levelReqs, playthrough: full.playthrough ?? null }); } catch { return null; } })();
   if (posts) full.goalposts = posts;
   // the goalpost's question in `next` (goalposts.js leadNext): the list and the goalposts say the same move, and a game
   // built with design goalposts open is said to be a draft
   const drafted = !!posts && !W.quick && posts.next?.goalpost !== 'first-level';
   full.next = leadNext(full.next, posts, { mode: W.mode ?? 'gated', quick: !!W.quick, made: !!W.made?.game, brought: isObj(W.intake) && Array.isArray(W.intake.items) && W.intake.items.length > 0 });
+  // (a game with a pitch is the producer's to lead: the one question this turn asks, goalposts.js producerSays)
+  if (isObj(W.rail)) { const P = producerSays(full.next); if (P) full.producer = P; }
   // the ticket: what this call did, linked to the intent it acted on (gameworld/asks.js)
   const ticket = ask !== undefined ? linkAsk(ref, ask, { raised: ledger.summary?.raised ?? [], approve, revise, patched, ran }) : null;
   if (ticket) full.ask = ticket;
@@ -1456,6 +1516,11 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   const gauntletProof = ran && Object.values(W.levels ?? {}).some((L) => L?.goal?.gauntlet) ? (() => {
     try { return { gauntlet_proof: { gate: 'machine', levels: proveGauntlets(W, lastStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite: compositeOf(ref, W) }))), note: 'machine gate: each gauntlet played on the bus, every foe given its fall as it woke; whether a fight can be won is not played (the eyes gate has not run)' } }; } catch (e) { return { gauntlet_proof: { gate: 'machine', error: e.message } }; }
   })() : {};
+  // a run's missions proved on the bus and played by the headless gunner on the levels it made (machine gate,
+  // gameworld/mission-proof.js): the structure holds, and a player that only gives input wins it
+  const missionProof = ran && Object.values(W.levels ?? {}).some((L) => L?.mission !== undefined) ? (() => {
+    try { return { mission_proof: { gate: 'machine', levels: proveMissions(W, missionStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite: compositeOf(ref, W) })).manifests), note: 'machine gate: each mission\'s tasks done in order on the bus with every way on sealed until its task was met, and the level played headless by a gunner that walks, aims and reloads (no cover, no flank); whether it is a good first level is the creator\'s to say in play (the eyes gate has not run)' } }; } catch (e) { return { mission_proof: { gate: 'machine', error: e.message } }; }
+  })() : {};
   // each level's verdict kept in the run's record beside the row it judged: a later run gates only what changed
   if (framed) {
     const made = { ...W.made }, base = W;
@@ -1473,12 +1538,12 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
     // a unit's own req (the live one asked for it): its remit, its precedent, its budget
     // (a job's seat reads its own req, whatever its status, and only its own job: the rest is the director's)
     const own = seat ? ledger.L.reqs.find((r) => r.id === seat.job.req) : ledger.L.reqs.find((r) => (r.unit === chapter || r.crew?.includes(chapter)) && !TERMINAL_REQ.has(r.status));
-    const view = chapterView({ ...full, ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...(comparison ? { comparison } : {}) }, W, chapter, { ran, pending, patched });
+    const view = chapterView({ ...full, ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...missionProof, ...(comparison ? { comparison } : {}) }, W, chapter, { ran, pending, patched });
     const R = own ? reqView(ref, own, ledger.L.reqs, { W, parts: ledgerStamps(ref, W), seat, agents: !seat && clientTakesJobAgents(context?.mcpSessionId ? getClientInfo(context.mcpSessionId) : null) }) : null;
     return { ok: true, readout: 'chapter', ...view, ...(seat ? { as: `${seat.job.req}.${seat.job.id}` } : {}), ...(R ? { req: R } : {}), ...(!seat && req !== undefined && full.reqs ? { reqs: full.reqs } : {}), ...(ticket ? { ask: ticket } : {}), ...share };
   }
-  if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...(comparison ? { comparison } : {}), ...share };
-  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(req !== undefined && full.reqs ? { reqs: full.reqs } : {}), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...(comparison ? { comparison } : {}), ...share };
+  if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...missionProof, ...(comparison ? { comparison } : {}), ...share };
+  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(req !== undefined && full.reqs ? { reqs: full.reqs } : {}), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...missionProof, ...(comparison ? { comparison } : {}), ...share };
 }
 
 /** A fight's readout (quick goal fight, once made): each fighter's character, the sheet it came from and what the sheet
@@ -1502,6 +1567,8 @@ export async function playReadout(W, { budgetMs = runBudgetMs(), clock = Date.no
   const made = Object.entries(W.made ?? {}).filter(([k, v]) => k.startsWith('level-') && v?.ref);
   const fights = made.map(([key, v]) => ({ key, ref: v.ref, row: SketchRepository.getByRef(v.ref) })).filter(({ row }) => {
     const ents = row?.manifest?.entities ?? [], pilot = ents.find((e) => e?.pilotable);
+    // (a street level is a fight: its own simulation, played by the brawl's scripted player, below)
+    if (row?.manifest?.brawl?.practice?.street) return true;
     return ents.some((e) => e?.team === 'foes') && !!(pilot?.rule?.moveset || pilot?.rule?.weapons);
   });
   if (!fights.length) return null;
@@ -1512,6 +1579,15 @@ export async function playReadout(W, { budgetMs = runBudgetMs(), clock = Date.no
     if (levels.length && budgetMs > 0 && clock() - t0 >= budgetMs) { unplayed.push(key); continue; }
     try {
       const { payload } = await resolveWorldScene(row);
+      // a street (brawl/brawl-playthrough.js): the room its page steps, played by the brawl's basic player and its still one
+      if (payload.brawl?.street) {
+        const { playStreet, streetSummary } = await import('@/lib/graph/brawl/brawl-playthrough.js');
+        const basic = playStreet(payload.brawl, { player: 'basic' }), still = playStreet(payload.brawl, { player: 'still' });
+        // (a street its basic player loses: where, and the two words that ease it; advice, the design is the creator's)
+        const eases = basic.won ? {} : { eases: `the basic player ${basic.outcome === 'lost' ? `ran out of falls at stop ${Math.min(basic.stops.of, basic.stops.cleared + 1)} of ${basic.stops.of}` : 'did not finish in time'}: allow more falls (street.lives), thin that stop's wave, or stand its boss at cpu: 'novice'` };
+        levels.push({ level: key, pass: basic.won && !still.won, basic: streetSummary(basic), still: streetSummary(still), ...eases });
+        continue;
+      }
       const basic = playLevel(payload, { player: 'basic' }), still = playLevel(payload, { player: 'still' });
       levels.push({ level: key, pass: basic.won && !still.won, basic: playthroughSummary(basic), still: playthroughSummary(still), hitsBy: basic.hitsBy });
     } catch (e) { levels.push({ level: key, pass: false, error: String(e?.message ?? e).slice(0, 200) }); }
@@ -1536,12 +1612,13 @@ export function registerDesignGameTools() {
     timeoutMs: RENDER_TOOL_TIMEOUT_MS,
     description:
       'The GAME rail: design a game top down and let mojulo make it. A gameworld (levels, hero, gear, systems) is '
-      + 'a sketch; this writes it (`world`, `patch`), takes the creator\'s verdicts (`approve`, `revise` { part, note }) and, '
-      + 'with `run: true`, makes every ready step through the real doors, keeping what did not move, leaving hand edits '
-      + '(`force` overwrites). Answers the stamps, what was made, the advice and the next moves as step ids '
-      + '(`readout: \'changed\'` for only what moved). Read '
-      + 'get_game_vocab({ id: \'gameworld-guide\' }) first. `example` makes a reference only when the creator asks; '
-      + '`compare` reads one against a made world. `compose: { prompt }`: words to a world. `chapter`: a chapter\'s view.',
+      + 'a sketch; this writes it (`world`, `patch`), takes verdicts (`approve`, `revise` { part, note }) and, '
+      + 'with `run: true`, makes every ready step through the real doors, keeping what did not move and hand edits '
+      + '(`force` overwrites). Answers stamps, what was made, advice and the next moves as step ids '
+      + '(`readout: \'changed\'`: only what moved). Read '
+      + 'get_game_vocab({ id: \'gameworld-guide\' }) first. `world: { name }` alone answers what to ask. '
+      + '`example`: a reference, only when asked; '
+      + '`compare`: one against a made world. `compose: { prompt }`: words to a world. `chapter`: a chapter\'s view.',
     inputSchema: {
       type: 'object',
       properties: {

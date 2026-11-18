@@ -2,7 +2,7 @@
  * BLOCKS — the building blocks a civilization makes things from, in three layers:
  *
  *   PRIMITIVES  shapes, in code: a box, a drum, a tube, a cone, a dish, a truss, a panel, a wheel, a track, an arm, a
- *               fin, a lamp, a ring. Each takes params on rails and pushes faces (values on surface groups; the paint
+ *               fin, a lamp, a ring, a ball. Each takes params on rails and pushes faces (values on surface groups; the paint
  *               colours them). New code only ever lands here.
  *   BLOCKS      data the agent writes: a named composition of primitives (or of other blocks) with params on rails, a
  *               `read`, the FUNCTIONS it shows, where it MOUNTS and its SOCKETS. A block is validated, built at a ring
@@ -323,11 +323,30 @@ export const PRIMITIVES = Object.freeze({
       const r = p.r, V = [[r, 0, r], [-r, 0, r], [0, r, r], [0, -r, r]], top = [0, 0, 2 * r], bot = [0, 0, 0], O = [V[0], V[2], V[1], V[3]];
       for (let k = 0; k < 4; k++) { const a = O[k], b = O[(k + 1) % 4]; face(out, [a, b, top], add3(add3(a, b), [0, 0, r]), ex.part, ex.value, ex.extra); face(out, [b, a, bot], add3(add3(a, b), [0, 0, -r]), ex.part, ex.value, ex.extra); }
     } },
-  ring: { read: 'a hoop of radius r, its section `tube` thick, round its axis', rails: { r: R(0.1, 60), tube: R(0.02, 3), sides: R(6, 32, true) },
+  ring: { read: 'a hoop of radius r, its section `tube` thick, round its axis; `round` sides to its section (a square one unsaid); `arc` degrees of it, centred on up (an arch standing on its two ends at 180)', rails: { r: R(0.1, 60), tube: R(0.02, 3), sides: R(6, 32, true), round: R(5, 16, true), arc: R(10, 360) },
     least: (p) => 2 * p.tube,
     build(out, p, ex) {
       const ax = unit(AXES[p.axis ?? 'z']), [t1, t2] = basis(ax), n = p.sides ?? 16, P = (k) => { const a = (2 * Math.PI * k) / n; return add3(add3([0, 0, 0], t1, p.r * Math.cos(a)), t2, p.r * Math.sin(a)); };
-      for (let k = 0; k < n; k++) prism(out, P(k), P(k + 1), ring2(4, p.tube, Math.PI / 4), ex, false);
+      if (!p.round) { for (let k = 0; k < n; k++) prism(out, P(k), P(k + 1), ring2(4, p.tube, Math.PI / 4), ex, false); return; }
+      // a round section: a torus, each corner on its own circle round the hoop (no seams at the joints)
+      // (an `arc`: its share of the hoop, centred on up, from one side round to the other; whole unsaid)
+      const arc = ((p.arc ?? 360) * Math.PI) / 180, upw = Math.abs(ax[2]) > 0.95 ? t1 : unit(sub([0, 0, 1], ax.map((v) => v * ax[2]))), side = cross(ax, upw);
+      const dirAt = (a) => (p.arc ? add3(add3([0, 0, 0], upw, Math.cos(a)), side, Math.sin(a)) : add3(add3([0, 0, 0], t1, Math.cos(a)), t2, Math.sin(a))), angle = (k) => (p.arc ? -arc / 2 + (arc * k) / n : (2 * Math.PI * k) / n);
+      const m = p.round, Q = (k, j) => { const b = (2 * Math.PI * j) / m, rad = dirAt(angle(k)); return add3(add3([0, 0, 0], rad, p.r + p.tube * Math.cos(b)), ax, p.tube * Math.sin(b)); };
+      for (let k = 0; k < n; k++) for (let j = 0; j < m; j++) {
+        const q = [Q(k, j), Q(k + 1, j), Q(k + 1, j + 1), Q(k, j + 1)], c = dirAt((angle(k) + angle(k + 1)) / 2).map((v) => v * p.r);
+        face(out, q, sub(q.reduce((s, x) => add3(s, x, 0.25), [0, 0, 0]), c), ex.part, ex.value, ex.extra);
+      }
+    } },
+  ball: { read: 'a ball of radius r, its height `squash` of its width (a bead, a knob, a puff)', rails: { r: R(0.02, 20), squash: R(0.2, 2), sides: R(6, 24, true) },
+    least: (p) => 2 * p.r * Math.min(1, p.squash ?? 1),
+    build(out, p, ex) {
+      const n = p.sides ?? 12, rows = Math.max(4, Math.round(n / 2)), sq = p.squash ?? 1, c = [0, 0, p.r * sq];
+      const V = (i, k) => { const t = (Math.PI * i) / rows - Math.PI / 2, a = (2 * Math.PI * k) / n; return [p.r * Math.cos(t) * Math.cos(a), p.r * Math.cos(t) * Math.sin(a), c[2] + p.r * sq * Math.sin(t)]; };
+      for (let i = 0; i < rows; i++) for (let k = 0; k < n; k++) {
+        const q = i === 0 ? [V(0, 0), V(1, k + 1), V(1, k)] : i === rows - 1 ? [V(i, k), V(i, k + 1), V(rows, 0)] : [V(i, k), V(i, k + 1), V(i + 1, k + 1), V(i + 1, k)];
+        face(out, q, sub(q.reduce((s, x) => add3(s, x, 1 / q.length), [0, 0, 0]), c), ex.part, ex.value, ex.extra);
+      }
     } },
 });
 export const PRIMITIVE_IDS = Object.freeze(Object.keys(PRIMITIVES));
@@ -382,7 +401,7 @@ export function readBlock(B, library = {}) {
   if (B.lead !== undefined && !ids.has(B.lead)) bad(`lead names '${B.lead}', not a part`);
   return B;
 }
-const PRIM_PARAM_KEYS = new Set(['size', 'r', 'r2', 'h', 'sides', 'axis', 'from', 'to', 'depth', 'aim', 'w', 'member', 'bays', 't', 'seams', 'len', 'segs', 'bend', 'turn', 'l', 'tube']);
+const PRIM_PARAM_KEYS = new Set(['size', 'r', 'r2', 'h', 'sides', 'axis', 'from', 'to', 'depth', 'aim', 'w', 'member', 'bays', 't', 'seams', 'len', 'segs', 'bend', 'turn', 'l', 'tube', 'round', 'squash', 'arc']);
 const VEC_KEYS = new Set(['size', 'from', 'to', 'aim', 'segs', 'bend']);
 
 /** A block's params: the given ones (each inside its rail), the rest rolled from their rails by the seed; and `many`. */

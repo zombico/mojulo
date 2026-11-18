@@ -57,8 +57,8 @@ through `create_character({ as: 'hero', spec: { cast, register, tune } })`; its 
 - **Every fix is a number.** Patch `/hero/tune/<control>` (a percentage of the cast), `/hero/face/<control>` (a
   percentage of the fitted head), `/plan/...` or `/dials/<name>`, re-read. Never re-mint for a change.
 - **Detail and adornment come LAST, by word, and each one earns its place.** They are the dragon's passes
-  with the hero's parameters (`detail: 'clothed'`, `adorn: 'ranger'`, or their data), never hand-placed
-  panels, buckles or patches. None before the silhouette, the face and the hair read; an adornment whose
+  with the hero's parameters (`detail: 'clothed'`, a ready outfit card, a `headgear` word, `adorn: 'ranger'`, or
+  their data), never hand-placed panels, buckles or patches. None before the silhouette, the face and the hair read; an adornment whose
   signature the ledger calls `reads, but small` or `unjustified` is made bolder or removed, not shipped.
 - **Human characters only.** A creature is `creature-from-plan`; a real species is kind `animal`; a
   person for a turnaround picture or pose study is the figure kind.
@@ -181,7 +181,22 @@ through `create_character({ as: 'hero', spec: { cast, register, tune } })`; its 
             each family reads from; at your viewing size, remove what only shimmers or make it bolder
             (a fold that reads as stitches is a fold not wanted), and set the eyes for that size.
 
-7. ADORN    The equipment, one word: `/hero/adorn` → `ranger` (belt, baldric, an archer's bracer on
+7. ADORN    The clothes, the headgear, then the equipment, each by word. CLOTHES: a READY OUTFIT,
+            `outfit: { type: 'outfit', style }`: the everyday cards (`casual` … `traveler`) and the
+            fantasy wardrobe (`ranger`, `mage`, `peasant`, `noble`, `cleric`, `rogue`), each an
+            underlayer with its pieces worn over it in order (a wrong word's error lists every card).
+            Make one yours as an inline card, or add `outfit.pieces`; name a piece's cloth
+            (`material`: silk, linen, wool, leather, fur, mail) and it hangs and flows by the cloth law. A
+            HOOD is a cloak's or a robe's word on any outfit: `hood: { worn: 'up' | 'down', point:
+            none | short | long, depth: deep | shallow, open }`. HEADGEAR is one word: `headgear:
+            'circlet' | 'wizardHat' | 'travelerHat'` (masks, cowls, helmets: get_solid_vocab({ id:
+            'headgear' })); a hat over a card whose hood is up wants an inline card, hood `worn:
+            'down'`. Each card and word: the layered manual's OUTFIT BUILD and THE FANTASY WARDROBE.
+            Read `warnings` (a piece the body did not wear says why: change the word or drop it, a
+            piece sinking into the body at a dial) and `hero.dress.silhouette.advice`; look at a WALK
+            frame for the cloth (the hem and cloak swing with the stride, nothing passes through an
+            arm) and at the hood from the SIDE (its point behind the crown, the face framed).
+            The equipment, one word: `/hero/adorn` → `ranger` (belt, baldric, an archer's bracer on
             one arm, ONE pauldron on the other shoulder — the focal accent), or a KIT in the plan's
             `adorn` block. Read `hero.dress.adornments`: every signature `justified`, else make it
             bolder or drop the adornment; and `hero.dress.clearance`: nothing sinks into the body at

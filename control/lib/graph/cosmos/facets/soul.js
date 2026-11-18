@@ -164,7 +164,7 @@ export const SOUL = Object.freeze({
         // local 11-09 (1109-gen-bodywork): the brawler's belt scrolls one shared view on as the players go (brawl-belt.js
         // beltScroll: never back, held at a gate until its wave falls, every player kept in the band), up to four seats with
         // drop-in; only in a brawl, so a run, a top-down field or a ride waits on it being lifted to the shared camera
-        scroll: { status: 'local', effort: 'M', pkg: 'scroll', lowers: 'lib/graph/brawl/brawl-belt.js', note: 'the brawler\'s belt scrolls one shared view on as the players go, never back, held at a gate until its wave falls, every player in its band (brawl-belt.js beltScroll, brawl-core.js); only in a brawl: a scrolling run, a top-down field or a ride waits on it in the shared camera', requires: TWO },
+        scroll: { status: 'built', since: '2026-11-16', lowers: 'lib/graph/brawl/brawl-belt.js', note: 'a street level of a designed game scrolls so (gameworld/brawl-cast.js), one player today; no other kind of level does. the brawler\'s belt scrolls one shared view on as the players go, never back, held at a gate until its wave falls, every player in its band (brawl-belt.js beltScroll, brawl-core.js); only in a brawl: a scrolling run, a top-down field or a ride waits on it in the shared camera', requires: TWO },
         split: { ...NOT_YET, effort: 'L', requires: TWO },
       },
     },

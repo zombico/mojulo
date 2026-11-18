@@ -9,9 +9,13 @@
  *     sfx?:        { cues?: {...} | undefined, beatsRef?, on?: { '<event type glob>': '<cueId>' } },
  *     footsteps?:  true | { step?, jump?, land? (gesture lists) },
  *     wind?:       true | { level (dB), freq (Hz) },
+ *     surfaces?:   [{ box: [x0, y0, z0, x1, y1, z1], step: <cue id>, land?: <cue id> }]   the ground under a step, by place
+ *     emitters?:   [{ at: [x, y, z], cue: <cue id>, every: s | [from, to], reach: m, level? }]   sounds that belong to a place
  *     weather?:    true | { level? (0..1), surface? }   the world's sky, sounding (manifest.weather; beats/weather-audio.js)
  *     (a sheet level also carries `foes`: { <foe id>: { attack?, hurt?, down? } } cue ids, from sfx.sheet.foes)
- *     engine?:     { voice, top, level?, idle? }   a ride's engine: a held voice following the pilot's speed up to `top`
+ *     ambience?:   { voice, level? }   a place's own held sound under the bed (a city's traffic far off)
+ *     engine?:     { voice, top, level?, idle?, cab?, drive?: { load?, road?, skid? } }   a ride's engine: a held voice following the pilot's speed up to `top`
+ *                  (`cab`: a city's cars, heard only while the pilot rides one, by that car's speed)
  *     moves?:      { swing?, hit?, block?, parry?, break?, draw?, loose?, arrow?, felled?, cycle?, foeSwing?, hurt? }
  *                  a moveset's events (gameworld/combos.js, combat-melee.js) → the ids of sfx cues: `swing` and `hit`
  *                  by weapon and weight ({ <weapon>: { light, heavy?, finisher? } }), the rest one cue each
@@ -315,6 +319,35 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     };
   }
 
+  // SURFACES (opt-in, with footsteps): what the ground sounds like where it is not the level's own: a box of the world
+  // (metres, the feet's) and the cues a step and a landing in it play, by id in the level's own cues. The first box a
+  // body's feet stand in is its ground; outside every box, the level's footsteps.
+  if (audioSpec.surfaces !== undefined) {
+    const S = audioSpec.surfaces, cueOf = (id, where) => { if (typeof id !== 'string' || !out.cues || !out.cues[id]) throw new Error(`${where} names a cue of audio.sfx.cues (got ${JSON.stringify(id)})`); return id; };
+    if (!out.footsteps) throw new Error('audio.surfaces are the ground under a body\'s steps: add audio.footsteps first');
+    if (!Array.isArray(S) || !S.length || S.length > 32) throw new Error('audio.surfaces is [{ box: [x0, y0, z0, x1, y1, z1], step: <cue id>, land?: <cue id> }] (1 to 32)');
+    out.surfaces = S.map((v, i) => {
+      const at = `audio.surfaces[${i}]`;
+      if (!v || typeof v !== 'object' || Object.keys(v).some((k) => !['box', 'step', 'land'].includes(k)) || !Array.isArray(v.box) || v.box.length !== 6 || !v.box.every(Number.isFinite) || [0, 1, 2].some((k) => v.box[k] >= v.box[k + 3])) throw new Error(`${at} is { box: [x0, y0, z0, x1, y1, z1] (metres, low corner then high), step: <cue id>, land?: <cue id> }`);
+      return { box: v.box.slice(), step: cueOf(v.step, `${at}.step`), ...(v.land !== undefined ? { land: cueOf(v.land, `${at}.land`) } : {}) };
+    });
+  }
+
+  // EMITTERS (opt-in): sounds that belong to a place: a cue of the level's own (by id) sounded again and again from a
+  // point, each time after a wait rolled between two bounds (one number: a steady wait, a held sound's overlap), heard
+  // by the listener's distance and not past its reach. A drip, a machine's hum, a fence in the wind.
+  if (audioSpec.emitters !== undefined) {
+    const E = audioSpec.emitters;
+    if (!Array.isArray(E) || !E.length || E.length > 32) throw new Error('audio.emitters is [{ at: [x, y, z], cue: <cue id>, every: seconds | [from, to], reach: metres, level?: 0 to 1 }] (1 to 32)');
+    out.emitters = E.map((v, i) => {
+      const at = `audio.emitters[${i}]`, ev = Array.isArray(v?.every) ? v.every : [v?.every, v?.every];
+      if (!v || typeof v !== 'object' || Object.keys(v).some((k) => !['at', 'cue', 'every', 'reach', 'level'].includes(k)) || !Array.isArray(v.at) || v.at.length !== 3 || !v.at.every(Number.isFinite)
+        || ev.length !== 2 || !ev.every((n) => Number.isFinite(n) && n >= 0.2) || ev[1] < ev[0] || !(v.reach > 0.5) || (v.level !== undefined && !(v.level >= 0 && v.level <= 1))) throw new Error(`${at} is { at: [x, y, z], cue: <cue id>, every: seconds | [from, to] (0.2 or more), reach: metres, level?: 0 to 1 }`);
+      if (typeof v.cue !== 'string' || !out.cues || !out.cues[v.cue]) throw new Error(`${at}.cue names a cue of audio.sfx.cues (got ${JSON.stringify(v.cue)})`);
+      return { at: v.at.slice(), cue: v.cue, every: ev.slice(), reach: v.reach, ...(v.level !== undefined ? { level: v.level } : {}) };
+    });
+  }
+
   // bed '<bed>' | { bed, level?, style? } (sfx-shelf/beds.js): the environment's bed, the shelf's one-shots as a groove,
   // played on its own engine under the score
   if (audioSpec.bed !== undefined && audioSpec.bed !== null && audioSpec.bed !== false) {
@@ -372,7 +405,18 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     if (!en || typeof en !== 'object' || !(en.top > 0)) throw new Error('audio.engine is { voice: <a held voice: a sustain spec or a shelf word>, top: <the speed it is flat out at, units/s>, level?, idle? }');
     const spec = typeof en.voice === 'string' ? sfxSound(en.voice)?.sustain : en.voice;
     if (!spec) throw new Error(`audio.engine.voice: '${en.voice}' is not a held voice on the SFX shelf`);
-    out.engine = { voice: heldVoice(spec, 'audio.engine.voice'), top: en.top, level: Number.isFinite(en.level) ? en.level : 0.3, idle: Number.isFinite(en.idle) ? Math.max(0, Math.min(1, en.idle)) : 0.12 };
+    // (a city car's DRIVE, `drive`: { load?, road?, skid? }, each { voice, level? }: held voices beside the engine, the
+    // audio channel's car sound design: its growl under the throttle, its tyres' roar by the speed, their screech as they slip)
+    const held = (h, at) => { const sp = typeof h.voice === 'string' ? sfxSound(h.voice)?.sustain : h.voice; if (!sp) throw new Error(`${at}.voice: '${h.voice}' is not a held voice on the SFX shelf`); return { voice: heldVoice(sp, `${at}.voice`), level: Number.isFinite(h.level) ? h.level : 0.4 }; };
+    const drive = en.drive && typeof en.drive === 'object' ? Object.fromEntries(['load', 'road', 'skid'].filter((k) => en.drive[k]).map((k) => [k, held(en.drive[k], `audio.engine.drive.${k}`)])) : null;
+    out.engine = { voice: heldVoice(spec, 'audio.engine.voice'), top: en.top, level: Number.isFinite(en.level) ? en.level : 0.3, idle: Number.isFinite(en.idle) ? Math.max(0, Math.min(1, en.idle)) : 0.12, ...(en.cab === true ? { cab: true } : {}), ...(drive && Object.keys(drive).length ? { drive } : {}) };
+  }
+  // a place's own held sound (`ambience`: { voice, level? }): a city's traffic far off, held under the bed while the
+  // level plays (the audio channel's), quieter inside a car
+  if (audioSpec.ambience !== undefined) {
+    const am = audioSpec.ambience, sp = am && (typeof am.voice === 'string' ? sfxSound(am.voice)?.sustain : am.voice);
+    if (!sp) throw new Error('audio.ambience is { voice: <a held voice: a shelf word or a sustain spec>, level? }');
+    out.ambience = { voice: heldVoice(sp, 'audio.ambience.voice'), level: Number.isFinite(am.level) ? am.level : 0.3 };
   }
   if (audioSpec.thruster) {
     const th = audioSpec.thruster === true ? {} : audioSpec.thruster;

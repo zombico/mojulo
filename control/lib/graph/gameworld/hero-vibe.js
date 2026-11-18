@@ -30,6 +30,7 @@ export const AXES = Object.freeze({
   poise: 'loose ↔ composed: the hip sway, the trunk twist, the steadiness of the head',
   confidence: 'timid ↔ bold: the carriage upright or hunched, the head, the stride, the arm carry',
   stance: 'narrow ↔ wide: how far apart the feet land, and how much the hips turn and sway to bring them in',
+  reach: 'short ↔ long: how far the legs open and how much ground a stride takes, in the run above all; an evocative read (an athlete\'s bound), not a measured one',
 });
 
 /** Words for how someone moves, each a vector over the axes. A creator's own word that is not here goes to the brief. */
@@ -63,6 +64,9 @@ export const VIBES = Object.freeze({
   'wide-stanced': { stance: 0.8 },
   dainty:    { stance: -0.6, weight: -0.4 },
   menacing:  { weight: 0.6, confidence: 0.6, energy: -0.2 },
+  // (a runner's run: the legs wide open, a long flight, the ground eaten)
+  athletic:  { reach: 1, energy: 0.6, confidence: 0.3 },
+  bounding:  { reach: 1, weight: -0.5, energy: 0.4 },
 });
 
 /** The dials' ranges, so no axis pushes one past what the gait can hold: [min, max] (seconds are per gait, below). */
@@ -99,6 +103,11 @@ export const AXIS_SPANS = Object.freeze({
     walk:   { lean: -0.06, headTilt: -5, strideLength: 0.06, armSwing: 5, shoulderRot: 2 },
     jog:    { lean: -0.04, strideLength: 0.04, armSwing: 4 },
     sprint: { lean: -0.04, strideLength: 0.04, armSwing: 4 },
+  },
+  reach: {
+    walk:   { strideLength: 0.08 },
+    jog:    { strideLength: 0.3, hipDrive: 0.45, flightLift: 0.04, swingTuck: 10, armSwing: 12, dutyFactor: -0.06 },
+    sprint: { strideLength: 0.18, hipDrive: 0.3, flightLift: 0.04, armSwing: 10, dutyFactor: -0.05 },
   },
   // (a run's feet land 3 cm apart as minted, a man's 9, and read from behind as legs on one line: at +1 they land wider
   // than the hip joints, about 35 cm, each leg clear of the other, and the pelvis that turned to bring them onto one

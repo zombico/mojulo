@@ -49,6 +49,9 @@ import { readHour, referenceHour } from '../era/geocube-hours.js';
 import { glyphOf } from './glyph-words.js';
 import { PALETTE_PRESETS } from '../color-theorist/solve.js';
 import { SIXTH_GEN_REFERENCES, resolveLook } from '../era/sixth-gen.js';
+import { ISEKAI_STYLES } from '../era/isekai-tiles.js';
+import { SWATCHES } from '../era/style/swatches.js';
+import { rgbToHex } from '../color-theorist/oklab.js';
 import { composerFills } from './resonance.js';
 import { readFoeWords, foePacks } from './foe-words.js';
 
@@ -100,6 +103,12 @@ export const LEXICON = Object.freeze({
   // (the land laid in sand dunes, every trail the cube paints, open on both sides of the walk: era/out-dunes.js; a sea of
   // sand is long ridges, its crests tall)
   dunes: { biome: 'desert', 'outside.dunes': true, 'outside.cliff': false }, dune: { biome: 'desert', 'outside.dunes': true, 'outside.cliff': false },
+  // under the sea (a scene's `sea`, scene/channels/sea.js, by the word's depth): the bed the desert's ground in low
+  // dunes, open, its flora the bed's own (BIOMES.seabed: reef rock, corals, weed; marine/roster.js)
+  underwater: { biome: 'seabed', 'outside.dunes': { supply: 1, height: 1.4, spacing: 18 }, 'outside.cliff': false, sea: 'reef' }, undersea: { biome: 'seabed', 'outside.dunes': { supply: 1, height: 1.4, spacing: 18 }, 'outside.cliff': false, sea: 'reef' },
+  seabed: { biome: 'seabed', 'outside.dunes': { supply: 1, height: 1.4, spacing: 18 }, 'outside.cliff': false, sea: 'reef' }, seafloor: { biome: 'seabed', 'outside.dunes': { supply: 1, height: 1.4, spacing: 18 }, 'outside.cliff': false, sea: 'reef' },
+  reef: { biome: 'seabed', 'outside.dunes': { supply: 1, height: 1.4, spacing: 18 }, 'outside.cliff': false, sea: 'shallows' }, coral: { biome: 'seabed', 'outside.dunes': { supply: 1, height: 1.4, spacing: 18 }, 'outside.cliff': false, sea: 'shallows' },
+  abyss: { biome: 'seabed', 'outside.dunes': { supply: 1, height: 1.4, spacing: 18 }, 'outside.cliff': false, sea: 'midnight' }, abyssal: { biome: 'seabed', 'outside.dunes': { supply: 1, height: 1.4, spacing: 18 }, 'outside.cliff': false, sea: 'midnight' },
   sandy: { biome: 'desert', 'outside.dunes': { supply: 0.5 } }, erg: { biome: 'desert', 'outside.dunes': { supply: 1, height: 4 }, 'outside.cliff': false }, arid: { biome: 'desert' },
   // landmarks
   arch: { 'land.landmark': ['arch', 0.25] }, arches: { 'land.landmark': ['arch', 0.75] }, spire: { 'land.landmark': ['spire', 0.25] }, spires: { 'land.landmark': ['spire', 0.75] },
@@ -149,12 +158,15 @@ export const HOUR_OF_WORDS = Object.freeze({
  * THE BIOMES: a place's character laid on a cube at once: its flora (a biocube, era/biocube.js), its palette's character
  * (the colour theorist's own preset for such a place, color-theorist/solve.js PALETTE_PRESETS: its axes and hues as the
  * spec, solved with the cube's seed), its ground (a land's formation, era/substrate.js: sandstone weathers to sand) and
- * its water (era/out-water.js).
+ * its water (era/out-water.js); `colour`: the cube's colours it locks (a role the palette's solve fits the rest round).
  */
 export const BIOMES = Object.freeze({
   coast: Object.freeze({ biocube: 'coast', palette: 'coastal-noon', water: Object.freeze({ coast: true }) }),
   alpine: Object.freeze({ biocube: 'alpine', palette: 'alpine-dawn' }),
   desert: Object.freeze({ biocube: 'desert', palette: 'desert-haze', skin: 'sandstone' }),
+  // (a seabed: the desert's ground and palette, its flora the bed's own, era/biocube.js `seabed`; no grass grows on it, so
+  // the ground a land paints as grass is sand too: its grass and foliage roles locked to the bed's sand and weed)
+  seabed: Object.freeze({ biocube: Object.freeze({ from: 'seabed', fauna: Object.freeze({ sea: true }) }), palette: 'desert-haze', skin: 'sandstone', colour: Object.freeze({ grass: '#cbbd98', foliage: '#6f8a4a' }) }),
 });
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** What a world map grows where its cube names no flora: the meadow kit's own card flora (era/biocube.js). */
@@ -170,6 +182,7 @@ export function cubeWithLand(geocube, { open = false, flowers = null, snow = fal
   if (open) c.outside = { ...(c.outside ?? {}), cliff: false };
   const B = biome ? BIOMES[biome] : null;
   if (B?.skin) c.outside = { ...(c.outside ?? {}), land: { ...(c.outside?.land ?? {}), skin: B.skin } };
+  if (B?.colour) c.colour = { ...(c.colour ?? {}), ...B.colour };
   const W = { ...(B?.water ?? {}), ...(water ?? {}) };
   if (Object.keys(W).length) c.outside = { ...(c.outside ?? {}), water: { ...(c.outside?.water ?? {}), ...W } };
   if (dunes !== null) c.outside = { ...(c.outside ?? {}), dunes };
@@ -353,7 +366,11 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // so they are laid for it. Only a clear read: a genre's own name, or the first genre ahead of the second on two of its
   // words (one word, "towers" or "map", says too little). Otherwise none, and design_game asks, naming the genres the
   // words point at
-  const genre = readGenre(prompt), leadWords = new Set((genre?.matched ?? []).flatMap((w) => w.split(/[^a-z0-9-]+/)));
+  // (a genre named only by words the brief's FEEL already claims is the feel's, not a genre: "a mega man style run and
+  // gun" names a game whose feel is known, a platformer that shoots, not a street to fight down)
+  const genre0 = readGenre(prompt);
+  const genre = genre0 && said && said.matched.length > genre0.matched.length && genre0.matched.every((w) => said.matched.includes(w)) ? null : genre0;
+  const leadWords = new Set((genre?.matched ?? []).flatMap((w) => w.split(/[^a-z0-9-]+/)));
   // a genre that is another door's medium is said, not laid; one the registry cannot make yet is refused with what it
   // waits on (genre-forms.js), nothing laid in its place
   if (genre && HAND_OFFS[genre.id]) throw new Error(`gameworld: compose: ${GENRES[genre.id].name.toLowerCase()} is made by ${HAND_OFFS[genre.id].door}: ${HAND_OFFS[genre.id].why}. Nothing is laid here.`);
@@ -543,6 +560,22 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     style.geocube = cubeWithLand(style.geocube, { biocube: MAP_FLORA.biocube });
     world.brief.worldMap.grows = `the ${MAP_FLORA.biocube}'s flora (its cube names none): grass on the land, groves beside the ways`;
   }
+  // HOW ITS LAND IS DRAWN (a genre hero row's `land`, hero-rows.js): rocks and cliff lips kept bare (`hats: false`, a
+  // glyph map's word carried to each tile's stage), and the kit's card's own sky and air over the cube's (`sky: 'card'`:
+  // the card's dome ends and its haze colour written as the cube's `light.sky`, its haze density as the cube's share of
+  // its reference's, `light.outsideFog`). A world whose row says neither, or with no map or no cube, is as it was
+  const land = genre ? GENRE_HERO[genre.id]?.land : null;
+  if (land?.hats === false && world.brief.worldMap) world.levels[world.brief.worldMap.level].glyphs.hats = false;
+  if (land?.sky === 'card' && style.geocube !== undefined) {
+    const card = ISEKAI_STYLES[style.kit], dome = SWATCHES[style.kit]?.land?.sky, fog = card?.air?.fog;
+    const cube = typeof style.geocube === 'string' ? { from: style.geocube } : { ...style.geocube };
+    const ref = SIXTH_GEN_REFERENCES[resolveLook(readGeocube(style.geocube).light.reference)];
+    if (Array.isArray(dome) && fog && ref?.air?.fog?.density > 0 && cube.light?.sky === undefined) {
+      const share = Math.min(4, Math.max(0.01, +(fog.density / ref.air.fog.density).toFixed(4)));
+      cube.light = { ...(cube.light ?? {}), outsideFog: share, sky: { zenith: rgbToHex(dome[0]).toLowerCase(), horizon: rgbToHex(dome[dome.length - 1]).toLowerCase(), fog: fog.color } };
+      style.geocube = cube;
+    }
+  }
   // the games inside the game the words ask for (minigames.js): read, laid once the world has its people
   for (const w of minigamesOfWords(prompt)?.words ?? []) {
     const r = world.brief.read.find((x) => x.word === w);
@@ -583,7 +616,8 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // that fills its window (`screen: 'fill'`: no frame written, so no bars on a window of another shape)
   const row = genre ? GENRE_HERO[genre.id] : null;
   if (row?.juice && world.juice === 'auto') world.juice = { ...row.juice };
-  if (row?.screen === 'fill') delete world.screen;
+  // (written as null, the world's word for no frame: an absent `screen` is one design_game makes for a phone)
+  if (row?.screen === 'fill') world.screen = null;
   // HOW ITS SCREENS LOOK (playscape/ui/interface-look.js): a world map's game has an interface (an empty `ui`: its look
   // the world's, by its intent, its colours the world's palette), so the play shell's screens are mana-ui's in that look
   // (game/play-shell-mana.js) as its HUD is; a game with no map keeps the shell's own screens

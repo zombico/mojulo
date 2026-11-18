@@ -59,6 +59,9 @@ import { isModelSkin } from '../foes/model.js';
 import { LEVEL_GOAL, PERSON } from './quick.js';
 import { gauntletIds } from './gauntlet.js';
 import { taskFoeIds } from './fights.js';
+import { streetFoeIds } from './brawl-cast.js';
+import { factionFoeIds } from './factions.js';
+import { lawFoeIds } from './law.js';
 import { HERO } from '../foes/vocab.js';
 import { FEELS, FPS } from './feel/cards.js';
 import { feelCard } from './feel/lower.js';
@@ -230,6 +233,12 @@ export function fieldedIds(G) {
   for (const f of gauntletIds(G)) used.add(f);
   // (and what its tasks' fights wake: fights.js)
   for (const f of taskFoeIds(G)) used.add(f);
+  // (and who its streets bring: brawl-cast.js)
+  for (const f of streetFoeIds(G)) used.add(f);
+  // (and who its factions fight with: factions.js)
+  for (const f of factionFoeIds(G.factions)) used.add(f);
+  // (and who answers mayhem: law.js)
+  for (const f of lawFoeIds(G.law)) used.add(f);
   // (and what a summoner it fields calls, and who a pair stands with)
   for (const id of [...used]) { const E = bestiaryOf(G)[id]; if (E?.summons) used.add(E.summons.foe); if (E?.pair) used.add(E.pair.foe); }
   // (and the modes each of them becomes)
@@ -250,6 +259,26 @@ export const isModel = (entry) => isModelSkin(entry?.skin);
 const freeBeats = (ends) => (ends?.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead');
 // the k-th of n bodies round a point, `r` out, the first on it
 const round = (at, k, n, r) => (k === 0 ? at : [r3(at[0] + r * Math.cos((2 * Math.PI * k) / n)), r3(at[1] + r * Math.sin((2 * Math.PI * k) / n)), at[2]]);
+// (a crew's member stands on its ring where no box stands: a raised pad or a kerb's step beside the street turns its spot
+// round the ring by eighths, and in toward the beat, until it is clear; none clear, the beat itself)
+const inBox = (p, boxes) => (boxes || []).some((c) => p[0] > c.min[0] && p[0] < c.max[0] && p[1] > c.min[1] && p[1] < c.max[1] && p[2] + 0.5 > c.min[2] && p[2] + 0.5 < c.max[2]);
+function clearRound(at, k, n, r, boxes) {
+  const first = round(at, k, n, r);
+  if (k === 0 || !inBox(first, boxes)) return first;
+  for (const rr of [r, r * 0.6, r * 0.3]) for (let t = 0; t < 8; t++) {
+    const a = (2 * Math.PI * k) / n + (t * Math.PI) / 4, p = [r3(at[0] + rr * Math.cos(a)), r3(at[1] + rr * Math.sin(a)), at[2]];
+    if (!inBox(p, boxes)) return p;
+  }
+  return at;
+}
+
+/** A stage's ends at one of its nodes: the same, its node said, and its boxes kept (a district's `colliders` are not
+ *  enumerable, so a spread drops them; a crew's ring is stood clear of them, clearRound) */
+export function endsAt(ends, node) {
+  const o = { ...ends, node };
+  if (!Object.prototype.hasOwnProperty.call(o, 'colliders') && ends && ends.colliders) Object.defineProperty(o, 'colliders', { value: ends.colliders, enumerable: false });
+  return o;
+}
 
 export function foePlacements(G, level, ends) {
   const LF = G.levels[level]?.foes;
@@ -289,7 +318,7 @@ export function foePlacements(G, level, ends) {
       const beat = free[Math.min(free.length - 1, Math.floor(((k + 0.5) * free.length) / crews))], size = Math.min(C.size, count - n);
       for (let j = 0; j < size; j++, n++) {
         const eid = read.from[n % read.from.length], entry = B[eid];
-        out.push({ id: `foe-${eid}-${out.filter((p) => p.eid === eid).length + 1}`, eid, entry, at: round(beat.at, j, size, C.spread), heading: facing(beat.at, ends.spawn), crew: { ...C, id: `crew-${k + 1}` }, encounter: `crew-${k + 1}` });
+        out.push({ id: `foe-${eid}-${out.filter((p) => p.eid === eid).length + 1}`, eid, entry, at: clearRound(beat.at, j, size, C.spread, ends.colliders), heading: facing(beat.at, ends.spawn), crew: { ...C, id: `crew-${k + 1}` }, encounter: `crew-${k + 1}` });
       }
     }
     return out;
@@ -413,6 +442,8 @@ export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tun
     body: { type: 'figure-rig', figure: fig, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg, hpBar: 'target', targetRim: C.rim, ...(f.scale !== 1 ? { scale: f.scale } : {}), vanish: vanishOf(G, last), ...(modes ? { modes } : {}), ...(p.entry && p.entry.states ? { born: stateBirth(p.entry.states, { height: 2 * b.egg.cz }) } : {}), ...(T.body || {}) },
     transform: { pos: p.at, heading: p.heading },
     ...(more.dormant ? { dormant: true } : {}),
+    // (one kept away until it is brought, and where it may be set down then: the law's police, levels.js policeCast)
+    ...(more.gone ? { gone: true } : {}), ...(Array.isArray(more.posts) ? { posts: more.posts } : {}),
   };
   // (its genre's row: how hard a game's foes are, hero-rows.js rowFoe)
   const made = rowFoe(G, e);
@@ -420,9 +451,13 @@ export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tun
   return made;
 }
 
-/** THE RAIL a side strip's foes fight on (worlds/controllable/foe.js RAIL): each waits on the land behind the lane
- * (`back` m behind it, a little under its floor) and comes in on an arc when the hero is within `wake` m of its place. */
-export const RAIL = Object.freeze({ back: -5.5, drop: 0.85, wake: 9, time: 0.7, arc: 1.4 });
+/** THE RAIL a side strip's foes fight on (worlds/controllable/foe.js RAIL). A foe STANDS ON THE RAIL from the start, in
+ * the hero's plane, so it is seen coming and a jump is timed on it. An AMBUSH is rare: one foe in `ambush` (never one of
+ * the first `ambushAfter`, which teach the stomp) waits on the land behind the lane (`back` m behind it, a little under
+ * its floor) and comes in on an arc when the hero is within `wake` m of its place. */
+export const RAIL = Object.freeze({ back: -5.5, drop: 0.85, wake: 9, time: 0.7, arc: 1.4, ambush: 6, ambushAfter: 4, apart: 1.3 });
+/** Does the k-th foe laid on a rail wait off it (an ambush)? Rare, and never among the first. */
+export const railAmbush = (k) => k >= RAIL.ambushAfter && (k - RAIL.ambushAfter) % RAIL.ambush === RAIL.ambush - 1;
 
 export function hostileCast(G, level, ends, { refs, hero = true, hurt = null, rail = null } = {}) {
   const P = foePlacements(G, level, ends);
@@ -453,12 +488,22 @@ export function hostileCast(G, level, ends, { refs, hero = true, hurt = null, ra
     standOne(p, { rule: { summon: { ids, at: Math.min(SUMMON.at, n), every: SUMMON.every, wind: r3(resolveFoe(specOf(p.entry)).attack.timing.startup / 60), radius: SUMMON.radius, ring: SUMMON.ring, with: SUMMON.with } } });
     ids.forEach((id) => standOne({ id, eid: S.foe, entry: B[S.foe], at: p.at, heading: p.heading }, { dormant: true, rule: { summoned: { by: p.id, bound } } }));
   }
-  // on a side strip's rail: each body that stands (a summons sleeps on its summoner) waits behind the lane and comes in
-  if (rail) for (const e of entities) {
-    if (e.dormant) continue;
-    const at = e.transform.pos;
-    e.rule = { ...e.rule, rail: { a: [0, -RAIL.wake], b: [0, r3(rail.length + RAIL.wake)], join: at, heading: e.transform.heading, wait: true, wake: RAIL.wake, time: RAIL.time, arc: RAIL.arc } };
-    e.transform = { ...e.transform, pos: [RAIL.back, at[1], r3(at[2] - RAIL.drop)], heading: 0 };
+  // on a side strip's rail: each body that stands (a summons sleeps on its summoner) is ON the rail where it was stood,
+  // held to the lane in all it does; a rare one (railAmbush) waits behind the lane and comes in
+  if (rail) {
+    let k = 0;
+    const taken = [];
+    for (const e of entities) {
+      if (e.dormant) continue;
+      // (its place ON the lane: a foe stood round a beat, a swarm's, is brought onto it, and along it clear of the last
+      // one stood there, so no two stand in one spot)
+      let y = e.transform.pos[1];
+      while (taken.some((t) => Math.abs(t - y) < RAIL.apart)) y = r3(y + RAIL.apart);
+      taken.push(y);
+      const at = [0, y, e.transform.pos[2]], wait = railAmbush(k++), line = { a: [0, -RAIL.wake], b: [0, r3(rail.length + RAIL.wake)], join: at, heading: e.transform.heading };
+      e.rule = { ...e.rule, rail: wait ? { ...line, wait: true, wake: RAIL.wake, time: RAIL.time, arc: RAIL.arc } : line };
+      e.transform = wait ? { ...e.transform, pos: [RAIL.back, at[1], r3(at[2] - RAIL.drop)], heading: 0 } : { ...e.transform, pos: at };
+    }
   }
   // the hero takes their hits: hittable (a person's egg over its feet, or under the eye a first-person walker walks at);
   // a hero with legs stomps them (worlds/controllable/foe.js)

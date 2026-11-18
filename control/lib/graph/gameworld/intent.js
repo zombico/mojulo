@@ -60,7 +60,7 @@ const WORDS = Object.freeze({
   metroidvania: ['metroidvania', 'abilities unlock', 'backtrack', 'map', 'interconnected'],
   'survival-horror': ['horror', 'survival horror', 'scary', 'dread', 'fixed camera', 'mansion'],
   'story-adventure': ['story', 'narrative', 'cutscene', 'cutscenes', 'dialogue', 'characters talk'],
-  'arena-brawler': ['brawler', 'arena', 'melee', 'sword fight', 'beat-em-up', 'fight'],
+  'arena-brawler': ['brawler', 'arena', 'melee', 'sword fight', 'fight'],
   'pixel-puzzle': ['pixel', 'retro', 'puzzle'],
   stealth: ['stealth', 'sneak', 'guards', 'unseen', 'spotted', 'infiltrate'],
   racing: ['race', 'racing', 'car', 'cars', 'drive', 'driving', 'laps', 'time trial', 'checkpoints'],
@@ -84,10 +84,11 @@ const WORDS = Object.freeze({
   'co-op-platformer': ['co-op platformer', 'platform together', 'with my brother', 'with friends', 'couch co-op', 'local co-op'],
   'co-op-brawler': ['beat em up', "beat 'em up", 'beat-em-up', 'brawler with friends', 'street brawler', 'final fight', 'belt scroller'],
   'co-op-scroller': ['bullet hell', 'shmup', 'shoot em up', "shoot 'em up", 'scrolling shooter'],
-  'run-and-gun': ['run and gun', 'run & gun', 'run-and-gun', 'run n gun', 'side-scrolling shooter', 'contra', 'metal slug', 'guns blazing'],
+  'run-and-gun': ['run and gun', 'run gun', 'run-and-gun', 'run n gun', 'side-scrolling shooter', 'side scrolling shooter', 'contra', 'metal slug', 'guns blazing'],
   'driver-and-gunner': ['driver and gunner', 'one drives one shoots', 'turret', 'gunner'],
   'split-deathmatch': ['split screen', 'split-screen', 'splitscreen', 'goldeneye', 'couch deathmatch'],
   'city-stalker': ['web swing', 'web-swing', 'web-slinging', 'swing between', 'rooftop', 'rooftops', 'skyscraper', 'skyscrapers', 'wall crawl', 'crawl the walls', 'grappling hook', 'superhero', 'vigilante', 'open-world city'],
+  'open-city-crime': ['gta', 'grand theft auto', 'gta-like', 'gta like', 'carjack', 'carjacking', 'car jacking', 'steal cars', 'steal a car', 'wanted level', 'crime game', 'open world crime', 'crime sandbox', 'sandbox city', 'hijack', 'getaway', 'police chase', 'heist'],
   // battle city (10-25): sports. A sport named is its shape's words; "football" is the team game, "race" stays the car's
   'athletics-meet': ['athletics', 'athletic', 'olympic', 'olympics', 'track and field', 'sprint', 'sprinting', '100m', 'hurdles', 'long jump', 'high jump', 'javelin', 'shot put', 'decathlon', 'relay', 'meet'],
   'net-game': ['tennis', 'volleyball', 'badminton', 'table tennis', 'ping pong', 'pong', 'pickleball', 'squash', 'rally', 'serve', 'net game', 'racket', 'racquet'],
@@ -102,6 +103,7 @@ export const QUICK_GENRE = Object.freeze({
   collect: 'collectathon', race: 'racing', sneak: 'stealth', rhythm: 'rhythm', defend: 'tower-defense',
   puzzle: 'block-puzzle', farm: 'farming', battle: 'jrpg', shoot: 'shooter', deathmatch: 'arena-shooter', fly: 'flight-sim',
   fight: 'versus-fighter', conquer: 'rts', runner: 'endless-runner', meet: 'athletics-meet', contest: 'net-game',
+  brawl: 'co-op-brawler', rungun: 'run-and-gun',
 });
 /** A contest's genre is its sport's shape: a net game, a turn sport, a team goal game (a sport it cannot read: the net game's). */
 export function contestGenre(sport) {
@@ -130,7 +132,7 @@ const NAMES = Object.freeze({
   'dungeon-crawler': ['crawler'], collectathon: ['collectathon'], shooter: ['fps', 'first-person shooter'],
   'stylish-action': ['stylish action', 'character action'], 'action-rpg': ['action rpg', 'action-rpg', 'arpg'],
   'arena-shooter': ['deathmatch', 'death match', 'arena shooter'], jrpg: ['rpg', 'jrpg', 'role-playing'], 'long-rpg': ['long rpg', 'open world rpg', 'open-world rpg'], metroidvania: ['metroidvania'],
-  'survival-horror': ['survival horror'], 'arena-brawler': ['brawler', 'beat-em-up'], stealth: ['stealth'], racing: ['racing', 'time trial'],
+  'survival-horror': ['survival horror'], 'arena-brawler': ['brawler'], stealth: ['stealth'], racing: ['racing', 'time trial'],
   'kart-racer': ['kart', 'karts', 'kart racer', 'go-kart'], 'flight-sim': ['flight sim'], 'space-shooter': ['space shooter', 'starfighter'],
   'air-combat': ['dogfight', 'dogfights', 'dogfighting', 'air combat'], rhythm: ['rhythm'], 'endless-runner': ['endless'], 'match-3-saga': ['match-3'],
   roguelike: ['roguelike', 'roguelite'], farming: ['farming', 'life sim'], 'tower-defense': ['tower defence', 'tower defense'],
@@ -138,10 +140,12 @@ const NAMES = Object.freeze({
   rts: ['rts', 'real-time strategy', 'real time strategy'], 'versus-fighter': ['fighting game', 'street fighter', 'tekken'],
   'cinematic-action': ['bullet time', 'cinematic action'],
   'co-op-kitchen': ['co-op cooking', 'overcooked'], 'party-mash': ['party game', 'party games', 'mario party'],
-  'co-op-platformer': ['co-op platformer', 'couch co-op', 'local co-op'], 'co-op-brawler': ['beat em up', "beat 'em up", 'street brawler'],
+  'co-op-platformer': ['co-op platformer', 'couch co-op', 'local co-op'], 'co-op-brawler': ['beat em up', "beat 'em up", 'beat-em-up', 'street brawler', 'belt scroller'],
   'co-op-scroller': ['bullet hell', 'shmup', 'shoot em up', "shoot 'em up", 'scrolling shooter'], 'driver-and-gunner': ['driver and gunner'],
-  'run-and-gun': ['run & gun', 'run-and-gun', 'contra', 'metal slug'],
+  // (a brief's `&` is read as a space, so 'run gun' is how "run & gun" arrives)
+  'run-and-gun': ['run and gun', 'run gun', 'run-and-gun', 'run n gun', 'side-scrolling shooter', 'side scrolling shooter', 'contra', 'metal slug'],
   'split-deathmatch': ['split screen', 'split-screen', 'splitscreen'], 'city-stalker': ['web swing', 'web-swing', 'web-slinging'],
+  'open-city-crime': ['gta', 'grand theft auto', 'carjacking', 'wanted level', 'crime sandbox'],
   'athletics-meet': ['athletics', 'track and field', 'decathlon', 'olympics'],
   'net-game': ['tennis', 'volleyball', 'badminton', 'table tennis', 'ping pong', 'pickleball', 'squash'],
   'turn-sport': ['golf', 'mini golf', 'minigolf', 'bowling', 'curling', 'darts', 'billiards', 'snooker', 'baseball', 'softball'],

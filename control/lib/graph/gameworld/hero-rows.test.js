@@ -7,6 +7,7 @@ import { arsenalOfGame } from './arsenal.js';
 import { sheetAudio, STEP_GAIN } from './sound-sheet.js';
 import { heroDesign } from './hero-design.js';
 import { composeGameworld } from './compose.js';
+import { gameStages } from './levels.js';
 import { readGameworld } from './world.js';
 import { GENRES } from './intent.js';
 import { LOOKS_ELEMENTS } from './characters.js';
@@ -136,6 +137,21 @@ describe('how the genre\'s hero plays', () => {
     expect(A.ranged[0].id).toBe('bow');
     expect(sheetAudio(G).sheet.steps.gain).toBe(STEP_GAIN);
     expect(STEP_GAIN).toBeLessThan(1);
+  });
+  it('her game fills its window: no frame is written as null, so design_game lays no phone frame over it', () => {
+    expect(world.screen).toBeNull();
+    expect(G.screen).toBeUndefined();
+  });
+  it('her land is drawn as its kit\'s card draws it: bare rocks on every zone, the card\'s sky and air over the cube\'s; another genre\'s is as it was', () => {
+    const map = world.levels[world.brief.worldMap.level];
+    expect(map.glyphs.hats).toBe(false);
+    expect(world.style.geocube.light.sky).toEqual({ zenith: expect.stringMatching(/^#[0-9a-f]{6}$/), horizon: expect.stringMatching(/^#[0-9a-f]{6}$/), fog: expect.stringMatching(/^#[0-9a-f]{6}$/) });
+    expect(world.style.geocube.light.outsideFog).toBeLessThan(1);
+    for (const s of gameStages(G)) expect(s.manifest.level.hats).toBe(false);
+    const other = Object.keys(GENRES).find((g) => !GENRE_HERO[g]?.land);
+    const O = composeGameworld({ prompt: `a ${GENRES[other].words[0]}`, seed: 3 });
+    expect(O.style?.geocube?.light?.sky).toBeUndefined();
+    for (const L of Object.values(O.levels)) expect(L.glyphs?.hats).toBeUndefined();
   });
   it('its foes are harder: never floored, a temper and a skill up, more health, faster; a boss keeps its own mind', () => {
     const e = { id: 'foe-1', team: 'foes', rule: { speed: 3.6, mind: { rank: 'minion', aggressiveness: 'bold', skill: 'regular' } }, body: { hp: 8 } };

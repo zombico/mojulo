@@ -24,6 +24,8 @@
  *   FAUNA_PRESETS            summer-day (gnats, butterflies, birds), summer-night (fireflies, a few gnats), pasture
  *                            (sheep, butterflies, birds), woodland (deer, rabbits, birds), brook (ducks, gnats,
  *                            butterflies), cellar (roaches and mice: a room stage's)
+ *   (the sea's animals are a third tier, a document's `sea`: marine/fauna.js; swimmers called by depth, room and habitat,
+ *   each on a loop of its own, on a gen-7 geocube page)
  *   readFauna(spec)          a preset id, a document { swarms?: { <kind>: true | { …settings } | null }, herds?:
  *                            { <species>: true | { groups, size } | null } }, or { from: preset, …changes } (each kind
  *                            and species merged over the preset's, null for none) → checked: { id, title, reads,
@@ -52,6 +54,7 @@ import { BUG_SPECIES } from '../bugs/species.js';
 import { sizeClassOf, GARGANTUAN_MAX } from '../fauna/size-class.js';
 import { motionGaits, motionBehaviors, motionReactions, gaitStride } from '../fauna/rig.js';
 import { tagsOf, capabilitiesOf } from '../fauna/behavior/index.js';
+import { checkSeaFauna } from '../marine/fauna.js';
 
 const no = (m) => { throw new Error(`biocube: ${m}`); };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -95,7 +98,7 @@ export function unitOf(id) {
   const size = sizeClassOf(id), cap = capabilitiesOf(id);
   if (size.class === 'mini') no(`fauna.herds.${id} is mini: a swarm of the field's, not a unit`);
   if (size.extent > GARGANTUAN_MAX) no(`fauna.herds.${id} is ${size.extent} m: past a gargantuan's scale (${GARGANTUAN_MAX} m, a Gundam's), a landmark, not fauna`);
-  if (cap.swimmer) no(`fauna.herds.${id} lives in water: a level's water holds no animals yet`);
+  if (cap.swimmer) no(`fauna.herds.${id} lives in water: it is the sea's (fauna.sea: marine/fauna.js), not a herd on land`);
   const have = motionGaits(id), gait = GROUND_GAITS.find((g) => have.includes(g) && gaitStride(id, g));
   if (!gait) no(`fauna.herds.${id} has no stride on land to walk a level by (it moves: ${have.join(', ')})`);
   // a grazer grazes (the grass laid round its herd is its food); every other animal wanders round its herd's ground. A
@@ -171,7 +174,7 @@ function checkSwarm(kind, s) {
 export function readFauna(spec) {
   if (typeof spec === 'string') { if (!FAUNA_PRESETS[spec]) no(`fauna '${spec}' is not a preset (${FAUNA_IDS.join(', ')})`); return readFauna({ from: spec }); }
   if (!isObj(spec)) no(`fauna is a preset id (${FAUNA_IDS.join(', ')}), a document { swarms } or { from, …changes }`);
-  for (const k of Object.keys(spec)) if (!['id', 'from', 'title', 'reads', 'swarms', 'herds'].includes(k)) no(`fauna.${k} is not a setting (from, title, reads, swarms, herds)`);
+  for (const k of Object.keys(spec)) if (!['id', 'from', 'title', 'reads', 'swarms', 'herds', 'sea'].includes(k)) no(`fauna.${k} is not a setting (from, title, reads, swarms, herds, sea)`);
   const base = spec.from === undefined ? null : FAUNA_PRESETS[spec.from] ?? no(`fauna from '${spec.from}' is not a preset (${FAUNA_IDS.join(', ')})`);
   if (spec.swarms !== undefined && !isObj(spec.swarms)) no(`fauna.swarms is { <kind>: true | { …settings } | null }, a kind of ${FIELD_KIND_IDS.join(', ')}`);
   if (spec.herds !== undefined && !isObj(spec.herds)) no('fauna.herds is { <species>: true | { groups, size } | null }');
@@ -186,6 +189,10 @@ export function readFauna(spec) {
   };
   const swarms = merged(base?.swarms ?? {}, spec.swarms ?? {}, checkSwarm, (k) => { if (!FIELD_KINDS[k]) no(`fauna.swarms.${k} is not a field kind (${FIELD_KIND_IDS.join(', ')})`); });
   const herds = merged(base?.herds ?? {}, spec.herds ?? {}, checkHerd, (k) => { if (!SPECIES[k]) unitOf(k); });
+  // (the sea's animals, marine/fauna.js: called on a gen-7 geocube page under a `sea`; a stage lays none of them)
+  let sea = null;
+  try { sea = checkSeaFauna(spec.sea); } catch (e) { no(e.message); }
+  if (sea) return { id: spec.id ?? spec.from ?? 'fauna', title: spec.title ?? base?.title ?? 'Fauna', reads: spec.reads ?? base?.reads ?? '', swarms, herds, sea };
   if (!Object.keys(swarms).length && !Object.keys(herds).length) no(`fauna names nothing that lives here: a swarm of ${FIELD_KIND_IDS.join(', ')}, a herd of a species, or fauna: null for none`);
   return { id: spec.id ?? spec.from ?? 'fauna', title: spec.title ?? base?.title ?? 'Fauna', reads: spec.reads ?? base?.reads ?? '', swarms, herds };
 }

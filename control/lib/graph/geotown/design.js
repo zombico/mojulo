@@ -516,6 +516,16 @@ export function designGeotown(spec = {}, { seed = 1, field = null, streets: stre
           Hd = r3(Math.max(K.use === 'shop' ? 12 : 6, Math.min(roll(R, K.building), dep - F - extra - 3)));
           sL = roll(R, K.side); sR = roll(R, K.side);
           if (extra) big = { extra, avenue: true };
+          // A ROW BROKEN UP (the spec's `fronts`, the row's `breaks`): an ALLEY beside some buildings (never two running,
+          // never on a corner's flank) and some SET BACK from the walk behind a paved forecourt; their own dice, so a
+          // row not broken up rolls as it did
+          if (T.fronts && K.breaks && !cc.type) {
+            const Rb = streamOf(seed, 'breaks', `${c.id}:${r.side}:${k}`), Bk = K.breaks;
+            // (as wide as its plot can spare over a building's least, never narrower than a body's passage)
+            const alley = !cc.corner && k > 0 && k < cut.length - 1 && !r.alleyAt?.has(k - 1) && Rb() < Bk.alley.share ? Math.min(roll(Rb, Bk.alley.w), r3(w - HOUSE_LEAST)) : 0;
+            if (alley >= Bk.alley.w[0] - 1e-9) { sR = r3(Math.max(sR, alley)); (r.alleyAt ??= new Set()).add(k); }
+            if (Rb() < Bk.setback.share) { const by = Math.min(roll(Rb, Bk.setback.by), Math.max(0, dep - F - Hd - 3)); if (by > 0.3) big = { extra: r3(by), avenue: true, paved: true }; }
+          }
         }
         // (never so wide the building is narrower than a dwelling's least: the side yards give way first)
         const spare = Math.max(0, w - (cc.corner === 'both' ? 2 : cc.corner ? 1 : 0) * K.corner - HOUSE_LEAST);
@@ -538,7 +548,7 @@ export function designGeotown(spec = {}, { seed = 1, field = null, streets: stre
         }
         const F1 = r3(F + (big?.extra ?? 0)), env = [sL, F1, r3(w - sR), r3(F1 + Hd)], pw = F1 > 0 ? Math.min(P.path * (r.kind === 'apartments' || r.kind === 'lowrise' ? 1.6 : 1), Math.max(0.6, env[2] - env[0] - 0.4)) : 0;
         const pl = { id: `${B.id}-${r.side}${k + 1}`, block: B.id, side: r.side, k, kind: r.kind, use: K.use, form: cc.form, ...(cc.form === 'semi' ? { pair: `${B.id}-${r.side}p${cc.pair + 1}`, half: cc.half } : {}), ...(cc.corner ? { corner: cc.corner } : {}),
-          ...(cc.type ? { type: cc.type, ...(K.types[cc.type].paved ? { paved: true } : {}) } : {}), ...(laneW ? { lane: true } : {}), A, ex, ey, w, d: dep, setback: F, rear: K.rear, house: { depth: Hd, sides: [sL, sR], env }, built: B.built };
+          ...(cc.type ? { type: cc.type, ...(K.types[cc.type].paved ? { paved: true } : {}) } : {}), ...(big?.paved ? { paved: true } : {}), ...(r.alleyAt?.has(k) ? { alleyBeside: true } : {}), ...(laneW ? { lane: true } : {}), A, ex, ey, w, d: dep, setback: F, rear: K.rear, house: { depth: Hd, sides: [sL, sR], env }, built: B.built };
         // the door's path: from the walk to the envelope's middle until a building says where its door is
         pl.path = { u: r3((env[0] + env[2]) / 2), w: r3(pw) };
         const rearA = r3(w * (dep - env[3]));

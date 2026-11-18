@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { manaUi, manaUiSource, withIdioms, IDIOMS, manaUiPage, manaUiBoard, SAMPLE_STATE, coverageOverlap } from './index.js';
+import { manaUi, manaUiSource, withIdioms, IDIOMS, manaUiPage, manaUiBoard, SAMPLE_STATE, coverageOverlap, manaCss, lensCss } from './index.js';
 
 // The runtime's concepts, each on the smallest spec that exercises it: reading that teaches, props down (literals and
 // bindings), three owners of state, function as effects, focus in one and two directions, seats, the in-game layer,
@@ -210,6 +210,78 @@ describe('mana-ui: in game', () => {
     S.pops = [{ id: 2, x: 0.5, y: 0.5, value: 4 }]; rt.tick(); m.paint();
     expect(el.querySelector('.mana-anchor')).not.toBe(first);   // the same place, the same words: a new number all the same
   });
+  it('the lens is a part apart: drawn beside the root, never in it; its effects only; a strike a region round each foe, a new hit a new element', () => {
+    const S = { lens: { hits: [{ id: 'f', n: 1, x: 0.6, y: 0.5, r: 0.08, power: 0.7 }] } };
+    const rt = manaUi.runtime({ hud: { use: 'hud', children: [] }, lens: { use: 'lens', children: [{ use: 'strike', props: { rows: { bind: 'lens.hits' }, kind: 'ring' } }] }, screens: {} }, host(S));
+    expect(rt.view()).not.toContain('mana-lens');
+    expect(rt.lensView()).toContain('class="mana-lens"');
+    expect(rt.lensView()).toContain('data-key="sf:1"');
+    expect(rt.lensView()).toMatch(/left:60%;top:50%;--r:0\.08;--p:0\.7/);
+    // (its effects only: a HUD part is not the lens's)
+    expect(() => manaUi.readSpec({ lens: { use: 'lens', children: [{ use: 'gauge', props: { value: 1, max: 2 } }] }, screens: {} })).toThrow(/one of the lens's effects \(strike\)/);
+    // (mounted apart, it plays again on a new hit: a new element)
+    const el = new JSDOM('<div></div>').window.document.querySelector('div'), m = manaUi.mount(el, rt, { part: 'lens', tick: true });
+    const first = el.querySelector('.mana-struck');
+    expect(first.getAttribute('data-key')).toBe('sf:1');
+    S.lens.hits = [{ ...S.lens.hits[0], x: 0.61 }]; m.paint();
+    expect(el.querySelector('.mana-struck')).toBe(first);   // the same hit followed: the same element, moved
+    S.lens.hits = [{ ...S.lens.hits[0], n: 2 }]; m.paint();
+    expect(el.querySelector('.mana-struck')).not.toBe(first);
+    // (at most `most` at once, the latest kept; none without a lens)
+    const many = manaUi.runtime({ lens: { use: 'lens', children: [{ use: 'strike', props: { rows: Array.from({ length: 9 }, (_, i) => ({ id: i, n: 1, x: 0.5, y: 0.5, r: 0.05 })), most: 3 } }] }, screens: {} }, host({}));
+    expect(many.lensView().match(/mana-struck/g)).toHaveLength(3);
+    expect(many.lensView()).toContain('data-key="s8:1"');
+    expect(manaUi.runtime({ screens: {} }, host({})).lensView()).toBe('');
+  });
+  it('the lens\'s sheet never isolates its root, opens a hole for the body, and moves by opacity and scale alone', () => {
+    const css = lensCss('.L'), root = css.match(/^\.L\{([^}]*)\}/m)[1];
+    for (const w of ['z-index', 'contain', 'container', 'opacity', 'transform', 'filter', 'isolation', 'mix-blend']) expect(root).not.toContain(w);
+    // (the band's element is 2.4 bodies across each way: its mask's hole must reach the body's edge)
+    const hole = Number(css.match(/radial-gradient\(closest-side,transparent 0 (\d+)%/)[1]) / 100;
+    expect(hole * 2.4).toBeGreaterThanOrEqual(0.95);
+    for (const f of css.match(/@keyframes mana-lens-[a-z]+\{.*\}\}/g)) for (const [, prop] of f.matchAll(/[{;]([a-z-]+):/g)) expect(['opacity', 'scale']).toContain(prop);
+    expect(css).toMatch(/\.L\[data-flash=reduced\] \.mana-struck\[data-kind=ink\]/);
+    expect(css).toMatch(/\.L\[data-clock=held\] \.mana-struck\{animation-play-state:paused\}/);
+  });
+  it('a screen effect plays once a trigger: idle without one, a new element a new trigger, the same moment the same pieces', () => {
+    const S = { fx: { win: 0 } }, el = new JSDOM('<div></div>').window.document.querySelector('div');
+    const rt = manaUi.runtime({ hud: { use: 'hud', children: [{ use: 'effect', props: { kind: 'confetti', on: { bind: 'fx.win' }, count: 12, tones: ['accent', '#ff00aa'] } }] }, screens: {} }, host(S));
+    const m = manaUi.mount(el, rt), fx = () => el.querySelector('.mana-effect');
+    expect(fx().getAttribute('data-idle')).toBe('yes');
+    expect(fx().querySelectorAll('i')).toHaveLength(0);
+    S.fx.win = 1; rt.tick(); m.paint();
+    const first = fx();
+    expect(first.getAttribute('data-key')).toBe('fx1');
+    expect(first.getAttribute('aria-hidden')).toBe('true');
+    expect(first.querySelectorAll('i')).toHaveLength(12);
+    expect(first.querySelector('i').getAttribute('style')).toMatch(/--c:var\(--mana-accent\)/);
+    expect(first.querySelectorAll('i')[1].getAttribute('style')).toMatch(/--c:#ff00aa/);
+    S.fx.win = 2; rt.tick(); m.paint();
+    expect(fx()).not.toBe(first);   // a new trigger: a new element, so its animation plays again
+    // (its own dice: the same trigger throws the same pieces, another another)
+    const draw = (on, seed = 1) => manaUi.runtime({ hud: { use: 'hud', children: [{ use: 'effect', props: { on, seed, count: 8 } }] }, screens: {} }, host({})).view();
+    expect(draw('a')).toBe(draw('a'));
+    expect(draw('a')).not.toBe(draw('b'));
+    expect(draw('a', 2)).not.toBe(draw('a'));
+  });
+  it('a screen effect is kept within bounds: its pieces at most EFFECT_MAX, a flash one piece, a loop with no trigger', () => {
+    const one = (props) => { const el = new JSDOM('<div></div>').window.document.querySelector('div'); manaUi.mount(el, manaUi.runtime({ hud: { use: 'hud', children: [{ use: 'effect', props }] }, screens: {} }, host({}))); return el.querySelector('.mana-effect'); };
+    expect(one({ on: 1, count: 10000 }).querySelectorAll('i')).toHaveLength(160);
+    expect(one({ kind: 'flash', on: 1 }).querySelectorAll('i')).toHaveLength(1);
+    expect(one({ kind: 'petals', loop: true }).getAttribute('data-loop')).toBe('yes');
+    expect(Object.keys(manaUi.EFFECTS)).toEqual(expect.arrayContaining(['confetti', 'streamers', 'sparkles', 'burst', 'petals', 'flash']));
+  });
+  it('a screen effect never touches play: it catches no pointer, is laid out alone, moves by transform and opacity, and stays home under less motion', () => {
+    const css = manaCss('.r');
+    expect(css).toMatch(/\.r \.mana-effect\{position:absolute;inset:0;pointer-events:none;overflow:hidden;contain:strict;/);
+    // (its motions change transform and opacity alone: the compositor's, no layout and no paint a frame)
+    const frames = css.match(/@keyframes mana-fx-[a-z]+\{.*?\}\}/g);
+    expect(frames.length).toBeGreaterThanOrEqual(8);
+    for (const f of frames) for (const [, prop] of f.matchAll(/[{;]([a-z-]+):/g)) expect(['transform', 'opacity']).toContain(prop);
+    expect(css).toMatch(/\.r\[data-motion=reduced\] \.mana-effect:not\(\[data-kind=flash\]\) i\{display:none\}/);
+    expect(css).toMatch(/@media \(prefers-reduced-motion:reduce\)\{\.r \.mana-effect:not\(\[data-kind=flash\]\) i\{display:none\}\}/);
+  });
+
   it('the HUD reads a screen\'s pick in the frame the screen picks it (the target in focus, marked over its head)', () => {
     const S = { foes: [{ id: 'a', x: 0.3, y: 0.5, aim: { a: true } }, { id: 'b', x: 0.7, y: 0.5, aim: { b: true } }] };
     const spec = { hud: { use: 'hud', children: [{ use: 'anchors', props: { rows: { bind: 'foes' }, row: { use: 'stack', children: [{ use: 'badge', props: { value: '▼' }, when: { pick: { format: 'targets.aim.{id}' } } }] } } }] },
@@ -265,10 +337,69 @@ describe('mana-ui: the live game', () => {
     expect(v).toMatch(/↑✕/);
     expect(v).not.toContain('data-kind="ally"');
   });
-  it('harm\'s bearing becomes a mark on the ring, turned toward it', () => {
-    const v = hudOf([{ use: 'threat', props: { markers: [{ bearing: 90 }, { bearing: 180 }] } }]).view();
-    expect(v).toContain('left:95%;top:50%;transform:translate(-50%,-50%) rotate(90deg)');
-    expect(v).toContain('left:50%;top:95%');
+  it('harm\'s bearing becomes an arc of the ring, turned toward it, fading as it ages', () => {
+    const v = hudOf([{ use: 'threat', props: { markers: [{ bearing: 90 }, { bearing: 180, fade: 0.4 }] } }]).view();
+    expect(v).toContain('<span class="mana-arc" style="transform:rotate(90deg)"></span>');
+    expect(v).toContain('transform:rotate(180deg);opacity:0.4');
+  });
+  it('a shooter\'s readouts: the magazine is a figure and a belt that says low, empty and reloading; the screen\'s edge is the peril', () => {
+    const mag = (props) => hudOf([at({ use: 'magazine', props: { name: 'Carbine', size: 30, reserve: 90, ...props } })]).view();
+    const full = mag({ rounds: 30 });
+    expect(full).toMatch(/<span class="mana-num">30<\/span><span class="mana-reserve">90<\/span>/);
+    expect((full.match(/<i><\/i>/g) || []).length).toBe(30);
+    expect(full).not.toContain('mana-call');
+    // a quarter left: low, the spent rounds hollow, and said; none: reload; reloading: said, and not low
+    const low = mag({ rounds: 6 });
+    expect(low).toContain('data-low="yes"');
+    expect((low.match(/data-spent="yes"/g) || []).length).toBe(24);
+    expect(low).toContain('>Low ammo<');
+    expect(mag({ rounds: 0 })).toMatch(/data-empty="yes".*>Reload</);
+    expect(mag({ rounds: 0, reloading: true })).toMatch(/data-reloading="yes".*>Reloading</);
+    expect(mag({ rounds: 0, reloading: true })).not.toContain('data-empty');
+    // its wireframe by its name (or the gun it names), its rounds the ones it names; a blade counts nothing
+    expect(full).toContain('data-gun="carbine"');
+    expect(full).toContain('<i aria-hidden="true" class="mana-sil"></i>');
+    expect(mag({ rounds: 5, size: 8, gun: 'Shotgun', round: 'shell' })).toMatch(/data-gun="shotgun".*class="mana-belt" data-round="shell"/);
+    const blade = hudOf([at({ use: 'magazine', props: { name: 'Knife', rounds: 0 } })]).view();
+    expect(blade).toContain('data-gun="knife"');
+    expect(blade).not.toMatch(/mana-rounds|mana-call|data-empty/);
+    // a drum past sixty is one track, not a belt
+    expect(mag({ rounds: 50, size: 100 })).toMatch(/mana-track"><i style="width:50%"/);
+    const peril = (level) => hudOf([{ use: 'peril', props: { level } }]).view();
+    expect(peril(0.5)).toContain('style="--mana-peril:0.5"');
+    expect(peril(0.5)).not.toContain('data-high');
+    expect(peril(0.9)).toContain('data-high="yes"');
+    expect(peril(4)).toContain('--mana-peril:1"');
+  });
+  it('a charge is a ring that fills, glows ready and drains active; a wheel lays what is carried at its buttons, the one in hand named in the middle', () => {
+    const ch = hudOf([at({ use: 'charge', props: { value: 0.42, state: 'ready', icon: 'clock', label: 'Dodge' } })]).view();
+    expect(ch).toContain('data-state="ready" style="--r:0.42"');
+    expect(ch).toContain('>Dodge<');
+    const wh = hudOf([at({ use: 'wheel', props: { title: 'hold RB', rows: [{ name: 'Knife', at: 0, key: 'Y' }, { name: 'Carbine', at: 270, key: 'X', count: '24 / 90', on: true, sub: 'auto' }] } })]).view();
+    // (the top slot at the ring's top, the left one at its left; the one in hand lit, its name in the hub)
+    expect(wh).toMatch(/data-gun="knife" style="left:50%;top:10%"/);
+    expect(wh).toMatch(/data-gun="carbine" data-on="yes" style="left:10%;top:50%"/);
+    expect(wh).toMatch(/class="mana-whub"><span class="mana-caption">hold RB<\/span><span class="mana-name">Carbine<\/span><span class="mana-caption">auto<\/span>/);
+  });
+  it('a part whose `when` is a param left out is never drawn, and nothing it would need is asked of it', () => {
+    const spec = { start: 's', defs: { 'note-card': { params: ['note'], node: { use: 'stack', children: [{ use: 'text', props: { value: 'x' } }, { use: 'text', props: { value: { param: 'note' } }, when: { param: 'note' } }] } } }, screens: { s: { use: 'screen', children: [{ use: 'note-card' }] } } };
+    expect(() => manaUi.readSpec(spec)).not.toThrow();
+    expect(manaUi.runtime(spec, host({})).view()).not.toContain('undefined');
+  });
+  it('a pick that is a gun shows its wireframe beside its name; an endless gun says ∞ and is never low', () => {
+    const spec = withIdioms({ start: 's', screens: { s: { use: 'pick-screen', props: { title: 'Street', ask: 'Choose your gun', chosen: [], rows: [{ id: 'spread', name: 'Spread', gun: 'spread', then: { emit: 'x' } }, { id: 'flame', name: 'Flame', gun: 'flame', then: { emit: 'y' } }] } } } });
+    const v = manaUi.runtime(spec, host({})).view();
+    expect(v).toContain('data-gun="spread"');
+    expect(v).toContain('data-gun="flame"');
+    const side = hudOf([at({ use: 'magazine', props: { gun: 'sidearm', rounds: 0, endless: true } })]).view();
+    expect(side).toContain('>∞<');
+    expect(side).not.toMatch(/data-empty|data-low|mana-belt/);
+  });
+  it('a radar is a scope: a bezel, the wedge ahead, north on the bezel; a region may rest, or sit on a scrim', () => {
+    const v = hudOf([{ use: 'region', props: { at: 'top-left', variant: 'scrim', rest: true }, children: [{ use: 'minimap', props: { shape: 'round', scope: true, north: 90, markers: [{ x: 0.5, y: 0.1, kind: 'foe' }] } }] }]).view();
+    expect(v).toContain('data-rest="yes" data-variant="scrim"');
+    expect(v).toContain('data-scope="yes" data-shape="round"><span class="mana-bezel"><i class="mana-cone"></i><b class="mana-north" style="transform:rotate(90deg)"><span style="transform:rotate(-90deg)">N</span>');
+    expect(hudOf([{ use: 'region', props: { at: 'top-left' }, children: [{ use: 'minimap', props: {} }] }]).view()).not.toContain('mana-bezel');
   });
   it('a table marks your row by a shape; a slot shows its key, cooldown and the one in hand; a dial turns with its value', () => {
     const t = hudOf([at({ use: 'table', props: { columns: ['name', { key: 'score', align: 'right' }], rows: [{ name: 'A', score: 3 }, { name: 'B', score: 2, self: true }] } })]).view();
@@ -280,7 +411,7 @@ describe('mana-ui: the live game', () => {
     expect(hudOf([at({ use: 'gauge', props: { value: 120, max: 240 } })]).view()).toContain('rotate(0deg)');
   });
   it('a hud holds regions and layers only; a screen lays its own parts out in regions over the held game', () => {
-    expect(() => manaUi.readNode({ use: 'hud', children: [{ use: 'gauge', props: { value: 1, max: 2 } }] })).toThrow(/a region .* or a layer \(anchors, edges, threat, letterbox\)/);
+    expect(() => manaUi.readNode({ use: 'hud', children: [{ use: 'gauge', props: { value: 1, max: 2 } }] })).toThrow(/a region .* or a layer \(anchors, edges, threat, peril, letterbox, effect\)/);
     const rt = run(screen([{ use: 'region', props: { at: 'bottom-left' }, children: [{ use: 'list', props: { rows: [{ label: 'Attack', active: true }, { label: 'Guard' }] } }] }]));
     expect(rt.view()).toContain('class="mana-region" data-at="bottom-left"');
     rt.press('down');

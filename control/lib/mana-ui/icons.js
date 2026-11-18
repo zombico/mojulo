@@ -31,6 +31,9 @@ export const ICONS = Object.freeze({
   // what is counted and kept
   coin: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM12 6.5a5.5 5.5 0 1 1 0 11a5.5 5.5 0 1 1 0-11zM12 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z',
   gem: 'M7 4h10l4 5-9 11L3 9z',
+  // what is fired and thrown (a shooter's rounds, its grenades)
+  bullet: 'M9 21V10c0-3 1.2-5.5 3-7c1.8 1.5 3 4 3 7v11zM9 16.5h6v1.5H9z',
+  grenade: 'M12 8a6.5 6.5 0 1 0 0 13a6.5 6.5 0 1 0 0-13zM10 4h4v3.2h-4zM14 4.4h4.6v2H14z',
   heart: 'M12 20s-8-5-8-10.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 8 3.5C20 15 12 20 12 20z',
   star: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z',
   key: 'M7.5 7.5a4.5 4.5 0 1 0 4.2 6H14v2.5h2.5v-2.5H19v2h2.5v-5H11.7a4.5 4.5 0 0 0-4.2-3zM7.5 10.4a1.6 1.6 0 1 1 0 3.2a1.6 1.6 0 1 1 0-3.2z',
@@ -60,6 +63,10 @@ export const ICONS = Object.freeze({
   eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 8.5a3.5 3.5 0 1 1 0 7a3.5 3.5 0 1 1 0-7z',
   home: 'M12 3l9 8h-2.5v9h-5v-6h-3v6h-5v-9H3z',
   train: 'M7 3h10a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3l2 3h-2.5l-1.5-2h-6l-1.5 2H5l2-3a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zM7 6v5h10V6zM8.5 13a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3zM15.5 13a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3z',
+  // a city's: what is driven, where things are bought, what is carried
+  car: 'M5 11l1.6-4.2A2 2 0 0 1 8.5 5.5h7a2 2 0 0 1 1.9 1.3L19 11h.5A1.5 1.5 0 0 1 21 12.5V17h-2v1.5a1.5 1.5 0 0 1-3 0V17H8v1.5a1.5 1.5 0 0 1-3 0V17H3v-4.5A1.5 1.5 0 0 1 4.5 11zM7.3 10.5h9.4l-1.2-3H8.5zM6.5 12.8a1.2 1.2 0 1 0 0 2.4a1.2 1.2 0 1 0 0-2.4zM17.5 12.8a1.2 1.2 0 1 0 0 2.4a1.2 1.2 0 1 0 0-2.4z',
+  shop: 'M4 4h16l1.5 5a2.5 2.5 0 0 1-1.5 2.3V20H4v-8.7A2.5 2.5 0 0 1 2.5 9zM6 12v6h4v-4.5h4V18h4v-6a2.6 2.6 0 0 1-2-.9 2.6 2.6 0 0 1-4 0 2.6 2.6 0 0 1-4 0 2.6 2.6 0 0 1-2 .9z',
+  box: 'M12 2.5l9 4.5v10l-9 4.5L3 17V7zM12 4.7L6.2 7.6 12 10.5l5.8-2.9zM5 9.2v6.6l6 3V12.2zM13 12.2v6.6l6-3V9.2z',
   // what a menu does
   gear: 'M10 2h4l.6 2.6 2.3 1.3 2.5-.8 2 3.4-1.9 1.8v2.6l1.9 1.8-2 3.4-2.5-.8-2.3 1.3L14 22h-4l-.6-2.6-2.3-1.3-2.5.8-2-3.4 1.9-1.8v-2.6L2.6 9.3l2-3.4 2.5.8 2.3-1.3zM12 8.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7z',
   sound: 'M4 9h4l5-4v14l-5-4H4zM15.5 8.5a5 5 0 0 1 0 7l-1.2-1.3a3.2 3.2 0 0 0 0-4.4zM18 6a8.5 8.5 0 0 1 0 12l-1.2-1.3a6.7 6.7 0 0 0 0-9.4z',
@@ -84,15 +91,23 @@ export const ICONS = Object.freeze({
   'swipe-up': 'M12 2l5.5 6H14v7h-4V8H6.5zM9 17h6v2H9zM10 20.5h4V22h-4z',
   hold: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM12 5.5a6.5 6.5 0 1 1 0 13a6.5 6.5 0 1 1 0-13zM12 8.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7z',
   jump: 'M12 3l6 6.5h-4V15h-4V9.5H6zM4 18h16v3H4z',
+  // a race's items (roads/kart-items.js): a wrapped sweet with a bolt through it (a burst of speed), a sticky splat with
+  // its droplets and its shine (dropped behind), a ball with its shine (rolled ahead)
+  sweet: 'M12 6.5a5.5 5.5 0 1 0 0 11a5.5 5.5 0 1 0 0-11zM6.4 10.2L2 6.8v10.4l4.4-3.4zM17.6 10.2L22 6.8v10.4l-4.4-3.4zM12.9 8.4L9.5 12.8h2.2l-.8 2.8 3.6-4.5h-2.3z',
+  blob: 'M18.0 13.6C20.4 16.1 19.6 17.3 15.7 17.4C14.5 19.4 12.9 19.7 10.7 18.3C6.7 20.0 5.4 19.1 6.6 15.7C3.9 14.3 3.9 12.9 6.6 11.5C5.6 8.3 6.9 7.4 10.7 8.9C12.8 7.6 14.5 7.9 15.7 9.8C19.3 10.0 20.1 11.3 18.0 13.6zM2.6 3.2a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3zM21.4 2.6a1.2 1.2 0 1 0 0 2.4a1.2 1.2 0 1 0 0-2.4zM9.2 10.4a2.1 1.4 0 1 0 0 2.8a2.1 1.4 0 1 0 0-2.8z',
+  ball: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM8.7 6.3a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z',
 });
 export const ICON_IDS = Object.freeze(Object.keys(ICONS));
 /** The other words a game says for an icon (a HUD's label, an action's name): each draws the icon it names. */
 export const ICON_ALIASES = Object.freeze({
+  vehicle: 'car', taxi: 'car', store: 'shop', market: 'shop', parcel: 'box', package: 'box', crate: 'box', cargo: 'box',
+  ammo: 'bullet', rounds: 'bullet', bullets: 'bullet', grenades: 'grenade', bomb: 'grenade', bombs: 'grenade',
   coins: 'coin', gold: 'coin', money: 'coin', gems: 'gem', hp: 'heart', health: 'heart', lives: 'heart', life: 'heart', stars: 'star', keys: 'key', locked: 'lock',
   time: 'clock', timer: 'clock', goal: 'flag', finish: 'flag', exit: 'flag', rank: 'trophy', best: 'trophy', score: 'star', armor: 'shield', armour: 'shield', guard: 'shield',
   attack: 'sword', defeat: 'skull', deaths: 'skull', energy: 'bolt', stamina: 'bolt', power: 'bolt', fire: 'flame', water: 'drop', mana: 'drop', mp: 'drop', nature: 'leaf',
   player: 'person', hero: 'person', fast: 'speed', sprint: 'speed', waypoint: 'pin', objective: 'target', aim: 'target', look: 'eye', title: 'home',
   settings: 'gear', options: 'gear', volume: 'sound', resume: 'play', start: 'play', retry: 'restart', again: 'restart', quit: 'close', cancel: 'close', done: 'check', ok: 'check', accept: 'check',
+  'sugar-rush': 'sweet', candy: 'sweet', sweets: 'sweet', toffee: 'blob', trap: 'blob', gumball: 'ball',
   add: 'plus', remove: 'minus', use: 'tap', interact: 'tap', talk: 'tap', items: 'bag', inventory: 'bag', 'swipe-left': 'swipe', 'swipe-right': 'swipe', steer: 'swipe', press: 'tap', touch: 'tap',
 });
 const slug = (s) => String(s ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -102,7 +117,9 @@ export function iconOf(name) { const k = slug(name); return ICONS[k] ? k : ICON_
  * colour, a bolt the stamina's, a skull the harm's, what is won the accent. An icon with no meaning stays the ink. */
 export const ICON_MEANING = Object.freeze({
   heart: 'hp', potion: 'mp', drop: 'mp', bolt: 'stamina', speed: 'stamina', leaf: 'stamina', check: 'stamina', shield: 'shield',
-  skull: 'harm', flame: 'harm', close: 'harm', mute: 'harm', coin: 'accent', star: 'accent', trophy: 'accent', crown: 'accent', key: 'accent', flag: 'accent', gem: 'accent2', ticket: 'accent2',
+  bullet: 'accent', grenade: 'harm', skull: 'harm', flame: 'harm', close: 'harm', mute: 'harm', coin: 'accent', star: 'accent', trophy: 'accent', crown: 'accent', key: 'accent', flag: 'accent', gem: 'accent2', ticket: 'accent2',
+  // (a race's items: the sweet the accent, as its burst is lemon; the ball the second accent; the splat the ink, cream)
+  sweet: 'accent', ball: 'accent2',
 });
 export const ICON_TONES = Object.freeze(['ink', 'meaning']);
 

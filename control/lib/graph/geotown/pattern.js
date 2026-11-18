@@ -286,6 +286,9 @@ const OLD_TOWN = {
   alley: { w: 3 },
   access: { ...BG.access, lane: 0, mutual: 0, drives: 0, garages: 0 },
   finishes: { ...BG.finishes, road: 'setts', walk: 'flags', furnish: 'flags', path: 'flags', side: 'flags', service: 'setts', step: 'flags', drive: 'setts', lane: 'setts', piazza: 'flags' },
+  // ITS GROUND where its fronts have gone rough (a geotown's `fronts: 'rough'`): the setts tarred over, the flags
+  // replaced in poured concrete; unsaid, the finishes above
+  grounds: { rough: { road: 'asphalt', walk: 'pavement', furnish: 'pavement', path: 'pavement', side: 'asphalt', service: 'asphalt', step: 'pavement', drive: 'asphalt', lane: 'asphalt' } },
   block: { long: [90, 130], depth: [26, 32] },
   plot: { semi: [6, 8], detached: [7, 9.5], mansion: [12, 14], corner: 0 },
   mix: { semi: 1, detached: 0 },
@@ -317,8 +320,39 @@ const OLD_TOWN = {
     // (the square's church, on its own lot across the square's far side, its front to the square: sites.js)
     church: { read: 'the parish church: coursed stone under a steep slate roof, tall stained lights, its door to the square', use: 'hall', frontage: [18, 34], corner: 0, depth: [22, 40], building: [14, 26], setback: [2, 6], side: [1.5, 5], storeys: [2, 2], style: 'gothic-parish', rear: 'court', front: {}, pad: { least: 0.3, most: 1.2 } },
     shops: { ...BG.rows.shops, read: 'shops on the ground floor of town houses, party wall to party wall, built to the walk, flats over them, a narrow lane behind', frontage: [6, 9], depth: [16, 20], building: [12, 15], storeys: [3, 4], style: 'old-town',
-      palettes: ['#d8b27a', '#ece2cb', '#c47e57', '#d6a294', '#b9a48a', '#a9b6bd'] },
-  },
+      palettes: ['#d8b27a', '#ece2cb', '#c47e57', '#d6a294', '#b9a48a', '#a9b6bd'],
+      // ITS FRONTS BROKEN UP (a geotown's `fronts: 'broken'`): each shop's house its own over the shop, as the town's
+      // houses are: its render and its shutters' paint, its height (two to four storeys, so the eaves step), its
+      // shutters' form or none, its roof (the tiled hip, a steep slate one, a flat parapet), balconies on some. A wall's
+      // and a shutter's `value` is its lightness: the town leans a face's hue and keeps its light, so a deep render
+      // says a low value
+      broken: [
+        { read: 'ochre render, deep green shutters, three storeys', storeys: [3, 3], style: { language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.6, bond: 'ashlar' }, { group: 'str:plaster', value: 0.8 }] }, shutters: { value: 0.24 } } }, palette: { plaster: '#d8a85a', paint: '#2f5a40' } } },
+        { read: 'cream render, grey-blue shutters, four storeys with wrought balconies', storeys: [4, 4], style: { language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.6, bond: 'ashlar' }, { group: 'str:plaster', value: 0.95 }] }, shutters: { value: 0.14 } } }, palette: { plaster: '#f1e6c8', paint: '#3f6a8a' } }, front: { balconies: { w: 1.7, d: 0.6, stride: 2.6, edge: 0.4, rail: 0.95 } } },
+        { read: 'a low terracotta house of two storeys, dark green shutters', storeys: [2, 2], style: { language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.6, bond: 'ashlar' }, { group: 'str:plaster', value: 0.52 }] }, shutters: { value: 0.2 } } }, palette: { plaster: '#c4623a', paint: '#274a36' } } },
+        { read: 'faded rose render, cream board shutters, three storeys', storeys: [3, 3], style: { language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.6, bond: 'ashlar' }, { group: 'str:plaster', value: 0.68 }] }, shutters: { value: 0.9, form: 'ledged' } } }, palette: { plaster: '#d98a84', paint: '#efe7d6' } } },
+        { read: 'a stone house of four storeys: ashlar throughout, panelled shutters, balconies', storeys: [4, 4], style: { language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.58, bond: 'ashlar' }, { group: 'str:stone', value: 0.62, bond: 'ashlar' }] }, shutters: { value: 0.3, form: 'panelled' } } }, palette: { paint: '#5a3a2a' } }, front: { balconies: { w: 1.7, d: 0.6, stride: 2.6, edge: 0.4, rail: 0.95 } } },
+        { read: 'grey-blue render under a steep slate roof, white shutters, three storeys', storeys: [3, 3], style: { language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.6, bond: 'ashlar' }, { group: 'str:plaster', value: 0.6 }] }, shutters: { value: 0.94 }, roof: { form: 'hip', pitch: 52, eave: 0.3, group: 'str:slate', value: 0.34 } } }, palette: { plaster: '#8aa2b4', paint: '#f1eee6' } } },
+        { read: 'a low butter-yellow house of two storeys, blue shutters', storeys: [2, 2], style: { language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.6, bond: 'ashlar' }, { group: 'str:plaster', value: 0.9 }] }, shutters: { value: 0.1 } } }, palette: { plaster: '#f0cf62', paint: '#2a5a9a' } } },
+        { read: 'sage render with bare casements under a flat parapet, four storeys', storeys: [4, 4], style: { language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.6, bond: 'ashlar' }, { group: 'str:plaster', value: 0.66 }] }, shutters: null, roof: { kind: 'cap', form: 'flat', eave: 0.25, group: 'str:plaster', value: 0.82 } } }, palette: { plaster: '#8fae7e', paint: '#e8e2d0' } } },
+        { read: 'white render, oxblood shutters, three storeys with balconies', storeys: [3, 3], style: { language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.6, bond: 'ashlar' }, { group: 'str:plaster', value: 0.98 }] }, shutters: { value: 0.22 } } }, palette: { plaster: '#f4f0e6', paint: '#8a2222' } }, front: { balconies: { w: 1.7, d: 0.6, stride: 2.6, edge: 0.4, rail: 0.95 } } },
+      ],
+      // THE SAME GONE ROUGH (`fronts: 'rough'`): a working quarter, not a postcard: brick tenements and walk-ups (the
+      // main street's brick, sash lights and flat roofs) between renders gone grey and grimy, shutters missing, concrete
+      rough: [
+        { read: 'a red-brick tenement of four storeys, sash lights, a flat roof behind its cornice', storeys: [4, 4], from: 'main-street', style: { palette: { stone: '#8c4a3a' } } },
+        { read: 'a sooty brown-brick walk-up of three storeys', storeys: [3, 3], from: 'main-street', style: { language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.34, bond: 'brick' }, { group: 'str:stone', value: 0.36, bond: 'brick' }] } } }, palette: { stone: '#5e463c' } } },
+        { read: 'grey render gone grimy, three storeys, most shutters gone', storeys: [3, 3], style: { language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.5, bond: 'ashlar' }, { group: 'str:plaster', value: 0.5 }] }, shutters: { share: 0.3, value: 0.3 } } }, palette: { plaster: '#8f8a80', paint: '#4a5a52' } } },
+        { read: 'a low yellow-brick shop of two storeys under a flat roof', storeys: [2, 2], from: 'main-street', style: { language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.6, bond: 'brick' }, { group: 'str:stone', value: 0.62, bond: 'brick' }] } } }, palette: { stone: '#b0905a' } } },
+        { read: 'flaking ochre render, bare casements, four storeys', storeys: [4, 4], style: { language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.5, bond: 'ashlar' }, { group: 'str:plaster', value: 0.6 }] }, shutters: null } }, palette: { plaster: '#b89258' } } },
+        { read: 'a dark brick block of four storeys, its lintels painted', storeys: [4, 4], from: 'main-street', style: { language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.28, bond: 'brick' }, { group: 'str:stone', value: 0.3, bond: 'brick' }] } } }, palette: { stone: '#4a3a38' } } },
+        { read: 'a concrete front of three storeys under a flat parapet, no shutters', storeys: [3, 3], style: { language: { elements: { wall: { storeys: [{ group: 'str:plaster', value: 0.46 }, { group: 'str:plaster', value: 0.56 }] }, shutters: null, roof: { kind: 'cap', form: 'flat', eave: 0.2, group: 'str:plaster', value: 0.5 } } }, palette: { plaster: '#9a9c9a' } } },
+        { read: 'dull blue-green render, three storeys, a few dark shutters', storeys: [3, 3], style: { language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.46, bond: 'ashlar' }, { group: 'str:plaster', value: 0.5 }] }, shutters: { share: 0.5, value: 0.16 } } }, palette: { plaster: '#5f8a86', paint: '#2a3a3a' } } },
+        { read: 'a low red-brick shop of two storeys', storeys: [2, 2], from: 'main-street', style: { palette: { stone: '#a0563e' } } },
+        { read: 'soot-stained terracotta render, three storeys, board shutters', storeys: [3, 3], style: { language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.44, bond: 'ashlar' }, { group: 'str:plaster', value: 0.44 }] }, shutters: { form: 'ledged', share: 0.6, value: 0.3 } } }, palette: { plaster: '#a8553a', paint: '#5a4a3a' } } },
+      ],
+      // HOW A BROKEN ROW BREAKS (either word): an alley beside some buildings, some set back behind a paved forecourt
+      breaks: { alley: { share: 0.55, w: [1.4, 2.6] }, setback: { share: 0.3, by: [0.8, 2] } } },  },
   evoke: { ...BG.evoke, houses: [5, 7], shops: [7, 10], mansions: [0, 0] },
   // its furniture: lanterns on cast-iron posts lighting every street (no wooden poles, no wires), no paint on its setts
   furniture: { ...BG.furniture, lamps: 'lantern', paint: 'none' },

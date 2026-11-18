@@ -46,11 +46,11 @@ describe('the city stalker on a geocity level', () => {
     // a hero on a line is chased at its speed and hears it: the follow camera's rush, the audio's
     expect(m.camera).toMatchObject({ rule: 'follow', rush: true });
     expect(m.audio).toMatchObject({ rush: true });
-    // the page draws the district under the level's pilot and game, no stand-in walking it
+    // the page draws the district under the level's pilot and game (its passers-by are the street's own, never the hero)
     const { figures: _f, ...bare } = m;
     const { payload } = await resolveWorldScene({ ref: 'gw-level', title: 'Downtown', manifest: { ...bare, entities: m.entities.map(({ figure: _g, ...e }) => e) } });
     expect(payload.faces.length).toBeGreaterThan(1000);
-    expect((payload.walkers ?? []).length).toBe(0);
+    expect((payload.walkers ?? []).some((w) => w.id === 'hero')).toBe(false);
   }, 120_000);
 
   it('its towers take the line, its roofs are reached, and a glide carries on past a fall', () => {

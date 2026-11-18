@@ -67,13 +67,13 @@ describe('design_game quick', () => {
     expect(out.ran.map((r) => [r.key, r.action])).toEqual([['hero', 'make'], ['level-run-0', 'make'], ['game', 'make']]);
     const L = stored('rn-level-run-0');
     expect(L.runner).toMatchObject({ seed: expect.any(Number) });
-    expect(L.screen).toMatchObject({ pole: 'phone' });   // a new game is made for a phone
+    expect(L.screen).toBeUndefined();   // a new game is framed for no screen unless it names one
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('rn-level-run-0'));
     expect(payload.runner).toEqual(L.runner);
     const html = emitThreeWorld({ ...payload, inline: true });
     expect(html).toContain('function buildRunner(E)');
     expect(html).toContain('function __updateRunner(dt)');
-    expect(html).toContain('swipe ← →');
+    expect(html).not.toContain('swipe ← →');   // (the swipe legend is a touch screen's: a runner that names `screen: 'phone'` has it)
     expect(stored('rn-game').levels.map((l) => l.ref)).toEqual(['rn-level-run-0']);
   }, 240_000);
 
@@ -664,7 +664,8 @@ describe('design_game quick', () => {
     expect(mechanicsOf('s2-level-run-0')).toEqual(['fail-on-death', 'supplies', 'defeat-all']);
     expect(L.camera).toMatchObject({ rule: 'eye', mouseLook: true });
     expect(L.entities[0]).toMatchObject({ id: 'player', body: { hittable: true }, weapon: { magazine: 12, reserve: 36 } });
-    expect(L.blocks.filter((b) => b.form === 'wall').length).toBe(2 * 2 + 2);   // cover by each foe, a blind wall on each approach
+    // cover by each foe (a strip grown under the arena laws up to its post: more than a wall), a blind wall on each approach
+    expect(L.blocks.filter((b) => b.form === 'wall').length).toBeGreaterThan(2 * 2 + 2);
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('s2-level-run-0'));
     expect(payload.colliders.filter((c) => c.of.startsWith('block:')).length).toBeGreaterThan(8);
     expect(payload.entities.filter((e) => e.id.startsWith('dec_sp_')).length).toBe(2);
@@ -893,9 +894,9 @@ describe('design_game quick', () => {
     const L = stored('rg-level-run-0');
     expect(stored('rg').levels.run.arena).toEqual({ words: 'a small ring arena with catwalks', spawns: 3 });
     expect(L.game.mechanics[0].spawns).toHaveLength(3);
-    // a ring: the court's walls round the middle; 26 m across
+    // a ring: the court's walls round the middle; a small arena, 32 m across (its wall round it the longest piece)
     const walls = L.blocks.filter((b) => b.form === 'wall');
-    expect(Math.max(...walls.map((b) => b.length))).toBeCloseTo(26.6, 1);
+    expect(Math.max(...walls.map((b) => b.length))).toBeCloseTo(32.6, 1);
     // catwalks are not laid yet: said, with what would close it; every other law holds
     // (said on the step that gave it and, read whole, once at the top: gameworld/routing.js runAdvice)
     const advice = [...new Set(JSON.stringify(out).match(/arena: [^"]*/g) ?? [])];

@@ -24,15 +24,16 @@
  *
  * Pure and deterministic.
  */
+import { cameraStyleErrors } from '../actor/camera-styles.js';
 import { createHash } from 'node:crypto';
 import { renderErrors } from './render-plan.js';
 import { orderBriefErrors } from './order.js';
 
 export const FILM_KIND = 'film';
 export const isFilmKind = (kind) => kind === FILM_KIND;
-export const FILM_KEYS = Object.freeze(['title', 'cast', 'sets', 'look', 'grade', 'grain', 'style', 'render', 'scenes', 'edit', 'order']);
+export const FILM_KEYS = Object.freeze(['title', 'cast', 'sets', 'look', 'grade', 'grain', 'style', 'camera', 'render', 'scenes', 'edit', 'order']);
 export const FILM_PART_KEYS = Object.freeze(['persona', 'hero', 'register', 'style', 'role', 'height']);
-export const SCENE_KEYS = Object.freeze(['id', 'set', 'cast', 'marks', 'props', 'hour', 'weather', 'clouds', 'wind', 'life', 'script', 'voice', 'dub', 'seed']);
+export const SCENE_KEYS = Object.freeze(['id', 'set', 'cast', 'marks', 'props', 'hour', 'weather', 'clouds', 'wind', 'life', 'script', 'voice', 'dub', 'seed', 'camera']);
 export const SCENE_PART_KEYS = Object.freeze(['mark', 'register', 'style', 'role', 'height']);
 export const CUTS = Object.freeze(['cut', 'fade']);
 export const FILM_LOOKS = Object.freeze(['film', 'anime']);
@@ -102,6 +103,7 @@ export function filmErrors(F) {
     else for (const [id, V] of Object.entries(F.sets)) errs.push(...setErrors(id, V));
   }
   if (F.look !== undefined && !FILM_LOOKS.includes(F.look)) errs.push(`look: ${FILM_LOOKS.join(' | ')}`);
+  errs.push(...cameraStyleErrors(F.camera));
   errs.push(...renderErrors(F.render));
   if (!Array.isArray(F.scenes) || !F.scenes.length) errs.push('scenes: [{ id, cast: { <who>: { mark? } }, script }], one at least');
   else {
@@ -115,6 +117,7 @@ export function filmErrors(F) {
       else if (seen.has(S.id)) errs.push(`${at}.id: '${S.id}' names two scenes`);
       else seen.add(S.id);
       if (typeof S.script !== 'string' || !S.script.trim()) errs.push(`${at}.script: the scene's screenplay ("NAME: the line", directions)`);
+      errs.push(...cameraStyleErrors(S.camera, `${at}.camera`));
       if (!isPlain(S.cast) || !Object.keys(S.cast).length) errs.push(`${at}.cast: { <who>: { mark? } }, who is in the scene (each a part of the film's cast)`);
       else for (const [w, C] of Object.entries(S.cast)) {
         if (isPlain(F.cast) && !Object.hasOwn(F.cast, w)) errs.push(`${at}.cast.${w}: not a part of the film's cast (${Object.keys(F.cast).join(', ')})`);
@@ -165,6 +168,8 @@ export function sceneScreenplay(F, id) {
     ...(S.wind !== undefined ? { wind: S.wind } : {}),
     ...(S.life !== undefined ? { life: S.life } : {}),
     ...(S.seed !== undefined ? { seed: S.seed } : {}),
+    // (how the scene is shot: its own camera style, else the film's, actor/camera-styles.js)
+    ...((S.camera ?? F.camera) !== undefined ? { camera: S.camera ?? F.camera } : {}),
     // (a set asked for in words plays in the place the film made of it; one not made yet has no world)
     ...(S.set !== undefined && setRef(F.sets[S.set]) ? { world_ref: setRef(F.sets[S.set]) } : {}),
     ...(S.voice ? { voice: S.voice } : {}),

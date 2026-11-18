@@ -46,11 +46,11 @@ import { WORLD_KINDS, ROOM_FALLBACK, resolveWrapTextures } from '@/lib/graph/wor
 import { bookWorldKind } from '@/lib/graph/views/recipe-book/registry';
 import { ensureBookLoaded } from '@/lib/graph/views/recipe-book/loader';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
-import { formRoomMaps } from '@/lib/graph/form/room-form';
+import { formRoomMaps, ROOM_MAPS } from '@/lib/graph/form/room-form';
 import { readFinish } from '@/lib/graph/scene/page-light';
 import { solveHydraulics, mistAir, hydraulicsFaces } from '@/lib/graph/materials/hydraulics';
 import { normalizeJets } from '@/lib/graph/materials/jet';
-import { resamplePlans } from '@/lib/graph/matte-paint/detail';
+import { resamplePlans, firstReading } from '@/lib/graph/matte-paint/detail';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/procedural-material';
 import { FLAT_LIGHT, resolveToon } from '@/lib/graph/polygonizer/vexar';
@@ -65,7 +65,7 @@ import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf, 
 import { lowerWaterworks } from '@/lib/graph/era/water-live';
 import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
-import { landRead, formPayload, DRESS_DEFAULT, GRASS_CARDS } from '@/lib/graph/form/land-read';
+import { landRead, formPayload, DRESS_DEFAULT, GRASS_CARDS, TOWN_FLORA } from '@/lib/graph/form/land-read';
 import { readWetness, wetOfWeather } from '@/lib/graph/era/wetness';
 // (the margin round a land's buildings their shadow map reaches: what stands by them and shades them, metres)
 const BUILT_SHADE = 12;
@@ -77,6 +77,12 @@ import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { readCone } from '@/lib/graph/scene/channels/view-cone';
 import { readAtmosphere, atmosphereInput, roomAirColour } from '@/lib/graph/scene/channels/atmosphere';
+import { readSea, seaInput } from '@/lib/graph/scene/channels/sea';
+import { readMarine } from '@/lib/graph/marine/roster';
+import { seabedGrid, placeMarine } from '@/lib/graph/marine/place';
+import { marineInput } from '@/lib/graph/scene/channels/marine';
+import { castMarine, placeMarineFauna } from '@/lib/graph/marine/fauna';
+import { marineLength, marineFigure, lowerMarineFauna } from '@/lib/graph/worlds/marine-fauna';
 import { readClouds, CLOUDS_OF_WEATHER } from '@/lib/graph/matte-paint/sky';
 import { wantsSunShare, readOcclusion, liveLightDefaults } from '@/lib/graph/scene/live-light';
 import { readEra, ERAS } from '@/lib/graph/era/eras';
@@ -88,7 +94,7 @@ import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
 import { lowerFaunaUnits } from '@/lib/graph/worlds/fauna-units';
 import { declaredUnits, metersPerUnitFor } from '@/lib/graph/scene/world-units';
 import { optionalPackModule } from '@/lib/graph/content-pack';
-import { wieldsFigure, armHeld } from '@/lib/graph/worlds/held-strike';
+import { wieldsFigure, armHeld, FIST } from '@/lib/graph/worlds/held-strike';
 
 export { resolveWrapTextures };
 
@@ -636,6 +642,21 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...S.faces];
     structureColliders = S.colliders; structureRings = S.rings;
   }
+  // a brawl street's DRESS (brawl/brawl-dress.js): what stands along the belt beside the band, a set a screen. Its
+  // faces join here, before the material / AO / texture passes. Absent ⇒ nothing.
+  // a brawl's walk that BENDS through a place that already stands (brawl/brawl-warp.js): the place sheared by its belt,
+  // across by the band's drift and (a building's rooms, whose ground does not climb of itself) up by its rise, so the
+  // place runs along the band's line. A blockout is laid along it where it is made, and is not sheared again. Before
+  // the dress (which stands on the moved ground) and the material / AO / texture passes. A straight, level belt
+  // warps nothing.
+  if (payload && sketch.manifest.brawl?.belt && sketch.manifest.kind !== 'greybox' && (sketch.manifest.brawl.belt.drift || (sketch.manifest.brawl.belt.rise && sketch.manifest.kind === 'stage'))) {
+    const { placeWarp } = await import('@/lib/graph/brawl/brawl-warp.js');
+    placeWarp(payload, sketch.manifest.brawl.belt, { rise: sketch.manifest.kind === 'stage' });
+  }
+  if (payload && sketch.manifest.brawl?.dress && sketch.manifest.brawl.belt) {
+    const { dressSceneFaces } = await import('@/lib/graph/brawl/brawl-dress.js');
+    payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...dressSceneFaces(sketch.manifest.brawl.dress, sketch.manifest.brawl.belt, ctx.light ?? undefined)];
+  }
   // a geocube domain's structures (era/geocube.js geocubeStructures): its landmarks, painted from the cube and lit by its
   // key (unshaded, the view's light), standing on the domain's land
   const domainStructures = payload && (kind === 'stage' || kind === 'geocube') && sketch.manifest.domain !== undefined ? geocubeStructures(sketch.manifest) : null;
@@ -722,6 +743,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // manifest.textures (custom dataURL / an image-worker bound PNG). emitThreeWorld + facesToGlb read
   // payload.textures. Additive: a face list with no `texture` opt-ins leaves the payload untouched.
   if (payload && Array.isArray(payload.faces) && payload.faces.length) {
+    // (a town in the form render, gen-7: each dressed tile drawn at its first reading, matte-paint/detail.js firstReading.
+    // The page reads every tile again at seeded shifts, channels/resample.js, so its second seed adds nothing the eye
+    // keeps, and on this page each tile carries a normal and an ORM beside it: half the tiles, half the relief)
+    if (payload.form && payload.form.town && Array.isArray(payload.form.town.lights)) {
+      const first = (f) => (f && typeof f.texture === 'string' && firstReading(f.texture) !== f.texture ? { ...f, texture: firstReading(f.texture) } : f);
+      payload.faces = payload.faces.map(first);
+      if (Array.isArray(payload.repeats)) payload.repeats = payload.repeats.map((r) => (Array.isArray(r?.template) ? { ...r, template: r.template.map(first) } : r));
+    }
     // (and the instanced repeats' templates: a key only a template draws, a stock tree's leaves, is resolved too)
     const reps = Array.isArray(payload.repeats) ? payload.repeats : Array.isArray(sketch.manifest.repeats) ? sketch.manifest.repeats : [];
     const repeatFaces = reps.flatMap((r) => (Array.isArray(r?.template) ? r.template : []));
@@ -743,9 +772,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (and a town's buildings baked for it, form/sun-light.js: the tiles their faces wear, read the same way)
     if (payload.form && payload.form.town && Array.isArray(payload.form.town.lights)) {
       const keys = payload.faces.filter((f) => typeof f.texture === 'string' && textures[f.texture] && f.cornerLight !== undefined).map((f) => f.texture);
-      // (no budget on a town's maps: the page is the person's, on their own machine, and a second, smaller read of
-      // every tile doubles what the first resolve costs)
-      const R = payload.form.town, F = formRoomMaps(keys, { budget: Infinity });
+      // (a town's relief read at the smaller size outright, ROOM_MAPS.small: it is drawn only near the eye, `pom` and
+      // `relief`, where a street's wall is a few hundred pixels a tile, and a city wears many tiles; never read twice)
+      const R = payload.form.town, F = formRoomMaps(keys, { reliefSize: ROOM_MAPS.small });
       Object.assign(textures, F.textures);
       payload.form = { ...payload.form, town: { ...R, maps: F.maps, ...(F.reliefSize ? { reliefSize: F.reliefSize } : {}) } };
     }
@@ -861,7 +890,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   const liveRoomSun = payload && payload.form && payload.form.room && payload.form.room.sun && payload.form.room.sun.live;
   // (and a building's rooms on a land, under the land's sun: their glass lets it by too)
   const builtSun = payload && payload.form && payload.form.room && Array.isArray(payload.buildings) && payload.buildings.length;
-  if (payload && shadowsOut) payload.shadows = (liveRoomSun || builtSun) && typeof shadowsOut === 'object' ? { ...shadowsOut, noCastGroups: [...new Set([...(shadowsOut.noCastGroups || []), ...GLASS_GROUPS])] } : shadowsOut;
+  // (a builder that seats its own maps, roads/track-form.js: a track's static map fitted to it and its clouds kept out,
+  // keeps them; the defaults fill what it leaves unsaid)
+  const ownShadows = payload && payload.shadows && typeof payload.shadows === 'object' && payload.form && payload.form.town ? payload.shadows : null;
+  if (ownShadows) payload.shadows = { ...(shadowsOut && typeof shadowsOut === 'object' ? shadowsOut : {}), ...ownShadows };
+  else if (payload && shadowsOut) payload.shadows = (liveRoomSun || builtSun) && typeof shadowsOut === 'object' ? { ...shadowsOut, noCastGroups: [...new Set([...(shadowsOut.noCastGroups || []), ...GLASS_GROUPS])] } : shadowsOut;
   // the tier the live light costs at (its maps' size, its occlusion's resolution) and the page's budget probe: only on a
   // page with live light on
   if (payload && liveL && liveL.tier) payload.lightTier = liveL.tier;
@@ -927,7 +960,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const dress = town ? { ...DRESS_DEFAULT, rubble: 0, dust: 0, clay: 0, patches: [] } : { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
     // (the biocube's words the form render reads: the rock's moss, `flora.moss`; the grass's length, `flora.grass.sward`;
     // its drifts, `flora.grass.drifts` and `flora.flowers`; the recipe's biocube or else the cube's, none without)
-    // (a town's lawns are mown: the short sward, no meadow's drifts)
+    // (a town's lawns are mown: the short sward, no meadow's drifts; and kept: bare only in a few worn places, their fields'
+    // dice even, form/land-read.js LAWN)
     const cube = readGeocube(M.cube), bio = M.biocube ?? cube.biocube, F = bio ? readBiocube(bio).flora : null, moss = town ? 0 : F?.moss ?? 0, sward = town ? 'short' : F?.grass?.sward;
     const drifts = town ? [] : readDrifts({ drifts: F?.grass?.drifts, flowers: F?.grass ? F.flowers : null });
     // (a raised view's ground claimed, form/flora-read.js viewHeld: no crown over an overlook's eye in what it looks over)
@@ -938,8 +972,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const S0 = payload.snowMap ? readSnow(cube.snow) : null, winter = !!S0 && (S0.line === undefined || S0.line === null);
     // (a map carries no camera of its own: the land is read framed from the south over its middle, raised, as an island's)
     const mapCam = formMap && !(payload.cameras ?? []).length && payload.map ? (() => { const W = payload.map.cols * payload.map.tile, H = payload.map.rows * payload.map.tile; return [{ name: 'island', worldFraming: { cameraPosition: [W / 2, -H * 1.15, H * 0.55], lookAt: [W / 2, -H / 2, 0], horizontalFov: 60, pictureCenter: [560, 390] } }]; })() : null;
-    const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
+    const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(town ? { lawn: {} } : {}), ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter || (F?.marine && !F.grass) ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (a town's lawns drawn near the eye only, form/land-read.js TOWN_FLORA)
+    if (read && town && payload.form.land.grass) payload.form.land.grass = { ...payload.form.land.grass, reach: TOWN_FLORA.grass };
     if (read) formCast = { cube, ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}) };
     // (a map's far range, level/far-range.js, stands hundreds of metres out: its own haze, the page's fog thinned over it
     // and less of the sky's air, so its mountains read through a morning's haze; channels/form-land.js)
@@ -972,6 +1008,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (its plants grown as form where the trail's placement stood them, form/flora-read.js: the painted trees, bushes and
     // shrubs hidden in their place; a bamboo or a blossom card keeps its own)
     const flora = read && payload.plants ? floraRead(payload.plants, { kinds: payload.plants.kinds, bushKinds: payload.plants.bushKinds, colours: cube.colour, bases: read.light.linearBases, autumn: F?.autumn ?? 0 }) : null;
+    // (a town's street trees lay no litter, TOWN_FLORA)
+    if (flora && town) flora.litter = TOWN_FLORA.litter;
     // (the fall's leaf piles, era/leaf-piles.js: each in its tree's own leaves, packed beside the trees; the level says how
     // many the page draws)
     if (payload._leafPiles) { const LP = leafPilesRead(flora, payload._leafPiles); if (LP) flora.piles = LP; payload.leafPiles = { ...payload.leafPiles, drawn: LP ? LP.n : 0 }; delete payload._leafPiles; }
@@ -1029,6 +1067,52 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       const room = payload.form?.room, colour = A.colour ?? (room && Array.isArray(room.ambient) ? roomAirColour(room) : null);
       payload.air = atmosphereInput(A, { base: spawn && Number.isFinite(spawn[2]) ? spawn[2] : 0, sun: inside ? null : sun, unit: payload.metersPerUnit || 1, colour });
     }
+  }
+  // THE SEA a gen-7 geocube page is seen through (channels/sea.js): the recipe's `sea`, its land (or its flooded hall, room
+  // or cavern) put under water by light alone: the sun's light at a depth colour by colour, the water along the view,
+  // caustics, shafts, the surface from below, lamps and snow. Read on any geocube read (a bad word refuses there too);
+  // drawn on a gen-7 page alone. Under the sea there is no air: the two are not asked together
+  if (payload && sketch.manifest.kind === 'geocube' && sketch.manifest.sea !== undefined) {
+    const inside = !!payload.form?.room || (payload.anchors || []).some((a) => a && a.kind === 'cavern');
+    const S = readSea(sketch.manifest.sea, { inside });
+    if (S && sketch.manifest.air !== undefined && sketch.manifest.air !== null && sketch.manifest.air !== false) throw new Error('sea and air are not asked together: under the sea there is no air (how far the water is seen through is sea.visibility)');
+    if (S && !unshaded && viewOpts.paint !== true && ERAS[era]?.surface === 'form') {
+      const spawn = Array.isArray(payload.walk?.spawn) ? payload.walk.spawn : null, sun = payload.sky && !payload.sky.space && Array.isArray(payload.sky.sun?.dir) ? payload.sky.sun.dir : null;
+      // (the depth is the water over the walk's ground: the spawn stands an eye's height over it)
+      payload.sea = seaInput(S, { base: spawn && Number.isFinite(spawn[2]) ? spawn[2] - (Number.isFinite(payload.walk.minEye) ? payload.walk.minEye : 0) : 0, sun: inside ? null : sun, unit: payload.metersPerUnit || 1 });
+    }
+  }
+  // WHAT GROWS ON THE BED (marine/, channels/marine.js): the biocube's `flora.marine` (the recipe's biocube, else the
+  // cube's), laid as an aquarium is along the trail on the land as built: its rocks, what grows on them, round them, in
+  // stands and in drifts, by the sea's zone and depth where the recipe has a sea. Read on any geocube read; drawn on a
+  // gen-7 page alone
+  if (payload && sketch.manifest.kind === 'geocube') {
+    const bio = sketch.manifest.biocube ?? readGeocube(sketch.manifest.cube).biocube, B0 = bio ? readBiocube(bio) : null, ask = B0?.flora?.marine ?? null, seaAsk = B0?.fauna?.sea ?? null;
+    let laid = null, comp0 = null, marineSaid = null;
+    if (ask) {
+      const S = sketch.manifest.sea !== undefined ? readSea(sketch.manifest.sea) : null, comp = readMarine(ask, { zone: S?.zone ?? null, depth: S?.depth ?? null });
+      if (comp && !unshaded && viewOpts.paint !== true && ERAS[era]?.surface === 'form') {
+        const placed = placeMarine(comp, seabedGrid(payload.faces), { seed: sketch.manifest.seed ?? 1 });
+        const input = marineInput(placed, { sun: payload.sky && !payload.sky.space && Array.isArray(payload.sky.sun?.dir) ? payload.sky.sun.dir : null, light: payload.form?.land?.light ?? null });
+        if (input) { payload.marine = input; marineSaid = placed.readout; }
+        laid = placed; comp0 = comp;
+      }
+    }
+    // WHO LIVES THERE (marine/fauna.js, worlds/marine-fauna.js): the biocube's `fauna.sea`, the encyclopedia's sea animals
+    // called by the laws of the call (depth, room, habitat, the pyramid) for the flora's mix and the sea's depth, each
+    // on a loop by its habit round the seats the flora laid (its rocks, its anemones); drawn by the walkers channel
+    if (seaAsk && sketch.manifest.sea !== undefined && !unshaded && viewOpts.paint !== true && ERAS[era]?.surface === 'form') {
+      const S = readSea(sketch.manifest.sea), grid = seabedGrid(payload.faces), sites = laid?.sites ?? { rocks: [], anemones: [], trail: [...grid.trail].map((k) => grid.cells.get(k)).filter(Boolean) };
+      const called = castMarine(seaAsk, { mix: comp0?.mix ?? null, depth: S.depth, has: { rock: sites.rocks.length, anemone: sites.anemones.length }, lengthOf: marineLength, seed: sketch.manifest.seed ?? 1 });
+      const spawn = Array.isArray(payload.walk?.spawn) ? payload.walk.spawn : null, base = spawn ? spawn[2] - (Number.isFinite(payload.walk.minEye) ? payload.walk.minEye : 0) : 0;
+      // (each called animal's rig, built once a species and kept: its bones are what the page poses a frame, the budget's measure)
+      const rigs = {}; for (const c of called.cast) rigs[c.species] = await marineFigure(c);
+      const placed = placeMarineFauna(called.cast, { z: grid.z, ...sites, surface: base + S.depth / (payload.metersPerUnit || 1), seed: seaAsk.seed ?? sketch.manifest.seed ?? 1, bonesOf: (sp) => rigs[sp].bones.length });
+      await lowerMarineFauna(payload, placed);
+      marineSaid = { ...(marineSaid ?? {}), fauna: { cast: called.cast.map(({ species, lives, count }) => ({ species, lives, count })), ...placed.readout, ...(called.left.length ? { left: called.left } : {}), ...(called.offered.length ? { offered: called.offered } : {}) } };
+    }
+    // (said in the geocube's own readout, where the agent reads what was laid, what was left out and why, and who else lives there)
+    if (marineSaid && payload.geocube) payload.geocube = { ...payload.geocube, marine: marineSaid };
   }
   // (where the plants stand is the form render's read alone: never on a page)
   if (payload && payload.plants) delete payload.plants;
@@ -1276,7 +1360,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       return f === 'paint' ? fig : { ...fig, juice: { ...fig.juice, fidelity: f } };
     };
     if (figs && typeof figs === 'object') {
-      payload.figures = {};
+      // (the kind's own ambient walkers keep their rigs, a played district's people: world-kinds.js attachCityWalkers;
+      // a scene with none starts empty, as it always did)
+      const ambient = Array.isArray(payload.walkers) && payload.figures ? Object.fromEntries(Object.entries(payload.figures).filter(([k]) => payload.walkers.some((w) => w && w.figure === k))) : {};
+      payload.figures = { ...ambient };
       let poseNames = null;
       // THE SCENES' TAKES (playscape/ui/scene-takes.js): a page whose scenes are written as scripts gives each figure that
       // plays in them its acts and face takes, blocked on the stage the scripts are lowered on below (lowerPlay). None ⇒
@@ -1355,6 +1442,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // (the same game type's movement juice, a platformer's or pinball's: gameworld/feel/hero-juice.js, at the
           // fidelity a machine's takes; any other game type's hero as it was)
           const moves = swing ? (await import('@/lib/graph/gameworld/feel/hero-juice.js')).heroJuice(swing, figure) : null;
+          // THE CROWD GRADE (figures/crowd-figure.js, a figure's `crowd: true`): a made character sampled again to a
+          // crowd's budget, the walkers' own format: a street's people, each the hero door's person. Absent: as it was
+          if (rawSpec.crowd === true) { const { crowdFigure } = await import('@/lib/graph/figures/crowd-figure.js'); payload.figures[name] = crowdFigure(figure, { ...(Number.isFinite(rawSpec.budget) ? { budget: rawSpec.budget } : {}), ...(rawSpec.stand === true ? { stand: true } : {}) }); continue; }
           payload.figures[name] = moves ? await atRigFidelity({ ...figure, juice: moves }) : figure;
           // THE POSE GRADE CUT IN (figure-grades.js): a play-grade world bakes the figures its close shots reach again at
           // the pose grade, `<name>@pose`, the page cutting it in while a close shot is on; two bakes that are not one
@@ -1367,6 +1457,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // (a moveset's hero whose figure carries its moves' own clips plays them: combat-melee.js `moveClips`)
           const moveClips = !!(figure.clips && Object.keys(figure.clips).some((k) => k.startsWith('mv_')));
           if (held) payload.entities = payload.entities.map((e) => (wields(e) ? armHeld(e, held, moveClips) : e));
+          // (BARE HANDS, gameworld/arsenal.js FISTS: a moveset's hero that holds nothing and carries only its fists
+          // strikes with them, the fist's reach, a light blow's seconds; held-strike.js FIST)
+          else payload.entities = payload.entities.map((e) => (wields(e) && Array.isArray(e.rule.weapons) && e.rule.weapons.length && e.rule.weapons.every((W) => W && W.id === 'fist') ? armHeld(e, FIST, moveClips) : e));
           continue;
         }
         // RACER bodies (car-designer/roster.js): a figures-map entry may be a cartoon racer's recipe (`racer`: { facets,
@@ -2049,17 +2142,35 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       payload.audio = payload.audio ? { ...payload.audio, cues: { ...A.cues, ...(payload.audio.cues ?? {}) }, vary: payload.audio.vary ?? A.vary, mix: payload.audio.mix ?? A.mix } : A;
     }
   }
+  // the damage ring (gameworld/damage-ring.js): where each hit the pilot takes came from, round the aim, on a page whose
+  // HUD is its own (a quick shooter's level, a deathmatch). Absent ⇒ nothing (scene/channels/damage-ring.js).
+  if (payload && sketch.manifest.damageRing) {
+    const { readDamageRing } = await import('@/lib/graph/gameworld/damage-ring.js');
+    payload.damageRing = readDamageRing(sketch.manifest.damageRing, 'damageRing');
+  }
+  // the arm itself in the hands (gameworld/arms-kit.js): a pilot's slot that asks (`gunplay.view.detail: 'arm'`) is handed
+  // the arm as the arms library builds it, part by part; the recipe carries the ask and the build words, never the mesh.
+  // No slot asks ⇒ nothing (the view draws each arm as its parts' boxes, as before).
+  if (payload && Array.isArray(payload.entities) && payload.entities.some((e) => Array.isArray(e?.rule?.loadout) && e.rule.loadout.some((sl) => sl?.gunplay?.view?.detail === 'arm'))) {
+    const { withArmMeshes } = await import('@/lib/graph/gameworld/arms-kit.js');
+    payload.entities = withArmMeshes(payload.entities);
+  }
+  // a mission on the world (gameworld/mission-level.js): its plan, its tasks and its briefing; the page's mission channel
+  // draws its briefing, HUD, pause and debrief on mana-ui from them. Absent ⇒ nothing (scene/channels/mission.js).
+  if (payload && sketch.manifest.mission && typeof sketch.manifest.mission === 'object' && Array.isArray(sketch.manifest.mission.tasks)) payload.mission = sketch.manifest.mission;
   // a brawl on the world (brawl/brawl-levels.js brawlLevel): its practice yard, the belt and the practice (who plays,
   // the dummies, the things); the page's brawl channel plays it, its blows sounded from the SFX shelf as a fight's are.
   // Absent (or a brawl block with no practice yet) ⇒ nothing (scene/channels/brawl.js).
-  if (payload && sketch.manifest.brawl && typeof sketch.manifest.brawl === 'object' && sketch.manifest.brawl.practice) {
+  if (payload && sketch.manifest.brawl && typeof sketch.manifest.brawl === 'object' && (sketch.manifest.brawl.practice || sketch.manifest.brawl.street)) {
     const { brawlYardData } = await import('@/lib/graph/brawl/brawl-page.js');
     // its roster's characters measured from the store as a fight's are, each played in its own body with its own clips
     // (under a register, its lit export, for the yard to draw every body the register's one way), as a fight's arena does
     const { withCharacters, characterBodies } = await import('@/lib/graph/versus/versus-character.js');
-    const practice = await withCharacters(sketch.manifest.brawl.practice);
+    // (a STREET fought down, `brawl.street`, is read as the yard is: its roster's characters, its bodies)
+    const isStreet = !sketch.manifest.brawl.practice;
+    const practice = await withCharacters(isStreet ? sketch.manifest.brawl.street : sketch.manifest.brawl.practice);
     const bodies = Array.isArray(practice.roster) ? await characterBodies(practice.roster, { register: sketch.manifest.brawl.register ?? null }) : null;
-    payload.brawl = brawlYardData({ ...sketch.manifest.brawl, practice }, bodies);
+    payload.brawl = brawlYardData({ ...sketch.manifest.brawl, ...(isStreet ? { street: practice } : { practice }) }, bodies);
     // (under a register its bodies are drawn under the cast rig, as a fight's are: versus/versus-cast.js)
     if (payload.brawl.register) { const { fightCast } = await import('@/lib/graph/versus/versus-cast.js'); payload.brawl.cast = fightCast(payload.brawl.register); }
     const { fightAudio } = await import('@/lib/graph/versus/versus-sfx.js');
@@ -2070,7 +2181,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
     // the run & gun's range: every gun's shot and landing (the shelf's and those passed in), the range's own sounds;
     // without one, the street's own (a mount's crash, a wreck's metal, the ground dug out of)
-    const { gunAudio, streetAudio } = await import('@/lib/graph/brawl/brawl-sfx.js');
+    const { gunAudio, streetAudio, brawlAudio } = await import('@/lib/graph/brawl/brawl-sfx.js');
+    // the brawler's sound sheet (brawl-sfx.js BRAWL_SOUNDS): its blows thrown and landed and its bodies' voices, by shelf
+    // word in the sheet's style (`brawl.sound.style`; the newest voices first), over the fight's family cues
+    { const BA = resolveWorldAudio(brawlAudio({ ...(sketch.manifest.brawl.sound?.style ? { style: sketch.manifest.brawl.sound.style } : {}) }), { time, ref: sketch.ref });
+      payload.audio = payload.audio ? { ...payload.audio, cues: { ...(payload.audio.cues ?? {}), ...BA.cues }, mix: BA.mix ?? payload.audio.mix } : BA; }
     if (!practice.range) {
       const A = resolveWorldAudio(streetAudio(), { time, ref: sketch.ref });
       payload.audio = payload.audio ? { ...payload.audio, cues: { ...(payload.audio.cues ?? {}), ...A.cues } } : A;

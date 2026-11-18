@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assembleSideStrip, sideRuns, sidePads, sideLaws, foreTop, SIDE, SIDE_CAMERA } from './geocube-side.js';
+import { assembleSideStrip, sideRuns, sidePads, sideLaws, foreTop, SIDE, SIDE_CAMERA, sideShapes, sideCameraWords, SIDE_SHAPES, SHAPE_FAMILIES, SHAPED_CAMERA, sliceOrder } from './geocube-side.js';
 
 // THE SIDE STRIP (geocube-side.js): a course (the shape course.js lays on a straight lane) skinned in the cube's layers,
 // the land behind it, the hills and the range at their depths, a low foreground. One small course: two floors with a gap,
@@ -59,5 +59,55 @@ describe('the side strip', () => {
   it('takes a cube by name, and says what is wrong with its course', () => {
     expect(assembleSideStrip({ ...M, cube: 'gothic-night' }).bg).not.toBe(P.bg);
     expect(() => assembleSideStrip({ ...M, side: { length: 10 } })).toThrow(/boxes/);
+  });
+});
+
+// THE DRESS AND THE SHAPE FAMILIES (docs/side-strip-principles.md): the land behind the lane in slices, and, where a cube
+// names a family, every silhouette of it one kind of shape under a camera that shows the sky.
+describe('the land behind the lane', () => {
+  const groups = (p) => new Set(p.faces.map((f) => f.group));
+
+  it('is laid in slices by the walls\' rule, however long the strip: never three alike, never a pair repeated', () => {
+    for (const n of [3, 12, 60]) {
+      const o = sliceOrder(n, 5);
+      expect(o).toHaveLength(n);
+      expect(/AAA|BBB/.test(o)).toBe(false);
+      expect(/ABAB|BABA/.test(o)).toBe(false);
+    }
+    expect(P.side.order).toHaveLength(P.side.cells.length);
+    expect([...groups(P)]).toEqual(expect.arrayContaining(['side:grove', 'side:tufts', 'side:tower']));
+  });
+
+  it('a cube with no family is drawn as it was: slopes and a range, the camera looking down', () => {
+    expect(sideShapes(M.cube)).toBeNull();
+    expect(sideCameraWords(M.cube)).toEqual({});
+    expect(P.side.shapes).toBeNull();
+    expect(groups(P).has('side:scallop')).toBe(false);
+  });
+
+  describe('in a shape family (scoops)', () => {
+    const cube = Object.keys(SIDE_SHAPES)[0], Q = assembleSideStrip({ ...M, cube });
+
+    it('the cube names its family, a strip may say its own, and an unknown one teaches', () => {
+      expect(SHAPE_FAMILIES[sideShapes(cube)]).toBeTruthy();
+      expect(sideShapes({ from: cube, palette: { seed: 1 } })).toBe(SIDE_SHAPES[cube]);
+      expect(assembleSideStrip({ ...M, side: { ...M.side, shapes: 'scoops' } }).side.shapes).toBe('scoops');
+      expect(() => sideShapes(cube, 'spikes')).toThrow(/scoops/);
+    });
+
+    it('every hill and cloud is a dome or a disc, the turf hangs in scallops, and every law holds', () => {
+      expect(Q.side.shapes).toBe('scoops');
+      for (const f of Q.faces.filter((x) => /^side:(hills|range|clouds|scallop)$/.test(x.group))) expect(f.corners.length).toBeGreaterThanOrEqual(7);
+      expect(groups(Q).has('side:scallop')).toBe(true);
+      expect(groups(Q).has('side:crowns')).toBe(false);
+      expect(sideLaws({ ...M, cube }, Q).filter((l) => !l.holds)).toEqual([]);
+      expect(sideLaws({ ...M, cube }, Q).map((l) => l.id)).toContain('one-family');
+    });
+
+    it('is framed nearly level, so the sky is in the frame; and is the same every time', () => {
+      expect(sideCameraWords(cube)).toEqual({ tilt: SHAPED_CAMERA.tilt, lookH: SHAPED_CAMERA.lookH });
+      expect(SHAPED_CAMERA.tilt).toBeLessThan(SIDE_CAMERA.tilt);
+      expect(JSON.stringify(assembleSideStrip({ ...M, cube }).faces)).toBe(JSON.stringify(Q.faces));
+    });
   });
 });

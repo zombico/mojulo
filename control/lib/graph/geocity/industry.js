@@ -246,6 +246,9 @@ export function industryTemplates(L) {
 /** A shipping container as it is built, unlit, along x about its foot: [{ corners, normal, hex }] (a stage stacks them on a
  *  building's apron and lights them as it lights the building, era/stage-buildings.js). Its body pale for an instance's tint. */
 export function containerRaw() { return container(); }
+/** A chain-link fence's 3 m as it is built, unlit, along x from its first post: [{ corners, normal, hex }] (a yard fenced
+ *  round: era/stage-buildings.js `yard.fence`). */
+export function chainlinkRaw() { return chainlink(); }
 /** How far each piece is seen (m): the tall ones across their district, the rest near the camera like the street's kit. */
 export const INDUSTRY_FAR = Object.freeze(['tank', 'sphere', 'holder', 'silos', 'stack', 'pylon']);
 

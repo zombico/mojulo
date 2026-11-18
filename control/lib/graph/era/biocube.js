@@ -35,6 +35,9 @@
  *   flora.autumn   0–1 | absent: how far into the fall (0 summer, a half the colour at its height, 1 late): each
  *                  deciduous tree turns its own way toward its species' fall colour, and its fallen leaves lie thicker
  *                  and wider round it; read by the form render (gen-7)
+ *   flora.marine   a mix | true | { mix?, density?, kinds?, seed? } | absent: what grows on a seabed and does not swim
+ *                  (marine/roster.js: corals, sponges, anemones, weed, on reef rock and in drifts), laid on a gen-7
+ *                  page as an aquarium is (marine/place.js); with it and no grass, the land grows none
  *   flora.bushes   { kinds, sections? } | absent: bushes and shrubs composed in SECTIONS (era/thickets.js), each kind a
  *                  leaf form with its trunk taken away, blocking a walker or walked through
  *
@@ -59,6 +62,7 @@ import { LEAF_OFFER, BARK_OFFER, HARMONIES, CLUMP_ROLES } from './flora-colours.
 import { BARK_FORM_IDS } from '../matte-paint/dressed.js';
 import { readFauna } from './biocube-fauna.js';
 import { checkBushes } from './thickets.js';
+import { checkMarine } from '../marine/roster.js';
 
 const no = (m) => { throw new Error(`biocube: ${m}`); };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -105,6 +109,10 @@ export const BIOCUBE_PRESETS = fz({
     trees: fz({ clusters: 1, perCluster: [1, 1], spread: 3, heights: [3, 5], clearTrail: 4, clearCliff: 5, hero: null }),
     grass: fz({ clusters: 14, perCluster: [3, 6], spacing: 0.4, scatter: 0.05, fringeEvery: 1.6, height: [0.2, 0.45], kinds: fz({ fringe: 'needlegrass', meadow: 'needlegrass', cliff: 'needlegrass', scatter: 'needlegrass' }), field: null, live: null }),
     shrubs: fz({ count: 6, bloom: 0.05, fruit: 0 }), flowers: null }) }),
+  // a seabed: the desert's baseline with the surface world taken out (no tree, no grass, no bush), and what grows on a
+  // bed and does not swim laid on it as an aquarium is (marine/roster.js: the mix its sea's zone grows)
+  seabed: fz({ title: 'Seabed', reads: 'a sandy bed under the sea: reef rock, corals, sponges and anemones, weed and grass in drifts, open sand between', flora: fz({
+    trees: fz({ clusters: 0, perCluster: [1, 1], spread: 3, heights: [3, 5], clearTrail: 4, clearCliff: 5, hero: null }), grass: null, shrubs: null, flowers: null, marine: true }) }),
   // bare ground: no trees, no grass
   bare: fz({ title: 'Bare', reads: 'bare ground: rock and earth, nothing growing', flora: fz({ trees: fz({ clusters: 0, perCluster: [1, 1], spread: 3, heights: [6, 10], clearTrail: 3.5, clearCliff: 5, hero: null }), grass: null, shrubs: null, flowers: null }) }),
 });
@@ -240,16 +248,19 @@ export function readBiocube(spec) {
   const base = spec.from === undefined ? null : BIOCUBE_PRESETS[spec.from] ?? no(`from '${spec.from}' is not a biocube (${BIOCUBE_IDS.join(', ')})`);
   if (faunaOnly) return { id: spec.id ?? 'biocube', title: spec.title ?? 'Biocube', reads: spec.reads ?? '', flora: null, fauna: readFauna(spec.fauna) };
   const F0 = base ? base.flora : {}, F1 = spec.flora ?? {};
-  if (!isObj(F1)) no('flora is { trees?, grass?, shrubs?, flowers?, moss?, autumn?, bushes? }');
-  keys(F1, ['trees', 'grass', 'shrubs', 'flowers', 'moss', 'autumn', 'bushes'], 'flora');
+  if (!isObj(F1)) no('flora is { trees?, grass?, shrubs?, flowers?, moss?, autumn?, bushes?, marine? }');
+  keys(F1, ['trees', 'grass', 'shrubs', 'flowers', 'moss', 'autumn', 'bushes', 'marine'], 'flora');
   // (each block over the preset's: an object merged, null or a whole block in its place)
   const over = (k) => (F1[k] === undefined ? F0[k] : F1[k] === null || !isObj(F0[k]) ? F1[k] : { ...F0[k], ...F1[k] });
   // (bushes composed in sections, era/thickets.js: only where a document names them, so a preset reads as it did)
   const bu = over('bushes') ?? null, mo = over('moss') ?? null, au = over('autumn') ?? null;
+  // (what grows on a seabed, marine/roster.js: a mix's word, true or its settings; only where a document or a preset names it)
+  const ma = F1.marine === undefined ? F0.marine : F1.marine;
+  try { checkMarine(ma); } catch (e) { no(e.message); }
   // (moss on the rock: only where a document names it, so a preset reads as it did)
   if (mo !== null && !(typeof mo === 'number' && mo >= 0 && mo <= 1)) no('flora.moss is how much moss the rock wears, 0 to 1 (null: none)');
   if (au !== null && !(typeof au === 'number' && au >= 0 && au <= 1)) no('flora.autumn is how far into the fall, 0 (summer) to 1 (late), null: none');
-  const flora = { trees: over('trees'), grass: over('grass') ?? null, shrubs: over('shrubs') ?? null, flowers: over('flowers') ?? null, ...(mo ? { moss: mo } : {}), ...(au ? { autumn: au } : {}), ...(bu ? { bushes: bu } : {}) };
+  const flora = { trees: over('trees'), grass: over('grass') ?? null, shrubs: over('shrubs') ?? null, flowers: over('flowers') ?? null, ...(mo ? { moss: mo } : {}), ...(au ? { autumn: au } : {}), ...(bu ? { bushes: bu } : {}), ...(ma ? { marine: ma } : {}) };
   if (flora.trees === undefined) no('flora.trees is wanted (a document names its trees, or builds from a preset)');
   checkTrees(flora.trees); checkGrass(flora.grass); checkFlowers(flora.flowers);
   if (flora.bushes) checkBushes(flora.bushes, { no, num, int, range, keys, isObj, LEAF_OFFER, BARK_OFFER, BARK_FORM_IDS });

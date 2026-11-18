@@ -29,9 +29,25 @@ chapters each owns are in `control/lib/graph/gameworld/chapters.js`). The agent'
 `gameworld-guide`; the studio card (`gameworld-studio`) says how to work the chapters in waves and what a first
 session leaves.
 
-1. **What was brought.** A designed game is asked once what the person brought. Each item is recorded on the world's
-   `intake` with what it says and where it went, or why it has no place yet (`gameworld/intake.js`; the
-   `gameworld-producer` card). Bringing nothing is an answer. The quick path and the sentence door are not asked.
+1. **The producer leads.** The person talks to the producer; the producer hands the director the work. One agent
+   wears both seats and says which a move is made from (`gameworld-producer`). A new game's readout carries the
+   producer's steps before the goalposts, each with the one question it asks, and `producer.ask` names the one to ask
+   this turn (`gameworld/goalposts.js` `producerSteps`):
+   - **What was brought** (`intake`). Asked once. Each item is recorded on the world's `intake` with what it says and
+     where it went, or why it has no place yet (`gameworld/intake.js`). Bringing nothing is an answer. The quick path
+     and the sentence door are not asked.
+   - **The rail and the size** (`rail`). The game is placed on a rail: a game type mojulo builds, as a TEMPLATE the
+     person's own game starts from, never the game itself (`gameworld/rails.js`; the `gameworld-rails` card is every
+     rail in a line, `gameworld-rail-<id>` one rail's sheet). The step carries the rails the person's words point at
+     and any type no door makes yet, said before anything is built. The size is called first, the least that answers
+     the ask: a pixelizer game, a quick game, a table game or the designed game (`sizeCall`).
+   - **The lock** (`lock`). The pitch is said back (a gameworld's `rail`: the template, the size, where the game
+     departs in level, action, character and world) and locked on the person's yes. Structure is locked, content never.
+     A locked pitch on a book with no level is given the rail's starter first level and stored, nothing built
+     (`gameworld/pitch-start.js`); a locked pitch moved to another rail is a re-plan, said.
+   - **The brief** (`brief`), a designed game's only: why it is played and how it is shaped (`gameworld/gmn.js`).
+   - **The hand-off** (`hand-off`). The first level as a req the ledger takes, its remit filled from the pitch and the
+     brief, proposed for the agent to raise as the director (`gameworld/hand-off.js`).
 2. **The goalposts.** Every readout carries `goalposts` (`gameworld/goalposts.js`): what game it is, its shape, its
    look, its play, its plan, the first level's plan, the first level made. Each is met, partial or open, and an open
    one carries the question only the person can answer. The first open one is also a step in `next`
@@ -58,8 +74,13 @@ session leaves.
 |---|---|---|
 | one level, one goal | `design_game({ quick })` (`gameworld-quick`) | the fastest playable thing; a work sim ([worksim.md](worksim.md)) |
 | a sentence | `design_game({ compose: { prompt } })` | a first reading to edit: it answers what it `read` and what it left `unread` |
-| an idea, or documents | `design_game({ world: { name } })` first (it answers what to ask, nothing stored), then `{ world }` with its levels and patches | the designed game: the agent writes the recipe |
+| an idea, or documents | `design_game({ world: { name } })` first (it answers the producer's one question, nothing stored); a locked pitch (`rail: { from, locked: true }`) stores the game on its rail's starter level; then patches | the designed game: the agent writes the recipe |
 | a board game, a pen-and-paper RPG, a fight | `create_game` with its own key | game types with their own machines ([table-rpg.md](table-rpg.md), [broadcast.md](broadcast.md)) |
+
+A platformer has a rail of its own under the designed path: a world that plays a platformer's feel and has no course
+is offered its first level and the flow that plays it as a ready patch (`next: first-level`,
+`control/lib/graph/gameworld/platformer-game.js`). It is a side-scroller (one strip, one turn) unless the camera or the
+brief says the round; the 3D platformer lays courses up a hill, a turn each, entered from a courses screen.
 
 The sentence door is a keyword reader, not the agent's judgment. It is a starting recipe; the words it lists as
 `unread` are the agent's to write in.
@@ -113,11 +134,12 @@ What that shows:
   room, fights kept on the world and laid into a building, sound and score, the flow from title to results, menus
   and HUD in a look. Each has machine gates; most have not been played by a person.
 - **Known seams** (each stated by the code or its theme, none hidden):
-  - A new game is framed for a phone unless the world says `screen`, so a sentence game opens upright on a desktop.
   - The sentence door lays a level whose exit its own default hero cannot reach, advises against it, and builds it.
   - An action game from a sentence gets no weapons kit; an action game's foes cannot carry elements.
   - The scripted player has no dodge, specials or air strings, so some fights (the gallery) cannot be machine-proved.
-  - The brawler (the belt, its crowd, its practice yard) has no door yet: it is reached only from a world recipe.
+  - A beat-em-up and a run & gun are quick goals (`brawl`, `rungun`): one open screen of a street, the crowd in
+    waves, the heroes characters. The crowd is drawn as jointed figures, and the gated street and its boss are the
+    sim's alone.
   - Each page's own "Not yet" section is the list for its part; the flow's is in [game-flow.md](game-flow.md).
 
 What can be made, counted over rolled worlds, and what to build next is the generated

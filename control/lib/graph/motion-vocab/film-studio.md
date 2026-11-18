@@ -62,6 +62,8 @@ forge_motion({ film: { write: {
   "inside"; and the hour they name. It proposes; take it, change
   it (the preset is only a starting look), or leave the scene on its stage.
 - `look`: `film` | `anime`. `grade`, and `grain` (`twos`), cover the whole film.
+- `camera`: the film's camera style (classical | verite | planimetric | still | oner | kinetic | observational, the
+  `scene-film` card), and a scene's own `camera` over it. The Camera department owns both.
 - `render: { light: 'setups', dof, motion_blur, samples }` sets the Blender render for every scene (the `scene-film`
   card). The Look and light department owns it.
 - `edit.order` is the order the scenes play in.
@@ -80,7 +82,7 @@ with only `{ ref }` reads.
 | casting | who plays each part | a part with no body, a part in no scene |
 | set | the worlds, the marks | a wall between a camera and the actors, speakers too far apart |
 | performance | style, role, register | a speaker turned away, a speaking extra |
-| camera | the coverage, the grain | a shot held too long, no close-up, a cross that flips the line |
+| camera | the coverage, its camera style, the grain | a shot held too long, no close-up, a cross that flips the line |
 | voice | recordings and dubs | a recording for other words, a dub running over, a half-recorded scene |
 | look | look and grade | |
 | edit | the order | |

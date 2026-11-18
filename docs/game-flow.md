@@ -106,6 +106,9 @@ play: { kind: 'level', level: 'vale', on: { won: 'result', lost: 'result' },
 - A game with a `screen` has the shell's mana-ui screens drawn in the box its levels are (the frame's aspect, up to
   the reach), centred, so a phone game's menus are a phone's on a monitor too.
 - A level's title that is only an id (`small-meadow-1 · approach-a`) is said in words on every shell screen.
+- An end trigger that is a scene is the level's to play: the level is told it as it loads (`params.__end: { scene,
+  when, skip? }`) and plays it on its own page once its outcome is known, before it says so. A level that knows no
+  such scene says its outcome at once.
 - A start trigger that is a scene is staged on the level's page (`params.__stage`); a video plays over the held
   level. The pause does nothing while it plays. A save that has seen it does not see it again.
 - An end trigger that is a video plays after the level's own end card, before the flow goes on; the store's write is

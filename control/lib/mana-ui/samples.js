@@ -27,6 +27,8 @@ export const SAMPLE_STATE = Object.freeze({
   boss: { name: 'The Hollow King', hp: 2100, hpMax: 3600, phases: 3, statuses: ['enraged'] },
   target: { name: 'Hound', level: 3, hp: 8, hpMax: 22, state: 'combat', distance: '12 m' },
   pops: [{ id: 1, x: 0.5, y: 0.52, value: 14, kind: 'hit' }, { id: 2, x: 0.37, y: 0.38, value: 38, kind: 'crit' }, { id: 3, x: 0.22, y: 0.7, value: 9, kind: 'heal' }],
+  // (a place as a map: its ground, what is on it, how it is seen, and the key to its icons)
+  city: { shapes: [{ kind: 'road', x: 0, y: 0, w: 1, h: 1 }, { kind: 'block', x: 0.1, y: 0.1, w: 0.3, h: 0.3, tall: 0.4 }, { kind: 'park', x: 0.55, y: 0.15, w: 0.3, h: 0.25 }, { kind: 'turf', tint: '#c0392b', x: 0, y: 0, w: 1, h: 0.5 }], markers: [{ x: 0.5, y: 0.5, you: true, heading: 30 }, { x: 0.3, y: 0.6, icon: 'shop', label: 'A shop', named: false }], view: 'plan', focus: [0.5, 0.5], heading: 30, zoom: 1, key: [{ icon: 'shop', name: 'A shop' }, { icon: 'car', name: 'A car' }] },
   map: [{ x: 0.5, y: 0.5, kind: 'self' }, { x: 0.3, y: 0.4, kind: 'foe' }, { x: 0.7, y: 0.6, kind: 'foe' }, { x: 0.8, y: 0.2, kind: 'goal', label: 'Gate' }, { x: 0.2, y: 0.8, kind: 'item' }],
   bearings: [{ bearing: 60, kind: 'goal' }, { bearing: 350, kind: 'foe' }],
   objective: { title: 'Reach the gatehouse', steps: [{ text: 'Find the crest key', done: true }, { text: 'Open the east gate', done: false }] },
@@ -172,6 +174,13 @@ export const SAMPLE_STATE = Object.freeze({
     threats: [{ bearing: 130 }, { bearing: 250 }],
     offscreen: [{ x: 1.25, y: 0.4, kind: 'goal', label: 'Extract' }, { x: -0.15, y: 0.75, kind: 'foe' }, { x: 0.5, y: -0.3, kind: 'ally', label: 'Isa' }],
     locks: [{ x: 0.64, y: 0.38, name: 'Drone', range: '40 m' }],
+    gun: { name: 'Carbine', mode: 'Auto', rounds: 7, size: 30, reserve: 90, reloading: false },
+    order: { title: 'Clear the lane', step: '2/3', distance: '24 m', holding: true, hold: 40, left: 17 },
+    radar: [{ x: 0.62, y: 0.3, kind: 'foe' }, { x: 0.34, y: 0.42, kind: 'foe' }, { x: 0.5, y: 0.04, kind: 'goal' }],
+    north: 320,
+    peril: 0.35,
+    focus: { value: 1, state: 'ready', label: 'Dodge' },
+    wheel: [{ name: 'Carbine', at: 270, key: 'X', count: '24 / 90', on: true, sub: '24 / 90 · auto' }, { name: 'Knife', at: 0, key: 'Y' }, { name: 'Shotgun', at: 90, key: 'B', count: '6 / 24' }, { name: 'Pistol', at: 180, key: 'A', count: '12 / 36' }],
   },
   scoreboard: [
     { id: 'ayla', name: 'Ayla', team: 'Red', score: 1450, kills: 12, deaths: 3, self: true, side: 0 }, { id: 'bram', name: 'Bram', team: 'Red', score: 1210, kills: 9, deaths: 5, side: 0 },

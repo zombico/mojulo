@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { gunAudio, streetAudio, RANGE_SOUNDS, STREET_SOUNDS } from './brawl-sfx.js';
+import { gunAudio, streetAudio, brawlAudio, BRAWL_SOUNDS, RANGE_SOUNDS, STREET_SOUNDS } from './brawl-sfx.js';
+import { sfxSound } from '../sfx-shelf/resolve.js';
+import { fightCues } from '../versus/versus-sfx.js';
 import { GUN_IDS, readGun } from './brawl-guns.js';
 
 // THE RUN & GUN'S SOUNDS: every gun on the shelf has its shot and its landing voiced from the SFX shelf, and the range's
@@ -22,3 +24,27 @@ describe('brawl sfx', () => {
     expect(cues['no-such-sound']).toBeUndefined();
   });
 });
+
+// THE BRAWLER'S SOUND SHEET: its blows thrown and landed and its bodies' voices, each a shelf word, voiced in the
+// sheet's style (the newest voices first), over the fight's own cue ids.
+describe('the brawler\'s sound sheet', () => {
+  it('every word is a row of the shelf with a voice, so no cue of the sheet is silent', () => {
+    const { cues } = brawlAudio().sfx;
+    expect(Object.keys(cues).sort()).toEqual(Object.keys(BRAWL_SOUNDS).sort());
+    for (const g of Object.values(cues)) expect(Array.isArray(g) && g.length).toBeTruthy();
+  });
+  it('re-voices the fight\'s cue ids a blow already plays, and adds what the fight never sounded', () => {
+    const fight = Object.keys(fightCues()), ours = Object.keys(BRAWL_SOUNDS);
+    expect(ours.filter((id) => fight.includes(id)).length).toBeGreaterThan(4);
+    for (const id of ['swing', 'jump', 'shout', 'grunt', 'cry']) { expect(ours).toContain(id); expect(fight).not.toContain(id); }
+  });
+  it('is voiced in its style: the mouth where the mouth has a voice, another style a different sound', () => {
+    const mouth = brawlAudio().sfx.cues, real = brawlAudio({ style: 'realistic' }).sfx.cues;
+    expect(sfxSound(BRAWL_SOUNDS.swing, { style: 'mouth' }).style).toBe('mouth');
+    expect(JSON.stringify(mouth.swing)).not.toBe(JSON.stringify(real.swing));
+    // (a word the mouth voices none of falls back: the same sound either way)
+    const fell = Object.keys(BRAWL_SOUNDS).find((id) => sfxSound(BRAWL_SOUNDS[id], { style: 'mouth' }).style !== 'mouth');
+    expect(JSON.stringify(mouth[fell])).toBe(JSON.stringify(real[fell]));
+  });
+});
+

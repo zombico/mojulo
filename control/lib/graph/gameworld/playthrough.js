@@ -53,7 +53,7 @@ const flat = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 /** Whether a wall stands between the hero's sidearm and a foe's chest: what a person sees before they shoot (the round's
  * own line, worlds/controllable/combat-melee.js `mvAim`, against the level's solid boxes as core.js `sightBlocked` reads
  * them). */
-function walled(colliders, hero, foe) {
+export function walled(colliders, hero, foe) {
   if (!Array.isArray(colliders) || !colliders.length) return false;
   const t = hero.transform.pos, f = foe.transform.pos, egg = foe.body?.egg;
   const a = [t[0], t[1], t[2] + (hero.weapon?.eye ?? hero.rule?.weapon?.eye ?? 1.25)];

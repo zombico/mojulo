@@ -41,6 +41,11 @@
  * Facts: `lineAt` (the point reached) and `laps` (times it crossed its line's first point, the start line: a car on
  * the grid crosses it once as the race begins; closed lines).
  *
+ * THE `chaser` RULE — a driver no one pilots, after a body (`target`, or what it rides): the law's police car. Far off
+ * it keeps to the `roads` ([[axis, cross, lo, hi], …], the streets' middle lines), routed over their junctions; near it
+ * drives straight at it; beside a target that stands, it holds it, counted every `every` s (`pin` m): its `helds`,
+ * `heldBy` this car (the bus's `held:<target>`: a hold, no wound). Facts: `chaseRoute`, `chaseAt`.
+ *
  * PHYSICS (opt-in, the vehicle classes' rule: roads/vehicles.js vehicleRule): `drivenShare` (grip through the driven
  * wheels only), `brakeEff` (brakes capped by grip), `lateralGrip` (no tighter than μ g holds), `surfaceGrip` (the
  * world's `surface(pos)` → { mu, roll } scales grip and rolling), `muScale` (the weather), `air` (flight: see fly),
@@ -81,6 +86,13 @@ export function buildRulesDrive(E) {
     const vFloor = r.vFloor > 0 ? r.vFloor : 2;
     const eye = r.eye ?? 0;
     let v = e.speed || 0;
+    // BOOST PADS (opt-in: a track's pads, roads/surface.js padAt, the world's `padAt(pos)` → seconds): a wheel on one
+    // lights a boost that long: a push past the engine's while the throttle is held, and a top speed raised by `boostTop`
+    // (1.6) while it lasts.
+    // A world with no pads has no hook: a drive is as it was
+    if (world && world.padAt && !airborne) { const b = world.padAt(t.pos); if (b > 0) e.boostT = Math.max(e.boostT || 0, b); }
+    const boostOn = (e.boostT || 0) > 0;
+    if (boostOn) e.boostT = Math.max(0, e.boostT - dt);
 
     // ── longitudinal force: throttle / brake / reverse ──
     const throttle = clamp(input.forward, 0, 1);
@@ -102,7 +114,9 @@ export function buildRulesDrive(E) {
     // resistive forces stop a coasting car — they never reverse it (no throttle → clamp at 0)
     if (F === 0 && v0 !== 0 && Math.sign(v) !== Math.sign(v0)) v = 0;
     if (F === 0 && Math.abs(v) < 0.15) v = 0;                       // rest deadband: a parked car stays parked
-    v = clamp(v, -reverseSpeed, r.topSpeed > 0 ? r.topSpeed : Infinity);
+    // (a boost pushes on at `boostAccel` m/s² up to the raised top while the throttle is held: lifting for a bend spends it)
+    if (boostOn && throttle > 0 && v > -1e-3) { const top = (r.topSpeed > 0 ? r.topSpeed : 30) * (r.boostTop ?? 1.6); if (v < top) v = Math.min(top, v + (r.boostAccel ?? 18) * throttle * dt); }
+    v = clamp(v, -reverseSpeed, r.topSpeed > 0 ? r.topSpeed * (boostOn ? (r.boostTop ?? 1.6) : 1) : Infinity);
 
     // ── steering: slewed bicycle model, tightened with speed ──
     let effMax = steerMax / (1 + Math.abs(v) * (r.steerTighten ?? 0.03));
@@ -129,6 +143,7 @@ export function buildRulesDrive(E) {
 
     // ── the affordance facts (D5): named once, surfaced every frame ──
     e.speed = v;
+    if (world && world.padAt) e.boosting = boostOn;
     e.wheelPhase = (e.wheelPhase || 0) + v * dt / (TAU * wheelR);   // distance-true roll
     e.wheelSpin = v / (TAU * wheelR);                                // cycles/sec (engine-tone macro)
     e.throttle = throttle;
@@ -266,5 +281,92 @@ export function buildRulesDrive(E) {
     drive(e, { forward, turn: clamp(-err * 2.5, -1, 1) }, dt, world);
   }
 
-  Object.assign(RULES, { drive, racer });
+  // THE `chaser` RULE — a driver no one pilots, after a body (the law's police car): the same drive, its stick moved
+  // toward `target` (or what it rides). Far off it keeps to the ROADS (`roads`: [[axis 0 = along x | 1 = along y,
+  // cross, lo, hi], …], the street's middle lines): a route from the road nearest it to the road nearest the target,
+  // over the junctions where they cross (the shortest by distance), replanned every `replan` s; near (`near` m) it drives
+  // straight at it, and beside it holds there. Slowing into a turn ahead at speed, backing off a second when stuck.
+  // PINNED: the target barely moving and this car at it (`pin` m), a hold every `every` s, counted on the target (its
+  // `helds` and `heldBy`, the bus's `held:<target>`): boxed in, the player is caught as on foot, unhurt.
+  function roadRoute(R, from, to, join) {
+    const near = (p) => { let best = null; for (let i = 0; i < R.length; i++) { const [a, c, lo, hi] = R[i], u = clamp(a ? p[1] : p[0], lo, hi), d = Math.hypot(a ? p[0] - c : p[1] - c, (a ? p[1] : p[0]) - u); if (!best || d < best.d) best = { i, u, d }; } return best; };
+    const A = near(from), B = near(to);
+    if (!A || !B) return null;
+    const pt = (i, u) => (R[i][0] ? [R[i][1], u] : [u, R[i][1]]);
+    // the nodes: each junction (two roads crossing within their spans), and the two ends
+    const nodes = [pt(A.i, A.u), pt(B.i, B.u)], on = R.map(() => []);
+    on[A.i].push([A.u, 0]); on[B.i].push([B.u, 1]);
+    for (let i = 0; i < R.length; i++) for (let j = i + 1; j < R.length; j++) {
+      if (R[i][0] === R[j][0]) continue;
+      const x = R[i][0] ? R[i] : R[j], y = R[i][0] ? R[j] : R[i];   // x: along y at x = cross; y: along x at y = cross
+      // (a street's run stops at the kerb of the one it meets: joined within `join` m of its end)
+      if (y[1] < x[2] - join || y[1] > x[3] + join || x[1] < y[2] - join || x[1] > y[3] + join) continue;
+      const k = nodes.length; nodes.push([x[1], y[1]]);
+      on[R[i][0] ? i : j].push([y[1], k]); on[R[i][0] ? j : i].push([x[1], k]);
+    }
+    const adj = nodes.map(() => []);
+    for (const L of on) { L.sort((a, b) => a[0] - b[0] || a[1] - b[1]); for (let k = 1; k < L.length; k++) { const w = Math.abs(L[k][0] - L[k - 1][0]); adj[L[k][1]].push([L[k - 1][1], w]); adj[L[k - 1][1]].push([L[k][1], w]); } }
+    // (the shortest, by distance: a small graph, a plain search)
+    const dist = nodes.map(() => Infinity), prev = nodes.map(() => -1), done = nodes.map(() => false);
+    dist[0] = 0;
+    for (;;) {
+      let u = -1; for (let k = 0; k < nodes.length; k++) if (!done[k] && dist[k] < Infinity && (u < 0 || dist[k] < dist[u])) u = k;
+      if (u < 0 || u === 1) break;
+      done[u] = true;
+      for (const [v, w] of adj[u]) if (dist[u] + w < dist[v]) { dist[v] = dist[u] + w; prev[v] = u; }
+    }
+    if (dist[1] === Infinity) return null;
+    const path = []; for (let k = 1; k >= 0; k = prev[k]) { path.unshift(nodes[k]); if (k === 0) break; }
+    return path;
+  }
+  function chaser(e, input, dt, world) {
+    const r = e.rule, T = world.byId && world.byId[r.target];
+    if (e.gone || e.dormant || !T || !world.aiEnabled) { if (!e.gone) drive(e, { forward: 0, turn: 0 }, dt, world); return; }
+    const H = (T.mountedOn && world.byId[T.mountedOn]) || T, t = e.transform, tp = H.transform.pos;
+    const dT = Math.hypot(tp[0] - t.pos[0], tp[1] - t.pos[1]), nearM = r.near > 0 ? r.near : 28;
+    e.planT = (e.planT || 0) - dt;
+    if (e.planT <= 0) { e.planT = r.replan > 0 ? r.replan : 1; e.chaseRoute = dT > nearM && r.roads && r.roads.length ? roadRoute(r.roads, t.pos, tp, r.join > 0 ? r.join : 14) : null; e.chaseAt = 0; }
+    let aim = tp, next = null;
+    if (e.chaseRoute && e.chaseRoute.length) {
+      const reach = r.reach > 0 ? r.reach : 7;
+      while (e.chaseAt < e.chaseRoute.length - 1 && Math.hypot(e.chaseRoute[e.chaseAt][0] - t.pos[0], e.chaseRoute[e.chaseAt][1] - t.pos[1]) < reach) e.chaseAt++;
+      aim = e.chaseRoute[e.chaseAt]; next = e.chaseRoute[e.chaseAt + 1] || null;
+    }
+    let err = Math.atan2(aim[1] - t.pos[1], aim[0] - t.pos[0]) - t.heading;
+    err = ((err + Math.PI) % TAU + TAU) % TAU - Math.PI;
+    const v = e.speed || 0, pace = r.pace > 0 ? r.pace : 1, corner = r.corner > 0 ? r.corner : 10;
+    let forward = pace;
+    // (a turn at the next junction: slow to take it, from as far out as braking to it takes)
+    if (next) {
+      const dA = Math.hypot(aim[0] - t.pos[0], aim[1] - t.pos[1]);
+      let bend = Math.atan2(next[1] - aim[1], next[0] - aim[0]) - Math.atan2(aim[1] - t.pos[1], aim[0] - t.pos[0]);
+      bend = Math.abs(((bend + Math.PI) % TAU + TAU) % TAU - Math.PI);
+      if (bend > 0.5 && v > corner && dA < (v * v - corner * corner) / (2 * 7) + 6) forward = -0.8;
+    }
+    if (Math.abs(err) > 0.7 && v > corner) forward = Math.min(forward, 0);
+    // (at it: closing slow, holding beside it while it stands)
+    // (standing: a car at a crawl, a body on foot that is not moving)
+    const still = H === T ? !T.moving : Math.abs(H.speed || 0) < 2;
+    // (a target that stands: braked to a stop beside it, from as far out as stopping takes; one that moves, flat out)
+    const lastLeg = !e.chaseRoute || e.chaseAt >= e.chaseRoute.length - 1;
+    if (still && lastLeg && dT < 40) { const want = Math.sqrt(2 * 6 * Math.max(0, dT - 5)); forward = v > want + 0.5 ? -1 : dT < 5 ? 0 : Math.min(forward, 0.5); }
+    else if (dT < 9) forward = pace;
+    if (e.backT > 0) { e.backT -= dt; drive(e, { forward: -1, turn: clamp(err * 2, -1, 1) }, dt, world); }
+    else {
+      // (stuck: throttling a second and not a metre on, against a wall or a car, whatever its wheels say)
+      if (forward > 0 && dT > 6) {
+        if (!e.chaseFrom) e.chaseFrom = [t.pos[0], t.pos[1], 0];
+        e.chaseFrom[2] += dt;
+        if (e.chaseFrom[2] >= 1) { const moved = Math.hypot(t.pos[0] - e.chaseFrom[0], t.pos[1] - e.chaseFrom[1]); e.chaseFrom = null; if (moved < 1) { e.backT = 1.2; e.speed = 0; e.planT = 0; } }
+      } else e.chaseFrom = null;
+      drive(e, { forward, turn: clamp(-err * 2.5, -1, 1) }, dt, world);
+    }
+    // PINNED: a blow every `every` s while the target stands and this car is at it
+    if (dT < (r.pin > 0 ? r.pin : 6) && still && Math.abs(e.speed || 0) < 3) {
+      e.pinT = (e.pinT || 0) + dt;
+      if (e.pinT >= (r.every > 0 ? r.every : 1)) { e.pinT = 0; T.helds = (T.helds || 0) + 1; T.heldBy = e.id; }
+    } else e.pinT = 0;
+  }
+
+  Object.assign(RULES, { drive, racer, chaser });
 }

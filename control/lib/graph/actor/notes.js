@@ -25,6 +25,7 @@
  *
  * Pure and deterministic.
  */
+import { cameraStyleOf } from './camera-styles.js';
 import { styleOf } from './style.js';
 
 /** the notes' ids, in the order the header gives them (docs/cinematics.md names each; held by notes.test.js) */
@@ -37,6 +38,12 @@ const cap = (w) => w[0].toUpperCase() + w.slice(1);
 
 /** The notes on a scene and its coverage (see the header) */
 export function directorsNotes(S, coverage) {
+  // (the notes a camera style answers by design, camera-styles.js `quiet`: a long take is a oner's point)
+  const quiet = new Set(cameraStyleOf(coverage.style)?.quiet ?? []);
+  return notesOf(S, coverage).filter((N) => !quiet.has(N.id));
+}
+
+function notesOf(S, coverage) {
   const notes = [], names = Object.keys(S.actors), smooth = (u) => u * u * (3 - 2 * u);
   const placeAt = (w, s) => { const K = S.actors[w].root; if (s <= K[0].t) return K[0]; for (let k = 1; k < K.length; k++) if (s <= K[k].t) { const a = K[k - 1], c = K[k], u = (s - a.t) / Math.max(1e-6, c.t - a.t); return { x: a.x + (c.x - a.x) * u, y: a.y + (c.y - a.y) * u, yaw: a.yaw + wrap(c.yaw - a.yaw) * smooth(u) }; } return K.at(-1); };
   const turnsIn = (a, b) => S.turns.filter((T) => T.at < b && T.end > a);

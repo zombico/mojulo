@@ -154,7 +154,7 @@ export function readGrid(g, at = 'grid') {
 
 /** What a region may say: its name, its rise (metres, the land's height there over the level's own), and the stage's
  *  own words every tile in it is built with (its look, what grows there, its grass, wind and snow). */
-export const REGION_WORDS = Object.freeze(['name', 'rise', 'style', 'biocube', 'shrubs', 'grass', 'wind', 'snow', 'palette', 'path', 'shore']);
+export const REGION_WORDS = Object.freeze(['name', 'rise', 'style', 'biocube', 'shrubs', 'grass', 'wind', 'snow', 'palette', 'path', 'shore', 'hats']);
 // (the words a region says of the MAP, never handed to a tile's stage: its name, its rise, its ways' rank
 // (level/path-ranks.js) and its water's edge (era/out-tile-water.js))
 export const MAP_WORDS = Object.freeze(['name', 'rise', 'path', 'shore']);

@@ -57,7 +57,7 @@ import {
   physicsChannelScript, pickChannelScript, shadowDecalScript, skyDomeScript,
   specularChannelScript, splatChannelScript, spriteSfxChannelScript, marksChannelScript, normalizeMarks, shootChannelScript, shootSetScript, toonInkScript, walkersChannelScript, carsChannelScript, walkModeScript, waterMeshScript, liquidMeshScript, shallowsChannelScript, seawayChannelScript, jetChannelScript, aquaPatchScript, wetSandScript, softGroundScript, snowPrintsScript,
   rigPreviewChannelScript, drawLayersScript, drawLayerGroup,
-  strokeOverlayChannelScript, versusChannelScript, brawlChannelScript, boardChannelScript, meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, holoChannelScript, inningsChannelScript, broadcastScreenScript,
+  strokeOverlayChannelScript, versusChannelScript, brawlChannelScript, boardChannelScript, meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, holoChannelScript, inningsChannelScript, broadcastScreenScript, missionChannelScript, damageRingChannelScript,
 } from './channels/index.js';
 import { readFlow, flowChannelScript } from './channels/flow.js';
 import { readBeacons, beaconsChannelScript } from './channels/beacons.js';
@@ -86,6 +86,14 @@ import { motesScript } from './channels/motes.js';
 import { faunaScript } from './channels/fauna.js';
 import { faunaPetScript } from './channels/fauna-pet.js';
 import { mountRideScript } from './channels/mount-ride.js';
+import { cabPoolScript } from './channels/cab-pool.js';
+import { mapScript } from './channels/map-channel.js';
+import { bagScript } from './channels/bag-channel.js';
+import { phoneScript } from './channels/phone-channel.js';
+import { guideManaScript } from './channels/guide-mana.js';
+import { manaUiSource } from '../../mana-ui/kernel.js';
+import { manaCss } from '../../mana-ui/css.js';
+import { themeCss } from '../../mana-ui/theme.js';
 import { wetRoadScript } from './channels/wet-road.js';
 import { weatherScript, weatherForces } from './channels/weather.js';
 import { toneScript } from './channels/tone.js';
@@ -96,6 +104,8 @@ import { farStructuresScript } from './channels/far-structures.js';
 import { manaHudScript } from './channels/mana-hud.js';
 import { withScreenKeys } from '../game/screen-keys.js';
 import { atmosphereScript, atmosphereEarlyScript } from './channels/atmosphere.js';
+import { seaScript, seaEarlyScript } from './channels/sea.js';
+import { marineScript } from './channels/marine.js';
 import { framePassScript } from './channels/frame-pass.js';
 import { CITY_CONE, CITY_CONE_TILE, cityConeRule } from './channels/city-cone.js';
 import { fabricScript } from './channels/fabric.js';
@@ -151,6 +161,7 @@ export function emitRaymarchWorld({ frag, customUniforms = {}, dataTextures = {}
 <style>
   :root{color-scheme:dark} body{margin:0;background:${bg};color:#cfe3ff;font:13px/1.4 system-ui,sans-serif;display:flex;flex-direction:column;align-items:center}
   #wrap{position:relative;width:${W}px;height:${H}px;max-width:100%;aspect-ratio:${W} / ${H};overflow:hidden}
+  #wrap .mana-root{position:absolute}
   canvas{display:block;width:100%;height:100%}
   .hint{position:absolute;right:8px;bottom:8px;color:#6f86ad;font-size:11px;user-select:none}
   .moj-readout{position:absolute;left:8px;bottom:8px;background:rgba(4,7,16,.74);border:1px solid #24324a;border-radius:6px;padding:7px 10px;font-size:12px;color:#cfe3ff;display:flex;flex-direction:column;gap:2px;pointer-events:none;z-index:4;max-width:60%}
@@ -290,7 +301,7 @@ const SCREEN_ZONES_CSS = [
   '  html[data-orientation=portrait] .moj-w-legend{white-space:normal;text-align:center}',
 ].join('\n');
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, chrome = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, flow = null, beacons = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, brawl = null, vertexContrast = null, board = null, screen = null, runner = null, roll = null, manaHud = null, courseTouch = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, finish = null, hydraulics = null, flames = null, roofs = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, soften = null, seaway = null, captureSize = null, tempo = null, styleMeter = null, grade = null, leaves = null, knock = null, guide = null, tour = null, sync = false, footless = null } = {}) {
+export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, chrome = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, flow = null, beacons = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, brawl = null, vertexContrast = null, board = null, screen = null, runner = null, roll = null, manaHud = null, courseTouch = null, mission = null, damageRing = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, finish = null, hydraulics = null, flames = null, roofs = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, sea = null, marine = null, soften = null, seaway = null, captureSize = null, tempo = null, styleMeter = null, grade = null, leaves = null, knock = null, guide = null, tour = null, sync = false, footless = null } = {}) {
   // SCREEN KEYS (game/screen-keys.js): a level made for a screen never asks for a key a thumb cannot press: each key it
   // listens for that the virtual pad has no control for (its own inputs, the journal, the library, the party menu) gets a
   // button in its HUD, drawn only on a touch screen. A level with no screen, or no such key, is as it was
@@ -464,6 +475,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       radius: gm.radius,
       // a per-axis scale ([sx, sy, sz]: a unit box stretched to a mass) rides as three more numbers; a uniform one as one
       t: r.transforms.map((t) => [(t.pos || [0, 0, 0])[0], (t.pos || [0, 0, 0])[1], (t.pos || [0, 0, 0])[2], t.rotZ || 0, ...(Array.isArray(t.scale) && t.scale.length === 3 && t.scale.every(Number.isFinite) ? t.scale : [Number.isFinite(t.scale) ? t.scale : 1])]),
+      // a SLOPE ([dz/dx, dz/dy], `slope`: a flat piece laid on sloped ground, a street's paint): the instance sheared to
+      // lie on that plane about its own place; one a transform, 0 where none; the key absent without any
+      ...(r.transforms.some((t) => Array.isArray(t.slope)) ? { sl: r.transforms.map((t) => (Array.isArray(t.slope) && t.slope.length === 2 && t.slope.every(Number.isFinite) && (t.slope[0] || t.slope[1]) ? t.slope : 0)) } : {}),
       tint: (hasTint || hasAmb)
         ? r.transforms.map((t, k) => {
           const base = Array.isArray(t.tint) ? t.tint : [1, 1, 1];
@@ -586,6 +600,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   });
   const hasRepeatTextures = packedRepeats.some((r) => r.tex);
   const hasAxisScale = packedRepeats.some((r) => r.t.some((t) => t.length > 5));   // absent: the uniform line, byte-identical
+  const hasSlope = packedRepeats.some((r) => r.sl);   // absent: not one byte
+  const slopeShear = (i) => (hasSlope ? ` if (r.sl && r.sl[${i}]) { const e = M.elements, sl = r.sl[${i}]; e[2] += sl[0] * e[0] + sl[1] * e[1]; e[6] += sl[0] * e[4] + sl[1] * e[5]; e[10] += sl[0] * e[8] + sl[1] * e[9]; }` : '');
   const hasNear = packedRepeats.some((r) => r.near);   // absent: no near tiles, not one byte
   const hasCompact = packedRepeats.some((r) => r.q);   // absent: no compact template, not one byte
   const hasPool = packedRepeats.some((r) => r.pool);   // none: no pools, not one byte
@@ -772,7 +788,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // (a room under no sun, or a town's buildings under the day's: channels/form.js draws either)
   const formRoom = form && form.room && Array.isArray(form.room.lights) ? form.room : form && form.town && Array.isArray(form.town.lights) ? form.town : null;
   // (a room under no sun whose repeats carry their baked light, era/skandart.js's debris: the form render lights them too)
-  const formBlock = formRoom ? formScript({ ...FORM_PAGE, ...formRoom, ...(hasRepLit && !formRoom.sun ? { instanced: true } : {}), pom: { ...FORM_PAGE.pom, ...(formRoom.pom || {}) }, relief: { ...FORM_PAGE.relief, ...(formRoom.relief || {}) }, maps: formRoom.maps || {} }) : '';
+  const formBlock = formRoom ? formScript({ ...FORM_PAGE, ...formRoom, ...(hasRepLit && !formRoom.sun ? { instanced: true } : {}), pom: { ...FORM_PAGE.pom, ...(formRoom.pom || {}) }, relief: { ...FORM_PAGE.relief, ...(formRoom.relief || {}) }, maps: formRoom.maps || {} }, { resample: !!resampled }) : '';
   // a level's field fauna (channels/fauna.js: swarms, birds, ducks, a room's roaches and mice, a biocube's); absent ⇒ no bytes
   const faunaBlock = fauna && ['gnats', 'fireflies', 'butterflies', 'birds', 'ducks', 'roaches', 'mice'].some((k) => fauna[k]) ? faunaScript(fauna, (liveShadows && liveShadows.actors) ? { cast: true } : {}) : '';
   // a wet road (roads/race-mood.js): the sky and the lamps thrown back off the road's film; absent ⇒ not emitted
@@ -782,6 +798,11 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const airOn = !!(air && Number.isFinite(air.sigma) && air.sigma > 0), airBlock = airOn ? atmosphereScript(air) : '';
   // (and its first part right after the scene is made: the fog chunk before any material, the far's softening wrapped round three's render first)
   const airEarly = airOn ? atmosphereEarlyScript(air) : '';
+  // the sea a gen-7 page is seen through (channels/sea.js): its land put under water by light alone, in the air's place
+  // (the two never share a page); absent ⇒ no bytes
+  // what grows on a seabed (channels/marine.js): the placer's copies, each template grown on the page; absent ⇒ no bytes
+  const marineBlock = marine && Array.isArray(marine.groups) && marine.groups.length ? marineScript(marine) : '';
+  const seaOn = !!(sea && Array.isArray(sea.c) && !airOn), seaBlock = seaOn ? seaScript(sea) : '', seaEarly = seaOn ? seaEarlyScript(sea) : '';
   // (and the frame pass, the far softened by the air's blur and past the crust by the cone's `soften`, channels/frame-pass.js:
   // wrapped round three's render first; asked by neither, not a byte)
   // (and the grade, channels/grade.js: the page's compositing stage, the frame pass's last; asked by nothing, not a byte)
@@ -875,9 +896,19 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // reactions or sequences — it reacts to physics FACTS (via __mojSim, when physics is live) and/or
   // timer-driven sequences, reflecting verb effects onto marker meshes. No reactions/sequences → no
   // block (a bare `sources` list with nothing listening is inert, so it is not worth emitting).
+  // MANA-UI ONCE A PAGE: a page whose HUD is the game UI runtime's and which opens its screens too (the journal, the
+  // map, the bag: each a host of its own) carries the runtime and the theme's sheet ONCE, in a prelude each host names
+  // (`window.__mojMana`); a page with the HUD alone carries them in the HUD, as it did, byte for byte
+  // (a guide drawn by mana-ui, channels/guide-mana.js: its keys stand where the level's line of key words stood, a HUD
+  // row that is words alone, hud-widgets.js's legend, so that row is not handed to the HUD; one that asks for it, `mana: true`, on a page with a mana HUD and
+  // no HUD grammar of its own)
+  const guideMana = !!manaHud && !capture && !!guide && guide.mana === true && Array.isArray(guide.steps) && !(events && events.grammar);
+  const manaScreens = !!manaHud && !capture && (guideMana || !!cityMap || !!bagUi || !!phoneUi || (manaHud.theme !== undefined && !!events && Array.isArray(events.quests) && events.quests.length > 0));
+  const manaShared = manaScreens ? 'window.__mojMana' : null;
+  const manaPrelude = manaScreens ? `// mana-ui, once for this page's HUD and screens (the game UI runtime and the theme's sheet)\nwindow.__mojMana = ${manaUiSource()};\n{ const __ms = document.createElement('style'); __ms.textContent = ${JSON.stringify(`${manaCss()}\n${themeCss(manaHud.theme ?? 'greybox')}`).replace(/</g, '\\u003c')}; document.head.appendChild(__ms); }\n` : '';
   const hasEvents = !!events && ((Array.isArray(events.reactions) && events.reactions.length > 0) || (Array.isArray(events.sequences) && events.sequences.length > 0) || (Array.isArray(events.hud) && events.hud.length > 0) || (Array.isArray(events.library) && events.library.length > 0));   // (a library alone is a channel: its shelf)
   // the effect light reads the level's sky: an effect lights a night world fully, a noon one a quarter as much
-  const eventsBlock = hasEvents ? eventsChannelScript(events, { ...(events.fxLight === true ? { fxDay: fxDay(sky && Array.isArray(sky.zenith) ? sky.zenith : hexRgb255(bg)) } : {}), ...(roll && roll.items ? { rollItems: true } : {}) }) : '';
+  const eventsBlock = hasEvents ? eventsChannelScript(events, { ...(events.fxLight === true ? { fxDay: fxDay(sky && Array.isArray(sky.zenith) ? sky.zenith : hexRgb255(bg)) } : {}), ...(roll && roll.items ? { rollItems: true } : {}), ...(manaHud && !capture && manaHud.theme !== undefined ? { questMana: manaHud.theme ?? true, ...(manaShared ? { manaShared } : {}) } : {}) }) : '';
   // audio channel: never emitted on capture runs (headless bakes carry no sound and must stay
   // byte-identical to a muted live run); absent audio interpolates '' so no-audio worlds are
   // byte-identical to today.
@@ -888,7 +919,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // (a level with a ROLL says it is shown only once it has started: its first picture is the rolled one)
   const gameBlock = game ? gameChannelScript(game, roll ? { shownOnStart: true } : {}) : '';
   // the level's in-play HUD on mana-ui (channels/mana-hud.js): a level that carries one; absent, not a byte
-  const manaHudBlock = manaHud && !capture ? manaHudScript(manaHud, { game: !!game, rows: events?.hud ?? null, register: events?.register ?? null, touch: !!screen && !courseTouch && !runner }) : '';
+  const manaHudBlock = manaHud && !capture ? manaHudScript(manaHud, { game: !!game, rows: guideMana && Array.isArray(events?.hud) ? events.hud.filter((r) => !(r && typeof r === 'object' && typeof r.text === 'string' && r.var === undefined && r.on === undefined && r.press === undefined && r.as === undefined)) : events?.hud ?? null, register: events?.register ?? null, touch: !!screen && !courseTouch && !runner, ...(manaShared ? { shared: manaShared } : {}) }) : '';
   const versusBlock = versus && !capture ? versusChannelScript(versus) : '';
   // a brawl on the world (lib/graph/brawl: the practice yard): it owns the camera; never on a capture run
   const brawlBlock = brawl && !capture ? brawlChannelScript(brawl) : '';
@@ -907,6 +938,11 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const inningsBlock = innings && !capture ? inningsChannelScript(innings) : '';
   // a persona's read on a screen in the world (persona/screen.js): drawn on a capture run too, its frame the clock's
   const broadcastsBlock = Array.isArray(broadcasts) && broadcasts.length ? broadcastScreenScript(broadcasts) : '';
+  // a mission's briefing, HUD, pause and debrief on mana-ui (gameworld/mission-mana.js): never on a capture run
+  const missionBlock = mission && !capture ? missionChannelScript(mission) : '';
+  // the damage ring on a page with its own HUD (gameworld/damage-ring.js): never on a capture run, nor beside a mission
+  // (a mission draws the same ring in its own HUD)
+  const damageRingBlock = damageRing && !mission && !capture ? damageRingChannelScript(damageRing) : '';
 
   // controllable channel (opt-in, LIVE): the unified control primitive. Present when the manifest
   // carries `entities` (or a `camera` spec). When it owns a camera entity it disables OrbitControls.
@@ -1018,7 +1054,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     ...(Number.isFinite(castShadows.fitMin) && castShadows.fitMin > 0 ? { fitMin: castShadows.fitMin } : {}),
   }) : '';
   // walkers that wait at signalled crossings (the planned city's) read the cars' signals; any other walks as before
-  const walkersBlock = walkerList.length ? walkersChannelScript(walkerList, walkerBank, { cast: castsActors, capture: !!capture, ...(walkerList.some((w) => Array.isArray(w.holds)) ? { signals: Array.isArray(signals) ? signals : [] } : {}) }) : '';
+  // (a played district's people react to the street, walkers.js `react`: where its pilot gets into cars, a played city)
+  const walkersReact = !capture && walkerList.some((w) => w.blend) && (Array.isArray(entities) ? entities : []).some((e) => e && e.mount && e.mount.cab);
+  const walkersBlock = walkerList.length ? walkersChannelScript(walkerList, walkerBank, { cast: castsActors, capture: !!capture, ...(walkerList.some((w) => Array.isArray(w.holds)) ? { signals: Array.isArray(signals) ? signals : [] } : {}), ...(walkersReact ? { react: true } : {}) }) : '';
   // rig preview channel (rig-preview plan): a packed figure carrying `preview` plays its clips in place
   // on this page (the eyes gate for a rigged layered solid). The bank carries the figure once, without
   // its preview key. Absent ⇒ zero bytes.
@@ -1059,7 +1097,16 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const trafficSpec = Array.isArray(signals) && signals.length && Array.isArray(trafficLanes) ? { lanes: trafficLanes, signals, T: trafficConstants || undefined } : null;
   const carsBlock = carList.length ? carsChannelScript(carList, carBank, { cast: castsActors, traffic: trafficSpec }) : '';
   // a metro's traffic (channels/flow.js): its lanes stepped and its vehicles drawn near the camera; none ⇒ ''
-  const flowSpec = readFlow(flow), flowBlock = flowSpec && hasPool ? flowChannelScript(flowSpec) : '';
+  // (a played page with a car to get into: the traffic gives way to it and stands in its way, flow.js `play`)
+  // a played city's map (channels/map-channel.js): a radar in the corner and the map on M, on mana-ui in the HUD's look; none ⇒ ''
+  const mapBlock = cityMap && manaHud && !capture ? mapScript(cityMap, manaHud.theme ?? null, manaShared ? { shared: manaShared } : {}) : '';
+  // what the hero carries as a screen (channels/bag-channel.js): the inventory on I, on mana-ui in the HUD's look; none ⇒ ''
+  const bagBlock = bagUi && manaHud && !capture ? bagScript(bagUi, manaHud.theme ?? null, manaShared ? { shared: manaShared } : {}) : '';
+  // the hero's phone (channels/phone-channel.js): the givers met and their threads on P, on mana-ui in the HUD's look; none ⇒ ''
+  const phoneBlock = phoneUi && manaHud && !capture ? phoneScript(phoneUi, manaHud.theme ?? null, manaShared ? { shared: manaShared } : {}) : '';
+  // the city's cars as bodies (channels/cab-pool.js): a cab drawn from the pooled templates, one taken from the traffic; none ⇒ ''
+  const cabPoolBlock = hasPool && entityList.some((e) => e.mount && e.mount.cab && (e.mount.pool || e.mount.spare)) ? cabPoolScript({ mayhem: hasEvents && events.reactions.some((r) => r && typeof r.on === 'string' && r.on.startsWith('mayhem:')), patrol: entityList.some((e) => e.carBody) }) : '';
+  const flowSpec = readFlow(flow), flowBlock = flowSpec && hasPool ? flowChannelScript(flowSpec, { play: entityList.some((e) => e.mount && e.mount.cab) }) : '';
   // a city's aviation lights (channels/beacons.js): blinking over its tallest on the world clock; none ⇒ ''
   const beaconsSpec = readBeacons(beacons), beaconsBlock = beaconsSpec ? beaconsChannelScript(beaconsSpec) : '';
   // effects[] block (U3): one fullscreen premultiplied quad per layer, each camera-fed and stacked
@@ -1114,7 +1161,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   const faunaPets = Object.fromEntries(entityList.filter((e) => e.pet && typeof e.id === 'string').map((e) => [e.id, e.pet]));
   const faunaPetBlock = hasControllable && Object.keys(faunaPets).length ? faunaPetScript({ pets: faunaPets }) : '';
   // a level's MOUNTS (channels/mount-ride.js: a horse's `mount`), its reach and its getting on and off; none ⇒ no bytes
-  const mountRideBlock = hasControllable && entityList.some((e) => e && e.mount) ? mountRideScript() : '';
+  const mountRideBlock = hasControllable && entityList.some((e) => e && e.mount) ? mountRideScript(entityList.some((e) => e && e.mount && e.mount.cab) ? { cab: true } : {}) : '';
   // a body in the form render (gen-7: a figure's `form`) is lit along the world's sun, the live light's own travel
   const formSun = Object.values(packedFigures || {}).some((f) => f && f.rig && f.form)
     ? shadowToLight(PL, shadows && typeof shadows === 'object' ? shadows : null) : null;
@@ -1187,7 +1234,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
     creases: creasesCfg || occlusionCfg ? creasesChannelScript(creasesCfg, { metersPerUnit, ...(occlusionCfg ? { occlusion: occlusionCfg } : {}), ...(occlusionCfg && lightTier && lightTier.ao === 0.5 ? { aoHalf: true } : {}) }) : '',
     // the live light's budget (channels/cast-shadows.js liveBudgetScript): a page world-scene gave a tier counts what it draws
     lightBudget: lightTier && (liveShadows || occlusionCfg) ? liveBudgetScript(lightTier) : '',
-    fx: fxBlock, spriteSfx: spriteSfxBlock, marks: marksBlock, shoot: shootBlock, shootSet: shootSetBlock, audio: audioBlock, game: gameBlock, versus: versusBlock, brawl: brawlBlock, board: boardBlock, meet: meetBlock, court: courtBlock, turns: turnsBlock, pitch: pitchBlock, holo: holoBlock, innings: inningsBlock, broadcasts: broadcastsBlock,
+    fx: fxBlock, spriteSfx: spriteSfxBlock, marks: marksBlock, shoot: shootBlock, shootSet: shootSetBlock, audio: audioBlock, game: gameBlock, versus: versusBlock, brawl: brawlBlock, board: boardBlock, meet: meetBlock, court: courtBlock, turns: turnsBlock, pitch: pitchBlock, holo: holoBlock, innings: inningsBlock, broadcasts: broadcastsBlock, mission: missionBlock, damageRing: damageRingBlock,
   };
 
   return `<!doctype html>
@@ -1199,6 +1246,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   body{background:#04070d url("${backdropUrl}") center/cover no-repeat fixed}
   #wrap{background:transparent}` : ''}
   #wrap{position:relative;width:${W}px;height:${H}px;max-width:100%;aspect-ratio:${W} / ${H};overflow:hidden}
+  #wrap .mana-root{position:absolute}
 ${spin ? `  /* ?spin=1 is the EMBED read (a preview pane iframes this page): fill whatever viewport
      the host gives instead of holding the authored studio pixel size — a short pane would
      otherwise clip the canvas bottom (and skew the camera aspect the fit is computed at). */
@@ -1208,6 +1256,9 @@ ${spin ? `  /* ?spin=1 is the EMBED read (a preview pane iframes this page): fil
 ` : ''}${hasTour ? `  /* a TOUR (exhibit/tour.js) is an exhibit: it fills the window it is shown in, a phone's or a kiosk's, so its plate is
      always on screen (an authored studio size taller than a phone would put the plate below the fold) */
   html,body{height:100%}#wrap{width:100vw;height:100vh;height:100dvh;max-width:none;aspect-ratio:auto}
+` : ''}${mission && !capture && !screen ? `  /* a MISSION (channels/mission.js) is played, and its HUD and screens are laid over the window: the page fills it, as
+     a toured page does, where its game names no screen of its own (a screen holds its own frame, below) */
+  html,body{height:100%;overflow:hidden}#wrap{width:100vw;height:100vh;height:100dvh;max-width:none;aspect-ratio:auto}
 ` : ''}${screen ? `  /* the SCREEN the game is made for (game/screen.js): the page fills its window and #wrap holds the frame inside
      it (screenFit below), bars past its reach; the safe area is the notch's and the home bar's */
   :root{--safe-t:env(safe-area-inset-top,0px);--safe-r:env(safe-area-inset-right,0px);--safe-b:env(safe-area-inset-bottom,0px);--safe-l:env(safe-area-inset-left,0px)}
@@ -1271,7 +1322,7 @@ const CAMS = ${safeJson(cams)};
 const BG = ${safeJson(bg)};
 const TEXTURES = ${hasTextures ? safeJson(textures) : '{}'};${resampled ? resampleScript(resampled) : ''}${movedTex ? `\nconst __MOVED = ${safeJson(Object.fromEntries([...movedGroups].map((g) => [g, 1])))};` : ''}${cutKeys.length ? `\nconst __CUT = ${safeJson(Object.fromEntries(cutKeys.map((k) => [k, 1])))};` : ''}${softKeys.length ? `\nconst __SOFT = ${safeJson(Object.fromEntries(softKeys.map((k) => [k, 1])))};` : ''}
 const WIREFRAME0 = ${wireframe ? 'true' : 'false'};   // start in construction-wireframe mode?
-function decodeF32(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new Float32Array(u.buffer); }${hasCompact ? `\nfunction __q16(s, b){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); const q=new Int16Array(u.buffer), o=new Float32Array(q.length); for(let i=0;i<q.length;i++){ const k=i%3; o[i]=b[k]+(q[i]+32768)*b[3+k]; } return o; }\nfunction __c8(s){ const bin=atob(s); const o=new Float32Array(bin.length); for(let i=0;i<bin.length;i++){ const v=bin.charCodeAt(i)/255; o[i]=v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4); } return o; }` : ''}
+${manaPrelude}function decodeF32(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new Float32Array(u.buffer); }${hasCompact ? `\nfunction __q16(s, b){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); const q=new Int16Array(u.buffer), o=new Float32Array(q.length); for(let i=0;i<q.length;i++){ const k=i%3; o[i]=b[k]+(q[i]+32768)*b[3+k]; } return o; }\nfunction __c8(s){ const bin=atob(s); const o=new Float32Array(bin.length); for(let i=0;i<bin.length;i++){ const v=bin.charCodeAt(i)/255; o[i]=v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4); } return o; }` : ''}
 function decodeU8(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }${pack ? "\nconst __SRGB_LIN = Float32Array.from({ length: 256 }, (_, i) => { const c = i / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });" : ''}
 
 const wrap = document.getElementById('wrap'), canvas = document.getElementById('c'), hud = document.getElementById('hud');
@@ -1301,7 +1352,7 @@ function __budget(t) {
 }` : 'renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));'}
 
 const scene = new THREE.Scene();
-${backdropUrl ? `scene.background = null; renderer.setClearColor(0x000000, 0);   // backdrop: the page's image shows through` : `scene.background = new THREE.Color(BG);`}${airEarly}${frameEarly}
+${backdropUrl ? `scene.background = null; renderer.setClearColor(0x000000, 0);   // backdrop: the page's image shows through` : `scene.background = new THREE.Color(BG);`}${airEarly}${seaEarly}${frameEarly}
 
 // One mesh per render group. Hideable groups (walls/ceiling) get a transparent material so
 // they can fade; static groups (furniture, floor, whole cities) stay opaque.
@@ -1408,7 +1459,7 @@ const __nearRepeat = (r, geo, material = null) => {
     let cx = 0, cy = 0;${hasConeTiles ? '\n    let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity, h = 0;' : ''}
     ids.forEach((i, j) => {
       const t = r.t[i]; cx += t[0] / ids.length; cy += t[1] / ids.length;${hasConeTiles ? '\n      x0 = Math.min(x0, t[0]); x1 = Math.max(x1, t[0]); y0 = Math.min(y0, t[1]); y1 = Math.max(y1, t[1]); z0 = Math.min(z0, t[2]); z1 = Math.max(z1, t[2]); h = Math.max(h, 2 * r.radius * Math.max(t[4], t[6] ?? t[4]));' : ''}
-      Q.setFromAxisAngle(UP, t[3]); P.set(t[0], t[1], t[2]); ${hasAxisScale ? 'S.set(t[4], t[5] ?? t[4], t[6] ?? t[4]);' : 'S.set(t[4], t[4], t[4]);'} M.compose(P, Q, S); im.setMatrixAt(j, M);
+      Q.setFromAxisAngle(UP, t[3]); P.set(t[0], t[1], t[2]); ${hasAxisScale ? 'S.set(t[4], t[5] ?? t[4], t[6] ?? t[4]);' : 'S.set(t[4], t[4], t[4]);'} M.compose(P, Q, S);${slopeShear('i')} im.setMatrixAt(j, M);
       if (r.tint) im.setColorAt(j, new THREE.Color(r.tint[i][0], r.tint[i][1], r.tint[i][2]));
     });
     im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
@@ -1435,7 +1486,7 @@ scene.onBeforeRender = function (rd, sc, cam, rt) {
   r.t.forEach((t, i) => {
     Q.setFromAxisAngle(UP, t[3]);
     P.set(t[0], t[1], t[2]); ${hasAxisScale ? 'S.set(t[4], t[5] ?? t[4], t[6] ?? t[4]);' : 'S.set(t[4], t[4], t[4]);'}
-    M.compose(P, Q, S);
+    M.compose(P, Q, S);${slopeShear('i')}
     im.setMatrixAt(i, M);
     if (r.tint) im.setColorAt(i, new THREE.Color(r.tint[i][0], r.tint[i][1], r.tint[i][2]));
   });
@@ -1693,7 +1744,7 @@ window.addEventListener('message', (e) => {
 });
 try { window.parent.postMessage({ moj: '${MSG_VIEW_READY}', groups: Object.keys(meshes) }, '*'); } catch (err) { /* opaque or no parent */ }
 ${sunProbe}${formBlock}${hydraulics && (Array.isArray(hydraulics.mists) || Array.isArray(hydraulics.impacts)) ? hydraulicsScript(hydraulics) : ''}${Array.isArray(flames) && flames.length ? flamesScript(flames, { hot: !!bloomOn }) : ''}${channelSetupSection('pre-runtime', setupBlocks)}
-${channelRuntimeSection(chBlocks)}${manaHudBlock}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${flowBlock}${beaconsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${mountRideBlock}${wetRoadBlock}${airBlock}${weatherBlock}${toneBlock}${fabricBlock}${leafBlock}${grassBlock}${fireBlock}${shallowsBlock}${seawayBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${guide && Array.isArray(guide.steps) ? guideScript(guide) : ''}${events && events.grammar ? hudGrammarScript(events.grammar, events.hud) : ''}${hasTour ? tourScript(tour, { capture }) : ''}${sync === true ? syncScript() : ''}${snowPrintsBlock}${scienceBlock}${formLandBlock}${skyBlock2}${coneBlock}
+${channelRuntimeSection(chBlocks)}${manaHudBlock}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${flowBlock}${cabPoolBlock}${mapBlock}${bagBlock}${phoneBlock}${beaconsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${mountRideBlock}${wetRoadBlock}${airBlock}${seaBlock}${marineBlock}${weatherBlock}${toneBlock}${fabricBlock}${leafBlock}${grassBlock}${fireBlock}${shallowsBlock}${seawayBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${guide && Array.isArray(guide.steps) ? guideScript(guide, guideMana ? { host: true } : {}) : ''}${guideMana ? guideManaScript(manaHud.theme ?? null, manaShared ? { shared: manaShared } : {}) : ''}${events && events.grammar ? hudGrammarScript(events.grammar, events.hud) : ''}${hasTour ? tourScript(tour, { capture }) : ''}${sync === true ? syncScript() : ''}${snowPrintsBlock}${scienceBlock}${formLandBlock}${skyBlock2}${coneBlock}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit

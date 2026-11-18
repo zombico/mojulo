@@ -1,0 +1,59 @@
+{
+  "id": "hilltop",
+  "name": "Hilltop",
+  "about": "A sunny afternoon on a green hill, for a mascot platformer: cream sticker plates with a thick cocoa outline and a hard drop shadow, round letters, tomato red for what matters, grass green for what is going well, coin gold for what is won. A show of stages: a sunburst on warm yellow behind the title, dots behind a full page, confetti on a result, and nothing behind a menu laid over play, so a pause leaves the level in sight. Screens open and close on an iris, as a platformer's do.",
+  "family": "toy",
+  "tags": [
+    "mascot",
+    "platformer",
+    "side-scroller",
+    "3d platformer",
+    "collectathon",
+    "cheerful"
+  ],
+  "author": "mojulo",
+  "from": "idol",
+  "tokens": {
+    "ink": "#4a2a18",
+    "panel": "#fff4d6",
+    "line": "#4a2a18",
+    "accent": "#c9371e",
+    "accent2": "#3fa34d",
+    "paper": "#ffe08a",
+    "xp": "#f2b21b",
+    "hp": "#c9371e",
+    "stamina": "#3fa34d",
+    "harm": "#8f1c10"
+  },
+  "type": {
+    "body": "rounded",
+    "display": "rounded",
+    "mono": "rounded"
+  },
+  "frame": "heavy",
+  "corner": "round",
+  "plate": "solid",
+  "material": "none",
+  "backing": "offset",
+  "focus": "lift",
+  "fills": "pattern",
+  "motion": "snap",
+  "slant": "none",
+  "case": "none",
+  "scale": "large",
+  "halo": "outline",
+  "transition": "iris",
+  "backdrop": "dim",
+  "crest": "ribbon",
+  "breakout": "tab",
+  "stage": [
+    "burst",
+    "none",
+    "dots",
+    "confetti",
+    "none"
+  ],
+  "sounds": "chip",
+  "icons": "chunky",
+  "iconTone": "meaning"
+}

@@ -57,10 +57,10 @@ it holds to.
 | Family | Its principles | Cards |
 |---|---|---|
 | `party` | everything leans at one angle; planes stack; two colours punch against one neutral; motion slams | neon-rebel |
-| `toy` | round and chunky, as the hero is; bright plates; pictures before words; sized for the hand | toybox |
+| `toy` | round and chunky, as the hero is; bright plates; pictures before words; sized for the hand | toybox, hilltop, kart-candy |
 | `broadcast` | read from across a room: capitals, hard cuts on the slant, a scoreline's one loud colour, fast | matchday, floodlight |
 | `cosy` | made by hand: paper or wool, soft corners, warm ink, nothing in a hurry, pattern in place of shine | picnic, knit |
-| `clean` | exact and airy: hairlines, glass, one clear signal colour and one alert, a lot of room | lightdeck, orbit |
+| `clean` | exact and airy: hairlines, glass, one clear signal colour and one alert, a lot of room | lightdeck, orbit, pit-wall |
 | `dread` | restraint: near black, one bad colour, texture over everything, nothing that moves fast | dread, static |
 | `machine`, `grave`, `fight`, `brawl`, `table` | (see their cards) | blueprint, departure-board, ink-and-gold, … |
 

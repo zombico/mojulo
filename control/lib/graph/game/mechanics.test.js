@@ -58,7 +58,11 @@ describe('lowerMechanic — individual verbs', () => {
 
   it('every registered mechanic lowers without throwing on a minimal call', () => {
     for (const k of MECHANIC_KINDS) {
-      const params = { pickups: [{ item: 'x', at: [0, 0, 0] }], hazards: [{ at: [0, 0, 0] }], at: [1, 0, 0], seconds: 10, when: { var: 'kills', gte: 3 }, entities: [{ id: 'e1' }], count: 1, checkpoints: [{ at: [5, 0, 0] }, { at: [9, 0, 0] }], waves: [{ foes: ['foe-1'] }], path: [[9, 0], [0, 0]], origin: [0, 0, 0], cols: 3, rows: 3, blocks: [[1, 1]], plates: [[2, 1]], plots: [{ at: [0, 0, 0] }], drops: [{ at: [0, 0, 0], gives: 'ammo' }], rivals: ['foe-1'], heal: true, teams: { a: ['hero'], b: ['foe-1'] }, dots: ['gate'], locks: [{ when: { var: 'kills', gte: 3 } }], item: 'eggs', fragile: true, wants: [{ item: 'eggs' }], who: 'foe-*', arenas: [{ waves: [{ foes: ['foe-1'] }] }], bpm: 120, lanes: { a: { from: [10, 0], to: [1, 0], pool: ['n-1'] } }, chart: [{ beat: 4, lane: 'a' }] };
+      const params = { pickups: [{ item: 'x', at: [0, 0, 0] }], hazards: [{ at: [0, 0, 0] }], at: [1, 0, 0], seconds: 10, when: { var: 'kills', gte: 3 }, entities: [{ id: 'e1' }], count: 1, checkpoints: [{ at: [5, 0, 0] }, { at: [9, 0, 0] }], waves: [{ foes: ['foe-1'] }], tasks: [{ id: 'out', kind: 'reach', text: 'Get out', at: [1, 0, 0] }], path: [[9, 0], [0, 0]], origin: [0, 0, 0], cols: 3, rows: 3, blocks: [[1, 1]], plates: [[2, 1]], plots: [{ at: [0, 0, 0] }], drops: [{ at: [0, 0, 0], gives: 'ammo' }], rivals: ['foe-1'], heal: true, teams: { a: ['hero'], b: ['foe-1'] }, dots: ['gate'], locks: [{ when: { var: 'kills', gte: 3 } }], item: 'eggs', fragile: true, wants: [{ item: 'eggs' }], who: 'foe-*', arenas: [{ waves: [{ foes: ['foe-1'] }] }], bpm: 120, lanes: { a: { from: [10, 0], to: [1, 0], pool: ['n-1'] } }, chart: [{ beat: 4, lane: 'a' }],
+        // (a job's start and a faction's words: offer, call, task, join, act)
+        id: 'job', flag: 'took-job', done: 'done-job', on: 'errand:done:other', app: 'taskfu', faction: 'reds', verb: 'tag',
+        // (the law's: the police it brings)
+        police: ['police-1'] };
       expect(() => lowerMechanic(k, params, { i: 0, player: 'hero', storeSchema: STORE }), k).not.toThrow();
     }
   });
@@ -85,7 +89,7 @@ describe('a platformer\'s lives and coins', () => {
     expect(m.world.watches).toEqual([{ type: 'oneup', when: { var: '__coins_run_1', gte: 2 } }]);
     expect(m.world.reactions.at(-1)).toEqual({ on: 'oneup', do: 'set', var: '__coins_run_1', to: 0 });
     expect(m.world.reactions).toContainEqual({ on: 'enter', match: { zone: 'cn_1_0' }, do: 'emit', type: 'coin' });
-    expect(m.world.hud).toEqual([{ var: 'coins', label: 'Coins' }]);
+    expect(m.world.hud).toEqual([{ var: 'coins', label: 'Coins', as: 'counter' }]);
   });
 });
 

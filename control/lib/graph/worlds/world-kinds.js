@@ -213,6 +213,14 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { loadSharp } from '@/lib/sharp-lazy';
 import { rigSpecies } from '@/lib/graph/mutagen/rig';
+import { cityGuide } from '@/lib/graph/gameworld/city-guide.js';
+import { cityMap } from '@/lib/graph/gameworld/city-map.js';
+import { bagUi } from '@/lib/graph/gameworld/bag-ui.js';
+import { phoneUi } from '@/lib/graph/gameworld/phone-ui.js';
+
+// where a played level's driven cars stand (gameworld/cars.js: entities with a cab): the scene draws no parked car there
+const pooledOf = (m) => [...new Set((Array.isArray(m.entities) ? m.entities : []).map((e) => e?.mount?.pool?.model).filter((x) => typeof x === 'string'))];
+const drivenOf = (m) => (Array.isArray(m.entities) ? m.entities.filter((e) => e?.mount?.cab && Array.isArray(e.transform?.pos)).map((e) => e.transform.pos) : []);
 
 const svgDataUrl = (svg) => `data:image/svg+xml;base64,${Buffer.from(String(svg), 'utf8').toString('base64')}`;
 
@@ -303,9 +311,17 @@ function walkerRigVariants() {
   }
   return _walkerRigs;
 }
-async function attachCityWalkers(scene) {
+async function attachCityWalkers(scene, people = null) {
   const loops = scene && scene.walkerLoops;
   if (!Array.isArray(loops) || !loops.length) return scene;
+  // (a played district's people, gameworld/people.js: the level's own rolled persons, `people` their figure names. Each
+  // walker wears one in turn at a height of its own, real-size; the level's figures carry their bakes, none is added here)
+  if (Array.isArray(people) && people.length) {
+    const tall = (i) => 1 + ((((i * 2654435761) >>> 0) % 1000) / 1000 - 0.5) * 0.12;
+    scene.walkers = loops.map((L, i) => ({ figure: people[i % people.length], blend: true, path: L.path, style: L.style || 'bumble', scale: Math.round(tall(i) * 1000) / 1000, speed: L.speed > 0 ? L.speed : 1.35, ...(Number.isFinite(L.start) ? { startFrac: L.start } : {}) }));
+    delete scene.walkerLoops;
+    return scene;
+  }
   const rigs = await walkerRigVariants();
   const scale = (scene.cityCues?.pedHeight ?? CITY_PED_HEIGHT) / (rigs[0].figH || 1.85);   // a metro city walks real-size people (fractal-city METRO)
   // a planned city's walker (city/plan/pedestrians.js) carries its own pace, its start along its loop and the crossings it
@@ -589,10 +605,14 @@ export const WORLD_KINDS = {
       // (a game's level stands on one: the town takes its own settings, the level's pilot and its game layered over it by
       // the page, and no stand-in walks it)
       if (m.show === 'geotown') {
-        const played = m.entities !== undefined || m.game !== undefined, own = played ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOTOWN_KEYS.includes(k))) : m;
+        // (a brawl fought down one of its streets, brawl/brawl-levels.js the town kind: its `brawl` block the page's, not the town's)
+        const played = m.entities !== undefined || m.game !== undefined || m.brawl !== undefined, own = played ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOTOWN_KEYS.includes(k))) : m;
         // (formBuildings: its buildings baked for the form render, form/sun-light.js; a page's read only, the handoff's as it was)
-        const p = assembleGeotownScene(own, { title: ctx.title, ...(ctx.formLit ? { form: true, ...(ctx.handoff ? {} : { formBuildings: true }) } : {}) });
-        return played ? p : attachDummy(p);
+        // (the cars its hero gets into are the level's bodies, gameworld/cars.js: the town draws the rest)
+        const p = assembleGeotownScene(own, { title: ctx.title, ...(played && drivenOf(m).length ? { driven: drivenOf(m) } : {}), ...(ctx.formLit ? { form: true, ...(ctx.handoff ? {} : { formBuildings: true }) } : {}) });
+        // (played with cars: what it says as it opens and the way on, gameworld/city-guide.js; none where it stands no car)
+        const guide = played ? cityGuide(m) : null;
+        return played ? (guide ? { ...p, guide: m.manaHud ? { ...guide, mana: true } : guide } : p) : attachDummy(p);
       }
       // a side-scroller's strip (era/geocube-side.js): a course skinned in the cube's layers, its land behind it in layers;
       // played, the level's pilot and game layered over it by the page
@@ -601,7 +621,8 @@ export const WORLD_KINDS = {
       // (formBuildings: its massing baked for the form render, form/sun-light.js; a page's read only, the handoff's as it was)
       // (a game's level stands on one, a district: the level's pilot and its game layered over it by the page, and no
       // stand-in walks it)
-      if (m.show === 'geocity') return (m.entities !== undefined || m.game !== undefined ? (p) => p : attachDummy)(assembleGeocityScene(m.entities !== undefined || m.game !== undefined ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCITY_KEYS.includes(k))) : m, { title: ctx.title, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true, ...(ctx.formLit && !ctx.handoff ? { formBuildings: true } : {}) } : {}) }));
+      // (played: its people walk its blocks, the legacy city's walkers: geocity/scene.js THE PEOPLE)
+      if (m.show === 'geocity') return (m.entities !== undefined || m.game !== undefined ? (p) => attachCityWalkers(p, Object.keys(m.figures ?? {}).filter((k) => /^person-\d+$/.test(k))).then(attachCityCars).then((q) => { const guide = cityGuide(m); return guide ? { ...q, guide: m.manaHud ? { ...guide, mana: true } : guide } : q; }).then(({ plan, ...q }) => { const map = m.manaHud ? cityMap(plan, m, m.manaHud.map) : null, bag = m.manaHud ? bagUi(m, m.manaHud.inventory) : null, phone = m.manaHud ? phoneUi(m, m.manaHud.phone) : null; return { ...q, ...(map ? { cityMap: map } : {}), ...(bag ? { bagUi: bag } : {}), ...(phone ? { phoneUi: phone } : {}) }; }) : attachDummy)(assembleGeocityScene(m.entities !== undefined || m.game !== undefined ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCITY_KEYS.includes(k))) : m, { title: ctx.title, ...(m.entities !== undefined || m.game !== undefined ? { play: true, ...(drivenOf(m).length ? { driven: drivenOf(m), pooled: pooledOf(m) } : {}) } : {}), ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true, ...(ctx.formLit && !ctx.handoff ? { formBuildings: true } : {}) } : {}) }));
       const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }, assembleStageScene);
       return p.route ? attachDummy(p) : p;
     },

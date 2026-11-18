@@ -1,0 +1,36 @@
+{
+  "id": "kart-candy",
+  "name": "Candy Kart",
+  "about": "A toy kart racer's HUD in the candy track's own family: fat berry plates with a cream rim on a plinth, white rounded figures, lemon for what matters (your place, the final lap) and sky for the best. Sized for a glance at speed. A show of stages: chevrons behind the title, confetti behind a menu, streaks while it loads, confetti on a podium, nothing over the lights.",
+  "family": "toy",
+  "tags": [
+    "kart",
+    "racing",
+    "mascot",
+    "arcade",
+    "casual"
+  ],
+  "author": "mojulo",
+  "from": "toybox",
+  "tokens": {
+    "ink": "#ffffff",
+    "panel": "#e8437a",
+    "line": "#fff3e2",
+    "accent": "#ffd03a",
+    "accent2": "#35b4ff",
+    "stamina": "#35b4ff",
+    "harm": "#ff9a9a"
+  },
+  "case": "upper",
+  "slant": "light",
+  "motion": "snap",
+  "stage": [
+    "chevrons",
+    "confetti",
+    "streaks",
+    "confetti",
+    "none"
+  ],
+  "icons": "chunky",
+  "iconTone": "meaning"
+}
