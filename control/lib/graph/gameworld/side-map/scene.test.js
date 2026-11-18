@@ -4,7 +4,7 @@
 // the camera stands where the side map's frame puts it; a word it does not know is refused with teaching; the drawing
 // outlines and numbers every zone, rules the map in screens, and names a lost law.
 import { describe, it, expect } from 'vitest';
-import { assembleSideMap, sideMapOf } from './scene.js';
+import { assembleSideMap, sideMapOf, readSideMapScene } from './scene.js';
 import { drawSideMap } from './drawing.js';
 
 const chain = (premise = 'into the reactor plant') => ({ premise, zones: [{ run: 'across', screens: 2, beat: 'rest' }, { run: 'up', screens: 2, climb: 'chimney' }, { run: 'across', screens: 2, teach: 'basic' }, { room: [1, 1], teach: 'boss' }] });
@@ -39,8 +39,10 @@ describe('the side map built', () => {
     expect(cam.worldFraming.lookAt[2] - p.sidemap.layout.checkpoints[0].at[1]).toBeCloseTo(C.lookH, 3);
   });
   it('a word it does not know is refused with teaching', () => {
-    expect(() => assembleSideMap(M({ zones: [] }))).toThrow(/not a side map's word/);
+    expect(() => readSideMapScene(M({ zones: [] }))).toThrow(/not a side map's word/);
     expect(() => assembleSideMap(M({ sidemap: undefined }))).toThrow(/zone chain/);
+    // (a played level's own words beside the scene's are not the scene's to read)
+    expect(() => sideMapOf(M({ entities: [], camera: {} }))).not.toThrow();
   });
 });
 
