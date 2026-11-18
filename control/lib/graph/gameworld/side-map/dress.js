@@ -25,7 +25,7 @@
  *                       its orientation); a new setting is a row
  *   settingOf(premise)  → the setting a premise's words name (the plant unsaid)
  *   dressSideMap(layout, map, { seed?, cube? }) → { setting, palette: { play, place, boss, void }, zones: [{ zone, place,
- *                       family, indoor, key, edge, void, boss, bays, pillars, seams, lamps, hatches, mark, peek, light, foreshadow,
+ *                       family, material (cake.js), indoor, key, edge, void, boss, bays, pillars, seams, lamps, hatches, mark, peek, light, foreshadow,
  *                       backdrop, wear }], threads: [{ kind, from, to }] }
  *
  * Pure and deterministic: seeded dice (city/plan/dice.js streamOf), never Math.random.
@@ -34,6 +34,7 @@ import { readSideMap } from './zones.js';
 import { wallRhythm } from '../../era/wall-rhythm.js';
 import { streamOf } from '../../city/plan/dice.js';
 import { bayGrid } from './path.js';
+import { materialOf } from './cake.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const P = (name, family, indoor = true) => Object.freeze({ name, family, indoor });
@@ -104,6 +105,8 @@ export function dressSideMap(layout, map, { seed = 1, cube } = {}) {
     if (role === 'room' && boss) out.mark = { kind: 'emblem', says: 'the boss\'s mark across the back wall, in its colour' };
     // an outdoor zone's backdrop by its height on the map; inside, none
     if (!indoor) { const u = hi > lo ? ((z0 + z1) / 2 - lo) / (hi - lo) : 0; out.backdrop = u < 1 / 3 ? 'land' : u < 2 / 3 ? 'hills' : 'sky'; }
+    // the cake its slices are made of (cake.js): the world's, by the fill, the setting, the height and the cube's climate
+    out.material = materialOf(family, { setting: key, indoor, backdrop: out.backdrop ?? null, cold: cube?.snow !== undefined && cube?.snow !== false });
     return out;
   });
   // the next place peeks in: the last half screen of a zone, at its edge, in the next zone's family and key

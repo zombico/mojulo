@@ -32,6 +32,7 @@
  */
 import { wallRhythm } from '../../era/wall-rhythm.js';
 import { streamOf } from '../../city/plan/dice.js';
+import { cakeBody, icingOf } from './cake.js';
 
 export const SLICE = 0.25;
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -97,8 +98,10 @@ export function paintSideMap(layout, dress, { seed = 1 } = {}) {
   L.solids.forEach((r, i) => {
     const z = dress.zones[r.zone], fam = z.family, d = dice(`solid-${i}`), dark = mix(z.key, '#000000', 0.32), deep = mix(z.key, '#000000', 0.58), light = mix(z.key, '#ffffff', 0.22);
     const M = (s0, s1, z0, z1, fill, layer, what) => mark(r.zone, s0, s1, z0, z1, fill, layer, what, r);
-    // the fill
-    if (fam === 'rock') {
+    // the cake's layers where its material draws them (cake.js: kibble, plate, rock, snow), else the fill's own
+    if (z.material && cakeBody(r, z, { M, mix, beds, slices })) {
+      // (its body the material's)
+    } else if (fam === 'rock') {
       for (const [b0, b1, k] of beds) {
         if (b1 < r.z0 || b0 > r.z1) continue;
         if (k % 2) M(r.s0, r.s1, b0, b1, mix(z.key, '#000000', 0.12), 1, 'bed');
@@ -156,7 +159,9 @@ export function paintSideMap(layout, dress, { seed = 1 } = {}) {
   for (const r of L.solids) {
     if (r.role === 'ceiling' || r.role === 'wall' || !exposed(r)) continue;
     const z = dress.zones[r.zone], fam = z.family, CAP = Math.min(SIDE_CAP.height, r.z1 - r.z0);
-    const tone = [mix(z.edge, z.key, 0.4), mix(z.edge, z.key, 0.2), mix(z.edge, z.key, 0.55)], joint = mix(z.key, '#000000', 0.45), shine = z.edge;
+    // (iced in the material's own where it has one: snow is iced with snow, cake.js)
+    const ic = icingOf(z.material, z, mix);
+    const tone = ic?.tone ?? [mix(z.edge, z.key, 0.4), mix(z.edge, z.key, 0.2), mix(z.edge, z.key, 0.55)], joint = ic?.joint ?? mix(z.key, '#000000', 0.45), shine = ic?.shine ?? z.edge;
     const C = (s0, s1, z0, z1, fill, what) => mark(r.zone, s0, s1, z0, z1, fill, 4, what, r);
     const T = (s0, s1, fill, what) => { const a = Math.max(s0, r.s0), b = Math.min(s1, r.s1); if (b - a > 1e-3) marks.push({ zone: r.zone, s0: r3(a), s1: r3(b), z0: r3(r.z1), z1: r3(r.z1), fill, layer: 4, what, top: true }); };
     const segs = [];
@@ -193,7 +198,8 @@ export function paintSideMap(layout, dress, { seed = 1 } = {}) {
   // caps, and under each rest a bracket in the wall's own matter
   for (const W0 of wallSurfaces(L)) {
     const r = W0.solid, z = dress.zones[r.zone], fam = z.family, J = SIDE_JAMB, e = W0.e, dir = W0.dir;
-    const tone = [mix(z.edge, z.key, 0.4), mix(z.edge, z.key, 0.2), mix(z.edge, z.key, 0.55)], joint = mix(z.key, '#000000', 0.45), shine = z.edge, hole = mix(z.void, z.key, 0.15);
+    const ic = icingOf(z.material, z, mix);
+    const tone = ic?.tone ?? [mix(z.edge, z.key, 0.4), mix(z.edge, z.key, 0.2), mix(z.edge, z.key, 0.55)], joint = ic?.joint ?? mix(z.key, '#000000', 0.45), shine = ic?.shine ?? z.edge, hole = mix(z.void, z.key, 0.15);
     const band = (w) => (dir > 0 ? [e - w, e] : [e, e + w]);
     const C = (w, z0, z1, fill, what) => { const [a, b] = band(w); mark(r.zone, a, b, z0, z1, fill, 4, what, r); };
     const S = (z0, z1, fill, what) => { const a = Math.max(z0, W0.z0), b = Math.min(z1, W0.z1); if (b - a > 1e-3) marks.push({ zone: r.zone, s0: r3(e), s1: r3(e), z0: r3(a), z1: r3(b), fill, layer: 4, what, side: dir > 0 ? 'py' : 'ny' }); };

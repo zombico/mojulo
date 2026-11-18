@@ -6,6 +6,7 @@
 // same paint; a plain face loses `painted`.
 import { describe, it, expect } from 'vitest';
 import { paintSideMap, backdropOf, BACKDROP, SIDE_CAP, SIDE_JAMB, wallSurfaces } from './paint.js';
+import { materialOf } from './cake.js';
 import { layoutSideMap } from './layout.js';
 import { dressSideMap } from './dress.js';
 import { sideMapLaws } from './laws.js';
@@ -31,7 +32,7 @@ describe('the closed parts painted', () => {
     }
   });
   it('a rock\'s beds are level across the whole level', () => {
-    const { P } = all(chain('up the volcano', 'rock')), beds = P.marks.filter((m) => m.what === 'bed');
+    const { P } = all(chain('up the volcano', 'rock')), beds = P.marks.filter((m) => m.what === 'bed' || m.what === 'cake-bed');
     const tops = new Set(beds.map((m) => m.z1)), zones = new Set(beds.map((m) => m.zone));
     expect(zones.size).toBeGreaterThan(2);
     const shared = [...tops].filter((t) => new Set(beds.filter((m) => m.z1 === t).map((m) => m.zone)).size > 1);
@@ -91,6 +92,25 @@ describe('the cap', () => {
     for (const m of pier) expect(pillars.some(([z, p]) => z === m.zone && Math.abs((m.s0 + m.s1) / 2 - p) < 1e-3)).toBe(true);
     const M = all(chain('into the plant', 'machine'));
     expect(M.P.marks.some((m) => m.what === 'cap-hazard')).toBe(true);
+  });
+});
+
+describe('the cake', () => {
+  it('a zone\'s slices are its world\'s material: a plant\'s machinery kibble, a base\'s plate, a mountain\'s rock, snow on a cold land', () => {
+    expect(materialOf('machine', { setting: 'plant' })).toBe('kibble');
+    expect(materialOf('machine', { setting: 'base' })).toBe('plate');
+    expect(materialOf('built', {})).toBe('masonry');
+    expect(materialOf('rock', { indoor: false, setting: 'mountain', backdrop: 'land' })).toBe('rock');
+    expect(materialOf('rock', { indoor: false, setting: 'mountain', backdrop: 'sky' })).toBe('snow');
+    expect(materialOf('rock', { indoor: false, cold: true })).toBe('snow');
+    const { P } = all(chain('into the plant', 'machine'));
+    expect(['cake-conduit', 'cake-panel', 'cake-rib'].every((w) => P.marks.some((m) => m.what === w))).toBe(true);
+  });
+  it('a rock\'s strata hang from each slice\'s own top: soil under the icing, rubble under the soil', () => {
+    const { L, P } = all(chain('up the volcano', 'rock')), f = L.solids.find((r) => r.role === 'floor' && r.s1 - r.s0 > 6);
+    const soil = P.marks.find((m) => m.what === 'cake-soil' && m.s0 <= f.s0 + 1 && m.s1 >= f.s0 + 1 && m.z1 <= f.z1);
+    expect(f.z1 - soil.z1).toBeCloseTo(0.34, 2);
+    expect(P.marks.some((m) => m.what === 'cake-rubble' && Math.abs(m.z1 - soil.z0) < 1e-3)).toBe(true);
   });
 });
 
