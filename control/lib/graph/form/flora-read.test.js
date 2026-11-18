@@ -116,3 +116,16 @@ describe('a tree that names its species (a town\'s), and the sizes the form grow
   });
 });
 
+
+describe('the hybrid crown (`crowns: hybrid`)', () => {
+  it('draws a broadleaf\'s bundles each round its blob, within the budget it had; a needled crown as it was', () => {
+    const beech = { form: 'blob', kinds: [{ form: 'spray' }], bushKinds: null, trees: [tree(0, 0, 9, 0)], bushes: [], shrubs: [] };
+    const A = floraRead(beech, { kinds: beech.kinds, colours, bases }), B = floraRead({ ...beech, crowns: 'hybrid' }, { kinds: beech.kinds, colours, bases });
+    const a = A.templates.find((t) => t.cross), b = B.templates.find((t) => t.cross);
+    expect(a.core).toBeUndefined();
+    expect(b.core).toBe(true);
+    expect(b.budget.tris).toBeLessThanOrEqual(a.budget.tris);
+    // (a needled crown takes no core)
+    expect(JSON.stringify(floraRead({ ...plants(), crowns: 'hybrid' }, { kinds: plants().kinds, colours, bases }))).toBe(JSON.stringify(floraRead(plants(), { kinds: plants().kinds, colours, bases })));
+  }, 120000);
+});

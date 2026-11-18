@@ -136,8 +136,10 @@ function template(kind, name, form, leaf, extra = {}) {
     bark: form.bark, pad: !!form.pad, ...(form.detail ? { detail: form.detail } : {}), ...(form.trunk ? { trunk: form.trunk } : {}), ...extra,
   };
 }
-function treeTemplate(species, height) {
-  const key = `tree:${species}:${height}`;
+function treeTemplate(species, height, core = false) {
+  // (`core`: the HYBRID crown, a broadleaf's bundles each with a blob in it, vegetation/twigs.js CORE: the crown's volume
+  // for the triangles it had; a needled crown is as it was)
+  const key = `tree:${species}:${height}${core ? ':core' : ''}`;
   if (!CACHE.has(key)) {
     // (a broadleaf's crown as CROSSES, vegetation/twigs.js: its wood drawn to the twig, a bundle of small crossed leaves
     // of its own outline along each drawn shoot, no sprays; far off, its card, baked from these same leaves
@@ -148,12 +150,12 @@ function treeTemplate(species, height) {
     if (!crossed) CACHE.set(key, { ...template('tree', species, F, species), ...(F.sleeve ? { sleeve: packSleeve(F.sleeve) } : {}) });
     else {
       // (within the plants' budget, FLORA_BUDGET: its bundles by rank, each grown)
-      const C0 = crossClumps(F), xt = leafCross(species, { seed: 17 }).tris.length;
+      const C0 = crossClumps(F), xt = leafCross(species, { seed: 17, core }).tris.length;
       const Q = budgeted({ ...F, clumps: C0, sites: [] }, { clumpTris: xt, leanTris: xt, sprayTris: 0, woodTris: (F.wood.idx || []).length / 3, canLean: false });
       const T = { ...template('tree', species, { ...F, clumps: Q.clumps, sites: [] }, species), budget: Q.budget };
       // (far off the same wood as near: no limb drops and the trunk holds as the tree switches level)
       CACHE.set(key, { ...T, cross: true, woodFar: T.wood,
-        clumpGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafCross(species, { seed: 17 + k }).tris)) });
+        clumpGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafCross(species, { seed: 17 + k, core }).tris)), ...(core ? { core: true } : {}) });
     }
   }
   // (the leaves it drops: its own outline, needles for a needled crown; channels/form-flora.js lays them round its foot)
@@ -218,7 +220,7 @@ function treePlan(plants, kindAt) {
   for (const [sp, list] of groups) {
     const hOf = ([t, K]) => scaled(sp, t.h) * (K?.scale ?? 1);
     const hs = list.map(hOf).sort((a, b) => a - b), aim = Math.max(HEIGHT_STEP, Math.round(hs[Math.floor(hs.length / 2)] / HEIGHT_STEP) * HEIGHT_STEP);
-    const T = treeTemplate(sp, aim);
+    const T = treeTemplate(sp, aim, plants.crowns === 'hybrid');
     for (const e of list) plan.push({ t: e[0], K: e[1], T, h: hOf(e) });
   }
   return plan;
@@ -302,7 +304,7 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
   // painted crown it stands for; past the walk, so no litter and never brushed (SKIRT_FLAG). No bubble of foliage left
   if (plants.form !== 'bamboo') for (const s of plants.skirt ?? []) {
     const K = kindAt(s), sp = speciesFor(s, K), S = SPECIES[sp];
-    const T = bySpecies.get(sp) ?? treeTemplate(sp, Math.max(HEIGHT_STEP, Math.round(((S?.heights ? (S.heights[0] + S.heights[1]) / 2 : 9) * FLORA_TALL) / HEIGHT_STEP) * HEIGHT_STEP));
+    const T = bySpecies.get(sp) ?? treeTemplate(sp, Math.max(HEIGHT_STEP, Math.round(((S?.heights ? (S.heights[0] + S.heights[1]) / 2 : 9) * FLORA_TALL) / HEIGHT_STEP) * HEIGHT_STEP), plants.crowns === 'hybrid');
     bySpecies.set(sp, T);
     push(T, s, r4((s.r * T.height) / T.radius), K, SKIRT_FLAG);
   }
