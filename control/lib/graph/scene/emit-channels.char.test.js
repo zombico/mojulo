@@ -901,6 +901,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // runtime. The runtime gains the lens's part (a spec's `lens`, drawn apart and mounted beside the canvas) and its
 // `strike`; a HUD that lays no lens draws as it did, and no pinned page lays one.
 //
+// Re-pinned 2026-11-18 (the lens for still figures): `brawl`, `holo` and `mission`, whose pages inline the game UI
+// runtime. A strike's row may name its own kind, and its description speaks of a turn-based fight's figure; the level
+// HUD lays no lens again. Nothing else moved.
+//
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
