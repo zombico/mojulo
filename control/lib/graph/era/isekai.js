@@ -1090,7 +1090,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     ...(manifest.destruction === 'physical' ? { physicalTrees: (TB ? TB.built : trees).filter((t) => t.trunks && t.crownAt).map((t, i) => ({ id: `tree-${i}`, foot: [r5(t.trunks[0].pts[0][0]), r5(t.trunks[0].pts[0][1]), r5(t.trunks[0].pts[0][2])], h: r5(t.h), trunk: r5(t.trunks[0].radii[0]), crownAt: t.crownAt, crownR: t.crownR, ...(st.trees.form ? { form: st.trees.form } : {}) })) } : {}),
     // (the live grass: asked for by the recipe, or the carpet a biocube's grass lays by default)
     // (under snow, the carpet the snow's depth leaves standing, as the tufts are, and no wildflowers in it: snow.js grassUnder)
-    ...((manifest.wind || manifest.grass || (B?.flora?.grass && B.flora.grass.live !== null)) && grows ? { liveGrass: offSand(grittyGrass(liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass ?? (B?.flora?.flowers && !SN ? { flowers: B.flora.flowers } : undefined), inSnow), broken, st), onSand) } : {}),
+    ...((manifest.wind || grassAsks(manifest.grass) || (B?.flora?.grass && B.flora.grass.live !== null)) && grows ? { liveGrass: offSand(grittyGrass(liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, grassWith(manifest.grass, B?.flora?.flowers && !SN ? { flowers: B.flora.flowers } : undefined), inSnow), broken, st), onSand) } : {}),
     // a gritty polygon land's rock: its fabric drawn near the eye, as the island's (its own strata and joints)
     ...(broken ? { fabric: (() => {
       const base = { joints: site.grid.joints ?? { spacing: st.landform.joint }, strata: site.grid.strata ?? null, grit: SH.grit, sun: dir, seed, rockColour: stopFill(st, 'cliff', true), green: stopFill(st, 'blades', true) };
@@ -1339,7 +1339,12 @@ function grittyGrass(LG, grit, st) {
     // (its crowns are chipped: the core and the chips sway with the wood)
     ...(LG.crowns ? { crowns: { ...LG.crowns, groups: [...LG.crowns.groups, CORE_GROUP, CHIP_GROUP, ...(st.thickets ? [SOFT_BRUSH.core, SOFT_BRUSH.chips] : [])] } } : {}) };
 }
-const GRASS_KEYS = ['look', 'contact', 'density', 'height', 'flowers', 'far', 'sway'];
+const GRASS_KEYS = ['look', 'contact', 'density', 'height', 'flowers', 'far', 'sway', 'form'];
+// (a grass that says only HOW it is drawn, `{ form: true }`, asks for no grass of its own: it draws whatever grass the
+// stage grows, over the defaults that grass would take)
+const onlyHow = (g) => !!g && typeof g === 'object' && !Array.isArray(g) && Object.keys(g).every((k) => k === 'form');
+const grassAsks = (g) => !!g && !onlyHow(g);
+const grassWith = (g, dflt) => (onlyHow(g) ? { ...(dflt ?? {}), ...g } : g ?? dflt);
 /**
  * `grass` on an isekai stage: the live field's own dials, beside `wind` (and standing it in the default wind without one).
  * { look?: 'banded' | 'material' (default the kit's pole), contact?: true | false | { body?, press?, recover?, wave?,
@@ -1352,6 +1357,7 @@ export function validateIsekaiGrass(g) {
   const e = [];
   if (g.look !== undefined && !['banded', 'material'].includes(g.look)) e.push("grass.look must be 'banded' (the ramp's stops, locked) or 'material' (a material under light)");
   if (g.sway !== undefined && g.sway !== false) e.push('grass.sway is false (the trees stand still in the wind), or left out (they sway)');
+  if (g.form !== undefined && typeof g.form !== 'boolean') e.push('grass.form must be true or false (the field drawn as the form render\'s grass and its raised ground, in the stage\'s ramp: channels/stage-grass.js)');
   if (g.far !== undefined && typeof g.far !== 'boolean') e.push('grass.far must be true or false (the far grass past the field: the card\'s, or none)');
   if (g.density !== undefined && !(Number.isFinite(g.density) && g.density >= 0.5 && g.density <= 12)) e.push('grass.density must be 0.5–12 (tufts a square metre)');
   if (g.height !== undefined && !(Array.isArray(g.height) && g.height.length === 2 && g.height.every((v) => Number.isFinite(v) && v >= 0.1 && v <= 2.5) && g.height[0] <= g.height[1])) e.push('grass.height must be [lo, hi], 0.1–2.5 m, lo ≤ hi');
@@ -1571,6 +1577,9 @@ export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1, 
     // the FAR grass (the card's `live.far`): the meadow out past the field in clumps of its own, wider and sparser, that
     // stand where the field has thinned and give way to it as it fills in (stage-grass.js); `grass.far: false` ⇒ none
     ...(L.far && G.far !== false ? { far: { density: L.far.density, width: L.far.width } } : {}),
+    // THE FORM FIELD (`grass.form`): the field drawn as the form render's grass in this stage's ramp, and past its reach
+    // the RAISED GROUND (channels/far-lift.js), in place of the tufts and the blade cards (channels/stage-grass.js)
+    ...(G.form ? { form: true } : {}),
     // the MATERIAL pole draws the grass as a material under light: by the look's pole unless the recipe says
     ...((G.look ?? poleOf(st)) === 'material' ? { real: { ...REAL_GRASS, ...(L.real || {}), sun: sunDir(st.light.key.elevation, st.light.key.azimuth).map(r5), sunColor: hexRgb(st.light.key.color).map((v) => Math.round(v * 255)) } } : {}),
     // the sakura's PETALS: falling from under each crown, and the CARPET lying round the walker
