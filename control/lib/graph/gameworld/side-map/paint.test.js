@@ -1,0 +1,92 @@
+// The closed parts painted (side-map/paint.js) and an outdoor zone's backdrop. The concepts: every closed face carries
+// its fill (the `painted` law holds on a chain for each fill); a rock's beds are level across the whole level; slices
+// keep the walls' rule and only an A slice carries a motif; a big mass carries something toward its middle; an end at a
+// pit is bitten out and one toward open space lit; the thread runs unbroken from the first zone to the last; a zone at
+// the foot of a climb sees hills and a range, one at the top only a low horizon, one inside none; the same seed, the
+// same paint; a plain face loses `painted`.
+import { describe, it, expect } from 'vitest';
+import { paintSideMap, backdropOf, BACKDROP } from './paint.js';
+import { layoutSideMap } from './layout.js';
+import { dressSideMap } from './dress.js';
+import { sideMapLaws } from './laws.js';
+import { FILL_IDS } from './fills.js';
+import { rhythmFaults } from '../../era/wall-rhythm.js';
+import { reachOf } from '../feel/reach.js';
+import { readFeel } from '../feel/lower.js';
+
+const reach = reachOf(readFeel({ pole: 'galaxy-boy', takes: true }));
+const chain = (premise, fill) => ({ premise, ...(fill ? { fill } : {}), zones: [
+  { run: 'across', screens: 2, beat: 'rest' }, { run: 'across', screens: 3, teach: 'basic' }, { run: 'up', screens: 3, climb: 'ledges' },
+  { run: 'across', screens: 2, beat: 'landing' }, { run: 'down', screens: 2, drop: 'chute' }, { room: [1, 1], teach: 'boss' },
+] });
+const all = (map, seed = 4) => { const L = layoutSideMap(map, { reach, stature: 1.67 }), D = dressSideMap(L, map, { seed }); return { L, D, P: paintSideMap(L, D, { seed }) }; };
+const inside = (m, r) => m.s0 >= r.s0 - 1e-3 && m.s1 <= r.s1 + 1e-3 && m.z0 >= r.z0 - 1e-3 && m.z1 <= r.z1 + 1e-3;
+
+describe('the closed parts painted', () => {
+  it('every closed face carries its fill, whatever the fill', () => {
+    for (const fill of FILL_IDS) {
+      const { L, D, P } = all(chain('into the plant', fill));
+      const painted = sideMapLaws(L, reach, { dress: D, paint: P }).find((l) => l.id === 'painted');
+      expect(painted.holds, `${fill}: ${painted.says}`).toBe(true);
+    }
+  });
+  it('a rock\'s beds are level across the whole level', () => {
+    const { P } = all(chain('up the volcano', 'rock')), beds = P.marks.filter((m) => m.what === 'bed');
+    const tops = new Set(beds.map((m) => m.z1)), zones = new Set(beds.map((m) => m.zone));
+    expect(zones.size).toBeGreaterThan(2);
+    const shared = [...tops].filter((t) => new Set(beds.filter((m) => m.z1 === t).map((m) => m.zone)).size > 1);
+    expect(shared.length).toBeGreaterThan(0);
+  });
+  it('slices keep the walls\' rule, and only an A slice carries a motif', () => {
+    const { L, P } = all(chain('into the plant'));
+    for (const Z of L.zones) expect(rhythmFaults(P.slices.filter((x) => x.zone === Z.i).map((x) => x.ab).join(''))).toEqual([]);
+    const motifs = P.marks.filter((m) => ['pocket', 'niche', 'lamp-panel', 'plate'].includes(m.what));
+    expect(motifs.length).toBeGreaterThan(0);
+    for (const m of motifs) expect(P.slices.find((x) => x.zone === m.zone && (m.s0 + m.s1) / 2 >= x.s0 && (m.s0 + m.s1) / 2 < x.s1).ab).toBe('A');
+  });
+  it('a big mass carries something toward its middle', () => {
+    const { L, P } = all(chain('into the plant')), big = L.solids.filter((r) => r.s1 - r.s0 >= 5 && r.z1 - r.z0 >= 5);
+    expect(big.length).toBeGreaterThan(0);
+    for (const r of big) expect(P.marks.some((m) => ['vein', 'recess', 'window', 'great-block'].includes(m.what) && inside(m, r))).toBe(true);
+  });
+  it('an end at a pit is bitten out; an end toward open space is lit', () => {
+    const { L, P } = all(chain('into the plant'));
+    for (const g of L.gaps.filter((g) => g.kind !== 'wall')) {
+      expect(P.marks.some((m) => m.what === 'break' && Math.abs(m.s1 - g.s0) < 0.3)).toBe(true);
+      expect(P.marks.some((m) => m.what === 'break' && Math.abs(m.s0 - g.s1) < 0.3)).toBe(true);
+    }
+    expect(P.marks.some((m) => m.what === 'edge')).toBe(true);
+  });
+  it('the thread runs unbroken from the first zone to the last', () => {
+    const { L, D, P } = all(chain('into the plant')), [T] = P.threads;
+    expect(T.kind).toBe(D.threads[0].kind);
+    expect(T.path[0][0]).toBeLessThanOrEqual(L.zones[0].rect[0] + 1e-6);
+    expect(T.path.at(-1)[0]).toBeCloseTo(L.zones.at(-1).exit[0], 3);
+    const zones = new Set(P.marks.filter((m) => m.what === T.kind).map((m) => m.zone));
+    expect(zones.size).toBeGreaterThanOrEqual(L.zones.length - 1);
+  });
+  it('the same seed, the same paint; a plain face loses `painted`', () => {
+    const a = all(chain('into the plant')), b = all(chain('into the plant'));
+    expect(JSON.stringify(a.P)).toBe(JSON.stringify(b.P));
+    const big = a.L.solids.find((r) => r.s1 - r.s0 >= 5 && r.z1 - r.z0 >= 3);
+    const bare = { ...a.P, marks: a.P.marks.filter((m) => !(m.layer === 1 && inside(m, big))) };
+    expect(sideMapLaws(a.L, reach, { dress: a.D, paint: bare }).find((l) => l.id === 'painted').holds).toBe(false);
+  });
+});
+
+describe('the backdrop', () => {
+  it('at the foot hills and a range, at the top only a low horizon, inside none; each wider than its zone', () => {
+    const map = { premise: 'up the volcano', zones: [{ run: 'across', screens: 2 }, { run: 'up', screens: 4, climb: 'ledges' }, { run: 'across', screens: 2 }, { room: [1, 1] }] };
+    const { L, D } = all(map), B = backdropOf(L, D);
+    expect(D.zones[0].backdrop).toBe('land');
+    expect(D.zones[2].backdrop).toBe('sky');
+    expect(B.filter((b) => b.zone === 0).map((b) => b.layer)).toEqual(['hills', 'range']);
+    const top = B.filter((b) => b.zone === 2);
+    expect(top.map((b) => b.layer)).toEqual(['range']);
+    const lane2 = L.zones[1].exit[1];
+    expect(Math.max(...top[0].rects.map((r) => r.z1))).toBeLessThan(lane2 + L.camera.lookH);
+    expect(B.some((b) => D.zones[b.zone].indoor)).toBe(false);
+    for (const b of B) expect(b.rects.at(-1).s1 - b.rects[0].s0).toBeGreaterThan(L.zones[b.zone].rect[1] - L.zones[b.zone].rect[0]);
+    expect(BACKDROP.range.x).toBeLessThan(BACKDROP.hills.x);
+  });
+});

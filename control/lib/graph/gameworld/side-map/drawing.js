@@ -2,7 +2,8 @@
  * THE SIDE MAP, DRAWN — the elevation of a laid, dressed map (docs/side-map-principles.md): the area the camera sweeps on
  * black, read left to right as the studied maps are. What a designer reads off it:
  *
- *   the map          the swept area in each zone's void, the closed parts in its key with their tops lit, nothing outside
+ *   the map          the swept area in each zone's void, the closed parts in its key with their tops lit and their
+ *                    paint over them (paint.js), nothing outside
  *   the zones        outlined and numbered, each with its place and what it teaches or its beat
  *   the rulers       along the bottom in screens, metres and seconds at the hero's run; up the side in screens and metres
  *   the play         the bot's line through the zones (a jump an arc, a chimney's kicks a zigzag between its rests, each
@@ -11,7 +12,7 @@
  *                    the next place's band at a zone's edge, a shaft's mark, the boss's emblem
  *   the laws         what the machine gate measured: each law lost named under the map, or all held
  *
- *   drawSideMap({ layout, dress, laws, reach }, { width? }) → an SVG document (a string)
+ *   drawSideMap({ layout, dress, paint?, laws, reach }, { width? }) → an SVG document (a string)
  *
  * Pure.
  */
@@ -19,7 +20,7 @@ const r1 = (v) => Math.round(v * 10) / 10;
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /** The map as an elevation. */
-export function drawSideMap({ layout: L, dress: D, laws = [], reach }, { width = 2200 } = {}) {
+export function drawSideMap({ layout: L, dress: D, paint, laws = [], reach }, { width = 2200 } = {}) {
   const W = L.screen.width, H = L.screen.height, speed = reach?.speed ?? 5;
   const s0 = Math.min(...L.swept.map((r) => r.s0)), s1 = Math.max(...L.swept.map((r) => r.s1));
   const z0 = Math.min(...L.swept.map((r) => r.z0)), z1 = Math.max(...L.swept.map((r) => r.z1));
@@ -38,6 +39,8 @@ export function drawSideMap({ layout: L, dress: D, laws = [], reach }, { width =
     out.push(box(r, `fill="${z?.key ?? '#5a6b85'}"`));
     out.push(`<line x1="${X(r.s0)}" y1="${Y(r.z1)}" x2="${X(r.s1)}" y2="${Y(r.z1)}" stroke="${z?.edge ?? '#cfd8e8'}" stroke-width="2"/>`);
   }
+  // the paint: each closed part's fill, motifs, middles, edges and threads
+  for (const k of [...(paint?.marks ?? [])].sort((a, b) => a.layer - b.layer)) out.push(box(k, `fill="${k.fill}"`));
   // the cells: what the dress places, zone by zone
   for (const z of Z) {
     const LZ = L.zones[z.zone], [a, b, lo, hi] = LZ.rect, o = L.open.find((r) => r.zone === z.zone);

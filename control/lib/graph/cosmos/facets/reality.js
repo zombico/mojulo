@@ -130,8 +130,8 @@ export const REALITY = Object.freeze({
       values: {
         // (most worlds paint no side map: none, built, so the sweep's other worlds are never held up by a fill)
         none: { status: 'built' },
-        ...Object.fromEntries(Object.entries(FILLS).map(([id, F]) => [id, { status: 'absent', requires: ['space.levelForm=side-map'], lowers: 'lib/graph/gameworld/side-map/fills.js',
-          note: `a side map's closed parts painted as ${F.says} (docs/side-map-principles.md): named and read (side-map/zones.js), the painting not built` }])),
+        ...Object.fromEntries(Object.entries(FILLS).map(([id, F]) => [id, { status: 'built', since: '2026-11-18', requires: ['space.levelForm=side-map'], lowers: 'lib/graph/gameworld/side-map/paint.js',
+          note: `a side map's closed parts painted as ${F.says} (docs/side-map-principles.md): named and read (side-map/zones.js), painted on the map's build (side-map/paint.js: the fill, its slices' motifs, a big mass's middle, the edges and breaks, the threads)` }])),
       },
     },
     condition: {

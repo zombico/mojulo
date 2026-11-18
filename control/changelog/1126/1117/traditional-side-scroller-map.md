@@ -91,6 +91,18 @@ said as its phase lands.
   rests), checkpoints, doors, ladders, pickups and a rising frame's pace, the dress's cells (bays, pillars, seams, lamps,
   hatches, the next place's band, the boss's emblem), and the laws: each lost one named, or all held. The script writes
   the drawing and, asked, the page seen from the side map's camera at every zone.
+- **The closed parts painted** (`gameworld/side-map/paint.js`), what the strip never did: every closed part the camera
+  sees drawn as its place's fill, as marks on its face. Rock in beds level across the whole level (one datum: a pit shows
+  the same strata either side), joints along them, roots under an outdoor lip; built in courses of running bond with a
+  trim under every lip; machine in panels on one grid; padded in framed blocks. Cut along the way in slices a quarter
+  screen wide, A and B by the walls' rule, an A slice carrying its fill's motif (a pocket, a niche, a lamp panel, a bolt
+  plate); a big mass something toward its middle (a vein of ore, a recessed panel, a window into the works behind, a
+  great block); an end toward open space lit, an end at a pit bitten out; the dress's thread (pipes, cables, roots, a
+  channel) carried through them from the first zone to the last, under the way, up a shaft's wall, down a chute's. The
+  `painted` law now reads the paint: no closed face plain, no zone's slices repeating. The reality facet's fills are built.
+- **The backdrop by height** (`paint.js` `backdropOf`): an outdoor zone's hills and range at their depth behind the lane,
+  sized for the side map's camera to see them where the frame should and wide enough for anywhere along the zone; at the
+  foot both in the frame, higher the hills gone and the range lower, at the top only sky over a low horizon.
 - **Galaxy Boy's first level** laid as a zone chain from its teaching order, ending in its first power; the mascot
   platformer's strip as it was.
 - **The map's laws** (`gameworld/side-map/laws.js`), advisory, measured on the layout and its dress: a run one screen

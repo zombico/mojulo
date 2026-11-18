@@ -5,7 +5,7 @@
  *
  *   FILLS[id]   { says, carries }: what it is, and what runs through it from one zone to the next
  *
- * Planned: the painting (the side map's build). This table names them so a map can say its own and the cube can key them.
+ * Painted by paint.js (the side map's build); this table names them so a map can say its own and the cube can key them.
  */
 export const FILLS = Object.freeze({
   rock: Object.freeze({ says: 'rock: beds level across the level, joints along them, pockets and veins in a big mass, roots near the top', carries: 'roots, a seam of ore' }),

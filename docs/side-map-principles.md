@@ -106,6 +106,9 @@ this map every closed part the camera sees is a place.
 24. **Things run through the closed parts.** Pipes, cables, roots, a seam of ore carry on from one zone into the next,
     so the material says where the way goes before the way does.
 
+They are painted by `control/lib/graph/gameworld/side-map/paint.js` (the fill, the slices, the middle of a mass, the
+edges and breaks, the threads), which also stands an outdoor zone's backdrop at its depth by the height it is at.
+
 ## The look
 
 25. **Five layers.** The foreground, below the hero's feet and darkest; the lane; the near place; the far landmark; the

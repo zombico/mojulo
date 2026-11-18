@@ -5,7 +5,8 @@
  * the same recipe is drawn as an elevation (drawing.js).
  *
  *   the CLOSED PARTS   every solid of the layout, its face toward the camera and its ends in its zone's key, its top a
- *                      lit edge (a band down the face and the top itself); painted by its fill in the next phase
+ *                      lit edge (a band down the face and the top itself), painted over by its fill (paint.js: the
+ *                      fill, its slices' motifs, a big mass's middle, the edges and breaks, the threads)
  *   the BACK           an indoor zone's back wall in its void across what the camera sees, and on it the dress: its bays'
  *                      pillars and seams, a lamp an A bay, a hatch at each spawner, the next place's key at the edge,
  *                      a shaft's railings, a chute's stripes, the boss's mark; an outdoor zone's back is the cube's sky
@@ -15,7 +16,7 @@
  *   SIDE_MAP_SCENE_KEYS   the manifest's words
  *   SIDE_MAP_STATURE      the hero a map is laid for when its manifest names none: the toy hero robot's height (Galaxy Boy)
  *   readSideMapScene(m)   → { map, cube, seed, reach, stature } (throws, teaching)
- *   sideMapOf(m)          → { layout, dress, laws, reach, stature, cube }: the map as data, no faces
+ *   sideMapOf(m)          → { layout, dress, paint, laws, reach, stature, cube }: the map as data, no faces
  *   assembleSideMap(m, ctx) the `geocube` kind's `show: 'sidemap'`: { cube?, seed?, sidemap, feel?, stature? } → payload,
  *                         its `sidemap` (not enumerable) the layout, dress and laws
  *
@@ -31,6 +32,7 @@ import { readSideMap } from './zones.js';
 import { layoutSideMap } from './layout.js';
 import { dressSideMap } from './dress.js';
 import { sideMapLaws } from './laws.js';
+import { paintSideMap, backdropOf } from './paint.js';
 
 export const SIDE_MAP_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed', 'sidemap', 'feel', 'stature', 'title', 'viewBox']);
 export const SIDE_MAP_STATURE = 1.67;
@@ -53,8 +55,8 @@ export function readSideMapScene(m) {
 /** The map as data: laid, dressed in the cube's hue, held to its laws. */
 export function sideMapOf(m) {
   const R = readSideMapScene(m), layout = layoutSideMap(R.map, { reach: R.reach, stature: R.stature });
-  const dress = dressSideMap(layout, R.map, { seed: R.seed, cube: R.cube });
-  return { layout, dress, laws: sideMapLaws(layout, R.reach, { dress }), reach: R.reach, stature: R.stature, cube: R.cube };
+  const dress = dressSideMap(layout, R.map, { seed: R.seed, cube: R.cube }), paint = paintSideMap(layout, dress, { seed: R.seed });
+  return { layout, dress, paint, laws: sideMapLaws(layout, R.reach, { dress, paint }), reach: R.reach, stature: R.stature, cube: R.cube };
 }
 
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -68,6 +70,7 @@ const quad = (out, corners, n, fill, group) => {
 // a rectangle on a plane facing +x at x, from (s0, z0) to (s1, z1)
 const face = (out, x, s0, s1, z0, z1, fill, group) => { if (s1 - s0 > 1e-4 && z1 - z0 > 1e-4) quad(out, [[x, s0, z0], [x, s1, z0], [x, s1, z1], [x, s0, z1]], FACE.px, fill, group); };
 
+const mixHex = (a, b, k) => rgbHex(hexRgb(a).map((v, i) => v + (hexRgb(b)[i] - v) * k));
 /** The cube's light: its key and ambient as a bake, the key from behind the camera (the side strip's). */
 function lightOf(cube) {
   const low = lowerGeocube(cube, 'outside'), { st } = outTrailStyle({ kit: low.kit }), Lt = st.light;
@@ -93,6 +96,11 @@ export function assembleSideMap(m, ctx = {}) {
     quad(faces, [[-HALF, r.s0, r.z1], [HALF, r.s0, r.z1], [HALF, r.s1, r.z1], [-HALF, r.s1, r.z1]], FACE.top, lit(z.edge, FACE.top), 'sidemap:edge');
     for (const [s, n] of [[r.s0, FACE.ny], [r.s1, FACE.py]]) quad(faces, [[-HALF, s, r.z0], [HALF, s, r.z0], [HALF, s, r.z1], [-HALF, s, r.z1]], n, lit(z.key, FACE.px, 0.78), g);
   }
+  // an outdoor zone's backdrop (paint.js backdropOf): its layers at their depth, hazed toward the cube's horizon
+  const horizon = rgbHex(st.palette.sky[st.palette.sky.length - 1].map((v) => v / 255));
+  for (const B of backdropOf(L, D, { seed: m.seed ?? 1 })) for (const r of B.rects) face(faces, B.x, r.s0, r.s1, r.z0, r.z1, mixHex(lit(Z[B.zone].key, FACE.px), horizon, B.haze), `sidemap:${B.layer}`);
+  // the closed parts painted (paint.js): each mark on the face, a layer over the last
+  for (const k of D0.paint.marks) face(faces, HALF + 0.004 * k.layer, k.s0, k.s1, k.z0, k.z1, lit(k.fill, FACE.px), `sidemap:paint-${k.what}`);
   // the dress on an indoor zone's back wall
   const zoneOf = (i) => L.zones[i], at = (x) => BACK + 0.02 * x;
   for (const z of Z) {
@@ -138,6 +146,6 @@ export function assembleSideMap(m, ctx = {}) {
     sky: { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1 },
     pack: true,
   };
-  Object.defineProperty(payload, 'sidemap', { value: { layout: L, dress: D, laws: D0.laws, cube: D0.cube.id, stature: D0.stature }, enumerable: false });
+  Object.defineProperty(payload, 'sidemap', { value: { layout: L, dress: D, paint: D0.paint, laws: D0.laws, cube: D0.cube.id, stature: D0.stature }, enumerable: false });
   return payload;
 }

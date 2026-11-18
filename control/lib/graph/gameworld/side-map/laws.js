@@ -26,9 +26,10 @@
  *     rhythm              bays by the walls' rule, a pillar or a seam in every frame, a spawner a screen apart
  *     peeks-in            the next zone's family and key at the edge of a zone's last screen, the zones touching
  *     threads             the setting's thread runs unbroken from zone to zone
- *     painted             every zone with closed parts names what they are painted as
+ *     painted             every zone with closed parts names what they are painted as; with the paint, every closed
+ *                         face carries its fill and no zone's slices repeat
  *
- *   sideMapLaws(layout, reach, { dress? }) → [{ id, holds, says, zones? }]  (zones: where a law is lost)
+ *   sideMapLaws(layout, reach, { dress?, paint? }) → [{ id, holds, says, zones? }]  (zones: where a law is lost)
  *   SIDE_MAP_LAWS        the ids, in order
  *
  * Pure.
@@ -54,7 +55,7 @@ const hue = (h) => {
 const apart = (a, b) => { const d = Math.abs(hue(a) - hue(b)) % 360; return Math.min(d, 360 - d); };
 
 /** The side map's laws over its layout and, given one, its dress. */
-export function sideMapLaws(layout, reach, { dress } = {}) {
+export function sideMapLaws(layout, reach, { dress, paint } = {}) {
   const L = layout, W = L.screen.width, H = L.screen.height, run = reach.moves.run, kick = reach.wall?.climb ?? null;
   const laws = [];
   const law = (id, lost, held, losing) => laws.push(lost.length ? { id, holds: false, says: losing(lost), zones: [...new Set(lost.map((x) => x.zone))] } : { id, holds: true, says: held });
@@ -264,8 +265,17 @@ export function sideMapLaws(layout, reach, { dress } = {}) {
   }
   // painted
   {
-    const lost = L.zones.filter((LZ) => byZone(L.solids, LZ.i).length && !(Z[LZ.i] && FILLS[Z[LZ.i].family] && Number.isFinite(Z[LZ.i].wear))).map((LZ) => ({ zone: LZ.i }));
-    law('painted', lost, 'every zone\'s closed parts named a fill and a wear to be painted in', (x) => `zones ${x.map((y) => y.zone).join(', ')}: their closed parts named no fill`);
+    const lost = L.zones.filter((LZ) => byZone(L.solids, LZ.i).length && !(Z[LZ.i] && FILLS[Z[LZ.i].family] && Number.isFinite(Z[LZ.i].wear))).map((LZ) => ({ zone: LZ.i, says: `zone ${LZ.i}'s closed parts name no fill` }));
+    // (painted: every closed face of any size carries its fill, and no zone's slices repeat)
+    if (paint) {
+      L.solids.forEach((r) => {
+        if ((r.s1 - r.s0) * (r.z1 - r.z0) < 2) return;
+        const on = paint.marks.some((m) => m.layer === 1 && m.zone === r.zone && m.s0 >= r.s0 - EPS && m.s1 <= r.s1 + EPS && m.z0 >= r.z0 - EPS && m.z1 <= r.z1 + EPS);
+        if (!on) lost.push({ zone: r.zone, says: `zone ${r.zone}'s ${r.role} (${r2(r.s1 - r.s0)} by ${r2(r.z1 - r.z0)} m) is a plain face` });
+      });
+      for (const LZ of L.zones) { const ab = paint.slices.filter((x) => x.zone === LZ.i).map((x) => x.ab).join(''); if (rhythmFaults(ab).length) lost.push({ zone: LZ.i, says: `zone ${LZ.i}'s slices ${ab} repeat` }); }
+    }
+    law('painted', lost, paint ? `every closed face painted in its fill (${paint.marks.length} marks), every zone's slices by the walls' rule` : 'every zone\'s closed parts named a fill and a wear to be painted in', (x) => x.map((y) => y.says).join('; '));
   }
   return laws;
 }
