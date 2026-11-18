@@ -240,7 +240,7 @@ describe('mana-ui: in game', () => {
     const hole = Number(css.match(/radial-gradient\(closest-side,transparent 0 (\d+)%/)[1]) / 100;
     expect(hole * 2.4).toBeGreaterThanOrEqual(0.95);
     for (const f of css.match(/@keyframes mana-lens-[a-z]+\{.*\}\}/g)) for (const [, prop] of f.matchAll(/[{;]([a-z-]+):/g)) expect(['opacity', 'scale']).toContain(prop);
-    expect(css).toMatch(/\.L\[data-flash=reduced\] \.mana-strike\[data-kind=ink\]/);
+    expect(css).toMatch(/\.L\[data-flash=reduced\] \.mana-struck\[data-kind=ink\]/);
     expect(css).toMatch(/\.L\[data-clock=held\] \.mana-struck\{animation-play-state:paused\}/);
   });
   it('a screen effect plays once a trigger: idle without one, a new element a new trigger, the same moment the same pieces', () => {

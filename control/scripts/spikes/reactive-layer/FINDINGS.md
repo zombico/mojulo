@@ -84,9 +84,14 @@ as it is up: they suit moments and states, not a whole level.
 ## Built from it: the lens and its strike
 
 The first of the primitive argued for below is built: mana-ui's `lens` (`docs/mana-ui.md`, "The lens"), the screen
-layer as a part of its own beside the canvas, and its `strike`, an effect in the air round the foe just struck that
-never draws over the body and stands down while a world moment plays. `lens-proof.mjs` shows it in Chrome through the
-real HUD host.
+layer as a part of its own beside the canvas, and its `strike`, an effect in the air round a figure that never draws
+over its body.
+
+It is for **still figures**. A region is drawn where the page last projected its figure, so a figure that stands while
+the round plays is where its region says, and one that runs outruns it. An action level's hits are answered by the
+world already (the body's flash, its sparks, the tempo's moments). So the lens is a turn-based fight's: a juice step in
+the RPG's battles (`lens: ring | lift | shade | ink`), yielding to the beat's own flash, puff or beam.
+`lens-proof.mjs` shows it in Chrome in a party fight.
 
 ## If we fork from here: what I think
 

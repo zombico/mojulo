@@ -791,13 +791,13 @@ export const FRAME_CSS = [
  * region inside it filters the world's own pixels only while nothing between it and the canvas isolates it (the
  * reactive layer's finding, scripts/spikes/reactive-layer/FINDINGS.md). The HUD's root, raised over it, stays its own.
  *
- * A STRIKE is a ring-shaped region round the foe struck: its element the band's size (a region filters only its own
- * area: the cost is the band's), its mask's hole the foe's body (r: the world flashes the body itself; the lens bends
+ * A STRIKE is a ring-shaped region round a still figure (a turn-based fight's): its element the band's size (a region filters only its own
+ * area: the cost is the band's), its mask's hole the figure's body (r: the world draws on the body itself; the lens bends
  * only the air round it), its motion transform and opacity alone. Its kinds:
  *   ring    the air round it bent and lit, a band that opens out as it fades (the default)
  *   lift    the air round it lit and saturated, fading
- *   shade   the air round it darkened and drained, so the foe stands out of it, fading
- *   ink     the air round it to its negative for a beat, then gone (an impact frame round the foe; a lift under less flash)
+ *   shade   the air round it darkened and drained, so the figure stands out of it, fading
+ *   ink     the air round it to its negative for a beat, then gone (an impact frame round the figure; a lift under less flash)
  *
  *   lensCss(scope?) → the lens's rules (default scope `.mana-lens`)
  */
@@ -809,12 +809,12 @@ export function lensCss(scope = '.mana-lens') {
     `${s} .mana-strike{position:absolute;inset:0;pointer-events:none}`,
     // (2.4 times the body's radius each way: the hole the body, the band the air out to its edge)
     `${s} .mana-struck{position:absolute;height:calc(var(--r) * 480%);aspect-ratio:1;translate:-50% -50%;border-radius:50%;-webkit-mask:${hole};mask:${hole};will-change:opacity,scale;animation:mana-lens-fade var(--d) ease-out both}`,
-    `${s} .mana-strike[data-kind=ring] .mana-struck{${BF('blur(calc(2px + var(--p) * 3px)) brightness(1.32) saturate(1.35)')};animation-name:mana-lens-ring}`,
-    `${s} .mana-strike[data-kind=lift] .mana-struck{${BF('brightness(calc(1.15 + var(--p) * .35)) saturate(1.75)')}}`,
-    `${s} .mana-strike[data-kind=shade] .mana-struck{${BF('brightness(calc(.78 - var(--p) * .28)) saturate(.5)')}}`,
-    `${s} .mana-strike[data-kind=ink] .mana-struck{${BF('grayscale(1) invert(1) contrast(1.25)')};animation-name:mana-lens-ink;animation-timing-function:linear}`,
+    `${s} .mana-struck[data-kind=ring]{${BF('blur(calc(2px + var(--p) * 3px)) brightness(1.32) saturate(1.35)')};animation-name:mana-lens-ring}`,
+    `${s} .mana-struck[data-kind=lift]{${BF('brightness(calc(1.15 + var(--p) * .35)) saturate(1.75)')}}`,
+    `${s} .mana-struck[data-kind=shade]{${BF('brightness(calc(.78 - var(--p) * .28)) saturate(.5)')}}`,
+    `${s} .mana-struck[data-kind=ink]{${BF('grayscale(1) invert(1) contrast(1.25)')};animation-name:mana-lens-ink;animation-timing-function:linear}`,
     // (less flash: an impact frame is a lift; less motion: nothing opens out, it fades where it is; a held clock holds it)
-    `${s}[data-flash=reduced] .mana-strike[data-kind=ink] .mana-struck{${BF('brightness(1.25) saturate(1.5)')};animation-name:mana-lens-fade;animation-timing-function:ease-out}`,
+    `${s}[data-flash=reduced] .mana-struck[data-kind=ink]{${BF('brightness(1.25) saturate(1.5)')};animation-name:mana-lens-fade;animation-timing-function:ease-out}`,
     `${s}[data-motion=reduced] .mana-struck{animation-name:mana-lens-fade}`,
     `@media (prefers-reduced-motion:reduce){${s} .mana-struck{animation-name:mana-lens-fade}}`,
     `${s}[data-clock=held] .mana-struck{animation-play-state:paused}`,

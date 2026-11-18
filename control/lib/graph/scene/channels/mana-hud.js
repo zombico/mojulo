@@ -33,8 +33,7 @@
  * its weapon selector as the wheel (window.__mojWc; its panel put away). What the page lacks stands down.
  */
 import { manaUiSource } from '../../../mana-ui/kernel.js';
-import { manaCss, lensCss } from '../../../mana-ui/css.js';
-import { lensStep, lensMemory } from './lens-feed.js';
+import { manaCss } from '../../../mana-ui/css.js';
 import { themeCss } from '../../../mana-ui/theme.js';
 import { hudToMana } from '../../game/hud-mana.js';
 import { hudSubst, fmtDelta } from '../../game/hud-widgets.js';
@@ -66,33 +65,15 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   const race = !!(hud.feed && hud.feed.kind === 'race');
   const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp,#__radar,#__wc,#__damageRing,div:has(>#__wepIcon)' : ''}{display:none!important}`;
   const H = !!(hud.feed && hud.feed.hero);
-  // THE LENS (mana-ui's screen layer, a spec's \`lens\`): its sheet, and how long a strike is held (its own seconds)
-  const LENS = hud.spec.lens ? { hold: Math.max(0.1, ...(hud.spec.lens.children ?? []).map((c) => Number(c?.props?.seconds) || 0.42)) } : null;
   return `
 // THE HUD on mana-ui (channels/mana-hud.js): the level's own spec over a state this page feeds
 (function () {
   const CFG = ${json({ spec: hud.spec, feed: hud.feed ?? {} })}, GAME = ${game ? 'true' : 'false'};
   const manaUi = ${manaUiSource()};${H ? `
   const __hRadar = ${radarMarks.toString()}, __hThings = ${sceneThings.toString()}, __hBearing = ${hitBearing.toString()}, __hR = ${json({ ...RADAR, range: 40 })};` : ''}
-  const sheet = document.createElement('style'); sheet.textContent = ${json(LENS ? `${css}\n${lensCss('.mana-lens')}` : css)}; document.head.appendChild(sheet);
+  const sheet = document.createElement('style'); sheet.textContent = ${json(css)}; document.head.appendChild(sheet);
   // (laid over the scene's own frame, as the level's widgets were: a letterboxed scene keeps its HUD inside it)
-  const root = document.createElement('div'); root.id = 'moj-mana-hud'; (document.getElementById('wrap') || document.body).appendChild(root);${LENS ? `
-  // THE LENS: its own root beside the world's canvas and under the HUD's, never raised (a z-index, a contain would make
-  // it its own and its regions would filter nothing of the world beneath); fed the foes struck (lens-feed.js), each
-  // projected on the page's own camera at its body's middle, its radius its top's height above that on the screen
-  const lensRoot = document.createElement('div'); lensRoot.style.cssText = 'position:absolute;inset:0;pointer-events:none'; root.parentNode.insertBefore(lensRoot, root);
-  const __lensStep = ${lensStep.toString()}, __lensMem = (${lensMemory.toString()})();
-  let __lensV = null;
-  const __lensAt = function (e) {
-    if (typeof camera === 'undefined' || typeof THREE === 'undefined') return null;
-    __lensV = __lensV || new THREE.Vector3();
-    const p = e.transform.pos, top = typeof __foeTopOf === 'function' ? __foeTopOf(e) : e.body && e.body.radius ? e.body.radius * 2 : 1.8;
-    camera.updateMatrixWorld(); __lensV.set(p[0], p[1], p[2] + top * 0.5).project(camera);
-    if (__lensV.z >= 1) return null;
-    const x = __lensV.x * 0.5 + 0.5, y = -__lensV.y * 0.5 + 0.5;
-    __lensV.set(p[0], p[1], p[2] + top).project(camera);
-    return { x: x, y: y, r: Math.max(0.02, Math.abs(-__lensV.y * 0.5 + 0.5 - y) * 1.1) };
-  };` : ''}
+  const root = document.createElement('div'); root.id = 'moj-mana-hud'; (document.getElementById('wrap') || document.body).appendChild(root);
   const F = CFG.feed, of = Math.max(1, Math.round((F.to || 0) - (F.from || 0)));
   const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [], hint: '' }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, gun: { on: false }, focus: { on: false }, radar: { on: false, marks: [], north: 0 }, ring: { on: false, hits: [] }, wheel: { open: false, slots: [], title: '' }, top: {}, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {} };
   let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
@@ -112,9 +93,7 @@ ${race ? `  // A RACE's (gameworld/race-hud.js): the lights, then the laps, the 
   // (the device in hand: a touch screen, or the page told to be one, as the touch layer reads it)
   const __tq = new URLSearchParams(location.search).get('touch');
   rt.input(__tq === '1' || (__tq !== '0' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ? 'touch' : 'keys');
-  const view = manaUi.mount(root, rt, { auto: true });${LENS ? `
-  manaUi.mount(lensRoot, rt, { part: 'lens', auto: true });
-  st.lens = { hits: [] };` : ''}
+  const view = manaUi.mount(root, rt, { auto: true });
   window.__mojHud = { rt: rt, state: st };
   // the level has started (the shell's params are in): its place in the run, and the start cue
   function begin(params) {
@@ -212,9 +191,7 @@ ${race ? `    // (a race's lights: the karts held and the race's clock frozen, t
     // hands over the shell's params, the run among them. A page with no game begins at once)
     if (!hooked && (!GAME || (window.__mojGame && window.__mojGame.onStart))) { hooked = true; if (GAME) window.__mojGame.onStart(begin); else begin(null); }
     const now = performance.now(), dt = Math.min(0.1, (now - last) / 1000); last = now; clock += dt;
-    const W = window.__mojCtrl && window.__mojCtrl.world, me = W && W.pilotId && W.byId[W.pilotId];${LENS ? `
-    // (the foes struck, where they stand on the screen: the lens's strike, lens-feed.js)
-    if (W) st.lens.hits = __lensStep(__lensMem, W, clock, __lensAt, { hold: ${LENS.hold} });` : ''}
+    const W = window.__mojCtrl && window.__mojCtrl.world, me = W && W.pilotId && W.byId[W.pilotId];
     if (me && me.transform) {
       const m = Math.max(0, Math.min(of, me.transform.pos[1] - (F.from || 0)));
       st.course.metres = Math.round(m); st.course.left = of - Math.round(m); st.course.says = st.course.left + ' ' + (F.left || 'm'); st.course.short = st.course.left + ' ' + (F.leftShort || 'm');

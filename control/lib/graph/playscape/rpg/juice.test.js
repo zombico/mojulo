@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readJuice, juiceKeys, JUICE_PRESETS, JUICE_ON, JUICE_ALSO } from './juice.js';
+import { readJuice, juiceKeys, lensYields, JUICE_PRESETS, JUICE_ON, JUICE_ALSO } from './juice.js';
+import { rpgUiSpec, rpgUiCss, rpgUiTheme, LENS_SCOPE } from './rpg-ui.js';
 import { readRpg } from './rpg.js';
 import { lowerPlay } from '../ui/direction.js';
 import { momentKinds } from '../../scene/channels/moment-channel.js';
@@ -19,7 +20,7 @@ describe('battle juice: steps, composed, bound to the fight\'s happenings', () =
     expect(J.also.weak).toEqual(JUICE_PRESETS.weak);
     expect(J.fx.puffs).toEqual(expect.arrayContaining(['sparks', 'flash', 'smoke']));
     expect(J.fx.shake).toBe(true);
-    expect(readJuice(false)).toEqual({ on: {}, also: {}, fx: { puffs: [], shake: false, beams: {} } });
+    expect(readJuice(false)).toEqual({ on: {}, also: {}, fx: { puffs: [], shake: false, beams: {}, lens: false } });
   });
 
   it('a world composes its own over the defaults: new names, new bindings, presets replaced', () => {
@@ -88,5 +89,47 @@ describe('the bodies act a blow out', () => {
     expect(J.on['skill:fire'][0]).toEqual({ act: 'cast', at: 'actor', for: 0.8 });
     expect(() => readJuice({ on: { hit: [{ act: 'dance' }] } })).toThrow(/act is strike, cast, hurt, fall/);
     expect(() => readJuice({ on: { hit: [{ act: 'strike', k: 2 }] } })).toThrow(/k is not part of a act/);
+  });
+});
+
+describe('the lens: the screen round a still figure, where the world leaves the beat bare', () => {
+  it('a step any juice can take, read and taught; by default a miss bends the air round its target, a cast lights the caster\'s', () => {
+    const J = readJuice({ on: { 'skill:fire': [{ lens: 'ink', at: 'actor' }, 'hit'] } });
+    expect(J.on['skill:fire'][0]).toEqual({ lens: 'ink', at: 'actor' });
+    expect(J.fx.lens).toBe(true);
+    expect(readJuice(false).fx.lens).toBe(false);
+    expect(() => readJuice({ on: { hit: [{ lens: 'glow' }] } })).toThrow(/lens is ring, lift, shade, ink/);
+    expect(() => readJuice({ on: { hit: [{ lens: 'ring', for: 1 }] } })).toThrow(/for is not part of a lens/);
+    const D = readJuice(undefined);
+    expect(D.on.miss).toContainEqual({ lens: 'ring' });
+    expect(D.on.cast).toEqual([{ lens: 'lift', at: 'actor' }]);
+    expect(juiceKeys({ kind: 'cast', who: 'ayla' })).toContain('cast');
+  });
+
+  it('it yields where the world answers its figure (a puff on it, a beam landing on it) or the whole screen (a flash)', () => {
+    const at = { lens: 'ring' }, mine = { lens: 'lift', at: 'actor' };
+    expect(lensYields([at], at)).toBe(false);
+    expect(lensYields([{ flash: '#fff' }, mine], mine)).toBe(true);
+    // a puff on the same figure yields; on the other side it does not
+    expect(lensYields([{ puff: 'sparks' }, at], at)).toBe(true);
+    expect(lensYields([{ puff: 'sparks' }, mine], mine)).toBe(false);
+    expect(lensYields([{ puff: 'smoke', at: 'actor' }, mine], mine)).toBe(true);
+    // a beam lands on the target, never the actor
+    expect(lensYields([{ beam: 'bolt' }, at], at)).toBe(true);
+    expect(lensYields([{ beam: 'bolt' }, mine], mine)).toBe(false);
+    // the defaults: every bound happening's lens plays (they are put where the world is bare)
+    const D = readJuice(undefined);
+    for (const steps of Object.values(D.on)) for (const s of steps) if (s.lens) expect(lensYields(steps, s)).toBe(false);
+  });
+
+  it('the fight\'s UI lays it apart from its windows, its strikes the figures the channel projects, its host never raised', () => {
+    const lens = rpgUiSpec().lens;
+    expect(lens.use).toBe('lens');
+    expect(lens.children[0]).toMatchObject({ use: 'strike', props: { rows: { bind: 'battle.strikes' } } });
+    const css = rpgUiCss(rpgUiTheme({}));
+    const host = css.split('\n').find((l) => l.startsWith(`${LENS_SCOPE}{`));
+    expect(host).toBeTruthy();
+    expect(host).not.toMatch(/z-index|contain|isolation|transform|opacity|filter/);
+    expect(css).toContain(`${LENS_SCOPE} .mana-lens .mana-struck[data-kind=ring]`);
   });
 });

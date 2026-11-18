@@ -27,6 +27,13 @@
  *       { pop: 'normal' | 'big' | 'crit' | 'small', color? }   how big the number rises (its type role: crit the
  *                                                  display's, big the title's, small a caption's); its colour is the
  *                                                  theme's, what it did told by its word (crit, weak, heal)
+ *     in the lens, round a figure (mana-ui's screen layer, over the world's picture and under the window):
+ *       { lens: ring | lift | shade | ink, at? }   the air about the target's (or the actor's) figure on the screen bent,
+ *                                                  lit, darkened or inked for the beat; never over the figure (the world
+ *                                                  draws there), never the whole screen (a flash is the window's), and
+ *                                                  yielding where the beat's world answers the figure (lensYields).
+ *                                                  By default a miss bends the air round its target and a cast lights
+ *                                                  the air round its caster: the beats the world leaves bare
  *     in time:   { hold: seconds }                 the beat lingers (a hit-stop, a pause before the boss)
  *     the bus:   { emit: '<event>' }               any cue may answer it
  *
@@ -37,9 +44,11 @@
  *     start:boss, start · victory · defeat · flee · level · learn
  *
  *   JUICE_PRESETS, JUICE_ON, JUICE_ALSO   the defaults: named juices, what each happening plays, what layers over
- *   readJuice(v, { skills })   → { on: { <key>: [step] }, also: { <key>: [step] }, fx: { puffs, shake, beams: { <name>: spec } } } every name
+ *   readJuice(v, { skills })   → { on: { <key>: [step] }, also: { <key>: [step] }, fx: { puffs, shake, beams: { <name>: spec }, lens } } every name
  *                              resolved; throws, teaching
  *   juiceKeys(beat)            → [keys] (the page runs this function's own source)
+ *   lensYields(steps, step)    → does a lens step yield to the world in this beat (a flash, or a puff or a beam's landing
+ *                              on its figure)? (the page runs this function's own source)
  */
 import { MOMENTS } from '../elements/moments.js';
 import { readBeam, beamLanding, BEAM_NAMES } from '../elements/beams.js';
@@ -54,10 +63,12 @@ export const JUICE_STEPS = Object.freeze({
   hold: '{ hold: s } the beat lingers',
   emit: '{ emit: <event> } a bus event, for any cue to answer',
   act: '{ act: strike | cast | hurt | fall, at?: target | actor, for?: s } the figure acts it out with its own clip',
+  lens: '{ lens: ring | lift | shade | ink, at?: target | actor } the screen round the figure (mana-ui\'s lens): the air about it bent, lit, darkened or inked for the beat, never over the figure, never the whole screen; it yields to the world: a beat that flashes the screen, or puffs or lands a beam on that figure, plays no lens there',
   shot: '{ shot: closeup | behind | target | view, at?: actor | target, for?: s } the camera cuts to it for the beat: a close-up on a figure, behind the actor at its target, on the target, or back to the fight\'s view',
 });
 export const SHOTS = Object.freeze(['closeup', 'behind', 'target', 'view']);
 export const ACTS = Object.freeze(['strike', 'cast', 'hurt', 'fall']);
+export const LENS_KINDS = Object.freeze(['ring', 'lift', 'shade', 'ink']);
 const POPS = ['normal', 'big', 'crit', 'small'];
 const JOLTS = ['target', 'actor', 'window'];
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -67,7 +78,9 @@ export const JUICE_PRESETS = Object.freeze({
   crit: [{ act: 'strike', at: 'actor' }, { act: 'hurt' }, { pop: 'crit' }, { flash: '#ffffff', for: 0.08 }, { shake: 0.35 }, { jolt: 'target', k: 2 }, { puff: 'flash' }, { hold: 0.25 }],
   weak: [{ act: 'strike', at: 'actor' }, { act: 'hurt' }, { pop: 'big' }, { shake: 0.2 }],
   resist: [{ act: 'strike', at: 'actor' }, { pop: 'small' }, { jolt: 'target', k: 0.5 }],
-  miss: [{ act: 'strike', at: 'actor' }, { pop: 'small' }],
+  // (a miss: the air round the target bent where the blow passed; a cast: the air round the caster lit as it gathers)
+  miss: [{ act: 'strike', at: 'actor' }, { pop: 'small' }, { lens: 'ring' }],
+  cast: [{ lens: 'lift', at: 'actor' }],
   heal: [{ pop: 'normal', color: '#7dffa5' }, { puff: 'sparks', color: '#7dffa5', scale: 0.5 }],
   status: [{ puff: 'smoke', scale: 0.5 }],
   ko: [{ act: 'fall' }, { puff: 'smoke' }, { shake: 0.2 }, { hold: 0.15 }],
@@ -84,7 +97,7 @@ export const JUICE_PRESETS = Object.freeze({
 });
 export const JUICE_ALSO = Object.freeze({ weak: 'weak', resist: 'resist' });
 export const JUICE_ON = Object.freeze({
-  hit: 'hit', crit: 'crit', miss: 'miss', heal: 'heal', status: 'status',
+  hit: 'hit', crit: 'crit', miss: 'miss', heal: 'heal', status: 'status', cast: 'cast',
   ko: 'ko', fall: 'fall', start: 'start', 'start:boss': 'boss', victory: 'victory', level: 'level',
   'element:fire': 'fire', 'element:ice': 'ice', 'element:thunder': 'thunder', 'element:light': 'light', 'element:dark': 'dark',
 });
@@ -97,7 +110,7 @@ const KEY = /^[a-z][a-z0-9-]*(:[a-z][a-z0-9-]*)?$/;
 function readStep(s, where, fx) {
   const k = Object.keys(s).find((x) => JUICE_STEPS[x]);
   if (!k) throw err(`${where} is a step: ${Object.keys(JUICE_STEPS).join(', ')} (or a juice's name)`);
-  const allow = { puff: ['puff', 'at', 'color', 'scale'], beam: ['beam', 'color'], shake: ['shake', 'for'], flash: ['flash', 'for'], jolt: ['jolt', 'k'], pop: ['pop', 'color'], hold: ['hold'], emit: ['emit'], act: ['act', 'at', 'for'], shot: ['shot', 'at', 'for'] }[k];
+  const allow = { puff: ['puff', 'at', 'color', 'scale'], beam: ['beam', 'color'], shake: ['shake', 'for'], flash: ['flash', 'for'], jolt: ['jolt', 'k'], pop: ['pop', 'color'], hold: ['hold'], emit: ['emit'], act: ['act', 'at', 'for'], lens: ['lens', 'at'], shot: ['shot', 'at', 'for'] }[k];
   for (const x of Object.keys(s)) if (!allow.includes(x)) throw err(`${where}.${x} is not part of a ${k} (${allow.join(', ')})`);
   if (s.color !== undefined && !(typeof s.color === 'string' && (HEX.test(s.color) || /^[a-z]+$/.test(s.color)))) throw err(`${where}.color is '#rrggbb' or a colorant`);
   if (s.at !== undefined && s.at !== 'target' && s.at !== 'actor') throw err(`${where}.at is target or actor`);
@@ -115,6 +128,7 @@ function readStep(s, where, fx) {
   if (k === 'pop' && !POPS.includes(s.pop)) throw err(`${where}.pop is ${POPS.join(', ')}`);
   if (k === 'hold' && !(num(s.hold) && s.hold > 0 && s.hold <= 3)) throw err(`${where}.hold is seconds, above 0, at most 3`);
   if (k === 'act' && !ACTS.includes(s.act)) throw err(`${where}.act is ${ACTS.join(', ')}`);
+  if (k === 'lens') { if (!LENS_KINDS.includes(s.lens)) throw err(`${where}.lens is ${LENS_KINDS.join(', ')}`); fx.lens = true; }
   if (k === 'shot' && !SHOTS.includes(s.shot)) throw err(`${where}.shot is ${SHOTS.join(', ')}`);
   if (k === 'emit' && !(typeof s.emit === 'string' && /^[a-z][a-z0-9:_-]*$/i.test(s.emit))) throw err(`${where}.emit is a bus event`);
   return { ...s };
@@ -137,7 +151,7 @@ function flatten(v, where, named, fx, path = []) {
  * them, each skill's own (its `juice`, bound as cast:<id> and skill:<id>). → { on, fx } or null (juice: false).
  */
 export function readJuice(v, { skills = {} } = {}) {
-  if (v === false) return { on: {}, also: {}, fx: { puffs: [], shake: false, beams: {} } };
+  if (v === false) return { on: {}, also: {}, fx: { puffs: [], shake: false, beams: {}, lens: false } };
   if (v !== undefined && !isObj(v)) throw err(' is false (none), or { on?, also?, <name>: [steps] } over the defaults');
   const own = v ?? {};
   const named = { ...JUICE_PRESETS };
@@ -155,7 +169,7 @@ export function readJuice(v, { skills = {} } = {}) {
     if (J.cast !== undefined) bind[`cast:${id}`] = J.cast;
     if (J.land !== undefined) bind[`skill:${id}`] = J.land;
   }
-  const fx = { puffs: new Set(), shake: false, beams: new Map() }, on = {};
+  const fx = { puffs: new Set(), shake: false, beams: new Map(), lens: false }, on = {};
   for (const [k, j] of Object.entries(bind)) {
     if (!KEY.test(k)) throw err(`.on.${k}: a happening is a word, or a word and a name (hit, element:fire, ko:slime)`);
     on[k] = flatten(j, `.on.${k}`, named, fx);
@@ -165,7 +179,24 @@ export function readJuice(v, { skills = {} } = {}) {
     if (!KEY.test(k)) throw err(`.also.${k}: a happening is a word, or a word and a name`);
     also[k] = flatten(j, `.also.${k}`, named, fx);
   }
-  return { on, also, fx: { puffs: [...fx.puffs], shake: fx.shake, beams: Object.fromEntries(fx.beams) } };
+  return { on, also, fx: { puffs: [...fx.puffs], shake: fx.shake, beams: Object.fromEntries(fx.beams), lens: fx.lens } };
+}
+
+/**
+ * Does a lens step yield to the world in this beat? (the page runs this function's own source) `steps`: everything the
+ * beat plays (its winning binding's and its layers'). The world answers a figure with a puff there or a beam landing on
+ * it, and the whole screen with a flash: the lens never plays over either, so the screen's juice never doubles the
+ * world's.
+ */
+export function lensYields(steps, s) {
+  const at = s.at === 'actor' ? 'actor' : 'target';
+  for (const x of steps) {
+    if (x === s) continue;
+    if (x.flash !== undefined) return true;
+    if (x.puff && (x.at === 'actor' ? 'actor' : 'target') === at) return true;
+    if (x.beam && at === 'target') return true;
+  }
+  return false;
 }
 
 /** A beat's happenings, most specific first (the page runs this function's own source). */

@@ -7,8 +7,7 @@
  *   hudToMana(rows, { register?, hero?, touch? }) → { spec: { hud }, feed: { rows, hero } }   (touch: the level is steered
  *                                              by a virtual pad: a legend says the thumbs while the pad is up)
  *     rows      a level's `events.hud` (raw or normalized: normalizing is idempotent)
- *     hero      draw the pilot's own gauges (its health, its sprint) with the rows: true unless said; with them, the
- *               lens's strike (a foe just struck, the air round it bent on the screen)
+ *     hero      draw the pilot's own gauges (its health, its sprint) with the rows: true unless said
  *   levelHud(theme, { screen? }) → a level manifest's `manaHud`: { rows: 'events', theme } (the page lowers the level's
  *     rows where it emits them, so a mechanic's rows, merged late, are in)
  *
@@ -107,10 +106,7 @@ export function hudToMana(rows, { register = null, hero = true, touch = false } 
     // the screen's edge, closing in as the health runs out; where a hit came from, as arcs round the aim
     layers.push({ use: 'peril', props: { level: B('hero.peril') } }, { use: 'threat', props: { markers: B('ring.hits') }, when: B('ring.on') });
   }
-  // THE LENS (mana-ui's screen layer): where the pilot fights, the foe just struck gets its strike, the air round it bent
-  // for a beat on the screen (the world flashes the body itself: the lens never draws over it)
-  const lens = hero ? { lens: { use: 'lens', children: [{ use: 'strike', props: { rows: B('lens.hits'), kind: 'ring' } }] } } : {};
-  return { spec: { screens: {}, hud: { use: 'hud', children: [...layers, ...regions] }, ...lens }, feed: { rows: { vars, gates, banners, toasts, lines: Object.values(lines) }, ...(hero ? { hero: true, ...(hpStrip ? { hpVar: hpStrip.k } : {}) } : {}) } };
+  return { spec: { screens: {}, hud: { use: 'hud', children: [...layers, ...regions] } }, feed: { rows: { vars, gates, banners, toasts, lines: Object.values(lines) }, ...(hero ? { hero: true, ...(hpStrip ? { hpVar: hpStrip.k } : {}) } : {}) } };
 }
 
 /** A level's `manaHud` in a look (a mana-ui preset's name, a card's, or a theme object): its rows are the level's own. */

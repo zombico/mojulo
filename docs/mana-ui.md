@@ -1117,27 +1117,35 @@ look the course's dress names (`toybox`, the toy family's first card).
 
 The HUD sits on the picture. The lens acts on it: a spec's `lens` is a second part of the same runtime, drawn apart
 from the HUD's root (`rt.lens()`, mounted with `mount(el, rt, { part: 'lens' })`). The host lays it beside the world's
-canvas and under the HUD. Its regions filter the world's own pixels, so its root is never its own stacking context:
+canvas and under the UI. Its regions filter the world's own pixels, so its root is never its own stacking context:
 no z-index, no `contain`, no `container-type`, no opacity, transform or filter on it (`lensCss`). Anything that
 isolated it would leave its regions filtering nothing; the reactive layer's spike found it
 (`scripts/spikes/reactive-layer/`).
 
-Its first effect is the **strike**: the foe just struck, at its place on the screen.
-- **What it draws:** the air round the foe's body, a band from its silhouette out, bent and lit (`ring`), lit
-  (`lift`), darkened (`shade`) or turned to its negative for a beat (`ink`, a lift under less flash).
-- **Where it draws:** each row `{ id, n, x, y, r, power }` is the foe's middle and its body's radius on the screen. A
-  new `n` (its hits) plays again; a row followed moves with it.
+**It is for still figures: a turn-based fight, never an action level.** A region on the screen is drawn where the
+figure was when the page last projected it. A figure that stands while the round plays is where its region says; one
+that runs and dodges outruns it, and an action level's hits are already answered by the world (the body's flash, its
+sparks, the tempo's moments). So its host is the RPG's battle (`playscape/rpg/rpg-ui.js`, `scene/channels/rpg-channel.js`),
+and the level HUD carries no lens.
+
+Its first effect is the **strike**: the air round a figure on the screen.
+- **What it draws:** a band from the figure's silhouette out, bent and lit (`ring`), lit (`lift`), darkened (`shade`)
+  or turned to its negative for a beat (`ink`, a lift under less flash). Each row may name its own kind over the
+  strike's: a miss's ring and a cast's lift in the same fight.
+- **Where it draws:** each row `{ id, n, x, y, r, power?, kind? }` is the figure's middle and its body's radius on the
+  screen. A new `n` plays again.
 - **Its cost:** each strike is a region the size of its band (a region filters only its own area), and at most
   `most` play at once.
 
-**It never overlaps the world's own effects.** The world flashes the struck body itself and throws its sparks at the
-contact, so the strike's mask leaves a hole over the body. The world's moments (a tempo look's full-screen flash,
-invert, zoom and shake) answer the hits they play on, so the feed stands down while one plays. The pilot's own hurt
-is the HUD's peril edge and damage ring, never the lens's.
+**In a fight it is a juice step** (`playscape/rpg/juice.js`): `{ lens: ring | lift | shade | ink, at?: target | actor }`
+draws round the figure the step names, for the beat. By default a miss bends the air round its target and a cast
+lights the air round its caster: the beats the world leaves bare.
 
-The host feeds it (`scene/channels/lens-feed.js`): each foe's `hits` counted, its power from the hit's damage against
-its health, its place projected on the page's own camera. A level HUD with the pilot's parts carries it (`hudToMana`
-with `hero`).
+**It never overlaps the world's own effects.** The world draws on the figure, so the strike's mask leaves a hole over
+the body. And a lens step yields where the beat's world already answers (`lensYields`): a flash over the field, a puff
+on the same figure, or a beam landing on its target. The screen's juice never doubles the world's.
+`scripts/spikes/reactive-layer/lens-proof.mjs` shows it in Chrome in a party fight: each kind round the struck figure,
+and nothing on a hit that flashes the field.
 
 ### Screen effects
 
