@@ -35,6 +35,8 @@
  *   throwBody(s, b, v, dir, dz, lift)  a body thrown at the law's speed (m/s)
  *   EARTH · slabMass · shoveSpeed · slabMeets · slabSlows · slabStep   a slab of the street shoved: matter meets matter
  *                                (below)
+ *   BRAWL_AIR · floatStep(p, walk, walkZ) · windForce(area, v) · windGain(b, m, area, v)   a hero floating on the air, and a
+ *                                gale's drag on a body (below)
  *
  * Pure: plain numbers, no clock, no dice.
  */
@@ -51,7 +53,8 @@ const heightOf = (F) => (F && F.body && F.body.height > 0 ? F.body.height : 1800
 const big = (F) => !!(F && F.brawl && F.brawl.style === 'grappler');
 export const massOf = (F) => Math.round(K.MASS * heightOf(F) ** 3 * (big(F) ? K.HEAVY : 1));
 export const areaOf = (F) => Math.round(K.AREA * heightOf(F) ** 2 * (big(F) ? 1.3 : 1) * 1000) / 1000;
-const standing = (b) => b.y <= 0 && b.st !== 'fall';
+// (a floating body, `fy`, stands on nothing: no footing holds it)
+const standing = (b) => b.y <= 0 && b.st !== 'fall' && !b.fy;
 export const holdOf = (b, m) => (standing(b) ? K.MU * m * K.G * K.SLIP : 0);
 export const throwSpeed = (m, joules, hold) => (joules > hold ? Math.min(K.CAP, Math.sqrt((2 * (joules - hold)) / m)) : 0);
 export const shareOf = (area, d) => Math.min(1, area / (2 * Math.PI * Math.pow(Math.max(0, d) + K.R0, 2)));
@@ -148,3 +151,38 @@ export function slabMeets(M, v, m) {
 export const slabSlows = (v) => Math.max(0, v - (K.MU_K * K.G) / 60);
 /** how far the slab moves on the street this frame (mm) at the law's speed v */
 export const slabStep = (v) => Math.round(Math.min(K.STREET_CAP, v * EARTH.WALL_PACE) * MM);
+
+// ── AIR: a hero carried on it, and a gale down the street (rupa's vayo and its wind) ─────────────────────────────────
+//
+// FLOATING (a weather power's hero, `fy`): it does not walk, it drifts, on rupa's vayo law (docs/rupa.md "Vayo moves"): a
+// push p toward where the stick points against the air's quadratic drag k, a = p − k·v·|v|. Its top speed is its walk's,
+// √(p/k); `CARRY` sets the air's density (the metres it glides on, let go at its top speed, until it is all but still),
+// and the push follows from the two. So it eases up to speed and glides on after the stick is let go, never a step and a
+// stop. It stands on nothing, so no footing holds it against a blow or a wind (holdOf above).
+//
+// A GALE: wind of `speed` m/s down the street from its caller, `length` m long and `width` m across, for `frames`. Its drag
+// on a body is ½·ρ·Cd·A·v² (rupa's wind on a standing thing); what passes the body's footing (μ·m·g; none for a body in
+// the air or floating) accelerates it along the wind, a = (F − hold)/m. A grunt is blown off its feet, a big body braces,
+// a floating one is swept away. It falls off over its last third.
+export const BRAWL_AIR = Object.freeze({ CARRY: 1.4, STOP: 0.15, RHO: 1.2, CD: 1.2, HOVER: 420 });
+const MPS = 60 / 1000;   // mm a frame → m/s
+/** a floating body's drift a frame on: its velocity (hundredths of a mm a frame, `fvx`, `fvz`) toward the stick, `walk`
+ * its top speed (mm a frame), `walkZ` its share across the street; → the mm it moves [along, across] */
+export function floatStep(p, walk, walkZ = 60) {
+  const top = walk * MPS, k = Math.log(top / BRAWL_AIR.STOP) / BRAWL_AIR.CARRY, push = k * top * top;
+  const axis = (fv, dir) => {
+    let v = (fv / 100) * MPS;
+    v += (push * dir - k * v * Math.abs(v)) / 60;
+    if (!dir && Math.abs(v) < BRAWL_AIR.STOP) v = 0;
+    return Math.round((v / MPS) * 100);
+  };
+  p.fvx = axis(p.fvx ?? 0, Math.sign(p.wx ?? 0));
+  p.fvz = axis(p.fvz ?? 0, Math.sign(p.wz ?? 0));
+  if (!p.fvx) delete p.fvx;
+  if (!p.fvz) delete p.fvz;
+  return [Math.round((p.fvx ?? 0) / 100), Math.round(((p.fvz ?? 0) / 100) * (walkZ / 100))];
+}
+/** the wind's drag on a body (N): ½·ρ·Cd·A·v² */
+export const windForce = (area, v) => 0.5 * BRAWL_AIR.RHO * BRAWL_AIR.CD * area * v * v;
+/** a frame of wind on a body (m/s gained along it): what passes its footing, over its mass */
+export const windGain = (b, m, area, v) => Math.max(0, windForce(area, v) - (standing(b) ? K.MU * m * K.G : 0)) / m / 60;

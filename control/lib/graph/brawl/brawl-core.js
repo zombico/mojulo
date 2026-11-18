@@ -6,7 +6,7 @@
  *   brawlHash(state)                               a short, stable fingerprint (replays, determinism)
  *   ctx = { fighters: [compiled, …], belt?, guns? } (versus-compile.js; brawl-belt.js readBelt; brawl-guns.js readGun:
  *                                                   the guns its bodies carry; constant through a brawl)
- *   body = { fighter, side: 'player' | 'crowd', x, z, face?, grabs?, wave?, gun?, grenades?, poise?, power? }    x mm along the belt, z mm across it (the
+ *   body = { fighter, side: 'player' | 'crowd', x, z, face?, grabs?, wave?, gun?, grenades?, poise?, power?, float? }    x mm along the belt, z mm across it (the
  *          band), y up; `grabs: false` never takes hold, `wave: k` waits offstage until its wave comes in (brawl-crowd.js)
  *   pad  = { x: -1 | 0 | 1, z: -1 | 0 | 1, mv?, jump?, dash? }    the stick along and across, and a command: `mv` a move's
  *                                                                 slot to start (or cancel into), `jump` a jump, `dash`
@@ -67,6 +67,11 @@
  *     as cover (the other side's rounds stop on it, no body walks through it); shoved, it slides on, slowed by the ground
  *     and by each body it meets, which takes the collision's closing energy and is thrown by it (brawl-kinetics.js);
  *     stopped, or left standing too long, it crumbles. State `walls` only while one stands: absent, nothing changes.
+ *   • AIR: a body given `float` (a weather power's hero) drifts on the air in place of walking, easing up to its walk's
+ *     speed and gliding on after the stick is let go, and no footing holds it; a move's `gale` blows a gust down the
+ *     street, each body of the other side in it gaining speed by what its drag passes its footing (a grunt blown off its
+ *     feet, a big body braced, a floating one swept away), the other side's rounds blown out of the air (brawl-kinetics.js).
+ *     State `gusts` only while one blows.
  *   • COOLDOWN: a move with a `cool` (the brawler's strong blows) leaves its body unable to start another with one for
  *     `cool` frames from its start (`cd`, frames left; absent when none); asked for meanwhile, it is not started.
  *   • WAKE-UP: a body rising from the floor is untouchable `wake` frames more, so a crowd cannot keep it down.
@@ -122,7 +127,7 @@ import { METER_MAX, STATES } from '../versus/versus-library.js';
 import { beltScroll, beltBounds } from './brawl-belt.js';
 import { THINGS, MOUNTS } from './brawl-things.js';
 import { roundsOf, aimVector, GUN_MUZZLE } from './brawl-guns.js';
-import { kick, landSlide, slideOn, throwBody, throwSpeed, holdOf, massOf, slabMass, shoveSpeed, slabMeets, slabSlows, slabStep, EARTH } from './brawl-kinetics.js';
+import { kick, landSlide, slideOn, throwBody, throwSpeed, holdOf, massOf, areaOf, slabMass, shoveSpeed, slabMeets, slabSlows, slabStep, EARTH, KINETICS, floatStep, windGain } from './brawl-kinetics.js';
 
 export const BRAWL_RULES = Object.freeze({
   line: 320,        // mm across the belt a blow reaches: two bodies further apart than this are not lined up
@@ -171,6 +176,8 @@ function newBody(i, b, ctx) {
     ...(Number.isInteger(b.gun) ? { gn: b.gun, sd: b.gun, fc: 0, nf: 0, ...(Number.isInteger(b.grenades) ? { gr: b.grenades, gi: b.grenadeGun } : {}) } : {}),
     // (a hero's power stock: its uses left and its uses a life)
     ...(Number.isInteger(b.power) ? { pw: b.power, pwm: b.power } : {}),
+    // (a body carried on the air: it drifts, it does not walk, brawl-kinetics.js floatStep)
+    ...(b.float ? { fy: 1 } : {}),
     // (a body of a wave waits offstage, gone, until its wave comes in: brawl-crowd.js)
     ...(b.wave !== undefined ? { gone: 1, wv: b.wave } : {}),
   };
@@ -223,7 +230,7 @@ export function newBrawl(ctx, opts = {}) {
 }
 
 function cloneBrawl(s) {
-  return { ...s, bodies: s.bodies.map((p) => ({ ...p, hl: p.hl.map((h) => h.slice()), ...(p.fh ? { fh: p.fh.slice() } : {}), ...(p.mr ? { mr: p.mr.slice() } : {}) })), shots: s.shots.map((t) => ({ ...t, hl: t.hl.slice() })), events: [], cleared: s.cleared.slice(), ...(s.walls ? { walls: s.walls.map((w) => ({ ...w, hl: w.hl.slice() })) } : {}), ...(s.things ? { things: s.things.map((t) => ({ ...t, ...(t.hl ? { hl: t.hl.slice() } : {}) })) } : {}) };
+  return { ...s, bodies: s.bodies.map((p) => ({ ...p, hl: p.hl.map((h) => h.slice()), ...(p.fh ? { fh: p.fh.slice() } : {}), ...(p.mr ? { mr: p.mr.slice() } : {}) })), shots: s.shots.map((t) => ({ ...t, hl: t.hl.slice() })), events: [], cleared: s.cleared.slice(), ...(s.walls ? { walls: s.walls.map((w) => ({ ...w, hl: w.hl.slice() })) } : {}), ...(s.gusts ? { gusts: s.gusts.map((g) => ({ ...g, hl: g.hl.slice() })) } : {}), ...(s.things ? { things: s.things.map((t) => ({ ...t, ...(t.hl ? { hl: t.hl.slice() } : {}) })) } : {}) };
 }
 
 // ── boxes (the fight's, in the plane along the belt; the line across it is the brawl's) ─────────────────────────
@@ -291,6 +298,7 @@ export function stepBrawl(prev, pads, ctx) {
   for (const t of s.shots) if (t.boom) burst(s, ctx, t);
   if (s.things) coverStops(s, ctx);
   if (s.walls) stepWalls(s, ctx);
+  if (s.gusts) stepGusts(s, ctx);
   s.shots = s.shots.filter((t) => t.life > 0 && t.hits > 0);
   if (s.things) flying(s, ctx);
   // (a wreck skids on and stops)
@@ -430,7 +438,7 @@ function think(s, p, pad, ctx) {
 
 function start(s, p, F, slot) {
   const m = F.moves[slot];
-  p.mv = slot; p.mf = 0; p.conn = 0; p.hl = []; p.air = 0; delete p.cl; delete p.kd;
+  p.mv = slot; p.mf = 0; p.conn = 0; p.hl = []; p.air = 0; delete p.cl; delete p.kd; delete p.fvx; delete p.fvz;
   if (m.cool) p.cd = m.cool;
   if (m.stance === 'air') {
     p.airMove = 1;
@@ -486,7 +494,8 @@ function advance(s, p, ctx) {
       if (p.sf >= R.roll) { p.st = 'stand'; p.sf = 0; }
       break;
     }
-    case 'walk': { const v = Math.round((stated(p, 'speed', F.walk.f) * (p.lf !== undefined && p.lf < 2 ? R.fireWalk : 100)) / 100); p.x += p.wx * v; p.z += Math.round((p.wz * v * R.walkZ) / 100); break; }
+    case 'walk': { if (p.fy) { drift(p, F, R); break; } const v = Math.round((stated(p, 'speed', F.walk.f) * (p.lf !== undefined && p.lf < 2 ? R.fireWalk : 100)) / 100); p.x += p.wx * v; p.z += Math.round((p.wz * v * R.walkZ) / 100); break; }
+    case 'stand': if (p.fy) drift(p, F, R); break;
     case 'run': {
       const v = stated(p, 'speed', Math.round((F.dash.f.dist * R.run) / (F.dash.f.frames * 100)));
       p.x += p.face * v; p.z += Math.round((p.wz * stated(p, 'speed', F.walk.f) * R.walkZ) / 100);
@@ -527,6 +536,7 @@ function advance(s, p, ctx) {
       // (an earth power: a slab of the street wrenched up as the move strikes, or the hero's own slab shoved)
       if (m.wall && p.mf === m.startup) raiseWall(s, p, m.wall);
       if (m.shove && p.mf === m.startup) shoveWall(s, p);
+      if (m.gale && p.mf === m.startup) callGale(s, p, m.gale);
       if (p.air) {
         fall(p, J.g);
         if (p.mf > m.total) p.mf = m.total;
@@ -942,6 +952,8 @@ function blow(s, ctx, { a: p, d, m, shot, at, box }) {
   const limb = shot ? 'shot' : m.armed ? 'blade' : LIMBS[m.limb.replace(/[FB]$/, '')] ?? 'fist';
   s.events.push({ t: counter ? 'counter' : 'hit', p: p.id, d: d.id, dmg, x: at[0], z: d.z, y: at[1], combo: d.combo, w, limb, kind: shot ? (shot.gun !== undefined ? 'round' : 'shot') : m.kind, ...(gunId ? { gun: gunId, flinch: 1 } : {}) });
   if (d.hp <= 0) knockOut(s, d, face);
+  // (a floating body struck loses its drift)
+  if (d.fy) { delete d.fvx; delete d.fvz; }
   // (A BLOW'S ENERGY, rupa's knockback (brawl-kinetics.js): the struck body thrown by its mass, and an impact's shock
   // where the blow first lands (a round's at its contact, a move's round its thrower), once a round or a move; a body it
   // has just knocked out is thrown with the rest: the fallen fly)
@@ -1007,6 +1019,57 @@ function shoveWall(s, p) {
   w.v = w.v0 = Math.round(shoveSpeed(w.mass, w.push) * 100);
   s.events.push({ t: 'shove', p: p.id, x: w.x, z: w.z, v: w.v / 100 });
 }
+// a floating body drifting toward the stick and gliding on after it (brawl-kinetics.js floatStep); anything else it does
+// stops the drift
+function drift(p, F, R) {
+  const [dx, dz] = floatStep(p, stated(p, 'speed', F.walk.f), R.walkZ);
+  p.x += dx; p.z += dz;
+}
+
+// ── AIR: a gale down the street (brawl-kinetics.js windGain: its drag on a body against the body's footing) ─────────
+// A gust { id, o, side, x, z, dir, len, wid, v (m/s), f, frames, dmg, hl } blows from its caller along the street: each
+// body of the other side in its column gains speed along it by what its drag passes its footing (`wn`, hundredths of a
+// m/s), is carried by it, staggered while it braces and thrown down once past a knockdown's speed; the other side's
+// rounds in it are blown out of the air. It falls off over its last third, and is gone after its frames.
+function callGale(s, p, G) {
+  if (!s.gusts) s.gusts = [];
+  const id = (s.ng = (s.ng ?? 0) + 1);
+  s.gusts.push({ id, o: p.id, side: p.side, x: p.x, z: p.z, dir: p.face, len: Math.round(G.length * 1000), wid: Math.round(G.width * 1000), v: G.speed, f: 0, frames: G.frames, dmg: G.damage, hl: [] });
+  s.events.push({ t: 'gust', p: p.id, x: p.x, z: p.z, dir: p.face, len: Math.round(G.length * 1000), wid: Math.round(G.width * 1000), frames: G.frames });
+}
+function stepGusts(s, ctx) {
+  for (const g of s.gusts) {
+    g.f++;
+    for (const o of s.bodies) {
+      if (o.side === g.side || o.gone || o.aw) continue;
+      const along = (o.x - g.x) * g.dir;
+      if (along < 0 || along > g.len || Math.abs(o.z - g.z) > g.wid / 2 + s.rules.body) { delete o.wn; continue; }
+      // (the wind there: whole over its first two thirds, falling to nothing at its end)
+      const v = g.v * Math.min(1, (3 * (g.len - along)) / g.len), F = ctx.fighters[o.fi], m = massOf(F);
+      o.wn = (o.wn ?? 0) + Math.round(windGain(o, m, areaOf(F), v) * 100);
+      const wn = o.wn / 100;
+      if (wn <= 0) continue;
+      if (!g.hl.includes(o.id) && g.dmg && !o.ko) { g.hl.push(o.id); o.hp -= g.dmg; if (o.hp <= 0) knockOut(s, o, g.dir); }
+      if (wn >= KINETICS.TOPPLE && o.st !== 'fall' && o.st !== 'down' && o.st !== 'ko') { throwBody(s, o, wn, g.dir, 0, 0.25); delete o.wn; continue; }
+      // (carried along the wind; braced against it, staggering)
+      o.x += g.dir * Math.round(Math.min(KINETICS.STREET_CAP, wn * KINETICS.PACE) * (1000 / 60));
+      if (wn > 1 && (o.st === 'stand' || o.st === 'walk')) { o.st = 'hit'; o.sf = 0; o.mv = null; o.stun = Math.max(o.stun ?? 0, 6); o.rx = { k: 'hit', h: 0, w: 0, c: 0 }; }
+    }
+    // (the other side's rounds in it, blown out of the air)
+    for (const t of s.shots) {
+      if (t.side === g.side || t.lob || t.hits <= 0) continue;
+      const along = (t.x - g.x) * g.dir;
+      if (along < 0 || along > g.len || Math.abs(t.z - g.z) > g.wid / 2) continue;
+      t.hits = 0; t.life = 0;
+      s.events.push({ t: 'blown', x: t.x, z: t.z, y: t.y });
+    }
+  }
+  const over = s.gusts.filter((g) => g.f >= g.frames);
+  if (over.length) for (const o of s.bodies) delete o.wn;
+  s.gusts = s.gusts.filter((g) => g.f < g.frames);
+  if (!s.gusts.length) delete s.gusts;
+}
+
 function crumble(s, w) {
   w.st = 'crumble'; w.f = 0; w.v = 0;
   const o = s.bodies[w.o];

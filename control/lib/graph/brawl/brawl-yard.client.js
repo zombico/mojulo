@@ -492,10 +492,13 @@ function placeMount(B, p) {
   // (the rider sat on its saddle: lifted from a stander's hip to the saddle's top)
   return MOUNTS[kind].seat + 60 - RIDER_HIP;
 }
-const RIDER_HIP = 900;
+const RIDER_HIP = 900, FLOORED = new Set(['fall', 'down', 'ko', 'rise']);
 function placeBody(B, p, F) {
   const hidden = !!p.gone, lift = placeMount(B, p);
   if (lift) p = { ...p, y: p.y + lift };
+  // (a body carried on the air, a weather power's hero (brawl-kinetics.js BRAWL_AIR): it hovers, bobbing slowly, and drifts
+  // standing, never walking; down, it lies on the ground as any body does)
+  if (F.power && F.power.float && !FLOORED.has(p.st)) p = { ...p, y: p.y + BRAWL_AIR.HOVER + Math.round(60 * Math.sin((t + p.id * 37) * 0.06)), ...(p.st === 'walk' ? { st: 'stand' } : {}) };
   B.group.visible = !hidden; B.shadow.visible = !hidden;
   if (B.blade) B.blade.fill.visible = B.blade.ink.visible = !hidden && !!F.weapon;
   if (B.line) B.line.visible = !hidden;
@@ -744,6 +747,26 @@ function placeWalls() {
   }
   for (const [id, m] of SLABS) if (!seen.has(id)) { YARD.remove(m); SLABS.delete(id); }
 }
+// A GALE (brawl-core.js `gusts`): streaks of air running down its column from its caller for as long as it blows, each at
+// its own height and across the column (by its index: no dice), pale and thin
+const STREAK_GEO = new THREE.BoxGeometry(1, 0.03, 0.03), STREAKS = [];
+function galeStreaks(e) {
+  for (let i = 0; i < 14; i++) {
+    const m = new THREE.Mesh(STREAK_GEO, new THREE.MeshBasicMaterial({ color: 0xe8f2ff, transparent: true, opacity: 0, depthWrite: false }));
+    const across = ((i * 0.618) % 1) - 0.5, up = 0.3 + ((i * 0.381) % 1) * 1.6;
+    YARD.add(m); STREAKS.push({ m, e, i, across, up, k: -(i % 5) * 3, n: e.frames });
+  }
+}
+function stepStreaks() {
+  for (let j = STREAKS.length - 1; j >= 0; j--) {
+    const S = STREAKS[j]; S.k++;
+    const u = ((S.k * 3 + S.i * 17) % 40) / 40, along = (S.e.len / 1000) * u, x = S.e.x / 1000 + S.e.dir * along, len = 0.6 + 0.8 * (1 - u);
+    S.m.scale.set(len, 1, 1);
+    S.m.position.set(x, S.e.z / 1000 + S.across * (S.e.wid / 1000) + DR(S.e.x), S.up + FL(S.e.x));
+    S.m.material.opacity = S.k < 0 ? 0 : 0.55 * (1 - u) * Math.min(1, (S.n - S.k) / 10);
+    if (S.k >= S.n) { YARD.remove(S.m); S.m.material.dispose(); STREAKS.splice(j, 1); }
+  }
+}
 // IMPACT FRAMES: the picture flashed for a heavy landing (inverted under the anime register, white otherwise)
 const IMPACT = (() => {
   const d = document.createElement('div');
@@ -978,6 +1001,9 @@ function tick() {
     // (a slab wrenched up, shoved, crumbling: dust where it meets the ground)
     if (e.t === 'wall' || e.t === 'crumble') { dustRing(e); if (e.t === 'crumble') flash({ ...e, y: 900 }, true, true); }
     if (e.t === 'shove') dustRing({ ...e, ground: 8000 });
+    // (a gale's streaks; a round blown out of the air puffs)
+    if (e.t === 'gust') galeStreaks(e);
+    if (e.t === 'blown') flash(e, false, true, '#e8f2ff');
     // (a hero's power: a burst in its colour where it is called up; and its SUPER BEAT on the lens, round whoever calls
     // it up, the street held still for it: the power's own screen (brawl-powers.js `beat`), a fight super's its negative)
     if (e.t === 'power') flash({ ...e, y: 1000 }, true, false, powerColour(e.p));
@@ -1012,6 +1038,7 @@ function draw() {
   placeThings();
   placeRounds();
   placeWalls();
+  stepStreaks();
   stepFlashes();
   IMPACT.el.style.display = IMPACT.left > 0 ? 'block' : 'none';
   if (STREET) { streetScreen(); return; }

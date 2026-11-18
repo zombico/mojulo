@@ -1629,6 +1629,7 @@ function heroesCard() {
     '(S; a few uses a life, filled at each fall), an army that drops in and falls fast, five falls, a villain with a power, in stages.',
     'A power called up is a SUPER BEAT: the street held still a moment, the air round the caster lit, bent, darkened or inked.',
     `EARTH (${POWER_IDS.filter((id) => POWERS[id].wall).join(', ')}): S raises a slab as cover, S again shoves it (free); its blow by its speed.`,
+    `AIR: ${POWER_IDS.filter((id) => POWERS[id].float).join(', ')} carry their hero (it floats: drifts, glides, no footing).`,
     `Its ENERGY is rupa's knockback (joules: light bodies fly, heavy ones stagger; an impact's shock falls off with distance): ${POWER_IDS.filter((id) => POWERS[id].knock).map((id) => `${id} ${POWERS[id].knock.kinetic ? 'pushes' : 'lands'}`).join(', ')}.`,
     '',
     'ASK FIRST, before making it (the heroes and their powers are the person\'s to design; offer the defaults if they have none):',
@@ -1639,7 +1640,7 @@ function heroesCard() {
     'POWER KINDS (each a card): ' + POWER_IDS.map((id) => `${id} (${POWERS[id].stock})`).join(', ') + '.',
     ...POWER_IDS.map((id) => `  ${id}: ${POWERS[id].says}`),
     `A DESIGNED POWER: { kind, name?, beam? (its look: ${BEAM_NAMES.join(', ')}), stock? 1..9, ${D} } (* a round's kinds only).`,
-    `  screen?: its SUPER BEAT round the caster as the street holds still for it (${POWER_SCREENS.join(' | ')}; the kind's unsaid: ${POWER_IDS.map((id) => `${id} ${POWERS[id].beat.screen}`).join(', ')}).`,
+    `  screen?: its SUPER BEAT round the caster (${POWER_SCREENS.join(' | ')}; each kind has its own). float?: carried on the air.`,
     '  e.g. { kind: \'beam\', name: \'Solar lance\', beam: \'laser\', strength: 120, pierce: 3 }. Far from its kind\'s measure: a balance law advises.',
     '',
     'QUICK (one call, by streets): design_game({ quick: { goal: \'brawl\', heroes: true | { team?, villain? } } })',
@@ -1651,8 +1652,7 @@ function heroesCard() {
     'DESIGNED: a street level: tuning: \'heroes\', powers?: [<power> | null] in seat order (unsaid: the hero\'s own actions page',
     '  attack, the rest the team\'s). Its seats the game\'s hero and those who join; its crowd the game\'s own foes.',
     '',
-    'MEASURED by the scripted hero (brawl-playthrough.js `hero`) on the cards as they are: one hero wins the default street alone',
-    'with falls to spare. A designed power is not measured. Nobody has played it: the eyes gate is the person\'s.',
+    'MEASURED (brawl-playthrough.js `hero`): one hero wins the default street alone; a designed power is not; nobody has played it.',
   );
 }
 

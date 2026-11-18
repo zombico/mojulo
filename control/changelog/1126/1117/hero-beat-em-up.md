@@ -61,6 +61,18 @@
   the default street alone, losing two of five falls (with two uses a life it lost four, so it has three). Seen on the
   page in headless Chrome: the slab standing between the hero and two enemies, then sliding into them and throwing
   them.
+- **Heroes who float, and a wind power.** A weather hero is carried on the air instead of walking, as the weather
+  witch of the comics rarely touches the ground. It hovers off the street with a slow bob and drifts rather than
+  walks: it eases up to speed and glides on for a moment after you let go, by the same law the studio uses for a
+  hero's air dash. With no footing under it, a blow knocks it further than a hero standing on the ground. The storm
+  power's hero now floats, and so does the new gale power. The gale calls a hurricane of wind down the street. How hard
+  it pushes each enemy is the wind's drag against that enemy's footing: a grunt is blown off its feet and carried away,
+  a heavy brute braces and holds, and a floating body is swept away hardest. Enemy fire caught in the gale is blown out
+  of the air. The gale is drawn as streaks of air down the street. A designed power can carry its hero too
+  (`float: true`), and its strength makes its wind stronger. Measured: one hero with the gale wins the default street
+  alone, losing three of five falls. The four-hero team now loses two falls (it lost none before its storm hero
+  floated, since a floating hero is easier to knock about). Seen on the page in headless Chrome: the hero hovering,
+  the streaks of the gale, and the enemies in it braced and pushed back.
 - **A power's round can floor what it hits.** A special's projectile now knocks down when its move says so, and a
   power's round passes through as many bodies as its card says. Before, a projectile knocked nobody down and
   stopped at the first body.

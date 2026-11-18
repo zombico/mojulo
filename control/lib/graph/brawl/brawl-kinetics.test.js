@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { KINETICS, massOf, holdOf, throwSpeed, shareOf, readKnock, kick, landSlide, slideOn, slabMass, shoveSpeed, slabMeets, slabSlows } from './brawl-kinetics.js';
+import { KINETICS, massOf, holdOf, throwSpeed, shareOf, readKnock, kick, landSlide, slideOn, slabMass, shoveSpeed, slabMeets, slabSlows, floatStep, windForce, windGain } from './brawl-kinetics.js';
 import { POWERS, POWER_IDS } from './brawl-powers.js';
 import { streetOf, stepStreet } from './brawl-crowd.js';
 import { newReader, readButtons } from './brawl-moves.js';
@@ -135,5 +135,63 @@ describe('an earth power\'s slab', () => {
   it('a street with no earth power carries no slabs', () => {
     const log = fire(KINETIC, [[1200, 0], [2000, 0]]);
     expect(log.some((x) => 'walls' in x.s)).toBe(false);
+  });
+});
+
+// BRAWL_AIR: a hero carried on it (rupa's vayo law), and a gale's drag on a body against its footing.
+describe('the air: floating, and a gale', () => {
+  const GALE = POWER_IDS.find((id) => POWERS[id].gale), FLOATS = POWER_IDS.find((id) => POWERS[id].float);
+  it('a floating body eases up to its walk\'s speed and glides on after the stick is let go; no footing holds it', () => {
+    const p = { wx: 1, wz: 0 }, xs = [];
+    let x = 0;
+    for (let k = 0; k < 240; k++) { if (k === 60) p.wx = 0; x += floatStep(p, 52)[0]; xs.push(x); }
+    expect(xs[9]).toBeLessThan(52 * 10);           // (easing up: short of a walk's ten steps)
+    expect(xs[59] - xs[49]).toBeGreaterThan(470);   // (at speed by then)
+    expect(xs[89]).toBeGreaterThan(xs[59] + 300);   // (gliding on after the stick is let go)
+    expect(xs[239]).toBe(xs[238]);                  // (and come to rest)
+    expect(holdOf({ y: 0, st: 'stand', fy: 1 }, 75)).toBe(0);
+  });
+
+  it('a gale\'s drag passes a grunt\'s footing, a big body braces, a floating one is swept hardest', () => {
+    const thug = { y: 0, st: 'stand' }, floater = { y: 0, st: 'stand', fy: 1 }, v = POWERS[GALE].gale.speed;
+    expect(windForce(0.5, v)).toBeGreaterThan(KINETICS.MU * 75 * KINETICS.G);
+    expect(windGain(thug, 75, 0.5, v)).toBeGreaterThan(windGain(thug, 172, 0.75, v));
+    expect(windGain(floater, 75, 0.5, v)).toBeGreaterThan(windGain(thug, 75, 0.5, v));
+    expect(windGain(thug, 172, 0.75, v * 0.6)).toBe(0);   // (a lesser wind: the big body does not move at all)
+  });
+
+  it('on the street: the gust blows the grunt off its feet, the heavy holds, rounds are blown away, and no stop is cleared by it', () => {
+    let st = streetOf({ belt, players: [hero(GALE)], waves: [{ screen: 1, crowd: [{ type: 'thug', n: 1 }, { type: 'heavy', n: 1 }] }, { screen: 2, crowd: [{ type: 'rifleman', n: 1 }] }] });
+    expect(st.s.bodies[0].fy).toBe(1);
+    st.s.bodies[0].x = 22000;
+    let r = newReader();
+    const log = [];
+    for (let k = 0; k < 260; k++) {
+      const me = st.s.bodies[0];
+      if (k === 150) st.s.bodies.filter((b) => b.side === 'crowd' && b.wv === 0).forEach((b, i) => Object.assign(b, { x: me.x + [1500, 2500][i], z: me.z + [-300, 300][i], st: 'stand', sf: 0, mv: null, gone: 0 }));
+      // (a round of the crowd flying at the hero through the gale)
+      if (k === 175) st.s.shots.push({ id: 999, o: 3, side: 'crowd', gun: 0, x: me.x + 3000, z: me.z, y: 1200, vx: -60, vz: 0, w: 60, h: 60, life: 90, hits: 1, rehit: 0, hitAt: -999, dmg: 10, hitstun: 10, hitstop: 2, push: 40, sup: 0, meter: 0, hl: [] });
+      const [pad, r2] = readButtons(r, k === 152 ? { s: true } : {}, me, st.ctx.fighters[0]);
+      r = r2;
+      st = stepStreet(st, [pad]);
+      log.push(st);
+    }
+    const [thug, heavy] = log[0].s.bodies.filter((b) => b.side === 'crowd' && b.wv === 0);
+    const thrown = events(log, 'thrown');
+    expect(thrown.find((e) => e.p === thug.id)?.v).toBeGreaterThanOrEqual(KINETICS.TOPPLE);
+    expect(thrown.some((e) => e.p === heavy.id)).toBe(false);
+    expect(events(log, 'blown').length).toBeGreaterThan(0);
+    expect(events(log, 'cleared')).toEqual([]);
+    // (the gust is gone after its frames: no state left behind)
+    expect(log.at(-1).s.gusts).toBeUndefined();
+    expect(log.at(-1).s.bodies.every((b) => b.wn === undefined)).toBe(true);
+  });
+
+  it('a power that does not float leaves its hero walking, and a street with no gale carries no gusts', () => {
+    const st = streetOf({ belt, players: [hero(KINETIC)], waves: [] });
+    expect(st.s.bodies[0].fy).toBeUndefined();
+    expect(POWERS[KINETIC].float).toBeUndefined();
+    expect(FLOATS).toBeDefined();
+    expect(fire(KINETIC, [[1200, 0], [2000, 0]]).some((x) => 'gusts' in x.s)).toBe(false);
   });
 });

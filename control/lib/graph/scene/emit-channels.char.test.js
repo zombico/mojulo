@@ -943,3 +943,7 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // Re-pinned 2026-11-18 (1117-hero-beat-em-up: an earth power's slab): `brawl` only. Its page inlines the core's walls
 // (raised, stood as cover, shoved, crumbling: a state key only while one stands), the slab's law in the kinetics, the
 // moves' second press and the client's slab and its dust. The fixture raises none: it plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: floating and a gale): `brawl` only. Its page inlines the air's laws in the
+// kinetics (a floater's drift, a wind's drag), the core's drift in place of the walk for a floating body and its gusts
+// (a state key only while one blows), and the client's hover and the gale's streaks. The fixture floats and blows
+// nothing: it plays as it did.

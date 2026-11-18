@@ -10,7 +10,7 @@
  * stock. Its LOOK is a beam of the elements' shelf (playscape/elements/beams.js BEAMS: the same words the game book's
  * actions page writes a power's `attack` in), whose colour the page draws it in.
  *
- *   POWERS[id] = { says, beam, stock, special, pierce?, beat, knock?, wall? }
+ *   POWERS[id] = { says, beam, stock, special, pierce?, beat, knock?, float?, gale?, wall? }
  *     beam     its look, a BEAMS word (the colour it is drawn in; a hero's own `attack` in its place)
  *     stock    its uses a life (1 to 9): spent as it starts, filled again at a fall (brawl-crowd.js)
  *     special  the move: { from, …its changes } over the shipped special, as a recipe's library writes one
@@ -19,6 +19,10 @@
  *              (rupa's `heroic`, ten times a person's blow): a kinetic push on what it strikes (the beam, the flame), an
  *              impact's shock where it lands (the nova) or round its caster (the storm). Light bodies fly, heavy ones
  *              stagger; the shock falls off with distance. A card with none moves bodies as the fight's blows do
+ *     float    its hero CARRIED ON THE AIR (a weather power's: the storm, the gale): it drifts, easing up to speed and
+ *              gliding on, never walks, and stands on nothing, so no footing holds it (brawl-kinetics.js BRAWL_AIR)
+ *     gale     a WIND called down the street: { speed m/s, length m, width m, frames, damage }; its drag on each body
+ *              against the body's footing blows a grunt off its feet, braces a big body, sweeps a floating one away
  *     wall     an EARTH power's slab (brawl-kinetics.js, rupa's matter meets matter): { size [along, across, up] m,
  *              density, at (mm in front), push (the shove's joules), damage, rise, stand, rest (frames) }. The first press
  *              wrenches it up (a use spent) to stand as cover; S again while it stands shoves it (`wall.push`, free)
@@ -31,7 +35,7 @@
  *   powerOf(id)      → the card (throws naming the ids)
  *   readPower(v)     → { id, stock, beam, screen, name?, dials?, colour? } a power as a roster entry or a seat writes it:
  *                    an id, or a power DESIGNED, a kind made the person's own: { kind (or id), name?, stock?, beam?,
- *                    screen?, strength?, speed?, size?, pierce? } (POWER_DIALS, each bounded; POWER_SCREENS its super
+ *                    screen?, float?, strength?, speed?, size?, pierce? } (POWER_DIALS, each bounded; POWER_SCREENS its super
  *                    beat's screen, 'none' for none; its colour the page's, brawl-power-look.js)
  *   POWER_DIALS, isRound(id)   the dials a designed power turns; is a kind's move a round down the street
  *   powerHeft(power) → its hits by its uses as a share of its kind's card (1 the card as measured)
@@ -70,7 +74,7 @@ export const POWERS = Object.freeze({
   // ── ALL ROUND: the crowd that surrounds the hero ──
   storm: card('lightning called down all round: untouchable while it strikes, it floors every body near, before and behind', 'lightning', 2,
     { from: 'whirl', says: 'the hero\'s storm: all round, untouchable, it floors what is near', price: undefined, at: { damage: 200, startup: 6, active: 20, recovery: 22 }, push: 420 },
-    { beat: beat(14, 'ink'), knock: Object.freeze({ impact: 200000, lift: 0.5 }) }),
+    { beat: beat(14, 'ink'), knock: Object.freeze({ impact: 200000, lift: 0.5 }), float: true }),
   // ── CLOSE: through the crowd, or a body taken ──
   frenzy: card('a berserk rush: on down the street through the crowd, a run of cuts that floors whoever it reaches, unstoppable', 'barrage', 3,
     { from: 'rush', says: 'the hero\'s frenzy: a rush of cuts that does not flinch', hits: 4, armor: [1, 23, 3], at: { damage: 220, startup: 8, active: 16, recovery: 20, travel: 120 }, knock: 'down', push: 300 },
@@ -81,6 +85,11 @@ export const POWERS = Object.freeze({
   might: card('a strongman\'s grip: a body taken from further than a hand reaches and slammed down for half its life', 'nova', 3,
     { from: 'grab', says: 'the hero\'s might: a body taken and slammed', at: { damage: 300, reach: 1.5, startup: 6, recovery: 30 } },
     { beat: beat(10, 'shade') }),
+  // ── AIR: the weather (brawl-kinetics.js BRAWL_AIR: its hero carried on it, its wind's drag on a body against its footing) ──
+  gale: card('a hurricane down the street: grunts blown off their feet, rounds out of the air; a big body braces', 'orb', 3,
+    { from: 'boom', says: 'the hero\'s gale: a wind called down the street', projectile: undefined, nohit: true, at: { startup: 10, recovery: 24, damage: 1 } },
+    // (a 65 m/s wind, a great hurricane's, 8 m down the street and 2.4 m across, for three quarters of a second)
+    { beat: beat(8, 'ring'), float: true, gale: Object.freeze({ speed: 65, length: 8, width: 2.4, frames: 45, damage: 30 }) }),
   // ── EARTH: the street itself (brawl-kinetics.js, rupa's matter meets matter) ──
   wall: card('a slab of the street wrenched up as cover; pressed again, shoved down the street, flooring what it meets till the ground stops it', 'nova', 3,
     { from: 'boom', says: 'the hero\'s wall: a slab of the street wrenched up, then shoved', projectile: undefined, nohit: true, at: { startup: 12, recovery: 20, damage: 1 } },
@@ -115,7 +124,7 @@ export const POWER_DIALS = Object.freeze({
 });
 /** A super beat's screen: a lens strike's kind round the caster as it is called up, or none. */
 export const POWER_SCREENS = Object.freeze(['lift', 'ring', 'shade', 'ink', 'none']);
-const WORDS = ['id', 'kind', 'name', 'stock', 'beam', 'screen', 'colour', ...Object.keys(POWER_DIALS)];
+const WORDS = ['id', 'kind', 'name', 'stock', 'beam', 'screen', 'float', 'colour', ...Object.keys(POWER_DIALS)];
 /** Is a kind's move a round down the street (a projectile)? */
 export const isRound = (id) => !!POWERS[id]?.special.projectile;
 
@@ -133,6 +142,7 @@ export function readPower(v, at = 'power') {
   if (W.beam !== undefined && !(typeof W.beam === 'string' && /^[a-z-]{2,24}$/.test(W.beam))) throw fail(`${at}.beam is its look, a beam's word (playscape/elements/beams.js)`);
   if (W.colour !== undefined && !(typeof W.colour === 'string' && /^#[0-9a-f]{6}$/i.test(W.colour))) throw fail(`${at}.colour is '#rrggbb' (its beam's, brawl-power-look.js)`);
   if (W.screen !== undefined && !POWER_SCREENS.includes(W.screen)) throw fail(`${at}.screen is its super beat round the caster: ${POWER_SCREENS.join(' | ')}`);
+  if (W.float !== undefined && typeof W.float !== 'boolean') throw fail(`${at}.float is true (its hero carried on the air: it drifts, it does not walk) or false`);
   const dials = {};
   for (const [k, D] of Object.entries(POWER_DIALS)) {
     if (W[k] === undefined) continue;
@@ -140,7 +150,7 @@ export function readPower(v, at = 'power') {
     if (!(Number.isInteger(W[k]) && W[k] >= D.min && W[k] <= D.max)) throw fail(`${at}.${k} is ${D.says}, ${D.min} to ${D.max}`);
     dials[k] = W[k];
   }
-  return { id, stock: W.stock ?? P.stock, beam: W.beam ?? P.beam, screen: W.screen ?? P.beat.screen, ...(W.name ? { name: W.name.trim() } : {}), ...(Object.keys(dials).length ? { dials } : {}), ...(W.colour ? { colour: W.colour } : {}) };
+  return { id, stock: W.stock ?? P.stock, beam: W.beam ?? P.beam, screen: W.screen ?? P.beat.screen, ...((W.float ?? P.float) ? { float: true } : {}), ...(W.name ? { name: W.name.trim() } : {}), ...(Object.keys(dials).length ? { dials } : {}), ...(W.colour ? { colour: W.colour } : {}) };
 }
 
 /** How much a designed power asks over its kind: its hits by its uses, as a share of the card's (1 the card as it is). */
@@ -192,6 +202,12 @@ export function powerMoves(F, power) {
   }
   // (an EARTH power's two presses: the slab wrenched up (the power, its use spent), then, while it stands, the same move
   // shoving it (free): `wall.push`, which S throws while the hero's own slab stands, brawl-moves.js)
+  // (a GALE: the wind called as the move strikes, on every direction of it; strength its wind's speed by the root, so its
+  // drag by the strength)
+  if (P.gale) {
+    const G = R.dials?.strength ? { ...P.gale, speed: Math.round(P.gale.speed * Math.sqrt(R.dials.strength / 100)) } : P.gale;
+    for (const [slot, m] of Object.entries(out)) if (m.power) out[slot] = { ...m, gale: G };
+  }
   if (P.wall) {
     const W = R.dials?.strength ? { ...P.wall, push: Math.round((P.wall.push * R.dials.strength) / 100), damage: Math.round((P.wall.damage * R.dials.strength) / 100) } : P.wall;
     for (const [slot, m] of Object.entries(out)) if (m.power) out[slot] = { ...m, wall: W };

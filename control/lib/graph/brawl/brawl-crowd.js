@@ -268,7 +268,7 @@ export function readPlays(plays, F, where = 'plays') {
 function playerFighter(recipe, style, power) {
   if (!power) return brawlFighter(recipe, { style });
   const F = brawlFighter(powerRecipe(recipe, power), { style });
-  return { ...F, moves: powerMoves(F, power), power: { id: power.id, beam: power.beam, ...(power.colour ? { colour: power.colour } : {}) } };
+  return { ...F, moves: powerMoves(F, power), power: { id: power.id, beam: power.beam, screen: power.screen, ...(power.colour ? { colour: power.colour } : {}), ...(power.float ? { float: true } : {}) } };
 }
 
 /** A street to fight down: the players at its start, every wave's crowd waiting offstage, the crowd's mind. */
@@ -300,7 +300,7 @@ export function streetOf({ belt, players: players0, waves = [], things, rules, c
   // (A SEAT NOT YET TAKEN, a player `away: true`: its body made and waiting off the street until it joins, joinStreet)
   // (those who play from the start share the band's width between them: a seat that waits moves no one)
   const here = players.filter((p) => !p.away).length || 1;
-  const bodies = players.map((p, i) => ({ fighter: i, side: 'player', x: Math.round((half - 3 + i * 0.6) * 1000), z: Math.round(n0 + ((Math.min(i, here - 1) + 1) * (n1 - n0)) / (here + 1)), ...(powers[i] ? { power: powers[i].stock } : {}) }));
+  const bodies = players.map((p, i) => ({ fighter: i, side: 'player', x: Math.round((half - 3 + i * 0.6) * 1000), z: Math.round(n0 + ((Math.min(i, here - 1) + 1) * (n1 - n0)) / (here + 1)), ...(powers[i] ? { power: powers[i].stock } : {}), ...(powers[i]?.float ? { float: 1 } : {}) }));
   const kinds = [];
   const bosses = {};
   // (a crowd body's own entrance or ambush, by its id)
