@@ -42,7 +42,7 @@ describe('the side map\'s layout', () => {
   it('a chute shuts at its foot; a boss\'s room behind its door', () => {
     const L = lay([{ run: 'across', screens: 1 }, { run: 'down', screens: 2, drop: 'chute' }, { room: [1, 1], teach: 'boss' }]);
     expect(L.doors.map((d) => d.zone)).toEqual([1, 2]);
-    expect(L.doors[0].at[1]).toBeCloseTo(-2 * L.screen.height, 2);
+    expect(L.doors[0].at[1]).toBeCloseTo(L.zones[0].exit[1] - 2 * L.screen.height, 2);
   });
   it('a gap is open to the frame\'s bottom: no solid stands under it', () => {
     const L = lay([{ run: 'across', screens: 3, teach: 'basic' }]);

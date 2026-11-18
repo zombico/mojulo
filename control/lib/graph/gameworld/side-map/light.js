@@ -64,7 +64,18 @@ function cells(f, cell) {
 export function lightSideMap(faces, layout, dress, cube) {
   const L = layout, D = dress, W = L.screen.width, H = L.screen.height, S = SIDE_MAP_LIGHT;
   const CL = cubeLight(cube), sun = CL.sun.linear, amb = CL.ambient.linear, norm = sun.map((v, k) => amb[k] + v * FRONT);
-  // the zone a point stands in: the first whose swept area holds it, else the nearest
+  // the zone a face belongs to: the solid it is part of, else the open space it stands in (the latest, a doorway the
+  // zone's it leads into), else the first swept area that holds it, else the nearest (zones' swept areas overlap at a
+  // corner: a room's floor is not the chute's before it)
+  const inR = (r, s, z, e = 1e-3) => s >= r.s0 - e && s <= r.s1 + e && z >= r.z0 - e && z <= r.z1 + e;
+  const zoneOfFace = (f) => {
+    const n = f.corners.length, s = f.corners.reduce((a, c) => a + c[1], 0) / n, z = f.corners.reduce((a, c) => a + c[2], 0) / n;
+    const solid = L.solids.find((r) => inR(r, s, z, 0.02));
+    if (solid && (CLOSED(f.group) || f.group === 'sidemap:edge')) return solid.zone;
+    const open = L.open.filter((r) => inR(r, s, z, 0.05));
+    if (open.length) return Math.max(...open.map((r) => r.zone));
+    return zoneAt(s, z);
+  };
   const zoneAt = (s, z) => {
     const r = L.swept.find((q) => s >= q.s0 - 1e-3 && s <= q.s1 + 1e-3 && z >= q.z0 - 1e-3 && z <= q.z1 + 1e-3);
     if (r) return r.zone;
@@ -87,8 +98,8 @@ export function lightSideMap(faces, layout, dress, cube) {
   const lipOver = (s, z) => { let t = Infinity; for (const r of L.solids) if (s >= r.s0 - 1e-3 && s <= r.s1 + 1e-3 && z >= r.z0 - 1e-3 && z <= r.z1 + 1e-3) t = Math.min(t, r.z1); return t; };
   const underOver = (s, z) => { let g = Infinity; for (const r of L.solids) if (s > r.s0 && s < r.s1 && r.z0 >= z - 1e-3) g = Math.min(g, r.z0 - z); return g; };
 
-  const light = (p, n, f) => {
-    const zi = zoneAt(p[1], p[2]), Z = D.zones[zi], indoor = Z?.indoor !== false, lane = p[0] >= -0.5;
+  const light = (p, n, f, zi) => {
+    const Z = D.zones[zi], indoor = Z?.indoor !== false, lane = p[0] >= -0.5;
     let c;
     if (indoor) {
       const a = lane ? S.ambient + S.fill * Math.max(0, dot(n, KEY)) / FRONT : S.back;
@@ -118,9 +129,9 @@ export function lightSideMap(faces, layout, dress, cube) {
   const out = [];
   for (const f of faces) {
     if (!f || KEEP.has(f.group) || !Array.isArray(f.corners) || f.corners.length !== 4) { out.push(f); continue; }
-    const base = lin(f.fill);
+    const base = lin(f.fill), zi = zoneOfFace(f);
     for (const q of cells(f, S.cell)) {
-      const cols = q.corners.map((p) => { const c = light(p, q.normal, q); return hexOf(base.map((v, k) => v * c[k])); });
+      const cols = q.corners.map((p) => { const c = light(p, q.normal, q, zi); return hexOf(base.map((v, k) => v * c[k])); });
       const mean = hexOf([0, 1, 2].map((k) => cols.reduce((s, h) => s + lin(h)[k], 0) / 4));
       out.push({ ...q, fill: mean, cornerFills: cols });
     }

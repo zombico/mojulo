@@ -14,6 +14,7 @@
  *     checkpoints         every zone has a checkpoint inside it, never further back than its start
  *     ladders             a ladder's foot on a floor and its top at a floor's lip, both in the open
  *     one-new-thing       what a stage teaches comes in its order, and no zone repeats the one before it
+ *     varied              no run one smooth trail: a step, a block or a pit at least every screen and a quarter (path.js)
  *     swept               nothing built outside the camera's swept area, nor in another zone's open space; nothing in it
  *                         left unbuilt but a pit
  *     the-boss-owns-it    the boss's room shuts behind (and, dressed, carries its mark)
@@ -40,7 +41,7 @@ import { rhythmFaults } from '../../era/wall-rhythm.js';
 import { FILLS } from './fills.js';
 import { climbTime, RISE_SHARE } from './layout.js';
 
-export const SIDE_MAP_LAWS = Object.freeze(['one-screen', 'both-walls', 'reach', 'rests', 'outclimbs', 'light-at-the-top', 'stakes', 'checkpoints', 'ladders', 'one-new-thing', 'swept', 'the-boss-owns-it',
+export const SIDE_MAP_LAWS = Object.freeze(['one-screen', 'both-walls', 'reach', 'rests', 'outclimbs', 'light-at-the-top', 'stakes', 'checkpoints', 'ladders', 'one-new-thing', 'varied', 'swept', 'the-boss-owns-it',
   'a-place-a-zone', 'solid-over-void', 'lit-tops', 'play-against-place', 'boss-colour', 'rhythm', 'peeks-in', 'threads', 'painted']);
 
 const EPS = 1e-3, MARGIN = 0.35, SEEN = 1, OUTCLIMB = 1.25, CELL = 0.5;
@@ -104,6 +105,8 @@ export function sideMapLaws(layout, reach, { dress, paint } = {}) {
         if (!ok) lost.push({ zone: Z.i, says: `zone ${Z.i}'s ${Z.climb}: a stand ${r2(dz)} m up and ${r2(h)} m across (the running jump rises ${run.height} m)` });
       }
     }
+    // (and every step up the path a hop the running jump clears with room, path.js)
+    for (const st of L.steps ?? []) if (st.dz > 0) { const at = reachAt(run, st.dz); if (!(at !== null && at >= MARGIN)) lost.push({ zone: st.zone, says: `a step ${r2(st.dz)} m up in zone ${st.zone}: the running jump rises ${run.height} m` }); }
     // (and room to stand on every stand up a climb: nothing over it closer than the hero is tall)
     if (L.stature) for (const r of L.rests) {
       const over = L.solids.filter((o) => o.zone === r.zone && o.z0 > r.z + 0.05 && Math.min(o.s1, r.s1) - Math.max(o.s0, r.s0) > 0.3).reduce((m, o) => Math.min(m, o.z0), Infinity);
@@ -176,6 +179,17 @@ export function sideMapLaws(layout, reach, { dress, paint } = {}) {
       if (Z.i && words(Z) === words(L.zones[Z.i - 1]) && (Z.teach || Z.beat)) lost.push({ zone: Z.i, says: `zone ${Z.i} is zone ${Z.i - 1} again (${Z.teach ?? Z.beat})` });
     }
     law('one-new-thing', lost, `what the stage teaches in its order (${TEACH.join(', ')}), no zone the one before it again`, (x) => x.map((y) => y.says).join('; '));
+  }
+  // varied: no run one smooth trail (path.js): no stretch with no step and no pit longer than a screen and a quarter, but a
+  // landing's (wide and flat by design) and a boss's floor
+  {
+    const lost = [];
+    for (const Z of L.zones.filter((Z) => Z.run === 'across' && Z.beat !== 'landing' && Z.teach !== 'boss')) {
+      const at = [Z.rect[0], Z.rect[1], ...(L.steps ?? []).filter((x) => x.zone === Z.i).map((x) => x.s), ...L.gaps.filter((g) => g.zone === Z.i).flatMap((g) => [g.s0, g.s1])].sort((a, b) => a - b);
+      const most = at.slice(1).reduce((m, v, k) => Math.max(m, v - at[k]), 0);
+      if (most > 1.25 * W + EPS) lost.push({ zone: Z.i, says: `zone ${Z.i}: ${r2(most)} m of one smooth floor (a screen and a quarter: ${r2(1.25 * W)} m)` });
+    }
+    law('varied', lost, 'no run one smooth trail: a step, a block or a pit at least every screen and a quarter', (x) => x.map((y) => y.says).join('; '));
   }
   // swept: built only where seen, everything seen built (a pit is the frame's bottom, left open)
   {

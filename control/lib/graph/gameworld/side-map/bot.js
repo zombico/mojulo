@@ -3,7 +3,7 @@
  * end on the rule its game ships (feel/lower.js), under the side map's camera (worlds/controllable/sidemap.js), as the
  * layout says the way goes. It reads the map as a player who knows it would, and says what playing it took.
  *
- *   a run      held right; a jump at each pit's lip (the move it teaches: a running jump, a dash jump out of a dash
+ *   a run      held right; a hop at each step up the path (path.js); a jump at each pit's lip (the move it teaches: a running jump, a dash jump out of a dash
  *              begun a few frames before, a jump and an air dash at its apex)
  *   a chimney  the next stand (a rest, then the way out over the far wall's top): kicked up the wall across from it, kick
  *              after kick, until the feet are over it, then over onto it. Each kick counted; the least the feet stood
@@ -92,6 +92,9 @@ export function playSideMap(layout, reach, { stature = 1.7, seconds = 240, trace
     if (input.jump) aim = L.solids.find((r) => r.zone === g.zone && Math.abs(r.s0 - g.s1) < 0.05 && (r.role === 'floor' || r.role === 'pillar')) ?? null;
     if (h.grounded && !input.jump) aim = null;
     if (!h.grounded && aim && aim.s1 - aim.s0 < 3) { if (s >= aim.s1 - 0.35) input.strafe = -1; else if (s >= aim.s0 + 0.35) input.strafe = 0; }
+    // (a step up the path ahead, path.js: hopped at its foot)
+    const st = L.steps.find((x) => x.dz > 0.3 && x.s >= s - 0.05 && x.s - s < LIP + 0.25);
+    if (st && h.grounded && !input.jump) input.jump = true;
     if (!h.grounded && dashAt !== null) input.boost = true;
     if (h.grounded && !input.boost) dashAt = null;
     // an air dash at the apex of a jump over the gap that teaches it

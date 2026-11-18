@@ -59,7 +59,9 @@ export function benchmarkShots(layout, dress) {
   const runs = L.zones.filter((Z) => Z.run === 'across'), run = runs.find((Z) => (dress.zones[Z.i].hatches ?? []).length) ?? runs[0];
   // (the hero on a floor, the one nearest three fifths of a screen in: never over a pit)
   if (run) {
-    const want = run.rect[0] + W * 0.6, F = L.solids.filter((r) => r.zone === run.i && r.role === 'floor' && r.s1 - r.s0 > 1).sort((a, b) => Math.abs((a.s0 + a.s1) / 2 - want) - Math.abs((b.s0 + b.s1) / 2 - want))[0];
+    // (and on a floor at the run's way-in height, the one its camera is held at, where the path has one: path.js)
+    const want = run.rect[0] + W * 0.6, z0 = run.i ? L.zones[run.i - 1].exit[1] : 0, all = L.solids.filter((r) => r.zone === run.i && r.role === 'floor' && r.s1 - r.s0 > 1);
+    const level = all.filter((r) => Math.abs(r.z1 - z0) < 0.05), F = (level.length ? level : all).sort((a, b) => Math.abs((a.s0 + a.s1) / 2 - want) - Math.abs((b.s0 + b.s1) / 2 - want))[0];
     const s = F ? clamp(want, F.s0 + 0.5, F.s1 - 0.5) : want, z = topAt(run.i, s);
     out.push({ name: 'run', zone: run.i, hero: [s, z], screenH: H, pose: frame(run, s, z) });
   }
@@ -148,7 +150,9 @@ function lightOf({ W, H, n, role, L, of, screenH }) {
     for (let k = a0; k <= a1; k++) lipNear.push(i + k * W);
     for (let k = b0; k <= b1; k++) lipFar.push(i + k * W);
   }
-  const lip = lipNear.length ? r2(mean(lipFar) - mean(lipNear)) : null;
+  // (medians: a fill's courses and seams are thin lines on the level's own grid, and a mean reads where they fall)
+  const median = (ix) => { if (!ix.length) return null; const v = ix.map((i) => L[i]).sort((a, b) => a - b); return v[Math.floor(v.length / 2)]; };
+  const lip = lipNear.length ? r2(median(lipFar) - median(lipNear)) : null;
   const closed = of('closed'), laneOverBack = closed.length && back.length ? r2(mean(closed) - mean(back)) : null;
   const third = (lo, hi) => back.filter((i) => { const y = Math.floor(i / W); return y >= lo * H && y < hi * H; });
   const t = mean(third(0, 1 / 3)), f = mean(third(2 / 3, 1)), topOverFoot = t !== null && f !== null ? r2(t - f) : null;

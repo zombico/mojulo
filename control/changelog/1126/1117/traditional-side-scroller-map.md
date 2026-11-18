@@ -78,6 +78,17 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
 - **Going up, earned.** Climbs in their forms (ledges, a switchback, a chimney with rests, a stair, a ladder, pillars
   over a gap), light at the top of every climb, a backdrop that knows how high the hero is, and the screen from below:
   a climb's frame that rises on its own.
+- **The path, designed from the top down** (`gameworld/side-map/path.js`): an across run is no longer one smooth floor
+  between its pits. Its PROFILE comes from what it is in the stage and where it leads (a rest rises gently, the basics
+  roll, a fight has terraces and a raised block to shoot from, the dash keeps its runways level, a gauntlet is broken
+  ground, a landing rises once and stays wide and flat, a boss's floor stays one; toward a climb it rises to its foot,
+  toward a drop it falls to its lip; a row a profile); its BEATS lay that along the run, a feature every so often and
+  never at a pit's lip or on a dash's runway; its FEATURES are steps a hop high and raised blocks, each changing the
+  height from there on, held inside the frame the camera holds. A new law, `varied`: no run (but a landing's and a
+  boss's floor) has more than a screen and a quarter of one smooth floor; `reach` reads every step up. The bot hops the
+  steps and still plays Galaxy Boy's first level to its end without a fall. Measured on it, a light bug mended: a face
+  lit as the zone it is part of, not the first whose camera area holds it (a boss's floor was lit as the chute before
+  it), and the benchmark stands its hero at the run's way-in height and reads a lip's shadow by medians.
 - **The map is a geocube** (`gameworld/side-map/scene.js`, the geocube's `show: 'sidemap'`): a zone chain laid for the
   hero it names (a feel and a stature, Galaxy Boy's unsaid), dressed in the cube's hue (its stone the place's, play the
   other side of the wheel) and built where the camera sees: the closed parts in their zone's key, every top a lit edge;
