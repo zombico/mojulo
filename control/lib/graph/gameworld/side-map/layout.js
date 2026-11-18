@@ -38,7 +38,6 @@ import { FPS } from '../feel/cards.js';
 import { sideMapCamera } from './screen.js';
 import { readSideMap } from './zones.js';
 import { shapeRun } from './path.js';
-import { streamOf } from '../../city/plan/dice.js';
 
 const HALF = 1.5, TH = 0.4, PAD = 1.5, LAND = 4, LEDGE = 1.2, LADDER_SHAFT = 2.4, WALL = 0.6;
 /** the rising frame's share of the bot's pace up its climb (the frame takes this much longer than the bot: a margin) */
@@ -74,7 +73,7 @@ const cut = (r, o) => {
 };
 
 /** The zone chain laid on the plane. */
-export function layoutSideMap(map, { reach, stature, seed = 1 }) {
+export function layoutSideMap(map, { reach, stature }) {
   const M = readSideMap(map), camera = sideMapCamera(stature), W = camera.screen.width, H = camera.screen.height;
   const run = reach.moves.run, J = run.height, LJ = run.long, kick = reach.wall?.climb ?? null;
   const door = r3(stature + J + 0.4);
@@ -106,10 +105,10 @@ export function layoutSideMap(map, { reach, stature, seed = 1 }) {
         catch { plan = coursePlan(reach, { teach: 'boss', verticality: 'flat', length: Math.max(L, 30), lift: 0, end: PAD, floor: 0 }); advise(i, `${r3(L)} m (${Z.screens} screens) holds no ${teach} course: it is laid as one floor; give it more screens`); }
         const laid = [{ s0: 0, s1: plan.floors[0].s0, z: 0 }, ...plan.floors, { s0: plan.floors.at(-1).s1, s1: Math.max(L, plan.floors.at(-1).s1), z: plan.floors.at(-1).z }];
         // THE PATH, designed from the top down (path.js): the run's profile from its role and where it leads, its beats
-        // along it, steps and blocks changing its height inside the frame, never at a pit's lip or on a dash's runway
+        // on the bay grid the back wall's pillars and seams stand on, never at a pit's lip or on a dash's runway
         const N = M.zones[i + 1], toward = N?.run === 'up' ? 1 : N?.run === 'down' ? -1 : 0;
         const role = Z.teach ?? (Z.beat === 'rest' || Z.beat === 'landing' ? Z.beat : 'run');
-        const P = shapeRun(laid, { role, toward, W, H, J, gaps: plan.gaps, dice: streamOf(seed, 'side-map-path', `zone-${i}`) });
+        const P = shapeRun(laid, { role, toward, W, H, J, gaps: plan.gaps, length: Math.max(L, laid.at(-1).s1) });
         floors.push(...P.floors);
         for (const st of P.steps) out.steps.push({ zone: i, s: r3(s + st.s), dz: st.dz });
         for (const g of plan.gaps) out.gaps.push({ zone: i, s0: r3(s + g.s0), s1: r3(s + g.s1), w: g.w, dz: g.dz, teaches: g.teaches, kind: g.kind });

@@ -5,7 +5,7 @@
 // the foot of a climb sees hills and a range, one at the top only a low horizon, one inside none; the same seed, the
 // same paint; a plain face loses `painted`.
 import { describe, it, expect } from 'vitest';
-import { paintSideMap, backdropOf, BACKDROP } from './paint.js';
+import { paintSideMap, backdropOf, BACKDROP, SIDE_CAP } from './paint.js';
 import { layoutSideMap } from './layout.js';
 import { dressSideMap } from './dress.js';
 import { sideMapLaws } from './laws.js';
@@ -71,6 +71,26 @@ describe('the closed parts painted', () => {
     const big = a.L.solids.find((r) => r.s1 - r.s0 >= 5 && r.z1 - r.z0 >= 3);
     const bare = { ...a.P, marks: a.P.marks.filter((m) => !(m.layer === 1 && inside(m, big))) };
     expect(sideMapLaws(a.L, reach, { dress: a.D, paint: bare }).find((l) => l.id === 'painted').holds).toBe(false);
+  });
+});
+
+describe('the cap', () => {
+  it('every top a hero stands on wears its cap in segments on its fill\'s module; taken away, the top is one smooth band', () => {
+    for (const fill of FILL_IDS) {
+      const { L, D, P } = all(chain('into the plant', fill)), tops = P.marks.filter((m) => m.what === 'cap-top');
+      expect(tops.length, fill).toBeGreaterThan(10);
+      if (fill !== 'rock') { const lens = new Set(tops.map((m) => Math.round((m.s1 - m.s0) * 100))); expect([...lens].some((l) => Math.abs(l / 100 - SIDE_CAP.module[fill]) < 0.02)).toBe(true); }
+      const bare = { ...P, marks: P.marks.filter((m) => !m.top) };
+      expect(sideMapLaws(L, reach, { dress: D, paint: bare }).find((l) => l.id === 'painted').says).toMatch(/one smooth band/);
+    }
+  });
+  it('a built run\'s pier cap where its pillar stands; a machine\'s hazard band at a pit\'s lip', () => {
+    const B = all(chain('into the plant', 'built')), pier = B.P.marks.filter((m) => m.what === 'cap-pier');
+    const pillars = B.D.zones.flatMap((z) => (z.pillars ?? []).map((p) => [z.zone, p]));
+    expect(pier.length).toBeGreaterThan(0);
+    for (const m of pier) expect(pillars.some(([z, p]) => z === m.zone && Math.abs((m.s0 + m.s1) / 2 - p) < 1e-3)).toBe(true);
+    const M = all(chain('into the plant', 'machine'));
+    expect(M.P.marks.some((m) => m.what === 'cap-hazard')).toBe(true);
   });
 });
 

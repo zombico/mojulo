@@ -117,7 +117,7 @@ export function lightSideMap(faces, layout, dress, cube) {
       c = amb.map((v, k) => (v * (0.55 + 0.45 * t) + sun[k] * cos) / norm[k]);
     }
     // contact: a closed face under its own lip; the back wall under a top over it
-    if (CLOSED(f.group)) { const t = lipOver(p[1], p[2]); if (t < Infinity) c = c.map((v) => v * (1 - S.lip * Math.max(0, 1 - (t - p[2]) / S.lipH))); }
+    if (CLOSED(f.group) && !/^sidemap:paint-cap/.test(f.group) && n[2] < 0.5) { const t = lipOver(p[1], p[2]); if (t < Infinity) c = c.map((v) => v * (1 - S.lip * Math.max(0, 1 - (t - p[2]) / S.lipH))); }
     if (f.group === 'sidemap:back') { const g = underOver(p[1], p[2]); if (g < S.under) c = c.map((v) => v * (1 - S.contact * (1 - g / S.under))); }
     // a climb's top: the next zone's light carried down its top screen; a chute darker as it drops
     if (ups.has(zi)) { const top = ups.get(zi), u = Math.min(1, 1 - (top - p[2]) / H); if (u > 0) c = c.map((v) => v + S.top * u); }

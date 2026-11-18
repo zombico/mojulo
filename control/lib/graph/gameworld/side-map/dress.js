@@ -33,6 +33,7 @@
 import { readSideMap } from './zones.js';
 import { wallRhythm } from '../../era/wall-rhythm.js';
 import { streamOf } from '../../city/plan/dice.js';
+import { bayGrid } from './path.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const P = (name, family, indoor = true) => Object.freeze({ name, family, indoor });
@@ -89,7 +90,8 @@ export function dressSideMap(layout, map, { seed = 1, cube } = {}) {
     const LZ = layout.zones[i], [s0, s1, z0, z1] = LZ.rect, out = { zone: i, place, family, indoor, key: hex(h, 0.45, 0.58), edge: hex(h, 0.4, 0.78), void: hex(h, 0.28, 0.1), boss, wear: r3(0.2 + 0.5 * d()) };
     if (role === 'across') {
       // the back wall in bays, a screen and a quarter each, by the walls' rule; a pillar between, a lamp an A bay
-      const n = Math.max(1, Math.round((s1 - s0) / (1.25 * W))), order = wallRhythm(n, { pick: d() }) ?? 'A', bw = (s1 - s0) / n;
+      // (the bay grid the path's steps stand on too, path.js bayGrid: the floor keeps the walls' rhythm)
+      const { n, width: bw } = bayGrid(s1 - s0, W), order = wallRhythm(n, { pick: d() }) ?? 'A';
       out.bays = [...order];
       out.pillars = Array.from({ length: n - 1 }, (_, k) => r3(s0 + (k + 1) * bw));
       // (a seam down each bay's middle, so a pillar or a seam is always in the frame; an A bay's lamp hangs on it)

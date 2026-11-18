@@ -110,7 +110,11 @@ export function assembleSideMap(m, ctx = {}) {
   const horizon = rgbHex(st.palette.sky[st.palette.sky.length - 1].map((v) => v / 255));
   for (const B of backdropOf(L, D, { seed: m.seed ?? 1 })) for (const r of B.rects) face(faces, B.x, r.s0, r.s1, r.z0, r.z1, mixHex(lit(Z[B.zone].key, FACE.px), horizon, B.haze), `sidemap:${B.layer}`);
   // the closed parts painted (paint.js): each mark on the face, a layer over the last
-  for (const k of D0.paint.marks) face(faces, HALF + 0.004 * k.layer, k.s0, k.s1, k.z0, k.z1, lit(k.fill, FACE.px), `sidemap:paint-${k.what}`);
+  // (a cap's mark on the walking surface itself: level on the top, a hair over it)
+  for (const k of D0.paint.marks) {
+    if (k.top) { const zt = k.z1 + 0.003 * k.layer; quad(faces, [[-HALF, k.s0, zt], [HALF, k.s0, zt], [HALF, k.s1, zt], [-HALF, k.s1, zt]], FACE.top, lit(k.fill, FACE.top), `sidemap:paint-${k.what}`); continue; }
+    face(faces, HALF + 0.004 * k.layer, k.s0, k.s1, k.z0, k.z1, lit(k.fill, FACE.px), `sidemap:paint-${k.what}`);
+  }
   // the dress on an indoor zone's back wall
   const zoneOf = (i) => L.zones[i], at = (x) => BACK + 0.02 * x;
   for (const z of Z) {

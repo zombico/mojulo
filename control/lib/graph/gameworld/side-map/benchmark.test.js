@@ -2,7 +2,7 @@
 // measure says is known. A face's group says its role; one shot a zone kind, its hero standing on a top; the role pass
 // is every face in its role's colour with the hero's stand-in among them; on a frame, the hero's share and the lane's
 // place are read off the role pass, the lit tops, the painting, the sharpness and the recession off the page; a flat
-// closed part is not painted; the foreground and moving things are said missing, never claimed.
+// closed part is not painted; a top of one colour is one smooth band (`top-segmented` lost); the foreground and moving things are said missing, never claimed.
 import { describe, it, expect } from 'vitest';
 import { roleOf, benchmarkShots, rolePayload, measureShot, benchmarkLaws, ROLE_COLOURS } from './benchmark.js';
 import { layoutSideMap } from './layout.js';
@@ -45,7 +45,7 @@ describe('the render benchmark', () => {
     expect(M.painted).toBeGreaterThan(3);
     expect(M.sharp.closed).toBeGreaterThan(M.sharp.back);
     const laws = Object.fromEntries(benchmarkLaws([M]).map((l) => [l.id, l.holds]));
-    expect(laws).toMatchObject({ 'hero-share': true, 'lane-down': true, 'lit-tops': true, painted: true, 'lane-sharpest': true, foreground: false, moving: false });
+    expect(laws).toMatchObject({ 'hero-share': true, 'lane-down': true, 'lit-tops': true, painted: true, 'lane-sharpest': true, 'top-segmented': false, foreground: false, moving: false });
   });
   it('a flat closed part is not painted', () => {
     const M = measureShot(frame({ stripes: false }), { name: 'run' });

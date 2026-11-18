@@ -12,6 +12,10 @@
  *   the MIDDLE      a big mass something toward its middle, so it is a mass and not a texture: a vein of ore, a recessed
  *                   panel, a window into the works behind, a great block
  *   the EDGES       a solid's end toward open space lit; its end at a pit the place's own break (teeth bitten out)
+ *   the CAP         every top a hero stands on a designed surface in segments on its fill's module (SIDE_CAP): built
+ *                   coping in half bond with a pier cap at each pillar, machine deck plates with seams, rivets and a
+ *                   hazard band at a pit's lip, padded cushions, rock slabs on one rhythm; down its lit edge and across
+ *                   the walking surface (a mark with `top`: drawn level on the top, not on the face)
  *   the THREADS     the dress's thread (pipes, cables, roots, a channel) carried through the closed parts from one zone into
  *                   the next under the way, up a shaft's wall and down a chute's, drawn wherever it passes behind a face
  *
@@ -28,6 +32,13 @@ import { streamOf } from '../../city/plan/dice.js';
 export const SLICE = 0.25;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const BIG = 5, LINE = 0.07, THREAD = 0.32, UNDER = 2.2, BESIDE = 1.3;
+/** The cap a top a hero stands on wears: its band's height, each fill's module (m) and its tones' cycle, the rock's rhythm. */
+export const SIDE_CAP = Object.freeze({
+  height: 0.34,
+  module: Object.freeze({ built: 1.3, machine: 2.4, padded: 1.2 }),
+  cycle: Object.freeze({ built: [0, 1, 0, 2], machine: [0, 1], padded: [0, 1], rock: [0, 2, 1, 0, 1, 2] }),
+  rock: Object.freeze([1.7, 1.1, 2.3, 0.9, 1.5, 1.2]),
+});
 const mix = (hex, to, k) => {
   const a = parseInt(hex.slice(1), 16), b = parseInt(to.slice(1), 16), c = [16, 8, 0].map((s) => Math.round(((a >> s) & 255) * (1 - k) + ((b >> s) & 255) * k));
   return `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
@@ -70,7 +81,6 @@ export function paintSideMap(layout, dress, { seed = 1 } = {}) {
         M(r.s0, r.s1, z1 - 0.05, z1, dark, 1, 'course');
         for (let s = Math.floor(r.s0 / 1.3) * 1.3 + (k % 2) * 0.65; s < r.s1; s += 1.3) M(s, s + 0.05, z1 - 0.5, z1, dark, 1, 'stone');
       }
-      M(r.s0, r.s1, r.z1 - 0.42, r.z1 - 0.14, light, 1, 'trim');
     } else if (fam === 'machine') {
       for (let s = Math.ceil(r.s0 / 2.4) * 2.4; s < r.s1; s += 2.4) M(s - LINE / 2, s + LINE / 2, r.z0, r.z1, deep, 1, 'seam');
       for (let zz = Math.ceil(r.z0 / 1.6) * 1.6; zz < r.z1; zz += 1.6) M(r.s0, r.s1, zz - LINE / 2, zz + LINE / 2, deep, 1, 'seam');
@@ -106,6 +116,43 @@ export function paintSideMap(layout, dress, { seed = 1 } = {}) {
       else if (!touches(r, s)) M(Math.min(s, s + inward * 0.12), Math.max(s, s + inward * 0.12), r.z0, r.z1 - 0.14, mix(z.key, '#ffffff', 0.35), 4, 'edge');
     }
   });
+  // THE CAP: every top a hero stands on is a designed surface, never one smooth band. Its band down the lit edge and the
+  // walking surface itself cut in segments on its fill's module (a built run's coping in half bond with its courses, a
+  // machine's deck plates on its panel grid with their seams and rivets and a hazard band at a pit's lip, a padded run's
+  // cushions on its block grid, a rock's slabs on one rhythm of lengths, chipped every third joint), each segment a tone
+  // of the zone's own in a fixed cycle, a pier cap where a back wall's pillar stands; on the level's own grid, so a cap
+  // reads the same on every floor of a fill
+  const exposed = (r) => !L.solids.some((o) => o !== r && Math.abs(o.z0 - r.z1) < 0.05 && Math.min(o.s1, r.s1) - Math.max(o.s0, r.s0) > 0.3);
+  for (const r of L.solids) {
+    if (r.role === 'ceiling' || r.role === 'wall' || !exposed(r)) continue;
+    const z = dress.zones[r.zone], fam = z.family, CAP = Math.min(SIDE_CAP.height, r.z1 - r.z0);
+    const tone = [mix(z.edge, z.key, 0.4), mix(z.edge, z.key, 0.2), mix(z.edge, z.key, 0.55)], joint = mix(z.key, '#000000', 0.45), shine = z.edge;
+    const C = (s0, s1, z0, z1, fill, what) => mark(r.zone, s0, s1, z0, z1, fill, 4, what, r);
+    const T = (s0, s1, fill, what) => { const a = Math.max(s0, r.s0), b = Math.min(s1, r.s1); if (b - a > 1e-3) marks.push({ zone: r.zone, s0: r3(a), s1: r3(b), z0: r3(r.z1), z1: r3(r.z1), fill, layer: 4, what, top: true }); };
+    const segs = [];
+    if (fam === 'rock') { const R = SIDE_CAP.rock, sum = R.reduce((a, b) => a + b, 0); let u = Math.floor(r.s0 / sum) * sum, k = 0; while (u < r.s1) { segs.push([u, u + R[k % R.length], k]); u += R[k % R.length]; k++; } }
+    else { const m = SIDE_CAP.module[fam], o = fam === 'built' ? m / 2 : 0; for (let u = Math.floor((r.s0 - o) / m) * m + o, k = Math.floor((r.s0 - o) / m); u < r.s1; u += m, k++) segs.push([u, u + m, k]); }
+    const cycle = SIDE_CAP.cycle[fam];
+    for (const [a, b, k] of segs) {
+      const t = tone[cycle[((k % cycle.length) + cycle.length) % cycle.length]], jw = fam === 'machine' ? 0.08 : fam === 'padded' ? 0.1 : 0.05;
+      C(a, b, r.z1 - CAP, r.z1, t, 'cap');
+      C(a, a + jw, r.z1 - CAP, r.z1, joint, 'cap-joint');
+      C(a, b, r.z1 - 0.06, r.z1, shine, 'cap-shine');
+      T(a, b, mix(t, shine, 0.3), 'cap-top'); T(a, a + jw, joint, 'cap-top-joint');
+      if (fam === 'machine') for (const u of [a + 0.25, b - 0.35]) C(u, u + 0.1, r.z1 - CAP / 2 - 0.05, r.z1 - CAP / 2 + 0.05, joint, 'cap-rivet');
+      if (fam === 'padded') C(a + 0.15, b - 0.15, r.z1 - CAP + 0.08, r.z1 - 0.12, mix(t, shine, 0.35), 'cap-cushion');
+      if (fam === 'rock' && k % 3 === 0) C(a + 0.05, a + 0.22, r.z1 - 0.16, r.z1 - 0.06, joint, 'cap-chip');
+    }
+    // (a pier cap where a back wall's pillar stands: the floor answers the wall's rhythm)
+    if (fam === 'built') for (const p of z.pillars ?? []) if (p > r.s0 + 0.5 && p < r.s1 - 0.5) { C(p - 0.45, p + 0.45, r.z1 - CAP - 0.12, r.z1, shine, 'cap-pier'); C(p - 0.45, p - 0.4, r.z1 - CAP - 0.12, r.z1, joint, 'cap-joint'); C(p + 0.4, p + 0.45, r.z1 - CAP - 0.12, r.z1, joint, 'cap-joint'); T(p - 0.45, p + 0.45, shine, 'cap-top'); }
+    // (a machine's lip at a pit: a hazard band, its stripes the zone's own dark and light)
+    if (fam === 'machine') for (const g of pits.filter((g) => g.zone === r.zone)) {
+      const end = Math.abs(g.s0 - r.s1) < 1e-3 ? r.s1 : Math.abs(g.s1 - r.s0) < 1e-3 ? r.s0 : null;
+      if (end === null) continue;
+      const a = end === r.s1 ? end - 1.2 : end;
+      for (let u = a, k = 0; u < a + 1.2 - 1e-6; u += 0.3, k++) C(u, u + 0.3, r.z1 - CAP, r.z1 - 0.06, k % 2 ? joint : shine, 'cap-hazard');
+    }
+  }
   // the threads: under each run's way, up a shaft's far wall, down a chute's near wall, joined zone to zone
   const kind = dress.threads[0]?.kind ?? 'pipes', path = [];
   for (const Z of L.zones) {

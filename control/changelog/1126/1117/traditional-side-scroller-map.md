@@ -78,17 +78,24 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
 - **Going up, earned.** Climbs in their forms (ledges, a switchback, a chimney with rests, a stair, a ladder, pillars
   over a gap), light at the top of every climb, a backdrop that knows how high the hero is, and the screen from below:
   a climb's frame that rises on its own.
-- **The path, designed from the top down** (`gameworld/side-map/path.js`): an across run is no longer one smooth floor
-  between its pits. Its PROFILE comes from what it is in the stage and where it leads (a rest rises gently, the basics
-  roll, a fight has terraces and a raised block to shoot from, the dash keeps its runways level, a gauntlet is broken
-  ground, a landing rises once and stays wide and flat, a boss's floor stays one; toward a climb it rises to its foot,
-  toward a drop it falls to its lip; a row a profile); its BEATS lay that along the run, a feature every so often and
-  never at a pit's lip or on a dash's runway; its FEATURES are steps a hop high and raised blocks, each changing the
-  height from there on, held inside the frame the camera holds. A new law, `varied`: no run (but a landing's and a
-  boss's floor) has more than a screen and a quarter of one smooth floor; `reach` reads every step up. The bot hops the
-  steps and still plays Galaxy Boy's first level to its end without a fall. Measured on it, a light bug mended: a face
-  lit as the zone it is part of, not the first whose camera area holds it (a boss's floor was lit as the chute before
-  it), and the benchmark stands its hero at the run's way-in height and reads a lip's shadow by medians.
+- **The path, designed from the top down** (`gameworld/side-map/path.js`), considered and never scattered: an across
+  run's floor shaped on its own BAY GRID, the one the back wall's pillars and seams stand on (`bayGrid`, the dress lays
+  them on it too), so the floor keeps the walls' rhythm. Its PROFILE says what happens at each pillar and at each seam
+  and gives the whole run one step HEIGHT, a share of the hero's jump, as a stair's steps are all one rise: a rest's low
+  terraces, the basics rolling up at each seam and down at each pillar, a fight's raised block centred on every seam,
+  the dash's runways level between steps at its pillars, a gauntlet's blocks on its seams and steps at its pillars, a
+  landing's one rise, a boss's floor one floor; toward a climb its steps go up, toward a drop down, inside the frame the
+  camera holds; never at a pit's lip or on a dash's runway. A new law, `varied`: no run (but a landing's and a boss's
+  floor) more than a screen and a quarter of one smooth floor; `reach` reads every step up. The bot hops them and still
+  plays Galaxy Boy's first level to its end without a fall. Measured on it, a light bug mended: a face lit as the zone
+  it is part of, not the first whose camera area holds it (a boss's floor had been lit as the chute before it).
+- **The cap** (`paint.js` `SIDE_CAP`): every top a hero stands on is a designed surface, never one smooth band of the
+  zone's colour. Its band down the lit edge and the walking surface itself are cut in segments on the fill's own module
+  and grid: a built run's coping in half bond with its courses and a pier cap where each back-wall pillar stands, a
+  machine's deck plates on its panel grid with their seams and rivets and a hazard band at every pit's lip, a padded
+  run's cushions on its block grid, a rock's slabs on one rhythm of lengths, chipped every third joint; each segment a
+  tone of the zone's own in a fixed cycle. `painted` holds every top capped; the benchmark's `top-segmented` reads the
+  tops' lightness varying on the page.
 - **The map is a geocube** (`gameworld/side-map/scene.js`, the geocube's `show: 'sidemap'`): a zone chain laid for the
   hero it names (a feel and a stature, Galaxy Boy's unsaid), dressed in the cube's hue (its stone the place's, play the
   other side of the wheel) and built where the camera sees: the closed parts in their zone's key, every top a lit edge;

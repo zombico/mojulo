@@ -293,8 +293,14 @@ export function sideMapLaws(layout, reach, { dress, paint } = {}) {
         if (!on) lost.push({ zone: r.zone, says: `zone ${r.zone}'s ${r.role} (${r2(r.s1 - r.s0)} by ${r2(r.z1 - r.z0)} m) is a plain face` });
       });
       for (const LZ of L.zones) { const ab = paint.slices.filter((x) => x.zone === LZ.i).map((x) => x.ab).join(''); if (rhythmFaults(ab).length) lost.push({ zone: LZ.i, says: `zone ${LZ.i}'s slices ${ab} repeat` }); }
+      // (every top a hero stands on wears its cap in segments: never one smooth band)
+      for (const r of L.solids) {
+        if (r.role === 'ceiling' || r.role === 'wall' || r.s1 - r.s0 < 1 || L.solids.some((o) => o !== r && Math.abs(o.z0 - r.z1) < 0.05 && Math.min(o.s1, r.s1) - Math.max(o.s0, r.s0) > 0.3)) continue;
+        const caps = paint.marks.filter((m) => m.zone === r.zone && m.top && Math.abs(m.z1 - r.z1) < 1e-3 && m.s1 > r.s0 && m.s0 < r.s1 && m.what === 'cap-top');
+        if (caps.length < Math.max(1, Math.floor((r.s1 - r.s0) / 3))) lost.push({ zone: r.zone, says: `zone ${r.zone}'s ${r.role} top (${r2(r.s1 - r.s0)} m) is one smooth band` });
+      }
     }
-    law('painted', lost, paint ? `every closed face painted in its fill (${paint.marks.length} marks), every zone's slices by the walls' rule` : 'every zone\'s closed parts named a fill and a wear to be painted in', (x) => x.map((y) => y.says).join('; '));
+    law('painted', lost, paint ? `every closed face painted in its fill (${paint.marks.length} marks), every zone's slices by the walls' rule, every top capped in segments` : 'every zone\'s closed parts named a fill and a wear to be painted in', (x) => x.map((y) => y.says).join('; '));
   }
   return laws;
 }
