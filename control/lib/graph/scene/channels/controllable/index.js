@@ -89,7 +89,7 @@ export const FACE_SCREEN = Object.freeze({ rest: 0.5, moving: 0.22 });
  * a second, how far round the body they are drawn in from (× its height), the motes circling it (before a level, after
  * one), their turns (radians a second) and their ring (× its height), and the burst a level sets off (× its height: its
  * base, a level's); the pulse is the body's glow's (CEL_CHARGE). */
-export const CHARGE_FX = Object.freeze({ size: Object.freeze([0.75, 0.25, 0.08]), glow: 0.45, halo: 1, haloOp: 0.18, heart: 0.35, sparks: Object.freeze([24, 48]), motes: Object.freeze([14, 28]), spin: Object.freeze([1.4, 2.4]), ring: 0.42, rate: Object.freeze([1.6, 2.6]), reach: 0.75, burst: Object.freeze([0.12, 0.04]) });
+export const CHARGE_FX = Object.freeze({ size: Object.freeze([0.75, 0.25, 0.08]), glow: 0.3, halo: 1, haloOp: 0.2, heart: 0.75, sparks: Object.freeze([24, 48]), motes: Object.freeze([14, 28]), spin: Object.freeze([1.4, 2.4]), ring: 0.42, rate: Object.freeze([1.6, 2.6]), reach: 0.75, burst: Object.freeze([0.12, 0.04]) });
 export const CEL_CHARGE = Object.freeze({ body: 0.15, rim: 1.1, power: 2.2, rate: Object.freeze([3, 6]), low: 0.35 });
 const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8', 'colS'];
 // A PART WITH ITS PAINT, ITS NORMALS AND ITS FACE (a realistic hero's: a corner a triangle, every number a float32), as
@@ -4260,8 +4260,8 @@ function __blast(at, color, size, kind, bornAt) {
   __blasts.push({ g, born, L, size, halo, deep, mid, core, rings, sparks });
 }
 // THE CHARGE'S ENERGY (a buster charging, worlds/controllable/buster.js; the round's look, round-look.js), over the WHOLE
-// BODY: a BLOOM wrapping it head to foot (the level's hue, a paler heart at its chest, growing with the fill, beating with
-// it) and a wider faint HALO; SPARKS drawn in from all round onto its length, the accent's and white, more and faster
+// BODY: from its CORE, a white-hot heart at its chest and a bloom over it head to foot (the level's hue), both drawn over
+// the body as light through it, growing with the fill and swelling on the pulse, and a wider faint HALO behind it; SPARKS drawn in from all round onto its length, the accent's and white, more and faster
 // once a level is reached, each on the world's clock (its way seeded by its turn); a burst in the shot's light at its
 // middle at each level reached. CHARGE_FX the numbers
 const __chg = {};
@@ -4273,6 +4273,8 @@ function __chargeFx(e) {
   if (!C) {
     const g = new THREE.Group(), halo = __rlSprite(__rlTex.soft, L.ramp[1], 0), glow = __rlSprite(__rlTex.soft, L.ramp[1], 0), heart = __rlSprite(__rlTex.soft, '#ffffff', 0);
     g.add(halo); g.add(glow); g.add(heart);
+    // (the heart and its glow drawn over the body, never behind it: the energy comes from its core, through it)
+    for (const sp of [glow, heart]) { sp.material.depthTest = false; sp.renderOrder = 3; }
     const sparks = [];
     for (let k = 0; k < ${CHARGE_FX.sparks[1]}; k++) { const sp = __rlSprite(__rlTex.soft, k % 3 ? L.accent : '#ffffff', 0); g.add(sp); sparks.push(sp); }
     const motes = [];
@@ -4292,9 +4294,10 @@ function __chargeFx(e) {
   const t = __world.time, fr = Math.min(1, e.chargeFrac), beat = __chargePulse(e), grow = ${CHARGE_FX.size[0]} + ${CHARGE_FX.size[1]} * fr + ${CHARGE_FX.size[2]} * lvN;
   // (the bloom a body tall and a body's width, stretched up its length; its heart at the chest)
   const sp2 = (sp, w, h, op) => { sp.scale.set(w, h, 1); sp.material.opacity = Math.max(0, Math.min(1, op)); };
-  sp2(C.glow, H * 0.75 * grow, H * 1.25 * grow, ${CHARGE_FX.glow} * fr * beat);
+  sp2(C.glow, H * 0.7 * grow, H * 1.1 * grow, ${CHARGE_FX.glow} * fr * beat);
   sp2(C.halo, H * 1.3 * grow * ${CHARGE_FX.halo}, H * 1.6 * grow * ${CHARGE_FX.halo}, ${CHARGE_FX.haloOp} * fr * beat);
-  C.heart.position.set(0, 0, H * 0.18); sp2(C.heart, H * 0.35 * grow, H * 0.45 * grow, ${CHARGE_FX.heart} * fr * (0.8 + 0.2 * beat));
+  C.heart.position.set(0, 0, H * 0.15); sp2(C.heart, H * 0.42 * grow * (0.8 + 0.25 * beat), H * 0.5 * grow * (0.8 + 0.25 * beat), ${CHARGE_FX.heart} * fr * (0.55 + 0.45 * beat));
+  C.glow.position.set(0, 0, H * 0.08);
   // (the sparks drawn in: from a seeded way round the body at its turn's start, onto a point of its length over its turn)
   const n = lvN ? ${CHARGE_FX.sparks[1]} : ${CHARGE_FX.sparks[0]}, rate = lvN ? ${CHARGE_FX.rate[1]} : ${CHARGE_FX.rate[0]}, R = H * ${CHARGE_FX.reach} * (1 + 0.25 * lvN);
   C.sparks.forEach((sp, k) => {
