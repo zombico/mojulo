@@ -8,7 +8,8 @@
  *                held, a shaft's side held, a room both ways). The zone is the next one along as soon as the target is in
  *                it (a corner turned toward the way on), else the one it stands in, the nearest; a `hold` zone (a boss's
  *                room, a chute) is never left backward. A handover is eased, never snapped (`zoneLerp` while it settles,
- *                `lerp` after). A `rise` zone's frame climbs on its own at its pace (m/s) from where it stood as the
+ *                `lerp` after), and the ease never lets the target out of the frame where its zone lets the frame follow
+ *                it (a drop down a chute) — inside the zone's rectangle only, so a run's frame never follows into a pit. A `rise` zone's frame climbs on its own at its pace (m/s) from where it stood as the
  *                target came in: the screen from below
  *   the FALL     a target wholly under the frame's bottom (its feet `stature` under it) has fallen out: it is taken out of
  *                the level to LIMBO (`limbo`, metres down, where a catch zone stands: the lives mechanic's `falls` counts it
@@ -69,6 +70,14 @@ export function buildSideMap(E) {
     let cz = z1 - z0 <= H ? (z0 + z1) / 2 : clamp(foot + lookH, z0 + H / 2, z1 - H / 2);
     if (!e._zoneC || e._cut) { e._zoneC = [cs, cz]; e._cut = false; }
     else { const a = smooth(e._zoneT < 0.8 ? r.zoneLerp ?? 4 : r.lerp ?? 14, dt); e._zoneC = [e._zoneC[0] + (cs - e._zoneC[0]) * a, e._zoneC[1] + (cz - e._zoneC[1]) * a]; }
+    // (the ease never lets the target leave the frame where its zone lets the frame follow it: a body dropping down a
+    // chute outruns any ease. Inside the zone's rectangle only: a run's frame never follows its hero into a pit)
+    const keep = 1, st = r.stature ?? 1.7, lo = z1 - z0 <= H ? cz : z0 + H / 2, hi = z1 - z0 <= H ? cz : z1 - H / 2;
+    // (a push only: how far it goes is held to the zone's range, but a frame still easing in from another is not snapped)
+    const push = (v, a, b, l, h) => { const p = clamp(v, a, b); return p === v ? v : clamp(p, Math.min(v, l), Math.max(v, h)); };
+    e._zoneC[1] = push(e._zoneC[1], foot + st + keep - H / 2, foot - keep + H / 2, lo, hi);
+    const slo = s1 - s0 <= W ? cs : s0 + W / 2, shi = s1 - s0 <= W ? cs : s1 - W / 2;
+    e._zoneC[0] = push(e._zoneC[0], s + keep - W / 2, s - keep + W / 2, slo, shi);
     // the screen from below: a rising zone's frame climbs on its own from where it stood as the target came in
     if (Z.rise > 0) {
       if (e._riseAt !== k) { e._riseAt = k; e._riseZ = e._zoneC[1]; }

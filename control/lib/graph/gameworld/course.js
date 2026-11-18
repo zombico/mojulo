@@ -123,10 +123,12 @@ function beatsOf(reach, teach, verticality, floor = null) {
 /** The course a segment lays: its floors and the gaps between them along `length` metres of line. `lift` the height
  * it stands over its ground (its stairs climb it; 0, a side strip's: no stairs, the floors start on the ground), `end`
  * the ground before its first step and after its last. */
-export function coursePlan(reach, { teach = 'basic', verticality = 'flat', length = 72, lift = liftOf(reach), end = END, floor = null } = {}) {
+export function coursePlan(reach, { teach = 'basic', verticality = 'flat', length = 72, lift = liftOf(reach), end = END, floor = null, walls = true } = {}) {
   if (!TEACH.includes(teach)) throw new Error(`course: teach is one of ${TEACH.join(', ')}`);
   if (!VERTICALITY[verticality]) throw new Error(`course: verticality is one of ${Object.entries(VERTICALITY).map(([k, v]) => `${k} (${v.says})`).join(', ')}`);
-  const beats = beatsOf(reach, teach, verticality, floor);
+  // (`walls: false`: no wall face to kick up, the climbing left to a level's own climbs: a side map's run is one screen
+  // thick, and going up is an up run's)
+  const beats = walls ? beatsOf(reach, teach, verticality, floor) : beatsOf(reach, teach, verticality, floor).filter((b) => b.kind !== 'wall');
   const stairs = Math.ceil(lift / RISER) * TREAD;
   const s0 = end + stairs, s1 = length - end - stairs, room = s1 - s0;
   // the floors share what the gaps leave, a fighting segment's floors long enough to fight on

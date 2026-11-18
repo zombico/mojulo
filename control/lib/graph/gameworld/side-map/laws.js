@@ -104,6 +104,11 @@ export function sideMapLaws(layout, reach, { dress, paint } = {}) {
         if (!ok) lost.push({ zone: Z.i, says: `zone ${Z.i}'s ${Z.climb}: a stand ${r2(dz)} m up and ${r2(h)} m across (the running jump rises ${run.height} m)` });
       }
     }
+    // (and room to stand on every stand up a climb: nothing over it closer than the hero is tall)
+    if (L.stature) for (const r of L.rests) {
+      const over = L.solids.filter((o) => o.zone === r.zone && o.z0 > r.z + 0.05 && Math.min(o.s1, r.s1) - Math.max(o.s0, r.s0) > 0.3).reduce((m, o) => Math.min(m, o.z0), Infinity);
+      if (over - r.z < L.stature + 0.1) lost.push({ zone: r.zone, says: `zone ${r.zone}: a rest at ${r2(r.z)} m with ${r2(over - r.z)} m over it, the hero ${L.stature} m tall` });
+    }
     law('reach', lost, 'every pit crossed by the move that teaches it, every stand up a climb a jump away', (x) => x.map((y) => y.says).join('; '));
   }
   // rests: three kicks at most, the top counted

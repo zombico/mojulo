@@ -36,7 +36,7 @@ import { FPS } from '../feel/cards.js';
 import { sideMapCamera } from './screen.js';
 import { readSideMap } from './zones.js';
 
-const HALF = 1.5, TH = 0.4, PAD = 1.5, LAND = 4, LEDGE = 1.2, LADDER_SHAFT = 2.4;
+const HALF = 1.5, TH = 0.4, PAD = 1.5, LAND = 4, LEDGE = 1.2, LADDER_SHAFT = 2.4, WALL = 0.6;
 /** the rising frame's share of the bot's pace up its climb (the frame takes this much longer than the bot: a margin) */
 export const RISE_SHARE = 0.7;
 /** a ladder climbed hand over hand, metres a second (the runtime's ladder, phase 8, climbs at it) */
@@ -74,7 +74,7 @@ export function layoutSideMap(map, { reach, stature }) {
   const M = readSideMap(map), camera = sideMapCamera(stature), W = camera.screen.width, H = camera.screen.height;
   const run = reach.moves.run, J = run.height, LJ = run.long, kick = reach.wall?.climb ?? null;
   const door = r3(stature + J + 0.4);
-  const out = { screen: camera.screen, camera, zones: [], swept: [], open: [], solids: [], gaps: [], rests: [], ladders: [], doors: [], spawners: [], pickups: [], checkpoints: [], rises: [], advice: [] };
+  const out = { screen: camera.screen, camera, stature, zones: [], swept: [], open: [], solids: [], gaps: [], rests: [], ladders: [], doors: [], spawners: [], pickups: [], checkpoints: [], rises: [], advice: [] };
   const rect = (list, s0, s1, z0, z1, zone, role) => { if (s1 - s0 > 1e-6 && z1 - z0 > 1e-6) list.push({ s0: r3(s0), s1: r3(s1), z0: r3(z0), z1: r3(z1), zone, ...(role ? { role } : {}) }); };
   const solid = (s0, s1, z0, z1, zone, role) => rect(out.solids, s0, s1, z0, z1, zone, role);
   const band = (z) => [z - H / 3, z + (2 * H) / 3];
@@ -97,7 +97,8 @@ export function layoutSideMap(map, { reach, stature }) {
       } else {
         const teach = Z.teach && Z.teach !== 'boss' ? Z.teach : 'boss';
         let plan;
-        try { plan = coursePlan(reach, { teach, verticality: 'flat', length: L, lift: 0, end: PAD, floor: 0 }); }
+        // (no wall face in a run: the wall kick is a climb's to teach, and a run stays one screen thick)
+        try { plan = coursePlan(reach, { teach, verticality: 'flat', length: L, lift: 0, end: PAD, floor: 0, walls: false }); }
         catch { plan = coursePlan(reach, { teach: 'boss', verticality: 'flat', length: Math.max(L, 30), lift: 0, end: PAD, floor: 0 }); advise(i, `${r3(L)} m (${Z.screens} screens) holds no ${teach} course: it is laid as one floor; give it more screens`); }
         floors.push({ s0: 0, s1: plan.floors[0].s0, z: 0 }, ...plan.floors, { s0: plan.floors.at(-1).s1, s1: Math.max(L, plan.floors.at(-1).s1), z: plan.floors.at(-1).z });
         for (const g of plan.gaps) out.gaps.push({ zone: i, s0: r3(s + g.s0), s1: r3(s + g.s1), w: g.w, dz: g.dz, teaches: g.teaches, kind: g.kind });
@@ -120,36 +121,57 @@ export function layoutSideMap(map, { reach, stature }) {
       const L = Z.screens * H, form = Z.climb;
       if (form === 'chimney' && !kick) advise(i, 'the hero kicks off no wall (its feel has no cling): a chimney cannot be climbed; climb it by ledges');
       const w = r3(form === 'chimney' ? Math.min(Math.max(0.9 * LJ, 2.4), 0.4 * W) : form === 'ladder' ? LADDER_SHAFT : Math.min(Math.max(3 * LJ, 8), 0.45 * W));
-      const side = (W - w) / 2, c = s, top = z + L;
+      // (the shaft stands a wall's thickness on from where the walk came in: its near wall rises from a doorway at its foot,
+      // so a chimney has both its walls from the floor up even where the run before it is open to the frame's top)
+      const side = (W - w) / 2, c = s + WALL, top = z + L;
       // the shaft's floor, its near wall over the way in (a door's height open), its far wall up to the next floor
-      solid(c, c + w, band(z)[0], z, i, 'floor');
+      solid(s, c + w, band(z)[0], z, i, 'floor');
       solid(c - side, c, z + door, top + (2 * H) / 3, i, 'wall');
       solid(c + w, c + w + side, band(z)[0], top, i, 'wall');
       rect(out.open, c, c + w, z, top + (2 * H) / 3, i);
+      rect(out.open, s, c, z, z + door, i);   // (the doorway: after the shaft, which is the zone's first open)
       const rests = [];
       if (form === 'chimney' || form === 'stair' || form === 'ledges') {
         // a rest, on alternate walls: a chimney's within three kicks, a ledge stair's a jump up, a stair's a short step
-        const most = form === 'chimney' ? 0.9 * Math.min(3 * (kick || J), L) : form === 'stair' ? 0.45 * J : 0.75 * J;
-        // (evenly spaced, no further apart than the form allows, an even count so the last is on the far wall: the way out)
-        let n = Math.ceil(L / most) - 1; if (n % 2) n++;
+        // (a stair's step as short as a standing hero allows: two rests on one wall are two steps apart, and the hero stands
+        // on the lower under the upper)
+        const most = form === 'chimney' ? 0.9 * Math.min(3 * (kick || J), L) : form === 'stair' ? Math.max(0.45 * J, (stature + TH + 0.2) / 2) : 0.75 * J;
+        // (evenly spaced, no further apart than the form allows, the last on the far wall: the way out)
+        // (a chimney's first rest on the near wall, over its doorway; a ledge stair's and a stair's on the far wall, so the
+        // doorway at the foot is not walked into the first one's edge: the count kept so the last is on the far wall)
+        const nearFirst = form === 'chimney';
+        let n = Math.ceil(L / most) - 1; if ((n % 2 === 0) !== nearFirst) n++;
         const step = L / (n + 1);
         for (let k = 1, at = z + step; k <= n; k++, at = z + k * step) {
-          const left = k % 2 === 1, s0 = left ? c : c + w - (form === 'chimney' ? LEDGE : 0.45 * w), s1 = left ? c + (form === 'chimney' ? LEDGE : 0.45 * w) : c + w;
+          const left = (k % 2 === 1) === nearFirst;
+          const s0 = left ? c : c + w - (form === 'chimney' ? LEDGE : 0.45 * w), s1 = left ? c + (form === 'chimney' ? LEDGE : 0.45 * w) : c + w;
           solid(s0, s1, at - TH, at, i, 'rest');
           rests.push({ zone: i, s0: r3(s0), s1: r3(s1), z: r3(at), side: left ? 'near' : 'far' });
           if (form === 'chimney') out.pickups.push({ zone: i, at: [r3((s0 + s1) / 2), r3(at + 0.4)] });
         }
       } else if (form === 'switchback') {
-        // floors across the shaft, a gap at alternate ends to jump up through
-        const gap = Math.max(LEDGE * 2, 0.6 * LJ);
-        // (evenly spaced, at most four fifths of a jump, an odd count so the last reaches the far wall: the way out)
-        let n = Math.ceil(L / (0.8 * J)) - 1; if (n % 2 === 0) n++;
+        // floors across the shaft, an opening at alternate ends, stacked far enough apart for the hero to stand under
+        // the one above (more than a jump: so a STEP stands on each floor under the opening above it, half the rise, and
+        // the climb is two hops: onto the step, up through the opening)
+        const gap = Math.max(LEDGE * 2, 0.6 * LJ), least = stature + TH + 0.2;
+        // (evenly spaced, no closer than a standing hero allows, an odd count so the last reaches the far wall)
+        let n = Math.max(1, Math.floor(L / least) - 1); if (n % 2 === 0) n--;
         const step = L / (n + 1);
+        const stepUnder = (k, base) => {
+          // the step on the floor at `base` under floor k's opening (k odd: its opening at the near end; even: the far;
+          // the last, the far wall's top over the far end)
+          const near = k <= n && k % 2 === 1, a = near ? c + gap - LEDGE : c + w - gap, b0 = near ? c + gap : c + w - gap + LEDGE;
+          const [sa, sb] = k > n ? [c + w - LEDGE, c + w] : [a, b0];
+          solid(sa, sb, base, base + step / 2, i, 'step');
+          rests.push({ zone: i, s0: r3(sa), s1: r3(sb), z: r3(base + step / 2), side: 'step' });
+        };
         for (let k = 1, at = z + step; k <= n; k++, at = z + k * step) {
+          stepUnder(k, at - step);
           const s0 = k % 2 ? c + gap : c, s1 = k % 2 ? c + w : c + w - gap;
           solid(s0, s1, at - TH, at, i, 'rest');
           rests.push({ zone: i, s0: r3(s0), s1: r3(s1), z: r3(at), side: k % 2 ? 'far' : 'near' });
         }
+        stepUnder(n + 1, top - step);
       } else if (form === 'ladder') {
         out.ladders.push({ zone: i, foot: [r3(c + w / 2), r3(z)], lip: [r3(c + w), r3(top)], face: 'camera' });
       }
