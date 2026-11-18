@@ -1714,6 +1714,8 @@ export function buildingStage(B) {
     program: { use, seed, ...(rooms ? { rooms } : {}), ...(add ? { add } : {}), ...(anchor !== undefined ? { civilization: anchor } : {}), ...plan },
     level: { ...(goal !== undefined ? { goal } : {}), ...(from !== undefined ? { from } : {}) },
     ...composed, ...(tone !== undefined ? { tone } : {}),
+    // (its rooms' light designed, `plot`: era/stage.js)
+    ...(B.plot !== undefined ? { plot: B.plot } : {}),
   };
 }
 

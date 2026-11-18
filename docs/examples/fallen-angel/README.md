@@ -27,6 +27,9 @@ to the knight in its sanctum. `world.json` is the whole recipe; everything else 
   from `tenebrae`, its vignette eased and its exposure lifted a quarter stop. The figures are lit by the torches where
   they stand, a lit side, a shade side and a cold rim, and throw their shadows on the floor away from each flame. The
   white coat is the brightest thing in a room.
+- **The great hall's light designed** (`building.plot`): four of its eight wall torches kept, the candle rings over its
+  floor raised to its key (a pool over the fight), and its way on to the gallery framed by a pair of brighter torches.
+  The other rooms keep the kit's rhythm for now.
 - **Played as an action hero:** `camera: 'orbit'` (the orbit that locks on, the blade sheathed out of a fight) and
   `screen: 'screen'` (written out; a new game is made for a monitor unless it says otherwise).
 

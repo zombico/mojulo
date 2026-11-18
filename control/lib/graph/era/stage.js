@@ -544,6 +544,14 @@ export function planStage(m = {}) {
   // keeps its own bake
   if (m.shade !== undefined && !(typeof m.shade === 'number' && m.shade >= 0.02 && m.shade <= 0.6)) throw new Error('stage: shade is the share of the light a surface turned from every lamp keeps, 0.02 (black shade) to 0.6');
   const shade = m.shade ?? null;
+  // PLOT (`plot: { <room>: { torches?, fill?, key?, lead? } }`, opt-in): a room's light DESIGNED, not laid by the kit's
+  // rhythm (era/laws.js 'value-by-light': a place's contrast is its light's). `torches` how many of its wall torches it
+  // keeps, spread round it (the rest taken down, fixture and all); `fill` what each kept one gives (× its own: the form
+  // render's bake is solved against its median lamp, so its contrast is the lamps' strengths against each other, not
+  // their level); `key` the gain on what hangs over its floor (a ring of candles: the room's key, a pool over the fight);
+  // `lead` the way on lit: a pair of torches flanking its doorway to the next room, at that gain over the kit's own. A room it names none of, as
+  // the kit lays it. Rooms' ids are the stage's (a program's roles)
+  const plotRooms = m.plot !== undefined ? readPlot(m.plot) : null;
   if (shadows && shadows.cells) kitG = { ...kitG, cells: Object.fromEntries(Object.entries(kitG.cells).map(([k, v]) => [k, Math.min(v, shadows.cells)])) };
   // DRESS (`dress: false`): the kit's bones only, its dressing left out: no set piece, no accent, no doodads, no blends.
   // A specimen of a room's structure and light, before anything is placed in it. Absent ⇒ the kit as dressed.
@@ -692,7 +700,7 @@ export function planStage(m = {}) {
     // compose-dress.js layProps)
     ...(m._program?.base || (composed && composed.dressing === 'vernacular' && m._program?.use) ? { use: m._program.use } : m._program?.hospital ? { use: m._program.use, stock: 'hospital' } : {}),
     // (a composed interior's rooms read for their parts in the walk: compose-roles.js)
-    ...(composed ? { compose: { axes: composed, mood: composed.mood ?? 'even', beats: beatsPinned(m), roles: m._composeRoles ?? roomRoles({ rooms, links, ways, stairs }, { goal: m._program?.goal, pinned: rolesPinned(m) }) } } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}), ...(shade !== null ? { shade } : {}),
+    ...(composed ? { compose: { axes: composed, mood: composed.mood ?? 'even', beats: beatsPinned(m), roles: m._composeRoles ?? roomRoles({ rooms, links, ways, stairs }, { goal: m._program?.goal, pinned: rolesPinned(m) }) } } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}), ...(shade !== null ? { shade } : {}), ...(plotRooms ? { plot: plotRooms, ...(m._program?.goal ? { plotGoal: m._program.goal } : {}) } : {}),
     ...(St ? { storeys: St.z0s.map((z0, index) => ({ index, z0 })), flat: St.flat, stairs } : {}), ...(m._storey ? { cuts: m._storey } : {}) };
   // a composed interior's things (compose-dress.js): the recipe's own (`props`, laid at authoring time and edited since),
   // else laid now; `props: false` none. A storey takes the ones in its rooms
@@ -1092,6 +1100,71 @@ function nearestWallNormal(plan, [x, y]) {
   return best ? best.n : [0, 0, 1];
 }
 /** Resolve the recipe's lights: 'auto' seats a torch on the kit's seats; an array is taken as authored. */
+const PLOT_KEYS = { torches: [0, 12, true], fill: [0, 3], key: [0, 6], lead: [0, 4] };
+function readPlot(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error('stage: plot is { <room id>: { torches?, fill?, key?, lead? } }');
+  for (const [id, R] of Object.entries(v)) {
+    if (!R || typeof R !== 'object' || Array.isArray(R)) throw new Error(`stage: plot.${id} is { torches?, fill?, key?, lead? }`);
+    for (const [k, x] of Object.entries(R)) {
+      const L = PLOT_KEYS[k];
+      if (!L) throw new Error(`stage: plot.${id}.${k} is not a setting (torches: how many wall torches it keeps; fill: what each gives; key: the gain on what hangs over its floor; lead: its way on lit)`);
+      if (!(typeof x === 'number' && x >= L[0] && x <= L[1] && (!L[2] || Number.isInteger(x)))) throw new Error(`stage: plot.${id}.${k} is ${L[2] ? 'a whole number' : 'a number'} from ${L[0]} to ${L[1]}`);
+    }
+  }
+  return v;
+}
+/** A plot's rooms lit as designed (`plot`, planStage): each named room's torches thinned and dimmed, its hung lights
+ *  raised to its key, its way on flanked; every other light as it was. */
+/** The room one doorway on from `from` along the shortest way to `goal` (null at the goal, or none there). */
+function nextToward(plan, from, goal) {
+  if (from === goal) return null;
+  const prev = new Map([[goal, null]]), q = [goal];
+  while (q.length) { const r = q.shift(); for (const L of plan.links) { const o = L.from === r ? L.to : L.to === r ? L.from : null; if (o && !prev.has(o)) { prev.set(o, r); q.push(o); } } }
+  return prev.has(from) ? prev.get(from) : null;
+}
+function plotLit(plan, lights) {
+  if (!plan.plot) return lights;
+  const out = [], t = plan.kit.torch;
+  const roomOf = (p) => plan.rooms.find((r) => p[0] >= r.x0 - 0.5 && p[0] <= r.x1 + 0.5 && p[1] >= r.y0 - 0.5 && p[1] <= r.y1 + 0.5 && p[2] >= (r.z0 ?? 0) - 0.5 && p[2] <= (r.z0 ?? 0) + r.h + 0.5);
+  const kept = new Map();
+  for (const [id, R] of Object.entries(plan.plot)) {
+    const r = plan.rooms.find((q) => q.id === id);
+    if (!r) throw new Error(`stage: plot names '${id}', no room of this stage (${plan.rooms.map((q) => q.id).join(', ')})`);
+    // (the torches it keeps: evenly through its own, walked round the room)
+    const own = lights.filter((l) => l.fixture === 'torch' && roomOf(l.at) === r), c = [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2];
+    own.sort((a, b) => Math.atan2(a.at[1] - c[1], a.at[0] - c[0]) - Math.atan2(b.at[1] - c[1], b.at[0] - c[0]));
+    const n = R.torches ?? own.length, pick = new Set();
+    for (let i = 0; i < Math.min(n, own.length); i++) pick.add(own[Math.floor((i * own.length) / n)]);
+    kept.set(r, pick);
+  }
+  for (const l of lights) {
+    const r = roomOf(l.at), R = r && plan.plot[r.id];
+    if (!R) { out.push(l); continue; }
+    if (l.fixture === 'torch') { if (kept.get(r).has(l)) out.push({ ...l, intensity: r5(l.intensity * (R.fill ?? 1)) }); continue; }
+    if (l.fixture === 'candle' && R.key !== undefined) { out.push({ ...l, intensity: r5(l.intensity * R.key), radius: r5(l.radius * Math.min(1.25, Math.sqrt(Math.max(1, R.key)))) }); continue; }
+    out.push(l);
+  }
+  // the way on: a torch each side of the doorway to the next room, inside this one, at the kit's height (a kept torch
+  // hanging where one goes is taken down for it)
+  const leads = [];
+  for (const [id, R] of Object.entries(plan.plot)) {
+    if (!R.lead) continue;
+    const r = plan.rooms.find((q) => q.id === id);
+    for (const L of plan.links.filter((k) => k.from === id || k.to === id)) {
+      const side = L.from === id ? L.wall : { '+x': '-x', '-x': '+x', '+y': '-y', '-y': '+y' }[L.wall];
+      // (the way on: the doorway it leaves by toward the goal, the first step of the shortest way there; a building that
+      // names no goal, every doorway it leaves by)
+      if (plan.plotGoal ? (L.from === id ? L.to : L.from) !== nextToward(plan, id, plan.plotGoal) : L.from !== id) continue;
+      const along = side === '+y' || side === '-y', N = { '+x': [-1, 0, 0], '-x': [1, 0, 0], '+y': [0, -1, 0], '-y': [0, 1, 0] }[side];
+      const wallAt = { '+x': r.x1, '-x': r.x0, '+y': r.y1, '-y': r.y0 }[side], off = (t.out ?? 0.34);
+      for (const u of [L.lo - 0.9, L.hi + 0.9]) {
+        const at = along ? [u, wallAt + N[1] * off, t.z] : [wallAt + N[0] * off, u, t.z];
+        leads.push({ at: P(at), n: N, color: t.color, intensity: r5(t.intensity * R.lead), radius: t.radius, fixture: 'torch' });
+      }
+    }
+  }
+  return [...out.filter((l) => !(l.fixture === 'torch' && leads.some((q) => Math.hypot(q.at[0] - l.at[0], q.at[1] - l.at[1], q.at[2] - l.at[2]) < 2.5))), ...leads];
+}
 export function resolveStageLights(plan, seats) {
   const t = plan.kit.torch;
   const list = plan.lights === 'auto' ? seats : Array.isArray(plan.lights) ? plan.lights : [];
@@ -1513,7 +1586,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // the night's placed lights (plaza-night.js): lanterns, the basin's glow, lit windows, baked like the torches
   // a composed room's light plot (compose-plot.js): the shell's lamps the fill, a key over each room's focus
   const placed = resolveStageLights(plan, seats), plotted = plan.compose && plan.lights === 'auto' ? plotLights(plan, placed) : null;
-  const lights = [...(plotted ? plotted.lights : placed), ...(dress && dress.night ? dress.night.lights : []), ...(dress && dress.lights ? dress.lights : [])];
+  const lights = plotLit(plan, [...(plotted ? plotted.lights : placed), ...(dress && dress.night ? dress.night.lights : []), ...(dress && dress.lights ? dress.lights : [])]);
   // live fire (`manifest.fire`): a dressing's braziers stand by its portal and light the room like the torches do
   const live = !!manifest.fire, Fk = live && plan.kit.dress && plan.kit.dress.fire, portalBay = (geom.bays || []).find((b) => b.portal);
   const braziers = Fk && Fk.braziers && portalBay ? [-1, 1].map((sg) => {

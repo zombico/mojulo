@@ -238,3 +238,10 @@ What the theme will hold:
   `tenebrae` with the vignette eased and a quarter stop more exposure.
 - **A body's shade kept deeper than the room's.** A body lit by the room takes a share of its fill (a third), not the
   whole: the room can be lit to be read and its cast still modelled hard by the lamps, a lit side against a dark one.
+- **Built: a room's light designed.** A stage's `plot: { <room>: { torches?, fill?, key?, lead? } }` (a building's
+  `plot`, carried to its stage) lights a room by design rather than by the kit's rhythm: how many of its wall torches it
+  keeps, spread round it (the rest taken down, fixture and all); what each gives; the gain on what hangs over its floor
+  (the candle rings: its key, a pool over the fight); and its way on, the doorway on the shortest way to the building's
+  goal, framed by a brighter pair of torches. The form render's bake is solved against its median lamp, so a plot's
+  contrast is its lamps' strengths against each other. Fallen Angel's great hall is lit so; its other rooms keep the
+  rhythm. A room the plot names none of, and every stage without one, as it was.

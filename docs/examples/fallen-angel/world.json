@@ -110,6 +110,13 @@
             "h": 18
           }
         },
+        "plot": {
+          "hall": {
+            "torches": 4,
+            "key": 3,
+            "lead": 1.5
+          }
+        },
         "geocube": {
           "from": "gothic-night",
           "era": "gen-7",
