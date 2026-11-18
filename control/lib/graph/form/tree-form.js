@@ -369,7 +369,7 @@ export function crossClumps(form, { keep = CROSSES.keep } = {}) {
  * facing out (its `o` that direction), its slot level round it; `drop` of a bundle's size it sinks into the surface, so
  * its leaves break it. → { blobs: [{ p, o, d, s, e, r }], clumps } (a blob's `s` its radius, `o` up).
  */
-export const MASSES = Object.freeze({ per: 7, least: 3, most: 9, fit: 1.05, pad: 0.3, drop: 0.25, rounds: 6 });
+export const MASSES = Object.freeze({ per: 7, least: 3, most: 9, fit: 0.8, pad: 0.2, drop: -0.15, rounds: 6 });
 export function massCrown(clumps, { per = MASSES.per } = {}) {
   const n = clumps.length;
   if (!n) return { blobs: [], clumps };

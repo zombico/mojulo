@@ -101,7 +101,7 @@ export const FLORA_LOD = Object.freeze({ detail: Object.freeze([6, 16]), mid: 25
 
 /** A mass crown's blob (form/tree-form.js massCrown): a sphere of `detail` subdivisions, squashed `squash` up, its colour
  *  the leaf's × `shade` (the crown's inside), scaled to each blob's radius on the page. */
-export const MASS_BLOB = Object.freeze({ detail: 1, squash: 0.85, shade: 0.7 });
+export const MASS_BLOB = Object.freeze({ detail: 1, squash: 0.85, shade: 0.82 });
 const CACHE = new Map();
 const b64 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64');
 const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
