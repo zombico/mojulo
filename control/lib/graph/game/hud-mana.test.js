@@ -140,6 +140,8 @@ describe('the host carries a level\'s rows', () => {
     const js = manaHudScript(levelHud('console', { style: true, vitals }), { rows }), bare = manaHudScript(levelHud('console', { style: true }), { rows });
     expect(js).toContain('--moj-hp-span');
     expect(js).toContain('data-variant=mp');
+    // (the ready moment, once: a ring off the crest the instant the gauge comes full)
+    expect(js).toContain('data-halo-cue');
     expect(bare).not.toMatch(/moj-hp-span|vitals/);
     expect(() => new Function(js)).not.toThrow();
     // (each look draws: an unknown one draws nothing of its own)

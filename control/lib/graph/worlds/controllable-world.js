@@ -83,6 +83,7 @@ const _cw = composeLive();
 export const createWorld = _cw.createWorld;
 export const stepWorld = _cw.stepWorld;
 export const styleOf = _cw.styleOf;   // the style meter (controllable/style.js): where it stands, or null
+export const castFacts = _cw.castFacts;   // the bus's facts off a world (controllable/cast.js, wrapped by the opt-ins that say their own)
 export const normalizeEntity = _cw.normalizeEntity;
 export const gaitFramePair = _cw.gaitFramePair;
 export const advanceGaitMix = _cw.advanceGaitMix;

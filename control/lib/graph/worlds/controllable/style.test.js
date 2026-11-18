@@ -1,7 +1,7 @@
 // THE STYLE METER (style.js): how well the pilot fights, read off the world each step. A hero with the basic set and a
 // foe that stands, struck on scripted presses at 60 Hz (as the moveset's own tests are).
 import { describe, it, expect } from 'vitest';
-import { createWorld, stepWorld, styleOf } from '../controllable-world.js';
+import { createWorld, stepWorld, styleOf, castFacts } from '../controllable-world.js';
 import { BASIC_ARSENAL, lowerArsenal } from '../../gameworld/combos.js';
 
 const room = ({ meter = {}, arsenal = BASIC_ARSENAL, foeHp = 1e6 } = {}) => {
@@ -117,6 +117,19 @@ describe('the style meter', () => {
     expect(styleOf(A.w).halo.on).toBe(false);
     expect(styleOf(A.w).halo.fill).toBeCloseTo(mid, 1);
     expect(A.p.rule.speed).toBe(6);
+  });
+  it('the bus hears it: ready the moment it fills, on and off, and the whole points it mends', () => {
+    const A = room({ meter: { halo: { stocks: 2, per: 20, at: 1, drain: 0.5, heal: 30 } } });
+    let prev = castFacts(A.w, null).prev; const heard = [];
+    const tick = (inp) => { A.step(inp); const r = castFacts(A.w, prev); prev = r.prev; heard.push(...r.events.filter((e) => e.type.startsWith('halo:'))); };
+    for (let f = 0; f < 12 * 14 + 60 && !styleOf(A.w).halo.ready; f++) tick(f % 14 === 0 ? { fire: 1 } : {});
+    expect(heard.map((e) => e.type)).toEqual(['halo:ready']);
+    tick({ transform: 1 }); for (let f = 0; f < 60; f++) tick({});
+    const types = heard.map((e) => e.type), mended = heard.filter((e) => e.type === 'halo:heal').reduce((n, e) => n + e.by, 0);
+    expect(types).toContain('halo:on');
+    expect(mended).toBeGreaterThanOrEqual(29); expect(mended).toBeLessThanOrEqual(31);   // (30 a second, one second)
+    for (let f = 0; f < 240; f++) tick({});
+    expect(heard.map((e) => e.type)).toContain('halo:off');
   });
   it('is nothing on a world that asks for none', () => {
     const A = room({ meter: null });

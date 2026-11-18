@@ -84,5 +84,9 @@ export function synthesizeLevel(manifest) {
   } catch (err) {
     throw new Error(`game mechanics are invalid:\n${err.message}`);
   }
+  // (a level that keeps its own health and carries the Halo Meter, worlds/controllable/style.js: the transformation mends
+  // it, the bus's `halo:heal` up to the health it starts at; any other level, nothing)
+  const H = composed.events.vars || {}, halo = manifest.styleMeter && manifest.styleMeter.halo;
+  if (halo && typeof H.hp === 'number' && H.hp > 0) (composed.events.reactions || (composed.events.reactions = [])).push({ on: 'halo:heal', do: 'inc', var: 'hp', by: 'event.by', max: H.hp });
   return { game: sceneContract(chapterContract(mergeContract(game, composed), play), play), mechEvents: composed.events };
 }

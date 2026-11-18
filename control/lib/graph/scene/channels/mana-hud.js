@@ -106,6 +106,11 @@ function vitalsCss(look) {
     `#moj-mana-hud[data-halo=on] ${V}::before{background:radial-gradient(circle at 35% 30%,#fff,${HALO} 55%,color-mix(in srgb,${HALO} 55%,#000));animation:moj-halo-on .5s ease-in-out infinite alternate}`,
     `@keyframes moj-halo-ready{to{filter:drop-shadow(0 0 .45em ${HALO}) brightness(1.35)}}`,
     `@keyframes moj-halo-on{to{scale:1.12}}`,
+    // the ready moment, once, the instant it comes full: a ring thrown off the crest and the gauge struck white
+    `#moj-mana-hud[data-halo-cue] ${V}::after{content:"";position:absolute;z-index:4;left:${L.crestW / 2}em;top:50%;width:${L.crestW}em;height:${L.crestW}em;margin:-${L.crestW / 2}em 0 0 -${L.crestW / 2}em;border-radius:50%;border:.18em solid color-mix(in srgb,${HALO} 30%,#fff);box-shadow:0 0 .6em ${HALO};pointer-events:none;animation:moj-halo-cue .9s cubic-bezier(.1,.8,.3,1) forwards}`,
+    `#moj-mana-hud[data-halo-cue] ${D} .mana-track i{animation:moj-halo-strike .9s ease-out}`,
+    `@keyframes moj-halo-cue{from{scale:.4;opacity:1}to{scale:5;opacity:0}}`,
+    `@keyframes moj-halo-strike{from{filter:brightness(3) saturate(0)}to{filter:none}}`,
     `${D}[data-ready=yes]{filter:drop-shadow(.07em .07em 0 ${A2}) drop-shadow(-.035em -.035em 0 ${LIGHT}) drop-shadow(0 0 .35em ${HALO})}`,
     // the sprint: a hairline over the health, as long as it
     `${S}{width:calc(var(--moj-full) * var(--moj-hp-span,.5) * .9);margin:${L.st.mt}em 0 .14em .25em}`,
@@ -157,7 +162,7 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
 ${styled ? '  let sTier = 0;\n' : ''}${vit ? `  // THE VITALS (game/hud-mana.js vitals): the hit's chip held a moment then drained; each bar's length its share of what it
   // reaches by the game's end, so the figure grows across the game and is laid out for its end from the start
-  const VIT = CFG.feed.vitals; let vHp = null, vGhost = 0, vHold = 0, vFull = VIT.full.hp || 0;
+  const VIT = CFG.feed.vitals; let vHp = null, vGhost = 0, vHold = 0, vCue = 0, vFull = VIT.full.hp || 0;
   root.dataset.vitals = VIT.look;
   const at = (path) => (typeof path === 'number' ? path : String(path).split('.').reduce((o, k) => (o == null ? o : o[k]), st));
   function vitals() {
@@ -167,7 +172,8 @@ ${styled ? '  let sTier = 0;\n' : ''}${vit ? `  // THE VITALS (game/hud-mana.js 
     if (!vFull && st.vit.has) vFull = mx * 2;
     if (vFull) root.style.setProperty('--moj-hp-span', String(Math.min(1, mx / vFull)));
     const SM = window.__mojStyle && window.__mojStyle.now(), dv = SM && SM.halo; st.halo.on = !!dv;
-    root.dataset.halo = dv ? (dv.on ? 'on' : dv.ready ? 'ready' : '') : '';
+    const was = root.dataset.halo; root.dataset.halo = dv ? (dv.on ? 'on' : dv.ready ? 'ready' : '') : '';
+    if (root.dataset.halo === 'ready' && was !== 'ready' && was !== 'on') { root.dataset.haloCue = ''; vCue = clock + 0.9; } else if (vCue && clock > vCue) { delete root.dataset.haloCue; vCue = 0; }
     if (dv) { st.halo.fill = dv.fill; st.halo.stocks = dv.stocks; root.style.setProperty('--moj-dv-span', String(Math.min(1, dv.stocks / (VIT.full.halo || 10)))); }
   }
 ` : ''}${hud.feed && hud.feed.immersive ? `  // (the immersive HUD, game/immersive-ui.js: the page's own weapon panel on no plate either)

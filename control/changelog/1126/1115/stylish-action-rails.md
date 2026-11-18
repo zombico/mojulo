@@ -204,3 +204,8 @@ What the theme will hold:
 - **From a sentence.** A stylish action game asked for in a sentence gets its kit, its set-up and a first level:
   an approach that teaches the string on one foe, then a dungeon that tests it.
 - **A bigger dungeon.** A walled-core dungeon's fights grow heavier with depth, and its gates are played.
+- **Built: the transformation mends the level, and its ready moment.** A level that keeps its own health on the bus is
+  mended while the hero is transformed (`halo:heal`, the whole points healed, added up to the level's starting health;
+  `game/level-synth.js`), as his own body's health already was. The bus hears `halo:ready`, `halo:on` and `halo:off`,
+  and the HUD marks the instant the gauge comes full once (a ring off the vitals' crest, the gauge struck white) before
+  it breathes. A level without the Halo Meter, or with no health of its own, gains no rule.

@@ -59,7 +59,7 @@ export function buildStyle(E) {
   function haloOf(h) {
     const stocks = Math.max(1, Math.min(20, Math.round(num(h.stocks, 3))));
     return { stocks, per: Math.max(1, num(h.per, 100)), hit: Math.max(0, num(h.hit, 6)), hurt: Math.max(0, num(h.hurt, 10)), at: Math.max(0.25, Math.min(stocks, num(h.at, Math.min(3, stocks)))),
-      drain: Math.max(0.01, num(h.drain, 0.4)), might: Math.max(1, num(h.might, 1.5)), swift: Math.max(1, num(h.swift, 1.2)), heal: Math.max(0, num(h.heal, 4)), points: 0, on: false, held: false, since: 0, count: 0, was: null };
+      drain: Math.max(0.01, num(h.drain, 0.4)), might: Math.max(1, num(h.might, 1.5)), swift: Math.max(1, num(h.swift, 1.2)), heal: Math.max(0, num(h.heal, 4)), points: 0, on: false, held: false, since: 0, count: 0, was: null, mend: 0, mended: 0, readies: 0, wasReady: false };
   }
   // THE TRANSFORMATION: the hero's blows and run raised while it lasts, what they were kept to be given back
   function begin(state, H, p) {
@@ -84,7 +84,15 @@ export function buildStyle(E) {
     if (!H.on) return;
     H.points -= H.drain * H.per * dt;
     if (H.heal > 0 && p.body && p.hpMax > 0 && p.body.hp > 0) p.body.hp = Math.min(p.hpMax, p.body.hp + H.heal * dt);
+    // (and the level's own health, where it keeps one: the bus hears it in whole points, `halo:heal`)
+    if (H.heal > 0) { H.mend += H.heal * dt; const n = Math.floor(H.mend); if (n > 0) { H.mend -= n; H.mended += n; } }
     if (H.points <= 0) { H.points = 0; end(H, p); }
+  }
+  // the gauge's ready moment: counted on the edge it comes full enough to transform
+  function readyEdge(H) {
+    const ready = !H.on && H.points >= H.at * H.per - 1e-6;
+    if (ready && !H.wasReady) H.readies++;
+    H.wasReady = ready;
   }
 
   // whose fighting it is: the pilot's; a world nobody pilots (a sim, a test), the first body that plays a moveset
@@ -147,6 +155,24 @@ export function buildStyle(E) {
     const t0 = state.time;
     const out = step(state, input, dt, hooks);
     read(state, t0, state.time - t0);
+    if (state.style.halo) readyEdge(state.style.halo);
+    return out;
+  };
+  // the bus hears the Halo Meter (castFacts, wrapped): `halo:ready` the moment it can transform, `halo:on` / `halo:off`,
+  // `halo:heal` { by } the whole points a transformation mends (a level that keeps its own health gains them,
+  // game/level-synth.js)
+  const baseFacts = E.castFacts;
+  if (baseFacts) E.castFacts = function castFacts(state, prev) {
+    const out = baseFacts(state, prev), H = state.style && state.style.halo;
+    if (!H) return out;
+    const was = (prev && prev.__halo) || null, cur = { r: H.readies, c: H.count, on: H.on, m: H.mended };
+    out.prev.__halo = cur;
+    if (!was) return out;
+    const who = state.pilotId;
+    if (cur.r > was.r) out.events.push({ type: 'halo:ready', entity: who });
+    if (cur.c > was.c) out.events.push({ type: 'halo:on', entity: who });
+    if (was.on && !cur.on) out.events.push({ type: 'halo:off', entity: who });
+    if (cur.m > was.m) out.events.push({ type: 'halo:heal', entity: who, by: cur.m - was.m });
     return out;
   };
   E.styleOf = (state) => { const T = state && state.style; return T ? { tier: T.tier, name: T.name, fill: T.fill, points: Math.round(T.points * 10) / 10, combo: T.combo, peak: T.peak, peakName: T.cfg.tiers[T.peak], earned: Math.round(T.earned * 10) / 10, hurt: T.hurt, best: T.best, tiers: T.cfg.tiers.slice(), ...(T.halo ? { halo: { fill: Math.round((T.halo.points / T.halo.per) * 1000) / 1000, stocks: T.halo.stocks, at: T.halo.at, on: T.halo.on, ready: !T.halo.on && T.halo.points >= T.halo.at * T.halo.per - 1e-6, count: T.halo.count } } : {}) } : null; };
