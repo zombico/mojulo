@@ -67,7 +67,7 @@
  *
  * Pure.
  */
-import { bestiaryOf, isPeople, isModel } from './foes.js';
+import { bestiaryOf, isPeople, isModel, modeChain } from './foes.js';
 import { brawlLevel, readBrawlLevel, BRAWL_STAGE_KITS } from '../brawl/brawl-levels.js';
 import { readGun } from '../brawl/brawl-guns.js';
 import { readScreen } from '../game/screen.js';
@@ -82,7 +82,7 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: brawl${m}`);
 
 export const BRAWL_PLAYS = Object.freeze({
-  walker: 'thug', swarm: 'thug', patrol: 'thug', guard: 'sword', summoner: 'thug',
+  walker: 'thug', swarm: 'thug', patrol: 'thug', guard: 'sword', summoner: 'caster',
   hopper: 'jumper', swooper: 'jumper', charger: 'charger', pursuer: 'charger',
   lurker: 'knife', stalker: 'knife', brute: 'heavy',
   turret: 'rifleman', hunter: 'gunner', lobber: 'grenadier',
@@ -130,7 +130,14 @@ export function brawlCast(G, waves, { gun = false, plays = null } = {}) {
       const id = FIGHT_ROLES[word] ? R[word] : word;
       if (!B[id]) throw fail(`.waves[${i}].foes.${word}: a role (${Object.keys(FIGHT_ROLES).join(', ')}) or one of the bestiary's (${Object.keys(B).join(', ')})`);
       if (!foes.includes(id)) foes.push(id);
-      return { type: plays?.[id] ?? brawlPlay(B[id], { gun }), n, foe: id };
+      // (A SUMMONER, the foe shelf's: it calls its own `summons` entry on the street, as many at once as it says (the
+      // street's most), bound unless said: brawl-crowd.js readSummons)
+      const S = B[id].summons, type = plays?.[id] ?? brawlPlay(B[id], { gun });
+      if (S && !gun && CROWD_TYPES[type]?.hangs) {
+        if (!foes.includes(S.foe)) foes.push(S.foe);
+        return { type, n, foe: id, summons: { type: plays?.[S.foe] ?? brawlPlay(B[S.foe], { gun }), n: Math.max(1, Math.min(4, S.count ?? 2)), bound: S.bound !== false, foe: S.foe } };
+      }
+      return { type, n, foe: id };
     });
     const { foes: _f, ...rest } = w;
     return { ...rest, crowd };
@@ -209,11 +216,21 @@ export function brawlStreet(G, street, { gun = false, plays = null } = {}) {
     if (!B[id]) throw fail(`.street.boss: a role (${Object.keys(FIGHT_ROLES).join(', ')}) or one of the bestiary's (${Object.keys(B).join(', ')})`);
     boss = id;
     if (!foes.includes(id)) { foes.push(id); if (!brawlBodies(G, { foes: [id] })[id]) says.push(`${id} is drawn as a jointed figure: only a person's body stands on the street yet (skin it as a person or a people to give it one)`); }
+    // (THE BOSS'S RELATIONS, the foe shelf's: its PAIR stands beside it, one down enraging the other (a pair that
+    // revives is enraged on the street: said); each entry it BECOMES is a form it is defeated into, an act a form)
+    const P = B[id].pair, chain = modeChain(B, id).slice(1);
+    for (const f of [...(P ? [P.foe] : []), ...chain]) if (!foes.includes(f)) foes.push(f);
+    if (P?.down === 'revive') says.push(`${id} and ${P.foe} revive each other in the round; on the street one down enrages the other`);
+    const pairWords = P ? { foe: P.foe, down: 'enrage' } : null, forms = chain;
     screens.push({ length: bossWords.length ?? STREET.stop, boss: true });
     const withAt = S.stops.length, callsAt = withAt + (bossWords.with ? 1 : 0);
     const called = callers.flatMap((c, n) => C.waves[callsAt + n].crowd.map((e) => ({ ...e, stage: c.k })));
-    const stages = stagesIn ? stagesIn.map(({ calls: _c, ...st }) => st) : null;
-    waves.push({ screen: screens.length - 1, crowd: [...(bossWords.with ? C.waves[withAt].crowd : []), ...called], boss: { foe: id, ...(bossWords.hp ? { hp: bossWords.hp } : {}), ...(bossWords.cpu ? { cpu: bossWords.cpu } : {}), ...(stages ? { stages } : {}) } });
+    const written = stagesIn ? stagesIn.map(({ calls: _c, ...st }) => st) : null;
+    // (its forms laid on its acts in turn: the acts it has, else one an act a form, its health shared evenly)
+    const stages0 = written ?? (forms.length ? Array.from({ length: forms.length + 1 }, () => ({})) : null);
+    const stages = stages0 ? stages0.map((st, k) => (k > 0 && forms[k - 1] ? { ...st, form: { foe: forms[k - 1] }, ...(st.name ? {} : { name: forms[k - 1] }) } : st)) : null;
+    if (written && forms.length > written.length - 1) says.push(`${id} becomes ${forms.length} forms but its fight has ${written.length - 1} acts after the first: the last ${forms.length - (written.length - 1)} are not reached`);
+    waves.push({ screen: screens.length - 1, crowd: [...(bossWords.with ? C.waves[withAt].crowd : []), ...called], boss: { foe: id, ...(bossWords.hp ? { hp: bossWords.hp } : {}), ...(bossWords.cpu ? { cpu: bossWords.cpu } : {}), ...(stages ? { stages } : {}), ...(pairWords ? { pair: pairWords } : {}) } });
   } else says.push('the street ends on its last stop: it names no boss');
   // (a street builds: a stop that meets fewer than the one before it is said)
   const met = waves.filter((w) => !w.boss).map((w) => w.crowd.reduce((a, c) => a + c.n, 0));
@@ -223,9 +240,13 @@ export function brawlStreet(G, street, { gun = false, plays = null } = {}) {
 
 /** The street's waves as the page takes them. */
 export function withStreetBodies(waves, rosterAt) {
+  const at = (foe) => (Number.isInteger(rosterAt?.[foe]) ? rosterAt[foe] : null);
+  // (each foe by its body: a crowd entry's and its summons', a boss's, its pair's and each form it becomes)
+  const summonsOf = (S) => (S ? { summons: (({ foe, ...x }) => (at(foe) !== null ? { ...x, roster: at(foe) } : x))(S) } : {});
+  const fighterOf = ({ foe, ...b }) => (at(foe) !== null ? { ...b, fighter: at(foe) } : { ...b, archetype: 'grappler', id: foe, name: foe });
   return waves.map(({ boss, ...w }) => ({
-    ...w, crowd: w.crowd.map(({ foe, ...c }) => (Number.isInteger(rosterAt?.[foe]) ? { ...c, roster: rosterAt[foe] } : c)),
-    ...(boss ? { boss: (({ foe, ...b }) => (Number.isInteger(rosterAt?.[foe]) ? { ...b, fighter: rosterAt[foe] } : { ...b, archetype: 'grappler', id: foe, name: foe }))(boss) } : {}),
+    ...w, crowd: w.crowd.map(({ foe, summons, ...c }) => ({ ...(at(foe) !== null ? { ...c, roster: at(foe) } : c), ...summonsOf(summons) })),
+    ...(boss ? { boss: (({ pair, stages, ...b }) => ({ ...fighterOf(b), ...(pair ? { pair: fighterOf(pair) } : {}), ...(stages ? { stages: stages.map(({ form, ...st }) => ({ ...st, ...(form ? { form: fighterOf(form) } : {}) })) } : {}) }))(boss) } : {}),
   }));
 }
 

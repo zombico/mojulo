@@ -130,6 +130,13 @@ export const CROWD_TYPES = Object.freeze({
   grenadier: type('a lob: a grenade arced at where the player stands', { archetype: 'zoner', hp: 200, gun: 'lob', plays: ['shoot'], volley: 1, poise: 25 }),
   bazooka: type('a big body with a rocket: a long aim, a slow rocket that bursts', { archetype: 'grappler', hp: 320, gun: 'bazooka', plays: ['shoot'], volley: 1, poise: 70 }),
   staff: type('a staff, long both ways: three blows, a sweep that blows the player down the street, a leaping strike; its wood is struck as it swings', { archetype: 'zoner', hp: 260, weapon: 'staff', tune: { damage: 85, startup: 2, recovery: 3 }, plays: ['chain', 'chain', 'blowout', 'kick'], combo: 3 }),
+  // THE SUPERVILLAIN'S CROWD (brawl-villains.js): the foe shelf's idioms on the street
+  // (the SUMMONER, foes/classes/summoner.js: it keeps its place behind the others and calls, a crowd entry's `summons`;
+  // it takes no turn at a player while another of its wave stands)
+  caster: type('a summoner: it keeps back behind the others and calls its summons in, a few at a time; it fights only once it is alone', { archetype: 'zoner', hp: 240, tune: { damage: 70, startup: 3, recovery: 4 }, plays: ['chain', 'break'], combo: 2, hangs: true }),
+  drone: type('a summoned body: small, quick and frail, two jabs and away', { archetype: 'rushdown', hp: 110, tune: { damage: 55, startup: 1, recovery: 2 }, plays: ['chain', 'run'], combo: 2 }),
+  // (a henchman with a power of its own, brawl-powers.js: the beam its every special, never the super's beat)
+  blaster: type('a henchman with a power: it holds back and fires a bolt down the street, or closes for two blows', { archetype: 'zoner', hp: 200, power: 'beam', tune: { damage: 70, startup: 2, recovery: 3 }, plays: ['special.neutral', 'special.neutral', 'chain'], combo: 2 }),
 });
 export const CROWD_TYPE_IDS = Object.freeze(Object.keys(CROWD_TYPES));
 
@@ -166,7 +173,7 @@ const vary = (id, k = 0) => { let h = (id * 2654435761 + k * 40503) >>> 0; h ^= 
 export const STAGE_PAUSE = 45;
 function readStages(stages, where) {
   if (stages === undefined) return undefined;
-  if (!Array.isArray(stages) || stages.length < 2 || stages.length > 5) throw new Error(`brawl: ${where} is two to five stages, each { at?, cpu?, plays?, name? }`);
+  if (!Array.isArray(stages) || stages.length < 2 || stages.length > 5) throw new Error(`brawl: ${where} is two to five stages, each { at?, cpu?, plays?, name?, form? }`);
   let last = 1.0001;
   return stages.map((st, k) => {
     if (!st || typeof st !== 'object') throw new Error(`brawl: ${where}[${k}] is { at?, cpu?, plays?, name? }`);
@@ -175,8 +182,53 @@ function readStages(stages, where) {
     last = at;
     if (st.cpu !== undefined && !CPU_LEVELS[st.cpu]) throw new Error(`brawl: ${where}[${k}].cpu is one of ${Object.keys(CPU_LEVELS).join(', ')}`);
     if (st.plays !== undefined && Array.isArray(st.plays) && st.plays.includes('grab')) throw new Error(`brawl: ${where}[${k}].plays: a boss's grab is the fight's throw, its CPU's (no 'grab' play)`);
-    return { at, ...(st.cpu ? { cpu: st.cpu } : {}), ...(st.plays ? { plays: st.plays } : {}), ...(typeof st.name === 'string' && st.name ? { name: st.name } : {}) };
+    // (`form`: the fighter it is DEFEATED INTO as the stage begins (the foe shelf's modes: `becomes`), a recipe: its moves
+    // and its power from there, its health carried on)
+    if (st.form !== undefined && (k === 0 || !st.form || typeof st.form !== 'object' || !st.form.archetype)) throw new Error(`brawl: ${where}[${k}].form is the fighter it becomes as that stage begins, a fighter's recipe (not its first stage)`);
+    return { at, ...(st.cpu ? { cpu: st.cpu } : {}), ...(st.plays ? { plays: st.plays } : {}), ...(typeof st.name === 'string' && st.name ? { name: st.name } : {}), ...(st.form ? { form: st.form } : {}) };
   });
+}
+
+/**
+ * A SUMMONER'S SUMMONS (the foe shelf's relation, foes/classes/summoner.js and `summons`): who it calls, a few at a time.
+ *   summons: { type, n?, every?, bound? }
+ *     type   the crowd type it calls (never one that summons: a summoner does not call a summoner)
+ *     n      how many of them it keeps on the street at once (1 to 4; 2 unsaid); it calls three times that in all
+ *     every  frames between two calls while it stands on the street (60 to 900; SUMMON_EVERY unsaid)
+ *     bound  true (unsaid): when it falls, every one it called is cut down where it stands and those never called are
+ *            not; false: they fight on, and those never called stay uncalled
+ */
+export const SUMMON_EVERY = 240;
+function readSummons(v, where) {
+  if (v === undefined) return undefined;
+  const no = (m) => { throw new Error(`brawl: ${where}${m}`); };
+  if (!v || typeof v !== 'object' || Array.isArray(v)) no(' is { type, n?, every?, bound? }: who it calls, a few at a time');
+  // (`roster`: who its summons are drawn as, the page's; the street plays none of it)
+  for (const k of Object.keys(v)) if (!['type', 'n', 'every', 'bound', 'roster'].includes(k)) no(`.${k} is not a summons' word (type, n, every, bound)`);
+  if (!CROWD_TYPES[v.type]) no(`.type is the crowd type it calls: one of ${CROWD_TYPE_IDS.join(', ')}`);
+  if (CROWD_TYPES[v.type].hangs) no('.type: a summoner does not call a summoner');
+  if (v.n !== undefined && !(Number.isInteger(v.n) && v.n >= 1 && v.n <= 4)) no('.n is how many it keeps on the street at once, 1 to 4');
+  if (v.every !== undefined && !(Number.isInteger(v.every) && v.every >= 60 && v.every <= 900)) no('.every is the frames between two calls, 60 to 900');
+  if (v.bound !== undefined && typeof v.bound !== 'boolean') no('.bound is true (cut down with it) or false (they fight on)');
+  return { type: v.type, n: v.n ?? 2, every: v.every ?? SUMMON_EVERY, bound: v.bound !== false };
+}
+/**
+ * A PAIR (the foe shelf's relation, `pair`): a second boss beside the first, two as one encounter, each its own bar; the
+ * stage is clear when both are down.
+ *   pair: { recipe, name?, hp?, cpu?, plays?, down? }   down: 'enrage' (unsaid): when one falls the other fights on as
+ *   the fight's best CPU, its desperation in its plays, untouchable a moment as it turns
+ */
+export const PAIR_DOWNS = Object.freeze(['enrage', 'none']);
+function readPair(v, where) {
+  if (v === undefined) return undefined;
+  const no = (m) => { throw new Error(`brawl: ${where}${m}`); };
+  if (!v || typeof v !== 'object' || !v.recipe || typeof v.recipe !== 'object') no(' is { recipe, name?, hp?, cpu?, plays?, down? }: the second of the two');
+  for (const k of Object.keys(v)) if (!['recipe', 'name', 'hp', 'cpu', 'plays', 'down', 'roster'].includes(k)) no(`.${k} is not a pair's word (recipe, name, hp, cpu, plays, down)`);
+  if (v.cpu !== undefined && !CPU_LEVELS[v.cpu]) no(`.cpu is one of ${Object.keys(CPU_LEVELS).join(', ')}`);
+  if (v.hp !== undefined && !(Number.isInteger(v.hp) && v.hp >= 1 && v.hp <= 99999)) no('.hp is a whole number from 1 to 99999');
+  if (v.down !== undefined && !PAIR_DOWNS.includes(v.down)) no(`.down is what the other does when one falls: ${PAIR_DOWNS.join(' | ')}`);
+  if (Array.isArray(v.plays) && v.plays.includes('grab')) no('.plays: a boss\'s grab is the fight\'s throw, its CPU\'s (no \'grab\' play)');
+  return { recipe: v.recipe, cpu: v.cpu ?? 'regular', plays: v.plays ?? BOSS_PLAYS, down: v.down ?? 'enrage', ...(v.name ? { name: v.name } : {}), ...(v.hp ? { hp: v.hp } : {}) };
 }
 
 /** Read the waves: one a held screen, its crowd by type. */
@@ -204,6 +256,7 @@ export function readWaves(waves, belt) {
       readMount(c.mount, `${at}.crowd[${j}].mount`);
       // (`stage`: called in by its wave's boss as that stage of it begins, 1 the first after it comes in)
       if (c.stage !== undefined && !(w.boss && Number.isInteger(c.stage) && c.stage >= 1 && c.stage <= 5)) throw new Error(`brawl: ${at}.crowd[${j}].stage is the boss's stage that calls it in (1 to 5; a boss's wave only)`);
+      readSummons(c.summons, `${at}.crowd[${j}].summons`);
     }
     if (w.boss !== undefined) {
       if (!sc.boss) throw new Error(`brawl: ${at}.boss: a boss stands on the belt's boss screen (its last)`);
@@ -239,8 +292,9 @@ export function readWaves(waves, belt) {
       if (w.boss.cpu !== undefined && !CPU_LEVELS[w.boss.cpu]) throw new Error(`brawl: ${at}.boss.cpu is one of ${Object.keys(CPU_LEVELS).join(', ')}`);
       if (w.boss.hp !== undefined && !(Number.isInteger(w.boss.hp) && w.boss.hp >= 1 && w.boss.hp <= 99999)) throw new Error(`brawl: ${at}.boss.hp is a whole number from 1 to 99999`);
       readStages(w.boss.stages, `${at}.boss.stages`);
+      if (w.boss.type === undefined) { readSummons(w.boss.summons, `${at}.boss.summons`); readPair(w.boss.pair, `${at}.boss.pair`); }
     }
-    return { screen: w.screen, crowd: w.crowd.map((c) => ({ type: c.type, n: c.n, ...(c.entrance && c.entrance !== 'walk' ? { entrance: c.entrance } : {}), ...(c.ambush ? { ambush: true } : {}), ...(c.mount ? { mount: readMount(c.mount, at) } : {}), ...(c.stage ? { stage: c.stage } : {}) })), ...(w.boss && w.boss.type !== undefined ? { boss: { type: w.boss.type, name: w.boss.name ?? 'The Boss', hp: w.boss.hp ?? CROWD_TYPES[w.boss.type].hp * 4, ...(w.boss.volley ? { volley: w.boss.volley } : {}), ...(w.boss.phases ? { phases: w.boss.phases.map((ph) => ({ at: ph.at, ...(ph.type ? { type: ph.type } : {}), ...(ph.volley ? { volley: ph.volley } : {}), ...(ph.calls ? { calls: ph.calls.map((c) => ({ type: c.type, n: c.n })) } : {}), ...(ph.says ? { says: ph.says } : {}) })) } : {}) } } : w.boss ? { boss: { recipe: w.boss.recipe, cpu: w.boss.cpu ?? 'regular', ...(w.boss.hp ? { hp: w.boss.hp } : {}), ...(w.boss.tune ? { tune: w.boss.tune } : {}), ...(w.boss.weapon ? { weapon: w.boss.weapon } : {}), plays: w.boss.plays ?? BOSS_PLAYS, ...(w.boss.stages ? { stages: readStages(w.boss.stages, `${at}.boss.stages`) } : {}) } } : {}) };
+    return { screen: w.screen, crowd: w.crowd.map((c) => ({ type: c.type, n: c.n, ...(c.entrance && c.entrance !== 'walk' ? { entrance: c.entrance } : {}), ...(c.ambush ? { ambush: true } : {}), ...(c.mount ? { mount: readMount(c.mount, at) } : {}), ...(c.stage ? { stage: c.stage } : {}), ...(c.summons ? { summons: readSummons(c.summons, at) } : {}) })), ...(w.boss && w.boss.type !== undefined ? { boss: { type: w.boss.type, name: w.boss.name ?? 'The Boss', hp: w.boss.hp ?? CROWD_TYPES[w.boss.type].hp * 4, ...(w.boss.volley ? { volley: w.boss.volley } : {}), ...(w.boss.phases ? { phases: w.boss.phases.map((ph) => ({ at: ph.at, ...(ph.type ? { type: ph.type } : {}), ...(ph.volley ? { volley: ph.volley } : {}), ...(ph.calls ? { calls: ph.calls.map((c) => ({ type: c.type, n: c.n })) } : {}), ...(ph.says ? { says: ph.says } : {}) })) } : {}) } } : w.boss ? { boss: { recipe: w.boss.recipe, cpu: w.boss.cpu ?? 'regular', ...(w.boss.hp ? { hp: w.boss.hp } : {}), ...(w.boss.tune ? { tune: w.boss.tune } : {}), ...(w.boss.weapon ? { weapon: w.boss.weapon } : {}), plays: w.boss.plays ?? BOSS_PLAYS, ...(w.boss.stages ? { stages: readStages(w.boss.stages, `${at}.boss.stages`) } : {}), ...(w.boss.summons ? { summons: readSummons(w.boss.summons, `${at}.boss.summons`) } : {}), ...(w.boss.pair ? { pair: readPair(w.boss.pair, `${at}.boss.pair`) } : {}) } } : {}) };
   }).sort((a, b) => a.screen - b.screen);
 }
 
@@ -248,7 +302,7 @@ export function readWaves(waves, belt) {
 export function crowdFighter(id) {
   const T = CROWD_TYPES[id];
   const recipe = { ...solveFighter({ id, archetype: T.archetype }).recipe, archetype: T.archetype, id, name: id, hp: T.hp, ...(T.weapon ? { weapon: T.weapon } : {}) };
-  return brawlFighter(recipe, { tune: T.tune });
+  return brawlFighter(T.power ? powerRecipe(recipe, T.power) : recipe, { tune: T.tune });
 }
 /** a play's move slot (a special's at its strength M), or null for one that is not a single blow */
 export const playSlot = (play) => (play.startsWith('special.') ? `${play}.M` : { chain: 'chain.1', break: 'chain.1', blowout: 'chain.1', strong: 'strong', run: 'run.attack', kick: 'air.M', dive: 'strong.dive', desperate: 'desperate' }[play] ?? null);
@@ -289,7 +343,7 @@ export function streetOf({ belt, players: players0, waves = [], things, rules, c
   // (A HERO'S POWER, a player's `power` (brawl-powers.js): its fighter's every special the power, its body the stock)
   const powers = players.map((p, i) => (p.power === undefined ? null : readPower(p.power, `players[${i}].power`)));
   const fighters = players.map((p, i) => playerFighter(p.recipe, p.style, powers[i]));
-  const types = [...new Set(W.flatMap((w) => [...w.crowd.map((c) => c.type), ...(w.boss?.type ? [w.boss.type, ...(w.boss.phases ?? []).flatMap((ph) => [...(ph.type ? [ph.type] : []), ...(ph.calls ?? []).map((c) => c.type)])] : [])]))];
+  const types = [...new Set(W.flatMap((w) => [...w.crowd.flatMap((c) => [c.type, ...(c.summons ? [c.summons.type] : [])]), ...(w.boss?.summons ? [w.boss.summons.type] : []), ...(w.boss?.type ? [w.boss.type, ...(w.boss.phases ?? []).flatMap((ph) => [...(ph.type ? [ph.type] : []), ...(ph.calls ?? []).map((c) => c.type)])] : [])]))];
   const typeAt = {};
   for (const t of types) { typeAt[t] = fighters.length; fighters.push(crowdFighter(t)); }
   const half = viewHalf(belt), [n0, n1] = belt.depth.map((v) => Math.round(v * 1000));
@@ -307,6 +361,32 @@ export function streetOf({ belt, players: players0, waves = [], things, rules, c
   const entries = {};
   // (a body its wave's boss calls in at a stage: the stage, by its id)
   const calls = {};
+  // (A SUMMONER's pool, readSummons: by the summoner's id, its summons' ids made with it and held offstage until it calls
+  // them (`held`, by the summons' id: its summoner's))
+  const summons = {}, held = {};
+  const crowdBody = (t, k) => ({ fighter: typeAt[t], side: 'crowd', x: 0, z: 0, wave: k, ...(CROWD_TYPES[t].plays.includes('grab') ? {} : { grabs: false }), ...(CROWD_TYPES[t].gun ? { gun: armory.at[CROWD_TYPES[t].gun] } : {}), ...(CROWD_TYPES[t].poise ? { poise: CROWD_TYPES[t].poise } : {}) });
+  const poolOf = (id, S, k) => {
+    summons[id] = { type: S.type, n: S.n, every: S.every, bound: S.bound, pool: [], out: [], t: 0 };
+    for (let j = 0; j < S.n * 3; j++) { held[bodies.length] = id; summons[id].pool.push(bodies.length); bodies.push(crowdBody(S.type, k)); kinds.push(S.type); }
+  };
+  // (a boss as a fighter: its own tune and weapon, its plays and stages read on it, each stage's FORM compiled beside it)
+  const recipeBoss = (b, k, at) => {
+    const BF = brawlFighter({ ...b.recipe, ...(b.hp ? { hp: b.hp } : {}), ...(b.weapon ? { weapon: b.weapon } : {}) }, { tune: b.tune });
+    fighters.push(BF);
+    const fi = fighters.length - 1, id = bodies.length;
+    const stages = b.stages ? b.stages.map((st, n) => {
+      const FF = st.form ? brawlFighter(st.form, { tune: b.tune }) : null;
+      if (FF) fighters.push(FF);
+      const on = FF ?? BF;
+      return { ...st, ...(FF ? { form: fighters.length - 1, formName: st.form.name ?? null } : {}), ...(st.plays ? { plays: readPlays(st.plays, on, `${at}.stages[${n}].plays`) } : {}) };
+    }) : null;
+    bosses[id] = { cpu: b.cpu, name: b.recipe.name ?? b.recipe.id ?? 'boss', plays: readPlays(b.plays, BF, `${at}.plays`), combo: Math.max(1, BF.brawl.chain - 1), knees: 3,
+      // (its stages, each one's plays read on its fighter: readStages above; it comes in at its first)
+      ...(stages ? { stage: 0, stages } : {}) };   // (its chain to the blow before the last: an ender's place)
+    bodies.push({ fighter: fi, side: 'crowd', x: 0, z: 0, wave: k }); kinds.push('boss');
+    if (b.summons) poolOf(id, b.summons, k);
+    return id;
+  };
   // (the shooting crowd's guns, each its index in ctx.guns)
   // (A STREET PLAYED AS A RUN & GUN, `gunner` { guns, grenades }: the players' guns first, the sidearm under the one
   // they start with, the grenade after them; then every gun lying on the street to be taken up, and the crowd's)
@@ -332,14 +412,21 @@ export function streetOf({ belt, players: players0, waves = [], things, rules, c
       (w.boss.phases ?? []).forEach((ph, j) => { for (const c of ph.calls ?? []) for (let n = 0; n < c.n; n++) { const CT = CROWD_TYPES[c.type]; phases[j].calls.push(bodies.length); bodies.push({ fighter: typeAt[c.type], side: 'crowd', x: 0, z: 0, wave: k, ...(CT.plays.includes('grab') ? {} : { grabs: false }), ...(CT.gun ? { gun: armory.at[CT.gun] } : {}), ...(CT.poise ? { poise: CT.poise } : {}) }); kinds.push(c.type); } });
     } else if (w.boss) {
       // (a body as every other: a brawler's fighter in its own tune, its plays on it)
-      const BF = brawlFighter({ ...w.boss.recipe, ...(w.boss.hp ? { hp: w.boss.hp } : {}), ...(w.boss.weapon ? { weapon: w.boss.weapon } : {}) }, { tune: w.boss.tune });
-      bosses[bodies.length] = { cpu: w.boss.cpu, name: w.boss.recipe.name ?? w.boss.recipe.id ?? 'boss', plays: readPlays(w.boss.plays, BF, `waves[${k}].boss.plays`), combo: Math.max(1, BF.brawl.chain - 1), knees: 3,
-        // (its stages, each one's plays read on its fighter: readStages above; it comes in at its first)
-        ...(w.boss.stages ? { stage: 0, stages: w.boss.stages.map((st, n) => ({ ...st, ...(st.plays ? { plays: readPlays(st.plays, BF, `waves[${k}].boss.stages[${n}].plays`) } : {}) })) } : {}) };   // (its chain to the blow before the last: an ender's place)
-      fighters.push(BF);
-      bodies.push({ fighter: fighters.length - 1, side: 'crowd', x: 0, z: 0, wave: k }); kinds.push('boss');
+      const first = recipeBoss(w.boss, k, `waves[${k}].boss`);
+      // (A PAIR, readPair: the second beside it, each its own bar, each the other's)
+      if (w.boss.pair) {
+        const P = w.boss.pair, second = recipeBoss({ recipe: { ...P.recipe, ...(P.name ? { name: P.name } : {}) }, hp: P.hp, cpu: P.cpu, plays: P.plays, tune: w.boss.tune }, k, `waves[${k}].boss.pair`);
+        bosses[first] = { ...bosses[first], pair: second, down: P.down };
+        bosses[second] = { ...bosses[second], pair: first, down: P.down };
+      }
     }
-    for (const c of w.crowd) for (let j = 0; j < c.n; j++) { if (c.stage) calls[bodies.length] = c.stage; if (c.entrance || c.ambush) entries[bodies.length] = { how: c.entrance ?? 'walk', ...(c.ambush ? { ambush: 1 } : {}), ...(c.mount ? { mount: c.mount } : {}) }; bodies.push({ fighter: typeAt[c.type], side: 'crowd', x: 0, z: 0, wave: k, ...(CROWD_TYPES[c.type].plays.includes('grab') ? {} : { grabs: false }), ...(CROWD_TYPES[c.type].gun ? { gun: armory.at[CROWD_TYPES[c.type].gun] } : {}), ...(CROWD_TYPES[c.type].poise ? { poise: CROWD_TYPES[c.type].poise } : {}) }); kinds.push(c.type); }
+    for (const c of w.crowd) for (let j = 0; j < c.n; j++) {
+      if (c.stage) calls[bodies.length] = c.stage;
+      if (c.entrance || c.ambush) entries[bodies.length] = { how: c.entrance ?? 'walk', ...(c.ambush ? { ambush: 1 } : {}), ...(c.mount ? { mount: c.mount } : {}) };
+      const id = bodies.length;
+      bodies.push(crowdBody(c.type, k)); kinds.push(c.type);
+      if (c.summons) poolOf(id, c.summons, k);
+    }
   });
   // the street's things, and each player's armed self for every weapon among them (in a box or not)
   const T = T0;
@@ -361,7 +448,7 @@ export function streetOf({ belt, players: players0, waves = [], things, rules, c
   const type = Object.fromEntries(kinds.map((t, j) => [players.length + j, t]));
   // (a staged boss's health as it comes in: what its stages' shares are of; and it comes in fighting as its first stage says)
   for (const id of Object.keys(bosses)) if (bosses[id].stages) { const K = bosses[id], first = K.stages[0]; bosses[id] = { ...K, hpMax: s.bodies[id].hp, ...(first.cpu ? { cpu: first.cpu } : {}), ...(first.plays ? { plays: first.plays } : {}) }; }
-  return { ctx, s, mind: { rules: { ...CROWD_RULES, ...(crowd ?? {}) }, waves: W, wave: 0, type, tok: {}, b: {}, entered: 0, bosses, entries, phase: {}, ...(lives !== undefined ? { lives: { of: lives, falls: 0 } } : {}), ...(Object.keys(calls).length ? { calls } : {}), cpu: Object.fromEntries(Object.keys(bosses).filter((id) => !bosses[id].kind).map((id) => [id, newCpuMemory()])) } };
+  return { ctx, s, mind: { rules: { ...CROWD_RULES, ...(crowd ?? {}) }, waves: W, wave: 0, type, tok: {}, b: {}, entered: 0, bosses, entries, phase: {}, ...(lives !== undefined ? { lives: { of: lives, falls: 0 } } : {}), ...(Object.keys(calls).length ? { calls } : {}), ...(Object.keys(summons).length ? { summons, held } : {}), cpu: Object.fromEntries(Object.keys(bosses).filter((id) => !bosses[id].kind).map((id) => [id, newCpuMemory()])) } };
 }
 
 /** A SEAT TAKEN mid-street: a player that was `away` comes in beside the others (where the first one standing is, a
@@ -381,7 +468,8 @@ export function joinStreet(street, i) {
 /** The street a frame on: the crowd thinks, the core steps, the waves come in and their gates open. */
 export function stepStreet(street, playerPads = []) {
   const { ctx } = street;
-  const mind = { ...street.mind, phase: { ...(street.mind.phase ?? {}) }, tok: Object.fromEntries(Object.entries(street.mind.tok).map(([k, v]) => [k, v.slice()])), b: Object.fromEntries(Object.entries(street.mind.b).map(([k, v]) => [k, { ...v }])), cpu: { ...street.mind.cpu } };
+  const mind = { ...street.mind, phase: { ...(street.mind.phase ?? {}) }, tok: Object.fromEntries(Object.entries(street.mind.tok).map(([k, v]) => [k, v.slice()])), b: Object.fromEntries(Object.entries(street.mind.b).map(([k, v]) => [k, { ...v }])), cpu: { ...street.mind.cpu },
+    ...(street.mind.summons ? { summons: Object.fromEntries(Object.entries(street.mind.summons).map(([k, v]) => [k, { ...v, pool: v.pool.slice(), out: v.out.slice() }])), held: { ...street.mind.held } } : {}) };
   const pads = think(street.s, ctx, mind);
   for (const [i, p] of playerPads.entries()) if (p) pads[i] = p;
   const s = stepBrawl(street.s, pads, ctx);
@@ -520,7 +608,9 @@ function think(s, ctx, M) {
     }
     if (m.mode === 'approach' && (!has || m.t > R.approach)) { giveBack(M, p.id); m.mode = 'recover'; m.t = 0; m.cool = R.cool[0]; }
     // ── a token, when one is free and its wait is over ──
-    if (m.mode !== 'approach' && m.cool === 0 && mine.length < R.tokens && !mine.includes(p.id)) { mine.push(p.id); m.mode = 'approach'; m.t = 0; m.swung = 0; m.play = pickPlay(kind, p, s); }
+    // (a SUMMONER keeps back while another of its wave stands: it calls, and fights only once it is alone)
+    const hangs = kind.hangs && B.some((q) => q.side === 'crowd' && q.id !== p.id && q.wv === p.wv && !q.gone && !q.ko);
+    if (!hangs && m.mode !== 'approach' && m.cool === 0 && mine.length < R.tokens && !mine.includes(p.id)) { mine.push(p.id); m.mode = 'approach'; m.t = 0; m.swung = 0; m.play = pickPlay(kind, p, s); }
     if (m.mode === 'approach') {
       const play = m.play ?? 'chain', front = F.idle.stand.push[2];
       const side = side0;
@@ -685,10 +775,45 @@ function waves(s, ctx, M) {
       M.bosses = { ...M.bosses, [staged.id]: { ...K, ...now, stage: k } };
       staged.inv = Math.max(staged.inv, STAGE_PAUSE);
       s.events.push({ t: 'bossStage', p: staged.id, k: k + 1, of: K.stages.length, ...(K.stages[k].name ? { name: K.stages[k].name } : {}) });
+      // (DEFEATED INTO ITS NEXT FORM, the stage's `form`: its fighter from here, its moves and its power; its health on)
+      const formAt = K.stages.slice(0, k + 1).reduce((f, st) => st.form ?? f, null);
+      if (formAt !== null && staged.fi !== formAt) { staged.fi = formAt; delete staged.fb; staged.mv = null; staged.st = 'stand'; staged.sf = 0; s.events.push({ t: 'becomes', p: staged.id, ...(K.stages[k].formName ? { name: K.stages[k].formName } : {}), x: staged.x, z: staged.z }); }
     }
   }
   const stageOf = (() => { const b = mine.find((p) => M.bosses[p.id]); return b ? M.bosses[b.id].stage ?? 0 : 0; })();
-  const waiting = mine.filter((p) => p.gone && !p.ko && p.ph === undefined && (M.calls?.[p.id] ?? 0) <= stageOf);
+  const waiting = mine.filter((p) => p.gone && !p.ko && p.ph === undefined && M.held?.[p.id] === undefined && (M.calls?.[p.id] ?? 0) <= stageOf);
+  // A SUMMONER'S CALLS (readSummons): standing on the street, every while it calls one more in, rising where it points,
+  // up to its `n` at once from its pool; fallen, those it called are cut down if they are bound to it, and those it never
+  // called stay uncalled
+  if (M.summons) for (const p of mine) {
+    const S = M.summons[p.id];
+    if (!S || S.done) continue;
+    if (p.ko) {
+      if (S.bound) for (const id of S.out) { const q = B[id]; if (!q.ko) { q.ko = 1; q.gone = 1; q.hp = 0; s.events.push({ t: 'cut', p: id, by: p.id, x: q.x, z: q.z }); } }
+      for (const id of S.pool) { B[id].ko = 1; delete M.held[id]; }
+      M.summons = { ...M.summons, [p.id]: { ...S, pool: [], done: 1 } };
+      continue;
+    }
+    if (p.gone || !S.pool.length) continue;
+    const t = S.t + 1, up = S.out.filter((id) => !B[id].ko).length;
+    if (t < S.every || up >= S.n) { M.summons = { ...M.summons, [p.id]: { ...S, t: Math.min(t, S.every) } }; continue; }
+    const id = S.pool[0], [n0, n1] = belt.depth.map((v) => Math.round(v * 1000));
+    const x = Math.max(0, Math.min(Math.round(belt.length * 1000), p.x + (p.face || 1) * (700 + Math.round(500 * vary(id, 5))))), z = Math.max(n0 + 300, Math.min(n1 - 300, p.z + Math.round((vary(id, 6) - 0.5) * 1400)));
+    delete M.held[id];
+    enterBody(s, ctx, id, { how: 'dig', x, z });
+    B[id].face = sgn(p.x - x) || p.face || -1;
+    M.summons = { ...M.summons, [p.id]: { ...S, t: 0, pool: S.pool.slice(1), out: [...S.out, id] } };
+    s.events.push({ t: 'summon', p: p.id, n: id, x, z });
+  }
+  // A PAIR (readPair): one of the two down, the other ENRAGES: the fight's best CPU, its desperation in its plays
+  for (const p of mine) {
+    const K = M.bosses[p.id];
+    if (!K || K.pair === undefined || K.down !== 'enrage' || p.ko || p.gone || K.enraged || !B[K.pair].ko) continue;
+    const top = Object.keys(CPU_LEVELS)[Object.keys(CPU_LEVELS).length - 1];
+    M.bosses = { ...M.bosses, [p.id]: { ...K, cpu: top, plays: K.plays.includes('desperate') ? K.plays : [...K.plays, 'desperate'], enraged: 1 } };
+    p.inv = Math.max(p.inv, STAGE_PAUSE);
+    s.events.push({ t: 'enrage', p: p.id, name: K.name, x: p.x, z: p.z });
+  }
   const standing = mine.filter((p) => !p.gone && !p.ko);
   // (it comes in when a player walks into its screen)
   const begun = M.begun ?? -1;
@@ -736,15 +861,16 @@ function waves(s, ctx, M) {
     return;
   }
   // its boss fallen: the rest of its wave flees, and the stage is clear
-  const boss = mine.find((p) => M.bosses[p.id]);
-  if (boss && boss.ko && M.down !== M.wave) {
+  const bossesHere = mine.filter((p) => M.bosses[p.id]);
+  if (bossesHere.length && bossesHere.every((p) => p.ko) && M.down !== M.wave) {
     M.down = M.wave;
     for (const p of mine) if (!p.ko) { p.ko = 1; p.gone = 1; s.events.push({ t: 'flee', p: p.id }); }
     s.events.push({ t: 'stageClear', screen: W.screen });
   }
   // the last of it fallen: its gate opens, the next wave waits for its screen
-  if (!waiting.length && mine.every((p) => p.ko || p.ph !== undefined)) {
+  if (!waiting.length && mine.every((p) => p.ko || p.ph !== undefined || M.held?.[p.id] !== undefined)) {
     for (const p of mine) if (p.ph !== undefined) { p.ko = 1; delete p.ph; }
+    for (const p of mine) if (M.held?.[p.id] !== undefined) { p.ko = 1; delete M.held[p.id]; }
     s.cleared = [...s.cleared, W.screen];
     s.events.push({ t: 'cleared', screen: W.screen });
     M.wave++;

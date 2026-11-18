@@ -1073,7 +1073,7 @@ function tick() {
     room = stepStreet(room, pads);
     if (GUNPLAY) tally = tallyRounds(tally, room.s.events, picks.length);
     // (a boss turning: a crowd-kind boss's phase, a fighter boss's stage)
-    for (const e of room.s.events) { if (e.t === 'phase') TURNS.push(e); if (e.t === 'bossStage') TURNS.push({ says: e.name || 'Stage ' + e.k, k: e.k - 1 }); }
+    for (const e of room.s.events) { if (e.t === 'phase') TURNS.push(e); if (e.t === 'bossStage') TURNS.push({ says: e.name || 'Stage ' + e.k, k: e.k - 1 }); if (e.t === 'enrage') TURNS.push({ says: `${e.name} is enraged`, k: 0 }); }
   } else {
     room = stepYard(room, buttons);
     if (BY.stakes && !ENDED && room.yard.over) { ENDED = true; if (window.__mojGame) window.__mojGame.end(room.yard.over === 'won' ? 'success' : 'fail'); }
@@ -1089,6 +1089,12 @@ function tick() {
     // (a gale's streaks; a round blown out of the air puffs)
     if (e.t === 'gust') galeStreaks(e);
     if (e.t === 'blown') flash(e, false, true, '#e8f2ff');
+    // (THE FOE SHELF'S IDIOMS, brawl-crowd.js: a summons rising in a ring of the ground's dust where its summoner points,
+    // one cut down when its summoner falls going up in a puff, a pair's survivor enraged, a boss in its next form)
+    if (e.t === 'summon') { dustRing({ ...e, ground: 8000 }); flash({ ...e, y: 400 }, false, true, '#b9a4ff'); }
+    if (e.t === 'cut') flash({ ...e, y: 900 }, true, false, '#d8d0ff');
+    if (e.t === 'enrage') flash({ ...e, y: 1200 }, true, false, '#ff5a3a');
+    if (e.t === 'becomes') { flash({ ...e, y: 1200 }, true, false, '#ffffff'); dustRing({ ...e, ground: 30000 }); }
     // (a hero's power: a burst in its colour where it is called up; and its SUPER BEAT on the lens, round whoever calls
     // it up, the street held still for it: the power's own screen (brawl-powers.js `beat`), a fight super's its negative)
     if (e.t === 'power') flash({ ...e, y: 1000 }, true, false, powerColour(e.p));

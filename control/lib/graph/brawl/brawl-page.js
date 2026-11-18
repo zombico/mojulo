@@ -107,9 +107,16 @@ function streetWaves(waves, roster, belt) {
   const out = waves.map((w, i) => {
     if (!w || typeof w !== 'object' || !w.boss) return w;
     const { fighter, ...boss } = w.boss;
-    if (fighter === undefined) return { ...w, boss: { ...boss, recipe: boss.recipe ?? rosterEntry(boss, i).recipe } };
+    // (the boss, its PAIR and the FORMS it becomes: each a roster entry or a fighter's intent)
+    const resolve = (b, at) => { const { fighter: k, ...x } = b; if (k === undefined) return { ...x, recipe: x.recipe ?? rosterEntry(x, i).recipe }; if (!(Number.isInteger(k) && k >= 0 && k < roster.length)) throw new Error(`brawl: practice.street.waves[${i}].${at}.fighter is a roster index, 0 to ${roster.length - 1}`); return { ...x, recipe: { ...roster[k].recipe, name: x.name ?? roster[k].name }, roster: k }; };
+    const { pair: P, stages: St, ...own } = boss;
+    // (a pair keeps its own words: its intent read into its recipe)
+    const pair = P ? (({ archetype: _a, id: _i, style: _s, ...x }) => x)(resolve(P, 'boss.pair')) : null;
+    const stages = St ? St.map((st, k) => (st.form ? { ...st, form: resolve(st.form, `boss.stages[${k}].form`).recipe } : st)) : null;
+    const rel = { ...(pair ? { pair } : {}), ...(stages ? { stages } : {}) };
+    if (fighter === undefined) return { ...w, boss: { ...own, recipe: own.recipe ?? rosterEntry(own, i).recipe, ...rel } };
     if (!(Number.isInteger(fighter) && fighter >= 0 && fighter < roster.length)) throw new Error(`brawl: practice.street.waves[${i}].boss.fighter is a roster index, 0 to ${roster.length - 1}`);
-    return { ...w, boss: { ...boss, recipe: { ...roster[fighter].recipe, name: boss.name ?? roster[fighter].name }, roster: fighter } };
+    return { ...w, boss: { ...own, recipe: { ...roster[fighter].recipe, name: own.name ?? roster[fighter].name }, roster: fighter, ...rel } };
   });
   readWaves(out, belt);
   return castIn(out.map((w) => ({ ...w, crowd: w.crowd ?? [] })), roster.length);
@@ -170,7 +177,10 @@ export function brawlYardData(block, bodies = null) {
       const W = streetWaves(PS.street.waves, roster, block.belt), guns = PS.range ? PS.range.guns ?? RANGE_GUNS : null;
       // (who each crowd body is drawn as, in the street's order: a wave at a time by screen, its boss first, then those
       // its boss calls, its crowd)
-      const castAt = [...W].sort((a, b) => a.screen - b.screen).flatMap((w) => [...(w.boss ? [w.boss.roster ?? null] : []), ...(w.crowd ?? []).flatMap((c) => Array.from({ length: c.n }, () => c.roster ?? null))]);
+      // (and in the order the street makes its bodies: a summoner's pool after it, three times its number, its summons'
+      // body; a pair's second after the boss's pool: brawl-crowd.js streetOf)
+      const pool = (S) => (S ? Array.from({ length: (S.n ?? 2) * 3 }, () => S.roster ?? null) : []);
+      const castAt = [...W].sort((a, b) => a.screen - b.screen).flatMap((w) => [...(w.boss ? [w.boss.roster ?? null, ...pool(w.boss.summons), ...(w.boss.pair ? [w.boss.pair.roster ?? null] : [])] : []), ...(w.crowd ?? []).flatMap((c) => Array.from({ length: c.n }, () => [c.roster ?? null, ...pool(c.summons)]).flat())]);
       return { street: { sides: Y.sides, waves: W, ...(PS.street.scenes ? { scenes: readScenes(PS.street.scenes, block.belt, 'practice.street.scenes') } : {}), lives: readStakes(PS.stakes ?? 3), ...(castAt.some((k) => k !== null) ? { castAt } : {}), ...(PS.tune ? { tune: PS.tune } : {}),
         ...(guns ? { play: 'gun', guns, grenades: PS.range.grenades ?? 3, names: guns.map((g) => gunName(readGun(g))), ids: guns.map((g) => readGun(g).id) } : {}) }, wire: STREET_WIRE };
     })() : {}),

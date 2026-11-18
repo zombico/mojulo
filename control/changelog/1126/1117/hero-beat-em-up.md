@@ -51,6 +51,37 @@
   win over these. Measured with the simple players: one hero wins each of the three streets alone, its boss down. On
   the city street, the works and the lair the power-using player fell 0, 2 and 0 times of five, and the plain one 0,
   1 and 1. So the works is the hardest of the three; the streets do not yet get steadily harder.
+- **Supervillains, and the foe idioms on the street.** The villain at the end of a superhero game is now one of a set
+  of supervillains, each with a way of fighting you learn and beat:
+  - **The mastermind** keeps back behind drones it summons out of the ground a few at a time. Cut it down and every
+    drone it called falls with it.
+  - **The juggernaut** is an armoured suit that grabs and slams; break it and the fast, frail pilot comes out.
+  - **The twins** fight as one, one firing while the other rushes. Drop one and the other is enraged.
+  - **The warlord** calls reinforcements in at every turn.
+  - **The speedster** never stops running you down.
+  - **The tempest** becomes the eye of a hurricane when hurt.
+
+  Each fights in acts that begin as its health falls, with its power on its special. The pack's mastermind is the
+  mastermind, its brute the juggernaut, its rival the twins; name another kind for any of them. The streets on the way
+  end on lieutenants: an enforcer who calls its thugs, then a conjurer who summons drones. The army gains henchmen: a
+  caster that summons, the drones it calls, and a blaster that fires a bolt of its own.
+
+  These are the studio's foe idioms, played for the first time on a beat-em-up's street: a summoner and its summons, a
+  pair that shares a fate, and a boss defeated into another form. A designed game's own foes play them too. Its
+  summoner calls its summons, which before stood as a plain thug. A boss's partner stands beside it, and each form a boss
+  becomes is one of its acts. A pair that revives each other in other games enrages here instead, and the game says
+  so. On the page a summons rises in a ring of dust, one cut down goes up in a puff, an enraged partner flashes red
+  under a banner, and a new form bursts into view.
+- **Design your own supervillain.** A villain can be a kind with your own words over it (`design`): how it fights,
+  its power, its health, who it summons and how many at once, its partner, its acts and what each calls in or turns it
+  into, and the henchmen beside it. A new villain on the shelf is a row of the same words. Every word is checked as
+  the game is designed, and a wrong one says where it belongs. The studio's villains card lists each villain, what it
+  does, how it is beaten and every word.
+
+  Measured with the simple player, one hero alone beats each villain at the end of the lair. Against the mastermind,
+  the juggernaut, the twins, the warlord, the speedster and the tempest it fell 0, 1, 1, 1, 0 and 1 times of five. Each
+  fight's way was seen: the mastermind's drones were summoned and cut down, the juggernaut and the tempest changed
+  form, and one twin enraged. Nobody has played them by hand yet, and none was looked at on the page.
 - **The producer knows the superhero variant.** Asking for "a superhero beat em up" now picks the beat-em-up's heroes
   variant by name, with its own plan of steps. That plan asks who the heroes are, each one's power and the villain
   first, before anything is made, for a quick game and a designed one alike. A designed game started from it gets

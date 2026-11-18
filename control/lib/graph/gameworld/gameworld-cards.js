@@ -103,6 +103,8 @@ import { TEMPLATE_IDS } from '../arena-map/templates.js';
 import { DRESS_SETTINGS, DRESS_SETTING_IDS, DRESS_PIECES, DRESS_PIECE_IDS } from '../brawl/brawl-dress.js';
 import { PLAY_TYPES, PLAY_IDS } from '../brawl/brawl-play.js';
 import { POWERS, POWER_IDS, POWER_DIALS, POWER_SCREENS } from '../brawl/brawl-powers.js';
+import { VILLAINS, VILLAIN_KINDS, LIEUTENANT_KINDS, VILLAIN_WORDS } from '../brawl/brawl-villains.js';
+import { CROWD_TYPES } from '../brawl/brawl-crowd.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -1626,6 +1628,36 @@ export function genreCardById(id) {
   return { id, name: `What game it is: ${GENRES[genre].name}`, summary: GENRES[genre].why, when: `a ${GENRES[genre].name.toLowerCase()} game`, scope: 'rail', body: genreCard(genre) };
 }
 
+// THE SUPERVILLAINS (brawl/brawl-villains.js VILLAINS, brawl-crowd.js the idioms on the street): generated from the shelf,
+// so a new villain, idiom word or henchman is in the card
+function villainsCard() {
+  const line = (k) => { const v = VILLAINS[k]; return `  ${k} (${v.idiom}, ${v.power}): ${v.reads}. Beat: ${v.beat}.`; };
+  const hench = ['caster', 'drone', 'blaster'].filter((t) => CROWD_TYPES[t]);
+  return lines(
+    'SUPERVILLAINS: who a superhero street ends on. Each is a ROW OF THE FOE SHELF\'S IDIOMS as the street plays them (docs/foes.md):',
+    '  summoner  calls its summons a few at a time; bound ones are cut down when it falls',
+    '  pair      two bosses as one; one down, the other enrages (the best CPU, untouchable a moment)',
+    '  modes     an act\'s form: defeated into another fighter (its moves and power), its health carried on',
+    '  stages    acts begun as its health falls, each calling henchmen in; pursuer: always running you down',
+    '',
+    'THE SHELF (kind, its idiom and power):',
+    ...VILLAIN_KINDS.map(line),
+    `LIEUTENANTS hold the campaign's streets on the way, in turn: ${LIEUTENANT_KINDS.map((k) => `${k} (${VILLAINS[k].idiom})`).join(', ')}.`,
+    `HENCHMEN (crowd types): ${hench.map((t) => `${t}: ${CROWD_TYPES[t].says}`).join('; ')}.`,
+    '',
+    `DESIGN ONE (quick.heroes.villain: { kind, design, power?, name? }; design over the kind's row): ${VILLAIN_WORDS.filter((w) => w !== 'kind').join(', ')}.`,
+    '  summons { type, n? 1..4 at once, every? frames, bound? }; pair { archetype, power, name?, down? enrage | none }',
+    '  stages [{ at?, name?, cpu?, calls?: { <crowd type>: n }, form?: { archetype, power, name? } }]: 2..5, the first as it comes in',
+    '  henchmen [{ type, n }] stand with it; archetype all-rounder | rushdown | zoner | grappler; any power, designed too.',
+    '  e.g. { kind: \'mastermind\', design: { summons: { type: \'blaster\', n: 3 } }, power: \'storm\', name: \'Doctor Umbra\' }',
+    'Every word is read when the game is designed; a fault says where it belongs.',
+    '',
+    'A DESIGNED GAME\'S BESTIARY plays its idioms on a street too: a summoner (class) calls its `summons` entry; a boss\'s',
+    '`pair` stands beside it (a pair that revives enrages instead: said); each entry it `becomes` is an act\'s form.',
+    'MEASURED (brawl-playthrough.js `hero`, the villains deep test): one hero wins the lair against a villain of each idiom, the idiom seen.',
+  );
+}
+
 // THE SUPERHERO BEAT-EM-UP (brawl/brawl-powers.js, brawl-tunings.js `heroes`, quick.js readHeroes): generated from the
 // shelves, so a new power, villain or team member is in the card
 function heroesCard() {
@@ -1655,7 +1687,7 @@ function heroesCard() {
     '    a brief, no member: their OWN hero rolled from it; hair and cape read from it ("long white hair, a cape")',
     `    or look: { ${LOOK_WORDS.join(', ')} }; spec: ANY create_character hero words, over all (checked at design).`,
     `    hero: { ref }: one made with create_character; member: one of the pack. Unsaid: ${HERO_TEAM.map((t) => `${t.member} ${t.power}`).join(', ')}.`,
-    `  villain: ${Object.keys(HERO_VILLAINS).map((v) => `${v} (${HERO_VILLAINS[v]})`).join(' | ')}, or { member | hero, power?, name?, look?, spec? }; crowd: a faction (${HERO_ARMY}).`,
+    `  villain: ${Object.keys(HERO_VILLAINS).join(' | ')} or { member | hero, kind?, design?, power?, name?, look?, spec? } (gameworld-villains).`,
     '  "A superhero beat em up ..." in a sentence lays this tuning (then design the heroes).',
     'DESIGNED: a street level: tuning: \'heroes\', powers?: [<power> | null] in seat order (unsaid: the hero\'s own actions page',
     '  attack, the rest the team\'s). Its seats the game\'s hero and those who join; its crowd the game\'s own foes.',
@@ -1747,6 +1779,7 @@ const CARDS = [
   ['gameworld-course-dress', 'The course\'s dress', 'how an obstacle course looks: its way and asks, the walls beside it and the backdrop behind it, designed as one dress by role and held to one gate; the course sheet', 'the walls of the course, the background, the backdrop, the skyline, decorate the course, style the level, the sides of the track, scenery, the look of the runner, palette of the course', courseDressCard],
   ['gameworld-side-scroll', 'The side-scroll map', 'a belt seen from one side, dressed as a place: its principles, its settings (a street, a facility, a base, an office), a set a screen, a set of the agent\'s own', 'a beat \'em up level, a side-scrolling stage, a street to fight down, a warehouse level, a military base level, an office level, dress the street, what makes a good brawler stage', sideScrollCard],
   ['gameworld-heroes', 'The superhero beat-em-up', 'a team of heroes, each its power on its own button with a few uses a life, against an army and a villain with powers: a beat-em-up tuned for heroes', 'a superhero beat em up, heroes with powers, mutants against an army, an X-Men style arcade brawler, a team of heroes', heroesCard],
+  ['gameworld-villains', 'Supervillains', 'the bosses a superhero street ends on, each a row of the foe shelf\'s idioms (a summoner, a pair, a form it is defeated into, acts that call henchmen), and how to design one', 'a supervillain, a boss that summons, twin bosses, a boss with a second form, the villain at the end, henchmen', villainsCard],
   ['gameworld-track-language', 'The track\'s language', 'how a raced track looks: one design language for its way, kerbs, rail, flags, trees and sky, and the principles a new map starts from', 'design a race track, a new kart map, the look of the track, track theme, the barriers and kerbs, a candy track, decorate the circuit, track materials, make the road more interesting, the sky over the track', trackLanguageCard],
   ['gameworld-mounts', 'The mounts', 'horses the hero gets on and rides: their coats, where they stand, the ride', 'a horse to ride, mount a horse, ride a horse, horseback, get on my horse, a stable of horses, cavalry', mountsCard],
   ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight, minigames, a fishing minigame, an arcade in the inn', battlesCard],

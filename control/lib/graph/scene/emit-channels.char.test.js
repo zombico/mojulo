@@ -953,3 +953,7 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // (brawl-sway.js: the air a body feels, the hang, the spring, the bend) and the client's bend of a character's long hair
 // and loose cloth, a cape kept off the arms, and the hover in the comics' pose of power (the knee up, its shin tucked,
 // the fists at the waist). The sim never reads any of it: the fixture plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: the foe shelf's idioms on the street): `brawl` only. Its page inlines the
+// crowd's summoner and its summons (a pool held offstage, called a few at a time, cut down with it), a pair (one down, the
+// other enraged), a boss's form at a stage, the caster, drone and blaster crowd types, and the client's dust, flashes and
+// banner for them. The fixture's street says none of them: it plays as it did.

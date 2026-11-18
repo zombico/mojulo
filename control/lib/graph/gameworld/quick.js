@@ -244,6 +244,8 @@ import { readCard } from '../worksim/card.js';
 import { solve as solveWork, targetOf } from '../worksim/solve.js';
 import { layWork } from '../game/work-mechanics.js';
 import { heroLook, lookSpec, readLook } from './hero-look.js';
+import { readVillain, villainWave, VILLAINS, LIEUTENANT_KINDS } from '../brawl/brawl-villains.js';
+import { SWING_HAND } from '../polygonizer/hero-swing.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -861,9 +863,13 @@ export function crowdTypeOf(grunt) {
  * own light, on the brawler's body (brawlBody's words). What it holds is the street's to draw (a blade along the line the
  * simulation strikes with), so only a gun stays in its hand. */
 function gruntBrawler(O, type, heavy) {
-  const { geocube: _cube, gear, ...spec } = O.mint.args.spec;
+  const { geocube: _cube, gear, gesture, ...spec } = O.mint.args.spec;
   const pole = (typeof spec.cast === 'string' ? spec.cast : spec.cast?.pole) === 'female' ? 'female' : 'male';
-  return { ...spec, ...(SHOOTS(type) && gear ? { gear } : {}), ...BRAWLER_BODY(pole, heavy) };
+  const keeps = SHOOTS(type) && gear;
+  // (a gesture that SWINGS the gear left off (a shadow clan's staff planted: polygonizer/hero-swing.js SWING_HAND) goes
+  // with it: the hero door refuses a swing with nothing in the hand)
+  const swings = typeof gesture === 'string' && SWING_HAND[gesture] && !(keeps && gear[SWING_HAND[gesture]]);
+  return { ...spec, ...(keeps ? { gear } : {}), ...(gesture !== undefined && !swings ? { gesture } : {}), ...BRAWLER_BODY(pole, heavy) };
 }
 /** A brawl's crowd, cast: → { faction, colourway, members: [{ id, name, as: a crowd type | 'boss', heavy, grunt, mint }] },
  * each member a character the hero door mints (mint: { kind: 'layered', via: 'hero', title, spec }). */
@@ -882,7 +888,14 @@ export function brawlCrowd(Q, seed = 1, title = 'brawl') {
   // (its boss: its heaviest kind, on the hulking body)
   const top = kinds.find((k) => S.kinds[k].builds.includes('brute')) ?? kinds.find((k) => S.kinds[k].builds.some((b) => BIG.has(b) || b === 'heroic')) ?? kinds[kinds.length - 1];
   members.push(member(roll(n, top), 'crowd-boss', 'boss', true, `${S.name} boss`));
-  if (H) { const V = heroVillain(H, seed); members.push({ id: 'crowd-villain', name: V.name, as: 'villain', heavy: true, grunt: null, ...(V.hero ? { hero: V.hero } : { mint: { ...V.mint, title: `${title} · ${V.name}` } }) }); }
+  if (H) {
+    const V = heroVillain(H, seed);
+    members.push({ id: 'crowd-villain', name: V.name, as: 'villain', heavy: true, grunt: null, ...(V.hero ? { hero: V.hero } : { mint: { ...V.mint, title: `${title} · ${V.name}` } }) });
+    // (A PAIR's second, brawl-villains.js: its own character, rolled from the same member another way; one already made
+    // fights beside itself)
+    const pair = villainBoss(H).boss.pair;
+    if (pair) { const P = heroVillain(H, seed + 7); members.push({ id: 'crowd-villain-2', name: pair.name, as: 'villain', heavy: true, grunt: null, ...(P.hero ? { hero: P.hero } : { mint: { ...P.mint, title: `${title} · ${pair.name}` } }) }); }
+  }
   // (its colour: the colourway's trim, what the street it holds is marked in)
   const colour = S.colourways[colourway].palette?.Trim ?? null;
   return { faction: C.faction, name: `the ${S.name.toLowerCase()}`, colourway, ...(typeof colour === 'string' && /^#[0-9a-f]{6}$/i.test(colour) ? { colour } : {}), members };
@@ -928,6 +941,8 @@ export const HERO_TEAM = Object.freeze([
 ]);
 /** the pack's villains a heroes street may end on, and the power each throws */
 export const HERO_VILLAINS = Object.freeze({ mastermind: 'nova', brute: 'might', rival: 'beam' });
+/** the supervillain each of the pack's villains is (brawl/brawl-villains.js VILLAINS: its idiom, its acts, its henchmen) */
+export const HERO_VILLAIN_KINDS = Object.freeze({ mastermind: 'mastermind', brute: 'juggernaut', rival: 'twins' });
 export const HERO_ARMY = 'shadowClan';
 const HERO_WORDS = ['team', 'villain'];
 const MEMBER_STYLE = Object.freeze({ frontline: 'grappler', flanker: 'rushdown', ranged: 'zoner', controller: 'all-rounder' });
@@ -935,7 +950,7 @@ const MEMBER_STYLE = Object.freeze({ frontline: 'grappler', flanker: 'rushdown',
 // words, or a character already made) and its power (one of the shelf's, or designed: brawl-powers.js readPower)
 const SHEET_WORDS = ['archetype', 'build', 'age', 'pole', 'role'];
 const TEAM_WORDS = ['power', 'member', 'name', 'brief', 'style', 'hero', 'look', 'spec', ...SHEET_WORDS];
-const VILLAIN_WORDS = ['member', 'power', 'name', 'hero', 'look', 'spec'];
+const VILLAIN_WORDS = ['member', 'kind', 'design', 'power', 'name', 'hero', 'look', 'spec'];
 export function readHeroes(v, at = '.heroes') {
   if (v === undefined || v === false) return null;
   const H = v === true ? {} : v;
@@ -974,7 +989,8 @@ export function readHeroes(v, at = '.heroes') {
     return entry;
   });
   // (THE VILLAIN: the pack's member, its power its own unless one is said or designed, its name the member's unless said)
-  const V = typeof H.villain === 'string' || H.villain === undefined ? { member: H.villain ?? 'mastermind' } : H.villain;
+  // (an object naming neither its member nor a hero made: the pack's mastermind, its kind and design the person's)
+  const V = typeof H.villain === 'string' || H.villain === undefined ? { member: H.villain ?? 'mastermind' } : isObj(H.villain) && H.villain.member === undefined && H.villain.hero === undefined ? { ...H.villain, member: 'mastermind' } : H.villain;
   if (!isObj(V)) throw fail(`${at}.villain is one of ${Object.keys(HERO_VILLAINS).join(', ')}, or { member, power?, name? }`);
   for (const w of Object.keys(V)) if (!VILLAIN_WORDS.includes(w)) throw fail(`${at}.villain.${w} is not a villain's word (${VILLAIN_WORDS.join(', ')})`);
   // (a villain already made, create_character's: its own body and look; else the pack's member, the person's words over it)
@@ -985,10 +1001,16 @@ export function readHeroes(v, at = '.heroes') {
   if (V.spec !== undefined && !isObj(V.spec)) throw fail(`${at}.villain.spec is the hero door's words (create_character's spec), laid over the villain's`);
   let vlook;
   try { vlook = readLook(V.look, 'look'); } catch (e) { throw fail(`${at}.villain.${e.message.replace(/^gameworld: /, '')}`); }
-  const vpower = V.power ?? HERO_VILLAINS[made ? 'mastermind' : V.member];
+  // (its power: its own, else its design's, else its kind's where one is named, else its member's)
+  const vpower = V.power ?? (isObj(V.design) ? V.design.power : undefined) ?? (typeof V.kind === 'string' && VILLAINS[V.kind] ? VILLAINS[V.kind].power : HERO_VILLAINS[made ? 'mastermind' : V.member]);
   try { readPower(vpower, 'power'); } catch (e) { throw fail(`${at}.villain.${e.message.replace(/^brawl: /, '')}`); }
   if (V.name !== undefined && !(typeof V.name === 'string' && V.name.trim() && V.name.length <= 40)) throw fail(`${at}.villain.name is a short name (at most 40 letters)`);
-  return { team, villain: { member: made ? null : V.member, power: vpower, name: V.name ?? (made ? 'The villain' : castMember(V.member).name), ...(made ? { hero: V.hero } : {}), ...(vlook ? { look: vlook } : {}), ...(V.spec ? { spec: V.spec } : {}) } };
+  // (WHAT KIND OF SUPERVILLAIN, brawl-villains.js: its member's unless said, the person's design over the kind's row, the
+  // villain's power over both; read whole here, so a fault is said before anything is made)
+  const kind = V.kind ?? HERO_VILLAIN_KINDS[made ? 'mastermind' : V.member] ?? 'mastermind';
+  if (V.design !== undefined && (!isObj(V.design) || V.design.kind !== undefined)) throw fail(`${at}.villain.design is the villain's words over its kind's row (archetype, cpu, hp, summons, pair, stages, henchmen: gameworld-villains)`);
+  try { readVillain({ kind, ...(V.design ?? {}), power: vpower }, 'villain'); } catch (e) { throw fail(`${at}.${e.message.replace(/^brawl: /, '')}`); }
+  return { team, villain: { member: made ? null : V.member, kind, power: vpower, name: V.name ?? (isObj(V.design) && typeof V.design.name === 'string' ? V.design.name : made ? 'The villain' : castMember(V.member).name), ...(V.design ? { design: V.design } : {}), ...(made ? { hero: V.hero } : {}), ...(vlook ? { look: vlook } : {}), ...(V.spec ? { spec: V.spec } : {}) } };
 }
 /** One team member as the fight's roster words: a character already made, or rolled from a sheet (the member's facets
  * under the person's own words, its brief, its style). */
@@ -1030,13 +1052,14 @@ export function heroFront(H) {
     credits: { roll: [{ role: names.length > 1 ? 'The heroes' : 'The hero', names }, { role: 'The villain', names: [H.villain.name] }] },
   };
 }
-/** The boss a heroes street ends on: the villain's fighter with its power, in three stages. */
+/** The boss a heroes street ends on, as the supervillain shelf lowers its kind (brawl-villains.js villainWave): its
+ * fighter and power, its acts, its summons, its pair → { boss, crowd } (`crowd` the henchmen its acts call, each its act). */
 export function villainBoss(H) {
-  const { name, power } = H.villain;
-  const recipe = { ...powerRecipe(solveFighter({ id: 'villain', archetype: 'grappler' }).recipe, power), archetype: 'grappler', name };
-  const plays = ['strong', 'break', 'run', 'special.neutral'];
-  return { recipe, plays, cpu: Object.keys(CPU_LEVELS)[0], hp: 400, stages: [{}, { cpu: Object.keys(CPU_LEVELS)[1], name: 'Unleashed', plays: [...plays, 'special.neutral'] }, { cpu: Object.keys(CPU_LEVELS)[2], name: 'Desperate', plays: [...plays, 'special.neutral', 'special.neutral', 'desperate'] }] };
+  const { name, power, kind, design } = H.villain;
+  return villainWave(readVillain({ kind: kind ?? 'mastermind', ...(design ?? {}), power }), { name });
 }
+/** A lieutenant who holds a heroes street on the way (brawl-villains.js LIEUTENANT_KINDS, in turn): its own row. */
+export const lieutenantBoss = (k) => { const R = readVillain(LIEUTENANT_KINDS[k % LIEUTENANT_KINDS.length]); return villainWave(R, { name: R.name }); };
 /** The waves a street is held by when it names none: a crowd a held screen, each a body more than the last, drawn from
  * how its crew fights (`types`: the crowd types its grunts are, in their order; a knife among thugs with none said), no
  * more than two of a wave shooting (the rest walk in as the street's own); the boss's screen its boss (a grappler on
@@ -1158,7 +1181,9 @@ export function brawlStreets(Q, { title, roster, cast, types, colour, holder } =
   const H = readHeroes(Q.heroes), card0 = H ? tuningOf('heroes') : null, list = Q.streets ?? (H ? HERO_CAMPAIGN : [STARTER_STREET]);
   const { villain: villainCast, ...cast0 } = cast ?? {};
   return list.map(({ id, name, level, waves, things, scenes, play, guns, grenades }, i) => {
-    const last = i === list.length - 1, boss = H && last ? villainBoss(H) : null;
+    // (the villain at the end of the last street, a LIEUTENANT at the end of each street on the way; each a boss and the
+    // henchmen its acts call in)
+    const last = i === list.length - 1, foe = H ? (last ? villainBoss(H) : lieutenantBoss(i)) : null, boss = foe?.boss ?? null;
     const card = card0 && last && list.length > 1 && card0.army ? { ...card0, army: card0.army + 1 } : card0;
     const drawn = cast ? { ...cast0, ...(H && last && villainCast ? { boss: villainCast } : {}) } : null;
     const holds = H && last ? H.villain.name : holder;
@@ -1166,7 +1191,9 @@ export function brawlStreets(Q, { title, roster, cast, types, colour, holder } =
     const L0 = level ?? STARTER_STREET.level, L = colour && (L0.kind === 'town' || (L0.kind === 'stage' && (isObj(L0.dress) || (L0.dress === undefined && brawlLevel(L0).brawl.dress)))) && L0.dress !== false && !L0.dress?.colour ? { ...L0, dress: { ...(isObj(L0.dress) ? L0.dress : {}), colour } } : L0, t = `${title ?? 'brawl'} · ${name ?? id}`, reg = Q.register ? { register: Q.register } : {};
     const B0 = brawlLevel(L, { title: t }).brawl, belt = B0.belt;
     const laid = streetPlay(play ?? Q.play, belt, { waves, things, types, setting: B0.dress?.setting ?? null, dress: B0.dress ?? null, guns, grenades, boss });
-    const street = { players: [0], ...laid, ...(card && !waves ? { waves: tunedWaves(laid.waves, card) } : {}), ...(card ? { tuning: 'heroes' } : {}), ...(scenes === false ? {} : { scenes: scenes ?? defaultScenes(belt, { name: name ?? id, holder: holds }) }), ...(roster ? { roster } : {}), ...(drawn ? { cast: drawn } : {}) };
+    const tuned = card && !waves ? tunedWaves(laid.waves, card) : laid.waves;
+    const held = foe?.crowd.length && !waves ? tuned.map((w) => (w.boss ? { ...w, crowd: [...w.crowd, ...foe.crowd] } : w)) : tuned;
+    const street = { players: [0], ...laid, waves: held, ...(card ? { tuning: 'heroes' } : {}), ...(scenes === false ? {} : { scenes: scenes ?? defaultScenes(belt, { name: name ?? id, holder: holds }) }), ...(roster ? { roster } : {}), ...(drawn ? { cast: drawn } : {}) };
     readStreet(street, belt, `streets.${id}`);
     const contract = { levelRef: 'street', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: false };
     return { id, name: name ?? id, manifest: { ...brawlLevel(L, { title: t, ...reg, street }), game: contract } };

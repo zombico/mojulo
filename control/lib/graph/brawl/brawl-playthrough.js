@@ -85,6 +85,8 @@ export function playStreet(yard, { player = 'basic', seconds = 240 } = {}) {
   let room = roomOf(yard);
   const P = room.yard.players, limit = Math.round(seconds * 60);
   let struck = 0, landed = 0, cleared = 0, boss = null, powers = 0;
+  // (the foe shelf's idioms seen played: a summoner's calls and its summons cut down, a pair enraged, a form become)
+  const idioms = {};
   for (let f = 0; f < limit && !room.yard.over; f++) {
     const buttons = Array.from({ length: P }, (_, i) => (player === 'still' ? {} : player === 'hero' ? heroButtons(room, i, f) : basicButtons(room, i, f)));
     room = stepYard(room, buttons);
@@ -95,17 +97,18 @@ export function playStreet(yard, { player = 'basic', seconds = 240 } = {}) {
       if (e.t === 'power' && e.p < P) powers++;
       if (e.t === 'boss') boss = { name: e.name, down: false };
       if (e.t === 'stageClear' && boss) boss.down = true;
+      if (e.t === 'summon' || e.t === 'cut' || e.t === 'enrage' || e.t === 'becomes') idioms[e.t] = (idioms[e.t] ?? 0) + 1;
     }
   }
   const over = room.yard.over, of = room.mind.waves.length;
   return {
     player, outcome: over, won: over === 'won', frames: room.s.f, seconds: Math.round(room.s.f / 6) / 10, falls: room.yard.falls, stakes: room.yard.stakes,
-    stops: { cleared, of }, boss, struck, landed, ...(powers ? { powers } : {}),
+    stops: { cleared, of }, boss, struck, landed, ...(powers ? { powers } : {}), ...(Object.keys(idioms).length ? { idioms } : {}),
     reason: over === 'won' ? 'the last wave fell' : over === 'lost' ? `fell ${room.yard.falls} times, the last one allowed` : `the clock ran out at stop ${Math.min(of, room.mind.wave + 1)} of ${of}`,
   };
 }
 
 /** One line a report reads. */
 export function streetSummary(R) {
-  return `${R.player}: ${R.won ? 'won' : R.outcome === 'lost' ? 'lost' : 'not ended'} in ${R.seconds} s (${R.reason}); ${R.stops.cleared} of ${R.stops.of} stops cleared, ${R.falls} of ${R.stakes} falls, ${R.landed} blows landed, ${R.struck} taken${R.powers ? `, ${R.powers} powers` : ''}${R.boss ? `; boss ${R.boss.name} ${R.boss.down ? 'down' : 'standing'}` : ''}`;
+  return `${R.player}: ${R.won ? 'won' : R.outcome === 'lost' ? 'lost' : 'not ended'} in ${R.seconds} s (${R.reason}); ${R.stops.cleared} of ${R.stops.of} stops cleared, ${R.falls} of ${R.stakes} falls, ${R.landed} blows landed, ${R.struck} taken${R.powers ? `, ${R.powers} powers` : ''}${R.boss ? `; boss ${R.boss.name} ${R.boss.down ? 'down' : 'standing'}` : ''}${R.idioms ? `; ${Object.entries(R.idioms).map(([k, n]) => `${n} ${k}`).join(', ')}` : ''}`;
 }

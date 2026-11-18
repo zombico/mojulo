@@ -12,6 +12,7 @@ import { GENRES } from '../egocube/setting.js';
 import { readFlow } from '../game/flow.js';
 import { readScenes } from '../brawl/brawl-scenes.js';
 import { CROWD_TYPES } from '../brawl/brawl-crowd.js';
+import { VILLAINS, LIEUTENANT_KINDS } from '../brawl/brawl-villains.js';
 import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
 
 const ME = { archetype: 'hero', style: 'all-rounder' };
@@ -268,6 +269,31 @@ describe('a heroes brawl', () => {
     const most = (st) => Math.max(...st.waves.flatMap((w) => w.crowd.map((c) => c.n)));
     expect(most(lair)).toBeGreaterThanOrEqual(most(street));
     expect(lair.scenes.arrive.find((b) => b.title).sub).toMatch(/The mastermind/);
+  });
+  it('every member of its army, the army\'s boss, the villain and a pair\'s second, is a spec the hero door takes', () => {
+    // (a grunt whose gesture swings the gear the brawler's body leaves off keeps no such gesture: a shadow clan's staff)
+    for (const villain of ['mastermind', 'rival']) for (const m of brawlCrowd({ goal: 'brawl', heroes: { villain } }, 1).members) if (m.mint) expect(validateHeroSpec(m.mint.spec), `${villain}: ${m.id}`).toEqual([]);
+  });
+  it('its villain is a supervillain of the shelf (the member\'s kind unless said, a design over it); lieutenants hold the streets on the way', () => {
+    const lairOf = (heroes) => { const W = runSteps(world({ heroes }), { ref: 'gw' }); return { W, lair: W.find((s) => s.key === 'level-street-lair').order.manifest.brawl.street }; };
+    // (the mastermind a summoner: its summons on its boss)
+    expect(lair.waves.find((w) => w.boss).boss.summons).toMatchObject({ type: 'drone' });
+    // (the twins: a pair, its second its own character, the last street drawing both)
+    const T = lairOf({ villain: { member: 'rival', name: 'Castor' } });
+    const pairBoss = T.lair.waves.find((w) => w.boss).boss;
+    expect(pairBoss.pair.name).toBe("Castor's twin");
+    const second = T.W.find((s) => s.key === 'foes-crowd-villain-2');
+    expect(second).toBeTruthy();
+    expect(T.lair.cast.boss.map((k) => T.lair.roster[k].hero.ref)).toEqual([T.W.find((s) => s.key === 'foes-crowd-villain').ref, second.ref]);
+    // (a kind named and designed: the person's words over its row, read before anything is made)
+    const D = lairOf({ villain: { member: 'brute', kind: 'warlord', design: { hp: 700, stages: [{}, { at: 0.5, calls: { blaster: 3 } }] } } });
+    expect(D.lair.waves.find((w) => w.boss).crowd.filter((c) => c.stage === 1)).toEqual([{ type: 'blaster', n: 3, stage: 1 }]);
+    expect(() => world({ heroes: { villain: { kind: 'overlord' } } })).toThrow(/kind is one of/);
+    expect(() => world({ heroes: { villain: { design: { summons: { type: 'caster' } } } } })).toThrow(/does not summon/);
+    // (the streets on the way end on lieutenants, the shelf's, in turn)
+    const bossName = (st) => st.waves.find((w) => w.boss).boss.recipe.name;
+    expect(bossName(street)).toBe(VILLAINS[LIEUTENANT_KINDS[0]].name);
+    expect(bossName(steps.find((s) => s.key === 'level-street-works').order.manifest.brawl.street)).toBe(VILLAINS[LIEUTENANT_KINDS[1]].name);
   });
   it('plays from the arcade\'s first screen to its end: attract, title, the streets, the end card once the villain falls, the roll', () => {
     const game = steps.find((s) => s.key === 'game').order, F = game.flow.steps;
