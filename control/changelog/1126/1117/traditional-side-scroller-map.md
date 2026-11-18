@@ -216,3 +216,8 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   The benchmark measures it: a lamp's falloff on the back, a ledge's shadow, the lane lit a step over the back, a climb's
   frame lighter at its top; on Galaxy Boy's first level and the volcano stage every one holds lit and the flat build
   loses the falloff, the shadow and the climb's light. Not yet: the hero under the cast rig on a side map's page.
+- **The shot light** (`worlds/controllable/shot-light.js`, `scene/channels/controllable/shot-light-view.js`): what moves
+  lights the baked map live, over its bake: a buster's round in its level's colour, a foe's shot in its own, a burst as
+  it goes off, a muzzle's flash, and the hero's charge at its chest growing as it fills. The strongest few near the
+  camera each frame, added over the baked colour in the surface's own hue by how it turns to the light, no shadows.
+  Only a side map's page carries it.
