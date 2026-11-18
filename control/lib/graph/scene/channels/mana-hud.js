@@ -18,6 +18,9 @@
  *
  * The state it writes (a spec binds these): course { metres, of, left, says } · run { show, at, of } (the shell's
  * `params.__run`) · hero { stamina, staminaMax, sprints } · coins { count } (the bus's `coins`) · start { count, sub } · hint { show } · moments [].
+ * A race's (`feed.kind: 'race'`, gameworld/race-hud.js): race { place, of, placeSays, field, lap, laps, lapSays, time,
+ * best, hasBest, speed, speedMax, markers, solo } · start { lit, of, sub }: its lights held as a screen with the world
+ * frozen (`window.__mojFreeze`, the race's clock with it) until they go out, then read off the laps mechanic's vars.
  * It reads no device: a HUD is seen. A part that is pressed (a level's button row, tapped or clicked) raises its event on
  * the level's bus (`window.__mojBus.press`, there only for a level with such a row). The page's own gauge and its widget rows are hidden while this stands (by a rule
  * on its class: the runtime that draws it is untouched). `window.__mojHud = { rt, state }` for a headless driver.
@@ -58,6 +61,8 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     hud = { ...hud, spec: { ...hud.spec, hud: { ...hud.spec.hud, children: [...(hud.spec.hud.children ?? []), pad] } } };
   }
   const R = hud.feed && hud.feed.rows;
+  // (a race's feed, gameworld/race-hud.js: its lights, laps, times and map; any other HUD carries none of it)
+  const race = !!(hud.feed && hud.feed.kind === 'race');
   const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp,#__radar,#__wc,#__damageRing,div:has(>#__wepIcon)' : ''}{display:none!important}`;
   const H = !!(hud.feed && hud.feed.hero);
   return `
@@ -72,6 +77,11 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   const F = CFG.feed, of = Math.max(1, Math.round((F.to || 0) - (F.from || 0)));
   const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [], hint: '' }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, gun: { on: false }, focus: { on: false }, radar: { on: false, marks: [], north: 0 }, ring: { on: false, hits: [] }, wheel: { open: false, slots: [], title: '' }, top: {}, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {} };
   let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
+${race ? `  // A RACE's (gameworld/race-hud.js): the lights, then the laps, the place and the times off the laps mechanic's vars
+  const RACE = F.kind === 'race' ? { m: F.mech || 0, lights: null, done: 0, lapStart: 0, best: 0, over: false } : null;
+  if (RACE) { st.race = { place: 1, of: F.racers, placeSays: '1st', field: '/ ' + F.racers, lap: 1, laps: F.laps, lapSays: '1/' + F.laps, time: 0, best: 0, hasBest: false, speed: 0, speedMax: F.speedMax, markers: [], solo: F.racers < 2, hasItem: false, itemSays: '—', itemIcon: '' }; st.fx = { finish: 0, best: 0 }; st.start = { lit: 0, of: F.lights.count, lights: '', sub: F.words.ready }; }
+  const lightsSay = function (n) { const out = []; for (let i = 0; i < F.lights.count; i++) out.push(i < n ? '●' : '○'); return out.join(' '); };
+  const nth = function (n) { const t = n % 100, u = n % 10; return n + (t > 10 && t < 14 ? 'th' : u === 1 ? 'st' : u === 2 ? 'nd' : u === 3 ? 'rd' : 'th'); };` : ''}
   // a HUD part pressed (a level's button row): its event raised on the level's bus, as a key bound to it would
   // (a keyed one, game/screen-keys.js: that key pressed, heard by whatever listens for it)
   function press(e) {
@@ -90,7 +100,9 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     const R = params && params.__run;
     if (R && R.of > 1) { st.run.show = true; st.run.at = R.at; st.run.of = R.of; }
     if (F.hint && (!R || R.at === 1)) hintUntil = 1e9;   // (shown from the cue; timed from GO)
-    if (F.cue && CFG.spec.screens && CFG.spec.screens.ready) { cue = { t0: clock }; st.start.count = F.cue.beats[0]; st.start.sub = F.cue.sub || ''; rt.open('ready'); view.paint(); }
+${race ? `    // (a race's lights: the karts held and the race's clock frozen, the world's, until they go out)
+    if (RACE && CFG.spec.screens && CFG.spec.screens.ready) { RACE.lights = { t0: clock }; st.start.lit = 0; rt.open('ready'); view.paint(); }
+    else ` : '    '}if (F.cue && CFG.spec.screens && CFG.spec.screens.ready) { cue = { t0: clock }; st.start.count = F.cue.beats[0]; st.start.sub = F.cue.sub || ''; rt.open('ready'); view.paint(); }
     else if (hintUntil > 0) hintUntil = clock + F.hint.seconds;
   }
   // A LEVEL'S ROWS (game/hud-mana.js): its vars read off the bus, its gated and timed rows said on or off, its banners
@@ -201,7 +213,40 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
       if (k < F.cue.beats.length) st.start.count = F.cue.beats[k];
       else { cue = null; rt.close(); st.moments = st.moments.concat([{ id: 'go', text: F.cue.go, weight: 'major' }]); if (hintUntil > 0) hintUntil = clock + F.hint.seconds; }
     }
-    st.hint.show = clock < hintUntil;
+${race ? `    if (RACE) {
+      const L = F.lights;
+      if (RACE.lights) {
+        // (the world held from a beat in, once the camera has found the kart: a world frozen on its first frame has no view)
+        if (clock - RACE.lights.t0 > 0.3) window.__mojFreeze = true;
+        const k = Math.floor((clock - RACE.lights.t0) / L.every);
+        st.start.lit = Math.min(L.count, k); st.start.lights = lightsSay(st.start.lit);
+        if (clock - RACE.lights.t0 >= L.count * L.every + L.hold) { RACE.lights = null; window.__mojFreeze = false; st.start.lit = 0; rt.close(); st.moments = st.moments.concat([{ id: 'go', text: F.words.go, weight: 'major' }]); }
+      }
+      if (V && !RACE.over) {
+        const done = V['__lap_' + RACE.m] || 0, t = (V['__race_' + RACE.m] || 0) / 10;
+        if (done > RACE.done) {
+          const lapT = t - RACE.lapStart; RACE.lapStart = t; RACE.done = done;
+          // (a lap better than the best so far: its sparkles, a screen effect that touches nothing)
+          if (lapT > 0 && (!st.race.hasBest || lapT < st.race.best)) { if (st.race.hasBest) st.fx.best += 1; st.race.best = lapT; st.race.hasBest = true; }
+          if (done >= F.laps) { RACE.over = true; st.fx.finish = 1; st.moments = st.moments.concat([{ id: 'finish', text: F.words.finish, sub: F.racers > 1 ? nth(st.race.place) : '', weight: 'decisive' }]); }
+          else if (done === F.laps - 1 && F.laps > 1) st.moments = st.moments.concat([{ id: 'final', text: F.words.final, weight: 'major' }]);
+        }
+        st.race.lap = Math.min(F.laps, done + 1); st.race.lapSays = st.race.lap + '/' + F.laps;
+        if (!RACE.over) st.race.time = Math.max(0, t - RACE.lapStart);
+        const pl = V['__place_' + RACE.m]; if (pl != null) { st.race.place = pl; st.race.placeSays = nth(pl); }
+      }
+      if (me) st.race.speed = Math.round(Math.abs(me.speed || 0) * 3.6);
+      // (the item held, a race with item boxes: roads/kart-items.js, the page's window.__mojItems)
+      if (F.items && window.__mojItems && W) { const it = window.__mojItems.held(W.pilotId); st.race.hasItem = !!it; st.race.itemSays = it ? String(window.__mojItems.says(it)).toUpperCase() : '—'; st.race.itemIcon = it && window.__mojItems.icon ? String(window.__mojItems.icon(it)) : ''; }
+      // the field on the map: you, and the rivals (their team), each at its place on the track's square
+      if (F.frame && W) {
+        const Fr = F.frame, at = function (p) { return { x: Fr.ox + (p[0] - Fr.x0) * Fr.k, y: 1 - (Fr.oy + (p[1] - Fr.y0) * Fr.k) }; }, mk = [];
+        for (const id in W.byId) { const e = W.byId[id]; if (!e || !e.transform || id === W.pilotId || e.team !== 'rivals') continue; const q = at(e.transform.pos); mk.push({ x: q.x, y: q.y, kind: 'foe' }); }
+        if (me && me.transform) { const q = at(me.transform.pos); mk.push({ x: q.x, y: q.y, kind: 'self' }); }
+        st.race.markers = mk;
+      }
+    }
+` : ''}    st.hint.show = clock < hintUntil;
     // (the touch layer's word for its pad, when the page has one)
     // (a page whose touch layer draws itself still says whether it is up: a button for a touch screen alone reads it)
     const TT = window.__mojTouch; if (TT) { if (TT.view) st.touch = TT.view(); else st.touch.on = !!TT.on() && !window.__mojMenuOpen; }

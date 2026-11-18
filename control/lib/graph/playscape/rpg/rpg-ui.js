@@ -21,13 +21,13 @@
  *   { emit: equip, item }, { emit: learn, member, skill }, { emit: deal, kind: buy | sell | stay, item }
  *
  *   RPG_SCREENS              the screen ids
- *   rpgUiSpec()              → the spec (readSpec reads it)
+ *   rpgUiSpec()              → the spec (readSpec reads it): its screens, its HUD, its lens (the screen round a figure)
  *   rpgUiTheme(cfg)          → the theme a fight is dressed in: the world's guide lowered (cfg.theme), else 'console'
  *   rpgUiCss(theme)          → the sheet: mana-ui's, the theme over it, and the channel's own few rules (the flash, the
  *                            window's jolt, the level's HUD stepping aside during a fight)
  */
 import { manaUi } from '../../../mana-ui/kernel.js';
-import { manaCss } from '../../../mana-ui/css.js';
+import { manaCss, lensCss } from '../../../mana-ui/css.js';
 import { themeCss, readTheme } from '../../../mana-ui/theme.js';
 
 export const RPG_SCOPE = '.moj-rpg .mana-root';
@@ -122,10 +122,14 @@ const SCREENS = {
   ] },
 };
 
+// ── the lens: the screen round a figure, a juice's `lens` step (playscape/rpg/juice.js), mounted apart beside the
+// world's canvas (rpg-channel.js), its strikes where the channel projects the figures; each row names its own kind ──
+const LENS = { use: 'lens', children: [{ use: 'strike', props: { rows: B('battle.strikes'), kind: 'ring', seconds: 0.5 } }] };
+
 let SPEC = null;
-/** The RPG's screens and HUD as a mana-ui spec (read once: it is the same for every world). */
+/** The RPG's screens, HUD and lens as a mana-ui spec (read once: it is the same for every world). */
 export function rpgUiSpec() {
-  if (!SPEC) { SPEC = { screens: SCREENS, hud: HUD }; manaUi.readSpec(SPEC); }
+  if (!SPEC) { SPEC = { screens: SCREENS, hud: HUD, lens: LENS }; manaUi.readSpec(SPEC); }
   return SPEC;
 }
 
@@ -134,6 +138,9 @@ export function rpgUiTheme(cfg) {
   return readTheme(cfg && cfg.theme !== undefined ? cfg.theme : 'console');
 }
 
+/** Where the lens is mounted (its host, rpg-channel.js): its rules are scoped under it. */
+export const LENS_SCOPE = '.moj-rpg-lens';
+
 // the channel's own rules: the window's jolt (a juice step), the flash over the field, the level's HUD aside in a fight
 const OWN_CSS = [
   '.moj-rpg{position:fixed;inset:0;pointer-events:none;z-index:31}',
@@ -141,9 +148,11 @@ const OWN_CSS = [
   '@keyframes moj-rpg-jolt{0%,100%{transform:translateX(0)}20%{transform:translateX(calc(var(--k,1) * -6px))}40%{transform:translateX(calc(var(--k,1) * 5px))}60%{transform:translateX(calc(var(--k,1) * -3px))}80%{transform:translateX(calc(var(--k,1) * 2px))}}',
   '.moj-rpg-flash{position:fixed;inset:0;pointer-events:none;z-index:32;opacity:0}',
   'body.moj-in-battle .moj-hud{display:none}',
+  // (the lens's host: over the canvas, never raised, so its regions filter the world beneath)
+  `${LENS_SCOPE}{position:absolute;inset:0;pointer-events:none}`,
 ].join('\n');
 
 /** The RPG's sheet: mana-ui's under the channel's scope, the theme over it, the channel's own few rules. */
 export function rpgUiCss(theme) {
-  return `${manaCss(RPG_SCOPE)}\n${themeCss(theme, RPG_SCOPE)}\n${OWN_CSS}`;
+  return `${manaCss(RPG_SCOPE)}\n${themeCss(theme, RPG_SCOPE)}\n${lensCss(`${LENS_SCOPE} .mana-lens`)}\n${OWN_CSS}`;
 }

@@ -1,7 +1,8 @@
 import { b64, safeJson } from '../../emit-util.js';
 import { packRigMesh } from '../../../figures/rig-bake.js';
 import { emissionSource } from '../../../worlds/controllable/compose.js';
-import { surfaceAt } from '../../../roads/surface.js';
+import { surfaceAt, padAt } from '../../../roads/surface.js';
+import { kartItemsViewScript } from './kart-items-view.js';
 import { commanderSource } from '../../../worlds/controllable/commander.js';
 import { MSG_GAMEPAD as GAME_MSG_GAMEPAD, MSG_AI as GAME_MSG_AI, MSG_SEATS as GAME_MSG_SEATS } from '../../../game/level-contract.js';
 import { hangarStepperBlock } from './hangar-menu.js';
@@ -2705,7 +2706,10 @@ ${driveSurface ? `// surface hook (roads/surface.js): what a car's tyres are on,
 const __surfaceT = ${safeJson(driveSurface)};
 const __surfaceAt = ${surfaceAt.toString()};
 const __surface = (p) => __surfaceAt(__surfaceT, p);
-` : ''}${groundGridScript()}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
+${driveSurface.pads ? `// boost pads (roads/surface.js padAt): the seconds of boost a wheel on one lights
+const __padAt = ${padAt.toString()};
+const __pad = (p) => __padAt(__surfaceT, p);
+` : ''}${driveSurface.items ? kartItemsViewScript(driveSurface.items.boxes.length) : ''}` : ''}${groundGridScript()}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
 const __groundRay = new THREE.Raycaster();
 const __bodySet = () => Object.values(__bodies);
 let __gridOn = false;
@@ -2972,7 +2976,8 @@ ${touchLayer ? `  if (__touchOn()) return __touchRows();   // the screen's pad (
     suits: W.entities.filter((e) => e.pilotable).length > 1,
     ai: W.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')),
     follow: !!(W.camera && W.camera.rule && W.camera.rule.type === 'follow'),
-    interact: !!window.__mojUses,   // the world has somewhere to use (the events channel says)${hasForms ? `
+    interact: !!window.__mojUses,   // the world has somewhere to use (the events channel says)
+    items: !!window.__mojItems,     // a race whose boxes hand out items (kart-items-view.js)${hasForms ? `
     forms: true,                    // a body that transforms (forms.js)` : ''}
     active: { gamepad: __padOn && __padSeen }, layout: __padLayout,
   });
@@ -4709,11 +4714,12 @@ function __updateBreaks(dt) {
 ${distort ? distortViewScript() : ''}${rupa ? smokeViewScript() : ''}` : ''}${panelsOn ? panelsViewScript() : ''}${scarsOn ? scarsViewScript() : ''}${groundOn ? groundViewScript() : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
-    ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });${tempo ? `
+    ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''}${driveSurface && driveSurface.pads ? ', padAt: __pad' : ''} });${tempo ? `
     const wdt = dt * __CW.tempoScale(__world);   // the world clock: the bodies and their effects on the world's step, the camera on the real one
     // a moment that fires cues the live shoot plan's shot waiting on it (on: 'tempo:<what fired it>'): the impact cam
     if (__world.tempo && __world.tempo.playing !== __tmLast) { __tmLast = __world.tempo.playing; if (__tmLast && window.__mojShoot && window.__mojShoot.cue) window.__mojShoot.cue('tempo:' + __tmLast.on); }` : ''}
-    for (const e of __world.entities) __syncEntity(e, ${tempo ? 'wdt' : 'dt'});${place ? '\n    __placeStep(dt);' : ''}${seats ? `
+    for (const e of __world.entities) __syncEntity(e, ${tempo ? 'wdt' : 'dt'});${driveSurface && driveSurface.items ? `
+    __kiTick(dt);` : ''}${place ? '\n    __placeStep(dt);' : ''}${seats ? `
     __seatRings();
     __seatStrip();
     __seatsOver();` : ''}

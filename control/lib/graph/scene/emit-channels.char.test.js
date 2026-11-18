@@ -851,6 +851,29 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // hold, and the opener's count. A moveset that says no `swap` runs as before: the cycle mid-swing is dropped. Every
 // fixture that embeds the controllable runtime re-pinned with it.
 //
+// Re-pinned 2026-11-17 (the race's HUD on mana-ui): `brawl` and `holo`, the two whose page inlines the game UI runtime.
+// Its minimap gains a `route` (a way drawn as a dotted line under its markers, gameworld/race-hud.js's track map): one
+// prop, its draw and two sheet rules; a minimap that names no route draws as it did. Every other page byte-identical.
+//
+// Re-pinned 2026-11-17 (boost pads on a street circuit's alley): the drive rule gains an opt-in boost read through the
+// world's `padAt` (rules-drive.js: a wheel on a pad lights a boost, its top and pull past the kart's own while it
+// lasts), the core passes the hook into the world, and the page wires it when its drive surface lays pads. A world with
+// no pads has no `padAt` and drives as before. Every fixture that embeds the controllable runtime re-pinned with it.
+//
+// Re-pinned 2026-11-17 (a race's held item on the pause sheet): the pilot scheme the page carries gains its `useItem`
+// action (controls/schemes.js: F, right Shift, the pad's left face, in a vehicle) and the sheet's two rows for it, and
+// the pause legend's flags gain `items` (a race whose boxes hand out items). A page with no item boxes shows no row.
+// The sheet's thrusters row is hidden in a vehicle too (the thrusters were never a vehicle's; a kart's F is its item).
+// Every fixture that embeds the controllable runtime re-pinned with it.
+//
+// Re-pinned 2026-11-18 (a race's held item as one large slot): mana-ui's `slot` draws its pictogram (its icon carries
+// `data-icon`, as an icon's and a counter's do) and takes a `size` (l: a slot read at a glance), and the sheet sizes it.
+// `brawl` and `holo`, the two whose page inlines the game UI runtime; a slot of the size unsaid draws as it did.
+//
+// Re-pinned 2026-11-18 (screen effects): mana-ui gains its `effect` layer (confetti, streamers, sparkles, burst, petals,
+// a flash: pure CSS over everything, catching nothing) and the sheet its rules and motions. `brawl` and `holo`, the two
+// whose page inlines the game UI runtime; a HUD that lays no effect draws as it did.
+//
 // Re-pinned 2026-11-15 (the release candidate merged into the side-scroll starter): `brawl`. Its page carries both
 // sides' changes at once (the belt's bends and the yard's client from the one, the game UI kernel and its sheet from the
 // other); each is said above, and neither changes how the fixture plays.
@@ -869,6 +892,19 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // band's models' colours brought to linear light). Again (a boss's phases, a second seat taken mid-street): the
 // crowd, the street's read and the yard's client; the fixture is a yard, with neither. Again (the street's seats):
 // the street's read (a gun's letters) and the yard's client (each seat's quarter).
+// Re-pinned 2026-11-18 (1116-rc merged into 1117-kart-improvements): the fixtures both lines moved, together. The
+// seventeen that embed the controllable runtime (this line's boost pads and its use-item key in the pilot scheme, over
+// the candidate's), and `brawl`, `holo` and `mission`, whose pages inline the game UI runtime (this line's slot, effect
+// layer and minimap route merged with the candidate's peril, scope and magazine). Nothing else moved.
+//
+// Re-pinned 2026-11-18 (the lens, mana-ui's screen layer): `brawl`, `holo` and `mission`, whose pages inline the game UI
+// runtime. The runtime gains the lens's part (a spec's `lens`, drawn apart and mounted beside the canvas) and its
+// `strike`; a HUD that lays no lens draws as it did, and no pinned page lays one.
+//
+// Re-pinned 2026-11-18 (the lens for still figures): `brawl`, `holo` and `mission`, whose pages inline the game UI
+// runtime. A strike's row may name its own kind, and its description speaks of a turn-based fight's figure; the level
+// HUD lays no lens again. Nothing else moved.
+//
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
@@ -896,3 +932,5 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // round carrying its knock, a special's round drawn (it was not) and a power's burst. The fixture's fighters have no power:
 // it plays as it did. Re-pinned again the same day for a power DESIGNED (brawl-powers.js: a kind's dials, read back as
 // written): `brawl` only, the shelf's lines alone.
+// Re-pinned 2026-11-18 (1117-reactive-z-layer merged into 1117-hero-beat-em-up): `brawl` only. Its page carries both
+// sides' runtime at once: the lens's still-figure runtime (that branch's) and the powers shelf (this one's).

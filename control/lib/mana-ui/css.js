@@ -472,6 +472,10 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-magazine[data-empty] .mana-call{animation:mana-pulse ${PULSE}s ease-in-out infinite;animation-play-state:${v('loop')}}`,
     `${s} .mana-magazine[data-reloading] .mana-call{color:${v('accent')}}`,
     `${s} .mana-magazine[data-reloading] .mana-belt i{background:${v('accent')};-webkit-mask-image:var(--mana-round-spent);mask-image:var(--mana-round-spent);animation:mana-pulse .75s ease-in-out infinite;animation-play-state:${v('loop')}}`,
+    // (a map with its way drawn: the way's dots in place of the blank map's cross)
+    `${s} .mana-minimap[data-route]{background:${v('paper')}}`,
+    `${s} .mana-minimap[data-route] .mana-marker[data-kind=self]{color:${v('accent')};font-size:${u(22)}}`,
+    `${s} .mana-trace{position:absolute;width:${u(7)};height:${u(7)};border-radius:50%;background:${v('ink')};opacity:.5;transform:translate(-50%,-50%)}`,
     `${s} .mana-marker{position:absolute;transform:translate(-50%,-50%);font-size:${u(16)};line-height:1}`,
     `${s} .mana-minimap .mana-caption{position:absolute;left:${u(6)};bottom:${u(3)}}`,
     `${s} .mana-compass{position:relative;width:${u(450)};height:${u(33)};border:${v('rule-w')} solid ${v('line')};background:${v('paper')};overflow:hidden}`,
@@ -527,6 +531,8 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-count{position:absolute;right:${u(4)};bottom:${u(1.5)};font:700 ${t('caption')} ${v('mono')}}`,
     `${s} .mana-slot[data-active=yes]{border:2px solid ${v('accent')};box-shadow:inset 0 0 0 1px ${v('accent')}}`,
     `${s} .mana-slot[data-empty=yes]{border-style:dashed;border-color:${v('soft')}}`,
+    // (a slot read at a glance: larger, its pictogram filling it, its key larger in its corner)
+    `${s} .mana-slot[data-size=l]{width:${u(150)};height:${u(150)};border-width:calc(${v('rule-w')} * 2)}`, `${s} .mana-slot[data-size=l]>.mana-icon{width:${u(112)};height:${u(112)}}`, `${s} .mana-slot[data-size=l] .mana-key{font-size:${u(22)};left:${u(8)};top:${u(6)}}`, `${s} .mana-slot[data-size=l][data-active=yes]{border-width:calc(${v('rule-w')} * 3)}`,
     // a card on the table: values first (its state a shape: an edge alight, lifted, turned on its side; its back hatched)
     `${s} .mana-card{position:relative;display:inline-flex;flex-direction:column;gap:${u(4)};width:${u(132)};height:${u(184)};padding:0 0 ${u(6)};border:${v('rule-w')} solid ${v('line')};border-radius:calc(${v('radius')}*.6);background:${v('paper')};overflow:hidden;vertical-align:top;text-align:left}`,
     `${s} .mana-card[data-size=s]{width:${u(96)};height:${u(134)}}`,
@@ -572,6 +578,29 @@ export function manaCss(scope = '.mana-root') {
     `${s}[data-flash=reduced] .mana-peril{animation:none}`,
     `${s} .mana-letterbox i{position:absolute;left:0;right:0;height:11%;background:${v('shade')}}`,
     `${s} .mana-letterbox i:first-child{top:0}`, `${s} .mana-letterbox i:last-child{bottom:0}`,
+    // SCREEN EFFECTS (an \`effect\`): a layer over everything that catches nothing and is laid out alone (contain), its
+    // pieces moved by transform and opacity only (the compositor's: no layout, no paint a frame), on their own clock
+    // (the container's size as cqw / cqh, so a piece crosses the screen whatever its size)
+    `${s} .mana-effect{position:absolute;inset:0;pointer-events:none;overflow:hidden;contain:strict;container-type:size;z-index:30}`,
+    `${s} .mana-effect[data-idle=yes]{display:none}`,
+    `${s} .mana-effect i{position:absolute;display:block;left:var(--x);top:0;background:var(--c);will-change:transform,opacity;animation:var(--fx-d) linear var(--t) both}`,
+    `${s} .mana-effect[data-loop=yes] i{animation-iteration-count:infinite}`,
+    // confetti: chips that flutter as they fall; from the top, popped from the centre, or fired up from the bottom
+    `${s} .mana-effect[data-kind=confetti] i{width:calc(var(--s) * ${u(24)});height:calc(var(--s) * ${u(12)});border-radius:${u(3)};animation-name:mana-fx-fall;animation-timing-function:cubic-bezier(.3,.55,.55,1)}`,
+    `${s} .mana-effect[data-kind=confetti][data-from=center] i{left:50%;top:50%;animation-name:mana-fx-pop;animation-timing-function:cubic-bezier(.15,.7,.4,1)}`,
+    `${s} .mana-effect[data-kind=confetti][data-from=bottom] i{top:100%;animation-name:mana-fx-cannon;animation-timing-function:cubic-bezier(.12,.75,.45,1)}`,
+    // streamers: long ribbons that swing as they come down, slower
+    `${s} .mana-effect[data-kind=streamers] i{width:calc(var(--s) * ${u(11)});height:calc(var(--s) * ${u(120)});border-radius:${u(6)};animation-name:mana-fx-ribbon;animation-timing-function:cubic-bezier(.35,.4,.6,1)}`,
+    // sparkles: four-pointed stars that open and close where they stand
+    `${s} .mana-effect[data-kind=sparkles] i{top:var(--y);width:calc(var(--s) * ${u(48)});height:calc(var(--s) * ${u(48)});clip-path:polygon(50% 0,60% 40%,100% 50%,60% 60%,50% 100%,40% 60%,0 50%,40% 40%);animation-name:mana-fx-twinkle;animation-timing-function:ease-in-out}`,
+    // burst: stars thrown out from the middle, fading as they go
+    `${s} .mana-effect[data-kind=burst] i{left:50%;top:50%;width:calc(var(--s) * ${u(38)});height:calc(var(--s) * ${u(38)});clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);animation-name:mana-fx-burst;animation-timing-function:cubic-bezier(.1,.8,.3,1)}`,
+    // petals: drifting across and down, turning
+    `${s} .mana-effect[data-kind=petals] i{width:calc(var(--s) * ${u(28)});height:calc(var(--s) * ${u(17)});border-radius:50% 0 50% 0;animation-name:mana-fx-drift;animation-timing-function:ease-in-out}`,
+    // flash: the whole screen lit once, out at once
+    `${s} .mana-effect[data-kind=flash] i{inset:0;left:0;background:radial-gradient(circle at 50% 45%,${v('gleam')},color-mix(in srgb,${v('accent')} 55%,transparent) 70%);animation-name:mana-fx-flash;animation-timing-function:ease-out}`,
+    // (less motion: the pieces stay home, and a flash, a fade, is all that plays)
+    ...[`${s}[data-motion=reduced]`, `@media (prefers-reduced-motion:reduce){${s}`].map((at) => `${at.startsWith('@') ? `${at} ` : `${at} `}.mana-effect:not([data-kind=flash]) i{display:none}${at.startsWith('@') ? '}' : ''}`),
     `${s} .mana-touchpad{display:flex;justify-content:space-between;align-items:flex-end;width:min(${u(1770)},90cqw);padding:0 ${u(18)}}`,
     `${s} .mana-stick,${s} .mana-pad{pointer-events:auto;touch-action:none}`,
     `${s} .mana-stick{position:relative;width:${u(180)};height:${u(180)};border-radius:50%;border:2px solid ${v('line')};background:${v('plate')};opacity:.4}`,
@@ -625,6 +654,15 @@ const KEYFRAMES = [
   `@keyframes mana-kick{from{translate:0 calc(${v('travel')} * -.5);scale:${pop(0.6)}}}`,
   // near the end of something: the peril's edge beats, a little over once a second
   `@keyframes mana-beat{50%{opacity:calc(${v('peril')} * .62)}}`,
+  // the screen effects' motions (the pieces' own numbers: --dx −1..1, --dy 0..1, --r a spin, set by the kernel's dice)
+  '@keyframes mana-fx-fall{0%{transform:translate3d(0,-8cqh,0) rotate3d(1,.3,.2,0deg)}35%{transform:translate3d(calc(var(--dx) * 6cqw),30cqh,0) rotate3d(1,.3,.2,calc(var(--r) * .35))}70%{transform:translate3d(calc(var(--dx) * -4cqw),72cqh,0) rotate3d(1,.3,.2,calc(var(--r) * .7))}90%{opacity:1}100%{transform:translate3d(calc(var(--dx) * 10cqw),108cqh,0) rotate3d(1,.3,.2,var(--r));opacity:0}}',
+  '@keyframes mana-fx-pop{0%{transform:translate3d(-50%,-50%,0) scale(.3)}28%{transform:translate3d(calc(var(--dx) * 46cqw),calc(-12cqh - var(--dy) * 34cqh),0) rotate3d(1,.3,.2,calc(var(--r) * .3)) scale(1)}85%{opacity:1}100%{transform:translate3d(calc(var(--dx) * 58cqw),62cqh,0) rotate3d(1,.3,.2,var(--r));opacity:0}}',
+  '@keyframes mana-fx-cannon{0%{transform:translate3d(0,0,0) scale(.4)}34%{transform:translate3d(calc(var(--dx) * 22cqw),calc(-62cqh - var(--dy) * 32cqh),0) rotate3d(1,.3,.2,calc(var(--r) * .4)) scale(1)}85%{opacity:1}100%{transform:translate3d(calc(var(--dx) * 34cqw),-8cqh,0) rotate3d(1,.3,.2,var(--r));opacity:0}}',
+  '@keyframes mana-fx-ribbon{0%{transform:translate3d(0,-14cqh,0) rotate(-18deg) skewX(0)}25%{transform:translate3d(calc(var(--dx) * 5cqw),20cqh,0) rotate(14deg) skewX(12deg)}50%{transform:translate3d(calc(var(--dx) * -4cqw),50cqh,0) rotate(-12deg) skewX(-12deg)}75%{transform:translate3d(calc(var(--dx) * 5cqw),80cqh,0) rotate(10deg) skewX(10deg)}90%{opacity:1}100%{transform:translate3d(0,112cqh,0) rotate(-8deg);opacity:0}}',
+  '@keyframes mana-fx-twinkle{0%{transform:translate(-50%,-50%) scale(0) rotate(0);opacity:0}40%{transform:translate(-50%,-50%) scale(1) rotate(40deg);opacity:1}100%{transform:translate(-50%,-50%) scale(0) rotate(90deg);opacity:0}}',
+  '@keyframes mana-fx-burst{0%{transform:translate3d(-50%,-50%,0) scale(.2);opacity:1}75%{opacity:1}100%{transform:translate3d(calc(var(--dx) * 46cqw - 50%),calc((var(--dy) * 2 - 1) * 46cqh - 50%),0) rotate(var(--r)) scale(1);opacity:0}}',
+  '@keyframes mana-fx-drift{0%{transform:translate3d(-10cqw,-8cqh,0) rotate(0)}50%{transform:translate3d(calc(8cqw + var(--dx) * 8cqw),50cqh,0) rotate(calc(var(--r) * .5))}90%{opacity:1}100%{transform:translate3d(calc(20cqw + var(--dx) * 6cqw),108cqh,0) rotate(var(--r));opacity:0}}',
+  '@keyframes mana-fx-flash{0%{opacity:.85}100%{opacity:0}}',
   // a load: the mark turns, an unknown load's sweep crosses its track, a tip fades in as it turns
   '@keyframes mana-spin{to{transform:rotate(1turn)}}',
   '@keyframes mana-sweep{from{transform:translateX(-100%)}to{transform:translateX(290%)}}',
@@ -746,3 +784,42 @@ export const FRAME_CSS = [
   '.mana-frame[data-device=phone]{aspect-ratio:390/844;max-width:300px;margin:0 auto;border:6px solid #111;border-radius:30px}',
   '.mana-stage[data-device=phone]{width:390px;height:844px}',
 ].join('\n');
+
+/**
+ * THE LENS'S SHEET (a spec's `lens`, kernel.js): its own scope, its root laid over the world's canvas and NEVER made a
+ * stacking context of its own (no z-index, no contain, no container-type, no opacity, transform or filter on it): a
+ * region inside it filters the world's own pixels only while nothing between it and the canvas isolates it (the
+ * reactive layer's finding, scripts/spikes/reactive-layer/FINDINGS.md). The HUD's root, raised over it, stays its own.
+ *
+ * A STRIKE is a ring-shaped region round a still figure (a turn-based fight's): its element the band's size (a region filters only its own
+ * area: the cost is the band's), its mask's hole the figure's body (r: the world draws on the body itself; the lens bends
+ * only the air round it), its motion transform and opacity alone. Its kinds:
+ *   ring    the air round it bent and lit, a band that opens out as it fades (the default)
+ *   lift    the air round it lit and saturated, fading
+ *   shade   the air round it darkened and drained, so the figure stands out of it, fading
+ *   ink     the air round it to its negative for a beat, then gone (an impact frame round the figure; a lift under less flash)
+ *
+ *   lensCss(scope?) → the lens's rules (default scope `.mana-lens`)
+ */
+export function lensCss(scope = '.mana-lens') {
+  const s = scope, BF = (f) => `backdrop-filter:${f};-webkit-backdrop-filter:${f}`;
+  const hole = 'radial-gradient(closest-side,transparent 0 40%,#000 47% 68%,transparent 100%)';
+  return [
+    `${s}{position:absolute;inset:0;pointer-events:none;overflow:hidden}`,
+    `${s} .mana-strike{position:absolute;inset:0;pointer-events:none}`,
+    // (2.4 times the body's radius each way: the hole the body, the band the air out to its edge)
+    `${s} .mana-struck{position:absolute;height:calc(var(--r) * 480%);aspect-ratio:1;translate:-50% -50%;border-radius:50%;-webkit-mask:${hole};mask:${hole};will-change:opacity,scale;animation:mana-lens-fade var(--d) ease-out both}`,
+    `${s} .mana-struck[data-kind=ring]{${BF('blur(calc(2px + var(--p) * 3px)) brightness(1.32) saturate(1.35)')};animation-name:mana-lens-ring}`,
+    `${s} .mana-struck[data-kind=lift]{${BF('brightness(calc(1.15 + var(--p) * .35)) saturate(1.75)')}}`,
+    `${s} .mana-struck[data-kind=shade]{${BF('brightness(calc(.78 - var(--p) * .28)) saturate(.5)')}}`,
+    `${s} .mana-struck[data-kind=ink]{${BF('grayscale(1) invert(1) contrast(1.25)')};animation-name:mana-lens-ink;animation-timing-function:linear}`,
+    // (less flash: an impact frame is a lift; less motion: nothing opens out, it fades where it is; a held clock holds it)
+    `${s}[data-flash=reduced] .mana-struck[data-kind=ink]{${BF('brightness(1.25) saturate(1.5)')};animation-name:mana-lens-fade;animation-timing-function:ease-out}`,
+    `${s}[data-motion=reduced] .mana-struck{animation-name:mana-lens-fade}`,
+    `@media (prefers-reduced-motion:reduce){${s} .mana-struck{animation-name:mana-lens-fade}}`,
+    `${s}[data-clock=held] .mana-struck{animation-play-state:paused}`,
+    '@keyframes mana-lens-fade{0%{opacity:1}100%{opacity:0}}',
+    '@keyframes mana-lens-ring{0%{scale:.62;opacity:1}100%{scale:1.22;opacity:0}}',
+    '@keyframes mana-lens-ink{0%,52%{opacity:1}53%,100%{opacity:0}}',
+  ].join('\n');
+}

@@ -1113,6 +1113,74 @@ a loading screen that says which map is next, and a result with the map, the sec
 its level hosts a HUD of its own (`scene/channels/mana-hud.js`, composed by `gameworld/course-hud.js`). Both wear the
 look the course's dress names (`toybox`, the toy family's first card).
 
+### The lens: the screen layer
+
+The HUD sits on the picture. The lens acts on it: a spec's `lens` is a second part of the same runtime, drawn apart
+from the HUD's root (`rt.lens()`, mounted with `mount(el, rt, { part: 'lens' })`). The host lays it beside the world's
+canvas and under the UI. Its regions filter the world's own pixels, so its root is never its own stacking context:
+no z-index, no `contain`, no `container-type`, no opacity, transform or filter on it (`lensCss`). Anything that
+isolated it would leave its regions filtering nothing; the reactive layer's spike found it
+(`scripts/spikes/reactive-layer/`).
+
+**It is for still figures: a turn-based fight, never an action level.** A region on the screen is drawn where the
+figure was when the page last projected it. A figure that stands while the round plays is where its region says; one
+that runs and dodges outruns it, and an action level's hits are already answered by the world (the body's flash, its
+sparks, the tempo's moments). So its host is the RPG's battle (`playscape/rpg/rpg-ui.js`, `scene/channels/rpg-channel.js`),
+and the level HUD carries no lens.
+
+Its first effect is the **strike**: the air round a figure on the screen.
+- **What it draws:** a band from the figure's silhouette out, bent and lit (`ring`), lit (`lift`), darkened (`shade`)
+  or turned to its negative for a beat (`ink`, a lift under less flash). Each row may name its own kind over the
+  strike's: a miss's ring and a cast's lift in the same fight.
+- **Where it draws:** each row `{ id, n, x, y, r, power?, kind? }` is the figure's middle and its body's radius on the
+  screen. A new `n` plays again.
+- **Its cost:** each strike is a region the size of its band (a region filters only its own area), and at most
+  `most` play at once.
+
+**In a fight it is a juice step** (`playscape/rpg/juice.js`): `{ lens: ring | lift | shade | ink, at?: target | actor }`
+draws round the figure the step names, for the beat. By default a miss bends the air round its target and a cast
+lights the air round its caster: the beats the world leaves bare.
+
+**It never overlaps the world's own effects.** The world draws on the figure, so the strike's mask leaves a hole over
+the body. And a lens step yields where the beat's world already answers (`lensYields`): a flash over the field, a puff
+on the same figure, or a beam landing on its target. The screen's juice never doubles the world's.
+`scripts/spikes/reactive-layer/lens-proof.mjs` shows it in Chrome in a party fight: each kind round the struck figure,
+and nothing on a hit that flashes the field.
+
+### Screen effects
+
+A moment worth celebrating gets a screen effect: the HUD's `effect` layer, beside its regions. Its kinds are
+`confetti`, `streamers`, `sparkles`, `burst`, `petals` and a `flash`. Confetti falls from the top, pops from the centre
+or fires up from the bottom (`from`).
+- **Trigger:** it plays once each time its `on` takes a new value (a finish, a best lap, a level up: bind it to a count
+  the game raises), or holds while `loop`. A new trigger is a new element (its `data-key`), so its animation plays
+  again; with no trigger the layer is empty and hidden.
+- **Pieces:** thrown by the effect's own dice (`seed` and the trigger: the same moment throws the same pieces), in the
+  theme's colours by name (`tones`: accent, accent2, hp, ink by default) or a hex, as many as `count` (at most 160) for
+  `seconds`.
+- **It never touches play.** It is pure CSS: it catches no pointer, is laid out alone (`contain: strict`), and its
+  motions move transform and opacity only, the compositor's, so it asks the game for no frame. It holds with a held
+  clock, as every HUD animation does, and under less motion its pieces stay home and only a flash, a fade, plays.
+
+A race lays two: confetti on the finish and sparkles on a lap better than the best (`fx.finish`, `fx.best`).
+
+### A race's HUD
+
+A level raced by laps on a roadway (the `laps` mechanic round a track) hosts a HUD of its own too, composed by
+`gameworld/race-hud.js`. A race is read from behind the kart as a course is, so the HUD keeps to the corners and the
+right edge: the place, large, in the top left over the field; the lap of the laps, this lap's time and the best lap in
+the top right; the track's map on the right edge, the track's own line drawn as a dotted route (the minimap's
+`route`) with you and the field on it; the speed on a dial in the bottom-right corner; the final lap and the finish
+(with the place) as moments. The start is five lights coming on a beat apart on a plate, then out together for GO:
+a screen, so the karts are held, and the world frozen with the race's clock until they go out. A tall frame lays the
+place and the lap on one plate at the top, with no map. Its look is its track's: `kart-candy` (the toy family) for a
+candy track, `pit-wall` (the clean family: the timing tower) for a circuit; a world that names its own theme wears it.
+A race on a track with item boxes (`roads/kart-items.js`) shows its held item as one large `slot` (`size: 'l'`) at the
+top's middle, there all race and in no words: dashed while empty, the item's pictogram filling it and its frame the
+accent (`active`) while one is held, the key that uses it in its corner; read off the page's `window.__mojItems`. A
+slot draws its pictogram where the theme has one (its icon carries `data-icon`), its initials where not. Each item names its pictogram on the icon shelf (`icons.js`: a wrapped sweet with a
+bolt through it, a toffee splat, a gumball), and Candy Kart draws its pictograms chunky, toned by what they mean.
+
 ### Layout that adapts
 
 The frame a view is drawn in is state. A mount measures its own box, and measures it again when it changes (a phone

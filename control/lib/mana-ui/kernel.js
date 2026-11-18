@@ -47,7 +47,7 @@
  *   the HUD's motion. Never on the first draw: what was there when a screen opened is not news.
  *
  *   COMPONENTS / COMPONENT_IDS    name → { about, group, props: { <prop>: [type, default?, required?] }, children?, verbs? }
- *   REGIONS · AWARENESS · MARKERS · PIP_SHAPES   the closed words some components take
+ *   REGIONS · AWARENESS · MARKERS · PIP_SHAPES · EFFECTS   the closed words some components take
  *   readNode(node, defs?, where?) → the node with its defs expanded, or throws, teaching
  *   readSpec(spec)                → { screens, hud, start }
  *   runtime(spec, host)           → the running UI. host: { read(path) → value, act(effect, from), now?() → the game's
@@ -93,10 +93,10 @@
  *     .type(text, seat?)  text typed into the text entry in focus: each character in its charset (a lower-case letter
  *                         read as its capital) up to its max, the rest dropped → whether any was taken
  *     .erase(seat?)       the draft's last character off;  .submit(seat?)  the entry done, as its Done does
- *     .view() → html .tree() .state() (the stack, the screen up, each seat's focus, what it is, the open screen's tabs)
+ *     .view() → html .tree() .lens() .lensView() (the lens's part, a spec's `lens`) .state() (the stack, the screen up, each seat's focus, what it is, the open screen's tabs)
  *     actions (the controls kernel's `menu` scheme): up, down, left, right, accept, back, tabNext, tabPrev
  *   toHtml(tree) · readPath(obj, path)
- *   mount(el, rt, { auto?, swipe? }) → { paint }: the DOM backend, a VIEW: it draws into el (patching what is there, by
+ *   mount(el, rt, { auto?, swipe?, part?: 'lens', tick? }) → { paint }: the DOM backend, a VIEW: it draws into el (patching what is there, by
  *     position: an element lives on while its tag and its data-key hold, so a transition runs and an entrance plays
  *     once; a new data-key is a new element), holds the page while a screen
  *     is up (window.__mojMenuOpen) and hit-tests its own widgets under a pointer. It reads no device: the controls layer
@@ -113,6 +113,13 @@ export function buildManaUi() {
   // a moment's weight: a number, or the words (the broadcast's tones, weightiest last)
   const WEIGHTS = { minor: 0, normal: 1, major: 2, decisive: 3 };
   const RETICLES = { cross: '+', dot: '·', circle: '◯', bracket: '[ ]' };
+  // SCREEN EFFECTS (`effect`): what each kind throws by default, how many pieces and for how long; the pieces at most;
+  // the theme's colours a piece may take by name (or a hex)
+  const EFFECTS = { confetti: { count: 90, seconds: 2.8 }, streamers: { count: 26, seconds: 3.4 }, sparkles: { count: 34, seconds: 1.6 }, burst: { count: 36, seconds: 1.3 }, petals: { count: 30, seconds: 4.6 }, flash: { count: 1, seconds: 0.5 } };
+  // THE LENS (a spec's \`lens\`): what the camera's glass does to the picture, drawn beside the world's canvas and not in
+  // the HUD's root; its strike's kinds, and how many strikes it draws at once at most (each a region filtered: a budget)
+  const STRIKES = ['ring', 'lift', 'shade', 'ink'], STRIKE_MOST = 6;
+  const EFFECT_MAX = 160, EFFECT_TONES = ['accent', 'accent2', 'ink', 'hp', 'mp', 'xp', 'harm', 'stamina', 'shield', 'boss', 'gleam'];
   const STYLE_KEYS = ['style', 'class', 'className', 'color', 'colour', 'font', 'css', 'border', 'theme', 'skin', 'tokens', 'register'];
   const ACTIONS = ['up', 'down', 'left', 'right', 'accept', 'back', 'tabNext', 'tabPrev'];
   const INPUTS = ['keys', 'pad', 'xr', 'touch', 'mouse'];
@@ -175,13 +182,16 @@ export function buildManaUi() {
     each: { group: 'layout', about: 'a `row` drawn for each item, not itself focusable (the stats in a detail, the fields of an options page)', props: { rows: [L, [], true], row: [ND, undefined, true], dir: [['column', 'row'], 'column'] } },
     divider: { group: 'layout', about: 'a rule between groups, with an optional label', props: { label: [T] } },
     // in-game: the HUD's places
-    hud: { group: 'hud', about: 'the in-game layer under the stack: its children are regions and the layers (anchors, edges, threat, letterbox)', props: {}, children: 'hud' },
+    hud: { group: 'hud', about: 'the in-game layer under the stack: its children are regions and the layers (anchors, edges, threat, peril, letterbox, effect)', props: {}, children: 'hud' },
     region: { group: 'hud', about: 'one of the nine screen places; parts stack inside it (in a hud, or laid out over a screen); `subtitles` sits on the subtitles\' plate (its opacity the player\'s); `bare` sits on no plate, its parts their own frame with the halo (a fight\'s bars over the round); `scrim` on no box either, a shade rising from its corner of the screen behind it (a shooter\'s corners); `rest` the game says nothing in it is news (a full magazine, full health): it fades back until it is woken', props: { at: [REGIONS, 'top-left'], variant: [['plain', 'subtitles', 'bare', 'scrim'], 'plain'], rest: [B, false] }, children: true },
     anchors: { group: 'hud', layer: true, about: 'one `row` drawn over each thing in the world at its screen place (x, y from 0 to 1): nameplates on a plate, damage numbers `bare` (a halo, no plate); a row with an `id` is its own element (a new id, a new one: its entrance plays); `pass` rows rise and fade once from where they land (damage numbers); a row\'s `world` ([x, y, z]) is its point in the game\'s world, where a headset draws it', props: { rows: [L, [], true], row: [ND, undefined, true], x: [T, 'x'], y: [T, 'y'], variant: [['plate', 'bare'], 'plate'], pass: [B, false] } },
     edges: { group: 'hud', layer: true, about: 'what is off screen, held at the screen\'s edge with an arrow toward it (x, y outside 0..1): an objective, a foe behind you', props: { markers: [L, [], true] } },
     threat: { group: 'hud', layer: true, about: 'where harm came from: an arc on a ring round the centre for each bearing (degrees from where you face), its `fade` (0..1, the life it has left) how strongly it still shows', props: { markers: [L, [], true] } },
     peril: { group: 'hud', layer: true, about: 'danger told by the screen itself: its edges close in, tinted, as `level` rises (0..1: the game says how near the end is, health running out); `high` from three quarters, where it beats slowly (under three a second; still under less motion or less flash); `tone` harm, or cold (a frost, a fall of oxygen)', props: { level: [N, 0, true], tone: [['harm', 'cold'], 'harm'] } },
     letterbox: { group: 'hud', layer: true, about: 'the cinema bars of a cutscene', props: {} },
+    lens: { group: 'lens', about: 'the screen layer: what the camera\'s glass does to the picture, in a part of its own (a spec\'s `lens`) the host lays beside the world\'s canvas and under the UI, so it acts on the world\'s pixels; its children are its effects (strike)', props: {}, children: 'lens' },
+    strike: { group: 'lens', about: `a still figure at its place on the screen (a turn-based fight's: one that runs outruns it): the air round its body (never the body: the world draws there) bent or lit for a beat, each \`row\` { id, n, x, y, r, power?, kind? } (x, y its middle 0..1, r its body's radius as a share of the screen's height, n a new n plays again, kind its own over the strike's); \`kind\` ${STRIKES.join(', ')} (ink an impact frame round it, a lift under less flash); at most \`most\` at once (each a region the page filters)`, props: { rows: [L, [], true], kind: [STRIKES, 'ring'], seconds: [N, 0.42], most: [N, STRIKE_MOST] } },
+    effect: { group: 'hud', layer: true, about: `a screen effect over everything, pure CSS: ${Object.keys(EFFECTS).join(', ')}; played once each time \`on\` takes a new value (a finish, a best lap, a level up) or held while \`loop\`; confetti falls from the top, pops from the centre or fires from the bottom (\`from\`); its pieces by its own dice (\`seed\` and the trigger), in the theme's colours (\`tones\`: ${EFFECT_TONES.join(', ')} or a hex); it never catches a pointer, never asks the game for a frame, holds with a held clock, and is a fade alone under reduced motion`, props: { kind: [Object.keys(EFFECTS), 'confetti'], on: [A, null], loop: [B, false], from: [['top', 'center', 'bottom'], 'top'], count: [N, 0], seconds: [N, 0], tones: [L, []], seed: [N, 1] } },
     touchpad: { group: 'hud', about: 'the look of a touch screen\'s virtual pad: a stick and round buttons, each named by the gamepad control it is (a word, or { label, control: south | east | west | north | rb … }); the touch driver (controllable/touch.js) reads it, never this runtime; what the driver knows is drawn: `lane` a stick held to left and right, `held` the stick under a thumb ({ ox, oy: where it rose from its rest, dx, dy: its nub, in px }), `down` the controls pressed', props: { stick: [B, true], buttons: [L, ['A', 'B']], lane: [B, false], held: [A], down: [L, []] } },
     legend: { group: 'value', about: 'what the buttons do here (a row: { action | actions: [..], label }), each with the glyph of the control the player is holding (keys, an Xbox, a PlayStation or a Nintendo pad); a finger needs none, so a touch screen draws none', props: { rows: [L, [], true] } },
     // values
@@ -206,11 +216,11 @@ export function buildManaUi() {
     card: { group: 'value', about: 'a card on the table: its face (a band in its side\'s kit, the name, the cost, what it does, its tags, its power and guard, how many lie under it), `state` what can be done with it as a shape (playable an edge alight, picked lifted, spent turned on its side), `face: down` its back and a count; with `on.accept` a touch screen taps it (a cell of a grid picks it with the cursor)', props: { name: [T, ''], cost: [T], text: [T], tags: [L, []], power: [T], guard: [T], count: [T], side: [A], state: [['plain', 'playable', 'picked', 'spent'], 'plain'], face: [['up', 'down'], 'up'], size: [['s', 'm'], 'm'] }, verbs: ['accept'] },
     log: { group: 'value', about: 'the whole of what happened, kept (a move list, a game\'s log): the last `visible` rows shown, pinned to the newest, the rest counted above; `numbered` counts the rows from one; a row\'s `side` its chip', props: { rows: [L, [], true], field: [T, 'text'], numbered: [B, false], visible: [N, 8] } },
     spark: { group: 'value', about: 'a small series as bars (an army over a match, a score by round): each value against the largest, the last said as a number', props: { values: [L, [], true], max: [N], label: [T] } },
-    slot: { group: 'value', about: 'an action or a hotbar slot: what is in it, its key, a cooldown left (0..1), a count; active when it is the one in hand; `disabled` it cannot be done now and `why` says so; with `on.accept` a touch screen taps it', props: { name: [T, ''], key: [T], cooldown: [N, 0], count: [T], active: [B, false], disabled: [B, false], why: [T] }, verbs: ['accept'] },
+    slot: { group: 'value', about: 'an action or a hotbar slot: what is in it (drawn as its pictogram where the theme has one), its key, a cooldown left (0..1), a count; active when it is the one in hand; `disabled` it cannot be done now and `why` says so; with `on.accept` a touch screen taps it; `size` l a slot read at a glance (a race\'s held item)', props: { name: [T, ''], key: [T], cooldown: [N, 0], count: [T], active: [B, false], disabled: [B, false], why: [T], size: [['m', 'l'], 'm'] }, verbs: ['accept'] },
     prompt: { group: 'value', about: 'what a button does here: [E] Talk (the glyph is the host\'s legend, else the action)', props: { action: [T, 'accept'], label: [T, '', true], glyph: [T] } },
     // in-game: aim, maps, the feed, moments
     reticle: { group: 'hud', about: 'the aim; a hit adds a hitmarker shape', props: { shape: [Object.keys(RETICLES), 'cross'], hit: [B, false] } },
-    minimap: { group: 'hud', about: 'the map in a corner: markers at x, y from 0 to 1, each kind a shape; `scope` an instrument, not a picture in a box: a bezel of ticks, the wedge you see ahead (the top), its edge fading into the world; `north` where north lies on it (degrees clockwise from its top: a radar that turns with you)', props: { markers: [L, []], shape: [['square', 'round'], 'square'], label: [T], scope: [B, false], north: [N] } },
+    minimap: { group: 'hud', about: 'the map in a corner: markers at x, y from 0 to 1, each kind a shape; `route` the way drawn under them as a dotted line (a track, a road: points x, y from 0 to 1), in the place of the blank map; `scope` an instrument, not a picture in a box: a bezel of ticks, the wedge you see ahead (the top), its edge fading into the world; `north` where north lies on it (degrees clockwise from its top: a radar that turns with you)', props: { markers: [L, []], route: [L, []], shape: [['square', 'round'], 'square'], label: [T], scope: [B, false], north: [N] } },
     compass: { group: 'hud', about: 'a heading strip with the bearings of markers', props: { heading: [N, 0, true], markers: [L, []] } },
     feed: { group: 'hud', about: 'the last few lines of a log (kills, pickups, chat from the world); a line said again in a row merges (×3)', props: { rows: [L, [], true], field: [T, 'text'], max: [N, 4] } },
     toast: { group: 'hud', about: 'a passing word', props: { value: [T, '', true] } },
@@ -294,6 +304,7 @@ export function buildManaUi() {
     if (kids.length && !C.children) throw new Error(`${where}: ${node.use} holds no children`);
     const children = kids.map((k, i) => readNode(k, defs, `${where}.children[${i}]`, depth));
     if (C.children === 'tab') children.forEach((k, i) => { if (k.use !== 'tab') throw new Error(`${where}.children[${i}] is a tab { use: 'tab', props: { label } }`); });
+    if (C.children === 'lens') children.forEach((k, i) => { if (COMPONENTS[k.use].group !== 'lens') throw new Error(`${where}.children[${i}] is one of the lens's effects (${COMPONENT_IDS.filter((c) => COMPONENTS[c].group === 'lens' && c !== 'lens').join(', ')}) (it is ${k.use})`); });
     if (C.children === 'hud') children.forEach((k, i) => { if (k.use !== 'region' && !COMPONENTS[k.use].layer) throw new Error(`${where}.children[${i}] is a region { use: 'region', props: { at } } or a layer (${COMPONENT_IDS.filter((c) => COMPONENTS[c].layer).join(', ')}) (it is ${k.use})`); });
     const out = { use: node.use, props, on, children };
     for (const k of ['id', 'when', 'unless']) if (node[k] !== undefined) out[k] = node[k];
@@ -315,6 +326,8 @@ export function buildManaUi() {
     }
     const hud = spec.hud === undefined ? null : readNode(spec.hud, defs, 'hud');
     if (hud && hud.use !== 'hud') throw new Error(`hud is a hud { use: 'hud', children: [regions, anchors] } (it is ${hud.use})`);
+    const lens = spec.lens === undefined ? null : readNode(spec.lens, defs, 'lens');
+    if (lens && lens.use !== 'lens') throw new Error(`lens is a lens { use: 'lens', children: [strike] } (it is ${lens.use})`);
     const start = spec.start === undefined ? null : spec.start;
     if (start !== null && !screens[start]) throw new Error(`start '${start}' is one of the screens: ${Object.keys(screens).join(', ')}`);
     // the game's languages: each a table of words by key (its own keys and the runtime's), the one it starts in
@@ -327,7 +340,7 @@ export function buildManaUi() {
     }
     const language = spec.language === undefined ? (languages.en || !Object.keys(languages).length ? 'en' : Object.keys(languages)[0]) : spec.language;
     if (spec.language !== undefined && !languages[language]) throw new Error(`language '${language}' is one of the game's languages: ${Object.keys(languages).join(', ') || 'none given'}`);
-    return { screens, hud, start, languages, language };
+    return { screens, hud, lens, start, languages, language };
   }
 
   // ── form: the tree as HTML ────────────────────────────────────────────────────────────────────────────────────────
@@ -380,7 +393,7 @@ export function buildManaUi() {
 
   // ── the runtime ───────────────────────────────────────────────────────────────────────────────────────────────────
   function runtime(spec, host) {
-    const { screens, hud, start, languages, language: startLanguage } = readSpec(spec);
+    const { screens, hud, lens, start, languages, language: startLanguage } = readSpec(spec);
     const H = host || {};
     if (H.cues !== undefined && !CUES[H.cues]) throw new Error(`host.cues is one of: ${Object.keys(CUES).join(', ')} (the UI's sounds the host plays)`);
     const heard = new Set(CUES[H.cues || 'silent']);
@@ -604,7 +617,10 @@ export function buildManaUi() {
       // the cover over the stage as one screen gives way to the next (a new key each time: the theme's transition plays)
       if (S.tx) parts.push(['div', { class: 'mana-transition', 'data-key': `tx${S.tx}`, 'data-way': S.txWay }]);
       const tree = ['div', { class: 'mana-root', 'data-open': id || 'none', 'data-hud': hud ? 'yes' : null, 'data-input': S.input, 'data-layout': S.input === 'pad' ? S.layout : null, 'data-clock': S.held ? 'held' : null, 'data-motion': S.calm ? 'reduced' : null, 'data-flash': S.dim ? 'reduced' : null, 'data-nav': id ? S.nav : null, style: own || null }, ...parts];
-      last = { tree, ...ctx };
+      // the lens: its own part, drawn after the HUD (it reads the same state), never in the root (the host mounts it beside
+      // the world's canvas, where its regions act on the world's pixels)
+      const lensTree = lens ? drawIn(lens, '$lens', {}, ctx, uiOf('$lens'), false, 1) : null;
+      last = { tree, lens: lensTree, ...ctx };
       // what this draw set going (a moment up, a number ticking) is heard once it is drawn
       // (one of each, the counts summed: a draw that brought three rows is one appear of three)
       const q = S.queued.splice(0), by = new Map();
@@ -805,8 +821,8 @@ export function buildManaUi() {
           }
           case 'slot': {
             const cd = clamp(p.cooldown, 0, 1);
-            return ['div', { class: cls, 'data-active': p.active ? 'yes' : null, 'data-empty': p.name ? null : 'yes', 'data-cool': cd > 0 ? 'yes' : null, 'data-st': p.disabled ? 'disabled' : null, title: p.name || null, 'data-tap': p.disabled ? null : tappable(n, key, scope) },
-              p.name ? ['span', { class: 'mana-icon', 'data-size': 'l' }, initials(p.name)] : null, cd > 0 ? ['span', { class: 'mana-cool', style: `height:${pct(cd)}` }] : null,
+            return ['div', { class: cls, 'data-active': p.active ? 'yes' : null, 'data-empty': p.name ? null : 'yes', 'data-cool': cd > 0 ? 'yes' : null, 'data-st': p.disabled ? 'disabled' : null, 'data-size': p.size === 'm' ? null : p.size, title: p.name || null, 'data-tap': p.disabled ? null : tappable(n, key, scope) },
+              p.name ? ['span', { class: 'mana-icon', 'data-size': 'l', 'data-icon': iconName(p.name) }, initials(p.name)] : null, cd > 0 ? ['span', { class: 'mana-cool', style: `height:${pct(cd)}` }] : null,
               p.key !== undefined ? ['span', { class: 'mana-key' }, p.key] : null, p.count !== undefined && p.count !== '' ? ['span', { class: 'mana-count' }, p.count] : null, whyOf(p.disabled, p.why)];
           }
           case 'card': {
@@ -848,6 +864,29 @@ export function buildManaUi() {
             return ['div', { class: cls, 'data-tone': p.tone === 'harm' ? null : p.tone, 'data-high': lv >= 0.75 ? 'yes' : null, style: `--mana-peril:${Math.round(lv * 100) / 100}` }];
           }
           case 'letterbox': return ['div', { class: cls }, ['i', null], ['i', null]];
+          // THE LENS: its own part, its root carrying the runtime's motion, flash and clock as the HUD's root does
+          case 'lens': return ['div', { class: cls, 'data-motion': S.calm ? 'reduced' : null, 'data-flash': S.dim ? 'reduced' : null, 'data-clock': S.held ? 'held' : null, 'aria-hidden': 'true' }, ...kids()];
+          case 'strike': {
+            // each foe struck a region round it (its element the band's size: a region filters only its own area), keyed
+            // by the foe and its hits so a new hit plays again; at most \`most\`, the latest kept
+            const rows = (Array.isArray(p.rows) ? p.rows : []).filter((r) => isObj(r) && isFinite(Number(r.x)) && isFinite(Number(r.y)) && Number(r.r) > 0);
+            const keep = rows.slice(Math.max(0, rows.length - clamp(Math.floor(p.most), 1, STRIKE_MOST))), f3 = (x) => Math.round(Number(x) * 1000) / 1000;
+            return ['div', { class: cls, 'data-kind': p.kind, style: `--d:${f3(clamp(Number(p.seconds) || 0.42, 0.1, 3))}s` }, ...keep.map((r) => ['i', { class: 'mana-struck', 'data-kind': STRIKES.includes(r.kind) ? r.kind : p.kind, 'data-key': `s${r.id ?? ''}:${r.n ?? ''}`, style: `left:${pct(clamp(Number(r.x), -0.2, 1.2))};top:${pct(clamp(Number(r.y), -0.2, 1.2))};--r:${f3(clamp(Number(r.r), 0.005, 0.5))};--p:${f3(clamp(r.power === undefined ? 0.6 : Number(r.power), 0, 1))}` }])];
+          }
+          case 'effect': {
+            // a new trigger is a new element (its data-key), so its animation plays again; nothing playing, an empty layer
+            const E = EFFECTS[p.kind] || EFFECTS.confetti, on = p.on === undefined || p.on === null || p.on === '' || p.on === false || p.on === 0 ? null : String(p.on);
+            if (on === null && !p.loop) return ['div', { class: cls, 'data-kind': p.kind, 'data-idle': 'yes', 'aria-hidden': 'true' }];
+            const many = clamp(Math.round(p.count > 0 ? p.count : E.count), 1, EFFECT_MAX), sec = p.seconds > 0 ? p.seconds : E.seconds, f3 = (x) => Math.round(x * 1000) / 1000;
+            // (its own dice, from its seed and the trigger: the same moment throws the same pieces)
+            let h = ((Math.floor(p.seed) || 1) ^ 0x9e3779b9) >>> 0;
+            for (const ch of on ?? 'loop') h = Math.imul(h ^ ch.charCodeAt(0), 0x01000193) >>> 0;
+            const rnd = () => { h = (h + 0x6d2b79f5) >>> 0; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+            const tones = (Array.isArray(p.tones) && p.tones.length ? p.tones : ['accent', 'accent2', 'hp', 'ink']).map((t) => (/^#[0-9a-f]{3,8}$/i.test(String(t)) ? String(t) : EFFECT_TONES.includes(t) ? `var(--mana-${t})` : 'var(--mana-accent)'));
+            const spread = p.loop ? sec : sec * 0.3;
+            const pieces = p.kind === 'flash' ? [['i', null]] : Array.from({ length: many }, (_, i) => ['i', { style: `--x:${f3(rnd() * 100)}%;--y:${f3(rnd() * 100)}%;--dx:${f3(rnd() * 2 - 1)};--dy:${f3(rnd())};--t:${f3(rnd() * spread)}s;--r:${Math.round(rnd() * 1440 - 720)}deg;--s:${f3(0.6 + rnd() * 0.8)};--c:${tones[i % tones.length]}` }]);
+            return ['div', { class: cls, 'data-kind': p.kind, 'data-from': p.kind === 'confetti' ? p.from : null, 'data-loop': p.loop ? 'yes' : null, 'data-key': `fx${on ?? 'loop'}`, 'aria-hidden': 'true', style: `--fx-d:${f3(sec)}s` }, ...pieces];
+          }
           case 'touchpad': { const H = isObj(p.held) ? p.held : null, px = (v) => `${Math.round(Number(v) || 0)}px`; return ['div', { class: cls }, p.stick ? ['span', { class: 'mana-stick', 'data-stick': 'left', 'data-lane': p.lane ? 'yes' : null, 'data-held': H ? 'yes' : null, style: H ? `transform:translate(${px(H.ox)},${px(H.oy)})` : null }, ['i', { style: H ? `transform:translate(${px(H.dx)},${px(H.dy)})` : null }]] : ['span', null], ['span', { class: 'mana-pads' }, ...p.buttons.map((b) => {
             const label = words(isObj(b) ? b.label : b), control = isObj(b) && b.control ? words(b.control) : PAD_FACES[label] || null;
             // (a pad named for what it does wears its pictogram where the theme draws them: jump, fire, use)
@@ -856,7 +895,7 @@ export function buildManaUi() {
           case 'prompt': { const g = p.glyph || glyphOf(p.action) || p.action; return ['div', { class: cls }, ['span', { class: 'mana-key', 'data-icon': iconName(g) }, g], ['span', null, p.label]]; }
           case 'legend': return legendOf(p.rows);
           case 'reticle': return ['div', { class: cls, 'data-shape': p.shape, 'data-hit': p.hit ? 'yes' : null }, ['span', null, RETICLES[p.shape] || '+'], p.hit ? ['span', { class: 'mana-hit' }, '✕'] : null];
-          case 'minimap': return ['div', { class: cls, 'data-shape': p.shape, 'data-scope': p.scope ? 'yes' : null }, p.scope ? ['span', { class: 'mana-bezel' }, ['i', { class: 'mana-cone' }], p.north !== undefined && isFinite(p.north) ? ['b', { class: 'mana-north', style: `transform:rotate(${Math.round(p.north)}deg)` }, ['span', { style: `transform:rotate(${-Math.round(p.north)}deg)` }, 'N']] : null] : null, ...p.markers.map((m) => {
+          case 'minimap': return ['div', { class: cls, 'data-shape': p.shape, ...(p.route.length ? { 'data-route': 'on' } : {}), 'data-scope': p.scope ? 'yes' : null }, p.scope ? ['span', { class: 'mana-bezel' }, ['i', { class: 'mana-cone' }], p.north !== undefined && isFinite(p.north) ? ['b', { class: 'mana-north', style: `transform:rotate(${Math.round(p.north)}deg)` }, ['span', { style: `transform:rotate(${-Math.round(p.north)}deg)` }, 'N']] : null] : null, ...p.route.map((q) => (isObj(q) && isFinite(Number(q.x)) && isFinite(Number(q.y)) ? ['span', { class: 'mana-trace', style: `left:${pct(q.x)};top:${pct(q.y)}` }] : null)), ...p.markers.map((m) => {
             if (!isObj(m) || !isFinite(Number(m.x)) || !isFinite(Number(m.y))) return null;
             return ['span', { class: 'mana-marker', 'data-kind': MARKERS[m.kind] ? m.kind : 'poi', style: `left:${pct(m.x)};top:${pct(m.y)}`, title: m.label || null }, MARKERS[m.kind] || MARKERS.poi];
           }), p.label ? ['span', { class: 'mana-caption' }, p.label] : null];
@@ -1291,6 +1330,9 @@ export function buildManaUi() {
       languages: () => codesOf(),
       view: () => toHtml((last || render()).tree),
       tree: () => (last || render()).tree,
+      // the lens's part (a spec's \`lens\`), or null: mounted apart from the root (mount(el, rt, { part: 'lens' }))
+      lens: () => (last || render()).lens,
+      lensView: () => { const L = (last || render()).lens; return L ? toHtml(L) : ''; },
       state: () => {
         const id = top(), U = id ? uiOf(id) : null;
         // (tabs: each of the open screen's tabs, the one open)
@@ -1389,6 +1431,16 @@ export function buildManaUi() {
       const item = scr && scr.querySelector(`[data-k="${P.k}"]`);
       if (item) item.setAttribute('data-press', `${P.verb}-${P.n % 2 ? 'a' : 'b'}`);
     };
+    // THE LENS'S MOUNT (opts.part 'lens'): its part alone, patched as the root is, beside the world's canvas; it catches
+    // nothing (no pointer is read), holds no menu, and draws what the runtime last drew (the HUD's mount ticks it; a
+    // lens mounted alone ticks it itself, opts.tick)
+    if (o.part === 'lens') {
+      let lh = null;
+      const lpaint = () => { if (o.tick) rt.tick(); const v = rt.lensView(); if (v !== lh) { lh = v; const t = rt.lens(); patch(el, t ? [t] : []); } };
+      lpaint();
+      if (o.auto && typeof requestAnimationFrame === 'function') { const loop = () => { lpaint(); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+      return { paint: lpaint };
+    }
     const paint = () => { const h = rt.view(); if (h !== html) { html = h; pressMark(); const before = places(); patch(el, [rt.tree()]); glide(before); } hold(); };
     const near = (ev, sel) => (ev.target && ev.target.closest ? ev.target.closest(sel) : null);
     // where across its target a pointer is, on the rect taken when the press began (a repaint replaces the element)
@@ -1440,7 +1492,7 @@ export function buildManaUi() {
     return { paint };
   }
 
-  return { WORDS, COMPONENTS, COMPONENT_IDS, FRAME_WORDS, ROLES, REGIONS, AWARENESS, MARKERS, PIP_SHAPES, ACTIONS, INPUTS, readNode, readSpec, runtime, toHtml, readPath, mount };
+  return { WORDS, COMPONENTS, COMPONENT_IDS, FRAME_WORDS, ROLES, REGIONS, AWARENESS, MARKERS, PIP_SHAPES, EFFECTS, ACTIONS, INPUTS, readNode, readSpec, runtime, toHtml, readPath, mount };
 }
 
 export const manaUi = buildManaUi();
