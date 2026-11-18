@@ -167,7 +167,9 @@ function treeTemplate(species, height, crowns = null) {
       const giveUp = M && masses ? Math.ceil((M.blobs.length * blobGeo.n) / Math.max(1, xt)) : 0;
       const kept0 = M ? [...M.clumps].sort((a, b) => a.r - b.r).slice(0, Math.max(1, M.clumps.length - giveUp)) : C0;
       const Q = budgeted({ ...F, clumps: kept0, sites: [] }, { clumpTris: xt, leanTris: xt, sprayTris: 0, woodTris: (F.wood.idx || []).length / 3 + (M ? M.blobs.length * blobGeo.n : 0), canLean: false });
-      const T = { ...template('tree', species, { ...F, clumps: Q.clumps, sites: [] }, species), budget: tips ? { ...Q.budget, tris: (F.wood.idx || []).length / 3 + M.blobs.length * blobGeo.n } : Q.budget,
+      // (its crown's reach round its stem: its balls' or its bundles' farthest edge)
+      const crownR = r4(Math.max(0.5, ...(M ? M.blobs : Q.clumps).map((b) => Math.hypot(b.p[0], b.p[1]) + (M ? b.s : b.s * 0.5))));
+      const T = { ...template('tree', species, { ...F, clumps: Q.clumps, sites: [] }, species), crownR, budget: tips ? { ...Q.budget, tris: (F.wood.idx || []).length / 3 + M.blobs.length * blobGeo.n } : Q.budget,
         ...(M ? { blobs: packSites(M.blobs), nBlobs: M.blobs.length, blobGeo: [blobGeo] } : {}), ...(tips ? { leaves: false } : {}) };
       // (far off the same wood as near: no limb drops and the trunk holds as the tree switches level)
       CACHE.set(key, { ...T, cross: true, woodFar: T.wood,
@@ -242,6 +244,29 @@ function treePlan(plants, kindAt) {
   return plan;
 }
 
+/**
+ * TREES APART (a stage's `crowns`): each tree reads on its own. Its crown's reach (its template's `crownR`, the farthest
+ * of its balls' or its bundles' edges round its stem, × the tree's height over the template's) is kept clear of every
+ * crown already kept, `gap` × the two reaches between their stems; the tallest kept first. One that would touch is
+ * scaled down until it clears, to `least` of its height at the most, and else left out. A tree held for a view is held.
+ */
+export const APART = Object.freeze({ gap: 1.05, least: 0.75 });
+function apart(plan) {
+  const kept = [], out = [];
+  const order = plan.map((e, i) => i).sort((a, b) => plan[b].h - plan[a].h || a - b), keep = new Set(), hOf = new Map();
+  for (const i of order) {
+    const e = plan[i], R0 = (e.T.crownR ?? e.T.radius) * (e.h / e.T.height);
+    if (e.t.held) { keep.add(i); hOf.set(i, e.h); continue; }
+    // (the largest share of its reach that clears every crown kept)
+    let k = 1;
+    for (const o of kept) { const d = Math.hypot(e.t.x - o.x, e.t.y - o.y), room = d / APART.gap - o.R; k = Math.min(k, room / Math.max(1e-6, R0)); }
+    if (k < APART.least) continue;
+    keep.add(i); hOf.set(i, e.h * k); kept.push({ x: e.t.x, y: e.t.y, R: R0 * k });
+  }
+  plan.forEach((e, i) => { if (keep.has(i)) out.push({ ...e, h: hOf.get(i) }); });
+  return out;
+}
+
 /** A RAISED VIEW (a camera whose eye stands `raised` m over what it looks at: an overlook) claims what it looks over: no
  *  crown rising over its eye within `reach` m ahead, in its cone (`spread` m across a metre ahead, past the crown's own
  *  reach). */
@@ -314,7 +339,9 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
     }
   }
   const bySpecies = new Map();
-  for (const { t, K, T, h } of treePlan(plants, kindAt)) { bySpecies.set(T.name, T); if (!t.held) push(T, t, h, K); }
+  // (a crown a stage's `crowns` reads stands APART: each tree reads on its own, its crown never joining a neighbour's)
+  const P0 = treePlan(plants, kindAt), P1 = plants.crowns ? apart(P0) : P0;
+  for (const { t, K, T, h } of P1) { bySpecies.set(T.name, T); if (!t.held) push(T, t, h, K); }
   // the SKIRT's trees (era/isekai.js plantItems `skirt`), the stage's far clumps grown as the level's own: each its kind's
   // species, the template its trees near the trail grow from (else the species' own middle height), as wide as the
   // painted crown it stands for; past the walk, so no litter and never brushed (SKIRT_FLAG). No bubble of foliage left

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { floraRead, floraBox, speciesFor, treeSizes, viewHeld, AUTUMN, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR, SKIRT_FLAG } from './flora-read.js';
+import { floraRead, floraBox, speciesFor, treeSizes, viewHeld, AUTUMN, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR, SKIRT_FLAG, APART } from './flora-read.js';
 import { LEAF_FORM_IDS } from '../era/leaf-forms.js';
 import { formLandScript } from '../scene/channels/form-land.js';
 
@@ -133,4 +133,18 @@ describe('the hybrid crown (`crowns: hybrid`)', () => {
     // (a needled crown takes no core)
     expect(JSON.stringify(floraRead({ ...plants(), crowns: 'hybrid' }, { kinds: plants().kinds, colours, bases }))).toBe(JSON.stringify(floraRead(plants(), { kinds: plants().kinds, colours, bases })));
   }, 120000);
+});
+
+describe('trees apart (`crowns`)', () => {
+  it('keeps each crown clear of its neighbours\': a tree that would touch one shrunk until it clears, or left out', () => {
+    // (a grove of beeches standing close: three a few metres apart, one far)
+    const grove = { form: 'blob', kinds: [{ form: 'spray' }], bushKinds: null, trees: [tree(0, 0, 10, 0), tree(3, 0, 9, 0), tree(0, 3.5, 9.5, 0), tree(40, 0, 10, 0)], bushes: [], shrubs: [] };
+    const F = floraRead({ ...grove, crowns: 'blobs' }, { kinds: grove.kinds, colours, bases }), P = unpack(F.trees), T = F.templates;
+    const kept = Array.from({ length: F.n }, (_, i) => ({ x: P[i * FLORA_STRIDE], y: P[i * FLORA_STRIDE + 1], R: T[P[i * FLORA_STRIDE + 11]].crownR * P[i * FLORA_STRIDE + 3] }));
+    expect(kept.length).toBeLessThan(4);
+    expect(kept.some((k) => k.x === 40)).toBe(true);
+    for (let i = 0; i < kept.length; i++) for (let j = 0; j < i; j++) expect(Math.hypot(kept[i].x - kept[j].x, kept[i].y - kept[j].y)).toBeGreaterThanOrEqual((kept[i].R + kept[j].R) * APART.gap - 1e-3);
+    // (a plain crown's trees stand as placed)
+    expect(floraRead(grove, { kinds: grove.kinds, colours, bases }).n).toBe(4);
+  }, 180000);
 });
