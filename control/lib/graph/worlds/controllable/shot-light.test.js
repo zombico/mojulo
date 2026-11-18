@@ -1,6 +1,6 @@
 // The shot light (worlds/controllable/shot-light.js): what shines in a fight, read off the world. The concepts: a quiet
 // world has no lights; a round in flight is a light in its own colour, a bigger round reaching further; a burst is bright
-// as it goes off and gone after its life; a muzzle's flash lasts a few frames; the pilot's charge grows as it fills, in
+// as it goes off and gone after its life; a light's colour is its hue saturated (the body's, never the white core's); a muzzle's flash lasts a few frames; the pilot's charge grows as it fills, in
 // the level reached's colour; past K, the strongest near the focus are kept; the function runs as the page runs it
 // (its own source, import-free) and its numbers are SHOT_LIGHT's; the same world, the same lights.
 import { describe, it, expect } from 'vitest';
@@ -21,7 +21,8 @@ describe('the shot light', () => {
     expect(b.power).toBeGreaterThan(a.power);
     // (a foe's shell: its own colour)
     const [s] = shotLights({ time: 1, projectiles: [{ id: 's', pos: [0, 0, 1], fxColor: 0xff2020, fxScale: 2 }] });
-    expect(s.color).toEqual([1, 0x20 / 255, 0x20 / 255]);
+    expect(s.color[0]).toBe(1);
+    expect(s.color[1]).toBeLessThan(0x20 / 255);
   });
   it('a burst is bright as it goes off and gone after its life; a flash lasts a few frames', () => {
     const burst = { seq: 0, pos: [0, 0, 1], t: 1, radius: 2, fxColor: 0xffa03c };
@@ -36,8 +37,9 @@ describe('the shot light', () => {
     const at = (chargeFrac, chargeLevel) => shotLights({ time: 2, entities: [hero({ charging: true, busterOn: true, chargeFrac, chargeLevel })] })[0];
     const low = at(0.2, 0), full = at(1, 2);
     expect(full.reach).toBeGreaterThan(low.reach);
-    expect(low.color).toEqual([1, 0xf2 / 255, 0xa8 / 255]);
-    expect(full.color).toEqual([1, 0xd2 / 255, 0x3a / 255]);
+    // (each the level's own hue, saturated: its brightest channel 1, its weakest further from it than the hex's)
+    expect(low.color[0]).toBe(1); expect(low.color[2]).toBeLessThan(0xa8 / 255);
+    expect(full.color[0]).toBe(1); expect(full.color[2]).toBeLessThan(0x3a / 255); expect(full.color[1]).toBeGreaterThan(full.color[2]);
     expect(full.pos[2]).toBeCloseTo(1.6 * 0.7, 6);
   });
   it('past K, the strongest near the focus are kept', () => {
