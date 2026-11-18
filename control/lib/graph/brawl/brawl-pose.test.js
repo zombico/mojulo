@@ -27,14 +27,20 @@ describe('brawl pose', () => {
   });
 });
 
-// A FLOATING BODY'S HOVER: never the walk; one knee drawn up, the other leg hanging, toe pointed; leaning into its drift
+// A FLOATING BODY'S HOVER: never the walk; one knee drawn up and its shin tucked under it, the other leg long, toe
+// pointed, the fists at the waist; leaning into its drift
 describe('a floating body\'s hover', () => {
   const F = { moves: {}, poses: undefined };
   it('stands and drifts in the hover, never the stride; a body on its feet walks as it did', () => {
     const still = brawlPoseOf({ st: 'stand', fy: 1, face: 1 }, F, 0), moving = brawlPoseOf({ st: 'walk', fy: 1, face: 1, wx: 1, fvx: 5200 }, F, 0);
     expect(still.legF[0]).toBeGreaterThan(60);                 // (the lead knee drawn up: the thigh near level)
-    expect(Math.abs(still.legF[1])).toBeLessThan(20);          // (its shin hanging under it)
-    expect(Math.abs(still.legB[0])).toBeLessThan(15);          // (the rear leg let down)
+    expect(still.legF[1]).toBeLessThan(-20);                   // (its shin tucked back under it, never kicked out)
+    expect(still.legF[0] - still.legF[1]).toBeLessThan(135);   // (a knee's bend, never past it)
+    expect(Math.abs(still.legB[0])).toBeLessThan(15);          // (the rear leg let down long)
+    expect(Math.abs(still.legB[0] - still.legB[1])).toBeLessThan(10);
+    expect(still.legB[2]).toBeLessThan(30);                    // (its toe pointed)
+    expect(still.armF[1]).toBeGreaterThan(60);                 // (the fists brought up to the waist, elbows bent)
+    expect(Math.abs(still.torso)).toBeLessThan(10);            // (carried upright)
     expect(still.air).toBe(true);
     expect(moving.torso).toBeGreaterThan(still.torso);         // (leaning into its drift)
     expect(moving.legB[0]).toBeLessThan(still.legB[0]);        // (the rear leg trailing)

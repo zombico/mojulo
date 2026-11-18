@@ -949,3 +949,7 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // nothing: it plays as it did.
 // Re-pinned 2026-11-18 (1117-hero-beat-em-up: a floating body's hover): `brawl` only. Its page inlines the pose's hover
 // (one knee drawn up, the other leg hanging, toe pointed; never the stride). The fixture floats nothing: it plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: loose hair and cloth in the air): `brawl` only. Its page inlines the sway
+// (brawl-sway.js: the air a body feels, the hang, the spring, the bend) and the client's bend of a character's long hair
+// and loose cloth, a cape kept off the arms, and the hover in the comics' pose of power (the knee up, its shin tucked,
+// the fists at the waist). The sim never reads any of it: the fixture plays as it did.

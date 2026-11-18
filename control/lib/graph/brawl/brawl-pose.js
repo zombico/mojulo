@@ -26,14 +26,17 @@ function gunLegs(p, own, guard, crouch, t, rules) {
   return guard;
 }
 /** a floating body's hover (above) */
-// (the rig's angles are each segment's own from hanging straight down, +90 forward, versus-rig.js: the thigh level
-// forward, the shin hanging under it, the feet pointed down)
-export const HOVER_POSE = Object.freeze({ torso: 6, head: -4, armF: [14, 40], armB: [-16, 26], legF: [78, 4, 32], legB: [-5, -8, 16], air: true });
+// (the rig's angles are each segment's own from hanging straight down, +90 forward, versus-rig.js) THE POSE OF POWER,
+// the comics' and the coin-op's: carried upright, never sat in the air. The lead knee drawn up near level, its shin
+// tucked back under it and its foot drawn to the centre line, by the other knee; the other leg let down long and
+// straight, the toe pointed; the fists clenched at the waist, the elbows bent and out; the chin up
+export const HOVER_POSE = Object.freeze({ torso: 3, head: -6, armF: [-4, 84], armB: [-14, 74], legF: [70, -50, -32], legB: [4, 0, 4], feet: Object.freeze([0.3, 0.9]), air: true });
 function hoverPose(p, t) {
-  const drift = Math.max(-1, Math.min(1, ((p.fvx ?? 0) * (p.face || 1)) / 5200)), b = Math.sin(t * 0.06), H = HOVER_POSE;
-  return { ...H, torso: H.torso + drift * 12, head: H.head - drift * 6,
-    legF: [H.legF[0] + b * 4, H.legF[1] + b * 3, H.legF[2]], legB: [H.legB[0] - Math.max(0, drift) * 18, H.legB[1] - Math.max(0, drift) * 22, H.legB[2] - Math.max(0, drift) * 10],
-    armF: [H.armF[0] - drift * 10, H.armF[1]], armB: [H.armB[0] - drift * 14, H.armB[1]] };
+  // (gliding it leans into the way it goes and its long leg trails back; the knee stays up; a slow bob through it all)
+  const drift = Math.max(-1, Math.min(1, ((p.fvx ?? 0) * (p.face || 1)) / 5200)), on = Math.max(0, drift), b = Math.sin(t * 0.06), H = HOVER_POSE;
+  return { ...H, torso: H.torso + drift * 10, head: H.head - drift * 4,
+    legF: [H.legF[0] + b * 3, H.legF[1] + b * 2, H.legF[2]], legB: [H.legB[0] - on * 16 + b * 2, H.legB[1] - on * 24, H.legB[2] - on * 6],
+    armF: [H.armF[0] - drift * 6, H.armF[1]], armB: [H.armB[0] - drift * 8, H.armB[1]] };
 }
 export function brawlPoseOf(p, F, t = 0, rules = {}) {
   if (p.mv && F.moves[p.mv]) {

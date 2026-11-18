@@ -62,9 +62,10 @@
   page in headless Chrome: the slab standing between the hero and two enemies, then sliding into them and throwing
   them.
 - **Heroes who float, and a wind power.** A weather hero is carried on the air instead of walking, as the weather
-  witch of the comics rarely touches the ground. It hovers off the street with a slow bob, never walking: one knee
-  drawn up with the shin hanging under it, the other leg let down long with the toe pointed, the body leaning into its
-  drift and the trailing leg sweeping back. It drifts rather than walks: it eases up to speed and glides on for a moment after you let go, by the same law the studio uses for a
+  witch of the comics rarely touches the ground. It hovers off the street with a slow bob, never walking, in the
+  comics' pose of power: carried upright with the chin up, one knee drawn up near level with its shin tucked back under
+  it and the foot drawn in by the other knee, the other leg let down long and straight with the toe pointed, the fists
+  clenched at the waist with the elbows bent. Gliding, it leans into the way it goes and the long leg trails back. It drifts rather than walks: it eases up to speed and glides on for a moment after you let go, by the same law the studio uses for a
   hero's air dash. With no footing under it, a blow knocks it further than a hero standing on the ground. The storm
   power's hero now floats, and so does the new gale power. The gale calls a hurricane of wind down the street. How hard
   it pushes each enemy is the wind's drag against that enemy's footing: a grunt is blown off its feet and carried away,
@@ -74,6 +75,19 @@
   alone, losing three of five falls. The four-hero team now loses two falls (it lost none before its storm hero
   floated, since a floating hero is easier to knock about). Seen on the page in headless Chrome: the hero hovering,
   the streaks of the gale, and the enemies in it braced and pushed back.
+- **Long hair and loose cloth move with the air.** On a street, a character's long hair (what hangs below its neck)
+  and its loose cloth (a skirt, a coat's tails or a cape's hem hanging below its hips) now swing with the air it moves
+  through. Walk or run forward and the hair streams back, more the faster you go. Stop and it swings forward past
+  where it hangs, then settles. A floating hero is borne up on its own updraft, so its hair and cape billow and stream
+  behind it even while it hovers still, and further as it glides. In a gale the wind blows them the way it blows, hard
+  enough to stand the hair out level. A knocked-down body's hair rests. Cloth swings less than hair for the same
+  air. How far it hangs is the air's drag against its weight, eased by a spring, so a strand swings and settles
+  rather than snapping. A bent strand keeps its length. This is drawn only: the fight itself never sees it. Hair
+  that ends at the neck and trousers do not move. The street's bodies carry no hair bones yet, so the whole lock
+  bends as one about its root rather than strand by strand. A cape on the street hangs from the shoulders only: its
+  edges no longer follow the arms, so it is not pinched in to the fists while the arms strike or hold them at the
+  waist. Seen on the page in headless Chrome on a hero made with long hair and a cloak: the cloak and the hair swept
+  back as it glided, the cloak blown across it in a gale at its back, and a slow billow as it hovered still.
 - **A power's round can floor what it hits.** A special's projectile now knocks down when its move says so, and a
   power's round passes through as many bodies as its card says. Before, a projectile knocked nobody down and
   stopped at the first body.
