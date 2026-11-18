@@ -36,7 +36,9 @@ export function grownFoe(e, stature) {
   return {
     ...e,
     rule: { ...R, collideHeight: r3(h * k), ...(R.collideRadius ? { collideRadius: r3(R.collideRadius * k) } : {}), ...(R.stride ? { stride: r3(R.stride * k) } : {}) },
-    body: { ...B, scale: r3((B.scale ?? 1) * k), ...(B.radius ? { radius: r3(B.radius * k) } : {}), ...(B.egg ? { egg: Object.fromEntries(Object.entries(B.egg).map(([q, v]) => [q, r3(v * k)])) } : {}) },
+    // (and `fit`: the page's resolver stands its figure at least that tall by the figure's own bounds, the skeleton the
+    // fauna measures being shorter than its flesh and head; world-scene.js. A page without its figure keeps these)
+    body: { ...B, scale: r3((B.scale ?? 1) * k), ...(B.radius ? { radius: r3(B.radius * k) } : {}), ...(B.egg ? { egg: Object.fromEntries(Object.entries(B.egg).map(([q, v]) => [q, r3(v * k)])) } : {}), fit: { least: r3(want), from: B.scale ?? 1 } },
   };
 }
 

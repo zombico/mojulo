@@ -265,3 +265,6 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   its runs, on the side strip's rail, drawn in cel like its hero. The side scroller's bestiary is the toy hero robot's
   design language carried to animals (the herobot ooze: helmets, ear domes, gems, antennae, ball joints, their faces
   their own, never a person's) and the game's critters (the mascot ooze).
+- **A body fit to a height** (`body.fit: { least, from? }`): the world resolver stands it at least that tall by its figure's
+  own bounds, its hit egg and collider with it (a beast's skeleton is shorter than its flesh). A rig body drawn at a scale
+  of its own now has a cel line as wide as every other body's.

@@ -194,6 +194,17 @@ function movesOf(rule, name) {
   const art = mine.map((W) => W.moveset.art).find(Boolean);
   return { moves, readies, ...(aims.length ? { aims } : {}), ...(art ? { art } : {}) };
 }
+/** A rig figure's drawn bounds at its own scale (its parts' rest corners, z up): { h, ext } (its height, its longest
+ * extent across the ground), or null for a figure with no packed corners. */
+function rigBounds(fig) {
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const q of (fig && fig.parts) || []) {
+    if (!q || typeof q.pos !== 'string') continue;
+    const B = Buffer.from(q.pos, 'base64'), P = new Float32Array(B.buffer, B.byteOffset, B.length >> 2);
+    for (let i = 0; i + 2 < P.length; i += 3) for (let k = 0; k < 3; k++) { if (P[i + k] < lo[k]) lo[k] = P[i + k]; if (P[i + k] > hi[k]) hi[k] = P[i + k]; }
+  }
+  return lo[2] === Infinity ? null : { h: hi[2] - lo[2], ext: Math.max(hi[0] - lo[0], hi[1] - lo[1]) };
+}
 /** A cel body: the character light baked lit and in shade (no highlight, so neither bake splits a face and both carry the
  * same corners); the lit bake's scene with each part's shade tones as `colS`, its face's corners as `faceM` (a third bake,
  * the face's groups marked), and the body's `toon` set, or null when the two bakes do not line up. */
@@ -1794,6 +1805,19 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           const A = payload.figures[m.figure], B = payload.figures[e.body.modes[i + 1].figure];
           if (A && B && A.rig && B.rig && !(A.shed && A.shed[e.body.modes[i + 1].figure])) A.shed = { ...(A.shed || {}), [e.body.modes[i + 1].figure]: shedParts(A, B) };
         });
+      }
+      // FIT (a body's `fit: { least, from? }`, a side map's foes, gameworld/side-map/cast.js): a body drawn at least `least` m tall
+      // by its figure's own bounds, its scale, hit egg and collider grown together; a figure the order could not see (a
+      // beast's skeleton is shorter than its flesh and its head). None ⇒ the bodies as they were
+      const fitted = (payload.entities || []).filter((e) => e && e.body && e.body.fit && payload.figures[e.body.figure]);
+      for (const e of fitted) {
+        const b = rigBounds(payload.figures[e.body.figure]), { fit, ...body } = e.body;
+        e.body = body;
+        if (!b) continue;
+        // (from the scale it was stood at before any guess of the order's, `from`, never under it)
+        const s0 = fit.from ?? body.scale ?? 1, k = Math.max(1, fit.least / (b.h * s0)), s = s0 * k, r3 = (v) => Math.round(v * 1000) / 1000, H = b.h * s, ext = b.ext * s;
+        e.body = { ...body, scale: r3(s), radius: r3(Math.max(0.15, ext * 0.25)), egg: { a: r3(Math.max(0.2, ext * 0.35)), c: r3(H / 2), cz: r3(H / 2) } };
+        e.rule = { ...e.rule, collideHeight: r3(H), collideRadius: r3(Math.max(0.15, ext * 0.25)) };
       }
     }
     // GLYPH bodies (U1): body:{type:'glyph', form, tint?, scale?}

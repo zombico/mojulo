@@ -949,7 +949,9 @@ function __updateGearLines() {
   // authored normals, so the geometric fallback orients each triangle away from the part centroid.
   // Gated on the emit-site cfg: a world without toon.ink emits byte-identical controllable text; `lines: false`
   // (silhouette only) leaves the part's line segments unattached, as the toon setup block does.
-  const rigInkHook = toonInk ? `\n    if (typeof __inkBuild === 'function') __inkRigPart(mesh, geo, fig);` : '';
+  // (a body drawn at a scale of its own, `body.scale`: an absolute width is the world's, so its hull is built at its share
+  // of the scale and drawn as wide as every other body's: a side map's small foes grown to a game's size, side-map/cast.js)
+  const rigInkHook = toonInk ? `\n    if (typeof __inkBuild === 'function') __inkRigPart(mesh, geo, fig, b.scale);` : '';
   const rigInkBlock = toonInk ? `
 // toon ink on rig parts (Phase 4b): de-index the part, orient normals off its centroid, ink it.
 const __INKRIG = ${safeJson(toonInk)};
@@ -963,13 +965,13 @@ function __inkFigRadius(fig) {   // the figure's scale, for a width every part a
   }
   return (fig.__inkR = r || 1);
 }
-function __inkRigPart(mesh, geo, fig) {
+function __inkRigPart(mesh, geo, fig, scale) {
   const pa = geo.getAttribute('position').array, idx = geo.index ? geo.index.array : null;
   let pos = pa;
   if (idx) { pos = new Float32Array(idx.length * 3); for (let i = 0; i < idx.length; i++) { const k = idx[i] * 3; pos[i * 3] = pa[k]; pos[i * 3 + 1] = pa[k + 1]; pos[i * 3 + 2] = pa[k + 2]; } }
   if (pos.length < 9) return;
   const r = __inkFigRadius(fig), q = Math.max(r * 1.5e-3, 1e-6);
-  const width = __INKRIG.widthAbs != null ? __INKRIG.widthAbs : __INKRIG.width * r;
+  const width = __INKRIG.widthAbs != null ? __INKRIG.widthAbs / (scale > 0 ? scale : 1) : __INKRIG.width * r;
   const e = __inkBuild(pos, __inkGeoNormals(pos, __inkCentroid(pos)), width, __INKRIG.crease, q, __INKRIG.color);
   mesh.add(e.hull);${toonInk.lines === false ? '' : ' mesh.add(e.lines);'}
   mesh.material.polygonOffset = true; mesh.material.polygonOffsetFactor = 1; mesh.material.polygonOffsetUnits = 1; mesh.material.needsUpdate = true;

@@ -2,9 +2,9 @@
 // group stepped lit and every group in shade, each part carrying both tones on the same corners, so the page steps
 // between them by the world's key. The concepts: the side scroller's own hero (the herobot rail's) in cel carries its
 // shade tones on most of its parts, each differing from its lit tone on the same corners; without `cel` the body is as it
-// was, one tone a corner.
+// was, one tone a corner. A body fit to a height (`body.fit`) is drawn that tall by its figure's own bounds.
 import { describe, it, expect } from 'vitest';
-import { heroFigure } from './world-scene.js';
+import { heroFigure, resolveWorldScene } from './world-scene.js';
 import { gameBody } from '../gameworld/game-bodies.js';
 
 const HERO = gameBody('herobot', 'hero').spec;
@@ -18,5 +18,16 @@ describe('the cel body', () => {
     for (const p of stepped) { expect(p.colS).not.toBe(p.col); expect(Buffer.from(p.colS, 'base64').length).toBe(Buffer.from(p.col, 'base64').length); }
     expect(baked.toon).toBeUndefined();
     expect(baked.parts.some((p) => p && p.colS)).toBe(false);
+  }, 120000);
+  // (FIT, a body's `fit: { least, from? }`: drawn at least that tall by its figure's own bounds, its egg and collider with
+  // it, never shrunk under where it stood; the word gone from the page)
+  it('a body fit to a height: its figure\'s bounds set its scale, egg and collider', async () => {
+    const fit = (least) => resolveWorldScene({ manifest: { kind: 'controllable', faces: [{ corners: [[-2, -2, 0], [2, -2, 0], [2, 2, 0], [-2, 2, 0]], normal: [0, 0, 1], fill: '#888888' }], figures: { h: { hero: HERO } }, entities: [{ id: 'f', team: 'foes', transform: { pos: [0, 0, 0], heading: 0 }, rule: { type: 'static', collideHeight: 0.5 }, body: { type: 'figure-rig', figure: 'h', scale: 0.2, fit: { least, from: 0.2 } } }] } }).then((r) => r.payload.entities.find((e) => e.id === 'f'));
+    const [up, held] = await Promise.all([fit(3), fit(0.1)]);
+    expect(up.rule.collideHeight).toBeCloseTo(3, 2);
+    expect(up.body.egg.c * 2).toBeCloseTo(3, 2);
+    expect(up.body.scale).toBeGreaterThan(1.5);
+    expect(up.body.fit).toBeUndefined();
+    expect(held.body.scale).toBeCloseTo(0.2, 6);
   }, 120000);
 });
