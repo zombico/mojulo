@@ -107,9 +107,14 @@ export const motoring = {
       ];
       // THE BRAKES: the pads' squeal on the discs, a high wavering note over a hiss, fading as the car slows
       case 'brake-squeal': return [
-        { type: 'tone', note: 'E6', dur: 0.75, wave: 'sine', vol: 0.06, attack: 0.04, release: 0.3, vibrato: { rate: 9, depth: 18 }, send: 0.15 },
-        { type: 'tone', note: 'B6', dur: 0.6, wave: 'triangle', vol: 0.025, attack: 0.05, release: 0.25, vibrato: { rate: 11, depth: 24 }, pan: 0.2 },
-        grit(14, 0.6, 2500, 8000, 0.05, seed(5), { pan: -0.15 }),
+        { type: 'tone', note: 'E6', dur: 0.75, wave: 'sine', vol: 0.04, attack: 0.04, release: 0.3, vibrato: { rate: 9, depth: 18 }, send: 0.15 },
+        { type: 'tone', note: 'G7', dur: 0.6, wave: 'triangle', vol: 0.04, attack: 0.05, release: 0.25, vibrato: { rate: 11, depth: 24 }, pan: 0.2 },
+        grit(14, 0.6, 2500, 8000, 0.25, seed(5), { pan: -0.15 }),
+        // (the tyres scrubbing the road under it)
+        { type: 'burst', decay: 0.55, vol: 0.4, lowpass: 450, send: 0.1 },
+        // (the pads' grab and the car's weight pitching onto its nose)
+        transient(1800, 0.02, 0.12),
+        { type: 'thump', from: 'C2', to: 'G1', decay: 0.28, vol: 0.14 },
       ];
       default: return [transient(3200, 0.012, 0.3), { type: 'thump', from: 'D3', to: 'A2', decay: 0.05, vol: 0.25 }, ringOf('metal', 'E5', 0.08, 0.06), grit(6, 0.04, 1500, 6000, 0.1, seed(1), { pan: -0.2 }), transient(2600, 0.01, 0.2, { at: 0.07 }), { type: 'thump', from: 'A2', to: 'E2', decay: 0.05, vol: 0.18, at: 0.07 }, whoosh(600, 2500, 0.15, 0.06, { at: 0.08, pan: 0.2 })];
     }

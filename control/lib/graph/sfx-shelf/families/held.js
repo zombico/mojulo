@@ -4,14 +4,14 @@
  *
  *   booster  a thruster: `jet` a boost whine, the audio channel's thruster synth (scene/channels/audio.js) ported
  *            range for range; `rocket` a rough combustion roar; `ion` a sci-fi drive's hum
- *   engine   a motor by its throttle, idling at 0: a car, a road car voiced for small speakers (and its growl under load,
- *            `road-load`, silent coasting), a motorbike, a jet's turbine, a propeller's chop, a heavy diesel, a
+ *   engine   a motor by its throttle, idling at 0: a car, a road car voiced for small speakers, a motorbike, a jet's turbine, a propeller's chop, a heavy diesel, a
  *            tracked vehicle's diesel and its tracks, a multirotor drone's motors and props
  *   beam     a held beam weapon by its power: a laser's buzz, a plasma stream's roar
  *   servo    a machine gathering itself: the audio channel's jump servo and its piston chuffs, ported; a walking
  *            machine's hydraulics by its pace
  *   fire     a fire burning on: its roar breathing, its crackle popping faster as it grows
  *   charge   a charge filling: a hum climbing an octave and more, its pulse quickening
+ *   exhaust  a motor UNDER LOAD by its throttle at its revs, silent coasting: a road car's growl over its engine
  *   ambience a place's own held sound by how much of it there is: a city's traffic, far off and all round
  *
  * `sustain: true` marks them: sfxSound gives `{ sustain }` (a spec) for them, not gestures. A chuff train is a
@@ -65,7 +65,7 @@ export const engine = {
   label: 'a motor by its throttle, idling at 0',
   sustain: true,
   ordered: [],
-  dials: { kind: ['car', 'motorbike', 'jet', 'prop', 'kart', 'boat', 'helicopter', 'diesel', 'tracked', 'multirotor', 'road', 'road-load'] },
+  dials: { kind: ['car', 'motorbike', 'jet', 'prop', 'kart', 'boat', 'helicopter', 'diesel', 'tracked', 'multirotor', 'road'] },
   defaults: { kind: 'car' },
   idle: 'running',
   build(d) {
@@ -95,13 +95,6 @@ export const engine = {
         osc('square', [190, 760], [0.05, 0.14], { cutoff: [1400, 5000], pan: 0.1 }),
         osc('sine', [48, 190], [0.12, 0.22]),
         noise([0.02, 0.24], { band: { lo: 400 }, cutoff: [1200, 4200], pan: -0.15 }),
-      ] };
-      // the road car UNDER LOAD (`road-load`, by its throttle at its revs: silent coasting, the engine braking): the
-      // exhaust's growl and the intake's breath that a foot on the pedal adds over the engine's own note
-      case 'road-load': return { attack: 0.08, release: 0.22, layers: [
-        osc('sawtooth', [80, 300], [0, 0.32], { cutoff: [500, 2600], q: 2.2, lfo: { to: 'gain', rate: [22, 70], depth: 0.45 } }),
-        noise([0, 0.14], { band: { lo: 300, hi: 2500 }, cutoff: [700, 3200], q: 1.2, pan: 0.1 }),
-        osc('square', [40, 150], [0, 0.07], { cutoff: [300, 900] }),
       ] };
       case 'kart': return { attack: 0.08, release: 0.2, layers: [
         // a small two-stroke: high, buzzy, its firing fast and hard
@@ -249,6 +242,24 @@ export const ambience = {
       noise([0.03, 0.1], { band: { lo: 900, hi: 4000 }, cutoff: [1600, 3000], q: 0.3, pan: -0.3, lfo: { to: 'gain', rate: [0.07, 0.17], depth: 0.5 } }),
       noise([0.03, 0.1], { band: { lo: 900, hi: 4000 }, cutoff: [1600, 3000], q: 0.3, pan: 0.3, lfo: { to: 'gain', rate: [0.09, 0.21], depth: 0.5 } }),
       osc('sawtooth', [55, 70], [0.02, 0.05], { cutoff: [180, 260], lfo: { to: 'pitch', rate: [0.1, 0.2], depth: 6 } }),
+    ] };
+  },
+};
+
+// a motor UNDER LOAD (by its throttle at its revs: silent coasting, the engine braking): what a foot on the pedal adds
+// over the engine's own note. `road`: a road car's exhaust growl and the intake's breath
+export const exhaust = {
+  label: 'a motor under load: the growl a foot on the pedal adds, silent coasting',
+  sustain: true,
+  ordered: [],
+  dials: { kind: ['road'] },
+  defaults: { kind: 'road' },
+  idle: 'silent',
+  build() {
+    return { attack: 0.08, release: 0.22, layers: [
+      osc('sawtooth', [80, 300], [0, 0.32], { cutoff: [500, 2600], q: 2.2, lfo: { to: 'gain', rate: [22, 70], depth: 0.45 } }),
+      noise([0, 0.14], { band: { lo: 300, hi: 2500 }, cutoff: [700, 3200], q: 1.2, pan: 0.1 }),
+      osc('square', [40, 150], [0, 0.07], { cutoff: [300, 900] }),
     ] };
   },
 };

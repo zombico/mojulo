@@ -122,7 +122,7 @@ const PINS = {
   'car-door-open': '5924b78a922b',
   'car-ignition': '0050e366d421',
   'car-engine-off': '847665ad254d',
-  'brake-squeal': '1f663142ced0',
+  'brake-squeal': '4c70edf4c909',
   'boat-engine': '0447bec3c238',
   // (new rows: the heavy diesel and the tracked engine, a walking machine's hydraulics: the artillery range's bases)
   'diesel-engine': 'c096cf2c7466',

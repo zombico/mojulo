@@ -226,7 +226,7 @@ const ROWS = {
   'road-car-engine': made('machinery', null, 'hold', 'a road car\'s engine as a game plays it: its note high enough for a small speaker, a burble, the tyres\' hiss', ['road car engine', 'street car engine', 'driving engine'], 'engine', { kind: 'road' }),
   // (the road car's sound design, the open city's: its growl under load, its tyres rolling, the city's traffic far off;
   // its door opened, its engine started and stopped, its brakes)
-  'road-car-load': made('machinery', null, 'hold', 'a road car under load: the exhaust\'s growl and the intake as the pedal goes down, silent coasting', ['engine load', 'exhaust growl', 'throttle growl'], 'engine', { kind: 'road-load' }),
+  'road-car-load': made('machinery', null, 'hold', 'a road car under load: the exhaust\'s growl and the intake as the pedal goes down, silent coasting', ['engine load', 'exhaust growl', 'throttle growl'], 'exhaust', { kind: 'road' }),
   'road-roar': made('machinery', null, 'hold', 'a car rolling on the road: its tyres\' roar and the wind past it, by the speed', ['road noise', 'tyre roar', 'tire roar', 'rolling'], 'tires', { surface: 'road' }),
   'traffic-hum': made('world', null, 'hold', 'a city\'s traffic far off and all round: its tyres\' wash, its engines\' murmur', ['traffic', 'city traffic', 'distant traffic', 'city hum'], 'ambience', { kind: 'traffic' }),
   'car-door-open': made('machinery', 'door', 'on', 'a car door opened: the latch, the door\'s swing', ['open car door', 'door latch car'], 'motoring', { act: 'door-open' }),
