@@ -4,7 +4,7 @@
  * reacting plays the fight's reactions (versus-react.js: a hit, a fall, down, rising, held), as a fighter does; the
  * brawl's own states have their own: the walk along and across the street, the run and the back-step, the clinch
  * (the arms reaching to hold, a knee driven up as it lands), a held body as one thrown, a body bending to pick a thing
- * up, a rider sat astride its mount.
+ * up, a rider sat astride its mount, a floating body's hover (one knee drawn up, the other leg hanging, toe pointed).
  *
  *   brawlPoseOf(p, F, t, rules) → a pose (the fight's pose words)
  *
@@ -24,6 +24,16 @@ function gunLegs(p, own, guard, crouch, t, rules) {
   if (p.st === 'air' || p.st === 'prejump' || p.st === 'drop') return p.st === 'prejump' ? POSES.prejump : POSES.jump;
   if (p.st === 'land') return lerpPose(crouch, guard, Math.min(1, p.sf / Math.max(1, p.landing || 4)));
   return guard;
+}
+/** a floating body's hover (above) */
+// (the rig's angles are each segment's own from hanging straight down, +90 forward, versus-rig.js: the thigh level
+// forward, the shin hanging under it, the feet pointed down)
+export const HOVER_POSE = Object.freeze({ torso: 6, head: -4, armF: [14, 40], armB: [-16, 26], legF: [78, 4, 32], legB: [-5, -8, 16], air: true });
+function hoverPose(p, t) {
+  const drift = Math.max(-1, Math.min(1, ((p.fvx ?? 0) * (p.face || 1)) / 5200)), b = Math.sin(t * 0.06), H = HOVER_POSE;
+  return { ...H, torso: H.torso + drift * 12, head: H.head - drift * 6,
+    legF: [H.legF[0] + b * 4, H.legF[1] + b * 3, H.legF[2]], legB: [H.legB[0] - Math.max(0, drift) * 18, H.legB[1] - Math.max(0, drift) * 22, H.legB[2] - Math.max(0, drift) * 10],
+    armF: [H.armF[0] - drift * 10, H.armF[1]], armB: [H.armB[0] - drift * 14, H.armB[1]] };
 }
 export function brawlPoseOf(p, F, t = 0, rules = {}) {
   if (p.mv && F.moves[p.mv]) {
@@ -49,6 +59,11 @@ export function brawlPoseOf(p, F, t = 0, rules = {}) {
     if (p.st === 'hide' || p.st === 'dig') return { ...crouch, armF: RIFLE.lead, armB: RIFLE.rear };
     return { ...gunLegs(p, own, guard, crouch, t, rules), torso: guard.torso ?? 0, armF: RIFLE.lead, armB: RIFLE.rear };
   }
+  // FLOATING (a weather power's hero, `fy`, brawl-kinetics.js BRAWL_AIR): it never walks. The hover: the lead knee drawn
+  // up, the shin hanging under it, the rear leg let down long with its toe pointed, the arms loose and a little out for
+  // balance; the body leans into its drift (its velocity along the street, toward the way it faces or away), the rear
+  // leg trailing more the faster it goes, and the drawn knee breathes slowly
+  if (p.fy && (p.st === 'stand' || p.st === 'walk')) return hoverPose(p, t);
   switch (p.st) {
     case 'walk': {
       // the stride: along the street the chest opens to the way it walks, across it the body steps square

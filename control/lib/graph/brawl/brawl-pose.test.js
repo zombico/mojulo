@@ -26,3 +26,18 @@ describe('brawl pose', () => {
     expect(knee.legF[0]).toBeGreaterThan(still.legF?.[0] ?? 0);
   });
 });
+
+// A FLOATING BODY'S HOVER: never the walk; one knee drawn up, the other leg hanging, toe pointed; leaning into its drift
+describe('a floating body\'s hover', () => {
+  const F = { moves: {}, poses: undefined };
+  it('stands and drifts in the hover, never the stride; a body on its feet walks as it did', () => {
+    const still = brawlPoseOf({ st: 'stand', fy: 1, face: 1 }, F, 0), moving = brawlPoseOf({ st: 'walk', fy: 1, face: 1, wx: 1, fvx: 5200 }, F, 0);
+    expect(still.legF[0]).toBeGreaterThan(60);                 // (the lead knee drawn up: the thigh near level)
+    expect(Math.abs(still.legF[1])).toBeLessThan(20);          // (its shin hanging under it)
+    expect(Math.abs(still.legB[0])).toBeLessThan(15);          // (the rear leg let down)
+    expect(still.air).toBe(true);
+    expect(moving.torso).toBeGreaterThan(still.torso);         // (leaning into its drift)
+    expect(moving.legB[0]).toBeLessThan(still.legB[0]);        // (the rear leg trailing)
+    expect(brawlPoseOf({ st: 'walk', face: 1, wx: 1 }, F, 0).legF[0]).toBeLessThan(40);
+  });
+});

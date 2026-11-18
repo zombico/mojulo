@@ -947,3 +947,5 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // kinetics (a floater's drift, a wind's drag), the core's drift in place of the walk for a floating body and its gusts
 // (a state key only while one blows), and the client's hover and the gale's streaks. The fixture floats and blows
 // nothing: it plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: a floating body's hover): `brawl` only. Its page inlines the pose's hover
+// (one knee drawn up, the other leg hanging, toe pointed; never the stride). The fixture floats nothing: it plays as it did.

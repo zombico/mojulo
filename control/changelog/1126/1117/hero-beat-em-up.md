@@ -62,8 +62,9 @@
   page in headless Chrome: the slab standing between the hero and two enemies, then sliding into them and throwing
   them.
 - **Heroes who float, and a wind power.** A weather hero is carried on the air instead of walking, as the weather
-  witch of the comics rarely touches the ground. It hovers off the street with a slow bob and drifts rather than
-  walks: it eases up to speed and glides on for a moment after you let go, by the same law the studio uses for a
+  witch of the comics rarely touches the ground. It hovers off the street with a slow bob, never walking: one knee
+  drawn up with the shin hanging under it, the other leg let down long with the toe pointed, the body leaning into its
+  drift and the trailing leg sweeping back. It drifts rather than walks: it eases up to speed and glides on for a moment after you let go, by the same law the studio uses for a
   hero's air dash. With no footing under it, a blow knocks it further than a hero standing on the ground. The storm
   power's hero now floats, and so does the new gale power. The gale calls a hurricane of wind down the street. How hard
   it pushes each enemy is the wind's drag against that enemy's footing: a grunt is blown off its feet and carried away,
