@@ -56,7 +56,7 @@ describe('the cel body on the page', () => {
     const page = controllableChannelScript([hero], null, { body: fig(true) });
     expect(page).toContain('uToonCharge');
     // (its body and limbs all over, its face only at its edge)
-    expect(page).toContain('uToonFace');
+    expect(page).toContain('aToonFace');
     expect(CEL_CHARGE.faceRim).toBeLessThan(CEL_CHARGE.rim);
     expect(CEL_CHARGE.rim).toBeGreaterThan(CEL_CHARGE.body);
     expect(CEL_CHARGE.rate[1]).toBeGreaterThan(CEL_CHARGE.rate[0]);
