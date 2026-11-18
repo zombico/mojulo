@@ -97,6 +97,10 @@
  *     plots?: n, target?: n, days?: n,     // farm: plots (6), the gold to make (40), by which day (6)
  *     card?, challenge?, serve?: n,        // work: a starter (kitchen, farm, site, roof) or a Shovels & Buckets card;
  *                                           // beginner | intermediate | advanced | 0..1 (beginner); orders to serve
+ *     cooks?: 1 | 2 | 4, kitchen?: 'split' | 'island', // work: cooks on one screen, each a seat (the cube's soul.seats), in a
+ *                                           // kitchen of its own room (kitchen-level.js; worksim/kitchen.js: split, a pass
+ *                                           // between prep and assembly, by default with two or more; island), the shift
+ *                                           // tuned to them; one cook and no kitchen named: the line by the trail
  *     folk?: n, farmhand?: <a hero-door spec> // farm: farmhands keeping their day (2), and their looks (rolled by default)
  *     foes?: n,                             // battle: how many foes stand on the trail to be fought turn by turn (3)
  *     moves?: true,                         // every person the run makes (the hero, foes, guards, towers, farmhands) is
@@ -239,6 +243,7 @@ import { SCENARIOS } from '../worksim/scenarios.js';
 import { readCard } from '../worksim/card.js';
 import { solve as solveWork, targetOf } from '../worksim/solve.js';
 import { layWork } from '../game/work-mechanics.js';
+import { KITCHEN_IDS } from '../worksim/kitchen.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -301,7 +306,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['mission', 'xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes', 'streets', 'crowd', 'play', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown', 'card', 'challenge', 'serve', 'armed', 'guns', 'street'];
+const KEYS = ['mission', 'xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes', 'streets', 'crowd', 'play', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown', 'card', 'challenge', 'serve', 'cooks', 'kitchen', 'armed', 'guns', 'street'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -591,7 +596,9 @@ export function readQuick(Q) {
   if (Q.folk !== undefined && !(Number.isInteger(Q.folk) && Q.folk >= 0 && Q.folk <= 6)) throw fail('.folk is 0 to 6');
   if (Q.farmhand !== undefined && !isObj(Q.farmhand)) throw fail('.farmhand is a hero-door spec, as .hero is');
   if (Q.goal === 'farm' && (Q.building !== undefined || Q.climb || Q.ride)) throw fail('.farm tills the land by a trail\'s start: no climb, building or ride');
-  for (const k of ['card', 'challenge', 'serve']) if (Q.goal !== 'work' && Q[k] !== undefined) throw fail(`.${k} belongs to the work goal`);
+  for (const k of ['card', 'challenge', 'serve', 'cooks', 'kitchen']) if (Q.goal !== 'work' && Q[k] !== undefined) throw fail(`.${k} belongs to the work goal`);
+  if (Q.cooks !== undefined && ![1, 2, 4].includes(Q.cooks)) throw fail('.cooks is how many cooks share the kitchen on one screen: 1, 2 or 4 (the seats a game has)');
+  if (Q.kitchen !== undefined && !KITCHEN_IDS.includes(Q.kitchen)) throw fail(`.kitchen is one of ${KITCHEN_IDS.join(', ')} (worksim/kitchen.js)`);
   if (Q.card !== undefined && !(isObj(Q.card) || Object.prototype.hasOwnProperty.call(SCENARIOS, Q.card))) throw fail(`.card is a starter (${Object.keys(SCENARIOS).join(', ')}) or a Shovels & Buckets card (docs/worksim.md)`);
   if (isObj(Q.card)) { try { readCard(Q.card); } catch (e) { throw fail(`.card: ${e.message}`); } }
   if (Q.challenge !== undefined) { try { targetOf(Q.challenge); } catch (e) { throw fail(`.challenge: ${e.message}`); } }

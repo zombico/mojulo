@@ -228,12 +228,38 @@ two halves (crates and prep on one side, plating and the hand-in on the other, t
 cooks win only through the pass: cook 2 serves every order, from what cook 1 put across. With nobody on the far side
 nothing is served.
 
+### The kitchen: an arena for cooks
+
+`worksim/kitchen.js` lays a card as a kitchen for its cooks. Each place is read by its role: crates, prep (a station
+that takes only raw things), assembly (one that takes a made thing), shelves and the hand-in. The kitchens are rows:
+
+| kitchen | what it is | the pressure |
+|---------|------------|--------------|
+| split   | prep on one side of a counter, assembly and the hand-in on the other; what crosses goes on a pass set in the counter | the handoff: nothing is served unless it is passed |
+| island  | one floor round an island of shelves; every cook reaches everything | crowding |
+
+Its laws are measured on its floor and advise: every place reached from its side; the sides sealed (no way round, and a
+counter the cooks' jump does not clear); every order crossing the pass; a pass for everything that crosses; a 760 mm
+walkway; the whole room on one fixed screen.
+
+`tuneKitchen` (work-proof.js) sets the shift by what the kitchen lets its cooks do: the solver tunes the card for that
+many hands, then the proof plays the kitchen with its cooks on their sides, slowing the orders until they keep up; the
+goal is four fifths of what they served. The simulator alone has no space, so it counts four cooks as four times one;
+in a split kitchen four cooks serve little more than two.
+
+The quick door's `cooks` (1, 2 or 4) and `kitchen` make the level a kitchen room of its own
+(`gameworld/kitchen-level.js`), never a line by a trail: the game room's area for the trade (its floor, its walls cut
+away on the camera's side, what stands outside), each place dressed as the trade's thing, the recipe drawn on the floor,
+each cook on its own side, a seat nobody sits in held still, and one fixed overhead station framing the whole room. In
+headless Chromium with two stub pads, seat 1 took a fish, chopped it and put it on the pass; seat 2 took it up from the
+other side with its own button.
+
 ## How it joins next (not built)
 
-- **Seats, the rest.** A kitchen laid as a designed arena (a layout grammar and its laws, the handoff measured), the
-  simulator's workers each with their own reach and travel by distance, a spot that holds any one thing, each seat's
-  corner on the HUD, and the co-op kitchen as a rail. What the co-op kitchen probe is still blocked on is
-  `soul.dependence=handoff` and `soul.frame=fixed` in the registry.
+- **Seats, the rest.** Each seat's corner on the HUD (what it holds; the Hands bar and the held readouts are seat 1's),
+  the order rail, a spot that holds any one thing (a plate), the simulator's workers each with their own reach (the
+  proof stands in), hazards (a belt, fire), and the co-op kitchen as a rail. The registry still says
+  `soul.dependence=handoff` absent and `soul.frame=fixed` partial; they are marked when the rail lands.
 - **The look on a level.** The work room is dressed and stands in its area; a quick shift's level still draws counters
   and markers. The dress and the area belong on the level too, read by the verb and the item.
 - **The book.** A gameworld's `work` page in the game design and production chapter: the card, its target and the
@@ -248,5 +274,6 @@ nothing is served.
 Machine: `worksim.test.js` (the card, routes, determinism, absence, the solver's targets), `work-mechanics.test.js`
 (the mechanic on the bus, seated too), `work-proof.test.js` (a level won by a walker who knows the card, near the
 simulator; a split kitchen won by two cooks only through the pass) and the seats page suite
-(`seats.live.test.js`: a seat's own press works the shift with its own hands, in headless Chromium).
+(`seats.live.test.js`: a seat's own press works the shift with its own hands, in headless Chromium), `kitchen.test.js`
+(the roles, the laws, the pass, the tuning) and `quick-work.test.js` (the kitchen room from the quick door).
 Eyes: not run.

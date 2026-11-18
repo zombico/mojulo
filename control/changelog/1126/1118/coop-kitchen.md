@@ -1,4 +1,4 @@
-### The co-op kitchen: seats work the shift
+### The co-op kitchen: seats work the shift, in a kitchen of their own
 
 The work shift (the Work Sim rail's kitchen, farm stand, site and roof) learns its seats, the first step toward the
 co-op kitchen the cosmos registry refused: two to four cooks in one kitchen on one screen, an order carried from
@@ -15,3 +15,18 @@ station to station and handed between them.
 - **The proof.** `proveWork` plays several cooks, each its own spawn and reach, on the page's bus; a split kitchen is
   won only through the pass (machine gate). Whether it plays well together is the eyes gate, the operator's.
 - **Opt-in, byte for byte.** A level with no seats lowers and emits what it did.
+- **The kitchen, a designed arena** (`worksim/kitchen.js`). A card's places are read by role (crates, prep that takes
+  only raw things, assembly that takes a made thing, shelves, the hand-in) and laid in a kitchen: `split` (prep on one
+  side of a counter, assembly and the hand-in on the other, everything that crosses on a pass set in the counter) or
+  `island` (one floor round an island of shelves). A new kitchen is a row. Its laws, measured on its floor and advised,
+  never refused: every place reached from its side, the sides sealed (no way round, a counter the cooks cannot jump),
+  every order crossing the pass, a pass for everything that crosses, a 760 mm walkway, the whole room on one screen.
+- **Tuned to its cooks.** `tuneKitchen` tunes the card for that many hands, then plays the kitchen with its cooks on
+  their sides and slows the orders until they keep up; the goal is four fifths of what they served. The simulator alone
+  counts four cooks as four times one, and they fall short of that in a real kitchen.
+- **The quick door.** `design_game({ quick: { goal: 'work', cooks: 2 | 4, kitchen?: 'split' | 'island' } })`: the
+  cube's seats, and the level a kitchen room of its own (`gameworld/kitchen-level.js`), never laid by a trail: the game
+  room's area (the trade's floor and walls, cut away on the camera's side), its places dressed as the trade's things,
+  the recipe drawn on the floor, each cook on its own side, a seat nobody sits in held still, one fixed overhead
+  station framing the whole room. One cook and no kitchen named is the line by the trail, as it was.
+

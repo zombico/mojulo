@@ -21,6 +21,13 @@
  *     side. The readout adds each cook's `{ n, presses, put, took, served, outside }` (outside: presses at a place out
  *     of its reach, always 0) and `passed`: what went across a shelf from one cook to another
  *
+ *   tuneKitchen(card, { kitchen?, cooks?, challenge?, seed? }) → { card, K, goal, proof, rounds }: A KITCHEN TUNED TO
+ *     ITS COOKS. The solver tunes the card for `cooks` workers (worksim/solve.js: N hands, no space), the kitchen is laid
+ *     (kitchen.js layKitchen), and the proof plays it with its cooks on their sides; while they serve under 85% of what
+ *     arrives, the orders come slower (orders: `every` longer; a backlog: fewer standing). The goal is four fifths of
+ *     what they served on the last round: the shift is set by what the kitchen lets its cooks do, never by the
+ *     simulator's spaceless crew alone (principle 6: the game scales to the seats present)
+ *
  * Pure: the bus is the same code the page runs; the orders are the card's roll.
  */
 import { composeMechanics } from '../game/mechanics.js';
@@ -29,6 +36,8 @@ import { buildBus } from '../worlds/event-bus.js';
 import { readCard, isRaw } from './card.js';
 import { simulate, runOrder, TPS } from './sim.js';
 import { SCENARIOS } from './scenarios.js';
+import { solve } from './solve.js';
+import { layKitchen, cooksOf } from './kitchen.js';
 
 const B = buildBus();
 
@@ -207,3 +216,19 @@ export function proveWork(params = {}, { player = 'hero', spawn = [0, 0, 0], spe
     ...(seats ? { cooks: all.map((K) => K.log), passed: across } : {}),
   };
 }
+
+const KEEP_UP = 0.85, ROUNDS = 6;
+export function tuneKitchen(raw, { kitchen = 'split', cooks = 2, challenge = 'beginner', seed = 1 } = {}) {
+  let card = solve({ ...raw, crew: { ...(raw.crew ?? {}), workers: cooks } }, challenge).card, K, proof, k = 0;
+  for (; k < ROUNDS; k++) {
+    K = layKitchen(card, { kitchen, cooks });
+    proof = proveWork({ card, at: K.at, goal: 1, seed }, { spawn: K.spawns[0], ...(cooks > 1 ? { cooks: cooksOf(K) } : {}) });
+    const share = proof.served / Math.max(1, proof.arrivals);
+    if (share >= KEEP_UP || k === ROUNDS - 1) break;
+    // slower by the share they fell short (a little more, so it settles in a round or two)
+    const D = card.demand, f = Math.max(0.5, share / (KEEP_UP + 0.05));
+    card = { ...card, demand: D.mode === 'backlog' ? { ...D, backlog: Math.max(1, Math.floor(D.backlog * f)) } : { ...D, every: Math.round((D.every / f) * 10) / 10 } };
+  }
+  return { card, K, goal: Math.max(1, Math.floor(0.8 * proof.served)), proof, rounds: k + 1 };
+}
+

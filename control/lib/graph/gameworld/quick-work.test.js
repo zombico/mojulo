@@ -39,3 +39,36 @@ describe('the work goal', () => {
     expect(B.blocks.some((b) => Math.abs((b.min[0] + b.max[0]) / 2 - L.serve[0]) < 1e-6 && Math.abs((b.min[1] + b.max[1]) / 2 - L.serve[1]) < 1e-6)).toBe(true);
   });
 });
+
+// COOKS IN A KITCHEN (quick.cooks, quick.kitchen): the cube's seats, a room of its own (never a trail) with the kitchen
+// laid for them, each cook on its own side, the whole room on one fixed screen, the shift tuned to them on the proof
+describe('the work goal with cooks', () => {
+  it('reads cooks and a kitchen on the work goal only; one cook and none named is the line by the trail, as it was', async () => {
+    const { kitchenOf } = await import('./kitchen-level.js');
+    expect(() => readQuick({ goal: 'work', cooks: 2, kitchen: 'island' })).not.toThrow();
+    expect(() => readQuick({ goal: 'work', cooks: 3 })).toThrow(/\.cooks is how many cooks/);
+    expect(() => readQuick({ goal: 'work', kitchen: 'galley' })).toThrow(/\.kitchen is one of/);
+    expect(() => readQuick({ goal: 'farm', cooks: 2 })).toThrow(/\.cooks belongs to the work goal/);
+    expect([kitchenOf({ goal: 'work' }), kitchenOf({ goal: 'work', cooks: 1 }), kitchenOf({ goal: 'work', cooks: 2 }), kitchenOf({ goal: 'work', kitchen: 'island' })]).toEqual([null, null, 'split', 'island']);
+  });
+  it('two cooks: a kitchen room of its own, the hero and the second cook either side of its counter, one fixed station', async () => {
+    const { readGameworld } = await import('./world.js');
+    const { gameStages, stageLevelOrder } = await import('./levels.js');
+    const { synthesizeLevel } = await import('../game/level-synth.js');
+    const w = quickWorld({ id: 'kitchen', quick: { goal: 'work', cooks: 2 } }), G = readGameworld(w), stages = gameStages(w);
+    expect(stages.map((s) => s.section)).toEqual(['kitchen']);
+    const order = stageLevelOrder(G, stages[0], { ref: 'k', heroRef: 'h', goal: (e) => goalMechanics(w.quick, e) }), m = order.args.manifest;
+    expect(m.seats).toEqual({ bodies: ['hero-2'], max: 2, join: 'drop-in', drop: 'pause' });
+    expect(m.camera).toMatchObject({ rule: 'fixed', track: 0 });
+    expect(m.faces.some((f) => /room:area/.test(f.group ?? ''))).toBe(true);   // the trade's area, not a trail's ground
+    const [hero, two] = ['hero', 'hero-2'].map((id) => m.entities.find((e) => e.id === id));
+    const counter = m.colliders.find((c) => c.max[2] > 1 && c.max[2] < 1.2 && c.max[1] - c.min[1] > 1.5 && c.max[0] - c.min[0] < 1);
+    const cx = (counter.min[0] + counter.max[0]) / 2;
+    expect(hero.transform.pos[0]).toBeLessThan(cx);
+    expect(two.transform.pos[0]).toBeGreaterThan(cx);
+    expect(Object.fromEntries(order.laws.map((l) => [l.law, l.holds]))).toMatchObject({ reachable: true, sealed: true, handoff: true, passes: true, frame: true });
+    const ev = synthesizeLevel(m).mechEvents, work = m.game.mechanics.find((x) => x.kind === 'work');
+    expect(ev.sources.filter((z) => z.seatUse).every((z) => z.watch === 'hero-2')).toBe(true);
+    expect(work.goal).toBeGreaterThan(0);
+  }, 120_000);
+});
