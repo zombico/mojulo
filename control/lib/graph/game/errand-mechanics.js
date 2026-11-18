@@ -22,7 +22,8 @@
  *                       giver that wants proofs.
  *                       { id?, at, wants: [{ item, min? (1) }], reward?: [{ item, n? (1) }], radius?, planar?, repeat? }
  *                       `repeat: true`: a standing job's, which pays each time and ends nothing; `open: true`: a
- *                       one-off's in a level a standing job keeps open, which pays and ends nothing either
+ *                       one-off's in a level a standing job keeps open, which pays and ends nothing either; `clean: true`:
+ *                       a story mission's, handed in only with no stars (the law's `wanted`)
  *
  * Names (recipe-derived, for a handoff): a trade's zone and marker `trade-<item>`, a deliver's zone `deliver-<id>`.
  * A deliver's audit is the walk to it (what the walk must hold first is the errand's order: gameworld/errand.js).
@@ -326,8 +327,15 @@ export function lowerDeliver(p, ctx) {
   const zone = `deliver-${id}`, frag = { vars: {}, reactions: [], hud: [] }, done = `errand:done:${id}`, short = `errand:short:${id}`, ok = `${done}:ok`;
   for (const w of wants) frag.vars[heldVar(BAG, w.item)] ??= 0;
   // (a job that is offered, `after`: handed in only once it is taken, so its giver's own place says nothing of it before)
-  if (typeof p.after === 'string' && p.after) { frag.vars[`flag-${p.after}`] ??= 0; frag.reactions.push({ on: 'enter', match: { zone }, if: { var: `flag-${p.after}`, gte: 1 }, do: 'emit', type: `${zone}:try` }); }
-  else frag.reactions.push({ on: 'enter', match: { zone }, do: 'emit', type: `${zone}:try` });
+  // (a story mission's, `clean`: handed in only with no stars, game/law-mechanics.js `wanted`; with them it says so)
+  // (a one-off in a level kept open, `open`: once handed in it is quiet, its giver's place asking nothing more of it)
+  const once = p.open === true && p.repeat !== true, gone = `delivered-${id}`;
+  if (once) { frag.vars[gone] = 0; frag.reactions.push({ on: done, do: 'set', var: gone, to: 1 }); }
+  const come0 = p.clean === true ? `${zone}:come` : `${zone}:try`, come = once ? `${zone}:open` : come0;
+  if (once) frag.reactions.push({ on: come, if: { var: gone, eq: 0 }, do: 'emit', type: come0 });
+  if (p.clean === true) { frag.vars.wanted ??= 0; frag.reactions.push({ on: come0, if: { var: 'wanted', eq: 0 }, do: 'emit', type: `${zone}:try` }, { on: come0, if: { var: 'wanted', gte: 1 }, do: 'emit', type: `errand:hot:${id}` }); frag.hud.push({ on: `errand:hot:${id}`, as: 'toast', text: 'Not with the police on you. Lose them first.', ttl: 2.4 }); }
+  if (typeof p.after === 'string' && p.after) { frag.vars[`flag-${p.after}`] ??= 0; frag.reactions.push({ on: 'enter', match: { zone }, if: { var: `flag-${p.after}`, gte: 1 }, do: 'emit', type: come }); }
+  else frag.reactions.push({ on: 'enter', match: { zone }, do: 'emit', type: come });
   chain(frag.reactions, `${zone}:try`, wants.map((w) => ({ var: heldVar(BAG, w.item), gte: w.min ?? 1 })), ok, short);
   for (const w of wants) lowerMove({ item: w.item, n: w.min ?? 1, from: BAG, to: NOWHERE, on: ok }, frag);
   // every errand pays: its reward into the bag (coin for the next leg's trade)

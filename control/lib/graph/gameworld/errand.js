@@ -24,6 +24,15 @@
  *   shop     the kind of store it is had in (a seeded store card's id): where its level's town has such a shop walked
  *            into (the geotown's `shops`), the trade stands at its till; else on a spot, as any trade
  *   what the giver asks for is the list's roots: the items nothing on the list needs
+ *   name     what it is called in the journal and as it starts (a mission's title)
+ *   mission  a STORY MISSION (game/mission-mechanics.js): the job told as one, with ways to fail.
+ *            { heat?: 1 to 5, clean?: true, time?: seconds, final?: true }
+ *              heat   the stars the law gives the player as the goods are had (an alarm, a witness: law.js)
+ *              clean  handed in only with no stars: lose the police first
+ *              time   seconds from taking it to handing it in
+ *              final  its hand-in ends the level, the game won (the story's last): the rest keep the level open
+ *            Wasted or busted while it is on, or out of time, it fails: MISSION FAILED, and a few seconds after it
+ *            starts again (the goods kept). A mission is never a standing job
  *
  * Refused (malformed): an unknown key, level or item; an item twice; a need on no list; a cycle; a bounty whose level
  * fields no such foe; a world that is not a map (`topology: 'interconnected'`), since an errand goes out and comes back.
@@ -53,7 +62,8 @@ export const ERRAND_LAWS = Object.freeze({
   varied: 'Varied: no two legs in a row in the same level; an errand crosses the world.',
   survivable: 'Survivable: a fragile or perishable cargo carries a margin to lose on the way.',
 });
-const KEYS = ['id', 'giver', 'reward', 'list', 'repeat', 'offer', 'contact', 'app', 'tags'];
+const KEYS = ['id', 'giver', 'reward', 'list', 'repeat', 'offer', 'contact', 'app', 'tags', 'mission', 'name'];
+const MISSION_KEYS = ['heat', 'clean', 'time', 'final'];
 export const TILL_REACH = 1.6;
 const NODE_KEYS = ['item', 'at', 'count', 'min', 'needs', 'from', 'cargo', 'shop'];
 const WORD = /^[a-z][a-z0-9-]{0,31}$/;
@@ -73,6 +83,16 @@ function readOne(E, k, G) {
   if (E.tags !== undefined && (!Array.isArray(E.tags) || !E.tags.length || E.tags.some((t) => typeof t !== 'string' || !WORD.test(t)) || new Set(E.tags).size !== E.tags.length)) no('.tags is what kind of task it is, lower-case words, each once ([\'ride\'], [\'food\', \'rush\']): every phone app that lists one of them offers it');
   if (E.tags !== undefined && E.contact !== undefined) no(' has tags, so an app gives it: it has no contact');
   if (E.app !== undefined && E.contact !== undefined) no(' is given by a contact or by an app, not both');
+  if (E.name !== undefined && !(typeof E.name === 'string' && E.name.trim() && E.name.length <= 60)) no('.name is what it is called, in a few words');
+  const M = E.mission;
+  if (M !== undefined) {
+    if (!isObj(M)) no(`.mission is { ${MISSION_KEYS.join(', ')} }: the job told as a story mission`);
+    for (const k of Object.keys(M)) if (!MISSION_KEYS.includes(k)) no(`.mission.${k} is not part of a mission (${MISSION_KEYS.join(', ')})`);
+    if (M.heat !== undefined && !(Number.isInteger(M.heat) && M.heat >= 1 && M.heat <= 5)) no('.mission.heat is the stars the goods bring, 1 to 5');
+    if (M.time !== undefined && !(Number.isFinite(M.time) && M.time >= 10 && M.time <= 3600)) no('.mission.time is the seconds it has, 10 to 3600');
+    for (const k of ['clean', 'final']) if (M[k] !== undefined && M[k] !== true) no(`.mission.${k} is true`);
+    if (E.repeat) no(' is a standing job (repeat) and a mission: a mission is done once');
+  }
   const reward = E.reward ?? [];
   if (!Array.isArray(reward) || reward.some((r) => !isObj(r) || typeof r.item !== 'string' || !WORD.test(r.item) || (r.n !== undefined && !posInt(r.n)))) no('.reward is [{ item, n? }]: what the giver pays');
   if (!Array.isArray(E.list) || !E.list.length) no('.list is [{ item, at, … }], at least one: what is fetched');
@@ -118,7 +138,7 @@ function readOne(E, k, G) {
   for (const N of list) visit(N.item, []);
   const needed = new Set(list.flatMap((N) => N.needs));
   const roots = list.filter((N) => !needed.has(N.item)).map((N) => N.item);
-  const read = { id: E.id, giver: E.giver, reward: reward.map((r) => ({ item: r.item, n: r.n ?? 1 })), list, roots, order, ...(E.repeat ? { repeat: true } : {}), ...(E.offer ? { offer: E.offer.trim() } : {}), ...(E.contact ? { contact: E.contact } : {}), ...(E.app ? { app: E.app } : {}), ...(E.tags ? { tags: E.tags.slice() } : {}) };
+  const read = { id: E.id, giver: E.giver, reward: reward.map((r) => ({ item: r.item, n: r.n ?? 1 })), list, roots, order, ...(E.name ? { name: E.name.trim() } : {}), ...(M ? { mission: { ...M } } : {}), ...(E.repeat ? { repeat: true } : {}), ...(E.offer ? { offer: E.offer.trim() } : {}), ...(E.contact ? { contact: E.contact } : {}), ...(E.app ? { app: E.app } : {}), ...(E.tags ? { tags: E.tags.slice() } : {}) };
   read.laws = errandLaws(read, G);
   return read;
 }
@@ -183,7 +203,8 @@ export function errandLegs(errands, level) {
   if (!errands?.length) return [];
   const legs = [];
   // (a level with a standing job is OPEN: no job done in it ends it, a one-off's hand-in pays and the level goes on)
-  const open = errands.some((E) => E.repeat && E.giver === level);
+  // (and one with a story's missions, the last of them aside: its hand-in ends the level, the game won)
+  const open = errands.some((E) => (E.repeat || (E.mission && !E.mission.final)) && E.giver === level);
   for (const E of errands) {
     const count = (item) => E.list.find((x) => x.item === item).count;
     for (const N of E.list) {
@@ -192,7 +213,7 @@ export function errandLegs(errands, level) {
         ? { kind: 'bounty', item: N.item, who: `foe-${N.from.foe}-*`, n: N.count }
         : { kind: 'trade', job: E.id, item: N.item, count: N.count, ...(N.needs.length ? { needs: N.needs.map((n) => ({ item: n, n: count(n) })) } : {}), ...(N.shop ? { shop: N.shop } : {}) });
     }
-    if (E.giver === level) legs.push({ kind: 'deliver', id: E.id, wants: E.roots.map((r) => ({ item: r, min: E.list.find((x) => x.item === r).min })), ...(E.reward.length ? { reward: E.reward } : {}), ...(E.repeat ? { repeat: true } : open ? { open: true } : {}), ...(E.offer ? { offer: E.offer } : {}), ...(E.contact ? { contact: E.contact } : {}), ...(E.app ? { app: E.app } : {}), ...(E.tags ? { tags: E.tags } : {}) });
+    if (E.giver === level) legs.push({ kind: 'deliver', id: E.id, wants: E.roots.map((r) => ({ item: r, min: E.list.find((x) => x.item === r).min })), ...(E.reward.length ? { reward: E.reward } : {}), ...(E.repeat ? { repeat: true } : open && !E.mission?.final ? { open: true } : {}), ...(E.mission?.clean ? { clean: true } : {}), ...(E.offer ? { offer: E.offer } : {}), ...(E.contact ? { contact: E.contact } : {}), ...(E.app ? { app: E.app } : {}), ...(E.tags ? { tags: E.tags } : {}) });
   }
   for (const E of errands) for (const N of E.list) if (N.cargo) legs.push({ kind: 'cargo', item: N.item, ...N.cargo, max: N.count });
   return legs;

@@ -171,6 +171,7 @@ export const MECHANIC_SFX = {
   vitals: { wasted: 'lose' },
   respray: { 'respray:done': 'checkpoint', 'respray:short': 'thud' },
   gunshop: { 'gunshop:bought': 'pickup', 'gunshop:short': 'thud' },
+  mission: { 'mission:*': 'chime', 'mission-failed:*': 'lose', 'mission-passed:*': 'goal' },
   frags: { kill: 'down', 'frags:won': 'goal', 'frags:lost': 'lose' },
   control: { 'control:won': 'goal', 'control:lost': 'lose' },
   board: { 'board-won': 'goal', 'board-lost': 'lose', 'board-draw': 'lose' },

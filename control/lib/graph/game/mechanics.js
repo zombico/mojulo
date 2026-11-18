@@ -21,6 +21,7 @@ import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer, lowerCal
 import { lowerWanted } from './law-mechanics.js';
 import { lowerVitals } from './vitals-mechanics.js';
 import { lowerRespray, lowerGunshop } from './shop-mechanics.js';
+import { lowerMission } from './mission-mechanics.js';
 import { lowerWaveGauntlet } from './wave-gauntlet.js';
 import { lowerWork } from './work-mechanics.js';
 
@@ -1036,6 +1037,8 @@ const MECHANICS = {
   // (the city's shops: a respray that loses the law, a gun shop's rounds; game/shop-mechanics.js)
   respray: { role: 'emitter', requires: ['inventory'], lower: lowerRespray },
   gunshop: { role: 'emitter', requires: ['inventory'], lower: lowerGunshop },
+  // (a story mission: a job with ways to fail, started again after; game/mission-mechanics.js)
+  mission: { role: 'emitter', lower: lowerMission },
 
   // the PARTY carried (an emitter): the battle party of play.rpg (playscape/rpg) goes from level to level in a party
   // slice: each member's level, xp, hp, mp, class, class ranks and points, and the skills learned (the kernel's save:

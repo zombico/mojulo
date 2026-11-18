@@ -928,7 +928,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
   const doorMechs = (ends.doors ?? []).map(({ inside: _i, ...d }) => ({ kind: 'door', ...d }));
   // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot
-  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps, G.factions, G.law ? { ...G.law, bag: !!G.errands?.length } : null, { bag: !!G.errands?.length, shops: G.shops ?? null }) : null;
+  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps, G.factions, G.law ? { ...G.law, bag: !!G.errands?.length } : null, { bag: !!G.errands?.length, shops: G.shops ?? null, errands: G.errands ?? null }) : null;
   // (a glyph map with no way on, a megaworld's core: its goal stays its own, reaching it the level's win, no exit taken)
   // (a zone holding the walk's goal keeps it too: reaching it is the game's end, its gates travel)
   const keepsGoal = ways && stage.section === 'map' && (!map.on.length || !!ends.holdsGoal);
@@ -1790,6 +1790,13 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
     }
     // (the legs before the offers: a hand-in where its giver stands is not tried on the step that takes the job)
     mechanics.push(...legs, ...offers);
+    // (each job told as a STORY MISSION, errand.js `mission`: started as it is taken, its heat as its goods are had,
+    // failed and started again; game/mission-mechanics.js)
+    for (const E of city.errands ?? []) {
+      if (!E.mission || !legs.some((l) => l.id === E.id || l.job === E.id)) continue;
+      mechanics.push({ kind: 'mission', id: E.id, flag: `took-${E.id}`, ...(E.name ? { name: E.name } : {}), ...(E.mission.time ? { time: E.mission.time } : {}),
+        ...(E.mission.heat ? { heat: E.mission.heat, hot: `had-${E.roots[0]}` } : {}), ...(E.mission.final ? { final: true } : {}) });
+    }
     quests = jobQuests([...offers, ...legs]);
     stoodGivers = givers;
   }
