@@ -1,7 +1,7 @@
 // A WORLD THAT IS A BRAWLER (quick goal `brawl`, quick.js; runner.js): its players made as a fight's are, its streets
 // its levels (each a brawl level with its waves and the hosted level's contract), the game in the play shell.
 import { describe, it, expect } from 'vitest';
-import { quickWorld, HERO_CAMPAIGN, brawlStreets, defaultWaves, defaultThings, defaultScenes, BRAWL_SCENES, brawlSetup, brawlGuns, QUICK_GUNS, brawlCrowd, brawlBody, crowdTypeOf, BRAWL_STREET, BRAWL_FACTION, QUICK_GOALS, readHeroes, HERO_TEAM, HERO_ARMY, HERO_VILLAINS } from './quick.js';
+import { quickWorld, HERO_CAMPAIGN, DRONE_STATURE, brawlStreets, defaultWaves, defaultThings, defaultScenes, BRAWL_SCENES, brawlSetup, brawlGuns, QUICK_GUNS, brawlCrowd, brawlBody, crowdTypeOf, BRAWL_STREET, BRAWL_FACTION, QUICK_GOALS, readHeroes, HERO_TEAM, HERO_ARMY, HERO_VILLAINS } from './quick.js';
 import { POWER_IDS } from '../brawl/brawl-powers.js';
 import { TUNINGS } from '../brawl/brawl-tunings.js';
 import { runSteps } from './runner.js';
@@ -278,6 +278,12 @@ describe('a heroes brawl', () => {
     const lairOf = (heroes) => { const W = runSteps(world({ heroes }), { ref: 'gw' }); return { W, lair: W.find((s) => s.key === 'level-street-lair').order.manifest.brawl.street }; };
     // (the mastermind a summoner: its summons on its boss)
     expect(lair.waves.find((w) => w.boss).boss.summons).toMatchObject({ type: 'drone' });
+    // (its drones drawn as their own body, smaller and in another colourway, never a wave's rank and file)
+    const droneAt = steps.find((s) => s.key === 'foes-crowd-drone');
+    expect(droneAt.order.spec.tune.stature).toBe(DRONE_STATURE);
+    expect(lair.roster[lair.cast.drone[0]].hero.ref).toBe(droneAt.ref);
+    expect(lair.cast['*']).not.toContain(lair.cast.drone[0]);
+    expect(lair.waves.flatMap((w) => w.crowd).some((c) => c.type === 'drone')).toBe(false);
     // (the twins: a pair, its second its own character, the last street drawing both)
     const T = lairOf({ villain: { member: 'rival', name: 'Castor' } });
     const pairBoss = T.lair.waves.find((w) => w.boss).boss;

@@ -48,9 +48,10 @@
   arcade: an attract screen to press start, then a title saying who fights whom, with continue, play, a street picker,
   options and credits. When the villain falls, an ending card plays, then a roll of the heroes and the villain, then
   back to the title. Name your own streets and they are the campaign instead. A world's own title screen and credits
-  win over these. Measured with the simple players: one hero wins each of the three streets alone, its boss down. On
-  the city street, the works and the lair the power-using player fell 0, 2 and 0 times of five, and the plain one 0,
-  1 and 1. So the works is the hardest of the three; the streets do not yet get steadily harder.
+  win over these. Measured with the simple player that uses its power, each street played once by each of the four
+  heroes alone: every street was won by every hero. The streets get harder in turn: on average 1.3, 1.5 and 1.8
+  falls of five, 27, 33 and 37 blows taken, and 60, 62 and 77 seconds. A single run is too chaotic to judge by
+  (one hero took 49 blows on the city street, another 11), so the climb is measured as the average.
 - **Supervillains, and the foe idioms on the street.** The villain at the end of a superhero game is now one of a set
   of supervillains, each with a way of fighting you learn and beat:
   - **The mastermind** keeps back behind drones it summons out of the ground a few at a time. Cut it down and every

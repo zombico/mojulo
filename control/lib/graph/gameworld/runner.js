@@ -986,7 +986,8 @@ function quickSteps(world, G, ref, lookup) {
           roster.push({ id: m.id, name: m.name, hero: { ref: charRef } });
         }
         (cast[m.as] ??= []).push(k);
-        if (m.as !== 'boss' && m.as !== 'villain') { (cast['*'] ??= []).push(k); types.push(m.as); }
+        // (the boss, the villain and the drones are drawn only as what they are: never the wave's rank and file)
+        if (m.as !== 'boss' && m.as !== 'villain' && m.as !== 'drone') { (cast['*'] ??= []).push(k); types.push(m.as); }
       }
       const streets = brawlStreets(Q, { title, roster, cast, types, colour: crowd.colour, holder: crowd.name }).map((s) => ({ ...s, key: `level-street-${s.id}`, ref: childRef(ref, `level-street-${s.id}`) }));
       const lv = streets.map((s) => ({ key: s.key, ref: s.ref, ready: true, order: { title: s.manifest.title, manifest: s.manifest }, print: fingerprint(s.manifest) }));

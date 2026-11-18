@@ -87,11 +87,13 @@ export function playStreet(yard, { player = 'basic', seconds = 240 } = {}) {
   let struck = 0, landed = 0, cleared = 0, boss = null, powers = 0;
   // (the foe shelf's idioms seen played: a summoner's calls and its summons cut down, a pair enraged, a form become)
   const idioms = {};
+  // (the blows taken at each stop, the boss's the last: where a street hurts)
+  const byStop = [];
   for (let f = 0; f < limit && !room.yard.over; f++) {
     const buttons = Array.from({ length: P }, (_, i) => (player === 'still' ? {} : player === 'hero' ? heroButtons(room, i, f) : basicButtons(room, i, f)));
     room = stepYard(room, buttons);
     for (const e of room.s.events) {
-      if (e.t === 'hit' && e.d !== undefined && e.d < P) struck++;
+      if (e.t === 'hit' && e.d !== undefined && e.d < P) { struck++; const w = room.mind.wave ?? 0; byStop[w] = (byStop[w] ?? 0) + 1; }
       if (e.t === 'hit' && e.p !== undefined && e.p < P) landed++;
       if (e.t === 'cleared') cleared++;
       if (e.t === 'power' && e.p < P) powers++;
@@ -103,7 +105,7 @@ export function playStreet(yard, { player = 'basic', seconds = 240 } = {}) {
   const over = room.yard.over, of = room.mind.waves.length;
   return {
     player, outcome: over, won: over === 'won', frames: room.s.f, seconds: Math.round(room.s.f / 6) / 10, falls: room.yard.falls, stakes: room.yard.stakes,
-    stops: { cleared, of }, boss, struck, landed, ...(powers ? { powers } : {}), ...(Object.keys(idioms).length ? { idioms } : {}),
+    stops: { cleared, of }, boss, struck, taken: Array.from({ length: of }, (_, k) => byStop[k] ?? 0), landed, ...(powers ? { powers } : {}), ...(Object.keys(idioms).length ? { idioms } : {}),
     reason: over === 'won' ? 'the last wave fell' : over === 'lost' ? `fell ${room.yard.falls} times, the last one allowed` : `the clock ran out at stop ${Math.min(of, room.mind.wave + 1)} of ${of}`,
   };
 }
