@@ -59,6 +59,10 @@
  *     it again (brawl-crowd.js). A body with no stock throws its power freely (a villain's). Its SUPER BEAT: a power move
  *     with a `freeze` holds the whole street still that many frames as it starts, as a fight super does. A round of a power's passes
  *     through its `hits` bodies on its line, and one whose projectile says `knock: 'down'` floors each it meets.
+ *   • A BLOW'S ENERGY (brawl-kinetics.js, rupa's knockback; a move's or a round's `kin` { kinetic?, impact?, lift? }, a
+ *     power's): the struck body thrown by its mass (light bodies fly, heavy ones stagger), and an impact's shock where it
+ *     first lands, each body near taking its frontal area's share at its distance; a thrown body slides on after it lands.
+ *     A blow with no `kin` is as it was.
  *   • COOLDOWN: a move with a `cool` (the brawler's strong blows) leaves its body unable to start another with one for
  *     `cool` frames from its start (`cd`, frames left; absent when none); asked for meanwhile, it is not started.
  *   • WAKE-UP: a body rising from the floor is untouchable `wake` frames more, so a crowd cannot keep it down.
@@ -114,6 +118,7 @@ import { METER_MAX, STATES } from '../versus/versus-library.js';
 import { beltScroll, beltBounds } from './brawl-belt.js';
 import { THINGS, MOUNTS } from './brawl-things.js';
 import { roundsOf, aimVector, GUN_MUZZLE } from './brawl-guns.js';
+import { kick, landSlide, slideOn } from './brawl-kinetics.js';
 
 export const BRAWL_RULES = Object.freeze({
   line: 320,        // mm across the belt a blow reaches: two bodies further apart than this are not lined up
@@ -419,7 +424,7 @@ function think(s, p, pad, ctx) {
 
 function start(s, p, F, slot) {
   const m = F.moves[slot];
-  p.mv = slot; p.mf = 0; p.conn = 0; p.hl = []; p.air = 0; delete p.cl;
+  p.mv = slot; p.mf = 0; p.conn = 0; p.hl = []; p.air = 0; delete p.cl; delete p.kd;
   if (m.cool) p.cd = m.cool;
   if (m.stance === 'air') {
     p.airMove = 1;
@@ -524,13 +529,14 @@ function advance(s, p, ctx) {
     case 'fall':
       fall(p, J.g);
       if (p.y <= 0 && p.vy < 0) {
+        landSlide(p);
         p.y = 0; p.vy = 0; p.vx = 0; p.vz = 0; p.st = p.ko ? 'ko' : 'down'; p.sf = 0;
         delete p.fl; delete p.fh;
         s.events.push({ t: 'land', p: p.id, x: p.x, z: p.z });
       }
       break;
-    case 'ko': if (p.side === 'crowd' && p.sf >= R.vanish) { p.gone = 1; s.events.push({ t: 'gone', p: p.id }); } break;
-    case 'down': if (p.sf >= R.down) { p.st = 'rise'; p.sf = 0; } break;
+    case 'ko': slideOn(p); if (p.side === 'crowd' && p.sf >= R.vanish) { p.gone = 1; s.events.push({ t: 'gone', p: p.id }); } break;
+    case 'down': slideOn(p); if (p.sf >= R.down) { p.st = 'rise'; p.sf = 0; delete p.sx; delete p.sz; } break;
     // (risen: untouchable a while more, so a crowd cannot keep a body on the floor)
     case 'rise': if (p.sf >= R.rise) { p.st = 'stand'; p.sf = 0; p.inv = R.wake; } break;
     case 'throwing': {
@@ -544,7 +550,7 @@ function advance(s, p, ctx) {
 
 function shoot(s, p, m) {
   const fr = m.frames[m.startup], [sx, sy] = fr.spawn ?? [400, 1200], P = m.projectile;
-  s.shots.push({ id: s.nextShot++, o: p.id, side: p.side, x: p.x + sx * p.face, z: p.z, y: p.y + sy + P.y, vx: P.speed * p.face, w: P.w, h: P.h, life: P.life, hits: P.hits, rehit: P.rehit, hitAt: -999, dmg: P.damage, hitstun: P.hitstun, hitstop: P.hitstop, push: P.push, sup: m.kind === 'super' ? 1 : 0, meter: m.meter ?? 0, hl: [], ...(P.knock ? { knock: P.knock } : {}) });
+  s.shots.push({ id: s.nextShot++, o: p.id, side: p.side, x: p.x + sx * p.face, z: p.z, y: p.y + sy + P.y, vx: P.speed * p.face, w: P.w, h: P.h, life: P.life, hits: P.hits, rehit: P.rehit, hitAt: -999, dmg: P.damage, hitstun: P.hitstun, hitstop: P.hitstop, push: P.push, sup: m.kind === 'super' ? 1 : 0, meter: m.meter ?? 0, hl: [], ...(P.knock ? { knock: P.knock } : {}), ...(P.kin ? { kin: P.kin } : {}) });
 }
 
 // a throw's end: the held body flung away (behind on a back throw), hurt, a blow of its own until it lands
@@ -927,6 +933,14 @@ function blow(s, ctx, { a: p, d, m, shot, at, box }) {
   const limb = shot ? 'shot' : m.armed ? 'blade' : LIMBS[m.limb.replace(/[FB]$/, '')] ?? 'fist';
   s.events.push({ t: counter ? 'counter' : 'hit', p: p.id, d: d.id, dmg, x: at[0], z: d.z, y: at[1], combo: d.combo, w, limb, kind: shot ? (shot.gun !== undefined ? 'round' : 'shot') : m.kind, ...(gunId ? { gun: gunId, flinch: 1 } : {}) });
   if (d.hp <= 0) knockOut(s, d, face);
+  // (A BLOW'S ENERGY, rupa's knockback (brawl-kinetics.js): the struck body thrown by its mass, and an impact's shock
+  // where the blow first lands (a round's at its contact, a move's round its thrower), once a round or a move; a body it
+  // has just knocked out is thrown with the rest: the fallen fly)
+  if (src.kin) {
+    const first = shot ? !shot.kd : !p.kd;
+    if (shot) shot.kd = 1; else p.kd = 1;
+    kick(s, ctx, { by: p, hit: d, kin: src.kin, from: first ? (shot ? { x: at[0], z: d.z } : { x: p.x, z: p.z }) : null, face, touchable: (o) => (o.ko && !o.gone) || !untouchable(o, ctx.fighters[o.fi], 'strike') });
+  }
 }
 
 /** riding along the street: on at its mount's speed, steering onto its target's line while it comes at it, turning past

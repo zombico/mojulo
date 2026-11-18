@@ -721,6 +721,14 @@ function flash(e, heavy, spark = false, colour = null) {
   // (a round's spark small and quick; a blow's flash; a heavy one's, or a burst's, big)
   YARD.add(m); FLASHES.push({ m, k: 0, n: spark ? 5 : heavy ? 12 : 8, r: spark ? 0.14 : heavy ? 0.45 : 0.3 });
 }
+// A DUST RING where an impact meets the ground (brawl-kinetics.js, rupa's knockback: the ground's share of a power's
+// impact), running out as wide as the cube root of that share, as rupa's own page draws it
+const DUST_GEO = new THREE.RingGeometry(0.55, 1, 40);
+function dustRing(e) {
+  const m = new THREE.Mesh(DUST_GEO, new THREE.MeshBasicMaterial({ color: 0xcdbfa6, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide }));
+  m.position.set(e.x / 1000, (e.z ?? 0) / 1000 + DR(e.x), 0.02 + FL(e.x));
+  YARD.add(m); FLASHES.push({ m, k: 0, n: 26, r: 0.25 * Math.cbrt(Math.max(1, e.ground) / 1000) });
+}
 // IMPACT FRAMES: the picture flashed for a heavy landing (inverted under the anime register, white otherwise)
 const IMPACT = (() => {
   const d = document.createElement('div');
@@ -951,6 +959,7 @@ function tick() {
   for (const e of room.s.events) {
     if (e.t === 'hit') flash(e, (e.w ?? 1) >= 2, e.kind === 'round' && !e.flinch);
     if (e.t === 'clash') flash(e, true);
+    if (e.t === 'impact') dustRing(e);
     // (a hero's power: a burst in its colour where it is called up; and its SUPER BEAT on the lens, round whoever calls
     // it up, the street held still for it: the power's own screen (brawl-powers.js `beat`), a fight super's its negative)
     if (e.t === 'power') flash({ ...e, y: 1000 }, true, false, powerColour(e.p));

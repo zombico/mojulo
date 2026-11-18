@@ -41,6 +41,15 @@
   Every other street's page is unchanged. Measured with the freeze in: one hero still wins the default street alone
   with each power, losing two or three of five falls, and four heroes lose one. Seen in headless Chrome: the street
   held, and the air round the hero inked as the ball of force was called up.
+- **Powers throw bodies by their weight.** Some powers now carry energy as well as damage, by the studio's own
+  destruction physics: a blow is measured in joules and a body holds by its footing. What gets past the footing
+  throws it, so a light grunt flies and a heavy brute only staggers under the same blast. The beam and the flame shove
+  whoever they hit along the line. The ball of force and the storm strike the ground: the ground takes most of the
+  blow, shown as a ring of dust where it landed, and the rest throws everyone near, harder the nearer they stand. A
+  body thrown down flies, lands and slides to a stop. An enemy a power has just finished off is thrown with the rest.
+  A villain's power throws your heroes the same way. The motion plays at a beat-em-up's pace, so nobody is thrown
+  off the screen. The other powers move bodies as before. Measured: each power still wins the default street alone,
+  losing two or three of five falls, and four heroes lose none.
 - **A power's round can floor what it hits.** A special's projectile now knocks down when its move says so, and a
   power's round passes through as many bodies as its card says. Before, a projectile knocked nobody down and
   stopped at the first body.

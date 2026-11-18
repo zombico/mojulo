@@ -1628,6 +1628,7 @@ function heroesCard() {
     'THE SUPERHERO BEAT-EM-UP: the side-scroll beat-em-up tuned for heroes. Every player a hero with ONE power on the special',
     '(S; a few uses a life, filled at each fall), an army that drops in and falls fast, five falls, a villain with a power, in stages.',
     'A power called up is a SUPER BEAT: the street held still a moment, the air round the caster lit, bent, darkened or inked.',
+    `Its ENERGY is rupa's knockback (joules: light bodies fly, heavy ones stagger; an impact's shock falls off with distance): ${POWER_IDS.filter((id) => POWERS[id].knock).map((id) => `${id} ${POWERS[id].knock.kinetic ? 'pushes' : 'lands'}`).join(', ')}.`,
     '',
     'ASK FIRST, before making it (the heroes and their powers are the person\'s to design; offer the defaults if they have none):',
     '  1. who the heroes are (1..4): a name and a sentence each (who they are, how they look), or ones already made',

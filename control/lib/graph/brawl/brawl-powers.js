@@ -10,11 +10,15 @@
  * stock. Its LOOK is a beam of the elements' shelf (playscape/elements/beams.js BEAMS: the same words the game book's
  * actions page writes a power's `attack` in), whose colour the page draws it in.
  *
- *   POWERS[id] = { says, beam, stock, special, pierce?, beat }
+ *   POWERS[id] = { says, beam, stock, special, pierce?, beat, knock? }
  *     beam     its look, a BEAMS word (the colour it is drawn in; a hero's own `attack` in its place)
  *     stock    its uses a life (1 to 9): spent as it starts, filled again at a fall (brawl-crowd.js)
  *     special  the move: { from, …its changes } over the shipped special, as a recipe's library writes one
  *     pierce   the bodies its round passes through on its line (a projectile's; one unsaid, the fight's)
+ *     knock    its ENERGY, rupa's knockback (brawl-kinetics.js): { kinetic?, impact?, lift? } in joules at a hero's tier
+ *              (rupa's `heroic`, ten times a person's blow): a kinetic push on what it strikes (the beam, the flame), an
+ *              impact's shock where it lands (the nova) or round its caster (the storm). Light bodies fly, heavy ones
+ *              stagger; the shock falls off with distance. A card with none moves bodies as the fight's blows do
  *     beat     its SUPER BEAT, the moment it is called up: { freeze, screen } the street held still `freeze` frames
  *              (brawl-core.js, a fight super's freeze), and the camera's glass round the caster for it, `screen` a lens
  *              strike's kind (mana-ui's lens: lift, ring, shade, ink). Read while every figure stands still, which is
@@ -50,20 +54,20 @@ export const POWERS = Object.freeze({
   // ── AT RANGE: a round down the street, through what is lined up on it ──
   beam: card('a beam from the eyes or the hands: there almost at once, down the street\'s whole length, through every body lined up on it', 'ray', 3,
     { from: 'fireball', says: 'the hero\'s beam: fast and long, it passes through the line', damage: 170, projectile: { w: 900, h: 260, y: -260, life: 70 }, at: { speed: 150, startup: 10, recovery: 26 }, hitstop: 8, push: 220, knock: 'down' },
-    { pierce: 6, beat: beat(8, 'lift') }),
+    { pierce: 6, beat: beat(8, 'lift'), knock: Object.freeze({ kinetic: 3000, lift: 0.1 }) }),
   nova: card('a great ball of force raised and sent slowly down the street: it floors everything it meets on its way', 'nova', 2,
     { from: 'fireball', says: 'the hero\'s nova: slow and huge, it floors all it meets', damage: 260, projectile: { w: 700, h: 700, y: -500, life: 150 }, at: { speed: 40, startup: 18, recovery: 30 }, hitstop: 12, push: 300, knock: 'down' },
-    { pierce: 8, beat: beat(16, 'ink') }),
+    { pierce: 8, beat: beat(16, 'ink'), knock: Object.freeze({ impact: 80000, lift: 0.4 }) }),
   barrage: card('a fistful of charged darts or cards flung down the street: quick to throw, through the first few bodies', 'barrage', 4,
     { from: 'boom', says: 'the hero\'s barrage: quick, through a few', damage: 130, projectile: { w: 500, h: 300, y: -260, life: 90 }, at: { speed: 95, startup: 8, recovery: 20 }, hitstop: 8, push: 200 },
     { pierce: 3, beat: beat(6, 'lift') }),
   flame: card('a gout of fire thrown from the hand: it burns through the first bodies it meets and knocks them down', 'fireball', 3,
     { from: 'fireball', says: 'the hero\'s flame', damage: 180, projectile: { w: 600, h: 320, y: -260, life: 80 }, at: { speed: 80, startup: 11, recovery: 26 }, hitstop: 10, push: 240, knock: 'down' },
-    { pierce: 2, beat: beat(8, 'lift') }),
+    { pierce: 2, beat: beat(8, 'lift'), knock: Object.freeze({ kinetic: 2000, lift: 0.3 }) }),
   // ── ALL ROUND: the crowd that surrounds the hero ──
   storm: card('lightning called down all round: untouchable while it strikes, it floors every body near, before and behind', 'lightning', 2,
     { from: 'whirl', says: 'the hero\'s storm: all round, untouchable, it floors what is near', price: undefined, at: { damage: 200, startup: 6, active: 20, recovery: 22 }, push: 420 },
-    { beat: beat(14, 'ink') }),
+    { beat: beat(14, 'ink'), knock: Object.freeze({ impact: 200000, lift: 0.5 }) }),
   // ── CLOSE: through the crowd, or a body taken ──
   frenzy: card('a berserk rush: on down the street through the crowd, a run of cuts that floors whoever it reaches, unstoppable', 'barrage', 3,
     { from: 'rush', says: 'the hero\'s frenzy: a rush of cuts that does not flinch', hits: 4, armor: [1, 23, 3], at: { damage: 220, startup: 8, active: 16, recovery: 20, travel: 120 }, knock: 'down', push: 300 },
@@ -174,7 +178,9 @@ export function powerMoves(F, power) {
     if (m.kind !== 'special' || m.id !== libId(id)) continue;
     // (a round's pierce, and its knock where the card floors what it meets: a projectile's own stun is the fight's)
     // (its super beat: the street held still as it starts, brawl-core.js)
-    out[slot] = { ...m, power: 1, ...(P.beat.freeze ? { freeze: P.beat.freeze } : {}), ...(m.projectile && (pierce || P.special.knock === 'down') ? { projectile: { ...m.projectile, ...(pierce ? { hits: pierce } : {}), ...(P.special.knock === 'down' ? { knock: 'down' } : {}) } } : {}) };
+    // (and its energy, rupa's knockback (brawl-kinetics.js): on the move, and on its round where it throws one)
+    const kin = P.knock ? { kin: P.knock } : {};
+    out[slot] = { ...m, power: 1, ...(P.beat.freeze ? { freeze: P.beat.freeze } : {}), ...(m.projectile ? {} : kin), ...(m.projectile && (pierce || P.special.knock === 'down' || P.knock) ? { projectile: { ...m.projectile, ...(pierce ? { hits: pierce } : {}), ...(P.special.knock === 'down' ? { knock: 'down' } : {}), ...kin } } : {}) };
   }
   return out;
 }

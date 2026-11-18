@@ -46,7 +46,7 @@ const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 
 // (the order matters: each module only uses names from the ones before it)
 export const BRAWL_VERSUS_MODULES = Object.freeze(['versus-rig.js', 'versus-library.js', 'versus-traditions.js', 'versus-react.js', 'versus-fx.js', 'versus-compile.js', 'versus-input.js', 'versus-cpu.js', 'versus-solver.js', 'versus-figure.js']);
-export const BRAWL_PAGE_MODULES = Object.freeze(['brawl-belt.js', 'brawl-things.js', 'brawl-guns.js', 'brawl-core.js', 'brawl-moves.js', 'brawl-gunner.js', 'brawl-powers.js', 'brawl-crowd.js', 'brawl-waves.js', 'brawl-practice.js', 'brawl-street-read.js', 'brawl-scenes.js', 'brawl-pose.js', 'brawl-yard-read.js']);
+export const BRAWL_PAGE_MODULES = Object.freeze(['brawl-belt.js', 'brawl-things.js', 'brawl-guns.js', 'brawl-kinetics.js', 'brawl-core.js', 'brawl-moves.js', 'brawl-gunner.js', 'brawl-powers.js', 'brawl-crowd.js', 'brawl-waves.js', 'brawl-practice.js', 'brawl-street-read.js', 'brawl-scenes.js', 'brawl-pose.js', 'brawl-yard-read.js']);
 
 /** The names a module exports (one per `export function|const|let|class` line). */
 export function exportsOf(src) {
