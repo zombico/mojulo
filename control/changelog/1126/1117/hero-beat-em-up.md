@@ -81,7 +81,10 @@
   Measured with the simple player, one hero alone beats each villain at the end of the lair. Against the mastermind,
   the juggernaut, the twins, the warlord, the speedster and the tempest it fell 0, 1, 1, 1, 0 and 1 times of five. Each
   fight's way was seen: the mastermind's drones were summoned and cut down, the juggernaut and the tempest changed
-  form, and one twin enraged. Nobody has played them by hand yet, and none was looked at on the page.
+  form, and one twin enraged. Seen on the page in headless Chrome, in a game built from scratch: in the lair, Doctor
+  Umbra (the mastermind) under its bar of three acts called two drones that stood on the street; cut down, both drones
+  fell with it and the street was cleared, with no page errors. The drones are drawn as the army's own soldiers, so on
+  the page they do not yet look summoned. Nobody has played the villains by hand yet.
 - **The producer knows the superhero variant.** Asking for "a superhero beat em up" now picks the beat-em-up's heroes
   variant by name, with its own plan of steps. That plan asks who the heroes are, each one's power and the villain
   first, before anything is made, for a quick game and a designed one alike. A designed game started from it gets
