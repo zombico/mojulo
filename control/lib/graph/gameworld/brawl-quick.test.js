@@ -1,10 +1,12 @@
 // A WORLD THAT IS A BRAWLER (quick goal `brawl`, quick.js; runner.js): its players made as a fight's are, its streets
 // its levels (each a brawl level with its waves and the hosted level's contract), the game in the play shell.
 import { describe, it, expect } from 'vitest';
-import { quickWorld, brawlStreets, defaultWaves, defaultThings, defaultScenes, BRAWL_SCENES, brawlSetup, brawlGuns, QUICK_GUNS, brawlCrowd, crowdTypeOf, BRAWL_STREET, BRAWL_FACTION, QUICK_GOALS, readHeroes, HERO_TEAM, HERO_ARMY, HERO_VILLAINS } from './quick.js';
+import { quickWorld, brawlStreets, defaultWaves, defaultThings, defaultScenes, BRAWL_SCENES, brawlSetup, brawlGuns, QUICK_GUNS, brawlCrowd, brawlBody, crowdTypeOf, BRAWL_STREET, BRAWL_FACTION, QUICK_GOALS, readHeroes, HERO_TEAM, HERO_ARMY, HERO_VILLAINS } from './quick.js';
 import { POWER_IDS } from '../brawl/brawl-powers.js';
 import { TUNINGS } from '../brawl/brawl-tunings.js';
 import { runSteps } from './runner.js';
+import { egocubeCreate, rollStored } from '../egocube/kind.js';
+import { validateHeroSpec } from '../../mcp/tools/layered.js';
 import { brawlPreset } from '../brawl/brawl-levels.js';
 import { GENRES } from '../egocube/setting.js';
 import { readFlow } from '../game/flow.js';
@@ -284,5 +286,20 @@ describe('a heroes brawl designed', () => {
     expect(steps.find((s) => s.key === 'game').laws).toBeUndefined();
     const heavy = runSteps(world({ heroes: { team: [{ power: { kind: 'beam', strength: 200, stock: 9 } }] } }), { ref: 'gw' }).find((s) => s.key === 'game');
     expect(heavy.laws[0]).toMatchObject({ concern: 'balance', law: 'power', holds: false });
+  });
+});
+
+// AN ANIME BRAWL: its fighters rolled in the anime tradition keep the anime head on the brawler's body, so the hero door
+// takes them (the western head refuses the anime head's hair, face and expression)
+describe('an anime brawl', () => {
+  it('its fighters keep the anime head the sheet was rolled for, and the hero door takes them; a western one keeps the western', () => {
+    const roll = (tradition) => egocubeCreate(rollStored({ kind: 'egocube', roll: { brief: 'a courier who outran lightning', facets: { pole: 'male' }, seed: 3, setting: { tradition } } }));
+    for (const [tradition, head] of [['anime', 'anime'], ['western', 'landmark']]) {
+      const C = roll(tradition), spec = { ...C.create.spec, ...brawlBody(C) };
+      expect(spec.head, tradition).toBe(head);
+      expect(validateHeroSpec(spec), tradition).toEqual([]);
+    }
+    const steps = runSteps(world({ register: 'anime', roster: [ME] }), { ref: 'gw' });
+    expect(steps.find((s) => s.key === 'fighter-fighter-1').order.spec.head).toBe('anime');
   });
 });

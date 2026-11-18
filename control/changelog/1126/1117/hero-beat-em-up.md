@@ -57,6 +57,10 @@
   easier. Seen on the page in headless Chrome: the beam flew in its colour down the line and hit, the storm flashed
   around the hero, the pips went from three to two, the heroes card's five hearts showed, and the page had no
   errors.
+- **Fixed: a beat-em-up in the anime look could not be made.** Its heroes were drawn from an anime character
+  sheet (anime hair, face and expressions) and then given the western head, which turned those words down, so making
+  the game stopped with an error. An anime beat-em-up's heroes now keep the anime head on the brawler's body. A
+  western one is unchanged.
 - **Not yet:** the coin-op's foot soldiers were robots, and only a person's body stands on a street, so the army
   is people. The team is four, the street's seats, not six. A power has no fallback when its uses run out (it
   simply does not fire). Nobody has played it: the simple player shows a street can be won, not that it is fun.

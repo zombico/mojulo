@@ -1059,11 +1059,14 @@ const BRAWLER_BODY = (pole, heavy) => ({ head: 'landmark', animeBody: (heavy ? {
 /** A BRAWLER'S BODY over its sheet's person (the hero door's words): the anime frame's muscular bodies (anime-bodies.js:
  * the base pair, the hulking pair for a heavy) in their muscular form (the muscle shirt, every muscle drawn), under the
  * WESTERN head (the landmark head: styled, never the anime head and never the realistic one). `created` is the sheet's
- * own create order (egocube/kind.js egocubeCreate); null for one that is not a person. */
+ * own create order (egocube/kind.js egocubeCreate); null for one that is not a person. A sheet rolled in the anime
+ * tradition keeps the anime head (an anime brawl's: the western head refuses that head's hair, face and expression). */
 export function brawlBody(created, heavy = false) {
   if (created?.create?.as !== 'hero') return null;
   const base = created.create.spec ?? {}, pole = (typeof base.cast === 'string' ? base.cast : base.cast?.pole) === 'female' ? 'female' : 'male';
-  return BRAWLER_BODY(pole, heavy);
+  // (a sheet rolled in the ANIME tradition (an anime brawl's `register`) keeps the anime head: its hair, its face and its
+  // expression are that head's words, which the western head refuses, and the brawler's bodies are the anime frame's own)
+  return base.head === 'anime' ? { ...BRAWLER_BODY(pole, heavy), head: 'anime' } : BRAWLER_BODY(pole, heavy);
 }
 /**
  * HOW A MAP IS PLAYED, laid (brawl/brawl-play.js, the play types): the street's words for its play, and what holds it
