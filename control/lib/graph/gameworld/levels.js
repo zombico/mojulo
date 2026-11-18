@@ -204,7 +204,7 @@ export function gameStages(world) {
     }
     if (R.glyphs) { out.push({ level, node: 'map', section: 'map', index: 0, manifest: { kind: 'map', level: R.glyphs } }); continue; }
     // a geocity level is one stage: the district on its cube (geocity/scene.js: an evocation), walked from its streets
-    if (R.geocity) { out.push({ level, node: 'district', section: 'geocity', index: 0, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...(R.geocity.hour !== undefined ? { hour: R.geocity.hour } : {}) } }); continue; }
+    if (R.geocity) { out.push({ level, node: 'district', section: 'geocity', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...(R.geocity.hour !== undefined ? { hour: R.geocity.hour } : {}) } }); continue; }
     // a geotown level is one stage: the town on its cube (geotown/scene.js), walked from its streets
     if (R.geotown) {
       out.push({ level, node: 'town', section: 'geotown', index: 0, manifest: { kind: 'geocube', cube: R.geotown.cube, show: 'geotown', seed: R.seed, geotown: R.geotown.spec, ...(R.geotown.hour !== undefined ? { hour: R.geotown.hour } : {}), ...(R.geotown.enter?.length ? { enter: [...R.geotown.enter] } : {}) } });

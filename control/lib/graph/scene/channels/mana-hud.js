@@ -160,7 +160,8 @@ ${race ? `    // (a race's lights: the karts held and the race's clock frozen, t
     h.rest = share >= 1 && clock - calm.hpT > 3;
     // the gun in hand: its slot on the loadout, else the weapon it carries
     const lo = me.rule && me.rule.loadout, slot = lo ? lo[me.loadoutIdx || 0] : null, w = me.weapon, G = st.gun;
-    G.on = !!(slot || w);
+    // (a holstered sidearm, the open city's: its readout only while it is drawn, worlds/controllable/combat-melee.js gunOut)
+    G.on = !!(slot || w) && !(me.rule && me.rule.holster && !me.gunOut);
     if (G.on) {
       const melee = !!(slot && (slot.fire === 'melee' || slot.strike) && !slot.weapon);
       G.name = (slot && slot.name) || (w && w.name) || '';

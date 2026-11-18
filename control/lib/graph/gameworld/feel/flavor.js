@@ -295,7 +295,7 @@ export function signature(R, rendered, { take = null } = {}) {
 export const GENRE_FLAVOR = Object.freeze({
   pinball: ['racing', 'kart-racer', 'endless-runner', 'rhythm'],
   platformer: ['collectathon', 'metroidvania', 'pixel-puzzle', 'block-puzzle', 'match-3-saga'],
-  action: ['dungeon-crawler', 'top-down-adventure', 'arena-brawler', 'versus-fighter', 'city-stalker', 'roguelike', 'jrpg', 'arena-shooter'],
+  action: ['dungeon-crawler', 'top-down-adventure', 'arena-brawler', 'versus-fighter', 'city-stalker', 'open-city-crime', 'roguelike', 'jrpg', 'arena-shooter'],
   // a sport starts at the simulation end of its register ladder (the body on earth, the ball in real air); the operator's
   // word moves it toward the arcade (a cartoon tennis is `action`)
   realistic: ['shooter', 'survival-horror', 'story-adventure', 'stealth', 'farming', 'tactics', 'rts', 'tower-defense', 'flight-sim', 'air-combat', 'space-shooter', 'athletics-meet', 'net-game', 'turn-sport', 'team-goal-game'],

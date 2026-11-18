@@ -519,6 +519,21 @@ export const FIXTURES = Object.freeze([
       time: { progression: 'gated' },
     },
   },
+  // the open city's crime game (11-18): the city as a sandbox on foot and at the wheel, the law answering what is done in it
+  {
+    id: 'open-city-crime',
+    name: 'Open city crime',
+    anchor: false,
+    why: 'a city roamed on foot and in any car taken: jobs for a contact told as missions, a wanted level and the police after it, shops to spend in, the street alive around it',
+    cube: {
+      reality: { medium: '3d', look: 'city-night' },
+      space: { camera: 'third-person', topology: 'interconnected', levelForm: 'city', places: 'street' },
+      power: { idiom: 'city-stalker-like', rules: ['walk', 'drive', 'chaser'], combat: ['melee', 'ranged'], gunplay: 'arcade', mechanics: ['wanted', 'vitals', 'respray', 'gunshop', 'mission', 'deliver', 'offer', 'join', 'act', 'bag'] },
+      soul: { hero: 'hero', people: ['human'] },
+      mind: { motivation: 'guard', aggressiveness: 'opportunist', perception: 'sight', foes: ['pursuer'], social: 'schedule' },
+      time: { progression: 'map', sequence: ['screens', 'in-play'], advance: 'quests' },
+    },
+  },
   // PLAYING TOGETHER (docs/local-multiplayer-principles.md): several players at one machine, one shared screen. Reference
   // points of the seat settings, not products: each waits on the values it asks for, and the sweep ranks them.
   {

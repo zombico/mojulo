@@ -47,7 +47,7 @@ export const INTENT_LOOKS = Object.freeze({
   'arena-brawler': 'arcade', 'versus-fighter': 'arcade', 'arena-shooter': 'arcade', 'space-shooter': 'arcade', 'pixel-puzzle': 'arcade', 'block-puzzle': 'arcade', 'endless-runner': 'arcade', rhythm: 'arcade',
   'co-op-brawler': 'street', 'co-op-scroller': 'street',
   // (a look may be a card: a city's open world at night, theme-cards/downtown.json)
-  'city-stalker': 'downtown',
+  'city-stalker': 'downtown', 'open-city-crime': 'downtown',
   shooter: 'mecha', 'air-combat': 'mecha', 'flight-sim': 'mecha', 'driver-and-gunner': 'mecha', 'split-deathmatch': 'mecha', stealth: 'terminal',
   'party-mash': 'idol', 'co-op-kitchen': 'idol', 'match-3-saga': 'idol', collectathon: 'idol', 'co-op-platformer': 'idol', 'kart-racer': 'idol',
   farming: 'storybook', 'top-down-adventure': 'storybook', 'action-rpg': 'storybook', metroidvania: 'console',

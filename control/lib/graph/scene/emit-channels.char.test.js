@@ -35,6 +35,8 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-18 (Hijack City, mana-ui's magazine): `brawl`, `mission` and `holo`, the pages that embed the game UI
+// runtime whole. Its magazine says "No ammo" for a gun empty with none in reserve (kernel.js: one word, one condition).
 // Re-pinned 2026-11-18 (the release candidate merged into gen 7's city): the candidate's pins moved by this branch's
 // emission changes since the last merge: the passers-by drawn where seen and one mesh each (channels/walkers.js), the
 // occlusion prepass's reach (channels/creases.js), the cab's sounds (channels/audio.js), the level's save and the event

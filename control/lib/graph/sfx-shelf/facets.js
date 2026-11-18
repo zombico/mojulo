@@ -56,7 +56,7 @@ const G = {
   fight: ['versus-fighter', 'arena-brawler', 'co-op-brawler', 'stylish-action', 'cinematic-action'],
   mecha: ['shooter', 'arena-shooter', 'run-and-gun'],
   rhythm: ['rhythm'],
-  city: ['city-stalker', 'open-adventure', 'demolition'],
+  city: ['city-stalker', 'open-city-crime', 'open-adventure', 'demolition'],
 };
 export const GENRE_GROUPS = Object.freeze(Object.fromEntries(Object.entries(G).map(([k, v]) => [k, Object.freeze(v)])));
 const g = (...groups) => [...new Set(groups.flatMap((x) => G[x]))];

@@ -148,7 +148,7 @@ export function buildManaUi() {
     party: 'Party', hp: 'HP', mp: 'MP', sp: 'SP', status: 'Status', attack: 'Attack', defence: 'Defence', magic: 'Magic', speed: 'Speed', equip: 'Equip', nothingWorn: 'Nothing worn', skills: 'Skills', noSkills: 'No skills yet',
     cost: 'Cost', levelUp: 'Level up', level: 'Level', weight: 'Weight', kg: 'kg', slots: 'Slots', swapFor: 'Swap for', nothingFits: 'Nothing fits this slot',
     gold: 'Gold', goldMark: 'G', held: 'Held', buy: 'Buy', sell: 'Sell', nothingToSell: 'Nothing to sell', quests: 'Quests', steps: 'Steps',
-    ammo: 'Ammo', reload: 'Reload', reloading: 'Reloading', lowAmmo: 'Low ammo', time: 'Time', score: 'Score', lv: 'Lv', range: 'Range', super: 'Super', hits: 'hits', pos: 'Pos', lap: 'Lap', best: 'Best',
+    ammo: 'Ammo', reload: 'Reload', noAmmo: 'No ammo', reloading: 'Reloading', lowAmmo: 'Low ammo', time: 'Time', score: 'Score', lv: 'Lv', range: 'Range', super: 'Super', hits: 'hits', pos: 'Pos', lap: 'Lap', best: 'Best',
     move: 'Move', atk: 'Atk', rng: 'Rng', forecast: 'Forecast', wave: 'Wave', lives: 'Lives', seen: 'Seen', map: 'Map', cancel: 'Cancel', headToHead: 'Head to head',
     turnOrder: 'Turn order', foes: 'Foes', command: 'Command', act: 'Act', close: 'Close', queue: 'Queue', orders: 'Orders',
     // a table's (idioms-table.js) and a skirmish's (idioms-live.js)
@@ -749,14 +749,16 @@ export function buildManaUi() {
             const counted = size > 0 || n > 0 || has(p.reserve) || p.reloading || p.endless;
             // (an endless gun, a sidearm that is never out: its figure ∞, no belt, never low or empty)
             const empty = counted && !p.endless && n === 0 && !p.reloading, low = !p.endless && !empty && !p.reloading && size > 0 && n <= p.low * size;
-            const call = p.reloading ? W('reloading') : empty ? W('reload') : low ? W('lowAmmo') : null;
+            // (empty with none in reserve: nothing to reload with, said so)
+            const dry = empty && has(p.reserve) && Number(p.reserve) === 0;
+            const call = p.reloading ? W('reloading') : dry ? W('noAmmo') : empty ? W('reload') : low ? W('lowAmmo') : null;
             return ['div', { class: cls, 'data-gun': iconName(has(p.gun) ? p.gun : p.name), 'data-low': low ? 'yes' : null, 'data-empty': empty ? 'yes' : null, 'data-reloading': p.reloading ? 'yes' : null },
               ['i', { class: 'mana-sil', 'aria-hidden': 'true' }],
               has(p.name) || has(p.mode) ? ['span', { class: 'mana-gun' }, has(p.name) ? ['span', null, p.name] : null, has(p.mode) ? ['b', { class: 'mana-mode' }, p.mode] : null] : null,
               counted ? ['span', { class: 'mana-rounds' }, ['span', { class: 'mana-num', ...chOf(c) }, p.endless ? '∞' : words(n)], has(p.reserve) ? ['span', { class: 'mana-reserve' }, words(p.reserve)] : null] : null,
               p.endless ? null : size > 0 && size <= 60 ? ['span', { class: 'mana-belt', 'data-round': has(p.round) ? iconName(p.round) : null, style: `width:calc(${Math.min(360, size * 13)} * var(--mana-du))` }, ...Array.from({ length: size }, (_, k) => ['i', { 'data-spent': k >= n ? 'yes' : null }])]
                 : size > 60 ? ['span', { class: 'mana-track' }, ['i', { style: `width:${pct(n / size)}` }]] : null,
-              call ? ['span', { class: 'mana-call', 'data-key': p.reloading ? 'reloading' : empty ? 'empty' : 'low' }, call] : null];
+              call ? ['span', { class: 'mana-call', 'data-key': p.reloading ? 'reloading' : dry ? 'dry' : empty ? 'empty' : 'low' }, call] : null];
           }
           case 'charge': {
             const r = clamp(Number(p.value) || 0, 0, 1);
