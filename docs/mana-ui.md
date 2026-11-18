@@ -935,11 +935,13 @@ host (`scene/channels/mana-hud.js`) runs a second runtime on its own kernel and 
   the world. The level's speakers sheet, `play.speakers: { <who>: { portrait: 'live' | 'none' } }`, shows a speaker by
   the box alone (`none`); a speaker with no body on the page, or one hidden (the player's in first person), has no face.
 - **A speaker's face says the line** (`playscape/ui/talk-lines.js`): a plain line said by a hero with a talking head
-  (the realistic face, or the anime face, which then plays on the page) is performed at build (`face-acting/perform.js`:
+  (the realistic face, or the anime or landmark face, which then plays on the page) is performed at build (`face-acting/perform.js`:
   its expression, its words lip-synced by `speech.js`, the blinks and gaze of a speaking face) into a face track on the
   speaker's figure, and the line gets a face-only take on its own clock (`talk:<scene>:<beat>`). The scene runner plays
   it as it plays a script's take; the page's face plays the track while it runs, in the world and in the portrait. A
-  script's lines keep their own takes; the landmark head's mouth is its jaw bone and does not talk yet.
+  script's lines keep their own takes. The landmark head says it too (`face-acting/western-read.js`): the take
+  read as the anime face reads it, its eyes, smile and brows on its targets, its mouth's vowels its jaw bone's degrees
+  (`face.jaws`), turned on the page about the head's own x as the rig's jaw chain turns it.
 - **Recorded voices, when the creator wants them.** A line's `voice` takes a WAV's path (the voice worker's, a native
   speech engine's, a person's): `create_sketch` / `update_sketch` bind it as a hero's recorded lines are bound
   (`face-acting/recordings.js` `bindSceneVoices`: saved by its content under the outcomes, timed by the engine's

@@ -273,7 +273,7 @@ function scenesCard() {
     '  stops at a choice: the answer is the player\'s.',
     'In a level whose HUD is the game\'s UI the box wears its look, and whoever speaks is drawn in it live, head and',
     '  shoulders. play.speakers: { <who>: { portrait: \'none\' } } shows one by the box alone (a scene already close on them).',
-    'A line said by a hero with a realistic or an anime head moves their face: the words lip-synced, under its expression',
+    'A line said by a hero (realistic, anime or landmark head) moves their face: the words lip-synced, under its expression',
     '  ({ line: { who, say, expression: \'worried\' } }: an emotion word). A script\'s lines keep their own takes.',
     'RECORDED, when the creator wants voices: { line: { who, say, voice: \'<a WAV path>\' } } (the voice worker makes one:',
     '  speak.py --text \'<say>\' --voice <id> --timings --out line.wav; or speak.mjs, its words aligned), saved and timed as',

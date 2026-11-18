@@ -14,10 +14,10 @@ boxes, or the same scene acted out in the world.
   what they do in the world (standing, breathing, acting a scene) is what the picture shows.
   - A level's speakers sheet can show someone by the box alone, for a scene that is already close on their face.
   - Someone with no body in the level, or the player seen from their own eyes, has no picture.
-- **Faces say their lines.** A character with a realistic or an anime face now moves their face as they speak: their
-  lips follow the words, their face takes the line's expression (worried, determined and so on), and they blink and
-  look as a speaking face does. It shows in the world and in the talk box's picture. Lines written as a script keep
-  the acting they already had. The default (landmark) face does not talk yet.
+- **Faces say their lines.** A character with a realistic, an anime or the default (landmark) face now moves their
+  face as they speak: their mouth follows the words, their face takes the line's expression (worried, determined and so
+  on), and they blink as a speaking face does. The default face opens its jaw on the words. It shows in the world and
+  in the talk box's picture. Lines written as a script keep the acting they already had.
 - **Recorded voices, if you want them.** A line can carry a recording (a WAV from the voice worker, another speech
   engine or a person). It is saved with the world, the level plays it as the line begins and stops it when the line
   moves on, and the speaker's lips follow the recording. A level can also note which voice each character is cast in.

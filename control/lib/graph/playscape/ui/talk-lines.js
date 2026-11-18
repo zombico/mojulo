@@ -14,8 +14,9 @@
  * take, where the words begin).
  *
  *   TALK_HEADS                         the heads whose face plays on the page as they speak: `relational` (the realistic
- *                                      face: the visemes on its FACS targets) and `anime` (its drawings: the mouth's vowels)
- *   talkHeadOf(hero)                   → 'relational' | 'anime' | null: a hero spec's talking head
+ *                                      face: the visemes on its FACS targets), `anime` (its drawings: the mouth's vowels)
+ *                                      and `landmark` (its drawings, the vowels its jaw bone's: face-acting/western-read.js)
+ *   talkHeadOf(hero)                   → 'relational' | 'anime' | 'landmark' | null: a hero spec's talking head
  *   linePerform(line)                  → the performance a line plays: { beats: [{ at, say, face? }], seconds }; null for a
  *                                      line with no words and no recording (a placeholder slot, `[Mayor: line 1]`)
  *   talkLines(manifest, program)       → { takes: [{ scene, beat, clip, figure, seconds, voice? }], byFigure: { <figure>:
@@ -32,7 +33,7 @@
 import { EMOTION_NAMES } from '../../face-acting/emotions.js';
 import { textTimeline } from '../../face-acting/speech.js';
 
-export const TALK_HEADS = Object.freeze(['relational', 'anime']);
+export const TALK_HEADS = Object.freeze(['relational', 'anime', 'landmark']);
 /** the line's words begin a breath in, and the face holds a moment after them */
 export const TALK_LEAD = 0.12, TALK_TAIL = 0.35;
 /** the words a box shows that are expressions under another name */
@@ -41,12 +42,14 @@ const EXPRESSION_ALIASES = Object.freeze({ happy: 'happiness', smiling: 'happine
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
-/** A hero spec's talking head: the realistic face, the anime face, or none (the landmark head's mouth is a bone). */
+/** A hero spec's talking head: the realistic face, the anime face, the landmark face, or none. */
 export function talkHeadOf(hero) {
   if (!isObj(hero)) return null;
-  // (the faces the World page plays: the realistic head's, named; the anime head's, drawn, never painted)
-  if (hero.head === 'anime' && !hero.painterly) return 'anime';
-  return hero.head === 'relational' ? 'relational' : null;
+  // (the faces the World page plays: the realistic head's, named; the anime head's, drawn, never painted; the landmark
+  // head's, drawn, its mouth its jaw bone)
+  if (hero.head === 'anime') return hero.painterly ? null : 'anime';
+  if (hero.head === 'relational') return 'relational';
+  return (hero.head ?? 'landmark') === 'landmark' ? 'landmark' : null;
 }
 
 /** The performance a line plays (see the header). */

@@ -30,8 +30,8 @@ beforeAll(() => {
 afterAll(() => { if (prevOut === undefined) delete process.env.MOJULO_OUTCOMES_DIR; else process.env.MOJULO_OUTCOMES_DIR = prevOut; if (dir) rmSync(dir, { recursive: true, force: true }); });
 
 const world = (voice) => ({
-  figures: { plain: { hero: { cast: 'male' } } },
-  entities: [{ id: 'mayor', body: { type: 'figure-rig', figure: 'plain' } }],
+  // (a speaker with no face to talk with: a box)
+  entities: [{ id: 'mayor', body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } }],
   play: { scenes: [{ id: 'gate', when: { start: true }, beats: [{ line: { who: 'mayor', say: 'The road is shut.', ...(voice !== undefined ? { voice } : {}) } }, { line: { who: 'mayor', say: 'Go home.' } }] }] },
 });
 
