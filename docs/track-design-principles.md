@@ -140,9 +140,14 @@ the track's line and ranks the field from it. Each item's weight is scaled betwe
 (`ITEM_BOXES.catchup`): the last mostly gets sugar rushes to come back with, and the leader mostly toffee to defend with
 and few boosts to run away on. `items: { catchup: false }` draws flat.
 
-The pilot uses its item on F (or right Shift, or the pad's left face), listed on the pause sheet's controls. Rivals use theirs by judgement: a boost at once,
-a toffee with a kart close behind, a gumball with one ahead in reach. The HUD has a held-item slot at the top's middle (its word over the item's name, a dash while empty).
-A new item is a row of a known kind on `ITEMS`.
+The pilot uses its item on F (or right Shift, or the pad's left face), listed on the pause sheet's controls. Rivals use
+theirs by judgement: a boost at once, a toffee with a kart close behind, a gumball with one ahead in reach.
+
+The HUD has a held-item slot at the top's middle, there all race: its word over the item's pictogram and name (a dash
+while it is empty) and the key beside a held one. Each item names its pictogram (`icon`, on the game UI's icon shelf: a
+wrapped sweet with a bolt through it, a toffee splat, a gumball), drawn in a colour the HUD's plate reads against: the
+sweet in the accent's lemon, as its burst is; the gumball in the sky, as it rolls; the splat in the cream ink. A new
+item is a row of a known kind on `ITEMS`, with its pictogram.
 
 ## The race's HUD
 

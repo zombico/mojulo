@@ -117,9 +117,15 @@ In progress. Built so far:
   flat). The pilot uses its item on F (or right Shift, or the pad's left face; the pilot scheme's `useItem`, on the pause
   sheet's controls), and rivals use theirs by judgement. The pause sheet lists the key on a race with boxes, and no
   longer lists the thrusters' F in a vehicle, where they never ran. The race HUD has a held-item slot at the top's
-  middle, there all race (its word over the item's name, a dash while empty, the key beside a held one), and the
-  kart's juice pulses while one is held. Run by one step inlined on the page as the boost pads' is (`scene/channels/controllable/kart-items-view.js`), emitted only on a
-  track with boxes. The roadway contract carries the rows.
+  middle, there all race (its word over the item's pictogram and name, a dash while empty, the key beside a held
+  one), and the kart's juice pulses while one is held. Run by one step inlined on the page as the boost pads' is
+  (`scene/channels/controllable/kart-items-view.js`), emitted only on a track with boxes. The roadway contract carries the rows.
+- **Built: a pictogram for each item.** Three join the game UI's icon shelf (`mana-ui/icons.js`): a wrapped sweet with
+  a bolt cut through it, a toffee splat with its droplets and shine, a gumball with its shine. The items name them,
+  and the item ids alias them. The held-item slot draws the pictogram beside the item's name. Candy Kart now draws its
+  pictograms in the chunky style, each in the colour of what it means, each readable on the berry plate: the sweet in
+  the accent's lemon, the gumball in the second accent's sky (the gumball rolled on the track is sky now too), the
+  splat in the cream ink.
 - **The principles a new map starts from** ([docs/track-design-principles.md](../../../../docs/track-design-principles.md))
   and the agent's card for them (`gameworld-track-language`, read by the levels chapter): a premise first, a small
   family, a quiet way, a corner told three times, things seen to move, asymmetry, chunky, the track's own sky.
