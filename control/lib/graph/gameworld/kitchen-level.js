@@ -2,8 +2,9 @@
  * THE KITCHEN LEVEL: a work shift for two to four cooks on one screen (a quick work goal's `cooks`, `kitchen`), played in
  * a room of its own, not by a trail: the game room's arena (gameroom/area.js: the trade's floor, its walls cut away on
  * the camera's side, what stands outside; gameroom/dress.js: each place drawn as the trade's thing), the kitchen laid
- * for its cooks inside it (worksim/kitchen.js: its sides, its counter and the passes in it), the recipe drawn on the
- * floor as arrows (work-room.js flowchart), the whole room on one fixed overhead screen (soul.frame: fixed).
+ * for its cooks inside it (worksim/kitchen.js: its sides, its counter and the passes in it), the whole room on one fixed
+ * overhead screen (soul.frame: fixed). The floor carries no recipe: the work room's arrows teach in practice, and in the
+ * game what goes where next is the cooks' to work out.
  *
  * The shift is tuned to its cooks in this kitchen (work-proof.js tuneKitchen: the solver for that many hands, then the
  * proof on the kitchen's own sides until they keep up; the goal four fifths of what they served). Each cook is a seat
@@ -19,14 +20,13 @@ import { feelRule, readFeel } from './feel/lower.js';
 import { floorOf } from './practice-room.js';
 import { playerWorld } from '../playscape/player.js';
 import { sfxSound } from '../sfx-shelf/resolve.js';
-import { readCard } from '../worksim/card.js';
 import { SCENARIOS } from '../worksim/scenarios.js';
 import { layKitchen, kitchenLaws, KITCHENS } from '../worksim/kitchen.js';
 import { tuneKitchen } from '../worksim/work-proof.js';
 import { WORK_COLORS } from '../game/work-mechanics.js';
 import { dressOf, dressPlaces, DRESSES } from '../gameroom/dress.js';
 import { readArea, buildArea, raiseWalls } from '../gameroom/area.js';
-import { workMascot, everydayFeel, flowchart, areaOut, WORK_CAST, WORK_LEGEND, OVERHEAD } from './work-room.js';
+import { workMascot, everydayFeel, areaOut, WORK_CAST, WORK_LEGEND, OVERHEAD } from './work-room.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -50,7 +50,7 @@ function tunedFor(Q) {
 export function kitchenLevel(G, { ref = 'kitchen', heroRef = null, title = null } = {}) {
   const Q = G.quick, kitchen = kitchenOf(Q);
   if (!kitchen) throw new Error('kitchen level: a quick work goal with cooks (or a kitchen named)');
-  const cooks = Q.cooks ?? 1, T = tunedFor(Q), C = T.card, RC = readCard(C);
+  const cooks = Q.cooks ?? 1, T = tunedFor(Q), C = T.card;
   // THE ROOM: square (the game room's area is), its side the kitchen's own rounded up to whole metres; the kitchen
   // stretched to fill it, its middle the room's
   const K0 = layKitchen(C, { kitchen, cooks }), half = Math.ceil(Math.max(...K0.size) / 2);
@@ -88,7 +88,7 @@ export function kitchenLevel(G, { ref = 'kitchen', heroRef = null, title = null 
   const AR = A ? buildArea(A, { half, cut: ['s'], seed: 1 }) : null;
   const colliders = raiseWalls(room.colliders, half, AR?.heights);
   const kept = room.faces.filter((f) => f.group !== 'room:floor' && !String(f.group).startsWith('room:dressed:') && !(AR && f.group === 'room:wall')).map((f) => (f.group === 'room:wall' ? { ...f, fill: FILL.wall } : f));
-  const faces = [...(AR ? AR.faces : room.faces.filter((f) => f.group === 'room:floor')), ...kept, ...flowchart(RC, at, at.serve, null, 0), ...D.faces];
+  const faces = [...(AR ? AR.faces : room.faces.filter((f) => f.group === 'room:floor')), ...kept, ...D.faces];
 
   // THE SHIFT: the work mechanic on the kitchen's places, a hand a cook (the level's seats), its goal the tuned one
   const game = {

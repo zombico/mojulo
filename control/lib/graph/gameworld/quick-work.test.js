@@ -61,6 +61,7 @@ describe('the work goal with cooks', () => {
     expect(m.seats).toEqual({ bodies: ['hero-2'], max: 2, join: 'drop-in', drop: 'pause' });
     expect(m.camera).toMatchObject({ rule: 'fixed', track: 0 });
     expect(m.faces.some((f) => /room:area/.test(f.group ?? ''))).toBe(true);   // the trade's area, not a trail's ground
+    expect(m.faces.some((f) => f.group === 'room:flow')).toBe(false);   // no recipe on the floor: that is the practice room's
     const [hero, two] = ['hero', 'hero-2'].map((id) => m.entities.find((e) => e.id === id));
     const counter = m.colliders.find((c) => c.max[2] > 1 && c.max[2] < 1.2 && c.max[1] - c.min[1] > 1.5 && c.max[0] - c.min[0] < 1);
     const cx = (counter.min[0] + counter.max[0]) / 2;

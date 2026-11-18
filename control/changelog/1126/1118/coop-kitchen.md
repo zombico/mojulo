@@ -27,6 +27,7 @@ station to station and handed between them.
 - **The quick door.** `design_game({ quick: { goal: 'work', cooks: 2 | 4, kitchen?: 'split' | 'island' } })`: the
   cube's seats, and the level a kitchen room of its own (`gameworld/kitchen-level.js`), never laid by a trail: the game
   room's area (the trade's floor and walls, cut away on the camera's side), its places dressed as the trade's things,
-  the recipe drawn on the floor, each cook on its own side, a seat nobody sits in held still, one fixed overhead
+  no recipe on the floor (the practice room's arrows teach; in the game the cooks work out what comes next), each cook
+  on its own side, a seat nobody sits in held still, one fixed overhead
   station framing the whole room. One cook and no kitchen named is the line by the trail, as it was.
 

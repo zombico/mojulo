@@ -249,8 +249,8 @@ in a split kitchen four cooks serve little more than two.
 
 The quick door's `cooks` (1, 2 or 4) and `kitchen` make the level a kitchen room of its own
 (`gameworld/kitchen-level.js`), never a line by a trail: the game room's area for the trade (its floor, its walls cut
-away on the camera's side, what stands outside), each place dressed as the trade's thing, the recipe drawn on the floor,
-each cook on its own side, a seat nobody sits in held still, and one fixed overhead station framing the whole room. In
+away on the camera's side, what stands outside), each place dressed as the trade's thing, each cook on its own side, a seat nobody sits in held still, and one fixed overhead station framing the whole room. The floor carries no recipe: the work room's arrows are for
+practice, and in the game working out what comes next is the cooks' job. In
 headless Chromium with two stub pads, seat 1 took a fish, chopped it and put it on the pass; seat 2 took it up from the
 other side with its own button.
 
