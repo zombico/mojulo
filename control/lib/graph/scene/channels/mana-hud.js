@@ -39,7 +39,7 @@ import { hitBearing } from '../../gameworld/damage-ring.js';
 
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 
-export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false } = {}) {
+export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false, radarMap = null } = {}) {
   // (a level whose HUD is its own rows, `rows: 'events'`: lowered here, where the page emits them, game/hud-mana.js)
   if (hud && hud.rows === 'events' && !hud.spec) { const L = hudToMana(rows, { register, hero: hud.hero !== false, touch }); hud = { ...hud, spec: L.spec, feed: { ...L.feed, ...(hud.feed ?? {}) } }; }
   if (!hud || !hud.spec) return '';
@@ -69,7 +69,9 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   // (the map under the scope, radar.js: the level's plan from its own colliders and its tall grass, drawn once, the first
   // frame the radar is up; laid under the scope each frame at the radar's scale, ahead at the top)
   const __hPlanSvg = ${planSvg.toString()}, __hPlanBox = ${planBox.toString()}, __hPlanAt = ${radarPlan.toString()};
-  let __hPlan = null;` : ''}
+  let __hPlan = null;${radarMap ? `
+  // (the land under it too, a level's \`radar.map\`: its contours and its trail, read when the level was built)
+  const __hLand = ${json(radarMap)};` : ''}` : ''}
   const sheet = document.createElement('style'); sheet.textContent = ${json(css)}; document.head.appendChild(sheet);
   // (laid over the scene's own frame, as the level's widgets were: a letterboxed scene keeps its HUD inside it)
   const root = document.createElement('div'); root.id = 'moj-mana-hud'; (document.getElementById('wrap') || document.body).appendChild(root);
@@ -172,7 +174,7 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     // the page's radar, as a scope; its damage ring, as arcs; its weapon selector, as the wheel
     const R = st.radar; R.on = !!document.getElementById('__radar');
     if (R.on && me.transform) { const p = me.transform.pos, cfgR = me.rule && me.rule.radarRange > 0 ? Object.assign({}, __hR, { range: me.rule.radarRange }) : __hR; R.marks = __hRadar(p, me.transform.heading, __hThings(W, me, null), cfgR); R.north = __hBearing(p, me.transform.heading, [p[0], p[1] + 1, 0]);
-      if (!__hPlan && W.colliders && W.colliders.length) { const box = __hPlanBox(W.colliders, null); __hPlan = { box, src: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(__hPlanSvg(W.colliders, null, box, { rel: true, veils: W.veils || [] })) }; }
+      if (!__hPlan && W.colliders && W.colliders.length) { const box = __hPlanBox(W.colliders, null); __hPlan = { box, src: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(__hPlanSvg(W.colliders, null, box, { rel: true, veils: W.veils || []${radarMap ? ', relief: __hLand.relief, trail: __hLand.trail' : ''} })) }; }
       if (__hPlan) R.plan = Object.assign({ src: __hPlan.src }, __hPlanAt(__hPlan.box, p, me.transform.heading, cfgR.range)); }
     const D = window.__mojDamageRing; st.ring.on = !!(D && D.hits && D.hits.length); st.ring.hits = st.ring.on ? D.hits : [];
     const C = window.__mojWc && window.__mojWc.view ? window.__mojWc.view() : null;

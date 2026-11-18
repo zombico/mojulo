@@ -466,7 +466,7 @@ const no = (msg) => { throw new Error(`geocube: ${msg}`); };
 // and a camera that is the page's (an entity's, with a `rule`) is not a still. Absent, the kind is as it was.
 // (and `figureGrade`: the grade its bodies are baked at, figures/figure-grades.js: a level played on the place asks for
 // the play grade, as every other level does)
-const LEVEL_KEYS = Object.freeze(['events', 'audio', 'mission', 'game', 'parked', 'figureGrade', 'screen']);
+const LEVEL_KEYS = Object.freeze(['events', 'audio', 'mission', 'game', 'parked', 'figureGrade', 'screen', 'radar']);
 const pageCamera = (c) => !!c && typeof c === 'object' && typeof c.rule === 'string';
 // a relief checked where the cube names it: its own words, said as the cube's
 const reliefOrNo = (v, at) => { try { readRelief(v); } catch (e) { no(`${at}: ${e.message.replace(/^relief: /, '')}`); } };
@@ -1454,6 +1454,7 @@ function withTownCameras(payload, site) {
 export function assembleGeocubeScene(manifest, ctx, assemble) {
   for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'sea', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart', 'fxStyle', 'tallGrass', 'parallax', 'density', ...LEVEL_KEYS].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, sea, words, hall, skandart, tallGrass; the page's live light: shadows, occlusion, light; its ground's parallax; its pixel density; solid); build a level on a cube with a stage recipe's geocube`);
   // (a stealth land's tall grass, form/tall-grass.js: patches, each a middle and a radius)
+  if (manifest.radar !== undefined && (!manifest.radar || typeof manifest.radar !== 'object' || Array.isArray(manifest.radar) || Object.keys(manifest.radar).some((k) => k !== 'map') || (manifest.radar.map !== undefined && !['plan', 'topo'].includes(manifest.radar.map)))) no('radar is { map?: \'plan\' | \'topo\' }: the map under a level\'s radar, its plan alone or with the land\'s contours and its trail');
   if (manifest.density !== undefined && !(typeof manifest.density === 'number' && manifest.density >= 0.75 && manifest.density <= 2)) no('density is the page\'s pixel density at most, 0.75 to 2 (its pixel budget\'s cap, 1.5 unless said): 1 draws a full window at the screen\'s own pixels on a high-DPI one');
   if (manifest.parallax !== undefined && typeof manifest.parallax !== 'boolean') no('parallax is true (the ground\'s height marched near the eye, the default) or false (its layers\' maps alone: a lean ground, the cheapest frame)');
   if (manifest.tallGrass !== undefined && !readTallGrass(manifest.tallGrass)) no('tallGrass is { patches: [{ at: [x, y], r?, h? }], elsewhere?: \'none\' | \'grass\' }: grass in tight clumps where a body may hide, none elsewhere');

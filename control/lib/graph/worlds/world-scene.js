@@ -973,6 +973,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
     // (and each patch a VEIL the runtime's sight reads, worlds/controllable/veil.js: its foot on the ground the map has)
     // (each standing on the level ground its grass grows on, none where too little grows; how each stood is said beside it)
+    // (and the land under the radar's map, a level's `radar: { map: 'topo' }`: its contours and its trail, gameworld/radar.js)
+    if (read && M.radar && typeof M.radar === 'object' && M.radar.map === 'topo') { const { radarLand } = await import('@/lib/graph/gameworld/radar.js'); const RL = radarLand(read); if (RL) payload.radarMap = RL; }
     if (TG) { const PR = read?.grassMap?.patches ?? TG.patches; payload.veils = veilsOf(PR, (x, y) => read?.grassMap?.at?.(x, y)?.z ?? 0); payload.tallGrassRead = PR; }
     if (read) formCast = { cube, ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}) };
     // (a map's far range, level/far-range.js, stands hundreds of metres out: its own haze, the page's fog thinned over it

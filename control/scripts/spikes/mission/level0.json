@@ -615,6 +615,7 @@
   },
   "radar": {
     "range": 25,
-    "reads": "the radar's reach (m): the scope 50 m across, the level's map under it at that scale, ahead at the top"
+    "map": "topo",
+    "reads": "the radar's reach (m): the scope 50 m across; the level's map under it at that scale, ahead at the top, topographical (map 'topo': the land's contours a metre apart, the trail, the tall grass, what stands)"
   }
 }

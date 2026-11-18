@@ -295,3 +295,7 @@ or a recipe key; the spike mints through the real doors and measures.
   colliders and its tall grass, drawn once on the page and laid under the scope at the radar's scale, the pilot at its
   middle and ahead at the top, turning as the pilot turns. `planSvg` takes `rel` (each thing by its own height, a land
   that rises and falls) and `veils` (tall grass). Level 0's radar reaches 25 m (the pilot's `radarRange`).
+- **The radar's map topographical** (a geocube level's `radar: { map: 'topo' }`; gameworld/radar.js `radarLand`, planSvg's
+  `relief` and `trail`): the land's heights and its trail's mask read when the level is built (its grass map, every
+  1.5 m; its path mask), the page drawing them under the plan once: contours a metre apart and a brighter one every five
+  (the gorge's walls a crowd of lines), the trail in its own colour. Level 0 asks for it. Bench: no frame cost.

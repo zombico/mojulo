@@ -66,6 +66,17 @@ describe('the map under the radar', () => {
     expect(planSvg(raised, null, box, { rel: true })).toContain('fill="#d9d2bd"');     // (by its own height: a mass)
     expect(planSvg([], null, box, { veils: [{ at: [5, 5, 0], r: 2 }] })).toContain('<circle cx="256" cy="256" r="102.4"');
   });
+  it('draws the land\'s contours a step apart, a major one brighter, and its trail in runs', () => {
+    // (a ramp rising a metre a cell eastward over 0..6 m: lines at each whole metre run north to south)
+    const relief = { x0: 0, y0: 0, cell: 1, nx: 7, ny: 3, z: Array.from({ length: 21 }, (_, q) => q % 7) };
+    const svg = planSvg([], null, [0, 0, 10], { relief: { ...relief, z: relief.z.map((v) => v + 0.5) } });
+    const minor = svg.match(/stroke="#4b5244"[^>]*/)[0], d = /d="([^"]*)"/.exec(svg)[1];
+    expect(d.split('M').length - 1).toBeGreaterThan(8);
+    expect(svg).toContain('stroke="#78806c"');                                       // (5 m: a major line)
+    expect(minor).toBeTruthy();
+    const trail = planSvg([], null, [0, 0, 10], { trail: { x0: 0, y0: 0, cell: 1, nx: 4, ny: 2, on: [0, 1, 1, 0, 0, 0, 1, 0] } });
+    expect((trail.match(/fill="#8a7350"/g) || []).length).toBe(2);                  // (one run a row)
+  });
 });
 
 describe('what a scene shows', () => {

@@ -811,6 +811,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // hold, and the opener's count. A moveset that says no `swap` runs as before: the cycle mid-swing is dropped. Every
 // fixture that embeds the controllable runtime re-pinned with it.
 //
+// Re-pinned 2026-11-18 again (1117-cinematic-action-game: the radar's map topographical): `mission` only, the one fixture
+// that inlines the radar's plan (gameworld/radar.js planSvg), which takes `relief` (the land's contours) and `trail` (the
+// way walked) where a level's `radar.map` is 'topo'. The fixture asks for neither, so its map draws as it did.
 // Re-pinned 2026-11-18 (1117-cinematic-action-game: the map under the radar): `brawl`, `holo` and `mission`, the three
 // fixtures whose page inlines the game UI kernel and its styles. The kernel's minimap takes an optional `plan` (a picture
 // of the place laid under it, its point at the middle, turned about it), and `mission` also inlines the radar's plan,
