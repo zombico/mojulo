@@ -1,7 +1,7 @@
 // The talk box on the World page (a real browser, skipped when none is installed): a level whose HUD is mana-ui's plays
 // a scene, and its lines and choices are drawn by mana-ui's talk presenter in the HUD's look, the page's own box put
-// away and the HUD stepped aside while it plays. The input stays the scene channel's: a press goes on, a choice's row
-// clicked is that answer.
+// away and the HUD stepped aside while it plays. Whoever speaks is drawn live in the box's face (a speaker the sheet
+// says `none` is not). The input stays the scene channel's: a press goes on, a choice's row clicked is that answer.
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -15,11 +15,14 @@ let browser = null, html = '';
 beforeAll(async () => {
   const W = playerWorld({ hero: { cast: 'female' }, id: 'hero', library: false });
   W.figures.hero = { hero: { cast: 'female' } };
-  W.entities.push({ id: 'mayor', rule: { type: 'static' }, transform: { pos: [3, 2, 0], heading: Math.PI }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } });
+  W.figures.mayor = { hero: { cast: 'male' } };
+  W.entities.push({ id: 'mayor', rule: { type: 'static' }, transform: { pos: [3, 2, 0], heading: Math.PI }, body: { type: 'figure-rig', figure: 'mayor' } });
   W.play = { scenes: [{ id: 'gate', when: { start: true }, names: { mayor: 'Mayor Orlo' }, beats: [
     { line: { who: 'mayor', say: 'The road is shut.' } },
+    { line: { who: 'hero', say: 'Since when?' } },
     { choose: { who: 'mayor', say: 'Will you wait?', options: [{ say: 'I will wait.', sets: ['waited'] }, { say: 'I climb tonight.', sets: ['climbed'] }] } },
   ] }] };
+  W.play.speakers = { hero: { portrait: 'none' } };
   W.manaHud = levelHud('storybook');
   const { payload } = await resolveWorldScene({ ref: 'sk_talk_box', title: 'talk', manifest: W });
   html = emitThreeWorld({ ...payload, inline: true });
@@ -35,7 +38,7 @@ describe('the talk box on the page', () => {
     expect(html).toContain('moj-scene-box');
   });
 
-  it('in Chrome: a line in the nameplate and the words, the page\'s box away; a choice row clicked is the answer', async () => {
+  it('in Chrome: a line in the nameplate and the words, the speaker\'s face, the page\'s box away; a choice row clicked is the answer', async () => {
     if (!browser) return;
     const page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 720 });
@@ -52,10 +55,24 @@ describe('the talk box on the page', () => {
       expect(line).toMatchObject({ name: 'Mayor Orlo', box: 'none', hud: 'hidden' });
       expect(line.words).toContain('The road is shut.');
       expect(line.words).toContain('▼');
+      // the mayor's face: their own figure drawn live over the face's place, the head in it (not the ground, not the sky:
+      // the frame's middle and its top differ)
+      await page.waitForFunction(() => window.__mojTalk.face && window.__mojTalk.face.drawn() > 2, { timeout: 10000 });
+      const face = await page.evaluate(() => {
+        const cv = window.__mojTalk.face.canvas, a = cv.getBoundingClientRect(), b = document.querySelector('#moj-mana-talk .mana-portrait .mana-ph').getBoundingClientRect();
+        const x = cv.getContext('2d'), at = (u, v) => Array.from(x.getImageData(Math.round(cv.width * u), Math.round(cv.height * v), 1, 1).data.slice(0, 3));
+        return { shown: getComputedStyle(cv).display, inside: a.left >= b.left - 1 && a.right <= b.right + 1 && a.top >= b.top - 1 && a.bottom <= b.bottom + 1, w: a.width, mid: at(0.5, 0.45), corner: at(0.04, 0.04) };
+      });
+      expect(face).toMatchObject({ shown: 'block', inside: true });
+      expect(face.w).toBeGreaterThan(40);
+      expect(Math.max(...face.mid.map((c, i) => Math.abs(c - face.corner[i])))).toBeGreaterThan(24);
+      // the player's line: the sheet says none, so no face and no place for one
+      await page.keyboard.press('Space');
+      await page.waitForFunction(() => window.__mojTalk.state.talk.text === 'Since when?' && !document.querySelector('#moj-mana-talk .mana-portrait') && getComputedStyle(window.__mojTalk.face.canvas).display === 'none', { timeout: 10000 });
       await page.keyboard.press('Space');
       await page.waitForFunction(() => window.__mojTalk.state.talk.text === 'Will you wait?' && document.querySelectorAll('#moj-mana-talk .mana-each > *').length === 2, { timeout: 10000 });
-      // (TALK_SHOT=<png>: the box with a choice up, for the eyes)
-      if (process.env.TALK_SHOT) await page.screenshot({ path: process.env.TALK_SHOT });
+      // (TALK_SHOT=<png>: the box with a choice up and the mayor's face, for the eyes)
+      if (process.env.TALK_SHOT) { await page.waitForFunction(() => getComputedStyle(window.__mojTalk.face.canvas).display === 'block', { timeout: 10000 }); await page.screenshot({ path: process.env.TALK_SHOT }); }
       const rows = await page.$$('#moj-mana-talk .mana-each > *');
       expect(rows.length).toBe(2);
       await rows[1].click();

@@ -928,6 +928,12 @@ host (`scene/channels/mana-hud.js`) runs a second runtime on its own kernel and 
   arrows pick. A choice's row pressed is that answer.
 - **While a scene plays** the page's own box and hint are put away and the HUD steps aside.
 - A page with scenes and no mana-ui HUD keeps the scene channel's own box.
+- **Whoever speaks is drawn live in the box's face** (`scene/channels/talk-face.js`): their own figure, head and
+  shoulders, seen by a second camera in front of them on the page's one renderer. Before each frame's render the
+  portrait is rendered into a corner of the canvas and copied into a canvas over the face's place; the frame's render
+  then draws over the corner. Nothing is baked: their idle, a walk, a script's take play in the portrait as they do in
+  the world. The level's speakers sheet, `play.speakers: { <who>: { portrait: 'live' | 'none' } }`, shows a speaker by
+  the box alone (`none`); a speaker with no body on the page, or one hidden (the player's in first person), has no face.
 
 ### The RPG's battles, party menu and shops
 

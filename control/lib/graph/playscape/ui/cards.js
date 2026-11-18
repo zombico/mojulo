@@ -271,6 +271,8 @@ function scenesCard() {
     'A choice: { choose: { who?, say?, options: [{ say?, sets?: [flag], beats? }] } } (2 to 4). The question stays in the',
     '  box, the arrows or a number pick, Space takes it; the answer sets its flags at once and plays its beats. A skip',
     '  stops at a choice: the answer is the player\'s.',
+    'In a level whose HUD is the game\'s UI the box wears its look, and whoever speaks is drawn in it live, head and',
+    '  shoulders. play.speakers: { <who>: { portrait: \'none\' } } shows one by the box alone (a scene already close on them).',
     'A SCRIPT: { script: \'MAYOR: The road is *shut*.\\nHERO (worried): Since when?\\nMayor crosses to gate.\' } the scene as a',
     '  screenplay (names: the characters\' ids in capitals; crosses to / turns to / waits; a place by name). Write the words',
     '  and leave the shots: the cinematics department blocks it on the level\'s places and covers it (a wide to open, over',

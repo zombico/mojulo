@@ -37,6 +37,7 @@ import { STAT_OPS } from '../stats/kernel.js';
 import { readSpots, spotAnchors, withStands, CAST_WHEN } from './cast.js';
 import { withChapterCues, chapterBus } from './chapters.js';
 import { withSceneCues, sceneProgram, sceneBus } from './scenes.js';
+import { readSpeakers } from './talk-box.js';
 import { hasScripts, withScripts, scriptStage } from './scene-script.js';
 import { questProgram } from './quests.js';
 import { libraryProgram } from './library.js';
@@ -248,6 +249,8 @@ export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   for (const k of ['sources', 'reactions', 'watches', 'initial', 'sequences', 'timers']) { const v = [...(cues[k] || []), ...(menus[k] || []), ...(chapters[k] || []), ...(flags[k] || [])]; if (v.length) out[k] = v; }
   // the scenes' program: the page's runner (scene-runner.js) paces their beats, frames their shots, draws the box
   if (play.scenes !== undefined) { const scenes = sceneProgram(play); if (scenes.length) out.scenes = scenes; }
+  // the speakers sheet (talk-box.js): how each is shown as they speak in the talk box; only a sheet that says something
+  if (play.speakers !== undefined) { const speakers = readSpeakers(play); if (Object.keys(speakers).length) out.speakers = speakers; }
   // the quests' journal (quests.js): the page keeps it over the flags
   if (play.quests !== undefined) { const quests = questProgram(play); if (quests.length) out.quests = quests; }
   // the library's shelf (library.js): the page keeps it over the flags and opens a book as its reader

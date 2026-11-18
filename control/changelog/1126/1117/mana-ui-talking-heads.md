@@ -8,8 +8,11 @@ boxes, or the same scene acted out in the world.
   - The speaker's name is a nameplate on the box.
   - The line types on, and a ▼ shows once it is whole.
   - Choices are numbered, with the one in hand marked.
-  - The bar at the foot says what the buttons do on the device in hand (keys or a pad); a touch screen shows none.
+  - The bar at the foot says which keys do what; a touch screen shows none.
   - The level's HUD steps aside while a scene plays, as it always did on pages without the game's interface.
-  - The box keeps a place for the speaker's face, still empty: portraits come next.
+- **Whoever speaks is shown in the box.** Their own character, head and shoulders, appears live beside their words:
+  what they do in the world (standing, breathing, acting a scene) is what the picture shows.
+  - A level's speakers sheet can show someone by the box alone, for a scene that is already close on their face.
+  - Someone with no body in the level, or the player seen from their own eyes, has no picture.
 - **Nothing else changes.** Advancing, holding to skip, Esc and picking a choice by number, arrows or a click work as
   before. A world without the game's interface keeps its box as it was.

@@ -1836,7 +1836,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // events.style wins over the play block's. Its cues (playscape/ui/cues.js) bring their reactions, watches, zones
   // and sequences beside it. Absent `play` ⇒ not a byte changes.
   const playEv = payload && sketch.manifest.play ? lowerPlay(sketch.manifest, { anchors: payload.anchors, player: Array.isArray(sketch.manifest.entities) ? deriveLevelPlayer(sketch.manifest).player : null }) : null;
-  const { style: _playStyle, register: _playRegister, menus: _playMenus, cast: _playCast, looks: _playLooks, scenes: _playScenes, quests: _playQuests, library: _playLibrary, rpg: _playRpg, minigames: _playMini, ...playBus } = playEv || {};
+  const { style: _playStyle, register: _playRegister, menus: _playMenus, cast: _playCast, looks: _playLooks, scenes: _playScenes, speakers: _playSpeakers, quests: _playQuests, library: _playLibrary, rpg: _playRpg, minigames: _playMini, ...playBus } = playEv || {};
   let ev = payload && mergeEventManifests(mergeEventManifests(sketch.manifest.events, Object.keys(playBus).length ? playBus : null), mechEvents);
   // (a level whose play is a library alone has no bus of its own yet: the shelf still needs the page's)
   if (!ev && payload && playEv && playEv.library) ev = {};
@@ -1845,6 +1845,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (playEv.register) ev = { ...ev, register: playEv.register };
     if (playEv.menus) ev = { ...ev, menus: playEv.menus };
     if (playEv.scenes) ev = { ...ev, scenes: playEv.scenes };   // the scene runner's program (playscape/ui/scenes.js)
+    if (playEv.speakers) ev = { ...ev, speakers: playEv.speakers };   // how each speaks in the talk box (talk-box.js)
     if (playEv.quests) ev = { ...ev, quests: playEv.quests };   // the quests' journal (playscape/ui/quests.js)
     if (playEv.library) ev = { ...ev, library: playEv.library };   // the library's shelf (playscape/ui/library.js)
     if (playEv.cast) ev = { ...ev, cast: true };

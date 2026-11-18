@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { manaUi } from '../../../mana-ui/index.js';
-import { talkSpec, talkState, TALK_GLYPHS } from './talk-box.js';
+import { talkSpec, talkState, TALK_GLYPHS, readSpeakers } from './talk-box.js';
+import { faceFrame, buildTalkFace, FACE_FOV } from '../../scene/channels/talk-face.js';
 import { buildSceneRunner } from './scene-runner.js';
 import { manaHudScript } from '../../scene/channels/mana-hud.js';
 
@@ -62,5 +63,43 @@ describe('the talk box: the scene runner said through mana-ui', () => {
     expect(talk).toContain('moj-mana-talk');
     expect(talk).toContain('.moj-scene-box,.moj-scene-hint{display:none!important}');
     expect(() => new Function(talk)).not.toThrow();
+  });
+
+  it('a speaker with a face: its place named for them; without, no place', () => {
+    const R = buildSceneRunner(), S = R.create([line]);
+    R.hear(S, ['scene:gate']); R.step(S, 0, {});
+    expect(talkState(R.view(S)).face).toBe('');
+    expect(talkState(R.view(S), { face: true }).face).toBe('Mayor');
+    expect(draw(talkState(R.view(S), { face: true }))).toContain('mana-portrait');
+    expect(draw(talkState(R.view(S)))).not.toContain('mana-portrait');
+  });
+
+  it('the speakers sheet: live by default, none the box alone; anything else teaches', () => {
+    expect(readSpeakers({})).toEqual({});
+    expect(readSpeakers({ speakers: { mayor: {}, hero: { portrait: 'none' } } })).toEqual({ mayor: { portrait: 'live' }, hero: { portrait: 'none' } });
+    expect(() => readSpeakers({ speakers: { mayor: { portrait: 'drawn' } } })).toThrow(/live or none/);
+    expect(() => readSpeakers({ speakers: { mayor: { voice: 'low' } } })).toThrow(/not part of a speaker/);
+    expect(() => readSpeakers({ speakers: [] })).toThrow(/how each speaker is shown/);
+  });
+
+  it('the portrait\'s camera: in front of the speaker, a little to their right, on the top of the body', () => {
+    // a person 1.8 m tall facing +y: the camera stands on their +y side, on their right (+x, z up), at the head
+    const F = faceFrame({ min: [-0.3, -0.2, 0], max: [0.3, 0.2, 1.8] }, Math.PI / 2, FACE_FOV);
+    expect(F.at[1]).toBeGreaterThan(1);
+    expect(F.at[0]).toBeGreaterThan(0);
+    expect(F.look[2]).toBeGreaterThan(1.3);
+    expect(F.look[2]).toBeLessThan(1.8);
+    expect(Math.abs(F.at[2] - F.look[2])).toBeLessThan(0.2);
+    // the page's portrait frames with the same lens
+    expect(buildTalkFace.toString()).toContain(`FOV = ${FACE_FOV}`);
+  });
+
+  it('the host draws faces only when asked, with the sheet and the frame\'s pre-pass hook', () => {
+    const hud = { spec: { hud: { use: 'hud', children: [] } } };
+    const plain = manaHudScript(hud, { talk: true }), faced = manaHudScript(hud, { talk: { faces: true, speakers: { hero: { portrait: 'none' } } } });
+    expect(plain).not.toContain('__mojTalkFace');
+    expect(faced).toContain('window.__mojTalkFace = function');
+    expect(faced).toContain('const SPK = {"hero":{"portrait":"none"}}');
+    expect(() => new Function('THREE', 'renderer', 'scene', faced)).not.toThrow();
   });
 });

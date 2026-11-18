@@ -34,7 +34,12 @@
  * (`#moj-mana-talk`), fed each frame from the scene runner's view (window.__mojScenes). The page's own box and its hint
  * stand down, and the HUD steps aside while a scene plays (as the page's own HUD does). The input stays the scene
  * channel's: a press goes on, holding or Esc skips, and a choice's row pressed is that answer. `window.__mojTalk = { rt,
- * state }` for a headless driver.
+ * state, face? }` for a headless driver.
+ *   talk: true, or { faces?, speakers? }: `faces` the speakers' own figures are drawn live in the box's face
+ *   (scene/channels/talk-face.js: the page's renderer, its bodies and the frame's pre-pass hook `window.__mojTalkFace`,
+ *   which scene-three.js calls before each render on such a page); `speakers` the level's sheet (talk-box.js
+ *   readSpeakers), a speaker whose portrait is `none` shown by the box alone. A speaker with no body on the page, or one
+ *   hidden (the player's in first person), has no face.
  */
 import { manaUiSource } from '../../../mana-ui/kernel.js';
 import { manaCss } from '../../../mana-ui/css.js';
@@ -44,6 +49,7 @@ import { hudSubst, fmtDelta } from '../../game/hud-widgets.js';
 import { radarMarks, sceneThings, RADAR } from '../../gameworld/radar.js';
 import { hitBearing } from '../../gameworld/damage-ring.js';
 import { talkSpec, talkState, TALK_GLYPHS } from '../../playscape/ui/talk-box.js';
+import { faceFrame, buildTalkFace } from './talk-face.js';
 
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 
@@ -77,6 +83,7 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   const R = hud.feed && hud.feed.rows;
   const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp,#__radar,#__wc,#__damageRing,div:has(>#__wepIcon)' : ''}{display:none!important}${talk ? TALK_CSS : ''}`;
   const H = !!(hud.feed && hud.feed.hero);
+  const faces = !!(talk && talk.faces), speakers = (talk && talk.speakers) || {};
   return `
 // THE HUD on mana-ui (channels/mana-hud.js): the level's own spec over a state this page feeds
 (function () {
@@ -115,9 +122,27 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     const r = ev.target && ev.target.closest ? ev.target.closest('.mana-each>*') : null;
     if (r && window.__mojScenes) window.__mojScenes.pick(Array.prototype.indexOf.call(r.parentNode.children, r));
   });
-  window.__mojTalk = { rt: trt, state: tst };
+  window.__mojTalk = { rt: trt, state: tst };${faces ? `
+  // THE FACES (scene/channels/talk-face.js): who speaks, drawn live in the box's face by the frame's pre-pass
+  const __TF = (${buildTalkFace.toString()})(THREE, renderer, scene, (${faceFrame.toString()}));
+  const SPK = ${json(speakers)};
+  let talkFace = null;
+  window.__mojTalk.face = __TF;
+  // the speaker's body and facing, when they have one shown and their sheet does not say none (hero: the player's)
+  function faceOf(who) {
+    const C = window.__mojCtrl, W = C && C.world, B = C && C.bodies;
+    if (!W || !B || (SPK[who] && SPK[who].portrait === 'none')) return null;
+    const id = W.byId[who] ? who : who === 'hero' ? W.pilotId : null, E = id && W.byId[id], b = id && B[id];
+    return E && b && b.visible && !E.gone ? { who: id, b: b, h: (E.transform && E.transform.heading) || 0 } : null;
+  }
+  window.__mojTalkFace = function () {
+    const el = talkFace && talkRoot.querySelector('.mana-portrait .mana-ph');
+    if (el) __TF.draw(talkFace.who, talkFace.b, talkFace.h, el); else __TF.hide();
+  };` : ''}
   function talkStep() {
-    const S = window.__mojScenes, G = window.__mojStage, T = __talkOf(S ? S.view() : null, { noSkip: !!(G && G.on && !G.skip) }), k = JSON.stringify(T);
+    const S = window.__mojScenes, G = window.__mojStage, v = S ? S.view() : null;${faces ? `
+    talkFace = v && v.on && v.line ? faceOf(v.line.who) : null;` : ''}
+    const T = __talkOf(v, { noSkip: !!(G && G.on && !G.skip)${faces ? ', face: !!talkFace' : ''} }), k = JSON.stringify(T);
     if (k !== talkKey) { talkKey = k; tst.talk = T; }
   }` : ''}
   // the level has started (the shell's params are in): its place in the run, and the start cue
