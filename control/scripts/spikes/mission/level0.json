@@ -371,11 +371,11 @@
   "performance": {
     "light": "half",
     "occlusion": false,
-    "cone": 10,
+    "cone": 6,
     "bodies": "blob",
-    "reads": "what the page may cost: its shadows at half (light.tier), no contact occlusion, real grass out to 10 m (past it the field's grass is painted on the ground) (the view cone); [ and ] move the grass's reach live; bodies 'blob' casts no body into the live shadow map, a soft pool at the feet instead ('live' for real shadows); parallax false: a lean ground (none of its height marched, most of the frame's cost; true for the full ground); density 1: the window's own pixels at most on a high-DPI screen (the page's cap is 1.5 unless said)",
+    "reads": "what the page may cost: its shadows at half (light.tier), no contact occlusion, real grass out to 6 m (past it the field's grass is painted on the ground) (the view cone; 10 until the frame was cut again); [ and ] move the grass's reach live; bodies 'blob' casts no body into the live shadow map, a soft pool at the feet instead ('live' for real shadows); parallax false: a lean ground (none of its height marched, most of the frame's cost; true for the full ground); density 0.85: a little under the window's own pixels (the page's cap is 1.5 unless said)",
     "parallax": false,
-    "density": 1
+    "density": 0.85
   },
   "grass": [
     {
@@ -588,10 +588,12 @@
       "hold": 4,
       "decay": 10
     },
-    "wind": true,
+    "wind": {
+      "level": -40
+    },
     "bed": {
       "bed": "forest",
-      "level": 0.35
+      "level": 0.12
     },
     "sfx": {
       "sheet": {
@@ -611,7 +613,7 @@
         }
       }
     },
-    "reads": "the score: the field's tension while sneaking, its battle when the garrison has found you (the alarm's turns and sweeps raise the tension, a guard's glimpse a little; it settles back once you have hidden). The gorge's wind and a low bed. Each thing the game does a shelf word: the first sighting the alert's sting (once an alarm, alarm:spotted), a threat detected the dread, the radio's call a click, a threat found the siren, a guard put down a thud, a thing taken the pickup"
+    "reads": "the score: the field's tension while sneaking, its battle when the garrison has found you (the alarm's turns and sweeps raise the tension, a guard's glimpse a little; it settles back once you have hidden). The gorge's wind low (-40 dB, the default's -30) and the forest's birds faint under it (0.12): the score and the game's own sounds lead. Each thing the game does a shelf word: the first sighting the alert's sting (once an alarm, alarm:spotted), a threat detected the dread, the radio's call a click, a threat found the siren, a guard put down a thud, a thing taken the pickup"
   },
   "radar": {
     "range": 25,

@@ -64,7 +64,8 @@ const { room, hero: h0, guard: g0 } = await starterRoom(o);
 const backupIds = Array.from({ length: L.backup?.count ?? 0 }, (_, k) => `backup-${k + 1}`);
 // (`occlusion`: the seventh generation's live contact occlusion, on by default; `--no-occlusion` or the recipe's
 // `occlusion: false` leaves it out, its prepass a second draw of the whole scene every frame)
-const Pf = L0.performance ?? {}, occl = o.has('--no-occlusion') ? false : Pf.occlusion ?? L0.occlusion;
+// (`--perf '{…}'` over the recipe's performance, to try what a setting costs without editing the level)
+const Pf = { ...(L0.performance ?? {}), ...(o.opt('--perf') ? JSON.parse(o.opt('--perf')) : {}) }, occl = o.has('--no-occlusion') ? false : Pf.occlusion ?? L0.occlusion;
 // (what the page may cost: its shadows' tier, the contact occlusion, the grass's real reach; and its bodies' shadows:
 // `bodies: 'blob'` draws no body into the live light's map each frame, a soft pool at each one's feet instead)
 const bodyShadows = Pf.bodies === 'blob' ? { actors: false, hour: true, feet: true, occlude: true, r: 0.5, alpha: 0.42, fade: 1.5 } : { actors: true, hour: true };

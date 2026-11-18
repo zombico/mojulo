@@ -49,3 +49,8 @@
   open field 237, the gorge 248 (with relief and the full scree it was 345).
 - **The bench** opens each page in a browser of its own (one opened after another ran slower) and counts draws only
   after the frames are timed.
+- **Level 0 cut again** (the spike's `performance`): its real grass out to 6 m, not 10 (painted past it), and its pixel
+  density 0.85. Bench, each page its own density (`bench.mjs --dpr page`, new): 219 ms a frame as it was, 195 now; the
+  hangar 259 on the same run. The live light off was tried and bought nothing (its bodies cast blob shadows, so the map
+  draws next to nothing). The opening view side by side reads the same. `level0.mjs --perf '{…}'` tries a setting over
+  the recipe's without editing it.

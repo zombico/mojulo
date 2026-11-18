@@ -5,7 +5,9 @@
  * GPU, so the milliseconds are a RELATIVE yardstick: a page twice another's here is about twice it on a laptop's GPU
  * too, where the pixels and the triangles are what costs. The person's own frame readout is the absolute one.
  *
- *   node scripts/spikes/mission/bench.mjs <page.html> [<page.html> …] [--size 1120x780] [--settle 20] [--for 20]
+ *   node scripts/spikes/mission/bench.mjs <page.html> [<page.html> …] [--size 1120x780] [--settle 20] [--for 20] [--dpr 1 | page]
+ *
+ * `--dpr page` leaves each page its own density cap (its `density`), so what a page's cap saves is measured; else 1.
  *
  * Prints, per page: frame ms (mean over the stretch), the density it settled at, triangles and draws a frame.
  */
@@ -17,13 +19,13 @@ register('../../mcp-stdio-loader.mjs', import.meta.url);
 process.chdir(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..'));
 const args = process.argv.slice(2), flag = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
 const pages = args.filter((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--')));
-const [W, H] = flag('--size', '1120x780').split('x').map(Number), settle = +flag('--settle', 20), span = +flag('--for', 20);
+const [W, H] = flag('--size', '1120x780').split('x').map(Number), settle = +flag('--settle', 20), span = +flag('--for', 20), dprPin = flag('--dpr', '1');
 const { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } = await import('@/lib/graph/scene/chromium');
 
-const hooks = () => {
+const hooks = (dprPin) => {
   // (the page's pixel budget held at one density, so every page is timed at the same pixels: its slow frames would
   // otherwise lower one page's and not another's)
-  Object.defineProperty(window, '__mojBudget', { configurable: true, get() { return this.__benchB; }, set(v) { Object.defineProperty(v, 'dpr', { get: () => 1, set() {} }); this.__benchB = v; } });
+  if (dprPin !== 'page') Object.defineProperty(window, '__mojBudget', { configurable: true, get() { return this.__benchB; }, set(v) { Object.defineProperty(v, 'dpr', { get: () => +dprPin, set() {} }); this.__benchB = v; } });
   // (the draws are counted by wrapping WebGL's own calls only after the frames are timed: wrapped, every frame is slower)
   const S = (window.__bench = { tri: 0, draws: 0, on: false, frames: [] });
   S.count = () => { const P = WebGL2RenderingContext.prototype, tri = (m, c, n) => (m === 4 ? c / 3 : m === 5 || m === 6 ? c - 2 : 0) * (n || 1);
@@ -40,7 +42,7 @@ for (const file of pages) {
   try {
     const page = await browser.newPage();
     await page.setViewport({ width: W, height: H });
-    await page.evaluateOnNewDocument(hooks);
+    await page.evaluateOnNewDocument(hooks, dprPin);
     await page.goto('file://' + path.resolve(process.env.INIT_CWD || process.cwd(), file), { timeout: 1800000 });
     await page.waitForFunction(() => window.__mojCtrl && window.__bench.frames.length > 2, { timeout: 1800000 });
     await new Promise((r) => setTimeout(r, settle * 1000));

@@ -20,3 +20,5 @@
 - **The first sighting, once** (`alarm:spotted`, alarm.js): said as the garrison leaves calm because a watcher saw the
   intruder, never at each glimpse after; level 0's sting plays on it (a glimpse still raises the score's tension a
   little).
+- **Less of the land, more of the game**: level 0's wind at -40 dB (the default's -30) and the forest's birds at 0.12 (they
+  were 0.35), so the score and the game's own sounds lead.
