@@ -160,3 +160,9 @@ move beside the way, the boss's fight in its room, the hero's climb seen from be
   volcano stage every law the map builds holds. Measured, the look was mended: an outdoor zone's hills and range no
   longer stand over the next zone's at one depth (they flickered), and a shaft's climbing rails are a guide behind the
   lane, quieter than it.
+- **The light** (planned): the map lit as the gen-7 form render lights a room and a town, baked per corner so the page
+  stays as cheap: an indoor zone by its lamps (each lamp a light with its falloff, the bays read in light), an outdoor
+  zone by the cube's sun and sky, a ledge's shadow on the wall under it, light at the top of every climb, the boss's
+  room in its own light, the hero under the cast rig; the benchmark measures it (a lamp's falloff, a ledge's shadow, the
+  lane lit over the back). Today it is one baked key from behind the camera and the cube's ambient: the lamps light
+  nothing.
