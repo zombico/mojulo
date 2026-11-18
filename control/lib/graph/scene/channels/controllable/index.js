@@ -4101,8 +4101,8 @@ function __updateChargeRings() {
 ${busterOn ? `// THE SHOT'S LOOK (gameworld/feel/round-look.js): a buster's round as the anime register draws a charged shot, every layer
 // additive: a halo in its hue round it all; the ramp (the hue deep, the hue saturated, a white-hot core) as soft discs
 // stretched along its flight on screen, the core toward its head; streaks inside along its flight; a tail fading behind;
-// rings at its head in the accent hue, round its flight and turned off the camera's axis so they read as ellipses, the
-// near arc bright and the far faded; sparks trailing on the world's clock. Its level's look by busterLv (0 the tap)
+// sparks trailing on the world's clock; and where it was fired, rings in the accent hue that stay there, growing and
+// fading (they never follow the round). Its level's look by busterLv (0 the tap)
 const __RL = ${safeJson(roundLooks((entities.find((e) => e && e.rule && e.rule.buster) || {}).rule?.buster))};
 const __rlTex = (() => {
   const mk = (w, h, paint) => { const c = document.createElement('canvas'); c.width = w; c.height = h; paint(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
@@ -4113,21 +4113,45 @@ const __rlTex = (() => {
 })();
 const __rlSprite = (tex, col, op) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: new THREE.Color(col), transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false })); s.raycast = function () {}; return s; };
 const __rlA = new THREE.Vector3(), __rlB = new THREE.Vector3(), __rlDir = new THREE.Vector3(), __rlPerp = new THREE.Vector3(), __rlFwd = new THREE.Vector3(), __rlZ = new THREE.Vector3(0, 0, 1);
+// the RINGS a charged round leaves at the firing point (not on the round): each round its flight, turned off the camera's
+// axis so it reads as an ellipse, its near arc bright and its far faded, in the accent; each a beat after the last,
+// growing out and fading where it was fired, aged on the world's clock whether or not its round still flies
+const __rlRings = [];
+function __rlMuzzleRings(from, vel, L, r) {
+  const vl = Math.hypot(vel[0], vel[1], vel[2]) || 1, dir = new THREE.Vector3(vel[0] / vl, vel[1] / vl, vel[2] / vl), acc = new THREE.Color(L.accent);
+  camera.getWorldDirection(__rlFwd); const perp = new THREE.Vector3().crossVectors(dir, __rlFwd).normalize();
+  for (let k = 0; k < L.rings; k++) {
+    const R = r * 1.1, geo = new THREE.TorusGeometry(R, Math.max(0.008, r * 0.07), 6, 48), m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    m.raycast = function () {};
+    m.position.set(from[0] + dir.x * r * 0.4 * k, from[1] + dir.y * r * 0.4 * k, from[2] + dir.z * r * 0.4 * k);
+    m.quaternion.setFromUnitVectors(__rlZ, dir); m.rotateOnWorldAxis(perp, 0.9); m.updateMatrixWorld(true);
+    const pos = geo.getAttribute('position'), col = new Float32Array(pos.count * 3), w = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) { w.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld).sub(m.position); const near = Math.max(0, Math.min(1, 0.5 - w.dot(__rlFwd) / (2 * R))), c = 0.25 + 0.75 * near * near; col[3 * i] = acc.r * c; col[3 * i + 1] = acc.g * c; col[3 * i + 2] = acc.b * c; }
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    scene.add(m); __rlRings.push({ m, born: __world.time + 0.05 * k, life: 0.32, grow: 1.6 + 0.5 * k });
+  }
+}
+function __rlAge() {
+  for (let i = __rlRings.length - 1; i >= 0; i--) {
+    const R = __rlRings[i], u = (__world.time - R.born) / R.life;
+    if (u >= 1) { scene.remove(R.m); R.m.geometry.dispose(); R.m.material.dispose(); __rlRings.splice(i, 1); continue; }
+    const e = Math.max(0, u), o = 1 - (1 - e) * (1 - e);
+    R.m.scale.setScalar(1 + R.grow * o); R.m.material.opacity = u < 0 ? 0 : 1 - e * e;
+  }
+}
 function __rlRound(p) {
   const L = __RL[p.busterLv || 0] || __RL[0] || { size: 0.08, core: 0.55, ramp: ['#ffffff', '#fff2a8', '#7a6a20'], halo: 4.5, stretch: 1.8, streaks: 1, tail: 3, accent: '#a8c8ff', rings: 0, sparks: 2 };
   const r = p.fxScale != null ? p.fxScale : L.size, g = new THREE.Group();
   const halo = __rlSprite(__rlTex.soft, L.ramp[1], 0.32), deep = __rlSprite(__rlTex.soft, L.ramp[2], 0.95), mid = __rlSprite(__rlTex.soft, L.ramp[1], 1), core = __rlSprite(__rlTex.soft, L.ramp[0], 1);
-  const tail = __rlSprite(__rlTex.streak, L.ramp[1], 0.55), streaks = [], rings = [], sparks = [];
+  const tail = __rlSprite(__rlTex.streak, L.ramp[1], 0.55), streaks = [], sparks = [];
   for (const s of [halo, tail, deep, mid]) g.add(s);
   for (let k = 0; k < L.streaks; k++) { const s = __rlSprite(__rlTex.streak, k % 2 ? L.ramp[1] : L.ramp[0], 0.9); streaks.push(s); g.add(s); }
   g.add(core);
-  for (let k = 0; k < L.rings; k++) {
-    const R = r * (1.25 + 0.4 * k), geo = new THREE.TorusGeometry(R, Math.max(0.008, r * 0.07), 6, 48), m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
-    m.raycast = function () {}; g.add(m); rings.push({ m, R, k, coloured: false });
-  }
   for (let k = 0; k < L.sparks; k++) { const s = __rlSprite(__rlTex.soft, k % 3 ? L.accent : '#ffffff', 1); sparks.push(s); g.add(s); }
   scene.add(g);
-  const acc = new THREE.Color(L.accent);
+  // (its rings at the firing point: the shooter's muzzle when it just fired, else where the round was first seen)
+  const ow = __world.byId && __world.byId[p.owner], ls = ow && ow.lastShot, from = ls && ls.from && __world.time - ls.t < 0.1 ? ls.from : p.pos;
+  if (L.rings) __rlMuzzleRings(from, p.vel || [0, 1, 0], L, r);
   const tick = (q) => {
     const v = q.vel || [0, 1, 0], vl = Math.hypot(v[0], v[1], v[2]) || 1, t = __world.time;
     __rlDir.set(v[0] / vl, v[1] / vl, v[2] / vl);
@@ -4136,27 +4160,18 @@ function __rlRound(p) {
     __rlA.set(q.pos[0], q.pos[1], q.pos[2]).project(camera); __rlB.set(q.pos[0] + __rlDir.x, q.pos[1] + __rlDir.y, q.pos[2] + __rlDir.z).project(camera);
     const ang = Math.atan2((__rlB.y - __rlA.y) * innerHeight, (__rlB.x - __rlA.x) * innerWidth), st = L.stretch, fl = 0.9 + 0.1 * Math.sin(t * 47);
     const at = (s, along, across, sx, sy) => { s.position.set(__rlDir.x * along + __rlPerp.x * across, __rlDir.y * along + __rlPerp.y * across, __rlDir.z * along + __rlPerp.z * across); s.scale.set(sx, sy, 1); s.material.rotation = ang; };
-    at(halo, 0, 0, r * L.halo * 2, r * L.halo * 2);
-    // (the body stretched behind, the head its own length: the full charge's a ball leading it, drawn as big as it hits)
-    const hd = L.head || st, bk = L.bulk || 1;
-    at(deep, -r * 0.5 * (st - hd), 0, r * 3.6 * st * bk, r * 3.2 * bk);
-    at(mid, r * 0.25, 0, r * 2.5 * hd * bk * fl, r * 2.4 * bk * fl);
-    at(core, r * 0.45, 0, r * L.core * 2.4 * hd * bk, r * L.core * 2.4 * bk);
-    at(tail, -r * (1 + L.tail * 0.3), 0, r * L.tail * 0.9, r * 1.4);
-    streaks.forEach((s, k) => at(s, -r * 0.15, r * 0.55 * (k - (streaks.length - 1) / 2) / Math.max(1, streaks.length - 1) * 1.4, r * 1.7 * st, r * 0.14));
-    rings.forEach((R) => {
-      // (round its flight at the head, turned off the camera's axis so it reads as an ellipse; a beat in its size)
-      R.m.position.set(__rlDir.x * r * (0.9 - 0.55 * R.k), __rlDir.y * r * (0.9 - 0.55 * R.k), __rlDir.z * r * (0.9 - 0.55 * R.k));
-      R.m.quaternion.setFromUnitVectors(__rlZ, __rlDir); R.m.rotateOnWorldAxis(__rlPerp, 0.9);
-      R.m.scale.setScalar(1 + 0.08 * Math.sin(t * 30 + R.k * 2));
-      if (!R.coloured) {
-        // (its near arc bright, its far faded: each vertex by how far toward the camera it stands, once its turn is set)
-        R.m.updateMatrixWorld(true); const pos = R.m.geometry.getAttribute('position'), col = new Float32Array(pos.count * 3), w = new THREE.Vector3(), c0 = new THREE.Vector3();
-        R.m.getWorldPosition(c0);
-        for (let i = 0; i < pos.count; i++) { w.fromBufferAttribute(pos, i).applyMatrix4(R.m.matrixWorld).sub(c0); const near = Math.max(0, Math.min(1, 0.5 - w.dot(__rlFwd) / (2 * R.R))); const k = 0.25 + 0.75 * near * near; col[3 * i] = acc.r * k; col[3 * i + 1] = acc.g * k; col[3 * i + 2] = acc.b * k; }
-        R.m.geometry.setAttribute('color', new THREE.BufferAttribute(col, 3)); R.coloured = true;
-      }
-    });
+    // (THE BALL AT THE HEAD: its core and its saturated layer centred on the round, where it hits; everything else behind
+    // it, anchored to it: the body's front at the ball's front, the streaks and the tail from its centre back, never ahead)
+    const hd = L.head || st, bk = L.bulk || 1, ball = r * 1.25 * bk;
+    at(halo, -ball * 0.4, 0, r * L.halo * 2 * bk, r * L.halo * 2 * bk);
+    const body = r * 3.6 * st * bk;
+    at(deep, ball * hd - body / 2, 0, body, r * 3.2 * bk);
+    at(mid, 0, 0, 2 * ball * hd * fl, 2 * ball * fl);
+    at(core, 0, 0, r * L.core * 2.4 * hd * bk, r * L.core * 2.4 * bk);
+    const tl = r * L.tail * 0.9 * bk;
+    at(tail, -tl / 2, 0, tl, r * 1.4 * bk);
+    const sl = r * 1.7 * st * bk;
+    streaks.forEach((s, k) => at(s, -sl / 2, r * 0.55 * bk * (k - (streaks.length - 1) / 2) / Math.max(1, streaks.length - 1) * 1.4, sl, r * 0.14));
     // (sparks trailing back along its flight on the world's clock, each its own phase, spreading and fading as they go)
     sparks.forEach((s, k) => {
       const u = (t * 2.4 + k * 0.618) % 1, side = Math.sin(k * 2.39) * r * (0.4 + 1.2 * u), lift = Math.cos(k * 1.71) * r * 0.8 * u;
@@ -4170,7 +4185,8 @@ function __rlRound(p) {
 let __burstSeen = -1;       // highest burst seq drawn (the engine's monotonic burstSeq)
 const __projUpY = new THREE.Vector3(0, 1, 0);   // the cone axis (apex +Y) rotated onto each round's velocity
 const __projDir = new THREE.Vector3();
-function __updateProjectiles() {
+function __updateProjectiles() {${busterOn ? `
+  __rlAge();   // (the muzzle rings, aged whether or not their rounds still fly)` : ''}
   const ps = __world.projectiles || [];
   const live = {};
   for (const p of ps) {

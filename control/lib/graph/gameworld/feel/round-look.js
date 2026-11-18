@@ -9,14 +9,16 @@
  *   halo      a soft disc in the hue round it all (HALO × its size), dim: the effect bleeds into the world
  *   stretch   the body drawn long along its flight (1 + FX_STYLE.stretch, more a level), its intensity at the head
  *   head      how long its head is drawn (its core and its saturated layer): the stretch, but the FULL charge's round
- *             (ROUND_LOOK.headFull), a ball leading its stretched body
+ *             (ROUND_LOOK.headFull), a ball leading its stretched body. The ball is always at the head, on the round (where
+ *             it hits): the body's front at the ball's, the streaks and the tail from its centre back, never ahead of it
  *   bulk      how big its head and body are drawn over its size: the full charge's bigger (ROUND_LOOK.bulkFull), as tall as the tall
  *             hitbox it carries (gameworld/feel/lower.js BUSTER_HIT)
  *   streaks   thin bright lines inside the body along its flight, one more a level
  *   tail      a fading streak behind (TAIL × its size, longer a level)
  *   accent    a hue far round the wheel (the cel look's `hue`, scene/juice-style.js JUICE_LOOKS.cel), kept thin: the
  *             rings and some of the sparks
- *   rings     at the head, round the flight, one a charge level (the tap none), their near arc bright, their far faded
+ *   rings     at the FIRING POINT, left there as the round flies on (never following it), round its flight, growing and
+ *             fading, one a charge level (the tap none), their near arc bright, their far faded
  *   sparks    a few trailing on the world's clock (more a level), the accent's and white
  *
  *   ROUND_LOOK, roundLook(round, level, { full? }) → { color, size, core, ramp: [hex, hex, hex], halo, stretch, head,

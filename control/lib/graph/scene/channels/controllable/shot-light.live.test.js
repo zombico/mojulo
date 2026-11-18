@@ -2,7 +2,8 @@
 // The concepts: only a side map's page carries it; on one, the map's materials carry the light, a round in flight is a
 // light the page lays; its light on the wall is spill, not flood: a pool round it, its lift held by the cap, none far off.
 // A buster's full charge in flight is drawn in its look: read on the page, a white-hot core, its hue peaking in its
-// falloff, a thin accent (the shot's look's laws, benchmark.js roundLaws).
+// falloff, a thin accent (the rings it leaves where it was fired, read as it leaves them) (the shot's look's laws,
+// benchmark.js roundLaws).
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { emitThreeWorld } from '../../scene-three.js';
 import { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } from '../../chromium.js';
@@ -92,11 +93,13 @@ describe('the shot light on a side map\'s page', () => {
     await frames(60);
     const quiet = await p.screenshot();
     await p.evaluate(() => { const W = window.__mojCtrl.world, B = W.byId.p1.rule.buster, L = B.levels[B.levels.length - 1]; W.projectiles = [{ id: 'x', owner: 'f', pos: [-0.6, -3, 2.2], vel: [0, 0.01, 0], pellet: true, busterLv: B.levels.length, fxScale: L.size, fxColor: L.color, fuse: 999, age: 0, born: W.time, gravity: 0, projRadius: 0.01, noGround: true }]; W.bursts = W.bursts || []; W.projSeq = 1; W.burstSeq = 0; });
-    await frames(10);
+    // (read just after it is fired: its accent is the rings it leaves at the firing point, here where it hangs, and they
+    // fade within a third of a second)
+    await frames(3);
     const lit = await p.screenshot();
     expect(errors).toEqual([]);
     const [q, l] = await Promise.all([decodeImage(quiet), decodeImage(lit)]);
-    const M = measureRound({ page: l, quiet: q }, { r: Math.round(l.W * 0.06) });
+    const M = measureRound({ page: l, quiet: q }, { r: Math.round(l.W * 0.1) });
     const laws = Object.fromEntries(roundLaws(M).map((x) => [x.id, x]));
     for (const id of ['white-core', 'hue-in-falloff', 'accent-thin']) expect(laws[id].holds, laws[id].says).toBe(true);
     await p.close();

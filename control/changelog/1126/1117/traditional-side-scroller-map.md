@@ -223,9 +223,10 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   Only a side map's page carries it.
 - **The shot's look** (`gameworld/feel/round-look.js`): a buster's round drawn as the anime register draws a charged
   shot: a white-hot core, its colour saturated in the falloff and deeper at the edge, all of it additive under a halo
-  in its hue; streaks along its flight, brightest at its head, a tail fading behind and sparks trailing; rings at its
-  head in an accent hue far round the wheel (the cel look's), one more a charge level, their near arc bright; the full
-  charge's head a round white-hot ball leading its stretched body, drawn as big as it hits. Its light on the map is
+  in its hue; the ball always at its head, where it hits, and everything else behind it (streaks along its flight and
+  a tail from the ball back, never ahead of it, sparks trailing); at the firing point, rings in an accent hue far round
+  the wheel (the cel look's), one more a charge level, their near arc bright, left there growing and fading as the
+  round flies on; the full charge's ball round, white-hot and as big as it hits. Its light on the map is
   spill, not flood: its hue on the edges near it, the world kept in its key.
 - **A round's hitbox is its own** (`gameworld/feel/lower.js` `BUSTER_HIT`, `worlds/controllable/buster.js`): the tap and
   the first charge meet a body with less than their drawn size; the full charge is a tall capsule, so it catches what
