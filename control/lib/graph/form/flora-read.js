@@ -21,7 +21,7 @@
  *       bark's own), template, soft (1 a bush walked through, SKIRT_FLAG a skirt's tree)
  * Deterministic; templates cached a process (the grower is the cost).
  */
-import { treeForm, crossClumps, massCrown } from './tree-form.js';
+import { treeForm, crossClumps, massCrown, tipBlobs } from './tree-form.js';
 import { bambooForm } from './bamboo-form.js';
 import { bushForm, bushBlossom, bushBerries, ADORN } from './bush-form.js';
 import { barkMaterial } from './bark-material.js';
@@ -143,7 +143,7 @@ function treeTemplate(species, height, crowns = null) {
   // (`crowns`: 'hybrid', a broadleaf's bundles each with a blob in it, vegetation/twigs.js CORE; 'masses', its bundles
   // gathered round a few big blobs, the leaf mass round its branches, and moved onto their surfaces, form/tree-form.js
   // massCrown: the crown's volume for the triangles it had; a needled crown is as it was)
-  const core = crowns === 'hybrid', masses = crowns === 'masses';
+  const core = crowns === 'hybrid', masses = crowns === 'masses', tips = crowns === 'blobs';
   const key = `tree:${species}:${height}${crowns ? `:${crowns}` : ''}`;
   if (!CACHE.has(key)) {
     // (a broadleaf's crown as CROSSES, vegetation/twigs.js: its wood drawn to the twig, a bundle of small crossed leaves
@@ -156,13 +156,15 @@ function treeTemplate(species, height, crowns = null) {
     else {
       // (within the plants' budget, FLORA_BUDGET: its bundles by rank, each grown)
       const C0 = crossClumps(F), xt = leafCross(species, { seed: 17, core }).tris.length;
-      const M = masses ? massCrown(C0) : null, blobGeo = M ? packGeo(blobTris([0, 0, 0], [1, 1, MASS_BLOB.squash], TONES.leaf.map((v) => Math.round(v * MASS_BLOB.shade)), { detail: MASS_BLOB.detail })) : null;
+      // ('blobs': a blob at each branch end, its leaves set aside, tree-form.js tipBlobs: the crown's form studied alone)
+      const M = masses ? massCrown(C0) : tips ? { ...tipBlobs(C0), clumps: C0 } : null, blobGeo = M ? packGeo(blobTris([0, 0, 0], [1, 1, MASS_BLOB.squash], TONES.leaf.map((v) => Math.round(v * MASS_BLOB.shade)), { detail: MASS_BLOB.detail })) : null;
       // (a mass crown's blobs spend from its budget as its wood does: its bundles give up what they cost)
       // (and never more triangles than the crown it stands for: as many of its least bundles given up as its blobs cost)
-      const giveUp = M ? Math.ceil((M.blobs.length * blobGeo.n) / Math.max(1, xt)) : 0;
+      const giveUp = M && masses ? Math.ceil((M.blobs.length * blobGeo.n) / Math.max(1, xt)) : 0;
       const kept0 = M ? [...M.clumps].sort((a, b) => a.r - b.r).slice(0, Math.max(1, M.clumps.length - giveUp)) : C0;
       const Q = budgeted({ ...F, clumps: kept0, sites: [] }, { clumpTris: xt, leanTris: xt, sprayTris: 0, woodTris: (F.wood.idx || []).length / 3 + (M ? M.blobs.length * blobGeo.n : 0), canLean: false });
-      const T = { ...template('tree', species, { ...F, clumps: Q.clumps, sites: [] }, species), budget: Q.budget, ...(M ? { blobs: packSites(M.blobs), nBlobs: M.blobs.length, blobGeo: [blobGeo] } : {}) };
+      const T = { ...template('tree', species, { ...F, clumps: Q.clumps, sites: [] }, species), budget: tips ? { ...Q.budget, tris: (F.wood.idx || []).length / 3 + M.blobs.length * blobGeo.n } : Q.budget,
+        ...(M ? { blobs: packSites(M.blobs), nBlobs: M.blobs.length, blobGeo: [blobGeo] } : {}), ...(tips ? { leaves: false } : {}) };
       // (far off the same wood as near: no limb drops and the trunk holds as the tree switches level)
       CACHE.set(key, { ...T, cross: true, woodFar: T.wood,
         clumpGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafCross(species, { seed: 17 + k, core }).tris)), ...(core ? { core: true } : {}), ...(masses ? { masses: true } : {}) });

@@ -386,7 +386,8 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       const parts = {
         wood: mk(woodGeo(t.wood), wood, true, false), ...(t.culm || !(t.nClumps > 0) ? { woodFar: mk(woodGeo(t.woodFar || t.wood), wood, true, false) } : {}),
         // (a mass crown, form/tree-form.js massCrown: its big blobs drawn with its bundles, one mesh in the leaf's material)
-        crown: mk(t.blobs ? joined(merged(t.clumps, t.nClumps, cg, 'clump', t.cross ? 'cross' : t.pad, () => true), merged(t.blobs, t.nBlobs, variants(t.blobGeo), 'blob', false, () => true)) : merged(t.clumps, t.nClumps, cg, 'clump', t.cross ? 'cross' : t.pad, () => true), leaf, true, true),
+        // (its leaves set aside, \`leaves: false\`: the blobs alone, the crown's form studied)
+        crown: mk(t.blobs && t.leaves === false ? merged(t.blobs, t.nBlobs, variants(t.blobGeo), 'blob', false, () => true) : t.blobs ? joined(merged(t.clumps, t.nClumps, cg, 'clump', t.cross ? 'cross' : t.pad, () => true), merged(t.blobs, t.nBlobs, variants(t.blobGeo), 'blob', false, () => true)) : merged(t.clumps, t.nClumps, cg, 'clump', t.cross ? 'cross' : t.pad, () => true), leaf, true, true),
         sprays: mk(merged(t.sites, t.nSites, sg, 'spray', false, () => true), leafMat(true, detail, phi), false, true),
       };
       // (a shrub's season: its blossoms facing out, its berries hanging, with its near crown)

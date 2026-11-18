@@ -1341,8 +1341,9 @@ function grittyGrass(LG, grit, st) {
     ...(LG.crowns ? { crowns: { ...LG.crowns, groups: [...LG.crowns.groups, CORE_GROUP, CHIP_GROUP, ...(st.thickets ? [SOFT_BRUSH.core, SOFT_BRUSH.chips] : [])] } } : {}) };
 }
 // a stage's `crowns`, how its broadleaves' crowns are read in the form render (form/flora-read.js treeTemplate): 'hybrid'
-// (each leaf bundle round a blob) or 'masses' (big blobs round the branches, the bundles on their surfaces)
-export const CROWNS = Object.freeze(['hybrid', 'masses']);
+// (each leaf bundle round a blob), 'masses' (big blobs round the branches, the bundles on their surfaces) or 'blobs' (a
+// blob at each branch end, the leaves set aside: the crown's form studied alone)
+export const CROWNS = Object.freeze(['hybrid', 'masses', 'blobs']);
 const crownsOf = (c) => { if (!CROWNS.includes(c)) throw new Error(`isekai: crowns is ${CROWNS.join(' or ')} (how the form render reads its broadleaves' crowns)`); return c; };
 const GRASS_KEYS = ['look', 'contact', 'density', 'height', 'flowers', 'far', 'sway', 'form'];
 // (a grass that says only HOW it is drawn, `{ form: true }`, asks for no grass of its own: it draws whatever grass the

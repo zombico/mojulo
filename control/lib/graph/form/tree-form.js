@@ -396,3 +396,28 @@ export function massCrown(clumps, { per = MASSES.per } = {}) {
   });
   return { blobs, clumps: moved };
 }
+
+/**
+ * THE BLOBS AT THE BRANCH ENDS (a stage's `crowns: 'blobs'`, the crown's form studied with its leaves set aside): a blob
+ * at each branch end the crossed crown stands a bundle at (crossClumps), stood `out` of its radius further out along the
+ * bundle's way out of the crown, so the branch runs into it: lollipops on the limbs. Each blob is as big as its room:
+ * `touch` × the distance to the nearest other end (where the ends crowd, the blobs are small and meet; where they are
+ * few, large), within `least`..`most` of the crown's middle bundle, and narrowing up the crown by `taper` (the top's a
+ * share smaller than the bottom's). → { blobs: [{ p, o, d, s, e, r }] } (a blob's `s` its radius, `o` its way out).
+ */
+export const TIP_BLOBS = Object.freeze({ touch: 0.62, least: 0.35, most: 1.15, taper: 0.35, out: 0.35 });
+export function tipBlobs(clumps) {
+  const n = clumps.length;
+  if (!n) return { blobs: [] };
+  const sMid = [...clumps.map((c) => c.s)].sort((a, b) => a - b)[Math.floor(n / 2)];
+  const zs = clumps.map((c) => c.p[2]), z0 = Math.min(...zs), z1 = Math.max(...zs);
+  const blobs = clumps.map((c, i) => {
+    let dn = Infinity;
+    for (let j = 0; j < n; j++) if (j !== i) dn = Math.min(dn, len(sub(clumps[j].p, c.p)));
+    if (!Number.isFinite(dn)) dn = sMid * 2;
+    const up = z1 > z0 ? (c.p[2] - z0) / (z1 - z0) : 0.5;
+    const r = Math.min(TIP_BLOBS.most * sMid, Math.max(TIP_BLOBS.least * sMid, TIP_BLOBS.touch * dn)) * (1 - TIP_BLOBS.taper * up);
+    return { p: add(c.p, mul(c.o, r * TIP_BLOBS.out)).map(r4), o: c.o, d: c.d, s: r4(r), e: c.e, r: c.r };
+  });
+  return { blobs };
+}
