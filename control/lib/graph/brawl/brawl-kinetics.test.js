@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { KINETICS, massOf, holdOf, throwSpeed, shareOf, readKnock, kick, landSlide, slideOn } from './brawl-kinetics.js';
+import { KINETICS, massOf, holdOf, throwSpeed, shareOf, readKnock, kick, landSlide, slideOn, slabMass, shoveSpeed, slabMeets, slabSlows } from './brawl-kinetics.js';
 import { POWERS, POWER_IDS } from './brawl-powers.js';
 import { streetOf, stepStreet } from './brawl-crowd.js';
 import { newReader, readButtons } from './brawl-moves.js';
@@ -91,5 +91,49 @@ describe('rupa\'s knockback on the street', () => {
     const log = fire(NONE, [[1200, 0], [2000, 0]]);
     expect(events(log, 'thrown')).toEqual([]);
     expect(events(log, 'impact')).toEqual([]);
+  });
+});
+
+// EARTH: a slab of the street wrenched up and shoved, rupa's matter meeting matter.
+describe('an earth power\'s slab', () => {
+  const EARTHLY = POWER_IDS.find((id) => POWERS[id].wall);
+  it('the law: a slab far heavier than a body carries it at nearly its own speed, and pays for it', () => {
+    const W = POWERS[EARTHLY].wall, M = slabMass(W.size, W.density), v = shoveSpeed(M, W.push);
+    expect(0.5 * M * v * v).toBeCloseTo(W.push, 6);
+    const hit = slabMeets(M, v, 75);
+    expect(throwSpeed(75, hit.joules, 0)).toBeGreaterThan(v * 0.9);
+    expect(hit.v).toBeLessThan(v);
+    expect(0.5 * M * hit.v * hit.v + hit.joules).toBeCloseTo(0.5 * M * v * v, 6);
+    expect(slabSlows(v)).toBeLessThan(v);
+  });
+
+  it('two presses: up as cover (a use spent), then shoved, flooring what it meets until it stops and crumbles', () => {
+    let st = streetOf({ belt, players: [hero(EARTHLY)], waves: [{ screen: 1, crowd: [{ type: 'thug', n: 2 }] }] });
+    st.s.bodies[0].x = 22000;
+    let r = newReader();
+    const log = [];
+    for (let k = 0; k < 520; k++) {
+      const me = st.s.bodies[0];
+      if (k === 150) st.s.bodies.filter((b) => b.side === 'crowd').forEach((b, i) => Object.assign(b, { x: me.x + 3200 + i * 900, z: me.z, st: 'stand', sf: 0, mv: null, gone: 0 }));
+      const [pad, r2] = readButtons(r, k === 152 || k === 200 ? { s: true } : {}, me, st.ctx.fighters[0]);
+      r = r2;
+      st = stepStreet(st, [pad]);
+      log.push(st);
+    }
+    expect(events(log, 'power').filter((e) => e.p === 0)).toHaveLength(1);
+    expect(events(log, 'wall')).toHaveLength(1);
+    const shove = events(log, 'shove')[0];
+    expect(shove).toBeDefined();
+    expect(events(log, 'thrown').some((e) => e.v >= KINETICS.TOPPLE)).toBe(true);
+    expect(events(log, 'crumble')).toHaveLength(1);
+    expect(log.at(-1).s.walls).toBeUndefined();
+    // (standing, it held the street: no body stood inside it)
+    const standing = log.find((x) => x.s.walls?.[0]?.st === 'stand').s, w = standing.walls[0];
+    for (const b of standing.bodies) if (!b.gone && Math.abs(b.z - w.z) <= w.wid / 2) expect(Math.abs(b.x - w.x)).toBeGreaterThanOrEqual(w.len / 2);
+  });
+
+  it('a street with no earth power carries no slabs', () => {
+    const log = fire(KINETIC, [[1200, 0], [2000, 0]]);
+    expect(log.some((x) => 'walls' in x.s)).toBe(false);
   });
 });

@@ -11,6 +11,7 @@
  *   hero    the basic player with a hero's power (brawl-powers.js, a heroes street's): while it has a use left it
  *           presses its power (S) when a crowd is on it: two or more standing foes lined up within its reach down the
  *           street with room before the nearest (a beam is aimed, not fired into a blade), or three or more round it.
+ *           An earth power's slab standing, it shoves it once a foe stands on its line ahead of it.
  *           Otherwise the basic player; a seat with no power plays as the basic one
  *   still   holds nothing: a street a player who does nothing wins has no fight on it
  * Every seat is played the same way (a street's players are one to four).
@@ -60,6 +61,12 @@ function basicButtons(room, i, f) {
 /** The hero's buttons: its power pressed when a crowd is on it, else the basic player's. */
 function heroButtons(room, i, f) {
   const me = room.s.bodies[i];
+  // (an earth power's slab standing: shoved as soon as a foe stands on its line ahead of it)
+  if (!me.ko && me.wl !== undefined) {
+    const w = (room.s.walls || []).find((x) => x.id === me.wl), dir = w ? Math.sign(w.x - me.x) || me.face : me.face;
+    const ahead = room.s.bodies.some((b) => b.side === 'crowd' && !b.gone && !b.ko && Math.abs(b.z - me.z) <= 900 && (b.x - me.x) * dir > 0 && Math.abs(b.x - me.x) <= 6000);
+    if (ahead && w && w.st === 'stand') return (f + i * 3) % EVERY < HOLD ? { s: true } : { x: dir };
+  }
   if (me.ko || !(me.pw > 0)) return basicButtons(room, i, f);
   const foes = room.s.bodies.filter((b) => b.side === 'crowd' && !b.gone && !b.ko);
   const onLine = foes.filter((b) => Math.abs(b.z - me.z) <= ON_LINE * 2 && Math.abs(b.x - me.x) <= POWER_REACH);

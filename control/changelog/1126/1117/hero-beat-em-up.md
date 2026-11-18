@@ -50,6 +50,17 @@
   A villain's power throws your heroes the same way. The motion plays at a beat-em-up's pace, so nobody is thrown
   off the screen. The other powers move bodies as before. Measured: each power still wins the default street alone,
   losing two or three of five falls, and four heroes lose none.
+- **An earth power: summon a wall, then push it.** A new power, the wall. The first press wrenches a slab of the
+  street up out of the ground in front of the hero, rising in a ring of dust. It stands as cover: enemy fire stops on
+  it, and nobody walks through it. Press again while it stands and the hero shoves it down the street. It is a few
+  tonnes of stone, so the shove's force gives it its speed, and the ground's friction slows it. Every enemy it meets
+  is floored and thrown ahead of it. It slows a little with each, so it bowls through a line until the ground and the
+  bodies have taken its speed. A slab that has nearly stopped only nudges. It crumbles into dust when it stops, or
+  after a few seconds if nobody shoves it. It has three uses a life, and only raising the slab spends one; the shove
+  is free. A designed wall's strength makes both the shove and the blow harder. Measured: one hero with the wall wins
+  the default street alone, losing two of five falls (with two uses a life it lost four, so it has three). Seen on the
+  page in headless Chrome: the slab standing between the hero and two enemies, then sliding into them and throwing
+  them.
 - **A power's round can floor what it hits.** A special's projectile now knocks down when its move says so, and a
   power's round passes through as many bodies as its card says. Before, a projectile knocked nobody down and
   stopped at the first body.

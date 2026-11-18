@@ -63,6 +63,10 @@
  *     power's): the struck body thrown by its mass (light bodies fly, heavy ones stagger), and an impact's shock where it
  *     first lands, each body near taking its frontal area's share at its distance; a thrown body slides on after it lands.
  *     A blow with no `kin` is as it was.
+ *   • EARTH (a move's `wall`, an earth power's; `shove`): a slab of the street wrenched up in front of its thrower stands
+ *     as cover (the other side's rounds stop on it, no body walks through it); shoved, it slides on, slowed by the ground
+ *     and by each body it meets, which takes the collision's closing energy and is thrown by it (brawl-kinetics.js);
+ *     stopped, or left standing too long, it crumbles. State `walls` only while one stands: absent, nothing changes.
  *   • COOLDOWN: a move with a `cool` (the brawler's strong blows) leaves its body unable to start another with one for
  *     `cool` frames from its start (`cd`, frames left; absent when none); asked for meanwhile, it is not started.
  *   • WAKE-UP: a body rising from the floor is untouchable `wake` frames more, so a crowd cannot keep it down.
@@ -118,7 +122,7 @@ import { METER_MAX, STATES } from '../versus/versus-library.js';
 import { beltScroll, beltBounds } from './brawl-belt.js';
 import { THINGS, MOUNTS } from './brawl-things.js';
 import { roundsOf, aimVector, GUN_MUZZLE } from './brawl-guns.js';
-import { kick, landSlide, slideOn } from './brawl-kinetics.js';
+import { kick, landSlide, slideOn, throwBody, throwSpeed, holdOf, massOf, slabMass, shoveSpeed, slabMeets, slabSlows, slabStep, EARTH } from './brawl-kinetics.js';
 
 export const BRAWL_RULES = Object.freeze({
   line: 320,        // mm across the belt a blow reaches: two bodies further apart than this are not lined up
@@ -219,7 +223,7 @@ export function newBrawl(ctx, opts = {}) {
 }
 
 function cloneBrawl(s) {
-  return { ...s, bodies: s.bodies.map((p) => ({ ...p, hl: p.hl.map((h) => h.slice()), ...(p.fh ? { fh: p.fh.slice() } : {}), ...(p.mr ? { mr: p.mr.slice() } : {}) })), shots: s.shots.map((t) => ({ ...t, hl: t.hl.slice() })), events: [], cleared: s.cleared.slice(), ...(s.things ? { things: s.things.map((t) => ({ ...t, ...(t.hl ? { hl: t.hl.slice() } : {}) })) } : {}) };
+  return { ...s, bodies: s.bodies.map((p) => ({ ...p, hl: p.hl.map((h) => h.slice()), ...(p.fh ? { fh: p.fh.slice() } : {}), ...(p.mr ? { mr: p.mr.slice() } : {}) })), shots: s.shots.map((t) => ({ ...t, hl: t.hl.slice() })), events: [], cleared: s.cleared.slice(), ...(s.walls ? { walls: s.walls.map((w) => ({ ...w, hl: w.hl.slice() })) } : {}), ...(s.things ? { things: s.things.map((t) => ({ ...t, ...(t.hl ? { hl: t.hl.slice() } : {}) })) } : {}) };
 }
 
 // ── boxes (the fight's, in the plane along the belt; the line across it is the brawl's) ─────────────────────────
@@ -286,11 +290,13 @@ export function stepBrawl(prev, pads, ctx) {
   }
   for (const t of s.shots) if (t.boom) burst(s, ctx, t);
   if (s.things) coverStops(s, ctx);
+  if (s.walls) stepWalls(s, ctx);
   s.shots = s.shots.filter((t) => t.life > 0 && t.hits > 0);
   if (s.things) flying(s, ctx);
   // (a wreck skids on and stops)
   if (s.things) for (const t of s.things) if (t.sl) { t.x += t.sl; t.sl = Math.sign(t.sl) * Math.max(0, Math.abs(t.sl) - 6); if (!t.sl) delete t.sl; }
   separate(s, ctx);
+  if (s.walls) holdWalls(s);
   for (const p of s.bodies) faceTarget(s, p);
   resolve(s, ctx);
   return s;
@@ -518,6 +524,9 @@ function advance(s, p, ctx) {
       if (m.travel && p.mf >= 2 && p.mf <= m.startup + m.active - 1) p.x += m.travel * p.face;
       if (m.airborne && p.mf === m.airborne[0]) { p.air = 1; p.vx = m.vel[m.airborne[0]][0] * p.face; p.vy = m.vel[m.airborne[0]][1]; }
       if (m.projectile && p.mf === m.startup) shoot(s, p, m);
+      // (an earth power: a slab of the street wrenched up as the move strikes, or the hero's own slab shoved)
+      if (m.wall && p.mf === m.startup) raiseWall(s, p, m.wall);
+      if (m.shove && p.mf === m.startup) shoveWall(s, p);
       if (p.air) {
         fall(p, J.g);
         if (p.mf > m.total) p.mf = m.total;
@@ -974,6 +983,91 @@ function unmount(s, p, knocked) {
   } else { p.st = 'stand'; p.sf = 0; }
   delete p.mk; delete p.md; delete p.mp; delete p.mo; delete p.mr;
 }
+// ── EARTH: a slab of the street (brawl-kinetics.js: rupa's matter meets matter) ───────────────────────────────────
+//
+// A wall { id, o, side, x, z, dir, len, wid, h, mass, v (the law's speed, cm/s), st: rise | stand | slide | crumble, f,
+// hl } rises in front of its thrower, stands as cover (rounds of the other side stop on it, and no body walks through
+// it), and once shoved slides on, slowed by the ground and by every body it meets, each thrown by what it takes; stopped,
+// or left standing past its `stand`, it crumbles. One a thrower: a new one crumbles the old. Its owner's `wl` while it
+// stands (a press of S then shoves it: brawl-moves.js).
+function raiseWall(s, p, W) {
+  if (!s.walls) s.walls = [];
+  for (const w of s.walls) if (w.o === p.id && w.st !== 'crumble') crumble(s, w);
+  const id = (s.nw = (s.nw ?? 0) + 1), [len, wid, h] = W.size.map((v) => Math.round(v * 1000));
+  const w = { id, o: p.id, side: p.side, x: p.x + p.face * W.at, z: p.z, dir: p.face, len, wid, h, mass: slabMass(W.size, W.density), v: 0, st: 'rise', f: 0, hl: [], push: W.push, dmg: W.damage, stand: W.stand, rest: W.rest, rise: W.rise };
+  s.walls.push(w);
+  p.wl = id;
+  s.events.push({ t: 'wall', p: p.id, x: w.x, z: w.z, ground: Math.round(0.5 * w.mass * 9.81 * (h / 1000)) });
+}
+function shoveWall(s, p) {
+  const w = (s.walls ?? []).find((x) => x.id === p.wl && (x.st === 'stand' || x.st === 'rise'));
+  delete p.wl;
+  if (!w || Math.abs(w.x - p.x) > w.len / 2 + 1400 || Math.abs(w.z - p.z) > w.wid / 2 + 400) return;
+  w.dir = Math.sign(w.x - p.x) || p.face; w.st = 'slide'; w.f = 0;
+  w.v = w.v0 = Math.round(shoveSpeed(w.mass, w.push) * 100);
+  s.events.push({ t: 'shove', p: p.id, x: w.x, z: w.z, v: w.v / 100 });
+}
+function crumble(s, w) {
+  w.st = 'crumble'; w.f = 0; w.v = 0;
+  const o = s.bodies[w.o];
+  if (o && o.wl === w.id) delete o.wl;
+  s.events.push({ t: 'crumble', p: w.o, x: w.x, z: w.z, ground: Math.round(0.5 * w.mass * 9.81 * (w.h / 1000)) });
+}
+function stepWalls(s, ctx) {
+  for (const w of s.walls) {
+    w.f++;
+    if (w.st === 'rise' && w.f >= w.rise) { w.st = 'stand'; w.f = 0; }
+    else if (w.st === 'stand' && w.f >= w.stand) crumble(s, w);
+    else if (w.st === 'slide') {
+      // (on along the street, slowed by the ground; each body of the other side it meets on its way takes the closing
+      // energy and is thrown by it, and the slab goes on slower)
+      const v0 = w.v / 100, step = slabStep(v0), front = w.x + w.dir * (w.len / 2);
+      w.x += w.dir * step;
+      for (const o of s.bodies) {
+        if (o.side === w.side || o.gone || w.hl.includes(o.id) || Math.abs(o.z - w.z) > w.wid / 2 + s.rules.body) continue;
+        const ahead = (o.x - front) * w.dir;
+        if (ahead < -w.len || ahead > step + s.rules.body) continue;
+        if (!o.ko && untouchable(o, ctx.fighters[o.fi], 'strike')) continue;
+        w.hl.push(o.id);
+        const m = massOf(ctx.fighters[o.fi]), hit = slabMeets(w.mass, w.v / 100, m);
+        // (its blow by its speed: the shove's whole damage at the shove's speed, a nudge as it comes to rest)
+        const dmg = Math.max(1, Math.round((w.dmg * w.v) / w.v0));
+        if (!o.ko) { o.hp -= dmg; o.combo++; s.events.push({ t: 'hit', p: w.o, d: o.id, dmg, x: o.x, z: o.z, y: 1100, combo: o.combo, w: dmg * 2 >= w.dmg ? 2 : 1, limb: 'wall', kind: 'wall' }); }
+        if (o.hp <= 0 && !o.ko) knockOut(s, o, w.dir);
+        throwBody(s, o, throwSpeed(m, hit.joules, holdOf(o, m)), w.dir, 0, 0.3);
+        w.v = Math.round(hit.v * 100);
+      }
+      w.v = Math.round(slabSlows(w.v / 100) * 100);
+      if (w.v / 100 < EARTH.STOP) crumble(s, w);
+    }
+    // (rounds of the other side stop on a slab that stands or slides)
+    if (w.st !== 'crumble' && w.st !== 'rise') for (const t of s.shots) {
+      if (t.side === w.side || t.lob || t.hits <= 0 || Math.abs(t.z - w.z) > w.wid / 2 + 120) continue;
+      const was = t.x - t.vx;
+      if (!(Math.sign(was - w.x) !== Math.sign(t.x - w.x) || Math.abs(t.x - w.x) <= w.len / 2)) continue;
+      t.hits = 0; t.life = 0;
+      s.events.push({ t: 'cover', x: w.x - Math.sign(t.vx) * (w.len / 2), z: t.z, y: t.y, wall: w.id });
+    }
+  }
+  s.walls = s.walls.filter((w) => !(w.st === 'crumble' && w.f >= w.rest));
+  if (!s.walls.length) delete s.walls;
+}
+// (no body walks through a slab that stands or slides: each is held to its near face, so a sliding slab carries what it
+// does not throw)
+function holdWalls(s) {
+  for (const w of s.walls) {
+    if (w.st === 'crumble' || w.st === 'rise') continue;
+    for (const o of s.bodies) {
+      if (o.gone || Math.abs(o.z - w.z) > w.wid / 2 + s.rules.body) continue;
+      const reach = w.len / 2 + s.rules.body, dx = o.x - w.x;
+      if (Math.abs(dx) >= reach) continue;
+      // (a body the slab slides into goes before it; any other is held on the side it stands)
+      const side = w.st === 'slide' && o.side !== w.side ? w.dir : Math.sign(dx) || -w.dir;
+      o.x = w.x + side * reach;
+    }
+  }
+}
+
 function knockOut(s, d, face) {
   d.hp = 0; d.ko = 1; d.st = 'fall'; d.sf = 0; d.vy = Math.max(d.vy, 70); d.vx = face * 24; d.vz = 0; d.mv = null;
   if (d.y <= 0) d.y = 1;

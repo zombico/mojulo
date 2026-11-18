@@ -32,6 +32,9 @@
  *                                only) spread over every touchable body of the other side; events `impact` { x, z, ground }
  *                                and `thrown` { p, v } (v the law's, m/s)
  *   landSlide(p) · slideOn(p)    a thrown body landing (its way becomes its slide), and sliding on a frame
+ *   throwBody(s, b, v, dir, dz, lift)  a body thrown at the law's speed (m/s)
+ *   EARTH · slabMass · shoveSpeed · slabMeets · slabSlows · slabStep   a slab of the street shoved: matter meets matter
+ *                                (below)
  *
  * Pure: plain numbers, no clock, no dice.
  */
@@ -64,7 +67,7 @@ export function readKnock(v, at = 'knock') {
 }
 
 /** A body thrown at the law's speed `v` (m/s) away along `dir` (±1 along the street, `dz` across), lifted by `lift`. */
-function throwBody(s, b, v, dir, dz, lift) {
+export function throwBody(s, b, v, dir, dz, lift) {
   if (!(v > 0)) return;
   const play = Math.round(Math.min(K.STREET_CAP, v * K.PACE) * MM), side = Math.round(play * dz);
   if (v >= K.TOPPLE || b.ko) {
@@ -122,3 +125,26 @@ export function slideOn(p) {
   if (p.sz) p.sz = Math.round((p.sz * n) / Math.abs(p.sx));
   p.sx = Math.sign(p.sx) * n;
 }
+
+// ── EARTH: a slab of the street, wrenched up and shoved (rupa's matter meets matter) ───────────────────────────────
+//
+// A SLAB is matter: its mass the stone's density by its box (a wall's `size` [along, across, up] m, `density` kg/m³).
+// Shoved, it takes the shove's joules as its speed, v = √(2E/M), and the ground's friction slows it (μₖ·g) as a thrown
+// body's slide is slowed. Meeting a body it closes on it: the body takes the collision's closing energy, ½·μ·v² (μ the
+// reduced mass, M·m/(M + m)), and is thrown by the knockback law; the slab pays it and goes on slower, v' = √(v² − 2E/M).
+// A slab far heavier than a body carries it at nearly its own speed, so a slab floors what it meets until the ground and
+// the bodies have taken its speed. On the street it moves at WALL_PACE of the law's speed, held to the street's cap.
+export const EARTH = Object.freeze({ WALL_PACE: 0.6, STOP: 0.3 });
+/** a slab's mass (kg): its density by its box */
+export const slabMass = (size, density) => Math.round(density * size[0] * size[1] * size[2]);
+/** a shove's speed (m/s): its joules into the slab's mass */
+export const shoveSpeed = (M, joules) => Math.sqrt((2 * joules) / M);
+/** a slab of mass M at speed v meeting a body of mass m → { joules the body takes, the slab's speed after } */
+export function slabMeets(M, v, m) {
+  const mu = (M * m) / (M + m), E = 0.5 * mu * v * v;
+  return { joules: E, v: Math.sqrt(Math.max(0, v * v - (2 * E) / M)) };
+}
+/** the slab's speed a frame on under the ground's friction (m/s) */
+export const slabSlows = (v) => Math.max(0, v - (K.MU_K * K.G) / 60);
+/** how far the slab moves on the street this frame (mm) at the law's speed v */
+export const slabStep = (v) => Math.round(Math.min(K.STREET_CAP, v * EARTH.WALL_PACE) * MM);

@@ -10,7 +10,7 @@
  * stock. Its LOOK is a beam of the elements' shelf (playscape/elements/beams.js BEAMS: the same words the game book's
  * actions page writes a power's `attack` in), whose colour the page draws it in.
  *
- *   POWERS[id] = { says, beam, stock, special, pierce?, beat, knock? }
+ *   POWERS[id] = { says, beam, stock, special, pierce?, beat, knock?, wall? }
  *     beam     its look, a BEAMS word (the colour it is drawn in; a hero's own `attack` in its place)
  *     stock    its uses a life (1 to 9): spent as it starts, filled again at a fall (brawl-crowd.js)
  *     special  the move: { from, …its changes } over the shipped special, as a recipe's library writes one
@@ -19,6 +19,9 @@
  *              (rupa's `heroic`, ten times a person's blow): a kinetic push on what it strikes (the beam, the flame), an
  *              impact's shock where it lands (the nova) or round its caster (the storm). Light bodies fly, heavy ones
  *              stagger; the shock falls off with distance. A card with none moves bodies as the fight's blows do
+ *     wall     an EARTH power's slab (brawl-kinetics.js, rupa's matter meets matter): { size [along, across, up] m,
+ *              density, at (mm in front), push (the shove's joules), damage, rise, stand, rest (frames) }. The first press
+ *              wrenches it up (a use spent) to stand as cover; S again while it stands shoves it (`wall.push`, free)
  *     beat     its SUPER BEAT, the moment it is called up: { freeze, screen } the street held still `freeze` frames
  *              (brawl-core.js, a fight super's freeze), and the camera's glass round the caster for it, `screen` a lens
  *              strike's kind (mana-ui's lens: lift, ring, shade, ink). Read while every figure stands still, which is
@@ -78,6 +81,11 @@ export const POWERS = Object.freeze({
   might: card('a strongman\'s grip: a body taken from further than a hand reaches and slammed down for half its life', 'nova', 3,
     { from: 'grab', says: 'the hero\'s might: a body taken and slammed', at: { damage: 300, reach: 1.5, startup: 6, recovery: 30 } },
     { beat: beat(10, 'shade') }),
+  // ── EARTH: the street itself (brawl-kinetics.js, rupa's matter meets matter) ──
+  wall: card('a slab of the street wrenched up as cover; pressed again, shoved down the street, flooring what it meets till the ground stops it', 'nova', 3,
+    { from: 'boom', says: 'the hero\'s wall: a slab of the street wrenched up, then shoved', projectile: undefined, nohit: true, at: { startup: 12, recovery: 20, damage: 1 } },
+    // (a slab of stone 0.6 m thick, 1.6 m across and 1.9 m up, 1.3 m in front; shoved with a hero's 180 kJ: about 9 m/s)
+    { beat: beat(10, 'shade'), wall: Object.freeze({ size: Object.freeze([0.6, 1.6, 1.9]), density: 2400, at: 1300, push: 180000, damage: 110, rise: 14, stand: 300, rest: 36 }) }),
 });
 export const POWER_IDS = Object.freeze(Object.keys(POWERS));
 
@@ -181,6 +189,14 @@ export function powerMoves(F, power) {
     // (and its energy, rupa's knockback (brawl-kinetics.js): on the move, and on its round where it throws one)
     const kin = P.knock ? { kin: P.knock } : {};
     out[slot] = { ...m, power: 1, ...(P.beat.freeze ? { freeze: P.beat.freeze } : {}), ...(m.projectile ? {} : kin), ...(m.projectile && (pierce || P.special.knock === 'down' || P.knock) ? { projectile: { ...m.projectile, ...(pierce ? { hits: pierce } : {}), ...(P.special.knock === 'down' ? { knock: 'down' } : {}), ...kin } } : {}) };
+  }
+  // (an EARTH power's two presses: the slab wrenched up (the power, its use spent), then, while it stands, the same move
+  // shoving it (free): `wall.push`, which S throws while the hero's own slab stands, brawl-moves.js)
+  if (P.wall) {
+    const W = R.dials?.strength ? { ...P.wall, push: Math.round((P.wall.push * R.dials.strength) / 100), damage: Math.round((P.wall.damage * R.dials.strength) / 100) } : P.wall;
+    for (const [slot, m] of Object.entries(out)) if (m.power) out[slot] = { ...m, wall: W };
+    const summon = out['special.neutral.M'];
+    if (summon) { const { power: _p, wall: _w, freeze: _f, ...rest } = summon; out['wall.push'] = { ...rest, slot: 'wall.push', id: `${libId(id)}.push`, shove: 1 }; }
   }
   return out;
 }
