@@ -76,11 +76,11 @@ describe('a level\'s rows on mana-ui', () => {
 });
 
 describe('a level\'s HUD as a game draws it', () => {
-  it('money is a coin and a figure, never the word; every place is bare', () => {
+  it('money is a coin and a figure, never the word; no box over the world: a corner on a scrim, the rest bare', () => {
     const E = hudToMana([{ var: 'coins', label: 'coin', as: 'counter', slot: 'top-right' }, { var: 'keys', label: 'keys', as: 'counter', slot: 'top-left' }]), J = JSON.stringify(E.spec);
     expect(J).toContain('{"use":"counter","props":{"label":"","value":{"bind":"v.v0"},"icon":"coin"}}');
     expect(J).toContain('"label":"keys"');
-    expect(E.spec.hud.children.every((c) => c.use !== 'region' || c.props.variant === 'bare')).toBe(true);
+    expect(E.spec.hud.children.every((c) => c.use !== 'region' || c.props.variant === (c.props.at.includes('-') ? 'scrim' : 'bare'))).toBe(true);
   });
 });
 
