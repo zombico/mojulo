@@ -31,11 +31,12 @@ const OFF = Object.freeze({ pauldron: 'pauldron', chest: 'chest', forearm: 'arms
 // the hero's rig: each a part's stations (`s`), its volume's girth a share of the limb's
 // THE ARM CANNON (the buster's: worlds/controllable/buster.js), off unless the language names its arm: the forearm's form
 // carried on past the wrist over the hand, ONE form with no seam at the wrist. Its barrel, round the hand, tucks up into
-// the forearm piece's mouth (that arm's forearm wears no cuff at the wrist), runs nearly straight past the fingertips,
-// flaring a little, and ends in a muzzle with its lip and the bore dark in its face. The hand is inside it
+// the forearm piece's mouth (that arm's forearm wears no cuff at the wrist) and runs on straight, flush with it, past
+// the fingertips, its end rounded in a dome and a short nozzle standing out of it, the bore dark in its face. The hand
+// is inside it
 const CANNON = Object.freeze({ mode: 'shell', part: 'handR', s: [0, 1], t: 'wrap', nt: 8, ns: 4, mugen: 0.001, thick: 0.001, rigid: true, group: 'Armor',
-  signature: { kind: 'volume', group: 'Armor', shape: 'cone', girth: 1.5, taper: 1.3, n: 2.2, extend: [2.2, 3.1], m: 28, rings: 16,
-    lip: { group: 'Cuff', at: 'high', w: 0.1, out: 0.05 }, bore: { group: 'Bore', r: 0.62 } } });
+  signature: { kind: 'volume', group: 'Armor', shape: 'cone', girth: 1.62, taper: 1, n: 2.2, extend: [2.8, 2.6], m: 28, rings: 16,
+    dome: { depth: 1 }, nozzle: { r: 0.42, len: 0.55, group: 'Cuff' }, bore: { group: 'Bore', r: 0.7 } } });
 
 const PIECES = Object.freeze({
   collar: Object.freeze({"mode": "shell", "part": "neck", "s": [0.0, 0.9], "t": "wrap", "nt": 10, "ns": 3, "mugen": 0.001, "thick": 0.001, "rigid": true, "group": "Cuff", "signature": {"kind": "volume", "group": "Cuff", "shape": "cone", "girth": 1.22, "taper": 0.88, "n": 2.2, "m": 20}}),

@@ -355,10 +355,24 @@ function volumeAt(g, S) {
     slab: (q) => 1 + ((S.taper ?? 1) - 1) * q }[S.shape];
   const U = Array.from({ length: K }, (_, i) => u0 + (u1 - u0) * i / (K - 1)), rad = U.map((u, i) => R * prof(i / (K - 1)));
   const rings = U.map((u, i) => ring(off(u), rad[i]));
-  // a rounded proximal end (the volume swells out of the limb), a flat distal face (a cuff, a sole, a muzzle)
-  const body = loftParts(rings, add(off(u0), mul(a, -rad[0] * 0.35)), off(u1));
+  // a rounded proximal end (the volume swells out of the limb), a flat distal face (a cuff, a sole, a muzzle); or with
+  // `dome` { depth? } the distal end closed in a DOME, `depth` its height a share of the end's radius (an arm cannon's
+  // rounded end), and a `nozzle` { r, len, group?, rings? } out of its apex, a short barrel `r` of the end's radius across
+  // and `len` of it long, its bore dark in its face. Absent both: as before, byte for byte
+  const rEnd = rad[K - 1], D = S.dome ? (S.dome.depth ?? 0.85) : 0;
+  const domeRings = D ? Array.from({ length: 6 }, (_, j) => { const th = (Math.PI / 2) * (j + 1) / 7; return ring(add(off(u1), mul(a, rEnd * D * dmath.sin(th))), Math.max(1e-4, rEnd * dmath.cos(th))); }) : [];
+  const apex = D ? add(off(u1), mul(a, rEnd * D)) : off(u1);
+  const body = loftParts([...rings, ...domeRings], add(off(u0), mul(a, -rad[0] * 0.35)), apex);
   const out = [body];
-  if (S.bore) { const br = rad[K - 1] * (S.bore.r ?? 0.62); out.push({ ...disc(add(off(u1), mul(a, 0.0005)), a, br, Math.max(0.001, br * 0.12), m, 0.7), group: S.bore.group }); }
+  let face = apex, faceR = rEnd;
+  if (D && S.nozzle) {
+    const nr = rEnd * (S.nozzle.r ?? 0.32), nl = rEnd * (S.nozzle.len ?? 0.45), sink = rEnd * D * (1 - dmath.cos(dmath.asin(Math.min(1, (S.nozzle.r ?? 0.32))))) + nr * 0.1;
+    const n0 = add(apex, mul(a, -sink)), n1 = add(apex, mul(a, nl)), NK = S.nozzle.rings ?? 4;
+    const nRings = Array.from({ length: NK }, (_, i) => ring(add(n0, mul(sub(n1, n0), i / (NK - 1))), nr * (i === NK - 1 ? 1.08 : 1)));
+    out.push({ ...loftParts(nRings, n0, n1), ...(S.nozzle.group ? { group: S.nozzle.group } : {}) });
+    face = n1; faceR = nr;
+  }
+  if (S.bore) { const br = (D ? faceR : rad[K - 1]) * (S.bore.r ?? 0.62); out.push({ ...disc(add(face, mul(a, 0.0005)), a, br, Math.max(0.001, br * 0.12), m, 0.7), group: S.bore.group }); }
   if (S.lip) { const hi = S.lip.at !== 'low', w = S.lip.w ?? 0.12, o = 1 + (S.lip.out ?? 0.06), Q = 3;
     const band = Array.from({ length: Q }, (_, i) => { const q = hi ? 1 - w + w * i / (Q - 1) : w * i / (Q - 1), u = u0 + (u1 - u0) * q; return ring(off(u), R * prof(q) * o); });
     out.push({ ...loftParts(band, off(u0 + (u1 - u0) * (hi ? 1 - w : 0)), off(u0 + (u1 - u0) * (hi ? 1 : w))), group: S.lip.group }); }
@@ -1291,9 +1305,11 @@ export const SIGNATURES = {
    * chamfered moulding) squashed by `squash` [lateral, forward]; `bias` [lateral, forward, along] moves it off the axis
    * (fractions of the radius; the forward is the figure's +y, or up for a carrier that already points forward, a foot);
    * `extend` [proximal, distal] runs it past the window (fractions of the window's length). `bore` { group, r? } sets a
-   * dark muzzle disc on the distal face (the arm cannon); `lip` { group, at: 'low' | 'high', w?, out? } a proud band at
+   * dark muzzle disc on the distal face (the arm cannon); `dome` { depth? } closes the distal end in a dome, and
+   * `nozzle` { r, len, group?, rings? } stands a short barrel out of its apex (the bore then in the nozzle's face);
+   * `lip` { group, at: 'low' | 'high', w?, out? } a proud band at
    * one end (a cuff); `half` { cut } a flat face `cut` radii below the axis along the whole length (a half-egg foot's sole).
-   * { shape, girth, peak?, mouth?, taper?, n?, squash?, bias?, extend?, at?, m?, rings?, bore?, lip?, half? } */
+   * { shape, girth, peak?, mouth?, taper?, n?, squash?, bias?, extend?, at?, m?, rings?, bore?, dome?, nozzle?, lip?, half? } */
   volume: (fig, g, _b, S) => volumeAt(g, S),
   /** a PLAQUE: a thick trapezoid plate lying on the carrier (`part`, default the adornment's own) between stations `s`
    * [bottom, top], centred on the front (t 0), its half-width in ring units `w` [at the bottom, at the top], lifted `lift`

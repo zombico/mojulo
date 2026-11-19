@@ -140,6 +140,10 @@ describe('the toy family', () => {
     expect(R.part).toBe('handR');
     expect(L.part).toBe('handL');
     expect(R.signature.bore).toBeTruthy();
+    // (flush with the forearm and rounded: a straight barrel, its end a dome, a nozzle out of it)
+    expect(R.signature.taper).toBe(1);
+    expect(R.signature.dome).toBeTruthy();
+    expect(R.signature.nozzle.r).toBeGreaterThan(0);
   });
   it('covers in order: the chest first, the plaques last', () => {
     expect(kit({ coverage: 0 }).map((e) => e.id)).toEqual(['chest']);

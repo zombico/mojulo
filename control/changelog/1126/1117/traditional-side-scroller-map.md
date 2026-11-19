@@ -303,3 +303,6 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   a jump, a dash) and eases back down; the shot leaves from the cannon at the end of that arm, not his chest. It is his
   right arm whichever way he faces (the body turns, never a mirror), so facing left the shot leaves from his far side.
   Walking, dashing or jumping, the shot leaves from where that arm is in the move (a dash's lean and sink lower it).
+- **Galaxy Boy's arm cannon and hands**: the buster runs flush on from the forearm, straight, its end rounded and a short
+  nozzle standing out of it with the bore dark in its face (an armour volume can now end in a dome and a nozzle). The
+  hero robot's gloved hands are a little smaller and stand on a longer wrist (a hand can stand further off its wrist).
