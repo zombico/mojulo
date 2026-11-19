@@ -449,7 +449,7 @@
         "off": 3
       },
       "height": 4,
-      "stair": "+x",
+      "stair": "-y",
       "reads": "the camp's watchtower, its stair up the east side, away from the trail"
     }
   ],

@@ -441,5 +441,6 @@ or a recipe key; the spike mints through the real doors and measures.
   walks under it, the search's band never meets it), so the flight and the deck are one thing to a runner: without it
   the free-run took the last treads for a low box and vaulted the operative off the top of the flight, down under the
   deck (measured on the page, frame by frame, at tread 10 of 15). A tower's `stair`
-  names the side its flight runs out from (the gate tower's north, away from the gorge's wall; the camp's east, away
-  from the trail). The sneak's laws hold with the stairs standing.
+  names the side its flight runs out from (the gate tower's north, away from the gorge's wall; the camp's south,
+  down the trail's side toward the camp: east, its flight ran into the north log). The sneak's laws hold with the stairs
+  standing.
