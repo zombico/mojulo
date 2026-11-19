@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { treeForm, massCrown, tipBlobs, anchorBlobs, majorBalls, TREE_FORM, SLEEVE, MASSES, TIP_BLOBS, BLOB_HOLD, CANOPY, BALLS } from './tree-form.js';
+import { treeForm, massCrown, tipBlobs, anchorBlobs, majorBalls, TREE_FORM, SLEEVE, MASSES, TIP_BLOBS, BLOB_HOLD, CANOPY, BALLS, EVOKE } from './tree-form.js';
 import { BARK_TILE_M } from '../vegetation/tiles.js';
 import { leafHolds, needleHabit } from '../vegetation/sprays.js';
 import { SPECIES } from '../vegetation/species.js';
@@ -170,6 +170,20 @@ describe('the mass crown', () => {
     expect(near.p).toEqual([0.3, 0, 4]);
     expect(Math.hypot(far.p[0], far.p[1], far.p[2] - 4)).toBeCloseTo(0.5 * BLOB_HOLD, 3);
   });
+});
+
+describe('the evoked wood', () => {
+  it('draws a limb only where it carries a ball: none for balls out of its reach, and less than the whole tree', () => {
+    const at = (evoke) => treeForm('beech', { seed: 3, mature: { toHeight: 0.95, range: [1, 2], cambium: 2.2, aim: 12 }, canopy: true, evoke });
+    const whole = at(null), tris = (F) => F.wood.idx.length / 3;
+    // (the crown's balls: round its own ends)
+    const balls = majorBalls(whole.clumps).blobs.slice(0, 3), evoked = at({ balls });
+    expect(tris(evoked)).toBeGreaterThan(0);
+    expect(tris(evoked)).toBeLessThan(tris(whole));
+    // (balls nowhere near it: nothing it carries, no limb drawn)
+    expect(tris(at({ balls: [{ p: [500, 500, 500], s: 1 }] }))).toBe(0);
+    expect(EVOKE.thick).toBeGreaterThan(1);
+  }, 120000);
 });
 
 describe('the canopy form', () => {

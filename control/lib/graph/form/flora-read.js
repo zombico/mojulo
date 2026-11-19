@@ -113,9 +113,41 @@ export const MASS_BLOB = Object.freeze({ detail: 1, ball: 2, squash: 0.85, shade
  *  and stood in the canopy form; far off, its card FULL (`far`, channels/form-flora.js FLORA_FAR): its crown's mass (its
  *  major balls and the lobes joining them, form/tree-form.js majorBalls) baked under its leaves, at `shade` of the
  *  leaf's tone, its edge broken past `rim` of its radius as a crown's edge is, and each leaf grown by `leaf` texels: the
- *  far crown its whole mass in pixels, for no geometry. Near, the same lobes drawn under its leaves (MASS_BLOB, its
- *  coarse blob), its least bundles given up for what they cost: the crown's mass for the triangles it had. */
-export const REALISTIC = Object.freeze({ older: 1.25, far: Object.freeze({ shade: 0.8, rim: 0.6, leaf: 0.5, squash: 0.85 }) });
+ *  far crown its whole mass in pixels, for no geometry (`discs`: off while its balls are drawn as cups, their own
+ *  triangles baked). Near, the balls drawn as STACKED CUPS (CUPS), its least bundles given up for what they cost, and
+ *  only the bundles within `onBall` of a ball's radius kept: no leaf off its mass; its wood EVOKED by its balls
+ *  (tree-form.js EVOKE): a limb only where it carries one. */
+export const REALISTIC = Object.freeze({ older: 1.25, onBall: 0.85, far: Object.freeze({ shade: 0.8, rim: 0.6, leaf: 0.5, squash: 0.85, discs: false }) });
+/** A realistic crown's ball as STACKED CUPS: `tiers` low domes one over the next, each `[radius, rim height, rise]` of
+ *  the ball's radius, the widest beneath; each dome's rim a ring of `teeth` points reaching out and dropping (`drop` ×
+ *  its radius), the notches between drawn in (`notch` of the radius, `notchDrop` of the drop), its dome rounded through
+ *  a ring at `shoulder` of the way in; its faces toned by which way they face (MASS_BLOB.lobe.tones); `variants` of them,
+ *  each its teeth turned and their reach varied by `jitter`. */
+export const CUPS = Object.freeze({ tiers: Object.freeze([Object.freeze([1.18, -0.42, 0.42]), Object.freeze([0.96, -0.02, 0.36]), Object.freeze([0.64, 0.36, 0.32])]),
+  teeth: 7, notch: 0.74, drop: 0.3, notchDrop: 0.25, shoulder: 0.58, jitter: 0.14, variants: 3 });
+function cupTris(seed) {
+  const C = CUPS, h = (k) => hashN(seed * 613 + k), tones = MASS_BLOB.lobe.tones, leaf = TONES.leaf, tris = [];
+  const tone = (n) => { const l = Math.hypot(...n) || 1, nz = n[2] / l; return leaf.map((v) => Math.min(255, Math.round(v * tones[nz > 0.35 ? 0 : nz > -0.25 ? 1 : 2] * MASS_BLOB.shade))); };
+  const face = (a, b, c) => { const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]], n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+    // (wound to face out of the cup: up and out)
+    const out = n[2] + (n[0] * (a[0] + b[0] + c[0]) + n[1] * (a[1] + b[1] + c[1])) * 0.3 >= 0;
+    tris.push({ p: (out ? [a, b, c] : [a, c, b]).map((q) => q.map(r4)), c: tone(out ? n : n.map((x) => -x)), kind: 'leaf' }); };
+  C.tiers.forEach(([R, z, rise], t) => {
+    const n = C.teeth, turn = h(t * 11) * Math.PI * 2, apex = [0, 0, z + rise], ring = [], rim = [];
+    for (let i = 0; i < 2 * n; i++) {
+      const th = turn + (i * Math.PI) / n, tooth = i % 2 === 0, j = 1 + C.jitter * (h(t * 97 + i) - 0.5) * 2;
+      const r = R * (tooth ? 1 : C.notch) * j, dz = -C.drop * R * (tooth ? 1 : C.notchDrop);
+      rim.push([r * Math.cos(th), r * Math.sin(th), z + dz]);
+      ring.push([R * C.shoulder * Math.cos(th), R * C.shoulder * Math.sin(th), z + rise * 0.7]);
+    }
+    for (let i = 0; i < 2 * n; i++) {
+      const k = (i + 1) % (2 * n);
+      face(apex, ring[i], ring[k]);
+      face(ring[i], rim[i], rim[k]); face(ring[i], rim[k], ring[k]);
+    }
+  });
+  return tris;
+}
 // a major ball as a crown's lobe (MASS_BLOB.lobe): a sphere twice subdivided, each corner moved by its own way out of the
 // middle alone (so the shared corners stay shared: the surface closed), its faces toned by which way they face
 function lobeTris(seed) {
@@ -194,17 +226,23 @@ function treeTemplate(species, height, crowns = null) {
       // card has it far)
       const M0 = masses ? massCrown(C0) : tips || real ? { ...majorBalls(C0), clumps: C0 } : null;
       // (each blob held to the wood that is drawn: none floats over a twig the cut left out)
-      const M = M0 && (tips || real) ? { ...M0, blobs: anchorBlobs(M0.blobs, F.wood.pos) } : M0, blobGeo = M ? packGeo(blobTris([0, 0, 0], [1, 1, MASS_BLOB.squash], TONES.leaf.map((v) => Math.round(v * MASS_BLOB.shade)), { detail: tips ? MASS_BLOB.ball : MASS_BLOB.detail })) : null;
+      // ('realistic': grown again with its wood EVOKED by its balls, tree-form.js EVOKE: a limb only where it carries
+      // one, no hair-thin twig; and its leaves only on its balls)
+      const FE = real ? treeForm(species, { seed: S.specimen ?? 1, ...older, far: true, twigs: crossed, mature: { toHeight: 0.95, range: [1, 2], cambium: 2.2, aim: height }, canopy: true, evoke: { balls: M0.blobs } }) : null;
+      const W = FE ?? F;
+      if (FE) { M0.clumps = M0.clumps.filter((c) => M0.blobs.some((b) => Math.hypot(c.p[0] - b.p[0], c.p[1] - b.p[1], c.p[2] - b.p[2]) < b.s * REALISTIC.onBall)); }
+      const M = M0 && (tips || real) ? { ...M0, blobs: anchorBlobs(M0.blobs, W.wood.pos) } : M0, blobGeo = real ? packGeo(cupTris(17)) : M ? packGeo(blobTris([0, 0, 0], [1, 1, MASS_BLOB.squash], TONES.leaf.map((v) => Math.round(v * MASS_BLOB.shade)), { detail: tips ? MASS_BLOB.ball : MASS_BLOB.detail })) : null;
       // (a mass crown's blobs spend from its budget as its wood does: its bundles give up what they cost)
       // (and never more triangles than the crown it stands for: as many of its least bundles given up as its blobs cost)
       const giveUp = M && (masses || real) ? Math.ceil((M.blobs.length * blobGeo.n) / Math.max(1, xt)) : 0;
       const kept0 = M ? [...M.clumps].sort((a, b) => a.r - b.r).slice(0, Math.max(1, M.clumps.length - giveUp)) : C0;
-      const Q = budgeted({ ...F, clumps: kept0, sites: [] }, { clumpTris: xt, leanTris: xt, sprayTris: 0, woodTris: (F.wood.idx || []).length / 3 + (M ? M.blobs.length * blobGeo.n : 0), canLean: false });
+      const Q = budgeted({ ...W, clumps: kept0, sites: [] }, { clumpTris: xt, leanTris: xt, sprayTris: 0, woodTris: (W.wood.idx || []).length / 3 + (M ? M.blobs.length * blobGeo.n : 0), canLean: false });
       // (its crown's reach round its stem: its balls' or its bundles' farthest edge)
       const crownR = r4(Math.max(0.5, ...(M ? M.blobs : Q.clumps).map((b) => Math.hypot(b.p[0], b.p[1]) + (M ? b.s : b.s * 0.5))));
       // (a major ball drawn as a crown's lobe, MASS_BLOB.lobe: its variants, each ball one by its rank)
-      const ballGeo = tips ? Array.from({ length: MASS_BLOB.lobe.variants }, (_, k) => packGeo(lobeTris(17 + k))) : null;
-      const T = { ...template('tree', species, { ...F, clumps: Q.clumps, sites: [] }, species), crownR, budget: tips ? { ...Q.budget, tris: (F.wood.idx || []).length / 3 + M.blobs.length * ballGeo[0].n } : Q.budget,
+      // ('realistic': its balls as stacked cups, CUPS: its variants, each ball one by its rank)
+      const ballGeo = tips ? Array.from({ length: MASS_BLOB.lobe.variants }, (_, k) => packGeo(lobeTris(17 + k))) : real ? Array.from({ length: CUPS.variants }, (_, k) => packGeo(cupTris(17 + k))) : null;
+      const T = { ...template('tree', species, { ...W, clumps: Q.clumps, sites: [] }, species), crownR, budget: tips ? { ...Q.budget, tris: (W.wood.idx || []).length / 3 + M.blobs.length * ballGeo[0].n } : Q.budget,
         ...(M ? { blobs: packSites(M.blobs), nBlobs: M.blobs.length, blobGeo: ballGeo ?? [blobGeo] } : {}), ...(tips ? { leaves: false } : {}) };
       // ('realistic': its far card full, its mass baked under its leaves: REALISTIC.far)
       if (real) T.far = REALISTIC.far;

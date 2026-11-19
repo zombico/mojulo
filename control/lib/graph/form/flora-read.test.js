@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { floraRead, floraBox, speciesFor, treeSizes, viewHeld, AUTUMN, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR, SKIRT_FLAG, APART, MASS_BLOB, REALISTIC } from './flora-read.js';
+import { floraRead, floraBox, speciesFor, treeSizes, viewHeld, AUTUMN, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR, SKIRT_FLAG, APART, MASS_BLOB, REALISTIC, CUPS } from './flora-read.js';
 import { LEAF_FORM_IDS } from '../era/leaf-forms.js';
 import { formLandScript } from '../scene/channels/form-land.js';
 
@@ -136,7 +136,7 @@ describe('the hybrid crown (`crowns: hybrid`)', () => {
 });
 
 describe('the realistic tree (`crowns: realistic`)', () => {
-  it('grows its tree older, draws its crown\'s mass under its leaves for the triangles it had, and asks its card full', () => {
+  it('grows its tree older, draws its crown\'s mass as stacked cups for the triangles it had, its wood only what carries them, and asks its card full', () => {
     const beech = { form: 'blob', kinds: [{ form: 'spray' }], bushKinds: null, trees: [tree(0, 0, 9, 0)], bushes: [], shrubs: [] };
     const a = floraRead(beech, { kinds: beech.kinds, colours, bases }).templates.find((t) => t.cross);
     const r = floraRead({ ...beech, crowns: 'realistic' }, { kinds: beech.kinds, colours, bases }).templates.find((t) => t.cross);
@@ -146,6 +146,11 @@ describe('the realistic tree (`crowns: realistic`)', () => {
     expect(r.leaves).toBeUndefined();
     expect(r.nClumps).toBeGreaterThan(0);
     expect(r.budget.tris).toBeLessThanOrEqual(a.budget.tris);
+    // (its balls as stacked cups, its wood only what carries them: less than the plain tree's)
+    expect(r.blobGeo.length).toBe(CUPS.variants);
+    expect(r.blobGeo[0].n).toBe(CUPS.tiers.length * CUPS.teeth * 2 * 3);
+    const woodTris = (t) => Buffer.from(t.wood.idx, 'base64').length / (t.wood.big ? 4 : 2) / 3;
+    expect(woodTris(r)).toBeLessThan(woodTris(a));
     // (far off its card full: the page bakes the mass under the leaves)
     expect(r.far).toEqual(REALISTIC.far);
     expect(a.far).toBeUndefined();

@@ -145,7 +145,7 @@ export const NEEDLE_LOOK = Object.freeze({ steps: 14, cell: Object.freeze([0.026
  * turns from the eye (past `rim` of the way to edge-on) cells drop out, up to `cut` of them at the edge, so its outline
  * breaks into leaves as its far card's pixels do. A mass vertex says so by the length of its out (2, the leaves' 1).
  */
-export const MASS_LEAF = Object.freeze({ cell: 0.24, rim: 0.25, cut: 0.92, tones: Object.freeze([0.78, 1.18]) });
+export const MASS_LEAF = Object.freeze({ cell: 0.24, rim: 0.55, cut: 0.6, tones: Object.freeze([0.78, 1.18]) });
 export const FLORA_FAR = Object.freeze({ bearings: 8, texels: Object.freeze([128, 192]), px: 1, leaf: 0, wood: 0 });
 export const FLORA_WIND = Object.freeze({ phi: 0.006, bushPhi: 0.004, culmPhi: 0.012, limb: 1.2, flutter: 0.025, shake: 0.07, settle: 1.2 });
 const SWAY_GLSL = `vec3 floraSway( vec3 wp, vec3 base, float w, float leaf, float shake, float ph ) {
@@ -439,7 +439,7 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       let R = 0.5, top = 0.5;
       for (const A of [LP, W]) for (let k = 0; k < A.length; k += 3) { R = Math.max(R, Math.hypot(A[k], A[k + 1])); top = Math.max(top, A[k + 2]); }
       // (a realistic tree's crown mass, form/flora-read.js REALISTIC: its lobes' middles and radii, inside the card)
-      const FR = t.far || null, MS = FR && t.blobs ? f32(t.blobs) : null;
+      const FR = t.far || null, MS = FR && FR.discs !== false && t.blobs ? f32(t.blobs) : null;
       // (and the crown's own mean leaf tone, the mass's)
       let LT = 0; for (let k = 0; k < LC.length; k++) LT += LC[k]; LT = LC.length ? LT / LC.length : 0.5;
       if (MS) for (let k = 0; k < MS.length; k += 12) { R = Math.max(R, Math.hypot(MS[k], MS[k + 1]) + MS[k + 9]); top = Math.max(top, MS[k + 2] + MS[k + 9] * FR.squash); }

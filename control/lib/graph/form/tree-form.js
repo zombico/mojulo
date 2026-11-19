@@ -108,7 +108,36 @@ const YOUNG = new Map();
  */
 export const CANOPY = Object.freeze({ lift: 0.5, bole: Object.freeze([0.42, 0.52]), narrow: 1.15, flare: 0.45 });
 
-export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.mature, minDiameter = TREE_FORM.minDiameter, cell = TREE_FORM.cell, clumpCell = TREE_FORM.clumpCell, far = false, twigs = false, canopy = false } = {}) {
+/**
+ * THE EVOKED WOOD (a realistic crown's, `evoke: { balls }`): every limb drawn means something. A limb is drawn only
+ * where it is thick (`thick` × the cut: no hair-thin twig) and carries the crown: it reaches into one of its balls
+ * (within `into` of a ball's radius of its middle) or a drawn limb grows from it; and drawn only as far as that, its
+ * run past its last ball or its last drawn limb left off. The view evoked, not the tree's anatomy.
+ */
+export const EVOKE = Object.freeze({ thick: 1.6, into: 0.85 });
+function evokedChains(chains, plant, balls, least) {
+  const inBall = (p) => balls.some((b) => (p[0] - b.p[0]) ** 2 + (p[1] - b.p[1]) ** 2 + (p[2] - b.p[2]) ** 2 < (b.s * EVOKE.into) ** 2);
+  const byAxis = new Map(chains.map((ch) => [ch.axis, ch])), need = new Map();
+  // (a limb's children first: each limb's need its last point in a ball, or the point its last drawn child leaves it)
+  for (const ch of [...chains].sort((a, b) => b.order - a.order)) {
+    if (ch.dMax < least) continue;
+    let e = need.get(ch.axis) ?? 0;
+    ch.pts.forEach((p, i) => { if (i > e && inBall(p)) e = i; });
+    if (e < 1) continue;
+    need.set(ch.axis, e);
+    const base = plant.nodes[ch.baseNode], up = base ? byAxis.get(base.axis) : null;
+    if (!up || up === ch) continue;
+    // (where it leaves its parent: the parent's point at its base node, the last such, a smoothed chain's too)
+    let at = -1; up.nodes.forEach((n, i) => { if (n.id === ch.baseNode) at = i + 1; });
+    if (at < 0) at = 0;
+    need.set(up.axis, Math.max(need.get(up.axis) ?? 0, at, 1));
+  }
+  return chains.filter((ch) => (need.get(ch.axis) ?? 0) >= 1 && ch.dMax >= least).map((ch) => {
+    const e = need.get(ch.axis);
+    return e >= ch.pts.length - 1 ? ch : { ...ch, pts: ch.pts.slice(0, e + 1), rs: ch.rs.slice(0, e + 1), nodes: ch.nodes.slice(0, e), continues: true };
+  });
+}
+export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.mature, minDiameter = TREE_FORM.minDiameter, cell = TREE_FORM.cell, clumpCell = TREE_FORM.clumpCell, far = false, twigs = false, canopy = false, evoke = null } = {}) {
   const S = SPECIES[species]; if (!S || (S.kind !== 'tree' && S.kind !== 'conifer')) throw new Error(`tree-form: '${species}' is not a tree species`);
   const conifer = S.kind === 'conifer', needles = needleHabit(species);
   let plant, height, k = 1;
@@ -139,10 +168,10 @@ export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.m
   // the wood: each axis thick enough a tube along its chain (parallel-transported rings), its normals the rings' own
   // outward directions (smooth round, so the sun turns across a limb), its bark's coordinates in tiles: round the axis
   // the tile's count its base girth asks (no seam), up it its arc length
-  const chains = axisChains(plant);
+  const chains0 = axisChains(plant), chains = evoke && evoke.balls && evoke.balls.length && !needles ? evokedChains(chains0, plant, evoke.balls, cut * EVOKE.thick) : chains0;
   // (`twigs`, a crossed crown's: a chain under the cut drawn too where it carries a shoot, and the limbs it grows on: no
   // leaf without its twig, no twig without its leaf)
-  const carry = new Set(), drawn = (ch, c) => ch.dMax >= c || (c === cut && carry.has(ch.axis));
+  const carry = new Set(), drawn = (ch, c) => ch.dMax >= c || (c === cut && !evoke && carry.has(ch.axis));
   const woodOf = (cut) => {
   const pos = [], nrm = [], uv = [], idx = [];
   for (const ch of chains) {
