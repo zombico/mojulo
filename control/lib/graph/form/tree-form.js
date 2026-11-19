@@ -322,7 +322,7 @@ function supportedChains(chains, balls, cut, seed = 1, habit = {}) {
     out.push({ axis: -1 - i, order: g.main ? 1 : 2, nodes: [], pts, rs, dMax: 2 * Math.max(g.r0, g.r1), continues: true });
   });
   // (its lowest limb: where the lowest leaves the trunk)
-  return { chains: out, clouds, limbs: L.edges, top: L.top, low: Math.min(...L.edges.filter((g) => g.main).map((g) => g.from[2])) };
+  return { chains: out, clouds, limbs: L.edges, top: L.top, skeleton: out.map((c) => ({ pts: c.pts, rs: c.rs, order: c.order })), low: Math.min(...L.edges.filter((g) => g.main).map((g) => g.from[2])) };
 }
 export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.mature, minDiameter = TREE_FORM.minDiameter, cell = TREE_FORM.cell, clumpCell = TREE_FORM.clumpCell, far = false, twigs = false, canopy = false, evoke = null } = {}) {
   const S = SPECIES[species]; if (!S || (S.kind !== 'tree' && S.kind !== 'conifer')) throw new Error(`tree-form: '${species}' is not a tree species`);
@@ -475,7 +475,7 @@ export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.m
   }
   shoots.sort((a, b) => a.r - b.r);
   // (far, `far`: the limbs a few times the cut's thickness alone: a tree across a glade shows its trunk and its main limbs)
-  return { species, height: r4(height), wood: woodOf(cut), ...(far ? { woodFar: woodOf(Math.min(cut * TREE_FORM.farCut, 0.5 * Math.max(...chains.map((c) => c.dMax)))), trunk: trunkOf(chains) } : {}), clumps, sites, tips: twigs ? shoots : tips, ...(twigs ? { twigs: true } : {}), ...(SC ? { clouds: SC.clouds, limbs: SC.limbs, trunkTop: r4(SC.top ?? 0), limbLow: r4(SC.low) } : {}), bark: S.bark || 'beech', ...(needles ? { needles, pad: needles !== 'pine', sleeve: sleevesOf(chains, needles, k) } : {}) };
+  return { species, height: r4(height), wood: woodOf(cut), ...(far ? { woodFar: woodOf(Math.min(cut * TREE_FORM.farCut, 0.5 * Math.max(...chains.map((c) => c.dMax)))), trunk: trunkOf(chains) } : {}), clumps, sites, tips: twigs ? shoots : tips, ...(twigs ? { twigs: true } : {}), ...(SC ? { clouds: SC.clouds, limbs: SC.limbs, skeleton: SC.skeleton, trunkTop: r4(SC.top ?? 0), limbLow: r4(SC.low) } : {}), bark: S.bark || 'beech', ...(needles ? { needles, pad: needles !== 'pine', sleeve: sleevesOf(chains, needles, k) } : {}) };
 }
 
 /** The crown's RIM, where its twigs come in near the eye (vegetation/twigs.js): the clumps on its surface (the envelope's,

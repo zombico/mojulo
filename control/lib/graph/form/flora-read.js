@@ -221,6 +221,12 @@ function template(kind, name, form, leaf, extra = {}) {
     bark: form.bark, pad: !!form.pad, ...(form.detail ? { detail: form.detail } : {}), ...(form.trunk ? { trunk: form.trunk } : {}), ...extra,
   };
 }
+// (a realistic template's own parts, for the painted era to draw the same tree: its wood's chains, its puffs and their
+// shape; kept beside the template, never in the payload)
+const SKELETON = new WeakMap();
+/** A realistic template's parts: { chains: [{ pts, rs, order }], puffs: [{ p, o, s }], puff } in the template's own
+ *  frame (its foot at the origin, its height the template's), or null for a template drawn plain. */
+export const realisticParts = (T) => SKELETON.get(T) ?? null;
 function treeTemplate(species, height, crowns = null) {
   // (`crowns`: 'hybrid', a broadleaf's bundles each with a blob in it, vegetation/twigs.js CORE; 'masses', its bundles
   // gathered round a few big blobs, the leaf mass round its branches, and moved onto their surfaces, form/tree-form.js
@@ -300,8 +306,10 @@ function treeTemplate(species, height, crowns = null) {
           T.clear = r4(Math.min(W.limbLow ?? Infinity, ...M.blobs.map(pl), ...Q.clumps.map((c) => c.p[2] - c.s * 0.5)));
         }
         // (far off the same wood as near: no limb drops and the trunk holds as the tree switches level)
-        CACHE.set(key, { ...T, cross: true, woodFar: T.wood,
-          clumpGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafCross(species, { seed: 17 + k, core }).tris)), ...(core ? { core: true } : {}), ...(masses ? { masses: true } : {}) });
+        const TT = { ...T, cross: true, woodFar: T.wood,
+          clumpGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafCross(species, { seed: 17 + k, core }).tris)), ...(core ? { core: true } : {}), ...(masses ? { masses: true } : {}) };
+        CACHE.set(key, TT);
+        if (R && W.skeleton) SKELETON.set(TT, { chains: W.skeleton, puffs: M.blobs.map((b) => ({ p: b.p, o: b.o, s: b.s })), puff: { ...PUFF, ...(HB.puff || {}) } });
       }
     }
   }
@@ -373,6 +381,17 @@ function treePlan(plants, kindAt) {
   }
   return plan;
 }
+
+/** THE REALISTIC PLAN of a stage's plants (era/isekai.js plantItems): each tree the realistic look keeps, its index in
+ *  `plants.trees`, its template and its height, as the form render places it (its species, its height among the
+ *  level's, trees apart, its headroom); the painted era draws the same trees from it. */
+export function realisticPlan(plants) {
+  if (!plants || plants.form === 'bamboo' || plants.form === 'blossom' || !plants.trees.length) return [];
+  const P = { ...plants, crowns: 'realistic' }, kindAt = (t) => (t.kind >= 0 && plants.kinds ? readKind(plants.kinds[t.kind]) : null), at = new Map(plants.trees.map((t, i) => [t, i]));
+  return apart(treePlan(P, kindAt)).map(({ t, T, h }) => ({ i: at.get(t), T, h }));
+}
+/** A placed tree's turn, as the form render turns it (by where it stands). */
+export const treeYaw = (x, y) => 2 * Math.PI * hashN(Math.round(x * 100) * 7 + Math.round(y * 100) * 13);
 
 /**
  * TREES APART (a stage's `crowns`): each tree reads on its own. Its crown's reach (its template's `crownR`, the farthest
@@ -456,7 +475,7 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
     return leaf.map((v, k) => r4(v + (fall[k] + (AUTUMN.yellow[k] - fall[k]) * y - v) * t));
   };
   const push = (T, p, h, K, soft = false, yaw0 = null) => {
-    const ti = use(T), yaw = yaw0 ?? 2 * Math.PI * hashN(Math.round(p.x * 100) * 7 + Math.round(p.y * 100) * 13);
+    const ti = use(T), yaw = yaw0 ?? treeYaw(p.x, p.y);
     out.push(p.x, p.y, p.z, r4(h / T.height), r4(yaw), ...turned(T, p, leafOf(K)), ...tint(T, barkTarget(K)), ti, typeof soft === 'number' ? soft : soft ? 1 : 0);
   };
   // the trees: each kind's species at the kind's middle height (a level's heights to the nearest HEIGHT_STEP)
