@@ -13,7 +13,8 @@
  *   input.act    an edge: where a watcher (a body with a mind, standing, that can be hit) is within `reach`, the body
  *                faces it, stands in the arc behind it and has not been seen by it lately, the takedown: the body is
  *                held through the move and turned onto the watcher, and the watcher goes down (its health spent,
- *                `downed`, struck by the body: a death as any other, so its game's own way of falling plays).
+ *                `downed`, struck by the body: a death as any other, so its game's own way of falling plays; with the
+ *                pilot's `rule.knockout`, knockout.js, it is knocked out instead: asleep where it falls).
  *                Anywhere else the press is whatever else the action is.
  *   E.takedownTarget(state, body) → the watcher a press would take now, or null (the page's prompt reads it)
  *
@@ -57,7 +58,9 @@ export function buildTakedown(E) {
     if (tg) p.transform.heading = Math.atan2(tg.transform.pos[1] - p.transform.pos[1], tg.transform.pos[0] - p.transform.pos[0]);
     if (!M.done && M.t >= (T.at ?? 0.5)) {
       M.done = true;
-      if (tg && !tg.downed) { if (tg.body && Number.isFinite(tg.body.hp)) tg.body.hp = 0; tg.downed = true; tg.lastHitBy = p.id; tg.takenDown = true; p.takedowns = (p.takedowns || 0) + 1; }
+      // (with the pilot's knockout, knockout.js: knocked out, asleep where it falls; else its health spent)
+      if (tg && !tg.downed && p.rule.knockout && E.knockOut) { E.knockOut(state, tg, p, 'takedown'); tg.takenDown = true; p.takedowns = (p.takedowns || 0) + 1; }
+      else if (tg && !tg.downed) { if (tg.body && Number.isFinite(tg.body.hp)) tg.body.hp = 0; tg.downed = true; tg.lastHitBy = p.id; tg.takenDown = true; p.takedowns = (p.takedowns || 0) + 1; }
     }
     p.locomotion = T.clip || p.swingClip || 'swing_neutral'; p.gaitPhase = Math.min(M.t, 0.999); p.moving = true;
     if (M.t >= 1) p.td = null;

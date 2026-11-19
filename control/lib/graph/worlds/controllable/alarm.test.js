@@ -69,6 +69,13 @@ describe('the alarm', () => {
     hide(w, false); w.byId.p.transform.pos = [-6, 0, 0];
     expect(run(w, 0.1)).toMatchObject({ phase: 'detected', cause: 'body' });
   });
+  it('a body behind a wall is not found', () => {
+    const w = world({ wall: true }); run(w, 0.1);
+    w.byId.g2.transform.pos = [8, 1, 0]; w.byId.g2.downed = true; w.byId.g2.body.hp = 0;
+    w.byId.p.transform.pos = [-6, 0, 0];
+    expect(run(w, 0.5).phase).toBe('clear');
+    expect(w.byId.g2.alarmFound).toBeFalsy();
+  });
   it('the bus hears its turns: detected, the call, found, backup, the sweeps, and back down to clear', () => {
     const w = world();
     let prev = E.castFacts(w, null).prev; const heard = [];

@@ -19,7 +19,8 @@
  *   }
  *
  * What raises it (THREAT DETECTED): a glimpse (a fresh sighting, before it is sure); a sound or a blow from what a
- * watcher did not see (startle.js: it turns to look); a downed teammate in a watcher's sight (a body found). A sure
+ * watcher did not see (startle.js: it turns to look); a downed teammate in a watcher's sight, a clear line to it (a body
+ * found: one behind a wall or in tall grass is not). A sure
  * sighting starts the call. What a raised alarm does: every watcher of the team is VIGILANT (wider and longer sight);
  * at THREAT FOUND every watcher has the last known place and searches round it, spread over the sweep, and backup comes.
  *
@@ -80,11 +81,15 @@ export function buildAlarm(E) {
         // a sound or a blow it did not see coming: it turns to look (startle.js), and the team is told something is up
         if (e.st && !e.alarmSt) raise('sound', Array.isArray(e.st.at) ? [e.st.at[0], e.st.at[1], e.transform.pos[2]] : null);
         e.alarmSt = !!e.st;
-        // a body found: a downed teammate (not one it saw fall) in its cone and reach
+        // a body found: a downed teammate (not one it saw fall) in its cone and reach, and a clear line to it lying there
+        // (past the colliders and the tall grass, veil.js: a body hidden is not found)
         for (const o of list) {
           if (o === e || live(o) || o.alarmFound || o.gone) continue;
           const dx = o.transform.pos[0] - e.transform.pos[0], dy = o.transform.pos[1] - e.transform.pos[1];
           if (Math.hypot(dx, dy) > (e.rule.sightRange ?? 14) || Math.abs(wrap(Math.atan2(dy, dx) - e.transform.heading)) > (e.rule.sightCone ?? 0.6)) continue;
+          const eye = [e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + (e.rule.collideHeight ?? 1.8) * 0.75 - (e.rule.eye || 0)], lying = [o.transform.pos[0], o.transform.pos[1], o.transform.pos[2] + 0.35];
+          if (state.colliders && E.sightBlocked && E.sightBlocked(eye, lying, state.colliders)) continue;
+          if (state.veils && E.veilBlocked && E.veilBlocked(eye, lying, state.veils)) continue;
           o.alarmFound = true; raise('body', o.transform.pos);
         }
       });

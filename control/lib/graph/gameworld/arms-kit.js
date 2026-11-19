@@ -42,6 +42,8 @@ export const ARMS_KIT = Object.freeze({
   caseless: { arm: { item: 'rifle', model: 'caseless' }, as: 'auto' },
   handgun: { arm: { item: 'pistol', model: 'service' }, as: 'sidearm' },
   revolver: { arm: { item: 'pistol', model: 'revolver' }, as: 'magnum' },
+  // (the SLEEP DART GUN: a service pistol firing one dart a load, quiet; its dart stuns, never hurts: worlds/controllable/knockout.js)
+  dart: { arm: { item: 'pistol', model: 'service' }, as: 'dart', name: 'dart gun' },
   bow: { bow: true, as: 'bow' },
 });
 export const ARMS_KIT_WORDS = Object.freeze(Object.keys(ARMS_KIT));
@@ -52,7 +54,7 @@ export const ARMS_MAX = 5;
 // rate of fire; `blow` the joules a round carries, about its cartridge's at the muzzle, what it marks a wall with or
 // breaks it by (rupa.js); `pellets` the shot a shell parts into)
 // each archetype's round (gameworld/rounds.js): what the page draws of it going off
-const ROUND_OF = Object.freeze({ auto: 'rifle', spray: 'smg', pump: 'shotgun', marksman: 'marksman', bolt: 'sniper', sidearm: 'pistol', magnum: 'magnum' });
+const ROUND_OF = Object.freeze({ auto: 'rifle', spray: 'smg', pump: 'shotgun', marksman: 'marksman', bolt: 'sniper', sidearm: 'pistol', magnum: 'magnum', dart: 'pistol' });
 const ARCHETYPES = Object.freeze({
   auto: { auto: true, rof: 9, dmg: 0.5, magazine: 30, reserve: 90, reload: 2.4, range: 70, blow: 1750, spread: { base: 0.6, move: 3, bloom: 0.45, recover: 5, max: 4, wait: 0.15 }, recoil: { kick: 0.45, recover: 4, max: 4, wait: 0.15 } },
   spray: { auto: true, rof: 13, dmg: 0.33, magazine: 30, reserve: 120, reload: 2, range: 35, blow: 550, spread: { base: 0.9, move: 2.2, bloom: 0.35, recover: 6, max: 5, wait: 0.15 }, recoil: { kick: 0.3, recover: 5, max: 3, wait: 0.15 }, falloff: { from: 15, to: 35, min: 0.5 } },
@@ -60,6 +62,9 @@ const ARCHETYPES = Object.freeze({
   marksman: { cooldown: 0.45, dmg: 1.6, magazine: 10, reserve: 40, reload: 2.6, range: 120, headshot: 2, blow: 3300, spread: { base: 1.6, move: 5, bloom: 1, recover: 4, max: 6 }, recoil: { kick: 1.2, recover: 3, max: 4 } },
   bolt: { cooldown: 1.3, dmg: 4, magazine: 5, reserve: 20, reload: 3.2, range: 200, headshot: 2, coreAngle: 0.6, blow: 6000, spread: { base: 4, move: 6, bloom: 0, recover: 4, max: 8 }, recoil: { kick: 3, recover: 2.5, max: 4 } },
   sidearm: { cooldown: 0.25, dmg: 0.75, magazine: 15, reserve: 45, reload: 1.6, range: 40, blow: 500, spread: { base: 0.8, move: 1.8, bloom: 0.8, recover: 5, max: 4 }, recoil: { kick: 1, recover: 5, max: 3 } },
+  // (a dart: one a load and a slow reload, its `dmg` the stun it carries (four base rounds: a body's whole most), twice in
+  // the head; `drowse` the seconds its sleep takes to come on, quiet, `stun`: knockout.js gives back what it hurt)
+  dart: { cooldown: 0.6, dmg: 4, magazine: 1, reserve: 15, reload: 1.4, range: 45, headshot: 2, blow: 60, stun: true, quiet: true, drowse: 3, spread: { base: 0.6, move: 1.6, bloom: 0, recover: 5, max: 3 }, recoil: { kick: 0.5, recover: 5, max: 2 } },
   magnum: { cooldown: 0.5, dmg: 1.4, magazine: 6, reserve: 24, reload: 2.8, range: 50, headshot: 2, blow: 750, spread: { base: 0.8, move: 2.2, bloom: 1.4, recover: 4, max: 5 }, recoil: { kick: 2.4, recover: 4, max: 5 } },
 });
 /** how much aiming down the sights takes of the hip's cone, its slowing of the feet, and its share of the move's cone */
@@ -99,7 +104,7 @@ function archetypeOf(arm, h) {
  */
 export function kitSlot(word, base, { eye = 0, hand = null, converge = false } = {}) {
   const K = typeof word === 'string' ? ARMS_KIT[word] : { arm: word };
-  const name = typeof word === 'string' ? word : `${word.item}${word.model ? ` ${word.model}` : ''}`;
+  const name = typeof word === 'string' ? (K.name ?? word) : `${word.item}${word.model ? ` ${word.model}` : ''}`;
   const where = { eye, ...(hand ? { hand } : {}), ...(converge ? { converge: true } : {}) };
   const dmg0 = base.damage ?? 1;
   if (K.bow) {
@@ -113,7 +118,7 @@ export function kitSlot(word, base, { eye = 0, hand = null, converge = false } =
   const scope = st.sight.zoom >= 3;
   const weapon = { fireClass: 'sight', auto: !!A.auto, ...(A.auto ? { rof: A.rof } : { cooldown: A.cooldown }), magazine: A.magazine, reserve: A.reserve, reload: A.reload, damage: r3(A.dmg * dmg0), impact: 1,
     range: A.range, coreAngle: A.coreAngle ?? base.coreAngle ?? 1.5, ...(A.headshot ? { headshot: A.headshot } : {}), spread: { ...A.spread }, recoil: { ...A.recoil, kick: r2(A.recoil.kick * (hd.recoil / 2)) }, ...(A.falloff ? { falloff: { ...A.falloff } } : {}),
-    ...(A.blow ? { blow: A.blow } : {}), ...(A.pellets ? { pellets: A.pellets } : {}), ...(ROUND_OF[as] ? { round: roundOf(ROUND_OF[as]) } : {}), ...where };
+    ...(A.blow ? { blow: A.blow } : {}), ...(A.pellets ? { pellets: A.pellets } : {}), ...(A.stun ? { stun: true, quiet: true, drowse: A.drowse } : {}), ...(ROUND_OF[as] ? { round: roundOf(ROUND_OF[as]) } : {}), ...where };
   // the viewmodel: the arm as its parts' boxes (cm), the fist's place, the sight line and the eye's relief
   const view = { kind: h.class === 'handgun' ? 'handgun' : 'long', boxes: armBoxes(arm).map(([lo, hi, c, part]) => [lo.map((v) => r2(v)), hi.map((v) => r2(v)), c, part]),
     grip: st.strong.at.map(r2), sight: { y: st.sight.y, rear: st.sight.rear, front: st.sight.front }, ...(st.sight.relief ? { relief: st.sight.relief } : {}), muzzle: st.muzzle.at[2], ...(st.magazine ? { mag: st.magazine.at.map(r2) } : {}),

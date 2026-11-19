@@ -20,6 +20,9 @@
  *   the crouch    on a press, and up on the next: slower, and out of a guard's sight behind a wall a metre high
  *                 (worlds/controllable/stance.js); held, flat on the ground: slower again, and under a wall half as high
  *   the takedown  the action behind a guard that has not seen the hero puts it down (worlds/controllable/takedown.js)
+ *   KO and kill   the fists, the takedown and the sleep dart (the kit's `dart`) knock a guard out, asleep where it lies
+ *                 until a teammate that sees it wakes it; the action drags a sleeper out of sight; a gun's rounds kill
+ *                 (worlds/controllable/knockout.js)
  *   the guard     a patrol across the far half of the yard, armed with a carbine it fires on what it sees, its round
  *                 between two posts; hurt by what it has not seen it turns there and looks, and fires on who it finds; what it sees is drawn on the
  *                 floor as a fan that stops at what stops its sight, hot while it sees the hero; a sighting is said. The
@@ -125,6 +128,9 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, ro
     stance: { crouch: { speed: 2.2, height: 1.1 }, prone: { speed: 0.9, height: 0.45 } },
     // (a watcher that has not seen it, come up on from behind, is put down on the action: takedown.js)
     takedown: { clip: 'mv_fist_hook_still' },
+    // (two ways down, knockout.js: its blows, its takedown and its sleep darts knock out, a guard asleep where it lies until a
+    // teammate that sees it wakes it; the action drags a sleeper out of sight; its handgun's rounds kill)
+    knockout: true,
     // (the radar reads the yard: 30 m to its rim)
     radarRange: 30,
     freeRun: { on: 'push', ...(vault ? { clipH: VAULT_CLIP_H } : {}) },
