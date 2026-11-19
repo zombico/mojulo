@@ -460,9 +460,10 @@
     "light": "half",
     "occlusion": false,
     "bodies": "pilot",
-    "reads": "what the page may cost, the middle found after the frame was cut hard and the hangar measured beside it: its shadows at half (light.tier); no contact occlusion; real grass at the page's own reach, as level 1's yard (the meadow round the cover); bodies 'pilot': the operative casts its live shadow, every guard a soft pool at its feet (every body casting costs no more, but under this low hazy sun a body's shadow is a thin streak seen edge-on, and a guard without his pool reads as floating); parallax 'cliffs': the ground lean (none of its height marched) and the gorge's cliffs keep their relief at a coarser cut (they fill much of the frame, and flat they read as plaster); density 1: the window's own pixels; far 24 m / 4000: each guard past 24 m drawn as its far twin; the haze out to 250 m, the base at the trail's end seen through it",
+    "reads": "what the page may cost, the middle found after the frame was cut hard and the hangar measured beside it: its shadows at half (light.tier); no contact occlusion; real grass out to 70 m (`cone`; the screen's own reach, about 25 m, ended the meadow's blades partway up the trail, the edge a band of flat colour a player read the land past: at 70 m the blades run on to the far field and the approach reads true; the draw about a quarter more on the software renderer); bodies 'pilot': the operative casts its live shadow, every guard a soft pool at its feet (every body casting costs no more, but under this low hazy sun a body's shadow is a thin streak seen edge-on, and a guard without his pool reads as floating); parallax 'cliffs': the ground lean (none of its height marched) and the gorge's cliffs keep their relief at a coarser cut (they fill much of the frame, and flat they read as plaster); density 1: the window's own pixels; far 24 m / 4000: each guard past 24 m drawn as its far twin; the haze out to 250 m, the base at the trail's end seen through it",
     "parallax": "cliffs",
     "density": 1,
+    "cone": 70,
     "far": {
       "at": 24,
       "budget": 4000

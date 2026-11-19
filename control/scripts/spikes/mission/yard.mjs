@@ -56,7 +56,7 @@ const dress = (b) => (b.enter === 'door' ? b : { ...b, ...(b.use === 'barracks' 
 // frame's grade, as level 0's approach is; `--hour` a number over it)
 const PS = M.segments.perimeter, hourOf = opt('--hour') != null ? Number(opt('--hour')) : PS.hour ?? 17;
 const scene = { kind: 'geocube', cube: { from: cubeName, era: 'gen-7', ...(PS.light ? { light: PS.light } : {}) }, show: 'path', seed: stage.seed, trail: stage.trail, hour: hourOf, shadows: { actors: true, hour: true },
-  ...(PS.air ? { air: PS.air } : {}), ...(PS.grade ? { grade: PS.grade } : {}), solid: true,
+  ...(PS.air ? { air: PS.air } : {}), ...(PS.grade ? { grade: PS.grade } : {}), ...(Number.isFinite(PS.cone) ? { cone: PS.cone } : {}), solid: true,
   buildings: stage.buildings.map(dress) };
 const r2 = (p) => p.map((v) => +v.toFixed(2));
 const g0 = room.manifest.entities.find((e) => e.id === 'guard-1'), h0 = room.manifest.entities.find((e) => e.id === 'hero');

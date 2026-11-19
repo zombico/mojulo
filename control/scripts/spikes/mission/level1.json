@@ -126,6 +126,7 @@
         "colour": "#1d2125"
       },
       "grade": "night",
+      "cone": 70,
       "floods": [
         {
           "id": "hangar-door",

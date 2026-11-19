@@ -491,3 +491,9 @@ or a recipe key; the spike mints through the real doors and measures.
   under its ceiling, is hidden from an eye over that ceiling outside it beyond arm's reach (a guard standing over the
   truck does not see who lies under it; one lying, or beside it, does). Level 0's cargo truck is one, its boxes and its
   space seated on the land; the route search keeps its boxes (a line low enough passes under it) and its laws hold.
+- **The meadow drawn to 70 m on the stealth levels** (level0.json `performance.cone`, level1.json
+  `segments.perimeter.cone`, read by yard.mjs): the view cone's reach is the screen's by default (about 25 m at a
+  desktop window), so the meadow's blades ended partway up the trail and a band of flat grass colour lay past them; a
+  player planning an approach read the land past an edge. At 70 m the blades run on to the far field, the edge out of
+  the view up the trail. Measured on the software renderer: the frame's draw 27.7 → 35 ms (the tall grass, the cover,
+  was drawn at every distance already).
