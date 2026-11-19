@@ -275,3 +275,6 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   is a crucible of molten metal with two lit eyes. It stands in the last room of Galaxy Boy's first level, in the colour
   that level holds back for its boss, and lobs at where the hero stood. Bringing it down ends the level. Its eyes and its
   metal glow as it winds up a shot and flash as it fires, lighting the room round its face.
+- **The terrain's shadows**: a side map's blocks are shaded as a 3D run and gun's stage is: each face bright under its
+  icing, with a crisp shadow line beneath it, and falling into shade deeper in the block. Ledges, ceilings, props and
+  crates throw hard, crisp shadows onto the back wall and the floors beside them.

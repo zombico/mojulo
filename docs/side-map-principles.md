@@ -183,6 +183,11 @@ The look is measured on the page by `control/lib/graph/gameworld/side-map/benchm
 <manifest.json> --bench`): each shot rendered as the page draws it and as a role pass, read by role. The foreground and
 things that move are not built yet, and the benchmark says so.
 
+
+The terrain is shaded as a 3D stage's blocks are. Each face is bright under its icing, with a crisp shadow line
+beneath it, and falls into shade deeper in the block. What stands in the map throws a hard shadow onto the back wall
+and the floors beside it: the ledges, the ceilings, the props and the crates. The shadow falls along a drop shadow's
+own light, shallower than the key's, so it lands in the frame (`control/lib/graph/gameworld/side-map/shadow.js`).
 ## Who makes it
 
 The studio lays a map from words, for any game whose camera is side-on and whose hero platforms: the map is a level form
