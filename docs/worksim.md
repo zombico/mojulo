@@ -259,8 +259,29 @@ built, so the co-op kitchen probe is makeable; the Work Sim rail carries its wor
 told the quick door. In headless Chromium with two stub pads, seat 1 took a fish, chopped it and put it on the pass; seat 2 took it up from the
 other side with its own button.
 
+### The food
+
+`control/lib/graph/food/` draws what a card handles, read off the card and never modelled item by item, since a card
+already says what each thing is made of:
+
+- A thing whose words name a **dish** (sushi, a roll, a salad, a soup, a burger…) is that dish. Its parts are what its
+  station takes, composed in the dish's arrangement (a nigiri pair, maki rings, a heap in a bowl) on its plate or bowl.
+- A thing whose words name an **ingredient** (fish, rice, lettuce, tomato, carrot, meat, egg, bread…) is that
+  ingredient, in the state its words say (sliced, cooked, crated…). Otherwise, made from the same ingredient, it is
+  in the state its station gives: a station worked by hand preps it, one that runs alone cooks it, a bucket of one thing
+  packs it. Otherwise it is as it comes (wheat grown from seed is wheat).
+- A thing no row names is read from its station, else drawn as a block in a colour from its name.
+
+The rows are in `food/roster.js` (ingredients and their prepped and cooked looks, states, dishes, vessels), so a new
+food is a row. The forms (`food/forms.js`) are face lists from the lathe, box and prism, the glyph shelf's discipline:
+built at glyph scale and placed at a size (`foodFaces`). The laws (`food/laws.js`, advice) check that every thing is
+drawn, a card's things are told apart, what is made looks unlike what it was made from, and each fits its box. The
+review sheet is `node scripts/render-food.mjs <dir> [card|all]`. Whether it reads as food is the eyes gate.
+
 ## How it joins next (not built)
 
+- **The food on the page.** On its crate, on the station working it, on a shelf or a pass, carried over the cook,
+  on the order rail.
 - **Seats, the rest.** A spot that holds any one thing (a plate), the
   simulator's workers each with their own reach (the proof stands in), hazards (a belt, fire), each cook drawn apart
   (today the same hero, told apart by its ring, its tag and its corner), and the co-op kitchen laid from a sentence (today the

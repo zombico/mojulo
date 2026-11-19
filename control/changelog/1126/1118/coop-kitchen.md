@@ -45,4 +45,13 @@ station to station and handed between them.
   handoff is seen where it happens. The kitchen's dress has pieces of its own: plating stations a stainless counter with
   a plate and a board, a pass between cooks a stainless hatch with a warm lit top, the hand-in a servery with its bell;
   the counter between the sides stainless. A seated shift's seat strip sits at the bottom, the top being the rail's.
+- **The food** (`control/lib/graph/food/`). What a card handles is drawn as it is read off the card, never modelled
+  item by item. A dish's words compose its parts on its plate or bowl (nigiri, maki rings, a salad heaped in a bowl). An
+  ingredient's words give the thing, in the state its words or its station give: worked by hand it is prepped (a fish
+  becomes a fillet), run alone it is cooked (rice becomes a bowl of rice), packed by a bucket it goes in a crate or a sack.
+  A produce grown from another thing is itself. A thing no row names is a block in a colour from its name. Ingredients,
+  states, dishes and vessels are rows (`food/roster.js`); the forms are face lists from the lathe, box and prism, built
+  at glyph scale and placed at a size. Laws, advised: every thing drawn, a card's things told apart, made unlike what it
+  was made from, each in its box. Review: `node scripts/render-food.mjs <dir> [card|all]`, a captioned sheet raw → made
+  → dishes. The kitchen's eyes gate is the operator's; the food is not on the page yet.
 
