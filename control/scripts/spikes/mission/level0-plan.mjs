@@ -98,12 +98,16 @@ export function structureBoxes(t) {
       const seg = (a0, a1) => { const p0 = along ? [c[0] - 0.04, y + a0] : [x + a0, c[1] - 0.04], p1 = along ? [c[0] + 0.04, y + a1] : [x + a1, c[1] + 0.04]; out.push({ min: [p0[0], p0[1], H], max: [p1[0], p1[1], H + T.rail], fill: T.fill, sight: false, walk: false, rail: true }); };
       if (open) { seg(-h, -gap); seg(gap, h); } else seg(-h, h);
     }
-    // (its stair's treads, each a block from the ground to its top: the walker steps up them, and nothing walks in under
-    // the low ones to be lifted through; seen through, a flight of open treads)
+    // (its stair's treads, each a block from the ground to ONE RISER UNDER its top, the tread before it's height: a tread is
+    // shallower than a body is wide, so a body on one reaches two ahead, and a block at its own tread's height would stand
+    // two risers over its feet, past its step; one riser under, it never blocks the climb, while from the ground beside
+    // the flight every block past the second stands over a step and keeps a body from walking in under it. The walk
+    // stands on the drawn treads; seen through, a flight of open treads)
     for (const q of ST.treads) {
+      if (q.z - ST.r <= 1e-6) continue;
       const o0 = ST.edge + q.lo, o1 = ST.edge + q.hi, w = T.stair.width / 2;
       const A = [x + ST.dir[0] * o0 + ST.lat[0] * w, y + ST.dir[1] * o0 + ST.lat[1] * w], B = [x + ST.dir[0] * o1 - ST.lat[0] * w, y + ST.dir[1] * o1 - ST.lat[1] * w];
-      out.push({ min: [Math.min(A[0], B[0]), Math.min(A[1], B[1]), 0], max: [Math.max(A[0], B[0]), Math.max(A[1], B[1]), q.z], fill: T.deckFill, sight: false, tread: true });
+      out.push({ min: [Math.min(A[0], B[0]), Math.min(A[1], B[1]), 0], max: [Math.max(A[0], B[0]), Math.max(A[1], B[1]), +(q.z - ST.r).toFixed(4)], fill: T.deckFill, sight: false, tread: true });
     }
   }
   return out;
