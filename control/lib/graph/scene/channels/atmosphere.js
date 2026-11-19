@@ -79,7 +79,10 @@ export function readAtmosphere(v, { where = 'outside', inside = where === 'insid
   if (b !== undefined && typeof b !== 'boolean' && !inRange(b, R.blur)) throw new Error(`air.blur is true, false, or the far's softening at its most in css pixels (${R.blur[0]} to ${R.blur[1]})`);
   const blur = b === undefined || b === true ? ATMOSPHERE.blur.px : b === false ? 0 : b;
   if (o.colour !== undefined && !(typeof o.colour === 'string' && /^#[0-9a-f]{6}$/i.test(o.colour))) throw new Error('air.colour is the air\'s own colour as the eye sees it, #rrggbb (a neon night\'s glow); absent, the page\'s');
-  const colour = o.colour ? [1, 3, 5].map((i) => Math.round((parseInt(o.colour.slice(i, i + 2), 16) / 255) * 1e4) / 1e4) : null;
+  // (as the eye sees it: the hex is sRGB, the fog's colour is linear light, so it is decoded; read raw, a night's dark
+  // blue was shown a pale grey-blue)
+  const dec = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  const colour = o.colour ? [1, 3, 5].map((i) => Math.round(dec(parseInt(o.colour.slice(i, i + 2), 16) / 255) * 1e4) / 1e4) : null;
   const r4 = (x) => Math.round(x * 1e6) / 1e6;
   return { kind, visibility, clear, height, glow, band: k.band, blur, colour, sigma: r4(-Math.log(ATMOSPHERE.contrast) / (visibility - clear)) };
 }
@@ -180,6 +183,8 @@ export function atmosphereScript(cfg) {
   scene.fog.density = AT.sigma;
   const tint = () => { if (AT.colour) scene.fog.color.setRGB(AT.colour[0], AT.colour[1], AT.colour[2], THREE.LinearSRGBColorSpace); };
   tint();
+  // (said on the probe: a sky built later, channels/form-sky.js, leaves the fog's colour to the air's own)
+  if (AT.colour) probe.colour = AT.colour;
   // the sky's veil: the gen-7 dome takes the air at its horizon, in its band (patched before it compiles)
   const SU = { fogColor: { value: scene.fog.color }, fogDensity: { value: AT.sigma } };
   const veil = (o) => {

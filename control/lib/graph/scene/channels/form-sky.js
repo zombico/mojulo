@@ -139,8 +139,10 @@ export function formSkyScript({ capture = false } = {}) {
     const hh = FSK.haze.h, ht = Math.pow(hh, 0.45), hk = (1 - FSK.rayleigh + FSK.rayleigh * 0.75 * (1 + 0.5)) * (1 + FSK.horizon.lift * Math.exp(-hh * FSK.horizon.sharp));
     // (a look whose haze is darker than its horizon keeps it so: its sky.air, form/land-read.js HAZE_UNDER)
     const hz = [0, 1, 2].map((c) => A[c] * (hor[c] + (zen[c] - hor[c]) * ht) * hk * Math.min(FSK.haze.depth, D.sky.air ?? 1));
-    if (scene.fog) scene.fog.color.setRGB(hz[0], hz[1], hz[2], THREE.LinearSRGBColorSpace);
-    if (typeof FAR_AIR !== 'undefined') FAR_AIR.value.set(hz[0], hz[1], hz[2]);
+    // (an air with its own colour, channels/atmosphere.js, keeps it: the recipe's word over the sky's haze)
+    const AC = window.__mojAir && window.__mojAir.colour, haze = AC ? AC : hz;
+    if (scene.fog) scene.fog.color.setRGB(haze[0], haze[1], haze[2], THREE.LinearSRGBColorSpace);
+    if (typeof FAR_AIR !== 'undefined') FAR_AIR.value.set(haze[0], haze[1], haze[2]);
     scene.traverse((o) => { if (o.isMesh && o.visible && o.material && !o.material.fog && /^isekai:/.test(String(o.userData.g || ''))) { o.material.fog = true; o.material.needsUpdate = true; } });
     // (each frame: the dome round the eye, inside the camera's far plane; the clouds' clock the page's wind's, else its own)
     const prev = scene.onBeforeRender, wind = () => window.__mojTerrain && window.__mojTerrain.wind && window.__mojTerrain.wind.uniforms;

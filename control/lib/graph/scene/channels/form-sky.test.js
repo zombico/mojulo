@@ -32,7 +32,9 @@ describe('the form render\'s sky', () => {
   it('takes the place of the stage\'s painted sky, keeps a night\'s stars and moon, and hazes the far land in its air', () => {
     const src = formSkyScript();
     expect(src).toContain("o.userData.g === 'isekai:cloud' || o.renderOrder === -1.5 || (o.isSprite && o.renderOrder === -1 && day >= 0.5)");
-    expect(src).toContain('scene.fog.color.setRGB(hz[0], hz[1], hz[2], THREE.LinearSRGBColorSpace)');
+    // (the sky's haze on the fog, unless the air has its own colour: channels/atmosphere.js, the recipe's word)
+    expect(src).toContain('const AC = window.__mojAir && window.__mojAir.colour, haze = AC ? AC : hz;');
+    expect(src).toContain('scene.fog.color.setRGB(haze[0], haze[1], haze[2], THREE.LinearSRGBColorSpace)');
     expect(formLandScript({ light: { sun: [1, 1, 1], ambient: [0.2, 0.2, 0.2] } })).toContain('the light that lights the land, seen');
   });
 

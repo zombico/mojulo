@@ -423,3 +423,10 @@ or a recipe key; the spike mints through the real doors and measures.
   under the land's own light at the hour, the sky's and the sun's or moon's by how it faces it, as the stage bakes its
   painted groups. And the night's air a night blue (`air.colour`; the jungle haze's own hue carried into the dark is a
   muddy olive).
+- **An air with its own colour keeps it** (channels/atmosphere.js, channels/form-sky.js): a recipe's `air.colour` was laid
+  on the fog and then overwritten a few frames in, when the gen-7 sky is built and sets the fog to its own haze; the air
+  now says its colour on its probe and the sky leaves the fog (and the far blanket's air) to it. And the colour is read as
+  the eye sees it, sRGB decoded to the fog's linear light, as its own manual says (read raw, a night's dark blue was shown
+  a pale grey-blue). No recipe in the library sets one.
+- **Level 0's night sky a night blue** (the level's cube `light.sky` and its `air.colour`): the jungle haze's own sky hue
+  is green, so its night, carried to the night's value, was olive.

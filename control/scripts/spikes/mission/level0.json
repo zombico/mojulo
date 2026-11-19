@@ -26,6 +26,13 @@
     },
     "outside": {
       "cliff": false
+    },
+    "light": {
+      "sky": {
+        "zenith": "#16223c",
+        "horizon": "#3a4a66",
+        "fog": "#2a3550"
+      }
     }
   },
   "hour": "night",
@@ -612,7 +619,7 @@
     "visibility": 250,
     "clear": 30,
     "blur": false,
-    "colour": "#1c2536"
+    "colour": "#202a3c"
   },
   "cubeReads": "the jungle haze's look on open ground: no cliff walling the trail (a field both sides); the upland's lone trees grown into a dozen stands of two to four, seven to twelve metres tall, kept six metres off the trail's line (clear of the wider track), so the gorge reads wooded without a jungle's cost",
   "grassElsewhere": "meadow",
@@ -745,5 +752,5 @@
     }
   ],
   "floodsReads": "two floodlights, each hung over a tower's deck and aimed at the ground a body crosses: a real light that lights the land, its grass and the bodies, falling off with distance, each casting what stands in its beam; the rest is the moon's",
-  "airReads": "the haze 250 m deep; at night its colour a night blue (the jungle haze's own hue carried into the dark is a muddy olive)"
+  "airReads": "the haze 250 m deep, a night blue (as the eye sees it); and the cube's own sky a night blue (`cube.light.sky`), carried to the night's value: the jungle haze's own sky hue is green, its night olive"
 }
