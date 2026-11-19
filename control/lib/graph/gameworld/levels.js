@@ -747,12 +747,12 @@ function withBookUi(G, play) {
   return { ...play, ui: { seed: h % 2147483647 } };
 }
 
-function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null, foeRefs = null } = {}) {
+function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null, heldRefs = null, foeRefs = null } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
   // a street level (brawl-cast.js): its own simulation and its own contract, the game's hero and made foes its bodies
   if (stage.section === 'street') { const S = streetLevel(G, stage.street, { title: title ?? stageTitle(stage), ref, heroRef, foeRefs, party, ...STREET_LAY }); return { tool: 'create_sketch', args: { title: S.manifest.title, manifest: S.manifest }, laws: S.laws }; }
-  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, sheathRef, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
+  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, sheathRef, heldRefs, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
   const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stage.section === 'obstacles' ? obstacleEnds(stage.manifest) : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
   // reads them: the field the ground was flattened for, a race's checkpoint spacing; cover stands after the goal's cast
@@ -892,7 +892,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const cam0 = cam && cam !== 'third-person' ? camera : A.camera ?? camera, camOf = ends.vista && cam0?.rule === 'follow' ? { ...cam0, vista: { at: ends.vista } } : cam0;
     // (AN ACTION HERO, the orbit and a blow: combat's guard and the run's stride, and its weapon sheathed out of combat
     // where the run made the sheathed hero, opts.sheathRef)
-    const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef) : null;
+    const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef, heldRefs) : null;
     pilotPart = { figures: fighter ? fighter.figures : P.figures, entities: [fighter ? fighter.entity : A.entity], camera: camOf, events, ...(actionOrbit ? { lock: true } : {}) };
     seatable = !look;
   } else {
@@ -1461,6 +1461,14 @@ export function sheathedSpec(G, spec) {
   if (spec.gear[slot]) return null;
   return { ...bare, gear: { ...rest, [slot]: R } };
 }
+/** The heroes a world's HELD weapons are shown by (combos.js weapon `held`, gameworld/runner.js `hero-held-<weapon>`): each
+ * the sheathed hero, its blade on its back, with the weapon's item in its right hand. → [{ id, spec }]; none where there is
+ * no sheathed hero or no weapon is held. */
+export function heldSpecs(G, spec) {
+  const S = sheathedSpec(G, spec), A = arsenalOfGame(G)?.arsenal;
+  if (!S || !A) return [];
+  return A.weapons.filter((W) => W.held).map((W) => ({ id: W.id, spec: { ...S, gear: { ...S.gear, right: W.held } } }));
+}
 // AN ACTION HERO'S WALL (a hero that starts with `wall` or is granted it): walking into a wall, a house's or a rock's,
 // never climbs it; a jump at it takes hold (worlds/controllable/wall.js `ground: false`), as an open world's climb is a
 // choice and never a stumble. A city stalker's wall, taken from the ground, is its own
@@ -1468,14 +1476,16 @@ export function sheathedSpec(G, spec) {
 // null for a world with none, whose hero has the one blow)
 const kitLegend = (G) => { const A = arsenalOfGame(G)?.arsenal; return A ? movesetLegend({ sidearm: A.ranged?.[0]?.name?.toLowerCase() ?? null }) : null; };
 export const actionWall = (rule) => (rule && rule.wall ? { wall: { ...(rule.wall === true ? {} : rule.wall), ground: false } } : {});
-function actionHero(entity, figures, sheathRef) {
+function actionHero(entity, figures, sheathRef, heldRefs = null) {
   const fig = entity.body.figure, sheathed = sheathRef ? `${fig}-sheathed` : null;
+  // (each weapon HELD as its own item, its own hero: runner.js `hero-held-<weapon>`, shown in combat while it is up)
+  const held = sheathed && heldRefs ? Object.fromEntries(Object.keys(heldRefs).map((w) => [w, `${fig}-${w}`])) : null;
   const own = figures[fig];
   // (the guard walks on the hero's own walk, its clip `walk`, where the figure keeps one)
   const clipped = own && own.clips ? { ...own, clips: { ...own.clips, guard: 'walk' } } : own;
   return {
-    figures: { ...figures, [fig]: clipped, ...(sheathed ? { [sheathed]: { ...clipped, heroRef: sheathRef } } : {}) },
-    entity: { ...entity, body: { ...entity.body, ...(sheathed ? { figure: sheathed } : {}), layers: POSE_LAYERS }, rule: { ...entity.rule, ...actionWall(entity.rule), combat: { ...COMBAT, ...(sheathed ? { drawn: fig, sheathed } : {}) } } },
+    figures: { ...figures, [fig]: clipped, ...(sheathed ? { [sheathed]: { ...clipped, heroRef: sheathRef } } : {}), ...(held ? Object.fromEntries(Object.entries(held).map(([w, n]) => [n, { ...clipped, heroRef: heldRefs[w] }])) : {}) },
+    entity: { ...entity, body: { ...entity.body, ...(sheathed ? { figure: sheathed } : {}), layers: POSE_LAYERS }, rule: { ...entity.rule, ...actionWall(entity.rule), combat: { ...COMBAT, ...(sheathed ? { drawn: fig, sheathed } : {}), ...(held && Object.keys(held).length ? { held } : {}) } } },
   };
 }
 
@@ -1761,7 +1771,7 @@ export function buildingEnds(stage, lowered = withBuildingLevel({ ...stage.manif
   return ends;
 }
 
-function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, sheathRef = null, goal = null, goalCast = null, extra = null, legend = null, story = null, carryFrom = null, party = null, castFigures = null } = {}) {
+function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, sheathRef = null, heldRefs = null, goal = null, goalCast = null, extra = null, legend = null, story = null, carryFrom = null, party = null, castFigures = null } = {}) {
   const name = title ?? `${G.name ?? G.id} · ${stage.level}`;
   let base = { ...stage.manifest, title: name, ...(mechanics?.play ? { play: mechanics.play } : {}) };
   const lowered = withBuildingLevel(base, ref), walker = lowered.entities[0];
@@ -1817,7 +1827,7 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   const events = { ...(P.events || {}), ...(inputs.length > (P.events?.inputs?.length ?? 0) ? { inputs } : {}) };
   const A = armedPilot(G, { ...P.entities[0], transform: { pos: cx ? spawn : steppedIn(plan, spawn, heading), heading } }, cam);
   const camera = top ? { rule: 'overhead', target: 'hero', ...OVERHEAD } : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) } : actionOrbit ? { ...P.camera, steer: 'orbit', ...ACTION_ORBIT, tall: true } : A.camera ?? partyChase(G, P.camera);
-  const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef) : null, figs0 = fighter ? fighter.figures : P.figures;
+  const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef, heldRefs) : null, figs0 = fighter ? fighter.figures : P.figures;
   const pilot0 = { figures: X?.figures ? { ...figs0, ...X.figures } : figs0, entities: [piloted(fighter ? fighter.entity : A.entity), ...(X?.entities ?? [])], camera, events, ...(actionOrbit ? { lock: true } : {}) };
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's
   const play0 = base.play ?? null, { pilotPart, play } = storyPart(G, stage, ends, null, pilot0, play0, { story, carryFrom, party, castFigures });

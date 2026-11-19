@@ -213,7 +213,10 @@ export function buildRulesPlatform(E) {
       // (a weapon that shows the sheathed figure, the fist's: sheathed in combat too, combat-melee.js r.weapons; and the
       // sidearm's aim, `mvPose.sidearm`: the blade back on the back while the bow or the guns are up; a guard keeps it)
       const Wf = Array.isArray(r.weapons) ? r.weapons[e.weaponIdx || 0] : null;
-      if (C.drawn && C.sheathed && e.body) e.body.figure = combatOn && !(Wf && Wf.figure === 'sheathed') && !(e.mvPose && e.mvPose.sidearm) ? C.drawn : C.sheathed;
+      // (a weapon HELD as its own item, `combat.held`: its own hero in combat, the item in hand and the blade on the back;
+      // out of combat the sheathed one, the item gone: manifested, never holstered)
+      const Hf = Wf && Wf.held && C.held ? C.held[Wf.id] : null;
+      if (C.drawn && C.sheathed && e.body) e.body.figure = combatOn && Hf && !(e.mvPose && e.mvPose.sidearm) ? Hf : combatOn && !(Wf && Wf.figure === 'sheathed') && !(e.mvPose && e.mvPose.sidearm) ? C.drawn : C.sheathed;
     }
     const walking = walker && travel > 1e-6 && (!!input.walk || travel < runAt || (combatOn && !input.boost));
     // THE RUN BUTTON (opt-in `sprint`, a feel card's `ground.sprint` with its takes, a dash-less hero's F): held while

@@ -183,7 +183,9 @@ export function readSeats(seats, entities, pilot = null) {
 function movesOf(rule, name) {
   const Ws = Array.isArray(rule.weapons) && rule.weapons.length ? rule.weapons : [{ figure: 'drawn', moveset: rule.moveset }];
   const C = rule.combat || {}, sheathed = !!C.sheathed && name === C.sheathed && name !== C.drawn;
-  const mine = Ws.filter((W) => (W.figure === 'sheathed') === sheathed);
+  // (a weapon HELD as its own item shows its own hero, `combat.held`: that hero bakes its moves, and the others never do)
+  const H = C.held || {}, heldBy = (W) => (W.held && H[W.id]) || null, own = Object.values(H).includes(name);
+  const mine = own ? Ws.filter((W) => heldBy(W) === name) : Ws.filter((W) => !heldBy(W) && (W.figure === 'sheathed') === sheathed);
   const moves = mine.flatMap((W) => Object.values(W.moveset.moves).filter((m) => m.clip).map((m) => ({ clip: m.clip, ...(m.swing ? { swing: m.swing } : { strike: m.strike }), ...(m.travel ? { travel: m.travel } : {}), ...(m.contact ? { contact: m.contact } : {}), ...(m.air ? { air: true } : {}) })));
   const readies = mine.map((W) => { const first = Object.values(W.moveset.moves)[0]; return { clip: W.moveset.ready ?? 'mv_ready', ...(first && first.strike ? { strike: first.strike } : {}) }; });
   // (the sidearms' aims, on every figure the hero shows: a sidearm is held on the sheathed hero, the blade on its back)

@@ -251,3 +251,9 @@ What the theme will hold:
   keeps its lamps' hues against its reference lamp (`form/room-light.js` `hued`: the median lamp neutral, so its ramps
   stand), so an ember and a moon read as such; every other toned room's lamps stay without hue. Fallen Angel's four
   rooms each take their own.
+- **Built: a weapon held as its own item, and Fallen Angel's bo.** An arsenal's weapon takes `held` (an item's build
+  words: a staff, a spear): the run mints a hero of its own for it (`hero-held-<weapon>`, the sheathed hero with the
+  item in its right hand, the blade on the back), the level names it (`combat.held`), the runtime shows it in combat
+  while that weapon is up and the sheathed hero out of it (the item manifested, never holstered), and its moves are baked
+  on that hero. Fallen Angel's second weapon is a bo in the fist's place: two wide sweeps and a spin, a poke, and a string
+  that ends on the heavy in a ground slam all round with a toppling knockback.

@@ -195,3 +195,66 @@ describe('stepping through the weapons', () => {
     expect(before).toBeLessThan(1);
   });
 });
+
+// A WEAPON HELD AS ITS OWN ITEM (a weapon's `held`: a bo the hero holds in its own hero, the blade on the back): read and
+// lowered, shown in combat while it is up and gone out of it, its moves baked on its own hero
+describe('a held weapon', () => {
+  const BO = { id: 'staff', name: 'Bo', held: { item: 'staff', style: 'historical' }, reach: 2.3,
+    moves: { 'staff-1': { swing: 'left', role: 'opener', frames: 24, cancel: 15, arc: 150, damage: 0.8 }, slam: { swing: 'back', role: 'finisher', frames: 46, arc: 360, reach: 3.6, damage: 2, impact: 6, topple: true } },
+    combos: [{ id: 'sweep', beats: ['L'], moves: ['staff-1'] }, { id: 'slam', beats: ['L', 'H'], moves: ['staff-1', 'slam'] }] };
+  const A = { ...BASIC_ARSENAL, weapons: [BASIC_ARSENAL.weapons[0], BO] };
+  it('is read and lowered: it shows the sheathed hero\'s frame, held; a held weapon on a drawn figure, or held nothing, refused', () => {
+    const W = lowerArsenal(A).find((x) => x.id === 'staff');
+    expect(W).toMatchObject({ held: true, figure: 'sheathed' });
+    expect(lowerArsenal(BASIC_ARSENAL).some((x) => x.held)).toBe(false);
+    expect(() => readArsenal({ ...A, weapons: [{ ...BO, figure: 'drawn' }] })).toThrow(/held weapon shows its own hero/);
+    expect(() => readArsenal({ ...A, weapons: [{ ...BO, held: { style: 'x' } }] })).toThrow(/held is an item's build words/);
+  });
+  it('the hero shows it in combat while it is up, the drawn hero with the blade, the sheathed one out of combat', () => {
+    const W = lowerArsenal(A);
+    const w = createWorld({ entities: [
+      { id: 'p', rule: { type: 'platform', eye: 0, speed: 6, strike: 'melee', strikeReach: 1.6, strikeDamage: 2, strikeContact: [0.44, 0.52], weapons: W, moveset: W[0].moveset, moveClips: true, combat: { near: 10, far: 15, linger: 3, speed: 2.4, stride: 1.6, drawn: 'hero', sheathed: 'hero-sheathed', held: { staff: 'hero-staff' } } }, body: { type: 'figure-rig', figure: 'hero-sheathed' }, transform: { pos: [0, 0, 0], heading: 0 } },
+      { id: 'foe', team: 'foes', body: { type: 'box', size: [0.6, 0.6, 1.8], hittable: true, hp: 1e6, poise: 1 }, rule: { type: 'static' }, transform: { pos: [1.4, 0, 0], heading: Math.PI } },
+    ] });
+    const p = w.byId.p, step = (inp = {}) => stepWorld(w, inp, 1 / 60, { ground: () => 0 });
+    for (let i = 0; i < 4; i++) step();
+    expect(p.body.figure).toBe('hero');
+    step({ cycle: 1 }); step();
+    expect(p.mvWeapon).toBe('staff');
+    expect(p.body.figure).toBe('hero-staff');
+    // (the foe gone: out of combat after the linger, the staff gone with it)
+    w.byId.foe.transform.pos = [400, 0, 0];
+    for (let f = 0; f < 60 * 4; f++) step();
+    expect(p.body.figure).toBe('hero-sheathed');
+  });
+});
+
+// A CROWD WEAPON'S FINISH (a bo's string, its heavy at the end): the spin's sweep all round, then the ground slam, every
+// foe in reach knocked back and down, wherever round the hero it stands
+describe('the ground slam', () => {
+  it('light, light, light, heavy: the sweeps and the spin, then the slam knocks every foe round the hero back and down', () => {
+    const BO = { id: 'staff', name: 'Bo', held: { item: 'staff' }, reach: 2.3, damage: 0.8,
+      moves: { 's1': { swing: 'left', role: 'opener', frames: 24, cancel: 15, arc: 150, damage: 0.8, impact: 1.5 }, 's2': { swing: 'right', role: 'filler', frames: 24, cancel: 15, arc: 150, damage: 0.8, impact: 1.5 },
+        's3': { swing: 'around', role: 'filler', frames: 34, cancel: 24, contact: [0.3, 0.72], arc: 360, spin: 1, damage: 1, impact: 2.5 },
+        slam: { swing: 'back', role: 'finisher', frames: 46, contact: [0.5, 0.66], arc: 360, reach: 3.6, damage: 2, impact: 6, topple: true, knock: 'heavy' } },
+      combos: [{ id: 'sweep', beats: ['L', 'L', 'L'], moves: ['s1', 's2', 's3'] }, { id: 'slam', beats: ['L', 'L', 'L', 'H'], moves: ['s1', 's2', 's3', 'slam'] }] };
+    const W = lowerArsenal({ ...BASIC_ARSENAL, weapons: [BO] });
+    const foe = (id, a) => ({ id, team: 'foes', body: { type: 'box', size: [0.6, 0.6, 1.8], hittable: true, hp: 1e6, poise: 1 }, rule: { type: 'static' }, transform: { pos: [Math.cos(a) * 1.8, Math.sin(a) * 1.8, 0], heading: a + Math.PI } });
+    const w = createWorld({ knock: {}, entities: [
+      { id: 'p', rule: { type: 'platform', eye: 0, speed: 6, strike: 'melee', strikeReach: 1.6, strikeDamage: 2, strikeContact: [0.44, 0.52], weapons: W, moveset: W[0].moveset, moveClips: true }, body: { type: 'box', size: [0.5, 0.5, 1.8] }, transform: { pos: [0, 0, 0], heading: 0 } },
+      foe('a', 0), foe('b', 2.1), foe('c', -2.1),
+    ] });
+    const p = w.byId.p, seen = [], step = (inp = {}) => { stepWorld(w, inp, 1 / 60, { ground: () => 0 }); const M = p.mv && p.mv.move; if (M && seen[seen.length - 1] !== M) seen.push(M); };
+    for (let i = 0; i < 4; i++) step();
+    // each press when the move before it reaches its cancel
+    const press = (beat, after) => { for (let f = 0; f < 120; f++) { const M = p.mv && p.mv.move; if (!after || (M === after && p.swingT != null && p.swingT >= W[0].moveset.moves[after].cancel * W[0].moveset.moves[after].dur)) break; step(); } step(beat === 'H' ? { heavy: 1 } : { fire: 1 }); step(); };
+    press('L'); press('L', 's1'); press('L', 's2'); press('H', 's3');
+    const d0 = ['a', 'b', 'c'].map((id) => Math.hypot(...w.byId[id].transform.pos.slice(0, 2)));
+    for (let f = 0; f < 90; f++) step();
+    expect(seen).toEqual(['s1', 's2', 's3', 'slam']);
+    for (const [i, id] of ['a', 'b', 'c'].entries()) {
+      expect(Math.hypot(...w.byId[id].transform.pos.slice(0, 2))).toBeGreaterThan(d0[i] + 0.5);
+      expect(w.byId[id].downed || w.byId[id].toppled || w.byId[id].knockT != null || w.byId[id].staggerT != null).toBeTruthy();
+    }
+  });
+});

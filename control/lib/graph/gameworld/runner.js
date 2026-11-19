@@ -54,7 +54,7 @@ import { gauntletCast } from './gauntlet-cast.js';
 import { carriedBlade, genreHero, rowGaits } from './hero-rows.js';
 import { layTasks, tasksCast } from './tasks.js';
 import { styleMeterOfGame } from './style-meter.js';
-import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane, stageTitle, sheathedSpec } from './levels.js';
+import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane, stageTitle, sheathedSpec, heldSpecs } from './levels.js';
 import { bindStory } from './story.js';
 import { storyCinematics, flowToRefs } from './game-flow.js';
 import { withSetup } from './setup.js';
@@ -327,6 +327,9 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     // the SHEATHED hero (an action hero's: levels.js sheathedSpec): the same, its blade on its back, played out of combat
     const sheathed = sheathedSpec(G, spec);
     if (sheathed) steps.push({ key: 'hero-sheathed', ref: childRef(ref, 'hero-sheathed'), ready: ready.adornment.ready, ...waits(ready.adornment), order: { mint: { ...mint, ...(toon ? { toon } : {}), title: `${hero.mint.title} · sheathed`, spec: sheathed }, spec: sheathed }, print: fingerprint({ spec: sheathed, ...lit(toon) }) });
+    // and a hero for each weapon HELD as its own item (levels.js heldSpecs: the sheathed hero, the item in its right hand),
+    // shown in combat while that weapon is up
+    for (const H of heldSpecs(G, spec)) steps.push({ key: `hero-held-${H.id}`, ref: childRef(ref, `hero-held-${H.id}`), ready: ready.adornment.ready, ...waits(ready.adornment), order: { mint: { ...mint, ...(toon ? { toon } : {}), title: `${hero.mint.title} · ${H.id}`, spec: H.spec }, spec: H.spec }, print: fingerprint({ spec: H.spec, ...lit(toon) }) });
   }
   // the cast: each made after the hero, as the hero is (a hero-door base, then its motion); it waits on nothing
   for (const id of Object.keys(G.characters?.cast ?? {})) {
@@ -513,7 +516,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : {}) } : {};
     // a walked stage's story slots: its before at its start, its after (and its epoch's end) at its exit
     const sl = walkedSlots(st, endOf[i], s);
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(s.section === 'street' ? { foeRefs } : {}), ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights, ...sheetOf(G, s, runScore) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(s.section === 'street' ? { foeRefs } : {}), ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(steps.some((x) => x.key.startsWith('hero-held-')) ? { heldRefs: Object.fromEntries(steps.filter((x) => x.key.startsWith('hero-held-')).map((x) => [x.key.slice(10), x.ref])) } : {}), ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights, ...sheetOf(G, s, runScore) });
     // (a party RPG marks no way out: no flag over its exits, the road or the door itself the way on)
     if (G.battles && G.battles.on !== 'board') L.args = unmarked(L.args);
     // on an epoch's map, a level won goes back to the map

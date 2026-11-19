@@ -7,7 +7,140 @@
   "feel": "fallen-angel",
   "arsenal": {
     "from": "fallen-angel",
-    "art": "wild"
+    "art": "wild",
+    "weapons": [
+      {
+        "id": "fist",
+        "drop": true
+      },
+      {
+        "id": "staff",
+        "name": "Bo",
+        "figure": "sheathed",
+        "reach": 2.3,
+        "damage": 0.8,
+        "moves": {
+          "staff-1": {
+            "swing": "left",
+            "role": "opener",
+            "frames": 24,
+            "cancel": 15,
+            "arc": 150,
+            "travel": {
+              "kind": "step",
+              "m": 0.25
+            },
+            "damage": 0.8,
+            "impact": 1.5
+          },
+          "staff-2": {
+            "swing": "right",
+            "role": "filler",
+            "frames": 24,
+            "cancel": 15,
+            "arc": 150,
+            "travel": {
+              "kind": "step",
+              "m": 0.25
+            },
+            "damage": 0.8,
+            "impact": 1.5
+          },
+          "staff-3": {
+            "swing": "around",
+            "role": "filler",
+            "frames": 34,
+            "cancel": 24,
+            "contact": [
+              0.3,
+              0.72
+            ],
+            "arc": 360,
+            "spin": 1,
+            "damage": 1,
+            "impact": 2.5
+          },
+          "ground-slam": {
+            "swing": "back",
+            "role": "finisher",
+            "frames": 46,
+            "contact": [
+              0.5,
+              0.66
+            ],
+            "arc": 360,
+            "reach": 3.6,
+            "travel": {
+              "kind": "lunge",
+              "m": 0.4
+            },
+            "damage": 2,
+            "impact": 6,
+            "topple": true,
+            "cooldown": 30
+          },
+          "staff-poke": {
+            "swing": "forward",
+            "role": "opener",
+            "frames": 30,
+            "reach": 2.8,
+            "travel": {
+              "kind": "lunge",
+              "m": 0.5
+            },
+            "damage": 1.2,
+            "impact": 3,
+            "cooldown": 30
+          }
+        },
+        "combos": [
+          {
+            "id": "sweep",
+            "name": "Sweep",
+            "beats": [
+              "L",
+              "L",
+              "L"
+            ],
+            "moves": [
+              "staff-1",
+              "staff-2",
+              "staff-3"
+            ]
+          },
+          {
+            "id": "ground-slam",
+            "name": "Ground slam",
+            "beats": [
+              "L",
+              "L",
+              "L",
+              "H"
+            ],
+            "moves": [
+              "staff-1",
+              "staff-2",
+              "staff-3",
+              "ground-slam"
+            ]
+          },
+          {
+            "id": "poke",
+            "name": "Poke",
+            "beats": [
+              "H"
+            ],
+            "moves": [
+              "staff-poke"
+            ]
+          }
+        ],
+        "held": {
+          "item": "staff",
+          "style": "historical"
+        }
+      }
+    ]
   },
   "loadout": {},
   "foes": {

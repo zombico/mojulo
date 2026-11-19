@@ -834,6 +834,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // lifts). A block added before the chase's distance, that line and the height's taking its terms, and one line after
 // the first look keeping the camera under the ceiling; a rule with no `tall` runs as before. Every fixture that embeds
 // the controllable runtime re-pinned with it.
+// Re-pinned 2026-11-19 (a weapon held as its own item, and a move's knockback): the runtime the page embeds gained the
+// platform rule's `combat.held` (rules-platform.js: a weapon held as its own item shows its own hero in combat while it is
+// up, the line choosing the figure guarded by it) and a moveset move's `knock` carried onto its blow (combat-melee.js
+// stepMoveset: one field spread in). A hero with no held weapon and a move with no knock run as before. Every fixture that
+// embeds the controllable runtime re-pinned with it.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

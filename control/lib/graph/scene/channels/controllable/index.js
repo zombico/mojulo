@@ -1606,7 +1606,7 @@ ${place ? 'let __castNow = null;   // (the body being made: its own set of the r
   const lo = (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length ? e.rule.loadout : null)
     || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length ? e.pilotRule.loadout : null)${hasModes ? `
     || (Array.isArray(b.modes) && b.modes.length > 1 ? b.modes : null)` : ''}${hasSheath ? `
-    || (e.rule && e.rule.combat && e.rule.combat.sheathed ? [{ figure: e.rule.combat.drawn }, { figure: e.rule.combat.sheathed }] : null)` : ''};
+    || (e.rule && e.rule.combat && e.rule.combat.sheathed ? [{ figure: e.rule.combat.drawn }, { figure: e.rule.combat.sheathed }, ...Object.values(e.rule.combat.held || {}).map((f) => ({ figure: f }))] : null)` : ''};
   // (a loadout whose slots name no figure, a carried kit's guns: arms-kit.js, has no variant bodies to build; the body is
   // its own figure, below. Without this a hero carrying a kit was never drawn)
   if (lo && lo.some((c) => c && c.figure) && (b.type === 'figure-rig' || b.type === 'figure-frames')) {

@@ -8,7 +8,12 @@ to the knight in its sanctum. `world.json` is the whole recipe; everything else 
   the waist so the legs pass between them in a fight; its sleeves rolled to the elbow, small leather
   shoulder caps under the coat's own shoulder straps, a stocking of the coat's colour under its shoulders, and flared leather gauntlets (`hands: 'cavalierGloves'`), a sword in the right hand. The feel is the
   template's (`feel: 'fallen-angel'`) and the kit is its kit swung in the `wild` art
-  (`arsenal: { from: 'fallen-angel', art: 'wild' }`): the sword and the fist, switched mid-string, the pistols.
+  (`arsenal: { from: 'fallen-angel', art: 'wild', weapons: [ … ] }`): the sword and the bo, switched mid-string, the
+  pistols. The bo is the second weapon in the fist's place (`held: { item: 'staff', style: 'historical' }`): a plain
+  wooden staff that appears in Lucien's hands when he fights with it and is gone out of the fight, never holstered, the
+  sword on his back while he uses it; its own hero, minted beside the sheathed one. It fights a crowd: light, light,
+  light is two wide sweeps and a full spin, heavy alone a long poke, and light, light, light, heavy ends the string in a
+  GROUND SLAM, the staff brought down all round with a knockback that topples whatever it reaches.
 - **The foes:** zombies and armed skeletons (the undead form library's): the slow dead, the armed skeleton, the
   archer, the armoured dead, the knight.
 - **The level:** the `citadel` building in a seventh-generation gothic cube (`geocube: { from: 'gothic-night',
