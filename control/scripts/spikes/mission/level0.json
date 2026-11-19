@@ -611,7 +611,8 @@
     "kind": "haze",
     "visibility": 250,
     "clear": 30,
-    "blur": false
+    "blur": false,
+    "colour": "#1c2536"
   },
   "cubeReads": "the jungle haze's look on open ground: no cliff walling the trail (a field both sides); the upland's lone trees grown into a dozen stands of two to four, seven to twelve metres tall, kept six metres off the trail's line (clear of the wider track), so the gorge reads wooded without a jungle's cost",
   "grassElsewhere": "meadow",
@@ -743,5 +744,6 @@
       "reads": "over the camp's tower, aimed at the trail coming up to the camp and the camp's front"
     }
   ],
-  "floodsReads": "two floodlights, each hung over a tower's deck and aimed at the ground a body crosses: a real light that lights the land, its grass and the bodies, falling off with distance, each casting what stands in its beam; the rest is the moon's"
+  "floodsReads": "two floodlights, each hung over a tower's deck and aimed at the ground a body crosses: a real light that lights the land, its grass and the bodies, falling off with distance, each casting what stands in its beam; the rest is the moon's",
+  "airReads": "the haze 250 m deep; at night its colour a night blue (the jungle haze's own hue carried into the dark is a muddy olive)"
 }

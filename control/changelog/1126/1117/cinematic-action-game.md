@@ -411,3 +411,12 @@ or a recipe key; the spike mints through the real doors and measures.
   now multiplies each directional light's colour alone, in three's own loop (three's chunk laid out in place, and the
   actors' shadow spliced into the same text, so either patch may run first). A page whose only direct light is its key
   is lit as it was.
+- **A flood on a mast** (`floods[].mast`, the height its pole stands on, drawn from there up to the lamp): level 0's
+  floods first hung a metre and a half over their towers' decks, and each deck's metre of rail stood in the beam from
+  17° to 47° below the level, so its shadow lay over the whole near pool and the ground under them stayed dark; hung on
+  a mast 3.2 m over the deck, the rail is under every ray of the beam.
+- **Level 0's structures in the level's light** (scripts/spikes/mission/level0.mjs): its towers, sandbags and wire were
+  painted with fixed fills, lit as daytime paint at any hour (at night they glowed); each face's colour is now its fill
+  under the land's own light at the hour, the sky's and the sun's or moon's by how it faces it, as the stage bakes its
+  painted groups. And the night's air a night blue (`air.colour`; the jungle haze's own hue carried into the dark is a
+  muddy olive).

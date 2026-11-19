@@ -6,15 +6,17 @@
  * drawn every frame. A night level's light is the moon's and these: the dark between them is where a body is not seen.
  *
  *   FLOODS                  the most a level carries, the most that cast, and a lamp's own colour, power, cone and reach
- *   readFloods(list)        → [{ at, aim, colour, power, cone, reach, shadow }] checked (a list of at most FLOODS.most),
- *                           or throws, teaching
+ *   readFloods(list)        → [{ at, aim, colour, power, cone, reach, shadow, mast? }] checked (a list of at most
+ *                           FLOODS.most), or throws, teaching. `mast`: the height its pole stands on (a tower's deck, the
+ *                           ground), the pole drawn from there up to the lamp. Hang a lamp well over what it stands on:
+ *                           a rail or a parapet between the lamp and its aim lays its shadow across the beam
  *   floodsScript()          the page's code (needs THREE, scene and the form land's D.floods)
  *
  * `power` is a lamp's light at ten metres in the land's solve's own units (linear, a noon sun's about 1; three's are π
  * those, as the land's sun is set): it falls by the square of the distance, so a third as bright at about seventeen. Pure.
  */
 export const FLOODS = Object.freeze({ most: 4, shadows: 2, colour: '#fff1d6', power: 0.6, cone: 50, reach: 40, mapSize: 1024 });
-const KEYS = ['at', 'aim', 'colour', 'power', 'cone', 'reach', 'shadow'];
+const KEYS = ['at', 'aim', 'colour', 'power', 'cone', 'reach', 'shadow', 'mast'];
 const isXYZ = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
 
 export function readFloods(list) {
@@ -31,7 +33,8 @@ export function readFloods(list) {
     if (f.cone !== undefined && !(typeof f.cone === 'number' && f.cone >= 10 && f.cone <= 120)) no(`${at}.cone is the beam's whole angle in degrees, 10 to 120 (${FLOODS.cone} unless said)`);
     if (f.reach !== undefined && !(typeof f.reach === 'number' && f.reach >= 5 && f.reach <= 120)) no(`${at}.reach is how far its light goes in metres, 5 to 120 (${FLOODS.reach} unless said)`);
     if (f.shadow !== undefined && typeof f.shadow !== 'boolean') no(`${at}.shadow is true or false: whether what stands in its beam casts (the first ${FLOODS.shadows} cast unless said)`);
-    return { at: f.at, aim: f.aim, colour: f.colour ?? FLOODS.colour, power: f.power ?? FLOODS.power, cone: f.cone ?? FLOODS.cone, reach: f.reach ?? FLOODS.reach, shadow: f.shadow ?? i < FLOODS.shadows };
+    if (f.mast !== undefined && !(Number.isFinite(f.mast) && f.mast < f.at[2])) no(`${at}.mast is the height its pole stands on, under the lamp (${f.at[2]})`);
+    return { at: f.at, aim: f.aim, colour: f.colour ?? FLOODS.colour, power: f.power ?? FLOODS.power, cone: f.cone ?? FLOODS.cone, reach: f.reach ?? FLOODS.reach, shadow: f.shadow ?? i < FLOODS.shadows, ...(f.mast !== undefined ? { mast: f.mast } : {}) };
   });
 }
 
@@ -58,6 +61,8 @@ export function floodsScript() {
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: __flGlow, color: col, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, toneMapped: false }));
     glow.position.copy(head.position).addScaledVector(dir, 0.3); glow.scale.set(2.6, 2.6, 1); glow.raycast = () => {};
     scene.add(head, glow);
+    // (its mast, where it says what the pole stands on: a dark pole from there up to the lamp)
+    if (f.mast != null) { const h = f.at[2] - f.mast, pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, h, 6), new THREE.MeshStandardMaterial({ color: 0x2c2a26, roughness: 0.8 })); pole.rotation.x = Math.PI / 2; pole.position.set(f.at[0], f.at[1], f.mast + h / 2); pole.castShadow = false; pole.receiveShadow = true; pole.raycast = () => {}; scene.add(pole); }
     return { light: L, head, glow, at: f.at, aim: f.aim };
   });
 }

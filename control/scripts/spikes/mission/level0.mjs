@@ -112,10 +112,20 @@ for (const b of cover.laid) {
 // THE STRUCTURES: sandbags, wire and towers, as the static world's own faces on the ground (cheap; a tower's deck is
 // ground a guard stands on) and their boxes as colliders (a tower's deck and rails are walked under)
 const extraFaces = [];
+// (each face's colour under the land's own light at the level's hour, as the stage bakes its painted groups: its fill
+// times the sky's light and the sun's (or the moon's) by how the face turns to it; a level at night is dark with its land)
+const LT = payload.form?.land?.light, SD = payload.form?.land?.sun;
+const lin = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4), enc = (v) => (v <= 0.0031308 ? v * 12.92 : 1.055 * v ** (1 / 2.4) - 0.055);
+const bakeFill = (hex, n) => {
+  if (!LT || !SD) return hex;
+  const l = Math.hypot(...SD) || 1, c = Math.max(0, (n[0] * SD[0] + n[1] * SD[1] + n[2] * SD[2]) / l);
+  return '#' + [1, 3, 5].map((i, k) => Math.round(Math.max(0, Math.min(1, enc(lin(parseInt(hex.slice(i, i + 2), 16) / 255) * (LT.ambient[k] + LT.sun[k] * c)))) * 255).toString(16).padStart(2, '0')).join('');
+};
+const baked = (faces) => faces.map((f) => { const fill = bakeFill(f.fill, f.normal); return { ...f, fill, cornerFills: f.cornerFills.map(() => fill) }; });
 for (const t of L.structures ?? []) {
   const z = zAt(t.at ?? t.from);
   for (const b of structureBoxes(t)) {
-    extraFaces.push(...boxFaces([b.min[0], b.min[1], z + b.min[2] - (b.min[2] ? 0 : 0.3)], [b.max[0], b.max[1], z + b.max[2]], b.fill, `cover:${t.kind}`));
+    extraFaces.push(...baked(boxFaces([b.min[0], b.min[1], z + b.min[2] - (b.min[2] ? 0 : 0.3)], [b.max[0], b.max[1], z + b.max[2]], b.fill, `cover:${t.kind}`)));
     if (b.walk !== false) payload.colliders.push({ of: `cover:${t.id}`, min: [b.min[0], b.min[1], z + b.min[2] - 0.4], max: [b.max[0], b.max[1], z + b.max[2]] });
   }
 }
@@ -126,9 +136,11 @@ payload.faces = [...(payload.faces ?? []), ...extraFaces];
 if (L.floods && payload.form?.land) {
   const { readFloods } = await import('../../../lib/graph/scene/channels/form-floods.js');
   payload.form.land.floods = readFloods(L.floods.map((f) => {
-    const T = f.on && (L.structures ?? []).find((t) => t.id === f.on), base = T ? T.at : f.at;
-    const top = T ? (T.height ?? STRUCTURE.tower.height) + (f.height ?? 1.4) : (f.height ?? 6);
-    return { at: r2([base[0], base[1], zAt(base) + top]), aim: on(f.aim), ...Object.fromEntries(Object.entries(f).filter(([k]) => ['colour', 'power', 'cone', 'reach', 'shadow'].includes(k))) };
+    // (over a tower, on a mast 3.2 m over its deck: the deck's metre of rail then stands under every ray of the beam,
+    // where hung lower it laid its shadow across most of it)
+    const T = f.on && (L.structures ?? []).find((t) => t.id === f.on), base = T ? T.at : f.at, deck = T ? zAt(base) + (T.height ?? STRUCTURE.tower.height) : zAt(base);
+    const top = T ? (T.height ?? STRUCTURE.tower.height) + (f.height ?? 3.2) : (f.height ?? 6);
+    return { at: r2([base[0], base[1], zAt(base) + top]), aim: on(f.aim), mast: +deck.toFixed(2), ...Object.fromEntries(Object.entries(f).filter(([k]) => ['colour', 'power', 'cone', 'reach', 'shadow'].includes(k))) };
   }));
 }
 const deckOf = (w) => { const T = w.on && (L.structures ?? []).find((t) => t.id === w.on); return T ? zAt(T.at) + (T.height ?? STRUCTURE.tower.height) : null; };
