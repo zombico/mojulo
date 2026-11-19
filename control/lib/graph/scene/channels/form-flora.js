@@ -139,6 +139,13 @@ export const NEEDLE_LOOK = Object.freeze({ steps: 14, cell: Object.freeze([0.026
  * for an aerial camera); then its card. No far form between: a crown of fewer clumps grown read as a bubble, there and
  * gone as the eye walked. A needled crown and a culm keep their own far form.
  */
+/**
+ * A REALISTIC TREE'S MASS NEAR (form/flora-read.js REALISTIC): its crown's lobes under its leaves, drawn in leaf-sized
+ * CELLS (`cell` m in the template's own space): each cell its own tone (`tones`, × its colour), and where its surface
+ * turns from the eye (past `rim` of the way to edge-on) cells drop out, up to `cut` of them at the edge, so its outline
+ * breaks into leaves as its far card's pixels do. A mass vertex says so by the length of its out (2, the leaves' 1).
+ */
+export const MASS_LEAF = Object.freeze({ cell: 0.24, rim: 0.25, cut: 0.92, tones: Object.freeze([0.78, 1.18]) });
 export const FLORA_FAR = Object.freeze({ bearings: 8, texels: Object.freeze([128, 192]), px: 1, leaf: 0, wood: 0 });
 export const FLORA_WIND = Object.freeze({ phi: 0.006, bushPhi: 0.004, culmPhi: 0.012, limb: 1.2, flutter: 0.025, shake: 0.07, settle: 1.2 });
 const SWAY_GLSL = `vec3 floraSway( vec3 wp, vec3 base, float w, float leaf, float shake, float ph ) {
@@ -219,10 +226,14 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
     const LEAF_SNOW_CAP = '\\n  { vec2 su = ( vSnowW.xy - uSnowLO ) / uSnowLM; float sc = ( su.x > 0.0 && su.y > 0.0 && su.x < 1.0 && su.y < 1.0 ) ? texture2D( tSnowL, su ).r : 0.0;' +
       ' vec3 wn = normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz ); float hs = fract( sin( dot( floor( vSnowW * 3.0 ), vec3( 12.9898, 78.233, 37.719 ) ) ) * 43758.5453 );' +
       ' float sk = smoothstep( uSnowCap.x - 0.04, uSnowCap.x + 0.12, wn.z ) * step( hs, uSnowCap.y ) * smoothstep( 0.15, 0.45, sc ); diffuseColor.rgb = mix( diffuseColor.rgb, uSnowLB, sk ); }';
-` : ''}    function leafMat(spray, detail, phi) {
+` : ''}    // (a realistic tree's mass in leaf-sized cells, MASS_LEAF: toned each its own, broken at its outline)
+    const ML = ${safeJson(MASS_LEAF)}, MASS_CELLS = '\\n  if ( vMass > 0.5 ) { float mh = fract( sin( dot( floor( vCell / ' + ML.cell.toFixed(3) + ' ), vec3( 12.9898, 78.233, 37.719 ) ) ) * 43758.5453 );' +
+      ' float mr = 1.0 - abs( dot( normal, normalize( vViewPosition ) ) ); if ( mh < smoothstep( ' + ML.rim.toFixed(3) + ', 1.0, mr ) * ' + ML.cut.toFixed(3) + ' ) discard;' +
+      ' diffuseColor.rgb *= mix( ' + ML.tones[0].toFixed(3) + ', ' + ML.tones[1].toFixed(3) + ', fract( mh * 7.13 ) ); }';
+    function leafMat(spray, detail, phi) {
       const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0, side: THREE.DoubleSide });
       const U = { uEye: eye, uDetail: { value: new THREE.Vector2(detail[0], detail[1]) }${snow ? ', ...LEAF_SNOW' : ''} };
-      const HEAD = 'attribute vec3 aOut;\\nattribute vec3 aSite;\\nuniform vec3 uEye;\\nuniform vec2 uDetail;\\n';
+      const HEAD = 'attribute vec3 aOut;\\nattribute vec3 aSite;\\nuniform vec3 uEye;\\nuniform vec2 uDetail;\\nvarying float vMass;\\nvarying vec3 vCell;\\n';
       const grows = (vs) => vs.replace('#include <begin_vertex>', spray ? [
         'vec3 ipos = ( modelMatrix * instanceMatrix * vec4( aSite, 1.0 ) ).xyz;',
         'float nearF = 1.0 - smoothstep( uDetail.x, uDetail.y, distance( ipos, uEye ) );',
@@ -233,10 +244,10 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       m.onBeforeCompile = (sh) => {
         Object.assign(sh.uniforms, U);
         sh.vertexShader = ${snow ? "'varying vec3 vSnowW;\\n' + " : ''}swayHead(sh, phi, 1) + HEAD + grows(sh.vertexShader)
-          .replace('#include <defaultnormal_vertex>', '#include <defaultnormal_vertex>\\n  transformedNormal = normalize( mix( transformedNormal, normalMatrix * mat3( instanceMatrix ) * aOut, 0.65 ) );')
+          .replace('#include <defaultnormal_vertex>', '#include <defaultnormal_vertex>\\n  float aoL = length( aOut ); vMass = step( 1.5, aoL ); vCell = position + instanceMatrix[3].xyz * 0.37;\\n  transformedNormal = normalize( mix( transformedNormal, normalMatrix * mat3( instanceMatrix ) * ( aOut / max( 1.0, aoL ) ), 0.65 ) );')
           .replace('#include <project_vertex>', ${snow ? "SWAY_PROJECT + '\\n  vSnowW = ( modelMatrix * instanceMatrix * vec4( transformed, 1.0 ) ).xyz;'" : 'SWAY_PROJECT'});
-        sh.fragmentShader = ${snow ? 'LEAF_SNOW_HEAD + ' : ''}sh.fragmentShader
-          .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\\n  normal *= faceDirection;'${snow ? ' + LEAF_SNOW_CAP' : ''})
+        sh.fragmentShader = 'varying float vMass;\\nvarying vec3 vCell;\\n' + ${snow ? 'LEAF_SNOW_HEAD + ' : ''}sh.fragmentShader
+          .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\\n  normal *= faceDirection;' + MASS_CELLS${snow ? ' + LEAF_SNOW_CAP' : ''})
           .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\\n  reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.22;');
       };
       m.customProgramCacheKey = () => 'form-leaf' + (spray ? '-spray' : '') + phi${snow ? -snow : ''};
@@ -246,7 +257,7 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
     // level along its branch), rolled by its rank and scaled
     const AXZ = new THREE.Vector3(0, 0, 1), AXX = new THREE.Vector3(1, 0, 0);
     function variants(list) { return list.map((G) => ({ p: f32(G.p), c: bytes(G.c), n: G.n })); }
-    function merged(sites, n, geos, kind, pad, pick, grow = 1) {
+    function merged(sites, n, geos, kind, pad, pick, grow = 1, mass = false) {
       const S = f32(sites), use = []; for (let i = 0; i < n; i++) if (pick(S, i)) use.push(i);
       let tv = 0; for (const i of use) tv += geos[i % geos.length].n * 3;
       const pos = new Float32Array(tv * 3), col = new Float32Array(tv * 3), out = new Float32Array(tv * 3), site = new Float32Array(tv * 3);
@@ -269,7 +280,7 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
           v.set(G.p[k * 3], G.p[k * 3 + 1], G.p[k * 3 + 2]).applyMatrix4(m4); pos.set([v.x, v.y, v.z], o * 3);
           col.set([(G.c[k * 3] / 128) * tone, (G.c[k * 3 + 1] / 128) * tone, (G.c[k * 3 + 2] / 128) * tone], o * 3);
           // (a blob's vertex leans out from its blob's middle, so the leaf's light rounds it; any other piece's out of the crown)
-          if (kind === 'blob') { const dv = v.clone().sub(p).normalize(); out.set([dv.x, dv.y, dv.z], o * 3); } else out.set([fo.x, fo.y, fo.z], o * 3);
+          if (kind === 'blob') { const dv = v.clone().sub(p).normalize().multiplyScalar(mass ? 2 : 1); out.set([dv.x, dv.y, dv.z], o * 3); } else out.set([fo.x, fo.y, fo.z], o * 3);
           site.set([p.x, p.y, p.z], o * 3);
         }
       }
@@ -388,7 +399,7 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
         wood: mk(woodGeo(t.wood), wood, true, false), ...(t.culm || !(t.nClumps > 0) ? { woodFar: mk(woodGeo(t.woodFar || t.wood), wood, true, false) } : {}),
         // (a mass crown, form/tree-form.js massCrown: its big blobs drawn with its bundles, one mesh in the leaf's material)
         // (its leaves set aside, \`leaves: false\`: the blobs alone, the crown's form studied)
-        crown: mk(t.blobs && t.leaves === false ? merged(t.blobs, t.nBlobs, variants(t.blobGeo), 'blob', false, () => true) : t.blobs ? joined(merged(t.clumps, t.nClumps, cg, 'clump', t.cross ? 'cross' : t.pad, () => true), merged(t.blobs, t.nBlobs, variants(t.blobGeo), 'blob', false, () => true)) : merged(t.clumps, t.nClumps, cg, 'clump', t.cross ? 'cross' : t.pad, () => true), leaf, true, true),
+        crown: mk(t.blobs && t.leaves === false ? merged(t.blobs, t.nBlobs, variants(t.blobGeo), 'blob', false, () => true) : t.blobs ? joined(merged(t.clumps, t.nClumps, cg, 'clump', t.cross ? 'cross' : t.pad, () => true), merged(t.blobs, t.nBlobs, variants(t.blobGeo), 'blob', false, () => true, 1, !!t.far)) : merged(t.clumps, t.nClumps, cg, 'clump', t.cross ? 'cross' : t.pad, () => true), leaf, true, true),
         sprays: mk(merged(t.sites, t.nSites, sg, 'spray', false, () => true), leafMat(true, detail, phi), false, true),
       };
       // (a shrub's season: its blossoms facing out, its berries hanging, with its near crown)
@@ -427,6 +438,11 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       const W = f32(t.wood.pos), WI = t.wood.big ? new Uint32Array(bytes(t.wood.idx).buffer) : new Uint16Array(bytes(t.wood.idx).buffer);
       let R = 0.5, top = 0.5;
       for (const A of [LP, W]) for (let k = 0; k < A.length; k += 3) { R = Math.max(R, Math.hypot(A[k], A[k + 1])); top = Math.max(top, A[k + 2]); }
+      // (a realistic tree's crown mass, form/flora-read.js REALISTIC: its lobes' middles and radii, inside the card)
+      const FR = t.far || null, MS = FR && t.blobs ? f32(t.blobs) : null;
+      // (and the crown's own mean leaf tone, the mass's)
+      let LT = 0; for (let k = 0; k < LC.length; k++) LT += LC[k]; LT = LC.length ? LT / LC.length : 0.5;
+      if (MS) for (let k = 0; k < MS.length; k += 12) { R = Math.max(R, Math.hypot(MS[k], MS[k + 1]) + MS[k + 9]); top = Math.max(top, MS[k + 2] + MS[k + 9] * FR.squash); }
       const row = impRow[ti], du0 = (2 * R) / IW, dv0 = top / IH, depth = new Float32Array(IW * IH);
       tpl[ti].set(R, top, row, du0);
       for (let k = 0; k < IB; k++) {
@@ -446,11 +462,25 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
             }
         };
         const at = (A, v) => [A[v * 3], A[v * 3 + 1], A[v * 3 + 2]];
+        // (a realistic tree's mass under its leaves: each lobe's disc, its facing its own round, at the leaf's tone ×
+        // FR.shade, set a little in so the leaves at its face show; past FR.rim of its radius kept by a texel's own hash
+        // as it nears the edge, so its outline breaks as a crown's does)
+        if (MS) for (let m = 0; m < MS.length; m += 12) {
+          const s0 = MS[m + 9], cu = (MS[m] * rx + MS[m + 1] * ry + R) / du0, cv = MS[m + 2] / dv0, cf = MS[m] * tx + MS[m + 1] * ty, ru = s0 / du0, rv = (s0 * FR.squash) / dv0;
+          for (let iv = Math.max(0, Math.floor(cv - rv)); iv <= Math.min(IH - 1, Math.floor(cv + rv)); iv++)
+            for (let iu = Math.max(0, Math.floor(cu - ru)); iu <= Math.min(IW - 1, Math.floor(cu + ru)); iu++) {
+              const ex = (iu + 0.5 - cu) / ru, ey = (iv + 0.5 - cv) / rv, e2 = ex * ex + ey * ey;
+              if (e2 > 1) continue;
+              if (e2 > FR.rim * FR.rim) { const hh = Math.sin(iu * 12.9898 + iv * 78.233 + k * 37.719 + m * 0.131) * 43758.5453; if (hh - Math.floor(hh) < (e2 - FR.rim * FR.rim) / (1 - FR.rim * FR.rim)) continue; }
+              const ez = Math.sqrt(1 - e2);
+              put(iu, iv, cf + 0.8 * s0 * ez, ex, ey, LT * 0.5 * FR.shade, 255);
+            }
+        }
         // (the leaves, point-sampled: a texel is leaf where its centre falls on one, so the card is no thicker than the
         // crown; lit as their clump faces)
         for (let v = 0; v < LP.length / 3; v += 3) {
           const o = at(LO, v), tone = ((LC[v * 3] + LC[v * 3 + 1] + LC[v * 3 + 2]) / 3) * 0.5;
-          tri(at(LP, v), at(LP, v + 1), at(LP, v + 2), FF0.leaf, o[0] * rx + o[1] * ry, o[2], tone, 255);
+          tri(at(LP, v), at(LP, v + 1), at(LP, v + 2), FR ? FR.leaf : FF0.leaf, o[0] * rx + o[1] * ry, o[2], tone, 255);
         }
         // (the wood, point-sampled as the leaves are (FF0.wood))
         for (let f = 0; f < WI.length; f += 3) {

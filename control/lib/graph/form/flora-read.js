@@ -108,6 +108,14 @@ export const MASS_BLOB = Object.freeze({ detail: 1, ball: 2, squash: 0.85, shade
   // (`bottom`), its faces lit by which way they face (`tones`: the leaf's × these, up, side, under); `variants` of them,
   // each turned its own way on the page)
   lobe: Object.freeze({ amp: 0.17, freq: Object.freeze([2.6, 4.3]), wide: 1.12, top: 0.92, bottom: 0.55, tones: Object.freeze([1.05, 0.84, 0.6]), variants: 3 }) });
+/** THE REALISTIC TREE (a stage's `crowns: 'realistic'`): the grown tree itself, its crown its own leaves, grown `older`
+ *  × its species' years (a young tree re-stood tall is bare: an older one has the limbs and the ends a grown tree has)
+ *  and stood in the canopy form; far off, its card FULL (`far`, channels/form-flora.js FLORA_FAR): its crown's mass (its
+ *  major balls and the lobes joining them, form/tree-form.js majorBalls) baked under its leaves, at `shade` of the
+ *  leaf's tone, its edge broken past `rim` of its radius as a crown's edge is, and each leaf grown by `leaf` texels: the
+ *  far crown its whole mass in pixels, for no geometry. Near, the same lobes drawn under its leaves (MASS_BLOB, its
+ *  coarse blob), its least bundles given up for what they cost: the crown's mass for the triangles it had. */
+export const REALISTIC = Object.freeze({ older: 1.25, far: Object.freeze({ shade: 0.8, rim: 0.6, leaf: 0.5, squash: 0.85 }) });
 // a major ball as a crown's lobe (MASS_BLOB.lobe): a sphere twice subdivided, each corner moved by its own way out of the
 // middle alone (so the shared corners stay shared: the surface closed), its faces toned by which way they face
 function lobeTris(seed) {
@@ -165,7 +173,7 @@ function treeTemplate(species, height, crowns = null) {
   // (`crowns`: 'hybrid', a broadleaf's bundles each with a blob in it, vegetation/twigs.js CORE; 'masses', its bundles
   // gathered round a few big blobs, the leaf mass round its branches, and moved onto their surfaces, form/tree-form.js
   // massCrown: the crown's volume for the triangles it had; a needled crown is as it was)
-  const core = crowns === 'hybrid', masses = crowns === 'masses', tips = crowns === 'blobs';
+  const core = crowns === 'hybrid', masses = crowns === 'masses', tips = crowns === 'blobs', real = crowns === 'realistic';
   const key = `tree:${species}:${height}${crowns ? `:${crowns}` : ''}`;
   if (!CACHE.has(key)) {
     // (a broadleaf's crown as CROSSES, vegetation/twigs.js: its wood drawn to the twig, a bundle of small crossed leaves
@@ -173,19 +181,23 @@ function treeTemplate(species, height, crowns = null) {
     // (channels/form-flora.js FLORA_FAR). A needled crown keeps its clumps and sprays)
     const crossed = !needleHabit(species);
     // (a crown a stage's `crowns` reads stands in the CANOPY FORM, form/tree-form.js CANOPY: a bare stem, a wider crown)
-    const F = treeForm(species, { seed: SPECIES[species].specimen ?? 1, far: true, twigs: crossed, mature: { toHeight: 0.95, range: [1, 2], cambium: 2.2, aim: height }, ...(crowns && crossed ? { canopy: true } : {}) });
+    // ('realistic': grown older, REALISTIC.older)
+    const S = SPECIES[species], older = real && S.kind === 'tree' ? { years: Math.round((S.growth ? S.growth[S.growth.length - 1].years : S.years) * REALISTIC.older) } : {};
+    const F = treeForm(species, { seed: S.specimen ?? 1, ...older, far: true, twigs: crossed, mature: { toHeight: 0.95, range: [1, 2], cambium: 2.2, aim: height }, ...(crowns && crossed ? { canopy: true } : {}) });
     // (a needled crown: its needles in sleeves round its leafy shoots, channels/form-flora.js; no needle a polygon)
     if (!crossed) CACHE.set(key, { ...template('tree', species, F, species), ...(F.sleeve ? { sleeve: packSleeve(F.sleeve) } : {}) });
     else {
       // (within the plants' budget, FLORA_BUDGET: its bundles by rank, each grown)
       const C0 = crossClumps(F), xt = leafCross(species, { seed: 17, core }).tris.length;
       // ('blobs': the crown's 3 or 4 major balls, its leaves set aside, tree-form.js majorBalls: its form studied alone)
-      const M0 = masses ? massCrown(C0) : tips ? { ...majorBalls(C0), clumps: C0 } : null;
+      // ('realistic': the same balls and their joining lobes under its leaves, REALISTIC: its crown's mass near, as its
+      // card has it far)
+      const M0 = masses ? massCrown(C0) : tips || real ? { ...majorBalls(C0), clumps: C0 } : null;
       // (each blob held to the wood that is drawn: none floats over a twig the cut left out)
-      const M = M0 && tips ? { ...M0, blobs: anchorBlobs(M0.blobs, F.wood.pos) } : M0, blobGeo = M ? packGeo(blobTris([0, 0, 0], [1, 1, MASS_BLOB.squash], TONES.leaf.map((v) => Math.round(v * MASS_BLOB.shade)), { detail: tips ? MASS_BLOB.ball : MASS_BLOB.detail })) : null;
+      const M = M0 && (tips || real) ? { ...M0, blobs: anchorBlobs(M0.blobs, F.wood.pos) } : M0, blobGeo = M ? packGeo(blobTris([0, 0, 0], [1, 1, MASS_BLOB.squash], TONES.leaf.map((v) => Math.round(v * MASS_BLOB.shade)), { detail: tips ? MASS_BLOB.ball : MASS_BLOB.detail })) : null;
       // (a mass crown's blobs spend from its budget as its wood does: its bundles give up what they cost)
       // (and never more triangles than the crown it stands for: as many of its least bundles given up as its blobs cost)
-      const giveUp = M && masses ? Math.ceil((M.blobs.length * blobGeo.n) / Math.max(1, xt)) : 0;
+      const giveUp = M && (masses || real) ? Math.ceil((M.blobs.length * blobGeo.n) / Math.max(1, xt)) : 0;
       const kept0 = M ? [...M.clumps].sort((a, b) => a.r - b.r).slice(0, Math.max(1, M.clumps.length - giveUp)) : C0;
       const Q = budgeted({ ...F, clumps: kept0, sites: [] }, { clumpTris: xt, leanTris: xt, sprayTris: 0, woodTris: (F.wood.idx || []).length / 3 + (M ? M.blobs.length * blobGeo.n : 0), canLean: false });
       // (its crown's reach round its stem: its balls' or its bundles' farthest edge)
@@ -194,6 +206,8 @@ function treeTemplate(species, height, crowns = null) {
       const ballGeo = tips ? Array.from({ length: MASS_BLOB.lobe.variants }, (_, k) => packGeo(lobeTris(17 + k))) : null;
       const T = { ...template('tree', species, { ...F, clumps: Q.clumps, sites: [] }, species), crownR, budget: tips ? { ...Q.budget, tris: (F.wood.idx || []).length / 3 + M.blobs.length * ballGeo[0].n } : Q.budget,
         ...(M ? { blobs: packSites(M.blobs), nBlobs: M.blobs.length, blobGeo: ballGeo ?? [blobGeo] } : {}), ...(tips ? { leaves: false } : {}) };
+      // ('realistic': its far card full, its mass baked under its leaves: REALISTIC.far)
+      if (real) T.far = REALISTIC.far;
       // (far off the same wood as near: no limb drops and the trunk holds as the tree switches level)
       CACHE.set(key, { ...T, cross: true, woodFar: T.wood,
         clumpGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafCross(species, { seed: 17 + k, core }).tris)), ...(core ? { core: true } : {}), ...(masses ? { masses: true } : {}) });

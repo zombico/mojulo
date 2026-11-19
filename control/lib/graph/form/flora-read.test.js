@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { floraRead, floraBox, speciesFor, treeSizes, viewHeld, AUTUMN, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR, SKIRT_FLAG, APART, MASS_BLOB } from './flora-read.js';
+import { floraRead, floraBox, speciesFor, treeSizes, viewHeld, AUTUMN, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR, SKIRT_FLAG, APART, MASS_BLOB, REALISTIC } from './flora-read.js';
 import { LEAF_FORM_IDS } from '../era/leaf-forms.js';
 import { formLandScript } from '../scene/channels/form-land.js';
 
@@ -133,6 +133,23 @@ describe('the hybrid crown (`crowns: hybrid`)', () => {
     // (a needled crown takes no core)
     expect(JSON.stringify(floraRead({ ...plants(), crowns: 'hybrid' }, { kinds: plants().kinds, colours, bases }))).toBe(JSON.stringify(floraRead(plants(), { kinds: plants().kinds, colours, bases })));
   }, 120000);
+});
+
+describe('the realistic tree (`crowns: realistic`)', () => {
+  it('grows its tree older, draws its crown\'s mass under its leaves for the triangles it had, and asks its card full', () => {
+    const beech = { form: 'blob', kinds: [{ form: 'spray' }], bushKinds: null, trees: [tree(0, 0, 9, 0)], bushes: [], shrubs: [] };
+    const a = floraRead(beech, { kinds: beech.kinds, colours, bases }).templates.find((t) => t.cross);
+    const r = floraRead({ ...beech, crowns: 'realistic' }, { kinds: beech.kinds, colours, bases }).templates.find((t) => t.cross);
+    expect(REALISTIC.older).toBeGreaterThan(1);
+    // (its mass: the major balls and their joining lobes, under its leaves, which are kept)
+    expect(r.nBlobs).toBeGreaterThan(3);
+    expect(r.leaves).toBeUndefined();
+    expect(r.nClumps).toBeGreaterThan(0);
+    expect(r.budget.tris).toBeLessThanOrEqual(a.budget.tris);
+    // (far off its card full: the page bakes the mass under the leaves)
+    expect(r.far).toEqual(REALISTIC.far);
+    expect(a.far).toBeUndefined();
+  }, 180000);
 });
 
 describe('trees apart (`crowns`)', () => {
