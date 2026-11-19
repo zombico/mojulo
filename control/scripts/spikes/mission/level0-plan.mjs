@@ -61,8 +61,22 @@ export function placeRecipe(L, spine) {
 export const STRUCTURE = Object.freeze({
   sandbags: Object.freeze({ h: 1.0, d: 0.75, fill: '#8a7a55', top: '#9c8b62' }),
   wire: Object.freeze({ h: 0.9, d: 0.6, fill: '#3a3d40', stake: '#5a4630' }),
-  tower: Object.freeze({ height: 4, side: 2.6, leg: 0.22, deck: 0.18, rail: 1.0, fill: '#5d4a33', deckFill: '#6d5a40' }),
+  tower: Object.freeze({ height: 4, side: 2.6, leg: 0.22, deck: 0.18, rail: 1.0, fill: '#5d4a33', deckFill: '#6d5a40', dark: '#463626', roofFill: '#4c5546',
+    // (its stair: a straight flight out from one side to the ground, risers the walker steps up, a handrail; its roof a
+    // pyramid over the deck, the eave and the apex over the deck, the eave standing past it)
+    stair: Object.freeze({ rise: 0.25, going: 0.28, width: 0.95 }), roof: Object.freeze({ eave: 2.2, apex: 2.85, over: 0.35 }) }),
 });
+const SIDES = Object.freeze({ '+x': [1, 0], '-x': [-1, 0], '+y': [0, 1], '-y': [0, -1] });
+/** A tower's stair (`stair`: the side its flight runs out from, '+x' unless said): its treads, each a step up from the
+ *  ground to the deck: { n, dir, lat, edge, treads: [{ lo, hi, z }] } (lo/hi the tread's span out from the deck's edge). */
+export function towerStair(t) {
+  const T = STRUCTURE.tower, S = T.stair, H = t.height ?? T.height, dir = SIDES[t.stair ?? '+x'];
+  if (!dir) throw new Error(`level 0: structure ${t.id}: stair is one of ${Object.keys(SIDES).join(', ')}`);
+  const n = Math.round(H / S.rise), r = H / n, treads = [];
+  // (tread i, from the bottom, stands i risers up and n - i goings out from the deck's edge; the last riser is the deck)
+  for (let i = 1; i < n; i++) treads.push({ lo: (n - i - 1) * S.going, hi: (n - i) * S.going, z: i * r });
+  return { n, r, dir, lat: [-dir[1], dir[0]], edge: T.side / 2, run: (n - 1) * S.going, treads };
+}
 /** A structure's boxes: { min, max, fill, sight?, walk? } (a box the search and the page both read). */
 export function structureBoxes(t) {
   const out = [];
@@ -77,8 +91,92 @@ export function structureBoxes(t) {
     const T = STRUCTURE.tower, H = t.height ?? T.height, h = T.side / 2, [x, y] = t.at;
     for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) out.push({ min: [x + sx * h - (sx > 0 ? T.leg : 0), y + sy * h - (sy > 0 ? T.leg : 0), 0], max: [x + sx * h + (sx < 0 ? T.leg : 0), y + sy * h + (sy < 0 ? T.leg : 0), H], fill: T.fill, sight: false });
     out.push({ min: [x - h, y - h, H - T.deck], max: [x + h, y + h, H], fill: T.deckFill, sight: false, walk: false, deck: true });
-    for (const [mn, mx] of [[[x - h, y - h], [x + h, y - h + 0.08]], [[x - h, y + h - 0.08], [x + h, y + h]], [[x - h, y - h], [x - h + 0.08, y + h]], [[x + h - 0.08, y - h], [x + h, y + h]]]) out.push({ min: [mn[0], mn[1], H], max: [mx[0], mx[1], H + T.rail], fill: T.fill, sight: false, walk: false });
+    // (its rail, open a stair's width where the flight arrives)
+    const ST = towerStair(t), gap = T.stair.width / 2 + 0.05;
+    for (const [sx, sy] of Object.values(SIDES)) {
+      const along = sx ? 1 : 0, c = [x + sx * (h - 0.04), y + sy * (h - 0.04)], open = sx === ST.dir[0] && sy === ST.dir[1];
+      const seg = (a0, a1) => { const p0 = along ? [c[0] - 0.04, y + a0] : [x + a0, c[1] - 0.04], p1 = along ? [c[0] + 0.04, y + a1] : [x + a1, c[1] + 0.04]; out.push({ min: [p0[0], p0[1], H], max: [p1[0], p1[1], H + T.rail], fill: T.fill, sight: false, walk: false, rail: true }); };
+      if (open) { seg(-h, -gap); seg(gap, h); } else seg(-h, h);
+    }
+    // (its stair's treads, each a block from the ground to its top: the walker steps up them, and nothing walks in under
+    // the low ones to be lifted through; seen through, a flight of open treads)
+    for (const q of ST.treads) {
+      const o0 = ST.edge + q.lo, o1 = ST.edge + q.hi, w = T.stair.width / 2;
+      const A = [x + ST.dir[0] * o0 + ST.lat[0] * w, y + ST.dir[1] * o0 + ST.lat[1] * w], B = [x + ST.dir[0] * o1 - ST.lat[0] * w, y + ST.dir[1] * o1 - ST.lat[1] * w];
+      out.push({ min: [Math.min(A[0], B[0]), Math.min(A[1], B[1]), 0], max: [Math.max(A[0], B[0]), Math.max(A[1], B[1]), q.z], fill: T.deckFill, sight: false, tread: true });
+    }
   }
+  return out;
+}
+
+// a beam from A to B, `w` square, as a box's six faces turned along it (the page's painted faces: corners, a normal each)
+function beamFaces(A, B, w, fill, group) {
+  const d = [B[0] - A[0], B[1] - A[1], B[2] - A[2]], L = Math.hypot(...d) || 1e-9, a = d.map((v) => v / L);
+  const cr = (u, v) => [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], nz = (v) => { const m = Math.hypot(...v) || 1; return v.map((x) => x / m); };
+  const side = Math.abs(a[2]) > 0.95 ? [1, 0, 0] : nz(cr(a, [0, 0, 1])), up = nz(cr(side, a)), r = w / 2;
+  const P = (E, s, u) => E.map((v, k) => +(v + side[k] * s * r + up[k] * u * r).toFixed(4));
+  const c = (E) => [P(E, -1, -1), P(E, 1, -1), P(E, 1, 1), P(E, -1, 1)], ca = c(A), cb = c(B);
+  const q = (cs, n) => ({ corners: cs, fill, cornerFills: cs.map(() => fill), normal: n.map((v) => +v.toFixed(4)), outNormal: n.map((v) => +v.toFixed(4)), group });
+  return [q([ca[0], ca[1], cb[1], cb[0]], up.map((v) => -v)), q([ca[1], ca[2], cb[2], cb[1]], side), q([ca[2], ca[3], cb[3], cb[2]], up), q([ca[3], ca[0], cb[0], cb[3]], side.map((v) => -v)),
+    q([ca[3], ca[2], ca[1], ca[0]], a.map((v) => -v)), q([cb[0], cb[1], cb[2], cb[3]], a)];
+}
+/** A tower's LOOK (its boxes are what the search, the colliders and the walk read): four posts up to the eave, an X of
+ *  bracing on each side but the stair's, a deck of planks on joists, its rail on posts, open where the stair arrives, a
+ *  flight of open treads on two stringers with a handrail, and a pyramid roof over the deck. Faces at the tower's own
+ *  ground (z from 0), each { corners, fill, cornerFills, normal, outNormal, group }. */
+export function towerFaces(t, group = 'cover:tower') {
+  const T = STRUCTURE.tower, H = t.height ?? T.height, h = T.side / 2, [x, y] = t.at, ST = towerStair(t), R = T.roof, out = [];
+  const beam = (A, B, w, fill = T.fill) => out.push(...beamFaces(A, B, w, fill, group));
+  const at = (sx, sy, z) => [x + sx * h, y + sy * h, z];
+  const corners = [[1, 1], [-1, 1], [-1, -1], [1, -1]];
+  // posts, from a footing under the ground to the eave
+  for (const [sx, sy] of corners) beam(at(sx, sy, -0.3), at(sx, sy, H + R.eave), 0.2);
+  // bracing: an X between each pair of posts, but on the stair's side; and a girt round under the deck
+  for (let k = 0; k < 4; k++) {
+    const [a0, b0] = corners[k], [a1, b1] = corners[(k + 1) % 4], mid = [(a0 + a1) / 2, (b0 + b1) / 2];
+    beam(at(a0, b0, H - 0.45), at(a1, b1, H - 0.45), 0.12, T.dark);
+    if (mid[0] === ST.dir[0] && mid[1] === ST.dir[1]) continue;
+    beam(at(a0, b0, 0.35), at(a1, b1, H - 0.55), 0.1, T.dark); beam(at(a1, b1, 0.35), at(a0, b0, H - 0.55), 0.1, T.dark);
+  }
+  // the deck: planks across joists, edge to edge, a hand's gap between them
+  // (flat boards, their tops at the deck's height, where the walk and the guards stand; the deck's own underside dark)
+  const nP = 9, pw = (2 * h + 0.2) / nP, quad = (cs, n, fill) => out.push({ corners: cs.map((p) => p.map((v) => +v.toFixed(4))), fill, cornerFills: cs.map(() => fill), normal: n, outNormal: n, group });
+  for (let i = 0; i < nP; i++) { const u0 = -h - 0.1 + pw * i + 0.012, u1 = u0 + pw - 0.024; quad([[x + u0, y - h - 0.1, H], [x + u1, y - h - 0.1, H], [x + u1, y + h + 0.1, H], [x + u0, y + h + 0.1, H]], [0, 0, 1], T.deckFill); }
+  quad([[x - h - 0.1, y - h - 0.1, H - 0.05], [x - h - 0.1, y + h + 0.1, H - 0.05], [x + h + 0.1, y + h + 0.1, H - 0.05], [x + h + 0.1, y - h - 0.1, H - 0.05]], [0, 0, -1], T.dark);
+  for (const v of [-0.8, 0, 0.8]) beam([x - h, y + v * h, H - 0.2], [x + h, y + v * h, H - 0.2], 0.12, T.dark);
+  // the rail: a top rail and a mid rail on posts, open where the stair arrives
+  const gap = T.stair.width / 2 + 0.05;
+  for (let k = 0; k < 4; k++) {
+    const [a0, b0] = corners[k], [a1, b1] = corners[(k + 1) % 4], mid = [(a0 + a1) / 2, (b0 + b1) / 2], open = mid[0] === ST.dir[0] && mid[1] === ST.dir[1];
+    const pt = (u, z) => { const sx = a0 + (a1 - a0) * u, sy = b0 + (b1 - b0) * u; return at(sx, sy, z); };
+    const gu = gap / (2 * h), runs = open ? [[0, 0.5 - gu], [0.5 + gu, 1]] : [[0, 1]];
+    for (const [u0, u1] of runs) for (const z of [H + T.rail, H + T.rail * 0.5]) beam(pt(u0, z), pt(u1, z), 0.07);
+    if (open) for (const u of [0.5 - gu, 0.5 + gu]) beam(pt(u, H), pt(u, H + T.rail), 0.09);
+    else beam(pt(0.5, H), pt(0.5, H + T.rail), 0.08);
+  }
+  // the stair: two stringers from the ground to the deck's edge, its treads between them, a handrail on each side
+  const w = T.stair.width / 2, off = (o, l, z) => [x + ST.dir[0] * o + ST.lat[0] * l, y + ST.dir[1] * o + ST.lat[1] * l, z];
+  for (const l of [-w, w]) {
+    beam(off(ST.edge + ST.run + ST.r * 0.6, l, -0.05), off(ST.edge, l, H - 0.1), 0.09, T.dark);
+    beam(off(ST.edge + ST.run + 0.1, l, 1.0), off(ST.edge, l, H + T.rail), 0.06);
+    beam(off(ST.edge + ST.run + 0.1, l, 0), off(ST.edge + ST.run + 0.1, l, 1.05), 0.08);
+  }
+  // (each tread a board the going deep, its nosing a strip along its front edge)
+  for (const q of ST.treads) beam(off(ST.edge + q.lo + 0.03, -w, q.z - 0.03), off(ST.edge + q.lo + 0.03, w, q.z - 0.03), 0.06, T.dark);
+  for (const q of ST.treads) { const o0 = ST.edge + q.lo + 0.01, o1 = ST.edge + q.hi - 0.01, z = q.z;
+    const cs = [off(o0, -w, z), off(o1, -w, z), off(o1, w, z), off(o0, w, z)].map((p) => p.map((v) => +v.toFixed(4)));
+    out.push({ corners: cs, fill: T.deckFill, cornerFills: cs.map(() => T.deckFill), normal: [0, 0, 1], outNormal: [0, 0, 1], group }); }
+  // the roof: a pyramid over the deck, its eave past it, and its underside
+  const o = h + R.over, apex = [x, y, H + R.apex], eave = (sx, sy) => [x + sx * o, y + sy * o, H + R.eave];
+  for (let k = 0; k < 4; k++) {
+    const [a0, b0] = corners[k], [a1, b1] = corners[(k + 1) % 4], cs = [eave(a0, b0), eave(a1, b1), apex, apex];
+    const e = [cs[1][0] - cs[0][0], cs[1][1] - cs[0][1], 0], f = [apex[0] - cs[0][0], apex[1] - cs[0][1], apex[2] - cs[0][2]];
+    let n = [e[1] * f[2] - e[2] * f[1], e[2] * f[0] - e[0] * f[2], e[0] * f[1] - e[1] * f[0]]; const m = Math.hypot(...n); n = n.map((v) => v / m);
+    if (n[2] < 0) n = n.map((v) => -v);
+    out.push({ corners: cs, fill: T.roofFill, cornerFills: cs.map(() => T.roofFill), normal: n.map((v) => +v.toFixed(4)), outNormal: n.map((v) => +v.toFixed(4)), group });
+  }
+  const under = [eave(1, 1), eave(1, -1), eave(-1, -1), eave(-1, 1)];
+  out.push({ corners: under, fill: T.dark, cornerFills: under.map(() => T.dark), normal: [0, 0, -1], outNormal: [0, 0, -1], group });
   return out;
 }
 

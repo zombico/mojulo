@@ -430,3 +430,11 @@ or a recipe key; the spike mints through the real doors and measures.
   a pale grey-blue). No recipe in the library sets one.
 - **Level 0's night sky a night blue** (the level's cube `light.sky` and its `air.colour`): the jungle haze's own sky hue
   is green, so its night, carried to the night's value, was olive.
+- **Level 0's watchtowers built, with stairs** (scripts/spikes/mission/level0-plan.mjs `towerFaces`, `towerStair`): a tower was
+  four leg boxes, a deck box and four rail boxes; it is now drawn as it is built: four posts up to the eave, an X of
+  bracing on each side but the stair's, a deck of boards on joists, a rail and a mid rail on posts, open where the stair
+  arrives, a straight flight of open treads on two stringers with a handrail, and a pyramid roof over the deck. Its boxes
+  stay what the search, the colliders and the walk read, and gain the stair's treads: each a block from the ground to
+  its top, a quarter metre a riser (the walker's step is 0.35), so the operative walks up to the deck. A tower's `stair`
+  names the side its flight runs out from (the gate tower's north, away from the gorge's wall; the camp's east, away
+  from the trail). The sneak's laws hold with the stairs standing.

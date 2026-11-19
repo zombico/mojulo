@@ -24,7 +24,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const { options, database, starterRoom, groundOf, writePage, boxFaces } = await import('./lib.mjs');
 const o = options(process.argv.slice(2)), out = path.resolve(o.opt('--out', 'level-0'));
 database(o.opt('--hero'), o.opt('--guard'));
-const { planLevel, planSvg, coverOf, watchersOf, GUARD, spineFrom, spineOf, placeRecipe, structureBoxes, STRUCTURE, tallGrassOf } = await import('./level0-plan.mjs');
+const { planLevel, planSvg, coverOf, watchersOf, GUARD, spineFrom, spineOf, placeRecipe, structureBoxes, towerFaces, STRUCTURE, tallGrassOf } = await import('./level0-plan.mjs');
 const { assembleStageScene } = await import('../../../lib/graph/era/stage.js');
 const { readGameworld } = await import('../../../lib/graph/gameworld/index.js');
 const { gameStages } = await import('../../../lib/graph/gameworld/levels.js');
@@ -124,8 +124,11 @@ const bakeFill = (hex, n) => {
 const baked = (faces) => faces.map((f) => { const fill = bakeFill(f.fill, f.normal); return { ...f, fill, cornerFills: f.cornerFills.map(() => fill) }; });
 for (const t of L.structures ?? []) {
   const z = zAt(t.at ?? t.from);
+  // (a tower drawn as it is built, level0-plan.js towerFaces: posts, bracing, planks, rails, its stair and roof; its boxes
+  // still its colliders, its stair's treads among them)
+  if (t.kind === 'tower') extraFaces.push(...baked(towerFaces(t).map((f) => ({ ...f, corners: f.corners.map((c) => [c[0], c[1], +(c[2] + z).toFixed(4)]) }))));
   for (const b of structureBoxes(t)) {
-    extraFaces.push(...baked(boxFaces([b.min[0], b.min[1], z + b.min[2] - (b.min[2] ? 0 : 0.3)], [b.max[0], b.max[1], z + b.max[2]], b.fill, `cover:${t.kind}`)));
+    if (t.kind !== 'tower') extraFaces.push(...baked(boxFaces([b.min[0], b.min[1], z + b.min[2] - (b.min[2] ? 0 : 0.3)], [b.max[0], b.max[1], z + b.max[2]], b.fill, `cover:${t.kind}`)));
     if (b.walk !== false) payload.colliders.push({ of: `cover:${t.id}`, min: [b.min[0], b.min[1], z + b.min[2] - 0.4], max: [b.max[0], b.max[1], z + b.max[2]] });
   }
 }

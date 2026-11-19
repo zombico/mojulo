@@ -413,7 +413,9 @@
         "trail": 73,
         "off": 5.5
       },
-      "height": 4
+      "height": 4,
+      "stair": "+y",
+      "reads": "the checkpoint's watchtower: posts and bracing, a plank deck under a roof, its stair up the north side (the east runs into the gorge's wall)"
     },
     {
       "id": "camp-bags-south",
@@ -446,7 +448,9 @@
         "trail": 97,
         "off": 3
       },
-      "height": 4
+      "height": 4,
+      "stair": "+x",
+      "reads": "the camp's watchtower, its stair up the east side, away from the trail"
     }
   ],
   "performance": {
