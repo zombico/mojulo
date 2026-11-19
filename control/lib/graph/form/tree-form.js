@@ -119,12 +119,19 @@ export const CANOPY = Object.freeze({ lift: 0.5, bole: Object.freeze([0.42, 0.52
  *    are few), each a MAIN LIMB.
  *  - A main limb leaves the trunk CLIMBING at `climb` degrees over the level toward its fork, no lower than `low` of the
  *    trunk's height; no two leave within `stagger` m of each other. Its girth there is no more than `hold` × the trunk's.
+ *  - Each fork SPLITS its limb: set `split` of the way from where the limb leaves to its children's middle, so a limb
+ *    is a little shorter than what it splits into (never a long bare reach at the bottom of the crown), `rise` m under
+ *    its lowest child and over where it leaves at least: every length climbs.
+ *  - No length longer than `most` of the tree's height (the masses' tops over the trunk's foot): a longer one ends
+ *    sooner, the mass it carries drawn in along it, so the crown's reach is taken up by its forks, not one bare limb;
+ *    a main limb `base` of that: the crown's bottom its shortest.
+ *  - A main limb held thinner than the trunk thins all it carries alike.
  *  - Each length of limb is bowed up by `bend` × its length (an arch, never a hook) through `segs` segments.
  *  - The trunk ends just over its highest limb (`crown` m), blunt, in the limb's joint; a limb's end blunt in its mass:
  *    no point of wood through the crown.
  */
 export const EVOKE = Object.freeze({ reach: 0.5, girth: 0.13, tip: 0.5, drop: 0.22, inward: 0.3, limbs: 2.6, climb: 38, low: 0.4, stagger: 0.45,
-  hold: 0.8, bend: 0.08, segs: 4, crown: 0.1 });
+  hold: 0.8, bend: 0.08, segs: 4, crown: 0.1, split: 0.4, rise: 0.3, most: 0.25, base: 0.75 });
 /** The limbs as a tree of lengths: `trunk` its points and radii, `pads` [{ p, s }], `cut` the thinnest drawn. →
  *  { edges: [{ from, to, r0, r1, end, main, s }], top } (`s` the mass the length leads to, a fork's its largest; `end`: the pad a length ends in, or -1 at a fork; `top` the height the trunk is drawn to). */
 export function limbTree(trunk, pads, cut) {
@@ -143,13 +150,38 @@ export function limbTree(trunk, pads, cut) {
   // (each main limb to the trunk, climbing; staggered up the trunk)
   const tan = Math.tan((EVOKE.climb * Math.PI) / 180), lowZ = z0 + EVOKE.low * (z1 - z0);
   const mains = active.map((n) => { const c = at(n.p[2]), h = Math.hypot(n.p[0] - c.p[0], n.p[1] - c.p[1]); return { n, z: Math.min(n.p[2] - 0.05, Math.max(lowZ, n.p[2] - h * tan)) }; }).sort((a, b) => a.z - b.z || a.n.p[0] - b.n.p[0]);
-  for (let i = 1; i < mains.length; i++) if (mains[i].z - mains[i - 1].z < EVOKE.stagger) mains[i].z = mains[i - 1].z + EVOKE.stagger;
-  const edges = [], walk = (from, n, r0) => { edges.push({ from, to: n.p, r0, r1: n.end >= 0 ? n.r : n.r * 0.92, end: n.end, main: false, s: n.s }); for (const k of n.kids) walk(n.p, k, k.r); };
+  // (staggered: one too near the last moved down where there is room over the low share, else up; never to its fork)
+  const hi = (m) => m.n.p[2] - EVOKE.rise;
+  for (let i = 1; i < mains.length; i++) if (mains[i].z - mains[i - 1].z < EVOKE.stagger) {
+    const down = mains[i - 1].z - EVOKE.stagger;
+    if (down >= lowZ && i >= 1 && (i < 2 || mains[i - 2].z <= down - EVOKE.stagger)) { mains[i].z = Math.min(hi(mains[i]), down); mains.sort((a, b) => a.z - b.z || a.n.p[0] - b.n.p[0]); }
+    else mains[i].z = Math.min(hi(mains[i]), mains[i - 1].z + EVOKE.stagger);
+  }
+  // (the forks SPLIT: each set `split` of the way from where its limb leaves to its children's middle, so a limb is
+  // about `split`/(1 − `split`) the length of the lengths it splits into; under its lowest child by `rise` at least, over
+  // where it leaves by as much)
+  // (and no length longer than `most` of the tree's height: a longer one ends sooner, its mass drawn in along it)
+  const H = Math.max(...pads.map((b) => b.p[2] + b.s)) - z0, most = EVOKE.most * H;
+  const capped = (P, X, m = most) => { const d = sub(X, P), l = len(d); return l > m ? add(P, mul(d, m / l)) : X; };
+  const place = (P, n, m = most) => {
+    if (n.end >= 0) { n.p = capped(P, n.p, m); return; }
+    const cm = mul(n.kids.reduce((a, k) => add(a, k.p), [0, 0, 0]), 1 / n.kids.length), lo = Math.min(...n.kids.map((k) => k.p[2]));
+    const X = add(P, mul(sub(cm, P), EVOKE.split));
+    X[2] = Math.max(P[2] + EVOKE.rise, Math.min(X[2], lo - EVOKE.rise));
+    if (X[2] > lo - 1e-6) X[2] = (P[2] + lo) / 2;
+    n.p = capped(P, X, m);
+    for (const k of n.kids) place(n.p, k);
+  };
+  // (a limb held thinner than the trunk thins all it carries alike: none thicker than its limb)
+  // (and none under the cut's girth: thinned, every length is still drawn)
+  const thin = cut * 0.55, gr = (r) => Math.max(thin, r);
+  const edges = [], walk = (from, n, f) => { edges.push({ from, to: n.p, r0: gr(n.r * f), r1: gr((n.end >= 0 ? n.r : n.r * 0.92) * f), end: n.end, main: false, s: n.s }); for (const k of n.kids) walk(n.p, k, f); };
   let top = z0;
   for (const { n, z } of mains) {
-    const c = at(Math.min(z, z1)), r0 = Math.min(n.r, c.r * EVOKE.hold);
-    edges.push({ from: c.p, to: n.p, r0, r1: n.end >= 0 ? n.r : Math.min(n.r, r0) * 0.92, end: n.end, main: true, s: n.s });
-    for (const k of n.kids) walk(n.p, k, k.r);
+    const c = at(Math.min(z, z1)), r0 = Math.min(n.r, c.r * EVOKE.hold), f = r0 / n.r;
+    place(c.p, n, most * EVOKE.base);
+    edges.push({ from: c.p, to: n.p, r0: gr(r0), r1: gr((n.end >= 0 ? n.r : n.r * 0.92) * f), end: n.end, main: true, s: n.s });
+    for (const k of n.kids) walk(n.p, k, f);
     top = Math.max(top, c.p[2]);
   }
   return { edges, top: Math.min(z1, top + EVOKE.crown) };
@@ -197,7 +229,7 @@ function supportedChains(chains, balls, cut, seed = 1) {
     out.push({ axis: -1 - i, order: g.main ? 1 : 2, nodes: [], pts, rs, dMax: 2 * Math.max(g.r0, g.r1), continues: true });
   });
   // (its lowest limb: where the lowest leaves the trunk)
-  return { chains: out, clouds, low: Math.min(...L.edges.filter((g) => g.main).map((g) => g.from[2])) };
+  return { chains: out, clouds, limbs: L.edges, low: Math.min(...L.edges.filter((g) => g.main).map((g) => g.from[2])) };
 }
 export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.mature, minDiameter = TREE_FORM.minDiameter, cell = TREE_FORM.cell, clumpCell = TREE_FORM.clumpCell, far = false, twigs = false, canopy = false, evoke = null } = {}) {
   const S = SPECIES[species]; if (!S || (S.kind !== 'tree' && S.kind !== 'conifer')) throw new Error(`tree-form: '${species}' is not a tree species`);
@@ -350,7 +382,7 @@ export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.m
   }
   shoots.sort((a, b) => a.r - b.r);
   // (far, `far`: the limbs a few times the cut's thickness alone: a tree across a glade shows its trunk and its main limbs)
-  return { species, height: r4(height), wood: woodOf(cut), ...(far ? { woodFar: woodOf(Math.min(cut * TREE_FORM.farCut, 0.5 * Math.max(...chains.map((c) => c.dMax)))), trunk: trunkOf(chains) } : {}), clumps, sites, tips: twigs ? shoots : tips, ...(twigs ? { twigs: true } : {}), ...(SC ? { clouds: SC.clouds, limbLow: r4(SC.low) } : {}), bark: S.bark || 'beech', ...(needles ? { needles, pad: needles !== 'pine', sleeve: sleevesOf(chains, needles, k) } : {}) };
+  return { species, height: r4(height), wood: woodOf(cut), ...(far ? { woodFar: woodOf(Math.min(cut * TREE_FORM.farCut, 0.5 * Math.max(...chains.map((c) => c.dMax)))), trunk: trunkOf(chains) } : {}), clumps, sites, tips: twigs ? shoots : tips, ...(twigs ? { twigs: true } : {}), ...(SC ? { clouds: SC.clouds, limbs: SC.limbs, limbLow: r4(SC.low) } : {}), bark: S.bark || 'beech', ...(needles ? { needles, pad: needles !== 'pine', sleeve: sleevesOf(chains, needles, k) } : {}) };
 }
 
 /** The crown's RIM, where its twigs come in near the eye (vegetation/twigs.js): the clumps on its surface (the envelope's,

@@ -178,15 +178,16 @@ describe('the evoked wood', () => {
     const whole = at(null), tris = (F) => F.wood.idx.length / 3;
     const balls = majorBalls(whole.clumps, { joined: false }).blobs, evoked = at({ balls }), P = evoked.wood.pos;
     expect(tris(evoked)).toBeGreaterThan(0);
-    for (const b of balls) {
-      const end = [b.p[0], b.p[1], b.p[2] - b.s * (1 - EVOKE.reach)];
-      let best = Infinity; for (let i = 0; i < P.length; i += 3) best = Math.min(best, Math.hypot(P[i] - end[0], P[i + 1] - end[1], P[i + 2] - end[2]));
-      expect(best).toBeLessThan(b.s * 0.25);
+    // (each mass carried: wood reaching the end of the length that leads to it, where it stands or drawn in along it)
+    for (const g of evoked.limbs.filter((x) => x.end >= 0)) {
+      let best = Infinity; for (let i = 0; i < P.length; i += 3) best = Math.min(best, Math.hypot(P[i] - g.to[0], P[i + 1] - g.to[1], P[i + 2] - g.to[2]));
+      expect(best).toBeLessThan(g.r0 * 3 + 0.05);
     }
+    expect(evoked.limbs.filter((x) => x.end >= 0).length).toBe(balls.length);
     const top = Math.max(...balls.map((b) => b.p[2] + b.s)); for (let i = 2; i < P.length; i += 3) expect(P[i]).toBeLessThan(top);
   }, 120000);
 
-  it('grows its limbs from the masses back to the trunk: forks by the pipe model, each length climbing, main limbs staggered', () => {
+  it('grows its limbs from the masses back to the trunk: forks by the pipe model, each length climbing and in proportion, main limbs staggered', () => {
     // (a plain upright trunk and eight masses round a crown)
     const trunk = { pts: Array.from({ length: 11 }, (_, i) => [0, 0, i]), rs: Array.from({ length: 11 }, (_, i) => 0.4 - 0.025 * i) };
     const pads = Array.from({ length: 8 }, (_, i) => { const a = (i * 2 * Math.PI) / 8; return { p: [3 * Math.cos(a), 3 * Math.sin(a), 7 + (i % 3) * 0.8], s: 1.2 }; });
@@ -210,6 +211,12 @@ describe('the evoked wood', () => {
     const zs = mains.map((g) => g.from[2]).sort((a, b) => a - b);
     for (let i = 1; i < zs.length; i++) expect(zs[i] - zs[i - 1]).toBeGreaterThanOrEqual(EVOKE.stagger - 1e-9);
     expect(zs[0]).toBeGreaterThanOrEqual(EVOKE.low * 10 - 1e-9);
+    // (lengths in proportion to the tree: none past EVOKE.most of its height, a main limb shorter still; the crown's
+    // bottom its shortest, no long bare reach)
+    const H = Math.max(...pads.map((b) => b.p[2] + b.s)) - trunk.pts[0][2], lenOf = (g) => Math.hypot(...g.to.map((v, k) => v - g.from[k]));
+    for (const g of E) expect(lenOf(g)).toBeLessThanOrEqual((g.main ? EVOKE.base : 1) * EVOKE.most * H + 1e-6);
+    // (none thicker than the limb that carries it)
+    for (const g of E) for (const k of E.filter((x) => key(x.from) === key(g.to))) expect(k.r0).toBeLessThanOrEqual(g.r0 + 1e-9);
     // (deterministic)
     expect(JSON.stringify(limbTree(trunk, pads, 0.03))).toBe(JSON.stringify(L));
   });
@@ -221,11 +228,12 @@ describe('the evoked wood', () => {
     const sections = E.filter((g) => !g.main || g.end >= 0);
     expect(C.length).toBeGreaterThanOrEqual(sections.length * CLOUD.least);
     expect(C.length).toBeLessThanOrEqual(sections.length * CLOUD.most);
-    // (each puff over its branch: its middle above the nearest point of a section, by about its sit)
+    // (each puff over a branch: a point of a section under its middle, within its own reach across)
+    const over = Math.max(...pads.map((b) => b.s)) * CLOUD.over;
     for (const c of C) {
-      let best = null, bd = Infinity;
-      for (const g of sections) for (let k = 0; k <= 20; k++) { const q = limbAt(g, k / 20), d = Math.hypot(q[0] - c.p[0], q[1] - c.p[1]); if (d < bd) { bd = d; best = q; } }
-      expect(c.p[2]).toBeGreaterThan(best[2] - 1e-6);
+      let bd = Infinity;
+      for (const g of sections) for (let k = 0; k <= 20; k++) { const q = limbAt(g, k / 20); if (q[2] <= c.p[2] + 1e-6) bd = Math.min(bd, Math.hypot(q[0] - c.p[0], q[1] - c.p[1])); }
+      expect(bd).toBeLessThanOrEqual(c.s * CLOUD.side + over + 1e-6);
     }
     // (an end's cloud reaches past its end; an inner section's puffs smaller than an end's)
     const ends = sections.filter((g) => g.end >= 0), inner = sections.filter((g) => g.end < 0);
