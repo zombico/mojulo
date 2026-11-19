@@ -963,3 +963,36 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // one radar, the HUD's scope. No other fixture moved.
 // Re-pinned 2026-11-17 again (1115-shooting-rails: the radar a minimap): `mission` only. The scope is larger, reaches
 // 40 m, and carries the level's plan under its marks, turned so ahead is up. No other fixture moved.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: a hero's power): `brawl` only. Its page inlines the brawl's core, crowd,
+// practice and client, and now the powers shelf (brawl-powers.js): a power's stock spent and filled at a fall, a special's
+// round carrying its knock, a special's round drawn (it was not) and a power's burst. The fixture's fighters have no power:
+// it plays as it did. Re-pinned again the same day for a power DESIGNED (brawl-powers.js: a kind's dials, read back as
+// written): `brawl` only, the shelf's lines alone.
+// Re-pinned 2026-11-18 (1117-reactive-z-layer merged into 1117-hero-beat-em-up): `brawl` only. Its page carries both
+// sides' runtime at once: the lens's still-figure runtime (that branch's) and the powers shelf (this one's).
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: a power's super beat): `brawl` only. Its page inlines the core (a power
+// holds the street still as it starts, and is told for a body with no stock too), the shelf (each card's beat) and the
+// client (the lens's host and its strikes, laid only where the street's spec carries a lens). The fixture has no power.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: rupa's knockback on a power's blow): `brawl` only. Its page inlines the
+// kinetics (brawl-kinetics.js: the law, a body's mass, the throw, the slide), the core's use of it on a blow that carries
+// energy and the client's dust ring at an impact. The fixture's blows carry none: it plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: an earth power's slab): `brawl` only. Its page inlines the core's walls
+// (raised, stood as cover, shoved, crumbling: a state key only while one stands), the slab's law in the kinetics, the
+// moves' second press and the client's slab and its dust. The fixture raises none: it plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: floating and a gale): `brawl` only. Its page inlines the air's laws in the
+// kinetics (a floater's drift, a wind's drag), the core's drift in place of the walk for a floating body and its gusts
+// (a state key only while one blows), and the client's hover and the gale's streaks. The fixture floats and blows
+// nothing: it plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: a floating body's hover): `brawl` only. Its page inlines the pose's hover
+// (one knee drawn up, the other leg hanging, toe pointed; never the stride). The fixture floats nothing: it plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: loose hair and cloth in the air): `brawl` only. Its page inlines the sway
+// (brawl-sway.js: the air a body feels, the hang, the spring, the bend) and the client's bend of a character's long hair
+// and loose cloth, a cape kept off the arms, and the hover in the comics' pose of power (the knee up, its shin tucked,
+// the fists at the waist). The sim never reads any of it: the fixture plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: the foe shelf's idioms on the street): `brawl` only. Its page inlines the
+// crowd's summoner and its summons (a pool held offstage, called a few at a time, cut down with it), a pair (one down, the
+// other enraged), a boss's form at a stage, the caster, drone and blaster crowd types, and the client's dust, flashes and
+// banner for them. The fixture's street says none of them: it plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: the review's fixes): `brawl` only. Its page inlines the sway keeping each
+// region's own rest positions (no copy of a part's buffer), and a boss stage's form read as any fighter's recipe. The
+// fixture plays as it did.

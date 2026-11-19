@@ -23,6 +23,9 @@
  *   seen     how it is seen, said outright where its tables' cameras are not the game's (seenOf reads it alone)
  *   words    the words people say for it that its pole's and its genres' own word lists lack
  *   lacks    what it does not do yet, beyond its pole's own `needs`
+ *   variants { <id>: { name, like, level1, words, ask, quick, street } }: the variants of the type a door's words make
+ *            (the beat-em-up's heroes): its own name and words, the step it ASKS before anything is made (`ask`, with
+ *            its card), its quick door's words beside the goal and what a designed game's street carries (`street`)
  *
  * How it is played THROUGH (levels in turns or an open world, the world's shape) is not a rail's: it is the Game
  * Brief's labour (gmn.js LABOURS). A rail says how a moment plays.
@@ -38,7 +41,8 @@
  *   seenOf(rail)               → the ways it is seen (['side', 'free']: side | free | above | first-person | fixed): the
  *                              row's own word where it says one, else its template's first, then its cubes' in order; more than one is a choice the producer
  *                              asks (side-on, or in the round?), [] when no table says
- *   railWords(rail)            → the words a brief uses for it: its own, its pole's, its genres'
+ *   railWords(rail)            → the words a brief uses for it: its own, its variants', its pole's, its genres'
+ *   variantOf(rail, id)        → a variant of the rail (with its id), or throws naming the rail's variants
  *   railLacks(rail)            → what it does not do yet: its own, then its pole's needs
  *   railShape(rail)            → the producer's one line: name, like, sizes, how it is seen, its first level
  *
@@ -170,7 +174,16 @@ export const RAILS = Object.freeze({
   // ── down a street, side on: named for their type ──
   'beat-em-up': row({ name: 'Side-scroll Beat-em-up', like: 'a beat-em-up down a street: wave after wave fought hand to hand, one to four players on one screen',
     handles: row({ genres: list(['co-op-brawler']), quick: list(['brawl']) }), sizes: list(['quick', 'designed']), level1: 'a street: its stops held wave by wave, a boss at the end',
-    seen: list(['side']), words: list(['streets of rage', 'double dragon']) }),
+    seen: list(['side']), words: list(['streets of rage', 'double dragon']),
+    variants: row({
+      // its heroes variant: a team of heroes each with a power, an army, a villain at the end (the street's `heroes`
+      // tuning, brawl/brawl-tunings.js; a quick brawl's `heroes`, quick.js readHeroes)
+      heroes: row({ name: 'Superhero Beat-em-up', like: 'a team of heroes down a street, each with one power on its own button: an army that drops in, a villain at the end',
+        level1: 'a street of the heroes\' campaign: its stops held against the army, its boss at the end; the streets after it climb to the villain\'s lair',
+        words: list(['superhero beat em up', 'super hero beat em up', 'hero beat em up', 'superhero brawler', 'x-men arcade']),
+        ask: row({ step: 'heroes', does: 'ASK FIRST: who the heroes are (a sentence each, or ones made with create_character) and each one\'s power, and the villain: theirs to design (the pack\'s team if they have none)', card: 'gameworld-heroes' }),
+        quick: 'heroes: { team, villain }', street: row({ tuning: 'heroes' }) }),
+    }) }),
   'run-and-gun': row({ name: 'Run and Gun', like: 'a run and gun down a street: the same waves fought with guns, a roll, grenades, a crowd that shoots back',
     handles: row({ genres: list(['run-and-gun']), quick: list(['rungun']) }), sizes: list(['quick', 'designed']), level1: 'a street: its stops shot through wave by wave, a boss at the end',
     seen: list(['side']) }),
@@ -240,7 +253,12 @@ const seenSays = (seen) => seen.map((w) => SEEN_WORDS[w]).join(', or ');
 
 export function railWords(rail) {
   const R = rowOf(rail), H = R.handles;
-  return [...new Set([...(R.words ?? []), ...(H.pole ? FEEL_WORDS[H.pole] ?? [] : []), ...H.genres.flatMap((g) => GENRES[g]?.words ?? [])])];
+  return [...new Set([...(R.words ?? []), ...Object.values(R.variants ?? {}).flatMap((V) => V.words ?? []), ...(H.pole ? FEEL_WORDS[H.pole] ?? [] : []), ...H.genres.flatMap((g) => GENRES[g]?.words ?? [])])];
+}
+export function variantOf(rail, id) {
+  const R = rowOf(rail), V = R.variants?.[id];
+  if (!V) throw new Error(`gameworld: ${R.id} has ${R.variants ? `the variants ${Object.keys(R.variants).join(', ')}` : 'no variants'}, not '${id}'`);
+  return { id, ...V };
 }
 
 export function railLacks(rail) {
@@ -249,8 +267,8 @@ export function railLacks(rail) {
 }
 
 export function railShape(rail) {
-  const R = rowOf(rail), seen = seenOf(R);
-  return `${R.name}: ${R.like}. ${R.sizes.map((s) => SIZES[s].name).join(' or ')}${seen.length ? `, seen ${seenSays(seen)}` : ''}. First: ${R.level1}.`;
+  const R = rowOf(rail), seen = seenOf(R), V = Object.entries(R.variants ?? {});
+  return `${R.name}: ${R.like}. ${R.sizes.map((s) => SIZES[s].name).join(' or ')}${seen.length ? `, seen ${seenSays(seen)}` : ''}. First: ${R.level1}.${V.length ? ` Variants: ${V.map(([id, v]) => `${v.name} (${id}: ${v.like})`).join('; ')}.` : ''}`;
 }
 
 // ══════════ the size call ══════════
@@ -324,33 +342,38 @@ export function railShapes() {
 export const laidGenre = (g) => !!GENRES[g] && !PENDING[g] && !HAND_OFFS[g] && dryRun(genreCube(g)).verdict === 'makeable';
 
 // the steps that build a rail at a size, in order, each with the card pulled when it is reached
-function chainOf(R, size, from) {
+function chainOf(R, size, from, V = null) {
   const H = R.handles;
   if (size === 'pixel') return [{ step: 'make', does: `create_pixelizer_game({ reducer: ${H.pixel.map((p) => `'${p}'`).join(' | ')} }): it is the game` }];
   if (size === 'table') return [{ step: 'make', does: `create_game({ ${H.table === 'table-rpg' ? 'table_rpg' : 'tabletop'}: { … } })`, card: H.table }];
+  // (a variant asks its own question first, before anything is made, and its quick door carries its words)
   if (size === 'quick') return [
-    ...H.quick.map((g) => ({ step: 'make', does: `design_game({ quick: { goal: '${g}' } }): one level, made in a call`, card: `gameworld-quick-${g}` })),
+    ...(V?.ask ? [{ ...V.ask }] : []),
+    ...H.quick.map((g) => ({ step: 'make', does: V?.quick ? `design_game({ quick: { goal: '${g}', ${V.quick} } }): its streets, made in a call` : `design_game({ quick: { goal: '${g}' } }): one level, made in a call`, card: V?.ask?.card ?? `gameworld-quick-${g}` })),
     { step: 'play', does: 'the person plays it: the eyes gate is theirs' },
   ];
+  const level1 = V?.level1 ?? R.level1, street = V?.street ? ` (its street: ${Object.entries(V.street).map(([k, v]) => `${k}: '${v}'`).join(', ')})` : '';
   return [
     { step: 'intake', does: 'what the person brought, placed or set aside', card: 'gameworld-producer' },
     { step: 'brief', does: 'why it is played and how it is shaped: the motivations and the labours', card: 'gameworld-brief' },
     ...(from ? [{ step: 'intent', does: `intent: { from: '${from}' }, then the cube's values the person's game changes`, card: `gameworld-intent-${from}` }] : [{ step: 'intent', does: 'the cube nearest the ask, its values changed to the person\'s game', card: 'gameworld-intent' }]),
     ...(H.pole ? [{ step: 'feel', does: `feel: '${H.pole}', tuned toward their game; tried in a practice room before any level`, card: 'gameworld-feel' }] : []),
+    ...(V?.ask ? [{ ...V.ask }] : []),
     { step: 'chapters', does: 'the book a chapter at a time: the hero, the world, the main quest, the foes', card: 'gameworld-studio' },
-    { step: 'first-level', does: `the first level: ${R.level1}; made, then proved by the machine gate`, card: 'gameworld-ledger' },
+    { step: 'first-level', does: `the first level: ${level1}${street}; made, then proved by the machine gate`, card: 'gameworld-ledger' },
     { step: 'play', does: 'the person plays it: the eyes gate is theirs' },
   ];
 }
 
-export function railSheet(id) {
-  const R = railOf(id), H = R.handles;
+export function railSheet(id, variant = null) {
+  const R = railOf(id), H = R.handles, V = variant ? variantOf(R, variant) : null;
   const from = H.genres[0] ?? null, cube = from ? genreCube(from) : null;
   const starts = H.genres.find(laidGenre) ?? null;
   const dry = cube ? dryRun(cube) : null, gaps = dry ? [...dry.blocked, ...dry.gaps].map(({ facet, setting, value, status }) => ({ facet, setting, value, status })) : [];
   const pole = H.pole ? POLES[H.pole] : null;
   return {
-    id: R.id, name: R.name, like: R.like, seen: seenOf(R), level1: R.level1,
+    id: R.id, ...(V ? { variant: V.id } : {}), name: V?.name ?? R.name, like: V?.like ?? R.like, seen: seenOf(R), level1: V?.level1 ?? R.level1,
+    ...(R.variants && !V ? { variants: Object.entries(R.variants).map(([vid, v]) => ({ id: vid, name: v.name, like: v.like })) } : {}),
     sizes: R.sizes.map((size) => ({ size, name: SIZES[size].name, door: SIZES[size].door, with: keysFor(R, size) })),
     from, starts, ...(gaps.length ? { gaps } : {}),
     tunings: {
@@ -361,7 +384,7 @@ export function railSheet(id) {
     },
     asks: cube ? concernsOf(cube).map((c) => c.id) : [],
     labours: Object.keys(LABOURS).filter((l) => LABOURS[l].genres.some((g) => H.genres.includes(g))),
-    chain: R.sizes.map((size) => ({ size, steps: chainOf(R, size, size === 'designed' ? starts : null) })),
+    chain: R.sizes.map((size) => ({ size, steps: chainOf(R, size, size === 'designed' ? starts : null, V) })),
     lacks: railLacks(R),
   };
 }
@@ -373,7 +396,12 @@ const byMatch = (a, b) => b.matched.length - a.matched.length || longest(b.match
 export function nearestRails(text, n = 3) {
   const t = norm(text);
   return RAIL_IDS
-    .map((id) => ({ id, name: RAILS[id].name, like: RAILS[id].like, sizes: [...RAILS[id].sizes], matched: railWords(id).filter((w) => t.includes(` ${w} `)) }))
+    .map((id) => {
+      const matched = railWords(id).filter((w) => t.includes(` ${w} `));
+      // (a variant whose own words the text uses is named, with its own name)
+      const V = Object.entries(RAILS[id].variants ?? {}).find(([, v]) => v.words.some((w) => matched.includes(w)));
+      return { id, ...(V ? { variant: V[0] } : {}), name: V ? V[1].name : RAILS[id].name, like: V ? V[1].like : RAILS[id].like, sizes: [...RAILS[id].sizes], matched };
+    })
     .filter((r) => r.matched.length).sort(byMatch).slice(0, n);
 }
 
@@ -393,14 +421,15 @@ export const TUNINGS = Object.freeze({
   character: 'who the hero is and how they are drawn',
   world: 'where it is set and how it looks',
 });
-const RAIL_KEYS = ['from', 'size', 'departs', 'locked'];
+const RAIL_KEYS = ['from', 'variant', 'size', 'departs', 'locked'];
 const pitchFail = (m) => new Error(`gameworld: rail${m}`);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 export function readRail(v) {
-  if (!isObj(v)) throw pitchFail(` is { from, size?, departs?, locked? }: the template the game starts from and where it departs (get_game_vocab({ id: 'gameworld-rails' }))`);
+  if (!isObj(v)) throw pitchFail(` is { from, variant?, size?, departs?, locked? }: the template the game starts from and where it departs (get_game_vocab({ id: 'gameworld-rails' }))`);
   for (const k of Object.keys(v)) if (!RAIL_KEYS.includes(k)) throw pitchFail(`.${k} is not part of a pitch (${RAIL_KEYS.join(', ')})`);
   if (!RAILS[v.from]) throw pitchFail(`.from is the rail it starts from: ${RAIL_IDS.join(', ')}`);
+  if (v.variant !== undefined && !RAILS[v.from].variants?.[v.variant]) throw pitchFail(`.variant is one of ${v.from}'s variants: ${Object.keys(RAILS[v.from].variants ?? {}).join(', ') || 'it has none'}`);
   if (v.size !== undefined && !SIZES[v.size]) throw pitchFail(`.size is the size called: ${SIZE_IDS.join(', ')}`);
   if (v.departs !== undefined) {
     if (!isObj(v.departs)) throw pitchFail(`.departs is { ${Object.keys(TUNINGS).map((k) => `${k}?`).join(', ')} }: where their game leaves the template, a line each`);
@@ -410,22 +439,22 @@ export function readRail(v) {
     }
   }
   if (v.locked !== undefined && typeof v.locked !== 'boolean') throw pitchFail('.locked is true once the person agreed the structure');
-  return { from: v.from, ...(v.size !== undefined ? { size: v.size } : {}), departs: Object.fromEntries(Object.entries(v.departs ?? {}).map(([k, w]) => [k, w.trim()])), locked: v.locked === true };
+  return { from: v.from, ...(v.variant !== undefined ? { variant: v.variant } : {}), ...(v.size !== undefined ? { size: v.size } : {}), departs: Object.fromEntries(Object.entries(v.departs ?? {}).map(([k, w]) => [k, w.trim()])), locked: v.locked === true };
 }
 
 export function railReport(world, before = null) {
   if (!isObj(world) || world.rail === undefined || world.rail === null) return null;
-  const P = readRail(world.rail), R = railOf(P.from), S = railSheet(P.from);
+  const P = readRail(world.rail), R = railOf(P.from), S = railSheet(P.from, P.variant ?? null);
   const short = P.size && !R.sizes.includes(P.size) ? { wanted: P.size, reaches: [...R.sizes], waits: pendingOf(R.handles.genres[0])?.waits ?? `${R.name} is not made at that size yet` } : null;
   const was = (() => { try { return isObj(before?.rail) ? readRail(before.rail) : null; } catch { return null; } })();
   return {
-    from: P.from, name: R.name, template: `a template: the game is theirs, started from ${R.name}`,
+    from: P.from, ...(P.variant ? { variant: P.variant } : {}), name: S.name, template: `a template: the game is theirs, started from ${S.name}`,
     ...(P.size ? { size: P.size } : {}), ...(short ? { short } : {}),
-    seen: S.seen, level1: R.level1,
+    seen: S.seen, level1: S.level1,
     keeps: Object.keys(TUNINGS).filter((k) => !P.departs[k]), departs: P.departs, locked: P.locked,
     starts: S.starts, ...(S.gaps ? { gaps: S.gaps } : {}),
     ...(was?.locked && was.from !== P.from ? { replanned: { was: was.from } } : {}),
-    card: `gameworld-rail-${P.from}`,
+    card: `gameworld-rail-${P.from}${P.variant ? `-${P.variant}` : ''}`,
   };
 }
 

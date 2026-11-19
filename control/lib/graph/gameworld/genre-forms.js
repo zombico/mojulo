@@ -11,6 +11,8 @@
  *   refusalOf(id, others)   → null | { verdict, waits, others } why a read genre is not laid (hand-offs are said apart)
  *   PENDING[id], pendingOf(id) → what a genre the book cannot lay from a sentence yet waits on (refused, nothing laid)
  *   heroFrameOf(id, tradition) → { characters, camera, screen } | null: the hero, camera and screen a genre on foot is laid with
+ *   HERO_STREET_WORDS, heroStreetWords(prompt) → the words that make a beat-em-up's streets a superhero one (the heroes
+ *                             tuning), [] for none
  *
  * Forms wait on what they need beside them: a race's ride (the vehicle registry's front door) before racing's roadway
  * is laid. A form a hero plays (a runner's lanes, a city's rooftops) is laid with the hero by default beside it.
@@ -26,6 +28,14 @@ import { HIJACK_DISTRICT } from './hijack-city.js';
 // in at the second and the third: measured with the basic player, won by a beat-em-up's with two of five falls and by
 // an arcade run & gun's with three of five)
 export const STREET_FROM_A_SENTENCE = Object.freeze({ stops: [{ wave: { grunt: 2 } }, { wave: { grunt: 3, shooter: 1 } }, { wave: { elite: 1, grunt: 3 } }], boss: Object.freeze({ foe: 'boss', cpu: 'novice', stages: Object.freeze([Object.freeze({}), Object.freeze({ cpu: 'regular', calls: Object.freeze({ grunt: 2 }) }), Object.freeze({ cpu: 'veteran', calls: Object.freeze({ grunt: 2 }) })]) }), lives: 5 });
+// (a beat-em-up a sentence calls a SUPERHERO one: its streets laid on the heroes tuning, brawl/brawl-tunings.js, every
+// seat a hero with a power, an army that drops in; the words that say so, read as deciding it)
+export const HERO_STREET_WORDS = Object.freeze(['superhero', 'superheroes', 'super hero', 'super heroes', 'mutant', 'mutants', 'superpowers', 'super powers', 'superpowered']);
+/** The hero words a sentence uses (HERO_STREET_WORDS), whole words only: [] for none. */
+export function heroStreetWords(prompt) {
+  const t = ` ${String(prompt ?? '').toLowerCase().replace(/[^a-z]+/g, ' ')} `;
+  return HERO_STREET_WORDS.filter((w) => t.includes(` ${w} `));
+}
 /** The book level forms the sentence door lays a genre's levels in. */
 export const GENRE_FORMS = Object.freeze({
   // the flight genres: an airspace a level (skyscape/airspace.js): a runway, a gate course, the genre's craft

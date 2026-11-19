@@ -200,6 +200,26 @@ many pressing in at a time as may be up). A summoner does not call a summoner.
 | takes a killing blow (`down: 'revive'`) | keeps it from dying while it stands: the blow fells it (knocked down, up at half its health, as a mode's defeat), and only both felled together finishes them, each falling once |
 | drops under its `swap` share | holds the field alone while the other leaves in smoke and comes back, as hurt as it left |
 
+### On a street: the idioms in a beat-em-up
+
+A beat-em-up's street (`brawl/brawl-crowd.js`) plays the same relations in its own crowd. A foe there is a crowd type,
+but the relations are words on its wave, read by the street's mind:
+
+| On the street | Its word | What it does |
+| --- | --- | --- |
+| a summoner | a crowd entry's or a boss's `summons: { type, n?, every?, bound? }` | keeps back behind the others (the `caster` type) and calls its summons out of the ground, a few at a time, from a pool made with it; bound ones are cut down when it falls, and those never called stay uncalled |
+| a pair | a boss's `pair: { recipe, name?, down? }` | a second boss beside the first, each its own bar; one down, the other enrages (the best CPU, its desperation, untouchable a moment); the stage is clear when both are |
+| modes | a boss stage's `form` (a fighter's recipe) | the act begins with it defeated into its next form: that fighter's moves and power from there, its health carried on |
+
+A designed game's bestiary plays them as it stands: a `summoner` entry calls its `summons` entry, a boss's `pair` stands
+beside it (a pair that revives is enraged on the street instead, and the cast's law says so), and each entry it
+`becomes` is a form on one of its acts (`gameworld/brawl-cast.js`).
+
+The superhero beat-em-up's villains are rows of these words (`brawl/brawl-villains.js`: a summoning mastermind, a
+juggernaut whose armour breaks into its pilot, twins who enrage, a warlord who calls reinforcements, a speedster, a
+tempest that becomes the eye of its storm, and the lieutenants on the way). A new villain is a row, and a person designs
+one in the same words. The card is `gameworld-villains`.
+
 ### Win conditions: the encounter has no bar
 
 Each foe keeps its own bar; the encounter has a way to be won. `levels.<id>.foes.win`: `exit` (the default: reach the
