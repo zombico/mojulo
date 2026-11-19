@@ -804,6 +804,9 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const busterOn = entities.some((e) => e && e.rule && e.rule.buster);
   // (a SABER's body, gameworld/feel/saber.js: a moveset that strikes with a colour, its cuts drawn as slashes; none: nothing)
   const saberOn = entities.some((e) => e && e.rule && e.rule.moveset && e.rule.strike === 'melee' && e.rule.strikeFx && Number.isInteger(e.rule.strikeFx.color));
+  // THE PAD'S OWN FACES (the pilot's rule.controls, a feel card's `pad`, feel/lower.js): an override over the scheme's
+  // bindings (controls-kernel.js resolve), so the game's faces are its own and its legend says them; none, the scheme's
+  const padOver = (() => { const P = entities.find((e) => e && e.pilotable && e.rule && e.rule.controls && typeof e.rule.controls === 'object'); return P ? P.rule.controls : null; })();
   const steerOn = entities.some((e) => e && ((e.rule && e.rule.steer) || (e.forms && Object.values(e.forms).some((f) => f && f.rule && f.rule.steer))));
   // a person's sprint (rules-platform.js sprintSpeed): Shift held, read only where a body has one; absent, nothing emitted
   const sprint = entities.some((e) => e && e.rule && e.rule.sprintSpeed > 0);
@@ -2881,7 +2884,8 @@ function __ground(pos) {
 const __CTL = (${buildControlsKernel.toString()})();
 const __SCHEME = ${safeJson(SCHEMES.pilot)};
 const __DEV = ${safeJson({ keyboard: DEVICES.keyboard, mouse: DEVICES.mouse, gamepad: DEVICES.gamepad })};
-let __BIND = __CTL.resolve(__SCHEME, __DEV);
+${padOver ? `const __OVER = ${safeJson(padOver)};
+` : ''}let __BIND = __CTL.resolve(__SCHEME, __DEV${padOver ? ', __OVER' : ''});
 const __held = {};
 ${seats ? `// SEATS: seat 1 reads the keyboard only while the keyboard is its controller (or nobody has sat down yet)
 let __seat1 = null;
@@ -3039,7 +3043,7 @@ ${seats ? `  // SEATS: seat 1 reads only its own pad (none when the keyboard is 
   __padSeen = true;
   // the pad's printed layout (Xbox, PlayStation, Nintendo): the glyphs it shows, and where confirm / cancel sit
   const __lay = __CTL.padLayout(g.id);`}
-  if (__lay !== __padLayout) { __padLayout = __lay; __BIND = __CTL.resolve(__SCHEME, __DEV, null, { layout: __lay }); }
+  if (__lay !== __padLayout) { __padLayout = __lay; __BIND = __CTL.resolve(__SCHEME, __DEV, ${padOver ? '__OVER' : 'null'}, { layout: __lay }); }
   const b = (i) => !!(g.buttons[i] && (g.buttons[i].pressed || g.buttons[i].value > 0.5));
   const __gr = __CTL.gamepadRead(g, __DEV), __ga = __CTL.gamepadRead(g, __DEV, true);
   const pb = (id, quiet) => __CTL.held(__BIND, id, 'gamepad', __gr, quiet ? __DEV.gamepad.faces : null);   // quiet: a held RB silences the face buttons (they chord)

@@ -241,6 +241,11 @@ holds that split from cut to cut until the string ends (a move's `plant`, `gamew
 up it and the charge's bloom round it. Each cut is drawn as a slash that sweeps open in that colour and lights what it
 crosses.
 
+Galaxy Boy jumps 2.24 m, and the map lays its gaps and ledges by that reach. His jump is his own (`jumpPoised`,
+`polygonizer/hero-jump.js`, named by his feel card's `jumps`): one pose held the whole flight, the knee away from the
+buster drawn up so he is balanced to fire, the legs reaching down only before the floor. On a pad his card's `pad`
+fires on the left face and dashes on the top one, beside the triggers.
+
 The hero's body sets the screen. Galaxy Boy's is the toy hero robot's (`proportions: 'herobot'`, about four and a half
 heads, adult-limbed): a game body of its own, too real for a mascot's.
 

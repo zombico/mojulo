@@ -118,14 +118,16 @@ export function steppedSpeed(h, g, dt = 1 / FPS) {
  * `jump_fwd` a jump out of the run, `jump_air` an air jump (the double jump's second push: its clip from the kick on).
  */
 export const TAKES = Object.freeze({ jump_up: 'jump', jump_fwd: 'jumpForward', jump_air: 'doubleJump' });
+/** A card's own takes (its `jumps`: { <state>: <hero-jump.js word> }, a run-and-gun hero's poised jump) over TAKES. */
+export const takesOfCard = (C) => ({ ...TAKES, ...(C && C.jumps && typeof C.jumps === 'object' ? C.jumps : {}) });
 
 /** The run button's build (`rule.sprint`): a held run gets to the card's sprint over a second of running, as a mascot
  * platformer's does (momentum earned, not a burst: the dash is that), and gives it back over half a second let go. */
 export const SPRINT = Object.freeze({ build: 1, fall: 0.5 });
 
 /** The platform rule's `takes`: each take's flight as shares of its clip, and the landing's seconds (the card's). */
-function takesOf(J, look) {
-  const S = Object.fromEntries(Object.entries(TAKES).map(([state, clip]) => [state, jumpShares(clip)]));
+function takesOf(J, look, T = TAKES) {
+  const S = Object.fromEntries(Object.entries(T).map(([state, clip]) => [state, jumpShares(clip)]));
   const squash = look?.squash > 0 ? r4(look.squash) : 0;
   return { up: [S.jump_up.off, S.jump_up.on], fwd: [S.jump_fwd.off, S.jump_fwd.on], air: [S.jump_air.kick, S.jump_air.on], land: r4(Math.max(1, J.land ?? 0) / FPS), ...(squash ? { squash } : {}) };
 }
@@ -195,6 +197,9 @@ export function lowerFeel(card, { gear = null, takes = false, base = null } = {}
   }
   // the SABER (a card's `blade: { kit: 'saber' }`, saber.js): its string on the fire press, in place, on the buster's scale
   if (C.blade?.kit === 'saber') { Object.assign(rule, saberRule()); carried.push('blade'); }
+  // THE PAD (a card's `pad`: { <action>: [control, control] }, the controls schemes.js names): the pad's faces as the
+  // card's game lays them, over the scheme's own (controls-kernel.js resolve's override; the legend relabels itself)
+  if (C.pad && typeof C.pad === 'object') { rule.controls = { gamepad: Object.fromEntries(Object.entries(C.pad).map(([k, v]) => [k, [...v]])) }; carried.push('pad'); }
   // the hitstop: both bodies frozen on a melee connect for the card's frames (base + perMs a unit of the blow's shove, at
   // most max: combat-melee.js stepMelee), the runtime's melee only (a stomp's and a pound's are the lab's)
   if (C.hit?.hitstop && C.hit.hitstop.max > 0) { const H = C.hit.hitstop; put('hit.hitstop', 'hitstop', { base: H.base, perMs: H.perMs, max: H.max }); }
@@ -276,7 +281,7 @@ export function lowerFeel(card, { gear = null, takes = false, base = null } = {}
   // (a dodge carried as the runtime's dash: its roll's tumble is the body's clip, its i-frames the whole dash's)
   if (carried.includes('dodge') && C.dodge.kind === 'roll') partly.push({ field: 'dodge.kind', why: 'the roll plays as the runtime\'s dash, invulnerable throughout: a body with no roll clip dashes on its run' });
   // the takes: the hero's own jumps on this flight, the landing its frames (the card's `land`, at least one)
-  if (takes) { rule.takes = takesOf(J, C.look); carried.push('jump.land'); }
+  if (takes) { rule.takes = takesOf(J, C.look, takesOfCard(C)); carried.push('jump.land'); }
   return { rule, lane, carried, partly, lost };
 }
 

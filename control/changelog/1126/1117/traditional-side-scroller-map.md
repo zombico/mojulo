@@ -286,3 +286,9 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   damage scale. The saber's blade is a strand of the charged shot, its white-hot core and its bloom, and each cut sweeps
   a slash of it. Each cut plants his feet as his body swings into it, one leg forward and one back, holding the split
   from cut to cut while he never leaves his place. A move in any string can now do the same (a move's `plant`).
+- **Galaxy Boy's controls and jump**: on a pad, the left face fires (beside the right trigger) and the top face dashes
+  (beside the left trigger), from his feel card's `pad`; a card can now lay out a pad's faces of its own. His jump goes
+  1.4 times higher (2.24 m), and the side map lays its gaps and ledges by it. His jump is his own: one pose held the
+  whole flight, the knee away from the buster drawn up so he is balanced to fire, the legs reaching down only before
+  the floor (a card's `jumps`, the poised jump). A side map's hero now plays its own jumps at all (before, the air
+  played the run), and a cel-lit hero keeps the jumps its game gives it.

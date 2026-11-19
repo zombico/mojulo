@@ -214,11 +214,14 @@ const CEL_FACE_MARK = '#ff00fe';
 // (and a boss's SIGNAL, its eyes and its glow, gameworld/bosses.js: a fourth bake marks it, `sigM`, so the page lights it
 // by its tell, worlds/controllable/tell.js; a body with no signal group bakes no fourth)
 const CEL_SIGNAL_GROUPS = /^Signal/;
-async function celBody(manifest, ctx) {
+async function celBody(manifest, ctx, jumps = null) {
   const { expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
   const groups = Object.keys(expandLayeredManifest(manifest).recipe?.palette ?? {});
   if (!groups.length) return null;
-  const stepped = (t) => expandLayeredManifest({ ...manifest, toon: { ...(manifest.toon ?? {}), light: { threshold: t, thresholds: Object.fromEntries(groups.map((g) => [g, t])), highlight: false } } });
+  // (each bake regenerates the hero from its record: the jumps its takes play, heroFigure's `jumps`, carried onto it, a
+  // jump it already moves by its own)
+  const withJumps = (E) => (jumps && E.recipe ? { ...E, recipe: { ...E.recipe, locomotion: { ...jumps, ...(E.recipe.locomotion || {}) } } } : E);
+  const stepped = (t) => withJumps(expandLayeredManifest({ ...manifest, toon: { ...(manifest.toon ?? {}), light: { threshold: t, thresholds: Object.fromEntries(groups.map((g) => [g, t])), highlight: false } } }));
   // (the step at the ends of N·L's range, the most the light allows (vexar.js toonLightErrors: [-1, 1]): at -1 every group
   // lit, at 1 every group in shade; past them the light is refused and the default stands, both bakes the same)
   // (and a third, lit, its FACE's groups painted a marker: each corner whose colour that changes is the face's, so a charge
@@ -280,9 +283,11 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
   // `jumps`: the hero's own jumps a game's takes play (gameworld/feel/lower.js TAKES: hero-jump.js words), compiled onto
   // its rig beside its clips (its recipe's `locomotion`, as its door motion is); a jump it already moves by stays its own.
   // Absent: the hero's clips as minted
+  let jumpsAdded = null;
   if (manifest && Array.isArray(spec.jumps) && spec.jumps.length && manifest.recipe?.rig) {
     const { motionPlan } = await import('@/lib/graph/polygonizer/hero-motion.js');
     const add = motionPlan(Object.fromEntries(spec.jumps.map((w) => [w, true])));
+    jumpsAdded = add;
     manifest = { ...manifest, recipe: { ...manifest.recipe, locomotion: { ...add, ...(manifest.recipe.locomotion || {}) } } };
   }
   // `swing`: the world's game type (its composed juice's flavor), the timing the hero's swing plays at (hero-swing.js);
@@ -301,7 +306,7 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
     // and its metal by materials/toon-materials.js) baked twice, every group stepped lit and every group in shade, as a
     // fight plays a toon body (versus-character.js toonBody), so each corner carries both tones (`colS` the shade's) and
     // the page steps between them by its world's key as the body turns. The bakes that do not line up: as it always was)
-    const toon = cel && !lit && manifest ? await celBody(manifest, ctx) : null;
+    const toon = cel && !lit && manifest ? await celBody(manifest, ctx, jumpsAdded) : null;
     const scene = toon ?? await WORLD_KINDS.layered.resolve(manifest, ctx);
     body = scene.figures && scene.figures.body;
     if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);

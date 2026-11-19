@@ -18,7 +18,9 @@
  *
  * The four: `jump` (standing, straight up), `jumpForward` (leaning into it, legs trailing then reaching ahead),
  * `jumpBack` (leaning back off the toes, legs forward of the body, the absorb pitching forward to recover) and
- * `doubleJump` (a first jump, a kick down off the air with the arms sweeping, a second deeper tuck, the landing) and
+ * `doubleJump` (a first jump, a kick down off the air with the arms sweeping, a second deeper tuck, the landing),
+ * `jumpPoised` (a run-and-gun hero's: one pose held the whole flight, the knee away from the gun arm drawn up, the legs
+ * reaching down only late in the fall) and
  * `runningJump` (a hurdler's leap out of the sprint and back into it: the lead leg out straight, the trail leg round at
  * the side, the trunk diving over the lead, the opposite arm reaching; its planted feet slide back at the run's `speed`,
  * so it plays between sprint cycles, the engine carrying the body on at that speed), and the ROLLS: `rollForward` (a
@@ -125,6 +127,26 @@ const BASE = {
       { t: 0.86, pose: { hinge: 12, ...arms(45, 25) }, sink: 0.04, heel: 0, ground: 1 },
       { t: 0.92, pose: { hinge: 28, ...arms(40, 30), head: { pitch: 12 } }, sink: 0.17, heel: 0, ground: 1 },
       { t: 0.96, pose: { hinge: 12, ...arms(12, 22), head: { pitch: 5 } }, sink: 0.06, heel: 0, ground: 1 },
+      end(),
+    ],
+  },
+  // THE POISED JUMP, a run-and-gun hero's (a feel card's `jumps`, gameworld/feel/cards.js galaxy-boy): no wind-up to
+  // speak of, a push off the toes, then ONE pose held the whole flight, balanced to fire from: the knee of the leg away
+  // from the gun arm (the left: the buster is on the right) drawn up, the gun side's leg hanging nearly straight, the
+  // trunk upright and the arms bent at the chest, clear of the knee (the gun arm free to aim); the legs move again only late in the fall, both
+  // reaching down for the floor, then the landing's absorb. Never a tuck, never the arms flung overhead.
+  jumpPoised: {
+    seconds: 1.1,
+    keys: [
+      STAND,
+      { t: 0.12, pose: { hinge: 10, ...arms(-10, 30), head: { pitch: 6 } }, sink: 0.08, heel: 0, ground: 1 },
+      { t: 0.18, pose: { hinge: 6, ...arms(10, 30), ...legs(0, 0), head: { pitch: 4 } }, sink: 0, heel: 30, ground: 1 },
+      { t: 0.3, pose: { hinge: 4, shL: { pitch: 30 }, shR: { pitch: 35 }, elbowL: 75, elbowR: 80, ...legs2(70, 105, 8, 20), head: { pitch: 2 } }, sink: 0, heel: 0, ground: 0 },
+      { t: 0.62, pose: { hinge: 4, shL: { pitch: 30 }, shR: { pitch: 35 }, elbowL: 75, elbowR: 80, ...legs2(70, 105, 8, 20), head: { pitch: 2 } }, sink: 0, heel: 0, ground: 0 },
+      { t: 0.735, pose: { hinge: 6, shL: { pitch: 15 }, shR: { pitch: 20 }, elbowL: 35, elbowR: 40, ...legs2(14, 14, 8, 10), head: { pitch: 4 } }, sink: 0, heel: 0, ground: 0 },
+      { t: 0.76, pose: { hinge: 8, ...arms(15, 35) }, sink: 0.03, heel: 0, ground: 1 },
+      { t: 0.86, pose: { hinge: 18, ...arms(10, 35), head: { pitch: 8 } }, sink: 0.14, heel: 0, ground: 1 },
+      { t: 0.94, pose: { hinge: 8, ...arms(5, 28), head: { pitch: 3 } }, sink: 0.04, heel: 0, ground: 1 },
       end(),
     ],
   },

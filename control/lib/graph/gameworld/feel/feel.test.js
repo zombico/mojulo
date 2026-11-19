@@ -144,3 +144,19 @@ describe('a sprinting feel lowers its dodge onto the sprint\'s key and stamina',
     expect(L.partly.map((x) => x.field)).toContain('dodge.kind');
   });
 });
+
+// A CARD'S OWN PAD AND JUMPS (a run-and-gun's: its `pad` over the scheme's faces, its `jumps` over TAKES), chosen from the
+// catalog by the fields; a card without them lowers as before
+describe('a card\'s own pad and jumps', () => {
+  const own = POLE_IDS.find((id) => poleCard(id).pad && poleCard(id).jumps), bare = POLE_IDS.find((id) => !poleCard(id).pad && !poleCard(id).jumps);
+  it('the pad lowers to the rule\'s controls (an override over the scheme), and only a card that names one carries it', () => {
+    const R = feelRule({ pole: own, takes: true });
+    expect(R.controls.gamepad).toEqual(poleCard(own).pad);
+    expect(feelRule({ pole: bare, takes: true }).controls).toBeUndefined();
+  });
+  it('the jumps take the card\'s words over TAKES: its flight read off its own clip', () => {
+    const R = feelRule({ pole: own, takes: true }), C = poleCard(own), S = jumpShares(C.jumps.jump_up);
+    expect(R.takes.up).toEqual([S.off, S.on]);
+    expect(feelRule({ pole: bare, takes: true }).takes.up).toEqual([jumpShares(TAKES.jump_up).off, jumpShares(TAKES.jump_up).on]);
+  });
+});

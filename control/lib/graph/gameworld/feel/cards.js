@@ -391,7 +391,9 @@ export const POLES = Object.freeze({
   'galaxy-boy': { demo: ['move', 'jump', 'wall', 'dash', 'buster', 'shoot', 'switch'], name: 'Galaxy Boy', after: 'Mega Man X', base: 'platformer', view: { camera: 'side' }, stage: 'highway',
     says: 'the run-and-gun: the buster\'s tap shot (three out at most) and its charge, held through anything, the dash and the dash jump that keeps its speed, the wall slide and the wall kick, the air dash; no stomp, no double jump',
     set: {
-      ground: { walk: 1.6, run: 5.5, sprint: 5.5, accel: 120, decel: 120 }, jump: { height: 1.6, cut: 0.35, coyote: 4 }, air: { jumps: 0, mult: 0.9 },
+      // (the jump 2.24 m at its apex, 1.4 times the 1.6 the platformer's mascot clears: the operator's, a run-and-gun hero
+      // clears his own height and more; the side map's gaps and ledges are laid by it, side-map/layout.js reach)
+      ground: { walk: 1.6, run: 5.5, sprint: 5.5, accel: 120, decel: 120 }, jump: { height: 2.24, cut: 0.35, coyote: 4 }, air: { jumps: 0, mult: 0.9 },
       dash: { kind: 'dash', frames: 28, speed: 10, iframes: null, air: { count: 1, speed: 10, frames: 20 }, cancel: false, hold: { min: 6 }, jump: true, wall: true },
       land: { model: 'slide', slide: 3, step: { cooldown: 12 } }, pound: null,
       charge: { kind: 'shot', levels: [30, 90], show: 14, stance: false, air: true, tap: { speed: 15, size: 0.08, life: 36, max: 3, force: { push: 1 }, tags: ['light', 'shot'] }, at: [
@@ -399,6 +401,12 @@ export const POLES = Object.freeze({
         { speed: 17, size: 0.42, life: 60, force: { push: 7, hop: 0.7 }, tags: ['heavy', 'shot'] },
       ] },
       life: { hp: 16, oneHit: false, ko: 90 }, lane: { x: 0, face: false },
+      // (the pad's faces as the run-and-gun's: the left face fires (beside the right trigger), the top face dashes (beside
+      // the left trigger); the bottom face jumps as every pad's does)
+      pad: { fire: ['rt', 'west'], boost: ['lt', 'north'] },
+      // (its jump the POISED one, hero-jump.js jumpPoised: one pose held the whole flight, the knee away from the buster
+      // drawn up so he is balanced to fire, the legs reaching down only before the floor; never the mascot's tuck)
+      jumps: { jump_up: 'jumpPoised', jump_fwd: 'jumpPoised' },
     },
     // (its heroes, gameworld/herobots.js: Galaxy Boy's buster the default; Zero Boy's SABER in its place, his string on the
     // fire press in place, saber.js)

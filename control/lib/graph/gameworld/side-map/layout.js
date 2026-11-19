@@ -47,8 +47,8 @@ export const LADDER_RATE = 2;
 const PAUSE = 0.5, FRAME = 1 / FPS;
 
 /**
- * How long the bot takes up a climb on the shipped rule, seconds: a chimney by its kicks (each a jump's rise long) and a
- * breath on each rest; ledges, a stair or a switchback a jump a stand and a walk across the shaft for each; a ladder at
+ * How long the bot takes up a climb on the shipped rule, seconds: a chimney by its kicks (each its measured cycle, at least a jump's rise) and a
+ * breath and the shaft crossed at each rest; ledges, a stair or a switchback a jump a stand and a walk across the shaft for each; a ladder at
  * its rate. Read off the reach: a running jump's rise, its height, the run's speed.
  */
 export function climbTime({ climb, from, to, rests = [], width = 0 }, reach) {
@@ -56,9 +56,12 @@ export function climbTime({ climb, from, to, rests = [], width = 0 }, reach) {
   if (climb === 'ladder') return L / LADDER_RATE;
   const zs = [from, ...rests.map((r) => r.z), to];
   if (climb === 'chimney') {
-    const kick = reach.wall?.climb || run.height;
+    // (each kick its measured cycle, kick to kick, where the reach measured one: a stronger kick flies further off the
+    // wall and takes longer back to it than a jump's rise)
+    const kick = reach.wall?.climb || run.height, each = Math.max(apex, reach.wall?.every || 0);
     let kicks = 0; for (let k = 1; k < zs.length; k++) kicks += Math.ceil((zs[k] - zs[k - 1]) / kick - 1e-9);
-    return kicks * apex + rests.length * PAUSE;
+    // (and each rest a breath and the shaft crossed: the rests stand on alternate walls, the next kicked from across)
+    return kicks * each + rests.length * (PAUSE + width / (reach.speed ?? 5));
   }
   return (zs.length - 1) * (2 * apex + PAUSE + width / 2 / (reach.speed ?? 5));
 }

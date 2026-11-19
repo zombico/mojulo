@@ -48,6 +48,19 @@ describe('hero-jump', () => {
       else expect(J.air.kick).toBeUndefined();
     });
   }
+  it('the poised jump: one pose held through the air, the knee away from the gun arm up; the legs reach down only before the floor', () => {
+    const R = HEROES.male, J = heroJump('jumpPoised', R), at = (t) => rigNodesAt(R, J.fn(t)).nodes;
+    const L = R.legs.L, Rg = R.legs.R, foot = (n, Lg) => n[Lg.toeBase][2];
+    // (held: from just after take-off to late in the fall, every joint of the legs stays where it was)
+    const a = at(0.32), b = at(0.6);
+    for (const Lg of [L, Rg]) for (const k of [Lg.toeBase, Lg.toeTip]) for (const x of [0, 1, 2]) expect(Math.abs(a[k][x] - b[k][x])).toBeLessThan(0.01);
+    // (the left knee drawn up: its foot far higher than the right's, which hangs)
+    expect(foot(a, L) - foot(a, Rg)).toBeGreaterThan(0.15);
+    // (late in the fall both feet reach down: the raised one lowered to near the other)
+    const c = at(0.735);
+    expect(foot(c, L)).toBeLessThan(foot(a, L) - 0.1);
+    expect(Math.abs(foot(c, L) - foot(c, Rg))).toBeLessThan(0.08);
+  });
   it('is deterministic, and a longer clip stretches the air', () => {
     const R = HEROES.female; const a = heroJump('jump', R), b = heroJump('jump', R);
     for (const t of [0, 0.3, 0.55, 1]) expect(JSON.stringify(a.fn(t))).toBe(JSON.stringify(b.fn(t)));

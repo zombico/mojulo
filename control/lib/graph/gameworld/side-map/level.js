@@ -25,7 +25,7 @@
  * Pure.
  */
 import { playerWorld } from '../../playscape/player.js';
-import { feelRule } from '../feel/lower.js';
+import { feelRule, readFeel, feelCard, takesOfCard } from '../feel/lower.js';
 import { sideMapOf, SIDE_MAP_STATURE } from './scene.js';
 import { sideMapPlay, SIDE_FALL, SIDE_DOWN } from './play.js';
 import { sideMapLamps } from './light.js';
@@ -64,7 +64,10 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
   const written = G.feel ? feelRule(G.feel) : null;
   const rule = { ...(written ?? {}), move: 'lane', lane: [[0, r3(s0 - 20)], [0, r3(s1 + 20)]], collideHeight: stature };
   const controls = `A / D  run · Space  jump${written?.dash ? ' · F  dash' : ''}${written?.buster ? ' · J  fire (hold: charge)' : ''}${written?.moveset && written?.strike === 'melee' ? ' · J  saber (press again: the string)' : ''}${L.ladders.length ? ' · W / S  climb' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
-  const W0 = playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), walk: false, id: 'hero', title: name, controls, rule });
+  // (the hero's own jumps, where the feel plays its takes: the figure carries the clips its rule's takes play, the card's
+  // over feel/lower.js TAKES; without them the page has no clip for a take and the air plays the run)
+  const takes = G.feel && readFeel(G.feel).takes ? takesOfCard(feelCard(G.feel)) : null;
+  const W0 = playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), walk: false, id: 'hero', title: name, controls, rule, ...(takes ? { takes } : {}) });
   const hero0 = { ...W0.entities[0], transform: { pos: P.spawn, heading: Math.PI / 2 } };
   // its FOES (cast.js): the level's bestiary stood on the map's spawners, on the lane's rail, by the stage's extra (the
   // runner's foe cast, foes.js hostileCast); what it gives the hero (its stomp, its hit egg) laid over the hero's own

@@ -126,7 +126,7 @@ function armedPilot(G, entity, cam) {
   };
 }
 const SNEAK_TUNE = Object.freeze({ team: 'guards', rule: { guardRadius: 10, speed: 3, turnRate: 2.2 }, body: { hittable: false } });
-import { feelRule, readFeel, TAKES, feelCard, lowerFeel, feelVayo } from './feel/lower.js';
+import { feelRule, readFeel, takesOfCard, feelCard, lowerFeel, feelVayo } from './feel/lower.js';
 import { reachOf } from './feel/reach.js';
 import { laidCasting, laidJoins } from './casting.js';
 import { readCourse, courseAt, coursePlan, courseLaws, joinLaw, lowerCourse, slabOf } from './course.js';
@@ -872,7 +872,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = nu
     const written = G.feel ? feelRule(G.feel) : null;
     const rule0 = written ? { ...written, ...(camRule ?? {}) } : camRule, struck = strikeWindow(G, rule0);
     // (a feel that asks for its takes: the hero plays its own jumps on the rule's flight, feel/lower.js TAKES)
-    const takes = G.feel && readFeel(G.feel).takes ? TAKES : null;
+    // (the card's own jumps over them where it names any: a run-and-gun hero's poised jump, feel/lower.js takesOfCard)
+    const takes = G.feel && readFeel(G.feel).takes ? takesOfCard(feelCard(G.feel)) : null;
     const rule1 = struck ? { ...(rule0 ?? {}), ...struck } : rule0;
     // (the hero collides as tall as it stands, `heroStature`, the run's read of its made body; a mascot pilot keeps its
     // own capsule; none read, the person's 1.7 m as before)

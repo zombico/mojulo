@@ -5,9 +5,9 @@
  *
  *   a run      held right; a hop at each step up the path (path.js) and each crate standing in it (crates.js); a jump at each pit's lip (the move it teaches: a running jump, a dash jump out of a dash
  *              begun a few frames before, a jump and an air dash at its apex)
- *   a chimney  the next stand (a rest, then the way out over the far wall's top): kicked up the wall across from it, kick
- *              after kick, until the feet are over it, then over onto it. Each kick counted; the least the feet stood
- *              over the rising frame's bottom is the climb's MARGIN
+ *   a chimney  the next stand (a rest, then the way out over the far wall's top): kicked up the wall across from a rest
+ *              (the exit: up its own wall), kick after kick, until the feet are over it, then over onto it. Each kick
+ *              counted; the least the feet stood over the rising frame's bottom is the climb's MARGIN
  *   a foe      ahead on its floor within FOE_AHEAD m (cast.js): fired at, a tap every FOE_TAP frames; hopped when it reaches it;
  *              with a BLADE (a saber's string, feel/saber.js), closed on and cut in its reach, press after press
  *   a ladder   walked to, held up to its top
@@ -68,7 +68,7 @@ export function playSideMap(layout, reach, { stature = 1.7, seconds = 240, trace
     // a CHIMNEY, a ledge stair, a switchback, a stair: the next stand, kicked or jumped to
     if (Z.run === 'up' && Z.climb !== 'ladder') {
       const o = L.open.find((r) => r.zone === Z.i), top = Z.exit[1];
-      const stands = [...L.rests.filter((r) => r.zone === Z.i).map((r) => ({ s0: r.s0, s1: r.s1, z: r.z })), { s0: o.s1, s1: o.s1 + 3, z: top }].sort((a, b) => a.z - b.z);
+      const stands = [...L.rests.filter((r) => r.zone === Z.i).map((r) => ({ s0: r.s0, s1: r.s1, z: r.z })), { s0: o.s1, s1: o.s1 + 3, z: top, exit: true }].sort((a, b) => a.z - b.z);
       // (the next stand over the one it last stood on: a jump's height is not where it stands)
       if (h.grounded || standZ === null) standZ = z;
       const next = stands.find((t) => t.z > standZ + 0.25) ?? stands.at(-1), mid = (next.s0 + next.s1) / 2, onNear = mid < (o.s0 + o.s1) / 2;
@@ -81,8 +81,10 @@ export function playSideMap(layout, reach, { stature = 1.7, seconds = 240, trace
         const dir = Math.abs(mid - s) < 0.25 ? 0 : Math.sign(mid - s), jump = h.grounded && next.z > z + 0.25 && near;
         press({ strafe: dir, jump, jumpHeld: true });
       } else {
-        // under it: kick up the wall across from it
-        const wallDir = onNear ? 1 : -1, kick = (h.grounded || h.cling) && f - lastKick > kickGap;
+        // under it: kick up the wall across from a rest (a ledge stands out of its own wall: climbing that wall the
+        // body meets it from below), but up the exit's own wall, over its lip (nothing stands out of it; crossing the
+        // shaft from the other wall at the top, a wide one, the body falls back under the lip first)
+        const wallDir = next.exit ? (onNear ? -1 : 1) : onNear ? 1 : -1, kick = (h.grounded || h.cling) && f - lastKick > kickGap;
         if (kick && h.cling) { C.kicks++; lastKick = f; } else if (kick) lastKick = f;
         press({ strafe: wallDir, jump: kick, jumpHeld: true });
       }
