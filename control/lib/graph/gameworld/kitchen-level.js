@@ -26,6 +26,8 @@ import { tuneKitchen } from '../worksim/work-proof.js';
 import { WORK_COLORS } from '../game/work-mechanics.js';
 import { dressOf, dressPlaces, DRESSES } from '../gameroom/dress.js';
 import { readArea, buildArea, raiseWalls } from '../gameroom/area.js';
+import { makeLight, shadeHex, newellNormal } from '../polygonizer/vexar.js';
+import { foodOf, foodFaces } from '../food/derive.js';
 import { workMascot, everydayFeel, areaOut, WORK_CAST, WORK_LEGEND, OVERHEAD } from './work-room.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -33,6 +35,34 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 // how far from a counter's middle a place's E reaches (its side: the counters stand solid)
 const REACH = 1.6;
 const FILL = { ...WORK_COLORS, counter: '#c9ced3', wall: '#ddd5c8', bg: '#f4f0e8' };
+
+/**
+ * THE STUDIO LIGHT: the kitchen lit as a set is, from above and in front.
+ *   the KEY      from high front-left (the camera's side), warm; the FILL from the right, cool and low; each of the room's
+ *                faces shaded by them as it faces the camera (its flat colour was its albedo, unlit)
+ *   the BAKE     ambient occlusion on the faces, the floor subdivided so where a counter stands is darkened round its foot
+ *   the LIVE     the counters' shadows cast once from the key, the cooks' each frame; contact occlusion; the seams inked
+ *   the GRADE    warm, a touch of contrast, a vignette
+ * The tiled floor quieted to two near tones, so the play reads over it.
+ */
+const STUDIO_KEY = Object.freeze([-0.42, -0.5, 0.76]);   // toward the key: high, front (−y), left (−x)
+const STUDIO = makeLight({ direction: STUDIO_KEY.map((v) => -v), ambient: 0.6, diffuse: 0.42, fill: { direction: [-0.75, 0.15, -0.35], diffuse: 0.14 } });
+const STUDIO_FLOOR = Object.freeze(['#ebe5d9', '#dfd8ca']);
+const STUDIO_LOOK = Object.freeze({
+  ao: { subdivide: true, strength: 0.55 },
+  // (the camera's side cut low and what stands outside cast nothing in: the key comes over them)
+  shadows: { actors: true, hour: true, toLight: [...STUDIO_KEY], alpha: 0.28, noCastGroups: ['room:area:wall', 'room:area:cut', 'room:area:dining', 'room:area:street'] },
+  occlusion: { strength: 0.5, reach: 0.6 },
+  creases: true,
+  grade: { from: 'warm', vignette: 0.28, contrast: 1.06, saturation: 1.08 },
+});
+// a face lit by the studio as it faces the camera (its winding is no matter: the side the camera sees is lit)
+function studioLit(f, eye) {
+  if (Array.isArray(f.cornerFills) || typeof f.fill !== 'string' || !/^#[0-9a-f]{6}$/i.test(f.fill)) return f;
+  const n = newellNormal(f.corners), c = [0, 1, 2].map((k) => f.corners.reduce((t, p) => t + p[k], 0) / f.corners.length);
+  const toEye = eye.map((v, k) => v - c[k]), m = n[0] * toEye[0] + n[1] * toEye[1] + n[2] * toEye[2] < 0 ? n.map((x) => -x) : n;
+  return { ...f, fill: shadeHex(f.fill, m, STUDIO) };
+}
 
 export const kitchenOf = (quick) => (quick?.goal !== 'work' ? null : quick.kitchen ?? ((quick.cooks ?? 1) > 1 ? 'split' : null));
 
@@ -84,11 +114,16 @@ export function kitchenLevel(G, { ref = 'kitchen', heroRef = null, title = null 
   K.blocks.filter((b) => b.kind === 'counter').forEach((b, k) => blocks.push({ id: `counter-${k}`, x: [b.min[0], b.max[0]], y: [b.min[1], b.max[1]], h: r3(b.max[2] - b.min[2]), fill: FILL.counter, group: 'room:counter' }));
   const room = floorOf({ half, blocks });
   // THE AREA: the trade's floor, its walls (cut away on the camera's side, the south) and what stands outside
-  const A = readArea(G.room?.area, trade ?? 'hall');
+  // (the trade's area, its floor quieted for the studio unless the world says its own)
+  const A = readArea(G.room?.area ?? (trade === 'kitchen' ? { like: 'kitchen', floor: { pattern: 'tiles', colors: [...STUDIO_FLOOR] } } : undefined), trade ?? 'hall');
   const AR = A ? buildArea(A, { half, cut: ['s'], seed: 1 }) : null;
   const colliders = raiseWalls(room.colliders, half, AR?.heights);
   const kept = room.faces.filter((f) => f.group !== 'room:floor' && !String(f.group).startsWith('room:dressed:') && !(AR && f.group === 'room:wall')).map((f) => (f.group === 'room:wall' ? { ...f, fill: FILL.wall } : f));
-  const faces = [...(AR ? AR.faces : room.faces.filter((f) => f.group === 'room:floor')), ...kept, ...D.faces];
+  const lit = (list) => list.map((f) => studioLit(f, K.frame.at));
+  // WHAT EACH CRATE HOLDS: its raw thing (the food shelf's, read off the card) sitting on it, so a crate is read at a glance
+  const FOOD = foodOf(C);
+  const onCrates = Object.entries(at.crates).flatMap(([item, p]) => (FOOD[item] ? foodFaces(FOOD[item], { at: [p[0], p[1], r3(p[2] + 0.72)], size: 0.5, group: 'room:food' }) : []));
+  const faces = [...lit([...(AR ? AR.faces : room.faces.filter((f) => f.group === 'room:floor')), ...kept, ...D.faces]), ...onCrates];
 
   // THE SHIFT: the work mechanic on the kitchen's places, a hand a cook (the level's seats), its goal the tuned one
   const game = {
@@ -102,6 +137,8 @@ export function kitchenLevel(G, { ref = 'kitchen', heroRef = null, title = null 
     camera: { rule: 'fixed', target: 'hero', stations: [{ at: K.frame.at, focus: K.frame.focus }], track: 0, lookH: 0 },
     ...(bodies.length ? { seats: { bodies: bodies.map((b) => b.id), max: cooks, join: 'drop-in', drop: 'pause' } } : {}),
     ...(step ? { audio: { footsteps: { step } } } : {}),
+    // (the studio's baked and live light, and its grade: see STUDIO_LOOK)
+    ...JSON.parse(JSON.stringify(STUDIO_LOOK)),
     game,
   };
   // THE LAWS: the kitchen's (its sides, its passes, its frame), the cooks' jump asked of its counter

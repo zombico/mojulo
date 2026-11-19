@@ -65,4 +65,9 @@ station to station and handed between them.
   pizza in layers; a thing several things are cooked into that names its base is that base with the rest mixed through
   (fried rice); a dish put through an oven comes out browned; an ingredient's finer method is a row (an egg boiled is
   halved); poultry, pork, dough, bones, tofu and fries are rows. Every starter's food holds every law (a deep sweep).
+- **The kitchen, lit as a studio set.** A warm key from high in front and to the left and a cool fill from the right
+  shade each of the room's faces as it faces the camera; ambient occlusion is baked (the floor subdivided, so a counter
+  darkens round its foot); the counters' shadows are cast once from the key and the cooks' each frame (the camera's
+  side, cut low, and the surround cast nothing in); contact occlusion and inked seams live; a warm grade with a vignette.
+  The tiled floor is quieted to two near tones. Each crate shows its raw thing sitting on it, drawn by the food shelf.
 

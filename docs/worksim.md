@@ -249,7 +249,9 @@ in a split kitchen four cooks serve little more than two.
 
 The quick door's `cooks` (1, 2 or 4) and `kitchen` make the level a kitchen room of its own
 (`gameworld/kitchen-level.js`), never a line by a trail: the game room's area for the trade (its floor, its walls cut
-away on the camera's side, what stands outside), each place dressed as the trade's thing, each cook on its own side, a seat nobody sits in held still, and one fixed overhead station framing the whole room. The floor carries no recipe: the work room's arrows are for
+away on the camera's side, what stands outside), each place dressed as the trade's thing, each cook on its own side, a seat nobody sits in held still, and one fixed overhead station framing the whole room. It is lit as a studio set: a warm key and a cool fill shading its
+faces, ambient occlusion baked, the counters' and the cooks' shadows cast from the key, contact occlusion, inked seams
+and a warm grade; its floor's tiles are quieted, and each crate shows its raw thing on top. The floor carries no recipe: the work room's arrows are for
 practice, and in the game working out what comes next is the cooks' job. Each seat's
 state is in its own corner in its colour (P1 bottom left, P2 bottom right, P3 top right, P4 bottom): its hands, and what
 it holds while it holds it. A tag over each cook says its seat in its colour and what it carries, and the open
