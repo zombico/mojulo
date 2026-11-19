@@ -15,3 +15,6 @@
   (`realisticPlan`: the same species, places and heights), each painted from its template's own structure
   (`era/isekai.js` REAL_BANDS): the trees near the trail built whole, the rest stamped from a few turned variants, the far
   casting as their coarse selves. One stand of trees in both eras; a trail without the word draws as it did.
+- **No grass hats on rocks in new gen-6 scenes:** a stage's `hats: 'lips'` keeps its rocks clean (no grass cap, no
+  fringe on a boulder) and its cliff lips' fringe; a new level's trail stage is written with it (`gameworld/levels.js`),
+  and a geocube path takes the word. `hats: true` and `false` and rows already made draw as they did.

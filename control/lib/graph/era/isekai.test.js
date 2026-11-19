@@ -407,4 +407,13 @@ describe('a stage kept clean', () => {
     expect(JSON.stringify(assembleStageScene({ ...M, hats: true }).faces)).toBe(JSON.stringify(plain.faces));
     expect(() => assembleStageScene({ ...M, hats: 'no' })).toThrow(/hats/);
   });
+
+  it("hats: 'lips' keeps the rocks clean and the cliff lips' fringe: no cap and no fringe on a rock, the lips as they were", () => {
+    const M = { kind: 'stage', kit: 'isekai-meadow' }, plain = assembleStageScene(M), lips = assembleStageScene({ ...M, hats: 'lips' });
+    const n = (P, g) => P.faces.filter((f) => f.group === g).length, caps = (P) => P.faces.filter((f) => /:hat-(lit|shade)$/.test(f.texture || '')).length;
+    expect(n(lips, 'isekai:hat')).toBe(0); expect(caps(lips)).toBe(0);
+    expect(caps(plain)).toBeGreaterThan(0);
+    expect(n(lips, 'isekai:lip')).toBe(n(plain, 'isekai:lip'));
+    expect(n(lips, 'isekai:cliff')).toBe(n(plain, 'isekai:cliff'));
+  });
 });

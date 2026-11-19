@@ -1158,9 +1158,10 @@ const PLAY_LISTS = ['cues', 'menus', 'parts', 'spots', 'routines', 'quests', 'sc
 // A NEW LEVEL'S GRASS (era/isekai.js `grass.form`): a trail stage on an isekai land (its kit, or a geocube's) is made with
 // its field drawn as the form render's grass near and the raised ground beyond, in its own ramp (channels/stage-grass.js),
 // in place of the spiky tufts and cards. Written here, as the level is made, so a stage already stored keeps what it drew;
-// it says only how its grass is drawn: a stage that grows none stays bare. A recipe's own `grass` is kept
+// it says only how its grass is drawn: a stage that grows none stays bare. And no grass hat on its rocks (`hats: 'lips'`:
+// the cliff lips' fringe kept), a recipe's own `hats` kept. A recipe's own `grass` is kept
 const withFormGrass = (m) => (m && m.kind === 'stage' && m.trail !== undefined && m.grass === undefined && (m.geocube !== undefined || /^isekai-/.test(m.kit ?? ''))
-  ? { ...m, grass: { form: true } } : m);
+  ? { ...m, grass: { form: true }, ...(m.hats === undefined ? { hats: 'lips' } : {}) } : m);
 
 function mergePlay(base, extra) {
   if (!base) return extra;

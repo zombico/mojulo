@@ -144,10 +144,11 @@ describe('a path\'s grass and crowns', () => {
     // (the stage the scene lowers to, caught as it is handed to the builder)
     const STOP = new Error('caught');
     const at = (m) => { let low = null; try { assembleGeocubeScene({ kind: 'geocube', cube: 'valley-morning', seed: 7, ...m }, {}, (l) => { low = l; throw STOP; }); } catch (e) { if (e !== STOP) throw e; } return low; };
-    expect(at({ show: 'path', grass: { form: true }, crowns: 'hybrid' })).toMatchObject({ grass: { form: true }, crowns: 'hybrid' });
+    expect(at({ show: 'path', grass: { form: true }, crowns: 'hybrid', hats: 'lips' })).toMatchObject({ grass: { form: true }, crowns: 'hybrid', hats: 'lips' });
     const plain = at({ show: 'path' });
     expect(plain.grass).toBeUndefined();
     expect(plain.crowns).toBeUndefined();
-    expect(() => assembleGeocubeScene({ kind: 'geocube', cube: 'valley-morning', show: 'land', crowns: 'hybrid' }, {}, () => ({}))).toThrow(/grass and crowns/);
+    expect(plain.hats).toBeUndefined();
+    expect(() => assembleGeocubeScene({ kind: 'geocube', cube: 'valley-morning', show: 'land', crowns: 'hybrid' }, {}, () => ({}))).toThrow(/grass, crowns and hats/);
   });
 });

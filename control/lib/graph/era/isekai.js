@@ -13,7 +13,8 @@
  *             their sides pixel-locked the same way
  *   hats      a boulder big enough wears one: its top cap is a grass tile and a ragged grass FRINGE drapes over its
  *             shoulder; every cliff LIP (a grass cell above a cliff cell) drapes the same fringe down the face
- *             (a stage's `hats: false` keeps the rocks and the lips clean: no cap, no fringe)
+ *             (a stage's `hats: false` keeps the rocks and the lips clean: no cap, no fringe; `hats: 'lips'` the rocks
+ *             alone, the lips' fringe kept)
  *   grass     tufts as crossed blade cards, pixel-locked, lit or shade by the shadow at the tuft's root
  *   trees     a crown of overlapping round masses on a short trunk, baked and locked to the foliage ramp
  *   layers    the far ridges painted from the far ramp; a thin haze; the sky dome from the sky ramp; a high cloud deck
@@ -821,17 +822,18 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // (read in the form render, gen-7: no fringe draped over a cliff's lip or a boulder's rim, and no grass cap on a boulder:
   // they are painted cards and painted tops, tricks the material render does not keep; the rock stays rock, its moss the
   // form's own, optional; ctx.form, worlds/world-scene.js)
-  // (a stage's `hats: false`: the rocks and the cliff lips kept clean, no grass cap and no fringe)
-  if (manifest.hats !== undefined && typeof manifest.hats !== 'boolean') throw new Error('stage: hats is true or false (false: no grass cap on a rock, no fringe over a cliff lip)');
-  const drapes = !ctx.form && manifest.hats !== false;
-  const grows = !!st.grass && (!SH || !!B) && !site.cavern, hatOf = (b) => !b.cave && drapes && grows && b.s >= st.boulder.minHat;
+  // (a stage's `hats: false`: the rocks and the cliff lips kept clean, no grass cap and no fringe; `hats: 'lips'`: the
+  // rocks kept clean, the cliff lips' fringe kept: a new scene's, gameworld/levels.js)
+  if (manifest.hats !== undefined && typeof manifest.hats !== 'boolean' && manifest.hats !== 'lips') throw new Error("stage: hats is true, false or 'lips' (false: no grass cap on a rock, no fringe over a cliff lip; 'lips': the cliff lips' fringe alone)");
+  const drapes = !ctx.form && manifest.hats !== false, rockHats = drapes && manifest.hats !== 'lips';
+  const grows = !!st.grass && (!SH || !!B) && !site.cavern, hatOf = (b) => !b.cave && rockHats && grows && b.s >= st.boulder.minHat;
   const capSnow = (f) => SF && f.normal[2] > SN.hold && SF(...mean(f.corners), f.normal) > 0;
   const asCap = (b) => (f) => (capSnow(f) ? { ...asRock(f), group: 'isekai:snow', tint: landTint['isekai:snow'] } : SH && hatOf(b) ? { ...asRock(f), group: 'isekai:ground', tint: landTint['isekai:ground'] } : asRock(f));
   const rockFaces = SH ? [...ground.faces.filter((f) => f.cel === 'cliff').map(asRock), ...boulders.flatMap((b) => [...b.sides.map(asRock), ...b.cap.map(asCap(b))])] : [];
   if (!SH) for (const f of ground.faces) if (f.cel === 'cliff') draw(f, 'cliff', lit(mean(f.corners), f.celN), cliffN);
   const H = st.hat, fringes = [];
   for (const b of boulders) {
-    const hatted = SH ? hatOf(b) : !b.cave && drapes && b.s >= st.boulder.minHat;
+    const hatted = SH ? hatOf(b) : !b.cave && rockHats && b.s >= st.boulder.minHat;
     if (!SH) {
       const bn = MAT ? formNormals([...b.sides, ...b.cap]) : null;
       for (const f of b.sides) draw(f, 'rock', lit(mean(f.corners), f.normal), bn);
