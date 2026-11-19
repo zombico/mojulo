@@ -460,3 +460,7 @@ or a recipe key; the spike mints through the real doors and measures.
   near-neutral, the twilight before it drained to a whisper of blue; so the dark reads as a real night's and the floods'
   warm light is the only colour in it. `stylized`, unless said, is every other cube's night as it was; the day is the
   same either way. Level 0 takes it, its sky and haze near-neutral greys.
+- **A night grade** (scene/channels/grade.js `GRADE_PRESETS.night`): a film's night over the frame, the colour drained
+  further (0.72), a little harder round the middle grey (1.08), the corners dark (0.3), a little grain (0.08), and no
+  hue of its own, so a realistic night's greys and a lamp's warmth stay what they are. Level 0 takes it (`grade:
+  'night'`, laid on its geocube scene by the spike); every list of the grade's words names it.
