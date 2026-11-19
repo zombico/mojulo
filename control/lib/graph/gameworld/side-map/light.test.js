@@ -1,6 +1,6 @@
 // The side map's light (side-map/light.js), baked per corner. The concepts: a large face is cut into cells, each lit at
 // its corners; what gives light (a lamp, the boss's emblem, the far layers) is never lit; the back wall is lighter near
-// a lamp than far from it; a closed face darker just under its lip; a climb's top lighter than its foot and a chute
+// a lamp than far from it; a closed face toward the camera darker deeper in its block, its side darker just under its lip; a climb's top lighter than its foot and a chute
 // darker at its foot; the same map lights the same way; asked flat, the build is the one baked key it was, no corners.
 import { describe, it, expect } from 'vitest';
 import { lightSideMap, SIDE_MAP_LIGHT, sideMapLamps } from './light.js';
@@ -28,10 +28,13 @@ describe('the side map\'s light', () => {
     const [far] = lit([sq(-3, farS - 0.2, farS + 0.2, z, z + 0.2, '#406080', 'sidemap:back')]);
     expect(lum(near.fill)).toBeGreaterThan(lum(far.fill));
   });
-  it('a closed face darker just under its lip; a climb\'s top lighter than its foot; a chute darker at its foot', () => {
+  it('a closed face toward the camera darker deeper in its block, its side darker just under its lip; a climb\'s top lighter than its foot; a chute darker at its foot', () => {
     const floor = L.solids.find((r) => r.zone === 0 && r.role === 'floor' && r.s1 - r.s0 > 4), s = floor.s0 + 2;
     const [hi] = lit([sq(1.5, s, s + 0.2, floor.z1 - 0.4, floor.z1 - 0.3, '#5070a0', 'sidemap:built')]), [lo] = lit([sq(1.5, s, s + 0.2, floor.z1 - 2.1, floor.z1 - 2, '#5070a0', 'sidemap:built')]);
-    expect(lum(hi.fill)).toBeLessThan(lum(lo.fill));
+    expect(lum(hi.fill)).toBeGreaterThan(lum(lo.fill));
+    // (its side, turned along the lane: the soft lip, darker just under its top)
+    const side = (z0, z1) => lit([{ corners: [[1.5, s, z0], [-1.5, s, z0], [-1.5, s, z1], [1.5, s, z1]], normal: [0, -1, 0], fill: '#5070a0', group: 'sidemap:built' }])[0];
+    expect(lum(side(floor.z1 - 0.4, floor.z1 - 0.3).fill)).toBeLessThan(lum(side(floor.z1 - 2.1, floor.z1 - 2).fill));
     const up = L.zones[1], so = L.open.find((r) => r.zone === 1), sc = (so.s0 + so.s1) / 2, top = up.exit[1];
     const [t] = lit([sq(-3, sc, sc + 0.2, top - 0.5, top - 0.4, '#406080', 'sidemap:back')]), [b] = lit([sq(-3, sc, sc + 0.2, top - 20, top - 19.9, '#406080', 'sidemap:back')]);
     expect(lum(t.fill)).toBeGreaterThan(lum(b.fill));
@@ -49,7 +52,7 @@ describe('the side map\'s light', () => {
   it('the material baked: its surfaces textured on world uvs, a glint on its own surfaces only, the back wall bare of it', () => {
     const p = assembleSideMap(M()), tex = p.faces.filter((f) => f.texture);
     expect(tex.length).toBeGreaterThan(100);
-    expect(tex.every((f) => f.textureLit && f.uv.length === 4 && p.textures[f.texture]?.startsWith('data:image/png;base64,'))).toBe(true);
+    expect(tex.every((f) => f.textureLit && f.uv.length === f.corners.length && p.textures[f.texture]?.startsWith('data:image/png;base64,'))).toBe(true);
     expect(p.faces.filter((f) => f.group === 'sidemap:back').some((f) => f.texture)).toBe(false);
     expect(assembleSideMap(M({ light: 'flat' })).textures).toBeUndefined();
     // (a kibble zone's back wall takes no finish: lit the same with its material's finish as without)
