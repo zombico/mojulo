@@ -145,7 +145,11 @@ describe('the realistic tree (`crowns: realistic`)', () => {
     expect(r.nBlobs).toBeGreaterThan(3);
     expect(r.leaves).toBeUndefined();
     expect(r.nClumps).toBeGreaterThan(0);
+    expect(r.nClumps).toBeLessThanOrEqual(r.nBlobs);
     expect(r.budget.tris).toBeLessThanOrEqual(a.budget.tris);
+    // (an oak too: older and branchier, still within its plain tree's triangles)
+    const oak = { ...beech, kinds: [{ form: 'tuft' }] }, ao = floraRead(oak, { kinds: oak.kinds, colours, bases }).templates.find((t) => t.cross), ro = floraRead({ ...oak, crowns: 'realistic' }, { kinds: oak.kinds, colours, bases }).templates.find((t) => t.cross);
+    expect(ro.budget.tris).toBeLessThanOrEqual(ao.budget.tris);
     // (its crown the clouds on its limbs: puffs, more of them than masses, each a coarse lobe)
     expect(r.blobGeo.length).toBe(PUFF.variants);
     expect(r.nBlobs).toBeGreaterThan(REALISTIC.cloud.k[0]);

@@ -222,11 +222,12 @@ function treeTemplate(species, height, crowns = null) {
       // ('realistic': its crown the CLOUDS on its limbs' sections, tree-form.js CLOUD, its masses only where they led the
       // limbs; its leaves only on its clouds)
       // (its leaves ON its clouds: a bundle on a puff's upper, outer face, facing out, at its bundles' middle size, for
-      // what the plain crown's triangles leave once its wood and its puffs are paid: the leaf at the clouds' edges)
+      // what the plain tree's triangles leave once its wood and its puffs are paid: the leaf at the clouds' edges)
       if (FE) {
         M0.blobs = FE.clouds;
         const sMid = [...C0.map((c) => c.s)].sort((a, b) => a - b)[Math.floor(C0.length / 2)] ?? 0.5, tris = (w) => (w.idx || []).length / 3;
-        const plain = budgeted({ ...F, clumps: C0, sites: [] }, { clumpTris: xt, leanTris: xt, sprayTris: 0, woodTris: tris(F.wood), canLean: false }).budget.tris;
+        // (the plain tree it stands for: its species at its height, crowned as a scene without `crowns` has it)
+        const plain = treeTemplate(species, height, null).budget.tris;
         const room = Math.max(0, Math.floor((plain - tris(W.wood) - M0.blobs.length * lobeTris(17, PUFF, PUFF.detail).length) / Math.max(1, xt)));
         M0.clumps = M0.blobs.map((b, i) => {
           const h = (k) => hashN(i * 977 + k), az = 2 * Math.PI * h(1), up = 0.3 + 0.6 * h(2), w = Math.sqrt(1 - up * up), o = [Math.cos(az) * w, Math.sin(az) * w, up];

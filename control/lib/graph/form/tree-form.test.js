@@ -178,35 +178,40 @@ describe('the evoked wood', () => {
     const whole = at(null), tris = (F) => F.wood.idx.length / 3;
     const balls = majorBalls(whole.clumps, { joined: false }).blobs, evoked = at({ balls }), P = evoked.wood.pos;
     expect(tris(evoked)).toBeGreaterThan(0);
-    // (each mass carried: wood reaching the end of the length that leads to it, where it stands or drawn in along it)
-    for (const g of evoked.limbs.filter((x) => x.end >= 0 && !x.fill)) {
+    // (each mass carried: wood reaching the end of every twig that holds its leaves)
+    for (const g of evoked.limbs.filter((x) => x.leaf && !x.fill)) {
       let best = Infinity; for (let i = 0; i < P.length; i += 3) best = Math.min(best, Math.hypot(P[i] - g.to[0], P[i + 1] - g.to[1], P[i + 2] - g.to[2]));
       expect(best).toBeLessThan(g.r0 * 3 + 0.05);
     }
-    expect(evoked.limbs.filter((x) => x.end >= 0 && !x.fill).length).toBe(balls.length);
+    expect(new Set(evoked.limbs.filter((x) => x.leaf && !x.fill).map((x) => x.end)).size).toBe(balls.length);
     const top = Math.max(...balls.map((b) => b.p[2] + b.s)); for (let i = 2; i < P.length; i += 3) expect(P[i]).toBeLessThan(top);
   }, 120000);
 
-  it('grows its limbs from the masses back to the trunk: forks by the pipe model, each length climbing and in proportion, main limbs staggered', () => {
+  it('grows its limbs from the masses back to the trunk: forks by the pipe model, each length climbing and in proportion, main limbs staggered; structural and leaf-holding', () => {
     // (a plain upright trunk and eight masses round a crown)
     const trunk = { pts: Array.from({ length: 11 }, (_, i) => [0, 0, i]), rs: Array.from({ length: 11 }, (_, i) => 0.4 - 0.025 * i) };
     const pads = Array.from({ length: 8 }, (_, i) => { const a = (i * 2 * Math.PI) / 8; return { p: [3 * Math.cos(a), 3 * Math.sin(a), 7 + (i % 3) * 0.8], s: 1.2 }; });
     const L = limbTree(trunk, pads, 0.03), E = L.edges;
-    // (each mass the end of one length, entered from below; fewer main limbs than masses)
-    for (let i = 0; i < pads.length; i++) expect(E.filter((g) => g.end === i).length).toBe(1);
+    const key = (q) => q.map((v) => v.toFixed(4)).join(',');
+    // (STRUCTURAL and LEAF-HOLDING: each mass held by its twigs, the leaf-holding branches; every twig grows from a
+    // structural branch's end, never from the trunk; no main limb holds leaves; a structural branch holds branches)
+    for (let i = 0; i < pads.length; i++) expect(E.filter((g) => g.end === i && g.leaf).length).toBe(EVOKE.twigs.n);
+    for (const g of E.filter((x) => x.leaf)) { expect(g.main).toBe(false); expect(E.some((x) => !x.leaf && key(x.to) === key(g.from))).toBe(true); }
+    for (const g of E.filter((x) => !x.leaf)) expect(E.some((x) => key(x.from) === key(g.to))).toBe(true);
+    // (fewer main limbs than masses)
     const mains = E.filter((g) => g.main && !g.fill);
     expect(mains.length).toBeLessThan(pads.length);
     expect(mains.length).toBeGreaterThanOrEqual(2);
     // (every length climbs: no limb drawn down or level)
     for (const g of E) expect(g.to[2]).toBeGreaterThan(g.from[2]);
-    // (the pipe model: at a fork, the section coming in is the sections going out)
-    const key = (q) => q.map((v) => v.toFixed(4)).join(',');
+    // (the pipe model: at a fork, the section coming in is the sections going out; a stem's its twigs')
     for (const g of E.filter((x) => x.end < 0)) {
       const out = E.filter((x) => key(x.from) === key(g.to));
+      if (g.stem) { expect(out.length).toBe(g.fill ? EVOKE.twigs.fill : EVOKE.twigs.n); expect(out.reduce((a, x) => a + x.r0 * x.r0, 0)).toBeCloseTo(g.r1 ** 2, 6); continue; }
       expect(out.length).toBe(2);
       if (!g.main) expect(out.reduce((a, x) => a + x.r0 * x.r0, 0)).toBeCloseTo((g.r1 / 0.92) ** 2, 4);
     }
-    expect(E.some((g) => g.end < 0 && !g.main)).toBe(true);
+    expect(E.some((g) => g.end < 0 && !g.main && !g.stem)).toBe(true);
     // (the main limbs leave the trunk at heights apart, none under its low share)
     const zs = mains.map((g) => g.from[2]).sort((a, b) => a - b);
     for (let i = 1; i < zs.length; i++) expect(zs[i] - zs[i - 1]).toBeGreaterThanOrEqual(EVOKE.stagger - 1e-9);
@@ -236,16 +241,17 @@ describe('the evoked wood', () => {
     L.trunk.pts.forEach((q, i) => { const over = E.filter((g) => g.main && g.from[2] >= q[2] - 1e-9); expect(L.trunk.rs[i]).toBeGreaterThanOrEqual(Math.sqrt(over.reduce((a, g) => a + (g.r0) ** 2, 0)) * EVOKE.hold - 1e-9); });
     // (its leader's height a habit: a high one reaches higher)
     expect(limbTree(trunk, pads, 0.03, { lead: 0.85 }).top).toBeGreaterThan(L.top);
-    // (each fill limb carries a cloud)
+    // (each fill limb structural, holding its twigs, each twig its cloud)
     const C = branchClouds(E, 3);
-    for (const g of E.filter((x) => x.fill)) expect(C.some((c) => Math.hypot(c.p[0] - g.to[0], c.p[1] - g.to[1]) < g.s * 1.5)).toBe(true);
+    for (const g of E.filter((x) => x.fill && x.leaf)) expect(C.some((c) => Math.hypot(c.p[0] - g.to[0], c.p[1] - g.to[1]) < g.s * 1.5)).toBe(true);
+    expect(E.filter((x) => x.fill && x.main).every((x) => !x.leaf)).toBe(true);
   });
 
-  it('clouds each section but a main limb that forks: puffs sitting on their branch, along it and past its end, smaller inside', () => {
+  it('clouds only the leaf-holding twigs: puffs sitting on their twig, along it and past its end; every structural branch bare', () => {
     const trunk = { pts: Array.from({ length: 11 }, (_, i) => [0, 0, i]), rs: Array.from({ length: 11 }, (_, i) => 0.4 - 0.025 * i) };
     const pads = Array.from({ length: 8 }, (_, i) => { const a = (i * 2 * Math.PI) / 8; return { p: [3 * Math.cos(a), 3 * Math.sin(a), 7 + (i % 3) * 0.8], s: 1.2 }; });
     const E = limbTree(trunk, pads, 0.03).edges, C = branchClouds(E, 5);
-    const sections = E.filter((g) => !g.main || g.end >= 0);
+    const sections = E.filter((g) => g.leaf);
     expect(C.length).toBeGreaterThanOrEqual(sections.length * CLOUD.least);
     expect(C.length).toBeLessThanOrEqual(sections.length * CLOUD.most);
     // (each puff over a branch: a point of a section under its middle, within its own reach across)
@@ -255,11 +261,11 @@ describe('the evoked wood', () => {
       for (const g of sections) for (let k = 0; k <= 20; k++) { const q = limbAt(g, k / 20); if (q[2] <= c.p[2] + 1e-6) bd = Math.min(bd, Math.hypot(q[0] - c.p[0], q[1] - c.p[1])); }
       expect(bd).toBeLessThanOrEqual(c.s * CLOUD.side + over + 1e-6);
     }
-    // (an end's cloud reaches past its end; an inner section's puffs smaller than an end's)
-    const ends = sections.filter((g) => g.end >= 0), inner = sections.filter((g) => g.end < 0);
+    // (a twig's cloud reaches past its end)
     const reach = (g) => Math.max(...C.map((c) => (c.p[0] - g.from[0]) * (g.to[0] - g.from[0]) + (c.p[1] - g.from[1]) * (g.to[1] - g.from[1]))) / ((g.to[0] - g.from[0]) ** 2 + (g.to[1] - g.from[1]) ** 2);
-    expect(reach(ends[0])).toBeGreaterThan(1);
-    if (inner.length) expect(CLOUD.inner).toBeLessThan(1);
+    expect(reach(sections[0])).toBeGreaterThan(1);
+    // (no cloud on a structural branch alone: the clouds only as many as the twigs ask)
+    expect(branchClouds(E.filter((g) => !g.leaf), 5)).toEqual([]);
     expect(JSON.stringify(branchClouds(E, 5))).toBe(JSON.stringify(C));
   });
 });

@@ -133,7 +133,8 @@ export const CANOPY = Object.freeze({ lift: 0.5, bole: Object.freeze([0.42, 0.52
  */
 export const EVOKE = Object.freeze({ reach: 0.5, girth: 0.13, tip: 0.5, drop: 0.22, inward: 0.3, limbs: 2, level: 2, climb: 38, low: 0.4,
   stagger: 0.45, hold: 0.8, bend: 0.08, segs: 4, split: 0.4, rise: 0.3, most: 0.25, base: 0.75, lead: 0.6, gap: 0.08,
-  fill: Object.freeze({ length: 0.12, size: 0.7 }) });
+  fill: Object.freeze({ length: 0.12, size: 0.7 }),
+  twigs: Object.freeze({ stem: 0.7, n: 3, fill: 2, fan: 70, climb: 28, length: 0.9, size: 0.75, tip: 0.6 }) });
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 /** The limbs as a tree of lengths: `trunk` its points and radii, `pads` [{ p, s }], `cut` the thinnest drawn, `lead`
  *  the leader's share of the crown. → { edges: [{ from, to, r0, r1, end, main, s, fill? }], trunk: { pts, rs }, top }
@@ -202,27 +203,50 @@ export function limbTree(trunk, pads, cut, { lead = EVOKE.lead } = {}) {
     edges.push({ from: c.p, to: n.p, r0: gr(r0), r1: gr((n.end >= 0 ? n.r : n.r * 0.92) * f), end: n.end, main: true, s: n.s, ...(fill ? { fill: true } : {}) });
     for (const k of n.kids) walk(n.p, k, f);
   }
-  return { edges, trunk: { pts: tp, rs: trs }, top: topZ };
+  // (STRUCTURAL and LEAF-HOLDING: a length that ended in a mass stops at `stem` of its way, structural, and grows its
+  // mass's TWIGS, the leaf-holding branches the clouds sit on)
+  return { edges: sprouted(edges, thin), trunk: { pts: tp, rs: trs }, top: topZ };
+}
+/**
+ * THE TWIGS (EVOKE.twigs): the branches a tree's leaves are held by. A length that held a mass is made STRUCTURAL: it
+ * stops `stem` of its way along, and from there grows `n` leaf-holding twigs (a fill limb's `fill` of them), fanned
+ * `fan` degrees round the way it ran and climbing `climb` degrees, each `length` × its mass's radius long, its girth
+ * its share of the stem's (the pipe model), tapering to `tip`; each twig's cloud a mass `size` of the mass's. No cloud
+ * on a structural branch: only on a twig.
+ */
+function sprouted(edges, thin = 0) {
+  const T = EVOKE.twigs, out = [];
+  edges.forEach((g, gi) => {
+    if (g.end < 0) { out.push(g); return; }
+    const S = add(g.from, mul(sub(g.to, g.from), T.stem)), d = sub(g.to, g.from), hd = Math.hypot(d[0], d[1]);
+    const head = hd > 1e-6 ? Math.atan2(d[1], d[0]) : 2 * Math.PI * hashN(gi * 31 + 7), n = g.fill ? T.fill : T.n, rT = Math.max(thin, g.r1 / Math.sqrt(n));
+    out.push({ ...g, to: S.map(r4), r1: g.r1, end: -1, stem: true });
+    for (let j = 0; j < n; j++) {
+      const az = head + (n > 1 ? (j / (n - 1) - 0.5) * T.fan * Math.PI / 180 : 0), cl = (T.climb * Math.PI) / 180, l = T.length * g.s;
+      const to = [S[0] + Math.cos(az) * Math.cos(cl) * l, S[1] + Math.sin(az) * Math.cos(cl) * l, S[2] + Math.sin(cl) * l];
+      out.push({ from: S.map(r4), to: to.map(r4), r0: rT, r1: Math.max(thin, rT * T.tip), end: g.end, main: false, s: g.s * T.size, leaf: true, ...(g.fill ? { fill: true } : {}) });
+    }
+  });
+  return out;
 }
 // a length of limb at `t` of its way: bowed up through its middle by EVOKE.bend × its length (an arch)
 export const limbAt = (g, t) => { const l = len(sub(g.to, g.from)), mid = add(mul(add(g.from, g.to), 0.5), [0, 0, EVOKE.bend * l]), u = 1 - t; return [0, 1, 2].map((a) => u * u * g.from[a] + 2 * u * t * mid[a] + t * t * g.to[a]); };
 /**
  * THE CLOUDS a realistic crown's leaves are (`evoke`): one on each DISCRETE SECTION of its limbs, every length that
- * leads to a mass (an end, a main limb's too) and, smaller (`inner` of the size), every length between forks; a main
- * limb that forks bare. A
+ * is LEAF-HOLDING (a twig, EVOKE.twigs); every structural branch bare. A
  * cloud is a run of PUFFS along its section from `from` of its way to `over` × its mass's radius past its end, spaced
  * `step` × a puff's size, `least` to `most` of them; each puff `size` × its mass's radius, the fullest at the run's
  * middle (`swell`), its own by `jitter`; each SITS on its branch, its middle `sit` × its radius over it, and strays
  * `side` × its radius to either side. → [{ p, o, d, s, e, r }], o the section's heading.
  */
-export const CLOUD = Object.freeze({ from: 0.3, over: 0.35, step: 0.95, least: 2, most: 6, size: 0.5, swell: 0.45, jitter: 0.18, sit: 0.5, side: 0.35, inner: 0.6 });
+export const CLOUD = Object.freeze({ from: 0.3, over: 0.35, step: 1.25, least: 2, most: 4, size: 0.5, swell: 0.45, jitter: 0.18, sit: 0.5, side: 0.35 });
 export function branchClouds(edges, seed = 1) {
   const out = [];
   edges.forEach((g, gi) => {
-    if (g.main && g.end < 0) return;
-    const h = (k) => hashN(seed * 7919 + gi * 131 + k), S = g.s * CLOUD.size * (g.end >= 0 ? 1 : CLOUD.inner), d = sub(g.to, g.from), l = len(d);
+    if (!g.leaf) return;
+    const h = (k) => hashN(seed * 7919 + gi * 131 + k), S = g.s * CLOUD.size, d = sub(g.to, g.from), l = len(d);
     const hd = Math.hypot(d[0], d[1]), o = hd > 1e-6 ? [d[0] / hd, d[1] / hd, 0] : [1, 0, 0], side = [-o[1], o[0], 0];
-    const run = (1 - CLOUD.from) * l + (g.end >= 0 ? CLOUD.over * g.s : 0), n = Math.max(CLOUD.least, Math.min(CLOUD.most, Math.round(run / (CLOUD.step * S)) + 1));
+    const run = (1 - CLOUD.from) * l + CLOUD.over * g.s, n = Math.max(CLOUD.least, Math.min(CLOUD.most, Math.round(run / (CLOUD.step * S)) + 1));
     for (let k = 0; k < n; k++) {
       const u = n === 1 ? 0.5 : k / (n - 1), a = CLOUD.from * l + u * run;
       // (along the section, and past its end along its last heading)
