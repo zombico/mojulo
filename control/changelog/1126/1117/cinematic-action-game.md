@@ -473,3 +473,9 @@ or a recipe key; the spike mints through the real doors and measures.
   the south corridor, and a sentry walks that corridor end to end, looking round at each end and feeling a body at his
   elbow. The only way to the office is past him: slipped by from room to room while his back is turned, taken down from
   behind, or darted. The outside's second guard walks the trail between the door and the barracks.
+- **Level 1's yard at night, as level 0's approach** (scripts/spikes/mission/level1.json `segments.perimeter`, yard.mjs):
+  the perimeter was built at 17:00, so its bodies wore the golden hour's warm rim, inside the barracks too. It is now the
+  same night as level 0's: the realistic night, its sky and haze near-neutral greys, the night grade; and the base is
+  lit by four floodlights so it reads in the dark (over the hangar's side door, at the barracks' front, on the apron and
+  at the gate; the first two cast), seated on the land where it was laid, on masts where they stand free. `--hour`
+  still sets another hour.

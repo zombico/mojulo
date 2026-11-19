@@ -109,14 +109,113 @@
       "where": "outdoor",
       "reads": "the floodlit apron: containers, the hangar's door, and on past it the barracks, where the key is",
       "guards": 3,
+      "hour": "night",
+      "light": {
+        "night": "realistic",
+        "sky": {
+          "zenith": "#1a1d21",
+          "horizon": "#3e434a",
+          "fog": "#2b2f34"
+        }
+      },
+      "air": {
+        "kind": "haze",
+        "visibility": 250,
+        "clear": 30,
+        "blur": false,
+        "colour": "#1d2125"
+      },
+      "grade": "night",
+      "floods": [
+        {
+          "id": "hangar-door",
+          "at": [
+            21.2,
+            47.5
+          ],
+          "height": 5.2,
+          "aim": [
+            17.5,
+            45
+          ],
+          "power": 0.75,
+          "cone": 62,
+          "reach": 34
+        },
+        {
+          "id": "barracks-front",
+          "at": [
+            14.5,
+            60.5
+          ],
+          "height": 6,
+          "mast": true,
+          "aim": [
+            15.5,
+            64.5
+          ],
+          "power": 0.75,
+          "cone": 64,
+          "reach": 34
+        },
+        {
+          "id": "apron",
+          "at": [
+            27,
+            34
+          ],
+          "height": 6,
+          "mast": true,
+          "aim": [
+            21,
+            37
+          ],
+          "power": 0.7,
+          "cone": 60,
+          "reach": 34
+        },
+        {
+          "id": "gate",
+          "at": [
+            27,
+            14
+          ],
+          "height": 6,
+          "mast": true,
+          "aim": [
+            21,
+            17
+          ],
+          "power": 0.7,
+          "cone": 60,
+          "reach": 34
+        }
+      ],
+      "nightReads": "the same night as level 0's approach, the infiltration one night: the realistic night (the colour drained, a pale moon, the shade and the sky grey), its haze and the film's night grade; the base lit by four floodlights so it reads in the dark: over the hangar's side door, at the barracks' front, on the apron and at the gate, the first two casting what stands in their beam; between them, the moon's dark to move through",
       "barracks": {
-        "at": { "x": 12, "y": 64, "facing": "+x" },
+        "at": {
+          "x": 12,
+          "y": 64,
+          "facing": "+x"
+        },
         "storeys": 1,
         "wings": "I",
         "loading": "double",
         "bays": 3,
         "key": "nco-office",
-        "sentry": { "corridor": "corridor-1b", "speed": 1.2, "cone": 0.8, "range": 12, "look": { "secs": 5 }, "near": { "r": 2.2, "back": 100 } },
+        "sentry": {
+          "corridor": "corridor-1b",
+          "speed": 1.2,
+          "cone": 0.8,
+          "range": 12,
+          "look": {
+            "secs": 5
+          },
+          "near": {
+            "r": 2.2,
+            "back": 100
+          }
+        },
         "reads": "one storey past the hangar's door at the trail's far end, so the key is fetched and carried back: its lobby, a stair core and a corridor each way, rooms both sides; the key in the first sergeant's office at the far end of the south corridor, a sentry walking that corridor and looking round at its end. The only way to the office is past him: slipped by from room to room while his back is turned, taken down from behind, or put to sleep"
       },
       "holds": [

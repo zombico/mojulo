@@ -52,7 +52,11 @@ const stage = laid.manifest, cubeName = opt('--cube', 'jungle-haze');
 // (the barracks: where the segment seats it and how it is planned, its own words over the rail's)
 const BK = M.segments.perimeter.barracks ?? null, plan = BK ? Object.fromEntries(['at', 'storeys', 'wings', 'loading', 'bays'].filter((k) => BK[k] !== undefined).map((k) => [k, BK[k]])) : {};
 const dress = (b) => (b.enter === 'door' ? b : { ...b, ...(b.use === 'barracks' ? plan : {}), apron: 'slab', yard: { floods: 2, containers: 6 } });
-const scene = { kind: 'geocube', cube: { from: cubeName, era: 'gen-7' }, show: 'path', seed: stage.seed, trail: stage.trail, hour: Number(opt('--hour', 17)), shadows: { actors: true, hour: true }, solid: true,
+// (the segment's night: its hour, the cube's light over the preset's (the night's register, its sky), its air and the
+// frame's grade, as level 0's approach is; `--hour` a number over it)
+const PS = M.segments.perimeter, hourOf = opt('--hour') != null ? Number(opt('--hour')) : PS.hour ?? 17;
+const scene = { kind: 'geocube', cube: { from: cubeName, era: 'gen-7', ...(PS.light ? { light: PS.light } : {}) }, show: 'path', seed: stage.seed, trail: stage.trail, hour: hourOf, shadows: { actors: true, hour: true },
+  ...(PS.air ? { air: PS.air } : {}), ...(PS.grade ? { grade: PS.grade } : {}), solid: true,
   buildings: stage.buildings.map(dress) };
 const r2 = (p) => p.map((v) => +v.toFixed(2));
 const g0 = room.manifest.entities.find((e) => e.id === 'guard-1'), h0 = room.manifest.entities.find((e) => e.id === 'hero');
@@ -113,7 +117,16 @@ const sentryOf = (e) => {
 payload.entities = payload.entities.map((e) => (e.id === 'hero' ? { ...e, rule: { ...e.rule, step: 0.35, mission }, transform: { pos: start, heading: Math.PI / 2 } }
   : e.id === 'guard-3' && sentry ? sentryOf(e)
   : rounds[e.id] ? { ...e, transform: { pos: r2(rounds[e.id].at), heading: rounds[e.id].heading } } : e));
-console.log(`yard: start ${start} · hangar door ${outside} · key ${mission.items[0].at} (the barracks' ${dayRoomOf.id}) · guards ${Object.values(rounds).map((g) => r2(g.at)).join(' | ')}${sentry ? ` · sentry ${sentry.from} ↔ ${sentry.to}` : ''} · form ${payload.form ? 'yes' : 'NO'}`);
+// THE FLOODLIGHTS (the segment's `floods`: scene/channels/form-floods.js), seated on the land where it was laid: each lamp
+// `height` metres over its ground, on a mast where it says one (else on the wall it hangs from), aimed at the ground
+if (PS.floods && payload.form?.land) {
+  const { readFloods } = await import('../../../lib/graph/scene/channels/form-floods.js');
+  const { groundOf } = await import('./lib.mjs');
+  const gz = groundOf(payload), zAt = (p) => gz(p[0], p[1]) ?? spawn[2];
+  payload.form.land.floods = readFloods(PS.floods.map((f) => ({ at: r2([f.at[0], f.at[1], zAt(f.at) + (f.height ?? 6)]), aim: r2([f.aim[0], f.aim[1], zAt(f.aim)]),
+    ...(f.mast ? { mast: +zAt(f.at).toFixed(2) } : {}), ...Object.fromEntries(Object.entries(f).filter(([k]) => ['colour', 'power', 'cone', 'reach', 'shadow'].includes(k))) })));
+}
+console.log(`yard: start ${start} · hangar door ${outside} · key ${mission.items[0].at} (the barracks' ${dayRoomOf.id}) · guards ${Object.values(rounds).map((g) => r2(g.at)).join(' | ')}${sentry ? ` · sentry ${sentry.from} ↔ ${sentry.to}` : ''} · ${scene.hour} h${payload.form?.land?.floods ? ` · floods ${payload.form.land.floods.length}` : ''} · form ${payload.form ? 'yes' : 'NO'}`);
 // THE BOUNDS: the trail's walls give way to one perimeter round the trail and what is built beside it
 const isBound = (c) => /^bound:/.test(c.of ?? ''), bounds = payload.colliders.filter(isBound), built = payload.colliders.filter((c) => /^(hangar-bay|barracks)/.test(c.of ?? ''));
 if (bounds.length) {
