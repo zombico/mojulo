@@ -809,6 +809,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // within its reach is seen whatever way it faces, unless square behind it while it walks (and all round while a patrol
 // looks round, foe.js `patrol.look`). No fixture's mind carries `near`, so every sight is the cone's as it was; only the
 // runtime's text moved. foe.js's look round is emitted only where a world stands a foe, and no fixture does.
+// Re-pinned 2026-11-19 (1117-cinematic-action-game: crawling under things): `mission` only. The world's veils may carry a
+// crawl space (veil.js `under`, a box with no patch's middle and radius), so the radar's plan (gameworld/radar.js
+// planSvg, inlined by the page) draws tall grass from the patches alone. The fixture has no veils: its plan is as it was;
+// only the inlined source moved.
 // Re-pinned 2026-11-19 a sixth time (1117-mana-ui-talking-heads merged into 1117-cinematic-action-game): the fixtures
 // whose page inlines text either side had moved since (that side: the talk box on mana-ui and its talking faces, a game
 // UI's root laid in the scene's frame, the radar's plan at the floor a level stands on, every shooter's HUD; this side:
