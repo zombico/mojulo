@@ -3,10 +3,10 @@
 A stylish action game made through `design_game`: Lucien fights through a citadel of the armed dead, room by room,
 to the knight in its sanctum. `world.json` is the whole recipe; everything else is made from it.
 
-- **The hero:** Lucien, on the realistic body (`form: 'realistic'`), light-brown hair to the jaw, off his face, on the realistic head, a long pale coat open over
+- **The hero:** Lucien, on the realistic body (`form: 'realistic'`), light-brown hair drawn back off his face into a ponytail (`hair: 'ponytail'`), on the realistic head, a long pale coat open over
   dark clothes (the world is dark: the coat is what reads against it), its skirt long tails and side panels hung from
   the waist so the legs pass between them in a fight; its sleeves rolled to the elbow, small leather
-  shoulder caps under the coat's own shoulder straps, a stocking of the coat's colour under its shoulders, and flared leather gauntlets (`hands: 'cavalierGloves'`), a sword in the right hand. The feel is the
+  shoulder caps under the coat's own shoulder straps, a stocking of the coat's colour under its shoulders, flared leather gauntlets (`hands: 'cavalierGloves'`) and tall brown riding boots with a folded cuff, the trousers tucked into them (`feet: 'cavalierBoots'`, the bottom's `into: 'boots'`, the palette's `Shoes`), a sword in the right hand. The feel is the
   template's (`feel: 'fallen-angel'`) and the kit is its kit swung in the `wild` art
   (`arsenal: { from: 'fallen-angel', art: 'wild', weapons: [ … ] }`): the sword and the bo, switched mid-string, the
   pistols. The bo is the second weapon in the fist's place (`held: { item: 'staff', style: 'historical' }`): a plain

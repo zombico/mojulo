@@ -334,7 +334,7 @@
           "physique": "athletic"
         },
         "hair": {
-          "hair": "angled"
+          "hair": "ponytail"
         },
         "colour": {
           "palette": {
@@ -342,7 +342,7 @@
             "Top": "#2a2a30",
             "Bottom": "#202026",
             "Trim": "#8c2a30",
-            "Shoes": "#141416",
+            "Shoes": "#6a4428",
             "Outer": "#d9d0bf",
             "Panel": "#d9d0bf",
             "Gloves": "#2b1d16",
@@ -365,7 +365,8 @@
             "bottom": {
               "family": "woven",
               "leg": "long",
-              "cut": "tapered"
+              "cut": "tapered",
+              "into": "boots"
             },
             "outer": {
               "family": "woven",
@@ -391,7 +392,7 @@
                 "family": "woven"
               }
             ],
-            "feet": "boots",
+            "feet": "cavalierBoots",
             "hands": "cavalierGloves"
           },
           "pieces": [
