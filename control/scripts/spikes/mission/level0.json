@@ -6,7 +6,24 @@
   "section": "insertion",
   "cube": {
     "from": "jungle-haze",
-    "biocube": "upland",
+    "biocube": {
+      "from": "upland",
+      "flora": {
+        "trees": {
+          "clusters": 12,
+          "perCluster": [
+            2,
+            4
+          ],
+          "spread": 4,
+          "heights": [
+            7,
+            12
+          ],
+          "clearTrail": 6
+        }
+      }
+    },
     "outside": {
       "cliff": false
     }
@@ -264,6 +281,8 @@
     "detected": 40
   },
   "run": 20,
+  "width": 4.5,
+  "widthReads": "the trail's width in metres (the stage trail's `width`; the kit's footpath is about two): a track a vehicle takes, a jeep's width and more at its narrowest (it wanders a quarter either way)",
   "structures": [
     {
       "id": "bags-west",
@@ -553,7 +572,8 @@
   "grassReads": "tall grass in tight clumps, the field's own grass a meadow as level 1's yard has it (real blades, short and medium), never tall: the tall grass is cover, laid where it hides; a body crouched or lying a stride into it is unseen (a lookout up a tower sees a crouch, not a body lying flat; a guard within 2 m sees whatever); standing, the eye is over it",
   "path": {
     "rubble": "parallax",
-    "reads": "the trail's rubble drawn in the ground's shader (parallax pebbles in clusters), none stood up as stones: fewer and cheaper"
+    "reads": "the trail's rubble drawn in the ground's shader (parallax pebbles in clusters), none stood up as stones: fewer and cheaper; `match` 0.85: the track's worn core (its clay, turned toward red by the colour theorist) brought to its edges' dirt, a shade darker, so the two read as one ground",
+    "match": 0.85
   },
   "screen": "screen",
   "air": {
@@ -562,7 +582,7 @@
     "clear": 30,
     "blur": false
   },
-  "cubeReads": "the jungle haze's look on open ground: no cliff walling the trail (a field both sides), lone trees on a short-grassed upland in place of bamboo groves; the ground most of the frame's cost, the jungle a tenth of it",
+  "cubeReads": "the jungle haze's look on open ground: no cliff walling the trail (a field both sides); the upland's lone trees grown into a dozen stands of two to four, seven to twelve metres tall, kept six metres off the trail's line (clear of the wider track), so the gorge reads wooded without a jungle's cost",
   "grassElsewhere": "meadow",
   "checkpointReads": "a line across the whole field: wire to its edges, sandbags either side of a gate on the trail, a tower over the gate, the truck parked on the line with a slot beside it; and a cut in the west wire, screened by tall grass both sides, that the patrol along the line walks past",
   "gorge": {

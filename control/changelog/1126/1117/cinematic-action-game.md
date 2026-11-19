@@ -335,3 +335,15 @@ or a recipe key; the spike mints through the real doors and measures.
   turned out), every channel keeping its side through the cycle, so nothing sweeps through the body between keys.
 - **The radar a glass** (mana-ui css.js, a scope minimap): its face a third of the panel's colour at its middle (seven
   tenths) and the map under it at 0.55 (0.8), so the world reads through it and it never stands over the play as a disc.
+- **A trail as wide as it is said** (a stage trail's `width`, era/out-trail.js; a geocube scene's `trail`): the walked way
+  in metres, 1.2 to 8, wandering along it as the kit's footpath does; absent, the kit's own (about two), so every trail
+  that says none is laid as it was. Level 0's is 4.5 m: a track a jeep fits at its narrowest, the stands of trees kept
+  six metres off its line.
+- **A trail's dirt brought together** (a trail's `match`, 0 to 1, era/trail-dress.js, color-theorist/ground.js
+  `soilTones`): the colour theorist lays a dirt trail in two dirts about the floor, a lighter powder toward the light at
+  its edge and a darker clay toward red in its worn core; on some floors the two read as a red strip in a grey verge.
+  `match` brings the core's clay to the powder's hue and fullness, keeping its shade darker, so the track reads as one
+  ground worn down the middle. Absent or 0, the tones are as they were. Level 0's trail at 0.85.
+- **Trees back on level 0** (the level's cube: the upland's lone trees grown into a dozen stands of two to four, seven
+  to twelve metres): the gorge wooded again without the jungle's cost; the sneak's laws hold as before (each way still
+  seen first, an unseen way and a second one at both places).

@@ -180,7 +180,10 @@ A cube that names no domains offers one per terrain and one per interior.
   on the micro-town or micro-city builds it in that style, over the settlement's own; `path` dresses the trail its
   street lies on (as a stage's `trail` does): `surface` a ground word (earth, the dirt, by default; stone-road and
   gravel laid in the dirt; flags, setts, brick-paving, pavement, asphalt kept), and on a gritty cube's dirt `rubble` at
-  its edges and `patches` (worn, damp, gravel, crown, puddle), each `false` for none;
+  its edges and `patches` (worn, damp, gravel, crown, puddle), each `false` for none; `match` (0 to 1) brings the
+  dirt's core (its clay, turned toward red) to its edge's (the powder), so the two read as one ground, a shade darker in
+  the middle (gen-7); a scene's `trail` takes `width`, the walked way in metres (1.2 to 8; absent, the kit's footpath of
+  about two; four or more is a track a vehicle takes);
   `show: 'hall'` its interior (its room, or an inside domain) walked as a HALL, rooms strung on a walk from the seed
   (era/in-hall.js: squeeze, reveal, landmark, pocket, rest; the kit's set piece in the landmark's room), `hall` its
   recipe (`run`, `heartbeat`, `beats`, `height`, `mouth`, `exit`), its laws on the answer;

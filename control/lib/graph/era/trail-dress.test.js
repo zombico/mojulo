@@ -136,4 +136,11 @@ describe('a trail dressed on a stage', () => {
     expect(patches(K).length).toBeGreaterThan(0);
     expect(patches(K).some((f) => f.corners.some(inBox))).toBe(false);
   }, 90000);
+
+  it('match: how near the core\'s dirt sits to the edge\'s, 0 to 1, carried where it is said', () => {
+    expect(readTrailDress({}).match).toBeUndefined();
+    expect(readTrailDress({ match: 0.85 }).match).toBe(0.85);
+    expect(() => readTrailDress({ match: 2 })).toThrow(/match/);
+    expect(readOutTrail({ match: 0.5 })).toBeTruthy();
+  });
 });

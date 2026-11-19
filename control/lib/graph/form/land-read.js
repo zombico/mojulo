@@ -235,7 +235,8 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   // the finer ones stay the layer's (its normal map, its parallax near)
   // the DIRT'S TWO TONES (color-theorist/ground.js soilTones): the floor's powder and clay as targets, their bases the floor's
   // solved base moved by each target's share of the floor's (so the light that shows the floor shows them)
-  const tones = soilTones(C.colour.floor, light.sun.color), floorLin = lin(hexRgb(C.colour.floor));
+  // (a trail whose dress brings its dirts together, `match`: the clay nearer the powder)
+  const tones = soilTones(C.colour.floor, light.sun.color, dress.match ? { match: dress.match } : undefined), floorLin = lin(hexRgb(C.colour.floor));
   const dirtBase = Object.fromEntries(Object.entries(tones).map(([k, t]) => [k, lin(hexRgb(t)).map((v, c) => Math.round(light.linearBases.floor[c] * v / Math.max(1e-6, floorLin[c]) * 1e4) / 1e4)]));
   // (the ground the trail's things claim, era/isekai.js ALLOT: its plants' `clear`, [x, y, r] each; no stone and no grass there)
   const CLAIMS = P0.plants?.clear?.length ? P0.plants.clear : null;

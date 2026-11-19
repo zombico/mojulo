@@ -155,4 +155,15 @@ describe('out-trail', () => {
     const colours = [...new Set(html.match(/#[0-9a-f]{3,6}\b/gi))];
     for (const c of colours) { const h = c.length === 4 ? c.slice(1).split('').map((d) => d + d) : [c.slice(1, 3), c.slice(3, 5), c.slice(5, 7)]; expect(new Set(h.map((d) => d.toLowerCase())).size).toBe(1); }
   });
+
+  it('a trail\'s width: the walked way the recipe says, the kit\'s where it says none, checked', () => {
+    expect(readOutTrail({}).width).toBeUndefined();
+    expect(readOutTrail({ width: 4.5 }).width).toBe(4.5);
+    expect(() => readOutTrail({ width: 0.5 })).toThrow(/width/);
+    expect(site().halfW).toBe(ST.trail.width / 2);
+    const W = site({ width: 4.5 });
+    expect(W.halfW).toBe(2.25);
+    // (it wanders as the kit's does, and is wider all along the line)
+    for (const y of [5, 20, 40]) expect(W.halfWAt(y)).toBeGreaterThan(site().halfWAt(y));
+  });
 });

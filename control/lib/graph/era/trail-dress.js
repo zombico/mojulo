@@ -13,8 +13,9 @@
  *             in its ground's shader instead, fewer (form/land-read.js ROAD_PEBBLES), a page's cheaper road
  *   patches   false, or the patch kinds a gritty dirt trail is worn in (PATCH_KINDS); absent, PATCH_DEFAULT
  *
- *   readTrailDress(trail)   → { surface, rubble, patches, pebbles? } (the recipe's, checked; the defaults where it says
- *                             nothing; `rubble` whether stones are strewn, `pebbles` true where they are the shader's)
+ *   readTrailDress(trail)   → { surface, rubble, patches, pebbles?, match? } (the recipe's, checked; the defaults where it
+ *                             says nothing; `rubble` whether stones are strewn, `pebbles` true where they are the shader's;
+ *                             `match` 0 to 1, how near the trail's core dirt sits to its edge's: the form render's, gen-7)
  *
  * Pure.
  */
@@ -29,7 +30,7 @@ import { sandKey } from './sand-tiles.js';
 export const TRAIL_SURFACES = Object.freeze(Object.keys(MATERIAL_WORDS).filter((w) => MATERIAL_WORDS[w].on === 'ground'));
 export const PATCH_KINDS = Object.freeze(['worn', 'damp', 'gravel', 'crown', 'puddle']);
 export const PATCH_DEFAULT = Object.freeze(['worn', 'damp', 'gravel']);
-export const TRAIL_DRESS_KEYS = Object.freeze(['surface', 'rubble', 'patches']);
+export const TRAIL_DRESS_KEYS = Object.freeze(['surface', 'rubble', 'patches', 'match']);
 // the outdoor surfaces, laid in the dirt: how far each leans from the dirt toward its own colour; the dirt spilled over
 // its edge at `spill` of a dirt trail's width (the rest of its border is sand worked into it: SAND_BANDS)
 export const IN_DIRT = Object.freeze({ 'stone-road': Object.freeze({ share: 0.45, spill: 0.45 }), gravel: Object.freeze({ share: 0.5, spill: 0.45 }) });
@@ -47,7 +48,10 @@ export function readTrailDress(trail) {
     for (const k of t.patches) if (!PATCH_KINDS.includes(k)) throw new Error(`stage: trail.patches: '${k}' is not a patch kind (${PATCH_KINDS.join(', ')})`);
     patches = [...new Set(t.patches)];
   }
-  return { surface, rubble: t.rubble !== false && t.rubble !== 'parallax', patches, ...(t.rubble === 'parallax' ? { pebbles: true } : {}) };
+  // (`match`: the trail's two dirts, its core's clay and its edge's powder, brought together: 0 the colour theorist's two,
+  // the clay turned toward red; 1 the core the edge's own dirt, a shade darker; color-theorist/ground.js soilTones)
+  if (t.match !== undefined && !(typeof t.match === 'number' && t.match >= 0 && t.match <= 1)) throw new Error('stage: trail.match is how near the trail\'s core dirt sits to its edge\'s, 0 (the two dirts as the colour theorist offers them: the core\'s clay toward red) to 1 (the core the edge\'s own dirt, a shade darker)');
+  return { surface, rubble: t.rubble !== false && t.rubble !== 'parallax', patches, ...(t.rubble === 'parallax' ? { pebbles: true } : {}), ...(t.match ? { match: t.match } : {}) };
 }
 
 // ── patches ─────────────────────────────────────────────────────────────────────────────────────────────────────────
