@@ -186,7 +186,7 @@ export function lightSideMap(faces, layout, dress, cube, { sky = null, casters =
     }
     // a slice's face toward the camera: the crisp line under its ICING (the cake's cap, `paint-cap`: the layer whose top
     // meets a cap's foot takes it, as wide as both)
-    if (!R && CLOSED(f.group) && !/^sidemap:paint-(cap|jamb|bracket)/.test(f.group) && n[0] > 0.9) {
+    if (!R && CLOSED(f.group) && !/^sidemap:paint-(cap|jamb|bracket|relief)/.test(f.group) && n[0] > 0.9) {
       const top = Math.max(...zs), cap = caps.find((c) => Math.abs(c.z0 - top) < 0.02 && c.s1 > box.s0 + 1e-3 && c.s0 < box.s1 - 1e-3);
       if (cap) { const s0 = Math.max(box.s0, cap.s0), s1 = Math.min(box.s1, cap.s1), b = Math.max(Math.min(...zs), top - S.band), x = Math.max(...xs) + SHADOW.lift;
         return b < top - 1e-3 ? [{ poly: [[x, s0, b], [x, s1, b], [x, s1, top], [x, s0, top]], cast: S.bandCast }] : []; }

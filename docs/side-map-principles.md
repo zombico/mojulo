@@ -188,6 +188,9 @@ The terrain is shaded as a 3D stage's blocks are. Each face is bright under its 
 beneath it, and falls into shade deeper in the block. What stands in the map throws a hard shadow onto the back wall
 and the floors beside it: the ledges, the ceilings, the props and the crates. The shadow falls along a drop shadow's
 own light, shallower than the key's, so it lands in the frame (`control/lib/graph/gameworld/side-map/shadow.js`).
+The faces' painted details carry their depth drawn in, not built: a proud piece lit along its top and left with a
+crisp shadow below and to its right, a recess shadowed under its lip, a stone raised from its mortar
+(`side-map/relief.js`).
 ## Who makes it
 
 The studio lays a map from words, for any game whose camera is side-on and whose hero platforms: the map is a level form

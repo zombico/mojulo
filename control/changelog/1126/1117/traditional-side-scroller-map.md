@@ -278,3 +278,6 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
 - **The terrain's shadows**: a side map's blocks are shaded as a 3D run and gun's stage is: each face bright under its
   icing, with a crisp shadow line beneath it, and falling into shade deeper in the block. Ledges, ceilings, props and
   crates throw hard, crisp shadows onto the back wall and the floors beside them.
+- **The drawn relief**: a side map's painted details are drawn with their depth, as a pixel artist shades relief. Panels,
+  labels, conduits and the icing are lit along their top and left edges and drop a crisp shadow down and to the right.
+  Vents and niches are sunk under a shadowed lip. Brick and stone courses read raised from their mortar.

@@ -44,6 +44,7 @@ import { paintSideMap, backdropOf } from './paint.js';
 import { lightSideMap, sideMapTextures } from './light.js';
 import { doodadsOf } from './doodads.js';
 import { shadowCasters } from './shadow.js';
+import { reliefFaces } from './relief.js';
 import { cratesOf, CRATE } from './crates.js';
 
 export const SIDE_MAP_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed', 'sidemap', 'feel', 'stature', 'light', 'title', 'viewBox']);
@@ -196,6 +197,8 @@ export function assembleSideMap(m, ctx = {}) {
   const C = L.camera, cp = L.checkpoints[0]?.at ?? [0, 0], hfov = (2 * Math.atan(Math.tan((C.vfov * Math.PI) / 360) * (L.screen.width / L.screen.height)) * 180) / Math.PI;
   const s0 = cp[0] + L.screen.width / 2 - 2, look = cp[1] + C.lookH, sky = st.palette.sky;
   // (lit, the material baked and textured: light.js; the horizon the sky a metal and the snow reflect)
+  // (the painted pieces drawn with their depth: a lit edge toward the light, a crisp shadow away from it, relief.js)
+  if (!flat) faces.push(...reliefFaces(faces));
   const litFaces = flat ? faces : lightSideMap(faces, L, D, D0.cube, { sky: rgbHex(st.palette.sky[st.palette.sky.length - 1].map((v) => v / 255)), casters: shadowCasters(L, { doodads: doodadsOf(L, D), crates: L.crates ?? [], half: HALF }) });
   const payload = {
     faces: litFaces,
