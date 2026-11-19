@@ -8,7 +8,7 @@ lives box, the boss's name with its figures, a radar, a melee ring and a strip o
   platformer's rail writes it on a side map game (`SIDE_MAP_LOOK`); the mascot platformer keeps Hilltop.
 - **The side map's HUD** (`gameworld/side-map/hud.js`, given as a side map level's `manaHud` when the game has a `ui`):
   - the hero's energy is a column of fine ticks at the top left, split into one block a life;
-  - the boss's column stands beside it once the boss is awake and near, and its name is said across the top;
+  - the boss's column stands at the top right, opposite, once the boss is awake and near, and its name is said across the top;
   - READY flashes as the level starts and after a life is lost;
   - the keys show as key caps for the first seconds;
   - the radar and the melee ring are put away.

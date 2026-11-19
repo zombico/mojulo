@@ -220,7 +220,7 @@ made by the mascot ooze. The foes are drawn in the hero's cel light.
 
 Its last room may hold a boss (the chain's `boss`, an id from the roster in
 `control/lib/graph/gameworld/bosses.js`). The boss stands three metres in from the far wall, held to the lane, and its
-fall ends the level (`side-map/boss-cast.js`). Its health is a column of ticks in the HUD beside the hero's, never over its head
+fall ends the level (`side-map/boss-cast.js`). Its health is a column of ticks in the HUD at the top right, opposite the hero's, never over its head
 (`side-map/hud.js`, drawn while it fights). A boss is a robot of the hero's own family: his body and his toy suit, at
 its own build and height. Its face is never a person's, because the hero alone keeps the open face. The face is its theme
 instead: a mask, a visor, a grille, one eye, a screen, a beast's head or an object. It always has eyes, lit in its signal
@@ -246,7 +246,7 @@ The eyes gate is the operator's: the map read as a drawing, the level played on 
 ## The HUD
 
 The screen is the level's, so the HUD holds to its corner. The hero's energy is a column of ticks at the top left,
-filling from the foot. The boss's column stands beside it while they fight. READY flashes as a life starts, and the
+filling from the foot. The boss's column stands at the top right while they fight. READY flashes as a life starts, and the
 keys show for the first seconds. There is no radar and no ring: the foes are read on the screen. The parts are
 `control/lib/graph/gameworld/side-map/hud.js`, drawn in the game's look (`docs/mana-ui.md`, "The side map's HUD").
 

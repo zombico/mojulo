@@ -1,12 +1,13 @@
 /**
  * THE SIDE MAP'S HUD — a robot hero's side-scroller read as the 8-bit action platformers read: energy as columns of
- * ticks at the top left, nothing else over the play. On the game UI runtime (docs/mana-ui.md, "A HUD that reads as a
+ * ticks in the top corners, nothing else over the play. On the game UI runtime (docs/mana-ui.md, "A HUD that reads as a
  * game"), hosted by the level page's HUD host (scene/channels/mana-hud.js, its `sidemap` feed), in the game's look.
  *
  *   the hero's column   its lives as a column of fine ticks split into one block a life (a hit and a fall each take
  *                        one: the level has no health of its own yet, so the lives are its energy), filling from the foot
- *   the boss's column   beside it, the boss's energy as a column of fine ticks in its colour, shown only once the boss is
- *                        near and awake and gone a moment after it falls; its name said across the top as it comes in
+ *   the boss's column   at the opposite corner, top right, the boss's energy as a column of fine ticks in its colour,
+ *                        shown only once the boss is near and awake and gone a moment after it falls; its name said
+ *                        across the top as it comes in
  *   READY               flashing in the middle as the level starts and again after a life is lost
  *   the keys            what the buttons do, as key caps along the foot for the first seconds, then gone
  *   what it puts away    the level's own rows (its lives chip, the boss's bar), the radar and the melee ring: a side
@@ -38,11 +39,9 @@ export function keyRowsOf(line) {
 /** The spec it draws (see the header). */
 export function sideMapHudSpec({ lives = 3, boss = null } = {}) {
   return { screens: {}, hud: { use: 'hud', children: [
-    // THE COLUMNS, top left: the hero's lives, the boss's energy beside them while it fights
-    { use: 'region', props: { at: 'top-left', variant: 'bare' }, children: [{ use: 'stack', props: { dir: 'row', gap: 'tight', align: 'start' }, children: [
-      { use: 'bar', props: { value: B('lives'), max: lives, variant: 'hp', segments: lives, figures: false } },
-      ...(boss ? [{ use: 'bar', props: { value: B('boss'), max: boss.hp, variant: 'boss', figures: false }, when: B('bossOn') }] : []),
-    ] }] },
+    // THE COLUMNS: the hero's lives at the top left, the boss's energy at the top right while it fights
+    { use: 'region', props: { at: 'top-left', variant: 'bare' }, children: [{ use: 'bar', props: { value: B('lives'), max: lives, variant: 'hp', segments: lives, figures: false } }] },
+    ...(boss ? [{ use: 'region', props: { at: 'top-right', variant: 'bare' }, when: B('bossOn'), children: [{ use: 'bar', props: { value: B('boss'), max: boss.hp, variant: 'boss', figures: false } }] }] : []),
     // (the boss's name across the top as it comes in, one moment)
     ...(boss ? [{ use: 'region', props: { at: 'top', variant: 'bare' }, children: [{ use: 'moments', props: { rows: B('moments'), as: 'banner', hold: 2.2, read: 0.6 } }] }] : []),
     // READY, flashing in the middle
@@ -56,9 +55,8 @@ export function sideMapHudSpec({ lives = 3, boss = null } = {}) {
 // fills from the foot), on black in a black and ink frame, its fill cut into BOSS_TICKS fine ticks (the genre's), the
 // hero's split by heavy marks into its lives, the boss's in its own colour; READY flashes (twice a second, under the
 // three a second the guidelines allow; still under less motion); what it puts away
-const P = '#moj-mana-hud .mana-place[data-at=top-left]', H = 224, W = 24, TICK = `calc(${H - 6}px / ${BOSS_TICKS})`;
+const P = '#moj-mana-hud :is(.mana-place[data-at=top-left],.mana-place[data-at=top-right])', H = 224, W = 24, TICK = `calc(${H - 6}px / ${BOSS_TICKS})`;
 const SIDE_MAP_HUD_CSS = [
-  `${P} .mana-stack{gap:10px;align-items:flex-start}`,
   `${P} .mana-bar{display:block;position:relative;min-width:0!important;width:${W}px;height:${H}px;padding:0;margin:0}`,
   `${P} .mana-bar .mana-label{display:none}`,
   `${P} .mana-bar .mana-track{position:absolute;left:0;top:${H}px;width:${H}px;height:${W}px;box-sizing:border-box;transform:rotate(-90deg);transform-origin:0 0;border:3px solid #000;border-radius:0;background:#000;box-shadow:0 0 0 2px var(--mana-ink),0 0 0 4px #000}`,

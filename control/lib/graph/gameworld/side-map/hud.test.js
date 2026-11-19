@@ -1,5 +1,5 @@
 // The side map's HUD (side-map/hud.js). The concepts: a spec the runtime reads, its parts in their corners; the hero's
-// energy a column split into its lives, the boss's beside it only while it fights, its name said as it comes in; READY
+// energy a column split into its lives, the boss's at the opposite corner only while it fights, its name said as it comes in; READY
 // and the keys only while their latches say; a controls line read as key caps; a level of a game with a look carries it
 // in the galaxy look, and one with no look carries none.
 import { describe, it, expect } from 'vitest';
@@ -20,7 +20,7 @@ describe('the side map\'s HUD', () => {
     expect(() => manaUi.readSpec(sideMapHudSpec({ lives: 3, boss: BOSS }))).not.toThrow();
   });
 
-  it('the hero\'s column split into its lives; the boss\'s beside it only while it fights', () => {
+  it('the hero\'s column split into its lives; the boss\'s at the top right only while it fights', () => {
     const S = sideMapHudSpec({ lives: 3, boss: BOSS });
     const quiet = view(S, sm()).split('data-at="top"')[0];
     expect(quiet).toContain('data-variant="hp"');
@@ -28,6 +28,9 @@ describe('the side map\'s HUD', () => {
     expect(quiet).not.toContain('data-variant="boss"');
     const fight = view(S, sm({ bossOn: true, boss: 150 }));
     expect(fight).toContain('data-variant="boss"');
+    const tr = fight.indexOf('data-at="top-right"');
+    expect(fight.slice(tr)).toContain('data-variant="boss"');
+    expect(fight.slice(0, tr)).not.toContain('data-variant="boss"');
     expect(fight).toContain('width:50%');
     // (no figures on either: energy is read by its length)
     expect(fight).not.toContain('3/3');

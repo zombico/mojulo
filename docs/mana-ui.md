@@ -906,8 +906,8 @@ capitals). It is read as the 8-bit action platformers read, and nothing else is 
 
 - The hero's energy is a column of fine ticks at the top left, filling from the foot, split into one block a life (the
   side map has no health of its own yet, so its lives are its energy).
-- The boss's column stands beside it once the boss is awake and near, and is gone a moment after it falls. Its name is
-  said across the top as it comes in.
+- The boss's column stands at the opposite corner, top right, once the boss is awake and near, and is gone a moment
+  after it falls. Its name is said across the top as it comes in.
 - READY flashes in the middle as the level starts and after a life is lost. The keys are key caps along the foot for
   the first seconds.
 - It puts away the level's own rows (the lives chip, the boss's bar), the radar and the melee ring: a side scroller
