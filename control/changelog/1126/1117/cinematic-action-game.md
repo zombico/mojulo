@@ -466,3 +466,10 @@ or a recipe key; the spike mints through the real doors and measures.
   'night'`, laid on its geocube scene by the spike); every list of the grade's words names it.
 - **A geocube world takes a grade** (era/geocube.js): the frame's `grade` is any world's (the controllable vocab says
   so), but the geocube kind refused it as not its setting; it is let through to the world scene that reads it.
+- **Level 1's barracks past the hangar's door, its key past a sentry** (scripts/spikes/mission/level1.json
+  `segments.perimeter.barracks`, yard.mjs): the barracks stood across the trail from the hangar's side door, its key in
+  the first room off its lobby, six metres on. It is now one storey at the trail's far end, twenty metres past the door,
+  rooms both sides of a corridor each way off a stair core; the key is in the first sergeant's office at the far end of
+  the south corridor, and a sentry walks that corridor end to end, looking round at each end and feeling a body at his
+  elbow. The only way to the office is past him: slipped by from room to room while his back is turned, taken down from
+  behind, or darted. The outside's second guard walks the trail between the door and the barracks.

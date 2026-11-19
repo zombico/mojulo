@@ -15,7 +15,7 @@ Three segments, a page each, joined by doors that carry what is held and the bod
 | segment | page | what it teaches or holds | its recipe | its builder |
 |---|---|---|---|---|
 | level 0, the approach | `level-0-approach.html` | the controls, and two places that ask for a sneak (a chokepoint, an outpost), on land alone | `level0.json` | `level0.mjs` |
-| level 1, the perimeter | `level-1-perimeter.html` | the yard: a barracks walked into, the hangar's key, the hangar's door | `level1.json` | `yard.mjs` |
+| level 1, the perimeter | `level-1-perimeter.html` | the yard: the hangar's door, and on past it the barracks, the hangar's key down its corridor past a sentry | `level1.json` | `yard.mjs` |
 | level 1, the hangar | `level-1-hangar.html` | the briefed intel, three clues, a lift down to what was not in the briefing, the stairwell out | `level1.json` | `hangar.mjs` |
 
 Level 1 is a walled-core dungeon in miniature (`docs/walled-core-dungeon.md`): each layer a segment, each door gated by
@@ -25,6 +25,7 @@ something found in the layer before. `plan.mjs` reads it dry and holds it to the
 
 | the ask | where | the word |
 |---|---|---|
+| the barracks | `level1.json` `segments.perimeter.barracks` | where it stands (`at`) and its plan (`storeys`, `wings`, `loading`, `bays`), the room the key is in (`key`), the sentry walking a corridor to it (`sentry`: `corridor`, `speed`, `cone`, `range`, `look`, `near`) |
 | a different place | `level0.json` `cube`, `hour`; `yard.mjs --cube` | a geocube preset or a cube of their own |
 | move, add or remove cover | `level0.json` `cover` | a parked vehicle by its registry word, or a `box` [w, d, h]: under 0.7 m hides a body lying, about a metre hides a crouch |
 | a guard's round, or where a lookout stands and looks | `level0.json` `watchers` | `kind: 'patrol'` with `at` and `to`; `kind: 'post'` with `at` and `facing`; `cone` (half-angle, radians), `range` (metres); `look: { secs }` a patrol that turns all the way round at each end; `near: { r, back }` a guard who sees a body within `r` m anywhere but square behind him |
