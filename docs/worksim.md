@@ -274,7 +274,8 @@ already says what each thing is made of:
 
 The rows are in `food/roster.js` (ingredients and their prepped and cooked looks, states, dishes, vessels), so a new
 food is a row. The forms (`food/forms.js`) are face lists from the lathe, box and prism, the glyph shelf's discipline:
-built at glyph scale and placed at a size (`foodFaces`). The laws (`food/laws.js`, advice) check that every thing is
+built at glyph scale and placed at a size (`foodFaces`). Rounds are shaded smooth, a corner at a time, with creases kept
+sharp; boxes are chamfered, their edges and corners cut. The laws (`food/laws.js`, advice) check that every thing is
 drawn, a card's things are told apart, what is made looks unlike what it was made from, and each fits its box. The
 review sheet is `node scripts/render-food.mjs <dir> [card|all]`. Whether it reads as food is the eyes gate.
 

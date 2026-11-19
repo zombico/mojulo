@@ -20,7 +20,7 @@
  */
 import { readCard, isRaw } from '../worksim/card.js';
 import { INGREDIENTS, FAMILY_WORDS, STATES, DISHES } from './roster.js';
-import { FORMS, VESSEL_FORMS, ARRANGE } from './forms.js';
+import { FORMS, VESSEL_FORMS, ARRANGE, smooth } from './forms.js';
 
 const wordsOf = (item) => String(item).toLowerCase().split(/[-_\s]+/).filter(Boolean);
 const ingredientOf = (ws) => {
@@ -97,16 +97,17 @@ function packed(item, ing, inside, ws = []) {
   return { item, kind: 'ingredient', ingredient: ing, family: R?.family ?? null, state: 'packed', form: inside.form, colours: inside.colours, vessel: sack ? 'sack' : 'crate', inside };
 }
 
-/** A look's faces at glyph scale. */
-export function lookFaces(L) {
+/** A look's faces at glyph scale: its rounds shaded smooth (forms.js smooth), its boxes chamfered. */
+export function lookFaces(L) { return smooth(rawFaces(L)); }
+function rawFaces(L) {
   if (L.kind === 'dish') {
     const V = VESSEL_FORMS[L.vessel](), parts = L.parts.map((p) => (p.kind === 'ingredient' && p.state === 'whole' && p.family !== 'grain' && INGREDIENTS[p.ingredient]?.prepped ? { ...p, form: INGREDIENTS[p.ingredient].prepped.form, colours: INGREDIENTS[p.ingredient].prepped.colours } : p));
-    return [...V.faces, ...ARRANGE[L.arrangement](parts, V.top, lookFaces)];
+    return [...V.faces, ...ARRANGE[L.arrangement](parts, V.top, rawFaces)];
   }
   if (L.state === 'packed') {
     const V = VESSEL_FORMS[L.vessel]();
     if (L.vessel === 'sack') return V.faces;
-    return [...V.faces, ...lift(lookFaces({ ...L.inside, vessel: undefined }), [0, 0, V.top], 0.6)];
+    return [...V.faces, ...lift(rawFaces({ ...L.inside, vessel: undefined }), [0, 0, V.top], 0.6)];
   }
   const body = FORMS[L.form](L.colours);
   if (!L.vessel) return body;

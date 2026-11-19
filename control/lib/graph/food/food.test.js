@@ -45,4 +45,14 @@ describe('the food, read off the card', () => {
     expect(Math.max(hi[0] - lo[0], hi[1] - lo[1])).toBeCloseTo(0.4, 2);
     expect((lo[0] + hi[0]) / 2).toBeCloseTo(3, 2);
   });
+  it('drawn smooth and chamfered: a round shaded a corner at a time, a box with its edges and corners cut', () => {
+    const F = foodOf(ORDERS), all = Object.values(F).flatMap((L) => lookFaces(L));
+    const rounds = all.filter((f) => Array.isArray(f.cornerFills));
+    expect(rounds.length).toBeGreaterThan(0);
+    expect(rounds.every((f) => f.cornerFills.length === f.corners.length && !f.round)).toBe(true);
+    // (a box is 6 faces set in, 12 edge strips and 8 corner triangles: the triangles are its cut corners)
+    const fillet = Object.values(F).find((L) => L.form === 'fillet'), tris = lookFaces(fillet).filter((f) => new Set(f.corners.map(String)).size === 3);
+    expect(tris.length).toBeGreaterThanOrEqual(8);
+  });
 });
+

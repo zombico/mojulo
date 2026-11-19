@@ -51,7 +51,9 @@ station to station and handed between them.
   becomes a fillet), run alone it is cooked (rice becomes a bowl of rice), packed by a bucket it goes in a crate or a sack.
   A produce grown from another thing is itself. A thing no row names is a block in a colour from its name. Ingredients,
   states, dishes and vessels are rows (`food/roster.js`); the forms are face lists from the lathe, box and prism, built
-  at glyph scale and placed at a size. Laws, advised: every thing drawn, a card's things told apart, made unlike what it
+  at glyph scale and placed at a size: every round shaded smooth (each corner lit along the mean of the normals meeting
+  there, creases over 50° kept sharp, carried as `cornerFills`) and every box chamfered (its faces set in, its edges and
+  corners cut, each face lit as it faces). Laws, advised: every thing drawn, a card's things told apart, made unlike what it
   was made from, each in its box. Review: `node scripts/render-food.mjs <dir> [card|all]`, a captioned sheet raw → made
   → dishes. The kitchen's eyes gate is the operator's; the food is not on the page yet.
 
