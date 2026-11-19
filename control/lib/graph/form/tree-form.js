@@ -140,52 +140,101 @@ const GOLDEN = Math.PI * (3 - Math.sqrt(5));
  *  the leader's share of the crown. → { edges: [{ from, to, r0, r1, end, main, s, fill? }], trunk: { pts, rs }, top }
  *  (`end`: the pad a length ends in (a fill limb's past the pads), or -1 at a fork; `s` the mass it leads to, a fork's
  *  its largest; `trunk` the leader as drawn, `top` its height). */
-export function limbTree(trunk, pads, cut, { lead = EVOKE.lead } = {}) {
-  const tp0 = trunk.pts, tr0 = trunk.rs, z0 = tp0[0][2];
-  const cb = Math.min(...pads.map((b) => b.p[2] - b.s)), ct = Math.max(...pads.map((b) => b.p[2] + b.s * 0.5)), H = ct - z0;
-  const leadZ = Math.max(z0 + EVOKE.low * H + EVOKE.rise, cb + lead * (ct - cb));
+/** A habit's numbers over EVOKE's (REALISTIC_HABITS, form/flora-read.js): `trunk` { form: single | Y | V, fork, spread,
+ *  girth, lead }, `limbs` { girth, climb }, `twigs` (EVOKE.twigs' keys). */
+export function evokeOf(habit = {}) {
+  const t = habit.trunk || {}, l = habit.limbs || {};
+  return { ...EVOKE, girth: EVOKE.girth * (l.girth ?? 1), climb: l.climb ?? EVOKE.climb, lead: t.lead ?? EVOKE.lead, twigs: { ...EVOKE.twigs, ...(habit.twigs || {}) },
+    trunk: { form: 'single', girth: 1, fork: 0.45, spread: 25, ...t } };
+}
+/** The limbs as a tree of lengths: `trunk` its points and radii, `pads` [{ p, s }], `cut` the thinnest drawn, `habit`
+ *  its species' (evokeOf). A Y or V habit FORKS its trunk at `fork` of the tree's height (a Y high, a V low, never into
+ *  its crown) into two STEMS, `spread` degrees off upright, one each side of its crown's long axis, its masses each
+ *  the stem's on its side, and grows each stem's limbs as a single trunk's. → { edges: [{ from, to, r0, r1, end, main,
+ *  s, fill?, stem?, leaf? }], trunk: { pts, rs }, stems: [{ pts, rs }], top } (`end`: the pad a length ends in (a fill
+ *  limb's past the pads), or -1 for a structural length; `s` the mass it leads to; `trunk` the leader as drawn, or the
+ *  bole to the fork; `top` the highest drawn). Each trunk and stem × the habit's trunk `girth`. */
+export function limbTree(trunk, pads, cut, habit = {}) {
+  const E = evokeOf(habit), T = E.trunk, girth = (L) => ({ ...L, trunk: { ...L.trunk, rs: L.trunk.rs.map((r) => r * T.girth) }, stems: (L.stems || []).map((q) => ({ ...q, rs: q.rs.map((r) => r * T.girth) })) });
+  const tp = trunk.pts, base = tp[0], z0 = base[2], ct = Math.max(...pads.map((b) => b.p[2] + b.s * 0.5)), H = ct - z0;
+  if ((T.form !== 'Y' && T.form !== 'V') || pads.length < 4) return girth({ ...limbTreeOne(trunk, pads, cut, E), stems: [] });
+  // (its crown's long axis: the masses' spread round the trunk's foot, its principal direction)
+  let sxx = 0, syy = 0, sxy = 0; for (const b of pads) { const x = b.p[0] - base[0], y = b.p[1] - base[1]; sxx += x * x; syy += y * y; sxy += x * y; }
+  const th = 0.5 * Math.atan2(2 * sxy, sxx - syy), u = [Math.cos(th), Math.sin(th)];
+  const sides = [pads.map((b, i) => i).filter((i) => (pads[i].p[0] - base[0]) * u[0] + (pads[i].p[1] - base[1]) * u[1] >= 0), pads.map((b, i) => i).filter((i) => (pads[i].p[0] - base[0]) * u[0] + (pads[i].p[1] - base[1]) * u[1] < 0)];
+  if (sides.some((g) => g.length < 2)) return girth({ ...limbTreeOne(trunk, pads, cut, E), stems: [] });
+  // (the fork: its share of the height, under the crown)
+  const zF = Math.min(z0 + T.fork * H, Math.min(...pads.map((b) => b.p[2] - b.s)) - E.rise);
+  const bole = { pts: [], rs: [] };
+  for (let i = 0; i < tp.length; i++) { if (tp[i][2] >= zF) { const a = tp[i - 1] ?? tp[i], f = i ? (zF - a[2]) / Math.max(1e-9, tp[i][2] - a[2]) : 0; bole.pts.push([0, 1, 2].map((k) => a[k] + f * (tp[i][k] - a[k]))); bole.rs.push(i ? trunk.rs[i - 1] + f * (trunk.rs[i] - trunk.rs[i - 1]) : trunk.rs[i]); break; } bole.pts.push(tp[i]); bole.rs.push(trunk.rs[i]); }
+  if (bole.pts[bole.pts.length - 1][2] < zF - 1e-6) { const q = bole.pts[bole.pts.length - 1]; bole.pts.push([q[0], q[1], zF]); bole.rs.push(bole.rs[bole.rs.length - 1]); }
+  const F = bole.pts[bole.pts.length - 1], rF = bole.rs[bole.rs.length - 1], a = (T.spread * Math.PI) / 180;
+  const edges = [], stems = []; let fills = 0, top = zF;
+  sides.forEach((ids, side) => {
+    const sg = side ? -1 : 1, dir = [sg * u[0] * Math.sin(a), sg * u[1] * Math.sin(a), Math.cos(a)], P = ids.map((i) => pads[i]);
+    const cbg = Math.min(...P.map((b) => b.p[2] - b.s)), ctg = Math.max(...P.map((b) => b.p[2] + b.s * 0.5)), topg = Math.max(zF + 2 * E.rise, cbg + E.lead * (ctg - cbg));
+    const Ls = (topg - zF) / Math.cos(a), n = 6, stem = { pts: Array.from({ length: n + 1 }, (_, k) => add(F, mul(dir, (Ls * k) / n))), rs: Array.from({ length: n + 1 }, (_, k) => (rF / Math.SQRT2) * (1 - 0.6 * (k / n))) };
+    const L = limbTreeOne(stem, P, cut, E, { lowZ: Math.max(zF + E.rise, z0 + E.low * H), H, z0 });
+    // (its ends the crown's masses again; its fill limbs counted past them)
+    const fillAt = new Map();
+    for (const g of L.edges) {
+      let end = g.end;
+      if (end >= 0 && end < P.length) end = ids[end];
+      else if (end >= P.length) { if (!fillAt.has(end)) fillAt.set(end, pads.length + fills++); end = fillAt.get(end); }
+      edges.push({ ...g, end });
+    }
+    stems.push(L.trunk); top = Math.max(top, L.top);
+  });
+  // (the bole as thick as its stems together)
+  const over = Math.sqrt(stems.reduce((a2, q) => a2 + q.rs[0] * q.rs[0], 0));
+  return girth({ edges, trunk: { pts: bole.pts, rs: bole.rs.map((r) => Math.max(r, over)) }, stems, top });
+}
+function limbTreeOne(trunk, pads, cut, E, { lowZ: low0 = null, H: H0 = null, z0: zb = null } = {}) {
+  const tp0 = trunk.pts, tr0 = trunk.rs, z0 = zb ?? tp0[0][2], lead = E.lead;
+  const cb = Math.min(...pads.map((b) => b.p[2] - b.s)), ct = Math.max(...pads.map((b) => b.p[2] + b.s * 0.5)), H = H0 ?? ct - z0;
+  const leadZ = Math.max((low0 ?? z0 + E.low * H) + E.rise, cb + lead * (ct - cb), tp0[0][2] + E.rise);
   // (the leader: the grown trunk to its top, or carried straight up to it)
   const tp = [], tr = [];
   for (let i = 0; i < tp0.length; i++) { if (tp0[i][2] >= leadZ) { const a = tp0[i - 1] ?? tp0[i], f = i ? (leadZ - a[2]) / Math.max(1e-9, tp0[i][2] - a[2]) : 0; tp.push([0, 1, 2].map((k) => a[k] + f * (tp0[i][k] - a[k]))); tr.push(i ? tr0[i - 1] + f * (tr0[i] - tr0[i - 1]) : tr0[i]); break; } tp.push(tp0[i]); tr.push(tr0[i]); }
   if (tp[tp.length - 1][2] < leadZ - 1e-6) { const q = tp[tp.length - 1]; tp.push([q[0], q[1], leadZ]); tr.push(tr[tr.length - 1] * 0.8); }
   const at = (z) => { for (let i = 1; i < tp.length; i++) if (tp[i][2] >= z) { const a = tp[i - 1], b = tp[i], f = (z - a[2]) / Math.max(1e-9, b[2] - a[2]); return { p: [0, 1, 2].map((k) => a[k] + f * (b[k] - a[k])), r: tr[i - 1] + f * (tr[i] - tr[i - 1]) }; } return { p: tp[tp.length - 1], r: tr[tr.length - 1] }; };
   // (the ends: one a mass; the merging, nearest first by breadth and height, ties by their order)
-  let active = pads.map((b, i) => ({ p: [b.p[0], b.p[1], b.p[2] - b.s * (1 - EVOKE.reach)], r: Math.max(cut * 0.6, b.s * EVOKE.girth * EVOKE.tip), kids: [], end: i, s: b.s }));
-  const want = pads.length <= 3 ? pads.length : Math.max(2, Math.round(pads.length / EVOKE.limbs));
-  const near = (a, b) => Math.hypot(a.p[0] - b.p[0], a.p[1] - b.p[1], EVOKE.level * (a.p[2] - b.p[2]));
+  let active = pads.map((b, i) => ({ p: [b.p[0], b.p[1], b.p[2] - b.s * (1 - E.reach)], r: Math.max(cut * 0.6, b.s * E.girth * E.tip), kids: [], end: i, s: b.s }));
+  const want = pads.length <= 3 ? pads.length : Math.max(2, Math.round(pads.length / E.limbs));
+  const near = (a, b) => Math.hypot(a.p[0] - b.p[0], a.p[1] - b.p[1], E.level * (a.p[2] - b.p[2]));
   while (active.length > want) {
     let bi = 0, bj = 1, bd = Infinity;
     for (let i = 0; i < active.length; i++) for (let j = i + 1; j < active.length; j++) { const d = near(active[i], active[j]); if (d < bd - 1e-9) { bd = d; bi = i; bj = j; } }
     const A = active[bi], B = active[bj], wA = A.r * A.r, wB = B.r * B.r, m = mul(add(mul(A.p, wA), mul(B.p, wB)), 1 / (wA + wB)), sep = len(sub(A.p, B.p));
-    const F = { p: [m[0] * (1 - EVOKE.inward), m[1] * (1 - EVOKE.inward), Math.min(A.p[2], B.p[2]) - EVOKE.drop * sep], r: Math.sqrt(wA + wB), kids: [A, B], end: -1, s: Math.max(A.s, B.s) };
+    const F = { p: [m[0] * (1 - E.inward), m[1] * (1 - E.inward), Math.min(A.p[2], B.p[2]) - E.drop * sep], r: Math.sqrt(wA + wB), kids: [A, B], end: -1, s: Math.max(A.s, B.s) };
     active = [...active.filter((_, k) => k !== bi && k !== bj), F];
   }
   // (each main limb from the leader, climbing; staggered up it)
-  const tan = Math.tan((EVOKE.climb * Math.PI) / 180), lowZ = z0 + EVOKE.low * H, topZ = tp[tp.length - 1][2];
-  const hiOf = (n) => Math.min(topZ, n.p[2] - EVOKE.rise);
+  const tan = Math.tan((E.climb * Math.PI) / 180), lowZ = low0 ?? z0 + E.low * H, topZ = tp[tp.length - 1][2];
+  const hiOf = (n) => Math.min(topZ, n.p[2] - E.rise);
   const mains = active.map((n) => { const c = at(n.p[2]), h = Math.hypot(n.p[0] - c.p[0], n.p[1] - c.p[1]); return { n, z: Math.max(lowZ, Math.min(hiOf(n), n.p[2] - h * tan)) }; }).sort((a, b) => a.z - b.z || a.n.p[0] - b.n.p[0]);
-  for (let i = 1; i < mains.length; i++) if (mains[i].z - mains[i - 1].z < EVOKE.stagger) mains[i].z = Math.min(hiOf(mains[i].n), mains[i - 1].z + EVOKE.stagger);
+  for (let i = 1; i < mains.length; i++) if (mains[i].z - mains[i - 1].z < E.stagger) mains[i].z = Math.min(hiOf(mains[i].n), mains[i - 1].z + E.stagger);
   mains.sort((a, b) => a.z - b.z || a.n.p[0] - b.n.p[0]);
   // (the gaps up the leader filled: a short limb at each bare stretch's middle, turned the golden angle from the one below)
-  const gap = EVOKE.gap * H, fills = [], sMean = pads.reduce((a, b) => a + b.s, 0) / pads.length;
+  const gap = E.gap * H, fills = [], sMean = pads.reduce((a, b) => a + b.s, 0) / pads.length;
   const stops = [...mains.map((m) => m.z), topZ];
   let az = mains.length ? Math.atan2(mains[0].n.p[1] - at(mains[0].z).p[1], mains[0].n.p[0] - at(mains[0].z).p[0]) : 0;
   for (let i = 0; i + 1 < stops.length; i++) {
     const g = stops[i + 1] - stops[i], k = Math.ceil(g / gap) - 1;
     for (let j = 1; j <= k; j++) {
-      const z = stops[i] + (g * j) / (k + 1), c = at(z), l = EVOKE.fill.length * H, cl = (EVOKE.climb * Math.PI) / 180; az += GOLDEN;
-      const s0 = EVOKE.fill.size * sMean, p = [c.p[0] + Math.cos(az) * Math.cos(cl) * l, c.p[1] + Math.sin(az) * Math.cos(cl) * l, z + Math.sin(cl) * l];
-      fills.push({ z, n: { p, r: Math.max(cut * 0.6, s0 * EVOKE.girth * EVOKE.tip), kids: [], end: pads.length + fills.length, s: s0 }, fill: true });
+      const z = stops[i] + (g * j) / (k + 1), c = at(z), l = E.fill.length * H, cl = (E.climb * Math.PI) / 180; az += GOLDEN;
+      const s0 = E.fill.size * sMean, p = [c.p[0] + Math.cos(az) * Math.cos(cl) * l, c.p[1] + Math.sin(az) * Math.cos(cl) * l, z + Math.sin(cl) * l];
+      fills.push({ z, n: { p, r: Math.max(cut * 0.6, s0 * E.girth * E.tip), kids: [], end: pads.length + fills.length, s: s0 }, fill: true });
     }
   }
   // (the forks split; no length past its share of the tree)
-  const most = EVOKE.most * H;
+  const most = E.most * H;
   const capped = (P, X, m = most) => { const d = sub(X, P), l = len(d); return l > m ? add(P, mul(d, m / l)) : X; };
   const place = (P, n, m = most) => {
     if (n.end >= 0) { n.p = capped(P, n.p, m); return; }
     const cm = mul(n.kids.reduce((a, k) => add(a, k.p), [0, 0, 0]), 1 / n.kids.length), lo = Math.min(...n.kids.map((k) => k.p[2]));
-    const X = add(P, mul(sub(cm, P), EVOKE.split));
-    X[2] = Math.max(P[2] + EVOKE.rise, Math.min(X[2], lo - EVOKE.rise));
+    const X = add(P, mul(sub(cm, P), E.split));
+    X[2] = Math.max(P[2] + E.rise, Math.min(X[2], lo - E.rise));
     if (X[2] > lo - 1e-6) X[2] = (P[2] + lo) / 2;
     n.p = capped(P, X, m);
     for (const k of n.kids) place(n.p, k);
@@ -198,14 +247,14 @@ export function limbTree(trunk, pads, cut, { lead = EVOKE.lead } = {}) {
   const thin = cut * 0.55, gr = (r) => Math.max(thin, r);
   const edges = [], walk = (from, n, f) => { edges.push({ from, to: n.p, r0: gr(n.r * f), r1: gr((n.end >= 0 ? n.r : n.r * 0.92) * f), end: n.end, main: false, s: n.s }); for (const k of n.kids) walk(n.p, k, f); };
   for (const { n, z, fill } of all.sort((a, b) => a.z - b.z)) {
-    const c = at(Math.min(z, topZ)), r0 = Math.min(n.r, rAt(z) * EVOKE.hold), f = r0 / n.r;
-    if (!fill) place(c.p, n, most * EVOKE.base);
+    const c = at(Math.min(z, topZ)), r0 = Math.min(n.r, rAt(z) * E.hold), f = r0 / n.r;
+    if (!fill) place(c.p, n, most * E.base);
     edges.push({ from: c.p, to: n.p, r0: gr(r0), r1: gr((n.end >= 0 ? n.r : n.r * 0.92) * f), end: n.end, main: true, s: n.s, ...(fill ? { fill: true } : {}) });
     for (const k of n.kids) walk(n.p, k, f);
   }
   // (STRUCTURAL and LEAF-HOLDING: a length that ended in a mass stops at `stem` of its way, structural, and grows its
   // mass's TWIGS, the leaf-holding branches the clouds sit on)
-  return { edges: sprouted(edges, thin), trunk: { pts: tp, rs: trs }, top: topZ };
+  return { edges: sprouted(edges, thin, E.twigs), trunk: { pts: tp, rs: trs }, top: topZ };
 }
 /**
  * THE TWIGS (EVOKE.twigs): the branches a tree's leaves are held by. A length that held a mass is made STRUCTURAL: it
@@ -214,8 +263,8 @@ export function limbTree(trunk, pads, cut, { lead = EVOKE.lead } = {}) {
  * its share of the stem's (the pipe model), tapering to `tip`; each twig's cloud a mass `size` of the mass's. No cloud
  * on a structural branch: only on a twig.
  */
-function sprouted(edges, thin = 0) {
-  const T = EVOKE.twigs, out = [];
+function sprouted(edges, thin = 0, T = EVOKE.twigs) {
+  const out = [];
   edges.forEach((g, gi) => {
     if (g.end < 0) { out.push(g); return; }
     const S = add(g.from, mul(sub(g.to, g.from), T.stem)), d = sub(g.to, g.from), hd = Math.hypot(d[0], d[1]);
@@ -240,30 +289,32 @@ export const limbAt = (g, t) => { const l = len(sub(g.to, g.from)), mid = add(mu
  * `side` × its radius to either side. → [{ p, o, d, s, e, r }], o the section's heading.
  */
 export const CLOUD = Object.freeze({ from: 0.3, over: 0.35, step: 1.25, least: 2, most: 4, size: 0.5, swell: 0.45, jitter: 0.18, sit: 0.5, side: 0.35 });
-export function branchClouds(edges, seed = 1) {
-  const out = [];
+export function branchClouds(edges, seed = 1, cloud = {}) {
+  const out = [], CL = { ...CLOUD, ...cloud };
   edges.forEach((g, gi) => {
     if (!g.leaf) return;
-    const h = (k) => hashN(seed * 7919 + gi * 131 + k), S = g.s * CLOUD.size, d = sub(g.to, g.from), l = len(d);
+    const h = (k) => hashN(seed * 7919 + gi * 131 + k), S = g.s * CL.size, d = sub(g.to, g.from), l = len(d);
     const hd = Math.hypot(d[0], d[1]), o = hd > 1e-6 ? [d[0] / hd, d[1] / hd, 0] : [1, 0, 0], side = [-o[1], o[0], 0];
-    const run = (1 - CLOUD.from) * l + CLOUD.over * g.s, n = Math.max(CLOUD.least, Math.min(CLOUD.most, Math.round(run / (CLOUD.step * S)) + 1));
+    const run = (1 - CL.from) * l + CL.over * g.s, n = Math.max(CL.least, Math.min(CL.most, Math.round(run / (CL.step * S)) + 1));
     for (let k = 0; k < n; k++) {
-      const u = n === 1 ? 0.5 : k / (n - 1), a = CLOUD.from * l + u * run;
+      const u = n === 1 ? 0.5 : k / (n - 1), a = CL.from * l + u * run;
       // (along the section, and past its end along its last heading)
       const base = a <= l ? limbAt(g, a / l) : add(g.to, mul(o, a - l));
-      const r = S * (1 - CLOUD.swell + CLOUD.swell * Math.sin(Math.PI * (0.15 + 0.7 * u))) * (1 + CLOUD.jitter * (h(k * 3) - 0.5) * 2);
-      const p = add(add(base, mul(side, CLOUD.side * r * (h(k * 3 + 1) - 0.5) * 2)), [0, 0, CLOUD.sit * r]);
+      const r = S * (1 - CL.swell + CL.swell * Math.sin(Math.PI * (0.15 + 0.7 * u))) * (1 + CL.jitter * (h(k * 3) - 0.5) * 2);
+      const p = add(add(base, mul(side, CL.side * r * (h(k * 3 + 1) - 0.5) * 2)), [0, 0, CL.sit * r]);
       out.push({ p: p.map(r4), o: o.map(r4), d: [1, 0, 0], s: r4(r), e: 0.5, r: r4(h(k * 3 + 2)) });
     }
   });
   return out;
 }
-function supportedChains(chains, balls, cut, seed = 1, lead = EVOKE.lead) {
+function supportedChains(chains, balls, cut, seed = 1, habit = {}) {
   const trunk0 = chains.filter((c) => c.order === 0).reduce((a, c) => (!a || c.dMax > a.dMax ? c : a), null);
   if (!trunk0 || !balls.length) return { chains, clouds: [], low: 0 };
-  const L = limbTree(trunk0, balls, cut, { lead }), clouds = branchClouds(L.edges, seed);
+  const L = limbTree(trunk0, balls, cut, habit), clouds = branchClouds(L.edges, seed, habit.cloud);
   // (the leader as the limbs have it: the grown trunk to its top, as thick as the limbs over it ask)
-  const out = [{ ...trunk0, pts: L.trunk.pts.map((q) => q.map(r4)), rs: L.trunk.rs, nodes: [], dMax: 2 * Math.max(...L.trunk.rs), continues: true }];
+  const out = [{ ...trunk0, pts: L.trunk.pts.map((q) => q.map(r4)), rs: L.trunk.rs, nodes: [], dMax: 2 * Math.max(...L.trunk.rs), continues: true },
+    // (a Y's or a V's stems, from its fork)
+    ...L.stems.map((q, i) => ({ axis: -1000 - i, order: 1, nodes: [], pts: q.pts.map((v) => v.map(r4)), rs: q.rs, dMax: 2 * Math.max(...q.rs), continues: true }))];
   L.edges.forEach((g, i) => {
     // (a length bowed up through its middle: an arch)
     const pts = [], rs = [];
@@ -304,7 +355,7 @@ export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.m
   // the wood: each axis thick enough a tube along its chain (parallel-transported rings), its normals the rings' own
   // outward directions (smooth round, so the sun turns across a limb), its bark's coordinates in tiles: round the axis
   // the tile's count its base girth asks (no seam), up it its arc length
-  const chains0 = axisChains(plant), SC = evoke && evoke.balls && evoke.balls.length && !needles ? supportedChains(chains0, evoke.balls, cut, seed, evoke.lead ?? EVOKE.lead) : null, chains = SC ? SC.chains : chains0;
+  const chains0 = axisChains(plant), SC = evoke && evoke.balls && evoke.balls.length && !needles ? supportedChains(chains0, evoke.balls, cut, seed, evoke.habit ?? (evoke.lead ? { trunk: { lead: evoke.lead } } : {})) : null, chains = SC ? SC.chains : chains0;
   // (`twigs`, a crossed crown's: a chain under the cut drawn too where it carries a shoot, and the limbs it grows on: no
   // leaf without its twig, no twig without its leaf)
   const carry = new Set(), drawn = (ch, c) => ch.dMax >= c || (c === cut && !evoke && carry.has(ch.axis));

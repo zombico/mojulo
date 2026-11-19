@@ -240,11 +240,38 @@ describe('the evoked wood', () => {
     // (the leader at each height at least as thick as the limbs leaving over it together)
     L.trunk.pts.forEach((q, i) => { const over = E.filter((g) => g.main && g.from[2] >= q[2] - 1e-9); expect(L.trunk.rs[i]).toBeGreaterThanOrEqual(Math.sqrt(over.reduce((a, g) => a + (g.r0) ** 2, 0)) * EVOKE.hold - 1e-9); });
     // (its leader's height a habit: a high one reaches higher)
-    expect(limbTree(trunk, pads, 0.03, { lead: 0.85 }).top).toBeGreaterThan(L.top);
+    expect(limbTree(trunk, pads, 0.03, { trunk: { lead: 0.85 } }).top).toBeGreaterThan(L.top);
     // (each fill limb structural, holding its twigs, each twig its cloud)
     const C = branchClouds(E, 3);
     for (const g of E.filter((x) => x.fill && x.leaf)) expect(C.some((c) => Math.hypot(c.p[0] - g.to[0], c.p[1] - g.to[1]) < g.s * 1.5)).toBe(true);
     expect(E.filter((x) => x.fill && x.main).every((x) => !x.leaf)).toBe(true);
+  });
+
+  it('takes a habit: a Y or a V forks its trunk at its share into a stem each side of its crown, under its crown; drooping twigs fall', () => {
+    const trunk = { pts: Array.from({ length: 19 }, (_, i) => [0, 0, i]), rs: Array.from({ length: 19 }, (_, i) => 0.5 - 0.02 * i) };
+    const pads = Array.from({ length: 8 }, (_, i) => { const a = (i * 2 * Math.PI) / 8; return { p: [4 * Math.cos(a), 1.5 * Math.sin(a), 10 + (i % 3)], s: 1.2 }; });
+    const H = Math.max(...pads.map((b) => b.p[2] + b.s * 0.5)), under = Math.min(...pads.map((b) => b.p[2] - b.s));
+    for (const [form, fork] of [['Y', 0.5], ['V', 0.12]]) {
+      const L = limbTree(trunk, pads, 0.03, { trunk: { form, fork, spread: 25 } });
+      // (its bole up to the fork, at its share of the height and under the crown; two stems from it, one each side)
+      const zF = L.trunk.pts[L.trunk.pts.length - 1][2];
+      expect(zF).toBeCloseTo(Math.min(fork * H, under - EVOKE.rise), 6);
+      expect(L.stems.length).toBe(2);
+      const side = (q) => Math.sign(q.pts[q.pts.length - 1][0] - q.pts[0][0]);
+      expect(side(L.stems[0])).toBe(-side(L.stems[1]));
+      for (const q of L.stems) expect(q.pts[0][2]).toBeCloseTo(zF, 6);
+      // (each mass clearly to one side held on that side's stem: its twigs' x the sign of its own)
+      for (let i = 0; i < pads.length; i++) if (Math.abs(pads[i].p[0]) > 1) for (const g of L.edges.filter((x) => x.leaf && x.end === i)) expect(Math.sign(g.to[0])).toBe(Math.sign(pads[i].p[0]));
+      // (the bole as thick as its stems together)
+      expect(L.trunk.rs[L.trunk.rs.length - 1] ** 2).toBeGreaterThanOrEqual(L.stems.reduce((a, q) => a + q.rs[0] ** 2, 0) - 1e-9);
+    }
+    // (a single trunk has no stems; a drooping habit's twigs fall)
+    expect(limbTree(trunk, pads, 0.03).stems).toEqual([]);
+    const W = limbTree(trunk, pads, 0.03, { twigs: { climb: -50 } }).edges.filter((g) => g.leaf);
+    for (const g of W) expect(g.to[2]).toBeLessThan(g.from[2]);
+    // (a habit's limbs thicker: girth × its own)
+    const thick = limbTree(trunk, pads, 0.03, { limbs: { girth: 1.5 } }).edges.filter((g) => g.leaf), thin0 = limbTree(trunk, pads, 0.03).edges.filter((g) => g.leaf);
+    expect(Math.max(...thick.map((g) => g.r0))).toBeGreaterThan(Math.max(...thin0.map((g) => g.r0)));
   });
 
   it('clouds only the leaf-holding twigs: puffs sitting on their twig, along it and past its end; every structural branch bare', () => {

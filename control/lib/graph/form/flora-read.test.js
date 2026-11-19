@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { floraRead, floraBox, speciesFor, treeSizes, viewHeld, AUTUMN, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR, SKIRT_FLAG, APART, MASS_BLOB, REALISTIC, PUFF } from './flora-read.js';
+import { floraRead, floraBox, speciesFor, treeSizes, viewHeld, AUTUMN, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR, SKIRT_FLAG, APART, MASS_BLOB, REALISTIC, PUFF, REALISTIC_HABITS, habitOf } from './flora-read.js';
 import { LEAF_FORM_IDS } from '../era/leaf-forms.js';
+import { SPECIES } from '../vegetation/species.js';
+import { needleHabit } from '../vegetation/sprays.js';
 import { formLandScript } from '../scene/channels/form-land.js';
 
 const colours = { foliage: '#4a983a', grass: '#7cbf48', stone: '#e2cba0', floor: '#c4875a', accent: '#3a80d0' };
@@ -150,6 +152,9 @@ describe('the realistic tree (`crowns: realistic`)', () => {
     // (an oak too: older and branchier, still within its plain tree's triangles)
     const oak = { ...beech, kinds: [{ form: 'tuft' }] }, ao = floraRead(oak, { kinds: oak.kinds, colours, bases }).templates.find((t) => t.cross), ro = floraRead({ ...oak, crowns: 'realistic' }, { kinds: oak.kinds, colours, bases }).templates.find((t) => t.cross);
     expect(ro.budget.tris).toBeLessThanOrEqual(ao.budget.tris);
+    // (a sparse plain tree, a cherry's: its puffs thinned to fit it, the clouds' tails given up first)
+    const ch = { ...beech, kinds: [{ form: 'spray', species: 'cherry' }] }, ac = floraRead(ch, { kinds: ch.kinds, colours, bases }).templates.find((t) => t.kind === 'tree'), rc = floraRead({ ...ch, crowns: 'realistic' }, { kinds: ch.kinds, colours, bases }).templates.find((t) => t.kind === 'tree');
+    expect(rc.budget.tris).toBeLessThanOrEqual(ac.budget.tris);
     // (its crown the clouds on its limbs: puffs, more of them than masses, each a coarse lobe)
     expect(r.blobGeo.length).toBe(PUFF.variants);
     expect(r.nBlobs).toBeGreaterThan(REALISTIC.cloud.k[0]);
@@ -165,6 +170,19 @@ describe('the realistic tree (`crowns: realistic`)', () => {
     expect(r.far).toEqual(REALISTIC.far);
     expect(a.far).toBeUndefined();
   }, 180000);
+});
+
+describe('the realistic habits', () => {
+  it('gives each broadleaf in the library its habit; a kind names its species; a species with no masses keeps its plain tree', () => {
+    // (every broadleaf the form render grows crossed has a row of its own, each read through habitOf)
+    const broad = Object.keys(SPECIES).filter((k) => SPECIES[k].kind === 'tree' && !SPECIES[k].fig && !needleHabit(k));
+    for (const k of broad) expect(REALISTIC_HABITS[k], k).toBeDefined();
+    expect(habitOf('no-such-tree')).toBe(REALISTIC_HABITS.default);
+    // (a kind's own species word reaches its habit: the same placed tree grows the named species)
+    const at = (kind) => floraRead({ form: 'blob', kinds: [kind], bushKinds: null, trees: [tree(0, 0, 9, 0)], bushes: [], shrubs: [], crowns: 'realistic' }, { kinds: [kind], colours, bases }).templates.find((t) => t.kind === 'tree');
+    expect(at({ form: 'spray', species: 'birch' }).name).toBe('birch');
+    expect(at({ form: 'spray' }).name).toBe('beech');
+  }, 240000);
 });
 
 describe('trees apart (`crowns`)', () => {
