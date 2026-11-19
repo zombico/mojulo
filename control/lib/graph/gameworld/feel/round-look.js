@@ -94,3 +94,19 @@ export function blastLook(color, kind, B) {
   const hx = (hh, ss, vv) => { const f = (k) => { const x = (k + hh / 60) % 6; return vv - vv * ss * Math.max(0, Math.min(x, 4 - x, 1)); }; return '#' + [f(5), f(3), f(1)].map((c) => Math.round(c * 255).toString(16).padStart(2, '0')).join(''); };
   return { ramp: ['#ffffff', hx(h, Math.max(s, X.chroma), 1), hx(h, 1, X.deep)], accent: hx((h + X.accent) % 360, 0.85, 1), halo: K.halo, rings: K.rings, sparks: K.sparks, life: K.life, core: K.core };
 }
+
+/**
+ * THE SLASH (a saber's cut, feel/saber.js): drawn in the shot's light, its colour the blade's (blastLook's ramp: a
+ * white-hot core, the hue saturated, the hue deep), an arc in the body's own plane (forward and up) that SWEEPS OPEN
+ * through the cut's contact window, its head brightest and its tail fading behind it, the core along its outer edge, then
+ * fading over `life` seconds. Each swing its arc, in degrees from forward (0) toward up (90): the overhead cross from over
+ * the shoulder down in front, the rising cut from low up past the head, the two-handed cleave from behind the head right
+ * round to the floor. `radius` a share of the blade's reach, `width` a share of the radius, `core` the white edge's share
+ * of the width, `height` the arc's centre a share of the body's height.
+ */
+export const SLASH_LOOK = Object.freeze({
+  arcs: Object.freeze({ neutral: Object.freeze([115, -45]), left: Object.freeze([-75, 70]), back: Object.freeze([165, -95]), forward: Object.freeze([25, -15]), right: Object.freeze([60, -60]), up: Object.freeze([-80, 100]), around: Object.freeze([180, -180]) }),
+  radius: 0.85, width: 0.42, core: 0.16, life: 0.16, height: 0.62, lead: 0.12,
+});
+/** A swing's arc ([from, to] degrees), the overhead cross's for a swing it does not know. */
+export const slashArc = (swing) => SLASH_LOOK.arcs[swing] || SLASH_LOOK.arcs.neutral;

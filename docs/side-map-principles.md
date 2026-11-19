@@ -228,6 +228,12 @@ it fires, and lights the room round its face (`control/lib/graph/worlds/controll
 hue its level holds back for its boss, so it stands out of every zone that leads to it; its theme lives in its head and
 its signal. The first is Crucible: its head is a crucible of molten metal, on a brute's body, and it lobs.
 
+Its heroes are the herobots (`control/lib/graph/gameworld/herobots.js`): Galaxy Boy with the buster on his arm, and Zero
+Boy, Galaxy Boy in red with a yellow ponytail and a saber. Zero Boy plays Galaxy Boy's feel with the saber in the
+buster's place (`gameworld/feel/saber.js`). His three cuts chain on the fire press and never move him, and they deal
+damage on the buster's scale. Each cut is drawn as a slash that sweeps open in the blade's colour and lights what it
+crosses.
+
 The hero's body sets the screen. Galaxy Boy's is the toy hero robot's (`proportions: 'herobot'`, about four and a half
 heads, adult-limbed): a game body of its own, too real for a mascot's.
 

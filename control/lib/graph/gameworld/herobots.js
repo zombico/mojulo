@@ -7,7 +7,8 @@
  *   zero-boy     Galaxy Boy in red, a yellow ponytail out of the helm's back, a blue gem; no cannon: a saber in his right
  *                hand (equipment/styles.js `saber`: a neon blade out of a machined hilt)
  *
- *   HEROBOTS            { <id>: { name, palette, helm?, cannon?, gear? } }
+ *   HEROBOTS            { <id>: { name, palette, helm?, cannon?, gear?, variant } }   `variant` the feel's (feel/cards.js
+ *                       galaxy-boy's variants: how the hero plays)
  *   herobotSpec(id)     → the hero door's spec (create_character { as: 'hero' } / mint_solid via hero)
  *
  * Pure.
@@ -20,7 +21,7 @@ export const HEROBOTS = Object.freeze({
     name: 'Galaxy Boy',
     palette: { Armor: '#1f5fc8', Cuff: '#7fd4ff', Chest: '#1f5fc8', Pec: '#3f8ef2', Plaque: '#8fd6ff', Gem: '#c4122f', Top: '#4aa8ff', Bottom: '#4aa8ff', Shoes: '#1f5fc8',
       ArmorHighlight: '#a9d3ff', CuffHighlight: '#e8f8ff', GemHighlight: '#ff7d96', ChestHighlight: '#a9d3ff', PecHighlight: '#b4dcff' },
-    cannon: 'R',
+    cannon: 'R', variant: 'buster',
   },
   'zero-boy': {
     name: 'Zero Boy',
@@ -30,7 +31,7 @@ export const HEROBOTS = Object.freeze({
       ArmorHighlight: '#ff9e9e', CuffHighlight: '#fff0ec', GemHighlight: '#bcd6ff', ChestHighlight: '#ff9e9e', PecHighlight: '#ff8a8a', Hair: '#f2c94c' },
     // (a ponytail out of the helm's back: the rival cast's, wild, its tie in the cuff's colour)
     helm: { ponytail: { u: 0.55, len: 0.72, r: 0.042, n: 17, spread: 0.22, back: 0.28, wild: 0.7, group: 'Hair', tie: { group: 'Cuff' } } },
-    gear: { right: { item: 'sword', style: 'saber' } },
+    gear: { right: { item: 'sword', style: 'saber' } }, variant: 'saber',
   },
 });
 export const HEROBOT_IDS = Object.freeze(Object.keys(HEROBOTS));

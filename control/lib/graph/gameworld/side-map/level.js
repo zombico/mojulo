@@ -49,7 +49,7 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
   // the hero: the feel's rule on the lane, as tall as it stands
   const written = G.feel ? feelRule(G.feel) : null;
   const rule = { ...(written ?? {}), move: 'lane', lane: [[0, r3(s0 - 20)], [0, r3(s1 + 20)]], collideHeight: stature };
-  const controls = `A / D  run · Space  jump${written?.dash ? ' · F  dash' : ''}${written?.buster ? ' · J  fire (hold: charge)' : ''}${L.ladders.length ? ' · W / S  climb' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
+  const controls = `A / D  run · Space  jump${written?.dash ? ' · F  dash' : ''}${written?.buster ? ' · J  fire (hold: charge)' : ''}${written?.moveset && written?.strike === 'melee' ? ' · J  saber (press again: the string)' : ''}${L.ladders.length ? ' · W / S  climb' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   const W0 = playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), walk: false, id: 'hero', title: name, controls, rule });
   const hero0 = { ...W0.entities[0], transform: { pos: P.spawn, heading: Math.PI / 2 } };
   // its FOES (cast.js): the level's bestiary stood on the map's spawners, on the lane's rail, by the stage's extra (the

@@ -400,6 +400,9 @@ export const POLES = Object.freeze({
       ] },
       life: { hp: 16, oneHit: false, ko: 90 }, lane: { x: 0, face: false },
     },
+    // (its heroes, gameworld/herobots.js: Galaxy Boy's buster the default; Zero Boy's SABER in its place, his string on the
+    // fire press in place, saber.js)
+    variants: { buster: {}, saber: { charge: null, blade: { kit: 'saber' } } },
     needs: ['ladders', 'a boss\'s weapon got (a weapon a boss)', 'sub-tanks and heart tanks', 'armor parts (the legs earn the air dash)'] },
   'commuter-rail-runner': { demo: ['lanes', 'jump', 'dodge', 'dash'], name: 'Commuter Rail Runner', after: 'the infinite runner', base: 'pinball', view: { camera: 'third-person', D: 5.5, h: 2.8, pitch: 0.22 }, stage: 'rail',
     says: 'the endless run, pinball\'s body: the track comes at you faster and faster; on the rails a flick switches lanes, a jump clears a barrier, a roll or a boost goes under an overhead, a train is dodged, coins gathered, a hit stumbles and a second ends it; on the slope the ball steers free between rocks and pillars, one hit and the run is over',

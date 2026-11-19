@@ -54,10 +54,11 @@
  */
 import { firstLevel, firstLevelSegments, FIRST_LEVEL_DIMENSIONS } from './first-level.js';
 import { firstSideMap } from './side-map/first.js';
-import { POLES } from './feel/cards.js';
+import { POLES, variantsOf } from './feel/cards.js';
 import { feelSuggestion } from './feel/suggest.js';
 import { STEERED } from './cameras.js';
 import { railOfGame } from './game-bodies.js';
+import { HEROBOTS, HEROBOT_IDS } from './herobots.js';
 
 export const PLATFORMER_DIMENSIONS = Object.freeze({
   '2d': Object.freeze({
@@ -166,14 +167,17 @@ export const SIDE_MAP_FOES = Object.freeze({
 export const SIDE_MAP_FIRST_FOES = Object.freeze(['hardhat', 'hopfrog', 'ram', 'batwing', 'shellgun', 'prickle']);
 
 /** The rail's game in a dimension: the words to write on a gameworld (see the header). */
-export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id, name, seed, kit, boss = false, camera } = {}) {
+export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id, name, seed, kit, boss = false, camera, hero } = {}) {
   const D = PLATFORMER_DIMENSIONS[readDimension(dimension)];
   if (!POLES[pole] || POLES[pole].base !== 'platformer') throw new Error(`platformer: '${pole}' is not a platformer's template (${Object.keys(POLES).filter((p) => POLES[p].base === 'platformer').join(', ')})`);
   if (D.poles && !D.poles.includes(pole)) throw new Error(`platformer: ${POLES[pole].name} is played in 2d (${D.after} is ${D.poles.map((p) => POLES[p].name).join(', ')}'s)`);
   if (camera !== undefined && !D.cameras.includes(camera)) throw new Error(`platformer: a ${dimension} game is played through ${D.cameras.join(' | ')} (not '${camera}')`);
+  // (a run and gun's HERO, herobots.js: the variant of its feel it plays, Zero Boy's the saber)
+  if (hero !== undefined && !(SIDE_MAP_POLES.includes(pole) && HEROBOTS[hero])) throw new Error(`platformer: hero is one of ${HEROBOT_IDS.join(', ')}, a side scroller's (${SIDE_MAP_POLES.map((p) => POLES[p].name).join(', ')})`);
+  const variant = hero ? HEROBOTS[hero].variant : undefined;
   const level = id ?? D.level, flow = platformerFlow(dimension), front = platformerFront(dimension), sideMap = SIDE_MAP_POLES.includes(pole) && D === PLATFORMER_DIMENSIONS['2d'];
   const words = {
-    feel: { pole, takes: true },
+    feel: { pole, takes: true, ...(variant && variant !== variantsOf(pole)[0] ? { variant } : {}) },
     camera: camera ?? D.camera,
     mechanics: { lives: 3, coins: true, legend: 'menu' },
     // (the run and gun's first level is a SIDE MAP, side-map/first.js: its zones, climbs and boss's room seen from the

@@ -12,6 +12,8 @@
  *                that burst there then (its burst's), else warm, so what a shot destroys is lit by the shot's light
  *   a TELL       a boss's signal as it winds up (`rule.tell`, its `tellNow` read by the page from tell.js): at its face, in its
  *                signal's colour, growing with the tell past its ember
+ *   a CUT        a saber's (a moveset striking with a colour, `rule.strikeFx`): through its contact window, at its arc in front
+ *                of the body, in the blade's colour
  *   the CHARGE   the pilot's buster charging (e.charging, e.chargeFrac): from its body, at its chest, growing as it fills, in the colour
  *                of the level reached, pulsing on the world's clock
  *
@@ -27,10 +29,10 @@
  *
  * Import-free: the page runs this exact source (toString), as it runs the controllable world's.
  */
-export const SHOT_LIGHT = Object.freeze({ k: 6, burstLife: 0.35, flashLife: 0.09, pellet: [1.4, 5], shell: 0.9, burst: 1.6, flash: 2, charge: [0.8, 1.8], warm: 0xffd890, chroma: 1.6, breakLife: 0.45, broke: [2.6, 1.3], wreck: [3, 1.5], pulse: [3, 6], tell: [1.2, 2.4], tellPower: 0.9 });
+export const SHOT_LIGHT = Object.freeze({ k: 6, burstLife: 0.35, flashLife: 0.09, pellet: [1.4, 5], shell: 0.9, burst: 1.6, flash: 2, charge: [0.8, 1.8], warm: 0xffd890, chroma: 1.6, breakLife: 0.45, broke: [2.6, 1.3], wreck: [3, 1.5], pulse: [3, 6], tell: [1.2, 2.4], tellPower: 0.9, slash: [1.6, 1.8], slashPower: 0.85 });
 
 export function shotLights(state, opts) {
-  const S = { k: 6, burstLife: 0.35, flashLife: 0.09, pellet: [1.4, 5], shell: 0.9, burst: 1.6, flash: 2, charge: [0.8, 1.8], warm: 0xffd890, chroma: 1.6, breakLife: 0.45, broke: [2.6, 1.3], wreck: [3, 1.5], pulse: [3, 6], tell: [1.2, 2.4], tellPower: 0.9 };
+  const S = { k: 6, burstLife: 0.35, flashLife: 0.09, pellet: [1.4, 5], shell: 0.9, burst: 1.6, flash: 2, charge: [0.8, 1.8], warm: 0xffd890, chroma: 1.6, breakLife: 0.45, broke: [2.6, 1.3], wreck: [3, 1.5], pulse: [3, 6], tell: [1.2, 2.4], tellPower: 0.9, slash: [1.6, 1.8], slashPower: 0.85 };
   const o = opts || {}, K = o.k || S.k, focus = o.focus || null, t = state && state.time ? state.time : 0, out = [];
   if (!state) return out;
   // (its colour the hue saturated, the body's: a shot's white core is its own, never what it throws on the world)
@@ -92,6 +94,17 @@ export function shotLights(state, opts) {
     const q = (v - 0.25) / 0.75;
     // (the room's, not the bodies': a light in its own head would light the boss itself, whose signal is its own)
     add([e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + (R.at || 1.5)], R.color, S.tell[0] + S.tell[1] * q, S.tellPower * q * q, false);
+  }
+  // a SABER's cut (feel/saber.js: a moveset striking with a colour, `rule.strikeFx`): through its contact window, a light at
+  // its arc in front of the body, swelling in and fading out (its swing's share, e.swingT, round the window's)
+  for (const e of state.entities || []) {
+    const r = e && e.rule, P = e && e.strikeParams, fx = r && r.strikeFx;
+    if (!r || !r.moveset || r.strike !== 'melee' || !fx || !(fx.color >= 0) || e.swingT == null || !P || e.gone || !e.transform) continue;
+    const from = P.from != null ? P.from : 0.3, to = P.to != null ? P.to : 0.62, u = e.swingT;
+    const q = u < from ? Math.max(0, 1 - (from - u) / 0.12) : u <= to ? 1 : Math.max(0, 1 - (u - to) / 0.25);
+    if (q <= 0) continue;
+    const h = e.transform.heading || 0, R = (P.reach || r.strikeReach || 1.6) * 0.55, H = (r.collideHeight || 1.7) * 0.62;
+    add([e.transform.pos[0] + Math.cos(h) * R, e.transform.pos[1] + Math.sin(h) * R, e.transform.pos[2] + H], fx.color, S.slash[0] + S.slash[1] * q, S.slashPower * q);
   }
   // the K that matter most where the camera looks: power over distance (a far light is a light the frame does not see)
   if (out.length > K) {

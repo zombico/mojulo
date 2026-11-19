@@ -31,6 +31,7 @@
  */
 import { FPS, r4, POLES, POLE_IDS, variantsOf, poleCard, blendPoles, mergeDeep } from './cards.js';
 import { jumpShares } from '../../polygonizer/hero-jump.js';
+import { saberRule } from './saber.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** A hero's STAMINA (the sprint's gauge), its defaults: seconds of sprint, seconds to refill from empty, and seconds to
@@ -192,6 +193,8 @@ export function lowerFeel(card, { gear = null, takes = false, base = null } = {}
     if (S.length > 1) rule.combo = 1;
     half('moves.string', `the contact window's place in the swing (${m.startup} of ${total} frames to the first active); its frames are the swing clip's until the clips are fitted to the card${S.length > 2 ? `; a string of ${S.length} plays as the runtime's two-hit combo` : ''}`);
   }
+  // the SABER (a card's `blade: { kit: 'saber' }`, saber.js): its string on the fire press, in place, on the buster's scale
+  if (C.blade?.kit === 'saber') { Object.assign(rule, saberRule()); carried.push('blade'); }
   // the hitstop: both bodies frozen on a melee connect for the card's frames (base + perMs a unit of the blow's shove, at
   // most max: combat-melee.js stepMelee), the runtime's melee only (a stomp's and a pound's are the lab's)
   if (C.hit?.hitstop && C.hit.hitstop.max > 0) { const H = C.hit.hitstop; put('hit.hitstop', 'hitstop', { base: H.base, perMs: H.perMs, max: H.max }); }

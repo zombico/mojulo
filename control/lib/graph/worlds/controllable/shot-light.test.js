@@ -68,6 +68,15 @@ describe('the shot light', () => {
     expect(hi.pos).toEqual([0, 5, 1.8]);
     expect(hi.color[0]).toBe(1);
   });
+  it('a saber\'s cut lights in front of the body through its contact window, in the blade\'s colour', () => {
+    const sab = (swingT) => ({ id: 'z', transform: { pos: [0, 4, 0], heading: Math.PI / 2 }, rule: { moveset: { moves: {} }, strike: 'melee', strikeFx: { color: 0x7dfff0 }, collideHeight: 1.7 }, swingT, strikeParams: { from: 0.3, to: 0.6, reach: 2 } });
+    expect(shotLights({ time: 1, entities: [sab(0.05)] })).toEqual([]);
+    const [mid] = shotLights({ time: 1, entities: [sab(0.45)] }), [late] = shotLights({ time: 1, entities: [sab(0.75)] });
+    expect(mid.pos[1]).toBeGreaterThan(4);
+    expect(mid.power).toBeGreaterThan(late.power);
+    expect(mid.color[1]).toBe(1);
+    expect(shotLights({ time: 1, entities: [{ ...sab(0.45), swingT: null }] })).toEqual([]);
+  });
   it('past K, the strongest near the focus are kept', () => {
     const ps = Array.from({ length: 10 }, (_, i) => pellet([0, i * 10, 1], 0.08, 0xffffff));
     const L = shotLights({ time: 0, projectiles: ps }, { focus: [0, 0, 1], k: 3 });

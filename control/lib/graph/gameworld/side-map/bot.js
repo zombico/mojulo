@@ -8,7 +8,8 @@
  *   a chimney  the next stand (a rest, then the way out over the far wall's top): kicked up the wall across from it, kick
  *              after kick, until the feet are over it, then over onto it. Each kick counted; the least the feet stood
  *              over the rising frame's bottom is the climb's MARGIN
- *   a foe      ahead on its floor within FOE_AHEAD m (cast.js): fired at, a tap every FOE_TAP frames; hopped when it reaches it
+ *   a foe      ahead on its floor within FOE_AHEAD m (cast.js): fired at, a tap every FOE_TAP frames; hopped when it reaches it;
+ *              with a BLADE (a saber's string, feel/saber.js), closed on and cut in its reach, press after press
  *   a ladder   walked to, held up to its top
  *   a drop     walked off (a cascade's steps, a chute)
  *   a room     crossed to its far wall: the end; a room holding a foe (a boss) fought first, from ROOM_NEAR to ROOM_FAR m
@@ -37,6 +38,8 @@ export function playSideMap(layout, reach, { stature = 1.7, seconds = 240, trace
   });
   const hooks = { ground: groundOf(P.colliders, -1e4) }, w = drive ? drive.world : own, DT = drive?.dt ?? DT60, h = w.byId.hero, last = L.zones.at(-1);
   const kickGap = Math.max(1, Math.round(2 / 60 / DT)), lead = Math.max(1, Math.round((DASH_LEAD / 60) / DT));
+  // (a hero with a blade, a saber's string: its reach; else a gun's play)
+  const blade = h.rule && h.rule.moveset && h.rule.strike === 'melee' ? (h.rule.strikeReach ?? 1.6) : 0;
   const climbs = L.zones.filter((Z) => Z.run === 'up').map((Z) => ({ zone: Z.i, climb: Z.climb, kicks: 0, margin: Infinity, t0: null, time: null }));
   let f = 0, dashAt = null, lastKick = -99, done = false, aim = null, standZ = null;
   const press = (input) => { if (trace) trace(f, h, w.camera.frame, input); return drive ? drive.step(input) : stepWorld(w, input, DT, hooks); };
@@ -47,8 +50,12 @@ export function playSideMap(layout, reach, { stature = 1.7, seconds = 240, trace
     // (a room holding a foe still standing, a boss's: fought from a gun's distance, back and forth, firing, till it falls)
     const held = Z.kind === 'room' ? (w.entities || []).find((e) => e.team === 'foes' && !e.gone && !e.downed && !e.dormant && e.transform && e.transform.pos[1] >= Z.rect[0] && e.transform.pos[1] <= Z.rect[1]) : null;
     if (held) {
-      const d = held.transform.pos[1] - s, dir = d > ROOM_FAR ? 1 : d < ROOM_NEAR ? -1 : 0;
-      press({ strafe: dir, fire: (f % FOE_TAP) < FOE_TAP / 2, jump: h.grounded && f % ROOM_HOP === 0, jumpHeld: true });
+      // (a blade fights it at its reach, a gun from a gun's distance)
+      const near = blade ? blade * 0.55 : ROOM_NEAR, far = blade ? blade * 0.85 : ROOM_FAR;
+      const d = held.transform.pos[1] - s, dir = d > far ? 1 : d < near ? -1 : 0;
+      // (a blade cuts where the body faces: turned back to it first, after backing off)
+      const turn = blade && dir === 0 && Math.sign(Math.sin(h.transform.heading || 0)) !== Math.sign(d) ? Math.sign(d) : 0;
+      press({ strafe: dir || turn, fire: !turn && (f % FOE_TAP) < FOE_TAP / 2, jump: h.grounded && f % ROOM_HOP === 0, jumpHeld: true });
       continue;
     }
     if (k === last.i && s >= last.rect[1] - 2) { done = true; break; }
@@ -110,7 +117,10 @@ export function playSideMap(layout, reach, { stature = 1.7, seconds = 240, trace
     // it hopped (a stomp, or over it)
     const foe = (w.entities || []).filter((e) => e.team === 'foes' && !e.gone && !e.downed && !e.dormant && e.transform)
       .map((e) => ({ e, d: e.transform.pos[1] - s, dz: e.transform.pos[2] - z })).filter((x) => x.d > -0.3 && x.d < FOE_AHEAD && Math.abs(x.dz) < 2.5).sort((a, b) => a.d - b.d)[0];
-    if (foe) {
+    if (foe && blade) {
+      // (a BLADE, a saber's: closes on it, stops in reach and cuts, press after press, the string's)
+      if (foe.d < blade * 0.85 && Math.abs(foe.dz) < 1.2) { const back = Math.sign(Math.sin(h.transform.heading || 0)) < 0; input.strafe = back ? 1 : 0; input.fire = !back && (f % FOE_TAP) < FOE_TAP / 2; }
+    } else if (foe) {
       input.fire = (f % FOE_TAP) < FOE_TAP / 2;
       if (foe.d < 1.4 && h.grounded && !input.jump) input.jump = true;
     }

@@ -23,7 +23,7 @@ import { groundGridScript } from './ground-grid.js';
 import { turretScript } from './turret-view.js';
 import { boatWaterScript } from './boat-water.js';
 import { shotLightScript } from './shot-light-view.js';
-import { roundLooks, blastLook, BLAST_LOOK } from '../../../gameworld/feel/round-look.js';
+import { roundLooks, blastLook, BLAST_LOOK, SLASH_LOOK } from '../../../gameworld/feel/round-look.js';
 import { castKitSource } from '../cast-rig.js';
 import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
 import { tellOf } from '../../../worlds/controllable/tell.js';
@@ -802,6 +802,8 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const boatOn = entities.some((e) => e && e.rule && e.rule.type === 'boat');
   // (a run and gun's arm cannon, worlds/controllable/buster.js: a body whose rule carries a buster; its rounds drawn as pellets)
   const busterOn = entities.some((e) => e && e.rule && e.rule.buster);
+  // (a SABER's body, gameworld/feel/saber.js: a moveset that strikes with a colour, its cuts drawn as slashes; none: nothing)
+  const saberOn = entities.some((e) => e && e.rule && e.rule.moveset && e.rule.strike === 'melee' && e.rule.strikeFx && Number.isInteger(e.rule.strikeFx.color));
   const steerOn = entities.some((e) => e && ((e.rule && e.rule.steer) || (e.forms && Object.values(e.forms).some((f) => f && f.rule && f.rule.steer))));
   // a person's sprint (rules-platform.js sprintSpeed): Shift held, read only where a body has one; absent, nothing emitted
   const sprint = entities.some((e) => e && e.rule && e.rule.sprintSpeed > 0);
@@ -2890,8 +2892,8 @@ let __usePad = false;   // the device the player last used (a prompt names its k
 window.addEventListener('keydown', (e) => { __held[e.code] = true; __usePad = false; if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); });
 window.addEventListener('keyup', (e) => { __held[e.code] = false; });
 let __lookDX = 0, __lookDY = 0, __drag = false, __fireDown = false;${moveset ? ' let __heavyDown = false, __specialDown = false, __cycleDown = false;' : ''}
-${busterOn ? `// THE BUSTER's fire (worlds/controllable/buster.js): J held (a side-scroller's hands are on the keys; the pad's right trigger
-// fires it too), a press its tap shot, held its charge, let go the charged shot
+${busterOn || saberOn ? `// THE BUSTER's fire (worlds/controllable/buster.js): J held (a side-scroller's hands are on the keys; the pad's right trigger
+// fires it too), a press its tap shot, held its charge, let go the charged shot; a SABER's cut on the same key
 window.addEventListener('keydown', (e) => { if (e.code === 'KeyJ') __fireDown = true; });
 window.addEventListener('keyup', (e) => { if (e.code === 'KeyJ') __fireDown = false; });
 ` : ''}const __canvas = renderer.domElement;
@@ -4425,11 +4427,71 @@ function __rlRound(p) {
   };
   return { g, tick, pellet: { size: r, lv: p.busterLv || 0 } };
 }
+` : ''}${saberOn ? `// THE SLASH (gameworld/feel/round-look.js SLASH_LOOK; feel/saber.js): a saber's cut drawn in the shot's light, its
+// colours the blade's (a white-hot core along its outer edge, the hue saturated, the hue deep inward), an arc in the body's
+// own plane sweeping open through the cut's contact window, its head brightest and its tail fading, then gone over its
+// life. Over the bodies (no depth test), as the charge's light is
+const __SLASH = ${safeJson(SLASH_LOOK)}, __SLASH_B = ${safeJson(BLAST_LOOK)};
+const __slashRamp = ${blastLook.toString()};
+const __slashes = {};
+function __slashGeo(arc, R, W) {
+  const N = 40, a0 = arc[0] * Math.PI / 180, a1 = arc[1] * Math.PI / 180, pos = new Float32Array((N + 1) * 2 * 3), uv = new Float32Array((N + 1) * 2 * 2), idx = [];
+  for (let i = 0; i <= N; i++) { const t = i / N, a = a0 + (a1 - a0) * t;
+    for (let j = 0; j < 2; j++) { const r = j ? R : R - W, k = i * 2 + j; pos[k * 3] = Math.cos(a) * r; pos[k * 3 + 1] = Math.sin(a) * r; pos[k * 3 + 2] = 0; uv[k * 2] = t; uv[k * 2 + 1] = j; }
+    if (i < N) idx.push(i * 2, i * 2 + 1, i * 2 + 3, i * 2, i * 2 + 3, i * 2 + 2); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(idx); return g;
+}
+function __slashMat(L) {
+  // (light added, never alpha: the frame's alpha left as it was, so its composite never darkens what the slash crosses)
+  return new THREE.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide,
+    blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+    uniforms: { uCore: { value: new THREE.Color(L.ramp[0]) }, uHue: { value: new THREE.Color(L.ramp[1]) }, uDeep: { value: new THREE.Color(L.ramp[2]) }, uHead: { value: 0 }, uFade: { value: 0 }, uCoreW: { value: __SLASH.core } },
+    vertexShader: 'varying vec2 vUv;\\nvoid main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform vec3 uCore; uniform vec3 uHue; uniform vec3 uDeep; uniform float uHead; uniform float uFade; uniform float uCoreW;\\nvarying vec2 vUv;\\n'
+      + 'void main() {\\n  float a = vUv.x, r = vUv.y;\\n  if (a > uHead) discard;\\n'
+      + '  float tail = clamp(1.0 - (uHead - a) / 0.6, 0.0, 1.0);\\n'
+      + '  float body = smoothstep(0.0, 0.45, r) * (1.0 - smoothstep(0.94, 1.0, r));\\n'
+      + '  float core = smoothstep(1.0 - uCoreW - 0.1, 1.0 - uCoreW * 0.3, r);\\n'
+      + '  vec3 c = mix(mix(uDeep, uHue, smoothstep(0.0, 0.7, r)), uCore, core);\\n'
+      + '  float al = body * (0.2 + 0.8 * tail * tail) * uFade;\\n  gl_FragColor = vec4(c * al, al);\\n}' });
+}
+const __slashUp = new THREE.Vector3(0, 0, 1), __slashF = new THREE.Vector3(), __slashS = new THREE.Vector3(), __slashM = new THREE.Matrix4();
+function __slashFx(e) {
+  const r = e.rule, P = e.strikeParams, mv = e.mvMove && r.moveset.moves[e.mvMove];
+  let S = __slashes[e.id];
+  if (!S) { S = __slashes[e.id] = { g: new THREE.Group(), meshes: {}, mat: __slashMat(__slashRamp(r.strikeFx.color, 'impact', __SLASH_B)), end: null, key: null }; S.g.renderOrder = 6; scene.add(S.g); }
+  // (the live cut's sweep through its contact window, a little ahead of it; after the window, its fade over the life)
+  const live = e.swingT != null && mv && P && !e.gone;
+  if (live) {
+    const from = P.from != null ? P.from : 0.3, to = P.to != null ? P.to : 0.62, lead = __SLASH.lead, p = (e.swingT - (from - lead)) / Math.max(1e-3, to - from + lead);
+    const key = e.mvMove + ':' + (e.mvHit || 0);
+    if (key !== S.key) { S.key = key; S.end = null; }
+    if (p <= 0) { S.g.visible = false; return; }
+    S.mat.uniforms.uHead.value = Math.min(1, p); S.mat.uniforms.uFade.value = 1;
+    if (p >= 1 && S.end == null) S.end = __world.time;
+    const sw = mv.swing || 'neutral', H = r.collideHeight || 1.7, R = (P.reach || r.strikeReach || 1.6) * __SLASH.radius;
+    let m = S.meshes[sw];
+    if (!m) { m = S.meshes[sw] = new THREE.Mesh(__slashGeo(__SLASH.arcs[sw] || __SLASH.arcs.neutral, R, R * __SLASH.width), S.mat); m.raycast = function () {}; m.renderOrder = 6; S.g.add(m); }
+    for (const k in S.meshes) S.meshes[k].visible = k === sw;
+    const h = e.transform.heading || 0;
+    __slashF.set(Math.cos(h), Math.sin(h), 0); __slashS.crossVectors(__slashF, __slashUp);
+    __slashM.makeBasis(__slashF, __slashUp, __slashS); S.g.quaternion.setFromRotationMatrix(__slashM);
+    S.g.position.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + H * __SLASH.height);
+    S.g.visible = true;
+    if (S.end != null) S.mat.uniforms.uFade.value = Math.max(0, 1 - (__world.time - S.end) / __SLASH.life);
+  } else if (S.g.visible) {
+    if (S.end == null) S.end = __world.time;
+    const f = Math.max(0, 1 - (__world.time - S.end) / __SLASH.life);
+    S.mat.uniforms.uFade.value = f; S.mat.uniforms.uHead.value = 1;
+    if (f <= 0) { S.g.visible = false; S.key = null; }
+  }
+}
 ` : ''}const __projMeshes = {};    // projectile id -> { g } group tracking one live round
 let __burstSeen = -1;       // highest burst seq drawn (the engine's monotonic burstSeq)
 const __projUpY = new THREE.Vector3(0, 1, 0);   // the cone axis (apex +Y) rotated onto each round's velocity
 const __projDir = new THREE.Vector3();
-function __updateProjectiles() {${busterOn ? `
+function __updateProjectiles() {${saberOn ? `
+  for (const e of __world.entities) if (e.rule && e.rule.moveset && e.rule.strike === 'melee' && e.rule.strikeFx && Number.isInteger(e.rule.strikeFx.color)) __slashFx(e);` : ''}${busterOn ? `
   __rlAge();   // (the muzzle rings, aged whether or not their rounds still fly)
   __blastAge();
   for (const e of __world.entities) if (e.rule && e.rule.buster) __chargeFx(e);
