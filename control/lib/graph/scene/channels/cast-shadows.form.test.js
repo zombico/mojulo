@@ -1,8 +1,8 @@
 /**
  * The actors' shadows on a form page (cast-shadows.js liveShadowScript with `formLand`): there the land's sun is the one
  * light and the actors' own light lights nothing, so its map darkened nothing three lights. Each lit surface that
- * receives takes the actors' map on every directional light's colour; a body reads it a few centimetres deeper. Only a
- * page with actors on a form land carries it.
+ * receives takes the actors' light's own shadow (three's getShadow) on every directional light's colour. Only a page
+ * with actors on a form land carries it.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -17,29 +17,27 @@ describe('the actors\' shadows on a form page', () => {
     expect(liveShadowScript(cfg({ hour: true, formLand: true }))).not.toContain('__csForm');
     expect(liveShadowScript(cfg({ actors: true, hour: true, landSun: true }))).not.toContain('__csForm');   // (a built place's land sun is another word)
   });
-  it('multiplies each directional light\'s colour by the actors\' map, in three\'s own loop; a body reads it deeper', () => {
+  it('takes the actors\' light\'s own shadow (three\'s getShadow, its index among the casting lights) onto each directional light', () => {
     const src = liveShadowScript(cfg({ actors: true, hour: true, formLand: true }));
-    // (the page's patch, run against a stand-in of three's chunk and a mesh: its shader text read back)
     const chunk = 'for ( int i = 0; i < NUM_DIR_LIGHTS; i ++ ) {\n\t\tdirectionalLight = directionalLights[ i ];\n\t\tgetDirectionalLightInfo( directionalLight, directLight );\n\t\tRE_Direct( directLight );\n\t}';
-    const start = src.indexOf('const __csFormFS'), end = src.indexOf('// (a sweep a few times a second');
-    const run = new Function('THREE', '__csMatU', '__csMapU', '__csBiasU', '__csTexelU', `${src.slice(start, end)}; return __csFormPatch;`);
-    const patch = run({ ShaderChunk: { lights_fragment_begin: chunk } }, {}, {}, {}, {});
-    const shaderOf = (castShadow) => {
-      const mat = { isMeshStandardMaterial: true, userData: {} }, o = { castShadow, material: mat };
-      patch(o);
-      const sh = { uniforms: {}, vertexShader: '#include <project_vertex>', fragmentShader: '#include <lights_fragment_begin>' };
-      mat.onBeforeCompile(sh);
-      return { sh, mat };
-    };
-    const land = shaderOf(false), body = shaderOf(true);
-    expect(land.sh.fragmentShader).toContain('getDirectionalLightInfo( directionalLight, directLight );\n\t\tdirectLight.color *= csActor;');
-    expect(land.sh.fragmentShader).toContain('float csActor = csFormLit( vCsCoord, csBias );');
-    expect(body.sh.fragmentShader).toContain('float csActor = csFormLit( vCsCoord, csBias * 10.0 );');
-    expect(land.sh.vertexShader).toContain('vCsCoord = csMat * ( modelMatrix * vec4( transformed, 1.0 ) );');
-    expect(Object.keys(land.sh.uniforms).sort()).toEqual(['csBias', 'csMap', 'csMat', 'csTexel']);
-    expect(land.mat.customProgramCacheKey()).not.toBe(body.mat.customProgramCacheKey());
+    const start = src.indexOf('__csL.shadow.normalBias'), end = src.indexOf('// (a sweep a few times a second');
+    const __csL = { shadow: { normalBias: 0 } };
+    const run = new Function('THREE', '__csL', '__CS', 'scene', `${src.slice(start, end)}; return { patch: __csFormPatch, index: __csActorIndex };`);
+    const lights = [{ isDirectionalLight: true, castShadow: false }, { isDirectionalLight: true, castShadow: true }, __csL, { isDirectionalLight: true, castShadow: true }];
+    __csL.isDirectionalLight = true; __csL.castShadow = true;
+    const K = run({ ShaderChunk: { lights_fragment_begin: chunk } }, __csL, { unit: 1 }, { traverseVisible: (f) => lights.forEach(f) });
+    expect(K.index()).toBe(1);                                  // (its place among the lights that cast, in the scene's order)
+    expect(__csL.shadow.normalBias).toBeCloseTo(0.04, 6);
+    const mat = { isMeshStandardMaterial: true, userData: {} };
+    K.patch({ material: mat }, 1);
+    expect(mat.defines.CS_ACTOR_I).toBe(1);
+    const sh = { fragmentShader: '#include <lights_fragment_begin>' };
+    mat.onBeforeCompile(sh);
+    expect(sh.fragmentShader).toContain('csActor = getShadow( directionalShadowMap[ CS_ACTOR_I ]');
+    expect(sh.fragmentShader).toContain('getDirectionalLightInfo( directionalLight, directLight );\n\t\tdirectLight.color *= csActor;');
+    expect(mat.customProgramCacheKey()).toBe('mojulo-actors-on-form-1');
     // (a material three does not light, the painted world's, is left as it was)
-    const basic = { isMeshBasicMaterial: true, userData: {} }; patch({ castShadow: false, material: basic });
+    const basic = { isMeshBasicMaterial: true, userData: {} }; K.patch({ material: basic }, 1);
     expect(basic.onBeforeCompile).toBeUndefined();
   });
 });
