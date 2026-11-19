@@ -14,7 +14,7 @@
  *     colliders  the layout's blocks, the level's solids, and its crates (each `of` its id: a block that breaks)
  *     spawn      [x, y, z] the first checkpoint's, on the lane
  *   }
- *   SIDE_FALL, LIMBO
+ *   SIDE_FALL, LIMBO, SIDE_DOWN
  *
  * Pure. The lane is the layout's: along +y at x 0, the camera on the +x side.
  */
@@ -23,6 +23,10 @@ import { CRATE } from './crates.js';
 
 export const SIDE_FALL = 'side-fall';
 export const LIMBO = -5000;
+/** Where a body is dropped as its energy is spent (the lives mechanic's `energy.down`): under any frame and over limbo's
+ * catch zone, so the side map's camera answers it as a fall (worlds/controllable/sidemap.js): limbo, the life counted
+ * there, the energy full, the body back at the zone's checkpoint. */
+export const SIDE_DOWN = Object.freeze([0, 0, LIMBO + 1000]);
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 /** A laid map, as the runtime plays it. */

@@ -78,6 +78,26 @@ describe('a platformer\'s lives and coins', () => {
     expect(m.on).toEqual({ dead: { end: 'fail' } });
     expect(() => lowerMechanic('lives', { falls: [3] }, { i: 0, player: 'hero' })).toThrow(/falls/);
   });
+  it('lives with energy: a hit takes ticks, spent it costs a life (or drops the body to fall out), a fall fills it', () => {
+    const m = lowerMechanic('lives', { start: 3, falls: ['f'], energy: { max: 28, hit: 4 } }, { i: 0, player: 'hero' });
+    expect(m.world.vars).toEqual({ lives: 3, energy: 28 });
+    expect(m.world.reactions).toContainEqual({ on: 'hit:hero', do: 'inc', var: 'energy', by: -4, min: 0 });
+    expect(m.world.reactions).not.toContainEqual(expect.objectContaining({ on: 'hit:hero', var: 'lives' }));
+    expect(m.world.reactions).toContainEqual({ on: 'drained', do: 'inc', var: 'lives', by: -1, min: 0 });
+    expect(m.world.reactions).toContainEqual({ on: 'enter', match: { zone: 'f' }, do: 'set', var: 'energy', to: 28 });
+    expect(m.world.watches).toContainEqual({ type: 'drained', when: { var: 'energy', lte: 0 } });
+    // (dropped: the fall takes the life, not the drain)
+    const d = lowerMechanic('lives', { start: 3, falls: ['f'], energy: { down: [0, 0, -4000] } }, { i: 0, player: 'hero' });
+    expect(d.world.reactions.filter((r) => r.on === 'drained')).toEqual([{ on: 'drained', do: 'move', target: 'hero', to: [0, 0, -4000] }]);
+    expect(() => lowerMechanic('lives', { energy: { hit: 0 } }, { i: 0, player: 'hero' })).toThrow(/energy/);
+  });
+  it('lives with continues: none left waits; continue gives them back, giving up fails', () => {
+    const m = lowerMechanic('lives', { start: 3, continues: true, energy: {} }, { i: 0, player: 'hero' });
+    expect(m.on).toEqual({ giveup: { end: 'fail' } });
+    expect(m.world.reactions).toContainEqual({ on: 'continue', do: 'set', var: 'lives', to: 3 });
+    expect(m.world.reactions).toContainEqual({ on: 'continue', do: 'set', var: 'energy', to: 28 });
+    expect(() => lowerMechanic('lives', { continues: 'yes' }, { i: 0, player: 'hero' })).toThrow(/continues/);
+  });
   it('coins: each a zone that counts and toggles off; every oneup coins says oneup, and counts again', () => {
     const m = lowerMechanic('coins', { pickups: [{ at: [0, 4, 1] }, { at: [0, 5, 1] }], oneup: 2 }, { i: 1, player: 'hero' });
     expect(m.world.vars).toEqual({ coins: 0, __coins_run_1: 0 });

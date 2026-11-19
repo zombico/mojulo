@@ -11,6 +11,8 @@
  *   a FALL       out of the frame's bottom: counted in the catch zone in limbo (`side-fall`), a life where the world's
  *                mechanics keep lives (`mechanics.lives`: their `falls`), and back at the zone's checkpoint. The game's
  *                own fall policy is off: a chute goes far below where its catch box stands
+ *   ENERGY       where the world keeps lives, a hit takes ticks of the hero's energy (SIDE_ENERGY) and a life goes only
+ *                when it runs out, the hero dropped to fall out of the frame as a fall does (`energy.down`: SIDE_DOWN)
  *   the GOAL     the last zone's far side reached; where its room holds a boss (the chain's `boss`, stood by the stage's
  *                extra: boss-cast.js), the boss's fall
  *
@@ -25,11 +27,12 @@
 import { playerWorld } from '../../playscape/player.js';
 import { feelRule } from '../feel/lower.js';
 import { sideMapOf, SIDE_MAP_STATURE } from './scene.js';
-import { sideMapPlay, SIDE_FALL } from './play.js';
+import { sideMapPlay, SIDE_FALL, SIDE_DOWN } from './play.js';
 import { sideMapLamps } from './light.js';
 import { bodyLightOf, CEL_INK } from '../game-bodies.js';
 import { sideMapEnds, grownFoe } from './cast.js';
-import { sideMapHud } from './hud.js';
+import { sideMapHud, BOSS_TICKS, MENU_KEY } from './hud.js';
+import { BOSSES } from '../bosses.js';
 import { interfaceLook } from '../../playscape/ui/interface-look.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -43,6 +46,12 @@ const mergePlay = (base, more) => {
 
 /** A side map level's order: the stage's map laid for the world's hero and played by it. */
 // the boss stood in the last room (boss-cast.js): its body, its name and its health, off its defeat-all's bar
+/** The hero's ENERGY on a side map: the genre's 28 ticks, a hit taking 4 (seven hits to fall), a life spent when it runs
+ * out and the hero back at the zone's checkpoint (the lives mechanic's `energy`). */
+export const SIDE_ENERGY = Object.freeze({ max: BOSS_TICKS, hit: 4 });
+// a world's intro card: its boss's words in the roster (its name in its hue, its tell, what it gives), where its last
+// room holds one
+const introOf = (stage) => { const id = stage.manifest.sidemap?.boss, R = id && BOSSES[id]; return R ? { world: `The ${R.theme}`, name: R.name, line: `Watch for it: ${R.tell}.`, gives: R.weapon, hue: R.hue } : null; };
 const bossOf = (X) => { const m = (X?.mechanics ?? []).find((x) => x && x.kind === 'defeat-all' && x.bar); return m ? { id: m.bar.of, name: m.bar.label ?? m.label ?? '', hp: m.bar.hp } : null; };
 
 export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, title, mechanics = null, extra = null, foeFrom = [] } = {}) {
@@ -75,7 +84,8 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
   const last = L.zones.at(-1), reach = { kind: 'reach-exit', at: [0, r3(last.rect[1] - 2.5), r3(last.exit[1] + 1)], radius: 2.5, planar: false };
   // (a boss's fall in its place, where the cast stands one: boss-cast.js)
   const goals = X?.mechanics?.some((m) => m.kind === 'defeat-all') ? X.mechanics : [reach, ...(X?.mechanics ?? [])];
-  const lives = G.mechanics?.lives ? [{ kind: 'lives', start: G.mechanics.lives, falls: [SIDE_FALL] }] : [];
+  // (a continue at none left where the game draws its screens: its GAME OVER is the HUD's, hud.js)
+  const lives = G.mechanics?.lives ? [{ kind: 'lives', start: G.mechanics.lives, falls: [SIDE_FALL], energy: { ...SIDE_ENERGY, down: SIDE_DOWN.slice() }, ...(G.ui !== undefined ? { continues: true } : {}) }] : [];
   const ev = W0.events ?? {};
   const events = { ...ev, sources: [...(ev.sources ?? []), P.catch] };
   const manifest = {
@@ -89,7 +99,7 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
     game: { levelRef: ref, mechanics: [...goals, ...lives], fall: 'none' },
     // ITS HUD (hud.js), where the game's screens are the game UI runtime's (its `ui`): the 8-bit action platformer's
     // columns of ticks, the lives and the boss's energy, READY, the keys at first; in the game's look
-    ...(G.ui !== undefined ? { manaHud: sideMapHud({ theme: interfaceLook(G).theme, lives: G.mechanics?.lives ?? 3, boss: bossOf(X), keys: controls }) } : {}),
+    ...(G.ui !== undefined ? { manaHud: sideMapHud({ theme: interfaceLook(G).theme, lives: G.mechanics?.lives ?? 3, energy: G.mechanics?.lives ? SIDE_ENERGY.max : 0, boss: bossOf(X), intro: introOf(stage), keys: `${controls} · ${MENU_KEY}  menu`, continues: !!G.mechanics?.lives }) } : {}),
   };
   return { tool: 'create_sketch', args: { title: name, manifest }, laws: M.laws.map((l) => ({ ...l, id: `sidemap:${l.id}` })) };
 }

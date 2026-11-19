@@ -7,7 +7,8 @@ import { describe, it, expect } from 'vitest';
 import { platformerGame } from '../platformer-game.js';
 import { gameStages, stageLevelOrder } from '../levels.js';
 import { readGameworld } from '../world.js';
-import { SIDE_FALL } from './play.js';
+import { SIDE_FALL, SIDE_DOWN } from './play.js';
+import { SIDE_ENERGY } from './level.js';
 
 const galaxy = () => ({ id: 'gb', name: 'Galaxy Boy', ...platformerGame({ pole: 'galaxy-boy' }).words });
 
@@ -39,7 +40,8 @@ describe('a side map level', () => {
     expect(ladders.every((l) => l.rule.type === 'climbable')).toBe(true);
     expect(m.events.sources).toContainEqual(expect.objectContaining({ zone: SIDE_FALL }));
     expect(m.game.fall).toBe('none');
-    expect(m.game.mechanics).toContainEqual({ kind: 'lives', start: 3, falls: [SIDE_FALL] });
+    // (its lives as energy: a hit takes ticks, spent the hero drops out as a fall does; a continue, its screens the HUD's)
+    expect(m.game.mechanics).toContainEqual({ kind: 'lives', start: 3, falls: [SIDE_FALL], energy: { ...SIDE_ENERGY, down: [...SIDE_DOWN] }, continues: true });
     const goal = m.game.mechanics.find((x) => x.kind === 'reach-exit');
     expect(goal.at[1]).toBeGreaterThan(Z.at(-1).rect[0]);
     expect(m.colliders.length).toBeGreaterThan(Z.length);
