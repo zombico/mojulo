@@ -87,6 +87,8 @@ describe('geocube: the two specimens share one style', () => {
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', show: 'trail', seed: 1.5 }, {})).toThrow(/seed is an integer/);
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', hour: 'noon' }, {})).toThrow(/hour is the outside's/);
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', rooms: [] }, {})).toThrow(/'rooms' is not a setting/);
+    // (the frame's grade, any world's: the page's compositing stage, read by the world scene)
+    expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', grade: 'night' }, {})).not.toThrow(/is not a setting/);
     // (a lean ground: false, true or 'cliffs', its cliffs' relief kept; nothing else)
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', parallax: 'ground' }, {})).toThrow(/parallax is true .*'cliffs'/);
     // (one far grass: 'lift', nothing else)

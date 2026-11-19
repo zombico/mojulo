@@ -464,3 +464,5 @@ or a recipe key; the spike mints through the real doors and measures.
   further (0.72), a little harder round the middle grey (1.08), the corners dark (0.3), a little grain (0.08), and no
   hue of its own, so a realistic night's greys and a lamp's warmth stay what they are. Level 0 takes it (`grade:
   'night'`, laid on its geocube scene by the spike); every list of the grade's words names it.
+- **A geocube world takes a grade** (era/geocube.js): the frame's `grade` is any world's (the controllable vocab says
+  so), but the geocube kind refused it as not its setting; it is let through to the world scene that reads it.
