@@ -55,13 +55,13 @@ export const CHAPTERS = Object.freeze([
   C('hero', 'characters', 'The hero', { paths: ['/characters/hero'], parts: ['hero:body', 'hero:head', 'hero:hair', 'hero:colour', 'hero:base'], steps: ['hero'], cards: ['gameworld-looks'], reads: ['direction'], outcome: 'characters' }),
   C('motion', 'play', 'The motion', { paths: ['/characters/hero/motion', '/moves'], parts: ['hero:motion'], cards: ['gameworld-motion'], reads: ['hero'], outcome: 'characters' }),
   C('feel', 'play', 'The feel and the juice', { paths: ['/feel', '/arsenal', '/juice', '/tempo', '/fights', '/loadout', '/styleMeter'], cards: ['gameworld-feel', 'gameworld-juice'], reads: ['intent', 'motion'] }),
-  C('actions', 'play', 'The actions', { paths: ['/characters/hero/actions'], parts: ['hero:actions'], cards: ['gameworld-actions'], reads: ['intent', 'hero', 'main-quest'], outcome: 'characters' }),
+  C('actions', 'play', 'The actions', { paths: ['/characters/hero/actions'], parts: ['hero:actions'], cards: ['gameworld-actions', 'gameworld-heroes'], reads: ['intent', 'hero', 'main-quest'], outcome: 'characters' }),
   C('adornment', 'characters', 'The adornment', { paths: ['/characters/hero/adornment'], parts: ['hero:adornment'], steps: ['hero-equipped', 'hero-sheathed'], cards: ['gameworld-adornment'], reads: ['hero', 'actions'], outcome: 'characters' }),
   C('systems', 'play', 'The systems', { paths: ['/mechanics'], parts: ['mechanics:*'], steps: ['systems'], cards: ['gameworld-systems'], reads: ['hero', 'actions', 'motion'], outcome: 'systems' }),
   C('equipment', 'characters', 'The equipment', { paths: ['/equipment', '/mounts'], parts: ['equipment'], steps: ['gear-*', 'stock-*', 'ride'], cards: ['gameworld-equipment', 'gameworld-mounts'], reads: ['adornment', 'systems'], outcome: 'systems' }),
   C('battles', 'play', 'The battles', { paths: ['/battles', '/minigames'], steps: ['keeper'], cards: ['gameworld-battles'], reads: ['systems', 'levels'] }),
   C('cast', 'characters', 'The cast', { paths: ['/characters/cast', '/characters/casting', '/characters/folk'], parts: ['cast', 'characters:cast'], steps: ['casting', 'cast-*', 'folk-*', 'farmhand', 'athlete', 'fighter-*'], cards: ['gameworld-folk'], reads: ['direction', 'levels'], outcome: 'characters' }),
-  C('foes', 'foes', 'The foes', { paths: ['/foes', '/law'], parts: ['foes:*'], steps: ['foes-*', 'foe-*', 'foe', 'guard', 'tower'], cards: ['gameworld-foes'], reads: ['intent', 'levels'], outcome: 'foes' }),
+  C('foes', 'foes', 'The foes', { paths: ['/foes', '/law'], parts: ['foes:*'], steps: ['foes-*', 'foe-*', 'foe', 'guard', 'tower'], cards: ['gameworld-foes', 'gameworld-villains'], reads: ['intent', 'levels'], outcome: 'foes' }),
   // the game's taste in sound (audio-direction.js): the score's style, its identity and cast, the SFX style that sits
   // with it, a level's space, the interface's set. The music department's; the sound and the interface read it
   C('audio-direction', 'music', 'The audio direction', { paths: ['/music/direction'], cards: ['gameworld-music'], reads: ['intent', 'world'] }),
