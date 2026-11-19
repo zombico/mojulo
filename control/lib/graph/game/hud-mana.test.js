@@ -2,6 +2,7 @@
 // reader; the page's host (scene/channels/mana-hud.js) carries them and parses
 import { describe, it, expect } from 'vitest';
 import { hudToMana, levelHud } from './hud-mana.js';
+import { normalizeHud } from './hud-widgets.js';
 import { manaUi } from '../../mana-ui/index.js';
 import { manaHudScript } from '../scene/channels/mana-hud.js';
 
@@ -27,6 +28,13 @@ describe('a level\'s rows on mana-ui', () => {
     expect(find(L.spec.hud, 'counter').props.icon).toBe('coin');
     const region = L.spec.hud.children.find((r) => r.props.at === 'bottom-left');
     expect(find(region, 'bar').props.variant).toBe('hp');
+  });
+  it('a count as stars (the wanted level\'s) is pips in the star shape, drawn as stars', () => {
+    const S = hudToMana([{ var: 'wanted', label: 'wanted', as: 'stars', max: 5, slot: 'top-right' }]);
+    expect(() => manaUi.readSpec(S.spec)).not.toThrow();
+    expect(find(S.spec.hud, 'pips').props).toMatchObject({ max: 5, shape: 'star', label: 'wanted' });
+    expect(manaUi.PIP_SHAPES.star).toEqual(['★', '☆']);
+    expect(normalizeHud([{ var: 'wanted', as: 'stars' }]).errors.join(' ')).toMatch(/as:'stars' needs max/);
   });
   it('binds vars by key, a bar\'s max a var too', () => {
     expect(Object.values(L.feed.rows.vars).sort()).toEqual(['coins', 'hp', 'hpMax', 'score', 'time']);
@@ -64,6 +72,19 @@ describe('a level\'s rows on mana-ui', () => {
     const at = (slot) => E.spec.hud.children.filter((c) => c.props && c.props.at === slot).map((c) => c.props.variant);
     expect(at('top-left')).toEqual(['scrim']);
     expect(at('bottom')).toEqual(['bare']);
+  });
+});
+
+describe('a level\'s HUD as a game draws it', () => {
+  it('money is a coin and a figure, never the word; no box over the world: a corner on a scrim, the rest bare', () => {
+    const E = hudToMana([{ var: 'coins', label: 'coin', as: 'counter', slot: 'top-right' }, { var: 'keys', label: 'keys', as: 'counter', slot: 'top-left' }]), J = JSON.stringify(E.spec);
+    expect(J).toContain('{"use":"counter","props":{"label":"","value":{"bind":"v.v0"},"icon":"coin"}}');
+    expect(J).toContain('"label":"keys"');
+    // (the level's own places: a corner on a scrim, else bare; the radar's scope stands bare, an instrument)
+    const own = E.spec.hud.children.filter((c) => c.use === 'region' && !c.when);
+    expect(own.length).toBeGreaterThan(0);
+    expect(own.every((c) => c.props.variant === (c.props.at.includes('-') ? 'scrim' : 'bare'))).toBe(true);
+    expect(E.spec.hud.children.find((c) => c.use === 'region' && c.when?.bind === 'radar.on').props.variant).toBe('bare');
   });
 });
 

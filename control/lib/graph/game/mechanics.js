@@ -17,7 +17,11 @@
  */
 import { heldVar, itemKey } from '../playscape/ui/items.js';
 import { lowerEscapeRoom } from './escape-room.js';
-import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver } from './errand-mechanics.js';
+import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer, lowerCall, lowerTask, lowerJoin, lowerAct } from './errand-mechanics.js';
+import { lowerWanted } from './law-mechanics.js';
+import { lowerVitals } from './vitals-mechanics.js';
+import { lowerRespray, lowerGunshop } from './shop-mechanics.js';
+import { lowerMission } from './mission-mechanics.js';
 import { lowerWaveGauntlet } from './wave-gauntlet.js';
 import { lowerObjectives } from './objectives.js';
 import { lowerWork } from './work-mechanics.js';
@@ -53,7 +57,8 @@ const CMP_KEYS = ['gte', 'gt', 'lte', 'lt', 'eq', 'ne'];
 // ── the mechanic registry ───────────────────────────────────────────────────────────────────────
 // role: terminal | emitter | gate ; ends (terminals only): which results it can end in.
 // requires: store slice KINDS. lower(params, ctx) → { world, produces?, on?, consumes?, audit? }.
-// ctx = { i (index, for namespacing), player, spawn, storeSchema }.
+// ctx = { i (index, for namespacing), player, spawn, storeSchema, seats? (a level with seats: the bodies seats 2 … take;
+// a mechanic a seat works lowers a hand a seat, the work shift's) }.
 const MECHANICS = {
   // reach a goal zone → success. The walkability audit IS its completability check.
   'reach-exit': {
@@ -1022,6 +1027,24 @@ const MECHANICS = {
   cargo: { role: 'emitter', requires: ['inventory'], lower: lowerCargo },
   bounty: { role: 'emitter', requires: ['inventory'], lower: lowerBounty },
   deliver: { role: 'terminal', ends: ['success'], requires: ['inventory'], lower: lowerDeliver },
+  // (where a job is taken: its giver's place; its quest begins and its legs open)
+  offer: { role: 'emitter', lower: lowerOffer },
+  // (a job offered by phone, by a giver already met, when the one before it is done)
+  call: { role: 'emitter', lower: lowerCall },
+  // (a job given by a phone app, subscribed to and taken on the phone: no one to meet)
+  task: { role: 'emitter', lower: lowerTask },
+  // (a faction joined where its contact stands; its board's posting, finished by an act done)
+  join: { role: 'emitter', lower: lowerJoin },
+  act: { role: 'emitter', lower: lowerAct },
+  // (THE LAW, gameworld/law.js: the wanted level, raised by mayhem, its police coming star by star; game/law-mechanics.js)
+  wanted: { role: 'emitter', lower: lowerWanted },
+  // (the street's health: blows off it, mended when quiet, WASTED at none; game/vitals-mechanics.js)
+  vitals: { role: 'emitter', lower: lowerVitals },
+  // (the city's shops: a respray that loses the law, a gun shop's rounds; game/shop-mechanics.js)
+  respray: { role: 'emitter', requires: ['inventory'], lower: lowerRespray },
+  gunshop: { role: 'emitter', requires: ['inventory'], lower: lowerGunshop },
+  // (a story mission: a job with ways to fail, started again after; game/mission-mechanics.js)
+  mission: { role: 'emitter', lower: lowerMission },
 
   // the PARTY carried (an emitter): the battle party of play.rpg (playscape/rpg) goes from level to level in a party
   // slice: each member's level, xp, hp, mp, class, class ranks and points, and the skills learned (the kernel's save:
@@ -1404,6 +1427,7 @@ export function lowerMechanic(kind, params, ctx) {
     spawn: (ctx && ctx.spawn) || [0, 0, 2],
     storeSchema: ctx && ctx.storeSchema,
     hints: (ctx && ctx.hints) || {},
+    ...(ctx && Array.isArray(ctx.seats) && ctx.seats.length ? { seats: ctx.seats } : {}),
     resolve(reqKind, named, where) {
       const r = resolveSlice(ctx && ctx.storeSchema, reqKind, named, where);
       if (r.error) { errors.push(r.error); return null; }
@@ -1461,7 +1485,7 @@ export function composeMechanics(mechanics, ctx = {}) {
   list.forEach((m, i) => {
     if (!m || !m.kind) { errors.push(`mechanics[${i}] must be { kind, ... }`); return; }
     let low;
-    try { low = lowerMechanic(m.kind, m, { i, player, spawn, storeSchema: ctx.storeSchema, hints }); }
+    try { low = lowerMechanic(m.kind, m, { i, player, spawn, storeSchema: ctx.storeSchema, hints, ...(Array.isArray(ctx.seats) && ctx.seats.length ? { seats: ctx.seats } : {}) }); }
     catch (e) { errors.push(e.message); return; }
     low.errors.forEach((e) => errors.push(e));
     (low.emits || []).forEach((e) => emitted.add(e));

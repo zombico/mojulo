@@ -277,7 +277,7 @@ const ENV_BODY = `
 #endif
 `;
 
-export function formScript(cfg) {
+export function formScript(cfg, { resample = false } = {}) {
   // (the beats' code only in a room with a beat: a room without one is byte for byte as it was)
   const NB = cfg.lights.filter((l) => l.beat).length;
   return `
@@ -395,7 +395,22 @@ fDirect += fBeat * diffuseColor.rgb;
     mat.userData.cast = true;` : ''}
     return mat;
   };
-  const map = (url) => { const t = loader.load(url); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = THREE.NoColorSpace; t.channel = 0; return t; };
+${resample ? `  // (a tile the page reads again at seeded shifts, channels/resample.js: read so here too, where the march landed. Its
+  // plans shift by whole courses, boards and units, so the joints stay where the relief has them)
+  const __rsForm = (mat, q) => {
+    if (!q) return mat;
+    const ob = mat.onBeforeCompile, ck = mat.customProgramCacheKey();
+    mat.onBeforeCompile = (sh) => {
+      ob(sh);
+      sh.uniforms.uRsA = { value: new THREE.Vector4(q[0], q[1], q[2], q[3]) };
+      sh.uniforms.uRsB = { value: new THREE.Vector4(q[4], q[5], q[6], q[7]) };
+      sh.uniforms.uRsC = { value: new THREE.Vector4(q[8], q[9], q[10], 0) };
+      sh.fragmentShader = sh.fragmentShader.replace('void main() {', __RS_GLSL + '\\nvoid main() {').replace('texture2D( map, fUV )', 'rsRead( map, fUV )');
+    };
+    mat.customProgramCacheKey = () => ck + 'rs';
+    return mat;
+  };
+` : ''}  const map = (url) => { const t = loader.load(url); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = THREE.NoColorSpace; t.channel = 0; return t; };
   const maps = {}, made = { material: 0, colour: 0, pom: 0 };
   for (const [k, m] of Object.entries(F.maps)) maps[k] = { ...m, normal: m.normal ? map(m.normal) : null, orm: m.orm ? map(m.orm) : null };
   // every surface of the room that carries its baked light; the rest keep their look, untoned
@@ -414,8 +429,8 @@ ${cfg.sun || cfg.instanced ? `
     }` : ''}
     if (!o.isMesh || o.isInstancedMesh || !b.isMeshBasicMaterial || typeof o.userData.g !== 'string' || keep.has(o.userData.g) || !o.geometry.getAttribute('aLit')) { (Array.isArray(b) ? b : [b]).forEach((m) => { m.toneMapped = false; }); return; }
     const M = maps[o.userData.key];
-    o.material = lit({ map: b.map, vertexColors: b.vertexColors, side: b.side, transparent: b.transparent, opacity: b.opacity, depthWrite: b.depthWrite, alphaTest: b.alphaTest,
-      ...(M && M.orm ? { aoMap: M.orm } : {})${cfg.reflect ? ', ...(SURF[o.userData.g] && SURF[o.userData.g].clear ? { transparent: true, depthWrite: false } : {})' : ''} }, M${cfg.reflect ? ', SURF[o.userData.g] || null, WETG.has(o.userData.g), o.userData.g' : ''});
+    o.material = ${resample ? '__rsForm(' : ''}lit({ map: b.map, vertexColors: b.vertexColors, side: b.side, transparent: b.transparent, opacity: b.opacity, depthWrite: b.depthWrite, alphaTest: b.alphaTest,
+      ...(M && M.orm ? { aoMap: M.orm } : {})${cfg.reflect ? ', ...(SURF[o.userData.g] && SURF[o.userData.g].clear ? { transparent: true, depthWrite: false } : {})' : ''} }, M${cfg.reflect ? ', SURF[o.userData.g] || null, WETG.has(o.userData.g), o.userData.g' : ''})${resample ? ', __RESAMPLE[o.userData.key])' : ''};
 ${cfg.reflect && cfg.sun ? `    // (a built thing out of doors is closed and drawn both sides: into the shadow map it casts by its far faces only,
     // so its lit faces never shade themselves in bands)
     if (SURF[o.userData.g]) o.material.shadowSide = THREE.BackSide;

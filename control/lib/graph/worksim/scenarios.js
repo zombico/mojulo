@@ -9,9 +9,19 @@
  *   roof           a standing job (a backlog) the wind adds to, the line up on a roof and the bin below a ladder: the
  *                  chores sim, travel its cost
  *
+ * THE KITCHEN'S MENUS: the kitchen's paradigm (orders over time, prep worked by hand, what cooks alone and burns,
+ * plating) with other recipes, each a shape of its own (a new menu is a card, its food read off it: food/derive.js):
+ *
+ *   pasta          two pots at once (the pasta and its sauce) met on the plate; or layered in a tray and baked again
+ *   wok            a cooker's rice and a pot's noodles, the prep, and a wok that burns if left: fried rice, chow mein
+ *   ramen          a stock that runs long, noodles and eggs boiled, pork sliced, the bowl built of four things
+ *   diner          a grill that burns, a fryer, the salad cut, a burger stacked; a meal that wants both
+ *   pizzeria       dough kneaded and rolled, a sauce simmered, cheese grated, the pizza topped and baked
+ *
  * Their numbers are seconds of play, not of life (a crop grows in a minute).
  */
-export const SCENARIOS = Object.freeze({
+// the trades: one card a kind of work sim
+const TRADES = Object.freeze({
   kitchen: {
     id: 'kitchen', name: 'Sushi counter',
     why: 'chop and cook are shovel work, plating and serving bucket work; the rice runs alone and burns if no hand is free',
@@ -83,5 +93,108 @@ export const SCENARIOS = Object.freeze({
     session: 300,
   },
 });
+
+// THE KITCHEN'S MENUS (see the header): a kitchen's starters beside the sushi counter, the same trade
+const MENUS = Object.freeze({
+  pasta: {
+    id: 'pasta', name: 'Pasta bar',
+    why: 'the pasta and its sauce run alone in two pots at once and meet on the plate; a tray layered and baked again',
+    crew: { workers: 2, travel: 1.5 },
+    items: { 'boiled-pasta': { store: 4, spoil: 50 }, 'tomato-sauce': { store: 4 }, 'grated-cheese': { store: 4 }, 'pasta-tray': { store: 2 } },
+    stations: {
+      'boil-pasta': { verb: 'shovel', takes: { pasta: 1 }, gives: { 'boiled-pasta': 2 }, work: 1, wait: 10, hold: 8 },
+      'chop-tomato': { verb: 'shovel', takes: { tomato: 1 }, gives: { 'chopped-tomato': 1 }, work: 2 },
+      'simmer-sauce': { verb: 'shovel', takes: { 'chopped-tomato': 1 }, gives: { 'tomato-sauce': 2 }, work: 1, wait: 8, hold: 12 },
+      'grate-cheese': { verb: 'shovel', takes: { cheese: 1 }, gives: { 'grated-cheese': 2 }, work: 2 },
+      'plate-spaghetti': { verb: 'bucket', takes: { 'boiled-pasta': 1, 'tomato-sauce': 1, 'grated-cheese': 1 }, gives: { spaghetti: 1 }, work: 1 },
+      'fill-tray': { verb: 'bucket', takes: { 'boiled-pasta': 1, 'tomato-sauce': 1, 'grated-cheese': 1 }, gives: { 'pasta-tray': 1 }, work: 1.5 },
+      oven: { verb: 'shovel', takes: { 'pasta-tray': 1 }, gives: { 'pasta-bake': 1 }, work: 0.5, wait: 12, hold: 8 },
+    },
+    demand: {
+      mode: 'orders', every: 24, patience: 70, serve: 1,
+      orders: [{ name: 'spaghetti', wants: { spaghetti: 1 }, weight: 3 }, { name: 'pasta bake', wants: { 'pasta-bake': 1 }, weight: 2 }],
+    },
+    session: 240,
+  },
+  wok: {
+    id: 'wok', name: 'Wok station',
+    why: 'rice from the cooker and noodles from the pot, the prep cut, and a wok that burns if left: everything tossed at the end',
+    crew: { workers: 2, travel: 1.5 },
+    items: { 'cooked-rice': { store: 4, spoil: 80 }, 'boiled-noodles': { store: 4, spoil: 50 }, 'diced-carrot': { store: 4 }, 'beaten-egg': { store: 3 }, 'sliced-chicken': { store: 4 } },
+    stations: {
+      'rice-cooker': { verb: 'shovel', takes: { rice: 1 }, gives: { 'cooked-rice': 2 }, work: 1, wait: 10, hold: 14 },
+      'boil-noodles': { verb: 'shovel', takes: { noodles: 1 }, gives: { 'boiled-noodles': 1 }, work: 1, wait: 6, hold: 8 },
+      'dice-carrot': { verb: 'shovel', takes: { carrot: 1 }, gives: { 'diced-carrot': 2 }, work: 2 },
+      'beat-egg': { verb: 'shovel', takes: { egg: 1 }, gives: { 'beaten-egg': 1 }, work: 1 },
+      'slice-chicken': { verb: 'shovel', takes: { chicken: 1 }, gives: { 'sliced-chicken': 1 }, work: 2 },
+      'wok-rice': { verb: 'shovel', takes: { 'cooked-rice': 1, 'diced-carrot': 1, 'beaten-egg': 1 }, gives: { 'fried-rice': 1 }, work: 2, wait: 5, hold: 5 },
+      'wok-noodles': { verb: 'shovel', takes: { 'boiled-noodles': 1, 'sliced-chicken': 1, 'diced-carrot': 1 }, gives: { 'chow-mein': 1 }, work: 2, wait: 5, hold: 5 },
+    },
+    demand: {
+      mode: 'orders', every: 24, patience: 70, serve: 1,
+      orders: [{ name: 'fried rice', wants: { 'fried-rice': 1 }, weight: 3 }, { name: 'chow mein', wants: { 'chow-mein': 1 }, weight: 2 }],
+    },
+    session: 240,
+  },
+  ramen: {
+    id: 'ramen', name: 'Noodle bar',
+    why: 'a stock that runs long and keeps, noodles and eggs boiled to the minute, pork sliced: four things in every bowl',
+    crew: { workers: 2, travel: 1.5 },
+    items: { broth: { store: 6 }, 'boiled-noodles': { store: 3, spoil: 40 }, 'boiled-egg': { store: 6 }, 'sliced-pork': { store: 6 } },
+    stations: {
+      'stock-pot': { verb: 'shovel', takes: { bones: 1 }, gives: { broth: 3 }, work: 1, wait: 14, hold: 40 },
+      'boil-noodles': { verb: 'shovel', takes: { noodles: 1 }, gives: { 'boiled-noodles': 1 }, work: 1, wait: 6, hold: 6 },
+      'boil-egg': { verb: 'shovel', takes: { egg: 1 }, gives: { 'boiled-egg': 2 }, work: 0.5, wait: 8, hold: 20 },
+      'slice-pork': { verb: 'shovel', takes: { pork: 1 }, gives: { 'sliced-pork': 2 }, work: 2 },
+      'bowl-ramen': { verb: 'bucket', takes: { broth: 1, 'boiled-noodles': 1, 'boiled-egg': 1, 'sliced-pork': 1 }, gives: { ramen: 1 }, work: 1.5 },
+    },
+    demand: {
+      mode: 'orders', every: 26, patience: 70, serve: 1,
+      orders: [{ name: 'ramen', wants: { ramen: 1 } }],
+    },
+    session: 240,
+  },
+  diner: {
+    id: 'diner', name: 'Burger diner',
+    why: 'a grill that burns and a fryer, the salad cut, the burger stacked: a meal wants a burger and fries together',
+    crew: { workers: 2, travel: 1.5 },
+    items: { 'grilled-beef': { store: 3 }, 'shredded-lettuce': { store: 4 }, 'sliced-tomato': { store: 4 }, 'cut-potato': { store: 4 }, fries: { store: 4, spoil: 40 } },
+    stations: {
+      grill: { verb: 'shovel', takes: { beef: 1 }, gives: { 'grilled-beef': 1 }, work: 1, wait: 8, hold: 6, slots: 2 },
+      'chop-lettuce': { verb: 'shovel', takes: { lettuce: 1 }, gives: { 'shredded-lettuce': 2 }, work: 2 },
+      'slice-tomato': { verb: 'shovel', takes: { tomato: 1 }, gives: { 'sliced-tomato': 2 }, work: 2 },
+      'cut-potato': { verb: 'shovel', takes: { potato: 1 }, gives: { 'cut-potato': 2 }, work: 2 },
+      fryer: { verb: 'shovel', takes: { 'cut-potato': 1 }, gives: { fries: 1 }, work: 0.5, wait: 8, hold: 8 },
+      'stack-burger': { verb: 'bucket', takes: { bun: 1, 'grilled-beef': 1, 'shredded-lettuce': 1, 'sliced-tomato': 1 }, gives: { burger: 1 }, work: 1.5 },
+    },
+    demand: {
+      mode: 'orders', every: 22, patience: 65, serve: 1,
+      orders: [{ name: 'burger', wants: { burger: 1 }, weight: 3 }, { name: 'fries', wants: { fries: 1 }, weight: 2 }, { name: 'meal', wants: { burger: 1, fries: 1 }, weight: 1 }],
+    },
+    session: 240,
+  },
+  pizzeria: {
+    id: 'pizzeria', name: 'Pizzeria',
+    why: 'dough kneaded and rolled, a sauce simmered, cheese grated, the pizza topped and baked in an oven that burns it if left',
+    crew: { workers: 2, travel: 1.5 },
+    items: { dough: { store: 3 }, 'rolled-dough': { store: 3 }, 'tomato-sauce': { store: 4 }, 'grated-cheese': { store: 4 }, 'raw-pizza': { store: 2 } },
+    stations: {
+      knead: { verb: 'shovel', takes: { flour: 1 }, gives: { dough: 1 }, work: 3 },
+      'roll-dough': { verb: 'shovel', takes: { dough: 1 }, gives: { 'rolled-dough': 1 }, work: 2 },
+      'chop-tomato': { verb: 'shovel', takes: { tomato: 1 }, gives: { 'chopped-tomato': 1 }, work: 2 },
+      'simmer-sauce': { verb: 'shovel', takes: { 'chopped-tomato': 1 }, gives: { 'tomato-sauce': 2 }, work: 1, wait: 8, hold: 14 },
+      'grate-cheese': { verb: 'shovel', takes: { cheese: 1 }, gives: { 'grated-cheese': 2 }, work: 2 },
+      'top-pizza': { verb: 'bucket', takes: { 'rolled-dough': 1, 'tomato-sauce': 1, 'grated-cheese': 1 }, gives: { 'raw-pizza': 1 }, work: 1.5 },
+      oven: { verb: 'shovel', takes: { 'raw-pizza': 1 }, gives: { pizza: 1 }, work: 0.5, wait: 10, hold: 6 },
+    },
+    demand: {
+      mode: 'orders', every: 28, patience: 80, serve: 1,
+      orders: [{ name: 'margherita', wants: { pizza: 1 } }],
+    },
+    session: 240,
+  },
+});
+
+export const SCENARIOS = Object.freeze({ ...TRADES, ...MENUS });
 
 export const scenarioIds = () => Object.keys(SCENARIOS);

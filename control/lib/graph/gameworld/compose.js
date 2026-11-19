@@ -39,7 +39,7 @@ import { arsenalFor } from './combos.js';
 import { GENRE_HERO } from './hero-rows.js';
 import { GEOCUBE_PRESETS, GEOCUBE_PALETTES, readGeocube, geocubeDomains, cubeStreetLook } from '../era/geocube.js';
 import { suggestGenres, readGenre, cubeOfWorld, GENRES } from './intent.js';
-import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf } from './genre-forms.js';
+import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf, heroStreetWords } from './genre-forms.js';
 import { worldMapLevel, WORLD_MAP } from './world-map.js';
 import { settingOfGame } from './cast-setting.js';
 import { heroDesign } from './hero-design.js';
@@ -383,8 +383,10 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const refused = genre ? refusalOf(genre.id, suggestGenres(prompt, Infinity).map((g) => g.id)) : null;
   if (refused) throw new Error(`gameworld: compose: ${GENRES[genre.id].name.toLowerCase()} is ${refused.verdict === 'blocked' ? 'not makeable yet' : 'not wholly makeable yet'}: it waits on ${refused.waits.join(', ')}. Nothing is laid in its place.${refused.others.length ? ` The words also point at ${refused.others.map((g) => GENRES[g].name.toLowerCase()).join(', ')}, which can be made.` : ''}`);
   const pending = genre ? pendingOf(genre.id) : null;
-  if (pending) throw new Error(`gameworld: compose: ${GENRES[genre.id].name.toLowerCase()} is not laid from a sentence yet: it waits on ${pending.waits}. Nothing is laid in its place.${pending.one ? ` One level of it alone is design_game({ quick: { goal: '${pending.one}' } }).` : ''}`);
+  if (pending) throw new Error(`gameworld: compose: ${GENRES[genre.id].name.toLowerCase()} is not laid from a sentence yet: it waits on ${pending.waits}. Nothing is laid in its place.${pending.one ? ` One level of it alone is design_game({ quick: ${pending.call} }).` : ''}`);
   const form = genre ? GENRE_FORMS[genre.id] ?? null : null;
+  // (a beat-em-up a sentence calls a superhero one: its streets on the heroes tuning, genre-forms.js heroStreetWords)
+  const heroWords = genre?.id === 'co-op-brawler' ? heroStreetWords(prompt) : [];
   // the frame a genre on foot is laid in (genre-forms.js heroFrameOf): a hero by default, the camera its cube asks, a
   // monitor's screen; written before the levels are laid (a side camera runs a trail's line: no climbs)
   // the form (resonance.js): what the genre's cube asks of the world that the composer can fill, written before the
@@ -396,6 +398,12 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   for (const w of genre?.matched ?? []) {
     const says = `intent.from=${genre.id}`, r = world.brief.read.find((x) => x.word === w);
     if (r) r.decides = [...r.decides, says]; else world.brief.read.push({ word: w, decides: [says] });
+  }
+  // (and the words that make a beat-em-up a superhero one decide its streets' tuning)
+  for (const w of heroWords) {
+    const says = 'levels.street.tuning=heroes', r = world.brief.read.find((x) => x.word === w);
+    if (r) r.decides = [...r.decides, says]; else world.brief.read.push({ word: w, decides: [says] });
+    world.brief.unread = world.brief.unread.filter((x) => !w.split(' ').includes(x));
   }
   // the foes the words name (foe-words.js: skeletons, orcs, beast folk…), where the world fights turn by turn: its party
   // battles' packs walk round them, each in the look its word asks for, made through its character door
@@ -467,7 +475,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     const nodes = { [`${SUFFIX[i] ?? 'stage'}-a`]: { trail: true }, [`${SUFFIX[i] ?? 'stage'}-b`]: { trail: true }, ...(climb ? { lookout: { meru: true } } : {}) };
     // (a genre's book form, genre-forms.js: its levels laid in it, a flight sim's courses; no town, no walk goal)
     const L = hubbed && i === 0 ? { name: `${cap(landscape)} town`, walk: { nodes: { square: { trail: true } } }, places: { town: true, street: turnBased ? { houses: 7, enter: ['shop', 'inn', 'temple'], walk: ['shop'], walls: true, inside: true } : { houses: 6, enter: 2, walk: ['shop'], walls: true, inside: true } } }
-      : form ? { name: `${form.name} ${i + 1}`, ...form.level(i, n) }
+      : form ? (({ street, ...rest }) => ({ name: `${form.name} ${i + 1}`, ...rest, ...(street ? { street: heroWords.length ? { ...street, tuning: 'heroes' } : street } : {}) }))(form.level(i, n))
       : inside && hubbed ? { name: `The ${dungeonUse}`, building: { use: dungeonUse, kit: dungeonUse === indoors.use ? indoors.kit : ROOM_KIT_OF_USE[dungeonUse] ?? 'gothic-stone' }, ...lgoal }
       : hubbed && i === castleAt ? { name: 'The castle', walk: { nodes }, ...lgoal, places: { castle: civIds[1] ? { civilization: civIds[1] } : true } }
       : inside ? { name: `${cap(indoors.use)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, building: { use: indoors.use, kit: indoors.kit }, ...lgoal }

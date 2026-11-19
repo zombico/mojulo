@@ -13,7 +13,9 @@
  *     emitters?:   [{ at: [x, y, z], cue: <cue id>, every: s | [from, to], reach: m, level? }]   sounds that belong to a place
  *     weather?:    true | { level? (0..1), surface? }   the world's sky, sounding (manifest.weather; beats/weather-audio.js)
  *     (a sheet level also carries `foes`: { <foe id>: { attack?, hurt?, down? } } cue ids, from sfx.sheet.foes)
- *     engine?:     { voice, top, level?, idle? }   a ride's engine: a held voice following the pilot's speed up to `top`
+ *     ambience?:   { voice, level? }   a place's own held sound under the bed (a city's traffic far off)
+ *     engine?:     { voice, top, level?, idle?, cab?, drive?: { load?, road?, skid? } }   a ride's engine: a held voice following the pilot's speed up to `top`
+ *                  (`cab`: a city's cars, heard only while the pilot rides one, by that car's speed)
  *     moves?:      { swing?, hit?, block?, parry?, break?, draw?, loose?, arrow?, felled?, cycle?, foeSwing?, hurt? }
  *                  a moveset's events (gameworld/combos.js, combat-melee.js) → the ids of sfx cues: `swing` and `hit`
  *                  by weapon and weight ({ <weapon>: { light, heavy?, finisher? } }), the rest one cue each
@@ -394,7 +396,18 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     if (!en || typeof en !== 'object' || !(en.top > 0)) throw new Error('audio.engine is { voice: <a held voice: a sustain spec or a shelf word>, top: <the speed it is flat out at, units/s>, level?, idle? }');
     const spec = typeof en.voice === 'string' ? sfxSound(en.voice)?.sustain : en.voice;
     if (!spec) throw new Error(`audio.engine.voice: '${en.voice}' is not a held voice on the SFX shelf`);
-    out.engine = { voice: heldVoice(spec, 'audio.engine.voice'), top: en.top, level: Number.isFinite(en.level) ? en.level : 0.3, idle: Number.isFinite(en.idle) ? Math.max(0, Math.min(1, en.idle)) : 0.12 };
+    // (a city car's DRIVE, `drive`: { load?, road?, skid? }, each { voice, level? }: held voices beside the engine, the
+    // audio channel's car sound design: its growl under the throttle, its tyres' roar by the speed, their screech as they slip)
+    const held = (h, at) => { const sp = typeof h.voice === 'string' ? sfxSound(h.voice)?.sustain : h.voice; if (!sp) throw new Error(`${at}.voice: '${h.voice}' is not a held voice on the SFX shelf`); return { voice: heldVoice(sp, `${at}.voice`), level: Number.isFinite(h.level) ? h.level : 0.4 }; };
+    const drive = en.drive && typeof en.drive === 'object' ? Object.fromEntries(['load', 'road', 'skid'].filter((k) => en.drive[k]).map((k) => [k, held(en.drive[k], `audio.engine.drive.${k}`)])) : null;
+    out.engine = { voice: heldVoice(spec, 'audio.engine.voice'), top: en.top, level: Number.isFinite(en.level) ? en.level : 0.3, idle: Number.isFinite(en.idle) ? Math.max(0, Math.min(1, en.idle)) : 0.12, ...(en.cab === true ? { cab: true } : {}), ...(drive && Object.keys(drive).length ? { drive } : {}) };
+  }
+  // a place's own held sound (`ambience`: { voice, level? }): a city's traffic far off, held under the bed while the
+  // level plays (the audio channel's), quieter inside a car
+  if (audioSpec.ambience !== undefined) {
+    const am = audioSpec.ambience, sp = am && (typeof am.voice === 'string' ? sfxSound(am.voice)?.sustain : am.voice);
+    if (!sp) throw new Error('audio.ambience is { voice: <a held voice: a shelf word or a sustain spec>, level? }');
+    out.ambience = { voice: heldVoice(sp, 'audio.ambience.voice'), level: Number.isFinite(am.level) ? am.level : 0.3 };
   }
   if (audioSpec.thruster) {
     const th = audioSpec.thruster === true ? {} : audioSpec.thruster;

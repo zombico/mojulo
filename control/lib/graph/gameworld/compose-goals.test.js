@@ -128,15 +128,20 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     // carries `figureGrade: 'play'` (the tighter gameplay figures), one line an order, 0e1c91bc -> c9c3c6b8 and
     // 9ad2a5b7 -> 33b4c186; the hero world's as well, and its pilots run on the play grade's `jog` state (its stride the
     // grade's) where they named the library's Jog_Fwd_Loop. Nothing else in the orders moved)
-    expect(fingerprint(unladdered(unaudited(orders)))).toBe('c9c3c6b8');
-    expect(fingerprint(unladdered(unaudited(ground)))).toBe('33b4c186');
+    // (re-pinned 2026-11-19, 1118-jrpg-starter: a new level's trail stage on an isekai land is written with the form
+    // render's grass and no grass hat on its rocks, gameworld/levels.js withFormGrass (`grass: { form: true }`,
+    // `hats: 'lips'`): those two words on each trail stage's manifest and nothing else; without them every order below
+    // prints as it did. c9c3c6b8 -> a0e638e8, 33b4c186 -> 64b2bc96, 71917dd0 -> cd58ee08, aa47dab1 -> c97f28f9,
+    // b14f4c0f -> 610ba5bf, 323e54e5 -> fd0f2b8d)
+    expect(fingerprint(unladdered(unaudited(orders)))).toBe('a0e638e8');
+    expect(fingerprint(unladdered(unaudited(ground)))).toBe('64b2bc96');
     // (re-pinned 2026-11-07, 1107-action-rpg merging 1105-rc: the hero's figure maps the library's Sprint_Loop as its
     // `sprint` clip (playscape/player.js, the stamina sprint's legs), one more clip in each order's hero figure and nothing
     // else: without it the orders print 3229f9a0 as before, 3229f9a0 -> 71917dd0)
-    expect(fingerprint(unladdered(unaudited(hero)))).toBe('71917dd0');   // (3498540d -> 3229f9a0: the play grade, above)
-    expect(fingerprint(unaudited(orders))).toBe('aa47dab1');   // (642958c3 -> aa47dab1: the play grade, above)
-    expect(fingerprint(unaudited(ground))).toBe('b14f4c0f');   // (eadb7584 -> b14f4c0f: the play grade, above)
-    expect(fingerprint(unaudited(hero))).toBe('323e54e5');   // (4e44b89a -> 2448f711: the play grade; -> 323e54e5: the sprint clip, above)
+    expect(fingerprint(unladdered(unaudited(hero)))).toBe('cd58ee08');   // (3498540d -> 3229f9a0: the play grade, above)
+    expect(fingerprint(unaudited(orders))).toBe('c97f28f9');   // (642958c3 -> aa47dab1: the play grade, above)
+    expect(fingerprint(unaudited(ground))).toBe('610ba5bf');   // (eadb7584 -> b14f4c0f: the play grade, above)
+    expect(fingerprint(unaudited(hero))).toBe('fd0f2b8d');   // (4e44b89a -> 2448f711: the play grade; -> 323e54e5: the sprint clip, above)
   }, 300000);
 
   it('a dungeon is indoors: building levels in a room kit, the goals laid in their rooms, made by the run', () => {

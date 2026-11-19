@@ -28,7 +28,7 @@ import { breakage } from './families/breakage.js';
 import { elemental } from './families/elemental.js';
 import { shield } from './families/shield.js';
 import { launch } from './families/launch.js';
-import { booster, engine, beam, servo, fire, charge } from './families/held.js';
+import { booster, engine, beam, servo, fire, charge, ambience, exhaust } from './families/held.js';
 import { ball, sport, crowd } from './families/sports.js';
 import { tires, crash, motoring } from './families/racing.js';
 import { magic, bow, interact } from './families/adventure.js';
@@ -45,7 +45,7 @@ export const FAMILIES = Object.freeze({
   // combat and its world
   explosion, impact, footstep, melee, handling, projectile, breakage, elemental, shield, launch, gunshot,
   // held voices
-  booster, engine, beam, servo, fire, charge,
+  booster, engine, beam, servo, fire, charge, ambience, exhaust,
   // by game type: sports, racing, adventure, platformers / puzzles / tables, life sims, horror, strategy / flight / brawlers
   ball, sport, crowd, tires, crash, motoring, magic, bow, interact, platform, puzzle, tabletop, dice, work, cooking,
   heartbeat, breath, horror, build, siege, flight, brawl,

@@ -1090,6 +1090,34 @@ given to the arena's block beside its client, which asks whether it was given on
   seat to play), drawn as a ring on the cell.
 - Its sheet and theme are scoped to its own root (`#mana-holo`); the theme sets no cover and no veil.
 
+### The open city
+
+A played city (an open-world game: errands and jobs, a phone, a map, a bag, a journal) draws every part of its UI on
+mana-ui, and reads as a game's, not an app's. It follows the principles a game HUD is drawn by:
+- the shape is the label;
+- nothing is boxed over the world;
+- a part speaks when something changes;
+- the map is an instrument.
+
+Its look is the `downtown` theme card (`playscape/ui/theme-cards/downtown.json`, the look a `city-stalker` intent starts
+from: `INTENT_LOOKS` may name a card as well as a preset). It is near-black glass with white words, a taxi's yellow for
+what matters and a banknote's green for money, with nothing drawn across the screen, so the city shows through every
+screen.
+
+- **The radar** (`scene/channels/map-channel.js`) is round, on no plate, with a rim and a shadow under it and its ground
+  darkening toward the edge. The opened map shows the ground in the look's own night, with water in a cold blue. Only
+  the goal and you are named on it, and the key beside it names the rest.
+- **Money** is a coin and a figure that leads, large (`game/hud-mana.js`: a counter of coin, cash, gold or credits is
+  drawn as money). The bag says it the same way.
+- **The guide** (`scene/channels/guide-mana.js`) gives the objective as an order (a mark, what to do, how far). The keys
+  that work now speak when they change (a car in reach, the wheel taken, a call on the phone) and step away after a few
+  seconds. As a car is taken its name is said large at the bottom right, leaning, and gone, as an open-world game names
+  a ride.
+- **The phone** (`scene/channels/phone-channel.js`) is a handset held at the bottom right with the city still there
+  round it, not a screen. It has a phone's body, the hour and the signal along its top, its apps as the tabs, and its
+  contacts above the open thread.
+- Every place of a level's HUD is bare, its words haloed (`game/hud-mana.js`).
+
 ## In a headset
 
 A WebXR session shows no DOM, so mana-ui reaches a headset as a picture of itself, never a second drawing of it:

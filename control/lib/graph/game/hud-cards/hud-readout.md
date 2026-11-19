@@ -1,5 +1,5 @@
 ---
-{ "id": "hud-readout", "name": "HUD readout (text · counter · bar · clock)", "summary": "A widget that projects one bus var onto the screen: `text` (label: value), `counter` (a big number with a caption), `bar` (value / max fill — health, boost, progress), `clock` (seconds as m:ss). Placed in a slot, colored by hex or a semantic name.", "when": "show the score, health bar, hp bar, stamina bar, boost meter, countdown timer display, m:ss clock, big score number, kill counter, coins collected readout, ammo count, put the HP in the bottom-left, move the timer to the top" }
+{ "id": "hud-readout", "name": "HUD readout (text · counter · bar · clock · stars)", "summary": "A widget that projects one bus var onto the screen: `text` (label: value), `counter` (a big number with a caption), `bar` (value / max fill — health, boost, progress), `clock` (seconds as m:ss), `stars` (a count as stars out of `max`: a wanted level). Placed in a slot, colored by hex or a semantic name.", "when": "show the score, health bar, hp bar, stamina bar, boost meter, countdown timer display, m:ss clock, big score number, kill counter, coins collected readout, ammo count, put the HP in the bottom-left, move the timer to the top, wanted stars" }
 ---
 
 ## Shape
@@ -16,6 +16,7 @@
   - `counter` — the stat-tile read: a 30px number over a small uppercase caption. Scores, kills, coins.
   - `bar` — a filled track `value / max` with the numbers beside it. **Needs `max`**: a number, or the NAME of a var (`"max": "hpMax"`) so the ceiling can move. The fill takes the widget color (accent by default).
   - `clock` — seconds → `m:ss`, tabular digits. Countdowns and survive timers.
+  - `stars` — a count as filled and empty stars out of `max` (1 to 10): the law's wanted level (game/law-mechanics.js).
 - `max` — for `bar`. Ignored by other kinds.
 - `as: 'toast'` on a `var` row is NOT a readout: it is the change popup ("-20" when hp drops),
   its own widget beside the var's readout — see card `hud-banner`.

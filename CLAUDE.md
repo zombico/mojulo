@@ -379,6 +379,9 @@ Pointers only; each target carries its own design notes.
   as the page walks it). Its clients: the geocity's `under` (podiums and their concourses: `geocity/podium.js`) and a
   stage's `complex` (buildings with basements on one yard, `complex.js`; a WCD level's spaces; a campus by its name,
   `campuses.js`, a new campus a row).
+- Hijack City (the open city's crime game, a starter for a GTA-like: the `hijack-city` rail and its starter,
+  [gameworld/hijack-city.js](control/lib/graph/gameworld/hijack-city.js), the `open-city-crime` genre):
+  [docs/hijack-city.md](docs/hijack-city.md).
 - Quest open worlds: [docs/quest-open-world.md](docs/quest-open-world.md) (the WCD's opposite pole: a geocity's regions
   joined sideways, never gated on the way on; a `design_game` world's `qow`; its principles as laws). The metro it is
   laid on: [geocity/](control/lib/graph/geocity/) (the geocube's `show: 'geocity'`: major streets first, rings, roads,
