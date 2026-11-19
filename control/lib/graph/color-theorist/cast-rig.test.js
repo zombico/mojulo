@@ -85,6 +85,20 @@ describe('the cast rig', () => {
     expect(Lt.hemi.gain).toBe(none.hemi.gain); expect(Lt.key.gain).toBe(none.key.gain);
     expect(read(none, 'value').ok).toBe(true);
   });
+  it('night: a dark suit sits in the dark the land sits in, its lift held, its rim the moon\'s own and faint; the day as it was', () => {
+    const dark = { Top: '#1b1e21', Bottom: '#2a2d2b', Skin: '#e4c0ab' }, Y = (v) => 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+    const day = castRig(sunCube, { palette: dark }), night = castRig(sunCube, { hour: 23, palette: dark }), N = CAST_RIG_LAWS.night;
+    expect(read(day, 'value').night).toBeUndefined();
+    expect(read(night, 'value').night).toBe(1);
+    expect(read(night, 'value').lift).toBeLessThanOrEqual(N.lift);
+    expect(read(night, 'value').want).toBe(N.floor);
+    // (its rim as bright as the world's own light on its key side, before the lift; a share of the card's strength, never raised)
+    const wall = (Y(night.hemi.sky) + Y(night.hemi.ground)) / 2, lift = read(night, 'value').lift;
+    expect(Y(night.rim.linear)).toBeCloseTo((wall * night.hemi.gain + CAST_RIG_LAWS.keyCos * Y(night.key.linear) * night.key.gain) / lift, 3);
+    expect(night.rim.strength).toBeCloseTo(CAST_RIG_LAWS.rim.strength * N.rim, 4);
+    // (the golden horizon is not the night)
+    expect(read(castRig(sunCube, { hour: 17.5, palette: dark }), 'value').night).toBeUndefined();
+  });
   it('with no cube is the card: the fight rig\'s own numbers; a register is the body\'s, the light the same', () => {
     for (const reg of CAST_REGISTERS) {
       const R = castRig(null, { register: reg });

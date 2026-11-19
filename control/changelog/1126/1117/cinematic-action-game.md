@@ -446,3 +446,10 @@ or a recipe key; the spike mints through the real doors and measures.
   (`seatStairs`, read off the relief the plan reads): a tower on a rise has a longer flight, so its first tread is a
   step off the ground wherever it lands (the camp's, on a slope, 21 risers to the gate's 16). Each was run up on the page, from the land to the deck, where
   the rails held the operative. The sneak's laws hold with the stairs standing.
+- **A body at night sits in the dark the land sits in** (color-theorist/cast-rig-core.js `CAST_RIG_LAWS.night`, read off
+  the sky's height at the hour, era/geocube-hours.js `hourLight`'s `s`): under the moon the value floor (0.27 L) had a
+  dark suit's key and fill raised six times, and the rim, as bright as that raised key and raised again to carry the
+  outline, drew every body as a glowing blue edge on a moonlit land. From the twilight into the night the floor falls to
+  0.12 L and the lift to 2×, the rim is as bright as the world's own light on the body (never its lifted key's) at 0.35
+  of its strength, and no rim is raised to carry an outline: a silhouette lost in the dark is the night's, and a
+  floodlight still lights a body as it lights the land. The day and the golden horizon are as they were.

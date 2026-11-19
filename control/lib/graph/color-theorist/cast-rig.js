@@ -33,9 +33,12 @@
  * (cast-rig-core.js: the laws, the card, the rig with the solve passed in), which reads none of the era's modules.
  */
 import { cubeLight } from '../era/cube-light.js';
+import { hourLight } from '../era/geocube-hours.js';
 import { castRigOf } from './cast-rig-core.js';
 
 export { CAST_REGISTERS, CAST_RIG_LAWS, CAST_BANDS, CAST_CARD, castCard } from './cast-rig-core.js';
 
 /** The rig (the core's, cast-rig-core.js castRigOf) under the cube's own light solve. */
-export const castRig = (cube, opts = {}) => castRigOf(cube, opts, cubeLight);
+// (the solve, with the sky's height at its hour, hourLight's `s`: night −1, the golden horizon 0, noon 1; the rig's night law reads it)
+const solveWithHeight = (cube, o) => { const L = cubeLight(cube, o); return { ...L, height: hourLight(cube, L.hour).s }; };
+export const castRig = (cube, opts = {}) => castRigOf(cube, opts, solveWithHeight);
