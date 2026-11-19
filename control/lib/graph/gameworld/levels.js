@@ -55,7 +55,7 @@ import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
 import { fixedStations, uprightCamera, UPRIGHT, STEERED } from './cameras.js';
 import { SHOOT, PERSON, shoulderOf, STREET_LAY } from './quick.js';
-import { kitchenOf, kitchenLevel } from './kitchen-level.js';
+import { kitchenLevel } from './kitchen-level.js';
 import { HOLDER } from './mechanics.js';
 import { readScreen, screenPayload } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
@@ -183,8 +183,8 @@ export function gameStages(world) {
   for (const level of order) {
     const R = resolveLevel(G, level);
     if (R.style?.hour !== undefined) hours[level] = R.style.hour;
-    // a work shift for cooks is one stage: a kitchen room of its own (kitchen-level.js), never laid by a trail
-    if (kitchenOf(G.quick)) { out.push({ level, node: 'kitchen', section: 'kitchen', index: 0, manifest: kitchenLevel(G, { ref: level }).manifest }); continue; }
+    // a kitchen level is one stage: a kitchen room of its own (kitchen-level.js), never laid by a trail
+    if (R.kitchen) { out.push({ level, node: 'kitchen', section: 'kitchen', index: 0, label: R.name, kitchen: R.kitchen, manifest: kitchenLevel(G, { ref: level, spec: R.kitchen }).manifest }); continue; }
     // a building level is one stage: its rooms laid from its program (or the building already made, by ref)
     // (a MISSION in it, mission-building.js: its phases placed in the building's rooms from its plan read as a fighting
     // map; the plan rides the stage for the order that lays its pilot, cast and tasks, the page's `mission` its manifest)
@@ -894,7 +894,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
   // a street level (brawl-cast.js): its own simulation and its own contract, the game's hero and made foes its bodies
-  if (stage.section === 'kitchen') { const KL = kitchenLevel(G, { ref, heroRef, ...(title ? { title } : {}) }); return { tool: 'create_sketch', args: { title: KL.manifest.title, manifest: KL.manifest }, laws: KL.laws }; }
+  if (stage.section === 'kitchen') { const KL = kitchenLevel(G, { ref, heroRef, spec: stage.kitchen ?? {}, ...(title ? { title } : {}) }); return { tool: 'create_sketch', args: { title: KL.manifest.title, manifest: KL.manifest }, laws: KL.laws }; }
   if (stage.section === 'street') { const S = streetLevel(G, stage.street, { title: title ?? stageTitle(stage), ref, heroRef, foeRefs, party, ...STREET_LAY }); return { tool: 'create_sketch', args: { title: S.manifest.title, manifest: S.manifest }, laws: S.laws }; }
   // (a mission in a building: the mission's cast, tasks, camera and page over the building's rooms)
   // (an industrial level: the place's recipe with the mission's cast on it; its ends the mission's own, on the land)

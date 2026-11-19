@@ -73,3 +73,32 @@ describe('the work goal with cooks', () => {
     expect(work.goal).toBeGreaterThan(0);
   }, 120_000);
 });
+// A CAMPAIGN OF KITCHENS (quick.shifts, levels.<id>.kitchen): a level a shift, each its own map, menu and challenge
+describe('the work goal\'s shifts', () => {
+  it('reads shifts with cooks only, a count from the progression or a list of shifts, teaching', async () => {
+    const { SHIFTS } = await import('./kitchen-shifts.js');
+    expect(() => readQuick({ goal: 'work', cooks: 2, shifts: 3 })).not.toThrow();
+    expect(() => readQuick({ goal: 'work', cooks: 2, shifts: [{ card: 'wok', mirror: true }] })).not.toThrow();
+    expect(() => readQuick({ goal: 'work', shifts: 3 })).toThrow(/give it cooks/);
+    expect(() => readQuick({ goal: 'work', cooks: 2, shifts: SHIFTS.length + 1 })).toThrow(/\.shifts is how many shifts/);
+    expect(() => readQuick({ goal: 'work', cooks: 2, shifts: [{ card: 'soup kitchen' }] })).toThrow(/\.card is a work starter/);
+    expect(() => readQuick({ goal: 'work', cooks: 2, shifts: [{ flip: true }] })).toThrow(/\.flip is not a kitchen's word/);
+    const w = quickWorld({ id: 'k', quick: { goal: 'work', cooks: 2, shifts: 3 } });
+    expect(Object.keys(w.levels)).toEqual(['shift-1', 'shift-2', 'shift-3']);
+    expect(Object.values(w.levels).map((l) => l.name)).toEqual(SHIFTS.slice(0, 3).map((s) => s.name));
+    expect(Object.keys(quickWorld({ id: 'k', quick: { goal: 'work', cooks: 2 } }).levels)).toEqual(['run']);
+  });
+  it('each shift its own map: the same game laid as a split kitchen, then mirrored with an island in each floor', async () => {
+    const { gameStages, stageLevelOrder } = await import('./levels.js');
+    const { readGameworld } = await import('./world.js');
+    const w = quickWorld({ id: 'k', quick: { goal: 'work', cooks: 2, shifts: [{ name: 'Lunch' }, { name: 'Dinner', mirror: true, obstacles: true, challenge: 'intermediate' }] } });
+    const G = readGameworld(w), stages = gameStages(w);
+    expect(stages.map((s) => [s.level, s.section, s.label])).toEqual([['shift-1', 'kitchen', 'Lunch'], ['shift-2', 'kitchen', 'Dinner']]);
+    const [a, b] = stages.map((st) => stageLevelOrder(G, st, { ref: st.level, heroRef: 'h', goal: (e) => goalMechanics(w.quick, e) }));
+    expect([a.args.title, b.args.title]).toEqual(['Lunch', 'Dinner']);
+    expect([a.args.manifest.kitchen ?? null, b.laws.every((l) => l.holds !== false)]).toEqual([null, true]);
+    const side = (m) => { const hero = m.entities.find((e) => e.id === 'hero'), c = m.colliders.find((k) => k.max[2] > 1 && k.max[2] < 1.2 && k.max[1] - k.min[1] > 1.5 && k.max[0] - k.min[0] < 1); return Math.sign(hero.transform.pos[0] - (c.min[0] + c.max[0]) / 2); };
+    expect([side(a.args.manifest), side(b.args.manifest)]).toEqual([-1, 1]);   // the prep side flipped
+    expect(b.args.manifest.colliders.length).toBeGreaterThan(a.args.manifest.colliders.length);   // its islands
+  }, 180_000);
+});

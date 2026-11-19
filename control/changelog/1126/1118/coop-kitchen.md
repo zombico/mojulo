@@ -70,4 +70,9 @@ station to station and handed between them.
   darkens round its foot); the counters' shadows are cast once from the key and the cooks' each frame (the camera's
   side, cut low, and the surround cast nothing in); contact occlusion and inked seams live; a warm grade with a vignette.
   The tiled floor is quieted to two near tones. Each crate shows its raw thing sitting on it, drawn by the food shelf.
-
+- **The map changes as the levels go on.** A kitchen is a level of its own (`levels.<id>.kitchen`: its layout, its
+  menu, its challenge, `mirror` and `obstacles`, `gameworld/kitchen-shifts.js`), and `quick.shifts` makes a campaign of
+  them: `shifts: n` the progression's first n (an island for the sushi counter's opening night, then splits, mirrored,
+  with a counter island in each side's floor, each shift a new menu and the challenge rising), or a list of shifts. Each
+  shift is a level of the game, named for it, laid and tuned on its own map; every kitchen law holds on a mirrored map
+  with islands. The proof walks straight lines, so an island's cost to real cooks is the eyes gate's.

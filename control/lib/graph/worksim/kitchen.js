@@ -18,12 +18,14 @@
  *              thing crosses on a pass in the counter. Seats alternate sides (1 and 3 prep, 2 and 4 assembly)
  *
  *   KITCHENS                                   the rows: { about, zones, sealed }
- *   layKitchen(card, { kitchen?, origin?, cooks?, room? }) → {
+ *   layKitchen(card, { kitchen?, origin?, cooks?, room?, mirror?, obstacles? }) → {
  *     kitchen, card (read), at (the work mechanic's `at`: crates, stations, shelves, serve), heading (0),
  *     zones: [{ id, rect: [x0, y0, x1, y1] }], zoneOf: { <place id>: zone index }, passes: [<item>],
  *     blocks: [{ min, max, kind }] (walls, counters, passes and their hoods), spawns: [[x, y, z]] a seat,
  *     seatZone: [zone index] a seat, bounds: [x0, y0, x1, y1], frame: { at, focus } (one fixed overhead station) }
  *     `room`: a side the room is stretched to (a square room of the game room's area, kitchen-level.js), never shrunk
+ *     `mirror`: the kitchen flipped west for east, its prep on the other side (heading π: its shelves' pads turned with
+ *     it); `obstacles`: a counter island standing in each side's floor (a map that changes the walks, not the work)
  *   kitchenLaws(K, { jump? }) → [{ law, holds, says }]   advice, never a refusal (docs/bicycles.md); `jump`: the cooks'
  *     jump in metres (a feel's apex), which the sealed law holds the counter above
  *   cooksOf(K, n?) → [{ spawn, reach(at) }]   the work proof's cooks: each seat its zone
@@ -65,7 +67,7 @@ export function rolesOf(card) {
   return { C, raws, prep, assembly, shelves, users, wanted };
 }
 
-export function layKitchen(card, { kitchen = 'split', origin = [0, 0, 0], cooks = 2, room = null } = {}) {
+export function layKitchen(card, { kitchen = 'split', origin = [0, 0, 0], cooks = 2, room = null, mirror = false, obstacles = false } = {}) {
   const T = KITCHENS[kitchen];
   if (!T) throw new Error(`kitchen: '${kitchen}' is one of ${KITCHEN_IDS.join(', ')}`);
   if (!(Number.isInteger(cooks) && cooks >= 1 && cooks <= 4)) throw new Error('kitchen: cooks is 1 to 4');
@@ -156,7 +158,25 @@ export function layKitchen(card, { kitchen = 'split', origin = [0, 0, 0], cooks 
   const span = Math.max(W, D * 1.4);
   const frame = { at: P(origin[0], origin[1] - D * 0.45), focus: P(origin[0], origin[1]) };
   frame.at[2] = r3(z + span * 1.05);
-  return { kitchen, card: C, at, heading: 0, zones, zoneOf, passes, blocks, spawns, seatZone, bounds: [x0, y0, x1, y1], frame, size: [W, D] };
+  // OBSTACLES: a counter island standing in each side's floor, between its spawns, so no walk is straight across it
+  if (obstacles) zones.forEach((zn) => { const cx = (zn.rect[0] + zn.rect[2]) / 2; counter(P(cx, origin[1]), 1.3, 0.7, 0.9, 'island'); });
+  const out = { kitchen, card: C, at, heading: 0, zones, zoneOf, passes, blocks, spawns, seatZone, bounds: [x0, y0, x1, y1], frame, size: [W, D], ...(mirror ? { mirror: true } : {}), ...(obstacles ? { obstacles: true } : {}) };
+  return mirror ? mirrored(out, origin[0]) : out;
+}
+
+/** The kitchen MIRRORED across its middle (west for east): its prep on the other side, its shelves' pads turned with it
+ * (heading π: put from the east, taken from the west), so what crosses is still put from the side it is made on. */
+function mirrored(K, ox) {
+  const fx = (x) => r3(2 * ox - x), pt = (p) => [fx(p[0]), p[1], p[2]];
+  const at = {
+    crates: Object.fromEntries(Object.entries(K.at.crates).map(([i, p]) => [i, pt(p)])),
+    stations: Object.fromEntries(Object.entries(K.at.stations).map(([sid, list]) => [sid, list.map(pt)])),
+    shelves: Object.fromEntries(Object.entries(K.at.shelves).map(([i, p]) => [i, pt(p)])),
+    serve: pt(K.at.serve),
+  };
+  const blocks = K.blocks.map((b) => ({ ...b, min: [fx(b.max[0]), b.min[1], b.min[2]], max: [fx(b.min[0]), b.max[1], b.max[2]] }));
+  const zones = K.zones.map((zn) => ({ ...zn, rect: [fx(zn.rect[2]), zn.rect[1], fx(zn.rect[0]), zn.rect[3]] }));
+  return { ...K, at, heading: Math.PI, blocks, zones, spawns: K.spawns.map(pt), bounds: [fx(K.bounds[2]), K.bounds[1], fx(K.bounds[0]), K.bounds[3]], frame: { at: pt(K.frame.at), focus: pt(K.frame.focus) } };
 }
 
 /** The work proof's cooks (work-proof.js `cooks`): seat k at its spawn, reaching what stands in its zone. */
@@ -203,7 +223,7 @@ function floorOf(K, pad = BODY) {
 export function kitchenLaws(K, { jump = null } = {}) {
   const laws = [], F = floorOf(K), seen = K.spawns.map((s) => F.flood(s)), T = KITCHENS[K.kitchen], R = rolesOf(K.card);
   // (the pads either side of a shelf, as the mechanic lays them: work-mechanics.js shelfPads, heading 0)
-  const pads = (p) => [[p[0] - 0.65, p[1], p[2]], [p[0] + 0.65, p[1], p[2]]];
+  const c = Math.cos(K.heading ?? 0), pads = (p) => [[r3(p[0] - 0.65 * c), p[1], p[2]], [r3(p[0] + 0.65 * c), p[1], p[2]]];
   const zoneSeen = (zk) => { const ks = K.seatZone.map((z, k) => (z === zk ? k : -1)).filter((k) => k >= 0); return ks.length ? seen[ks[0]] : null; };
   // REACHABLE: every place from the floor of its zone (a pass: put from the side its thing is made on, taken from the other)
   const missed = [];

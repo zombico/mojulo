@@ -21,7 +21,7 @@
  *     side. The readout adds each cook's `{ n, presses, put, took, served, outside }` (outside: presses at a place out
  *     of its reach, always 0) and `passed`: what went across a shelf from one cook to another
  *
- *   tuneKitchen(card, { kitchen?, cooks?, challenge?, seed? }) → { card, K, goal, proof, rounds }: A KITCHEN TUNED TO
+ *   tuneKitchen(card, { kitchen?, cooks?, challenge?, seed?, mirror?, obstacles? }) → { card, K, goal, proof, rounds }: A KITCHEN TUNED TO
  *     ITS COOKS. The solver tunes the card for `cooks` workers (worksim/solve.js: N hands, no space), the kitchen is laid
  *     (kitchen.js layKitchen), and the proof plays it with its cooks on their sides; while they serve under 85% of what
  *     arrives, the orders come slower (orders: `every` longer; a backlog: fewer standing). The goal is four fifths of
@@ -218,11 +218,11 @@ export function proveWork(params = {}, { player = 'hero', spawn = [0, 0, 0], spe
 }
 
 const KEEP_UP = 0.85, ROUNDS = 6;
-export function tuneKitchen(raw, { kitchen = 'split', cooks = 2, challenge = 'beginner', seed = 1 } = {}) {
+export function tuneKitchen(raw, { kitchen = 'split', cooks = 2, challenge = 'beginner', seed = 1, mirror = false, obstacles = false } = {}) {
   let card = solve({ ...raw, crew: { ...(raw.crew ?? {}), workers: cooks } }, challenge).card, K, proof, k = 0;
   for (; k < ROUNDS; k++) {
-    K = layKitchen(card, { kitchen, cooks });
-    proof = proveWork({ card, at: K.at, goal: 1, seed }, { spawn: K.spawns[0], ...(cooks > 1 ? { cooks: cooksOf(K) } : {}) });
+    K = layKitchen(card, { kitchen, cooks, mirror, obstacles });
+    proof = proveWork({ card, at: K.at, heading: K.heading, goal: 1, seed }, { spawn: K.spawns[0], ...(cooks > 1 ? { cooks: cooksOf(K) } : {}) });
     const share = proof.served / Math.max(1, proof.arrivals);
     if (share >= KEEP_UP || k === ROUNDS - 1) break;
     // slower by the share they fell short (a little more, so it settles in a round or two)

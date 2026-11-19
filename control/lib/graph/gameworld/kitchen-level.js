@@ -28,6 +28,7 @@ import { dressOf, dressPlaces, DRESSES } from '../gameroom/dress.js';
 import { readArea, buildArea, raiseWalls } from '../gameroom/area.js';
 import { makeLight, shadeHex, newellNormal } from '../polygonizer/vexar.js';
 import { foodOf, foodFaces } from '../food/derive.js';
+import { kitchenOf } from './kitchen-shifts.js';
 import { workMascot, everydayFeel, areaOut, WORK_CAST, WORK_LEGEND, OVERHEAD } from './work-room.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -64,27 +65,32 @@ function studioLit(f, eye) {
   return { ...f, fill: shadeHex(f.fill, m, STUDIO) };
 }
 
-export const kitchenOf = (quick) => (quick?.goal !== 'work' ? null : quick.kitchen ?? ((quick.cooks ?? 1) > 1 ? 'split' : null));
+export { kitchenOf };
 
 const TUNED = new Map(), KEEP = 8;
-function tunedFor(Q) {
-  const key = JSON.stringify([Q.card ?? null, Q.challenge ?? null, Q.cooks ?? 1, kitchenOf(Q)]);
+// (a shift read whole: the level's kitchen over the quick game's own words; the cooks always the game's)
+function shiftOf(G, spec = {}) {
+  const Q = G.quick ?? {};
+  return { kitchen: spec.kitchen ?? kitchenOf(Q) ?? 'split', card: spec.card ?? Q.card, challenge: spec.challenge ?? Q.challenge, serve: spec.serve ?? Q.serve, mirror: spec.mirror === true, obstacles: spec.obstacles === true, cooks: Q.cooks ?? 1, name: spec.name ?? null };
+}
+function tunedFor(S) {
+  const key = JSON.stringify([S.card ?? null, S.challenge ?? null, S.cooks, S.kitchen, S.mirror, S.obstacles]);
   if (!TUNED.has(key)) {
-    const raw = Q.card === undefined ? SCENARIOS.kitchen : isObj(Q.card) ? Q.card : SCENARIOS[Q.card];
-    TUNED.set(key, tuneKitchen(raw, { kitchen: kitchenOf(Q), cooks: Q.cooks ?? 1, challenge: Q.challenge ?? 'beginner' }));
+    const raw = S.card === undefined ? SCENARIOS.kitchen : isObj(S.card) ? S.card : SCENARIOS[S.card];
+    TUNED.set(key, tuneKitchen(raw, { kitchen: S.kitchen, cooks: S.cooks, challenge: S.challenge ?? 'beginner', mirror: S.mirror, obstacles: S.obstacles }));
     if (TUNED.size > KEEP) TUNED.delete(TUNED.keys().next().value);
   }
   return TUNED.get(key);
 }
 
-export function kitchenLevel(G, { ref = 'kitchen', heroRef = null, title = null } = {}) {
-  const Q = G.quick, kitchen = kitchenOf(Q);
-  if (!kitchen) throw new Error('kitchen level: a quick work goal with cooks (or a kitchen named)');
-  const cooks = Q.cooks ?? 1, T = tunedFor(Q), C = T.card;
+export function kitchenLevel(G, { ref = 'kitchen', heroRef = null, title = null, spec = {} } = {}) {
+  const S = shiftOf(G, spec), { kitchen, cooks } = S, T = tunedFor(S), C = T.card, Q = { serve: S.serve };
+  title ??= S.name;
   // THE ROOM: square (the game room's area is), its side the kitchen's own rounded up to whole metres; the kitchen
-  // stretched to fill it, its middle the room's
-  const K0 = layKitchen(C, { kitchen, cooks }), half = Math.ceil(Math.max(...K0.size) / 2);
-  const K = layKitchen(C, { kitchen, cooks, room: 2 * half });
+  // stretched to fill it, its middle the room's; the map's own variations (mirrored, islands in its floor) on it
+  const vary = { mirror: S.mirror, obstacles: S.obstacles };
+  const K0 = layKitchen(C, { kitchen, cooks, ...vary }), half = Math.ceil(Math.max(...K0.size) / 2);
+  const K = layKitchen(C, { kitchen, cooks, room: 2 * half, ...vary });
 
   // THE COOKS: the world's feel (else the everyday walker), moving where the fixed camera looks (north up the screen);
   // the hero the world's own, else a mascot carried inline
@@ -111,7 +117,7 @@ export function kitchenLevel(G, { ref = 'kitchen', heroRef = null, title = null 
   const D = trade ? dressPlaces(places, trade, { card: C }) : { faces: [], dressed: new Set(), laid: [] };
   const blocks = places.map((p) => ({ id: p.id, x: [r3(p.at[0] - p.size[0] / 2), r3(p.at[0] + p.size[0] / 2)], y: [r3(p.at[1] - p.size[1] / 2), r3(p.at[1] + p.size[1] / 2)], h: r3(p.size[2]), fill: p.kind === 'counter' ? FILL[p.verb] : FILL[{ bin: 'crate', shelf: 'shelf', pass: 'serve' }[p.kind]], group: D.dressed.has(p.id) ? `room:dressed:${p.id}` : 'room:work' }));
   // the counter between the sides (its passes are the shelves above)
-  K.blocks.filter((b) => b.kind === 'counter').forEach((b, k) => blocks.push({ id: `counter-${k}`, x: [b.min[0], b.max[0]], y: [b.min[1], b.max[1]], h: r3(b.max[2] - b.min[2]), fill: FILL.counter, group: 'room:counter' }));
+  K.blocks.filter((b) => b.kind === 'counter' || b.kind === 'island').forEach((b, k) => blocks.push({ id: `counter-${k}`, x: [b.min[0], b.max[0]], y: [b.min[1], b.max[1]], h: r3(b.max[2] - b.min[2]), fill: FILL.counter, group: 'room:counter' }));
   const room = floorOf({ half, blocks });
   // THE AREA: the trade's floor, its walls (cut away on the camera's side, the south) and what stands outside
   // (the trade's area, its floor quieted for the studio unless the world says its own)
@@ -128,7 +134,7 @@ export function kitchenLevel(G, { ref = 'kitchen', heroRef = null, title = null 
   // THE SHIFT: the work mechanic on the kitchen's places, a hand a cook (the level's seats), its goal the tuned one
   const game = {
     levelRef: ref, fall: { mode: 'respawn' },
-    mechanics: [{ kind: 'work', card: C, at: { origin: [0, 0, 0], stations: at.stations, crates: at.crates, shelves: at.shelves, serve: at.serve }, heading: 0, reach: REACH, bases: false, show: true, rail: true, ...(Q.serve ? { goal: Q.serve } : { goal: T.goal }) }],
+    mechanics: [{ kind: 'work', card: C, at: { origin: [0, 0, 0], stations: at.stations, crates: at.crates, shelves: at.shelves, serve: at.serve }, heading: K.heading, reach: REACH, bases: false, show: true, rail: true, ...(Q.serve ? { goal: Q.serve } : { goal: T.goal }) }],
   };
   const step = sfxSound('step-concrete', { style: 'realistic' })?.gestures ?? null;
   const manifest = {
@@ -145,7 +151,7 @@ export function kitchenLevel(G, { ref = 'kitchen', heroRef = null, title = null 
   const jump = Number.isFinite(rule.jump) && Number.isFinite(rule.gravity) ? r3((rule.jump * rule.jump) / (2 * rule.gravity)) : null;
   const laws = kitchenLaws(K, { jump }).map((l) => ({ concern: 'kitchen', ...l }));
   return {
-    manifest, laws, kitchen: { name: kitchen, about: KITCHENS[kitchen].about, cooks, size: K.size, passes: K.passes, zones: K.zones.map((z) => z.id) },
+    manifest, laws, kitchen: { name: kitchen, about: KITCHENS[kitchen].about, cooks, size: K.size, passes: K.passes, zones: K.zones.map((z) => z.id), ...(S.mirror ? { mirror: true } : {}), ...(S.obstacles ? { obstacles: true } : {}) },
     tuned: { card: C.id, every: C.demand.every ?? null, goal: game.mechanics[0].goal, rounds: T.rounds, says: T.proof.says },
     dress: trade ? { trade, about: DRESSES[trade].about } : null, area: areaOut(A, AR),
   };

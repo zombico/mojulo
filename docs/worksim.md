@@ -261,6 +261,21 @@ built, so the co-op kitchen probe is makeable; the Work Sim rail carries its wor
 told the quick door. In headless Chromium with two stub pads, seat 1 took a fish, chopped it and put it on the pass; seat 2 took it up from the
 other side with its own button.
 
+#### Shifts: the map changes as the levels go on
+
+A kitchen is a level of its own (`levels.<id>.kitchen`, `gameworld/kitchen-shifts.js`): `{ name?, kitchen?, card?,
+challenge?, mirror?, obstacles?, serve? }`, read over the quick game's own words; the cooks are always the game's. A map
+is varied two ways, each a layout option of `layKitchen`: `mirror` flips the kitchen (prep on the other side, the cooks
+and their pads facing the other way) and `obstacles` stands a counter island in each side's floor, so every walk bends
+round it. Every law is measured on the varied map as on the plain one, and the shift is tuned on it.
+
+`quick.shifts` (with cooks) makes a campaign: `shifts: n` takes the first n rows of `SHIFTS`, the progression (the
+island with the sushi counter, then the split, mirrored, with islands, each a new menu, the challenge rising), and a
+list is its own shifts. Each is a level `shift-1` … named for its shift, played in order by the game's flow. The island
+opens the campaign only with the sushi counter: the proof's cooks keep up with a multi-take menu (the wok, the ramen
+bowl, the diner, the pizzeria) only on a split, so the progression lays those on splits. The proof walks straight lines,
+so an island in the floor does not change what it measures; how much it slows real cooks is the eyes gate's.
+
 ### The food
 
 `control/lib/graph/food/` draws what a card handles, read off the card and never modelled item by item, since a card

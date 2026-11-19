@@ -31,6 +31,17 @@ describe('the kitchen', () => {
     const open = { ...K, blocks: K.blocks.filter((b) => b.kind !== 'counter') };
     expect(holds(open).sealed).toBe(false);
   });
+  it('a map varied: mirrored, prep on the other side, the cooks facing the other way; an island in each floor; every law holds', () => {
+    const K = layKitchen(CARD, { kitchen: SEALED, cooks: 2 }), M = layKitchen(CARD, { kitchen: SEALED, cooks: 2, mirror: true, obstacles: true });
+    expect(holds(M)).toEqual({ reachable: true, sealed: true, handoff: true, passes: true, clearance: true, frame: true });
+    expect(M.heading).toBeCloseTo(Math.PI);
+    const R = rolesOf(CARD), mid = (b) => (b.min[0] + b.max[0]) / 2;
+    const counter = (X) => mid(X.blocks.find((b) => b.kind === 'counter'));
+    expect(R.prep.every((sid) => K.at.stations[sid].every((p) => p[0] < counter(K)))).toBe(true);
+    expect(R.prep.every((sid) => M.at.stations[sid].every((p) => p[0] > counter(M)))).toBe(true);
+    expect(M.blocks.filter((b) => b.kind === 'island').length).toBe(M.zones.length);
+    expect(K.blocks.some((b) => b.kind === 'island')).toBe(false);
+  });
   it('one open floor: every cook reaches everything, nothing claims a handoff', () => {
     const K = layKitchen(CARD, { kitchen: OPEN, cooks: 4 });
     const H = holds(K);
