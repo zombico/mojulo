@@ -23,7 +23,7 @@ import { groundGridScript } from './ground-grid.js';
 import { turretScript } from './turret-view.js';
 import { boatWaterScript } from './boat-water.js';
 import { shotLightScript } from './shot-light-view.js';
-import { roundLooks, blastLook, BLAST_LOOK, SLASH_LOOK } from '../../../gameworld/feel/round-look.js';
+import { roundLooks, blastLook, BLAST_LOOK, SLASH_LOOK, SABER_STRAND } from '../../../gameworld/feel/round-look.js';
 import { castKitSource } from '../cast-rig.js';
 import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
 import { tellOf } from '../../../worlds/controllable/tell.js';
@@ -4456,6 +4456,69 @@ function __slashMat(L) {
       + '  float al = body * (0.2 + 0.8 * tail * tail) * uFade;\\n  gl_FragColor = vec4(c * al, al);\\n}' });
 }
 const __slashUp = new THREE.Vector3(0, 0, 1), __slashF = new THREE.Vector3(), __slashS = new THREE.Vector3(), __slashM = new THREE.Matrix4();
+// THE SABER'S BLADE (round-look.js SABER_STRAND): a STRAND of the charged shot in the hand, its ramp across it (a
+// white-hot core, the hue, the hue deep at its edge) and streaks running up it, the charge's BLOOM round it, over the body;
+// from the hilt's top to past the blade's tip (the hand's farthest point, as the swing trail finds it), lit a little at rest
+// and flaring through a cut
+const __STRAND = ${safeJson(SABER_STRAND)}, __strands = {};
+function __strandMat(L, halo) {
+  return new THREE.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide,
+    blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+    uniforms: { uCore: { value: new THREE.Color(L.ramp[0]) }, uHue: { value: new THREE.Color(L.ramp[1]) }, uDeep: { value: new THREE.Color(L.ramp[2]) }, uK: { value: 0 }, uT: { value: 0 }, uCoreW: { value: __STRAND.core / __STRAND.body }, uN: { value: __STRAND.streaks }, uSpeed: { value: __STRAND.speed }, uGlow: { value: __STRAND.glow } },
+    vertexShader: 'varying vec2 vUv;\\nvoid main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform vec3 uCore; uniform vec3 uHue; uniform vec3 uDeep; uniform float uK; uniform float uT; uniform float uCoreW; uniform float uN; uniform float uSpeed; uniform float uGlow;\\nvarying vec2 vUv;\\n'
+      + 'void main() {\\n  float x = vUv.x, y = abs(vUv.y), ends = smoothstep(0.0, 0.05, x) * (1.0 - smoothstep(0.82, 1.0, x));\\n'
+      + (halo ? '  float g = exp(-y * y * 4.0);\\n  gl_FragColor = vec4(uHue * g * ends * uK * uGlow, 1.0);\\n}'
+        : '  float core = 1.0 - smoothstep(uCoreW * 0.45, uCoreW, y), body = exp(-y * y * 3.2), edge = smoothstep(0.35, 0.9, y) * body;\\n'
+        + '  float streak = pow(0.5 + 0.5 * sin((x * uN - uT * uSpeed) * 6.2831), 6.0) * (1.0 - y);\\n'
+        + '  vec3 c = uHue * body + uDeep * edge * 0.6 + uCore * (core + 0.4 * streak * body);\\n  gl_FragColor = vec4(c * ends * uK, 1.0);\\n}') });
+}
+// (its blade's base and tip as the hand carries them: a rigid rig's hand mesh, or a skinned rig's corners held whole by the
+// hand, in the body's rest pose, the hand's matrix taking them on)
+function __strandMake(e) {
+  const B = __bodies[e.id], R = B && B.userData && B.userData.rigFig;
+  if (!R) return undefined;
+  const bi = R.fig.bones.findIndex((bn) => bn.id === 'handR'), m = bi >= 0 ? R.boneMeshes[bi] : null;
+  if (!m) return null;
+  const SG = R.skin && R.skin.geometry, P = SG ? SG.attributes.position : m.geometry && m.geometry.attributes.position;
+  const keep = SG ? (i) => SG.attributes.skinIndex.getX(i) === bi && SG.attributes.skinWeight.getX(i) > 0.99 : null;
+  if (!P) return null;
+  // (the corners in the body's rest pose: the tip the one farthest from the wrist, the hand bone's rest head)
+  const W = R.fig.bones[bi].head || [0, 0, 0];
+  let best = 0, at = -1;
+  for (let i = 0; i < P.count; i++) { if (keep && !keep(i)) continue; const d = (P.getX(i) - W[0]) ** 2 + (P.getY(i) - W[1]) ** 2 + (P.getZ(i) - W[2]) ** 2; if (d > best) { best = d; at = i; } }
+  if (at < 0 || Math.sqrt(best) < 0.32) return null;
+  const tip = new THREE.Object3D(), base = new THREE.Object3D();
+  tip.position.set(P.getX(at), P.getY(at), P.getZ(at));
+  base.position.set(W[0] + (tip.position.x - W[0]) * __STRAND.base, W[1] + (tip.position.y - W[1]) * __STRAND.base, W[2] + (tip.position.z - W[2]) * __STRAND.base);
+  m.add(tip); m.add(base);
+  const L = __slashRamp(e.rule.strikeFx.color, 'impact', __SLASH_B), mk = (halo) => {
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(12), 3)); g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array([0, -1, 0, 1, 1, 1, 1, -1]), 2)); g.setIndex([0, 1, 2, 0, 2, 3]);
+    const q = new THREE.Mesh(g, __strandMat(L, halo)); q.frustumCulled = false; q.raycast = function () {}; q.renderOrder = halo ? 6 : 7; scene.add(q); return q; };
+  return { m, tip, base, halo: mk(true), blade: mk(false) };
+}
+const __stA = new THREE.Vector3(), __stB = new THREE.Vector3(), __stD = new THREE.Vector3(), __stS = new THREE.Vector3(), __stC = new THREE.Vector3();
+const __stShown = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+function __strandFx(e) {
+  let T = __strands[e.id];
+  if (T === undefined) { T = __strandMake(e); if (T !== undefined) __strands[e.id] = T; }
+  if (!T) return;
+  const on = !e.gone && __stShown(T.m);
+  T.halo.visible = T.blade.visible = on;
+  if (!on) return;
+  T.base.getWorldPosition(__stA); T.tip.getWorldPosition(__stB);
+  __stD.subVectors(__stB, __stA); const len = __stD.length(); if (len < 1e-3) return; __stD.multiplyScalar(1 / len);
+  __stC.addVectors(__stA, __stB).multiplyScalar(0.5); __stS.subVectors(camera.position, __stC).cross(__stD).normalize();
+  // (lit a little at rest, flaring through a cut's contact window)
+  const P = e.strikeParams, live = e.swingT != null && P && e.swingT >= (P.from != null ? P.from : 0.3) - 0.1 && e.swingT <= (P.to != null ? P.to : 0.62) + 0.15;
+  const k = (live ? __STRAND.cut : __STRAND.idle) * (0.9 + 0.1 * Math.sin(__world.time * 9));
+  for (const [q, w] of [[T.blade, __STRAND.body], [T.halo, __STRAND.halo]]) {
+    const pos = q.geometry.attributes.position, end = __stB.clone().addScaledVector(__stD, w * __STRAND.cap);
+    const c = [[__stA, -w], [__stA, w], [end, w], [end, -w]];
+    c.forEach(([p, s], i) => pos.setXYZ(i, p.x + __stS.x * s, p.y + __stS.y * s, p.z + __stS.z * s));
+    pos.needsUpdate = true; q.material.uniforms.uK.value = k; q.material.uniforms.uT.value = __world.time;
+  }
+}
 function __slashFx(e) {
   const r = e.rule, P = e.strikeParams, mv = e.mvMove && r.moveset.moves[e.mvMove];
   let S = __slashes[e.id];
@@ -4491,7 +4554,7 @@ let __burstSeen = -1;       // highest burst seq drawn (the engine's monotonic b
 const __projUpY = new THREE.Vector3(0, 1, 0);   // the cone axis (apex +Y) rotated onto each round's velocity
 const __projDir = new THREE.Vector3();
 function __updateProjectiles() {${saberOn ? `
-  for (const e of __world.entities) if (e.rule && e.rule.moveset && e.rule.strike === 'melee' && e.rule.strikeFx && Number.isInteger(e.rule.strikeFx.color)) __slashFx(e);` : ''}${busterOn ? `
+  for (const e of __world.entities) if (e.rule && e.rule.moveset && e.rule.strike === 'melee' && e.rule.strikeFx && Number.isInteger(e.rule.strikeFx.color)) { __slashFx(e); __strandFx(e); }` : ''}${busterOn ? `
   __rlAge();   // (the muzzle rings, aged whether or not their rounds still fly)
   __blastAge();
   for (const e of __world.entities) if (e.rule && e.rule.buster) __chargeFx(e);
