@@ -897,6 +897,36 @@ given to the arena's block beside its client, which asks whether it was given on
   seat to play), drawn as a ring on the cell.
 - Its sheet and theme are scoped to its own root (`#mana-holo`); the theme sets no cover and no veil.
 
+### The side map's HUD
+
+A side map level (`gameworld/side-map/level.js`) of a game with a `ui` is given a HUD of its own
+(`gameworld/side-map/hud.js`), hosted by the level page's HUD host on its `sidemap` feed, in the game's look (Galaxy
+Boy's is the `galaxy` card: navy plates, a square edge, energy in yellow ticks, a boss's in red, a monospace face in
+capitals). It is read as the 8-bit action platformers read, and nothing else is over the play:
+
+- The hero's energy is a column of fine ticks at the top left, filling from the foot (the lives mechanic's `energy`: a
+  hit takes ticks, a life goes when they run out). A level with no energy draws its lives there, one block a life.
+- A special weapon's energy is a column beside it, in the weapon's tint, while the hero holds a gun with energy of its
+  own (`energyMax`). The buster has none, so the column waits for the special weapons.
+- The boss's column stands at the opposite corner, top right, once the boss is awake and near, and is gone a moment
+  after it falls. Its name is said across the top as it comes in.
+- READY flashes in the middle as the level starts and after a life is lost, the lives left under it. The keys are key
+  caps along the foot for the first seconds.
+- It puts away the level's own rows (the energy, the lives chip, the boss's bar), the radar and the melee ring: a side
+  scroller reads its foes on the screen.
+
+Its screens are the HUD's own, opened by its host over the held level: `window.__mojMenuOpen` and `__mojFreeze` set, as
+a level's own menus hold it, and a `.moj-menu-hud` marker so the shell's Esc menu is not asked for over them. The keys
+and the pad drive them through the controls host (`controls/mana-host.js`), which leaves every key to play while no
+screen is up.
+
+- `intro`, a world's intro card as the level starts (`press: any`): the boss's name in its hue (`--sm-hue`), its world,
+  its tell and what it gives; any button or three seconds, then READY.
+- `menu`, the start menu on the menu key (`MENU_KEY`, Enter): the weapons from the pilot's loadout in order, the slots
+  not yet won locked; accept equips. Back resumes.
+- `over`, GAME OVER where the level lets the player continue (the lives mechanic's `continues`). Continue and Give up
+  raise `continue` and `giveup` on the level's bus; back does not leave it.
+
 ## In a headset
 
 A WebXR session shows no DOM, so mana-ui reaches a headset as a picture of itself, never a second drawing of it:

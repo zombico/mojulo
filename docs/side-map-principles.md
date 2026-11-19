@@ -86,7 +86,10 @@ that holds a hero of a given stature at the frame's share, the lane at its place
 ## Falls and ladders
 
 19. **A fall is a life.** Falling out of the bottom of the frame costs a life, and the hero comes back at its zone's
-    checkpoint. A pit is a pit because the frame does not follow the hero down into it.
+    checkpoint. A pit is a pit because the frame does not follow the hero down into it. A hit costs energy, not a life:
+    the hero has 28 ticks, a hit takes 4, and a life goes only when they run out. The hero then drops out of the frame
+    and comes back as a fall does (`SIDE_ENERGY` in `control/lib/graph/gameworld/side-map/level.js`, the lives
+    mechanic's `energy`).
 20. **A checkpoint a zone.** Every zone a fall can end has one, never further back than the zone's start.
 21. **A ladder shows the hero's back.** On a ladder the hero turns to face into the place and climbs with its back to
     the camera, for as long as it holds on. Up or down at a ladder takes hold; up off its top steps onto the floor. A
@@ -220,7 +223,8 @@ made by the mascot ooze. The foes are drawn in the hero's cel light.
 
 Its last room may hold a boss (the chain's `boss`, an id from the roster in
 `control/lib/graph/gameworld/bosses.js`). The boss stands three metres in from the far wall, held to the lane, and its
-fall ends the level (`side-map/boss-cast.js`). Its health is a bar in the HUD, never over its head. A boss is a robot of the hero's own family: his body and his toy suit, at
+fall ends the level (`side-map/boss-cast.js`). Its health is a column of ticks in the HUD at the top right, opposite the hero's, never over its head
+(`side-map/hud.js`, drawn while it fights). A boss is a robot of the hero's own family: his body and his toy suit, at
 its own build and height. Its face is never a person's, because the hero alone keeps the open face. The face is its theme
 instead: a mask, a visor, a grille, one eye, a screen, a beast's head or an object. It always has eyes, lit in its signal
 colour, because the gaze is the aim and the light is the tell. The signal glows as the boss winds up a shot, flashes as
@@ -251,8 +255,28 @@ They are `control/lib/graph/gameworld/side-map/laws.js`, read over the layout an
 
 The eyes gate is the operator's: the map read as a drawing, the level played on its page.
 
+## The HUD
+
+The screen is the level's, so the HUD holds to its corner. The hero's energy is a column of ticks at the top left,
+filling from the foot. A special weapon's energy stands beside it while one is held (none is yet: the buster has no
+energy of its own). The boss's column stands at the top right while they fight. READY flashes as a life starts, with the
+lives left under it: lives show when they change, not all the time. The keys show for the first seconds. There is no
+radar and no ring: the foes are read on the screen.
+
+Three screens hold the level while they are up:
+
+- **The intro card,** as a level with a boss starts: a band across the screen with the boss's name in its hue, its
+  world, its tell in a line and what its fall gives. Any button, or three seconds, and READY.
+- **The start menu** (Enter): the weapons in the order earned, the buster first and the slots not yet won locked; the
+  energy columns at full size; the lives.
+- **GAME OVER,** when the last life goes: the gate reached, Continue (the lives back, from that gate) or Give up (the
+  level lost). Losing costs time, not progress.
+
+The parts are `control/lib/graph/gameworld/side-map/hud.js`, drawn in the game's look (`docs/mana-ui.md`, "The side
+map's HUD").
+
 ## Not yet
 
-Things that move beside the way (the benchmark says them missing), a hit costing health and not a life, the boss's second form, the weapon its fall gives the hero, the boss's fight in
+Things that move beside the way (the benchmark says them missing), the boss's second form, the weapon its fall gives the hero, the boss's fight in
 its room, the hero's climb clip seen from behind. After them: a metroidvania (the zones as rooms on a grid, doors gated by powers, the map
 shown in the game), and the 3D platformer's courses told the same way.

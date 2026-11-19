@@ -29,7 +29,7 @@
  *                                    offered for; absent: every platformer's) }
  *   PLATFORMER_TURN                  { 2d, 3d }: the turn's phases as each game plays them (the readout's and the card's)
  *   PLATFORMER_CUBE                  the geocube its levels are drawn in (`style.geocube`): the sherbet orchard
- *   PLATFORMER_LOOK                  the theme card both are drawn in (`ui.theme`)
+ *   PLATFORMER_LOOK                  the theme card both are drawn in (`ui.theme`); SIDE_MAP_LOOK a side map's (a robot hero's)
  *   PLATFORMER_BODY                  the body its hero is made on: the mascot's (chibi), written on a character book
  *                                    that names none (the patch's `/characters/direction/body`); a named one is kept
  *   platformerBody(pole)             → the body a template puts its hero on: its feel's rail (Galaxy Boy's the toy hero
@@ -113,6 +113,8 @@ export const PLATFORMER_CUBE = 'sherbet-orchard';
 
 /** The theme card both dimensions are drawn in (playscape/ui/theme-cards/). */
 export const PLATFORMER_LOOK = 'hilltop';
+/** The look a side map's robot hero is drawn in (`ui.theme`): the 8-bit action platformer's, theme-cards/galaxy.json. */
+export const SIDE_MAP_LOOK = 'galaxy';
 
 /** The flow a dimension says, in the world's level ids. The side-scroller's home is its title, the 3D platformer's its
  * courses screen; in both a level won shows its result and goes on, and one quit goes home with no result. */
@@ -190,7 +192,7 @@ export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id
     style: { geocube: PLATFORMER_CUBE },
     // (the frame graded vivid: a mascot platformer is saturated, scene/channels/grade.js)
     grade: 'vivid',
-    ui: { theme: PLATFORMER_LOOK },
+    ui: { theme: sideMap ? SIDE_MAP_LOOK : PLATFORMER_LOOK },
     front, flow,
   };
   return { dimension, level, words, turn: PLATFORMER_TURN[dimension], says: `${POLES[pole].name} as ${D.after}: ${D.says}` };
