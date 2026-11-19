@@ -723,7 +723,9 @@ export function buildRulesPlatform(E) {
       e.squash = Q && up !== 1 ? [1 / Math.sqrt(up), up] : null;
       // THE DASH'S LUNGE (`dash`): a ground dash is a burst, not a run, so it takes no strides: the hero holds the running
       // jump's gather, leaning into it as the burst gets up to speed and rising out of it as it eases
-      if (r.dash && e.dashT > 0 && e.grounded && !e.take) {
+      // (a card with a dash of its own, `takes.dash`: that clip over the burst by its share, in the air dash too)
+      if (r.dash && e.dashT > 0 && K.dash && (e.grounded ? !e.take : e.dashAir)) { e.locomotion = 'dash'; e.gaitPhase = dashU(e); e.moving = true; }
+      else if (r.dash && e.dashT > 0 && e.grounded && !e.take) {
         const u = dashU(e), k = u < DASH_RISE ? u / DASH_RISE : u < DASH_EASE ? 1 : 1 - (u - DASH_EASE) / (1 - DASH_EASE);
         e.locomotion = 'jump_fwd'; e.gaitPhase = K.fwd[0] * (0.5 + 0.45 * k); e.moving = true;
       }

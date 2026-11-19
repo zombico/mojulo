@@ -91,11 +91,14 @@ describe('the dash: a burst, not a run', () => {
     expect(tap.slice(N + 30).every((x) => x.drive < 1e-6)).toBe(true);      // no stick: then it stops
   });
 
-  it('takes no strides: a ground dash holds the running jump\'s gather, a lunge', () => {
-    const w = mk(R, []); run(w, () => ({}), 6, OPEN);
-    const fr = run(w, (f) => ({ boost: f === 0 }), N + 4, OPEN);
-    expect(fr.slice(0, N - 1).every((x) => x.loco === 'jump_fwd')).toBe(true);
-    expect(fr[N + 2].loco).not.toBe('jump_fwd');
+  it('takes no strides: a ground dash plays the card\'s own dash where it names one, else holds the running jump\'s gather', () => {
+    // (the dash's own, `takes.dash`: its clip over the burst by its share; without it, the running jump's gather, a lunge)
+    for (const rule of [R, { ...R, takes: (({ dash, ...T }) => T)(R.takes) }]) {
+      const own = !!rule.takes.dash, w = mk(rule, []); run(w, () => ({}), 6, OPEN);
+      const fr = run(w, (f) => ({ boost: f === 0 }), N + 4, OPEN);
+      expect(fr.slice(0, N - 1).every((x) => x.loco === (own ? 'dash' : 'jump_fwd'))).toBe(true);
+      expect(fr[N + 2].loco).not.toBe(own ? 'dash' : 'jump_fwd');
+    }
   });
 
   it('in the air: the fall stopped while it is at speed and given back as it eases; once an airtime, given back by the ground', () => {

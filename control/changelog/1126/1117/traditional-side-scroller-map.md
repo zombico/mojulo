@@ -292,3 +292,7 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   whole flight, the knee away from the buster drawn up so he is balanced to fire, the legs reaching down only before
   the floor (a card's `jumps`, the poised jump). A side map's hero now plays its own jumps at all (before, the air
   played the run), and a cel-lit hero keeps the jumps its game gives it.
+- **Galaxy Boy's dash**: his dash is his own pose, leaning hard into it, the knee away from the buster driven forward
+  and the buster side's foot pushed back on its toes, the free arm's elbow up behind with its fist down and the buster
+  arm's elbow down with the buster tipped up (a card's `jumps.dash`, the poised dash, played over the burst, in the air
+  dash too). A ground dash throws a wisp of dust and grit back off his feet; an air dash raises none.

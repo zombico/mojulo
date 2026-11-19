@@ -804,6 +804,8 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const busterOn = entities.some((e) => e && e.rule && e.rule.buster);
   // (a SABER's body, gameworld/feel/saber.js: a moveset that strikes with a colour, its cuts drawn as slashes; none: nothing)
   const saberOn = entities.some((e) => e && e.rule && e.rule.moveset && e.rule.strike === 'melee' && e.rule.strikeFx && Number.isInteger(e.rule.strikeFx.color));
+  // THE DASH'S DUST (round-look.js DASH_DUST, a rule's dash.dust): a body whose ground dash raises it
+  const dustOn = entities.some((e) => e && e.rule && e.rule.dash && e.rule.dash.dust && typeof e.rule.dash.dust === 'object');
   // THE PAD'S OWN FACES (the pilot's rule.controls, a feel card's `pad`, feel/lower.js): an override over the scheme's
   // bindings (controls-kernel.js resolve), so the game's faces are its own and its legend says them; none, the scheme's
   const padOver = (() => { const P = entities.find((e) => e && e.pilotable && e.rule && e.rule.controls && typeof e.rule.controls === 'object'); return P ? P.rule.controls : null; })();
@@ -4553,11 +4555,47 @@ function __slashFx(e) {
     if (f <= 0) { S.g.visible = false; S.key = null; }
   }
 }
+` : ''}${dustOn ? `// THE DASH'S DUST (gameworld/feel/round-look.js DASH_DUST, the rule's dash.dust): while a body's dash runs on the ground,
+// a wisp of dust and grit thrown back off its feet along the floor (a burst as it kicks off, then a puff a beat), each
+// swelling and thinning over its life, the grit falling; an air dash raises none. Its scatter seeded by the puff's count
+const __dustTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.5, 'rgba(255,255,255,0.5)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+const __dust = [], __dustOf = {};
+let __dustN = 0, __dustT = null;
+const __dustRnd = (n) => { const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); };
+function __dustPuff(e, D) {
+  const n = ++__dustN, grit = __dustRnd(n * 3) < D.grit, d = e.dashDir || [0, 1], p = e.transform.pos;
+  const sp = D.back * (0.6 + 0.4 * __dustRnd(n)), side = (__dustRnd(n * 7) - 0.5) * D.spread;
+  const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: __dustTex, color: new THREE.Color(grit && D.gritColor ? D.gritColor : D.color), transparent: true, opacity: D.alpha, depthWrite: false }));
+  const sz = D.size * (grit ? 0.25 : 0.7 + 0.6 * __dustRnd(n * 5));
+  m.scale.setScalar(sz); m.position.set(p[0] - d[0] * 0.2 - d[1] * side * 0.2, p[1] - d[1] * 0.2 + d[0] * side * 0.2, p[2] + 0.06); scene.add(m);
+  __dust.push({ m, v: [-d[0] * sp - d[1] * side, -d[1] * sp + d[0] * side, D.rise * (grit ? 1.6 : 0.6 + 0.6 * __dustRnd(n * 11))], t: 0, life: D.life * (grit ? 0.8 : 0.8 + 0.4 * __dustRnd(n * 13)), sz, grit, a: D.alpha, grow: D.grow });
+}
+function __dashDust() {
+  const now = __world.time, dt = __dustT == null ? 0 : Math.max(0, Math.min(0.1, now - __dustT)); __dustT = now;
+  for (const e of __world.entities) {
+    const D = e.rule && e.rule.dash && e.rule.dash.dust; if (!D) continue;
+    const S = __dustOf[e.id] || (__dustOf[e.id] = { on: false, next: 0 });
+    const on = e.dashT > 0 && e.grounded && !e.dashAir;
+    if (on && !S.on) { for (let k = 0; k < D.burst; k++) __dustPuff(e, D); S.next = now + D.every; }
+    else if (on && now >= S.next) { __dustPuff(e, D); S.next = now + D.every; }
+    S.on = on;
+  }
+  for (let i = __dust.length - 1; i >= 0; i--) {
+    const q = __dust[i]; q.t += dt; const u = q.t / q.life;
+    if (u >= 1) { scene.remove(q.m); q.m.material.dispose(); __dust.splice(i, 1); continue; }
+    const k = 1 / (1 + 4 * dt); q.v[0] *= k; q.v[1] *= k; q.v[2] = q.grit ? q.v[2] - 9.8 * dt : q.v[2] * k;
+    q.m.position.x += q.v[0] * dt; q.m.position.y += q.v[1] * dt; q.m.position.z = Math.max(0.02, q.m.position.z + q.v[2] * dt);
+    if (!q.grit) q.m.scale.setScalar(q.sz * (1 + (q.grow - 1) * u));
+    q.m.material.opacity = q.a * Math.pow(1 - u, 1.4);
+  }
+}
 ` : ''}const __projMeshes = {};    // projectile id -> { g } group tracking one live round
 let __burstSeen = -1;       // highest burst seq drawn (the engine's monotonic burstSeq)
 const __projUpY = new THREE.Vector3(0, 1, 0);   // the cone axis (apex +Y) rotated onto each round's velocity
 const __projDir = new THREE.Vector3();
-function __updateProjectiles() {${saberOn ? `
+function __updateProjectiles() {${dustOn ? `
+  __dashDust();` : ''}${saberOn ? `
   for (const e of __world.entities) if (e.rule && e.rule.moveset && e.rule.strike === 'melee' && e.rule.strikeFx && Number.isInteger(e.rule.strikeFx.color)) { __slashFx(e); __strandFx(e); }` : ''}${busterOn ? `
   __rlAge();   // (the muzzle rings, aged whether or not their rounds still fly)
   __blastAge();

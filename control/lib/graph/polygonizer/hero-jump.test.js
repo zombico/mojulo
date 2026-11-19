@@ -41,6 +41,7 @@ describe('hero-jump', () => {
         for (const n of nodes) { let lo = null, lv = Infinity; for (const [k, p] of Object.entries(n)) { const v = p[2] - flesh(k); if (v < lv - 1e-9) { lv = v; lo = k; } } expect(lo).not.toMatch(/^head/); }
         return;
       }
+      if (JUMPS[name].floor) { expect(J.air).toBeNull(); return; }   // (a move made on the floor: a dash, no flight)
       expect(J.air.takeoff).toBeGreaterThan(0); expect(J.air.land).toBeGreaterThan(J.air.takeoff); expect(J.air.land).toBeLessThan(J.seconds);
       expect(J.air.height).toBeGreaterThan(0.1); expect(J.air.height).toBeLessThan(0.8);
       if (run) { expect(J.air.speed).toBe(5); for (const S of ['L', 'R']) expect(nodes.some((n) => n[R.legs[S].toeBase][2] - R.joints[R.legs[S].toeBase][2] < 1e-6)).toBe(true); }
@@ -60,6 +61,15 @@ describe('hero-jump', () => {
     const c = at(0.735);
     expect(foot(c, L)).toBeLessThan(foot(a, L) - 0.1);
     expect(Math.abs(foot(c, L) - foot(c, Rg))).toBeLessThan(0.08);
+  });
+  it('the poised dash: never off the floor; leaning in, the off foot forward, the gun side\'s foot back on its toes', () => {
+    const R = HEROES.male, J = heroJump('dashPoised', R), n0 = rigNodesAt(R, J.fn(0)).nodes, n = rigNodesAt(R, J.fn(0.5)).nodes;
+    expect(J.air).toBeNull();
+    // (+y the rig's forward: the left toe ahead of the right by most of the split, the head ahead of the pelvis: the lean)
+    expect(n[R.legs.L.toeTip][1] - n[R.legs.R.toeTip][1]).toBeGreaterThan(0.5);
+    expect(n.headTop[1] - n.pelvisHub[1]).toBeGreaterThan(n0.headTop[1] - n0.pelvisHub[1] + 0.2);
+    // (the rear heel up: its ankle over its toe's height by more than it stands)
+    expect(n[R.legs.R.hock][2] - n[R.legs.R.toeTip][2]).toBeGreaterThan(n0[R.legs.R.hock][2] - n0[R.legs.R.toeTip][2] + 0.03);
   });
   it('is deterministic, and a longer clip stretches the air', () => {
     const R = HEROES.female; const a = heroJump('jump', R), b = heroJump('jump', R);

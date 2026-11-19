@@ -833,6 +833,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // page embeds (combat-melee.js stepMoveset) plays a plant chained into from another plant on its `_on` clip, begun split.
 // One place: where a move's clip is chosen. A moveset with no plant plays its clips as before; every fixture that embeds
 // the controllable runtime re-pinned with it.
+// Re-pinned 2026-11-19 (a card's own dash, feel/lower.js `takes.dash`): the runtime the page embeds (rules-platform.js)
+// plays a body's `dash` clip over its dash's burst, on the ground and in an air dash, where its takes name one; a rule
+// whose takes name none holds the running jump's gather as before. One place, where the dash's pose is chosen; every
+// fixture that embeds the controllable runtime re-pinned with it. (The dash's dust is a block of its own, gated on a
+// rule's `dash.dust`: no fixture has one, and none emits it.)
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

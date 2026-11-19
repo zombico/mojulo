@@ -120,3 +120,13 @@ export const slashArc = (swing) => SLASH_LOOK.arcs[swing] || SLASH_LOOK.arcs.neu
  * contact window.
  */
 export const SABER_STRAND = Object.freeze({ base: 0.32, core: 0.035, body: 0.09, halo: 0.42, glow: 0.45, cap: 0.6, streaks: 9, speed: 7, idle: 0.8, cut: 1.3 });
+
+/**
+ * THE DASH'S DUST (a feel card's `dash.dust`, lowered onto the rule's dash: feel/lower.js; drawn by the controllable page):
+ * a wisp of dust and grit pushed back from the feet while a dash runs ON THE GROUND (an air dash raises none): a `burst`
+ * of puffs as it kicks off, then one every `every` seconds, each thrown back along the floor at `back` m/s (`spread` its
+ * scatter across) and lifting at `rise`, `size` metres and swelling `grow` times over its `life` seconds as it thins from
+ * `alpha`; `color` the dust's (paler than any floor, so it reads on a pale one), `grit` the share of the puffs that are
+ * small hard bits (falling, not swelling) in `gritColor`.
+ */
+export const DASH_DUST = Object.freeze({ burst: 9, every: 0.04, life: 0.5, size: 0.34, grow: 2.2, back: 3.6, spread: 0.7, rise: 0.9, alpha: 0.85, color: '#f4eee4', grit: 0.3, gritColor: '#6e5f50' });

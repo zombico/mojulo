@@ -3,6 +3,7 @@ import { createWorld, stepWorld } from '@/lib/graph/worlds/controllable-world';
 import { POLES, POLE_IDS, variantsOf, poleCard, FPS } from './cards.js';
 import { readFeel, feelCard, lowerFeel, feelReport, feelRule, TAKES } from './lower.js';
 import { jumpShares } from '@/lib/graph/polygonizer/hero-jump.js';
+import { DASH_DUST } from './round-look.js';
 import { playerWorld } from '@/lib/graph/playscape/player';
 
 // A GAMEWORLD'S FEEL: a template's card lowered into the platform rule the runtime plays. One template per procedure
@@ -158,5 +159,13 @@ describe('a card\'s own pad and jumps', () => {
     const R = feelRule({ pole: own, takes: true }), C = poleCard(own), S = jumpShares(C.jumps.jump_up);
     expect(R.takes.up).toEqual([S.off, S.on]);
     expect(feelRule({ pole: bare, takes: true }).takes.up).toEqual([jumpShares(TAKES.jump_up).off, jumpShares(TAKES.jump_up).on]);
+  });
+  it('a dash of its own: the takes say so (the runtime plays its clip over the burst), and its dust rides the rule\'s dash', () => {
+    const R = feelRule({ pole: own, takes: true });
+    expect(R.takes.dash).toBe(!!poleCard(own).jumps.dash);
+    expect(feelRule({ pole: bare, takes: true }).takes.dash).toBeUndefined();
+    if (poleCard(own).dash?.dust) expect(R.dash.dust).toEqual({ ...DASH_DUST });
+    const plain = POLE_IDS.find((id) => poleCard(id).dash?.kind === 'dash' && !poleCard(id).dash.dust);
+    if (plain) expect(feelRule({ pole: plain, takes: true }).dash?.dust).toBeUndefined();
   });
 });

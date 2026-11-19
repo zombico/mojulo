@@ -32,6 +32,7 @@
 import { FPS, r4, POLES, POLE_IDS, variantsOf, poleCard, blendPoles, mergeDeep } from './cards.js';
 import { jumpShares } from '../../polygonizer/hero-jump.js';
 import { saberRule } from './saber.js';
+import { DASH_DUST } from './round-look.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** A hero's STAMINA (the sprint's gauge), its defaults: seconds of sprint, seconds to refill from empty, and seconds to
@@ -118,7 +119,8 @@ export function steppedSpeed(h, g, dt = 1 / FPS) {
  * `jump_fwd` a jump out of the run, `jump_air` an air jump (the double jump's second push: its clip from the kick on).
  */
 export const TAKES = Object.freeze({ jump_up: 'jump', jump_fwd: 'jumpForward', jump_air: 'doubleJump' });
-/** A card's own takes (its `jumps`: { <state>: <hero-jump.js word> }, a run-and-gun hero's poised jump) over TAKES. */
+/** A card's own takes (its `jumps`: { <state>: <hero-jump.js word> }, a run-and-gun hero's poised jump; `dash` its
+ * dash's clip, played over the burst) over TAKES. */
 export const takesOfCard = (C) => ({ ...TAKES, ...(C && C.jumps && typeof C.jumps === 'object' ? C.jumps : {}) });
 
 /** The run button's build (`rule.sprint`): a held run gets to the card's sprint over a second of running, as a mascot
@@ -127,9 +129,10 @@ export const SPRINT = Object.freeze({ build: 1, fall: 0.5 });
 
 /** The platform rule's `takes`: each take's flight as shares of its clip, and the landing's seconds (the card's). */
 function takesOf(J, look, T = TAKES) {
-  const S = Object.fromEntries(Object.entries(T).map(([state, clip]) => [state, jumpShares(clip)]));
+  const S = Object.fromEntries(Object.entries(T).filter(([state]) => state !== 'dash').map(([state, clip]) => [state, jumpShares(clip)]));
   const squash = look?.squash > 0 ? r4(look.squash) : 0;
-  return { up: [S.jump_up.off, S.jump_up.on], fwd: [S.jump_fwd.off, S.jump_fwd.on], air: [S.jump_air.kick, S.jump_air.on], land: r4(Math.max(1, J.land ?? 0) / FPS), ...(squash ? { squash } : {}) };
+  // (a card's own dash, `jumps.dash`: a move on the floor the runtime plays over the dash's burst, rules-platform.js)
+  return { up: [S.jump_up.off, S.jump_up.on], fwd: [S.jump_fwd.off, S.jump_fwd.on], air: [S.jump_air.kick, S.jump_air.on], land: r4(Math.max(1, J.land ?? 0) / FPS), ...(squash ? { squash } : {}), ...(T.dash ? { dash: true } : {}) };
 }
 
 /** A card → the platform rule's fields, and what is carried, partly carried and not carried. `takes`: the hero's own
@@ -236,8 +239,9 @@ export function lowerFeel(card, { gear = null, takes = false, base = null } = {}
   if (takes && C.dash && C.dash.kind === 'dash') {
     const D = C.dash, A = D.air;
     // (a burst the card's frames long: a dash held longer is not carried, a dash is not a run)
+    // (and its DUST where the card raises it: round-look.js DASH_DUST, the page's wisp off the feet on the ground)
     rule.dash = { speed: D.speed, time: r4(D.frames / FPS), ...(D.jump ? { jump: true } : {}), ...(D.wall ? { wall: true } : {}),
-      ...(A && A.count > 0 ? { air: { count: A.count, speed: A.speed, time: r4(A.frames / FPS) } } : {}) };
+      ...(A && A.count > 0 ? { air: { count: A.count, speed: A.speed, time: r4(A.frames / FPS) } } : {}), ...(D.dust ? { dust: { ...DASH_DUST } } : {}) };
     half('dash', `the dash on F (a person's): the ground dash, ${A?.count ? 'the air dash, ' : ''}${D.jump ? 'the dash jump' : ''}${D.wall ? ', the dash wall kick' : ''}; a burst, the card's ${D.frames} frames whatever the button does${D.hold ? ' (its held dash is not carried)' : ''}${D.iframes ? '; its invincible frames are not carried' : ''}${D.cancel ? '; its cancel out of a move is not carried' : ''}`);
     moves.add('dash');
   }

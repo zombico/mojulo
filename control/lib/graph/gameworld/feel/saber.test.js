@@ -40,4 +40,10 @@ describe('the saber', () => {
     expect(bus).not.toContain('__strandFx');
     expect(saberRule()).toEqual(saberRule());
   });
+  it('only a page whose hero\'s dash raises dust draws it (a burst and a wisp off the feet on the ground)', () => {
+    const R = feelRule({ pole: 'galaxy-boy', takes: true });
+    expect(page(R)).toContain('__dashDust');
+    const { dust, ...dash } = R.dash;
+    expect(page({ ...R, dash })).not.toContain('__dashDust');
+  });
 });
