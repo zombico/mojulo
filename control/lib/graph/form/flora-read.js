@@ -120,7 +120,10 @@ export const MASS_BLOB = Object.freeze({ detail: 1, ball: 2, squash: 0.85, shade
 export const REALISTIC = Object.freeze({ older: 1.25, onBall: 0.85,
   // (its crown a CLOUD: `k` masses (the fewer for a sparse crown, the more for a full one), overlapping (`sep` over 1:
   // their radii may sum past the distance between them), each its own size)
-  cloud: Object.freeze({ k: Object.freeze([6, 8]), sep: 1.45 }), far: Object.freeze({ shade: 0.8, rim: 0.6, leaf: 0.5, squash: 0.85, discs: false }) });
+  cloud: Object.freeze({ k: Object.freeze([6, 8]), sep: 1.45, joined: false }),
+  // (each mass OFF the trunk's axis: moved out, away from it, by `off` × its radius: none sits centred over the stem,
+  // each out on the branch that carries it, tree-form.js EVOKE)
+  off: 0.4, far: Object.freeze({ shade: 0.8, rim: 0.6, leaf: 0.5, squash: 0.85, discs: false }) });
 /** A realistic crown's mass as STACKED CUPS in a spread CLOUD: `tiers` low domes one over the next, each `[radius,
  *  rim height, rise]` of the mass's radius, the widest beneath; the whole STRETCHED (`stretch`: out along the way the mass
  *  reaches from the trunk, across, up), so a mass is a shelf, wider than tall, not a mushroom; each tier over the last
@@ -129,8 +132,8 @@ export const REALISTIC = Object.freeze({ older: 1.25, onBall: 0.85,
  *  its radius, each tooth its own by `jitter`), the notches between drawn in (`notch` of the radius, `notchDrop` of the
  *  drop), its dome rounded through a ring at `shoulder` of the way in; its faces toned by which way they face
  *  (MASS_BLOB.lobe.tones); `variants` of them. On the page each is turned to face out the way its mass reaches. */
-export const CUPS = Object.freeze({ tiers: Object.freeze([Object.freeze([1.15, -0.32, 0.46]), Object.freeze([0.95, -0.05, 0.44]), Object.freeze([0.68, 0.22, 0.4])]),
-  stretch: Object.freeze([1.3, 1.05, 0.92]), lean: 0.18, teeth: Object.freeze([6, 9]), notch: 0.78, drop: 0.2, notchDrop: 0.25, shoulder: 0.58, jitter: 0.22, variants: 5 });
+export const CUPS = Object.freeze({ tiers: Object.freeze([Object.freeze([1.0, -0.32, 0.46]), Object.freeze([0.84, -0.05, 0.44]), Object.freeze([0.6, 0.22, 0.4])]),
+  stretch: Object.freeze([1.05, 0.95, 0.95]), lean: 0.2, teeth: Object.freeze([5, 6]), notch: 0.9, drop: 0.13, notchDrop: 0.55, shoulder: 0.6, jitter: 0.1, variants: 5 });
 function cupTris(seed) {
   const C = CUPS, h = (k) => hashN(seed * 613 + k), tones = MASS_BLOB.lobe.tones, leaf = TONES.leaf, tris = [], X = C.stretch;
   const tone = (n) => { const l = Math.hypot(...n) || 1, nz = n[2] / l; return leaf.map((v) => Math.min(255, Math.round(v * tones[nz > 0.35 ? 0 : nz > -0.25 ? 1 : 2] * MASS_BLOB.shade))); };
@@ -233,6 +236,9 @@ function treeTemplate(species, height, crowns = null) {
       // ('realistic': the same balls and their joining lobes under its leaves, REALISTIC: its crown's mass near, as its
       // card has it far)
       const M0 = masses ? massCrown(C0) : tips || real ? { ...majorBalls(C0, real ? REALISTIC.cloud : {}), clumps: C0 } : null;
+      // ('realistic': each mass moved off the trunk's axis, REALISTIC.off)
+      if (real) M0.blobs = M0.blobs.map((b) => { const h = Math.hypot(b.p[0], b.p[1]), a = h > 1e-3 ? Math.atan2(b.p[1], b.p[0]) : b.r * 2 * Math.PI, H = h + REALISTIC.off * b.s;
+        return { ...b, p: [r4(H * Math.cos(a)), r4(H * Math.sin(a)), b.p[2]], o: [r4(Math.cos(a)), r4(Math.sin(a)), 0] }; });
       // (each blob held to the wood that is drawn: none floats over a twig the cut left out)
       // ('realistic': grown again with its wood EVOKED by its balls, tree-form.js EVOKE: a limb only where it carries
       // one, no hair-thin twig; and its leaves only on its balls)

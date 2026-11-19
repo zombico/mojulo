@@ -109,33 +109,40 @@ const YOUNG = new Map();
 export const CANOPY = Object.freeze({ lift: 0.5, bole: Object.freeze([0.42, 0.52]), narrow: 1.15, flare: 0.45 });
 
 /**
- * THE EVOKED WOOD (a realistic crown's, `evoke: { balls }`): every limb drawn means something. A limb is drawn only
- * where it is thick (`thick` × the cut: no hair-thin twig) and carries the crown: it reaches into one of its balls
- * (within `into` of a ball's radius of its middle) or a drawn limb grows from it; and drawn only as far as that, its
- * run past its last ball or its last drawn limb left off. The view evoked, not the tree's anatomy.
+ * THE EVOKED WOOD (a realistic crown's, `evoke: { balls }`): the trunk, and a BRANCH drawn to carry each of its masses;
+ * no other limb. The trunk ends `top` of the highest mass's radius under its middle. The masses nearest the trunk
+ * are taken first; each branch leaves from the trunk, or forks off a branch already drawn (at one of `fork` of its
+ * way), whichever point is nearest. That point must stand `clear` × the mass's radius under its underside. The branch
+ * runs out and then up to the underside (`reach` of the radius into the mass), through a bend `out` of the way across
+ * and `rise` of the way up. Its girth at the start is `branch` × its parent's there, and no more than `girth` × the
+ * mass's radius; it ends at `tip` of that, and never under the cut. `segs` segments a branch. The view evoked, not the
+ * tree's anatomy: each mass seen held up by what carries it.
  */
-export const EVOKE = Object.freeze({ thick: 1.6, into: 0.85 });
-function evokedChains(chains, plant, balls, least) {
-  const inBall = (p) => balls.some((b) => (p[0] - b.p[0]) ** 2 + (p[1] - b.p[1]) ** 2 + (p[2] - b.p[2]) ** 2 < (b.s * EVOKE.into) ** 2);
-  const byAxis = new Map(chains.map((ch) => [ch.axis, ch])), need = new Map();
-  // (a limb's children first: each limb's need its last point in a ball, or the point its last drawn child leaves it)
-  for (const ch of [...chains].sort((a, b) => b.order - a.order)) {
-    if (ch.dMax < least) continue;
-    let e = need.get(ch.axis) ?? 0;
-    ch.pts.forEach((p, i) => { if (i > e && inBall(p)) e = i; });
-    if (e < 1) continue;
-    need.set(ch.axis, e);
-    const base = plant.nodes[ch.baseNode], up = base ? byAxis.get(base.axis) : null;
-    if (!up || up === ch) continue;
-    // (where it leaves its parent: the parent's point at its base node, the last such, a smoothed chain's too)
-    let at = -1; up.nodes.forEach((n, i) => { if (n.id === ch.baseNode) at = i + 1; });
-    if (at < 0) at = 0;
-    need.set(up.axis, Math.max(need.get(up.axis) ?? 0, at, 1));
+export const EVOKE = Object.freeze({ top: 0.3, fork: Object.freeze([0.4, 0.55, 0.7]), clear: 0.2, reach: 0.3, out: 0.65, rise: 0.25,
+  branch: 0.72, girth: 0.13, tip: 0.5, segs: 6 });
+function supportedChains(chains, balls, cut) {
+  const trunk0 = chains.filter((c) => c.order === 0).reduce((a, c) => (!a || c.dMax > a.dMax ? c : a), null);
+  if (!trunk0 || !balls.length) return chains;
+  const topZ = Math.max(...balls.map((b) => b.p[2] - EVOKE.top * b.s));
+  let e = trunk0.pts.findIndex((p) => p[2] > topZ); if (e < 0) e = trunk0.pts.length; e = Math.max(2, e);
+  const trunk = { ...trunk0, pts: trunk0.pts.slice(0, e), rs: trunk0.rs.slice(0, e), nodes: trunk0.nodes.slice(0, e - 1), continues: false };
+  const out = [trunk], perches = trunk.pts.map((p, i) => ({ p, r: trunk.rs[i] }));
+  const order = balls.map((b, i) => i).sort((i, j) => Math.hypot(balls[i].p[0], balls[i].p[1]) - Math.hypot(balls[j].p[0], balls[j].p[1]) || i - j);
+  for (const i of order) {
+    const b = balls[i], end = [b.p[0], b.p[1], b.p[2] - b.s * (1 - EVOKE.reach)], under = end[2] - EVOKE.clear * b.s;
+    const ok = perches.filter((q) => q.p[2] <= under);
+    const from = (ok.length ? ok : [perches[0]]).reduce((a, q) => (len(sub(q.p, end)) < len(sub(a.p, end)) ? q : a));
+    const P0 = from.p, mid = [P0[0] + EVOKE.out * (end[0] - P0[0]), P0[1] + EVOKE.out * (end[1] - P0[1]), P0[2] + EVOKE.rise * (end[2] - P0[2])];
+    const r0 = Math.max(cut * 0.6, Math.min(from.r * EVOKE.branch, b.s * EVOKE.girth)), r1 = Math.max(cut * 0.55, r0 * EVOKE.tip);
+    const pts = [], rs = [];
+    for (let k = 0; k <= EVOKE.segs; k++) {
+      const t = k / EVOKE.segs, u = 1 - t;
+      pts.push([0, 1, 2].map((a) => r4(u * u * P0[a] + 2 * u * t * mid[a] + t * t * end[a]))); rs.push(r0 + (r1 - r0) * t);
+    }
+    out.push({ axis: -1 - i, order: 1, nodes: [], pts, rs, dMax: 2 * r0, continues: false });
+    for (const f of EVOKE.fork) { const k = Math.round(f * EVOKE.segs); perches.push({ p: pts[k], r: rs[k] }); }
   }
-  return chains.filter((ch) => (need.get(ch.axis) ?? 0) >= 1 && ch.dMax >= least).map((ch) => {
-    const e = need.get(ch.axis);
-    return e >= ch.pts.length - 1 ? ch : { ...ch, pts: ch.pts.slice(0, e + 1), rs: ch.rs.slice(0, e + 1), nodes: ch.nodes.slice(0, e), continues: true };
-  });
+  return out;
 }
 export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.mature, minDiameter = TREE_FORM.minDiameter, cell = TREE_FORM.cell, clumpCell = TREE_FORM.clumpCell, far = false, twigs = false, canopy = false, evoke = null } = {}) {
   const S = SPECIES[species]; if (!S || (S.kind !== 'tree' && S.kind !== 'conifer')) throw new Error(`tree-form: '${species}' is not a tree species`);
@@ -168,7 +175,7 @@ export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.m
   // the wood: each axis thick enough a tube along its chain (parallel-transported rings), its normals the rings' own
   // outward directions (smooth round, so the sun turns across a limb), its bark's coordinates in tiles: round the axis
   // the tile's count its base girth asks (no seam), up it its arc length
-  const chains0 = axisChains(plant), chains = evoke && evoke.balls && evoke.balls.length && !needles ? evokedChains(chains0, plant, evoke.balls, cut * EVOKE.thick) : chains0;
+  const chains0 = axisChains(plant), chains = evoke && evoke.balls && evoke.balls.length && !needles ? supportedChains(chains0, evoke.balls, cut) : chains0;
   // (`twigs`, a crossed crown's: a chain under the cut drawn too where it carries a shoot, and the limbs it grows on: no
   // leaf without its twig, no twig without its leaf)
   const carry = new Set(), drawn = (ch, c) => ch.dMax >= c || (c === cut && !evoke && carry.has(ch.axis));
@@ -536,8 +543,9 @@ export const BALLS = Object.freeze({ k: Object.freeze([3, 4]), many: 40, hold: 0
   // (at their middle, `drop` of the smaller radius lower, `join` × it): the clumps meet in spots, each hanging off the
   // limbs that carry it)
   core: 0.55, sink: 0.45, bridge: 0.42, step: 1.5, links: 3, near: 1.45, drop: 0.2, join: 0.48 });
-// (`k` and `sep` a caller's own: a realistic crown's cloud, more of them and overlapping, form/flora-read.js REALISTIC)
-export function majorBalls(clumps, { k: ks = BALLS.k, sep = BALLS.sep } = {}) {
+// (`k` and `sep` a caller's own: a realistic crown's cloud, more of them and overlapping, form/flora-read.js REALISTIC;
+// `joined: false`, the balls alone, their joining lobes left to the branches that carry them)
+export function majorBalls(clumps, { k: ks = BALLS.k, sep = BALLS.sep, joined = true } = {}) {
   const n = clumps.length;
   if (!n) return { blobs: [] };
   const k = Math.min(n, n >= BALLS.many ? ks[1] : ks[0]), d2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
@@ -566,7 +574,7 @@ export function majorBalls(clumps, { k: ks = BALLS.k, sep = BALLS.sep } = {}) {
     if (r[i] + r[j] > room) { const f = room / (r[i] + r[j]); r[i] = Math.max(BALLS.least * r0[i], r[i] * f); r[j] = Math.max(BALLS.least * r0[j], r[j] * f); }
   }
   const balls = blobs.map((b, i) => ({ ...b, s: r4(r[i]) }));
-  return { blobs: [...balls, ...joinedTo(balls)] };
+  return { blobs: joined ? [...balls, ...joinedTo(balls)] : balls };
 }
 // the lobes that join a crown's balls to its tree and in spots to each other (BALLS core, bridge, join)
 function joinedTo(balls) {

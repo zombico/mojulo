@@ -173,16 +173,19 @@ describe('the mass crown', () => {
 });
 
 describe('the evoked wood', () => {
-  it('draws a limb only where it carries a ball: none for balls out of its reach, and less than the whole tree', () => {
+  it('draws the trunk and a branch to carry each mass, from below, and nothing else', () => {
     const at = (evoke) => treeForm('beech', { seed: 3, mature: { toHeight: 0.95, range: [1, 2], cambium: 2.2, aim: 12 }, canopy: true, evoke });
     const whole = at(null), tris = (F) => F.wood.idx.length / 3;
-    // (the crown's balls: round its own ends)
-    const balls = majorBalls(whole.clumps).blobs.slice(0, 3), evoked = at({ balls });
+    const balls = majorBalls(whole.clumps, { joined: false }).blobs, evoked = at({ balls }), P = evoked.wood.pos;
     expect(tris(evoked)).toBeGreaterThan(0);
-    expect(tris(evoked)).toBeLessThan(tris(whole));
-    // (balls nowhere near it: nothing it carries, no limb drawn)
-    expect(tris(at({ balls: [{ p: [500, 500, 500], s: 1 }] }))).toBe(0);
-    expect(EVOKE.thick).toBeGreaterThan(1);
+    // (each mass held: wood reaching its underside, and no wood above its top but its own)
+    for (const b of balls) {
+      const end = [b.p[0], b.p[1], b.p[2] - b.s * (1 - EVOKE.reach)];
+      let best = Infinity; for (let i = 0; i < P.length; i += 3) best = Math.min(best, Math.hypot(P[i] - end[0], P[i + 1] - end[1], P[i + 2] - end[2]));
+      expect(best).toBeLessThan(b.s * 0.25);
+    }
+    // (the trunk ends under the highest mass)
+    const top = Math.max(...balls.map((b) => b.p[2] + b.s)); for (let i = 2; i < P.length; i += 3) expect(P[i]).toBeLessThan(top);
   }, 120000);
 });
 
