@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { treeForm, massCrown, tipBlobs, anchorBlobs, majorBalls, TREE_FORM, SLEEVE, MASSES, TIP_BLOBS, BLOB_HOLD, CANOPY, BALLS, EVOKE } from './tree-form.js';
+import { treeForm, massCrown, tipBlobs, anchorBlobs, majorBalls, TREE_FORM, SLEEVE, MASSES, TIP_BLOBS, BLOB_HOLD, CANOPY, BALLS, EVOKE, limbTree } from './tree-form.js';
 import { BARK_TILE_M } from '../vegetation/tiles.js';
 import { leafHolds, needleHabit } from '../vegetation/sprays.js';
 import { SPECIES } from '../vegetation/species.js';
@@ -173,20 +173,46 @@ describe('the mass crown', () => {
 });
 
 describe('the evoked wood', () => {
-  it('draws the trunk and a branch to carry each mass, from below, and nothing else', () => {
+  it('draws the trunk and the limbs that carry each mass, ending at its underside, and nothing over the crown', () => {
     const at = (evoke) => treeForm('beech', { seed: 3, mature: { toHeight: 0.95, range: [1, 2], cambium: 2.2, aim: 12 }, canopy: true, evoke });
     const whole = at(null), tris = (F) => F.wood.idx.length / 3;
     const balls = majorBalls(whole.clumps, { joined: false }).blobs, evoked = at({ balls }), P = evoked.wood.pos;
     expect(tris(evoked)).toBeGreaterThan(0);
-    // (each mass held: wood reaching its underside, and no wood above its top but its own)
     for (const b of balls) {
       const end = [b.p[0], b.p[1], b.p[2] - b.s * (1 - EVOKE.reach)];
       let best = Infinity; for (let i = 0; i < P.length; i += 3) best = Math.min(best, Math.hypot(P[i] - end[0], P[i + 1] - end[1], P[i + 2] - end[2]));
       expect(best).toBeLessThan(b.s * 0.25);
     }
-    // (the trunk ends under the highest mass)
     const top = Math.max(...balls.map((b) => b.p[2] + b.s)); for (let i = 2; i < P.length; i += 3) expect(P[i]).toBeLessThan(top);
   }, 120000);
+
+  it('grows its limbs from the masses back to the trunk: forks by the pipe model, each length climbing, main limbs staggered', () => {
+    // (a plain upright trunk and eight masses round a crown)
+    const trunk = { pts: Array.from({ length: 11 }, (_, i) => [0, 0, i]), rs: Array.from({ length: 11 }, (_, i) => 0.4 - 0.025 * i) };
+    const pads = Array.from({ length: 8 }, (_, i) => { const a = (i * 2 * Math.PI) / 8; return { p: [3 * Math.cos(a), 3 * Math.sin(a), 7 + (i % 3) * 0.8], s: 1.2 }; });
+    const L = limbTree(trunk, pads, 0.03), E = L.edges;
+    // (each mass the end of one length, entered from below; fewer main limbs than masses)
+    for (let i = 0; i < pads.length; i++) expect(E.filter((g) => g.end === i).length).toBe(1);
+    const mains = E.filter((g) => g.main);
+    expect(mains.length).toBeLessThan(pads.length);
+    expect(mains.length).toBeGreaterThanOrEqual(2);
+    // (every length climbs: no limb drawn down or level)
+    for (const g of E) expect(g.to[2]).toBeGreaterThan(g.from[2]);
+    // (the pipe model: at a fork, the section coming in is the sections going out)
+    const key = (q) => q.map((v) => v.toFixed(4)).join(',');
+    for (const g of E.filter((x) => x.end < 0)) {
+      const out = E.filter((x) => key(x.from) === key(g.to));
+      expect(out.length).toBe(2);
+      if (!g.main) expect(out.reduce((a, x) => a + x.r0 * x.r0, 0)).toBeCloseTo((g.r1 / 0.92) ** 2, 4);
+    }
+    expect(E.some((g) => g.end < 0 && !g.main)).toBe(true);
+    // (the main limbs leave the trunk at heights apart, none under its low share)
+    const zs = mains.map((g) => g.from[2]).sort((a, b) => a - b);
+    for (let i = 1; i < zs.length; i++) expect(zs[i] - zs[i - 1]).toBeGreaterThanOrEqual(EVOKE.stagger - 1e-9);
+    expect(zs[0]).toBeGreaterThanOrEqual(EVOKE.low * 10 - 1e-9);
+    // (deterministic)
+    expect(JSON.stringify(limbTree(trunk, pads, 0.03))).toBe(JSON.stringify(L));
+  });
 });
 
 describe('the canopy form', () => {

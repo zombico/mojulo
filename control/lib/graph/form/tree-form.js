@@ -109,39 +109,64 @@ const YOUNG = new Map();
 export const CANOPY = Object.freeze({ lift: 0.5, bole: Object.freeze([0.42, 0.52]), narrow: 1.15, flare: 0.45 });
 
 /**
- * THE EVOKED WOOD (a realistic crown's, `evoke: { balls }`): the trunk, and a BRANCH drawn to carry each of its masses;
- * no other limb. The trunk ends `top` of the highest mass's radius under its middle. The masses nearest the trunk
- * are taken first; each branch leaves from the trunk, or forks off a branch already drawn (at one of `fork` of its
- * way), whichever point is nearest. That point must stand `clear` × the mass's radius under its underside. The branch
- * runs out and then up to the underside (`reach` of the radius into the mass), through a bend `out` of the way across
- * and `rise` of the way up. Its girth at the start is `branch` × its parent's there, and no more than `girth` × the
- * mass's radius; it ends at `tip` of that, and never under the cut. `segs` segments a branch. The view evoked, not the
- * tree's anatomy: each mass seen held up by what carries it.
+ * THE EVOKED WOOD (a realistic crown's, `evoke: { balls }`): the trunk and the LIMBS that carry its masses, grown from
+ * the masses back to the trunk; no other wood. The view evoked, not the tree's anatomy: every limb leads to leaves.
+ *  - Each mass is a limb's END, entering it from below (`reach` of its radius in), as thick as `girth` × `tip` of its
+ *    radius (never under the cut).
+ *  - The two ends nearest each other MERGE at a FORK: below the lower of them by `drop` × their separation, drawn in
+ *    toward the trunk by `inward`, its girth theirs as the pipe model has it (its section their two sections: a crown's
+ *    few thick limbs splitting into thinner ones). Merged until `limbs` ends a limb stand (a mass for each where there
+ *    are few), each a MAIN LIMB.
+ *  - A main limb leaves the trunk CLIMBING at `climb` degrees over the level toward its fork, no lower than `low` of the
+ *    trunk's height; no two leave within `stagger` m of each other. Its girth there is no more than `hold` × the trunk's.
+ *  - Each length of limb is bowed up by `bend` × its length (an arch, never a hook) through `segs` segments.
+ *  - The trunk ends just over its highest limb (`crown` m), blunt, in the limb's joint; a limb's end blunt in its mass:
+ *    no point of wood through the crown.
  */
-export const EVOKE = Object.freeze({ top: 0.3, fork: Object.freeze([0.4, 0.55, 0.7]), clear: 0.2, reach: 0.3, out: 0.65, rise: 0.25,
-  branch: 0.72, girth: 0.13, tip: 0.5, segs: 6 });
+export const EVOKE = Object.freeze({ reach: 0.5, girth: 0.13, tip: 0.5, drop: 0.22, inward: 0.3, limbs: 2.6, climb: 38, low: 0.4, stagger: 0.45,
+  hold: 0.8, bend: 0.08, segs: 4, crown: 0.1 });
+/** The limbs as a tree of lengths: `trunk` its points and radii, `pads` [{ p, s }], `cut` the thinnest drawn. →
+ *  { edges: [{ from, to, r0, r1, end, main }], top } (`end`: the pad a length ends in, or -1 at a fork; `top` the
+ *  height the trunk is drawn to). */
+export function limbTree(trunk, pads, cut) {
+  const tp = trunk.pts, tr = trunk.rs, z0 = tp[0][2], z1 = tp[tp.length - 1][2];
+  const at = (z) => { for (let i = 1; i < tp.length; i++) if (tp[i][2] >= z) { const a = tp[i - 1], b = tp[i], f = (z - a[2]) / Math.max(1e-9, b[2] - a[2]); return { p: [0, 1, 2].map((k) => a[k] + f * (b[k] - a[k])), r: tr[i - 1] + f * (tr[i] - tr[i - 1]) }; } return { p: tp[tp.length - 1], r: tr[tr.length - 1] }; };
+  // (the ends: one a mass; the merging, nearest first, ties by their order)
+  let active = pads.map((b, i) => ({ p: [b.p[0], b.p[1], b.p[2] - b.s * (1 - EVOKE.reach)], r: Math.max(cut * 0.6, b.s * EVOKE.girth * EVOKE.tip), kids: [], end: i }));
+  const want = pads.length <= 3 ? pads.length : Math.max(2, Math.round(pads.length / EVOKE.limbs));
+  while (active.length > want) {
+    let bi = 0, bj = 1, bd = Infinity;
+    for (let i = 0; i < active.length; i++) for (let j = i + 1; j < active.length; j++) { const d = len(sub(active[i].p, active[j].p)); if (d < bd - 1e-9) { bd = d; bi = i; bj = j; } }
+    const A = active[bi], B = active[bj], wA = A.r * A.r, wB = B.r * B.r, m = mul(add(mul(A.p, wA), mul(B.p, wB)), 1 / (wA + wB));
+    const F = { p: [m[0] * (1 - EVOKE.inward), m[1] * (1 - EVOKE.inward), Math.min(A.p[2], B.p[2]) - EVOKE.drop * bd], r: Math.sqrt(wA + wB), kids: [A, B], end: -1 };
+    active = [...active.filter((_, k) => k !== bi && k !== bj), F];
+  }
+  // (each main limb to the trunk, climbing; staggered up the trunk)
+  const tan = Math.tan((EVOKE.climb * Math.PI) / 180), lowZ = z0 + EVOKE.low * (z1 - z0);
+  const mains = active.map((n) => { const c = at(n.p[2]), h = Math.hypot(n.p[0] - c.p[0], n.p[1] - c.p[1]); return { n, z: Math.min(n.p[2] - 0.05, Math.max(lowZ, n.p[2] - h * tan)) }; }).sort((a, b) => a.z - b.z || a.n.p[0] - b.n.p[0]);
+  for (let i = 1; i < mains.length; i++) if (mains[i].z - mains[i - 1].z < EVOKE.stagger) mains[i].z = mains[i - 1].z + EVOKE.stagger;
+  const edges = [], walk = (from, n, r0) => { edges.push({ from, to: n.p, r0, r1: n.end >= 0 ? n.r : n.r * 0.92, end: n.end, main: false }); for (const k of n.kids) walk(n.p, k, k.r); };
+  let top = z0;
+  for (const { n, z } of mains) {
+    const c = at(Math.min(z, z1)), r0 = Math.min(n.r, c.r * EVOKE.hold);
+    edges.push({ from: c.p, to: n.p, r0, r1: n.end >= 0 ? n.r : Math.min(n.r, r0) * 0.92, end: n.end, main: true });
+    for (const k of n.kids) walk(n.p, k, k.r);
+    top = Math.max(top, c.p[2]);
+  }
+  return { edges, top: Math.min(z1, top + EVOKE.crown) };
+}
 function supportedChains(chains, balls, cut) {
   const trunk0 = chains.filter((c) => c.order === 0).reduce((a, c) => (!a || c.dMax > a.dMax ? c : a), null);
   if (!trunk0 || !balls.length) return chains;
-  const topZ = Math.max(...balls.map((b) => b.p[2] - EVOKE.top * b.s));
-  let e = trunk0.pts.findIndex((p) => p[2] > topZ); if (e < 0) e = trunk0.pts.length; e = Math.max(2, e);
-  const trunk = { ...trunk0, pts: trunk0.pts.slice(0, e), rs: trunk0.rs.slice(0, e), nodes: trunk0.nodes.slice(0, e - 1), continues: false };
-  const out = [trunk], perches = trunk.pts.map((p, i) => ({ p, r: trunk.rs[i] }));
-  const order = balls.map((b, i) => i).sort((i, j) => Math.hypot(balls[i].p[0], balls[i].p[1]) - Math.hypot(balls[j].p[0], balls[j].p[1]) || i - j);
-  for (const i of order) {
-    const b = balls[i], end = [b.p[0], b.p[1], b.p[2] - b.s * (1 - EVOKE.reach)], under = end[2] - EVOKE.clear * b.s;
-    const ok = perches.filter((q) => q.p[2] <= under);
-    const from = (ok.length ? ok : [perches[0]]).reduce((a, q) => (len(sub(q.p, end)) < len(sub(a.p, end)) ? q : a));
-    const P0 = from.p, mid = [P0[0] + EVOKE.out * (end[0] - P0[0]), P0[1] + EVOKE.out * (end[1] - P0[1]), P0[2] + EVOKE.rise * (end[2] - P0[2])];
-    const r0 = Math.max(cut * 0.6, Math.min(from.r * EVOKE.branch, b.s * EVOKE.girth)), r1 = Math.max(cut * 0.55, r0 * EVOKE.tip);
-    const pts = [], rs = [];
-    for (let k = 0; k <= EVOKE.segs; k++) {
-      const t = k / EVOKE.segs, u = 1 - t;
-      pts.push([0, 1, 2].map((a) => r4(u * u * P0[a] + 2 * u * t * mid[a] + t * t * end[a]))); rs.push(r0 + (r1 - r0) * t);
-    }
-    out.push({ axis: -1 - i, order: 1, nodes: [], pts, rs, dMax: 2 * r0, continues: false });
-    for (const f of EVOKE.fork) { const k = Math.round(f * EVOKE.segs); perches.push({ p: pts[k], r: rs[k] }); }
-  }
+  const L = limbTree(trunk0, balls, cut);
+  let e = trunk0.pts.findIndex((p) => p[2] > L.top); if (e < 0) e = trunk0.pts.length; e = Math.max(2, e);
+  const out = [{ ...trunk0, pts: trunk0.pts.slice(0, e), rs: trunk0.rs.slice(0, e), nodes: trunk0.nodes.slice(0, e - 1), continues: true }];
+  L.edges.forEach((g, i) => {
+    // (a length bowed up through its middle: an arch)
+    const d = sub(g.to, g.from), l = len(d), mid = add(mul(add(g.from, g.to), 0.5), [0, 0, EVOKE.bend * l]), pts = [], rs = [];
+    for (let k = 0; k <= EVOKE.segs; k++) { const t = k / EVOKE.segs, u = 1 - t; pts.push([0, 1, 2].map((a) => r4(u * u * g.from[a] + 2 * u * t * mid[a] + t * t * g.to[a]))); rs.push(g.r0 + (g.r1 - g.r0) * t); }
+    out.push({ axis: -1 - i, order: g.main ? 1 : 2, nodes: [], pts, rs, dMax: 2 * Math.max(g.r0, g.r1), continues: true });
+  });
   return out;
 }
 export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.mature, minDiameter = TREE_FORM.minDiameter, cell = TREE_FORM.cell, clumpCell = TREE_FORM.clumpCell, far = false, twigs = false, canopy = false, evoke = null } = {}) {
