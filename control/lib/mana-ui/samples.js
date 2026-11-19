@@ -58,6 +58,17 @@ export const SAMPLE_STATE = Object.freeze({
     { id: 'isa', name: 'Isa', role: 'Ranger', stats: [{ label: 'Power', value: 3, max: 5 }, { label: 'Speed', value: 4, max: 5 }, { label: 'Range', value: 4, max: 5 }] },
     { id: 'random', name: 'Random', role: '?', stats: [] },
   ],
+  worlds: [
+    { id: 'w1', name: 'Frostline', place: 'Ice comet', about: 'A comet\'s tail, frozen solid.', gives: 'Gives · Frost arc', mark: 'Cleared', then: { emit: 'pick:w1' } },
+    { id: 'w2', name: 'Voltwing', place: 'Storm belt', about: 'Lightning between the rocks.', gives: 'Gives · Volt wing', then: { emit: 'pick:w2' } },
+    { id: 'w3', name: 'Crucible', place: 'Foundry moon', about: 'A smelter under a black sky.', gives: 'Gives · Molten arc', then: { emit: 'pick:w3' } },
+    { id: 'w4', name: 'Tidecrown', place: 'Ocean world', about: 'A city under the waves.', mark: 'Cleared', then: { emit: 'pick:w4' } },
+    { id: 'core', name: 'The core', place: 'Locked', about: 'Opens when every boss falls.', locked: true, then: { emit: 'none' } },
+    { id: 'w5', name: 'Sawtooth', place: 'Scrap ring', about: 'A ring of wrecks.', then: { emit: 'pick:w5' } },
+    { id: 'w6', name: 'Bramble', place: 'Jungle moon', about: 'Vines over the old domes.', mark: 'Cleared', then: { emit: 'pick:w6' } },
+    { id: 'w7', name: 'Prism', place: 'Glass world', about: 'Light bent every way.', then: { emit: 'pick:w7' } },
+    { id: 'w8', name: 'Gearhead', place: 'Clock station', about: 'A station that keeps time.', then: { emit: 'pick:w8' } },
+  ],
   arenas: [
     { id: 'quarry', name: 'The Quarry', about: 'Ledges over a pit.', size: 'Medium', players: '2–4', then: { emit: 'arena:quarry' } },
     { id: 'bridge', name: 'Rope Bridge', about: 'A long span, no rails.', size: 'Small', players: '2', then: { emit: 'arena:bridge' } },

@@ -35,6 +35,8 @@
  *   platformerBody(pole)             → the body a template puts its hero on: its feel's rail (Galaxy Boy's the toy hero
  *                                    robot's, game-bodies.js), else the mascot's
  *   platformerFlow(dimension)        → the flow it says, in the world's level ids
+ *   sideMapFlow()                    → a side map game's: the title, the star chart (`ui.screens.levels`), a world, its
+ *                                    result, the chart again
  *   platformerFront(dimension)       → the start menu that flow is entered through
  *   platformerGame({ dimension?, pole?, id?, name?, seed?, kit?, boss?, camera? })
  *                                    → { dimension, level, words: { feel, camera, mechanics, levels, style, grade, screen, ui, front,
@@ -132,6 +134,20 @@ export function platformerFlow(dimension = '2d') {
   };
 }
 
+/** A SIDE MAP game's flow: the title, then the star chart its worlds are picked on (its `ui.screens.levels`), a world's
+ * level, its result, and back to the chart; quitting a level goes back to the chart too. */
+export function sideMapFlow() {
+  return {
+    start: 'title', home: 'chart',
+    steps: {
+      title: { kind: 'screen', screen: 'title', on: { continue: 'chart', play: 'chart' } },
+      chart: { kind: 'screen', screen: 'levels', on: { pick: '$picked', back: 'title' } },
+      level: { kind: 'level', level: '$any', on: { won: 'result', lost: 'result', left: 'chart' } },
+      result: { kind: 'screen', screen: 'result', on: { next: 'chart', again: '$again', home: 'chart' } },
+    },
+  };
+}
+
 /** The front a flow is entered through: the start menu (continue, a new game, and the 3D platformer's courses: a plain
  * title offers play alone, so a save could not be continued and the courses would be reached only after one). The cover, the
  * tagline and the credits stay the interface's to add. */
@@ -173,7 +189,8 @@ export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id
   if (!POLES[pole] || POLES[pole].base !== 'platformer') throw new Error(`platformer: '${pole}' is not a platformer's template (${Object.keys(POLES).filter((p) => POLES[p].base === 'platformer').join(', ')})`);
   if (D.poles && !D.poles.includes(pole)) throw new Error(`platformer: ${POLES[pole].name} is played in 2d (${D.after} is ${D.poles.map((p) => POLES[p].name).join(', ')}'s)`);
   if (camera !== undefined && !D.cameras.includes(camera)) throw new Error(`platformer: a ${dimension} game is played through ${D.cameras.join(' | ')} (not '${camera}')`);
-  const level = id ?? D.level, flow = platformerFlow(dimension), front = platformerFront(dimension), sideMap = SIDE_MAP_POLES.includes(pole) && D === PLATFORMER_DIMENSIONS['2d'];
+  const sideMap = SIDE_MAP_POLES.includes(pole) && D === PLATFORMER_DIMENSIONS['2d'];
+  const level = id ?? D.level, flow = sideMap ? sideMapFlow() : platformerFlow(dimension), front = platformerFront(dimension);
   const words = {
     feel: { pole, takes: true },
     camera: camera ?? D.camera,
@@ -188,7 +205,8 @@ export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id
     style: { geocube: PLATFORMER_CUBE },
     // (the frame graded vivid: a mascot platformer is saturated, scene/channels/grade.js)
     grade: 'vivid',
-    ui: { theme: sideMap ? SIDE_MAP_LOOK : PLATFORMER_LOOK },
+    // (a side map's worlds picked on a star chart, play-shell-mana.js SHELL_SCREENS)
+    ui: sideMap ? { theme: SIDE_MAP_LOOK, screens: { levels: 'star-chart' } } : { theme: PLATFORMER_LOOK },
     front, flow,
   };
   return { dimension, level, words, turn: PLATFORMER_TURN[dimension], says: `${POLES[pole].name} as ${D.after}: ${D.says}` };

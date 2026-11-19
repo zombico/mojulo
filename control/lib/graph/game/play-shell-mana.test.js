@@ -137,3 +137,34 @@ describe('the play shell\'s screens in mana-ui', () => {
   });
 });
 
+
+describe('a star chart for the levels screen', () => {
+  const chart = { theme: 'grim', screens: { levels: 'star-chart' } };
+  const flow = { start: 'title', home: 'chart', steps: {
+    title: { kind: 'screen', screen: 'title', on: { play: 'chart' } },
+    chart: { kind: 'screen', screen: 'levels', on: { pick: '$picked', back: 'title' } },
+    level: { kind: 'level', level: '$any', on: { won: 'chart', lost: 'chart', left: 'chart' } },
+  } };
+  it('a game\'s ui says a screen drawn another way, and is taught the ways there are', () => {
+    expect(readShellUi(chart)).toEqual([]);
+    expect(readShellUi({ screens: { levels: 'grid' } })[0]).toMatch(/drawn as mode-select or star-chart/);
+    expect(readShellUi({ screens: { title: 'star-chart' } })[0]).toMatch(/not a screen drawn another way/);
+    expect(shellManaSpec(chart).screens.levels.use).toBe('star-chart');
+    expect(Object.keys(shellManaSpec(chart).defs)).toContain('star-chart');
+    expect(Object.keys(shellManaSpec(chart).defs)).not.toContain('mode-select');
+    // (and drawn the plain way, none of it)
+    expect(emit({ front: {}, ui: { theme: 'grim' } })).not.toContain('star-chart');
+  });
+  it('the levels as worlds round the core: the empty places uncharted, the core at the heart, a world picked plays it', async () => {
+    const P = await page({ front: {}, ui: chart, flow });
+    await P.key('Enter');
+    expect(P.screen()).toBe('levels');
+    const W = P.w.__mojManaState.ui.levels;
+    expect(W).toHaveLength(9);
+    expect(W.map((w) => w.name)).toEqual(['VALE', 'GATE', 'Uncharted', 'Uncharted', 'The core', 'Uncharted', 'Uncharted', 'Uncharted', 'Uncharted']);
+    expect(P.text()).toMatch(/star chart.*Choose a world/i);
+    await P.key('Enter');
+    expect(P.level()).toBe('vale');
+    P.close();
+  });
+});

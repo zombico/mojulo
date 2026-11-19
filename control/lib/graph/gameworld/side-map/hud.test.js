@@ -94,7 +94,8 @@ describe('the side map\'s HUD', () => {
 
   it('a side map level of a game with a look carries it, in the galaxy look, its energy and a continue', () => {
     const W = { id: 'gb', name: 'Galaxy Boy', ...platformerGame({ pole: 'galaxy-boy' }).words }, [stage] = gameStages(W);
-    expect(W.ui).toEqual({ theme: SIDE_MAP_LOOK });
+    expect(W.ui).toEqual({ theme: SIDE_MAP_LOOK, screens: { levels: 'star-chart' } });
+    expect(W.flow.steps.chart).toEqual({ kind: 'screen', screen: 'levels', on: { pick: '$picked', back: 'title' } });
     expect(THEME_CARDS[SIDE_MAP_LOOK]).toMatchObject({ family: 'machine' });
     expect(themeAdvice(readTheme(cardTheme(SIDE_MAP_LOOK)))).toEqual([]);
     const m = stageLevelOrder(W, stage, { heroRef: 'hero-ref', heroStature: 1.67, ref: 'lvl' }).args.manifest;

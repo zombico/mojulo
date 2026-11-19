@@ -205,7 +205,7 @@ function shellUi(G) {
     if (look) return { ui: { theme: look } };
     return ids.length && ids.every((k) => G.levels[k]?.brawlStreet || G.levels[k]?.street) ? { ui: { theme: cardTheme('brawl-street') } } : {};
   }
-  return { ui: { theme: interfaceLook(G).theme, ...(G.ui.languages ? { languages: G.ui.languages } : {}), ...(G.ui.language ? { language: G.ui.language } : {}) } };
+  return { ui: { theme: interfaceLook(G).theme, ...(G.ui.languages ? { languages: G.ui.languages } : {}), ...(G.ui.language ? { language: G.ui.language } : {}), ...(G.ui.screens ? { screens: { ...G.ui.screens } } : {}) } };
 }
 // a level's sounds where the game is on the sound sheet (sound-sheet.js levelSheet): a game with a `sound` of its own
 // hears it on every level it builds; one without builds its levels as it did

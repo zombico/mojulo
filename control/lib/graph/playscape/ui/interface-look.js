@@ -17,7 +17,8 @@
  * game snaps where its look would only ease).
  *
  *   INTENT_LOOKS                       the intent's genre → the preset its look starts from (console when none)
- *   readUi(ui, where?)                 → errors[] (teaching); shape and words only
+ *   readUi(ui, where?)                 → errors[] (teaching); shape and words only (`screens`: the shell's screens drawn
+ *                                        another way, play-shell-mana.js SHELL_SCREENS)
  *   worldLook(G)                       → the world's look as a theme ({ from, …}): the art director's words
  *   interfaceLook(G)                   → { theme, from: { look, colour }, advice }: the theme mana-ui draws the game in,
  *                                        where its words and colours came from, and what its colours read like
@@ -27,9 +28,10 @@ import { manaUi } from '../../../mana-ui/kernel.js';
 import { THEME_CARDS, THEME_CARD_IDS, cardTheme } from './theme-cards/loader.js';
 import { solvePalette } from '../../color-theorist/solve.js';
 import { juiceOfGame, juiceSuggestion } from '../../gameworld/juice.js';
+import { readShellUi } from '../../game/play-shell-mana.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const KEYS = ['theme', 'colour', 'languages', 'language'];
+const KEYS = ['theme', 'colour', 'languages', 'language', 'screens'];
 
 // the art director's register by the game's intent (gameworld/intent.js GENRES): where its look starts
 export const INTENT_LOOKS = Object.freeze({
@@ -89,6 +91,8 @@ export function readUi(ui, where = 'ui') {
   if (ui.languages !== undefined || ui.language !== undefined) {
     try { manaUi.readSpec({ screens: {}, languages: ui.languages, language: ui.language }); } catch (e) { errors.push(`${where}: ${e.message}`); }
   }
+  // (the shell's screens it draws another way: the shell's own reading of them, play-shell-mana.js SHELL_SCREENS)
+  if (ui.screens !== undefined) errors.push(...readShellUi({ screens: ui.screens }, where));
   return errors;
 }
 

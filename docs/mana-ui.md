@@ -984,6 +984,16 @@ a loading screen that says which map is next, and a result with the map, the sec
 its level hosts a HUD of its own (`scene/channels/mana-hud.js`, composed by `gameworld/course-hud.js`). Both wear the
 look the course's dress names (`toybox`, the toy family's first card).
 
+### A shell screen drawn another way
+
+A game's `ui.screens` names a shell screen it draws with another idiom (`SHELL_SCREENS` in `game/play-shell-mana.js`).
+The first is the levels screen as a **star chart** (`star-chart`, a front idiom). It shows the levels as worlds round a
+heart on a 3 × 3 grid, so the stick goes where the eye does, and the shell's sheet lays the outer eight on an orbit over
+a starfield. A world that cannot be gone to yet carries a lock. The places the game has no level for are drawn as
+uncharted, and the heart is the core, locked until every boss falls. The detail beside the chart says the world in
+focus. A side map game (Galaxy Boy's) is entered through it: title, star chart, a world, its result, the chart again
+(`sideMapFlow` in `gameworld/platformer-game.js`).
+
 ### Layout that adapts
 
 The frame a view is drawn in is state. A mount measures its own box, and measures it again when it changes (a phone

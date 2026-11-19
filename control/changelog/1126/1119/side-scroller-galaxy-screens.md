@@ -1,4 +1,4 @@
-### Galaxy Boy's screens: energy, game over, the intro card, the start menu
+### Galaxy Boy's screens: energy, game over, the intro card, the start menu, the star chart
 
 The side map gets its own screens, drawn in the galaxy look over the held level, and a hit now costs energy, not a
 life.
@@ -17,3 +17,9 @@ life.
 - **GAME OVER:** the gate reached, then Continue (from that gate, the lives back, weapons kept) or Give up.
 - **The HUD host** (`scene/channels/mana-hud.js`) opens a side map HUD's screens over the held level, drives them with
   the keys and the pad, and raises their choices on the level's bus.
+- **The star chart** (a front idiom, `star-chart`): the levels screen drawn as worlds round a heart, laid on a 3 × 3
+  grid so the stick goes where the eye does, and put on an orbit over a starfield by the shell's sheet. Places with no
+  level are uncharted, and the core at the heart stays locked until every boss falls. A game's `ui.screens`
+  (`SHELL_SCREENS`, read by the gameworld's `ui`, the runner and the game file) names a shell screen drawn another way.
+- **A side map game's flow** (`sideMapFlow`): title, star chart, a world, its result, the chart again. Galaxy Boy's
+  title sits on the same night.

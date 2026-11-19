@@ -5,7 +5,9 @@
  * when; this draws its screen steps, and the loading screen over a level's frame. A game without `ui` carries none of
  * this: no kernel, no sheet, no theme, no host.
  *
- *   readShellUi(ui, where?)      → errors[] (teaching): the theme mana-ui reads, the game's languages
+ *   readShellUi(ui, where?)      → errors[] (teaching): the theme mana-ui reads, the game's languages, the screens it
+ *                                  draws another way (`screens`: SHELL_SCREENS, e.g. { levels: 'star-chart' }: the
+ *                                  levels as worlds on a chart, the empty places uncharted and the core at its heart)
  *   shellManaSpec(ui, { picks }) → (picks: the game's turns ask for picks, turn.js: a `pick` screen too) the spec: the screens (attract, title, levels, options, credits, end, result,
  *                                  pause, controls, loading) and a HUD of passing moments as idioms over the shell's UI state (`ui.*` bindings), each pick an effect
  *                                  { emit: <the flow's event> }; the defs only of the idioms it uses
@@ -25,12 +27,21 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const PICK = 'pick-screen';
 const USED = ['attract-screen', 'title-screen', 'mode-select', 'options-screen', 'results-screen', 'loading-screen', 'pause-menu'];
 const B = (p) => ({ bind: `ui.${p}` });
+/** The shell screens a game's `ui.screens` may draw another way, and the idioms each may be drawn by (its first the default). */
+export const SHELL_SCREENS = Object.freeze({ levels: Object.freeze(['mode-select', 'star-chart']) });
+// a star chart's places: eight worlds round its heart (the grid's fifth cell, so the stick goes where the eye does)
+const CHART = 8;
+const chartOf = (ui) => !!(ui && ui.screens && ui.screens.levels === 'star-chart');
 
 /** A game's `ui` as the shell takes it: every fault said. */
 export function readShellUi(ui, where = 'ui') {
   if (!isObj(ui)) return [`${where} is { theme, languages?, language? }: the look the game's screens are drawn in by mana-ui`];
   const errors = [];
-  for (const k of Object.keys(ui)) if (!['theme', 'languages', 'language'].includes(k)) errors.push(`${where}.${k}: not part of a game's ui (theme, languages, language)`);
+  for (const k of Object.keys(ui)) if (!['theme', 'languages', 'language', 'screens'].includes(k)) errors.push(`${where}.${k}: not part of a game's ui (theme, languages, language, screens)`);
+  if (ui.screens !== undefined) {
+    if (!isObj(ui.screens)) errors.push(`${where}.screens is { <screen>: <idiom> }: a shell screen drawn another way (${Object.entries(SHELL_SCREENS).map(([k, v]) => `${k}: ${v.join(' | ')}`).join('; ')})`);
+    else for (const [k, v] of Object.entries(ui.screens)) if (!SHELL_SCREENS[k] || !SHELL_SCREENS[k].includes(v)) errors.push(`${where}.screens.${k}: ${SHELL_SCREENS[k] ? `drawn as ${SHELL_SCREENS[k].join(' or ')}` : `not a screen drawn another way (${Object.keys(SHELL_SCREENS).join(', ')})`}`);
+  }
   try { readTheme(ui.theme === undefined ? 'greybox' : ui.theme); } catch (e) { errors.push(`${where}.theme: ${e.message}`); }
   if (ui.languages !== undefined || ui.language !== undefined) {
     try { manaUi.readSpec({ screens: {}, languages: ui.languages, language: ui.language }); } catch (e) { errors.push(`${where}: ${e.message}`); }
@@ -44,7 +55,7 @@ export function shellManaSpec(ui = {}, { picks = false } = {}) {
   const screens = {
     attract: { use: 'attract-screen', props: { title: B('title'), prompt: B('press'), then: { emit: 'press' } } },
     title: { use: 'title-screen', props: { title: B('title'), subtitle: B('tagline'), items: B('menu'), version: B('version') } },
-    levels: { use: 'mode-select', props: { title: B('levelsTitle'), modes: B('levels') } },
+    levels: chartOf(ui) ? { use: 'star-chart', props: { title: B('levelsTitle'), ask: B('levelsAsk'), worlds: B('levels') } } : { use: 'mode-select', props: { title: B('levelsTitle'), modes: B('levels') } },
     options: { use: 'options-screen', props: { title: B('optionsTitle'), sections: [{ label: 'Audio', fields: [{ kind: 'toggle', label: 'Sound', var: 'ui.settings.sound' }] }] } },
     // the roll: each role and its names, the thanks, the line that says what made it; done goes on
     credits: { use: 'screen', props: { title: B('title'), place: 'center' }, children: [{ use: 'window', children: [{ use: 'stack', children: [
@@ -80,7 +91,7 @@ export function shellManaSpec(ui = {}, { picks = false } = {}) {
     { use: 'region', props: { at: 'top-right', variant: 'bare' }, when: B('playing'), children: [{ use: 'button', props: { label: '☰' }, on: { accept: { emit: 'pause:open' } } }] },
   ] };
   const full = withIdioms({ screens, hud, ...(ui.languages ? { languages: ui.languages } : {}), ...(ui.language ? { language: ui.language } : {}) });
-  full.defs = Object.fromEntries(Object.entries(full.defs || {}).filter(([k]) => USED.includes(k) || (picks && k === PICK)));
+  full.defs = Object.fromEntries(Object.entries(full.defs || {}).filter(([k]) => (USED.includes(k) && !(k === 'mode-select' && chartOf(ui))) || (picks && k === PICK) || (k === 'star-chart' && chartOf(ui))));
   manaUi.readSpec(full);
   return full;
 }
@@ -89,10 +100,36 @@ export function shellManaSpec(ui = {}, { picks = false } = {}) {
 // wireframe would; a backdrop keeps its ground, the theme's own)
 // (and the shell's own pause button gives way to mana-ui's: it stays in the page as the shell's word for whether a level
 // is the player's, never seen or pressed)
-export const shellManaCss = (ui = {}) => `${manaCss()}\n${themeCss(ui.theme === undefined ? 'greybox' : ui.theme)}\n#pauseBtn{visibility:hidden!important}\n#mana .mana-image:not([data-ratio=backdrop]){display:none}#mana .mana-image .mana-caption{display:none}#mana .mana-image[data-ratio=backdrop]{background-image:none!important}`;
+export const shellManaCss = (ui = {}) => `${manaCss()}\n${themeCss(ui.theme === undefined ? 'greybox' : ui.theme)}\n#pauseBtn{visibility:hidden!important}\n#mana .mana-image:not([data-ratio=backdrop]){display:none}#mana .mana-image .mana-caption{display:none}#mana .mana-image[data-ratio=backdrop]{background-image:none!important}${chartOf(ui) ? `\n${CHART_CSS}` : ''}`;
+// THE STAR CHART's look: the grid's cells put on an orbit round the heart (the fifth cell), each world a disc in its hue
+// on the night, the uncharted dim and the heart a locked diamond; the stamp across a cleared one
+const G = '#mana .mana-screen .mana-grid', ORBIT = [[29, 17], [50, 6], [71, 17], [22, 50], [50, 50], [78, 50], [29, 84], [50, 94], [71, 84]];
+const HUES = ['#7fd6ff', '#ffe14a', '#e0661a', '#d48cff', '', '#2a8cff', '#4caf50', '#b0b0b0', '#c89a4a'];
+const CHART_CSS = [
+  `#mana .mana-screen:has(${G.slice(19)}){background:radial-gradient(1px 1px at 12% 18%,#fff 99%,transparent),radial-gradient(1px 1px at 72% 12%,#fff 99%,transparent),radial-gradient(2px 2px at 40% 70%,#9cf 99%,transparent),radial-gradient(1px 1px at 88% 64%,#fff 99%,transparent),radial-gradient(ellipse at 70% 30%,#1a2a7a 0,#060a24 60%)}`,
+  `${G}{position:relative;display:block!important;width:min(960px,60vw);height:min(640px,70vh)}`,
+  `${G}::before,${G}::after{content:'';position:absolute;left:50%;top:50%;border:2px dashed #46c8ff55;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}`,
+  `${G}::before{width:62%;height:88%}${G}::after{width:32%;height:46%;border-color:#46c8ff33}`,
+  `${G}>.mana-cell{position:absolute!important;width:170px;margin:-60px 0 0 -85px;background:none!important;border:0!important;padding:0!important}`,
+  ...ORBIT.map(([x, y], i) => `${G}>.mana-cell:nth-child(${i + 1}){left:${x}%;top:${y}%}`),
+  `${G}>.mana-cell>.mana-stack::before{content:'';display:block;width:84px;height:84px;border-radius:50%;border:3px solid var(--mana-ink);background:radial-gradient(circle at 35% 35%,var(--hue,#888),#000 75%)}`,
+  ...HUES.map((h, i) => (h ? `${G}>.mana-cell:nth-child(${i + 1}){--hue:${h}}` : '')).filter(Boolean),
+  `${G}>.mana-cell:nth-child(5)>.mana-stack::before{border-radius:0;transform:rotate(45deg);width:64px;height:64px;margin:10px;background:#000;border-color:var(--mana-harm)}`,
+  // (a world that cannot be gone to yet: its disc dark and dashed, its lock on it; the heart keeps its diamond)
+  `${G}>.mana-cell:not(:nth-child(5)):has([data-icon=lock])>.mana-stack::before{background:#0a0f2a;border-style:dashed;border-color:#46c8ff66}`,
+  `${G}>.mana-cell:has([data-icon=lock]) .mana-text[data-role=heading]{opacity:.55}`,
+  `${G} [data-icon=lock]{position:absolute;top:30px;opacity:.8}`,
+  `#mana .mana-screen:has(${G.slice(19)})>.mana-stack>.mana-window{min-width:380px;max-width:440px}`,
+  // (and the title on the same night)
+  `#mana .mana-screen[data-place=left] .mana-image[data-ratio=backdrop]{background:radial-gradient(1px 1px at 22% 28%,#fff 99%,transparent),radial-gradient(1px 1px at 82% 12%,#fff 99%,transparent),radial-gradient(2px 2px at 60% 70%,#9cf 99%,transparent),radial-gradient(1px 1px at 78% 84%,#fff 99%,transparent),radial-gradient(ellipse at 70% 40%,#1a2a7a 0,#060a24 60%)!important}`,
+  `${G}>.mana-cell[data-st=focus]>.mana-stack::before{box-shadow:0 0 0 4px #000,0 0 0 8px var(--mana-accent)}`,
+  `${G}>.mana-cell[data-st=focus]::before{display:none}`,
+  `${G} .mana-badge[data-variant=stamp]{position:absolute;top:26px;transform:rotate(-12deg)}`,
+  `${G} .mana-text{text-shadow:2px 2px 0 #000;white-space:nowrap}`,
+].join('\n');
 export function shellManaConfig(ui = {}, opts = {}) {
   const C = manaControls();
-  return { spec: shellManaSpec(ui, opts), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad } };
+  return { spec: shellManaSpec(ui, opts), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad }, ...(chartOf(ui) ? { chart: CHART } : {}) };
 }
 export const shellManaScript = () => `const __manaUi = ${manaUiSource()};
 const __manaHostK = ${manaHostSource()};
@@ -173,6 +210,13 @@ export function playShellManaRuntime(cfg, api) {
     if (name === 'levels') {
       u.levelsTitle = 'levels';
       u.levels = api.levels().map((l) => ({ id: l.ref, name: l.title, about: l.lock || (l.cleared ? 'cleared' : ''), players: '', disabled: !l.open, then: { emit: 'pick', level: l.ref } }));
+      // (a STAR CHART: the levels as worlds round its heart, the places still empty uncharted, the heart locked)
+      if (M.chart) {
+        const W = api.levels().slice(0, M.chart).map((l) => ({ id: l.ref, name: l.title, place: l.place || (l.open ? 'Charted' : 'Locked'), about: l.lock || l.about || '', gives: l.gives ? 'Gives · ' + l.gives : '', mark: l.cleared ? 'Cleared' : '', locked: !l.open, then: l.open ? { emit: 'pick', level: l.ref } : { emit: 'chart:shut' } }));
+        while (W.length < M.chart) W.push({ id: 'uncharted-' + W.length, name: 'Uncharted', place: '?', about: 'Not charted yet', gives: '', mark: '', locked: true, then: { emit: 'chart:shut' } });
+        W.splice(M.chart / 2, 0, { id: 'core', name: 'The core', place: 'Locked', about: 'Opens when every boss falls', gives: '', mark: '', locked: true, then: { emit: 'chart:shut' } });
+        u.levelsTitle = 'star chart'; u.levelsAsk = 'Choose a world'; u.levels = W;
+      }
     }
     if (name === 'options') u.optionsTitle = 'options';
     if (name === 'credits') u.credits = ((F.credits && F.credits.roll) || []).map((r) => ({ role: r.role, names: r.names.join(' · ') })).concat(F.credits && F.credits.attribution === false ? [] : [{ role: '', names: 'made with mojulo · github.com/zombico/mojulo' }]);

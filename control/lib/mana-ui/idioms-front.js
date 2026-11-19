@@ -1,6 +1,6 @@
 /**
  * THE FRONT AND THE MENUS — the screens around play every game shares: the attract screen and the title, loading, mode,
- * a choice before a level, character and arena select, pause, options, controls, a confirm, results and save slots. Each is a def (data) over
+ * a choice before a level, character and arena select, a star chart, pause, options, controls, a confirm, results and save slots. Each is a def (data) over
  * the components; its `example` binds into the sample state (samples.js). A row's `then` is its effect: the game says
  * what a pick does, the idiom only where it sits.
  */
@@ -121,6 +121,28 @@ export const FRONT_IDIOMS = {
       ] }] } } },
     ] }, legend(['accept', 'pick'], ['back', 'back'])]),
     example: { title: 'Choose your fighter', roster: { bind: 'roster' }, seats: 2, players: [{ seat: 1, label: 'Player 1' }, { seat: 2, label: 'Player 2' }] },
+  },
+  'star-chart': {
+    kind: 'screen', about: 'pick where to go on a chart: the worlds round the one at its heart, laid on a 3 × 3 grid so the stick goes where the eye does (a look puts them on an orbit), each its name, its place, a lock while it cannot be gone to and a stamp once cleared; the one in focus told beside it (its place, its words, what it gives)',
+    reads: 'title, ask, worlds: [{ id, name, place, about, gives?, mark?, locked?, then }] (nine, the heart fifth)', emits: 'a world\'s then',
+    params: ['title', 'ask', 'worlds'],
+    node: screen({ title: P('title'), place: 'full' }, [{ use: 'stack', props: { dir: 'row', align: 'apart', gap: 'loose' }, children: [
+      { use: 'stack', props: { align: 'start' }, children: [
+        txt(P('ask'), 'label'),
+        { use: 'grid', id: 'worlds', props: { cells: P('worlds'), columns: 3, cell: { use: 'stack', props: { align: 'center', gap: 'tight' }, children: [
+          { use: 'icon', props: { name: 'lock', size: 's' }, when: I('locked') },
+          txt(I('name'), 'heading'), txt(I('place'), 'caption'),
+          { use: 'badge', props: { value: I('mark'), variant: 'stamp' }, when: I('mark') },
+        ] } }, on: { accept: I('then') } },
+      ] },
+      // the one in focus: where it is, what it is, what it gives
+      { use: 'window', props: { title: { pick: 'worlds.place' } }, children: [{ use: 'stack', children: [
+        txt({ pick: 'worlds.name' }, 'title'),
+        txt({ pick: 'worlds.about' }),
+        { use: 'badge', props: { value: { pick: 'worlds.gives' }, variant: 'strong' }, when: { pick: 'worlds.gives' } },
+      ] }] },
+    ] }, legend(['accept', 'pick'], ['back', 'back'])]),
+    example: { title: 'Star chart', ask: 'Choose a world', worlds: { bind: 'worlds' } },
   },
   'arena-select': {
     kind: 'screen', about: 'pick where to play: one arena at a time (left and right), its preview and figures, or a random one',
