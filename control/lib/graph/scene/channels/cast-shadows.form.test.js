@@ -19,7 +19,7 @@ describe('the actors\' shadows on a form page', () => {
   });
   it('takes the actors\' light\'s own shadow (three\'s getShadow, its index among the casting lights) onto each directional light', () => {
     const src = liveShadowScript(cfg({ actors: true, hour: true, formLand: true }));
-    const chunk = 'for ( int i = 0; i < NUM_DIR_LIGHTS; i ++ ) {\n\t\tdirectionalLight = directionalLights[ i ];\n\t\tgetDirectionalLightInfo( directionalLight, directLight );\n\t\tRE_Direct( directLight );\n\t}';
+    const chunk = '#if ( NUM_DIR_LIGHTS > 0 ) && defined( RE_Direct )\n\tfor ( int i = 0; i < NUM_DIR_LIGHTS; i ++ ) {\n\t\tdirectionalLight = directionalLights[ i ];\n\t\tgetDirectionalLightInfo( directionalLight, directLight );\n\t\tRE_Direct( directLight );\n\t}\n#endif';
     const start = src.indexOf('__csL.shadow.normalBias'), end = src.indexOf('// (a sweep a few times a second');
     const __csL = { shadow: { normalBias: 0 } };
     const run = new Function('THREE', '__csL', '__CS', 'scene', `${src.slice(start, end)}; return { patch: __csFormPatch, index: __csActorIndex };`);
@@ -34,6 +34,10 @@ describe('the actors\' shadows on a form page', () => {
     const sh = { fragmentShader: '#include <lights_fragment_begin>' };
     mat.onBeforeCompile(sh);
     expect(sh.fragmentShader).toContain('csActor = getShadow( directionalShadowMap[ CS_ACTOR_I ]');
+    expect(sh.fragmentShader.indexOf('float csActor')).toBeLessThan(sh.fragmentShader.indexOf('#if ( NUM_DIR_LIGHTS > 0 )'));   // (once, before the loop)
+    // (laid out already by a patch before it, the cast rig's: the same splice into the same text)
+    const laid = { fragmentShader: chunk + '\n// after' }; mat.onBeforeCompile(laid);
+    expect(laid.fragmentShader).toContain('directLight.color *= csActor;');
     expect(sh.fragmentShader).toContain('getDirectionalLightInfo( directionalLight, directLight );\n\t\tdirectLight.color *= csActor;');
     expect(mat.customProgramCacheKey()).toBe('mojulo-actors-on-form-1');
     // (a material three does not light, the painted world's, is left as it was)

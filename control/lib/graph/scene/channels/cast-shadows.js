@@ -347,7 +347,6 @@ ${A && cfg.formLand ? `// THE ACTORS' SHADOWS ON A FORM PAGE (channels/form-land
 // first, in the scene's order); a normal offset keeps a body from shading its own skin
 __csL.shadow.normalBias = Math.max(__csL.shadow.normalBias || 0, 0.04 / (__CS.unit || 1));
 const __csActorIndex = () => { const L = []; scene.traverseVisible((o) => { if (o.isDirectionalLight && o.castShadow) L.push(o); }); return L.indexOf(__csL); };
-const __csFormLights = THREE.ShaderChunk.lights_fragment_begin.replace('getDirectionalLightInfo( directionalLight, directLight );', 'getDirectionalLightInfo( directionalLight, directLight );\\n\\t\\tdirectLight.color *= csActor;');
 const __csFormHead = 'float csActor = 1.0;\\n#if defined( USE_SHADOWMAP ) && ( NUM_DIR_LIGHT_SHADOWS > CS_ACTOR_I )\\n{ DirectionalLightShadow csS = directionalLightShadows[ CS_ACTOR_I ];\\n  csActor = getShadow( directionalShadowMap[ CS_ACTOR_I ], csS.shadowMapSize, csS.shadowIntensity, csS.shadowBias, csS.shadowRadius, vDirectionalShadowCoord[ CS_ACTOR_I ] ); }\\n#endif\\n';
 const __csLitMats = (m) => m && (m.isMeshStandardMaterial || m.isMeshPhysicalMaterial || m.isMeshToonMaterial || m.isMeshLambertMaterial || m.isMeshPhongMaterial);
 function __csFormPatch(o, at) {
@@ -358,7 +357,10 @@ function __csFormPatch(o, at) {
     const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey;
     mat.onBeforeCompile = function (sh, r) {
       if (prev) prev.call(this, sh, r);
-      sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_begin>', __csFormHead + __csFormLights);
+      // (three's chunk laid out in place if no patch before this one laid it out: the cast rig's does, for its key gain)
+      sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_begin>', THREE.ShaderChunk.lights_fragment_begin)
+        .replace('#if ( NUM_DIR_LIGHTS > 0 ) && defined( RE_Direct )', __csFormHead + '#if ( NUM_DIR_LIGHTS > 0 ) && defined( RE_Direct )')
+        .replace('getDirectionalLightInfo( directionalLight, directLight );', 'getDirectionalLightInfo( directionalLight, directLight );\\n\\t\\tdirectLight.color *= csActor;');
     };
     mat.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) + '+' : '') + 'mojulo-actors-on-form-' + at; };
     mat.needsUpdate = true;

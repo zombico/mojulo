@@ -47,7 +47,9 @@ export function placeRecipe(L, spine) {
     // laid as the trail's own x either side over its window)
     points: L.points.map((P) => ({ ...P, from: at(P.from), to: at(P.to), ...(P.off ? { lane: laneOf(spine, P.window, P.off) } : {}) })), hints: L.hints.map((h) => ({ ...h, at: at(h.at) })), ...(L.supplies ? { supplies: L.supplies.map((x) => ({ ...x, at: at(x.at) })) } : {}),
     // (its tall grass, each patch's middle along the trail too: form/tall-grass.js)
-    ...(L.grass ? { grass: L.grass.map((g) => ({ ...g, at: at(g.at) })) } : {}) };
+    ...(L.grass ? { grass: L.grass.map((g) => ({ ...g, at: at(g.at) })) } : {}),
+    // (its floodlights' places and aims too)
+    ...(L.floods ? { floods: L.floods.map((f) => ({ ...f, ...(f.at ? { at: at(f.at) } : {}), aim: at(f.aim) })) } : {}) };
 }
 
 /**

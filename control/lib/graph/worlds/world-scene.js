@@ -1005,6 +1005,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (channels/far-lift.js), coloured calm (the blanket's colour, no speck); the tall cover's blades end at the reach too)
     // (`{ as: 'lift', blades?, raise? }`: the share of the reach the blades are whole to, where the lift begins, and the
     // lift's height over the grass's mean, its platform)
+    // (its FLOODLIGHTS, `floods`: each a spot that lights the land and the cast as its sun does, its head burning;
+    // channels/form-floods.js)
+    if (read && M.floods !== undefined) { const { readFloods } = await import('@/lib/graph/scene/channels/form-floods.js'); payload.form.land.floods = readFloods(M.floods); }
     if (read && (M.farGrass === 'lift' || (M.farGrass && M.farGrass.as === 'lift'))) {
       payload.form.land.farLift = true; payload.form.land.farCalm = true;
       if (Number.isFinite(M.farGrass.blades)) payload.form.land.farBlades = M.farGrass.blades;

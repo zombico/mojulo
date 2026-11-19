@@ -28,7 +28,8 @@
       "cliff": false
     }
   },
-  "hour": 17,
+  "hour": "night",
+  "hourReads": "night (23:00): the cube's moon the key, the floods by the towers the light a body is seen in",
   "cover": [
     {
       "id": "truck",
@@ -717,5 +718,30 @@
     "blades": 0.7,
     "raise": 2.5
   },
-  "farGrassReads": "one far grass: the blades whole to seven tenths of the view's reach (less of them seen thinning in), past it the ground raised as a platform, two and a half times the grass's own height, calm"
+  "farGrassReads": "one far grass: the blades whole to seven tenths of the view's reach (less of them seen thinning in), past it the ground raised as a platform, two and a half times the grass's own height, calm",
+  "floods": [
+    {
+      "on": "gate-tower",
+      "aim": {
+        "trail": 61,
+        "off": -3
+      },
+      "power": 0.8,
+      "cone": 56,
+      "reach": 38,
+      "reads": "over the checkpoint's tower, aimed down the approach: the gate and the open ground before it lit"
+    },
+    {
+      "on": "camp-tower",
+      "aim": {
+        "trail": 87,
+        "off": -5
+      },
+      "power": 0.7,
+      "cone": 60,
+      "reach": 34,
+      "reads": "over the camp's tower, aimed at the trail coming up to the camp and the camp's front"
+    }
+  ],
+  "floodsReads": "two floodlights, each hung over a tower's deck and aimed at the ground a body crosses: a real light that lights the land, its grass and the bodies, falling off with distance, each casting what stands in its beam; the rest is the moon's"
 }

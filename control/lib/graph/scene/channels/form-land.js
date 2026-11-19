@@ -24,6 +24,7 @@ import { farFieldScript, FAR_BLANKET_GLSL, farBlanketGlsl, farBlanketUniforms } 
 import { farLiftScript, readFarLift } from './far-lift.js';
 import { farStructuresScript } from './far-structures.js';
 import { formFloraScript } from './form-flora.js';
+import { floodsScript } from './form-floods.js';
 
 /** THE GROUND'S OWN PARALLAX KINDS, procedural (a Voronoi field, no texture): `pebbles` (domes strewn `cell` m apart over the soil, a cell in four bare,
  *  `depth` m tall), `cracks` (dry mud in plates `cell` m across, cracks `depth` m deep, their edges curled up), `plates`
@@ -424,7 +425,7 @@ ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace(
   sunLight.shadow.mapSize.set(4096, 4096); sunLight.shadow.bias = -0.0004; sunLight.shadow.normalBias = 0.04;
   // (the cube's sun at its hour: from the light's direction, far off the land's middle)
   sunLight.target.position.copy(mid); sunLight.position.copy(mid).addScaledVector(new THREE.Vector3(...D.sun).normalize(), rad * 2); scene.add(sunLight, sunLight.target);
-  for (const R of D.ranges) {
+${form.floods ? floodsScript() : ''}  for (const R of D.ranges) {
     const water = R.key === 'water';
     // (the sea one plane where there is a depth to fade it by; what the read could not class stays painted)
     // (the stage's far ring: FAR_LAND, its own facets in the land's colours under the sky's air; what the read could not

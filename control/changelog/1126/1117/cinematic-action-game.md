@@ -400,3 +400,14 @@ or a recipe key; the spike mints through the real doors and measures.
   other way, which a hand-rolled sampler read as lit), on the sun's light in three's own loop: a guard's shadow on the
   trail and on the operative, the sky's fill kept; a normal offset keeps a body from shading its own skin. Emitted only
   where actors cast on a form land; every other page keeps its bytes.
+- **Floodlights on a form land** (a geocube's `floods`, scene/channels/form-floods.js): up to four, each where its lamp
+  hangs and the point on the ground it shines at, with its colour, power (its light at ten metres in the land's own
+  units, a noon sun's about 1), cone, reach and whether it casts: real spots that light the land, its grass and plants
+  and the bodies as the land's sun does, falling off by the square of the distance, their heads burning with a glow the
+  haze does not eat; the first two cast what stands in their beam, drawn every frame. Level 0 tried at night (the moon
+  the key) with one hung over each tower's deck, aimed at the ground a body crosses.
+- **A body's key gain is its key's** (scene/channels/cast-rig.js): the cast rig's own gain on a body's direct light
+  multiplied every light's, so a flood or a lamp would have lit a body many times brighter than the ground beside it; it
+  now multiplies each directional light's colour alone, in three's own loop (three's chunk laid out in place, and the
+  actors' shadow spliced into the same text, so either patch may run first). A page whose only direct light is its key
+  is lit as it was.

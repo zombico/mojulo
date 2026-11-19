@@ -113,6 +113,7 @@
  *   geocubeEraOf(manifest)         the era (era/eras.js) of the cube a world manifest is painted by, or null
  */
 import { readTallGrass } from '../form/tall-grass.js';
+import { readFloods } from '../scene/channels/form-floods.js';
 import { validateTerrainWind } from '../vegetation/wind.js';
 import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook } from './sixth-gen.js';
 import { readAvoid, measureAvoid } from './geocube-laws.js';
@@ -1452,8 +1453,10 @@ function withTownCameras(payload, site) {
     cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'sea', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart', 'fxStyle', 'tallGrass', 'parallax', 'density', 'farGrass', ...LEVEL_KEYS].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, sea, words, hall, skandart, tallGrass; the page's live light: shadows, occlusion, light; its ground's parallax; its pixel density; solid); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'sea', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart', 'fxStyle', 'tallGrass', 'parallax', 'density', 'farGrass', 'floods', ...LEVEL_KEYS].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, sea, words, hall, skandart, tallGrass; the page's live light: shadows, occlusion, light; its ground's parallax; its pixel density; solid); build a level on a cube with a stage recipe's geocube`);
   // (a stealth land's tall grass, form/tall-grass.js: patches, each a middle and a radius)
+  // (its floodlights, a gen-7 land's: scene/channels/form-floods.js)
+  if (manifest.floods !== undefined) { try { readFloods(manifest.floods); } catch (e) { no(e.message.replace(/^floods: /, 'floods: ')); } }
   { const F = manifest.farGrass, ok = F === undefined || F === 'lift' || (F && typeof F === 'object' && !Array.isArray(F) && F.as === 'lift' && Object.keys(F).every((k) => ['as', 'blades', 'raise'].includes(k)) && (F.blades === undefined || (Number.isFinite(F.blades) && F.blades >= 0.42 && F.blades <= 0.9)) && (F.raise === undefined || (Number.isFinite(F.raise) && F.raise >= 1 && F.raise <= 4)));
     if (!ok) no('farGrass is \'lift\' or { as: \'lift\', blades?: 0.42 to 0.9, raise?: 1 to 4 }: one far grass, the ground raised to the grass\'s height past the reach, its colour calm (blades: the share of the reach drawn whole, where the lift begins; raise: the lift\'s height over the grass\'s mean, 1.5 unless said)'); }
   if (manifest.farFigures !== undefined && (!manifest.farFigures || typeof manifest.farFigures !== 'object' || Array.isArray(manifest.farFigures) || Object.keys(manifest.farFigures).some((k) => k !== 'at' && k !== 'budget') || (manifest.farFigures.at !== undefined && !(Number.isFinite(manifest.farFigures.at) && manifest.farFigures.at >= 8 && manifest.farFigures.at <= 200)) || (manifest.farFigures.budget !== undefined && !(Number.isFinite(manifest.farFigures.budget) && manifest.farFigures.budget >= 500 && manifest.farFigures.budget <= 20000)))) no('farFigures is { at?: 8 to 200 m (24), budget?: 500 to 20000 triangles (4000) }: each body no player pilots drawn coarse past `at` metres from the eye');

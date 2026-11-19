@@ -120,6 +120,17 @@ for (const t of L.structures ?? []) {
   }
 }
 payload.faces = [...(payload.faces ?? []), ...extraFaces];
+// THE FLOODLIGHTS (`floods`, the form land's: scene/channels/form-floods.js): each hung over a structure's deck (`on`, a
+// tower) or at a place along the trail `height` metres up, aimed at a place along the trail on the ground; laid here, where
+// the ground's height is known, as the towers are
+if (L.floods && payload.form?.land) {
+  const { readFloods } = await import('../../../lib/graph/scene/channels/form-floods.js');
+  payload.form.land.floods = readFloods(L.floods.map((f) => {
+    const T = f.on && (L.structures ?? []).find((t) => t.id === f.on), base = T ? T.at : f.at;
+    const top = T ? (T.height ?? STRUCTURE.tower.height) + (f.height ?? 1.4) : (f.height ?? 6);
+    return { at: r2([base[0], base[1], zAt(base) + top]), aim: on(f.aim), ...Object.fromEntries(Object.entries(f).filter(([k]) => ['colour', 'power', 'cone', 'reach', 'shadow'].includes(k))) };
+  }));
+}
 const deckOf = (w) => { const T = w.on && (L.structures ?? []).find((t) => t.id === w.on); return T ? zAt(T.at) + (T.height ?? STRUCTURE.tower.height) : null; };
 // THE WATCHERS: the starter's guard on each round (a patrol between its posts; a post stood still, looking one way)
 const W = Object.fromEntries(L.watchers.map((w) => [w.id, w]));
