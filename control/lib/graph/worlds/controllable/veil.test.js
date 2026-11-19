@@ -64,3 +64,21 @@ describe('a world with veils', () => {
     expect(emissionSource({ veil: true })).toContain('function veilThrough');
   });
 });
+
+describe('a crawl space', () => {
+  // (a truck's belly: 2 m by 7 m, its chassis 0.6 m up; a guard's eye 1.35 m up, 6 m off its side)
+  const U = { under: true, min: [-1, -3.5, 0], max: [1, 3.5, 0.6] }, EYE = [6, 0, 1.35];
+  it('a body lying under it is hidden from an eye over its ceiling outside it, beyond its near reach', () => {
+    expect(V.veilBlocked(EYE, [0, 0, PRONE], [U])).toBe(true);
+    expect(V.veilBlocked([2.2, 0, 1.35], [0.9, 0, PRONE], [U])).toBe(false);   // (beside it, within reach)
+    expect(V.veilBlocked([6, 0, 0.3], [0, 0, PRONE], [U])).toBe(false);       // (an eye under the ceiling: lying, it looks under)
+    expect(V.veilBlocked(EYE, [0, 0, 1.275], [U])).toBe(false);               // (an eye over the ceiling: not under it)
+    expect(V.veilBlocked(EYE, [0, 5, PRONE], [U])).toBe(false);               // (beside the truck, not under)
+    expect(V.veilThrough(EYE, [0, 0, PRONE], [U])).toBe(0);                   // (it is not grass: no metres through)
+  });
+  it('a world takes it with its grass', () => {
+    const E = composeLive(), w = E.createWorld({ veils: [PATCH, U, { under: true, min: [0, 0] }], entities: [] });
+    expect(w.veils).toHaveLength(2); expect(w.veils[1]).toEqual(U);
+  });
+});
+

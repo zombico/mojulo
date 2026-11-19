@@ -80,4 +80,24 @@ describe('the prone', () => {
     const w = world({ stance: { crouch: {} }, wall: false }); run(w, { crouch: 1 }, 60); run(w, {}, 2);
     expect([w.byId.p.prone || false, w.byId.p.crouched]).toEqual([false, true]);
   });
+  it('lying with `view: eye`, the crawl is seen from the eye: the camera low on the body, the body turned by the look; up, all given back', () => {
+    const w = world({ wall: false, stance: { crouch: {}, prone: { view: 'eye', eye: 0.3 } } }), p = w.byId.p, cam0 = w.camera.rule, rule0 = p.rule;
+    run(w, { crouch: 1 }, 30); run(w, {}, 2);
+    expect(p.prone).toBe(true);
+    expect(w.camera.rule).toMatchObject({ type: 'eye', target: 'p', height: 0.3, hideTarget: true });
+    expect(p.rule.turnMode).toBe('look'); expect(p.rule.move).toBeUndefined();
+    expect(p.rule.speed).toBe(0.9); expect(p.rule.collideHeight).toBe(0.45);
+    // (the look turns it, and the crawl goes where it looks)
+    const h0 = p.transform.heading; run(w, { lookDX: 200 }, 1);
+    expect(p.transform.heading).not.toBeCloseTo(h0, 3);
+    run(w, { crouch: 1 }, 30); run(w, {}, 2);
+    expect(p.prone).toBe(false);
+    expect(w.camera.rule).toBe(cam0); expect(p.rule).toBe(rule0);
+    expect(p.rule.speed).toBe(5.8); expect(p.rule.collideHeight).toBe(1.7);
+  });
+  it('without `view`, lying keeps the camera it had', () => {
+    const w = world({ wall: false }), cam0 = w.camera.rule;
+    run(w, { crouch: 1 }, 30); run(w, {}, 2);
+    expect(w.byId.p.prone).toBe(true); expect(w.camera.rule).toBe(cam0);
+  });
 });

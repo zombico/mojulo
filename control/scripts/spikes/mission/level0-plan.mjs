@@ -222,7 +222,7 @@ const rad = (d) => (d * Math.PI) / 180;
 
 /** The recipe's cover as the manifest takes it: what is parked (the registry's vehicles), and what is laid (boxes). */
 export function coverOf(L) {
-  const parked = L.cover.filter((c) => c.vehicle).map((c) => ({ vehicle: c.vehicle, at: [c.at[0], c.at[1], 0], heading: rad(c.heading ?? 0) }));
+  const parked = L.cover.filter((c) => c.vehicle).map((c) => ({ vehicle: c.vehicle, at: [c.at[0], c.at[1], 0], heading: rad(c.heading ?? 0), ...(c.crawl ? { crawl: true } : {}) }));
   const laid = L.cover.filter((c) => c.box).map((c) => ({ id: c.id, size: c.box, at: c.at }));
   return { parked, laid };
 }
@@ -230,8 +230,10 @@ export function coverOf(L) {
 export function coverBoxes(L, colliders = []) {
   const { parked, laid } = coverOf(L), out = [];
   // (a parked vehicle's box, the registry's own, on flat ground)
-  const P = parked.length ? withParked({ parked }).colliders : [];
-  P.forEach((c, i) => out.push({ id: L.cover.filter((x) => x.vehicle)[i].id, min: [c.min[0], c.min[1], 0], max: [c.max[0], c.max[1], c.max[2] - c.min[2]] }));
+  // (each its own boxes: one over its footprint, or a truck over a crawl space its wheels' and its body's from its chassis
+  // up, the space under it kept: a line low enough passes under it)
+  const ids = L.cover.filter((x) => x.vehicle).map((x) => x.id);
+  parked.forEach((p, i) => { for (const c of withParked({ parked: [p] }).colliders) out.push({ id: ids[i], min: [c.min[0], c.min[1], c.min[2] - p.at[2]], max: [c.max[0], c.max[1], c.max[2] - p.at[2]] }); });
   for (const t of L.structures ?? []) for (const b of structureBoxes(t)) out.push({ id: t.id, ...b });
   for (const b of laid) out.push({ id: b.id, min: [b.at[0] - b.size[0] / 2, b.at[1] - b.size[1] / 2, 0], max: [b.at[0] + b.size[0] / 2, b.at[1] + b.size[1] / 2, b.size[2]] });
   // (what the land grew: a shrub's box, its height its own over its foot)

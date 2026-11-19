@@ -2,7 +2,11 @@
  * stance.js — THE CROUCH AND THE PRONE: a body lowered on a press, slower and smaller, and laid flat on a hold, slower
  * and smaller again. Opt-in on the pilot's rule:
  *
- *   rule.stance: { crouch: { speed?: 2.2, height?: 1.1 }, prone?: { speed?: 0.9, height?: 0.45 }, hold?: 0.4 }
+ *   rule.stance: { crouch: { speed?: 2.2, height?: 1.1 }, prone?: { speed?: 0.9, height?: 0.45, view?: 'eye', eye?: 0.32 }, hold?: 0.4 }
+ *       view     lying, the crawl SEEN FROM THE EYE (`'eye'`): the camera rides the body's eye `eye` metres over the ground
+ *                (the page hides the body, as the aim's eye does: aim-view.js) and the body turns and pitches with the look,
+ *                so the crawl goes where it looks; up again, the camera's own rule and the body's own way of turning are
+ *                given back, the camera looking where the eye left it. While the aim is held the aim's own camera has it
  *       speed    its pace crouched (m/s)
  *       height   its height crouched (metres: its `collideHeight`). A watcher's sight is eye to eye (mind.js perceive, the
  *                eye three quarters up a body's height), so a body crouched is seen over nothing its lowered eye is
@@ -15,7 +19,8 @@
  * The page plays `crouch_idle` still and `crouch_walk` moving, and lying `prone_idle` and `prone_crawl` (a figure without the clips plays its fallback,
  * playscape/player.js TRAVERSAL_FALLBACK).
  * Field ownership: e.crouched, e.prone (one of them at most), e.crPrev, e.crHold (the press's seconds), e.crFired (its
- * hold taken), e.crT (its still phase), e.crLay and, lying, e.tumble, e.crBase ({ speed, collideHeight }: the rule's own, kept once); the pilot's
+ * hold taken), e.crT (its still phase), e.crLay and, lying, e.tumble, e.crEye ({ cam, rule }: the camera's rule and the body's own,
+ * while the crawl is seen from the eye), e.crBase ({ speed, collideHeight }: the rule's own, kept once); the pilot's
  * `rule.speed` and `rule.collideHeight` while it is down. The two are set each step on whichever rule the body is read by
  * (the aim and what is in hand keep copies of it: aim-view.js, carry.js), so a copy taken while down is put right too.
  *
@@ -41,8 +46,23 @@ export function buildStance(E) {
     p.crPrev = down;
     // (a dive, a vault or a climb is taken standing; so is going down)
     if ((p.crouched || p.prone) && busy) { p.crouched = false; p.prone = false; }
+    // THE CRAWL SEEN FROM THE EYE: lying, the camera to the body's eye and the body turned by the look; up, both given back
+    const C0 = state.camera;
+    if (P && P.view === 'eye' && C0 && !(p.av && p.av.on)) {
+      if (p.prone && !p.crEye) {
+        p.crEye = { cam: C0.rule, rule: p.rule };
+        if (C0.camYaw != null) p.transform.heading = C0.camYaw;
+        p.transform.pitch = 0;
+        const { move: _m, ...own } = p.rule;
+        p.rule = { ...own, turnMode: 'look', lookPitch: true };
+        C0.rule = { type: 'eye', target: p.id, height: P.eye ?? 0.32, hideTarget: true };
+      } else if (!p.prone && p.crEye) {
+        C0.rule = p.crEye.cam; p.rule = p.crEye.rule; p.crEye = null;
+        C0.camYaw = p.transform.heading; C0.camPitch = 0; p.transform.pitch = 0;
+      }
+    }
     const want = p.prone ? { speed: P.speed ?? 0.9, collideHeight: P.height ?? 0.45 } : p.crouched ? { speed: S.speed ?? 2.2, collideHeight: S.height ?? 1.1 } : p.crBase;
-    for (const r of [p.rule, p.av && p.av.rule, p.carry && p.carry.rule]) if (r && (r.speed !== want.speed || r.collideHeight !== want.collideHeight)) { r.speed = want.speed; r.collideHeight = want.collideHeight; }
+    for (const r of [p.rule, p.av && p.av.rule, p.carry && p.carry.rule, p.crEye && p.crEye.rule]) if (r && (r.speed !== want.speed || r.collideHeight !== want.collideHeight)) { r.speed = want.speed; r.collideHeight = want.collideHeight; }
     const out = step(state, input, dt, hooks);
     if ((p.crouched || p.prone) && p.dodgeT == null && !p.fr && p.swingT == null && p.grounded !== false) {
       // (the gait's own states, still or moving: the body's stand and its turn on the spot are the still ones)
@@ -60,7 +80,7 @@ export function buildStance(E) {
     else if (p.crLay) { p.crLay = false; if (p.dodgeT == null) p.tumble = null; }
     // (the eye's camera rides the lowered eye)
     const C = state.camera, A = p.rule.aimView;
-    if (A && C && C.rule && C.rule.type === 'eye' && C.rule.target === p.id) C.rule.height = (A.eye ?? 1.6) * (p.prone ? 0.2 : p.crouched ? 0.62 : 1);
+    if (C && C.rule && C.rule.type === 'eye' && C.rule.target === p.id && (A || p.crEye)) C.rule.height = p.crEye ? (P.eye ?? 0.32) : (A.eye ?? 1.6) * (p.prone ? 0.2 : p.crouched ? 0.62 : 1);
     return out;
   };
 }

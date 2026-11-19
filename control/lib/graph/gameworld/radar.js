@@ -102,7 +102,7 @@ export function planSvg(colliders, water, box, opts) {
     (hi >= 1.6 ? tall : low).push(rect(c.min[0], c.min[1], c.max[0], c.max[1], hi >= 1.6 ? '#d9d2bd' : '#8f8a78'));
   }
   // (`veils`: tall grass, a stealth land's cover, its patches under what stands)
-  const grass = (o.veils || []).map((v) => `<circle cx="${f((v.at[0] - box[0]) * k)}" cy="${f(S - (v.at[1] - box[1]) * k)}" r="${f(v.r * k)}" fill="#6f9442"/>`);
+  const grass = (o.veils || []).filter((v) => !v.under).map((v) => `<circle cx="${f((v.at[0] - box[0]) * k)}" cy="${f(S - (v.at[1] - box[1]) * k)}" r="${f(v.r * k)}" fill="#6f9442"/>`);
   // (`relief`: the land's heights on a grid, { x0, y0, cell, nx, ny, z: [row by row, null off the land], step?, major? },
   // drawn as its contours, a line every `step` metres (1) and a brighter one every `major` (5): marching squares, each
   // cell's crossings joined, so a slope's lines crowd and a cliff's run together)

@@ -5,7 +5,8 @@
 // body's and not its rotor's disc, folded in a hangar. One case per procedure, the vehicles chosen in code from the
 // registry.
 import { describe, it, expect } from 'vitest';
-import { readParked, parkIn, withParked, paintOfDress, readBuildingParked, parkable, BASE_PARKED, PARKED_MAX } from './parked.js';
+import { readParked, parkIn, withParked, paintOfDress, readBuildingParked, parkable, BASE_PARKED, PARKED_MAX, CRAWL_LEAST } from './parked.js';
+import { composeLive } from '../worlds/controllable/compose.js';
 import { VEHICLES, rowOfHandle } from './roster.js';
 import { VEHICLES as PHYSICS, wheelLayout } from '../roads/vehicles.js';
 import { MILITARY_CLASSES } from '../car-designer/road-military.js';
@@ -279,3 +280,30 @@ describe('a walker stands parked', () => {
     expect(Object.keys(roles.manifest.figures)).toHaveLength(2);
   });
 });
+
+describe('a crawl space', () => {
+  // (one road vehicle that rides high enough, one that does not, picked from the registry by their wheels)
+  const parkedRoad = Object.keys(VEHICLES).filter((id) => { try { const p = parkable(id); return p.class && !p.cycle && !p.construction && PHYSICS[p.class]; } catch { return false; } });
+  const high = parkedRoad.find((id) => PHYSICS[parkable(id).class].wheelRadius >= CRAWL_LEAST), low = parkedRoad.find((id) => PHYSICS[parkable(id).class].wheelRadius < 0.4);
+  it('a truck that says crawl stands on its wheels and its body from its chassis up; the space under it is said', () => {
+    const v = PHYSICS[parkable(high).class], { colliders, unders } = withParked({ parked: [{ vehicle: high, at: [0, 0, 0], crawl: true }] });
+    expect(colliders).toHaveLength(5);                                         // (the body and four wheels)
+    expect(colliders[0].min[2]).toBeCloseTo(v.wheelRadius, 3); expect(colliders[0].max[2]).toBeCloseTo(v.H, 3);
+    for (const w of colliders.slice(1)) { expect(w.min[2]).toBe(0); expect(w.max[2]).toBeCloseTo(v.wheelRadius, 3); }
+    expect(unders).toEqual([{ under: true, min: [-v.L / 2, -v.W / 2, 0].map((x) => +x.toFixed(3)), max: [v.L / 2, v.W / 2, v.wheelRadius].map((x) => +x.toFixed(3)) }]);
+    // (without the word, or a car too low to go under: one box, nothing under)
+    expect(withParked({ parked: [{ vehicle: high, at: [0, 0, 0] }] }).colliders).toHaveLength(1);
+    const car = withParked({ parked: [{ vehicle: low, at: [0, 0, 0], crawl: true }] });
+    expect(car.colliders).toHaveLength(1); expect(car.unders).toBeUndefined();
+    expect(() => readParked([{ vehicle: high, at: [0, 0, 0], crawl: 'yes' }])).toThrow(/crawl is true or false/);
+  });
+  it('a body lying flat crawls under it between its wheels; one standing, or crouched, is stopped at its side', () => {
+    const E = composeLive(), { colliders } = withParked({ parked: [{ vehicle: high, at: [0, 0, 0], heading: Math.PI / 2, crawl: true }] });
+    const world = (h) => E.createWorld({ colliders, camera: { rule: 'follow', target: 'p' },
+      entities: [{ id: 'p', pilotable: true, rule: { type: 'platform', speed: 1, eye: 0, collideRadius: 0.3, collideHeight: h, heading: 0 }, body: { type: 'mesh', hittable: true, hp: 100 }, transform: { pos: [-4, 0, 0], heading: 0 } }] });
+    const go = (h) => { const w = world(h); for (let k = 0; k < 60 * 8; k++) E.stepWorld(w, { forward: 1 }, 1 / 60, { ground: () => 0 }); return w.byId.p.transform.pos[0]; };
+    expect(go(0.45)).toBeGreaterThan(2.5);                                     // (through, out the other side)
+    expect(go(1.1)).toBeLessThan(-1);                                          // (stopped at its side)
+  });
+});
+

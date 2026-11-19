@@ -106,7 +106,10 @@ if (o.has('--plan')) process.exit(0);
 // what is parked is set on the ground under it (the recipe gave it no height), its box with it
 const parkedIds = payload.entities.filter((e) => /^parked-/.test(e.id)).map((e) => e.id);
 payload.entities = payload.entities.map((e) => { const k = parkedIds.indexOf(e.id); if (k < 0) return e; const z = zAt(e.transform.pos); return { ...e, transform: { ...e.transform, pos: [e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + z] } }; });
-payload.colliders = payload.colliders.map((c) => { if (c.of || !cover.parked.length) return c; const z = zAt([(c.min[0] + c.max[0]) / 2, (c.min[1] + c.max[1]) / 2]); return { ...c, min: [c.min[0], c.min[1], c.min[2] + z - 0.6], max: [c.max[0], c.max[1], c.max[2] + z] }; });
+// (each parked box seated on the land under it: one standing on the ground sunk into it on a slope; one raised, a truck's
+// body over its crawl space, kept its height over the land, so the space under it stays open; and that space seated too)
+payload.colliders = payload.colliders.map((c) => { if (c.of || !cover.parked.length) return c; const z = zAt([(c.min[0] + c.max[0]) / 2, (c.min[1] + c.max[1]) / 2]); return { ...c, min: [c.min[0], c.min[1], c.min[2] > 0 ? c.min[2] + z : c.min[2] + z - 0.6], max: [c.max[0], c.max[1], c.max[2] + z] }; });
+if (payload.veils) payload.veils = payload.veils.map((v) => { if (!v.under) return v; const z = zAt([(v.min[0] + v.max[0]) / 2, (v.min[1] + v.max[1]) / 2]); return { ...v, min: [v.min[0], v.min[1], v.min[2] + z], max: [v.max[0], v.max[1], v.max[2] + z] }; });
 // what is laid: a box on the ground, a body to see and a collider to hide behind
 const LOOK = { log: 0x5b4630, crate: 0x6b6a4a };
 for (const b of cover.laid) {

@@ -63,7 +63,7 @@ const STANCE_IDS = Object.keys(SNEAK_STANCES), TICK = 0.25, CHANGE = 2;   // (a 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 // (the runtime's veils, built on a plain object: the same lines the minds read)
 const VEIL = {}; buildVeil(VEIL);
-const flatVeils = (V) => (Array.isArray(V) && V.length ? V.map((v) => ({ at: [v.at[0], v.at[1], 0], r: v.r, h: v.h, ...(v.through != null ? { through: v.through } : {}), ...(v.near != null ? { near: v.near } : {}) })) : null);
+const flatVeils = (V) => (Array.isArray(V) && V.length ? V.filter((v) => !v.under).map((v) => ({ at: [v.at[0], v.at[1], 0], r: v.r, h: v.h, ...(v.through != null ? { through: v.through } : {}), ...(v.near != null ? { near: v.near } : {}) })) : null);
 
 // (a patrol's look round at each end, `look: { secs? }`: all the way round, one way, and on to face back, the runtime's own
 // turn, worlds/controllable/foe.js lookRound)

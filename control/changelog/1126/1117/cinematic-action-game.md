@@ -479,3 +479,15 @@ or a recipe key; the spike mints through the real doors and measures.
   lit by four floodlights so it reads in the dark (over the hangar's side door, at the barracks' front, on the apron and
   at the gate; the first two cast), seated on the land where it was laid, on masts where they stand free. `--hour`
   still sets another hour.
+- **The crawl seen from the eye** (worlds/controllable/stance.js `prone.view: 'eye'`, the infiltration room's operative):
+  lying flat, the camera rides the body's eye a third of a metre over the ground, the body hidden, and the body turns and
+  pitches with the look, so the crawl goes where it looks; up again, the chase camera and the body's own turning are given
+  back, looking where the eye left them. The aim held while lying takes its own camera, as before.
+- **Crawling under things** (vehicle-registry/parked.js `crawl`, worlds/controllable/veil.js `under`): a parked road
+  vehicle that says `crawl: true` and rides high enough (its wheels' radius `CRAWL_LEAST`, 0.5 m, or more: a truck, a bus,
+  never a car) stands on a box at each wheel and its body from its chassis up, so a body lying flat (0.45 m) crawls under
+  it between its wheels while one crouched or standing is stopped at its side; and the space under it is a CRAWL SPACE,
+  a veil the runtime's sight reads (with the guards', the alarm's body found and the knockout's wakers): a body in it,
+  under its ceiling, is hidden from an eye over that ceiling outside it beyond arm's reach (a guard standing over the
+  truck does not see who lies under it; one lying, or beside it, does). Level 0's cargo truck is one, its boxes and its
+  space seated on the land; the route search keeps its boxes (a line low enough passes under it) and its laws hold.

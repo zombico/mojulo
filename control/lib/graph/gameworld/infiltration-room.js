@@ -124,8 +124,9 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, ro
     aimView: { shoulder: { ...SHOULDER }, eye: 1.6 },
     // (over the low walls and the crates out of the run; the stick held into a taller thing climbs it: free-run.js; the jump's
     // button is the dive's: dive.js)
-    // (the crouch: slower, and low enough to be out of sight behind the yard's low walls: stance.js)
-    stance: { crouch: { speed: 2.2, height: 1.1 }, prone: { speed: 0.9, height: 0.45 } },
+    // (the crouch: slower, and low enough to be out of sight behind the yard's low walls; flat on the ground, the crawl seen
+    // from the eye, and low enough to go under a truck: stance.js)
+    stance: { crouch: { speed: 2.2, height: 1.1 }, prone: { speed: 0.9, height: 0.45, view: 'eye' } },
     // (a watcher that has not seen it, come up on from behind, is put down on the action: takedown.js)
     takedown: { clip: 'mv_fist_hook_still' },
     // (two ways down, knockout.js: its blows, its takedown and its sleep darts knock out, a guard asleep where it lies until a

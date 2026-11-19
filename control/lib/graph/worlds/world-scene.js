@@ -357,12 +357,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // parked vehicles (`parked`: [{ vehicle, at, heading?, livery?, wear?, seed? }], vehicle-registry/parked.js): each a
   // static loft figure, and a box over its footprint added to whatever colliders the level carries. Opt-in; absent ⇒
   // byte-identical.
-  let parkedColliders = [];
+  let parkedColliders = [], parkedUnders = null;
   if (sketch.manifest?.parked !== undefined) {
     const { withParked } = await import('@/lib/graph/vehicle-registry/parked.js');
     const P = withParked(sketch.manifest);
     sketch = { ...sketch, manifest: P.manifest };
     parkedColliders = P.colliders;
+    // (the crawl spaces under them, `crawl: true`: the world's veils take them, where a body lying under one is hidden)
+    if (P.unders) parkedUnders = P.unders;
   }
 
   // a controllable world's MOUNTS (worlds/mount-units.js readMounts): its horses, read here and laid once its figures are;
@@ -1221,6 +1223,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // structures (above): a box for each tier and plinth step of each tower, so a walker stands on its terraces
     if (structureColliders.length) payload.colliders = [...(payload.colliders || []), ...structureColliders];
     if (parkedColliders.length) payload.colliders = [...(payload.colliders || []), ...parkedColliders];
+    // (and the crawl spaces under them, `crawl: true`: veils the runtime's sight reads, worlds/controllable/veil.js `under`)
+    if (parkedUnders) payload.veils = [...(payload.veils ?? []), ...parkedUnders];
     // blocks (playscape/terrain.js standBlocks): forms the level stands in its stage, solid and drawn (a shooter's
     // cover: low walls, crates). Absent ⇒ byte-identical.
     const rolls = sketch.manifest.roll != null ? readRoll(sketch.manifest.roll, { blocks: sketch.manifest.blocks, pickups: pickupsOf(sketch.manifest.game && sketch.manifest.game.mechanics) }) : null;

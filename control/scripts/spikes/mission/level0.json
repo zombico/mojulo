@@ -46,7 +46,9 @@
         "trail": 68,
         "off": -9.6
       },
-      "heading": 0
+      "heading": 0,
+      "crawl": true,
+      "crawlReads": "a crawl space: a body lying flat goes under its chassis between its wheels, hidden there from a guard standing over it"
     },
     {
       "id": "camp-crates",

@@ -9,6 +9,12 @@
  *
  *   spec.veils: [{ at: [x, y, z], r, h, through?: 1.2, near?: 2 }]   a patch: its middle on the ground, its radius, its
  *                                                                    grass's height over the ground (metres)
+ *               [{ under: true, min, max, near?: 1.5 }]              a CRAWL SPACE: the room under something a body lies
+ *                                                                    flat under (a truck's chassis: vehicle-registry/parked.js
+ *                                                                    `crawl`), `max[2]` its ceiling. A body in it, under its
+ *                                                                    ceiling, is hidden from an eye over that ceiling outside
+ *                                                                    it beyond `near` (a guard standing over a truck does not
+ *                                                                    see who lies under it; one lying, or beside it, does)
  *   E.veilThrough(a, b, veils) → the metres of the line a → b that run through grass under its top
  *   E.veilBlocked(a, b, veils) → is a body's eye at b hidden from an eye at a by the grass? (the thickest patch's
  *                                `through` and the nearest `near` decide)
@@ -18,7 +24,7 @@
  * byte. The route search (gameworld/stealth-routes.js) builds it on a plain object to read the same lines.
  */
 export function buildVeil(E) {
-  const THROUGH = 1.2, NEAR = 2;
+  const THROUGH = 1.2, NEAR = 2, UNDER_NEAR = 1.5;
   // the share of a → b (0..1) inside a patch's column: its circle in plan, under its top in height
   function span(a, b, v) {
     const dx = b[0] - a[0], dy = b[1] - a[1], fx = a[0] - v.at[0], fy = a[1] - v.at[1];
@@ -38,20 +44,25 @@ export function buildVeil(E) {
     if (!veils || !veils.length) return 0;
     const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
     let m = 0;
-    for (const v of veils) m += span(a, b, v) * L;
+    for (const v of veils) if (!v.under) m += span(a, b, v) * L;
     return m;
   }
+  const inUnder = (p, v) => p[0] > v.min[0] && p[0] < v.max[0] && p[1] > v.min[1] && p[1] < v.max[1] && p[2] < v.max[2];
   function veilBlocked(a, b, veils) {
     if (!veils || !veils.length) return false;
+    // (a body under a crawl space's ceiling, seen from over it, outside it, beyond its near reach: hidden)
+    for (const v of veils) if (v.under && inUnder(b, v) && !inUnder(a, v) && a[2] > v.max[2] && Math.hypot(b[0] - a[0], b[1] - a[1]) >= (v.near ?? UNDER_NEAR)) return true;
     let through = Infinity, near = 0, any = false;
-    for (const v of veils) if (span(a, b, v) > 0) { any = true; through = Math.min(through, v.through ?? THROUGH); near = Math.max(near, v.near ?? NEAR); }
+    for (const v of veils) if (!v.under && span(a, b, v) > 0) { any = true; through = Math.min(through, v.through ?? THROUGH); near = Math.max(near, v.near ?? NEAR); }
     if (!any || Math.hypot(b[0] - a[0], b[1] - a[1]) < near) return false;
     return veilThrough(a, b, veils) >= through;
   }
   // the world's veils, from its spec: each a plain record, the malformed left out
   if (E.registerStateInit) E.registerStateInit((state, spec) => {
-    const V = Array.isArray(spec && spec.veils) ? spec.veils.filter((v) => v && Array.isArray(v.at) && v.at.length >= 2 && v.r > 0 && v.h > 0) : [];
-    if (V.length) state.veils = V.map((v) => ({ at: [v.at[0], v.at[1], v.at[2] || 0], r: v.r, h: v.h, ...(v.through != null ? { through: v.through } : {}), ...(v.near != null ? { near: v.near } : {}) }));
+    const box3 = (q) => Array.isArray(q) && q.length === 3 && q.every(Number.isFinite);
+    const V = Array.isArray(spec && spec.veils) ? spec.veils.filter((v) => v && (v.under ? box3(v.min) && box3(v.max) : Array.isArray(v.at) && v.at.length >= 2 && v.r > 0 && v.h > 0)) : [];
+    if (V.length) state.veils = V.map((v) => (v.under ? { under: true, min: v.min.slice(), max: v.max.slice(), ...(v.near != null ? { near: v.near } : {}) }
+      : { at: [v.at[0], v.at[1], v.at[2] || 0], r: v.r, h: v.h, ...(v.through != null ? { through: v.through } : {}), ...(v.near != null ? { near: v.near } : {}) }));
   });
   Object.assign(E, { veilThrough, veilBlocked });
 }
