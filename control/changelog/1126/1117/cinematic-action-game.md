@@ -444,5 +444,5 @@ or a recipe key; the spike mints through the real doors and measures.
   names the side its flight runs out from (the gate tower's north, away from the gorge's wall; the camp's south,
   down the trail's side toward the camp: east, its flight ran into the north log). A flight runs down to the land at its foot
   (`seatStairs`, read off the relief the plan reads): a tower on a rise has a longer flight, so its first tread is a
-  step off the ground wherever it lands (the camp's, on a slope, 21 risers to the gate's 16). The sneak's laws hold with the stairs
-  standing.
+  step off the ground wherever it lands (the camp's, on a slope, 21 risers to the gate's 16). Each was run up on the page, from the land to the deck, where
+  the rails held the operative. The sneak's laws hold with the stairs standing.
