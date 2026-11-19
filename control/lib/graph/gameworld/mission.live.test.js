@@ -84,9 +84,13 @@ describe('the first mission, from a world', () => {
     // the pilot's pause: the menu up, the scene held
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => window.__mojMission.rt.state().screen === 'pause', T());
+    expect((await st()).screen).toBe('pause');
+    // (a frame already in flight as the menu came up may step the clock once more: a software-drawn frame takes 270 to
+    // 390 ms on a runner, so the hold is read once the clock has stood still for longer than one; a scene that never
+    // holds times out here)
+    await page.waitForFunction(() => new Promise((r) => { const t0 = window.__mojCtrl.world.time; setTimeout(() => r(window.__mojCtrl.world.time === t0), 600); }), T());
     const z = await st();
-    expect(z.screen).toBe('pause');
-    await wait(400);
+    await wait(1000);
     expect((await st()).t).toBe(z.t);
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => !window.__mojMission.up, T());
