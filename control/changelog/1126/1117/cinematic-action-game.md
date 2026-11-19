@@ -435,6 +435,11 @@ or a recipe key; the spike mints through the real doors and measures.
   bracing on each side but the stair's, a deck of boards on joists, a rail and a mid rail on posts, open where the stair
   arrives, a straight flight of open treads on two stringers with a handrail, and a pyramid roof over the deck. Its boxes
   stay what the search, the colliders and the walk read, and gain the stair's treads: each a block from the ground to
-  its top, a quarter metre a riser (the walker's step is 0.35), so the operative walks up to the deck. A tower's `stair`
+  one riser under its tread (a tread is shallower than a body is wide, so a block at its own height stood two risers
+  over the feet of a body on the tread before it, past its 0.35 m step), a quarter metre a riser, so the operative walks
+  up to the deck on the drawn treads; and the deck's frame, a box from over a standing head up to the boards (a guard
+  walks under it, the search's band never meets it), so the flight and the deck are one thing to a runner: without it
+  the free-run took the last treads for a low box and vaulted the operative off the top of the flight, down under the
+  deck (measured on the page, frame by frame, at tread 10 of 15). A tower's `stair`
   names the side its flight runs out from (the gate tower's north, away from the gorge's wall; the camp's east, away
   from the trail). The sneak's laws hold with the stairs standing.

@@ -125,11 +125,12 @@ const baked = (faces) => faces.map((f) => { const fill = bakeFill(f.fill, f.norm
 for (const t of L.structures ?? []) {
   const z = zAt(t.at ?? t.from);
   // (a tower drawn as it is built, level0-plan.js towerFaces: posts, bracing, planks, rails, its stair and roof; its boxes
-  // still its colliders, its stair's treads among them)
+  // still its colliders, its stair's treads and its deck's frame among them, and its rails: the search never meets them
+  // (over its band), and on the page they keep a body on the deck it has climbed to, a body under it walking clear)
   if (t.kind === 'tower') extraFaces.push(...baked(towerFaces(t).map((f) => ({ ...f, corners: f.corners.map((c) => [c[0], c[1], +(c[2] + z).toFixed(4)]) }))));
   for (const b of structureBoxes(t)) {
     if (t.kind !== 'tower') extraFaces.push(...baked(boxFaces([b.min[0], b.min[1], z + b.min[2] - (b.min[2] ? 0 : 0.3)], [b.max[0], b.max[1], z + b.max[2]], b.fill, `cover:${t.kind}`)));
-    if (b.walk !== false) payload.colliders.push({ of: `cover:${t.id}`, min: [b.min[0], b.min[1], z + b.min[2] - 0.4], max: [b.max[0], b.max[1], z + b.max[2]] });
+    if (b.walk !== false || b.rail) payload.colliders.push({ of: `cover:${t.id}`, min: [b.min[0], b.min[1], z + b.min[2] - 0.4], max: [b.max[0], b.max[1], z + b.max[2]] });
   }
 }
 payload.faces = [...(payload.faces ?? []), ...extraFaces];

@@ -66,6 +66,8 @@ export const STRUCTURE = Object.freeze({
     // pyramid over the deck, the eave and the apex over the deck, the eave standing past it)
     stair: Object.freeze({ rise: 0.25, going: 0.28, width: 0.95 }), roof: Object.freeze({ eave: 2.2, apex: 2.85, over: 0.35 }) }),
 });
+// (the deck's frame's underside: over a guard's head (1.8) with the 0.4 the page sinks every box into the ground under it)
+const FRAME_LOW = 2.4;
 const SIDES = Object.freeze({ '+x': [1, 0], '-x': [-1, 0], '+y': [0, 1], '-y': [0, -1] });
 /** A tower's stair (`stair`: the side its flight runs out from, '+x' unless said): its treads, each a step up from the
  *  ground to the deck: { n, dir, lat, edge, treads: [{ lo, hi, z }] } (lo/hi the tread's span out from the deck's edge). */
@@ -91,6 +93,11 @@ export function structureBoxes(t) {
     const T = STRUCTURE.tower, H = t.height ?? T.height, h = T.side / 2, [x, y] = t.at;
     for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) out.push({ min: [x + sx * h - (sx > 0 ? T.leg : 0), y + sy * h - (sy > 0 ? T.leg : 0), 0], max: [x + sx * h + (sx < 0 ? T.leg : 0), y + sy * h + (sy < 0 ? T.leg : 0), H], fill: T.fill, sight: false });
     out.push({ min: [x - h, y - h, H - T.deck], max: [x + h, y + h, H], fill: T.deckFill, sight: false, walk: false, deck: true });
+    // (its deck's frame, the joists under the boards, a box over a standing head (FRAME_LOW: a guard walks under it, the
+    // search's band never meets it) up to the boards: the stair's treads end against it, so the flight and the deck are
+    // ONE thing to a runner, and the free-run (worlds/controllable/free-run.js) never takes the last few treads for a low
+    // box to vault, out over the top and down under the deck; a body on the top treads stands within a step of its top)
+    out.push({ min: [x - h, y - h, FRAME_LOW], max: [x + h, y + h, H - T.deck - 0.02], sight: false, frame: true });
     // (its rail, open a stair's width where the flight arrives)
     const ST = towerStair(t), gap = T.stair.width / 2 + 0.05;
     for (const [sx, sy] of Object.values(SIDES)) {
