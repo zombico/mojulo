@@ -268,3 +268,6 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
 - **A body fit to a height** (`body.fit: { least, from? }`): the world resolver stands it at least that tall by its figure's
   own bounds, its hit egg and collider with it (a beast's skeleton is shorter than its flesh). A rig body drawn at a scale
   of its own now has a cel line as wide as every other body's.
+- **The bosses**: robots of the hero's own family whose faces are never a person's. The hero alone keeps the open face;
+  a boss's face is its theme (a mask, a visor, a grille, one eye, a screen, a beast's head, an object), it always has
+  eyes, and it lights up as the boss winds up an attack.
