@@ -234,7 +234,8 @@ its signal. The first is Crucible: its head is a crucible of molten metal, on a 
 
 Its heroes are the herobots (`control/lib/graph/gameworld/herobots.js`): Galaxy Boy with the buster on his arm, and Zero
 Boy, Galaxy Boy in red with a yellow ponytail and a saber. Zero Boy plays Galaxy Boy's feel with the saber in the
-buster's place (`gameworld/feel/saber.js`). His three cuts chain on the fire press and never move him, and they deal
+buster's place (`gameworld/feel/saber.js`). In the air the press is a cut at what is ahead, the jump going on under it, never held up. His three cuts chain on the
+fire press and never move him, and they deal
 damage on the buster's scale. Each cut plants his feet as his body swings into it, one leg forward and one back, and
 holds that split from cut to cut until the string ends (a move's `plant`, `gameworld/combos.js`; its footwork
 `plantAt` in `polygonizer/hero-swing-body.js`). His blade is a strand of the charged shot: a white-hot core in the blade's hue, with streaks running

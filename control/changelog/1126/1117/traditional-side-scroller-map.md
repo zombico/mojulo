@@ -306,3 +306,6 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
 - **Galaxy Boy's arm cannon and hands**: the buster runs flush on from the forearm, straight, its end rounded and a short
   nozzle standing out of it with the bore dark in its face (an armour volume can now end in a dome and a nozzle). The
   hero robot's gloved hands are a little smaller and stand on a longer wrist (a hand can stand further off its wrist).
+- **Zero Boy, caught up**: he jumps, dashes (its pose and its dust) and takes the pad's faces as Galaxy Boy does. His
+  saber cuts in the air too: a cut at what is ahead while the jump goes on under it, never holding him up. The saber is
+  a fifth longer (its light runs past the blade it springs from, its reach and its slash wider) and cuts a fifth harder.

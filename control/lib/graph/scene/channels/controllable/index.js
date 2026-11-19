@@ -4535,8 +4535,10 @@ function __strandMake(e) {
   for (let i = 0; i < P.count; i++) { if (keep && !keep(i)) continue; const d = (P.getX(i) - W[0]) ** 2 + (P.getY(i) - W[1]) ** 2 + (P.getZ(i) - W[2]) ** 2; if (d > best) { best = d; at = i; } }
   if (at < 0 || Math.sqrt(best) < 0.32) return null;
   const tip = new THREE.Object3D(), base = new THREE.Object3D();
-  tip.position.set(P.getX(at), P.getY(at), P.getZ(at));
-  base.position.set(W[0] + (tip.position.x - W[0]) * __STRAND.base, W[1] + (tip.position.y - W[1]) * __STRAND.base, W[2] + (tip.position.z - W[2]) * __STRAND.base);
+  // (the strand's tip its length times the blade's own reach from the wrist: the light longer than the blade)
+  const SL = __STRAND.length || 1;
+  tip.position.set(W[0] + (P.getX(at) - W[0]) * SL, W[1] + (P.getY(at) - W[1]) * SL, W[2] + (P.getZ(at) - W[2]) * SL);
+  base.position.set(W[0] + (P.getX(at) - W[0]) * __STRAND.base, W[1] + (P.getY(at) - W[1]) * __STRAND.base, W[2] + (P.getZ(at) - W[2]) * __STRAND.base);
   m.add(tip); m.add(base);
   const L = __slashRamp(e.rule.strikeFx.color, 'impact', __SLASH_B), mk = (halo) => {
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(12), 3)); g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array([0, -1, 0, 1, 1, 1, 1, -1]), 2)); g.setIndex([0, 1, 2, 0, 2, 3]);

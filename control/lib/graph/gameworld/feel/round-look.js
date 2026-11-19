@@ -115,11 +115,12 @@ export const slashArc = (swing) => SLASH_LOOK.arcs[swing] || SLASH_LOOK.arcs.neu
  * THE SABER'S BLADE (feel/saber.js): a STRAND of the charged shot held in the hand, drawn as the round is (its ramp: a
  * white-hot core, the hue saturated, the hue deep at its edge; streaks running along it) with the charge's BLOOM round it
  * (a wide soft glow in the hue, drawn over the body as the charge's is). It runs from the hilt's top (`base`, a share of
- * the way from the wrist to the blade's tip) past the tip by `cap` of its width; `core`, `body`, `halo` its half-widths
+ * the way from the wrist to the blade's tip) to `length` times the blade's own reach from the wrist (1.2: the light longer
+ * than the blade it springs from), past that tip by `cap` of its width; `core`, `body`, `halo` its half-widths
  * (m); `glow` the bloom's strength; `streaks` along it, running at `speed`; lit at `idle` at rest and `cut` through a cut's
  * contact window.
  */
-export const SABER_STRAND = Object.freeze({ base: 0.32, core: 0.035, body: 0.09, halo: 0.42, glow: 0.45, cap: 0.6, streaks: 9, speed: 7, idle: 0.8, cut: 1.3 });
+export const SABER_STRAND = Object.freeze({ base: 0.32, length: 1.2, core: 0.035, body: 0.09, halo: 0.42, glow: 0.45, cap: 0.6, streaks: 9, speed: 7, idle: 0.8, cut: 1.3 });
 
 /**
  * THE DASH'S DUST (a feel card's `dash.dust`, lowered onto the rule's dash: feel/lower.js; drawn by the controllable page):

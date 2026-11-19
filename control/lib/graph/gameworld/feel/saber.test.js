@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { saberRule, SABER_STRIKE, SABER_COMBOS } from './saber.js';
 import { feelRule, BUSTER_DAMAGE } from './lower.js';
 import { emitThreeWorld } from '../../scene/scene-three.js';
+import { createWorld, stepWorld } from '../../worlds/controllable-world.js';
 
 const BLOW = 20;
 const floor = { corners: [[-2, -20, 0], [2, -20, 0], [2, 20, 0], [-2, 20, 0]], normal: [0, 0, 1], fill: '#3a4048', group: 'sidemap:rock' };
@@ -26,6 +27,25 @@ describe('the saber', () => {
     expect(n).toBe(3);
     // (each cut plants its feet in place, one leg forward and one back; the finisher's split the widest)
     expect(M.moves['saber-3'].plant).toBeGreaterThan(M.moves['saber-1'].plant);
+  });
+  it('in the air, a cut at what is ahead that never holds the hero up: the same rise and fall as a jump without it', () => {
+    const rule = { ...feelRule({ pole: 'galaxy-boy', takes: true, variant: 'saber' }), eye: 0, collideRadius: 0.3, collideHeight: 1.7 };
+    const flight = (cut, foe) => {
+      const w = createWorld({ entities: [{ id: 'p', pilotable: true, rule: { type: 'platform', ...rule }, transform: { pos: [0, 0, 0], heading: Math.PI / 2 } },
+        ...(foe ? [{ id: 'foe', team: 'foes', body: { type: 'box', size: [0.6, 0.6, 1.8], hittable: true, hp: 1000, poise: 1 }, rule: { type: 'static' }, transform: { pos: [0, 1.6, 1.4], heading: -Math.PI / 2 } }] : [])] });
+      const p = w.byId.p, zs = [], moves = [];
+      for (let i = 0; i < 70; i++) { stepWorld(w, { jump: i === 2 ? 1 : 0, jumpHeld: i < 30 ? 1 : 0, fire: cut && i === 20 ? 1 : 0 }, 1 / 60, { ground: () => 0 }); zs.push(+p.transform.pos[2].toFixed(5)); if (p.swingT != null && p.mvPress) moves.push(p.mvPress.why); }
+      return { zs, moves, hp: foe ? w.byId.foe.body.hp : null };
+    };
+    // (the air cut taken; with nothing to strike, the flight exactly a jump's: no hang, no kick)
+    const air = flight(true, false);
+    expect(air.moves.some((m) => /saber-air/.test(m))).toBe(true);
+    expect(air.zs).toEqual(flight(false, false).zs);
+    // (a foe ahead is cut; the flight pauses only for the hit's own freeze, the hitstop, then goes on as it was)
+    const hit = flight(true, true), plain = flight(false, true), H = Math.round((rule.hitstop?.max ?? 2));
+    expect(hit.hp).toBeLessThan(1000);
+    const at = hit.zs.findIndex((z, i) => z !== plain.zs[i]);
+    expect(hit.zs.slice(at + H, at + H + 20)).toEqual(plain.zs.slice(at, at + 20));
   });
   it('its damage on the buster\'s scale: a cut over a tap, the string over a full charge', () => {
     const cuts = SABER_COMBOS.combos[0].moves.map((id) => SABER_STRIKE.damage * (SABER_COMBOS.moves[id].damage ?? 1));

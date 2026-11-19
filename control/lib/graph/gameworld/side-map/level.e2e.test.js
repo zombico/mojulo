@@ -71,7 +71,9 @@ describe('a side map level, played as its page resolves it', () => {
     const { sim, M } = await played((m) => m, { foes: true, hero: 'zero-boy' });
     const H = sim.world.byId.hero;
     expect(H.rule.buster).toBeUndefined();
-    expect(Object.keys(H.rule.moveset.moves).length).toBe(3);
+    // (the string's three cuts on the ground, and the air cut)
+    expect(Object.keys(H.rule.moveset.moves).length).toBe(4);
+    expect(H.rule.moveset.airTree.L.move).toBe('saber-air');
     // (the string in place: not one of its cuts travels)
     expect(Object.values(H.rule.moveset.moves).every((m) => m.travel == null)).toBe(true);
     const R = playSideMap(M.layout, M.reach, { stature: 1.67, seconds: 240, drive: drive(sim) });
