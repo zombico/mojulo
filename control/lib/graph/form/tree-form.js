@@ -493,12 +493,20 @@ export function anchorBlobs(blobs, wood, { hold = BLOB_HOLD } = {}) {
  * up), each a ball at its group's middle, as big as holds `hold` of its ends (the share nearest, plus `pad` of a bundle),
  * SOLVED OUTWARD: moved out along its way out of the crown until its surface reaches its group's outermost end (never
  * past `push` of its own radius), so the crown's silhouette is its ends' and its mass fills in behind; and a GAP between
- * them (`sep`): the crown read as separate masses, sky between. → { blobs: [{ p, o, d, s, e, r }] }.
+ * them (`sep`): the crown read as separate masses, sky between; then the lobes that JOIN them to the tree (a core at the
+ * fork, a bridge out to each, a join between neighbours), so each clump reads as carried by its limbs.
+ * → { blobs: [{ p, o, d, s, e, r }] } (the balls first, then their joining lobes).
  */
 export const BALLS = Object.freeze({ k: Object.freeze([3, 4]), many: 40, hold: 0.6, pad: 0.3, push: 0.35, rounds: 8,
   // (a GAP between the balls: two whose surfaces would meet both shrunk until their radii add to `sep` of the distance
   // between their middles, `passes` times round, none under `least` of its own size: the crown read as separate masses)
-  sep: 0.92, passes: 3, least: 0.45 });
+  sep: 0.92, passes: 3, least: 0.45,
+  // (JOINED TO ITS TREE: a CORE lobe where the trunk forks into the crown (`core` × the balls' mean radius, `sink` of it
+  // below their middles), a BRIDGE of lobes from it out to each ball (`bridge` × that ball's radius, each `step` of its
+  // radius from the next so they overlap, at most `links` a ball, grown when more would be needed: a limb's leaf), and a JOIN lobe between each ball and its nearest neighbour where they stand within `near` × their two radii
+  // (at their middle, `drop` of the smaller radius lower, `join` × it): the clumps meet in spots, each hanging off the
+  // limbs that carry it)
+  core: 0.55, sink: 0.45, bridge: 0.42, step: 1.5, links: 3, near: 1.45, drop: 0.2, join: 0.48 });
 export function majorBalls(clumps) {
   const n = clumps.length;
   if (!n) return { blobs: [] };
@@ -527,5 +535,36 @@ export function majorBalls(clumps) {
     const d = len(sub(blobs[i].p, blobs[j].p)), room = BALLS.sep * d;
     if (r[i] + r[j] > room) { const f = room / (r[i] + r[j]); r[i] = Math.max(BALLS.least * r0[i], r[i] * f); r[j] = Math.max(BALLS.least * r0[j], r[j] * f); }
   }
-  return { blobs: blobs.map((b, i) => ({ ...b, s: r4(r[i]) })) };
+  const balls = blobs.map((b, i) => ({ ...b, s: r4(r[i]) }));
+  return { blobs: [...balls, ...joinedTo(balls)] };
+}
+// the lobes that join a crown's balls to its tree and in spots to each other (BALLS core, bridge, join)
+function joinedTo(balls) {
+  const m = balls.length;
+  if (m < 2) return [];
+  const mid = mul(balls.reduce((a, b) => add(a, b.p), [0, 0, 0]), 1 / m), mR = balls.reduce((a, b) => a + b.s, 0) / m;
+  const coreP = [mid[0], mid[1], mid[2] - BALLS.sink * mR], lobe = (p, s, r) => ({ p: p.map(r4), o: [0, 0, 1], d: [1, 0, 0], s: r4(s), e: 0.5, r: r4(r) });
+  const out = [lobe(coreP, BALLS.core * mR, 0.13)];
+  const cs = out[0].s;
+  balls.forEach((b, i) => {
+    // (from the core's middle to the ball's, lobes overlapping all the way; any wholly inside either left out)
+    const D = len(sub(b.p, coreP)), u = D > 1e-6 ? mul(sub(b.p, coreP), 1 / D) : [0, 0, 1];
+    let rb = BALLS.bridge * b.s, n = Math.max(1, Math.ceil(D / (BALLS.step * rb)) - 1);
+    const inside = (x) => x + rb <= cs || D - x + rb <= b.s;
+    if (Array.from({ length: n }, (_, t) => (D * (t + 1)) / (n + 1)).filter((x) => !inside(x)).length > BALLS.links) {
+      n = BALLS.links; rb = D / ((n + 1) * BALLS.step);
+    }
+    for (let t = 1; t <= n; t++) { const x = (D * t) / (n + 1); if (!inside(x)) out.push(lobe(add(coreP, mul(u, x)), rb, 0.31 + 0.17 * i + 0.05 * t)); }
+  });
+  const seen = new Set();
+  balls.forEach((b, i) => {
+    let j = -1, dj = Infinity;
+    balls.forEach((o, k) => { if (k === i) return; const d = len(sub(o.p, b.p)); if (d < dj) { dj = d; j = k; } });
+    const key = i < j ? `${i}:${j}` : `${j}:${i}`, o = balls[j];
+    if (j < 0 || seen.has(key) || dj > BALLS.near * (b.s + o.s)) return;
+    seen.add(key);
+    const sm = Math.min(b.s, o.s), at = mul(add(b.p, o.p), 0.5);
+    out.push(lobe([at[0], at[1], at[2] - BALLS.drop * sm], BALLS.join * sm, 0.57 + 0.11 * out.length));
+  });
+  return out;
 }

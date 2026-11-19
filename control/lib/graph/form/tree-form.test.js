@@ -144,14 +144,24 @@ describe('the mass crown', () => {
   });
 
   it('the major balls: the crown as its 3 or 4 great masses, each holding most of its ends, reaching its outermost', () => {
-    const { blobs } = majorBalls(clumps);
-    expect(blobs.length).toBe(BALLS.k[0]);
-    expect(majorBalls([...clumps, ...clumps.map((c) => ({ ...c, p: [c.p[0], c.p[1] + 4, c.p[2]] }))]).blobs.length).toBe(BALLS.k[1]);
+    const all = majorBalls(clumps).blobs, blobs = all.slice(0, BALLS.k[0]), lobes = all.slice(BALLS.k[0]);
+    // (the balls first, then the lobes that join them: a core, a bridge of at most `links` to each ball, the joins)
+    expect(lobes.length).toBeGreaterThanOrEqual(1 + BALLS.k[0]);
+    expect(lobes.length).toBeLessThanOrEqual(1 + BALLS.links * BALLS.k[0] + BALLS.k[0]);
+    const big = majorBalls([...clumps, ...clumps.map((c) => ({ ...c, p: [c.p[0], c.p[1] + 4, c.p[2]] }))]).blobs;
+    expect(big.filter((b) => b.s > 0.4 && big.indexOf(b) < BALLS.k[1]).length).toBe(BALLS.k[1]);
     // (each ball a real mass: within its crown, no ball a speck)
     for (const b of blobs) expect(b.s).toBeGreaterThan(0.4);
     // (gaps between them: no two balls' surfaces meet, sky between the masses)
     for (let i = 0; i < blobs.length; i++) for (let j = 0; j < i; j++) expect(blobs[i].s + blobs[j].s).toBeLessThanOrEqual(BALLS.sep * Math.hypot(...blobs[i].p.map((v, k) => v - blobs[j].p[k])) + 1e-3);
-    expect(JSON.stringify(majorBalls(clumps))).toBe(JSON.stringify({ blobs }));
+    // (joined to its tree: the core below the balls' middle, and the crown one mass through its lobes, each ball
+    // reached from the core by lobes that overlap, though no two balls touch)
+    const mid = blobs.reduce((a, x) => a + x.p[2], 0) / blobs.length, core = lobes[0];
+    expect(core.p[2]).toBeLessThan(mid);
+    const d = (u, v) => Math.hypot(...u.p.map((x, k) => x - v.p[k])), seen = new Set([blobs.length]), todo = [blobs.length];
+    while (todo.length) { const i = todo.pop(); all.forEach((x, j) => { if (!seen.has(j) && d(all[i], x) < all[i].s + x.s) { seen.add(j); todo.push(j); } }); }
+    expect(seen.size).toBe(all.length);
+    expect(JSON.stringify(majorBalls(clumps))).toBe(JSON.stringify({ blobs: all }));
   });
 
   it('holds each blob to the wood that is drawn: one floating past it drawn in until it touches', () => {
