@@ -102,7 +102,28 @@ export const FLORA_LOD = Object.freeze({ detail: Object.freeze([6, 16]), mid: 25
 /** A mass crown's blob (form/tree-form.js massCrown): a sphere of `detail` subdivisions, squashed `squash` up, its colour
  *  the leaf's × `shade` (the crown's inside), scaled to each blob's radius on the page; a major ball `ball` subdivisions
  *  (it is big: a coarse one shows its facets). */
-export const MASS_BLOB = Object.freeze({ detail: 1, ball: 2, squash: 0.85, shade: 0.82 });
+export const MASS_BLOB = Object.freeze({ detail: 1, ball: 2, squash: 0.85, shade: 0.82,
+  // (a major ball read as a CROWN, not a sphere: its surface pushed in and out by broad lumps (`amp` of its radius, at
+  // `freq` lumps round it), wider than tall (`wide` across, `top` its upper half's height), its underside flatter
+  // (`bottom`), its faces lit by which way they face (`tones`: the leaf's × these, up, side, under); `variants` of them,
+  // each turned its own way on the page)
+  lobe: Object.freeze({ amp: 0.17, freq: Object.freeze([2.6, 4.3]), wide: 1.12, top: 0.92, bottom: 0.55, tones: Object.freeze([1.05, 0.84, 0.6]), variants: 3 }) });
+// a major ball as a crown's lobe (MASS_BLOB.lobe): a sphere twice subdivided, each corner moved by its own way out of the
+// middle alone (so the shared corners stay shared: the surface closed), its faces toned by which way they face
+function lobeTris(seed) {
+  const L = MASS_BLOB.lobe, h = (k) => hashN(seed * 977 + k), ph = Array.from({ length: 6 }, (_, k) => h(k) * Math.PI * 2);
+  const at = (q) => {
+    const l = Math.hypot(q[0], q[1], q[2]) || 1, d = [q[0] / l, q[1] / l, q[2] / l];
+    const b = 1 + L.amp * (Math.sin(L.freq[0] * d[0] + ph[0]) * Math.sin(L.freq[0] * d[1] + ph[1]) + 0.6 * Math.sin(L.freq[1] * d[2] + ph[2]) * Math.cos(L.freq[1] * d[0] + ph[3]) + 0.4 * Math.sin(L.freq[1] * d[1] + ph[4] + 2 * d[2]));
+    return [d[0] * L.wide * b, d[1] * L.wide * b, d[2] * (d[2] >= 0 ? L.top : L.bottom) * b].map(r4);
+  };
+  const leaf = TONES.leaf, tone = (k) => leaf.map((v) => Math.min(255, Math.round(v * L.tones[k] * MASS_BLOB.shade)));
+  return blobTris([0, 0, 0], [1, 1, 1], leaf, { detail: MASS_BLOB.ball }).map((t) => {
+    const p = t.p.map(at), u = [p[1][0] - p[0][0], p[1][1] - p[0][1], p[1][2] - p[0][2]], v = [p[2][0] - p[0][0], p[2][1] - p[0][1], p[2][2] - p[0][2]];
+    const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], nz = n[2] / (Math.hypot(...n) || 1);
+    return { p, c: tone(nz > 0.35 ? 0 : nz > -0.25 ? 1 : 2), kind: 'leaf' };
+  });
+}
 const CACHE = new Map();
 const b64 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64');
 const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
@@ -169,8 +190,10 @@ function treeTemplate(species, height, crowns = null) {
       const Q = budgeted({ ...F, clumps: kept0, sites: [] }, { clumpTris: xt, leanTris: xt, sprayTris: 0, woodTris: (F.wood.idx || []).length / 3 + (M ? M.blobs.length * blobGeo.n : 0), canLean: false });
       // (its crown's reach round its stem: its balls' or its bundles' farthest edge)
       const crownR = r4(Math.max(0.5, ...(M ? M.blobs : Q.clumps).map((b) => Math.hypot(b.p[0], b.p[1]) + (M ? b.s : b.s * 0.5))));
-      const T = { ...template('tree', species, { ...F, clumps: Q.clumps, sites: [] }, species), crownR, budget: tips ? { ...Q.budget, tris: (F.wood.idx || []).length / 3 + M.blobs.length * blobGeo.n } : Q.budget,
-        ...(M ? { blobs: packSites(M.blobs), nBlobs: M.blobs.length, blobGeo: [blobGeo] } : {}), ...(tips ? { leaves: false } : {}) };
+      // (a major ball drawn as a crown's lobe, MASS_BLOB.lobe: its variants, each ball one by its rank)
+      const ballGeo = tips ? Array.from({ length: MASS_BLOB.lobe.variants }, (_, k) => packGeo(lobeTris(17 + k))) : null;
+      const T = { ...template('tree', species, { ...F, clumps: Q.clumps, sites: [] }, species), crownR, budget: tips ? { ...Q.budget, tris: (F.wood.idx || []).length / 3 + M.blobs.length * ballGeo[0].n } : Q.budget,
+        ...(M ? { blobs: packSites(M.blobs), nBlobs: M.blobs.length, blobGeo: ballGeo ?? [blobGeo] } : {}), ...(tips ? { leaves: false } : {}) };
       // (far off the same wood as near: no limb drops and the trunk holds as the tree switches level)
       CACHE.set(key, { ...T, cross: true, woodFar: T.wood,
         clumpGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafCross(species, { seed: 17 + k, core }).tris)), ...(core ? { core: true } : {}), ...(masses ? { masses: true } : {}) });

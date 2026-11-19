@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { floraRead, floraBox, speciesFor, treeSizes, viewHeld, AUTUMN, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR, SKIRT_FLAG, APART } from './flora-read.js';
+import { floraRead, floraBox, speciesFor, treeSizes, viewHeld, AUTUMN, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR, SKIRT_FLAG, APART, MASS_BLOB } from './flora-read.js';
 import { LEAF_FORM_IDS } from '../era/leaf-forms.js';
 import { formLandScript } from '../scene/channels/form-land.js';
 
@@ -144,6 +144,10 @@ describe('trees apart (`crowns`)', () => {
     expect(kept.length).toBeLessThan(4);
     expect(kept.some((k) => k.x === 40)).toBe(true);
     for (let i = 0; i < kept.length; i++) for (let j = 0; j < i; j++) expect(Math.hypot(kept[i].x - kept[j].x, kept[i].y - kept[j].y)).toBeGreaterThanOrEqual((kept[i].R + kept[j].R) * APART.gap - 1e-3);
+    // (each major ball drawn as a crown's lobe: its variants, each its own shape, toned up, side and under)
+    const t0 = T.find((t) => t.leaves === false);
+    expect(t0.blobGeo.length).toBe(MASS_BLOB.lobe.variants);
+    expect(new Set(t0.blobGeo.map((g) => g.p)).size).toBe(MASS_BLOB.lobe.variants);
     // (a plain crown's trees stand as placed)
     expect(floraRead(grove, { kinds: grove.kinds, colours, bases }).n).toBe(4);
   }, 180000);

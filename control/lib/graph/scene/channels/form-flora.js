@@ -255,7 +255,8 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       for (const i of use) {
         const b = i * 12, G = geos[i % geos.length], p = new THREE.Vector3(S[b], S[b + 1], S[b + 2]), fo = new THREE.Vector3(S[b + 3], S[b + 4], S[b + 5]), d = new THREE.Vector3(S[b + 6], S[b + 7], S[b + 8]);
         const s = S[b + 9] * grow, tone = 0.62 + 0.38 * S[b + 10], r = S[b + 11];
-        if (kind === 'blob') q.identity();
+        // (a blob turned its own way round its upright, by its rank: no two balls of a crown alike)
+        if (kind === 'blob') q.setFromAxisAngle(AXZ, r * 7.3);
         else if (kind === 'clump' && pad === 'cross') {
           // (a cross, vegetation/twigs.js: its slot along d, its lying card's face o)
           const x = d.clone().normalize(), z = fo.clone().normalize(); q.setFromRotationMatrix(basis.makeBasis(x, z.clone().cross(x), z));
