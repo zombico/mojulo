@@ -897,6 +897,22 @@ given to the arena's block beside its client, which asks whether it was given on
   seat to play), drawn as a ring on the cell.
 - Its sheet and theme are scoped to its own root (`#mana-holo`); the theme sets no cover and no veil.
 
+### The side map's HUD
+
+A side map level (`gameworld/side-map/level.js`) of a game with a `ui` is given a HUD of its own
+(`gameworld/side-map/hud.js`), hosted by the level page's HUD host on its `sidemap` feed, in the game's look (Galaxy
+Boy's is the `galaxy` card: navy plates, a square edge, energy in yellow ticks, a boss's in red, a monospace face in
+capitals). It is read as the 8-bit action platformers read, and nothing else is over the play:
+
+- The hero's energy is a column of fine ticks at the top left, filling from the foot, split into one block a life (the
+  side map has no health of its own yet, so its lives are its energy).
+- The boss's column stands beside it once the boss is awake and near, and is gone a moment after it falls. Its name is
+  said across the top as it comes in.
+- READY flashes in the middle as the level starts and after a life is lost. The keys are key caps along the foot for
+  the first seconds.
+- It puts away the level's own rows (the lives chip, the boss's bar), the radar and the melee ring: a side scroller
+  reads its foes on the screen.
+
 ## In a headset
 
 A WebXR session shows no DOM, so mana-ui reaches a headset as a picture of itself, never a second drawing of it:

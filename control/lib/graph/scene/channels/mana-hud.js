@@ -50,16 +50,21 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   }
   const R = hud.feed && hud.feed.rows;
   const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp' : ''}{display:none!important}`;
+  // (a HUD of the level's own making may bring its parts' look over the theme: a side map's, gameworld/side-map/hud.js)
+  const sheetCss = hud.css ? `${css}\n${hud.css}` : css, SM = hud.feed && hud.feed.sidemap ? hud.feed.sidemap : null;
   return `
 // THE HUD on mana-ui (channels/mana-hud.js): the level's own spec over a state this page feeds
 (function () {
   const CFG = ${json({ spec: hud.spec, feed: hud.feed ?? {} })}, GAME = ${game ? 'true' : 'false'};
   const manaUi = ${manaUiSource()};
-  const sheet = document.createElement('style'); sheet.textContent = ${json(css)}; document.head.appendChild(sheet);
+  const sheet = document.createElement('style'); sheet.textContent = ${json(sheetCss)}; document.head.appendChild(sheet);
   // (laid over the scene's own frame, as the level's widgets were: a letterboxed scene keeps its HUD inside it)
   const root = document.createElement('div'); root.id = 'moj-mana-hud'; (document.getElementById('wrap') || document.body).appendChild(root);
   const F = CFG.feed, of = Math.max(1, Math.round((F.to || 0) - (F.from || 0)));
   const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [], hint: '' }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {} };
+  ${SM ? `// A SIDE MAP's columns (gameworld/side-map/hud.js): the lives, the boss's energy while it fights, READY, the keys at first
+  st.sm = { lives: F.sidemap.lives, bossOn: false, boss: F.sidemap.boss ? F.sidemap.boss.hp : 0, ready: true, keysOn: true, keys: F.sidemap.keys, moments: [] };
+  let smLives = -1, smReady = 2.4, smBoss = null, smOn = false, smOff = -1;` : ''}
   let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
   // a HUD part pressed (a level's button row): its event raised on the level's bus, as a key bound to it would
   // (a keyed one, game/screen-keys.js: that key pressed, heard by whatever listens for it)
@@ -148,6 +153,18 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
       else { cue = null; rt.close(); st.moments = st.moments.concat([{ id: 'go', text: F.cue.go, weight: 'major' }]); if (hintUntil > 0) hintUntil = clock + F.hint.seconds; }
     }
     st.hint.show = clock < hintUntil;
+    ${SM ? `// (the side map's: READY at the start and after a life lost; the keys for the first seconds; the boss's column once it
+    // is near and awake, its name said as it comes in, gone a moment after it falls)
+    if (V && V.lives != null) { if (smLives >= 0 && V.lives < smLives) smReady = clock + 2.2; smLives = V.lives; st.sm.lives = V.lives; }
+    st.sm.ready = clock < smReady; st.sm.keysOn = clock < 8;
+    if (F.sidemap.boss && V) {
+      if (smBoss === null) for (const k in V) if (/^boss_\\d+$/.test(k)) { smBoss = k; break; }
+      const bv = smBoss ? Number(V[smBoss]) : NaN, Bo = W && W.byId ? W.byId[F.sidemap.boss.id] : null;
+      if (Number.isFinite(bv)) st.sm.boss = Math.max(0, bv);
+      if (!smOn && Bo && me && !Bo.dormant && Math.hypot(Bo.transform.pos[0] - me.transform.pos[0], Bo.transform.pos[1] - me.transform.pos[1]) < 24) { smOn = true; st.sm.moments = st.sm.moments.concat([{ id: 'boss', text: F.sidemap.boss.name, weight: 'decisive' }]); }
+      if (smOn && st.sm.boss <= 0 && smOff < 0) smOff = clock + 1.5;
+      st.sm.bossOn = smOn && (smOff < 0 || clock < smOff);
+    }` : ''}
     // (the touch layer's word for its pad, when the page has one)
     // (a page whose touch layer draws itself still says whether it is up: a button for a touch screen alone reads it)
     const TT = window.__mojTouch; if (TT) { if (TT.view) st.touch = TT.view(); else st.touch.on = !!TT.on() && !window.__mojMenuOpen; }

@@ -29,6 +29,8 @@ import { sideMapPlay, SIDE_FALL } from './play.js';
 import { sideMapLamps } from './light.js';
 import { bodyLightOf, CEL_INK } from '../game-bodies.js';
 import { sideMapEnds, grownFoe } from './cast.js';
+import { sideMapHud } from './hud.js';
+import { interfaceLook } from '../../playscape/ui/interface-look.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 // (the foes' cues beside the systems' play: its lists joined, the rest the systems')
@@ -40,6 +42,9 @@ const mergePlay = (base, more) => {
 };
 
 /** A side map level's order: the stage's map laid for the world's hero and played by it. */
+// the boss stood in the last room (boss-cast.js): its body, its name and its health, off its defeat-all's bar
+const bossOf = (X) => { const m = (X?.mechanics ?? []).find((x) => x && x.kind === 'defeat-all' && x.bar); return m ? { id: m.bar.of, name: m.bar.label ?? m.label ?? '', hp: m.bar.hp } : null; };
+
 export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, title, mechanics = null, extra = null, foeFrom = [] } = {}) {
   if (!heroRef) throw new Error('levels: a side map is played by a hero seen from the side; give the world a hero (its characters)');
   const name = title ?? `${G.name ?? G.id} · ${stage.label ?? stage.level}`, stature = heroStature ?? SIDE_MAP_STATURE;
@@ -82,6 +87,9 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
     // (its crates break: the game's own degree where it says one, else `objects`, the action game's, crates.js)
     ...(L.crates?.length && !manifest0.destruction ? { destruction: mechanics?.destruction ?? 'objects' } : {}),
     game: { levelRef: ref, mechanics: [...goals, ...lives], fall: 'none' },
+    // ITS HUD (hud.js), where the game's screens are the game UI runtime's (its `ui`): the 8-bit action platformer's
+    // columns of ticks, the lives and the boss's energy, READY, the keys at first; in the game's look
+    ...(G.ui !== undefined ? { manaHud: sideMapHud({ theme: interfaceLook(G).theme, lives: G.mechanics?.lives ?? 3, boss: bossOf(X), keys: controls }) } : {}),
   };
   return { tool: 'create_sketch', args: { title: name, manifest }, laws: M.laws.map((l) => ({ ...l, id: `sidemap:${l.id}` })) };
 }
