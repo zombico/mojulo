@@ -95,7 +95,7 @@
  *     assist?: 'arcade' | 'sim',            // fly: never stalls, wings level quickly | the bank holds (absent: between)
  *     airspace?: { map?, ground?, course? }, // fly: the flight map (an island by default), as an airspace level takes it
  *     plots?: n, target?: n, days?: n,     // farm: plots (6), the gold to make (40), by which day (6)
- *     card?, challenge?, serve?: n,        // work: a starter (kitchen, farm, site, roof) or a Shovels & Buckets card;
+ *     card?, challenge?, serve?: n,        // work: a starter (kitchen and its menus: pasta, wok, ramen, diner, pizzeria; farm, site, roof) or a card;
  *                                           // beginner | intermediate | advanced | 0..1 (beginner); orders to serve
  *     cooks?: 1 | 2 | 4, kitchen?: 'split' | 'island', // work: cooks on one screen, each a seat (the cube's soul.seats), in a
  *                                           // kitchen of its own room (kitchen-level.js; worksim/kitchen.js: split, a pass

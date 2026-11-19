@@ -4,7 +4,12 @@
  *
  *   1. a thing whose words name a DISH (roster.js DISHES: sushi, a roll, a salad, a soup…) is that dish, its parts what
  *      its station takes;
- *   2. a thing whose words name an INGREDIENT is that ingredient: in the STATE its words say (sliced, cooked, crated…);
+ *      A dish that is its one take put through a station that runs alone (a pizza from a raw pizza, a bake from its
+ *      tray) is that take, browned;
+ *   2. a thing whose words name an INGREDIENT, made from several things, is that ingredient with the rest mixed through it
+ *      (fried rice: tossed in a pan where its station runs alone, else side by side on a plate); made from one thing or
+ *      none it is that ingredient: in the STATE its words say (sliced, cooked, crated…), the finer METHOD its words name
+ *      where its row has one (an egg boiled is halved);
  *      else, made from the same ingredient, in the state its station gives (a shovel that does not run alone: prepped;
  *      one that runs alone: cooked; a bucket of one thing: packed); else as it comes (wheat grown from seed is wheat);
  *   3. a thing no row names is read from its station: one thing taken, that thing in the station's state; two or more,
@@ -55,13 +60,22 @@ export function foodOf(card) {
     const dish = dishOf(ws);
     // (a dish's colours its parts': a dish that is a part of another reads as them, a salad in a roll as its greens)
     const dished = (d, ps) => ({ item, kind: 'dish', dish: d, arrangement: DISHES[d].arrangement, vessel: DISHES[d].vessel, parts: ps, state: 'whole', colours: ps.flatMap((p) => p.colours.slice(0, 1)) });
-    if (dish) L = dished(dish, parts());
+    // (a dish that is its one take put through the oven, a pizza from a raw pizza, a bake from its tray: the same,
+    // browned)
+    const again = dish && st && takes.length === 1 && st.wait ? look(takes[0], seen) : null;
+    if (again?.kind === 'dish') L = { ...again, item, state: 'cooked', browned: true };
+    else if (dish) L = dished(dish, parts());
     else {
       const ing = ingredientOf(ws);
-      if (ing) {
+      if (ing && st && takes.length > 1) {
+        // several things made into one that names its base (fried rice, chicken stir-fry): that base with the rest mixed
+        // through, tossed in a pan where the station runs alone, else side by side on a plate
+        const ps = parts().map((p) => (p.ingredient === ing ? { ...p, base: true } : p));
+        L = dished(st.wait ? 'tossed' : 'plate', ps);
+      } else if (ing) {
         const said = stateWord(ws), same = takes.length === 1 && ingredientOf(wordsOf(takes[0])) === ing;
         const state = said ?? (st && same ? stationState(st) : 'whole');
-        L = state === 'packed' ? packed(item, ing, look(takes[0] ?? item, seen), ws) : ingLook(item, ing, state);
+        L = state === 'packed' ? packed(item, ing, look(takes[0] ?? item, seen), ws) : ingLook(item, ing, state, ws);
       } else if (st && takes.length === 1) {
         const base = look(takes[0], seen), state = stationState(st);
         // (a block worked or run alone: its colour lighter or darker by the state, so it never looks as it came)
@@ -78,14 +92,21 @@ export function foodOf(card) {
   return out;
 }
 
+// one colour a share of the way to another
+function mix(a, b, k) {
+  const p = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }, A = p(a), Bc = p(b);
+  return '#' + A.map((v, i) => Math.round(v + (Bc[i] - v) * k).toString(16).padStart(2, '0')).join('');
+}
 // a colour moved toward black (k < 0) or white (k > 0)
 function shade(hex, k) {
   const n = parseInt(hex.slice(1), 16), ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(k < 0 ? v * (1 + k) : v + (255 - v) * k));
   return '#' + ch.map((v) => v.toString(16).padStart(2, '0')).join('');
 }
 function block(item) { return { item, kind: 'block', state: 'whole', form: 'block', colours: nameColour(item) }; }
-function ingLook(item, ing, state) {
-  const R = INGREDIENTS[ing], S = state === 'prepped' ? R.prepped : state === 'cooked' ? R.cooked : null;
+function ingLook(item, ing, state, ws = []) {
+  // (a method its words name finer than its state: an egg boiled is halved, a potato mashed is in a bowl)
+  const R = INGREDIENTS[ing], method = state !== 'whole' && R.methods ? ws.find((w) => R.methods[w]) : null;
+  const S = method ? R.methods[method] : state === 'prepped' ? R.prepped : state === 'cooked' ? R.cooked : null;
   if (state === 'burnt') return { item, kind: 'ingredient', ingredient: ing, family: R.family, state, form: 'burnt', colours: ['#2a2522'] };
   return { item, kind: 'ingredient', ingredient: ing, family: R.family, state, form: S ? S.form : R.form, colours: S ? S.colours : R.colours, ...(S?.vessel ? { vessel: S.vessel } : {}) };
 }
@@ -102,7 +123,10 @@ export function lookFaces(L) { return smooth(rawFaces(L)); }
 function rawFaces(L) {
   if (L.kind === 'dish') {
     const V = VESSEL_FORMS[L.vessel](), parts = L.parts.map((p) => (p.kind === 'ingredient' && p.state === 'whole' && p.family !== 'grain' && INGREDIENTS[p.ingredient]?.prepped ? { ...p, form: INGREDIENTS[p.ingredient].prepped.form, colours: INGREDIENTS[p.ingredient].prepped.colours } : p));
-    return [...V.faces, ...ARRANGE[L.arrangement](parts, V.top, rawFaces)];
+    const made = ARRANGE[L.arrangement](parts, V.top, rawFaces);
+    // (browned in the oven: what is on the vessel toward a crust's brown, its vessel as it was)
+    const brown = (c) => mix(c, '#9a5d2e', 0.32);
+    return [...V.faces, ...(L.browned ? made.map((f) => ({ ...f, fill: brown(f.fill), ...(f.round ? { round: brown(f.round) } : {}) })) : made)];
   }
   if (L.state === 'packed') {
     const V = VESSEL_FORMS[L.vessel]();
@@ -112,7 +136,7 @@ function rawFaces(L) {
   const body = FORMS[L.form](L.colours);
   if (!L.vessel) return body;
   const V = VESSEL_FORMS[L.vessel]();
-  return [...V.faces, ...lift(body, [0, 0, V.top - 0.02], 0.85)];
+  return [...V.faces, ...lift(body, [0, 0, V.top], 0.85)];
 }
 
 const lift = (faces, [dx, dy, dz], k = 1) => faces.map((f) => ({ ...f, corners: f.corners.map(([x, y, z]) => [x * k + dx, y * k + dy, z * k + dz]) }));

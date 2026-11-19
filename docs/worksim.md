@@ -272,6 +272,21 @@ already says what each thing is made of:
   packs it. Otherwise it is as it comes (wheat grown from seed is wheat).
 - A thing no row names is read from its station, else drawn as a block in a colour from its name.
 
+The kitchen has menus beside the sushi counter, each a recipe shape of its own (`worksim/scenarios.js`):
+
+| menu | its shape |
+|---|---|
+| pasta | the pasta and its sauce run alone in two pots at once and meet on the plate (spaghetti, twirled under its sauce); or layered in a tray and baked again (a pasta bake, browned) |
+| wok | a cooker's rice and a pot's noodles, the prep, and a wok that burns if left: fried rice (the rice with the rest mixed through), chow mein |
+| ramen | a stock that runs long and keeps, noodles and eggs boiled, pork sliced: four things in every bowl |
+| diner | a grill that burns, a fryer (fries upright in their cup), the salad cut, a burger stacked; a meal wants a burger and fries |
+| pizzeria | dough kneaded and rolled, a sauce simmered, cheese grated, the pizza topped (in layers) and baked (browned) |
+
+The dish arrangements beside them: a twirl, a toss, a bake in its tray, a curry beside its rice, a fold, dumplings,
+skewers, a soup with its noodles, egg halves and slices, a pizza in layers. A thing several things are cooked into that
+names its base ("fried rice") is that base with the rest mixed through. A dish put through an oven comes out browned.
+An ingredient's finer method (an egg boiled is halved, a potato mashed is in a bowl) is a row's `methods`.
+
 The rows are in `food/roster.js` (ingredients and their prepped and cooked looks, states, dishes, vessels), so a new
 food is a row. The forms (`food/forms.js`) are face lists from the lathe, box and prism, the glyph shelf's discipline:
 built at glyph scale and placed at a size (`foodFaces`). Rounds are shaded smooth, a corner at a time, with creases kept
@@ -281,6 +296,9 @@ review sheet is `node scripts/render-food.mjs <dir> [card|all]`. Whether it read
 
 ## How it joins next (not built)
 
+- **Balancing a split kitchen's sides by their work.** A split lays prep on one side and everything that takes a made
+  thing on the other, so a long chain (the pizzeria's roll, simmer, top and bake) lands on one cook: tuned for two
+  cooks, the pizzeria serves four orders a shift. A layout that shares the stations out by their labour.
 - **The food on the page.** On its crate, on the station working it, on a shelf or a pass, carried over the cook,
   on the order rail.
 - **Seats, the rest.** A spot that holds any one thing (a plate), the

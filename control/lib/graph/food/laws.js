@@ -13,7 +13,7 @@
 import { foodOf, lookFaces, bounds } from './derive.js';
 
 // (a dish by its arrangement, its vessel and every part's colour; a thing by its form, its vessel and its first colour)
-const sig = (L) => [L.kind === 'dish' ? `dish:${L.arrangement}` : L.form, L.vessel ?? '', ...(L.kind === 'dish' ? L.colours : (L.colours ?? []).slice(0, 1))].join('|');
+const sig = (L) => [L.kind === 'dish' ? `dish:${L.arrangement}${L.browned ? ':browned' : ''}` : L.form, L.vessel ?? '', ...(L.kind === 'dish' ? L.colours : (L.colours ?? []).slice(0, 1))].join('|');
 
 export function foodLaws(card) {
   const F = foodOf(card), items = Object.keys(F), laws = [];

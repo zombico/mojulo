@@ -56,4 +56,13 @@ station to station and handed between them.
   corners cut, each face lit as it faces). Laws, advised: every thing drawn, a card's things told apart, made unlike what it
   was made from, each in its box. Review: `node scripts/render-food.mjs <dir> [card|all]`, a captioned sheet raw → made
   → dishes. The kitchen's eyes gate is the operator's; the food is not on the page yet.
+- **More recipes.** The kitchen gains menus beside the sushi counter, each a recipe shape (`worksim/scenarios.js`):
+  `pasta` (pasta and sauce in two pots met on the plate; a tray layered and baked again), `wok` (fried rice and chow
+  mein tossed in a wok that burns), `ramen` (a long stock, noodles and eggs boiled, pork sliced, a bowl of four),
+  `diner` (a grill, a fryer, a burger stacked; a meal wants a burger and fries), `pizzeria` (dough kneaded and rolled,
+  sauce, cheese, topped and baked). The food shelf draws them: arrangements for pasta twirled under its sauce, a toss, a
+  bake in a tray, a curry beside its rice, a fold, dumplings, skewers, a soup with its noodles, egg halves and slices, a
+  pizza in layers; a thing several things are cooked into that names its base is that base with the rest mixed through
+  (fried rice); a dish put through an oven comes out browned; an ingredient's finer method is a row (an egg boiled is
+  halved); poultry, pork, dough, bones, tofu and fries are rows. Every starter's food holds every law (a deep sweep).
 

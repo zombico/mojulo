@@ -54,5 +54,19 @@ describe('the food, read off the card', () => {
     const fillet = Object.values(F).find((L) => L.form === 'fillet'), tris = lookFaces(fillet).filter((f) => new Set(f.corners.map(String)).size === 3);
     expect(tris.length).toBeGreaterThanOrEqual(8);
   });
+  it('a method finer than its state where the row has one: an egg boiled is halved, fried is fried', () => {
+    const F = foodOf(card({ pot: { verb: 'shovel', takes: { egg: 1 }, gives: { 'boiled-egg': 1 }, work: 1, wait: 3 }, pan: { verb: 'shovel', takes: { egg: 1 }, gives: { 'fried-egg': 1 }, work: 1, wait: 3 } }, { 'boiled-egg': 1 }));
+    expect([F['boiled-egg'].form, F['fried-egg'].form]).toEqual(['halved', 'fried']);
+  });
+  it('several things made into one that names its base: tossed in the pan where it runs alone (fried rice), its base marked', () => {
+    const F = foodOf(card({ pot: { verb: 'shovel', takes: { rice: 1 }, gives: { 'cooked-rice': 1 }, work: 1, wait: 3 }, wok: { verb: 'shovel', takes: { 'cooked-rice': 1, carrot: 1 }, gives: { 'fried-rice': 1 }, work: 1, wait: 3 } }, { 'fried-rice': 1 }));
+    expect(F['fried-rice']).toMatchObject({ kind: 'dish', arrangement: 'tossed' });
+    expect(F['fried-rice'].parts.find((p) => p.base).item).toBe('cooked-rice');
+  });
+  it('a dish put through an oven is that dish browned, told apart from it', () => {
+    const F = foodOf(card({ top: { verb: 'bucket', takes: { dough: 1, cheese: 1 }, gives: { 'raw-pizza': 1 }, work: 1 }, oven: { verb: 'shovel', takes: { 'raw-pizza': 1 }, gives: { pizza: 1 }, work: 1, wait: 3 } }, { pizza: 1 }));
+    expect([F['raw-pizza'].browned, F.pizza.browned]).toEqual([undefined, true]);
+    expect(lookFaces(F.pizza).map((f) => f.fill)).not.toEqual(lookFaces(F['raw-pizza']).map((f) => f.fill));
+  });
 });
 
