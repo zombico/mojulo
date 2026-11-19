@@ -83,3 +83,46 @@ describe('the ways through', () => {
     expect(R.sneak.waits).toBe(0);
   });
 });
+
+describe('a guard only a takedown passes', () => {
+  // a lane walled across with a cut in its middle; a sentry paces from the cut out north and back, looking wide, feeling a
+  // body within three metres, and turning all the way round at each end; a clump of grass beside the cut to wait in; the
+  // goal well past his far end (one a step past it is reached as he starts to turn)
+  const sentry = { id: 'sentry', at: [4.5, 15], to: [4.5, 25], speed: 1.1, cone: 1.1, range: 16, hear: 7, near: { r: 3, back: 100 }, look: { secs: 6 } };
+  const boxes = [{ min: [0, 14.8, 0], max: [3.4, 15.2, 1.2] }, { min: [5.6, 14.8, 0], max: [9, 15.2, 1.2] }];
+  const place = { bounds: [0, 0, 9, 40], start: [4.5, 2], goal: [4.5, 38], seconds: 120, boxes, veils: [{ at: [1.6, 12], r: 1.6, h: 1.2 }], watchers: [sentry] };
+  it('a patrol\'s look round: it stands at its end and turns all the way round, one way, and on to face back', () => {
+    const T = 10 / 1.1, a = watcherAt(sentry, T + 0.01), b = watcherAt(sentry, T + 3), c = watcherAt(sentry, T + 6 - 0.01);
+    expect(a.pos).toEqual([4.5, 25]); expect(a.looking).toBe(true);
+    expect(b.heading - a.heading).toBeCloseTo(1.5 * Math.PI, 1);
+    expect(Math.cos(c.heading - Math.PI / 2)).toBeCloseTo(-1, 2);        // (on to face back)
+    expect(watcherAt(sentry, T + 7).pos[1]).toBeLessThan(25);             // (and walks back)
+    expect(watcherAt({ ...sentry, look: undefined }, T + 1).looking).toBeUndefined();
+  });
+  it('near: a body within reach is seen at his side, never square behind him while he walks; all round while he looks round', () => {
+    const at = (t) => watcherAt(sentry, t).pos;
+    expect(sees({ ...sentry, near: undefined }, [at(2)[0] + 2, at(2)[1]], E.crouch.eye, 2, [])).toBe(false);   // (out of the cone)
+    expect(sees(sentry, [at(2)[0] + 2, at(2)[1]], E.crouch.eye, 2, [])).toBe(true);                           // (at his side)
+    expect(sees(sentry, [at(2)[0], at(2)[1] - 2], E.crouch.eye, 2, [])).toBe(false);                          // (square behind)
+    const T = 10 / 1.1, h = watcherAt(sentry, T + 1).heading, P = [4.5 - 2 * Math.cos(h), 25 - 2 * Math.sin(h)];
+    expect(sees(sentry, P, E.crouch.eye, T + 1, [])).toBe(true);                                                // (behind, as he looks round)
+  });
+  it('the cut on his line, the open ground swept as he turns: no way past him standing; one with him taken down from behind', () => {
+    const R = sneakRoutes({ ...place, takedown: { by: ['sentry'] }, needs: 'takedown' }), law = (id) => R.verdicts.find((v) => v.law === id);
+    expect(law('the-first-try-is-seen').holds).toBe(true);
+    expect(law('no-way-past-standing').holds, law('no-way-past-standing').says).toBe(true);
+    expect(law('a-takedown-opens-it').holds, law('a-takedown-opens-it').says).toBe(true);
+    // (taken from the arc behind him, within reach, and never seen before it)
+    const D = R.taken.down, g = watcherAt(sentry, D.t), dx = D.at[0] - g.pos[0], dy = D.at[1] - g.pos[1], d = Math.hypot(dx, dy);
+    expect(d).toBeLessThanOrEqual(1.5);
+    expect(-(Math.cos(g.heading) * dx + Math.sin(g.heading) * dy) / d).toBeGreaterThanOrEqual(Math.cos((50 * Math.PI) / 180));
+    for (const p of R.taken.path.filter((q) => q.t < D.t)) expect(sees(sentry, p.at, E[p.stance].eye, p.t, boxes, place.veils), `at ${p.t} s`).toBe(false);
+    // (and the same place without the takedown has no way: the takedown is what opens it)
+    expect(sneakRoutes(place).sneak).toBeNull();
+  }, 120_000);
+  it('two bodies never share ground: no way passes within a body\'s width of a watcher on its feet', () => {
+    const R = sneakRoutes({ bounds: [0, 0, 9, 30], start: [4.5, 1], goal: [4.5, 29], seconds: 120, watchers: [{ id: 'p', at: [0.5, 15], to: [8.5, 15], speed: 1.6, cone: 0.3, range: 3, hear: 0 }] });
+    for (const p of R.sneak.path) { const g = watcherAt({ at: [0.5, 15], to: [8.5, 15], speed: 1.6 }, p.t); expect(Math.hypot(p.at[0] - g.pos[0], p.at[1] - g.pos[1])).toBeGreaterThanOrEqual(0.7); }
+  });
+});
+

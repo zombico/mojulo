@@ -99,9 +99,32 @@
       },
       "to": {
         "trail": 66,
-        "off": -21
+        "off": -8
       },
-      "reads": "walks the front of the checkpoint"
+      "reads": "walks the front of the checkpoint, the gate and the slot by the truck (the west wire is the sentry's)"
+    },
+    {
+      "id": "west-sentry",
+      "kind": "patrol",
+      "at": {
+        "trail": 68.3,
+        "off": -18.5
+      },
+      "to": {
+        "trail": 79,
+        "off": -13
+      },
+      "speed": 1.1,
+      "reads": "paces from the cut in the west wire out north across open ground and back, slowly, looking wide (a sentry's cone, 63° either side, 16 m across the open, and within three metres anywhere but square behind him: `near`, so he is not circled), and at each end of his beat stands and turns all the way round before he walks back (`look`, six seconds): one end in the cut itself, where no body gets past him, and one in the open, where a body that followed him out is found wherever it lies. So the west way is his takedown: wait in the grass by the cut while he looks round in it, follow him out as he walks north, E behind him before he reaches the far end",
+      "cone": 1.1,
+      "range": 16,
+      "look": {
+        "secs": 6
+      },
+      "near": {
+        "r": 3,
+        "back": 100
+      }
     },
     {
       "id": "gate-lookout",
@@ -169,6 +192,30 @@
       "window": [
         50,
         84
+      ]
+    },
+    {
+      "id": "checkpoint-west",
+      "reads": "the left of the field alone, west of the truck (the slot's grass by the truck is the middle way's): a sentry paces from the cut in the west wire out north and back, so the west way is passed only once he is down, come up on from behind as he walks out",
+      "from": {
+        "trail": 54,
+        "off": -16
+      },
+      "to": {
+        "trail": 84,
+        "off": -16
+      },
+      "window": [
+        50,
+        88
+      ],
+      "off": [
+        -30,
+        -12.5
+      ],
+      "needs": "takedown",
+      "takedown": [
+        "west-sentry"
       ]
     },
     {
@@ -244,6 +291,13 @@
         "off": 0
       },
       "says": "A checkpoint ahead: sandbags with a gate on the trail, wire either side, a tower over it. Wait for a patrol's back, or find the long way round."
+    },
+    {
+      "at": {
+        "trail": 58,
+        "off": -17
+      },
+      "says": "A sentry paces from the cut in the west wire out into the open and back, and looks round at each end. Hide in the grass by the cut while he looks, follow him out as he walks away, and E behind him takes him down before he turns."
     },
     {
       "at": {
@@ -481,42 +535,18 @@
       "r": 1.7
     },
     {
-      "id": "cut-south-2",
+      "id": "cut-approach",
       "at": {
-        "trail": 60,
-        "off": -18.5
+        "trail": 55.5,
+        "off": -17
       },
       "r": 2.4
     },
     {
-      "id": "cut-south-1",
+      "id": "cut-wait",
       "at": {
-        "trail": 64.3,
-        "off": -18.5
-      },
-      "r": 2.4
-    },
-    {
-      "id": "cut",
-      "at": {
-        "trail": 68,
-        "off": -18.5
-      },
-      "r": 1.4
-    },
-    {
-      "id": "cut-north-1",
-      "at": {
-        "trail": 71.7,
-        "off": -18.5
-      },
-      "r": 2.4
-    },
-    {
-      "id": "cut-north-2",
-      "at": {
-        "trail": 76,
-        "off": -18
+        "trail": 64.5,
+        "off": -22
       },
       "r": 2.4
     },
@@ -584,7 +614,7 @@
   },
   "cubeReads": "the jungle haze's look on open ground: no cliff walling the trail (a field both sides); the upland's lone trees grown into a dozen stands of two to four, seven to twelve metres tall, kept six metres off the trail's line (clear of the wider track), so the gorge reads wooded without a jungle's cost",
   "grassElsewhere": "meadow",
-  "checkpointReads": "a line across the whole field: wire to its edges, sandbags either side of a gate on the trail, a tower over the gate, the truck parked on the line with a slot beside it; and a cut in the west wire, screened by tall grass both sides, that the patrol along the line walks past",
+  "checkpointReads": "a line across the whole field: wire to its edges, sandbags either side of a gate on the trail, a tower over the gate, the truck parked on the line with a slot beside it (the line's patrol walks the gate and the slot); and a cut in the west wire that a sentry walks through and back, its way passed only by taking him down from behind (grass on the approach, and a clump beside his round to wait in)",
   "gorge": {
     "west": -7.5,
     "east": 29.5,

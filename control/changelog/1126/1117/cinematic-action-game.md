@@ -352,3 +352,31 @@ or a recipe key; the spike mints through the real doors and measures.
 - **Trees back on level 0** (the level's cube: the upland's lone trees grown into a dozen stands of two to four, seven
   to twelve metres): the gorge wooded again without the jungle's cost; the sneak's laws hold as before (each way still
   seen first, an unseen way and a second one at both places).
+- **The checkpoint's left side is a takedown** (level 0, `west-sentry`): a sentry paces from the cut in the west wire
+  out across open ground and back, slowly, looking wide, and turns all the way round at each end of his beat; one end is
+  in the cut itself, where no body gets past him, and the far end is in the open, where a body that followed him out is
+  found wherever it lies. So the west way is passed only by taking him down: wait in the grass by the cut while he looks
+  round in it, follow him out as he walks away, and E behind him before he turns. The line's patrol keeps to the gate
+  and the slot; the grass that ran through the cut is gone (on his line it hid no one), a clump beside the cut and one
+  on the approach in its place; the takedown's hint is said where the west way begins. The planner proves it (below):
+  the straight way is seen, no way passes him standing, and a way opens with him taken down from behind.
+- **A patrol's look round** (foe.js `patrol.look: { secs? }`, opt-in): at each end of its round it stands and turns all
+  the way round, one way, and on to face back (540° in `secs`, 6 unless said), then walks back. One that looked to one
+  side and back would leave a sector unswept to lie in; all the way round, a body behind it would have to keep pace
+  round it. Absent, a patrol turns on the spot as it always did.
+- **A guard's reach at arm's length** (mind.js and foe.js `rule.near: { r?, back? }`, opt-in): a body within `r` metres
+  is seen whatever way the guard faces, unless it stands in the `back` degrees square behind him (the arc a takedown
+  comes from), and that only while he walks: stopped to look round, he feels it all round. A body can no longer circle
+  a guard at his elbow out of his cone; one coming up square behind a walking guard still can.
+- **Level 0's patrols walk the rounds the planner proved**: a patrol was laid with its round's length and no ends, so the
+  runtime walked a round centred where it stood (the gate's patrol, planned from 64 m up the trail to 77, walked from 57
+  to 70); its ends are now given, `at` to `to`.
+- **The planner knows a takedown** (gameworld/stealth-routes.js): a way may come up on a named watcher from the arc
+  behind it, within reach and never seen, standing or crouched, and put it down (the runtime's own numbers, takedown.js);
+  from then on that watcher sees and hears nothing. A place that `needs: 'takedown'` is judged by three laws, the
+  straight way seen, no way past standing and a takedown that opens it, each with room to spare (every watcher wider by
+  a margin, so a way along a cone's edge at the instant a guard turns, which no player can find, is said and not
+  counted). A point may be searched in a lane, a band of the field to one side of the trail (`off: [lo, hi]`). And the
+  search is truer for every place: two bodies never share ground (a way no longer slips through a guard as it turns),
+  a move that takes more than a tick is unseen at every tick of it, and a patrol's look round and a guard's reach at
+  arm's length are read as the runtime has them.

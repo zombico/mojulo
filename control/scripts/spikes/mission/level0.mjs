@@ -51,7 +51,7 @@ const facts0 = o.has('--plan') && fss.existsSync(factsFile) ? JSON.parse(fss.rea
 const spine = facts0?.spine ? spineOf(facts0.spine) : spineFrom(assembleStageScene(stage).faces);
 const L = placeRecipe(L0, spine);
 const cover = coverOf(L);
-const report = (plan) => { for (const P of plan.points) { const R = P.routes, w = (x) => (x ? `${x.seconds} s (waits ${x.waits}, crouches ${x.crouch} m, crawls ${x.crawl} m, ${x.detour}× the straight way)` : 'none'); console.log(`level 0: ${P.id}: first try ${R.direct?.seen ? `seen by ${R.direct.seen.by} after ${R.direct.seen.t} s` : 'not seen'} · unseen ${w(R.sneak)} · second ${w(R.other)}`); } for (const l of plan.laws) console.log(`level 0:   ${l.holds ? 'holds' : 'ADVISED'} · ${l.law}: ${l.says}`); };
+const report = (plan) => { for (const P of plan.points) { const R = P.routes, w = (x) => (x ? `${x.seconds} s (waits ${x.waits}, crouches ${x.crouch} m, crawls ${x.crawl} m, ${x.detour}× the straight way)` : 'none'); console.log(`level 0: ${P.id}: first try ${R.direct?.seen ? `seen by ${R.direct.seen.by} after ${R.direct.seen.t} s` : 'not seen'} · unseen ${w(R.sneak)} · second ${w(R.other)}${R.taken ? ` · with a takedown ${R.taken.down ? `(${R.taken.down.by} at ${R.taken.down.t} s) ` : ''}${w(R.taken)}` : ''}`); } for (const l of plan.laws) console.log(`level 0:   ${l.holds ? 'holds' : 'ADVISED'} · ${l.law}: ${l.says}`); };
 const fieldOf = (colliders) => { const B = colliders.filter((c) => /^bound:/.test(c.of ?? '')); return B.length === 4 ? [Math.min(...B.map((c) => c.max[0])), Math.min(...B.map((c) => c.max[1])), Math.max(...B.map((c) => c.min[0])), Math.max(...B.map((c) => c.min[1]))] : [-8, 0, 30, 75.5]; };
 
 if (facts0) {
@@ -138,7 +138,10 @@ payload.entities = payload.entities.map((e) => {
   const w = W[e.id]; if (!w) return e;
   const to = w.kind === 'patrol' ? w.to : w.facing, heading = Math.atan2(to[1] - w.at[1], to[0] - w.at[0]);
   return { ...e, rule: { ...e.rule, alarm, speed: w.kind === 'patrol' ? (w.speed ?? GUARD.speed) : 0, sightCone: w.cone ?? GUARD.cone, sightRange: w.range ?? GUARD.range,
-    foe: { ...e.rule.foe, stretch: w.kind === 'patrol' ? +Math.hypot(to[0] - w.at[0], to[1] - w.at[1]).toFixed(2) : 10 }, ...(w.on ? { guardRadius: 0.3 } : {}) }, transform: { pos: deckOf(w) != null ? r2([w.at[0], w.at[1], deckOf(w) + 0.05]) : on(w.at, 0.2), heading } };
+    // (a patrol walks its round from `at` to `to` and back, as the planner walks it: its ends given, never a stretch
+    // centred on where it stands; and its look round at each end where it says one)
+    foe: { ...e.rule.foe, stretch: w.kind === 'patrol' ? +Math.hypot(to[0] - w.at[0], to[1] - w.at[1]).toFixed(2) : 10, ...(w.kind === 'patrol' ? { ends: [on(w.at, 0.2), on(to, 0.2)] } : {}),
+      ...(w.look ? { patrol: { ...(e.rule.foe?.patrol ?? {}), look: w.look } } : {}) }, ...(w.on ? { guardRadius: 0.3 } : {}), ...(w.near ? { near: w.near } : {}) }, transform: { pos: deckOf(w) != null ? r2([w.at[0], w.at[1], deckOf(w) + 0.05]) : on(w.at, 0.2), heading } };
 });
 console.log(`level 0: start ${on(L.start)} · exit ${on(L.exit)} · watchers ${watchersOf(L).map((w) => w.id).join(', ')} · parked ${parkedIds.length} · laid ${cover.laid.length} · form ${payload.form ? 'yes' : 'NO'}`);
 const page = await writePage(payload, room, path.join(out, 'level-0-approach.html'), { capture: o.has('--capture'), events: { ...(room.manifest.events ?? {}), hud: [] } });

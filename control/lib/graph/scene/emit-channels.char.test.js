@@ -804,6 +804,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // stands inside its round, the pads fill from the screen's edge, the HUD's bottom corners stand over a pad, a region
 // whose every part is gated off draws no plate, and a glass theme no longer blurs behind a bare region; neither page
 // draws a touch pad or an empty region, and every other fixture holds byte for byte.
+// Re-pinned 2026-11-19 a seventh time (1117-cinematic-action-game: a guard's reach at arm's length): the seventeen
+// fixtures whose page embeds the controllable runtime. A mind's perceive (mind.js) takes an opt-in `rule.near`: a body
+// within its reach is seen whatever way it faces, unless square behind it while it walks (and all round while a patrol
+// looks round, foe.js `patrol.look`). No fixture's mind carries `near`, so every sight is the cone's as it was; only the
+// runtime's text moved. foe.js's look round is emitted only where a world stands a foe, and no fixture does.
 // Re-pinned 2026-11-19 a sixth time (1117-mana-ui-talking-heads merged into 1117-cinematic-action-game): the fixtures
 // whose page inlines text either side had moved since (that side: the talk box on mana-ui and its talking faces, a game
 // UI's root laid in the scene's frame, the radar's plan at the floor a level stands on, every shooter's HUD; this side:

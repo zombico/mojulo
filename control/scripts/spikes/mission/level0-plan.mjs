@@ -35,6 +35,7 @@ export function spineOf(samples) {
 }
 /** The recipe with every place said along the trail (`{ trail, off }`: metres up it from its head, metres to its side,
  *  east positive) set down as [x, y] on this land's trail; a place already [x, y] stays as it is. */
+const laneOf = (spine, [y0, y1], [lo, hi]) => { let a = Infinity, b = -Infinity; for (let y = y0; y <= y1; y += 1) { a = Math.min(a, spine.x(y) + lo); b = Math.max(b, spine.x(y) + hi); } return [+a.toFixed(2), +b.toFixed(2)]; };
 export function placeRecipe(L, spine) {
   const at = (p) => (Array.isArray(p) ? p : p && typeof p === 'object' ? [+(spine.x(p.trail) + (p.off ?? 0)).toFixed(2), p.trail] : p);
   const structures = (L.structures ?? []).map((t) => ({ ...t, ...(t.at ? { at: at(t.at) } : {}), ...(t.from ? { from: at(t.from), to: at(t.to) } : {}) }));
@@ -42,7 +43,9 @@ export function placeRecipe(L, spine) {
   const posted = (w) => (w.on ? (structures.find((t) => t.id === w.on) ?? {}).at : at(w.at));
   return { ...L, structures, start: at(L.start), exit: at(L.exit), ...(L.backup ? { backup: { ...L.backup, from: at(L.backup.from) } } : {}),
     cover: L.cover.map((c) => ({ ...c, at: at(c.at) })), watchers: L.watchers.map((w) => ({ ...w, at: posted(w), ...(w.to ? { to: at(w.to) } : {}), ...(w.facing ? { facing: at(w.facing) } : {}) })),
-    points: L.points.map((P) => ({ ...P, from: at(P.from), to: at(P.to) })), hints: L.hints.map((h) => ({ ...h, at: at(h.at) })), ...(L.supplies ? { supplies: L.supplies.map((x) => ({ ...x, at: at(x.at) })) } : {}),
+    // (a point searched in a LANE, `off: [lo, hi]`: metres to the trail's side, the band of the field it may go through,
+    // laid as the trail's own x either side over its window)
+    points: L.points.map((P) => ({ ...P, from: at(P.from), to: at(P.to), ...(P.off ? { lane: laneOf(spine, P.window, P.off) } : {}) })), hints: L.hints.map((h) => ({ ...h, at: at(h.at) })), ...(L.supplies ? { supplies: L.supplies.map((x) => ({ ...x, at: at(x.at) })) } : {}),
     // (its tall grass, each patch's middle along the trail too: form/tall-grass.js)
     ...(L.grass ? { grass: L.grass.map((g) => ({ ...g, at: at(g.at) })) } : {}) };
 }
@@ -102,7 +105,7 @@ export function coverBoxes(L, colliders = []) {
 export function watchersOf(L) {
   // (a watcher posted on a tower sees from its deck)
   const up = (w) => { const T = w.on && (L.structures ?? []).find((t) => t.id === w.on); return T ? (T.height ?? STRUCTURE.tower.height) : 0; };
-  return L.watchers.map((w) => ({ id: w.id, at: w.at, elevation: up(w), ...(w.kind === 'patrol' ? { to: w.to, speed: w.speed ?? GUARD.speed } : { heading: Math.atan2(w.facing[1] - w.at[1], w.facing[0] - w.at[0]) }),
+  return L.watchers.map((w) => ({ id: w.id, at: w.at, elevation: up(w), ...(w.near ? { near: w.near } : {}), ...(w.kind === 'patrol' ? { to: w.to, speed: w.speed ?? GUARD.speed, ...(w.look ? { look: w.look } : {}) } : { heading: Math.atan2(w.facing[1] - w.at[1], w.facing[0] - w.at[0]) }),
     cone: w.cone ?? GUARD.cone, range: w.range ?? GUARD.range, eye: GUARD.eye + up(w), hear: w.hear ?? GUARD.hear }));
 }
 
@@ -113,7 +116,9 @@ export function grassVeils(L) { const T = readTallGrass(tallGrassOf(L)); return 
 export function planLevel(L, colliders = [], field = [-8, 0, 30, 75.5]) {
   const boxes = coverBoxes(L, colliders), watchers = watchersOf(L);
   const points = L.points.map((P) => ({ id: P.id, reads: P.reads,
-    routes: sneakRoutes({ bounds: [field[0], P.window[0], field[2], P.window[1]], boxes, veils: grassVeils(L), watchers, start: P.from, goal: P.to, goalRadius: 2, seconds: P.seconds ?? 240 }) }));
+    // (a lane's bounds its own band of the field; `needs: 'takedown'` a place only a takedown of one of `takedown` opens)
+    routes: sneakRoutes({ bounds: [P.lane ? Math.max(field[0], P.lane[0]) : field[0], P.window[0], P.lane ? Math.min(field[2], P.lane[1]) : field[2], P.window[1]], boxes, veils: grassVeils(L), watchers, start: P.from, goal: P.to, goalRadius: 2, seconds: P.seconds ?? 240,
+      ...(P.takedown ? { takedown: { by: P.takedown } } : {}), ...(P.needs ? { needs: P.needs } : {}) }) }));
   return { boxes, watchers, points, laws: points.flatMap((P) => P.routes.verdicts.map((v) => ({ ...v, law: `${P.id}: ${v.law}` }))) };
 }
 
