@@ -8,7 +8,7 @@
  *
  *   cd control
  *   node scripts/spikes/mission/level0.mjs --out /abs/dir [--plan] [--hero <ref>] [--guard <ref>] [--vault …] [--roll …]
- *     [--climb …] [--crouch a,b] [--prone a,b] [--next level-1-perimeter.html] [--capture]
+ *     [--climb …] [--crouch a,b] [--prone a,b] [--next level-1-perimeter.html] [--capture] [--cdn]
  *
  * `--plan`: the plan alone (its laws printed, its map written as level-0-plan.svg), no page; it needs the land's facts,
  * kept beside the page from the last build (level-0-facts.json), else it lays the land first. A change to level0.json is
@@ -179,6 +179,6 @@ payload.entities = payload.entities.map((e) => {
       ...(w.look ? { patrol: { ...(e.rule.foe?.patrol ?? {}), look: w.look } } : {}) }, ...(w.on ? { guardRadius: 0.3 } : {}), ...(w.near ? { near: w.near } : {}) }, transform: { pos: deckOf(w) != null ? r2([w.at[0], w.at[1], deckOf(w) + 0.05]) : on(w.at, 0.2), heading } };
 });
 console.log(`level 0: start ${on(L.start)} · exit ${on(L.exit)} · watchers ${watchersOf(L).map((w) => w.id).join(', ')} · parked ${parkedIds.length} · laid ${cover.laid.length} · form ${payload.form ? 'yes' : 'NO'}`);
-const page = await writePage(payload, room, path.join(out, 'level-0-approach.html'), { capture: o.has('--capture'), events: { ...(room.manifest.events ?? {}), hud: [] } });
+const page = await writePage(payload, room, path.join(out, 'level-0-approach.html'), { capture: o.has('--capture'), cdn: o.has('--cdn'), events: { ...(room.manifest.events ?? {}), hud: [] } });
 console.log(`level 0: ${page.file} (${page.mb} MB) · entities ${payload.entities.map((e) => e.id).join(', ')}`);
 process.exit(0);
