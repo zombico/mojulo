@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { treeForm, massCrown, tipBlobs, anchorBlobs, majorBalls, TREE_FORM, SLEEVE, MASSES, TIP_BLOBS, BLOB_HOLD, CANOPY, BALLS, EVOKE, limbTree } from './tree-form.js';
+import { treeForm, massCrown, tipBlobs, anchorBlobs, majorBalls, TREE_FORM, SLEEVE, MASSES, TIP_BLOBS, BLOB_HOLD, CANOPY, BALLS, EVOKE, limbTree, limbAt, branchClouds, CLOUD } from './tree-form.js';
 import { BARK_TILE_M } from '../vegetation/tiles.js';
 import { leafHolds, needleHabit } from '../vegetation/sprays.js';
 import { SPECIES } from '../vegetation/species.js';
@@ -212,6 +212,27 @@ describe('the evoked wood', () => {
     expect(zs[0]).toBeGreaterThanOrEqual(EVOKE.low * 10 - 1e-9);
     // (deterministic)
     expect(JSON.stringify(limbTree(trunk, pads, 0.03))).toBe(JSON.stringify(L));
+  });
+
+  it('clouds each section but a main limb that forks: puffs sitting on their branch, along it and past its end, smaller inside', () => {
+    const trunk = { pts: Array.from({ length: 11 }, (_, i) => [0, 0, i]), rs: Array.from({ length: 11 }, (_, i) => 0.4 - 0.025 * i) };
+    const pads = Array.from({ length: 8 }, (_, i) => { const a = (i * 2 * Math.PI) / 8; return { p: [3 * Math.cos(a), 3 * Math.sin(a), 7 + (i % 3) * 0.8], s: 1.2 }; });
+    const E = limbTree(trunk, pads, 0.03).edges, C = branchClouds(E, 5);
+    const sections = E.filter((g) => !g.main || g.end >= 0);
+    expect(C.length).toBeGreaterThanOrEqual(sections.length * CLOUD.least);
+    expect(C.length).toBeLessThanOrEqual(sections.length * CLOUD.most);
+    // (each puff over its branch: its middle above the nearest point of a section, by about its sit)
+    for (const c of C) {
+      let best = null, bd = Infinity;
+      for (const g of sections) for (let k = 0; k <= 20; k++) { const q = limbAt(g, k / 20), d = Math.hypot(q[0] - c.p[0], q[1] - c.p[1]); if (d < bd) { bd = d; best = q; } }
+      expect(c.p[2]).toBeGreaterThan(best[2] - 1e-6);
+    }
+    // (an end's cloud reaches past its end; an inner section's puffs smaller than an end's)
+    const ends = sections.filter((g) => g.end >= 0), inner = sections.filter((g) => g.end < 0);
+    const reach = (g) => Math.max(...C.map((c) => (c.p[0] - g.from[0]) * (g.to[0] - g.from[0]) + (c.p[1] - g.from[1]) * (g.to[1] - g.from[1]))) / ((g.to[0] - g.from[0]) ** 2 + (g.to[1] - g.from[1]) ** 2);
+    expect(reach(ends[0])).toBeGreaterThan(1);
+    if (inner.length) expect(CLOUD.inner).toBeLessThan(1);
+    expect(JSON.stringify(branchClouds(E, 5))).toBe(JSON.stringify(C));
   });
 });
 
