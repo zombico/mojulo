@@ -1021,6 +1021,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     ...(stillBodies ? { stills: true } : {}),
     ...(shadows.fit && Array.isArray(shadows.fit.at) && shadows.fit.half > 0 ? { fit: { at: shadows.fit.at, half: shadows.fit.half } } : {}),
     ...(form && form.land && form.room && liveShadows.hour ? { landSun: true } : {}),
+    // (any form land: its sun the one light, the actors' map laid on it by the surfaces three lights)
+    ...(form && form.land ? { formLand: true } : {}),
     ...(liveUnit !== 1 ? { unit: liveUnit } : {}),
     ...(Array.isArray(shadows.noCastGroups) && shadows.noCastGroups.length ? { noCast: shadows.noCastGroups } : {}),
     ...(Number.isFinite(shadows.bias) && shadows.bias > 0 ? { bias: shadows.bias } : {}),

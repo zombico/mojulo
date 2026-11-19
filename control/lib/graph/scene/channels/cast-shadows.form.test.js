@@ -1,5 +1,5 @@
 /**
- * The actors' shadows on a form page (cast-shadows.js liveShadowScript with `landSun`): there the land's sun is the one
+ * The actors' shadows on a form page (cast-shadows.js liveShadowScript with `formLand`): there the land's sun is the one
  * light and the actors' own light lights nothing, so its map darkened nothing three lights. Each lit surface that
  * receives takes the actors' map on every directional light's colour; a body reads it a few centimetres deeper. Only a
  * page with actors on a form land carries it.
@@ -12,12 +12,13 @@ const cfg = (o) => ({ mapSize: 1024, toLight: [-0.9, 0, 0.3], alpha: 0.5, span: 
 
 describe('the actors\' shadows on a form page', () => {
   it('is emitted only where actors cast on a form land', () => {
-    expect(liveShadowScript(cfg({ actors: true, hour: true, landSun: true }))).toContain('__csFormPatch');
+    expect(liveShadowScript(cfg({ actors: true, hour: true, formLand: true }))).toContain('__csFormPatch');
     expect(liveShadowScript(cfg({ actors: true, hour: true }))).not.toContain('__csForm');
-    expect(liveShadowScript(cfg({ hour: true, landSun: true }))).not.toContain('__csForm');
+    expect(liveShadowScript(cfg({ hour: true, formLand: true }))).not.toContain('__csForm');
+    expect(liveShadowScript(cfg({ actors: true, hour: true, landSun: true }))).not.toContain('__csForm');   // (a built place's land sun is another word)
   });
   it('multiplies each directional light\'s colour by the actors\' map, in three\'s own loop; a body reads it deeper', () => {
-    const src = liveShadowScript(cfg({ actors: true, hour: true, landSun: true }));
+    const src = liveShadowScript(cfg({ actors: true, hour: true, formLand: true }));
     // (the page's patch, run against a stand-in of three's chunk and a mesh: its shader text read back)
     const chunk = 'for ( int i = 0; i < NUM_DIR_LIGHTS; i ++ ) {\n\t\tdirectionalLight = directionalLights[ i ];\n\t\tgetDirectionalLightInfo( directionalLight, directLight );\n\t\tRE_Direct( directLight );\n\t}';
     const start = src.indexOf('const __csFormFS'), end = src.indexOf('// (a sweep a few times a second');

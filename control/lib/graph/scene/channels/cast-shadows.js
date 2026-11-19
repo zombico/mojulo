@@ -240,7 +240,7 @@ let __hrStamp = -1;
 const __hrSeen = (r, o, cam, shCam) => { if (shCam === __hrL.shadow.camera && __hrStamp !== renderer.info.render.frame) { __hrStamp = renderer.info.render.frame; __mojLight.hourDraws++; } };
 const __mojHourPass = () => {
   __mojLight.frames++;${A ? `
-  __csSteer();` : ''}${A && cfg.landSun ? `
+  __csSteer();` : ''}${A && cfg.formLand ? `
   if (!__csMapU.value && __csL.shadow.map) __csMapU.value = __csL.shadow.map.depthTexture;
   __csFormSweep();` : ''}
   if (__hrArmed) {   // the frame after: the flags back, the actors' map live again
@@ -270,7 +270,7 @@ ${cfg.landSun ? `  // (and whenever the land asks for its sun's map again, its t
   __csL.shadow.autoUpdate = false; __csL.shadow.needsUpdate = false;   // (this frame its map would hold the static world)` : ''}
   __mojLight.hourMaps++;
 };` : `
-const __mojHourPass = () => { __mojLight.frames++;${A ? ' __csSteer();' : ''}${A && cfg.landSun ? ' if (!__csMapU.value && __csL.shadow.map) __csMapU.value = __csL.shadow.map.depthTexture; __csFormSweep();' : ''} };`}
+const __mojHourPass = () => { __mojLight.frames++;${A ? ' __csSteer();' : ''}${A && cfg.formLand ? ' if (!__csMapU.value && __csL.shadow.map) __csMapU.value = __csL.shadow.map.depthTexture; __csFormSweep();' : ''} };`}
 // the receive patch, chained over the material's own: project the fragment into each map (four taps of hardware PCF)
 // and darken by its sun share (aSun, where the world bakes its sun) or the cast's alpha
 const __csVS = '${vDecl}#ifdef CS_SUN\\nattribute float aSun;\\nvarying float vCsSun;\\n#endif\\n';
@@ -338,7 +338,7 @@ ${A ? '  vCsCoord = csMat * csW;\n' : ''}${H ? '  vHrCoord = hrMat * csW;\n' : '
   mat.customProgramCacheKey = () => 'mojulo-live-light|' + (prevKey || '');
   mat.needsUpdate = true;
 }
-${A && cfg.landSun ? `// THE ACTORS' SHADOWS ON A FORM PAGE (channels/form-land.js): there the land's sun is the one light and every other
+${A && cfg.formLand ? `// THE ACTORS' SHADOWS ON A FORM PAGE (channels/form-land.js, the config's formLand): there the land's sun is the one light and every other
 // directional light lights nothing, the actors' own included, so its map darkened nothing three lights. Each surface
 // three lights and that receives (the land, its grass and plants, a body under the cast rig) takes the actors' map on
 // every directional light's colour (the sun's, the only one that lights): what moves shades the land and each other,
