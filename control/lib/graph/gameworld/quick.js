@@ -95,8 +95,14 @@
  *     assist?: 'arcade' | 'sim',            // fly: never stalls, wings level quickly | the bank holds (absent: between)
  *     airspace?: { map?, ground?, course? }, // fly: the flight map (an island by default), as an airspace level takes it
  *     plots?: n, target?: n, days?: n,     // farm: plots (6), the gold to make (40), by which day (6)
- *     card?, challenge?, serve?: n,        // work: a starter (kitchen, farm, site, roof) or a Shovels & Buckets card;
+ *     card?, challenge?, serve?: n,        // work: a starter (kitchen and its menus: pasta, wok, ramen, diner, pizzeria; farm, site, roof) or a card;
  *                                           // beginner | intermediate | advanced | 0..1 (beginner); orders to serve
+ *     shifts?: n | [{ name?, kitchen?, card?, challenge?, mirror?, obstacles?, serve? }], // work, with cooks: a
+ *                                           // campaign, a kitchen level a shift, each a new map and menu (kitchen-shifts.js)
+ *     cooks?: 1 | 2 | 4, kitchen?: 'split' | 'island', // work: cooks on one screen, each a seat (the cube's soul.seats), in a
+ *                                           // kitchen of its own room (kitchen-level.js; worksim/kitchen.js: split, a pass
+ *                                           // between prep and assembly, by default with two or more; island), the shift
+ *                                           // tuned to them; one cook and no kitchen named: the line by the trail
  *     folk?: n, farmhand?: <a hero-door spec> // farm: farmhands keeping their day (2), and their looks (rolled by default)
  *     foes?: n,                             // battle: how many foes stand on the trail to be fought turn by turn (3)
  *     moves?: true,                         // every person the run makes (the hero, foes, guards, towers, farmhands) is
@@ -243,6 +249,8 @@ import { SCENARIOS } from '../worksim/scenarios.js';
 import { readCard } from '../worksim/card.js';
 import { solve as solveWork, targetOf } from '../worksim/solve.js';
 import { layWork } from '../game/work-mechanics.js';
+import { KITCHEN_IDS } from '../worksim/kitchen.js';
+import { kitchenOf, shiftsOf, readShift, SHIFTS as KITCHEN_SHIFTS, SHIFT_KEYS } from './kitchen-shifts.js';
 import { heroLook, lookSpec, readLook } from './hero-look.js';
 import { readVillain, villainWave, VILLAINS, LIEUTENANT_KINDS } from '../brawl/brawl-villains.js';
 import { SWING_HAND } from '../polygonizer/hero-swing.js';
@@ -308,7 +316,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['mission', 'xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes', 'streets', 'crowd', 'play', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown', 'card', 'challenge', 'serve', 'armed', 'guns', 'street', 'heroes'];
+const KEYS = ['mission', 'xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes', 'streets', 'crowd', 'play', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown', 'card', 'challenge', 'serve', 'cooks', 'kitchen', 'shifts', 'armed', 'guns', 'street', 'heroes'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -598,7 +606,14 @@ export function readQuick(Q) {
   if (Q.folk !== undefined && !(Number.isInteger(Q.folk) && Q.folk >= 0 && Q.folk <= 6)) throw fail('.folk is 0 to 6');
   if (Q.farmhand !== undefined && !isObj(Q.farmhand)) throw fail('.farmhand is a hero-door spec, as .hero is');
   if (Q.goal === 'farm' && (Q.building !== undefined || Q.climb || Q.ride)) throw fail('.farm tills the land by a trail\'s start: no climb, building or ride');
-  for (const k of ['card', 'challenge', 'serve']) if (Q.goal !== 'work' && Q[k] !== undefined) throw fail(`.${k} belongs to the work goal`);
+  for (const k of ['card', 'challenge', 'serve', 'cooks', 'kitchen', 'shifts']) if (Q.goal !== 'work' && Q[k] !== undefined) throw fail(`.${k} belongs to the work goal`);
+  if (Q.shifts !== undefined) {
+    if (!((Number.isInteger(Q.shifts) && Q.shifts >= 2 && Q.shifts <= KITCHEN_SHIFTS.length) || (Array.isArray(Q.shifts) && Q.shifts.length >= 1 && Q.shifts.length <= 12))) throw fail(`.shifts is how many shifts the campaign runs (2 to ${KITCHEN_SHIFTS.length}: each a new kitchen and a new menu), or a list of them ({ ${SHIFT_KEYS.join('?, ')}? })`);
+    if (Array.isArray(Q.shifts)) Q.shifts.forEach((s, k) => readShift(s, `quick.shifts[${k}]`));
+    if (!((Q.cooks ?? 1) > 1)) throw fail('.shifts is a campaign for cooks: give it cooks (2 or 4)');
+  }
+  if (Q.cooks !== undefined && ![1, 2, 4].includes(Q.cooks)) throw fail('.cooks is how many cooks share the kitchen on one screen: 1, 2 or 4 (the seats a game has)');
+  if (Q.kitchen !== undefined && !KITCHEN_IDS.includes(Q.kitchen)) throw fail(`.kitchen is one of ${KITCHEN_IDS.join(', ')} (worksim/kitchen.js)`);
   if (Q.card !== undefined && !(isObj(Q.card) || Object.prototype.hasOwnProperty.call(SCENARIOS, Q.card))) throw fail(`.card is a starter (${Object.keys(SCENARIOS).join(', ')}) or a Shovels & Buckets card (docs/worksim.md)`);
   if (isObj(Q.card)) { try { readCard(Q.card); } catch (e) { throw fail(`.card: ${e.message}`); } }
   if (Q.challenge !== undefined) { try { targetOf(Q.challenge); } catch (e) { throw fail(`.challenge: ${e.message}`); } }
@@ -1486,7 +1501,7 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
     };
   }
   const levels = flight ?? (quick.geotown ? { run: { name: name ?? id, geotown: quick.geotown } } : worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape, ...(worded.language ? { language: worded.language } : {}), ...(worded.items ? { items: worded.items } : {}), ...mood } } }
-    : quick.roadway ? { run: { name: name ?? id, roadway: { course: quick.roadway, dress: true, ...mood } } } : quick.run
+    : quick.roadway ? { run: { name: name ?? id, roadway: { course: quick.roadway, dress: true, ...mood } } } : kitchenOf(quick) ? kitchenLevels(quick, name ?? id) : quick.run
     ? Object.fromEntries(Array.from({ length: quick.run + 2 }, (_, k) => [`stretch-${k + 1}`, { name: `${name ?? id} ${k + 1}`, seed: s0 + 101 * (k + 1), walk: { nodes: { path: { trail: {} } } } }]))
     : quick.mission !== undefined ? { run: { name: name ?? id, mission: quick.mission } }
     : { run: quick.building ? { name: name ?? id, building: quick.building } : { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) },
@@ -1499,6 +1514,14 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
     quick,
     ...intent,
   };
+}
+
+/** A kitchen game's levels (kitchen-shifts.js): one kitchen of the quick game's own words, `run`; or a campaign, a
+ * level a shift (`shift-1` …), each its own kitchen, menu and challenge, the level and its title named for the shift. */
+function kitchenLevels(quick, name) {
+  const all = shiftsOf(quick);
+  if (all.length === 1 && quick.shifts === undefined) return { run: { name, kitchen: {} } };
+  return Object.fromEntries(all.map((k, i) => { const shift = k.name ?? `Shift ${i + 1}`; return [`shift-${i + 1}`, { name: shift, kitchen: { ...k, name: shift } }]; }));
 }
 
 /** The goal's mechanics on a stage, placed on its own anchors (`ends`: stageEnds'). The exit ends every goal but

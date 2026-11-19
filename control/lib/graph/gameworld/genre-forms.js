@@ -74,17 +74,22 @@ export const PENDING = Object.freeze({
   'arena-shooter': 'form',
   'tower-defense': 'form', rts: 'form', tactics: 'form', farming: 'form', rhythm: 'form', roguelike: 'form', 'block-puzzle': 'form',
   'pixel-puzzle': 'form', 'versus-fighter': 'form', 'athletics-meet': 'form', 'net-game': 'form', 'turn-sport': 'form', 'team-goal-game': 'form',
+  'co-op-kitchen': 'form',
 });
 // the one level a pending genre plays alone today (quick.js QUICK_GOALS, the one-level door), said beside its refusal
 const ONE_LEVEL = Object.freeze({
   racing: 'race', 'kart-racer': 'race', shooter: 'shoot', 'arena-shooter': 'deathmatch', 'tower-defense': 'defend', rts: 'conquer',
   farming: 'farm', rhythm: 'rhythm', 'block-puzzle': 'puzzle', 'versus-fighter': 'fight', 'athletics-meet': 'meet', 'net-game': 'contest',
-  'turn-sport': 'contest', 'team-goal-game': 'contest', 'endless-runner': 'runner',
+  'turn-sport': 'contest', 'team-goal-game': 'contest', 'endless-runner': 'runner', 'co-op-kitchen': 'work',
 });
+// (and the words that make it what the genre is, where the goal alone does not: the cooks a co-op kitchen seats)
+const ONE_WITH = Object.freeze({ 'co-op-kitchen': Object.freeze({ cooks: 2 }) });
+/** The quick door that plays a pending genre's one level alone, as the producer says it: `{ goal: 'work', cooks: 2 }`. */
+export const oneLevelCall = (id) => (ONE_LEVEL[id] ? `{ goal: '${ONE_LEVEL[id]}'${Object.entries(ONE_WITH[id] ?? {}).map(([k, v]) => `, ${k}: ${JSON.stringify(v)}`).join('')} }` : null);
 
 /** Why a read genre is not laid from a sentence yet (PENDING): { waits, one? } (`one`: the quick goal that plays one
- * level of it alone), or null. */
-export const pendingOf = (id) => (PENDING[id] ? { waits: WAITS[PENDING[id]], ...(ONE_LEVEL[id] ? { one: ONE_LEVEL[id] } : {}) } : null);
+ * level of it alone; `call`, the quick door's words for it), or null. */
+export const pendingOf = (id) => (PENDING[id] ? { waits: WAITS[PENDING[id]], ...(ONE_LEVEL[id] ? { one: ONE_LEVEL[id], call: oneLevelCall(id) } : {}) } : null);
 
 // the vibe a genre's hero moves with where its cube names none (gameworld-motion's words)
 const GENRE_VIBE = Object.freeze({

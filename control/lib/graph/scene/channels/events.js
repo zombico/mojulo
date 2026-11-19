@@ -5,7 +5,7 @@ import { registerCss, cleanDials, dialsAt } from '../../playscape/ui/register.js
 import { UI_STATES } from '../../playscape/ui/parts.js';
 import { borderCss, cleanBorder } from '../../playscape/ui/borders.js';
 import { inventoryCss } from '../../playscape/ui/inventory-dress.js';
-import { MENU_CSS, menuScript, reachScript, usesOf } from './interact-channel.js';
+import { MENU_CSS, menuScript, reachScript, usesOf, seatReachScript, seatUsesOf } from './interact-channel.js';
 import { sceneScript, sceneTakesOn, sceneTempoOn } from './scene-channel.js';
 import { questScript } from './quest-channel.js';
 import { libraryScript } from './library-channel.js';
@@ -235,6 +235,7 @@ export function eventsChannelScript(events0, { fxDay = null, rollItems = false, 
   const stats = !!(events.stats && typeof events.stats === 'object');   // play.stats: the stats kernel takes its ops off the ctrl queue
   const uses = usesOf(events.sources);   // usable places (a cue's use): the reach prompt and the interact press
   const reach = Object.keys(uses).length ? reachScript(uses) : '';
+  const seatUses = seatUsesOf(events.sources), seatReach = Object.keys(seatUses).length ? seatReachScript(seatUses) : '';   // seats 2 … their own places (a seated shift)
   // the statuses its cues put on the cast, drawn on their bodies in their looks; and those its bodies are born under
   const els = [...(cast ? statusElements(events) : []), ...(Array.isArray(events.born) ? events.born : [])].filter((n, i, a) => a.indexOf(n) === i);
   const trs0 = cast ? transitKinds(events) : [];   // how its cast comes and goes (spawn / vanish with, transfigure)
@@ -395,7 +396,7 @@ function __ensureMarker(e) {
   __markerMeshes[e.id] = mesh;
   return mesh;
 }
-${hudBlock}${reach}${status}${fxl ? fxLightScript({ ...(fxDay == null ? {} : { day: fxDay }), ...(events.fxLight === true ? {} : { world: false }), ...(events.rim || events.trail ? { blows: true } : {}) }) : ''}${rimOn ? rimScript(events.rim) : ''}${trailOn ? swingTrailScript(events.trail) : ''}${moments}${beams}
+${hudBlock}${reach}${seatReach}${status}${fxl ? fxLightScript({ ...(fxDay == null ? {} : { day: fxDay }), ...(events.fxLight === true ? {} : { world: false }), ...(events.rim || events.trail ? { blows: true } : {}) }) : ''}${rimOn ? rimScript(events.rim) : ''}${trailOn ? swingTrailScript(events.trail) : ''}${moments}${beams}
 // Read-only projection of bus ENTITY state onto meshes. The bus decides WHAT is true; this shows it.
 // Physics body PROXIES (Phase 5b link) are skipped — they already render via the physics channel.
 function __syncBus() {
@@ -426,7 +427,8 @@ stepEvents = (t) => {
     const z = __BUS.deriveZoneEvents(window.__mojCtrl.world.entities, __zonePrev, __SOURCES);
     __zonePrev = z.prev;
     for (const ev of z.events) incoming.push(ev);${reach ? `
-    __stepReach(z.events, incoming);` : ''}
+    __stepReach(z.events, incoming);` : ''}${seatReach ? `
+    __stepSeatReach(z.events, incoming);` : ''}
   }${facts ? `
   if (window.__mojCtrl && window.__mojCtrl.facts) {   // CAST FACTS → down / gone / spawned / arrive / stuck / hit:<id>
     const c = window.__mojCtrl.facts(__castPrev);

@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { emitThreeWorld } from '../../scene-three.js';
 import { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } from '../../chromium.js';
+import { composeMechanics } from '../../../game/mechanics.js';
 
 const hero = (id, x) => ({ id, pilotable: true, transform: { pos: [x, 0, 0], heading: 0 }, rule: { type: 'platform', eye: 0, speed: 6 }, ambient: { type: 'static' }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.6] } });
 const floor = { corners: [[-40, -10, 0], [80, -10, 0], [80, 10, 0], [-40, 10, 0]], fill: '#445566' };
@@ -95,4 +96,39 @@ describe('seats on the World page', () => {
     expect(errors).toEqual([]);
     await page.close();
   }, 60000);
+
+  // A WORK SHIFT, SEATED: seat 2 stands at the fish crate and presses its own use (the pad's west face): the fish comes
+  // into seat 2's hands, never the pilot's; the plate over its head names the place. A seated world with no shift
+  // carries none of the seat reach
+  it('a seat\'s own use press works the shift with its own hands', async () => {
+    const card = { id: 'bench', stations: { chop: { verb: 'shovel', takes: { fish: 1 }, gives: { cut: 1 }, work: 2 } }, demand: { every: 30, patience: 60, orders: [{ name: 'cut', wants: { cut: 1 } }] }, session: 120 };
+    const at = { crates: { fish: [-2, 0, 0] }, stations: { chop: [12, 6, 0] }, serve: [12, -6, 0] };
+    const events = composeMechanics([{ kind: 'work', card, at }], { player: 'p1', spawn: [0, 0, 0], fall: 'none', seats: ['p2'] }).events;
+    const html = emitThreeWorld({ faces: [floor], entities: [hero('p1', 0), hero('p2', -2)], camera: { rule: 'side', target: 'p1' }, seats: { bodies: ['p2'] }, events, inline: true });
+    expect(html).toMatch(/__stepSeatReach/);
+    expect(world({ bodies: ['p2'] })).not.toMatch(/__stepSeatReach|__mojSeatUses/);
+    if (!browser) return;
+    const page = await browser.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.setContent(html.replace('<head>', '<head>' + PADS), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world && window.__mojSeats && window.__mojBus, { timeout: 20000 });
+    const frames = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r)))));
+    const tap = async (i, b) => {
+      await page.evaluate(([i, b]) => { window.__pads[i].buttons[b] = { pressed: true, value: 1 }; }, [i, b]);
+      await frames();
+      await page.evaluate(([i, b]) => { window.__pads[i].buttons[b] = { pressed: false, value: 0 }; }, [i, b]);
+      await frames();
+    };
+    await tap(0, 0);   // pad 0 sits down: seat 1, the pilot
+    await tap(1, 0);   // pad 1: seat 2, its body p2 at the crate
+    const held = () => page.evaluate(() => { const v = window.__mojBus.state.vars; return [v['held:bag:fish'] ?? 0, v['held:hands2:fish'] ?? 0]; });
+    expect(await held()).toEqual([0, 0]);   // sitting down is not a use
+    expect(await page.evaluate(() => document.body.innerText)).toMatch(/take fish/);
+    await tap(1, 2);   // seat 2's use: the west face
+    expect(await held()).toEqual([0, 1]);
+    expect(errors).toEqual([]);
+    await page.close();
+  }, 60000);
 });
+

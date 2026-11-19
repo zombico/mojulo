@@ -131,6 +131,7 @@
  * `resolveLevel(world, id)` answers the level recipe `layLevel` reads, the town's recipe (its castle in it), the
  * level's whole style, who built what, and its ledger. Pure: the same world resolves the same levels.
  */
+import { readShift } from './kitchen-shifts.js';
 import { readWorldRoll } from './roll-lower.js';
 import { readObstacles } from './roll-course.js';
 import { THEMES } from '../../mana-ui/theme.js';
@@ -302,7 +303,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -675,7 +676,13 @@ export function readGameworld(W) {
       if (isObj(A) && A.spawns !== undefined && !(Number.isInteger(A.spawns) && A.spawns >= 2 && A.spawns <= 8)) throw new Error(`gameworld: ${at}.arena.spawns is how many spawns it lays, 2 to 8`);
       if (L.walk === undefined) throw new Error(`gameworld: ${at}.arena is laid on a walk's first trail`);
     }
-    if (L.industrial !== undefined) {
+    if (L.kitchen !== undefined) {
+      // a kitchen level (gameworld/kitchen-shifts.js, laid by kitchen-level.js): its own room, its layout, its menu, its
+      // challenge and its map's variations; the work goal's places its own
+      const beside = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'geocity', 'glyphs', 'obstacles', 'street', 'mission', 'industrial', 'places', 'ground', 'arena', 'course', 'foes'].filter((k) => L[k] !== undefined);
+      if (beside.length) throw new Error(`gameworld: ${at}: a kitchen level is the kitchen alone: no ${beside.join(', ')} beside it`);
+      readShift(L.kitchen, `${at}.kitchen`);
+    } else if (L.industrial !== undefined) {
       // an industrial level: a yard before a base building, designed under the arena's laws and built by the geocube
       // (mission-industrial.js); its mission is its play (the default one where it names none), its ground, its foes and
       // its tasks its own
@@ -1059,6 +1066,8 @@ export function resolveLevel(world, id) {
   const style = over(G.style, L.style), seed = L.seed ?? levelSeed(G.seed, id);
   const ledger = differences(G.style, L.style, 'level', id);
 
+  // a kitchen level (kitchen-shifts.js, laid by kitchen-level.js): its own room, its shift read as written
+  if (L.kitchen) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, kitchen: { ...L.kitchen } };
   // an airspace level: its map, its ground (a runway when it names no pads) and its course (planned unless declined)
   if (L.airspace) {
     // (a space map has no ground: its rocks are `space`; its assist rides as on any airspace)

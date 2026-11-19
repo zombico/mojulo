@@ -183,7 +183,7 @@ export function pageFigures(figures) {
  * through the pilot scheme, riding the frame's input as `input.seats` (worlds/controllable/core.js). A controller sits down
  * with any press (start is the shell's pause): the first to press is seat 1. A ring in the seat's colour stands under each
  * seated body, and a strip names who is in. Emitted only for a world with seats. */
-function seatsScript(seats) {
+function seatsScript(seats, uses = false) {
   const bodies = Array.isArray(seats.bodies) ? seats.bodies.slice(0, 3) : [];
   const max = Math.max(1, Math.min(4, seats.max ?? bodies.length + 1, bodies.length + 1));
   return `// ── SEATS ──
@@ -213,12 +213,17 @@ function __seatSnap(x) {
   else { const st = __padStick(g.axes[0] || 0, g.axes[1] || 0); mx = st[0]; my = -st[1]; }
   const P = __seatPrev[x.n] || (__seatPrev[x.n] = {}), jh = h('jump'), tk = h('tackle');
   const out = { forward: my, turn: __MOUSELOOK ? 0 : mx, strafe: __MOUSELOOK ? mx : 0, lift: (jh ? 1 : 0) - (h('kneel') ? 1 : 0), jump: jh && !P.jump ? 1 : 0, jumpHeld: jh ? 1 : 0, fire: h('fire') ? 1 : 0, boost: h('boost') ? 1 : 0, walk: h('walk') ? 1 : 0, kneel: h('kneel') ? 1 : 0, tackle: tk && !P.tackle ? 1 : 0 };
-  P.jump = jh; P.tackle = tk;
+  P.jump = jh; P.tackle = tk;${uses ? `
+  const ih = h('interact'); if (ih && P.interact === false) __seatUseN[x.n] = (__seatUseN[x.n] || 0) + 1; P.interact = ih;   // (a seat's own use press; the press that sat it down is not one)` : ''}
   return out;
-}
+}${uses ? `
+// a seat's own interact presses, counted (the events channel's seat reach turns them into s<n>:use-<place>), and its key
+const __seatUseN = {};
+window.__mojSeatUses = (n) => __seatUseN[n] || 0;
+window.__mojSeatLabel = (n) => { const x = __SK.seat(__SEATS, n); if (!x) return ''; const f = x.controller === 'keyboard' ? 'keyboard' : 'gamepad', c = (__BIND.bind[f].interact || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; };` : ''}
 // the strip: who is in, in their colours; an empty seat says how to sit down
 const __seatEl = document.createElement('div');
-__seatEl.style.cssText = 'position:fixed;top:calc(8px + env(safe-area-inset-top, 0px));left:50%;transform:translateX(-50%);display:flex;gap:6px;font:600 12px system-ui,sans-serif;pointer-events:none;z-index:5';
+__seatEl.style.cssText = 'position:fixed;${uses ? 'bottom:calc(44px + env(safe-area-inset-bottom, 0px))' : 'top:calc(8px + env(safe-area-inset-top, 0px))'};left:50%;transform:translateX(-50%);display:flex;gap:6px;font:600 12px system-ui,sans-serif;pointer-events:none;z-index:5';   // (a shift's seats: at the bottom, the top being its order rail's)
 document.body.appendChild(__seatEl);
 let __seatSaid = '';
 function __seatStrip() {
@@ -752,7 +757,7 @@ function __updateSmoke() {
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, formSun = null, formLand = false, acts = false, tempo = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null } = {}) {
+export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, seatUses = false, formSun = null, formLand = false, acts = false, tempo = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null } = {}) {
   // the bank as the page reads it (pageFigures): every flag below reads it, so the branches it needs are emitted
   const PAGE = pageFigures(figures0 || {}), figures = PAGE.figs;
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
@@ -3103,7 +3108,7 @@ function __readInput() {
   __lookDX = 0; __lookDY = 0;
   return ${xr ? '__xrCtl ? __xrCtl.input(inp) : ' : ''}inp;
 }
-${seats ? seatsScript(seats) : ''}// active whenever there are entities to step; the camera is OWNED only if a camera entity exists
+${seats ? seatsScript(seats, seatUses) : ''}// active whenever there are entities to step; the camera is OWNED only if a camera entity exists
 // (otherwise OrbitControls keeps the view — e.g. a clock-driven figure turntable orbited by hand).
 __ctrlActive = __world.entities.length > 0;
 if (__world.camera) { controls.enabled = false; __ctrlOwnsCamera = true; }
