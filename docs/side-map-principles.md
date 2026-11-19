@@ -246,7 +246,8 @@ The eyes gate is the operator's: the map read as a drawing, the level played on 
 ## The HUD
 
 The screen is the level's, so the HUD holds to its corner. The hero's energy is a column of ticks at the top left,
-filling from the foot. The boss's column stands at the top right while they fight. READY flashes as a life starts, and the
+filling from the foot. A special weapon's energy stands beside it while one is held (none is yet: the buster has no
+energy of its own). The boss's column stands at the top right while they fight. READY flashes as a life starts, and the
 keys show for the first seconds. There is no radar and no ring: the foes are read on the screen. The parts are
 `control/lib/graph/gameworld/side-map/hud.js`, drawn in the game's look (`docs/mana-ui.md`, "The side map's HUD").
 

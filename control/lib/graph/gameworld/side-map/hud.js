@@ -8,6 +8,9 @@
  *   the boss's column   at the opposite corner, top right, the boss's energy as a column of fine ticks in its colour,
  *                        shown only once the boss is near and awake and gone a moment after it falls; its name said
  *                        across the top as it comes in
+ *   the weapon's column  beside the hero's, a special weapon's energy in its tint (the gun's `fxColor`, else the
+ *                        look's second accent), shown only while the hero holds a gun with energy of its own
+ *                        (`energyMax`); the buster has none, so it is not drawn until there are special weapons
  *   READY               flashing in the middle as the level starts and again after a life is lost
  *   the keys            what the buttons do, as key caps along the foot for the first seconds, then gone
  *   what it puts away    the level's own rows (its lives chip, the boss's bar), the radar and the melee ring: a side
@@ -19,7 +22,8 @@
  *     keys    the level's controls line ('A / D  run · Space  jump · …'), drawn as key caps
  *   BOSS_TICKS   how many ticks a column holds (energy in steps, as the genre counts it)
  *
- * The state the spec binds (the host writes it each frame): sm { lives, bossOn, boss, ready, keysOn, keys, moments }.
+ * The state the spec binds (the host writes it each frame): sm { lives, weaponOn, weapon, weaponMax, bossOn, boss, ready,
+ * keysOn, keys, moments }.
  * Pure: a spec is data.
  */
 export const BOSS_TICKS = 28;
@@ -40,7 +44,11 @@ export function keyRowsOf(line) {
 export function sideMapHudSpec({ lives = 3, boss = null } = {}) {
   return { screens: {}, hud: { use: 'hud', children: [
     // THE COLUMNS: the hero's lives at the top left, the boss's energy at the top right while it fights
-    { use: 'region', props: { at: 'top-left', variant: 'bare' }, children: [{ use: 'bar', props: { value: B('lives'), max: lives, variant: 'hp', segments: lives, figures: false } }] },
+    { use: 'region', props: { at: 'top-left', variant: 'bare' }, children: [{ use: 'stack', props: { dir: 'row', gap: 'tight', align: 'start' }, children: [
+      { use: 'bar', props: { value: B('lives'), max: lives, variant: 'hp', segments: lives, figures: false } },
+      // (a special weapon's energy beside it, while the hero holds one)
+      { use: 'bar', props: { value: B('weapon'), max: B('weaponMax'), variant: 'mp', figures: false }, when: B('weaponOn') },
+    ] }] },
     ...(boss ? [{ use: 'region', props: { at: 'top-right', variant: 'bare' }, when: B('bossOn'), children: [{ use: 'bar', props: { value: B('boss'), max: boss.hp, variant: 'boss', figures: false } }] }] : []),
     // (the boss's name across the top as it comes in, one moment)
     ...(boss ? [{ use: 'region', props: { at: 'top', variant: 'bare' }, children: [{ use: 'moments', props: { rows: B('moments'), as: 'banner', hold: 2.2, read: 0.6 } }] }] : []),
@@ -57,10 +65,12 @@ export function sideMapHudSpec({ lives = 3, boss = null } = {}) {
 // three a second the guidelines allow; still under less motion); what it puts away
 const P = '#moj-mana-hud :is(.mana-place[data-at=top-left],.mana-place[data-at=top-right])', H = 224, W = 24, TICK = `calc(${H - 6}px / ${BOSS_TICKS})`;
 const SIDE_MAP_HUD_CSS = [
+  `${P} .mana-stack{gap:10px;align-items:flex-start}`,
   `${P} .mana-bar{display:block;position:relative;min-width:0!important;width:${W}px;height:${H}px;padding:0;margin:0}`,
   `${P} .mana-bar .mana-label{display:none}`,
   `${P} .mana-bar .mana-track{position:absolute;left:0;top:${H}px;width:${H}px;height:${W}px;box-sizing:border-box;transform:rotate(-90deg);transform-origin:0 0;border:3px solid #000;border-radius:0;background:#000;box-shadow:0 0 0 2px var(--mana-ink),0 0 0 4px #000}`,
   `${P} .mana-bar .mana-track i{background:linear-gradient(90deg,var(--mana-hp) 0 62%,transparent 62%) 0 0/${TICK} 100% repeat-x!important}`,
+  `${P} .mana-bar[data-variant=mp] .mana-track i{background:linear-gradient(90deg,var(--sm-weapon,var(--mana-accent2)) 0 62%,transparent 62%) 0 0/${TICK} 100% repeat-x!important}`,
   `${P} .mana-bar[data-variant=boss] .mana-track i{background:linear-gradient(90deg,var(--mana-boss) 0 62%,transparent 62%) 0 0/${TICK} 100% repeat-x!important}`,
   `${P} .mana-bar .mana-track b{top:0;bottom:0;width:6px;margin-left:-3px;background:#000;outline:0}`,
   '#moj-mana-hud .mana-place[data-at=center] .mana-text[data-role=display]{letter-spacing:.3em;animation:mana-pulse .5s steps(2,jump-none) infinite}',

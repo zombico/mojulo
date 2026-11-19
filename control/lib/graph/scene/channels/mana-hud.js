@@ -63,8 +63,8 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   const F = CFG.feed, of = Math.max(1, Math.round((F.to || 0) - (F.from || 0)));
   const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [], hint: '' }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {} };
   ${SM ? `// A SIDE MAP's columns (gameworld/side-map/hud.js): the lives, the boss's energy while it fights, READY, the keys at first
-  st.sm = { lives: F.sidemap.lives, bossOn: false, boss: F.sidemap.boss ? F.sidemap.boss.hp : 0, ready: true, keysOn: true, keys: F.sidemap.keys, moments: [] };
-  let smLives = -1, smReady = 2.4, smBoss = null, smOn = false, smOff = -1;` : ''}
+  st.sm = { lives: F.sidemap.lives, weaponOn: false, weapon: 0, weaponMax: 1, bossOn: false, boss: F.sidemap.boss ? F.sidemap.boss.hp : 0, ready: true, keysOn: true, keys: F.sidemap.keys, moments: [] };
+  let smLives = -1, smReady = 2.4, smBoss = null, smOn = false, smOff = -1, smTint = null;` : ''}
   let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
   // a HUD part pressed (a level's button row): its event raised on the level's bus, as a key bound to it would
   // (a keyed one, game/screen-keys.js: that key pressed, heard by whatever listens for it)
@@ -157,6 +157,10 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     // is near and awake, its name said as it comes in, gone a moment after it falls)
     if (V && V.lives != null) { if (smLives >= 0 && V.lives < smLives) smReady = clock + 2.2; smLives = V.lives; st.sm.lives = V.lives; }
     st.sm.ready = clock < smReady; st.sm.keysOn = clock < 8;
+    // (a special weapon's column: the held gun's own energy, in its tint, while it has one; the buster has none)
+    const smW = me && me.weapon && me.weapon.energyMax > 0 ? me.weapon : null;
+    st.sm.weaponOn = !!smW; if (smW) { st.sm.weapon = Math.max(0, smW.energy ?? smW.energyMax); st.sm.weaponMax = smW.energyMax; }
+    const smT = smW && typeof smW.fxColor === 'string' ? smW.fxColor : ''; if (smT !== smTint) { smTint = smT; if (smT) root.style.setProperty('--sm-weapon', smT); else root.style.removeProperty('--sm-weapon'); }
     if (F.sidemap.boss && V) {
       if (smBoss === null) for (const k in V) if (/^boss_\\d+$/.test(k)) { smBoss = k; break; }
       const bv = smBoss ? Number(V[smBoss]) : NaN, Bo = W && W.byId ? W.byId[F.sidemap.boss.id] : null;

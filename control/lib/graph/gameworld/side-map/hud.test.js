@@ -1,5 +1,5 @@
 // The side map's HUD (side-map/hud.js). The concepts: a spec the runtime reads, its parts in their corners; the hero's
-// energy a column split into its lives, the boss's at the opposite corner only while it fights, its name said as it comes in; READY
+// energy a column split into its lives, a special weapon's beside it while one is held, the boss's at the opposite corner only while it fights, its name said as it comes in; READY
 // and the keys only while their latches say; a controls line read as key caps; a level of a game with a look carries it
 // in the galaxy look, and one with no look carries none.
 import { describe, it, expect } from 'vitest';
@@ -37,6 +37,16 @@ describe('the side map\'s HUD', () => {
     expect(fight).not.toContain('150/300');
     // (a level with no boss draws no boss column, ever)
     expect(view(sideMapHudSpec({ lives: 3 }), sm({ bossOn: true }))).not.toContain('data-variant="boss"');
+  });
+
+  it('a special weapon\'s column beside the hero\'s only while one is held, filled by its energy', () => {
+    const S = sideMapHudSpec({ lives: 3 });
+    expect(view(S, sm())).not.toContain('data-variant="mp"');
+    const held = view(S, sm({ weaponOn: true, weapon: 7, weaponMax: 28 })), tr = held.indexOf('data-at="top-right"');
+    expect(held).toContain('data-variant="mp"');
+    expect(held).toContain('width:25%');
+    expect(tr < 0 || held.indexOf('data-variant="mp"') < tr).toBe(true);
+    expect(sideMapHud({ lives: 3 }).css).toContain('var(--sm-weapon,');
   });
 
   it('READY and the keys only while their latches say', () => {
