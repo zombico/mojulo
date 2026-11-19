@@ -391,3 +391,10 @@ or a recipe key; the spike mints through the real doors and measures.
 - **Every body on level 0 casts its shadow** (the level's `performance.bodies` 'live', was 'pilot'): each guard's
   shadow on the land and on the operative, in place of a soft pool at its feet. Benched against the operative alone, it
   costs nothing measurable (a far guard is drawn as its far twin, and the pools are gone).
+- **What moves shades a form page** (scene/channels/cast-shadows.js, the live light with `landSun`): on a seventh-generation
+  land the land's sun is the one light and every other directional light lights nothing, the actors' own included, so
+  the actors' shadow map, drawn every frame, darkened nothing three lights: no body's shadow fell on the land or on
+  another body (level 0's operative included, and every guard once they cast). Each lit surface that receives (the land,
+  its grass and plants, a body under the cast rig) now takes the actors' map on the sun's light in three's own loop: a
+  guard's shadow on the trail and on the operative, the sky's fill kept; a body reads it a few centimetres deeper, so it
+  does not shade its own skin. Emitted only where actors cast on a form land; every other page keeps its bytes.

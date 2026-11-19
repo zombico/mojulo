@@ -240,7 +240,9 @@ let __hrStamp = -1;
 const __hrSeen = (r, o, cam, shCam) => { if (shCam === __hrL.shadow.camera && __hrStamp !== renderer.info.render.frame) { __hrStamp = renderer.info.render.frame; __mojLight.hourDraws++; } };
 const __mojHourPass = () => {
   __mojLight.frames++;${A ? `
-  __csSteer();` : ''}
+  __csSteer();` : ''}${A && cfg.landSun ? `
+  if (!__csMapU.value && __csL.shadow.map) __csMapU.value = __csL.shadow.map.depthTexture;
+  __csFormSweep();` : ''}
   if (__hrArmed) {   // the frame after: the flags back, the actors' map live again
     for (const [o, c] of __hrArmed) o.castShadow = c;
     __hrArmed = null;${A ? `
@@ -268,7 +270,7 @@ ${cfg.landSun ? `  // (and whenever the land asks for its sun's map again, its t
   __csL.shadow.autoUpdate = false; __csL.shadow.needsUpdate = false;   // (this frame its map would hold the static world)` : ''}
   __mojLight.hourMaps++;
 };` : `
-const __mojHourPass = () => { __mojLight.frames++;${A ? ' __csSteer();' : ''} };`}
+const __mojHourPass = () => { __mojLight.frames++;${A ? ' __csSteer();' : ''}${A && cfg.landSun ? ' if (!__csMapU.value && __csL.shadow.map) __csMapU.value = __csL.shadow.map.depthTexture; __csFormSweep();' : ''} };`}
 // the receive patch, chained over the material's own: project the fragment into each map (four taps of hardware PCF)
 // and darken by its sun share (aSun, where the world bakes its sun) or the cast's alpha
 const __csVS = '${vDecl}#ifdef CS_SUN\\nattribute float aSun;\\nvarying float vCsSun;\\n#endif\\n';
@@ -336,7 +338,44 @@ ${A ? '  vCsCoord = csMat * csW;\n' : ''}${H ? '  vHrCoord = hrMat * csW;\n' : '
   mat.customProgramCacheKey = () => 'mojulo-live-light|' + (prevKey || '');
   mat.needsUpdate = true;
 }
-window.__mojCast = {   // the channel's public seam: dynamic channels hand their casters in, a focus steers the box, the hour moves the sun
+${A && cfg.landSun ? `// THE ACTORS' SHADOWS ON A FORM PAGE (channels/form-land.js): there the land's sun is the one light and every other
+// directional light lights nothing, the actors' own included, so its map darkened nothing three lights. Each surface
+// three lights and that receives (the land, its grass and plants, a body under the cast rig) takes the actors' map on
+// every directional light's colour (the sun's, the only one that lights): what moves shades the land and each other,
+// the sky's fill kept. A body casts into the map it reads, so it reads it a few centimetres deeper (no acne on its skin)
+const __csFormFS = 'uniform sampler2DShadow csMap;\\nuniform float csBias;\\nuniform float csTexel;\\nvarying vec4 vCsCoord;\\n'
+  + 'float csFormLit( vec4 co, float bias ) {\\n'
+  + '  vec3 sc = co.xyz / co.w;\\n'
+  + '  if ( !( sc.x > 0.0 && sc.x < 1.0 && sc.y > 0.0 && sc.y < 1.0 && sc.z < 1.0 ) ) return 1.0;\\n'
+  + '  float z = sc.z - bias, t = csTexel * 0.9;\\n'
+  + '  return 0.25 * ( texture( csMap, vec3( sc.xy + vec2( -t, -t ), z ) ) + texture( csMap, vec3( sc.xy + vec2( t, -t ), z ) )\\n'
+  + '                + texture( csMap, vec3( sc.xy + vec2( -t, t ), z ) ) + texture( csMap, vec3( sc.xy + vec2( t, t ), z ) ) );\\n}\\n';
+const __csFormLights = THREE.ShaderChunk.lights_fragment_begin.replace('getDirectionalLightInfo( directionalLight, directLight );', 'getDirectionalLightInfo( directionalLight, directLight );\\n\\t\\tdirectLight.color *= csActor;');
+const __csLitMats = (m) => m && (m.isMeshStandardMaterial || m.isMeshPhysicalMaterial || m.isMeshToonMaterial || m.isMeshLambertMaterial || m.isMeshPhongMaterial);
+function __csFormPatch(o) {
+  for (const mat of [].concat(o.material)) {
+    if (!__csLitMats(mat) || mat.userData.__liveForm) continue;
+    mat.userData.__liveForm = true;
+    const body = !!o.castShadow, prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey;
+    mat.onBeforeCompile = function (sh, r) {
+      if (prev) prev.call(this, sh, r);
+      sh.uniforms.csMat = __csMatU; sh.uniforms.csMap = __csMapU; sh.uniforms.csBias = __csBiasU; sh.uniforms.csTexel = __csTexelU;
+      sh.vertexShader = 'uniform mat4 csMat;\\nvarying vec4 vCsCoord;\\n' + sh.vertexShader.replace('#include <project_vertex>', \`#include <project_vertex>
+#ifdef USE_INSTANCING
+  vCsCoord = csMat * ( modelMatrix * instanceMatrix * vec4( transformed, 1.0 ) );
+#else
+  vCsCoord = csMat * ( modelMatrix * vec4( transformed, 1.0 ) );
+#endif\`);
+      sh.fragmentShader = __csFormFS + sh.fragmentShader.replace('#include <lights_fragment_begin>', 'float csActor = csFormLit( vCsCoord, csBias' + (body ? ' * 10.0' : '') + ' );\\n' + __csFormLights);
+    };
+    mat.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) + '+' : '') + 'mojulo-actors-on-form' + (body ? '-body' : ''); };
+    mat.needsUpdate = true;
+  }
+}
+// (a sweep a few times a second: what the form builds after the light, a far figure, a body, a grown tree, joins)
+let __csFormN = 0;
+const __csFormSweep = () => { if (__csFormN++ % 20) return; scene.traverse((o) => { if (o.isMesh && o.receiveShadow && o.visible !== false && o.material) __csFormPatch(o); }); };
+` : ''}window.__mojCast = {   // the channel's public seam: dynamic channels hand their casters in, a focus steers the box, the hour moves the sun
   dir: __csDir, dbg: { renderer, THREE, scene, patch: __csPatch },${A ? `
   light: __csL, mapU: __csMapU, biasU: __csBiasU,
   // a subtree that moves (a channel's bodies): its opaque meshes cast into the actors' map, both sides drawn into it (a
