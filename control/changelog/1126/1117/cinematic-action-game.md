@@ -388,3 +388,6 @@ or a recipe key; the spike mints through the real doors and measures.
   0.27: dark, never black), raises the body's own key and fill together, at most 6×, so its form keeps the turn it had.
   A form page now hands each hero's palette to its rig (it was read as a middle grey, which never falls under the
   floor); a body with no palette, and a light one, is lit as it was.
+- **Every body on level 0 casts its shadow** (the level's `performance.bodies` 'live', was 'pilot'): each guard's
+  shadow on the land and on the operative, in place of a soft pool at its feet. Benched against the operative alone, it
+  costs nothing measurable (a far guard is drawn as its far twin, and the pools are gone).
