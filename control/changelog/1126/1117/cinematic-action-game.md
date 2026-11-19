@@ -450,6 +450,6 @@ or a recipe key; the spike mints through the real doors and measures.
   the sky's height at the hour, era/geocube-hours.js `hourLight`'s `s`): under the moon the value floor (0.27 L) had a
   dark suit's key and fill raised six times, and the rim, as bright as that raised key and raised again to carry the
   outline, drew every body as a glowing blue edge on a moonlit land. From the twilight into the night the floor falls to
-  0.12 L and the lift to 2×, the rim is as bright as the world's own light on the body (never its lifted key's) at 0.35
-  of its strength, and no rim is raised to carry an outline: a silhouette lost in the dark is the night's, and a
+  0.17 L and the lift to 3× (2× and 0.12 L, tried first, left the operative a black cut-out), the rim is as bright as the
+  world's own light on the body (never its lifted key's) at half its strength, and no rim is raised to carry an outline: a silhouette lost in the dark is the night's, and a
   floodlight still lights a body as it lights the land. The day and the golden horizon are as they were.

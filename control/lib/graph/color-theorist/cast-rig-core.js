@@ -25,7 +25,7 @@ export const CAST_REGISTERS = Object.freeze(['western', 'anime']);
 // raised to carry an outline: a silhouette lost in the dark is the night's; a floodlight still lights it, as it lights
 // the land)
 export const CAST_RIG_LAWS = Object.freeze({ form: 1.6, depth: 6, keyGain: 3, keyCos: 0.8, separation: 0.12, rimLift: 0.25, floor: 0.27, lift: 6, rim: Object.freeze({ strength: 0.45, power: 3 }),
-  night: Object.freeze({ from: 0.5, floor: 0.12, lift: 2, rim: 0.35 }) });
+  night: Object.freeze({ from: 0.5, floor: 0.17, lift: 3, rim: 0.5 }) });
 /** The cel's tones (the fight rig's ramp: the shadow side, the turn, the light). */
 export const CAST_BANDS = Object.freeze({ steps: 3, ramp: Object.freeze([0.36, 0.65, 1]) });
 /** A body with no palette is read as a middle grey. */
