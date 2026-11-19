@@ -62,11 +62,21 @@ describe('hero-jump', () => {
     expect(foot(c, L)).toBeLessThan(foot(a, L) - 0.1);
     expect(Math.abs(foot(c, L) - foot(c, Rg))).toBeLessThan(0.08);
   });
-  it('the poised dash: never off the floor; leaning in, the off foot forward, the gun side\'s foot back on its toes', () => {
+  it('the poised dash: never off the floor; leaning in, the off knee forward with its foot swept back, the gun side\'s foot back on its toes, the arms at 4 and 7 o\'clock', () => {
     const R = HEROES.male, J = heroJump('dashPoised', R), n0 = rigNodesAt(R, J.fn(0)).nodes, n = rigNodesAt(R, J.fn(0.5)).nodes;
     expect(J.air).toBeNull();
-    // (+y the rig's forward: the left toe ahead of the right by most of the split, the head ahead of the pelvis: the lean)
-    expect(n[R.legs.L.toeTip][1] - n[R.legs.R.toeTip][1]).toBeGreaterThan(0.5);
+    // (+y the rig's forward: the left knee ahead of the right foot by most of the split; its foot behind its knee, off
+    // the floor, the toes back of the ankle; the head ahead of the pelvis: the lean)
+    expect(n.kneeL[1] - n[R.legs.R.toeTip][1]).toBeGreaterThan(0.5);
+    expect(n[R.legs.L.hock][1]).toBeLessThan(n.kneeL[1] - 0.1);
+    expect(n[R.legs.L.toeTip][2]).toBeGreaterThan(n0[R.legs.L.toeTip][2] + 0.1);
+    expect(n[R.legs.L.toeTip][1]).toBeLessThan(n[R.legs.L.hock][1] + 0.05);
+    // (the arms on a clock face, the hero facing 3 o'clock: the gun's forearm aimed forward and down (4 o'clock), the off
+    // arm's back and down (7 o'clock), its upper arm behind the shoulder)
+    const clock = (a, b) => 6 - Math.atan2(n[b][1] - n[a][1], -(n[b][2] - n[a][2])) * 180 / Math.PI / 30;
+    expect(clock('elbowR', 'wristR')).toBeGreaterThan(3); expect(clock('elbowR', 'wristR')).toBeLessThan(5);
+    expect(clock('elbowL', 'wristL')).toBeGreaterThan(6.4); expect(clock('elbowL', 'wristL')).toBeLessThan(7.6);
+    expect(n.elbowL[1]).toBeLessThan(n.shoulderL[1] - 0.1);
     expect(n.headTop[1] - n.pelvisHub[1]).toBeGreaterThan(n0.headTop[1] - n0.pelvisHub[1] + 0.2);
     // (the rear heel up: its ankle over its toe's height by more than it stands)
     expect(n[R.legs.R.hock][2] - n[R.legs.R.toeTip][2]).toBeGreaterThan(n0[R.legs.R.hock][2] - n0[R.legs.R.toeTip][2] + 0.03);

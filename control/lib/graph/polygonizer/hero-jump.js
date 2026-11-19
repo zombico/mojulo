@@ -20,8 +20,9 @@
  * `jumpBack` (leaning back off the toes, legs forward of the body, the absorb pitching forward to recover) and
  * `doubleJump` (a first jump, a kick down off the air with the arms sweeping, a second deeper tuck, the landing),
  * `jumpPoised` (a run-and-gun hero's: one pose held the whole flight, the knee away from the gun arm drawn up, the legs
- * reaching down only late in the fall), `dashPoised` (its ground dash, never off the floor: leaning in, the off knee
- * forward and the gun side's foot back, the off arm's elbow up, the gun tipped up) and
+ * reaching down only late in the fall), `dashPoised` (its ground dash, never off the floor: leaning in, streamlined,
+ * the off knee forward with its foot swept back, the gun side's foot back on its toes, the arms on a clock face: the
+ * gun's forearm at 4 o'clock, the off arm's at 7) and
  * `runningJump` (a hurdler's leap out of the sprint and back into it: the lead leg out straight, the trail leg round at
  * the side, the trunk diving over the lead, the opposite arm reaching; its planted feet slide back at the run's `speed`,
  * so it plays between sprint cycles, the engine carrying the body on at that speed), and the ROLLS: `rollForward` (a
@@ -152,15 +153,19 @@ const BASE = {
     ],
   },
   // THE POISED DASH, a run-and-gun hero's ground dash (a feel card's `jumps.dash`, played over the dash's burst by its
-  // share, rules-platform.js): never off the floor (`floor`), the body pitched forward into the burst, the knee away
-  // from the gun arm driven forward and the gun side's foot pushed back on its toes; the off arm's elbow up behind, its
-  // fist down; the gun arm's elbow down at the side, the gun tipped up. Into it fast, held, risen out of it at the end.
+  // share, rules-platform.js): never off the floor (`floor`: the gun side's foot stays on it), the body pitched forward
+  // into the burst and streamlined as it is driven along: the knee away from the gun arm driven forward with its shin
+  // swept back and its toes pointed back, off the floor, the gun side's foot pushed back on its toes; the ARMS a pair on
+  // a clock face (the hero facing 3 o'clock): the gun arm's elbow down at the side, its forearm aimed at 4 o'clock, the
+  // gun tipped up; the off arm its mirror behind, the upper arm straight back and its forearm aimed at 7 o'clock (its
+  // elbow opened to 70: bent as sharply as the gun arm, its fist could not swing back past straight down without the
+  // upper arm raised high behind). Into it fast, held, risen out of it at the end.
   dashPoised: {
     seconds: 1.0, floor: true,
     keys: [
       STAND,
-      { t: 0.18, pose: { hinge: 42, spine: { sagittal: 0.15 }, shL: { pitch: -60 }, elbowL: 100, shR: { pitch: 5 }, elbowR: 110, head: { pitch: 30 } }, sink: 0.16, heelL: 0, heelR: 45, groundL: 1, groundR: 1, footL: 0.38, footR: -0.5 },
-      { t: 0.78, pose: { hinge: 42, spine: { sagittal: 0.15 }, shL: { pitch: -60 }, elbowL: 100, shR: { pitch: 5 }, elbowR: 110, head: { pitch: 30 } }, sink: 0.16, heelL: 0, heelR: 45, groundL: 1, groundR: 1, footL: 0.38, footR: -0.5 },
+      { t: 0.18, pose: { hinge: 42, spine: { sagittal: 0.15 }, shL: { pitch: -35, roll: -90, yaw: -40 }, elbowL: 70, shR: { pitch: 5 }, elbowR: 110, ...legs2(55, 115, 0, 0), pointL: 80, head: { pitch: 30 } }, sink: 0.16, heelL: 0, heelR: 45, groundL: 0, groundR: 1, footL: 0, footR: -0.5 },
+      { t: 0.78, pose: { hinge: 42, spine: { sagittal: 0.15 }, shL: { pitch: -35, roll: -90, yaw: -40 }, elbowL: 70, shR: { pitch: 5 }, elbowR: 110, ...legs2(55, 115, 0, 0), pointL: 80, head: { pitch: 30 } }, sink: 0.16, heelL: 0, heelR: 45, groundL: 0, groundR: 1, footL: 0, footR: -0.5 },
       { t: 1, pose: {}, sink: 0, heelL: 0, heelR: 0, groundL: 1, groundR: 1, footL: 0, footR: 0 },
     ],
   },

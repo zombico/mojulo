@@ -14,7 +14,7 @@ const glb = (payload) => Buffer.from(facesToGlb(payload, { generator: 'mojulo lo
 
 describe('the hero door\'s motion', () => {
   it('refuses an unknown gait, an unknown dial and a seconds out of range, naming them', () => {
-    expect(validateHeroSpec({ motion: { stroll: true } }).join(' ')).toMatch(/motion\.stroll: not a gait or a move \(have walk, jog, sprint, jump, jumpForward, jumpBack, doubleJump, jumpPoised, runningJump, rollForward, rollSide, rollForwardLeft, rollSideLeft, walkStop, jogStop, sprintStop; the rests chairUpright, .* \(each its Down and Up\); the vaults hurdle, stepVault, speedVault, kongVault; the holds pistolSide, .*; the guards chudan, .*; the poses /);
+    expect(validateHeroSpec({ motion: { stroll: true } }).join(' ')).toMatch(/motion\.stroll: not a gait or a move \(have walk, jog, sprint, jump, jumpForward, jumpBack, doubleJump, jumpPoised, dashPoised, runningJump, rollForward, rollSide, rollForwardLeft, rollSideLeft, walkStop, jogStop, sprintStop; the rests chairUpright, .* \(each its Down and Up\); the vaults hurdle, stepVault, speedVault, kongVault; the holds pistolSide, .*; the guards chudan, .*; the poses /);
     expect(validateHeroSpec({ motion: { walk: { stride: 0.4 } } }).join(' ')).toMatch(/motion\.walk\.stride: not a walk dial/);
     expect(validateHeroSpec({ motion: { jog: { seconds: 40 } } }).join(' ')).toMatch(/motion\.jog\.seconds/);
     expect(validateHeroSpec({ motion: { walk: { strideLength: 0.4, vault: true, seconds: 1.2 }, jog: true, sprint: { tilt: 22 } } })).toEqual([]);

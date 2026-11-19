@@ -245,8 +245,9 @@ Galaxy Boy jumps 2.24 m, and the map lays its gaps and ledges by that reach. His
 `polygonizer/hero-jump.js`, named by his feel card's `jumps`): one pose held the whole flight, the knee away from the
 buster drawn up so he is balanced to fire, the legs reaching down only before the floor. On a pad his card's `pad`
 fires on the left face and dashes on the top one, beside the triggers. His dash is his own too (`dashPoised`, named by
-the card's `jumps.dash`): a hard lean, the off knee forward and the buster side's foot back, the free arm's elbow up and
-the buster tipped up; on the ground it throws dust back off his feet (`gameworld/feel/round-look.js` DASH_DUST), in the
+the card's `jumps.dash`): a hard lean, streamlined, the off knee forward with its foot swept back and pointed, the
+buster side's foot back on its toes, the arms on a clock face (facing 3 o'clock: the buster's forearm at 4, the free
+arm's at 7); on the ground it throws dust back off his feet (`gameworld/feel/round-look.js` DASH_DUST), in the
 air none.
 
 The hero's body sets the screen. Galaxy Boy's is the toy hero robot's (`proportions: 'herobot'`, about four and a half

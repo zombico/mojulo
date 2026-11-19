@@ -20,7 +20,8 @@
  *
  * Pose: `resolvePose` words / raw dof for the vajra core (LIMITS apply), plus this module's channels:
  *   crouch ∈ [0,1] (pelvis drop, toes planted), lift (metres, airborne), support: 'both'|'L'|'R'|'none',
- *   heelL/heelR (degrees the metatarsus rotates about the toe base, about +x), toeTurnL/toeTurnR (degrees the toes turn
+ *   heelL/heelR (degrees the metatarsus rotates about the toe base, about +x), pointL/pointR (degrees a FREE foot's toes
+ *   turn down about the ankle, 0 … 90: pointed; absent the toes ride the shin), toeTurnL/toeTurnR (degrees the toes turn
  *   about the toe base with a targeted foot, about +x; absent level), seat (degrees, 0 … 60: the free legs
  *   turned further forward about the hips, a seated statue's thighs level; seatL/seatR one leg's alone, added), and every
  *   rig chain channel.
@@ -61,7 +62,7 @@ import * as bv from './body-relational-vec.js';
 const REACH_SLACK = 1e-3;
 
 export const VAJRA_CORE = ['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
-export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger', 'seat', 'seatL', 'seatR', 'feet', 'sink', 'body', 'flow', 'facing', 'splayL', 'splayR', 'shift', 'toeTurnL', 'toeTurnR'];
+export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger', 'seat', 'seatL', 'seatR', 'feet', 'sink', 'body', 'flow', 'facing', 'splayL', 'splayR', 'shift', 'toeTurnL', 'toeTurnR', 'pointL', 'pointR'];
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -538,6 +539,10 @@ export function rigNodesAt(R, pose = {}) {
       nodes[L.toeBase] = ride(shin, rest[L.toeBase]); nodes[L.toeTip] = ride(shin, rest[L.toeTip]);
       // (the STANCE: a foot in heels stays tipped off the ground too, its toes turned down about the ankle by the pitch)
       if (ST) for (const j of [L.toeBase, L.toeTip]) nodes[j] = rotAxis(nodes[j], nodes[L.hock], 0, -ST.pitch);
+      // (`point<S>`: a free foot POINTED, its toes turned down about the ankle so many degrees, a dancer's or a diver's,
+      // a dash's streamlined front foot: hero-jump.js dashPoised. Absent ⇒ the toes ride the shin as before)
+      const point = Number.isFinite(pose[`point${S}`]) ? Math.max(0, Math.min(90, pose[`point${S}`])) : 0;
+      if (point) for (const j of [L.toeBase, L.toeTip]) nodes[j] = rotAxis(nodes[j], nodes[L.hock], 0, -point);
       report.legs[S] = { planted: false, reach: 'free', metaError: 0 };
     }
   }
