@@ -271,3 +271,7 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
 - **The bosses**: robots of the hero's own family whose faces are never a person's. The hero alone keeps the open face;
   a boss's face is its theme (a mask, a visor, a grille, one eye, a screen, a beast's head, an object), it always has
   eyes, and it lights up as the boss winds up an attack.
+- **Crucible, the first level's boss**: a robot on Galaxy Boy's own body and suit, broader and a head taller, whose head
+  is a crucible of molten metal with two lit eyes. It stands in the last room of Galaxy Boy's first level, in the colour
+  that level holds back for its boss, and lobs at where the hero stood. Bringing it down ends the level. Its eyes and its
+  metal glow as it winds up a shot and flash as it fires, lighting the room round its face.

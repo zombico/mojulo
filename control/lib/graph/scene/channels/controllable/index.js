@@ -26,6 +26,7 @@ import { shotLightScript } from './shot-light-view.js';
 import { roundLooks, blastLook, BLAST_LOOK } from '../../../gameworld/feel/round-look.js';
 import { castKitSource } from '../cast-rig.js';
 import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
+import { tellOf } from '../../../worlds/controllable/tell.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
 // (controllable-world.plan.md). One model (entities = transform + rule + body; the camera is an
@@ -93,7 +94,10 @@ export const FACE_SCREEN = Object.freeze({ rest: 0.5, moving: 0.22 });
  * base, a level's); the pulse is the body's glow's (CEL_CHARGE). */
 export const CHARGE_FX = Object.freeze({ size: Object.freeze([0.75, 0.25, 0.08]), glow: 0.3, halo: 1, haloOp: 0.2, heart: 0.75, sparks: Object.freeze([24, 48]), motes: Object.freeze([14, 28]), spin: Object.freeze([1.4, 2.4]), ring: 0.42, rate: Object.freeze([1.6, 2.6]), reach: 0.75, burst: Object.freeze([0.12, 0.04]) });
 export const CEL_CHARGE = Object.freeze({ body: 0.45, rim: 1.1, faceRim: 0.5, power: 2.2, rate: Object.freeze([3, 6]), low: 0.35 });
-const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8', 'colS', 'faceM'];
+/** THE SIGNAL on a cel body (a boss's eyes and glow, gameworld/bosses.js; its tell worlds/controllable/tell.js): its corners
+ * keep their colour whatever the light (`base`), brightened by the tell (`gain`) and whitened at its peak (`white`). */
+export const CEL_SIGNAL = Object.freeze({ base: 0.9, gain: 1.1, white: 0.3 });
+const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8', 'colS', 'faceM', 'sigM'];
 // A PART WITH ITS PAINT, ITS NORMALS AND ITS FACE (a realistic hero's: a corner a triangle, every number a float32), as
 // the page reads it (`full: 1`): the corners that are the same corner are one (its place, its colour, its paint's place,
 // its normal and its face's row all the same), the places on a uint16 grid over the part's own box as a unit rig's are
@@ -937,6 +941,9 @@ function __updateGearLines() {
   // (a CEL body, world-scene.js heroFigure `cel`: each part's lit tone and its shade tone, stepped by the world's key)
   const figHasToon = Object.values(figures || {}).some((f) => f && f.rig && f.toon && Array.isArray(f.parts) && f.parts.some((p) => p && p.colS));
   const toonHook = figHasToon ? '\n    if (fig.toon && part.colS) mesh.material = __toonMat(mesh.material, group);' : '';
+  // (and a SIGNAL, a boss's eyes and glow (world-scene.js celBody's \`sigM\`, gameworld/bosses.js): lit by its TELL each
+  // frame, worlds/controllable/tell.js. No figure carries one: nothing emitted, the cel body as it was)
+  const figHasSignal = figHasToon && Object.values(figures || {}).some((f) => f && f.toon && Array.isArray(f.parts) && f.parts.some((p) => p && p.sigM));
   // (a body that carries its relief, a realistic hero's: its normal map and its occlusion, roughness and metal, on its
   // paint's own atlas; the cast material reads them. None carries one: nothing emitted)
   const figHasRelief = figHasCast && Object.values(figures || {}).some((f) => f && f.cast && f.paintTex && (f.normalTex || f.ormTex));
@@ -1418,7 +1425,8 @@ function __toonKeyOf(e, g) {
   K.lerp(__toonV, 0.15).normalize();
   // (CHARGING: the buster's charge lights its body up on its FRESNEL, in the level reached's colour, as much as it is full,
   // pulsing on the world's clock, faster once a level is reached: the whole body a little, toward its silhouette most)
-  const Cg = g.userData.toonCharge, B = e.rule && e.rule.buster;
+${figHasSignal ? `  if (g.userData.toonSig) e.tellNow = g.userData.toonSig.value = __tellOf(e, __world.time);
+` : ''}  const Cg = g.userData.toonCharge, B = e.rule && e.rule.buster;
   if (Cg) {
     if (B && e.charging && e.busterOn && (e.chargeFrac || 0) > 0) {
       const lv = e.chargeLevel ? B.levels[e.chargeLevel - 1] : B.tap, c = __toonC.set(lv && lv.color != null ? lv.color : 0xfff2a8);
@@ -1427,26 +1435,28 @@ function __toonKeyOf(e, g) {
     } else Cg.w = 0;
   }
 }
-const __toonC = new THREE.Color();
+const __toonC = new THREE.Color();${figHasSignal ? `
+// (the SIGNAL's tell: an ember at rest, rising to the next shot while it means to fire, a flash at the shot)
+const __tellOf = ${tellOf.toString()};` : ''}
 // (the charge's pulse, one for its glow, its bloom and its light: slow and deep, faster once a level is reached)
 const __chargePulse = (e) => ${CEL_CHARGE.low} + (1 - ${CEL_CHARGE.low}) * (0.5 + 0.5 * Math.sin(2 * Math.PI * __world.time * (e.chargeLevel ? ${CEL_CHARGE.rate[1]} : ${CEL_CHARGE.rate[0]})));
 // (the face is never lit by the charge, only edged by its rim: its corners marked (heroFigure's cel, \`faceM\`); the rest of
 // the body, the helmet with it, glows)
 function __toonMat(base, g) {
   const m = base.clone();
-  if (g && !g.userData.toonKey) { g.userData.toonKey = __toonKey.clone(); g.userData.toonCharge = new THREE.Vector4(0, 0, 0, 0); }
+  if (g && !g.userData.toonKey) { g.userData.toonKey = __toonKey.clone(); g.userData.toonCharge = new THREE.Vector4(0, 0, 0, 0);${figHasSignal ? ' g.userData.toonSig = { value: 0 };' : ''} }
   const key = g ? g.userData.toonKey : __toonKey, charge = g ? g.userData.toonCharge : new THREE.Vector4(0, 0, 0, 0);
   m.userData.cel = true;
   const prev = m.onBeforeCompile, prevKey = m.customProgramCacheKey;
   m.onBeforeCompile = function (sh, r) {
     if (prev) prev.call(this, sh, r);
-    sh.uniforms.uToonKey = { value: key }; sh.uniforms.uToonStep = { value: __TOON_STEP }; sh.uniforms.uToonCharge = { value: charge };
-    sh.vertexShader = 'attribute vec3 colorShade;\\nattribute float aToonFace;\\nvarying vec3 vToonShade;\\nvarying vec3 vToonN;\\nvarying vec3 vToonW;\\nvarying float vToonFace;\\n' + sh.vertexShader.replace('#include <fog_vertex>', '#include <fog_vertex>\\n  vToonShade = colorShade;\\n  vToonN = normalize(mat3(modelMatrix) * normal);\\n  vToonW = (modelMatrix * vec4(transformed, 1.0)).xyz;\\n  vToonFace = aToonFace;');
-    sh.fragmentShader = 'uniform vec3 uToonKey;\\nuniform float uToonStep;\\nuniform vec4 uToonCharge;\\nvarying float vToonFace;\\nvarying vec3 vToonShade;\\nvarying vec3 vToonN;\\nvarying vec3 vToonW;\\n' + sh.fragmentShader.replace('#include <color_fragment>',
+    sh.uniforms.uToonKey = { value: key }; sh.uniforms.uToonStep = { value: __TOON_STEP }; sh.uniforms.uToonCharge = { value: charge };${figHasSignal ? ' sh.uniforms.uToonSig = g ? g.userData.toonSig : { value: 0 };' : ''}
+    sh.vertexShader = 'attribute vec3 colorShade;\\nattribute float aToonFace;\\nvarying vec3 vToonShade;\\nvarying vec3 vToonN;\\nvarying vec3 vToonW;\\nvarying float vToonFace;\\n${figHasSignal ? 'attribute float aToonSig;\\nvarying float vToonSig;\\n' : ''}' + sh.vertexShader.replace('#include <fog_vertex>', '#include <fog_vertex>\\n${figHasSignal ? '  vToonSig = aToonSig;\\n' : ''}  vToonShade = colorShade;\\n  vToonN = normalize(mat3(modelMatrix) * normal);\\n  vToonW = (modelMatrix * vec4(transformed, 1.0)).xyz;\\n  vToonFace = aToonFace;');
+    sh.fragmentShader = 'uniform vec3 uToonKey;\\nuniform float uToonStep;\\nuniform vec4 uToonCharge;\\n${figHasSignal ? 'uniform float uToonSig;\\nvarying float vToonSig;\\n' : ''}varying float vToonFace;\\nvarying vec3 vToonShade;\\nvarying vec3 vToonN;\\nvarying vec3 vToonW;\\n' + sh.fragmentShader.replace('#include <color_fragment>',
       '#if defined( USE_COLOR )\\n  vec3 toonN = normalize(vToonN) * (gl_FrontFacing ? 1.0 : -1.0);\\n  float toonLit = smoothstep(uToonStep - 0.03, uToonStep + 0.03, dot(toonN, uToonKey));\\n  diffuseColor.rgb *= mix(vToonShade, vColor.rgb, toonLit);\\n'
-      + '  if (uToonCharge.a > 0.0) { float toonF = pow(clamp(1.0 - abs(dot(toonN, normalize(cameraPosition - vToonW))), 0.0, 1.0), ${CEL_CHARGE.power}); diffuseColor.rgb += uToonCharge.rgb * uToonCharge.a * mix(${CEL_CHARGE.body} + ${CEL_CHARGE.rim} * toonF, ${CEL_CHARGE.faceRim} * toonF, step(0.5, vToonFace)); }\\n#endif');
+      + '  if (uToonCharge.a > 0.0) { float toonF = pow(clamp(1.0 - abs(dot(toonN, normalize(cameraPosition - vToonW))), 0.0, 1.0), ${CEL_CHARGE.power}); diffuseColor.rgb += uToonCharge.rgb * uToonCharge.a * mix(${CEL_CHARGE.body} + ${CEL_CHARGE.rim} * toonF, ${CEL_CHARGE.faceRim} * toonF, step(0.5, vToonFace)); }\\n${figHasSignal ? `  if (vToonSig > 0.5) diffuseColor.rgb = vColor.rgb * (${CEL_SIGNAL.base} + ${CEL_SIGNAL.gain} * uToonSig) + vec3(${CEL_SIGNAL.white} * uToonSig * uToonSig);\\n` : ''}#endif');
   };
-  m.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|cel-body'; };
+  m.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|cel-body${figHasSignal ? '-sig' : ''}'; };
   return m;
 }
 // (each corner's normal: the faces round its point that turn within the character light's crease (35°) of its own,
@@ -1561,7 +1571,7 @@ function __castMR(fig, c, n) {
     // read it back as a NORMALIZED uint8 attribute so the GPU dequantizes ÷255 to the same [0,1].
     geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));${figHasToon ? `
     // (a cel body's part: its shade tone a corner, and its normals smoothed within the character light's crease)
-    if (fig.toon && part.colS) { geo.setAttribute('colorShade', new THREE.BufferAttribute(decodeU8(part.colS), 3, true)); geo.setAttribute('aToonFace', part.faceM ? new THREE.BufferAttribute(decodeU8(part.faceM), 1, true) : new THREE.BufferAttribute(new Uint8Array(geo.getAttribute('position').count), 1, true)); if (!geo.getAttribute('normal')) geo.setAttribute('normal', new THREE.BufferAttribute(__toonNormals(geo.getAttribute('position').array, geo.index ? geo.index.array : null), 3)); }` : ''}${figHasPaint ? `
+    if (fig.toon && part.colS) { geo.setAttribute('colorShade', new THREE.BufferAttribute(decodeU8(part.colS), 3, true)); geo.setAttribute('aToonFace', part.faceM ? new THREE.BufferAttribute(decodeU8(part.faceM), 1, true) : new THREE.BufferAttribute(new Uint8Array(geo.getAttribute('position').count), 1, true));${figHasSignal ? " geo.setAttribute('aToonSig', part.sigM ? new THREE.BufferAttribute(decodeU8(part.sigM), 1, true) : new THREE.BufferAttribute(new Uint8Array(geo.getAttribute('position').count), 1, true));" : ''} if (!geo.getAttribute('normal')) geo.setAttribute('normal', new THREE.BufferAttribute(__toonNormals(geo.getAttribute('position').array, geo.index ? geo.index.array : null), 3)); }` : ''}${figHasPaint ? `
     const map = fig.paintTex && ((part.uv && !part.q) || part.uq) ? __rigTex(fig) : null;
     if (map) { if (part.uq) { const u = __decodeU16(part.uq), f = new Float32Array(u.length); for (let i = 0; i < u.length; i += 2) { f[i] = part.uo[0] + u[i] * part.us[0]; f[i + 1] = part.uo[1] + u[i + 1] * part.us[1]; } geo.setAttribute('uv', new THREE.BufferAttribute(f, 2)); } else geo.setAttribute('uv', new THREE.BufferAttribute(decodeF32(part.uv), 2)); }` : ''}${figHasFace ? `
     if (fig.face && part.morph && (!part.q || part.full)) __rigMorph(fig, part, geo);` : ''}${figHasCast ? `

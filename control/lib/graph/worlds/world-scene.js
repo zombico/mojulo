@@ -211,6 +211,9 @@ function rigBounds(fig) {
 // (a face's palette groups, and the marker its third bake paints them: a colour no palette names)
 const CEL_FACE_GROUPS = /^(Skin|Sclera|Iris|Pupil|Mouth|Lip|Brow|Lash|Ink|Teeth|Tongue|Blush|Eye)/;
 const CEL_FACE_MARK = '#ff00fe';
+// (and a boss's SIGNAL, its eyes and its glow, gameworld/bosses.js: a fourth bake marks it, `sigM`, so the page lights it
+// by its tell, worlds/controllable/tell.js; a body with no signal group bakes no fourth)
+const CEL_SIGNAL_GROUPS = /^Signal/;
 async function celBody(manifest, ctx) {
   const { expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
   const groups = Object.keys(expandLayeredManifest(manifest).recipe?.palette ?? {});
@@ -221,21 +224,22 @@ async function celBody(manifest, ctx) {
   // (and a third, lit, its FACE's groups painted a marker: each corner whose colour that changes is the face's, so a charge
   // lights the helmet and the body and only edges the face, index.js uToonCharge)
   const faceGroups = groups.filter((g) => CEL_FACE_GROUPS.test(g));
-  const marked = () => { const E = stepped(-1); return faceGroups.length ? { ...E, recipe: { ...E.recipe, palette: { ...E.recipe.palette, ...Object.fromEntries(faceGroups.map((g) => [g, CEL_FACE_MARK])) } } } : null; };
-  const [L, S, F] = await Promise.all([stepped(-1), stepped(1), marked()].map((m) => (m ? WORLD_KINDS.layered.resolve(m, ctx) : null)));
-  const A = L?.figures?.body, B = S?.figures?.body, Fb = F?.figures?.body;
+  const markOf = (gs) => () => { const E = stepped(-1); return gs.length ? { ...E, recipe: { ...E.recipe, palette: { ...E.recipe.palette, ...Object.fromEntries(gs.map((g) => [g, CEL_FACE_MARK])) } } } : null; };
+  const marked = markOf(faceGroups), sigGroups = groups.filter((g) => CEL_SIGNAL_GROUPS.test(g));
+  const [L, S, F, Sg] = await Promise.all([stepped(-1), stepped(1), marked(), markOf(sigGroups)()].map((m) => (m ? WORLD_KINDS.layered.resolve(m, ctx) : null)));
+  const A = L?.figures?.body, B = S?.figures?.body, Fb = F?.figures?.body, Sb = Sg?.figures?.body;
   if (!A?.parts || !B?.parts || A.parts.length !== B.parts.length) return null;
   // (each part whose two bakes carry the same corners steps between them; one that does not (a piece the light splits
   // its own way) keeps its lit bake; two bakes of one tone are no cel, the light was not stepped)
   const lines = (p, q) => !!p && !!q && p.pos === q.pos && typeof p.col === 'string' && typeof q.col === 'string';
-  const faceOf = (p, i) => {
-    const q = Fb?.parts?.[i];
+  const faceOf = (p, i, M = Fb) => {
+    const q = M?.parts?.[i];
     if (!lines(p, q) || p.col === q.col) return null;
     const a = Buffer.from(p.col, 'base64'), b = Buffer.from(q.col, 'base64'), m = Buffer.alloc(a.length / 3);
     for (let v = 0; v < m.length; v++) m[v] = a[v * 3] !== b[v * 3] || a[v * 3 + 1] !== b[v * 3 + 1] || a[v * 3 + 2] !== b[v * 3 + 2] ? 255 : 0;
     return m.toString('base64');
   };
-  const parts = A.parts.map((p, i) => { if (!(lines(p, B.parts[i]) && p.col !== B.parts[i].col)) return p; const f = faceOf(p, i); return { ...p, colS: B.parts[i].col, ...(f ? { faceM: f } : {}) }; });
+  const parts = A.parts.map((p, i) => { if (!(lines(p, B.parts[i]) && p.col !== B.parts[i].col)) return p; const f = faceOf(p, i), g = Sb ? faceOf(p, i, Sb) : null; return { ...p, colS: B.parts[i].col, ...(f ? { faceM: f } : {}), ...(g ? { sigM: g } : {}) }; });
   if (!parts.some((p) => p && p.colS)) return null;
   return { ...L, figures: { ...L.figures, body: { ...A, toon: true, parts } } };
 }

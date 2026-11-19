@@ -1,7 +1,8 @@
 // The side map's boss (side-map/boss-cast.js, a chain's `boss`). The concepts: a chain names its boss only in a last room
 // that teaches the boss, and a world only one of the roster; the boss stands in that room, in from its far wall on its
 // floor, facing the way in, on the lane's rail, at its tier's height, in the hero's cel light; its fall is the level's end
-// in place of the far side's reach; no figure, no boss (the level as it was); the run mints it through the hero door.
+// in place of the far side's reach; no figure, no boss (the level as it was); the run mints it through the hero door, in
+// the hue its level's map holds back for its boss.
 import { describe, it, expect } from 'vitest';
 import { sideMapBossCast } from './boss-cast.js';
 import { bossPlace, BOSS_BACK, FACING_IN } from './cast.js';
@@ -50,5 +51,8 @@ describe('the side map\'s boss', () => {
     expect(step).toBeDefined();
     expect(step.order.mint).toMatchObject({ kind: 'layered', via: 'hero' });
     expect(step.order.spec.adorn.with[0].signature.window).toBeUndefined();
+    // (its identity the hue its level's map holds back for its boss: the room's mark and the boss in one colour)
+    const G = galaxy(), [stage] = gameStages(G), { dress } = sideMapOf({ ...stage.manifest, feel: G.feel });
+    expect(step.order.spec.palette.Pec).toBe(dress.palette.boss);
   });
 });

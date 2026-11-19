@@ -25,6 +25,7 @@ export function sideMapBossCast(G, ends, { refs = {}, stature = 1.67 } = {}) {
   // collider and its hit egg with it)
   const H = r3(stature * B.tier), R = r3(0.3 * B.tier), { scale: _s, ...body } = e.body;
   e.body = { ...body, ...(B.tier !== 1 ? { scale: B.tier } : {}), radius: R, egg: { a: r3(0.42 * B.tier), c: r3(H / 2), cz: r3(H / 2) } };
-  e.rule = { ...e.rule, collideHeight: H, collideRadius: R, rail: { a: [0, -RAIL.wake], b: [0, r3((ends.rail?.length ?? P.at[1]) + RAIL.wake)], join: P.at, heading: P.heading } };
+  // (its TELL lights the room round its face as it winds up: worlds/controllable/shot-light.js `rule.tell`)
+  e.rule = { ...e.rule, tell: { color: parseInt(B.signal.slice(1), 16), at: r3(H * 0.85) }, collideHeight: H, collideRadius: R, rail: { a: [0, -RAIL.wake], b: [0, r3((ends.rail?.length ?? P.at[1]) + RAIL.wake)], join: P.at, heading: P.heading } };
   return { figures: part.figures, entities: part.entities, mechanics: [{ kind: 'defeat-all', who: `${id}*`, count: 1, label: B.name }] };
 }

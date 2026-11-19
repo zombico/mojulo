@@ -91,7 +91,9 @@ import { BEAST_KINS } from '../beast/cards.js';
 import { fighterName } from '../versus/versus-sheet.js';
 import { solvePalette } from '../color-theorist/solve.js';
 import { gameTheme } from '../color-theorist/adapters.js';
-import { bossSpec, BOSSES } from './bosses.js';
+import { BOSSES } from './bosses.js';
+import { bossSpec } from './boss-spec.js';
+import { sideMapOf } from './side-map/scene.js';
 import { sideMapBossCast } from './side-map/boss-cast.js';
 
 const REF_MAX = 64;
@@ -698,8 +700,11 @@ const levelPrint = (G, args, hostile) => (hostile ? fingerprint({ args, foes: be
 // the side maps' bosses: the roster ids their chains name, each minted through the hero door (bosses.js bossSpec)
 const sideMapBossIds = (G) => [...new Set(G.ids.map((id) => G.levels[id].sidemap?.boss).filter(Boolean))];
 const sideMapBossRefs = (G, ref) => Object.fromEntries(sideMapBossIds(G).map((id) => [id, childRef(ref, `foe-${id}`)]));
+// (its identity hue the one its level's map holds back for its boss: the dress's, side-map/dress.js; the law that keeps it
+// its own reads the map's zones, so the boss stands out of every one of them)
+const sideMapBossHue = (G, id) => { const lv = G.ids.find((k) => G.levels[k].sidemap?.boss === id), s = gameStages(G).find((x) => x.level === lv && x.section === 'sidemap'); return s ? sideMapOf({ ...s.manifest, ...(G.feel ? { feel: G.feel } : {}) }).dress.palette.boss : null; };
 const sideMapBossSteps = (G, ref, ready) => sideMapBossIds(G).map((id) => {
-  const spec = bossSpec(id), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} ${BOSSES[id].name}`, spec };
+  const spec = bossSpec(id, { hue: sideMapBossHue(G, id) }), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} ${BOSSES[id].name}`, spec };
   return { key: `foe-${id}`, ref: childRef(ref, `foe-${id}`), ...ready, order: { spec, mint, motion: null }, print: fingerprint({ spec }) };
 });
 const foeRefsOf = (G, ref) => Object.fromEntries(fieldedIds(G).map((id) => [id, isModel(bestiaryOf(G)[id]) ? bestiaryOf(G)[id].skin.meshRef : childRef(ref, `foes-${id}`)]));

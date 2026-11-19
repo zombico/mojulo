@@ -10,13 +10,16 @@
  *   a BREAK      a block that broke (state.breaks: rupa's matter, a breakable's), and a body DESTROYED (e.wreck: dismantle's
  *                or a cleave's), lit as it comes apart: a flash at it fading over BREAK_LIFE, in the colour of the round
  *                that burst there then (its burst's), else warm, so what a shot destroys is lit by the shot's light
+ *   a TELL       a boss's signal as it winds up (`rule.tell`, its `tellNow` read by the page from tell.js): at its face, in its
+ *                signal's colour, growing with the tell past its ember
  *   the CHARGE   the pilot's buster charging (e.charging, e.chargeFrac): from its body, at its chest, growing as it fills, in the colour
  *                of the level reached, pulsing on the world's clock
  *
  * SPILL, NOT FLOOD (the shot's look, the reference's eighth principle): a light reaches a little way and gives a little,
  * in its hue saturated (S.chroma round its luminance, its brightest channel at 1), never its white core's.
  *
- * Each light { pos: [x, y, z], color: [r, g, b] (0..1, sRGB, saturated), reach (m), power }, the K strongest by power over
+ * Each light { pos: [x, y, z], color: [r, g, b] (0..1, sRGB, saturated), reach (m), power, bodies? } (`bodies: false`:
+ * the map's alone, never a body's: a tell), the K strongest by power over
  * their distance to `focus` (the camera's look). Deterministic: the world's time, never a die or a clock of the page's.
  *
  *   shotLights(state, { focus?, k? }) → [light]
@@ -24,10 +27,10 @@
  *
  * Import-free: the page runs this exact source (toString), as it runs the controllable world's.
  */
-export const SHOT_LIGHT = Object.freeze({ k: 6, burstLife: 0.35, flashLife: 0.09, pellet: [1.4, 5], shell: 0.9, burst: 1.6, flash: 2, charge: [0.8, 1.8], warm: 0xffd890, chroma: 1.6, breakLife: 0.45, broke: [2.6, 1.3], wreck: [3, 1.5], pulse: [3, 6] });
+export const SHOT_LIGHT = Object.freeze({ k: 6, burstLife: 0.35, flashLife: 0.09, pellet: [1.4, 5], shell: 0.9, burst: 1.6, flash: 2, charge: [0.8, 1.8], warm: 0xffd890, chroma: 1.6, breakLife: 0.45, broke: [2.6, 1.3], wreck: [3, 1.5], pulse: [3, 6], tell: [1.2, 2.4], tellPower: 0.9 });
 
 export function shotLights(state, opts) {
-  const S = { k: 6, burstLife: 0.35, flashLife: 0.09, pellet: [1.4, 5], shell: 0.9, burst: 1.6, flash: 2, charge: [0.8, 1.8], warm: 0xffd890, chroma: 1.6, breakLife: 0.45, broke: [2.6, 1.3], wreck: [3, 1.5], pulse: [3, 6] };
+  const S = { k: 6, burstLife: 0.35, flashLife: 0.09, pellet: [1.4, 5], shell: 0.9, burst: 1.6, flash: 2, charge: [0.8, 1.8], warm: 0xffd890, chroma: 1.6, breakLife: 0.45, broke: [2.6, 1.3], wreck: [3, 1.5], pulse: [3, 6], tell: [1.2, 2.4], tellPower: 0.9 };
   const o = opts || {}, K = o.k || S.k, focus = o.focus || null, t = state && state.time ? state.time : 0, out = [];
   if (!state) return out;
   // (its colour the hue saturated, the body's: a shot's white core is its own, never what it throws on the world)
@@ -36,7 +39,7 @@ export function shotLights(state, opts) {
     const w = v.map((x) => Math.max(0, y + (x - y) * S.chroma)), m = Math.max(w[0], w[1], w[2], 1e-6);
     return w.map((x) => Math.round((x / m) * 1000) / 1000);
   };
-  const add = (pos, color, reach, power) => { if (pos && reach > 0 && power > 1e-3) out.push({ pos: [pos[0], pos[1], pos[2]], color: rgb(color), reach, power }); };
+  const add = (pos, color, reach, power, bodies) => { if (pos && reach > 0 && power > 1e-3) out.push({ pos: [pos[0], pos[1], pos[2]], color: rgb(color), reach, power, ...(bodies === false ? { bodies: false } : {}) }); };
   // the rounds in flight
   for (const p of state.projectiles || []) {
     if (p.pellet) { const sz = p.fxScale != null ? p.fxScale : p.projRadius || 0.08; add(p.pos, p.fxColor, S.pellet[0] + S.pellet[1] * sz, 0.35 + 1.2 * sz); }
@@ -80,6 +83,15 @@ export function shotLights(state, opts) {
       // own glow is its cel's, index.js uToonCharge)
       if (tr && tr.pos) add([tr.pos[0], tr.pos[1], tr.pos[2] + (r.collideHeight || 1.7) * (B.chest || 0.7) - (r.eye || 0)], lv && lv.color != null ? lv.color : S.warm, S.charge[0] + S.charge[1] * fr, (0.15 + 0.45 * fr) * pulse);
     }
+  }
+  // a body's TELL (a boss's signal: its eyes and its glow lit as it winds up, tell.js; `rule.tell` { color, at } its colour
+  // and its height, `tellNow` the tell the page read this frame): it lights what is round its face
+  for (const e of state.entities || []) {
+    const R = e && e.rule && e.rule.tell, v = e && e.tellNow;
+    if (!R || !(v > 0.25) || e.gone || e.downed || !e.transform) continue;
+    const q = (v - 0.25) / 0.75;
+    // (the room's, not the bodies': a light in its own head would light the boss itself, whose signal is its own)
+    add([e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + (R.at || 1.5)], R.color, S.tell[0] + S.tell[1] * q, S.tellPower * q * q, false);
   }
   // the K that matter most where the camera looks: power over distance (a far light is a light the frame does not see)
   if (out.length > K) {

@@ -215,8 +215,10 @@ Its last room may hold a boss (the chain's `boss`, an id from the roster in
 fall ends the level (`side-map/boss-cast.js`). A boss is a robot of the hero's own family: his body and his toy suit, at
 its own build and height. Its face is never a person's, because the hero alone keeps the open face. The face is its theme
 instead: a mask, a visor, a grille, one eye, a screen, a beast's head or an object. It always has eyes, lit in its signal
-colour, because the gaze is the aim and the light is the tell. The first is Crucible: its head is a crucible of molten
-metal, on a brute's body, and it lobs.
+colour, because the gaze is the aim and the light is the tell. The signal glows as the boss winds up a shot, flashes as
+it fires, and lights the room round its face (`control/lib/graph/worlds/controllable/tell.js`). A boss's colour is the
+hue its level holds back for its boss, so it stands out of every zone that leads to it; its theme lives in its head and
+its signal. The first is Crucible: its head is a crucible of molten metal, on a brute's body, and it lobs.
 
 The hero's body sets the screen. Galaxy Boy's is the toy hero robot's (`proportions: 'herobot'`, about four and a half
 heads, adult-limbed): a game body of its own, too real for a mascot's.
@@ -234,6 +236,6 @@ The eyes gate is the operator's: the map read as a drawing, the level played on 
 
 ## Not yet
 
-Things that move beside the way (the benchmark says them missing), a hit costing health and not a life, the boss's face lighting as it winds up, the boss's second form, the boss's fight in
+Things that move beside the way (the benchmark says them missing), a hit costing health and not a life, the boss's second form, the weapon its fall gives the hero, the boss's fight in
 its room, the hero's climb clip seen from behind. After them: a metroidvania (the zones as rooms on a grid, doors gated by powers, the map
 shown in the game), and the 3D platformer's courses told the same way.

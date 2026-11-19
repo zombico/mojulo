@@ -32,7 +32,7 @@ export function shotLightScript() {
   return `
 // ── THE SHOT LIGHT ──
 const __shotLights = ${shotLights.toString()};
-const __SL = { last: [], patched: 0, U: { uSlN: { value: 0 }, uSlP: { value: Array.from({ length: ${K} }, () => new THREE.Vector3()) }, uSlC: { value: Array.from({ length: ${K} }, () => new THREE.Vector3()) }, uSlR: { value: new Array(${K}).fill(1) } } };
+const __SL = { last: [], patched: 0, U: { uSlN: { value: 0 }, uSlP: { value: Array.from({ length: ${K} }, () => new THREE.Vector3()) }, uSlC: { value: Array.from({ length: ${K} }, () => new THREE.Vector3()) }, uSlR: { value: new Array(${K}).fill(1) }, uSlB: { value: new Array(${K}).fill(1) } } };
 // (a material lit by the shot light: three's MeshBasicMaterial, opaque matter, never a glow: what adds light is left as it is)
 function __slPatch(mat) {
     if (!mat || !mat.isMeshBasicMaterial || mat.__shotLight || mat.blending === THREE.AdditiveBlending) return;
@@ -43,7 +43,7 @@ function __slPatch(mat) {
       if (prev) prev.call(this, sh, r);
       Object.assign(sh.uniforms, __SL.U);
       sh.vertexShader = 'varying vec3 vSlW;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  { vec4 slw = vec4( transformed, 1.0 );\\n#ifdef USE_INSTANCING\\n  slw = instanceMatrix * slw;\\n#endif\\n  vSlW = ( modelMatrix * slw ).xyz; }');
-      sh.fragmentShader = 'varying vec3 vSlW;\\nuniform int uSlN;\\nuniform vec3 uSlP[${K}];\\nuniform vec3 uSlC[${K}];\\nuniform float uSlR[${K}];\\n'
+      sh.fragmentShader = 'varying vec3 vSlW;\\nuniform int uSlN;\\nuniform vec3 uSlP[${K}];\\nuniform vec3 uSlC[${K}];\\nuniform float uSlR[${K}];\\nuniform float uSlB[${K}];\\n'
         + 'vec3 slGlow( vec3 c ) {\\n  if ( uSlN == 0 ) return vec3( 0.0 );\\n  vec3 N = normalize( cross( dFdx( vSlW ), dFdy( vSlW ) ) ), g = vec3( 0.0 );\\n'
         + '  vec3 V = normalize( cameraPosition - vSlW ); float rim = clamp( 1.0 - abs( dot( N, V ) ), 0.0, 1.0 ); rim *= rim;\\n'
         + '  for ( int k = 0; k < ${K}; k++ ) { if ( k >= uSlN ) break; vec3 d = uSlP[ k ] - vSlW; float r = length( d ), f = clamp( 1.0 - r / uSlR[ k ], 0.0, 1.0 ), nl = dot( N, d / max( r, 1e-3 ) ); g += uSlC[ k ] * ( f * f * ( 0.35 * ( 0.5 + 0.5 * nl ) + 1.2 * rim * clamp( nl + 0.4, 0.0, 1.0 ) ) ); }\\n'
@@ -56,11 +56,11 @@ function __slPatch(mat) {
 }
 // (every such material in the scene, and again every few frames for what comes into it: a block's chunks as it breaks
 // (rupa), a destroyed body's pieces (dismantle, a cleave), the bodies themselves)
-// THE SHOT ON A CEL BODY: no soft pool but a hard rim, the shot's colour where the part turns toward it past the step and
+// THE SHOT ON A CEL BODY (only a light that lights bodies: a boss's tell, bodies false, is the map's alone): no soft pool but a hard rim, the shot's colour where the part turns toward it past the step and
 // away from the eye (its silhouette's edge), within its reach, as a cel body takes any light: in steps (vToonN, its own)
 const CEL_GLOW = 'vec3 slCel( vec3 c ) {\\n  if ( uSlN == 0 ) return vec3( 0.0 );\\n  vec3 N = normalize( vToonN ) * ( gl_FrontFacing ? 1.0 : -1.0 ), g = vec3( 0.0 );\\n'
   + '  vec3 V = normalize( cameraPosition - vSlW ); float edge = smoothstep( ${CEL_EDGE} - 0.04, ${CEL_EDGE} + 0.04, 1.0 - abs( dot( N, V ) ) );\\n'
-  + '  for ( int k = 0; k < ${K}; k++ ) { if ( k >= uSlN ) break; vec3 d = uSlP[ k ] - vSlW; float r = length( d ), nl = dot( N, d / max( r, 1e-3 ) ); g += uSlC[ k ] * ( step( r, uSlR[ k ] * ${CEL_REACH} ) * smoothstep( ${CEL_STEP} - 0.03, ${CEL_STEP} + 0.03, nl ) * edge ); }\\n'
+  + '  for ( int k = 0; k < ${K}; k++ ) { if ( k >= uSlN ) break; vec3 d = uSlP[ k ] - vSlW; float r = length( d ), nl = dot( N, d / max( r, 1e-3 ) ); g += uSlB[ k ] * uSlC[ k ] * ( step( r, uSlR[ k ] * ${CEL_REACH} ) * smoothstep( ${CEL_STEP} - 0.03, ${CEL_STEP} + 0.03, nl ) * edge ); }\\n'
   + '  return min( ( 0.35 + 0.65 * c / max( max( c.r, c.g ), max( c.b, 0.03 ) ) ) * g * ${CEL_GAIN}, vec3( ${CEL_CAP} ) );\\n}\\n';
 const __slSweep = () => scene.traverse((o) => { if (o.isMesh && o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(__slPatch); });
 __slSweep();
@@ -70,7 +70,7 @@ const __slLin = (v) => Math.pow(v, 2.2);
 function __slFrame() {
   const p = __world.pilotId && __world.byId ? __world.byId[__world.pilotId] : null;
   const L = __shotLights(__world, { k: ${K}, focus: p && p.transform ? p.transform.pos : null }), U = __SL.U;
-  L.forEach((l, k) => { U.uSlP.value[k].set(l.pos[0], l.pos[1], l.pos[2]); U.uSlC.value[k].set(__slLin(l.color[0]) * l.power, __slLin(l.color[1]) * l.power, __slLin(l.color[2]) * l.power); U.uSlR.value[k] = l.reach; });
+  L.forEach((l, k) => { U.uSlP.value[k].set(l.pos[0], l.pos[1], l.pos[2]); U.uSlC.value[k].set(__slLin(l.color[0]) * l.power, __slLin(l.color[1]) * l.power, __slLin(l.color[2]) * l.power); U.uSlR.value[k] = l.reach; U.uSlB.value[k] = l.bodies === false ? 0 : 1; });
   U.uSlN.value = L.length; __SL.last = L;
 }
 const __slStep0 = stepControllable;

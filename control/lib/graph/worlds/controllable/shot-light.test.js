@@ -59,6 +59,15 @@ describe('the shot light', () => {
     // (from the body itself, the charge over its whole length)
     expect(full.pos.slice(0, 2)).toEqual([0, 2]);
   });
+  it('a boss\'s tell lights round its face as it winds up, in its signal\'s colour; at its ember, nothing', () => {
+    const boss = (tellNow) => ({ id: 'b', transform: { pos: [0, 5, 0] }, rule: { tell: { color: 0xffb020, at: 1.8 } }, tellNow });
+    expect(shotLights({ time: 1, entities: [boss(0.2)] })).toEqual([]);
+    const [lo] = shotLights({ time: 1, entities: [boss(0.5)] }), [hi] = shotLights({ time: 1, entities: [boss(1)] });
+    expect(hi.power).toBeGreaterThan(lo.power);
+    expect(hi.reach).toBeGreaterThan(lo.reach);
+    expect(hi.pos).toEqual([0, 5, 1.8]);
+    expect(hi.color[0]).toBe(1);
+  });
   it('past K, the strongest near the focus are kept', () => {
     const ps = Array.from({ length: 10 }, (_, i) => pellet([0, i * 10, 1], 0.08, 0xffffff));
     const L = shotLights({ time: 0, projectiles: ps }, { focus: [0, 0, 1], k: 3 });

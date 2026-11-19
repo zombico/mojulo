@@ -2,10 +2,11 @@
 // group stepped lit and every group in shade, each part carrying both tones on the same corners, so the page steps
 // between them by the world's key. The concepts: the side scroller's own hero (the herobot rail's) in cel carries its
 // shade tones on most of its parts, each differing from its lit tone on the same corners; without `cel` the body is as it
-// was, one tone a corner. A body fit to a height (`body.fit`) is drawn that tall by its figure's own bounds.
+// was, one tone a corner. A boss's signal is marked on its own corners. A body fit to a height (`body.fit`) is drawn that tall by its figure's own bounds.
 import { describe, it, expect } from 'vitest';
 import { heroFigure, resolveWorldScene } from './world-scene.js';
 import { gameBody } from '../gameworld/game-bodies.js';
+import { bossSpec } from '../gameworld/boss-spec.js';
 
 const HERO = gameBody('herobot', 'hero').spec;
 
@@ -30,4 +31,15 @@ describe('the cel body', () => {
     expect(up.body.fit).toBeUndefined();
     expect(held.body.scale).toBeCloseTo(0.2, 6);
   }, 120000);
+  // (a boss's SIGNAL, its eyes and its glow: a fourth bake marks its corners, `sigM`, the page lighting them by its tell;
+  // a body with no signal marks none)
+  it('a boss\'s signal marked on its corners; the hero, with none, none', async () => {
+    const [boss, hero] = await Promise.all([heroFigure('b', { hero: bossSpec('crucible') }, { cel: true }), heroFigure('hero', { hero: HERO }, { cel: true })]);
+    const marked = boss.parts.filter((p) => p && p.sigM);
+    expect(marked.length).toBeGreaterThan(0);
+    const m = Buffer.from(marked[0].sigM, 'base64');
+    expect(m.some((v) => v === 255)).toBe(true);
+    expect(m.some((v) => v === 0)).toBe(true);
+    expect(hero.parts.some((p) => p && p.sigM)).toBe(false);
+  }, 240000);
 });

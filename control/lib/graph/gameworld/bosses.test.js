@@ -4,7 +4,8 @@
 // toy suit at its build, its helm the suit's `with`, its identity hue on its chest and its signal its eyes'; the same boss,
 // the same spec.
 import { describe, it, expect } from 'vitest';
-import { BOSSES, BOSS_FACES, bossHelm, bossSpec, bossFaceFaults, SIGNAL } from './bosses.js';
+import { BOSSES, BOSS_FACES, SIGNAL } from './bosses.js';
+import { bossHelm, bossSpec, bossFaceFaults } from './boss-spec.js';
 import { HEROBOT_HELM } from '../headgear/cards.js';
 import { heroRecord } from '@/lib/mcp/tools/layered.js';
 
