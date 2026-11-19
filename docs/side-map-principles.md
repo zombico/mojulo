@@ -248,7 +248,9 @@ fires on the left face and dashes on the top one, beside the triggers. His dash 
 the card's `jumps.dash`): a hard lean, streamlined, the off knee forward with its foot swept back and pointed, the
 buster side's foot back on its toes, the arms on a clock face (facing 3 o'clock: the buster's forearm at 4, the free
 arm's at 7); on the ground it throws dust back off his feet (`gameworld/feel/round-look.js` DASH_DUST), in the
-air none.
+air none. As he fires his buster arm comes up level along his facing, and the shot leaves from the cannon at its end
+(the rule's `buster.muzzle`, measured off his figure: `worlds/controllable/buster.js`); it is his right arm whichever
+way he faces.
 
 The hero's body sets the screen. Galaxy Boy's is the toy hero robot's (`proportions: 'herobot'`, about four and a half
 heads, adult-limbed): a game body of its own, too real for a mascot's.

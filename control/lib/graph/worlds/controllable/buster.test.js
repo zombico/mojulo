@@ -59,6 +59,19 @@ describe('the buster', () => {
     const soon = world(hero()); step(soon, true, L0 - 1); step(soon, false);
     expect(rounds(soon).filter((p) => p.busterLv > 0)).toHaveLength(0);
   });
+  it('from its MUZZLE where it has one: the cannon arm\'s end, ahead, up and on the right of the facing, whichever way it faces', () => {
+    const M = { right: 0.12, up: 0.72, ahead: 0.38 }, H = 1.7;
+    for (const heading of [Math.PI / 2, -Math.PI / 2]) {
+      const st = world({ ...hero({ ...BUSTER, muzzle: M }), transform: { pos: [0, 0, 0], heading } });
+      step(st, true);
+      const p = rounds(st)[0], f = E.fwdXY(heading), from = st.byId.hero.lastShot.from, right = [f[1], -f[0]];
+      // (ahead along the facing by the arm and the round, up at the shoulder, to the right of the facing by the shoulder)
+      expect(from[0] * f[0] + from[1] * f[1]).toBeCloseTo(M.ahead * H + BUSTER.tap.size, 6);
+      expect(from[2]).toBeCloseTo(M.up * H, 6);
+      expect(from[0] * right[0] + from[1] * right[1]).toBeCloseTo(M.right * H, 6);
+      expect(p.vel[0] * f[0] + p.vel[1] * f[1]).toBeGreaterThan(0);
+    }
+  });
   it('a body in its line takes the round\'s damage', () => {
     const st = world(hero(), foe(3));
     step(st, true); step(st, false, 30);

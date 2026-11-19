@@ -1498,6 +1498,19 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // (and a moveset's hero whose rule names its strike already, a feel's own: the saber's, feel/saber.js, its reach
           // and its damage its own; its figure's clips are played all the same)
           if (moveClips && mover && mover.rule.strike === 'melee' && !mover.rule.moveClips) payload.entities = payload.entities.map((e) => (e === mover ? { ...e, rule: { ...e.rule, moveClips: true } } : e));
+          // (the BUSTER's MUZZLE, where its figure carries the cannon on a bone, polygonizer/hero-buster-rig.js: the end of
+          // its arm raised level along the facing, measured off the rest rig as shares of the figure's height (its side
+          // from the middle, its height, its reach ahead), so the runtime fires from it at the body's own height:
+          // worlds/controllable/buster.js; the page raises that arm as it fires)
+          const cb = (figure.bones || []).find((b) => /^buster[LR]$/.test(b.id)), H = figure.figH;
+          if (cb && H > 0) {
+            const S = cb.id.slice(-1), bone = (n) => figure.bones.find((b) => b.id === n), U = bone(`upperArm${S}`), F = bone(`foreArm${S}`);
+            const len = (b) => Math.hypot(b.tail[0] - b.head[0], b.tail[1] - b.head[1], b.tail[2] - b.head[2]);
+            if (U && F) {
+              const r4 = (v) => Math.round(v * 1e4) / 1e4, muzzle = { right: r4(Math.abs(U.head[0]) / H * (S === 'R' ? 1 : -1)), up: r4(U.head[2] / H), ahead: r4((len(U) + len(F) + len(cb)) / H) };
+              payload.entities = payload.entities.map((e) => (e.rule && e.rule.buster && e.body && e.body.figure === name ? { ...e, rule: { ...e.rule, buster: { ...e.rule.buster, muzzle } } } : e));
+            }
+          }
           continue;
         }
         // RACER bodies (car-designer/roster.js): a figures-map entry may be a cartoon racer's recipe (`racer`: { facets,

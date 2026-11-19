@@ -299,3 +299,6 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   dash too). A ground dash throws a wisp of dust and grit back off his feet; an air dash raises none.
 - **A pointed foot**: a free foot can be pointed, its toes turned down about the ankle (the rig's `point<S>`), as a
   dash's streamlined front foot is.
+- **Galaxy Boy's shot**: as he fires, his buster arm comes up level along his facing over whatever he is doing (a run,
+  a jump, a dash) and eases back down; the shot leaves from the cannon at the end of that arm, not his chest. It is his
+  right arm whichever way he faces (the body turns, never a mirror), so facing left the shot leaves from his far side.

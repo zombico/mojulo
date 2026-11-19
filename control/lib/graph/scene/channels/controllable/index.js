@@ -1840,6 +1840,31 @@ function __busterSwap(e, fig, rig, dt) {
   for (const i of W.hand) W.s[i] = Math.max(__BUSTER_MIN, 1 - W.k);
   return W;
 }
+// THE BUSTER ARM RAISED (a shot just fired: worlds/controllable/buster.js e.lastShot): the cannon's arm, the right one
+// whichever way the hero faces (the body turns, never a mirror), lifted level along the facing over whatever the body
+// plays (a run, a jump, a dash): the upper arm turned about the shoulder onto the facing and the forearm about the
+// elbow onto it, the hand, the fingers and the cannon carried; eased up fast, held __BUSTER_RAISE s, eased down
+const __BUSTER_RAISE = 0.3, __baT = new THREE.Vector3(0, 1, 0), __baD = new THREE.Vector3(), __baI = new THREE.Quaternion(), __baF = new THREE.Quaternion(), __baH = new THREE.Vector3();
+function __busterArm(e, fig, rig, dt) {
+  if (rig.bar === undefined) {
+    const id = (n) => fig.bones.findIndex((b) => b.id === n), cb = fig.bones.findIndex((b) => /^buster[LR]$/.test(b.id));
+    const S = cb >= 0 ? fig.bones[cb].id.slice(-1) : null, up = S ? id('upperArm' + S) : -1, fo = S ? id('foreArm' + S) : -1;
+    if (up < 0 || fo < 0) rig.bar = null;
+    else {
+      const hand = new RegExp('^(hand|wristBridge|thumb|index|middle|ring|little|pinky|buster)[A-Za-z0-9]*' + S + '$');
+      const c2 = fig.bones.map((b) => hand.test(b.id)), c1 = fig.bones.map((b, i) => c2[i] || i === fo || b.id === 'elbowFold' + S);
+      const dir = (i) => { const b = fig.bones[i]; return [b.tail[0] - b.head[0], b.tail[1] - b.head[1], b.tail[2] - b.head[2]]; };
+      rig.bar = { up, fo, c1, c2, du: dir(up), df: dir(fo), k: 0, ps: [0, 0, 0], pe: [0, 0, 0], q1: new THREE.Quaternion(), q2: new THREE.Quaternion() };
+    }
+  }
+  const A = rig.bar;
+  if (!A) return null;
+  const up = !!(e.lastShot && __world.time - e.lastShot.t < __BUSTER_RAISE);
+  A.k += ((up ? 1 : 0) - A.k) * Math.min(1, (dt || 1 / 60) * (up ? 30 : 12));
+  return A.k > 1e-3 ? A : null;
+}
+// (a bone carried round a pivot by q: its head orbits, its turn takes q first)
+function __baOrbit(P, q) { __baH.set(__rigPA[0] - P[0], __rigPA[1] - P[1], __rigPA[2] - P[2]).applyQuaternion(q); __rigPA[0] = P[0] + __baH.x; __rigPA[1] = P[1] + __baH.y; __rigPA[2] = P[2] + __baH.z; __rigQA.premultiply(q); }
 ` : ''}// look-pitch aim scratch: rotate the weapon arm about the shoulder to follow vertical look.
 const __RIG_X = new THREE.Vector3(1, 0, 0), __apQ = new THREE.Quaternion(), __apH = new THREE.Vector3();
 // PER-SLOT ARM OVERLAY (R17): read one overlay bone's [q, head] from an armOverlays curve (same
@@ -2556,7 +2581,7 @@ ${camera && camera.rule === 'side-map' ? `  // (on a side map, a body with nothi
   }
 ${figHasLive ? `  const LV = fig.live ? __rigLive(e, rig, dt) : null;
 ` : ''}${figHasLayers ? `  const PL = e.body && e.body.layers ? __poseLayers(e, fig, dt) : null;
-` : ''}${busterOn ? `  const BS = __busterSwap(e, fig, rig, dt);
+` : ''}${busterOn ? `  const BS = __busterSwap(e, fig, rig, dt), BA = __busterArm(e, fig, rig, dt);
 ` : ''}  for (let bi = 0; bi < fig.bones.length; bi++) {
     const mesh = rig.boneMeshes[bi];
     if (!mesh) continue;
@@ -2629,7 +2654,22 @@ ${figHasRide ? `      // (a ridden machine's front turns about the steering axis
         __rigQA.premultiply(LV.body);
       }
     }
-` : ''}${busterOn ? `    // (the arm cannon's swap: a bone scaled s about its rest head, M·v = head' + q·s(v − restHead))
+` : ''}${busterOn ? `    // (the buster arm raised: the upper arm onto the facing about the shoulder, the forearm about the elbow, the rest carried)
+    if (BA) {
+      if (bi === BA.up) {
+        BA.ps[0] = __rigPA[0]; BA.ps[1] = __rigPA[1]; BA.ps[2] = __rigPA[2];
+        __baD.set(BA.du[0], BA.du[1], BA.du[2]).applyQuaternion(__rigQA).normalize(); __baF.setFromUnitVectors(__baD, __baT);
+        BA.q1.copy(__baI).slerp(__baF, BA.k); __rigQA.premultiply(BA.q1);
+      } else if (BA.c1[bi]) {
+        __baOrbit(BA.ps, BA.q1);
+        if (bi === BA.fo) {
+          BA.pe[0] = __rigPA[0]; BA.pe[1] = __rigPA[1]; BA.pe[2] = __rigPA[2];
+          __baD.set(BA.df[0], BA.df[1], BA.df[2]).applyQuaternion(__rigQA).normalize(); __baF.setFromUnitVectors(__baD, __baT);
+          BA.q2.copy(__baI).slerp(__baF, BA.k); __rigQA.premultiply(BA.q2);
+        } else if (BA.c2[bi]) __baOrbit(BA.pe, BA.q2);
+      }
+    }
+    // (the arm cannon's swap: a bone scaled s about its rest head, M·v = head' + q·s(v − restHead))
     if (BS && BS.s[bi] !== 1) {
       const bs = BS.s[bi], bh = fig.bones[bi].head;
       __rigH.set(bh[0] * bs, bh[1] * bs, bh[2] * bs).applyQuaternion(__rigQA);

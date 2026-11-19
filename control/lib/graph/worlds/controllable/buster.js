@@ -8,12 +8,14 @@
  *            `e.chargeFrac` 0 … 1 to the last level (the page's hero juice reads both: the sparks in their colours)
  *   RELEASED the highest charge level reached fires its round; none reached, nothing more
  *
- * Every round flies STRAIGHT from the chest along the facing, at its level's speed, size and life: a round of the world's
+ * Every round flies STRAIGHT from the muzzle (`muzzle`: the cannon arm's end, raised level, on its own side of the
+ * body; else the chest) along the facing, at its level's speed, size and life: a round of the world's
  * own (state.projectiles, combat-ranged.js stepProjectiles), no gravity, no splash, swept against the bodies it meets and
  * ended by a wall, its damage and its impact its level's. It flies over a pit (`noGround`). `pellet` marks it for the
  * page, which draws a glowing ball in its level's colour.
  *
- *   rule.buster  { max, chest (the muzzle's height, a share of the body's), tap: ROUND, levels: [{ at (s held), ...ROUND }] }
+ *   rule.buster  { max, chest (the muzzle's height, a share of the body's), muzzle? ({ right, up, ahead }: shares of the
+ *                body's height, the cannon arm's end raised level, measured off its figure), tap: ROUND, levels: [{ at, ...ROUND }] }
  *   ROUND        { speed (m/s), size (m, its radius), life (s), damage, impact, color, hit? }
  *   hit          its HITBOX, not its drawing (gameworld/feel/lower.js BUSTER_HIT): { r (m, the radius it meets a body with),
  *                tall? (m, the half height of a tall capsule over its centre) }; none, its size
@@ -31,11 +33,13 @@
 
 export function buildBuster(E) {
   const step = E.stepWorld, fwdXY = E.fwdXY, pointInEgg = E.pointInEgg;
-  // one round of a level (0 the tap), from the chest along the facing
+  // one round of a level (0 the tap), from the muzzle (or the chest) along the facing
   function fire(state, e, lv, B) {
-    const at = lv ? B.levels[lv - 1] : B.tap, f = fwdXY(e.transform.heading), r = e.rule;
-    const ahead = (r.collideRadius || 0.3) + 0.15 + at.size, up = (r.collideHeight || 1.7) * (B.chest || 0.7) - (r.eye || 0);
-    const from = [e.transform.pos[0] + f[0] * ahead, e.transform.pos[1] + f[1] * ahead, e.transform.pos[2] + up];
+    const at = lv ? B.levels[lv - 1] : B.tap, f = fwdXY(e.transform.heading), r = e.rule, M = B.muzzle, H = r.collideHeight || 1.7;
+    // (from the MUZZLE where the figure measured one, world-scene.js: the cannon arm's end, raised level along the facing,
+    // on its own side of the body (the right of the facing for a right arm, whichever way it faces); else from the chest)
+    const ahead = M ? M.ahead * H + at.size : (r.collideRadius || 0.3) + 0.15 + at.size, up = (M ? M.up * H : H * (B.chest || 0.7)) - (r.eye || 0), side = M ? M.right * H : 0;
+    const from = [e.transform.pos[0] + f[0] * ahead + f[1] * side, e.transform.pos[1] + f[1] * ahead - f[0] * side, e.transform.pos[2] + up];
     if (!state.projectiles) { state.projectiles = []; state.bursts = []; state.projSeq = 0; state.burstSeq = 0; }
     state.projectiles.push({
       id: 'proj-' + (state.projSeq++), owner: e.id, pos: from.slice(), vel: [f[0] * at.speed, f[1] * at.speed, 0],
