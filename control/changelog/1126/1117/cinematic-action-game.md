@@ -342,8 +342,13 @@ or a recipe key; the spike mints through the real doors and measures.
 - **A trail's dirt brought together** (a trail's `match`, 0 to 1, era/trail-dress.js, color-theorist/ground.js
   `soilTones`): the colour theorist lays a dirt trail in two dirts about the floor, a lighter powder toward the light at
   its edge and a darker clay toward red in its worn core; on some floors the two read as a red strip in a grey verge.
-  `match` brings the core's clay to the powder's hue and fullness, keeping its shade darker, so the track reads as one
-  ground worn down the middle. Absent or 0, the tones are as they were. Level 0's trail at 0.85.
+  `match` brings the core's clay to the powder's hue, fullness and light (at 1, the powder a worn shade darker), so the
+  track reads as one ground worn down the middle. Absent or 0, the tones are as they were. Level 0's trail at 0.85.
+- **A wide trail's middle is on the trail** (form/land-read.js, the path map's signed distance): the depth inside a
+  trail was stored in a byte that held three metres of verge and a metre and a half of trail; deeper than that it ran
+  under the byte and wrapped to the far verge's value, so a wide trail's middle read as off it (the land's own colour
+  and grass down its middle, a hard zigzag where it wrapped). Now held at its deepest. A trail no deeper than that (most
+  of every footpath; a rest's widening could pass it) draws byte for byte as it did.
 - **Trees back on level 0** (the level's cube: the upland's lone trees grown into a dozen stands of two to four, seven
   to twelve metres): the gorge wooded again without the jungle's cost; the sneak's laws hold as before (each way still
   seen first, an unseen way and a second one at both places).

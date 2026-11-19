@@ -49,7 +49,8 @@ export function readTrailDress(trail) {
     patches = [...new Set(t.patches)];
   }
   // (`match`: the trail's two dirts, its core's clay and its edge's powder, brought together: 0 the colour theorist's two,
-  // the clay turned toward red; 1 the core the edge's own dirt, a shade darker; color-theorist/ground.js soilTones)
+  // the clay turned toward red and darker; 1 the core the edge's own dirt, a worn shade darker; color-theorist/ground.js
+  // soilTones)
   if (t.match !== undefined && !(typeof t.match === 'number' && t.match >= 0 && t.match <= 1)) throw new Error('stage: trail.match is how near the trail\'s core dirt sits to its edge\'s, 0 (the two dirts as the colour theorist offers them: the core\'s clay toward red) to 1 (the core the edge\'s own dirt, a shade darker)');
   return { surface, rubble: t.rubble !== false && t.rubble !== 'parallax', patches, ...(t.rubble === 'parallax' ? { pebbles: true } : {}), ...(t.match ? { match: t.match } : {}) };
 }

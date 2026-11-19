@@ -8,7 +8,8 @@
  *   atlasGround(contract, sky)    → a composed world's ramps { forest, low, high, rock, snow, sand, silt, water, deep }
  *                                   and its sky { zenith, horizon, …the climate's own }
  *   soilTones(floor, light?, { match? }?) → { powder, clay, humus }: the dirts a palette's floor colour is made of, as
- *                                 targets; `match` (0 to 1) brings the clay to the powder's hue and fullness
+ *                                 targets; `match` (0 to 1) brings the clay to the powder's hue, fullness and light (at 1,
+ *                                 the powder a worn shade darker)
  *                                   (#rrggbb). Dry powder (silt and fine sand, unbound) lighter and quieter, its hue drawn
  *                                   toward the light's (dry dust takes the key's warmth); clay (cohesive, holding water,
  *                                   iron in it) darker and fuller, its hue turned toward red. Either way the floor's own
@@ -58,12 +59,13 @@ export function atlasGround(K, sky = {}) {
 
 /** The two dirts of a floor: lighter and quieter toward the light's hue (powder), darker and fuller toward red (clay),
  * about the floor itself. */
-export const SOIL_TONE = Object.freeze({ dL: 0.06, powderC: 0.7, clayC: 1.25, powderTurn: 0.25, clayTurn: 0.3, red: 32, humusL: 0.13, humusC: 0.5 });
+export const SOIL_TONE = Object.freeze({ worn: 0.035, dL: 0.06, powderC: 0.7, clayC: 1.25, powderTurn: 0.25, clayTurn: 0.3, red: 32, humusL: 0.13, humusC: 0.5 });
 export function soilTones(floor, light, opts) {
   const [L, C, h] = lchOf(hexToRgb(floor)), hL = light ? lchOf(hexToRgb(light))[2] : h, T = SOIL_TONE;
   const hex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
-  // (`match` 0 to 1: the clay brought to the powder's hue and fullness, keeping its darker shade; 0 or absent, as it was)
+  // (`match` 0 to 1: the clay brought to the powder's hue, fullness and light, at 1 the powder a worn shade darker,
+  // T.worn; 0 or absent, as it was)
   const m = opts && opts.match > 0 ? Math.min(1, opts.match) : 0, hP = mixHue(h, hL, T.powderTurn), hC = mixHue(h, T.red, T.clayTurn);
-  const clay = m ? oklch(L - T.dL, C * (T.clayC + (T.powderC - T.clayC) * m), mixHue(hC, hP, m)) : oklch(L - T.dL, C * T.clayC, hC);
+  const clay = m ? oklch(L - T.dL + m * (2 * T.dL - T.worn), C * (T.clayC + (T.powderC - T.clayC) * m), mixHue(hC, hP, m)) : oklch(L - T.dL, C * T.clayC, hC);
   return { powder: hex(oklch(L + T.dL, C * T.powderC, hP)), clay: hex(clay), humus: hex(oklch(L - T.humusL, C * T.humusC, h)) };
 }

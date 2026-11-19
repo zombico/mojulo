@@ -158,11 +158,12 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   // (the layers' textures are the cuts', the same for every cube: painted once per dress surface and kept)
   const { A, means, png, dicePng } = layerAtlas(LAYERS, dress.surface);
   // the path's mask as the page reads it: the weight a byte, the trail's height two (over the trail's own span)
-  // (the mask's distance SIGNED: inside the trail negative, to SD_IN deep, so its edge can feather both ways)
+  // (the mask's distance SIGNED: inside the trail negative, to SD_IN deep, so its edge can feather both ways; deeper is
+  // held at SD_IN, where it once ran under the byte and wrapped to the far verge: a wide trail's middle read as off it)
   const SD_IN = 1.5, PM = LY.path, pathTex = PM && (() => {
     let zlo = Infinity, zhi = -Infinity; for (let k = 0; k < PM.z.length; k++) if (PM.weight[k] > 0) { zlo = Math.min(zlo, PM.z[k]); zhi = Math.max(zhi, PM.z[k]); }
     const span = Math.max(1e-6, zhi - zlo), px = new Uint8Array(PM.weight.length * 4);
-    for (let k = 0; k < PM.weight.length; k++) { const q = Math.round(((PM.z[k] - zlo) / span) * 65535); px[k * 4] = Math.round(PM.weight[k] * 255); px[k * 4 + 1] = Math.round(((PM.dist[k] - PM.inside[k] + SD_IN) / (SD_IN + PATH_REACH)) * 255); px[k * 4 + 2] = q >> 8; px[k * 4 + 3] = q & 255; }
+    for (let k = 0; k < PM.weight.length; k++) { const q = Math.round(((PM.z[k] - zlo) / span) * 65535); px[k * 4] = Math.round(PM.weight[k] * 255); px[k * 4 + 1] = Math.round(((PM.dist[k] - Math.min(SD_IN, PM.inside[k]) + SD_IN) / (SD_IN + PATH_REACH)) * 255); px[k * 4 + 2] = q >> 8; px[k * 4 + 3] = q & 255; }
     return { origin: PM.origin, size: PM.size, metres: PM.size.map((n) => n * PM.cell), cell: PM.cell, z: [zlo, span], px: b64(px) };
   })();
   // (the cover's dirt, under the undergrowth on a green land, the theorist's humus; the bare island's soil its own floor)
