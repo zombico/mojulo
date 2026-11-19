@@ -453,3 +453,10 @@ or a recipe key; the spike mints through the real doors and measures.
   0.17 L and the lift to 3× (2× and 0.12 L, tried first, left the operative a black cut-out), the rim is as bright as the
   world's own light on the body (never its lifted key's) at half its strength, and no rim is raised to carry an outline: a silhouette lost in the dark is the night's, and a
   floodlight still lights a body as it lights the land. The day and the golden horizon are as they were.
+- **A realistic night** (era/geocube-hours.js `REALISTIC_NIGHT`, a cube's `light.night: 'realistic'`): the night every
+  cube took was its reference's, a gothic game's (dmc3): a saturated blue moon, a blue-violet shade, a navy sky, which
+  read as a fantasy game's. The realistic register keeps each at the stylized night's value and drains its hue to a
+  cool grey (the eye sees colour poorly by moonlight): the moon a pale light barely cool, the shade and the sky
+  near-neutral, the twilight before it drained to a whisper of blue; so the dark reads as a real night's and the floods'
+  warm light is the only colour in it. `stylized`, unless said, is every other cube's night as it was; the day is the
+  same either way. Level 0 takes it, its sky and haze near-neutral greys.

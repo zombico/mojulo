@@ -187,7 +187,9 @@ A cube that names no domains offers one per terrain and one per interior.
   power?, cone?, reach?, shadow? }` (where the lamp hangs and the point on the ground it shines at, metres; its light at ten
   metres in the land's own units, a noon sun's about 1): real spots that light the land and the cast as the sun does,
   falling with distance, their heads burning; the first two cast what stands in their beam. With `hour: 'night'` the
-  moon is the key and the floods the light a body is seen in;
+  moon is the key and the floods the light a body is seen in; the cube's `light.night` says how that night looks:
+  `stylized` (unless said) its reference's deep blue, `realistic` the colour drained by the dark, a pale moon barely
+  cool, the shade and the sky near-neutral greys (a realistic game's night: the drama its value and its lamps);
   `show: 'hall'` its interior (its room, or an inside domain) walked as a HALL, rooms strung on a walk from the seed
   (era/in-hall.js: squeeze, reveal, landmark, pocket, rest; the kit's set piece in the landmark's room), `hall` its
   recipe (`run`, `heartbeat`, `beats`, `height`, `mouth`, `exit`), its laws on the answer;

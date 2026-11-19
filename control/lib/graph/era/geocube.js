@@ -11,7 +11,9 @@
  *             the sky gives (`skyShare`, 0–1: the form render's, era/cube-light.js; left out, the look's own, raised
  *             to meet the sky the cube paints), and the cast's `rim`
  *             ({ strength?, power? }: the rim the cube's people wear, era/cast-light.js, in the cube's own sky; absent,
- *             the reference's horizon at the cast light's own strength)
+ *             the reference's horizon at the cast light's own strength), and the night's register (`night`:
+             stylized, the night reference's deep blue, unless said; realistic, the colour drained by the dark, a pale
+             moon, near-neutral greys: era/geocube-hours.js REALISTIC_NIGHT)
  *   colour    key colours, each a ramp (look-facets.js rampFrom): stone, floor, trim, accent, grass, foliage, water,
  *             and optionally sand; `shade` is the hue every ramp's dark end leans to (degrees, blue by default)
  *   palette   the color theorist's spec (color-theorist/solve.js) the colours are SOLVED from: with a seed, the colours,
@@ -145,7 +147,7 @@ import { solvePalette, readPaletteSpec } from '../color-theorist/solve.js';
 import { cubeColours } from '../color-theorist/adapters.js';
 import { grittyOf } from '../matte-paint/fabric.js';
 import { oklch, lchOf, hexToRgb, rgbToHex } from '../color-theorist/oklab.js';
-import { hourLight, hourAir, readHour, referenceHour } from './geocube-hours.js';
+import { hourLight, hourAir, readHour, referenceHour, NIGHT_REGISTERS } from './geocube-hours.js';
 import { cubeLight } from './cube-light.js';
 import { wetOfWeather } from './wetness.js';
 import { townDressOf } from './town-dress.js';
@@ -531,7 +533,8 @@ export function readGeocube(spec) {
   if (eraError(c.era)) no(eraError(c.era));
   try { readTarget(c.target); } catch (e) { no(e.message); }
   // light
-  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'sun', 'rim', 'skyShare'], 'light');
+  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'sun', 'rim', 'skyShare', 'night'], 'light');
+  if (c.light.night !== undefined && !NIGHT_REGISTERS.includes(c.light.night)) no(`light.night is the night's register: ${NIGHT_REGISTERS.join(' or ')} (stylized, the reference's own deep blue, unless said; realistic, the colour drained by the dark, a pale moon, near-neutral greys)`);
   if (c.light.skyShare !== undefined && !(typeof c.light.skyShare === 'number' && c.light.skyShare > 0 && c.light.skyShare < 1)) no('light.skyShare is the share of its light the sky gives, between 0 and 1 (0.1 a hard sun over deep shade, 0.4 a clear noon, 0.85 an overcast sky; the form render\'s, era/cube-light.js: left out, the look\'s own, raised to meet the sky it paints)');
   if (c.light.sun !== undefined && !(isObj(c.light.sun) && Object.keys(c.light.sun).every((k) => k === 'color') && HEX.test(c.light.sun.color ?? ''))) no('light.sun is { color: \'#rrggbb\' }: the sun\'s colour (its arc and strength are the reference\'s)');
   c.light.shadows ??= SHADOWS;
