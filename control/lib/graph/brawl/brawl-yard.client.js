@@ -135,6 +135,9 @@ function sceneFrame(pad) {
 let dummies = BY.dummies;
 let room = null, bodies = [], things = new Map(), rounds = new Map(), t = 0;
 let readers = [], hp0 = [], over = null, seenClear = 0, bossSaid = false, said = 0;
+// (the street's HUD, game-like: the foe last hit and when it goes, the combo and when it goes, the way on's arrow until
+// when, the most grenades each seat has held)
+let hudTarget = null, hudCombo = null, goUntil = -1, grTop = [];
 // (a practice room with a GAME on it, its `stakes`: over once, told by the page's game contract)
 let ENDED = false;
 const runs = [];
@@ -166,7 +169,7 @@ function build() {
     room = streetOf({ belt: BELT, players: who, waves, ...gunner, ...(STREET.lives ? { lives: STREET.lives } : {}), ...(STREET.tune ? { tune: STREET.tune } : {}), ...(BY.things.length ? { things: BY.things } : {}), ...(tier && Object.keys(tier.crowd).length ? { crowd: tier.crowd } : {}) });
     readers = picks.map(() => (GUNPLAY ? newGunReader() : newReader()));
     hp0 = room.s.bodies.map((b) => b.hp);
-    over = null; seenClear = 0; bossSaid = false;
+    over = null; seenClear = 0; bossSaid = false; hudTarget = null; hudCombo = null; goUntil = -1; grTop = [];
     Object.assign(UI.state.brawl.street, { moments: [], time: '0:00', scene: { on: false } });
   } else room = practiceOf({ belt: BELT, players: who, dummies, things: BY.things, health: SET.health.toLowerCase(), ...range, ...melee, ...(BY.stakes ? { stakes: BY.stakes } : {}) });
   ENDED = false;
@@ -818,8 +821,9 @@ const UI = (() => {
     ...((RANGE && RANGE.waves) || BY.waves ? [{ kind: 'toggle', label: 'Waves', var: 'brawl.practice.set.waves' }] : []),
     ...BY.yard.settings.map((f) => (f.label === 'Type' ? { ...f, options: [...f.options, ...BY.roster.map((r) => r.name)] } : f))];
   const state = { brawl: { street: { p1: {}, p2: {}, p3: {}, p4: {}, gun: { on: false, name: '', ammo: '', grenades: 0 }, accuracy: '—', hp: 1, hpMax: 1, name: '', cleared: 0, of: 1, left: 0, boss: { on: false, name: '', hp: 0, hpMax: 1 }, moments: [], time: '0:00', rank: '', moves: [] }, practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' } } } };
+  // (inside the scene's frame, so the HUD's corners are the street's, never the page's margin)
   const el = document.createElement('div');
-  document.body.appendChild(el);
+  (document.getElementById('wrap') || document.body).appendChild(el);
   const setPath = (path, to) => { const k = path.split('.'), last = k.pop(); k.reduce((o, x) => o[x], state)[last] = to; };
   const rt = manaUi.runtime(BY.yard.spec, {
     read: (p) => manaUi.readPath(state, p),
@@ -941,18 +945,34 @@ function draw() {
 function streetScreen() {
   const R = streetRead(room, hp0), S = UI.state.brawl.street, secs = Math.floor(R.f / 60);
   const say = (text, weight) => { S.moments = S.moments.slice(-4).concat([{ id: 'm' + (said++), text, ...(weight ? { weight } : {}) }]); };
-  if (R.cleared > seenClear) { seenClear = R.cleared; if (!R.won) say('GO', 'major'); }
+  // (a held screen beaten: the way on opens, an arrow at the right edge for a few seconds, not a word over the fight)
+  if (R.cleared > seenClear) { seenClear = R.cleared; if (!R.won) goUntil = t + 180; }
+  // (the foe a player last hit, by name and a short bar, for two seconds; the hitter's combo, its word at each rung)
+  for (const e of room.s.events) {
+    if (e.t !== 'hit' || !(typeof e.p === 'number' && e.p < picks.length) || e.d === undefined || e.d < picks.length) continue;
+    const d = room.s.bodies.find((x) => x.id === e.d), F = d && room.ctx.fighters[d.fb ?? d.fi];
+    if (d && F && F.name !== R.boss.name) hudTarget = { id: d.id, until: t + 120 };
+    if (e.combo >= 2) hudCombo = { n: e.combo, until: t + 90 };
+  }
   if (R.boss.on && !bossSaid) { bossSaid = true; say(R.boss.name.toUpperCase(), 'decisive'); }
   // (a boss turning: its phase's word, or its number)
   while (TURNS.length) { const e = TURNS.shift(); say((e.says || 'PHASE ' + (e.k + 1)).toUpperCase(), 'major'); }
   // (each seat's quarter: taken (its name, health, gun, rounds: low at a fifth of a magazine, grenades), open, or none)
   const seat = (k) => {
-    const OFF = { on: false, open: false, name: '', hp: 0, hpMax: 1, gun: '', ammo: '', low: false, grenades: 0 };
+    const OFF = { on: false, open: false, name: '', hp: 0, hpMax: 1, gun: '', gunId: '', ammo: '', rounds: 0, size: 0, endless: false, low: false, grenades: 0, grenadesMax: 0 };
     if (k >= picks.length) return k < picks.length + SPARE.length ? { ...OFF, open: true } : OFF;
     const p = room.s.bodies[k], G = p.gn !== undefined ? room.ctx.guns[p.gn] : null;
-    return { ...OFF, on: true, name: BY.roster[picks[k]].name, hp: Math.max(0, p.hp), hpMax: hp0[k] || 1, ...(G ? { gun: gunCode(G), ammo: p.am === undefined ? '∞' : String(p.am), low: !!(p.am !== undefined && G.ammo && p.am <= G.ammo * 0.2), grenades: p.gr || 0 } : {}) };
+    grTop[k] = Math.max(grTop[k] || 0, p.gr || 0);
+    return { ...OFF, on: true, name: BY.roster[picks[k]].name, hp: Math.max(0, p.hp), hpMax: hp0[k] || 1, ...(G ? { gun: gunCode(G), gunId: G.id || '', ammo: p.am === undefined ? '∞' : String(p.am), rounds: p.am === undefined ? 0 : p.am, size: G.ammo || 0, endless: p.am === undefined, low: !!(p.am !== undefined && G.ammo && p.am <= G.ammo * 0.2), grenades: p.gr || 0, grenadesMax: grTop[k] } : {}) };
   };
   Object.assign(S, { hp: R.hp, hpMax: R.hpMax, name: BY.roster[picks[0]].name, cleared: R.cleared, of: R.of, left: R.left, lives: R.lives ? { on: true, left: R.lives.left, of: R.lives.of } : { on: false, left: 0, of: 1 }, boss: { ...R.boss, phased: !!R.phase, phase: R.phase ? R.phase.at : 0, phases: R.phase ? R.phase.of : 1 }, p1: seat(0), p2: seat(1), p3: seat(2), p4: seat(3), ...(R.gun ? { gun: R.gun, accuracy: accuracyOf(tally) === null ? '—' : accuracyOf(tally) + '%' } : {}) });
+  // the danger (one player: the screen's edge, closing in under half its health), the foe being hit, the combo, the way on
+  const share = R.hpMax > 0 ? R.hp / R.hpMax : 1, tgt = hudTarget && t < hudTarget.until ? room.s.bodies.find((x) => x.id === hudTarget.id) : null, TF = tgt && room.ctx.fighters[tgt.fb ?? tgt.fi];
+  S.peril = picks.length === 1 ? Math.round(Math.min(1, Math.max(0, (0.5 - share) / 0.45)) * 20) / 20 : 0;
+  S.target = tgt && TF && tgt.hp > 0 ? { on: true, name: TF.name || '', hp: Math.max(0, tgt.hp), hpMax: hp0[tgt.id] || TF.hp || tgt.hp || 1 } : { on: false, name: '', hp: 0, hpMax: 1 };
+  const cn = hudCombo && t < hudCombo.until ? hudCombo.n : 0;
+  S.combo = { on: cn >= 2, n: cn, word: cn >= 30 ? 'Insane' : cn >= 20 ? 'Wild' : cn >= 10 ? 'Great' : cn >= 5 ? 'Nice' : '' };
+  S.go = t < goUntil && !R.boss.on;
   if (!over) { S.time = Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0'); S.rank = R.won ? R.rank : '—'; }
   if (!over && (R.won || R.lost)) {
     over = R.won ? 'won' : 'lost';

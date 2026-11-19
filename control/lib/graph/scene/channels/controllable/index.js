@@ -896,6 +896,11 @@ function __updateGearLines() {
   // one play it while the scene channel names it (world.take), at the line's phase. None ⇒ not a byte of it
   const takes = Object.values(figures || {}).some((f) => f && f.rig && f.clips && Object.keys(f.clips).some((k) => k.indexOf('scene:') === 0));
   const figHasFace = Object.values(figures || {}).some((f) => f && f.rig && f.face && Array.isArray(f.face.targets) && Array.isArray(f.parts) && f.parts.some((p) => p && p.morph));
+  // a TALKING face (playscape/ui/talk-lines.js: a line a hero says, its face's take under the line's clip, talk:<scene>:<beat>):
+  // the face plays it while the scene channel names it (world.take), the body as it was. None ⇒ not a byte of it
+  const talking = figHasFace && Object.values(figures || {}).some((f) => f && f.face && f.face.tracks && Object.keys(f.face.tracks).some((k) => k.indexOf('talk:') === 0));
+  // (and the LANDMARK head's mouth, its jaw bone: the line's degrees, face-acting/western-read.js, turned about the head's x)
+  const talkJaw = talking && Object.values(figures || {}).some((f) => f && f.face && f.face.jaws && Object.keys(f.face.jaws).length);
   // a PAINTED body (the realistic hero's skin, dermal-hero.js heroSkinPaint, packed as station-loft-rig.js `paintTex` and
   // each part's `uv`): its bone meshes drawn on the atlas (texel × the part's lit colour), as the World page draws it.
   // No painted body → the emitted channel is byte-identical.
@@ -944,6 +949,9 @@ function __updateGearLines() {
   // (a body that lies down, stance.js: its whole-body turn says where it pivots and how high that point rests)
   const figLies = (entities || []).some((e) => e && e.rule && e.rule.stance && e.rule.stance.prone);
   const figHasForms = Object.values(figures || {}).some((f) => f && f.rig && f.forms);
+  // a body with a clip for firing its gun (`fire`) or for a round landing on it (`flinch`), opt-in (a mission's crew):
+  // absent, not a byte
+  const fires = Object.values(figures || {}).some((f) => f && f.rig && f.clips && (f.clips.fire || f.clips.flinch));
   // a car's own light in a dark mood (car-designer/supercar-figure.js: the headlamps' pool on the road, the tail lamps'
   // ribbons) — emitted only when some figure's juice carries them.
   const figHasLights = figHasJuice && Object.values(figures || {}).some((f) => f && f.rig && f.juice && (f.juice.beams || f.juice.trails));
@@ -1761,7 +1769,8 @@ const __rigPA = [0, 0, 0], __rigPB = [0, 0, 0];
 const __rigV = new THREE.Vector3(), __rigH = new THREE.Vector3(), __rigT = new THREE.Vector3();
 const __RIG_Z = new THREE.Vector3(0, 0, 1), __RIG_ONE = new THREE.Vector3(1, 1, 1);
 const __rigQT = new THREE.Quaternion(), __rigQZ = new THREE.Quaternion();
-const __rigAxis = new THREE.Vector3(), __rigPivot = new THREE.Vector3();
+const __rigAxis = new THREE.Vector3(), __rigPivot = new THREE.Vector3();${talkJaw ? `
+const __tjHead = new THREE.Quaternion(), __tjQ = new THREE.Quaternion(), __tjAxis = new THREE.Vector3();   // a talking jaw's scratch` : ''}
 // look-pitch aim scratch: rotate the weapon arm about the shoulder to follow vertical look.
 const __RIG_X = new THREE.Vector3(1, 0, 0), __apQ = new THREE.Quaternion(), __apH = new THREE.Vector3();
 // PER-SLOT ARM OVERLAY (R17): read one overlay bone's [q, head] from an armOverlays curve (same
@@ -2380,12 +2389,19 @@ function __sidearmProps(e, m, rig, fig, AL) {
     if (q) m.scale.set(s0 * q[0], s0 * q[0], s0 * q[1]); else { m.scale.setScalar(s0); m.userData.s0 = null; }
   }
   ` : ''}const fig = rig.fig;
-  ${figHasForms || acts || moveset || takes ? 'let' : 'const'} mode = e.moving ? e.locomotion : ${moveset ? "(e.idleClip && rig.fig.clips && rig.fig.clips[e.idleClip] ? e.idleClip : 'idle')" : "'idle'"};${moveset ? '   // (a moveset\'s hero in combat idles in its fighting stance: mv_ready)' : ''}${moveset ? `
+  ${figHasForms || acts || moveset || takes || fires ? 'let' : 'const'} mode = e.moving ? e.locomotion : ${moveset ? "(e.idleClip && rig.fig.clips && rig.fig.clips[e.idleClip] ? e.idleClip : 'idle')" : "'idle'"};${moveset ? '   // (a moveset\'s hero in combat idles in its fighting stance: mv_ready)' : ''}${moveset ? `
   // A SIDEARM'S AIM (e.mvPose, combat-melee.js: the archer's draw at its share, the gunslinger's guns): the whole body
   // standing, the body above the hips over the walk (the aim layer in the bone loop, __aimLayer)
   const AP = e.mvPose && e.staggerT == null && fig.clips && fig.clips[e.mvPose.clip] ? e.mvPose : null;   // (none while reeling)
   if (AP && !e.moving) mode = AP.clip;
-  const AL = __aimLayer(rig, fig, AP, dt);` : ''}${figHasForms ? `
+  const AL = __aimLayer(rig, fig, AP, dt);` : ''}${fires ? `
+  // A GUN IN ITS HANDS (a figure with a \`fire\` clip): while its trigger is down, and for a breath after a round has
+  // gone, the body plays it, the weapon up, standing or on the move; never while it reels
+  if (fig.clips.fire && e.weapon && e.staggerT == null && !e.downed && (e.aiFire || (e.lastShot && __world.time - e.lastShot.t < 0.5))) mode = 'fire';
+  // A HIT SHOWS (a figure with a \`flinch\` clip): a round that lands plays it once through, over whatever the body was
+  // doing; the body is not stopped by it (a stagger is the engine's, by poise: this is only seen)
+  const flinchU = fig.clips.flinch && e.hitFlash >= 0 && e.staggerT == null && !e.downed ? (__world.time - e.hitFlash) / 0.32 : 1;
+  if (flinchU < 1) mode = 'flinch';` : ''}${figHasForms ? `
   if (fig.forms) mode = __formMode(fig, e, mode);` : ''}${acts ? `
   const act = __actMode(fig, e, m), phase = act ? act.phase : e.gaitPhase;
   if (act) mode = act.mode;` : ''}${takes ? `
@@ -2393,7 +2409,10 @@ function __sidearmProps(e, m, rig, fig, AL) {
   const tk = __world.take && !e.moving && fig.clips[__world.take.clip] ? __world.take : null;
   if (tk) mode = tk.clip;
   e.taking = tk ? tk.clip : null;` : ''}
-  const mix = __CW.advanceGaitMix(rig.mix, mode, ${takes ? `tk ? Math.min(tk.u, 0.999) : ` : ''}${moveset ? `(AP && mode === AP.clip ? AP.phase : ${acts ? 'phase' : 'e.gaitPhase'})` : acts ? 'phase' : 'e.gaitPhase'}, dt || 0, ${moveset ? "(typeof mode === 'string' && mode.indexOf('mv_') === 0 && e.rule && e.rule.moveset ? e.rule.moveset.blend : rig.blendTime)" : 'rig.blendTime'});${moveset ? '   // (into a move\'s own clip: the moveset\'s blend, its travel waiting it out: no foot slides)' : ''}
+${fires ? `  // (a hold is a clip played once and held: firing, it comes up over a fifth of a second and stays; standing in one, it
+  // is held; neither runs on the gait's phase, which stands still on a body that stands)
+  const heldU = mode === 'flinch' ? Math.max(0, Math.min(0.999, flinchU)) : mode === 'fire' ? (rig.fireU = Math.min(0.999, (rig.fireU || 0) + (dt || 0) / 0.2)) : (rig.fireU = 0, mode === 'idle' && fig.clips.idle && fig.clips.idle.held ? 0.999 : null);
+` : ''}  const mix = __CW.advanceGaitMix(rig.mix, mode, ${fires ? 'heldU != null ? heldU : ' : ''}${takes ? `tk ? Math.min(tk.u, 0.999) : ` : ''}${moveset ? `(AP && mode === AP.clip ? AP.phase : ${acts ? 'phase' : 'e.gaitPhase'})` : acts ? 'phase' : 'e.gaitPhase'}, dt || 0, ${moveset ? "(typeof mode === 'string' && mode.indexOf('mv_') === 0 && e.rule && e.rule.moveset ? e.rule.moveset.blend : rig.blendTime)" : 'rig.blendTime'});${moveset ? '   // (into a move\'s own clip: the moveset\'s blend, its travel waiting it out: no foot slides)' : ''}
   const w = mix.prevMode ? mix.w * mix.w * (3 - 2 * mix.w) : 1;
   // head-look-at overlay (renderer-convergence step 2, procedural rung): ease the head bone's
   // yaw toward a tracked entity, clamped to a natural range — a runtime joint override no
@@ -2471,6 +2490,10 @@ function __sidearmProps(e, m, rig, fig, AL) {
   }
 ${figHasLive ? `  const LV = fig.live ? __rigLive(e, rig, dt) : null;
 ` : ''}${figHasLayers ? `  const PL = e.body && e.body.layers ? __poseLayers(e, fig, dt) : null;
+` : ''}${talkJaw ? `  // (a line it says on the landmark head: its jaw's degrees on the line's clock, while the scene channel plays it)
+  const TJ = __world.take && fig.face && fig.face.jaws && __world.take.clip.indexOf('talk:') === 0 ? fig.face.jaws[__world.take.clip] : null;
+  const tjDeg = TJ ? __rigTrack({ t: TJ.t, w: TJ.d }, Math.min(__world.take.u, 0.999) * TJ.t[TJ.t.length - 1]) || 0 : 0;
+  e.talkJaw = tjDeg;   // (where a headless driver reads it)
 ` : ''}  for (let bi = 0; bi < fig.bones.length; bi++) {
     const mesh = rig.boneMeshes[bi];
     if (!mesh) continue;
@@ -2496,7 +2519,12 @@ ${figHasLive ? `  const LV = fig.live ? __rigLive(e, rig, dt) : null;
     if (fig.bones[bi].id === 'head' && Math.abs(rig.lookA) > 1e-4) {
       __rigQL.setFromAxisAngle(__RIG_Z, rig.lookA);
       __rigQA.premultiply(__rigQL);
-    }
+    }${talkJaw ? `
+    // (the talking jaw opens about its hinge, the head's own x as the head now stands: the rig's jaw chain's axis, sign −1)
+    if (tjDeg) {
+      if (fig.bones[bi].id === 'head') __tjHead.copy(__rigQA);
+      else if (fig.bones[bi].id === 'jaw') { __tjAxis.set(1, 0, 0).applyQuaternion(__tjHead); __tjQ.setFromAxisAngle(__tjAxis, -tjDeg * Math.PI / 180); __rigQA.premultiply(__tjQ); }
+    }` : ''}
     // per-slot arm overlay: on the covered arm bones, REPLACE the base [q, head] with the
     // alternate-aim curve (over-shoulder bazooka). The weapon bone rides forearmR, so it follows.
     if (ov) { const j = ov.bones.indexOf(bi); if (j >= 0) __rigOverlay(ov, ovClip, mix.phase, j, __rigQA, __rigPA); }
@@ -2550,7 +2578,12 @@ ${figHasRide ? `      // (a ridden machine's front turns about the steering axis
     mesh.matrix.compose(__rigV, __rigQA, __RIG_ONE);
   }${moveset ? `
   __sidearmProps(e, m, rig, fig, AL);` : ''}${figHasFace ? `
-  if (fig.face) __rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);` : ''}${takes && figHasFace ? `
+  if (fig.face) ${talking ? `{
+    // (a line it says: its face's take on the line's clock, while the scene channel plays it)
+    const tf = __world.take && fig.face.tracks && fig.face.tracks[__world.take.clip] && __world.take.clip.indexOf('talk:') === 0 ? __world.take : null;
+    if (tf) __rigFace(rig, tf.clip, Math.min(tf.u, 0.999));
+    else __rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);
+  }` : `__rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);`}` : ''}${takes && figHasFace ? `
   // (a taking face's weights, where a headless driver reads them: e.takeFace)
   if (fig.face) { const fm = tk ? rig.boneMeshes.find((x) => x && x.morphTargetInfluences && x.morphTargetInfluences.length) : null; e.takeFace = fm ? Array.from(fm.morphTargetInfluences) : null; }` : ''}
   // i-frame SHIMMER: while INVINCIBLE the whole rig flickers translucent — the
@@ -3684,6 +3717,7 @@ const __lockEl = document.createElement('div');
 __lockEl.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none;z-index:9;display:none';
 __lockEl.innerHTML = '<div style="width:40px;height:40px;margin:-20px 0 0 -20px;border:2px solid #ffe000;border-radius:5px;transform:rotate(45deg);box-shadow:0 0 14px rgba(255,224,0,.55),inset 0 0 8px rgba(255,224,0,.25)"></div>'
   + '<div style="position:absolute;left:26px;top:-8px;font:700 11px/1 ui-monospace,Menlo,monospace;letter-spacing:2px;color:#ffe000;text-shadow:0 0 8px rgba(255,224,0,.7)">LOCK</div>';
+__lockEl.className = 'moj-c-lock';   // (a HUD host that draws the lock itself puts this one away: channels/hud-grammar.js)
 wrap.appendChild(__lockEl);
 const __lockV = new THREE.Vector3();
 function __updateLock() {
@@ -3795,6 +3829,7 @@ for (const e of __world.entities) {
   el.style.cssText = 'position:absolute;width:56px;height:6px;transform:translate(-50%,-50%);border-radius:3px;background:rgba(8,12,20,0.6);box-shadow:inset 0 0 0 1px rgba(255,120,120,0.55),0 1px 3px rgba(0,0,0,0.5);overflow:hidden;pointer-events:none;z-index:8;display:none';
   const fl = document.createElement('div'); fl.style.cssText = 'height:100%;width:100%;background:#ff5a5a';
   el.appendChild(fl); wrap.appendChild(el);
+  el.className = 'moj-c-ehp';   // (a HUD host that draws its foe's health with its lock puts these away: channels/hud-grammar.js)
   __ehp.push({ id: e.id, el: el, fill: fl });
 }
 const __ehpV = __ehp.length ? new THREE.Vector3() : null;${foeBars ? `

@@ -14,7 +14,7 @@
  *   INDUSTRIAL                 what one is when it names nothing; where it is seated on its land
  *   readIndustrial(v, at?)     as written → { use, depth, hour, weather, walker, cube? }; throws, teaching
  *   industrialPlan(G, I, { spec?, seed? }) → { brief, recipe, design, map, mission, laws, seat } | null (no gun)
- *   industrialManifest(G, P, { refs?, title?, quiet? }) → the level's manifest: the recipe with the mission's cast, tasks and page
+ *   industrialManifest(G, P, { refs?, title?, quiet?, score? }) → the level's manifest: the recipe with the mission's cast, tasks and page
  *
  * Said: the yard is one level, flat; its fence stops a body and, to a mind, a sight (a collider), where the laws read it
  * as a rail a line crosses; the walker is a box to walk round; a hold's wave comes on the ground.
@@ -27,6 +27,7 @@ import { phasesOnMap, phaseLaws } from '../arena-map/phases.js';
 import { kitOf } from '../arena-map/laws.js';
 import { CELL, RISE } from '../arena-map/blocks.js';
 import { buildingSeat } from '../era/stage-buildings.js';
+import { sfxSound } from '../sfx-shelf/resolve.js';
 import { INDUSTRIAL, readIndustrial } from './industrial-words.js';
 
 export { INDUSTRIAL, readIndustrial };
@@ -96,21 +97,85 @@ export function industrialPlan(G, I, { spec = {}, seed = null } = {}) {
     mission.ledges = false;
     mission.floors = [{ area: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])], z: up, flights: ways.map((way) => ({ bottom: way[0].slice(), top: way.at(-1).slice(), way: way.map((q) => q.slice()) })) }];
   }
+  // WHERE IT SOUNDS (industrialAudio): water dripping off the tower's deck and off the yard's tallest stacks, the hall's
+  // hum at its door, the fence along its three runs, and the tower's steel under a boot (its deck and its stairs)
+  const f0 = r3(SEAT.floor), box = (p0, p1, z0, z1) => { const a = toW(p0), b = toW(p1); return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), r3(z0), Math.max(a[0], b[0]), Math.max(a[1], b[1]), r3(z1)]; };
+  const half = TOWER.deck * CELL / 2, [bxa, bya, bxb] = seat.bounds, fx0 = bxa - seat.side, fx1 = bxb + seat.side, fy = bya - I.depth;
+  const places = {
+    drips: [...(tower ? [[deckMid[0] - half + 0.4, deckMid[1] + half - 0.4], [deckMid[0] + half - 0.4, deckMid[1] - half + 0.4]] : []), ...stacks.filter((q) => q.high > 1).slice(0, 3).map((q) => [q.at[0] + 1.4, q.at[1]])].map((q) => [...toW(q), r3(f0 + 0.1)]),
+    hum: [...toW(seat.doorPlan), r3(f0 + 1.5)],
+    fence: [[fx0, bya - I.depth / 2], [(fx0 + fx1) / 2, fy], [fx1, bya - I.depth / 2]].map((q) => [...toW(q), r3(f0 + 1.2)]),
+    steel: tower ? [
+      box([deckMid[0] - half, deckMid[1] - half], [deckMid[0] + half, deckMid[1] + half], f0 + RISE - 0.4, f0 + RISE + 1),
+      ...towers[0].stairs.map((sr) => { const sg = sr.way[0] === '+' ? 1 : -1, head = deckMid[0] - sg * half, y = deckMid[1] + sr.off; return box([head - sg * sr.run, y - sr.wide / 2], [head, y + sr.wide / 2], f0 + 0.1, f0 + RISE + 0.6); }),
+    ] : [],
+  };
   const laws = [...phaseLaws(M0, design.map), ...design.laws.map((l) => ({ law: `map:${l.law}`, holds: l.holds, says: l.says }))];
-  return { brief, recipe, design, map: design.map, mission, laws, seat, grid: { nx, ny, xa: r2(xa), ya: r2(ya), door } };
+  if (brief.squad) mission.squad = brief.squad;
+  return { brief, recipe, design, map: design.map, mission, laws, seat, places, ...(I.crew ? { crew: { faction: I.crew, ...(I.masked ? { masks: true } : {}) } } : {}), grid: { nx, ny, xa: r2(xa), ya: r2(ya), door } };
+}
+
+/** What the yard sounds like, over its guns (the range's own: combat/range-sound.js), on the world's audio channel
+ *  (beats/beats-world.js):
+ *    EFFECTS  the level's own events, each a sound: a task begun, a task met, a wave sent (an alarm), the mission done,
+ *             the pilot down, a supply taken (the rounds a magazine seated and racked; a medkit the palette's pickup); the
+ *             foley palette in the score's key, the shelf's words where they are nearer the thing; on the range's mix
+ *             in the open, so a shot across the yard is quieter than one beside the ear
+ *    AMBIENT  the open yard's air: the wind's long bed; and the sounds of its places (the channel's emitters): water
+ *             dripping where it stands, the hall's hum at its door, the fence rattling; under a boot the tower's steel
+ *             rings where the slab does not (the channel's surfaces)
+ *    SCORE    two states (beats/adaptive-music.js): a held tension while the yard is crossed, the fight's score coming
+ *             in on the bar line as the level's events raise the meter (a hit, a foe down, a wave) and going as it settles
+ *  `score: false` leaves the music out. */
+// (electronic: a half-time drift while the yard is crossed, a driving techno for the fight; beats/club-score.js)
+export const INDUSTRIAL_SCORE = Object.freeze({ explore: 'club:drift', fight: 'club:drive' });
+// the yard's own sounds, each a few gestures: a drop falling into standing water; the hall's machines, a low fifth
+// held (sounded again before it ends, so it never stops); chain-link shaken by a gust
+const YARD_CUES = Object.freeze({
+  'yard:drip': [{ type: 'sweep', wave: 'sine', from: 'E6', to: 'A5', dur: 0.05, vol: 0.2, send: 0.25 }, { type: 'sweep', wave: 'sine', from: 'B5', to: 'F#5', dur: 0.04, vol: 0.07, at: 0.085, send: 0.35 }],
+  'yard:hum': [{ type: 'tone', note: 'B1', dur: 2.6, wave: 'sine', vol: 0.16, attack: 0.7, release: 0.8, vibrato: { rate: 0.3, depth: 5 } }, { type: 'tone', note: 'F#2', dur: 2.6, wave: 'sine', vol: 0.06, attack: 0.8, release: 0.8 }],
+  'yard:fence': [0, 0.045, 0.11, 0.16, 0.25, 0.37].map((at, k) => ({ type: 'burst', decay: 0.028, vol: 0.13 - 0.015 * k, highpass: 3400, at, send: 0.2 })),
+});
+/** Where the yard's sounds stand and what its steel sounds like under a boot (`places`: industrialPlan's): a drip at
+ *  each place the plan names wet, the hum at the hall's door, the fence's rattle along its runs, the tower's deck and
+ *  stairs the steel a step and a landing ring on. */
+export function industrialAudio(heard, { score = true, places = null } = {}) {
+  if (!heard) return null;
+  const { cues = {}, mix = null, ...own } = heard, word = (w) => sfxSound(w).gestures, later = (g, t) => g.map((x) => ({ ...x, at: Math.round(((x.at ?? 0) + t) * 1000) / 1000 }));
+  const emitters = places ? [
+    ...places.drips.map((at) => ({ at, cue: 'yard:drip', every: [1.4, 5.5], reach: 9 })),
+    ...(places.hum ? [{ at: places.hum, cue: 'yard:hum', every: 1.7, reach: 26, level: 0.7 }] : []),
+    ...places.fence.map((at) => ({ at, cue: 'yard:fence', every: [6, 17], reach: 12, level: 0.8 })),
+  ] : [];
+  const surfaces = places ? places.steel.map((box) => ({ box, step: 'yard:step-steel', land: 'yard:land-steel' })) : [];
+  return {
+    ...own,
+    sfx: {
+      auto: 'foley',
+      cues: {
+        ...cues, ...YARD_CUES, 'yard:rounds': [...word('mag in'), ...later(word('rack'), 0.22)], 'yard:alarm': word('alarm'),
+        'yard:step-steel': word('step metal'), 'yard:land-steel': [...word('step metal'), ...later(word('step metal'), 0.025), { type: 'thump', from: 'A2', to: 'E1', decay: 0.14, vol: 0.26 }],
+      },
+      on: { 'supply:ammo': 'yard:rounds', wave: 'yard:alarm' },
+      ...(mix ? { mix } : {}),
+    },
+    wind: { vary: true },
+    ...(emitters.length ? { emitters } : {}), ...(surfaces.length ? { surfaces } : {}),
+    ...(score ? { soundtrack: INDUSTRIAL_SCORE.explore, combat: INDUSTRIAL_SCORE.fight } : {}),
+  };
 }
 
 /** The level's manifest: the place's recipe with the mission's cast on it, the pilot at the eye on the platform rule. */
-export function industrialManifest(G, P, { refs = {}, title = null, quiet = false } = {}) {
+export function industrialManifest(G, P, { refs = {}, title = null, quiet = false, score = true } = {}) {
   // (heard: its guns' shots, reloads, draws and hits, the range's own sound, combat/range-sound.js; `quiet` for none)
-  const M = P.mission, C = missionCast(G, M, { refs, quiet }), felt = G?.feel != null ? feelRule(G.feel) : null;
+  const M = P.mission, C = missionCast(G, M, { refs, quiet, crew: P.crew ?? null }), felt = G?.feel != null ? feelRule(G.feel) : null;
   const rule = { type: 'platform', speed: 4.5, walkSpeed: 1.6, turn: 2.4, eye: EYE, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(felt ?? {}), turnMode: 'look', lookPitch: true, strafe: 1, ...C.pilot.rule };
-  const sp = M.anchors.spawn, player = { id: 'player', pilotable: true, rule, ...(C.pilot.weapon ? { weapon: C.pilot.weapon } : {}), body: { type: 'none', ...C.pilot.body }, transform: { pos: [sp[0], sp[1], r3(sp[2] + EYE)], heading: M.heading } };
+  const sp = M.anchors.spawn, player = { id: 'player', pilotable: true, ...(C.pilot.team ? { team: C.pilot.team } : {}), rule, ...(C.pilot.weapon ? { weapon: C.pilot.weapon } : {}), body: { type: 'none', ...C.pilot.body }, transform: { pos: [sp[0], sp[1], r3(sp[2] + EYE)], heading: M.heading } };
   return {
     ...P.recipe, seed: M.seed, title: title ?? `Mission · ${G?.name ?? G?.id ?? 'game'}`,
     figures: C.figures, entities: [player, ...C.entities], camera: C.eyeCamera,
     events: { hud: [{ text: `W / S  walk · A / D  step aside · mouse  look · ${C.legend}${C.pilot.rule.knife ? ' · V  knife' : ''}`, ttl: 20 }] },
-    ...(C.audio ? { audio: C.audio } : {}),
+    ...(C.audio ? { audio: industrialAudio(C.audio, { score, places: P.places ?? null }) } : {}),
     mission: missionUi(G, M, P.brief, { laws: P.laws }),
     game: { levelRef: `${G?.id ?? 'game'}-industrial`, mechanics: missionMechanics(M, { lift: EYE }), fall: { mode: 'respawn' }, complete: false },
   };

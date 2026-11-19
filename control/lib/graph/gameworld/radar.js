@@ -2,7 +2,8 @@
  * THE RADAR AND THE MAP — where things are round the pilot, and where the pilot is in the level. Two reads of one
  * scene, each a list of marks mana-ui's minimap draws:
  *
- *   the radar   a round scope, the pilot at its middle and AHEAD AT THE TOP, so it turns as the pilot turns: every foe
+ *   the radar   a round scope, the pilot at its middle and AHEAD AT THE TOP, so it turns as the pilot turns, the level's
+ *               plan under it turning with it (a MINIMAP: the same plan the map draws, at the scope's scale): every foe
  *               awake within its range, and the task in hand (a place to go) pinned to the rim while it is further
  *               off. A foe asleep is not on it: a room's foes wake as it is walked into, and the radar keeps that.
  *   the map     the level's plan, NORTH AT THE TOP and still: what stands in a body's way on the ground drawn from
@@ -18,7 +19,7 @@
  *                                (things: [{ at: [x, y], kind, pin?, sight? }]; heading radians, counter-clockwise from +x)
  *   planBox(colliders, water?) → [x0, y0, side]   the square the plan is drawn in (metres)
  *   planPoint(box, p)          → { x, y }   a place on the plan, 0 to 1, north at the top
- *   planSvg(colliders, water, box, { rel?, veils?, relief?, trail? }?) → the plan as an SVG document (a string): masses,
+ *   planSvg(colliders, water, box, { z?, rel?, veils?, relief?, trail? } | z?) → the plan as an SVG document (a string): masses,
  *                                low things, water; `rel` each thing by its own height (a land that rises and falls),
  *                                `veils` tall grass, `relief` the land's contours (a height grid), `trail` the way walked
  *                                (a mask grid)
@@ -28,7 +29,7 @@
  *
  * The page's side only: every function here is inlined with toString() and references nothing outside itself.
  */
-export const RADAR = Object.freeze({ range: 30, most: 12, rim: 0.46 });
+export const RADAR = Object.freeze({ range: 40, most: 12, rim: 0.46 });
 
 /** The radar's marks (see the header). */
 export function radarMarks(pos, heading, things, cfg) {
@@ -71,7 +72,9 @@ export function radarMarks(pos, heading, things, cfg) {
 }
 
 /** The square a level's plan is drawn in: its colliders' and its water's reach, a margin round it. */
-export function planBox(colliders, water) {
+export function planBox(colliders, water, rect) {
+  // (`rect`, a level that says where it is fought: [x0, y0, x1, y1], the plan boxed on it and not on the whole site)
+  if (rect) { const side = Math.max(rect[2] - rect[0], rect[3] - rect[1]) + 4; return [(rect[0] + rect[2]) / 2 - side / 2, (rect[1] + rect[3]) / 2 - side / 2, side]; }
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const c of colliders || []) { if (!c || !c.min || !c.max) continue; x0 = Math.min(x0, c.min[0]); y0 = Math.min(y0, c.min[1]); x1 = Math.max(x1, c.max[0]); y1 = Math.max(y1, c.max[1]); }
   for (const q of water || []) { x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[2]); y1 = Math.max(y1, q[3]); }
@@ -87,12 +90,14 @@ export function planPoint(box, p) {
 /** The plan drawn: what stands in a body's way on the ground (a mass over a head's height dark, a low thing lighter),
  *  the water under them. A floor over the ground (a slab a body walks under) is not in the way and is not drawn. */
 export function planSvg(colliders, water, box, opts) {
-  const S = 512, k = S / box[2], f = (v) => Math.round(v * 10) / 10, o = opts || {};
+  const S = 512, k = S / box[2], f = (v) => Math.round(v * 10) / 10, o = typeof opts === 'number' ? { z: opts } : opts || {}, z = o.z || 0;
   const rect = (x0, y0, x1, y1, fill) => `<rect x="${f((x0 - box[0]) * k)}" y="${f(S - (y1 - box[1]) * k)}" width="${f(Math.max(1, (x1 - x0) * k))}" height="${f(Math.max(1, (y1 - y0) * k))}" fill="${fill}"/>`;
   const wet = (water || []).map((q) => rect(q[0], q[1], q[2], q[3], '#3f6f8f')), low = [], tall = [];
   for (const c of colliders || []) {
-    // (`rel`: a land that rises and falls, each thing read by its own height, its foot wherever the ground is)
-    const lo = o.rel ? 0 : c && c.min ? c.min[2] : 0, hi = o.rel && c && c.min ? c.max[2] - c.min[2] : c && c.max ? c.max[2] : 0;
+    // (`z`, or a number in place of the options: the floor the plan is of, where it is not the world's zero: a yard on
+    // its land, an arena on a hill; `rel`: a land that rises and falls, each thing read by its own height, its foot
+    // wherever the ground is)
+    const lo = o.rel ? 0 : c && c.min ? c.min[2] - z : 0, hi = o.rel && c && c.min ? c.max[2] - c.min[2] : c && c.max ? c.max[2] - z : 0;
     if (!c || !c.min || !c.max || lo > 1.2 || hi < 0.75) continue;
     (hi >= 1.6 ? tall : low).push(rect(c.min[0], c.min[1], c.max[0], c.max[1], hi >= 1.6 ? '#d9d2bd' : '#8f8a78'));
   }

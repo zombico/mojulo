@@ -19,7 +19,7 @@ describe('the mission on mana-ui', () => {
     const S = missionManaSpec();
     expect(() => manaUi.readSpec(S)).not.toThrow();
     expect(Object.keys(S.screens)).toEqual(['briefing', 'pause', 'how', 'controls', 'map', 'debrief']);
-    expect(S.hud.children.map((c) => c.use)).toEqual(['peril-edge', 'radar-scope', 'objective-order', 'health-strip', 'weapon-readout', 'damage-direction']);
+    expect(S.hud.children.map((c) => c.use)).toEqual(['peril-edge', 'radar-scope', 'objective-order', 'health-strip', 'weapon-readout', 'subtitles', 'damage-direction']);
   });
   it('draws its HUD as a shooter does, not as a dashboard: no labels, a figure for the rounds, one order, the edge for danger', () => {
     const C = missionMana(UI), S = { ...C.state, ms: { ...C.state.ms, hp: 20, ammo: 4, magazine: 30, reserve: 60, weapon: 'Carbine', mode: 'Auto', peril: 0.7 } };
@@ -77,6 +77,31 @@ describe('the mission on mana-ui', () => {
     expect(C.state.ms.ring).toEqual({ on: false, hits: [] });
     expect(C.ring).toEqual({ life: RING.life, most: RING.most });
     expect(C.state.ms.how.map((t) => t.label)).toContain('Under fire');
+  });
+  it('speaks each order: a task carries its line, and the HUD has a place for who says it', () => {
+    const C = missionMana(UI);
+    expect(C.tasks.every((t) => typeof t.say === 'string' && t.say.length > 0)).toBe(true);
+    expect(JSON.stringify(C.spec.hud)).toContain('ms.radio.line');
+    expect(C.state.ms.radio).toEqual({ on: false, who: 'Command', line: '' });
+    expect(C.hud.radio).toBeGreaterThan(0);
+  });
+  it('is every shooter\'s HUD: with no mission in it (`plain`) the same parts and look, and no order, briefing or debrief', () => {
+    const plain = { title: 'Bout', theme: MISSION_LOOK, tasks: [], plain: true }, C = missionMana(plain), full = missionMana(UI);
+    // (the same spec: one HUD, drawn by the same parts; the order stands only where there is one)
+    expect(C.spec).toEqual(full.spec);
+    expect(C.plain).toBe(true); expect(full.plain).toBeUndefined();
+    expect(C.state.ms.order.on).toBe(false); expect(full.state.ms.order.on).toBe(true);
+    expect(C.state.ms.menu.map((m) => m.label)).not.toContain('The briefing');
+    expect(C.state.ms.title).toBe('Bout');
+    // (its sheet leaves the level's own counters, lines and clock, where a mission's puts them away)
+    expect(missionManaCss(C.theme, { plain: true })).not.toContain('.moj-w-counter');
+    expect(missionManaCss(full.theme)).toContain('.moj-w-counter');
+    // (one radar: the page's own round one is put away wherever this HUD stands, mission or none)
+    for (const css of [missionManaCss(C.theme, { plain: true }), missionManaCss(full.theme)]) expect(css).toContain('.moj-c-radar{display:none');
+    // (and it takes a game's own look as a mission does: another theme card, another sheet, the same parts)
+    const other = Object.keys(THEME_CARDS).find((k) => k !== MISSION_LOOK);
+    expect(missionManaCss(missionMana({ ...plain, theme: other }).theme, { plain: true })).not.toBe(missionManaCss(C.theme, { plain: true }));
+    expect(() => new Function(missionChannelSource(plain))).not.toThrow();
   });
   it('is one block on the page, the same from the same mission, and publishes its probe', () => {
     const a = missionChannelScript(UI);

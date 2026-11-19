@@ -218,7 +218,7 @@ export function gymReadout(m, gate) {
 }
 /** The gym as a World page: the game's own player (`minted`: { pilot, foe, payload }, a level's), its foe on the range,
  * its camera (or `cam`, the other, with `extraRule`), the measures' readout (`m`, its `laws` set) or `lines` of a caller's. */
-export function gymPageHtml(minted, m, gym, gate, { cam = null, extraRule = {}, tag = '', lines = null, kind = 'gym' } = {}) {
+export function gymPageHtml(minted, m, gym, gate, { cam = null, extraRule = {}, tag = '', lines = null, kind = 'gym', mission = null } = {}) {
   const { pilot, foe, payload } = minted;
   const P = { ...JSON.parse(JSON.stringify(pilot)), rule: { ...pilot.rule, ...extraRule }, transform: { pos: [gym.spawn[0], gym.spawn[1], gym.spawn[2] + (pilot.rule.eye ?? 0)], heading: gym.heading ?? 0, pitch: 0 } };
   const foeFig = foe?.body?.figure;
@@ -232,6 +232,8 @@ export function gymPageHtml(minted, m, gym, gate, { cam = null, extraRule = {}, 
     events: { hud: legend.map((h) => ({ ...h, ttl: 30 })) }, signs,
     rupa: { scars: readScarsSpec({ ground: 'loam', wall: 'concrete', walls: gym.walls }) },
     match: { killTarget: 9999, respawnDelay: 1.5 },
+    // (a room of guns wears the shooter's HUD: `mission`, the mission channel's plain page; absent, the page as it was)
+    ...(mission ? { mission } : {}),
     sky: payload.sky ?? { zenith: [120, 140, 170], horizon: [200, 205, 210], day: 1, stars: 0, seed: 1 }, bg: payload.bg ?? '#9aa0a8',
     ...(payload.lightTier ? { lightTier: payload.lightTier } : {}), ...(payload.shadows ? { shadows: payload.shadows } : {}), ...(payload.audio ? { audio: payload.audio } : {}),
     viewBox: { width: 1120, height: 700 }, title: `${kind} · ${m.game}${tag ? ` · ${tag}` : ''}`, inline: true,

@@ -289,6 +289,16 @@ weather named wets the ground itself.
   and is a pure stage, as any level is. The deck and its stairs are told to the mission's minds (`mission.floors`) and
   to its proof's walker (`frame.stairs`).
 
+Who holds it is a crew (`crew`, a faction of the grunts: private military where it names none): its foes are three of
+the crew's rank and file, dressed by the hero door's own words. Said: the crew's other kinds are not stood (one does
+not build alone, one is several times the weight on the page).
+
+It is heard: its guns (the range's own), its events each a sound (a task, a wave's alarm, a supply taken), the wind's
+bed, and a score in two states that the level's own events move between. Its places sound (the channel's `emitters`): water drips off
+the tower's deck and the tallest stacks, the hall hums at its door, the fence rattles along its runs; and the tower's
+deck and stairs ring as steel under a boot (the channel's `surfaces`). Said: a placed sound is a cue sounded again,
+its loudness set each time it starts, so a held one (the hum) follows the listener in steps.
+
 `bounded` now asks for what stops a body, a wall or a rail, on every floor: a fenced yard is bounded as a walled one is.
 
 What the first run found (machine gate; the shooter feel, seed 1): the default yard, nineteen cells by ten with its
@@ -307,6 +317,22 @@ Said: the level's page is about forty megabytes and takes minutes to resolve, th
 mind's sight as a wall does (it is a collider), where the laws read it as a rail; the tower's steel is plain, flat
 colour, dark against a low sun; the land is cut deep where the yard meets its cliff; only buildings with a hall take a
 yard this way.
+
+## A bout and a push
+
+The laws are put to two more means than a mission's (`arena-map/bout.js`).
+
+- **A bout** (a deathmatch's arena, `gameworld/tunnel-arena.js`): one level; the arena's words say where the laws
+  start (lanes, or a court); the kit the laws size it by is the bout's sight; and it is fair: the half the laws liked
+  best is turned half round the centre onto the other, the turned map held to the laws again, the best of a few seeds
+  kept. The bout's own means stay the tunnel's: spawns out of sight, supplies by risk, towers stood first with the
+  panels giving way, crates, and the panels beside a way that is the only one taken.
+- **A push** (a quick shooter's cover, `gameworld/lay-concerns.js` `coverBlocks`): a strip from where a body comes on
+  to a post that holds it, grown for the near bands, then held to what a push needs: the post's cover a sidestep away,
+  its cell and the way on clear, the strip one ground. Its edges are open land.
+
+Said: a bout's map is flat (its high ground is the tunnel's towers); growing costs seconds an arena; the laws a turned
+map does not hold are in the tunnel's record (`built.map`), not on the level's readout.
 
 ## Next
 

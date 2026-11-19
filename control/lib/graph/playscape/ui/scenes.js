@@ -21,7 +21,12 @@
  *       { until: a when | [when, …] }              waits for a happening (a walk's arrive, a var, an event); a list of
  *                                                  2 to 4: any one of them
  *       { wait: s }                                waits that many seconds
- *       { line: { who, say?, expression? } }        the text box: the speaker's name, the line typed on; a click goes on
+ *       { line: { who, say?, expression?, voice? } } the text box: the speaker's name, the line typed on; a click goes on;
+ *                                                  voice: the line RECORDED, a WAV's path (or { audio: path }) as the door
+ *                                                  takes it, kept bound as face-acting/recordings.js keeps a line
+ *                                                  ({ recording, seconds, timing, phonemes | envelope, words? }); the page
+ *                                                  plays it as the line starts and the speaker's face says it
+ *                                                  (talk-lines.js). Unbound (a path the door has not saved), it is not heard
  *       { banter: { with: [a, b], lines: [{ who, say?, expression? }], frame?: 'over' | 'close' } }
  *                                                  two talk: the camera opens on both, then cuts to whoever speaks
  *       { choose: { who?, say?, options: [{ say?, sets?: [flag], beats?: [beat] }] } }
@@ -168,7 +173,7 @@ function readTempoBeat(T, at) {
 
 function readLine(l, at) {
   if (!isObj(l)) throw err(`${at} is { who, say?, expression? }`);
-  for (const k of Object.keys(l)) if (!['who', 'say', 'expression', 'take'].includes(k)) throw err(`${at}.${k} is not part of a line (who, say, expression, take)`);
+  for (const k of Object.keys(l)) if (!['who', 'say', 'expression', 'take', 'voice'].includes(k)) throw err(`${at}.${k} is not part of a line (who, say, expression, voice, take)`);
   if (typeof l.who !== 'string' || !l.who) throw err(`${at}.who is the speaker's entity id`);
   if (l.say !== undefined && !words(l.say)) throw err(`${at}.say is the line, in words (leave it out for a placeholder)`);
   if (l.expression !== undefined && !(typeof l.expression === 'string' && ID.test(l.expression))) throw err(`${at}.expression is a word (smiling, worried…)`);
@@ -177,7 +182,11 @@ function readLine(l, at) {
   const T = l.take, timed = isObj(T) && Number.isFinite(T.at) && Number.isFinite(T.end) && T.at >= 0 && T.end > T.at;
   const clipped = isObj(T) && (T.clip === undefined ? T.of === undefined : typeof T.clip === 'string' && /^scene:[a-z][a-z0-9-]*:\d+$/.test(T.clip) && Number.isFinite(T.of) && T.of >= T.end);
   if (T !== undefined && !(timed && clipped && Object.keys(T).every((k) => ['at', 'end', 'clip', 'of'].includes(k)))) throw err(`${at}.take is { at, end, clip?, of? }: the line's span on its script's clock, seconds (at ≥ 0, end > at), and the takes' clip (scene:<id>:<n>) over the script's length of`);
-  return { who: l.who, ...(l.say !== undefined ? { say: l.say.trim() } : {}), ...(l.expression ? { expression: l.expression } : {}), ...(T ? { take: { at: T.at, end: T.end, ...(T.clip ? { clip: T.clip, of: T.of } : {}) } } : {}) };
+  // (voice: the line recorded, a path as the door takes it, or bound as the record keeps it)
+  const V = l.voice, given = typeof V === 'string' ? V : isObj(V) && typeof V.audio === 'string' ? V.audio : null;
+  const bound = isObj(V) && typeof V.recording === 'string' && /^[0-9a-f]{16}$/.test(V.recording) && Number.isFinite(V.seconds) && V.seconds > 0;
+  if (V !== undefined && !(given || bound)) throw err(`${at}.voice is the line recorded: a WAV's path (or { audio: path }), saved and timed where the world is written`);
+  return { who: l.who, ...(l.say !== undefined ? { say: l.say.trim() } : {}), ...(l.expression ? { expression: l.expression } : {}), ...(V !== undefined ? { voice: V } : {}), ...(T ? { take: { at: T.at, end: T.end, ...(T.clip ? { clip: T.clip, of: T.of } : {}) } } : {}) };
 }
 
 function readChoose(C, at, ctx, depth) {
@@ -353,7 +362,7 @@ export function sceneProgram(play) {
   return readScenes(play).map((sc) => {
     const beats = [];
     let said = 0;
-    const lineOf = (l) => { said++; return { kind: 'line', who: l.who, name: nameOf(sc.names, l.who), text: l.say ?? `[${nameOf(sc.names, l.who)}: line ${said}]`, ...(l.expression ? { expression: l.expression } : {}), ...(l.take ? { take: l.take } : {}) }; };
+    const lineOf = (l) => { said++; return { kind: 'line', who: l.who, name: nameOf(sc.names, l.who), text: l.say ?? `[${nameOf(sc.names, l.who)}: line ${said}]`, ...(l.expression ? { expression: l.expression } : {}), ...(isObj(l.voice) && l.voice.recording ? { voice: l.voice } : {}), ...(l.take ? { take: l.take } : {}) }; };
     const line = (l) => beats.push(lineOf(l));
     // flattened: a choice's options play inline after it, each ending in a jump past the rest
     const lay = (list, pre) => list.forEach((b, n) => {
@@ -367,7 +376,8 @@ export function sceneProgram(play) {
       else if (b.kind === 'line') line(b.line);
       else if (b.kind === 'choose') {
         const C = b.choose;
-        const ch = { kind: 'choose', ...(C.ask ? { ask: lineOf(C.ask) } : {}), options: C.options.map((o, k) => ({ text: o.say ?? `[Choice ${k + 1}]`, fire: o.sets.map(flagEvent), to: 0 })) };
+        // (a question is not heard: the runner plays no take while a choice is up, so its voice is left out)
+        const ch = { kind: 'choose', ...(C.ask ? { ask: (({ voice: _v, ...q }) => q)(lineOf(C.ask)) } : {}), options: C.options.map((o, k) => ({ text: o.say ?? `[Choice ${k + 1}]`, fire: o.sets.map(flagEvent), to: 0 })) };
         beats.push(ch);
         const jumps = [];
         C.options.forEach((o, k) => {

@@ -183,6 +183,46 @@ houses block and the beach. Said, not tuned. The level is greybox: a place reads
 barriers, floodlights and a tower to climb stood under the arena's laws and built by the geocube, at sunset on wet
 ground, its mission its play ([arena-maps.md](arena-maps.md#an-industrial-level)). `design_game` offers it beside the first mission.
 
+## A campaign's opening mission
+
+The first level of a shooter's campaign, as the genre has long laid it, is not one map: it is a run of places, each a
+beat of one loop (`mission/campaign.js`). The loop: an order is given, a body moves to it, a fight, the way on opens,
+the game is kept. Round it, in order, seven beats, each built from what a world already has:
+
+| beat | what it is for | built by |
+|---|---|---|
+| cold open | where you are, who is speaking | the turn's start scene where the story has one, else the leg's briefing |
+| kit check | the body and the kit in a safe place | the staging section |
+| insertion | the safe place ends | a leg's way out and the next leg's start |
+| first contact | few foes, on your terms | the contact section |
+| push | bounds up a street or through rooms | the lane section on a street; a building's rooms |
+| set piece | one place held on a clock | the holdout section |
+| run out | the way out, and the breath after | the extract section; the turn's debrief |
+
+`openingMission(G, { building })` lays them as LEGS, each a level of its own in one world, played in order (a linear
+world's levels unlock each other): the staging yard (a court grown under the arena's laws), the street (a town's main
+street, cut and grown), the building (a core building as a fighting map, where the kit's band asks for one), the works
+(an industrial yard). A leg is a checkpoint: a level is a turn (`game/turn.js`), so falling in one sends a body back to
+that leg's start and no further, and each leg has its briefing before and its debrief after. `design_game` offers it
+beside the first mission (the mission step's `campaign`, with its patch).
+
+What the first run found (machine gate; the shooter feel, seed 1): every leg stages as its own kind and its tasks are
+proved on the bus; played on their resolved pages the headless gunner wins the yard in 11 s and the street in 22 s; the
+building it does not finish in 240 s (it stands at the lane), as a building's mission was already said to play; the
+works it wins in 78 s.
+
+Each order is SPOKEN as its task begins: a section carries its line (`SECTIONS.<id>.radio`), and the HUD stands it for
+a few seconds under who gives it (mana-ui's `subtitles`; `Command` unless the level names a callsign). And every leg is
+fought with a SQUADMATE (`mission.squad`, 0 to 2; a mission's own word, a campaign's legs ask one): a body at the
+pilot's shoulder on the pilot's side, its mind an escort's (it keeps by the pilot and fights whom it sees of the other
+side), carrying the pilot's first gun at a share of its harm, so it helps a fight and does not win one. Neither harms
+the other; no task counts it; it can fall. Measured headless on the street: with the pilot standing still for a
+minute the squadmate drops two of three and the pilot is left half its health; the gunner's own run is no slower.
+
+Said: the legs are separate pages, so nothing is carried from one to the next (health, rounds); the first two are
+short; an order is a line of text, not a voice; a squadmate wears the stand-in body and says nothing; a leg's cold
+open is its briefing unless the story gives its turn a scene.
+
 ## In a building
 
 A first mission can be fought inside a building of the geocube's own, drawn by the seventh generation's form render

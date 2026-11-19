@@ -433,6 +433,11 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-reserve::before{content:"/";margin-right:${u(4)};opacity:.6}`,
     // (the gun's wireframe over it all, and each round a cartridge cut from the ink: guns.js; a spent one its outline)
     `${s} .mana-magazine .mana-sil{margin-bottom:${u(-4)};opacity:.92}`,
+    // (a mark part full: the filled glyph over the empty one, cut to its share from the left)
+    `${s} .mana-pip-part{position:relative;display:inline-block}`,
+    `${s} .mana-pip-part>b{position:absolute;left:0;top:0;width:calc(var(--f,0) * 100%);overflow:hidden;font-weight:inherit;white-space:nowrap}`,
+    // (a bar in its side's colour: a seat's health in its own kit, so whose it is reads without its tag)
+    ...Array.from({ length: 8 }, (_, k) => `${s} .mana-bar[data-side="${k}"]:not([data-low]) .mana-track i{background:${v(`side-${k}`)}}`),
     // A CHARGE: a ring round its pictogram that fills as the power comes back, glows when it is ready and drains as it
     // is spent; what sets it off said small beside it
     `${s} .mana-charge{display:flex;align-items:center;gap:${u(10)}}`,

@@ -804,13 +804,14 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // stands inside its round, the pads fill from the screen's edge, the HUD's bottom corners stand over a pad, a region
 // whose every part is gated off draws no plate, and a glass theme no longer blurs behind a bare region; neither page
 // draws a touch pad or an empty region, and every other fixture holds byte for byte.
-// Re-pinned 2026-11-15 (the switch cancel): the runtime the page embeds gained the moveset's `swap` (combat-melee.js
-// stepMoveset: the weapon cycle pressed mid-swing held to the live move's switch point, the next weapon's string
-// opened on the press that was waiting, the string's count carried on). Five places in that one function: a block
-// added before the cycle, the cycle's own line guarded on `swap`, a guard on the chain at the cancel, the buffer's
-// hold, and the opener's count. A moveset that says no `swap` runs as before: the cycle mid-swing is dropped. Every
-// fixture that embeds the controllable runtime re-pinned with it.
-//
+// Re-pinned 2026-11-19 a sixth time (1117-mana-ui-talking-heads merged into 1117-cinematic-action-game): the fixtures
+// whose page inlines text either side had moved since (that side: the talk box on mana-ui and its talking faces, a game
+// UI's root laid in the scene's frame, the radar's plan at the floor a level stands on, every shooter's HUD; this side:
+// the world's rays and the ground's index, the follow camera's clear line, the minimap translucent, tall grass). The
+// radar's plan takes either side's word (a floor height, or the options with `z` among them). Twenty fixtures moved
+// from that side's pin: the seventeen that inline the controllable runtime, and `brawl`, `holo` and `mission` (the game
+// UI's styles and the radar's plan); every other fixture holds that side's pin byte for byte. The merged text is
+// neither side's pin; no fixture's behaviour is claimed changed.
 // Re-pinned 2026-11-19 a fifth time (1117-cinematic-action-game: the grid for meshes of two hundred triangles and the
 // camera's first ray): the same seventeen; the grid's threshold and one line before the camera's drive.
 // Re-pinned 2026-11-19 a fourth time (1117-cinematic-action-game: the grid for every big mesh): the same seventeen. The
@@ -899,6 +900,20 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-16 again (1115-shooting-rails: a mission fills its window): `mission` only. A mission's page fills
 // its window where its game names no screen. Every other fixture holds byte for byte. (The gunplay view's own changes
 // of that day, the gun drawn after the world's glass and lit by the form render, moved no fixture: none carries it.)
+// Re-pinned 2026-11-17 (1115-shooting-rails: every shooter wears the HUD): `mission` only. The mission's page gained a
+// plain form (no order, briefing or debrief, for a shooter with no mission), its order stands only where there is one,
+// its health falls back to the pilot's own body where the bus keeps none, and its map is drawn at the floor the pilot
+// stands on and boxed on the ground a level says it is fought on. No other fixture moved.
+// Re-pinned 2026-11-17 again (1115-shooting-rails: orders are spoken): `mission` only. Its HUD carries a line for the
+// order as it is given (mana-ui's subtitles, who gives it and what is said), each task its line. No other fixture moved.
+//
+// Re-pinned 2026-11-15 (the switch cancel): the runtime the page embeds gained the moveset's `swap` (combat-melee.js
+// stepMoveset: the weapon cycle pressed mid-swing held to the live move's switch point, the next weapon's string
+// opened on the press that was waiting, the string's count carried on). Five places in that one function: a block
+// added before the cycle, the cycle's own line guarded on `swap`, a guard on the chain at the cancel, the buffer's
+// hold, and the opener's count. A moveset that says no `swap` runs as before: the cycle mid-swing is dropped. Every
+// fixture that embeds the controllable runtime re-pinned with it.
+//
 // Re-pinned 2026-11-15 (the release candidate merged into the side-scroll starter): `brawl`. Its page carries both
 // sides' changes at once (the belt's bends and the yard's client from the one, the game UI kernel and its sheet from the
 // other); each is said above, and neither changes how the fixture plays.
@@ -929,3 +944,13 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
     }
   });
 });
+//
+// Re-pinned 2026-11-17 (1116-rc merged into 1115-shooting-rails): the fixtures whose page inlines the controllable runtime
+// (the seventeen named above, with the candidate's own that carry it) and `mission`. Each page carries both sides' changes
+// at once: the candidate's (the switch cancel, the street, the sea) and this branch's (a climb held by jump, a path kept
+// to its ground, a flight's way, the mission's HUD); each is said above, and neither changes how a fixture plays.
+// Re-pinned 2026-11-17 (1115-shooting-rails: one radar): `mission` only. Its sheet puts the page's own round radar away
+// (the controllable runtime's, by the class the candidate gave it) wherever the shooter's HUD stands, so a shooter has
+// one radar, the HUD's scope. No other fixture moved.
+// Re-pinned 2026-11-17 again (1115-shooting-rails: the radar a minimap): `mission` only. The scope is larger, reaches
+// 40 m, and carries the level's plan under its marks, turned so ahead is up. No other fixture moved.

@@ -1019,7 +1019,7 @@ export function playShellRuntime(cfg, K) {
   // members of the slice as the store holds it (a party member's tags, level and figures, each figure against the
   // most anyone in the roster has; a carried thing's count)
   function turnRows(p) {
-    if (p.from.options) return p.from.options.map((o) => ({ id: o.id, name: o.name, about: o.about || '' }));
+    if (p.from.options) return p.from.options.map((o) => Object.assign({ id: o.id, name: o.name, about: o.about || '' }, o.gun ? { gun: o.gun } : {}));
     const sl = state[p.from.slice] || {};
     if (sl.roster) {
       const most = {};

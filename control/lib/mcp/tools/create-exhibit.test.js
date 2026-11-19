@@ -205,6 +205,26 @@ describe('prepared states: one exhibit at several settings', () => {
 });
 
 describe('get_exhibit', () => {
+  it('start: a person with a concept is answered the producer\'s one question and the fit, and nothing is made', async () => {
+    const out = await createExhibitHandler({ start: { concept: 'how a dam makes electricity from falling water', time: 'visit' } });
+    expect(out).toMatchObject({ ok: true, readout: 'start', built: false, producer: { seat: 'producer', step: 'people' } });
+    // (made new: the halls are samples, and nothing is matched to the catalog)
+    expect(out.nearest).toBeUndefined(); expect(out.like.says).toMatch(/SAMPLES/);
+    expect(out.fit.says).toMatch(/holds one exhibit/);
+    expect(out.ref).toBeUndefined();
+    await expect(createExhibitHandler({ start: {}, id: 'earth/hydro' })).rejects.toThrow(/`start` is asked alone/);
+    await expect(createExhibitHandler({ start: { topic: 'x' } })).rejects.toThrow(/topic is not one/);
+    // (a scale's samples are exhibits the halls hold)
+    const { SCALES } = await import('@/lib/graph/exhibit/scales');
+    const held = new Set((await getExhibitHandler({})).cards.map((c) => c.id));
+    for (const [id, S] of Object.entries(SCALES)) for (const x of S.samples) expect(held.has(x), `${id}: ${x}`).toBe(true);
+    // a contact sheet is asked for one made, toured exhibit, alone
+    await expect(createExhibitHandler({ contact: 'no-such-ref' })).rejects.toThrow(/no exhibit with ref/);
+    await expect(createExhibitHandler({ contact: 'x', id: 'earth/hydro' })).rejects.toThrow(/`contact` is a made exhibit's ref, asked alone/);
+    // without it the door reads as it always did
+    expect((await getExhibitHandler({})).halls.length).toBeGreaterThan(0);
+  });
+
   it('reads a card by hall id, lists the halls and one hall', async () => {
     const one = await getExhibitHandler({ id: 'earth/hydro' });
     expect(one).toMatchObject({ id: 'earth/hydro', hall: 'earth' });

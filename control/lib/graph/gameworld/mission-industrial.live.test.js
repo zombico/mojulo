@@ -37,6 +37,20 @@ describe('an industrial level, on its page', () => {
     // (a stack stands where the design put it: the first, carried from the plan onto the land)
     const [sx, sy] = P.seat.toWorld(Y.stacks[0].at);
     expect(tall.some((c) => sx > c.min[0] - 0.01 && sx < c.max[0] + 0.01 && sy > c.min[1] - 0.01 && sy < c.max[1] + 0.01)).toBe(true);
+    // (its crew on the page: each body carries the hold it fires in, a clip played once and held, the weapon come up
+    // from where it hangs: both hands end over the chest, forward of the body)
+    const crew = Object.values(Pg.figures).filter((f) => f.clips?.fire);
+    expect(crew.length).toBeGreaterThan(0);
+    for (const f of crew) {
+      const C = f.clips.fire, nb = f.bones.length, at = (bone, key) => C.b.slice((key * nb + f.bones.findIndex((b) => b.id === bone)) * 7 + 4, (key * nb + f.bones.findIndex((b) => b.id === bone)) * 7 + 7);
+      expect(C.once).toBe(true);
+      for (const hand of ['handR', 'handL']) { expect(at(hand, C.k - 1)[2]).toBeGreaterThan(at(hand, 0)[2] + 0.3); expect(at(hand, C.k - 1)[1]).toBeGreaterThan(0.2); }
+    }
+    // (heard on its page: its events wired to cues that are there, the wind, a score and the fight's, the meter that
+    // changes between them)
+    for (const id of Object.values(Pg.audio.on)) expect(Pg.audio.cues[id], id).toBeTruthy();
+    expect(Pg.audio.wind).toBeTruthy();
+    expect(Pg.audio.soundtrack && Pg.audio.combat && Pg.audio.tension).toBeTruthy();
     // (played on the place: its result said, never forced; a still player does not win; and through the run's gate)
     const R = playMission(Pg, P.mission, { seconds: 240 });
     expect(R.tasks.length).toBeGreaterThan(0);

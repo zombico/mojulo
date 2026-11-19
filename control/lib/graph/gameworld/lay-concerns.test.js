@@ -109,7 +109,8 @@ describe('the stage laid for the game, and its laws', () => {
       { concern: 'watchers', law: 'a-blind-spot-on-every-approach', holds: true, says: 'a place out of sight on the way to each of 3' },
       { concern: 'cover', law: 'cover-by-every-post', holds: true, says: 'cover by all 3 posts' },
     ]);
-    expect(L.args.manifest.blocks.filter((b) => b.form === 'wall').length).toBe(3 * 2 + 3);
+    // (its cover is the arena map's, a strip grown for each post: more than the one wall a post used to be given)
+    expect(L.args.manifest.blocks.filter((b) => b.form === 'wall').length).toBeGreaterThan(9);
   });
   it('a ranged game without a shooter\'s goal gets cover at its beats too (raised by the value, not the goal)', () => {
     const W = quick({ goal: 'reach' }, { intent: { cube: { power: { combat: ['ranged'] } } } });
@@ -236,7 +237,9 @@ describe('an arena', () => {
     expect(bare.find((l) => l.law === 'cover-near').holds).toBe(false);
     const split = concernLaws(['arena'], { ends, blocks: [...walls, { form: 'wall', at: [100, 50, 2], N: [0, 1], length: 2 * H, height: 3, thick: 0.5 }], arena: L });
     expect(split.find((l) => l.law === 'routes-loop')).toMatchObject({ holds: false, says: expect.stringMatching(/cannot reach/) });
-    const rocky = concernLaws(['arena'], { ends: { ...ends, colliders: [{ min: [103, 53, 2], max: [104, 54, 4], of: 'rock:1' }] }, blocks: L.blocks, arena: L });
+    // (a rock on open floor: where a spawn stands, clear of every piece)
+    const [sx, sy] = L.spawns[0];
+    const rocky = concernLaws(['arena'], { ends: { ...ends, colliders: [{ min: [sx - 0.5, sy - 0.5, 2], max: [sx + 0.5, sy + 0.5, 4], of: 'rock:1' }] }, blocks: L.blocks, arena: L });
     expect(rocky.find((l) => l.law === 'floor-clear').holds).toBe(false);
   });
 });

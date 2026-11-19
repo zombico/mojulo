@@ -41,6 +41,7 @@
  *   askBoxes(blocks) / blindSpots(post, ends, boxes)   the asks' boxes; the places on an approach out of a watcher's sight
  *   concernLaws(ids, { ends, blocks, posts, watchers, mechanics }) → [{ concern, law, holds, says }] the laws over a laid stage
  */
+import { pushMap, pushPieces, PUSH, BOUT_CELL } from '../arena-map/bout.js';
 import { buildNav } from '../worlds/controllable/nav.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -57,7 +58,7 @@ export const LOOP = Object.freeze({ radius: 9, width: 8, margin: 3, step: 2, sta
 // a match's arena (metres): half its side when its plan names none (36 m across), how far up the first trail it
 // starts, its wall's height, how far a spawn stands in from the wall; its laws' numbers: how near cover must be, the
 // share of the floor it must be near (the longest clear line is its plan's: its side, unless it asks for long lines)
-export const ARENA = Object.freeze({ half: 18, start: 24, wall: 3, inset: 2.5, coverNear: 3.5, covered: 0.8 });
+export const ARENA = Object.freeze({ half: 22, start: 24, wall: 3, inset: 2.5, coverNear: 3.5, covered: 0.8 });
 
 // a block of cells beside the walk on its open side (toward the site's open edge): `cols` across from 4 m off the walk,
 // rows r0 to r1 of the first trail; → { at: '<cells>', centre: [x, y] } in the level's frame
@@ -262,21 +263,24 @@ export function beatPosts(ends, n) {
   });
 }
 
-/** Cover at each post: a wall across the approach (taller than a person: cover is round its ends, not over it) 1.2 m
- * in front of the post and starting half a metre to one side, so the post sees down the way it holds and its cover is
- * a sidestep away; a crate stack on the other side; and a wall half way back for whoever comes on. Walls run square to
- * the world (colliders are boxes), across the approach's main axis; each stands on the land (`ends.ground`). */
-export function coverBlocks(posts, ends) {
+/** Cover at each post, LAID BY THE ARENA'S LAWS (arena-map/bout.js pushMap): the stretch a body fights up to the post,
+ * from half way back (or the strip's most), is a strip of the arena map grown for a push: its panels and masses stand
+ * where the laws left them, the post's own cover a sidestep from it, the way on and the post's cell clear, always a way
+ * up. Panels run square to the world (colliders are boxes), in the approach's main axes; each stands on the land
+ * (`ends.ground`). `seed`: the world's, a post's strip rolled on it and the post's place in the line. */
+export function coverBlocks(posts, ends, { seed = 1 } = {}) {
   const blocks = [];
   const at = (x, y, z0) => { const z = ends.ground ? ends.ground(x, y) : null; return [r3(x), r3(y), z ?? z0]; };
   const axes = (from) => { const N = Math.abs(from[0]) >= Math.abs(from[1]) ? [Math.sign(from[0]) || 1, 0] : [0, Math.sign(from[1]) || 1]; return [N, [-N[1], N[0]]]; };
-  const wall = (c, N, z0, length) => blocks.push({ form: 'wall', at: at(c[0], c[1], z0), N, length, height: 2, thick: 0.5, value: 0.5 });
   posts.forEach((p, k) => {
-    const [N, U] = axes(p.from), side = k % 2 ? -1 : 1, L = 3, off = (L / 2 + 0.5) * side;
-    wall([p.at[0] - N[0] * 1.2 + U[0] * off, p.at[1] - N[1] * 1.2 + U[1] * off], N, p.at[2], L);
-    blocks.push({ form: 'crate', at: at(p.at[0] - N[0] * 1.2 - U[0] * 2 * side, p.at[1] - N[1] * 1.2 - U[1] * 2 * side, p.at[2]), stack: 2, value: 0.42 });
-    const mid = [(p.at[0] + p.back[0]) / 2, (p.at[1] + p.back[1]) / 2];
-    wall([mid[0] - U[0] * 2.5 * side, mid[1] - U[1] * 2.5 * side], N, p.at[2], 2.5);
+    const [N, U] = axes(p.from), side = k % 2 ? -1 : 1, reach = Math.hypot(p.at[0] - p.back[0], p.at[1] - p.back[1]);
+    // (the strip: the post in its last row's middle, as deep as the way back to the post before allows)
+    const d = Math.max(PUSH.d[0], Math.min(PUSH.d[1], Math.floor((reach - 1) / BOUT_CELL))), B = pushMap({ d, side, seed: (seed | 0) + 31 * (k + 1) });
+    const o = [p.at[0] - N[0] * (d - 0.5) * BOUT_CELL, p.at[1] - N[1] * (d - 0.5) * BOUT_CELL];
+    for (const q of pushPieces(B.map)) {
+      const x = o[0] + N[0] * q.b + U[0] * q.a, y = o[1] + N[1] * q.b + U[1] * q.a;
+      blocks.push({ form: 'wall', at: at(x, y, p.at[2]), N: q.across ? N : U, length: q.length, height: q.height, thick: q.thick ?? 0.5, value: 0.5 });
+    }
   });
   return blocks;
 }
@@ -498,22 +502,25 @@ export function concernLaws(ids, { ends, blocks = [], posts = [], watchers = [],
  * whether it peeks into the other half (`toward`). Turned half round its centre, an arena gives each half as many right-
  * hand peeks into the other; mirrored across its middle (a team map), one half's become the other's left-hand peeks. */
 export function arenaPeeks(arena, blocks) {
-  const [cx, cy] = arena.centre, H = arena.half, boxes = askBoxes(blocks), out = [];
-  const touches = (p, own) => boxes.some((B) => B !== own && p[0] > B.min[0] - 0.3 && p[0] < B.max[0] + 0.3 && p[1] > B.min[1] - 0.3 && p[1] < B.max[1] + 0.3);
+  // (a tie reads the same from either side: a margin met exactly is not touched, a micron either way, so a piece and its
+  // turned partner, laid at a centre the floats cannot hold exactly, are judged alike)
+  const [cx, cy] = arena.centre, H = arena.half, boxes = askBoxes(blocks), out = [], E = 1e-6;
+  const touches = (p, own) => boxes.some((B) => B !== own && p[0] > B.min[0] - 0.3 + E && p[0] < B.max[0] + 0.3 - E && p[1] > B.min[1] - 0.3 + E && p[1] < B.max[1] + 0.3 - E);
   for (const B of boxes) {
     const sx = B.max[0] - B.min[0], sy = B.max[1] - B.min[1];
     if (Math.max(sx, sy) < 1.5 || B.max[2] - B.min[2] < 1.7) continue;   // a wall a body hides behind, not a crate
-    const ax = sx >= sy ? 0 : 1, c = [(B.min[0] + B.max[0]) / 2, (B.min[1] + B.max[1]) / 2], half = (ax ? sy : sx) / 2;
+    // (a square block, a mass, lies along x on both sides of the middle: its sides compared a micron loose)
+    const ax = sx >= sy - E ? 0 : 1, c = [(B.min[0] + B.max[0]) / 2, (B.min[1] + B.max[1]) / 2], half = (ax ? sy : sx) / 2;
     for (const sgn of [1, -1]) {
       const d = ax ? [0, sgn] : [sgn, 0], end = [c[0] + d[0] * half, c[1] + d[1] * half];
-      if (Math.abs(end[0] - cx) > H - 1 || Math.abs(end[1] - cy) > H - 1 || touches([end[0] + d[0] * 0.4, end[1] + d[1] * 0.4], B)) continue;
+      if (Math.abs(end[0] - cx) > H - 1 - E || Math.abs(end[1] - cy) > H - 1 - E || touches([end[0] + d[0] * 0.4, end[1] + d[1] * 0.4], B)) continue;
       for (const nsg of [1, -1]) {
         const n = ax ? [nsg, 0] : [0, nsg];
         // facing across the wall (-n), its right is [-(-n)y, (-n)x] … the edge is on the right when d · right > 0
         const f = [-n[0], -n[1]], right = [f[1], -f[0]];
         if (d[0] * right[0] + d[1] * right[1] <= 0) continue;
         const at = [end[0] + n[0] * 0.8 - d[0] * 0.5, end[1] + n[1] * 0.8 - d[1] * 0.5], v = at[1] - cy, u = at[0] - cx;
-        const hf = Math.abs(v) > 0.25 ? (v > 0 ? 0 : 1) : (u > 0 ? 0 : 1);
+        const hf = Math.abs(v) > 0.25 + E ? (v > 0 ? 0 : 1) : (u > 0 ? 0 : 1);
         // toward: it peeks into the other half (its facing crosses the middle line), the peek a side attacks with
         out.push({ at: at.map(r3), half: hf, toward: hf === 0 ? f[1] < -0.5 : f[1] > 0.5 });
       }

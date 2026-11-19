@@ -571,6 +571,9 @@ A game's HUD is a `hud` holding the HUD idioms it uses. A screen idiom is used a
 - `idioms-fight.js` — a fighting game's own language (below): the top frame, the meters, a side's combo and callouts, the
   announcer, training's readouts; the face-off, fighter select, the fight's pause, the command list, training's settings,
   the match's results.
+- `idioms-talk.js` — people talking, as presenters a host feeds (below, "A level's scenes"): the talk box, with the
+  speaker's nameplate, a place for a face, the line typed on, ▼ once it is whole, the answers numbered with the one in
+  hand marked, and the legend.
 
 ### The live game
 
@@ -701,6 +704,40 @@ its own.
   large at the left with where you are under it, and the menu is set at a title's size. What the run stands at sits bare
   at the right: which level of how many, and the time played (the play shell's `pause.where()`). The controls screen
   shows each key as a cap beside what it does.
+
+### The street: the beat 'em up and the run and gun
+
+Both draw one street HUD (`brawl/brawl-street.js` `streetSpec`, its `gun` variant the run and gun's), inside the
+street's frame (the HUD's root is the scene's, never the page's margin: every `.mana-root` in a world page's `#wrap` is
+placed in it).
+
+- **The seats** are four quarters across the top on one shade, never boxes. A seat taken is its tag and its name, and its
+  health as a strip in cells in its own colour (`bar` `side`), read by its length. The run and gun's seat adds the gun
+  in its hands as its wireframe, its rounds as the figure over a belt (or a track past sixty), the sidearm endless (`∞`,
+  never low: `magazine` `endless`), and its grenades as pips. The arcade guns have their own wireframes (machine gun,
+  spread, flame).
+- **Danger:** with one player the screen's edge closes in under half health (`peril`); in co-op the low seat's bar
+  beats, since one edge cannot say whose.
+- **The foe being hit** is named, with a short bar, under the seats for two seconds after the last hit. **The combo** is
+  a large figure at the hitter's edge, with a word at each rung.
+- **Shapes over words:** the way on is an arrow pulsing at the right edge ("GO ➜"), not a word over the fight. The
+  boss's name is a title over its bar, its phases ticks inside it. The stages and the foes left are marks with no label.
+- **A scene** (an arrive or leave card) clears the HUD from the screen. The street's own end says no health on a loss,
+  and the rank is stamped.
+- A choice of gun before the street shows each gun's wireframe beside its name (an option's `gun`).
+
+### Fable of Artesia: the action-adventure's HUD
+
+The action-adventure's HUD grammar (`scene/channels/hud-grammar.js`) holds to the same principles.
+
+- **The hearts empty by quarters** (`pips` takes a fraction: the last heart drawn that far full).
+- **What is held** (the weapon, the sidearm, the item and its count) sits small at the top right. What the body does
+  (the guard, the sprint, the lock) is not equipment: its keys are the controls screen's.
+- **The stamina** is a ring by the hero's shoulder, shown only while it is spent, harm when nearly gone. **The lock**
+  is brackets over the locked foe's drawn top with its health thin under them, in place of the runtime's own diamond
+  and bar. Both are drawn on `anchors` at points the page's camera projects.
+- **The map** is a round scope at the bottom right that turns with the hero, with the foes awake and the way on.
+- **Passing words** (an item used up, a pickup) sit at the foot's left, haloed dark, off the aim.
 
 ## The fight's language
 
@@ -877,6 +914,42 @@ audit. `manaUiPage(spec, { state })` is a self-contained page over a plain state
   nothing to press until it is ready), and a HUD part takes no focus.
 
 ## The surfaces on it
+
+### A level's scenes
+
+A level's scenes (`playscape/ui/scenes.js`) speak through the talk box on a page whose level has a mana-ui HUD. The HUD
+host (`scene/channels/mana-hud.js`) runs a second runtime on its own kernel and sheet, over a root of its own
+(`#moj-mana-talk`), so the box wears the game's theme and the page carries no second kernel.
+
+- **The state** is the scene runner's view, lowered each frame by `playscape/ui/talk-box.js` `talkState`: the speaker's
+  name, the words typed so far, whether the line is whole, the answers with the one in hand, and the legend (no skip on a
+  flow's stage that cannot be skipped).
+- **The input stays the scene channel's** (`scene-channel.js`): a press goes on, holding or Esc skips, a number or the
+  arrows pick. A choice's row pressed is that answer.
+- **While a scene plays** the page's own box and hint are put away and the HUD steps aside.
+- A page with scenes and no mana-ui HUD keeps the scene channel's own box.
+- **Whoever speaks is drawn live in the box's face** (`scene/channels/talk-face.js`): their own figure, head and
+  shoulders, seen by a second camera in front of them on the page's one renderer. Before each frame's render the
+  portrait is rendered into a corner of the canvas and copied into a canvas over the face's place; the frame's render
+  then draws over the corner. Nothing is baked: their idle, a walk, a script's take play in the portrait as they do in
+  the world. The level's speakers sheet, `play.speakers: { <who>: { portrait: 'live' | 'none' } }`, shows a speaker by
+  the box alone (`none`); a speaker with no body on the page, or one hidden (the player's in first person), has no face.
+- **A speaker's face says the line** (`playscape/ui/talk-lines.js`): a plain line said by a hero with a talking head
+  (the realistic face, or the anime or landmark face, which then plays on the page) is performed at build (`face-acting/perform.js`:
+  its expression, its words lip-synced by `speech.js`, the blinks and gaze of a speaking face) into a face track on the
+  speaker's figure, and the line gets a face-only take on its own clock (`talk:<scene>:<beat>`). The scene runner plays
+  it as it plays a script's take; the page's face plays the track while it runs, in the world and in the portrait. A
+  script's lines keep their own takes. The landmark head says it too (`face-acting/western-read.js`): the take
+  read as the anime face reads it, its eyes, smile and brows on its targets, its mouth's vowels its jaw bone's degrees
+  (`face.jaws`), turned on the page about the head's own x as the rig's jaw chain turns it.
+- **Recorded voices, when the creator wants them.** A line's `voice` takes a WAV's path (the voice worker's, a native
+  speech engine's, a person's): `create_sketch` / `update_sketch` bind it as a hero's recorded lines are bound
+  (`face-acting/recordings.js` `bindSceneVoices`: saved by its content under the outcomes, timed by the engine's
+  `.timings.json`, else by its words aligned, else by its loudness). The speaker's face says it on the recording's own
+  timeline, a recorded line has a take whoever says it, and the page carries the recording's bytes and plays it as the
+  take begins, stopping it as the line goes (`scene-channel.js`, `window.__mojVoice`). A browser plays no sound before a
+  press, so a line already under way when the first press comes is taken up where its take has got to.
+  `play.speakers.<who>.voice` keeps each speaker's casting with the level. Lines with no recording stay silent.
 
 ### The RPG's battles, party menu and shops
 
@@ -1123,6 +1196,34 @@ weapon panel, wheel and damage ring, and the old widget columns are hidden, not 
 the theme owns the look. A corner's rows sit on a scrim and the others bare, never boxed. A level manifest asks for it with `manaHud: { rows: 'events', theme }`
 (`levelHud`); a world without a `ui` lays its levels as before, and a course's HUD stays its own composition on the
 same host. Not yet on the host: a board, a building or a tabletop level, and the level-complete card.
+
+### The shooter's HUD is the baseline
+
+Every page a gun is fired on wears one HUD: the first mission and its kin (a mission in a building, an industrial
+level), a quick shooter's level, a deathmatch and the firing range. It is the mission's page with nothing of a mission
+in it where there is none (`mission: { tasks: [], plain: true }`, `shooterHudUi`; `gameworld/mission-mana.js`): the gun
+in hand, the health, the screen's edge, the scope (a minimap: the level's plan turning under its marks), the damage
+ring, the map and the pause. With no mission it shows no
+order, opens no briefing and leaves the end to the level; the level's own counters, lines and clock stay the page's (a
+bout's frags and place) and stand at the top right, clear of the scope; the page's own health row and its old radar
+give way, since this HUD draws both.
+
+What "A HUD that reads as a game" sets down are the baseline, and they are principles, not a skin. They hold for every
+shooter whatever it looks like:
+
+- a readout is read by its shape (a belt of rounds, a bar's length), never by a label beside a number
+- nothing is boxed over the world, and a readout with no news rests
+- danger is felt at the screen's edge before it is read
+- one order at a time, the list on the map
+- a hit says where it came from
+
+The look over them is the game's own. A world's `ui` (the interface chapter: `playscape/ui/interface-look.js`) names
+its theme, and the same parts are drawn in it: its inks, its accent and harm colours, its type, its corners. A world
+that names none wears the field brief. A new look is a theme card; a new part is a part of mana-ui that every theme
+then draws. So a game themes its HUD its way and cannot quietly drop a principle: the parts carry them.
+
+Said: the firing range's own buttons and its bout badge still stand at the top left under the scope; a world's `ui`
+has been checked to change the sheet, not looked at theme by theme on a shooter.
 
 ## What is next
 

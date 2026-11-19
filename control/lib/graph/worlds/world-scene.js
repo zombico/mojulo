@@ -144,11 +144,14 @@ function posMapFor(path, readBoundMeshFaces, buildPosMap) {
  */
 /** A hero's FACE under the runtime's state names (`clips` each state's clip, `own` the hero's clips by their names): a
  * state's facial track its clip's, the ambient blink over a state whose clip it played over or that has no track of
- * its own (a library's clip). */
+ * its own (a library's clip); a line's talking take (talk:<scene>:<beat>) kept under its own name. */
 export function stateFace(face, own, clips) {
   const of = Object.fromEntries(Object.keys(clips).map((st) => [st, Object.keys(own).find((c) => own[c] === clips[st]) ?? null]));
   const tracks = {}, over = new Set(face.ambientOver || []);
   for (const [st, c] of Object.entries(of)) if (c && face.tracks[c]) tracks[st] = face.tracks[c];
+  // (a line the hero says keeps its face's take under its own clip: playscape/ui/talk-lines.js, played by the page while
+  // the scene's take names it)
+  for (const k of Object.keys(face.tracks)) if (k.indexOf('talk:') === 0) tracks[k] = face.tracks[k];
   return { ...face, tracks, ambientOver: Object.keys(clips).filter((st) => !of[st] || !tracks[st] || over.has(of[st])) };
 }
 /** a body destroyed when it goes down (its `vanish.die` a dismantle, a cleave or a destroy: gameworld/vanish.js), or one
@@ -201,7 +204,7 @@ function movesOf(rule, name) {
   const art = mine.map((W) => W.moveset.art).find(Boolean);
   return { moves, readies, ...(aims.length ? { aims } : {}), ...(art ? { art } : {}) };
 }
-export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null, takes = null, lit = false, pilot = false } = {}) {
+export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null, takes = null, talks = null, lit = false, pilot = false } = {}) {
   let manifest, body;
   // a MODEL made elsewhere (`modelRef`: a sketch a rigged humanoid .glb is bound onto, stood `height` metres): its pack read
   // by scene/rig-import.js, played as a hero's is (worlds/controllable/model-figure.js)
@@ -247,13 +250,14 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
   if (!body) {
     // `hands`: a world a headset plays: the hero's hands as the headset draws them ride the pack (hero-xr-hands.js)
     // (`takes`: the scenes' takes this figure plays, playscape/ui/scene-takes.js, packed on its rig as clips of their own)
+    // (`talks`: the lines this figure says, playscape/ui/talk-lines.js: each a face take its face carries on the page)
     // (and the lit read asks for the body as the skinned export gets it, `face`: a realistic hero's relief with it, its
     // normal map, its cloth's occlusion, roughness and metal, epidermis/cloth-relief.js: what the page's cast material reads)
     // (`lit`: a body the cast rig lights, color-theorist/cast-rig.js: its colour under no light and each corner's normal, as
     // the lit export reads it and a fight plays it, versus-character.js characterBody; its rig, its clips and what it
     // holds are the same read's. Absent: the body as it always was, its light baked)
     // (`pilot`: a body a player pilots plays it: its run the engagement run's body, world-kinds.js ctx.pilot)
-    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(lit ? { light: FLAT_LIGHT, unshaded: true, face: true } : {}), ...(pilot ? { pilot: true } : {}) });
+    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(talks ? { talks } : {}), ...(lit ? { light: FLAT_LIGHT, unshaded: true, face: true } : {}), ...(pilot ? { pilot: true } : {}) });
     body = scene.figures && scene.figures.body;
     if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);
   }
@@ -1384,6 +1388,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       // nothing is computed, byte-identical
       const { hasScripts } = await import('@/lib/graph/playscape/ui/scene-script.js');
       const takesOf = hasScripts(sketch.manifest.play) ? (await import('@/lib/graph/playscape/ui/scene-takes.js')).sceneTakes(sketch.manifest, { anchors: payload.anchors, player: Array.isArray(sketch.manifest.entities) ? deriveLevelPlayer(sketch.manifest).player : null }) : null;
+      // THE TALKING FACES (playscape/ui/talk-lines.js): a page whose scenes have lines said by a hero with a talking face
+      // (realistic or anime) gives that figure each line's face take, read off the same program the page plays (lowerPlay's).
+      // None ⇒ nothing is computed, byte-identical
+      const { talkHeadOf, talkLines } = await import('@/lib/graph/playscape/ui/talk-lines.js');
+      const talksOf = Array.isArray(sketch.manifest.play?.scenes) && Object.values(figs).some((f) => f && talkHeadOf(f.hero))
+        ? talkLines(sketch.manifest, (await import('@/lib/graph/playscape/ui/scenes.js')).sceneProgram((await import('@/lib/graph/playscape/ui/direction.js')).lowerablePlay(sketch.manifest, { anchors: payload.anchors, player: Array.isArray(sketch.manifest.entities) ? deriveLevelPlayer(sketch.manifest).player : null }))).byFigure
+        : null;
       for (const [name, rawSpec] of Object.entries(figs)) {
         if (!rawSpec || typeof rawSpec !== 'object') continue;
         // meshRef entries were consumed by the bind-back block above (static
@@ -1423,7 +1434,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
             ride = (R, dz) => { mountRide = { sol: mountRiderSync(mountsSpec, { R, dz }, solve), riderId: rider.id }; return mountRide.sol.clips; };
           }
           // (a world a headset plays, its own `xr` or the page's `?xr=`: the hero's hands ride its figure, hero-xr-hands.js)
-          const takes = takesOf?.[name] ?? null;
+          const takes = takesOf?.[name] ?? null, talks = talksOf?.[name] ?? null;
           // THE CAST RIG ON THE HERO (color-theorist/cast-rig.js; the page's kit: scene/channels/cast-rig.js): on a page whose
           // land is drawn as form, every body an entity wears (the hero a player pilots, a foe, a walker, one that stands
           // still) is read lit (its colour under no light, its normals) and carries the rig solved from the land's own cube
@@ -1432,7 +1443,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // (the one a player pilots among them plays the engagement run's body: heroFigure's `pilot`)
           const piloted = (payload.entities || []).some((e) => e && e.pilotable && e.body && (e.body.figure === name || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
           const castFig = !!formCast && typeof rawSpec.modelRef !== 'string' && (payload.entities || []).some((e) => e && e.body && (e.body.figure === name || (Array.isArray(e.body.modes) && e.body.modes.some((m) => m && m.figure === name)) || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
-          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(piloted ? { pilot: true } : {}), ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(castFig ? { lit: true } : {}) });
+          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(piloted ? { pilot: true } : {}), ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(talks ? { talks } : {}), ...(castFig ? { lit: true } : {}) });
           if (castFig) {
             const { castRig, CAST_REGISTERS } = await import('@/lib/graph/color-theorist/cast-rig.js'), { castRigInput } = await import('@/lib/graph/scene/channels/cast-rig.js');
             const reg = sketch.manifest.fxStyle && CAST_REGISTERS.includes(sketch.manifest.fxStyle.register) ? sketch.manifest.fxStyle.register : 'western';
@@ -1897,7 +1908,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // events.style wins over the play block's. Its cues (playscape/ui/cues.js) bring their reactions, watches, zones
   // and sequences beside it. Absent `play` ⇒ not a byte changes.
   const playEv = payload && sketch.manifest.play ? lowerPlay(sketch.manifest, { anchors: payload.anchors, player: Array.isArray(sketch.manifest.entities) ? deriveLevelPlayer(sketch.manifest).player : null }) : null;
-  const { style: _playStyle, register: _playRegister, menus: _playMenus, cast: _playCast, looks: _playLooks, scenes: _playScenes, quests: _playQuests, library: _playLibrary, rpg: _playRpg, minigames: _playMini, ...playBus } = playEv || {};
+  const { style: _playStyle, register: _playRegister, menus: _playMenus, cast: _playCast, looks: _playLooks, scenes: _playScenes, speakers: _playSpeakers, quests: _playQuests, library: _playLibrary, rpg: _playRpg, minigames: _playMini, ...playBus } = playEv || {};
   let ev = payload && mergeEventManifests(mergeEventManifests(sketch.manifest.events, Object.keys(playBus).length ? playBus : null), mechEvents);
   // (a level whose play is a library alone has no bus of its own yet: the shelf still needs the page's)
   if (!ev && payload && playEv && playEv.library) ev = {};
@@ -1906,6 +1917,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (playEv.register) ev = { ...ev, register: playEv.register };
     if (playEv.menus) ev = { ...ev, menus: playEv.menus };
     if (playEv.scenes) ev = { ...ev, scenes: playEv.scenes };   // the scene runner's program (playscape/ui/scenes.js)
+    // (the RECORDED lines' audio, playscape/ui/talk-lines.js: each recording the program's lines name, carried in the page
+    // as its bytes so a self-contained page speaks them; one this machine does not hold stays silent)
+    const vox = playEv.scenes ? [...new Set(playEv.scenes.flatMap((sc) => (sc.beats || []).filter((b) => b && b.kind === 'line' && b.voice && b.voice.recording).map((b) => b.voice.recording)))] : [];
+    if (vox.length) {
+      const { readRecording } = await import('@/lib/graph/face-acting/recordings.js'), voices = {};
+      for (const id of vox) { const bytes = readRecording(id); if (bytes) voices[id] = Buffer.from(bytes).toString('base64'); }
+      if (Object.keys(voices).length) ev = { ...ev, voices };
+    }
+    if (playEv.speakers) ev = { ...ev, speakers: playEv.speakers };   // how each speaks in the talk box (talk-box.js)
     if (playEv.quests) ev = { ...ev, quests: playEv.quests };   // the quests' journal (playscape/ui/quests.js)
     if (playEv.library) ev = { ...ev, library: playEv.library };   // the library's shelf (playscape/ui/library.js)
     if (playEv.cast) ev = { ...ev, cast: true };

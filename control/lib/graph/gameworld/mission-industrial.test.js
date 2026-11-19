@@ -4,8 +4,9 @@
 // land, inside the yard's own ground, the way out at the building's door; its tasks are proved on the bus; it is a
 // level's form, staged and ordered as one, and refuses what does not go beside it. The level whole is the e2e tier's.
 import { RISE } from '../arena-map/blocks.js';
+import { CREW_MASKS, CREW_FLINCH } from './mission-level.js';
 import { describe, expect, it } from 'vitest';
-import { readIndustrial, industrialPlan, industrialManifest, INDUSTRIAL, SEAT } from './mission-industrial.js';
+import { readIndustrial, industrialPlan, industrialManifest, INDUSTRIAL, INDUSTRIAL_SCORE, SEAT } from './mission-industrial.js';
 import { proveMission } from './mission-proof.js';
 import { readGameworld } from './world.js';
 import { gameStages, stageLevelOrder } from './levels.js';
@@ -61,6 +62,40 @@ describe('an industrial level, planned', () => {
     expect(P.mission.frame.stairs).toHaveLength(2);
     expect(P.mission.floors[0].flights).toHaveLength(2);
     // (its deck railed and its yard fenced, its minds cross the floors and ask the ground nothing: no ledge probes)
+    // (who holds it: a crew, its foes dressed as its rank and file, more than one face among them; `crew: false` the
+    // plain stand-in; a crew that is none is refused)
+    const figs = Object.values(industrialManifest(G, P).figures).filter((f) => f.hero?.outfit);
+    expect(figs.length).toBeGreaterThan(0);
+    expect(figs.every((f) => f.hero.outfit.style === 'tactical')).toBe(true);
+    expect(new Set(figs.map((f) => JSON.stringify(f.hero))).size).toBeGreaterThan(1);
+    // (a gun in its hands: each body carries the hold it fires in and the one it stands in, by what it carries)
+    for (const f of figs) { expect(f.clips.flinch).toBe(CREW_FLINCH); expect(f.clips.fire).toBeTruthy(); expect(f.hero.motion[f.clips.fire]).toBe(true); expect(f.hero.motion[f.clips.idle]).toBe(true); }
+    // (masked: each body a mask of the crew's in turn; `masked: false` shows their faces)
+    expect(new Set(figs.map((f) => f.hero.headgear))).toEqual(new Set(CREW_MASKS));
+    expect(Object.values(industrialManifest(G, industrialPlan(G, readIndustrial({ masked: false }), { seed: 1 })).figures).some((f) => f.hero?.headgear)).toBe(false);
+    const plain = industrialPlan(G, readIndustrial({ crew: false }), { seed: 1 });
+    expect(Object.values(industrialManifest(G, plain).figures).some((f) => f.hero?.outfit)).toBe(false);
+    expect(() => readIndustrial({ crew: 'pirates' })).toThrow(/a crew its foes are dressed as/);
+    // (heard: over its guns, its events each a sound (the rounds taken its own, a wave an alarm), the yard's wind, and
+    // a score in two states; `score: false` leaves the music out, the rest as it was)
+    const A = industrialManifest(G, P).audio;
+    expect(A.sfx.on).toMatchObject({ 'supply:ammo': 'yard:rounds', wave: 'yard:alarm' });
+    expect(A.sfx.cues['yard:rounds'].length).toBeGreaterThan(0);
+    expect(A.sfx.mix).toBeTruthy();
+    expect(A.wind).toEqual({ vary: true });
+    expect(A).toMatchObject({ soundtrack: INDUSTRIAL_SCORE.explore, combat: INDUSTRIAL_SCORE.fight });
+    expect(INDUSTRIAL_SCORE.explore).toMatch(/^club:/);
+    expect(A.footsteps.jump.length).toBeGreaterThan(0);
+    // (the sounds of its places: a drip where it is wet, the hall's hum at its door, the fence along its runs, each
+    // inside the site and a cue of its own; the tower's steel under a boot, its deck and its two stairs)
+    expect(A.emitters.map((e) => e.cue)).toEqual(expect.arrayContaining(['yard:drip', 'yard:hum', 'yard:fence']));
+    for (const e of A.emitters) expect(A.sfx.cues[e.cue]).toBeTruthy();
+    expect(A.surfaces).toHaveLength(3);
+    for (const sf of A.surfaces) { expect(sf.step).toBe('yard:step-steel'); expect(sf.box[2]).toBeGreaterThanOrEqual(SEAT.floor); }
+    const deck = A.surfaces[0].box, mid = P.mission.floors[0].area;
+    expect([deck[0], deck[1], deck[3], deck[4]]).toEqual(mid);
+    const mute = industrialManifest(G, P, { score: false }).audio;
+    expect(mute.soundtrack).toBeUndefined(); expect(mute.combat).toBeUndefined(); expect(mute.sfx.on).toEqual(A.sfx.on);
     // (heard: the range's own sound for its guns, unless it is asked quiet)
     expect(industrialManifest(G, P).audio).toBeTruthy();
     expect(industrialManifest(G, P, { quiet: true }).audio).toBeUndefined();

@@ -914,7 +914,7 @@ export function brawlSetup(setup, playable = [], guns = []) {
   const own = isObj(setup) ? setup : null, picks = own?.picks ?? [];
   // (a run & gun's starting gun, asked where there is more than one to start with)
   const G = guns.map((g) => readGun(g)), armed = G.length > 1 && !picks.some((p) => p.id === 'gun')
-    ? [{ id: 'gun', ask: 'Choose your gun', hint: 'What you start with; the rest lie in crates along the way.', from: { options: G.map((g) => ({ id: g.id, name: gunName(g), about: g.says })) } }] : [];
+    ? [{ id: 'gun', ask: 'Choose your gun', hint: 'What you start with; the rest lie in crates along the way.', from: { options: G.map((g) => ({ id: g.id, name: gunName(g), about: g.says, gun: g.id })) } }] : [];
   const who = playable.length > 1 && !picks.some((p) => p.id === 'fighter')
     ? [{ id: 'fighter', ask: 'Choose your fighter', hint: 'Asked before every street.', from: { options: playable.map((f) => ({ id: f.id, name: f.name, ...(f.about ? { about: f.about } : {}) })) } }] : [];
   return { ...(own ?? { difficulty: true }), ...(picks.length || who.length || armed.length ? { picks: [...picks, ...who, ...armed] } : {}) };

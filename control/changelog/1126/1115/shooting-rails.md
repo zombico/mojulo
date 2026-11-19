@@ -235,3 +235,83 @@ level with sections and tasks, briefed, played and debriefed on mana-ui. Design 
   run of curls from open to a fist by the hand's own rule (`equipment/arms/view-hand.js`; `heroHand` takes a `curl`),
   which the page blends between as the hand closes on a grip, a magazine or a knife. A little over life, the cuff no
   wider than the wrist, so the hand reads past its sleeve and the gun.
+- **The yard is held by a crew.** An industrial level's foes are dressed as one (`crew`, a faction of the grunts:
+  private military where it names none; `false` for the plain stand-in): three of its rank and file, each rolled on its
+  own seed, in the hero door's own words (`foes/dress.js`), so a contractor stands in a tactical rig with a carbine in
+  hand where a bare figure stood. `missionCast` takes a `crew`; a made figure given still wins.
+- **The crew is masked.** An industrial level's crew wears the headgear shelf's masks, a body each in turn (a tactical
+  mask, a gas mask, a respirator: `CREW_MASKS`); `masked: false` shows their faces.
+- **The yard is heard whole.** Over its guns an industrial level carries effects, an ambient bed and a score
+  (`industrialAudio`, on the world's audio channel). Its own events each sound: a task begun, a task met, the mission
+  done, the pilot down, a supply taken (the rounds a magazine seated and racked), a wave an alarm; the foley palette
+  in the score's key, on the range's mix in the open, so a shot across the yard is quieter than one at the ear. The
+  wind's long bed is its air. Its score is two states: a held tension while the yard is crossed, the fight's score in
+  on the bar line as hits, downed foes and waves raise the meter, and out as it settles. `score: false` leaves the
+  music out.
+
+- **Sounds that belong to a place, and the ground by place.** Two words on a world's audio channel
+  (`beats/beats-world.js`, `scene/channels/audio.js`), each opt-in and not a byte where it is absent.
+  `audio.emitters: [{ at, cue, every, reach, level? }]`: a cue of the level's own sounded again and again from a point,
+  after a wait rolled between two bounds on its own dice, heard by the listener's distance and not past its reach.
+  `audio.surfaces: [{ box, step, land? }]`: the cues a step and a landing play where a body's feet stand in a box.
+  The industrial level uses both: water drips off the tower's deck and its tallest stacks, the hall hums at its door,
+  the fence rattles along its runs, and the tower's deck and stairs ring as steel under a boot.
+- **The crew shoulders its guns.** A crew's body carries the hero door's own holds for what it has in its hands (a
+  carbine: the aim and the low ready; `CREW_HOLDS`), and the page plays them: a figure with a `fire` clip brings its
+  weapon up while its trigger is down and for a breath after a round has gone, standing or on the move, and stands at
+  the low ready between (`scene/channels/controllable/index.js`; a hold is a clip played once and held, so it runs on
+  its own count and not on the gait's phase). A page whose figures carry no `fire` clip has not a byte of it.
+- **The yard's score is electronic.** A half-time drift while the yard is crossed, a driving techno for the fight
+  (`club:drift`, `club:drive`), in place of the orchestral cues.
+- **A round that lands is seen.** A crew's body flinches when it is hit: the figure library's hit clip, once through,
+  over whatever it was doing (`flinch`, beside `fire`). Seen only: the body is not stopped by it.
+- **Every shooter wears the new HUD.** The shooter's HUD (the gun in hand as a belt of rounds, the health strip, the
+  screen's edge, the scope, the damage ring, the map and the pause) was the mission's alone. A quick shooter's level, a
+  deathmatch and the firing range now wear it too, as the mission's page with no mission in it (`shooterHudUi`,
+  `mission: { tasks: [], plain: true }`): no order, no briefing, the level's own end; the level's counters stay and
+  stand clear of the scope, and the page's own health row and old radar give way. Its principles are set down as the
+  baseline for every shooter, and the look over them is the game's: a world's `ui` themes the same parts
+  ([docs/mana-ui.md](../../../../docs/mana-ui.md), "The shooter's HUD is the baseline").
+- **A bout's arena and a push's cover are the arena laws'.** The two shooter modes that laid their ground by a recipe
+  now grow it under the arena's laws, each for its own means (`arena-map/bout.js`). A DEATHMATCH's floor: the arena's
+  words still say where the laws start (lanes, or a court), the laws grow it for the bout's sight (close quarters the
+  near band, long sightlines every band), and the half they liked best is turned half round onto the other, so every
+  panel has its partner; what is the bout's own stays (spawns out of sight, supplies by risk, towers stood first on the
+  bare floor with the panels giving way, crates), and where the grown floor leaves one way between spawns the tunnel
+  takes the panels beside it and says so; a sparse arena stands ungrown. A QUICK SHOOTER's cover: the fixed wall, crate
+  and wall at each post give way to a strip grown for a push, from where a body comes on to the post that holds it, the
+  post's cover a sidestep away, its cell and the way on clear, always a way up. The firing range is a measuring room
+  and is laid from its guns' numbers as before. Said: growing is slow (a new arena takes seconds, the arena tunnel's
+  own tests about a hundred), and cover is counted as crates and grown panels together.
+- **The map is of the floor it is fought on.** The map screen and the radar's plan are drawn at the height the pilot
+  stands at and boxed on the ground a level says it is fought on (a bout's arena), where they assumed a floor at zero
+  and the whole site: a yard on its land and an arena on a hill were blank.
+- **A campaign's opening mission.** The first level of a shooter's campaign as a run of places, each a beat of one
+  loop and a level of its own (`mission/campaign.js`): the loop and its seven beats set down (cold open, kit check,
+  insertion, first contact, push, set piece, run out), each built from what a world already has (a mission's sections,
+  the ground the arena's laws grow or read, the level played as a turn). `openingMission` lays the legs as one world's
+  levels in order: a staging yard, a street, a building where the kit asks for one, the works. A leg is a checkpoint.
+  `design_game` offers it beside the first mission, with its patch
+  ([docs/missions.md](../../../../docs/missions.md), "A campaign's opening mission").
+- **Orders are spoken, and someone goes with you.** A mission's section carries the line its task is given in, and the
+  HUD stands it for a few seconds as the task begins, under who gives it. A mission takes a `squad` (0 to 2): a body
+  at the pilot's shoulder on the pilot's side, an escort's mind (it keeps by the pilot and fights whom it sees of the
+  other side), the pilot's first gun at a share of its harm; neither harms the other and no task counts it. A
+  campaign's legs each ask one.
+- **Bigger maps.** Each kind of fighting ground is larger by its own measure: a bout's arena (small, medium and large
+  are 32, 44 and 56 m across where they were 26, 36 and 48; one that names none is 44), a push's strip (seven cells
+  across and up to ten deep where it was five and eight), a place cut from a town or a city (48 m a side where it
+  named none, from 36), the industrial yard (36 m deep), and the campaign's first leg (three rooms in a row where it
+  was one court). The grid's cell stays 3 m: a wider cell was tried and broke what is designed on it (a ladder's
+  climb, where a mission's phases stand, a fight building's loops), so it is not changed here.
+  A bout's arena is grown on twelve cells a side at most: a bigger one is the same grid drawn larger, so its ways are
+  wider (near 4 m at 44 m across, 4.7 m at 56 m) and it grows no slower. Long sightlines clear a lane end to end.
+- **One radar.** A page wearing the shooter's HUD showed two: the HUD's scope and the page's own round radar, which the
+  runtime draws whenever there are other bodies. The HUD's sheet now puts the page's own away on every such page (the
+  missions, a quick shooter's level, a deathmatch, the firing range), by the class the runtime gives it.
+- **The radar is a minimap.** The shooter HUD's scope is a third larger, reaches 40 m (from 30), and carries the level's
+  plan under its marks (the same plan the map screen draws, from the scene's own colliders), at the scope's scale and
+  turned so ahead is up, the pilot at its middle; it fades out before the bezel.
+  A grown floor's panels are snapped to 5 cm with their sign kept, so a panel and its turned partner stand on exactly
+  opposite places wherever the arena is laid; and the peek law reads a square block (a grown mass) the same way on
+  both sides of the middle, where float noise had it lie one way on one side and the other way on the other.

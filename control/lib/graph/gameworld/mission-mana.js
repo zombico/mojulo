@@ -65,10 +65,10 @@ const B = (p) => ({ bind: `ms.${p}` });
 const I = (f) => ({ item: f });
 const txt = (value, role) => ({ use: 'text', props: { value, ...(role ? { role } : {}) } });
 const back = { use: 'button', props: { label: { word: 'back' } }, on: { accept: { back: true } } };
-const USES = ['pause-menu', 'results-screen', 'objective-order', 'weapon-readout', 'health-strip', 'radar-scope', 'peril-edge', 'damage-direction'];
+const USES = ['pause-menu', 'results-screen', 'objective-order', 'weapon-readout', 'health-strip', 'radar-scope', 'peril-edge', 'damage-direction', 'subtitles'];
 /** The HUD's numbers: how long a readout holds no news before it fades back (s), the health's cells, where the screen's
  *  edge begins to close in (a share of the health) and where it is closed. */
-export const HUD = Object.freeze({ rest: 3, cells: 4, peril: 0.5, end: 0.05 });
+export const HUD = Object.freeze({ rest: 3, cells: 4, peril: 0.5, end: 0.05, radio: 5 });
 /** The look a mission wears where its world writes no interface of its own: the field brief (a theme card). */
 export const MISSION_LOOK = 'field-brief';
 // a mission's theme as mana-ui reads it: a card by its name, else a preset or a theme as written; and nothing of it drawn
@@ -96,9 +96,11 @@ export function missionManaSpec() {
       // the radar (radar.js): the pilot at its middle, ahead at the top, the foes awake and the task in hand
       { use: 'radar-scope', props: { markers: B('radar.marks'), north: B('radar.north'), label: B('radar.label') } },
       // the task in hand, as an order; the yard's clock draining under it while it is held
-      { use: 'objective-order', props: { title: B('order.title'), step: B('order.step'), distance: B('order.distance'), holding: B('hold.on'), hold: B('hold.total'), left: B('hold.left'), label: B('hold.label') } },
+      { use: 'objective-order', when: B('order.on'), props: { title: B('order.title'), step: B('order.step'), distance: B('order.distance'), holding: B('hold.on'), hold: B('hold.total'), left: B('hold.left'), label: B('hold.label') } },
       { use: 'health-strip', props: { hp: B('hp'), hpMax: B('hpMax'), cells: HUD.cells, rest: B('rest.hp') } },
       { use: 'weapon-readout', props: { name: B('weapon'), mode: B('mode'), rounds: B('ammo'), size: B('magazine'), reserve: B('reserve'), reloading: B('reloading'), rest: B('rest.gun') } },
+      // the order as it is spoken: who gives it and the line, for a few seconds as a task begins
+      { use: 'subtitles', props: { show: B('radio.on'), who: B('radio.who'), line: B('radio.line'), skip: '' } },
       // the damage ring: drawn only while a hit's mark stands
       { use: 'damage-direction', props: { hits: B('ring.hits') }, when: B('ring.on') },
     ] },
@@ -143,34 +145,38 @@ const tabs = (list) => list.map((t) => ({ label: t.label, lines: t.lines.map((l)
 
 /** The page's config (see the header), from the manifest's `mission`. */
 export function missionMana(ui) {
+  // (a shooter with no mission, `plain`: the same HUD, radar, map and pause, and no order, briefing or debrief: its
+  // level's own counters and end stay the page's)
+  const plain = ui.plain === true;
   const how = [
     { label: 'Moving', lines: [{ glyph: 'W A S D', text: 'move' }, { glyph: 'mouse', text: 'look' }, { action: 'jump', text: 'jump' }, { action: 'pause', text: 'this menu' }] },
     { label: 'The guns', lines: [{ action: 'fire', text: 'fire' }, { glyph: 'right click', text: 'raise the sights' }, { glyph: 'R', text: 'reload (what is left in the magazine is lost)' }, { glyph: '1-5', text: 'switch' }, { glyph: 'V', text: 'the knife, where one is carried' }] },
     { label: 'Under fire', lines: ['A red mark on the ring round your aim shows where a hit came from.', 'The top of the ring is ahead of you, the bottom behind, the sides your sides.', 'Turn until the mark is at the top: you are facing who is shooting.'] },
     { label: 'Radar and map', lines: ['The round scope shows what is round you: you are its middle and the top is ahead, so it turns as you turn.', 'A cross is a foe that is awake. A star is the task in hand, on the rim while it is further off.', { glyph: 'M', text: 'the map: the level from above, north at the top' }] },
-    { label: 'The rules', lines: ['Each room has one task. Its way on is sealed until the task is met.', 'A room\'s foes wake as you walk into it, never before.', 'Rounds and health lie on the floor: walk over them.'] },
+    ...(plain ? [] : [{ label: 'The rules', lines: ['Each room has one task. Its way on is sealed until the task is met.', 'A room\'s foes wake as you walk into it, never before.', 'Rounds and health lie on the floor: walk over them.'] }]),
   ];
-  const brief = [
+  const brief = plain ? [] : [
     { label: 'The mission', lines: ui.tasks.map((t, k) => `${k + 1}. ${t.text}${t.foes ? ` (${t.foes})` : ''}${t.seconds ? `: ${t.seconds} s` : ''}`) },
     { label: 'The kit', lines: ui.briefing.kit },
     { label: 'What it teaches', lines: ui.briefing.sections },
     ...how,
   ];
   const state = { ms: {
-    title: `Mission · ${ui.title}`, name: ui.title, begin: 'Begin', brief: tabs(brief), how: tabs(how), controls: [],
-    menu: [{ label: 'Resume', then: { close: true } }, { label: 'The map', then: { open: 'map' } }, { label: 'The briefing', then: { open: 'briefing' } }, { label: 'How to play', then: { open: 'how' } }, { label: 'Controls', then: { open: 'controls' } }, { label: 'Start again', then: { emit: 'mission:restart' } }],
+    title: plain ? ui.title : `Mission · ${ui.title}`, name: ui.title, begin: 'Begin', brief: tabs(brief), how: tabs(how), controls: [],
+    menu: [{ label: 'Resume', then: { close: true } }, { label: 'The map', then: { open: 'map' } }, ...(plain ? [] : [{ label: 'The briefing', then: { open: 'briefing' } }]), { label: 'How to play', then: { open: 'how' } }, { label: 'Controls', then: { open: 'controls' } }, { label: 'Start again', then: { emit: 'mission:restart' } }],
     hp: 100, hpMax: 100, peril: 0, weapon: '', mode: '', ammo: 0, magazine: 0, reserve: '', reloading: false,
     rest: { hp: false, gun: false },
-    objective: { title: 'The mission', steps: ui.tasks.map((t) => ({ text: t.text, done: false })) },
-    order: { title: ui.tasks[0]?.text ?? '', step: ui.tasks.length ? `1/${ui.tasks.length}` : '', distance: '' },
+    objective: { title: plain ? ui.title : 'The mission', steps: ui.tasks.map((t) => ({ text: t.text, done: false })) },
+    order: { on: ui.tasks.length > 0, title: ui.tasks[0]?.text ?? '', step: ui.tasks.length ? `1/${ui.tasks.length}` : '', distance: '' },
     hold: { on: false, left: 0, total: 0, label: 'Hold' },
+    radio: { on: false, who: ui.callsign ?? 'Command', line: '' },
     ring: { on: false, hits: [] },
     radar: { marks: [], north: 0, label: `${RADAR.range} m` },
-    map: { marks: [], label: 'north up', legend: [{ text: '▲ you' }, { text: '★ the task in hand' }, { text: '✕ a foe awake' }] },
+    map: { marks: [], label: 'north up', legend: [{ text: '▲ you' }, ...(plain ? [] : [{ text: '★ the task in hand' }]), { text: '✕ a foe awake' }] },
     result: { outcome: '', stats: [], rank: '', items: [{ label: 'Play it again', then: { emit: 'mission:restart' } }, { label: 'The briefing', then: { open: 'briefing' } }] },
   } };
   const C = manaControls();
-  return { theme: themeOf(ui.theme), spec: missionManaSpec(), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad }, open: openControls(), state, tasks: ui.tasks, hud: { ...HUD }, ring: { life: RING.life, most: RING.most }, radar: { ...RADAR }, mapKey: 'KeyM', water: ((R) => (R?.water ?? []).map(([i, j]) => [i * R.cell, j * R.cell, (i + 1) * R.cell, (j + 1) * R.cell]))(ui.plan?.map?.blocks?.read), msg: { pause: MSG_PAUSE, controls: MSG_CONTROLS } };
+  return { theme: themeOf(ui.theme), ...(plain ? { plain: true } : {}), ...(Array.isArray(ui.rect) ? { rect: ui.rect.slice(0, 4) } : {}), spec: missionManaSpec(), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad }, open: openControls(), state, tasks: ui.tasks, hud: { ...HUD }, ring: { life: RING.life, most: RING.most }, radar: { ...RADAR }, mapKey: 'KeyM', water: ((R) => (R?.water ?? []).map(([i, j]) => [i * R.cell, j * R.cell, (i + 1) * R.cell, (j + 1) * R.cell]))(ui.plan?.map?.blocks?.read), msg: { pause: MSG_PAUSE, controls: MSG_CONTROLS } };
 }
 
 /**
@@ -179,15 +185,24 @@ export function missionMana(ui) {
  * radar, the damage ring and the peril are mana-ui's own parts; the page only sizes them to the screen and lays the plan
  * under the map.
  */
-export function missionManaCss(theme) {
+export function missionManaCss(theme, { plain = false } = {}) {
   return [manaCss(), themeCss(theme),
-    '.moj-hud .moj-w-counter,.moj-hud .moj-w-text,.moj-hud .moj-w-bar,.moj-hud .moj-w-clock{display:none}',
+    // (a shooter with no mission keeps its level's own counters, lines and clock: only the health bar gives way)
+    // and they stand at the top right, clear of the scope
+    plain ? '.moj-hud .moj-w-bar{display:none}.moj-hud-top-left{left:auto;right:12px;align-items:flex-end}' : '.moj-hud .moj-w-counter,.moj-hud .moj-w-text,.moj-hud .moj-w-bar,.moj-hud .moj-w-clock{display:none}',
     'div:has(>#__wepIcon){display:none!important}#wrap .hint{display:none}',
+    // (the page's own round radar, the controllable runtime's: this HUD draws the scope, so there is one radar, not two)
+    '.moj-c-radar{display:none!important}',
     // the damage ring, sized to the screen round the aim
     '#mana .mana-threat{width:min(46vh,46vw);height:min(46vh,46vw)}',
     // the radar: a round scope, the pilot its middle, its marks small, a foe in the harm's colour; the map: the plan under
     // its marks, large
-    '#mana .mana-minimap[data-scope=yes]{width:min(24vh,24vw);height:min(24vh,24vw)}',
+    '#mana .mana-minimap[data-scope=yes]{width:min(32vh,32vw);height:min(32vh,32vw)}',
+    // (a MINIMAP: the level's plan under the scope's marks, at its scale, turned so ahead is up, the pilot at its middle;
+    // it fades out before the bezel)
+    '#mana .ms-mm{position:absolute;inset:0;border-radius:50%;overflow:hidden;pointer-events:none;-webkit-mask:radial-gradient(closest-side,#000 80%,transparent 98%);mask:radial-gradient(closest-side,#000 80%,transparent 98%)}',
+    '#mana .ms-mm>i{position:absolute;display:block;width:var(--ms-mm-w,0);height:var(--ms-mm-w,0);left:var(--ms-mm-l,0);top:var(--ms-mm-t,0);transform-origin:var(--ms-mm-o,50% 50%);transform:rotate(var(--ms-mm-r,0rad));background:var(--ms-plan,none) center/100% 100% no-repeat;opacity:.8}',
+    '#mana .mana-minimap[data-scope=yes] .mana-marker,#mana .mana-minimap[data-scope=yes]>.mana-caption{z-index:1}',
     '#mana .mana-minimap[data-scope=yes]>.mana-caption{left:50%;bottom:9%;transform:translateX(-50%);font-size:1.2vh;opacity:.6}',
     '#mana .mana-minimap[data-scope=yes]::after{content:"▲";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:1.4vh;color:var(--mana-ink,#eef0e6)}',
     '#mana .mana-minimap[data-shape=square]{width:min(62vh,62vw);height:min(62vh,62vw);background:var(--ms-plan,none) center/100% 100% no-repeat #1c1f1c}',
@@ -245,21 +260,25 @@ export function missionManaRuntime(cfg) {
   // (when each readout last changed: the clock it rests on)
   const calm = { gun: '', gunT: 0, hp: -1, hpT: 0 };
   // THE HUD: read off the scene each frame, painted when what it shows has changed
-  let shown = '';
+  let shown = '', said = -1, saidT = 0;
   // THE DAMAGE RING (damage-ring.js): the marks standing this frame, from the pilot's own count of hits
   const ring = __msRing(cfg.ring, __msBearing);
   // THE RADAR AND THE MAP (radar.js): the plan drawn once from the scene's own colliders, the marks read each frame
   let plan = null;
   function planOf(W) {
     if (plan) return plan;
-    plan = __msPlanBox(W.colliders, cfg.water);
-    try { root.style.setProperty('--ms-plan', 'url("data:image/svg+xml,' + encodeURIComponent(__msPlanSvg(W.colliders, cfg.water, plan)) + '")'); } catch (e) { /* a page with no style */ }
+    // (the floor it is of: the pilot's own feet when the plan is first drawn)
+    const me = W.entities.find((x) => x.pilotable), z0 = me && me.transform ? me.transform.pos[2] - ((me.rule && me.rule.eye) || 0) : 0;
+    plan = __msPlanBox(W.colliders, cfg.water, cfg.rect || null);
+    try { root.style.setProperty('--ms-plan', 'url("data:image/svg+xml,' + encodeURIComponent(__msPlanSvg(W.colliders, cfg.water, plan, Math.abs(z0) < 0.6 ? 0 : z0)) + '")'); } catch (e) { /* a page with no style */ }
     return plan;
   }
   function read() {
     const W = world(), v = vars(), me = W && W.entities.find((x) => x.pilotable), w = me && me.weapon;
     const t = performance.now() / 1000;
     if (Number.isFinite(v.hp)) P.hp = Math.max(0, Math.round(v.hp));
+    // (a level that keeps no health on the bus, a bout: the pilot's own body's)
+    else if (me && me.body && Number.isFinite(me.body.hp)) { P.hp = Math.max(0, Math.round(me.body.hp)); if (Number.isFinite(me.hpMax) && me.hpMax > 0) P.hpMax = me.hpMax; }
     // the screen's edge: nothing over the health's half, closing in to all of it near none
     const share = P.hpMax > 0 ? P.hp / P.hpMax : 1;
     P.peril = Math.round(Math.min(1, Math.max(0, (cfg.hud.peril - share) / (cfg.hud.peril - cfg.hud.end))) * 20) / 20;
@@ -285,6 +304,10 @@ export function missionManaRuntime(cfg) {
     const n = Number.isFinite(v.__obj) ? v.__obj : 0;
     for (let k = 0; k < cfg.tasks.length; k++) P.objective.steps[k].done = k < n;
     const T = cfg.tasks[n], held = !!T && T.kind === 'hold' && v['__obj_on' + n] === 1;
+    // THE ORDER, SPOKEN: as a task begins (the first once the briefing is shut) its line stands a few seconds
+    if (n !== said && !up && cfg.tasks[n]) { said = n; P.radio.line = cfg.tasks[n].say || ''; saidT = t; }
+    P.radio.on = !!P.radio.line && said === n && t - saidT < cfg.hud.radio && !up;
+    P.order.on = cfg.tasks.length > 0;
     P.order.title = T ? T.text : 'Mission complete';
     P.order.step = T ? (n + 1) + '/' + cfg.tasks.length : '';
     P.hold.on = held; P.hold.left = held ? v['__obj_left' + n] : 0; P.hold.total = T && T.seconds ? T.seconds : 0;
@@ -293,6 +316,15 @@ export function missionManaRuntime(cfg) {
     if (me && me.transform) {
       const pos = me.transform.pos, things = __msThings(W, me, T && T.at ? T.at : null), box = planOf(W);
       P.radar.marks = __msRadar(pos, me.transform.heading, things, cfg.radar);
+      // THE MINIMAP: the plan under the scope, the pilot's place on it at the scope's middle, turned so ahead is up
+      // (a side of the plan is `box[2]` m; the scope's width is twice the radar's range)
+      {
+        const w = box[2] / (2 * cfg.radar.range), px = (pos[0] - box[0]) / box[2], py = 1 - (pos[1] - box[1]) / box[2], pc = (v) => Math.round(v * 10000) / 100 + '%';
+        root.style.setProperty('--ms-mm-w', pc(w)); root.style.setProperty('--ms-mm-l', pc(0.5 - px * w)); root.style.setProperty('--ms-mm-t', pc(0.5 - py * w));
+        root.style.setProperty('--ms-mm-o', pc(px) + ' ' + pc(py)); root.style.setProperty('--ms-mm-r', Math.round(((me.transform.heading || 0) - Math.PI / 2) * 1000) / 1000 + 'rad');
+        const sc = root.querySelector('.mana-minimap[data-scope=yes]');
+        if (sc && !sc.querySelector(':scope>.ms-mm')) { const d = document.createElement('div'); d.className = 'ms-mm'; d.appendChild(document.createElement('i')); sc.insertBefore(d, sc.firstChild); }
+      }
       // (north on the radar's bezel: where +y lies from where the pilot faces)
       P.radar.north = __msBearing(pos, me.transform.heading, [pos[0], pos[1] + 1, 0]);
       P.map.marks = up ? things.map((x) => Object.assign(__msPlanPoint(box, x.at), { kind: x.kind })).concat([Object.assign(__msPlanPoint(box, pos), { kind: 'self' })]) : [];
@@ -301,13 +333,13 @@ export function missionManaRuntime(cfg) {
       P.order.distance = !T ? '' : T.at ? Math.round(Math.hypot(T.at[0] - pos[0], T.at[1] - pos[1])) + ' m' : T.kind === 'clear' && foes ? foes + (foes === 1 ? ' hostile' : ' hostiles') : '';
     }
     // (a mark is repainted when it has moved five degrees: a turning pilot's ring turns, a still one's is left alone)
-    const now = JSON.stringify([P.hp, P.peril, P.weapon, P.mode, P.ammo, P.magazine, P.reserve, P.reloading, P.rest.gun, P.rest.hp, n, P.order.distance, P.hold.on, P.hold.left, P.ring.hits.map((x) => [Math.round(x.bearing / 5), Math.round(x.fade * 5)]), P.radar.marks.map((x) => [Math.round(x.x * 40), Math.round(x.y * 40), x.kind]), Math.round(P.radar.north / 5), P.map.marks.length]);
+    const now = JSON.stringify([P.radio.on, P.radio.line, P.hp, P.peril, P.weapon, P.mode, P.ammo, P.magazine, P.reserve, P.reloading, P.rest.gun, P.rest.hp, n, P.order.distance, P.hold.on, P.hold.left, P.ring.hits.map((x) => [Math.round(x.bearing / 5), Math.round(x.fade * 5)]), P.radar.marks.map((x) => [Math.round(x.x * 40), Math.round(x.y * 40), x.kind]), Math.round(P.radar.north / 5), P.map.marks.length]);
     if (now !== shown) { shown = now; view.paint(); }
     // the end: the level's one envelope; alone, the debrief; in a shell, the shell's own result screen
     const G = window.__mojGame, env = G && G.envelope;
     if (env && !ended) {
       ended = true;
-      if (!hosted) {
+      if (!hosted && !cfg.plain) {
         // (the foes downed and the seconds taken are the objectives' own count on the bus)
         const down = Number.isFinite(v.__obj_downs) ? v.__obj_downs : 0, secs = Number.isFinite(v.__obj_time) ? v.__obj_time : 0, won = env.result === 'success';
         P.result.outcome = won ? 'Mission complete' : 'Mission failed';
@@ -333,7 +365,12 @@ export function missionManaRuntime(cfg) {
   (function ready() {
     if (!world()) { requestAnimationFrame(ready); return; }
     read();
-    open('briefing');
+    if (!cfg.plain) open('briefing');
+    // (with no mission the page keeps its own readouts: the health's own row gives way, since this HUD draws it; the
+    // page's round radar is put away by the sheet)
+    else {
+      for (const l of document.querySelectorAll('.moj-hud .moj-w .moj-lbl')) if (/^(hp|health)$/i.test(l.textContent.trim())) l.parentElement.style.display = 'none';
+    }
   })();
   // for a headless driver
   window.__mojMission = { rt, state: S, view, open, get up() { return up; }, get ended() { return ended; }, get hosted() { return hosted; } };
@@ -355,7 +392,7 @@ const __msPlanPoint = ${planPoint.toString()};
 const __msPlanSvg = ${planSvg.toString()};
 const __msThings = ${sceneThings.toString()};
 const __msCss = document.createElement('style');
-__msCss.textContent = ${json(missionManaCss(theme))};
+__msCss.textContent = ${json(missionManaCss(theme, { plain: ui.plain === true }))};
 document.head.appendChild(__msCss);
 (${missionManaRuntime.toString()})(${json(page)});
 }`;

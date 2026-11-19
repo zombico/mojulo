@@ -39,7 +39,7 @@ const cityOns = () => [...INDUSTRY_SEGMENTS, ...WATERFRONT_KINDS];
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const KEYS = ['seed', 'sections', 'foes', 'hold', 'waves', 'map'];
+const KEYS = ['seed', 'sections', 'foes', 'hold', 'waves', 'map', 'squad'];
 // (asked for by name so it can be answered: readMission says what it waits on)
 const GAPS = ['gun'];
 export const MISSION_LIMITS = Object.freeze({ sections: [2, 8], foes: [1, 6], hold: [15, 180], waves: [1, 5] });
@@ -80,6 +80,8 @@ export function readMission(v, at = 'mission') {
   }
   for (const k of ['foes', 'waves']) if (v[k] !== undefined) { if (!Number.isInteger(v[k]) || v[k] < L[k][0] || v[k] > L[k][1]) no(`.${k} is ${L[k][0]} to ${L[k][1]}`); out[k] = v[k]; }
   if (v.hold !== undefined) { if (!Number.isFinite(v.hold) || v.hold < L.hold[0] || v.hold > L.hold[1]) no(`.hold is the seconds the yard is held, ${L.hold[0]} to ${L.hold[1]}`); out.hold = v.hold; }
+  // (`squad`: who fights beside the pilot, 0 to 2: a body each, at the pilot's shoulder, on the pilot's side)
+  if (v.squad !== undefined) { if (!Number.isInteger(v.squad) || v.squad < 0 || v.squad > 2) no('.squad is how many fight beside the pilot, 0 to 2'); out.squad = v.squad; }
   if (v.map !== undefined) {
     if (isPlace(v.map)) out.map = readPlace(v.map, no);
     else { if (v.map !== true && !TEMPLATE_IDS.includes(v.map)) no(`.map is true (the map the kit picks), a template (${TEMPLATE_IDS.join(', ')}), or a place: { town: <a geotown> } or { city: <a geocity>, on: ${cityOns().join(' | ')} }`); out.map = v.map; }
@@ -109,7 +111,7 @@ function readPlace(v, no) {
   return { ...more, ...(v.town !== undefined ? { town: v.town === true ? {} : structuredClone(v.town), ...(v.block ? { block: v.block } : {}) } : { city: v.city === true ? {} : structuredClone(v.city), on: v.on ?? cityOns()[0] }), size: v.size ?? PLACE_SIZE[2] };
 }
 /** A place's cut: its least and most side, and the side a mission cuts when it names none (metres). */
-export const PLACE_SIZE = Object.freeze([24, 54, 36]);
+export const PLACE_SIZE = Object.freeze([24, 54, 48]);
 
 // the band a weapon is carried for: a kit word its archetype's, a weapon written by its fire type that type's
 function bandOf(w) {
@@ -144,6 +146,6 @@ export function missionBrief(G, spec = {}) {
   if (map) why.map = map.place ? `a ${map.place.size} m cut of ${map.place.town ? `a town's ${map.place.town.segment ?? 'houses'} block` : `a city's ${map.place.on}`}, its buildings and water kept, cover grown on its open ground under the laws` : spec.map === true ? MISSION_MAPS[top].why : `the ${map.template} map, written on the level`;
   return {
     guns, serves, sections, yard, run, eye: 1.7, width, scale: foes / MISSION_DEFAULTS.foes,
-    hold: spec.hold ?? MISSION_DEFAULTS.hold, waves: spec.waves ?? MISSION_DEFAULTS.waves, camera: G?.camera ?? null, map, why,
+    hold: spec.hold ?? MISSION_DEFAULTS.hold, waves: spec.waves ?? MISSION_DEFAULTS.waves, camera: G?.camera ?? null, map, why, ...(spec.squad ? { squad: spec.squad } : {}),
   };
 }

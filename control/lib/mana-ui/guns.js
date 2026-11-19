@@ -122,6 +122,34 @@ export const GUNS = Object.freeze({
     ['p', '21,12 24.4,12 23.4,17.4 20,17.4'], ['l', '24.4,12 24.8,13.8 26.6,13.8 26.6,12'],
     ['p', '36,12 38.8,12 38.8,16.4 36,16.4'],
   ],
+  // a run and gun's guns, drawn as an arcade draws them: the heavy machine gun (a carry handle, a vented shroud, a box of
+  // belted rounds), the spread gun (three barrels fanning from a short body) and the flamethrower (a tank under a long
+  // nozzle ringed with its shroud, a pilot light at its tip)
+  'machine-gun': [
+    ['p', '3,7 12,7.5 12,11.5 3,13'], ['l', '4.4,7.2 4.4,12.8'],
+    ['p', '12,6 32,6 32,12 12,12.5'], ['r', 21, 7.4, 6, 1.4], ['l', '17,6 18,3.4 28,3.4 29,6'],
+    ['p', '16,12.4 19.6,12.2 18.4,17.6 15,17.6'], ['l', '19.6,12.2 20.2,14 23,14 23,12'],
+    ['p', '24,12 31,12 31,17.4 24,17.4'], ['l', '24,14.6 31,14.6'], ['l', '26.4,12 26.4,14.6'], ['l', '28.8,12 28.8,14.6'],
+    ['r', 32, 6.8, 18, 4.4], ['l', '34.5,9 36,9'], ['l', '38,9 39.5,9'], ['l', '41.5,9 43,9'], ['l', '45,9 46.5,9'],
+    ['r', 50, 8.2, 9, 1.6], ['r', 59, 7.6, 3, 2.8],
+  ],
+  spread: [
+    ['p', '4,7.5 13,8 13,11.5 4,12.6'], ['l', '5.4,7.7 5.4,12.4'],
+    ['p', '13,6.5 33,6.5 35,8 35,11.4 13,12'], ['r', 20, 7.8, 6, 1.4],
+    ['p', '17,12 20.6,11.8 19.4,17.4 16,17.4'], ['l', '20.6,11.8 21.2,13.8 24,13.8 24,11.6'],
+    ['p', '26,11.6 33,11.6 33,14 26,14'], ['l', '28.4,11.6 28.4,14'], ['l', '30.8,11.6 30.8,14'],
+    ['p', '35,7.6 52,4 52.6,5.4 35,8.8'], ['p', '35,9 53,8.8 53,10.2 35,10'], ['p', '35,10.6 52.6,13.6 52,15 35,11.6'],
+    ['r', 52, 3, 3, 3.2], ['r', 53, 8, 3, 3], ['r', 52, 12.8, 3, 3.2],
+  ],
+  flame: [
+    ['p', '6,7 24,7 24,11 6,11'], ['l', '9,8.4 20,8.4'],
+    ['p', '10,11 13.4,11 12.4,16 9,16'],
+    ['r', 16, 12, 13, 4.8], ['l', '16,14.4 29,14.4'], ['l', '18,12 18,16.8'], ['l', '27,12 27,16.8'],
+    ['l', '29,14 32,13 33,11'],
+    ['p', '31,10.8 34,10.8 34,15.6 31,15.6'],
+    ['r', 24, 7.6, 26, 2.6], ['l', '30,7.6 30,10.2'], ['l', '36,7.6 36,10.2'], ['l', '42,7.6 42,10.2'],
+    ['p', '50,7 55.4,6 55.4,11.2 50,10.2'], ['r', 51.6, 4.2, 2.2, 1.6], ['l', '52.7,5.8 52.7,7'],
+  ],
   // a combat knife: its clip-point blade and fuller, the cross guard, a ridged handle
   knife: [
     ['p', '21,8 40,8 47,9.5 40,11.2 21,11.2'], ['l', '23,9.4 38,9.4'],
@@ -134,7 +162,8 @@ export const GUN_ALIASES = Object.freeze({
   assault: 'rifle', 'assault-rifle': 'rifle', ar: 'rifle', 'battle-rifle': 'rifle', caseless: 'bullpup',
   pdw: 'smg', 'submachine-gun': 'smg', breacher: 'shotgun', 'combat-shotgun': 'shotgun',
   dmr: 'marksman', coilgun: 'marksman', 'marksman-rifle': 'marksman', 'sniper-rifle': 'sniper', bolt: 'sniper',
-  handgun: 'pistol', sidearm: 'pistol', magnum: 'revolver', rocket: 'launcher', 'rocket-launcher': 'launcher', rpg: 'launcher', bazooka: 'launcher',
+  handgun: 'pistol', sidearm: 'pistol', 'heavy-machine-gun': 'machine-gun', hmg: 'machine-gun', lmg: 'machine-gun', mg: 'machine-gun',
+  'spread-gun': 'spread', flamethrower: 'flame', 'flame-thrower': 'flame', magnum: 'revolver', rocket: 'launcher', 'rocket-launcher': 'launcher', rpg: 'launcher', bazooka: 'launcher',
   blade: 'knife', 'combat-knife': 'knife',
 });
 
@@ -147,7 +176,7 @@ export const ROUNDS = Object.freeze({
   rocket: { box: [10, 32], d: 'M5 0C7 3 7.5 6 7.5 9V24L9.5 28V32H0.5V28L2.5 24V9C2.5 6 3 3 5 0z' },
 });
 export const ROUND_IDS = Object.freeze(Object.keys(ROUNDS));
-export const ROUND_OF = Object.freeze({ pistol: 'pistol', revolver: 'pistol', smg: 'pistol', shotgun: 'shell', launcher: 'rocket' });
+export const ROUND_OF = Object.freeze({ pistol: 'pistol', revolver: 'pistol', smg: 'pistol', shotgun: 'shell', spread: 'shell', launcher: 'rocket' });
 
 const slug = (s) => String(s ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 export function gunOf(name) { const k = slug(name); return GUNS[k] ? k : GUN_ALIASES[k] ?? null; }

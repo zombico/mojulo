@@ -232,11 +232,13 @@ describe('the board on the World page', () => {
     // the minds fight on the page's own clock: an act's effect stands in the world while it plays
     await page.waitForFunction(() => { const f = window.__mojBoard.fx; return f && f.playing > 0 && f.pieces > 0; }, { timeout: 30000, polling: 20 });
     expect(await page.evaluate(() => window.__mojBoard.fx.waiting)).toBe(true);
-    await page.waitForFunction(() => window.__mojBoard.result, { timeout: 120000 });
+    // (the battle plays out on the page's clock: about 80 s on a CI runner, more beside the shard's other pages, so the
+    // wait has room, and it ends the moment the battle does; 120 s timed out once on a busy shard, 2026-11-17)
+    await page.waitForFunction(() => window.__mojBoard.result, { timeout: 240000 });
     await page.waitForFunction(() => window.__mojBoard.fx.playing === 0, { timeout: 10000 });
     expect(await page.evaluate(() => window.__mojBoard.fx)).toEqual({ playing: 0, pieces: 0, waiting: false, dim: 1 });
     await page.close();
-  }, 180000);
+  }, 300000);
 
   it('summons on the map: the being risen, the world dimmed, the camera orbiting; then the world as it was, the view on its quarter', async () => {
     if (!browser) return;

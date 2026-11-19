@@ -88,7 +88,7 @@ import { standFoe, foePlacements } from './foes.js';
 import { streetLevel } from './brawl-cast.js';
 import { readTheme } from '../../mana-ui/theme.js';
 import { armLevel, heroStrikes, arsenalOfGame } from './arsenal.js';
-import { missionPlan, missionStage, missionEnds, missionMechanics, missionCast, missionUi, missionBuildingCube } from './mission-level.js';
+import { missionPlan, missionStage, missionEnds, missionMechanics, missionCast, missionUi, missionBuildingCube, shooterHudUi } from './mission-level.js';
 import { buildingMissionPlan } from './mission-building.js';
 
 /** A sneak's guard: a guard in a person's skin (foes/classes/guard.js), and what the sneak plays it at: a watcher whose
@@ -762,9 +762,11 @@ function withBookUi(G, play) {
   return { ...play, ui: { seed: h % 2147483647 } };
 }
 
-function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null, gunnerRef = null, foeRefs = null } = {}) {
+function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null, foeRefs = null, gunnerRef = null } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
+  // a street level (brawl-cast.js): its own simulation and its own contract, the game's hero and made foes its bodies
+  if (stage.section === 'street') { const S = streetLevel(G, stage.street, { title: title ?? stageTitle(stage), ref, heroRef, foeRefs, party, ...STREET_LAY }); return { tool: 'create_sketch', args: { title: S.manifest.title, manifest: S.manifest }, laws: S.laws }; }
   // (a mission in a building: the mission's cast, tasks, camera and page over the building's rooms)
   // (an industrial level: the place's recipe with the mission's cast on it; its ends the mission's own, on the land)
   if (stage.section === 'industrial') {
@@ -774,8 +776,6 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
       ends: { spawn: M.anchors.spawn.slice(), heading: M.heading, exit: M.anchors.exit.slice(), exitFrom: M.anchors.exit.slice(), beats: M.sections.map((S) => ({ beat: S.id, at: S.entry.slice() })), planar: true }, ...(laws.length ? { laws } : {}) };
   }
   if (stage.section === 'building' && stage.mission) return buildingMissionOrder(G, stage, { ref, heroRef, heroGaits, pilot, title, gunnerRef });
-  // a street level (brawl-cast.js): its own simulation and its own contract, the game's hero and made foes its bodies
-  if (stage.section === 'street') { const S = streetLevel(G, stage.street, { title: title ?? stageTitle(stage), ref, heroRef, foeRefs, party, ...STREET_LAY }); return { tool: 'create_sketch', args: { title: S.manifest.title, manifest: S.manifest }, laws: S.laws }; }
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, sheathRef, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
   const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stage.section === 'obstacles' ? obstacleEnds(stage.manifest) : stage.section === 'mission' ? missionEnds(stage.manifest) : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
@@ -996,7 +996,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   let cover = [];
   if ((concerns.includes('cover') || (rolls && rolls.cover)) && stage.section === 'trail' && !ends.arena) {
     posts ??= beatPosts(ends);
-    cover = coverBlocks(posts, ends);
+    cover = coverBlocks(posts, ends, { seed: Number.isInteger(G.seed) ? G.seed : 1 });
   }
   const coverFrom = (blocks ?? []).length;
   if (cover.length) blocks = [...(blocks ?? []), ...cover];
@@ -1096,7 +1096,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // THE DAMAGE RING (damage-ring.js): a quick shooter's level on foot and a deathmatch say where each hit came from, round
   // the aim (their HUD is the page's own; a mission draws it in its own HUD). Any other level, as it was
   const ringed = !MX && stage.section !== 'airspace' && (G.quick?.goal === 'deathmatch' || (G.quick?.goal === 'shoot' && G.quick.craft === undefined)) && !!X0?.pilot?.weapon;
-  let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(ringed ? { damageRing: true } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
+  let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(ringed ? { damageRing: true, mission: shooterHudUi(G, ends.arena ? { rect: [ends.arena.centre[0] - ends.arena.plan.half, ends.arena.centre[1] - ends.arena.plan.half, ends.arena.centre[0] + ends.arena.plan.half, ends.arena.centre[1] + ends.arena.plan.half] } : {}) } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
   // ONE HUD (game/hud-mana.js): a world whose screens are the game UI runtime's (its `ui`) has its levels' own rows
   // drawn there too, in the same look, by the page's HUD host; a course's HUD is already its own (course-hud.js), and
   // a mission's is its own channel's (mission-mana.js)
@@ -1703,7 +1703,7 @@ function buildingMissionOrder(G, stage, { ref, heroRef, heroGaits = null, pilot 
     const controls = `W / S  walk · A / D  step aside · mouse  look · ${MX.legend}${felt ? ` · Space  jump${felt.sprintSpeed ? ' · Shift  sprint' : ''}` : ''}${MX.pilot.rule.knife ? ' · V  knife' : ''}`;
     const PW = playerWorld({ heroRef: 'none', id: 'player', title: name, controls });
     const rule = { type: 'platform', speed: 4.5, walkSpeed: 1.6, turn: 2.4, eye: EYE_FALLBACK, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(felt ?? {}), turnMode: 'look', lookPitch: true, strafe: 1, ...MX.pilot.rule };
-    const me = { ...walker, rule, ...(MX.pilot.weapon ? { weapon: MX.pilot.weapon } : {}), body: { ...walker.body, ...MX.pilot.body }, transform: { pos: [spawn[0], spawn[1], r3(spawn[2] + EYE_FALLBACK)], heading } };
+    const me = { ...walker, ...(MX.pilot.team ? { team: MX.pilot.team } : {}), rule, ...(MX.pilot.weapon ? { weapon: MX.pilot.weapon } : {}), body: { ...walker.body, ...MX.pilot.body }, transform: { pos: [spawn[0], spawn[1], r3(spawn[2] + EYE_FALLBACK)], heading } };
     pilotPart = { figures: MX.figures, entities: [me, ...MX.entities], camera: { rule: 'eye', target: 'player', height: 0, mouseLook: true }, events: PW.events || {} };
   } else {
     // A HERO: its own walker armed with the mission's guns, over its shoulder where the camera says

@@ -46,6 +46,8 @@ export function rangeHtml(spec = {}) {
   const S = rangeOf(spec);
   // (each gun drawn in the hands as the arms library builds it, where it is an arm of the library: arms-kit.js)
   const P0 = S.minted.pilot, pilot = Array.isArray(P0.rule.loadout) ? withArmMeshes([{ ...P0, rule: { ...P0.rule, loadout: P0.rule.loadout.map(armDetailed) } }])[0] : P0;
-  return gymPageHtml({ ...S.minted, pilot }, S.m, S.gym, S.gate, { kind: 'firing range', tag: `${spec.weapons.length} weapon${spec.weapons.length > 1 ? 's' : ''}` });
+  return gymPageHtml({ ...S.minted, pilot }, S.m, S.gym, S.gate, { kind: 'firing range', tag: `${spec.weapons.length} weapon${spec.weapons.length > 1 ? 's' : ''}`,
+    // (the shooter's HUD, as every shooter's page wears it: the gun in hand, the health, the scope; no mission in it)
+    mission: { title: spec.name ?? 'Firing range', theme: spec.theme ?? 'field-brief', tasks: [], plain: true } });
 }
 

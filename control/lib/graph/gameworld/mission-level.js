@@ -27,7 +27,7 @@
  *                                     body is carried, a first person's eye: where a sealed way puts it back)
  *   missionMechanics(M, { lift? })  → the level's mechanics: objectives, fail-on-death, supplies
  *   missionGround(M)         → { faces, colliders } the greybox (a mission on a map: arena-map/ground.js mapGround)
- *   missionCast(G, M, { refs?, hero?, camera? }) → { figures, entities, pilot, camera?, legend, audio? } the foes on their
+ *   missionCast(G, M, { refs?, hero?, camera?, crew? }) → { figures, entities, pilot, camera?, legend, audio? } the foes on their
  *                              spots and what the pilot carries (levels.js lays it over its own pilot; the practice room
  *                              over the range's person)
  *   missionStage(G, P)       → a mission level's stage manifest: its ground, its sky and its page's `mission`
@@ -47,6 +47,8 @@ import { SHOOT, SHOOT_FOE, SHOOT_TUNE, PERSON, shoulderOf } from './quick.js';
 import { ARMS_LEGEND, armDetailed } from './arms-kit.js';
 import { standFoe } from './foes.js';
 import { libraryFigure, FIGURE_LIBRARY } from './stage-figures.js';
+import { dressOrders } from '../foes/dress.js';
+import { GRUNT_STYLES, GRUNT_STYLE_IDS } from '../cosmos/packs/comic-hero/grunts.js';
 import { playerStates } from '../playscape/player.js';
 import { feelRule } from './feel/lower.js';
 import { blocksOf, PRIMITIVES } from '../gameroom/primitives.js';
@@ -83,6 +85,37 @@ function box(x0, y0, x1, y1, h, fill, group) {
   };
 }
 // the stand-in foe: a person of the figure library, as the practice rooms stand one (practice-room.js dummyFigure)
+/** A crew's bodies: `bodies` people of a faction's kind (its first, the rank and file: the rifleman, the soldier, the
+ *  tough; or the `kind` named), each rolled on its own seed so no two are one face, dressed by the hero door's own words
+ *  (foes/dress.js), standing and walking on the figure library's clips as the stand-in does. A crew is
+ *  '<faction>' | { faction, kind?, colourway?, bodies?, masks?: true (CREW_MASKS) | [headgear words] }. */
+/** What a masked crew wears over its faces, a body each in turn: the headgear shelf's words (headgear/cards.js). */
+export const CREW_MASKS = Object.freeze(['tacticalMask', 'gasMask', 'respirator']);
+/** The holds a crew's body plays by what it carries (the hero door's hold words): firing, and standing. */
+export const CREW_HOLDS = Object.freeze({ carbine: Object.freeze({ fire: 'carbineAim', idle: 'carbineLowReady' }), pistol: Object.freeze({ fire: 'pistolIsosceles', idle: 'pistolLowReady' }) });
+/** What a crew's body plays when a round lands on it: the figure library's hit, once through (the page's `flinch`). */
+export const CREW_FLINCH = 'Hit_Chest';
+const CREW_MASK_TONES = Object.freeze({ Mask: '#1b1d20', MaskDomino: '#1b1d20', Helm: '#1b1d20', MaskMouth: '#15171a', MaskTrim: '#2c2f33', MaskSeam: '#2c2f33', MaskFilter: '#2c2f33', Trim: '#2c2f33', MaskLens: '#7d8a88' });
+export function crewFigures(crew, seed = 1) {
+  const { bodies = 3, masks = null, ...C } = typeof crew === 'string' ? { faction: crew } : crew, kinds = Object.keys(GRUNT_STYLES[C.faction]?.kinds ?? {});
+  if (!kinds.length) throw new Error(`mission: no crew '${C.faction}' (${GRUNT_STYLE_IDS.join(', ')})`);
+  return Array.from({ length: bodies }, (_, k) => {
+    const { gesture: _g, statue: _s, vibe: _v, ...spec } = dressOrders({ people: 'human', dress: { kind: kinds[0], ...C } }, { seed: (seed | 0) + 7 * k }).mint.spec;
+    const worn = masks === true ? CREW_MASKS : Array.isArray(masks) && masks.length ? masks : null;
+    // (the masks in the crew's own dark, their lenses a dull glass: never the shelf's showier tones)
+    if (worn) { spec.headgear = worn[k % worn.length]; spec.palette = { ...spec.palette, ...CREW_MASK_TONES }; }
+    // (what it does with the gun in its hands: the hero door's own holds for it, hero-carry.js: the weapon up as it
+    // fires (`fire`, the page plays it while its trigger is down), at the low ready as it stands)
+    const held = CREW_HOLDS[spec.gear?.right?.item] ?? null;
+    if (held) spec.motion = { ...(spec.motion ?? {}), [held.fire]: true, [held.idle]: true };
+    return { hero: spec, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop', flinch: CREW_FLINCH, ...(held ? { fire: held.fire, idle: held.idle } : {}) } };
+  });
+}
+const r3 = (v) => Math.round(v * 1000) / 1000;
+/** A squadmate's share of the pilot's own gun: it helps a fight, it does not win one (the mission is the pilot's). */
+export const SQUAD_SHARE = 0.3;
+/** The side the pilot and its squad are on (a mission with a squad). */
+export const SQUAD_TEAM = 'squad';
 const standIn = () => ({ hero: { cast: 'female' }, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop' } });
 const SKY = Object.freeze({ zenith: [120, 140, 170], horizon: [200, 205, 210], day: 1, stars: 0, seed: 1 });
 const BG = '#9aa0a8';
@@ -119,9 +152,11 @@ export function missionPlan(G, { seed = null, spec = {}, grown = null } = {}) {
     // (the map's upper floors and the ramps up to them, for the minds a hold sends: arena-map/ground.js mapFloors)
     mission.floors = mapFloors(G2.map);
     const mapLawsHeld = G2.laws.map((l) => ({ law: `map:${l.law}`, holds: l.holds, says: l.says }));
+    if (brief.squad) mission.squad = brief.squad;
     return { brief, mission, laws: [...phaseLaws(mission, G2.map), ...mapLawsHeld], map: { template: G2.template, seed: G2.seed, map: G2.map } };
   }
   const mission = composeMission(brief, { seed: dice });
+  if (brief.squad) mission.squad = brief.squad;
   return { brief, mission, laws: missionLaws(mission, brief) };
 }
 
@@ -174,7 +209,7 @@ export function missionGround(M) {
 /** The foes on their spots (dormant, woken by their section's task) and what the pilot carries. `hero`: the pilot has a
  * body (its eye over its feet); `camera`: the world's, so a hero seen from behind aims over its shoulder (quick.js
  * SHOULDER: its rounds converge on the crosshair). `refs.foe`: the foes' made figure, or a pool of them cycled. */
-export function missionCast(G, M, { refs = {}, hero = false, camera = null, quiet = false } = {}) {
+export function missionCast(G, M, { refs = {}, hero = false, camera = null, quiet = false, crew = null } = {}) {
   const L = loadoutOf(G);
   if (!L) throw new Error('mission: this world carries no gun (a quick shooter\'s arms, a hero\'s carried gun, or a feel template that shoots)');
   // the range's own body: its slots, its sights and its knife, its rounds counted against a body of the range's health
@@ -182,8 +217,23 @@ export function missionCast(G, M, { refs = {}, hero = false, camera = null, quie
   const figures = {}, entities = [], part = { figures, entities };
   const pool = Array.isArray(refs.foe) ? refs.foe : typeof refs.foe === 'string' ? [refs.foe] : null;
   const tune = { ...SHOOT_TUNE, body: { ...SHOOT_TUNE.body, hp: MISSION_HP.foe } };
+  // (`crew`: the foes dressed as one crew, each of its kinds in turn: foes/dress.js, a faction of the grunts; a made
+  // figure given wins; none of either, the stand-in)
+  const dressed = !pool && crew ? crewFigures(crew, M.seed) : null;
   let n = 0;
-  for (const S of M.sections) for (const f of S.foes) standFoe(null, part, { id: f.id, entry: SHOOT_FOE, at: f.at.slice(), heading: f.heading }, { figure: pool ? libraryFigure(pool[n++ % pool.length]) : standIn(), tune, more: { dormant: true } });
+  for (const S of M.sections) for (const f of S.foes) standFoe(null, part, { id: f.id, entry: SHOOT_FOE, at: f.at.slice(), heading: f.heading }, { figure: pool ? libraryFigure(pool[n++ % pool.length]) : dressed ? dressed[n++ % dressed.length] : standIn(), tune, more: { dormant: true } });
+  // THE SQUAD (`M.squad`, the level's `mission.squad`): who fights beside the pilot. Each a body at the pilot's shoulder
+  // as the mission begins, on the pilot's side (a team: no round of theirs harms the pilot, nor the pilot's them), its
+  // mind an escort's: it keeps by the pilot and fights whom it sees of the other side. It carries the pilot's
+  // first gun and three times a foe's health; nothing of the mission counts it, and it can fall
+  // (its gun is the pilot's own first, fired from a body's eye, never run dry, at a share of its harm (the fight is the pilot's): a foe's gun is counted in hits on the
+  // pilot's bar and would not drop a foe)
+  const own = R.pilot.rule.loadout?.[0]?.weapon ?? null, mateGun = own ? (({ reserve: _r, sfx: _s, ...w }) => ({ ...w, eye: 1.4, damage: Math.round((w.damage ?? 1) * SQUAD_SHARE * 100) / 100 }))(own) : null;
+  for (let k = 0; k < (M.squad ?? 0); k++) {
+    const sp = M.anchors.spawn, h = M.heading, side = (k % 2 ? -1 : 1) * 1.3 * (1 + Math.floor(k / 2));
+    const at = [r3(sp[0] - Math.sin(h) * side - Math.cos(h) * 1.2), r3(sp[1] + Math.cos(h) * side - Math.sin(h) * 1.2), sp[2]];
+    standFoe(null, part, { id: `ally-${k + 1}`, entry: SHOOT_FOE, at, heading: h }, { figure: standIn(), tune: { ...tune, ...(mateGun ? { weapon: mateGun } : {}), team: SQUAD_TEAM, rule: { ...tune.rule, mind: { motivation: 'escort' }, escort: 'player', followDist: 4, target: 'enemy' }, body: { ...tune.body, hp: MISSION_HP.foe * 3 } } });
+  }
   // A WAVE IS SENT TO THE FIGHT: the foes a hold wakes know where the body is (the mind with no `perception`: the arena's
   // brain, worlds/controllable/mind.js) and path to it, where a hunter by sight and memory woken out of sight has seen
   // no one and stands where it was put. The foes of a clear keep their class's sight and memory: they are found
@@ -207,6 +257,7 @@ export function missionCast(G, M, { refs = {}, hero = false, camera = null, quie
   // (and each gun is drawn in the hands as the arms library builds it, not as its boxes: arms-kit.js armDetailed)
   const loadout = R.pilot.rule.loadout ? R.pilot.rule.loadout.map((slot) => armDetailed({ ...slot, weapon: place(slot.weapon) })) : null, knife = R.pilot.rule.knife ?? null;
   const pilot = {
+    ...(M.squad ? { team: SQUAD_TEAM } : {}),
     rule: { collideRadius: 0.3, collideHeight: 1.7, ...(loadout ? { loadout, gunplay: true } : {}), ...(knife ? { knife } : {}) },
     ...(loadout ? { weapon: loadout[0].weapon } : {}),
     body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
@@ -230,7 +281,7 @@ export function missionUi(G, M, brief, { laws = [], map = null } = {}) {
       // from them, mapGround, and never regrown)
       ? { on: 'map', ...(M.origin ? { origin: M.origin.slice() } : {}), heading: M.heading, anchors: { spawn: M.anchors.spawn.slice(), exit: M.anchors.exit.slice() }, heart: M.heart.slice(), sections: M.sections.map((S) => ({ id: S.id, entry: S.entry.slice() })), ...(map ? { map: { template: map.template, seed: map.seed, blocks: structuredClone(map.map) } } : {}) }
       : { heading: M.heading, half: M.half, length: M.length, anchors: { spawn: M.anchors.spawn.slice(), exit: M.anchors.exit.slice() }, sections: M.sections.map((S) => ({ id: S.id, x: S.x.slice(), entry: S.entry.slice() })) },
-    tasks: M.sections.map((S) => ({ id: S.id, text: S.task.text, kind: S.task.kind, ...(Array.isArray(S.task.at) ? { at: S.task.at.slice(0, 2) } : {}), ...(S.task.kind === 'hold' ? { seconds: S.task.seconds } : {}), ...(S.foes.length ? { foes: S.foes.length } : {}) })),
+    tasks: M.sections.map((S) => ({ id: S.id, text: S.task.text, kind: S.task.kind, ...(SECTIONS[S.kind]?.radio ? { say: SECTIONS[S.kind].radio } : {}), ...(Array.isArray(S.task.at) ? { at: S.task.at.slice(0, 2) } : {}), ...(S.task.kind === 'hold' ? { seconds: S.task.seconds } : {}), ...(S.foes.length ? { foes: S.foes.length } : {}) })),
     briefing: {
       kit: brief.guns.map((g) => `${g.name}${g.band ? `: the ${g.band} band, ${BANDS[g.band].m} m` : ': the free hand'}`),
       sections: M.sections.map((S) => `${S.task.text}: ${SECTIONS[S.kind].teaches}`),
@@ -239,6 +290,12 @@ export function missionUi(G, M, brief, { laws = [], map = null } = {}) {
     },
   };
 }
+
+/** THE SHOOTER'S HUD WITH NO MISSION (a quick shooter's level, a deathmatch): the mission's page with nothing of a
+ *  mission in it: the gun in hand, the health, the screen's edge, the radar, the damage ring, the map and the pause, in
+ *  the world's own look (its `ui`), the level's own counters and end left the page's. A world's `mission` key, as a
+ *  mission's is (scene/channels/mission.js). `rect`: where it is fought ([x0, y0, x1, y1], a bout's arena), the map's box. */
+export const shooterHudUi = (G, { rect = null } = {}) => ({ title: G?.name ?? G?.id ?? 'game', theme: G?.ui !== undefined ? interfaceLook(G).theme : MISSION_LOOK, tasks: [], plain: true, ...(rect ? { rect: rect.map((v) => Math.round(v * 100) / 100) } : {}) });
 
 /** A mission level's stage (levels.js gameStages): its ground and what its page draws from, the pilot and the cast laid
  * over it by levelOrder. `P`: missionPlan's. */
@@ -285,7 +342,7 @@ export function missionLevel(G, { refs = {}, seed = null, spec = true, quiet = f
     ? { type: 'platform', speed: 4.5, walkSpeed: 1.6, turn: 2.4, eye, step: 0.3, ...felt, turnMode: 'look', lookPitch: true, strafe: 1, ...C.pilot.rule }
     : M.on === 'map' ? { ...C.body.rule, type: 'platform', walkSpeed: 1.6, step: 0.3 } : { ...C.body.rule };
   const A = M.anchors;
-  const player = { id: 'player', pilotable: true, rule, ...(C.pilot.weapon ? { weapon: C.pilot.weapon } : {}), body: { type: 'none', ...C.pilot.body }, transform: { pos: [A.spawn[0], A.spawn[1], A.spawn[2] + eye], heading: M.heading } };
+  const player = { id: 'player', pilotable: true, ...(C.pilot.team ? { team: C.pilot.team } : {}), rule, ...(C.pilot.weapon ? { weapon: C.pilot.weapon } : {}), body: { type: 'none', ...C.pilot.body }, transform: { pos: [A.spawn[0], A.spawn[1], A.spawn[2] + eye], heading: M.heading } };
   const name = G?.name ?? G?.id ?? 'game';
   const manifest = {
     ...stage, title: `Mission · ${name}`,

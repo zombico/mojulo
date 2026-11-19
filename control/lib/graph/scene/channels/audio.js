@@ -25,6 +25,9 @@ export function audioChannelScript(audio) {
   // kilometres off; absent, the arena's 900)
   const reach = mixFar && mix.reach > 900 ? mix.reach : 0;
   // held voices (the sustain feature): a thruster or a jump charge given a `voice` plays it, not its own synth
+  // the ground by place (audio.surfaces, opt-in) and the sounds of a place (audio.emitters, opt-in): absent, not a byte
+  const surf = !!(audio.surfaces && audio.surfaces.length), fsOf = surf ? '__fsOf(e)' : '__AUDIO.footsteps';
+  const emit = !!(audio.emitters && audio.emitters.length);
   const thrHeld = !!(audio.thruster && audio.thruster.voice), jumpHeld = !!(audio.jump && audio.jump.charge && audio.jump.charge.voice);
   // an environment's bed (audio.bed, sfx-shelf/beds.js): a pattern of the shelf's one-shots on its own engine, under the
   // score at its own level. Absent, not a byte of it is emitted.
@@ -218,7 +221,14 @@ if (__AUDIO.on && typeof __BUS !== 'undefined') {
 // footsteps: two sources, both read-only. Controllable entities expose gait edges (gaitPhase /
 // jumped / landed — controllable-world.js computes them for exactly this); first-person walk mode
 // has no entity, so accumulated camera travel stands in for stride. Half-gait crossings = steps.
-if (__AUDIO.footsteps) {
+if (__AUDIO.footsteps) {${surf ? `
+  // the ground by place: the first box the body's feet stand in gives its step and its landing; outside every box the
+  // level's own
+  const __fsOf = (e) => {
+    const p = e.transform.pos, z = p[2] - ((e.rule && e.rule.eye) || 0);
+    for (const s of __AUDIO.surfaces) { const b = s.box; if (p[0] >= b[0] && p[1] >= b[1] && z >= b[2] && p[0] <= b[3] && p[1] <= b[4] && z <= b[5]) return { step: __AUDIO.cues[s.step], land: s.land ? __AUDIO.cues[s.land] : __AUDIO.footsteps.land }; }
+    return __AUDIO.footsteps;
+  };` : ''}
   const __gaitLast = {};
   let __walkAcc = 0;
   const __walkPrev = { x: null, y: null };
@@ -234,9 +244,9 @@ if (__AUDIO.footsteps) {
         if (ctrl.pilotId && e.id !== ctrl.pilotId) continue;
         const last = __gaitLast[e.id] || (__gaitLast[e.id] = { ix: 0, jumped: false, landed: false });
         const ix = Math.floor((e.gaitPhase || 0) * 2);
-        if (e.moving && e.grounded !== false && ix !== last.ix) __beatsCue(__AUDIO.footsteps.step, __AUDIO.footsteps.gain);
+        if (e.moving && e.grounded !== false && ix !== last.ix) __beatsCue(${fsOf}.step, __AUDIO.footsteps.gain);
         if (e.jumped && !last.jumped) __beatsCue(__AUDIO.footsteps.jump);
-        if (e.landed && !last.landed) __beatsCue(__AUDIO.footsteps.land);
+        if (e.landed && !last.landed) __beatsCue(${fsOf}.land);
         last.ix = ix; last.jumped = !!e.jumped; last.landed = !!e.landed;
       }
     }
@@ -249,7 +259,27 @@ if (__AUDIO.footsteps) {
     } else { __walkPrev.x = null; __walkPrev.y = null; }
   })();
 }
-// weapon SFX: watch controllable entities' weapon state (read-only, presentation-only — the same
+${emit ? `// the sounds of a place (audio.emitters): each sounds its cue again after a wait rolled between its bounds, on its
+// own dice, heard by the listener's distance and not past its reach. Presentation only: nothing reads it back.
+{
+  const __emS = __AUDIO.emitters.map((E, i) => ({ s: (Math.imul(i + 1, 2654435761) + 12345) >>> 0, t: 0 }));
+  const __emR = (S) => { S.s = (Math.imul(S.s, 1664525) + 1013904223) >>> 0; return S.s / 4294967296; };
+  __emS.forEach((S, i) => { S.t = __emR(S) * __AUDIO.emitters[i].every[1]; });
+  let __emT = performance.now() / 1000;
+  (function __beatsPlaces() {
+    requestAnimationFrame(__beatsPlaces);
+    const now = performance.now() / 1000, dt = Math.min(0.25, now - __emT); __emT = now;
+    if (!__beatsEng || __beatsMuted) return;
+    for (let i = 0; i < __AUDIO.emitters.length; i++) {
+      const E = __AUDIO.emitters[i], S = __emS[i];
+      S.t -= dt; if (S.t > 0) continue;
+      S.t = E.every[0] + (E.every[1] - E.every[0]) * __emR(S);
+      const g = Math.max(0, 1 - Math.hypot(camera.position.x - E.at[0], camera.position.y - E.at[1], camera.position.z - E.at[2]) / E.reach), gain = g * g * (E.level == null ? 1 : E.level);
+      if (gain > 0.02) __beatsCue(__AUDIO.cues[E.cue], gain);
+    }
+  })();
+}
+` : ''}// weapon SFX: watch controllable entities' weapon state (read-only, presentation-only — the same
 // posture as footsteps) and fire a cue on each new round (weapon.shots increments), and optionally
 // on a landed hit / on a reload. Muted-capture-safe: the whole audio channel is absent on captures.
 if (__AUDIO.weapon) {

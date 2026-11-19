@@ -13,6 +13,7 @@
  * In one call, in order: the recipe (`world` creates or replaces it, `patch` edits it by part), then the verdicts
  * (`approve`, `revise`), then the run (`run: true`). Each is optional; a call with only `ref` reads.
  */
+import { openingMission } from '@/lib/graph/mission/campaign';
 import { NEW_GAME_SCREEN } from '@/lib/graph/game/screen';
 import { registerTool, clientTakesJobAgents } from '@/lib/mcp/server';
 import { getClientInfo } from '@/lib/mcp/client-bindings';
@@ -573,7 +574,10 @@ function readout(ref, world, context = {}) {
     // (or fought inside a building designed as a fighting map, read in the seventh generation: gameworld/mission-building.js,
     // the core building by the kit's longest band)
     const inside = missionBuildingFor(world);
-    next.push({ step: 'mission', why: 'its guns have a firing range: the range stretched into a first level, a section for each band they are for, a task in each', url: `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=mission`, patch: [{ op: 'set', path: `/levels/${id}`, value: { name: 'First mission', mission: true } }], ...(inside ? { building: { use: inside.use, why: `or inside a building drawn by the seventh generation's form render: ${inside.why}; its plan read as a fighting map, the phases placed in its rooms`, patch: [{ op: 'set', path: `/levels/${id}`, value: { name: 'First mission', building: { use: inside.use, fight: true }, mission: true } }] } } : {}), card: 'gameworld-mission' , industrial: { why: 'or out of doors: an industrial yard before a base building, its containers, barriers and floodlights stood under the arena\'s laws and built by the geocube (at sunset on wet ground, a tower to climb in it)', patch: [{ op: 'set', path: `/levels/${id}`, value: { name: 'First mission', industrial: true } }] } });
+    next.push({ step: 'mission', why: 'its guns have a firing range: the range stretched into a first level, a section for each band they are for, a task in each', url: `/api/sketches/${encodeURIComponent(ref)}/bible?book=practice&room=mission`, patch: [{ op: 'set', path: `/levels/${id}`, value: { name: 'First mission', mission: true } }], ...(inside ? { building: { use: inside.use, why: `or inside a building drawn by the seventh generation's form render: ${inside.why}; its plan read as a fighting map, the phases placed in its rooms`, patch: [{ op: 'set', path: `/levels/${id}`, value: { name: 'First mission', building: { use: inside.use, fight: true }, mission: true } }] } } : {}), card: 'gameworld-mission' , campaign: (() => { const C = openingMission(world, { building: inside?.use ?? null });
+      // (or the whole opening mission of a campaign: a run of places, each a beat of the loop and a level of its own, so a
+      // leg is a checkpoint: mission/campaign.js)
+      return { why: `or a campaign's opening mission, ${C.legs.length} legs played in order, each a level of its own (a leg is a checkpoint): ${C.legs.map((L) => `${L.name.split(' · ').pop()} (${L.beats.join(', ')})`).join('; ')}`, legs: C.legs.map((L) => ({ level: L.level, beats: L.beats, place: L.place })), patch: C.patch }; })(), industrial: { why: 'or out of doors: an industrial yard before a base building, its containers, barriers and floodlights stood under the arena\'s laws and built by the geocube (at sunset on wet ground, a tower to climb in it)', patch: [{ op: 'set', path: `/levels/${id}`, value: { name: 'First mission', industrial: true } }] } });
   }
   // A WORLD MAP (gameworld/world-map.js): its blocks laid as the floor (the default ways, the scenario's beats on them);
   // each block's sketch is its author's, then level design's play layer, block by block. LOOKED AT FIRST: `look`, the map

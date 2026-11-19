@@ -72,7 +72,7 @@ export const FRONT_IDIOMS = {
   },
   'pick-screen': {
     kind: 'screen', about: 'one choice before a level (a difficulty, a character, a squad, a kit), one screen a choice: what is asked and how far along the choices it is, what was chosen before it, the rows beside the one in focus (its words, its figures); `faces` lays the rows as a grid of faces; a row that cannot be taken says why; a choice of several marks its rows and is confirmed',
-    reads: 'title, ask, hint, step, steps, chosen: [{ label, value }], rows: [{ id, name, tag?, about?, stats?: [{ label, value, max }], mark?, disabled?, why?, then }], faces, many, short, shortWhy, why, confirm', emits: 'a row\'s then; confirm on continue (a choice of several)',
+    reads: 'title, ask, hint, step, steps, chosen: [{ label, value }], rows: [{ id, name, tag?, gun? (drawn as its wireframe), about?, stats?: [{ label, value, max }], mark?, disabled?, why?, then }], faces, many, short, shortWhy, why, confirm', emits: 'a row\'s then; confirm on continue (a choice of several)',
     params: ['title', 'ask', 'hint', 'step', 'steps', 'chosen', 'rows', 'faces', 'many', 'short', 'shortWhy', 'why', 'confirm'],
     node: screen({ title: P('title'), place: 'full' }, [{ use: 'stack', props: { gap: 'loose' }, children: [
       // what is asked, and how far along the choices this one is
@@ -87,7 +87,11 @@ export const FRONT_IDIOMS = {
       { use: 'split', props: { ratio: 'even' }, children: [
         { use: 'window', props: { title: { word: 'choose' } }, children: [
           { use: 'list', id: 'rows', unless: P('faces'), props: { rows: P('rows'), row: { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [
-            { use: 'stack', props: { gap: 'tight', align: 'start' }, children: [txt(I('name'), 'heading'), { use: 'text', props: { value: I('tag'), role: 'caption' }, when: I('tag') }] },
+            // (a row that is a gun is drawn as its wireframe beside its name: a picture before a word)
+            { use: 'stack', props: { dir: 'row', gap: 'normal', align: 'center' }, children: [
+              { use: 'magazine', props: { gun: I('gun'), rounds: 0 }, when: I('gun') },
+              { use: 'stack', props: { gap: 'tight', align: 'start' }, children: [txt(I('name'), 'heading'), { use: 'text', props: { value: I('tag'), role: 'caption' }, when: I('tag') }] },
+            ] },
             { use: 'badge', props: { value: I('mark'), variant: 'strong' }, when: I('mark') },
           ] } }, on: { accept: I('then') } },
           { use: 'grid', id: 'rows', when: P('faces'), props: { cells: P('rows'), columns: 3, cell: { use: 'stack', props: { align: 'center', gap: 'tight' }, children: [
