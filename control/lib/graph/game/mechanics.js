@@ -360,12 +360,17 @@ const MECHANICS = {
       // world's own combat produces it, no hp-pool
       const who = typeof p.who === 'string' && p.who ? p.who : null;
       const v = `__downs_${ctx.i}`;
+      // `bar` { of, hp, label? }: ONE body's health as the HUD's bar (a boss's, read in the HUD and never over its head):
+      // its hp from `hp`, each hit's damage off it (the hit fact's `harm`), none at its fall; the bar in place of the count
+      const B = p.bar && typeof p.bar.of === 'string' && p.bar.of && Number.isFinite(p.bar.hp) && p.bar.hp > 0 ? p.bar : null, bv = B ? `boss_${ctx.i}` : null;
+      const label = typeof p.label === 'string' && p.label ? p.label : 'Defeated';
       return {
         world: {
-          vars: { [v]: 0 },
-          reactions: [who ? { on: 'down', match: { entity: who }, do: 'inc', var: v, by: 1 } : { on: 'enemy:down', do: 'inc', var: v, by: 1 }],
+          vars: { [v]: 0, ...(B ? { [bv]: B.hp } : {}) },
+          reactions: [who ? { on: 'down', match: { entity: who }, do: 'inc', var: v, by: 1 } : { on: 'enemy:down', do: 'inc', var: v, by: 1 },
+            ...(B ? [{ on: `hit:${B.of}`, do: 'inc', var: bv, by: 'event.harm', min: 0 }, { on: 'down', match: { entity: B.of }, do: 'set', var: bv, to: 0 }] : [])],
           watches: [{ type: 'all:defeated', when: { var: v, gte: count } }],
-          hud: [{ var: v, label: typeof p.label === 'string' && p.label ? p.label : 'Defeated' }],
+          hud: [B ? { var: bv, label: typeof B.label === 'string' && B.label ? B.label : label, as: 'bar', max: B.hp, slot: 'top-right' } : { var: v, label }],
         },
         on: { 'all:defeated': { end: 'success' } },
         needs: p.producer === 'runtime' || who ? [] : ['enemy:down'],

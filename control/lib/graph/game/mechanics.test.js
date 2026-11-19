@@ -220,6 +220,16 @@ describe('defeat-all — the counter terminal + the producer rule', () => {
     expect(out.events.watches).toContainEqual({ type: 'all:defeated', when: { var: '__downs_1', gte: 2 } });
   });
 
+  it('a bar: one body\'s health in the HUD (a boss\'s), each hit\'s harm off it, none at its fall', () => {
+    const m = lowerMechanic('defeat-all', { who: 'boss-x*', count: 1, bar: { of: 'boss-x', hp: 240, label: 'X' } }, { i: 1 });
+    expect(m.world.vars).toEqual({ __downs_1: 0, boss_1: 240 });
+    expect(m.world.reactions).toContainEqual({ on: 'hit:boss-x', do: 'inc', var: 'boss_1', by: 'event.harm', min: 0 });
+    expect(m.world.reactions).toContainEqual({ on: 'down', match: { entity: 'boss-x' }, do: 'set', var: 'boss_1', to: 0 });
+    expect(m.world.hud).toEqual([{ var: 'boss_1', label: 'X', as: 'bar', max: 240, slot: 'top-right' }]);
+    // (no bar: the count, as it was)
+    expect(lowerMechanic('defeat-all', { who: 'boss-x*', count: 1 }, { i: 1 }).world.hud).toEqual([{ var: '__downs_1', label: 'Defeated' }]);
+  });
+
   it('standalone with no count and no sibling refuses with the infer hint', () => {
     expect(() => lowerMechanic('defeat-all', {}, { i: 0 })).toThrow(/needs count/);
   });

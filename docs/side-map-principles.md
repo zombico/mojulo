@@ -212,7 +212,7 @@ made by the mascot ooze. The foes are drawn in the hero's cel light.
 
 Its last room may hold a boss (the chain's `boss`, an id from the roster in
 `control/lib/graph/gameworld/bosses.js`). The boss stands three metres in from the far wall, held to the lane, and its
-fall ends the level (`side-map/boss-cast.js`). A boss is a robot of the hero's own family: his body and his toy suit, at
+fall ends the level (`side-map/boss-cast.js`). Its health is a bar in the HUD, never over its head. A boss is a robot of the hero's own family: his body and his toy suit, at
 its own build and height. Its face is never a person's, because the hero alone keeps the open face. The face is its theme
 instead: a mask, a visor, a grille, one eye, a screen, a beast's head or an object. It always has eyes, lit in its signal
 colour, because the gaze is the aim and the light is the tell. The signal glows as the boss winds up a shot, flashes as

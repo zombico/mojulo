@@ -62,6 +62,10 @@ describe('a side map level, played as its page resolves it', () => {
     expect(sim.bus.log.some((e) => e.type === 'all:defeated')).toBe(true);
     expect(sim.bus.log.some((e) => e.type === 'goal:reached')).toBe(false);
     expect(sim.bus.vars.lives).toBeGreaterThan(0);
+    // (its health the HUD's bar, run down to none by the hits; never a bar over its head)
+    const bar = Object.keys(sim.bus.vars).find((k) => k.startsWith('boss_'));
+    expect(sim.bus.vars[bar]).toBe(0);
+    expect(B.body.hpBar).toBe('none');
   }, 120000);
   it('a frame rising faster than the hero climbs costs a life on the bus', async () => {
     const { sim, M } = await played((m) => ({ ...m, camera: { ...m.camera, zones: m.camera.zones.map((z) => (z.rise ? { ...z, rise: z.rise * 5 } : z)) } }));

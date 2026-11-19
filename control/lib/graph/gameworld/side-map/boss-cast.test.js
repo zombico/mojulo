@@ -37,7 +37,9 @@ describe('the side map\'s boss', () => {
     expect(boss.rule.rail.join).toEqual(place.at);
     expect(boss.rule.collideHeight).toBeCloseTo(1.67 * B.tier, 2);
     expect(m.figures[boss.body.figure]).toMatchObject({ heroRef: 'gb-foe-boss', light: 'cel' });
-    expect(m.game.mechanics.find((x) => x.kind === 'defeat-all')).toMatchObject({ who: `boss-${id}*`, count: 1 });
+    expect(m.game.mechanics.find((x) => x.kind === 'defeat-all')).toMatchObject({ who: `boss-${id}*`, count: 1, bar: { of: `boss-${id}`, hp: boss.body.hp, label: B.name } });
+    // (its health the HUD's, never a bar over its head)
+    expect(boss.body.hpBar).toBe('none');
     expect(m.game.mechanics.some((x) => x.kind === 'reach-exit')).toBe(false);
     // (no figure, no boss: the far side's reach, as it was)
     const bare = stageLevelOrder(G, stage, { heroRef: 'hero-ref', heroStature: 1.67, ref: 'lvl', extra: (ends) => sideMapBossCast(G, ends, { refs: {} }) }).args.manifest;

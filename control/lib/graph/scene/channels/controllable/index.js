@@ -829,6 +829,8 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   // else the nearest its aim crosses), never over the body: above the drawn model's top, or under its feet when the top
   // leaves the screen. No body asks for one → the emitted channel is byte-identical
   const foeBars = (entities || []).some((e) => e && e.body && e.body.hpBar === 'target');
+  // (and a body with no bar of its own, `body.hpBar: 'none'`: a boss, its health the HUD's, gameworld/side-map/boss-cast.js)
+  const noBars = (entities || []).some((e) => e && e.body && e.body.hpBar === 'none');
   // a TARGET RIM (`body.targetRim`: an rgb, gameworld/foes.js): the foe the pilot targets (the bar's own pick) lit at its
   // edges, a fresnel shell on the bone meshes of whatever body it now wears (a mode swapped in is lit as it comes). No body
   // asks for one → the emitted channel is byte-identical
@@ -3776,7 +3778,7 @@ function __updateHpHud() {
 // entity (the piloted suit's own is hidden — its hp is the lower-right bar). Absent when nothing has hp.
 const __ehp = [];
 for (const e of __world.entities) {
-  if (!(e.body && Number.isFinite(e.hpMax) && e.hpMax > 0)) continue;
+  if (!(e.body && Number.isFinite(e.hpMax) && e.hpMax > 0)${noBars ? " || e.body.hpBar === 'none'" : ''}) continue;
   const el = document.createElement('div');
   el.style.cssText = 'position:absolute;width:56px;height:6px;transform:translate(-50%,-50%);border-radius:3px;background:rgba(8,12,20,0.6);box-shadow:inset 0 0 0 1px rgba(255,120,120,0.55),0 1px 3px rgba(0,0,0,0.5);overflow:hidden;pointer-events:none;z-index:8;display:none';
   const fl = document.createElement('div'); fl.style.cssText = 'height:100%;width:100%;background:#ff5a5a';
