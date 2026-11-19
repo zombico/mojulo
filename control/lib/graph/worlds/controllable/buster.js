@@ -15,7 +15,8 @@
  * page, which draws a glowing ball in its level's colour.
  *
  *   rule.buster  { max, chest (the muzzle's height, a share of the body's), muzzle? ({ right, up, ahead }: shares of the
- *                body's height, the cannon arm's end raised level, measured off its figure), tap: ROUND, levels: [{ at, ...ROUND }] }
+ *                body's height, the cannon arm's end raised level, measured off its figure; `moves` { <locomotion>: the
+ *                same, the shoulder where that move's clip holds it }), tap: ROUND, levels: [{ at, ...ROUND }] }
  *   ROUND        { speed (m/s), size (m, its radius), life (s), damage, impact, color, hit? }
  *   hit          its HITBOX, not its drawing (gameworld/feel/lower.js BUSTER_HIT): { r (m, the radius it meets a body with),
  *                tall? (m, the half height of a tall capsule over its centre) }; none, its size
@@ -35,7 +36,9 @@ export function buildBuster(E) {
   const step = E.stepWorld, fwdXY = E.fwdXY, pointInEgg = E.pointInEgg;
   // one round of a level (0 the tap), from the muzzle (or the chest) along the facing
   function fire(state, e, lv, B) {
-    const at = lv ? B.levels[lv - 1] : B.tap, f = fwdXY(e.transform.heading), r = e.rule, M = B.muzzle, H = r.collideHeight || 1.7;
+    // (the muzzle of what the body plays now, where the figure measured one: a dash's sunk and leaning shoulder, a jump's)
+    const at = lv ? B.levels[lv - 1] : B.tap, f = fwdXY(e.transform.heading), r = e.rule, M0 = B.muzzle, H = r.collideHeight || 1.7;
+    const M = M0 && M0.moves && M0.moves[e.locomotion] ? M0.moves[e.locomotion] : M0;
     // (from the MUZZLE where the figure measured one, world-scene.js: the cannon arm's end, raised level along the facing,
     // on its own side of the body (the right of the facing for a right arm, whichever way it faces); else from the chest)
     const ahead = M ? M.ahead * H + at.size : (r.collideRadius || 0.3) + 0.15 + at.size, up = (M ? M.up * H : H * (B.chest || 0.7)) - (r.eye || 0), side = M ? M.right * H : 0;

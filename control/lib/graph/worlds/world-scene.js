@@ -1500,14 +1500,25 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           if (moveClips && mover && mover.rule.strike === 'melee' && !mover.rule.moveClips) payload.entities = payload.entities.map((e) => (e === mover ? { ...e, rule: { ...e.rule, moveClips: true } } : e));
           // (the BUSTER's MUZZLE, where its figure carries the cannon on a bone, polygonizer/hero-buster-rig.js: the end of
           // its arm raised level along the facing, measured off the rest rig as shares of the figure's height (its side
-          // from the middle, its height, its reach ahead), so the runtime fires from it at the body's own height:
+          // from the middle, its height, its reach ahead; a right arm's side +), so the runtime fires from it at the body's own height:
           // worlds/controllable/buster.js; the page raises that arm as it fires)
           const cb = (figure.bones || []).find((b) => /^buster[LR]$/.test(b.id)), H = figure.figH;
           if (cb && H > 0) {
             const S = cb.id.slice(-1), bone = (n) => figure.bones.find((b) => b.id === n), U = bone(`upperArm${S}`), F = bone(`foreArm${S}`);
             const len = (b) => Math.hypot(b.tail[0] - b.head[0], b.tail[1] - b.head[1], b.tail[2] - b.head[2]);
             if (U && F) {
-              const r4 = (v) => Math.round(v * 1e4) / 1e4, muzzle = { right: r4(Math.abs(U.head[0]) / H * (S === 'R' ? 1 : -1)), up: r4(U.head[2] / H), ahead: r4((len(U) + len(F) + len(cb)) / H) };
+              const r4 = (v) => Math.round(v * 1e4) / 1e4, reach = len(U) + len(F) + len(cb);
+              const at = (sh) => ({ right: r4(sh[0] / H), up: r4(sh[2] / H), ahead: r4((sh[1] + reach) / H) });
+              // (and by what the body plays when it fires: the shoulder where the move's own clip holds it mid-move, a
+              // dash's lean and sink, a jump's held pose; the runtime fires from the one its locomotion names)
+              const ui = figure.bones.indexOf(U), nb = figure.bones.length, moves = {};
+              for (const st of ['dash', 'jump_up', 'jump_fwd']) {
+                const C = figure.clips && figure.clips[st];
+                if (!C || !C.b || !(C.k > 0)) continue;
+                const i = C.once ? Math.round(0.5 * (C.k - 1)) : Math.floor(0.5 * C.k) % C.k, o = (i * nb + ui) * 7 + 4;
+                if (Number.isFinite(C.b[o + 2])) moves[st] = at([C.b[o], C.b[o + 1], C.b[o + 2]]);
+              }
+              const muzzle = { ...at(U.head), ...(Object.keys(moves).length ? { moves } : {}) };
               payload.entities = payload.entities.map((e) => (e.rule && e.rule.buster && e.body && e.body.figure === name ? { ...e, rule: { ...e.rule, buster: { ...e.rule.buster, muzzle } } } : e));
             }
           }

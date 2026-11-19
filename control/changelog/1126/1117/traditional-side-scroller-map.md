@@ -302,3 +302,4 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
 - **Galaxy Boy's shot**: as he fires, his buster arm comes up level along his facing over whatever he is doing (a run,
   a jump, a dash) and eases back down; the shot leaves from the cannon at the end of that arm, not his chest. It is his
   right arm whichever way he faces (the body turns, never a mirror), so facing left the shot leaves from his far side.
+  Walking, dashing or jumping, the shot leaves from where that arm is in the move (a dash's lean and sink lower it).

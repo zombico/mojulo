@@ -71,6 +71,11 @@ describe('the buster', () => {
       expect(from[0] * right[0] + from[1] * right[1]).toBeCloseTo(M.right * H, 6);
       expect(p.vel[0] * f[0] + p.vel[1] * f[1]).toBeGreaterThan(0);
     }
+    // (a move's own muzzle where the body plays it: a dash's, lower and further ahead)
+    const D = { right: 0.12, up: 0.58, ahead: 0.5 }, st = world(hero({ ...BUSTER, muzzle: { ...M, moves: { dash: D } } }));
+    st.byId.hero.locomotion = 'dash';
+    step(st, true);
+    expect(st.byId.hero.lastShot.from[2]).toBeCloseTo(D.up * H, 6);
   });
   it('a body in its line takes the round\'s damage', () => {
     const st = world(hero(), foe(3));
