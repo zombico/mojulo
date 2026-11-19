@@ -284,4 +284,5 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
 - **Zero Boy**: a second playable hero for the side scroller, Galaxy Boy's body and suit in red with a yellow ponytail,
   a saber in place of the buster, and a three-hit string that stays in place, lit like the shots and on the buster's
   damage scale. The saber's blade is a strand of the charged shot, its white-hot core and its bloom, and each cut sweeps
-  a slash of it.
+  a slash of it. Each cut plants his feet as his body swings into it, one leg forward and one back, holding the split
+  from cut to cut while he never leaves his place. A move in any string can now do the same (a move's `plant`).

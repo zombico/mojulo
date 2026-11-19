@@ -829,6 +829,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // band's models' colours brought to linear light). Again (a boss's phases, a second seat taken mid-street): the
 // crowd, the street's read and the yard's client; the fixture is a yard, with neither. Again (the street's seats):
 // the street's read (a gun's letters) and the yard's client (each seat's quarter).
+// Re-pinned 2026-11-19 (a move's PLANT, gameworld/combos.js: the feet split in place through a cut): the runtime the
+// page embeds (combat-melee.js stepMoveset) plays a plant chained into from another plant on its `_on` clip, begun split.
+// One place: where a move's clip is chosen. A moveset with no plant plays its clips as before; every fixture that embeds
+// the controllable runtime re-pinned with it.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

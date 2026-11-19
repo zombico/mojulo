@@ -8,7 +8,9 @@
  *
  *   the CUTS     a light cut, a second the other way, a finisher: each a swing the hero's held blade is baked with
  *                (combos.js SWINGS: neutral the overhead cross, left the rising cut, back the two-handed cleave), its
- *                frames at 60 fps, its cancel the frame the next press chains in, travel none
+ *                frames at 60 fps, its cancel the frame the next press chains in, travel none; its PLANT the feet's
+ *                split as the body swings into it (one leg forward, one back, the body still: combos.js `plant`), held
+ *                from cut to cut, the finisher's the widest
  *   the BLADE    its reach (the arm and the blade), its cone, its colour (the slash's and its light's)
  *
  *   SABER_STRIKE   the blade's numbers: damage (a cut's, × the move's), reach, cone, colour
@@ -27,9 +29,9 @@ export const SABER_STRIKE = Object.freeze({ damage: 15, reach: 1.9, cone: 80, co
 export const SABER_COMBOS = Object.freeze({
   timing: { buffer: 14, late: 12, pause: [16, 50], blend: 3, rest: 18 },
   moves: {
-    'saber-1': { swing: 'neutral', role: 'opener', frames: 18, cancel: 11, travel: { kind: 'none' }, damage: 1 },
-    'saber-2': { swing: 'left', role: 'filler', frames: 18, cancel: 11, travel: { kind: 'none' }, damage: 1 },
-    'saber-3': { swing: 'back', role: 'finisher', frames: 30, travel: { kind: 'none' }, damage: 2, impact: 2 },
+    'saber-1': { swing: 'neutral', role: 'opener', frames: 18, cancel: 11, travel: { kind: 'none' }, plant: 0.5, damage: 1 },
+    'saber-2': { swing: 'left', role: 'filler', frames: 18, cancel: 11, travel: { kind: 'none' }, plant: 0.5, damage: 1 },
+    'saber-3': { swing: 'back', role: 'finisher', frames: 30, travel: { kind: 'none' }, plant: 0.6, damage: 2, impact: 2 },
   },
   combos: [{ id: 'three-cuts', name: 'Three cuts', beats: ['L', 'L', 'L'], moves: ['saber-1', 'saber-2', 'saber-3'] }],
 });

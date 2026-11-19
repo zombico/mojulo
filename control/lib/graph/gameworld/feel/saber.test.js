@@ -1,6 +1,6 @@
 // The saber (feel/saber.js; its look round-look.js SLASH_LOOK, SABER_STRAND; drawn by the controllable page). The
 // concepts: Galaxy Boy's feel's saber variant strikes with the string and fires no buster; its three cuts chain on the fire
-// press and none moves the body; its damage is on the buster's scale (a cut over a tap, the string over a full charge);
+// press and none moves the body, each splitting the feet in place; its damage is on the buster's scale (a cut over a tap, the string over a full charge);
 // only a page with a saber's body draws its slash and its blade's strand (a buster's page none); the same rule each read.
 import { describe, it, expect } from 'vitest';
 import { saberRule, SABER_STRIKE, SABER_COMBOS } from './saber.js';
@@ -19,11 +19,13 @@ describe('the saber', () => {
     expect(R).toMatchObject({ strike: 'melee', strikeDamage: SABER_STRIKE.damage });
     expect(feelRule({ pole: 'galaxy-boy', takes: true }).moveset).toBeUndefined();
   });
-  it('three cuts on the fire press, none moving the body', () => {
+  it('three cuts on the fire press, none moving the body, each planting its feet split', () => {
     const M = saberRule().moveset;
     let node = M.tree.L, n = 0;
-    while (node) { n++; expect(M.moves[node.move].travel).toBeNull(); node = node.next?.L; }
+    while (node) { n++; expect(M.moves[node.move].travel).toBeNull(); expect(M.moves[node.move].plant).toBeGreaterThan(0); node = node.next?.L; }
     expect(n).toBe(3);
+    // (each cut plants its feet in place, one leg forward and one back; the finisher's split the widest)
+    expect(M.moves['saber-3'].plant).toBeGreaterThan(M.moves['saber-1'].plant);
   });
   it('its damage on the buster\'s scale: a cut over a tap, the string over a full charge', () => {
     const cuts = SABER_COMBOS.combos[0].moves.map((id) => SABER_STRIKE.damage * (SABER_COMBOS.moves[id].damage ?? 1));

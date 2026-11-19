@@ -1021,6 +1021,8 @@ export const WORLD_KINDS = {
               if (!mv.swing) continue;
               swings[mv.clip] = moveClip(mv, { ...mc, footwork: true });
               if (mv.travel) swings[`${mv.clip}_still`] = moveClip({ ...mv, travel: null }, mc);
+              // (a PLANT's feet split in place; `_on` the same move begun already split, chained into from another)
+              if (mv.plant) swings[`${mv.clip}_on`] = moveClip({ ...mv, plantOn: true }, mc);
             }
           }
           clipsIn = { ...clipsIn, ...swings };
