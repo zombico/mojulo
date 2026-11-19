@@ -31,7 +31,7 @@ station to station and handed between them.
   on its own side, a seat nobody sits in held still, one fixed overhead
   station framing the whole room. One cook and no kitchen named is the line by the trail, as it was.
 - **Each cook's corner.** Seated, each other seat's hands and what it holds stand in its own corner in its colour (P2
-  bottom right, P3 top right, P4 top); seat 1's are where they were.
+  bottom right, P3 top right, P4 bottom); seat 1's are where they were.
 - **Made, not refused.** The registry marks `soul.dependence=handoff` (the work mechanic's kitchen) and
   `soul.frame=fixed` (the kitchen's fixed station, besides the versus fighter's) built: the co-op kitchen probe is
   makeable. The shared kitchen joins the Work Sim rail (its words point there; the not-yet list is empty), a quick work
@@ -39,4 +39,10 @@ station to station and handed between them.
   with its cooks. Proved through the real door: `design_game({ quick: { goal: 'work', cooks: 2 } })` made the game in
   one call, `export_game` wrote it, and in headless Chromium its shell's play button opened the kitchen, two pads sat
   down and a fish crossed the pass into the second cook's corner.
+- **The kitchen, seen.** The open orders run along the top of the screen (the work mechanic's opt-in `rail`: each
+  ticket in its order's colour, what it wants said, its bar the patience it has left; the 3D ticket markers and the
+  order toast give way to it). A tag over every seated cook names its seat in its colour and what its hands hold, so a
+  handoff is seen where it happens. The kitchen's dress has pieces of its own: plating stations a stainless counter with
+  a plate and a board, a pass between cooks a stainless hatch with a warm lit top, the hand-in a servery with its bell;
+  the counter between the sides stainless. A seated shift's seat strip sits at the bottom, the top being the rail's.
 

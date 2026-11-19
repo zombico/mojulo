@@ -223,7 +223,7 @@ window.__mojSeatUses = (n) => __seatUseN[n] || 0;
 window.__mojSeatLabel = (n) => { const x = __SK.seat(__SEATS, n); if (!x) return ''; const f = x.controller === 'keyboard' ? 'keyboard' : 'gamepad', c = (__BIND.bind[f].interact || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; };` : ''}
 // the strip: who is in, in their colours; an empty seat says how to sit down
 const __seatEl = document.createElement('div');
-__seatEl.style.cssText = 'position:fixed;top:calc(8px + env(safe-area-inset-top, 0px));left:50%;transform:translateX(-50%);display:flex;gap:6px;font:600 12px system-ui,sans-serif;pointer-events:none;z-index:5';
+__seatEl.style.cssText = 'position:fixed;${uses ? 'bottom:calc(44px + env(safe-area-inset-bottom, 0px))' : 'top:calc(8px + env(safe-area-inset-top, 0px))'};left:50%;transform:translateX(-50%);display:flex;gap:6px;font:600 12px system-ui,sans-serif;pointer-events:none;z-index:5';   // (a shift's seats: at the bottom, the top being its order rail's)
 document.body.appendChild(__seatEl);
 let __seatSaid = '';
 function __seatStrip() {

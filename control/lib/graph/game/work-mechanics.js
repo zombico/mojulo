@@ -24,7 +24,9 @@
  *     tickets?: ticket slots at the hand-in, reach? (1.1): how far from a place its E works, bases? (true): the places'
  *     own markers (false: a room that draws them as blocks), show? (false): the work drawn where it happens, in pips (a
  *     station's work filling, its wait filling, its hold going out toward the burn; a pip a unit on a shelf), and what
- *     is in hand on the HUD, a counter an item that stands only while one is held, counters? (false): a counter stands
+ *     is in hand on the HUD, a counter an item that stands only while one is held, rail? (false): the open orders along
+ *     the top of the screen, each its order's colour, what it wants and a bar of the patience it has left (in place of the
+ *     toast that says an order came), counters? (false): a counter stands
  *     under each place (a level's, quick.js workCast), each place's marker a small cap on its top }
  *
  * SEATS (ctx.seats, a level with seats: the bodies seats 2 … take): every verb a hand does is lowered once a seat. Seat 1
@@ -65,7 +67,8 @@ export const WORK_COLORS = Object.freeze({ shovel: '#e4875f', bucket: '#5fa3c7',
 const COLOR = WORK_COLORS;
 const TICKETS = ['#e05a5a', '#5a9be0', '#e0c25a', '#a05ae0', '#5ae0b4', '#e07f5a'];
 // (seated: each seat's corner of the screen, its own state there in its colour; seat 1's is the bottom left, as it was)
-const CORNER = [null, 'bottom-left', 'bottom-right', 'top-right', 'top'];
+// (the top's middle is the order rail's, the shared state in one place: work's `rail`)
+const CORNER = [null, 'bottom-left', 'bottom-right', 'top-right', 'bottom'];
 
 // one guard after another (the bus's `if` takes one predicate): `on` → … → `ok` when every guard holds; the first that
 // fails emits `no` (at most one: a later guard is asked only when the earlier held)
@@ -158,6 +161,8 @@ export function lowerWork(p, ctx) {
   // left out (a room that draws them as blocks), the busy, ready and ticket markers kept, raised over a counter
   const reach = p.reach === undefined ? 1.1 : p.reach, bases = p.bases !== false, lift = bases ? 0 : 0.6, show = p.show === true;
   if (p.show !== undefined && typeof p.show !== 'boolean') fail('show is true (the work drawn where it happens, in pips) or false');
+  const rail = p.rail === true;
+  if (p.rail !== undefined && typeof p.rail !== 'boolean') fail('rail is true (the open orders along the top of the screen, each its patience going) or false');
   if (!(Number.isFinite(reach) && reach >= 0.5 && reach <= 3)) fail('reach is how far from a place its E works, 0.5 to 3 m');
   // THE HANDS (docs/local-multiplayer-principles.md): one a seat. Seat 1 is the pilot: its zones `use-<place>` watch it,
   // its press is the page's `use-<place>`, its holder the bag. A level with seats (ctx.seats: the bodies seats 2 … take,
@@ -173,7 +178,7 @@ export function lowerWork(p, ctx) {
   for (const H of HANDS.slice(1)) F.vars[H.carry] = 0;
   const zoneOf = (H, id) => (H.n === 1 ? `use-${id}` : `s${H.n}:use-${id}`);
   const zone = (id, at, prompt, radius = reach) => {
-    for (const H of HANDS) F.sources.push(H.n === 1 ? { type: 'zone', zone: `use-${id}`, at: at.slice(), radius, planar: true, watch: ctx.player, use: id, prompt } : { type: 'zone', zone: zoneOf(H, id), at: at.slice(), radius, planar: true, watch: H.ent, seat: H.n, seatUse: id, prompt });
+    for (const H of HANDS) F.sources.push(H.n === 1 ? { type: 'zone', zone: `use-${id}`, at: at.slice(), radius, planar: true, watch: ctx.player, use: id, prompt } : { type: 'zone', zone: zoneOf(H, id), at: at.slice(), radius, planar: true, watch: H.ent, seat: H.n, seatUse: id, hands: H.bag, prompt });
   };
   // `counters: true`: the level stands a counter under each place (quick.js workCast), so a place's own marker sits on
   // its top as a dome in its colour, never wider than the counter
@@ -453,15 +458,32 @@ export function lowerWork(p, ctx) {
     R({ on: `${I}:walk:${j}`, do: 'inc', var: missed, by: 1 });
     R({ on: `${I}:walk:${j}`, do: 'emit', type: 'work:walked' });
     kinds.forEach((K, k) => {
+      // (the tickets as markers at the hand-in; with the rail up, the rail is the ticket and none is laid)
       const tk = `${W}-ticket-${j}-${k}`;
-      mark(tk, [r3(serveAt[0] + (j - (tickets - 1) / 2) * 0.7), serveAt[1], serveAt[2]], TICKETS[k % TICKETS.length], 1.2, false, 0.22);
-      R({ on: `${I}:fill:${j}`, match: { kind: String(k + 1) }, do: 'toggle', target: tk, to: true });
+      if (!rail) mark(tk, [r3(serveAt[0] + (j - (tickets - 1) / 2) * 0.7), serveAt[1], serveAt[2]], TICKETS[k % TICKETS.length], 1.2, false, 0.22);
+      if (!rail) R({ on: `${I}:fill:${j}`, match: { kind: String(k + 1) }, do: 'toggle', target: tk, to: true });
       R({ on: `${I}:fill:${j}`, match: { kind: String(k + 1) }, do: 'emit', type: `${I}:ordered:${k}` });
-      R({ on: `${I}:walk:${j}`, do: 'toggle', target: tk, to: false });
-      R({ on: `${I}:done:${j}:${k}`, do: 'toggle', target: tk, to: false });
+      if (!rail) { R({ on: `${I}:walk:${j}`, do: 'toggle', target: tk, to: false }); R({ on: `${I}:done:${j}:${k}`, do: 'toggle', target: tk, to: false }); }
     });
+    // THE ORDER RAIL (`rail: true`): the ticket along the top of the screen while it is open, in its order's colour, what
+    // it wants said, its bar the patience it has left (the shared state shown in one place, for every cook)
+    if (rail) {
+      const keeps = `${I}:r:${j}`;
+      F.vars[keeps] = 0;
+      R({ on: `${I}:fill:${j}`, do: 'set', var: keeps, to: patience });
+      R({ on: tick, if: { var: o, gte: 1 }, do: 'inc', var: keeps, by: -STEP, min: 0 });
+      kinds.forEach((K, k) => {
+        const rid = `${W}-order-${j}-${k}`, gate = `ui-${rid}`;
+        F.vars[gate] = 0;
+        F.hud.push({ id: rid, var: keeps, label: `${K.name}: ${pieces(K.wants)}`, as: 'bar', max: patience, slot: 'top', color: TICKETS[k % TICKETS.length] });
+        R({ on: `${I}:fill:${j}`, match: { kind: String(k + 1) }, do: 'set', var: gate, to: 1 });
+        R({ on: `${I}:walk:${j}`, do: 'set', var: gate, to: 0 });
+        R({ on: `${I}:done:${j}:${k}`, do: 'set', var: gate, to: 0 });
+      });
+    }
   }
-  kinds.forEach((K, k) => toast(`${I}:ordered:${k}`, `order: ${K.name} (${pieces(K.wants)})`, { ttl: 1.6 }));
+  // (with the rail up, an order is seen arriving on it: no toast besides)
+  if (!rail) kinds.forEach((K, k) => toast(`${I}:ordered:${k}`, `order: ${K.name} (${pieces(K.wants)})`, { ttl: 1.6 }));
   R({ on: `${I}:turned`, do: 'inc', var: missed, by: 1 });
   R({ on: `${I}:turned`, do: 'emit', type: 'work:walked' });
   toast('work:walked', 'an order walked out');

@@ -26,7 +26,10 @@ import { SEATS } from '../../controls/seats-kernel.js';
  *   seatReachScript(uses)   seats 2 to 4's reach: the place each seat's body stands in (the nearest centre), a plate over
  *                           its head in its colour with its key and the place's word, and its own interact press
  *                           (window.__mojSeatUses, the seats block's count) turned into s<n>:use-<place> on the bus.
- *                           Seat 1 is the pilot's reach, as it was. Emitted only for a world with seat uses
+ *                           Seat 1 is the pilot's reach, as it was. And a TAG over every seated body, seat 1's too: the
+ *                           seat's label in its colour and what its hands hold (its holder's `held:` counts: seat 1's
+ *                           the bag, seat n's the `hands` its zones name), so what is carried, and by whom, is seen where
+ *                           it is (docs/local-multiplayer-principles.md, principle 8). Emitted only for a world with seat uses
  */
 
 // A play block's menus over the play: centred, solid, taking the pointer; the guide's register and border dress them
@@ -188,7 +191,7 @@ export const usesOf = (sources) => {
 
 // a seat's usable places: zone → { n, id, body, at, prompt } (the zones a seated mechanic lays a seat its own)
 export const seatUsesOf = (sources) => Object.fromEntries((sources || []).filter((s) => s && s.type === 'zone' && s.seatUse && Number.isInteger(s.seat) && Array.isArray(s.at))
-  .map((s) => [s.zone, { n: s.seat, id: s.seatUse, body: s.watch, at: [s.at[0], s.at[1]], prompt: s.prompt || '' }]));
+  .map((s) => [s.zone, { n: s.seat, id: s.seatUse, body: s.watch, at: [s.at[0], s.at[1]], prompt: s.prompt || '', ...(s.hands ? { hands: s.hands } : {}) }]));
 
 export function seatReachScript(uses) {
   return `
@@ -196,9 +199,25 @@ export function seatReachScript(uses) {
 // centre is in reach, a plate over the head in the seat's colour says the key and the place, and the seat's own interact
 // press (window.__mojSeatUses) sends s<n>:use-<place> into the bus
 const __SUSES = ${safeJson(uses)}, __SCOL = ${safeJson(SEATS.SEAT_COLORS)}, __SLAB = ${safeJson(SEATS.SEAT_LABELS)};
-const __sReach = {}, __sPrev = {}, __sEl = {}, __sShown = {}, __sBody = {};
-for (const z in __SUSES) __sBody[__SUSES[z].n] = __SUSES[z].body;
+const __sReach = {}, __sPrev = {}, __sEl = {}, __sShown = {}, __sBody = {}, __sHands = { 1: 'bag' };
+for (const z in __SUSES) { __sBody[__SUSES[z].n] = __SUSES[z].body; if (__SUSES[z].hands) __sHands[__SUSES[z].n] = __SUSES[z].hands; }
 const __sV = new THREE.Vector3();
+// THE TAGS: each seated body's label and what its hands hold, over its head (a holder's items: its held: counts)
+const __tItems = {}, __tEl = {}, __tShown = {};
+for (const n in __sHands) { const pre = 'held:' + __sHands[n] + ':'; __tItems[n] = Object.keys(__busState.vars).filter((k) => k.indexOf(pre) === 0).map((k) => [k, k.slice(pre.length).replace(/-/g, ' ')]); }
+const __headOf = (e) => (e.collideHeight || 1.6);
+function __stepTags(W) {
+  const S = window.__mojSeats ? window.__mojSeats() : null;
+  for (const n in __sHands) {
+    const x = S && S.seats.find((q) => q.n === +n && !q.away), id = +n === 1 ? W && W.pilotId : __sBody[n], e = id && W && W.byId[id], p = e && !e.gone && e.transform && e.transform.pos;
+    let el = __tEl[n];
+    if (!el) { el = __tEl[n] = document.createElement('div'); el.style.cssText = 'position:absolute;z-index:11;pointer-events:none;transform:translate(-50%,-100%);padding:2px 8px;border-radius:9px;font:700 12px system-ui,sans-serif;color:#fff;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.35);background:' + __SCOL[n - 1]; wrap.appendChild(el); }
+    const held = (__tItems[n] || []).map(([k, w]) => { const c = __busState.vars[k] || 0; return c > 0 ? (c > 1 ? w + ' \u00d7' + c : w) : null; }).filter(Boolean);
+    const h = x && p ? __SLAB[n - 1] + (held.length ? ' \u00b7 ' + held.join(', ') : '') : '';
+    if (h !== __tShown[n]) { __tShown[n] = h; el.textContent = h; el.style.display = h ? 'block' : 'none'; }
+    if (h) { __sV.set(p[0], p[1], p[2] + __headOf(e) + 0.25).project(camera); el.style.left = ((__sV.x + 1) / 2 * 100) + '%'; el.style.top = ((1 - __sV.y) / 2 * 100) + '%'; }
+  }
+}
 function __stepSeatReach(zoneEvents, incoming) {
   for (const ev of zoneEvents) {
     const u = __SUSES[ev.zone]; if (!u) continue;
@@ -218,8 +237,9 @@ function __stepSeatReach(zoneEvents, incoming) {
     const key = top && window.__mojSeatLabel ? window.__mojSeatLabel(+n) : '';
     const h = top && p && !window.__mojMenuOpen ? '<b style="color:' + __SCOL[n - 1] + '">' + (key || __SLAB[n - 1]).replace(/[<&]/g, '') + '</b>' + (__SUSES[top].prompt || 'use').replace(/[<&]/g, '') : '';
     if (h !== __sShown[n]) { __sShown[n] = h; el.innerHTML = h; el.style.display = h ? 'block' : 'none'; }
-    if (h) { __sV.set(p[0], p[1], p[2] + 2.1).project(camera); el.style.left = ((__sV.x + 1) / 2 * 100) + '%'; el.style.top = ((1 - __sV.y) / 2 * 100) + '%'; }
+    if (h) { __sV.set(p[0], p[1], p[2] + __headOf(e) + 0.85).project(camera); el.style.left = ((__sV.x + 1) / 2 * 100) + '%'; el.style.top = ((1 - __sV.y) / 2 * 100) + '%'; }
   }
+  __stepTags(W);
 }`;
 }
 

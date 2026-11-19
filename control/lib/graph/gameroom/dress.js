@@ -16,7 +16,8 @@
  *   dressPlaces(places, trade, { card? }) → { faces, dressed: Set(place ids), laid: [{ id, piece }] }
  *   drawPiece(out, place, kind, palette, group), face, box, prism   the drawing, shared with the area (area.js)
  *     place: { id, kind (a primitive's: counter, bin, shelf, pass, cover-low, …), at: [x, y, z], size: [w, d, h],
- *              sid?, verb?, item? }   (a counter's station id and verb, a bin's or a shelf's item)
+ *              sid?, verb?, item?, across? }   (a counter's station id and verb, a bin's or a shelf's item; a shelf set in a
+ *              counter between cooks, `across`)
  *
  * Pure.
  */
@@ -34,6 +35,12 @@ export const OWN_PIECES = Object.freeze({
   plot: { w: 1, d: 1, h: 0.25, parts: [B(0, 1, 0, 1, 0, 0.12, 'beam'), B(0.08, 0.92, 0.1, 0.22, 0.12, 0.25, 'paint'), B(0.08, 0.92, 0.44, 0.56, 0.12, 0.25, 'paint'), B(0.08, 0.92, 0.78, 0.9, 0.12, 0.25, 'paint')] },
   // a heap of raked leaves
   leaves: { w: 1, d: 1, h: 0.5, parts: [['prism', 0.5, 0.5, 0.5, 0, 0.18, 9, 'paint'], ['prism', 0.48, 0.52, 0.36, 0.18, 0.34, 9, 'paint'], ['prism', 0.5, 0.48, 0.2, 0.34, 0.5, 9, 'cabinet']] },
+  // a plating counter: a cabinet under a stainless top, its doors and their pulls, a plate and a board on top
+  plating: { w: 1, d: 1, h: 0.9, parts: [B(0.02, 0.98, 0.04, 0.98, 0, 0.84, 'cabinet'), B(-0.02, 1.02, -0.02, 1.02, 0.84, 0.9, 'services'), B(0.02, 0.98, 0.02, 0.05, 0, 0.08, 'trim'), B(0.07, 0.48, 0.0, 0.04, 0.12, 0.78, 'column'), B(0.52, 0.93, 0.0, 0.04, 0.12, 0.78, 'column'), B(0.4, 0.45, -0.02, 0, 0.62, 0.7, 'trim'), B(0.55, 0.6, -0.02, 0, 0.62, 0.7, 'trim'), ['prism', 0.36, 0.5, 0.17, 0.9, 0.92, 16, 'cabinet'], B(0.6, 0.9, 0.3, 0.7, 0.9, 0.93, 'beam')] },
+  // a pass between cooks: a stainless hatch, its top lit warm (the heat lamp's glow: what is put here is wanted across)
+  hatch: { w: 1, d: 1, h: 1.1, parts: [B(0, 1, 0, 1, 0, 1.0, 'services'), B(0, 1, 0, 1, 1.0, 1.04, 'paint'), B(0.1, 0.9, 0.1, 0.9, 1.04, 1.1, 'cabinet')] },
+  // the hand-in: a stainless servery, its top, a ticket rail along it and the bell
+  servery: { w: 1, d: 1, h: 1, parts: [B(0, 1, 0, 1, 0, 0.93, 'services'), B(-0.02, 1.02, -0.02, 1.02, 0.93, 1, 'trim'), B(0.05, 0.95, 0.88, 0.95, 1, 1.04, 'beam'), ['prism', 0.5, 0.3, 0.08, 1, 1.06, 12, 'paint'], ['prism', 0.5, 0.3, 0.02, 1.06, 1.1, 6, 'trim']] },
   // a wheelie bin: its body, its lid
   bin: { w: 0.8, d: 0.8, h: 1.1, parts: [B(0.05, 0.75, 0.05, 0.75, 0.06, 1.0, 'paint'), B(0, 0.8, 0, 0.8, 1.0, 1.1, 'trim'), ['prism', 0.15, 0.08, 0.06, 0, 0.12, 8, 'beam'], ['prism', 0.65, 0.08, 0.06, 0, 0.12, 8, 'beam']] },
 });
@@ -45,10 +52,11 @@ const binFor = (item = '') => (has(item, ['rice', 'grain', 'flour', 'seed', 'cem
 
 export const DRESSES = Object.freeze({
   kitchen: {
-    about: 'a kitchen: a range for what cooks alone, workbenches for what is worked, counters for what is plated and handed in',
+    about: 'a kitchen: a range for what cooks alone, workbenches for what is worked, stainless counters for what is plated, a lit hatch for what is passed between cooks, the servery and its bell for what is handed in',
     palette: { cabinet: '#ece6da', beam: '#b98b5e', trim: '#8f9aa3', paint: '#d86f4f', services: '#c9ced3', concrete: '#a8a29a', column: '#d9d2c3', grate: '#7d858c' },
-    piece: (p, card) => (p.kind === 'counter' ? (card?.stations?.[p.sid]?.wait ? 'stove' : p.verb === 'bucket' ? 'counter' : 'workbench')
-      : p.kind === 'bin' ? binFor(p.item) : p.kind === 'shelf' ? 'shelves' : p.kind === 'pass' ? 'counter' : null),
+    // (a shelf `across` a counter between cooks, kitchen-level.js: the hatch; a shelf on one side: shelves)
+    piece: (p, card) => (p.kind === 'counter' ? (card?.stations?.[p.sid]?.wait ? 'stove' : p.verb === 'bucket' ? 'plating' : 'workbench')
+      : p.kind === 'bin' ? binFor(p.item) : p.kind === 'shelf' ? (p.across ? 'hatch' : 'shelves') : p.kind === 'pass' ? 'servery' : null),
   },
   farm: {
     about: 'a farm yard: fields for what grows alone, workbenches and carts, sacks and barrels',

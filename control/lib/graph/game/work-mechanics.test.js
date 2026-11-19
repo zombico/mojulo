@@ -108,6 +108,22 @@ describe('the work mechanic', () => {
     L.press('chop-0');
     expect(L.V['ui-w0-held-fish']).toBe(0);
   });
+  it('the order rail: an open ticket along the top in its colour, its bar the patience left, gone when it walks out', () => {
+    const L = level({ rail: true });
+    const row = L.c.events.hud.find((h) => h.id === 'w0-order-0-0');
+    expect(row).toMatchObject({ var: '__w0:r:0', as: 'bar', slot: 'top', max: 60 });
+    expect(row.label).toMatch(/^dish: /);
+    L.wait(0.5);
+    expect(L.V['ui-w0-order-0-0']).toBe(1);
+    const at = L.V['__w0:r:0'];
+    L.wait(10);
+    expect(L.V['__w0:r:0']).toBeCloseTo(at - 10, 5);
+    L.wait(55);
+    expect(L.V['ui-w0-order-0-0']).toBe(0);   // walked out
+    // absent, none of it is laid, and the toast says the order as before
+    expect(level().c.events.hud.some((h) => /^w0-order-/.test(h.id ?? ''))).toBe(false);
+    expect(L.c.events.hud.some((h) => /order: /.test(h.text ?? ''))).toBe(false);
+  });
   it('one hand-in press serves one order, and the bell decides', () => {
     const L = level({ goal: 1, hands: 4 });
     const dish = () => {

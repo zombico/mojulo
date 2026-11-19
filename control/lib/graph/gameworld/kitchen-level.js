@@ -32,7 +32,7 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r3 = (v) => Math.round(v * 1000) / 1000;
 // how far from a counter's middle a place's E reaches (its side: the counters stand solid)
 const REACH = 1.6;
-const FILL = { ...WORK_COLORS, counter: '#cfc6b8', wall: '#ddd5c8', bg: '#f4f0e8' };
+const FILL = { ...WORK_COLORS, counter: '#c9ced3', wall: '#ddd5c8', bg: '#f4f0e8' };
 
 export const kitchenOf = (quick) => (quick?.goal !== 'work' ? null : quick.kitchen ?? ((quick.cooks ?? 1) > 1 ? 'split' : null));
 
@@ -74,7 +74,7 @@ export function kitchenLevel(G, { ref = 'kitchen', heroRef = null, title = null 
   const places = [
     ...Object.entries(at.stations).flatMap(([sid, list]) => list.map((p, k) => ({ id: `${sid}-${k}`, kind: 'counter', at: p, size: [1, 1, 0.9], sid, verb: C.stations[sid].verb }))),
     ...Object.entries(at.crates).map(([item, p]) => ({ id: `crate-${item}`, kind: 'bin', at: p, size: [0.8, 0.8, 0.7], item })),
-    ...Object.entries(at.shelves).map(([item, p]) => ({ id: `shelf-${item}`, kind: 'shelf', at: p, size: [0.6, 0.6, 1.1], item })),
+    ...Object.entries(at.shelves).map(([item, p]) => ({ id: `shelf-${item}`, kind: 'shelf', at: p, size: [0.6, 0.6, 1.1], item, ...(K.passes.includes(item) ? { across: true } : {}) })),
     { id: 'serve', kind: 'pass', at: at.serve, size: [0.8, 1.6, 1] },
   ];
   const trade = G.room?.dress === false ? null : dressOf(C, typeof G.room?.dress === 'string' ? G.room.dress : null);
@@ -93,7 +93,7 @@ export function kitchenLevel(G, { ref = 'kitchen', heroRef = null, title = null 
   // THE SHIFT: the work mechanic on the kitchen's places, a hand a cook (the level's seats), its goal the tuned one
   const game = {
     levelRef: ref, fall: { mode: 'respawn' },
-    mechanics: [{ kind: 'work', card: C, at: { origin: [0, 0, 0], stations: at.stations, crates: at.crates, shelves: at.shelves, serve: at.serve }, heading: 0, reach: REACH, bases: false, show: true, ...(Q.serve ? { goal: Q.serve } : { goal: T.goal }) }],
+    mechanics: [{ kind: 'work', card: C, at: { origin: [0, 0, 0], stations: at.stations, crates: at.crates, shelves: at.shelves, serve: at.serve }, heading: 0, reach: REACH, bases: false, show: true, rail: true, ...(Q.serve ? { goal: Q.serve } : { goal: T.goal }) }],
   };
   const step = sfxSound('step-concrete', { style: 'realistic' })?.gestures ?? null;
   const manifest = {
