@@ -289,7 +289,10 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
   // (read lit, a body whose colour is its palette's own (no painted texture) says how each of its materials answers the
   // light: color-theorist/cast-response.js; the page reads a corner's class off its colour)
   const response = lit && !pack.paintTex && manifest && manifest.recipe && manifest.recipe.palette ? (await import('@/lib/graph/color-theorist/cast-response.js')).castResponse(manifest.recipe.palette) : null;
-  return { ...pack, clips, ...(held ? { held } : {}), ...(face ? { face } : {}), ...(response && response.length ? { response } : {}) };
+  const out = { ...pack, clips, ...(held ? { held } : {}), ...(face ? { face } : {}), ...(response && response.length ? { response } : {}) };
+  // (its palette, held for the cast rig's value and separation reads, color-theorist/cast-rig.js; never on the page)
+  if (manifest && manifest.recipe && manifest.recipe.palette) Object.defineProperty(out, 'palette', { value: manifest.recipe.palette, enumerable: false });
+  return out;
 }
 
 /**
@@ -1443,11 +1446,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // (the one a player pilots among them plays the engagement run's body: heroFigure's `pilot`)
           const piloted = (payload.entities || []).some((e) => e && e.pilotable && e.body && (e.body.figure === name || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
           const castFig = !!formCast && typeof rawSpec.modelRef !== 'string' && (payload.entities || []).some((e) => e && e.body && (e.body.figure === name || (Array.isArray(e.body.modes) && e.body.modes.some((m) => m && m.figure === name)) || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
-          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(piloted ? { pilot: true } : {}), ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(talks ? { talks } : {}), ...(castFig ? { lit: true } : {}) });
+          const fig = await heroFigure(name, rawSpec, { swing, ...(piloted ? { pilot: true } : {}), ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(talks ? { talks } : {}), ...(castFig ? { lit: true } : {}) });
+          const { held, ...figure } = fig;
           if (castFig) {
             const { castRig, CAST_REGISTERS } = await import('@/lib/graph/color-theorist/cast-rig.js'), { castRigInput } = await import('@/lib/graph/scene/channels/cast-rig.js');
             const reg = sketch.manifest.fxStyle && CAST_REGISTERS.includes(sketch.manifest.fxStyle.register) ? sketch.manifest.fxStyle.register : 'western';
-            figure.cast = { ...castRigInput(castRig(formCast.cube, { ...(formCast.hour !== undefined ? { hour: formCast.hour } : {}), register: reg })), surface: 'form' };
+            // (read as the body it is, its palette: a dark suit's shade side lifted off black, cast-rig.js value)
+            figure.cast = { ...castRigInput(castRig(formCast.cube, { ...(formCast.hour !== undefined ? { hour: formCast.hour } : {}), register: reg, ...(fig.palette ? { palette: fig.palette } : {}) })), surface: 'form' };
           }
           // (a body destroyed in it, `vanish.die` a dismantle or a cleave: each bone's parent rides the figure, the joints the
           // page's wreck cuts: figures/rig-tpose.js humanoidParents, read off the rest bones; a rig not a humanoid's, none)

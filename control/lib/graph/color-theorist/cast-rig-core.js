@@ -4,7 +4,8 @@
  * cycle. `castRig` (cast-rig.js) is this with the cube's light solve (era/cube-light.js); what a rig is, is written there.
  *
  *   castRigOf(cube, { hour?, register?, palette? }, solve)   the rig: `solve(cube, { hour })` the cube's light where
- *     there is a cube; with none, the card, and no solve asked for
+ *     there is a cube; with none, the card, and no solve asked for. `palette` (the body's groups → hex): what the
+ *     separation and the value laws read it as (a middle grey where absent)
  *   castCard(register, { palette? })   the card as a rig
  *   CAST_REGISTERS, CAST_RIG_LAWS, CAST_BANDS, CAST_CARD
  */
@@ -16,11 +17,16 @@ export const CAST_REGISTERS = Object.freeze(['western', 'anime']);
 // (`form`, `separation` and `rimLift` are the hero light's own, HERO_LIGHT_LAWS, and `rim` the baked cast light's,
 // CAST_LIGHT.rim, written here: this module reads no other of the era's, so a page's channel can carry the card from
 // inside the era's import cycle; cast-rig.test.js holds them to the ones they stand for)
-export const CAST_RIG_LAWS = Object.freeze({ form: 1.6, depth: 6, keyGain: 3, keyCos: 0.8, separation: 0.12, rimLift: 0.25, rim: Object.freeze({ strength: 0.45, power: 3 }) });
+// (`floor` and `lift`: no body's shade side darker than `floor` (an OKLab L: dark, never black), its key and fill raised
+// together by at most `lift` × to reach it, so its form keeps its turn; read off its bulk, `BULK`, a dark suit's own)
+export const CAST_RIG_LAWS = Object.freeze({ form: 1.6, depth: 6, keyGain: 3, keyCos: 0.8, separation: 0.12, rimLift: 0.25, floor: 0.27, lift: 6, rim: Object.freeze({ strength: 0.45, power: 3 }) });
 /** The cel's tones (the fight rig's ramp: the shadow side, the turn, the light). */
 export const CAST_BANDS = Object.freeze({ steps: 3, ramp: Object.freeze([0.36, 0.65, 1]) });
 /** A body with no palette is read as a middle grey. */
 const GREY = 0.3;
+/** What most of a body is (a hero's palette groups: its top and its bottom, the cloth that covers it); a palette with none
+ *  of them is read by all its colours. */
+const BULK = Object.freeze(['Top', 'Bottom']);
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
@@ -85,6 +91,15 @@ export function castRigOf(cube, { hour, register = 'western', palette = null } =
     note: !cube && !formOk ? `the card's own: the key side ${r4(ratio)}× the shade side, its shade kept deep as a fight's is`
       : keyGain > 1 ? `the world's light turns a body only ${r4(raw)}× (a sky-lit level): the body's own key raised ${r4(keyGain)}×${formOk ? '' : `, its most, for ${r4(ratio)}× (want ${LAW.form}×)`}`
       : hemiGain > 1 ? `the world's light leaves the shade side a hole (${r4(raw)}×): the body's own fill raised ${r4(hemiGain)}×, the key side ${LAW.depth}× the shade` : `the key side is ${r4(ratio)}× the shade side: the form turns` });
+
+  // VALUE: the body's own shade side never black. A dark suit under a weak sky (an evening, a haze) sits under the floor
+  // whatever its turn: its key and its fill raised together, as a photographer fills a dark subject, the turn kept
+  const hexes = (ks) => ks.map((k) => palette[k]).filter((h) => typeof h === 'string' && /^#[0-9a-f]{6}$/i.test(h));
+  const bulk = palette ? (() => { const own = hexes(BULK), a = (own.length ? own : hexes(Object.keys(palette))).map((h) => luminance(linOf(h))); return a.length ? a.reduce((x, v) => x + v, 0) / a.length : GREY; })() : GREY;
+  const shade0 = bulk * wall * hemiGain, want = LAW.floor ** 3, lift = cube && shade0 < want ? Math.min(LAW.lift, want / Math.max(1e-9, shade0)) : 1;
+  keyGain *= lift; hemiGain *= lift;
+  reads.push({ law: 'value', ok: Lof(bulk * wall * hemiGain) >= LAW.floor - 1e-6, shade: r4(Lof(shade0)), lift: r4(lift), want: LAW.floor,
+    note: lift > 1 ? `the body's shade side would be ${r4(Lof(shade0))} L, under the floor (${LAW.floor}): its key and fill raised ${r4(lift)}× together${Lof(bulk * wall * hemiGain) < LAW.floor - 1e-6 ? `, its most (a body as dark as this keeps some black)` : ''}` : `the body's shade side stands at ${r4(Lof(shade0))} L, over the floor` });
 
   // SEPARATION: the figure's shade side against the horizon behind it; too close, and the rim carries the outline
   const albedo = palette ? (() => { const a = Object.values(palette).filter((h) => typeof h === 'string' && /^#[0-9a-f]{6}$/i.test(h)).map((h) => luminance(linOf(h))); return a.length ? a.reduce((s, v) => s + v, 0) / a.length : GREY; })() : GREY;

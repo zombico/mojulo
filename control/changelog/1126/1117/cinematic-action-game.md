@@ -380,3 +380,11 @@ or a recipe key; the spike mints through the real doors and measures.
   search is truer for every place: two bodies never share ground (a way no longer slips through a guard as it turns),
   a move that takes more than a tick is unseen at every tick of it, and a patrol's look round and a guard's reach at
   arm's length are read as the runtime has them.
+- **No body's shade side is black** (color-theorist/cast-rig.js, a `value` law): the cast rig held a body's lit side
+  over its shade side and its shade side against the horizon, but never asked how dark the shade side was, so a dark
+  suit under a weak sky (level 0's evening haze, the operative's near-black top) went to black on every face turned
+  from the sun (a third of the operative's pixels under 20 of 255, where the land's darkest are over 60). The rig now
+  reads the body's bulk (its palette's `Top` and `Bottom`) and, where its shade side would fall under the floor (an L of
+  0.27: dark, never black), raises the body's own key and fill together, at most 6×, so its form keeps the turn it had.
+  A form page now hands each hero's palette to its rig (it was read as a middle grey, which never falls under the
+  floor); a body with no palette, and a light one, is lit as it was.

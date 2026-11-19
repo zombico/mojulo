@@ -25,7 +25,8 @@
  *   tone   { curve, exposure, form, paint }   one rule an era: on a form page the renderer's curve tones the body with
  *          the land ('renderer'); on a painted page the body tones itself to the paint's range ('body')
  *   reads  the rig's laws, each { law, ok, …, note }: form (the key side over the shade side, held between FORM and
- *          DEPTH by the two gains), separation (the shade side against the horizon)
+ *          DEPTH by the two gains), value (the shade side of the body's bulk never under the floor, dark and never
+ *          black: both gains raised together where it would be), separation (the shade side against the horizon)
  *
  * Units are the solve's: out = base × light. A renderer that divides diffuse by π, as three does, sets its lights to π ×
  * these. Pure: no dice, no clock; the same cube and hour, the same rig, byte for byte. Its making is the core's
