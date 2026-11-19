@@ -210,6 +210,14 @@ language (`SIDE_MAP_FOES` in `control/lib/graph/gameworld/platformer-game.js`). 
 toy hero robot by the herobot ooze, each keeping its own animal's face, never a person's. Its critters are the game's own,
 made by the mascot ooze. The foes are drawn in the hero's cel light.
 
+Its last room may hold a boss (the chain's `boss`, an id from the roster in
+`control/lib/graph/gameworld/bosses.js`). The boss stands three metres in from the far wall, held to the lane, and its
+fall ends the level (`side-map/boss-cast.js`). A boss is a robot of the hero's own family: his body and his toy suit, at
+its own build and height. Its face is never a person's, because the hero alone keeps the open face. The face is its theme
+instead: a mask, a visor, a grille, one eye, a screen, a beast's head or an object. It always has eyes, lit in its signal
+colour, because the gaze is the aim and the light is the tell. The first is Crucible: its head is a crucible of molten
+metal, on a brute's body, and it lobs.
+
 The hero's body sets the screen. Galaxy Boy's is the toy hero robot's (`proportions: 'herobot'`, about four and a half
 heads, adult-limbed): a game body of its own, too real for a mascot's.
 
@@ -226,6 +234,6 @@ The eyes gate is the operator's: the map read as a drawing, the level played on 
 
 ## Not yet
 
-Things that move beside the way (the benchmark says them missing), a hit costing health and not a life, the boss's fight in
+Things that move beside the way (the benchmark says them missing), a hit costing health and not a life, the boss's face lighting as it winds up, the boss's second form, the boss's fight in
 its room, the hero's climb clip seen from behind. After them: a metroidvania (the zones as rooms on a grid, doors gated by powers, the map
 shown in the game), and the 3D platformer's courses told the same way.

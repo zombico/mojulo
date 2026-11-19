@@ -11,7 +11,8 @@
  *   a foe      ahead on its floor within FOE_AHEAD m (cast.js): fired at, a tap every FOE_TAP frames; hopped when it reaches it
  *   a ladder   walked to, held up to its top
  *   a drop     walked off (a cascade's steps, a chute)
- *   a room     crossed to its far wall: the end
+ *   a room     crossed to its far wall: the end; a room holding a foe (a boss) fought first, from ROOM_NEAR to ROOM_FAR m
+ *              off it, firing, hopping now and then over what it lobs
  *
  *   playSideMap(layout, reach, { stature, seconds?, trace?, drive? }) → { done, time, falls, downed, climbs: [{ zone, climb, kicks, margin,
  *                time }], at }   done: the hero stood in the last zone at its far side within `seconds` (240)
@@ -22,7 +23,7 @@ import { createWorld, stepWorld } from '../../worlds/controllable-world.js';
 import { groundOf } from '../../playscape/terrain.js';
 import { sideMapPlay } from './play.js';
 
-const DT60 = 1 / 60, LIP = 0.35, DASH_LEAD = 5, FOE_AHEAD = 9, FOE_TAP = 8;
+const DT60 = 1 / 60, LIP = 0.35, DASH_LEAD = 5, FOE_AHEAD = 9, FOE_TAP = 8, ROOM_NEAR = 4.5, ROOM_FAR = 7, ROOM_HOP = 50;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 /** A laid map played to its end by the bot, on the rule its game ships (`reach.rule`). */
@@ -43,6 +44,13 @@ export function playSideMap(layout, reach, { stature = 1.7, seconds = 240, trace
     // (its zone: the furthest along whose open space it stands in, not the camera's, which turns a corner early)
     const p = h.transform.pos, s = p[1], z = p[2], inOpen = L.open.filter((r) => s >= r.s0 - 0.05 && s <= r.s1 + 0.05 && z >= r.z0 - 0.5 && z <= r.z1);
     const k = inOpen.length ? Math.max(...inOpen.map((r) => r.zone)) : w.camera.frame?.zone ?? 0, Z = L.zones[k];
+    // (a room holding a foe still standing, a boss's: fought from a gun's distance, back and forth, firing, till it falls)
+    const held = Z.kind === 'room' ? (w.entities || []).find((e) => e.team === 'foes' && !e.gone && !e.downed && !e.dormant && e.transform && e.transform.pos[1] >= Z.rect[0] && e.transform.pos[1] <= Z.rect[1]) : null;
+    if (held) {
+      const d = held.transform.pos[1] - s, dir = d > ROOM_FAR ? 1 : d < ROOM_NEAR ? -1 : 0;
+      press({ strafe: dir, fire: (f % FOE_TAP) < FOE_TAP / 2, jump: h.grounded && f % ROOM_HOP === 0, jumpHeld: true });
+      continue;
+    }
     if (k === last.i && s >= last.rect[1] - 2) { done = true; break; }
     const C = climbs.find((c) => c.zone === k);
     if (C) {

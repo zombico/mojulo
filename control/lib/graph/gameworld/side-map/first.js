@@ -16,7 +16,8 @@
  *   the boss       one screen, shut behind; its power the level's end (`goal.boss`; when not asked, the room holds the
  *                  power alone)
  *
- *   firstSideMap({ premise?, boss? }) → the zone chain (readSideMap's words), its premise the plant's unless said
+ *   firstSideMap({ premise?, boss? }) → the zone chain (readSideMap's words), its premise the plant's unless said, its last
+ *                  room holding `boss` (a roster id) where one is named
  *   FIRST_SIDE_MAP_PREMISE
  *
  * Pure: words in, words out.
@@ -24,9 +25,11 @@
 export const FIRST_SIDE_MAP_PREMISE = 'Galaxy Boy breaks into the plant to stop the machine it makes';
 
 /** The run and gun's first level as a zone chain. */
-export function firstSideMap({ premise = FIRST_SIDE_MAP_PREMISE } = {}) {
+export function firstSideMap({ premise = FIRST_SIDE_MAP_PREMISE, boss } = {}) {
   return {
     premise,
+    // (its boss, a roster id: gameworld/bosses.js)
+    ...(boss ? { boss } : {}),
     // (crates on its runs, the buster's other target: hopped or shot apart, crates.js)
     crates: true,
     zones: [

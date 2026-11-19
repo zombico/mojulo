@@ -14,7 +14,9 @@
  *              meets it), its figure, its hit egg and its collider together; a foe already that tall as it was
  *
  *   sideMapPlaced(layout, from) → [{ id, eid, at: [0, s, z], heading, segment }]
- *   sideMapEnds(layout, from, { spawn }) → the ends hostileCast reads: { placed, spawn, beats: [], rail: { length } }
+ *   sideMapEnds(layout, from, { spawn, boss? }) → the ends the foe cast reads: { placed, spawn, beats: [], rail: { length },
+ *                  boss?: bossPlace's }
+ *   bossPlace(layout, id) → { id, at, heading, zone }   the last room's boss: in from its far wall, on its floor, facing in
  *   grownFoe(entity, stature) → the entity at the side map's game scale (FOE_STATURE)
  *
  * Pure: no dice. The same map, the same foes.
@@ -50,7 +52,15 @@ export function sideMapPlaced(layout, from) {
 }
 
 /** What the foe cast reads of a side map: its placements, the hero's spawn, no trail beats, the lane's length. */
-export function sideMapEnds(layout, from, { spawn }) {
+export function sideMapEnds(layout, from, { spawn, boss = null }) {
   const s1 = Math.max(...layout.swept.map((r) => r.s1));
-  return { placed: sideMapPlaced(layout, from), spawn, beats: [], rail: { length: r3(s1) } };
+  return { placed: sideMapPlaced(layout, from), spawn, beats: [], rail: { length: r3(s1) }, ...(boss ? { boss: bossPlace(layout, boss) } : {}) };
+}
+
+/** Where the last room's boss stands: BOSS_BACK m in from its far wall, on its floor, facing the way in. */
+export const BOSS_BACK = 3;
+export function bossPlace(layout, id) {
+  const Z = layout.zones.at(-1), s = r3(Z.rect[1] - BOSS_BACK);
+  const F = layout.solids.find((r) => r.zone === Z.i && r.role === 'floor' && s >= r.s0 && s <= r.s1);
+  return { id, at: [0, s, r3(F ? F.z1 : Z.exit[1])], heading: FACING_IN, zone: Z.i };
 }

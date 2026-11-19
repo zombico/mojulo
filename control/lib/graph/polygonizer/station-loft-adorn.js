@@ -1168,6 +1168,13 @@ export const SIGNATURES = {
       if (G.setting) out.push({ ...disc(add(c, mul(nrm, -0.001)), nrm, r * 1.4, r * 0.3, 16, 0.8), group: G.setting.group ?? S.group });
       out.push({ ...disc(add(c, mul(nrm, G.setting ? r * 0.25 : 0)), nrm, r, G.h ?? r * 0.6, 12, 0.55), group: G.group ?? S.group }); } }
     if (S.grille) for (let i = 0; i < S.grille; i++) { const u = 0.12 + i * 0.05; out.push(bar(arc(u, F - 0.35, F + 0.35, 5), w * 0.025, 0.004, S.grilleGroup ?? S.group)); }
+    // an OBJECT HEAD's rim and what it holds (a boss's head that is its theme's object: a crucible, gameworld/bosses.js): a
+    // LIP, a proud ring round the helm's top edge at `u` (a donut cuff, the toy's honest bead) { u?, w?, t?, group }, and a
+    // POOL, a disc over the flat crown inside it, domed `rise` m over the lip so a side-on camera sees it { fill?, rise?,
+    // group } (the molten metal, its signal's glow). Absent, none
+    if (S.lip) { const L = S.lip, u = L.u ?? 0.97, k = 2 * m; out.push(bar(Array.from({ length: k + 1 }, (_, q) => [u, (2 * Math.PI * q) / k]), L.w ?? w * 0.07, L.t ?? 0.012, L.group ?? S.group)); }
+    if (S.pool) { const Q = S.pool, r = Math.min(rx0, ry0) * shape(0.99) * (Q.fill ?? 0.85);
+      out.push({ ...disc([0, cy, zT + 0.001], [0, 0, 1], r, Q.rise ?? 0.004, 24, Q.rise ? 0.55 : 0.95), group: Q.group ?? S.group }); }
     // a BROW: a proud bar over the eyes that casts the face beneath into shadow ({ group, t? })
     if (S.brow) out.push(bar(arc(Math.min(0.97, uE + 0.075), F - 0.85, F + 0.85), w * 0.07, S.brow.t ?? w * 0.05, S.brow.group ?? S.group));
     // a CORONET: spikes round a band at height `u` (the silhouette verb on the helm's crest line), over `arc` of the

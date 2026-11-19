@@ -11,7 +11,8 @@
  *   a FALL       out of the frame's bottom: counted in the catch zone in limbo (`side-fall`), a life where the world's
  *                mechanics keep lives (`mechanics.lives`: their `falls`), and back at the zone's checkpoint. The game's
  *                own fall policy is off: a chute goes far below where its catch box stands
- *   the GOAL     the last zone's far side reached (a boss's room: its fight comes with the world's foes)
+ *   the GOAL     the last zone's far side reached; where its room holds a boss (the chain's `boss`, stood by the stage's
+ *                extra: boss-cast.js), the boss's fall
  *
  *   the FOES     the level's `foes` on the map's spawners (cast.js), stood by the stage's extra (the runner's foe cast) on
  *                the lane's rail, in the hero's body light
@@ -54,7 +55,7 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
   // its FOES (cast.js): the level's bestiary stood on the map's spawners, on the lane's rail, by the stage's extra (the
   // runner's foe cast, foes.js hostileCast); what it gives the hero (its stomp, its hit egg) laid over the hero's own
   // (`foeFrom`: the level's `from`, its bestiary's ids read by levels.js)
-  const X = extra ? extra(sideMapEnds(L, foeFrom, { spawn: P.spawn })) : null;
+  const X = extra ? extra(sideMapEnds(L, foeFrom, { spawn: P.spawn, boss: stage.manifest.sidemap?.boss ?? null })) : null;
   const hero = X?.pilot ? { ...hero0, ...X.pilot, rule: { ...hero0.rule, ...(X.pilot.rule ?? {}), ...(written ?? {}) }, body: { ...hero0.body, ...(X.pilot.body ?? {}) } } : hero0;
   // its bodies in their rail's light (game-bodies.js BODY_LIGHTS: the side scroller's cel); a rail with none, as they were
   const light = bodyLightOf({ feel: G.feel?.pole ?? (typeof G.feel === 'string' ? G.feel : null) });
@@ -66,7 +67,9 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
   const figures0 = { ...(W0.figures ?? {}), ...(X?.figures ?? {}) };
   const figures = light ? Object.fromEntries(Object.entries(figures0).map(([k, f]) => [k, { ...f, light }])) : figures0;
   // the goal: the last zone's far side; the falls: the catch zone in limbo, a life each where the world keeps lives
-  const last = L.zones.at(-1), goal = { kind: 'reach-exit', at: [0, r3(last.rect[1] - 2.5), r3(last.exit[1] + 1)], radius: 2.5, planar: false };
+  const last = L.zones.at(-1), reach = { kind: 'reach-exit', at: [0, r3(last.rect[1] - 2.5), r3(last.exit[1] + 1)], radius: 2.5, planar: false };
+  // (a boss's fall in its place, where the cast stands one: boss-cast.js)
+  const goals = X?.mechanics?.some((m) => m.kind === 'defeat-all') ? X.mechanics : [reach, ...(X?.mechanics ?? [])];
   const lives = G.mechanics?.lives ? [{ kind: 'lives', start: G.mechanics.lives, falls: [SIDE_FALL] }] : [];
   const ev = W0.events ?? {};
   const events = { ...ev, sources: [...(ev.sources ?? []), P.catch] };
@@ -78,7 +81,7 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
     ...(light === 'cel' && !manifest0.toon ? { toon: { ink: { only: 'bodies', color: CEL_INK.color, widthAbs: r3((CEL_INK.px * L.screen.height) / 720), lines: false } } } : {}),
     // (its crates break: the game's own degree where it says one, else `objects`, the action game's, crates.js)
     ...(L.crates?.length && !manifest0.destruction ? { destruction: mechanics?.destruction ?? 'objects' } : {}),
-    game: { levelRef: ref, mechanics: [goal, ...lives], fall: 'none' },
+    game: { levelRef: ref, mechanics: [...goals, ...lives], fall: 'none' },
   };
   return { tool: 'create_sketch', args: { title: name, manifest }, laws: M.laws.map((l) => ({ ...l, id: `sidemap:${l.id}` })) };
 }

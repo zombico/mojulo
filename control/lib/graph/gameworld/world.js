@@ -217,6 +217,7 @@ import { readPlay } from '../level/play-layer.js';
 import { zoneOf } from '../level/zones.js';
 import { DRESSES } from '../gameroom/dress.js';
 import { readArea } from '../gameroom/area.js';
+import { BOSS_IDS } from './bosses.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -659,6 +660,8 @@ export function readGameworld(W) {
       if (other.length) throw new Error(`gameworld: ${at}: a side map level is the map alone: no ${other.join(', ')} beside it`);
       if (W.camera !== 'side') throw new Error(`gameworld: ${at}.sidemap is seen from the side: set camera: 'side' (the side map's camera holds its zones)`);
       try { readSideMap(L.sidemap); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^side map:\s*sidemap\.?/, 'sidemap.').replace(/^side map:\s*/, '')}`); }
+      // (its boss one of the roster's: gameworld/bosses.js)
+      if (L.sidemap.boss !== undefined && !BOSS_IDS.includes(L.sidemap.boss)) throw new Error(`gameworld: ${at}.sidemap.boss is a boss of the roster (${BOSS_IDS.join(', ')})`);
     } else if (L.glyphs !== undefined) {
       // a glyph-map level: the whole level one world written as a glyph grid (its paths, its places, its regions), walked
       // end to end on one page; the map is its own ground

@@ -4,10 +4,12 @@
  * reach by the side map's layout. The words are keyed in the cosmos cube: the form a level form of space
  * (`space.levelForm=side-map`), its fills reality's (`reality.fill`, fills.js).
  *
- *   sidemap: { premise?, fill?, crates?, zones: [ZONE, …] }
+ *   sidemap: { premise?, fill?, crates?, boss?, zones: [ZONE, …] }
  *     premise   one sentence: who goes through this place, and toward what
  *     fill      the closed parts' fill where a zone names none (fills.js)
  *     crates    true: breakable crates on its runs (crates.js), hopped or shot apart; the level breaks `objects`
+ *     boss      the boss its last room holds (a roster id, gameworld/bosses.js; the world checks it): stood there, its fall
+ *               the level's end (side-map/boss-cast.js)
  *   ZONE (a RUN or a ROOM, never both):
  *     run       'across' | 'up' | 'down': a run, one screen thick, scrolling along its axis
  *     screens   its length in screens (a run's; at least one)
@@ -29,7 +31,7 @@
 import { TEACH } from '../course.js';
 import { FILLS } from './fills.js';
 
-export const SIDE_MAP_KEYS = Object.freeze(['premise', 'fill', 'crates', 'zones']);
+export const SIDE_MAP_KEYS = Object.freeze(['premise', 'fill', 'crates', 'boss', 'zones']);
 export const ZONE_KEYS = Object.freeze(['run', 'screens', 'room', 'teach', 'beat', 'climb', 'rises', 'drop', 'place', 'fill', 'spawners', 'pillars', 'ceiling', 'reveal']);
 export const RUN_AXES = Object.freeze(['across', 'up', 'down']);
 /** the beats that teach nothing new (a zone's `teach` is the first level's own words) */
@@ -104,5 +106,10 @@ export function readSideMap(v, at = 'sidemap') {
   if (v.fill !== undefined) { if (!FILLS[v.fill]) throw new Error(`side map: ${at}.fill is ${list(FILLS)}`); out.fill = v.fill; }
   if (v.crates !== undefined) { if (typeof v.crates !== 'boolean') throw new Error(`side map: ${at}.crates is true or false (breakable crates on its runs)`); if (v.crates) out.crates = true; }
   out.zones = v.zones.map((z, i) => readZone(z, `${at}.zones[${i}]`));
+  if (v.boss !== undefined) {
+    if (!(typeof v.boss === 'string' && /^[a-z][a-z0-9-]*$/.test(v.boss))) throw new Error(`side map: ${at}.boss is a boss's id (a short lower-case name: the roster's)`);
+    if (!(out.zones.at(-1).kind === 'room' && out.zones.at(-1).teach === 'boss')) throw new Error(`side map: ${at}.boss stands in its last zone, a room that teaches the boss ({ room: [w, h], teach: 'boss' })`);
+    out.boss = v.boss;
+  }
   return out;
 }

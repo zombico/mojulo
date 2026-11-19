@@ -178,7 +178,7 @@ export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id
     mechanics: { lives: 3, coins: true, legend: 'menu' },
     // (the run and gun's first level is a SIDE MAP, side-map/first.js: its zones, climbs and boss's room seen from the
     // side; the mascot platformer's the strip of trails it always was)
-    levels: { [level]: sideMap ? { ...(name ? { name } : {}), ...(seed !== undefined ? { seed } : {}), sidemap: firstSideMap(), foes: { from: [...SIDE_MAP_FIRST_FOES] } } : firstLevel({ name, seed, kit, boss, dimension }) },
+    levels: { [level]: sideMap ? { ...(name ? { name } : {}), ...(seed !== undefined ? { seed } : {}), sidemap: firstSideMap({ boss: 'crucible' }), foes: { from: [...SIDE_MAP_FIRST_FOES] } } : firstLevel({ name, seed, kit, boss, dimension }) },
     // (a side map's foes: the side scroller's bestiary)
     ...(sideMap ? { foes: structuredClone({ ...SIDE_MAP_FOES }) } : {}),
     // (made for a screen on its side: a lane is read across its width, a chase camera needs it; game/screen.js)

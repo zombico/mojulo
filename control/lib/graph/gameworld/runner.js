@@ -91,6 +91,8 @@ import { BEAST_KINS } from '../beast/cards.js';
 import { fighterName } from '../versus/versus-sheet.js';
 import { solvePalette } from '../color-theorist/solve.js';
 import { gameTheme } from '../color-theorist/adapters.js';
+import { bossSpec, BOSSES } from './bosses.js';
+import { sideMapBossCast } from './side-map/boss-cast.js';
 
 const REF_MAX = 64;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -361,6 +363,9 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   // the bestiary's foes (foes.js): one beast for each entry a level stands, waiting on nothing
   steps.push(...foeSteps(G, ref, { ready: true }));
   const foeRefs = foeRefsOf(G, ref);
+  // the side maps' bosses (bosses.js): one figure each, minted through the hero door at `<ref>-foe-<id>`
+  steps.push(...sideMapBossSteps(G, ref, { ready: true }));
+  const bossRefs = sideMapBossRefs(G, ref);
   // the minigames' keepers (minigames.js): one figure, minted as a hero is, standing at every stall
   // (and the shops' merchant and innkeeper on the battle stages, battles.js: the same figure where the minigames stand
   // one, else the shopkeeper's)
@@ -507,7 +512,9 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const mintOf = folks[i] ? new Map(folks[i].bodies.mints.map((m) => [m.key, m])) : null;
     const folk = folks[i] ? folkExtra(folks[i], (k) => folkRef[folkMintKey(folks[i], mintOf.get(k))], { shops: market ? hubFolkShops(G) : null }) : null;
     const goalCast = (hostile || folk) && !fight && !stall && !market ? GA.goalCast : null;
-    const extra = composeExtras(fight, stall, market, goalCast, folk, hostile);
+    // (a side map's boss in its last room: side-map/boss-cast.js)
+    const sideBoss = s.section === 'sidemap' && G.levels[s.level]?.sidemap?.boss ? (ends) => sideMapBossCast(G, ends, { refs: bossRefs, ...(heroStature ? { stature: heroStature } : {}) }) : null;
+    const extra = composeExtras(fight, stall, market, goalCast, folk, hostile, sideBoss);
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : {}) } : {};
     // a walked stage's story slots: its before at its start, its after (and its epoch's end) at its exit
     const sl = walkedSlots(st, endOf[i], s);
@@ -688,6 +695,13 @@ const foeSteps = (G, ref, ready, ids = null) => {
 // a level's print: its args', and where foes stand its bestiary's (the cast is a function the args' JSON leaves out, so an
 // entry's vanish, states or skin changed would leave the level as it was made); a level with none prints as before
 const levelPrint = (G, args, hostile) => (hostile ? fingerprint({ args, foes: bestiaryOf(G) }) : fingerprint(args));
+// the side maps' bosses: the roster ids their chains name, each minted through the hero door (bosses.js bossSpec)
+const sideMapBossIds = (G) => [...new Set(G.ids.map((id) => G.levels[id].sidemap?.boss).filter(Boolean))];
+const sideMapBossRefs = (G, ref) => Object.fromEntries(sideMapBossIds(G).map((id) => [id, childRef(ref, `foe-${id}`)]));
+const sideMapBossSteps = (G, ref, ready) => sideMapBossIds(G).map((id) => {
+  const spec = bossSpec(id), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} ${BOSSES[id].name}`, spec };
+  return { key: `foe-${id}`, ref: childRef(ref, `foe-${id}`), ...ready, order: { spec, mint, motion: null }, print: fingerprint({ spec }) };
+});
 const foeRefsOf = (G, ref) => Object.fromEntries(fieldedIds(G).map((id) => [id, isModel(bestiaryOf(G)[id]) ? bestiaryOf(G)[id].skin.meshRef : childRef(ref, `foes-${id}`)]));
 // a stage's foes as its extra (foes.js hostileCast), or null when its level stands none
 // (and on a level's last stage, its wave gauntlet's foes stood asleep: gauntlet-cast.js; `hurt` a touch's cost on the
