@@ -442,5 +442,7 @@ or a recipe key; the spike mints through the real doors and measures.
   the free-run took the last treads for a low box and vaulted the operative off the top of the flight, down under the
   deck (measured on the page, frame by frame, at tread 10 of 15). A tower's `stair`
   names the side its flight runs out from (the gate tower's north, away from the gorge's wall; the camp's south,
-  down the trail's side toward the camp: east, its flight ran into the north log). The sneak's laws hold with the stairs
+  down the trail's side toward the camp: east, its flight ran into the north log). A flight runs down to the land at its foot
+  (`seatStairs`, read off the relief the plan reads): a tower on a rise has a longer flight, so its first tread is a
+  step off the ground wherever it lands (the camp's, on a slope, 21 risers to the gate's 16). The sneak's laws hold with the stairs
   standing.

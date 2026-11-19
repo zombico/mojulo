@@ -24,7 +24,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const { options, database, starterRoom, groundOf, writePage, boxFaces } = await import('./lib.mjs');
 const o = options(process.argv.slice(2)), out = path.resolve(o.opt('--out', 'level-0'));
 database(o.opt('--hero'), o.opt('--guard'));
-const { planLevel, planSvg, coverOf, watchersOf, GUARD, spineFrom, spineOf, placeRecipe, structureBoxes, towerFaces, STRUCTURE, tallGrassOf } = await import('./level0-plan.mjs');
+const { planLevel, planSvg, coverOf, watchersOf, GUARD, spineFrom, spineOf, placeRecipe, seatStairs, reliefAt, structureBoxes, towerFaces, STRUCTURE, tallGrassOf } = await import('./level0-plan.mjs');
 const { assembleStageScene } = await import('../../../lib/graph/era/stage.js');
 const { readGameworld } = await import('../../../lib/graph/gameworld/index.js');
 const { gameStages } = await import('../../../lib/graph/gameworld/levels.js');
@@ -55,7 +55,9 @@ const report = (plan) => { for (const P of plan.points) { const R = P.routes, w 
 const fieldOf = (colliders) => { const B = colliders.filter((c) => /^bound:/.test(c.of ?? '')); return B.length === 4 ? [Math.min(...B.map((c) => c.max[0])), Math.min(...B.map((c) => c.max[1])), Math.max(...B.map((c) => c.min[0])), Math.max(...B.map((c) => c.min[1]))] : [-8, 0, 30, 75.5]; };
 
 if (facts0) {
-  const F = facts0, plan = planLevel(L, F.colliders, F.field);
+  const F = facts0;
+  if (F.relief) seatStairs(L, reliefAt(F.relief));   // (each tower's flight down to the land at its foot, as the page's)
+  const plan = planLevel(L, F.colliders, F.field);
   report(plan); await fs.writeFile(path.join(out, 'level-0-plan.svg'), planSvg(L, plan, F.field, F.trail, F.relief));
   console.log(`level 0: ${path.join(out, 'level-0-plan.svg')}`); process.exit(0);
 }
@@ -94,6 +96,9 @@ const relief = (() => {
 // (how each patch of tall grass stands: its share of level green ground, where its grass grows; one under half is no cover)
 for (const [k, P] of (payload.tallGrassRead ?? []).entries()) if (P.share !== undefined) console.log(`level 0: grass ${L.grass?.[k]?.id ?? k}: ${Math.round(P.share * 100)}% level ground${P.share < 0.5 ? ' — too little grows: no cover here, move it' : P.share < 0.75 ? ' — thin in places' : ''}`);
 await fs.writeFile(factsFile, JSON.stringify({ field, trail, spine: spine.samples, colliders: payload.colliders.filter((c) => /^(shrub|bound)/.test(c.of ?? '')), ...(relief ? { relief } : {}) }));
+// (each tower's stair seated on the land: its flight down to where its foot lands, read off the relief as the plan reads it)
+if (relief) seatStairs(L, reliefAt(relief));
+for (const t of L.structures ?? []) if (t.drop) console.log(`level 0: ${t.id}'s stair lands ${t.drop} m under its base: ${Math.round(((t.height ?? STRUCTURE.tower.height) + t.drop) / STRUCTURE.tower.stair.rise)} risers`);
 const plan = planLevel(L, payload.colliders, field);
 report(plan); await fs.writeFile(path.join(out, 'level-0-plan.svg'), planSvg(L, plan, field, trail, relief));
 if (o.has('--plan')) process.exit(0);

@@ -70,14 +70,40 @@ export const STRUCTURE = Object.freeze({
 const FRAME_LOW = 2.4;
 const SIDES = Object.freeze({ '+x': [1, 0], '-x': [-1, 0], '+y': [0, 1], '-y': [0, -1] });
 /** A tower's stair (`stair`: the side its flight runs out from, '+x' unless said): its treads, each a step up from the
- *  ground to the deck: { n, dir, lat, edge, treads: [{ lo, hi, z }] } (lo/hi the tread's span out from the deck's edge). */
+ *  ground to the deck: { n, r, dir, lat, edge, run, drop, treads: [{ lo, hi, z }] } (lo/hi the tread's span out from the
+ *  deck's edge, z over the tower's base). `drop` (seatStairs): how far the land at the flight's foot lies under the
+ *  tower's base, the flight that many risers longer, so its first tread is a step off the land wherever the tower stands. */
 export function towerStair(t) {
-  const T = STRUCTURE.tower, S = T.stair, H = t.height ?? T.height, dir = SIDES[t.stair ?? '+x'];
+  const T = STRUCTURE.tower, S = T.stair, H = t.height ?? T.height, dir = SIDES[t.stair ?? '+x'], drop = t.drop ?? 0;
   if (!dir) throw new Error(`level 0: structure ${t.id}: stair is one of ${Object.keys(SIDES).join(', ')}`);
-  const n = Math.round(H / S.rise), r = H / n, treads = [];
-  // (tread i, from the bottom, stands i risers up and n - i goings out from the deck's edge; the last riser is the deck)
-  for (let i = 1; i < n; i++) treads.push({ lo: (n - i - 1) * S.going, hi: (n - i) * S.going, z: i * r });
-  return { n, r, dir, lat: [-dir[1], dir[0]], edge: T.side / 2, run: (n - 1) * S.going, treads };
+  const n = Math.round((H + drop) / S.rise), r = (H + drop) / n, treads = [];
+  // (tread i, from the bottom, stands i risers up from the land at the foot and n - i goings out from the deck's edge;
+  // the last riser is the deck)
+  for (let i = 1; i < n; i++) treads.push({ lo: (n - i - 1) * S.going, hi: (n - i) * S.going, z: +(i * r - drop).toFixed(4) });
+  return { n, r, dir, lat: [-dir[1], dir[0]], edge: T.side / 2, run: (n - 1) * S.going, drop, treads };
+}
+/** Each tower's stair seated on the land (`zAt(x, y)` its height, null off it): its `drop`, how far the land at its
+ *  flight's foot lies under the tower's base (none over it: a flight landing on a rise is cut by the land, its lowest
+ *  treads a step or less proud of it), measured where the flight's first tread lands. Mutates L's towers; the search and
+ *  the page both read the flight it makes. */
+/** The relief's height at (x, y) (a metre a cell over the field, level0.mjs's), null off it. */
+export function reliefAt(R) {
+  const [W, H] = R.size;
+  return (x, y) => { const i = Math.floor(x - R.origin[0]), j = Math.floor(y - R.origin[1]); return i < 0 || j < 0 || i >= W || j >= H ? null : R.z[j * W + i]; };
+}
+export function seatStairs(L, zAt) {
+  for (const t of L.structures ?? []) {
+    if (t.kind !== 'tower') continue;
+    const base = zAt(t.at[0], t.at[1]);
+    if (base == null) continue;
+    let drop = 0;
+    for (let k = 0; k < 2; k++) {   // (the foot moves out as the flight grows: measured again where it now lands)
+      const S = towerStair({ ...t, drop }), o = S.edge + S.run + STRUCTURE.tower.stair.going / 2, z = zAt(t.at[0] + S.dir[0] * o, t.at[1] + S.dir[1] * o);
+      drop = z == null ? 0 : Math.max(0, +(base - z).toFixed(2));
+    }
+    t.drop = drop;
+  }
+  return L;
 }
 /** A structure's boxes: { min, max, fill, sight?, walk? } (a box the search and the page both read). */
 export function structureBoxes(t) {
@@ -111,10 +137,10 @@ export function structureBoxes(t) {
     // the flight every block past the second stands over a step and keeps a body from walking in under it. The walk
     // stands on the drawn treads; seen through, a flight of open treads)
     for (const q of ST.treads) {
-      if (q.z - ST.r <= 1e-6) continue;
+      if (q.z - ST.r <= -ST.drop + 1e-6) continue;
       const o0 = ST.edge + q.lo, o1 = ST.edge + q.hi, w = T.stair.width / 2;
       const A = [x + ST.dir[0] * o0 + ST.lat[0] * w, y + ST.dir[1] * o0 + ST.lat[1] * w], B = [x + ST.dir[0] * o1 - ST.lat[0] * w, y + ST.dir[1] * o1 - ST.lat[1] * w];
-      out.push({ min: [Math.min(A[0], B[0]), Math.min(A[1], B[1]), 0], max: [Math.max(A[0], B[0]), Math.max(A[1], B[1]), +(q.z - ST.r).toFixed(4)], fill: T.deckFill, sight: false, tread: true });
+      out.push({ min: [Math.min(A[0], B[0]), Math.min(A[1], B[1]), -ST.drop], max: [Math.max(A[0], B[0]), Math.max(A[1], B[1]), +(q.z - ST.r).toFixed(4)], fill: T.deckFill, sight: false, tread: true });
     }
   }
   return out;
@@ -168,9 +194,9 @@ export function towerFaces(t, group = 'cover:tower') {
   // the stair: two stringers from the ground to the deck's edge, its treads between them, a handrail on each side
   const w = T.stair.width / 2, off = (o, l, z) => [x + ST.dir[0] * o + ST.lat[0] * l, y + ST.dir[1] * o + ST.lat[1] * l, z];
   for (const l of [-w, w]) {
-    beam(off(ST.edge + ST.run + ST.r * 0.6, l, -0.05), off(ST.edge, l, H - 0.1), 0.09, T.dark);
-    beam(off(ST.edge + ST.run + 0.1, l, 1.0), off(ST.edge, l, H + T.rail), 0.06);
-    beam(off(ST.edge + ST.run + 0.1, l, 0), off(ST.edge + ST.run + 0.1, l, 1.05), 0.08);
+    beam(off(ST.edge + ST.run + ST.r * 0.6, l, -ST.drop - 0.05), off(ST.edge, l, H - 0.1), 0.09, T.dark);
+    beam(off(ST.edge + ST.run + 0.1, l, 1.0 - ST.drop), off(ST.edge, l, H + T.rail), 0.06);
+    beam(off(ST.edge + ST.run + 0.1, l, -ST.drop), off(ST.edge + ST.run + 0.1, l, 1.05 - ST.drop), 0.08);
   }
   // (each tread a board the going deep, its nosing a strip along its front edge)
   for (const q of ST.treads) beam(off(ST.edge + q.lo + 0.03, -w, q.z - 0.03), off(ST.edge + q.lo + 0.03, w, q.z - 0.03), 0.06, T.dark);
