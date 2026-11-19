@@ -186,7 +186,7 @@ export function branchClouds(edges, seed = 1) {
 }
 function supportedChains(chains, balls, cut, seed = 1) {
   const trunk0 = chains.filter((c) => c.order === 0).reduce((a, c) => (!a || c.dMax > a.dMax ? c : a), null);
-  if (!trunk0 || !balls.length) return { chains, clouds: [] };
+  if (!trunk0 || !balls.length) return { chains, clouds: [], low: 0 };
   const L = limbTree(trunk0, balls, cut), clouds = branchClouds(L.edges, seed);
   let e = trunk0.pts.findIndex((p) => p[2] > L.top); if (e < 0) e = trunk0.pts.length; e = Math.max(2, e);
   const out = [{ ...trunk0, pts: trunk0.pts.slice(0, e), rs: trunk0.rs.slice(0, e), nodes: trunk0.nodes.slice(0, e - 1), continues: true }];
@@ -196,7 +196,8 @@ function supportedChains(chains, balls, cut, seed = 1) {
     for (let k = 0; k <= EVOKE.segs; k++) { const t = k / EVOKE.segs; pts.push(limbAt(g, t).map(r4)); rs.push(g.r0 + (g.r1 - g.r0) * t); }
     out.push({ axis: -1 - i, order: g.main ? 1 : 2, nodes: [], pts, rs, dMax: 2 * Math.max(g.r0, g.r1), continues: true });
   });
-  return { chains: out, clouds };
+  // (its lowest limb: where the lowest leaves the trunk)
+  return { chains: out, clouds, low: Math.min(...L.edges.filter((g) => g.main).map((g) => g.from[2])) };
 }
 export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.mature, minDiameter = TREE_FORM.minDiameter, cell = TREE_FORM.cell, clumpCell = TREE_FORM.clumpCell, far = false, twigs = false, canopy = false, evoke = null } = {}) {
   const S = SPECIES[species]; if (!S || (S.kind !== 'tree' && S.kind !== 'conifer')) throw new Error(`tree-form: '${species}' is not a tree species`);
@@ -349,7 +350,7 @@ export function treeForm(species, { seed = 1, years = null, mature = TREE_FORM.m
   }
   shoots.sort((a, b) => a.r - b.r);
   // (far, `far`: the limbs a few times the cut's thickness alone: a tree across a glade shows its trunk and its main limbs)
-  return { species, height: r4(height), wood: woodOf(cut), ...(far ? { woodFar: woodOf(Math.min(cut * TREE_FORM.farCut, 0.5 * Math.max(...chains.map((c) => c.dMax)))), trunk: trunkOf(chains) } : {}), clumps, sites, tips: twigs ? shoots : tips, ...(twigs ? { twigs: true } : {}), ...(SC ? { clouds: SC.clouds } : {}), bark: S.bark || 'beech', ...(needles ? { needles, pad: needles !== 'pine', sleeve: sleevesOf(chains, needles, k) } : {}) };
+  return { species, height: r4(height), wood: woodOf(cut), ...(far ? { woodFar: woodOf(Math.min(cut * TREE_FORM.farCut, 0.5 * Math.max(...chains.map((c) => c.dMax)))), trunk: trunkOf(chains) } : {}), clumps, sites, tips: twigs ? shoots : tips, ...(twigs ? { twigs: true } : {}), ...(SC ? { clouds: SC.clouds, limbLow: r4(SC.low) } : {}), bark: S.bark || 'beech', ...(needles ? { needles, pad: needles !== 'pine', sleeve: sleevesOf(chains, needles, k) } : {}) };
 }
 
 /** The crown's RIM, where its twigs come in near the eye (vegetation/twigs.js): the clumps on its surface (the envelope's,

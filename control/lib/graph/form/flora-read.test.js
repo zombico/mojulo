@@ -151,6 +151,12 @@ describe('the realistic tree (`crowns: realistic`)', () => {
     expect(r.nBlobs).toBeGreaterThan(REALISTIC.cloud.k[0]);
     const woodTris = (t) => Buffer.from(t.wood.idx, 'base64').length / (t.wood.big ? 4 : 2) / 3;
     expect(woodTris(r)).toBeLessThan(woodTris(a));
+    // (tall: its lowest limb or leaf out of a grown figure's reach on every tree placed, the small ones raised to it)
+    expect(r.clear).toBeGreaterThan(0);
+    const grove = { ...beech, crowns: 'realistic', trees: [tree(0, 0, 9, 0), tree(30, 0, 2, 0), tree(0, 30, 3, 0), tree(30, 30, 14, 0)] };
+    const G = floraRead(grove, { kinds: grove.kinds, colours, bases }), GP = unpack(G.trees);
+    expect(G.n).toBeGreaterThan(0);
+    for (let i = 0; i < G.n; i++) { const T = G.templates[GP[i * FLORA_STRIDE + 11]]; if (T.clear) expect(T.clear * GP[i * FLORA_STRIDE + 3]).toBeGreaterThanOrEqual(REALISTIC.headroom - 1e-3); }
     // (far off its card full: the page bakes the mass under the leaves)
     expect(r.far).toEqual(REALISTIC.far);
     expect(a.far).toBeUndefined();

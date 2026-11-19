@@ -118,6 +118,10 @@ export const MASS_BLOB = Object.freeze({ detail: 1, ball: 2, squash: 0.85, shade
  *  are not drawn: its leaves are CLOUDS of puffs (PUFF) on its limbs' sections (tree-form.js CLOUD), its least bundles
  *  given up for what they cost, and only the bundles within `onBall` of a puff's radius kept: no leaf off a cloud. */
 export const REALISTIC = Object.freeze({ older: 1.25, onBall: 0.85,
+  // (TALL: its lowest limb and its lowest leaf `headroom` m over its foot at least, out of a grown figure's reach (one
+  // 1.8 m tall reaches about 2.3 m); a tree placed smaller is raised to it, and one that then would crowd a crown kept
+  // left out; its template says its own lowest, `clear`, in its metres)
+  headroom: 3,
   // (its crown a CLOUD: `k` masses (the fewer for a sparse crown, the more for a full one), overlapping (`sep` over 1:
   // their radii may sum past the distance between them), each its own size)
   cloud: Object.freeze({ k: Object.freeze([6, 8]), sep: 1.45, joined: false }),
@@ -229,7 +233,12 @@ function treeTemplate(species, height, crowns = null) {
       const T = { ...template('tree', species, { ...W, clumps: Q.clumps, sites: [] }, species), crownR, budget: tips ? { ...Q.budget, tris: (W.wood.idx || []).length / 3 + M.blobs.length * ballGeo[0].n } : Q.budget,
         ...(M ? { blobs: packSites(M.blobs), nBlobs: M.blobs.length, blobGeo: ballGeo ?? [blobGeo] } : {}), ...(tips ? { leaves: false } : {}) };
       // ('realistic': its far card full, its mass baked under its leaves: REALISTIC.far)
-      if (real) T.far = REALISTIC.far;
+      if (real) {
+        T.far = REALISTIC.far;
+        // (its lowest limb or leaf: the limbs' lowest start, its clouds' puffs' undersides, its bundles kept)
+        const pl = (b) => b.p[2] - b.s * PUFF.bottom * (1 + PUFF.amp);
+        T.clear = r4(Math.min(W.limbLow ?? Infinity, ...M.blobs.map(pl), ...Q.clumps.map((c) => c.p[2] - c.s * 0.5)));
+      }
       // (far off the same wood as near: no limb drops and the trunk holds as the tree switches level)
       CACHE.set(key, { ...T, cross: true, woodFar: T.wood,
         clumpGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafCross(species, { seed: 17 + k, core }).tris)), ...(core ? { core: true } : {}), ...(masses ? { masses: true } : {}) });
@@ -310,16 +319,19 @@ function treePlan(plants, kindAt) {
  * scaled down until it clears, to `least` of its height at the most, and else left out. A tree held for a view is held.
  */
 export const APART = Object.freeze({ gap: 1.05, least: 0.75 });
+// (a realistic tree's least height: its lowest limb or leaf at REALISTIC.headroom over its foot)
+const tallest = (T, h) => (T.clear > 0 ? Math.max(h, (REALISTIC.headroom * T.height) / T.clear) : h);
 function apart(plan) {
   const kept = [], out = [];
+  plan = plan.map((e) => ({ ...e, h: tallest(e.T, e.h) }));
   const order = plan.map((e, i) => i).sort((a, b) => plan[b].h - plan[a].h || a - b), keep = new Set(), hOf = new Map();
   for (const i of order) {
-    const e = plan[i], R0 = (e.T.crownR ?? e.T.radius) * (e.h / e.T.height);
+    const e = plan[i], R0 = (e.T.crownR ?? e.T.radius) * (e.h / e.T.height), least = e.T.clear > 0 ? Math.max(APART.least, tallest(e.T, 0) / e.h) : APART.least;
     if (e.t.held) { keep.add(i); hOf.set(i, e.h); continue; }
     // (the largest share of its reach that clears every crown kept)
     let k = 1;
     for (const o of kept) { const d = Math.hypot(e.t.x - o.x, e.t.y - o.y), room = d / APART.gap - o.R; k = Math.min(k, room / Math.max(1e-6, R0)); }
-    if (k < APART.least) continue;
+    if (k < least - 1e-9) continue;
     keep.add(i); hOf.set(i, e.h * k); kept.push({ x: e.t.x, y: e.t.y, R: R0 * k });
   }
   plan.forEach((e, i) => { if (keep.has(i)) out.push({ ...e, h: hOf.get(i) }); });
@@ -408,7 +420,7 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
     const K = kindAt(s), sp = speciesFor(s, K), S = SPECIES[sp];
     const T = bySpecies.get(sp) ?? treeTemplate(sp, Math.max(HEIGHT_STEP, Math.round(((S?.heights ? (S.heights[0] + S.heights[1]) / 2 : 9) * FLORA_TALL) / HEIGHT_STEP) * HEIGHT_STEP), plants.crowns ?? null);
     bySpecies.set(sp, T);
-    push(T, s, r4((s.r * T.height) / T.radius), K, SKIRT_FLAG);
+    push(T, s, r4(tallest(T, (s.r * T.height) / T.radius)), K, SKIRT_FLAG);
   }
   // the bushes: each thicket kind its habit at its middle height; the shrubs the dome, in their season
   for (const b of plants.bushes) {
