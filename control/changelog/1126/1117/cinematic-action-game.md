@@ -414,7 +414,10 @@ or a recipe key; the spike mints through the real doors and measures.
 - **A flood on a mast** (`floods[].mast`, the height its pole stands on, drawn from there up to the lamp): level 0's
   floods first hung a metre and a half over their towers' decks, and each deck's metre of rail stood in the beam from
   17° to 47° below the level, so its shadow lay over the whole near pool and the ground under them stayed dark; hung on
-  a mast 3.2 m over the deck, the rail is under every ray of the beam.
+  a mast 3.2 m over the deck, the rail is under every ray of the beam. And the land shades no flood's light itself: a lamp
+  skims the ground, so the least rise by a trail laid its shadow over the whole pool (measured on the page, a pool as
+  dark with the floods' shadows as without the floods); the land's shadow depth is left out of every perspective map, a
+  spot's, and kept in the sun's orthographic one, where it still shades itself.
 - **Level 0's structures in the level's light** (scripts/spikes/mission/level0.mjs): its towers, sandbags and wire were
   painted with fixed fills, lit as daytime paint at any hour (at night they glowed); each face's colour is now its fill
   under the land's own light at the hour, the sky's and the sun's or moon's by how it faces it, as the stage bakes its

@@ -4,6 +4,9 @@
  * the cast rig) as the land's sun does, falling off by the square of the distance; its head drawn burning, with a glow round
  * it seen from far off; the first FLOODS.shadows of them casting what stands in their beam (a guard, a wall, a truck),
  * drawn every frame. A night level's light is the moon's and these: the dark between them is where a body is not seen.
+ * The land does not shade a flood's light itself: a lamp skims the ground, and the ground's least rise by a trail would
+ * lay its shadow over the whole pool (what matters in a beam is what stands in it); the land's depth for a shadow is
+ * left out of every perspective map (a spot's) and kept in the sun's, so it still shades itself under the sun.
  *
  *   FLOODS                  the most a level carries, the most that cast, and a lamp's own colour, power, cone and reach
  *   readFloods(list)        → [{ at, aim, colour, power, cone, reach, shadow, mast? }] checked (a list of at most
@@ -65,6 +68,14 @@ export function floodsScript() {
     if (f.mast != null) { const h = f.at[2] - f.mast, pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, h, 6), new THREE.MeshStandardMaterial({ color: 0x2c2a26, roughness: 0.8 })); pole.rotation.x = Math.PI / 2; pole.position.set(f.at[0], f.at[1], f.mast + h / 2); pole.castShadow = false; pole.receiveShadow = true; pole.raycast = () => {}; scene.add(pole); }
     return { light: L, head, glow, at: f.at, aim: f.aim };
   });
+  // (the land in no spot's map: its shadow depth moved past the far plane under a perspective camera, a flood's, and
+  // drawn as ever under the sun's orthographic one; the land, built after this, taken up by a sweep twice a second)
+  if (__flCast) {
+    const dm = new THREE.MeshDepthMaterial();
+    dm.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  if ( projectionMatrix[ 2 ][ 3 ] != 0.0 ) gl_Position = vec4( 0.0, 0.0, 2.0, 1.0 );'); };
+    const sweep = () => scene.traverse((o) => { if (o.isMesh && o.castShadow && !o.customDepthMaterial && o.geometry && o.geometry.attributes && o.geometry.attributes.splat) o.customDepthMaterial = dm; });
+    sweep(); setInterval(sweep, 500);
+  }
 }
 `;
 }
