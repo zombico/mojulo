@@ -17,7 +17,7 @@
  *               (`own` the contrast its paint's ambient gives, whatever was asked)
  *     targets   { role: '#rrggbb' } what each surface shows at the reference, its lamp the median one
  *     neutral   a light without hue (a toned room: its colour is its ramps', tone.js), its lamps and ambient too;
- *               `contrast` one asked for
+ *               `contrast` one asked for; `hued` with it, each lamp's hue against the reference lamp's
  *     ambient   the paint's ambient (0..1 rgb, era/stage.js ambientOf): the shade's hue, and with the median lamp at the
  *               reference the contrast (how much of the light a surface turned from every lamp keeps)
  *     lights    the placed lights (stage.js: at, color, intensity, radius)
@@ -86,7 +86,7 @@ export function paintAtReference(ambient, { color, intensity, radius }) {
   return ambient.map((a, k) => shoulder(a + c[k] * intensity * g));
 }
 
-export function solveRoomLight({ targets, ambient, lights, neutral = false, contrast: asked }) {
+export function solveRoomLight({ targets, ambient, lights, neutral = false, hued = false, contrast: asked }) {
   const ref = referenceLamp(lights), amb = ambient.map(decodeSrgb), at = falloff(ROOM_LIGHT.at, ref.radius);
   // the hues the paint shows: its ambient decoded, and a lamp's what it adds over it at the reference, decoded (the paint
   // mixes its light in display units under its shoulder, so a lamp shows far less saturated than its colour decoded)
@@ -105,7 +105,11 @@ export function solveRoomLight({ targets, ambient, lights, neutral = false, cont
   const ambY = luminance(S.ambient), keyY = luminance(S.sun) / at;
   // each lamp's light where its falloff is whole (square to it, inside `near`): its hue as the paint shows it, the solved
   // key's luminance brought back from the reference, in the median's share
-  const keys = lights.map((l) => (neutral ? [1, 1, 1] : hue(shown(l))).map((v) => v * keyY * (l.intensity / ref.intensity)));
+  // (a toned room's lamps carry no hue, its colour being its ramps'; asked `hued`, each lamp's hue against the reference
+  // lamp's: the median lamp neutral, so the ramps stand, and a lamp of another colour, an ember or a cold window, shows
+  // how it differs)
+  const rel = (l) => { const a = rgbOf(l.color).map(decodeSrgb), b = rgbOf(ref.color || '#ffffff').map(decodeSrgb); return hue(a.map((v, k) => v / Math.max(1e-4, b[k]))); };
+  const keys = lights.map((l) => (neutral ? (hued ? rel(l) : [1, 1, 1]) : hue(shown(l))).map((v) => v * keyY * (l.intensity / ref.intensity)));
   return { ambient: neutral ? S.ambient : hue(amb.map((v) => Math.max(v, 1e-5))).map((v) => v * ambY), keys, bases: S.bases, level: S.level, contrast, own, unreached: S.unreached };
 }
 

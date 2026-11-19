@@ -1100,14 +1100,14 @@ function nearestWallNormal(plan, [x, y]) {
   return best ? best.n : [0, 0, 1];
 }
 /** Resolve the recipe's lights: 'auto' seats a torch on the kit's seats; an array is taken as authored. */
-const PLOT_KEYS = { torches: [0, 12, true], fill: [0, 3], key: [0, 6], lead: [0, 4] };
+const PLOT_KEYS = { torches: [0, 12, true], fill: [0, 3], key: [0, 6], lead: [0, 4], vary: [0, 1], cold: [0, 4] };
 function readPlot(v) {
-  if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error('stage: plot is { <room id>: { torches?, fill?, key?, lead? } }');
+  if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error('stage: plot is { <room id>: { torches?, fill?, key?, lead?, vary?, cold? } }');
   for (const [id, R] of Object.entries(v)) {
-    if (!R || typeof R !== 'object' || Array.isArray(R)) throw new Error(`stage: plot.${id} is { torches?, fill?, key?, lead? }`);
+    if (!R || typeof R !== 'object' || Array.isArray(R)) throw new Error(`stage: plot.${id} is { torches?, fill?, key?, lead?, vary?, cold? }`);
     for (const [k, x] of Object.entries(R)) {
       const L = PLOT_KEYS[k];
-      if (!L) throw new Error(`stage: plot.${id}.${k} is not a setting (torches: how many wall torches it keeps; fill: what each gives; key: the gain on what hangs over its floor; lead: its way on lit)`);
+      if (!L) throw new Error(`stage: plot.${id}.${k} is not a setting (torches: how many wall torches it keeps; fill: what each gives; key: the gain on what hangs over its floor; lead: its way on lit; vary: how far its flames differ; cold: a moonlit window high on its far wall)`);
       if (!(typeof x === 'number' && x >= L[0] && x <= L[1] && (!L[2] || Number.isInteger(x)))) throw new Error(`stage: plot.${id}.${k} is ${L[2] ? 'a whole number' : 'a number'} from ${L[0]} to ${L[1]}`);
     }
   }
@@ -1163,7 +1163,42 @@ function plotLit(plan, lights) {
       }
     }
   }
-  return [...out.filter((l) => !(l.fixture === 'torch' && leads.some((q) => Math.hypot(q.at[0] - l.at[0], q.at[1] - l.at[1], q.at[2] - l.at[2]) < 2.5))), ...leads];
+  const laid = [...out.filter((l) => !(l.fixture === 'torch' && leads.some((q) => Math.hypot(q.at[0] - l.at[0], q.at[1] - l.at[1], q.at[2] - l.at[2]) < 2.5))), ...leads];
+  // each flame its own (`vary`): its strength and its colour from an ember's low red to a bright one's, by where it
+  // hangs (seeded: the same flame every read); and the moonlit window (`cold`)
+  const flame = (l) => {
+    const r = roomOf(l.at), R = r && plan.plot[r.id];
+    if (!R || !R.vary || l.fixture !== 'torch') return l;
+    const h1 = hash3(Math.round(l.at[0] * 10), Math.round(l.at[1] * 10), 7121), h2 = hash3(Math.round(l.at[1] * 10), Math.round(l.at[0] * 10), 3301);
+    const c = mixHex(PLOT_EMBER, PLOT_BRIGHT, h2), k = 1 + R.vary * (h1 * 0.8 - 0.4);
+    return { ...l, color: mixHex(l.color, c, R.vary), intensity: r5(l.intensity * k) };
+  };
+  return [...laid.map(flame), ...plotWindows(plan).map((w) => w.light)];
+}
+// a flame's colour from an ember's to a bright one's; a window's moonlight
+const PLOT_EMBER = '#ff5a1e', PLOT_BRIGHT = '#ffc46a', PLOT_MOON = '#8ea9ef';
+const mixHex = (a, b, t) => rgbHex(hexRgb(a).map((v, k) => v + (hexRgb(b)[k] - v) * t));
+/** A plot's moonlit windows (`cold`): a lancet high on the wall facing each such room's way in (its far wall), its slit
+ *  aglow and its cold light falling into the room. → [{ faces, light }] */
+export function plotWindows(plan) {
+  if (!plan.plot) return [];
+  const out = [], t = plan.kit.torch;
+  for (const [id, R] of Object.entries(plan.plot)) {
+    if (!R.cold) continue;
+    const r = plan.rooms.find((q) => q.id === id), inn = plan.links.find((L) => L.to === id);
+    // (the far wall: the one facing the way in; a room with no way in, the one facing its way on)
+    const away = inn ? inn.wall : (() => { const L = plan.links.find((k) => k.from === id); return L ? { '+x': '-x', '-x': '+x', '+y': '-y', '-y': '+y' }[L.wall] : '+y'; })();
+    const N = { '+x': [-1, 0, 0], '-x': [1, 0, 0], '+y': [0, -1, 0], '-y': [0, 1, 0] }[away], along = away === '+y' || away === '-y';
+    const wallAt = { '+x': r.x1, '-x': r.x0, '+y': r.y1, '-y': r.y0 }[away], mid = along ? (r.x0 + r.x1) / 2 : (r.y0 + r.y1) / 2;
+    const h = 2.6, w = 0.7, z1 = Math.min(r.h - 1.2, (r.z0 ?? 0) + r.h * 0.78), z0 = z1 - h, f = wallAt + (along ? N[1] : N[0]) * 0.02;
+    const q = (u, z) => (along ? [u, f, z] : [f, u, z]);
+    // the slit: a lancet, its head a point
+    const corners = [q(mid - w / 2, z0), q(mid + w / 2, z0), q(mid + w / 2, z1 - w * 0.6), q(mid, z1), q(mid - w / 2, z1 - w * 0.6)].map(P);
+    const faces = [{ corners, normal: N, outNormal: N, fill: '#cfdcff', group: 'stage:window', emissive: hexRgb(PLOT_MOON), emissiveStrength: 2.2, glow: `0 0 12px 4px ${PLOT_MOON}` }];
+    const at = q(mid, (z0 + z1) / 2).map((v, k) => v + N[k] * 1.2);
+    out.push({ faces, light: { at: P(at), n: N, color: PLOT_MOON, intensity: r5(t.intensity * R.cold), radius: r5(Math.max(t.radius, ((z0 + z1) / 2) * 1.5)), fixture: 'window', room: id } });
+  }
+  return out;
 }
 export function resolveStageLights(plan, seats) {
   const t = plan.kit.torch;
@@ -1262,7 +1297,7 @@ export function waterWorks(w) {
  *  the sun by its cosine where its shadow test reaches the corner, what the ground throws back onto a face turned down,
  *  and the lamps in the sun's share; with `sun.share` each corner carries the share of its light the sun gives.
  *  → { faces, light: the solve (under a sun, `sun`: { key, dir, ground: the light a face turned down takes with no sun }) } */
-export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { tone = null, roomOf = () => null, tune = null, sun = null, probes = null, paints = null, shade = null } = {}) {
+export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { tone = null, roomOf = () => null, tune = null, sun = null, probes = null, paints = null, shade = null, hued = false } = {}) {
   const lin = decodeSrgb, keep = tone ? new Set(tone.keep) : new Set();
   // each lamp's share at every corner (its falloff, its cosine where it sees the corner, its bounce in its own room),
   // worked first: the solve's level scales them, so they need it not
@@ -1314,7 +1349,7 @@ export function formLightFaces(raw, lights, ambient6, dirt = () => [1, 1, 1], { 
   for (const f of raw) if (f.tint) roleOf(f);
   const ramp0 = tone ? ramps[tone.default] : null;
   const toneC = tone ? grey(onRamp(ramp0, tone.key / 2).map(lin)) / Math.max(1e-4, grey(onRamp(ramp0, tone.key).map(lin))) : null;
-  const S1 = (sun ? solveDayLight : solveRoomLight)({ targets, ambient: ambient6, lights, ...(sun ? { sun } : {}), ...(tone ? { neutral: true, contrast: toneC } : {}), ...(shade !== null ? { contrast: shade } : {}) });
+  const S1 = (sun ? solveDayLight : solveRoomLight)({ targets, ambient: ambient6, lights, ...(sun ? { sun } : {}), ...(tone ? { neutral: true, contrast: toneC, ...(hued ? { hued: true } : {}) } : {}), ...(shade !== null ? { contrast: shade } : {}) });
   // (asked a shade, `dim` is how far below the room's own the shade was taken: its air darkened with it, era/stage.js)
   const S0 = shade !== null ? { ...S1, dim: Math.min(1, shade / Math.max(1e-4, toneC ?? S1.own ?? shade)) } : S1;
   // (a sun that stands over its paint, `sun.over`: the solve lays the sunlit colour as painted, and the sun is then this
@@ -1640,7 +1675,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // the sixth generation's 640×448, or the form render's target's lines)
   const skLaid = plan.skandart && plan.skandart.amount > 0 ? skandartLay(plan, geom, form ? skandartRead(manifest.target !== undefined ? readTarget(manifest.target).screenPx : RESOLUTIONS[DEFAULT_TARGET.resolution]) : skandartRead()) : null;
   const formLit = form ? formLightFaces(raw, formTest(formLamps), ambient, dirt(), { roomOf: (p) => roomAt(plan, p),
-    ...(plan.tone ? { tone: plan.tone } : {}), ...(plan.shade !== undefined ? { shade: plan.shade } : {}), ...(tuner ? { tune: tuner } : {}), ...(sun || liveDay ? { sun: sun || liveDay } : {}), ...(skLaid ? { probes: skLaid.probes, paints: skLaid.paints } : {}) }) : null;
+    ...(plan.tone ? { tone: plan.tone } : {}), ...(plan.shade !== undefined ? { shade: plan.shade } : {}), ...(plan.plot ? { hued: true } : {}), ...(tuner ? { tune: tuner } : {}), ...(sun || liveDay ? { sun: sun || liveDay } : {}), ...(skLaid ? { probes: skLaid.probes, paints: skLaid.paints } : {}) }) : null;
   // (a room asked its shade: its air is lit as its shade is, the fog and the void darkened with it; any other, as written)
   const airDim = (hex) => (formLit && formLit.light.dim !== undefined && formLit.light.dim < 1 ? rgbHex(hexRgb(hex).map((v) => encodeSrgb(decodeSrgb(v) * formLit.light.dim))) : hex);
   // (the paint's lights, with their shadow tests where asked: the room's bake and its debris's are one light)
@@ -1684,7 +1719,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const lookAt = !look ? [(r0.x0 + r0.x1) / 2, r0.y1, 1.8]
     : plan.links[0].wall.endsWith('y') ? [look[0], look[1], 1.8] : [look[1], look[0], 1.8];
   const air = plan.ref.air;
-  const faces = [...(dress && dress.night ? lit.map(dress.night.relight) : lit), ...fixtures, ...(dress ? dress.after : [])];
+  const faces = [...(dress && dress.night ? lit.map(dress.night.relight) : lit), ...fixtures, ...(dress ? dress.after : []), ...plotWindows(plan).flatMap((w) => w.faces)];
   const Fk2 = plan.kit.dress && plan.kit.dress.decay && plan.kit.dress.decay.flicker;
   const flickerLamps = !plan.decay || !Fk2 ? [] : [
     ...geom.seats.filter((l) => l.flicker).map((l) => ({ at: l.at, radius: l.radius, share: Fk2.of, base: 1, mode: l.flicker.mode, seed: l.flicker.seed })),

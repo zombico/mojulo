@@ -111,10 +111,29 @@
           }
         },
         "plot": {
+          "gate": {
+            "torches": 2,
+            "vary": 0.8,
+            "lead": 1.4,
+            "cold": 1.2
+          },
           "hall": {
             "torches": 4,
             "key": 3,
-            "lead": 1.5
+            "lead": 1.5,
+            "vary": 0.7,
+            "cold": 0.9
+          },
+          "gallery": {
+            "torches": 6,
+            "vary": 1,
+            "lead": 1.4
+          },
+          "sanctum": {
+            "torches": 3,
+            "key": 3.5,
+            "vary": 0.5,
+            "cold": 1.6
           }
         },
         "geocube": {

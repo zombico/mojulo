@@ -245,3 +245,9 @@ What the theme will hold:
   goal, framed by a brighter pair of torches. The form render's bake is solved against its median lamp, so a plot's
   contrast is its lamps' strengths against each other. Fallen Angel's great hall is lit so; its other rooms keep the
   rhythm. A room the plot names none of, and every stage without one, as it was.
+- **Built: variety in a room's light.** A plot's room takes `vary` (each flame its own strength and colour, from an
+  ember's low red to a bright one's, by where it hangs) and `cold` (a moonlit lancet high on the wall facing its way in,
+  its slit drawn and its cold light falling into the room: a second colour with a cause). A toned room solved for a plot
+  keeps its lamps' hues against its reference lamp (`form/room-light.js` `hued`: the median lamp neutral, so its ramps
+  stand), so an ember and a moon read as such; every other toned room's lamps stay without hue. Fallen Angel's four
+  rooms each take their own.
