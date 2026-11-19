@@ -49,23 +49,29 @@ describe('the JRPG starter\'s town on the page', () => {
     if (!browser) return;
     const page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 720 });
-    // stand the pilot at a zone, and press the interact key (held a frame: the runtime reads it once a frame)
-    const useAt = async (at, id) => {
+    // stand the pilot at a zone, and press the interact key (held a frame: the runtime reads it once a frame); stood a
+    // little over the feet of the one it talks to and let fall, so on ground higher than where it was it lands on it
+    // rather than inside it (a teleport the walk never makes: walking, the pilot follows the ground)
+    const useAt = async (at, id, who) => {
       // (a spot in its reach and clear of every door's zone, with room to spare: standing on one walks in through it)
       const clear = ([x, y]) => doors.every((d) => Math.abs(x - d.at[0]) > d.half[0] + 1 || Math.abs(y - d.at[1]) > d.half[1] + 1);
       const spots = [];
       for (const r of [0.9, 1.2, 0.6]) for (let k = 0; k < 16; k++) spots.push([at[0] + r * Math.cos((k * Math.PI) / 8), at[1] + r * Math.sin((k * Math.PI) / 8)]);
       const spot = spots.find(clear) ?? spots[0];
-      await page.evaluate((a) => { const W = window.__mojCtrl.world, me = W.byId[W.pilotId]; me.transform.pos[0] = a[0]; me.transform.pos[1] = a[1]; }, spot);
+      await page.evaluate((a, w) => { const W = window.__mojCtrl.world, me = W.byId[W.pilotId], f = w && W.byId[w]; me.transform.pos[0] = a[0]; me.transform.pos[1] = a[1]; if (f) { me.transform.pos[2] = f.transform.pos[2] + 0.4; if (me.vel) me.vel[2] = 0; } }, spot, who ?? null);
       await page.waitForFunction((z) => window.__mojReach === z, { timeout: 15000 }, id);
-      await page.keyboard.down('KeyE'); await nap(250); await page.keyboard.up('KeyE');
+      // (E held until the bus says the cue fired: the runtime reads it once a frame, and software GL under a heavy town
+      // draws a frame a second or slower, so a fixed hold can fall between two frames)
+      await page.keyboard.down('KeyE');
+      try { await page.waitForFunction((t) => (window.__mojBus.state.log || []).some((x) => x && x.type === t), { timeout: 30000 }, id.replace(/^cue-/, 'cue:')); }
+      finally { await page.keyboard.up('KeyE'); }
     };
     try {
       await page.setContent(html, { waitUntil: 'load' });
       await page.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world && window.__mojTalk && window.__mojRpg, { timeout: 120000 });
       const say = zones().find((c) => /^folk-say:/.test(c.then?.emit ?? '') && !c.if), who = say.then.emit.slice('folk-say:'.length);
       const scene = M.play.scenes.find((x) => x.when.on === say.then.emit);
-      await useAt(say.when.use.at, `cue-${say.id}`);
+      await useAt(say.when.use.at, `cue-${say.id}`, say.id.replace(/-talk$/, ''));
       await page.waitForFunction(() => window.__mojTalk.state.talk.show && window.__mojTalk.state.talk.text.length > 0, { timeout: 20000 });
       const line = await page.evaluate(() => ({ name: document.querySelector('#moj-mana-talk .mana-heading')?.textContent, state: window.__mojTalk.state.talk }));
       expect(line.name).toBe(scene.names[who]);
@@ -79,7 +85,7 @@ describe('the JRPG starter\'s town on the page', () => {
       await page.keyboard.down('Escape'); await nap(400); await page.keyboard.up('Escape');
       await page.waitForFunction(() => !window.__mojScenes.on(), { timeout: 15000 });
       const inn = zones().find((c) => c.then?.emit === 'rpg-shop:innkeeper');
-      await useAt(inn.when.use.at, `cue-${inn.id}`);
+      await useAt(inn.when.use.at, `cue-${inn.id}`, inn.id.replace(/-talk$/, ''));
       await page.waitForFunction(() => window.__mojRpg.state().mode === 'shop', { timeout: 15000 });
       expect(await page.evaluate(() => window.__mojRpg.state().shop.id)).toBe('innkeeper');
     } finally { await page.close(); }
