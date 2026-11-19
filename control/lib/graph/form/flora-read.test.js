@@ -148,7 +148,9 @@ describe('the realistic tree (`crowns: realistic`)', () => {
     expect(r.budget.tris).toBeLessThanOrEqual(a.budget.tris);
     // (its balls as stacked cups, its wood only what carries them: less than the plain tree's)
     expect(r.blobGeo.length).toBe(CUPS.variants);
-    expect(r.blobGeo[0].n).toBe(CUPS.tiers.length * CUPS.teeth * 2 * 3);
+    for (const g of r.blobGeo) { expect(g.n % 6).toBe(0); expect(g.n).toBeGreaterThanOrEqual(CUPS.tiers.length * CUPS.teeth[0] * 6); expect(g.n).toBeLessThanOrEqual(CUPS.tiers.length * CUPS.teeth[1] * 6); }
+    // (a cloud: more masses than the study's three or four)
+    expect(r.nBlobs).toBeGreaterThan(REALISTIC.cloud.k[0]);
     const woodTris = (t) => Buffer.from(t.wood.idx, 'base64').length / (t.wood.big ? 4 : 2) / 3;
     expect(woodTris(r)).toBeLessThan(woodTris(a));
     // (far off its card full: the page bakes the mass under the leaves)

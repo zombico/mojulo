@@ -536,10 +536,11 @@ export const BALLS = Object.freeze({ k: Object.freeze([3, 4]), many: 40, hold: 0
   // (at their middle, `drop` of the smaller radius lower, `join` × it): the clumps meet in spots, each hanging off the
   // limbs that carry it)
   core: 0.55, sink: 0.45, bridge: 0.42, step: 1.5, links: 3, near: 1.45, drop: 0.2, join: 0.48 });
-export function majorBalls(clumps) {
+// (`k` and `sep` a caller's own: a realistic crown's cloud, more of them and overlapping, form/flora-read.js REALISTIC)
+export function majorBalls(clumps, { k: ks = BALLS.k, sep = BALLS.sep } = {}) {
   const n = clumps.length;
   if (!n) return { blobs: [] };
-  const k = Math.min(n, n >= BALLS.many ? BALLS.k[1] : BALLS.k[0]), d2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
+  const k = Math.min(n, n >= BALLS.many ? ks[1] : ks[0]), d2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
   const C0 = mul(clumps.reduce((a, c) => add(a, c.p), [0, 0, 0]), 1 / n);
   // (first centres: the highest end, then each the farthest from those chosen)
   const top = clumps.reduce((a, c, i) => (c.p[2] > clumps[a].p[2] ? i : a), 0), C = [clumps[top].p.slice()];
@@ -561,7 +562,7 @@ export function majorBalls(clumps) {
   // (the gaps between them)
   const r0 = blobs.map((b) => b.s), r = r0.slice();
   for (let pass = 0; pass < BALLS.passes; pass++) for (let i = 0; i < blobs.length; i++) for (let j = 0; j < i; j++) {
-    const d = len(sub(blobs[i].p, blobs[j].p)), room = BALLS.sep * d;
+    const d = len(sub(blobs[i].p, blobs[j].p)), room = sep * d;
     if (r[i] + r[j] > room) { const f = room / (r[i] + r[j]); r[i] = Math.max(BALLS.least * r0[i], r[i] * f); r[j] = Math.max(BALLS.least * r0[j], r[j] * f); }
   }
   const balls = blobs.map((b, i) => ({ ...b, s: r4(r[i]) }));

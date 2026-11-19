@@ -117,28 +117,36 @@ export const MASS_BLOB = Object.freeze({ detail: 1, ball: 2, squash: 0.85, shade
  *  triangles baked). Near, the balls drawn as STACKED CUPS (CUPS), its least bundles given up for what they cost, and
  *  only the bundles within `onBall` of a ball's radius kept: no leaf off its mass; its wood EVOKED by its balls
  *  (tree-form.js EVOKE): a limb only where it carries one. */
-export const REALISTIC = Object.freeze({ older: 1.25, onBall: 0.85, far: Object.freeze({ shade: 0.8, rim: 0.6, leaf: 0.5, squash: 0.85, discs: false }) });
-/** A realistic crown's ball as STACKED CUPS: `tiers` low domes one over the next, each `[radius, rim height, rise]` of
- *  the ball's radius, the widest beneath; each dome's rim a ring of `teeth` points reaching out and dropping (`drop` ×
- *  its radius), the notches between drawn in (`notch` of the radius, `notchDrop` of the drop), its dome rounded through
- *  a ring at `shoulder` of the way in; its faces toned by which way they face (MASS_BLOB.lobe.tones); `variants` of them,
- *  each its teeth turned and their reach varied by `jitter`. */
-export const CUPS = Object.freeze({ tiers: Object.freeze([Object.freeze([1.18, -0.42, 0.42]), Object.freeze([0.96, -0.02, 0.36]), Object.freeze([0.64, 0.36, 0.32])]),
-  teeth: 7, notch: 0.74, drop: 0.3, notchDrop: 0.25, shoulder: 0.58, jitter: 0.14, variants: 3 });
+export const REALISTIC = Object.freeze({ older: 1.25, onBall: 0.85,
+  // (its crown a CLOUD: `k` masses (the fewer for a sparse crown, the more for a full one), overlapping (`sep` over 1:
+  // their radii may sum past the distance between them), each its own size)
+  cloud: Object.freeze({ k: Object.freeze([6, 8]), sep: 1.45 }), far: Object.freeze({ shade: 0.8, rim: 0.6, leaf: 0.5, squash: 0.85, discs: false }) });
+/** A realistic crown's mass as STACKED CUPS in a spread CLOUD: `tiers` low domes one over the next, each `[radius,
+ *  rim height, rise]` of the mass's radius, the widest beneath; the whole STRETCHED (`stretch`: out along the way the mass
+ *  reaches from the trunk, across, up), so a mass is a shelf, wider than tall, not a mushroom; each tier over the last
+ *  stepped IN toward the trunk (`lean` of its radius), so the low tier reaches out and the high ones climb toward the
+ *  crown's top; each dome's rim a ring of teeth (`teeth`, a tier's own count within) reaching out and dropping (`drop` ×
+ *  its radius, each tooth its own by `jitter`), the notches between drawn in (`notch` of the radius, `notchDrop` of the
+ *  drop), its dome rounded through a ring at `shoulder` of the way in; its faces toned by which way they face
+ *  (MASS_BLOB.lobe.tones); `variants` of them. On the page each is turned to face out the way its mass reaches. */
+export const CUPS = Object.freeze({ tiers: Object.freeze([Object.freeze([1.15, -0.32, 0.46]), Object.freeze([0.95, -0.05, 0.44]), Object.freeze([0.68, 0.22, 0.4])]),
+  stretch: Object.freeze([1.3, 1.05, 0.92]), lean: 0.18, teeth: Object.freeze([6, 9]), notch: 0.78, drop: 0.2, notchDrop: 0.25, shoulder: 0.58, jitter: 0.22, variants: 5 });
 function cupTris(seed) {
-  const C = CUPS, h = (k) => hashN(seed * 613 + k), tones = MASS_BLOB.lobe.tones, leaf = TONES.leaf, tris = [];
+  const C = CUPS, h = (k) => hashN(seed * 613 + k), tones = MASS_BLOB.lobe.tones, leaf = TONES.leaf, tris = [], X = C.stretch;
   const tone = (n) => { const l = Math.hypot(...n) || 1, nz = n[2] / l; return leaf.map((v) => Math.min(255, Math.round(v * tones[nz > 0.35 ? 0 : nz > -0.25 ? 1 : 2] * MASS_BLOB.shade))); };
   const face = (a, b, c) => { const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]], n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
     // (wound to face out of the cup: up and out)
     const out = n[2] + (n[0] * (a[0] + b[0] + c[0]) + n[1] * (a[1] + b[1] + c[1])) * 0.3 >= 0;
     tris.push({ p: (out ? [a, b, c] : [a, c, b]).map((q) => q.map(r4)), c: tone(out ? n : n.map((x) => -x)), kind: 'leaf' }); };
+  // (a point of the cup in its own frame: stretched, its tier stepped in toward the trunk, -x)
+  const at = (x, y, z, t) => [(x - C.lean * t) * X[0], y * X[1], z * X[2]];
   C.tiers.forEach(([R, z, rise], t) => {
-    const n = C.teeth, turn = h(t * 11) * Math.PI * 2, apex = [0, 0, z + rise], ring = [], rim = [];
+    const n = C.teeth[0] + Math.floor(h(t * 5 + 1) * (C.teeth[1] - C.teeth[0] + 1)), turn = h(t * 11) * Math.PI * 2, apex = at(0, 0, z + rise, t), ring = [], rim = [];
     for (let i = 0; i < 2 * n; i++) {
-      const th = turn + (i * Math.PI) / n, tooth = i % 2 === 0, j = 1 + C.jitter * (h(t * 97 + i) - 0.5) * 2;
-      const r = R * (tooth ? 1 : C.notch) * j, dz = -C.drop * R * (tooth ? 1 : C.notchDrop);
-      rim.push([r * Math.cos(th), r * Math.sin(th), z + dz]);
-      ring.push([R * C.shoulder * Math.cos(th), R * C.shoulder * Math.sin(th), z + rise * 0.7]);
+      const th = turn + (i * Math.PI) / n, tooth = i % 2 === 0, j = 1 + C.jitter * (h(t * 97 + i) - 0.5) * 2, jd = 1 + C.jitter * (h(t * 89 + i) - 0.5) * 2;
+      const r = R * (tooth ? 1 : C.notch) * j, dz = -C.drop * R * (tooth ? 1 : C.notchDrop) * jd;
+      rim.push(at(r * Math.cos(th), r * Math.sin(th), z + dz, t));
+      ring.push(at(R * C.shoulder * Math.cos(th), R * C.shoulder * Math.sin(th), z + rise * 0.7, t));
     }
     for (let i = 0; i < 2 * n; i++) {
       const k = (i + 1) % (2 * n);
@@ -224,7 +232,7 @@ function treeTemplate(species, height, crowns = null) {
       // ('blobs': the crown's 3 or 4 major balls, its leaves set aside, tree-form.js majorBalls: its form studied alone)
       // ('realistic': the same balls and their joining lobes under its leaves, REALISTIC: its crown's mass near, as its
       // card has it far)
-      const M0 = masses ? massCrown(C0) : tips || real ? { ...majorBalls(C0), clumps: C0 } : null;
+      const M0 = masses ? massCrown(C0) : tips || real ? { ...majorBalls(C0, real ? REALISTIC.cloud : {}), clumps: C0 } : null;
       // (each blob held to the wood that is drawn: none floats over a twig the cut left out)
       // ('realistic': grown again with its wood EVOKED by its balls, tree-form.js EVOKE: a limb only where it carries
       // one, no hair-thin twig; and its leaves only on its balls)
