@@ -179,11 +179,11 @@ describe('the evoked wood', () => {
     const balls = majorBalls(whole.clumps, { joined: false }).blobs, evoked = at({ balls }), P = evoked.wood.pos;
     expect(tris(evoked)).toBeGreaterThan(0);
     // (each mass carried: wood reaching the end of the length that leads to it, where it stands or drawn in along it)
-    for (const g of evoked.limbs.filter((x) => x.end >= 0)) {
+    for (const g of evoked.limbs.filter((x) => x.end >= 0 && !x.fill)) {
       let best = Infinity; for (let i = 0; i < P.length; i += 3) best = Math.min(best, Math.hypot(P[i] - g.to[0], P[i + 1] - g.to[1], P[i + 2] - g.to[2]));
       expect(best).toBeLessThan(g.r0 * 3 + 0.05);
     }
-    expect(evoked.limbs.filter((x) => x.end >= 0).length).toBe(balls.length);
+    expect(evoked.limbs.filter((x) => x.end >= 0 && !x.fill).length).toBe(balls.length);
     const top = Math.max(...balls.map((b) => b.p[2] + b.s)); for (let i = 2; i < P.length; i += 3) expect(P[i]).toBeLessThan(top);
   }, 120000);
 
@@ -194,7 +194,7 @@ describe('the evoked wood', () => {
     const L = limbTree(trunk, pads, 0.03), E = L.edges;
     // (each mass the end of one length, entered from below; fewer main limbs than masses)
     for (let i = 0; i < pads.length; i++) expect(E.filter((g) => g.end === i).length).toBe(1);
-    const mains = E.filter((g) => g.main);
+    const mains = E.filter((g) => g.main && !g.fill);
     expect(mains.length).toBeLessThan(pads.length);
     expect(mains.length).toBeGreaterThanOrEqual(2);
     // (every length climbs: no limb drawn down or level)
@@ -219,6 +219,26 @@ describe('the evoked wood', () => {
     for (const g of E) for (const k of E.filter((x) => key(x.from) === key(g.to))) expect(k.r0).toBeLessThanOrEqual(g.r0 + 1e-9);
     // (deterministic)
     expect(JSON.stringify(limbTree(trunk, pads, 0.03))).toBe(JSON.stringify(L));
+  });
+
+  it('branches all the way up its leader: no bare stretch past its gap, the leader as thick as the limbs over it, its height a habit', () => {
+    // (a tall trunk and masses from low in the crown to its top, at several heights)
+    const trunk = { pts: Array.from({ length: 19 }, (_, i) => [0, 0, i]), rs: Array.from({ length: 19 }, (_, i) => 0.5 - 0.025 * i) };
+    const pads = Array.from({ length: 8 }, (_, i) => { const a = i * 2.4; return { p: [3 * Math.cos(a), 3 * Math.sin(a), 8 + i * 1.2], s: 1.2 }; });
+    const L = limbTree(trunk, pads, 0.03), E = L.edges, z0 = 0, H = Math.max(...pads.map((b) => b.p[2] + b.s * 0.5)) - z0;
+    const starts = E.filter((g) => g.main).map((g) => g.from[2]).sort((a, b) => a - b);
+    // (from its first limb to its leader's top, no stretch of it bare past EVOKE.gap of the tree's height)
+    const stops = [...starts, L.top];
+    for (let i = 1; i < stops.length; i++) expect(stops[i] - stops[i - 1]).toBeLessThanOrEqual(EVOKE.gap * H + 1e-6);
+    // (masses at several heights keep their own limbs: they leave the leader at more than one height)
+    expect(new Set(E.filter((g) => g.main && !g.fill).map((g) => g.from[2].toFixed(1))).size).toBeGreaterThan(1);
+    // (the leader at each height at least as thick as the limbs leaving over it together)
+    L.trunk.pts.forEach((q, i) => { const over = E.filter((g) => g.main && g.from[2] >= q[2] - 1e-9); expect(L.trunk.rs[i]).toBeGreaterThanOrEqual(Math.sqrt(over.reduce((a, g) => a + (g.r0) ** 2, 0)) * EVOKE.hold - 1e-9); });
+    // (its leader's height a habit: a high one reaches higher)
+    expect(limbTree(trunk, pads, 0.03, { lead: 0.85 }).top).toBeGreaterThan(L.top);
+    // (each fill limb carries a cloud)
+    const C = branchClouds(E, 3);
+    for (const g of E.filter((x) => x.fill)) expect(C.some((c) => Math.hypot(c.p[0] - g.to[0], c.p[1] - g.to[1]) < g.s * 1.5)).toBe(true);
   });
 
   it('clouds each section but a main limb that forks: puffs sitting on their branch, along it and past its end, smaller inside', () => {
