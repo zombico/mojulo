@@ -23,3 +23,9 @@ boxes to a sneaking body. Two new pieces make it a ground, and a walled-core dun
   hides) with its laid rooms' laws, its materials, its moves and the recipe line that names it. `design_game`'s readout
   offers it to a world with a building level, a dungeon or a rail of interiors; the world book draws a facility level
   the same way, and the spike's plans are drawn by it.
+- **Nothing on a stair**: a gallery's stairs (the catwalk's way up from a hall's floor) join the dressing's keep-outs
+  (`compose-dress.js keepOuts`), so the stock, a room's layout and the cover all keep off them; a depot's racks and a
+  power plant's machines stood on them before.
+- **Racks that are not copies**: a rack a room's layout lays carries a load of its own (`load: true`, seeded from its
+  id): a pallet of cartons of mixed sizes, a wrapped load, a row of totes or a gap, level by level, each box in a
+  surface and a variant of its own. A rack stocked along a wall keeps its one fixed load, byte for byte.

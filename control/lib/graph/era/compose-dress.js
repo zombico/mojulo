@@ -155,7 +155,8 @@ function openingsOf(plan, r) {
   return out;
 }
 
-/** Where nothing stands: each doorway's approach, each stair with its foot and head, each doorway's sightline to the focus. */
+/** Where nothing stands: each doorway's approach, each stair with its foot and head (a gallery's too), each doorway's
+ *  sightline to the focus. */
 export function keepOuts(plan) {
   const depth = STAIR_PROFILES.game.door, roles = new Map((plan.compose?.roles || []).map((R) => [R.room, R])), out = [];
   for (const r of plan.rooms) {
@@ -167,6 +168,14 @@ export function keepOuts(plan) {
       out.push({ room: r.id, kind: 'door', min: o.X ? [a[0], lo] : [lo, a[0]], max: o.X ? [a[1], hi] : [hi, a[1]], near: { min: o.X ? [b[0], nl] : [nl, b[0]], max: o.X ? [b[1], nh] : [nh, b[1]] } });
       if (R) { const m = (o.lo + o.hi) / 2; out.push({ room: r.id, kind: 'sight', a: o.X ? [o.at, m] : [m, o.at], b: [R.focus[0], R.focus[1]], half: SIGHT }); }
     }
+  }
+  // (a gallery's stairs, the catwalk's way up from a hall's floor, stage.js: its near flight along the wall from its
+  // foot, a long one's second coming in square to it; every piece keeps off them, the stock, a layout and the cover)
+  for (const g of (plan.galleries ?? []).filter((x) => !x.lost)) {
+    const X = g.side.endsWith('x'), into = g.side.startsWith('-') ? 1 : -1;
+    const band = (a, b, deep) => { const v = [g.at, g.at + into * deep].sort((p, q) => p - q); out.push({ room: g.hall, kind: 'stair', min: X ? [v[0], a] : [a, v[0]], max: X ? [v[1], b] : [b, v[1]] }); };
+    band(Math.min(g.foot, g.near[0]) - 0.6, Math.max(g.foot, g.near[1]) + 0.6, g.depth[1] + 1.2);
+    if (g.front) band(g.front[0] - 1.2, g.front[1] + 1.2, g.reach + 1.8);
   }
   for (const s of plan.stairs || []) {
     const [x0, y0, x1, y1] = s.rect;
@@ -272,7 +281,8 @@ export function layProps(plan) {
     for (let d = 0.5; d <= 1.5; d += 0.5) for (const [a, b] of [[d, 0], [-d, 0], [0, d], [0, -d], [d, d], [-d, d], [d, -d], [-d, -d]]) NUDGE.push([a, b]);
     for (const c of L.lay(r, o, (k) => PIECES[k], dice, fits)) {
       for (const [a, b] of L.nudge ? NUDGE : NUDGE.slice(0, 1)) {
-        const it = { id: `${r.id}/layout/${c.kind}`, kind: c.kind, room: r.id, at: [r5(c.at[0] + a), r5(c.at[1] + b)], facing: c.facing }, f = footprintOf(it);
+        // (a rack a layout lays carries a load of its own, propFaces: rows of them read as stock, never as copies)
+      const it = { id: `${r.id}/layout/${c.kind}`, kind: c.kind, room: r.id, at: [r5(c.at[0] + a), r5(c.at[1] + b)], facing: c.facing, ...(LOADED[c.kind] ? { load: true } : {}) }, f = footprintOf(it);
         // (moved, it keeps a body's way to every wall, or stands against it: never a gap a body sticks in)
         const gaps = [f.min[0] - r.x0, r.x1 - f.max[0], f.min[1] - r.y0, r.y1 - f.max[1]];
         if ((a || b) && gaps.some((g) => g > 0.35 && g < 0.9)) continue;
@@ -384,14 +394,8 @@ export function layoutReport(plan, items) {
  * LANE round the walls, a body's width between any two things. → items as layProps lays them.
  */
 export function layCover(plan, items = []) {
+  // (the stairs kept are keepOuts', a gallery's among them)
   const keep = keepOuts(plan).filter((k) => k.kind !== 'sight'), out = [], C = COVER_CELL;
-  // (a gallery's stairs: its near flight along the wall from its foot, a long one's second coming in square to it)
-  for (const g of (plan.galleries ?? []).filter((x) => !x.lost)) {
-    const X = g.side.endsWith('x'), into = g.side.startsWith('-') ? 1 : -1;
-    const band = (a, b, deep) => { const v = [g.at, g.at + into * deep].sort((p, q) => p - q); keep.push({ room: g.hall, kind: 'stair', min: X ? [v[0], a] : [a, v[0]], max: X ? [v[1], b] : [b, v[1]] }); };
-    band(Math.min(g.foot, g.near[0]) - 0.6, Math.max(g.foot, g.near[1]) + 0.6, g.depth[1] + 1.2);
-    if (g.front) band(g.front[0] - 1.2, g.front[1] + 1.2, g.reach + 1.8);
-  }
   const all = () => [...items, ...out];
   const clear = (r, f, gap) => f.min[0] >= r.x0 + LANE && f.max[0] <= r.x1 - LANE && f.min[1] >= r.y0 + LANE && f.max[1] <= r.y1 - LANE
     && !keep.some((k) => k.room === r.id && hits(k, f.min, f.max))
@@ -478,6 +482,44 @@ function prism(out, c, r, z0, z1, sides, sf) {
 }
 
 /** Each item's faces, named by its id, and an anchor each (a prop of its piece's class). */
+/**
+ * A RACK'S LOAD, each its own (an item's `load: true`, laid by a room's layout, room-layouts.js): the rack's frame as it
+ * is, and on each of its levels, by dice seeded from the item's id, a pallet of cartons of mixed sizes (stacked two high
+ * where they fit), one wrapped load, a row of totes, or nothing (a gap: a glimpse into the next aisle), each box in a
+ * surface and a variant of its own. A rack without `load` carries its one fixed load, as every rack laid before did.
+ */
+const LOADED = Object.freeze({ rack: Object.freeze({ frame: 8, levels: Object.freeze([[0, 0.98], [1.16, 1.98], [2.16, 2.92]]), u: Object.freeze([0.15, 2.55]), v: Object.freeze([0.12, 0.88]) }) });
+const LOAD_SURFS = Object.freeze(['cabinet', 'services', 'paint', 'cabinet', 'trim']);
+function loadParts(P, L, seed) {
+  const d = mulberry32(seed), pick = (a) => a[Math.floor(d() * a.length)], parts = P.parts.slice(0, L.frame), r3 = (v) => Math.round(v * 1000) / 1000;
+  const [U0, U1] = L.u, [V0, V1] = L.v;
+  for (const [z0, z1] of L.levels) {
+    const kind = pick(['cartons', 'cartons', 'cartons', 'wrapped', 'totes', 'empty']), room = z1 - z0;
+    if (kind === 'empty') continue;
+    if (kind === 'wrapped') {
+      const w = 0.9 + d() * 0.5, u = U0 + d() * (U1 - U0 - w), h = room * (0.7 + d() * 0.25);
+      parts.push([r3(u), r3(u + w), V0 + 0.04, V1 - 0.04, z0, r3(z0 + h), 'services', Math.floor(d() * 4)]);
+      continue;
+    }
+    if (kind === 'totes') {
+      const n = 3 + Math.floor(d() * 3), w = (U1 - U0) / n, s = pick(LOAD_SURFS);
+      for (let i = 0; i < n; i++) { if (d() < 0.15) continue; const h = 0.26 + d() * 0.12; parts.push([r3(U0 + i * w + 0.03), r3(U0 + (i + 1) * w - 0.03), V0 + 0.1, V1 - 0.1, z0, r3(z0 + h), s, Math.floor(d() * 4)]); }
+      continue;
+    }
+    // (cartons: a pallet under them on the floor level, boxes of two to four widths across, some stacked)
+    const base = z0 === 0 ? 0.12 : 0;
+    if (base) parts.push([U0, U1, V0, V1, 0, base, 'beam', 0]);
+    let u = U0;
+    while (u < U1 - 0.3) {
+      const w = Math.min(U1 - u, 0.35 + d() * 0.55), dv = 0.5 + d() * (V1 - V0 - 0.5), v0 = V0 + d() * (V1 - V0 - dv), h = 0.3 + d() * 0.3, s = pick(LOAD_SURFS), vr = Math.floor(d() * 4);
+      parts.push([r3(u + 0.02), r3(u + w - 0.02), r3(v0), r3(v0 + dv), r3(z0 + base), r3(z0 + base + h), s, vr]);
+      if (base + 2 * h + 0.04 < room && d() < 0.55) { const h2 = h * (0.6 + d() * 0.4); parts.push([r3(u + 0.06), r3(u + w - 0.06), r3(v0 + 0.04), r3(v0 + dv - 0.04), r3(z0 + base + h), r3(z0 + base + h + h2), pick(LOAD_SURFS), Math.floor(d() * 4)]); }
+      u += w + 0.03;
+    }
+  }
+  return parts;
+}
+
 export function propFaces(plan, items, surf) {
   const faces = [], anchors = [], rooms = new Map(plan.rooms.map((r) => [r.id, r]));
   for (const it of items) {
@@ -495,13 +537,13 @@ export function propFaces(plan, items, surf) {
         out.push({ corners: fc.corners.map(turn), fill: fc.fill, cornerFills: fc.corners.map(() => fc.fill), ...(n ? { normal: n, outNormal: n } : {}), ...(fc.doubleSided ? { doubleSided: true } : {}), group: 'stage:furniture' });
       }
     }
-    for (const p of P.furniture ? [] : P.parts) {
+    for (const p of P.furniture ? [] : it.load && LOADED[it.kind] ? loadParts(P, LOADED[it.kind], hashOf(`load|${it.id}`)) : P.parts) {
       if (p[0] === 'prism') {
         const [, cu, cv, rad, pz0, pz1, sides, s] = p, [mn] = partBox(it, [cu, cu, cv, cv, pz0, pz1], z0);
         prism(out, [mn[0], mn[1]], rad * k, z0 + pz0 * k, z0 + pz1 * k, sides, surf(s));
       } else {
         const [mn, mx] = partBox(it, p, z0);
-        box(out, mn.map(r5), mx.map(r5), surf(p[6]), 2);
+        box(out, mn.map(r5), mx.map(r5), p[7] === undefined ? surf(p[6]) : surf(p[6], p[7]), 2);
       }
     }
     for (const f of out) faces.push({ ...f, node: it.id });

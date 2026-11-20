@@ -3,6 +3,7 @@ import { FACILITIES, FACILITY_IDS, facilityBuilding } from './facilities.js';
 import { PROGRAMS, withProgram } from './programs.js';
 import { planStage } from './stage.js';
 import { roleOf } from './stocking.js';
+import { keepOuts, footprintOf, propFaces } from './compose-dress.js';
 import { buildingStage } from '../gameworld/levels.js';
 import { readWcd } from '../wcd/wcd.js';
 import { readGameworld, MEADOWMARK } from '../gameworld/index.js';
@@ -39,6 +40,26 @@ describe('facilities', () => {
     const bare = planOf({ use: F.use, look: F.look, fight: F.fight });
     expect(bare.compose.layouts).toBeUndefined();
     expect(bare.props.some((it) => it.id.includes('/layout/'))).toBe(false);
+  });
+
+  it('no piece stands on a stair, a gallery\'s way up from the hall\'s floor among them', () => {
+    const P = planOf({ facility: withHall });
+    expect(P.galleries?.length).toBeGreaterThan(0);
+    const stairs = keepOuts(P).filter((k) => k.kind === 'stair'), gal = stairs.filter((k) => k.room === P.galleries[0].hall);
+    expect(gal.length).toBeGreaterThan(0);
+    const on = P.props.filter((it) => !it.wall && stairs.some((k) => k.room === it.room && (() => { const f = footprintOf(it); return f.min[0] < k.max[0] && f.max[0] > k.min[0] && f.min[1] < k.max[1] && f.max[1] > k.min[1]; })()));
+    expect(on.map((it) => it.id)).toEqual([]);
+  });
+
+  it('the racks a layout lays each carry a load of their own; a rack stocked along a wall its one fixed load', () => {
+    const P = planOf({ facility: withHall }), loaded = P.props.filter((it) => it.load && !it.level);
+    expect(loaded.length).toBeGreaterThan(4);
+    const surf = (part, v = 0) => ({ key: `${part}-${v}`, group: `stage:${part}` });
+    const sig = (it) => propFaces(P, [it], surf).faces.map((f) => `${f.corners.flat().join()}`).join('|').length;
+    const shapes = new Set(loaded.slice(0, 12).map((it) => sig({ ...it, at: [0, 0], facing: '+y' })));
+    expect(shapes.size).toBeGreaterThan(3);
+    const plain = { ...loaded[0], load: undefined };
+    expect(sig({ ...plain, at: [0, 0], facing: '+y' })).toBe(sig({ ...plain, id: 'another', at: [0, 0], facing: '+y' }));
   });
 
   it('a walled-core dungeon\'s space names a facility: its use and look the facility\'s, its own look winning', () => {
