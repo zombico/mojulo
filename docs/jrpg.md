@@ -120,12 +120,27 @@ party battle (`battles.boss`, the Ember Drake by default) that speaks as it begi
 (`skip`, `noCast`, `miss`, `wild`, `tick`, `wake: 'hit'`, `rounds`), or the starter book's (paralysis, blindness,
 confusion, burn, regen) by name. A skill's `status: { is }` inflicts one, a `cure` lifts it.
 
+## Travel by ship or airship
+
+A megaworld may name **crossings**, ways taken aboard beside its rings' own:
+
+```json
+{ "megaworld": { "shape": "mandala", "rings": [["town"], ["wilds", "castle"], ["crypt"]],
+  "crossings": [{ "from": "town", "to": "sky-isle", "by": "airship", "needs": "drake-slain" }] } }
+```
+
+Each is a way out and back, shut until its story flag where it names one (a quest's, or the boss's `battles.sets`).
+Leaving by it, the play shell shows the trip while the next map is built: a ship on the waves, or an airship over the
+clouds, "Sailing to" or "Flying to" the place. A crossing joins the world further than its rings (an isle, another
+mandala), so the trip covers the load that a far place costs.
+
 ## What comes next
 
 Each step ends playable, and each is something a person can say that the words did not carry before. An RPG Maker
 idea is reached through the primitive that already owns it (a switch is a flag, an event page a scene's `if`, a
 transfer a megaworld's way), never rebuilt:
-1. **Travel by vehicle:** a ship's or an airship's way, opened by a story flag, its crossing played while the next
-   place is built.
-2. **The battles' depth:** traits on gear and classes (a resistance, a state warded off), and a fight's page that does
+1. **Screen and sound as words:** fade, tint and flash from an event; music and a sound effect from an event; battle
+   music on a fight.
+2. **The party menu's Item and Formation**, and Save in it.
+3. **The battles' depth:** traits on gear and classes (a resistance, a state warded off), and a fight's page that does
    more than speak (a summons, a heal).

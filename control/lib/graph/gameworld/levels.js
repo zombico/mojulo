@@ -1613,8 +1613,10 @@ export function mapPlan(G, stages, refs) {
     const last = a[a.length - 1], first = b[0];
     const slice = isPower.has(l.key) ? 'powers' : 'bag';
     // (a way the story opens, needs: shut on its page and in the shell until the quest's flag is set)
-    plan[last].on.push({ to: refs[first], ...(l.key ? { gate: { has: l.key, slice } } : l.needs ? { gate: { flag: l.needs, slice: STORY_SLICE }, needs: l.needs } : {}) });
-    plan[first].back.push({ to: refs[last] });
+    // (a crossing, by: its way, out and back, taken aboard: the shell shows the trip)
+    const aboard = l.by ? { crossing: { by: l.by } } : {};
+    plan[last].on.push({ to: refs[first], ...(l.key ? { gate: { has: l.key, slice } } : l.needs ? { gate: { flag: l.needs, slice: STORY_SLICE }, needs: l.needs } : {}), ...aboard });
+    plan[first].back.push({ to: refs[last], ...aboard });
     if (l.key) { const at = of(l.keyAt); plan[at[at.length - 1]][slice === 'powers' ? 'powers' : 'keys'].push(l.key); }
   }
   // (a megaworld's SAVE POINTS: a saving zone's first stage keeps one where the party comes in, a way to itself)
@@ -2014,7 +2016,7 @@ export function gameLevels(stages, refs, plan = null) {
     return stages.map((s, i) => {
       // a city's segment leaves by its portals too, each named for the neighbour it leads to
       const portals = s.section === 'city' ? s.city.neighbours.map((id) => ({ id, to: refs[stages.findIndex((x) => x.level === s.level && x.node === id)] })).filter((x) => x.to) : [];
-      const exits = [...plan[i].on, ...plan[i].back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })).concat(portals, plan[i].savePoint ? [{ id: SAVE_POINT.exit, to: plan[i].savePoint }] : []);
+      const exits = [...plan[i].on, ...plan[i].back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}), ...(w.crossing ? { crossing: { ...w.crossing } } : {}) })).concat(portals, plan[i].savePoint ? [{ id: SAVE_POINT.exit, to: plan[i].savePoint }] : []);
       return { ref: refs[i], title: stageTitle(s), ...(exits.length ? { exits } : {}) };
     });
   }

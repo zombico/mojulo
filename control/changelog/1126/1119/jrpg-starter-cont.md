@@ -76,3 +76,10 @@
   blindness, confusion, burn, regen (`presets.js` STATE_PRESETS), pulled in where a skill or an item names one. A skill
   inflicts one and an item or a skill cures one as the three were; a fallen fighter is rid of them; the bar over its head
   says them; a member held by one is not asked to pick. A fight that meets none rolls the same dice as before.
+- **Crossings: travel by ship or airship.** A megaworld may name ways taken aboard beside its rings' own
+  (`megaworld.crossings: [{ from, to, by: 'ship' | 'airship', needs? }]`): each a link (`links[].by`) shut until its
+  story flag where it names one (a quest's, or the boss's `battles.sets`), out and back, and an exit's `crossing` in the
+  game. Leaving by one, the play shell shows the trip while the next map is built in place of the loading veil: a ship
+  bobbing on drifting waves under a low sun, or an airship over drifting clouds, "Sailing to" or "Flying to" the place,
+  for 2.6 s at least and until the map is drawn. A crossing can join the world further than its rings: an isle, or
+  another mandala.

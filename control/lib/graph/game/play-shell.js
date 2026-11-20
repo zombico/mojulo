@@ -192,6 +192,18 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   th{font-weight:500;color:var(--dim);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
   tr.me td{color:var(--accent)}
   #frame{position:fixed;inset:0;width:100%;height:100%;border:0;display:none;background:#000}
+  /* THE CROSSING (a way taken aboard, a megaworld's crossings): the trip shown while the next map is built, over the veil */
+  #crossing{position:fixed;inset:0;display:none;z-index:9;background:#0b1220;overflow:hidden}
+  #crossing svg{position:absolute;inset:0;width:100%;height:100%}
+  #crossing .to{position:absolute;left:50%;bottom:9%;transform:translateX(-50%);white-space:nowrap;padding:.25em .9em;border-radius:999px;background:rgba(10,18,32,.38);color:#fff;font-size:clamp(16px,3.2vw,30px);letter-spacing:.06em;text-shadow:0 2px 8px rgba(0,0,0,.6)}
+  @keyframes cr-drift{from{transform:translateX(0)}to{transform:translateX(-200px)}}
+  @keyframes cr-drift-slow{from{transform:translateX(0)}to{transform:translateX(-400px)}}
+  @keyframes cr-bob{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-4px) rotate(1.5deg)}}
+  #crossing .w1{animation:cr-drift 3.2s linear infinite}
+  #crossing .w2{animation:cr-drift 5s linear infinite}
+  #crossing .c1{animation:cr-drift-slow 9s linear infinite}
+  #crossing .c2{animation:cr-drift-slow 15s linear infinite}
+  #crossing .bob{animation:cr-bob 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
   #veil{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;background:var(--bg);z-index:5}
   #veil .bar{width:180px;height:3px;border-radius:2px;background:var(--line);overflow:hidden}
   #veil .bar i{display:block;height:100%;width:40%;background:var(--accent);animation:slide 1.1s ease-in-out infinite}
@@ -219,6 +231,7 @@ ${bareHud ? '  @media (hover:hover) and (pointer:fine){#pauseBtn{display:none!im
 <div id="front"></div>` : ''}
 <iframe id="frame" title="level" allow="gamepad; fullscreen; autoplay"></iframe>
 <div id="veil"><div class="muted" id="veilText">loading</div><div class="bar"><i></i></div></div>
+<div id="crossing"></div>
 <button id="pauseBtn" aria-label="pause">☰</button>
 <div id="pause"></div>
 <div id="playtag">playtest · nothing is saved</div>
@@ -565,6 +578,34 @@ export function playShellRuntime(cfg, K) {
   }
   // `stage`: a cinematic the flow plays on the level's page ({ scene, skip? }, params.__stage): the level plays it, held,
   // and says when it ends
+  // THE CROSSING: a way taken aboard (an exit's `crossing`) shows its trip in place of the veil while the next map is
+  // built, for CROSS_MIN at least so the trip reads as one, lifted once the map is drawn
+  const CROSS_MIN = 2600;
+  let crossNext = null, crossUntil = 0, crossTimer = 0;
+  function crossScene(by) {
+    // (a band of waves twice the screen's width, drifting left by one wave's length and again)
+    const waves = (y, c, k) => '<g class="' + k + '"><path fill="' + c + '" d="M0 ' + y + Array.from({ length: 12 }, () => ' q 25 -7 50 0').join('') + ' V 225 H 0 Z"/></g>';
+    const cloud = (x, y, r) => '<g fill="#ffffff" opacity=".9"><ellipse cx="' + x + '" cy="' + y + '" rx="' + r * 1.6 + '" ry="' + r * 0.6 + '"/><ellipse cx="' + (x + r * 0.6) + '" cy="' + (y - r * 0.35) + '" rx="' + r * 0.9 + '" ry="' + r * 0.55 + '"/></g>';
+    const clouds = (y, r, k, n) => '<g class="' + k + '">' + Array.from({ length: n }, (_, i) => cloud(i * (800 / n) + 30, y + (i % 2) * 14, r)).join('') + '</g>';
+    if (by === 'airship') return '<svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="crs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4f7fcf"/><stop offset="1" stop-color="#d6e6ff"/></linearGradient></defs><rect width="400" height="225" fill="url(#crs)"/>'
+      + clouds(150, 26, 'c2', 8) + '<g class="bob"><ellipse cx="200" cy="92" rx="62" ry="24" fill="#c8553d"/><path d="M140 92 h120" stroke="#8a3424" stroke-width="2"/><path d="M262 92 l14 -12 v24 z" fill="#8a3424"/><path d="M178 114 l4 14 M222 114 l-4 14" stroke="#3b2a20" stroke-width="1.5"/><rect x="176" y="126" width="48" height="12" rx="3" fill="#5b4030"/></g>'
+      + clouds(190, 34, 'c1', 4) + '</svg>';
+    return '<svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="crs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fb2e6"/><stop offset=".62" stop-color="#f3dcb4"/></linearGradient></defs><rect width="400" height="225" fill="url(#crs)"/><circle cx="300" cy="128" r="22" fill="#fff1c9"/>'
+      + waves(150, '#3d78a8', 'w2') + '<g class="bob"><path d="M150 150 h100 l-16 18 h-68 z" fill="#5b3a26"/><path d="M200 150 v-62" stroke="#3b2a20" stroke-width="3"/><path d="M203 92 q30 22 0 52 z" fill="#f4ecd8"/><path d="M197 98 q-24 18 0 44 z" fill="#efe4cc"/></g>'
+      + waves(166, '#2a5f8c', 'w1') + '</svg>';
+  }
+  function crossShow(by, title) {
+    const el = $('crossing');
+    el.innerHTML = crossScene(by) + '<div class="to">' + (by === 'airship' ? 'Flying to ' : 'Sailing to ') + String(title).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]) + '</div>';
+    el.style.display = 'block';
+    crossUntil = performance.now() + CROSS_MIN;
+  }
+  function crossDone() {
+    const el = $('crossing');
+    if (el.style.display === 'none' || !el.style.display) return;
+    clearTimeout(crossTimer);
+    crossTimer = setTimeout(() => { el.style.display = 'none'; el.innerHTML = ''; }, Math.max(0, crossUntil - performance.now()));
+  }
   function launch(lv, arrive, carry, stage, picked) {
     if (stingerEl) stingerEl.pause();
     if (STINGERS) { warmStinger(STINGERS.victory); warmStinger(STINGERS.defeat); }
@@ -601,12 +642,14 @@ export function playShellRuntime(cfg, K) {
     // (in a run the place it is going is the map's number in the run: what was cleared, and what is next)
     if (MANA) MANA.loading(run ? (run.at ? 'cleared ' + run.at + ' of ' + run.order.length + ' · ' : '') + 'map ' + (run.at + 1) + ' of ' + run.order.length : lv.title);
     else { $('veilText').textContent = lv.title; veil.style.display = 'flex'; }
+    // (come aboard: the trip over the veil)
+    if (crossNext) { crossShow(crossNext.by, lv.title); crossNext = null; }
     clearTimeout(veilCap);
     // (a big map is baked before a byte of it arrives, for minutes: the veil holds, and says so, until the frame has loaded;
     // a level without the bridge still shows, a while after it has)
     clearTimeout(veilHint);
     veilHint = setTimeout(() => { $('veilText').textContent = lv.title + ' · being built for the first time: a big map can take a few minutes'; }, 8000);
-    veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); }, 600000);
+    veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); crossDone(); }, 600000);
     frame.src = lv.src;
   }
   function post(msg) { try { if (frame.contentWindow) frame.contentWindow.postMessage(msg, '*'); } catch (e) { /* opaque frame */ } }
@@ -625,7 +668,7 @@ export function playShellRuntime(cfg, K) {
     // the menu asked for from inside the level (Esc there, or the captured mouse let go by it): the pause opens
     if (d.moj === W.menu) { if (!paused && screen === 'level') setPaused(true); return; }
     // the level's first frame drawn: the veil lifts (a level from before game-shown lifts it a moment after it is ready)
-    if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); if (session && !session.t0) session.t0 = performance.now(); turnReady(); signal('shown'); return; }
+    if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); crossDone(); if (session && !session.t0) session.t0 = performance.now(); turnReady(); signal('shown'); return; }
     // the scene the flow staged here has ended (or the level had none, or it never started): the flow goes on, the page
     // kept when the cinematic hands its stage on to the level
     if (d.moj === W.sceneEnd) { if (turn && turn.s.phase === 'main' && turn.s.sub === 'start' && d.scene === turn.s.trigger.scene) { turnSceneEnd(); return; } const cs = FLOW.steps[at.step]; if (cs && (cs.kind === 'cinematic' || cs.kind === 'cutscene') && d.scene === cs.scene) go('next', { keepPage: !!cs.keep }); return; }
@@ -697,6 +740,9 @@ export function playShellRuntime(cfg, K) {
       const fin = (cfg.front || M.final) && !before && r.ok && env.result === 'success' && allCleared();
       // TRAVEL (a map game, the flow's $travel): a success through an open exit goes on to the level it leads to
       const travelTo = !(fin && M.final) && r.ok && env.result === 'success' && env.exit ? K.travel(SCHEMA, state, LEVELS, session.level.ref, env.exit) : null;
+      // (a way taken aboard: its trip shown as the next map loads)
+      const aboard = travelTo && (session.level.exits || []).find((x) => x.id === env.exit && x.crossing);
+      crossNext = aboard ? { by: aboard.crossing.by } : null;
       lastOutcome = { lv: session.level, env, ok: r.ok, fin };
       const more = { complete: !!fin, travelTo, from: session.level.ref };
       const next = FK.stepFlow(FLOW, at.step, event, flowCtx(Object.assign({}, more, { level: at.level })));

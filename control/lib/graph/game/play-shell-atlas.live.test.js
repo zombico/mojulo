@@ -43,9 +43,9 @@ beforeAll(async () => {
 }, 60000);
 afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
 
-async function open(plan, { startLevel = 'town' } = {}) {
+async function open(plan, { startLevel = 'town', game = GAME, levels = LEVELS } = {}) {
   const page = await browser.newPage();
-  page.__html = emitPlayShell(GAME, LEVELS, startLevel ? { startLevel } : {});
+  page.__html = emitPlayShell(game, levels, startLevel ? { startLevel } : {});
   await page.setRequestInterception(true);
   page.on('request', (rq) => {
     const u = new URL(rq.url()), m = /^\/levels\/(.+)\.html$/.exec(u.pathname);
@@ -127,4 +127,27 @@ describe('the play shell\'s atlas', () => {
     expect(S.campaign.completed).toEqual({});
     await page.close();
   }, 60000);
+
+  it('a way taken aboard shows its trip while the next map loads, naming where it goes; a way on foot shows none', async () => {
+    if (!browser) return;
+    const ISLE = normalizeGameManifest({ ...GAME, levels: [
+      { ref: 'town', title: 'Town', exits: [{ id: 'on', to: 'woods' }, { id: 'on-2', to: 'core', crossing: { by: 'ship' } }] },
+      { ref: 'woods', title: 'Woods', exits: [{ id: 'back', to: 'town' }] },
+      { ref: 'core', title: 'Far Isle', exits: [{ id: 'back', to: 'town', crossing: { by: 'ship' } }] },
+    ] });
+    expect(validateGameManifest(ISLE).errors).toEqual([]);
+    const page = await open([{ exit: 'on-2' }, null], { game: ISLE });
+    await seen(page, 2);
+    const trip = await page.evaluate(() => ({ shown: getComputedStyle(document.getElementById('crossing')).display, says: document.querySelector('#crossing .to')?.textContent, ship: !!document.querySelector('#crossing svg .bob') }));
+    expect(trip).toEqual({ shown: 'block', says: 'Sailing to Far Isle', ship: true });
+    // (CROSS_SHOT=<png>: the trip, for the eyes)
+    if (process.env.CROSS_SHOT) { await page.setViewport({ width: 1280, height: 720 }); await new Promise((r) => setTimeout(r, 700)); await page.screenshot({ path: process.env.CROSS_SHOT }); }
+    await page.close();
+    // (on foot, the veil as ever)
+    const walk = await open([{ exit: 'on' }, null], { game: ISLE });
+    await seen(walk, 2);
+    expect(await walk.evaluate(() => getComputedStyle(document.getElementById('crossing')).display)).toBe('none');
+    await walk.close();
+  }, 60000);
 });
+

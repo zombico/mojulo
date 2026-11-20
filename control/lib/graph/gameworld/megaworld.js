@@ -10,6 +10,9 @@
  *     shape: 'mandala' | 'chain' | 'hub' | 'open',   // gmn.js WORLD_SHAPES
  *     rings: [['town'], ['woods', 'meadows'], ['citadel']],   // the first ring where it sets out; a mandala's last its core
  *     gates?: { <zone>: { key, keyAt } | { needs } },         // what opens the way INTO a zone
+ *     crossings?: [{ from, to, by: 'ship' | 'airship', needs? }],   // ways taken ABOARD beside the rings' own (joining
+ *                             // the world further: an isle, another mandala); the trip shown while the next map is built
+ *                             // (game/play-shell.js), shut until its story flag where it names one
  *     saves?: [<zone>, …],    // the zones that keep a SAVE POINT where the party comes in: saving there steps out, a
  *                             // way to the same map (the store written as at any crossing), arriving beside it
  *   }
@@ -35,7 +38,7 @@ export const ATLAS_SLICE = 'atlas';
 export function readMegaworld(v, levels = {}, at = '') {
   if (v === undefined) return null;
   if (!isObj(v)) throw fail(`${at} is { shape, rings, gates? }: the world's zones in rings, the ways between them`);
-  for (const k of Object.keys(v)) if (!['shape', 'rings', 'gates', 'saves'].includes(k)) throw fail(`.${k} is not part of it (shape, rings, gates, saves)`);
+  for (const k of Object.keys(v)) if (!['shape', 'rings', 'gates', 'saves', 'crossings'].includes(k)) throw fail(`.${k} is not part of it (shape, rings, gates, saves, crossings)`);
   if (!MEGAWORLD_SHAPES.includes(v.shape)) throw fail(`.shape is ${MEGAWORLD_SHAPES.join(', ')}`);
   if (!Array.isArray(v.rings) || !v.rings.length || v.rings.some((r) => !Array.isArray(r) || !r.length)) throw fail('.rings is a list of rings, each a list of zones (levels), the first where it sets out');
   const zones = v.rings.flat(), seen = new Set();
@@ -49,6 +52,19 @@ export function readMegaworld(v, levels = {}, at = '') {
   if (v.shape === 'chain' && v.rings.some((r) => r.length !== 1)) throw fail('.rings: a chain is one zone a ring');
   if (v.shape === 'hub' && (v.rings.length !== 2 || v.rings[0].length !== 1)) throw fail('.rings: a hub is two rings, the home alone in the first');
   if (v.shape === 'open' && v.rings.length !== 1) throw fail('.rings: an open world is one ring, each zone joined to its neighbours');
+  // (its crossings: ways taken aboard, beside the rings' own, each its trip shown while the next map is built)
+  if (v.crossings !== undefined) {
+    if (!Array.isArray(v.crossings)) throw fail('.crossings is a list of { from, to, by: ship | airship, needs? }: ways taken aboard');
+    v.crossings.forEach((c, i) => {
+      const at = `.crossings[${i}]`;
+      if (!isObj(c)) throw fail(`${at} is { from, to, by: ship | airship, needs? }`);
+      for (const k of Object.keys(c)) if (!['from', 'to', 'by', 'needs'].includes(k)) throw fail(`${at}.${k} is not part of a crossing (from, to, by, needs)`);
+      for (const k of ['from', 'to']) if (!isObj(levels[c[k]])) throw fail(`${at}.${k}: '${c[k]}' is no level of this world`);
+      if (c.from === c.to) throw fail(`${at} crosses from '${c.from}' to itself`);
+      if (!['ship', 'airship'].includes(c.by)) throw fail(`${at}.by is ship or airship: what carries the party`);
+      if (c.needs !== undefined && !(typeof c.needs === 'string' && /^[a-z][a-z0-9-]*$/.test(c.needs))) throw fail(`${at}.needs is the story flag that opens it (the ship mended, the airship won)`);
+    });
+  }
   // (its save points: the zones that keep one where the party comes in, levels.js stageWays `savePoint`)
   if (v.saves !== undefined && !(Array.isArray(v.saves) && v.saves.every((z) => typeof z === 'string'))) throw fail('.saves is a list of zones, each keeping a save point where the party comes in');
   for (const z of v.saves ?? []) if (!isObj(levels[z])) throw fail(`.saves: '${z}' is no level of this world`);
@@ -71,13 +87,15 @@ export function megaworldLinks(M) {
     return g ? (g.key !== undefined ? { key: g.key, keyAt: g.keyAt } : { needs: g.needs }) : {};
   };
   const link = (from, to) => out.push({ from, to, kind: gate(to).key || gate(to).needs ? 'gate' : 'road', ...gate(to) });
-  if (M.shape === 'open') { const [ring] = R; ring.forEach((z, i) => { if (ring.length > 2 || i === 0) link(z, ring[(i + 1) % ring.length]); }); return out; }
+  // (a crossing: a way taken aboard, after the rings' own; shut until its flag where it names one)
+  const crossings = () => { for (const c of M.crossings ?? []) out.push({ from: c.from, to: c.to, kind: 'gate', by: c.by, ...(c.needs ? { needs: c.needs } : {}) }); return out; };
+  if (M.shape === 'open') { const [ring] = R; ring.forEach((z, i) => { if (ring.length > 2 || i === 0) link(z, ring[(i + 1) % ring.length]); }); return crossings(); }
   for (let i = 0; i + 1 < R.length; i++) {
     const inner = R[i + 1];
     // (a zone joins out to the next ring by its share of the way round its own)
     inner.forEach((to, j) => link(R[i][Math.min(R[i].length - 1, Math.floor((j * R[i].length) / inner.length))], to));
   }
-  return out;
+  return crossings();
 }
 
 /** WCD's laws at the world's scale. They advise. */
