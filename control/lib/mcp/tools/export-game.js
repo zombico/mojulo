@@ -601,7 +601,21 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
     const W = withFlowVideos(shellManifest, (film) => rels[film] ?? null);
     shellManifest = W.manifest; cutscenesMissing = W.missing;
   }
-  await write('game.html', emitShellFor(resolved, { manifest: shellManifest, menu: shellMenu, frontArt }));
+  // front.stage (game/front-stage.js, front-plates.js): the start screen's subjects pictured now, each captured on its own
+  // World page, cut out and drawn in the stage's treatment in the game's colours, written to assets/front/; a subject
+  // that could not be pictured (no browser, no sketch) is said, and the stage draws its name and its ground without it
+  let frontStage = null, stageSays = [];
+  if (norm.shell === 'play' && norm.front?.stage) {
+    const { bakeFrontStage } = await import('@/lib/graph/game/front-plates');
+    const T = norm.theme || {}, hex = (v, d) => (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v) ? v : d);
+    const colours = { ink: hex(T.ink, '#e8edf4'), accent: hex(T.accent, '#5fb0ff'), bg: hex(T.bg, '#0e1116') };
+    const { plates, says } = await bakeFrontStage(norm.front.stage, { getSketch, colours });
+    const srcOf = (p) => `assets/front/subject-${p.slot + 1}.png`;
+    for (const p of plates) if (p) await write(srcOf(p), p.png);
+    frontStage = { plates: plates.map((p) => (p ? { src: srcOf(p), width: p.width, height: p.height } : null)) };
+    stageSays = says;
+  }
+  await write('game.html', emitShellFor(resolved, { manifest: shellManifest, menu: shellMenu, frontArt, ...(frontStage ? { frontStage } : {}) }));
   await writeRecipe('recipe/game.json', norm);
 
   // levels — the ?walk=1&hud=0&download=1 bake, one page per level, figure bank hoisted shared.
@@ -684,6 +698,7 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
     ...(heavy.length ? {
       note: `Files over 25MB (${heavy.join(', ')}) exceed some static hosts' per-file limits (e.g. Cloudflare Pages) — GitHub Pages allows up to 100MB/file. Level weight is geometry; a lighter world recipe shrinks it.`,
     } : {}),
+    ...(frontStage ? { front_stage: { pictured: frontStage.plates.filter(Boolean).length, of: frontStage.plates.length, ...(stageSays.length ? { says: stageSays } : {}) } } : {}),
     ...(browserDownload ? { browser_download: browserDownload } : {}),
     ...(pluginBuild && cdnInput ? { cdn_note: '`cdn: true` was ignored: the Claude plugin build of mojulo writes only self-contained pages.' } : {}),
     ...(await desktopResult()),

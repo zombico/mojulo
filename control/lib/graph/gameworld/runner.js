@@ -94,6 +94,7 @@ import { BEAST_KINS } from '../beast/cards.js';
 import { fighterName } from '../versus/versus-sheet.js';
 import { solvePalette } from '../color-theorist/solve.js';
 import { gameTheme } from '../color-theorist/adapters.js';
+import { stagedFront } from './front-stage.js';
 
 const REF_MAX = 64;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -544,7 +545,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const atlas = !onBoard && G.megaworld ? atlasOf(G.megaworld, C.stages, C.refs) : null;
     // (a world with a STORY told in missions, errand.js `mission`, and no front of its own: a title in the lower third,
     // continue (the level's own save), a new game, options and the credits, the last mission's win the end card)
-    const front = G.front ?? (G.errands?.some((E) => E.mission) ? STORY_FRONT : null);
+    const front = stagedFront(world, G.front ?? (G.errands?.some((E) => E.mission) ? STORY_FRONT : null));
     const game0 = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(C.stages, C.refs, C.map), ...(atlas ? { atlas } : {}), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(front ? { front } : {}), ...(G.hud ? { hud: G.hud } : {}) };
     // THE GAME'S FLOW (game-flow.js): the world's own, its levels the refs of their first stages and a story moment's
     // cinematic on the stage the moment is bound to; else the flow the game has always had, with the story's opening,
@@ -780,7 +781,7 @@ function worldSteps(world, G, ref, composite) {
   const C = composedStages(stages, levelRefs, map, composite);
   if (C.stages.length) {
     const links = gameLinks(C.stages, C.refs), theme = paletteTheme(G);
-    const gameBare = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(C.stages, C.refs, C.map), ...(G.megaworld ? { atlas: atlasOf(G.megaworld, C.stages, C.refs) } : {}), ...(coreOf(G.megaworld, C.stages, C.refs) ? { final: coreOf(G.megaworld, C.stages, C.refs) } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}), ...(G.hud ? { hud: G.hud } : {}) };
+    const gameBare = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(C.stages, C.refs, C.map), ...(G.megaworld ? { atlas: atlasOf(G.megaworld, C.stages, C.refs) } : {}), ...(coreOf(G.megaworld, C.stages, C.refs) ? { final: coreOf(G.megaworld, C.stages, C.refs) } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: stagedFront(world, G.front) } : {}), ...(G.hud ? { hud: G.hud } : {}) };
     // (a world that STARTS IN PLAY, as one laid from a sentence does: flow.js startInPlay over the flow its levels and
     // front make; it has no story yet, so its opening cutscene is the empty slot, passed at once)
     const game0 = withCues(steps, gameBare, runScore, G, ref);
@@ -1015,7 +1016,7 @@ function quickSteps(world, G, ref, lookup) {
       const ui = shellUi(G).ui ?? { theme: cardTheme('brawl-street') };
       // (its FRONT: the world's own, else a heroes game's arcade front (quick.js heroFront): attract, title, the end card
       // once the villain falls, the roll; the streets one after another between them)
-      const front = G.front ?? (heroes ? heroFront(heroes) : undefined);
+      const front = stagedFront(world, G.front ?? (heroes ? heroFront(heroes) : undefined));
       // (a heroes CAMPAIGN: each street after the first opens once the one before it is cleared, the store's progression;
       // another brawl's streets are picked freely, as they were)
       const game0 = { title, store: quickStore(Q), levels: streets.map((s, i) => ({ ref: s.ref, title: s.name, ...(i && heroes ? { gate: { completed: streets[i - 1].ref } } : {}) })), allow_unaudited: true, shell: 'play', ui, ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), ...(G.screen ? { screen: G.screen } : {}), ...(front ? { front } : {}) };
@@ -1251,7 +1252,7 @@ function quickSteps(world, G, ref, lookup) {
   const links = gameLinks(stages, levelRefs);
   // a run draws its levels: none waits on another
   const lvls = gameLevels(stages, levelRefs, map).map((l) => (Q.run ? (({ gate: _g, ...x }) => x)(l) : l));
-  const gameBare = { title: G.name ?? G.id, store: quickStore(Q), levels: lvls, ...(links.length ? { links } : {}), allow_unaudited: true, ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(Q.run ? { run: { length: Q.run } } : {}), ...(G.front ? { front: G.front } : {}), ...(G.hud ? { hud: G.hud } : {}) };
+  const gameBare = { title: G.name ?? G.id, store: quickStore(Q), levels: lvls, ...(links.length ? { links } : {}), allow_unaudited: true, ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(Q.run ? { run: { length: Q.run } } : {}), ...(G.front ? { front: stagedFront(world, G.front) } : {}), ...(G.hud ? { hud: G.hud } : {}) };
   const game = withCues(steps, gameBare, runScore, G, ref);
   steps.push({ key: 'game', ref: gameRef, ready: true, order: game, print: fingerprint(game) });
   steps.push(...auditSteps(steps, stages));

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { frontSubjects, fillStage, frontStageSuggestion } from './front-stage.js';
+import { frontSubjects, fillStage, frontStageSuggestion, stagedFront } from './front-stage.js';
 import { FRONT_CARDS, FRONT_CARD_IDS, fallbackCard } from '../playscape/ui/front-cards/loader.js';
 import { readFrontStage } from '../game/front-stage.js';
 import { RAILS } from './rails.js';
@@ -83,5 +83,22 @@ describe('the start screen suggested', () => {
     const rideAlone = FRONT_CARD_IDS.some((id) => FRONT_CARDS[id].slots.length === 1 && FRONT_CARDS[id].slots[0].roles.includes('ride'));
     if (!rideAlone) expect(frontStageSuggestion(W({ made: { ride: rec('r') } }))).toBeNull();
     expect(frontStageSuggestion(W({ made, front: { stage: { composition: fb.id } } }))).toBeNull();
+  });
+});
+
+describe('the front as the game carries it', () => {
+  const made = { hero: rec('h'), 'hero-equipped': rec('he') };
+  it('settles the stage\'s roles to the refs that fill its card', () => {
+    const front = { tagline: 'go', stage: { composition: fb.id, subjects: [fb.slots[0].roles.includes('hero') ? 'hero' : fb.slots[0].roles[0]] } };
+    const out = stagedFront(W({ made }), front);
+    expect(out.tagline).toBe('go');
+    if (fb.slots[0].roles.includes('hero')) expect(out.stage.subjects).toEqual(['he']);
+    expect(stagedFront(W({ made }), { stage: { composition: fb.id } }).stage.subjects?.length ?? 0).toBeLessThanOrEqual(fb.slots.length);
+  });
+  it('a stage nothing fills keeps no subjects; a front without a stage is as it was', () => {
+    expect(stagedFront(W(), { stage: { composition: fb.id, mode: 'still' } })).toEqual({ stage: { composition: fb.id, mode: 'still' } });
+    const plain = { tagline: 'go' };
+    expect(stagedFront(W({ made }), plain)).toBe(plain);
+    expect(stagedFront(W({ made }), null)).toBeNull();
   });
 });

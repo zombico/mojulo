@@ -19,6 +19,9 @@
  *   frontStageSuggestion(world)          → { composition, subjects, why, patch } | null: the card the game's genre is
  *                                          suited by (else the fallback) whose slots its subjects fill; null when the
  *                                          front already has a stage or nothing fills one
+ *   stagedFront(world, front)            → the front as the game carries it: its stage's subjects (roles, refs, or
+ *                                          none) settled to the refs that fill its card's slots, so the export pictures
+ *                                          sketches; a stage nothing fills keeps no subjects (the export says so)
  *
  * Pure: the world's own record, no database (a ref is the runner's word that the sketch is there).
  */
@@ -91,4 +94,13 @@ export function frontStageSuggestion(world) {
     return { composition: id, subjects: stage.subjects, why, patch };
   }
   return null;
+}
+
+export function stagedFront(world, front) {
+  if (!isObj(front) || !isObj(front.stage)) return front;
+  const card = FRONT_CARDS[front.stage.composition];
+  if (!card) return front;
+  const { subjects: _s, ...stage } = front.stage;
+  const filled = fillStage(card, frontSubjects(world), Array.isArray(front.stage.subjects) ? front.stage.subjects : []);
+  return { ...front, stage: filled ? { ...stage, subjects: filled.map((s) => s.ref) } : stage };
 }

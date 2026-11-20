@@ -39,6 +39,8 @@ import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES } from '../controls/schemes.js';
 import { DEVICES } from '../controls/devices.js';
 import { FRONT_CSS, frontConfig, playFrontRuntime } from './play-front.js';
+import { stageConfig, stageCss, playStageRuntime } from './front-stage-page.js';
+import { FRONT_CARDS } from '../playscape/ui/front-cards/loader.js';
 import { readScreen, screenPayload } from './screen.js';
 import { buildFlowKernel, defaultFlow, readFlow } from './flow.js';
 import { buildTurnKernel, turnOf, TURN_KEYS } from './turn.js';
@@ -72,7 +74,7 @@ const SCREEN_CSS = `:root{--safe-t:env(safe-area-inset-top,0px);--safe-r:env(saf
 
 const safeColor = (v, fallback) => (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v) ? v : fallback);
 
-export function emitPlayShell(manifest, levels = [], { playtest = false, startLevel = null, stingers = null, frontArt = null } = {}) {
+export function emitPlayShell(manifest, levels = [], { playtest = false, startLevel = null, stingers = null, frontArt = null, frontStage = null } = {}) {
   if (!manifest || manifest.kind !== 'game') throw new Error("emitPlayShell needs a validated game manifest (kind: 'game')");
   const byRef = new Map(levels.map((l) => [l.ref, l]));
   for (const lv of manifest.levels) {
@@ -122,6 +124,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     if (errs.length) throw new Error(`emitPlayShell: ${errs.join('; ')}`);
   }
   const ui = manifest.ui || (hasPicks ? {} : null);
+  const stageCard = manifest.front && manifest.front.stage && frontStage ? FRONT_CARDS[manifest.front.stage.composition] || null : null;
   const cfg = {
     manifest,
     levels: levelTable,
@@ -134,8 +137,12 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ...(stingers && (stingers.victory || stingers.defeat) ? { stingers: { victory: stingers.victory || null, defeat: stingers.defeat || null } } : {}),
     wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, menu: MSG_MENU, gamepad: MSG_GAMEPAD, seats: MSG_SEATS, shown: MSG_SHOWN, cardDone: MSG_CARD_DONE, sceneEnd: MSG_SCENE_END, ...(levelTable.some((l) => l.contract && l.contract.save) ? { save: MSG_SAVE } : {}), ...(links ? { door: MSG_DOOR } : {}) },
     pauseButtons: PAUSE_BUTTONS,
-    // THE FRONT (play-front.js): a title over a cover, the start menu, options, credits, the end; absent, no key
-    ...(manifest.front ? { front: frontConfig(manifest.front, frontArt, { levels: levelTable.length, run: !!manifest.run }) } : {}),
+    // THE FRONT (play-front.js): a title over a cover, the start menu, options, credits, the end; absent, no key (a
+    // staged front draws no cover: its stage is the title's picture)
+    ...(manifest.front ? { front: frontConfig(manifest.front, stageCard ? null : frontArt, { levels: levelTable.length, run: !!manifest.run }) } : {}),
+    // THE STAGE (front-stage-page.js): the start screen laid out by its card from the plates export_game baked; a
+    // front with no stage, or a page no export baked one for, carries no key and none of its sheet or code
+    ...(stageCard ? { stage: stageConfig(stageCard, frontStage.plates || [], { title: manifest.title }) } : {}),
     flow,
     ...(hasTurns ? { turns } : {}),
     // (a bare HUD look draws no pause button under a mouse: the media a mana-ui shell asks, said only by such a game)
@@ -211,7 +218,8 @@ ${bareHud ? '  @media (hover:hover) and (pointer:fine){#pauseBtn{display:none!im
   ${SCREEN_CSS}` : ''}${front ? `
   ${FRONT_CSS}` : ''}${mana ? `
   ${shellManaCss(ui)}` : ''}${mana && screen ? `
-  ${manaFrameCss(screen)}` : ''}
+  ${manaFrameCss(screen)}` : ''}${stageCard ? `
+  ${stageCss(stageCard, { mana })}` : ''}
 </style></head>
 <body>
 <main id="app"></main>${front ? `
@@ -224,7 +232,8 @@ ${bareHud ? '  @media (hover:hover) and (pointer:fine){#pauseBtn{display:none!im
 <details id="debug"><summary>debug</summary><div class="body" id="debugBody"></div></details>
 <div id="toast" role="status"></div>
 <script>${front ? `
-const __mojFront = (${playFrontRuntime.toString()});` : ''}${mana ? `
+const __mojFront = (${playFrontRuntime.toString()});` : ''}${stageCard ? `
+const __mojStage = (${playStageRuntime.toString()});` : ''}${mana ? `
 ${shellManaScript()}` : ''}${cine ? `
 const __mojCine = (${playCineRuntime.toString()});` : ''}
 const K = (${buildGameStoreKernel.toString()})();
@@ -378,6 +387,7 @@ export function playShellRuntime(cfg, K) {
     app.style.display = playing ? 'none' : 'flex';
     if (front && s !== 'title') $('front').style.display = 'none';
     if (!playing) { setPaused(false); frame.removeAttribute('src'); veil.style.display = 'none'; }
+    if (STAGE) STAGE.show(!playing);
     renderDebug();
   }
   // home: the flow's (its `home`, else the first screen past an attract): where quitting and resetting go
@@ -852,6 +862,8 @@ export function playShellRuntime(cfg, K) {
     app.appendChild(el('div', { cls: 'screen center' }, kids));
   }
 
+  // ---- the stage (front-stage-page.js), when the export baked one: behind every screen but a level ----
+  const STAGE = cfg.stage && typeof __mojStage === 'function' ? __mojStage(cfg) : null;
   // ---- the front (play-front.js), when the game has one: it reads the shell through this, and only this ----
   const allCleared = () => !!progression && (M.final ? cleared(M.final) : LEVELS.every((l) => cleared(l.ref)));
   const front = cfg.front && typeof __mojFront === 'function' ? __mojFront(cfg, {
@@ -1122,6 +1134,7 @@ export function playShellRuntime(cfg, K) {
 
   function drawScreen(name) {
     session = null;
+    if (STAGE) document.body.dataset.screen = name;
     if (MANA && MANA.draw(name)) return;
     if (name === 'attract') return front ? front.attract() : renderPress();
     if (name === 'title') return front ? front.title() : RUN ? renderRunTitle() : renderTitle();

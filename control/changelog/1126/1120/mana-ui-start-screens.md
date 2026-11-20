@@ -21,3 +21,13 @@ website, composed from the game's own characters, vehicles and props, never a le
   show can be offered a stage that suits its kind of game. The first layout is the hero pose: one figure large and off
   centre, the game's name huge behind it, the menu as words on the open side, laid out for a wide screen and an upright
   phone (`playscape/ui/front-cards/`).
+- **The start screen drawn, in pictures.** Exporting a game whose front has a stage now pictures its subjects: each
+  is posed a moment into its first animation, seen from the angle its layout asks, cut out cleanly (a soft edge, no
+  floor, nothing behind it) and drawn in one of six looks in the game's own colours: cut out with a rim of the accent,
+  a flat silhouette, two-tone, a few flat bands of its own colours, a dot screen, or inked lines. The game's start
+  screen then shows the hero pose: the game's name set huge behind the figure and entering letter by letter, the
+  figure rising in, the menu as plain words with no boxes, for a wide screen and an upright phone, whether its screens
+  are the plain ones or drawn by the game UI. The pictures are kept between exports, so a second export takes no time,
+  and a game whose subject could not be pictured (no browser where it is exported) still gets its name and its ground,
+  with the reason said. A player who turns motion down gets fades. Only an export draws it: the game page in the
+  dashboard is unchanged.
