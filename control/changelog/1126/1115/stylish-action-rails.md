@@ -266,10 +266,13 @@ What the theme will hold:
   compromise action games made for it. Its skirt is split at the back from the hip into two halves meeting at the vent
   (`body-relational-jacket.js` `ventBack`), each hung on three hinges at the hip (front, side, back) carried by the
   pelvis, not the thighs; every clip sets them by its family (`polygonizer/coat-poses.js`): standing, at rest, the coat
-  wrapped round the hips; walking, behind them, its fronts swept round to the sides so the legs stride through; in
+  open over the thighs, its fronts turning back from the hips so no cloth lies on a leg; walking, behind the hips, its
+  fronts swept round past the sides so the legs stride through; running, streaming back behind the legs and lifted off
+  them; in
   action (a strike, a guard), open at the back from the hip, the halves hung behind and beside the legs, their hems
   kicked out a little; in the air or a whirl (a jump, a spin, the slam), flared, each half swung out and up. A posed coat
-  is worn wide open, and its hem's lining is hinged as the hem it is sewn to. The hinges ride the pose's `flow`, so a turn
+  is worn wide open, its back hung straight from the shoulder blades past the seat (the small of the back bridged, no
+  bump over the seat), and its hem's lining is hinged as the hem it is sewn to. The hinges ride the pose's `flow`, so a turn
   of the hips carries them and the page's blend between clips blends the coat. Absent, the coat, its rig and its clips
   as they were. Lucien's coat is posed, to mid-calf, and his build a V: shoulders broad, waist and hips narrow, legs
   long, lean and defined (the body's `tune` and `physique`).

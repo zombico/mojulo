@@ -46,7 +46,9 @@ describe('a posed coat', () => {
   it('walking sweeps the fronts back round the sides; in action the back halves hang out a little, flared out and up; standing, nothing set', () => {
     expect(Object.keys(V.poses).sort()).toEqual(Object.keys(COAT_POSE.families).sort());
     const g = V.poses.gait.coatHemFR, a = V.poses.flare, act = V.poses.action;
-    expect(act.coatHemBR[0]).toBeGreaterThan(0.03); expect(act.coatHemBR[2]).toBeLessThan(a.coatHemBR[2]);
+    expect(act.coatHemBR[0]).toBeGreaterThan(0.03);
+    // (standing, the front pulled back off the thigh; running, further back than walking, and lifted)
+    expect(V.poses.stand.coatHemFR[1]).toBeLessThan(-0.02); expect(V.poses.run.coatHemFR[1]).toBeLessThan(g[1]); expect(V.poses.run.coatHemFR[2]).toBeGreaterThan(g[2]); expect(act.coatHemBR[2]).toBeLessThan(a.coatHemBR[2]);
     expect(g[1]).toBeLessThan(-0.05); expect(g[0]).toBeGreaterThan(0.05);
     expect(a.coatHemBR[0]).toBeGreaterThan(0.1); expect(a.coatHemBL[0]).toBeLessThan(-0.1);
     expect(a.coatHemBR[2]).toBeGreaterThan(0.05); expect(a.coatHemBL[2]).toBeCloseTo(a.coatHemBR[2], 6);
@@ -60,7 +62,7 @@ describe('a posed coat', () => {
 describe('the posed coat\'s clips', () => {
   it('reads a clip\'s family from its name and its tags; what it cannot place is action', () => {
     expect(['idle', 'gesture', 'walk', 'jog', 'sprintStop', 'swing_down', 'mv_ready', 'jump', 'staff_slam', 'somethingNew'].map((n) => coatFamily(n)))
-      .toEqual(['stand', 'stand', 'gait', 'gait', 'gait', 'action', 'action', 'flare', 'flare', 'action']);
+      .toEqual(['stand', 'stand', 'gait', 'run', 'gait', 'action', 'action', 'flare', 'flare', 'action']);
     expect(coatFamily('idle', Object.assign(() => ({}), { move: { family: 'swing' } }))).toBe('action');
   });
   it('sets the hinges on each clip\'s flow by its family, over what the clip carries; no poses, the clips as they were', () => {
@@ -69,7 +71,7 @@ describe('the posed coat\'s clips', () => {
     const C = posedCoatClips({ walk, idle, swing_down: () => ({}) }, poses, null);
     expect(C.walk(0.5)).toEqual({ crouch: 0.5, flow: { s1: [0, 0, 1], coatHemFR: [0.1, -0.1, 0] } });
     expect(C.walk.keys).toBe(8);
-    expect(C.idle).toBe(idle);
+    expect(C.idle).toBe(idle);   // (no standing set asked here: the clip as it was)
     expect(C.swing_down(0).flow).toEqual(poses.action);
     const clips = { walk }; expect(posedCoatClips(clips, null, null)).toBe(clips);
   });

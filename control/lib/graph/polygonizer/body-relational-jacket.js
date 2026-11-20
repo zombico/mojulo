@@ -259,8 +259,12 @@ export const COAT_POSE = Object.freeze({
   gap: Object.freeze([0.16, 0.22]),
   vent: 0.004, sectors: Object.freeze({ F: 0.35, S: Math.PI / 2, B: 2.75 }), ramp: 0.2,
   families: Object.freeze({
-    // walking: the coat stands behind the hips, its fronts swept round to the sides so the legs stride through the gap
-    gait: Object.freeze({ F: { turn: 1.05, out: 1.25, lift: 0.04 }, S: { turn: 0.5, out: 1.12, lift: 0.02 }, B: { turn: 0.06, out: 1.02, lift: 0 } }),
+    // standing: open over the thighs, the fronts turning back from the hips toward the sides, so no cloth lies on a leg
+    stand: Object.freeze({ F: { turn: 0.6, out: 1.08, lift: 0 }, S: { turn: 0.22, out: 1.03, lift: 0 }, B: { turn: 0, out: 1, lift: 0 } }),
+    // walking: the coat stands behind the hips, its fronts swept round past the sides so the legs stride through
+    gait: Object.freeze({ F: { turn: 1.25, out: 1.3, lift: 0.05 }, S: { turn: 0.7, out: 1.15, lift: 0.04 }, B: { turn: 0.1, out: 1.08, lift: 0.04 } }),
+    // running: the whole coat streaming back behind the legs and lifted off them, never in their way
+    run: Object.freeze({ F: { turn: 1.55, out: 1.25, lift: 0.14 }, S: { turn: 1.0, out: 1.18, lift: 0.14 }, B: { turn: 0.15, out: 1.18, lift: 0.18 } }),
     // in action (a strike, a guard, a stance): open at the back from the hip, the two halves hung behind and beside the legs
     // with their hems kicked out a little, the fronts swept back with them, the coat wide open in front
     action: Object.freeze({ F: { turn: 0.9, out: 1.3, lift: 0.03 }, S: { turn: 0.35, out: 1.25, lift: 0.04 }, B: { turn: -0.35, out: 1.45, lift: 0.06 } }),

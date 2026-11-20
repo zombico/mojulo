@@ -352,6 +352,12 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
     for (const [k, P] of Object.entries(parts)) if (/^outer_/.test(k) && J.cloth) P.cloth = J.cloth;
     const bodyName = Object.keys(parts).find((k) => /^outer_(body|torso)$/.test(k));
     if (bodyName && (J.zip || J.open)) {
+      // (a POSED coat's back hung straight: the hollow of the small of the back bridged from the shoulder blades down to the
+      // seat, back slots only, so the cloth falls past the seat, not in at the waist and out over it in a bump)
+      if (J.open && J.posed && R.joints.hipR && R.joints.shoulderR) {
+        const P0 = parts[bodyName], ctr = P0.stations.map((st) => mean(P0.slots.map((sl) => st.points[sl])));
+        bridgeRun(P0, { passes: 40, around: false, range: [R.joints.hipR[2] - 0.06, R.joints.shoulderR[2] - 0.12], hold: (i, j) => P0.stations[i].points[P0.slots[j]][1] > ctr[i][1] - 0.02 });
+      }
       const open = !!J.open, B = parts[bodyName], zs = B.stations.map((st) => mean(Object.values(st.points))[2]), z0 = Math.min(...zs), z1 = Math.max(...zs);
       const [g0, g1] = open && J.posed ? COAT_POSE.gap : [0.07, 0.15];
       const gapAt = open ? (z) => g0 + (g1 - g0) * Math.max(0, Math.min(1, (z - z0) / (z1 - z0))) : () => JACKET.zipGap;
