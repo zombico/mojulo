@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readRpg } from './rpg.js';
-import { rpgInit, rpgStart, rpgOptions, rpgTargets, rpgRound, rpgClose, rpgRest, rpgStatsOf, rpgUsable, rpgClassesOf, rpgSwitchClass, rpgTreeOf, rpgBuy, rpgXpFor, rpgGearOf, rpgEquip, rpgUnequip, rpgSave, rpgLoad, rpgPreview, rpgFieldUse, rpgSwap, rpgPartyOf, buildRpg } from './kernel.js';
+import { rpgInit, rpgStart, rpgOptions, rpgTargets, rpgRound, rpgClose, rpgRest, rpgStatsOf, rpgUsable, rpgClassesOf, rpgSwitchClass, rpgTreeOf, rpgBuy, rpgXpFor, rpgGearOf, rpgEquip, rpgUnequip, rpgSave, rpgLoad, rpgPreview, rpgFieldUse, rpgSwap, rpgPartyOf, rpgRaise, buildRpg } from './kernel.js';
 
 const trio = (extra = {}) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter' }, { id: 'bram', class: 'mage' }, { id: 'cass', class: 'cleric' }], ...extra } });
 
@@ -428,5 +428,49 @@ describe('the party menu\'s item and formation', () => {
     expect(rpgPartyOf(cfg, R2, {})).toEqual(['cass', 'bram']);
     // (a save that never set one carries no place)
     expect('ord' in rpgSave(cfg, rpgInit(cfg)).ayla).toBe(false);
+  });
+});
+
+// TRAITS (a class's or a piece of gear's resist, immune, ward): the elements its wearer takes half of or none of, the
+// states it wards off; gathered from its class and what it wears
+describe('traits on gear and classes', () => {
+  const caster = { name: 'Caster', hp: 999, mp: 999, atk: 1, def: 1, mag: 40, spd: 1, xp: 1, gold: 1, skills: ['fire', 'sleep'], pattern: [{ use: 'fire', when: { every: 2 } }, { use: 'sleep', when: { turn: 1 } }] };
+  const base = { foes: { caster }, encounters: [{ id: 'yard', foes: ['caster'] }], party: [{ id: 'ayla', class: 'fighter', gear: { accessory: 'ember-ring' } }] };
+  const gear = { 'ember-ring': { slot: 'accessory', resist: ['fire'], ward: ['sleep'] }, 'bronze-sword': true, 'leather-armor': true };
+
+  it('are read on gear and on classes; one that names none carries none', () => {
+    const cfg = readRpg({ rpg: { ...base, gear } });
+    expect(cfg.gear['ember-ring'].traits).toEqual({ resist: ['fire'], ward: ['sleep'] });
+    expect('traits' in cfg.gear['bronze-sword']).toBe(false);
+    const c2 = readRpg({ rpg: { ...base, gear, classes: { fighter: { base: { hp: 40, mp: 0, atk: 10, def: 8, mag: 2, spd: 6 }, growth: { hp: 8, mp: 0, atk: 2, def: 2, mag: 0, spd: 1 }, immune: ['fire'] } } } });
+    expect(c2.classes.fighter.traits).toEqual({ immune: ['fire'] });
+  });
+
+  it('ward a state off and halve an element\'s blow; worn off with the gear', () => {
+    const cfg = readRpg({ rpg: { ...base, gear } }), R = rpgInit(cfg), v = {};
+    rpgStart(cfg, R, 'yard', v);
+    const first = rpgRound(cfg, R, {}, v);
+    expect(first.some((x) => x.text === 'Ayla is unaffected.')).toBe(true);
+    const warded = rpgRound(cfg, R, {}, v).find((x) => x.kind === 'hurt' && x.target === 'ayla').amount;
+    // (the ring taken off: the same caster's fire, at full)
+    const bare = readRpg({ rpg: { ...base, gear, party: [{ id: 'ayla', class: 'fighter' }] } }), R2 = rpgInit(bare), v2 = {};
+    rpgStart(bare, R2, 'yard', v2); rpgRound(bare, R2, {}, v2);
+    const full = rpgRound(bare, R2, {}, v2).find((x) => x.kind === 'hurt' && x.target === 'ayla').amount;
+    expect(warded).toBeLessThan(full);
+  });
+});
+
+// THE TEMPLE (a shop's raise): every fallen member raised, healed and cured, for its gold each
+describe('a temple\'s rite', () => {
+  it('raises the fallen for their gold; says why not when none has fallen or the gold is short', () => {
+    const cfg = trio({ shops: { temple: { raise: 20 } } }), R = rpgInit(cfg), v = { gold: 30 };
+    expect(cfg.shops.temple).toMatchObject({ name: 'Temple', raise: 20 });
+    expect(rpgRaise(cfg, R, 'temple', v)).toBe('fine');
+    R.m.bram.hp = 0; R.m.cass.hp = 0;
+    expect(rpgRaise(cfg, R, 'temple', v)).toBe('gold');
+    v.gold = 50;
+    expect(rpgRaise(cfg, R, 'temple', v)).toBe('');
+    expect(v.gold).toBe(10);
+    expect(R.m.bram.hp).toBe(rpgStatsOf(cfg, R, 'bram').hp);
   });
 });

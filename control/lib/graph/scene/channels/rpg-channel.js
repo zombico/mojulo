@@ -63,7 +63,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
   const SLOT = { weapon: 'Weapon', armor: 'Armor', accessory: 'Accessory' };
   // (a shop's id, what was last said; the party menu's slot being chosen for, and whose)
   let shopId = null, shopAsk = null, smsg = '', fslot = null, fwho = null;
-  const SHOP_WHY = { gold: 'Not enough gold.', ware: '', none: 'None left to sell.', shop: '' };
+  const SHOP_WHY = { gold: 'Not enough gold.', ware: '', none: 'None left to sell.', shop: '', fine: 'None of the party has fallen.' };
   // CARRIED (the party mechanic: the level contract's game.party): the roster loaded as the level starts, and each
   // number that changed since put back as a setStat after a fight, a class switch, a skill bought, a rest
   const carry = { hooked: false, slice: null, sent: null };
@@ -760,6 +760,8 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     if (S.wares.length) tabs.push({ label: 'Buy', empty: '—', rows: K.waresOf(cfg, shopId, V()).map((w) => ({ id: w.item, kind: 'buy', label: w.name, right: w.price + ' G', small: w.have ? '×' + w.have : '', disabled: gold < w.price })) });
     if (S.buys) tabs.push({ label: 'Sell', empty: 'Nothing to sell.', rows: K.sellsOf(cfg, shopId, V()).map((w) => ({ id: w.item, kind: 'sell', label: w.name, right: w.price + ' G', small: '×' + w.have })) });
     if (S.inn != null) tabs.push({ label: 'Stay', empty: '—', rows: [{ id: 'inn', kind: 'stay', label: 'A night\'s rest', right: S.inn + ' G', disabled: gold < S.inn }] });
+    // (a temple's rite: the fallen raised, each for its price)
+    if (S.raise != null) { const down = members().filter((m) => R.m[m].hp <= 0); tabs.push({ label: 'Raise', empty: 'None of the party has fallen.', rows: down.length ? [{ id: 'raise', kind: 'raise', label: 'Raise ' + down.map(memberName).join(', '), right: S.raise * down.length + ' G', disabled: gold < S.raise * down.length }] : [] }); }
     return { name: S.name, gold, said: smsg, tabs, party: members().map((m) => ({ name: memberName(m), level: R.m[m].level, hp: R.m[m].hp, hpMax: K.statsOf(cfg, R, m).hp })) };
   }
   function deal(e) {
@@ -768,6 +770,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     if (e.kind === 'buy') go(() => K.purchase(cfg, shopId, e.item, V()), 'Bought ' + ware(e.item) + '.', 'rpg-bought:' + shopId + ':' + e.item);
     else if (e.kind === 'sell') go(() => K.sell(cfg, shopId, e.item, V()), 'Sold ' + ware(e.item) + '.', 'rpg-sold:' + shopId + ':' + e.item);
     else if (e.kind === 'stay') go(() => K.stay(cfg, R, shopId, V()), 'Rested. The party is well.', 'rpg-stayed:' + shopId);
+    else if (e.kind === 'raise') go(() => K.raise(cfg, R, shopId, V()), 'Raised. Go with the light.', 'rpg-raised:' + shopId);
   }
 
   // ── the host: what mana-ui's screens emit, answered; the screen up kept to the fight's phase and the menus ──

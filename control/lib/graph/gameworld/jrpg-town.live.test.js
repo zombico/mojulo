@@ -104,6 +104,11 @@ describe('the JRPG starter\'s town on the page', () => {
         const t = await page.evaluate(() => window.__mojTalk.state.talk.text);
         await page.keyboard.down('Escape'); await nap(400); await page.keyboard.up('Escape');
         await page.waitForFunction(() => !window.__mojScenes.on(), { timeout: 15000 });
+        // (the priest keeps the temple: their page said, its rite opens as the talk ends; closed again)
+        await page.waitForFunction(() => window.__mojRpg.state().mode === 'shop', { timeout: 15000 });
+        expect(await page.evaluate(() => window.__mojRpg.state().shop.id)).toBe('temple');
+        await page.keyboard.down('Escape'); await nap(400); await page.keyboard.up('Escape');
+        await page.waitForFunction(() => !window.__mojRpg.state().mode, { timeout: 15000 });
         return t;
       };
       const sealed = pages.find((x) => x.if.some((c) => c.ne === 1)).beats[0].line.say, open = pages.find((x) => x.if.some((c) => c.has)).beats[0].line.say;

@@ -306,6 +306,11 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
     expect(W.characters.folk.say.priest).toHaveLength(2);
     expect(W.brief.round.talk).toEqual({ who: 'priest', pages: 2, on: 'crypt-key' });
     expect(priest.map((x) => x.if)).toEqual([[{ has: 'crypt-key' }], [{ var: 'has-crypt-key', ne: 1 }]]);
+    // (the priest keeps the temple: their page said first, the temple's rite opened as the talk ends)
+    expect(M.play.rpg.shops.temple).toMatchObject({ raise: expect.any(Number) });
+    const pid = priest[0].when.on.slice('folk-say:'.length);
+    expect(M.play.cues.find((c) => c.id === `${pid}-talk`)).toMatchObject({ when: { prompt: 'Temple' }, then: { emit: `folk-say:${pid}` } });
+    expect(M.play.cues.filter((c) => c.id.startsWith(`${pid}-shop-`)).map((c) => c.then)).toEqual(priest.map(() => ({ emit: 'rpg-shop:temple' })));
     expect(new Set(priest.map((x) => x.when.on)).size).toBe(1);
     expect(M.play.carryFrom).toBeTruthy();
     expect(M.play.carry).toBeTruthy();

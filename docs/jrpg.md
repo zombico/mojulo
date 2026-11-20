@@ -52,8 +52,8 @@ A street's `enter` may name a **trade** where it names a use (`era/town-trades.j
 | trade | stands on | inside | kept by |
 |---|---|---|---|
 | `inn` | a shop, else a house letting beds | a tavern (taproom, kitchen, snug, cellar) | the innkeeper: the world's inn, the party's rest |
-| `temple` | a hall, a tower, else a house | a temple (narthex, nave, sanctuary) | the priest (the rite that raises the fallen is a gap the folk sheet says) |
-| `smithy` | a workshop, else a barn | a work floor | the master (mending and bettering gear is a gap) |
+| `temple` | a hall, a tower, else a house | a temple (narthex, nave, sanctuary) | the priest: the temple, where the fallen are raised for gold |
+| `smithy` | a workshop, else a barn | a work floor | the master: the smithy, its arms and armour (mending and bettering gear is a gap the folk sheet says) |
 
 The lot keeps its shape, so the street is drawn as it was. Only who keeps the lot and what is inside change. A new
 trade is a row.
@@ -63,7 +63,8 @@ trade is a row.
 In a world with the game's UI, each townsperson's lines are a scene (`gameworld/folk-cast.js`, `talk: 'box'`). They
 speak it in the talk box: their name over it, their own body drawn live in its portrait, and it plays each time they
 are spoken to.
-- A keeper of the world's shops opens the shop or the inn.
+- A keeper of the world's shops opens the shop, the inn, the temple or the smithy. One whose say is paged says their page
+  first and opens it as the talk ends.
 - One in a sidequest's chain keeps its menus.
 - In a world without the game's UI, the folk keep their talk menus.
 
@@ -116,6 +117,14 @@ Maker's troop events): `{ when: { start: true } | { foe?, hpBelow } | { round },
 the message line the first time its moment holds, `sets` a story flag as it is said. A composed party RPG's boss is a
 party battle (`battles.boss`, the Ember Drake by default) that speaks as it begins and at half its HP.
 
+**Traits** (RPG Maker's traits, the three a fight reads), on a class or a piece of gear: `resist` (elements taken at
+half), `immune` (elements taken not at all) and `ward` (states warded off). A member carries its class's and what it
+wears, gathered as it stands, so a ring against fire is put on before the drake.
+
+**The temple and the smithy.** A party RPG's town whose street keeps a temple has a temple shop (`shops.<id>.raise`,
+the gold to raise each fallen member, healed and cured); one that keeps a smithy has the smithy's, the arms and armour
+among the town's wares. Each is opened by its keeper, and only where its lot's door is laid on the town's stage.
+
 **States** (RPG Maker's states, `battles.states`): beside poison, sleep and silence, a world's own, each by what it does
 (`skip`, `noCast`, `miss`, `wild`, `tick`, `wake: 'hit'`, `rounds`), or the starter book's (paralysis, blindness,
 confusion, burn, regen) by name. A skill's `status: { is }` inflicts one, a `cure` lifts it.
@@ -156,5 +165,4 @@ Each step ends playable, and each is something a person can say that the words d
 idea is reached through the primitive that already owns it (a switch is a flag, an event page a scene's `if`, a
 transfer a megaworld's way), never rebuilt:
 1. **A change of music from an event** (a scene's own cue).
-2. **The battles' depth:** traits on gear and classes (a resistance, a state warded off), and a fight's page that does
-   more than speak (a summons, a heal).
+2. **The battles' depth:** a fight's page that does more than speak (a summons, a heal).

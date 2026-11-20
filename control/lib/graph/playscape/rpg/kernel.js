@@ -228,7 +228,16 @@ export function buildRpg() {
   }
 
   // the element's multiplier on a target: weak ×2, resist ×½, immune 0, absorb −1 (it heals)
-  function elementMul(U, el) {
+  // a member's TRAITS: its class's and what it wears (rpg.js readTraits), gathered as they stand
+  function traitsOf(cfg, M) {
+    const out = { resist: [], immune: [], ward: [] }, add = (t) => { if (t) for (const k in out) if (t[k]) out[k].push(...t[k]); };
+    add(cfg.classes[M.cls] && cfg.classes[M.cls].traits);
+    for (const slot in M.gear) add(cfg.gear[M.gear[slot]] && cfg.gear[M.gear[slot]].traits);
+    return out;
+  }
+  function elementMul(U, el, cfg) {
+    // (a member: its traits, immune none of it, resist half; a foe: its own)
+    if (el && U.party && cfg) { const T = traitsOf(cfg, U.M); return has(T.immune, el) ? 0 : has(T.resist, el) ? 0.5 : 1; }
     if (!el || !U.F) return 1;
     if (has(U.F.absorb, el)) return -1;
     if (has(U.F.immune, el)) return 0;
@@ -248,7 +257,7 @@ export function buildRpg() {
     let crit = false;
     if (phys && rnd(b) < CRIT) { crit = true; raw *= 1.5; }
     if (T.side.guard) raw *= 0.5;
-    const em = elementMul(T, fx.element);
+    const em = elementMul(T, fx.element, cfg);
     let n = Math.max(em === 0 ? 0 : 1, Math.round(Math.max(0, raw) * Math.abs(em)));
     if (em < 0) {
       const S = T.S, was = T.hp;
@@ -287,7 +296,7 @@ export function buildRpg() {
   function afflict(cfg, R, T, fx, out) {
     const s = fx.status;
     if (!s || T.hp <= 0) return;
-    if (T.F && has(T.F.immune, s.is)) { out.push({ text: T.name + ' is unaffected.', kind: 'miss', target: T.who }); return; }
+    if ((T.F && has(T.F.immune, s.is)) || (T.party && has(traitsOf(cfg, T.M).ward, s.is))) { out.push({ text: T.name + ' is unaffected.', kind: 'miss', target: T.who }); return; }
     if (rnd(R.b) >= s.chance) { out.push({ text: T.name + ' resists.', kind: 'miss', target: T.who }); return; }
     if (s.is === 'poison') { if (T.party) T.M.poison = 1; else T.st.poison = 1; }
     else T.st[s.is] = s.rounds;
@@ -723,6 +732,20 @@ export function buildRpg() {
     return '';
   }
 
+  /** A temple's rite (a shop's `raise`): every fallen member of the party raised, healed and cured, for its gold each. */
+  function raise(cfg, R, sid, vars) {
+    const S = shopOf(cfg, sid);
+    if (!S || S.raise == null) return 'shop';
+    const fallen = partyOf(cfg, R, vars).filter((id) => R.m[id].hp <= 0);
+    if (!fallen.length) return 'fine';
+    const g = cfg.rules.gold, have = (vars && vars[g]) || 0, cost = S.raise * fallen.length;
+    if (have < cost) return 'gold';
+    if (vars) vars[g] = have - cost;
+    for (const id of fallen) { const M = R.m[id]; M.hp = statsOf(cfg, R, id).hp; M.poison = 0; }
+    mirror(cfg, R, vars);
+    return '';
+  }
+
   function classOpen(cfg, R, id, cls, vars) {
     const p = memberOf(cfg, id), C = cfg.classes[cls];
     if (!C) return 'unknown';
@@ -932,7 +955,7 @@ export function buildRpg() {
     vars['rpg.won'] = R.won;
   }
 
-  return { STATS, roll: rnd, stuck, fieldUse, swap, save, load, gearOf, equip, unequip, preview, init, start, options, targets, round, close, rest, statsOf, partyOf, usable, classesOf, switchClass, treeOf, buy, mirror, xpFor, classLevel, aimOf, isAuto, shopOf, waresOf, sellsOf, purchase, sell, stay };
+  return { STATS, roll: rnd, stuck, fieldUse, swap, raise, save, load, gearOf, equip, unequip, preview, init, start, options, targets, round, close, rest, statsOf, partyOf, usable, classesOf, switchClass, treeOf, buy, mirror, xpFor, classLevel, aimOf, isAuto, shopOf, waresOf, sellsOf, purchase, sell, stay };
 }
 
 const _rpg = buildRpg();
@@ -962,3 +985,4 @@ export const rpgEquip = _rpg.equip;
 export const rpgUnequip = _rpg.unequip;
 export const rpgFieldUse = _rpg.fieldUse;
 export const rpgSwap = _rpg.swap;
+export const rpgRaise = _rpg.raise;

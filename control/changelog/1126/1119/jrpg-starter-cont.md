@@ -108,3 +108,12 @@
   level is said as what is laid. The cards teach the new words: the world card the megaworld's `saves` and
   `crossings`, the folk card a person's pages, the battles card and play.rpg's (PARTY BATTLES) a foe's pattern, a
   fight's pages and the world's own states.
+- **Traits on classes and gear.** A class or a piece of gear may carry `resist` (elements taken at half), `immune`
+  (elements taken not at all) and `ward` (states warded off): a member takes its class's and what it wears as it
+  stands. A world that names none fights as it did.
+- **The temple and the smithy keep shop.** A party RPG's town with a temple on its street has the temple's rite (a
+  shop's `raise`: each fallen member raised, healed and cured, for its gold; `rpg-raised:<shop>` on the bus), opened by
+  its priest; one with a smithy, the smithy's arms and armour, opened by its master. A keeper whose say is paged says
+  their page, then opens the shop as the talk ends. A trade's shop is laid only where its lot's door is on the town's
+  stage (a small town's square may leave one without frontage). The folk sheet's shrine is built; the smith's mending
+  and bettering stay a gap.

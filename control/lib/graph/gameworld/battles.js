@@ -43,7 +43,7 @@
  */
 import { readRpg } from '../playscape/rpg/rpg.js';
 import { withBoardBook } from '../board/board-battle.js';
-import { CLASS_PRESETS, FOE_PRESETS, ITEM_PRESETS } from '../playscape/rpg/presets.js';
+import { CLASS_PRESETS, FOE_PRESETS, ITEM_PRESETS, GEAR_PRESETS } from '../playscape/rpg/presets.js';
 import { rpgInit, rpgSave } from '../playscape/rpg/kernel.js';
 import { cubeOfWorld } from './intent.js';
 import { castingOf, castingIds } from './casting.js';
@@ -75,6 +75,9 @@ export const SHOP_WARES = Object.freeze([
   Object.freeze(['hi-potion', 'ether', 'remedy', 'feather', 'firebomb', 'iron-sword', 'silver-staff', 'chain-mail', 'mana-charm', 'swift-ring']),
 ]);
 export const INN_PRICE = 6, INN_STEP = 6;
+// the temple's rite (a town's priest, era/town-trades.js): the gold to raise one fallen member, healed and cured
+export const RAISE_PRICE = 20;
+// what a smithy's master sells (a town's smith): the gear of the hub's wares, arms and armour, beside the merchant's
 export const SHOP_KEEPER = Object.freeze({ cast: 'male', palette: { Top: '#7a5a2a' } });
 // (the tier a stage's shop is at: the packs met before it, two a tier)
 export const tierOf = (from) => Math.min(SHOP_WARES.length - 1, Math.floor(from / 2));
@@ -448,13 +451,24 @@ function shopsAt(G, ends, figures, entities, keeper, wares, inn) {
   return Object.keys(shops).length ? { shops, cues, inn: stood } : null;
 }
 
-// the shops a town's folk keep (no figure, no cue: the folk's own use opens them, folk-cast.js folkExtra)
-const folkShops = (wares, inn) => {
-  const shops = { ...(wares.length ? { merchant: { name: 'Merchant', wares } } : {}), ...(inn != null ? { innkeeper: { name: 'Inn', inn } } : {}) };
+// the shops a town's folk keep (no figure, no cue: the folk's own use opens them, folk-cast.js folkExtra); its temple
+// where its priest raises the fallen, its smithy where its smith sells the arms and armour among the wares
+const folkShops = (wares, inn, G, ends) => {
+  const smithy = wares.filter((w) => GEAR_PRESETS[w] || G?.battles?.gear?.[w]);
+  // (a trade's shop only where its lot's door is laid on the stage, so its keeper stands to keep it: a small town's
+  // street may leave a lot on its square with no frontage)
+  const laid = (t) => (ends?.townDoors ?? []).some((d) => d.id.startsWith(`town-${t}-`));
+  const shops = { ...(wares.length ? { merchant: { name: 'Merchant', wares } } : {}), ...(inn != null ? { innkeeper: { name: 'Inn', inn } } : {}),
+    ...(templeOf(G) && laid('temple') ? { temple: { name: 'Temple', raise: RAISE_PRICE } } : {}), ...(smithyOf(G) && laid('smithy') && smithy.length ? { smith: { name: 'Smithy', wares: smithy } } : {}) };
   return Object.keys(shops).length ? { shops, cues: [], inn: inn != null } : null;
 };
-/** The shops a hub's folk keep, as folk-cast.js folkExtra takes them: { merchant?, inn?: { id, prompt } }. */
-export const hubFolkShops = (G) => (shopsOn(G) && G.hub ? { ...(waresFor(G, 0, HUB_WARES).length ? { merchant: { id: 'merchant', prompt: 'Shop' } } : {}), ...(innOf(G, 0) != null ? { inn: { id: 'innkeeper', prompt: 'Inn' } } : {}) } : null);
+// (a town whose street keeps a temple or a smithy, era/town-trades.js: the hub's level's `enter` names the trade)
+const enters = (G) => [].concat(G?.levels?.[G.hub]?.places?.street?.enter ?? []);
+const templeOf = (G) => enters(G).includes('temple');
+const smithyOf = (G) => enters(G).includes('smithy');
+/** The shops a hub's folk keep, as folk-cast.js folkExtra takes them: { merchant?, inn?, temple?, smith?: { id, prompt } }. */
+export const hubFolkShops = (G) => (shopsOn(G) && G.hub ? { ...(waresFor(G, 0, HUB_WARES).length ? { merchant: { id: 'merchant', prompt: 'Shop' } } : {}), ...(innOf(G, 0) != null ? { inn: { id: 'innkeeper', prompt: 'Inn' } } : {}),
+  ...(templeOf(G) ? { temple: { id: 'temple', prompt: 'Temple' } } : {}), ...(smithyOf(G) ? { smith: { id: 'smith', prompt: 'Smithy' } } : {}) } : null);
 // the hub's merchant sells the first two tiers' wares at once (the gold says what the party can have yet)
 export const HUB_WARES = Object.freeze([...new Set([...SHOP_WARES[0], ...SHOP_WARES[1]])]);
 /**
@@ -467,7 +481,7 @@ export function hubCast(G, stage, ends, { keeper, folk = false } = {}) {
   const wares = waresFor(G, 0, HUB_WARES), inn = innOf(G, 0);
   // (a town with folk keeps them itself: its shopkeeper and an innkeeper among its people, folk-cast.js; no keeper
   // stands of its own)
-  const figures = {}, entities = [], shop = folk ? folkShops(wares, inn) : shopsAt(G, ends, figures, entities, keeper, wares, inn);
+  const figures = {}, entities = [], shop = folk ? folkShops(wares, inn, G, ends) : shopsAt(G, ends, figures, entities, keeper, wares, inn);
   if (!shop) return null;
   const base = battleBase(G);
   const mechanics = [{ kind: 'party', slice: PARTY_SLICE }, { kind: 'bag', slice: BAG_SLICE }];

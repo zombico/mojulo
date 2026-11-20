@@ -28,7 +28,9 @@
  *                 the rule every foe keeps (a skill by chance, else an attack)
  *     items?:     [ids] | { <item>: { name?, heal?, mp?, revive?, cure?, hurt?, element?, target? } }   what an item
  *                 does in a fight (its count is the bag's: held:bag:<item>); default: every preset
- *     gear?:      [ids] | { <item>: { name?, slot: weapon | armor | accessory, atk?, def?, mag?, spd?, hp?, mp?, classes? } }
+ *     gear?:      [ids] | { <item>: { name?, slot: weapon | armor | accessory, atk?, def?, mag?, spd?, hp?, mp?, classes?,
+ *                 resist?, immune?, ward? } }   (TRAITS, a class's too: the elements its wearer takes half of or none of,
+ *                 the states it wards off)
  *                 what a member may wear, one item a slot, its numbers added to theirs (default: every preset); worn
  *                 items come from the bag and go back to it (held:bag:<item>); a class switch takes off what it forbids
  *     encounters?: [{ id, foes: [foe ids], at?: [x, y], who?: '<entity>' | ['<entity>', …], near?, flee?, room?, pages? }]
@@ -42,7 +44,8 @@
  *                 room it is met in, [x0, y0, x1, y1, floor] (an arena stage holds the fight to it)
  *     random?:    { sets: [[foe ids]], every?: metres, chance?, after?: metres, in?: [{ at: [x, y], r }] }
  *                 a roll every `every` metres walked (in those zones, or anywhere), none in the first `after`
- *     shops?:     { <id>: { name?, wares?: [item or gear ids], buys?: false, inn?: gold } }   a merchant's wares at their
+ *     shops?:     { <id>: { name?, wares?: [item or gear ids], buys?: false, inn?: gold, raise?: gold } }   (raise: a temple,
+ *                 each fallen member raised, healed and cured, for that gold: rpg-raised:<shop>)   a merchant's wares at their
  *                 price (an item's or gear's `price`, else the preset's), bought into the bag with `rules.gold`, and the
  *                 bag's priced things bought back at half unless `buys: false`; `inn`: a night's stay for that gold (full
  *                 HP and MP, cured). A cue opens one: `then: { emit: 'rpg-shop:<id>' }`
@@ -130,6 +133,14 @@ function readWorn(v, where) {
   if (!isObj(v)) throw err(`${where} is { ${GEAR_SLOTS.join('?, ')}? }: the item worn in each slot`);
   keysOnly(v, GEAR_SLOTS, where);
   return Object.fromEntries(Object.entries(v).map(([slot, it]) => { if (typeof it !== 'string' || !it) throw err(`${where}.${slot} is an item`); return [slot, itemKey(it)]; }));
+}
+
+// TRAITS a class or a piece of gear carries (RPG Maker's traits, the three the fight reads): the elements it takes half
+// of (resist) or none of (immune), and the states it wards off (ward); null where it names none
+function readTraits(d, where) {
+  const out = {};
+  for (const k of ['resist', 'immune', 'ward']) if (d[k] !== undefined) out[k] = listOf(d[k], `${where}.${k}`, k === 'ward' ? 'states' : 'elements').map((e, i) => id(e, `${where}.${k}[${i}]`));
+  return Object.keys(out).length ? out : null;
 }
 
 // a state of the world's own (beside RPG_STATUSES, the kernel's three), by what it does (presets.js STATE_PRESETS)
@@ -333,7 +344,7 @@ export function readRpg(play) {
   for (const [k, d0] of Object.entries(givenClasses)) {
     const at = `.classes.${k}`, d = d0 ?? CLASS_PRESETS[k];
     if (!d) throw err(`${at}: '${k}' is no preset class (${Object.keys(CLASS_PRESETS).join(', ')}): define it ({ base, growth, skills })`);
-    if (d0) keysOnly(d0, ['name', 'about', 'base', 'growth', 'skills', 'opens', 'start'], at);
+    if (d0) keysOnly(d0, ['name', 'about', 'base', 'growth', 'skills', 'opens', 'start', 'resist', 'immune', 'ward'], at);
     if (d.opens !== undefined && !FLAG.test(d.opens)) throw err(`${at}.opens is the flag that opens the class`);
     const skills = listOf(d.skills, `${at}.skills`, '{ skill, at? } or { skill, cost, requires? }').map((e, i) => {
       const w = `${at}.skills[${i}]`;
@@ -351,7 +362,7 @@ export function readRpg(play) {
       if (e.at !== undefined && !(Number.isInteger(e.at) && e.at >= 1)) throw err(`${w}.at is the class rank it comes at, 1 or more`);
       return { skill: e.skill, at: e.at ?? 1 };
     });
-    classes[k] = { name: d.name ?? words(k), about: d.about ?? '', base: readStatBlock(d.base, `${at}.base`, DEFAULT_BASE), growth: readStatBlock(d.growth, `${at}.growth`, DEFAULT_GROWTH), skills, opens: d.opens ?? null, start: d.start === undefined ? {} : readWorn(d.start, `${at}.start`) };
+    classes[k] = { name: d.name ?? words(k), about: d.about ?? '', base: readStatBlock(d.base, `${at}.base`, DEFAULT_BASE), growth: readStatBlock(d.growth, `${at}.growth`, DEFAULT_GROWTH), skills, opens: d.opens ?? null, start: d.start === undefined ? {} : readWorn(d.start, `${at}.start`), ...((t) => (t ? { traits: t } : {}))(readTraits(d, at)) };
   }
   for (const [k, C] of Object.entries(classes)) for (const e of C.skills) for (const r of e.requires ?? []) if (!C.skills.some((x) => x.skill === r)) throw err(`.classes.${k}: '${e.skill}' requires '${r}', which is not on that class's tree`);
 
@@ -400,13 +411,14 @@ export function readRpg(play) {
   for (const [k0, d0] of Object.entries(gearGiven)) {
     const k = itemKey(k0), d = d0 ?? GEAR_PRESETS[k], at = `.gear.${k0}`;
     if (!d) throw err(`${at}: '${k0}' is no preset gear (${Object.keys(GEAR_PRESETS).join(', ')}): define it ({ slot, atk?, def?, … })`);
-    keysOnly(d, ['name', 'price', 'slot', ...RPG_STATS, 'classes'], at);
+    keysOnly(d, ['name', 'price', 'slot', ...RPG_STATS, 'classes', 'resist', 'immune', 'ward'], at);
     optNum(d.price, `${at}.price`);
     if (!GEAR_SLOTS.includes(d.slot)) throw err(`${at}.slot is ${GEAR_SLOTS.join(', ')}`);
     for (const st of RPG_STATS) if (d[st] !== undefined && !num(d[st])) throw err(`${at}.${st} is a number it adds`);
     if (items[k]) throw err(`${at}: '${k}' is a battle item too; an item is worn or used, not both`);
     const own = isObj(play.items) && isObj(play.items[k0]) && typeof play.items[k0].name === 'string' ? play.items[k0].name : null;
-    gear[k] = { name: own ?? d.name ?? words(k), slot: d.slot, mods: Object.fromEntries(RPG_STATS.filter((st) => d[st]).map((st) => [st, d[st]])), classes: d.classes ? [...d.classes] : null };
+    const traits = readTraits(d, at);
+    gear[k] = { name: own ?? d.name ?? words(k), slot: d.slot, mods: Object.fromEntries(RPG_STATS.filter((st) => d[st]).map((st) => [st, d[st]])), classes: d.classes ? [...d.classes] : null, ...(traits ? { traits } : {}) };
   }
   for (const [where, w] of [...Object.entries(classes).map(([c, C]) => [`.classes.${c}.start`, C.start]), ...party0.map((p, i) => [`.party[${i}].gear`, p.gear ?? {}])]) {
     for (const [slot, it] of Object.entries(w)) if (gear[it].slot !== slot) throw err(`${where}.${slot}: ${gear[it].name} is worn as ${gear[it].slot}`);
@@ -465,7 +477,7 @@ export function readRpg(play) {
       const at = `.shops.${sid}`;
       id(sid, at);
       if (!isObj(S)) throw err(`${at} is { name?, wares?, buys?, inn? }`);
-      keysOnly(S, ['name', 'wares', 'buys', 'inn'], at);
+      keysOnly(S, ['name', 'wares', 'buys', 'inn', 'raise'], at);
       const wares = listOf(S.wares, `${at}.wares`, 'item or gear ids').map((w0, i) => {
         const w = itemKey(w0), kind = items[w] ? 'item' : gear[w] ? 'gear' : null, price = priceOf(w0);
         if (!kind) throw err(`${at}.wares[${i}]: '${w0}' is none of the world's items or gear`);
@@ -474,8 +486,10 @@ export function readRpg(play) {
       });
       if (S.buys !== undefined && typeof S.buys !== 'boolean') throw err(`${at}.buys is false for a shop that buys nothing back`);
       if (S.inn !== undefined && !(Number.isInteger(S.inn) && S.inn >= 0)) throw err(`${at}.inn is the gold a night's stay costs (0 or more)`);
-      if (!wares.length && S.inn === undefined) throw err(`${at} sells nothing and is no inn: give it wares or an inn's price`);
-      shops[sid] = { name: typeof S.name === 'string' && S.name ? S.name : S.inn !== undefined && !wares.length ? 'Inn' : 'Shop', wares, buys: wares.length ? S.buys !== false : false, inn: S.inn ?? null };
+      // (raise: a temple's rite, the gold to raise one fallen member, healed and cured)
+      if (S.raise !== undefined && !(Number.isInteger(S.raise) && S.raise >= 0)) throw err(`${at}.raise is the gold to raise one fallen member (0 or more)`);
+      if (!wares.length && S.inn === undefined && S.raise === undefined) throw err(`${at} sells nothing, is no inn and raises no one: give it wares, an inn's price or a temple's (raise)`);
+      shops[sid] = { name: typeof S.name === 'string' && S.name ? S.name : S.raise !== undefined && !wares.length ? 'Temple' : S.inn !== undefined && !wares.length ? 'Inn' : 'Shop', wares, buys: wares.length ? S.buys !== false : false, inn: S.inn ?? null, ...(S.raise !== undefined ? { raise: S.raise } : {}) };
     }
   }
 

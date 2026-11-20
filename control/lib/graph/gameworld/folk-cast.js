@@ -121,6 +121,9 @@ export function folkExtra(plan, refOf, { shops = null, talk = 'menu' } = {}) {
   const keeps = !shops ? new Map() : new Map([
     ...(shops.merchant && sellers[0] ? [[sellers[0].path, shops.merchant]] : []),
     ...(shops.inn ? (() => { const w = heads.find((p) => p.service === 'innkeep') ?? sellers[1] ?? heads.find((p) => useOf(p) === 'dwelling'); return w ? [[w.path, shops.inn]] : []; })() : []),
+    // (the temple kept by its priest, the smithy by its smith: era/town-trades.js)
+    ...(shops.temple ? (() => { const w = heads.find((p) => p.service === 'shrine'); return w ? [[w.path, shops.temple]] : []; })() : []),
+    ...(shops.smith ? (() => { const w = heads.find((p) => p.service === 'smith'); return w ? [[w.path, shops.smith]] : []; })() : []),
   ]);
   return (ends) => {
     const doors = new Map((ends.townDoors ?? []).map((d) => [d.id, d]));
@@ -233,6 +236,12 @@ export function folkExtra(plan, refOf, { shops = null, talk = 'menu' } = {}) {
       const own = SQ?.talks[id];
       // (a keeper of the world's shops: using them opens the shop, or the inn)
       const sh = keeps.get(p.path);
+      // (a keeper who follows the story, their say paged: their page said first, their shop opened as the talk ends)
+      if (sh && !own && boxed && pages) {
+        cues.push({ id: `${id}-talk`, when: { use: { at: [at[0], at[1]], r: REACH }, prompt: sh.prompt }, then: open });
+        scenes.filter((x) => x.when.on === `folk-say:${id}`).forEach((x, k) => cues.push({ id: `${id}-shop-${k + 1}`, when: { on: `scene-end:${x.id}` }, then: { emit: `rpg-shop:${sh.id}` } }));
+        continue;
+      }
       if (sh && !own) { cues.push({ id: `${id}-talk`, when: { use: { at: [at[0], at[1]], r: REACH }, prompt: sh.prompt }, then: { emit: `rpg-shop:${sh.id}` } }); continue; }
       if (!own) { cues.push({ id: `${id}-talk`, when: { use: { at: [at[0], at[1]], r: REACH }, prompt: 'Talk' }, then: open }); continue; }
       // (its use cue opens nothing itself: its `cue:<id>` event is the press the dispatch reads)
