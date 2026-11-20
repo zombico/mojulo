@@ -25,4 +25,5 @@
   step), the creator's pick, then theirs word by word.
 - **Built: the duelist** (`outfit/styles.js`, `ACTION_OUTFITS`). The character action wardrobe's card: the long coat that
   fights (to mid-calf, open, cut away in front below the hip, its tails set by the pose, a flap over the back) over close
-  dark clothes and boots. The stylish starter dresses its hero in it.
+  dark clothes and boots. The stylish starter dresses its hero in it, on the realistic body (where the coat is cut away
+  and moves with the pose; on another body it is a long open coat), the composer's cast, hair and colours kept.

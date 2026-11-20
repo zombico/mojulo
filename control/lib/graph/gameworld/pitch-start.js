@@ -10,7 +10,7 @@
  *     world    the written world with the starter under it: every key the creator wrote wins
  *     by       'platformer' (the platformer's rail: its first level and the flow that plays it, platformer-game.js),
  *              'action' (a stylish rail, style-meter.js STYLISH: the genre's first reading with its level the citadel
- *              fought room by room, action-first-level.js actionStarter, its hero in the duelist's coat, the rail's
+ *              fought room by room, action-first-level.js actionStarter, its hero on the realistic body in the duelist's coat, the rail's
  *              template kit, `arsenal: { from }`,
  *              and its style meter, `styleMeter: 'auto'`, the orbit camera and the starter's look) or
  *              'compose' (a first reading of the genre the rail starts from, compose.js, one level)
@@ -61,7 +61,9 @@ export function pitchStart(world, { title } = {}) {
     const A = actionStarter(), { levels: _l, links: _k, flow: _f, ...ground } = starter;
     // (its hero dressed as the character action wardrobe's duelist: the long coat that fights, styles.js ACTION_OUTFITS)
     const H = ground.characters?.hero;
-    if (H?.looks) ground.characters = { ...ground.characters, hero: { ...H, looks: { ...H.looks, underlayer: { type: 'outfit', style: ACTION_OUTFITS[0] } } } };
+    // (on the realistic body, where the duelist's coat is cut away and its tails set by the pose: the composer's cast,
+    // hair and colours kept)
+    if (H?.looks) ground.characters = { ...ground.characters, hero: { ...H, looks: { ...H.looks, body: { ...(H.looks.body ?? {}), form: 'realistic' }, underlayer: { type: 'outfit', style: ACTION_OUTFITS[0] } } } };
     const W = { ...ground, camera: 'orbit', foes: A.foes, fights: A.fights, levels: { citadel: A.level }, grade: A.grade, ...(TEMPLATE_ARSENALS[R.handles.pole] ? { arsenal: { from: R.handles.pole } } : {}), styleMeter: 'auto', ...withFeel, ...named, ...intent };
     return { world: W, laid: { by: 'action', from: S.starts, levels: Object.keys(W.levels), says: SAYS } };
   }

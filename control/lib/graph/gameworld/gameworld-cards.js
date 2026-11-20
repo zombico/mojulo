@@ -540,7 +540,7 @@ function stylishCard() {
     `THE HERO (gameworld-looks): the underlayer's style '${ACTION_OUTFITS.join("' | '")}' (a long coat that fights), or your own words:`,
     'outer { hem: \'midi\', open: true, posed: true, stormFlap?: true }: cut away in front below the hip, two tails set by',
     'the pose (open standing, behind the hips walking, streaming back running, hung behind in a strike, flared in the air)',
-    'on the realistic body (looks.body.form \'realistic\'); on another a long open coat.',
+    'on the realistic body (looks.body.form \'realistic\', the starter\'s); on another a long open coat.',
     '',
     'A worked example, read, never copied: docs/examples/fallen-angel (its world, its README).'
   );

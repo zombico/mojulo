@@ -424,6 +424,7 @@ describe('the pitch kept: a locked pitch with no level is given the rail\'s star
     expect(P.world).toMatchObject({ camera: 'orbit', styleMeter: 'auto', arsenal: { from: RAILS[stylish].handles.pole }, feel: RAILS[stylish].handles.pole, fights: A.fights, foes: A.foes, grade: A.grade });
     expect(P.world.levels.citadel).toEqual(A.level);
     expect(P.world.characters.hero.looks.underlayer).toEqual({ type: 'outfit', style: 'duelist' });
+    expect(P.world.characters.hero.looks.body.form).toBe('realistic');
     // (the composed level and what played it gone: no links, no flow naming a level that is not there)
     for (const k of ['links', 'flow', 'mode', 'review', 'brief', 'made']) expect(P.world[k]).toBeUndefined();
     expect(() => readGameworld(P.world)).not.toThrow();
