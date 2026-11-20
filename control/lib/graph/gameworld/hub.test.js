@@ -70,7 +70,11 @@ describe('the hub: a town every way leads back to', () => {
 
   it('a hub is a map world\'s level; a genre with no hub, a single level or a building is laid as before', () => {
     const w = composeGameworld({ prompt: 'a jrpg where a party battles monsters', seed: 3 });
-    expect(() => readGameworld({ ...w, topology: undefined })).toThrow(/hub is a map world/);
+    // (two levels, the town and its wilds, stay a hub; three or more are a mandala round it, compose-goals.test.js)
+    const two = composeGameworld({ prompt: 'a jrpg where a party battles monsters', seed: 3, levels: 2 });
+    expect(two.megaworld).toBeUndefined();
+    expect(() => readGameworld({ ...two, topology: undefined })).toThrow(/hub is a map world/);
+    expect(w.megaworld).toMatchObject({ shape: 'mandala', rings: [[w.hub], expect.any(Array), [expect.any(String)]] });
     expect(() => readGameworld({ ...w, hub: 'nowhere' })).toThrow(/hub names the level/);
     expect(composeGameworld({ prompt: 'a jrpg where a party battles monsters', seed: 3, levels: 1 }).hub).toBeUndefined();
     expect(composeGameworld({ prompt: 'a platformer in a meadow', seed: 3 }).hub).toBeUndefined();

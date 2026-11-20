@@ -23,8 +23,19 @@ Words that name a party RPG (`design_game { compose: { prompt } }`, a `jrpg` int
 | the castle (when the words name one) | **The castle walked:** its ward on the trail, closed by the castle's own fortification, and its keep entered at its door. Inside the keep are the gatehouse, the great hall, the chapel, the solar and the treasury (`era/programs.js` `keep`). |
 | the dungeon (when the words name one) | A building of its use (a crypt by default), the boss at its end. Reached through a gate. |
 
-Every level is an exit from the town and back to it.
-- `brief.round` says what was laid: the castle's level, the dungeon, and the trades on the street.
+A round of three levels or more is laid as a **mandala** (`gameworld/megaworld.js`), rings travelled inward (a town
+and one stretch of wilds stay a plain hub):
+- the first ring is the town, where the game starts;
+- the second is the wilds and the castle, each a road from the town and back;
+- the core is the last level (the dungeon, else the castle, else the farthest wilds). Its way in runs from the farthest
+  wilds and is gated by a key found on the way: in the castle when the castle is not the core, else in the farthest
+  wilds (`crypt-key`, `castle-key`).
+
+The megaworld lays the links, so the shell's travel screen draws the rings with the core at the centre, a fight won
+stays won when a place is gone back to, and the core's first win ends the game. The town stays the hub, its keepers the
+world's shops.
+- `brief.round` says what was laid: the castle's level, the dungeon, the trades on the street, and the mandala (its
+  core, its key and where the key lies).
 - A party RPG's world carries the game's UI (`ui: { theme: 'world' }`), so its levels host the talk box.
 
 ## The town's trades
@@ -51,10 +62,14 @@ are spoken to.
 
 ## What comes next
 
-Each step ends playable:
-1. **Events with pages:** a page's conditions, self switches, named events another calls, and a fight that branches
-   on how it ends.
-2. **The database's depth:** states and traits as rows, troops with battle pages, and foes with patterns.
-3. **The menu and saving:** the menu's Item, Formation and Save, save slots, and a save point.
-4. **The screen and the sound as words.**
-5. **A staged battle screen** as a choice beside the battle over the field.
+Each step ends playable, and each is something a person can say that the words did not carry before. An RPG Maker
+idea is reached through the primitive that already owns it (a switch is a flag, an event page a scene's `if`, a
+transfer a megaworld's way), never rebuilt:
+1. **The wilds as a zoned world map** (`gameworld/world-map.js`) in their ring: battles met on the sketch's
+   encounter marks, a rest on the road.
+2. **Talk that follows the story:** a townsperson's lines keyed to a flag, on scenes and sidequest chains; a won
+   fight's `won-<encounter>` flag says what changed.
+3. **Saving:** save slots that write the store, and a save point.
+4. **Travel by vehicle:** a ship's or an airship's way, opened by a story flag, its crossing played while the next
+   place is built.
+5. **The battles' depth as rows:** foe patterns, states and troops.

@@ -41,6 +41,7 @@ import { GEOCUBE_PRESETS, GEOCUBE_PALETTES, readGeocube, geocubeDomains, cubeStr
 import { suggestGenres, readGenre, cubeOfWorld, GENRES } from './intent.js';
 import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf, heroStreetWords } from './genre-forms.js';
 import { worldMapLevel, WORLD_MAP } from './world-map.js';
+import { stampMegaworld } from './megaworld.js';
 import { settingOfGame } from './cast-setting.js';
 import { heroDesign } from './hero-design.js';
 import { genrePaletteWords } from './world-palette.js';
@@ -146,6 +147,8 @@ const ROUND_CUBE = 'valley-morning';
 const ROUND_PLACES = Object.freeze({ grit: 0.5, wilds: 'grove', castle: 'upland', water: Object.freeze({ lake: true }) });
 // the words that name a castle: round a hub, a level of its own (its castle walked); elsewhere a building's use
 const CASTLE_WORDS = new Set(['castle', 'castles', 'keep', 'citadel']);
+// the round laid as a mandala (megaworld.js): the key that opens the way into its core, named for what the core is
+const ROUND_MANDALA = Object.freeze({ key: (core) => `${core}-key` });
 
 // the cube a word points at (era/geocube.js): one style for the level's inside and outside, its colours the color
 // theorist's (the stamp seeds its palette, and the world takes it). The first word to name one decides it
@@ -443,9 +446,9 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // street (era/town-trades.js), the party's rest and its priest
   const hubbed = !!genre && !form && n >= 2 && cubeOfWorld({ intent: { from: genre.id } }).cube.space?.topology === 'hub';
   const castled = hubbed && P.words.some((w) => CASTLE_WORDS.has(w)), dungeoned = hubbed && !!indoors;
+  const turnBased = hubbed && [].concat(cubeOfWorld({ intent: { from: genre.id } }).cube.power?.combat ?? []).includes('turn-based');
   const N = hubbed ? Math.max(n, 2 + (castled ? 1 : 0) + (dungeoned ? 1 : 0)) : n;
   const castleAt = castled ? (dungeoned ? N - 2 : N - 1) : -1;
-  const turnBased = hubbed && [].concat(cubeOfWorld({ intent: { from: genre.id } }).cube.power?.combat ?? []).includes('turn-based');
   // (the dungeon's use: the word's, but a castle named beside it is the castle's level, and the dungeon stays a crypt)
   const dungeonUse = dungeoned ? (indoors.use === 'keep' && castled ? room : indoors.use) : null;
   const hubId = `${wid}-1`.slice(0, 48);
@@ -500,6 +503,23 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   if (hubbed) world.brief.hub = hubId;
   // (round a hub: its castle's level, its dungeon, the trades on its town's street, said as the world was laid)
   if (hubbed && (castled || dungeoned || turnBased)) world.brief.round = { ...(castled ? { castle: `${wid}-${castleAt + 1}`.slice(0, 48) } : {}), ...(dungeoned ? { dungeon: `${wid}-${N}`.slice(0, 48) } : {}), ...(turnBased ? { trades: ['inn', 'temple'] } : {}) };
+  // THE ROUND AS A MANDALA (megaworld.js): a turn-based round is not a star of roads but rings travelled inward. The town
+  // the first ring, where it sets out; the wilds and the castle the second, each a road from the town; the last level the
+  // core (the dungeon, else the castle, else the farthest wilds), its way in gated by a key found on the way: in the
+  // castle when the castle is not the core, else in the farthest wilds. The megaworld lays the links (stampMegaworld), so
+  // the shell's travel screen draws the rings, a fight won stays won on return, and the core's first win ends the game.
+  // The town stays the hub: its keepers keep the world's shops (battles.js hubFolkShops). Two levels are a town and its
+  // wilds, no ring between them and a core: they stay a hub
+  if (turnBased && N >= 3) {
+    const lids = Object.keys(world.levels), core = lids[lids.length - 1], castleId = world.brief.round.castle;
+    const wilds = lids.slice(1, -1).filter((l) => l !== castleId), mid = castleId && castleId !== core ? castleId : null;
+    // (the farthest wilds first in their ring: the way to the core runs from the zone first in it)
+    const ring = [...[...wilds].reverse(), ...(mid ? [mid] : [])];
+    const gate = { key: ROUND_MANDALA.key(dungeoned ? dungeonUse : 'castle'), keyAt: mid ?? wilds[wilds.length - 1] };
+    world.megaworld = { shape: 'mandala', rings: [[hubId], ring, [core]], gates: { [core]: gate } };
+    Object.assign(world, stampMegaworld(world), { hub: hubId });
+    world.brief.round = { ...world.brief.round, mandala: { core, ...gate } };
+  }
   world.brief.levels = decided;
   // what the levels are played for, and which are buildings: said only when a word decided it
   // (a genre's form: what its levels were laid as, said in the brief)

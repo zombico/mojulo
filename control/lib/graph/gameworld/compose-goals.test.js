@@ -6,6 +6,7 @@ import { composeMechanics } from '../game/mechanics.js';
 import { readBattle } from '../playscape/ui/battles.js';
 import { withBuildingLevel } from '../structure/level.js';
 import { assembleStageScene } from '../era/stage.js';
+import { megaworldLinks, megaworldLaws } from './megaworld.js';
 
 const levelSteps = (S) => S.filter((s) => s.key.startsWith('level-'));
 // a made level's game channel as it plays (a building's is lowered from its `level` on every read)
@@ -222,10 +223,26 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
     expect(last.building).toMatchObject({ use: 'crypt' });
     expect(last.goal).toMatchObject({ boss: true });
     expect(W.levels[W.brief.round.castle].places.castle).toBeTruthy();
-    // (every level joined to the town: a road to each, a gate to the dungeon)
-    expect(W.links.every((l) => l.from === W.hub)).toBe(true);
-    expect(W.links.find((l) => l.to === ids[ids.length - 1]).kind).toBe('gate');
     expect(W.brief.round).toMatchObject({ dungeon: ids[ids.length - 1], trades: ['inn', 'temple'] });
+  });
+
+  it('is laid as a mandala: the town outermost, the wilds and the castle round it, the dungeon the core behind the castle\'s key', () => {
+    const core = ids[ids.length - 1], castle = W.brief.round.castle;
+    expect(W.megaworld).toMatchObject({ shape: 'mandala', rings: [[W.hub], expect.arrayContaining([castle]), [core]], gates: { [core]: { key: 'crypt-key', keyAt: castle } } });
+    expect(W.megaworld.rings[1]).toHaveLength(ids.length - 2);
+    // (its links the megaworld's: a road from the town to each of the second ring, the core's way gated by its key)
+    expect(W.links).toEqual(megaworldLinks(W.megaworld));
+    expect(W.links.filter((l) => l.from === W.hub).map((l) => l.to).sort()).toEqual([...W.megaworld.rings[1]].sort());
+    expect(W.links.find((l) => l.to === core)).toMatchObject({ kind: 'gate', key: 'crypt-key', keyAt: castle });
+    expect(megaworldLaws(W.megaworld).every((L) => L.ok)).toBe(true);
+    expect(W).toMatchObject({ hub: ids[0], start: ids[0], topology: 'interconnected' });
+    expect(W.brief.round.mandala).toMatchObject({ core, key: 'crypt-key', keyAt: castle });
+    // (without a dungeon the castle is the core, its key in the farthest wilds; with neither, the farthest wilds')
+    const C = composeGameworld({ prompt: 'a jrpg: a fortified town with a castle' }), cid = Object.keys(C.levels);
+    expect(C.megaworld.rings[2]).toEqual([C.brief.round.castle]);
+    expect(C.megaworld.gates[C.brief.round.castle]).toMatchObject({ key: 'castle-key', keyAt: C.megaworld.rings[1][0] });
+    expect(cid.length).toBeGreaterThanOrEqual(3);
+    expect(megaworldLaws(C.megaworld).every((L) => L.ok)).toBe(true);
   });
 
   it('stands on the green valley\'s cube, gritty, each place its own flora: the wilds in groves by a lake, the castle on the upland', () => {
@@ -258,13 +275,19 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
     expect(levelSteps(S).some((s) => s.key.startsWith(`level-${ids[ids.length - 1]}`))).toBe(true);
   }, 180000);
 
-  it('its places are entered and left through the town: every level an exit from it and back, each stretch its own packs', () => {
+  it('its places are travelled by the mandala\'s ways: the second ring from the town and back, the core past its gate, each stretch its own packs', () => {
     const S = runSteps({ ...W, battles: { random: { every: 12, chance: 0.25 } } }, { ref: 'gw' });
-    const game = S.find((s) => s.key === 'game').order, exits = (lvl) => game.levels.find((l) => l.ref === `gw-level-${lvl}-0`).exits.map((e) => e.to);
-    for (const id of ids.slice(1)) {
+    const game = S.find((s) => s.key === 'game').order, out = (lvl) => game.levels.find((l) => l.ref === `gw-level-${lvl}-0`).exits, exits = (lvl) => out(lvl).map((e) => e.to);
+    for (const id of W.megaworld.rings[1]) {
       expect(exits(W.hub)).toContain(`gw-level-${id}-0`);
       expect(exits(id)).toContain(`gw-level-${W.hub}-0`);
     }
+    // (the core reached from the farthest wilds, its way shut until the castle's key is held; the game's atlas the rings)
+    const core = ids[ids.length - 1], far = W.megaworld.rings[1][0];
+    const way = game.levels.filter((l) => l.ref.startsWith(`gw-level-${far}-`)).flatMap((l) => l.exits).find((e) => e.to === `gw-level-${core}-0`);
+    expect(way?.gate).toMatchObject({ has: 'crypt-key' });
+    expect(game.levels.filter((l) => l.ref.startsWith(`gw-level-${core}-`)).flatMap((l) => l.exits).some((e) => e.to.startsWith(`gw-level-${far}-`))).toBe(true);
+    expect(game.atlas).toMatchObject({ shape: 'mandala', rings: [[`gw-level-${W.hub}-0`], expect.any(Array), [`gw-level-${core}-0`]] });
     // (the field's stretches each roll their own packs: a region's encounters are the stage's)
     const field = levelSteps(S).filter((s) => s.key.startsWith(`level-${ids[1]}-`)).map((s) => s.order.manifest.play?.rpg?.random?.sets);
     expect(field.every((sets) => Array.isArray(sets) && sets.length > 0)).toBe(true);
