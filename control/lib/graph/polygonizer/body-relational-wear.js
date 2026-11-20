@@ -367,9 +367,11 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
       if (collarName) parts[collarName] = openFront(parts[collarName], { gap: () => gapAt(z1) });
       if (J.zip && !open) Object.assign(parts, zipDown(parts[bodyName], 'outerZip', { group: 'Buckle', tape: parts[bodyName].group ?? 'Outer' }));
       Object.assign(parts, jacketPieces(parts, bodyName, J, recipe, { gapAt, gathered }));
-      // (a POSED coat, `posed`: its skirt split at the back from the hip, its halves hung on hinges at the hip the clips set)
+      // (a POSED coat, `posed`: its skirt split at the back from the hip, its halves hung on hinges at the hip the clips set;
+      // the halves pieces of their own, `outerSkirt<S>`, as the epaulettes are: the coat's painted edges, read round its
+      // one tube, landed on them in stairsteps)
       const V = open && J.posed ? ventBack(parts[bodyName], R) : null;
-      if (V) { parts[bodyName] = V.parts.body; parts[`${bodyName.split('_')[0]}_skirtR`] = V.parts.R; parts[`${bodyName.split('_')[0]}_skirtL`] = V.parts.L; coat = { joints: V.joints, bones: V.bones, poses: V.poses }; }
+      if (V) { parts[bodyName] = V.parts.body; parts[`${bodyName.split('_')[0]}SkirtR`] = V.parts.R; parts[`${bodyName.split('_')[0]}SkirtL`] = V.parts.L; coat = { joints: V.joints, bones: V.bones, poses: V.poses }; }
     }
   }
   // THE FOLDS (hugging, realistic laws 8: body-relational-folds.js): crescents inside the elbows and behind the knees,

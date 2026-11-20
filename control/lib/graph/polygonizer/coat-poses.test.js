@@ -72,6 +72,9 @@ describe('the posed coat\'s clips', () => {
     expect(C.walk(0.5)).toEqual({ crouch: 0.5, flow: { s1: [0, 0, 1], coatHemFR: [0.1, -0.1, 0] } });
     expect(C.walk.keys).toBe(8);
     expect(C.idle).toBe(idle);   // (no standing set asked here: the clip as it was)
+    // (a figure with no idle given a still one, standing as the standing set says; one with its own keeps it)
+    const stand = { coatHemFR: [0, -0.05, 0] }, S = posedCoatClips({ walk }, { ...poses, stand }, null);
+    expect(S.idle(0)).toEqual({ flow: stand }); expect(posedCoatClips({ walk, idle }, { stand }, null).idle(0).flow).toEqual(stand);
     expect(C.swing_down(0).flow).toEqual(poses.action);
     const clips = { walk }; expect(posedCoatClips(clips, null, null)).toBe(clips);
   });

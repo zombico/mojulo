@@ -44,5 +44,7 @@ export function posedCoatClips(clips, poses, R) {
     const posed = (phase) => { const p = fn(phase); return { ...p, flow: { ...(p.flow || {}), ...set } }; };
     out[name] = Object.assign(posed, fn);
   }
+  // (a figure with no idle stands in its bind on the page, which no clip sets: a still idle given the standing set)
+  if (poses.stand && !out.idle) out.idle = Object.assign(() => ({ flow: { ...poses.stand } }), { keys: 2 });
   return out;
 }
