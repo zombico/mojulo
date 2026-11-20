@@ -1092,6 +1092,8 @@ export function buildStageGeometry(plan) {
   if (props) out.push(...props.faces);
   // the vents' ducts (vents.js): each front wall and lid a box of the services' finish
   for (const d of plan.vents?.ducts ?? []) for (const s of d.segments) for (const b of s.parts) box(out, b.min, b.max, { ...surf('services'), group: 'stage:vent' }, 2);
+  // (and each hole's floor through the wall: the floor's own finish, a body crawls on it)
+  for (const b of plan.vents?.sills ?? []) box(out, b.min, b.max, surf('floor'), 2);
   const faces = plan.cuts ? storeyCut(out, plan.cuts) : out;
   if (plan.cuts) stairFaces(faces, plan.cuts, surf, (id) => plan.rooms.find((q) => q.id === id).h);
   // (no torch on the wall a flight climbs along: its iron would stand in the way up)

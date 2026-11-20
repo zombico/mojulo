@@ -10,7 +10,8 @@
  *     clear                 its height inside, the underside of its lid (0.75 m: a body lying is 0.45)
  *     rooms                 at least this many rooms in a row for a duct (2)
  *   planVents(rooms, links, V) → { ducts: [{ id, corridor, storey, back, rooms, segments: [{ room, strip, hatch, parts }]}],
- *                             holes: [{ room, side, lo, hi, top }], unders: [{ under, min, max, near }] }
+ *                             holes: [{ room, side, lo, hi, top }], unders: [{ under, min, max, near }],
+ *                             sills: [{ min, max }] }   (each hole's floor through the wall's thickness)
  *     strip                 the duct's floor in a room ({ min: [x, y], max: [x, y] })
  *     hatch                 its way in from the room: the gap's middle and the side it opens to ({ at: [x, y], side })
  *     parts                 the boxes it is built of, world metres ({ min: [x, y, z], max: [x, y, z], part }): its front
@@ -40,7 +41,7 @@ export function readVents(v) {
 
 /** The ducts, their holes and their crawl spaces (see the header). */
 export function planVents(rooms, links, V) {
-  const byId = new Map(rooms.map((r) => [r.id, r])), ducts = [], holes = [], unders = [];
+  const byId = new Map(rooms.map((r) => [r.id, r])), ducts = [], holes = [], unders = [], sills = [];
   // each room off a corridor, by the corridor and the side of it the room stands on (its wall facing the corridor)
   const rows = new Map();
   for (const l of links) {
@@ -86,10 +87,13 @@ export function planVents(rooms, links, V) {
           const taken = (rr, sd) => (rr.openings?.[sd] ?? []).some((o) => o.lo < h1 + 0.3 && o.hi > h0 - 0.3);
           if (taken(r, sideA) || taken(nx, sideB)) { broken = true; continue; }
           holes.push({ room: r.id, side: sideA, lo: h0, hi: h1, top: r3(V.clear) }, { room: nx.id, side: sideB, lo: h0, hi: h1, top: r3(V.clear) });
+          // (the hole's floor, through the wall's thickness: the rooms' floors stop at their walls)
+          const ca = alongX ? (r.box ? r.box[2] : r.x1) : r.box ? r.box[3] : r.y1, cb = alongX ? (nx.box ? nx.box[0] : nx.x0) : nx.box ? nx.box[1] : nx.y0, a0 = Math.min(hi(r), ca) - 0.02, a1 = Math.max(lo(nx), cb) + 0.02;
+          sills.push(alongX ? { min: [r3(a0), h0, r3(z0 - 0.1)], max: [r3(a1), h1, z0] } : { min: [h0, r3(a0), r3(z0 - 0.1)], max: [h1, r3(a1), z0] });
         }
       }
       ducts.push({ id, corridor, storey: run[0].storey ?? 0, back, rooms: run.map((r) => r.id), segments, ...(broken ? { broken: true } : {}) });
     }
   }
-  return { ducts, holes, unders };
+  return { ducts, holes, unders, sills };
 }
