@@ -355,6 +355,24 @@ describe('a run and gun\'s own voices (its buster, its hero, its robot foes, a r
     expect(soundSheet({}).run).toBeUndefined();
   });
 
+  it('each foe by what its kind does: a robot sparks awake, a creature calls, a hopper springs, a charger revs and slams, a heavy turret a cannon', async () => {
+    const { SIDE_MAP_FOES } = await import('./platformer-game.js');
+    const pick = (f) => Object.keys(SIDE_MAP_FOES).find((id) => f(SIDE_MAP_FOES[id]));
+    const F = soundSheet({ ...RUN, foes: structuredClone({ ...SIDE_MAP_FOES }) }).run.foes;
+    const robot = pick((e) => [].concat(e.skin.ooze).includes('herobot')), frog = pick((e) => e.skin.species === 'frog');
+    expect(F[robot].wake).toBe('spark');
+    expect(F[frog]).toMatchObject({ wake: 'frog', hop: 'bounce-pad' });
+    expect(F[pick((e) => e.class === 'charger')]).toMatchObject({ brace: 'motor-rev', stun: 'body-slam' });
+    expect(F[pick((e) => e.class === 'turret' && e.rank === 'elite')].shot).toBe('cannon');
+    expect(F[pick((e) => e.class === 'turret' && !e.rank)].shot).toBe('shoot');
+    expect(soundSheet({ ...RUN, foes: { r: SIDE_MAP_FOES[robot] }, sound: { run: { foes: { r: { wake: 'button' } } } } }).run.foes.r.wake).toBe('button');
+    expect(() => readSound({ run: { foes: { r: { yell: 'spark' } } } })).toThrow(/a foe's moves/);
+    // and a level carries each as a cue, its page voicing them by the body's kind
+    const audio = resolveWorldAudio({ sfx: sheetAudio({ ...RUN, foes: { r: SIDE_MAP_FOES[robot] } }) }, { ref: 'lv', mechanics: ['hp-pool'] });
+    expect(Array.isArray(audio.run.foes.r.wake)).toBe(true);
+    expect(audio.run.steam).toEqual(sfxSound('steam-hiss').sustain);
+  });
+
   it('the game\'s own word wins and false is none; an unknown event, a word off the shelf, a held event not held are refused', () => {
     expect(soundSheet({ ...RUN, sound: { run: { tap: 'pistol-shot' } } }).run.tap).toBe('pistol-shot');
     expect(soundSheet({ ...RUN, sound: { run: false } }).run).toBeUndefined();

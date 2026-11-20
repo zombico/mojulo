@@ -224,6 +224,7 @@ const ROWS = {
   'kart-engine': made('machinery', null, 'hold', 'a kart\'s engine by its throttle', ['kart', 'go kart'], 'engine', { kind: 'kart' }),
   'diesel-engine': made('machinery', null, 'hold', 'a heavy diesel by its throttle: a truck, a carrier, a walking machine\'s power pack', ['diesel', 'truck engine', 'heavy engine'], 'engine', { kind: 'diesel' }),
   'tank-engine': made('machinery', null, 'hold', 'a tracked vehicle by its throttle: its diesel and its tracks clanking', ['tank engine', 'tracked engine', 'track clatter'], 'engine', { kind: 'tracked' }),
+  'steam-hiss': made('machinery', null, 'hold', 'a machine venting steam, by its pressure: its exhaust hissing and chuffing', ['steam', 'steam vent', 'exhaust steam', 'venting'], 'servo', { kind: 'steam' }),
   'walker-hydraulics': made('machinery', null, 'hold', 'a walking machine\'s hydraulics by its pace: its pump straining, its valves chuffing with its steps', ['hydraulics', 'walker servo', 'mech hydraulics'], 'servo', { kind: 'walker' }),
   'boat-engine': made('machinery', null, 'hold', 'an outboard by its throttle', ['boat', 'speedboat', 'outboard'], 'engine', { kind: 'boat' }),
   'helicopter': made('machinery', null, 'hold', 'a helicopter by its throttle', ['chopper', 'rotor'], 'engine', { kind: 'helicopter' }),

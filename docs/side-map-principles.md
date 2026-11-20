@@ -313,8 +313,10 @@ map's HUD").
 Every thing the screen shows doing something says it: the buster's tap and its charge (a hum rising as it fills, then
 the round it lets go), the dash, the wall kick, a blow taken; a robot struck, a heavy's armour glancing the round off, a
 wreck; a foe's round leaving; the boss's rock heaved, landing or shot apart; the shutter behind the hero; the boss's
-treads. What is off the screen is silent, as it is unseen. Under it, an electronic score: the level's piece, a fight
-piece the tension crosses into, a stinger as the level is won or lost. The words and how a game changes them are in
+treads and the steam off his back; a foe stomped on. Each foe says what it does: a robot sparks on as it comes into
+the frame, the frog croaks, a hopper springs, a charger revs and slams, a flier swells into its dive, a turret fires
+its own round. What is off the screen is silent, as it is unseen. Under it, an electronic score: the level's piece, a
+fight piece the tension crosses into, the boss's own piece once his room shuts, a stinger as the level is won or lost. The words and how a game changes them are in
 `docs/game-audio.md`.
 
 ## Not yet

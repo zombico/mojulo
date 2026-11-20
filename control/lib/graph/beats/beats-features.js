@@ -183,6 +183,7 @@ export function audioFeatures(audio) {
   if (!audio || typeof audio !== 'object') return [];
   collect(expandBeatsManifest(audio.soundtrack), set);
   if (audio.combat) collect(expandBeatsManifest(audio.combat), set);
+  if (audio.boss) collect(expandBeatsManifest(audio.boss), set);
   if (audio.bed) collect(expandBeatsManifest(audio.bed), set);
   for (const list of Object.values(audio.cues || {})) addGestures(set, list);
   for (const list of Object.values(audio.footsteps || {})) addGestures(set, list);
@@ -192,10 +193,11 @@ export function audioFeatures(audio) {
   for (const k of ['weapon', 'strike']) for (const list of Object.values(audio[k] || {})) addGestures(set, list);
   // (a run and gun's voices, `run`: its cues, and its held `charge` and `treads` below)
   for (const [k, v] of Object.entries(audio.run || {})) if (Array.isArray(v)) addGestures(set, v);
+  for (const M of Object.values((audio.run && audio.run.foes) || {})) for (const v of Object.values(M || {})) addGestures(set, v);
   if (audio.vary || audio.weather) set.add('sfx');
   if (audio.mix) set.add('sfxmix');
   // (a world's own held voices, `sustains` (opt-in): a base's engine and its hydraulics on the artillery range)
-  addSustains(set, [audio.thruster && audio.thruster.voice, audio.jump && audio.jump.charge && audio.jump.charge.voice, audio.engine && audio.engine.voice, ...Object.values(audio.sustains || {}), ...(audio.run ? [audio.run.charge, audio.run.treads] : [])]);
+  addSustains(set, [audio.thruster && audio.thruster.voice, audio.jump && audio.jump.charge && audio.jump.charge.voice, audio.engine && audio.engine.voice, ...Object.values(audio.sustains || {}), ...(audio.run ? [audio.run.charge, audio.run.treads, audio.run.steam] : [])]);
   if (audio.wind && audio.wind.vary) set.add('x');
   return sorted(set);
 }

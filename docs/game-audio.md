@@ -28,11 +28,18 @@ A run and gun (a feel whose template's charge is a shot: Galaxy Boy's) hears its
 tap, its charged round and the full charge's, the charge held as a hum that rises as it fills; the hero's dash, wall kick,
 slide down a wall and a blow taken; a foe's round leaving, a robot struck, a heavy's armour glancing a round off, a
 wreck, a boss blown apart; a thrown rock heaved, flying, landing or shot apart; the boss room's shutter coming down; a
-boss's treads as a held engine by its speed. Each is a shelf word (`RUN_SOUNDS` in `gameworld/sound-sheet.js`, a game's
+boss's treads as a held engine by its speed and its exhausts' steam as a held hiss; a foe stomped on. Each foe also
+sounds by what its kind does (`run.foes`, by its class: a robot sparks on as it first comes into the frame, a creature
+the shelf voices calls, a hopper springs, a charger revs as it braces and slams into what stops it, a swooper swells
+as it dives, a turret fires its own round, a heavy turret a cannon). Each is a shelf word (`RUN_SOUNDS` in `gameworld/sound-sheet.js`, a game's
 `sound.run` over it, `false` for none) played by the page's run channel (`scene/channels/run-audio.js`). A foe is
 heard while it is on the screen, a little past its edges, never across the level. A hero with no buster (Zero Boy's
 saber) keeps the rest and swings with the sheet's blade. The rail writes `sound: {}` and an electronic score for a side
 scroller, so its first level is heard from the first build.
+
+A side map's boss has its own piece: the cue sheet asks for it (`boss:<level>`, an electronic game's `peak`), and the
+level changes to it on the bar line, for good, once the boss's room has shut behind the hero (the level's audio
+`boss`, beside its `combat`); the fights before it come in with the tension as any level's do.
 
 ## The audio direction
 

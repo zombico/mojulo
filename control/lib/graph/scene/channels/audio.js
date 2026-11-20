@@ -18,6 +18,8 @@ export function audioChannelScript(audio) {
   // adaptive music (audio.combat): the scores play on two engines of their own, crossfaded; the first engine keeps the
   // cues, footsteps and wind at a steady level. Without it every line below is as it was.
   const combat = !!audio.combat;
+  // the boss's piece (audio.boss, with combat): a third engine, changed to for good once the boss's room has shut
+  const bossOn = combat && !!audio.boss;
   const musicEng = combat ? '(__engs ? __engs[__music.active] : __beatsEng)' : '__beatsEng';
   // the SFX mixer (audio.mix, opt-in): the cues on a bus in a space, ducks dipping the score, a voice cap, a cue placed
   // by its distance from the pilot. Absent, not a byte of it is emitted.
@@ -33,7 +35,7 @@ export function audioChannelScript(audio) {
   return `
 // ---- beats audio channel (opt-in, presentation-only) ----
 const __AUDIO = ${safeJson(audio)};
-const __BEATS_PATCHES = ${safeJson(combat ? pagePatches(audio.soundtrack, audio.combat) : pagePatches(audio.soundtrack))};
+const __BEATS_PATCHES = ${safeJson(bossOn ? pagePatches(audio.soundtrack, audio.combat, audio.boss) : combat ? pagePatches(audio.soundtrack, audio.combat) : pagePatches(audio.soundtrack))};
 const __BEATS = (${emitBeatsKernel(audioFeatures(audio))})();
 let __beatsCtx = null, __beatsEng = null, __beatsMuted = false, __beatsVol = 1;${bed ? '\nlet __bedEng = null;' : ''}
 // one write path for mute × volume (0.9 is the engine's stock master level); suspend keeps
@@ -53,9 +55,9 @@ function __beatsUnlock() {
   __beatsEng.setSfx(__AUDIO.mix);   // the SFX mixer: the cues' bus and space, and the music bus a duck dips (before the score starts)` : ''}
   if (__AUDIO.soundtrack) {${audio.beat ? `
     __beatT0 = __beatsCtx.currentTime + 0.08;   // the transport's own start (startTransport's t0): the beat clock's zero` : ''}
-${combat ? `    __engs = { explore: __BEATS.createEngine(__beatsCtx), combat: __BEATS.createEngine(__beatsCtx) };${mix ? `
-    __engs.explore.setSfx({}); __engs.combat.setSfx({}); __beatsEng.linkDuck(__engs.explore); __beatsEng.linkDuck(__engs.combat);   // a duck dips whichever score plays` : ''}
-    __engs.combat.master.gain.value = 0;
+${combat ? `    __engs = { explore: __BEATS.createEngine(__beatsCtx), combat: __BEATS.createEngine(__beatsCtx)${bossOn ? ', boss: __BEATS.createEngine(__beatsCtx)' : ''} };${mix ? `
+    __engs.explore.setSfx({}); __engs.combat.setSfx({}); __beatsEng.linkDuck(__engs.explore); __beatsEng.linkDuck(__engs.combat);   // a duck dips whichever score plays${bossOn ? '\n    __engs.boss.setSfx({}); __beatsEng.linkDuck(__engs.boss);' : ''}` : ''}
+    __engs.combat.master.gain.value = 0;${bossOn ? ' __engs.boss.master.gain.value = 0;' : ''}
     __startTrack(__engs.explore, __AUDIO.soundtrack);
     __musicT0 = __beatsCtx.currentTime + 0.08;   // the explore piece's t0: its bar lines are where a change may land` : `    if (__AUDIO.soundtrack.kind === 'beats-composition') __beatsEng.startComposition(__AUDIO.soundtrack, __BEATS_PATCHES);
     else if (__AUDIO.soundtrack.kind === 'beats-pattern') __beatsEng.startPattern(__AUDIO.soundtrack, __BEATS_PATCHES);
@@ -89,11 +91,11 @@ function __startTrack(eng, r) {
 }
 function __switchTo(to) {
   const from = __music.active, outEng = __engs[from], inEng = __engs[to];
-  const bar = __ADAPT.barSeconds(from === 'explore' ? __AUDIO.soundtrack : __AUDIO.combat);
+  const bar = __ADAPT.barSeconds(from === 'explore' ? __AUDIO.soundtrack : ${bossOn ? "from === 'boss' ? __AUDIO.boss : " : ''}__AUDIO.combat);
   const now = __beatsCtx.currentTime, at = __ADAPT.nextBar(now + 0.25, __musicT0, bar);
   __switching = true;
   setTimeout(() => {
-    __startTrack(inEng, to === 'explore' ? __AUDIO.soundtrack : __AUDIO.combat);
+    __startTrack(inEng, to === 'explore' ? __AUDIO.soundtrack : ${bossOn ? "to === 'boss' ? __AUDIO.boss : " : ''}__AUDIO.combat);
     const t = __beatsCtx.currentTime + 0.08, vol = __beatsMuted ? 0 : 0.9 * __beatsVol;   // the new piece's t0: the bar line
     __musicT0 = t;
     inEng.master.gain.cancelScheduledValues(t); inEng.master.gain.setValueAtTime(0, t); inEng.master.gain.linearRampToValueAtTime(vol, t + bar);
@@ -108,7 +110,11 @@ function __switchTo(to) {
   const now = __beatsCtx.currentTime, dt = __tenLast === null ? 0 : Math.min(0.25, now - __tenLast);
   __tenLast = now;
   __tension = __ADAPT.leak(__tension, dt, __TEN.decay);${combat ? `
-  if (!__engs || __switching || __beatsMuted) return;
+  if (!__engs || __switching || __beatsMuted) return;${bossOn ? `
+  // (the boss's room shut behind the hero, sidemap.js the camera's _shut: its piece, for good)
+  if (__music.active === 'boss') return;
+  const __cw = window.__mojCtrl && window.__mojCtrl.world, __sh = __cw && __cw.camera && __cw.camera._shut;
+  if (__sh && Object.keys(__sh).some((k) => __sh[k] != null)) { __switchTo('boss'); return; }` : ''}
   const next = __ADAPT.decide(__music, __tension, dt, __TEN, __ADAPT.barSeconds(__AUDIO.combat));
   if (next.to) __switchTo(next.to); else __music = next;` : ''}
 })();

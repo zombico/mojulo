@@ -83,6 +83,21 @@ describe('a level\'s score from the sheet', () => {
   });
 });
 
+describe('a side map\'s boss has its own piece', () => {
+  it('the fights come in with the tension; the boss\'s room its own piece, after them; a level with no boss as it was', async () => {
+    const { platformerGame } = await import('./platformer-game.js');
+    const W = { id: 'gb', name: 'Galaxy Boy', ...platformerGame({ pole: 'galaxy-boy' }).words }, [id] = Object.keys(W.levels);
+    const S = levelScore(W, id, { game: 5 });
+    expect(S.combat.score.mood).toBe('rave');
+    expect(S.boss.score.mood).toBe('peak');
+    const audio = resolveWorldAudio(S, { ref: 'lv', mechanics: ['hp-pool'] });
+    expect(audio.boss.kind).toBe('beats-composition');
+    const none = { ...W, levels: { [id]: { ...W.levels[id], sidemap: { ...W.levels[id].sidemap, boss: undefined } } } };
+    expect(levelScore(none, id, { game: 5 }).boss).toBeUndefined();
+    expect(() => resolveWorldAudio({ soundtrack: S.soundtrack, boss: S.boss }, { ref: 'lv' })).toThrow(/audio.boss/);
+  });
+});
+
 describe('a made game is scored from its sheet', () => {
   it('a designed game with a `music`: every level carries its cue on the game\'s identity; with none, the levels it built', async () => {
     const { runSteps, fingerprint } = await import('./index.js');

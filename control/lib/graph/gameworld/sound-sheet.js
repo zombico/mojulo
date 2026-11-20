@@ -85,12 +85,21 @@ const WEAPON_KEYS = Object.freeze(['swing', 'heavy', 'hit', 'finisher']);
 // round, `full` the full charge's, `charge` HELD as it builds, its pitch by how full), the hero's (`dash`, `kick` off a
 // wall, `cling` on one, `hurt`), its foes' (`foeShot` a round leaving, `foeHit` a robot struck, `armour` a heavy's plating
 // glancing it off, `wreck`, `boss` a boss blown apart), a thrower's rock (`lift`, `throw`, `rock` landing, `break` shot
-// apart in the air), the boss room's shutter (`shut`) and a boss's treads (`treads`, HELD, by its speed)
+// apart in the air), the boss room's shutter (`shut`), a boss's treads (`treads`, HELD, by its speed) and its exhausts'
+// steam (`steam`, HELD), a foe stomped on (`stomp`)
 export const RUN_SOUNDS = Object.freeze({ tap: 'beam-blip', shot: 'beam-rifle-shot', full: 'beam-charged-shot', charge: 'charge-hum',
   dash: 'dodge', kick: 'kick', cling: 'slide', hurt: 'hurt', foeShot: 'shoot', foeHit: 'metal-impact', armour: 'ricochet', wreck: 'wreck-explosion',
-  boss: 'big-explosion', lift: 'metal-creak', throw: 'throw', rock: 'stone-impact', break: 'stone-break', shut: 'portcullis', treads: 'tank-engine' });
+  boss: 'big-explosion', lift: 'metal-creak', throw: 'throw', rock: 'stone-impact', break: 'stone-break', shut: 'portcullis', treads: 'tank-engine',
+  steam: 'steam-hiss', stomp: 'stomp' });
 // the run's held voices (a sustain of the shelf's, driven 0 … 1), and the buster's own events (none for a hero without one)
-export const RUN_HELD = Object.freeze(['charge', 'treads']);
+export const RUN_HELD = Object.freeze(['charge', 'treads', 'steam']);
+// EACH FOE BY WHAT IT DOES (`run.foes`: { <foe id>: { <move>: <shelf word> } }), by its class's moves (lib/graph/foes/,
+// worlds/controllable/foe.js): a robot sparks as it wakes and leaps in (a creature the shelf voices, its own call); a
+// hopper springs, a charger revs as it braces and slams into what stops it, a swooper swells as it dives, a turret's
+// round is its own (a heavy's a cannon)
+export const FOE_MOVES = Object.freeze(['wake', 'hop', 'brace', 'stun', 'dive', 'shot']);
+const CLASS_MOVES = Object.freeze({ hopper: { hop: 'bounce-pad' }, charger: { brace: 'motor-rev', stun: 'body-slam' }, swooper: { dive: 'swell-in' }, turret: { shot: 'shoot' } });
+const HEAVY_MOVES = Object.freeze({ turret: { shot: 'cannon' } });
 const RUN_BUSTER = Object.freeze(['tap', 'shot', 'full', 'charge']);
 // a ride by its words: the engine it is heard by (the first that matches; a car's where none does)
 const ENGINES = Object.freeze([
@@ -258,8 +267,16 @@ export function readSound(S) {
     }
   }
   if (S.run !== undefined && S.run !== false) {
-    if (!isObj(S.run)) throw fail(`.run is { ${Object.keys(RUN_SOUNDS).join('?, ')}? }, each a shelf word, or false`);
+    if (!isObj(S.run)) throw fail(`.run is { ${Object.keys(RUN_SOUNDS).join('?, ')}?, foes? }, each a shelf word, or false`);
     for (const [ev, w] of Object.entries(S.run)) {
+      if (ev === 'foes') {
+        if (!isObj(w)) throw fail(`.run.foes is { <foe id>: { ${FOE_MOVES.join('?, ')}? } }, each a shelf word`);
+        for (const [id, o] of Object.entries(w)) {
+          if (!isObj(o)) throw fail(`.run.foes.${id} is { ${FOE_MOVES.join('?, ')}? }, each a shelf word`);
+          for (const [k, x] of Object.entries(o)) { if (!FOE_MOVES.includes(k)) throw fail(`.run.foes.${id}.${k}: a foe's moves are ${FOE_MOVES.join(', ')}`); word(`.run.foes.${id}.${k}`, x); }
+        }
+        continue;
+      }
       if (!(ev in RUN_SOUNDS)) throw fail(`.run.${ev} is not a run and gun's event (${Object.keys(RUN_SOUNDS).join(', ')})`);
       word(`.run.${ev}`, w);
       if (RUN_HELD.includes(ev) && !sfxSound(w)?.sustain) throw fail(`.run.${ev} '${w}' is a held voice of the shelf (as '${RUN_SOUNDS[ev]}' is)`);
@@ -287,10 +304,20 @@ export function runSounds(G, own = readSound(G?.sound)) {
   if (!pole || POLES[pole]?.set?.charge?.kind !== 'shot') return null;
   let buster = true;
   try { buster = feelCard(F)?.charge?.kind === 'shot'; } catch { buster = false; }
-  const rolls = Object.values(isObj(G?.levels) ? G.levels : {}).some((L) => BOSSES[L?.sidemap?.boss]?.roll);
-  const keep = (ev) => (buster || !RUN_BUSTER.includes(ev)) && (ev !== 'treads' || rolls);
+  const bosses = Object.values(isObj(G?.levels) ? G.levels : {}).map((L) => BOSSES[L?.sidemap?.boss]).filter(Boolean);
+  const rolls = bosses.some((B) => B.roll), vents = bosses.some((B) => B.workbot);
+  const keep = (ev) => (buster || !RUN_BUSTER.includes(ev)) && (ev !== 'treads' || rolls) && (ev !== 'steam' || vents);
   const run = Object.fromEntries(Object.entries(RUN_SOUNDS).filter(([ev]) => keep(ev)).map(([ev, w]) => [ev, own.run?.[ev] ?? w]));
-  const why = { run: `a run and gun (${POLES[pole].name})${buster ? ': its buster' : ''}, its robot foes${rolls ? ', a boss on treads' : ''}` };
+  // (each foe of its bestiary by its class's moves; a robot's wake a spark, a creature's its own call where the shelf has it)
+  const foes = {};
+  for (const [id, F] of Object.entries(isObj(G?.foes) ? G.foes : {})) {
+    const ooze = [].concat(F?.skin?.ooze ?? []), robot = ooze.includes('herobot'), species = F?.skin?.species;
+    const call = !robot && species && resolveSoundId(species) && !sfxSound(species)?.sustain ? resolveSoundId(species) : null;
+    const M = { ...(robot ? { wake: 'spark' } : call ? { wake: call } : {}), ...(CLASS_MOVES[F?.class] ?? {}), ...(F?.rank === 'elite' ? HEAVY_MOVES[F?.class] ?? {} : {}), ...(own.run?.foes?.[id] ?? {}) };
+    if (Object.keys(M).length) foes[id] = M;
+  }
+  if (Object.keys(foes).length) run.foes = foes;
+  const why = { run: `a run and gun (${POLES[pole].name})${buster ? ': its buster' : ''}, its robot foes${Object.keys(foes).length ? ' each by what it does' : ''}${rolls ? ', a boss on treads' : ''}${vents ? ', its exhausts steaming' : ''}` };
   for (const ev of Object.keys(own.run ?? {})) why[`run:${ev}`] = 'the game says so';
   return { run, why };
 }
@@ -317,7 +344,7 @@ export function soundSheet(G, { manifest = null } = {}) {
   if (style === 'mouth') for (const [k, w] of Object.entries(slots)) if (!fresh(w)) owed.push(`${k}: '${id(w)}' has no new voice yet (it plays realistic)`);
   const mute = Object.keys(isObj(G?.foes) ? G.foes : {}).filter((id) => !fs.foeSounds[id]);
   if (mute.length && !rn) owed.push(`${mute.join(', ')}: no voice of its own (neither a beast the shelf voices nor drawn as a person): it sounds only by the blows it gives and takes`);
-  if (rn && style === 'mouth') { const old = Object.entries(rn.run).filter(([, w]) => !fresh(w)).map(([ev]) => ev); if (old.length) owed.push(`the run's ${old.join(', ')}: no new voice yet (they play realistic)`); }
+  if (rn && style === 'mouth') { const old = Object.entries(rn.run).filter(([ev, w]) => ev !== 'foes' && !fresh(w)).map(([ev]) => ev); if (old.length) owed.push(`the run's ${old.join(', ')}: no new voice yet (they play realistic)`); }
   return { style, slots, on, ...(mv ? { moves: mv.moves } : {}), ...(rn ? { run: rn.run } : {}), foes: fv.foes, foeSounds: fs.foeSounds, why, owed };
 }
 
