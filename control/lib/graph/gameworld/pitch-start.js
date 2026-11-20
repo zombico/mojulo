@@ -27,6 +27,7 @@ import { actionStarter } from './action-first-level.js';
 import { STYLISH } from './style-meter.js';
 import { TEMPLATE_ARSENALS } from './combos.js';
 import { ACTION_OUTFITS } from '../outfit/styles.js';
+import { HAIR_STYLE_NAMES, HAIR_KEYS } from '../polygonizer/humanoid-hair.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 // the workflow's own keys of a composed world: the starter brings its ground, never its review or its brief
@@ -63,7 +64,14 @@ export function pitchStart(world, { title } = {}) {
     const H = ground.characters?.hero;
     // (on the realistic body, where the duelist's coat is cut away and its tails set by the pose: the composer's cast,
     // hair and colours kept)
-    if (H?.looks) ground.characters = { ...ground.characters, hero: { ...H, looks: { ...H.looks, body: { ...(H.looks.body ?? {}), form: 'realistic' }, underlayer: { type: 'outfit', style: ACTION_OUTFITS[0] } } } };
+    // (and drawn in the western tradition, the realistic body's proportions; the anime head's words left off, a face the
+    // realistic head does not draw; its hair the realistic library's style nearest, its own controls kept)
+    if (H?.looks) {
+      const { head: _h, hair, ...looks } = H.looks, own = isObj(hair?.hair) ? hair.hair : typeof hair?.hair === 'string' ? { style: hair.hair } : {};
+      const style = HAIR_STYLE_NAMES.includes(own.style) ? own.style : 'long', kept = Object.fromEntries(Object.entries(own).filter(([k]) => HAIR_KEYS.includes(k)));
+      ground.characters = { ...ground.characters, direction: { ...(ground.characters.direction ?? {}), tradition: 'western' },
+        hero: { ...H, looks: { ...looks, body: { ...(H.looks.body ?? {}), form: 'realistic' }, hair: { ...(hair ?? {}), hair: { ...kept, style } }, underlayer: { type: 'outfit', style: ACTION_OUTFITS[0] } } } };
+    }
     const W = { ...ground, camera: 'orbit', foes: A.foes, fights: A.fights, levels: { citadel: A.level }, grade: A.grade, ...(TEMPLATE_ARSENALS[R.handles.pole] ? { arsenal: { from: R.handles.pole } } : {}), styleMeter: 'auto', ...withFeel, ...named, ...intent };
     return { world: W, laid: { by: 'action', from: S.starts, levels: Object.keys(W.levels), says: SAYS } };
   }

@@ -18,6 +18,9 @@ import { railCardById } from './gameworld-cards.js';
 import { goalposts, startReadout, producerSteps, producerSays, leadNext, GOALPOSTS } from './goalposts.js';
 import { pitchStart } from './pitch-start.js';
 import { actionStarter } from './action-first-level.js';
+import { heroOrders } from './index.js';
+import { validateHeroSpec } from '../../mcp/tools/layered.js';
+import { applyManifestPatch } from '../../mcp/tools/manifest-patch.js';
 import { STYLISH } from './style-meter.js';
 import { readGameworld } from './world.js';
 import { chaptersOfPath } from './chapters.js';
@@ -425,6 +428,9 @@ describe('the pitch kept: a locked pitch with no level is given the rail\'s star
     expect(P.world.levels.citadel).toEqual(A.level);
     expect(P.world.characters.hero.looks.underlayer).toEqual({ type: 'outfit', style: 'duelist' });
     expect(P.world.characters.hero.looks.body.form).toBe('realistic');
+    // (and the hero its pages compose is one the hero door takes, as design_game asks before it stores the world)
+    const O = heroOrders(readGameworld(P.world)), spec = O.motion ? applyManifestPatch({ hero: O.mint.args.spec }, O.motion.args.patch).manifest.hero : O.mint.args.spec;
+    expect(validateHeroSpec(spec)).toEqual([]);
     // (the composed level and what played it gone: no links, no flow naming a level that is not there)
     for (const k of ['links', 'flow', 'mode', 'review', 'brief', 'made']) expect(P.world[k]).toBeUndefined();
     expect(() => readGameworld(P.world)).not.toThrow();
