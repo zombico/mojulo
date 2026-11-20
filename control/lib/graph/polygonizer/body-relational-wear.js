@@ -52,7 +52,7 @@ import { oneTube, drapeRun, flareRun, swellRun, fairRun, waistbandOf, cinchWaist
 import { footwear, FOOTWEAR, FOOTWEAR_TONES } from './body-relational-footwear.js';
 import { beltOn, frameBuckle } from './body-relational-kit.js';
 import { foldCloth } from './body-relational-folds.js';
-import { openFront, zipDown, jacketPieces, JACKET } from './body-relational-jacket.js';
+import { openFront, zipDown, jacketPieces, ventBack, JACKET } from './body-relational-jacket.js';
 import { tailorFronts } from './tailored-front.js';
 import { sub, unit as unitv } from './body-relational-vec.js';
 
@@ -89,6 +89,7 @@ const mean = (ps) => [0, 1, 2].map((k) => ps.reduce((s, p) => s + p[k], 0) / ps.
 /** The pieces worn (see the head of this file). */
 export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint = [], tailoring = null, { hug = false } = {}) {
   const parts = {}, worn = new Set(), belts = new Set(), painted = new Set(), turned = new Set(), alias = new Map(), tones = {};
+  let coat = null;
   const seg = (P) => (Array.isArray(P.part) && P.part.length === 1 ? P.part[0] : null);
   const segPart = (s) => recipe.parts[s] ?? recipe.parts[`${s}R`];
   const uMax = (s) => { const P = segPart(s); return P ? P.stations[P.stations.length - 1].u ?? P.stations.length - 1 : 1; };
@@ -359,6 +360,9 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
       if (collarName) parts[collarName] = openFront(parts[collarName], { gap: () => gapAt(z1) });
       if (J.zip && !open) Object.assign(parts, zipDown(parts[bodyName], 'outerZip', { group: 'Buckle', tape: parts[bodyName].group ?? 'Outer' }));
       Object.assign(parts, jacketPieces(parts, bodyName, J, recipe, { gapAt, gathered }));
+      // (a POSED coat, `posed`: its skirt split at the back from the hip, its halves hung on hinges at the hip the clips set)
+      const V = open && J.posed ? ventBack(parts[bodyName], R) : null;
+      if (V) { parts[bodyName] = V.parts.body; parts[`${bodyName.split('_')[0]}_skirtR`] = V.parts.R; parts[`${bodyName.split('_')[0]}_skirtL`] = V.parts.L; coat = { joints: V.joints, bones: V.bones, poses: V.poses }; }
     }
   }
   // THE FOLDS (hugging, realistic laws 8: body-relational-folds.js): crescents inside the elbows and behind the knees,
@@ -375,7 +379,7 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
     }
     foldCloth(parts, { joints, belts: beltZones, beltPts, boots, order, gathered });
   }
-  return { parts, worn, belts, painted, alias, tones, necklaces };
+  return { parts, worn, belts, painted, alias, tones, necklaces, ...(coat ? { coat } : {}) };
 }
 
 /** a necklace's pieces in a kit: the chain (a ghost shell's `polyline` signature on the torso) and its `Bail` and

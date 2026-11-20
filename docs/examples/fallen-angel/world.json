@@ -377,7 +377,8 @@
               "epaulettes": true,
               "stocking": true,
               "cut": "aline",
-              "stormFlap": true
+              "stormFlap": true,
+              "posed": true
             },
             "feet": "cavalierBoots",
             "hands": "cavalierGloves"

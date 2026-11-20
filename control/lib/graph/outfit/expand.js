@@ -386,7 +386,7 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
   // (a zip front is no tailored front: no V, no lapels, no buttons; it is the jacket's CONSTRUCTION, below)
   const tailored = outer && worn.has('outer') && ((outer.front !== undefined && outer.front !== 'zip') || outer.lapel !== undefined || outer.buttons !== undefined);
   // the jacket's CONSTRUCTION words, for the realistic body's tailor (body-relational-jacket.js): absent, nothing
-  const built = outer && worn.has('outer') ? { ...(outer.front === 'zip' ? { zip: true } : {}), ...(outer.collar === 'shirt' ? { collar: 'shirt' } : {}), ...(outer.rib ? { rib: outer.rib } : {}), ...(outer.pockets && outer.pockets !== 'none' ? { pockets: outer.pockets } : {}), ...(outer.epaulettes ? { epaulettes: true } : {}), ...(outer.cloth ? { cloth: outer.cloth } : {}) } : {};
+  const built = outer && worn.has('outer') ? { ...(outer.front === 'zip' ? { zip: true } : {}), ...(outer.collar === 'shirt' ? { collar: 'shirt' } : {}), ...(outer.rib ? { rib: outer.rib } : {}), ...(outer.pockets && outer.pockets !== 'none' ? { pockets: outer.pockets } : {}), ...(outer.epaulettes ? { epaulettes: true } : {}), ...(outer.posed && outer.open ? { posed: true } : {}), ...(outer.cloth ? { cloth: outer.cloth } : {}) } : {};
   const jacket = Object.keys(built).length ? { ...built, ...(outer.open ? { open: true } : {}) } : null;
   // (its lapels the jacket's facing: the card's `Lapel` tone, else a shade off the jacket's own)
   // (and a tie on the shirt, the card's `Tie` tone, else a deep red)

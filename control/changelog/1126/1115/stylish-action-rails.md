@@ -262,3 +262,11 @@ What the theme will hold:
   of the coat behind it, toned a shade down (`Flap`) so its edge reads on the back. Lucien's coat is now one coat from
   the shoulders to the knee, the back the sides' length and flared evenly round the hips (`hem: 'knee'`, `cut: 'aline'`,
   the tails and panels gone), with the flap over its back.
+- **The posed coat** (an open coat's `posed: true`, on the realistic body): the long open coat that fights, by the
+  compromise action games made for it. Its skirt is split at the back from the hip into two halves meeting at the vent
+  (`body-relational-jacket.js` `ventBack`), each hung on three hinges at the hip (front, side, back) carried by the
+  pelvis, not the thighs; every clip sets them by its family (`polygonizer/coat-poses.js`): standing, at rest, the coat
+  wrapped round the hips; walking, behind them, its fronts swept round to the sides so the legs stride through; in
+  action, flared open at the back from the hip, each half swung out and up. The hinges ride the pose's `flow`, so a turn
+  of the hips carries them and the page's blend between clips blends the coat. Absent, the coat, its rig and its clips
+  as they were. Lucien's coat is posed.

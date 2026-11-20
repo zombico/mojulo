@@ -668,7 +668,10 @@ function realisticExpand(plan, hero) {
   // the dress made on the body's ENVELOPE (body-relational-envelope.js: the skin's grid, each ring carried out over its
   // hollows as cloth and plate would lie), then the skin put back under it, with whatever the dress wrote on those parts
   // beside their points (the paint's groups)
-  const env = { ...S, parts: envelopeParts(S.parts, Object.keys(S.parts).filter((k) => ENVELOPED.test(k))) };
+  // (a POSED coat's hinges, body-relational-jacket.js ventBack: joints carried by the pelvis and their bones, after the
+  // body's, so every bone it had keeps its index; absent, the rig as it was)
+  const coatRig = wear?.coat ? { ...S.rig, joints: { ...S.rig.joints, ...wear.coat.joints }, bones: [...S.rig.bones, ...wear.coat.bones] } : S.rig;
+  const env = { ...S, rig: coatRig, parts: envelopeParts(S.parts, Object.keys(S.parts).filter((k) => ENVELOPED.test(k))) };
   // (the tailor's cloth in the body the dress is made on, so a button, an emblem or a trim placed on a worn piece finds it)
   if (wear) Object.assign(env.parts, wear.parts);
   // (an armour's plates fitted: each a hollow shell over the realistic skin, sampled as densely as it; its cuirass and
@@ -698,7 +701,9 @@ function realisticExpand(plan, hero) {
       R.parts[name] = { ...P, offsets, ...(stretch ? { stretch } : {}) };
     }
   }
-  R.rig = S.rig;
+  R.rig = coatRig;
+  // (and each family's set of its hinges, which the clips are given by posedCoatClips)
+  if (wear?.coat) R.coatPoses = wear.coat.poses;
   if (S.headFit) R.headFit = S.headFit;
   // the dials: the dressed expansion's (a garment rides its body part's), the slice's blends over the new stations, a
   // part the slice removed left out

@@ -309,4 +309,10 @@ describe('a coat\'s storm flap', () => {
     expect(expandOutfit(coat(), { have: STRUCT, scale: 1 }).garments.some((g) => g.id === 'stormFlap')).toBe(false);
     expect(validateOutfitBuild(coat({ stormFlap: 'yes' })).join()).toMatch(/stormFlap: true/);
   });
+  it('a posed coat asks the tailor for it on an open coat; on a closed one, refused', () => {
+    expect(expandOutfit(coat({ posed: true }), { have: STRUCT, scale: 1 }).tailoring?.jacket?.posed).toBe(true);
+    expect(expandOutfit(coat(), { have: STRUCT, scale: 1 }).tailoring?.jacket?.posed).toBeUndefined();
+    expect(validateOutfitBuild(coat({ posed: true, open: false })).join()).toMatch(/posed: true/);
+    expect(validateOutfitBuild(coat({ posed: true }))).toEqual([]);
+  });
 });

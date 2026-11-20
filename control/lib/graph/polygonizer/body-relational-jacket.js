@@ -16,7 +16,7 @@
  * winding), so a C is a ring like any other: `front` the inner face's back centre, `back` the outer face's, the right
  * half the inner face round to the right edge and the outer face back, the left half its mirror. Deterministic.
  */
-import { ringSlots } from './body-relational-resample.js';
+import { ringSlots, four, mixW } from './body-relational-resample.js';
 import { stripAlong, beltOn, webbingOn } from './body-relational-kit.js';
 import { block, bindNearest } from '../footwear/parts.js';
 
@@ -249,4 +249,83 @@ export function jacketPieces(parts, bodyName, J, recipe, { gapAt, gathered, ring
     const end = bases[bases.length - 1], nE = normals[normals.length - 1]; out[`outerEpauletteButton${S}`] = bound(block([end[0] - sx * 0.008 + nE[0] * (X.epaulette.t + 0.004), end[1] + nE[1] * (X.epaulette.t + 0.004), end[2] + nE[2] * (X.epaulette.t + 0.004)], nE, [1, 0, 0], { w: 0.014, h: 0.014, thick: 0.003 }), 'Buckle');
   }
   return out;
+}
+
+/** THE POSED COAT's measures: how far back the vent's two edges stand apart (m), each side's three sectors (front, side,
+ * back: their angle from the front, rad), the share of the skirt's drop its hinges take it over in, and each family's
+ * set of each sector (`turn` toward the back, rad; `out` the radius's scale; `lift` a share of the drop) */
+export const COAT_POSE = Object.freeze({
+  vent: 0.004, sectors: Object.freeze({ F: 0.35, S: Math.PI / 2, B: 2.75 }), ramp: 0.2,
+  families: Object.freeze({
+    // walking: the coat stands behind the hips, its fronts swept round to the sides so the legs stride through the gap
+    gait: Object.freeze({ F: { turn: 1.05, out: 1.25, lift: 0.04 }, S: { turn: 0.5, out: 1.12, lift: 0.02 }, B: { turn: 0.06, out: 1.02, lift: 0 } }),
+    // in action: flared open at the back from the hip, each back half swung out and up, the fronts swept back with them
+    action: Object.freeze({ F: { turn: 0.8, out: 1.45, lift: 0.12 }, S: { turn: -0.2, out: 1.6, lift: 0.22 }, B: { turn: -0.75, out: 1.9, lift: 0.34 } }),
+  }),
+});
+
+/**
+ * THE POSED COAT (an open coat's `posed`, the outfit's outer word): DMC3's compromise for a long open coat on a body that
+ * fights. Its skirt is split at the centre back from the hip down into two halves, each a C of its own (the inner face from
+ * the vent round to the front edge, the edge turned, the outer face back), meeting at the vent so a stand reads one coat;
+ * each half hung on three hinges at the hip (front, side, back), carried by the pelvis and not the thighs, which the clips
+ * set by family (posedCoatClips): standing, at rest, wrapped round the hips; walking, behind them; in action, flared open at
+ * the back. `P` the opened coat's body (openFront's, a skirt carried down from it: stations `stSkirt…`), `rig` the body's
+ * validated rig. → { parts: { body, R, L }, joints, bones, poses } or null when it has no skirt.
+ */
+export function ventBack(P, rig, { front = [0, 1, 0] } = {}) {
+  const S = P.stations, isSk = (st) => /^stSkirt/.test(st.id), n = P.slots.length, blend = P.bind?.blend ?? {};
+  const first = S.findIndex(isSk); if (first < 0 || rig.boneIndex?.pelvis === undefined) return null;
+  const atTail = isSk(S[S.length - 1]);   // the skirt at the tube's tail end (its rings top-down) or its head (bottom-up)
+  const skirt = atTail ? S.slice(first) : S.slice(0, S.findLastIndex(isSk) + 1), body = atTail ? S.slice(0, first) : S.slice(S.findLastIndex(isSk) + 1);
+  const top = atTail ? skirt[0] : skirt[skirt.length - 1];   // the vent's top: the skirt's ring at the hip
+  const plain = skirt.filter((st) => /^stSkirt\d+$/.test(st.id)), hem = plain.reduce((b, st) => (mean(Object.values(st.points))[2] < mean(Object.values(b.points))[2] ? st : b));
+  const c0 = mean(Object.values(top.points)), zTop = c0[2], zHem = mean(Object.values(hem.points))[2], drop = Math.max(1e-6, zTop - zHem);
+  const turnedRing = (st, toward, id, slots, names = slots) => ({ id, u: r6((st.u ?? 0) + toward * 1e-3), points: Object.fromEntries(slots.map((sl, k) => { const p = st.points[sl]; return [names[k], [c0[0] + (p[0] - c0[0]) * JACKET.tuck, c0[1] + (p[1] - c0[1]) * JACKET.tuck, p[2] + toward * JACKET.turn].map(r6)]; })) });
+  // THE BODICE: the coat above the vent, its lower end the vent's ring turned in and up inside it
+  const bodyRings = atTail ? [...body, top, turnedRing(top, 1, `${top.id}_up`, P.slots)] : [turnedRing(top, 1, `${top.id}_up`, P.slots), top, ...body];
+  const nb = {}; for (const st of bodyRings) for (const sl of P.slots) { const w = blend[`${(st.id.endsWith('_up') ? top.id : st.id)}.${sl}`]; if (w) nb[`${st.id}.${sl}`] = w; }
+  const bodice = { ...P, stations: bodyRings, caps: { back: mean(Object.values(bodyRings[0].points)).map(r6), tip: mean(Object.values(bodyRings[bodyRings.length - 1].points)).map(r6) }, bind: { ...(P.bind || {}), blend: nb } };
+  // each half's loop of the ring's slots: the inner back centre, round its side to the edge, the outer face back
+  const h = n / 2, loops = { R: Array.from({ length: h + 1 }, (_, k) => P.slots[k]), L: [P.slots[0], ...Array.from({ length: h }, (_, k) => P.slots[n - 1 - k])] };
+  const names = ringSlots(h + 1), fw = Math.hypot(front[0], front[1]) || 1, fx = front[0] / fw, fy = front[1] / fw;
+  const angleOf = (p, sx) => { const d = [p[0] - c0[0], p[1] - c0[1]], ahead = d[0] * fx + d[1] * fy, side = sx * (d[0] * fy - d[1] * fx); return Math.atan2(side, ahead); };
+  const at = (a, sx, rr, z) => { const s = Math.sin(a) * sx, c = Math.cos(a); return [c0[0] + rr * (c * fx + s * fy), c0[1] + rr * (c * fy - s * fx), z]; };
+  const parts = { body: bodice }, joints = {}, bones = [], poses = Object.fromEntries(Object.keys(COAT_POSE.families).map((f) => [f, {}]));
+  const SEC = Object.entries(COAT_POSE.sectors);
+  for (const side of ['R', 'L']) {
+    const loop = loops[side], sx = side === 'R' ? 1 : -1;
+    const sxW = sx;   // (the right side the one to the right of `front`: +x when it is +y)
+    const ring = (st) => loop.map((sl) => st.points[sl]);
+    // the hinges: at the hip and at the hem, on the outer face, at each sector's angle
+    const reach = (st, a) => { const pts = ring(st), c = [c0[0], c0[1]]; let best = 0; for (const p of pts) if (Math.abs(angleOf(p, sxW) - a) < 0.35) best = Math.max(best, Math.hypot(p[0] - c[0], p[1] - c[1])); return best || Math.max(...pts.map((p) => Math.hypot(p[0] - c[0], p[1] - c[1]))); };
+    for (const [k, a] of SEC) {
+      const hip = `coatHip${k}${side}`, tail = `coatHem${k}${side}`, rh = reach(top, a), rt = reach(hem, a);
+      joints[hip] = { at: at(a, sxW, rh, zTop).map(r6), rides: 'pelvis' }; joints[tail] = { at: at(a, sxW, rt, zHem).map(r6), rides: 'pelvis' };
+      bones.push({ id: `coat${k}${side}`, head: hip, tail });
+      for (const [fam, F] of Object.entries(COAT_POSE.families)) { const s = F[k], q = at(a + s.turn, sxW, rt * s.out, zHem + s.lift * drop); poses[fam][tail] = [0, 1, 2].map((i) => r6(q[i] - joints[tail].at[i])); }
+    }
+    // the half's rings: the skirt's, each its loop (the vent's edges drawn apart), then its top turned in and down
+    const vent = (p, j) => (j === 0 || j === h ? [p[0] + sxW * fy * COAT_POSE.vent, p[1] - sxW * fx * COAT_POSE.vent, p[2]] : p);
+    const half = (st) => ({ id: st.id, u: st.u, points: Object.fromEntries(loop.map((sl, j) => [names[j], vent(st.points[sl], j).map(r6)])) });
+    const own = skirt.map(half), topH = half(top), tucked = turnedRing({ ...topH }, -1, `${top.id}_down`, names);
+    const rings = atTail ? [tucked, ...own] : [...own, tucked];
+    const hb = {};
+    for (const st of rings) {
+      const src = st.id.endsWith('_down') ? top : skirt.find((x) => x.id === st.id);
+      loop.forEach((sl, j) => {
+        const p = st.points[names[j]], orig = blend[`${src.id}.${sl}`] ?? blend[src.id] ?? { [P.bind?.bone ?? 'pelvis']: 1 };
+        const f = Math.max(0, Math.min(1, (zTop - p[2]) / drop)), w = Math.min(1, f / COAT_POSE.ramp), t = w * w * (3 - 2 * w), a = angleOf(p, sxW);
+        // (between the two sectors its angle lies between, by where)
+        let sec = { [`coat${SEC[0][0]}${side}`]: 1 };
+        if (a >= SEC[SEC.length - 1][1]) sec = { [`coat${SEC[SEC.length - 1][0]}${side}`]: 1 };
+        else for (let i = 0; i + 1 < SEC.length; i++) if (a >= SEC[i][1] && a < SEC[i + 1][1]) { const g = (a - SEC[i][1]) / (SEC[i + 1][1] - SEC[i][1]); sec = g < 1e-6 ? { [`coat${SEC[i][0]}${side}`]: 1 } : { [`coat${SEC[i][0]}${side}`]: r6(1 - g), [`coat${SEC[i + 1][0]}${side}`]: r6(g) }; }
+        const mixed = {}; for (const [b, v] of Object.entries(orig)) mixed[b] = (mixed[b] ?? 0) + v * (1 - t); for (const [b, v] of Object.entries(sec)) mixed[b] = (mixed[b] ?? 0) + v * t;
+        hb[`${st.id}.${names[j]}`] = mixW(four(Object.fromEntries(Object.keys(mixed).sort().filter((b) => mixed[b] > 1e-6).map((b) => [b, mixed[b]]))), {}, 0);
+      });
+    }
+    const { fronts: _f, ...rest } = P;
+    parts[side] = { ...rest, slots: names, stations: rings, caps: { back: mean(Object.values(rings[0].points)).map(r6), tip: mean(Object.values(rings[rings.length - 1].points)).map(r6) }, bind: { ...(P.bind || {}), blend: hb } };
+  }
+  return { parts, joints, bones, poses };
 }
