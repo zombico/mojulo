@@ -4,7 +4,7 @@
  * practice room, written to a folder. A spike: the room is not on the practice door yet.
  *
  *   cd control
- *   node scripts/spikes/mission/room.mjs --out /abs/dir [--hero <a stored hero's ref>] [--guard <a stored figure's ref>] [--vault speedVault] [--roll rollForward] [--climb climbUp] [--prone proneIdle,proneCrawl] [--crouch crouchIdle,crouchWalk] [--feel steel-serpents] [--cdn] [--capture]
+ *   node scripts/spikes/mission/room.mjs --out /abs/dir [--hero <a stored hero's ref>] [--guard <a stored figure's ref>] [--vault speedVault] [--roll rollForward] [--climb climbUp] [--prone proneIdle,proneCrawl] [--crouch crouchIdle,crouchWalk] [--feel steel-serpents] [--arms rifle,sniper] [--cdn] [--capture]
  *
  * `--hero` needs the database the hero was minted in (MOJULO_DATA_DIR); without it the hero is a stand-in person and
  * no database is read. `--vault`, `--roll` and `--climb` name the hero's own clips for each (its motion words speedVault, rollForward; a clip of its own, climbUp). `--capture` exposes the page's bodies to a headless test (window.__mojCtrl.bodies).
@@ -24,7 +24,9 @@ process.env.MOJULO_SEMANTIC_INDEX_DISABLED ??= '1';
 const { infiltrationRoom } = await import('../../../lib/graph/gameworld/infiltration-room.js');
 const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scene.js');
 const { emitThreeWorld } = await import('../../../lib/graph/scene/scene-three.js');
-const G = { id: 'steel-serpents', name: 'Steel Serpents', feel };
+// (`--arms rifle,sniper`: a carried kit of the arms kit's words in place of the feel template's, to try a gun in the yard)
+const arms = opt('--arms');
+const G = { id: 'steel-serpents', name: 'Steel Serpents', feel, ...(arms ? { quick: { arms: arms.split(',') } } : {}) };
 const guard = opt('--guard');
 const room = infiltrationRoom(G, { refs: { ...(hero ? { hero } : {}), ...(guard ? { guard } : {}) }, vault: opt('--vault'), roll: opt('--roll'), climb: opt('--climb'), crouch: opt('--crouch') ? { idle: opt('--crouch').split(',')[0], walk: opt('--crouch').split(',')[1] } : null, prone: opt('--prone') ? { idle: opt('--prone').split(',')[0], crawl: opt('--prone').split(',')[1] } : null });
 const { payload } = await resolveWorldScene({ ref: 'steel-serpents-infiltration-yard', manifest: room.manifest }, {});

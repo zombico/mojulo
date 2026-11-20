@@ -60,15 +60,18 @@ const ARCHETYPES = Object.freeze({
   spray: { auto: true, rof: 13, dmg: 0.33, magazine: 30, reserve: 120, reload: 2, range: 35, blow: 550, spread: { base: 0.9, move: 2.2, bloom: 0.35, recover: 6, max: 5, wait: 0.15 }, recoil: { kick: 0.3, recover: 5, max: 3, wait: 0.15 }, falloff: { from: 15, to: 35, min: 0.5 } },
   pump: { cooldown: 0.9, dmg: 2.5, magazine: 6, reserve: 24, reload: 3.2, range: 25, coreAngle: 4, blow: 3200, pellets: 9, spread: { base: 2.2, move: 1.5, bloom: 0, recover: 6, max: 4 }, recoil: { kick: 4, recover: 5, max: 6 }, falloff: { from: 6, to: 18, min: 0.2 } },
   marksman: { cooldown: 0.45, dmg: 1.6, magazine: 10, reserve: 40, reload: 2.6, range: 120, headshot: 2, blow: 3300, spread: { base: 1.6, move: 5, bloom: 1, recover: 4, max: 6 }, recoil: { kick: 1.2, recover: 3, max: 4 } },
-  bolt: { cooldown: 1.3, dmg: 4, magazine: 5, reserve: 20, reload: 3.2, range: 200, headshot: 2, coreAngle: 0.6, blow: 6000, spread: { base: 4, move: 6, bloom: 0, recover: 4, max: 8 }, recoil: { kick: 3, recover: 2.5, max: 4 } },
+  // (a bolt's climb settles inside its cycle, its most in a second, so the scope is back on the mark as the next round is
+  // chambered)
+  bolt: { cooldown: 1.3, dmg: 4, magazine: 5, reserve: 20, reload: 3.2, range: 200, headshot: 2, coreAngle: 0.6, blow: 6000, spread: { base: 4, move: 6, bloom: 0, recover: 4, max: 8 }, recoil: { kick: 3, recover: 4, max: 4 } },
   sidearm: { cooldown: 0.25, dmg: 0.75, magazine: 15, reserve: 45, reload: 1.6, range: 40, blow: 500, spread: { base: 0.8, move: 1.8, bloom: 0.8, recover: 5, max: 4 }, recoil: { kick: 1, recover: 5, max: 3 } },
   // (a dart: one a load and a slow reload, its `dmg` the stun it carries (four base rounds: a body's whole most), twice in
   // the head; `drowse` the seconds its sleep takes to come on, quiet, `stun`: knockout.js gives back what it hurt)
   dart: { cooldown: 0.6, dmg: 4, magazine: 1, reserve: 15, reload: 1.4, range: 45, headshot: 2, blow: 60, stun: true, quiet: true, drowse: 3, spread: { base: 0.6, move: 1.6, bloom: 0, recover: 5, max: 3 }, recoil: { kick: 0.5, recover: 5, max: 2 } },
   magnum: { cooldown: 0.5, dmg: 1.4, magazine: 6, reserve: 24, reload: 2.8, range: 50, headshot: 2, blow: 750, spread: { base: 0.8, move: 2.2, bloom: 1.4, recover: 4, max: 5 }, recoil: { kick: 2.4, recover: 4, max: 5 } },
 });
-/** how much aiming down the sights takes of the hip's cone, its slowing of the feet, and its share of the move's cone */
-export const ADS = Object.freeze({ spread: 0.35, move: 0.55, moveSpread: 0.5, scopedSpread: 0.02 });
+/** how much aiming down the sights takes of the hip's cone, its slowing of the feet, its share of the move's cone, and its
+ * share of a held trigger's bloom (a round's and its most) */
+export const ADS = Object.freeze({ spread: 0.35, move: 0.55, moveSpread: 0.5, scopedSpread: 0.02, bloom: 0.5 });
 /** the view's power at the eye for an open sight (irons, a red dot, a holographic sight): a game's closing-in */
 const OPEN_ZOOM = 1.3;
 /** the bow: the draw (s to full), the arrow's speed and damage from a twitch to full (m/s; multiples of the base round),
@@ -124,7 +127,7 @@ export function kitSlot(word, base, { eye = 0, hand = null, converge = false } =
     grip: st.strong.at.map(r2), sight: { y: st.sight.y, rear: st.sight.rear, front: st.sight.front }, ...(st.sight.relief ? { relief: st.sight.relief } : {}), muzzle: st.muzzle.at[2], ...(st.magazine ? { mag: st.magazine.at.map(r2) } : {}),
     hands: handsOf(st) };
   return { name, weapon, switchReady: r2(hd.swapOut + hd.swapIn), gunplay: {
-    kind: view.kind, arm, ads: { zoom: scope ? st.sight.zoom : st.sight.zoom > 1 ? st.sight.zoom : OPEN_ZOOM, time: hd.aimTime, spread: scope ? ADS.scopedSpread : ADS.spread, move: ADS.move, moveSpread: ADS.moveSpread, ...(scope ? { scope: true } : {}) },
+    kind: view.kind, arm, ads: { zoom: scope ? st.sight.zoom : st.sight.zoom > 1 ? st.sight.zoom : OPEN_ZOOM, time: hd.aimTime, spread: scope ? ADS.scopedSpread : ADS.spread, move: ADS.move, moveSpread: ADS.moveSpread, bloom: ADS.bloom, ...(scope ? { scope: true } : {}) },
     sway: hd.sway, swap: { out: hd.swapOut, in: hd.swapIn }, view } };
 }
 

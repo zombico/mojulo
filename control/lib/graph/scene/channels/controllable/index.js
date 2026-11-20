@@ -3590,7 +3590,37 @@ ${aimView ? `  // (a round that CONVERGES goes to the point under the centre of 
     __wep.ret.style.left = ((__wep.aimV.x * 0.5 + 0.5) * cw) + 'px';
     __wep.ret.style.top = ((-__wep.aimV.y * 0.5 + 0.5) * ch) + 'px';
   } else __wep.ret.style.display = 'none';   // aim point behind the camera
-${aimView ? `  // THE SHOT BLOCKED (the aim held over the shoulder, a converging round: combat-ranged.js shotBlocked): the camera sees
+${aimView ? `  // THE CLIMB AND THE CONE (the aim held over the shoulder, a converging gun with a recoil or a spread): a round leaves
+  // up the crosshair's ray raised by the climb of a spray (combat-ranged.js kickNow), and the view rises only part of
+  // that (gunplay-view.js), so the crosshair is drawn where the climbed ray points; round it, a ring is the cone the next
+  // round leaves in (its base as the sights have scaled it, the move's share, the bloom), so the rounds of a held trigger
+  // land inside what is drawn, and the crosshair settles back as they do. Before, it stayed small and still at the centre
+  // while a spray climbed and opened past it.
+  {
+    // (a scope's picture is its own crosshair and carries the whole climb, gunplay-view.js: neither is drawn over it)
+    const scoped = typeof __GP !== 'undefined' && __GP.scoped;
+    if (scoped) __wep.ret.style.display = 'none';
+    const av = ent.av, cr = __world.camera, on = !scoped && av && av.on && !av.fp && W.converge && (W.spread || W.recoil) && cr && cr.lookAt && cr.rule && cr.rule.type === 'follow';
+    if (on && !__wep.cone) {
+      __wep.cone = document.createElement('div');
+      __wep.cone.style.cssText = 'position:absolute;left:0;top:0;transform:translate(-50%,-50%);border-radius:50%;border:1.5px solid rgba(232,244,255,0.55);pointer-events:none;z-index:9;display:none';
+      wrap.appendChild(__wep.cone);
+    }
+    if (__wep.cone) {
+      if (on) {
+        const C = cr.transform.pos, A = cr.lookAt, h = Math.atan2(A[1] - C[1], A[0] - C[0]), pl = Math.atan2(A[2] - C[2], Math.hypot(A[0] - C[0], A[1] - C[1])) + (W.kickNow || 0) * Math.PI / 180;
+        const v = __wep.aimV.set(C[0] + Math.cos(pl) * Math.cos(h) * 100, C[1] + Math.cos(pl) * Math.sin(h) * 100, C[2] + Math.sin(pl) * 100).project(camera);
+        const x = (v.x * 0.5 + 0.5) * cw, y = (-v.y * 0.5 + 0.5) * ch;
+        __wep.ret.style.left = x + 'px'; __wep.ret.style.top = y + 'px';
+        const sp = W.spread, vel = ent.vel || [0, 0, 0], run = Math.min(1, Math.hypot(vel[0] || 0, vel[1] || 0) / 4);
+        const cone = sp ? Math.min(sp.max, sp.base + sp.move * run + (W.bloomNow || 0)) : 0;
+        const r = Math.max(5, (ch / 2) * Math.tan(cone * Math.PI / 180) / (Math.tan(camera.fov * Math.PI / 360) || 1));
+        __wep.cone.style.display = cone > 0 ? '' : 'none'; __wep.cone.style.left = x + 'px'; __wep.cone.style.top = y + 'px';
+        __wep.cone.style.width = __wep.cone.style.height = (2 * r).toFixed(1) + 'px';
+      } else __wep.cone.style.display = 'none';
+    }
+  }
+  // THE SHOT BLOCKED (the aim held over the shoulder, a converging round: combat-ranged.js shotBlocked): the camera sees
   // past what the gun does not, a low wall under its eye, a corner beside it. While the muzzle's line to the point under
   // the crosshair meets cover first, the crosshair dims and a cross marks where the round would stop, before the trigger
   // is pulled

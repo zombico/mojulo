@@ -27,3 +27,21 @@ front, a tick at a time.
   While the muzzle's line to the point under the crosshair meets cover first, the crosshair dims and a small cross marks
   where the round would stop. Before, the crosshair sat on a guard behind a low wall and the round went into the wall,
   with nothing said.
+- **A rifle on the cheek** (gunplay-view.js, a long gun aimed): its butt stays in the shoulder's pocket and rises only a
+  quarter of the way to the eye's line; the head comes down and over onto the stock for the rest (to a limit), so the eye
+  looks down the sights. Brought up to the eye whole, the rifle floated before the face with its stock through the head.
+- **The crosshair climbs with a spray, and a ring is its cone** (controllable/index.js, the aim held's pages): a round
+  leaves up the crosshair's ray raised by the climb, and the view rises only part of it, so the crosshair is drawn where
+  the climbed ray points and settles back as the climb does; round it, a ring is the cone the next round leaves in (its
+  base as the sights have scaled it, the move's share, the bloom). An aimed rifle's spray stays inside what is drawn.
+  Before, the crosshair stayed small and still while a spray's rounds climbed 2.6° over it and opened to 4°.
+- **An aimed spray opens less** (worlds/controllable/gunplay.js, arms-kit.js `ADS.bloom`): a held trigger's bloom, a
+  round's and its most, is the sights' share of the hip's (half); the hip's is as it was. An assault rifle's aimed spray
+  opens to 2°.
+- **The scope carries the whole climb** (gunplay-view.js): through a scope the view rises with all of a round's climb,
+  so its crosshair is where the next round goes while the rifle settles; neither the drawn crosshair nor its ring is laid
+  over the scope's picture. A bolt rifle's climb settles in a second (arms-kit.js, its `recover` 2.5 to 4 a second),
+  inside its 1.3 s cycle: the scope is back on the mark as the next round is chambered, where it drifted back over 1.6 s
+  and the next round left 0.75° over the scope's crosshair.
+- **A kit in the yard** (`scripts/spikes/mission/room.mjs --arms rifle,sniper`): the arms kit's words carried in place of
+  the feel template's, to try a gun there.

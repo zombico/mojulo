@@ -322,7 +322,7 @@ function __gpFrame(dt) {
   const idx = p ? p.loadoutIdx || 0 : 0, S = lo ? lo[idx] : null, g = S && S.gunplay, w = p && p.weapon;
   for (const k in __GP.views) __GP.views[k].grp.visible = false;
   __gpHandsHide();
-  if (!g || !w) { __gpScope.style.display = 'none'; return; }
+  if (!g || !w) { __gpScope.style.display = 'none'; __GP.scoped = false; return; }
   if (!__GP.scene) { scene.add(camera); if (camera.near > 0.03) { camera.near = 0.03; camera.updateProjectionMatrix(); } __GP.scene = true; }
   const G = p.gp || { aim: 0 }, a = __gpEase(G.aim);
   // (a drawn bow is its own sign of the charge: no charge ring at its muzzle)
@@ -332,10 +332,12 @@ function __gpFrame(dt) {
   const z = 1 + (g.ads.zoom - 1) * a, fov = 2 * Math.atan(Math.tan(__GP.fov0 * __gpD / 2) / z) / __gpD;
   if (Math.abs(camera.fov - fov) > 1e-4) { camera.fov = fov; camera.updateProjectionMatrix(); }
   __GP.fovSet = camera.fov;
-  // the climb of a spray lifts the view (the round already leaves along it)
-  if (w.kickNow) camera.rotateX(w.kickNow * 0.6 * __gpD);
-  const fp = !!(__world.camera && __world.camera.rule && __world.camera.rule.type === 'eye');
+  // the climb of a spray lifts the view (the round already leaves along it): part of it, and through a scope all of it,
+  // so the scope's crosshair is where the next round goes while the rifle settles
   const scoped = !!g.ads.scope && a > 0.92;
+  __GP.scoped = scoped;
+  if (w.kickNow) camera.rotateX(w.kickNow * (scoped ? 1 : 0.6) * __gpD);
+  const fp = !!(__world.camera && __world.camera.rule && __world.camera.rule.type === 'eye');
   __gpScope.style.display = scoped ? 'block' : 'none';
   if (scoped) { const b = G.tired > 0 ? 1 : (G.breath || 0) / 4; __gpBreath.style.width = Math.round((1 - b) * 100) + '%'; __gpBreath.style.background = G.tired > 0 ? '#e55' : '#cfe8ff'; }
   if (fp && window.__mojMuzzle) __gpMz(p.id, null);
@@ -537,19 +539,19 @@ function __gpHold(e, m, rig, dt) {
   // will not reach, the magazine's well through a reload)
   // (the strong eye as the stride holds the head, which the blade does not turn)
   const EYE = __gpV().set(H.eye[0], H.eye[1], H.eye[2]); if (rig.boneMeshes[H.head]) EYE.applyMatrix4(rig.boneMeshes[H.head].matrix);
-  const rear = item([0, g.view.sight.y, g.view.sight.rear], __gpV()), reachR = H.R.la + H.R.lb + 0.5 * H.R.hl;
+  const rear = item([0, g.view.sight.y, g.view.sight.rear], __gpV()), reachR = H.R.la + H.R.lb + 0.5 * H.R.hl, LIFT = 0.25;
   const place = (blade, pull = 0) => {
     const q = new THREE.Quaternion().setFromAxisAngle(__gpT.z, -blade - swing);
     let O;
     if (hands.butt && !pistol) O = about(SR0, q).add(new THREE.Vector3(-0.07, 0.05, -0.04).applyQuaternion(q)).sub(item(hands.butt, __gpV()));
     else O = about(N0, q).add(new THREE.Vector3(0.05, 0, -0.2)).addScaledVector(F, 0.28 + 0.12 * H.ready).sub(item(hands.strong.at, __gpV()));
-    // AIMED, the sights on the strong eye's line along the look: a long gun lifted from the pocket to it, its depth kept
-    // (the butt stays at the shoulder's); a pistol pushed out along it to the arms' reach (the sights 0.6 m from the eye,
-    // nearer only where the strong arm would not reach), so the gun is on the line the round flies and, over the
-    // shoulder, in the frame
+    // AIMED, the sights on the strong eye's line along the look: a long gun's butt kept in the shoulder's pocket and
+    // lifted a share of the way toward the line (LIFT; the head comes down onto the stock for the rest, below); a pistol
+    // pushed out along it to the arms' reach (the sights 0.6 m from the eye, nearer only where the strong arm would not
+    // reach), so the gun is on the line the round flies and, over the shoulder, in the frame
     if (sk > 0) {
       let Oa;
-      if (hands.butt && !pistol) { const off = EYE.clone().sub(O).sub(rear); Oa = O.clone().add(off.addScaledVector(F, -off.dot(F))); }
+      if (hands.butt && !pistol) { const off = EYE.clone().sub(O).sub(rear); Oa = O.clone().addScaledVector(off.addScaledVector(F, -off.dot(F)), LIFT); }
       else {
         const SR = about(SR0, q);
         for (let d = 0.6; d >= 0.3; d -= 0.03) { Oa = EYE.clone().addScaledVector(F, d).sub(rear); if (SR.distanceTo(item(hands.strong.at, Oa)) <= reachR * 0.97) break; }
@@ -579,6 +581,16 @@ function __gpHold(e, m, rig, dt) {
     if (k) __gpTurn(rig, bi, k === 1 ? at.q : __gpT.q2.setFromAxisAngle(__gpT.z, -(blade + swing) * k), P);
   }
   const O = at.O;
+  // THE CHEEK ON THE STOCK (a long gun aimed): what is left between the eye and the sight line once the butt has risen
+  // its share, the head takes, turned down and over about the top of the neck (to a limit), so the eye looks down the
+  // sights with the stock under the cheek, where the gun brought up to the eye ran its stock through the head
+  if (sk > 0 && hands.butt && !pistol) {
+    const sp = item([0, g.view.sight.y, g.view.sight.rear], O), res = sp.sub(EYE); res.addScaledVector(F, -res.dot(F));
+    const Hp = __gpHeadOf(rig, H.head, __gpV()), r0 = EYE.clone().sub(Hp), r1 = r0.clone().add(res.multiplyScalar(sk));
+    const qh = new THREE.Quaternion().setFromUnitVectors(r0.normalize(), r1.normalize()), ang = 2 * Math.acos(Math.min(1, Math.abs(qh.w)));
+    if (ang > 0.45) qh.slerp(new THREE.Quaternion(), 1 - 0.45 / ang);
+    for (const bi of H.top) __gpTurn(rig, bi, qh, Hp);
+  }
   V.grp.matrix.makeBasis(L, U, F).setPosition(O); V.grp.visible = true;
   if (V.mag) V.mag.visible = re < 0.85;
   m.updateMatrixWorld(true); __gpMz(e.id, V.grp.localToWorld(new THREE.Vector3(0, 0, (g.view.muzzle || 0) / 100)));
