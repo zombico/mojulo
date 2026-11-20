@@ -385,3 +385,17 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
 - **Zero Boy in indigo**: Galaxy Boy's roles in a dark indigo armour, a lavender suit and light lavender rims, the gem
   gold across the wheel, the ponytail yellow; his suit plain (ornament 1) and his face Galaxy Boy's (the School-Kid Hero
   cast, its eyes taller and its cheeks fuller, on his own body), so the two heroes are one family at their heights.
+- **Galaxy Boy's sound**: a side map now carries the game's sound sheet and score to its page (it dropped them), and the
+  rail writes them for a side scroller (`sound: {}`, an electronic `music` direction), so level 0 is heard: an
+  electronic score with its fight piece, the stingers, footsteps, a jump and a landing, and the run and gun's own
+  voices (the sheet's `run`, a game's `sound.run` over it): the buster's tap, its charged and full rounds and the
+  charge's rising hum; a dash, a wall kick, a wall slide, a blow taken; a foe's round, a robot struck, a heavy's armour
+  glancing a round off, a wreck, a boss blown apart; Bulwark's rock heaved, thrown, landing and shot apart, the
+  shutter coming down, his treads by his speed. A foe is heard while on the screen only. Zero Boy keeps the rest and
+  swings his saber with the sheet's blade. The page's run channel (`scene/channels/run-audio.js`) is emitted only on a
+  page whose audio has a `run`, so every other page keeps every byte. Laws (sound-sheet.test.js, side-map
+  level.test.js): a run and gun hears every event, a hero with no buster the rest, another game none; the game's word
+  wins; a level carries the cues and held voices and no gun of its own; a side map carries its game's audio.
+- **A worker bot's wreck**: a rig drawn by parts (bones with no tail, Bulwark's) broke the wreck's splitter as the boss
+  fell; each such bone is now its own piece, so he flies apart. Law (wreck-channel.test.js).
+

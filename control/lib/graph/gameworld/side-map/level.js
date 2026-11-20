@@ -19,7 +19,7 @@
  *   the FOES     the level's `foes` on the map's spawners (cast.js), stood by the stage's extra (the runner's foe cast) on
  *                the lane's rail, in the hero's body light
  *
- *   sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits?, heroStature?, pilot?, title?, mechanics?, extra?, foeFrom? })
+ *   sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits?, heroStature?, pilot?, title?, mechanics?, extra?, audio?, foeFrom? })
  *     → { tool: 'create_sketch', args: { title, manifest }, laws }   laws: the map's own (laws.js), each `sidemap:<id>`
  *
  * Pure.
@@ -54,7 +54,7 @@ export const SIDE_ENERGY = Object.freeze({ max: BOSS_TICKS, hit: 4 });
 const introOf = (stage) => { const id = stage.manifest.sidemap?.boss, R = id && BOSSES[id]; return R ? { world: `The ${R.theme}`, name: R.name, line: `Watch for it: ${R.tell}.`, gives: R.weapon, hue: R.hue } : null; };
 const bossOf = (X) => { const m = (X?.mechanics ?? []).find((x) => x && x.kind === 'defeat-all' && x.bar); return m ? { id: m.bar.of, name: m.bar.label ?? m.label ?? '', hp: m.bar.hp } : null; };
 
-export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, title, mechanics = null, extra = null, foeFrom = [] } = {}) {
+export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, title, mechanics = null, extra = null, audio = null, foeFrom = [] } = {}) {
   if (!heroRef) throw new Error('levels: a side map is played by a hero seen from the side; give the world a hero (its characters)');
   const name = title ?? `${G.name ?? G.id} · ${stage.label ?? stage.level}`, stature = heroStature ?? SIDE_MAP_STATURE;
   const manifest0 = { ...stage.manifest, ...(G.feel ? { feel: G.feel } : {}), stature };
@@ -100,6 +100,8 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
     // (its crates break: the game's own degree where it says one, else `objects`, the action game's, crates.js)
     ...(L.crates?.length && !manifest0.destruction ? { destruction: mechanics?.destruction ?? 'objects' } : {}),
     game: { levelRef: ref, mechanics: [...goals, ...lives], fall: 'none' },
+    // (its SOUND: the game's sheet and score where it writes them, sound-sheet.js and cue-sheet.js, as every level hears them)
+    ...(audio ? { audio } : {}),
     // ITS HUD (hud.js), where the game's screens are the game UI runtime's (its `ui`): the 8-bit action platformer's
     // columns of ticks, the lives and the boss's energy, READY, the keys at first; in the game's look
     ...(G.ui !== undefined ? { manaHud: sideMapHud({ theme: interfaceLook(G).theme, lives: G.mechanics?.lives ?? 3, energy: G.mechanics?.lives ? SIDE_ENERGY.max : 0, boss: bossOf(X), intro: introOf(stage), keys: `${controls} · ${MENU_KEY}  menu`, continues: !!G.mechanics?.lives }) } : {}),

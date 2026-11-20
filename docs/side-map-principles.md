@@ -308,6 +308,15 @@ Three screens hold the level while they are up:
 The parts are `control/lib/graph/gameworld/side-map/hud.js`, drawn in the game's look (`docs/mana-ui.md`, "The side
 map's HUD").
 
+## The sound
+
+Every thing the screen shows doing something says it: the buster's tap and its charge (a hum rising as it fills, then
+the round it lets go), the dash, the wall kick, a blow taken; a robot struck, a heavy's armour glancing the round off, a
+wreck; a foe's round leaving; the boss's rock heaved, landing or shot apart; the shutter behind the hero; the boss's
+treads. What is off the screen is silent, as it is unseen. Under it, an electronic score: the level's piece, a fight
+piece the tension crosses into, a stinger as the level is won or lost. The words and how a game changes them are in
+`docs/game-audio.md`.
+
 ## Not yet
 
 Things that move beside the way (the benchmark says them missing), the boss's second form, the weapon its fall gives the hero, the boss's fight in

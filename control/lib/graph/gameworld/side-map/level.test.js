@@ -48,6 +48,14 @@ describe('a side map level', () => {
     expect(m.colliders.length).toBeGreaterThan(Z.length);
     expect(O.laws.filter((l) => !l.holds)).toEqual([]);
   });
+  it('it hears the game: the rail writes a sound and an electronic score, and the level carries them; a game with none, none', () => {
+    const W = galaxy(), [stage] = gameStages(W);
+    expect(W.sound).toEqual({});
+    expect(W.music).toEqual({ direction: { style: 'club' } });
+    const audio = { sfx: { sheet: { style: 'mouth' } } };
+    expect(stageLevelOrder(W, stage, { heroRef: 'hero-ref', heroStature: 1.67, ref: 'lvl', audio }).args.manifest.audio).toEqual(audio);
+    expect(stageLevelOrder(W, stage, { heroRef: 'hero-ref', heroStature: 1.67, ref: 'lvl' }).args.manifest.audio).toBeUndefined();
+  });
   it('a side map is played by a hero', () => {
     const W = galaxy(), [stage] = gameStages(W);
     expect(() => stageLevelOrder(W, stage, { heroRef: null })).toThrow(/played by a hero/);

@@ -201,6 +201,9 @@ export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id
     levels: { [level]: sideMap ? { name: name ?? 'Level 0', ...(seed !== undefined ? { seed } : {}), sidemap: firstSideMap({ boss: 'bulwark' }), foes: { from: [...SIDE_MAP_FIRST_FOES] } } : firstLevel({ name, seed, kit, boss, dimension }) },
     // (a side map's foes: the side scroller's bestiary)
     ...(sideMap ? { foes: structuredClone({ ...SIDE_MAP_FOES }) } : {}),
+    // (its SOUND and its MUSIC: the sound sheet solved from what it is, the run and gun's own voices among them, and the
+    // cue sheet's score, electronic: a robot side scroller's driving synths; sound-sheet.js, cue-sheet.js)
+    ...(sideMap ? { sound: {}, music: { direction: { style: 'club' } } } : {}),
     // (made for a screen on its side: a lane is read across its width, a chase camera needs it; game/screen.js)
     screen: 'screen',
     style: { geocube: PLATFORMER_CUBE },
@@ -265,6 +268,7 @@ function patchFor(world, dimension, pole, boss) {
   const upright = (world.screen === 'phone' || (isObj(world.screen) && world.screen.orientation === 'portrait'));
   const advise = upright ? 'its screen is held upright: a platformer is read across its width, a lane or a chase camera (screen: \'screen\', a monitor or a TV)' : null;
   if (G.words.screen && world.screen === undefined) ops.push({ op: 'set', path: '/screen', value: G.words.screen });
+  for (const k of ['sound', 'music']) if (G.words[k] && world[k] === undefined) ops.push({ op: 'set', path: `/${k}`, value: G.words[k] });
   // THE HERO IS A MASCOT by default: a book whose direction names no body takes the template's body (the mascot's chibi,
   // or the toy hero robot's for the run and gun)
   const dir = isObj(world.characters) ? world.characters.direction : null, body = platformerBody(pole);

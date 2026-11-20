@@ -12,6 +12,9 @@
  *     weather?:    true | { level? (0..1), surface? }   the world's sky, sounding (manifest.weather; beats/weather-audio.js)
  *     (a sheet level also carries `foes`: { <foe id>: { attack?, hurt?, down? } } cue ids, from sfx.sheet.foes)
  *     engine?:     { voice, top, level?, idle? }   a ride's engine: a held voice following the pilot's speed up to `top`
+ *     run?:        { <event>: <gesture list> | <a held voice> }   a run and gun's voices (gameworld/sound-sheet.js
+ *                  RUN_SOUNDS: the buster, the hero, its robot foes, a rock, the shutter; `charge` and `treads` held),
+ *                  played by scene/channels/run-audio.js
  *     moves?:      { swing?, hit?, block?, parry?, break?, draw?, loose?, arrow?, felled?, cycle?, foeSwing?, hurt? }
  *                  a moveset's events (gameworld/combos.js, combat-melee.js) → the ids of sfx cues: `swing` and `hit`
  *                  by weapon and weight ({ <weapon>: { light, heavy?, finisher? } }), the rest one cue each
@@ -51,6 +54,10 @@ import { parseFieldSpec, fieldCue, seedOfRef } from './field-cue.js';
 import { SCORE_MOODS } from './field-score.js';
 import { SFX_PALETTES, SFX_PALETTE_NAMES, levelSfx, MECHANIC_SFX } from './sfx-palettes.js';
 import { sfxSound } from '../sfx-shelf/resolve.js';
+// a run and gun's events (gameworld/sound-sheet.js RUN_SOUNDS, its words; kept here so the page's payload is checked
+// without the game's tables) and the two held among them
+export const RUN_EVENTS = Object.freeze(['tap', 'shot', 'full', 'charge', 'dash', 'kick', 'cling', 'hurt', 'foeShot', 'foeHit', 'armour', 'wreck', 'boss', 'lift', 'throw', 'rock', 'break', 'shut', 'treads']);
+export const RUN_HELD = Object.freeze(['charge', 'treads']);
 import { bedManifest, resolveBed, BEDS } from '../sfx-shelf/beds.js';
 import { resolveTension } from './adaptive-music.js';
 import { SURFACES } from '../weather/weather.js';
@@ -237,14 +244,18 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
       moves = kept({ swing: byWeight(swing), hit: byWeight(hit), ...Object.fromEntries(Object.entries(one).map(([ev, word]) => [ev, idOf(word)])) });
       for (const id of Object.keys(cues)) if (!cues[id]) delete cues[id];
     }
+    // a run and gun's voices (`sheet.run`, sound-sheet.js RUN_SOUNDS): each word its gestures, a held one its sustain
+    const run = sheet.run && audioSpec.run === undefined ? kept(Object.fromEntries(Object.entries(sheet.run).map(([ev, word]) => [ev, RUN_HELD.includes(ev) ? sfxSound(word, { style })?.sustain ?? null : cueOf(word)]))) : null;
     audioSpec = {
       ...audioSpec,
       sfx: { cues, ...(Object.keys(on).length ? { on } : {}), vary: sheet.vary !== false, ...(sheet.mix !== undefined ? { mix: sheet.mix } : {}) },
       // (`sheet.steps.gain`: a step's level beside the other cues, sound-sheet.js STEP_GAIN)
       footsteps: audioSpec.footsteps ?? { ...kept({ step: slot('step', 'step'), jump: slot('jump', 'jump'), land: slot('land', 'land') }), ...(Number.isFinite(sheet.steps?.gain) ? { gain: sheet.steps.gain } : {}) },
-      weapon: audioSpec.weapon ?? kept({ shot: slot('shot', 'shoot'), hit: slot('hit', 'hit'), reload: slot('reload', 'reload') }),
+      // (a run and gun's rounds are its run's, by who fired them: no gun's of its own beside them)
+      weapon: audioSpec.weapon ?? (run && Object.keys(run).length ? undefined : kept({ shot: slot('shot', 'shoot'), hit: slot('hit', 'hit'), reload: slot('reload', 'reload') })),
       ...(moves ? { moves } : { strike: audioSpec.strike ?? kept({ swing: slot('swing', 'swing'), hit: slot('strike', 'strike') }) }),
       dodge: audioSpec.dodge ?? slot('dodge', 'dodge'),
+      ...(run && Object.keys(run).length ? { run } : {}),
     };
     out.sheet = style;
     // one breath across the game's hits (a performer's): each hit spends some, a rest refills it; `breath: false` off
@@ -420,6 +431,19 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
   // a MOVESET's sounds (`moves`, the practice room's and an action game's: gameworld/combos.js): each of its events names
   // one of the level's sfx cues; the swing and the hit by the weapon in hand and the move's weight. A cue it names that
   // the level has not is refused, saying which
+  // a run and gun's voices (`run`): each event a gesture list (a cue), `charge` and `treads` held voices; checked
+  if (audioSpec.run !== undefined) {
+    const R = audioSpec.run, rOut = {};
+    if (!R || typeof R !== 'object' || Array.isArray(R)) throw new Error(`audio.run is { <event>: <a gesture list> | <a held voice> } (${RUN_EVENTS.join(', ')})`);
+    for (const [ev, v] of Object.entries(R)) {
+      if (!RUN_EVENTS.includes(ev)) throw new Error(`audio.run.${ev} is not a run and gun's event (${RUN_EVENTS.join(', ')})`);
+      if (RUN_HELD.includes(ev)) { rOut[ev] = heldVoice(v, `audio.run.${ev}`); continue; }
+      const check = validateBeatsManifest({ kind: 'beats-sfx', title: `run ${ev}`, cues: { [ev]: v } });
+      if (!check.ok) throw new Error(`audio.run.${ev}: invalid cue:\n - ${check.errors.join('\n - ')}`);
+      rOut[ev] = v;
+    }
+    if (Object.keys(rOut).length) out.run = rOut;
+  }
   if (audioSpec.moves !== undefined) out.moves = resolveMoves(audioSpec.moves, out.cues || {});
   // a sheet level's FOES (above): { <foe id>: { attack?, hurt?, down? } }, each a cue id of the level's
   if (sheetFoes && out.cues) out.foes = sheetFoes;

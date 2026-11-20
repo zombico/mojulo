@@ -18,11 +18,21 @@ music: {
   direction: { style?, identity?, cast?, sfx?, space?, ui? },
   cues: { '<request id>': '<mood>' | { mood, style?, seed?, cast? } | false },
 }
-sound: { style?, slots?, on?, weapons?, moves?, guns?, foes?, ride?, bed?, vary? }
+sound: { style?, slots?, on?, weapons?, moves?, guns?, foes?, run?, ride?, bed?, vary? }
 ```
 
 A game with neither key builds the levels it built: nothing is laid behind its back. `sound` puts a game on the
 sound sheet; `music` (even `music: {}`) puts it on the cue sheet and gives its levels a space on the mixer.
+
+A run and gun (a feel whose template's charge is a shot: Galaxy Boy's) hears its own events too, `run`: the buster's
+tap, its charged round and the full charge's, the charge held as a hum that rises as it fills; the hero's dash, wall kick,
+slide down a wall and a blow taken; a foe's round leaving, a robot struck, a heavy's armour glancing a round off, a
+wreck, a boss blown apart; a thrown rock heaved, flying, landing or shot apart; the boss room's shutter coming down; a
+boss's treads as a held engine by its speed. Each is a shelf word (`RUN_SOUNDS` in `gameworld/sound-sheet.js`, a game's
+`sound.run` over it, `false` for none) played by the page's run channel (`scene/channels/run-audio.js`). A foe is
+heard while it is on the screen, a little past its edges, never across the level. A hero with no buster (Zero Boy's
+saber) keeps the rest and swings with the sheet's blade. The rail writes `sound: {}` and an electronic score for a side
+scroller, so its first level is heard from the first build.
 
 ## The audio direction
 

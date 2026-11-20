@@ -336,3 +336,46 @@ describe('a composed game\'s place (its stages carry no kit of their own: the wo
     for (const s of L) { expect(s.order.manifest.audio.sfx.sheet.slots.step).toBe('step-grass'); expect(s.order.manifest.audio.bed).toBeTruthy(); }
   });
 });
+
+describe('a run and gun\'s own voices (its buster, its hero, its robot foes, a rock, the shutter, a boss\'s treads)', () => {
+  const RUN = { feel: { pole: 'galaxy-boy', takes: true }, levels: { first: { sidemap: { boss: 'bulwark' } } } };
+
+  it('a run and gun hears every event; a hero with no buster keeps the rest; a boss on treads its treads; another game none', async () => {
+    const { RUN_SOUNDS, RUN_HELD } = await import('./sound-sheet.js');
+    const { RUN_EVENTS, RUN_HELD: HELD } = await import('../beats/beats-world.js');
+    expect(Object.keys(RUN_SOUNDS)).toEqual(RUN_EVENTS);
+    expect([...RUN_HELD]).toEqual([...HELD]);
+    expect(soundSheet(RUN).run).toEqual({ ...RUN_SOUNDS });
+    for (const [ev, w] of Object.entries(RUN_SOUNDS)) expect(RUN_HELD.includes(ev) ? sfxSound(w)?.sustain : SOUNDS[w], ev).toBeDefined();
+    const saber = soundSheet({ ...RUN, feel: { pole: 'galaxy-boy', takes: true, variant: 'saber' } }).run;
+    for (const ev of ['tap', 'shot', 'full', 'charge']) expect(saber[ev]).toBeUndefined();
+    expect(saber.wreck).toBe(RUN_SOUNDS.wreck);
+    expect(soundSheet({ feel: RUN.feel }).run.treads).toBeUndefined();
+    expect(soundSheet({ feel: 'jumping-giuseppe' }).run).toBeUndefined();
+    expect(soundSheet({}).run).toBeUndefined();
+  });
+
+  it('the game\'s own word wins and false is none; an unknown event, a word off the shelf, a held event not held are refused', () => {
+    expect(soundSheet({ ...RUN, sound: { run: { tap: 'pistol-shot' } } }).run.tap).toBe('pistol-shot');
+    expect(soundSheet({ ...RUN, sound: { run: false } }).run).toBeUndefined();
+    expect(() => readSound({ run: { boop: 'spark' } })).toThrow(/run and gun's event/);
+    expect(() => readSound({ run: { tap: 'nope nope' } })).toThrow(/not a sound on the shelf/);
+    expect(() => readSound({ run: { charge: 'spark' } })).toThrow(/held voice/);
+  });
+
+  it('a level carries its cues and held voices and the page\'s run channel, and no gun of its own; a level without carries not a byte of it', () => {
+    const audio = resolveWorldAudio({ sfx: sheetAudio(RUN) }, { ref: 'lv', mechanics: ['hp-pool'] });
+    expect(Object.keys(audio.run).sort()).toEqual(Object.keys(soundSheet(RUN).run).sort());
+    expect(audio.run.charge).toEqual(sfxSound('charge-hum').sustain);
+    expect(Array.isArray(audio.run.tap)).toBe(true);
+    expect(audio.weapon).toBeUndefined();
+    const js = audioChannelScript(audio);
+    expect(js).toContain('__beatsRun');
+    expect(() => new Function(js)).not.toThrow();
+    const plain = resolveWorldAudio({ sfx: sheetAudio({}) }, { ref: 'lv', mechanics: ['hp-pool'] });
+    expect(plain.run).toBeUndefined();
+    expect(audioChannelScript(plain)).not.toContain('__beatsRun');
+    expect(() => resolveWorldAudio({ run: { tap: 'pew' } }, { ref: 'lv' })).toThrow(/audio.run.tap/);
+    expect(() => resolveWorldAudio({ run: { zap: [] } }, { ref: 'lv' })).toThrow(/run and gun's event/);
+  });
+});

@@ -190,10 +190,12 @@ export function audioFeatures(audio) {
   addGestures(set, audio.dodge);
   addGestures(set, audio.burst);
   for (const k of ['weapon', 'strike']) for (const list of Object.values(audio[k] || {})) addGestures(set, list);
+  // (a run and gun's voices, `run`: its cues, and its held `charge` and `treads` below)
+  for (const [k, v] of Object.entries(audio.run || {})) if (Array.isArray(v)) addGestures(set, v);
   if (audio.vary || audio.weather) set.add('sfx');
   if (audio.mix) set.add('sfxmix');
   // (a world's own held voices, `sustains` (opt-in): a base's engine and its hydraulics on the artillery range)
-  addSustains(set, [audio.thruster && audio.thruster.voice, audio.jump && audio.jump.charge && audio.jump.charge.voice, audio.engine && audio.engine.voice, ...Object.values(audio.sustains || {})]);
+  addSustains(set, [audio.thruster && audio.thruster.voice, audio.jump && audio.jump.charge && audio.jump.charge.voice, audio.engine && audio.engine.voice, ...Object.values(audio.sustains || {}), ...(audio.run ? [audio.run.charge, audio.run.treads] : [])]);
   if (audio.wind && audio.wind.vary) set.add('x');
   return sorted(set);
 }
