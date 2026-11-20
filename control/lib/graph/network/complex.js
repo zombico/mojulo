@@ -44,7 +44,7 @@ import { groundLess } from '../geocity/podium.js';
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
 const P3 = (p) => p.map(r5);
 const KEYS = ['buildings', 'campus', 'network', 'yard', 'seed'];
-const B_KEYS = ['id', 'use', 'at', 'facing', 'seed', 'storeys', 'wings', 'loading', 'bays', 'look', 'layouts', 'scale', 'vents'];
+const B_KEYS = ['id', 'use', 'at', 'facing', 'seed', 'storeys', 'wings', 'loading', 'bays', 'look', 'layouts', 'scale', 'vents', 'windows'];
 const SIDES = ['+x', '-x', '+y', '-y'];
 // the yard's light (a fixed sun, the page draws every face unlit: its light baked), its colours, a facade's palette
 const SUN = [0.42, -0.5, 0.76], YARD = '#8d8a83', ROOF = '#6f6e6a', GLASS = '#2e3a44';
@@ -93,7 +93,7 @@ export function layComplex(C, { built = true } = {}) {
   while (pending.length) {
     const i = pending.findIndex((b) => !b.at?.beside || fits.has(b.at.beside));
     if (i < 0) throw new Error(`complex: ${pending.map((b) => b.id).join(', ')} stand beside each other in a ring: one needs an at: [x, y]`);
-    const b = pending.splice(i, 1)[0], facing = b.facing ?? '-y', spec = { use: b.use, ...Object.fromEntries(['seed', 'storeys', 'wings', 'loading', 'bays', 'layouts', 'scale', 'vents'].filter((k) => b[k] !== undefined).map((k) => [k, b[k]])), ...(b.look ? { compose: b.look } : {}) };
+    const b = pending.splice(i, 1)[0], facing = b.facing ?? '-y', spec = { use: b.use, ...Object.fromEntries(['seed', 'storeys', 'wings', 'loading', 'bays', 'layouts', 'scale', 'vents', 'windows'].filter((k) => b[k] !== undefined).map((k) => [k, b[k]])), ...(b.look ? { compose: b.look } : {}) };
     let at = b.at;
     if (!Array.isArray(at)) {
       // (its footprint off the other's side by the gap, its middle along that side the other's)

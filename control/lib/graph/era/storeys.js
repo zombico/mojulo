@@ -524,6 +524,11 @@ export function assembleStoreys(manifest, ctx, plan, assemble) {
     ...(g.doors || parts.some(({ P: Q }) => Q.doors) ? { doors: parts.flatMap(({ z, P: Q }) => (Q.doors || []).map((d) => lift(d, z))) } : {}),
     ...(parts.some(({ P: Q }) => Q.items) ? { items: parts.flatMap(({ z, P: Q }) => (Q.items || []).map((it) => lift(it, z))) } : {}),
     ...(fires.length ? { fireSources: fires } : {}),
+    // (every storey's crawl spaces, its vents and its glass and mesh, each lifted to its storey: era/vents.js,
+    // era/inner-windows.js, worlds/controllable/barrier.js; the ground's alone came through before)
+    ...(parts.some(({ P: Q }) => Q.veils) ? { veils: parts.flatMap(({ z, P: Q }) => (Q.veils || []).map((v) => lift(v, z))) } : {}),
+    ...(parts.some(({ P: Q }) => Q.vents) ? { vents: parts.flatMap(({ s, P: Q }) => (Q.vents || []).map((d) => ({ ...d, storey: s }))) } : {}),
+    ...(parts.some(({ P: Q }) => Q.barriers) ? { barriers: parts.flatMap(({ s, z, P: Q }) => (Q.barriers || []).map((b) => ({ ...lift(b, z), ...(s > 0 && b.of ? { of: `${b.of}@${s}` } : {}) }))) } : {}),
     ...(mote.length ? { motes: { ...mote[0], count: Math.min(3200, mote.reduce((a, m) => a + m.count, 0)), boxes: mote.flatMap((m) => m.boxes), lights: mote.flatMap((m) => m.lights).slice(0, 48) } } : {}),
     ...(lamps.length ? { flicker: { lamps: lamps.slice(0, 8) } } : {}),
     ...(kinds.length ? { fauna: { seed: fauna.seed, ...Object.fromEntries(kinds.map((k) => [k, { ...parts.find(({ P: Q }) => Q.fauna && Q.fauna[k]).P.fauna[k], runs: critters(k) }])) } } : {}),

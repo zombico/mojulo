@@ -46,7 +46,8 @@ const doorsOf = (P, r) => {
 const hallOf = (P) => P.rooms.filter((r) => (r.storey ?? 0) === 0 && !/^(core|lobby|corridor)/.test(r.id)).reduce((a, r) => (!a || (r.x1 - r.x0) * (r.y1 - r.y0) > (a.x1 - a.x0) * (a.y1 - a.y0) ? r : a), null);
 // a room's pieces as boxes (their stacked heights), and a watcher's walk down its long axis on the clear line nearest its
 // middle (a line no piece stands on, a body's width either side), two metres in from each end, looking round at each
-const boxesIn = (P, r) => (P.props ?? []).filter((it) => it.room === r.id && PIECES[it.kind]?.solid !== false && !it.wall).map((it) => { const f = footprintOf(it); return { min: [f.min[0], f.min[1], 0], max: [f.max[0], f.max[1], PIECES[it.kind].h * (it.scale ?? 1) * ((it.level ?? 0) + 1)] }; });
+// (a see-through piece, mesh, stands in the way and stops no gaze: `sight: false`, the route search's own word)
+const boxesIn = (P, r) => (P.props ?? []).filter((it) => it.room === r.id && PIECES[it.kind]?.solid !== false && !it.wall).map((it) => { const f = footprintOf(it); return { min: [f.min[0], f.min[1], 0], max: [f.max[0], f.max[1], PIECES[it.kind].h * (it.scale ?? 1) * ((it.level ?? 0) + 1)], ...(PIECES[it.kind].see ? { sight: false } : {}) }; });
 function patrolOf(r, boxes, { id, speed = 1, range = 14, inset = 2 } = {}) {
   const alongX = r.x1 - r.x0 >= r.y1 - r.y0, lo = (alongX ? r.x0 : r.y0) + inset, hi = (alongX ? r.x1 : r.y1) - inset;
   const mid = alongX ? (r.y0 + r.y1) / 2 : (r.x0 + r.x1) / 2, k = alongX ? 1 : 0;

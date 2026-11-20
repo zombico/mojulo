@@ -34,7 +34,7 @@ export const HIDES = Object.freeze([
   Object.freeze({ id: 'prone', least: 0, fill: '#6f8fa6', says: 'hides a body lying down' }),
 ]);
 const hideOf = (h) => HIDES.find((x) => h >= x.least);
-const DOOR = '#e8c46a', WAY = '#6ae88a', STAIR = '#8fb3d9', VENT = '#5fd6d0';
+const DOOR = '#e8c46a', WAY = '#6ae88a', STAIR = '#8fb3d9', VENT = '#5fd6d0', GLASS = '#bfe3ff', MESH = '#a9b0b6';
 
 /** One storey of a laid plan, from above (see the header). */
 export function facilityMapSvg(P, { storey = null, title = null, path = null, patrol = null, px = 14 } = {}) {
@@ -48,9 +48,18 @@ export function facilityMapSvg(P, { storey = null, title = null, path = null, pa
   const gap = (X, at, lo, hi, c) => (X ? `<rect x="${x(at) - 3}" y="${y(hi)}" width="6" height="${r2((hi - lo) * S)}" fill="${c}"/>` : `<rect x="${x(lo)}" y="${y(at) - 3}" width="${r2((hi - lo) * S)}" height="6" fill="${c}"/>`);
   for (const l of P.links ?? []) if (ids.has(l.from) && ids.has(l.to) && l.wall) s += gap(l.wall.endsWith('x'), l.at, l.lo, l.hi, DOOR);
   for (const w of P.ways ?? []) if (ids.has(w.room) && w.side) s += gap(w.side.endsWith('x'), w.at, w.lo, w.hi, WAY);
+  // (the inner windows, era/inner-windows.js: glass in a wall, a pale bar)
+  for (const w of P.windows?.windows ?? []) {
+    const r = P.rooms.find((q) => q.id === w.room);
+    if (!r || !ids.has(r.id)) continue;
+    const at = w.side === '-x' ? r.x0 - 0.25 : w.side === '+x' ? r.x1 + 0.25 : w.side === '-y' ? r.y0 - 0.25 : r.y1 + 0.25;
+    s += gap(w.side.endsWith('x'), at, w.lo, w.hi, GLASS);
+  }
   const tall = new Map();
   for (const it of P.props ?? []) { if (!PIECES[it.kind]) continue; const base = it.id.replace(/@\d+$/, ''); tall.set(base, Math.max(tall.get(base) ?? 0, PIECES[it.kind].h * (it.scale ?? 1) * ((it.level ?? 0) + 1))); }
   for (const it of (P.props ?? []).filter((it) => !it.level && !it.wall && ids.has(it.room) && PIECES[it.kind])) {
+    // (a see-through piece, mesh: a dashed grey line, what a gaze goes through)
+    if (PIECES[it.kind].see) { const f = footprintOf(it), X = f.max[0] - f.min[0] >= f.max[1] - f.min[1], my = (f.min[1] + f.max[1]) / 2, mx = (f.min[0] + f.max[0]) / 2; s += X ? `<line x1="${x(f.min[0])}" y1="${y(my)}" x2="${x(f.max[0])}" y2="${y(my)}" stroke="${MESH}" stroke-width="2.5" stroke-dasharray="2 2"/>` : `<line x1="${x(mx)}" y1="${y(f.min[1])}" x2="${x(mx)}" y2="${y(f.max[1])}" stroke="${MESH}" stroke-width="2.5" stroke-dasharray="2 2"/>`; continue; }
     const f = footprintOf(it), c = hideOf(tall.get(it.id)).fill;
     s += `<rect x="${x(f.min[0])}" y="${y(f.max[1])}" width="${r2((f.max[0] - f.min[0]) * S)}" height="${r2((f.max[1] - f.min[1]) * S)}" fill="${c}" stroke="#111" stroke-width="0.5"/>`;
   }
@@ -109,7 +118,7 @@ td,th{text-align:left;padding:6px 10px;border-bottom:1px solid var(--rule);verti
 .ok{color:var(--accent)}.no{color:#c0543c}.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted);margin:6px 0}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:6px;vertical-align:-1px}`;
 
-const legend = () => `<div class="legend">${HIDES.map((h) => `<span><i style="background:${h.fill}"></i>${esc(h.says)}</span>`).join('')}<span><i style="background:${DOOR}"></i>a doorway</span><span><i style="background:${WAY}"></i>a way out</span><span><i style="border:1.5px dashed ${STAIR}"></i>a stair</span><span><i style="border:1.5px dashed ${VENT};background:rgba(95,214,208,.2)"></i>a vent a body lies flat in, its hatch a bar</span></div>`;
+const legend = () => `<div class="legend">${HIDES.map((h) => `<span><i style="background:${h.fill}"></i>${esc(h.says)}</span>`).join('')}<span><i style="background:${DOOR}"></i>a doorway</span><span><i style="background:${WAY}"></i>a way out</span><span><i style="border:1.5px dashed ${STAIR}"></i>a stair</span><span><i style="border:1.5px dashed ${VENT};background:rgba(95,214,208,.2)"></i>a vent a body lies flat in, its hatch a bar</span><span><i style="background:${GLASS}"></i>a window: seen through, never walked through</span><span><i style="border-top:2.5px dashed ${MESH};height:0"></i>mesh: the same</span></div>`;
 const lawsTable = (layouts) => {
   const rows = Object.entries(layouts ?? {});
   if (!rows.length) return '';

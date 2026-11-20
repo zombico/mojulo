@@ -1797,7 +1797,7 @@ export function buildingStage(B0) {
   // walled-core dungeon's space it is, else by its kit's own register; its space's tone colours it)
   const composed = look || PROGRAMS[use]?.base ? { compose: look ? { construction: look.construction, palette: look.palette } : {} } : {};
   // (a building's use names its bay kit, whatever the world's language, and takes its plan's settings: era/programs.js)
-  const plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays', 'scale', 'fight', 'layouts', 'vents'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
+  const plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays', 'scale', 'fight', 'layouts', 'vents', 'windows'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
   return {
     kind: 'stage',
     ...(geocube !== undefined ? { geocube } : { kit: kit ?? PROGRAMS[use]?.kit ?? roomKitFor(anchor) }),

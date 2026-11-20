@@ -60,4 +60,15 @@ describe('room layouts', () => {
     expect(() => readLayouts({ shed: { layout: 'aisles', aisle: 9 } })).toThrow(/aisle is 1 to 4/);
     expect(() => readLayouts({ shed: { layout: 'aisles', piece: 'throne-of-bees' } }, Object.keys(PIECES))).toThrow(/pieces of the dressing/);
   });
+
+  it('a cage is a whole ring of mesh with a gate, its stock inside; its mesh stops no gaze', () => {
+    const items = lay('cage'), mesh = items.filter((it) => it.kind === 'mesh-panel'), stock = items.filter((it) => it.kind !== 'mesh-panel');
+    expect(mesh.length).toBeGreaterThan(8);
+    expect(stock.length).toBeGreaterThan(0);
+    const box = (it) => { const f = footprintOf(it); return { min: f.min, max: f.max, h: PIECES[it.kind].h, ...(PIECES[it.kind].see ? { see: true } : {}) }; };
+    const seenAll = layoutLaws(HALL, mesh.map(box), DOORS).find((l) => l.law === 'sight-broken');
+    expect(seenAll.holds).toBe(false);
+    const asWalls = layoutLaws(HALL, mesh.map((it) => { const { see, ...b } = box(it); return b; }), DOORS).find((l) => l.law === 'sight-broken');
+    expect(asWalls.says).not.toEqual(seenAll.says);
+  });
 });

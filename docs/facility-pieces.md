@@ -112,6 +112,22 @@ tested against what stands between), so a duct is lined with its own floor and b
 keeps 0.3 of its baked light, more within 1.4 m of a hatch (`shadeDucts`, `DUCT_DARK`); no lamp is seated on the wall
 over a duct under 2.5 m.
 
+## Seen through: glass and mesh
+
+A wall stops a body and a gaze; glass and mesh stop only the body. They are BARRIERS
+(`control/lib/graph/worlds/controllable/barrier.js`): kept apart from the colliders, so every sight test runs through
+them, and every body standing in one after a step is put back out of it. A round goes through.
+
+- **Inner windows** (`era/inner-windows.js`, a building's `windows`: `true` or `{ sill?, top?, width?, roles? }`): glass
+  between a room and its corridor, beside the doorway, sill to head, cut in both walls and glazed by the kit's own
+  glazing. A guard walking the corridor sees into the office; a body in the office reads the guard's round through it.
+- **Mesh** (the `mesh-panel` piece, `see: true`) and the **cage** layout: a ring of mesh inset from a room's walls, a
+  gate in its long side, its stock in rows inside; each side drawn in until it stands clear of the doorways and the
+  vents' hatches. A guard sees through the cage to the body walking round it to the gate.
+
+A room's laws (`layoutLaws`) and the route search count both as in the way and stopping no gaze. The armoury facility
+is built on them; the research wing's labs and the field HQ's offices are windowed.
+
 ## In the game book: the facility maps
 
 The book of maps a stealth or action game's interiors are read in, `/api/sketches/<ref>/bible?book=facilities`
@@ -136,7 +152,6 @@ no guard sees the operative; I toggles it, `--seen` starts seen), so the layout 
 
 ## What is not yet
 
-- No piece is see-through: glass and mesh stop a gaze as a wall does (`sightBlocked` treats every collider as opaque).
 - A crawl space is a duct behind a row of rooms; a raised floor under a room, or a duct over a corridor, is not laid.
 - In-room level changes are the hall's gallery alone; a mezzanine over a room, a pit or a ramp is not a layout.
 - A five-metre room stays a room. Fewer, larger rooms would need a program shape that is not a corridor of bays.

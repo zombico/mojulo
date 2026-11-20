@@ -58,7 +58,8 @@ const roundOf = (w) => {
 const rounds = L.watchers.map(roundOf);
 
 // THE LAWS: the route search over the building's walls, the guards on their rounds
-const boxes = (dry.colliders ?? []).map((c) => ({ min: c.min, max: c.max }));
+// (and the glass and the mesh, worlds/controllable/barrier.js: in the way, stopping no gaze)
+const boxes = [...(dry.colliders ?? []).map((c) => ({ min: c.min, max: c.max })), ...(dry.barriers ?? []).map((b) => ({ min: b.min, max: b.max, sight: false }))];
 const xs = dry.rooms.flatMap((r) => [r.box.min[0], r.box.max[0]]), ys = dry.rooms.flatMap((r) => [r.box.min[1], r.box.max[1]]);
 const bounds = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
 const watchers = rounds.map((w) => ({ id: w.id, at: [w.at[0], w.at[1]], to: [w.to[0], w.to[1]], speed: w.speed, cone: w.cone, range: w.range, eye: 1.35, hear: 7, ...(w.look ? { look: w.look } : {}), ...(w.near ? { near: w.near } : {}) }));

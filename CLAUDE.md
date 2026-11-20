@@ -374,7 +374,9 @@ Pointers only; each target carries its own design notes.
   [era/room-layouts.js](control/lib/graph/era/room-layouts.js) (aisles, machines, islands, stockpile, chicane, rows, each
   held to its laws; a program's `layouts`, a new figure a row), and a facility, [era/facilities.js](control/lib/graph/era/facilities.js)
   (a use, its fighting dials, its layouts and its materials, named by a level's building or a WCD space; a new one a
-  row); a core building laid larger for a third-person camera, `scale` (`era/program-core.js`, the `hall` stair); their
+  row); a core building laid larger for a third-person camera, `scale` (`era/program-core.js`, the `hall` stair); its
+  crawl spaces, `vents` (`era/vents.js`); its glass and mesh, seen through and never walked through (`era/inner-windows.js`,
+  the `cage` layout, `worlds/controllable/barrier.js`); their
   maps in the game book, `/bible?book=facilities` ([gameworld/facility-maps.js](control/lib/graph/gameworld/facility-maps.js)):
   [docs/facility-pieces.md](docs/facility-pieces.md).
 - Room craft: [era/room-craft.js](control/lib/graph/era/room-craft.js) (the craft laws of `era/laws.js` as the questions a room is

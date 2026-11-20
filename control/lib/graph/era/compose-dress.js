@@ -113,6 +113,12 @@ export const PIECES = Object.freeze({
   hearth: { class: 'set-piece', w: 2.2, d: 0.9, h: 2.6, parts: [B(0, 0.45, 0, 0.9, 0, 1.5, 'concrete'), B(1.75, 2.2, 0, 0.9, 0, 1.5, 'concrete'), B(0.45, 1.75, 0, 0.2, 0, 1.5, 'trim'), B(0, 2.2, 0, 0.9, 1.5, 1.7, 'beam'),
     B(0.3, 1.9, 0, 0.7, 1.7, 2.6, 'concrete'), B(0.5, 1.7, 0.2, 0.75, 0, 0.12, 'concrete'), B(0.8, 1.4, 0.35, 0.6, 0.12, 0.35, 'paint')] },
   workbench: { class: 'bench', w: 2.0, d: 0.8, h: 0.9, parts: [B(0, 2, 0, 0.8, 0.82, 0.9, 'beam'), B(0.05, 0.15, 0.05, 0.75, 0, 0.82, 'beam'), B(1.85, 1.95, 0.05, 0.75, 0, 0.82, 'beam'), B(0.15, 1.85, 0.1, 0.7, 0.25, 0.3, 'cabinet'), B(0.3, 0.8, 0.2, 0.6, 0.9, 1.05, 'trim'), B(1.2, 1.7, 0.3, 0.55, 0.9, 0.98, 'paint')] },
+  // a MESH PANEL (see-through: `see`, a gaze passes it and a body does not, worlds/controllable/barrier.js): posts at
+  // its ends, rails at its foot, its waist and its head, and the wires between them a hand apart; a cage is a ring of
+  // them (room-layouts.js `cage`)
+  'mesh-panel': { class: 'fence', w: 1.5, d: 0.06, h: 2.4, see: true, parts: [B(0, 0.05, 0, 0.06, 0, 2.4, 'column'), B(1.45, 1.5, 0, 0.06, 0, 2.4, 'column'),
+    B(0.05, 1.45, 0.01, 0.05, 0, 0.06, 'trim'), B(0.05, 1.45, 0.01, 0.05, 1.12, 1.16, 'trim'), B(0.05, 1.45, 0.01, 0.05, 2.34, 2.4, 'trim'),
+    ...Array.from({ length: 9 }, (_, k) => B(0.05 + (k + 1) * 0.14 - 0.006, 0.05 + (k + 1) * 0.14 + 0.006, 0.025, 0.035, 0.06, 2.34, 'grate'))] }
 });
 export const PIECE_SETS = Object.freeze({
   military: Object.freeze(['crate', 'ammo-can', 'drum', 'tool-chest']),
@@ -384,7 +390,7 @@ export function layoutReport(plan, items) {
     const o = plan.layouts ? layoutOf(plan.layouts, r.id, roleOf(r.id)) : null;
     if (!o) continue;
     const mine = items.filter((it) => it.room === r.id && PIECES[it.kind]?.solid !== false && !it.wall);
-    const boxes = mine.map((it) => { const f = footprintOf(it); return { min: f.min, max: f.max, h: PIECES[it.kind].h * (it.scale ?? 1) * ((it.level ?? 0) + 1) }; });
+    const boxes = mine.map((it) => { const f = footprintOf(it); return { min: f.min, max: f.max, h: PIECES[it.kind].h * (it.scale ?? 1) * ((it.level ?? 0) + 1), ...(PIECES[it.kind].see ? { see: true } : {}) }; });
     const pieces = mine.filter((it) => it.id.includes('/layout/') && !it.level).length;
     // (a layout its room could not hold, its doorways' approaches over every place: the room keeps its stock, said)
     out[r.id] = { layout: o.layout, pieces, ...(pieces ? {} : { stocked: true }), laws: layoutLaws(r, boxes, openingsOf(plan, r)) };
@@ -554,7 +560,7 @@ export function propFaces(plan, items, surf) {
       }
     }
     for (const f of out) faces.push({ ...f, node: it.id });
-    anchors.push({ id: it.id, kind: 'prop', form: P.class, room: it.room, at: [it.at[0], it.at[1], r5(z0)], ...(P.solid === false ? {} : { solid: true }), ...(it.breakable !== undefined ? { breakable: it.breakable } : {}) });
+    anchors.push({ id: it.id, kind: 'prop', form: P.class, room: it.room, at: [it.at[0], it.at[1], r5(z0)], ...(P.see ? { see: true } : P.solid === false ? {} : { solid: true }), ...(it.breakable !== undefined ? { breakable: it.breakable } : {}) });
   }
   return { faces, anchors };
 }

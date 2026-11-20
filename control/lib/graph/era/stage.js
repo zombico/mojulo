@@ -23,6 +23,8 @@
  * Deterministic: a pure function of the recipe.
  */
 import { planVents, readVents, shadeDucts } from './vents.js';
+import { planInnerWindows, readInnerWindows } from './inner-windows.js';
+import { glazeOpening } from './bay-glass.js';
 import { lookOf } from './style/looks.js';
 import { SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook, lookOfReference } from './sixth-gen.js';
 import { tileFamilyOf, normalizeTileSpec, proportionsOver } from './tile-specs.js';
@@ -666,6 +668,9 @@ export function planStage(m = {}) {
   // through each wall they share
   const vents = m._program?.vents ? planVents(rooms, links, readVents(m._program.vents)) : null;
   if (vents) for (const h of vents.holes) rooms.find((r) => r.id === h.room)?.openings[h.side].push({ lo: h.lo, hi: h.hi, top: h.top, vent: true });
+  // its INNER WINDOWS (inner-windows.js, a program's `windows`): glass between a room and its corridor, cut in both walls
+  const panes = m._program?.windows ? planInnerWindows(rooms, links, readInnerWindows(m._program.windows), kit.wall) : null;
+  if (panes) for (const h of panes.holes) rooms.find((r) => r.id === h.room)?.openings[h.side].push({ lo: h.lo, hi: h.hi, top: h.top, sill: h.sill, glass: true });
   for (const r of rooms) for (const k of Object.keys(r.openings)) r.openings[k].sort((p, q) => p.lo - q.lo);
   // (a stage's stairs: a keep's steep flight, or a building's switchback, construction/circulation.js STAIR_PROFILES)
   if (m.stair !== undefined && !STAIR_PROFILE_IDS.includes(m.stair)) throw new Error(`stage: stair is ${STAIR_PROFILE_IDS.join(' or ')} (a keep's steep flight, or a building's switchback)`);
@@ -721,7 +726,7 @@ export function planStage(m = {}) {
   const sk0 = readSkandart(m), skC = sk0 ? resolveSkandartCard(nightKit, sk0.card, { use: m._program?.use ?? null }) : null;
   if (sk0 && !skC) throw new Error(`stage: skandart: nothing kit '${kitId}' is made of sheds anything, and the recipe names no answer of its own; give one: skandart: { foot: { pieces: { <a debris shelf row>: how many } } }`);
   const sk = sk0 ? { ...sk0, card: skC.card, from: skC.from } : null;
-  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(galleries.length ? { galleries } : {}), ...(vents && vents.ducts.length ? { vents } : {}), ...(sk ? { skandart: sk } : {}), ...(m._condition ? { condition: m._condition } : {}), ...(m._weathering ? { weathering: m._weathering } : {}), ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}), ...(m.daylight ? { daylight: m.daylight } : {}), ...(m.samples ? { samples: m.samples } : {}), ...(wetness ? { wet: wetness } : {}),
+  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(galleries.length ? { galleries } : {}), ...(vents && vents.ducts.length ? { vents } : {}), ...(panes && panes.windows.length ? { windows: panes } : {}), ...(sk ? { skandart: sk } : {}), ...(m._condition ? { condition: m._condition } : {}), ...(m._weathering ? { weathering: m._weathering } : {}), ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}), ...(m.daylight ? { daylight: m.daylight } : {}), ...(m.samples ? { samples: m.samples } : {}), ...(wetness ? { wet: wetness } : {}),
     // (its rooms' floors laid in a figure where the program asks: room-layouts.js)
     ...(m._program?.layouts ? { layouts: m._program.layouts } : {}),
     // (a military base's building is stocked by its rooms' uses, a hospital's by its own table, a
@@ -1094,6 +1099,18 @@ export function buildStageGeometry(plan) {
   for (const d of plan.vents?.ducts ?? []) for (const s of d.segments) for (const b of s.parts) box(out, b.min, b.max, { ...surf('services'), group: 'stage:vent' }, 2);
   // (and each hole's floor through the wall: the floor's own finish, a body crawls on it)
   for (const b of plan.vents?.sills ?? []) box(out, b.min, b.max, surf('floor'), 2);
+  // (each inner window glazed by the kit's own glazing from the room's side, no daylight beyond it: inner-windows.js)
+  for (const w of plan.windows?.windows ?? []) {
+    const r = plan.rooms.find((q) => q.id === w.room), F = wallFrame(r, w.side), [u0, u1] = openingU(F, w), G = kit.glass;
+    if (G && G.line !== undefined) {
+      glazeOpening(out, F, u0, u1, w.sill, w.top, { ...G, reveal: kit.wall / 2 }, { reveal: surf('wall'), frame: surf('trim'), sill: surf('trim'), look: G.look, group: 'stage:pane' });
+      if (out[out.length - 1]?.group === 'stage:sky') out.pop();
+    } else {
+      // (a kit with no glazing of its own: one pane across the opening, in the clear glass's group)
+      const a = onWall(F, u0, -kit.wall / 2, w.sill), b = onWall(F, u1, -kit.wall / 2, w.sill), c = onWall(F, u1, -kit.wall / 2, w.top), d = onWall(F, u0, -kit.wall / 2, w.top);
+      out.push({ corners: [a, b, c, d].map(P), normal: F.N, outNormal: F.N, fill: '#9fb4bf', alpha: 0.28, group: 'stage:pane', doubleSided: true });
+    }
+  }
   // (a duct's LINING: a plate on its floor and one on the back wall under its lid, each its own faces cut half a metre,
   // so the light baked inside it is the duct's own (vents.js shadeDucts), not the room's floor and wall blended through)
   for (const d of plan.vents?.ducts ?? []) for (const s of d.segments) {
@@ -1774,6 +1791,10 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     ...(dress && dress.clouds && sun ? { effects: [composeCloudDeck([], { up: 'z', ...dress.clouds, sun: sun.dir })] } : {}),
     rooms: stageRooms(plan), anchors, colliders,
     // the vents (vents.js): the ducts as the book draws them, their insides the page's crawl spaces (veil.js `under`)
+    // the glass and the mesh (barrier.js): a body is held out of them, a gaze goes through; the windows' panes and the
+    // see-through pieces' boxes (compose-dress.js PIECES `see`)
+    ...(() => { const B = [...(plan.windows?.barriers ?? []), ...anchors.filter((a) => a.see && a.box).map((a) => ({ min: [a.box.min[0], a.box.min[1], a.box.min[2]], max: a.box.max, kind: 'mesh', of: a.id }))]; return B.length ? { barriers: B } : {}; })(),
+    ...(plan.windows ? { windows: plan.windows.windows } : {}),
     ...(plan.vents ? { vents: plan.vents.ducts.map((d) => ({ id: d.id, rooms: d.rooms, segments: d.segments.map((s) => ({ room: s.room, strip: s.strip, hatch: s.hatch })) })), veils: plan.vents.unders } : {}),
     // the program the rooms were laid from (programs.js): its use, way in, goal, language and findings
     ...(manifest._program ? { program: manifest._program } : {}),
