@@ -15,6 +15,7 @@
  */
 import { MOTIVATIONS, LABOURS, WORLD_SHAPES, ORDER_KINDS, SIDE_SHARE } from './gmn.js';
 import { RAIL_IDS, SIZES, OWN, seenSays, railOf, railShapes, railSheet } from './rails.js';
+import { levelKindLine } from './level-kinds.js';
 import { COATS } from '../mount/coats.js';
 import { ERRAND_LAWS } from './errand.js';
 import { GAME_BODIES, GAME_BODY_NAMES } from './game-bodies.js';
@@ -1556,6 +1557,8 @@ function railCard(id) {
     'THE CHAIN, by size (pull a step\'s card when it is reached, not before):',
     ...S.chain.flatMap((c) => [`  ${c.size}:`, ...c.steps.map((st, i) => `    ${i + 1}. ${st.step.padEnd(12)}${st.does}${st.card ? `  (${st.card})` : ''}`)]),
     ...(S.lacks.length ? ['', 'WHAT IT DOES NOT DO YET (say it when the ask reaches for it):', ...S.lacks.map((l) => `  ${l}`)] : []),
+    ...(S.kinds ? ['', 'ITS LEVEL KINDS (a game is kinds in an order, the brief\'s; pick one by name, its laws are its proof):',
+      ...S.kinds.flatMap((k) => [`  ${levelKindLine(k)}`, `             teaches ${k.teaches.join(', ')}; laws: ${k.laws.join('; ')}${k.example ? `; made in ${k.example}` : ''}`])] : []),
   );
 }
 

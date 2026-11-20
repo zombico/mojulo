@@ -1,0 +1,62 @@
+{
+  "id": "holding-block",
+  "name": "Out of the holding block",
+  "kind": "holding",
+  "brief": "Taken on the trail and locked up, the kit bagged and gone. Get it back, and get out the front door.",
+  "building": {
+    "use": "cell-block",
+    "seed": 1
+  },
+  "start": {
+    "room": "cell-108",
+    "reads": "the last cell of the east wing, its door left on the latch: the operative wakes on its floor, bare-handed"
+  },
+  "kit": {
+    "room": "processing-101",
+    "reads": "the kit, bagged and tagged on the processing desk: the dart gun, the handgun and the knife"
+  },
+  "exit": {
+    "room": "lobby",
+    "reads": "the sally port: the front door out of the block"
+  },
+  "watchers": [
+    {
+      "id": "turnkey",
+      "kind": "patrol",
+      "room": "corridor-1a",
+      "from": "far",
+      "speed": 1.1,
+      "cone": 0.8,
+      "range": 12,
+      "look": {
+        "secs": 5
+      },
+      "near": {
+        "r": 2,
+        "back": 100
+      },
+      "reads": "the turnkey: the east corridor walked end to end past the cells, a look round at each end; its back to a cell for most of a round, the routine a prisoner reads"
+    },
+    {
+      "id": "desk",
+      "kind": "patrol",
+      "room": "lobby",
+      "axis": "x",
+      "inset": 1.4,
+      "speed": 0.9,
+      "cone": 0.9,
+      "range": 10,
+      "look": {
+        "secs": 4
+      },
+      "near": {
+        "r": 2,
+        "back": 100
+      },
+      "reads": "the desk sergeant: across the sally port and back, a look round at each wall; the front door is crossed behind him"
+    }
+  ],
+  "laws": {
+    "reads": "the holding block's (gameworld/level-kinds.js `holding`): the straight way out is seen; a way out unseen by the round alone (the route search, bare hands: no takedown); the kit is on a way out (a way to it unseen, and from it to the door); so no way out needs a kill"
+  }
+}

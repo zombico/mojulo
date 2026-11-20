@@ -64,7 +64,7 @@
  *                              what mojulo makes, the whole of what the producer holds before an ask
  *   railSheet(id)              → the rail's sheet, pulled once it is picked: { id, name, like, seen, level1, sizes:
  *                              [{ size, name, door, with }], from, starts, gaps?, tunings: { level, action, character,
- *                              world }, asks, labours, chain: [{ size, steps: [{ step, does, card? }] }], lacks }
+ *                              world }, asks, labours, chain: [{ size, steps: [{ step, does, card? }] }], lacks, kinds? }
  *     from      its own cube, the one the tunings are read from (its first genre), or null
  *     starts    the cube a designed game starts from today: its own when the book lays it, else the nearest of its
  *               genres the book does lay (the person's game then changes the values that differ), or null
@@ -75,6 +75,7 @@
  *     asks      what the cube asks of a world (concerns.js)
  *     labours   the Game Brief's labours that suit it (gmn.js: advice, any labour may be mixed with any rail)
  *     chain     the tools that build it, in order, each with the card to pull when it is reached
+ *     kinds     the kinds of level a game of it is built from (level-kinds.js LEVEL_KINDS), where the rail names them
  *   nearestRails(text, n?)     → [{ id, name, like, sizes, matched }] the rails whose words the text uses, most first;
  *                              a heuristic over words, said to be one: the agent, the real reader of a brief, picks
  *                              from it or asks. It suggests and refuses nothing
@@ -110,6 +111,7 @@ import { pendingOf, PENDING, HAND_OFFS } from './genre-forms.js';
 import { concernsOf } from './concerns.js';
 import { LABOURS } from './gmn.js';
 import { dryRun } from '../cosmos/cosmos.js';
+import { levelKindsOf } from './level-kinds.js';
 
 const row = (o) => Object.freeze(o);
 const list = (a) => Object.freeze(a);
@@ -362,6 +364,8 @@ export function railSheet(id) {
     labours: Object.keys(LABOURS).filter((l) => LABOURS[l].genres.some((g) => H.genres.includes(g))),
     chain: R.sizes.map((size) => ({ size, steps: chainOf(R, size, size === 'designed' ? starts : null) })),
     lacks: railLacks(R),
+    // (the kinds of level a game of it is built from, level-kinds.js: each picked by name, its laws its proof)
+    ...(levelKindsOf(R.id).length ? { kinds: levelKindsOf(R.id).map((k) => ({ ...k })) } : {}),
   };
 }
 

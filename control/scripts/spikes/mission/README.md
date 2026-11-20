@@ -17,6 +17,7 @@ Three segments, a page each, joined by doors that carry what is held and the bod
 | level 0, the approach | `level-0-approach.html` | the controls, and two places that ask for a sneak (a chokepoint, an outpost), on land alone | `level0.json` | `level0.mjs` |
 | level 1, the perimeter | `level-1-perimeter.html` | the yard: the hangar's door, and on past it the barracks, the hangar's key down its corridor past a sentry | `level1.json` | `yard.mjs` |
 | level 1, the hangar | `level-1-hangar.html` | the briefed intel, three clues, a lift down to what was not in the briefing, the stairwell out | `level1.json` | `hangar.mjs` |
+| the holding block | `holding-block.html` | a level of the `holding` kind: captured, the kit taken; out of a cell block by the turnkey's round, the kit back on the way, the front door | `holding.json` | `holding.mjs` (`--plan`: its laws) |
 
 Level 1 is a walled-core dungeon in miniature (`docs/walled-core-dungeon.md`): each layer a segment, each door gated by
 something found in the layer before. `plan.mjs` reads it dry and holds it to the dungeon's laws.

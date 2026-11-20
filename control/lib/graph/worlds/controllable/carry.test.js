@@ -94,4 +94,18 @@ describe('nothing in hand, a body with a moveset', () => {
     expect(Array.isArray(p.rule.loadout)).toBe(true);
     expect(fired(w)).toBe(true);
   });
+  it('the kit taken: bare hands only until the item that gives it back is held; then its first slot is in hand', () => {
+    const w = run(world({ locked: 'kit' }), {}, 5), p = w.byId.p;
+    expect(p.weapon).toBeNull(); expect(p.carry.holstered).toBe(true);
+    expect(E.carryPlaces(p, 'weapon').map((x) => x.kind)).toEqual(['none']);
+    expect(fired(w)).toBe(false);
+    run(w, { equipHold: 1 }, 2); run(w, { equipHold: 1, step: 1 }, 3); run(w, {}, 5);
+    expect(p.weapon).toBeNull();                                            // (nothing to step to)
+    w.ms = { ...(w.ms || {}), held: { kit: true } };                          // (the mission holds it: found)
+    run(w, {}, 2);
+    expect(p.carry.locked).toBe(false); expect(p.weapon).toBeTruthy(); expect(p.loadoutIdx).toBe(0); expect(p.kitBack).toBeGreaterThan(0);
+    expect(E.carryPlaces(p, 'weapon')).toHaveLength(3);
+    expect(fired(w)).toBe(true);
+  });
 });
+
