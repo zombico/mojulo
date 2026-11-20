@@ -100,3 +100,11 @@
   - Formation: the member in focus traded for the one picked, the order the party fights in and, where it fights fewer
     than it has (`rules.size`), who is at the front and who in reserve (`kernel.js` swap). The order rides the party's
     save once it is set; a save that never set one is as it was.
+- **The conversation's path to a JRPG.** A party RPG's pitch, locked with no level yet, is laid as the round (the
+  `isekai-party` rail's own `starter`, `gameworld/rails.js`: a walled town, the wilds, a castle and a dungeon with a
+  boss, four levels), not one plain level of its genre. Its designed chain teaches the round's steps before its first
+  level (a rail's `steps`): the round (the mandala, its save points, a crossing), the battles (the party, the boss with
+  its pattern and pages, the states) and the talk (the townspeople's pages), each on the card that owns it; its first
+  level is said as what is laid. The cards teach the new words: the world card the megaworld's `saves` and
+  `crossings`, the folk card a person's pages, the battles card and play.rpg's (PARTY BATTLES) a foe's pattern, a
+  fight's pages and the world's own states.
