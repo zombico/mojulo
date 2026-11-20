@@ -375,7 +375,27 @@ export function buildRpg() {
       said[i] = 1;
       const by = foe || (w.foe && b.foes.find((f) => f.kind === w.foe)) || null;
       p.say.forEach((t, k) => out.push({ text: (p.who ? p.who + ': ' : '') + t, kind: 'page', page: i, ...(by ? { who: by.uid } : {}), ...(k === p.say.length - 1 && p.sets ? { sets: p.sets } : {}) }));
+      // (what the page does: a share of HP given back, to the foe its when names, else every foe standing; foes called in)
+      if (p.heal) for (const f of (w.foe || w.hpBelow != null) && by ? (by.hp > 0 ? [by] : []) : livingFoes(R)) {
+        const was = f.hp;
+        f.hp = Math.min(f.max, f.hp + Math.max(1, Math.round(f.max * p.heal)));
+        if (f.hp > was) out.push({ text: f.name + ' recovers ' + (f.hp - was) + ' HP.', kind: 'heal', target: f.uid, amount: f.hp - was, hp: f.hp });
+      }
+      if (p.summon) for (const k of p.summon) summon(cfg, R, k, out, p.summon.filter((x) => x === k).length > 1);
     });
+  }
+  // a foe called into the fight (a page's summon): after the foes already in it, its figure the next in the encounter's
+  // `who` (woken by the page); on the timeline its gauge starts empty
+  // (lettered where more than one of its kind will stand: a second called beside it, or one in the fight already)
+  function summon(cfg, R, k, out, more) {
+    const b = R.b, F = cfg.foes[k];
+    if (!F || b.foes.length >= 6) return;
+    const n = b.foes.filter((f) => f.kind === k).length, uid = 'f' + b.foes.length;
+    if (n === 1) { const first = b.foes.find((f) => f.kind === k); if (first.name === F.name) first.name = F.name + ' ' + LETTERS[0]; }
+    const f = { uid, kind: k, name: n || more ? F.name + ' ' + LETTERS[n] : F.name, hp: F.base.hp, max: F.base.hp, mp: F.base.mp, F, buffs: [], st: {} };
+    b.foes.push(f);
+    if (b.ct) b.ct[uid] = 0;
+    out.push({ text: f.name + ' appears!', kind: 'summon', who: uid, target: uid });
   }
   function actOne(cfg, R, who, pick, vars, out) {
     const A = unit(cfg, R, who);

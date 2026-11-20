@@ -360,6 +360,48 @@ describe('a fight\'s own pages', () => {
   });
 });
 
+// A PAGE THAT ACTS (a page's summon and heal): the foe it names given back a share of its HP; foes called in after the
+// fight's own, fought and counted in the spoils like them; six fight at most
+describe('a fight\'s page that acts', () => {
+  const warden = { name: 'Warden', hp: 400, mp: 0, atk: 1, def: 30, mag: 1, spd: 1, xp: 10, gold: 1, boss: true }, slime = { name: 'Slime', hp: 14, atk: 1, def: 3, mag: 1, spd: 1, xp: 4, gold: 3 };
+  const cfg = trio({ foes: { warden, slime }, encounters: [{ id: 'keep', foes: ['warden'], at: [0, 0], who: ['warden-fig', 'slime-fig', 'slime-fig2'], pages: [
+    { when: { foe: 'warden', hpBelow: 0.5 }, who: 'Warden', say: 'Rise, my wards!', heal: 0.25, summon: ['slime', 'slime'] },
+  ] }] });
+
+  it('is read and taught: foes of the book, a share, six at most, a figure each at most', () => {
+    expect(cfg.encounters.keep.pages[0]).toMatchObject({ heal: 0.25, summon: ['slime', 'slime'] });
+    const one = (p, extra = {}) => () => trio({ foes: { warden, slime }, encounters: [{ id: 'keep', foes: ['warden'], pages: [{ when: { round: 2 }, say: 'x', ...p }], ...extra }] });
+    expect(one({ summon: ['dragonx'] })).toThrow(/summon is a list of foes/);
+    expect(one({ heal: 2 })).toThrow(/heal is a share/);
+    expect(one({ summon: ['slime', 'slime', 'slime', 'slime', 'slime', 'slime'] })).toThrow(/six fight at most/);
+    expect(one({ summon: ['slime'] }, { at: [0, 0], who: ['a', 'b', 'c'] })).toThrow(/who is the entity/);
+  });
+
+  it('gives back the share to the foe its moment names, and calls the foes in: fought, and counted in the spoils', () => {
+    const R = rpgInit(cfg), v = {};
+    rpgStart(cfg, R, 'keep', v);
+    R.b.foes[0].hp = 150;
+    const beats = rpgRound(cfg, R, {}, v), heal = beats.find((x) => x.kind === 'heal' && x.target === 'f0');
+    expect(heal.amount).toBe(100);
+    expect(beats.filter((x) => x.kind === 'summon').map((x) => [x.who, x.text])).toEqual([['f1', 'Slime A appears!'], ['f2', 'Slime B appears!']]);
+    expect(R.b.foes.map((f) => f.kind)).toEqual(['warden', 'slime', 'slime']);
+    // (the warden's fall leaves the fight on while the called foes stand)
+    R.b.foes[0].hp = 0;
+    rpgRound(cfg, R, {}, v);
+    expect(R.b.phase).toBe('command');
+    for (const f of R.b.foes) f.hp = 0;
+    rpgRound(cfg, R, {}, v);
+    expect(R.b.phase).toBe('won');
+  });
+
+  it('a fight whose pages only speak calls no one', () => {
+    const quiet = trio({ foes: { warden, slime }, encounters: [{ id: 'keep', foes: ['warden'], pages: [{ when: { start: true }, say: 'x' }] }] });
+    const R = rpgInit(quiet), v = {};
+    expect(rpgStart(quiet, R, 'keep', v).some((x) => x.kind === 'summon' || x.kind === 'heal')).toBe(false);
+    expect(R.b.foes).toHaveLength(1);
+  });
+});
+
 // THE WORLD'S OWN STATES (play.rpg.states, presets.js STATE_PRESETS): each by what it does. The concept on one of each
 // kind of effect; and a fight that meets none carries none of it
 describe('the world\'s own states', () => {

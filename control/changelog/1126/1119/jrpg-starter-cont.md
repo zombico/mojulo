@@ -117,3 +117,7 @@
   their page, then opens the shop as the talk ends. A trade's shop is laid only where its lot's door is on the town's
   stage (a small town's square may leave one without frontage). The folk sheet's shrine is built; the smith's mending
   and bettering stay a gap.
+- **A fight's page that acts.** A fight's page may give a foe back a share of its HP (`heal`: the foe its moment names,
+  else every foe standing) and call foes into the fight (`summon: [foes]`, six fighting at most), fought and counted in
+  the spoils like the rest. A summoned foe's figure is the next in the encounter's `who`, minted dormant and woken in
+  smoke where it stands. A fight whose pages only speak is as it was.

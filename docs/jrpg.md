@@ -114,7 +114,10 @@ keeps the rule every foe has.
 
 A fight may say things as it goes (`pages` on an encounter, a world's boss fight's through `battles.bossPages`, RPG
 Maker's troop events): `{ when: { start: true } | { foe?, hpBelow } | { round }, say, who?, sets? }`, each said once in
-the message line the first time its moment holds, `sets` a story flag as it is said. A composed party RPG's boss is a
+the message line the first time its moment holds, `sets` a story flag as it is said. A page may also act as it is said:
+`heal: share` gives back that share of HP to the foe its `when` names (else to every foe standing), and `summon: [foes]`
+calls foes into the fight, six fighting at most. A summoned foe's figure is the next in the encounter's `who` past its
+foes', minted `dormant` (hidden), and woken in smoke where it stands (a pack's one figure stands for all its foes). A composed party RPG's boss is a
 party battle (`battles.boss`, the Ember Drake by default) that speaks as it begins and at half its HP.
 
 **Traits** (RPG Maker's traits, the three a fight reads), on a class or a piece of gear: `resist` (elements taken at
@@ -165,4 +168,3 @@ Each step ends playable, and each is something a person can say that the words d
 idea is reached through the primitive that already owns it (a switch is a flag, an event page a scene's `if`, a
 transfer a megaworld's way), never rebuilt:
 1. **A change of music from an event** (a scene's own cue).
-2. **The battles' depth:** a fight's page that does more than speak (a summons, a heal).

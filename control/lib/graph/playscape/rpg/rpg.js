@@ -34,10 +34,13 @@
  *                 what a member may wear, one item a slot, its numbers added to theirs (default: every preset); worn
  *                 items come from the bag and go back to it (held:bag:<item>); a class switch takes off what it forbids
  *     encounters?: [{ id, foes: [foe ids], at?: [x, y], who?: '<entity>' | ['<entity>', …], near?, flee?, room?, pages? }]
- *                 pages: [{ when: { start: true } | { foe?, hpBelow } | { round }, say: text | [text], who?, sets? }]
+ *                 pages: [{ when: { start: true } | { foe?, hpBelow } | { round }, say: text | [text], who?, sets?, summon?, heal? }]
  *                 the FIGHT'S OWN PAGES (RPG Maker's troop events): each said once, the first time its moment holds (the
  *                 fight begun; a foe, of that kind, brought under a share of its HP; its nth round reached), in the
- *                 message line, `who` before the words; `sets` a story flag as it is said (`flag:<name>` on the bus)
+ *                 message line, `who` before the words; `sets` a story flag as it is said (`flag:<name>` on the bus);
+ *                 `summon: [foe ids]` calls foes into the fight (six in all at most; a figure each past the foes' in
+ *                 `who`, minted `dormant`, woken as it comes); `heal: share` gives back that share of HP to the foe its
+ *                 when names, else to every foe standing
  *                 at: walking up to it starts the fight (a visible foe: `who` is the one standing there, or each foe's
  *                 own figure in the foes' order, the first standing at `at`; each falls
  *                 when the fight is won); without at, a cue starts it: `then: { emit: 'rpg-battle:<id>' }`; room: the
@@ -220,11 +223,12 @@ function readPattern(v, where) {
 
 // a fight's own pages (kernel.js pages): each said once, when its moment first holds
 const PAGE_WHEN = ['start', 'foe', 'hpBelow', 'round'];
-function readFightPages(v, kinds, where) {
-  return listOf(v, where, '{ when, say, who?, sets? }').map((p, i) => {
+function readFightPages(v, kinds, where, foeIds = kinds) {
+  const shape = '{ when, say, who?, sets?, summon?, heal? }';
+  return listOf(v, where, shape).map((p, i) => {
     const at = `${where}[${i}]`;
-    if (!isObj(p)) throw err(`${at} is { when, say, who?, sets? }: a fight's page, said once when its moment holds`);
-    keysOnly(p, ['when', 'say', 'who', 'sets'], at);
+    if (!isObj(p)) throw err(`${at} is ${shape}: a fight's page, said once when its moment holds`);
+    keysOnly(p, ['when', 'say', 'who', 'sets', 'summon', 'heal'], at);
     if (!isObj(p.when)) throw err(`${at}.when is { start: true } | { foe?, hpBelow } | { round }: the fight begun, a foe under a share of its HP, its nth round reached`);
     keysOnly(p.when, PAGE_WHEN, `${at}.when`);
     const w = p.when;
@@ -238,7 +242,11 @@ function readFightPages(v, kinds, where) {
     if (!say.length || !say.every((t) => typeof t === 'string' && t.trim())) throw err(`${at}.say is text | [text, …]: what is said`);
     if (p.who !== undefined && !(typeof p.who === 'string' && p.who.trim())) throw err(`${at}.who is the speaker's name, shown before the words`);
     if (p.sets !== undefined) id(p.sets, `${at}.sets`);
-    return { when: { ...w }, say, ...(p.who ? { who: p.who } : {}), ...(p.sets ? { sets: p.sets } : {}) };
+    // (what the page DOES as it is said: foes called into the fight, a share of HP given back)
+    const summon = p.summon === undefined ? null : listOf(p.summon, `${at}.summon`, 'foe ids');
+    if (summon && (!summon.length || !summon.every((k) => foeIds.includes(k)))) throw err(`${at}.summon is a list of foes (${foeIds.join(', ')}) called into the fight as the page is said`);
+    if (p.heal !== undefined && !(num(p.heal) && p.heal > 0 && p.heal <= 1)) throw err(`${at}.heal is a share of HP given back, above 0, at most 1: to the foe the page's when names, else to every foe standing`);
+    return { when: { ...w }, say, ...(p.who ? { who: p.who } : {}), ...(p.sets ? { sets: p.sets } : {}), ...(summon ? { summon: [...summon] } : {}), ...(p.heal !== undefined ? { heal: p.heal } : {}) };
   });
 }
 
@@ -437,13 +445,18 @@ export function readRpg(play) {
     if (!Array.isArray(e.foes) || !e.foes.length || e.foes.length > 6) throw err(`${at}.foes is 1 to 6 foe ids`);
     if (e.at !== undefined && !(Array.isArray(e.at) && e.at.length >= 2 && e.at.slice(0, 2).every(num))) throw err(`${at}.at is where it stands [x, y]`);
     const ent = (v) => typeof v === 'string' && /^[a-z][a-z0-9_-]*$/i.test(v);
-    if (e.who !== undefined && !(ent(e.who) || (Array.isArray(e.who) && e.who.length === e.foes.length && e.who.every(ent)))) throw err(`${at}.who is the entity standing for it on the map, or one for each of its foes, in their order`);
+    // (its pages' summons: the foes called in, after its own, six at most in all; each may have a figure of its own past
+    // the foes' in `who`, minted asleep, `dormant: true`, woken as it comes)
+    const pages = e.pages !== undefined ? readFightPages(e.pages, e.foes, `${at}.pages`, Object.keys(foes)) : null;
+    const called = (pages ?? []).reduce((n, p) => n + (p.summon ? p.summon.length : 0), 0);
+    if (e.foes.length + called > 6) throw err(`${at}.pages summon ${called} foes to its ${e.foes.length}: six fight at most`);
+    if (e.who !== undefined && !(ent(e.who) || (Array.isArray(e.who) && e.who.length >= e.foes.length && e.who.length <= e.foes.length + called && e.who.every(ent)))) throw err(`${at}.who is the entity standing for it on the map, or one for each of its foes, in their order (and for each foe its pages summon, minted dormant)`);
     if (e.who !== undefined && e.at === undefined) throw err(`${at}.who stands somewhere: give its at`);
     optNum(e.near, `${at}.near`);
     if (e.flee !== undefined && typeof e.flee !== 'boolean') throw err(`${at}.flee is false for a fight with no escape`);
     if (e.room !== undefined && !(Array.isArray(e.room) && e.room.length === 5 && e.room.every(num) && e.room[2] > e.room[0] && e.room[3] > e.room[1])) throw err(`${at}.room is the room it is fought in, [x0, y0, x1, y1, floor]`);
     const boss = e.foes.some((f) => foes[f].boss);
-    encounters[e.id] = { foes: [...e.foes], flee: e.flee ?? !boss, ...(e.pages !== undefined ? { pages: readFightPages(e.pages, e.foes, `${at}.pages`) } : {}) };
+    encounters[e.id] = { foes: [...e.foes], flee: e.flee ?? !boss, ...(pages ? { pages } : {}) };
     if (e.at) met.push({ id: e.id, at: [e.at[0], e.at[1]], who: e.who ?? null, near: e.near ?? 2.2, ...(e.room ? { room: [...e.room] } : {}) });
   });
 

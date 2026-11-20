@@ -171,7 +171,17 @@ export function rpgPage(cfg, K, ctl, jk, M) {
   }
   // a beat shown: its juice, its number, its numbers moved, its film
   // (a fight's page, kernel.js pages: said on the bus, its flag with it)
-  function show(b) { shots = []; juice(b); pop(b); note(b); cinema(b); if (b && b.kind === 'page') { __inputQueue.push({ type: 'rpg-page:' + R.b.enc + ':' + b.page }); if (b.sets) __inputQueue.push({ type: 'flag:' + b.sets }); } }
+  // (a foe a page called in, kernel.js summon: its figure, the next in the encounter's who, minted asleep, woken where it
+  // stands in a puff of smoke)
+  function show(b) {
+    shots = [];
+    if (b && b.kind === 'summon') {
+      const m = (cfg.met || []).find((x) => x.id === R.b.enc), i = R.b.foes.findIndex((x) => x.uid === b.who), id = m && Array.isArray(m.who) ? m.who[i] : null;
+      if (id && W() && W().byId[id]) cast([{ op: 'spawn', who: id, with: 'smoke' }]);
+    }
+    juice(b); pop(b); note(b); cinema(b);
+    if (b && b.kind === 'page') { __inputQueue.push({ type: 'rpg-page:' + R.b.enc + ':' + b.page }); if (b.sets) __inputQueue.push({ type: 'flag:' + b.sets }); }
+  }
 
   // ── THE CINEMA (rules.cinema): a skill (or every action) as a short film while the round plays out, nobody picking:
   // the actor close as it begins, behind it at its target as the blow goes, the target as it lands, back to the view.
@@ -550,7 +560,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
 
   // ── what the screens read (the host's state, never copied into the UI: a binding reads it here each frame) ──
   // (the banner across the top tells an action's name or a status, never a number: a blow's lands over whoever takes it)
-  const TOLD = ['start', 'cast', 'status', 'ko', 'level', 'learn', 'spoils', 'end', 'page'];
+  const TOLD = ['start', 'cast', 'status', 'ko', 'level', 'learn', 'spoils', 'end', 'page', 'summon'];
   const LIST = { 'rpg-cmd': 'commands', 'rpg-skill': 'skills', 'rpg-item': 'items', 'rpg-target': 'targets' };
   const LEVEL = { 'rpg-cmd': 'cmd', 'rpg-skill': 'skill', 'rpg-item': 'item', 'rpg-target': 'target' };
   // (the screen up: none while the runtime draws its first frame)
