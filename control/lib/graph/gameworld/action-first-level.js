@@ -16,6 +16,11 @@
  *   ACTION_FIGHTS      its four fights, by the room each is for (`fights`)
  *   actionFirstLevel({ kit?, boss? (true) }) → { foes, fights, level }: the bestiary, the kept fights and the level
  *                      (`building: { use: 'citadel', kit }`, `goal: { tasks }`), to lay on a world that fights hand to hand
+ *   CITADEL_LOOK       the starter's look, each a default the creator changes by name: its rooms raised to the heights
+ *                      the ashlar kit was drawn for (`rooms: { <room>: { h } }`), each room's light designed (`plot`),
+ *                      the gothic night read in the seventh generation with its shade deep (`geocube`), and the
+ *                      screen's grade (`grade`: tenebrae)
+ *   actionStarter({ kit?, boss? }) → { foes, fights, level, grade }: the first level dressed in that look (pitch-start.js)
  *
  * Pure: words in, a recipe out.
  */
@@ -42,4 +47,22 @@ export function actionFirstLevel({ kit = 'gothic-ashlar', boss = true } = {}) {
     fights,
     level: { name: 'The citadel', building: { use: 'citadel', kit }, goal: { tasks: rooms.map((r) => ({ fight: r, at: r })) } },
   };
+}
+
+/** the starter's look (a stylish game's first reading: the creator's to change by name, word by word) */
+export const CITADEL_LOOK = Object.freeze({
+  rooms: Object.freeze({ gate: { h: 10 }, hall: { h: 16 }, gallery: { h: 14 }, sanctum: { h: 18 } }),
+  plot: Object.freeze({ gate: { torches: 2, vary: 0.8, lead: 1.4, cold: 1.2 }, hall: { torches: 4, key: 3, lead: 1.5, vary: 0.7, cold: 0.9 },
+    gallery: { torches: 6, vary: 1, lead: 1.4 }, sanctum: { torches: 3, key: 3.5, vary: 0.5, cold: 1.6 } }),
+  geocube: Object.freeze({ from: 'gothic-night', era: 'gen-7', inside: { bones: 'gothic-ashlar' }, light: { shade: 0.38 } }),
+  grade: Object.freeze({ from: 'tenebrae', vignette: 0.35, exposure: 0.25 }),
+});
+const copy = (v) => JSON.parse(JSON.stringify(v));
+export function actionStarter({ kit = 'gothic-ashlar', boss = true } = {}) {
+  const A = actionFirstLevel({ kit, boss }), rooms = Object.keys(A.fights);
+  const pick = (o) => Object.fromEntries(rooms.filter((r) => o[r]).map((r) => [r, copy(o[r])]));
+  const geocube = { ...copy(CITADEL_LOOK.geocube), inside: { bones: kit } };
+  // (the geocube dresses it, its bones the kit: a building takes a kit or a geocube, not both)
+  const { kit: _k, ...building } = A.level.building;
+  return { ...A, level: { ...A.level, building: { ...building, rooms: pick(CITADEL_LOOK.rooms), plot: pick(CITADEL_LOOK.plot), geocube } }, grade: copy(CITADEL_LOOK.grade) };
 }

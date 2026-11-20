@@ -1100,7 +1100,7 @@ function nearestWallNormal(plan, [x, y]) {
   return best ? best.n : [0, 0, 1];
 }
 /** Resolve the recipe's lights: 'auto' seats a torch on the kit's seats; an array is taken as authored. */
-const PLOT_KEYS = { torches: [0, 12, true], fill: [0, 3], key: [0, 6], lead: [0, 4], vary: [0, 1], cold: [0, 4] };
+export const PLOT_KEYS = { torches: [0, 12, true], fill: [0, 3], key: [0, 6], lead: [0, 4], vary: [0, 1], cold: [0, 4] };
 function readPlot(v) {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error('stage: plot is { <room id>: { torches?, fill?, key?, lead?, vary?, cold? } }');
   for (const [id, R] of Object.entries(v)) {

@@ -3,6 +3,10 @@
 A stylish action game made through `design_game`: Lucien fights through a citadel of the armed dead, room by room,
 to the knight in its sanctum. `world.json` is the whole recipe; everything else is made from it.
 
+A worked example, not a starting point: a new stylish game starts from its rail (`rail: { from: 'fallen-angel', locked:
+true }`), which lays a starter of its own (the kit, the meter, the citadel, a look), and becomes the creator's by their
+words (the `gameworld-stylish` card). Read this to see one game those words made.
+
 - **The hero:** Lucien, on the realistic body (`form: 'realistic'`), light-brown hair drawn back off his face into a ponytail (`hair: 'ponytail'`), on the realistic head, a long pale coat open over
   dark clothes (the world is dark: the coat is what reads against it), one coat from the shoulders to mid-calf, its back
   no longer than its sides and flared evenly round the hips (`hem: 'midi'`, `cut: 'aline'`), and over its upper back a

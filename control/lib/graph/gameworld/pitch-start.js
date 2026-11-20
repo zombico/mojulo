@@ -8,7 +8,10 @@
  *   pitchStart(world, { title? }) → null | { world, laid: { by, levels, says } } | { unlaid: '<why>' }
  *     null     not a locked pitch with no level (nothing to do: the start readout answers as it always has)
  *     world    the written world with the starter under it: every key the creator wrote wins
- *     by       'platformer' (the platformer's rail: its first level and the flow that plays it, platformer-game.js) or
+ *     by       'platformer' (the platformer's rail: its first level and the flow that plays it, platformer-game.js),
+ *              'action' (a stylish rail, style-meter.js STYLISH: the genre's first reading with its level the citadel
+ *              fought room by room, action-first-level.js actionStarter, the rail's template kit, `arsenal: { from }`,
+ *              and its style meter, `styleMeter: 'auto'`, the orbit camera and the starter's look) or
  *              'compose' (a first reading of the genre the rail starts from, compose.js, one level)
  *     unlaid   a rail with no starter the book lays yet, or a size that is not the designed game's: said, the pitch
  *              answered and not stored
@@ -19,6 +22,9 @@ import { readRail, railOf, railSheet } from './rails.js';
 import { platformerStart } from './platformer-game.js';
 import { composeGameworld } from './compose.js';
 import { GENRES, readGenre } from './intent.js';
+import { actionStarter } from './action-first-level.js';
+import { STYLISH } from './style-meter.js';
+import { TEMPLATE_ARSENALS } from './combos.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 // the workflow's own keys of a composed world: the starter brings its ground, never its review or its brief
@@ -46,6 +52,14 @@ export function pitchStart(world, { title } = {}) {
   const name = world.name ?? title;
   const C = composeGameworld({ prompt, levels: 1, ...(typeof name === 'string' && name.trim() ? { name } : {}), ...(Number.isInteger(world.seed) ? { seed: world.seed } : {}) });
   const starter = Object.fromEntries(Object.entries(C).filter(([k]) => !NOT_THE_STARTERS.includes(k)));
-  const W = { ...starter, ...withFeel, ...named, ...(world.intent === undefined ? { intent: C.intent ?? { from: S.starts } } : {}) };
+  const intent = world.intent === undefined ? { intent: C.intent ?? { from: S.starts } } : {};
+  // a STYLISH rail: its genre's reading, its level the citadel fought room by room, its kit, its meter, its look; the
+  // composed level and what plays it (its links, its flow) left out, the citadel in their place
+  if (STYLISH.includes(R.handles.pole)) {
+    const A = actionStarter(), { levels: _l, links: _k, flow: _f, ...ground } = starter;
+    const W = { ...ground, camera: 'orbit', foes: A.foes, fights: A.fights, levels: { citadel: A.level }, grade: A.grade, ...(TEMPLATE_ARSENALS[R.handles.pole] ? { arsenal: { from: R.handles.pole } } : {}), styleMeter: 'auto', ...withFeel, ...named, ...intent };
+    return { world: W, laid: { by: 'action', from: S.starts, levels: Object.keys(W.levels), says: SAYS } };
+  }
+  const W = { ...starter, ...withFeel, ...named, ...intent };
   return { world: W, laid: { by: 'compose', from: S.starts, levels: Object.keys(W.levels), says: SAYS } };
 }
