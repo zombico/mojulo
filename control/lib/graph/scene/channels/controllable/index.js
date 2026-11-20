@@ -3620,6 +3620,31 @@ ${aimView ? `  // THE CLIMB AND THE CONE (the aim held over the shoulder, a conv
       } else __wep.cone.style.display = 'none';
     }
   }
+  // THE ARC (the aim held over the shoulder, a launcher: combat-ranged.js lobPath): the round's flight as it would go
+  // now, a dashed line from the muzzle on the arc through the crosshair, and where it bursts a ring the size of its reach
+  // laid flat there, so a grenade is thrown over a wall onto what the ring takes in
+  {
+    // (not while it cannot fire: reloading, or being drawn)
+    const av = ent.av, L = av && av.on && !av.fp && W.fireClass === 'lob' && W.converge && !W.reloading && !(ent.readyT > 0) && __CW.lobPath ? __CW.lobPath(ent, __world) : null;
+    if (L && !__wep.arc) {
+      const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * 900), 3));
+      const line = new THREE.Line(lg, new THREE.LineDashedMaterial({ color: 0xffe2b0, transparent: true, opacity: 0.75, dashSize: 0.3, gapSize: 0.2, depthWrite: false }));
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.93, 1, 48), new THREE.MeshBasicMaterial({ color: 0xffb066, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide }));
+      line.frustumCulled = false; line.raycast = function () {}; ring.raycast = function () {}; scene.add(line); scene.add(ring);
+      __wep.arc = { line, ring };
+    }
+    if (__wep.arc) {
+      __wep.arc.line.visible = __wep.arc.ring.visible = !!L;
+      if (L) {
+        // (the ring red where the arc ends on a body: the round goes off on it)
+        __wep.arc.ring.material.color.setHex(L.hit ? 0xff5a4a : 0xffb066);
+        const n = Math.min(900, L.pts.length), a = __wep.arc.line.geometry.attributes.position;
+        for (let i = 0; i < n; i++) a.setXYZ(i, L.pts[i][0], L.pts[i][1], L.pts[i][2]);
+        a.needsUpdate = true; __wep.arc.line.geometry.setDrawRange(0, n); __wep.arc.line.computeLineDistances();
+        __wep.arc.ring.position.set(L.at[0], L.at[1], L.at[2] + 0.04); __wep.arc.ring.scale.setScalar(Math.max(0.3, L.radius));
+      }
+    }
+  }
   // THE SHOT BLOCKED (the aim held over the shoulder, a converging round: combat-ranged.js shotBlocked): the camera sees
   // past what the gun does not, a low wall under its eye, a corner beside it. While the muzzle's line to the point under
   // the crosshair meets cover first, the crosshair dims and a cross marks where the round would stop, before the trigger
@@ -4167,6 +4192,72 @@ function __spawnRoundFx(shot, from, R, range) {
     __fx.push({ obj: sk, born: born + ttl, ttl: 0.05, kind: 'mflash' });
   }
 }
+// A LAUNCHER'S ROUND (a round's \`look\`, gameworld/rounds.js): what an eye sees of a 40 mm grenade. In flight a dull shell
+// a hand long, no glow, tumbling a little on its arc; launched, a short flash and a puff at the muzzle; bursting, a white
+// flash, a ball of fire that billows and is gone, grey smoke rising and spreading after, chips thrown out and falling, a
+// ring of dust running out along the ground to its reach and a dark scorch left there. Sized by the burst's reach, every
+// scatter golden-angle (no dice), so a replay is the same.
+function __lookShell(p) {
+  const g = new THREE.Group(), rk = p.look === 'rocket', m = new THREE.MeshLambertMaterial({ color: rk ? 0x4d5440 : 0x4a4d45 }), cap = new THREE.MeshLambertMaterial({ color: rk ? 0x2e302b : 0x8a7a4a });
+  const part = (geo, mat, y) => { const o = new THREE.Mesh(geo, mat); o.position.y = y; o.raycast = function () {}; g.add(o); return o; };
+  let flame = null;
+  if (rk) {
+    // (a rocket: its body, its nose, four fins at its tail, its flame behind it)
+    part(new THREE.CylinderGeometry(0.04, 0.04, 0.46, 12), m, 0); part(new THREE.ConeGeometry(0.04, 0.16, 12), cap, 0.31);
+    for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + Math.PI / 4, f = part(new THREE.BoxGeometry(0.006, 0.1, 0.06), cap, -0.19); f.position.x = Math.cos(a) * 0.05; f.position.z = Math.sin(a) * 0.05; f.rotation.y = Math.PI / 2 - a; }
+    flame = __lookPuff(0xffa040, true, 0.95); flame.scale.setScalar(0.28); flame.position.y = -0.32; flame.raycast = function () {}; g.add(flame);
+  } else { part(new THREE.CylinderGeometry(0.02, 0.02, 0.07, 10), m, 0); part(new THREE.SphereGeometry(0.02, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), cap, 0.035); }
+  scene.add(g);
+  const at = window.__mojMuzzle && window.__mojMuzzle[p.owner];
+  if (rk && at && p.vel) {
+    // the backblast: fire and smoke out of the tube's back, a metre behind its mouth, thrown back and spreading
+    const v = Math.hypot(p.vel[0], p.vel[1], p.vel[2]) || 1, d = [p.vel[0] / v, p.vel[1] / v, p.vel[2] / v], b0 = [at[0] - d[0] * 1.05, at[1] - d[1] * 1.05, at[2] - d[2] * 1.05];
+    const bf = __lookPuff(0xffb060, true, 0.9); bf.position.set(b0[0] - d[0] * 0.3, b0[1] - d[1] * 0.3, b0[2] - d[2] * 0.3); bf.scale.setScalar(0.3); bf.raycast = function () {}; scene.add(bf); __fx.push({ obj: bf, born: __world.time, ttl: 0.12, kind: 'burst', base: 1.2, dim: 0.9 });
+    for (let k = 0; k < 8; k++) {
+      const s0 = 0.3 + 0.35 * k, a = k * 2.39996, w = 0.12 * k, q = [b0[0] - d[0] * s0 + Math.cos(a) * w, b0[1] - d[1] * s0 + Math.sin(a) * w, b0[2] - d[2] * s0 + 0.05 * k];
+      const pf = __lookPuff(k % 2 ? 0x8a857c : 0xa49e93, false, 0.45); pf.position.set(q[0], q[1], q[2]); pf.scale.setScalar(0.2); pf.raycast = function () {}; scene.add(pf);
+      __fx.push({ obj: pf, born: __world.time, ttl: 1.6 + 0.15 * (k % 3), kind: 'wisp', base: 0.7 + 0.12 * k, dim: 0.45, rise: 0.5, z0: q[2] });
+    }
+  }
+  if (at) { const pf = __lookPuff(0xc9c5bc, false, 0.3); pf.position.set(at[0], at[1], at[2]); pf.scale.setScalar(0.13); pf.raycast = function () {}; scene.add(pf); __fx.push({ obj: pf, born: __world.time, ttl: 0.9, kind: 'wisp', base: 0.45, dim: 0.3, rise: 0.25, z0: at[2] }); const fl = __lookPuff(0xffd59a, true, 0.95); fl.position.set(at[0], at[1], at[2]); fl.scale.setScalar(0.1); fl.raycast = function () {}; scene.add(fl); __fx.push({ obj: fl, born: __world.time, ttl: 0.07, kind: 'burst', base: 0.35, dim: 0.95 }); }
+  return { g, flame, trail: rk ? __world.time : null, off: at ? [at[0] - p.pos[0], at[1] - p.pos[1], at[2] - p.pos[2]] : null, born: __world.time };
+}
+// (a soft round puff, made once: what the blast's fire and smoke are drawn with, so they read as billows and not balls)
+let __lookTexC = null;
+function __lookTex() {
+  if (__lookTexC) return __lookTexC;
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.45, 'rgba(255,255,255,0.75)'); g.addColorStop(0.8, 'rgba(255,255,255,0.18)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64); return (__lookTexC = new THREE.CanvasTexture(cv));
+}
+const __lookPuff = (col, add, op) => new THREE.Sprite(new THREE.SpriteMaterial({ map: __lookTex(), color: new THREE.Color(col), transparent: true, opacity: op, depthWrite: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending }));
+function __lookBlast(b) {
+  const R = Math.max(1, b.radius || 3), at = b.pos, now = __world.time, low = at[2] < 0.35;
+  // (each born at its first size: a sprite left at its own 1 m would be drawn so for the frame before the fx loop sizes it)
+  const add = (obj, rec) => { obj.raycast = function () {}; if (rec.base) obj.scale.setScalar(rec.base * 0.3); if (rec.delay) obj.visible = false; scene.add(obj); __fx.push({ obj, born: now + (rec.delay || 0), ...rec }); };
+  // (a sprite's scale is its width: the flash, the fire and the smoke given as widths)
+  let m = __lookPuff(0xfff4dc, true, 1); m.position.set(at[0], at[1], at[2] + 0.3); add(m, { ttl: 0.1, kind: 'burst', base: R * 0.9, dim: 1 });
+  for (let k = 0; k < 9; k++) {
+    const a = k * 2.39996, u = (k + 0.5) / 9, r = R * 0.18 * Math.sqrt(u);
+    m = __lookPuff(k % 3 ? 0xff7a1e : 0xffc060, true, 0.9);
+    m.position.set(at[0] + Math.cos(a) * r, at[1] + Math.sin(a) * r, at[2] + 0.25 + R * 0.14 * u); add(m, { ttl: 0.3 + 0.06 * (k % 3), kind: 'burst', base: R * (0.42 + 0.1 * (k % 2)), dim: 0.85 });
+  }
+  for (let k = 0; k < 12; k++) {
+    const a = k * 2.39996 + 0.7, r = R * 0.25 * Math.sqrt((k + 0.5) / 12), p0 = [at[0] + Math.cos(a) * r, at[1] + Math.sin(a) * r, at[2] + 0.3 + 0.06 * k];
+    m = __lookPuff(k % 2 ? 0x56524c : 0x7a756c, false, 0.5); m.position.set(p0[0], p0[1], p0[2]);
+    add(m, { delay: 0.05, ttl: 2.2 + 0.25 * (k % 4), kind: 'wisp', base: R * (0.7 + 0.1 * (k % 3)), dim: 0.5, rise: 1.4 + 0.25 * (k % 3), z0: p0[2] });
+  }
+  const N = 18, pos = new Float32Array(N * 3), vels = [];
+  for (let k = 0; k < N; k++) { const a = k * 2.39996, up = 0.35 + 0.6 * ((k * 7) % 11) / 11, sp = R * (1.4 + ((k * 13) % 9) / 9 * 1.6); vels.push([Math.cos(a) * sp * (1 - up * 0.5), Math.sin(a) * sp * (1 - up * 0.5), sp * up]); pos[k * 3] = at[0]; pos[k * 3 + 1] = at[1]; pos[k * 3 + 2] = at[2] + 0.1; }
+  const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  add(new THREE.Points(dg, new THREE.PointsMaterial({ color: 0x2b2824, size: 0.07, transparent: true, opacity: 1, depthWrite: false, sizeAttenuation: true })), { ttl: 1.1, kind: 'debris', p0: [at[0], at[1], at[2] + 0.1], vels, grav: 9.8 });
+  if (low) {
+    m = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 40), new THREE.MeshBasicMaterial({ color: 0xb7a98f, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide }));
+    m.position.set(at[0], at[1], at[2] + 0.05); add(m, { ttl: 0.7, kind: 'ring', base: R, dim: 0.55 });
+    m = new THREE.Mesh(new THREE.CircleGeometry(1, 28), new THREE.MeshBasicMaterial({ color: 0x2a2620, transparent: true, opacity: 0.38, depthWrite: false }));
+    m.position.set(at[0], at[1], at[2] + 0.02); m.scale.setScalar(R * 0.3); add(m, { ttl: 9, kind: 'scorch', dim: 0.38 });
+  }
+}
 function __updateFx() {
   // EVERY armed entity's shots spawn fx (the pilot, a fixed armed entity, an AI fire-back suit).
   for (const fent of __world.entities) {
@@ -4235,6 +4326,9 @@ function __updateFx() {
       ap.needsUpdate = true;
     }
     else if (f.kind === 'impact') { f.obj.material.opacity = 1 - age; f.obj.scale.setScalar(f.base * (0.3 + age * 1.4)); }
+    // a launcher's blast (__lookBlast): its dust running out along the ground to the reach, its scorch fading at the end
+    else if (f.kind === 'ring') { f.obj.material.opacity = f.dim * (1 - age); f.obj.scale.setScalar(f.base * (0.15 + 0.85 * Math.sqrt(age))); }
+    else if (f.kind === 'scorch') { f.obj.material.opacity = f.dim * (1 - Math.pow(age, 4)); }
     // impact CLUSTER (rifle/vulcan hit): a shock RING expands + fades; a radial SPARK STAR flies out + snaps out.
     else if (f.kind === 'shock') { f.obj.material.opacity = 0.9 * (1 - age); f.obj.scale.setScalar(f.base * (0.3 + age * 1.7)); }
     else if (f.kind === 'shard') { f.obj.material.opacity = 0.95 * (1 - age * age); f.obj.scale.setScalar(f.base * (0.25 + age * 1.25)); }
@@ -4341,6 +4435,23 @@ function __updateProjectiles() {
         scene.add(g); rec = __projMeshes[p.id] = { g: g };
       }
     }` : ''}
+    if (!rec && p.look) rec = __projMeshes[p.id] = __lookShell(p);
+    if (rec && rec.off) {
+      // (a launcher's round drawn out of the drawn gun's muzzle, eased onto its own flight over a few frames)
+      const k = Math.max(0, 1 - (__world.time - rec.born) / 0.15);
+      rec.g.position.set(p.pos[0] + rec.off[0] * k, p.pos[1] + rec.off[1] * k, p.pos[2] + rec.off[2] * k);
+      if (p.vel) { const vl = Math.hypot(p.vel[0], p.vel[1], p.vel[2]); if (vl > 1e-4) rec.g.quaternion.setFromUnitVectors(__projUpY, __projDir.set(p.vel[0] / vl, p.vel[1] / vl, p.vel[2] / vl)); }
+      // (a rocket's trail: a puff of smoke dropped behind it every few hundredths, hanging and thinning; its flame flickers)
+      if (rec.trail != null) {
+        if (rec.flame) rec.flame.scale.setScalar(0.24 + 0.08 * Math.abs(Math.sin(__world.time * 47)));
+        while (__world.time - rec.trail >= 0.025) {
+          rec.trail += 0.025;
+          const q = rec.g.position, pf = __lookPuff(0xb5afa5, false, 0.5); pf.position.set(q.x, q.y, q.z); pf.scale.setScalar(0.1); pf.raycast = function () {}; scene.add(pf);
+          __fx.push({ obj: pf, born: __world.time, ttl: 1.8, kind: 'wisp', base: 0.6, dim: 0.5, rise: 0.25, z0: q.z });
+        }
+      }
+      continue;
+    }
     if (!rec) {
       const col = p.fxColor != null ? p.fxColor : 0xffcc66, sz = p.fxScale != null ? p.fxScale : 3;
       // the round is a POINTED SHELL (a hot nose-cone, not a beachball): a long thin cone whose TIP
@@ -4372,6 +4483,7 @@ function __updateProjectiles() {
     if (b.seq <= __burstSeen) continue;
     __burstSeen = b.seq;${flow ? `
     if (window.__mojFlowBursts) continue;   // (on the flow, rupa-vayo: the moment channel sets it off as the flow's blast)` : ''}
+    if (b.look) { __lookBlast(b); continue; }
     const col = b.fxColor != null ? b.fxColor : 0xffcc66;
     // the shell peaks at the TRUE splash reach (b.radius) — honest to the gameplay AoE — but stays
     // TRANSLUCENT (dim 0.5) so it reads as a fireball, not a screen-filling wash. A small, brighter

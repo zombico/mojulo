@@ -539,7 +539,8 @@ function __gpHold(e, m, rig, dt) {
   // will not reach, the magazine's well through a reload)
   // (the strong eye as the stride holds the head, which the blade does not turn)
   const EYE = __gpV().set(H.eye[0], H.eye[1], H.eye[2]); if (rig.boneMeshes[H.head]) EYE.applyMatrix4(rig.boneMeshes[H.head].matrix);
-  const rear = item([0, g.view.sight.y, g.view.sight.rear], __gpV()), reachR = H.R.la + H.R.lb + 0.5 * H.R.hl, LIFT = 0.25;
+  // (the sight's rear; off the bore's side where it is: a bazooka's beside its tube, where the eye goes)
+  const rear = item([g.view.sight.x || 0, g.view.sight.y, g.view.sight.rear], __gpV()), reachR = H.R.la + H.R.lb + 0.5 * H.R.hl, LIFT = 0.25;
   const place = (blade, pull = 0) => {
     const q = new THREE.Quaternion().setFromAxisAngle(__gpT.z, -blade - swing);
     let O;

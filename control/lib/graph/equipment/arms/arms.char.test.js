@@ -28,6 +28,8 @@ const PINS = {
   'rifle/caseless/modern': 'af6b6a12a7e24aa9', 'rifle/caseless/future': 'c19322664f392866', 'rifle/caseless/near': '630238b873c5fe86',
   'rifle/coilgun/modern': '6b17a55eae3455e8', 'rifle/coilgun/future': '653fa4dbf97d2eb7', 'rifle/coilgun/near': '38890aabd97c1407',
   'smg/pdw/modern': '46bebb9882f7084d', 'smg/pdw/future': 'b0b3b3d9f1d648de', 'smg/pdw/near': 'b8eaf8ee0402d0b3',
+  // the launchers (launchers.js)
+  'launcher/grenade/modern': '50ed5d1240d10919', 'launcher/grenade/future': '567f5fa806f7259e', 'launcher/grenade/near': 'f05e136809e15d9f',
 };
 
 describe('arms characterization', () => {

@@ -45,3 +45,33 @@ front, a tick at a time.
   and the next round left 0.75° over the scope's crosshair.
 - **A kit in the yard** (`scripts/spikes/mission/room.mjs --arms rifle,sniper`): the arms kit's words carried in place of
   the feel template's, to try a gun there.
+- **The launchers in the arms library** (equipment/arms/launchers.js, item `launcher`): the GRENADE LAUNCHER (`grenade`,
+  the default), a 40 mm revolving launcher: a fat barrel out of a breech block over a six-chamber cylinder on its axis
+  (its chambers' mouths dark in its front face, bands along it), a strap over it carrying the rail and the sight, a
+  raked grip and its guard behind, a stock, a vertical grip under the barrel; and the ROCKET LAUNCHER (`rocket`), a
+  bazooka: one tube flared to a venturi at its back, a pad under it where the shoulder takes it, a raked grip ahead of the
+  pad, a vertical grip forward, and the sight on a bracket off the tube's left side, where the eye is beside the tube on
+  the right shoulder. Both held to the arms' laws in each line (the future's conduit, the near's seam and counter), their
+  stations and handling read off them (handling.js: a sight off the bore's side carries its `x`), a hero's long gun
+  (hero-gear.js). `render-arms.mjs launcher,launcher-od` draws them.
+- **A grenade launcher and a bazooka in the kit** (gameworld/arms-kit.js `launcher`, `bazooka`): their rounds travel
+  (combat-ranged.js the lob). The grenade launcher six a load at 45 m/s under gravity, bursting 3 m round for four base
+  rounds; the bazooka one a load at 38 m/s and straight, bursting 4 m round for six, its tube reloaded in three seconds.
+- **Launched through the crosshair** (combat-ranged.js `lobAim`; a converging lob's): over the shoulder a travelling
+  round is launched from the muzzle on the flight that passes the point under the crosshair (a grenade's low arc, a
+  rocket's straight line; past its reach, the farthest arc toward it), its cone and climb round that. Where it was
+  launched along the look, a rocket flew beside the crosshair by the hand's offset all the way.
+- **The arc and the landing ring before the trigger** (combat-ranged.js `lobPath`; the aim held's reticle): while a
+  launcher is aimed, its round's flight as it would go now is drawn, a dashed line from the muzzle, and where it goes
+  off a ring the size of its burst laid there, red where the flight ends on a body. Not while it reloads or is drawn.
+- **The crosshair stops at the ground** (combat-ranged.js `crosshairPoint`): the crosshair's ray ends on the ground
+  plane a travelling round bursts on, where it ran on under the floor to its range; a grenade aimed at open ground came
+  down 3 m short at 90 m. A rifle's round is unchanged by it (it flies the ray either way).
+- **What a launcher's round looks like** (a round's `look`, gameworld/rounds.js `grenade`, `rocket`; the controllable
+  page): a 40 mm shell a hand long, dull, no glow, eased out of the drawn gun's muzzle onto its flight; a rocket finned
+  on a flickering flame, dropping smoke behind it, the tube's backblast thrown a few metres back at the launch. Its burst:
+  a white flash, a ball of fire billowing and gone in a third of a second, grey smoke rising and spreading for two, chips
+  thrown out and falling, a ring of dust running out along the ground to the burst's reach and a scorch left there for
+  nine seconds, sized by the reach, every scatter golden-angle. Soft sprites, each born at its first size. Before, a
+  travelling round was the mecha's glowing cone and its burst a translucent sphere. The explosion library
+  (playscape/elements/explosions.js) draws on the moment channel, which a page without events does not carry: not yet.

@@ -6,6 +6,9 @@
 //
 //   speed  the round's speed at the muzzle (m/s; its streak crosses the gap at it: a rifle's 30 m in two frames)
 //   flash  the muzzle flash's length (m): a pistol's a palm, a rifle's a hand, a shotgun's and a magnum's longer
+//   look   (a launcher's) how its travelling round and its burst are drawn: 'grenade' (a dull 40 mm shell spinning on its
+//          arc, a blast of fire, dust and smoke the size of its reach) or 'rocket' (a finned rocket on its flame, a trail of
+//          smoke behind it, the tube's backblast at the launch, the same blast)
 //
 // Magnitudes by cartridge class (subsonic to full-power rifle), never one maker's figures.
 export const ROUNDS = Object.freeze({
@@ -16,6 +19,8 @@ export const ROUNDS = Object.freeze({
   marksman: Object.freeze({ speed: 830, flash: 0.17 }),
   sniper: Object.freeze({ speed: 850, flash: 0.2 }),
   shotgun: Object.freeze({ speed: 400, flash: 0.22 }),
+  grenade: Object.freeze({ speed: 76, flash: 0.3, look: 'grenade' }),
+  rocket: Object.freeze({ speed: 120, flash: 0.6, look: 'rocket' }),
 });
 
 /** A gun's round as its weapon carries it (a fresh object: a weapon is the world's to change). */

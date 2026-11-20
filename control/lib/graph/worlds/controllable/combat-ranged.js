@@ -70,8 +70,8 @@ export function buildCombatRanged(E) {
     return seen / pts.length;
   }
   // crosshairPoint(e, state, range) — where an over-the-shoulder camera's crosshair (the centre of its view: a follow
-  // camera on `e`, looking from where it is at its look point) falls: the first wall or body (not e's own) on that ray,
-  // else `range` out. null when no such camera follows e. `peek`: written nowhere (the page's reticle asks every frame).
+  // camera on `e`, looking from where it is at its look point) falls: the first wall, body (not e's own) or the ground
+  // plane (z = 0) on that ray, else `range` out. null when no such camera follows e. `peek`: written nowhere (the page's reticle asks every frame).
   function crosshairPoint(e, state, range, peek = false) {
     const cam = state.camera;
     if (!cam || !cam.rule || cam.rule.type !== 'follow' || cam.rule.target !== e.id || !cam.lookAt) return null;
@@ -86,6 +86,9 @@ export function buildCombatRanged(E) {
     let best = reach;
     const wt = nearestWallT(S, far, state.colliders);
     if (wt != null) best = t0 + wt * (reach - t0);
+    // (and the ground under it, the plane a travelling round bursts on: a crosshair on open ground is on the ground, not
+    // under it at the range, so a lobbed round aimed there comes down there)
+    if (d[2] < -1e-6) { const tg = -C[2] / d[2]; if (tg > t0 && tg < best) best = tg; }
     for (const tg of state.entities) {
       if (tg === e || tg.isCamera || !(tg.body && tg.body.hittable && tg.body.egg)) continue;
       const te = hitEgg(C, d, tg);
@@ -112,6 +115,45 @@ export function buildCombatRanged(E) {
     const k = 1 - 0.02 / L, Pn = [M[0] + (P[0] - M[0]) * k, M[1] + (P[1] - M[1]) * k, M[2] + (P[2] - M[2]) * k];
     const t = nearestWallT(M, Pn, state.colliders);
     return t != null ? lerp3(M, Pn, t) : null;
+  }
+  // lobAim(from, to, speed, gravity) → [heading, pitch]: the launch that carries a round from `from` through `to` at
+  // `speed` under `gravity` (the low arc, the flatter of the two; straight at it without gravity), or, where `to` is past
+  // its reach, the farthest arc (45°) toward it
+  function lobAim(from, to, speed, gravity) {
+    const dx = to[0] - from[0], dy = to[1] - from[1], h = to[2] - from[2], d = Math.hypot(dx, dy), H = Math.atan2(dy, dx);
+    if (!(gravity > 0)) return [H, Math.atan2(h, d)];
+    if (d < 1e-3) return [H, h >= 0 ? Math.PI / 2 : -Math.PI / 2];
+    const v2 = speed * speed, disc = v2 * v2 - gravity * (gravity * d * d + 2 * h * v2);
+    return [H, disc >= 0 ? Math.atan((v2 - Math.sqrt(disc)) / (gravity * d)) : Math.PI / 4];
+  }
+  // lobPath(e, state, step?) — an over-the-shoulder launcher's round as it would fly now (its launch through the
+  // crosshair, its climb, no cone), integrated as stepProjectiles flies it: { pts (every few steps' place), at (where
+  // it bursts), hit (the body it meets, else null), radius (its burst's reach) }, or null when no such camera follows e or
+  // its gun is no launcher. For the page's arc and landing mark; nothing is written.
+  function lobPath(e, state, step = 1 / 60) {
+    const w = e.weapon;
+    if (!w || w.fireClass !== 'lob' || !w.converge) return null;
+    const P = crosshairPoint(e, state, w.range ?? 80, true);
+    if (!P) return null;
+    const from = muzzleAt(e, w), sp = w.projectileSpeed || 60, g = w.projectileGravity || 0, L = lobAim(from, P, sp, g);
+    const dir = fwd3(L[0], L[1] + (w.kickNow || 0) * DEG);
+    let pos = from.slice(), vel = [dir[0] * sp, dir[1] * sp, dir[2] * sp], age = 0, hit = null;
+    const pts = [pos.slice()], fuse = w.fuse || 4;
+    for (let k = 0; age < fuse && k < 2400; k++) {
+      const prev = pos;
+      vel = [vel[0], vel[1], vel[2] - g * step]; pos = [pos[0] + vel[0] * step, pos[1] + vel[1] * step, pos[2] + vel[2] * step]; age += step;
+      if (age >= (w.armTime || 0)) {
+        for (const tg of state.entities) {
+          if (tg === e || !(tg.body && tg.body.hittable && tg.body.egg) || tg.downed || tg.gone) continue;
+          if (pointInEgg(pos, tg, w.projRadius || 0)) { hit = tg.id; break; }
+        }
+        const wt = state.colliders ? nearestWallT(prev, pos, state.colliders) : null;
+        if (wt != null) pos = lerp3(prev, pos, wt);
+        if (hit || wt != null || pos[2] <= 0) { if (pos[2] < 0) pos[2] = 0; pts.push(pos.slice()); break; }
+      }
+      if (k % 3 === 2) pts.push(pos.slice());
+    }
+    return { pts, at: pos, hit, radius: Math.max(w.splashRadius || 0, w.projRadius || 0) };
   }
   function initWeapon(w) {
     if (!w || typeof w !== 'object') return null;
@@ -189,7 +231,7 @@ export function buildCombatRanged(E) {
       fxScale: w.fxScale ?? null,         // effect base size (renderer)
       // A ROUND (opt-in, gameworld/rounds.js): a small arm's look on the page, `speed` (m/s) its streak's and `flash` (m) its
       // muzzle flash's length; absent, the renderer's bolt and burst at fxScale, as before
-      ...(w.round && typeof w.round === 'object' ? { round: { speed: w.round.speed > 0 ? w.round.speed : 800, flash: w.round.flash > 0 ? w.round.flash : 0.12 } } : {}),
+      ...(w.round && typeof w.round === 'object' ? { round: { speed: w.round.speed > 0 ? w.round.speed : 800, flash: w.round.flash > 0 ? w.round.flash : 0.12, ...(typeof w.round.look === 'string' ? { look: w.round.look } : {}) } } : {}),
       smokeTrail: w.smokeTrail ?? true,    // lob projectile smoke trail toggle (grenades opt out; bazookas keep it)
       reticleDist: w.reticleDist ?? null, // how far ahead the crosshair marks the aim point (renderer)
       sfx: w.sfx && typeof w.sfx === 'object' ? w.sfx : null,   // per-weapon SFX cues { shot?, hit?, reload? } — the audio channel prefers these over the world-level ones (a beam rifle and a machine gun sound different)
@@ -399,6 +441,11 @@ export function buildCombatRanged(E) {
       if (held) {
         const d = held.dir, L = Math.hypot(d[0], d[1], d[2]) || 1e-6;
         baseH = Math.atan2(d[1], d[0]); baseP = Math.asin(clamp(d[2] / L, -1, 1)); origin = from.slice();
+      } else if (conv && w.fireClass === 'lob') {
+        // A LAUNCHED ROUND THROUGH THE CROSSHAIR: from the muzzle at its speed, the low arc that passes the point under
+        // the crosshair (straight at it without gravity); past its reach, the farthest arc (45°) toward it
+        const L = lobAim(from, conv, w.projectileSpeed || 60, w.projectileGravity || 0);
+        baseH = L[0]; baseP = L[1]; origin = from.slice();
       } else if (conv) {
         // WHAT IS SEEN IS HIT: the round is resolved along the crosshair's own ray, from the shooter's depth on it (its
         // cone and its climb round that ray), so it lands under the crosshair at every range, and the muzzle's line to
@@ -423,7 +470,7 @@ export function buildCombatRanged(E) {
         // UP by lobAngle° (the arc); velocity = that direction · projectileSpeed. stepProjectiles
         // integrates it under gravity and adjudicates the burst. lastShot carries to:null so the
         // hitscan fx channel draws nothing — the projectile channel owns lob visuals.
-        const la = (w.lobAngle || 0) * Math.PI / 180;
+        const la = conv ? 0 : (w.lobAngle || 0) * Math.PI / 180;
         // (a gun's dispersion: the seeded cone above, when the weapon has one, carried by the round; absent, as aimed)
         const dir = w.spread ? fwd3(Math.atan2(aim[1], aim[0]), Math.asin(clamp(aim[2], -1, 1)) + la) : fwd3(baseH, baseP + la);
         const sp = w.projectileSpeed || 60;
@@ -434,6 +481,7 @@ export function buildCombatRanged(E) {
           // (a charged round carries the charge's damage, a bow's arrow drawn full; any other the weapon's own)
           damage: chargedShot ? shotDamage : (w.damage || 0), impact: shotImpact, born: state.time, age: 0, armTime: w.armTime || 0, fuse: w.fuse || 4, ...(w.projectileDrag ? { drag: w.projectileDrag } : {}),
           fxColor: w.fxColor ?? null, fxScale: w.fxScale ?? null, smokeTrail: w.smokeTrail !== false, ...(w.knock ? { knock: w.knock } : {}),
+          ...(w.round && w.round.look ? { look: w.round.look } : {}),
         });
         e.lastShot = { mode: 'launch', t: state.time, from, to: null, charged: chargedShot };
       } else {
@@ -676,7 +724,7 @@ export function buildCombatRanged(E) {
         if (tg.poise <= 0) armReaction(tg, 'stagger');
       }
     }
-    state.bursts.push({ seq: state.burstSeq++, pos: p.pos.slice(), t: state.time, radius: R, fxColor: p.fxColor, fxScale: p.fxScale, ...(p.knock ? { knock: p.knock, by: p.owner } : {}) });
+    state.bursts.push({ seq: state.burstSeq++, pos: p.pos.slice(), t: state.time, radius: R, fxColor: p.fxColor, fxScale: p.fxScale, ...(p.knock ? { knock: p.knock, by: p.owner } : {}), ...(p.look ? { look: p.look } : {}) });
   }
 
   // R20.3: passive weapon timers tick for EVERY carried weapon, every frame — stowed loadout
@@ -785,5 +833,5 @@ export function buildCombatRanged(E) {
     stepProjectiles(state, dt);
   }, 30);
 
-  Object.assign(E, { initWeapon, cancelWeaponCharge, tickWeapon, stepWeapon, stepProjectiles, burstProjectile, muzzleAt, bodyExposure, crosshairPoint, shotBlocked, HAND, HEAD_BAND, OVERDRIVE, stepMissiles });
+  Object.assign(E, { initWeapon, cancelWeaponCharge, tickWeapon, stepWeapon, stepProjectiles, burstProjectile, muzzleAt, bodyExposure, crosshairPoint, shotBlocked, lobAim, lobPath, HAND, HEAD_BAND, OVERDRIVE, stepMissiles });
 }

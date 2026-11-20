@@ -9,7 +9,7 @@
 //               body ahead of the guard (a cylinder along the bore, its radius the part's half girth, the hand free to
 //               slide along `slide`); a handgun has none of its own, the support hand wraps the strong one (`wrap`)
 //     butt      the stock's pad (the shoulder pocket's), absent on a handgun
-//     sight     the sight line: { y (its height over the bore), rear, front (z), kind (irons | reddot | holo | scope |
+//     sight     the sight line: { y (its height over the bore), x (only where it is off the bore's side), rear, front (z), kind (irons | reddot | holo | scope |
 //               smart), zoom (the magnification it reads at), relief (cm the eye sits behind its rear: a scope's is
 //               fixed; an open sight's is where the cheek puts it) }
 //     magazine  the magazine's well and its bottom (a reload's hand goes there)
@@ -46,6 +46,8 @@ const BY_ITEM = Object.freeze({
   rifle: { class: 'long', kg: 3.6, aimTime: 0.3, swapOut: 0.34, swapIn: 0.52, sway: 2, recoil: 1.8 },
   smg: { class: 'long', kg: 2.8, aimTime: 0.22, swapOut: 0.28, swapIn: 0.4, sway: 2.4, recoil: 1.2 },
   shotgun: { class: 'shotgun', kg: 3.6, aimTime: 0.3, swapOut: 0.36, swapIn: 0.55, sway: 2.4, recoil: 6 },
+  // (a loaded six-shot 40 mm launcher: heavy and slow to the eye, a shove more than a climb)
+  launcher: { class: 'long', kg: 6, aimTime: 0.42, swapOut: 0.45, swapIn: 0.7, sway: 2.6, recoil: 7 },
 });
 const BY_MODEL = Object.freeze({
   'pistol/compact': { kg: 0.75, aimTime: 0.15 }, 'pistol/heavy': { kg: 1.2, recoil: 6 }, 'pistol/revolver': { kg: 1.1, recoil: 6.5 },
@@ -54,6 +56,8 @@ const BY_MODEL = Object.freeze({
   'rifle/sniper': { zoom: 8, kg: 6.4, aimTime: 0.5, swapOut: 0.42, swapIn: 0.7, sway: 1.1, recoil: 5.5 },
   'rifle/caseless': { kg: 3.9 }, 'rifle/coilgun': { kg: 5.2, aimTime: 0.36, recoil: 1.2 }, 'rifle/bullpup': { kg: 3.8, aimTime: 0.27 },
   'smg/pdw': { kg: 2.6 }, 'shotgun/breacher': { kg: 4.2, recoil: 4 }, 'shotgun/tactical': { kg: 3.8 },
+  // (a bazooka: long and front-heavy on the shoulder, slower to bring round; a rocket leaves with little kick)
+  'launcher/rocket': { kg: 8.5, aimTime: 0.55, swapOut: 0.5, swapIn: 0.9, sway: 2.0, recoil: 3 },
 });
 
 const MEMO = new Map();
@@ -169,13 +173,16 @@ export function armHandling(build) {
   let sight;
   if (kind !== 'irons' && B.optic) {
     const o = B.optic, y = kind === 'scope' ? mid(o, 1) : o.lo[1] + 0.62 * (o.hi[1] - o.lo[1]);
-    sight = { y: r3(y), rear: r3(o.lo[2]), front: r3(o.hi[2]), kind, zoom: (kind === 'scope' && BY_MODEL[`${build.item}/${model}`]?.zoom) || (SIGHT_ZOOM[kind] ?? 1), relief: kind === 'scope' ? SCOPE_RELIEF : null };
+    // (a sight off the bore's side, a bazooka's on its left: its line's x, where the eye goes)
+    const sx = mid(o, 0);
+    sight = { y: r3(y), rear: r3(o.lo[2]), front: r3(o.hi[2]), kind, zoom: (kind === 'scope' && BY_MODEL[`${build.item}/${model}`]?.zoom) || (SIGHT_ZOOM[kind] ?? 1), relief: kind === 'scope' ? SCOPE_RELIEF : null, ...(Math.abs(sx) > 0.5 ? { x: r3(sx) } : {}) };
   } else {
     // (a bead alone, a shotgun's: the eye runs along the receiver's top to it)
     const s = B.sights ?? B.rail ?? B.upper ?? B.body ?? B.frame, top = B.slide ?? B.upper ?? B.receiver ?? B.body ?? B.frame;
     const bead = B.sights && B.sights.hi[2] - B.sights.lo[2] < 5;
     const y = s ? s.hi[1] : 3, rear = bead && top ? top.lo[2] : s ? s.lo[2] : -5, front = B.sights ? B.sights.hi[2] : S.tip.origin[2] - 2;
-    sight = { y: r3(y), rear: r3(rear), front: r3(front), kind: 'irons', zoom: 1, relief: null };
+    const sx = B.sights ? mid(B.sights, 0) : 0;
+    sight = { y: r3(y), rear: r3(rear), front: r3(front), kind: 'irons', zoom: 1, relief: null, ...(Math.abs(sx) > 0.5 ? { x: r3(sx) } : {}) };
   }
   const mag = B.magazine ? { at: [0, r3(B.magazine.hi[1] - 1), r3(mid(B.magazine, 2))], bottom: [0, r3(B.magazine.lo[1]), r3(mid(B.magazine, 2))] } : null;
   const { zoom: _z, ...own } = BY_MODEL[`${build.item}/${model}`] ?? {};
