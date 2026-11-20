@@ -3,11 +3,13 @@
  * (armor/styles.js `herobot`, armor/toy.js) under the hero robot's helm (headgear/cards.js heroBotHelm, its face window
  * open: a hero's face is its own), told apart by their colours, what grows from the helm, and what they fight with.
  *
- *   galaxy-boy   blue and cyan, a red gem; the arm cannon on his right arm (the buster)
+ *   galaxy-boy   velour green, matcha and light green rims, a red gem, his suit plain (ornament 1); the arm cannon on his
+ *                right arm (the buster)
  *   zero-boy     Galaxy Boy in red, a yellow ponytail out of the helm's back, a blue gem; no cannon: a saber in his right
  *                hand (equipment/styles.js `saber`: a neon blade out of a machined hilt)
  *
- *   HEROBOTS            { <id>: { name, palette, helm?, cannon?, gear?, variant } }   `variant` the feel's (feel/cards.js
+ *   HEROBOTS            { <id>: { name, palette, dials?, helm?, cannon?, gear?, variant } }   `dials` the suit's (armor
+ *                       expand.js: ornament 0 to 3) over the herobot style's   `variant` the feel's (feel/cards.js
  *                       galaxy-boy's variants: how the hero plays)
  *   herobotSpec(id)     → the hero door's spec (create_character { as: 'hero' } / mint_solid via hero)
  *
@@ -19,8 +21,13 @@ import { HEROBOT_HELM } from '../headgear/cards.js';
 export const HEROBOTS = Object.freeze({
   'galaxy-boy': {
     name: 'Galaxy Boy',
-    palette: { Armor: '#1f5fc8', Cuff: '#7fd4ff', Chest: '#1f5fc8', Pec: '#3f8ef2', Plaque: '#8fd6ff', Gem: '#c4122f', Top: '#4aa8ff', Bottom: '#4aa8ff', Shoes: '#1f5fc8',
-      ArmorHighlight: '#a9d3ff', CuffHighlight: '#e8f8ff', GemHighlight: '#ff7d96', ChestHighlight: '#a9d3ff', PecHighlight: '#b4dcff' },
+    // (velour green: the armour a deep plush green, the suit between it (the lighter tone) a matcha, every rim of the
+    // armour (its cuffs, its lips, the helm's window and V) a light green that catches the eye; the gem red across the wheel)
+    palette: { Armor: '#2a6340', Cuff: '#c9f7a6', Chest: '#2a6340', Pec: '#3c7d52', Plaque: '#cfe6a4', Gem: '#c4122f', Top: '#9fbb64', Bottom: '#9fbb64', Shoes: '#2a6340',
+      ArmorHighlight: '#78b089', CuffHighlight: '#f1fde6', GemHighlight: '#ff7d96', ChestHighlight: '#78b089', PecHighlight: '#82c18f' },
+    // (its suit at ORNAMENT 1: the moulded pieces and their light rims, no plaques on the chest and belly and no thigh rims,
+    // so it reads whole at a close-up as at the side map's distance)
+    dials: { ornament: 1 },
     cannon: 'R', variant: 'buster',
   },
   'zero-boy': {
@@ -44,7 +51,7 @@ export function herobotSpec(id) {
   const helm = { ...structuredClone(HEROBOT_HELM), signature: { ...structuredClone(HEROBOT_HELM.signature), ...structuredClone(H.helm ?? {}) } };
   return {
     ...gameBody('herobot', 'hero').spec, hair: 'none',
-    adorn: { type: 'armor', style: 'herobot', ...(H.cannon ? { language: { cannon: H.cannon } } : {}), with: [helm] },
+    adorn: { type: 'armor', style: 'herobot', ...(H.dials ? { dials: { ...H.dials } } : {}), ...(H.cannon ? { language: { cannon: H.cannon } } : {}), with: [helm] },
     palette: { ...H.palette },
     ...(H.gear ? { gear: structuredClone(H.gear) } : {}),
   };

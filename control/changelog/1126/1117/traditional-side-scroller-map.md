@@ -373,3 +373,8 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   shutter coming down, Bulwark rolling at the hero firing, steaming, turning
   round at the near side and coming back, in the cel light and ink, lifting a rock, throwing it in an arc, the rock
   shot apart in the air.
+- **Galaxy Boy in velour green**: his armour a deep plush green, the suit between it (the lighter tone) a matcha, every
+  rim of the armour (the cuffs, the lips, the helm's window and V) a light green, the gem red across the wheel; and his
+  suit plainer, at ornament 1 (a hero's own `dials` over the herobot style's: no plaques on the chest and belly, no
+  thigh rims), so it reads whole at a close-up as at the side map's distance. Law (herobots.test.js): a hero's dials
+  reach its armour, and every herobot is three tones light at the edges (rims over suit over armour).
