@@ -53,6 +53,7 @@ import { audioFeatures, pagePatches } from './beats-features.js';
 import { safeJson } from '../scene/emit-util.js';
 import { parseFieldSpec, fieldCue, seedOfRef } from './field-cue.js';
 import { SCORE_MOODS } from './field-score.js';
+import { CLUB_MOODS } from './club-score.js';
 import { SFX_PALETTES, SFX_PALETTE_NAMES, levelSfx, MECHANIC_SFX } from './sfx-palettes.js';
 import { sfxSound } from '../sfx-shelf/resolve.js';
 import { bedManifest, resolveBed, BEDS } from '../sfx-shelf/beds.js';
@@ -179,6 +180,19 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     if (audioSpec.beat !== undefined) throw new Error('audio.beat runs on one steady soundtrack: a level with audio.combat changes its music, so it cannot keep a beat');
     out.combat = resolveTrack(audioSpec.combat, { ...ctx, game: identity }, 'audio.combat').recipe;
     out.tension = resolveTension(audioSpec.tension, Array.isArray(ctx.mechanics) ? ctx.mechanics : []);
+  }
+
+  // THE MUSIC AN EVENT CHANGES TO (a cue's `music`, playscape/ui/cues.js: `music:<word>` on the bus): each mood the
+  // level's play names a piece of its own, in the soundtrack's identity (the game's key), played crossfaded in place of
+  // the place's score; `stop` and `place` need none. Named by none, not a byte.
+  if (Array.isArray(ctx.music) && ctx.music.length) {
+    const pieces = {};
+    for (const w of ctx.music) {
+      if (w === 'stop' || w === 'place') continue;
+      const club = !SCORE_MOODS[w] || (clubStyle && CLUB_MOODS[w]);
+      pieces[w] = resolveTrack({ score: { mood: w, ...(club ? { style: 'club' } : {}), ...(identity !== null ? { game: identity } : {}) } }, ctx, `music '${w}'`).recipe;
+    }
+    out.pieces = pieces;
   }
 
   // THE BEAT (audio.beat: { lead? }): the soundtrack's pulse said on the bus, `lead` (0.15 s) before each beat. A beat

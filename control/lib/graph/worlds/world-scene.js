@@ -2121,7 +2121,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const mechanics = Array.isArray(sketch.manifest.game?.mechanics) ? sketch.manifest.game.mechanics.map((m) => m && m.kind).filter(Boolean) : [];
     // (the sounds its play names by word, a cue's `sound`: voiced by its sound sheet)
     const sounds = playEv ? [...new Set((playEv.reactions ?? []).filter((r) => r && r.do === 'emit' && typeof r.type === 'string' && r.type.startsWith('sfx:')).map((r) => r.type.slice(4)))].sort() : [];
-    const resolvedAudio = resolveWorldAudio(desc.audio ? desc.audio(sketch.manifest) : sketch.manifest.audio, { time, ref: sketch.ref, mechanics, ...(sounds.length ? { sounds } : {}) });
+    // (and the music its play changes to by word, a cue's `music`: a piece each mood)
+    const music = playEv ? [...new Set((playEv.reactions ?? []).filter((r) => r && r.do === 'emit' && typeof r.type === 'string' && r.type.startsWith('music:')).map((r) => r.type.slice(6)))].sort() : [];
+    const resolvedAudio = resolveWorldAudio(desc.audio ? desc.audio(sketch.manifest) : sketch.manifest.audio, { time, ref: sketch.ref, mechanics, ...(sounds.length ? { sounds } : {}), ...(music.length ? { music } : {}) });
     if (resolvedAudio) payload.audio = resolvedAudio;
   }
 

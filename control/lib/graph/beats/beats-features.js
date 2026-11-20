@@ -183,6 +183,7 @@ export function audioFeatures(audio) {
   if (!audio || typeof audio !== 'object') return [];
   collect(expandBeatsManifest(audio.soundtrack), set);
   if (audio.combat) collect(expandBeatsManifest(audio.combat), set);
+  for (const r of Object.values(audio.pieces || {})) collect(expandBeatsManifest(r), set);
   if (audio.bed) collect(expandBeatsManifest(audio.bed), set);
   for (const list of Object.values(audio.cues || {})) addGestures(set, list);
   for (const list of Object.values(audio.footsteps || {})) addGestures(set, list);

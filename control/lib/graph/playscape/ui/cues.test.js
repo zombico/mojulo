@@ -265,3 +265,14 @@ describe('a cue\'s sound', () => {
     expect(bus.log.some((e) => e.type === 'sfx:chime')).toBe(true);
   });
 });
+
+describe('a cue\'s music', () => {
+  it('raises music:<word> as it fires: a mood of the score, stop or place; a stinger or no mood refused', () => {
+    expect(() => readCues({ cues: [{ id: 'x', when: { start: true }, then: { music: 'polka' } }] })).toThrow(/a mood of the score/);
+    expect(() => readCues({ cues: [{ id: 'x', when: { start: true }, then: { music: 'victory' } }] })).toThrow(/a mood of the score/);
+    const ev = lowerCues({ cues: [{ id: 'grave', when: { on: 'mourned' }, then: { music: 'sorrow' } }, { id: 'after', when: { on: 'risen' }, then: { music: 'place' } }] }), bus = createBusState(ev, []);
+    processEvents(bus, [{ type: 'mourned' }]);
+    processEvents(bus, [{ type: 'risen' }]);
+    expect(bus.log.filter((e) => e.type.startsWith('music:')).map((e) => e.type)).toEqual(['music:sorrow', 'music:place']);
+  });
+});

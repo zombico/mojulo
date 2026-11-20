@@ -121,3 +121,8 @@
   else every foe standing) and call foes into the fight (`summon: [foes]`, six fighting at most), fought and counted in
   the spoils like the rest. A summoned foe's figure is the next in the encounter's `who`, minted dormant and woken in
   smoke where it stands. A fight whose pages only speak is as it was.
+- **A change of music from an event.** A cue's (or a scene beat's `do`) `music`: a mood of the score (a field mood, or
+  a club's) played in place of the place's, `stop` for silence, `place` for the place's own again. Each mood a level
+  names is a piece of its audio in the soundtrack's identity (`audio.pieces`, `beats/beats-world.js`), faded in on an
+  engine of its own as the score fades out; while it plays, a fight's change of score waits. A level that names none
+  emits not a byte of it.

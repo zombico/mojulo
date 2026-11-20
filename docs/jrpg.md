@@ -158,6 +158,9 @@ A cue's (or a scene beat's `do`) effects may touch the screen and play a sound:
 - `screen: { fade: 'out' | 'in', tint: '#rrggbb' | 'none', flash: '#rrggbb', for? }`: a fade to black and back, the world
   washed in a colour, a flash; undone after `for` seconds or when the cue ends.
 - `sound: '<word>'`: a sound off the SFX shelf by its word (a chime, a door), played as it fires.
+- `music: '<mood>' | 'stop' | 'place'`: the music changes, crossfaded: a mood of the score (`sorrow`, `tension`,
+  `prayer`…) in the level's key in place of the place's, silence, or the place's own again. While a mood plays, a
+  fight's score waits.
 
 A composed party RPG is sounded and scored, so its levels have the music the cue sheet gives each place, and the
 score turns to the fight's while a battle is up (the boss's in the core), back to the place's after.
@@ -167,4 +170,6 @@ score turns to the fight's while a battle is up (the boss's in the core), back t
 Each step ends playable, and each is something a person can say that the words did not carry before. An RPG Maker
 idea is reached through the primitive that already owns it (a switch is a flag, an event page a scene's `if`, a
 transfer a megaworld's way), never rebuilt:
-1. **A change of music from an event** (a scene's own cue).
+1. **A number put in** (a menu that asks how many, or a code): a bus var set by the player.
+2. **Movement routes that find their way** (a townsperson or a foe walked to a place round what stands in the way).
+3. **The fights animated:** the blows, the casts and the falls acted out by the bodies.
