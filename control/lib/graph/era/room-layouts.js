@@ -32,6 +32,8 @@
  * construction and palette give its dressing (era/style/bay-axes.js) is the layout's. docs/facility-pieces.md.
  */
 const r2 = (v) => Math.round(v * 100) / 100;
+// (the dials' widths are a body's with a third-person camera behind it: an aisle two metres and more, never a walker's
+// shoulder room)
 // pieces abreast a seam apart: the dressing keeps a hair between any two (compose-dress.js GAP)
 const SEAM = 0.12;
 
@@ -59,7 +61,7 @@ const spans = (a, b, len, run, cross, shift = 0) => {
 export const LAYOUTS = Object.freeze({
   aisles: Object.freeze({
     reads: 'rows of tall racks down the room\'s length, back to back, broken by cross aisles: a warehouse floor, a store, the stacks; a body walks an aisle out of sight of the next',
-    dials: Object.freeze({ piece: 'rack', aisle: 1.6, run: 3, cross: 'staggered', pair: true, margin: 1.4 }), nudge: false,
+    dials: Object.freeze({ piece: 'rack', aisle: 2.2, run: 3, cross: 'staggered', pair: true, margin: 1.6 }), nudge: false,
     lay(room, o, piece) {
       const F = frame(room), P = piece(o.piece), depth = o.pair ? 2 * P.d + SEAM : P.d, pitch = depth + o.aisle;
       const span = F.Lv - 2 * o.margin, n = Math.max(1, Math.floor((span + o.aisle) / pitch)), v0 = o.margin + (span - (n * pitch - o.aisle)) / 2;
@@ -76,7 +78,7 @@ export const LAYOUTS = Object.freeze({
   }),
   machines: Object.freeze({
     reads: 'big plant on a staggered grid, lanes between: a generator hall, a pump room; the tall machines stop a standing gaze, the low ones a crouch\'s',
-    dials: Object.freeze({ pieces: Object.freeze(['generator', 'pump', 'switchgear']), lane: 1.8, fill: 0.85, margin: 1.4 }), nudge: true,
+    dials: Object.freeze({ pieces: Object.freeze(['generator', 'pump', 'switchgear']), lane: 2.2, fill: 0.85, margin: 1.6 }), nudge: true,
     lay(room, o, piece, dice) {
       const F = frame(room), Ps = o.pieces.map(piece), cw = Math.max(...Ps.map((P) => P.w)) + o.lane, cd = Math.max(...Ps.map((P) => P.d)) + o.lane;
       const nu = Math.max(1, Math.floor((F.Lu - 2 * o.margin + o.lane) / cw)), nv = Math.max(1, Math.floor((F.Lv - 2 * o.margin + o.lane) / cd));
@@ -93,7 +95,7 @@ export const LAYOUTS = Object.freeze({
   }),
   islands: Object.freeze({
     reads: 'pods of desks back to back, a cabinet at one end: an office floor, a control room; low cover a crouch or a crawl keeps behind, a gaze over it',
-    dials: Object.freeze({ piece: 'desk', end: 'filing', per: 2, lane: 1.5, margin: 1.4 }), nudge: true,
+    dials: Object.freeze({ piece: 'desk', end: 'filing', per: 2, lane: 2, margin: 1.6 }), nudge: true,
     lay(room, o, piece, dice) {
       const F = frame(room), P = piece(o.piece), E = o.end ? piece(o.end) : null;
       const pu = o.per * (P.w + SEAM) + (E ? E.d + SEAM : 0), pv = 2 * P.d + SEAM, cw = pu + o.lane, cd = pv + o.lane;
@@ -109,7 +111,7 @@ export const LAYOUTS = Object.freeze({
   }),
   stockpile: Object.freeze({
     reads: 'clumps of crates stacked by the dice on a jittered grid: a yard store, a hold; a winding way through, a stack to crouch behind or climb',
-    dials: Object.freeze({ piece: 'crate', spacing: 3.8, jitter: 0.6, margin: 1.4 }), nudge: true,
+    dials: Object.freeze({ piece: 'crate', spacing: 4.4, jitter: 0.6, margin: 1.6 }), nudge: true,
     lay(room, o, piece, dice) {
       const F = frame(room), P = piece(o.piece), q = P.w + SEAM, out = [];
       // (a clump's shape: crates on a grid of their own size, a square, an L, a line or a T)
@@ -127,7 +129,7 @@ export const LAYOUTS = Object.freeze({
   }),
   chicane: Object.freeze({
     reads: 'blocks of crates against the long walls by turns, each reaching past the middle: a corridor that is no hallway; no gaze runs its length, the way through a weave',
-    dials: Object.freeze({ piece: 'crate', cover: 0.6, len: 2, gap: 2.6, margin: 1.5 }), nudge: false,
+    dials: Object.freeze({ piece: 'crate', cover: 0.6, len: 2, gap: 2.8, margin: 1.6 }), nudge: false,
     lay(room, o, piece, dice, fits = () => true) {
       const F = frame(room), P = piece(o.piece), qu = P.w + SEAM, qv = P.d + SEAM, out = [];
       // (a block: `len` pieces along the corridor, as many across as reach `cover` of its width, a body's way left past it)
@@ -158,7 +160,7 @@ export const LAYOUTS = Object.freeze({
   }),
   rows: Object.freeze({
     reads: 'benches or bunks in rows across the room from each long wall, a centre aisle down it: a workshop, a dormitory, a mess; the rows a body ducks between',
-    dials: Object.freeze({ piece: 'workbench', aisle: 1.8, lane: 1.3, margin: 1.2 }), nudge: false,
+    dials: Object.freeze({ piece: 'workbench', aisle: 2.4, lane: 1.6, margin: 1.4 }), nudge: false,
     lay(room, o, piece) {
       const F = frame(room), P = piece(o.piece), pitch = P.d + o.lane, out = [];
       // (each row a line of pieces across the room, its long side across, from the wall to the centre aisle)
@@ -211,7 +213,7 @@ export function layoutOf(L, roomId, role) {
 
 // THE LAWS, on the room alone: a grid of its floor, the pieces as boxes ({ min: [x, y], max: [x, y], h })
 const CELL = 0.25, BODY = 0.35, WATCH = 1.35, STAND = 1.275, CROUCH = 0.825, REACH = 3;
-export const HALL = 60;
+export const HALL = 100;
 
 /**
  * A laid room's laws. `room` { x0, y0, x1, y1 }, `boxes` its pieces' footprints with their heights, `doors` its doorways
@@ -221,7 +223,7 @@ export const HALL = 60;
  *   sight-broken     from no doorway does a watcher see three quarters of the floor a body stands on (a corridor, three
  *                    times as long as it is wide: from neither end does a watcher see more than three fifths of it)
  *   cover-in-reach   nine tenths of the floor is within three metres of a piece a crouch hides behind
- * A way round and a broken gaze are a HALL's (a floor of HALL square metres or more, or a corridor's length): a room
+ * A way round and a broken gaze are a HALL's (a floor of HALL square metres or more, ten metres square, or a corridor's length): a room
  * smaller is crossed in a breath, its doorway its cover, and is held to the other two.
  */
 export function layoutLaws(room, boxes, doors) {

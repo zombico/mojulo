@@ -61,10 +61,10 @@ export function placeRecipe(L, spine) {
 export const STRUCTURE = Object.freeze({
   sandbags: Object.freeze({ h: 1.0, d: 0.75, fill: '#8a7a55', top: '#9c8b62' }),
   wire: Object.freeze({ h: 0.9, d: 0.6, fill: '#3a3d40', stake: '#5a4630' }),
-  tower: Object.freeze({ height: 4, side: 2.6, leg: 0.22, deck: 0.18, rail: 1.0, fill: '#5d4a33', deckFill: '#6d5a40', dark: '#463626', roofFill: '#4c5546',
+  tower: Object.freeze({ height: 4, side: 3, leg: 0.22, deck: 0.18, rail: 1.0, fill: '#5d4a33', deckFill: '#6d5a40', dark: '#463626', roofFill: '#4c5546',
     // (its stair: a straight flight out from one side to the ground, risers the walker steps up, a handrail; its roof a
     // pyramid over the deck, the eave and the apex over the deck, the eave standing past it)
-    stair: Object.freeze({ rise: 0.25, going: 0.28, width: 0.95 }), roof: Object.freeze({ eave: 2.2, apex: 2.85, over: 0.35 }) }),
+    stair: Object.freeze({ rise: 0.22, going: 0.3, width: 1.4 }), roof: Object.freeze({ eave: 2.2, apex: 2.85, over: 0.35 }) }),
 });
 // (the deck's frame's underside: over a guard's head (1.8) with the 0.4 the page sinks every box into the ground under it)
 const FRAME_LOW = 2.4;

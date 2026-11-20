@@ -224,7 +224,7 @@ export function planProgram(program, kitId = 'gothic-stone', { civilization = nu
   const use = program.use, P = PROGRAMS[use];
   if (!P) throw new Error(`program: use '${use}' is not one (${PROGRAM_IDS.join(', ')})`);
   // (a building's settings are its plan's: storeys, wings, loading, bays; a house's are its rooms')
-  const settings = P.shape === 'core' ? ['use', 'seed', 'civilization', 'storeys', 'wings', 'loading', 'bays', 'basement', 'fight', 'layouts'] : ['use', 'seed', 'rooms', 'add', 'civilization', 'scale', 'fight', 'layouts'];
+  const settings = P.shape === 'core' ? ['use', 'seed', 'civilization', 'storeys', 'wings', 'loading', 'bays', 'basement', 'fight', 'layouts', 'scale'] : ['use', 'seed', 'rooms', 'add', 'civilization', 'scale', 'fight', 'layouts'];
   for (const k of Object.keys(program)) if (!settings.includes(k)) throw new Error(`program: '${k}' is not a setting (${settings.join(', ')})`);
   // (designed as a fighting map, opt-in: FIGHT)
   const fight = readFight(program.fight);
@@ -380,7 +380,8 @@ export function withProgram(m) {
     ...(P.lifts && rest.lifts === undefined && rest.rooms === undefined ? { lifts: P.lifts } : {}),
     ...(PROGRAMS[program.use]?.kit && m.kit === undefined && !cube ? { kit: kitId } : {}),
     // (a building climbs by a game's stair: construction/circulation.js `game`, a switchback with room at its ends)
-    ...(PROGRAMS[program.use]?.shape === 'core' && rest.stair === undefined ? { stair: 'game' } : {}),
+    // (laid larger, program-core.js `scale`: the hall's stair, wider, with more floor at its ends)
+    ...(PROGRAMS[program.use]?.shape === 'core' && rest.stair === undefined ? { stair: (program.scale ?? 1) > 1 ? 'hall' : 'game' } : {}),
     ...(level !== undefined ? { level } : {}),
     _program: { use: P.use, ...(PROGRAMS[P.use]?.base ? { base: true } : {}), ...(PROGRAMS[P.use]?.hospital ? { hospital: true } : {}), reads: P.reads, entry: P.entry, goal: P.goal, front: P.front, language: P.language, rooms: P.rooms.map((r) => r.id),
       // (on storeys, the rooms each holds, the ground first)

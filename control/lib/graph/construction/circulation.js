@@ -49,10 +49,14 @@ export const DESIGN_RULES = Object.freeze({
  *   game  a building's in a game: about 34°, a flight wide enough for two abreast and a camera behind, a switchback (a
  *         storey's rise in two short flights, the landing a turn to look back from), two metres of floor at each end and
  *         a metre and a half more between any doorway and either
+ *   hall  a building's in a game laid larger (a program's `scale` over 1, era/program-core.js): flights three metres wide
+ *         and a shallower going, three metres of floor at each end and on the landing, a wider well: a body and a camera
+ *         behind it turn on it without touching a wall or the rail
  */
 export const STAIR_PROFILES = Object.freeze({
   keep: Object.freeze({ shape: 'straight', riser: 0.3, going: 0.3, width: 1.6, in: 0.6, foot: 0.6, head: 1.2, body: 0.45, door: 1.2, guard: Object.freeze({ h: 1, t: 0.15 }) }),
   game: Object.freeze({ shape: 'switchback', riser: 0.2, going: 0.3, width: 2, in: 0.6, foot: 2, head: 2, body: 0.45, door: 2.7, guard: Object.freeze({ h: 1.1, t: 0.15 }), landing: 2, well: 0.4 }),
+  hall: Object.freeze({ shape: 'switchback', riser: 0.19, going: 0.32, width: 3, in: 0.6, foot: 3, head: 3, body: 0.45, door: 3.2, guard: Object.freeze({ h: 1.1, t: 0.15 }), landing: 3, well: 0.8 }),
 });
 export const STAIR_PROFILE_IDS = Object.freeze(Object.keys(STAIR_PROFILES));
 

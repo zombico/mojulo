@@ -43,10 +43,15 @@ const hallOf = (P) => P.rooms.filter((r) => (r.storey ?? 0) === 0 && !/^(core|lo
 function crossing(P, r) {
   const D = doorsOf(P, r), a = D[0], far = (q) => Math.hypot(q[0] - a[0], q[1] - a[1]);
   const b = D.length > 1 ? D.reduce((p, q) => (far(q) > far(p) ? q : p)) : [r.x0 + r.x1 - a[0], r.y0 + r.y1 - a[1]].map((v, k) => Math.min((k ? r.y1 : r.x1) - 0.8, Math.max((k ? r.y0 : r.x0) + 0.8, v)));
-  const alongX = r.x1 - r.x0 >= r.y1 - r.y0, c = alongX ? (r.y0 + r.y1) / 2 : (r.x0 + r.x1) / 2, lo = (alongX ? r.x0 : r.y0) + 2, hi = (alongX ? r.x1 : r.y1) - 2;
+  const boxes = (P.props ?? []).filter((it) => it.room === r.id && PIECES[it.kind]?.solid !== false && !it.wall).map((it) => { const f = footprintOf(it); return { min: [f.min[0], f.min[1], 0], max: [f.max[0], f.max[1], PIECES[it.kind].h * (it.scale ?? 1) * ((it.level ?? 0) + 1)] }; });
+  const alongX = r.x1 - r.x0 >= r.y1 - r.y0, lo = (alongX ? r.x0 : r.y0) + 2, hi = (alongX ? r.x1 : r.y1) - 2;
+  // (its walk down the clear aisle nearest the hall's middle: a line no piece stands on, a body's width either side)
+  const mid = alongX ? (r.y0 + r.y1) / 2 : (r.x0 + r.x1) / 2, k = alongX ? 1 : 0;
+  const clearLine = (v) => !boxes.some((B) => B.min[k] - 0.6 < v && B.max[k] + 0.6 > v && B.max[1 - k] > lo && B.min[1 - k] < hi);
+  let c = mid;
+  for (let d = 0; d < 20; d += 0.25) { if (clearLine(mid + d)) { c = mid + d; break; } if (clearLine(mid - d)) { c = mid - d; break; } }
   const pt = (u) => (alongX ? [u, c] : [c, u]);
   const watcher = { id: 'hall', at: pt(hi), to: pt(lo), speed: 1, cone: 0.8, range: 16, eye: 1.35, hear: 6, look: { secs: 4 }, near: { r: 2, back: 100 } };
-  const boxes = (P.props ?? []).filter((it) => it.room === r.id && PIECES[it.kind]?.solid !== false && !it.wall).map((it) => { const f = footprintOf(it); return { min: [f.min[0], f.min[1], 0], max: [f.max[0], f.max[1], PIECES[it.kind].h * (it.scale ?? 1) * ((it.level ?? 0) + 1)] }; });
   // (one doorway: its far end, slid across the hall to the nearest place no piece stands on)
   if (D.length === 1) {
     const clear = (q) => !boxes.some((B) => q[0] > B.min[0] - 0.6 && q[0] < B.max[0] + 0.6 && q[1] > B.min[1] - 0.6 && q[1] < B.max[1] + 0.6);

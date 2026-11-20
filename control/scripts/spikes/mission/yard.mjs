@@ -50,7 +50,7 @@ if (!laid) { console.error(`yard: the rail lays no stage '${SEG}'`); process.exi
 // the geocube's own path, in gen-7: its cube, its seed, its trail and its buildings the rail's, dressed as a yard.
 const stage = laid.manifest, cubeName = opt('--cube', 'jungle-haze');
 // (the barracks: where the segment seats it and how it is planned, its own words over the rail's)
-const BK = M.segments.perimeter.barracks ?? null, plan = BK ? Object.fromEntries(['at', 'storeys', 'wings', 'loading', 'bays'].filter((k) => BK[k] !== undefined).map((k) => [k, BK[k]])) : {};
+const BK = M.segments.perimeter.barracks ?? null, plan = BK ? Object.fromEntries(['at', 'storeys', 'wings', 'loading', 'bays', 'scale'].filter((k) => BK[k] !== undefined).map((k) => [k, BK[k]])) : {};
 const dress = (b) => (b.enter === 'door' ? b : { ...b, ...(b.use === 'barracks' ? plan : {}), apron: 'slab', yard: { floods: 2, containers: 6 } });
 // (the segment's night: its hour, the cube's light over the preset's (the night's register, its sky), its air and the
 // frame's grade, as level 0's approach is; `--hour` a number over it)
@@ -69,6 +69,8 @@ const { payload } = await resolveWorldScene({ ref: 'steel-serpents-level-1-perim
 const A = payload.anchors ?? [], eye = payload.walk?.minEye ?? 1.7;
 const hangar = A.find((a) => a.kind === 'building' && a.use === 'hangar-bay'), barracks = A.find((a) => a.kind === 'building' && a.use === 'barracks');
 if (!hangar?.door || !barracks?.rooms) { console.error(`yard: the land lays no hangar door or no barracks (${A.filter((a) => a.kind === 'building').map((a) => `${a.use} by ${a.enter}`).join(', ')})`); process.exit(1); }
+// (each building's extent on the yard, said: where a larger one fits is read off this)
+for (const a of A.filter((x) => x.kind === 'building')) { const bs = (a.rooms ?? []).map((r) => r.box), b = bs.length ? [Math.min(...bs.map((q) => q.min[0])), Math.min(...bs.map((q) => q.min[1])), Math.max(...bs.map((q) => q.max[0])), Math.max(...bs.map((q) => q.max[1]))] : null; console.log(`yard: building ${a.id ?? a.use} ${b ? `x ${b[0].toFixed(1)}..${b[2].toFixed(1)}, y ${b[1].toFixed(1)}..${b[3].toFixed(1)}` : `(a shell: ${Object.keys(a).join(', ')}; ${JSON.stringify(a.footprint ?? a.box ?? a.rect ?? a.door ?? null)})`}`); }
 const door = hangar.door, dayRoomOf = barracks.rooms.find((r) => r.id === BK?.key) ?? barracks.rooms.find((r) => /^day-room-1/.test(r.id)), dayRoom = dayRoomOf.box, mid = (b) => [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, b.min[2]];
 const beats = A.filter((a) => a.kind === 'beat'), beat = (re) => beats.find((b) => re.test(b.id))?.at;
 const spawn = [payload.walk.spawn[0], payload.walk.spawn[1], payload.walk.spawn[2] - eye];
@@ -96,6 +98,10 @@ const mission = {
 const exitAt = beat(/^exit/) ?? spawn, lm = beat(/^landmark/) ?? exitAt, rv = beat(/^reveal/) ?? exitAt;
 // (with the barracks past the hangar's door, the second walks the trail between the two)
 const pd = beat(/^pocket-2/) ?? rv, mid2 = BK ? [(pd[0] + rv[0]) / 2, (pd[1] + rv[1]) / 2, (pd[2] + rv[2]) / 2] : [rv[0], rv[1] + 4, rv[2]];
+// (a guard's post out of every building's walls: slid back along the trail toward the pocket until it stands clear)
+const walls = [...payload.colliders.filter((c) => c.max[2] - c.min[2] > 1.2 && (c.max[0] - c.min[0]) * (c.max[1] - c.min[1]) > 0.5), ...barracks.rooms.map((r) => r.box)];
+const inWalls = (x, y) => walls.some((c) => x > c.min[0] - 1.5 && x < c.max[0] + 1.5 && y > c.min[1] - 1.5 && y < c.max[1] + 1.5);
+for (let k = 0; k <= 40 && inWalls(mid2[0], mid2[1]); k++) { const t = 0.025; mid2[0] += (pd[0] - mid2[0]) * t * 4; mid2[1] += (pd[1] - mid2[1]) * t * 4; }
 const rounds = { 'guard-1': { at: [lm[0] - 2, lm[1] - 6, lm[2] + 0.2], heading: Math.PI / 2 }, 'guard-2': { at: [mid2[0], mid2[1], mid2[2] + 0.2], heading: -Math.PI / 2 } };
 // THE SENTRY: the barracks' corridor to the key walked end to end (a patrol's ends, as level 0 lays them), from a metre
 // short of the core to the key room's near edge, looking round at each end; in the corridor it sees a body at its elbow
@@ -106,7 +112,9 @@ if (BK?.sentry) {
   const ax = C.max[0] - C.min[0] > C.max[1] - C.min[1] ? 0 : 1, cx = (C.min[1 - ax] + C.max[1 - ax]) / 2, K = dayRoom, kc = (K.min[ax] + K.max[ax]) / 2;
   // (the key's end of the corridor: the end its room is nearer; the far end its other)
   const keyEnd = Math.abs(kc - C.min[ax]) < Math.abs(kc - C.max[ax]) ? 'min' : 'max', far = keyEnd === 'min' ? C.max[ax] - 1 : C.min[ax] + 1;
-  const near = keyEnd === 'min' ? K.max[ax] + 0.8 : K.min[ax] - 0.8, pt = (u) => r2(ax ? [cx, u, C.min[2] + 0.2] : [u, cx, C.min[2] + 0.2]);
+  // (a corridor too short for a round between the key's room and its far end, a wing a bay long: walked end to end)
+  const near0 = keyEnd === 'min' ? K.max[ax] + 0.8 : K.min[ax] - 0.8, near = Math.abs(near0 - far) < 4 ? (keyEnd === 'min' ? C.min[ax] + 1 : C.max[ax] - 1) : near0;
+  const pt = (u) => r2(ax ? [cx, u, C.min[2] + 0.2] : [u, cx, C.min[2] + 0.2]);
   sentry = { from: pt(far), to: pt(near), S };
 }
 const sentryOf = (e) => {

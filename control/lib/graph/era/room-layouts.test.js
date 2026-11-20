@@ -36,7 +36,7 @@ describe('room layouts', () => {
   it('a room smaller than a hall is held to its doorways and its cover alone; a corridor to the gaze down it, never a way round', () => {
     const small = layoutLaws({ x0: 0, y0: 0, x1: 5.5, y1: 5.5 }, [], [{ X: true, at: 0, into: 1, lo: 2, hi: 3.5 }]);
     expect(small.map((l) => l.law)).toEqual(['doors-joined', 'cover-in-reach']);
-    const corridor = { x0: 0, y0: 0, x1: 18, y1: 3.5 }, ends = [{ X: true, at: 0, into: 1, lo: 0.6, hi: 2.9 }, { X: true, at: 18, into: -1, lo: 0.6, hi: 2.9 }];
+    const corridor = { x0: 0, y0: 0, x1: 22, y1: 4.5 }, ends = [{ X: true, at: 0, into: 1, lo: 1, hi: 3.5 }, { X: true, at: 22, into: -1, lo: 1, hi: 3.5 }];
     const laws = layoutLaws(corridor, boxesOf(lay('chicane', corridor, { piece: 'shelves', len: 2 })), ends);
     expect(laws.map((l) => l.law)).toEqual(['doors-joined', 'sight-broken', 'cover-in-reach']);
     expect(laws.every((l) => l.holds), JSON.stringify(laws)).toBe(true);

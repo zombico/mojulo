@@ -5,7 +5,8 @@
   "brief": "Taken on the trail and locked up, the kit bagged and gone. Get it back, and get out the front door.",
   "building": {
     "use": "cell-block",
-    "seed": 1
+    "seed": 1,
+    "scale": 1.5
   },
   "start": {
     "room": "cell-108",

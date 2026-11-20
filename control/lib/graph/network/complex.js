@@ -7,7 +7,7 @@
  *
  *   { kind: 'stage', complex: { buildings | campus, network?, yard?, seed? }, hour? }
  *     buildings  [{ id, use, at: [x, y] | { beside: <id>, side: '+x' | '-x' | '+y' | '-y', gap? }, facing?, seed?,
- *                storeys?, wings?, loading?, bays?, look? }]: `at` its front door's middle on the yard, or BESIDE another
+ *                storeys?, wings?, loading?, bays?, scale?, layouts?, look? }]: `at` its front door's middle on the yard, or BESIDE another
  *                (its footprint `gap` m off that one's side, 20 m by default, slid along it so a room of its basement
  *                faces one of the other's straight across the gap, else centred on it); `facing` its way in's
  *                (-y by default); `look` its finish on the bay axes ({ construction?, palette?, plot?, dressing? })
@@ -44,7 +44,7 @@ import { groundLess } from '../geocity/podium.js';
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
 const P3 = (p) => p.map(r5);
 const KEYS = ['buildings', 'campus', 'network', 'yard', 'seed'];
-const B_KEYS = ['id', 'use', 'at', 'facing', 'seed', 'storeys', 'wings', 'loading', 'bays', 'look', 'layouts'];
+const B_KEYS = ['id', 'use', 'at', 'facing', 'seed', 'storeys', 'wings', 'loading', 'bays', 'look', 'layouts', 'scale'];
 const SIDES = ['+x', '-x', '+y', '-y'];
 // the yard's light (a fixed sun, the page draws every face unlit: its light baked), its colours, a facade's palette
 const SUN = [0.42, -0.5, 0.76], YARD = '#8d8a83', ROOF = '#6f6e6a', GLASS = '#2e3a44';
@@ -93,7 +93,7 @@ export function layComplex(C, { built = true } = {}) {
   while (pending.length) {
     const i = pending.findIndex((b) => !b.at?.beside || fits.has(b.at.beside));
     if (i < 0) throw new Error(`complex: ${pending.map((b) => b.id).join(', ')} stand beside each other in a ring: one needs an at: [x, y]`);
-    const b = pending.splice(i, 1)[0], facing = b.facing ?? '-y', spec = { use: b.use, ...Object.fromEntries(['seed', 'storeys', 'wings', 'loading', 'bays', 'layouts'].filter((k) => b[k] !== undefined).map((k) => [k, b[k]])), ...(b.look ? { compose: b.look } : {}) };
+    const b = pending.splice(i, 1)[0], facing = b.facing ?? '-y', spec = { use: b.use, ...Object.fromEntries(['seed', 'storeys', 'wings', 'loading', 'bays', 'layouts', 'scale'].filter((k) => b[k] !== undefined).map((k) => [k, b[k]])), ...(b.look ? { compose: b.look } : {}) };
     let at = b.at;
     if (!Array.isArray(at)) {
       // (its footprint off the other's side by the gap, its middle along that side the other's)

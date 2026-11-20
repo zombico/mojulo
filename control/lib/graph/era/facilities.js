@@ -7,7 +7,8 @@
  * keeps the use's rooms and makes them a ground: the hall a maze, the corridors stacked, a second door to every room.
  * A new facility is a row.
  *
- *   FACILITIES   { <id>: { reads, use, look: { construction, palette }, fight, layouts, moves } }
+ *   FACILITIES   { <id>: { reads, use, scale, look: { construction, palette }, fight, layouts, moves } }
+ *     scale      how much larger than a walker needs it is laid (era/program-core.js): a third-person camera's room
  *     moves      what a body does there, in a line: the routes its pieces make (a level's design reads it)
  *
  *   facilityBuilding(id) → the building it is ({ use, look, fight, layouts }): a level's `building` or a space's, the
@@ -20,8 +21,8 @@ const row = (o) => Object.freeze({ ...o, look: Object.freeze(o.look), fight: Obj
 export const FACILITIES = Object.freeze({
   depot: row({
     reads: 'a goods depot: the shed a maze of rack aisles under a catwalk, crates against its wide corridors\' walls by turns, the dispatch offices desk pods',
-    use: 'warehouse', look: { construction: 'utility', palette: 'utility' },
-    fight: { rings: true, room: true, gallery: true },
+    use: 'warehouse', scale: 1.5, look: { construction: 'utility', palette: 'utility' },
+    fight: { rings: true, gallery: true },
     layouts: {
       shed: { layout: 'aisles', piece: 'rack', cross: 'staggered', run: 3 },
       corridor: { layout: 'chicane' },
@@ -32,10 +33,10 @@ export const FACILITIES = Object.freeze({
   }),
   'power-plant': row({
     reads: 'a power plant in poured concrete: the generator hall a staggered field of sets under the gallery, drums against the corridors\' walls by turns, the pump rooms each a machine to circle',
-    use: 'plant', look: { construction: 'bunker', palette: 'military' },
-    fight: { rings: true, room: true, gallery: true },
+    use: 'plant', scale: 1.5, look: { construction: 'bunker', palette: 'military' },
+    fight: { rings: true, gallery: true },
     layouts: {
-      'generator-hall': { layout: 'machines', pieces: ['generator', 'switchgear', 'pump', 'generator'], lane: 1.6, fill: 1 },
+      'generator-hall': { layout: 'machines', pieces: ['generator', 'switchgear', 'pump', 'generator'], lane: 2.2, fill: 1 },
       corridor: { layout: 'chicane', piece: 'drum', len: 3, cover: 0.55 },
       pump: { layout: 'machines', pieces: ['pump'], margin: 1.2 },
       switchgear: { layout: 'aisles', piece: 'switchgear', pair: false, margin: 1.2 },
@@ -44,10 +45,10 @@ export const FACILITIES = Object.freeze({
   }),
   'motor-pool': row({
     reads: 'a motor pool in steel plate: the hangar a yard of stacked crates, the parts rooms rack aisles, the shops bench islands',
-    use: 'hangar-bay', look: { construction: 'military', palette: 'military' },
-    fight: { rings: true, room: true, gallery: true },
+    use: 'hangar-bay', scale: 1.5, look: { construction: 'military', palette: 'military' },
+    fight: { rings: true, gallery: true },
     layouts: {
-      hangar: { layout: 'stockpile', spacing: 4.2, jitter: 0.8 },
+      hangar: { layout: 'stockpile', spacing: 5, jitter: 0.8 },
       corridor: { layout: 'chicane', piece: 'ammo-crate', len: 3 },
       parts: { layout: 'aisles', piece: 'shelves', margin: 1.2 },
       shop: { layout: 'islands', piece: 'workbench', end: 'tool-chest', per: 1, margin: 1.2 },
@@ -56,10 +57,10 @@ export const FACILITIES = Object.freeze({
   }),
   'research-wing': row({
     reads: 'a research wing in glazed panels and terrazzo: the instrument bay a grid of rack aisles, the labs bench islands, the stores shelved',
-    use: 'lab-building', look: { construction: 'science', palette: 'science' },
+    use: 'lab-building', scale: 1.5, look: { construction: 'science', palette: 'science' },
     fight: { rings: true, stagger: true },
     layouts: {
-      instrument: { layout: 'aisles', piece: 'instrument-rack', cross: 'aligned', run: 4, aisle: 1.4 },
+      instrument: { layout: 'aisles', piece: 'instrument-rack', cross: 'aligned', run: 4, aisle: 2 },
       lab: { layout: 'islands', piece: 'workbench', end: null, per: 1, margin: 1.2 },
       store: { layout: 'aisles', piece: 'shelves', margin: 1.2 },
     },
@@ -67,12 +68,12 @@ export const FACILITIES = Object.freeze({
   }),
   'field-hq': row({
     reads: 'a headquarters on carpet and gypsum: the staff and planning offices desk pods behind their cabinets, the briefing rooms their desks in rows',
-    use: 'command', look: { construction: 'everyday', palette: 'everyday' },
+    use: 'command', scale: 1.5, look: { construction: 'everyday', palette: 'everyday' },
     fight: { rings: true, stagger: true },
     layouts: {
       staff: { layout: 'islands', per: 1, margin: 1.2 },
       planning: { layout: 'islands', per: 1, margin: 1.2 },
-      briefing: { layout: 'rows', piece: 'desk', aisle: 1.4, lane: 1, margin: 1 },
+      briefing: { layout: 'rows', piece: 'desk', aisle: 2, lane: 1.4, margin: 1.2 },
       corridor: { layout: 'chicane', piece: 'filing', len: 3, cover: 0.5 },
     },
     moves: 'office to office through the side doors, crouched behind a pod\'s cabinet; the corridors crossed, never walked',
@@ -88,7 +89,7 @@ export function facilityBuilding(id, own = {}) {
   if (own.use !== undefined && own.use !== F.use) throw new Error(`building: facility '${id}' is a ${F.use}; give its use or none`);
   const { facility: _f, ...rest } = own;
   return {
-    ...rest, use: F.use,
+    ...rest, use: F.use, scale: own.scale ?? F.scale,
     look: { ...F.look, ...(own.look ?? {}) },
     fight: own.fight === undefined ? { ...F.fight } : own.fight,
     layouts: { ...F.layouts, ...(own.layouts ?? {}) },

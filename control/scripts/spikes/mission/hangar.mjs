@@ -38,7 +38,7 @@ const room = infiltrationRoom(G, { refs: { ...(hero ? { hero } : {}), ...(guard 
 
 // THE BUILDING: the hangar bay with its floor 0 a hall high enough for what stands in it
 const B = M.building, HALL = Number(opt('--hall', 10));
-const m0 = buildingStage({ use: B.use, seed: B.seed, ...(B.headroom ? { headroom: B.headroom } : {}) }), stage = { ...m0, program: { ...m0.program, basement: { hall: HALL, lift: { at: [0.3, 0.5] } } } };
+const m0 = buildingStage({ use: B.use, seed: B.seed, ...(B.scale ? { scale: B.scale } : {}), ...(B.headroom ? { headroom: B.headroom } : {}) }), stage = { ...m0, program: { ...m0.program, basement: { hall: HALL, lift: { at: [0.3, 0.5] } } } };
 const dry = assembleStageScene(stage), R = Object.fromEntries(dry.rooms.map((r) => [r.id.replace(/@\d+$/, ''), r.box]));
 const need = ['lobby', 'core-0', 'core-1', 'hangar', 'hangar-under', 'flight-ops'].filter((id) => !R[id]);
 if (need.length) { console.error(`hangar: the building lays no ${need.join(', ')} (rooms: ${Object.keys(R).join(', ')})`); process.exit(1); }

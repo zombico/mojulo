@@ -44,6 +44,11 @@
  *            planStage opens it, era/bay.js builds the deck, its rail and its stairs)
  *   (cover is the stage's: compose-dress.js layCover)
  *
+ * LAID LARGER (`program.scale`, 1 to 2, opt-in; 1 the plan as it was): a third-person camera wants room a walker does
+ * not. The rooms' depth and the bays' width, the corridors, the core and the lobby and the annex's floor are laid that
+ * many times larger, each storey (and the annex) the square root of it taller, and the core's stair the `hall` profile
+ * (construction/circulation.js: wider flights, more floor at its ends and on its landing).
+ *
  * Layout in plan: the core at the origin, x to its right, y to its back; the lobby on its front (−y), the way in on the
  * lobby's front. Pure: the dice are the program's.
  */
@@ -72,14 +77,16 @@ export function planCore(P, program, kit, rnd) {
   // (every size on the kit's grid: a gothic kit's is not a metre)
   const snap = (v) => +(Math.max(1, Math.round(v / g)) * g).toFixed(6), up = (v) => +(Math.ceil(v / g - 1e-9) * g).toFixed(6);
   // (room, programs.js FIGHT: the corridors ROOMY.corridor wide and every storey ROOMY.rise taller, the lobby with them)
-  const roomy = program.fight?.room === true;
-  const cw = up(Math.max(roomy ? ROOMY.corridor : 3, need + 0.4)), D = snap(CORE.room), bay = snap(kit.bay ?? CORE.room), CW = snap(CORE.w + (roomy ? ROOMY.core[0] : 0)), CD = snap(CORE.d + (roomy ? ROOMY.core[1] : 0)), LD = snap(P.lobby.d);
+  const roomy = program.fight?.room === true, S = program.scale ?? 1;
+  if (!(typeof S === 'number' && S >= 1 && S <= 2)) throw new Error('program: scale is how much larger a building is laid than a walker needs, 1 to 2');
+  const tall = (v) => (S === 1 ? v : +(v * Math.sqrt(S)).toFixed(1));
+  const cw = up(Math.max((roomy ? ROOMY.corridor : 3) * S, need + 0.4)), D = snap(CORE.room * S), bay = snap((kit.bay ?? CORE.room) * S), CW = snap((CORE.w + (roomy ? ROOMY.core[0] : 0)) * S), CD = snap((CORE.d + (roomy ? ROOMY.core[1] : 0)) * S), LD = snap(P.lobby.d * S);
   const storeys = program.storeys ?? C.storeys, wings = program.wings ?? C.wings, loading = program.loading ?? C.loading, bays = program.bays ?? C.bays;
   if (!(Number.isInteger(storeys) && storeys >= CORE.storeys[0] && storeys <= CORE.storeys[1])) throw new Error(`program: storeys is a whole number, ${CORE.storeys.join(' to ')}`);
   if (!SHAPES[wings]) throw new Error(`program: wings is ${CORE.wings.join(', ')} (the plan's shape round its core)`);
   if (!CORE.loading.includes(loading)) throw new Error(`program: loading is single (rooms on one side of the corridor) or double (both)`);
   if (!(Number.isInteger(bays) && bays >= CORE.bays[0] && bays <= CORE.bays[1])) throw new Error(`program: bays is a wing's length in bays, ${CORE.bays.join(' to ')}`);
-  const h = C.h + (roomy ? ROOMY.rise : 0), rooms = [], links = [], findings = [], off = program.basement ? 1 : 0;
+  const h = tall(C.h) + (roomy ? ROOMY.rise : 0), rooms = [], links = [], findings = [], off = program.basement ? 1 : 0;
   const free = (b) => !rooms.some((q) => (q.storey ?? 0) === (b.storey ?? 0) && overlaps(b, q));
   const deepHall = program.basement && typeof program.basement === 'object' ? program.basement.hall : undefined;
   // (a LIFT between the annex and its undercroft: a deck's opening through the floor between them, era/storeys.js)
@@ -116,7 +123,7 @@ export function planCore(P, program, kit, rnd) {
   // (fight.stairs: a stair room past each wing's far end with no annex, sized for the building's switchback: its two
   // flights and well across with a passage beside them, its approach, flights and landing along with a doorway's floor
   // clear at its foot)
-  const SP = STAIR_PROFILES.game, rise = (off ? Math.max(h, 3.5) : h) + SLAB_M, half = Math.ceil(rise / (2 * SP.riser) - 1e-9);
+  const SP = S > 1 ? STAIR_PROFILES.hall : STAIR_PROFILES.game, rise = (off ? Math.max(h, 3.5) : h) + SLAB_M, half = Math.ceil(rise / (2 * SP.riser) - 1e-9);
   const stairW = up(2 * SP.width + SP.well + 2 * SP.in + PASSAGE + kit.wall), stairL = up(cw + SP.foot + half * SP.going + SP.landing + 2 * SP.body + 0.4 + kit.wall);
   const stairBox = (W, cor, tries) => {
     const e = W.end, across = W.along === 'x' ? cor.y : cor.x, alongBox = (lo) => (W.along === 'x' ? { x: +(e.side === '+x' ? e.x : e.x - stairW).toFixed(6), y: lo, w: stairW, d: stairL } : { x: lo, y: +e.y.toFixed(6), w: stairL, d: stairW });
@@ -126,7 +133,7 @@ export function planCore(P, program, kit, rnd) {
   for (let s = 0; s < storeys; s++) {
     const n = s + 1, at = (b) => ({ ...b, h, ...(s + off ? { storey: s + off } : {}) });
     // (the lobby first: the plan's first room is its way in)
-    if (!s) put({ id: 'lobby', x: 0, y: -LD, w: CW, d: LD, h: (P.lobby.h ?? C.h) + (roomy ? ROOMY.rise : 0), ...(off ? { storey: off } : {}) });
+    if (!s) put({ id: 'lobby', x: 0, y: -LD, w: CW, d: LD, h: tall(P.lobby.h ?? C.h) + (roomy ? ROOMY.rise : 0), ...(off ? { storey: off } : {}) });
     const core = put(at({ id: `core-${n}`, x: 0, y: 0, w: CW, d: CD }));
     // (stagger, a wing off the core's back: the lobby's doorway to the far end of the core's front from it)
     const lobbyAt = !s && F?.stagger && SHAPES[wings].includes('+y') ? doorAt(0, CW, 1) : null;
@@ -190,7 +197,7 @@ export function planCore(P, program, kit, rnd) {
   // the annex: the use's tall room at the first wing's far end, on the ground, nothing over it; its own ways out
   const ways = [{ room: 'lobby', side: '-y' }];
   if (P.annex) {
-    const A = { ...P.annex, w: snap(P.annex.w), d: snap(P.annex.d) }, W = plate[0], e = W.end, y = W.along === 'x' ? e.y + cw / 2 - A.d / 2 : e.y;
+    const A = { ...P.annex, w: snap(P.annex.w * S), d: snap(P.annex.d * S), h: tall(P.annex.h) }, W = plate[0], e = W.end, y = W.along === 'x' ? e.y + cw / 2 - A.d / 2 : e.y;
     const box = { id: A.role, x: +(e.side === '+x' ? e.x : e.side === '-x' ? e.x - A.w : Math.round((e.x + cw / 2 - A.w / 2) / g) * g).toFixed(6), y: +(Math.round(y / g) * g).toFixed(6), w: A.w, d: A.d, h: A.h, ...(off ? { storey: off } : {}) };
     if (free(box)) {
       put(box); links.push({ from: `corridor-1${W.letter}`, to: box.id });

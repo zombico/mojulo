@@ -6,6 +6,22 @@ hallway and empty boxes: one way through each room, every gaze unbroken, nothing
 pieces here make the same building a ground to move through. They compose: a walled-core dungeon's layer is a facility,
 a facility is a use with its rooms' floors laid in figures, and a figure is the dressing's own pieces placed by a rule.
 
+## Room to move: a building laid larger
+
+A building's plan is sized for a walker: corridors three metres, rooms and bays six, a 10 × 12 stair core, storeys of
+three and a half, a stair two metres wide with two of floor at each end. Under a third-person camera that is cramped:
+the camera has no room behind the body, a stair's turn scrapes the rail, an aisle between racks is a slot. A core
+building's `scale` (1 to 2, opt-in; `era/program-core.js`) lays its rooms' depth and its bays' width, its corridors, its
+core, its lobby and its annex's floor that many times larger, and every storey the square root of it taller. Its stair
+becomes the `hall` profile (`construction/circulation.js`): flights three metres wide on a shallower going, three
+metres of floor at the foot, at the head and on the landing, and a wider well. Scale 1 is the plan as it was, byte for
+byte, so buildings already made are untouched. A stealth or action game's building is laid at 1.5: rooms 8.5 m across,
+corridors 4.5, storeys about 4.3. Every facility is, and the Steel Serpents interiors (the holding block, level 1's
+barracks and hangar) are. A level's building, a geocube's building and a complex's building all take it.
+
+The layouts' own widths are a body's with a camera behind it: aisles 2.2 m, lanes between machines 2.2, between desk
+pods 2, between rows 1.6, a centre aisle 2.4.
+
 ## Room layouts: a room's floor in a figure
 
 `control/lib/graph/era/room-layouts.js`. A layout lays the dressing's pieces (`compose-dress.js` `PIECES`: racks,
@@ -46,7 +62,7 @@ Every room given a layout is held to them (`layoutLaws`); the stage's `compose.l
   from neither end of a corridor does one see three fifths of it.
 - **cover-in-reach**: nine tenths of the floor lies within three metres of a piece a crouch hides behind.
 
-A room smaller than a hall (60 m², or a corridor three times as long as it is wide) is held to the first and the last
+A room smaller than a hall (100 m², ten metres square; a corridor, three times as long as it is wide, is held to the gaze down it) is held to the first and the last
 only: it is crossed in a breath and its doorway is its cover. That is the finding behind facilities: a layout cannot make
 a five-metre room a place to sneak through, so the ground is in the halls, the wide corridors and the loops between rooms.
 
@@ -58,7 +74,7 @@ block; to stop a standing gaze down its length, stack them (crates stack by the 
 `control/lib/graph/era/facilities.js`. A facility is a row: a use, its plan's fighting dials (`programs.js` `FIGHT`:
 `rings` a second doorway to every room, `room` wide corridors and taller storeys, `gallery` a catwalk round the tall
 hall, `stagger` the core's doorways offset), its rooms' layouts and its look, a construction and a palette
-(`era/style/bay-axes.js`). Each is built in its own materials.
+(`era/style/bay-axes.js`), laid at `scale` 1.5. Each is built in its own materials.
 
 | facility | use | built in | its ground |
 |---|---|---|---|

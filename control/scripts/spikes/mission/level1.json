@@ -195,14 +195,15 @@
       "nightReads": "the same night as level 0's approach, the infiltration one night: the realistic night (the colour drained, a pale moon, the shade and the sky grey), its haze and the film's night grade; the base lit by four floodlights so it reads in the dark: over the hangar's side door, at the barracks' front, on the apron and at the gate, the first two casting what stands in their beam; between them, the moon's dark to move through",
       "barracks": {
         "at": {
-          "x": 12,
-          "y": 64,
-          "facing": "+x"
+          "x": 5.5,
+          "y": 47.5,
+          "facing": "-y"
         },
         "storeys": 1,
         "wings": "I",
         "loading": "double",
-        "bays": 3,
+        "bays": 1,
+        "scale": 1.5,
         "key": "nco-office",
         "sentry": {
           "corridor": "corridor-1b",
@@ -367,6 +368,7 @@
   "building": {
     "use": "hangar-bay",
     "seed": 2,
+    "scale": 1.5,
     "basement": {
       "hall": 10
     },

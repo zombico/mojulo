@@ -36,7 +36,7 @@ const r2 = (p) => p.map((v) => +v.toFixed(2));
 const mid = (b, dx = 0, dy = 0) => [(b.min[0] + b.max[0]) / 2 + dx, (b.min[1] + b.max[1]) / 2 + dy, b.min[2]];
 
 // THE BUILDING, and its rooms by name
-const stage = buildingStage({ use: L.building.use, seed: L.building.seed });
+const stage = buildingStage({ use: L.building.use, seed: L.building.seed, ...(L.building.scale ? { scale: L.building.scale } : {}) });
 const dry = assembleStageScene(stage), R = Object.fromEntries(dry.rooms.map((r) => [r.id.replace(/@\d+$/, ''), r.box]));
 const need = [L.start.room, L.kit.room, L.exit.room, ...L.watchers.map((w) => w.room)].filter((id) => !R[id]);
 if (need.length) { console.error(`holding: the building lays no ${need.join(', ')} (rooms: ${Object.keys(R).join(', ')})`); process.exit(1); }
