@@ -309,3 +309,6 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
 - **Zero Boy, caught up**: he jumps, dashes (its pose and its dust) and takes the pad's faces as Galaxy Boy does. His
   saber cuts in the air too: a cut at what is ahead while the jump goes on under it, never holding him up. The saber is
   a fifth longer (its light runs past the blade it springs from, its reach and its slash wider) and cuts a fifth harder.
+- **On the wall**: jumping up to a wall, the hero faces it; caught on it and sliding down, he turns his back to it and
+  faces out, so a shot or a cut goes out from the wall (where the stick moves him in the world's frame, as on a side
+  map; a stick read off the facing keeps facing the wall).

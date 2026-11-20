@@ -838,6 +838,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // whose takes name none holds the running jump's gather as before. One place, where the dash's pose is chosen; every
 // fixture that embeds the controllable runtime re-pinned with it. (The dash's dust is a block of its own, gated on a
 // rule's `dash.dust`: no fixture has one, and none emits it.)
+// Re-pinned 2026-11-20 (the wall slide faces out, rules-platform.js): the runtime the page embeds turns a body caught on
+// a wall to face out from it, where the stick moves it in the world's frame, and the stick no longer turns a clinging
+// body. A rule with no `cling` steps as before; every fixture that embeds the controllable runtime re-pinned with it.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

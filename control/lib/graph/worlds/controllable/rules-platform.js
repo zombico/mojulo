@@ -142,7 +142,8 @@ export function buildRulesPlatform(E) {
       turnAmt = 0;
       // (a moveset's move, committed, holds the facing it was taken at: the stick turns the body again once it ends)
       // (and in the air after a launch the hero is turned to the foe it threw, combat-melee.js `mvThrown`)
-      if (wmMag > 1e-3 && !(r.moveset && (e.swingT != null || (e.mvThrown != null && !e.grounded)))) {
+      // (and on a wall slide the body faces out from the wall, whatever the stick presses into it: below, the cling)
+      if (wmMag > 1e-3 && !(r.cling && e.cling) && !(r.moveset && (e.swingT != null || (e.mvThrown != null && !e.grounded)))) {
         const d = ((Math.atan2(wmY, wmX) - t.heading + Math.PI) % TAU + TAU) % TAU - Math.PI, mx = (r.faceRate ?? 12) * dt;
         turnAmt = clamp(d, -mx, mx);
         t.heading = (t.heading + turnAmt) % TAU;
@@ -486,13 +487,19 @@ export function buildRulesPlatform(E) {
         const px = t.pos[0], py = t.pos[1];
         resolveBlocking(t.pos, footZ, r.collideHeight ?? (eye || 24), r.collideRadius ?? 0, world.colliders, step);
         // THE WALL SLIDE (opt-in `cling`): falling against a wall with the stick into it (more than `cling.toward` of the
-        // push) holds the body to it, sliding down at `cling.slide` (below) and facing out; its air jumps and air dashes
+        // push) holds the body to it, sliding down at `cling.slide` (below) and facing out (turned from the wall as it is
+        // caught, the stick no longer turning it while it slides); its air jumps and air dashes
         // come back. Let go of it and the kick's grace (`cling.coyote`) counts down
         if (r.cling && !e.grounded && e.vel[2] <= 0 && !(e.kickT > 0)) {
           const ex = t.pos[0] - px, ey = t.pos[1] - py, el = Math.hypot(ex, ey);
           const wx = f[0] * fwdIn + rt[0] * sideIn, wy = f[1] * fwdIn + rt[1] * sideIn, wm = Math.hypot(wx, wy);
           if (el > 1e-9 && wm > 1e-3 && -(wx * ex + wy * ey) / el > r.cling.toward * wm) {
             e.cling = [ex / el, ey / el]; e.wallN = e.cling; e.wallCoyote = r.cling.coyote; e.airJumpsUsed = 0;
+            // (FACING OUT while it slides: the jump to the wall faced it, the stick pressing into it; caught on it, the body
+            // turns its back to the wall, as the run-and-gun's hero does, so a shot or a cut goes out from it)
+            // (where the stick moves the body in the world's frame, a lane's or the world's: a stick read off the facing
+            // would turn with it and let go of the wall)
+            if (worldMove) t.heading = Math.atan2(e.cling[1], e.cling[0]);
             if (r.dash && r.dash.air) e.airDashes = r.dash.air.count;
             e.dashT = 0; e.carry = 0;
           } else if (e.cling) e.cling = null;
