@@ -22,7 +22,7 @@
  * corners, drawn as a sconce with a glowing flame, and leaves as a KHR punctual point light in the GLB.
  * Deterministic: a pure function of the recipe.
  */
-import { planVents, readVents } from './vents.js';
+import { planVents, readVents, shadeDucts } from './vents.js';
 import { lookOf } from './style/looks.js';
 import { SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook, lookOfReference } from './sixth-gen.js';
 import { tileFamilyOf, normalizeTileSpec, proportionsOver } from './tile-specs.js';
@@ -1094,10 +1094,22 @@ export function buildStageGeometry(plan) {
   for (const d of plan.vents?.ducts ?? []) for (const s of d.segments) for (const b of s.parts) box(out, b.min, b.max, { ...surf('services'), group: 'stage:vent' }, 2);
   // (and each hole's floor through the wall: the floor's own finish, a body crawls on it)
   for (const b of plan.vents?.sills ?? []) box(out, b.min, b.max, surf('floor'), 2);
+  // (a duct's LINING: a plate on its floor and one on the back wall under its lid, each its own faces cut half a metre,
+  // so the light baked inside it is the duct's own (vents.js shadeDucts), not the room's floor and wall blended through)
+  for (const d of plan.vents?.ducts ?? []) for (const s of d.segments) {
+    const lid = s.parts.find((p) => p.part === 'lid'), z0 = Math.min(...s.parts.map((p) => p.min[2])), top = lid.min[2], { min: a, max: b } = s.strip, ln = { ...surf('services'), group: 'stage:vent' };
+    panel(out, [a[0], a[1], z0 + 0.01], [1, 0, 0], b[0] - a[0], [0, 1, 0], b[1] - a[1], [0, 0, 1], ln, 0.5);
+    const bk = d.back, X = bk.endsWith('x'), v = bk.startsWith('+') ? (X ? b[0] - 0.01 : b[1] - 0.01) : X ? a[0] + 0.01 : a[1] + 0.01, n = bk.startsWith('+') ? -1 : 1;
+    if (X) panel(out, [v, a[1], z0], [0, 1, 0], b[1] - a[1], [0, 0, 1], top - z0, [n, 0, 0], ln, 0.5);
+    else panel(out, [a[0], v, z0], [1, 0, 0], b[0] - a[0], [0, 0, 1], top - z0, [0, n, 0], ln, 0.5);
+  }
   const faces = plan.cuts ? storeyCut(out, plan.cuts) : out;
   if (plan.cuts) stairFaces(faces, plan.cuts, surf, (id) => plan.rooms.find((q) => q.id === id).h);
   // (no torch on the wall a flight climbs along: its iron would stand in the way up)
-  const lit = plan.cuts ? seats.filter((l) => !plan.cuts.flights.some((x) => l.at[0] > x.rect[0] - 0.6 && l.at[0] < x.rect[2] + 0.6 && l.at[1] > x.rect[1] - 0.6 && l.at[1] < x.rect[3] + 0.6)) : seats;
+  const lit0 = plan.cuts ? seats.filter((l) => !plan.cuts.flights.some((x) => l.at[0] > x.rect[0] - 0.6 && l.at[0] < x.rect[2] + 0.6 && l.at[1] > x.rect[1] - 0.6 && l.at[1] < x.rect[3] + 0.6)) : seats;
+  // (no lamp on the wall over a duct, under two metres and a half: it would light the lid and the floor along it)
+  const ductSeat = (l) => (plan.vents?.ducts ?? []).some((d) => d.segments.some((s) => l.at[0] > s.strip.min[0] - 0.4 && l.at[0] < s.strip.max[0] + 0.4 && l.at[1] > s.strip.min[1] - 0.4 && l.at[1] < s.strip.max[1] + 0.4 && l.at[2] < Math.min(...s.parts.map((p) => p.min[2])) + 2.5));
+  const lit = plan.vents ? lit0.filter((l) => !ductSeat(l)) : lit0;
   return { faces, seats: lit, drains, bays: dressBays, columns, houses, pilasters, ...(labs.length ? { labs } : {}), ...(bayRooms.length ? { bayRooms } : {}), ...(props ? { propAnchors: props.anchors } : {}) };
 }
 
@@ -1633,10 +1645,12 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const paintLs = ctx.unshaded || formLit ? null
     : (dress && dress.pools.length) || braziers.length ? [...shadowed([...lights, ...braziers]), ...(dress ? dress.pools : [])] : shadowed(lights);
   // (an engine handoff's room: its solved bases, the light apart, though the read is unshaded)
-  const lit = ctx.unshaded && !formLit
+  const lit0 = ctx.unshaded && !formLit
     ? raw.map(({ tint, top, ...f }) => (tint ? { ...f, fill: rgbHex(tint) } : f))
     : formLit ? formLit.faces
       : bakeStageLight(raw, paintLs, ambient, dirt(), sun);
+  // (a duct is dark: what lies inside one keeps a share of the room's light, more by its hatches: vents.js shadeDucts)
+  const lit = plan.vents && !(ctx.unshaded && !formLit) ? shadeDucts(lit0, plan.vents) : lit0;
   // (the debris's stamps, each lit where it lies: in the paint, the bake's own light at each probe, on a face of no colour)
   // (and the grime of the ground each lies on, the room's own: the gutter's wet, the unwalked floor's dark)
   // (what lies loose in a wet room is wet with it: the debris's heaps and the vessels join the room's wet surfaces,

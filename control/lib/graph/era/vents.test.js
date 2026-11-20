@@ -61,6 +61,17 @@ describe('vents', () => {
     expect(inStrip(q.transform.pos, s0)).toBe(false);
   });
 
+  it('a duct is dark: its lining keeps a share of the room\'s light', () => {
+    const S = assembleStageScene(buildingStage({ ...B, vents: true })), s0 = S.vents[0].segments[0], room = S.rooms.find((r) => r.id === s0.room).box;
+    const lum = (h) => { const n = parseInt(String(h).slice(1), 16); return 0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255); };
+    const mean = (fs) => fs.reduce((a, f) => a + lum(f.fill), 0) / fs.length, up = (f) => (f.normal ?? f.outNormal)?.[2] > 0.5;
+    const inStrip = (c) => c[0] >= s0.strip.min[0] - 0.01 && c[0] <= s0.strip.max[0] + 0.01 && c[1] >= s0.strip.min[1] - 0.01 && c[1] <= s0.strip.max[1] + 0.01;
+    const lining = S.faces.filter((f) => f.group === 'stage:vent' && up(f) && f.corners.every((c) => c[2] < 0.05 && inStrip(c)));
+    const floor = S.faces.filter((f) => /floor/.test(f.group ?? '') && up(f) && f.corners.every((c) => c[2] < 0.05 && c[0] > room.min[0] && c[0] < room.max[0] && c[1] > room.min[1] && c[1] < room.max[1] && !inStrip(c)));
+    expect(lining.length).toBeGreaterThan(0);
+    expect(mean(lining)).toBeLessThan(0.75 * mean(floor));
+  });
+
   it('the route search passes a crawl space lying only: a wall with a hole a body lying fits through', () => {
     const wall = [{ min: [4, -6, 0], max: [4.4, -0.7, 3] }, { min: [4, 0.7, 0], max: [4.4, 6, 3] }, { min: [4, -0.7, 0.75], max: [4.4, 0.7, 3] }];
     const R = sneakRoutes({ bounds: [0, -6, 8, 6], boxes: wall, watchers: [], start: [1, 0], goal: [7, 0], goalRadius: 1, seconds: 60, cell: 0.5 });

@@ -107,6 +107,11 @@ vents rings its rooms (`fight.rings`) by doorways at the corridor's end and the 
 so the back walls stay the ducts'. Every facility has vents; the maps draw each duct's floor dashed and its hatches as
 bars.
 
+A duct is dark. The room's light reaches every surface of a room alike (its shade level and its lamps' bounce are not
+tested against what stands between), so a duct is lined with its own floor and back plates and what lies inside it
+keeps 0.3 of its baked light, more within 1.4 m of a hatch (`shadeDucts`, `DUCT_DARK`); no lamp is seated on the wall
+over a duct under 2.5 m.
+
 ## In the game book: the facility maps
 
 The book of maps a stealth or action game's interiors are read in, `/api/sketches/<ref>/bible?book=facilities`

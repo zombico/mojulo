@@ -16,3 +16,9 @@ out at another's, never in the corridor the guards walk; a guard cannot follow i
 - **Facilities** have vents; the holding block's operative starts on the processing room's row, and its law
   `a-vent-to-the-kit` holds: with the corridors shut, the duct is a way from the cell to the kit (a 20 m crawl, never
   nearer a guard than 9.5 m). The facility maps draw each duct's floor and its hatches.
+- **A duct is dark.** A room's shade level and its lamps' bounce reach every surface of it alike, so a duct read as lit
+  as the floor round it (inside 0.22 to 0.30 against the room floor's 0.25, measured). Now each duct is lined (a plate on
+  its floor and on the back wall under its lid, its own faces, so the room's floor and wall do not blend their light
+  through), what lies inside it keeps 0.3 of its baked light (`vents.js shadeDucts`), more within 1.4 m of a hatch's
+  mouth, and no lamp is seated on the wall over a duct under 2.5 m. The depot's first duct reads 0.07 to 0.09 inside;
+  the lid's top and the front wall's face to the room keep the room's light.

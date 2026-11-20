@@ -27,6 +27,43 @@ const T = 0.06, LID = 0.08, HATCH = 1.4;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const FLIP = Object.freeze({ '+x': '-x', '-x': '+x', '+y': '-y', '-y': '+y' });
 
+/**
+ * A DUCT IS DARK: the light baked on what lies inside a duct (its lining, its lid's underside, its front wall's inside,
+ * a hole's floor) is scaled by how shut in each corner is, after the bake. The room's shade level and its lamps' bounce
+ * reach every surface of a room alike (era/stage.js, form/room-light.js), so without this a duct reads as lit as the
+ * floor round it. DARK the share kept deep inside; within SPILL metres of a hatch's mouth the room's light runs in.
+ *   shadeDucts(faces, vents) → the faces, those inside a duct with their light scaled (the form render's
+ *   `cornerLight`, else the paint's `cornerFills` and `fill`); a face outside every duct as it was
+ */
+export const DUCT_DARK = Object.freeze({ dark: 0.3, spill: 1.4 });
+export function shadeDucts(faces, vents) {
+  const vols = [], mouths = [];
+  for (const d of vents.ducts) for (const s of d.segments) {
+    const lid = s.parts.find((p) => p.part === 'lid'), z0 = Math.min(...s.parts.map((p) => p.min[2]));
+    // (the duct's inside to the lid's top, its front wall's thickness round it: the lid overhangs the wall; the wall's
+    // outer face, which looks into the room, is told apart by its facing below)
+    const front = s.parts.find((p) => p.part === 'front'), X = s.hatch.side.endsWith('x'), ax = X ? 0 : 1, out = s.hatch.side.startsWith('+') ? 1 : -1;
+    vols.push({ min: [s.strip.min[0] - 0.08, s.strip.min[1] - 0.08, z0 - 0.15], max: [s.strip.max[0] + 0.08, s.strip.max[1] + 0.08, lid.max[2] + 0.01], lidTop: lid.max[2], ax, out, face: out > 0 ? front.max[ax] : front.min[ax] });
+    // (the hatch's mouth: where its gap meets the duct's front)
+    mouths.push(X ? [s.hatch.at[0] - out * 0.5, s.hatch.at[1], z0] : [s.hatch.at[0], s.hatch.at[1] - out * 0.5, z0]);
+  }
+  for (const b of vents.sills ?? []) vols.push({ min: [b.min[0] - 0.05, b.min[1] - 0.05, b.min[2] - 0.05], max: [b.max[0] + 0.05, b.max[1] + 0.05, b.max[2] + 0.8] });
+  const inside = (c) => vols.some((v) => c[0] >= v.min[0] && c[0] <= v.max[0] && c[1] >= v.min[1] && c[1] <= v.max[1] && c[2] >= v.min[2] && c[2] <= v.max[2]);
+  const share = (c) => { const m = Math.min(...mouths.map((q) => Math.hypot(c[0] - q[0], c[1] - q[1]))); return DUCT_DARK.dark + (1 - DUCT_DARK.dark) * Math.max(0, 1 - m / DUCT_DARK.spill); };
+  const scaleHex = (h, k) => { const n = parseInt(String(h).slice(1), 16), c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(v * k)); return `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`; };
+  // (the lid's top face looks up into the room: it keeps the room's light)
+  // (and the front wall's outer face, square to the room)
+  const lidTop = (f) => { const n = f.normal ?? f.outNormal; return n && ((n[2] > 0.5 && vols.some((v) => v.lidTop !== undefined && f.corners.every((c) => Math.abs(c[2] - v.lidTop) < 0.005)))
+    || vols.some((v) => v.ax !== undefined && n[v.ax] * v.out > 0.5 && f.corners.every((c) => Math.abs(c[v.ax] - v.face) < 0.005))); };
+  return faces.map((f) => {
+    if (!f.corners || !f.corners.every(inside) || lidTop(f)) return f;
+    const ks = f.corners.map(share);
+    if (f.cornerLight) return { ...f, cornerLight: f.cornerLight.map((l, i) => l.map((v) => +(v * ks[i]).toFixed(4))) };
+    if (f.cornerFills) { const fills = f.cornerFills.map((h, i) => scaleHex(h, ks[i])); return { ...f, cornerFills: fills, fill: scaleHex(f.fill, ks.reduce((a, b) => a + b, 0) / ks.length) }; }
+    return f.fill ? { ...f, fill: scaleHex(f.fill, ks.reduce((a, b) => a + b, 0) / ks.length) } : f;
+  });
+}
+
 export function readVents(v) {
   if (v === undefined || v === false || v === null) return null;
   if (v === true) return { ...D };
