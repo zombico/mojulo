@@ -10,7 +10,8 @@
  *     world    the written world with the starter under it: every key the creator wrote wins
  *     by       'platformer' (the platformer's rail: its first level and the flow that plays it, platformer-game.js),
  *              'action' (a stylish rail, style-meter.js STYLISH: the genre's first reading with its level the citadel
- *              fought room by room, action-first-level.js actionStarter, the rail's template kit, `arsenal: { from }`,
+ *              fought room by room, action-first-level.js actionStarter, its hero in the duelist's coat, the rail's
+ *              template kit, `arsenal: { from }`,
  *              and its style meter, `styleMeter: 'auto'`, the orbit camera and the starter's look) or
  *              'compose' (a first reading of the genre the rail starts from, compose.js, one level)
  *     unlaid   a rail with no starter the book lays yet, or a size that is not the designed game's: said, the pitch
@@ -25,6 +26,7 @@ import { GENRES, readGenre } from './intent.js';
 import { actionStarter } from './action-first-level.js';
 import { STYLISH } from './style-meter.js';
 import { TEMPLATE_ARSENALS } from './combos.js';
+import { ACTION_OUTFITS } from '../outfit/styles.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 // the workflow's own keys of a composed world: the starter brings its ground, never its review or its brief
@@ -57,6 +59,9 @@ export function pitchStart(world, { title } = {}) {
   // composed level and what plays it (its links, its flow) left out, the citadel in their place
   if (STYLISH.includes(R.handles.pole)) {
     const A = actionStarter(), { levels: _l, links: _k, flow: _f, ...ground } = starter;
+    // (its hero dressed as the character action wardrobe's duelist: the long coat that fights, styles.js ACTION_OUTFITS)
+    const H = ground.characters?.hero;
+    if (H?.looks) ground.characters = { ...ground.characters, hero: { ...H, looks: { ...H.looks, underlayer: { type: 'outfit', style: ACTION_OUTFITS[0] } } } };
     const W = { ...ground, camera: 'orbit', foes: A.foes, fights: A.fights, levels: { citadel: A.level }, grade: A.grade, ...(TEMPLATE_ARSENALS[R.handles.pole] ? { arsenal: { from: R.handles.pole } } : {}), styleMeter: 'auto', ...withFeel, ...named, ...intent };
     return { world: W, laid: { by: 'action', from: S.starts, levels: Object.keys(W.levels), says: SAYS } };
   }

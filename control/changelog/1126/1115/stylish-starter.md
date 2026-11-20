@@ -14,3 +14,15 @@
   the starter lays and every word that changes it, the kit's moves and combos, a second weapon in the hand (`held`),
   knockback, the meter and the Halo, the vitals, a room's heights and light (`plot`, `shade`, `grade`), and the coat that
   fights (`posed`, `stormFlap`); the worked example named as one to read, never to copy.
+- **Built: the weapon shelf** (`gameworld/weapon-shelf.js`). Second weapons as rows a game names in its kit,
+  `weapons: [{ shelf: '<row>', …edits }]`: the bo, the spear, the scythe, the hammer and the greatsword, each its held
+  item (manifested in the hand while it is up, the blade on the back), its reach and weight, its moves and its strings
+  (sweeps and a slam all round, thrusts and a launching rise, reaping arcs, toppling blows and a quake, committed cuts),
+  any field written laid over the row's as an edit is. A new weapon is a row first.
+- **Built: light moods** (`action-first-level.js` `LIGHT_MOODS`). A building level's light as one word, written as its
+  rooms' `plot`, its cube's `light.shade` and the world's `grade`: tenebrae (fire in the dark, the starter's), moonlit,
+  hellfire, cathedral. design_game's readout offers a stylish game's first building level each mood as a patch (a `mood`
+  step), the creator's pick, then theirs word by word.
+- **Built: the duelist** (`outfit/styles.js`, `ACTION_OUTFITS`). The character action wardrobe's card: the long coat that
+  fights (to mid-calf, open, cut away in front below the hip, its tails set by the pose, a flap over the back) over close
+  dark clothes and boots. The stylish starter dresses its hero in it.

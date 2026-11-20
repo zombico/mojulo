@@ -53,7 +53,8 @@ import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
 import { platformerSuggestion, platformerStart } from '@/lib/graph/gameworld/platformer-game.js';
 import { juiceOfGame, juiceSuggestion } from '@/lib/graph/gameworld/juice.js';
 import { arsenalOfGame, arsenalSuggestion, heroStrikes } from '@/lib/graph/gameworld/arsenal.js';
-import { styleMeterSuggestion } from '@/lib/graph/gameworld/style-meter.js';
+import { styleMeterSuggestion, STYLISH } from '@/lib/graph/gameworld/style-meter.js';
+import { LIGHT_MOODS, MOOD_IDS, moodOf } from '@/lib/graph/gameworld/action-first-level.js';
 import { roomEligible } from '@/lib/graph/gameworld/practice-room.js';
 import { practiceFor, mountSuggestion, rangeMeasured, rollMeasured } from '@/lib/graph/gameworld/practice.js';
 import { fightsReadout } from '@/lib/graph/gameworld/fights-readout.js';
@@ -597,6 +598,14 @@ function readout(ref, world, context = {}) {
   if (arsenalSuggest) next.push({ step: 'arsenal', suggest: arsenalSuggest.suggest, template: arsenalSuggest.template, why: arsenalSuggest.why, patch: [{ op: 'set', path: '/arsenal', value: 'auto' }], card: 'gameworld-feel' });
   // its style meter (gameworld/style-meter.js): a stylish feel's game that writes none is offered one (written, never laid)
   const meterSuggest = styleMeterSuggestion(world);
+  // its LIGHT MOODS (gameworld/action-first-level.js): a stylish game's first building level offered each mood as a patch
+  // (its rooms' plot, its cube's shade, the world's grade), the creator's pick, then theirs word by word
+  const stylePole = typeof world.feel === 'string' ? world.feel : world.feel?.pole, moodLevel = STYLISH.includes(stylePole) ? Object.entries(world.levels ?? {}).find(([, L]) => L?.building && typeof L.building.geocube === 'object' && L.building.geocube) : null;
+  if (moodLevel) {
+    const [lid, L] = moodLevel, rooms = [...new Set([...Object.keys(L.building.rooms ?? {}), ...(L.goal?.tasks ?? []).map((t) => t.at).filter(Boolean)])];
+    if (rooms.length) next.push({ step: 'mood', level: lid, moods: MOOD_IDS.map((m) => { const M = moodOf(m, rooms);
+      return { mood: m, says: LIGHT_MOODS[m].says, patch: [{ op: 'set', path: `/levels/${lid}/building/plot`, value: M.plot }, { op: 'set', path: `/levels/${lid}/building/geocube/light`, value: { ...(L.building.geocube.light ?? {}), shade: M.shade } }, { op: 'set', path: '/grade', value: M.grade }] }; }), card: 'gameworld-stylish' });
+  }
   if (meterSuggest) next.push({ step: 'styleMeter', suggest: meterSuggest.suggest, why: meterSuggest.why, patch: [{ op: 'set', path: '/styleMeter', value: meterSuggest.suggest }], card: 'gameworld-stylish' });
   if (armed && !heroStrikes(world)) next.push({ step: 'arsenal', unarmed: true, why: 'the arsenal is laid on a hero that strikes: give the hero a right-hand item that serves strike (a blade)', card: 'gameworld-feel' });
   const arsenal = armed ? { ...(armed.template ? { template: armed.template } : {}), from: armed.from, weapons: armed.arsenal.weapons.map((W) => W.id), combos: armed.arsenal.weapons.reduce((n, W) => n + W.combos.length, 0), ...(armed.arsenal.ranged?.length ? { sidearm: armed.arsenal.ranged[0].id } : {}) } : null;

@@ -11,6 +11,8 @@
  *                  `{ id, drop: true }` dropped; any other field replaced; `{ id, drop: true }` drops the weapon; a new
  *                  id added)
  *     an arsenal   { timing?, weapons, ranged?, juggle?, art?, mp? } as combos.js readArsenal reads it
+ *     (either way a weapon written `{ shelf: '<row>', …edits }` is the weapon shelf's row with the edits over it,
+ *     weapon-shelf.js: a second weapon held in the hand, the bo, the spear, the scythe, the hammer, the greatsword)
  *
  *   readGameArsenal(raw)   → raw, or throws naming what it takes (the world's read)
  *   arsenalOfGame(G)       → { arsenal, from: 'operator' | 'template' | 'feel', template?, why } or null (none written,
@@ -37,6 +39,7 @@ import { HELD_STRIKE } from '../polygonizer/hero-swing.js';
 import { genreHero } from './hero-rows.js';
 import { AGGRESSIVENESS } from '../mind/vocab.js';
 import { carriedOf } from './carried.js';
+import { shelfWeapon } from './weapon-shelf.js';
 
 /** The strings a foe of each rank takes to fall (mind/vocab.js RANKS), the action game's pace: a grunt to one, an elite to
  * three or four, a boss to ten or twelve. */
@@ -114,7 +117,7 @@ function editedKit(raw) {
   }
   // (ranged replaced; null or [] none)
   if (E.ranged === null || (Array.isArray(E.ranged) && !E.ranged.length)) delete out.ranged;
-  if (E.weapons !== undefined) out.weapons = byId(K.weapons, E.weapons, mergeWeapon, 'weapons');
+  if (E.weapons !== undefined) out.weapons = byId(K.weapons, Array.isArray(E.weapons) ? E.weapons.map(shelfWeapon) : E.weapons, mergeWeapon, 'weapons');
   return out;
 }
 /** the arsenal a written value names (undefined for 'auto') */
@@ -124,7 +127,7 @@ function arsenalOf(raw) {
     return structuredClone(TEMPLATE_ARSENALS[raw]);
   }
   if (!isObj(raw)) no(`is ${TAKES}`);
-  return raw.from !== undefined ? editedKit(raw) : raw;
+  return raw.from !== undefined ? editedKit(raw) : Array.isArray(raw.weapons) && raw.weapons.some((W) => isObj(W) && W.shelf !== undefined) ? { ...raw, weapons: raw.weapons.map(shelfWeapon) } : raw;
 }
 const say = (e) => e.message.replace(/^combos: /, '');
 

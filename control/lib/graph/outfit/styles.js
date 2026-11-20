@@ -394,12 +394,23 @@ export const SEEDED_OUTFITS = Object.freeze({
       "outer": { "family": "woven", "sleeve": "none", "hem": "hip", "open": false, "fit": "fitted", "cloth": "leather" }, "feet": "boots", "tuck": true, "focal": "collar" },
     "pieces": [{ "kind": "belt", "id": "girdle", "at": "waist" }, { "kind": "cloak", "hem": "hip", "wrap": 0.55, "material": "wool", "hood": { "worn": "up", "point": "long", "depth": "deep" } }, { "kind": "thighPouch" }],
     "tones": { "Top": "#45404a", "Bottom": "#24211f", "Shoes": "#151313", "Outer": "#86623e", "OutfitSecond": "#2b2a2e", "OutfitTrim": "#8a8a8a", "OutfitAccent": "#9a2a2a", "Leather": "#3a2a20", "Buckle": "#9a9a9a" }
+  },
+  // THE DUELIST (a character action game's hero: gameworld-stylish): the long open coat that fights over close dark clothes
+  // and boots: cut away in front below the hip, its two tails set by the pose (`posed`), a flap over its back
+  duelist: {
+    "id": "duelist",
+    "dials": { "stylize": 0.35, "fit": 0.32, "coverage": 1, "ornament": 1 },
+    "language": { "top": { "family": "knit", "sleeve": "long", "fit": "skin" }, "bottom": { "family": "woven", "leg": "long", "cut": "tapered", "into": "boots" },
+      "outer": { "family": "woven", "sleeve": "long", "hem": "midi", "open": true, "cut": "aline", "posed": true, "stormFlap": true }, "feet": "boots", "tuck": true, "focal": "collar" },
+    "tones": { "Top": "#1e1e22", "Bottom": "#26262c", "Outer": "#5a1e22", "Shoes": "#2a1c14", "Trim": "#9aa0a6" }
   }
 });
 
 /** the FANTASY WARDROBE's cards (above), each an archetype in its own layers: the outfit card's `style` word on the hero
  * door (create_character as 'hero', `outfit: { type: 'outfit', style: 'ranger' }`) */
 export const FANTASY_OUTFITS = Object.freeze(['ranger', 'mage', 'peasant', 'noble', 'cleric', 'rogue']);
+/** the CHARACTER ACTION WARDROBE's cards: a stylish game's hero (gameworld-stylish), the `style` word as the fantasy's */
+export const ACTION_OUTFITS = Object.freeze(['duelist']);
 
 const FAMILY = ['knit', 'woven'], SLEEVE = ['none', 'cap', 'short', 'elbow', 'threeQuarter', 'long'], HEM = ['crop', 'waist', 'hip', 'tunic'];
 const COAT = ['waist', 'hip', 'tunic', 'knee', 'midi', 'maxi'], FITS = ['skin', 'fitted', 'eased', 'loose'];

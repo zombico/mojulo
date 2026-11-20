@@ -26,7 +26,9 @@ import { POLES, POLE_IDS, variantsOf } from './feel/cards.js';
 import { feelCard as feelCardOf, lowerFeel } from './feel/lower.js';
 import { TEMPLATE_ARSENALS, KNOCK_WORDS } from './combos.js';
 import { STYLISH, VITALS_LOOKS } from './style-meter.js';
-import { CITADEL_LOOK, ACTION_FIGHTS } from './action-first-level.js';
+import { SHELF_IDS } from './weapon-shelf.js';
+import { ACTION_OUTFITS } from '../outfit/styles.js';
+import { CITADEL_LOOK, ACTION_FIGHTS, MOOD_IDS } from './action-first-level.js';
 import { PLOT_KEYS } from '../era/stage.js';
 import { GENRE_FEEL, FEEL_WORDS } from './feel/suggest.js';
 import { IDIOMS, SYSTEM_KINDS, STAGES, TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
@@ -519,9 +521,10 @@ function stylishCard() {
     'weapon of the same id replaces the template\'s, a new id joins it. A move: { swing | strike, role: opener | filler |',
     'finisher | launcher, frames, cancel?, contact?, arc? (360: all round), travel?, damage, impact?, topple?, launch?,',
     `rise?, air?, slam?, knock? (${KNOCK_WORDS.join(' | ')} | joules), cooldown? }. A combo: { id, name, beats: ['L', 'L', 'H'], moves }.`,
-    'A SECOND WEAPON in the hand: held: { item: \'staff\' | \'spear\' | … , style? } (an item\'s build words): it shows in',
-    'the hand while that weapon is up, manifested, the blade on the back; the run makes its hero. { id: \'fist\', drop: true }',
-    'leaves the template\'s fist out. A bo, say: a sweep of three wide swings, its finisher a slam all round (arc 360, knock).',
+    `A SECOND WEAPON from the shelf: weapons: [{ shelf: '<row>', id?, …edits }] (rows: ${SHELF_IDS.join(', ')}; each its moves,`,
+    'its strings and what is held). It shows in the hand while it is up, manifested, the blade on the back; the run makes',
+    'its hero. Your own: a weapon with held: { item, style?, parts? } (an item\'s build words). { id: \'fist\', drop: true }',
+    'leaves the template\'s fist out.',
     '',
     `THE METER: styleMeter 'auto' | true | false | { tiers?, step?, gain?, repeat?, memory?, grace?, decay?, halo?, vitals? }:`,
     'varied strings, the air, a switch mid-string and a clean run climb its tiers; a rank on the results. halo { stocks?,',
@@ -530,12 +533,14 @@ function stylishCard() {
     '',
     `THE PLACE: building.rooms { <room>: { h } } (metres; the starter's ${Object.entries(CITADEL_LOOK.rooms).map(([r, v]) => `${r} ${v.h}`).join(', ')}); a room's light`,
     `designed, plot { <room>: { ${Object.keys(PLOT_KEYS).join(', ')} } } (the torches kept; the fill and the hung key light;`,
-    'a brighter pair by the way on; each flame its own; a moonlit window); the dark, geocube.light.shade (0.02 dark to 0.6 lit; the',
-    `starter's ${CITADEL_LOOK.geocube.light.shade}, a ${CITADEL_LOOK.geocube.from} cube read ${CITADEL_LOOK.geocube.era}); grade { from: '${CITADEL_LOOK.grade.from}', vignette?, exposure? }.`,
+    'a brighter pair by the way on; each flame its own; a moonlit window); the dark, geocube.light.shade (0.02 dark to 0.6',
+    `lit); grade { from, vignette?, exposure? }. A LIGHT MOOD writes the three at once: ${MOOD_IDS.join(', ')} (the starter's`,
+    `${MOOD_IDS[0]}; the readout's \`mood\` step offers each as a patch), then change any word.`,
     '',
-    'THE HERO (gameworld-looks, solid-vocab layered hero-outfit): a long coat that fights, outer { hem: \'midi\', open: true,',
-    'posed: true, stormFlap?: true }: cut away in front below the hip, two tails set by the pose (wrapped standing,',
-    'behind the hips walking, streaming back running, hung behind in a strike, flared in the air); a flap over the back.',
+    `THE HERO (gameworld-looks): the underlayer's style '${ACTION_OUTFITS.join("' | '")}' (a long coat that fights), or your own words:`,
+    'outer { hem: \'midi\', open: true, posed: true, stormFlap?: true }: cut away in front below the hip, two tails set by',
+    'the pose (open standing, behind the hips walking, streaming back running, hung behind in a strike, flared in the air)',
+    'on the realistic body (looks.body.form \'realistic\'); on another a long open coat.',
     '',
     'A worked example, read, never copied: docs/examples/fallen-angel (its world, its README).'
   );
