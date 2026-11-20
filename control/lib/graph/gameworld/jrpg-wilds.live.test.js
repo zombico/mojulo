@@ -70,10 +70,13 @@ describe('the JRPG starter\'s wilds on the page', () => {
       // (JRPG_WILDS_SHOT=<png>: the battle on the wilds' map, for the eyes)
       if (process.env.JRPG_WILDS_SHOT) await page.screenshot({ path: process.env.JRPG_WILDS_SHOT });
       // picked, the window goes and the blow plays: one member's turn, then the next one's (the timeline, one at a time)
+      // THE STEP (rpg-channel.js stepping): the one picking stands out of the line toward the foes
+      const stepOf = (id) => window.__mojCtrl.world.byId[id] && window.__mojCtrl.world.byId[id].stepOff;
+      await page.waitForFunction(`(() => { const S = (${stepOf})(${JSON.stringify(at.m)}); return S && Math.abs(Math.hypot(S.b[0], S.b[1]) - 0.9) < 0.01; })()`, { timeout: 15000 });
       await page.evaluate(() => window.__mojRpg.act('accept'));
       await page.waitForFunction(() => window.__mojRpg.state().screen === 'rpg-target', { timeout: 15000 });
       // (the page's own log of what is up, read between its frames: software GL draws a frame slower than a turn plays)
-      await page.evaluate(`(() => { const heads = ${heads}; window.__seen = []; window.__seenI = setInterval(() => window.__seen.push([window.__mojRpg.state().phase, !!document.querySelector('.moj-rpg .mana-screen:not([data-leaving]) .mana-anchor[data-key="acmd"]'), heads().length]), 15); window.__mojRpg.act('accept'); })()`);
+      await page.evaluate(`(() => { const heads = ${heads}; window.__seen = []; window.__seenI = setInterval(() => { window.__seen.push([window.__mojRpg.state().phase, !!document.querySelector('.moj-rpg .mana-screen:not([data-leaving]) .mana-anchor[data-key="acmd"]'), heads().length]); }, 15); window.__mojRpg.act('accept'); })()`);
       await page.waitForFunction(() => window.__seen.some(([p]) => p === 'play') && ['command', 'end'].includes(window.__mojRpg.state().phase), { timeout: 60000 });
       const seen = await page.evaluate(() => { clearInterval(window.__seenI); return window.__seen; });
       const playing = seen.filter(([p]) => p === 'play');
@@ -82,6 +85,10 @@ describe('the JRPG starter\'s wilds on the page', () => {
       // (and the bars down while it plays, but for one whose numbers just moved: the struck foe's, for a moment)
       expect(Math.max(...playing.map(([, , n]) => n))).toBeLessThan(up.length);
       expect(playing.some(([, , n]) => n > 0)).toBe(true);
+      // (the one who attacked ran up to its foe, further than its step out, and stood back in its line after)
+      // (software GL draws a frame slower than a beat plays, so the page's own record of whom it ran up to is read)
+      expect(await page.evaluate((m) => { const W = window.__mojCtrl.world, ran = W.byId[m].ranAt; return !!ran && /^foe-/.test(ran) && ran !== m; }, at.m)).toBe(true);
+      expect(await page.evaluate(`(() => { const S = (${stepOf})(${JSON.stringify(at.m)}); return S ? Math.hypot(S.b[0], S.b[1]) : 0; })()`)).toBeLessThan(1);
       expect(await page.evaluate(() => window.__mojRpg.state().phase === 'end' || !!window.__mojRpg.state().member)).toBe(true);
     } finally { await page.close(); }
   }, 240000);

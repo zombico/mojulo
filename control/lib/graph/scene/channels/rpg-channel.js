@@ -55,7 +55,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
   const WHY = { useless: 'It would do nothing now.', battle: 'Not during a fight.', rules: 'Classes are fixed here.', same: 'Already that class.', locked: 'That class is not open yet.', member: 'Not a class they can take.', sp: 'Not enough class points.', requires: 'Learn what it builds on first.', learned: 'Already learned.', class: 'Take that class first.', unknown: '' };
   const BEAT = 650, POP_FOR = 1200, STRIKE_FOR = 700;
   // how long each act plays (seconds), within a beat
-  const ACT_FOR = { strike: 0.55, cast: 0.55, hurt: 0.4, fall: 0.6 };
+  const ACT_FOR = { strike: 0.55, cast: 0.7, hurt: 0.4, fall: 0.6, use: 0.8, win: 1.2 };
   // mode: null | 'battle' | 'field' | 'shop'; the battle's own phase: intro | command | play | end. (Which list a member
   // is on, its row, the open tab: the screen's state, mana-ui's; `pend` is the pick waiting for its target)
   let mode = null, phase = null, beats = [], bi = 0, bt = 0, shown = {}, msg = '', picks = {}, mi = 0, pend = null, pops = [], popN = 0, strikes = [], strikeN = 0;
@@ -151,8 +151,11 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     else if (s.act) {
       // the body acts it out (the controllable channel plays e.act: its own clip at the act's phase on the world clock);
       // a pack's figure stands for all its foes, so a foe's fall is its recoil (it falls when the fight is won)
-      const who = s.at === 'actor' ? b.by || b.who : b.target, w = W(), id = figureOf(who), e = id && w && w.byId[id];
-      if (e) {
+      // (at: party, every standing member's figure acts it: the win)
+      const w = W(), whos = s.at === 'party' ? R.b.ids.filter((m) => R.m[m].hp > 0) : [s.at === 'actor' ? b.by || b.who : b.target];
+      for (const who of whos) {
+        const id = figureOf(who), e = id && w && w.byId[id];
+        if (!e) continue;
         const is = s.act === 'fall' && !R.b.side[who] && !ownFigure(who) ? 'hurt' : s.act, to = is === 'strike' ? figureOf(b.target) : null;
         e.act = { is, t0: w.time || 0, for: s.for || ACT_FOR[is], ...(to && to !== id ? { to } : {}) };
       }
@@ -239,6 +242,59 @@ export function rpgPage(cfg, K, ctl, jk, M) {
   }
   function skipFilm() { let n = 0; while (film && phase === 'play' && n++ < 40) advance(); if (film) endFilm(); }
 
+  // ── THE STEPPING: a JRPG's fighters move on their own line. The one picking steps out of it toward the other side;
+  // one who attacks runs up to its target on the beat that says so and strikes there on the next; one who casts or
+  // uses steps out; everyone else stands back in their place. Each a tween on the figure's offset from where it stands
+  // (e.stepOff, played by the controllable channel's __actMode, which runs it with its run clip on the way in) ──
+  const STEP_OUT = 0.9, STEP_GAP = 1.2, RUN_FOR = 0.5, BACK_FOR = 0.3, OUT_FOR = 0.25;
+  function fightFigures() {
+    const out = new Set();
+    if (!R.b) return out;
+    for (const m of R.b.ids) { const f = figureOf(m); if (f) out.add(f); }
+    for (const x of R.b.foes) { const f = figureOf(x.uid); if (f) out.add(f); }
+    return out;
+  }
+  // (what each figure wants now: out of its line, at a target, or home)
+  function stepWants() {
+    const want = {}, B = beats[bi];
+    if (phase === 'command') { const ids = commanders(), m = ids[Math.min(mi, ids.length - 1)], f = m != null && figureOf(m); if (f) want[f] = { is: 'out' }; }
+    else if ((phase === 'play' || phase === 'intro') && B) {
+      const who = B.by != null ? B.by : B.who, f = who != null && figureOf(who);
+      const next = beats[bi + 1], hits = (x) => x && x.by === who && x.target != null && (x.kind === 'hurt' || x.kind === 'miss');
+      if (f && !B.kind && hits(next) && figureOf(next.target) && figureOf(next.target) !== f) want[f] = { is: 'at', on: figureOf(next.target) };
+      else if (f && hits(B) && figureOf(B.target) && figureOf(B.target) !== f) want[f] = { is: 'at', on: figureOf(B.target) };
+      else if (f && (B.kind === 'cast' || B.kind === 'heal')) want[f] = { is: 'out' };
+    }
+    return want;
+  }
+  // (where a figure's offset is now, on its tween)
+  function offNow(e, now) { const S = e.stepOff; if (!S) return [0, 0]; const u = S.for > 0 ? Math.min(1, Math.max(0, (now - S.t0) / S.for)) : 1, k = u * u * (3 - 2 * u); return [S.a[0] + (S.b[0] - S.a[0]) * k, S.a[1] + (S.b[1] - S.a[1]) * k]; }
+  function stepping() {
+    const w = W();
+    if (!w || !R.b) return;
+    const now = w.time || 0, figs = fightFigures(), want = stepWants(), party = new Set(R.b.ids.map(figureOf));
+    const placed = (id) => { const e = w.byId[id]; return e && e.transform && e.transform.pos ? e : null; };
+    const mid = (set) => { let x = 0, y = 0, n = 0; for (const id of set) { const e = placed(id); if (e) { x += e.transform.pos[0]; y += e.transform.pos[1]; n++; } } return n ? [x / n, y / n] : null; };
+    const foeMid = mid([...figs].filter((f) => !party.has(f))), partyMid = mid([...party].filter(Boolean));
+    for (const id of figs) {
+      const e = w.byId[id];
+      if (!e || !e.transform || !e.transform.pos) continue;
+      const W1 = want[id] || { is: 'home' }, key = W1.is + ':' + (W1.on || '');
+      if (e.stepKey === key) continue;
+      e.stepKey = key;
+      const p = e.transform.pos, other = party.has(id) ? foeMid : partyMid;
+      let b = [0, 0], dur = BACK_FOR, run = false;
+      if (W1.is === 'out' && other) { const dx = other[0] - p[0], dy = other[1] - p[1], d = Math.hypot(dx, dy) || 1; b = [dx / d * STEP_OUT, dy / d * STEP_OUT]; dur = OUT_FOR; }
+      else if (W1.is === 'at') {
+        const T = placed(W1.on);
+        // (e.ranAt: whom it last ran up to this fight)
+        if (T) { const dx = T.transform.pos[0] - p[0], dy = T.transform.pos[1] - p[1], d = Math.hypot(dx, dy) || 1, gap = STEP_GAP + ((T.rule && T.rule.collideRadius) || 0.4); b = [dx / d * Math.max(0, d - gap), dy / d * Math.max(0, d - gap)]; dur = RUN_FOR; run = true; e.ranAt = W1.on; }
+      }
+      e.stepOff = { a: offNow(e, now), b, t0: now, for: dur, run };
+    }
+  }
+  function unstep() { const w = W(); if (w) for (const e of w.entities) if (e && (e.stepOff || e.fightReady != null)) { e.stepOff = null; e.stepKey = null; e.fightReady = null; e.ranAt = null; } }
+
   // ── the battle ──
   function startBattle(enc) {
     if (R.b || mode === 'battle') return false;
@@ -249,6 +305,8 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     mode = 'battle'; phase = 'intro'; beats = out; bi = 0; bt = 0; shown = {}; touched = {}; picks = {}; mi = 0; pend = null; boxes = { cmd: 'bottom-left', foes: 'bottom-right' };
     msg = out[0].text; show(out[0]);
     stage(); placeDue = 3;
+    // (every fighter takes its ready stance, where its figure has one: the controllable channel's __actMode)
+    { const w = W(); if (w) for (const id of fightFigures()) if (w.byId[id]) w.byId[id].fightReady = w.time || 0; }
     screen('rpg-watch');
     return true;
   }
@@ -540,6 +598,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       for (const e of ev) __inputQueue.push(e);
       mode = null; phase = null; pops = []; strikes = [];
       { const w = W(); if (w) for (const e of w.entities) if (e.act) e.act = null; }   // the fight's acts end with it
+      unstep();
       unstage();
       screen(null);
       release();
@@ -889,6 +948,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     // the world holds still in a fight, but its moments (a juice's puffs, beams and shakes) play on: their clock runs
     if (mode === 'battle' && W()) W().time = (W().time || 0) + dt / 1000;
     if (mode === 'battle') {
+      stepping();
       backdrop1();
       if (phase === 'play') film1(); else if (film) endFilm();
       if (placeDue > 0 && --placeDue === 0 && !placeBoxes()) placeDue = 1;

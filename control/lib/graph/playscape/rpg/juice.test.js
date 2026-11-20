@@ -87,7 +87,13 @@ describe('the bodies act a blow out', () => {
     expect(JUICE_PRESETS.ko).toContainEqual({ act: 'fall' });
     const J = readJuice({ on: { 'skill:fire': [{ act: 'cast', at: 'actor', for: 0.8 }, 'hit'] } });
     expect(J.on['skill:fire'][0]).toEqual({ act: 'cast', at: 'actor', for: 0.8 });
-    expect(() => readJuice({ on: { hit: [{ act: 'dance' }] } })).toThrow(/act is strike, cast, hurt, fall/);
+    expect(() => readJuice({ on: { hit: [{ act: 'dance' }] } })).toThrow(/act is strike, cast, use, hurt, fall, win/);
+    // (a cast acts, an item is used, and the fight won, the whole party strikes its win)
+    expect(JUICE_PRESETS.cast).toContainEqual({ act: 'cast', at: 'actor' });
+    expect(JUICE_PRESETS.item).toContainEqual({ act: 'use', at: 'actor' });
+    expect(JUICE_PRESETS.victory).toContainEqual({ act: 'win', at: 'party' });
+    expect(juiceKeys({ kind: 'cast', who: 'a', item: 'potion' })).toEqual(['item:potion', 'item', 'cast']);
+    expect(() => readJuice({ on: { hit: [{ puff: 'smoke', at: 'party' }] } })).toThrow(/at is target or actor/);
     expect(() => readJuice({ on: { hit: [{ act: 'strike', k: 2 }] } })).toThrow(/k is not part of a act/);
   });
 });
@@ -102,7 +108,7 @@ describe('the lens: the screen round a still figure, where the world leaves the 
     expect(() => readJuice({ on: { hit: [{ lens: 'ring', for: 1 }] } })).toThrow(/for is not part of a lens/);
     const D = readJuice(undefined);
     expect(D.on.miss).toContainEqual({ lens: 'ring' });
-    expect(D.on.cast).toEqual([{ lens: 'lift', at: 'actor' }]);
+    expect(D.on.cast).toEqual([{ act: 'cast', at: 'actor' }, { lens: 'lift', at: 'actor' }]);
     expect(juiceKeys({ kind: 'cast', who: 'ayla' })).toContain('cast');
   });
 

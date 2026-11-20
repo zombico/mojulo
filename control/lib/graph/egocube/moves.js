@@ -74,6 +74,29 @@ export function fieldStatesOf(moves) {
   };
 }
 
+/**
+ * A PARTY BATTLE'S REPERTOIRE (a member who fights in the party, `bond: 'party'`, and the hero of a world of party
+ * battles): enough moves that a fight is not one blow over and over. Three attacks by its role (the page plays them in
+ * turn, varied), a cast by its role for a skill, a thumbs-up for an item, four ways to take a blow, its ready stance
+ * held while it fights and its win pose. The states are the names the battle's acts look for (rpg-channel.js juice,
+ * the controllable channel's __ACT_CLIPS): strike, strike2, strike3, cast, use, hurt, hurt2, hurt3, ready, win.
+ */
+export const BATTLE_ATTACKS_OF_ROLE = Object.freeze({
+  frontline: ['cross', 'hook', 'uppercut'], flanker: ['jab', 'bodyHook', 'thrust'], ranged: ['jab', 'crossLeft', 'thrustLeft'],
+  controller: ['jab', 'cross', 'hookLeft'], caster: ['jab', 'cross', 'hookLeft'], support: ['jab', 'cross', 'hookLeft'],
+});
+export const BATTLE_CAST_OF_ROLE = Object.freeze({ frontline: 'fistCrush', flanker: 'killerQueen', ranged: 'fingerGuns', controller: 'josephPoint', caster: 'jotaroPoint', support: 'fistToSky' });
+const BATTLE_HURTS = ['hitHigh', 'hitBody', 'hitLow'], BATTLE_USE = 'niceGuy';
+// (a party class's role, for the hero of a world of party battles, whose sheet is the hero door's and not a member's)
+export const ROLE_OF_CLASS = Object.freeze({ fighter: 'frontline', knight: 'frontline', monk: 'flanker', rogue: 'flanker', mage: 'caster', cleric: 'support' });
+
+/** A party fighter's battle moves: { motion: { <word>: true }, states: { strike…win: <word> } }. */
+export function battleMovesOf(role, { archetype = null } = {}) {
+  const r = BATTLE_ATTACKS_OF_ROLE[role] ? role : 'frontline', [a1, a2, a3] = BATTLE_ATTACKS_OF_ROLE[r];
+  const states = { strike: a1, strike2: a2, strike3: a3, cast: BATTLE_CAST_OF_ROLE[r], use: BATTLE_USE, hurt: BATTLE_HURTS[0], hurt2: BATTLE_HURTS[1], hurt3: BATTLE_HURTS[2], ready: READY_OF_ROLE[r], win: WIN_OF_ARCHETYPE[archetype] ?? 'fistToSky' };
+  return { motion: Object.fromEntries([...new Set([...Object.values(states), ...Object.keys(REACT_MOTION)])].map((w) => [w, true])), states };
+}
+
 /** The families a creature's rig solves (a showcase pose reaches for a person's shoulders and hands). */
 const CREATURE_FAMILIES = new Set(['stance', 'strike', 'react']);
 /** A beast-kin below the hero door: its walk and jog, and the moves of its set its rig can solve. */

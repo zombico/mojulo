@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { readEgocubeKind, rollStored, egocubeNodes, egocubeCreate, egocubePrint, assembleEgocubeScene, LINEUP_GAP } from './kind.js';
 import { rollEgocube } from './egocube.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
-import { moveSetOf, creatureMovesOf, beastGaitsOf, READY_OF_ROLE, ATTACK_OF_ROLE, WIN_OF_ARCHETYPE } from './moves.js';
+import { moveSetOf, creatureMovesOf, beastGaitsOf, READY_OF_ROLE, ATTACK_OF_ROLE, WIN_OF_ARCHETYPE, battleMovesOf, BATTLE_ATTACKS_OF_ROLE } from './moves.js';
 import { MOTION_GAITS } from '../polygonizer/hero-motion.js';
 import { ROLES, ARCHETYPE_IDS } from './facets.js';
 
@@ -114,6 +114,20 @@ describe('a cast as a cube (cast.js)', () => {
     expect(egocubeCreate(rollStored(THREAD)).create.spec.motion).toBeUndefined();   // one character alone: as it was
     expect(() => egocubeCreate(S, { years: 20 })).toThrow(/made by path/);
     expect(() => egocubeCreate(rollStored(THREAD), { member: 'hero' })).toThrow(/this cube is one character/);
+  });
+
+  it('a member who fights in the party carries a party battle\'s repertoire: three attacks, a cast, its reactions, its stance and its win', () => {
+    const S = rollStored({ kind: 'egocube', cast: { seed: 4, cast: { mage: { relation: 'party', body: 'person', roles: ['caster'] } } } });
+    const path = Object.keys(S.castSheet.members).find((p) => p !== 'hero'), M = egocubeCreate(S, { member: path }), f = S.castSheet.members[path].sheet.facets;
+    expect(M.battle).toEqual(battleMovesOf(f.role, { archetype: f.archetype }).states);
+    expect(new Set([M.battle.strike, M.battle.strike2, M.battle.strike3]).size).toBe(3);
+    expect(new Set([M.battle.hurt, M.battle.hurt2, M.battle.hurt3]).size).toBe(3);
+    for (const w of Object.values(M.battle)) expect(M.create.spec.motion[w], w).toBe(true);
+    for (const w of Object.keys(M.create.spec.motion)) expect(MOTION_GAITS[w], w).toBeTruthy();
+    // (one who is not of the party plays its part as it always did)
+    expect(egocubeCreate(rollStored(CAST), { member: 'hero/rival' })).not.toHaveProperty('battle');
+    // (each role its own blows: no two roles' attacks the same three)
+    expect(new Set(Object.values(BATTLE_ATTACKS_OF_ROLE).map((a) => a.join())).size).toBeGreaterThan(2);
   });
 
   it('previews the cast standing in a line, the beast among them', async () => {

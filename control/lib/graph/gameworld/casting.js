@@ -39,7 +39,7 @@
  */
 import { rollCast, castOfScale, RELATIONS, SCALES } from '../egocube/cast.js';
 import { settingOfGame } from './cast-setting.js';
-import { moveSetOf, fieldStatesOf, creatureMovesOf, beastFieldOf } from '../egocube/moves.js';
+import { moveSetOf, fieldStatesOf, creatureMovesOf, beastFieldOf, battleMovesOf } from '../egocube/moves.js';
 import { beastOnTiered } from '../egocube/plan.js';
 import { cubeOfWorld } from './intent.js';
 
@@ -160,7 +160,11 @@ export const CLASS_GAPS = Object.freeze({ ranged: 'no archer class: a rogue stan
 export function fieldOf(m) {
   if (m.body === 'beast') { try { return beastFieldOf(m.beast.species); } catch { return null; } }
   if (m.body === 'mascot') return { own: { forward: 'run', idle: 'idle', turn: 'walk', strafe: 'run' }, moves: { stagger: 'flinch', topple: 'fall', getup: 'rise' } };
-  if (m.sheet.ancestry?.door === 'hero' || beastOnTiered(m.sheet)) return { moves: fieldStatesOf(moveSetOf(m.sheet.facets).moves) };
+  // (one who fights in the party plays a party battle's repertoire beside: moves.js battleMovesOf, minted with it, kind.js)
+  if (m.sheet.ancestry?.door === 'hero' || beastOnTiered(m.sheet)) {
+    const B = m.bond === 'party' && m.sheet.facets.role !== 'non-combatant' ? battleMovesOf(m.sheet.facets.role, { archetype: m.sheet.facets.archetype }) : null;
+    return { moves: { ...fieldStatesOf(moveSetOf(m.sheet.facets).moves), ...(B ? B.states : {}) } };
+  }
   return { own: { forward: 'jog', idle: 'idle', turn: 'walk', strafe: 'jog' }, moves: fieldStatesOf(creatureMovesOf(m.sheet.facets).moves) };
 }
 

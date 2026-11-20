@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { runSteps, readGameworld, MEADOWMARK_HERO } from './index.js';
 import { quickWorld, readQuick } from './quick.js';
-import { REACT_MOTION, reactStatesOf } from '../egocube/moves.js';
+import { REACT_MOTION, reactStatesOf, battleMovesOf } from '../egocube/moves.js';
 
 const REACT = { stagger: 'stagger', topple: 'knockedOutDown', getup: 'knockedOutUp' };
 const level = (S) => S.find((s) => s.key.startsWith('level-')).order.manifest;
@@ -15,7 +15,8 @@ describe('beast foes: a foe whose look names a species is made through the anima
     const M = level(S), wolf = M.figures['foe-1'];
     expect(wolf).toMatchObject({ heroRef: 'gw-foe', walker: true, moves: { stagger: 'flinch', topple: 'fall', getup: 'rise' } });
     expect(wolf.library).toBeUndefined();
-    expect(M.figures.hero.moves).toEqual(REACT);
+    // (and, a world of battles, its battle moves beside: egocube/moves.js battleMovesOf)
+    expect(M.figures.hero.moves).toEqual({ ...REACT, ...battleMovesOf('frontline').states });
   });
 
   it('a quick battle and a defence take a beast foe; a shooter\'s foes need a person\'s hands; an unknown beast teaches', () => {
@@ -51,7 +52,8 @@ describe('moves: every person the run makes takes a blow on its own rig', () => 
     // (since per-foe figures: a person plays the hero door's reactions; a people foe the same, and its swings; a foe on a
     // beast's body its own gaits' (a flinch, a fall, a rise), and none where its gaits hold none: a bat has no fall)
     const people = figs.filter((f) => f.moves?.stagger === 'stagger'), beasts = figs.filter((f) => f.moves && f.moves.stagger !== 'stagger');
-    for (const f of figs.filter((x) => !/-foe-/.test(x.heroRef) || /-foe-bandit$/.test(x.heroRef))) expect(f.moves, f.heroRef).toEqual(REACT);
+    // (the hero, a world of battles, with its battle moves beside: egocube/moves.js battleMovesOf)
+    for (const f of figs.filter((x) => !/-foe-/.test(x.heroRef) || /-foe-bandit$/.test(x.heroRef))) expect(f.moves, f.heroRef).toEqual(/-hero(-equipped)?$/.test(f.heroRef) ? { ...REACT, ...battleMovesOf('frontline').states } : REACT);
     for (const f of people) expect(f.moves, f.heroRef).toMatchObject(REACT);
     for (const f of beasts) expect(Object.keys(f.moves).sort(), f.heroRef).toEqual(['getup', 'stagger', 'topple']);
     expect(people.length && beasts.length).toBeTruthy();

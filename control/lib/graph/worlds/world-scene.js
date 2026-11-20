@@ -150,6 +150,8 @@ export function stateFace(face, own, clips) {
 /** a body destroyed when it goes down (its `vanish.die` a dismantle, a cleave or a destroy: gameworld/vanish.js), or one
  * that sheds a mode (its `modes`): the page's wreck plays both */
 // (a body destroyed in its going, a body with modes, or a summons whose strings may be cut: worlds/controllable/summon.js)
+// the battle acts a figure's `moves` may name (egocube/moves.js battleMovesOf), kept as names for the page's acts
+const BATTLE_ACT_STATES = new Set(['strike', 'strike2', 'strike3', 'cast', 'use', 'hurt', 'hurt2', 'hurt3', 'ready', 'win']);
 const wrecks = (e) => !!(e && e.body && ((e.body.vanish && ['dismantle', 'cleave', 'destroy'].includes(e.body.vanish.die)) || (Array.isArray(e.body.modes) && e.body.modes.length > 1) || (e.rule && e.rule.summoned && e.rule.summoned.bound)));
 
 /** A hero (or a mascot) as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
@@ -275,14 +277,21 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
   }
   // its OWN MOVES (`moves`: state → a clip of its own, egocube/moves.js `fieldStatesOf`): a state plays the hero's own
   // clip when it has it, over the library's; one it lacks keeps what the state played (absent ⇒ the same figure)
-  for (const [state, clip] of Object.entries(spec.moves || {})) if (pack.clips[clip]) clips[state] = pack.clips[clip];
+  // (a party battle's repertoire, egocube/moves.js battleMovesOf: its acts by name, `battle`, played by the page's battle
+  // acts, never copied into the clips under a second name)
+  let battle = null;
+  for (const [state, clip] of Object.entries(spec.moves || {})) {
+    if (!pack.clips[clip]) continue;
+    if (BATTLE_ACT_STATES.has(state)) (battle ??= {})[state] = clip;
+    else clips[state] = pack.clips[clip];
+  }
   // (its FACE, the realistic hero's: each state's facial track the clip's it plays, the ambient blink over a state its
   // clip let it play over; a library's clip has no track and takes the ambient blink)
   const face = pack.face?.tracks ? stateFace(pack.face, pack.clips, clips) : null;
   // (read lit, a body whose colour is its palette's own (no painted texture) says how each of its materials answers the
   // light: color-theorist/cast-response.js; the page reads a corner's class off its colour)
   const response = lit && !pack.paintTex && manifest && manifest.recipe && manifest.recipe.palette ? (await import('@/lib/graph/color-theorist/cast-response.js')).castResponse(manifest.recipe.palette) : null;
-  return { ...pack, clips, ...(held ? { held } : {}), ...(face ? { face } : {}), ...(response && response.length ? { response } : {}) };
+  return { ...pack, clips, ...(held ? { held } : {}), ...(face ? { face } : {}), ...(response && response.length ? { response } : {}), ...(battle ? { battle } : {}) };
 }
 
 /**

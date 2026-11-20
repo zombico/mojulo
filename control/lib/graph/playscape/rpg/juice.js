@@ -17,9 +17,12 @@
  *       { puff: '<moment>', at?, color?, scale? }   a moment plays there (playscape/elements/moments.js)
  *       { beam: '<attack>', color? }               an attack flies from the actor to the target (beams.js presets)
  *       { shake: k, for? }                         the camera shakes (k 0..1)
- *       { act: strike | cast | hurt | fall, at?, for? }   the figure acts it out with its own clip: the actor's swing
+ *       { act: strike | cast | use | hurt | fall | win, at?, for? }   the figure acts it out with its own clip: the actor's swing
  *                                                  (leaning toward its target), a cast, the target's recoil, a fall
- *                                                  (a member's; a pack's figure recoils, and falls when the fight is won)
+ *                                                  (a member's; a pack's figure recoils, and falls when the fight is won),
+ *                                                  an item used, the win (at: party, every standing member); a figure
+ *                                                  with a party battle's repertoire (egocube/moves.js battleMovesOf)
+ *                                                  varies its strikes and recoils among its own, turn by turn
  *     in the window:
  *       { flash: '#rrggbb'?, for? }                the screen flashes
  *       { jolt: 'target' | 'actor' | 'window', k? } the window jolts; a row's jolt is its number's change, which
@@ -62,12 +65,12 @@ export const JUICE_STEPS = Object.freeze({
   pop: '{ pop: normal | big | crit | small, color? } how big the number rises (its colour the theme\'s)',
   hold: '{ hold: s } the beat lingers',
   emit: '{ emit: <event> } a bus event, for any cue to answer',
-  act: '{ act: strike | cast | hurt | fall, at?: target | actor, for?: s } the figure acts it out with its own clip',
+  act: '{ act: strike | cast | use | hurt | fall | win, at?: target | actor | party, for?: s } the figure acts it out with its own clip (varied among its own where it has several)',
   lens: '{ lens: ring | lift | shade | ink, at?: target | actor } the screen round the figure (mana-ui\'s lens): the air about it bent, lit, darkened or inked for the beat, never over the figure, never the whole screen; it yields to the world: a beat that flashes the screen, or puffs or lands a beam on that figure, plays no lens there',
   shot: '{ shot: closeup | behind | target | view, at?: actor | target, for?: s } the camera cuts to it for the beat: a close-up on a figure, behind the actor at its target, on the target, or back to the fight\'s view',
 });
 export const SHOTS = Object.freeze(['closeup', 'behind', 'target', 'view']);
-export const ACTS = Object.freeze(['strike', 'cast', 'hurt', 'fall']);
+export const ACTS = Object.freeze(['strike', 'cast', 'use', 'hurt', 'fall', 'win']);
 export const LENS_KINDS = Object.freeze(['ring', 'lift', 'shade', 'ink']);
 const POPS = ['normal', 'big', 'crit', 'small'];
 const JOLTS = ['target', 'actor', 'window'];
@@ -80,14 +83,15 @@ export const JUICE_PRESETS = Object.freeze({
   resist: [{ act: 'strike', at: 'actor' }, { pop: 'small' }, { jolt: 'target', k: 0.5 }],
   // (a miss: the air round the target bent where the blow passed; a cast: the air round the caster lit as it gathers)
   miss: [{ act: 'strike', at: 'actor' }, { pop: 'small' }, { lens: 'ring' }],
-  cast: [{ lens: 'lift', at: 'actor' }],
+  cast: [{ act: 'cast', at: 'actor' }, { lens: 'lift', at: 'actor' }],
+  item: [{ act: 'use', at: 'actor' }, { lens: 'lift', at: 'actor' }],
   heal: [{ pop: 'normal', color: '#7dffa5' }, { puff: 'sparks', color: '#7dffa5', scale: 0.5 }],
   status: [{ puff: 'smoke', scale: 0.5 }],
   ko: [{ act: 'fall' }, { puff: 'smoke' }, { shake: 0.2 }, { hold: 0.15 }],
   fall: [{ act: 'fall' }, { jolt: 'window', k: 1.5 }, { flash: '#ff3030', for: 0.12 }],
   start: [{ flash: '#ffffff', for: 0.12 }, { shake: 0.25 }],
   boss: [{ flash: '#ff6040', for: 0.3 }, { shake: 0.6 }, { hold: 0.6 }],
-  victory: [{ flash: '#ffe07a', for: 0.2 }],
+  victory: [{ flash: '#ffe07a', for: 0.2 }, { act: 'win', at: 'party' }],
   level: [{ flash: '#ffe07a', for: 0.15 }],
   fire: ['hit', { puff: 'flash', color: '#ff7a2a' }],
   ice: ['hit', { puff: 'splash', color: '#bfe8ff' }],
@@ -97,7 +101,7 @@ export const JUICE_PRESETS = Object.freeze({
 });
 export const JUICE_ALSO = Object.freeze({ weak: 'weak', resist: 'resist' });
 export const JUICE_ON = Object.freeze({
-  hit: 'hit', crit: 'crit', miss: 'miss', heal: 'heal', status: 'status', cast: 'cast',
+  hit: 'hit', crit: 'crit', miss: 'miss', heal: 'heal', status: 'status', cast: 'cast', item: 'item',
   ko: 'ko', fall: 'fall', start: 'start', 'start:boss': 'boss', victory: 'victory', level: 'level',
   'element:fire': 'fire', 'element:ice': 'ice', 'element:thunder': 'thunder', 'element:light': 'light', 'element:dark': 'dark',
 });
@@ -113,7 +117,7 @@ function readStep(s, where, fx) {
   const allow = { puff: ['puff', 'at', 'color', 'scale'], beam: ['beam', 'color'], shake: ['shake', 'for'], flash: ['flash', 'for'], jolt: ['jolt', 'k'], pop: ['pop', 'color'], hold: ['hold'], emit: ['emit'], act: ['act', 'at', 'for'], lens: ['lens', 'at'], shot: ['shot', 'at', 'for'] }[k];
   for (const x of Object.keys(s)) if (!allow.includes(x)) throw err(`${where}.${x} is not part of a ${k} (${allow.join(', ')})`);
   if (s.color !== undefined && !(typeof s.color === 'string' && (HEX.test(s.color) || /^[a-z]+$/.test(s.color)))) throw err(`${where}.color is '#rrggbb' or a colorant`);
-  if (s.at !== undefined && s.at !== 'target' && s.at !== 'actor') throw err(`${where}.at is target or actor`);
+  if (s.at !== undefined && s.at !== 'target' && s.at !== 'actor' && !(k === 'act' && s.at === 'party')) throw err(`${where}.at is target or actor${k === 'act' ? ' (or party: every standing member)' : ''}`);
   for (const x of ['scale', 'for', 'k']) if (s[x] !== undefined && !(num(s[x]) && s[x] > 0)) throw err(`${where}.${x} is a number above 0`);
   if (k === 'puff') { if (!MOMENTS[s.puff]) throw err(`${where}.puff is a moment: ${Object.keys(MOMENTS).join(', ')}`); fx.puffs.add(s.puff); }
   if (k === 'beam') {
@@ -216,7 +220,7 @@ export function juiceKeys(b) {
     out.push('heal');
   } else if (k === 'cast') {
     if (b.skill) out.push('cast:' + b.skill);
-    if (b.item) out.push('item:' + b.item);
+    if (b.item) out.push('item:' + b.item, 'item');
     out.push('cast');
   } else if (k === 'ko') {
     if (b.foe) out.push('ko:' + b.foe, 'ko'); else out.push('fall');

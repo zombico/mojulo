@@ -133,3 +133,11 @@
   runtime's pathfinder, `worlds/controllable/nav.js`), arriving only at the places it named, by an opt-in builder
   (`worlds/controllable/route-find.js`) composed into a page only when a cue of its world walks so. Without it, a walk
   is as it was: straight lines, stopped at a wall.
+- **The fights acted out, and varied.** The member picking steps out of the line; one who attacks runs up to its target,
+  strikes and goes back; one who casts or uses an item steps out; a foe lunges the same way (the page's stepping,
+  `rpg-channel.js`, played by the controllable channel's battle acts with the run clip on the way in). Every party
+  member and a battles world's hero are made with a party battle's repertoire (`egocube/moves.js` `battleMovesOf`):
+  three attacks by role, a cast and an item gesture, three recoils beside the stagger, a ready stance held through the
+  fight and a win pose the whole party strikes. The page plays a figure's strikes and recoils in turn, so no blow
+  repeats the one before. The acts reach the page by name (`fig.battle`), not as second copies of their clips. Before,
+  the hero had no strike at all and each companion one move.

@@ -2161,16 +2161,41 @@ function __formMode(fig, e, mode) {
   return fig.clips[k] ? k : f + ':idle';
 }
 ` : ''}${acts ? `// a battle act's clip among the figure's own: the first it has of the act's names (its swing, its recoil, its fall)
-const __ACT_CLIPS = { strike: ['strike', 'swing_neutral', 'swing', 'attack', 'punch'], cast: ['cast', 'strike', 'swing_neutral'], hurt: ['stagger', 'hitHigh', 'flinch'], fall: ['topple', 'knockedOutDown', 'fall'] };
-function __actClip(fig, is) { const L = __ACT_CLIPS[is] || []; for (let i = 0; i < L.length; i++) if (fig.clips[L[i]]) return L[i]; return null; }
+const __ACT_CLIPS = { strike: ['strike', 'swing_neutral', 'swing', 'attack', 'punch'], cast: ['cast', 'strike', 'swing_neutral'], use: ['cast', 'strike', 'swing_neutral'], hurt: ['stagger', 'hitHigh', 'flinch'], fall: ['topple', 'knockedOutDown', 'fall'], win: [] };
+// (a party battle's repertoire, fig.battle: its own clips for an act by name, egocube/moves.js battleMovesOf; an act
+// plays them in turn, from a place of its own on the figure's name, so no two blows in a row look alike)
+const __ACT_OWN = { strike: ['strike', 'strike2', 'strike3'], cast: ['cast'], use: ['use', 'cast'], hurt: ['hurt', 'hurt2', 'hurt3'], win: ['win'] };
+function __actClip(fig, is, n, id) {
+  const B = fig.battle, own = [];
+  if (B) for (const k of __ACT_OWN[is] || []) if (B[k] && fig.clips[B[k]] && own.indexOf(B[k]) < 0) own.push(B[k]);
+  if (own.length) { let h = 0; for (let i = 0; i < (id || '').length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0; return own[(n + h) % own.length]; }
+  const L = __ACT_CLIPS[is] || []; for (let i = 0; i < L.length; i++) if (fig.clips[L[i]]) return L[i]; return null;
+}
 // A BATTLE ACT (the party battles' juice, rpg-channel.js: e.act { is, t0, for, to? }): the figure plays its own clip for it
 // at the act's phase on the world's clock (a fight holds the world still, its clock running), a strike leaning toward its
-// target and back; a fall holds its last frame; a figure without the clip plays nothing new (A.clip says which it played)
+// target and back; a fall and a win hold their last frame; a figure without the clip plays nothing new (A.clip says which
+// it played). Its STEP (e.stepOff { a, b, t0, for, run }: out of its line, up to its target, home again) moves it on the
+// way, running where it runs in; and a fighter with a READY stance (fig.battle.ready) stands in it while the fight lasts.
 function __actMode(fig, e, m) {
-  const A = e.act, at = A ? ((__world.time || 0) - A.t0) / A.for : -1;
-  if (!(A && at >= 0 && (at <= 1 || A.is === 'fall'))) { if (A && at > 1) e.act = null; return null; }
-  const c = __actClip(fig, A.is); A.clip = c;
-  const T = A.to && A.is === 'strike' ? __world.byId[A.to] : null;
+  const now = __world.time || 0, S = e.stepOff;
+  let running = false;
+  if (S) {
+    const u = S.for > 0 ? Math.min(1, Math.max(0, (now - S.t0) / S.for)) : 1, k = u * u * (3 - 2 * u);
+    m.position.x += S.a[0] + (S.b[0] - S.a[0]) * k; m.position.y += S.a[1] + (S.b[1] - S.a[1]) * k;
+    running = !!S.run && u < 1;
+  }
+  const A = e.act, at = A ? (now - A.t0) / A.for : -1;
+  if (!(A && at >= 0 && (at <= 1 || A.is === 'fall' || A.is === 'win'))) {
+    if (A && at > 1) e.act = null;
+    if (running) { const c = fig.clips.sprint ? 'sprint' : fig.clips.forward ? 'forward' : null; if (c) return { mode: c, phase: ((now - S.t0) / 0.67) % 1 }; }
+    const R = fig.battle && fig.battle.ready;
+    if (e.fightReady != null && R && fig.clips[R]) return { mode: R, phase: Math.min(0.999, Math.max(0, now - e.fightReady) / 0.5) };
+    return null;
+  }
+  if (A.n == null) A.n = e.actN = (e.actN || 0) + 1;
+  const c = __actClip(fig, A.is, A.n, e.id); A.clip = c;
+  // (a strike leans in toward its target, unless it ran up to it)
+  const T = A.to && A.is === 'strike' && !(S && Math.hypot(S.b[0], S.b[1]) > 0.01) ? __world.byId[A.to] : null;
   if (T && at <= 1) { const dx = T.transform.pos[0] - e.transform.pos[0], dy = T.transform.pos[1] - e.transform.pos[1], d = Math.hypot(dx, dy) || 1, k = Math.sin(Math.PI * at) * Math.min(1.2, d * 0.4) / d; m.position.x += dx * k; m.position.y += dy * k; }
   return c ? { mode: c, phase: Math.min(at, 0.999) } : null;
 }

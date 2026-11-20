@@ -176,9 +176,29 @@ A cue's walk may find its way (`walk: { who, to, find: true }`, RPG Maker's move
 stands in the way (the page's pathfinder, A* over the world's colliders), arriving only at the places it named. Without
 `find` a walk goes in straight lines and stops at a wall, `stuck`.
 
+## The fights acted out
+
+The fighters move on their own line, as a console RPG's do:
+- the member picking steps out of the line toward the foes;
+- one who attacks runs up to its target on the beat that says so, strikes there, and stands back in its place after;
+- one who casts or uses an item steps out;
+- a foe lunges the same way.
+
+Every member of the party (a cast's `bond: 'party'`) and the hero of a world of battles are made with a **party battle's
+repertoire** (`egocube/moves.js` `battleMovesOf`):
+- three attacks by its role: a frontliner's cross, hook and uppercut; a flanker's jab, body hook and thrust;
+- a cast pose by its role and a thumbs-up for an item;
+- three ways to take a blow beside its stagger, and its fall;
+- its ready stance, held while the fight lasts, and its win pose, struck by the whole party when the fight is won.
+
+The page plays a figure's strikes and recoils in turn, each figure from a place of its own, so no two blows in a row
+look alike. A figure without its own falls back to the clip it has. A world's juice can name the acts (`act: strike |
+cast | use | hurt | fall | win`, `at: party` for the win).
+
 ## What comes next
 
 Each step ends playable, and each is something a person can say that the words did not carry before. An RPG Maker
 idea is reached through the primitive that already owns it (a switch is a flag, an event page a scene's `if`, a
 transfer a megaworld's way), never rebuilt:
-1. **The fights animated:** the blows, the casts and the falls acted out by the bodies.
+1. **The fights animated, further:** foes' own repertoires (a beast's several attacks), a boss's roar and heavier
+   lunge, a summoned foe's entrance.

@@ -72,7 +72,7 @@ import { sheetAudio, sheetBed, onSheet, levelSheet, citySounds, rideSound, rideT
 import { cueSheet, levelScore, onScore, cityScore } from './cue-sheet.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { castingOf, laidCasting, laidJoins } from './casting.js';
-import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
+import { REACT_MOTION, reactStatesOf, beastMovesOf, battleMovesOf, ROLE_OF_CLASS } from '../egocube/moves.js';
 import { beastLook } from './stage-figures.js';
 import { kinWords, kinBare, isKin } from '../foes/packs.js';
 import { brawlCast, brawlBodies, withBodies, brawlStreet, withStreetBodies } from './brawl-cast.js';
@@ -316,7 +316,12 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   // an adopted hero (characters.hero.ref) is pinned, never made: the step says so (`adopt`), and it plays as it is
   const adopted = G.characters?.hero?.ref ?? null, heroRef = heroRefOf(world, ref);
   const react = !!G.moves;
-  const hero = { spec: withReact(react, playJog(O.mint.args.spec)), mint: { ...O.mint.args, spec: withReact(react, playJog(O.mint.args.spec)) }, motion: keepReact(react, keepJog(O.motion?.args.patch)) ?? null };
+  // (the hero of a world of battles carries a party battle's repertoire, by its class's role: moves.js battleMovesOf;
+  // an adopted hero plays the moves it was made with)
+  const fightMoves = G.battles && !adopted ? battleMovesOf(ROLE_OF_CLASS[castingOf(G)?.anchor?.cls] ?? 'frontline') : null;
+  const withFight = (spec) => (fightMoves ? { ...spec, motion: { ...(isObj(spec.motion) ? spec.motion : {}), ...fightMoves.motion } } : spec);
+  const keepFight = (patch) => (fightMoves && patch ? patch.map((op) => (op.op === 'set' && op.path === '/hero/motion' && isObj(op.value) ? { ...op, value: { ...op.value, ...fightMoves.motion } } : op)) : patch);
+  const hero = { spec: withFight(withReact(react, playJog(O.mint.args.spec))), mint: { ...O.mint.args, spec: withFight(withReact(react, playJog(O.mint.args.spec))) }, motion: keepFight(keepReact(react, keepJog(O.motion?.args.patch))) ?? null };
   const steps = [adopted
     ? { key: 'hero', ref: heroRef, ready: true, adopt: true, order: { adopt: heroRef }, print: fingerprint({ adopt: heroRef }) }
     : { key: 'hero', ref: heroRef, ready: true, order: hero, print: fingerprint({ spec: hero.spec, motion: hero.motion, ...lit(hero.mint.toon) }) }];
@@ -407,6 +412,9 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   // plays the ones it was made with)
   const ownMoves = react ? Object.fromEntries([...(adopted ? [] : [heroRef]), ...(equipped ? [equipped.ref] : []), ...(foeRef && ownFoe && !beastLook(G.battles.foe) ? [foeRef] : []), ...(keeperRef ? [keeperRef] : [])].map((r) => [r, REACT_STATES])) : null;
   if (ownMoves && adopted) { const st = reactStatesOf(isObj(lookup?.heroSpec?.motion) ? Object.keys(lookup.heroSpec.motion) : []); if (st) ownMoves[heroRef] = st; }
+  // (the hero's battle moves beside its reactions)
+  const ownAll = fightMoves ? ownMoves ?? {} : ownMoves;
+  if (fightMoves) for (const r of [heroRef, ...(equipped ? [equipped.ref] : [])]) ownAll[r] = { ...(ownAll[r] ?? {}), ...fightMoves.states };
   const heroGaits = rowGaits(adopted ? null : G, gaitsOf(equipped ? equipped.order.spec : adopted ? lookup?.heroSpec : { ...hero.spec, ...(hero.motion ? motionFields(hero.motion) : {}) }));
   // a building by ref is played as it was made: its ref is the level, and no step makes it
   const stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
@@ -531,7 +539,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : cars ? { legend: 'E  car' } : {}) } : {};
     // a walked stage's story slots: its before at its start, its after (and its epoch's end) at its exit
     const sl = walkedSlots(st, endOf[i], s);
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(s.section === 'street' || G.factions || G.law ? { foeRefs } : {}), ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights, ...sheetOf(G, s, runScore), ...gunnerRefOf(G, ref) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(s.section === 'street' || G.factions || G.law ? { foeRefs } : {}), ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(ownAll ? { moves: ownAll } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights, ...sheetOf(G, s, runScore), ...gunnerRefOf(G, ref) });
     // (a party RPG marks no way out: no flag over its exits, the road or the door itself the way on)
     if (G.battles && G.battles.on !== 'board') L.args = unmarked(L.args);
     // on an epoch's map, a level won goes back to the map

@@ -39,7 +39,7 @@ import { rollMascot, asksForMascot, MASCOT_KEYS } from './mascot.js';
 import { mascotPlanFromSheet, modelSheet } from './mascot-form.js';
 import { mascotOfPerson } from './mascot-from-person.js';
 import { rollCast, readCastRequest } from './cast.js';
-import { moveSetOf, creatureMovesOf, beastMovesOf } from './moves.js';
+import { battleMovesOf, moveSetOf, creatureMovesOf, beastMovesOf } from './moves.js';
 import { motionPlan } from '../polygonizer/hero-motion.js';
 import { fingerprint } from '../gameworld/review.js';
 
@@ -152,8 +152,9 @@ export function egocubeCreate(m, { years, dress, title, output, member } = {}) {
   // sheet made to play one (`moves: true`, a bestiary's people: gameworld/foes.js)
   const plays = !!node.member || m.moves === true;
   if (plays && P.create.as === 'hero') {
-    const M = moveSetOf(node.sheet.facets);
-    return { node: { path: node.path, years: node.years, band: node.band }, ...of, create: { ...P.create, spec: { ...P.create.spec, motion: { ...(P.create.spec.motion ?? {}), ...M.motion } } }, moves: M.moves, after: P.after, ledger: P.ledger, ...(P.outfit ? { outfit: P.outfit } : {}) };
+    // (a member who fights in the party carries a party battle's repertoire too: moves.js battleMovesOf)
+    const M = moveSetOf(node.sheet.facets), B = node.member?.bond === 'party' && node.sheet.facets.role !== 'non-combatant' ? battleMovesOf(node.sheet.facets.role, { archetype: node.sheet.facets.archetype }) : null;
+    return { node: { path: node.path, years: node.years, band: node.band }, ...of, create: { ...P.create, spec: { ...P.create.spec, motion: { ...(P.create.spec.motion ?? {}), ...M.motion, ...(B ? B.motion : {}) } } }, moves: M.moves, ...(B ? { battle: B.states } : {}), after: P.after, ledger: P.ledger, ...(P.outfit ? { outfit: P.outfit } : {}) };
   }
   // a member below the hero door (a beast-kin on the creature loop's rig): a walk and a jog, and the moves its rig solves
   if (plays && P.create.spec?.plan) {
