@@ -342,11 +342,12 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   matter by the shot light, no longer compiled as cel without a cel normal). The boss's room SHUTS behind the hero: a
   step past its doorway the runtime walls it up (a camera zone's `shut`) and a steel shutter with hazard bars drops
   across the way in (`shutter-view.js`). Level 0's boss is BULWARK, a giant worker bot, not one of the roster's
-  rivals: the mecha shelf's heavy construction walker (a closed cab, two arms on rams) in site yellow, stood as the
-  frame's rig at twice the hero's height (a roster boss's `mecha`, nothing minted), its pattern one slow round low
-  across the room every 1.4 s, jumped, its health 280, coming apart as it falls; it gives no weapon. Laws: the tap
+  rivals: the hero's own family built big and broad in site yellow, a hard hat over a screen face (the boss face
+  `worker`: two round lit eyes and a dark grille mouth on a light plate, a boss's `plate` its colour; a bot in Galaxy
+  Boy's world has two eyes and a mouth at least), at twice the hero's height, its pattern one slow round low across the
+  room every 1.4 s, jumped, its health 280, coming apart as it falls; it gives no weapon. Laws: the tap
   meets a knee-high walker (buster.test.js), the foe round travels from the foe's middle and through its own
-  (cast.test.js), a boss's room shuts behind the hero and is not left (sidemap.test.js), the giant worker bot's body,
-  shot and health (boss-cast.test.js); the bot plays level 0 through its foes and brings Bulwark down
+  (cast.test.js), a boss's room shuts behind the hero and is not left (sidemap.test.js), the giant worker bot's face (two
+  eyes and a mouth), shot and health (boss-cast.test.js); the bot plays level 0 through its foes and brings Bulwark down
   (level.e2e.test.js). Seen on the page: a turret's round crossing the room, the heavies, a walker's wreck, the
   shutter coming down, Bulwark firing low across its room.

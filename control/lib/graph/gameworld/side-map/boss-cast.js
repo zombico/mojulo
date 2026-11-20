@@ -6,9 +6,6 @@
  * Its fall is the level's end: a defeat-all of the boss in place of the far side's reach. Its health is the HUD's bar
  * (the defeat-all's `bar`), never a bar over its head.
  *
- * A MACHINE (a roster boss with a `mecha` body: level 0's worker bot) is stood as its mecha shelf frame's rig, drawn at the
- * tier's height, with no figure of its own to mint.
- *
  *   sideMapBossCast(G, ends, { refs, stature? }) → { figures, entities, mechanics } | null   (`ends.boss` from
  *     cast.js sideMapEnds: { id, at, heading }; `refs` { <boss id>: <its figure's sketch> }; null when no boss or no figure)
  *
@@ -18,23 +15,19 @@ import { standFoe, RAIL } from '../foes.js';
 import { libraryFigure } from '../stage-figures.js';
 import { BOSSES } from '../bosses.js';
 import { WRECK_LINGER } from '../vanish.js';
-import { mechaFootprint } from '../../mecha-shelf/mecha-figure.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 export function sideMapBossCast(G, ends, { refs = {}, stature = 1.67 } = {}) {
   const P = ends?.boss, B = P && BOSSES[P.id];
-  if (!B || (!B.mecha && !refs[P.id])) return null;
+  if (!B || !refs[P.id]) return null;
   const part = { figures: {}, entities: [] }, id = `boss-${P.id}`;
-  // (its figure: the hero door's, by its ref; a MACHINE's its mecha shelf frame, stood as its rig at its own size)
-  const e = standFoe(G, part, { id, entry: { class: B.class, rank: 'boss' }, at: P.at, heading: P.heading }, { figure: B.mecha ? { mecha: { ...B.mecha } } : libraryFigure(refs[P.id]) });
+  const e = standFoe(G, part, { id, entry: { class: B.class, rank: 'boss' }, at: P.at, heading: P.heading }, { figure: libraryFigure(refs[P.id]) });
   // (its size the tier's, not the class's stand-in beast's: a hero-door body drawn at its own height × the tier, its
   // collider and its hit egg with it)
   // (its health in the HUD, its bar the level's, never over its head: the defeat-all's `bar`, `hpBar: 'none'`)
   const H = r3(stature * B.tier), R = r3(0.3 * B.tier), { scale: _s, ...body } = e.body;
-  // (a machine drawn at the tier's height: its frame's own height scaled to it)
-  const scale = B.mecha ? r3(H / mechaFootprint(B.mecha).H) : B.tier;
-  e.body = { ...body, hpBar: 'none', ...(scale !== 1 ? { scale } : {}), radius: R, egg: { a: r3(0.42 * B.tier), c: r3(H / 2), cz: r3(H / 2) }, ...(B.hp ? { hp: B.hp } : {}) };
+  e.body = { ...body, hpBar: 'none', ...(B.tier !== 1 ? { scale: B.tier } : {}), radius: R, egg: { a: r3(0.42 * B.tier), c: r3(H / 2), cz: r3(H / 2) }, ...(B.hp ? { hp: B.hp } : {}) };
   // (a robot: DESTROYED as it falls, apart at every joint, its pieces flung in the explosion, then gone in smoke;
   // gameworld/vanish.js, the page's wreck)
   e.body.vanish = { is: 'smoke', linger: WRECK_LINGER, die: 'dismantle', sever: 'all' };
