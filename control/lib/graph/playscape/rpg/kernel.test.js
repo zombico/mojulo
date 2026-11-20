@@ -359,3 +359,46 @@ describe('a fight\'s own pages', () => {
     expect(pagesOf(rpgRound(cfg, R, {}, v))).toEqual([]);
   });
 });
+
+// THE WORLD'S OWN STATES (play.rpg.states, presets.js STATE_PRESETS): each by what it does. The concept on one of each
+// kind of effect; and a fight that meets none carries none of it
+describe('the world\'s own states', () => {
+  const base = { foes: { dummy: { name: 'Dummy', hp: 999, mp: 99, atk: 1, def: 1, mag: 1, spd: 1, xp: 1, gold: 1 } }, encounters: [{ id: 'yard', foes: ['dummy'] }] };
+  const skills = { zap: { mp: 1, target: 'foe', power: 1, status: { is: 'paralysis' } }, mend: { mp: 1, target: 'ally', heal: true, cure: ['paralysis', 'burn'] } };
+
+  it('is read: the world\'s own and the presets a skill names; a fight with none has no table', () => {
+    const cfg = trio({ ...base, skills, states: { bog: { said: 'bogged', noCast: true, rounds: 2 } } });
+    expect(Object.keys(cfg.states)).toEqual(['bog', 'burn', 'paralysis']);
+    expect(cfg.states.paralysis).toMatchObject({ said: 'paralysed', rounds: 2, skip: true });
+    expect(cfg.skills.zap.status).toMatchObject({ is: 'paralysis', rounds: 2 });
+    expect('states' in trio(base)).toBe(false);
+    expect(() => trio({ ...base, states: { sleep: { said: 'x', skip: true } } })).toThrow(/the kernel's own status/);
+    expect(() => trio({ ...base, states: { nap: { said: 'napping' } } })).toThrow(/does nothing/);
+    expect(() => trio({ ...base, skills: { x: { mp: 1, target: 'foe', status: { is: 'gloom' } } } })).toThrow(/is not|status is/);
+  });
+
+  it('does what it says: a held turn, no casting, blows wide, at anyone, HP each turn, a blow ending it, worn off', () => {
+    const states = { paralysis: true, bog: { said: 'bogged', noCast: true, rounds: 5 }, blind: { said: 'blinded', miss: 0.99, rounds: 5 }, burn: true, confusion: true };
+    const cfg = trio({ ...base, skills: { ...skills, fire: true }, states });
+    const R = rpgInit(cfg), v = {};
+    rpgStart(cfg, R, 'yard', v);
+    const st = R.b.side.ayla.st, said = (beats, who = 'ayla') => beats.filter((x) => x.who === who || x.target === who || x.by === who).map((x) => x.text);
+    // paralysed: the turn held (its picks unread), worn off in two
+    st.paralysis = 2;
+    expect(said(rpgRound(cfg, R, { ayla: { act: 'attack', target: 'f0' } }, v))).toContain('Ayla is paralysed.');
+    // bogged: no MP skill (Bram, the mage)
+    R.b.side.bram.st.bog = 3;
+    expect(said(rpgRound(cfg, R, { bram: { act: 'skill', skill: 'fire', target: 'f0' } }, v), 'bram')).toContain('Bram cannot cast.');
+    // blinded: its blows go wide
+    st.paralysis = 0; st.blind = 3;
+    expect(said(rpgRound(cfg, R, { ayla: { act: 'attack', target: 'f0' } }, v))).toContain('Ayla misses Dummy.');
+    // burning: HP each turn, and worn off in its rounds
+    st.blind = 0; st.burn = 1;
+    const burnt = said(rpgRound(cfg, R, {}, v));
+    expect(burnt.some((t) => /takes \d+ damage from being burning/.test(t))).toBe(true);
+    expect(burnt).toContain('Ayla is no longer burning.');
+    // confused: a blow at anyone at all; a blow on it ends it
+    st.confusion = 3;
+    expect(said(rpgRound(cfg, R, { ayla: { act: 'attack', target: 'f0' } }, v))).toContain('Ayla lashes out wildly!');
+  });
+});

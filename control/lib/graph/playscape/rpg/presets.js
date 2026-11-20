@@ -21,6 +21,20 @@
 
 export const ELEMENTS = Object.freeze(['fire', 'ice', 'thunder', 'light', 'dark']);
 
+/**
+ * STATE_PRESETS — states a world may name without defining them (beside poison, sleep and silence, the kernel's own),
+ * each by what it does (rpg.js readState): `skip` its turns lost, `noCast` no skill that costs MP, `miss` a share of its
+ * blows go wide, `wild` its blows and spells at anyone at all, `tick` a share of its HP each turn (below 0 it hurts),
+ * `wake: 'hit'` a blow ends it, `rounds` how long it lasts. `said`: how a line names one in it ("is paralysed").
+ */
+export const STATE_PRESETS = Object.freeze({
+  paralysis: Object.freeze({ name: 'Paralysis', said: 'paralysed', rounds: 2, skip: true }),
+  blind: Object.freeze({ name: 'Blindness', said: 'blinded', rounds: 3, miss: 0.5 }),
+  confusion: Object.freeze({ name: 'Confusion', said: 'confused', rounds: 3, wild: true, wake: 'hit' }),
+  burn: Object.freeze({ name: 'Burn', said: 'burning', rounds: 3, tick: -0.08 }),
+  regen: Object.freeze({ name: 'Regen', said: 'regenerating', rounds: 4, tick: 0.08 }),
+});
+
 const st = (hp, mp, atk, def, mag, spd) => Object.freeze({ hp, mp, atk, def, mag, spd });
 
 export const CLASS_PRESETS = Object.freeze({

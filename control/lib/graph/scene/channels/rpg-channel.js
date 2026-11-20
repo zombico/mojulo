@@ -105,7 +105,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
 
   const memberName = (id) => { for (const p of cfg.party) if (p.id === id) return p.name; return id; };
   // who picks now: every standing member in rounds; on the timeline, the one whose turn it is
-  const commanders = () => (!R.b ? [] : R.b.turn !== undefined ? (R.b.turn != null ? [R.b.turn] : []) : R.b.ids.filter((m) => R.m[m].hp > 0 && !R.b.side[m].st.sleep && !K.isAuto(cfg, m)));
+  const commanders = () => (!R.b ? [] : R.b.turn !== undefined ? (R.b.turn != null ? [R.b.turn] : []) : R.b.ids.filter((m) => R.m[m].hp > 0 && !R.b.side[m].st.sleep && !(cfg.states && K.stuck(cfg, R, m)) && !K.isAuto(cfg, m)));
   const busy = () => (window.__mojMenus && window.__mojMenus.open && window.__mojMenus.open()) || (window.__mojScenes && window.__mojScenes.on && window.__mojScenes.on());
 
   // ── the juice (playscape/rpg/juice.js): each beat says its happenings on the bus, and plays the most specific
@@ -602,6 +602,8 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     // (an anchor stands its row's bottom middle on its point)
     return [(left + w / 2) / Wd, (top + h) / Ht];
   }
+  // (the world's own states on a fighter, by how a line says them: cfg.states, rpg.js)
+  const ownStates = (st) => (cfg.states ? Object.keys(cfg.states).filter((k) => st[k] > 0).map((k) => cfg.states[k].said) : []);
   function battleModel() {
     const b = R.b, cmd = phase === 'command', active = cmd ? commanders()[mi] : null, top = up(), lv = LEVEL[top] || 'cmd', aiming = cmd && top === 'rpg-target' && !!pend;
     const o = cmd && active ? K.options(cfg, R, active, V()) : { commands: [], skills: [], items: [] };
@@ -617,7 +619,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       const fig = figureOf(m), at = news(m) ? headAt(fig) : null;
       if (!at) continue;
       const Mm = R.m[m], S = K.statsOf(cfg, R, m), s1 = b.side[m].st, k = stack[fig] = (stack[fig] || 0) + 1;
-      const tags = [Mm.poison ? 'poison' : '', s1.sleep ? 'asleep' : '', s1.silence ? 'silenced' : ''].filter(Boolean);
+      const tags = [Mm.poison ? 'poison' : '', s1.sleep ? 'asleep' : '', s1.silence ? 'silenced' : '', ...ownStates(s1)].filter(Boolean);
       heads.push({ id: m, px: [at[0], at[1] - 44 * (k - 1)], world: [at[2][0], at[2][1], at[2][2] + 0.3 * (k - 1)], hp: hp(m, Mm.hp), hpMax: S.hp, mp: shown[m + ':mp'] != null ? shown[m + ':mp'] : Mm.mp, mpMax: S.mp > 0 ? S.mp : 0, statuses: tags.length ? tags : null, turn: m === active, foe: false });
     }
     // (a foe's: its HP as a bar where the book shows foes' HP, rules.foeHp 'bar', never its numbers; a fallen foe's only
@@ -628,7 +630,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       const fig = figureOf(x.uid), at = news(x.uid) ? headAt(fig) : null;
       if (!at) continue;
       const k = stack[fig] = (stack[fig] || 0) + 1, st = x.st || {};
-      const tags = [x.poison ? 'poison' : '', st.sleep ? 'asleep' : '', st.silence ? 'silenced' : ''].filter(Boolean);
+      const tags = [x.poison ? 'poison' : '', st.sleep ? 'asleep' : '', st.silence ? 'silenced' : '', ...ownStates(st)].filter(Boolean);
       heads.push({ id: x.uid, px: [at[0], at[1] - 44 * (k - 1)], world: [at[2][0], at[2][1], at[2][2] + 0.3 * (k - 1)], hp: Math.max(0, h0), hpMax: x.max, foe: true, foeBar: cfg.rules.foeHp === 'bar', statuses: tags.length ? tags : null });
     }
     const placed = heads.slice().sort((x, y) => y.px[1] - x.px[1]);

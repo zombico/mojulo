@@ -80,7 +80,7 @@
  *   lowerRpg(play)      → { vars, rpg: cfg } or null (absent: zero bytes)
  *   RPG_RULES, RPG_TARGETS, RPG_STATUSES
  */
-import { CLASS_PRESETS, SKILL_PRESETS, FOE_PRESETS, ITEM_PRESETS, GEAR_PRESETS, GEAR_SLOTS } from './presets.js';
+import { CLASS_PRESETS, SKILL_PRESETS, FOE_PRESETS, ITEM_PRESETS, GEAR_PRESETS, GEAR_SLOTS, STATE_PRESETS } from './presets.js';
 import { RPG_STATS, rpgInit, rpgMirror } from './kernel.js';
 import { readJuice } from './juice.js';
 import { itemKey } from '../ui/items.js';
@@ -132,6 +132,25 @@ function readWorn(v, where) {
   return Object.fromEntries(Object.entries(v).map(([slot, it]) => { if (typeof it !== 'string' || !it) throw err(`${where}.${slot} is an item`); return [slot, itemKey(it)]; }));
 }
 
+// a state of the world's own (beside RPG_STATUSES, the kernel's three), by what it does (presets.js STATE_PRESETS)
+const STATE_KEYS = ['name', 'said', 'rounds', 'skip', 'noCast', 'miss', 'wild', 'tick', 'wake'];
+function readState(k, d, where) {
+  if (RPG_STATUSES[k]) throw err(`${where}: '${k}' is the kernel's own status; a state of the world's own takes another name`);
+  if (!isObj(d)) throw err(`${where} is { ${STATE_KEYS.join(', ')} }: a state, by what it does`);
+  keysOnly(d, STATE_KEYS, where);
+  for (const f of ['skip', 'noCast', 'wild']) if (d[f] !== undefined && d[f] !== true) throw err(`${where}.${f} is true, or left out`);
+  if (d.miss !== undefined && !(num(d.miss) && d.miss > 0 && d.miss < 1)) throw err(`${where}.miss is the share of its blows that go wide, above 0 and below 1`);
+  if (d.tick !== undefined && !(num(d.tick) && d.tick !== 0 && Math.abs(d.tick) < 1)) throw err(`${where}.tick is a share of its HP each turn, below 0 to hurt, above to mend (not 0, under 1 either way)`);
+  if (d.wake !== undefined && d.wake !== 'hit') throw err(`${where}.wake is 'hit': a blow ends it`);
+  if (d.rounds !== undefined && !(Number.isInteger(d.rounds) && d.rounds >= 1)) throw err(`${where}.rounds is how many turns it lasts, 1 or more`);
+  if (!d.skip && !d.noCast && !d.miss && !d.wild && !d.tick) throw err(`${where} does nothing: skip, noCast, miss, wild or tick`);
+  return { name: d.name ?? words(k), said: d.said ?? words(k).toLowerCase(), rounds: d.rounds ?? 3, ...Object.fromEntries(['skip', 'noCast', 'miss', 'wild', 'tick', 'wake'].filter((f) => d[f] !== undefined).map((f) => [f, d[f]])) };
+}
+// (the statuses a skill or an item may name: the kernel's three, the world's own states, the starter book's)
+let knownStates = null;
+const isStatus = (s) => !!RPG_STATUSES[s] || !!(knownStates && (s in knownStates || STATE_PRESETS[s]));
+const statusWords = () => [...Object.keys(RPG_STATUSES), ...Object.keys(knownStates ?? {}), ...Object.keys(STATE_PRESETS)].filter((x, i, a) => a.indexOf(x) === i);
+
 function readSkill(k, d, where) {
   keysOnly(d, ['name', 'about', 'mp', 'target', 'power', 'stat', 'scale', 'element', 'heal', 'revive', 'cure', 'status', 'buff', 'carry', 'juice'], where);
   optNum(d.mp, `${where}.mp`); optNum(d.power, `${where}.power`); optNum(d.scale, `${where}.scale`);
@@ -142,13 +161,15 @@ function readSkill(k, d, where) {
   const stat = d.stat ?? (heal || revive ? 'mag' : (d.power ?? 0) > 0 ? 'atk' : 'mag');
   const scale = d.scale ?? (d.stat !== undefined || (d.power ?? 0) > 0 ? 1 : 0);
   const cure = listOf(d.cure, `${where}.cure`, 'statuses');
-  for (const s of cure) if (!RPG_STATUSES[s]) throw err(`${where}.cure: '${s}' is not a status (${Object.keys(RPG_STATUSES).join(', ')})`);
+  for (const s of cure) if (!isStatus(s)) throw err(`${where}.cure: '${s}' is not a status (${statusWords().join(', ')})`);
   let status = null;
   if (d.status !== undefined) {
-    if (!isObj(d.status) || !RPG_STATUSES[d.status.is]) throw err(`${where}.status is { is: ${Object.keys(RPG_STATUSES).join(' | ')}, chance?, rounds? }`);
+    if (!isObj(d.status) || !isStatus(d.status.is)) throw err(`${where}.status is { is: ${statusWords().join(' | ')}, chance?, rounds? }`);
     keysOnly(d.status, ['is', 'chance', 'rounds'], `${where}.status`);
     if (d.status.chance !== undefined && !(num(d.status.chance) && d.status.chance > 0 && d.status.chance <= 1)) throw err(`${where}.status.chance is above 0, at most 1`);
-    status = { is: d.status.is, chance: d.status.chance ?? 1, rounds: d.status.rounds ?? 3 };
+    // (a state of the world's own lasts its own rounds unless the skill says)
+    const own = !RPG_STATUSES[d.status.is] ? (knownStates[d.status.is] ?? STATE_PRESETS[d.status.is]) : null;
+    status = { is: d.status.is, chance: d.status.chance ?? 1, rounds: d.status.rounds ?? (own && own.rounds) ?? 3 };
   }
   let buff = null;
   if (d.buff !== undefined) {
@@ -234,7 +255,7 @@ function readItem(k, d, where) {
   keysOnly(d, ['name', 'price', 'heal', 'mp', 'revive', 'cure', 'hurt', 'element', 'target'], where);
   for (const s of ['heal', 'mp', 'hurt', 'price']) optNum(d[s], `${where}.${s}`);
   const cure = listOf(d.cure, `${where}.cure`, 'statuses');
-  for (const s of cure) if (!RPG_STATUSES[s]) throw err(`${where}.cure: '${s}' is not a status`);
+  for (const s of cure) if (!isStatus(s)) throw err(`${where}.cure: '${s}' is not a status (${statusWords().join(', ')})`);
   if (!d.heal && !d.mp && !d.revive && !cure.length && !d.hurt) throw err(`${where} does nothing in a fight: heal, mp, revive, cure or hurt`);
   const target = d.target ?? (d.hurt ? 'foe' : 'ally');
   if (!RPG_TARGETS.includes(target) || target === 'self') throw err(`${where}.target is foe, foes, ally or allies`);
@@ -246,7 +267,10 @@ export function readRpg(play) {
   const P = play && play.rpg;
   if (P === undefined) return null;
   if (!isObj(P)) throw err(' is { party, classes?, skills?, foes?, items?, encounters?, random?, rules? }');
-  keysOnly(P, ['party', 'classes', 'skills', 'foes', 'items', 'gear', 'encounters', 'random', 'shops', 'rules', 'juice'], '');
+  keysOnly(P, ['party', 'classes', 'skills', 'foes', 'items', 'gear', 'encounters', 'random', 'shops', 'rules', 'juice', 'states'], '');
+  // the world's own states (read first: a skill or an item names them), each its definition, or true for the preset
+  const statesGiven = table(P.states, '.states') ?? {};
+  knownStates = Object.fromEntries(Object.entries(statesGiven).map(([k, d]) => [id(k, '.states key'), d === null ? STATE_PRESETS[k] ?? (() => { throw err(`.states: '${k}' is no preset state (${Object.keys(STATE_PRESETS).join(', ')}): define it ({ said, skip | noCast | miss | wild | tick, rounds? })`); })() : d]));
 
   // the rules
   const Ru = P.rules ?? {};
@@ -457,7 +481,13 @@ export function readRpg(play) {
 
   // the juice: the defaults, the world's own, each skill's own (juice.js)
   const juice = readJuice(P.juice, { skills: Object.fromEntries(Object.entries(skillsGiven).map(([k, d0]) => [k, { juice: (d0 ?? SKILL_PRESETS[k]).juice }])) });
-  return { seed: rules.seed, party: party0, classes, skills, foes, items, gear, encounters, random, met, juice, ...(shops ? { shops } : {}), rules: { ...rules, xp: { ...rules.xp }, cp: [...rules.cp] } };
+  // (the states the fight can meet: the world's own, and any preset a skill or an item names; none, no key)
+  const used = new Set(Object.keys(knownStates));
+  for (const S of Object.values(skills)) { if (S.status && !RPG_STATUSES[S.status.is]) used.add(S.status.is); for (const c of S.cure ?? []) if (!RPG_STATUSES[c]) used.add(c); }
+  for (const I of Object.values(items)) for (const c of I.cure ?? []) if (!RPG_STATUSES[c]) used.add(c);
+  const states = used.size ? Object.fromEntries([...used].sort().map((k) => [k, readState(k, knownStates[k] ?? STATE_PRESETS[k], `.states.${k}`)])) : null;
+  knownStates = null;
+  return { seed: rules.seed, party: party0, classes, skills, foes, items, gear, encounters, random, met, juice, ...(states ? { states } : {}), ...(shops ? { shops } : {}), rules: { ...rules, xp: { ...rules.xp }, cp: [...rules.cp] } };
 }
 
 const doneVar = (enc) => `rpg-done-${enc}`;

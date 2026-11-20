@@ -43,6 +43,13 @@ export function buildRpg() {
   const STATS = ['hp', 'mp', 'atk', 'def', 'mag', 'spd'];
   const BUFFABLE = { atk: 1, def: 1, mag: 1, spd: 1 };
   const STATUSES = { poison: 1, sleep: 1, silence: 1 };
+  // THE WORLD'S OWN STATES (cfg.states, rpg.js): each by what it does, beside the three above; on a fighter as the
+  // rounds it has left (T.st[id]). Read only where a state of the table is on someone, so a fight without one rolls the
+  // same dice as before
+  const statesOn = (cfg, T) => { if (!cfg.states || !T) return []; const out = []; for (const k in cfg.states) if (T.st[k] > 0) out.push(cfg.states[k]); return out; };
+  const stateWith = (cfg, T, w) => { const L = statesOn(cfg, T); for (const x of L) if (x[w]) return x; return null; };
+  /** A fighter held by a state that takes its turns (the page asks it nothing). */
+  function stuck(cfg, R, who) { const T = R.b && (R.b.side[who] ? { st: R.b.side[who].st } : R.b.foes.find((f) => f.uid === who)); return !!(T && stateWith(cfg, T, 'skip')); }
   const LETTERS = 'ABCDEFGH';
   const CRIT = 1 / 16, MISS = 1 / 24, WAKE = 0.5;
 
@@ -230,6 +237,9 @@ export function buildRpg() {
 
   function hurt(cfg, R, A, T, fx, out) {
     const b = R.b, phys = fx.stat === 'atk';
+    // (a state that blinds: its share of blows go wide, a die of its own)
+    const dim = phys && cfg.states ? stateWith(cfg, A, 'miss') : null;
+    if (dim && rnd(b) < dim.miss) { out.push({ text: A.name + ' misses ' + T.name + '.', kind: 'miss', target: T.who, by: A.who }); return; }
     if (phys && !T.st.sleep && rnd(b) < MISS) { out.push({ text: A.name + ' misses ' + T.name + '.', kind: 'miss', target: T.who, by: A.who }); return; }
     let raw = fx.power + A.S[fx.stat] * fx.scale - (phys ? T.S.def / 2 : T.S.mag / 4);
     raw *= 0.875 + 0.25 * rnd(b);
@@ -246,12 +256,15 @@ export function buildRpg() {
     }
     T.hp = Math.max(0, T.hp - n);
     if (T.st.sleep && phys && n > 0) { T.st.sleep = 0; }
+    // (a state a blow ends: confusion knocked out of it)
+    if (cfg.states && phys && n > 0) for (const k in cfg.states) if (cfg.states[k].wake === 'hit' && T.st[k] > 0) { T.st[k] = 0; out.push({ text: T.name + ' comes to its senses.', kind: 'status', target: T.who }); }
     const tag = crit ? 'A critical hit! ' : em === 2 ? 'It\'s super effective! ' : em === 0 ? 'No effect. ' : em === 0.5 ? 'It resists. ' : '';
     out.push({ text: tag + T.name + ' takes ' + n + ' damage.', kind: 'hurt', target: T.who, amount: n, hp: T.hp, crit: crit || undefined, by: A.who, skill: fx.id || undefined, element: fx.element || undefined, mul: em !== 1 ? em : undefined });
     if (T.hp <= 0) fall(cfg, R, T, out);
   }
   function fall(cfg, R, T, out) {
     T.st.sleep = 0; T.st.silence = 0; T.buffs.length = 0;
+    if (cfg.states) for (const k in cfg.states) T.st[k] = 0;
     if (T.party) T.M.poison = 0; else T.st.poison = 0;
     out.push({ text: T.party ? T.name + ' falls!' : T.name + ' is defeated!', kind: 'ko', target: T.who, foe: T.party ? undefined : T.side.kind });
   }
@@ -276,7 +289,7 @@ export function buildRpg() {
     if (rnd(R.b) >= s.chance) { out.push({ text: T.name + ' resists.', kind: 'miss', target: T.who }); return; }
     if (s.is === 'poison') { if (T.party) T.M.poison = 1; else T.st.poison = 1; }
     else T.st[s.is] = s.rounds;
-    out.push({ text: T.name + ' is ' + ({ poison: 'poisoned', sleep: 'asleep', silence: 'silenced' })[s.is] + '!', kind: 'status', target: T.who, status: s.is });
+    out.push({ text: T.name + ' is ' + (({ poison: 'poisoned', sleep: 'asleep', silence: 'silenced' })[s.is] || (cfg.states && cfg.states[s.is] && cfg.states[s.is].said) || s.is) + '!', kind: 'status', target: T.who, status: s.is });
   }
   function cure(cfg, R, T, fx, out) {
     if (!fx.cure || !fx.cure.length || T.hp <= 0) return;
@@ -358,12 +371,22 @@ export function buildRpg() {
     if (!A || A.hp <= 0) return;
     // a sleeper skips its turn, and each turn skipped is one of its sleep's rounds (a blow or the round's end may wake it sooner)
     if (A.st.sleep) { A.st.sleep = Math.max(0, A.st.sleep - 1); out.push({ text: A.name + ' is asleep.', kind: 'status', who }); return; }
+    // (the world's own states: one that takes the turn; one that turns a blow or a spell on anyone at all)
+    if (cfg.states) {
+      const held = stateWith(cfg, A, 'skip');
+      if (held) { out.push({ text: A.name + ' is ' + held.said + '.', kind: 'status', who }); return; }
+      if ((pick.act === 'attack' || pick.act === 'skill') && stateWith(cfg, A, 'wild')) {
+        const all = [...living(R), ...livingFoes(R).map((f) => f.uid)].filter((x) => x !== who);
+        if (all.length) { const t = all[Math.floor(rnd(R.b) * all.length)]; out.push({ text: A.name + ' lashes out wildly!', kind: 'status', who }); apply(cfg, R, A, ATTACK, 'foe', t, out); return; }
+      }
+    }
     if (pick.act === 'guard') { A.side.guard = 1; out.push({ text: A.name + ' guards.', kind: 'status', who }); return; }
     if (pick.act === 'attack') { out.push({ text: A.name + ' attacks!', who }); apply(cfg, R, A, ATTACK, 'foe', pick.target, out); return; }
     if (pick.act === 'skill') {
       const S = cfg.skills[pick.skill];
       if (!S) return;
       if (A.st.silence && S.mp > 0) { out.push({ text: A.name + ' is silenced and cannot cast.', kind: 'miss', who }); return; }
+      if (cfg.states && S.mp > 0 && stateWith(cfg, A, 'noCast')) { out.push({ text: A.name + ' cannot cast.', kind: 'miss', who }); return; }
       if (A.mp < S.mp) { out.push({ text: A.name + ' has too little MP.', kind: 'miss', who }); return; }
       A.mp -= S.mp;
       out.push({ text: A.name + ' uses ' + S.name + '!', kind: 'cast', who, mp: A.mp, skill: pick.skill, target: pick.target });
@@ -506,7 +529,7 @@ export function buildRpg() {
       if (who == null) return;
       if (b.side[who]) {
         b.side[who].guard = 0;
-        if (R.m[who].hp > 0 && !b.side[who].st.sleep && !isAuto(cfg, who)) { b.turn = who; mirror(cfg, R, vars); return; }
+        if (R.m[who].hp > 0 && !b.side[who].st.sleep && !(cfg.states && stuck(cfg, R, who)) && !isAuto(cfg, who)) { b.turn = who; mirror(cfg, R, vars); return; }
         act(cfg, R, who, isAuto(cfg, who) && R.m[who].hp > 0 ? allyPick(cfg, R, who, vars) : { act: 'guard' }, vars, out);
       } else {
         const f = b.foes.find((x) => x.uid === who);
@@ -569,6 +592,23 @@ export function buildRpg() {
     }
     if (T.st.sleep && rnd(R.b) < WAKE) { T.st.sleep = 0; out.push({ text: T.name + ' wakes up.', kind: 'status', target: T.who }); }
     if (T.st.silence && --T.st.silence <= 0) T.st.silence = 0;
+    // (the world's own states: what each does to HP as a turn ends, then a round of it worn off)
+    if (cfg.states) for (const k in cfg.states) {
+      if (!(T.st[k] > 0)) continue;
+      const X = cfg.states[k];
+      if (X.tick) {
+        const n = Math.max(1, Math.floor(T.S.hp * Math.abs(X.tick))), was = T.hp;
+        if (X.tick < 0) {
+          T.hp = Math.max(0, T.hp - n);
+          out.push({ text: T.name + ' takes ' + n + ' damage from being ' + X.said + '.', kind: 'hurt', target: T.who, amount: n, hp: T.hp });
+          if (T.hp <= 0) { fall(cfg, R, T, out); return; }
+        } else {
+          T.hp = Math.min(T.S.hp, T.hp + n);
+          if (T.hp > was) out.push({ text: T.name + ' recovers ' + (T.hp - was) + ' HP.', kind: 'heal', target: T.who, amount: T.hp - was, hp: T.hp });
+        }
+      }
+      if (--T.st[k] <= 0) { T.st[k] = 0; out.push({ text: T.name + ' is no longer ' + X.said + '.', kind: 'status', target: T.who }); }
+    }
     for (let i = T.buffs.length - 1; i >= 0; i--) if (--T.buffs[i].rounds <= 0) T.buffs.splice(i, 1);
   }
   // the round's end: every one's tick
@@ -851,7 +891,7 @@ export function buildRpg() {
     vars['rpg.won'] = R.won;
   }
 
-  return { STATS, roll: rnd, save, load, gearOf, equip, unequip, preview, init, start, options, targets, round, close, rest, statsOf, partyOf, usable, classesOf, switchClass, treeOf, buy, mirror, xpFor, classLevel, aimOf, isAuto, shopOf, waresOf, sellsOf, purchase, sell, stay };
+  return { STATS, roll: rnd, stuck, save, load, gearOf, equip, unequip, preview, init, start, options, targets, round, close, rest, statsOf, partyOf, usable, classesOf, switchClass, treeOf, buy, mirror, xpFor, classLevel, aimOf, isAuto, shopOf, waresOf, sellsOf, purchase, sell, stay };
 }
 
 const _rpg = buildRpg();

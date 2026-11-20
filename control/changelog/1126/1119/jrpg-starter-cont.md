@@ -69,3 +69,10 @@
   was a real-time goal's and stood in the crypt without a fight.
 - **A battle's opening says all it has.** The opening played only its first beat and went to the picks; it now plays
   each in turn, so a fight's opening page, and on the timeline the foes who act before the first pick, are seen.
+- **States as a table.** A fight's states are no longer only poison, sleep and silence: a world may name its own
+  (`play.rpg.states`, and a world's `battles.states`), each by what it does: `skip` (its turns held), `noCast` (no skill
+  that costs MP), `miss` (a share of its blows go wide), `wild` (its blows at anyone at all), `tick` (a share of its HP
+  each turn, hurting or mending), `wake: 'hit'` (a blow ends it), lasting its `rounds`. The starter book's: paralysis,
+  blindness, confusion, burn, regen (`presets.js` STATE_PRESETS), pulled in where a skill or an item names one. A skill
+  inflicts one and an item or a skill cures one as the three were; a fallen fighter is rid of them; the bar over its head
+  says them; a member held by one is not asked to pick. A fight that meets none rolls the same dice as before.
