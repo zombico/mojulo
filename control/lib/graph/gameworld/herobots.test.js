@@ -4,6 +4,7 @@
 // spec.
 import { describe, it, expect } from 'vitest';
 import { HEROBOTS, herobotSpec } from './herobots.js';
+import { ANIME_STYLES } from '../polygonizer/anime-styles.js';
 import { heroRecord } from '@/lib/mcp/tools/layered.js';
 
 describe('the herobots', () => {
@@ -25,6 +26,15 @@ describe('the herobots', () => {
     expect(Z.adorn.with[0].signature.ponytail).toMatchObject({ group: 'Hair' });
     expect(Z.palette.Armor).not.toBe(G.palette.Armor);
     expect(Z.palette.Hair).toBe(HEROBOTS['zero-boy'].palette.Hair);
+  });
+  it('a cast\'s face on the hero\'s own body: its face words over the cast\'s, its body tune undone (its height kept)', () => {
+    const id = Object.keys(HEROBOTS).find((k) => HEROBOTS[k].keepBody), S = herobotSpec(id), H = HEROBOTS[id];
+    expect(S.animeStyle).toBe(H.animeStyle);
+    expect(S.face).toEqual(H.face);
+    // (each of the cast's body ratios undone: the two multiply to 1)
+    for (const [k, v] of Object.entries(ANIME_STYLES[H.animeStyle].male.tune)) expect(S.tune[k] * v).toBeCloseTo(1, 3);
+    const plain = Object.keys(HEROBOTS).find((k) => !HEROBOTS[k].animeStyle);
+    if (plain) expect(herobotSpec(plain).tune).toBeUndefined();
   });
   it('a hero\'s own suit dials reach its armour (Galaxy Boy\'s plain suit, read at a close-up); one with none takes the style\'s', () => {
     const withDials = Object.keys(HEROBOTS).find((k) => HEROBOTS[k].dials), without = Object.keys(HEROBOTS).find((k) => !HEROBOTS[k].dials);

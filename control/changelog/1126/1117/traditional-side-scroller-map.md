@@ -378,3 +378,7 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   suit plainer, at ornament 1 (a hero's own `dials` over the herobot style's: no plaques on the chest and belly, no
   thigh rims), so it reads whole at a close-up as at the side map's distance. Law (herobots.test.js): a hero's dials
   reach its armour, and every herobot is three tones light at the edges (rims over suit over armour).
+- **Galaxy Boy's face**: the School-Kid Hero head cast's face (soft, to a small pointed chin), its eyes taller and its
+  cheeks fuller (a herobot's own `face` words over the cast's), on his own body: the cast's body tune undone ratio by
+  ratio (`keepBody`), so his figure and his height in a level are as they were. Law (herobots.test.js): a cast's face
+  on the hero's own body, each body ratio undone.
