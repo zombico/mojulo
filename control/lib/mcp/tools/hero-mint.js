@@ -34,7 +34,8 @@ export function heroRemakeOps(order, prev = null) {
   // (the body it was stored on, unless the order names one: a hero stored without a form stays on the classic body)
   const formed = was && (walked?.form === undefined || walked?.form === null) ? (was.form !== undefined ? { ...walked, form: was.form } : walked) : withDefaultForm(walked);
   // (and the head cast it was stored with, unless the order names one: one stored without a cast stays without)
-  const spec = was && was.head === 'anime' && walked?.animeStyle === undefined ? { ...formed, animeStyle: was.animeStyle ?? null } : formed;
+  // (only while the order keeps the anime head: a hero remade with another head, the realistic body's, takes no cast)
+  const spec = was && was.head === 'anime' && formed?.head === 'anime' && walked?.animeStyle === undefined ? { ...formed, animeStyle: was.animeStyle ?? null } : formed;
   // (a realistic hero's face: kept from the stored hero unless the order names one, else rolled: layered.js withRolledFace)
   // (and its own fit, solved once and stamped: layered.js withFaceFit)
   const ops = [{ op: 'set', path: '/hero', value: heroRecord(stampHero(withFaceFit(withRolledFace(spec, was)), was)) }];
