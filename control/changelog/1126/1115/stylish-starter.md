@@ -31,3 +31,14 @@
   on the realistic body (a stylish starter's, or any) carried its anime cast (`animeStyle`) and its anime face's words
   over, and the hero door refused both. The cast is kept only while the order keeps the anime head (`hero-mint.js`), and
   the face never from a hero that had the anime head (`layered.js` `withRolledFace`).
+- **Built: the action level plans** (`gameworld/action-levels.js`). Where a stylish game's level is fought, as rows: the
+  citadel, a cathedral (one long tall nave fought down its length), catacombs (tight, low and dark), a keep (its solar
+  and treasury up the stair), a tower (a fight a floor to the lookout) and a jungle temple. Each is a building's use from
+  the era's programs with its fight rooms sized for their fights, the fight each room holds in order, its kit and cube,
+  and its light mood; every one lays each fight in its room by the game room's laws and assembles lit (a deep sweep).
+  The stylish starter lays the plan its pitch's words name (a cathedral, catacombs, a tower; else the citadel), and the
+  readout offers a stylish game's level each other plan as a patch (a `place` step), so a game's levels need not all
+  be the same place. The card teaches the plans and the sizes a fight asks (a melee 18 m a side, a boss 22, a launch 6 m
+  of headroom).
+- **Fixed: a storeyed building's rooms' light.** A stage with storeys and a `plot` lit each storey with the whole plot,
+  and refused a room upstairs as one it did not have; each storey now takes its own rooms' (`era/storeys.js`).

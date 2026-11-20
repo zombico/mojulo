@@ -28,7 +28,8 @@ import { TEMPLATE_ARSENALS, KNOCK_WORDS } from './combos.js';
 import { STYLISH, VITALS_LOOKS } from './style-meter.js';
 import { SHELF_IDS } from './weapon-shelf.js';
 import { ACTION_OUTFITS } from '../outfit/styles.js';
-import { CITADEL_LOOK, ACTION_FIGHTS, MOOD_IDS } from './action-first-level.js';
+import { MOOD_IDS } from './action-first-level.js';
+import { ACTION_LEVEL_IDS } from './action-levels.js';
 import { PLOT_KEYS } from '../era/stage.js';
 import { GENRE_FEEL, FEEL_WORDS } from './feel/suggest.js';
 import { IDIOMS, SYSTEM_KINDS, STAGES, TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
@@ -514,8 +515,8 @@ function stylishCard() {
     'each part a default the creator changes by name; every key they write wins. It is the rail\'s first reading, never',
     'their game: name the hero, the foes, the place, the weapons and the look as theirs.',
     `  feel '<pole>'; camera 'orbit' (locks on; pulls back in a tall room); arsenal { from: '<pole>' }; styleMeter 'auto';`,
-    `  the citadel: levels.citadel.building { use: 'citadel', rooms, plot, geocube }, its fights (${Object.keys(ACTION_FIGHTS).join(', ')}: a duel, a`,
-    '  melee, a gallery, a boss) and foes, goal.tasks one per room; grade (the screen\'s look).',
+    '  a level plan (THE PLACE): its building { use, rooms, plot, geocube }, its fights (a duel, a melee, a gallery, a boss)',
+    '  and foes, goal.tasks one per room; grade (the screen\'s look).',
     '',
     'THE KIT (gameworld-feel): arsenal { from, art?, weapons: [{ id, name?, reach, damage, held?, moves, combos }] }; a',
     'weapon of the same id replaces the template\'s, a new id joins it. A move: { swing | strike, role: opener | filler |',
@@ -531,7 +532,11 @@ function stylishCard() {
     'per?, hit?, hurt?, at?, drain?, might?, swift?, heal? }: the gauge and the transformation it buys (stronger, faster,',
     `healing). vitals { look: ${VITALS_LOOKS.join(' | ')}, hp?, halo? }: how the HUD draws health and the gauge, no box.`,
     '',
-    `THE PLACE: building.rooms { <room>: { h } } (metres; the starter's ${Object.entries(CITADEL_LOOK.rooms).map(([r, v]) => `${r} ${v.h}`).join(', ')}); a room's light`,
+    `THE PLACE: a level plan names where it is fought (${ACTION_LEVEL_IDS.join(', ')}): its building, its rooms sized for their`,
+    'fights, the fight each holds in order, its cube and its mood. The starter lays the one its pitch\'s words name (a',
+    'cathedral, catacombs, a tower; else the citadel); the readout\'s `place` step offers each other as a patch. Make each',
+    'level a different place. Then building.rooms { <room>: { w?, d?, h?, drop? } } (metres; a melee asks 18 m a side, a',
+    'boss 22, a launch 6 m of headroom); goal.tasks [{ fight, at }] in the order fought; fights { <name>: { kind, waves } }; a room\'s light',
     `designed, plot { <room>: { ${Object.keys(PLOT_KEYS).join(', ')} } } (the torches kept; the fill and the hung key light;`,
     'a brighter pair by the way on; each flame its own; a moonlit window); the dark, geocube.light.shade (0.02 dark to 0.6',
     `lit); grade { from, vignette?, exposure? }. A LIGHT MOOD writes the three at once: ${MOOD_IDS.join(', ')} (the starter's`,

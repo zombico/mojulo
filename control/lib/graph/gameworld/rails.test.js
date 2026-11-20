@@ -18,6 +18,7 @@ import { railCardById } from './gameworld-cards.js';
 import { goalposts, startReadout, producerSteps, producerSays, leadNext, GOALPOSTS } from './goalposts.js';
 import { pitchStart } from './pitch-start.js';
 import { actionStarter } from './action-first-level.js';
+import { levelPlan } from './action-levels.js';
 import { heroOrders } from './index.js';
 import { validateHeroSpec } from '../../mcp/tools/layered.js';
 import { applyManifestPatch } from '../../mcp/tools/manifest-patch.js';
@@ -427,6 +428,11 @@ describe('the pitch kept: a locked pitch with no level is given the rail\'s star
     expect(P.world).toMatchObject({ camera: 'orbit', styleMeter: 'auto', arsenal: { from: RAILS[stylish].handles.pole }, feel: RAILS[stylish].handles.pole, fights: A.fights, foes: A.foes, grade: A.grade });
     expect(P.world.levels.citadel).toEqual(A.level);
     expect(P.world.characters.hero.looks.underlayer).toEqual({ type: 'outfit', style: 'duelist' });
+    // (its level a plan its pitch's words name: a cathedral said, the cathedral laid; the same plan's fights and its light)
+    const nave = pitchStart({ ...base, name: 'Their Cathedral', rail: { from: stylish, locked: true } }), C = levelPlan('cathedral');
+    expect(Object.keys(nave.world.levels)).toEqual(['cathedral']);
+    expect(nave.world.levels.cathedral).toEqual(C.level); expect(nave.world.fights).toEqual(C.fights);
+    expect(() => readGameworld(nave.world)).not.toThrow();
     expect(P.world.characters.hero.looks.body.form).toBe('realistic');
     // (and the hero its pages compose is one the hero door takes, as design_game asks before it stores the world)
     const O = heroOrders(readGameworld(P.world)), spec = O.motion ? applyManifestPatch({ hero: O.mint.args.spec }, O.motion.args.patch).manifest.hero : O.mint.args.spec;

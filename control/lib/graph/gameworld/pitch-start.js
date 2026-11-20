@@ -9,8 +9,8 @@
  *     null     not a locked pitch with no level (nothing to do: the start readout answers as it always has)
  *     world    the written world with the starter under it: every key the creator wrote wins
  *     by       'platformer' (the platformer's rail: its first level and the flow that plays it, platformer-game.js),
- *              'action' (a stylish rail, style-meter.js STYLISH: the genre's first reading with its level the citadel
- *              fought room by room, action-first-level.js actionStarter, its hero on the realistic body in the duelist's coat, the rail's
+ *              'action' (a stylish rail, style-meter.js STYLISH: the genre's first reading with its level the plan its
+ *              pitch's words name (action-levels.js: a cathedral, catacombs, a tower…; else the citadel) fought room by room, action-first-level.js actionStarter, its hero on the realistic body in the duelist's coat, the rail's
  *              template kit, `arsenal: { from }`,
  *              and its style meter, `styleMeter: 'auto'`, the orbit camera and the starter's look) or
  *              'compose' (a first reading of the genre the rail starts from, compose.js, one level)
@@ -24,6 +24,7 @@ import { platformerStart } from './platformer-game.js';
 import { composeGameworld } from './compose.js';
 import { GENRES, readGenre } from './intent.js';
 import { actionStarter } from './action-first-level.js';
+import { levelPlan, planOfWords } from './action-levels.js';
 import { STYLISH } from './style-meter.js';
 import { TEMPLATE_ARSENALS } from './combos.js';
 import { ACTION_OUTFITS } from '../outfit/styles.js';
@@ -56,10 +57,13 @@ export function pitchStart(world, { title } = {}) {
   const C = composeGameworld({ prompt, levels: 1, ...(typeof name === 'string' && name.trim() ? { name } : {}), ...(Number.isInteger(world.seed) ? { seed: world.seed } : {}) });
   const starter = Object.fromEntries(Object.entries(C).filter(([k]) => !NOT_THE_STARTERS.includes(k)));
   const intent = world.intent === undefined ? { intent: C.intent ?? { from: S.starts } } : {};
-  // a STYLISH rail: its genre's reading, its level the citadel fought room by room, its kit, its meter, its look; the
+  // a STYLISH rail: its genre's reading, its level a plan fought room by room, its kit, its meter, its look; the
   // composed level and what plays it (its links, its flow) left out, the citadel in their place
   if (STYLISH.includes(R.handles.pole)) {
-    const A = actionStarter(), { levels: _l, links: _k, flow: _f, ...ground } = starter;
+    // (its level the plan its pitch's words name, action-levels.js: a cathedral, catacombs, a tower; else the citadel)
+    const said = [world.name, title, typeof world.brief === 'string' ? world.brief : JSON.stringify(world.brief ?? ''), JSON.stringify(world.rail?.departs ?? '')].join(' ');
+    const planId = planOfWords(said) ?? 'citadel', A = { ...levelPlan(planId), foes: actionStarter().foes };
+    const { levels: _l, links: _k, flow: _f, ...ground } = starter;
     // (its hero dressed as the character action wardrobe's duelist: the long coat that fights, styles.js ACTION_OUTFITS)
     const H = ground.characters?.hero;
     // (on the realistic body, where the duelist's coat is cut away and its tails set by the pose: the composer's cast,
@@ -72,7 +76,7 @@ export function pitchStart(world, { title } = {}) {
       ground.characters = { ...ground.characters, direction: { ...(ground.characters.direction ?? {}), tradition: 'western' },
         hero: { ...H, looks: { ...looks, body: { ...(H.looks.body ?? {}), form: 'realistic' }, hair: { ...(hair ?? {}), hair: { ...kept, style } }, underlayer: { type: 'outfit', style: ACTION_OUTFITS[0] } } } };
     }
-    const W = { ...ground, camera: 'orbit', foes: A.foes, fights: A.fights, levels: { citadel: A.level }, grade: A.grade, ...(TEMPLATE_ARSENALS[R.handles.pole] ? { arsenal: { from: R.handles.pole } } : {}), styleMeter: 'auto', ...withFeel, ...named, ...intent };
+    const W = { ...ground, camera: 'orbit', foes: A.foes, fights: A.fights, levels: { [planId]: A.level }, grade: A.grade, ...(TEMPLATE_ARSENALS[R.handles.pole] ? { arsenal: { from: R.handles.pole } } : {}), styleMeter: 'auto', ...withFeel, ...named, ...intent };
     return { world: W, laid: { by: 'action', from: S.starts, levels: Object.keys(W.levels), says: SAYS } };
   }
   const W = { ...starter, ...withFeel, ...named, ...intent };

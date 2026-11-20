@@ -55,6 +55,7 @@ import { juiceOfGame, juiceSuggestion } from '@/lib/graph/gameworld/juice.js';
 import { arsenalOfGame, arsenalSuggestion, heroStrikes } from '@/lib/graph/gameworld/arsenal.js';
 import { styleMeterSuggestion, STYLISH } from '@/lib/graph/gameworld/style-meter.js';
 import { LIGHT_MOODS, MOOD_IDS, moodOf } from '@/lib/graph/gameworld/action-first-level.js';
+import { ACTION_LEVELS, ACTION_LEVEL_IDS, levelPlan } from '@/lib/graph/gameworld/action-levels.js';
 import { roomEligible } from '@/lib/graph/gameworld/practice-room.js';
 import { practiceFor, mountSuggestion, rangeMeasured, rollMeasured } from '@/lib/graph/gameworld/practice.js';
 import { fightsReadout } from '@/lib/graph/gameworld/fights-readout.js';
@@ -603,6 +604,12 @@ function readout(ref, world, context = {}) {
   const stylePole = typeof world.feel === 'string' ? world.feel : world.feel?.pole, moodLevel = STYLISH.includes(stylePole) ? Object.entries(world.levels ?? {}).find(([, L]) => L?.building && typeof L.building.geocube === 'object' && L.building.geocube) : null;
   if (moodLevel) {
     const [lid, L] = moodLevel, rooms = [...new Set([...Object.keys(L.building.rooms ?? {}), ...(L.goal?.tasks ?? []).map((t) => t.at).filter(Boolean)])];
+    // (and its PLACE (gameworld/action-levels.js): each other plan as a patch, the level's building and tasks and the fights
+    // its rooms hold, so a game's levels need not all be the citadel)
+    const placeOf = (B) => `${B.use}|${B.geocube?.from ?? ''}|${B.geocube?.inside?.bones ?? ''}`, here = placeOf(L.building);
+    const others = ACTION_LEVEL_IDS.filter((id) => placeOf({ use: ACTION_LEVELS[id].use, geocube: ACTION_LEVELS[id].cube }) !== here);
+    next.push({ step: 'place', level: lid, plans: others.map((id) => { const P = levelPlan(id);
+      return { plan: id, says: ACTION_LEVELS[id].says, patch: [{ op: 'set', path: `/levels/${lid}/building`, value: P.level.building }, { op: 'set', path: `/levels/${lid}/goal`, value: P.level.goal }, ...Object.entries(P.fights).map(([f, F]) => ({ op: 'set', path: `/fights/${f}`, value: F }))] }; }), card: 'gameworld-stylish' });
     if (rooms.length) next.push({ step: 'mood', level: lid, moods: MOOD_IDS.map((m) => { const M = moodOf(m, rooms);
       return { mood: m, says: LIGHT_MOODS[m].says, patch: [{ op: 'set', path: `/levels/${lid}/building/plot`, value: M.plot }, { op: 'set', path: `/levels/${lid}/building/geocube/light`, value: { ...(L.building.geocube.light ?? {}), shade: M.shade } }, { op: 'set', path: '/grade', value: M.grade }] }; }), card: 'gameworld-stylish' });
   }
