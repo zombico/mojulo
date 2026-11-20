@@ -167,7 +167,15 @@ The cake is `control/lib/graph/gameworld/side-map/cake.js` (the materials), `tex
     and bounce), an outdoor zone by the cube's sky and sun, a ledge's shadow, a climb's top lit, baked per corner.
 35. **A place a zone, and the turn tells the story.** Each zone is one place in one material (the gate, the tunnel,
     the factory floor, the shaft, the gallery), and their order is the stage's story.
-36. **The boss owns its room.** Its colour is used nowhere before it; its room is one screen, its walls the frame's
+36. **The back opens on a vista where the scene changes.** A plain back wall is sometimes right; a zone that should
+    read as somewhere else opens its back into a frame (a parapet, a header, the pillars between) and stands a VISTA
+    beyond it: a few layers of simple 3D things at their depths, each further into the air, the perspective camera
+    giving their parallax for nothing. It is the cheapest way to say the stage has moved on. A hall's machines before a
+    lit far wall, a works' yard under the sky, a city's lit towers, a range of peaks, a colonnade: a place names its
+    vista (`dress.js` SETTINGS), a zone's own `vista` overrides it (`wall` the plain wall). A vista with a far wall is a
+    room, kept to its zone and closed at its ends so a neighbour's opening never sees into it; one under the sky widens
+    to fill the frame from anywhere along the zone (`control/lib/graph/gameworld/side-map/vista.js`, a new vista a row).
+37. **The boss owns its room.** Its colour is used nowhere before it; its room is one screen, its walls the frame's
     edges, and its back wall carries its mark.
 
     Its path is designed from the top down by `control/lib/graph/gameworld/side-map/path.js`, on the bay grid the back

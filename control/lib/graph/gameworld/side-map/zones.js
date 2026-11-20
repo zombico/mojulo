@@ -30,9 +30,10 @@
  */
 import { TEACH } from '../course.js';
 import { FILLS } from './fills.js';
+import { VISTA_IDS } from './vista.js';
 
 export const SIDE_MAP_KEYS = Object.freeze(['premise', 'fill', 'crates', 'boss', 'zones']);
-export const ZONE_KEYS = Object.freeze(['run', 'screens', 'room', 'teach', 'beat', 'climb', 'rises', 'drop', 'place', 'fill', 'spawners', 'pillars', 'ceiling', 'reveal']);
+export const ZONE_KEYS = Object.freeze(['run', 'screens', 'room', 'teach', 'beat', 'climb', 'rises', 'drop', 'place', 'fill', 'spawners', 'pillars', 'ceiling', 'reveal', 'vista']);
 export const RUN_AXES = Object.freeze(['across', 'up', 'down']);
 /** the beats that teach nothing new (a zone's `teach` is the first level's own words) */
 export const BEATS = Object.freeze({
@@ -69,6 +70,8 @@ function readZone(z, at) {
     if (z.screens !== undefined) throw new Error(`side map: ${at}.screens is a run's length; a room says its size in room: [wide, tall]`);
     Object.assign(out, { kind: 'room', room: [...z.room] });
   }
+  // (what the camera sees behind it, vista.js: a vista from the library, or 'wall', the plain back wall; unsaid, its place's)
+  if (z.vista !== undefined) { if (!VISTA_IDS.includes(z.vista)) throw new Error(`side map: ${at}.vista is ${VISTA_IDS.join(' | ')} (what stands behind it; 'wall' the plain back wall)`); out.vista = z.vista; }
   if (z.teach !== undefined && z.beat !== undefined) throw new Error(`side map: ${at} says what it teaches (teach) or a beat that teaches nothing new (beat), not both`);
   if (z.teach !== undefined) { if (!TEACH.includes(z.teach)) throw new Error(`side map: ${at}.teach is ${TEACH.join(' | ')} (the first level's words)`); out.teach = z.teach; }
   if (z.beat !== undefined) { if (!BEATS[z.beat]) throw new Error(`side map: ${at}.beat is ${Object.entries(BEATS).map(([k, v]) => `${k} (${v})`).join('; ')}`); out.beat = z.beat; }

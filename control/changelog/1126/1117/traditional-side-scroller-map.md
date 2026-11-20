@@ -312,3 +312,18 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
 - **On the wall**: jumping up to a wall, the hero faces it; caught on it and sliding down, he turns his back to it and
   faces out, so a shot or a cut goes out from the wall (where the stick moves him in the world's frame, as on a side
   map; a stick read off the facing keeps facing the wall).
+- **Vistas behind the play**: a zone whose back should say "somewhere else" opens it into a frame (a parapet up to a
+  little over its lowest floor, a header down from its top, its pillars between) and stands a vista beyond: a few
+  layers of simple 3D things at their depths (towers with lit windows, chimneys, tanks, gantries, pipes, peaks,
+  columns, arches), each further into the air, so the side camera gives them parallax for nothing and crossing into
+  a new zone reads as a change of scene. The library (`side-map/vista.js`, a new vista a row): `hall` (machines before
+  a lit far wall), `yard` (a works under the sky), `skyline` (a city, lit windows), `peaks`, `colonnade`, and `wall`
+  the plain back wall, still right sometimes. A place names its vista (the plant's factory floor a hall, its loading
+  dock a yard, its gallery a skyline; the mountain's ledges peaks; the temple's causeway a colonnade), and a zone's
+  own `vista` word overrides it. A vista with a far wall is a room, kept to its zone and closed at its ends so the
+  next zone's opening never looks into it; one under the sky widens to fill the frame from anywhere along the zone.
+  The light pass keeps their hazed colours as they are. Laws (vista.test.js): a place names its vista and a zone's
+  word overrides it, `wall` adds nothing, an open back is less wall and the vista stands behind it, a room keeps to its
+  zone while a sky vista fills the frame, further back is paler, the same seed the same vista. Seen on the page in
+  Galaxy Boy's first map: the factory floor and the assembly line halls, the loading dock's yard, the gallery's lit
+  skyline, the gate tunnel's plain wall.

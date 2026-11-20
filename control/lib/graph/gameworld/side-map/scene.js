@@ -9,7 +9,8 @@
  *                      fill, its slices' motifs, a big mass's middle, the edges and breaks, the threads)
  *   the BACK           an indoor zone's back wall in its void across what the camera sees, and on it the dress: its bays'
  *                      pillars and seams, a lamp an A bay, a hatch at each spawner, the next place's key at the edge,
- *                      a shaft's railings, a chute's stripes, the boss's mark; an outdoor zone's back is the cube's sky
+ *                      a shaft's railings, a chute's stripes, the boss's mark; an outdoor zone's back is the cube's sky;
+ *                      a zone with a VISTA (vista.js) its back opened into a frame, the vista's things at their depths beyond
  *   the DOODADS        what stands on the icing and blocks nothing (doodads.js), at its depth: behind the hero on the
  *                      top's rear, low on its lip (or hung under it), dark in the foreground under the feet line; boxes,
  *                      their face to the camera, their top and their ends, never in the layout's blocks
@@ -41,6 +42,7 @@ import { layoutSideMap } from './layout.js';
 import { dressSideMap } from './dress.js';
 import { sideMapLaws } from './laws.js';
 import { paintSideMap, backdropOf } from './paint.js';
+import { vistaOf } from './vista.js';
 import { lightSideMap, sideMapTextures } from './light.js';
 import { doodadsOf } from './doodads.js';
 import { shadowCasters } from './shadow.js';
@@ -52,6 +54,8 @@ export const SIDE_MAP_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed'
 export const SIDE_MAP_LIGHTS = Object.freeze(['lit', 'flat']);
 export const SIDE_MAP_STATURE = 1.67;
 const HALF = 1.5, BACK = -3, LIT = 0.14, DOOR_W = 0.6;
+/** an opened back's frame (a zone with a vista): the parapet's height over its lowest floor, the header's under its open top */
+export const VISTA_FRAME = Object.freeze({ parapet: 0.9, header: 0.7 });
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const no = (m) => { throw new Error(`geocube sidemap: ${m}`); };
 
@@ -108,7 +112,17 @@ export function assembleSideMap(m, ctx = {}) {
   // the back: an indoor zone's wall in its void, behind everything the camera sees of it
   // (widened by what a frame sees at the wall's depth past the lane's: the camera's perspective shows more of it)
   const ms = (L.screen.width / 2) * (-BACK / L.camera.dist), mz = (L.screen.height / 2) * (-BACK / L.camera.dist);
-  for (const r of L.swept) if (Z[r.zone]?.indoor) face(faces, BACK - 0.01 * (r.zone % 2), r.s0 - ms, r.s1 + ms, r.z0 - mz, r.z1 + mz, lit(Z[r.zone].void, FACE.px), 'sidemap:back');
+  // (an indoor zone with a VISTA, vista.js: its back opened into a frame, a parapet up to a little over its lowest floor
+  // and a header down to a little under its open top, its pillars standing between; the vista stands beyond it)
+  for (const r of L.swept) {
+    const z = Z[r.zone];
+    if (!z?.indoor) continue;
+    const x = BACK - 0.01 * (r.zone % 2), c = lit(z.void, FACE.px);
+    if (!z.vista) { face(faces, x, r.s0 - ms, r.s1 + ms, r.z0 - mz, r.z1 + mz, c, 'sidemap:back'); continue; }
+    const open = L.open.filter((o) => o.zone === r.zone), lo = Math.min(...open.map((o) => o.z0)), hi = Math.max(...open.map((o) => o.z1));
+    face(faces, x, r.s0 - ms, r.s1 + ms, r.z0 - mz, Math.min(r.z1 + mz, lo + VISTA_FRAME.parapet), c, 'sidemap:back');
+    face(faces, x, r.s0 - ms, r.s1 + ms, Math.max(r.z0 - mz, hi - VISTA_FRAME.header), r.z1 + mz, c, 'sidemap:back');
+  }
   // the closed parts: the face toward the camera and the ends in the zone's key, the top a lit edge
   for (const r of L.solids) {
     const z = Z[r.zone], g = `sidemap:${z.family}`;
@@ -120,6 +134,23 @@ export function assembleSideMap(m, ctx = {}) {
   // an outdoor zone's backdrop (paint.js backdropOf): its layers at their depth, hazed toward the cube's horizon
   const horizon = rgbHex(st.palette.sky[st.palette.sky.length - 1].map((v) => v / 255));
   for (const B of backdropOf(L, D, { seed: m.seed ?? 1 })) for (const r of B.rects) face(faces, B.x, r.s0, r.s1, r.z0, r.z1, mixHex(lit(Z[B.zone].key, FACE.px), horizon, B.haze), `sidemap:${B.layer}`);
+  // each zone's VISTA (vista.js): its far wall and its things at their depths, a box's front, top and ends (hazed in their
+  // own colours: the light pass keeps them as they are)
+  for (const V of vistaOf(L, D, { seed: m.seed ?? 1, horizon })) {
+    if (V.far) {
+      const F = V.far, side = mixHex(F.fill, '#000000', 0.25);
+      face(faces, F.x1, F.s0, F.s1, F.z0, F.z1, F.fill, 'sidemap:vista-far');
+      // (the room's ends, from the opened back to its far wall, facing in)
+      for (const [sv, n] of [[F.s0, FACE.py], [F.s1, FACE.ny]]) quad(faces, [[F.x1, sv, F.z0], [BACK, sv, F.z0], [BACK, sv, F.z1], [F.x1, sv, F.z1]], n, side, 'sidemap:vista-far');
+    }
+    for (const b of V.boxes) {
+      const g = b.lit ? 'sidemap:vista-light' : 'sidemap:vista';
+      face(faces, b.x1, b.s0, b.s1, b.z0, b.z1, b.fill, g);
+      if (b.lit) continue;
+      quad(faces, [[b.x0, b.s0, b.z1], [b.x1, b.s0, b.z1], [b.x1, b.s1, b.z1], [b.x0, b.s1, b.z1]], FACE.top, mixHex(b.fill, '#ffffff', 0.08), g);
+      for (const [sv, n] of [[b.s0, FACE.ny], [b.s1, FACE.py]]) quad(faces, [[b.x0, sv, b.z0], [b.x1, sv, b.z0], [b.x1, sv, b.z1], [b.x0, sv, b.z1]], n, mixHex(b.fill, '#000000', 0.18), g);
+    }
+  }
   // the closed parts painted (paint.js): each mark on the face, a layer over the last
   // (a cap's mark on the walking surface itself: level on the top, a hair over it)
   for (const k of D0.paint.marks) {

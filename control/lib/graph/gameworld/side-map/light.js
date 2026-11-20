@@ -209,7 +209,7 @@ export function lightSideMap(faces, layout, dress, cube, { sky = null, casters =
   };
   const out = [];
   for (const f of faces) {
-    if (!f || KEEP.has(f.group) || !Array.isArray(f.corners) || f.corners.length !== 4) { out.push(f); continue; }
+    if (!f || KEEP.has(f.group) || (typeof f.group === 'string' && f.group.startsWith('sidemap:vista')) || !Array.isArray(f.corners) || f.corners.length !== 4) { out.push(f); continue; }
     const base = lin(f.fill), zi = zoneOfFace(f), F = finishAt(zi), tex = MATERIALS[D.zones[zi]?.material]?.texture;
     for (const q of cells(f, S.cell)) {
       const mine = textured(q.group), cols = q.corners.map((p) => { const c = light(p, q.normal, q, zi), g = mine ? glint(p, q.normal, F) : null; return hexOf(base.map((v, k) => v * c[k] + (g ? g[k] : 0))); });

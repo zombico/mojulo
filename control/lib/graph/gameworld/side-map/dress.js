@@ -19,6 +19,7 @@
  *                       its way (railings that climb, stripes down a chute)
  *   foreshadowing       what the stage is about shown small early, larger at a landing or a reveal, whole in the boss's room
  *   the backdrop        an outdoor zone's by its height on the map (land at the foot, hills, sky and a low horizon at top)
+ *   the vista           what the camera sees behind a zone (vista.js): its place's, or the zone's own word; a wall its absence
  *   wear                one dial a place
  *
  *   SETTINGS            the settings a premise names (a row each: its words, its places by role, its threads, its subject,
@@ -26,7 +27,7 @@
  *   settingOf(premise)  → the setting a premise's words name (the plant unsaid)
  *   dressSideMap(layout, map, { seed?, cube? }) → { setting, palette: { play, place, boss, void }, zones: [{ zone, place,
  *                       family, material (cake.js), indoor, key, edge, void, boss, bays, pillars, seams, lamps, hatches, mark, peek, light, foreshadow,
- *                       backdrop, wear }], threads: [{ kind, from, to }] }
+ *                       backdrop, vista?, wear }], threads: [{ kind, from, to }] }
  *
  * Pure and deterministic: seeded dice (city/plan/dice.js streamOf), never Math.random.
  */
@@ -37,21 +38,23 @@ import { bayGrid } from './path.js';
 import { materialOf } from './cake.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
-const P = (name, family, indoor = true) => Object.freeze({ name, family, indoor });
+// (a place: its name, its fill's family, whether it is inside, and its VISTA, what the camera sees behind it: vista.js, a
+// vista from the library or 'wall', the plain back wall; unsaid, a wall inside and the cube's sky and hills outside)
+const P = (name, family, indoor = true, vista = null) => Object.freeze({ name, family, indoor, ...(vista ? { vista } : {}) });
 /** The settings: the places a stage of each is made of, by the zone's role (across, up, down, room). */
 export const SETTINGS = Object.freeze({
   plant: Object.freeze({ words: ['plant', 'factory', 'foundry', 'works', 'mill', 'refinery', 'reactor'], threads: 'pipes', subject: 'the machine it makes',
-    play: 'warm', places: { across: [P('the gate tunnel', 'rock'), P('the factory floor', 'machine'), P('the loading dock', 'built'), P('the assembly line', 'machine'), P('the gallery', 'machine')],
-      up: [P('the freight shaft', 'padded'), P('the service chimney', 'machine')], down: [P('the stairwell', 'built'), P('the drop chute', 'machine')], room: [P('the core', 'machine')] } }),
+    play: 'warm', places: { across: [P('the gate tunnel', 'rock', true, 'wall'), P('the factory floor', 'machine', true, 'hall'), P('the loading dock', 'built', true, 'yard'), P('the assembly line', 'machine', true, 'hall'), P('the gallery', 'machine', true, 'skyline')],
+      up: [P('the freight shaft', 'padded'), P('the service chimney', 'machine', true, 'hall')], down: [P('the stairwell', 'built'), P('the drop chute', 'machine')], room: [P('the core', 'machine', true, 'hall')] } }),
   mountain: Object.freeze({ words: ['mountain', 'volcano', 'cliff', 'peak', 'canyon', 'cave', 'crag'], threads: 'roots', subject: 'what sleeps in the mountain',
-    play: 'cool', places: { across: [P('the cliff path', 'rock', false), P('the caldera rim', 'rock', false), P('the plateau', 'rock', false), P('the works in the rock', 'machine')],
-      up: [P('the chimney', 'rock'), P('the crevice', 'rock')], down: [P('the scree', 'rock', false), P('the lava tube', 'rock')], room: [P('the summit chamber', 'built')] } }),
+    play: 'cool', places: { across: [P('the cliff path', 'rock', false, 'peaks'), P('the caldera rim', 'rock', false, 'peaks'), P('the plateau', 'rock', false, 'peaks'), P('the works in the rock', 'machine', true, 'hall')],
+      up: [P('the chimney', 'rock'), P('the crevice', 'rock')], down: [P('the scree', 'rock', false, 'peaks'), P('the lava tube', 'rock')], room: [P('the summit chamber', 'built')] } }),
   temple: Object.freeze({ words: ['temple', 'ruin', 'shrine', 'tomb', 'pyramid', 'sanctum'], threads: 'channels', subject: 'the idol it keeps',
-    play: 'cool', places: { across: [P('the causeway', 'built', false), P('the hall of pillars', 'built'), P('the flooded gallery', 'built')],
+    play: 'cool', places: { across: [P('the causeway', 'built', false, 'colonnade'), P('the hall of pillars', 'built', true, 'colonnade'), P('the flooded gallery', 'built', true, 'colonnade')],
       up: [P('the bell shaft', 'built')], down: [P('the stairs down', 'built')], room: [P('the inner sanctum', 'built')] } }),
   base: Object.freeze({ words: ['base', 'fortress', 'bunker', 'station', 'hangar', 'barracks'], threads: 'cables', subject: 'the weapon it guards',
-    play: 'warm', places: { across: [P('the gate', 'built', false), P('the barracks', 'built'), P('the hangar', 'machine')],
-      up: [P('the lift shaft', 'machine')], down: [P('the drop shaft', 'machine')], room: [P('the command centre', 'machine')] } }),
+    play: 'warm', places: { across: [P('the gate', 'built', false, 'skyline'), P('the barracks', 'built'), P('the hangar', 'machine', true, 'hall')],
+      up: [P('the lift shaft', 'machine')], down: [P('the drop shaft', 'machine')], room: [P('the command centre', 'machine', true, 'skyline')] } }),
 });
 /** The setting a premise's words name; the plant when they name none. */
 export function settingOf(premise = '') {
@@ -86,9 +89,11 @@ export function dressSideMap(layout, map, { seed = 1, cube } = {}) {
     // (a down run's places are a cascade's, then a chute's: the drop says which)
     const dealt = role === 'down' ? list[Z.drop === 'chute' ? list.length - 1 : 0] : list[seen[role]++ % list.length];
     const place = Z.place ?? dealt.name, family = Z.fill ?? M.fill ?? dealt.family, indoor = Z.place ? true : dealt.indoor;
+    // (its vista: the zone's own word, else its place's; a place the map names itself is inside, a wall behind it)
+    const vista = Z.vista ?? (Z.place ? null : dealt.vista ?? null);
     const h = (placeHue + SPREAD[i % SPREAD.length] + (d() - 0.5) * 6 + 360) % 360;
     const boss = bossAt < 0 ? 0 : i === bossAt ? 1 : i > bossAt - 3 && i < bossAt ? r3((3 - (bossAt - i)) / 3) : 0;
-    const LZ = layout.zones[i], [s0, s1, z0, z1] = LZ.rect, out = { zone: i, place, family, indoor, key: hex(h, 0.45, 0.58), edge: hex(h, 0.4, 0.78), void: hex(h, 0.28, 0.1), boss, wear: r3(0.2 + 0.5 * d()) };
+    const LZ = layout.zones[i], [s0, s1, z0, z1] = LZ.rect, out = { zone: i, place, family, indoor, key: hex(h, 0.45, 0.58), edge: hex(h, 0.4, 0.78), void: hex(h, 0.28, 0.1), boss, wear: r3(0.2 + 0.5 * d()), ...(vista && vista !== 'wall' ? { vista } : {}) };
     if (role === 'across') {
       // the back wall in bays, a screen and a quarter each, by the walls' rule; a pillar between, a lamp an A bay
       // (the bay grid the path's steps stand on too, path.js bayGrid: the floor keeps the walls' rhythm)
