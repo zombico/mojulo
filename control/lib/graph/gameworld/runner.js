@@ -698,7 +698,8 @@ const foeSteps = (G, ref, ready, ids = null) => {
 // entry's vanish, states or skin changed would leave the level as it was made); a level with none prints as before
 const levelPrint = (G, args, hostile) => (hostile ? fingerprint({ args, foes: bestiaryOf(G) }) : fingerprint(args));
 // the side maps' bosses: the roster ids their chains name, each minted through the hero door (bosses.js bossSpec)
-const sideMapBossIds = (G) => [...new Set(G.ids.map((id) => G.levels[id].sidemap?.boss).filter(Boolean))];
+// (a machine, a roster boss with a `mecha` body, is stood as its frame's rig: nothing to mint)
+const sideMapBossIds = (G) => [...new Set(G.ids.map((id) => G.levels[id].sidemap?.boss).filter((id) => id && !BOSSES[id]?.mecha))];
 const sideMapBossRefs = (G, ref) => Object.fromEntries(sideMapBossIds(G).map((id) => [id, childRef(ref, `foe-${id}`)]));
 // (its identity hue the one its level's map holds back for its boss: the dress's, side-map/dress.js; the law that keeps it
 // its own reads the map's zones, so the boss stands out of every one of them)

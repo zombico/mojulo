@@ -59,6 +59,11 @@ that holds a hero of a given stature at the frame's share, the lane at its place
     the gauntlet, the boss), and a map adds the beats a strip never had: a **rest**, a **reveal**, a **landing**, a
     **commit**.
 
+    **A shot is seen coming.** A foe's round crosses the room at a pace a hero reads and jumps or dashes past: never
+    a hitscan line on a side map (`control/lib/graph/gameworld/side-map/cast.js` FOE_SHOT, FOE_LOB). And the hero's
+    base shot meets what stands low: a walker at the knee falls to a tap (the buster's `low` reach), the charge is for
+    the heavies (the elite rank, plated over and standing taller) and the boss.
+
 ## Going up is earned
 
 13. **Climbing has forms.** Each form adds one thing, and a stage climbs them in order of what they ask:
@@ -176,7 +181,10 @@ The cake is `control/lib/graph/gameworld/side-map/cake.js` (the materials), `tex
     room, kept to its zone and closed at its ends so a neighbour's opening never sees into it; one under the sky widens
     to fill the frame from anywhere along the zone (`control/lib/graph/gameworld/side-map/vista.js`, a new vista a row).
 37. **The boss owns its room.** Its colour is used nowhere before it; its room is one screen, its walls the frame's
-    edges, and its back wall carries its mark.
+    edges, and its back wall carries its mark. A step past its doorway it shuts behind the hero: a shutter comes down
+    and the room is walled up (a camera zone's `shut`, `side-map/play.js`). An intro stage's boss (level 0's) is a
+    machine, not one of the roster's rivals, with one simple pattern: Bulwark, the mecha shelf's heavy construction
+    walker (`control/lib/graph/gameworld/bosses.js`, a boss's `mecha`).
 
     Its path is designed from the top down by `control/lib/graph/gameworld/side-map/path.js`, on the bay grid the back
     wall's pillars and seams stand on: a profile by what the run is and where it leads, a word for each pillar and each

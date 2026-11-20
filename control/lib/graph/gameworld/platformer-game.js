@@ -151,22 +151,36 @@ export const SIDE_MAP_POLES = Object.freeze(['galaxy-boy']);
  * so it moves and hurts as its class does; the level names them in the order it teaches them (side-map/cast.js lays
  * them on its spawners in turn).
  */
+/** A ROBOT's death on a side map: it is DESTROYED, the killing blow choosing how (gameworld/vanish.js): a round or a crush
+ * blows it apart at every joint, its pieces flung and falling in the explosion; a saber's cut cleaves it through. A
+ * critter is squashed, as a platformer's are. Its pieces go in a puff of smoke. */
+export const ROBOT_WRECK = Object.freeze({ is: 'smoke', die: 'destroy', by: Object.freeze({ round: Object.freeze({ die: 'dismantle', sever: 'all' }), burst: Object.freeze({ die: 'dismantle', sever: 'all' }), crush: Object.freeze({ die: 'dismantle', sever: 'all' }) }) });
+// a HEAVY: the class at the elite rank (foes/vocab.js FOE_RANKS: three times the downs, a little taller), its robot
+// plated over (the mutagen's `transmetal` on the herobot: a chrome faceplate, chrome legs and back plate, pistons), so
+// it reads armoured before it is shot and takes a dozen taps to drop
+const heavy = (cls, species) => ({ class: cls, rank: 'elite', skin: { species, ooze: ['herobot', 'transmetal'] }, vanish: ROBOT_WRECK });
+const robot = (cls, species) => ({ class: cls, skin: { species, ooze: 'herobot' }, vanish: ROBOT_WRECK });
 export const SIDE_MAP_FOES = Object.freeze({
   // a hard-hatted runner: walks at the hero, a stomp or a pellet downs it
-  'hardhat': { class: 'walker', skin: { species: 'guineaPig', ooze: 'herobot' } },
+  'hardhat': robot('walker', 'guineaPig'),
   // a hopping critter: met in the air as often as on the floor
   'hopfrog': { class: 'hopper', skin: { species: 'frog', ooze: 'mascot' } },
   // a ram: braces, then charges down the lane
-  'ram': { class: 'charger', skin: { species: 'wildBoar', ooze: 'herobot' } },
+  'ram': robot('charger', 'wildBoar'),
   // a batwing: weaves overhead and swoops
-  'batwing': { class: 'swooper', skin: { species: 'fruitBat', ooze: 'herobot' } },
-  // a shell gun: never moves, turns and fires
-  'shellgun': { class: 'turret', skin: { species: 'tortoise', ooze: 'herobot' } },
+  'batwing': robot('swooper', 'fruitBat'),
+  // a shell gun: never moves, turns and fires a slow round (side-map/cast.js FOE_SHOT): jump it
+  'shellgun': robot('turret', 'tortoise'),
   // a spiky critter: paces its floor
   'prickle': { class: 'walker', skin: { species: 'hedgehog', ooze: 'mascot' } },
+  // HEAVIES: an armoured rhino that braces and charges, and an armoured bunker gun, a dozen taps (or a full charge and a
+  // few) each
+  'ironhorn': heavy('charger', 'rhino'),
+  'bunker': heavy('turret', 'tortoise'),
 });
-/** The first level's foes, in the order it meets them (its `meet` zone's two, then its gauntlet's four). */
-export const SIDE_MAP_FIRST_FOES = Object.freeze(['hardhat', 'hopfrog', 'ram', 'batwing', 'shellgun', 'prickle']);
+/** Level 0's foes, in the order it meets them along its spawners (side-map/cast.js lays them in turn): one walker on its
+ * first run, its `meet` zone's three, the dash run's two, then its gauntlet's six with the heavies among them. */
+export const SIDE_MAP_FIRST_FOES = Object.freeze(['hardhat', 'hardhat', 'hopfrog', 'shellgun', 'ram', 'batwing', 'hardhat', 'ironhorn', 'shellgun', 'batwing', 'bunker', 'prickle']);
 
 /** The rail's game in a dimension: the words to write on a gameworld (see the header). */
 export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id, name, seed, kit, boss = false, camera, hero } = {}) {
@@ -184,7 +198,7 @@ export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id
     mechanics: { lives: 3, coins: true, legend: 'menu' },
     // (the run and gun's first level is a SIDE MAP, side-map/first.js: its zones, climbs and boss's room seen from the
     // side; the mascot platformer's the strip of trails it always was)
-    levels: { [level]: sideMap ? { ...(name ? { name } : {}), ...(seed !== undefined ? { seed } : {}), sidemap: firstSideMap({ boss: 'crucible' }), foes: { from: [...SIDE_MAP_FIRST_FOES] } } : firstLevel({ name, seed, kit, boss, dimension }) },
+    levels: { [level]: sideMap ? { name: name ?? 'Level 0', ...(seed !== undefined ? { seed } : {}), sidemap: firstSideMap({ boss: 'bulwark' }), foes: { from: [...SIDE_MAP_FIRST_FOES] } } : firstLevel({ name, seed, kit, boss, dimension }) },
     // (a side map's foes: the side scroller's bestiary)
     ...(sideMap ? { foes: structuredClone({ ...SIDE_MAP_FOES }) } : {}),
     // (made for a screen on its side: a lane is read across its width, a chase camera needs it; game/screen.js)

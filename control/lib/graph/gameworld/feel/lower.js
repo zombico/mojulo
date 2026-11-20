@@ -72,6 +72,10 @@ const BUSTER_COLOURS = Object.freeze([0xfff2a8, 0x5dff7a, 0xffd23a]);
 // tinier than they look (`r` the radius it meets a body with); the full charge (the last level) a TALL capsule, `tall`
 // its half height over its centre, so it catches what stands anywhere in its height
 export const BUSTER_HIT = Object.freeze({ tap: Object.freeze({ r: 0.75 }), level: Object.freeze({ r: 0.8 }), full: Object.freeze({ r: 0.75, tall: 1.1 }) });
+// each round's LOW REACH (worlds/controllable/buster.js `low`): it meets a body down to this share of the hero's height
+// under its muzzle, so a walker at the hero's knee falls to a tap, not to the tall full charge alone (the run and gun's
+// low foe is shot standing, never crouched for)
+export const BUSTER_LOW = 0.35;
 
 // what the runtime does not carry yet, by the card's field (reported only when the card has it)
 const LOST = Object.freeze({
@@ -266,7 +270,7 @@ export function lowerFeel(card, { gear = null, takes = false, base = null } = {}
     const K = C.charge, hit = (R, k) => { const H = k === 0 ? BUSTER_HIT.tap : k === K.levels.length ? BUSTER_HIT.full : BUSTER_HIT.level; return { r: r4(R.size * H.r), ...(H.tall ? { tall: r4(R.size * H.tall) } : {}) }; };
     const round = (R, k) => ({ speed: R.speed, size: R.size, life: r4(R.life / FPS), damage: r4(BLOW * BUSTER_DAMAGE[Math.min(k, BUSTER_DAMAGE.length - 1)]),
       impact: (R.tags ?? []).includes('heavy') ? 1 : 0, color: BUSTER_COLOURS[Math.min(k, BUSTER_COLOURS.length - 1)], hit: hit(R, k) });
-    rule.buster = { max: K.tap.max ?? 3, chest: 0.7, tap: round(K.tap, 0), levels: K.levels.map((f, i) => ({ at: r4(f / FPS), ...round(K.at[i] ?? K.at[K.at.length - 1], i + 1) })) };
+    rule.buster = { max: K.tap.max ?? 3, chest: 0.7, low: BUSTER_LOW, tap: round(K.tap, 0), levels: K.levels.map((f, i) => ({ at: r4(f / FPS), ...round(K.at[i] ?? K.at[K.at.length - 1], i + 1) })) };
     half('charge', `the buster on fire (J, the pad's right trigger): the tap shot on the press (${rule.buster.max} out at most), the charge held through anything and let go at ${K.levels.map((f) => `${f}`).join(' or ')} frames; each round straight from the chest; its damage a share of a hero's blow by level (${BUSTER_DAMAGE.join(', ')})`);
     moves.add('charge');
   }

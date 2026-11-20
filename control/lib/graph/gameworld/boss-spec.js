@@ -32,6 +32,7 @@ const mix = (hex, to, k) => { const a = parseInt(hex.slice(1), 16), b = parseInt
 export function bossSpec(id, { hue = null } = {}) {
   const B0 = BOSSES[id], B = B0 && hue ? { ...B0, hue } : B0;
   if (!B) throw new Error(`bosses: no boss '${id}' (${BOSS_IDS.join(', ')})`);
+  if (B.mecha) throw new Error(`bosses: ${B.name} is a machine (a mecha shelf frame, its \`mecha\`), not made through the hero door`);
   const { spec } = gameBody('herobot', 'hero');
   const hi = mix(B.hue, '#ffffff', 0.3);
   const palette = {

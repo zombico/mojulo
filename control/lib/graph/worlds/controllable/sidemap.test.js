@@ -2,7 +2,7 @@
 // concepts: the frame holds a run's height as the hero runs it, and turns the corner into a shaft eased, never snapped;
 // a rising frame the hero does not climb leaves it under the frame's bottom, and that is a fall: to limbo (where the
 // catch zone counts it), then back at its zone's checkpoint; up at a ladder takes it, its back to the camera, and the top
-// steps it off onto the floor; a held room is never left backward; a page without the camera keeps every byte.
+// steps it off onto the floor; a held room is never left backward, and a boss's room shuts behind the hero; a page without the camera keeps every byte.
 import { describe, it, expect } from 'vitest';
 import { composeLive, emissionSource } from './compose.js';
 import { deriveZoneEvents } from '../event-bus.js';
@@ -76,6 +76,22 @@ describe('the side map\'s camera', () => {
     st.byId.hero.transform.pos = [0, R.rect[0] - 4, R.exit[1] + 0.05];
     step(st, {}, 30);
     expect(cam(st).frame.zone).toBe(1);
+  });
+  it('a boss\'s room SHUTS behind the hero: open as it comes in, walled up once it is past its doorway', () => {
+    const G = play([{ run: 'across', screens: 1 }, { room: [1, 1], teach: 'boss' }]), S = G.P.camera.zones[1].shut;
+    expect(S).toBeDefined();
+    expect(S.at).toBeGreaterThan(S.s);
+    // (at the doorway, not yet past it: open, and back out it can go)
+    const st = world(G, [0, S.s - 1, S.z0 + 0.05]);
+    step(st, { strafe: 1 }, 6);
+    expect(cam(st)._shut?.[1]).toBeUndefined();
+    // (in past it: shut, the time it closed; and walking back stops at the shutter)
+    step(st, { strafe: 1 }, 90);
+    expect(cam(st)._shut[1]).toBeGreaterThan(0);
+    step(st, { strafe: -1 }, 120);
+    expect(st.byId.hero.transform.pos[1]).toBeGreaterThanOrEqual(S.s);
+    // (a room that holds no boss has no shutter)
+    expect(play([{ run: 'across', screens: 1 }, { room: [1, 1] }]).P.camera.zones[1].shut).toBeUndefined();
   });
   it('a page without the side map\'s camera keeps every byte', () => {
     expect(emissionSource({})).not.toContain("'side-map'");

@@ -14,7 +14,8 @@
  * ended by a wall, its damage and its impact its level's. It flies over a pit (`noGround`). `pellet` marks it for the
  * page, which draws a glowing ball in its level's colour.
  *
- *   rule.buster  { max, chest (the muzzle's height, a share of the body's), muzzle? ({ right, up, ahead }: shares of the
+ *   rule.buster  { max, chest (the muzzle's height, a share of the body's), low? (the LOW REACH: every round meets a body
+ *                down to this share of the body's height under its muzzle, so a short foe is met by a tap), muzzle? ({ right, up, ahead }: shares of the
  *                body's height, the cannon arm's end raised level, measured off its figure; `moves` { <locomotion>: the
  *                same, the shoulder where that move's clip holds it }), tap: ROUND, levels: [{ at, ...ROUND }] }
  *   ROUND        { speed (m/s), size (m, its radius), life (s), damage, impact, color, hit? }
@@ -47,6 +48,9 @@ export function buildBuster(E) {
     state.projectiles.push({
       id: 'proj-' + (state.projSeq++), owner: e.id, pos: from.slice(), vel: [f[0] * at.speed, f[1] * at.speed, 0],
       gravity: 0, splashRadius: 0, projRadius: at.hit ? at.hit.r : at.size, projTall: at.hit && at.hit.tall ? at.hit.tall : 0, prox: 0, damage: at.damage || 0, impact: at.impact || 0,
+      // (its LOW reach, `low`: down from the muzzle to that share of the body's height, so a foe standing lower than the
+      // muzzle, a walker at the hero's knee, is met by every round, not the tall full charge's alone)
+      ...(B.low ? { projLow: Math.max(0, (M ? M.up * H : H * (B.chest || 0.7)) - B.low * H) } : {}),
       born: state.time, age: 0, armTime: 0, fuse: at.life, noGround: true,
       fxColor: at.color != null ? at.color : null, fxScale: at.size, smokeTrail: false, pellet: true, busterLv: lv,
     });
@@ -57,12 +61,13 @@ export function buildBuster(E) {
   // offset from its centre), else null. Samples along the travel a tenth of a metre apart (capped), and up and down its
   // height its radius apart: the first along the travel wins, the nearest its centre at that point
   function tallMeet(state, p, d) {
-    const r = p.projRadius || 0.05, T = p.projTall, v = p.vel, len = Math.hypot(v[0] * d, v[1] * d, v[2] * d);
-    const n = Math.min(24, Math.max(1, Math.ceil(len / 0.1))), m = Math.max(1, Math.ceil(T / Math.max(0.05, r)));
+    const r = p.projRadius || 0.05, T = p.projTall || 0, Lo = Math.max(T, p.projLow || 0), v = p.vel, len = Math.hypot(v[0] * d, v[1] * d, v[2] * d);
+    const n = Math.min(24, Math.max(1, Math.ceil(len / 0.1))), m = Math.max(1, Math.ceil(Lo / Math.max(0.05, r)));
     for (let k = 1; k <= n; k++) {
       const f = k / n, at = [p.pos[0] + v[0] * d * f, p.pos[1] + v[1] * d * f, p.pos[2] + v[2] * d * f];
       for (let j = 0; j <= m; j++) for (const sgn of j ? [1, -1] : [1]) {
-        const dz = sgn * (T * j) / m, pt = [at[0], at[1], at[2] + dz];
+        if (sgn > 0 && j && !T) continue;
+        const dz = sgn > 0 ? (T * j) / m : -(Lo * j) / m, pt = [at[0], at[1], at[2] + dz];
         for (const tg of state.entities) {
           if (tg.id === p.owner || tg.invincible || !(tg.body && tg.body.hittable)) continue;
           const hit = tg.body.egg && pointInEgg ? pointInEgg(pt, tg, r) : Math.hypot(tg.transform.pos[0] - pt[0], tg.transform.pos[1] - pt[1], tg.transform.pos[2] - pt[2]) <= (tg.body.radius || 0.5) + r;
@@ -99,7 +104,7 @@ export function buildBuster(E) {
     }
     // (a tall round meets a body anywhere in its height: moved to the height it meets it at, for the engine's contact)
     for (const p of state.projectiles || []) {
-      if (!p.projTall || p.age + d < (p.armTime || 0)) continue;
+      if (!(p.projTall || p.projLow) || p.age + d < (p.armTime || 0)) continue;
       const dz = tallMeet(state, p, d);
       if (dz) p.pos[2] += dz;
     }

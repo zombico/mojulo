@@ -23,7 +23,8 @@ import { groundGridScript } from './ground-grid.js';
 import { turretScript } from './turret-view.js';
 import { boatWaterScript } from './boat-water.js';
 import { shotLightScript } from './shot-light-view.js';
-import { roundLooks, blastLook, BLAST_LOOK, SLASH_LOOK, SABER_STRAND } from '../../../gameworld/feel/round-look.js';
+import { shutterScript } from './shutter-view.js';
+import { roundLooks, roundLook, blastLook, BLAST_LOOK, SLASH_LOOK, SABER_STRAND } from '../../../gameworld/feel/round-look.js';
 import { castKitSource } from '../cast-rig.js';
 import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
 import { tellOf } from '../../../worlds/controllable/tell.js';
@@ -802,6 +803,10 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const boatOn = entities.some((e) => e && e.rule && e.rule.type === 'boat');
   // (a run and gun's arm cannon, worlds/controllable/buster.js: a body whose rule carries a buster; its rounds drawn as pellets)
   const busterOn = entities.some((e) => e && e.rule && e.rule.buster);
+  // (a FOE'S TRAVELLING ROUND, gameworld/side-map/cast.js: a gun its weapon fires as a round that crosses the room, drawn in
+  // the shot's look in the foe's colour, one look a colour; none, nothing)
+  const foeLooks = Object.fromEntries(entities.filter((e) => e && e.weapon && e.weapon.foeRound && Number.isInteger(e.weapon.fxColor)).map((e) => [e.weapon.fxColor, roundLook({ color: e.weapon.fxColor, size: e.weapon.fxScale ?? 0.16 }, 0)]));
+  const foeRoundsOn = Object.keys(foeLooks).length > 0;
   // (a SABER's body, gameworld/feel/saber.js: a moveset that strikes with a colour, its cuts drawn as slashes; none: nothing)
   const saberOn = entities.some((e) => e && e.rule && e.rule.moveset && e.rule.strike === 'melee' && e.rule.strikeFx && Number.isInteger(e.rule.strikeFx.color));
   // THE DASH'S DUST (round-look.js DASH_DUST, a rule's dash.dust): a body whose ground dash raises it
@@ -4270,12 +4275,14 @@ function __updateChargeRings() {
 // and pop an expanding shell when the engine records a burst in __world.bursts. The engine owns all
 // motion + hit adjudication (deterministic); this only reflects positions and spawns transient fx —
 // a muzzle flash on a round's birth, a glowing round while it flies, an expanding shell on its burst.
-${busterOn ? `// THE SHOT'S LOOK (gameworld/feel/round-look.js): a buster's round as the anime register draws a charged shot, every layer
+${busterOn || foeRoundsOn ? `// THE SHOT'S LOOK (gameworld/feel/round-look.js): a buster's round as the anime register draws a charged shot, every layer
 // additive: a halo in its hue round it all; the ramp (the hue deep, the hue saturated, a white-hot core) as soft discs
 // stretched along its flight on screen, the core toward its head; streaks inside along its flight; a tail fading behind;
 // sparks trailing on the world's clock; and where it was fired, rings in the accent hue that stay there, growing and
 // fading (they never follow the round). Its level's look by busterLv (0 the tap)
-const __RL = ${safeJson(roundLooks((entities.find((e) => e && e.rule && e.rule.buster) || {}).rule?.buster))};
+const __RL = ${safeJson(roundLooks((entities.find((e) => e && e.rule && e.rule.buster) || {}).rule?.buster))};${foeRoundsOn ? `
+// (a foe's round: the tap's look in its colour, by its fxColor)
+const __RLF = ${safeJson(foeLooks)};` : ''}
 const __rlTex = (() => {
   const mk = (w, h, paint) => { const c = document.createElement('canvas'); c.width = w; c.height = h; paint(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
   return {
@@ -4432,7 +4439,7 @@ function __rlAge() {
   }
 }
 function __rlRound(p) {
-  const L = __RL[p.busterLv || 0] || __RL[0] || { size: 0.08, core: 0.55, ramp: ['#ffffff', '#fff2a8', '#7a6a20'], halo: 4.5, stretch: 1.8, streaks: 1, tail: 3, accent: '#a8c8ff', rings: 0, sparks: 2 };
+  const L = ${foeRoundsOn ? '(!p.pellet && __RLF[p.fxColor]) || ' : ''}__RL[p.busterLv || 0] || __RL[0] || { size: 0.08, core: 0.55, ramp: ['#ffffff', '#fff2a8', '#7a6a20'], halo: 4.5, stretch: 1.8, streaks: 1, tail: 3, accent: '#a8c8ff', rings: 0, sparks: 2 };
   const r = p.fxScale != null ? p.fxScale : L.size, g = new THREE.Group();
   const halo = __rlSprite(__rlTex.soft, L.ramp[1], 0.32), deep = __rlSprite(__rlTex.soft, L.ramp[2], 0.95), mid = __rlSprite(__rlTex.soft, L.ramp[1], 1), core = __rlSprite(__rlTex.soft, L.ramp[0], 1);
   const tail = __rlSprite(__rlTex.streak, L.ramp[1], 0.55), streaks = [], sparks = [];
@@ -4471,7 +4478,7 @@ function __rlRound(p) {
       const sz = Math.max(0.06, r * 0.32) * (1 - 0.5 * u); s.scale.set(sz, sz, 1); s.material.opacity = 1 - u;
     });
   };
-  return { g, tick, pellet: { size: r, lv: p.busterLv || 0 } };
+  return { g, tick, pellet: p.pellet ? { size: r, lv: p.busterLv || 0 } : null };
 }
 ` : ''}${saberOn ? `// THE SLASH (gameworld/feel/round-look.js SLASH_LOOK; feel/saber.js): a saber's cut drawn in the shot's light, its
 // colours the blade's (a white-hot core along its outer edge, the hue saturated, the hue deep inward), an arc in the body's
@@ -4659,8 +4666,8 @@ function __updateProjectiles() {${dustOn ? `
         scene.add(g); rec = __projMeshes[p.id] = { g: g };
       }
     }` : ''}
-${busterOn ? `    // (a buster's round, buster.js, drawn in its level's LOOK, gameworld/feel/round-look.js: the shot's look)
-    if (!rec && p.pellet) rec = __projMeshes[p.id] = __rlRound(p);
+${busterOn || foeRoundsOn ? `    // (a buster's round, buster.js, drawn in its level's LOOK, gameworld/feel/round-look.js: the shot's look; a foe's in its)
+    if (!rec && (p.pellet${foeRoundsOn ? ' || __RLF[p.fxColor]' : ''})) rec = __projMeshes[p.id] = __rlRound(p);
 ` : ''}    if (!rec) {
       const col = p.fxColor != null ? p.fxColor : 0xffcc66, sz = p.fxScale != null ? p.fxScale : 3;
       // the round is a POINTED SHELL (a hot nose-cone, not a beachball): a long thin cone whose TIP
@@ -4676,7 +4683,7 @@ ${busterOn ? `    // (a buster's round, buster.js, drawn in its level's LOOK, ga
       mf.position.set(p.pos[0], p.pos[1], p.pos[2]); mf.raycast = function () {}; scene.add(mf);
       __fx.push({ obj: mf, born: __world.time, ttl: 0.1, kind: 'burst', base: sz * 0.4, dim: 0.9 });
     }
-    rec.g.position.set(p.pos[0], p.pos[1], p.pos[2]);${busterOn ? `
+    rec.g.position.set(p.pos[0], p.pos[1], p.pos[2]);${busterOn || foeRoundsOn ? `
     if (rec.tick) { rec.tick(p); continue; }` : ''}
     // point the nose along the round's velocity (cone apex is +Y → rotate +Y onto the travel direction)
     if (p.vel) { const vl = Math.hypot(p.vel[0], p.vel[1], p.vel[2]); if (vl > 1e-4) rec.g.quaternion.setFromUnitVectors(__projUpY, __projDir.set(p.vel[0] / vl, p.vel[1] / vl, p.vel[2] / vl)); }
@@ -5336,7 +5343,7 @@ function __mojBackdrop(from, look, shift) {
   scene.add(quad);
   return { dispose: () => { scene.remove(quad); quad.geometry.dispose(); quad.material.dispose(); rt.dispose(); } };
 }
-` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${backdrop ? ' backdrop: __mojBackdrop,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''}${gusts ? ' air: __CW.vayoAir,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay ? gunplayScript() : ''}${vayoOn ? vayoTrailScript() : ''}${knock ? knockFxScript() : ''}${turretOn ? turretScript() : ''}${boatOn ? boatWaterScript() : ''}${camera && camera.rule === 'side-map' ? shotLightScript() : ''}${moveset ? specialsPaletteScript() : ''}${roll ? `
+` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${backdrop ? ' backdrop: __mojBackdrop,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''}${gusts ? ' air: __CW.vayoAir,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay ? gunplayScript() : ''}${vayoOn ? vayoTrailScript() : ''}${knock ? knockFxScript() : ''}${turretOn ? turretScript() : ''}${boatOn ? boatWaterScript() : ''}${camera && camera.rule === 'side-map' ? shotLightScript() : ''}${camera && camera.rule === 'side-map' && Array.isArray(camera.zones) && camera.zones.some((z) => z && z.shut) ? shutterScript() : ''}${moveset ? specialsPaletteScript() : ''}${roll ? `
 // ---- THE ROLL (worlds/controllable/roll.js): what this level's seed picks on it. Applied once, where the level starts:
 // by the seed its shell sends with game-init${rollWaits ? '' : ' (this page has no game channel: the reference roll, seed 1)'}. A thing rolled away never stood: it leaves the colliders
 // (the runtime's) and the scene (taken out, not hidden: the ground's ray and the camera's meet nothing where it was).

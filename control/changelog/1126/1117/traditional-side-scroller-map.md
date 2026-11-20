@@ -327,3 +327,26 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   zone while a sky vista fills the frame, further back is paler, the same seed the same vista. Seen on the page in
   Galaxy Boy's first map: the factory floor and the assembly line halls, the loading dock's yard, the gallery's lit
   skyline, the gate tunnel's plain wall.
+- **Level 0**: the first side map is the intro stage before the boss roster's stages (`Level 0`), its game loop
+  tightened. More foes: one on the first run, three where the foes are met, two on the dash run (a spawner over a gap
+  now stands on the nearest floor), six over a seven-screen gauntlet, the heavies among them. The base shot hits low
+  foes: every buster round reaches down from its muzzle (`rule.buster.low`, the lowered card's `BUSTER_LOW`), so a
+  walker at the hero's knee falls to a tap, not to the full charge alone. A foe's shots TRAVEL: on a side map the foe
+  cast turns a gun's hitscan line into a slow round from the foe's middle (`side-map/cast.js` FOE_SHOT, 7 m/s, every
+  1.6 s) and a lob into a real arc (FOE_LOB), each flying through the other foes and drawn in the shot's look in the
+  foe's colour, so it is seen crossing the room and jumped or dashed past (the runtime's rounds take an opt-in
+  `noGround` and `passTeam`). HEAVIES: an armoured rhino charger and an armoured bunker turret at the elite rank,
+  plated over (`transmetal` on the herobot) and standing taller (`FOE_STATURE_HEAVY`), a dozen taps each. Robots are
+  DESTROYED (`ROBOT_WRECK`): a round blows them apart at every joint, their pieces flung in the explosion, a saber's
+  cut cleaves them, then they go in smoke; a critter is squashed as before (and a wreck's cloned pieces are lit as
+  matter by the shot light, no longer compiled as cel without a cel normal). The boss's room SHUTS behind the hero: a
+  step past its doorway the runtime walls it up (a camera zone's `shut`) and a steel shutter with hazard bars drops
+  across the way in (`shutter-view.js`). Level 0's boss is BULWARK, a giant worker bot, not one of the roster's
+  rivals: the mecha shelf's heavy construction walker (a closed cab, two arms on rams) in site yellow, stood as the
+  frame's rig at twice the hero's height (a roster boss's `mecha`, nothing minted), its pattern one slow round low
+  across the room every 1.4 s, jumped, its health 280, coming apart as it falls; it gives no weapon. Laws: the tap
+  meets a knee-high walker (buster.test.js), the foe round travels from the foe's middle and through its own
+  (cast.test.js), a boss's room shuts behind the hero and is not left (sidemap.test.js), the giant worker bot's body,
+  shot and health (boss-cast.test.js); the bot plays level 0 through its foes and brings Bulwark down
+  (level.e2e.test.js). Seen on the page: a turret's round crossing the room, the heavies, a walker's wreck, the
+  shutter coming down, Bulwark firing low across its room.

@@ -99,7 +99,7 @@ describe('the side map\'s HUD', () => {
     expect(themeAdvice(readTheme(cardTheme(SIDE_MAP_LOOK)))).toEqual([]);
     const m = stageLevelOrder(W, stage, { heroRef: 'hero-ref', heroStature: 1.67, ref: 'lvl' }).args.manifest;
     const F = m.manaHud.feed.sidemap;
-    expect(F).toMatchObject({ lives: W.mechanics.lives, energy: SIDE_ENERGY.max, continues: true, intro: { name: 'Crucible' } });
+    expect(F).toMatchObject({ lives: W.mechanics.lives, energy: SIDE_ENERGY.max, continues: true, intro: { name: 'Bulwark', gives: '' } });
     expect(F.keys.at(-1)).toEqual({ action: MENU_KEY, label: 'menu' });
     expect(m.game.mechanics.find((x) => x.kind === 'lives')).toMatchObject({ energy: { max: SIDE_ENERGY.max, hit: SIDE_ENERGY.hit }, continues: true });
     expect(() => manaUi.readSpec(m.manaHud.spec)).not.toThrow();

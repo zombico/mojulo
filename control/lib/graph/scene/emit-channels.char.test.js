@@ -841,6 +841,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-20 (the wall slide faces out, rules-platform.js): the runtime the page embeds turns a body caught on
 // a wall to face out from it, where the stick moves it in the world's frame, and the stick no longer turns a clinging
 // body. A rule with no `cling` steps as before; every fixture that embeds the controllable runtime re-pinned with it.
+// Re-pinned 2026-11-20 (a foe's rounds travel, combat-ranged.js): a weapon may say `noGround` (its round flies on over
+// and under z = 0) and `passTeam` (its round passes through its own team's bodies), carried onto the round it launches
+// and read by the contact sweep; a weapon that says neither launches and sweeps as before. Every fixture that embeds the
+// controllable runtime re-pinned with it. (The page's foe-round look and the boss room's shutter are blocks of their
+// own, gated on a foe weapon's `foeRound` and a side-map zone's `shut`: no fixture has either, and none emits them.)
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

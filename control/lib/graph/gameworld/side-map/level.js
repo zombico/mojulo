@@ -30,7 +30,7 @@ import { sideMapOf, SIDE_MAP_STATURE } from './scene.js';
 import { sideMapPlay, SIDE_FALL, SIDE_DOWN } from './play.js';
 import { sideMapLamps } from './light.js';
 import { bodyLightOf, CEL_INK } from '../game-bodies.js';
-import { sideMapEnds, grownFoe } from './cast.js';
+import { sideMapEnds, sideFoe } from './cast.js';
 import { sideMapHud, BOSS_TICKS, MENU_KEY } from './hud.js';
 import { BOSSES } from '../bosses.js';
 import { interfaceLook } from '../../playscape/ui/interface-look.js';
@@ -93,7 +93,7 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
   const events = { ...ev, sources: [...(ev.sources ?? []), P.catch] };
   const manifest = {
     ...manifest0, title: name,
-    figures, entities: [hero, ...P.ladders, ...(X?.entities ?? []).map((e) => (e.team === 'foes' ? grownFoe(e, stature) : e))], camera: lamped, events, colliders: P.colliders,
+    figures, entities: [hero, ...P.ladders, ...(X?.entities ?? []).map((e) => (e.team === 'foes' ? sideFoe(e, stature) : e))], camera: lamped, events, colliders: P.colliders,
     ...(mechanics?.play || X?.play ? { play: mergePlay(mechanics?.play ?? null, X?.play ?? null) } : {}),
     // (a cel body's line round each of its parts, the bodies' alone, CEL_INK px wide on the side map's screen: 720 rows)
     ...(light === 'cel' && !manifest0.toon ? { toon: { ink: { only: 'bodies', color: CEL_INK.color, widthAbs: r3((CEL_INK.px * L.screen.height) / 720), lines: false } } } : {}),

@@ -37,7 +37,9 @@ const __SL = { last: [], patched: 0, U: { uSlN: { value: 0 }, uSlP: { value: Arr
 function __slPatch(mat) {
     if (!mat || !mat.isMeshBasicMaterial || mat.__shotLight || mat.blending === THREE.AdditiveBlending) return;
     // (a cel body's part, index.js __toonMat: lit as cel, a hard band on its side toward the shot, on its own smooth normal)
-    const cel = !!(mat.userData && mat.userData.cel);
+    // (cel only where its own toon patch is on it: a copy of one, a wreck's piece cloned from a cel part, keeps the mark in
+    // its userData but not the patch, so it has no toon normal to read and is lit as matter)
+    const cel = !!(mat.userData && mat.userData.cel) && Object.prototype.hasOwnProperty.call(mat, 'onBeforeCompile');
     const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey;
     mat.onBeforeCompile = function (sh, r) {
       if (prev) prev.call(this, sh, r);

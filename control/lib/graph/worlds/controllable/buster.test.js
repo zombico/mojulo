@@ -1,7 +1,8 @@
 // The buster's laws (buster.js): a press fires a tap shot at once, never more than its cap in flight; held, the charge
 // builds and the release fires the highest level reached, a short hold none; each round flies straight along the facing
 // and a body it meets takes its level's damage; its hitbox is its own (the regular rounds tinier than they look, the full
-// charge a tall capsule): a crawler under the line lets a tap shot sail over it and is caught by the full charge; the builder is emitted only into a page whose world has a body with a
+// charge a tall capsule): a crawler under the line lets a tap shot sail over it and is caught by the full charge, while
+// a walker at the knee is met by every round (its LOW reach); the builder is emitted only into a page whose world has a body with a
 // buster, so a page without one keeps every byte.
 import { describe, it, expect } from 'vitest';
 import { composeLive, emissionSource } from './compose.js';
@@ -96,6 +97,16 @@ describe('the buster', () => {
     // (and the tall round bursts at the height it met the crawler, not over its head)
     const b = charged.bursts[charged.bursts.length - 1];
     expect(b.pos[2]).toBeLessThan(1.7 * BUSTER.chest - 0.2);
+  });
+  it('every round reaches LOW: a walker at the hero\'s knee, under the muzzle\'s line, falls to a tap', () => {
+    // (a walker a game's size, 0.6 of the hero's height: its egg tops out under the muzzle, over the low reach)
+    expect(BUSTER.low).toBeGreaterThan(0); expect(BUSTER.low).toBeLessThan(BUSTER.chest);
+    const walker = (x) => ({ id: 'foe', team: 'foes', rule: { type: 'static' }, body: { type: 'mesh', hittable: true, hp: 100, egg: { a: 0.3, c: 0.5, cz: 0.5 } }, transform: { pos: [x, 0, 0], heading: Math.PI } });
+    const tap = world(hero(), walker(3)); step(tap, true); step(tap, false, 40);
+    expect(tap.byId.foe.body.hp).toBeCloseTo(100 - BUSTER.tap.damage, 6);
+    // (and none without its low reach: the tap sails over, as it did)
+    const high = world(hero({ ...BUSTER, low: 0 }), walker(3)); step(high, true); step(high, false, 40);
+    expect(high.byId.foe.body.hp).toBe(100);
   });
   it('is emitted only into a page with a body that carries it', () => {
     expect(emissionSource()).not.toContain('stepWithBuster');

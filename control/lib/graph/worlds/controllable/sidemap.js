@@ -10,7 +10,9 @@
  *                room, a chute) is never left backward. A handover is eased, never snapped (`zoneLerp` while it settles,
  *                `lerp` after), and the ease never lets the target out of the frame where its zone lets the frame follow
  *                it (a drop down a chute) — inside the zone's rectangle only, so a run's frame never follows into a pit. A `rise` zone's frame climbs on its own at its pace (m/s) from where it stood as the
- *                target came in: the screen from below
+ *                target came in: the screen from below. A `shut` zone (a boss's room: { s, z0, z1, at }) walls itself
+ *                up behind the target once it is past `at`: `_shut` records when, by zone, and the target is never let
+ *                back past `s` (the page's shutter comes down there)
  *   the FALL     a target wholly under the frame's bottom (its feet `stature` under it) has fallen out: it is taken out of
  *                the level to LIMBO (`limbo`, metres down, where a catch zone stands: the lives mechanic's `falls` counts it
  *                there, game/mechanics.js), the frame held, and `respawn` seconds later it is back at the zone's
@@ -26,7 +28,7 @@
  *
  * Import-free (the page runs this source, compose.js); emitted only into a page whose camera is a side map's, so every
  * other page keeps every byte. Field ownership: the camera's e._zoneAt, e._zoneC, e._zoneT, e._riseAt, e._riseZ, e._fell,
- * e._cut, e._falls, e.frame; the world's sideFalls (from the camera's count, before each step); the target's fellOut.
+ * e._cut, e._falls, e._shut, e.frame; the world's sideFalls (from the camera's count, before each step); the target's fellOut.
  */
 
 export function buildSideMap(E) {
@@ -85,6 +87,14 @@ export function buildSideMap(E) {
       e._zoneC[1] = Math.max(e._zoneC[1], e._riseZ);
     } else e._riseAt = null;
     place();
+    // a room that SHUTS (a boss's): once the target is past its doorway's `at`, walled up behind it (the camera's _shut, the
+    // time it closed by zone, the page's shutter coming down), the target never back through it
+    if (Z.shut) {
+      const S = Z.shut, sh = e._shut || (e._shut = {});
+      if (sh[k] == null && s >= S.at) sh[k] = world.time || 0;
+      const lim = S.s + ((tgt.rule && tgt.rule.collideRadius) || 0.3);
+      if (sh[k] != null && p[1] < lim) { p[1] = lim; if (tgt.vel && tgt.vel[1] < 0) tgt.vel[1] = 0; if (tgt.dashVel && tgt.dashVel[1] < 0) tgt.dashVel = null; }
+    }
     // fallen out of the frame's bottom: to limbo (the catch zone there counts it), the frame held
     if (foot + (r.stature ?? 1.7) < e.frame.z0) {
       e._fell = { t: 0, zone: k };

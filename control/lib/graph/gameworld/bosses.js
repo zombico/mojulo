@@ -45,10 +45,20 @@ export const BOSS_FACE_IDS = Object.freeze(Object.keys(BOSS_FACES));
 /**
  * THE ROSTER (built so far). `class` the foe shelf's (how it moves and attacks; its rank the boss's), `tier` its height a
  * share of the hero's (1 a rival, 1.25 a brute, 2 a giant), `armor` the suit's own, `hue` its identity (the chest's plaques and pecs; the side map's
- * boss-colour, which takes its place in a level that holds one back: boss-spec.js), `signal` its eyes' glow; `tell` what the face does as it winds up, `weapon` what its defeat gives the hero.
+ * boss-colour, which takes its place in a level that holds one back: boss-spec.js), `signal` its eyes' glow; `tell` what the face does as it winds up, `weapon` what its defeat gives the hero
+ * (null: nothing, an intro stage's), `mecha` its body where it is a machine and not of the hero's family (a mecha shelf frame's
+ * words, mecha-shelf/mecha-figure.js: { archetype, palette }; its face, build and armour then none), `hp` its health where the rank's would be too long a fight, `shot` its gun's height
+ * (`eye`, a share of its own) and its rate (`cooldown`, s) where it fires (side-map/boss-cast.js).
  */
 export const BOSSES = Object.freeze({
   // (a lobber, the foe shelf's: it keeps its place and lobs at where the hero stood)
   crucible: { name: 'Crucible', theme: 'foundry', face: 'crucible', build: 'brute', tier: 1.25, class: 'lobber', armor: '#4f545b', hue: '#e0661a', signal: '#ffb020', tell: 'the bowl tips, its metal brightening', weapon: 'a lobbed molten arc' },
+  // LEVEL 0's: a GIANT WORKER BOT, not one of the roster's rivals (gives no weapon; its intro says none): the plant's
+  // own heavy construction walker gone rogue, a closed cab on two legs and two arms on rams, in site yellow (`mecha`: a
+  // mecha shelf work frame, mecha-shelf/, stood as its rig, never the hero door's body), twice the hero's height. Its
+  // pattern is one thing, simply: it stands its ground and fires a slow round low across the room (`shot`: from `eye` of
+  // its height, every `cooldown` s, side-map/cast.js's travelling round), jumped or dashed under; its health `hp` (a
+  // short fight: the tap's 28 or so)
+  bulwark: { name: 'Bulwark', theme: 'plant', mecha: { archetype: 'heavyWalker', palette: 'siteYellow' }, tier: 2.2, class: 'turret', hue: '#f2b316', signal: '#ff4a2a', tell: 'its cab lamps flare as it draws its breath', weapon: null, hp: 280, shot: { eye: 0.3, cooldown: 1.4 } },
 });
 export const BOSS_IDS = Object.freeze(Object.keys(BOSSES));

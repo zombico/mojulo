@@ -126,7 +126,9 @@ export function layoutSideMap(map, { reach, stature }) {
       rect(out.swept, s, s + len, zb, zt, i);
       // where foes come from, along the run (a count), each over the floor under it
       const floorAt = (u) => floors.find((f) => u >= f.s0 && u <= f.s1) ?? floors[0];
-      for (let k = 0; k < (Z.spawners ?? 0); k++) { const u = (len * (k + 0.5)) / Z.spawners, f = floorAt(u); out.spawners.push({ zone: i, at: [r3(s + u), r3(z + f.z)] }); }
+      // (one that falls over a gap stands on the nearest floor, a metre in from its edge: never in the air over a pit)
+      const onFloor = (u) => { if (floors.some((f) => u >= f.s0 && u <= f.s1)) return u; const f = floors.reduce((a, b) => (Math.min(Math.abs(u - b.s0), Math.abs(u - b.s1)) < Math.min(Math.abs(u - a.s0), Math.abs(u - a.s1)) ? b : a)); return Math.max(f.s0 + Math.min(1, (f.s1 - f.s0) / 2), Math.min(f.s1 - Math.min(1, (f.s1 - f.s0) / 2), u)); };
+      for (let k = 0; k < (Z.spawners ?? 0); k++) { const u = onFloor((len * (k + 0.5)) / Z.spawners), f = floorAt(u); out.spawners.push({ zone: i, at: [r3(s + u), r3(z + f.z)] }); }
       if (Z.beat === 'landing') out.pickups.push({ zone: i, at: [r3(s + len / 2), r3(z + floorAt(len / 2).z + 0.5)] });
       out.checkpoints.push({ zone: i, at: [r3(s + PAD / 2), r3(z)] });
       return { rect: [s, s + len, zb, zt], exit: [s + len, z + floors.at(-1).z], lock: 'z' };
@@ -231,7 +233,7 @@ export function layoutSideMap(map, { reach, stature }) {
       rect(out.open, c + wall, c + wR - wall, z, top - wall, i);
       rect(out.open, c, c + wall, z, z + door, i);
       rect(out.swept, c, c + wR, zb, top, i);
-      if (Z.teach === 'boss') out.doors.push({ zone: i, at: [r3(c), r3(z)], kind: 'shutter', why: 'the boss\'s room: its door shuts behind' });
+      if (Z.teach === 'boss') out.doors.push({ zone: i, at: [r3(c), r3(z)], kind: 'shutter', why: 'the boss\'s room: its door shuts behind', span: [r3(c), r3(c + wall)], top: r3(z + door) });
       out.checkpoints.push({ zone: i, at: [r3(c + wall + 1), r3(z)] });
       return { rect: [c, c + wR, zb, top], exit: [c + wR, z], lock: null };
     },

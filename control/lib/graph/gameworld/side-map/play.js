@@ -5,8 +5,10 @@
  *
  *   sideMapPlay(layout, { stature, target? }) → {
  *     camera     { rule: 'side-map', target, screen, dist, tilt, lookH, stature, zones: [{ rect, lock, hold?, rise?,
- *                checkpoint }] }   each zone's rectangle, the axis its frame holds, held where a door shuts behind it
- *                (a chute's foot, a boss's room), rising at the layout's pace, its checkpoint
+ *                checkpoint, shut? }] }   each zone's rectangle, the axis its frame holds, held where a door shuts behind it
+ *                (a chute's foot, a boss's room), rising at the layout's pace, its checkpoint; a boss's room its SHUT
+ *                ({ s, w, z0, z1, at }: its doorway's inner face, its width, its foot and top, and where the target must
+ *                be past to close it, SHUT_IN in): the runtime walls it up behind the hero, the page brings its shutter down
  *     ladders    [climbable entity]  a layout's ladder as the climb takes it: its normal toward the camera (the hero's
  *                back to it), stepped off at its lip onto the floor beyond, climbed at LADDER_RATE
  *     catch      { type: 'zone', zone: SIDE_FALL, … }  the zone in limbo a fall out of the frame is counted in (the lives
@@ -27,6 +29,8 @@ export const LIMBO = -5000;
  * catch zone, so the side map's camera answers it as a fall (worlds/controllable/sidemap.js): limbo, the life counted
  * there, the energy full, the body back at the zone's checkpoint. */
 export const SIDE_DOWN = Object.freeze([0, 0, LIMBO + 1000]);
+/** A boss's room shuts behind the hero once its feet are this far past its doorway (m): in, and walled up. */
+export const SHUT_IN = 1.5;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 /** A laid map, as the runtime plays it. */
@@ -34,7 +38,10 @@ export function sideMapPlay(layout, { stature, target = 'hero' } = {}) {
   const L = layout, C = L.camera, held = new Set(L.doors.map((d) => d.zone));
   const zones = L.zones.map((Z) => {
     const R = L.rises.find((r) => r.zone === Z.i), cp = L.checkpoints.find((c) => c.zone === Z.i);
-    return { rect: Z.rect, lock: Z.lock, ...(held.has(Z.i) ? { hold: true } : {}), ...(R ? { rise: R.pace } : {}), ...(cp ? { checkpoint: cp.at } : {}) };
+    // (a room's door that SHUTS: a boss's, its shutter coming down across the way in once the target is SHUT_IN past it)
+    const D = L.doors.find((d) => d.zone === Z.i && d.span);
+    const shut = D ? { s: D.span[1], w: r3(D.span[1] - D.span[0]), z0: D.at[1], z1: D.top, at: r3(D.span[1] + SHUT_IN) } : null;
+    return { rect: Z.rect, lock: Z.lock, ...(held.has(Z.i) ? { hold: true } : {}), ...(R ? { rise: R.pace } : {}), ...(cp ? { checkpoint: cp.at } : {}), ...(shut ? { shut } : {}) };
   });
   const ladders = L.ladders.map((l, i) => {
     const base = [0, l.foot[0], l.foot[1]], length = r3(l.lip[1] - l.foot[1]);
