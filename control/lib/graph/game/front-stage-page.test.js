@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { stageConfig, stageCss } from './front-stage-page.js';
 import { emitPlayShell } from './play-shell.js';
+import { shellManaSpec } from './play-shell-mana.js';
 import { normalizeGameManifest } from './game-manifest.js';
 import { normalizeLevelContract } from './level-contract.js';
 import { FRONT_CARDS, FRONT_CARD_IDS } from '../playscape/ui/front-cards/loader.js';
@@ -50,5 +51,21 @@ describe('the stage in the shell', () => {
     // the front's own name is still there to be read, and no cover is drawn under the stage
     expect(d.querySelector('#front h1').textContent).toBe('Sky Runner');
     expect(d.querySelector('#front .fx-stage.cover')).toBeNull();
+  });
+});
+
+describe('the title in mana-ui', () => {
+  it('every mana title enters by letters, in its look\'s way; a staged one leaves the name to the stage and its menu bare', () => {
+    const title = (ui, opts) => shellManaSpec(ui, opts).screens.title.props;
+    expect(title({ theme: 'modern' }).letters).toBe('rise');
+    expect(title({ theme: { from: 'modern', title: 'wipe' } }).letters).toBe('wipe');
+    expect(title({ theme: { from: 'modern', title: 'still' } }).letters).toBeUndefined();
+    expect(title({ theme: 'modern' }, { staged: true })).toMatchObject({ bare: true });
+    expect(title({ theme: 'modern' }, { staged: true }).letters).toBeUndefined();
+    expect(shellManaSpec({ theme: 'modern' }).screens.attract.props.letters).toBe('rise');
+    const page = emitPlayShell(game({ tagline: 'go' }, { ui: { theme: 'modern' } }), LEVELS);
+    expect(page).toContain('[data-letters] .mana-letter');
+    const staged = emitPlayShell(game({ tagline: 'go', stage: STAGE }, { ui: { theme: 'modern' } }), LEVELS, { frontStage: BAKED });
+    expect(staged).toContain('"bare":true');
   });
 });

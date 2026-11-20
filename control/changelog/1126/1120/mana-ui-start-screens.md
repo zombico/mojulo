@@ -31,3 +31,9 @@ website, composed from the game's own characters, vehicles and props, never a le
   and a game whose subject could not be pictured (no browser where it is exported) still gets its name and its ground,
   with the reason said. A player who turns motion down gets fades. Only an export draws it: the game page in the
   dashboard is unchanged.
+- **Every game UI title performs.** A game whose screens the game UI draws now brings its name in letter by letter on
+  its title and its attract screen, in its look's way: rising, slamming in, wiped on or tracking in. A look says which
+  with a new word, `title` (`still` keeps the name whole), and one that says none rises. The entrance follows the look's
+  own motion, so a look with none shows the name at once, and a player who turns motion down sees it fade. The name is
+  still read aloud as one word. On a start screen drawn as a picture, the menu is now words with no window or band
+  behind it, drawn so by the game UI itself. The wireframe board shows the entrance on its title and attract screens.

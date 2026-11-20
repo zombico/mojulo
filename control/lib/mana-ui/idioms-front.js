@@ -19,29 +19,30 @@ export const FRONT_IDIOMS = {
   'attract-screen': {
     kind: 'screen', about: 'before the title: the key art, the game\'s name and a press-start that breathes while it waits; any face or shoulder button starts, the seat that pressed in the effect (the player who binds)',
     reads: 'title, prompt; then: what pressing does', emits: 'then (usually { open: <the title screen> }, its seat the one that pressed)',
-    params: ['title', 'prompt', 'then'],
+    params: ['title', 'prompt', 'then', 'letters'],
     node: screen({ layer: 'overlay', place: 'center', press: 'any' }, [
       { use: 'image', props: { label: { word: 'keyArt' }, ratio: 'backdrop' } },
       { use: 'stack', props: { align: 'center', gap: 'loose' }, children: [
-        txt(P('title'), 'display'),
+        { use: 'text', props: { value: P('title'), role: 'display', letters: P('letters') } },
         { use: 'button', props: { label: P('prompt') }, on: { accept: P('then') } },
       ] },
     ]),
-    example: { title: { bind: 'game.title' }, prompt: 'Press start', then: { emit: 'start', seat: { seat: true } } },
+    example: { title: { bind: 'game.title' }, prompt: 'Press start', then: { emit: 'start', seat: { seat: true } }, letters: 'rise' },
   },
   'title-screen': {
-    kind: 'screen', about: 'the title: the key art behind, the name and its line over the main menu in the left third (continue, new, load, options, quit), the build\'s version in the corner',
+    kind: 'screen', about: 'the title: the key art behind, the name and its line over the main menu in the left third (continue, new, load, options, quit), the build\'s version in the corner; `letters` the name entering letter by letter (rise, slam, wipe, track), `bare` the menu as words with no window behind (a start screen drawn as a picture: its stage is the window)',
     reads: 'title, subtitle, items: [{ label, then, disabled? }], version', emits: 'each item\'s then',
-    params: ['title', 'subtitle', 'items', 'version'],
+    params: ['title', 'subtitle', 'items', 'version', 'letters', 'bare'],
     node: screen({ layer: 'overlay', place: 'left' }, [
       { use: 'image', props: { label: { word: 'keyArt' }, ratio: 'backdrop' } },
       { use: 'stack', props: { gap: 'loose', align: 'start' }, children: [
-        { use: 'stack', props: { gap: 'tight', align: 'start' }, children: [txt(P('title'), 'display'), txt(P('subtitle'), 'label')] },
-        { use: 'window', props: { variant: 'ghost' }, children: [thenList(P('items'), { variant: 'menu' })] },
+        { use: 'stack', props: { gap: 'tight', align: 'start' }, children: [{ use: 'text', props: { value: P('title'), role: 'display', letters: P('letters') } }, txt(P('subtitle'), 'label')] },
+        { use: 'window', props: { variant: 'ghost' }, unless: P('bare'), children: [thenList(P('items'), { variant: 'menu' })] },
+        { ...thenList(P('items'), { variant: 'menu' }), when: P('bare') },
       ] },
       { use: 'region', props: { at: 'bottom-left' }, children: [{ use: 'window', props: { variant: 'ghost' }, children: [txt(P('version'), 'caption')] }] },
     ]),
-    example: { title: { bind: 'game.title' }, subtitle: { bind: 'game.subtitle' }, version: { bind: 'game.version' }, items: [{ label: 'Continue', then: { emit: 'continue' } }, { label: 'New game', then: { emit: 'new-game' } }, { label: 'Load', then: { open: 'load' } }, { label: 'Options', then: { open: 'options' } }, { label: 'Quit', then: { emit: 'quit' } }] },
+    example: { title: { bind: 'game.title' }, subtitle: { bind: 'game.subtitle' }, version: { bind: 'game.version' }, letters: 'rise', items: [{ label: 'Continue', then: { emit: 'continue' } }, { label: 'New game', then: { emit: 'new-game' } }, { label: 'Load', then: { open: 'load' } }, { label: 'Options', then: { open: 'options' } }, { label: 'Quit', then: { emit: 'quit' } }] },
   },
   'loading-screen': {
     kind: 'screen', waits: 'ready',

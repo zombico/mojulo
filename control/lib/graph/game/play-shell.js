@@ -148,7 +148,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     // (a bare HUD look draws no pause button under a mouse: the media a mana-ui shell asks, said only by such a game)
     ...(bareHud && ui ? { bareHud: '(hover:hover) and (pointer:fine)' } : {}),
     // THE SCREENS IN MANA-UI (play-shell-mana.js): the game's ui, its look resolved; absent, no key and none of it inlined
-    ...(ui ? { mana: hasPicks ? shellManaConfig(ui, { picks: true }) : shellManaConfig(ui) } : {}),
+    ...(ui ? { mana: shellManaConfig(ui, { ...(hasPicks ? { picks: true } : {}), ...(stageCard ? { staged: true } : {}) }) } : {}),
   };
   // (with mana-ui the front's words are drawn by it: the front's own sheet and code stay out)
   const mana = !!cfg.mana, front = !!cfg.front && !mana;

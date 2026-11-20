@@ -274,6 +274,17 @@ wherever there is text to read. Every theme keeps these rules on its own; no wor
 Display words may still perform: a title can echo huge and hollow behind itself, break out of its box, lean all the way
 and slam in. A menu's rows, labels, values and buttons stay plain.
 
+**A title that enters letter by letter.** A text's `letters` (`rise`, `slam`, `wipe`, `track`; `none` the default)
+draws its words a span a letter, each numbered so it enters after the one before, the whole read aloud as one word
+(`aria-label`). The entrance runs on the theme's motion (its stagger, travel, pop, duration and ease), so a look with no
+motion shows the words at once, and a calm reader (reduced motion, `data-motion=reduced`) sees them fade. Its sheet is
+`lettersCss`, kept apart from the main sheet: only a surface that draws letters lays it (the play shell's title and
+attract screens, the board), so no other page changes. A look says how its title enters with the theme word `title`
+(`still | rise | slam | wipe | track`); a look that says none is read without it and its title rises (`titleLetters`).
+The title screen's `bare` draws its menu as words with no window behind, for a start screen whose picture is its own
+stage (the play shell's front stage, `game/front-stage-page.js`, where the stage draws the name behind its subjects and
+mana-ui draws the menu).
+
 ### Theme cards: a look is data
 
 A new look is a card, not code: one JSON file on the shelf (`control/lib/graph/playscape/ui/theme-cards/`), the way a
