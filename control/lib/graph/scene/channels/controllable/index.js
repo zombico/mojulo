@@ -858,6 +858,11 @@ function __updateGearLines() {
   // one play it while the scene channel names it (world.take), at the line's phase. None ⇒ not a byte of it
   const takes = Object.values(figures || {}).some((f) => f && f.rig && f.clips && Object.keys(f.clips).some((k) => k.indexOf('scene:') === 0));
   const figHasFace = Object.values(figures || {}).some((f) => f && f.rig && f.face && Array.isArray(f.face.targets) && Array.isArray(f.parts) && f.parts.some((p) => p && p.morph));
+  // a TALKING face (playscape/ui/talk-lines.js: a line a hero says, its face's take under the line's clip, talk:<scene>:<beat>):
+  // the face plays it while the scene channel names it (world.take), the body as it was. None ⇒ not a byte of it
+  const talking = figHasFace && Object.values(figures || {}).some((f) => f && f.face && f.face.tracks && Object.keys(f.face.tracks).some((k) => k.indexOf('talk:') === 0));
+  // (and the LANDMARK head's mouth, its jaw bone: the line's degrees, face-acting/western-read.js, turned about the head's x)
+  const talkJaw = talking && Object.values(figures || {}).some((f) => f && f.face && f.face.jaws && Object.keys(f.face.jaws).length);
   // a PAINTED body (the realistic hero's skin, dermal-hero.js heroSkinPaint, packed as station-loft-rig.js `paintTex` and
   // each part's `uv`): its bone meshes drawn on the atlas (texel × the part's lit colour), as the World page draws it.
   // No painted body → the emitted channel is byte-identical.
@@ -1701,7 +1706,8 @@ const __rigPA = [0, 0, 0], __rigPB = [0, 0, 0];
 const __rigV = new THREE.Vector3(), __rigH = new THREE.Vector3(), __rigT = new THREE.Vector3();
 const __RIG_Z = new THREE.Vector3(0, 0, 1), __RIG_ONE = new THREE.Vector3(1, 1, 1);
 const __rigQT = new THREE.Quaternion(), __rigQZ = new THREE.Quaternion();
-const __rigAxis = new THREE.Vector3(), __rigPivot = new THREE.Vector3();
+const __rigAxis = new THREE.Vector3(), __rigPivot = new THREE.Vector3();${talkJaw ? `
+const __tjHead = new THREE.Quaternion(), __tjQ = new THREE.Quaternion(), __tjAxis = new THREE.Vector3();   // a talking jaw's scratch` : ''}
 // look-pitch aim scratch: rotate the weapon arm about the shoulder to follow vertical look.
 const __RIG_X = new THREE.Vector3(1, 0, 0), __apQ = new THREE.Quaternion(), __apH = new THREE.Vector3();
 // PER-SLOT ARM OVERLAY (R17): read one overlay bone's [q, head] from an armOverlays curve (same
@@ -2421,6 +2427,10 @@ ${fires ? `  // (a hold is a clip played once and held: firing, it comes up over
   }
 ${figHasLive ? `  const LV = fig.live ? __rigLive(e, rig, dt) : null;
 ` : ''}${figHasLayers ? `  const PL = e.body && e.body.layers ? __poseLayers(e, fig, dt) : null;
+` : ''}${talkJaw ? `  // (a line it says on the landmark head: its jaw's degrees on the line's clock, while the scene channel plays it)
+  const TJ = __world.take && fig.face && fig.face.jaws && __world.take.clip.indexOf('talk:') === 0 ? fig.face.jaws[__world.take.clip] : null;
+  const tjDeg = TJ ? __rigTrack({ t: TJ.t, w: TJ.d }, Math.min(__world.take.u, 0.999) * TJ.t[TJ.t.length - 1]) || 0 : 0;
+  e.talkJaw = tjDeg;   // (where a headless driver reads it)
 ` : ''}  for (let bi = 0; bi < fig.bones.length; bi++) {
     const mesh = rig.boneMeshes[bi];
     if (!mesh) continue;
@@ -2446,7 +2456,12 @@ ${figHasLive ? `  const LV = fig.live ? __rigLive(e, rig, dt) : null;
     if (fig.bones[bi].id === 'head' && Math.abs(rig.lookA) > 1e-4) {
       __rigQL.setFromAxisAngle(__RIG_Z, rig.lookA);
       __rigQA.premultiply(__rigQL);
-    }
+    }${talkJaw ? `
+    // (the talking jaw opens about its hinge, the head's own x as the head now stands: the rig's jaw chain's axis, sign −1)
+    if (tjDeg) {
+      if (fig.bones[bi].id === 'head') __tjHead.copy(__rigQA);
+      else if (fig.bones[bi].id === 'jaw') { __tjAxis.set(1, 0, 0).applyQuaternion(__tjHead); __tjQ.setFromAxisAngle(__tjAxis, -tjDeg * Math.PI / 180); __rigQA.premultiply(__tjQ); }
+    }` : ''}
     // per-slot arm overlay: on the covered arm bones, REPLACE the base [q, head] with the
     // alternate-aim curve (over-shoulder bazooka). The weapon bone rides forearmR, so it follows.
     if (ov) { const j = ov.bones.indexOf(bi); if (j >= 0) __rigOverlay(ov, ovClip, mix.phase, j, __rigQA, __rigPA); }
@@ -2500,7 +2515,12 @@ ${figHasRide ? `      // (a ridden machine's front turns about the steering axis
     mesh.matrix.compose(__rigV, __rigQA, __RIG_ONE);
   }${moveset ? `
   __sidearmProps(e, m, rig, fig, AL);` : ''}${figHasFace ? `
-  if (fig.face) __rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);` : ''}${takes && figHasFace ? `
+  if (fig.face) ${talking ? `{
+    // (a line it says: its face's take on the line's clock, while the scene channel plays it)
+    const tf = __world.take && fig.face.tracks && fig.face.tracks[__world.take.clip] && __world.take.clip.indexOf('talk:') === 0 ? __world.take : null;
+    if (tf) __rigFace(rig, tf.clip, Math.min(tf.u, 0.999));
+    else __rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);
+  }` : `__rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);`}` : ''}${takes && figHasFace ? `
   // (a taking face's weights, where a headless driver reads them: e.takeFace)
   if (fig.face) { const fm = tk ? rig.boneMeshes.find((x) => x && x.morphTargetInfluences && x.morphTargetInfluences.length) : null; e.takeFace = fm ? Array.from(fm.morphTargetInfluences) : null; }` : ''}
   // i-frame SHIMMER: while INVINCIBLE the whole rig flickers translucent — the

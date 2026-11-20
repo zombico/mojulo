@@ -72,3 +72,16 @@ describe('a cube\'s town dressed', () => {
     expect(show('valley-morning').faces.some((f) => /^detail:/.test(f.texture || ''))).toBe(false);
   }, 90000);   // (two whole towns)
 });
+
+describe('a town\'s walls in its dress', () => {
+  it('a walled street on a gritty cube wears it on its curtain and gatehouses too, not only its houses', () => {
+    const TR = { kind: 'stage', kit: 'isekai-meadow', trail: true }, dress = townDressOf(gritty);
+    const dressed = (P) => P.faces.filter((f) => f.group === 'town:wall' && /^detail:/.test(f.texture || '')).length;
+    const open = assembleStageScene({ ...TR, town: { houses: 3, enter: 0, street: true, dress } });
+    const walled = assembleStageScene({ ...TR, town: { houses: 3, enter: 0, street: true, walls: 'crenellated', dress } });
+    expect(dressed(walled)).toBeGreaterThan(dressed(open));
+    // (undressed, the walls are as they were: their paint only)
+    const plain = assembleStageScene({ ...TR, town: { houses: 3, enter: 0, street: true, walls: 'crenellated' } });
+    expect(dressed(plain)).toBe(0);
+  }, 90000);
+});

@@ -104,6 +104,36 @@ export function bindPerformance(spec) {
   return { ...spec, perform };
 }
 
+/** A world's scenes with every recorded line bound (playscape/ui/scenes.js: a line's, a banter line's, a line inside a
+ * choice's answer, `voice: '<path>' | { audio }` saved and timed: bindLine with the line's words), kept as the record
+ * keeps it ({ recording, seconds, timing, phonemes | envelope, words? }); a voice already bound, and the rest, as given.
+ * Throws, naming the line, on audio it cannot read. */
+export function bindSceneVoices(manifest) {
+  const scenes = manifest?.play?.scenes;
+  if (!Array.isArray(scenes)) return manifest;
+  let changed = false;
+  const line = (l, at) => {
+    if (!l || typeof l !== 'object' || l.voice === undefined) return l;
+    const audio = typeof l.voice === 'string' ? l.voice : l.voice && typeof l.voice === 'object' && typeof l.voice.audio === 'string' ? l.voice.audio : null;
+    if (!audio) return l;
+    try {
+      const { text: _t, ...voice } = bindLine({ audio, ...(typeof l.say === 'string' && l.say.trim() ? { text: l.say.trim() } : {}) });
+      changed = true;
+      return { ...l, voice };
+    } catch (e) { throw new Error(`${at}.voice: ${e.message.replace(/^recordings: /, '')}`); }
+  };
+  const beats = (list, at) => (Array.isArray(list) ? list.map((b, i) => {
+    const here = `${at}[${i}]`;
+    if (!b || typeof b !== 'object') return b;
+    if (b.line) return { ...b, line: line(b.line, `${here}.line`) };
+    if (b.banter && Array.isArray(b.banter.lines)) return { ...b, banter: { ...b.banter, lines: b.banter.lines.map((l, k) => line(l, `${here}.banter.lines[${k}]`)) } };
+    if (b.choose && Array.isArray(b.choose.options)) return { ...b, choose: { ...b.choose, options: b.choose.options.map((o, k) => (o && Array.isArray(o.beats) ? { ...o, beats: beats(o.beats, `${here}.choose.options[${k}].beats`) } : o)) } };
+    return b;
+  }) : list);
+  const next = scenes.map((sc, i) => (sc && typeof sc === 'object' ? { ...sc, beats: beats(sc.beats, `play.scenes[${i}].beats`) } : sc));
+  return changed ? { ...manifest, play: { ...manifest.play, scenes: next } } : manifest;
+}
+
 /** A resolved scene's recorded lines (each figure's `face.performances`, relational-face-rig.js performanceTrack, anime-read.js animePerformanceTrack): every
  * one this machine holds gets its `bytes` (so the GLB embeds it, scene-gltf.js); → [{ clip, at, recording, bytes|null }]
  * in the takes' order, for an engine pack to ship its WAVs beside the GLB. */

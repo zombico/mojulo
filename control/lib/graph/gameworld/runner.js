@@ -516,7 +516,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const GA0 = goalArgs(G, s, lastOf, ref, { fought: !!fight }), GA = hpBase && GA0.goal ? { ...GA0, goal: (ends) => onBody(GA0.goal(ends), hpBase).mechanics } : GA0;
     const hostile = hostileOf(G, s, foeRefs, true, lastOf[s.level] === s.index, hpBase ? onBody([{ kind: 'fail-on-death', hits: LEVEL_GOAL.hit }], hpBase).hurt : null);
     const mintOf = folks[i] ? new Map(folks[i].bodies.mints.map((m) => [m.key, m])) : null;
-    const folk = folks[i] ? folkExtra(folks[i], (k) => folkRef[folkMintKey(folks[i], mintOf.get(k))], { shops: market ? hubFolkShops(G) : null }) : null;
+    const folk = folks[i] ? folkExtra(folks[i], (k) => folkRef[folkMintKey(folks[i], mintOf.get(k))], { shops: market ? hubFolkShops(G) : null, talk: G.ui !== undefined ? 'box' : 'menu' }) : null;
     // (the cars its town or district parks, its hero's to get into, cars.js: a walked town's and district's stage)
     const cars = s.section === 'geotown' || s.section === 'geocity' ? carsExtra() : null;
     const goalCast = (hostile || folk || cars) && !fight && !stall && !market ? GA.goalCast : null;
@@ -539,11 +539,13 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   if (C.stages.length) {
     const links = onBoard ? [] : gameLinks(C.stages, C.refs);
     const theme = paletteTheme(G);
-    const final = onBoard ? levelRefs[maps[maps.length - 1].at.slice(-1)[0]] : null;
+    // (a megaworld's core is the game's end, its rings the shell's atlas, as a world without a book has them below)
+    const final = onBoard ? levelRefs[maps[maps.length - 1].at.slice(-1)[0]] : coreOf(G.megaworld, C.stages, C.refs);
+    const atlas = !onBoard && G.megaworld ? atlasOf(G.megaworld, C.stages, C.refs) : null;
     // (a world with a STORY told in missions, errand.js `mission`, and no front of its own: a title in the lower third,
     // continue (the level's own save), a new game, options and the credits, the last mission's win the end card)
     const front = G.front ?? (G.errands?.some((E) => E.mission) ? STORY_FRONT : null);
-    const game0 = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(C.stages, C.refs, C.map), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(front ? { front } : {}), ...(G.hud ? { hud: G.hud } : {}) };
+    const game0 = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(C.stages, C.refs, C.map), ...(atlas ? { atlas } : {}), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(front ? { front } : {}), ...(G.hud ? { hud: G.hud } : {}) };
     // THE GAME'S FLOW (game-flow.js): the world's own, its levels the refs of their first stages and a story moment's
     // cinematic on the stage the moment is bound to; else the flow the game has always had, with the story's opening,
     // prologue and ending placed in it (story.js GAME_SLOTS; the main quest's ending, played as a moment, when the story

@@ -1222,8 +1222,13 @@ export function resolveLevel(world, id) {
     }
     readTownPlan(town);
   }
+  // THE CASTLE WALKED: a level that raises a castle and names no town of its own stands the castle's WARD on its trail:
+  // its curtain and gatehouses the castle's own fortification, its ranges the ward's houses (none entered), and its keep a
+  // building entered at its door (era/programs.js keep: the gatehouse, the great hall, the chapel, the solar, the treasury)
+  const ward = hasCastle && !P.town && !P.street && town?.castle ? { houses: 3, enter: 0, walls: town.castle.fort ?? true } : null;
+  const keepOf = ward ? [{ use: 'keep', enter: 'door', seed: seed + 1, ...(P.castle?.civilization ? { civilization: P.castle.civilization } : built?.castle && built.castle !== style.civilization ? { civilization: built.castle } : {}) }] : [];
   // the buildings walked into: each in its builders' language (its civilization's anchor, else the kit's own)
-  const buildings = (P.buildings ?? []).map((b) => {
+  const buildings = [...(P.buildings ?? []), ...keepOf].map((b) => {
     const C = G.civilizations[b.civilization ?? style.civilization], anchor = C.anchor ?? STRUCTURE_RAILS[style.kit]?.anchor;
     const { civilization: _c, ...rest } = b;
     return { ...rest, ...(anchor !== undefined ? { civilization: anchor } : {}) };
@@ -1233,8 +1238,8 @@ export function resolveLevel(world, id) {
   // look too (era/geocube.js cubeStreetLook: its street paint, its builders' material words and colours as the walls'
   // dress, the road and its lamps laid through it), so the street is drawn from the same art direction as the land it
   // stands on. The civilization's language (the book's builders, its tunnelled words) wins over the cube's builders'
-  const street = P.street && town ? (() => {
-    const { castle: _k, anchor, ...recipe } = town, S0 = P.street === true ? {} : P.street;
+  const street = (P.street || ward) && town ? (() => {
+    const { castle: _k, anchor, ...recipe } = town, S0 = ward ?? (P.street === true ? {} : P.street);
     // (its walls true: the town's own, derived from its builders' language as the street is drawn, era/out-fortress.js
     // fortOfLanguage; a fortification's id chooses one)
     const S = S0.walls === false ? (({ walls: _w, ...x }) => x)(S0) : S0;

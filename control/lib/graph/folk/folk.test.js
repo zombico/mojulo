@@ -6,6 +6,7 @@ import { MENU_KINDS } from '../playscape/ui/menus.js';
 import { CAST_THEN } from '../playscape/ui/cast.js';
 import { MOTIVATIONS } from '../mind/vocab.js';
 import { PROGRAMS } from '../era/programs.js';
+import { TOWN_TRADES } from '../era/town-trades.js';
 import { structureStyle } from '../era/out-structures.js';
 import { designTown } from '../era/out-town.js';
 import { AGES } from '../egocube/facets.js';
@@ -57,6 +58,16 @@ describe('folk: a town grown from its lots', () => {
 
   it('stands a service where its lot\'s inside has the room for it', () => {
     for (const p of F.people.filter((x) => x.room)) expect(PROGRAMS[p.use].rooms.map((r) => r.role)).toContain(p.room);
+  });
+
+  it('roots a lot kept for a trade in the trade\'s keeper, standing in the trade\'s inside: an inn\'s innkeeper in its taproom', () => {
+    const T = folkOfTown(town([{ ...lot('shop', 8), trade: 'inn' }, { ...lot('hall', 30), trade: 'temple' }, lot('dwelling', 1)]));
+    const inn = T.people.find((p) => p.trade === 'inn' && !p.parent), temple = T.people.find((p) => p.trade === 'temple' && !p.parent);
+    expect(inn).toMatchObject({ role: 'innkeeper', service: 'innkeep', room: 'taproom', use: 'shop' });
+    expect(temple).toMatchObject({ role: 'priest', service: 'shrine', room: 'sanctuary' });
+    for (const p of T.people.filter((x) => x.trade && x.room)) expect(PROGRAMS[TOWN_TRADES[p.trade].inside].rooms.map((r) => r.role)).toContain(p.room);
+    // (the priest's rite is a gap the sheet says, never faked)
+    expect(T.gaps.find((g) => g.service === 'shrine')).toBeTruthy();
   });
 
   it('dresses a service\'s people as one when the service is a uniform', () => {

@@ -571,6 +571,9 @@ A game's HUD is a `hud` holding the HUD idioms it uses. A screen idiom is used a
 - `idioms-fight.js` — a fighting game's own language (below): the top frame, the meters, a side's combo and callouts, the
   announcer, training's readouts; the face-off, fighter select, the fight's pause, the command list, training's settings,
   the match's results.
+- `idioms-talk.js` — people talking, as presenters a host feeds (below, "A level's scenes"): the talk box, with the
+  speaker's nameplate, a place for a face, the line typed on, ▼ once it is whole, the answers numbered with the one in
+  hand marked, and the legend.
 
 ### The live game
 
@@ -911,6 +914,42 @@ audit. `manaUiPage(spec, { state })` is a self-contained page over a plain state
   nothing to press until it is ready), and a HUD part takes no focus.
 
 ## The surfaces on it
+
+### A level's scenes
+
+A level's scenes (`playscape/ui/scenes.js`) speak through the talk box on a page whose level has a mana-ui HUD. The HUD
+host (`scene/channels/mana-hud.js`) runs a second runtime on its own kernel and sheet, over a root of its own
+(`#moj-mana-talk`), so the box wears the game's theme and the page carries no second kernel.
+
+- **The state** is the scene runner's view, lowered each frame by `playscape/ui/talk-box.js` `talkState`: the speaker's
+  name, the words typed so far, whether the line is whole, the answers with the one in hand, and the legend (no skip on a
+  flow's stage that cannot be skipped).
+- **The input stays the scene channel's** (`scene-channel.js`): a press goes on, holding or Esc skips, a number or the
+  arrows pick. A choice's row pressed is that answer.
+- **While a scene plays** the page's own box and hint are put away and the HUD steps aside.
+- A page with scenes and no mana-ui HUD keeps the scene channel's own box.
+- **Whoever speaks is drawn live in the box's face** (`scene/channels/talk-face.js`): their own figure, head and
+  shoulders, seen by a second camera in front of them on the page's one renderer. Before each frame's render the
+  portrait is rendered into a corner of the canvas and copied into a canvas over the face's place; the frame's render
+  then draws over the corner. Nothing is baked: their idle, a walk, a script's take play in the portrait as they do in
+  the world. The level's speakers sheet, `play.speakers: { <who>: { portrait: 'live' | 'none' } }`, shows a speaker by
+  the box alone (`none`); a speaker with no body on the page, or one hidden (the player's in first person), has no face.
+- **A speaker's face says the line** (`playscape/ui/talk-lines.js`): a plain line said by a hero with a talking head
+  (the realistic face, or the anime or landmark face, which then plays on the page) is performed at build (`face-acting/perform.js`:
+  its expression, its words lip-synced by `speech.js`, the blinks and gaze of a speaking face) into a face track on the
+  speaker's figure, and the line gets a face-only take on its own clock (`talk:<scene>:<beat>`). The scene runner plays
+  it as it plays a script's take; the page's face plays the track while it runs, in the world and in the portrait. A
+  script's lines keep their own takes. The landmark head says it too (`face-acting/western-read.js`): the take
+  read as the anime face reads it, its eyes, smile and brows on its targets, its mouth's vowels its jaw bone's degrees
+  (`face.jaws`), turned on the page about the head's own x as the rig's jaw chain turns it.
+- **Recorded voices, when the creator wants them.** A line's `voice` takes a WAV's path (the voice worker's, a native
+  speech engine's, a person's): `create_sketch` / `update_sketch` bind it as a hero's recorded lines are bound
+  (`face-acting/recordings.js` `bindSceneVoices`: saved by its content under the outcomes, timed by the engine's
+  `.timings.json`, else by its words aligned, else by its loudness). The speaker's face says it on the recording's own
+  timeline, a recorded line has a take whoever says it, and the page carries the recording's bytes and plays it as the
+  take begins, stopping it as the line goes (`scene-channel.js`, `window.__mojVoice`). A browser plays no sound before a
+  press, so a line already under way when the first press comes is taken up where its take has got to.
+  `play.speakers.<who>.voice` keeps each speaker's casting with the level. Lines with no recording stay silent.
 
 ### The RPG's battles, party menu and shops
 

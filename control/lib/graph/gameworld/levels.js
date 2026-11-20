@@ -272,7 +272,7 @@ export function gameStages(world) {
       // (a level that builds is solid, era/solid.js: no flat building polygons)
       const manifest = here.length || street || keep._keepOut || looks || painted ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}), ...(here.length || street ? { solid: true } : {}), ...keep, ...(looks ? { looks } : {}), ...(painted ? { palette: painted } : {}) } : s.manifest;
       const field = { ...(R.field && first ? { field: R.field } : {}), ...(R.board && first ? { board: R.board } : {}), ...(R.loop && first ? { loop: R.loop } : {}), ...(R.arena && first ? { arena: R.arena } : {}) };
-      out.push({ level, node: s.node, section: s.section, index: i, manifest, ...field });
+      out.push({ level, node: s.node, section: s.section, index: i, manifest: withFormGrass(manifest), ...field });
     });
     // the insides of the buildings whose scene changes at the door: each a level of its own, after the level's stages,
     // linked by its door (the outside's `door` ↔ the inside's `out`)
@@ -1294,7 +1294,15 @@ function seatPart(G, pilotPart, ends, lane) {
 
 // the systems' play and what a goal or the battles bring: the lists (cues, menus, parts, spots, routines) one after the
 // other, the items together, the rest the extra's (a quick goal has no systems, so its play is the extra's own, as it was)
-const PLAY_LISTS = ['cues', 'menus', 'parts', 'spots', 'routines', 'quests'];
+const PLAY_LISTS = ['cues', 'menus', 'parts', 'spots', 'routines', 'quests', 'scenes'];
+// A NEW LEVEL'S GRASS (era/isekai.js `grass.form`): a trail stage on an isekai land (its kit, or a geocube's) is made with
+// its field drawn as the form render's grass near and the raised ground beyond, in its own ramp (channels/stage-grass.js),
+// in place of the spiky tufts and cards. Written here, as the level is made, so a stage already stored keeps what it drew;
+// it says only how its grass is drawn: a stage that grows none stays bare. And no grass hat on its rocks (`hats: 'lips'`:
+// the cliff lips' fringe kept), a recipe's own `hats` kept. A recipe's own `grass` is kept
+const withFormGrass = (m) => (m && m.kind === 'stage' && m.trail !== undefined && m.grass === undefined && (m.geocube !== undefined || /^isekai-/.test(m.kit ?? ''))
+  ? { ...m, grass: { form: true }, ...(m.hats === undefined ? { hats: 'lips' } : {}) } : m);
+
 function mergePlay(base, extra) {
   if (!base) return extra;
   const out = { ...base, ...extra };
@@ -1380,7 +1388,7 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
     const asks = sceneNeeds({ scenes }), from = carryFrom && (asks.items.length || asks.done.length) ? carryFrom : null;
     // (and how each acts a script: the cast's and the hero's `actor`, playscape/ui/scene-script.js; none said, none carried)
     const actors = storyActors(G);
-    play = { ...(play ?? {}), spots: [...(play?.spots ?? []), ...spots], scenes, ...(storyCarried(G) ? { carry: STORY_SLICE } : {}), ...(from ? { carryFrom: from } : {}), ...(actors ? { actors } : {}) };
+    play = { ...(play ?? {}), spots: [...(play?.spots ?? []), ...spots], scenes: [...(play?.scenes ?? []), ...scenes], ...(storyCarried(G) ? { carry: STORY_SLICE } : {}), ...(from ? { carryFrom: from } : {}), ...(actors ? { actors } : {}) };
   }
   return { pilotPart, play };
 }

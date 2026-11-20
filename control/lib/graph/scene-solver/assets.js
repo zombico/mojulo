@@ -21,7 +21,7 @@ import { SPECIES } from '../vegetation/species.js';
 import { GRASSES } from '../vegetation/grass.js';
 import { WILDFLOWERS, WEEDS } from '../vegetation/wildflowers.js';
 import { BUSH_HABITS } from '../form/bush-form.js';
-import { FLORA_SPECIES, FLORA_DEFAULT, FLORA_BAMBOO, AUTUMN } from '../form/flora-read.js';
+import { FLORA_SPECIES, FLORA_DEFAULT, FLORA_BAMBOO, AUTUMN, REALISTIC_KINDS } from '../form/flora-read.js';
 import { FLOWER_COLOURS } from '../form/grass-drifts.js';
 import { GRASS_TIERS } from '../scene/channels/form-grass.js';
 import { RELIEF_CARDS } from '../noise/relief.js';
@@ -54,6 +54,10 @@ export const ASSET_CARDS = fz({
     cherry: card(['temperate'], { crown: 'wide dome', canopy: 'medium', stands: 'avenue' }, ['cherry', 'blossom', 'sakura', 'spring']),
     willow: card(['temperate', 'wetland'], { crown: 'weeping curtain', canopy: 'medium', stands: 'waterside' }, ['willow', 'weeping', 'riverside']),
     maple: card(['temperate'], { crown: 'round', canopy: 'dense', stands: 'grove' }, ['maple', 'autumn red', 'park']),
+    // (the realistic kinds, form/flora-read.js REALISTIC_KINDS: reached by a kind's species word)
+    birch: card(['temperate', 'boreal'], { crown: 'slender, light', canopy: 'light', stands: 'grove' }, ['birch', 'silver birch', 'light wood']),
+    poplar: card(['temperate'], { crown: 'column', canopy: 'medium', stands: 'avenue' }, ['poplar', 'lombardy poplar', 'windbreak']),
+    acacia: card(['arid', 'tropical'], { crown: 'flat umbrella', canopy: 'light', stands: 'solitary' }, ['acacia', 'savanna', 'umbrella thorn']),
     coconut: card(['tropical', 'coastal'], { crown: 'fan on a leaning trunk', canopy: 'light', stands: 'grove' }, ['coconut palm', 'beach palm', 'island']),
     date: card(['arid'], { crown: 'fan', canopy: 'light', stands: 'grove' }, ['date palm', 'oasis', 'desert palm']),
     washingtonia: card(['arid', 'subtropical'], { crown: 'tall fan', canopy: 'light', stands: 'avenue' }, ['fan palm', 'boulevard palm', 'california']),
@@ -161,6 +165,7 @@ export function reachOf(family, id) {
     case 'species':
       if (LEAF_FORM_OF[id]) return { via: 'flora.trees.kinds', form: LEAF_FORM_OF[id] };
       if (FLORA_DEFAULT.includes(id)) return { via: 'default' };
+      if (REALISTIC_KINDS.includes(id)) return { via: 'flora.trees.kinds', species: id };
       if (id === FLORA_BAMBOO) return { via: 'bamboo card' };
       return null;
     case 'bush': return BUSH_HABITS[id] ? { via: 'flora.bushes.kinds', form: id } : null;

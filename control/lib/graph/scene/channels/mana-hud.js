@@ -31,6 +31,18 @@
  * away); the world clock's slow-motion as a charge (the moment a dodge sets off, else the first); the page's radar as a
  * scope (radar.js marks; the canvas put away), its damage ring as arcs (window.__mojDamageRing; its bars put away) and
  * its weapon selector as the wheel (window.__mojWc; its panel put away). What the page lacks stands down.
+ *
+ * THE TALK BOX (`talk`: the page plays a level's scenes, playscape/ui/talk-box.js): the scenes' lines and choices drawn
+ * by mana-ui's talk presenter in the HUD's theme, a second runtime on this one's kernel and sheet over a root of its own
+ * (`#moj-mana-talk`), fed each frame from the scene runner's view (window.__mojScenes). The page's own box and its hint
+ * stand down, and the HUD steps aside while a scene plays (as the page's own HUD does). The input stays the scene
+ * channel's: a press goes on, holding or Esc skips, and a choice's row pressed is that answer. `window.__mojTalk = { rt,
+ * state, face? }` for a headless driver.
+ *   talk: true, or { faces?, speakers? }: `faces` the speakers' own figures are drawn live in the box's face
+ *   (scene/channels/talk-face.js: the page's renderer, its bodies and the frame's pre-pass hook `window.__mojTalkFace`,
+ *   which scene-three.js calls before each render on such a page); `speakers` the level's sheet (talk-box.js
+ *   readSpeakers), a speaker whose portrait is `none` shown by the box alone. A speaker with no body on the page, or one
+ *   hidden (the player's in first person), has no face.
  */
 import { manaUiSource } from '../../../mana-ui/kernel.js';
 import { manaCss } from '../../../mana-ui/css.js';
@@ -39,10 +51,21 @@ import { hudToMana } from '../../game/hud-mana.js';
 import { hudSubst, fmtDelta } from '../../game/hud-widgets.js';
 import { radarMarks, sceneThings, RADAR } from '../../gameworld/radar.js';
 import { hitBearing } from '../../gameworld/damage-ring.js';
+import { talkSpec, talkState, TALK_GLYPHS } from '../../playscape/ui/talk-box.js';
+import { faceFrame, buildTalkFace } from './talk-face.js';
 
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 
-export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false, shared = null } = {}) {
+// the talk box's own place (the presenter's root over the HUD's; the box over the scene's bottom letterbox bar, as the
+// page's own box sat over the bottom one), the page's box and hint put away, the HUD aside while a
+// scene plays; a choice's rows take the pointer
+const TALK_CSS = '#moj-mana-talk{position:fixed;inset:0;pointer-events:none;z-index:32}'
+  + '#moj-mana-talk .mana-place[data-at=bottom]{bottom:calc(11vh + 12px);width:min(92%,max(62%,560px));align-items:stretch}'
+  + '#moj-mana-talk .mana-place[data-at=bottom] :is(.mana-region,.mana-window){align-self:stretch;box-sizing:border-box}'
+  + '#moj-mana-talk .mana-each>*{pointer-events:auto;cursor:pointer}'
+  + '.moj-scene-box,.moj-scene-hint{display:none!important}.moj-scene-on #moj-mana-hud{visibility:hidden}';
+
+export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false, talk = false, shared = null } = {}) {
   // (a level whose HUD is its own rows, `rows: 'events'`: lowered here, where the page emits them, game/hud-mana.js)
   if (hud && hud.rows === 'events' && !hud.spec) { const L = hudToMana(rows, { register, hero: hud.hero !== false, touch }); hud = { ...hud, spec: L.spec, feed: { ...L.feed, ...(hud.feed ?? {}) } }; }
   if (!hud || !hud.spec) return '';
@@ -68,8 +91,10 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   const css = `${shared ? '' : `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n`}#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp,#__radar,#__wc,#__damageRing,div:has(>#__wepIcon)' : ''}{display:none!important}`
     // (money in a corner: the coin and a figure that leads, large, the way an open world shows the cash in hand)
     + '#moj-mana-hud .mana-place:is([data-at=top-right],[data-at=top-left])>.mana-region>.mana-counter:has(>[data-icon=coin]) .mana-num{font:800 38px/1 var(--mana-display);letter-spacing:-.5px}'
-    + '#moj-mana-hud .mana-place>.mana-region>.mana-counter:has(>[data-icon=coin]){gap:10px;align-items:center}';
+    + '#moj-mana-hud .mana-place>.mana-region>.mana-counter:has(>[data-icon=coin]){gap:10px;align-items:center}'
+    + (talk ? TALK_CSS : '');
   const H = !!(hud.feed && hud.feed.hero);
+  const faces = !!(talk && talk.faces), speakers = (talk && talk.speakers) || {};
   return `
 // THE HUD on mana-ui (channels/mana-hud.js): the level's own spec over a state this page feeds
 (function () {
@@ -99,7 +124,43 @@ ${race ? `  // A RACE's (gameworld/race-hud.js): the lights, then the laps, the 
   const __tq = new URLSearchParams(location.search).get('touch');
   rt.input(__tq === '1' || (__tq !== '0' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ? 'touch' : 'keys');
   const view = manaUi.mount(root, rt, { auto: true });
-  window.__mojHud = { rt: rt, state: st };
+  window.__mojHud = { rt: rt, state: st };${talk ? `
+  // THE TALK BOX (see the header): the scenes' lines in this HUD's look, its own runtime over its own root
+  const __talkOf = (${talkState.toString()});
+  const talkRoot = document.createElement('div'); talkRoot.id = 'moj-mana-talk'; (document.getElementById('wrap') || document.body).appendChild(talkRoot);
+  const tst = { talk: __talkOf(null) }; let talkKey = '';
+  const trt = manaUi.runtime(${json(talkSpec())}, { read: function (p) { return manaUi.readPath(tst, p); }, act: function () {}, now: function () { return clock; } });
+  trt.glyphs(${json(TALK_GLYPHS)});
+  trt.input(__tq === '1' || (__tq !== '0' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ? 'touch' : 'keys');
+  manaUi.mount(talkRoot, trt, { auto: true });
+  // a choice's row pressed is that answer (the scene channel hears the press as well: an answer taken wins over a press)
+  talkRoot.addEventListener('pointerdown', function (ev) {
+    const r = ev.target && ev.target.closest ? ev.target.closest('.mana-each>*') : null;
+    if (r && window.__mojScenes) window.__mojScenes.pick(Array.prototype.indexOf.call(r.parentNode.children, r));
+  });
+  window.__mojTalk = { rt: trt, state: tst };${faces ? `
+  // THE FACES (scene/channels/talk-face.js): who speaks, drawn live in the box's face by the frame's pre-pass
+  const __TF = (${buildTalkFace.toString()})(THREE, renderer, scene, (${faceFrame.toString()}));
+  const SPK = ${json(speakers)};
+  let talkFace = null;
+  window.__mojTalk.face = __TF;
+  // the speaker's body and facing, when they have one shown and their sheet does not say none (hero: the player's)
+  function faceOf(who) {
+    const C = window.__mojCtrl, W = C && C.world, B = C && C.bodies;
+    if (!W || !B || (SPK[who] && SPK[who].portrait === 'none')) return null;
+    const id = W.byId[who] ? who : who === 'hero' ? W.pilotId : null, E = id && W.byId[id], b = id && B[id];
+    return E && b && b.visible && !E.gone ? { who: id, b: b, h: (E.transform && E.transform.heading) || 0 } : null;
+  }
+  window.__mojTalkFace = function () {
+    const el = talkFace && talkRoot.querySelector('.mana-portrait .mana-ph');
+    if (el) __TF.draw(talkFace.who, talkFace.b, talkFace.h, el); else __TF.hide();
+  };` : ''}
+  function talkStep() {
+    const S = window.__mojScenes, G = window.__mojStage, v = S ? S.view() : null;${faces ? `
+    talkFace = v && v.on && v.line ? faceOf(v.line.who) : null;` : ''}
+    const T = __talkOf(v, { noSkip: !!(G && G.on && !G.skip)${faces ? ', face: !!talkFace' : ''} }), k = JSON.stringify(T);
+    if (k !== talkKey) { talkKey = k; tst.talk = T; }
+  }` : ''}
   // the level has started (the shell's params are in): its place in the run, and the start cue
   function begin(params) {
     const R = params && params.__run;
@@ -192,7 +253,8 @@ ${race ? `    // (a race's lights: the karts held and the race's clock frozen, t
     if (st.wheel.open) { st.wheel.title = C.title || ''; st.wheel.slots = C.rows; }
   }
   ` : ''}(function tick() {
-    requestAnimationFrame(tick);
+    requestAnimationFrame(tick);${talk ? `
+    talkStep();` : ''}
     // (hooked once the game's channel is up, which on a level of a game may be some frames after this one: its start
     // hands over the shell's params, the run among them. A page with no game begins at once)
     if (!hooked && (!GAME || (window.__mojGame && window.__mojGame.onStart))) { hooked = true; if (GAME) window.__mojGame.onStart(begin); else begin(null); }
