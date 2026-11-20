@@ -430,7 +430,10 @@ function __gpHoldRig(rig) {
   // the lower body keeps the stride; the rest turns about the spine, the neck and head back to the line
   const lower = new Set(), top = new Set([head]);
   B.forEach((b, i) => { if (/^(pelvis|lumbar|thigh|shank|foot|toes|hipFold|kneeFold)/.test(b.id)) lower.add(i); if (/^(jaw|eye|brow|lid|hair)/.test(b.id)) top.add(i); });
-  return (rig.__hold = { R, L, lumbar, neck, head, lower, top, torso: ix('torso'), pivot: __gpA(B[lumbar].head), ready: 0, last: -1e9, shots: -1, kick: 0, slot: -1, prev: -1 });
+  // (the strong eye at rest, by the head's own length: a little to its right, forward of the skull's base and above it,
+  // where a sight is brought to)
+  const hb = B[head], hl = __gpA(hb.tail).distanceTo(__gpA(hb.head)), eye = [hb.head[0] + 0.24 * hl, hb.head[1] + 0.65 * hl, hb.head[2] + 1.1 * hl];
+  return (rig.__hold = { R, L, lumbar, neck, head, lower, top, eye, torso: ix('torso'), pivot: __gpA(B[lumbar].head), ready: 0, last: -1e9, shots: -1, kick: 0, slot: -1, prev: -1 });
 }
 // a frame turning rest vectors (a0 exactly, b0 as near as square allows) onto posed ones (a1, b1)
 function __gpAlign(a0, b0, a1, b1, q) {
@@ -512,8 +515,11 @@ function __gpHold(e, m, rig, dt) {
   H.ready += (want - H.ready) * Math.min(1, dt * 10);
   const re = w.reloading && w.reload > 0 ? Math.sin(Math.PI * (1 - w.reloadT / w.reload)) : 0;
   const pistol = g.view.kind === 'handgun';
-  // the gun's frame: along the look, dipped at a low ready, lower still while stowed, rolled to reload
-  const pitch = (e.transform.pitch || 0) - (1 - H.ready) * (pistol ? 0.7 : 0.5) - low * 0.9 - re * 0.25;
+  // the sight picture: how far the sights are at the eye (the aim up, not stowing, not reloading)
+  const sk = a * (1 - low) * (1 - re);
+  // the gun's frame: along the look, dipped at a low ready, lower still while stowed, rolled to reload; a round flips its
+  // muzzle up (a pistol's more, in the wrists), and it settles as the kick does
+  const pitch = (e.transform.pitch || 0) - (1 - H.ready) * (pistol ? 0.7 : 0.5) - low * 0.9 - re * 0.25 + H.kick * (pistol ? 0.16 : 0.05);
   const F = new THREE.Vector3(0, Math.cos(pitch), Math.sin(pitch)), U = new THREE.Vector3(0, -Math.sin(pitch), Math.cos(pitch)), L = new THREE.Vector3(-1, 0, 0);
   if (re) { const qr = new THREE.Quaternion().setFromAxisAngle(F, -0.5 * re); U.applyQuaternion(qr); L.applyQuaternion(qr); }
   const item = (p, o) => o.clone().addScaledVector(L, p[0] / 100).addScaledVector(U, p[1] / 100).addScaledVector(F, p[2] / 100);
@@ -529,11 +535,27 @@ function __gpHold(e, m, rig, dt) {
   // forward and down, turned with the chest), a pistol's grip out on the line at the arms' reach, drawn in at the ready;
   // through a reload drawn in toward the chest; and where the support hand closes on it (the nearer station if the far
   // will not reach, the magazine's well through a reload)
+  // (the strong eye as the stride holds the head, which the blade does not turn)
+  const EYE = __gpV().set(H.eye[0], H.eye[1], H.eye[2]); if (rig.boneMeshes[H.head]) EYE.applyMatrix4(rig.boneMeshes[H.head].matrix);
+  const rear = item([0, g.view.sight.y, g.view.sight.rear], __gpV()), reachR = H.R.la + H.R.lb + 0.5 * H.R.hl;
   const place = (blade, pull = 0) => {
     const q = new THREE.Quaternion().setFromAxisAngle(__gpT.z, -blade - swing);
     let O;
     if (hands.butt && !pistol) O = about(SR0, q).add(new THREE.Vector3(-0.07, 0.05, -0.04).applyQuaternion(q)).sub(item(hands.butt, __gpV()));
     else O = about(N0, q).add(new THREE.Vector3(0.05, 0, -0.2)).addScaledVector(F, 0.28 + 0.12 * H.ready).sub(item(hands.strong.at, __gpV()));
+    // AIMED, the sights on the strong eye's line along the look: a long gun lifted from the pocket to it, its depth kept
+    // (the butt stays at the shoulder's); a pistol pushed out along it to the arms' reach (the sights 0.6 m from the eye,
+    // nearer only where the strong arm would not reach), so the gun is on the line the round flies and, over the
+    // shoulder, in the frame
+    if (sk > 0) {
+      let Oa;
+      if (hands.butt && !pistol) { const off = EYE.clone().sub(O).sub(rear); Oa = O.clone().add(off.addScaledVector(F, -off.dot(F))); }
+      else {
+        const SR = about(SR0, q);
+        for (let d = 0.6; d >= 0.3; d -= 0.03) { Oa = EYE.clone().addScaledVector(F, d).sub(rear); if (SR.distanceTo(item(hands.strong.at, Oa)) <= reachR * 0.97) break; }
+      }
+      O.lerp(Oa, sk);
+    }
     O.addScaledVector(F, -0.035 * H.kick - 0.14 * re - pull).addScaledVector(L, 0.06 * re);
     const SL = about(SL0, q);
     let s = sp, fist = null;

@@ -71,8 +71,8 @@ export function buildCombatRanged(E) {
   }
   // crosshairPoint(e, state, range) — where an over-the-shoulder camera's crosshair (the centre of its view: a follow
   // camera on `e`, looking from where it is at its look point) falls: the first wall or body (not e's own) on that ray,
-  // else `range` out. null when no such camera follows e.
-  function crosshairPoint(e, state, range) {
+  // else `range` out. null when no such camera follows e. `peek`: written nowhere (the page's reticle asks every frame).
+  function crosshairPoint(e, state, range, peek = false) {
     const cam = state.camera;
     if (!cam || !cam.rule || cam.rule.type !== 'follow' || cam.rule.target !== e.id || !cam.lookAt) return null;
     const C = cam.transform.pos, v = [cam.lookAt[0] - C[0], cam.lookAt[1] - C[1], cam.lookAt[2] - C[2]], L = Math.hypot(v[0], v[1], v[2]);
@@ -91,8 +91,27 @@ export function buildCombatRanged(E) {
       const te = hitEgg(C, d, tg);
       if (te != null && te > t0 && te < best) best = te;
     }
-    e.crosshairAt = [C[0] + d[0] * best, C[1] + d[1] * best, C[2] + d[2] * best];
-    return e.crosshairAt;
+    const at = [C[0] + d[0] * best, C[1] + d[1] * best, C[2] + d[2] * best];
+    if (peek) return at;
+    // (the ray itself, from the shooter's depth on it: a converging round is resolved along it, stepWeapon)
+    e.crosshairAt = at; e.crosshairRay = { S, d };
+    return at;
+  }
+  // shotBlocked(e, state) — where an over-the-shoulder shooter's round would stop short of the point under its crosshair:
+  // the first cover on the muzzle's line to it (a low wall under the camera's eye, a corner beside it, which the camera
+  // sees past and the gun does not), or null when that line is clear, no such camera follows e, or its gun does not
+  // converge. For the page's reticle (it says so before the trigger is pulled); nothing is written.
+  function shotBlocked(e, state) {
+    const w = e.weapon;
+    if (!w || !w.converge || w.fireClass === 'lob') return null;
+    const P = crosshairPoint(e, state, w.range ?? 80, true);
+    if (!P) return null;
+    const M = muzzleAt(e, w), L = Math.hypot(P[0] - M[0], P[1] - M[1], P[2] - M[2]);
+    if (!(L > 0.05)) return null;
+    // (a hair short of the point: a wall the crosshair is on is what it is on, not cover in front of it)
+    const k = 1 - 0.02 / L, Pn = [M[0] + (P[0] - M[0]) * k, M[1] + (P[1] - M[1]) * k, M[2] + (P[2] - M[2]) * k];
+    const t = nearestWallT(M, Pn, state.colliders);
+    return t != null ? lerp3(M, Pn, t) : null;
   }
   function initWeapon(w) {
     if (!w || typeof w !== 'object') return null;
@@ -381,8 +400,12 @@ export function buildCombatRanged(E) {
         const d = held.dir, L = Math.hypot(d[0], d[1], d[2]) || 1e-6;
         baseH = Math.atan2(d[1], d[0]); baseP = Math.asin(clamp(d[2] / L, -1, 1)); origin = from.slice();
       } else if (conv) {
-        const v = [conv[0] - from[0], conv[1] - from[1], conv[2] - from[2]], L = Math.hypot(v[0], v[1], v[2]) || 1e-6;
-        baseH = Math.atan2(v[1], v[0]); baseP = Math.asin(clamp(v[2] / L, -1, 1)); origin = from.slice();
+        // WHAT IS SEEN IS HIT: the round is resolved along the crosshair's own ray, from the shooter's depth on it (its
+        // cone and its climb round that ray), so it lands under the crosshair at every range, and the muzzle's line to
+        // what the ray meets is what cover is read on (below). Down the muzzle's own line to the crosshair's point, a
+        // body beside the crosshair was hit and the round struck off it, by the camera's offset from the hand.
+        const R = e.crosshairRay;
+        baseH = Math.atan2(R.d[1], R.d[0]); baseP = Math.asin(clamp(R.d[2], -1, 1)); origin = R.S.slice();
       }
       let aim = fwd3(baseH, baseP);
       // SPREAD and RECOIL: the round's own direction off the aim (the cone it leaves in, the climb of a spray)
@@ -450,7 +473,7 @@ export function buildCombatRanged(E) {
           // traced to where the ray enters it (a head over a low wall is hit; the legs behind it are not); a
           // legacy sphere to its centre.
           const hitAt = tg.body.egg && mode === 'core' ? [origin[0] + aim[0] * hd, origin[1] + aim[1] * hd, origin[2] + aim[2] * hd] : tg.transform.pos;
-          if (mode && sightBlocked(from, hitAt, state.colliders)) mode = null;
+          if (mode && (sightBlocked(from, hitAt, state.colliders) || (conv && sightBlocked(origin, hitAt, state.colliders)))) mode = null;
           if (mode && (!best || hd < best.d)) best = { mode, d: hd, id: tg.id, tg };
         }
         // TEAM friendly stagger: rock the nearest ally the beam passed through (no damage), provided the
@@ -507,8 +530,15 @@ export function buildCombatRanged(E) {
         } else {
           // miss (or blocked by cover): stop the tracer AT the wall if the aim ray hits one, else fly to range.
           const far = [origin[0] + aim[0] * shotRange, origin[1] + aim[1] * shotRange, origin[2] + aim[2] * shotRange];
-          const wt = nearestWallT(from, far, state.colliders);
-          e.lastShot = { mode: 'miss', t: state.time, from, to: wt != null ? lerp3(from, far, wt) : far, charged: chargedShot, ...(w.blow ? { blow: w.blow } : {}), ...(w.pellets ? { pellets: w.pellets } : {}) };
+          let to;
+          if (conv) {
+            // (converged: where the crosshair's ray meets a wall, else its range; and short of it where the muzzle's line
+            // to that point meets cover first)
+            const wc = nearestWallT(origin, far, state.colliders), P = wc != null ? lerp3(origin, far, wc) : far, L = Math.hypot(P[0] - from[0], P[1] - from[1], P[2] - from[2]) || 1;
+            const Pn = [P[0] - (P[0] - from[0]) * 0.02 / L, P[1] - (P[1] - from[1]) * 0.02 / L, P[2] - (P[2] - from[2]) * 0.02 / L], wm = nearestWallT(from, Pn, state.colliders);
+            to = wm != null ? lerp3(from, Pn, wm) : P;
+          } else { const wt = nearestWallT(from, far, state.colliders); to = wt != null ? lerp3(from, far, wt) : far; }
+          e.lastShot = { mode: 'miss', t: state.time, from, to, charged: chargedShot, ...(w.blow ? { blow: w.blow } : {}), ...(w.pellets ? { pellets: w.pellets } : {}) };
         }
       }
     }
@@ -755,5 +785,5 @@ export function buildCombatRanged(E) {
     stepProjectiles(state, dt);
   }, 30);
 
-  Object.assign(E, { initWeapon, cancelWeaponCharge, tickWeapon, stepWeapon, stepProjectiles, burstProjectile, muzzleAt, bodyExposure, HAND, HEAD_BAND, OVERDRIVE, stepMissiles });
+  Object.assign(E, { initWeapon, cancelWeaponCharge, tickWeapon, stepWeapon, stepProjectiles, burstProjectile, muzzleAt, bodyExposure, crosshairPoint, shotBlocked, HAND, HEAD_BAND, OVERDRIVE, stepMissiles });
 }

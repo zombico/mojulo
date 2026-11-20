@@ -3590,7 +3590,26 @@ ${aimView ? `  // (a round that CONVERGES goes to the point under the centre of 
     __wep.ret.style.left = ((__wep.aimV.x * 0.5 + 0.5) * cw) + 'px';
     __wep.ret.style.top = ((-__wep.aimV.y * 0.5 + 0.5) * ch) + 'px';
   } else __wep.ret.style.display = 'none';   // aim point behind the camera
-  if (ent.readyT > 0) {
+${aimView ? `  // THE SHOT BLOCKED (the aim held over the shoulder, a converging round: combat-ranged.js shotBlocked): the camera sees
+  // past what the gun does not, a low wall under its eye, a corner beside it. While the muzzle's line to the point under
+  // the crosshair meets cover first, the crosshair dims and a cross marks where the round would stop, before the trigger
+  // is pulled
+  {
+    const av = ent.av, B = av && av.on && !av.fp && W.converge && __CW.shotBlocked ? __CW.shotBlocked(ent, __world) : null;
+    if (B && !__wep.blk) {
+      __wep.blk = document.createElement('div');
+      __wep.blk.style.cssText = 'position:absolute;left:0;top:0;transform:translate(-50%,-50%);pointer-events:none;z-index:9;display:none';
+      __wep.blk.innerHTML = '<svg width="18" height="18" viewBox="-9 -9 18 18"><g stroke="#ff7a5c" stroke-width="2.4" stroke-linecap="round" stroke-opacity="0.95"><line x1="-5" y1="-5" x2="5" y2="5"/><line x1="-5" y1="5" x2="5" y2="-5"/></g></svg>';
+      wrap.appendChild(__wep.blk);
+    }
+    if (__wep.blk) {
+      const v = B ? __wep.aimV.set(B[0], B[1], B[2]).project(camera) : null;
+      if (v && v.z < 1) { __wep.blk.style.display = ''; __wep.blk.style.left = ((v.x * 0.5 + 0.5) * cw) + 'px'; __wep.blk.style.top = ((-v.y * 0.5 + 0.5) * ch) + 'px'; }
+      else __wep.blk.style.display = 'none';
+    }
+    __wep.ret.style.opacity = B ? '0.4' : '';
+  }
+` : ''}  if (ent.readyT > 0) {
     __retStatus(Math.max(0, Math.min(1, ent.readyT / (ent.readyMax || 1))), '#ffb066');
   } else if (W.cooldownT > 0 && !W.auto) {
     // semi/lob only — an AUTO weapon's between-round gap IS its fire rate (operator, 2026-08-10):

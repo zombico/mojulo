@@ -36,6 +36,41 @@ describe('over the shoulder', () => {
     expect(fire(w)).toBeGreaterThan(0);
     expect(Math.hypot(w.byId.p.crosshairAt[0] - 20, w.byId.p.crosshairAt[1] - at[1])).toBeLessThan(0.6);
   });
+  // the crosshair's ray as the settled camera holds it, and the muzzle's line to that ray's point `far` metres out, each
+  // read where it crosses x (in y)
+  const lines = (w, far) => {
+    const C = w.camera.transform.pos, A = w.camera.lookAt, M = E.muzzleAt(w.byId.p, w.byId.p.weapon);
+    const ray = (x) => C[1] + ((x - C[0]) / (A[0] - C[0])) * (A[1] - C[1]), F = [far, ray(far)];
+    return { ray, muzzle: (x) => M[1] + ((x - M[0]) / (F[0] - M[0])) * (F[1] - M[1]) };
+  };
+  it('what is seen is hit: close in, a body beside the crosshair on the muzzle\'s line is missed, one under it is hit where it is', () => {
+    // (the round flies down the crosshair's own ray; down the muzzle's line to its far point it struck the body beside)
+    const w = world({ ...rifle, converge: true }, [5, 0, 0]), L = lines(w, rifle.range);
+    const beside = L.muzzle(5) + 0.25 * Math.sign(L.muzzle(5) - L.ray(5));
+    expect(Math.abs(beside - L.ray(5))).toBeGreaterThan(PERSON.a + 0.05);   // the crosshair's ray clears it
+    w.byId.t.transform.pos = [5, beside, 0];
+    expect(fire(w)).toBe(0);
+    w.byId.t.transform.pos = [5, L.ray(5), 0];
+    expect(fire(w)).toBeGreaterThan(0);
+    const to = w.byId.p.lastShot.to;
+    expect(Math.abs(to[1] - L.ray(to[0]))).toBeLessThan(0.05);   // on the crosshair's line
+  });
+  it('what is seen is hit: cover on the muzzle\'s line still takes the round the crosshair\'s ray clears', () => {
+    // a wall ahead whose top is over the gun's line and under the camera's: the body behind it is in the crosshair, and
+    // the round stops at the wall
+    const w = world({ ...rifle, converge: true }, [8, 0, 0]), L = lines(w, 8), y = L.ray(8);
+    w.byId.t.transform.pos = [8, y, 0];
+    w.colliders = E.normalizeColliders([{ min: [3, y - 1, 0], max: [3.3, y + 1, 1.62] }]);
+    expect(fire(w)).toBe(0);
+    expect(w.byId.p.lastShot.mode).toBe('miss');
+    expect(w.byId.p.lastShot.to[0]).toBeLessThan(3.05);
+    expect(E.sightBlocked(w.byId.p.crosshairRay.S, w.byId.p.crosshairAt, w.colliders)).toBe(false);   // the crosshair's ray clears it
+    // and it is said before the trigger is pulled: the reticle's blocked point is at the wall, none once the wall is gone
+    const at = E.shotBlocked(w.byId.p, w);
+    expect(at[0]).toBeGreaterThan(2.95); expect(at[0]).toBeLessThan(3.05);
+    w.colliders = null;
+    expect(E.shotBlocked(w.byId.p, w)).toBe(null);
+  });
   it('a wall at the shooter\'s back, between it and the camera, is never the crosshair\'s: the round still goes ahead', () => {
     // (the page pulls its camera in front of such a wall; the simulation's stays behind it, its ray through the wall)
     const at = [20, crosshairAt(20), 0], wall = [{ min: [-1.6, -4, 0], max: [-1.2, 4, 3] }];

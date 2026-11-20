@@ -41,7 +41,7 @@ import { feelRule, readFeel } from './feel/lower.js';
 import { floorOf, dummyFigure } from './practice-room.js';
 import { standFoe } from './foes.js';
 import { loadoutOf } from './loadout.js';
-import { armsLoadout, knifeOf } from './arms-kit.js';
+import { armsLoadout, armDetailed, knifeOf } from './arms-kit.js';
 import { SHOOT, SHOULDER, PERSON } from './quick.js';
 import { lowerBody } from './game-bodies.js';
 import { PLAY_GRADE } from '../figures/figure-grades.js';
@@ -112,8 +112,9 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, ro
   const own = typeof refs.hero === 'string';
   if (G?.feel != null) readFeel(G.feel);
   const L = loadoutOf(G), words = (L?.weapons ?? []).filter((w) => typeof w === 'string'), hasKnife = (L?.weapons ?? []).some((w) => w && typeof w === 'object' && w.fire === 'melee');
-  // (the kit's rounds against this yard's targets: the kit's numbers are against the quick shooter's foe)
-  const kit = words.length ? armsLoadout(words, { ...SHOOT.rifle, damage: TARGET_HP / SHOOT.foeHp }, { eye: 1.5, hand: 'right', converge: true }) : null;
+  // (the kit's rounds against this yard's targets: the kit's numbers are against the quick shooter's foe; each gun drawn
+  // in the hero's hands as the arms library builds it, not as its parts' boxes: arms-kit.js armDetailed)
+  const kit = words.length ? armsLoadout(words, { ...SHOOT.rifle, damage: TARGET_HP / SHOOT.foeHp }, { eye: 1.5, hand: 'right', converge: true }).map(armDetailed) : null;
   // ONE PACE: the stick's push is the feel's fast gait (its sprint's speed) and there is no run to hold: the feel's
   // sprint, its stamina and the dodge on the sprint's key are left out
   const { boostSpeed, boostMax: _bm, boostRegen: _br, overheatRegen: _or, boostUnlockFrac: _bu, stamina: _st, sprintSpeed, sprint: _sp,
