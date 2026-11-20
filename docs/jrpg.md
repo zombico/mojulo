@@ -134,13 +134,22 @@ Leaving by it, the play shell shows the trip while the next map is built: a ship
 clouds, "Sailing to" or "Flying to" the place. A crossing joins the world further than its rings (an isle, another
 mandala), so the trip covers the load that a far place costs.
 
+## The screen and sound in words
+
+A cue's (or a scene beat's `do`) effects may touch the screen and play a sound:
+- `screen: { fade: 'out' | 'in', tint: '#rrggbb' | 'none', flash: '#rrggbb', for? }`: a fade to black and back, the world
+  washed in a colour, a flash; undone after `for` seconds or when the cue ends.
+- `sound: '<word>'`: a sound off the SFX shelf by its word (a chime, a door), played as it fires.
+
+A composed party RPG is sounded and scored, so its levels have the music the cue sheet gives each place.
+
 ## What comes next
 
 Each step ends playable, and each is something a person can say that the words did not carry before. An RPG Maker
 idea is reached through the primitive that already owns it (a switch is a flag, an event page a scene's `if`, a
 transfer a megaworld's way), never rebuilt:
-1. **Screen and sound as words:** fade, tint and flash from an event; music and a sound effect from an event; battle
-   music on a fight.
+1. **Battle music:** the score turning to a fight's when one begins (the cue sheet's `fight:` and `boss:` over a party
+   battle's own events), and a change of music from an event.
 2. **The party menu's Item and Formation**, and Save in it.
 3. **The battles' depth:** traits on gear and classes (a resistance, a state warded off), and a fight's page that does
    more than speak (a summons, a heal).

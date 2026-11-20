@@ -229,3 +229,15 @@ describe('a stinger is not a soundtrack', () => {
     expect(resolveWorldAudio({ soundtrack: 'field:battle' }, { ref: 'lv' }).soundtrack).toMatchObject({ kind: 'beats-composition', loop: true });
   });
 });
+
+// A CUE'S SOUND (playscape/ui/cues.js `sound`): the words a level's play names, each voiced by its sound sheet as a cue
+// on `sfx:<word>`; a level that names none carries none
+describe('the sounds a level\'s play names', () => {
+  it('each word a cue of the sheet on its own event', () => {
+    const A = resolveWorldAudio({ sfx: { sheet: {} } }, { sounds: ['chime', 'door'] });
+    expect(A.on).toMatchObject({ 'sfx:chime': 'sfx-chime', 'sfx:door': 'sfx-door' });
+    expect(A.cues['sfx-chime']).toBeTruthy();
+    expect(Object.keys(resolveWorldAudio({ sfx: { sheet: {} } }).on ?? {}).some((k) => k.startsWith('sfx:'))).toBe(false);
+    expect(() => resolveWorldAudio({ sfx: { sheet: {} } }, { sounds: ['no-such-sound'] })).toThrow(/not a sound on the SFX shelf/);
+  });
+});

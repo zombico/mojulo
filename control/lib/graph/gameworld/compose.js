@@ -742,7 +742,8 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // the world's, by its intent, its colours the world's palette), so the play shell's screens are mana-ui's in that look
   // (game/play-shell-mana.js) as its HUD is; a game with no map keeps the shell's own screens
   if (world.brief.worldMap && world.ui === undefined) world.ui = {};
-  if (world.brief.worldMap) { world.sound = {}; world.music = {}; world.brief.audio = 'on the sound sheet and scored from the cue sheet: its sounds and its music solved from the game, the interface\'s sounds its own'; }
+  // (a party RPG round its town too: its levels sounded and scored, so its scenes and cues may play a sound by its word)
+  if (world.brief.worldMap || (world.brief.round && world.megaworld && world.sound === undefined)) { world.sound = {}; world.music = {}; world.brief.audio = 'on the sound sheet and scored from the cue sheet: its sounds and its music solved from the game, the interface\'s sounds its own'; }
   world.brief.start = 'its opening cutscene (a slot, empty until it is given a video or a scene), then straight into play';
   readGameworld(world);
   return world;

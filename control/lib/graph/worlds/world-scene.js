@@ -2119,7 +2119,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // `soundtrack: 'default'` is its culture's period music); a kind without one reads the manifest's as written.
   if (payload && sketch.manifest.audio && typeof sketch.manifest.audio === 'object') {
     const mechanics = Array.isArray(sketch.manifest.game?.mechanics) ? sketch.manifest.game.mechanics.map((m) => m && m.kind).filter(Boolean) : [];
-    const resolvedAudio = resolveWorldAudio(desc.audio ? desc.audio(sketch.manifest) : sketch.manifest.audio, { time, ref: sketch.ref, mechanics });
+    // (the sounds its play names by word, a cue's `sound`: voiced by its sound sheet)
+    const sounds = playEv ? [...new Set((playEv.reactions ?? []).filter((r) => r && r.do === 'emit' && typeof r.type === 'string' && r.type.startsWith('sfx:')).map((r) => r.type.slice(4)))].sort() : [];
+    const resolvedAudio = resolveWorldAudio(desc.audio ? desc.audio(sketch.manifest) : sketch.manifest.audio, { time, ref: sketch.ref, mechanics, ...(sounds.length ? { sounds } : {}) });
     if (resolvedAudio) payload.audio = resolvedAudio;
   }
 

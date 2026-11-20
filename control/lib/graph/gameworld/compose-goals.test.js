@@ -232,6 +232,8 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
     // (its UI the console RPG's plain blue windows, its fights one member's turn at a time)
     expect(W.ui).toEqual({ theme: 'classic-rpg', colour: 'theme' });
     expect(W.battles.rules).toMatchObject({ turns: 'timeline', foeHp: 'bar' });
+    // (sounded and scored: the sound sheet and the cue sheet, so a scene or a cue may play a sound by its word)
+    expect(W).toMatchObject({ sound: {}, music: {} });
   });
 
   it('is laid as a mandala: the town outermost, the wilds and the castle round it, the dungeon the core behind the castle\'s key', () => {

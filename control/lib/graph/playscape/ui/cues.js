@@ -25,6 +25,13 @@
  *            { open: '<menu id>' } | { close: '<menu id>' | true }             a menu (menus.js) comes up or goes
  *            { set: '<var>', to } | { add: '<var>', by, min?, max? } | { emit: '<event>' }   the game's own state
  *            { weather: '<state>' | { is, for?, blend? } }                     the sky takes a state (weather/weather.js) for `for` seconds, or until the cue ends
+ *            { sound: '<word>' }                                              a sound off the SFX shelf by its word (sfx-shelf/),
+ *                                                                       played as it fires (`sfx:<word>` on the bus: the
+ *                                                                       level's sound sheet voices it, beats/beats-world.js)
+ *            { screen: { fade?: out | in, tint?: '#rrggbb' | none, flash?: '#rrggbb', for? } }   the screen itself: a fade to
+ *                                                                       black (and back in), the world washed in a colour, a
+ *                                                                       flash; `for` seconds, or until the cue ends, then as it was
+ *                                                                       (the page's screen layer, scene/channels/screen-fx.js)
  *            { spawn | vanish | kill | hurt | heal | walk | stop: … }        the cast: a character (cast.js)
  *            { raise | grant | xp | level | buy: … }                       the stats (stats/stats.js); a cast number may be a scaling
  *     until?: a when | { ttl },                                             the effects end (shown → hidden, a prompt goes)
@@ -85,6 +92,8 @@ export const CUE_THEN = Object.freeze({
   use: 'spend one of an item from the bag and do its use effects (play.items[item].use); when the bag has none it says so',
   equip: 'wear an item from the bag in its slot (play.items[item].equip): what wore the slot goes back to the bag',
   unequip: 'take a worn item off, back into the bag',
+  sound: 'a sound off the SFX shelf by its word (a chime, a door, a roar), played as it fires: the level\'s sound sheet voices it',
+  screen: 'the screen itself: { fade: out | in, tint: "#rrggbb" | "none", flash: "#rrggbb", for? } (a fade to black and back, the world washed in a colour, a flash; for `for` seconds, or until the cue ends, then as it was)',
   weather: `the sky takes a state (${STATE_NAMES.join(', ')}) for \`for\` seconds, or until the cue ends: { is, for?, blend? } (blend: seconds the change takes, else the climate's)`,
   ...CAST_THEN,
   ...STAT_THEN,
@@ -96,6 +105,12 @@ export const PHASE_VAR = 'phase';
  *  cue has its own pair (`weather-force:<event>`), so one cue's end or timer never clears another's; the page takes the
  *  newest force that is still set. */
 export const WEATHER_VAR = 'weather-force', WEATHER_BLEND_VAR = 'weather-blend';
+/** The bus vars the page's screen layer reads (scene/channels/screen-fx.js): faded to black (1), the tint ('' none), the
+ *  flashes counted and the last one's colour. */
+export const SCREEN_VARS = Object.freeze({ fade: 'screen-fade', tint: 'screen-tint', flash: 'screen-flash', flashColour: 'screen-flash-colour' });
+const HEX = /^#[0-9a-f]{6}$/i;
+/** The bus event a cue's `sound` raises: the level's sound sheet voices `sfx:<word>` (beats/beats-world.js). */
+export const SOUND_EVENT = 'sfx:', soundEvent = (word) => `${SOUND_EVENT}${word}`;
 export const weatherVar = (on) => `${WEATHER_VAR}:${on}`, weatherBlendVar = (on) => `${WEATHER_BLEND_VAR}:${on}`;
 export const cueVar = (part, state = false) => `ui-${part}${state ? '-state' : ''}`;
 export const menuVar = (menu) => `ui-menu-${menu}`;
@@ -207,6 +222,21 @@ export function readEffect(t, where, ctx = {}) {
     if (!Number.isFinite(t.by)) throw new Error(`${where}.by is a number (negative counts down)`);
     for (const x of ['min', 'max']) if (t[x] !== undefined && !Number.isFinite(t[x])) throw new Error(`${where}.${x} is a number`);
     return { kind: 'add', var: t.add, by: t.by, ...(t.min !== undefined ? { min: t.min } : {}), ...(t.max !== undefined ? { max: t.max } : {}), page: true };
+  }
+  if (k === 'sound') {
+    if (!(typeof t.sound === 'string' && /^[a-z][a-z0-9-]*$/.test(t.sound))) throw new Error(`${where}.sound is a sound's word on the SFX shelf (lower case, hyphens: a chime, door-creak)`);
+    return { kind: 'sound', word: t.sound, page: true };
+  }
+  if (k === 'screen') {
+    const o = t.screen;
+    if (!isObj(o)) throw new Error(`${where}.screen is { fade?: out | in, tint?: '#rrggbb' | none, flash?: '#rrggbb', for? }`);
+    for (const x of Object.keys(o)) if (!['fade', 'tint', 'flash', 'for'].includes(x)) throw new Error(`${where}.screen.${x} is not a screen effect setting (fade, tint, flash, for)`);
+    if (o.fade !== undefined && o.fade !== 'out' && o.fade !== 'in') throw new Error(`${where}.screen.fade is out (to black) or in (back)`);
+    if (o.tint !== undefined && o.tint !== 'none' && !(typeof o.tint === 'string' && HEX.test(o.tint))) throw new Error(`${where}.screen.tint is a colour '#rrggbb', or none`);
+    if (o.flash !== undefined && !(typeof o.flash === 'string' && HEX.test(o.flash))) throw new Error(`${where}.screen.flash is a colour '#rrggbb'`);
+    if (o.for !== undefined && !(Number.isFinite(o.for) && o.for > 0)) throw new Error(`${where}.screen.for is seconds`);
+    if (o.fade === undefined && o.tint === undefined && o.flash === undefined) throw new Error(`${where}.screen says what it does: fade, tint or flash`);
+    return { kind: 'screen', fade: o.fade ?? null, tint: o.tint ?? null, flash: o.flash ?? null, for: o.for ?? null, page: true };
   }
   if (k === 'weather') {
     const o = typeof t.weather === 'string' ? { is: t.weather } : t.weather;
@@ -370,6 +400,19 @@ export function lowerEffects(ts, on, frag, { phases = ['playing'], menuIds = new
     if (t.kind === 'wear') { frag.reactions.push({ on, do: 'emit', type: `${t.verb}:${t.item}` }); continue; }
     if (t.kind === 'give') { lowerMove({ item: t.item, n: t.n, from: NOWHERE, to: 'bag', on }, frag); continue; }
     if (t.kind === 'use') { const { ok } = lowerMove({ item: t.item, from: 'bag', to: NOWHERE, on, deny: `No ${t.item.replace(/-/g, ' ')} left` }, frag); frag.reactions.push({ on: ok, do: 'emit', type: `used:${t.item}` }); continue; }
+    if (t.kind === 'sound') { frag.reactions.push({ on, do: 'emit', type: soundEvent(t.word) }); continue; }
+    if (t.kind === 'screen') {
+      // the page's screen layer reads its vars (screen-fx.js); what a cue faded or tinted is undone after `for`, or when it ends
+      const V = SCREEN_VARS;
+      frag.vars[V.fade] ??= 0; frag.vars[V.tint] ??= ''; frag.vars[V.flash] ??= 0; frag.vars[V.flashColour] ??= '';
+      if (t.fade) frag.reactions.push({ on, do: 'set', var: V.fade, to: t.fade === 'out' ? 1 : 0 });
+      if (t.tint) frag.reactions.push({ on, do: 'set', var: V.tint, to: t.tint === 'none' ? '' : t.tint });
+      if (t.flash) frag.reactions.push({ on, do: 'set', var: V.flashColour, to: t.flash }, { on, do: 'inc', var: V.flash, by: 1 });
+      const undo = [...(t.fade === 'out' ? [{ do: 'set', var: V.fade, to: 0 }] : []), ...(t.tint && t.tint !== 'none' ? [{ do: 'set', var: V.tint, to: '' }] : [])];
+      if (t.for && undo.length) frag.sequences.push({ id: `screen-${on}`, scope: `screen-${on}`, trigger: { on }, steps: [{ await: { timer: t.for } }, ...undo] });
+      if (end) for (const u of undo) frag.reactions.push({ on: end, ...u });
+      continue;
+    }
     if (t.kind === 'weather') {
       // the page's sky reads two vars: the state forced, and the change's length; cleared after `for`, or when the cue ends
       const fv = weatherVar(on), bv = weatherBlendVar(on);

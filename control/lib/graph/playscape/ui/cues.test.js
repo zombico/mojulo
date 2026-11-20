@@ -231,3 +231,37 @@ describe('weather cues on a running bus', () => {
     expect(() => readCues({ cues: [{ id: 'x', when: { start: true }, then: [{ weather: 'fog' }, { weather: 'rain' }] }] })).toThrow(/forces one weather/);
   });
 });
+
+// THE SCREEN ITSELF (a cue's `screen`): a fade to black and back, a tint, a flash, on the vars the page's screen layer
+// reads (scene/channels/screen-fx.js); what a cue faded or tinted undone after `for`
+describe('a cue\'s screen effect', () => {
+  it('is read and taught', () => {
+    expect(() => readCues({ cues: [{ id: 'x', when: { start: true }, then: { screen: { tint: 'red' } } }] })).toThrow(/tint is a colour/);
+    expect(() => readCues({ cues: [{ id: 'x', when: { start: true }, then: { screen: {} } }] })).toThrow(/says what it does/);
+  });
+
+  it('fades to black for its seconds, flashes, tints, on the bus the page reads', () => {
+    const play = { cues: [
+      { id: 'dark', when: { on: 'lights-out' }, then: { screen: { fade: 'out', for: 2 } } },
+      { id: 'hit', when: { on: 'struck' }, then: { screen: { flash: '#ff3020' } } },
+      { id: 'dusk', when: { on: 'dusk' }, then: { screen: { tint: '#ff8040' } } },
+    ] };
+    const ev = lowerCues(play), bus = createBusState(ev, []);
+    expect(bus.vars).toMatchObject({ 'screen-fade': 0, 'screen-tint': '', 'screen-flash': 0 });
+    processEvents(bus, [{ type: 'lights-out' }]);
+    expect(bus.vars['screen-fade']).toBe(1);
+    processEvents(bus, stepTime(bus, 2.1));
+    expect(bus.vars['screen-fade']).toBe(0);
+    processEvents(bus, [{ type: 'struck' }, { type: 'struck' }, { type: 'dusk' }]);
+    expect(bus.vars).toMatchObject({ 'screen-flash': 2, 'screen-flash-colour': '#ff3020', 'screen-tint': '#ff8040' });
+  });
+});
+
+describe('a cue\'s sound', () => {
+  it('raises sfx:<word> as it fires, for the level\'s sound sheet to voice', () => {
+    expect(() => readCues({ cues: [{ id: 'x', when: { start: true }, then: { sound: 'Big Bell' } }] })).toThrow(/a sound's word/);
+    const ev = lowerCues({ cues: [{ id: 'ring', when: { on: 'rang' }, then: { sound: 'chime' } }] }), bus = createBusState(ev, []);
+    processEvents(bus, [{ type: 'rang' }]);
+    expect(bus.log.some((e) => e.type === 'sfx:chime')).toBe(true);
+  });
+});

@@ -220,6 +220,11 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
         if (g) { cues[cue] = g; on[glob] = cue; }
       }
     }
+    // (the sounds the level's play names, a cue's `sound` effect, playscape/ui/cues.js: each word a cue on `sfx:<word>`)
+    for (const w of Array.isArray(ctx.sounds) ? ctx.sounds : []) {
+      const id = `sfx-${w}`, g = cues[id] ?? cueOf(w);
+      if (g) { cues[id] = g; on[`sfx:${w}`] = id; }
+    }
     const slot = (k, row) => cueOf(sheet.slots?.[k] ?? row) ?? undefined;
     const kept = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v));
     // its foes (`sheet.foes`, sound-sheet.js foeSounds): what each foe of the bestiary sounds like on its attack, on a

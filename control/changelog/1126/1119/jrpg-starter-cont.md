@@ -83,3 +83,9 @@
   bobbing on drifting waves under a low sun, or an airship over drifting clouds, "Sailing to" or "Flying to" the place,
   for 2.6 s at least and until the map is drawn. A crossing can join the world further than its rings: an isle, or
   another mandala.
+- **The screen and sound as words.** A cue's (or a scene's `do`) `screen` effect: `{ fade: 'out' | 'in', tint:
+  '#rrggbb' | 'none', flash: '#rrggbb', for? }`, a fade to black and back, the world washed in a colour, a flash,
+  undone after `for` seconds or when the cue ends, drawn by the page's screen layer (`scene/channels/screen-fx.js`,
+  emitted only where a level uses it). A cue's `sound: '<word>'` plays a sound off the SFX shelf by its word as it
+  fires (`sfx:<word>` on the bus, voiced by the level's sound sheet). A composed party RPG is sounded and scored (its
+  `sound` and `music`), as the action RPG's world map is.
