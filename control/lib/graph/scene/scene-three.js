@@ -1287,7 +1287,7 @@ const wrap = document.getElementById('wrap'), canvas = document.getElementById('
 // sit only a few cm in front of their wall. A linear depth buffer starves that gap of
 // precision and the decals z-fight (shimmer). The log buffer restores precision across
 // the range so the proud faces win cleanly from any orbit distance.
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: ${pixel ? 'false' : 'true'}, logarithmicDepthBuffer: true${backdropUrl || hasTour ? ', alpha: true' : ''}${layered ? ', stencil: true' : ''} });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: ${pixel ? 'false' : 'true'}, logarithmicDepthBuffer: true${backdropUrl || hasTour ? ', alpha: true' : ''}${layered || (hasControllable && form && form.room && form.room.figures) ? ', stencil: true' : ''} });
 ${pixel ? `// THE PIXEL LOOK (cosmos reality.medium=pixel): drawn at a ${Math.round(Number(pixel.scale))}th of the page's size and blown up
 // without smoothing, so each drawn pixel is a block on screen
 renderer.setPixelRatio(1 / ${Math.round(Number(pixel.scale))}); canvas.style.imageRendering = 'pixelated';` : pixelBudget ? `// THE PIXEL BUDGET (a game page): the screen's density capped at 1.5, then held to the frame's time: a second of slow

@@ -4871,8 +4871,8 @@ function __mojBackdrop(from, look, shift) {
 // as the room's own are: from the lamp that lights it most, its own silhouette laid flat away from the flame and fading
 // with its length, as dark as the share of the light there that lamp gives (a lone torch's deep, a lit room's faint:
 // the light it takes away, never a black of its own), its edge a penumbra (laid from points of the flame a little apart,
-// each darkening a part, each a few millimetres over the last so they layer and never fight for one depth); and a dark
-// at its feet by the same share. Drawn on one plane each copy darkens once (the floor
+// each darkening a part, each a few millimetres over the last); and a dark at its feet by the same share. Drawn on one
+// plane each copy darkens once, by the stencil (the floor
 // never moves: a projection is the shadow, as the seventh generation drew an actor's on a baked room)
 (function __roomLight() {
   const K = 6, FILL = 0.3, U = { uRlP: { value: Array.from({ length: K }, () => new THREE.Vector3()) }, uRlK: { value: Array.from({ length: K }, () => new THREE.Vector3()) },
@@ -4899,9 +4899,13 @@ function __mojBackdrop(from, look, shift) {
   };
   // the shadow: a body's twins on one plane, from points of its key lamp a penumbra apart (PEN m across the flame)
   const SLOTS = 3, MAX = 4.2, PEN = 0.5, DEEP = 0.6;
-  const slotMat = () => {
+  // (each copy darkens a pixel once: it marks the stencil where it draws, its own value, and draws nowhere already marked;
+  // a depth test between a silhouette's own triangles let some through in stripes, plain to see in a shadow this light.
+  // The characters' rim marks 1 (effect-rim.js): the copies mark past it, and are drawn before the bodies that mark it)
+  const slotMat = (i) => {
     const S = { uShL: { value: new THREE.Vector3(0, 0, 10) }, uShZ: { value: 0 }, uShO: { value: new THREE.Vector2() } };
-    const m = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthWrite: true, depthFunc: THREE.LessDepth, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    const m = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+      stencilWrite: true, stencilRef: 2 + i, stencilFunc: THREE.NotEqualStencilFunc, stencilFail: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp, stencilZPass: THREE.ReplaceStencilOp });
     m.userData.rlTwin = true; m.userData.S = S;
     m.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, S);
@@ -4926,7 +4930,7 @@ function __mojBackdrop(from, look, shift) {
     t.matrixAutoUpdate = false; t.matrix = o.matrix; o.parent.add(t); list.push({ o, t });
   };
   const own = (id, g) => {
-    const B = bodies[id] || (bodies[id] = { slots: Array.from({ length: SLOTS }, () => ({ mat: slotMat(), twins: [] })), feet: null, z: null });
+    const B = bodies[id] || (bodies[id] = { slots: Array.from({ length: SLOTS }, (_, i) => ({ mat: slotMat(i), twins: [] })), feet: null, z: null });
     g.traverse((o) => {
       if (!o.isMesh || o.userData.rlTwin || twinned.has(o) || !o.parent) return;
       for (const m of [].concat(o.material)) shade(m);
