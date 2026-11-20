@@ -4867,10 +4867,12 @@ function __mojBackdrop(from, look, shift) {
 // paint was made under, channels/form.js \`__mojForm.lit\`). A body's paint is what it shows by a lamp at arm's length;
 // here each surface is lit as the room is: the ambient, the lamps nearest the pilot each by its falloff and how the
 // surface turns to it (wrapped, as cloth and skin take light), and a cold rim where it turns from the eye, so a body
-// has a lit side, a shade side and an edge against the dark. And each throws its SHADOWS on the floor it stands on:
-// from the two lamps that light it most, its own silhouette laid flat away from each flame and fading with its length,
-// and a dark at its feet; drawn on one plane that each pixel darkens once (the floor never moves: a projection is the
-// shadow, as the seventh generation drew an actor's on a baked room)
+// has a lit side, a shade side and an edge against the dark. And each throws its SHADOW on the floor it stands on, ONE,
+// as the room's own are: from the lamp that lights it most, its own silhouette laid flat away from the flame and fading
+// with its length, as dark as the share of the light there that lamp gives (a lone torch's deep, a lit room's faint:
+// the light it takes away, never a black of its own), its edge a penumbra (laid from points of the flame a little apart,
+// each darkening a part); and a dark at its feet by the same share. Drawn on one plane each copy darkens once (the floor
+// never moves: a projection is the shadow, as the seventh generation drew an actor's on a baked room)
 (function __roomLight() {
   const K = 6, FILL = 0.3, U = { uRlP: { value: Array.from({ length: K }, () => new THREE.Vector3()) }, uRlK: { value: Array.from({ length: K }, () => new THREE.Vector3()) },
     uRlR: { value: new Array(K).fill(1) }, uRlAmb: { value: new THREE.Vector3() }, uRlFall: { value: 2 }, uRlRim: { value: new THREE.Vector3(0.22, 0.27, 0.42) } };
@@ -4894,8 +4896,8 @@ function __mojBackdrop(from, look, shift) {
     m.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|roomlit'; };
     m.needsUpdate = true;
   };
-  // the shadows: a body's twins on one plane, from one lamp each
-  const SLOTS = 2, MAX = 4.2;
+  // the shadow: a body's twins on one plane, from points of its key lamp a penumbra apart (PEN m across the flame)
+  const SLOTS = 3, MAX = 4.2, PEN = 0.5, DEEP = 0.6;
   const slotMat = () => {
     const S = { uShL: { value: new THREE.Vector3(0, 0, 10) }, uShZ: { value: 0 }, uShO: { value: new THREE.Vector2() } };
     const m = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthWrite: true, depthFunc: THREE.LessDepth, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
@@ -4931,7 +4933,7 @@ function __mojBackdrop(from, look, shift) {
       twinned.add(o);
       for (const S of B.slots) twin(o, S.mat, S.twins);
     });
-    if (!B.feet) { B.feet = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), feetMat); B.feet.userData.rlTwin = true; B.feet.raycast = function () {}; B.feet.renderOrder = -1; scene.add(B.feet); }
+    if (!B.feet) { const fm = feetMat.clone(); fm.userData.rlTwin = true; B.feet = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), fm); B.feet.userData.rlTwin = true; B.feet.raycast = function () {}; B.feet.renderOrder = -1; scene.add(B.feet); }
     return B;
   };
   let n = 0;
@@ -4955,12 +4957,15 @@ function __mojBackdrop(from, look, shift) {
       const W = R.lamps.map((l) => { const d = Math.hypot(l.at[0] - P[0], l.at[1] - P[1], l.at[2] - (P[2] || 0) - 1.2), t = Math.max(0, 1 - Math.max(d, 1.1) / l.r); return [l, (0.2126 * l.key[0] + 0.7152 * l.key[1] + 0.0722 * l.key[2]) * Math.pow(t * t, R.fall)]; })
         .filter((x) => x[1] > 1e-4).sort((a, b) => b[1] - a[1]);
       const all = W.reduce((s, x) => s + x[1], 0) + (0.2126 * R.amb[0] + 0.7152 * R.amb[1] + 0.0722 * R.amb[2]);
+      // (its key lamp's share of the light at it: what the shadow takes away; the copies together darken by it)
+      const w = W[0], a = live && w ? Math.min(DEEP, w[1] / Math.max(all, 1e-4)) : 0, each = 1 - Math.pow(1 - a, 1 / SLOTS);
+      const sx = w ? -(w[0].at[1] - P[1]) : 0, sy = w ? w[0].at[0] - P[0] : 0, sl = Math.hypot(sx, sy) || 1;
       B.slots.forEach((S, i) => {
-        const w = W[i], a = live && w ? Math.min(0.75, 1.4 * w[1] / Math.max(all, 1e-4)) : 0;
-        S.mat.opacity = a; S.mat.visible = a > 0.02;
-        if (w) { S.mat.userData.S.uShL.value.set(w[0].at[0], w[0].at[1], Math.max(w[0].at[2], B.z + 2.2)); S.mat.userData.S.uShZ.value = B.z; S.mat.userData.S.uShO.value.set(P[0], P[1]); }
+        S.mat.opacity = each; S.mat.visible = a > 0.02;
+        const o = ((i / Math.max(1, SLOTS - 1)) - 0.5) * PEN;
+        if (w) { S.mat.userData.S.uShL.value.set(w[0].at[0] + (sx / sl) * o, w[0].at[1] + (sy / sl) * o, Math.max(w[0].at[2], B.z + 2.2)); S.mat.userData.S.uShZ.value = B.z; S.mat.userData.S.uShO.value.set(P[0], P[1]); }
       });
-      B.feet.visible = live; B.feet.position.set(P[0], P[1], B.z + 0.012); const up = Math.max(0, (P[2] || 0) - B.z); B.feet.scale.setScalar(1 / (1 + up)); feetMat.opacity = 0.7;
+      B.feet.visible = live; B.feet.position.set(P[0], P[1], B.z + 0.012); const up = Math.max(0, (P[2] || 0) - B.z); B.feet.scale.setScalar(1 / (1 + up)); B.feet.material.opacity = Math.min(0.7, 0.25 + a);
     }
   })();
 })();

@@ -277,3 +277,8 @@ What the theme will hold:
   of the hips carries them and the page's blend between clips blends the coat. Absent, the coat, its rig and its clips
   as they were. Lucien's coat is posed, to mid-calf, and his build a V: shoulders broad, waist and hips narrow, legs
   long, lean and defined (the body's `tune` and `physique`).
+- **The figures' shadows unified with the room's.** A body in a room that asks its shade threw two black shadows, one
+  from each of the two lamps lighting it most, as dark in a lit room as in a dark one and hard at every polygon of its
+  silhouette. It now throws one, as the room's own are: from its key lamp, as dark as the share of the light there that
+  lamp gives (the light it takes away: deep under a lone torch, faint in a lit room), its edge a penumbra (laid from
+  points of the flame a little apart, each copy darkening a part); the dark at its feet by the same share, its own.
