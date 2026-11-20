@@ -141,15 +141,15 @@ A cue's (or a scene beat's `do`) effects may touch the screen and play a sound:
   washed in a colour, a flash; undone after `for` seconds or when the cue ends.
 - `sound: '<word>'`: a sound off the SFX shelf by its word (a chime, a door), played as it fires.
 
-A composed party RPG is sounded and scored, so its levels have the music the cue sheet gives each place.
+A composed party RPG is sounded and scored, so its levels have the music the cue sheet gives each place, and the
+score turns to the fight's while a battle is up (the boss's in the core), back to the place's after.
 
 ## What comes next
 
 Each step ends playable, and each is something a person can say that the words did not carry before. An RPG Maker
 idea is reached through the primitive that already owns it (a switch is a flag, an event page a scene's `if`, a
 transfer a megaworld's way), never rebuilt:
-1. **Battle music:** the score turning to a fight's when one begins (the cue sheet's `fight:` and `boss:` over a party
-   battle's own events), and a change of music from an event.
-2. **The party menu's Item and Formation**, and Save in it.
+1. **The party menu's Item and Formation**, and Save in it.
+2. **A change of music from an event** (a scene's own cue).
 3. **The battles' depth:** traits on gear and classes (a resistance, a state warded off), and a fight's page that does
    more than speak (a summons, a heal).

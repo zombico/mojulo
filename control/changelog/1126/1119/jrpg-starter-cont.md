@@ -89,3 +89,8 @@
   emitted only where a level uses it). A cue's `sound: '<word>'` plays a sound off the SFX shelf by its word as it
   fires (`sfx:<word>` on the bus, voiced by the level's sound sheet). A composed party RPG is sounded and scored (its
   `sound` and `music`), as the action RPG's world map is.
+- **Battle music.** A world of party battles asks its cue sheet for a fight's score on every level it fights on (not its
+  hub) and the boss's on its last; the level's score turns to it while a battle is up and back after, the meter held
+  full by `rpg.battle` however long the picks take (`audio.tension.held`, `beats/adaptive-music.js`: a bus var that pins
+  the meter while it is set). A building level of a sounded game (a dungeon, a keep) now has its sounds and score as a
+  trail's level does; before, it was silent.

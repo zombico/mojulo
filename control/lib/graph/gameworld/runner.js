@@ -218,6 +218,8 @@ const sheetOf = (G, s, score = null) => {
   // stage that wrote its own soundtrack keeps it)
   const own = s.manifest?.audio, cue = score && own?.soundtrack === undefined ? levelScore(score.world, s.level, { sheet: score.sheet }) : null;
   const audio = sheet || cue ? { ...(sheet ?? own ?? {}), ...(cue ?? {}) } : null;
+  // (a party battle's score: the fight's while one is up, the tension held by rpg.battle, however long the picks take)
+  if (audio && audio.combat && G.battles && G.battles.on !== 'board' && audio.tension === undefined) audio.tension = { held: 'rpg.battle' };
   // (a played town or district: its cars heard, the engine only at the wheel, the door, the horn, a crash: sound-sheet.js citySounds)
   const city = sheet ? citySounds(G, { manifest: s.manifest ?? null }) : null;
   if (city && audio) { audio.engine = city.engine; audio.ambience = city.ambience; audio.sfx = { ...audio.sfx, sheet: { ...audio.sfx.sheet, cues: { ...(audio.sfx.sheet.cues ?? {}), ...city.cues } } }; }

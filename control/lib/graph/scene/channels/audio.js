@@ -109,7 +109,8 @@ function __switchTo(to) {
   if (!__beatsCtx || __beatsCtx.state !== 'running') return;
   const now = __beatsCtx.currentTime, dt = __tenLast === null ? 0 : Math.min(0.25, now - __tenLast);
   __tenLast = now;
-  __tension = __ADAPT.leak(__tension, dt, __TEN.decay);${combat ? `
+  __tension = __ADAPT.leak(__tension, dt, __TEN.decay);${audio.tension && audio.tension.held ? `
+  if (typeof __busState !== 'undefined' && __busState.vars[${JSON.stringify(audio.tension.held)}]) __tension = 1;   // held: the meter full while its var is set` : ''}${combat ? `
   if (!__engs || __switching || __beatsMuted) return;
   const next = __ADAPT.decide(__music, __tension, dt, __TEN, __ADAPT.barSeconds(__AUDIO.combat));
   if (next.to) __switchTo(next.to); else __music = next;` : ''}

@@ -289,6 +289,12 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
 
   it('its levels make: the town\'s street stands its inn and temple at their doors', () => {
     const S = steps();
+    // (sounded and scored: the wilds' place under them, a fight's score while a party battle is up, its meter held by
+    // rpg.battle however long the picks take; the crypt's, the boss's)
+    const audioOf = (lvl) => levelSteps(S).find((s) => s.key === `level-${lvl}-0`).order.manifest.audio;
+    expect(audioOf(ids[1])).toMatchObject({ soundtrack: expect.anything(), combat: expect.anything(), tension: { held: 'rpg.battle' } });
+    expect(audioOf(W.hub).combat).toBeUndefined();
+    expect(audioOf(ids[ids.length - 1]).combat).toBeTruthy();
     // (the crypt ends on its boss: the drake, no escape from it, its pages with it)
     const crypt = levelSteps(S).find((s) => s.key.startsWith(`level-${ids[ids.length - 1]}-`)).order.manifest.play.rpg.encounters;
     expect(crypt.at(-1)).toMatchObject({ foes: ['drake'], flee: false, pages: expect.any(Array) });
