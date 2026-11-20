@@ -14,3 +14,10 @@ website, composed from the game's own characters, vehicles and props, never a le
 - While the start screen is up, the first level starts loading, and the loading screen keeps the start screen's look.
 - In the guided design, the start screen is offered near the end, once the first level plays; the person can ask for
   it at any time.
+- **Begun: the recipe and the first layout.** A game's front takes a `stage`: which layout, which of its subjects stand
+  on it (its hero, a friend, a foe, its vehicle, a prop, or a sketch named), pictures or 3D, and how a picture is made
+  graphic. It is checked like the rest of the front and drawn by nothing yet, so every game's start screen is as it was.
+  A game's subjects are read from what its design runs made and the hero it adopted, and a game with something to
+  show can be offered a stage that suits its kind of game. The first layout is the hero pose: one figure large and off
+  centre, the game's name huge behind it, the menu as words on the open side, laid out for a wide screen and an upright
+  phone (`playscape/ui/front-cards/`).
