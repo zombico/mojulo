@@ -134,6 +134,12 @@ Leaving by it, the play shell shows the trip while the next map is built: a ship
 clouds, "Sailing to" or "Flying to" the place. A crossing joins the world further than its rings (an isle, another
 mandala), so the trip covers the load that a far place costs.
 
+## The party menu
+
+P opens the party menu: Status, Class, Equip and Skills, and Item (a battle item used outside a fight, on the member in
+focus or on all the party) and Formation (two members traded: the order fought in, the first `rules.size` of it at the
+front). It saves at save points, never from the menu: the store is written as a level is left.
+
 ## The screen and sound in words
 
 A cue's (or a scene beat's `do`) effects may touch the screen and play a sound:
@@ -149,7 +155,6 @@ score turns to the fight's while a battle is up (the boss's in the core), back t
 Each step ends playable, and each is something a person can say that the words did not carry before. An RPG Maker
 idea is reached through the primitive that already owns it (a switch is a flag, an event page a scene's `if`, a
 transfer a megaworld's way), never rebuilt:
-1. **The party menu's Item and Formation**, and Save in it.
-2. **A change of music from an event** (a scene's own cue).
-3. **The battles' depth:** traits on gear and classes (a resistance, a state warded off), and a fight's page that does
+1. **A change of music from an event** (a scene's own cue).
+2. **The battles' depth:** traits on gear and classes (a resistance, a state warded off), and a fight's page that does
    more than speak (a summons, a heal).

@@ -131,10 +131,12 @@ export function buildRpg() {
 
   /** The members who are in: joined (their flag set, or `rpg-join`), the first `rules.size` of them; a familiar (auto)
    * comes with them and takes no place of its own. */
+  // the party in its order: the book's, or the formation the player set (R.order, swap)
+  const ordered = (cfg, R) => (R.order ? R.order.map((id) => cfg.party.find((p) => p.id === id)).filter(Boolean) : cfg.party);
   function partyOf(cfg, R, vars) {
     const out = [];
     let n = 0;
-    for (const p of cfg.party) {
+    for (const p of ordered(cfg, R)) {
       if (p.joins && !R.joined[p.id] && !(vars && vars['flag-' + p.joins] === 1)) continue;
       if (!p.auto) { if (n >= cfg.rules.size) continue; n++; }
       out.push(p.id);
@@ -845,6 +847,8 @@ export function buildRpg() {
       for (const k in M.learned) s['skill.' + k] = 1;
       for (const c in R.opened) s['open.' + c] = 1;
       for (const slot in M.gear) s['gear.' + slot + '.' + M.gear[slot]] = 1;
+      // (its place in the formation, once the player has set one)
+      if (R.order) s.ord = R.order.indexOf(p.id);
       out[p.id] = s;
     }
     return out;
@@ -877,7 +881,44 @@ export function buildRpg() {
       if (s.in === 1) R.joined[p.id] = 1;
       for (const k in s) if (k.indexOf('open.') === 0 && s[k] === 1 && cfg.classes[k.slice(5)]) R.opened[k.slice(5)] = 1;
     }
+    // (the formation, where the save holds one: every member placed, by its place)
+    const placed = cfg.party.map((p) => ({ id: p.id, ord: roster[p.id] && roster[p.id].stats ? roster[p.id].stats.ord : undefined }));
+    if (placed.every((x) => typeof x.ord === 'number')) R.order = placed.slice().sort((a, b) => a.ord - b.ord).map((x) => x.id);
     if (vars) mirror(cfg, R, vars);
+  }
+
+  // ── THE PARTY MENU'S ITEM AND FORMATION: a battle item used outside a fight, on a member or the whole party; two members
+  // traded places in the formation. Each answers '' when done, else why not ──
+  /** A battle item out of a fight (rpg.js items: heal, mp, revive, cure), on `who` or, an allies item, every member. */
+  function fieldUse(cfg, R, item, who, vars) {
+    const I = cfg.items[item], key = 'held:bag:' + item;
+    if (!I) return 'none';
+    if (!vars || !(vars[key] > 0)) return 'none';
+    if (I.hurt) return 'useless';
+    const on = I.target === 'allies' ? partyOf(cfg, R, vars) : [who];
+    let any = false;
+    for (const id of on) {
+      const M = R.m[id], S = statsOf(cfg, R, id);
+      if (!M) continue;
+      if (M.hp <= 0 && !I.revive) continue;
+      if (I.revive && M.hp <= 0) { M.hp = I.heal ? Math.min(S.hp, I.heal) : Math.ceil(S.hp / 4); any = true; }
+      else if (I.heal && M.hp < S.hp) { M.hp = Math.min(S.hp, M.hp + I.heal); any = true; }
+      if (I.mp && M.mp < S.mp) { M.mp = Math.min(S.mp, M.mp + I.mp); any = true; }
+      if (I.cure && I.cure.indexOf('poison') >= 0 && M.poison) { M.poison = 0; any = true; }
+    }
+    if (!any) return 'useless';
+    vars[key] -= 1;
+    mirror(cfg, R, vars);
+    return '';
+  }
+  /** Two members trade places in the formation (the order the party is fought in, and who of it fights). */
+  function swap(cfg, R, a, b) {
+    const O = R.order || cfg.party.map((p) => p.id), i = O.indexOf(a), j = O.indexOf(b);
+    if (i < 0 || j < 0) return 'none';
+    if (i === j) return '';
+    const next = O.slice(); next[i] = b; next[j] = a;
+    R.order = next;
+    return '';
   }
 
   /** The party onto the bus: rpg.<member>.hp / .mp / .level / .class, rpg.battle (1 while a fight is up), rpg.won. */
@@ -891,7 +932,7 @@ export function buildRpg() {
     vars['rpg.won'] = R.won;
   }
 
-  return { STATS, roll: rnd, stuck, save, load, gearOf, equip, unequip, preview, init, start, options, targets, round, close, rest, statsOf, partyOf, usable, classesOf, switchClass, treeOf, buy, mirror, xpFor, classLevel, aimOf, isAuto, shopOf, waresOf, sellsOf, purchase, sell, stay };
+  return { STATS, roll: rnd, stuck, fieldUse, swap, save, load, gearOf, equip, unequip, preview, init, start, options, targets, round, close, rest, statsOf, partyOf, usable, classesOf, switchClass, treeOf, buy, mirror, xpFor, classLevel, aimOf, isAuto, shopOf, waresOf, sellsOf, purchase, sell, stay };
 }
 
 const _rpg = buildRpg();
@@ -919,3 +960,5 @@ export const rpgGearOf = _rpg.gearOf;
 export const rpgPreview = _rpg.preview;
 export const rpgEquip = _rpg.equip;
 export const rpgUnequip = _rpg.unequip;
+export const rpgFieldUse = _rpg.fieldUse;
+export const rpgSwap = _rpg.swap;

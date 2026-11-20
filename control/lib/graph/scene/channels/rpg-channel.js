@@ -52,7 +52,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
   // make it its own and its regions would filter nothing of the world beneath); a juice's lens steps draw in it
   const lensHost = document.createElement('div'); lensHost.className = 'moj-rpg-lens'; (document.getElementById('wrap') || document.body).appendChild(lensHost);
   const CMD = { attack: 'Attack', skill: 'Skill', item: 'Item', guard: 'Guard', flee: 'Flee' };
-  const WHY = { battle: 'Not during a fight.', rules: 'Classes are fixed here.', same: 'Already that class.', locked: 'That class is not open yet.', member: 'Not a class they can take.', sp: 'Not enough class points.', requires: 'Learn what it builds on first.', learned: 'Already learned.', class: 'Take that class first.', unknown: '' };
+  const WHY = { useless: 'It would do nothing now.', battle: 'Not during a fight.', rules: 'Classes are fixed here.', same: 'Already that class.', locked: 'That class is not open yet.', member: 'Not a class they can take.', sp: 'Not enough class points.', requires: 'Learn what it builds on first.', learned: 'Already learned.', class: 'Take that class first.', unknown: '' };
   const BEAT = 650, POP_FOR = 1200, STRIKE_FOR = 700;
   // how long each act plays (seconds), within a beat
   const ACT_FOR = { strike: 0.55, cast: 0.55, hurt: 0.4, fall: 0.6 };
@@ -724,6 +724,12 @@ export function rpgPage(cfg, K, ctl, jk, M) {
         })),
       };
     });
+    // (the bag's battle items a member may use outside a fight: the Item tab, on the member in focus or the whole party)
+    const vv = V(), items = Object.keys(cfg.items).filter((k) => vv['held:bag:' + k] > 0 && !cfg.items[k].hurt).map((k) => ({ id: k, label: cfg.items[k].name, right: '×' + vv['held:bag:' + k], small: cfg.items[k].target === 'allies' ? 'all' : '' }));
+    // (the formation: every member who has joined, in its order, the first rules.size of them fighting)
+    const front = members(), order = (R.order || cfg.party.map((p) => p.id)).map((id) => cfg.party.find((p) => p.id === id)).filter((p) => p && !p.auto && (!p.joins || R.joined[p.id] || vv['flag-' + p.joins] === 1));
+    const formation = order.map((p) => ({ id: p.id, label: memberName(p.id), right: front.indexOf(p.id) >= 0 ? 'front' : 'reserve' }));
+    for (const r of rows) { r.items = items; r.formation = formation; }
     // (a slot being chosen for: take it off, or what the bag holds for it)
     const g = fslot && fwho ? K.gearOf(cfg, R, fwho, V()).find((x) => x.slot === fslot) : null;
     return { members: rows, gold, said: fmsg, slot: g ? memberName(fwho) + ' · ' + SLOT[fslot] : '', choices: g ? [{ id: '-', label: '—', right: '', disabled: !g.item }, ...g.can.map((c) => ({ id: c.item, label: c.name, right: '×' + c.count }))] : [] };
@@ -737,6 +743,8 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       if (!why) keep(); said(why, '');
       fslot = null;   // (the spec steps back to the slots)
     }
+    else if (e.emit === 'use') { bagFrom(); const why = K.fieldUse(cfg, R, e.item, e.member, V()); bagSay(); said(why, cfg.items[e.item].name + (cfg.items[e.item].target === 'allies' ? ' for the party.' : ' for ' + memberName(e.member) + '.')); if (!why) keep(); }
+    else if (e.emit === 'swap') { const why = K.swap(cfg, R, e.member, e.with); said(why, memberName(e.member) + ' and ' + memberName(e.with) + ' trade places.'); if (!why) keep(); }
     else if (e.emit === 'learn') { const why = K.buy(cfg, R, e.member, e.skill); said(why, memberName(e.member) + ' learned ' + cfg.skills[e.skill].name + '.'); if (!why) keep(); }
   }
   // ── a shop and an inn (rpg.js shops): opened by a cue's rpg-shop:<id>, its wares bought with the gold into the bag ──

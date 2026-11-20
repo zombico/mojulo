@@ -16,12 +16,14 @@
  *                                                   member's bar while it is on the screen (battle.beside), else in a
  *                                                   corner (battle.cmdAt)
  *     rpg-watch                                     a round playing out: accept skips ahead (`next`), a long film cut
- *     rpg-party · rpg-equip                         the party menu (Status, Class, Equip, Skills in tabs), a slot's choices
+ *     rpg-party · rpg-equip                         the party menu (Status, Class, Equip, Skills, Item, Formation in tabs), a
+ *                                                   slot's choices
  *     rpg-shop                                      a shop's tabs (Buy, Sell, Stay), the party and the gold beside them
  *
  *   EFFECTS the host answers (never the bus's: the host says on the bus what came of them): { emit: command | skill |
  *   item | target, id }, { emit: undo }, { emit: next }, { emit: class, member, cls }, { emit: slot, member, slot },
- *   { emit: equip, item }, { emit: learn, member, skill }, { emit: deal, kind: buy | sell | stay, item }
+ *   { emit: equip, item }, { emit: learn, member, skill }, { emit: use, member, item },
+ *   { emit: swap, member, with }, { emit: deal, kind: buy | sell | stay, item }
  *
  *   RPG_SCREENS              the screen ids
  *   rpgUiSpec()              → the spec (readSpec reads it): its screens, its HUD, its lens (the screen round a figure)
@@ -105,6 +107,10 @@ const SCREENS = {
         { use: 'tab', props: { label: 'Class' }, children: [{ use: 'list', props: { rows: K('members.classes'), row: line }, on: { accept: { emit: 'class', member: K('members.id'), cls: I('id') } } }] },
         { use: 'tab', props: { label: 'Equip' }, children: [{ use: 'list', props: { rows: K('members.slots'), row: line }, on: { accept: [{ emit: 'slot', member: K('members.id'), slot: I('id') }, { open: 'rpg-equip' }] } }] },
         { use: 'tab', props: { label: 'Skills' }, children: [col([txt(K('members.points'), 'label'), { use: 'list', props: { rows: K('members.tree'), empty: 'No skills on this class', row: line }, on: { accept: { emit: 'learn', member: K('members.id'), skill: I('id') } } }])] },
+        // (a battle item from the bag, on the member in focus, or on all the party: `all`)
+        { use: 'tab', props: { label: 'Item' }, children: [{ use: 'list', props: { rows: K('members.items'), empty: 'Nothing to use', row: line }, on: { accept: { emit: 'use', member: K('members.id'), item: I('id') } } }] },
+        // (the member in focus traded for the one picked: the order fought in, the first of it fighting)
+        { use: 'tab', props: { label: 'Formation' }, children: [{ use: 'list', props: { rows: K('members.formation'), row: line }, on: { accept: { emit: 'swap', member: K('members.id'), with: I('id') } } }] },
       ] }] },
     ] },
     { use: 'text', props: { value: B('party.said'), role: 'caption' }, when: B('party.said') },

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readRpg } from './rpg.js';
-import { rpgInit, rpgStart, rpgOptions, rpgTargets, rpgRound, rpgClose, rpgRest, rpgStatsOf, rpgUsable, rpgClassesOf, rpgSwitchClass, rpgTreeOf, rpgBuy, rpgXpFor, rpgGearOf, rpgEquip, rpgUnequip, rpgSave, rpgLoad, rpgPreview, buildRpg } from './kernel.js';
+import { rpgInit, rpgStart, rpgOptions, rpgTargets, rpgRound, rpgClose, rpgRest, rpgStatsOf, rpgUsable, rpgClassesOf, rpgSwitchClass, rpgTreeOf, rpgBuy, rpgXpFor, rpgGearOf, rpgEquip, rpgUnequip, rpgSave, rpgLoad, rpgPreview, rpgFieldUse, rpgSwap, rpgPartyOf, buildRpg } from './kernel.js';
 
 const trio = (extra = {}) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter' }, { id: 'bram', class: 'mage' }, { id: 'cass', class: 'cleric' }], ...extra } });
 
@@ -400,5 +400,33 @@ describe('the world\'s own states', () => {
     // confused: a blow at anyone at all; a blow on it ends it
     st.confusion = 3;
     expect(said(rpgRound(cfg, R, { ayla: { act: 'attack', target: 'f0' } }, v))).toContain('Ayla lashes out wildly!');
+  });
+});
+
+// THE PARTY MENU'S ITEM AND FORMATION: a battle item used outside a fight (on a member, or all of an allies item's
+// party), and two members trading places in the order fought in, carried by the save
+describe('the party menu\'s item and formation', () => {
+  it('an item out of a fight mends who it is used on, spends one from the bag, and does nothing it cannot', () => {
+    const cfg = trio(), R = rpgInit(cfg), v = { 'held:bag:potion': 2 };
+    expect(rpgFieldUse(cfg, R, 'potion', 'ayla', v)).toBe('useless');
+    expect(v['held:bag:potion']).toBe(2);
+    R.m.ayla.hp = 5;
+    expect(rpgFieldUse(cfg, R, 'potion', 'ayla', v)).toBe('');
+    expect(R.m.ayla.hp).toBeGreaterThan(5);
+    expect(v['held:bag:potion']).toBe(1);
+    expect(rpgFieldUse(cfg, R, 'ether', 'ayla', v)).toBe('none');
+  });
+
+  it('two members trade places: the order fought in, who of it fights, carried through a save', () => {
+    const cfg = trio({ rules: { size: 2 } }), R = rpgInit(cfg);
+    expect(rpgPartyOf(cfg, R, {})).toEqual(['ayla', 'bram']);
+    expect(rpgSwap(cfg, R, 'ayla', 'cass')).toBe('');
+    expect(rpgPartyOf(cfg, R, {})).toEqual(['cass', 'bram']);
+    const roster = Object.fromEntries(Object.entries(rpgSave(cfg, R)).map(([id, stats]) => [id, { stats }]));
+    const R2 = rpgInit(cfg);
+    rpgLoad(cfg, R2, roster);
+    expect(rpgPartyOf(cfg, R2, {})).toEqual(['cass', 'bram']);
+    // (a save that never set one carries no place)
+    expect('ord' in rpgSave(cfg, rpgInit(cfg)).ayla).toBe(false);
   });
 });

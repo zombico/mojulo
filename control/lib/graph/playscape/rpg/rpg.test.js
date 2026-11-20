@@ -221,6 +221,28 @@ describe('the page: the battle window and the party menu', () => {
     expect(P.api.state().mode).toBe('battle');
   });
 
+  it('the party menu\'s Item and Formation: a potion used on the member in focus, two members trading places', () => {
+    const P = page(PLAY, { 'held:bag:potion': 1 });
+    P.api.R.m.ayla.hp = 3;
+    P.press('KeyP');
+    P.frames();
+    // (Status, Class, Equip, Skills, then Item)
+    for (let k = 0; k < 4; k++) P.press('BracketRight');
+    P.frames();
+    expect(P.root.textContent).toContain('Potion');
+    P.press('ArrowRight'); P.press('Enter');
+    expect(P.api.R.m.ayla.hp).toBeGreaterThan(3);
+    expect(P.bus.vars['held:bag:potion']).toBe(0);
+    P.frames();
+    expect(P.root.textContent).toContain('Potion for Ayla.');
+    // (Formation: Ayla in focus, traded with the second in the order)
+    P.press('ArrowLeft'); P.press('BracketRight'); P.frames();
+    const order0 = P.api.R.order ?? null;
+    P.press('ArrowRight'); P.press('ArrowDown'); P.press('Enter');
+    expect(order0).toBeNull();
+    expect(P.api.R.order.slice(0, 2)).toEqual(['bram', 'ayla']);
+  });
+
   it('a pad: its select opens the party menu, its confirm (wherever its layout prints it) acts in it', () => {
     const P = page(PLAY), pads = [], buttons = Array.from({ length: 17 }, () => ({ pressed: false, value: 0 }));
     const accept = Number(Object.entries(manaControls().pad.xbox.b).find(([, a]) => a === 'accept')[0]);

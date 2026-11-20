@@ -94,3 +94,9 @@
   full by `rpg.battle` however long the picks take (`audio.tension.held`, `beats/adaptive-music.js`: a bus var that pins
   the meter while it is set). A building level of a sounded game (a dungeon, a keep) now has its sounds and score as a
   trail's level does; before, it was silent.
+- **The party menu's Item and Formation.** Two tabs beside Status, Class, Equip and Skills:
+  - Item: a battle item from the bag used outside a fight, on the member in focus or, an item for allies, on all the
+    party (a heal, MP, a revive, a cure); one that would do nothing is not spent (`kernel.js` fieldUse).
+  - Formation: the member in focus traded for the one picked, the order the party fights in and, where it fights fewer
+    than it has (`rules.size`), who is at the front and who in reserve (`kernel.js` swap). The order rides the party's
+    save once it is set; a save that never set one is as it was.
