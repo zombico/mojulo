@@ -18,3 +18,8 @@ boxes to a sneaking body. Two new pieces make it a ground, and a walled-core dun
 - **Proved**: `scripts/spikes/mission/facilities.mjs --plan` crosses each hall by the route search under a watcher
   walking it: the depot's shed and the power plant's generator hall have no way across unseen bare and one laid.
   `--svg` draws each ground storey; `--out` builds the page. docs/facility-pieces.md; the `gameworld-wcd` card names them.
+- **In the game book**: the facility maps, `/bible?book=facilities` (`gameworld/facility-maps.js`): this game's
+  building levels and the whole shelf, each storey from above (rooms, doorways, ways out, stairs, every piece by what it
+  hides) with its laid rooms' laws, its materials, its moves and the recipe line that names it. `design_game`'s readout
+  offers it to a world with a building level, a dungeon or a rail of interiors; the world book draws a facility level
+  the same way, and the spike's plans are drawn by it.

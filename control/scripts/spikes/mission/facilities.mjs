@@ -9,8 +9,8 @@
  *   node scripts/spikes/mission/facilities.mjs --plan [--facility <id>] [--svg /abs/dir]
  *   node scripts/spikes/mission/facilities.mjs --out /abs/dir --facility <id> [--hero <ref>] [--guard <ref>] [--cdn] [--capture]
  *
- * `--svg` draws each one's ground storey from above: its rooms, its doorways (gold) and ways out (green), its pieces by
- * what they hide (red: a standing body, amber: a crouch, blue: a body lying down), the hall's way across unseen (white).
+ * `--svg` draws each one's ground storey from above as the game book's facility maps do (gameworld/facility-maps.js),
+ * the hall's way across unseen (white, dashed) and the watcher's walk (red) over it.
  */
 import { register } from 'node:module';
 import fs from 'node:fs';
@@ -26,6 +26,7 @@ const { withProgram } = await import('../../../lib/graph/era/programs.js');
 const { PIECES, footprintOf } = await import('../../../lib/graph/era/compose-dress.js');
 const { FACILITIES, FACILITY_IDS } = await import('../../../lib/graph/era/facilities.js');
 const { sneakRoutes } = await import('../../../lib/graph/gameworld/stealth-routes.js');
+const { facilityMapSvg } = await import('../../../lib/graph/gameworld/facility-maps.js');
 const r2 = (v) => +v.toFixed(2);
 
 const planOf = (B) => planStage(withProgram(buildingStage({ seed: 1, ...B })));
@@ -63,26 +64,8 @@ function crossing(P, r) {
 }
 const say = (s) => (s ? `${s.seconds} s (waits ${s.waits}, crouches ${s.crouch} m, crawls ${s.crawl} m, never nearer the watcher than ${s.nearest} m)` : 'none');
 
-function svgOf(id, P, cross) {
-  const rooms = P.rooms.filter((r) => (r.storey ?? 0) === 0), S = 14;
-  const X0 = Math.min(...rooms.map((r) => r.x0)) - 1, Y0 = Math.min(...rooms.map((r) => r.y0)) - 3, X1 = Math.max(...rooms.map((r) => r.x1)) + 1, Y1 = Math.max(...rooms.map((r) => r.y1)) + 1;
-  const x = (v) => r2((v - X0) * S), y = (v) => r2((Y1 - v) * S), F = FACILITIES[id];
-  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${x(X1)}" height="${y(Y0)}" style="background:#1c1f22" font-family="ui-monospace,monospace">`;
-  for (const r of rooms) s += `<rect x="${x(r.x0)}" y="${y(r.y1)}" width="${r2((r.x1 - r.x0) * S)}" height="${r2((r.y1 - r.y0) * S)}" fill="#3a3f44" stroke="#8a8f94" stroke-width="2"/><text x="${x(r.x0) + 4}" y="${y(r.y1) + 14}" fill="#9ab" font-size="11">${r.id}</text>`;
-  const gap = (X, at, lo, hi, c) => (X ? `<rect x="${x(at) - 3}" y="${y(hi)}" width="6" height="${r2((hi - lo) * S)}" fill="${c}"/>` : `<rect x="${x(lo)}" y="${y(at) - 3}" width="${r2((hi - lo) * S)}" height="6" fill="${c}"/>`);
-  for (const l of P.links) if (rooms.some((r) => r.id === l.from) && rooms.some((r) => r.id === l.to)) s += gap(l.wall.endsWith('x'), l.at, l.lo, l.hi, '#e8c46a');
-  for (const w of P.ways ?? []) if (rooms.some((r) => r.id === w.room)) s += gap(w.side.endsWith('x'), w.at, w.lo, w.hi, '#6ae88a');
-  const tall = new Map();
-  for (const it of P.props ?? []) { const base = it.id.replace(/@\d+$/, ''); tall.set(base, Math.max(tall.get(base) ?? 0, PIECES[it.kind].h * (it.scale ?? 1) * ((it.level ?? 0) + 1))); }
-  for (const it of (P.props ?? []).filter((it) => !it.level && rooms.some((r) => r.id === it.room))) {
-    const f = footprintOf(it), h = tall.get(it.id), c = h >= 1.6 ? '#c9553f' : h >= 0.85 ? '#d99a3c' : '#6f8fa6';
-    s += `<rect x="${x(f.min[0])}" y="${y(f.max[1])}" width="${r2((f.max[0] - f.min[0]) * S)}" height="${r2((f.max[1] - f.min[1]) * S)}" fill="${c}" stroke="#111" stroke-width="0.5"/>`;
-  }
-  if (cross?.R.sneak?.path) s += `<polyline points="${cross.R.sneak.path.map((p) => `${x(p.at[0])},${y(p.at[1])}`).join(' ')}" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="5 3"/>`;
-  if (cross) s += `<line x1="${x(cross.watcher.at[0])}" y1="${y(cross.watcher.at[1])}" x2="${x(cross.watcher.to[0])}" y2="${y(cross.watcher.to[1])}" stroke="#ff5a5a" stroke-width="2" opacity="0.7"/>`;
-  s += `<text x="8" y="${y(Y0) - 10}" fill="#dde" font-size="13">${id}: a ${F.use} in ${F.look.construction} · ${F.look.palette}</text></svg>`;
-  return s;
-}
+// (drawn as the game book draws it, gameworld/facility-maps.js: its way across unseen dashed, the watcher's walk red)
+const svgOf = (id, P, cross) => facilityMapSvg(P, { storey: 0, title: `${id}: a ${FACILITIES[id].use} in ${FACILITIES[id].look.construction} · ${FACILITIES[id].look.palette}`, ...(cross?.R.sneak?.path ? { path: cross.R.sneak.path.map((p) => p.at) } : {}), ...(cross ? { patrol: [cross.watcher.at, cross.watcher.to] } : {}) });
 
 const ids = o.opt('--facility') ? [o.opt('--facility')] : FACILITY_IDS;
 for (const id of ids) if (!FACILITIES[id]) { console.error(`facilities: '${id}' is not one (${FACILITY_IDS.join(', ')})`); process.exit(1); }

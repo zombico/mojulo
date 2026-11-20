@@ -93,6 +93,17 @@ one yard keep their floors.
 A new facility is a row: pick a use whose rooms carry the place (an annex hall is the most to work with), the dials that
 give it loops, a layout for each role that should be ground rather than box, and a construction not yet used next to it.
 
+## In the game book: the facility maps
+
+The book of maps a stealth or action game's interiors are read in, `/api/sketches/<ref>/bible?book=facilities`
+(`control/lib/graph/gameworld/facility-maps.js`). It draws this game's building levels first, then the whole shelf of
+facilities, each storey from above as a level designer reads it: rooms, doorways (gold), ways out (green), stairs
+(dashed), and every piece coloured by what it hides (red stops a standing gaze, amber hides a crouch, blue hides a body
+lying down). Beside each map are its laid rooms' laws, and for each facility its materials, what a body does there and
+the recipe line that names it. The readout offers it (`design_game`'s exits, `facilities`) to a world with a building
+level, a walled-core dungeon, or a rail whose level kinds are interiors. The world's own book draws a level that names a
+facility or layouts the same way. `facilityMapSvg` draws any laid plan; the spike below draws its plans with it.
+
 ## Proved and played
 
 `node scripts/spikes/mission/facilities.mjs --plan [--svg dir]` lays each facility, prints every laid room's laws and

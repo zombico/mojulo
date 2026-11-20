@@ -52,7 +52,8 @@ use, the plan's fighting dials (loops, wide corridors, a catwalk), its rooms' fl
 aisles, machines, islands, stockpile, chicane, rows) and its look, a construction and a palette of its own. The space's
 own look wins, so the layers still differ. A level's building takes `facility` and `layouts` directly. Each laid room is
 held to its laws (doorways joined, a way round, the gaze broken, cover in reach) in the stage's `compose.layouts`. The
-pieces, their dials and how to add one: [facility-pieces.md](facility-pieces.md).
+pieces, their dials and how to add one: [facility-pieces.md](facility-pieces.md). The game book's facility maps
+(`?book=facilities`) draw them: this game's buildings and the shelf, each storey from above with its laws.
 
 ## Several spaces on one level: a complex
 
