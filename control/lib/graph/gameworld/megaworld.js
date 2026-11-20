@@ -10,6 +10,8 @@
  *     shape: 'mandala' | 'chain' | 'hub' | 'open',   // gmn.js WORLD_SHAPES
  *     rings: [['town'], ['woods', 'meadows'], ['citadel']],   // the first ring where it sets out; a mandala's last its core
  *     gates?: { <zone>: { key, keyAt } | { needs } },         // what opens the way INTO a zone
+ *     saves?: [<zone>, …],    // the zones that keep a SAVE POINT where the party comes in: saving there steps out, a
+ *                             // way to the same map (the store written as at any crossing), arriving beside it
  *   }
  *
  *   MANDALA  each zone joins the next ring's by its sector (the zone at the same share round its ring); the core is the
@@ -33,7 +35,7 @@ export const ATLAS_SLICE = 'atlas';
 export function readMegaworld(v, levels = {}, at = '') {
   if (v === undefined) return null;
   if (!isObj(v)) throw fail(`${at} is { shape, rings, gates? }: the world's zones in rings, the ways between them`);
-  for (const k of Object.keys(v)) if (!['shape', 'rings', 'gates'].includes(k)) throw fail(`.${k} is not part of it (shape, rings, gates)`);
+  for (const k of Object.keys(v)) if (!['shape', 'rings', 'gates', 'saves'].includes(k)) throw fail(`.${k} is not part of it (shape, rings, gates, saves)`);
   if (!MEGAWORLD_SHAPES.includes(v.shape)) throw fail(`.shape is ${MEGAWORLD_SHAPES.join(', ')}`);
   if (!Array.isArray(v.rings) || !v.rings.length || v.rings.some((r) => !Array.isArray(r) || !r.length)) throw fail('.rings is a list of rings, each a list of zones (levels), the first where it sets out');
   const zones = v.rings.flat(), seen = new Set();
@@ -47,6 +49,9 @@ export function readMegaworld(v, levels = {}, at = '') {
   if (v.shape === 'chain' && v.rings.some((r) => r.length !== 1)) throw fail('.rings: a chain is one zone a ring');
   if (v.shape === 'hub' && (v.rings.length !== 2 || v.rings[0].length !== 1)) throw fail('.rings: a hub is two rings, the home alone in the first');
   if (v.shape === 'open' && v.rings.length !== 1) throw fail('.rings: an open world is one ring, each zone joined to its neighbours');
+  // (its save points: the zones that keep one where the party comes in, levels.js stageWays `savePoint`)
+  if (v.saves !== undefined && !(Array.isArray(v.saves) && v.saves.every((z) => typeof z === 'string'))) throw fail('.saves is a list of zones, each keeping a save point where the party comes in');
+  for (const z of v.saves ?? []) if (!isObj(levels[z])) throw fail(`.saves: '${z}' is no level of this world`);
   if (v.gates !== undefined) {
     if (!isObj(v.gates)) throw fail('.gates is { <zone>: { key, keyAt } | { needs } }: what opens the way into a zone');
     for (const [z, g] of Object.entries(v.gates)) {

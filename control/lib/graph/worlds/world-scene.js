@@ -1899,6 +1899,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // legend) would otherwise lose it
     if (playEv.stats) ev = { ...ev, stats: playEv.stats };
     if (playEv.rpg) ev = { ...ev, rpg: playEv.rpg };   // the battle kernel's cfg (playscape/rpg), the same way
+    // (a battle whose play names no UI guide wears the level's own look, its HUD's (a gameworld's `ui`, interface-look.js):
+    // the battle, the talk box and the HUD one game's windows; with neither, the console RPG's as before)
+    if (playEv.rpg && playEv.rpg.theme === undefined && sketch.manifest.manaHud?.theme !== undefined) ev = { ...ev, rpg: { ...playEv.rpg, theme: sketch.manifest.manaHud.theme } };
     if (playEv.minigames) ev = { ...ev, minigames: playEv.minigames };   // the games inside the game (playscape/ui/minigames.js)
   }
   // a mechanic that moves the cast (waves: spawn and walk on the ctrl verb) reaches the characters as a play's cues do

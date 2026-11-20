@@ -19,7 +19,7 @@ Words that name a party RPG (`design_game { compose: { prompt } }`, a `jrpg` int
 | level | what it is |
 |---|---|
 | the town (the hub, where the game starts) | A walled street: the shop walked into, and the **inn** and the **temple** entered at their doors. Its folk live there. |
-| the wilds | Trails with the party's packs: each stretch rolls its own (`battles.random` draws from that stretch's packs). |
+| the wilds | The world map's blocks (`gameworld/world-map.js` `wildsLevel`): a road, ruins and the far wilds, a page a block crossed at its gates, a pack on each block's way past the first. Their ground is quiet (no grit: on open ground it weighs a page four times over). |
 | the castle (when the words name one) | **The castle walked:** its ward on the trail, closed by the castle's own fortification, and its keep entered at its door. Inside the keep are the gatehouse, the great hall, the chapel, the solar and the treasury (`era/programs.js` `keep`). |
 | the dungeon (when the words name one) | A building of its use (a crypt by default), the boss at its end. Reached through a gate. |
 
@@ -36,7 +36,14 @@ stays won when a place is gone back to, and the core's first win ends the game. 
 world's shops.
 - `brief.round` says what was laid: the castle's level, the dungeon, the trades on the street, and the mandala (its
   core, its key and where the key lies).
-- A party RPG's world carries the game's UI (`ui: { theme: 'world' }`), so its levels host the talk box.
+- A party RPG's world carries the game's UI (`ui: { theme: 'classic-rpg', colour: 'theme' }`), so its levels host the
+  talk box. Its battles, talk box and HUD wear the console RPG's plain blue windows (the `classic-rpg` card: a double
+  rule, a gold marker, nothing behind or over them). A party game's layers (stacked plates, metal, a heading tab) are
+  not a JRPG's.
+- Its battles are fought a turn at a time (`battles.rules.turns: 'timeline'`): the member whose turn it is picks in a
+  window beside their own bar, which goes as the action plays; then the next turn, a member's or a foe's. Every
+  fighter, a foe too, has a bar over their head (no foes' box, no turn order): up on the player's turn, and while a
+  round plays only over one whose numbers just moved.
 
 ## The town's trades
 
@@ -60,16 +67,40 @@ are spoken to.
 - One in a sidequest's chain keeps its menus.
 - In a world without the game's UI, the folk keep their talk menus.
 
+## Talk that follows the story
+
+A person's `characters.folk.say` may be a list of pages (`folk/pages.js`), RPG Maker's event pages in words:
+
+```json
+{ "say": { "priest": [
+  { "if": { "has": "crypt-key" }, "say": ["You carry the crypt key.", "The way to the crypt is open to you now."] },
+  { "say": ["The crypt is sealed.", "Its key is kept in the castle."] }
+] } }
+```
+
+- Read top to bottom: the first page whose `if` holds is said; a page with no `if` always holds.
+- `if` is a scene's condition, or a list of them: `flag`, `not`, `has: '<item>'`, `done: '<level>'`, `chapter`, `var`.
+  A won fight sets `won-<encounter>` under a megaworld, so `{ flag: 'won-<encounter>' }` is "after that fight".
+- In the talk box each page is a scene on the person's one talk, held to its own `if` and to every page above it
+  failing, so exactly one page is said. In a talk menu, the default page.
+- A composed party RPG's priest follows the mandala's gate: where the core's key is kept, then that the way is open.
+
+## Saving
+
+The play shell writes the game's store whenever a map is left, and a megaworld's Continue resumes on the map the party
+is on. A **save point** (`megaworld.saves: [zones]`) stands where the party comes into a saving zone: pressed, it asks,
+and yes steps out by a way to the same map. The store is written as at any crossing (the store's rule: written only when
+a level is left, so a save can be replayed), and the map loads again with the party beside the save point. A composed
+party RPG keeps one in its town and in each stretch of its wilds.
+
+**Save slots** (`slots` on the game, 2 to 4): the title's start or continue asks which save, each said by where its
+party stands. A game with save points offers three.
+
 ## What comes next
 
 Each step ends playable, and each is something a person can say that the words did not carry before. An RPG Maker
 idea is reached through the primitive that already owns it (a switch is a flag, an event page a scene's `if`, a
 transfer a megaworld's way), never rebuilt:
-1. **The wilds as a zoned world map** (`gameworld/world-map.js`) in their ring: battles met on the sketch's
-   encounter marks, a rest on the road.
-2. **Talk that follows the story:** a townsperson's lines keyed to a flag, on scenes and sidequest chains; a won
-   fight's `won-<encounter>` flag says what changed.
-3. **Saving:** save slots that write the store, and a save point.
-4. **Travel by vehicle:** a ship's or an airship's way, opened by a story flag, its crossing played while the next
+1. **Travel by vehicle:** a ship's or an airship's way, opened by a story flag, its crossing played while the next
    place is built.
-5. **The battles' depth as rows:** foe patterns, states and troops.
+2. **The battles' depth as rows:** foe patterns, states and troops.

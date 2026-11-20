@@ -1,0 +1,57 @@
+### The JRPG starter, continued: the wilds as a world map
+
+- **The wilds are a world map in the round's second ring.** A party RPG's wilds are now the world map's blocks
+  (`gameworld/world-map.js` `wildsLevel`), not a trail walk:
+  - three blocks walked out from the town: a road, then ruins, then the far wilds, each laid by its template of the
+    trail library;
+  - a page a block (zoned), crossed at the plan's gates;
+  - the first block has the road back to the town;
+  - the far block has the way on to the core, gated by its key;
+  - a pack stands on each block's way past the first, met as a battle by walking up to it, and none in the block the
+    town opens on.
+
+  A second stretch of wilds reads as its own place: the same blocks under other names. A megaworld's ring now takes a
+  zoned map as one of its zones.
+- **The wilds' ground is quiet.** The round's grit is the town's stone. Painted over open ground it set every tile in
+  relief, and a block's page weighed about four times its quiet weight (128 MB against 36 MB), so the wilds' cube
+  wears none (`grit: 0`, said in `brief.round.quiet`). The town and the castle keep it.
+- **A JRPG wears the console RPG's plain blue windows.** Its battles, its talk box and its HUD are drawn in a new theme
+  card, `classic-rpg` (`playscape/ui/theme-cards/`): the console RPG's blue, a double white rule and a gold marker, with
+  nothing behind or over the windows (no brushed metal, no plinth, no heading tab). A composed party RPG names it
+  (`ui: { theme: 'classic-rpg', colour: 'theme' }`), and a JRPG's world look by its intent is the same card
+  (`playscape/ui/interface-look.js` `INTENT_LOOKS`). A battle whose level names no UI guide of its own now wears the
+  level's look, so the battle, the talk box and the HUD are one game's windows; with neither, it draws as before.
+- **The battle's command window beside the one acting.** While a member picks, their window (commands, then a skill or
+  an item, then a target) stands beside that member's own bar over their head, follows them to wherever the view
+  puts them, and is held inside the screen, clear of its bottom; with their bar off the screen it keeps its corner
+  (`playscape/rpg/rpg-ui.js` `pick`, `scene/channels/rpg-channel.js` `besideAt`).
+- **Picked, the window goes and the action plays.** A member's commands no longer stay drawn under the round while it
+  plays (the channel closed only the top screen; it now closes them all).
+- **A JRPG fights one turn at a time.** A composed party RPG's battles are on the timeline (`rules.turns:
+  'timeline'`): each member picks when their turn comes and acts at once, the foes between them, never the whole
+  party choosing before a round plays.
+- **A bar over every fighter, up when it matters.** A foe now has the same bar over its head as a member (its HP as a
+  bar, its numbers kept back, where the book shows foes' HP: a JRPG's `rules.foeHp: 'bar'`), and the foes' box and the
+  turn order are gone. The bars are up on the player's turn; while a round plays they are down, but for a fighter whose
+  numbers just moved (a blow, a heal, a spell's cost), shown for as long as it takes to read.
+- **Townspeople who follow the story: a person's pages.** A person's `characters.folk.say` may be a list of pages,
+  `[{ if?, say }]` (`folk/pages.js`), RPG Maker's event pages in words: read top to bottom, the first whose `if` holds
+  is what they say, and a page with no `if` always holds. Its conditions are a scene's (`flag`, `not`, `has`, `done`,
+  `chapter`, `var`). In the talk box each page is a scene on the person's one talk, held to its own `if` and to every
+  page above it failing, so exactly one is said each time. In a talk menu (a world without the game's UI), the default
+  page. A level whose folk read the store carries the story's flags and reads the bag and the campaign for them, as
+  its story's scenes do.
+- **A JRPG's priest follows its gate.** A composed party RPG's priest says where the core's key is kept until it is
+  held, then that the way is open (`brief.round.talk`); the operator's own `say` takes its place.
+- **Save points: saving steps out.** A megaworld may name the zones that keep a save point (`megaworld.saves`). Where
+  the party comes into such a zone, a press asks "Save your journey here?", and yes takes a way out to the same map
+  (`reach-exit`'s new `by`: a way taken by an event, never walked into). The store is written as at any crossing, so
+  a save keeps the rule that the store is written only when a level is left, and the map loads again with the party
+  set down beside the save point. Saving completes nothing. A composed party RPG keeps one in its town and in each
+  stretch of its wilds, none in the castle or the core.
+- **Save slots.** A game may offer its title several saves (`slots`, 2 to 4, `game/game-manifest.js`): in the play
+  shell's mana-ui front, start or continue first asks which slot, each said by where its party stands, the one in use
+  marked. Each slot keeps its own store, the flow's steps it has seen and a level's own progress; slot 1 is the game's
+  own keys, so a game saved before it had slots continues as its first. Starting in a slot begins it anew; continuing
+  an empty one starts it. A game's runs and bests stay the game's. A game whose megaworld keeps save points offers
+  three.

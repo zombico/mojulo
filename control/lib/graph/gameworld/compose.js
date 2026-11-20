@@ -40,7 +40,7 @@ import { GENRE_HERO } from './hero-rows.js';
 import { GEOCUBE_PRESETS, GEOCUBE_PALETTES, readGeocube, geocubeDomains, cubeStreetLook } from '../era/geocube.js';
 import { suggestGenres, readGenre, cubeOfWorld, GENRES } from './intent.js';
 import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf, heroStreetWords } from './genre-forms.js';
-import { worldMapLevel, WORLD_MAP } from './world-map.js';
+import { worldMapLevel, wildsLevel, WORLD_MAP } from './world-map.js';
 import { stampMegaworld } from './megaworld.js';
 import { settingOfGame } from './cast-setting.js';
 import { heroDesign } from './hero-design.js';
@@ -144,11 +144,25 @@ const ROOM_KIT_OF_USE = Object.freeze({ temple: 'gothic-nave' });
 // a party RPG round its town: the cube it stands on when no word names one, and its places' character on it (their
 // flora, era/biocube.js; the first wilds' water, era/out-water.js; the cube's grit, so its town is drawn from relief)
 const ROUND_CUBE = 'valley-morning';
-const ROUND_PLACES = Object.freeze({ grit: 0.5, wilds: 'grove', castle: 'upland', water: Object.freeze({ lake: true }) });
+const ROUND_PLACES = Object.freeze({ grit: 0.5, quiet: 0, wilds: 'grove', castle: 'upland', water: Object.freeze({ lake: true }) });
 // the words that name a castle: round a hub, a level of its own (its castle walked); elsewhere a building's use
 const CASTLE_WORDS = new Set(['castle', 'castles', 'keep', 'citadel']);
 // the round laid as a mandala (megaworld.js): the key that opens the way into its core, named for what the core is
 const ROUND_MANDALA = Object.freeze({ key: (core) => `${core}-key` });
+// THE ROUND'S TALK: a townsperson who follows the story (folk/pages.js), RPG Maker's event pages from the mandala's own
+// gate: the priest (every turn-based town keeps a temple) says where the core's key is kept until it is held, then that
+// the way is open. Their words, the composer's starter: the operator's `say` takes their place
+const ROUND_TALK = Object.freeze({ who: 'priest' });
+const low = (t) => (typeof t === 'string' && /^The /.test(t) ? `the ${t.slice(4)}` : t);
+function roundTalk(world) {
+  const M = world.megaworld, core = M?.rings?.at(-1)?.[0], gate = core && M.gates?.[core];
+  if (!gate?.key) return null;
+  const name = (id) => low(world.levels[id]?.name ?? id), far = M.rings[1][0], key = gate.key.replace(/-/g, ' ');
+  return { say: { [ROUND_TALK.who]: [
+    { if: { has: gate.key }, say: [`You carry the ${key}.`, `The way past ${name(far)} to ${name(core)} is open to you now. Go carefully.`] },
+    { say: [`${name(core)[0].toUpperCase()}${name(core).slice(1)} past ${name(far)} is sealed.`, `Its key is kept in ${name(gate.keyAt)}.`] },
+  ] } };
+}
 
 // the cube a word points at (era/geocube.js): one style for the level's inside and outside, its colours the color
 // theorist's (the stamp seeds its palette, and the world takes it). The first word to name one decides it
@@ -449,6 +463,9 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const turnBased = hubbed && [].concat(cubeOfWorld({ intent: { from: genre.id } }).cube.power?.combat ?? []).includes('turn-based');
   const N = hubbed ? Math.max(n, 2 + (castled ? 1 : 0) + (dungeoned ? 1 : 0)) : n;
   const castleAt = castled ? (dungeoned ? N - 2 : N - 1) : -1;
+  // (a turn-based round of three levels or more is a mandala, ROUND_MANDALA below; its wilds counted as they are laid)
+  const roundMandala = turnBased && N >= 3;
+  let wildsK = 0;
   // (the dungeon's use: the word's, but a castle named beside it is the castle's level, and the dungeon stays a crypt)
   const dungeonUse = dungeoned ? (indoors.use === 'keep' && castled ? room : indoors.use) : null;
   const hubId = `${wid}-1`.slice(0, 48);
@@ -465,6 +482,8 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     // (how it starts: the opening block a page of its own, the controls and the enemy trail on it; then the first zone)
     world.brief.worldMap = { level: mid, blocks: level.glyphs.plan.route.length, opening: level.glyphs.plan.route.slice(0, WORLD_MAP.opening), ...(level.glyphs.zoned ? { firstZone: level.glyphs.zoned[0] } : {}) };
   }
+  // (a mandala round's wilds are a world map, travelled zone to zone: the world a map world as its levels are laid)
+  if (roundMandala) world.topology = 'interconnected';
   for (let i = 0; i < (mapped ? 0 : N); i++) {
     const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === N - 1, climb = !hubbed && i % 2 === 0 && fills.climb !== false && camera !== 'side' && !(goal.gauntlet && last && !goal.boss);
     // the level's goal: what is collected and the health on every level, the boss at the end of the last; a horde's
@@ -481,6 +500,9 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
       : form ? (({ street, ...rest }) => ({ name: `${form.name} ${i + 1}`, ...rest, ...(street ? { street: heroWords.length ? { ...street, tuning: 'heroes' } : street } : {}) }))(form.level(i, n))
       : inside && hubbed ? { name: `The ${dungeonUse}`, building: { use: dungeonUse, kit: dungeonUse === indoors.use ? indoors.kit : ROOM_KIT_OF_USE[dungeonUse] ?? 'gothic-stone' }, ...lgoal }
       : hubbed && i === castleAt ? { name: 'The castle', walk: { nodes }, ...lgoal, places: { castle: civIds[1] ? { civilization: civIds[1] } : true } }
+      // (a mandala round's wilds, its second ring: the world map's blocks walked out from the town, world-map.js
+      // wildsLevel, each block's pack its battles'; the core is laid as it was)
+      : roundMandala && !last ? { name: `${cap(landscape)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, ...wildsLevel({ landscape, at: wildsK++ }), ...lgoal }
       : inside ? { name: `${cap(indoors.use)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, building: { use: indoors.use, kit: indoors.kit }, ...lgoal }
       : { name: `${cap(landscape)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, walk: { nodes }, ...lgoal };
     if (i > 0 && !inside && !form && !hubbed) L.places = { town: true, ...(last || n === 1 ? { castle: civIds[1] ? { civilization: civIds[1] } : true } : {}) };
@@ -498,8 +520,13 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     if (i > 0) world.links.push({ from: hubbed ? hubId : `${wid}-${i}`.slice(0, 48), to: lid, kind: last && N > 2 ? 'gate' : 'road' });
   }
   if (hubbed) Object.assign(world, { topology: 'interconnected', hub: hubId, start: hubId });
-  // (a party RPG's levels carry the game's UI on mana-ui in the world's look: its folk speak in the talk box)
-  if (turnBased && world.ui === undefined) world.ui = { theme: 'world' };
+  // (a party RPG's levels carry the game's UI on mana-ui, its folk speaking in the talk box, in the console RPG's plain
+  // blue windows and their own colours, the classic-rpg card: none of a party game's layers, interface-look.js)
+  if (turnBased && world.ui === undefined) world.ui = { theme: 'classic-rpg', colour: 'theme' };
+  // (and fights turn by turn, one at a time: each member picks when its turn comes and acts at once, the foes between
+  // them, never the whole party choosing and then the round played: playscape/rpg/kernel.js, rules.turns 'timeline')
+  // (a foe's HP shown as the same bar over its head as a member's: rules.foeHp 'bar')
+  if (turnBased && world.battles?.rules?.turns === undefined) world.battles = { ...(world.battles ?? {}), rules: { turns: 'timeline', foeHp: 'bar', ...(world.battles?.rules ?? {}) } };
   if (hubbed) world.brief.hub = hubId;
   // (round a hub: its castle's level, its dungeon, the trades on its town's street, said as the world was laid)
   if (hubbed && (castled || dungeoned || turnBased)) world.brief.round = { ...(castled ? { castle: `${wid}-${castleAt + 1}`.slice(0, 48) } : {}), ...(dungeoned ? { dungeon: `${wid}-${N}`.slice(0, 48) } : {}), ...(turnBased ? { trades: ['inn', 'temple'] } : {}) };
@@ -510,15 +537,16 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // the shell's travel screen draws the rings, a fight won stays won on return, and the core's first win ends the game.
   // The town stays the hub: its keepers keep the world's shops (battles.js hubFolkShops). Two levels are a town and its
   // wilds, no ring between them and a core: they stay a hub
-  if (turnBased && N >= 3) {
+  if (roundMandala) {
     const lids = Object.keys(world.levels), core = lids[lids.length - 1], castleId = world.brief.round.castle;
     const wilds = lids.slice(1, -1).filter((l) => l !== castleId), mid = castleId && castleId !== core ? castleId : null;
     // (the farthest wilds first in their ring: the way to the core runs from the zone first in it)
     const ring = [...[...wilds].reverse(), ...(mid ? [mid] : [])];
     const gate = { key: ROUND_MANDALA.key(dungeoned ? dungeonUse : 'castle'), keyAt: mid ?? wilds[wilds.length - 1] };
-    world.megaworld = { shape: 'mandala', rings: [[hubId], ring, [core]], gates: { [core]: gate } };
+    // (its save points: the town, and each stretch of the wilds where the party comes in; never the castle or the core)
+    world.megaworld = { shape: 'mandala', rings: [[hubId], ring, [core]], gates: { [core]: gate }, saves: [hubId, ...wilds] };
     Object.assign(world, stampMegaworld(world), { hub: hubId });
-    world.brief.round = { ...world.brief.round, mandala: { core, ...gate } };
+    world.brief.round = { ...world.brief.round, mandala: { core, ...gate }, talk: { who: ROUND_TALK.who, pages: 2, on: gate.key } };
   }
   world.brief.levels = decided;
   // what the levels are played for, and which are buildings: said only when a word decided it
@@ -638,7 +666,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     if (base.grit === undefined) { base.grit = ROUND_PLACES.grit; style.geocube = base; }
     const said = !!(biome || biocube), places = {};
     if (!said) {
-      const wilds = Object.keys(world.levels).filter((lid, i) => i > 0 && world.levels[lid].walk && lid !== world.brief.round?.castle);
+      const wilds = Object.keys(world.levels).filter((lid, i) => i > 0 && (world.levels[lid].walk || world.levels[lid].glyphs) && lid !== world.brief.round?.castle);
       wilds.forEach((lid, k) => {
         world.levels[lid].style = { ...(world.levels[lid].style ?? {}), geocube: cubeWithLand(base, { biocube: ROUND_PLACES.wilds, ...(k === 0 ? { water: ROUND_PLACES.water } : {}) }) };
         places[lid] = `${ROUND_PLACES.wilds}${k === 0 ? ', a lake beside the way' : ''}`;
@@ -646,7 +674,11 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
       const castle = world.brief.round?.castle;
       if (castle) { world.levels[castle].style = { ...(world.levels[castle].style ?? {}), geocube: cubeWithLand(base, { biocube: ROUND_PLACES.castle }) }; places[castle] = ROUND_PLACES.castle; }
     }
-    world.brief.round = { ...(world.brief.round ?? {}), grit: base.grit, ...(Object.keys(places).length ? { places } : {}) };
+    // (the wilds laid as the world map's blocks, world-map.js wildsLevel, QUIET: the grit is the town's stone, worn and
+    // lapped; on open ground it paints every tile from relief, a block's page some four times its quiet weight)
+    const quiet = Object.keys(world.levels).filter((lid) => world.levels[lid].glyphs);
+    for (const lid of quiet) world.levels[lid].style = { ...(world.levels[lid].style ?? {}), geocube: { ...(world.levels[lid].style?.geocube ?? base), grit: ROUND_PLACES.quiet } };
+    world.brief.round = { ...(world.brief.round ?? {}), grit: base.grit, ...(quiet.length ? { quiet } : {}), ...(Object.keys(places).length ? { places } : {}) };
   }
   // the games inside the game the words ask for (minigames.js): read, laid once the world has its people
   for (const w of minigamesOfWords(prompt)?.words ?? []) {
@@ -661,7 +693,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     const tradition = settingOfGame(readGameworld(world)).tradition ?? 'anime';
     // (a hub's town is lived in: its folk (folk-cast.js), each to talk to, its shopkeeper the merchant and a keeper
     // the inn where the world's battles have them)
-    world.characters = { ...frame.characters, direction: { ...frame.characters.direction, tradition }, ...(world.hub ? { folk: true } : {}) };
+    world.characters = { ...frame.characters, direction: { ...frame.characters.direction, tradition }, ...(world.hub ? { folk: roundTalk(world) ?? true } : {}) };
     if (frame.moves) world.moves = true;
     // (and DESIGNED, where nothing else designs it (hero-design.js: a game that reads no body rail): rolled as a person of
     // this world, its protagonist, its sheet's plan laid as the looks pages in the pages' own words, its garment the

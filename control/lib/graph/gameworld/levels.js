@@ -155,6 +155,7 @@ import { industrialPlan, industrialManifest } from './mission-industrial.js';
 import { roleOf } from '../era/stocking.js';
 import { camoForSetting } from '../car-designer/livery-cut.js';
 import { gridEnds } from '../level/grid-ends.js';
+import { isPaged } from '../folk/pages.js';
 
 // the world's juice (juice.js): its effects' floor, composed from its register and its game type, on every level; none
 // written, nothing laid
@@ -1191,6 +1192,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   }
   // (its jobs kept in its journal: each errand a quest, its legs the steps, city-guide.js jobQuests)
   if (ways?.quests?.length) extraPlay = mergePlay(extraPlay, { quests: ways.quests });
+  if (ways?.savePoint) extraPlay = mergePlay(extraPlay, ways.savePoint.play);
   let play;
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? mergePlay(mechanics?.play ?? {}, extraPlay) : mechanics?.play ?? null, { story, carryFrom, party, castFigures }));
   // (a level on lives shows them, not the hp bar, and no level badge: the lives and coins counters say the run; and the
@@ -1390,6 +1392,11 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
     const actors = storyActors(G);
     play = { ...(play ?? {}), spots: [...(play?.spots ?? []), ...spots], scenes: [...(play?.scenes ?? []), ...scenes], ...(storyCarried(G) ? { carry: STORY_SLICE } : {}), ...(from ? { carryFrom: from } : {}), ...(actors ? { actors } : {}) };
   }
+  // (the play's own scenes that read the store, a townsperson's pages, folk/pages.js: carried and read as the story's are)
+  else if (play?.scenes?.length) {
+    const asks = sceneNeeds({ scenes: play.scenes });
+    if (asks.flags.length || asks.items.length || asks.done.length) play = { ...play, ...(storyCarried(G) ? { carry: STORY_SLICE } : {}), ...(carryFrom && (asks.items.length || asks.done.length) ? { carryFrom } : {}) };
+  }
   return { pilotPart, play };
 }
 
@@ -1407,6 +1414,8 @@ export const storyCarried = (G) => Object.values(G.scenes ?? {}).some((list) => 
   || sceneFlags({ scenes: (G.story ?? []).map((m) => storyScene(m)) }).length > 0 || !!G.quests?.length
   // (a megaworld's zones are gone back to: what was won in one stays won, rpg.js wonFlag)
   || !!G.megaworld
+  // (a townsperson's pages read the story's flags, folk/pages.js)
+  || Object.values((G.characters?.folk && typeof G.characters.folk === 'object' && G.characters.folk.say) || {}).some(isPaged)
   || Object.values(G.characters?.cast ?? {}).some((m) => m.joins);
 
 /**
@@ -1608,6 +1617,8 @@ export function mapPlan(G, stages, refs) {
     plan[first].back.push({ to: refs[last] });
     if (l.key) { const at = of(l.keyAt); plan[at[at.length - 1]][slice === 'powers' ? 'powers' : 'keys'].push(l.key); }
   }
+  // (a megaworld's SAVE POINTS: a saving zone's first stage keeps one where the party comes in, a way to itself)
+  for (const id of G.megaworld?.saves ?? []) { const ix = of(id); if (ix.length) plan[ix[0]].savePoint = refs[ix[0]]; }
   // the errands' legs on each level's last stage (errand.js): its trades and bounties, the giver's hand-in, the cargo
   for (const id of G.ids) { const ix = of(id); if (ix.length) plan[ix[ix.length - 1]].errand = errandLegs(G.errands, id); }
   // (a zone's gate keeps its side's name; the rest are counted, on and back)
@@ -1690,6 +1701,9 @@ function heldWays(G, stage, ends, plan, mechanics) {
   return Object.assign(out, { hold });
 }
 
+// a save point's way and its words: its exit's id on the game's exits, the event its yes raises, how far it stands from
+// where the party comes in, its reach, and how far from it one who saved is set down again
+export const SAVE_POINT = Object.freeze({ exit: 'save', event: 'save-here', aside: 3, reach: 2, back: 2.5, ask: 'Save your journey here?' });
 function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law = null, city = {}) {
   // (a glyph map's ends carry its ways as a trail's do, level/grid-ends.js: a zone of a megaworld)
   // (a town's and a district's walk carries them too: its far end the way on, its start the way back, levels.js geotownEnds)
@@ -1896,7 +1910,17 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
   // faction's fight): blows cost it, quiet mends it, and at none the player is wasted, billed and set down at the start
   if (cityStage(stage) && (ends.parked?.length ?? 0) > 0 && (police || encounter)) mechanics.push({ kind: 'vitals', ...VITALS_CITY, ...(city.bag ? { bill: VITALS_BILL } : {}), back: ends.spawn.slice() });
   const save = cityStage(stage) && (ends.parked?.length ?? 0) > 0 && (stoodGivers.length || mechanics.some((m) => m.kind === 'task' || m.kind === 'join')) ? CITY_SAVE : null;
-  return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })), ...(quests.length ? { quests } : {}), ...(stoodGivers.length ? { givers: stoodGivers } : {}), ...(encounter ? { encounter } : {}), ...(police ? { police } : {}), ...(save ? { save } : {}) };
+  // THE SAVE POINT (a megaworld's saves): beside where the party comes in, a press there asks, and yes steps out by a
+  // way to this same map (the store written as at any crossing), arriving a step from it
+  let savePoint = null;
+  if (plan.savePoint) {
+    const h2 = h + Math.PI / 2, at = [r3(ends.spawn[0] + SAVE_POINT.aside * Math.cos(h2)), r3(ends.spawn[1] + SAVE_POINT.aside * Math.sin(h2)), ends.spawn[2]];
+    mechanics.push({ kind: 'reach-exit', exit: SAVE_POINT.exit, by: SAVE_POINT.event, at });
+    arrive.push({ from: plan.savePoint, at: toward(at, ends.spawn, SAVE_POINT.back) });
+    savePoint = { at, play: { cues: [{ id: 'save-point', when: { use: { at: [at[0], at[1]], r: SAVE_POINT.reach }, prompt: 'Save' }, then: { open: 'save-point' } }],
+      menus: [{ id: 'save-point', kind: 'confirm', ask: SAVE_POINT.ask, yes: [{ emit: SAVE_POINT.event }] }] } };
+  }
+  return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })), ...(quests.length ? { quests } : {}), ...(stoodGivers.length ? { givers: stoodGivers } : {}), ...(encounter ? { encounter } : {}), ...(police ? { police } : {}), ...(save ? { save } : {}), ...(savePoint ? { savePoint } : {}) };
 }
 
 // A PLAYED CITY'S SAVE (scene/channels/game.js `save`): the bus vars that hold its progress (the jobs' and factions'
@@ -1990,7 +2014,7 @@ export function gameLevels(stages, refs, plan = null) {
     return stages.map((s, i) => {
       // a city's segment leaves by its portals too, each named for the neighbour it leads to
       const portals = s.section === 'city' ? s.city.neighbours.map((id) => ({ id, to: refs[stages.findIndex((x) => x.level === s.level && x.node === id)] })).filter((x) => x.to) : [];
-      const exits = [...plan[i].on, ...plan[i].back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })).concat(portals);
+      const exits = [...plan[i].on, ...plan[i].back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })).concat(portals, plan[i].savePoint ? [{ id: SAVE_POINT.exit, to: plan[i].savePoint }] : []);
       return { ref: refs[i], title: stageTitle(s), ...(exits.length ? { exits } : {}) };
     });
   }

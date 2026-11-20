@@ -141,7 +141,8 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     // (a bare HUD look draws no pause button under a mouse: the media a mana-ui shell asks, said only by such a game)
     ...(bareHud && ui ? { bareHud: '(hover:hover) and (pointer:fine)' } : {}),
     // THE SCREENS IN MANA-UI (play-shell-mana.js): the game's ui, its look resolved; absent, no key and none of it inlined
-    ...(ui ? { mana: hasPicks ? shellManaConfig(ui, { picks: true }) : shellManaConfig(ui) } : {}),
+    // (the pick screen too where the turns ask for picks, or the title asks which save: `slots`)
+    ...(ui ? { mana: hasPicks || (Number.isInteger(manifest.slots) && manifest.slots > 1) ? shellManaConfig(ui, { picks: true }) : shellManaConfig(ui) } : {}),
   };
   // (with mana-ui the front's words are drawn by it: the front's own sheet and code stay out)
   const mana = !!cfg.mana, front = !!cfg.front && !mana;
@@ -290,43 +291,58 @@ export function playShellRuntime(cfg, K) {
   }
 
   // ---- the store: a save in localStorage for a game, memory for a playtest ----
-  const SAVE_KEY = 'moj-play:' + M.title;
-  const SET_KEY = SAVE_KEY + ':settings';
+  // (ROOT: the game's own keys, its settings, runs and bests; the save and what goes with it are a SLOT's, below)
+  const ROOT = 'moj-play:' + M.title;
+  const SET_KEY = ROOT + ':settings';
   const mem = {};
   let storage = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = v; }, removeItem: (k) => { delete mem[k]; } };
   if (!PLAYTEST) {
-    try { localStorage.setItem(SAVE_KEY + ':probe', '1'); localStorage.removeItem(SAVE_KEY + ':probe'); storage = localStorage; }
+    try { localStorage.setItem(ROOT + ':probe', '1'); localStorage.removeItem(ROOT + ':probe'); storage = localStorage; }
     catch (e) { /* file:// or blocked storage: this session only */ }
   }
   let settings = { sfxOn: true };
   try { const s = JSON.parse(storage.getItem(SET_KEY) || 'null'); if (s && typeof s === 'object') settings = Object.assign(settings, s); } catch (e) { /* fresh prefs */ }
   const saveSettings = () => { try { storage.setItem(SET_KEY, JSON.stringify(settings)); } catch (e) { /* session only */ } };
 
+  // SAVE SLOTS (the game's `slots`, game-manifest.js): the save, the flow's steps it has seen and a level's own progress
+  // kept under the slot in use, slot 1 the game's own keys (a game saved before it had slots continues as its first);
+  // the slot in use kept beside the settings, and asked at the title's play or continue (slotAsk)
+  const SLOTS = Number.isInteger(M.slots) && M.slots > 1 ? M.slots : 0, SLOT_KEY = ROOT + ':slot';
+  const slotRoot = (n) => (n > 1 ? ROOT + ':slot' + n : ROOT);
+  let slot = 1;
+  if (SLOTS) { const n = Number(storage.getItem(SLOT_KEY)); if (Number.isInteger(n) && n >= 1 && n <= SLOTS) slot = n; }
+  let SAVE_KEY = slotRoot(slot);
   let state, runLog;
   // the flow's steps this save has entered (its cinematics: an opening plays on a first boot, the flow's `unseen`), kept
   // beside the save and cleared with it
-  const SEEN_KEY = SAVE_KEY + ':seen';
+  let SEEN_KEY = SAVE_KEY + ':seen';
   let seenSteps = {};
-  try { const v = JSON.parse(storage.getItem(SEEN_KEY) || 'null'); if (v && typeof v === 'object') seenSteps = v; } catch (e) { /* none seen */ }
   function freshStore() { state = K.createStore(SCHEMA); runLog = []; }
   // a reset (the player's, the drawer's): the store anew, and what the flow has shown forgotten with it (a first boot's
   // fresh store keeps it: a player who has seen the opening and not yet finished a level has no save, and has seen it)
   // THE LEVEL'S OWN SAVE (level-contract.js MSG_SAVE, a level that keeps its progress: the open city, one long level):
   // the newest of each level's, kept beside the store; continue goes to the last one saved and hands it back on its
   // launch (params.__resume); a reset or a new game forgets it. A game whose levels keep none: nothing of it runs
-  const PROGRESS_KEY = SAVE_KEY + ':progress';
+  let PROGRESS_KEY = SAVE_KEY + ':progress';
   let progress = {};
-  if (W.save) { try { const v = JSON.parse(storage.getItem(PROGRESS_KEY) || 'null'); if (v && typeof v === 'object') progress = v; } catch (e) { /* none kept */ } }
   const keepProgress = () => { try { storage.setItem(PROGRESS_KEY, JSON.stringify(progress)); } catch (e) { /* session only */ } };
   function resetStore() { freshStore(); seenSteps = {}; try { storage.removeItem(SEEN_KEY); } catch (e) { /* session only */ } if (W.save) { progress = {}; try { storage.removeItem(PROGRESS_KEY); } catch (e) { /* session only */ } } }
-  (function boot() {
+  // a slot taken up: its keys, then its save, what it has seen and its own progress read (none: a fresh store)
+  function loadSlot(n) {
+    slot = n; SAVE_KEY = slotRoot(n); SEEN_KEY = SAVE_KEY + ':seen'; PROGRESS_KEY = SAVE_KEY + ':progress';
+    if (SLOTS) { try { storage.setItem(SLOT_KEY, String(n)); } catch (e) { /* session only */ } }
+    seenSteps = {};
+    try { const v = JSON.parse(storage.getItem(SEEN_KEY) || 'null'); if (v && typeof v === 'object') seenSteps = v; } catch (e) { /* none seen */ }
+    progress = {};
+    if (W.save) { try { const v = JSON.parse(storage.getItem(PROGRESS_KEY) || 'null'); if (v && typeof v === 'object') progress = v; } catch (e) { /* none kept */ } }
     const raw = storage.getItem(SAVE_KEY);
     if (raw) {
       const p = K.parseSave(raw);
       if (p.ok) { state = p.save.storeState; runLog = p.save.runLog; return; }
     }
     freshStore();
-  })();
+  }
+  loadSlot(slot);
   const persist = () => { try { storage.setItem(SAVE_KEY, K.makeSave(state, runLog)); } catch (e) { /* session only */ } };
 
   const progression = (SCHEMA.slices.filter((s) => s.kind === 'progression')[0] || {}).name;
@@ -388,7 +404,7 @@ export function playShellRuntime(cfg, K) {
 
   // ---- RUNS (manifest.run): each run draws `length` of the levels in an order rolled from its number; a clear goes on
   // to the next, a death ends the run; the store carries over from run to run; the deepest run is kept ----
-  const RUN = cfg.run || null, RUNS_KEY = SAVE_KEY + ':runs', DEEP_KEY = SAVE_KEY + ':deepest';
+  const RUN = cfg.run || null, RUNS_KEY = ROOT + ':runs', DEEP_KEY = ROOT + ':deepest';
   let run = null;
   const num = (k) => { try { return Number(storage.getItem(k)) || 0; } catch (e) { return 0; } };
   const keep = (k, v) => { try { storage.setItem(k, String(v)); } catch (e) { /* this session only */ } };
@@ -815,7 +831,7 @@ export function playShellRuntime(cfg, K) {
   function keptList(lv, env) {
     const fmt = (k, v) => (Number.isInteger(v) ? String(v) : v.toFixed(1)) + (k.unit || '');
     return el('ul', { cls: 'gains' }, env.stats.kept.map((k) => {
-      const key = SAVE_KEY + ':best:' + lv.ref + ':' + k.label, v = Number(k.value);
+      const key = ROOT + ':best:' + lv.ref + ':' + k.label, v = Number(k.value);
       let prior = null;
       try { const s = storage.getItem(key); prior = s === null ? null : Number(s); } catch (e) { /* no memory */ }
       const counts = Number.isFinite(v) && (k.best === 'high' || env.result === 'success');
@@ -898,6 +914,7 @@ export function playShellRuntime(cfg, K) {
     runTitle: () => { if (!RUN) return null; const deep = num(DEEP_KEY), runs = num(RUNS_KEY); return { rules: RUN.repeat ? RUN.length + ' maps, rolled anew each run. Fall, and it ends.' : RUN.length + ' of ' + LEVELS.length + ' levels, drawn anew each run. Fall, and it ends.', best: runs ? 'best ' + deep + ' of ' + RUN.length + ' · ' + runs + ' run' + (runs === 1 ? '' : 's') : '', runs }; },
     // the pause, as mana-ui's pause menu drives it
     turn: { pick: turnPick, confirm: () => turnStep({ pick: (turn.draft || []).slice() }), back: () => turnStep('back') },
+    slot: { pick: slotPick, asking: () => !!slotFor, back: () => { slotFor = null; } },
     // (a level is the player's: in play, not paused, no trigger on; a bare HUD draws no button under a mouse)
     playing: () => screen === 'level' && pauseBtn.style.display === 'block' && !paused && !(cfg.bareHud && window.matchMedia && window.matchMedia(cfg.bareHud).matches),
     pause: {
@@ -947,7 +964,33 @@ export function playShellRuntime(cfg, K) {
   // does the step the game is on take this event (a screen draws only the buttons its step leads somewhere from)
   function onOf(event) { const s = FLOW.steps[at.step]; return !!(s && ((s.on && s.on[event] !== undefined) || (!s.on && s.next !== undefined))); }
   // an event on the step the game is on: where it leads is entered (false: it leads nowhere)
+  // THE SLOT ASKED (SLOTS, mana-ui's pick screen): the title's play or continue first asks which save, each slot said by
+  // where its party stands; play in a slot begins it anew, continue in an empty one plays it from the start
+  let slotChosen = false, slotFor = null;
+  function slotSays(n) {
+    const raw = storage.getItem(slotRoot(n)), p = raw ? K.parseSave(raw) : null;
+    if (!p || !p.ok) return { empty: true, tag: 'empty' };
+    const st = p.save.storeState, A = ATLAS && st[ATLAS.slice] ? st[ATLAS.slice].flags : null, lastRef = A && A.at ? A.at : (p.save.runLog.length ? p.save.runLog[p.save.runLog.length - 1].levelRef : null);
+    const lv = LEVELS.find((l) => l.ref === lastRef), maps = A ? Object.keys(A).filter((k) => k.indexOf('been:') === 0).length : 0;
+    return { empty: false, tag: (lv ? lv.title : 'begun') + (maps ? ' · ' + maps + ' places' : '') };
+  }
+  function slotAsk(event, more) {
+    slotFor = { event, more };
+    const rows = [];
+    for (let n = 1; n <= SLOTS; n++) { const d = slotSays(n); rows.push({ id: String(n), name: 'Slot ' + n, tag: d.tag, about: '', stats: [], mark: n === slot ? 'picked' : '', then: { emit: 'slot:pick', id: String(n) } }); }
+    MANA.pick({ title: M.title, ask: event === 'continue' ? 'Continue which journey?' : 'Begin in which slot?', hint: event === 'play' ? 'a journey kept there is begun anew' : '', step: 1, steps: 0, chosen: [], faces: false, many: false, short: false, shortWhy: '', why: '', rows }, true);
+  }
+  function slotPick(id) {
+    const n = Number(id), f = slotFor;
+    if (!f || !(n >= 1 && n <= SLOTS)) return;
+    slotFor = null; slotChosen = true;
+    const empty = slotSays(n).empty;
+    loadSlot(n);
+    if (f.event === 'play') { resetStore(); persist(); }
+    go(f.event === 'continue' && empty ? 'play' : f.event, f.more);
+  }
   function go(event, more) {
+    if (SLOTS && MANA && !slotChosen && !slotFor && (event === 'play' || event === 'continue') && FLOW.steps[at.step] && FLOW.steps[at.step].screen === 'title') { slotAsk(event, more); return true; }
     const m = more || {}, next = FK.stepFlow(FLOW, at.step, event, flowCtx(Object.assign({}, m, { level: at.level })));
     if (!next) return false;
     enter(next, m);

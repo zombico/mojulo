@@ -14,7 +14,8 @@ const GAME = normalizeGameManifest({
   atlas: { slice: 'atlas', shape: 'mandala', rings: [['town'], ['woods'], ['core']] },
   links: [{ from: { ref: 'woods', door: 'hut' }, to: { ref: 'core', door: 'hut' } }],
   levels: [
-    { ref: 'town', title: 'Town', exits: [{ id: 'on', to: 'woods' }] },
+    // (its save point: a way to itself, gameworld/levels.js stageWays `savePoint`)
+    { ref: 'town', title: 'Town', exits: [{ id: 'on', to: 'woods' }, { id: 'save', to: 'town' }] },
     { ref: 'woods', title: 'Woods', exits: [{ id: 'back', to: 'town' }, { id: 'on', to: 'core', gate: { has: 'seal', slice: 'bag' } }] },
     { ref: 'core', title: 'Core', exits: [{ id: 'back', to: 'woods' }] },
   ],
@@ -110,6 +111,20 @@ describe('the play shell\'s atlas', () => {
     const S = await page.evaluate(() => window.__seen);
     expect(S.map((x) => x.ref)).toEqual(['town', 'woods', 'core']);
     expect(S[2].seal).toBe(1);
+    await page.close();
+  }, 60000);
+
+  it('saves at a save point by stepping out: the same map loaded again, arrived at from itself, the store written as at any crossing', async () => {
+    if (!browser) return;
+    const page = await open([{ exit: 'save', grant: 'seal' }, null]);
+    await seen(page, 2);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(await page.evaluate(() => window.__seen)).toEqual([{ ref: 'town', arrive: null, seal: 0 }, { ref: 'town', arrive: 'town', seal: 1 }]);
+    const S = await saved(page);
+    expect(S.bag.items.seal).toBe(1);
+    expect(S.atlas.flags).toMatchObject({ at: 'town', from: 'town' });
+    // (saving completes nothing)
+    expect(S.campaign.completed).toEqual({});
     await page.close();
   }, 60000);
 });

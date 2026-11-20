@@ -74,6 +74,11 @@ const MECHANICS = {
       // place of `needs` where a way has both
       const held = p.holds && Number.isFinite(p.holds.count) && p.holds.count > 0 ? { v: `__held_${ctx.i}`, who: typeof p.holds.who === 'string' && p.holds.who ? p.holds.who : 'foe-*', count: p.holds.count } : null;
       const gate = held ? { if: { var: held.v, gte: held.count } } : typeof p.needs === 'string' && p.needs ? { if: { var: `flag-${p.needs}`, eq: 1 } } : {};
+      // `by`: an event that takes the way, never walked into (a save point's yes: levels.js stageWays `savePoint`)
+      if (typeof p.by === 'string' && p.by) {
+        const type = p.exit ? `goal:reached:${p.exit}` : 'goal:reached';
+        return { world: { reactions: [{ on: p.by, do: 'emit', type }] }, on: { [type]: p.exit ? { end: 'success', exit: p.exit } : { end: 'success' } } };
+      }
       return {
         world: {
           ...(held ? { vars: { [held.v]: 0 } } : {}),

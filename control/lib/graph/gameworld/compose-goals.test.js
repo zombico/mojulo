@@ -7,6 +7,7 @@ import { readBattle } from '../playscape/ui/battles.js';
 import { withBuildingLevel } from '../structure/level.js';
 import { assembleStageScene } from '../era/stage.js';
 import { megaworldLinks, megaworldLaws } from './megaworld.js';
+import { WILDS } from './world-map.js';
 
 const levelSteps = (S) => S.filter((s) => s.key.startsWith('level-'));
 // a made level's game channel as it plays (a building's is lowered from its `level` on every read)
@@ -224,18 +225,28 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
     expect(last.goal).toMatchObject({ boss: true });
     expect(W.levels[W.brief.round.castle].places.castle).toBeTruthy();
     expect(W.brief.round).toMatchObject({ dungeon: ids[ids.length - 1], trades: ['inn', 'temple'] });
+    // (its UI the console RPG's plain blue windows, its fights one member's turn at a time)
+    expect(W.ui).toEqual({ theme: 'classic-rpg', colour: 'theme' });
+    expect(W.battles.rules).toMatchObject({ turns: 'timeline', foeHp: 'bar' });
   });
 
   it('is laid as a mandala: the town outermost, the wilds and the castle round it, the dungeon the core behind the castle\'s key', () => {
     const core = ids[ids.length - 1], castle = W.brief.round.castle;
     expect(W.megaworld).toMatchObject({ shape: 'mandala', rings: [[W.hub], expect.arrayContaining([castle]), [core]], gates: { [core]: { key: 'crypt-key', keyAt: castle } } });
     expect(W.megaworld.rings[1]).toHaveLength(ids.length - 2);
+    // (its wilds the world map's blocks walked out from the town, world-map.js wildsLevel; the castle and the core as laid)
+    const wilds = W.megaworld.rings[1].filter((id) => id !== castle);
+    expect(wilds.length).toBeGreaterThan(0);
+    for (const id of wilds) expect(W.levels[id].glyphs.plan.route).toHaveLength(WILDS.length);
+    expect(W.levels[castle].walk).toBeTruthy();
     // (its links the megaworld's: a road from the town to each of the second ring, the core's way gated by its key)
     expect(W.links).toEqual(megaworldLinks(W.megaworld));
     expect(W.links.filter((l) => l.from === W.hub).map((l) => l.to).sort()).toEqual([...W.megaworld.rings[1]].sort());
     expect(W.links.find((l) => l.to === core)).toMatchObject({ kind: 'gate', key: 'crypt-key', keyAt: castle });
     expect(megaworldLaws(W.megaworld).every((L) => L.ok)).toBe(true);
     expect(W).toMatchObject({ hub: ids[0], start: ids[0], topology: 'interconnected' });
+    // (its save points: the town and each stretch of the wilds where the party comes in; never the castle or the core)
+    expect(W.megaworld.saves).toEqual([W.hub, ...wilds]);
     expect(W.brief.round.mandala).toMatchObject({ core, key: 'crypt-key', keyAt: castle });
     // (without a dungeon the castle is the core, its key in the farthest wilds; with neither, the farthest wilds')
     const C = composeGameworld({ prompt: 'a jrpg: a fortified town with a castle' }), cid = Object.keys(C.levels);
@@ -248,7 +259,7 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
   it('stands on the green valley\'s cube, gritty, each place its own flora: the wilds in groves by a lake, the castle on the upland', () => {
     expect(W.brief.cube).toMatchObject({ id: 'valley-morning', from: 'a party RPG round its town' });
     expect(W.style.geocube).toMatchObject({ from: 'valley-morning', grit: 0.5 });
-    const castle = W.brief.round.castle, wilds = ids.filter((id, i) => i > 0 && W.levels[id].walk && id !== castle);
+    const castle = W.brief.round.castle, wilds = ids.filter((id, i) => i > 0 && W.levels[id].glyphs);
     expect(wilds.length).toBeGreaterThan(0);
     expect(W.levels[wilds[0]].style.geocube).toMatchObject({ from: 'valley-morning', biocube: 'grove', outside: { water: { lake: true } } });
     expect(W.levels[castle].style.geocube).toMatchObject({ biocube: 'upland' });
@@ -257,7 +268,9 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
     const N = composeGameworld({ prompt: 'a gothic jrpg: a fortified town with a castle, a dungeon with a boss' });
     expect(N.brief.cube).toMatchObject({ id: 'gothic-night', word: 'gothic' });
     const D = composeGameworld({ prompt: 'a desert jrpg: a fortified town with a castle, a dungeon with a boss' });
-    expect(Object.values(D.levels).every((L) => L.style?.geocube?.biocube === undefined)).toBe(true);
+    // (none its own: the quiet wilds wear the world's cube, its grit off, world-map.js wildsLevel)
+    expect(Object.values(D.levels).every((L) => [undefined, D.style.geocube.biocube].includes(L.style?.geocube?.biocube))).toBe(true);
+    expect(Object.values(D.levels).filter((L) => L.glyphs).every((L) => L.style.geocube.grit === 0)).toBe(true);
   });
 
   it('a hub game that names neither keeps its old shape: the town, the wilds, the last raising its castle', () => {
@@ -272,6 +285,15 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
     const S = steps();
     const town = levelSteps(S).find((s) => s.order.manifest.town);
     expect(town.order.manifest.town.enter).toEqual(['shop', 'inn', 'temple']);
+    // (the priest follows the story, folk/pages.js: where the core's key is kept until it is held, then that the way is
+    // open; a scene a page on their one talk, and the town's play reads the bag and carries the story's flags for them)
+    const M = town.order.manifest, priest = M.play.scenes.filter((x) => /-p\d/.test(x.id));
+    expect(W.characters.folk.say.priest).toHaveLength(2);
+    expect(W.brief.round.talk).toEqual({ who: 'priest', pages: 2, on: 'crypt-key' });
+    expect(priest.map((x) => x.if)).toEqual([[{ has: 'crypt-key' }], [{ var: 'has-crypt-key', ne: 1 }]]);
+    expect(new Set(priest.map((x) => x.when.on)).size).toBe(1);
+    expect(M.play.carryFrom).toBeTruthy();
+    expect(M.play.carry).toBeTruthy();
     expect(levelSteps(S).some((s) => s.key.startsWith(`level-${ids[ids.length - 1]}`))).toBe(true);
   }, 180000);
 
@@ -288,9 +310,28 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
     expect(way?.gate).toMatchObject({ has: 'crypt-key' });
     expect(game.levels.filter((l) => l.ref.startsWith(`gw-level-${core}-`)).flatMap((l) => l.exits).some((e) => e.to.startsWith(`gw-level-${far}-`))).toBe(true);
     expect(game.atlas).toMatchObject({ shape: 'mandala', rings: [[`gw-level-${W.hub}-0`], expect.any(Array), [`gw-level-${core}-0`]] });
-    // (the field's stretches each roll their own packs: a region's encounters are the stage's)
+    // (a save point where the party comes in to the town: a way to the town itself, taken by its yes, arrived at beside it)
+    const town0 = `gw-level-${W.hub}-0`, T = levelSteps(S).find((s) => s.ref === town0).order.manifest;
+    expect(game.levels.find((l) => l.ref === town0).exits).toContainEqual({ id: 'save', to: town0 });
+    // (a game with save points offers its title three save slots)
+    expect(game.slots).toBe(3);
+    expect(T.game.mechanics).toContainEqual(expect.objectContaining({ kind: 'reach-exit', exit: 'save', by: 'save-here' }));
+    expect(T.game.arrive).toContain(town0);
+    expect(T.play.menus).toContainEqual(expect.objectContaining({ id: 'save-point', kind: 'confirm', yes: [{ emit: 'save-here' }] }));
+    expect(T.play.cues).toContainEqual(expect.objectContaining({ id: 'save-point', then: { open: 'save-point' } }));
+    // (none in the castle or the core)
+    for (const id of [W.brief.round.castle, core]) expect(game.levels.filter((l) => l.ref.startsWith(`gw-level-${id}-`)).flatMap((l) => l.exits ?? []).some((x) => x.id === 'save')).toBe(false);
+    // (the wilds a world map in their ring, a block a page: the first's way back to the town, gates between the blocks, a
+    // pack on each block past the first; the core's way on from the far block)
+    const pages = levelSteps(S).filter((s) => s.key.startsWith(`level-${ids[1]}-`)).map((s) => s.order.manifest);
+    expect(pages.map((m) => [m.kind, m.level.zone, m.level.geocube.grit])).toEqual(['A', 'B', 'C'].map((z) => ['map', z, 0]));
+    expect(pages.map((m) => (m.play?.rpg?.encounters ?? []).length)).toEqual([0, 1, 1]);
+    const exitsOf = (m) => m.game.mechanics.filter((x) => x.kind === 'reach-exit').map((x) => x.exit);
+    // (the first block keeps the wilds' save point where the party comes in from the town)
+    expect(pages.map(exitsOf)).toEqual([['gate-e', 'back', 'save'], ['gate-w', 'gate-e'], ['gate-w', 'on']]);
+    // (on the wilds, every block a pack stands in rolls them: the first, where the town opens on them, none)
     const field = levelSteps(S).filter((s) => s.key.startsWith(`level-${ids[1]}-`)).map((s) => s.order.manifest.play?.rpg?.random?.sets);
-    expect(field.every((sets) => Array.isArray(sets) && sets.length > 0)).toBe(true);
+    expect(field.slice(1).every((sets) => Array.isArray(sets) && sets.length > 0)).toBe(true);
     expect(levelSteps(S).find((s) => s.key.startsWith(`level-${W.hub}-`)).order.manifest.play?.rpg?.random).toBeUndefined();
   }, 180000);
 

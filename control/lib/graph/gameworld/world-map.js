@@ -43,6 +43,12 @@
  *                                             roles, which stand them: foe-casting.js) for n levels'
  *                                             worth of world: the opening (one block), the first zone (two) and
  *                                             n − 1 zones more; `zoned` its pages of several blocks
+ *   wildsLevel({ landscape?, at? })           → a PARTY RPG's wilds (compose.js, a turn-based round's second ring):
+ *                                             the same blocks, a stretch of them walked out from the town, a block a
+ *                                             page (zoned), each laid by its template; a pack on each block's way past the first
+ *                                             (level/map-items.js: the far block a passage, its way going on to the
+ *                                             next ring), none in the block the town opens on. `at`: which stretch
+ *   WILDS                                    → its blocks: each a name and a template, the first where it sets out
  *   WORLD_MAP                                → its numbers (the block's size and tile, the first zone's blocks, the
  *                                             blocks' templates)
  *   PLACE_LIGHT                              → each place's light, a shift on the world's palette (a row a place)
@@ -129,6 +135,26 @@ function terraces(G, steps) {
     }
   }
   return Object.fromEntries(Object.entries(P.segments).map(([S, v]) => [S, Array.from({ length: n }, (_, r) => Array.from({ length: n }, (_, c) => z[(v.at[0] + r) * G.cols + v.at[1] + c]).join(' '))]));
+}
+
+/** A PARTY RPG'S WILDS: the blocks walked out from the town, in turn; the second of a round's wilds on is its own
+ * stretch (`at`), the same blocks under other names, so no two stretches read alike. A row a block. */
+export const WILDS = Object.freeze([
+  Object.freeze({ names: Object.freeze(['the {land} road', 'the river path', 'the hill road']), fill: 'through' }),
+  Object.freeze({ names: Object.freeze(['the old ruins', 'the marsh crossing', 'the high pass']), fill: 'loop' }),
+  Object.freeze({ names: Object.freeze(['the far wilds', 'the old outpost', 'the watchtower']), fill: 'crossroads' }),
+]);
+export function wildsLevel({ landscape = 'meadow', at = 0 } = {}) {
+  const letters = LETTERS.slice(0, WILDS.length).split(''), last = letters[letters.length - 1];
+  const name = (b) => b.names[at % b.names.length].replace('{land}', landscape);
+  // (the far block a passage, not a climax: the boss is the core's, and the way goes on from here)
+  const key = Object.fromEntries(WILDS.map((b, i) => [letters[i], { name: name(b), fill: b.fill, ...(letters[i] === last ? { role: 'passage' } : {}) }]));
+  // (each place's light, as the world map's: a row a place, home's where none)
+  for (const S of letters) { const L = PLACE_LIGHT[key[S].name]; if (L) key[S] = { ...key[S], palette: { shift: { ...L.shift } } }; }
+  const plan = { size: WORLD_MAP.size, rows: [letters.join(' ')], route: letters, key };
+  // (a block a page, level/zones.js, as the world map's zones after its first: three blocks on one page weigh as much as
+  // a whole town's; each crossed into at the plan's gates)
+  return { glyphs: { tile: WORLD_MAP.tile, plan, zoned: [], far: true, shrubs: { count: WORLD_MAP.shrubs } } };
 }
 
 /** The world map's level for n levels' worth of world (1 to 6): its plan, its blocks' rows, its scenario. */

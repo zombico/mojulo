@@ -445,7 +445,7 @@ describe('the bars over the fighters\' heads', () => {
   };
   // (the scene's projection: a plain one, the field seen from the side)
   const project = (x, y, z) => [400 + 30 * x, 500 - 30 * z, 0.5];
-  it('each member a bar over its head, no name; the one picking marked; the target in focus marked; a status said; the window steps aside as a round plays', () => {
+  it('each fighter a bar over its head, a foe\'s too, no name; the one picking marked; the target in focus marked; a status said; the window and the bars without news step aside as a round plays', () => {
     const P = page(PLAY, {}, null, { __mojCtrl: { world: world(), cast() {}, ground: () => 0, project } });
     processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
     P.frames(); P.api.advance(); P.frames();
@@ -453,12 +453,14 @@ describe('the bars over the fighters\' heads', () => {
     expect(head('ayla').querySelector('.mana-badge[data-turn]')).not.toBeNull();
     expect(head('ayla').querySelector('.mana-bar[data-variant=hp]')).not.toBeNull();
     expect(head('ayla').textContent).not.toContain('Ayla');
-    // (the one picking is Ayla; aiming an attack, the pack's figure is marked where it stands)
+    // (each foe its own bar on the player's turn; aiming an attack, the one in focus is marked over its head)
+    const foes = P.api.R.b.foes.map((x) => x.uid);
+    for (const f of foes) expect(head(f)).not.toBeNull();
     P.press('Enter');
     expect(P.api.state().level).toBe('target');
-    expect(head('fig-wolf-1').querySelector('.mana-badge[data-variant=strong]')).not.toBeNull();
+    expect(foes.some((f) => head(f).querySelector('.mana-badge[data-variant=strong]'))).toBe(true);
     P.press('Escape');
-    expect(head('fig-wolf-1')).toBeNull();
+    expect(foes.every((f) => !head(f).querySelector('.mana-badge[data-variant=strong]'))).toBe(true);
     // (a member poisoned: its head says so)
     P.api.R.m.ayla.poison = true; P.frames();
     expect(head('ayla').querySelector('.mana-status[title=poison]')).not.toBeNull();
@@ -467,13 +469,17 @@ describe('the bars over the fighters\' heads', () => {
     expect(H.state().mode).toBe('battle');
     for (let k = 0; k < 400 && H.state().mode === 'battle'; k++) { H.act('accept'); P.frames(); if (H.state().acting) break; }
     expect(H.state().acting).toBe(true);
-    expect(P.root.querySelector('.mana-anchors:not([data-pass])')).toBeNull();
+    // (no window up while it plays, and of the bars only those whose numbers just moved)
+    expect(P.root.querySelector('.mana-screen:not([data-leaving]) .mana-window')).toBeNull();
+    const all = P.api.R.b.ids.length + foes.length;
+    expect(P.root.querySelectorAll('.mana-hud .mana-anchors:not([data-pass]) .mana-anchor, .mana-anchors:not([data-pass]) .mana-anchor').length).toBeLessThan(all);
   });
-  it('a blow\'s number rises over whoever it lands on, each its own; the foes\' box keeps the foes\' health a bar', () => {
+  it('a blow\'s number rises over whoever it lands on, each its own; no foes\' box, a foe\'s health its bar\'s, never its numbers', () => {
     const P = page(PLAY, {}, null, { __mojCtrl: { world: world(), cast() {}, ground: () => 0, project } });
     processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
     P.frames(); P.api.advance(); P.frames();
-    expect(P.root.querySelector('.mana-place[data-at=bottom-right] .mana-bar .mana-num')).toBeNull();
+    expect(P.root.querySelector('.mana-place[data-at=bottom-right] .mana-window')).toBeNull();
+    for (const x of P.api.R.b.foes) expect(P.root.querySelector(`.mana-anchor[data-key="a${x.uid}"] .mana-num`)).toBeNull();
     const keys = new Set();
     for (let k = 0; k < 200 && P.api.state().mode === 'battle'; k++) {
       if (P.api.state().phase === 'command') P.press('Enter');

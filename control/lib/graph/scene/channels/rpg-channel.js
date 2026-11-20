@@ -235,7 +235,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     bagFrom();
     const out = K.start(cfg, R, enc, V());
     if (!out.length) return false;
-    mode = 'battle'; phase = 'intro'; beats = out; bi = 0; bt = 0; shown = {}; picks = {}; mi = 0; pend = null; boxes = { cmd: 'bottom-left', foes: 'bottom-right' };
+    mode = 'battle'; phase = 'intro'; beats = out; bi = 0; bt = 0; shown = {}; touched = {}; picks = {}; mi = 0; pend = null; boxes = { cmd: 'bottom-left', foes: 'bottom-right' };
     msg = out[0].text; show(out[0]);
     stage(); placeDue = 3;
     screen('rpg-watch');
@@ -495,7 +495,13 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     if (out.length) { msg = out[0].text; show(out[0]); }
     screen('rpg-watch');
   }
-  function note(b) { if (b && b.target != null && b.hp != null) shown[b.target] = b.hp; if (b && b.who != null && b.mp != null) shown[b.who + ':mp'] = b.mp; }
+  // (when each fighter's numbers last moved: off the player's turn, a bar shows only while it has news, TOLD_FOR ms)
+  let touched = {};
+  const TOLD_FOR = 1800, nowMs = () => (window.performance ? performance.now() : Date.now());
+  function note(b) {
+    if (b && b.target != null && b.hp != null) { if (shown[b.target] !== b.hp) touched[b.target] = nowMs(); shown[b.target] = b.hp; }
+    if (b && b.who != null && b.mp != null) { if (shown[b.who + ':mp'] !== b.mp) touched[b.who] = nowMs(); shown[b.who + ':mp'] = b.mp; }
+  }
   // a number where a blow lands: what it did told by its word (values first), how big by the juice's pop
   const POP_ROLE = { normal: 'numeral', small: 'caption', big: 'title', crit: 'display' };
   function pop(b) {
@@ -573,6 +579,26 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     const Wd = window.innerWidth || 960, Ht = window.innerHeight || 540, q = (v) => Math.round(v * 1000) / 1000;
     return { x: q(m[0] / Wd), y: q(m[1] / Ht), r: q(Math.max(0.02, (Math.abs(h[1] - m[1]) / Ht) * 1.1)) };
   }
+  // THE WINDOW BESIDE THE ONE ACTING: the member's bar as it was drawn (its anchor, keyed by the member's id) and the
+  // window's own size as drawn the frame before (a first frame, a guess), the window to the bar's right (its left near
+  // the right edge), its top at the bar's and held inside the screen, clear of its bottom; null while the bar is not on
+  // the screen (the window takes its corner)
+  const BESIDE = { gap: 10, edge: 12, size: [240, 200] };
+  function besideAt(m) {
+    const bar = root.querySelector('.mana-anchor[data-key="a' + m + '"]');
+    if (!bar) return null;
+    const r = bar.getBoundingClientRect(), Wd = window.innerWidth || 960, Ht = window.innerHeight || 540;
+    if (!(r.width > 0 && r.height > 0)) return null;
+    // (a window whose screen has closed stays a moment, leaving: data-leaving, never the one measured)
+    const win = root.querySelector('.mana-screen:not([data-leaving]) .mana-anchor[data-key="acmd"]'), q = win && win.getBoundingClientRect();
+    const w = q && q.width > 0 ? q.width : BESIDE.size[0], h = q && q.height > 0 ? q.height : BESIDE.size[1], E = BESIDE.edge;
+    let left = r.right + BESIDE.gap;
+    if (left + w > Wd - E) left = r.left - BESIDE.gap - w;
+    left = Math.max(E, Math.min(Wd - E - w, left));
+    const top = Math.max(E, Math.min(Ht - E - h, r.top));
+    // (an anchor stands its row's bottom middle on its point)
+    return [(left + w / 2) / Wd, (top + h) / Ht];
+  }
   function battleModel() {
     const b = R.b, cmd = phase === 'command', active = cmd ? commanders()[mi] : null, top = up(), lv = LEVEL[top] || 'cmd', aiming = cmd && top === 'rpg-target' && !!pend;
     const o = cmd && active ? K.options(cfg, R, active, V()) : { commands: [], skills: [], items: [] };
@@ -580,20 +606,30 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     const Wd = window.innerWidth || 960, Ht = window.innerHeight || 540, frac = (p) => [p[0] / Wd, p[1] / Ht];
     const hp = (id, now) => (shown[id] != null ? shown[id] : now);
     const named = !pend ? '' : pend.act === 'attack' ? CMD.attack : pend.act === 'skill' ? (cfg.skills[pend.skill] || {}).name : pend.act === 'item' ? (cfg.items[pend.item] || {}).name : '';
-    // the heads: one over each member's figure (members who share one, the pilot's, stacked; two that meet, the later
-    // lifted clear), and one over a foe's figure while a target is being chosen
-    const heads = [], stack = {};
+    // the heads: one over each fighter's figure, a member's and a foe's (those who share one, the pilot's or a pack's,
+    // stacked; two that meet, the later lifted clear). Up on the player's turn; while the round plays, only one whose
+    // numbers just moved (a blow, a heal, a spell's cost), for as long as it takes to read
+    const heads = [], stack = {}, now = nowMs(), news = (id) => cmd || now - (touched[id] == null ? -1e9 : touched[id]) < TOLD_FOR;
     for (const m of b.ids) {
-      const fig = figureOf(m), at = headAt(fig);
+      const fig = figureOf(m), at = news(m) ? headAt(fig) : null;
       if (!at) continue;
       const Mm = R.m[m], S = K.statsOf(cfg, R, m), s1 = b.side[m].st, k = stack[fig] = (stack[fig] || 0) + 1;
       const tags = [Mm.poison ? 'poison' : '', s1.sleep ? 'asleep' : '', s1.silence ? 'silenced' : ''].filter(Boolean);
       heads.push({ id: m, px: [at[0], at[1] - 44 * (k - 1)], world: [at[2][0], at[2][1], at[2][2] + 0.3 * (k - 1)], hp: hp(m, Mm.hp), hpMax: S.hp, mp: shown[m + ':mp'] != null ? shown[m + ':mp'] : Mm.mp, mpMax: S.mp > 0 ? S.mp : 0, statuses: tags.length ? tags : null, turn: m === active, foe: false });
     }
+    // (a foe's: its HP as a bar where the book shows foes' HP, rules.foeHp 'bar', never its numbers; a fallen foe's only
+    // while its fall is news)
+    for (const x of b.foes) {
+      const h0 = hp(x.uid, x.hp);
+      if (h0 <= 0 && !(touched[x.uid] != null && now - touched[x.uid] < TOLD_FOR)) continue;
+      const fig = figureOf(x.uid), at = news(x.uid) ? headAt(fig) : null;
+      if (!at) continue;
+      const k = stack[fig] = (stack[fig] || 0) + 1, st = x.st || {};
+      const tags = [x.poison ? 'poison' : '', st.sleep ? 'asleep' : '', st.silence ? 'silenced' : ''].filter(Boolean);
+      heads.push({ id: x.uid, px: [at[0], at[1] - 44 * (k - 1)], world: [at[2][0], at[2][1], at[2][2] + 0.3 * (k - 1)], hp: Math.max(0, h0), hpMax: x.max, foe: true, foeBar: cfg.rules.foeHp === 'bar', statuses: tags.length ? tags : null });
+    }
     const placed = heads.slice().sort((x, y) => y.px[1] - x.px[1]);
     for (let i = 0; i < placed.length; i++) for (let j = 0; j < i; j++) { const a = placed[i], c = placed[j]; if (Math.abs(a.px[0] - c.px[0]) < 86 && Math.abs(a.px[1] - c.px[1]) < 36) a.px[1] = c.px[1] - 37; }
-    const figs = {};
-    if (aiming) for (const x of b.foes) { const ff = figureOf(x.uid), at = !figs[ff] && headAt(ff); if (at) { figs[ff] = 1; heads.push({ id: 'fig-' + ff, px: [at[0], at[1]], world: at[2], foe: true }); } }
     for (const h of heads) { const [x, y] = frac(h.px); delete h.px; h.x = x; h.y = y; }
     // the numbers where blows land, over whoever took them (a foe over its own figure, or its pack's)
     const numbers = [];
@@ -608,6 +644,8 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       panels: !acting || filmUi === 'all', numbers: filmUi !== 'none', told: !!(beat && msg && TOLD.includes(beat.kind)) && filmUi !== 'none',
       next: film && film.long ? 'Skip ▸' : phase === 'end' ? 'Continue ▸' : 'Next ▸',
       cmdAt: boxes.cmd, foesAt: boxes.foes,
+      // (the window beside the acting member's bar, while it is drawn: besideAt)
+      ...((() => { const at = cmd && active && heads.some((h) => h.id === active) ? besideAt(active) : null; return { beside: !!at, besideAt: at ? [{ id: 'cmd', x: at[0], y: at[1] }] : [] }; })()),
       title: !active ? '' : memberName(active) + (aiming ? ' · ' + named : lv !== 'cmd' ? ' · ' + CMD[lv] : ''),
       commands: o.commands.map((c) => ({ id: c.id, label: CMD[c.id], disabled: !c.ok })),
       skills: o.skills.map((x) => ({ id: x.id, label: x.name, right: x.mp ? x.mp + ' MP' : '', disabled: !x.ok })),
@@ -740,7 +778,9 @@ export function rpgPage(cfg, K, ctl, jk, M) {
   let quiet = false;
   function screen(id, keepPlace) {
     quiet = true;
-    try { if (up()) rt.close(); if (id) { rt.open(id); if (!keepPlace) rt.focusAt(0); } } finally { quiet = false; }
+    // (every screen on the stack closed, not the top alone: a member's commands under the target they picked would
+    // stay drawn under the round as it plays, over the one acting)
+    try { for (let k = 0; up() && k < 8; k++) rt.close(); if (id) { rt.open(id); if (!keepPlace) rt.focusAt(0); } } finally { quiet = false; }
     changed();
     face.paint();
   }

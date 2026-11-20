@@ -6,12 +6,15 @@
  * command, then a skill, then a target, one back apart) and the look (the theme: the world's guide, else the console
  * preset); the controls layer's mana-host drives it from the menu scheme. Nothing here names a key or a colour.
  *
- *   THE HUD (while a fight is up): a bar over each fighter's head (HP, MP, statuses, the one picking marked, the target in
- *     focus marked), the numbers where blows land (each its own, rising once), the foes' box with the turn order, the
- *     message line. Every place a binding: the host moves the boxes to the corners its view leaves clear.
+ *   THE HUD (while a fight is up): a bar over each fighter's head, a member's and a foe's (HP, MP, statuses, the one
+ *     picking marked, the target in focus marked), up on the player's turn and, while a round plays, over one whose
+ *     numbers just moved (the host says which: battle.heads); the numbers where blows land (each its own, rising once);
+ *     the message line. No foes' box and no turn order.
  *   THE SCREENS (one up at a time; back steps out of each):
  *     rpg-cmd · rpg-skill · rpg-item · rpg-target   the member's commands, then what it chose, then whom; back from the
- *                                                   commands is the member before (`undo`)
+ *                                                   commands is the member before (`undo`); the window beside the
+ *                                                   member's bar while it is on the screen (battle.beside), else in a
+ *                                                   corner (battle.cmdAt)
  *     rpg-watch                                     a round playing out: accept skips ahead (`next`), a long film cut
  *     rpg-party · rpg-equip                         the party menu (Status, Class, Equip, Skills in tabs), a slot's choices
  *     rpg-shop                                      a shop's tabs (Buy, Sell, Stay), the party and the gold beside them
@@ -51,30 +54,32 @@ const HEAD = col([
   { use: 'badge', props: { value: '▼', turn: true }, when: I('turn') },
   { use: 'statuses', props: { rows: I('statuses') }, when: I('statuses') },
   { use: 'bar', props: { value: I('hp'), max: I('hpMax'), variant: 'hp' }, unless: I('foe') },
+  // (a foe's HP the same bar, its numbers kept back, where the book shows foes' HP: rules.foeHp 'bar')
+  { use: 'bar', props: { value: I('hp'), max: I('hpMax'), variant: 'hp', numbers: false }, when: I('foeBar') },
   { use: 'bar', props: { value: I('mp'), max: I('mpMax'), variant: 'mp' }, when: I('mpMax') },
 ]);
-const FOES = { use: 'window', children: [
-  { use: 'each', props: { rows: B('battle.foes'), row: col([
-    row([{ use: 'awareness', props: { state: 'down', label: false }, when: I('down') }, txt(I('name')), aimed], 'start'),
-    { use: 'bar', props: { value: I('hp'), max: I('hpMax'), variant: 'hp', numbers: false }, when: B('battle.foeHp') },
-    { use: 'statuses', props: { rows: I('statuses') }, when: I('statuses') },
-  ]) } },
-  { use: 'each', when: B('battle.turns'), props: { dir: 'row', rows: B('battle.turns'), row: { use: 'badge', props: { value: I('name'), variant: I('variant'), turn: I('turn') } } } },
-] };
+// (no foes' box and no turn order: each fighter's bar over their own head says it, a foe's as a member's)
 const HUD = { use: 'hud', when: B('battle.on'), children: [
-  { use: 'anchors', when: B('battle.panels'), props: { rows: B('battle.heads'), row: HEAD } },
+  // (up whenever the numbers are: the host keeps them to the player's turn, and to news while a round plays)
+  { use: 'anchors', when: B('battle.numbers'), props: { rows: B('battle.heads'), row: HEAD } },
   { use: 'anchors', when: B('battle.numbers'), props: { rows: B('battle.pops'), pass: true, row: row([txt(I('value'), I('role')), { use: 'text', props: { value: I('kind'), role: 'caption' }, when: I('kind') }], 'center') } },
-  { use: 'region', props: { at: B('battle.foesAt') }, when: B('battle.panels'), children: [FOES] },
   { use: 'region', props: { at: 'top' }, when: B('battle.told'), children: [txt(B('battle.message'), 'heading')] },
 ] };
 
 // ── the screens ──
-// a member's list: its commands, then a skill or an item, then a target, each in the corner the view leaves clear
-const pick = (rows, verb, extra = {}) => ({ use: 'screen', props: { layer: 'overlay', place: 'full' }, ...extra, children: [
-  { use: 'region', props: { at: B('battle.cmdAt') }, children: [{ use: 'window', props: { title: B('battle.title') }, children: [
+// a member's list: its commands, then a skill or an item, then a target: BESIDE the member's own bar while it is on the
+// screen (battle.beside, the host's place for it, kept clear of the screen's bottom), so the one acting is seen whole;
+// else in the corner the view leaves clear
+const pick = (rows, verb, extra = {}) => {
+  const win = { use: 'window', props: { title: B('battle.title') }, children: [
     { use: 'list', ...(verb === 'target' ? { id: 'targets' } : {}), props: { rows, empty: '—', row: line }, on: { accept: { emit: verb, id: I('id') } } },
-  ] }] },
-] });
+  ] };
+  return { use: 'screen', props: { layer: 'overlay', place: 'full' }, ...extra, children: [
+    // (bare: no anchor's plate round the window, held in a stack so the window keeps its own)
+    { use: 'anchors', when: B('battle.beside'), props: { variant: 'bare', rows: B('battle.besideAt'), row: col([win]) } },
+    { use: 'region', unless: B('battle.beside'), props: { at: B('battle.cmdAt') }, children: [win] },
+  ] };
+};
 const SCREENS = {
   // (a round playing: nothing to pick; accept skips ahead, or cuts a long film short)
   'rpg-watch': { use: 'screen', props: { layer: 'overlay', place: 'full' }, on: { back: [] }, children: [

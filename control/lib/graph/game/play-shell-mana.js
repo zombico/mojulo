@@ -127,7 +127,7 @@ export function playShellManaRuntime(cfg, api) {
     if (e.emit === 'mana:closed') {
       if (quiet) return;
       // (a pick left by its back: the turn unwinds one pick, or is left)
-      if (up === 'pick') { up = null; api.turn.back(); return; }
+      if (up === 'pick') { up = null; if (api.slot && api.slot.asking()) { api.slot.back(); draw('title'); return; } api.turn.back(); return; }
       // (the pause left by its back: the game resumes)
       if (up === 'pause' || up === 'controls') { up = null; api.pause.resume(); return; }
       // a back that emptied the stack: the step's back, else the screen it left drawn again
@@ -137,6 +137,7 @@ export function playShellManaRuntime(cfg, api) {
       return;
     }
     if (e.emit === 'turn:pick') { api.turn.pick(e.id); return; }
+    if (e.emit === 'slot:pick') { api.slot.pick(e.id); return; }
     if (e.emit === 'turn:confirm') { api.turn.confirm(); return; }
     if (e.emit === 'pause:open') { api.pause.open(); return; }
     if (e.emit === 'pause:resume') { api.pause.resume(); return; }

@@ -135,5 +135,26 @@ describe('the play shell\'s screens in mana-ui', () => {
     expect(P.w.__mojManaState.ui.result.rank).toBe('clear');
     P.close();
   });
-});
 
+  it('save slots: the title\'s start asks which save, each said by where it stands; a slot keeps its own store', async () => {
+    expect(validateGameManifest(game({ front: {}, ui: { theme: 'grim' }, slots: 3 })).errors).toEqual([]);
+    expect(validateGameManifest(game({ front: {}, ui: { theme: 'grim' }, slots: 9 })).errors.join('\n')).toMatch(/slots is how many saves/);
+    const P = await page({ front: {}, ui: { theme: 'grim' }, slots: 3 });
+    expect(P.screen()).toBe('title');
+    // start: which slot to begin in, slot 1 marked as the one in use; the second taken
+    await P.key('Enter');
+    expect(P.screen()).toBe('pick');
+    expect(P.text()).toMatch(/Begin in which slot\?.*Slot 1.*empty.*Slot 2.*empty.*Slot 3.*empty/);
+    await P.key('ArrowDown');
+    await P.key('Enter');
+    expect(P.level()).toBe('vale');
+    P.say({ moj: MSG_SHOWN });
+    P.say({ moj: MSG_OUTCOME, envelope: { contractVersion: CONTRACT_VERSION, levelRef: 'vale', result: 'success', events: [] } });
+    await wait(60);
+    // (the second slot's store written, the first's untouched; the slot in use kept)
+    expect(P.w.localStorage.getItem('moj-play:Lantern Keep:slot2')).toBeTruthy();
+    expect(P.w.localStorage.getItem('moj-play:Lantern Keep')).toBeNull();
+    expect(P.w.localStorage.getItem('moj-play:Lantern Keep:slot')).toBe('2');
+    P.close();
+  });
+});
