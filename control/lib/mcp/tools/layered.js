@@ -1378,8 +1378,8 @@ function faceSkin(hero) {
  * calls this: a hero stored without a face wears its pole's head. */
 export function withRolledFace(spec, was = null) {
   if (!realisticFaced(spec)) return spec;
-  // (kept only from a hero that was realistic-faced too: an anime hero's face is in its own words, refused here)
-  if (was && realisticFaced(was) && (spec.face === undefined || spec.face === null) && was.face) return { ...spec, face: was.face, ...(spec.cast === undefined && was.cast !== undefined ? { cast: was.cast } : {}) };
+  // (never from a hero that had the anime head: its face is in the anime head's own words, refused here)
+  if (was && was.head !== 'anime' && (spec.face === undefined || spec.face === null) && was.face) return { ...spec, face: was.face, ...(spec.cast === undefined && was.cast !== undefined ? { cast: was.cast } : {}) };
   const f = spec.face === undefined || spec.face === null ? {} : spec.face;
   if (typeof f !== 'object' || Array.isArray(f)) return spec;   // (refused by name at the record)
   const face = { ...f, ...(f.seed === undefined ? { seed: randomInt(1, 2147483647) } : {}), ...(f.ethnicity === undefined ? { ethnicity: ROLLED_ETHNICITIES[randomInt(ROLLED_ETHNICITIES.length)] } : {}) };

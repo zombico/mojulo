@@ -30,4 +30,4 @@
 - **Fixed: a hero remade onto another body keeps nothing of its old head.** A hero stored with the anime head and remade
   on the realistic body (a stylish starter's, or any) carried its anime cast (`animeStyle`) and its anime face's words
   over, and the hero door refused both. The cast is kept only while the order keeps the anime head (`hero-mint.js`), and
-  the face only from a hero that was realistic-faced too (`layered.js` `withRolledFace`).
+  the face never from a hero that had the anime head (`layered.js` `withRolledFace`).
