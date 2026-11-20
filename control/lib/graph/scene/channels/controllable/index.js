@@ -4871,7 +4871,8 @@ function __mojBackdrop(from, look, shift) {
 // as the room's own are: from the lamp that lights it most, its own silhouette laid flat away from the flame and fading
 // with its length, as dark as the share of the light there that lamp gives (a lone torch's deep, a lit room's faint:
 // the light it takes away, never a black of its own), its edge a penumbra (laid from points of the flame a little apart,
-// each darkening a part); and a dark at its feet by the same share. Drawn on one plane each copy darkens once (the floor
+// each darkening a part, each a few millimetres over the last so they layer and never fight for one depth); and a dark
+// at its feet by the same share. Drawn on one plane each copy darkens once (the floor
 // never moves: a projection is the shadow, as the seventh generation drew an actor's on a baked room)
 (function __roomLight() {
   const K = 6, FILL = 0.3, U = { uRlP: { value: Array.from({ length: K }, () => new THREE.Vector3()) }, uRlK: { value: Array.from({ length: K }, () => new THREE.Vector3()) },
@@ -4963,7 +4964,7 @@ function __mojBackdrop(from, look, shift) {
       B.slots.forEach((S, i) => {
         S.mat.opacity = each; S.mat.visible = a > 0.02;
         const o = ((i / Math.max(1, SLOTS - 1)) - 0.5) * PEN;
-        if (w) { S.mat.userData.S.uShL.value.set(w[0].at[0] + (sx / sl) * o, w[0].at[1] + (sy / sl) * o, Math.max(w[0].at[2], B.z + 2.2)); S.mat.userData.S.uShZ.value = B.z; S.mat.userData.S.uShO.value.set(P[0], P[1]); }
+        if (w) { S.mat.userData.S.uShL.value.set(w[0].at[0] + (sx / sl) * o, w[0].at[1] + (sy / sl) * o, Math.max(w[0].at[2], B.z + 2.2)); S.mat.userData.S.uShZ.value = B.z + i * 0.004; S.mat.userData.S.uShO.value.set(P[0], P[1]); }
       });
       B.feet.visible = live; B.feet.position.set(P[0], P[1], B.z + 0.012); const up = Math.max(0, (P[2] || 0) - B.z); B.feet.scale.setScalar(1 / (1 + up)); B.feet.material.opacity = Math.min(0.7, 0.25 + a);
     }
