@@ -96,6 +96,21 @@ party RPG keeps one in its town and in each stretch of its wilds.
 **Save slots** (`slots` on the game, 2 to 4): the title's start or continue asks which save, each said by where its
 party stands. A game with save points offers three.
 
+## Foes that fight to a plan
+
+A foe may carry an **action pattern** (`battles.foes.<id>.pattern`, RPG Maker's action patterns in words): rows of
+`{ use, when?, weight? }`. `use` is `attack`, `guard` or a skill; `when` is its HP below or above a share, its nth turn,
+every nth, or from its nth on; `weight` (1 to 9) how often it is chosen among the rows that hold. With none holding, it
+keeps the rule every foe has.
+
+```json
+{ "foes": { "warden": { "hp": 400, "atk": 14, "def": 12, "mag": 10, "spd": 6, "boss": true, "pattern": [
+  { "use": "guard", "when": { "turn": 1 } },
+  { "use": "firestorm", "when": { "every": 3 } },
+  { "use": "heal", "when": { "hpBelow": 0.5 }, "weight": 9 }
+] } } }
+```
+
 ## What comes next
 
 Each step ends playable, and each is something a person can say that the words did not carry before. An RPG Maker
@@ -103,4 +118,4 @@ idea is reached through the primitive that already owns it (a switch is a flag, 
 transfer a megaworld's way), never rebuilt:
 1. **Travel by vehicle:** a ship's or an airship's way, opened by a story flag, its crossing played while the next
    place is built.
-2. **The battles' depth as rows:** foe patterns, states and troops.
+2. **The battles' depth as rows:** states as a table, and a fight's own events (a line at half the boss's HP, a summons).

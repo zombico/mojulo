@@ -364,19 +364,40 @@ export function buildRpg() {
     }
   }
 
-  // a foe's turn: one of its skills by chance (one it can pay for), else an attack; a target from the other side
-  function foePick(cfg, R, f) {
-    const b = R.b, F = f.F, can = F.skills.filter((k) => cfg.skills[k] && f.mp >= cfg.skills[k].mp);
-    if (can.length && rnd(b) < 0.35) {
-      const k = can[Math.floor(rnd(b) * can.length)], S = cfg.skills[k];
-      if ((S.heal || S.buff && S.buff.pct > 0) && (S.target === 'ally' || S.target === 'self')) {
-        let best = f;
-        for (const o of livingFoes(R)) if (o.hp / o.max < best.hp / best.max) best = o;
-        return { act: 'skill', skill: k, target: S.target === 'self' ? f.uid : best.uid };
-      }
-      const L = living(R);
-      return { act: 'skill', skill: k, target: L[Math.floor(rnd(b) * L.length)] };
+  // a foe's skill aimed: a mend or a boost on its own side (the most hurt of them, or itself), else at one of the party
+  function foeSkill(cfg, R, f, k) {
+    const b = R.b, S = cfg.skills[k];
+    if ((S.heal || S.buff && S.buff.pct > 0) && (S.target === 'ally' || S.target === 'self')) {
+      let best = f;
+      for (const o of livingFoes(R)) if (o.hp / o.max < best.hp / best.max) best = o;
+      return { act: 'skill', skill: k, target: S.target === 'self' ? f.uid : best.uid };
     }
+    const L = living(R);
+    return { act: 'skill', skill: k, target: L[Math.floor(rnd(b) * L.length)] };
+  }
+  // a foe's ACTION PATTERN (its `pattern`, rpg.js): the rows whose `when` holds this turn and that it can pay for, one by
+  // the dice weighted by each row's `weight`; none, the rule every foe without one keeps. Its turns are counted as they
+  // come (f.turns), and a guard it took lasts until its next turn
+  function patternPick(cfg, R, f) {
+    const b = R.b, P = f.F.pattern, n = f.turns = (f.turns || 0) + 1, share = f.hp / f.max;
+    f.guard = 0;
+    const holds = (w) => !w || ((w.hpBelow == null || share < w.hpBelow) && (w.hpAbove == null || share > w.hpAbove) && (w.turn == null || n === w.turn) && (w.every == null || n % w.every === 0) && (w.after == null || n >= w.after));
+    const rows = P.filter((r) => holds(r.when) && (r.use === 'attack' || r.use === 'guard' || (cfg.skills[r.use] && f.mp >= cfg.skills[r.use].mp)));
+    if (!rows.length) return null;
+    let t = rnd(b) * rows.reduce((a, r) => a + r.weight, 0), r = rows[rows.length - 1];
+    for (const x of rows) { t -= x.weight; if (t < 0) { r = x; break; } }
+    if (r.use === 'guard') return { act: 'guard' };
+    if (r.use === 'attack') { const L = living(R); return { act: 'attack', target: L[Math.floor(rnd(b) * L.length)] }; }
+    return foeSkill(cfg, R, f, r.use);
+  }
+  // a foe's turn: its pattern's row where it has one that holds, else one of its skills by chance (one it can pay for),
+  // else an attack; a target from the other side
+  function foePick(cfg, R, f) {
+    const b = R.b, F = f.F;
+    const own = F.pattern ? patternPick(cfg, R, f) : null;
+    if (own) return own;
+    const can = F.skills.filter((k) => cfg.skills[k] && f.mp >= cfg.skills[k].mp);
+    if (can.length && rnd(b) < 0.35) return foeSkill(cfg, R, f, can[Math.floor(rnd(b) * can.length)]);
     const L = living(R);
     return { act: 'attack', target: L[Math.floor(rnd(b) * L.length)] };
   }

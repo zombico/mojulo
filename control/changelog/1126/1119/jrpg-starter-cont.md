@@ -55,3 +55,8 @@
   own keys, so a game saved before it had slots continues as its first. Starting in a slot begins it anew; continuing
   an empty one starts it. A game's runs and bests stay the game's. A game whose megaworld keeps save points offers
   three.
+- **A foe's action pattern.** A foe may say what it does and when (`play.rpg.foes.<id>.pattern`, and so a world's
+  `battles.foes`): rows of `{ use: 'attack' | 'guard' | '<skill>', when?: { hpBelow?, hpAbove?, turn?, every?, after? },
+  weight?: 1-9 }`. On its turn, a row whose `when` holds and that it can pay for, chosen by weight on the battle's own
+  dice; with none holding, the rule every foe keeps (a skill by chance, else an attack). A guard it takes lasts until its
+  next turn. A foe without one fights as it did.

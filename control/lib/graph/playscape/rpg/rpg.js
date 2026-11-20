@@ -21,7 +21,11 @@
  *                 status: { is: poison | sleep | silence, chance?, rounds? }; buff: { stat, pct, rounds? };
  *                 carry: usable from any class once learned
  *     foes?:      { <id>: { name?, hp, mp?, atk, def, mag, spd, xp?, gold?, cp?, weak?, resist?, absorb?, immune?,
- *                 skills?, drops?: [{ item, chance }], boss? } }
+ *                 skills?, drops?: [{ item, chance }], boss?, pattern? } }
+ *                 pattern: [{ use: 'attack' | 'guard' | '<skill>', when?: { hpBelow?, hpAbove?, turn?, every?, after? },
+ *                 weight?: 1-9 }]   its ACTION PATTERN: on its turn, a row whose `when` holds (its HP below or above a
+ *                 share, its nth turn, every nth, from its nth on) and that it can pay for, by weight (5 unsaid); none,
+ *                 the rule every foe keeps (a skill by chance, else an attack)
  *     items?:     [ids] | { <item>: { name?, heal?, mp?, revive?, cure?, hurt?, element?, target? } }   what an item
  *                 does in a fight (its count is the bag's: held:bag:<item>); default: every preset
  *     gear?:      [ids] | { <item>: { name?, slot: weapon | armor | accessory, atk?, def?, mag?, spd?, hp?, mp?, classes? } }
@@ -156,8 +160,30 @@ function readSkill(k, d, where) {
   };
 }
 
+// a foe's action pattern: its rows, each a thing it does (an attack, a guard or a skill), when, and how often among
+// those that hold (kernel.js patternPick)
+const WHEN_KEYS = ['hpBelow', 'hpAbove', 'turn', 'every', 'after'];
+function readPattern(v, where) {
+  return listOf(v, where, '{ use, when?, weight? }').map((r, i) => {
+    const at = `${where}[${i}]`;
+    if (!isObj(r)) throw err(`${at} is { use: 'attack' | 'guard' | '<skill>', when?, weight? }`);
+    keysOnly(r, ['use', 'when', 'weight'], at);
+    const use = id(r.use, `${at}.use`);
+    if (r.weight !== undefined && !(Number.isInteger(r.weight) && r.weight >= 1 && r.weight <= 9)) throw err(`${at}.weight is a whole number from 1 to 9 (how often among the rows that hold; 5 when left out)`);
+    let when = null;
+    if (r.when !== undefined) {
+      if (!isObj(r.when)) throw err(`${at}.when is { ${WHEN_KEYS.join(', ')} }: its HP below or above a share (0 to 1), its nth turn, every nth, from its nth on`);
+      keysOnly(r.when, WHEN_KEYS, `${at}.when`);
+      for (const k of ['hpBelow', 'hpAbove']) if (r.when[k] !== undefined && !(num(r.when[k]) && r.when[k] > 0 && r.when[k] < 1)) throw err(`${at}.when.${k} is a share of its HP, above 0 and below 1`);
+      for (const k of ['turn', 'every', 'after']) if (r.when[k] !== undefined && !(Number.isInteger(r.when[k]) && r.when[k] >= 1)) throw err(`${at}.when.${k} is a whole number of its own turns, 1 or more`);
+      when = { ...r.when };
+    }
+    return { use, ...(when ? { when } : {}), weight: r.weight ?? 5 };
+  });
+}
+
 function readFoe(k, d, where) {
-  keysOnly(d, ['name', ...RPG_STATS, 'xp', 'gold', 'cp', 'weak', 'resist', 'absorb', 'immune', 'skills', 'drops', 'boss'], where);
+  keysOnly(d, ['name', ...RPG_STATS, 'xp', 'gold', 'cp', 'weak', 'resist', 'absorb', 'immune', 'skills', 'drops', 'boss', 'pattern'], where);
   for (const s of ['hp', 'atk', 'def', 'mag', 'spd']) if (!num(d[s]) || d[s] < 0) throw err(`${where}.${s} is a number (hp, atk, def, mag, spd are each needed)`);
   if (d.hp < 1) throw err(`${where}.hp is 1 or more`);
   for (const s of ['mp', 'xp', 'gold', 'cp']) optNum(d[s], `${where}.${s}`);
@@ -171,6 +197,8 @@ function readFoe(k, d, where) {
     xp: d.xp ?? 0, gold: d.gold ?? 0, cp: d.cp ?? (d.boss ? 4 : 1),
     weak: elements(d.weak, `${where}.weak`), resist: elements(d.resist, `${where}.resist`), absorb: elements(d.absorb, `${where}.absorb`), immune,
     skills: listOf(d.skills, `${where}.skills`, 'skill ids').map((s, i) => id(s, `${where}.skills[${i}]`)), drops, boss: !!d.boss,
+    // (only a foe that has one carries it: every other's numbers as they were)
+    ...(d.pattern !== undefined ? { pattern: readPattern(d.pattern, `${where}.pattern`) } : {}),
   };
 }
 
@@ -287,6 +315,7 @@ export function readRpg(play) {
     if (!d) throw err(`.foes: '${k}' is no preset foe (${Object.keys(FOE_PRESETS).join(', ')}): define it ({ hp, atk, def, mag, spd, xp, gold })`);
     foes[id(k, '.foes key')] = readFoe(k, d, `.foes.${k}`);
     for (const s of foes[k].skills) skillWant.add(s);
+    for (const r of foes[k].pattern ?? []) if (r.use !== 'attack' && r.use !== 'guard') skillWant.add(r.use);
   }
 
   // the skills: the world's, then every one a class or a foe names

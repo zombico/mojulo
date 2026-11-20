@@ -294,3 +294,36 @@ describe('a familiar: a party member that picks for itself (auto)', () => {
     expect(trio().party.every((p) => !('auto' in p))).toBe(true);   // absent, the cfg is as it was
   });
 });
+
+// A FOE'S ACTION PATTERN (foes.<id>.pattern): on its turn a row whose `when` holds and that it can pay for, by weight;
+// none, the rule every foe keeps. The concept on one foe: a row by its turn, by every nth, by its HP; and a foe without
+// one carries nothing of it
+describe('a foe\'s action pattern', () => {
+  const warden = { name: 'Warden', hp: 400, mp: 99, atk: 6, def: 30, mag: 8, spd: 1, xp: 1, gold: 1, boss: true,
+    pattern: [{ use: 'guard', when: { turn: 1 } }, { use: 'fire', when: { every: 2 } }, { use: 'heal', when: { hpBelow: 0.5 }, weight: 9 }] };
+  const cfg = trio({ foes: { warden, slime: true }, encounters: [{ id: 'keep', foes: ['warden'] }, { id: 'pack', foes: ['slime'] }] });
+  const said = (beats) => beats.filter((x) => x.who === 'f0').map((x) => x.text);
+
+  it('is read whole and taught; a foe without one carries none of it', () => {
+    expect(cfg.foes.warden.pattern).toEqual([{ use: 'guard', when: { turn: 1 }, weight: 5 }, { use: 'fire', when: { every: 2 }, weight: 5 }, { use: 'heal', when: { hpBelow: 0.5 }, weight: 9 }]);
+    expect(cfg.skills.heal).toBeTruthy();
+    expect('pattern' in cfg.foes.slime).toBe(false);
+    expect(() => trio({ foes: { warden: { ...warden, pattern: [{ use: 'fire', when: { hpBelow: 2 } }] } } })).toThrow(/a share of its HP/);
+    expect(() => trio({ foes: { warden: { ...warden, pattern: [{ use: 'fire', weight: 12 }] } } })).toThrow(/1 to 9/);
+  });
+
+  it('does what its rows say when they hold: guards its first turn, casts every second, mends when low', () => {
+    const R = rpgInit(cfg), v = {};
+    rpgStart(cfg, R, 'keep', v);
+    // (the party guards each round: no picks)
+    expect(said(rpgRound(cfg, R, {}, v))).toEqual(['Warden guards.']);
+    expect(said(rpgRound(cfg, R, {}, v))[0]).toBe('Warden uses Fire!');
+    // (its third turn, low: only the mend holds)
+    R.b.foes[0].hp = 120;
+    expect(said(rpgRound(cfg, R, {}, v))[0]).toBe('Warden uses Heal!');
+    // (its fifth, full again and no row holding: the rule every foe keeps, a skill by chance or an attack)
+    R.b.foes[0].hp = 400;
+    rpgRound(cfg, R, {}, v);
+    expect(said(rpgRound(cfg, R, {}, v))[0]).toMatch(/^Warden (attacks!|uses (Fire|Heal)!)$/);
+  });
+});
