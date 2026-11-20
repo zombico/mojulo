@@ -7,7 +7,10 @@
  *
  *   cd control
  *   node scripts/spikes/mission/facilities.mjs --plan [--facility <id>] [--svg /abs/dir]
- *   node scripts/spikes/mission/facilities.mjs --out /abs/dir --facility <id> [--hero <ref>] [--guard <ref>] [--cdn] [--capture]
+ *   node scripts/spikes/mission/facilities.mjs --out /abs/dir --facility <id> [--seen] [--hero <ref>] [--guard <ref>] [--cdn] [--capture]
+ *
+ * The page is a designer's walk: the operative starts INVISIBLE (worlds/controllable/ghost.js: no guard sees it; I
+ * toggles it, `--seen` starts seen), a guard walks the hall and one each ground corridor, looking round at their ends.
  *
  * `--svg` draws each one's ground storey from above as the game book's facility maps do (gameworld/facility-maps.js),
  * the hall's way across unseen (white, dashed) and the watcher's walk (red) over it.
@@ -41,18 +44,40 @@ const doorsOf = (P, r) => {
 // doorway: to its far end), a watcher walking its long axis and looking round at each end
 // (a stair's core is no hall: a facility with none has its rooms for its ground, and no crossing)
 const hallOf = (P) => P.rooms.filter((r) => (r.storey ?? 0) === 0 && !/^(core|lobby|corridor)/.test(r.id)).reduce((a, r) => (!a || (r.x1 - r.x0) * (r.y1 - r.y0) > (a.x1 - a.x0) * (a.y1 - a.y0) ? r : a), null);
+// a room's pieces as boxes (their stacked heights), and a watcher's walk down its long axis on the clear line nearest its
+// middle (a line no piece stands on, a body's width either side), two metres in from each end, looking round at each
+const boxesIn = (P, r) => (P.props ?? []).filter((it) => it.room === r.id && PIECES[it.kind]?.solid !== false && !it.wall).map((it) => { const f = footprintOf(it); return { min: [f.min[0], f.min[1], 0], max: [f.max[0], f.max[1], PIECES[it.kind].h * (it.scale ?? 1) * ((it.level ?? 0) + 1)] }; });
+function patrolOf(r, boxes, { id, speed = 1, range = 14, inset = 2 } = {}) {
+  const alongX = r.x1 - r.x0 >= r.y1 - r.y0, lo = (alongX ? r.x0 : r.y0) + inset, hi = (alongX ? r.x1 : r.y1) - inset;
+  const mid = alongX ? (r.y0 + r.y1) / 2 : (r.x0 + r.x1) / 2, k = alongX ? 1 : 0;
+  const clearLine = (v) => !boxes.some((B) => B.min[k] - 0.6 < v && B.max[k] + 0.6 > v && B.max[1 - k] > lo && B.min[1 - k] < hi);
+  // (inside the room only: a body's width off its walls)
+  const half = (alongX ? r.y1 - r.y0 : r.x1 - r.x0) / 2 - 0.7;
+  let c = null;
+  for (let d = 0; d <= half; d += 0.25) { if (clearLine(mid + d)) { c = mid + d; break; } if (clearLine(mid - d)) { c = mid - d; break; } }
+  let a = hi, b = lo;
+  if (c === null) {
+    // (no line runs its length clear, a chicane's corridor: of every line across it, the longest clear stretch, walked
+    // end to end; along one wall only that wall's blocks cut it)
+    const stretch = (v) => {
+      const cuts = boxes.filter((B) => B.min[k] - 0.6 < v && B.max[k] + 0.6 > v).map((B) => [B.min[1 - k] - 0.8, B.max[1 - k] + 0.8]).sort((p, q) => p[0] - q[0]);
+      let best = [lo, lo], at = lo;
+      for (const [u0, u1] of [...cuts, [hi, hi]]) { const e = Math.min(u0, hi); if (e - at > best[1] - best[0]) best = [at, e]; at = Math.max(at, u1); }
+      return best;
+    };
+    let top = { len: -1 };
+    for (let v = mid - half; v <= mid + half + 1e-9; v += 0.25) { const S = stretch(v); if (S[1] - S[0] > top.len + 1e-9) top = { len: S[1] - S[0], v, S }; }
+    c = top.v;
+    [b, a] = top.len >= 1 ? top.S : [lo, lo + 1];
+  }
+  const pt = (u) => (alongX ? [u, c] : [c, u]);
+  return { id, at: pt(a), to: pt(b), speed, cone: 0.8, range, eye: 1.35, hear: 6, look: { secs: 4 }, near: { r: 2, back: 100 } };
+}
 function crossing(P, r) {
   const D = doorsOf(P, r), a = D[0], far = (q) => Math.hypot(q[0] - a[0], q[1] - a[1]);
   const b = D.length > 1 ? D.reduce((p, q) => (far(q) > far(p) ? q : p)) : [r.x0 + r.x1 - a[0], r.y0 + r.y1 - a[1]].map((v, k) => Math.min((k ? r.y1 : r.x1) - 0.8, Math.max((k ? r.y0 : r.x0) + 0.8, v)));
-  const boxes = (P.props ?? []).filter((it) => it.room === r.id && PIECES[it.kind]?.solid !== false && !it.wall).map((it) => { const f = footprintOf(it); return { min: [f.min[0], f.min[1], 0], max: [f.max[0], f.max[1], PIECES[it.kind].h * (it.scale ?? 1) * ((it.level ?? 0) + 1)] }; });
-  const alongX = r.x1 - r.x0 >= r.y1 - r.y0, lo = (alongX ? r.x0 : r.y0) + 2, hi = (alongX ? r.x1 : r.y1) - 2;
-  // (its walk down the clear aisle nearest the hall's middle: a line no piece stands on, a body's width either side)
-  const mid = alongX ? (r.y0 + r.y1) / 2 : (r.x0 + r.x1) / 2, k = alongX ? 1 : 0;
-  const clearLine = (v) => !boxes.some((B) => B.min[k] - 0.6 < v && B.max[k] + 0.6 > v && B.max[1 - k] > lo && B.min[1 - k] < hi);
-  let c = mid;
-  for (let d = 0; d < 20; d += 0.25) { if (clearLine(mid + d)) { c = mid + d; break; } if (clearLine(mid - d)) { c = mid - d; break; } }
-  const pt = (u) => (alongX ? [u, c] : [c, u]);
-  const watcher = { id: 'hall', at: pt(hi), to: pt(lo), speed: 1, cone: 0.8, range: 16, eye: 1.35, hear: 6, look: { secs: 4 }, near: { r: 2, back: 100 } };
+  const boxes = boxesIn(P, r);
+  const watcher = patrolOf(r, boxes, { id: 'hall', speed: 1, range: 16 });
   // (one doorway: its far end, slid across the hall to the nearest place no piece stands on)
   if (D.length === 1) {
     const clear = (q) => !boxes.some((B) => q[0] > B.min[0] - 0.6 && q[0] < B.max[0] + 0.6 && q[1] > B.min[1] - 0.6 && q[1] < B.max[1] + 0.6);
@@ -93,14 +118,19 @@ const id = ids[0], out = path.resolve(o.opt('--out', 'facility')), F = FACILITIE
 const stage = buildingStage({ facility: id, seed: 1 }), P = planOf({ facility: id }), H = hallOf(P), cross = crossing(P, H);
 const { room, hero: h0, guard: g0 } = await starterRoom(o);
 const lobby = P.rooms.find((r) => r.id === 'lobby'), way = (P.ways ?? []).find((w) => w.room === 'lobby'), start = [r2((way.lo + way.hi) / 2), r2(lobby.y0 + 1.5), 0];
-const w = cross.watcher, heading = Math.atan2(w.to[1] - w.at[1], w.to[0] - w.at[0]);
-const guard = { ...g0, id: 'hall-guard', rule: { ...g0.rule, speed: w.speed, sightCone: w.cone, sightRange: w.range, near: w.near, foe: { ...g0.rule.foe, stretch: r2(Math.hypot(w.to[0] - w.at[0], w.to[1] - w.at[1])), ends: [[...w.at, 0], [...w.to, 0]], patrol: { ...(g0.rule.foe?.patrol ?? {}), look: w.look } } }, transform: { pos: [w.at[0], w.at[1], 0.05], heading } };
+// the guards: one walking the hall, one walking each corridor of the ground storey, each looking round at its ends
+const ground = Math.min(...P.rooms.map((r) => r.storey ?? 0));
+const corridors = P.rooms.filter((r) => (r.storey ?? 0) === ground && /^corridor/.test(r.id));
+const rounds = [cross.watcher, ...corridors.map((r) => patrolOf(r, boxesIn(P, r), { id: `${r.id}-sentry`, speed: 1.1, range: 14, inset: 1.2 }))];
+const guardOf = (w) => ({ ...g0, id: w.id === 'hall' ? 'hall-guard' : w.id, rule: { ...g0.rule, speed: w.speed, sightCone: w.cone, sightRange: w.range, near: w.near, foe: { ...g0.rule.foe, stretch: r2(Math.hypot(w.to[0] - w.at[0], w.to[1] - w.at[1])), ends: [[...w.at, 0], [...w.to, 0]], patrol: { ...(g0.rule.foe?.patrol ?? {}), look: w.look } } }, transform: { pos: [w.at[0], w.at[1], 0.05], heading: Math.atan2(w.to[1] - w.at[1], w.to[0] - w.at[0]) } });
 // (the hall's far doorway the end: nothing to hold on the way, mission.js `result.when` empty)
-const mission = { result: { at: [...cross.b, 0], radius: 2, when: [] }, hints: [{ at: start, radius: 3, says: `${F.reads}. ${F.moves}.` }] };
-const entities = [{ ...h0, rule: { ...h0.rule, step: 0.35, mission }, transform: { pos: [start[0], start[1], 0.05], heading: Math.PI / 2 } }, guard];
+// (invisible mode, worlds/controllable/ghost.js: the walk starts unseen, I to be seen; `--seen` starts seen)
+const ghost = { on: !o.has('--seen') };
+const mission = { result: { at: [...cross.b, 0], radius: 2, when: [] }, hints: [{ at: start, radius: 3, says: `${F.reads}. ${F.moves}. I: walk unseen or be seen.` }] };
+const entities = [{ ...h0, rule: { ...h0.rule, step: 0.35, mission, ghost }, transform: { pos: [start[0], start[1], 0.05], heading: Math.PI / 2 } }, ...rounds.map(guardOf)];
 const manifest = { ...stage, figures: room.manifest.figures, entities, fxStyle: room.manifest.fxStyle, figureGrade: room.manifest.figureGrade };
 const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scene.js');
 const { payload } = await resolveWorldScene({ ref: `steel-serpents-facility-${id}`, title: `${id} · Steel Serpents`, manifest }, { era: 'gen-7', live: true });
 const page = await writePage(payload, room, path.join(out, `${id}.html`), { capture: o.has('--capture'), cdn: o.has('--cdn') });
-console.log(`facilities: ${page.file} (${page.mb} MB) · ${F.use} in ${F.look.construction} · hall ${H.id} · colliders ${payload.colliders.length}`);
+console.log(`facilities: ${page.file} (${page.mb} MB) · ${F.use} in ${F.look.construction} · hall ${H.id} · guards ${rounds.map((w) => w.id).join(', ')} · ${ghost.on ? 'unseen (I to be seen)' : 'seen (I to walk unseen)'} · colliders ${payload.colliders.length}`);
 process.exit(0);

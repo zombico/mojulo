@@ -111,7 +111,9 @@ crosses its hall with the route search (`gameworld/stealth-routes.js`) under a w
 building bare. On seed 1 the depot's shed and the power plant's generator hall have no way across unseen bare and one
 laid; the motor pool's hangar has one either way (it is wide enough to skirt the watcher) and the laid one keeps a body
 two metres further off. `--svg` draws each ground storey from above: rooms, doorways, pieces by what they hide, the way
-across unseen. `--out dir --facility <id>` builds the page: the operative at the way in, a guard walking the hall.
+across unseen. `--out dir --facility <id>` builds the page: the operative at the way in, a guard walking the hall and a
+sentry each ground corridor. The page is a designer's walk: it starts in invisible mode (`worlds/controllable/ghost.js`,
+no guard sees the operative; I toggles it, `--seen` starts seen), so the layout and the guards' rounds are read on foot.
 
 ## What is not yet
 
