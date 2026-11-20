@@ -25,6 +25,7 @@
  *
  * Pure (the stage is assembled to read its ends; nothing is stored).
  */
+import { facilityBuilding } from '../era/facilities.js';
 import { levelHud } from '../game/hud-mana.js';
 import { interfaceLook } from '../playscape/ui/interface-look.js';
 import { ATLAS_SLICE } from './megaworld.js';
@@ -1788,13 +1789,15 @@ export function gameLinks(stages, refs) {
 const roomKitFor = (anchor) => (anchor === 'shell' ? 'research-lab' : 'gothic-stone');
 
 /** A building level's stage recipe: its program in its civilization's language, dressed by its kit or cube. */
-export function buildingStage(B) {
+export function buildingStage(B0) {
+  // (a facility, era/facilities.js: its use, plan dials, rooms' layouts and look, the recipe's own over them)
+  const B = B0.facility !== undefined ? facilityBuilding(B0.facility, B0) : B0;
   const { use, seed, rooms, add, kit, geocube, goal, from, anchor, look, tone } = B;
   // (a military base's building is composed, so its rooms are stocked by their uses (era/stocking.js): by the look of the
   // walled-core dungeon's space it is, else by its kit's own register; its space's tone colours it)
   const composed = look || PROGRAMS[use]?.base ? { compose: look ? { construction: look.construction, palette: look.palette } : {} } : {};
   // (a building's use names its bay kit, whatever the world's language, and takes its plan's settings: era/programs.js)
-  const plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays', 'scale', 'fight'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
+  const plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays', 'scale', 'fight', 'layouts'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
   return {
     kind: 'stage',
     ...(geocube !== undefined ? { geocube } : { kit: kit ?? PROGRAMS[use]?.kit ?? roomKitFor(anchor) }),

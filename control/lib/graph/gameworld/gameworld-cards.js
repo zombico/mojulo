@@ -13,6 +13,8 @@
  *
  * Pure.
  */
+import { FACILITY_IDS } from '../era/facilities.js';
+import { LAYOUT_IDS } from '../era/room-layouts.js';
 import { MOTIVATIONS, LABOURS, WORLD_SHAPES, ORDER_KINDS, SIDE_SHARE } from './gmn.js';
 import { RAIL_IDS, SIZES, OWN, seenSays, railOf, railShapes, railSheet } from './rails.js';
 import { levelKindLine } from './level-kinds.js';
@@ -1102,7 +1104,7 @@ function wcdCard() {
     '  three walls (Maria, Rose, Sina) are WCDs.',
     '  A stealth game is close to a stack of them; a metroidvania is WCDs side by side, one core\'s reward opening another\'s gate.',
     '',
-    'wcd     on the world: { core, spaces: { <id>: { kind, depth, level?, use?, look?, built? } }, doors: [{ from, to, via,',
+    'wcd     on the world: { core, spaces: { <id>: { kind, depth, level?, use?, facility?, look?, built? } }, doors: [{ from, to, via,',
     '        gate?, oneWay? }] }',
     'SPACES',
     ...Object.entries(WCD_KINDS).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
@@ -1117,6 +1119,8 @@ function wcdCard() {
     '',
     'A BASE\'S BUILDINGS (a space\'s use; each on the bay kit of what it is, so the layers look unlike each other):',
     ...BASE_USES.map((u) => `  ${u.padEnd(13)} ${PROGRAMS[u].reads} (${PROGRAMS[u].kit})`),
+    `FACILITIES (a space's or a building's facility: a use built to move through, loops, a catwalk, its floors laid): ${FACILITY_IDS.join(', ')}`,
+    `  a room of any building: building.layouts { <room or role>: ${LAYOUT_IDS.join(' | ')} | { layout, …dials } }`,
     '  parked: its level\'s building.parked: true (a truck and an APC) | [vehicles] | { vehicles?, livery?, wear? }: parked',
     '                in its hangar (else its largest room), solid, painted as its foes\' faction, else its setting\'s camo',
     '',

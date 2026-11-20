@@ -55,7 +55,7 @@ import { composeForBuild, rolesPinned, beatsPinned } from './compose.js';
 import { roomRoles } from './compose-roles.js';
 import { plotLights, keyTuner } from './compose-plot.js';
 import { composeReport } from './compose-report.js';
-import { PIECES, layProps, layCover, propFaces, dressLaws } from './compose-dress.js';
+import { PIECES, layProps, layCover, propFaces, dressLaws, layoutReport } from './compose-dress.js';
 import { assembleComplexScene } from '../network/complex.js';
 import { assembleStationScene } from '../network/station.js';
 import { assembleSubwayScene } from '../network/subway.js';
@@ -717,6 +717,8 @@ export function planStage(m = {}) {
   if (sk0 && !skC) throw new Error(`stage: skandart: nothing kit '${kitId}' is made of sheds anything, and the recipe names no answer of its own; give one: skandart: { foot: { pieces: { <a debris shelf row>: how many } } }`);
   const sk = sk0 ? { ...sk0, card: skC.card, from: skC.from } : null;
   const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(galleries.length ? { galleries } : {}), ...(sk ? { skandart: sk } : {}), ...(m._condition ? { condition: m._condition } : {}), ...(m._weathering ? { weathering: m._weathering } : {}), ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}), ...(m.daylight ? { daylight: m.daylight } : {}), ...(m.samples ? { samples: m.samples } : {}), ...(wetness ? { wet: wetness } : {}),
+    // (its rooms' floors laid in a figure where the program asks: room-layouts.js)
+    ...(m._program?.layouts ? { layouts: m._program.layouts } : {}),
     // (a military base's building is stocked by its rooms' uses, a hospital's by its own table, a
     // vernacular town's by its uses: stocking.js,
     // compose-dress.js layProps)
@@ -740,6 +742,8 @@ export function planStage(m = {}) {
     }
     planned.props = list.filter((it) => mine.has(it.room));
     if (planned.compose) planned.compose.dress = dressLaws(planned, planned.props);
+    // (each room given a layout held to its laws: compose-dress.js layoutReport)
+    if (planned.compose && planned.layouts) planned.compose.layouts = layoutReport(planned, planned.props);
   }
   return planned;
 }

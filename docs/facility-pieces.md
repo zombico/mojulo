@@ -1,0 +1,94 @@
+# Facility pieces
+
+A building laid from its use alone (`era/programs.js`, the `core` shape) is a lobby, a stair core, corridors and
+five-metre rooms off them, each stocked along its walls (`era/stocking.js`). To a body sneaking through it that is a
+hallway and empty boxes: one way through each room, every gaze unbroken, nothing to hide behind but a doorway. The
+pieces here make the same building a ground to move through. They compose: a walled-core dungeon's layer is a facility,
+a facility is a use with its rooms' floors laid in figures, and a figure is the dressing's own pieces placed by a rule.
+
+## Room layouts: a room's floor in a figure
+
+`control/lib/graph/era/room-layouts.js`. A layout lays the dressing's pieces (`compose-dress.js` `PIECES`: racks,
+shelves, crates, drums, desks, cabinets, generators, pumps, switchgear, benches and the rest) across a room's floor,
+not only along its walls.
+
+| layout | what it lays | what a body does there |
+|---|---|---|
+| `aisles` | rows of tall racks or shelves down the room's length, back to back, broken by cross aisles (`cross: 'aligned'` a grid, `'staggered'` a maze) | walks an aisle out of sight of the next, crosses at the breaks |
+| `machines` | big plant on a staggered grid, lanes between | goes machine to machine; the tall ones stop a standing gaze, the low ones a crouch's |
+| `islands` | pods of desks or benches back to back, a cabinet at one end | crouches or crawls behind a pod; a watcher sees over it |
+| `stockpile` | clumps of crates (squares, Ls, lines, Ts) on a jittered grid, stacked by the dice | weaves between clumps, crouches behind a stack or climbs it |
+| `chicane` | blocks of crates against a corridor's long walls by turns, each slid along to a stretch no doorway takes | never seen down the corridor's length; the way through is a weave |
+| `rows` | benches or bunks in rows from each long wall, a centre aisle down the room | ducks between the rows |
+
+Each takes its dials (`LAYOUTS.<id>.dials`: the piece, the aisle or lane width, the margin to the walls, and so on).
+A program asks for them by room id or by role:
+
+```js
+building: { use: 'warehouse', look: { construction: 'utility', palette: 'utility' },
+  layouts: { shed: { layout: 'aisles', cross: 'staggered' }, corridor: 'chicane', dispatch: { layout: 'islands', per: 1 } } }
+```
+
+A room's own id wins over its role. A room given a layout lays it in place of its stock (an extinguisher still stands
+by each doorway). A piece keeps a body's way through each doorway clear, not the dressing's whole approach, and never
+a doorway's sightline: breaking that is the point. A loose figure's piece (machines, islands, stockpile) is moved up to
+a metre and a half to clear a doorway; an aligned figure's (aisles, rows, chicane) is dropped, since a rack shoved out of
+its aisle reads as litter. A room that holds none of its layout keeps its stock, and the report says `stocked`.
+
+### The laws
+
+Every room given a layout is held to them (`layoutLaws`); the stage's `compose.layouts` reports them room by room
+(`compose-dress.js` `layoutReport`). They advise; none refuses.
+
+- **doors-joined**: every doorway reaches every other over the floor left, a body's width.
+- **a-way-round**: a piece or a clump stands clear of the walls, so a body can circle it (a hall's, not a corridor's).
+- **sight-broken**: from no doorway does a watcher see three quarters of the floor a standing body stands on (a hall);
+  from neither end of a corridor does one see three fifths of it.
+- **cover-in-reach**: nine tenths of the floor lies within three metres of a piece a crouch hides behind.
+
+A room smaller than a hall (60 m², or a corridor three times as long as it is wide) is held to the first and the last
+only: it is crossed in a breath and its doorway is its cover. That is the finding behind facilities: a layout cannot make
+a five-metre room a place to sneak through, so the ground is in the halls, the wide corridors and the loops between rooms.
+
+Low pieces stop a crouch only close behind them. A corridor's chicane of single crates breaks a crouched gaze near each
+block; to stop a standing gaze down its length, stack them (crates stack by the dice in the stage) or lay `shelves`.
+
+## Facilities: a building designed to move through
+
+`control/lib/graph/era/facilities.js`. A facility is a row: a use, its plan's fighting dials (`programs.js` `FIGHT`:
+`rings` a second doorway to every room, `room` wide corridors and taller storeys, `gallery` a catwalk round the tall
+hall, `stagger` the core's doorways offset), its rooms' layouts and its look, a construction and a palette
+(`era/style/bay-axes.js`). Each is built in its own materials.
+
+| facility | use | built in | its ground |
+|---|---|---|---|
+| `depot` | warehouse | utility: concrete block, sealed floors | the shed a staggered maze of rack aisles under a catwalk; corridors a chicane |
+| `power-plant` | plant | bunker: poured concrete | the generator hall a field of sets, switchgear and pumps under the gallery; drums by turns down the corridors |
+| `motor-pool` | hangar-bay | military: steel plate, epoxy | the hangar a yard of crate clumps; parts rooms shelved; shops bench islands |
+| `research-wing` | lab-building | science: panels, glazing, terrazzo | the instrument bay a grid of rack aisles; labs bench islands |
+| `field-hq` | command | everyday: carpet, gypsum, veneer | offices desk pods behind cabinets; briefing rooms desks in rows; no hall, its rooms rung |
+
+A level's building or a dungeon's space names one: `building: { facility: 'depot' }`, or
+`wcd.spaces.<id>.facility: 'power-plant'` (its use and look the facility's; the space's own look wins, so the layers of
+a dungeon still differ in construction and palette, the WCD principle). The recipe's own `look`, `fight` and `layouts`
+lay over the facility's. A complex's buildings (`network/complex.js`) take `layouts` too, so a dungeon's spaces stood on
+one yard keep their floors.
+
+A new facility is a row: pick a use whose rooms carry the place (an annex hall is the most to work with), the dials that
+give it loops, a layout for each role that should be ground rather than box, and a construction not yet used next to it.
+
+## Proved and played
+
+`node scripts/spikes/mission/facilities.mjs --plan [--svg dir]` lays each facility, prints every laid room's laws and
+crosses its hall with the route search (`gameworld/stealth-routes.js`) under a watcher walking it, beside the same
+building bare. On seed 1 the depot's shed and the power plant's generator hall have no way across unseen bare and one
+laid; the motor pool's hangar has one either way (it is wide enough to skirt the watcher) and the laid one keeps a body
+two metres further off. `--svg` draws each ground storey from above: rooms, doorways, pieces by what they hide, the way
+across unseen. `--out dir --facility <id>` builds the page: the operative at the way in, a guard walking the hall.
+
+## What is not yet
+
+- No piece is see-through: glass and mesh stop a gaze as a wall does (`sightBlocked` treats every collider as opaque).
+- No crawl space in a building: a duct or a raised floor a body lies flat in is the vehicles' `under` today, not a room's.
+- In-room level changes are the hall's gallery alone; a mezzanine over a room, a pit or a ramp is not a layout.
+- A five-metre room stays a room. Fewer, larger rooms would need a program shape that is not a corridor of bays.

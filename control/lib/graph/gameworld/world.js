@@ -131,6 +131,8 @@
  * `resolveLevel(world, id)` answers the level recipe `layLevel` reads, the town's recipe (its castle in it), the
  * level's whole style, who built what, and its ledger. Pure: the same world resolves the same levels.
  */
+import { FACILITIES, FACILITY_IDS } from '../era/facilities.js';
+import { readLayouts } from '../era/room-layouts.js';
 import { readWorldRoll } from './roll-lower.js';
 import { readObstacles } from './roll-course.js';
 import { THEMES } from '../../mana-ui/theme.js';
@@ -320,7 +322,7 @@ const ROADWAY_LEVEL_KEYS = ['form', 'course', 'dress', 'kit', 'scape', 'mood'];
 // a city level (city/plan/): the plan's own settings, who builds it, and the segments it is entered at and left from
 const CITY_LEVEL_KEYS = ['grammar', 'seed', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'cars', 'play', 'look', 'paint', 'civilization', 'from', 'to', 'stalker'];
 // (a building use's plan, era/programs.js: storeys, wings, loading and bays for an office, a lab building, a warehouse)
-const BUILDING_KEYS = ['use', 'seed', 'rooms', 'add', 'kit', 'geocube', 'goal', 'from', 'civilization', 'ref', 'storeys', 'wings', 'loading', 'bays', 'parked', 'complex', 'fight'];
+const BUILDING_KEYS = ['use', 'facility', 'seed', 'rooms', 'add', 'kit', 'geocube', 'goal', 'from', 'civilization', 'ref', 'storeys', 'wings', 'loading', 'bays', 'parked', 'complex', 'fight', 'layouts'];
 // a building level that is several buildings (network/complex.js): its own, or its dungeon's spaces on it
 const COMPLEX_LEVEL_KEYS = ['buildings', 'campus', 'network', 'yard', 'from', 'to'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -799,8 +801,12 @@ export function readGameworld(W) {
         if (L.foes !== undefined) throw new Error(`gameworld: ${at}.foes: a complex's rooms hold no foes yet (a building level's do)`);
       }
       // (a use: the building's own, else the use of the dungeon's space this level is)
-      const spaceUse = isObj(W.wcd?.spaces) ? Object.values(W.wcd.spaces).find((sp) => isObj(sp) && sp.level === id && typeof sp.use === 'string')?.use : undefined;
-      if (B.complex === undefined && (B.ref === undefined) === (B.use === undefined && spaceUse === undefined)) throw new Error(`gameworld: ${at}.building names a use (${PROGRAM_IDS.join(', ')}) or the ref of a building already made, one of them`);
+      const spaceUse = isObj(W.wcd?.spaces) ? Object.values(W.wcd.spaces).map((sp) => (isObj(sp) && sp.use === undefined && FACILITIES[sp.facility] ? { ...sp, use: FACILITIES[sp.facility].use } : sp)).find((sp) => isObj(sp) && sp.level === id && typeof sp.use === 'string')?.use : undefined;
+      // (a facility names its use: era/facilities.js)
+      if (B.facility !== undefined && !FACILITIES[B.facility]) throw new Error(`gameworld: ${at}.building.facility '${B.facility}' is not one (${FACILITY_IDS.join(', ')})`);
+      if (B.facility !== undefined && B.use !== undefined && B.use !== FACILITIES[B.facility].use) throw new Error(`gameworld: ${at}.building: facility '${B.facility}' is a ${FACILITIES[B.facility].use}; give its use or none`);
+      if (B.layouts !== undefined) { try { readLayouts(B.layouts); } catch (e) { throw new Error(`gameworld: ${at}.building.${e.message.replace(/^program: /, '')}`); } }
+      if (B.complex === undefined && (B.ref === undefined) === (B.use === undefined && B.facility === undefined && spaceUse === undefined)) throw new Error(`gameworld: ${at}.building names a use (${PROGRAM_IDS.join(', ')}) or the ref of a building already made, one of them`);
       if (B.ref !== undefined && typeof B.ref !== 'string') throw new Error(`gameworld: ${at}.building.ref is a sketch ref`);
       if (B.ref !== undefined && Object.keys(B).some((k) => !['ref', 'goal'].includes(k))) throw new Error(`gameworld: ${at}.building: a building by ref is played as it was made (ref, goal?)`);
       if (B.use !== undefined && !PROGRAM_IDS.includes(B.use)) throw new Error(`gameworld: ${at}.building.use '${B.use}' is not one (${PROGRAM_IDS.join(', ')})`);
@@ -1018,7 +1024,7 @@ function complexOfLevel(G, id, B, spaces, seed) {
     if (!here.length) throw new Error(`gameworld: ${at} names no buildings and no space of the world's dungeon (wcd) stands on this level: give it buildings, or set spaces' level to '${id}'`);
     const bare = here.filter((sp) => !sp.use);
     if (bare.length) throw new Error(`gameworld: ${at}: the dungeon's space${bare.length > 1 ? 's' : ''} ${bare.map((sp) => `'${sp.id}'`).join(', ')} on this level name${bare.length > 1 ? '' : 's'} no use: a complex's building is one (its space's use)`);
-    buildings = here.map((sp, i) => ({ id: sp.id, use: sp.use, at: i ? { beside: here[i - 1].id, side: '+x' } : [0, 0], ...(sp.look ? { look: sp.look } : {}) }));
+    buildings = here.map((sp, i) => ({ id: sp.id, use: sp.use, at: i ? { beside: here[i - 1].id, side: '+x' } : [0, 0], ...(sp.look ? { look: sp.look } : {}), ...(sp.facility ? { layouts: { ...FACILITIES[sp.facility].layouts } } : {}) }));
   } else if (Array.isArray(buildings)) {
     // (a building named for a space wears its look when it names none)
     buildings = buildings.map((b) => { const sp = here.find((x) => x.id === b?.id); return sp?.look && b.look === undefined ? { ...b, look: sp.look } : b; });
@@ -1120,11 +1126,13 @@ export function resolveLevel(world, id) {
       return { id, name: L.name ?? id, seed, style, built: { building: civId }, ledger, level: null, town: null, building };
     }
     const space = spaces.find((sp) => B.use !== undefined && sp.use === B.use) ?? spaces[0] ?? null;
+    // (the space's facility, when the building names no use of its own nor a facility: era/facilities.js)
+    const spaceFacility = space?.facility && B.facility === undefined && (B.use === undefined || B.use === space.use) ? { facility: space.facility } : {};
     // (a MISSION in it, mission-building.js: the building designed as a fighting map unless it says otherwise, `fight`
     // true where it names none and an explicit false kept; the mission's settings as read, its seed the level's)
     const fought = L.mission !== undefined && B.fight === undefined ? { fight: true } : {};
     const building = B.ref !== undefined ? { ref: B.ref, ...(B.goal !== undefined ? { goal: B.goal } : {}) }
-      : { ...B, ...fought, use: B.use ?? space?.use, seed: B.seed ?? seed, civilization: civId, ...(anchor !== null ? { anchor } : {}), ...(space?.look ? { look: space.look } : {}), ...(space?.tone !== undefined ? { tone: space.tone } : {}) };
+      : { ...B, ...fought, ...spaceFacility, use: B.use ?? (B.facility !== undefined ? FACILITIES[B.facility].use : space?.use), seed: B.seed ?? seed, civilization: civId, ...(anchor !== null ? { anchor } : {}), ...(space?.look ? { look: space.look } : {}), ...(space?.tone !== undefined ? { tone: space.tone } : {}) };
     const mission = L.mission !== undefined ? (() => { const spec = readMission(L.mission, 'mission'); return { mission: { spec, seed: spec.seed ?? (seed >>> 0) } }; })() : {};
     return { id, name: L.name ?? id, seed, style, built: { building: civId }, ledger, level: null, town: null, building, ...mission };
   }

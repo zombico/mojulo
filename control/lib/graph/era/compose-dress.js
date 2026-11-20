@@ -25,6 +25,7 @@ import { box, r5 } from './geom.js';
 import { STAIR_PROFILES } from '../construction/circulation.js';
 import { STOCK, HOSPITAL_STOCK, GREAT, EXTINGUISHER, roleOf, stockLaws, TOWN_STOCK, TOWN_GREAT, HALL_COVER } from './stocking.js';
 import { CELL as ARENA_CELL } from '../arena-map/blocks.js';
+import { LAYOUTS, layoutOf, layoutLaws } from './room-layouts.js';
 import { resolveFurniture } from '../furnishings/forms.js';
 import { lockedFurnitureFaces } from '../construction/facades.js';
 
@@ -131,6 +132,9 @@ const CLUSTERS = Object.freeze({ arrival: 1, passage: 0, landmark: 2, pocket: 2,
 const CLUTTER = Object.freeze({ even: 0, drama: 0, noir: 1 });
 // a room's clear edge (off its walls' faces, its corners), a sightline's half width, the gap between pieces abreast
 const EDGE = 0.5, SIGHT = 0.8, GAP = 0.08;
+// a doorway's way through for a body: as deep into the room as a step and a turn (a layout keeps this clear, not the
+// dressing's whole approach: room-layouts.js)
+const BODY_DOOR = 1.4;
 const SIDES = Object.freeze(['-y', '+y', '-x', '+x']);
 const mulberry32 = (a) => () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const hashOf = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
@@ -158,7 +162,9 @@ export function keepOuts(plan) {
     const R = roles.get(r.id);
     for (const o of openingsOf(plan, r)) {
       const a = [o.at, o.at + o.into * depth].sort((x, y) => x - y), lo = o.lo - 0.6, hi = o.hi + 0.6;
-      out.push({ room: r.id, kind: 'door', min: o.X ? [a[0], lo] : [lo, a[0]], max: o.X ? [a[1], hi] : [hi, a[1]] });
+      // (`near`: a body's way through it, all a room's layout keeps clear: room-layouts.js)
+      const b = [o.at, o.at + o.into * BODY_DOOR].sort((x, y) => x - y), nl = o.lo - 0.3, nh = o.hi + 0.3;
+      out.push({ room: r.id, kind: 'door', min: o.X ? [a[0], lo] : [lo, a[0]], max: o.X ? [a[1], hi] : [hi, a[1]], near: { min: o.X ? [b[0], nl] : [nl, b[0]], max: o.X ? [b[1], nh] : [nh, b[1]] } });
       if (R) { const m = (o.lo + o.hi) / 2; out.push({ room: r.id, kind: 'sight', a: o.X ? [o.at, m] : [m, o.at], b: [R.focus[0], R.focus[1]], half: SIGHT }); }
     }
   }
@@ -189,8 +195,9 @@ export function footprintOf(it) {
 export function layProps(plan) {
   const C = plan.compose, reg = C.axes.dressing, set = PIECE_SETS[reg], keep = keepOuts(plan), items = [], town = reg === 'vernacular';
   const off = (plan.kit?.B?.pilaster?.out ?? 0.1) + 0.05;
-  const free = (r, mn, mx) => mn[0] >= r.x0 + 0.05 && mx[0] <= r.x1 - 0.05 && mn[1] >= r.y0 + 0.05 && mx[1] <= r.y1 - 0.05
-    && !keep.some((k) => k.room === r.id && hits(k, mn, mx))
+  // (`sight` false: a doorway's sightline is not kept, as a room's layout breaks it on purpose)
+  const free = (r, mn, mx, sight = true) => mn[0] >= r.x0 + 0.05 && mx[0] <= r.x1 - 0.05 && mn[1] >= r.y0 + 0.05 && mx[1] <= r.y1 - 0.05
+    && !keep.some((k) => k.room === r.id && (sight || k.kind !== 'sight') && hits(sight || k.kind !== 'door' ? k : { kind: 'door', ...k.near }, mn, mx))
     && !items.some((o) => { if (o.room !== r.id || o.wall) return false; const f = footprintOf(o); return mn[0] < f.max[0] + GAP && mx[0] > f.min[0] - GAP && mn[1] < f.max[1] + GAP && mx[1] > f.min[1] - GAP; });
   const add = (it, P, dice) => {
     const base = it.id, idx = items.filter((o) => o.id.startsWith(`${base}-`) && !o.id.includes('@')).length + 1;
@@ -253,6 +260,28 @@ export function layProps(plan) {
       }
     }
   };
+  // a room given a layout (room-layouts.js, the program's `layouts`): its floor laid in the layout's figure, each piece
+  // where it stands clear (of the doorways' approaches and the stairs, not of their sightlines), in place of its stock
+  const layLayout = (r, o) => {
+    if (plan.use && !town) layExtinguishers(r);
+    const dice = mulberry32(hashOf(`layout|${r.id}`)), L = LAYOUTS[o.layout], before = items.length;
+    const fits = (kind, at, facing) => { const f = footprintOf({ kind, at, facing }); return free(r, f.min, f.max, false); };
+    // (a piece its place does not hold, a doorway's approach or a stair's foot over it, moved the least that clears it,
+    // half a metre at a time up to a metre and a half: a piece moves, it is not dropped)
+    const NUDGE = [[0, 0]];
+    for (let d = 0.5; d <= 1.5; d += 0.5) for (const [a, b] of [[d, 0], [-d, 0], [0, d], [0, -d], [d, d], [-d, d], [d, -d], [-d, -d]]) NUDGE.push([a, b]);
+    for (const c of L.lay(r, o, (k) => PIECES[k], dice, fits)) {
+      for (const [a, b] of L.nudge ? NUDGE : NUDGE.slice(0, 1)) {
+        const it = { id: `${r.id}/layout/${c.kind}`, kind: c.kind, room: r.id, at: [r5(c.at[0] + a), r5(c.at[1] + b)], facing: c.facing }, f = footprintOf(it);
+        // (moved, it keeps a body's way to every wall, or stands against it: never a gap a body sticks in)
+        const gaps = [f.min[0] - r.x0, r.x1 - f.max[0], f.min[1] - r.y0, r.y1 - f.max[1]];
+        if ((a || b) && gaps.some((g) => g > 0.35 && g < 0.9)) continue;
+        if (free(r, f.min, f.max, false)) { add(it, PIECES[c.kind], dice); break; }
+      }
+    }
+    // (how many it laid, the extinguishers aside: none, and the room keeps its stock)
+    return items.slice(before).some((it) => it.id.includes('/layout/'));
+  };
   for (const R of C.roles) {
     const r = plan.rooms.find((x) => x.id === R.room), dice = mulberry32(hashOf(`props|${r.id}`));
     // the set piece its role names: at the focus a great object, a find, a prize; over the way on, a sign
@@ -288,11 +317,13 @@ export function layProps(plan) {
     // a military base's building or a hospital's (plan.use): each room its stock (stocking.js) in place of the register's clusters, and
     // an extinguisher by each of its doorways; a room the tables do not stock (a corridor, a core) holds none of it
     // (a town's building, the vernacular register: its room's role's stock, stocking.js TOWN_STOCK; no extinguisher)
+    const LO = plan.layouts ? layoutOf(plan.layouts, r.id, roleOf(r.id)) : null;
+    if (LO && layLayout(r, LO)) continue;
     if (plan.use) {
       const lines = (plan.stock === 'hospital' ? HOSPITAL_STOCK : town ? TOWN_STOCK : STOCK)[roleOf(r.id)];
       if (lines) {
         // (the extinguishers first: the safety kit claims its place by the doors before the stock fills the walls)
-        if (!town) layExtinguishers(r);
+        if (!town && !LO) layExtinguishers(r);
         const sd = mulberry32(hashOf(`stock|${r.id}`));
         for (const [kind, [lo, hi], where] of lines) layStock(r, kind, lo + Math.floor(sd() * (hi - lo + 1)), where, sd);
       }
@@ -324,6 +355,24 @@ export function layProps(plan) {
     }
   }
   return items;
+}
+
+/**
+ * A laid plan's layouts, each room given one held to its laws (room-layouts.js layoutLaws): { <room id>: { layout,
+ * pieces, laws } }. `items` its props. Rooms without a layout are not said.
+ */
+export function layoutReport(plan, items) {
+  const out = {};
+  for (const r of plan.rooms) {
+    const o = plan.layouts ? layoutOf(plan.layouts, r.id, roleOf(r.id)) : null;
+    if (!o) continue;
+    const mine = items.filter((it) => it.room === r.id && PIECES[it.kind]?.solid !== false && !it.wall);
+    const boxes = mine.map((it) => { const f = footprintOf(it); return { min: f.min, max: f.max, h: PIECES[it.kind].h * (it.scale ?? 1) * ((it.level ?? 0) + 1) }; });
+    const pieces = mine.filter((it) => it.id.includes('/layout/') && !it.level).length;
+    // (a layout its room could not hold, its doorways' approaches over every place: the room keeps its stock, said)
+    out[r.id] = { layout: o.layout, pieces, ...(pieces ? {} : { stocked: true }), laws: layoutLaws(r, boxes, openingsOf(plan, r)) };
+  }
+  return out;
 }
 
 /**
@@ -466,7 +515,8 @@ export function dressLaws(plan, items) {
   const keep = keepOuts(plan), inKeep = [], inSight = [];
   for (const it of items) {
     if (it.set || it.wall || !PIECES[it.kind]) continue;
-    const f = footprintOf(it), k = keep.find((q) => q.room === it.room && hits(q, f.min, f.max));
+    // (a room's layout keeps a doorway's way through for a body, not its whole approach: room-layouts.js)
+    const lay = it.id.includes('/layout/'), f = footprintOf(it), k = keep.find((q) => q.room === it.room && (!lay || q.kind !== 'sight') && hits(lay && q.kind === 'door' ? { kind: 'door', ...q.near } : q, f.min, f.max));
     if (k) (k.kind === 'sight' ? inSight : inKeep).push(it.id);
   }
   const count = {};

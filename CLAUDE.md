@@ -370,6 +370,11 @@ Pointers only; each target carries its own design notes.
 - Walled-core dungeons: [docs/walled-core-dungeon.md](docs/walled-core-dungeon.md) (layers on a critical path toward a
   core, a `design_game` world's `wcd`; its principles as laws; a space builds its level; a military base's buildings,
   stocked by `era/stocking.js`).
+- Facility pieces (a building designed to move through, not hallways and boxes): a room's floor laid in a figure,
+  [era/room-layouts.js](control/lib/graph/era/room-layouts.js) (aisles, machines, islands, stockpile, chicane, rows, each
+  held to its laws; a program's `layouts`, a new figure a row), and a facility, [era/facilities.js](control/lib/graph/era/facilities.js)
+  (a use, its fighting dials, its layouts and its materials, named by a level's building or a WCD space; a new one a
+  row): [docs/facility-pieces.md](docs/facility-pieces.md).
 - Room craft: [era/room-craft.js](control/lib/graph/era/room-craft.js) (the craft laws of `era/laws.js` as the questions a room is
   asked, each with its reason and how different places answer it; a new interior answers the questions, never copies
   another kit's things; `readRoomCraft` says which a kit's card answers; the agent's card: `room-craft`).
