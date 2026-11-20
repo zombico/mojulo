@@ -22,6 +22,9 @@
  *   hit          its HITBOX, not its drawing (gameworld/feel/lower.js BUSTER_HIT): { r (m, the radius it meets a body with),
  *                tall? (m, the half height of a tall capsule over its centre) }; none, its size
  *
+ * A foe's SHOOTABLE round (a thrown rock: foe.js rockStep) is broken in the air by a buster's round that meets it, both
+ * gone and a burst there (the full charge goes on through it).
+ *
  * A TALL round (the full charge's) meets a body anywhere in its height: before each step its capsule is swept along the
  * step's travel against every hittable body (the engine's own egg test, E.pointInEgg), and where it first meets one the
  * round is moved up or down to the height it met it at, so the engine's own contact (a sphere of `r`, combat-ranged.js)
@@ -109,6 +112,24 @@ export function buildBuster(E) {
       if (dz) p.pos[2] += dz;
     }
     const out = step(state, input, dt, hooks);
+    // (a SHOOTABLE round of a foe's, a thrown rock: a buster's round that meets it breaks it in the air, both gone, a
+    // burst where they met; the full charge goes on through it)
+    const ps = state.projectiles;
+    if (ps && ps.length > 1 && B) for (let i = ps.length - 1; i >= 0; i--) {
+      const q = ps[i];
+      if (!q || !q.shootable) continue;
+      for (let j = ps.length - 1; j >= 0; j--) {
+        const p = ps[j];
+        if (!p || !p.pellet || p.owner !== e.id) continue;
+        const reach = (p.projRadius || 0.05) + (q.projRadius || 0.2) + 0.15 + (p.projTall || 0) * 0.5;
+        if (Math.hypot(p.pos[0] - q.pos[0], p.pos[1] - q.pos[1], p.pos[2] - q.pos[2]) > reach) continue;
+        state.bursts.push({ seq: state.burstSeq++, pos: q.pos.slice(), t: state.time, radius: (q.projRadius || 0.2) * 2.2, fxColor: q.fxColor, fxScale: q.fxScale, broke: true });
+        q.broken = true;
+        ps.splice(i, 1);
+        if (!p.projTall) ps.splice(j < i ? j : j - 1, 1);
+        break;
+      }
+    }
     // (published after the step: the platform rule writes its own jump charge to e.charging and e.chargeFrac each frame,
     // so the buster's is laid over it, the larger of the two)
     if (B && !e.gone && e.busterOn) {

@@ -108,6 +108,20 @@ describe('the buster', () => {
     const high = world(hero({ ...BUSTER, low: 0 }), walker(3)); step(high, true); step(high, false, 40);
     expect(high.byId.foe.body.hp).toBe(100);
   });
+  it('a tap breaks a foe\'s SHOOTABLE round (a thrown rock) in the air: both gone, a burst where they met', () => {
+    const st = world(hero());
+    st.projectiles = [{ id: 'rock', owner: 'boss', pos: [2.5, 0, 1.19], vel: [0, 0, 0], gravity: 0, projRadius: 0.3, splashRadius: 0.9, damage: 10, age: 0, armTime: 9, fuse: 9, noGround: true, rock: true, shootable: true }];
+    st.bursts = []; st.projSeq = 1; st.burstSeq = 0;
+    step(st, true); step(st, false, 20);
+    expect(st.projectiles.some((q) => q.id === 'rock')).toBe(false);
+    expect(st.bursts.some((b) => b.broke)).toBe(true);
+    // (one not shootable flies on through a tap)
+    const b = world(hero());
+    b.projectiles = [{ id: 'slug', owner: 'boss', pos: [2.5, 0, 1.19], vel: [0, 0, 0], gravity: 0, projRadius: 0.3, damage: 10, age: 0, armTime: 9, fuse: 9, noGround: true }];
+    b.bursts = []; b.projSeq = 1; b.burstSeq = 0;
+    step(b, true); step(b, false, 20);
+    expect(b.projectiles.some((q) => q.id === 'slug')).toBe(true);
+  });
   it('is emitted only into a page with a body that carries it', () => {
     expect(emissionSource()).not.toContain('stepWithBuster');
     expect(controllableChannelScript([foe(3)], null, {})).not.toContain('stepWithBuster');

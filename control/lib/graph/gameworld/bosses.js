@@ -39,9 +39,6 @@ export const BOSS_FACES = Object.freeze({
   // an OBJECT HEAD: a crucible, a bowl tapering to the neck, flat across its top, a white lip round its rim and the molten
   // metal domed over it (seen side on); two lit eyes on the bowl
   crucible: { reads: 'the head a crucible: a tapered bowl, a lip round its rim, molten metal domed over it, two lit eyes', helm: { crown: 0.05, flare: -0.55, n: 2.2, scale: 1.35, visor: 'lenses', visorGroup: SIGNAL, lens: 0.03, lip: { group: 'Cuff', t: 0.016 }, pool: { group: SIGNAL, rise: 0.03 } } },
-  // a WORKER's: a hard hat over a screen face, its brim proud above the eyes, two round lit eyes and a dark grille mouth
-  // on a light faceplate (`plate`, the boss's: the screen) — the plain face of a bot built for work
-  worker: { reads: 'a hard hat over a screen face: two round lit eyes and a grille mouth on a light plate', helm: { n: 3.2, crown: 0.5, scale: 1.18, faceplate: 'Face', visor: 'lenses', visorGroup: SIGNAL, lens: 0.065, grille: 4, grilleGroup: 'Bottom', lip: { u: 0.74, w: 0.06, t: 0.04, group: 'Armor' } } },
 });
 export const BOSS_FACE_IDS = Object.freeze(Object.keys(BOSS_FACES));
 
@@ -49,18 +46,22 @@ export const BOSS_FACE_IDS = Object.freeze(Object.keys(BOSS_FACES));
  * THE ROSTER (built so far). `class` the foe shelf's (how it moves and attacks; its rank the boss's), `tier` its height a
  * share of the hero's (1 a rival, 1.25 a brute, 2 a giant), `armor` the suit's own, `hue` its identity (the chest's plaques and pecs; the side map's
  * boss-colour, which takes its place in a level that holds one back: boss-spec.js), `signal` its eyes' glow; `tell` what the face does as it winds up, `weapon` what its defeat gives the hero
- * (null: nothing, an intro stage's), `plate` its faceplate's colour where its face has one (a screen), `hp` its health where the rank's would be too long a fight, `shot` its gun's height
+ * (null: nothing, an intro stage's), `workbot` its body where it is a worker bot and not of the hero's family (a card of
+ * workbots/: its face, build and armour then none), `hp` its health where the rank's would be too long a fight, `shot` its gun's height
  * (`eye`, a share of its own) and its rate (`cooldown`, s) where it fires (side-map/boss-cast.js).
  */
 export const BOSSES = Object.freeze({
   // (a lobber, the foe shelf's: it keeps its place and lobs at where the hero stood)
   crucible: { name: 'Crucible', theme: 'foundry', face: 'crucible', build: 'brute', tier: 1.25, class: 'lobber', armor: '#4f545b', hue: '#e0661a', signal: '#ffb020', tell: 'the bowl tips, its metal brightening', weapon: 'a lobbed molten arc' },
-  // LEVEL 0's: a GIANT WORKER BOT, not one of the roster's rivals (gives no weapon; its intro says none): the plant's own
-  // worker, the hero's family built big and broad for work, in site yellow, a hard hat over its screen face (`worker`:
-  // two round eyes lit orange and a grille mouth on a light `plate`), twice the hero's height. Its pattern is one thing,
-  // simply: it stands its ground and fires a slow round low across the room (`shot`: from `eye` of its height, every
-  // `cooldown` s, side-map/cast.js's travelling round), jumped or dashed under; its health `hp` (a short fight: the tap's
-  // 28 or so)
-  bulwark: { name: 'Bulwark', theme: 'plant', face: 'worker', build: 'brute', tier: 2.2, class: 'turret', armor: '#e5a91c', plate: '#d9dde2', hue: '#f2b316', signal: '#ff5a2a', tell: 'its eyes flare as it draws its breath', weapon: null, hp: 280, shot: { eye: 0.3, cooldown: 1.4 } },
+  // LEVEL 0's: a GIANT WORKER BOT, not one of the roster's rivals and not of the hero's family (gives no weapon; its intro
+  // says none): the plant's boiler bot, a WORKBOT (`workbot`: a card of workbots/, the worker bots' own low-poly language,
+  // a hard hat over a screen face of two lit eyes and a grille mouth), twice the hero's height. Its pattern is one thing,
+  // simply: it ROLLS on its treads toward the hero, facing it, firing a slow round low ahead of it (`shot`: from `eye`
+  // of its height, every `cooldown` s, side-map/cast.js's travelling round), jumped; it crosses its room and turns round
+  // at the far side (`roll`: { speed m/s, touch }: the foe shelf's pace across its room's floor, its gun fired ahead,
+  // touching it a blow), so the hero who gets over it (up the wall) has it turn round and come again; every few seconds
+  // it stops, picks a rock up off the floor and throws it at the hero in an ARC (`roll.rock`, foe.js rockStep: dodged,
+  // or shot apart in the air); its health `hp` (a short fight: the tap's 28 or so)
+  bulwark: { name: 'Bulwark', theme: 'plant', workbot: 'bulwark', tier: 2.2, class: 'turret', hue: '#f2b316', signal: '#ff5a2a', tell: 'its eyes flare as it draws its breath', weapon: null, hp: 280, shot: { eye: 0.3, cooldown: 1.4 }, roll: { speed: 1.4, touch: 1, rock: { every: 5, lift: 0.9, hold: 0.35, angle: 50, g: 14, size: 0.55, damage: 10, splash: 1.1 } } },
 });
 export const BOSS_IDS = Object.freeze(Object.keys(BOSSES));

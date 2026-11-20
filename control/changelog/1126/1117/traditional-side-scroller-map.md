@@ -342,12 +342,34 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   matter by the shot light, no longer compiled as cel without a cel normal). The boss's room SHUTS behind the hero: a
   step past its doorway the runtime walls it up (a camera zone's `shut`) and a steel shutter with hazard bars drops
   across the way in (`shutter-view.js`). Level 0's boss is BULWARK, a giant worker bot, not one of the roster's
-  rivals: the hero's own family built big and broad in site yellow, a hard hat over a screen face (the boss face
-  `worker`: two round lit eyes and a dark grille mouth on a light plate, a boss's `plate` its colour; a bot in Galaxy
-  Boy's world has two eyes and a mouth at least), at twice the hero's height, its pattern one slow round low across the
-  room every 1.4 s, jumped, its health 280, coming apart as it falls; it gives no weapon. Laws: the tap
+  rivals and not of the hero's family: a WORKBOT, the worker bots' own visual language (`control/lib/graph/workbots/`:
+  a few big low-poly primitives, a box, a prism, a dome, a ball, a wheel, a tread's track, in flat toy colours by role
+  under a two-tone cel, and a FACE, two lit eyes and a mouth on a light plate turned toward the side camera; a bot as a
+  card, a bone a part, stood as a rig figure by a figures-map entry `workbot`; a roster boss's `workbot` its body,
+  nothing minted). Bulwark's card is an ENGINE BOT: an engine block for a body (cylinder heads on top, two exhausts
+  angled up and back that STEAM on the page, a cooling fan each side), TANK TREADS for legs (a track loop round its road
+  wheels and its drive sprocket), clamp arms on pistons, a head rounded by a half sphere each side under a blower's
+  scoop, its screen face (two orange eyes, a grille mouth) turned partly toward the camera, in site yellow, about 760
+  faces; at twice the hero's height. Its pattern: it ROLLS on its treads toward the hero, facing him, firing a slow round
+  low ahead of it every 1.4 s (jumped), crosses its room and turns round at the near side, so the hero who got over it
+  has it turn and come again (a roster boss's `roll`: the foe shelf's pace across the room's floor, `bossPlace`'s
+  `span`, with the pace's new opt-in `fire`: a pacer that fires its gun at a hero ahead of it; touching it a blow, its
+  top a bounce); every five seconds it stops, picks a ROCK up off the floor before it and throws it at the hero in an
+  ARC (the pace's opt-in `rock`, foe.js rockStep: its launch at 50 degrees at the speed that lands it where the hero
+  stands), dodged, or shot apart in the air (a foe's round marked `shootable` is broken by a buster's round that meets
+  it, buster.js, its chunks flung; the page's rock, picked up, thrown and broken, rock-view.js); its health 280, coming
+  apart as it falls; it gives no weapon. It is drawn as every body on the map is: a CEL body (`workbotFigure` packs its
+  lit and its shade bakes, `colS`, its eyes its signal, `toon`), stepped by the zone's key light and inked. The steam is the page's: puffs from a
+  body's `steam` vents (a worker bot's `vent` pipes, `workbotVents`), out along the pipe, rising and thinning
+  (`steam-view.js`). Laws: the tap
   meets a knee-high walker (buster.test.js), the foe round travels from the foe's middle and through its own
-  (cast.test.js), a boss's room shuts behind the hero and is not left (sidemap.test.js), the giant worker bot's face (two
-  eyes and a mouth), shot and health (boss-cast.test.js); the bot plays level 0 through its foes and brings Bulwark down
+  (cast.test.js), a boss's room shuts behind the hero and is not left (sidemap.test.js), the giant worker bot's body, shot,
+  health, its roll across its room and its steam (boss-cast.test.js), a worker bot's few primitives, its face (two
+  eyes, a mouth, toward the camera), its round head and vents, its bones and its words (workbots/index.test.js), a
+  pacer that fires shoots what is ahead and holds at what is behind, one with a rock stoops, lifts it and throws it in
+  an arc down onto the hero (foe.test.js), a tap breaks a shootable round in the air and leaves one that is not
+  (buster.test.js), a worker bot is a cel body, its eyes its signal (workbots/index.test.js); the bot plays level 0 through its foes and brings Bulwark down
   (level.e2e.test.js). Seen on the page: a turret's round crossing the room, the heavies, a walker's wreck, the
-  shutter coming down, Bulwark firing low across its room.
+  shutter coming down, Bulwark rolling at the hero firing, steaming, turning
+  round at the near side and coming back, in the cel light and ink, lifting a rock, throwing it in an arc, the rock
+  shot apart in the air.

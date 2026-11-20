@@ -24,6 +24,8 @@ import { turretScript } from './turret-view.js';
 import { boatWaterScript } from './boat-water.js';
 import { shotLightScript } from './shot-light-view.js';
 import { shutterScript } from './shutter-view.js';
+import { steamScript } from './steam-view.js';
+import { rockScript } from './rock-view.js';
 import { roundLooks, roundLook, blastLook, BLAST_LOOK, SLASH_LOOK, SABER_STRAND } from '../../../gameworld/feel/round-look.js';
 import { castKitSource } from '../cast-rig.js';
 import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
@@ -807,6 +809,9 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   // the shot's look in the foe's colour, one look a colour; none, nothing)
   const foeLooks = Object.fromEntries(entities.filter((e) => e && e.weapon && e.weapon.foeRound && Number.isInteger(e.weapon.fxColor)).map((e) => [e.weapon.fxColor, roundLook({ color: e.weapon.fxColor, size: e.weapon.fxScale ?? 0.16 }, 0)]));
   const foeRoundsOn = Object.keys(foeLooks).length > 0;
+  // (a foe that picks up and THROWS ROCKS, worlds/controllable/foe.js rockStep: its rocks drawn by rock-view.js, never as a
+  // shell; none, nothing)
+  const rockOn = entities.some((e) => e && e.rule && e.rule.foe && e.rule.foe.rock);
   // (a SABER's body, gameworld/feel/saber.js: a moveset that strikes with a colour, its cuts drawn as slashes; none: nothing)
   const saberOn = entities.some((e) => e && e.rule && e.rule.moveset && e.rule.strike === 'melee' && e.rule.strikeFx && Number.isInteger(e.rule.strikeFx.color));
   // THE DASH'S DUST (round-look.js DASH_DUST, a rule's dash.dust): a body whose ground dash raises it
@@ -4654,7 +4659,8 @@ function __updateProjectiles() {${dustOn ? `
   for (const e of __world.entities) { const W = e.wreck; if (!W || !e.transform) continue; const key = e.id + ':' + (W.t0 || 0); if (__blastWrecks.has(key)) continue; __blastWrecks.add(key); const at = [e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + ((e.rule && e.rule.collideHeight) || 1.6) * 0.5]; __blast(at, __blastTint(at, W.t0 || 0), 0.9, 'blast'); }` : ''}
   const ps = __world.projectiles || [];
   const live = {};
-  for (const p of ps) {
+  for (const p of ps) {${rockOn ? `
+    if (p.rock) continue;   // (a thrown rock: rock-view.js draws it)` : ''}
     live[p.id] = true;
     let rec = __projMeshes[p.id];${moveset ? `
     // (a moveset's bow, gameworld/combos.js a draw sidearm: its round an ARROW, a shaft along its flight, its point leading)
@@ -5343,7 +5349,7 @@ function __mojBackdrop(from, look, shift) {
   scene.add(quad);
   return { dispose: () => { scene.remove(quad); quad.geometry.dispose(); quad.material.dispose(); rt.dispose(); } };
 }
-` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${backdrop ? ' backdrop: __mojBackdrop,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''}${gusts ? ' air: __CW.vayoAir,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay ? gunplayScript() : ''}${vayoOn ? vayoTrailScript() : ''}${knock ? knockFxScript() : ''}${turretOn ? turretScript() : ''}${boatOn ? boatWaterScript() : ''}${camera && camera.rule === 'side-map' ? shotLightScript() : ''}${camera && camera.rule === 'side-map' && Array.isArray(camera.zones) && camera.zones.some((z) => z && z.shut) ? shutterScript() : ''}${moveset ? specialsPaletteScript() : ''}${roll ? `
+` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${backdrop ? ' backdrop: __mojBackdrop,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''}${gusts ? ' air: __CW.vayoAir,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay ? gunplayScript() : ''}${vayoOn ? vayoTrailScript() : ''}${knock ? knockFxScript() : ''}${turretOn ? turretScript() : ''}${boatOn ? boatWaterScript() : ''}${camera && camera.rule === 'side-map' ? shotLightScript() : ''}${camera && camera.rule === 'side-map' && Array.isArray(camera.zones) && camera.zones.some((z) => z && z.shut) ? shutterScript() : ''}${entities.some((e) => e && e.body && e.body.steam && Array.isArray(e.body.steam.vents) && e.body.steam.vents.length) ? steamScript() : ''}${rockOn ? rockScript() : ''}${moveset ? specialsPaletteScript() : ''}${roll ? `
 // ---- THE ROLL (worlds/controllable/roll.js): what this level's seed picks on it. Applied once, where the level starts:
 // by the seed its shell sends with game-init${rollWaits ? '' : ' (this page has no game channel: the reference roll, seed 1)'}. A thing rolled away never stood: it leaves the colliders
 // (the runtime's) and the scene (taken out, not hidden: the ground's ray and the camera's meet nothing where it was).

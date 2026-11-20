@@ -183,9 +183,13 @@ The cake is `control/lib/graph/gameworld/side-map/cake.js` (the materials), `tex
 37. **The boss owns its room.** Its colour is used nowhere before it; its room is one screen, its walls the frame's
     edges, and its back wall carries its mark. A step past its doorway it shuts behind the hero: a shutter comes down
     and the room is walled up (a camera zone's `shut`, `side-map/play.js`). An intro stage's boss (level 0's) is a
-    giant of the hero's own family, not one of the roster's rivals, with one simple pattern: Bulwark, a worker bot in
-    a hard hat (`control/lib/graph/gameworld/bosses.js`, the `worker` face). Every bot in this world has a face: two
-    eyes and a mouth at least.
+    giant worker bot, not one of the roster's rivals, with one simple pattern: Bulwark, an engine bot on tank treads,
+    rolls at the hero firing ahead of it, now and then lifts a rock and throws it in an arc (dodged or shot apart in
+    the air), and turns round at the room's far side, so getting over it is the fight
+    (`control/lib/graph/gameworld/bosses.js`, its `workbot` and its `roll`). Worker bots are their own visual language, not the
+    hero's family: a few big low-poly primitives in toy colours (`control/lib/graph/workbots/`), drawn in the same cel
+    light and ink as every body on the map. Every bot in this
+    world has a face: two eyes and a mouth at least.
 
     Its path is designed from the top down by `control/lib/graph/gameworld/side-map/path.js`, on the bay grid the back
     wall's pillars and seams stand on: a profile by what the run is and where it leads, a word for each pillar and each

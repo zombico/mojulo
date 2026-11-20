@@ -17,7 +17,8 @@
  *   sideMapPlaced(layout, from) → [{ id, eid, at: [0, s, z], heading, segment }]
  *   sideMapEnds(layout, from, { spawn, boss? }) → the ends the foe cast reads: { placed, spawn, beats: [], rail: { length },
  *                  boss?: bossPlace's }
- *   bossPlace(layout, id) → { id, at, heading, zone }   the last room's boss: in from its far wall, on its floor, facing in
+ *   bossPlace(layout, id) → { id, at, heading, zone, span }   the last room's boss: in from its far wall, on its floor,
+ *                  facing in; `span` its room's floor between its walls
  *   grownFoe(entity, stature) → the entity at the side map's game scale (FOE_STATURE)
  *   sideFoe(entity, stature) → grown, and its gun's rounds TRAVELLING (travellingWeapon: FOE_SHOT, FOE_LOB), dodged
  *
@@ -93,8 +94,11 @@ export function sideMapEnds(layout, from, { spawn, boss = null }) {
 
 /** Where the last room's boss stands: BOSS_BACK m in from its far wall, on its floor, facing the way in. */
 export const BOSS_BACK = 3;
+/** a room's walls (layout.js `room`): their thickness along the lane */
+const ROOM_WALL = 0.6;
 export function bossPlace(layout, id) {
   const Z = layout.zones.at(-1), s = r3(Z.rect[1] - BOSS_BACK);
   const F = layout.solids.find((r) => r.zone === Z.i && r.role === 'floor' && s >= r.s0 && s <= r.s1);
-  return { id, at: [0, s, r3(F ? F.z1 : Z.exit[1])], heading: FACING_IN, zone: Z.i };
+  // (`span`: its room's floor between its walls, along the lane: what a boss that moves crosses)
+  return { id, at: [0, s, r3(F ? F.z1 : Z.exit[1])], heading: FACING_IN, zone: Z.i, span: [r3(Z.rect[0] + ROOM_WALL), r3(Z.rect[1] - ROOM_WALL)] };
 }

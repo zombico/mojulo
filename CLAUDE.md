@@ -368,6 +368,9 @@ Pointers only; each target carries its own design notes.
   modes, states, death; a new thing on a shelf is a row, never a foe special-cased). Their book is the cast sheet
   (`/bible?book=foes`, [gameworld/foe-cast-html.js](control/lib/graph/gameworld/foe-cast-html.js)), and a world with
   none is proposed a cast by the casting call ([foe-casting.js](control/lib/graph/gameworld/foe-casting.js)).
+- Worker bots: [workbots/](control/lib/graph/workbots/) (a toy world's worker bots in their own low-poly language: a
+  few big primitives in toy colours by role, a face of two lit eyes and a mouth; a bot is a card, stood as a rig figure
+  by a figures-map `workbot`; level 0's boss Bulwark is one).
 - Fight levels (Mojulo Fighter, internal name versus): a fight is laid on any level by its LANE
   ([versus/versus-lane.js](control/lib/graph/versus/versus-lane.js): where it runs, its walls, its floor, the camera's
   room); [versus/versus-levels.js](control/lib/graph/versus/versus-levels.js) turns each kind of level into a world

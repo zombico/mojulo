@@ -32,11 +32,12 @@ const mix = (hex, to, k) => { const a = parseInt(hex.slice(1), 16), b = parseInt
 export function bossSpec(id, { hue = null } = {}) {
   const B0 = BOSSES[id], B = B0 && hue ? { ...B0, hue } : B0;
   if (!B) throw new Error(`bosses: no boss '${id}' (${BOSS_IDS.join(', ')})`);
+  if (B.workbot) throw new Error(`bosses: ${B.name} is a worker bot (workbots/ card '${B.workbot}'), not made through the hero door`);
   const { spec } = gameBody('herobot', 'hero');
   const hi = mix(B.hue, '#ffffff', 0.3);
   const palette = {
     Armor: B.armor, Chest: B.armor, Shoes: B.armor, ArmorHighlight: mix(B.armor, '#ffffff', 0.35), ChestHighlight: mix(B.armor, '#ffffff', 0.35),
-    Pec: B.hue, PecHighlight: hi, Plaque: hi, Top: '#2e3238', Bottom: '#2e3238', Cuff: '#e9e2d4', CuffHighlight: '#ffffff', [SIGNAL]: B.signal, ...(B.plate ? { Face: B.plate } : {}),
+    Pec: B.hue, PecHighlight: hi, Plaque: hi, Top: '#2e3238', Bottom: '#2e3238', Cuff: '#e9e2d4', CuffHighlight: '#ffffff', [SIGNAL]: B.signal,
   };
   return { ...spec, ...(B.build ? { cast: { pole: 'male', build: B.build } } : {}), hair: 'none', adorn: { type: 'armor', style: 'herobot', with: [bossHelm(B.face)] }, palette };
 }

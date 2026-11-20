@@ -1580,6 +1580,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           payload.figures[name] = await atRigFidelity(mechaFigure(rawSpec.mecha, { form: ERAS[era]?.surface === 'form', setting: { sky: payload.sky ?? null, wet } }));
           continue;
         }
+        // WORKER BOTS (workbots/: a toy world's worker bots, their own low-poly language, a face on each): a figures-map
+        // entry may be a worker bot's card (`workbot`: { card, palette? }), delivered as its rig (a bone a part, its light
+        // baked in its own cel). Absent ⇒ none is resolved, byte-identical.
+        if (rawSpec.workbot && typeof rawSpec.workbot === 'object') {
+          const { workbotFigure } = await import('@/lib/graph/workbots/index.js');
+          payload.figures[name] = workbotFigure(rawSpec.workbot);
+          continue;
+        }
         // CYCLE bodies (cycle-shelf/: the vehicle registry's realistic build of a machine ridden astride): a figures-map
         // entry may be a cycle shelf machine (`cycle`: { archetype, look?, pose?, addons? }, what a parked cycle writes), at
         // its class's true numbers in metres, parked on its stand, delivered as its rig (the machine the root, each wheel
