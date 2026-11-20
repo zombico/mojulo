@@ -255,12 +255,17 @@ export function jacketPieces(parts, bodyName, J, recipe, { gapAt, gathered, ring
  * back: their angle from the front, rad), the share of the skirt's drop its hinges take it over in, and each family's
  * set of each sector (`turn` toward the back, rad; `out` the radius's scale; `lift` a share of the drop) */
 export const COAT_POSE = Object.freeze({
+  // (and a posed coat is worn wide open: its opening at the hem and at the chest, m)
+  gap: Object.freeze([0.16, 0.22]),
   vent: 0.004, sectors: Object.freeze({ F: 0.35, S: Math.PI / 2, B: 2.75 }), ramp: 0.2,
   families: Object.freeze({
     // walking: the coat stands behind the hips, its fronts swept round to the sides so the legs stride through the gap
     gait: Object.freeze({ F: { turn: 1.05, out: 1.25, lift: 0.04 }, S: { turn: 0.5, out: 1.12, lift: 0.02 }, B: { turn: 0.06, out: 1.02, lift: 0 } }),
-    // in action: flared open at the back from the hip, each back half swung out and up, the fronts swept back with them
-    action: Object.freeze({ F: { turn: 0.8, out: 1.45, lift: 0.12 }, S: { turn: -0.2, out: 1.6, lift: 0.22 }, B: { turn: -0.75, out: 1.9, lift: 0.34 } }),
+    // in action (a strike, a guard, a stance): open at the back from the hip, the two halves hung behind and beside the legs
+    // with their hems kicked out a little, the fronts swept back with them, the coat wide open in front
+    action: Object.freeze({ F: { turn: 0.9, out: 1.3, lift: 0.03 }, S: { turn: 0.35, out: 1.25, lift: 0.04 }, B: { turn: -0.35, out: 1.45, lift: 0.06 } }),
+    // in the air or a whirl (a jump, a spin, a slam, a fall): flared, each back half swung out and up
+    flare: Object.freeze({ F: { turn: 0.8, out: 1.45, lift: 0.12 }, S: { turn: -0.2, out: 1.6, lift: 0.22 }, B: { turn: -0.75, out: 1.9, lift: 0.34 } }),
   }),
 });
 
@@ -312,9 +317,11 @@ export function ventBack(P, rig, { front = [0, 1, 0] } = {}) {
     const rings = atTail ? [tucked, ...own] : [...own, tucked];
     const hb = {};
     for (const st of rings) {
-      const src = st.id.endsWith('_down') ? top : skirt.find((x) => x.id === st.id);
+      // (the hem's turned edge, its lining and the lining's end, hinged as the hem it is sewn to: weighted by its own height
+      // it moved less than the hem, and the cloth between them was drawn out in a spike)
+      const lined = /Lining/.test(st.id), src = st.id.endsWith('_down') ? top : lined ? hem : skirt.find((x) => x.id === st.id);
       loop.forEach((sl, j) => {
-        const p = st.points[names[j]], orig = blend[`${src.id}.${sl}`] ?? blend[src.id] ?? { [P.bind?.bone ?? 'pelvis']: 1 };
+        const p = lined ? hem.points[sl] : st.points[names[j]], orig = blend[`${src.id}.${sl}`] ?? blend[src.id] ?? { [P.bind?.bone ?? 'pelvis']: 1 };
         const f = Math.max(0, Math.min(1, (zTop - p[2]) / drop)), w = Math.min(1, f / COAT_POSE.ramp), t = w * w * (3 - 2 * w), a = angleOf(p, sxW);
         // (between the two sectors its angle lies between, by where)
         let sec = { [`coat${SEC[0][0]}${side}`]: 1 };

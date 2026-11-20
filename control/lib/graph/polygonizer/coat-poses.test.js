@@ -12,7 +12,8 @@ const SLOTS = ringSlots(48), ring = (z, r) => Object.fromEntries(SLOTS.map((sl, 
  * tailor carries one (rings `stSkirt<k>`, the hem `stSkirt0`, first), each skirt slot on the thigh of its side */
 const coat = ({ skirt = true } = {}) => {
   const body = Array.from({ length: 6 }, (_, i) => ({ id: `st${i}`, u: i, points: ring(0.95 + 0.09 * i, 0.16) }));
-  const sk = skirt ? Array.from({ length: 10 }, (_, k) => ({ id: `stSkirt${k}`, u: -(10 - k) / 10, points: ring(0.5 + 0.045 * k, 0.17) })) : [];
+  // (and the hem turned up inside it to a lining at the crotch, as the tailor turns it)
+  const sk = skirt ? [{ id: 'stSkirtLining', u: -1.01, points: ring(0.8, 0.05) }, ...Array.from({ length: 10 }, (_, k) => ({ id: `stSkirt${k}`, u: -(10 - k) / 10, points: ring(0.5 + 0.045 * k, 0.17) }))] : [];
   const blend = Object.fromEntries(sk.flatMap((st) => SLOTS.map((sl) => [`${st.id}.${sl}`, { pelvis: 0.5, [st.points[sl][0] >= 0 ? 'thighR' : 'thighL']: 0.5 }])));
   return openFront({ layer: 1, closure: 'closed', garment: true, group: 'Outer', slots: SLOTS, bind: { bone: 'pelvis', blend }, stations: [...sk, ...body], caps: { back: [0, 0, 0.49], tip: [0, 0, 1.46] } }, { gap: () => 0.1 });
 };
@@ -38,11 +39,14 @@ describe('a posed coat', () => {
     const W = V.parts.R.bind.blend, hem = Object.entries(W).filter(([k]) => k.startsWith('stSkirt0.')), hip = Object.entries(W).filter(([k]) => k.startsWith('stSkirt9.'));
     for (const [, w] of hem) { expect(Object.keys(w).every((b) => /^coat[FSB]R$/.test(b))).toBe(true); expect(Object.values(w).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 6); }
     for (const [, w] of hip) expect(Object.keys(w).some((b) => b.startsWith('coat'))).toBe(false);
+    // (the hem's lining hinged as the hem it is sewn to, never by its own height: the cloth between them drawn out in a spike)
+    for (const [k, w] of hem) expect(W[k.replace('stSkirt0.', 'stSkirtLining.')]).toEqual(w);
   });
 
-  it('walking sweeps the fronts back round the sides; in action the back halves swing out and up; standing, nothing set', () => {
+  it('walking sweeps the fronts back round the sides; in action the back halves hang out a little, flared out and up; standing, nothing set', () => {
     expect(Object.keys(V.poses).sort()).toEqual(Object.keys(COAT_POSE.families).sort());
-    const g = V.poses.gait.coatHemFR, a = V.poses.action;
+    const g = V.poses.gait.coatHemFR, a = V.poses.flare, act = V.poses.action;
+    expect(act.coatHemBR[0]).toBeGreaterThan(0.03); expect(act.coatHemBR[2]).toBeLessThan(a.coatHemBR[2]);
     expect(g[1]).toBeLessThan(-0.05); expect(g[0]).toBeGreaterThan(0.05);
     expect(a.coatHemBR[0]).toBeGreaterThan(0.1); expect(a.coatHemBL[0]).toBeLessThan(-0.1);
     expect(a.coatHemBR[2]).toBeGreaterThan(0.05); expect(a.coatHemBL[2]).toBeCloseTo(a.coatHemBR[2], 6);
@@ -55,8 +59,8 @@ describe('a posed coat', () => {
 
 describe('the posed coat\'s clips', () => {
   it('reads a clip\'s family from its name and its tags; what it cannot place is action', () => {
-    expect(['idle', 'gesture', 'walk', 'jog', 'sprintStop', 'swing_down', 'mv_ready', 'jump', 'somethingNew'].map((n) => coatFamily(n)))
-      .toEqual(['stand', 'stand', 'gait', 'gait', 'gait', 'action', 'action', 'action', 'action']);
+    expect(['idle', 'gesture', 'walk', 'jog', 'sprintStop', 'swing_down', 'mv_ready', 'jump', 'staff_slam', 'somethingNew'].map((n) => coatFamily(n)))
+      .toEqual(['stand', 'stand', 'gait', 'gait', 'gait', 'action', 'action', 'flare', 'flare', 'action']);
     expect(coatFamily('idle', Object.assign(() => ({}), { move: { family: 'swing' } }))).toBe('action');
   });
   it('sets the hinges on each clip\'s flow by its family, over what the clip carries; no poses, the clips as they were', () => {

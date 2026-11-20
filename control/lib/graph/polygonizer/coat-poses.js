@@ -5,7 +5,8 @@
  *
  *   stand    the hinges at rest: the coat as tailored, wrapped round the hips (an idle, a gesture, a rest)
  *   gait     the coat behind the hips, its fronts swept round to the sides so the legs stride through (a walk, a run, a stop)
- *   action   flared open at the back from the hip, each half swung out and up (a strike, a swing, a jump, a guard, a hit)
+ *   action   open at the back from the hip, the halves hung behind and beside the legs (a strike, a swing, a guard, a hit)
+ *   flare    flared, each back half swung out and up (a jump, a spin, a slam, a fall)
  *
  * A clip's family is read from its name and its own tags (a move's `move`, a gait's table); what it cannot place is
  * action, the coat that never catches a kick. The set rides the pose's `flow` (station-loft-rig.js: a riding joint moved
@@ -19,9 +20,10 @@ const STAND = /^(idle|gesture|wave|stand|breath|rest|sit|kneel|look|talk|pose)/i
 const GAIT = /^(walk|jog|sprint|run|strafe|carry|sneak|creep|back(step|pedal)|turn)/i;
 /** the family of a clip by its name and its function's own tags */
 export function coatFamily(name, fn = null) {
-  if (fn?.move || fn?.act) return 'action';
+  if (fn?.move || fn?.act) return /(slam|spin|jump)/i.test(String(name)) || /(^|_)air|Air/.test(String(name)) ? 'flare' : 'action';
   const n = String(name).replace(/^(hero|mv)_/, '');
-  if (/^(ready|guard|aim|swing|strike|slash|thrust|kick|punch|jump|land|fall|dodge|roll|dash|hit|hurt|knock|block|parry|slam|spin|vault|climb)/i.test(n)) return 'action';
+  if (/^(jump|land|fall|spin|slam|knock|vault|climb|flip|launch|air|dive|whirl)/i.test(n) || /(slam|spin|jump)/i.test(String(name)) || /(^|_)air|Air/.test(n)) return 'flare';
+  if (/^(ready|guard|aim|swing|strike|slash|thrust|kick|punch|dodge|roll|dash|hit|hurt|block|parry)/i.test(n)) return 'action';
   if (GAIT.test(n)) return 'gait';
   if (STAND.test(n)) return 'stand';
   return 'action';

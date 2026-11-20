@@ -52,7 +52,7 @@ import { oneTube, drapeRun, flareRun, swellRun, fairRun, waistbandOf, cinchWaist
 import { footwear, FOOTWEAR, FOOTWEAR_TONES } from './body-relational-footwear.js';
 import { beltOn, frameBuckle } from './body-relational-kit.js';
 import { foldCloth } from './body-relational-folds.js';
-import { openFront, zipDown, jacketPieces, ventBack, JACKET } from './body-relational-jacket.js';
+import { openFront, zipDown, jacketPieces, ventBack, COAT_POSE, JACKET } from './body-relational-jacket.js';
 import { tailorFronts } from './tailored-front.js';
 import { sub, unit as unitv } from './body-relational-vec.js';
 
@@ -353,7 +353,8 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
     const bodyName = Object.keys(parts).find((k) => /^outer_(body|torso)$/.test(k));
     if (bodyName && (J.zip || J.open)) {
       const open = !!J.open, B = parts[bodyName], zs = B.stations.map((st) => mean(Object.values(st.points))[2]), z0 = Math.min(...zs), z1 = Math.max(...zs);
-      const gapAt = open ? (z) => 0.07 + 0.08 * Math.max(0, Math.min(1, (z - z0) / (z1 - z0))) : () => JACKET.zipGap;
+      const [g0, g1] = open && J.posed ? COAT_POSE.gap : [0.07, 0.15];
+      const gapAt = open ? (z) => g0 + (g1 - g0) * Math.max(0, Math.min(1, (z - z0) / (z1 - z0))) : () => JACKET.zipGap;
       parts[bodyName] = openFront(B, { gap: gapAt });
       // (its COLLAR opened with it, by the opening at the collar's foot: a closed ring round the neck held an open jacket shut)
       const collarName = Object.keys(parts).find((k) => /^outerCollar_neck$/.test(k));

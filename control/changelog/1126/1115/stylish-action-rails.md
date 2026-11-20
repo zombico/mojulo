@@ -267,6 +267,9 @@ What the theme will hold:
   (`body-relational-jacket.js` `ventBack`), each hung on three hinges at the hip (front, side, back) carried by the
   pelvis, not the thighs; every clip sets them by its family (`polygonizer/coat-poses.js`): standing, at rest, the coat
   wrapped round the hips; walking, behind them, its fronts swept round to the sides so the legs stride through; in
-  action, flared open at the back from the hip, each half swung out and up. The hinges ride the pose's `flow`, so a turn
+  action (a strike, a guard), open at the back from the hip, the halves hung behind and beside the legs, their hems
+  kicked out a little; in the air or a whirl (a jump, a spin, the slam), flared, each half swung out and up. A posed coat
+  is worn wide open, and its hem's lining is hinged as the hem it is sewn to. The hinges ride the pose's `flow`, so a turn
   of the hips carries them and the page's blend between clips blends the coat. Absent, the coat, its rig and its clips
-  as they were. Lucien's coat is posed.
+  as they were. Lucien's coat is posed, to mid-calf, and his build a V: shoulders broad, waist and hips narrow, legs
+  long, lean and defined (the body's `tune` and `physique`).
