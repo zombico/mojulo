@@ -276,3 +276,42 @@ describe('a cue\'s music', () => {
     expect(bus.log.filter((e) => e.type.startsWith('music:')).map((e) => e.type)).toEqual(['music:sorrow', 'music:place']);
   });
 });
+
+// A NUMBER PUT IN (menus.js `number`, RPG Maker's input number): read and taught; on the page its digits turned and
+// moved along, accept writing the number to its var (held to its bounds) and the pick's effects following
+describe('a number put in', () => {
+  const LOCK = { menus: [{ id: 'lock', kind: 'number', ask: 'Four wheels.', var: 'code', digits: 4, max: 5000, then: { emit: 'dialled' } }] };
+
+  it('is read and taught: what it asks, the var it writes, its digits and bounds', async () => {
+    const { menuHtml, menuPages } = await import('./menus.js');
+    expect(readMenus(LOCK)[0]).toMatchObject({ kind: 'number', numVar: 'code', digits: 4, min: 0, max: 5000, edit: 'ui-number-lock' });
+    expect(() => readMenus({ menus: [{ id: 'x', kind: 'number', ask: 'a' }] })).toThrow(/names the var/);
+    expect(() => readMenus({ menus: [{ id: 'x', kind: 'number', ask: 'a', var: 'v', digits: 9 }] })).toThrow(/digits is 1 to 8/);
+    expect(() => readMenus({ menus: [{ id: 'x', kind: 'number', ask: 'a', var: 'v', digits: 2, max: 500 }] })).toThrow(/within its 2 digits/);
+    const frag = lowerMenus(LOCK);
+    expect(frag.vars).toMatchObject({ 'ui-number-lock': 0, code: 0 });
+    expect(frag.reactions.some((r) => r.on === 'menu-pick:lock:0' && r.do === 'emit' && r.type === 'dialled')).toBe(true);
+    const html = menuHtml(menuPages(LOCK)[0], 2, 0, { 'ui-number-lock': 1234 });
+    expect(html).toContain('<b class="pu-dig on" data-pick="2">3</b>');
+  });
+
+  it('on the page: the digit in focus turned round, the focus moved, accept writing it held to its bounds', async () => {
+    const { menuScript } = await import('../../scene/channels/interact-channel.js');
+    const { menuPages } = await import('./menus.js');
+    const el = () => ({ className: '', innerHTML: '', appendChild() {}, addEventListener() {} });
+    const vars = { 'ui-menu-lock': 1, 'ui-number-lock': 0, code: 42 }, queue = [];
+    const run = new Function('document', 'wrap', 'window', 'navigator', '__busState', '__inputQueue',
+      `${menuScript(menuPages(LOCK))}; return { sync: __syncMenus, act: __menuAct, do: __menuDo };`);
+    const P = run({ createElement: el }, el(), { addEventListener() {} }, {}, { vars }, queue);
+    P.sync();
+    // (it opens on its var's value, the focus on the last digit)
+    expect(vars['ui-number-lock']).toBe(42);
+    P.do('up'); P.do('left'); P.do('down');   // 43, then the tens turned down: 33
+    expect(vars['ui-number-lock']).toBe(33);
+    P.do('left'); P.do('left'); for (let i = 0; i < 9; i++) P.do('up');   // the thousands to 9: 9033
+    expect(vars['ui-number-lock']).toBe(9033);
+    P.do('accept');
+    expect(vars.code).toBe(5000);
+    expect(queue).toEqual([{ type: 'menu-pick:lock:0' }]);
+  });
+});

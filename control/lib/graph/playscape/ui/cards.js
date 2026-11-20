@@ -190,7 +190,7 @@ function cuesCard() {
     'show, hide, state and phase are set on the bus (ui-<part>, ui-<part>-state, phase) and drawn on the board until the',
     `page reads them. Lowered, the example adds ${Object.keys(lowerCues(ex)).join(', ')} to the world's events.`,
     'THE CAST (characters): down / gone / spawned / arrive / stuck are happenings; spawn, vanish, kill, hurt, heal, walk,',
-    'stop are effects. A walk is a dumb path through places (straight lines, no pathfinding); a place is a spot\'s or an',
+    'stop are effects. A walk is a path through places (straight lines; find: true walks round walls); a place is a spot\'s or an',
     `anchor's id or [x, y]. SPOTS are action points: play.spots: [{ id, at, face?, pose?: ${SPOT_POSES.join(' | ')} }]; a`,
     'walk ending on one takes its facing and pose. Spawn wakes one minted asleep (dormant: true). body.collide keeps',
     'bodies apart (walkers give way on the ground plane; body.heavy holds).',

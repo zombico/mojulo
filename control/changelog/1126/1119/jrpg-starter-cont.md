@@ -126,3 +126,10 @@
   names is a piece of its audio in the soundtrack's identity (`audio.pieces`, `beats/beats-world.js`), faded in on an
   engine of its own as the score fades out; while it plays, a fight's change of score waits. A level that names none
   emits not a byte of it.
+- **A number put in.** A menu of kind `number` (`ask`, `var`, `digits` 1 to 8, `min`, `max`, `then`): its digits turned
+  up and down and moved along, accept writing the number to its var, held to its bounds, before its effects; a cue that
+  reads the var after the pick is a code lock or a count.
+- **A walk that finds its way.** A cue's walk may say `find: true`: each leg walked round what stands in the way (the
+  runtime's pathfinder, `worlds/controllable/nav.js`), arriving only at the places it named, by an opt-in builder
+  (`worlds/controllable/route-find.js`) composed into a page only when a cue of its world walks so. Without it, a walk
+  is as it was: straight lines, stopped at a wall.

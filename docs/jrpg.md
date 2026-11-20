@@ -165,11 +165,20 @@ A cue's (or a scene beat's `do`) effects may touch the screen and play a sound:
 A composed party RPG is sounded and scored, so its levels have the music the cue sheet gives each place, and the
 score turns to the fight's while a battle is up (the boss's in the core), back to the place's after.
 
+## A number put in, and routes that find their way
+
+A menu of kind `number` (RPG Maker's input number) asks for a number: `{ id, kind: 'number', ask, var, digits?, min?,
+max?, then? }`. Up and down turn the digit in focus, left and right move along; accept writes the number to `var`, held
+to its bounds, and does `then`. A cue that reads the var after its pick (`when: { on: 'menu-pick:<id>:0' }, if: { var,
+eq }`) is a code lock, a count, a bet.
+
+A cue's walk may find its way (`walk: { who, to, find: true }`, RPG Maker's move route): each leg is walked round what
+stands in the way (the page's pathfinder, A* over the world's colliders), arriving only at the places it named. Without
+`find` a walk goes in straight lines and stops at a wall, `stuck`.
+
 ## What comes next
 
 Each step ends playable, and each is something a person can say that the words did not carry before. An RPG Maker
 idea is reached through the primitive that already owns it (a switch is a flag, an event page a scene's `if`, a
 transfer a megaworld's way), never rebuilt:
-1. **A number put in** (a menu that asks how many, or a code): a bus var set by the player.
-2. **Movement routes that find their way** (a townsperson or a foe walked to a place round what stands in the way).
-3. **The fights animated:** the blows, the casts and the falls acted out by the bodies.
+1. **The fights animated:** the blows, the casts and the falls acted out by the bodies.
