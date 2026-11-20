@@ -271,7 +271,8 @@ What the theme will hold:
   them; in
   action (a strike, a guard), open at the back from the hip, the halves hung behind and beside the legs, their hems
   kicked out a little; in the air or a whirl (a jump, a spin, the slam), flared, each half swung out and up. A posed coat
-  is worn wide open, its back hung straight from the shoulder blades past the seat (the small of the back bridged, no
+  is cut away below the hip (each skirt ring opened to just short of its side seam: tails at the sides and the back,
+  never cloth over the front of a leg), worn wide open above it, its back hung straight from the shoulder blades past the seat (the small of the back bridged, no
   bump over the seat), and its hem's lining is hinged as the hem it is sewn to. The hinges ride the pose's `flow`, so a turn
   of the hips carries them and the page's blend between clips blends the coat. Absent, the coat, its rig and its clips
   as they were. Lucien's coat is posed, to mid-calf, and his build a V: shoulders broad, waist and hips narrow, legs

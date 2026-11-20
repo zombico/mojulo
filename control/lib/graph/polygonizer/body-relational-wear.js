@@ -360,7 +360,13 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
       }
       const open = !!J.open, B = parts[bodyName], zs = B.stations.map((st) => mean(Object.values(st.points))[2]), z0 = Math.min(...zs), z1 = Math.max(...zs);
       const [g0, g1] = open && J.posed ? COAT_POSE.gap : [0.07, 0.15];
-      const gapAt = open ? (z) => g0 + (g1 - g0) * Math.max(0, Math.min(1, (z - z0) / (z1 - z0))) : () => JACKET.zipGap;
+      const gapOf = (z) => g0 + (g1 - g0) * Math.max(0, Math.min(1, (z - z0) / (z1 - z0)));
+      // (a posed coat CUT AWAY below the hip: each skirt ring opened to just short of its own side seam, so its two halves
+      // are tails at the sides and the back, and no pose lays cloth over the front of a leg)
+      const zHip = open && J.posed ? Math.max(...B.stations.filter((st) => /^stSkirt\d/.test(st.id)).map((st) => mean(Object.values(st.points))[2]), -Infinity) : -Infinity;
+      const cutAt = (z, st) => { if (!st || !/^stSkirt/.test(st.id) || !Number.isFinite(zHip)) return gapOf(z); const c = mean(Object.values(st.points)), half = Math.max(...Object.values(st.points).map((q) => Math.abs(q[0] - c[0])));
+        const u = Math.max(0, Math.min(1, (zHip - z) / COAT_POSE.cutIn)), t = u * u * (3 - 2 * u); return gapOf(z) + (2 * COAT_POSE.cut * half - gapOf(z)) * t; };
+      const gapAt = open ? (J.posed ? cutAt : gapOf) : () => JACKET.zipGap;
       parts[bodyName] = openFront(B, { gap: gapAt });
       // (its COLLAR opened with it, by the opening at the collar's foot: a closed ring round the neck held an open jacket shut)
       const collarName = Object.keys(parts).find((k) => /^outerCollar_neck$/.test(k));

@@ -54,7 +54,7 @@ export function openFront(P, { gap = () => JACKET.zipGap, thick = JACKET.thick, 
   const walkR = Array.from({ length: h + 1 }, (_, k) => k), walkL = [0, ...Array.from({ length: h }, (_, k) => n - 1 - k)];
   const m = arc, N = 4 * m - 2, slots = ringSlots(N), nb = {};
   const stations = P.stations.map((st) => {
-    const at = P.slots.map((sl) => ({ sl, p: st.points[sl] })), c = mean(at.map((q) => q.p)), g = gap(c[2]) / 2;
+    const at = P.slots.map((sl) => ({ sl, p: st.points[sl] })), c = mean(at.map((q) => q.p)), g = gap(c[2], st) / 2;
     const out = (p) => { const d = [p[0] - c[0], p[1] - c[1]], r = Math.hypot(...d) || 1e-9; return [p[0] - (d[0] / r) * thick, p[1] - (d[1] / r) * thick, p[2]]; };
     const R = resample(arcOf(at, walkR, g, front), m), Lf = resample(arcOf(at, walkL, g, front), m);   // edge … back centre
     const ringSide = (A) => { const toEdge = [...A].reverse(); return [...toEdge.map(out), ...A]; };   // inner back→edge, outer edge→back
@@ -255,8 +255,9 @@ export function jacketPieces(parts, bodyName, J, recipe, { gapAt, gathered, ring
  * back: their angle from the front, rad), the share of the skirt's drop its hinges take it over in, and each family's
  * set of each sector (`turn` toward the back, rad; `out` the radius's scale; `lift` a share of the drop) */
 export const COAT_POSE = Object.freeze({
-  // (and a posed coat is worn wide open: its opening at the hem and at the chest, m)
-  gap: Object.freeze([0.16, 0.22]),
+  // (and a posed coat is worn wide open: its opening at the hem and at the chest, m; and below the hip cut away in front, each
+  // front edge at this share of its ring's half-width, by the side seam, over `cutIn` m down from the hip: no cloth over a leg)
+  gap: Object.freeze([0.16, 0.22]), cut: 0.94, cutIn: 0.08,
   vent: 0.004, sectors: Object.freeze({ F: 0.35, S: Math.PI / 2, B: 2.75 }), ramp: 0.2,
   families: Object.freeze({
     // standing: open over the thighs, the fronts turning back from the hips toward the sides, so no cloth lies on a leg

@@ -10,12 +10,12 @@ import { coatFamily, posedCoatClips } from './coat-poses.js';
 const SLOTS = ringSlots(48), ring = (z, r) => Object.fromEntries(SLOTS.map((sl, j) => { const a = (2 * Math.PI * j) / 48; return [sl, [Math.sin(a) * r, Math.cos(a) * r, z]]; }));
 /** a coat's body: a tube up the z axis from the hip (0.95) to the chest, its skirt carried down from it to the knee as the
  * tailor carries one (rings `stSkirt<k>`, the hem `stSkirt0`, first), each skirt slot on the thigh of its side */
-const coat = ({ skirt = true } = {}) => {
+const coat = ({ skirt = true, gap = () => 0.1 } = {}) => {
   const body = Array.from({ length: 6 }, (_, i) => ({ id: `st${i}`, u: i, points: ring(0.95 + 0.09 * i, 0.16) }));
   // (and the hem turned up inside it to a lining at the crotch, as the tailor turns it)
   const sk = skirt ? [{ id: 'stSkirtLining', u: -1.01, points: ring(0.8, 0.05) }, ...Array.from({ length: 10 }, (_, k) => ({ id: `stSkirt${k}`, u: -(10 - k) / 10, points: ring(0.5 + 0.045 * k, 0.17) }))] : [];
   const blend = Object.fromEntries(sk.flatMap((st) => SLOTS.map((sl) => [`${st.id}.${sl}`, { pelvis: 0.5, [st.points[sl][0] >= 0 ? 'thighR' : 'thighL']: 0.5 }])));
-  return openFront({ layer: 1, closure: 'closed', garment: true, group: 'Outer', slots: SLOTS, bind: { bone: 'pelvis', blend }, stations: [...sk, ...body], caps: { back: [0, 0, 0.49], tip: [0, 0, 1.46] } }, { gap: () => 0.1 });
+  return openFront({ layer: 1, closure: 'closed', garment: true, group: 'Outer', slots: SLOTS, bind: { bone: 'pelvis', blend }, stations: [...sk, ...body], caps: { back: [0, 0, 0.49], tip: [0, 0, 1.46] } }, { gap });
 };
 const RIG = { boneIndex: { pelvis: 0 } };
 
@@ -52,6 +52,12 @@ describe('a posed coat', () => {
     expect(g[1]).toBeLessThan(-0.05); expect(g[0]).toBeGreaterThan(0.05);
     expect(a.coatHemBR[0]).toBeGreaterThan(0.1); expect(a.coatHemBL[0]).toBeLessThan(-0.1);
     expect(a.coatHemBR[2]).toBeGreaterThan(0.05); expect(a.coatHemBL[2]).toBeCloseTo(a.coatHemBR[2], 6);
+  });
+
+  it('cut away below the hip (the gap read ring by ring), its skirt leaves the front of the legs bare', () => {
+    const cut = coat({ gap: (z, st) => (/^stSkirt\d/.test(st?.id ?? '') ? 2 * 0.94 * 0.17 : 0.1) });
+    const front = cut.stations.filter((st) => /^stSkirt\d+$/.test(st.id)).flatMap((st) => Object.values(st.points)).filter((q) => q[1] > 0.02);
+    for (const q of front) expect(Math.abs(q[0])).toBeGreaterThan(0.94 * 0.17 - 0.01);
   });
 
   it('a coat with no skirt is not split', () => {
