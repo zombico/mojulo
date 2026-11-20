@@ -16,7 +16,8 @@ A building in a game is a plan, a language and a look. Name the use; the rest is
      one side of a corridor, windows on the other; `double`), `bays` (a wing's length, 1 to 6), `scale` (1 to 2: the
      building laid that much larger for a third-person camera, its storeys the root of it taller, its stair the wider
      `hall` flight; 1.5 is a stealth or action game's), `layouts` (a room's floor laid in a figure: aisles, machines,
-     islands, stockpile, chicane, rows; docs/facility-pieces.md). For a genre level set
+     islands, stockpile, chicane, rows; docs/facility-pieces.md), `vents` (true: a duct behind each row
+     of rooms, a hatch into each, a body lying passes and one standing does not; era/vents.js). For a genre level set
      in a building (a stealth mission, a shooter's floor, a horror crawl); a building asked for as a building is
      `mint_building`'s.
 

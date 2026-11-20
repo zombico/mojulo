@@ -93,6 +93,20 @@ one yard keep their floors.
 A new facility is a row: pick a use whose rooms carry the place (an annex hall is the most to work with), the dials that
 give it loops, a layout for each role that should be ground rather than box, and a construction not yet used next to it.
 
+## Crawl spaces: vents
+
+A building's `vents` (`control/lib/graph/era/vents.js`; `true` or `{ depth?, clear?, rooms? }`) lays a duct along the back
+wall of each row of rooms off a corridor (two rooms side by side or more): through a hole in each wall they share, under
+a lid 0.75 m up that a body lying (0.45 m) passes beneath and one standing does not, with a hatch 1.4 m wide into each
+room. The way in and out of a room is never the corridor, so the guards walking it never see a body in the duct, and
+none of them can follow it in. The stage cuts the holes, builds the ducts' walls and lids as colliders, keeps every piece
+off their floors and hatches, and hands the page their insides as crawl spaces (the same `under` a truck's chassis is).
+A body lying cannot stand up under a lid (headroom, `worlds/controllable/stance.js`), and the route search passes a crawl
+space lying only, so a level's laws count a vent as a way (the holding block's `a-vent-to-the-kit`). A building with
+vents rings its rooms (`fight.rings`) by doorways at the corridor's end and the middle of their shared walls, by turns,
+so the back walls stay the ducts'. Every facility has vents; the maps draw each duct's floor dashed and its hatches as
+bars.
+
 ## In the game book: the facility maps
 
 The book of maps a stealth or action game's interiors are read in, `/api/sketches/<ref>/bible?book=facilities`
@@ -118,6 +132,6 @@ no guard sees the operative; I toggles it, `--seen` starts seen), so the layout 
 ## What is not yet
 
 - No piece is see-through: glass and mesh stop a gaze as a wall does (`sightBlocked` treats every collider as opaque).
-- No crawl space in a building: a duct or a raised floor a body lies flat in is the vehicles' `under` today, not a room's.
+- A crawl space is a duct behind a row of rooms; a raised floor under a room, or a duct over a corridor, is not laid.
 - In-room level changes are the hall's gallery alone; a mezzanine over a room, a pit or a ramp is not a layout.
 - A five-metre room stays a room. Fewer, larger rooms would need a program shape that is not a corridor of bays.

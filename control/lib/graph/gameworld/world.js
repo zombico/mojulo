@@ -322,7 +322,7 @@ const ROADWAY_LEVEL_KEYS = ['form', 'course', 'dress', 'kit', 'scape', 'mood'];
 // a city level (city/plan/): the plan's own settings, who builds it, and the segments it is entered at and left from
 const CITY_LEVEL_KEYS = ['grammar', 'seed', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'cars', 'play', 'look', 'paint', 'civilization', 'from', 'to', 'stalker'];
 // (a building use's plan, era/programs.js: storeys, wings, loading and bays for an office, a lab building, a warehouse)
-const BUILDING_KEYS = ['use', 'facility', 'seed', 'rooms', 'add', 'kit', 'geocube', 'goal', 'from', 'civilization', 'ref', 'storeys', 'wings', 'loading', 'bays', 'parked', 'complex', 'fight', 'layouts', 'scale'];
+const BUILDING_KEYS = ['use', 'facility', 'seed', 'rooms', 'add', 'kit', 'geocube', 'goal', 'from', 'civilization', 'ref', 'storeys', 'wings', 'loading', 'bays', 'parked', 'complex', 'fight', 'layouts', 'scale', 'vents'];
 // a building level that is several buildings (network/complex.js): its own, or its dungeon's spaces on it
 const COMPLEX_LEVEL_KEYS = ['buildings', 'campus', 'network', 'yard', 'from', 'to'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -790,7 +790,7 @@ export function readGameworld(W) {
       if (L.walk !== undefined) throw new Error(`gameworld: ${at}: a level is a walk or a building, not both`);
       if (L.places !== undefined) throw new Error(`gameworld: ${at}.places: a building level holds no town (a town stands on a walk)`);
       const B = L.building;
-      if (!isObj(B)) throw new Error(`gameworld: ${at}.building is { use | facility, seed?, rooms?, add?, kit? | geocube?, goal?, civilization?, storeys?, wings?, loading?, bays?, scale?, layouts? } or { ref, goal? }`);
+      if (!isObj(B)) throw new Error(`gameworld: ${at}.building is { use | facility, seed?, rooms?, add?, kit? | geocube?, goal?, civilization?, storeys?, wings?, loading?, bays?, scale?, layouts?, vents? } or { ref, goal? }`);
       for (const k of Object.keys(B)) if (!BUILDING_KEYS.includes(k)) throw new Error(`gameworld: ${at}.building.${k} is not a building setting (${BUILDING_KEYS.join(', ')})`);
       if (B.complex !== undefined) {
         // (a complex: its buildings its own, or the dungeon's spaces on this level; checked whole where it is resolved)

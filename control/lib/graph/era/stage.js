@@ -22,6 +22,7 @@
  * corners, drawn as a sconce with a glowing flame, and leaves as a KHR punctual point light in the GLB.
  * Deterministic: a pure function of the recipe.
  */
+import { planVents, readVents } from './vents.js';
 import { lookOf } from './style/looks.js';
 import { SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook, lookOfReference } from './sixth-gen.js';
 import { tileFamilyOf, normalizeTileSpec, proportionsOver } from './tile-specs.js';
@@ -661,6 +662,10 @@ export function planStage(m = {}) {
     galleries.push({ hall: r.id, from: f.id, side: s, z, at: line, lo: op.lo, hi: op.hi, top, deck: span(Lw.landU, Lw.endU), near: span(Lw.startU, Lw.landU), foot: pc(0),
       ...(Lw.second ? { front: span(Lw.gapA, Lw.gapB), reach: r5(Lw.o1 + Lw.sLen) } : {}), depth: [r5(Lw.o0), r5(Lw.o1)], slope: r5(z / Lw.sLen) });
   }
+  // a building's VENTS (vents.js, a program's `vents`): a duct behind each row of rooms, a hole a body lying passes
+  // through each wall they share
+  const vents = m._program?.vents ? planVents(rooms, links, readVents(m._program.vents)) : null;
+  if (vents) for (const h of vents.holes) rooms.find((r) => r.id === h.room)?.openings[h.side].push({ lo: h.lo, hi: h.hi, top: h.top, vent: true });
   for (const r of rooms) for (const k of Object.keys(r.openings)) r.openings[k].sort((p, q) => p.lo - q.lo);
   // (a stage's stairs: a keep's steep flight, or a building's switchback, construction/circulation.js STAIR_PROFILES)
   if (m.stair !== undefined && !STAIR_PROFILE_IDS.includes(m.stair)) throw new Error(`stage: stair is ${STAIR_PROFILE_IDS.join(' or ')} (a keep's steep flight, or a building's switchback)`);
@@ -716,7 +721,7 @@ export function planStage(m = {}) {
   const sk0 = readSkandart(m), skC = sk0 ? resolveSkandartCard(nightKit, sk0.card, { use: m._program?.use ?? null }) : null;
   if (sk0 && !skC) throw new Error(`stage: skandart: nothing kit '${kitId}' is made of sheds anything, and the recipe names no answer of its own; give one: skandart: { foot: { pieces: { <a debris shelf row>: how many } } }`);
   const sk = sk0 ? { ...sk0, card: skC.card, from: skC.from } : null;
-  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(galleries.length ? { galleries } : {}), ...(sk ? { skandart: sk } : {}), ...(m._condition ? { condition: m._condition } : {}), ...(m._weathering ? { weathering: m._weathering } : {}), ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}), ...(m.daylight ? { daylight: m.daylight } : {}), ...(m.samples ? { samples: m.samples } : {}), ...(wetness ? { wet: wetness } : {}),
+  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(galleries.length ? { galleries } : {}), ...(vents && vents.ducts.length ? { vents } : {}), ...(sk ? { skandart: sk } : {}), ...(m._condition ? { condition: m._condition } : {}), ...(m._weathering ? { weathering: m._weathering } : {}), ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}), ...(m.daylight ? { daylight: m.daylight } : {}), ...(m.samples ? { samples: m.samples } : {}), ...(wetness ? { wet: wetness } : {}),
     // (its rooms' floors laid in a figure where the program asks: room-layouts.js)
     ...(m._program?.layouts ? { layouts: m._program.layouts } : {}),
     // (a military base's building is stocked by its rooms' uses, a hospital's by its own table, a
@@ -1085,6 +1090,8 @@ export function buildStageGeometry(plan) {
   // a composed room's things (compose-dress.js): each named by its id on its faces, an anchor each
   const props = plan.props && plan.props.length ? propFaces(plan, plan.props, surf) : null;
   if (props) out.push(...props.faces);
+  // the vents' ducts (vents.js): each front wall and lid a box of the services' finish
+  for (const d of plan.vents?.ducts ?? []) for (const s of d.segments) for (const b of s.parts) box(out, b.min, b.max, { ...surf('services'), group: 'stage:vent' }, 2);
   const faces = plan.cuts ? storeyCut(out, plan.cuts) : out;
   if (plan.cuts) stairFaces(faces, plan.cuts, surf, (id) => plan.rooms.find((q) => q.id === id).h);
   // (no torch on the wall a flight climbs along: its iron would stand in the way up)
@@ -1684,6 +1691,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     .map((a) => ({ id: a.id, kind: a.kind, room: a.room ?? roomAt(plan, a.at), ...a, ...(bounds[a.id] ? { box: bounds[a.id], node: a.id } : {}) }));
   // `ceilings: true` (a gameworld hero with the wall or the swinger): each room's ceiling a collider, unless open to the sky
   const colliders = stageColliders(plan, geom, anchors, { ceilings: manifest.ceilings === true && plan.kit.shell !== 'plaza' });
+  // (a vent's front walls and lid: its lid over a body lying, under one standing)
+  for (const d of plan.vents?.ducts ?? []) for (const s of d.segments) for (const b of s.parts) colliders.push({ min: b.min, max: b.max, of: `vent:${d.id}:${b.part}` });
   // a set's audience (stands.js, opt-in): tiers and people facing the open side, stamped as instanced repeats
   const stands = manifest.stands !== undefined ? standsRepeats(manifest.stands, manifest.rooms) : null;
   return {
@@ -1748,6 +1757,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
       veer: (windSpec.veer * Math.PI) / 180, seed: windSpec.seed, z0: Sw.z0 }, groups: Sw.groups } } : {}),
     ...(dress && dress.clouds && sun ? { effects: [composeCloudDeck([], { up: 'z', ...dress.clouds, sun: sun.dir })] } : {}),
     rooms: stageRooms(plan), anchors, colliders,
+    // the vents (vents.js): the ducts as the book draws them, their insides the page's crawl spaces (veil.js `under`)
+    ...(plan.vents ? { vents: plan.vents.ducts.map((d) => ({ id: d.id, rooms: d.rooms, segments: d.segments.map((s) => ({ room: s.room, strip: s.strip, hatch: s.hatch })) })), veils: plan.vents.unders } : {}),
     // the program the rooms were laid from (programs.js): its use, way in, goal, language and findings
     ...(manifest._program ? { program: manifest._program } : {}),
     // the condition the room was asked in (condition.js): its step, the dials it set, what the kit could not answer

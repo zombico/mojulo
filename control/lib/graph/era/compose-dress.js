@@ -177,6 +177,13 @@ export function keepOuts(plan) {
     band(Math.min(g.foot, g.near[0]) - 0.6, Math.max(g.foot, g.near[1]) + 0.6, g.depth[1] + 1.2);
     if (g.front) band(g.front[0] - 1.2, g.front[1] + 1.2, g.reach + 1.8);
   }
+  // (a vent's duct, vents.js: its floor along the back wall, and a body's room before each hatch to get down and in)
+  for (const d of plan.vents?.ducts ?? []) for (const s of d.segments) {
+    out.push({ room: s.room, kind: 'stair', min: [s.strip.min[0] - 0.2, s.strip.min[1] - 0.2], max: [s.strip.max[0] + 0.2, s.strip.max[1] + 0.2] });
+    const [hx, hy] = s.hatch.at, X = s.hatch.side.endsWith('x'), k = s.hatch.side.startsWith('+') ? 1 : -1;
+    const a = X ? [hx, hx + k * 1.6].sort((p, q) => p - q) : [hy, hy + k * 1.6].sort((p, q) => p - q);
+    out.push({ room: s.room, kind: 'stair', min: X ? [a[0], hy - 0.8] : [hx - 0.8, a[0]], max: X ? [a[1], hy + 0.8] : [hx + 0.8, a[1]] });
+  }
   for (const s of plan.stairs || []) {
     const [x0, y0, x1, y1] = s.rect;
     for (const id of [s.lower, s.upper]) out.push({ room: id, kind: 'stair', min: [x0 - 1, y0 - 1], max: [x1 + 1, y1 + 1] });

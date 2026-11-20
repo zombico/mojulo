@@ -20,6 +20,7 @@
  */
 import { planCore } from './program-core.js';
 import { readLayouts } from './room-layouts.js';
+import { readVents } from './vents.js';
 import { STAGE_KITS, resolveKitId } from './stage.js';
 import { STRUCTURE_USES } from './out-structures.js';
 import { ANCHOR_IDS, ANCHOR_STRUCTURES, decompileAnchor } from './out-anchor-structure.js';
@@ -224,12 +225,14 @@ export function planProgram(program, kitId = 'gothic-stone', { civilization = nu
   const use = program.use, P = PROGRAMS[use];
   if (!P) throw new Error(`program: use '${use}' is not one (${PROGRAM_IDS.join(', ')})`);
   // (a building's settings are its plan's: storeys, wings, loading, bays; a house's are its rooms')
-  const settings = P.shape === 'core' ? ['use', 'seed', 'civilization', 'storeys', 'wings', 'loading', 'bays', 'basement', 'fight', 'layouts', 'scale'] : ['use', 'seed', 'rooms', 'add', 'civilization', 'scale', 'fight', 'layouts'];
+  const settings = P.shape === 'core' ? ['use', 'seed', 'civilization', 'storeys', 'wings', 'loading', 'bays', 'basement', 'fight', 'layouts', 'scale', 'vents'] : ['use', 'seed', 'rooms', 'add', 'civilization', 'scale', 'fight', 'layouts', 'vents'];
   for (const k of Object.keys(program)) if (!settings.includes(k)) throw new Error(`program: '${k}' is not a setting (${settings.join(', ')})`);
   // (designed as a fighting map, opt-in: FIGHT)
   const fight = readFight(program.fight);
   // (a room's floor laid in a figure, opt-in: room-layouts.js)
   const layouts = readLayouts(program.layouts);
+  // (crawl spaces, opt-in: vents.js; read here so a bad word is refused by name)
+  const vents = readVents(program.vents);
   // (a composed interior's card, compose.js, where it is not the kit's own: its doorways set the corridors' widths)
   const kit = card ?? STAGE_KITS[kitId];
   if (!kit || !kit.grid) throw new Error(`program: kit '${kitId}' is open ground; a program is laid in a room kit (${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].grid).join(', ')})`);
@@ -241,7 +244,7 @@ export function planProgram(program, kitId = 'gothic-stone', { civilization = nu
     const rooms = C.rooms.map((r) => ({ ...r, x: r.x - x0, y: r.y - y0 }));
     // (a link's doorway set along its wall, `along`, is in the plan's frame too)
     const links = fight ? C.links.map(({ alongX, ...l }) => (l.along === undefined ? l : { ...l, along: +(l.along - (alongX ? x0 : y0)).toFixed(6) })) : C.links;
-    return { use, reads: P.reads, rooms, links, ways: C.ways, entry: C.entry, goal: C.goal, front: '-y', language: lang, findings: C.findings, plan: C.plan, ...(C.under ? { under: C.under } : {}), ...(C.lifts ? { lifts: C.lifts } : {}), ...(fight ? { fight } : {}), ...(layouts ? { layouts } : {}) };
+    return { use, reads: P.reads, rooms, links, ways: C.ways, entry: C.entry, goal: C.goal, front: '-y', language: lang, findings: C.findings, plan: C.plan, ...(C.under ? { under: C.under } : {}), ...(C.lifts ? { lifts: C.lifts } : {}), ...(fight ? { fight } : {}), ...(layouts ? { layouts } : {}), ...(vents ? { vents } : {}) };
   }
   const g = kit.grid, need = kit.door.width + 2 * kit.door.frame + kit.wall;   // the wall a doorway needs (stage.js planStage)
   // (scale: the template's rooms laid larger, the plan scale times, its rooms' heights by its root: a party fights in
@@ -352,7 +355,7 @@ export function planProgram(program, kitId = 'gothic-stone', { civilization = nu
   const ordered0 = goal ? [...links.filter((l) => l.to !== goal.id), ...links.filter((l) => l.to === goal.id)] : links;
   // (a ring's doorway set along its wall, `along`, in the plan's frame)
   const ordered = fight ? ordered0.map(({ alongX, ...l }) => (l.along === undefined ? l : { ...l, along: +(l.along - (alongX ? x0 : y0)).toFixed(6) })) : ordered0;
-  return { use, reads: P.reads, rooms, links: ordered, entry: entry.id, goal: goal?.id ?? null, front: '-y', language: lang, findings, ...(fight ? { fight } : {}), ...(layouts ? { layouts } : {}) };
+  return { use, reads: P.reads, rooms, links: ordered, entry: entry.id, goal: goal?.id ?? null, front: '-y', language: lang, findings, ...(fight ? { fight } : {}), ...(layouts ? { layouts } : {}), ...(vents ? { vents } : {}) };
 }
 
 /**
@@ -391,7 +394,9 @@ export function withProgram(m) {
       // (designed as a fighting map: the dials asked, which the stage reads for its cover)
       ...(P.fight ? { fight: P.fight } : {}),
       // (its rooms' layouts asked: room-layouts.js, laid by compose-dress.js layProps)
-      ...(P.layouts ? { layouts: P.layouts } : {}) },
+      ...(P.layouts ? { layouts: P.layouts } : {}),
+      // (its crawl spaces asked: vents.js, laid by the stage)
+      ...(P.vents ? { vents: P.vents } : {}) },
   };
 }
 

@@ -166,7 +166,13 @@ export function planCore(P, program, kit, rnd) {
           // (the doorways between neighbours at either end of their wall by turns, so no line runs room to room down
           // the wing)
           const p = prev.get(si);
-          if (p && sharedOf(p, r) >= need) { const lo = W.along === 'x' ? r.y : r.x, hi = lo + (W.along === 'x' ? r.d : r.w); ring({ from: p.id, to: r.id, along: doorAt(lo, hi, b % 2), alongX: W.along !== 'x' }); }
+          // (a building with vents, vents.js, keeps its rooms' back walls for the duct: the doorways by turns at the
+          // corridor's end of the wall and at its middle)
+          if (p && sharedOf(p, r) >= need) {
+            const lo = W.along === 'x' ? r.y : r.x, hi = lo + (W.along === 'x' ? r.d : r.w);
+            const front = (W.along === 'x' ? cor.y + cor.d / 2 : cor.x + cor.w / 2) > (lo + hi) / 2;
+            ring({ from: p.id, to: r.id, along: program.vents ? (b % 2 ? doorAt(lo, hi, front) : +((lo + hi) / 2).toFixed(6)) : doorAt(lo, hi, b % 2), alongX: W.along !== 'x' });
+          }
           if (b === 0) { const hub = hubs.find((q) => q && sharedOf(q, r) >= need); if (hub) ring({ from: hub.id, to: r.id }); }
           prev.set(si, r);
         }

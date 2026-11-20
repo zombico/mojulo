@@ -5,7 +5,8 @@
  * action game's interiors are facilities (era/facilities.js), each a building designed to move through.
  *
  *   facilityMapSvg(P, { storey?, title?, path?, patrol? }) → one storey of a laid plan (era/stage.js planStage) as an
- *                         SVG: `path` a way across ([[x, y]…], dashed white), `patrol` a watcher's walk ([a, b], red)
+ *                         SVG: `path` a way across ([[x, y]…], dashed white), `patrol` a watcher's walk ([a, b], red);
+ *                         its vents (era/vents.js) drawn as their ducts' floors, dashed, each hatch a bar
  *   buildingMaps(B)     → { plan, storeys: [svg…], layouts } for a building as a level names it (gameworld/levels.js
  *                         buildingStage: `use`, `facility`, `scale`, `layouts`…), `layouts` its laid rooms' laws
  *                         (compose-dress.js layoutReport) or null
@@ -33,7 +34,7 @@ export const HIDES = Object.freeze([
   Object.freeze({ id: 'prone', least: 0, fill: '#6f8fa6', says: 'hides a body lying down' }),
 ]);
 const hideOf = (h) => HIDES.find((x) => h >= x.least);
-const DOOR = '#e8c46a', WAY = '#6ae88a', STAIR = '#8fb3d9';
+const DOOR = '#e8c46a', WAY = '#6ae88a', STAIR = '#8fb3d9', VENT = '#5fd6d0';
 
 /** One storey of a laid plan, from above (see the header). */
 export function facilityMapSvg(P, { storey = null, title = null, path = null, patrol = null, px = 14 } = {}) {
@@ -52,6 +53,15 @@ export function facilityMapSvg(P, { storey = null, title = null, path = null, pa
   for (const it of (P.props ?? []).filter((it) => !it.level && !it.wall && ids.has(it.room) && PIECES[it.kind])) {
     const f = footprintOf(it), c = hideOf(tall.get(it.id)).fill;
     s += `<rect x="${x(f.min[0])}" y="${y(f.max[1])}" width="${r2((f.max[0] - f.min[0]) * S)}" height="${r2((f.max[1] - f.min[1]) * S)}" fill="${c}" stroke="#111" stroke-width="0.5"/>`;
+  }
+  // (the vents, era/vents.js: each duct's floor along its rooms' back walls, dashed, its hatch into each room a bar, its
+  // holes through the walls it shares open)
+  for (const d of P.vents?.ducts ?? []) for (const g of d.segments) {
+    if (!ids.has(g.room)) continue;
+    const { min: a, max: b } = g.strip;
+    s += `<rect x="${x(a[0])}" y="${y(b[1])}" width="${r2((b[0] - a[0]) * S)}" height="${r2((b[1] - a[1]) * S)}" fill="${VENT}" fill-opacity="0.16" stroke="${VENT}" stroke-width="1.5" stroke-dasharray="3 2"/>`;
+    const [hx, hy] = g.hatch.at, X = g.hatch.side.endsWith('x');
+    s += X ? `<rect x="${x(hx) - 2}" y="${y(hy + 0.7)}" width="4" height="${r2(1.4 * S)}" fill="${VENT}"/>` : `<rect x="${x(hx - 0.7)}" y="${y(hy) - 2}" width="${r2(1.4 * S)}" height="4" fill="${VENT}"/>`;
   }
   if (patrol) s += `<line x1="${x(patrol[0][0])}" y1="${y(patrol[0][1])}" x2="${x(patrol[1][0])}" y2="${y(patrol[1][1])}" stroke="#ff5a5a" stroke-width="2" opacity="0.8"/>`;
   if (path?.length) s += `<polyline points="${path.map((p) => `${x(p[0])},${y(p[1])}`).join(' ')}" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="5 3"/>`;
@@ -99,7 +109,7 @@ td,th{text-align:left;padding:6px 10px;border-bottom:1px solid var(--rule);verti
 .ok{color:var(--accent)}.no{color:#c0543c}.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted);margin:6px 0}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:6px;vertical-align:-1px}`;
 
-const legend = () => `<div class="legend">${HIDES.map((h) => `<span><i style="background:${h.fill}"></i>${esc(h.says)}</span>`).join('')}<span><i style="background:${DOOR}"></i>a doorway</span><span><i style="background:${WAY}"></i>a way out</span><span><i style="border:1.5px dashed ${STAIR}"></i>a stair</span></div>`;
+const legend = () => `<div class="legend">${HIDES.map((h) => `<span><i style="background:${h.fill}"></i>${esc(h.says)}</span>`).join('')}<span><i style="background:${DOOR}"></i>a doorway</span><span><i style="background:${WAY}"></i>a way out</span><span><i style="border:1.5px dashed ${STAIR}"></i>a stair</span><span><i style="border:1.5px dashed ${VENT};background:rgba(95,214,208,.2)"></i>a vent a body lies flat in, its hatch a bar</span></div>`;
 const lawsTable = (layouts) => {
   const rows = Object.entries(layouts ?? {});
   if (!rows.length) return '';

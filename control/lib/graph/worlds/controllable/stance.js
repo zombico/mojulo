@@ -12,6 +12,8 @@
  *                eye three quarters up a body's height), so a body crouched is seen over nothing its lowered eye is
  *                under: behind a wall a metre high it is not seen, where standing it is
  *
+ *   HEADROOM      a body rises only where nothing hangs lower than it would stand: under a vent's lid, a truck's
+ *                  chassis or through a hole in a wall it stays lying (or crouched), whatever the key says
  *   input.crouch   TAPPED (let go before `hold` seconds): standing to crouched, crouched to standing, lying to crouched.
  *                  HELD for `hold` seconds (where the rule has `prone`): to lying, from standing or crouched; lying, to
  *                  standing. It stands for a dive, a vault and a climb (they are taken standing).
@@ -34,18 +36,27 @@ export function buildStance(E) {
     if (!S || !input) return step(state, input, dt, hooks);
     if (!p.crBase) p.crBase = { speed: p.rule.speed, collideHeight: p.rule.collideHeight };
     const P = T.prone || null, down = !!input.crouch, busy = p.downed || p.fr || p.dodgeT != null;
+    // HEADROOM: a body does not rise into what hangs over it (a vent's lid, a truck's chassis, a hole through a wall):
+    // to rise to `h` metres, nothing whose underside stands between its head now and `h` over its feet is over it
+    const room = (h) => {
+      const C = state.colliders; if (!C) return true;
+      const t = p.transform.pos, r = p.rule, foot = t[2] - (r.eye || 0), top = foot + (r.collideHeight ?? 1.8), R = r.collideRadius ?? 0.3;
+      for (const b of C) if (b.min[2] >= top - 0.02 && b.min[2] < foot + h && t[0] + R > b.min[0] && t[0] - R < b.max[0] && t[1] + R > b.min[1] && t[1] - R < b.max[1]) return false;
+      return true;
+    };
+    const standH = p.crBase.collideHeight ?? 1.8, crouchH = S.height ?? 1.1;
     if (down && !p.crPrev) { p.crHold = 0; p.crFired = false; }
     if (down) {
       p.crHold = (p.crHold || 0) + dt;
       // the hold: to lying, or from lying to standing
-      if (P && !p.crFired && p.crHold >= (T.hold ?? 0.4) && !busy) { p.crFired = true; if (p.prone) { p.prone = false; p.crouched = false; } else { p.prone = true; p.crouched = false; } }
+      if (P && !p.crFired && p.crHold >= (T.hold ?? 0.4) && !busy) { p.crFired = true; if (p.prone) { if (room(standH)) { p.prone = false; p.crouched = false; } else if (room(crouchH)) { p.prone = false; p.crouched = true; } } else { p.prone = true; p.crouched = false; } }
     } else if (p.crPrev && !p.crFired && !busy) {
-      // the tap, as it is let go
-      if (p.prone) { p.prone = false; p.crouched = true; } else p.crouched = !p.crouched;
+      // the tap, as it is let go (rising only where it has the headroom)
+      if (p.prone) { if (room(crouchH)) { p.prone = false; p.crouched = true; } } else if (!p.crouched || room(standH)) p.crouched = !p.crouched;
     }
     p.crPrev = down;
-    // (a dive, a vault or a climb is taken standing; so is going down)
-    if ((p.crouched || p.prone) && busy) { p.crouched = false; p.prone = false; }
+    // (a dive, a vault or a climb is taken standing; so is going down; never under something low)
+    if ((p.crouched || p.prone) && busy && room(standH)) { p.crouched = false; p.prone = false; }
     // THE CRAWL SEEN FROM THE EYE: lying, the camera to the body's eye and the body turned by the look; up, both given back
     const C0 = state.camera;
     if (P && P.view === 'eye' && C0 && !(p.av && p.av.on)) {
