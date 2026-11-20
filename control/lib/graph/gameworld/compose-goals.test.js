@@ -222,7 +222,11 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
     expect(W.levels[ids[0]].places.street).toMatchObject({ enter: ['shop', 'inn', 'temple'], walls: true });
     const last = W.levels[ids[ids.length - 1]];
     expect(last.building).toMatchObject({ use: 'crypt' });
-    expect(last.goal).toMatchObject({ boss: true });
+    // (its boss a party battle, battles.js `boss`: the core's last pack, no escape, its fight's own pages; never the
+    // real-time goal's boss)
+    expect(last.goal?.boss).toBeUndefined();
+    expect(W.battles).toMatchObject({ boss: ['drake'], bossPages: [{ when: { start: true } }, { when: { foe: 'drake', hpBelow: 0.5 } }] });
+    expect(W.brief.round.boss).toEqual({ pack: ['drake'], at: ids[ids.length - 1] });
     expect(W.levels[W.brief.round.castle].places.castle).toBeTruthy();
     expect(W.brief.round).toMatchObject({ dungeon: ids[ids.length - 1], trades: ['inn', 'temple'] });
     // (its UI the console RPG's plain blue windows, its fights one member's turn at a time)
@@ -283,6 +287,9 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
 
   it('its levels make: the town\'s street stands its inn and temple at their doors', () => {
     const S = steps();
+    // (the crypt ends on its boss: the drake, no escape from it, its pages with it)
+    const crypt = levelSteps(S).find((s) => s.key.startsWith(`level-${ids[ids.length - 1]}-`)).order.manifest.play.rpg.encounters;
+    expect(crypt.at(-1)).toMatchObject({ foes: ['drake'], flee: false, pages: expect.any(Array) });
     const town = levelSteps(S).find((s) => s.order.manifest.town);
     expect(town.order.manifest.town.enter).toEqual(['shop', 'inn', 'temple']);
     // (the priest follows the story, folk/pages.js: where the core's key is kept until it is held, then that the way is

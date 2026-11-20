@@ -60,3 +60,12 @@
   weight?: 1-9 }`. On its turn, a row whose `when` holds and that it can pay for, chosen by weight on the battle's own
   dice; with none holding, the rule every foe keeps (a skill by chance, else an attack). A guard it takes lasts until its
   next turn. A foe without one fights as it did.
+- **A fight's own pages (RPG Maker's troop events).** An encounter may carry `pages` (`play.rpg.encounters[].pages`, and
+  a world's boss fight through `battles.bossPages`): `{ when: { start: true } | { foe?, hpBelow } | { round }, say, who?,
+  sets? }`, each said once in the message line the first time its moment holds; the page channel says `rpg-page:<fight>:<n>`
+  on the bus, and the flag it sets.
+- **A JRPG ends on a boss battle.** A composed party RPG's boss is a party battle (`battles.boss`: the Ember Drake, the
+  core's last pack, no escape from it), with a line as the fight begins and one at half its HP; before, the words' boss
+  was a real-time goal's and stood in the crypt without a fight.
+- **A battle's opening says all it has.** The opening played only its first beat and went to the picks; it now plays
+  each in turn, so a fight's opening page, and on the timeline the foes who act before the first pick, are seen.

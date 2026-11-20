@@ -154,6 +154,7 @@ export function buildRpg() {
     const names = foes.map((f) => f.name);
     const said = names.length === 1 ? names[0] + ' appears!' : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] + ' appear!';
     const out = [{ text: said, kind: 'start', boss: foes.some((f) => f.F.boss) || undefined }];
+    if (E.pages) pages(cfg, R, out, true);
     // the timeline: every gauge starts part full (by a die, more for the quick), and whoever is up first acts
     if (isTimeline(cfg)) {
       R.b.ct = {};
@@ -330,7 +331,29 @@ export function buildRpg() {
 
   const ATTACK = { id: 'attack', name: 'Attack', mp: 0, target: 'foe', power: 0, stat: 'atk', scale: 1, harm: true, element: null, heal: false, revive: false, cure: [], status: null, buff: null };
 
+  // an actor's turn, then the fight's own pages its moment may have brought (pages)
   function act(cfg, R, who, pick, vars, out) {
+    actOne(cfg, R, who, pick, vars, out);
+    if (cfg.encounters[R.b.enc] && cfg.encounters[R.b.enc].pages) pages(cfg, R, out, false);
+  }
+  // A FIGHT'S OWN PAGES (an encounter's `pages`, rpg.js): each said once, the first time its moment holds (the fight
+  // begun; a foe of its kind brought under a share of its HP; its nth round reached): its words a beat each, kind
+  // 'page', the last carrying the flag it sets (the page's channel says both on the bus)
+  function pages(cfg, R, out, starting) {
+    const b = R.b, P = cfg.encounters[b.enc] && cfg.encounters[b.enc].pages;
+    if (!P) return;
+    const said = b.paged || (b.paged = {});
+    P.forEach((p, i) => {
+      if (said[i]) return;
+      const w = p.when, foe = w.hpBelow != null ? b.foes.find((f) => f.hp > 0 && (!w.foe || f.kind === w.foe) && f.hp / f.max < w.hpBelow) : null;
+      const holds = w.start ? starting : (w.hpBelow == null || !!foe) && (w.round == null || b.round >= w.round);
+      if (!holds) return;
+      said[i] = 1;
+      const by = foe || (w.foe && b.foes.find((f) => f.kind === w.foe)) || null;
+      p.say.forEach((t, k) => out.push({ text: (p.who ? p.who + ': ' : '') + t, kind: 'page', page: i, ...(by ? { who: by.uid } : {}), ...(k === p.say.length - 1 && p.sets ? { sets: p.sets } : {}) }));
+    });
+  }
+  function actOne(cfg, R, who, pick, vars, out) {
     const A = unit(cfg, R, who);
     if (!A || A.hp <= 0) return;
     // a sleeper skips its turn, and each turn skipped is one of its sleep's rounds (a blow or the round's end may wake it sooner)

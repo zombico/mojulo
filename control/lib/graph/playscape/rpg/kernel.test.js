@@ -327,3 +327,35 @@ describe('a foe\'s action pattern', () => {
     expect(said(rpgRound(cfg, R, {}, v))[0]).toMatch(/^Warden (attacks!|uses (Fire|Heal)!)$/);
   });
 });
+
+// A FIGHT'S OWN PAGES (encounters[].pages): each said once, the first time its moment holds (begun, a foe under a share
+// of its HP, its nth round), a beat of kind 'page' carrying its flag
+describe('a fight\'s own pages', () => {
+  const warden = { name: 'Warden', hp: 400, mp: 0, atk: 1, def: 30, mag: 1, spd: 1, xp: 1, gold: 1, boss: true };
+  const cfg = trio({ foes: { warden }, encounters: [{ id: 'keep', foes: ['warden'], pages: [
+    { when: { start: true }, who: 'Warden', say: 'None pass the crypt.' },
+    { when: { foe: 'warden', hpBelow: 0.5 }, who: 'Warden', say: ['You are stronger than they said.', 'Then come.'], sets: 'warden-halved' },
+    { when: { round: 3 }, say: 'The torches gutter.' },
+  ] }] });
+  const pagesOf = (beats) => beats.filter((x) => x.kind === 'page');
+
+  it('is read and taught: a moment named, a foe of the fight\'s', () => {
+    expect(cfg.encounters.keep.pages).toHaveLength(3);
+    expect(() => trio({ foes: { warden }, encounters: [{ id: 'keep', foes: ['warden'], pages: [{ when: { foe: 'slime', hpBelow: 0.5 }, say: 'x' }] }] })).toThrow(/one of the fight's foes/);
+    expect(() => trio({ foes: { warden }, encounters: [{ id: 'keep', foes: ['warden'], pages: [{ when: {}, say: 'x' }] }] })).toThrow(/names its moment/);
+  });
+
+  it('says each page once, when its moment first holds, the halfway one with its flag', () => {
+    const R = rpgInit(cfg), v = {};
+    expect(pagesOf(rpgStart(cfg, R, 'keep', v)).map((x) => x.text)).toEqual(['Warden: None pass the crypt.']);
+    expect(pagesOf(rpgRound(cfg, R, {}, v))).toEqual([]);
+    R.b.foes[0].hp = 150;
+    const half = pagesOf(rpgRound(cfg, R, {}, v));
+    expect(half.map((x) => x.text)).toEqual(['Warden: You are stronger than they said.', 'Warden: Then come.']);
+    expect(half.map((x) => x.sets ?? null)).toEqual([null, 'warden-halved']);
+    expect(half[0].who).toBe('f0');
+    // (round three: the torches; then nothing again)
+    expect(pagesOf(rpgRound(cfg, R, {}, v)).map((x) => x.text)).toEqual(['The torches gutter.']);
+    expect(pagesOf(rpgRound(cfg, R, {}, v))).toEqual([]);
+  });
+});

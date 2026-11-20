@@ -125,6 +125,20 @@ function page(play, vars = {}, game = null, more = {}) {
   return { api, bus, queue, said, frames, press, window, document, root };
 }
 
+describe('the page: a fight\'s own pages', () => {
+  it('a page is said in the message line as its moment comes, on the bus with the flag it sets', () => {
+    const play = { rpg: { party: PARTY, encounters: [{ id: 'drake', foes: ['drake'], pages: [{ when: { start: true }, who: 'Ember Drake', say: 'None leave.', sets: 'drake-woke' }] }] } };
+    const P = page(play);
+    processEvents(P.bus, [{ type: 'rpg-battle:drake' }]);
+    // (the appearing first, then the page: what the message line said, frame by frame)
+    const msgs = [];
+    P.frames();
+    for (let k = 0; k < 20 && P.api.state().phase === 'intro'; k++) { msgs.push(P.api.state().msg); P.api.advance(); P.frames(); }
+    expect([...new Set(msgs.filter(Boolean))]).toEqual(expect.arrayContaining(['Ember Drake appears!', 'Ember Drake: None leave.']));
+    expect(P.said().map((e) => e.type)).toEqual(expect.arrayContaining(['rpg-page:drake:0', 'flag:drake-woke']));
+  });
+});
+
 describe('the page: the battle window and the party menu', () => {
   it('a cue\'s rpg-battle opens the fight and holds the world; picks then a played-back round; the close says how it went', () => {
     const P = page(PLAY, { 'held:bag:potion': 1 });
@@ -173,7 +187,8 @@ describe('the page: the battle window and the party menu', () => {
   it('on the timeline the window asks only the one whose turn it is, and shows who comes next', () => {
     const P = page({ rpg: { ...PLAY.rpg, rules: { turns: 'timeline' } } });
     processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
-    P.frames(12);
+    // (the opening plays its beats, the foes who act before the first pick among them, then the window asks)
+    for (let k = 0; k < 400 && P.api.state().phase !== 'command'; k++) P.frames();
     const s = P.api.state();
     expect(s.phase).toBe('command');
     expect(s.member).toBe(P.api.R.b.turn);

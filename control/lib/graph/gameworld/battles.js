@@ -15,6 +15,8 @@
  *                          the last again (default PACKS)
  *     per?: n,             packs on each trail stage (2), on its beats; on a glyph map, in each region past its first
  *     boss?: [foe ids],    the last trail stage's last pack, no escape from it
+ *     bossPages?: [page],  the boss fight's own pages (play.rpg encounters' `pages`: a line as it begins, at half its
+ *                          HP, at its nth round; each said once)
  *     foe?: <hero-door spec>,   how every foe on the map looks (each its own, FOE_LOOKS, by default)
  *     looks?: { <foe id>: beast | people | person },   each foe's own look in a character door's words (FOE_LOOKS):
  *                          { species, ooze?, stylism? } a beast; { people, facets?, dress? } a people (a lineage, the
@@ -133,7 +135,7 @@ export const BAG_START = Object.freeze({ potion: 2 });
 // room (a dungeon: its boss in the goal room, levels.js buildingEnds); a building made by ref, a building's inside
 // entered by its door (a town's house), a city and a roadway have none
 export const FOUGHT = (s) => !['interior', 'city', 'roadway'].includes(s.section) && !(s.section === 'building' && s.building?.ref);
-const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'sets', 'foe', 'looks', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules', 'manual', 'tree'];
+const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'bossPages', 'sets', 'foe', 'looks', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules', 'manual', 'tree'];
 const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules', 'skirmish', 'epochs', 'talk'];
 const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -185,6 +187,8 @@ export function readBattles(v, characters = null, ids = null) {
   // (sets: the story flag the boss's fall sets, carried on as every flag is: a quest's last step done by it, a moment after)
   if (v.sets !== undefined && !(typeof v.sets === 'string' && /^[a-z][a-z0-9-]*$/.test(v.sets))) throw err('.sets is the flag the boss\'s fall sets (a story flag: lowercase words joined by hyphens)');
   if (v.sets !== undefined && v.boss === undefined) throw err('.sets is set by the boss\'s fall: name the boss pack (boss)');
+  // (bossPages: the boss fight's own pages, play.rpg encounters' `pages`, read with it where it is laid)
+  if (v.bossPages !== undefined && (v.boss === undefined || !Array.isArray(v.bossPages))) throw err('.bossPages is the boss fight\'s own pages, [{ when, say, who?, sets? }] (playscape/rpg/rpg.js): name the boss pack (boss)');
   if (v.foe !== undefined && !isObj(v.foe)) throw err('.foe is a hero-door spec (how a foe on the map looks), { species, ooze?, stylism? } for a beast, or { people, facets?, dress? } for a people');
   if (beastLook(v.foe)) readBeastFoe(v.foe, null, '.foe', err);
   else if (isPeopleLook(v.foe)) { try { readPeopleSkin(v.foe, 'battles.foe'); } catch (e) { throw err(`.foe: ${e.message.replace(/^[^:]*: /, '')}`); } }
@@ -389,7 +393,7 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
     // (met before the goal room's exit is reached: its zone is smaller than the fight's)
     // (in a building, the room it is met in: an arena stage holds the fight to it)
     const room = ends.rooms?.find((r) => b.at[0] >= r.x && b.at[0] <= r.x + r.w && b.at[1] >= r.y && b.at[1] <= r.y + r.d);
-    encounters.push({ id: `pack-${from + k + 1}`, foes: [...met[k]], at: [b.at[0], b.at[1]], who: who.length > 1 ? who : id, ...(boss ? { flee: false } : {}), ...(boss && lair ? { near: 3 } : {}), ...(room ? { room: [room.x, room.y, r3(room.x + room.w), r3(room.y + room.d), room.z] } : {}) });
+    encounters.push({ id: `pack-${from + k + 1}`, foes: [...met[k]], at: [b.at[0], b.at[1]], who: who.length > 1 ? who : id, ...(boss ? { flee: false } : {}), ...(boss && B.bossPages ? { pages: B.bossPages.map((p) => ({ ...p })) } : {}), ...(boss && lair ? { near: 3 } : {}), ...(room ? { room: [room.x, room.y, r3(room.x + room.w), r3(room.y + room.d), room.z] } : {}) });
   });
   const random = B.random ? { sets: packs.length ? packs.map((p) => [...p]) : [PACKS[0]], ...B.random } : null;
   // the merchant and the innkeeper, beside where the party comes in (none where the book says no shops, or none stands)

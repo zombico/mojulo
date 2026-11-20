@@ -170,7 +170,8 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     for (const s of all) if (!(s.lens && M.ly && M.ly(all, s))) step1(s, b);
   }
   // a beat shown: its juice, its number, its numbers moved, its film
-  function show(b) { shots = []; juice(b); pop(b); note(b); cinema(b); }
+  // (a fight's page, kernel.js pages: said on the bus, its flag with it)
+  function show(b) { shots = []; juice(b); pop(b); note(b); cinema(b); if (b && b.kind === 'page') { __inputQueue.push({ type: 'rpg-page:' + R.b.enc + ':' + b.page }); if (b.sets) __inputQueue.push({ type: 'flag:' + b.sets }); } }
 
   // ── THE CINEMA (rules.cinema): a skill (or every action) as a short film while the round plays out, nobody picking:
   // the actor close as it begins, behind it at its target as the blow goes, the target as it lands, back to the view.
@@ -512,6 +513,8 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     pops.push({ id: ++popN, at: b.target, value, kind, role: POP_ROLE[(popStyle && popStyle.pop) || 'normal'] || 'numeral', t: lastT });
   }
   function advance() {
+    // (the opening's own beats in turn: a fight's opening page, the foes who act before the first pick on the timeline)
+    if (phase === 'intro' && bi + 1 < beats.length) { bi++; bt = 0; msg = beats[bi].text; show(beats[bi]); return; }
     if (phase === 'intro') { phase = 'command'; msg = ''; if (!commanders().length) return resolve(); return screen('rpg-cmd'); }
     if (phase === 'play') {
       bi++; bt = 0;
@@ -547,7 +550,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
 
   // ── what the screens read (the host's state, never copied into the UI: a binding reads it here each frame) ──
   // (the banner across the top tells an action's name or a status, never a number: a blow's lands over whoever takes it)
-  const TOLD = ['start', 'cast', 'status', 'ko', 'level', 'learn', 'spoils', 'end'];
+  const TOLD = ['start', 'cast', 'status', 'ko', 'level', 'learn', 'spoils', 'end', 'page'];
   const LIST = { 'rpg-cmd': 'commands', 'rpg-skill': 'skills', 'rpg-item': 'items', 'rpg-target': 'targets' };
   const LEVEL = { 'rpg-cmd': 'cmd', 'rpg-skill': 'skill', 'rpg-item': 'item', 'rpg-target': 'target' };
   // (the screen up: none while the runtime draws its first frame)

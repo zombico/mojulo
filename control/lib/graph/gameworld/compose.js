@@ -153,6 +153,12 @@ const ROUND_MANDALA = Object.freeze({ key: (core) => `${core}-key` });
 // gate: the priest (every turn-based town keeps a temple) says where the core's key is kept until it is held, then that
 // the way is open. Their words, the composer's starter: the operator's `say` takes their place
 const ROUND_TALK = Object.freeze({ who: 'priest' });
+// the round's boss (playscape/rpg/presets.js: the drake, the one preset boss, tuned to want level 5 and its weakness), its
+// fight's own pages (play.rpg encounters' `pages`): what it says as the fight begins, and at half its HP
+const ROUND_BOSS = Object.freeze({ pack: Object.freeze(['drake']), pages: (place) => [
+  { when: { start: true }, who: 'Ember Drake', say: `None who come into ${place} leave it.` },
+  { when: { foe: 'drake', hpBelow: 0.5 }, who: 'Ember Drake', say: ['You burn brighter than the others did.', 'Then burn out!'] },
+] });
 const low = (t) => (typeof t === 'string' && /^The /.test(t) ? `the ${t.slice(4)}` : t);
 function roundTalk(world) {
   const M = world.megaworld, core = M?.rings?.at(-1)?.[0], gate = core && M.gates?.[core];
@@ -547,6 +553,16 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     world.megaworld = { shape: 'mandala', rings: [[hubId], ring, [core]], gates: { [core]: gate }, saves: [hubId, ...wilds] };
     Object.assign(world, stampMegaworld(world), { hub: hubId });
     world.brief.round = { ...world.brief.round, mandala: { core, ...gate }, talk: { who: ROUND_TALK.who, pages: 2, on: gate.key } };
+    // THE ROUND'S BOSS: a turn-based world's boss is a party battle (battles.js `boss`, the last pack, no escape from it),
+    // never the real-time goal's: the boss the words name at the core is ROUND_BOSS's pack, its fight's own pages a line
+    // as it begins and one at half its HP; the core's goal keeps what else it holds
+    const C = world.levels[core];
+    if (C.goal?.boss) {
+      const { boss: _b, ...rest } = C.goal;
+      if (Object.keys(rest).length) C.goal = rest; else delete C.goal;
+      world.battles = { ...(world.battles ?? {}), boss: [...ROUND_BOSS.pack], bossPages: ROUND_BOSS.pages(low(C.name ?? core)) };
+      world.brief.round = { ...world.brief.round, boss: { pack: [...ROUND_BOSS.pack], at: core } };
+    }
   }
   world.brief.levels = decided;
   // what the levels are played for, and which are buildings: said only when a word decided it

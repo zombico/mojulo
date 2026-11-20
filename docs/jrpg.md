@@ -111,6 +111,11 @@ keeps the rule every foe has.
 ] } } }
 ```
 
+A fight may say things as it goes (`pages` on an encounter, a world's boss fight's through `battles.bossPages`, RPG
+Maker's troop events): `{ when: { start: true } | { foe?, hpBelow } | { round }, say, who?, sets? }`, each said once in
+the message line the first time its moment holds, `sets` a story flag as it is said. A composed party RPG's boss is a
+party battle (`battles.boss`, the Ember Drake by default) that speaks as it begins and at half its HP.
+
 ## What comes next
 
 Each step ends playable, and each is something a person can say that the words did not carry before. An RPG Maker
@@ -118,4 +123,5 @@ idea is reached through the primitive that already owns it (a switch is a flag, 
 transfer a megaworld's way), never rebuilt:
 1. **Travel by vehicle:** a ship's or an airship's way, opened by a story flag, its crossing played while the next
    place is built.
-2. **The battles' depth as rows:** states as a table, and a fight's own events (a line at half the boss's HP, a summons).
+2. **The battles' depth as rows:** states as a table (paralysis, blindness, confusion beside poison, sleep, silence),
+   and a fight's page that does more than speak (a summons, a heal).
