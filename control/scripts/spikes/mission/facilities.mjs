@@ -107,7 +107,8 @@ const { room, hero: h0, guard: g0 } = await starterRoom(o);
 const lobby = P.rooms.find((r) => r.id === 'lobby'), way = (P.ways ?? []).find((w) => w.room === 'lobby'), start = [r2((way.lo + way.hi) / 2), r2(lobby.y0 + 1.5), 0];
 const w = cross.watcher, heading = Math.atan2(w.to[1] - w.at[1], w.to[0] - w.at[0]);
 const guard = { ...g0, id: 'hall-guard', rule: { ...g0.rule, speed: w.speed, sightCone: w.cone, sightRange: w.range, near: w.near, foe: { ...g0.rule.foe, stretch: r2(Math.hypot(w.to[0] - w.at[0], w.to[1] - w.at[1])), ends: [[...w.at, 0], [...w.to, 0]], patrol: { ...(g0.rule.foe?.patrol ?? {}), look: w.look } } }, transform: { pos: [w.at[0], w.at[1], 0.05], heading } };
-const mission = { objectives: [{ id: 'cross', says: `cross the ${H.id} unseen`, done: 'cross' }], result: { at: [...cross.b, 0], radius: 2 }, hints: [{ at: start, radius: 3, says: `${F.reads}. ${F.moves}.` }] };
+// (the hall's far doorway the end: nothing to hold on the way, mission.js `result.when` empty)
+const mission = { result: { at: [...cross.b, 0], radius: 2, when: [] }, hints: [{ at: start, radius: 3, says: `${F.reads}. ${F.moves}.` }] };
 const entities = [{ ...h0, rule: { ...h0.rule, step: 0.35, mission }, transform: { pos: [start[0], start[1], 0.05], heading: Math.PI / 2 } }, guard];
 const manifest = { ...stage, figures: room.manifest.figures, entities, fxStyle: room.manifest.fxStyle, figureGrade: room.manifest.figureGrade };
 const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scene.js');
