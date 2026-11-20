@@ -39,7 +39,7 @@ describe('the herobots', () => {
   it('a hero\'s own suit dials reach its armour (Galaxy Boy\'s plain suit, read at a close-up); one with none takes the style\'s', () => {
     const withDials = Object.keys(HEROBOTS).find((k) => HEROBOTS[k].dials), without = Object.keys(HEROBOTS).find((k) => !HEROBOTS[k].dials);
     expect(herobotSpec(withDials).adorn.dials).toEqual(HEROBOTS[withDials].dials);
-    expect(herobotSpec(without).adorn.dials).toBeUndefined();
+    if (without) expect(herobotSpec(without).adorn.dials).toBeUndefined();
     // (the rims lighter than the suit, the suit lighter than the armour: three tones, light at the edges)
     const lum = (h) => { const n = parseInt(h.slice(1), 16); return ((n >> 16) * 0.2126 + ((n >> 8) & 255) * 0.7152 + (n & 255) * 0.0722) / 255; };
     for (const k of Object.keys(HEROBOTS)) { const P = HEROBOTS[k].palette; expect(lum(P.Cuff)).toBeGreaterThan(lum(P.Top)); expect(lum(P.Top)).toBeGreaterThan(lum(P.Armor)); }

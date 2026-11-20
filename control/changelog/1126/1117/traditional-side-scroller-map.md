@@ -382,3 +382,6 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   cheeks fuller (a herobot's own `face` words over the cast's), on his own body: the cast's body tune undone ratio by
   ratio (`keepBody`), so his figure and his height in a level are as they were. Law (herobots.test.js): a cast's face
   on the hero's own body, each body ratio undone.
+- **Zero Boy in indigo**: Galaxy Boy's roles in a dark indigo armour, a lavender suit and light lavender rims, the gem
+  gold across the wheel, the ponytail yellow; his suit plain (ornament 1) and his face Galaxy Boy's (the School-Kid Hero
+  cast, its eyes taller and its cheeks fuller, on his own body), so the two heroes are one family at their heights.
