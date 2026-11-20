@@ -202,6 +202,11 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
     // hand's breadth, a layer out over it (its own piece: the wear lays it over the sleeve) and toned a shade down (Roll)
     if (outer.cuff === 'rolled' && arm) { const endOn = fore ? 'foreArm' : 'upperArm', end = fore ? fore[1] : arm[1], span = fore ? 0.2 : 0.24;
       outs.push({ id: 'rollCuff', part: endOn, run: [r6(end - span), end], ease: r6(e * 1.6), rings: { run: [r6(end - span / 2)] }, group: 'Roll' }); }
+    // a STORM FLAP (`stormFlap: true`): a layer of the coat's cloth over its upper back, hung from the yoke across the back
+    // (a cape over an arc of it, the trunk's alone: an arm swings clear) to below the shoulder blades, its hem free and
+    // standing proud, the rest of the coat behind it; toned a shade down (Flap) so its edge reads on the back
+    if (outer.stormFlap) outs.push({ id: 'stormFlap', fit: 'cape', part: ['torso'], from: { part: 'torso', run: 1 }, to: { part: 'torso', u: 2.55 }, around: [100, 260], arms: false,
+      ease: r6(e * 2.2), flare: [0, 0.08], thick: r6(0.005 * k), lie: 0, group: 'Flap' });
     if (outer.collar) outs.push({ id: 'outerCollar', part: 'neck', run: [0, 0.4], ease: e * 1.5, flare: [0, e], rings: { run: [0.3] }, group: 'Outer' });
   }
   // DRAPE PANELS (law 2's other half: the flow is in pieces cut to hang, not in loose tubes): open cloth hung from the
@@ -369,6 +374,7 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
   if (outer && top && T.Outer && T.Top && Math.abs(lightness(T.Outer) - lightness(T.Top)) < 12) warnings.push(`value step: Outer and Top differ by under 12 L* (law 4) — the layers may read as one`);
   if (outer) tones.Outer = T.Outer ?? shade(T.Top ?? '#888888', 0.62);
   if (outer?.cuff === 'rolled') tones.Roll = T.Roll ?? shade(tones.Outer, 0.86);
+  if (outer?.stormFlap) tones.Flap = T.Flap ?? shade(tones.Outer, 0.9);
   if (panels.length) tones.Panel = T.Panel ?? tones.Outer ?? shade(T.Bottom ?? T.Top ?? '#888888', 0.7);
   // (a waistcoat the suit's cloth, a three-piece, unless the card names its own)
   if (vests.length) tones.Waistcoat = T.Waistcoat ?? tones.Outer ?? shade(T.Bottom ?? T.Top ?? '#888888', 0.9);

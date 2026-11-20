@@ -257,3 +257,8 @@ What the theme will hold:
   while that weapon is up and the sheathed hero out of it (the item manifested, never holstered), and its moves are baked
   on that hero. Fallen Angel's second weapon is a bo in the fist's place: two wide sweeps and a spin, a poke, and a string
   that ends on the heavy in a ground slam all round with a toppling knockback.
+- **A coat's storm flap** (an outer layer's `stormFlap: true`): a layer of the coat's own cloth hung from the yoke over
+  its upper back to below the shoulder blades, the trunk's alone so an arm swings clear, its hem free and standing proud
+  of the coat behind it, toned a shade down (`Flap`) so its edge reads on the back. Lucien's coat is now one coat from
+  the shoulders to the knee, the back the sides' length and flared evenly round the hips (`hem: 'knee'`, `cut: 'aline'`,
+  the tails and panels gone), with the flap over its back.

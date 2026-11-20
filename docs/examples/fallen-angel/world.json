@@ -371,27 +371,14 @@
             "outer": {
               "family": "woven",
               "sleeve": "elbow",
-              "hem": "hip",
+              "hem": "knee",
               "open": true,
               "cuff": "rolled",
               "epaulettes": true,
-              "stocking": true
+              "stocking": true,
+              "cut": "aline",
+              "stormFlap": true
             },
-            "panels": [
-              {
-                "at": "back",
-                "width": 0.62,
-                "split": 2,
-                "length": "maxi",
-                "family": "woven"
-              },
-              {
-                "at": "sides",
-                "width": 0.3,
-                "length": "knee",
-                "family": "woven"
-              }
-            ],
             "feet": "cavalierBoots",
             "hands": "cavalierGloves"
           },

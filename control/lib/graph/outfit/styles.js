@@ -34,6 +34,8 @@
 //             yoke, so a bent arm opening the shoulder shows the coat's colour),
 //             cuff?: rolled (the sleeve's end turned back on itself: a band of its cloth over the last hand's breadth, a
 //             layer out and a shade down, the sleeve pushed up),
+//             stormFlap?: true (a layer of the coat's cloth over its upper back from the yoke to below the shoulder
+//             blades, its hem free, the rest of the coat behind it: a trench's back flap),
 //             pockets?: flap (patch pockets low on the front, each under a flap with a snap), epaulettes?: true (a strap
 //             over each shoulder buttoned at the collar), cloth?: leather or a cloth word (how it folds and shines)
 //             panels: [{ at: back | front | sides | sideR | sideL, length: micro … maxi, width?: 0–1 (a share of the half
@@ -474,6 +476,7 @@ export function validateOutfitCard(card, at = 'outfit.style') {
       errs.push(...one(L.outer.rib, OUTER_RIBS, `${at}.language.outer.rib`), ...one(L.outer.pockets, OUTER_POCKETS, `${at}.language.outer.pockets`), ...one(L.outer.cloth, CLOTH_WORDS, `${at}.language.outer.cloth`));
       if (L.outer.collar !== undefined && ![true, false, 'shirt'].includes(L.outer.collar)) errs.push(`${at}.language.outer.collar: true (a stand collar), 'shirt' (a falling collar, its points snapped) or false`);
       if (L.outer.epaulettes !== undefined && typeof L.outer.epaulettes !== 'boolean') errs.push(`${at}.language.outer.epaulettes: true or false`);
+      if (L.outer.stormFlap !== undefined && typeof L.outer.stormFlap !== 'boolean') errs.push(`${at}.language.outer.stormFlap: true (a flap over the coat's upper back) or false`);
       if (L.outer.front === 'zip' && (L.outer.lapel !== undefined || L.outer.buttons !== undefined)) errs.push(`${at}.language.outer.front: 'zip' closes without lapels or buttons (leave lapel and buttons out)`);
       if (L.outer.buttons !== undefined && !(Number.isInteger(L.outer.buttons) && L.outer.buttons >= 1 && L.outer.buttons <= 3)) errs.push(`${at}.language.outer.buttons: 1, 2 or 3 (a row's, down the front)`); } }
   if (L.panels !== undefined) { if (!Array.isArray(L.panels)) errs.push(`${at}.language.panels: a list of { at, length, width?, split?, cut?, family?, rigidity? }`);

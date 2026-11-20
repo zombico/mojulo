@@ -296,3 +296,17 @@ describe('law 10: the drawn figure', () => {
     expect(X('casual', null, null).trace.fits).toBeUndefined();
   });
 });
+
+// THE STORM FLAP (an outer layer's `stormFlap`): a cape of the coat's cloth over its upper back, from the yoke to below
+// the shoulder blades, over the coat (more ease), the trunk's alone, toned a shade under the coat; absent, none
+describe('a coat\'s storm flap', () => {
+  const coat = (o = {}) => build('casual', { language: { outer: { family: 'woven', sleeve: 'elbow', hem: 'knee', open: true, ...o } } });
+  it('hangs a flap over the coat\'s upper back, across the back only, toned a shade down; a coat without one has none', () => {
+    const E = expandOutfit(coat({ stormFlap: true }), { have: STRUCT, scale: 1 }), flap = E.garments.find((g) => g.id === 'stormFlap'), body = E.garments.find((g) => g.id === 'outer');
+    expect(flap).toMatchObject({ fit: 'cape', part: ['torso'], arms: false, group: 'Flap' });
+    expect(flap.around[0]).toBeGreaterThan(45); expect(flap.around[1]).toBeLessThan(315);
+    expect(flap.ease).toBeGreaterThan(body.ease);
+    expect(expandOutfit(coat(), { have: STRUCT, scale: 1 }).garments.some((g) => g.id === 'stormFlap')).toBe(false);
+    expect(validateOutfitBuild(coat({ stormFlap: 'yes' })).join()).toMatch(/stormFlap: true/);
+  });
+});
