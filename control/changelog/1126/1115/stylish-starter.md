@@ -42,3 +42,7 @@
   of headroom).
 - **Fixed: a storeyed building's rooms' light.** A stage with storeys and a `plot` lit each storey with the whole plot,
   and refused a room upstairs as one it did not have; each storey now takes its own rooms' (`era/storeys.js`).
+- **Said: a step the run finds taken.** A row at a step's ref the run has no record of making is kept as it is
+  ('taken'), and was said only in the run's log: a pass cut off between a mint's row and its record (a hero refused
+  mid-mint) left Reaper Knight's sheathed hero the old anime one while the rest were remade realistic, unseen. The
+  readout now advises each such step by name, with the way to remake it (`force: true`).

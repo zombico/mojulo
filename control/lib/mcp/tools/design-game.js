@@ -353,7 +353,10 @@ async function runWorld(ref, world, { force = false, check = false, budgetMs = r
       return;
     }
     // a level's intent laws that do not hold (lay-concerns.js): advice, never a refusal
-    const advises = (step.laws ?? []).filter((l) => !l.holds).map((l) => `${l.concern}: ${l.says}`);
+    // (and a step whose ref holds a row the run has no record of making, 'taken': said, with the way to remake it; a pass
+    // cut off between a mint's row and its record leaves one, and its part then lags the rest unseen)
+    const advises = [...(action === 'taken' ? [`${step.key}: a row the run has no record of making stands at ${step.ref}, kept as it is; force: true remakes it (a pass cut off mid-mint leaves one)`] : []),
+      ...(step.laws ?? []).filter((l) => !l.holds).map((l) => `${l.concern}: ${l.says}`)];
     // a sport's machine gate when it holds (who plays, the arena, the one style): the agent's to tell the player
     const checked = (step.laws ?? []).filter((l) => l.holds && SPORT_CHECKS.includes(l.law)).map((l) => `${l.concern}: ${l.says}`);
     // (a chapter's run makes a step ahead of the approvals it waits on: chapters.js chapterSteps; said with what it skipped)
