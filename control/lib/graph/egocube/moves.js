@@ -95,6 +95,25 @@ const BATTLE_HURTS = ['hitHigh', 'hitBody', 'hitLow'], BATTLE_USE = 'niceGuy';
 export const BATTLE_CHANNEL = 'channel';
 // (a party class's role, for the hero of a world of party battles, whose sheet is the hero door's and not a member's)
 export const ROLE_OF_CLASS = Object.freeze({ fighter: 'frontline', knight: 'frontline', monk: 'flanker', rogue: 'flanker', mage: 'caster', cleric: 'support' });
+/** The play.rpg class (playscape/rpg/presets.js) a person's facets read as: a frontliner a knight when ordered (or a
+ * hero, a ruler, a caregiver), else a fighter; a flanker a monk when ordered, else a rogue; a caster or a controller a
+ * mage; a ranged one a rogue; the rest clerics (gameworld/casting.js classOf reads a member by it). */
+export function classOfFacets(f) {
+  if (f.role === 'frontline') return f.order < 1 / 3 || ['hero', 'ruler', 'caregiver'].includes(f.archetype) ? 'knight' : 'fighter';
+  if (f.role === 'flanker') return f.order < 1 / 3 ? 'monk' : 'rogue';
+  if (f.role === 'caster' || f.role === 'controller') return 'mage';
+  if (f.role === 'ranged') return 'rogue';
+  return 'cleric';
+}
+/**
+ * THE VICTORY POSES a class strikes when a fight is won (hero-aura.js, the `victory` family; a starter each): the
+ * fighter's champion, its blade thrust up; the knight's salute, its hilt before the chin; the rogue's ease, its fist cocked
+ * by the shoulder; the mage's triumph, its staff planted and a hand to the sky; the cleric's thanks, palms pressed; the
+ * monk's martial salute, a fist in the palm and a bow. One with no class cheers. A world names its own per class
+ * (`battles.wins`, any motion word: another pose of the hero door's, or its own).
+ */
+export const WIN_OF_CLASS = Object.freeze({ fighter: 'victoryRaise', knight: 'victorySalute', rogue: 'victoryShoulder', mage: 'victoryStaff', cleric: 'victoryPrayer', monk: 'victoryBow' });
+export const VICTORY_CHEER = 'victoryCheer';
 
 /**
  * A party class's WEAPON in hand (the hero door's `gear`, hero-gear.js): the fighter's greatsword, the knight's sword and
@@ -119,10 +138,11 @@ export const FOE_ROAR = 'recoome';
 export const weaponOfClass = (cls) => (WEAPON_OF_CLASS[cls] ? structuredClone(WEAPON_OF_CLASS[cls]) : null);
 
 /** A party fighter's battle moves: { motion: { <word>: true }, states: { strike…win: <word> } }. `armed`: it holds a
- * weapon (WEAPON_OF_CLASS), its attacks the held swings the page bakes, so none of its fists' is minted. */
-export function battleMovesOf(role, { archetype = null, armed = false } = {}) {
+ * weapon (WEAPON_OF_CLASS), its attacks the held swings the page bakes, so none of its fists' is minted. `cls`: its class,
+ * its victory pose its class's (WIN_OF_CLASS); `win` a pose of its own over it; neither, its archetype's showcase. */
+export function battleMovesOf(role, { archetype = null, armed = false, cls = null, win = null } = {}) {
   const r = BATTLE_ATTACKS_OF_ROLE[role] ? role : 'frontline', [a1, a2, a3] = armed ? ARMED_ATTACKS : BATTLE_ATTACKS_OF_ROLE[r];
-  const states = { strike: a1, strike2: a2, strike3: a3, channel: BATTLE_CHANNEL, cast: BATTLE_CAST_OF_ROLE[r], use: BATTLE_USE, hurt: BATTLE_HURTS[0], hurt2: BATTLE_HURTS[1], hurt3: BATTLE_HURTS[2], ready: READY_OF_ROLE[r], win: WIN_OF_ARCHETYPE[archetype] ?? 'fistToSky' };
+  const states = { strike: a1, strike2: a2, strike3: a3, channel: BATTLE_CHANNEL, cast: BATTLE_CAST_OF_ROLE[r], use: BATTLE_USE, hurt: BATTLE_HURTS[0], hurt2: BATTLE_HURTS[1], hurt3: BATTLE_HURTS[2], ready: READY_OF_ROLE[r], win: win ?? WIN_OF_CLASS[cls] ?? WIN_OF_ARCHETYPE[archetype] ?? VICTORY_CHEER };
   const words = Object.values(states).filter((w) => !ARMED_ATTACKS.includes(w));
   return { motion: Object.fromEntries([...new Set([...words, ...Object.keys(REACT_MOTION)])].map((w) => [w, true])), states };
 }

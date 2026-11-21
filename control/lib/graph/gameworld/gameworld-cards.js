@@ -23,6 +23,7 @@ import { ELEMENT_WORDS } from './element-words.js';
 import { UNDERLAYERS } from './hero-looks.js';
 import { AXES, VIBES } from './hero-vibe.js';
 import { POLES, POLE_IDS, variantsOf } from './feel/cards.js';
+import { WIN_OF_CLASS } from '../egocube/moves.js';
 import { feelCard as feelCardOf, lowerFeel } from './feel/lower.js';
 import { TEMPLATE_ARSENALS } from './combos.js';
 import { GENRE_FEEL, FEEL_WORDS } from './feel/suggest.js';
@@ -927,7 +928,7 @@ const quickShared = () => [
 function battlesCard() {
   return lines(
     'THE BATTLES — party battles, turn by turn, laid on the book\'s levels: battles { on?, board?, party?, packs?, per?, boss?, bossPages?, foe?, looks?,',
-    '  shops?, rest?, random?, classes?, skills?, foes?, items?, states?, rules?, manual?, tree? }. The book\'s battles page reads them back. Absent: no battles (a turn-based cube asks for them: the',
+    '  shops?, rest?, random?, classes?, skills?, foes?, items?, states?, rules?, manual?, tree?, wins? }. The book\'s battles page reads them back. Absent: no battles (a turn-based cube asks for them: the',
     '  encounters concern). The fights are play.rpg (get_play_vocab({ id: \'ui-cues\' }), PARTY BATTLES).',
     '',
     `party   the hero and each cast member who joins (characters.cast.<id>.joins), each a class: { hero: { class, name? },`,
@@ -943,6 +944,7 @@ function battlesCard() {
     '        a beast on its own gaits (a wolf pack, dire wolves); walk up to one to fight.',
     'looks   each foe its own: { <foe id>: { species, ooze?, stylism? } a beast | { people, facets?, dress? } a people (a',
     '        lineage, the beast-kin: lupine, feline …, the undead: skeleton, zombie) | hero-door words }; the presets\' own.',
+    `wins    { <class>: <pose> } the victory pose a class strikes, any hero-door pose (starters: ${Object.values(WIN_OF_CLASS).join(', ')}).`,
     'shops   a merchant (wares by how far on, bought back at half) and an inn (a night: HP, MP, cured) beside each fighting',
     '        stage\'s start: shops: false | { wares?: [ids], inn?: gold | false }. Where an inn stands it is the rest.',
     'hub     the world\'s hub: \'<level>\' (topology interconnected): the town every way leads back to, no fights in it,',

@@ -192,7 +192,25 @@ repertoire** (`egocube/moves.js` `battleMovesOf`):
   before it goes off;
 - a cast pose by its role and a thumbs-up for an item;
 - three ways to take a blow beside its stagger, and its fall;
-- its ready stance, held while the fight lasts, and its win pose, struck by the whole party when the fight is won.
+- its ready stance, held while the fight lasts, and its **victory pose**, struck by the whole party when the fight is
+  won.
+
+**Victory poses.** Each class strikes its own when a fight is won (`egocube/moves.js` `WIN_OF_CLASS`, the `victory`
+family of `polygonizer/hero-aura.js`), a weapon in the right hand riding the pose:
+
+| class | its victory |
+|---|---|
+| fighter | the champion (`victoryRaise`): feet broad, the right fist and its blade thrust straight up, the left on the hip |
+| knight | the salute (`victorySalute`): heels together, the hilt brought up before the chin |
+| rogue | the ease (`victoryShoulder`): the weight on one leg, the fist cocked by the shoulder, a hand on the hip, grinning |
+| mage | the triumph (`victoryStaff`): the staff planted low at the side, the other hand raised open to the sky |
+| cleric | the thanks (`victoryPrayer`): the palms pressed before the chest, the head bowed, the eyes closed |
+| monk | the martial salute (`victoryBow`): a fist set into the open palm, bowing from the hips |
+| no class | the cheer (`victoryCheer`): both fists up in a V |
+
+A world names its own per class, any pose of the hero door's (`battles.wins: { knight: 'giorno' }`): the hero and each
+member of that class are made with it and strike it. A new starter is a row of the `victory` family and of
+`WIN_OF_CLASS`; a pose of a character's own is a motion word on its hero door.
 
 **Weapons in hand.** In a world of battles, each party member who is a person, and the hero, holds its class's weapon
 (`egocube/moves.js` `WEAPON_OF_CLASS`):

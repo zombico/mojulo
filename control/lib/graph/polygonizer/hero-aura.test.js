@@ -86,7 +86,7 @@ describe('hero-aura', () => {
 
   it('names its poses, shapes and footings; refuses unknown words by name', () => {
     expect(AURA_NAMES).toEqual(Object.keys(AURAS).flatMap((n) => [n, `${n}Left`]));
-    for (const P of Object.values(AURAS)) { expect(['aura', 'jojo', 'squad', 'spell', 'meme']).toContain(P.family); expect(P.after).toBeTruthy(); }
+    for (const P of Object.values(AURAS)) { expect(['aura', 'jojo', 'squad', 'spell', 'victory', 'meme']).toContain(P.family); expect(P.after).toBeTruthy(); }
     expect(SHAPES.vee.index).toBeLessThan(0); expect(Object.keys(FOOTINGS)).toContain('crane');
     const { R } = HEROES.male;
     expect(() => heroAura('moonwalk', R)).toThrow(/no pose/);

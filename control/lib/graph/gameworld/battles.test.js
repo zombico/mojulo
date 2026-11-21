@@ -1,4 +1,6 @@
 import { FOE_LOOKS } from './battles.js';
+import { WIN_OF_CLASS } from '../egocube/moves.js';
+import { castingOf } from './casting.js';
 import { beastLook, readBeastFoe } from './stage-figures.js';
 import { readPeopleSkin } from '../foes/people.js';
 import { describe, it, expect } from 'vitest';
@@ -13,6 +15,7 @@ import { DUNGEON_SCALE } from './levels.js';
 
 const levels = (w) => runSteps(w, { ref: 'gw' }).filter((s) => s.key.startsWith('level-'));
 const W = (battles, more = {}) => ({ ...MEADOWMARK_HERO, battles, ...more });
+const castingOfW = (characters) => castingOf(readGameworld({ ...MEADOWMARK_HERO, battles: {}, characters }));
 
 describe('battles: the book\'s party battles, laid on its trails', () => {
   it('each foe kind its own figure, each trail stage stands its packs on its beats, and the packs walk the ladder across the game', () => {
@@ -179,6 +182,25 @@ describe('the party on the map', () => {
     expect(new Set(party.map((e) => `${e.rule.followDist},${e.rule.flank}`)).size).toBe(party.length);
     expect(party.some((e) => e.rule.flank > 0) && party.some((e) => e.rule.flank < 0)).toBe(true);
     expect(party.every((e) => !e.body?.collide)).toBe(true);
+  });
+});
+
+describe('the victory poses (battles.wins)', () => {
+  it('each class strikes its starter; a world names its own per class, the hero and the party minted with it; teaches', () => {
+    const cast = { ...MEADOWMARK_HERO.characters, casting: { scale: 'party', n: 2 } }, heroCls = castingOfW(cast).anchor.cls;
+    const heroFig = (S) => S.find((s) => s.key.startsWith('level-')).order.manifest.figures.hero;
+    expect(heroFig(runSteps(W({}, { characters: cast }), { ref: 'gw' })).moves.win).toBe(WIN_OF_CLASS[heroCls]);
+    const wins = Object.fromEntries(Object.keys(WIN_OF_CLASS).map((c) => [c, c === heroCls ? 'peaceWink' : 'giorno']));
+    const S = runSteps(W({ wins }, { characters: cast }), { ref: 'gw' });
+    expect(heroFig(S).moves.win).toBe('peaceWink');
+    expect(S.find((s) => s.key === 'hero').order.spec.motion.peaceWink).toBe(true);
+    // (a member: its mint order carries the pose beside its own words; its figure strikes it)
+    const m = S.find((s) => /^cast-party-/.test(s.key) && s.order.spec?.motion);
+    expect(m).toBeTruthy();
+    expect(Object.keys(m.order.spec.motion)).toEqual([wins[castingOfW(cast).members.find((x) => `cast-${x.id}` === m.key).cls]]);
+    expect(() => readBattles({ wins: { bard: 'giorno' } })).toThrow(/no class 'bard'/);
+    expect(() => readBattles({ wins: { knight: 'walk' } })).toThrow(/a pose the hero door strikes/);
+    expect(() => readBattles({ wins: 'giorno' })).toThrow(/wins is \{ <class>: <pose> \}/);
   });
 });
 

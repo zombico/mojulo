@@ -174,3 +174,12 @@
   cracked round shield; the zombie claws, bare. Its three attacks are then the held swings, as a party member's are, and
   so are a person foe's that holds something (the bandit's dagger). A look the world writes with its own `gear` holds
   that. Before, every people foe fought with its fists, and the bandit punched with a dagger in its hand.
+- **Victory poses by class.** Seven new poses (`polygonizer/hero-aura.js`, the `victory` family) and a starter for each
+  class (`egocube/moves.js` `WIN_OF_CLASS`): the fighter's champion (its blade thrust up), the knight's salute (its hilt
+  before the chin), the rogue's ease, the mage's triumph (its staff planted, a hand to the sky), the cleric's thanks
+  (palms pressed), the monk's martial salute (a fist in the palm, a bow); one with no class cheers. The party strikes
+  them when a fight is won, the hero and each member by its class (a member's class read from its facets, as the
+  casting reads it: `classOfFacets`). A world names its own per class, any pose of the hero door's (`battles.wins`),
+  and the hero and that class's members are made with it. Before, a member struck its archetype's showcase pose and the
+  hero a fist to the sky. A `motion` laid over an egocube character's sheet (`create_character { egocube, spec }`) now
+  adds its words to the moves the sheet gives it, where it replaced them.

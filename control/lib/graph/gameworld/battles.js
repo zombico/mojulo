@@ -61,6 +61,8 @@ import { mapItems } from '../level/map-items.js';
 import { manualBattles } from './battles-manual.js';
 import { treesBattles } from './battles-tree.js';
 import { ARMORY_ARMS } from '../equipment/armory.js';
+import { MOTION_GAITS } from '../polygonizer/hero-motion.js';
+import { WIN_OF_CLASS } from '../egocube/moves.js';
 
 export const PACKS = Object.freeze([
   ['slime', 'slime'], ['wolf', 'bat'], ['goblin', 'spider', 'slime'], ['skeleton', 'wolf'],
@@ -157,7 +159,7 @@ export const BAG_START = Object.freeze({ potion: 2 });
 // room (a dungeon: its boss in the goal room, levels.js buildingEnds); a building made by ref, a building's inside
 // entered by its door (a town's house), a city and a roadway have none
 export const FOUGHT = (s) => !['interior', 'city', 'roadway'].includes(s.section) && !(s.section === 'building' && s.building?.ref);
-const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'bossPages', 'sets', 'foe', 'looks', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'states', 'rules', 'manual', 'tree'];
+const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'bossPages', 'sets', 'foe', 'looks', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'states', 'rules', 'manual', 'tree', 'wins'];
 const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules', 'skirmish', 'epochs', 'talk'];
 const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -206,6 +208,16 @@ export function readBattles(v, characters = null, ids = null) {
   // classic party RPG's; a member who joins on a story flag still stands where the story puts it)
   if (v.followers !== undefined && typeof v.followers !== 'boolean') throw err('.followers is true (the party walks the map behind the hero, the default) or false (the hero walks alone; the party still fights)');
   const boss = v.boss === undefined ? null : packOf(v.boss, '.boss');
+  // (wins: the victory pose each class strikes when a fight is won, over its starter (egocube/moves.js WIN_OF_CLASS): any
+  // of the hero door's motion words, a showcase pose or a victory)
+  if (v.wins !== undefined) {
+    const classes = [...new Set([...Object.keys(CLASS_PRESETS), ...(isObj(v.classes) ? Object.keys(v.classes) : [])])];
+    if (!isObj(v.wins)) throw err(`.wins is { <class>: <pose> }: the victory pose each class strikes (its starter: ${Object.entries(WIN_OF_CLASS).map(([c, w]) => `${c} ${w}`).join(', ')})`);
+    for (const [c, w] of Object.entries(v.wins)) {
+      if (!classes.includes(c)) throw err(`.wins.${c}: no class '${c}' (the classes: ${classes.join(', ')})`);
+      if (typeof w !== 'string' || !['move', 'rest'].includes(MOTION_GAITS[w]?.motion)) throw err(`.wins.${c} is a pose the hero door strikes (a showcase or a victory: ${Object.keys(MOTION_GAITS).filter((k) => /^victory/.test(k)).join(', ')}, fistToSky, peaceWink…), not '${w}'`);
+    }
+  }
   // (sets: the story flag the boss's fall sets, carried on as every flag is: a quest's last step done by it, a moment after)
   if (v.sets !== undefined && !(typeof v.sets === 'string' && /^[a-z][a-z0-9-]*$/.test(v.sets))) throw err('.sets is the flag the boss\'s fall sets (a story flag: lowercase words joined by hyphens)');
   if (v.sets !== undefined && v.boss === undefined) throw err('.sets is set by the boss\'s fall: name the boss pack (boss)');

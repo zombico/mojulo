@@ -569,6 +569,38 @@ export const AURAS = Object.freeze({
       { at: 0.86, name: 'swell', hands: { R: { at: 'solar', off: [0.1, 0.31, 0.06], by: 'palm', shape: 'open', palm: 'in', elbow: 'down', touch: false }, L: { at: 'solar', off: [0.1, 0.31, 0.06], by: 'palm', shape: 'open', palm: 'in', elbow: 'down', touch: false } }, face: { blink: 0.6, brow: -0.55, open: 0.15 } },
     ],
   },
+  // ── VICTORY: the pose a party strikes when a fight is won (egocube/moves.js WIN_OF_CLASS: a class's own, a starter
+  // each; a world names its own per class, battles.wins). A weapon held in the right hand rides the pose ──
+  victoryRaise: {
+    family: 'victory', after: 'the champion: feet set broad, the right fist (and what it holds) thrust straight up, the left fist on the hip, the chest out, looking up', seconds: 1.4,
+    beats: [
+      { at: 0.6, name: 'raise', feet: 'broad', curl: -0.12, head: { pitch: 14 }, hands: { R: { aim: ['up', 'fwd'], reach: 0.97, by: 'wrist', shape: 'fist', palm: 'in', elbow: 'down' }, L: FISTHIP('L') }, face: { smile: 0.7, open: 0.5 } },
+    ],
+  },
+  victorySalute: {
+    family: 'victory', after: 'the knight\'s salute: heels together, the right fist (its hilt) brought up before the chin, the left fist at the hip, chin level', seconds: 1.4,
+    beats: [{ at: 0.6, name: 'salute', feet: 'together', head: { pitch: 4 }, hands: { R: { at: 'chin', off: [0.02, 0.2, -0.1], by: 'fist', shape: 'fist', palm: 'in', elbow: 'down', touch: false }, L: FISTHIP('L') }, face: { brow: -0.2, smile: 0.2 } }],
+  },
+  victoryShoulder: {
+    family: 'victory', after: 'the rogue\'s ease: the weight on one leg, the right fist (what it holds) cocked up by the shoulder, the left hand on the hip, the head cocked, grinning', seconds: 1.3,
+    beats: [{ at: 0.6, name: 'ease', feet: 'contra', head: { tilt: 12 }, hands: { R: { aim: ['up', 'out'], reach: 0.5, by: 'wrist', shape: 'fist', palm: 'in', elbow: 'out' }, L: ONHIP('L') }, face: { smile: 0.75, blink: 0.3 } }],
+  },
+  victoryStaff: {
+    family: 'victory', after: 'the mage\'s triumph: the right fist low out at the side (its staff planted), the left hand raised open to the sky, looking up', seconds: 1.5,
+    beats: [{ at: 0.6, name: 'triumph', feet: 'abreast', head: { pitch: 12 }, hands: { R: { aim: ['down', 'out', 'fwd'], reach: 0.85, by: 'wrist', shape: 'fist', palm: 'in', elbow: 'down' }, L: { aim: ['up', 'out'], reach: 0.9, by: 'wrist', shape: 'open', palm: 'fwd', elbow: 'down' } }, face: { smile: 0.6, open: 0.3 } }],
+  },
+  victoryPrayer: {
+    family: 'victory', after: 'the cleric\'s thanks: feet together, the palms pressed before the chest, the fingers up, the head bowed, the eyes closed', seconds: 1.6,
+    beats: [{ at: 0.6, name: 'thanks', feet: 'together', head: { pitch: -14 }, hands: { R: { at: 'chest', off: [0.02, 0.2, 0.02], by: 'palm', shape: 'flat', palm: 'in', fingers: 'up', elbow: 'down', touch: false }, L: { at: 'chest', off: [0.02, 0.2, 0.02], by: 'palm', shape: 'flat', palm: 'in', fingers: 'up', elbow: 'down', touch: false } }, face: { blink: 0.85, smile: 0.3 } }],
+  },
+  victoryBow: {
+    family: 'victory', after: 'the martial salute: feet together, the right fist set into the left open palm before the chest, bowing from the hips', seconds: 1.5,
+    beats: [{ at: 0.6, name: 'bow', feet: 'together', hinge: 18, hands: { R: { at: 'solar', off: [-0.01, 0.26, 0.08], by: 'fist', shape: 'fist', palm: 'in', elbow: 'out', touch: false }, L: { at: 'solar', off: [0.05, 0.26, 0.08], by: 'palm', shape: 'flat', palm: 'in', elbow: 'out', touch: false } }, face: { blink: 0.5 } }],
+  },
+  victoryCheer: {
+    family: 'victory', after: 'the cheer: both fists thrown up and out in a V, the chest out, a big open grin', seconds: 1.2,
+    beats: [{ at: 0.55, name: 'cheer', feet: 'abreast', curl: -0.1, head: { pitch: 10 }, hands: { R: { aim: ['up', 'out'], reach: 0.97, by: 'wrist', shape: 'fist', palm: 'fwd', elbow: 'down' }, L: { aim: ['up', 'out'], reach: 0.97, by: 'wrist', shape: 'fist', palm: 'fwd', elbow: 'down' } }, face: { smile: 0.85, open: 0.6 } }],
+  },
   // ── MEME ──
   tPose: {
     family: 'meme', after: 'asserting dominance: the bind pose struck on purpose, arms rising stiff to the sides', seconds: 2.2,

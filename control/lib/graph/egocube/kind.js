@@ -40,7 +40,7 @@ import { rollMascot, asksForMascot, MASCOT_KEYS } from './mascot.js';
 import { mascotPlanFromSheet, modelSheet } from './mascot-form.js';
 import { mascotOfPerson } from './mascot-from-person.js';
 import { rollCast, readCastRequest } from './cast.js';
-import { battleMovesOf, foeBattleMovesOf, moveSetOf, creatureMovesOf, beastMovesOf } from './moves.js';
+import { battleMovesOf, foeBattleMovesOf, moveSetOf, creatureMovesOf, beastMovesOf, classOfFacets } from './moves.js';
 import { motionPlan } from '../polygonizer/hero-motion.js';
 import { fingerprint } from '../gameworld/review.js';
 
@@ -156,7 +156,8 @@ export function egocubeCreate(m, { years, dress, title, output, member, armed = 
     // (a member who fights in the party carries a party battle's repertoire too: moves.js battleMovesOf; a foe made for
     // party battles, `moves: 'battle'`, a foe's: foeBattleMovesOf)
     const fights = node.sheet.facets.role !== 'non-combatant', F = node.sheet.facets;
-    const M = moveSetOf(F), B = node.member?.bond === 'party' && fights ? battleMovesOf(F.role, { archetype: F.archetype, armed }) : !node.member && m.moves === 'battle' && fights ? foeBattleMovesOf(F.role, { archetype: F.archetype, armed }) : null;
+    // (a member's victory pose its class's, the class its facets read as: moves.js WIN_OF_CLASS)
+    const M = moveSetOf(F), B = node.member?.bond === 'party' && fights ? battleMovesOf(F.role, { archetype: F.archetype, armed, cls: classOfFacets(F) }) : !node.member && m.moves === 'battle' && fights ? foeBattleMovesOf(F.role, { archetype: F.archetype, armed }) : null;
     return { node: { path: node.path, years: node.years, band: node.band }, ...of, create: { ...P.create, spec: { ...P.create.spec, motion: { ...(P.create.spec.motion ?? {}), ...M.motion, ...(B ? B.motion : {}) } } }, moves: M.moves, ...(B ? { battle: B.states } : {}), after: P.after, ledger: P.ledger, ...(P.outfit ? { outfit: P.outfit } : {}) };
   }
   // a member below the hero door (a beast-kin on the creature loop's rig): a walk and a jog, and the moves its rig solves
