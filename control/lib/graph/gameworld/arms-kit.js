@@ -13,6 +13,11 @@
 //   RELOAD               R, on any partly spent magazine (the old way, empty, still reloads by itself)
 //   THE BOW              the string drawn while the button is held (its `draw` seconds to full), the arrow loosed on
 //                        release: faster and harder the further it was drawn, and falling as it flies
+//   A HAND GRENADE       thrown (frag, stun, chaff: worlds/controllable/throw.js): the press starts the throw and the round
+//                        leaves the hand at its release, on the arc through the crosshair as a launcher's does
+//   A LAUNCHER           its round travels (worlds/controllable/combat-ranged.js the lob): over the shoulder it is
+//                        launched on the arc that passes the point under the crosshair, and bursts where it lands, all
+//                        inside its reach dealt whole
 // The numbers are a game's, by the arm's archetype (an assault rifle's automatic fire, a sniper's bolt, a shotgun's
 // pellets thinning with range), scaled to the goal's own base round (a shoot level's foe takes four, a pole's damage
 // its time to kill) so a kit fits the game it is carried in. Pure data and arithmetic; no dice.
@@ -44,6 +49,15 @@ export const ARMS_KIT = Object.freeze({
   revolver: { arm: { item: 'pistol', model: 'revolver' }, as: 'magnum' },
   // (the SLEEP DART GUN: a service pistol firing one dart a load, quiet; its dart stuns, never hurts: worlds/controllable/knockout.js)
   dart: { arm: { item: 'pistol', model: 'service' }, as: 'dart', name: 'dart gun' },
+  // (a 40 mm revolving GRENADE LAUNCHER: a round lobbed on an arc that bursts where it lands)
+  launcher: { arm: { item: 'launcher', model: 'grenade' }, as: 'grenade', name: 'grenade launcher' },
+  // (a ROCKET LAUNCHER, a bazooka: one rocket a load, flying flat and fast enough to lead, a bigger burst)
+  bazooka: { arm: { item: 'launcher', model: 'rocket' }, as: 'rocket' },
+  // (the HAND GRENADES, thrown (worlds/controllable/throw.js), quietly (no shot is heard): the same throw, three bursts. A FRAG's shrapnel hurts all round
+  // it; a STUN's flash knocks out whoever sees it go off; a CHAFF's cloud of foil jams the radios and the radar round it)
+  frag: { thrown: 'frag', as: 'thrown', name: 'frag grenade' },
+  stun: { thrown: 'stun', as: 'thrown', name: 'stun grenade' },
+  chaff: { thrown: 'chaff', as: 'thrown', name: 'chaff grenade' },
   bow: { bow: true, as: 'bow' },
 });
 export const ARMS_KIT_WORDS = Object.freeze(Object.keys(ARMS_KIT));
@@ -54,23 +68,44 @@ export const ARMS_MAX = 5;
 // rate of fire; `blow` the joules a round carries, about its cartridge's at the muzzle, what it marks a wall with or
 // breaks it by (rupa.js); `pellets` the shot a shell parts into)
 // each archetype's round (gameworld/rounds.js): what the page draws of it going off
-const ROUND_OF = Object.freeze({ auto: 'rifle', spray: 'smg', pump: 'shotgun', marksman: 'marksman', bolt: 'sniper', sidearm: 'pistol', magnum: 'magnum', dart: 'pistol' });
+const ROUND_OF = Object.freeze({ auto: 'rifle', spray: 'smg', pump: 'shotgun', marksman: 'marksman', bolt: 'sniper', sidearm: 'pistol', magnum: 'magnum', dart: 'pistol', grenade: 'grenade', rocket: 'rocket' });
 const ARCHETYPES = Object.freeze({
   auto: { auto: true, rof: 9, dmg: 0.5, magazine: 30, reserve: 90, reload: 2.4, range: 70, blow: 1750, spread: { base: 0.6, move: 3, bloom: 0.45, recover: 5, max: 4, wait: 0.15 }, recoil: { kick: 0.45, recover: 4, max: 4, wait: 0.15 } },
   spray: { auto: true, rof: 13, dmg: 0.33, magazine: 30, reserve: 120, reload: 2, range: 35, blow: 550, spread: { base: 0.9, move: 2.2, bloom: 0.35, recover: 6, max: 5, wait: 0.15 }, recoil: { kick: 0.3, recover: 5, max: 3, wait: 0.15 }, falloff: { from: 15, to: 35, min: 0.5 } },
   pump: { cooldown: 0.9, dmg: 2.5, magazine: 6, reserve: 24, reload: 3.2, range: 25, coreAngle: 4, blow: 3200, pellets: 9, spread: { base: 2.2, move: 1.5, bloom: 0, recover: 6, max: 4 }, recoil: { kick: 4, recover: 5, max: 6 }, falloff: { from: 6, to: 18, min: 0.2 } },
   marksman: { cooldown: 0.45, dmg: 1.6, magazine: 10, reserve: 40, reload: 2.6, range: 120, headshot: 2, blow: 3300, spread: { base: 1.6, move: 5, bloom: 1, recover: 4, max: 6 }, recoil: { kick: 1.2, recover: 3, max: 4 } },
-  bolt: { cooldown: 1.3, dmg: 4, magazine: 5, reserve: 20, reload: 3.2, range: 200, headshot: 2, coreAngle: 0.6, blow: 6000, spread: { base: 4, move: 6, bloom: 0, recover: 4, max: 8 }, recoil: { kick: 3, recover: 2.5, max: 4 } },
+  // (a bolt's climb settles inside its cycle, its most in a second, so the scope is back on the mark as the next round is
+  // chambered)
+  bolt: { cooldown: 1.3, dmg: 4, magazine: 5, reserve: 20, reload: 3.2, range: 200, headshot: 2, coreAngle: 0.6, blow: 6000, spread: { base: 4, move: 6, bloom: 0, recover: 4, max: 8 }, recoil: { kick: 3, recover: 4, max: 4 } },
   sidearm: { cooldown: 0.25, dmg: 0.75, magazine: 15, reserve: 45, reload: 1.6, range: 40, blow: 500, spread: { base: 0.8, move: 1.8, bloom: 0.8, recover: 5, max: 4 }, recoil: { kick: 1, recover: 5, max: 3 } },
   // (a dart: one a load and a slow reload, its `dmg` the stun it carries (four base rounds: a body's whole most), twice in
   // the head; `drowse` the seconds its sleep takes to come on, quiet, `stun`: knockout.js gives back what it hurt)
   dart: { cooldown: 0.6, dmg: 4, magazine: 1, reserve: 15, reload: 1.4, range: 45, headshot: 2, blow: 60, stun: true, quiet: true, drowse: 3, spread: { base: 0.6, move: 1.6, bloom: 0, recover: 5, max: 3 }, recoil: { kick: 0.5, recover: 5, max: 2 } },
+  // (a LAUNCHER's round travels: `lob` its flight, `speed` (m/s) and `gravity` (m/s²), `splash` its burst's reach (m),
+  // `dmg` dealt whole inside it; a 40 mm grenade a little over half its real speed, so its arc is seen and its reach a yard's)
+  // (a rocket flies straight, without gravity, a little slower than a grenade launched so it is seen and can be led; one
+  // a load, its tube reloaded in three seconds)
+  rocket: { lob: { speed: 38, gravity: 0, splash: 4, projRadius: 0.08, armTime: 0.08, fuse: 5 }, cooldown: 0.4, dmg: 6, magazine: 1, reserve: 4, reload: 3, range: 180, spread: { base: 0.5, move: 2.5, bloom: 0, recover: 4, max: 3 }, recoil: { kick: 1, recover: 3, max: 4 } },
+  grenade: { lob: { speed: 45, gravity: 9.8, splash: 3, projRadius: 0.05, armTime: 0.05, fuse: 6 }, cooldown: 0.65, dmg: 4, magazine: 6, reserve: 12, reload: 4.2, range: 150, spread: { base: 0.6, move: 2, bloom: 0, recover: 4, max: 3 }, recoil: { kick: 1, recover: 4, max: 5 } },
   magnum: { cooldown: 0.5, dmg: 1.4, magazine: 6, reserve: 24, reload: 2.8, range: 50, headshot: 2, blow: 750, spread: { base: 0.8, move: 2.2, bloom: 1.4, recover: 4, max: 5 }, recoil: { kick: 2.4, recover: 4, max: 5 } },
 });
-/** how much aiming down the sights takes of the hip's cone, its slowing of the feet, and its share of the move's cone */
-export const ADS = Object.freeze({ spread: 0.35, move: 0.55, moveSpread: 0.5, scopedSpread: 0.02 });
+/** how much aiming down the sights takes of the hip's cone, its slowing of the feet, its share of the move's cone, and its
+ * share of a held trigger's bloom (a round's and its most) */
+export const ADS = Object.freeze({ spread: 0.35, move: 0.55, moveSpread: 0.5, scopedSpread: 0.02, bloom: 0.5 });
 /** the view's power at the eye for an open sight (irons, a red dot, a holographic sight): a game's closing-in */
 const OPEN_ZOOM = 1.3;
+/**
+ * THE HAND GRENADES: thrown at `speed` (m/s) under `gravity`, three to a slot (one in hand, two more), the next in hand
+ * in `reload` s. Each its burst: `splash` (m) its reach, `dmg` (base rounds) what a frag deals inside it whole, `jam` a
+ * chaff's cloud ({ r: m, for: s }). The throw: `dur` (s, press to follow-through) and its `release` (a share of it),
+ * where a hero's overhand lets go (hero-throw.js).
+ */
+export const GRENADES = Object.freeze({
+  frag: Object.freeze({ splash: 4, dmg: 4 }),
+  stun: Object.freeze({ splash: 6, dmg: 0 }),
+  chaff: Object.freeze({ splash: 0, dmg: 0, jam: Object.freeze({ r: 15, for: 15 }) }),
+});
+export const THROWN = Object.freeze({ speed: 16, gravity: 9.8, magazine: 1, reserve: 2, reload: 0.6, cooldown: 0.2, dur: 1.0, release: 0.5, aimTime: 0.2, swapOut: 0.2, swapIn: 0.35 });
 /** the bow: the draw (s to full), the arrow's speed and damage from a twitch to full (m/s; multiples of the base round),
  * one arrow on the string and the nock's time for the next, the arrow's fall (m/s²), its quiver */
 export const BOW = Object.freeze({ draw: 0.9, speed: [22, 68], dmg: [0.6, 3.5], nock: 0.55, gravity: 9.8, quiver: 30, aimTime: 0.24, swapOut: 0.3, swapIn: 0.45, sway: 2.6, zoom: 1.25, length: 1.5 });
@@ -93,6 +128,7 @@ function archetypeOf(arm, h) {
   if (arm.item === 'pistol') return arm.model === 'revolver' ? 'magnum' : 'sidearm';
   if (arm.item === 'shotgun') return 'pump';
   if (arm.item === 'smg') return 'spray';
+  if (arm.item === 'launcher') return arm.model === 'rocket' ? 'rocket' : 'grenade';
   return h.stations.sight.zoom >= 6 ? 'bolt' : h.stations.sight.zoom >= 3 ? 'marksman' : 'auto';
 }
 
@@ -107,6 +143,16 @@ export function kitSlot(word, base, { eye = 0, hand = null, converge = false } =
   const name = typeof word === 'string' ? (K.name ?? word) : `${word.item}${word.model ? ` ${word.model}` : ''}`;
   const where = { eye, ...(hand ? { hand } : {}), ...(converge ? { converge: true } : {}) };
   const dmg0 = base.damage ?? 1;
+  if (K.thrown) {
+    // a hand grenade (THROWN, GRENADES): a lob thrown, not fired; nothing drawn in the hand till it is thrown (the throw's
+    // clip carries its own grenade)
+    const G = GRENADES[K.thrown];
+    const weapon = { fireClass: 'lob', auto: false, cooldown: THROWN.cooldown, magazine: THROWN.magazine, reserve: THROWN.reserve, reload: THROWN.reload, damage: r3(G.dmg * dmg0), impact: G.dmg > 0 ? 1 : 0,
+      range: 60, coreAngle: base.coreAngle ?? 1.5, spread: { base: 1, move: 2, bloom: 0, recover: 4, max: 3 }, projectileSpeed: THROWN.speed, projectileGravity: THROWN.gravity, lobAngle: 0, splashRadius: G.splash, projRadius: 0.05,
+      armTime: 0.1, fuse: 6, smokeTrail: false, fxScale: 0.2, round: roundOf(K.thrown), effect: K.thrown, ...(G.jam ? { jam: { ...G.jam } } : {}), quiet: true, throw: { dur: THROWN.dur, release: THROWN.release }, ...where };
+    return { name, weapon, switchReady: r2(THROWN.swapOut + THROWN.swapIn), gunplay: {
+      kind: 'throw', ads: { zoom: 1.1, time: THROWN.aimTime, spread: 1, move: 0.8, moveSpread: 1 }, sway: 0, swap: { out: THROWN.swapOut, in: THROWN.swapIn }, view: { kind: 'throw' } } };
+  }
   if (K.bow) {
     const weapon = { fireClass: 'lob', auto: false, chargeTime: BOW.draw, magazine: 1, reserve: BOW.quiver, reload: BOW.nock, cooldown: 0.05, damage: r3(BOW.dmg[0] * dmg0), chargedDamage: r3(BOW.dmg[1] * dmg0), impact: 1,
       projectileSpeed: BOW.speed[0], projectileGravity: BOW.gravity, lobAngle: 0, splashRadius: 0, projRadius: 0.15, armTime: 0.02, fuse: 6, smokeTrail: false, fxScale: 0.25, range: 120, coreAngle: base.coreAngle ?? 1.5, ...where };
@@ -116,15 +162,16 @@ export function kitSlot(word, base, { eye = 0, hand = null, converge = false } =
   }
   const arm = K.arm, h = armHandling(arm), as = K.as ?? archetypeOf(arm, h), A = ARCHETYPES[as], st = h.stations, hd = h.handling;
   const scope = st.sight.zoom >= 3;
-  const weapon = { fireClass: 'sight', auto: !!A.auto, ...(A.auto ? { rof: A.rof } : { cooldown: A.cooldown }), magazine: A.magazine, reserve: A.reserve, reload: A.reload, damage: r3(A.dmg * dmg0), impact: 1,
+  const weapon = { fireClass: A.lob ? 'lob' : 'sight', auto: !!A.auto, ...(A.auto ? { rof: A.rof } : { cooldown: A.cooldown }), magazine: A.magazine, reserve: A.reserve, reload: A.reload, damage: r3(A.dmg * dmg0), impact: 1,
     range: A.range, coreAngle: A.coreAngle ?? base.coreAngle ?? 1.5, ...(A.headshot ? { headshot: A.headshot } : {}), spread: { ...A.spread }, recoil: { ...A.recoil, kick: r2(A.recoil.kick * (hd.recoil / 2)) }, ...(A.falloff ? { falloff: { ...A.falloff } } : {}),
-    ...(A.blow ? { blow: A.blow } : {}), ...(A.pellets ? { pellets: A.pellets } : {}), ...(A.stun ? { stun: true, quiet: true, drowse: A.drowse } : {}), ...(ROUND_OF[as] ? { round: roundOf(ROUND_OF[as]) } : {}), ...where };
+    ...(A.blow ? { blow: A.blow } : {}), ...(A.pellets ? { pellets: A.pellets } : {}), ...(A.stun ? { stun: true, quiet: true, drowse: A.drowse } : {}), ...(ROUND_OF[as] ? { round: roundOf(ROUND_OF[as]) } : {}),
+    ...(A.lob ? { projectileSpeed: A.lob.speed, projectileGravity: A.lob.gravity, lobAngle: 0, splashRadius: A.lob.splash, projRadius: A.lob.projRadius, armTime: A.lob.armTime, fuse: A.lob.fuse, smokeTrail: false, fxScale: 0.25 } : {}), ...where };
   // the viewmodel: the arm as its parts' boxes (cm), the fist's place, the sight line and the eye's relief
   const view = { kind: h.class === 'handgun' ? 'handgun' : 'long', boxes: armBoxes(arm).map(([lo, hi, c, part]) => [lo.map((v) => r2(v)), hi.map((v) => r2(v)), c, part]),
-    grip: st.strong.at.map(r2), sight: { y: st.sight.y, rear: st.sight.rear, front: st.sight.front }, ...(st.sight.relief ? { relief: st.sight.relief } : {}), muzzle: st.muzzle.at[2], ...(st.magazine ? { mag: st.magazine.at.map(r2) } : {}),
+    grip: st.strong.at.map(r2), sight: { y: st.sight.y, rear: st.sight.rear, front: st.sight.front, ...(st.sight.x != null ? { x: st.sight.x } : {}) }, ...(st.sight.relief ? { relief: st.sight.relief } : {}), muzzle: st.muzzle.at[2], ...(st.magazine ? { mag: st.magazine.at.map(r2) } : {}),
     hands: handsOf(st) };
   return { name, weapon, switchReady: r2(hd.swapOut + hd.swapIn), gunplay: {
-    kind: view.kind, arm, ads: { zoom: scope ? st.sight.zoom : st.sight.zoom > 1 ? st.sight.zoom : OPEN_ZOOM, time: hd.aimTime, spread: scope ? ADS.scopedSpread : ADS.spread, move: ADS.move, moveSpread: ADS.moveSpread, ...(scope ? { scope: true } : {}) },
+    kind: view.kind, arm, ads: { zoom: scope ? st.sight.zoom : st.sight.zoom > 1 ? st.sight.zoom : OPEN_ZOOM, time: hd.aimTime, spread: scope ? ADS.scopedSpread : ADS.spread, move: ADS.move, moveSpread: ADS.moveSpread, bloom: ADS.bloom, ...(scope ? { scope: true } : {}) },
     sway: hd.sway, swap: { out: hd.swapOut, in: hd.swapIn }, view } };
 }
 

@@ -52,6 +52,18 @@ describe('the alarm', () => {
     expect(S.downs).toBe(1);
     expect(w.byId.b.dormant).toBe(true);
   });
+  it('a caller inside a chaff cloud gets nothing through while it is jammed; out of it, the call goes', () => {
+    const w = world();
+    // (a chaff's cloud round the guards, combat-ranged.js state.jams, for two seconds)
+    w.jams = [{ at: [10, 0, 0], r: 15, t0: 0, until: 2 }];
+    run(w, 1.5);
+    expect(w.alarm.guards.phase).toBe('detected');
+    expect(w.alarm.guards.calls).toBe(0);
+    expect(w.alarm.guards.jammed).toBeGreaterThan(0.5);
+    run(w, 1.5);
+    expect(w.alarm.guards.calls).toBe(1);
+    expect(w.alarm.guards.phase).toBe('found');
+  });
   it('found dies down only while no one sees: in sight its clock is full; hidden, it runs to detected, then clear, and backup leaves', () => {
     const w = world(); run(w, 1.1);
     expect(w.alarm.guards.phase).toBe('found');

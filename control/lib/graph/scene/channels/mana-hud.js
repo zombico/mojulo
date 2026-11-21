@@ -253,6 +253,24 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
       if (__hBox) { const k = String(fz); if (!__hFlPlans[k]) __hFlPlans[k] = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(__hFloorSvg(__hPlanSvg, W.colliders, __hBox, fz)); R.plan = Object.assign({ src: __hFlPlans[k] }, __hPlanAt(__hBox, p, me.transform.heading, cfgR.range)); } }` : ` R.marks = __hRadar(p, me.transform.heading, __hThings(W, me, null), cfgR); R.north = __hBearing(p, me.transform.heading, [p[0], p[1] + 1, 0]);
       if (!__hPlan && W.colliders && W.colliders.length) { const box = __hPlanBox(W.colliders, null); __hPlan = { box, src: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(__hPlanSvg(W.colliders, null, box, { rel: true, veils: W.veils || []${radarMap ? ', relief: __hLand.relief, trail: __hLand.trail' : ''} })) }; }
       if (__hPlan) R.plan = Object.assign({ src: __hPlan.src }, __hPlanAt(__hPlan.box, p, me.transform.heading, cfgR.range)); }`}
+    // JAMMED (the pilot inside a chaff cloud, combat-ranged.js state.jams): the radar reads nothing, its scope a static
+    {
+      const p = me && me.transform ? me.transform.pos : null, t = W.time || 0;
+      const jam = R.on && p && (W.jams || []).some(function (j) { return j.until > t && Math.hypot(p[0] - j.at[0], p[1] - j.at[1]) <= j.r; });
+      if (jam) { R.marks = []; R.plan = null; }
+      let J = window.__mojJam;
+      if (jam && !J) {
+        const css = document.createElement('style'); css.textContent = '@keyframes mojJam{0%{background-position:0 0}100%{background-position:0 9px}}'; document.head.appendChild(css);
+        J = window.__mojJam = document.createElement('div');
+        J.style.cssText = 'position:absolute;pointer-events:none;z-index:31;border-radius:50%;display:none;align-items:center;justify-content:center;font:700 11px/1 ui-monospace,monospace;letter-spacing:.2em;color:#cfe3ff;text-shadow:0 0 4px #000;background:repeating-linear-gradient(0deg,rgba(200,215,230,.22) 0 1px,rgba(20,28,40,.5) 1px 3px);animation:mojJam .18s steps(3) infinite';
+        J.textContent = 'JAMMED'; root.appendChild(J);
+      }
+      if (J) {
+        const sc = jam ? root.querySelector('[data-scope="yes"]') : null;
+        if (sc) { const a = sc.getBoundingClientRect(), b = root.getBoundingClientRect(); J.style.borderRadius = getComputedStyle(sc).borderRadius || '50%'; J.style.left = (a.left - b.left) + 'px'; J.style.top = (a.top - b.top) + 'px'; J.style.width = a.width + 'px'; J.style.height = a.height + 'px'; J.style.display = 'flex'; }
+        else J.style.display = 'none';
+      }
+    }
     const D = window.__mojDamageRing; st.ring.on = !!(D && D.hits && D.hits.length); st.ring.hits = st.ring.on ? D.hits : [];
     const C = window.__mojWc && window.__mojWc.view ? window.__mojWc.view() : null;
     st.wheel.open = !!(C && C.open);

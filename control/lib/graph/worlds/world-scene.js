@@ -1576,6 +1576,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           payload.figures[name] = await atRigFidelity(mechaFigure(rawSpec.mecha, { form: ERAS[era]?.surface === 'form', setting: { sky: payload.sky ?? null, wet } }));
           continue;
         }
+        // A FRAME TO RIDE (gameworld/combat/frames.js, gameworld/ride-machine.js): a figures-map entry may be a mecha shelf
+        // frame rigged as the artillery range rigs it (`frame`: { frame, stance?, palette? }: its bodies on its bones, its
+        // walk, its tank form and the fold between, its steered wheels, its gun mounts' bones), what a machine parked to be
+        // ridden writes. Absent ⇒ none is resolved, byte-identical.
+        if (rawSpec.frame && typeof rawSpec.frame === 'object') {
+          const { frameBase } = await import('@/lib/graph/gameworld/combat/frames.js');
+          payload.figures[name] = frameBase(rawSpec.frame).figure;
+          continue;
+        }
         // CYCLE bodies (cycle-shelf/: the vehicle registry's realistic build of a machine ridden astride): a figures-map
         // entry may be a cycle shelf machine (`cycle`: { archetype, look?, pose?, addons? }, what a parked cycle writes), at
         // its class's true numbers in metres, parked on its stand, delivered as its rig (the machine the root, each wheel

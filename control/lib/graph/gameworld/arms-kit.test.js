@@ -12,7 +12,7 @@ const byArchetype = Object.values(Object.groupBy(ARMS_KIT_WORDS, (w) => ARMS_KIT
 
 describe('arms kit', () => {
   it('each archetype: a weapon row with its sights, its sway and its switch\'s two halves; a scope zooms and nearly closes the cone', () => {
-    for (const w of byArchetype) {
+    for (const w of byArchetype.filter((x) => ARMS_KIT[x].as !== 'thrown')) {
       const s = kitSlot(w, SHOOT.rifle, { eye: 1.5 });
       expect(s.weapon.eye, w).toBe(1.5);
       expect(s.switchReady, w).toBeCloseTo(s.gunplay.swap.out + s.gunplay.swap.in, 6);
@@ -25,6 +25,18 @@ describe('arms kit', () => {
     expect(sn.weapon.damage).toBeGreaterThan(rf.weapon.damage * 4);
     expect(rf.weapon.auto).toBe(true); expect(sn.weapon.auto).toBe(false);
     expect(sn.gunplay.view.relief).toBeGreaterThan(5);
+  });
+  it('a hand grenade is thrown, not fired: a lob with its throw and its effect, nothing drawn in the hand, a quiet slot of three', () => {
+    for (const w of ARMS_KIT_WORDS.filter((x) => ARMS_KIT[x].as === 'thrown')) {
+      const s = kitSlot(w, SHOOT.rifle, { eye: 1.5 });
+      expect(s.weapon, w).toMatchObject({ fireClass: 'lob', effect: ARMS_KIT[w].thrown, quiet: true, magazine: 1, reserve: 2 });
+      expect(s.weapon.throw.release, w).toBeGreaterThan(0); expect(s.weapon.throw.release, w).toBeLessThan(1);
+      expect(s.gunplay.view, w).toEqual({ kind: 'throw' });
+      expect(s.switchReady, w).toBeCloseTo(s.gunplay.swap.out + s.gunplay.swap.in, 6);
+    }
+    expect(kitSlot('frag', SHOOT.rifle).weapon.damage).toBeGreaterThan(0);
+    expect(kitSlot('stun', SHOOT.rifle).weapon.damage).toBe(0);
+    expect(kitSlot('chaff', SHOOT.rifle).weapon.jam.r).toBeGreaterThan(kitSlot('stun', SHOOT.rifle).weapon.splashRadius);
   });
   it('the numbers scale to the goal\'s base round, and an arm named by its build words takes its sight\'s archetype', () => {
     const half = kitSlot('rifle', { ...SHOOT.rifle, damage: 0.5 }), one = kitSlot('rifle', SHOOT.rifle);

@@ -778,6 +778,10 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const touchLayer = touch ? touchLayout(entities, camera, { runner: !!runner, course: courseTouch }) : null;
   // a shooter's carried arms (gunplay.js, gunplay-view.js): a body whose rule says gunplay; absent, nothing is emitted
   const gunplay = entities.some((e) => e && e.rule && e.rule.gunplay);
+  // a grenade thrown (throw.js): a body whose loadout carries a thrown weapon; absent, nothing is emitted
+  const throwing = entities.some((e) => e && e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.some((s) => s && s.weapon && s.weapon.throw));
+  // a vehicle got into and ridden (board.js): a world with a vehicle to board; absent, nothing is emitted
+  const boardOn = entities.some((e) => e && e.board);
   // a gun carried in a watcher's hands (gunplay-view.js heldScript): a body with a mind whose rule says armHeld
   const armHeld = entities.some((e) => e && e.rule && e.rule.armHeld);
   // the aim held (aim-view.js, aim-view-view.js): a body whose rule says aimView; absent, nothing is emitted
@@ -1300,7 +1304,7 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   // (a tempo whose moments carry a look: the page lays it over the grade)
   const tempoLook = !!(tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look));
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(aimView ? { aimView: true } : {}), ...(freeRun ? { freeRun: true } : {}), ...(carry ? { carry: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.dive) ? { dive: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.takedown) ? { takedown: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.startle) ? { startle: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.alert) ? { alert: true } : {}), ...(alarm ? { alarm: true } : {}), ...(knockout ? { knockout: true } : {}), ...(ghost ? { ghost: true } : {}), ...(veilsOn ? { veil: true } : {}), ...(barriersOn ? { barrier: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.stance) ? { stance: true } : {}), ...(mission ? { mission: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(boatOn ? { boat: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}) })};
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(throwing ? { throwing: true } : {}), ...(boardOn ? { board: true } : {}), ...(aimView ? { aimView: true } : {}), ...(freeRun ? { freeRun: true } : {}), ...(carry ? { carry: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.dive) ? { dive: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.takedown) ? { takedown: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.startle) ? { startle: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.alert) ? { alert: true } : {}), ...(alarm ? { alarm: true } : {}), ...(knockout ? { knockout: true } : {}), ...(ghost ? { ghost: true } : {}), ...(veilsOn ? { veil: true } : {}), ...(barriersOn ? { barrier: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.stance) ? { stance: true } : {}), ...(mission ? { mission: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(boatOn ? { boat: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}) })};
 const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${loose ? `, loose: ${safeJson(loose)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''}${styleMeter ? `, styleMeter: ${safeJson(styleMeter)}` : ''}${gusts ? ', vayoAir: true' : ''}${knock ? `, knock: ${safeJson(knock)}` : ''}${roll ? `, roll: ${safeJson(roll)}` : ''}${veilsOn ? `, veils: ${safeJson(veils)}` : ''}${barriersOn ? `, barriers: ${safeJson(barriers)}` : ''} });
 ${xr ? `// the headset (channels/xr.js): set while a session plays the game, { pad, input, hides }; null, the page's own devices
 let __xrCtl = null;
@@ -2670,7 +2674,7 @@ function __applyShieldBreak(e, rigFig) {
 }
 function __syncEntity(e, dt) {
   let m = __bodies[e.id]; if (!m) return;
-  if (e.gone) { if (m.visible) m.visible = false; return; }   // wreck finisher: the body detonated and is gone
+  if (e.gone${boardOn ? ' || e.aboard' : ''}) { if (m.visible) m.visible = false; return; }   // wreck finisher: the body detonated and is gone${boardOn ? '; a rider aboard its vehicle (board.js) is inside it' : ''}
   // loadout swap: the rule changed e.body.figure — show that variant's group from here on. The
   // gait-mix state carries over so the new body continues the crossfade instead of snapping.
   const ld = m.userData && m.userData.loadout;
@@ -3594,7 +3598,82 @@ ${aimView ? `  // (a round that CONVERGES goes to the point under the centre of 
     __wep.ret.style.left = ((__wep.aimV.x * 0.5 + 0.5) * cw) + 'px';
     __wep.ret.style.top = ((-__wep.aimV.y * 0.5 + 0.5) * ch) + 'px';
   } else __wep.ret.style.display = 'none';   // aim point behind the camera
-  if (ent.readyT > 0) {
+${aimView ? `  // THE CLIMB AND THE CONE (the aim held over the shoulder, a converging gun with a recoil or a spread): a round leaves
+  // up the crosshair's ray raised by the climb of a spray (combat-ranged.js kickNow), and the view rises only part of
+  // that (gunplay-view.js), so the crosshair is drawn where the climbed ray points; round it, a ring is the cone the next
+  // round leaves in (its base as the sights have scaled it, the move's share, the bloom), so the rounds of a held trigger
+  // land inside what is drawn, and the crosshair settles back as they do. Before, it stayed small and still at the centre
+  // while a spray climbed and opened past it.
+  {
+    // (a scope's picture is its own crosshair and carries the whole climb, gunplay-view.js: neither is drawn over it)
+    const scoped = typeof __GP !== 'undefined' && __GP.scoped;
+    if (scoped) __wep.ret.style.display = 'none';
+    const av = ent.av, cr = __world.camera, on = !scoped && av && av.on && !av.fp && W.converge && (W.spread || W.recoil) && cr && cr.lookAt && cr.rule && cr.rule.type === 'follow';
+    if (on && !__wep.cone) {
+      __wep.cone = document.createElement('div');
+      __wep.cone.style.cssText = 'position:absolute;left:0;top:0;transform:translate(-50%,-50%);border-radius:50%;border:1.5px solid rgba(232,244,255,0.55);pointer-events:none;z-index:9;display:none';
+      wrap.appendChild(__wep.cone);
+    }
+    if (__wep.cone) {
+      if (on) {
+        const C = cr.transform.pos, A = cr.lookAt, h = Math.atan2(A[1] - C[1], A[0] - C[0]), pl = Math.atan2(A[2] - C[2], Math.hypot(A[0] - C[0], A[1] - C[1])) + (W.kickNow || 0) * Math.PI / 180;
+        const v = __wep.aimV.set(C[0] + Math.cos(pl) * Math.cos(h) * 100, C[1] + Math.cos(pl) * Math.sin(h) * 100, C[2] + Math.sin(pl) * 100).project(camera);
+        const x = (v.x * 0.5 + 0.5) * cw, y = (-v.y * 0.5 + 0.5) * ch;
+        __wep.ret.style.left = x + 'px'; __wep.ret.style.top = y + 'px';
+        const sp = W.spread, vel = ent.vel || [0, 0, 0], run = Math.min(1, Math.hypot(vel[0] || 0, vel[1] || 0) / 4);
+        const cone = sp ? Math.min(sp.max, sp.base + sp.move * run + (W.bloomNow || 0)) : 0;
+        const r = Math.max(5, (ch / 2) * Math.tan(cone * Math.PI / 180) / (Math.tan(camera.fov * Math.PI / 360) || 1));
+        __wep.cone.style.display = cone > 0 ? '' : 'none'; __wep.cone.style.left = x + 'px'; __wep.cone.style.top = y + 'px';
+        __wep.cone.style.width = __wep.cone.style.height = (2 * r).toFixed(1) + 'px';
+      } else __wep.cone.style.display = 'none';
+    }
+  }
+  // THE ARC (the aim held over the shoulder, a launcher: combat-ranged.js lobPath): the round's flight as it would go
+  // now, a dashed line from the muzzle on the arc through the crosshair, and where it bursts a ring the size of its reach
+  // laid flat there, so a grenade is thrown over a wall onto what the ring takes in
+  {
+    // (not while it cannot fire: reloading, or being drawn)
+    const av = ent.av, L = av && av.on && !av.fp && W.fireClass === 'lob' && W.converge && !W.reloading && !(ent.readyT > 0) && __CW.lobPath ? __CW.lobPath(ent, __world) : null;
+    if (L && !__wep.arc) {
+      const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * 900), 3));
+      const line = new THREE.Line(lg, new THREE.LineDashedMaterial({ color: 0xffe2b0, transparent: true, opacity: 0.75, dashSize: 0.3, gapSize: 0.2, depthWrite: false }));
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.93, 1, 48), new THREE.MeshBasicMaterial({ color: 0xffb066, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide }));
+      line.frustumCulled = false; line.raycast = function () {}; ring.raycast = function () {}; scene.add(line); scene.add(ring);
+      __wep.arc = { line, ring };
+    }
+    if (__wep.arc) {
+      __wep.arc.line.visible = __wep.arc.ring.visible = !!L;
+      if (L) {
+        // (the ring red where the arc ends on a body: the round goes off on it)
+        // (a stun grenade's ring white, a chaff's its cloud's reach in a cold blue)
+        __wep.arc.ring.material.color.setHex(L.effect === 'chaff' ? 0x8fd4ff : L.effect === 'stun' ? (L.hit ? 0xff9a8a : 0xf2f4ff) : L.hit ? 0xff5a4a : 0xffb066);
+        const n = Math.min(900, L.pts.length), a = __wep.arc.line.geometry.attributes.position;
+        for (let i = 0; i < n; i++) a.setXYZ(i, L.pts[i][0], L.pts[i][1], L.pts[i][2]);
+        a.needsUpdate = true; __wep.arc.line.geometry.setDrawRange(0, n); __wep.arc.line.computeLineDistances();
+        __wep.arc.ring.position.set(L.at[0], L.at[1], L.at[2] + 0.04); __wep.arc.ring.scale.setScalar(Math.max(0.3, L.radius));
+      }
+    }
+  }
+  // THE SHOT BLOCKED (the aim held over the shoulder, a converging round: combat-ranged.js shotBlocked): the camera sees
+  // past what the gun does not, a low wall under its eye, a corner beside it. While the muzzle's line to the point under
+  // the crosshair meets cover first, the crosshair dims and a cross marks where the round would stop, before the trigger
+  // is pulled
+  {
+    const av = ent.av, B = av && av.on && !av.fp && W.converge && __CW.shotBlocked ? __CW.shotBlocked(ent, __world) : null;
+    if (B && !__wep.blk) {
+      __wep.blk = document.createElement('div');
+      __wep.blk.style.cssText = 'position:absolute;left:0;top:0;transform:translate(-50%,-50%);pointer-events:none;z-index:9;display:none';
+      __wep.blk.innerHTML = '<svg width="18" height="18" viewBox="-9 -9 18 18"><g stroke="#ff7a5c" stroke-width="2.4" stroke-linecap="round" stroke-opacity="0.95"><line x1="-5" y1="-5" x2="5" y2="5"/><line x1="-5" y1="5" x2="5" y2="-5"/></g></svg>';
+      wrap.appendChild(__wep.blk);
+    }
+    if (__wep.blk) {
+      const v = B ? __wep.aimV.set(B[0], B[1], B[2]).project(camera) : null;
+      if (v && v.z < 1) { __wep.blk.style.display = ''; __wep.blk.style.left = ((v.x * 0.5 + 0.5) * cw) + 'px'; __wep.blk.style.top = ((-v.y * 0.5 + 0.5) * ch) + 'px'; }
+      else __wep.blk.style.display = 'none';
+    }
+    __wep.ret.style.opacity = B ? '0.4' : '';
+  }
+` : ''}  if (ent.readyT > 0) {
     __retStatus(Math.max(0, Math.min(1, ent.readyT / (ent.readyMax || 1))), '#ffb066');
   } else if (W.cooldownT > 0 && !W.auto) {
     // semi/lob only — an AUTO weapon's between-round gap IS its fire rate (operator, 2026-08-10):
@@ -3766,6 +3845,15 @@ function __updateRadar() {
   x.strokeStyle = 'rgba(120,200,255,0.12)'; x.lineWidth = 1.5;
   x.beginPath(); x.moveTo(C, C - rad); x.lineTo(C, C + rad); x.moveTo(C - rad, C); x.lineTo(C + rad, C); x.stroke();
   const self = __radarSelf();
+  // JAMMED (the pilot inside a chaff cloud, combat-ranged.js state.jams): no blips, a static over the scope (each line's
+  // grey a hash of its row and the frame, never dice) and the word
+  const __jt = __world.time || 0;
+  if (self && __world.jams && __world.jams.some((j) => j.until > __jt && Math.hypot(self.transform.pos[0] - j.at[0], self.transform.pos[1] - j.at[1]) <= j.r)) {
+    const fr = Math.floor(__jt * 24);
+    for (let yy = 0; yy < S; yy += 3) { const hh = Math.sin((yy + 1) * 12.9898 + fr * 78.233) * 43758.5453, a = hh - Math.floor(hh); x.fillStyle = 'rgba(190,210,230,' + (0.04 + 0.22 * a).toFixed(3) + ')'; x.fillRect(0, yy, S, 1.5); }
+    x.fillStyle = '#cfe3ff'; x.font = '700 22px ui-monospace,monospace'; x.textAlign = 'center'; x.fillText('JAMMED', C, C + 8);
+    return;
+  }
   if (self) {
     const sp = self.transform.pos, h = self.transform.heading;
     const fwx = Math.cos(h), fwy = Math.sin(h), rgx = Math.sin(h), rgy = -Math.cos(h);   // forward + right basis
@@ -4122,6 +4210,116 @@ function __spawnRoundFx(shot, from, R, range) {
     __fx.push({ obj: sk, born: born + ttl, ttl: 0.05, kind: 'mflash' });
   }
 }
+// A LAUNCHER'S ROUND (a round's \`look\`, gameworld/rounds.js): what an eye sees of a 40 mm grenade. In flight a dull shell
+// a hand long, no glow, tumbling a little on its arc; launched, a short flash and a puff at the muzzle; bursting, a white
+// flash, a ball of fire that billows and is gone, grey smoke rising and spreading after, chips thrown out and falling, a
+// ring of dust running out along the ground to its reach and a dark scorch left there. Sized by the burst's reach, every
+// scatter golden-angle (no dice), so a replay is the same.
+function __lookShell(p) {
+  const g = new THREE.Group(), rk = p.look === 'rocket', m = new THREE.MeshLambertMaterial({ color: rk ? 0x4d5440 : 0x4a4d45 }), cap = new THREE.MeshLambertMaterial({ color: rk ? 0x2e302b : 0x8a7a4a });
+  const part = (geo, mat, y) => { const o = new THREE.Mesh(geo, mat); o.position.y = y; o.raycast = function () {}; g.add(o); return o; };
+  let flame = null;
+  if (rk) {
+    // (a rocket: its body, its nose, four fins at its tail, its flame behind it)
+    part(new THREE.CylinderGeometry(0.04, 0.04, 0.46, 12), m, 0); part(new THREE.ConeGeometry(0.04, 0.16, 12), cap, 0.31);
+    for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + Math.PI / 4, f = part(new THREE.BoxGeometry(0.006, 0.1, 0.06), cap, -0.19); f.position.x = Math.cos(a) * 0.05; f.position.z = Math.sin(a) * 0.05; f.rotation.y = Math.PI / 2 - a; }
+    flame = __lookPuff(0xffa040, true, 0.95); flame.scale.setScalar(0.28); flame.position.y = -0.32; flame.raycast = function () {}; g.add(flame);
+  } else if (p.look === 'frag') {
+    // (a frag: a round body a fist across, its fuse and lever on top)
+    m.color.setHex(0x4b5238); part(new THREE.SphereGeometry(0.03, 12, 9), m, 0); part(new THREE.CylinderGeometry(0.009, 0.011, 0.025, 8), cap, 0.035).material.color.setHex(0x7d7d76);
+  } else if (p.look === 'stun' || p.look === 'chaff') {
+    // (a stun's or a chaff's can: a short cylinder, its cap and fuse on top; the stun's dark, the chaff's pale)
+    m.color.setHex(p.look === 'stun' ? 0x3a3d40 : 0xa9adb0); part(new THREE.CylinderGeometry(0.026, 0.026, 0.11, 14), m, 0); part(new THREE.CylinderGeometry(0.012, 0.014, 0.022, 8), cap, 0.066).material.color.setHex(0x6d6d68);
+  } else { part(new THREE.CylinderGeometry(0.02, 0.02, 0.07, 10), m, 0); part(new THREE.SphereGeometry(0.02, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), cap, 0.035); }
+  scene.add(g);
+  const at = window.__mojMuzzle && window.__mojMuzzle[p.owner];
+  if (rk && at && p.vel) {
+    // the backblast: fire and smoke out of the tube's back, a metre behind its mouth, thrown back and spreading
+    const v = Math.hypot(p.vel[0], p.vel[1], p.vel[2]) || 1, d = [p.vel[0] / v, p.vel[1] / v, p.vel[2] / v], b0 = [at[0] - d[0] * 1.05, at[1] - d[1] * 1.05, at[2] - d[2] * 1.05];
+    const bf = __lookPuff(0xffb060, true, 0.9); bf.position.set(b0[0] - d[0] * 0.3, b0[1] - d[1] * 0.3, b0[2] - d[2] * 0.3); bf.scale.setScalar(0.3); bf.raycast = function () {}; scene.add(bf); __fx.push({ obj: bf, born: __world.time, ttl: 0.12, kind: 'burst', base: 1.2, dim: 0.9 });
+    for (let k = 0; k < 8; k++) {
+      const s0 = 0.3 + 0.35 * k, a = k * 2.39996, w = 0.12 * k, q = [b0[0] - d[0] * s0 + Math.cos(a) * w, b0[1] - d[1] * s0 + Math.sin(a) * w, b0[2] - d[2] * s0 + 0.05 * k];
+      const pf = __lookPuff(k % 2 ? 0x8a857c : 0xa49e93, false, 0.45); pf.position.set(q[0], q[1], q[2]); pf.scale.setScalar(0.2); pf.raycast = function () {}; scene.add(pf);
+      __fx.push({ obj: pf, born: __world.time, ttl: 1.6 + 0.15 * (k % 3), kind: 'wisp', base: 0.7 + 0.12 * k, dim: 0.45, rise: 0.5, z0: q[2] });
+    }
+  }
+  if (at) { const pf = __lookPuff(0xc9c5bc, false, 0.3); pf.position.set(at[0], at[1], at[2]); pf.scale.setScalar(0.13); pf.raycast = function () {}; scene.add(pf); __fx.push({ obj: pf, born: __world.time, ttl: 0.9, kind: 'wisp', base: 0.45, dim: 0.3, rise: 0.25, z0: at[2] }); const fl = __lookPuff(0xffd59a, true, 0.95); fl.position.set(at[0], at[1], at[2]); fl.scale.setScalar(0.1); fl.raycast = function () {}; scene.add(fl); __fx.push({ obj: fl, born: __world.time, ttl: 0.07, kind: 'burst', base: 0.35, dim: 0.95 }); }
+  return { g, flame, trail: rk ? __world.time : null, spin: p.look === 'frag' || p.look === 'stun' || p.look === 'chaff', off: at ? [at[0] - p.pos[0], at[1] - p.pos[1], at[2] - p.pos[2]] : null, born: __world.time };
+}
+// (a soft round puff, made once: what the blast's fire and smoke are drawn with, so they read as billows and not balls)
+let __lookTexC = null;
+function __lookTex() {
+  if (__lookTexC) return __lookTexC;
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.45, 'rgba(255,255,255,0.75)'); g.addColorStop(0.8, 'rgba(255,255,255,0.18)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64); return (__lookTexC = new THREE.CanvasTexture(cv));
+}
+const __lookPuff = (col, add, op) => new THREE.Sprite(new THREE.SpriteMaterial({ map: __lookTex(), color: new THREE.Color(col), transparent: true, opacity: op, depthWrite: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending }));
+function __lookBlast(b) {
+  const R = Math.max(1, b.radius || 3), at = b.pos, now = __world.time, low = at[2] < 0.35;
+  // (each born at its first size: a sprite left at its own 1 m would be drawn so for the frame before the fx loop sizes it)
+  const add = (obj, rec) => { obj.raycast = function () {}; if (rec.base) obj.scale.setScalar(rec.base * 0.3); if (rec.delay) obj.visible = false; scene.add(obj); __fx.push({ obj, born: now + (rec.delay || 0), ...rec }); };
+  // (a sprite's scale is its width: the flash, the fire and the smoke given as widths)
+  let m = __lookPuff(0xfff4dc, true, 1); m.position.set(at[0], at[1], at[2] + 0.3); add(m, { ttl: 0.1, kind: 'burst', base: R * 0.9, dim: 1 });
+  for (let k = 0; k < 9; k++) {
+    const a = k * 2.39996, u = (k + 0.5) / 9, r = R * 0.18 * Math.sqrt(u);
+    m = __lookPuff(k % 3 ? 0xff7a1e : 0xffc060, true, 0.9);
+    m.position.set(at[0] + Math.cos(a) * r, at[1] + Math.sin(a) * r, at[2] + 0.25 + R * 0.14 * u); add(m, { ttl: 0.3 + 0.06 * (k % 3), kind: 'burst', base: R * (0.42 + 0.1 * (k % 2)), dim: 0.85 });
+  }
+  for (let k = 0; k < 12; k++) {
+    const a = k * 2.39996 + 0.7, r = R * 0.25 * Math.sqrt((k + 0.5) / 12), p0 = [at[0] + Math.cos(a) * r, at[1] + Math.sin(a) * r, at[2] + 0.3 + 0.06 * k];
+    m = __lookPuff(k % 2 ? 0x56524c : 0x7a756c, false, 0.5); m.position.set(p0[0], p0[1], p0[2]);
+    add(m, { delay: 0.05, ttl: 2.2 + 0.25 * (k % 4), kind: 'wisp', base: R * (0.7 + 0.1 * (k % 3)), dim: 0.5, rise: 1.4 + 0.25 * (k % 3), z0: p0[2] });
+  }
+  const N = 18, pos = new Float32Array(N * 3), vels = [];
+  for (let k = 0; k < N; k++) { const a = k * 2.39996, up = 0.35 + 0.6 * ((k * 7) % 11) / 11, sp = R * (1.4 + ((k * 13) % 9) / 9 * 1.6); vels.push([Math.cos(a) * sp * (1 - up * 0.5), Math.sin(a) * sp * (1 - up * 0.5), sp * up]); pos[k * 3] = at[0]; pos[k * 3 + 1] = at[1]; pos[k * 3 + 2] = at[2] + 0.1; }
+  const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  add(new THREE.Points(dg, new THREE.PointsMaterial({ color: 0x2b2824, size: 0.07, transparent: true, opacity: 1, depthWrite: false, sizeAttenuation: true })), { ttl: 1.1, kind: 'debris', p0: [at[0], at[1], at[2] + 0.1], vels, grav: 9.8 });
+  if (low) {
+    m = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 40), new THREE.MeshBasicMaterial({ color: 0xb7a98f, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide }));
+    m.position.set(at[0], at[1], at[2] + 0.05); add(m, { ttl: 0.7, kind: 'ring', base: R, dim: 0.55 });
+    m = new THREE.Mesh(new THREE.CircleGeometry(1, 28), new THREE.MeshBasicMaterial({ color: 0x2a2620, transparent: true, opacity: 0.38, depthWrite: false }));
+    m.position.set(at[0], at[1], at[2] + 0.02); m.scale.setScalar(R * 0.3); add(m, { ttl: 9, kind: 'scorch', dim: 0.38 });
+  }
+}
+// A STUN GRENADE'S BURST: a white flash meters wide and gone in a quarter second, a cold glow after it, a ring of air out
+// along the ground to its reach, a little white smoke; and the eye near it (the camera within one and a half its reach,
+// the burst before it) whited out, more the nearer, the white thinning over a second and a half
+let __stunVeil = null;
+function __lookStun(b) {
+  const R = Math.max(1, b.radius || 6), at = b.pos, now = __world.time;
+  const add = (obj, rec) => { obj.raycast = function () {}; if (rec.base) obj.scale.setScalar(rec.base * 0.3); scene.add(obj); __fx.push({ obj, born: now, ...rec }); };
+  let m = __lookPuff(0xffffff, true, 1); m.position.set(at[0], at[1], at[2] + 0.4); add(m, { ttl: 0.25, kind: 'burst', base: R * 1.3, dim: 1 });
+  m = __lookPuff(0xcfe4ff, true, 0.8); m.position.set(at[0], at[1], at[2] + 0.4); add(m, { ttl: 0.7, kind: 'burst', base: R * 0.7, dim: 0.7 });
+  for (let k = 0; k < 6; k++) { const a = k * 2.39996, r = 0.3 * Math.sqrt((k + 0.5) / 6), q = [at[0] + Math.cos(a) * r, at[1] + Math.sin(a) * r, at[2] + 0.2 + 0.05 * k]; m = __lookPuff(0xe6e8ea, false, 0.4); m.position.set(q[0], q[1], q[2]); add(m, { ttl: 1.8, kind: 'wisp', base: 1.2, dim: 0.4, rise: 0.8, z0: q[2] }); }
+  if (at[2] < 0.35) { m = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 48), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide })); m.position.set(at[0], at[1], at[2] + 0.05); add(m, { ttl: 0.45, kind: 'ring', base: R, dim: 0.6 }); }
+  // (the eye: the camera near and the burst ahead of it)
+  const cp = camera.position, d = Math.hypot(cp.x - at[0], cp.y - at[1], cp.z - at[2]);
+  __lookAhead.set(at[0], at[1], at[2]).project(camera);
+  if (d < R * 1.5 && __lookAhead.z < 1 && Math.abs(__lookAhead.x) < 1.2 && Math.abs(__lookAhead.y) < 1.2) {
+    if (!__stunVeil) { __stunVeil = document.createElement('div'); __stunVeil.style.cssText = 'position:absolute;inset:0;background:#fff;pointer-events:none;z-index:20;opacity:0'; wrap.appendChild(__stunVeil); }
+    __stunVeil.__t0 = now; __stunVeil.__k = Math.min(0.9, 1.2 * (1 - d / (R * 1.5)));
+  }
+}
+const __lookAhead = new THREE.Vector3();
+// A CHAFF GRENADE'S BURST: a pop of grey, then its cloud: foil strips thrown out a few metres round, slowing, and drifting
+// down as they turn, each catching the light in its own time (a glitter), the whole fading at the end of its seconds
+function __lookChaff(b) {
+  const at = b.pos, now = __world.time, life = (b.jam && b.jam.for) || 15, N = 260;
+  for (let k = 0; k < 6; k++) { const a = k * 2.39996, r = 0.25 * Math.sqrt((k + 0.5) / 6), q = [at[0] + Math.cos(a) * r, at[1] + Math.sin(a) * r, at[2] + 0.3 + 0.04 * k]; const m = __lookPuff(0xb8bbbe, false, 0.4); m.position.set(q[0], q[1], q[2]); m.scale.setScalar(0.3); m.raycast = function () {}; scene.add(m); __fx.push({ obj: m, born: now, ttl: 1.4, kind: 'wisp', base: 1.1, dim: 0.4, rise: 0.4, z0: q[2] }); }
+  const pos = new Float32Array(N * 3), col = new Float32Array(N * 3), vels = [], tw = [], base = [];
+  for (let k = 0; k < N; k++) {
+    const y = 1 - (k + 0.5) / N * 1.4, rr = Math.sqrt(Math.max(0, 1 - y * y)), ph = k * 2.39996, sp = 2.2 + ((k * 37) % 17) / 17 * 3.2;
+    vels.push([Math.cos(ph) * rr * sp, Math.sin(ph) * rr * sp, (y * 0.6 + 0.5) * sp]);
+    tw.push([4 + ((k * 13) % 11), (k * 1.7) % 6.28]);
+    const c = k % 7 === 0 ? [1, 0.8, 0.45] : k % 5 === 0 ? [0.95, 0.55, 0.5] : [0.85, 0.88, 0.92]; base.push(c);
+    pos[k * 3] = at[0]; pos[k * 3 + 1] = at[1]; pos[k * 3 + 2] = at[2] + 0.3;
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const pts = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.06, vertexColors: true, transparent: true, opacity: 1, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
+  pts.raycast = function () {}; pts.frustumCulled = false; scene.add(pts);
+  __fx.push({ obj: pts, born: now, ttl: life, kind: 'chaff', p0: [at[0], at[1], at[2] + 0.3], vels, tw, base, floor: Math.max(0, at[2] - 0.3) });
+}
 function __updateFx() {
   // EVERY armed entity's shots spawn fx (the pilot, a fixed armed entity, an AI fire-back suit).
   for (const fent of __world.entities) {
@@ -4160,6 +4358,8 @@ function __updateFx() {
       rec.shots = s;
     }
   }
+  // (a stun grenade's white over the eye, thinning over a second and a half)
+  if (__stunVeil && __stunVeil.__t0 != null) { const u = (__world.time - __stunVeil.__t0) / 1.5; __stunVeil.style.opacity = u < 1 ? (__stunVeil.__k * (1 - u) * (1 - u)).toFixed(3) : '0'; if (u >= 1) __stunVeil.__t0 = null; }
   for (let i = __fx.length - 1; i >= 0; i--) {
     const f = __fx[i], age = (__world.time - f.born) / f.ttl;
     if (age >= 1) { scene.remove(f.obj); f.obj.traverse(function (o) { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); __fx.splice(i, 1); continue; }
@@ -4190,6 +4390,23 @@ function __updateFx() {
       ap.needsUpdate = true;
     }
     else if (f.kind === 'impact') { f.obj.material.opacity = 1 - age; f.obj.scale.setScalar(f.base * (0.3 + age * 1.4)); }
+    // a launcher's blast (__lookBlast): its dust running out along the ground to the reach, its scorch fading at the end
+    else if (f.kind === 'ring') { f.obj.material.opacity = f.dim * (1 - age); f.obj.scale.setScalar(f.base * (0.15 + 0.85 * Math.sqrt(age))); }
+    else if (f.kind === 'scorch') { f.obj.material.opacity = f.dim * (1 - Math.pow(age, 4)); }
+    // a chaff cloud (__lookChaff): each strip thrown out and slowed (a drag of 1.6 a second), drifting down at a stroll and
+    // swaying, its glitter its own twinkle; the cloud thinning in its last tenth
+    else if (f.kind === 'chaff') {
+      const t = age * f.ttl, k = (1 - Math.exp(-1.6 * t)) / 1.6, ap = f.obj.geometry.attributes.position, cp = f.obj.geometry.attributes.color;
+      for (let i = 0; i < f.vels.length; i++) {
+        const v = f.vels[i], w = f.tw[i], c = f.base[i];
+        const z = Math.max(f.floor, f.p0[2] + v[2] * k - 0.22 * t);
+        ap.setXYZ(i, f.p0[0] + v[0] * k + 0.25 * Math.sin(t * 0.7 + w[1]), f.p0[1] + v[1] * k + 0.25 * Math.cos(t * 0.6 + w[1]), z);
+        const s = Math.pow(Math.abs(Math.sin(t * w[0] + w[1])), 6);
+        cp.setXYZ(i, c[0] * (0.15 + 0.85 * s), c[1] * (0.15 + 0.85 * s), c[2] * (0.15 + 0.85 * s));
+      }
+      ap.needsUpdate = true; cp.needsUpdate = true;
+      f.obj.material.opacity = age > 0.9 ? (1 - age) / 0.1 : 1;
+    }
     // impact CLUSTER (rifle/vulcan hit): a shock RING expands + fades; a radial SPARK STAR flies out + snaps out.
     else if (f.kind === 'shock') { f.obj.material.opacity = 0.9 * (1 - age); f.obj.scale.setScalar(f.base * (0.3 + age * 1.7)); }
     else if (f.kind === 'shard') { f.obj.material.opacity = 0.95 * (1 - age * age); f.obj.scale.setScalar(f.base * (0.25 + age * 1.25)); }
@@ -4296,6 +4513,28 @@ function __updateProjectiles() {
         scene.add(g); rec = __projMeshes[p.id] = { g: g };
       }
     }` : ''}
+    if (!rec && p.look) rec = __projMeshes[p.id] = __lookShell(p);
+    if (rec && rec.spin) {
+      // (a thrown grenade tumbles end over end on its arc)
+      rec.g.position.set(p.pos[0], p.pos[1], p.pos[2]); rec.g.rotation.set((__world.time - rec.born) * 11, 0.6, (__world.time - rec.born) * 4);
+      continue;
+    }
+    if (rec && rec.off) {
+      // (a launcher's round drawn out of the drawn gun's muzzle, eased onto its own flight over a few frames)
+      const k = Math.max(0, 1 - (__world.time - rec.born) / 0.15);
+      rec.g.position.set(p.pos[0] + rec.off[0] * k, p.pos[1] + rec.off[1] * k, p.pos[2] + rec.off[2] * k);
+      if (p.vel) { const vl = Math.hypot(p.vel[0], p.vel[1], p.vel[2]); if (vl > 1e-4) rec.g.quaternion.setFromUnitVectors(__projUpY, __projDir.set(p.vel[0] / vl, p.vel[1] / vl, p.vel[2] / vl)); }
+      // (a rocket's trail: a puff of smoke dropped behind it every few hundredths, hanging and thinning; its flame flickers)
+      if (rec.trail != null) {
+        if (rec.flame) rec.flame.scale.setScalar(0.24 + 0.08 * Math.abs(Math.sin(__world.time * 47)));
+        while (__world.time - rec.trail >= 0.025) {
+          rec.trail += 0.025;
+          const q = rec.g.position, pf = __lookPuff(0xb5afa5, false, 0.5); pf.position.set(q.x, q.y, q.z); pf.scale.setScalar(0.1); pf.raycast = function () {}; scene.add(pf);
+          __fx.push({ obj: pf, born: __world.time, ttl: 1.8, kind: 'wisp', base: 0.6, dim: 0.5, rise: 0.25, z0: q.z });
+        }
+      }
+      continue;
+    }
     if (!rec) {
       const col = p.fxColor != null ? p.fxColor : 0xffcc66, sz = p.fxScale != null ? p.fxScale : 3;
       // the round is a POINTED SHELL (a hot nose-cone, not a beachball): a long thin cone whose TIP
@@ -4327,6 +4566,9 @@ function __updateProjectiles() {
     if (b.seq <= __burstSeen) continue;
     __burstSeen = b.seq;${flow ? `
     if (window.__mojFlowBursts) continue;   // (on the flow, rupa-vayo: the moment channel sets it off as the flow's blast)` : ''}
+    if (b.effect === 'stun') { __lookStun(b); continue; }
+    if (b.effect === 'chaff') { __lookChaff(b); continue; }
+    if (b.look) { __lookBlast(b); continue; }
     const col = b.fxColor != null ? b.fxColor : 0xffcc66;
     // the shell peaks at the TRUE splash reach (b.radius) — honest to the gameplay AoE — but stays
     // TRANSLUCENT (dim 0.5) so it reads as a fireball, not a screen-filling wash. A small, brighter
