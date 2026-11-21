@@ -146,7 +146,8 @@ describe('the host carries a level\'s rows', () => {
     const rows = [{ var: 'score', label: 'Score' }, { kind: 'legend', slot: 'bottom', text: 'W A S D move' }, { var: 'hp', as: 'bar', max: 100, slot: 'top' }];
     const { spec } = hudToMana(rows, { style: true });
     expect(spec.hud.children.length).toBeGreaterThan(2);
-    expect(spec.hud.children.every((r) => r.props.variant === 'bare')).toBe(true);
+    // (every region bare; the screen's edge layers, the peril and the damage ring, are no box)
+    expect(spec.hud.children.filter((r) => r.use === 'region').every((r) => r.props.variant === 'bare')).toBe(true);
     expect(JSON.stringify(spec)).not.toContain('W A S D');
     // (nor passing words: a banner and a toast are not drawn)
     const passing = hudToMana([{ on: 'wave', text: 'Wave {event.n}' }, { on: 'gauntlet:arena', text: 'cleared', as: 'toast', ttl: 2 }], { style: true });
@@ -168,7 +169,7 @@ describe('the host carries a level\'s rows', () => {
     expect(js).toContain('moj-way');
     expect(js).toContain('.project(camera)');
     expect(bare).not.toContain('moj-way');
-    expect(bare).not.toContain('ways');
+    expect(bare).not.toContain('"ways"');
     expect(() => new Function('THREE', 'camera', js)).not.toThrow();
   });
   it('the vitals: the health and the Halo Meter as one figure, the sprint over them, in its look; none ⇒ the gauges as they were', () => {

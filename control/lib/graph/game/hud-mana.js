@@ -123,7 +123,7 @@ export function hudToMana(rows, { register = null, hero = true, touch = false, s
     // THE PILOT, at the bottom left: the health a strip in cells (the level's health row folded in, else its own), its
     // sprint thin under it, the slow-motion's charge beside them; resting while full
     const hp = hpStrip ? { value: hpStrip.value, max: hpStrip.max } : { value: B('hero.hp'), max: B('hero.hpMax') };
-    if (!cluster) regions.unshift({ use: 'region', props: { at: 'bottom-left', variant: 'scrim', rest: B('hero.rest') }, children: [{ use: 'stack', props: { dir: 'row', gap: 'normal', align: 'center' }, children: [
+    if (!cluster) regions.unshift({ use: 'region', props: { at: 'bottom-left', variant: immersive ? 'bare' : 'scrim', rest: B('hero.rest') }, children: [{ use: 'stack', props: { dir: 'row', gap: 'normal', align: 'center' }, children: [
       { use: 'charge', props: { value: B('focus.value'), state: B('focus.state'), icon: 'clock', label: B('focus.label') }, when: B('focus.on') },
       { use: 'stack', props: { gap: 'tight' }, children: [
         { use: 'bar', props: { ...hp, variant: 'hp', segments: 4, size: 'large', figures: false }, ...(hpStrip ? hpStrip.gate : { when: B('hero.hasHp') }) },
@@ -131,7 +131,7 @@ export function hudToMana(rows, { register = null, hero = true, touch = false, s
       ] },
     ] }] });
     // THE GUN IN HAND, at the bottom right: its wireframe, its rounds as cartridges; resting while full
-    regions.push({ use: 'region', props: { at: 'bottom-right', variant: 'scrim', rest: B('gun.rest') }, when: B('gun.on'), children: [{ use: 'magazine', props: { name: B('gun.name'), mode: B('gun.mode'), rounds: B('gun.rounds'), size: B('gun.size'), reserve: B('gun.reserve'), reloading: B('gun.reloading') } }] });
+    regions.push({ use: 'region', props: { at: 'bottom-right', variant: immersive ? 'bare' : 'scrim', rest: B('gun.rest') }, when: B('gun.on'), children: [{ use: 'magazine', props: { name: B('gun.name'), mode: B('gun.mode'), rounds: B('gun.rounds'), size: B('gun.size'), reserve: B('gun.reserve'), reloading: B('gun.reloading') } }] });
     // THE RADAR, a scope at the top right (where the page's stood), and the wheel while it is held open
     regions.push({ use: 'region', props: { at: 'top-right', variant: 'bare' }, when: B('radar.on'), children: [{ use: 'minimap', props: { shape: 'round', scope: true, markers: B('radar.marks'), north: B('radar.north') } }] });
     regions.push({ use: 'region', props: { at: 'center', variant: 'bare' }, when: B('wheel.open'), children: [{ use: 'wheel', props: { rows: B('wheel.slots'), title: B('wheel.title') } }] });
