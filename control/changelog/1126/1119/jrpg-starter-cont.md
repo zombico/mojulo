@@ -190,3 +190,9 @@
   one; and the store keeps what each still holds (the bag's `holders`, the `chests` slice), so it stays opened. Built
   from a chest menu looted whole, new: `play.menus` `{ kind: 'chest', loot: 'all' }`, which any level can stand by hand;
   and two new forms on the glyph shelf, `chest` and `chest-open`.
+- **Game over.** A composed party RPG ends a lost fight in a game over (the game's `gameOver`, `game/game-manifest.js`):
+  the fight lost is never kept (the store stays as it was last written), and the game over screen offers continue, from
+  where the journey was last kept (the map the party was on at its last way taken or save point), or quit to title. A new
+  flow screen, `gameover` (`continue`, `home`), where a lost level goes in place of the result (`game/flow.js`); drawn by
+  the play shell, and by its mana-ui front in the game's look. Any play-shell game may ask for it (`gameOver: true`).
+  Before, a lost fight showed the result with try again, and its defeat was written into the save.

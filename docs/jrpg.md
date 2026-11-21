@@ -97,6 +97,14 @@ party RPG keeps one in its town and in each stretch of its wilds.
 **Save slots** (`slots` on the game, 2 to 4): the title's start or continue asks which save, each said by where its
 party stands. A game with save points offers three.
 
+
+**Game over.** A composed party RPG (a round of battles fought on the field, lost as a defeat) ends a lost fight in a
+game over (the game's `gameOver`, `game/game-manifest.js`). The fight lost is never kept: the store stays as it was last
+written, where the journey was last kept (its last way taken, or a save point). The game over screen offers continue,
+which takes the journey up there (the save's continue level, the map the party was on), or quit to title. In the play
+shell's flow it is a screen of its own, `gameover` (`continue`, `home`): a lost level goes there in place of the result
+(`game/flow.js` `defaultFlow`). Any play-shell game may ask for it (`gameOver: true`).
+
 ## Foes that fight to a plan
 
 A foe may carry an **action pattern** (`battles.foes.<id>.pattern`, RPG Maker's action patterns in words): rows of

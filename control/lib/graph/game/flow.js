@@ -82,6 +82,8 @@ export const SCREEN_EVENTS = Object.freeze({
   end: Object.freeze(['done']),
   result: Object.freeze(['next', 'again', 'home']),
   'run-result': Object.freeze(['again', 'home', 'credits']),
+  // (a party RPG's game over: continue from the journey as it was last kept, or the title)
+  gameover: Object.freeze(['continue', 'home']),
 });
 export const FLOW_SCREENS = Object.freeze(Object.keys(SCREEN_EVENTS));
 export const LEVEL_EVENTS = Object.freeze(['won', 'lost', 'left', 'door']);
@@ -276,8 +278,12 @@ export function defaultFlow(game) {
     const end = F && F.end;
     // the final level's clearing win never travels on (its end, else its result)
     const finalStop = end ? [{ when: 'complete', go: 'end' }] : map && game.final ? [{ when: 'complete', go: 'result' }] : [];
-    steps.play = { kind: 'level', level: '$any', on: { won: [...finalStop, ...(map ? ['$travel'] : []), 'result'], lost: 'result', left: 'result', ...(doors ? { door: '$door' } : {}) } };
+    // (a game with a GAME OVER, game.gameOver: a level lost is its game over, its defeat never kept, and continue takes
+    // the journey up where it was last kept)
+    const over = game.gameOver === true;
+    steps.play = { kind: 'level', level: '$any', on: { won: [...finalStop, ...(map ? ['$travel'] : []), 'result'], lost: over ? 'gameover' : 'result', left: 'result', ...(doors ? { door: '$door' } : {}) } };
     steps.result = { kind: 'screen', screen: 'result', on: { next: '$next', again: '$again', home } };
+    if (over) steps.gameover = { kind: 'screen', screen: 'gameover', on: { continue: ['$continue', '$first'], home } };
     if (end) steps.end = { kind: 'screen', screen: 'end', on: { done: end.credits ? 'credits' : 'title' } };
   }
   // THE STORY's cinematics (game.cinematics: { opening?, prologue?, ending?: { scene, stage } | { film } | { video } },

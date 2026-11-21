@@ -111,7 +111,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ? manifest.links.reduce((m, lk) => { (m[lk.from.ref] ||= {})[lk.from.door] = lk.to; (m[lk.to.ref] ||= {})[lk.to.door] = lk.from; return m; }, {})
     : null;
   // THE FLOW (flow.js): what plays when, the game's own, else the one its front, levels and run make
-  const flow = manifest.flow || defaultFlow({ levels: levelTable, links: manifest.links, run: manifest.run, final: manifest.final, front: manifest.front });
+  const flow = manifest.flow || defaultFlow({ levels: levelTable, links: manifest.links, run: manifest.run, final: manifest.final, front: manifest.front, ...(manifest.gameOver === true ? { gameOver: true } : {}) });
   // THE TURNS (turn.js): a level step that says picks or a trigger is run as a turn; a game whose steps say none
   // carries no key and none of the kernel. Picks are drawn by mana-ui: with no ui said, in the greybox
   const turns = {};
@@ -142,7 +142,8 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ...(bareHud && ui ? { bareHud: '(hover:hover) and (pointer:fine)' } : {}),
     // THE SCREENS IN MANA-UI (play-shell-mana.js): the game's ui, its look resolved; absent, no key and none of it inlined
     // (the pick screen too where the turns ask for picks, or the title asks which save: `slots`)
-    ...(ui ? { mana: hasPicks || (Number.isInteger(manifest.slots) && manifest.slots > 1) ? shellManaConfig(ui, { picks: true }) : shellManaConfig(ui) } : {}),
+    // (and the game over's screen, a game's with gameOver)
+    ...(ui ? { mana: shellManaConfig(ui, { ...(hasPicks || (Number.isInteger(manifest.slots) && manifest.slots > 1) ? { picks: true } : {}), ...(manifest.gameOver === true ? { gameOver: true } : {}) }) } : {}),
   };
   // (with mana-ui the front's words are drawn by it: the front's own sheet and code stay out)
   const mana = !!cfg.mana, front = !!cfg.front && !mana;
@@ -705,8 +706,12 @@ export function playShellRuntime(cfg, K) {
       const before = (cfg.front || M.final) && allCleared();
       const env = d.envelope || {};
       lastEnvelope = env;
-      const r = K.applyOutcome(SCHEMA, state, session.level.contract, env);
-      if (!r.ok) { lastErrors = r.errors; toast('The level sent an outcome the game could not apply; nothing changed.'); }
+      // (A GAME OVER, M.gameOver: a level lost is never kept; the store stays as it was last written, where the journey
+      // was kept, and the game over continues from there)
+      const over = M.gameOver === true && env.result === 'fail';
+      const r = over ? { ok: true, state } : K.applyOutcome(SCHEMA, state, session.level.contract, env);
+      if (over) { /* the defeat is not kept */ }
+      else if (!r.ok) { lastErrors = r.errors; toast('The level sent an outcome the game could not apply; nothing changed.'); }
       else {
         state = r.state;
         // (a megaworld: leaving a map by a way is travel, never its completion)
@@ -1220,9 +1225,16 @@ export function playShellRuntime(cfg, K) {
     if (name === 'end') { if (!(front && front.end())) renderEnd(); return; }
     if (name === 'result') return lastOutcome ? renderResult(lastOutcome.lv, lastOutcome.env, lastOutcome.ok, lastOutcome.fin) : home();
     if (name === 'run-result') return renderRunResult();
+    if (name === 'gameover') return renderGameOver();
+  }
+  // THE GAME OVER (M.gameOver): the journey went no further; continue from where it was last kept, or the title
+  function renderGameOver() {
+    plain([el('div', { cls: 'result-mark fail', text: 'game over' }), el('h1', { text: M.title }), el('div', { cls: 'muted', text: GAME_OVER_SAYS }),
+      el('div', { cls: 'row' }, [el('button', { cls: 'primary', text: 'continue', on: () => go('continue') }), el('button', { text: 'title', on: () => go('home') })])]);
   }
   // the screens a flow may name that a game without a front has none of: plain, and each its one way on
   const plain = (kids) => { show('title'); app.textContent = ''; app.appendChild(el('div', { cls: 'screen center' }, kids)); };
+  const GAME_OVER_SAYS = 'Your journey went no further. Continue from where it was last kept.';
   function renderPress() { plain([el('h1', { text: M.title }), el('button', { cls: 'primary big', text: 'press start', on: () => go('press') })]); }
   function renderOptions() {
     plain([el('h2', { text: 'options' }), el('button', { text: 'sound: ' + (settings.sfxOn ? 'on' : 'off'), on: () => { settings.sfxOn = !settings.sfxOn; saveSettings(); pushPrefs(); renderOptions(); } }), el('button', { cls: 'primary', text: 'back', on: () => go('back') })]);

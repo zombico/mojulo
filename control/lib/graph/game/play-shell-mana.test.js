@@ -42,6 +42,14 @@ describe('the play shell\'s screens in mana-ui', () => {
     expect(shellManaSpec().hud.use).toBe('hud');
   });
 
+  it('a game over in mana-ui: its screen drawn only for a game that has one, continue and quit to title', () => {
+    const S = shellManaSpec({ theme: 'classic-rpg' }, { gameOver: true });
+    expect(S.screens.gameover).toBeTruthy();
+    expect(JSON.stringify(S.screens.gameover)).toContain('"emit":"continue"');
+    expect(JSON.stringify(S.screens.gameover)).toContain('"emit":"home"');
+    expect(shellManaSpec({ theme: 'classic-rpg' }).screens.gameover).toBeUndefined();
+  });
+
   it('the title\'s menu starts the first level over a loading screen that goes once the level is drawn; its result says what next', async () => {
     const P = await page({ front: {}, ui: { theme: 'grim' } });
     expect(P.screen()).toBe('title');

@@ -39,7 +39,7 @@ export function readShellUi(ui, where = 'ui') {
 }
 
 /** The shell's screens as mana-ui draws them. */
-export function shellManaSpec(ui = {}, { picks = false } = {}) {
+export function shellManaSpec(ui = {}, { picks = false, gameOver = false } = {}) {
   const button = (word, emit) => ({ use: 'button', props: { label: { word } }, on: { accept: { emit } } });
   const screens = {
     attract: { use: 'attract-screen', props: { title: B('title'), prompt: B('press'), then: { emit: 'press' } } },
@@ -73,6 +73,14 @@ export function shellManaSpec(ui = {}, { picks = false } = {}) {
   };
   // UNTAP (turn.js): one pick of a level's turn, the pick-screen idiom over what the shell says of it (the store's
   // rows, what was chosen before, why the game sent the player back); back unwinds one pick, the stack closing
+  // THE GAME OVER (a game's gameOver, game-manifest.js): the words, the title under them, continue or the title
+  if (gameOver) screens.gameover = { use: 'screen', props: { place: 'center' }, children: [{ use: 'stack', props: { align: 'center', gap: 'loose' }, children: [
+    { use: 'text', props: { value: B('overMark'), role: 'display' } },
+    { use: 'text', props: { value: B('overText') } },
+    { use: 'text', props: { value: B('title'), role: 'caption' } },
+    button('continue', 'continue'),
+    button('quitToTitle', 'home'),
+  ] }] };
   if (picks) screens.pick = { use: PICK, props: { ...Object.fromEntries(['title', 'ask', 'hint', 'step', 'steps', 'chosen', 'rows', 'faces', 'many', 'short', 'shortWhy', 'why'].map((k) => [k, B(`pick.${k}`)])), confirm: { emit: 'turn:confirm' } } };
   // what passes over the play: a moment, one at a time (a run's map cleared)
   // and the way into the pause while a level is the player's: a button in the corner, tapped or clicked (it takes no
@@ -185,6 +193,7 @@ export function playShellManaRuntime(cfg, api) {
     if (name === 'options') u.optionsTitle = 'options';
     if (name === 'credits') u.credits = ((F.credits && F.credits.roll) || []).map((r) => ({ role: r.role, names: r.names.join(' · ') })).concat(F.credits && F.credits.attribution === false ? [] : [{ role: '', names: 'made with mojulo · github.com/zombico/mojulo' }]);
     if (name === 'end') { u.endMark = 'game complete'; u.endText = (F.end && F.end.text) || 'The end'; }
+    if (name === 'gameover') { u.overMark = 'Game Over'; u.overText = 'Your journey went no further. Continue from where it was last kept.'; }
     if (name === 'result' || name === 'run-result') { u.result = name === 'result' ? api.result() : api.run(); u.result.bare = !((u.result.stats || []).length || u.result.rank); }
   }
   function draw(name) {

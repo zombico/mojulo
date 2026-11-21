@@ -34,6 +34,9 @@
  *                                          // completes a level, Continue resumes where the player is, the travel screen a mandala
  *     slots?: 2..4,                        // SAVE SLOTS (the play shell, its mana-ui front): the title's play or continue asks
  *                                          // which save; each slot its own store, slot 1 the game's own keys
+ *     gameOver?: true,                     // A GAME OVER (the play shell): a level lost ends in the game over screen, the
+ *                                          // defeat never kept, continue taking the journey up where it was last kept (a
+ *                                          // party RPG's: its last way taken or save point), or the title
  *     final?: <level ref>,                 // THE END (the play shell): that level's first win completes the game (the
  *                                          // front's end plays; a map game does not travel on from it), cleared alone
  *     flow?: { start, steps },             // THE FLOW (flow.js): what plays when, screens, cinematics, levels and holds;
@@ -196,6 +199,11 @@ export function validateGameManifest(manifest) {
   if (manifest.slots !== undefined) {
     if (!(Number.isInteger(manifest.slots) && manifest.slots >= 2 && manifest.slots <= 4)) errors.push('slots is how many saves the title offers, 2 to 4');
     if (manifest.shell !== 'play') errors.push("slots play in the light shell: add shell: 'play'");
+  }
+  if (manifest.gameOver !== undefined) {
+    if (manifest.gameOver !== true) errors.push('gameOver is true: a level lost is a game over, continued from the journey as it was last kept');
+    if (manifest.shell !== 'play') errors.push("gameOver plays in the light shell: add shell: 'play'");
+    if (manifest.run) errors.push('gameOver is a journey\'s: a run ends on a fall already (run)');
   }
   if (manifest.final !== undefined) {
     const refs = Array.isArray(manifest.levels) ? manifest.levels.map((l) => l && l.ref) : [];

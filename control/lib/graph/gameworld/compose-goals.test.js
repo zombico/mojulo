@@ -335,6 +335,9 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
     expect(game.levels.find((l) => l.ref === town0).exits).toContainEqual({ id: 'save', to: town0 });
     // (a game with save points offers its title three save slots)
     expect(game.slots).toBe(3);
+    // (and a lost fight is a game over: never kept, continued from where the journey was last kept, game-manifest.js)
+    expect(game.gameOver).toBe(true);
+    if (game.flow) expect(game.flow.steps.play.on.lost).toBe('gameover');
     expect(T.game.mechanics).toContainEqual(expect.objectContaining({ kind: 'reach-exit', exit: 'save', by: 'save-here' }));
     expect(T.game.arrive).toContain(town0);
     expect(T.play.menus).toContainEqual(expect.objectContaining({ id: 'save-point', kind: 'confirm', yes: [{ emit: 'save-here' }] }));
