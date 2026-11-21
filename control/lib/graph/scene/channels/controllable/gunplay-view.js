@@ -342,6 +342,8 @@ function __gpFrame(dt) {
   if (scoped) { const b = G.tired > 0 ? 1 : (G.breath || 0) / 4; __gpBreath.style.width = Math.round((1 - b) * 100) + '%'; __gpBreath.style.background = G.tired > 0 ? '#e55' : '#cfe8ff'; }
   if (fp && window.__mojMuzzle) __gpMz(p.id, null);
   if (!fp || scoped) return;
+  // (a thrown weapon, a hand grenade, has no gun to draw before the eye: its throw is the body's)
+  if (g.view && g.view.kind === 'throw') return;
   // the switch: the outgoing lowered over its swapOut, the incoming raised over its swapIn
   if (__GP.slot !== idx) { __GP.prev = __GP.slot; __GP.slot = idx; }
   let show = idx, low = 0;

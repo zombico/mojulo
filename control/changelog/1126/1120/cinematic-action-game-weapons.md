@@ -75,3 +75,27 @@ front, a tick at a time.
   nine seconds, sized by the reach, every scatter golden-angle. Soft sprites, each born at its first size. Before, a
   travelling round was the mecha's glowing cone and its burst a translucent sphere. The explosion library
   (playscape/elements/explosions.js) draws on the moment channel, which a page without events does not carry: not yet.
+- **Hand grenades: frag, stun and chaff** (gameworld/arms-kit.js `frag`, `stun`, `chaff`, `GRENADES`, `THROWN`): weapons in
+  hand from the weapon menu, three to a slot (one in hand, the next in it 0.6 s after), thrown at 16 m/s under gravity,
+  quietly (no shot is heard). Aimed, the arc and the ring are drawn as a launcher's are, the ring its burst's reach: a
+  frag's 4 m (red on a body), a stun's 6 m (white), a chaff's cloud's 15 m (a cold blue).
+- **The throw** (worlds/controllable/throw.js, `weapon.throw: { dur, release, clip? }`, inside the aim): the press starts
+  the throw and the round leaves the hand at its release (half of its second), launched on the arc through the
+  crosshair; a switch, a reel or a fall before the release throws nothing. The body plays its `throw` state for it: the
+  infiltration yard's `toss` (`room.mjs --throw throwOverhand`) the hero's own solved overhand (the operative carries the
+  motion word `throwOverhand`), its ball the grenade in the hand.
+- **What each does where it goes off** (combat-ranged.js burstProjectile, the round's `effect`): a FRAG hurts all round
+  it, whole inside its reach (four base rounds); a STUN knocks out (knockout.js E.knockOut; staggers, where a world does
+  not knock out) every body inside its reach with a clear line from it to the eyes, and hurts no one; a CHAFF hurts and
+  knocks no one and lays a cloud that jams round it for 15 s (`state.jams`, `E.jammedAt`): a guard inside it radioing the
+  alarm in gets nothing through while it is jammed (alarm.js: the call waits, `jammed` its seconds), and the radar reads
+  nothing while the pilot stands in it (the page's own radar and mana-ui's: static and JAMMED, no blips).
+- **A burst's hurt stays a hurt** (knockout.js): a world that knocks out took every hurt of the pilot's that was not a
+  gun's round for a blow, so a frag or a launcher's burst knocked guards out where it should kill. A burst marks what it
+  hurt (`burstHitAt`) and the knockout leaves it.
+- **What they look like** (the round's `look`, rounds.js `frag`, `stun`, `chaff`): a frag a round body with its fuse, a
+  stun's and a chaff's a can, dark and pale, each tumbling end over end on its arc. The frag's burst the blast. The stun's
+  a white flash metres wide gone in a quarter second, a cold glow after it, a ring of air along the ground to its reach,
+  a little white smoke, and the eye within one and a half its reach whited out, the more the nearer, thinning over a
+  second and a half. The chaff's a pop of grey and its cloud: foil strips thrown a few metres out, slowing, drifting down
+  and swaying, each glittering in its own time, the cloud thinning at the end of its seconds.

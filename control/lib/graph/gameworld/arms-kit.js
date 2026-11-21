@@ -13,6 +13,8 @@
 //   RELOAD               R, on any partly spent magazine (the old way, empty, still reloads by itself)
 //   THE BOW              the string drawn while the button is held (its `draw` seconds to full), the arrow loosed on
 //                        release: faster and harder the further it was drawn, and falling as it flies
+//   A HAND GRENADE       thrown (frag, stun, chaff: worlds/controllable/throw.js): the press starts the throw and the round
+//                        leaves the hand at its release, on the arc through the crosshair as a launcher's does
 //   A LAUNCHER           its round travels (worlds/controllable/combat-ranged.js the lob): over the shoulder it is
 //                        launched on the arc that passes the point under the crosshair, and bursts where it lands, all
 //                        inside its reach dealt whole
@@ -51,6 +53,11 @@ export const ARMS_KIT = Object.freeze({
   launcher: { arm: { item: 'launcher', model: 'grenade' }, as: 'grenade', name: 'grenade launcher' },
   // (a ROCKET LAUNCHER, a bazooka: one rocket a load, flying flat and fast enough to lead, a bigger burst)
   bazooka: { arm: { item: 'launcher', model: 'rocket' }, as: 'rocket' },
+  // (the HAND GRENADES, thrown (worlds/controllable/throw.js), quietly (no shot is heard): the same throw, three bursts. A FRAG's shrapnel hurts all round
+  // it; a STUN's flash knocks out whoever sees it go off; a CHAFF's cloud of foil jams the radios and the radar round it)
+  frag: { thrown: 'frag', as: 'thrown', name: 'frag grenade' },
+  stun: { thrown: 'stun', as: 'thrown', name: 'stun grenade' },
+  chaff: { thrown: 'chaff', as: 'thrown', name: 'chaff grenade' },
   bow: { bow: true, as: 'bow' },
 });
 export const ARMS_KIT_WORDS = Object.freeze(Object.keys(ARMS_KIT));
@@ -87,6 +94,18 @@ const ARCHETYPES = Object.freeze({
 export const ADS = Object.freeze({ spread: 0.35, move: 0.55, moveSpread: 0.5, scopedSpread: 0.02, bloom: 0.5 });
 /** the view's power at the eye for an open sight (irons, a red dot, a holographic sight): a game's closing-in */
 const OPEN_ZOOM = 1.3;
+/**
+ * THE HAND GRENADES: thrown at `speed` (m/s) under `gravity`, three to a slot (one in hand, two more), the next in hand
+ * in `reload` s. Each its burst: `splash` (m) its reach, `dmg` (base rounds) what a frag deals inside it whole, `jam` a
+ * chaff's cloud ({ r: m, for: s }). The throw: `dur` (s, press to follow-through) and its `release` (a share of it),
+ * where a hero's overhand lets go (hero-throw.js).
+ */
+export const GRENADES = Object.freeze({
+  frag: Object.freeze({ splash: 4, dmg: 4 }),
+  stun: Object.freeze({ splash: 6, dmg: 0 }),
+  chaff: Object.freeze({ splash: 0, dmg: 0, jam: Object.freeze({ r: 15, for: 15 }) }),
+});
+export const THROWN = Object.freeze({ speed: 16, gravity: 9.8, magazine: 1, reserve: 2, reload: 0.6, cooldown: 0.2, dur: 1.0, release: 0.5, aimTime: 0.2, swapOut: 0.2, swapIn: 0.35 });
 /** the bow: the draw (s to full), the arrow's speed and damage from a twitch to full (m/s; multiples of the base round),
  * one arrow on the string and the nock's time for the next, the arrow's fall (m/s²), its quiver */
 export const BOW = Object.freeze({ draw: 0.9, speed: [22, 68], dmg: [0.6, 3.5], nock: 0.55, gravity: 9.8, quiver: 30, aimTime: 0.24, swapOut: 0.3, swapIn: 0.45, sway: 2.6, zoom: 1.25, length: 1.5 });
@@ -124,6 +143,16 @@ export function kitSlot(word, base, { eye = 0, hand = null, converge = false } =
   const name = typeof word === 'string' ? (K.name ?? word) : `${word.item}${word.model ? ` ${word.model}` : ''}`;
   const where = { eye, ...(hand ? { hand } : {}), ...(converge ? { converge: true } : {}) };
   const dmg0 = base.damage ?? 1;
+  if (K.thrown) {
+    // a hand grenade (THROWN, GRENADES): a lob thrown, not fired; nothing drawn in the hand till it is thrown (the throw's
+    // clip carries its own grenade)
+    const G = GRENADES[K.thrown];
+    const weapon = { fireClass: 'lob', auto: false, cooldown: THROWN.cooldown, magazine: THROWN.magazine, reserve: THROWN.reserve, reload: THROWN.reload, damage: r3(G.dmg * dmg0), impact: G.dmg > 0 ? 1 : 0,
+      range: 60, coreAngle: base.coreAngle ?? 1.5, spread: { base: 1, move: 2, bloom: 0, recover: 4, max: 3 }, projectileSpeed: THROWN.speed, projectileGravity: THROWN.gravity, lobAngle: 0, splashRadius: G.splash, projRadius: 0.05,
+      armTime: 0.1, fuse: 6, smokeTrail: false, fxScale: 0.2, round: roundOf(K.thrown), effect: K.thrown, ...(G.jam ? { jam: { ...G.jam } } : {}), quiet: true, throw: { dur: THROWN.dur, release: THROWN.release }, ...where };
+    return { name, weapon, switchReady: r2(THROWN.swapOut + THROWN.swapIn), gunplay: {
+      kind: 'throw', ads: { zoom: 1.1, time: THROWN.aimTime, spread: 1, move: 0.8, moveSpread: 1 }, sway: 0, swap: { out: THROWN.swapOut, in: THROWN.swapIn }, view: { kind: 'throw' } } };
+  }
   if (K.bow) {
     const weapon = { fireClass: 'lob', auto: false, chargeTime: BOW.draw, magazine: 1, reserve: BOW.quiver, reload: BOW.nock, cooldown: 0.05, damage: r3(BOW.dmg[0] * dmg0), chargedDamage: r3(BOW.dmg[1] * dmg0), impact: 1,
       projectileSpeed: BOW.speed[0], projectileGravity: BOW.gravity, lobAngle: 0, splashRadius: 0, projRadius: 0.15, armTime: 0.02, fuse: 6, smokeTrail: false, fxScale: 0.25, range: 120, coreAngle: base.coreAngle ?? 1.5, ...where };

@@ -8,7 +8,8 @@
  *
  *   rule.alarm: {
  *     confirm?: 0.6,    seconds a watcher must keep the intruder in sight to be sure: a shorter glimpse is a threat detected
- *     radio?: 2.5,      seconds its call to the rest takes; the caller downed before then, no call is made
+ *     radio?: 2.5,      seconds its call to the rest takes; the caller downed before then, no call is made; a caller inside
+ *                       a chaff cloud (state.jams) gets nothing through while it is jammed
  *     found?: 30,       THREAT FOUND (red) lasts this long once no watcher sees the intruder, and starts over each time one does
  *     detected?: 40,    THREAT DETECTED (orange) lasts this long with nothing new, then the team stands down (clear)
  *     vigilant?: 1.25,  orange or red, every watcher's sight reaches this many times as far (alert.js reads it)
@@ -26,7 +27,7 @@
  *
  * State: state.alarm[team] = { phase: 'clear' | 'detected' | 'found', left (s), full (s), at ([x, y, z] the last known
  * place), cause ('glimpse' | 'sound' | 'body' | 'seen'), call: { by, t, of } | null, backup (sent), calls (made),
- * downs (calls cut), sweeps (the searchers spread) }. The bus hears its turns (castFacts, wrapped: alarm:<phase>,
+ * downs (calls cut), sweeps (the searchers spread), jammed (seconds a call waited in chaff) }. The bus hears its turns (castFacts, wrapped: alarm:<phase>,
  * alarm:spotted, alarm:call, alarm:cut, alarm:sweep, alarm:backup). A page draws it (scene/channels/controllable/alarm-view.js). Per watcher: e.alarmSee (seconds it
  * has kept the intruder in sight), e.alarmGain (its sight's gain), e.alarmSt (its startle last step).
  *
@@ -97,6 +98,8 @@ export function buildAlarm(E) {
       if (S.call) {
         const by = state.byId[S.call.by];
         if (!by || !live(by)) { S.call = null; S.downs++; }
+        // (a caller inside a chaff cloud gets nothing through: its call waits while it is jammed, combat-ranged.js jammedAt)
+        else if (E.jammedAt && E.jammedAt(state, by.transform.pos)) S.jammed = (S.jammed || 0) + dt;
         else if ((S.call.t += dt) >= S.call.of) {
           S.call = null; S.calls++; S.phase = 'found'; S.full = C.found ?? 30; S.left = S.full; S.cause = 'seen';
           S.at = by.lastSeen ? by.lastSeen.pos.slice() : pilot ? pilot.transform.pos.slice() : S.at;

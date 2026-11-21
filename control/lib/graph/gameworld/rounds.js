@@ -8,7 +8,9 @@
 //   flash  the muzzle flash's length (m): a pistol's a palm, a rifle's a hand, a shotgun's and a magnum's longer
 //   look   (a launcher's) how its travelling round and its burst are drawn: 'grenade' (a dull 40 mm shell spinning on its
 //          arc, a blast of fire, dust and smoke the size of its reach) or 'rocket' (a finned rocket on its flame, a trail of
-//          smoke behind it, the tube's backblast at the launch, the same blast)
+//          smoke behind it, the tube's backblast at the launch, the same blast); the hand grenades' 'frag' (a round grenade,
+//          the blast), 'stun' (a can, a white flash that whites out the eye near it), 'chaff' (a can, a cloud of foil that
+//          glitters as it drifts down)
 //
 // Magnitudes by cartridge class (subsonic to full-power rifle), never one maker's figures.
 export const ROUNDS = Object.freeze({
@@ -21,6 +23,10 @@ export const ROUNDS = Object.freeze({
   shotgun: Object.freeze({ speed: 400, flash: 0.22 }),
   grenade: Object.freeze({ speed: 76, flash: 0.3, look: 'grenade' }),
   rocket: Object.freeze({ speed: 120, flash: 0.6, look: 'rocket' }),
+  // (the hand grenades: thrown, no flash at the hand; each its own body in flight and its own burst)
+  frag: Object.freeze({ speed: 16, flash: 0, look: 'frag' }),
+  stun: Object.freeze({ speed: 16, flash: 0, look: 'stun' }),
+  chaff: Object.freeze({ speed: 16, flash: 0, look: 'chaff' }),
 });
 
 /** A gun's round as its weapon carries it (a fresh object: a weapon is the world's to change). */

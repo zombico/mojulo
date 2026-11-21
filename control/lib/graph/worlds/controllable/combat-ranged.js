@@ -116,6 +116,13 @@ export function buildCombatRanged(E) {
     const t = nearestWallT(M, Pn, state.colliders);
     return t != null ? lerp3(M, Pn, t) : null;
   }
+  // jammedAt(state, pos) → whether a chaff cloud jams `pos` now (state.jams: its place, its reach, its seconds)
+  function jammedAt(state, pos) {
+    const J = state.jams, t = state.time || 0;
+    if (!J || !J.length || !pos) return false;
+    for (const j of J) if (j.until > t && Math.hypot(pos[0] - j.at[0], pos[1] - j.at[1]) <= j.r) return true;
+    return false;
+  }
   // lobAim(from, to, speed, gravity) → [heading, pitch]: the launch that carries a round from `from` through `to` at
   // `speed` under `gravity` (the low arc, the flatter of the two; straight at it without gravity), or, where `to` is past
   // its reach, the farthest arc (45°) toward it
@@ -128,7 +135,7 @@ export function buildCombatRanged(E) {
   }
   // lobPath(e, state, step?) — an over-the-shoulder launcher's round as it would fly now (its launch through the
   // crosshair, its climb, no cone), integrated as stepProjectiles flies it: { pts (every few steps' place), at (where
-  // it bursts), hit (the body it meets, else null), radius (its burst's reach) }, or null when no such camera follows e or
+  // it bursts), hit (the body it meets, else null), radius (its burst's reach; a chaff's cloud's), effect? }, or null when no such camera follows e or
   // its gun is no launcher. For the page's arc and landing mark; nothing is written.
   function lobPath(e, state, step = 1 / 60) {
     const w = e.weapon;
@@ -153,7 +160,7 @@ export function buildCombatRanged(E) {
       }
       if (k % 3 === 2) pts.push(pos.slice());
     }
-    return { pts, at: pos, hit, radius: Math.max(w.splashRadius || 0, w.projRadius || 0) };
+    return { pts, at: pos, hit, radius: w.jam ? w.jam.r : Math.max(w.splashRadius || 0, w.projRadius || 0), ...(w.effect ? { effect: w.effect } : {}) };
   }
   function initWeapon(w) {
     if (!w || typeof w !== 'object') return null;
@@ -233,6 +240,12 @@ export function buildCombatRanged(E) {
       // muzzle flash's length; absent, the renderer's bolt and burst at fxScale, as before
       ...(w.round && typeof w.round === 'object' ? { round: { speed: w.round.speed > 0 ? w.round.speed : 800, flash: w.round.flash > 0 ? w.round.flash : 0.12, ...(typeof w.round.look === 'string' ? { look: w.round.look } : {}) } } : {}),
       smokeTrail: w.smokeTrail ?? true,    // lob projectile smoke trail toggle (grenades opt out; bazookas keep it)
+      // A THROWN WEAPON (opt-in, throw.js: a hand grenade's { dur, release, clip? }) and what its round does where it goes off
+      // (opt-in `effect`: 'frag' hurts, the default; 'stun' knocks out what sees it; 'chaff' jams radios and radars round
+      // it, its `jam` { r (m), for (s) }); absent, a lob as before
+      ...(w.throw && typeof w.throw === 'object' ? { throw: { dur: w.throw.dur > 0 ? w.throw.dur : 1, release: Math.min(0.95, Math.max(0, w.throw.release ?? 0.5)), ...(w.throw.clip ? { clip: true } : {}) } } : {}),
+      ...(w.effect === 'stun' || w.effect === 'chaff' || w.effect === 'frag' ? { effect: w.effect } : {}),
+      ...(w.jam && typeof w.jam === 'object' ? { jam: { r: w.jam.r > 0 ? w.jam.r : 15, for: w.jam.for > 0 ? w.jam.for : 15 } } : {}),
       reticleDist: w.reticleDist ?? null, // how far ahead the crosshair marks the aim point (renderer)
       sfx: w.sfx && typeof w.sfx === 'object' ? w.sfx : null,   // per-weapon SFX cues { shot?, hit?, reload? } — the audio channel prefers these over the world-level ones (a beam rifle and a machine gun sound different)
       // ENERGY weapons (V78 beam-rifle spike): an ammo-like heat budget that passively recovers. A
@@ -481,7 +494,7 @@ export function buildCombatRanged(E) {
           // (a charged round carries the charge's damage, a bow's arrow drawn full; any other the weapon's own)
           damage: chargedShot ? shotDamage : (w.damage || 0), impact: shotImpact, born: state.time, age: 0, armTime: w.armTime || 0, fuse: w.fuse || 4, ...(w.projectileDrag ? { drag: w.projectileDrag } : {}),
           fxColor: w.fxColor ?? null, fxScale: w.fxScale ?? null, smokeTrail: w.smokeTrail !== false, ...(w.knock ? { knock: w.knock } : {}),
-          ...(w.round && w.round.look ? { look: w.round.look } : {}),
+          ...(w.round && w.round.look ? { look: w.round.look } : {}), ...(w.effect ? { effect: w.effect } : {}), ...(w.jam ? { jam: { ...w.jam } } : {}),
         });
         e.lastShot = { mode: 'launch', t: state.time, from, to: null, charged: chargedShot };
       } else {
@@ -673,6 +686,28 @@ export function buildCombatRanged(E) {
   // hp. Emits a burst fx record for the renderer.
   function burstProjectile(state, p) {
     const R = Math.max(p.splashRadius || 0, p.projRadius || 0);
+    // A STUN GRENADE: every body inside its reach with a clear line from it to the eyes is knocked out (knockout.js; a
+    // world without it, staggered), nothing hurt. A CHAFF GRENADE: nothing hurt or knocked; its cloud jams round it for its
+    // seconds (state.jams, E.jammedAt: no radio gets through from inside it, no radar reads inside it)
+    if (p.effect === 'stun' || p.effect === 'chaff') {
+      if (p.effect === 'stun') {
+        const owner = state.byId && p.owner ? state.byId[p.owner] : null, at = [p.pos[0], p.pos[1], p.pos[2] + 0.3];
+        for (const tg of state.entities) {
+          if (tg.id === p.owner || tg.isCamera || tg.downed || tg.gone || tg.ko || !(tg.body && tg.body.hittable)) continue;
+          if (owner && owner.team && tg.team && tg.team === owner.team) continue;
+          const q = tg.transform.pos, eyes = [q[0], q[1], q[2] + (tg.body.egg ? (Number.isFinite(tg.body.egg.cz) ? tg.body.egg.cz : tg.body.egg.c) * 1.75 : 1.6)];
+          if (Math.hypot(eyes[0] - at[0], eyes[1] - at[1], eyes[2] - at[2]) > R) continue;
+          if (state.colliders && sightBlocked(at, eyes, state.colliders)) continue;
+          tg.lastHitBy = p.owner; tg.hitFlash = state.time; tg.stunAt = state.time;
+          if (E.knockOut) E.knockOut(state, tg, owner, 'stun'); else armReaction(tg, 'stagger');
+        }
+      } else {
+        const t = state.time || 0, J = p.jam || { r: 15, for: 15 };
+        state.jams = (state.jams || []).filter((j) => j.until > t).concat([{ at: p.pos.slice(), r: J.r, t0: t, until: t + J.for }]);
+      }
+      state.bursts.push({ seq: state.burstSeq++, pos: p.pos.slice(), t: state.time, radius: R, effect: p.effect, ...(p.look ? { look: p.look } : {}), ...(p.jam ? { jam: { ...p.jam } } : {}) });
+      return;
+    }
     const ownerTeam = state.byId && p.owner ? (state.byId[p.owner] && state.byId[p.owner].team) : null;   // TEAM: friendly-fire read
     for (const tg of state.entities) {
       if (tg.id === p.owner || tg.invincible || !(tg.body && tg.body.hittable)) continue;   // i-frames take no hits
@@ -688,6 +723,7 @@ export function buildCombatRanged(E) {
         continue;
       }
       tg.hitFlash = state.time; tg.hits = (tg.hits || 0) + (p.hitsAs || 1);   // a missile (hitsAs) counts as that many hits (what hp-pools and fail-on-death charge)
+      tg.burstHitAt = state.time;   // (a burst's hurt, not a blow's: knockout.js leaves it a hurt)
       tg.lastHitBy = p.owner;   // match-layer attribution (the round remembers its shooter)
       tg.lastHitDmg = dmg; tg.lastHitHead = false; tg.lastHitDmgN = tg.hits;   // what the burst dealt, for the hit fact
       const mst = matchStat(state, p.owner);
@@ -833,5 +869,5 @@ export function buildCombatRanged(E) {
     stepProjectiles(state, dt);
   }, 30);
 
-  Object.assign(E, { initWeapon, cancelWeaponCharge, tickWeapon, stepWeapon, stepProjectiles, burstProjectile, muzzleAt, bodyExposure, crosshairPoint, shotBlocked, lobAim, lobPath, HAND, HEAD_BAND, OVERDRIVE, stepMissiles });
+  Object.assign(E, { initWeapon, cancelWeaponCharge, tickWeapon, stepWeapon, stepProjectiles, burstProjectile, muzzleAt, bodyExposure, crosshairPoint, shotBlocked, lobAim, lobPath, jammedAt, HAND, HEAD_BAND, OVERDRIVE, stepMissiles });
 }
