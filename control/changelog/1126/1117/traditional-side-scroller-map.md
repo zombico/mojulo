@@ -400,8 +400,8 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   fell; each such bone is now its own piece, so he flies apart. Law (wreck-channel.test.js).
 - **Galaxy Boy's sound, more of it**: the boss has his own piece (the cue sheet asks a side map's boss for one; the level
   changes to it on the bar line once his room has shut, the audio's `boss` beside its `combat`); his exhausts steam out
-  loud (a new held row on the shelf, `steam-hiss`, servo's `steam` dial: a hiss chuffing with its pressure, idling as
-  he stands, up as he rolls); a foe stomped on is heard; and each foe sounds by what its kind does (the sheet's
+  loud (a new held row on the shelf, `steam-hiss`, servo's `steam` dial: a hiss chuffing with its pressure, silent at
+  none as the servo family is, held at a standing pressure by the channel as he stands, up as he rolls); a foe stomped on is heard; and each foe sounds by what its kind does (the sheet's
   `run.foes`, by class: a robot sparks on as it first comes into the frame, the frog croaks, a hopper springs, a
   charger revs as it braces and slams into what stops it, a flier swells into its dive, a turret fires its own round,
   a heavy turret a cannon; a game's `sound.run.foes` over it). Laws (sound-sheet.test.js, cue-sheet.test.js). The

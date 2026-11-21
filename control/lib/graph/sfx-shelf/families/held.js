@@ -184,11 +184,12 @@ export const servo = {
       noise([0, 0.06], { band: { lo: 2000 }, cutoff: [3500, 9000], pan: 0.2 }),
     ] };
     // a machine's steam venting by its pressure: a bright hiss through a lowpass opening up, chuffing with each exhaust
-    // (a sawtooth on its gain), a breath of air under it and the pipe's low rush
-    if (d.kind === 'steam') return { attack: 0.3, release: 0.6, layers: [
-      noise([0.02, 0.32], { band: { lo: 1800 }, cutoff: [4200, 9500], q: 0.5, lfo: { to: 'gain', wave: 'sawtooth', rate: [1.2, 3.2], depth: -0.7 } }),
-      noise([0.01, 0.12], { band: { lo: 900 }, cutoff: [2200, 4200], pan: 0.25 }),
-      noise([0.01, 0.08], { band: { hi: 420 }, lfo: { to: 'gain', rate: [0.4, 1.1], depth: 0.4 } }),
+    // (a sawtooth on its gain), a breath of air under it and the pipe's low rush; silent at no pressure, as the family is
+    // (a body that steams as it stands is held at its standing pressure by its channel: run-audio.js RUN_STEAM)
+    if (d.kind === 'steam') return { attack: 0.3, release: 0.4, layers: [
+      noise([0, 0.32], { band: { lo: 1800 }, cutoff: [4200, 9500], q: 0.5, lfo: { to: 'gain', wave: 'sawtooth', rate: [1.2, 3.2], depth: -0.7 } }),
+      noise([0, 0.12], { band: { lo: 900 }, cutoff: [2200, 4200], pan: 0.25 }),
+      noise([0, 0.08], { band: { hi: 420 }, lfo: { to: 'gain', rate: [0.4, 1.1], depth: 0.4 } }),
     ] };
     // the channel's synth: a sawtooth motor 66 → 140 Hz through a resonant lowpass 240 → 760 Hz (Q 4), its gain rising with the
     // charge; the chuffs a noise thump through 130 Hz up and a lowpass 480 → 1000 Hz, quickening as it coils
