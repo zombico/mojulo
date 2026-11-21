@@ -17,3 +17,8 @@ not in a gaze's.
   cleaning rooms windowed onto the corridor; the research wing's labs and the field HQ's offices are windowed too.
 - Each storey's crawl spaces, vents and barriers now reach the page lifted to their storey (the ground's alone did).
   The facility maps draw windows as pale bars and mesh as dashed grey lines.
+- **Cages closed and roofed.** A piece can be stretched to a length of its own (`w`, `d` on an item: `footprintOf`
+  and its parts follow), mesh abuts mesh, and the cage tiles each side edge to edge, its long sides run out over the
+  corners and its end sides fitted between them, so the ring is closed but for its gate. A roof of mesh tiles
+  (`mesh-roof`, laid overhead: an item's `over`, taking no floor and stopping no gaze) covers the whole ring at the
+  panels' head, so no body climbs in over it.

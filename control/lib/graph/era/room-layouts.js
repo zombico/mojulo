@@ -165,23 +165,30 @@ export const LAYOUTS = Object.freeze({
     dials: Object.freeze({ piece: 'weapon-rack', margin: 1.7, gate: 1.8, aisle: 1.6 }), nudge: false,
     lay(room, o, piece, dice, fits = () => true) {
       const F = frame(room), M = piece('mesh-panel'), P = piece(o.piece), out = [];
-      // (the ring: panels end to end along each side, the gate a gap in the middle of its first long side; each side
-      // drawn in from `margin`, a quarter metre at a time, until every panel of it stands clear (a doorway's approach,
-      // a vent's hatch): the ring whole, never broken where a piece would be dropped)
-      const run = (a, b) => { const n = Math.max(1, Math.round((b - a) / (M.w + SEAM))), step = (b - a) / n; return Array.from({ length: n }, (_, k) => a + (k + 0.5) * step); };
+      // (the ring: panels stretched to tile each side edge to edge, so no gap stands between two; the long sides whole
+      // across the ring, the end sides fitted between their faces, so the corners meet; the gate a gap in the middle of
+      // its first long side. Each side drawn in from `margin`, a quarter metre at a time, until every panel of it stands
+      // clear (a doorway's approach, a vent's hatch): the ring whole, never broken where a piece would be dropped)
+      const tile = (a, b) => { const n = Math.max(1, Math.round((b - a) / M.w)), w = (b - a) / n; return Array.from({ length: n }, (_, k) => ({ at: a + (k + 0.5) * w, w: +w.toFixed(4) })); };
       const ring = (u0, u1, v0, v1) => {
-        const gm = (u0 + u1) / 2, sides = { v0: [], v1: [], u0: [], u1: [] };
-        for (const u of run(u0, u1)) { if (Math.abs(u - gm) >= o.gate / 2 + M.w / 2 - 0.2) sides.v0.push({ kind: 'mesh-panel', at: F.at(u, v0), facing: F.across(1), group: 'cage' }); sides.v1.push({ kind: 'mesh-panel', at: F.at(u, v1), facing: F.across(-1), group: 'cage' }); }
-        // (the end sides a seam short of the corners, where the long sides' panels end)
-        for (const v of run(v0 + SEAM, v1 - SEAM)) { sides.u0.push({ kind: 'mesh-panel', at: F.at(u0, v), facing: F.down(1), group: 'cage' }); sides.u1.push({ kind: 'mesh-panel', at: F.at(u1, v), facing: F.down(-1), group: 'cage' }); }
+        const gm = (u0 + u1) / 2, g = o.gate / 2, sides = { v0: [], v1: [], u0: [], u1: [] };
+        for (const t of [...tile(u0 - M.d / 2, gm - g), ...tile(gm + g, u1 + M.d / 2)]) sides.v0.push({ kind: 'mesh-panel', at: F.at(t.at, v0), facing: F.across(1), w: t.w, group: 'cage' });
+        for (const t of tile(u0 - M.d / 2, u1 + M.d / 2)) sides.v1.push({ kind: 'mesh-panel', at: F.at(t.at, v1), facing: F.across(-1), w: t.w, group: 'cage' });
+        for (const t of tile(v0 + M.d / 2, v1 - M.d / 2)) { sides.u0.push({ kind: 'mesh-panel', at: F.at(u0, t.at), facing: F.down(1), w: t.w, group: 'cage' }); sides.u1.push({ kind: 'mesh-panel', at: F.at(u1, t.at), facing: F.down(-1), w: t.w, group: 'cage' }); }
         return sides;
       };
       const e = { u0: o.margin, u1: F.Lu - o.margin, v0: o.margin, v1: F.Lv - o.margin }, step = { u0: 0.25, u1: -0.25, v0: 0.25, v1: -0.25 };
       for (let round = 0; round < 24; round++) {
         if (e.u1 - e.u0 < 2 * M.w || e.v1 - e.v0 < 2 * M.w) return out;
-        const S = ring(e.u0, e.u1, e.v0, e.v1), bad = Object.keys(S).filter((k) => !S[k].every((p) => fits(p.kind, p.at, p.facing)));
+        const S = ring(e.u0, e.u1, e.v0, e.v1), bad = Object.keys(S).filter((k) => !S[k].every((p) => fits(p.kind, p.at, p.facing, { w: p.w })));
         if (!bad.length) { out.push(...S.v0, ...S.v1, ...S.u0, ...S.u1); break; }
         for (const k of bad) e[k] += step[k];
+      }
+      // (its roof: mesh tiles over the whole ring at the panels' head, stretched to meet each other and the ring's
+      // faces, so no body climbs in over it)
+      if (out.length) {
+        const R = piece('mesh-roof'), ru0 = e.u0 - M.d / 2, ru1 = e.u1 + M.d / 2, rv0 = e.v0 - M.d / 2, rv1 = e.v1 + M.d / 2;
+        for (const a of tile(ru0, ru1)) for (const b of tile(rv0, rv1)) out.push({ kind: 'mesh-roof', at: F.at(a.at, b.at), facing: F.across(1), w: a.w, d: +(b.w * (R.d / R.w)).toFixed(4), over: true, group: 'roof' });
       }
       if (!out.length) return out;
       const u0 = e.u0, u1 = e.u1, v0 = e.v0, v1 = e.v1;

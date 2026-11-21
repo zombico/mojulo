@@ -116,6 +116,11 @@ export const PIECES = Object.freeze({
   // a MESH PANEL (see-through: `see`, a gaze passes it and a body does not, worlds/controllable/barrier.js): posts at
   // its ends, rails at its foot, its waist and its head, and the wires between them a hand apart; a cage is a ring of
   // them (room-layouts.js `cage`)
+  // a cage's ROOF (see-through, laid overhead, `over`: it takes no floor): a mesh tile at the panels' head, its border and
+  // its wires both ways; tiles stretched to cover the ring edge to edge
+  'mesh-roof': { class: 'fence', w: 1.5, d: 1.5, h: 2.4, see: true, parts: [B(0, 1.5, 0, 0.04, 2.36, 2.4, 'trim'), B(0, 1.5, 1.46, 1.5, 2.36, 2.4, 'trim'), B(0, 0.04, 0.04, 1.46, 2.36, 2.4, 'trim'), B(1.46, 1.5, 0.04, 1.46, 2.36, 2.4, 'trim'),
+    ...Array.from({ length: 9 }, (_, k) => B(0.04 + (k + 1) * 0.142 - 0.006, 0.04 + (k + 1) * 0.142 + 0.006, 0.04, 1.46, 2.37, 2.385, 'grate')),
+    ...Array.from({ length: 9 }, (_, k) => B(0.04, 1.46, 0.04 + (k + 1) * 0.142 - 0.006, 0.04 + (k + 1) * 0.142 + 0.006, 2.385, 2.4, 'grate'))] },
   'mesh-panel': { class: 'fence', w: 1.5, d: 0.06, h: 2.4, see: true, parts: [B(0, 0.05, 0, 0.06, 0, 2.4, 'column'), B(1.45, 1.5, 0, 0.06, 0, 2.4, 'column'),
     B(0.05, 1.45, 0.01, 0.05, 0, 0.06, 'trim'), B(0.05, 1.45, 0.01, 0.05, 1.12, 1.16, 'trim'), B(0.05, 1.45, 0.01, 0.05, 2.34, 2.4, 'trim'),
     ...Array.from({ length: 9 }, (_, k) => B(0.05 + (k + 1) * 0.14 - 0.006, 0.05 + (k + 1) * 0.14 + 0.006, 0.025, 0.035, 0.06, 2.34, 'grate'))] }
@@ -209,7 +214,8 @@ const hits = (k, mn, mx) => {
 
 /** An item's footprint (plan): its piece's w along the wall it backs on, d out from it, its centre at `at`. */
 export function footprintOf(it) {
-  const P = PIECES[it.kind], k = it.scale ?? 1, along = it.facing.endsWith('y'), hw = ((along ? P.w : P.d) * k) / 2, hd = ((along ? P.d : P.w) * k) / 2;
+  // (a piece stretched to a length of its own, `w` along it and `d` deep: a run of mesh tiled end to end, a roof's tile)
+  const P = PIECES[it.kind], k = it.scale ?? 1, W = it.w ?? P.w, Dp = it.d ?? P.d, along = it.facing.endsWith('y'), hw = ((along ? W : Dp) * k) / 2, hd = ((along ? Dp : W) * k) / 2;
   return { min: [it.at[0] - hw, it.at[1] - hd], max: [it.at[0] + hw, it.at[1] + hd] };
 }
 
@@ -218,9 +224,11 @@ export function layProps(plan) {
   const C = plan.compose, reg = C.axes.dressing, set = PIECE_SETS[reg], keep = keepOuts(plan), items = [], town = reg === 'vernacular';
   const off = (plan.kit?.B?.pilaster?.out ?? 0.1) + 0.05;
   // (`sight` false: a doorway's sightline is not kept, as a room's layout breaks it on purpose)
-  const free = (r, mn, mx, sight = true) => mn[0] >= r.x0 + 0.05 && mx[0] <= r.x1 - 0.05 && mn[1] >= r.y0 + 0.05 && mx[1] <= r.y1 - 0.05
+  // (`see`: a see-through piece, mesh, abuts another as a run of fence does; what hangs overhead, a cage's roof, takes no
+  // floor)
+  const free = (r, mn, mx, sight = true, see = false) => mn[0] >= r.x0 + 0.05 && mx[0] <= r.x1 - 0.05 && mn[1] >= r.y0 + 0.05 && mx[1] <= r.y1 - 0.05
     && !keep.some((k) => k.room === r.id && (sight || k.kind !== 'sight') && hits(sight || k.kind !== 'door' ? k : { kind: 'door', ...k.near }, mn, mx))
-    && !items.some((o) => { if (o.room !== r.id || o.wall) return false; const f = footprintOf(o); return mn[0] < f.max[0] + GAP && mx[0] > f.min[0] - GAP && mn[1] < f.max[1] + GAP && mx[1] > f.min[1] - GAP; });
+    && !items.some((o) => { if (o.room !== r.id || o.wall || o.over) return false; const f = footprintOf(o), g = see && PIECES[o.kind]?.see ? -0.012 : GAP; return mn[0] < f.max[0] + g && mx[0] > f.min[0] - g && mn[1] < f.max[1] + g && mx[1] > f.min[1] - g; });
   const add = (it, P, dice) => {
     const base = it.id, idx = items.filter((o) => o.id.startsWith(`${base}-`) && !o.id.includes('@')).length + 1;
     it.id = `${base}-${idx}`;
@@ -287,19 +295,21 @@ export function layProps(plan) {
   const layLayout = (r, o) => {
     if (plan.use && !town) layExtinguishers(r);
     const dice = mulberry32(hashOf(`layout|${r.id}`)), L = LAYOUTS[o.layout], before = items.length;
-    const fits = (kind, at, facing) => { const f = footprintOf({ kind, at, facing }); return free(r, f.min, f.max, false); };
+    const fits = (kind, at, facing, more = {}) => { const f = footprintOf({ kind, at, facing, ...more }); return free(r, f.min, f.max, false, !!PIECES[kind].see); };
     // (a piece its place does not hold, a doorway's approach or a stair's foot over it, moved the least that clears it,
     // half a metre at a time up to a metre and a half: a piece moves, it is not dropped)
     const NUDGE = [[0, 0]];
     for (let d = 0.5; d <= 1.5; d += 0.5) for (const [a, b] of [[d, 0], [-d, 0], [0, d], [0, -d], [d, d], [-d, d], [d, -d], [-d, -d]]) NUDGE.push([a, b]);
     for (const c of L.lay(r, o, (k) => PIECES[k], dice, fits)) {
+      // (what hangs overhead, a cage's roof, is laid where the figure says: it takes no floor)
+      if (c.over) { add({ id: `${r.id}/layout/${c.kind}`, kind: c.kind, room: r.id, at: c.at, facing: c.facing, over: true, ...(c.w ? { w: c.w } : {}), ...(c.d ? { d: c.d } : {}) }, PIECES[c.kind], dice); continue; }
       for (const [a, b] of L.nudge ? NUDGE : NUDGE.slice(0, 1)) {
         // (a rack a layout lays carries a load of its own, propFaces: rows of them read as stock, never as copies)
-      const it = { id: `${r.id}/layout/${c.kind}`, kind: c.kind, room: r.id, at: [r5(c.at[0] + a), r5(c.at[1] + b)], facing: c.facing, ...(LOADED[c.kind] ? { load: true } : {}) }, f = footprintOf(it);
+      const it = { id: `${r.id}/layout/${c.kind}`, kind: c.kind, room: r.id, at: [r5(c.at[0] + a), r5(c.at[1] + b)], facing: c.facing, ...(LOADED[c.kind] ? { load: true } : {}), ...(c.w ? { w: c.w } : {}), ...(c.d ? { d: c.d } : {}) }, f = footprintOf(it);
         // (moved, it keeps a body's way to every wall, or stands against it: never a gap a body sticks in)
         const gaps = [f.min[0] - r.x0, r.x1 - f.max[0], f.min[1] - r.y0, r.y1 - f.max[1]];
         if ((a || b) && gaps.some((g) => g > 0.35 && g < 0.9)) continue;
-        if (free(r, f.min, f.max, false)) { add(it, PIECES[c.kind], dice); break; }
+        if (free(r, f.min, f.max, false, !!PIECES[c.kind].see)) { add(it, PIECES[c.kind], dice); break; }
       }
     }
     // (how many it laid, the extinguishers aside: none, and the room keeps its stock)
@@ -389,7 +399,7 @@ export function layoutReport(plan, items) {
   for (const r of plan.rooms) {
     const o = plan.layouts ? layoutOf(plan.layouts, r.id, roleOf(r.id)) : null;
     if (!o) continue;
-    const mine = items.filter((it) => it.room === r.id && PIECES[it.kind]?.solid !== false && !it.wall);
+    const mine = items.filter((it) => it.room === r.id && PIECES[it.kind]?.solid !== false && !it.wall && !it.over);
     const boxes = mine.map((it) => { const f = footprintOf(it); return { min: f.min, max: f.max, h: PIECES[it.kind].h * (it.scale ?? 1) * ((it.level ?? 0) + 1), ...(PIECES[it.kind].see ? { see: true } : {}) }; });
     const pieces = mine.filter((it) => it.id.includes('/layout/') && !it.level).length;
     // (a layout its room could not hold, its doorways' approaches over every place: the room keeps its stock, said)
@@ -469,7 +479,8 @@ const COVER_CELL = ARENA_CELL, BLOCK = 2.4, LANE = 1.2, WAY = 1.2, BAFFLE = 2.4;
 
 // an item's part as a world box: the piece's frame turned to face the room (u along its wall, v out of it)
 function partBox(it, p, z0) {
-  const k = it.scale ?? 1, [u0, u1, v0, v1, pz0, pz1] = p.slice(0, 6).map((v) => v * k), f = footprintOf(it), dir = it.facing[0] === '+' ? 1 : -1;
+  const P = PIECES[it.kind], k = it.scale ?? 1, su = it.w !== undefined ? it.w / P.w : 1, sv = it.d !== undefined ? it.d / P.d : 1;
+  const [u0, u1, v0, v1, pz0, pz1] = p.slice(0, 6).map((v, i) => v * k * (i < 2 ? su : i < 4 ? sv : 1)), f = footprintOf(it), dir = it.facing[0] === '+' ? 1 : -1;
   // (the piece's back on the wall: v grows away from it; u runs left to right as one faces the piece)
   if (it.facing.endsWith('y')) {
     const x0 = dir > 0 ? f.min[0] + u0 : f.max[0] - u1, x1 = dir > 0 ? f.min[0] + u1 : f.max[0] - u0;
@@ -569,7 +580,7 @@ export function propFaces(plan, items, surf) {
 export function dressLaws(plan, items) {
   const keep = keepOuts(plan), inKeep = [], inSight = [];
   for (const it of items) {
-    if (it.set || it.wall || !PIECES[it.kind]) continue;
+    if (it.set || it.wall || it.over || !PIECES[it.kind]) continue;
     // (a room's layout keeps a doorway's way through for a body, not its whole approach: room-layouts.js)
     const lay = it.id.includes('/layout/'), f = footprintOf(it), k = keep.find((q) => q.room === it.room && (!lay || q.kind !== 'sight') && hits(lay && q.kind === 'door' ? { kind: 'door', ...q.near } : q, f.min, f.max));
     if (k) (k.kind === 'sight' ? inSight : inKeep).push(it.id);

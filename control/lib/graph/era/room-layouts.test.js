@@ -61,8 +61,19 @@ describe('room layouts', () => {
     expect(() => readLayouts({ shed: { layout: 'aisles', piece: 'throne-of-bees' } }, Object.keys(PIECES))).toThrow(/pieces of the dressing/);
   });
 
-  it('a cage is a whole ring of mesh with a gate, its stock inside; its mesh stops no gaze', () => {
-    const items = lay('cage'), mesh = items.filter((it) => it.kind === 'mesh-panel'), stock = items.filter((it) => it.kind !== 'mesh-panel');
+  it('a cage is a whole ring of mesh, closed but for its gate, roofed, its stock inside; its mesh stops no gaze', () => {
+    const items = lay('cage'), mesh = items.filter((it) => it.kind === 'mesh-panel'), roof = items.filter((it) => it.kind === 'mesh-roof'), stock = items.filter((it) => !/^mesh/.test(it.kind));
+    // (closed: along each side the panels' spans meet edge to edge, one gap, the gate's, in the first long side)
+    const fp = mesh.map(footprintOf), xs = fp.flatMap((f) => [f.min[0], f.max[0]]), ys = fp.flatMap((f) => [f.min[1], f.max[1]]);
+    const [X0, X1, Y0, Y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    const gaps = (fs, a, b, ax) => { const iv = fs.map((f) => [f.min[ax], f.max[ax]]).sort((p, q) => p[0] - q[0]); let at = a, n = 0; for (const [p, q] of iv) { if (p > at + 0.02) n++; at = Math.max(at, q); } return n + (b > at + 0.02 ? 1 : 0); };
+    const onLine = (ax, v) => fp.filter((f) => Math.abs((f.min[ax] + f.max[ax]) / 2 - v) < 0.05 && (f.max[1 - ax] - f.min[1 - ax]) > (f.max[ax] - f.min[ax]));
+    expect(gaps(onLine(1, Y0 + 0.03), X0, X1, 0) + gaps(onLine(1, Y1 - 0.03), X0, X1, 0)).toBe(1);
+    expect(gaps(onLine(0, X0 + 0.03), Y0 + 0.06, Y1 - 0.06, 1) + gaps(onLine(0, X1 - 0.03), Y0 + 0.06, Y1 - 0.06, 1)).toBe(0);
+    // (roofed: its tiles overhead over the whole ring)
+    expect(roof.every((it) => it.over)).toBe(true);
+    const ra = roof.map(footprintOf).reduce((a, f) => a + (f.max[0] - f.min[0]) * (f.max[1] - f.min[1]), 0);
+    expect(ra).toBeCloseTo((X1 - X0) * (Y1 - Y0), 1);
     expect(mesh.length).toBeGreaterThan(8);
     expect(stock.length).toBeGreaterThan(0);
     const box = (it) => { const f = footprintOf(it); return { min: f.min, max: f.max, h: PIECES[it.kind].h, ...(PIECES[it.kind].see ? { see: true } : {}) }; };

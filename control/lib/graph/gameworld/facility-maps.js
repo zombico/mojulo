@@ -57,7 +57,7 @@ export function facilityMapSvg(P, { storey = null, title = null, path = null, pa
   }
   const tall = new Map();
   for (const it of P.props ?? []) { if (!PIECES[it.kind]) continue; const base = it.id.replace(/@\d+$/, ''); tall.set(base, Math.max(tall.get(base) ?? 0, PIECES[it.kind].h * (it.scale ?? 1) * ((it.level ?? 0) + 1))); }
-  for (const it of (P.props ?? []).filter((it) => !it.level && !it.wall && ids.has(it.room) && PIECES[it.kind])) {
+  for (const it of (P.props ?? []).filter((it) => !it.level && !it.wall && !it.over && ids.has(it.room) && PIECES[it.kind])) {
     // (a see-through piece, mesh: a dashed grey line, what a gaze goes through)
     if (PIECES[it.kind].see) { const f = footprintOf(it), X = f.max[0] - f.min[0] >= f.max[1] - f.min[1], my = (f.min[1] + f.max[1]) / 2, mx = (f.min[0] + f.max[0]) / 2; s += X ? `<line x1="${x(f.min[0])}" y1="${y(my)}" x2="${x(f.max[0])}" y2="${y(my)}" stroke="${MESH}" stroke-width="2.5" stroke-dasharray="2 2"/>` : `<line x1="${x(mx)}" y1="${y(f.min[1])}" x2="${x(mx)}" y2="${y(f.max[1])}" stroke="${MESH}" stroke-width="2.5" stroke-dasharray="2 2"/>`; continue; }
     const f = footprintOf(it), c = hideOf(tall.get(it.id)).fill;
