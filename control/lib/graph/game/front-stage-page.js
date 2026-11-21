@@ -7,11 +7,20 @@
  * The page carries only what a baked stage gives it: a game whose front has no stage, or whose export baked none,
  * emits not a byte of this (its key absent, its sheet and code left out).
  *
- *   stageConfig(card, plates, { title })  → the page's cfg.stage: the frames, the slots' anchors, the beats, the plates'
- *                                           srcs (a slot whose plate was not baked: null)
- *   stageCss(card, { mana })              → the stage's sheet, laid after the shell's (and the front's or mana-ui's)
+ *   stageConfig(card, plates, { title, treatment, three }) → the page's cfg.stage: the frames, the slots' anchors, the
+ *                                           beats, the plates' srcs (a slot whose plate was not baked: null), and for a
+ *                                           live stage each plate's model and the camera its picture was cut from
+ *   stageCss(card, { mana, live, treatment }) → the stage's sheet, laid after the shell's (and the front's or mana-ui's)
+ *   stageImportmap(three)                 → the importmap a live stage's page carries ('three' to its module)
  *   playStageRuntime(cfg)                 the page's code (inlined with toString(), references nothing outside itself)
  *                                         → { show(on) }
+ *
+ * THE LIVE STAGE (front.stage.mode '3d'): once the pictures have shown, three.js and its glTF loader are loaded (a
+ * dynamic import: the page opens without them), and each subject with a model is drawn in a canvas over its picture by
+ * the camera its picture was captured with, framed to the same window of it (setViewOffset over the crop), its first
+ * clip started at the moment the picture was posed: so the canvas fades in over the picture and the figure starts to
+ * breathe where it stood. It turns a little after the pointer and sways; it stops drawing while a level is up. No
+ * WebGL, a model that fails to load, or a reader who asks for less motion: the picture stays, nothing else changes.
  */
 
 const pct = (n) => `${+n.toFixed(3)}%`;
@@ -20,7 +29,12 @@ const ALIGN = { start: ['flex-start', 'left'], center: ['center', 'center'], end
 // the media a phone held upright answers: its card's tall frame
 const TALL = '(max-aspect-ratio: 4/5)';
 
-export function stageConfig(card, plates, { title }) {
+// a World page's z-up metres to the y-up of a glTF scene (scene-gltf.js turns its root -90° about x)
+const yUp = ([x, y, z]) => [x, z, -y];
+// a module's address as an import takes it: a path beside the page is said from the page ('./…'), never bare
+const rel = (u) => (/^(https?:|\/|\.)/.test(u) ? u : `./${u}`);
+
+export function stageConfig(card, plates, { title, treatment = 'cutout', three = null }) {
   const frame = (F) => ({ title: { box: F.title.box, align: F.title.align, size: F.title.size }, subjects: F.subjects });
   return {
     card: card.id,
@@ -30,12 +44,21 @@ export function stageConfig(card, plates, { title }) {
     frames: { wide: frame(card.frames.wide), tall: frame(card.frames.tall) },
     anchors: card.slots.map((s) => s.anchor),
     motion: card.motion.map((m) => ({ part: m.part, enter: m.enter, at: m.at })),
-    plates: plates.map((p) => (p && p.src ? { src: p.src, width: p.width, height: p.height } : null)),
+    plates: plates.map((p) => (p && p.src ? {
+      src: p.src, width: p.width, height: p.height,
+      ...(three && p.live && p.frame ? { live: { glb: p.live.glb, clip: p.live.clip, pos: yUp(p.frame.shot.pos), target: yUp(p.frame.shot.target), vfov: p.frame.shot.vfov, capture: [p.frame.capture.width, p.frame.capture.height], crop: [p.frame.crop.x, p.frame.crop.y, p.frame.crop.w, p.frame.crop.h], t: (p.frame.poseMs || 0) / 1000 } } : {}),
+    } : null)),
+    ...(three && plates.some((p) => p && p.live) ? { three: { loader: rel(three.loader) }, treatment } : {}),
   };
 }
 
+/** The importmap a live stage's page carries: 'three' to its module (beside the page, or the pinned CDN). */
+export function stageImportmap(three) {
+  return JSON.stringify({ imports: { three: rel(three.module) } });
+}
+
 /** The sheet: the layer, its parts placed by the card's frames, the menu moved into its box, the beats. */
-export function stageCss(card, { mana = false } = {}) {
+export function stageCss(card, { mana = false, live = false, treatment = 'cutout' } = {}) {
   const W = card.frames.wide, T = card.frames.tall;
   const beat = Object.fromEntries(card.motion.map((m) => [m.part, m]));
   const anim = (part) => { const m = beat[part]; return m ? `animation:st-${m.enter === 'letters' || m.enter === 'stagger' ? 'rise' : m.enter} .7s cubic-bezier(.2,.8,.2,1) ${m.at}ms both` : ''; };
@@ -61,6 +84,9 @@ export function stageCss(card, { mana = false } = {}) {
     `#stage .st-subj{position:absolute;z-index:2;${anim('subject')}}`,
     '#stage .st-subj img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center bottom}',
     '#stage .st-subj[data-anchor=center] img{object-position:center center}',
+    // the live stage: its canvas over the picture, faded in once drawn, the picture faded out under it; a cut-out's rim
+    // drawn round the canvas in the accent
+    live ? `#stage .st-subj canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center bottom;opacity:0;transition:opacity .9s ease}#stage .st-subj[data-anchor=center] canvas{object-position:center center}#stage .st-subj canvas.on{opacity:1}#stage .st-subj img{transition:opacity .9s ease .3s}#stage .st-subj img.gone{opacity:0}${treatment === 'cutout' ? '#stage .st-subj canvas{filter:drop-shadow(4px 0 0 var(--accent)) drop-shadow(-4px 0 0 var(--accent)) drop-shadow(0 4px 0 var(--accent)) drop-shadow(0 -4px 0 var(--accent))}' : ''}` : '',
     ...parts(W),
     `@media ${TALL}{${parts(T).join('')}}`,
     // the name is the stage's, so the screen's own copy is hidden (still read aloud); the menu as plain words
@@ -137,12 +163,98 @@ export function playStageRuntime(cfg) {
   }
   window.addEventListener('resize', fit);
   let shown = false;
+
+  // the live stage, booted once the pictures have shown (never for a reader who asks for less motion)
+  const lives = [];
+  let booted = false, raf = 0, last = 0, yaw = 0, aim = 0;
+  function bootLive() {
+    if (booted || !S.three) return;
+    booted = true;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    Promise.all([import('three'), import(S.three.loader)]).then(([THREE, G]) => {
+      const loader = new G.GLTFLoader();
+      S.plates.forEach((p, i) => {
+        if (!p || !p.live) return;
+        const L = p.live, box = root.querySelector('.st-subj[data-i="' + i + '"]');
+        if (!box) return;
+        const canvas = document.createElement('canvas');
+        let renderer;
+        try { renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true }); } catch (e) { return; }
+        renderer.setClearColor(0x000000, 0);
+        const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(L.vfov, L.capture[0] / L.capture[1], 0.05, 200);
+        cam.position.set(L.pos[0], L.pos[1], L.pos[2]);
+        cam.lookAt(L.target[0], L.target[1], L.target[2]);
+        cam.setViewOffset(L.capture[0], L.capture[1], L.crop[0], L.crop[1], L.crop[2], L.crop[3]);
+        // the subject turns about its own middle: a pivot at the camera's target, the model set back from it
+        const pivot = new THREE.Group();
+        pivot.position.set(L.target[0], 0, L.target[2]);
+        scene.add(pivot);
+        const it = { box, canvas, renderer, scene, cam, pivot, mixer: null, ready: false, crop: L.crop };
+        loader.load(L.glb, (gltf) => {
+          const model = gltf.scene;
+          model.position.set(-L.target[0], 0, -L.target[2]);
+          if (S.treatment === 'silhouette') {
+            const ink = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || '#ffffff';
+            model.traverse((o) => { if (o.isMesh) o.material = new THREE.MeshBasicMaterial({ color: new THREE.Color(ink) }); });
+          }
+          pivot.add(model);
+          if (gltf.animations.length) {
+            it.mixer = new THREE.AnimationMixer(model);
+            const body = gltf.animations.find((a) => !/^face:/.test(a.name) && (!L.clip || a.name.split(':').pop() === L.clip)) || gltf.animations.find((a) => !/^face:/.test(a.name));
+            const face = gltf.animations.find((a) => /^face:/.test(a.name));
+            for (const a of [body, face]) if (a) it.mixer.clipAction(a).play();
+            it.mixer.setTime(L.t);
+          }
+          size(it);
+          renderer.render(scene, cam);
+          box.appendChild(canvas);
+          requestAnimationFrame(() => {
+            canvas.classList.add('on');
+            const img = box.querySelector('img');
+            if (img) img.classList.add('gone');
+            it.ready = true;
+            if (shown) loop();
+          });
+        }, undefined, () => { renderer.dispose(); });
+        lives.push(it);
+      });
+    }).catch(() => { /* no three, no WebGL: the pictures stay */ });
+  }
+  // the canvas drawn at the size it is shown (the crop's shape, contained in its box), at the screen's density
+  function size(it) {
+    const r = it.box.getBoundingClientRect(), k = Math.min(r.width / it.crop[2], r.height / it.crop[3]) || 1;
+    it.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    it.renderer.setSize(Math.max(1, Math.round(it.crop[2] * k)), Math.max(1, Math.round(it.crop[3] * k)), false);
+  }
+  window.addEventListener('resize', () => { for (const it of lives) if (it.ready) size(it); });
+  window.addEventListener('pointermove', (e) => { aim = ((e.clientX / (window.innerWidth || 1)) - 0.5) * 0.35; });
+  function loop() {
+    cancelAnimationFrame(raf);
+    last = performance.now();
+    const step = (now) => {
+      if (!shown) return;
+      const dt = Math.min(0.1, (now - last) / 1000);
+      last = now;
+      yaw += (aim + Math.sin(now / 2600) * 0.06 - yaw) * Math.min(1, dt * 3);
+      for (const it of lives) {
+        if (!it.ready) continue;
+        if (it.mixer) it.mixer.update(dt);
+        it.pivot.rotation.y = yaw;
+        it.renderer.render(it.scene, it.cam);
+      }
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+  }
+
   return {
     show(on) {
       if (on === shown) return;
       shown = on;
       root.classList.toggle('on', on);
-      if (!on) return;
+      if (!on) { cancelAnimationFrame(raf); return; }
+      if (!booted && S.three) setTimeout(bootLive, 700);
+      else if (lives.some((it) => it.ready)) loop();
       // the entrance again: the animations restarted by taking them off for one frame
       root.style.animation = 'none';
       for (const e of root.querySelectorAll('*')) e.style.animation = 'none';

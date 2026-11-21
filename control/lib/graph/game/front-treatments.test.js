@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { matte, trimmed, treat, TREATMENT_FNS } from './front-treatments.js';
+import { matte, trimmed, trimRect, treat, TREATMENT_FNS } from './front-treatments.js';
 import { STAGE_TREATMENTS } from './front-stage.js';
 
 // A START SCREEN'S PICTURES: a subject cut out by what changes between black and white, trimmed to itself, and drawn
@@ -25,6 +25,13 @@ describe('cutting a subject out', () => {
 
   it('refuses two captures of different sizes', () => {
     expect(() => matte(img(1, 1, [0, 0, 0, 255]), img(2, 1, [0, 0, 0, 255, 0, 0, 0, 255]))).toThrow(/one frame at one size/);
+  });
+
+  it('says where its crop falls in the frame, the pad round it', () => {
+    const cut = matte(over([0, 0, 0]), over([255, 255, 255]));
+    expect(trimRect(cut)).toEqual({ x: 1, y: 1, w: 2, h: 2 });
+    expect(trimRect(cut, { pad: 3 })).toEqual({ x: -2, y: -2, w: 8, h: 8 });
+    expect(trimRect(img(2, 2, new Array(16).fill(0)))).toBeNull();
   });
 
   it('trims to the subject, keeping a pad', () => {

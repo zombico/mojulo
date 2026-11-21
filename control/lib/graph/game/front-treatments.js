@@ -8,6 +8,7 @@
  * clock or dice, so the same capture and colours make the same picture.
  *
  *   matte(overBlack, overWhite)        → image: the subject alone, its alpha from the difference
+ *   trimRect(image, { pad, threshold }) → { x, y, w, h } | null: where that crop falls in the frame
  *   trimmed(image, { pad, threshold }) → image: cropped to where the alpha is, `pad` pixels kept round it
  *   treat(image, treatment, colours)   → image: one of STAGE_TREATMENTS; colours { ink, accent, bg } as #rrggbb
  *   TREATMENT_FNS                      treatment → (image, colours) → image
@@ -40,15 +41,25 @@ export function matte(overBlack, overWhite) {
   return out;
 }
 
-/** Crop to where the alpha is (above `threshold`), keeping `pad` transparent pixels round it. An empty image stays 1×1. */
-export function trimmed(img, { pad = 0, threshold = 8 } = {}) {
+/**
+ * Where a crop to the alpha falls in the frame: { x, y, w, h } in its pixels, `pad` kept round it (so x and y may be
+ * negative); null when there is nothing. The live stage frames the same window of the same camera (front-stage-page.js).
+ */
+export function trimRect(img, { pad = 0, threshold = 8 } = {}) {
   const { width, height, data } = img;
   let x0 = width, y0 = height, x1 = -1, y1 = -1;
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
     if (data[(y * width + x) * 4 + 3] > threshold) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   }
-  if (x1 < 0) return blank(1, 1);
-  const w = x1 - x0 + 1 + 2 * pad, h = y1 - y0 + 1 + 2 * pad, out = blank(w, h);
+  return x1 < 0 ? null : { x: x0 - pad, y: y0 - pad, w: x1 - x0 + 1 + 2 * pad, h: y1 - y0 + 1 + 2 * pad };
+}
+
+/** Crop to where the alpha is (above `threshold`), keeping `pad` transparent pixels round it. An empty image stays 1×1. */
+export function trimmed(img, { pad = 0, threshold = 8 } = {}) {
+  const { width, data } = img, R = trimRect(img, { pad, threshold });
+  if (!R) return blank(1, 1);
+  const x0 = R.x + pad, y0 = R.y + pad, x1 = x0 + R.w - 2 * pad - 1, y1 = y0 + R.h - 2 * pad - 1;
+  const w = R.w, h = R.h, out = blank(w, h);
   for (let y = y0; y <= y1; y++) {
     const from = (y * width + x0) * 4, to = ((y - y0 + pad) * w + pad) * 4;
     out.data.set(data.subarray(from, from + (x1 - x0 + 1) * 4), to);

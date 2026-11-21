@@ -37,3 +37,12 @@ website, composed from the game's own characters, vehicles and props, never a le
   own motion, so a look with none shows the name at once, and a player who turns motion down sees it fade. The name is
   still read aloud as one word. On a start screen drawn as a picture, the menu is now words with no window or band
   behind it, drawn so by the game UI itself. The wireframe board shows the entrance on its title and attract screens.
+- **The high-end start screen: the figure comes alive.** A stage in `mode: '3d'` opens on its pictures as before;
+  then, once they have shown, the page loads the 3D engine and each subject's model and fades the living figure in
+  over its picture, framed by the very camera the picture was taken with and starting its idle where the picture
+  caught it, so the picture seems to begin to breathe. The figure turns a little toward the pointer and sways, keeps
+  its accent rim (or its silhouette), and stops drawing while a level is played. The engine comes beside the game in
+  its folder, or from the pinned CDN when the game is exported with `cdn: true`. Without WebGL, with a model that will
+  not load or is too heavy for a start screen, or for a player who turns motion down, the picture stays and nothing
+  else changes. Looks that remake a picture's colours (two-tone, dot screen, posterize, ink) stay pictures, and the
+  export says so.

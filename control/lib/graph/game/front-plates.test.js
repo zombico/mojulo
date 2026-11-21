@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { subjectBounds, subjectShot, plateSize, plateCacheKey, bakeFrontStage } from './front-plates.js';
+import { subjectBounds, subjectShot, plateSize, plateCacheKey, bakeFrontStage, LIVE_TREATMENTS } from './front-plates.js';
 import { FRONT_CARDS, FRONT_CARD_IDS } from '../playscape/ui/front-cards/loader.js';
 
 // THE START SCREEN'S PICTURES, FRAMED: the subject's own faces (never its studio floor), a camera turned off its front by
@@ -50,5 +50,11 @@ describe('a stage\'s plates', () => {
     const missing = await bakeFrontStage({ composition: card.id, subjects: ['gone'] }, { getSketch: () => null });
     expect(missing.says[0]).toMatch(/no sketch 'gone'/);
     expect((await bakeFrontStage({ composition: 'nope' }, { getSketch: () => null })).says[0]).toMatch(/no front card/);
+  });
+  it('a 3d stage in a treatment the live stage cannot draw says its pictures stay still', async () => {
+    const other = ['duotone', 'halftone', 'ink', 'posterize'].find((t) => !LIVE_TREATMENTS.includes(t));
+    const r = await bakeFrontStage({ composition: card.id, mode: '3d', treatment: other }, { getSketch: () => null });
+    expect(r.says[0]).toMatch(new RegExp(`the ${other} pictures stay still`));
+    expect((await bakeFrontStage({ composition: card.id, mode: '3d' }, { getSketch: () => null })).says.join(' ')).not.toMatch(/stay still/);
   });
 });

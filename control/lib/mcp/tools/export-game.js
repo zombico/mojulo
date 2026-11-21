@@ -610,9 +610,25 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
     const T = norm.theme || {}, hex = (v, d) => (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v) ? v : d);
     const colours = { ink: hex(T.ink, '#e8edf4'), accent: hex(T.accent, '#5fb0ff'), bg: hex(T.bg, '#0e1116') };
     const { plates, says } = await bakeFrontStage(norm.front.stage, { getSketch, colours });
-    const srcOf = (p) => `assets/front/subject-${p.slot + 1}.png`;
-    for (const p of plates) if (p) await write(srcOf(p), p.png);
-    frontStage = { plates: plates.map((p) => (p ? { src: srcOf(p), width: p.width, height: p.height } : null)) };
+    const srcOf = (p) => `assets/front/subject-${p.slot + 1}.png`, glbOf = (p) => `assets/front/subject-${p.slot + 1}.glb`;
+    for (const p of plates) if (p) { await write(srcOf(p), p.png); if (p.live) await write(glbOf(p), p.live.glb); }
+    // a live stage (mode '3d') loads three.js and its glTF loader only after the pictures show: beside the page (the
+    // vendored files, offline), or from the pinned CDN when the export asks for cdn
+    const live = plates.some((p) => p && p.live);
+    let three = null;
+    if (live && cdn) {
+      const { CDN_THREE_VERSION } = await import('@/lib/graph/scene/emit-util');
+      const at = `https://cdn.jsdelivr.net/npm/three@${CDN_THREE_VERSION}`;
+      three = { module: `${at}/build/three.module.min.js`, loader: `${at}/examples/jsm/loaders/GLTFLoader.js` };
+    } else if (live) {
+      const { VENDOR_DIR: vendor } = await import('@/lib/graph/scene/emit-util');
+      for (const f of ['three.module.min.js', 'three.core.min.js', 'addons/loaders/GLTFLoader.js', 'addons/utils/BufferGeometryUtils.js', 'addons/utils/SkeletonUtils.js']) await write(`assets/front/three/${f}`, await fs.readFile(path.join(vendor, f)));
+      three = { module: 'assets/front/three/three.module.min.js', loader: 'assets/front/three/addons/loaders/GLTFLoader.js' };
+    }
+    frontStage = {
+      plates: plates.map((p) => (p ? { src: srcOf(p), width: p.width, height: p.height, frame: p.frame, ...(p.live ? { live: { glb: glbOf(p), clip: p.live.clip } } : {}) } : null)),
+      ...(three ? { three } : {}),
+    };
     stageSays = says;
   }
   await write('game.html', emitShellFor(resolved, { manifest: shellManifest, menu: shellMenu, frontArt, ...(frontStage ? { frontStage } : {}) }));
@@ -698,7 +714,7 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
     ...(heavy.length ? {
       note: `Files over 25MB (${heavy.join(', ')}) exceed some static hosts' per-file limits (e.g. Cloudflare Pages) — GitHub Pages allows up to 100MB/file. Level weight is geometry; a lighter world recipe shrinks it.`,
     } : {}),
-    ...(frontStage ? { front_stage: { pictured: frontStage.plates.filter(Boolean).length, of: frontStage.plates.length, ...(stageSays.length ? { says: stageSays } : {}) } } : {}),
+    ...(frontStage ? { front_stage: { pictured: frontStage.plates.filter(Boolean).length, of: frontStage.plates.length, ...(frontStage.three ? { live: frontStage.plates.filter((p) => p && p.live).length } : {}), ...(stageSays.length ? { says: stageSays } : {}) } } : {}),
     ...(browserDownload ? { browser_download: browserDownload } : {}),
     ...(pluginBuild && cdnInput ? { cdn_note: '`cdn: true` was ignored: the Claude plugin build of mojulo writes only self-contained pages.' } : {}),
     ...(await desktopResult()),

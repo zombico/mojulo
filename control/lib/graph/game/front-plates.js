@@ -13,8 +13,11 @@
  *   subjectShot(bounds, slot, { aspect })        → { pos, target, vfov }: the camera its slot asks (z-up, metres)
  *   plateSize(card, i, { height })               → { width, height }: the capture, at its wide box's shape
  *   plateCacheKey(sketch, card, i, { height })   → the hash a subject's cut-out is kept under
- *   bakePlate(sketch, card, i, { treatment, colours, height }) → Promise<{ png, width, height }>
- *   bakeFrontStage(stage, { getSketch, colours }) → Promise<{ plates: [{ slot, ref, png, width, height } | null], says }>
+ *   bakePlate(sketch, card, i, { treatment, colours, height }) → Promise<{ png, width, height, frame }>: frame the
+ *                                                  capture's camera, its size and the crop's window in it
+ *   bakeSubjectGlb(sketch)                       → Promise<{ glb, clip }>: the subject's skinned model, its first clip
+ *   LIVE_TREATMENTS · LIVE_GLB_MAX               which pictures a live stage takes over, and how heavy a model may be
+ *   bakeFrontStage(stage, { getSketch, colours }) → Promise<{ plates: [{ slot, ref, png, width, height, frame, live? } | null], says }>
  *
  * Pure but for bakePlate's browser and its cache (MOJULO_FRONT_PLATE_DIR, else data/front-plates under the cwd).
  */
@@ -23,7 +26,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 
 import { FRONT_CARDS, SUBJECT_VIEWS } from '../playscape/ui/front-cards/loader.js';
-import { matte, trimmed, treat } from './front-treatments.js';
+import { matte, trimmed, trimRect, treat } from './front-treatments.js';
 
 // bumped when a plate's making changes (the camera, the pose's moment, the matte): every cached plate is made again
 export const PLATE_VERSION = 'p1';
@@ -89,17 +92,21 @@ async function encode(img) {
   return sharp(Buffer.from(img.data.buffer, img.data.byteOffset, img.data.length), { raw: { width: img.width, height: img.height, channels: 4 } }).png().toBuffer();
 }
 
-/** Bake one subject's plate: its cut-out (from the cache, else captured), drawn in its treatment. */
+/**
+ * Bake one subject's plate: its cut-out (from the cache, else captured), drawn in its treatment, with the frame it was
+ * cut from (the capture's camera, its size and the crop's window in it: the live stage frames the same window).
+ */
 export async function bakePlate(sketch, card, i, { treatment = 'cutout', colours = {}, height = 1100 } = {}) {
-  const cut = await cutOut(sketch, card, i, { height });
+  const { img: cut, frame } = await cutOut(sketch, card, i, { height });
   const img = treat(cut, treatment, colours);
-  return { png: await encode(img), width: img.width, height: img.height };
+  return { png: await encode(img), width: img.width, height: img.height, frame };
 }
 
-// the subject cut out and trimmed: read from the cache, else captured over black and white
+// the subject cut out and trimmed, and its frame: read from the cache (the cut-out and a note of its frame beside it),
+// else captured over black and white
 async function cutOut(sketch, card, i, { height }) {
-  const file = path.join(cacheDir(), `${sketch.ref || 'subject'}-${plateCacheKey(sketch, card, i, { height })}.png`);
-  if (existsSync(file)) return decode(await fs.readFile(file));
+  const file = path.join(cacheDir(), `${sketch.ref || 'subject'}-${plateCacheKey(sketch, card, i, { height })}.png`), note = file.replace(/\.png$/, '.json');
+  if (existsSync(file) && existsSync(note)) return { img: await decode(await fs.readFile(file)), frame: JSON.parse(await fs.readFile(note, 'utf8')) };
   // loaded here, not at import: the World assemblers and the browser stay off the graph of anything that only reads
   const { resolveWorldScene } = await import('../worlds/world-scene.js');
   const { emitThreeWorld } = await import('../scene/scene-three.js');
@@ -116,33 +123,79 @@ async function cutOut(sketch, card, i, { height }) {
   const page = (bg) => emitThreeWorld({ ...payload, faces, bg, sky: null, haze: null, inline: true, capture: true, walk: false, decollide: payload.decollide !== false });
   const [onBlack] = (await renderWorldFrames(page('#000000'), [spec], size)).pngs;
   const [onWhite] = (await renderWorldFrames(page('#ffffff'), [spec], size)).pngs;
-  const cut = trimmed(matte(await decode(onBlack), await decode(onWhite)), { pad: Math.max(4, Math.round(height * 0.012)) });
-  try { await fs.mkdir(cacheDir(), { recursive: true }); await fs.writeFile(file, await encode(cut)); } catch { /* the next export captures it again */ }
-  return cut;
+  const whole = matte(await decode(onBlack), await decode(onWhite)), pad = Math.max(4, Math.round(height * 0.012));
+  const img = trimmed(whole, { pad }), crop = trimRect(whole, { pad }) ?? { x: 0, y: 0, w: 1, h: 1 };
+  const frame = { shot, capture: size, crop, poseMs: POSE_MS };
+  try {
+    await fs.mkdir(cacheDir(), { recursive: true });
+    await fs.writeFile(file, await encode(img));
+    await fs.writeFile(note, JSON.stringify(frame));
+  } catch { /* the next export captures it again */ }
+  return { img, frame };
+}
+
+// the live stage draws a subject as it is, a rim round it for a cut-out; a picture remade in other colours stays a picture
+export const LIVE_TREATMENTS = Object.freeze(['cutout', 'silhouette']);
+// past this a subject's model is too heavy for a start screen that opens at once: its picture stays
+export const LIVE_GLB_MAX = 12 * 1024 * 1024;
+
+/**
+ * A subject's model for the live stage: its own faces (the studio left out) as a skinned .glb playing its first clip
+ * (with its face's blink, when it has one), or a still mesh when it has no rig. Cached by its recipe. → { glb, clip }
+ */
+export async function bakeSubjectGlb(sketch) {
+  const key = crypto.createHash('sha1').update(JSON.stringify({ v: PLATE_VERSION, glb: 1, manifest: sketch?.manifest })).digest('hex').slice(0, 16);
+  const file = path.join(cacheDir(), `${sketch.ref || 'subject'}-${key}.glb`), note = file.replace(/\.glb$/, '.glb.json');
+  if (existsSync(file) && existsSync(note)) return { glb: await fs.readFile(file), ...JSON.parse(await fs.readFile(note, 'utf8')) };
+  const { resolveWorldScene } = await import('../worlds/world-scene.js');
+  const { facesToGlb } = await import('../scene/scene-gltf.js');
+  const { payload } = (await resolveWorldScene(sketch, { face: true })) || {};
+  if (!payload) throw new Error(`'${sketch.ref}' has no World to take a model from`);
+  const rig = Object.values(payload.figures || {}).find((f) => f && f.rig === true && f.clips && Object.keys(f.clips).length);
+  const clip = rig ? (rig.preview?.clips?.[0] ?? Object.keys(rig.clips)[0]) : null;
+  const faces = payload.faces.filter((f) => !f.studio);
+  const out = facesToGlb({ ...payload, faces }, { generator: `mojulo start screen ${sketch.ref}`, ...(clip ? { clips: [clip], skinned: true } : {}) });
+  const glb = Buffer.from(out.bytes);
+  try { await fs.mkdir(cacheDir(), { recursive: true }); await fs.writeFile(file, glb); await fs.writeFile(note, JSON.stringify({ clip })); } catch { /* baked again next time */ }
+  return { glb, clip };
 }
 
 /**
  * A stage's plates: each slot's subject (a sketch ref, resolved by the runner from the game's roles) baked in the
- * stage's treatment. A slot whose subject cannot be found or baked is null, and `says` tells why.
+ * stage's treatment. A slot whose subject cannot be found or baked is null, and `says` tells why. A stage in 3d also
+ * gives each plate its model (`live`: { glb, clip }) where its treatment draws live and the model is light enough.
  */
 export async function bakeFrontStage(stage, { getSketch, colours = {}, height = 1100 } = {}) {
   const card = FRONT_CARDS[stage?.composition], says = [];
   if (!card) return { plates: [], says: [`front.stage: no front card '${stage?.composition}'`] };
   const subjects = Array.isArray(stage.subjects) ? stage.subjects : [];
-  const treatment = stage.treatment || 'cutout', plates = [];
+  const treatment = stage.treatment || 'cutout', plates = [], live = stage.mode === '3d';
+  if (live && !LIVE_TREATMENTS.includes(treatment)) says.push(`front.stage: mode '3d' draws a subject as it is (a cut-out or a silhouette); the ${treatment} pictures stay still`);
   for (let i = 0; i < card.slots.length; i++) {
     const ref = subjects[i];
     if (!ref) { plates.push(null); says.push(`front.stage: ${card.id}'s slot ${i + 1} has no subject (the game made none of its roles: ${card.slots[i].roles.join(', ')})`); continue; }
     const sketch = getSketch(ref);
     if (!sketch?.manifest) { plates.push(null); says.push(`front.stage: no sketch '${ref}' for slot ${i + 1}`); continue; }
+    let p;
     try {
       // eslint-disable-next-line no-await-in-loop -- one browser at a time
-      const p = await bakePlate(sketch, card, i, { treatment, colours, height });
-      plates.push({ slot: i, ref, ...p });
+      p = { slot: i, ref, ...(await bakePlate(sketch, card, i, { treatment, colours, height })) };
     } catch (e) {
       plates.push(null);
       says.push(`front.stage: slot ${i + 1} ('${ref}') was not pictured: ${String(e?.message || e).split('\n')[0]}`);
+      continue;
     }
+    if (live && LIVE_TREATMENTS.includes(treatment)) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const m = await bakeSubjectGlb(sketch);
+        if (m.glb.length > LIVE_GLB_MAX) says.push(`front.stage: slot ${i + 1}'s model is ${(m.glb.length / 1048576).toFixed(1)} MB, past the ${LIVE_GLB_MAX / 1048576} MB a start screen loads: its picture stays still`);
+        else p.live = m;
+      } catch (e) {
+        says.push(`front.stage: slot ${i + 1} ('${ref}') has no live model: ${String(e?.message || e).split('\n')[0]}`);
+      }
+    }
+    plates.push(p);
   }
   return { plates, says };
 }
