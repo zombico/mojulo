@@ -288,4 +288,5 @@ What the theme will hold:
 - **A sealed doorway is a barrier.** The seals a fight raises on its room's ways (`game/wave-gauntlet.js`) were drawn as
   the bus's marker, a red sphere half sunk in the floor at the doorway. A seal now knows its doorway's facing (the way
   back into the room) and is drawn across it as a veil of its colour, glowing from the floor and fading up, breathing
-  (`scene/channels/events.js`); a marker without one is its sphere, as before.
+  (`scene/channels/events.js`; the event bus keeps an entity's `facing`, `worlds/event-bus.js`); a marker without one is
+  its sphere, as before.

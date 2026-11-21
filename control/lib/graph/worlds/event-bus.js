@@ -106,6 +106,7 @@ export function buildBus() {
     if (raw.pose !== undefined) e.pose = raw.pose;
     if (raw.color !== undefined) e.color = raw.color;      // marker tint (so conceptual entities read)
     if (Number.isFinite(raw.radius)) e.radius = raw.radius;
+    if (Array.isArray(raw.facing)) e.facing = raw.facing.slice();   // a seal's doorway, the way back in (drawn across it)
     state.entities.push(e);
     state.byId[e.id] = e;
     return e;
