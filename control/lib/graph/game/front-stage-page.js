@@ -217,7 +217,8 @@ export function playStageRuntime(cfg) {
     if (booted || !S.three) return;
     booted = true;
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    Promise.all([import('three'), import(S.three.loader)]).then(([THREE, G]) => {
+    // (webpackIgnore: these run in the exported page's browser, never in a bundle: `next build` must not resolve them)
+    Promise.all([import(/* webpackIgnore: true */ 'three'), import(/* webpackIgnore: true */ S.three.loader)]).then(([THREE, G]) => {
       const loader = new G.GLTFLoader();
       S.plates.forEach((p, i) => {
         if (!p || !p.live) return;
