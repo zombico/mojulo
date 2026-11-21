@@ -27,7 +27,7 @@ describe('the herobots', () => {
     expect(Z.palette.Armor).not.toBe(G.palette.Armor);
     expect(Z.palette.Hair).toBe(HEROBOTS['zero-boy'].palette.Hair);
   });
-  it('Astro Girl her brother\'s colours and saber on her own figure: the female cast, her own line over the kept body, twin tails, fins, a bodice and a skirt', () => {
+  it('Astro Girl her brother\'s colours and saber on her own figure: the female cast, her own line over the kept body, twin tails, fins, a bodice and bare hips', () => {
     const A = herobotSpec('astro-girl'), Z = herobotSpec('zero-boy'), H = HEROBOTS['astro-girl'];
     expect(A.palette).toEqual(Z.palette);
     expect(A.gear).toEqual(Z.gear);
@@ -40,7 +40,7 @@ describe('the herobots', () => {
     const sig = A.adorn.with[0].signature;
     expect(sig.ponytail.twin).toBeGreaterThan(0);
     expect(sig.horns).toBeDefined();
-    expect(A.adorn.language).toEqual({ brief: 'skirt', chest: 'bodice' });
+    expect(A.adorn.language).toEqual({ brief: 'none', chest: 'bodice' });
     expect(Z.adorn.with[0].signature.horns).toBeUndefined();
   });
   it('a cast\'s face on the hero\'s own body: its face words over the cast\'s, its body tune undone (its height kept)', () => {

@@ -9,15 +9,15 @@
  *                helm's back, his suit and face Galaxy Boy's; no cannon: a saber in his right hand (equipment/styles.js
  *                `saber`: a neon blade out of a machined hilt)
  *   astro-girl   Zero Boy's sister and Galaxy Boy's co-star: his indigo, lavender and gold and his saber, on her own figure
- *                (the female cast, slimmer and longer at the boys' height, the hips flared by a short skirt in place of the
- *                brief), the kid cast's face made a girl's (larger almond eyes set wider under a lash flicked at its
+ *                (the female cast, slimmer and longer at the boys' height, a bodice over her chest and nothing at the
+ *                hips), the kid cast's face made a girl's (larger almond eyes set wider under a lash flicked at its
  *                tail, thinner brows, a smaller nose and mouth, a softer jaw to a small chin), twin tails out of the
  *                helm and swept-back fins at its ears
  *
  *   HEROBOTS            { <id>: { name, palette, dials?, cast?, animeStyle?, face?, sculpt?, keepBody?, tune?, helm?, language?, cannon?, gear?, variant } }
  *                       `cast` the figure's (female: her body and her head's pole), `sculpt` its own sculpt words over the
  *                       cast's, `tune` its own body ratios over what keepBody keeps, `language` the toy suit's words
- *                       (armor/toy.js TOY_WORDS: a heroine's `brief: 'skirt'`)
+ *                       (armor/toy.js TOY_WORDS: a heroine's `chest: 'bodice'`)
  *                       `dials` the suit's (armor expand.js: ornament 0 to 3) over the herobot style's; `animeStyle` a
  *                       head cast (polygonizer/anime-styles.js), `face` its own face words over the cast's, `keepBody`
  *                       the cast's body tune undone (its face on the hero's own body, its height in a level kept)   `variant` the feel's (feel/cards.js
@@ -78,7 +78,8 @@ export const HEROBOTS = Object.freeze({
     // off the helm at her ears, in the rims' colour)
     helm: { ponytail: { u: 0.62, len: 0.9, r: 0.036, n: 11, spread: 0.16, back: 0.22, wild: 0.35, twin: 0.85, group: 'Hair', tie: { group: 'Cuff' } },
       horns: { u: 0.52, a: 1.58, len: 0.16, r: 0.02, out: 0.5, up: 0.7, back: 1.4, bend: 0.3, squash: [1, 0.3], group: 'Cuff' } },
-    language: { brief: 'skirt', chest: 'bodice' },
+    // (her suit's bodice over her chest; nothing at the hips, her line its own there: no brief, no skirt)
+    language: { brief: 'none', chest: 'bodice' },
     gear: { right: { item: 'sword', style: 'saber' } }, variant: 'saber',
   },
 });

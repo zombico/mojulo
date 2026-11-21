@@ -434,4 +434,6 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   in the player's seat on her own feel, and the rail writes a pick asked before every level (`setup.picks` `pilot`: "Who
   goes?") which the page reads as its pilot. The rail names her for Galaxy Boy's game (`platformerGame().costar`).
   Laws (herobots.test.js, armor/toy.test.js, side-map level.test.js).
+- **Astro Girl's hips bare**: the skirt read as a bell at the crotch; she wears no brief and no skirt (`brief: 'none'`), her
+  bodice kept. The toy suit's `skirt` word stays for a suit that wants it.
 

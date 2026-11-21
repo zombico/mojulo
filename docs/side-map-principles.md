@@ -263,7 +263,7 @@ Boy, Galaxy Boy in indigo with a yellow ponytail and a saber.
 Galaxy Boy has a co-star, Astro Girl, so the game is theirs together. She is Zero Boy's sister: his colours and his saber
 on her own figure (the female cast, slimmer and longer at the boys' height), a girl's face on the boys' kid cast (larger
 almond eyes under a flicked lash, thinner brows, a smaller nose and mouth, a softer chin), twin tails and swept-back fins
-off her helm, a bodice and a short skirt in the suit (the toy suit's `chest: 'bodice'` and `brief: 'skirt'`). A game
+off her helm, a bodice over her chest in the suit (the toy suit's `chest: 'bodice'`) and nothing at her hips. A game
 with a co-star (the book's `characters.costar`) stands both at the start of each side map, and before every level the
 player picks who goes (the rail's `setup` pick, `pilot`); the other leaves as the level starts. The title is both names. Zero Boy plays Galaxy Boy's feel with the saber in the
 buster's place (`gameworld/feel/saber.js`). In the air the press is a cut at what is ahead, the jump going on under it, never held up. His three cuts chain on the
