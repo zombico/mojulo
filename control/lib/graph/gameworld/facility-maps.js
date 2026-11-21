@@ -10,7 +10,9 @@
  *   buildingMaps(B)     → { plan, storeys: [svg…], layouts } for a building as a level names it (gameworld/levels.js
  *                         buildingStage: `use`, `facility`, `scale`, `layouts`…), `layouts` its laid rooms' laws
  *                         (compose-dress.js layoutReport) or null
- *   facilityBook(world) → { name, levels: [{ id, name, building, maps }], shelf: [{ id, …FACILITIES[id], maps }] }
+ *   facilityBook(world) → { name, levels: [{ id, name, building, maps }], shelf: [{ id, …FACILITIES[id], maps }], rigs }
+ *   rigMaps()           → the rigs' shelf (offshore/rigs.js): [{ id, name, reads, decks: [{ id, z, reads, svg }], laws }],
+ *                         each deck drawn by offshore/map.js with the rounds that watch it (docs/offshore-rigs.md)
  *   facilityBookHtml(world) → the page (`/api/sketches/<ref>/bible?book=facilities`)
  *   facilityMapsFor(world) → whether the book is this world's to read: a level that is a building, a walled-core
  *                         dungeon, or a rail whose level kinds are interiors (level-kinds.js): the readout's exit
@@ -23,6 +25,10 @@ import { planStage } from '../era/stage.js';
 import { withProgram } from '../era/programs.js';
 import { PIECES, footprintOf } from '../era/compose-dress.js';
 import { FACILITIES, FACILITY_IDS } from '../era/facilities.js';
+import { RIGS, RIG_IDS } from '../offshore/rigs.js';
+import { planRig } from '../offshore/plan.js';
+import { rigLaws } from '../offshore/laws.js';
+import { rigMapSvg } from '../offshore/map.js';
 import { levelKindsOf } from './level-kinds.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -104,7 +110,15 @@ export function facilityBook(world) {
     levels.push({ id, name: L.name ?? id, building: own, maps: buildingMaps(own) });
   }
   const shelf = FACILITY_IDS.map((id) => ({ id, ...FACILITIES[id], maps: buildingMaps({ facility: id }) }));
-  return { name: world.name ?? world.id ?? 'the game', levels, shelf };
+  return { name: world.name ?? world.id ?? 'the game', levels, shelf, rigs: rigMaps() };
+}
+
+/** The rigs on the shelf (offshore/rigs.js), each planned, its decks drawn with the rounds that watch them, its laws. */
+export function rigMaps() {
+  return RIG_IDS.map((id) => {
+    const P = planRig(RIGS[id]);
+    return { id, name: P.name, reads: P.reads, decks: P.decks.map((d) => ({ id: d.id, z: d.z, reads: d.reads, svg: rigMapSvg(P, { deck: d.id, patrols: P.watch.filter((w) => w.deck === d.id) }) })), laws: rigLaws(P) };
+  });
 }
 
 const CSS = `:root{--paper:#f6f4ee;--sheet:#fff;--ink:#1c1b19;--muted:#6b675f;--rule:#d9d4c7;--accent:#0f6b5c}
@@ -130,6 +144,7 @@ const mapsOf = (M) => M.storeys.map((s) => `${M.storeys.length > 1 ? `<p class="
 export function facilityBookHtml(world) {
   const B = facilityBook(world);
   const level = (L) => `<h3>${esc(L.name)}</h3><p class="lede"><code>${esc(JSON.stringify(L.building))}</code></p>${mapsOf(L.maps)}${lawsTable(L.maps.layouts)}`;
+  const rig = (R) => `<h3>${esc(R.name)}</h3><p class="lede">${esc(R.reads ?? '')}. In a recipe: <code>offshore/rigs.js</code> <code>${esc(R.id)}</code>; a new rig is a row of decks drawn as tiles.</p>${R.decks.map((d) => `<p class="lede">${esc(d.id)}, ${d.z} m over the sea${d.reads ? `: ${esc(d.reads)}` : ''}</p><div class="map">${d.svg}</div>`).join('')}<div class="wrap"><table><tr><th>law</th><th>holds</th><th>what it says</th></tr>${R.laws.map((l) => `<tr><td><code>${esc(l.law)}</code></td><td class="${l.holds ? 'ok' : 'no'}">${l.holds ? '✓' : '✗'}</td><td>${esc(l.says)}</td></tr>`).join('')}</table></div>`;
   const shelf = (F) => `<h3>${esc(F.id)}</h3><p class="lede">${esc(F.reads)}. A ${esc(F.use)} laid at scale ${F.scale}, built in ${esc(F.look.construction)} with the ${esc(F.look.palette)} palette. What a body does there: ${esc(F.moves)}.</p><p class="lede">In a recipe: <code>building: { facility: '${esc(F.id)}' }</code> on a level, or <code>wcd.spaces.&lt;id&gt;.facility: '${esc(F.id)}'</code> on a dungeon's layer.</p>${mapsOf(F.maps)}${lawsTable(F.maps.layouts)}`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(B.name)}: the facility maps</title><style>${CSS}</style></head><body><main>
 <h1>${esc(B.name)}: the facility maps</h1>
@@ -139,5 +154,8 @@ ${B.levels.length ? `<h2>This game's buildings</h2>${B.levels.map(level).join('\
 <h2>The shelf</h2>
 <p class="lede">Every facility a level or a dungeon's layer can name, each in its own materials. A new one is a row of <code>era/facilities.js</code>; a new figure for a room's floor, a row of <code>era/room-layouts.js</code>.</p>
 ${B.shelf.map(shelf).join('\n')}
+<h2>Rigs: decks in the open</h2>
+<p class="lede">The other pole of a stealth level: no walls, open decks stacked over the sea. Its ground is three tiles, the floor (plate, grating, the helideck), the rails at every open edge (gold a guard rail a gaze goes through, grey a bulwark a crouch hides behind, light a wind screen) and the pillars that carry the deck above (a leg's octagon, a column's square: the cover a body has in the open), with the modules a deck carries over them. Each deck is crossed from its stair's head to the next stair's foot under the rounds that watch it (red).</p>
+${B.rigs.map(rig).join('\n')}
 </main></body></html>`;
 }

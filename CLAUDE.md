@@ -379,6 +379,10 @@ Pointers only; each target carries its own design notes.
   the `cage` layout, `worlds/controllable/barrier.js`); their
   maps in the game book, `/bible?book=facilities` ([gameworld/facility-maps.js](control/lib/graph/gameworld/facility-maps.js)):
   [docs/facility-pieces.md](docs/facility-pieces.md).
+- Offshore rigs (a stealth level of open decks over the sea, the facility's other pole): [offshore/](control/lib/graph/offshore/)
+  (three tiles, floor, rail and pillar, a row each in `tiles.js`, and the modules on them; a deck a map of glyphs, its
+  rails and columns found, `plan.js`; its laws, `laws.js`; built over the sea, `build.js`; a new rig a row of `rigs.js`;
+  drawn in the facility maps book): [docs/offshore-rigs.md](docs/offshore-rigs.md).
 - Room craft: [era/room-craft.js](control/lib/graph/era/room-craft.js) (the craft laws of `era/laws.js` as the questions a room is
   asked, each with its reason and how different places answer it; a new interior answers the questions, never copies
   another kit's things; `readRoomCraft` says which a kit's card answers; the agent's card: `room-craft`).

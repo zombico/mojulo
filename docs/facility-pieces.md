@@ -135,7 +135,8 @@ The book of maps a stealth or action game's interiors are read in, `/api/sketche
 facilities, each storey from above as a level designer reads it: rooms, doorways (gold), ways out (green), stairs
 (dashed), and every piece coloured by what it hides (red stops a standing gaze, amber hides a crouch, blue hides a body
 lying down). Beside each map are its laid rooms' laws, and for each facility its materials, what a body does there and
-the recipe line that names it. The readout offers it (`design_game`'s exits, `facilities`) to a world with a building
+the recipe line that names it. After the shelf come the rigs, open decks over the sea
+([offshore-rigs.md](offshore-rigs.md)), each deck drawn with its rounds and the rig's laws. The readout offers it (`design_game`'s exits, `facilities`) to a world with a building
 level, a walled-core dungeon, or a rail whose level kinds are interiors. The world's own book draws a level that names a
 facility or layouts the same way. `facilityMapSvg` draws any laid plan; the spike below draws its plans with it.
 

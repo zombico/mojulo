@@ -31,6 +31,10 @@ describe('facility maps', () => {
     expect(html).toContain('The depot');
     expect(html).toContain("building: { facility: '");
     expect(html).toContain('the gaze broken');
+    // (and the rigs: open decks over the sea, each deck drawn with its rounds and the rig's laws beside it)
+    expect(B.rigs.length).toBeGreaterThan(0);
+    expect(html).toContain('Rigs: decks in the open');
+    expect(B.rigs[0].decks.every((d) => d.svg.startsWith('<svg'))).toBe(true);
   });
 
   it('the book is a world\'s to read when it has a building level, a dungeon or a rail of interiors; a meadow has none', () => {
