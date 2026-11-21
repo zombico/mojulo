@@ -350,3 +350,29 @@ describe('emitGameShell style tokens', () => {
     expect(evil).toContain('const THEME = null;');
   });
 });
+
+// THE ARENA SHELL'S START SCREEN STAGED (front-stage-page.js): a menu.stage an export baked plates for lays the start
+// screen out by its front card; without one, or without the baked plates, the page carries none of it
+describe('the arena start screen staged', () => {
+  const STAGED = normalizeGameManifest({ ...GAME, menu: { ...MENU_DECL, stage: { composition: 'face-off', subjects: ['sk_a', 'sk_b'] } } });
+  const BAKED = { plates: [{ src: 'assets/front/subject-1.png', width: 400, height: 900 }, null] };
+  it('a stage is checked like the front\'s, its subjects sketch refs', () => {
+    expect(validateGameManifest({ ...GAME, menu: { ...MENU_DECL, stage: { composition: 'face-off', subjects: ['sk_a'] } } }).errors).toEqual([]);
+    expect(validateGameManifest({ ...GAME, menu: { ...MENU_DECL, stage: { composition: 'face-off', subjects: ['hero'] } } }).errors.join(' ')).toMatch(/sketch refs on the arena shell/);
+    expect(validateGameManifest({ ...GAME, menu: { ...MENU_DECL, stage: { composition: 'nope' } } }).errors.join(' ')).toMatch(/menu\.stage\.composition is a front card/);
+  });
+  it('a baked stage draws behind the start screen alone, its words moved into the card\'s menu box', () => {
+    const html = emitGameShell(STAGED, LEVELS, MENU_RESOLVED, null, null, { frontStage: BAKED });
+    expect(html).toContain('const __mojStage = (');
+    expect(html).toContain("STAGE.show(s === 'start')");
+    expect(html).toContain("s.classList.add('st-start')");
+    expect(html).toContain('#main .screen.st-start{position:fixed;');
+    expect(html).toContain('"src":"assets/front/subject-1.png"');
+  });
+  it('no stage, or no baked plates: the page is as it was, byte for byte', () => {
+    const plain = emitGameShell(GAME_MENU, LEVELS, MENU_RESOLVED);
+    expect(emitGameShell(GAME_MENU, LEVELS, MENU_RESOLVED, null, null, { frontStage: BAKED })).toBe(plain);
+    const unbaked = emitGameShell(STAGED, LEVELS, MENU_RESOLVED);
+    for (const s of ['__mojStage', 'st-start', '#stage']) expect(unbaked).not.toContain(s);
+  });
+});

@@ -59,3 +59,13 @@ website, composed from the game's own characters, vehicles and props, never a le
   Before then it is theirs to ask for in the interface chapter. A start screen is reviewed there as its own part, the
   start screen: its layout, who stands on it, pictures or 3D and their look, and what it lacks. The interface card
   says what a start screen is, when it is offered, and its layouts and looks.
+- **Two fighters squared up, and the other shells' starts.** A new layout, the face-off: two figures across a hard
+  diagonal, each on its own colour and turned to the other, sliding in from their sides, the game's name huge across
+  the cut. It is the start screen offered to fighting games, brawlers and arena shooters with a hero and a foe to
+  show, and a layout can now say which way each figure turns. A versus game's title, drawn on its own canvas, is laid
+  out by the same layout: its first two fighters squared up on their colours, the name entering letter by letter,
+  press start as plain words, on a wide screen or an upright phone, and whole at once for a player who turns motion
+  down. An arena game's start screen takes a stage too (`menu.stage`, its subjects named by sketch), pictured at
+  export and drawn behind its start screen alone, its words moved where the layout puts them; one without a stage is
+  as it was, byte for byte. A contest's start stays its broadcast's opening; the tabletop, the pen-and-paper game and
+  the pixel games keep their own starts.

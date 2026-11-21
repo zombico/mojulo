@@ -53,6 +53,8 @@ import { FONTS, FONT_IDS, STYLE_TOKENS, hexToRgba } from './hud-widgets.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES } from '../controls/schemes.js';
 import { DEVICES } from '../controls/devices.js';
+import { FRONT_CARDS } from '../playscape/ui/front-cards/loader.js';
+import { stageConfig, stageCss, stageImportmap, playStageRuntime } from './front-stage-page.js';
 
 // the shell's own pause, from the shell scheme (controls/schemes.js): the standard-mapping buttons it polls
 const CTL = buildControlsKernel();
@@ -60,7 +62,7 @@ const PAUSE_BUTTONS = CTL.resolve(SCHEMES.shell, { gamepad: DEVICES.gamepad }).b
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-export function emitGameShell(manifest, levels = [], menu = null, music = null, setup = null) {
+export function emitGameShell(manifest, levels = [], menu = null, music = null, setup = null, { frontStage = null } = {}) {
   if (!manifest || manifest.kind !== 'game') throw new Error("emitGameShell needs a validated game manifest (kind: 'game')");
   if (manifest.menu && !menu) throw new Error('emitGameShell: the manifest declares a menu — pass the resolved menu entries (resolveGame returns them)');
   if (manifest.music && !music) throw new Error('emitGameShell: the manifest declares music — pass the resolved music srcs (resolveGame returns them)');
@@ -125,6 +127,12 @@ ${art ? `  body,body.hud{background:#04070d url("${art}") center/cover no-repeat
   .screen.art-start{justify-content:flex-end;min-height:92vh;padding-bottom:3vh}
   .screen.art-menu{justify-content:flex-end;min-height:88vh;padding-bottom:5vh}
   .screen .ghost{opacity:0;pointer-events:none;user-select:none}` : '';
+
+  // menu.stage (front-stage-page.js): the start screen laid out by its front card from the plates export_game baked, its
+  // column of words moved into the card's menu box; a menu without one, or a page no export baked one for, carries none
+  // of its sheet or code
+  const stageCard = manifest.menu && manifest.menu.stage && frontStage ? FRONT_CARDS[manifest.menu.stage.composition] || null : null;
+  const stage = stageCard ? stageConfig(stageCard, frontStage.plates || [], { title: manifest.title, treatment: manifest.menu.stage.treatment || 'cutout', three: frontStage.three || null }) : null;
 
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -322,7 +330,9 @@ ${art ? `  body,body.hud{background:#04070d url("${art}") center/cover no-repeat
   body.hud .load-panel::before{left:0;top:0;border-right:0;border-bottom:0}
   body.hud .load-panel::after{right:0;bottom:0;border-left:0;border-top:0}
   body.hud #loadPct{text-shadow:0 0 22px var(--accent)}${artCss}${fontCss}
-</style></head><body class="${hud ? 'hud' : ''}">
+${stage ? `
+  ${stageCss(stageCard, { arena: true, live: !!stage.three, treatment: stage.treatment })}
+` : ''}</style>${stage && stage.three ? `<script type="importmap">${stageImportmap(frontStage.three)}</script>` : ''}</head><body class="${hud ? 'hud' : ''}">
 <button id="gearBtn" title="settings" aria-label="settings">⚙</button>
 <button id="menuBtn" title="menu" aria-label="pause menu" style="display:none">☰</button>
 <div id="pause" hidden>
@@ -408,7 +418,10 @@ const LEVEL_BY_REF = {};   // ref → level entry, so a menu 'mode' resolves its
 for (const l of LEVELS) LEVEL_BY_REF[l.ref] = l;
 const MUSIC = ${JSON.stringify(music)};   // resolved score { menu: src|null, about: src|null, battle: [src,…], victory: src|null, defeat: src|null } or null
 const SETUP = ${JSON.stringify(setup)};   // resolved per-slice setup presentation (hangar/count) or null
-const THEME = ${JSON.stringify(themeForLevel)};   // the style tokens every level receives on game-init (presentation sidecar) or null
+${stage ? `// the start screen's stage (front-stage-page.js): behind the start screen alone
+const __mojStage = (${playStageRuntime.toString()});
+const STAGE = __mojStage({ stage: ${JSON.stringify(stage)} });
+` : ''}const THEME = ${JSON.stringify(themeForLevel)};   // the style tokens every level receives on game-init (presentation sidecar) or null
 // the DIFFICULTY pick (manifest.difficulty): engine ai-tuning tiers named in the game's own
 // voice — rendered on the map step of piloted setups; the picked id rides params.difficulty.
 const DIFFICULTY = MANIFEST.difficulty || null;
@@ -510,7 +523,8 @@ function setScreen(s) {
   if (s !== 'level') { clearTimeout(battleTimer); battleReady = false; }
   else stopStinger();
   screen = s; syncMusic(); syncMenuBtn();
-  // menu.setupArt: the post-menu screens swap to the working-bay backdrop (see artCss)
+${stage ? `  STAGE.show(s === 'start');
+` : ''}  // menu.setupArt: the post-menu screens swap to the working-bay backdrop (see artCss)
   const sa = MANIFEST.menu && MANIFEST.menu.setupArt;
   if (sa) document.body.classList.toggle('bay-art', s === 'setup' || s === 'levels' || s === 'world');
 }
@@ -888,7 +902,8 @@ function renderStart() {
   // screen. Artless games keep the pre-art text treatment untouched.
   const art = MANIFEST.menu && MANIFEST.menu.art;
   if (art) s.classList.add('art-start');
-  const h = document.createElement('h2');
+${stage ? `  s.classList.add('st-start');
+` : ''}  const h = document.createElement('h2');
   h.className = art ? 'gametitle ghost' : 'gametitle';
   h.textContent = MANIFEST.title;
   s.appendChild(h);

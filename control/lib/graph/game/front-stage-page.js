@@ -65,7 +65,7 @@ export function stageImportmap(three) {
 }
 
 /** The sheet: the layer, its parts placed by the card's frames, the menu moved into its box, the beats. */
-export function stageCss(card, { mana = false, live = false, treatment = 'cutout' } = {}) {
+export function stageCss(card, { mana = false, arena = false, live = false, treatment = 'cutout' } = {}) {
   const W = card.frames.wide, T = card.frames.tall;
   const beat = Object.fromEntries(card.motion.map((m) => [m.part, m]));
   const anim = (part) => { const m = beat[part]; return m ? `animation:st-${m.enter === 'letters' || m.enter === 'stagger' ? 'rise' : m.enter} .7s cubic-bezier(.2,.8,.2,1) ${m.at}ms both` : ''; };
@@ -75,7 +75,9 @@ export function stageCss(card, { mana = false, live = false, treatment = 'cutout
     `#stage .st-title{${box(F.title.box)};justify-content:${ALIGN[F.title.align][0]};text-align:${ALIGN[F.title.align][1]}}`,
     // (each subject slides in from its own side of the screen; a second one a beat after the first)
     ...F.subjects.map((b, i) => `#stage .st-subj[data-i="${i}"]{${box(b)}${F.subjects.length > 1 ? `;--st-dx:${b[0] + b[2] / 2 < 50 ? -1 : 1}${beat.subject && i ? `;animation-delay:${beat.subject.at + i * 160}ms` : ''}` : ''}}`),
-    mana
+    arena
+      ? `#main .screen.st-start{position:fixed;${box(F.menu.box)};min-height:0;height:auto;margin:0;padding:0;justify-content:flex-start;align-items:${ALIGN[F.menu.align][0]};text-align:${ALIGN[F.menu.align][1]}}`
+      : mana
       ? `body[data-screen=title] #mana .mana-screen>.mana-stack,body[data-screen=attract] #mana .mana-screen>.mana-stack{position:absolute;${box(F.menu.box)};height:auto;max-width:none;align-items:${ALIGN[F.menu.align][0]};text-align:${ALIGN[F.menu.align][1]}}`
       : `#front .fx-col{${box(F.menu.box).split(';').map((d) => `${d}!important`).join(';')};height:auto!important;max-width:none!important;right:auto!important;bottom:auto!important;transform:none!important;align-items:${ALIGN[F.menu.align][0]}!important;text-align:${ALIGN[F.menu.align][1]}!important}`,
   ];
@@ -100,10 +102,12 @@ export function stageCss(card, { mana = false, live = false, treatment = 'cutout
     ...parts(W),
     `@media ${TALL}{${parts(T).join('')}}`,
     // the name is the stage's, so the screen's own copy is hidden (still read aloud); the menu as plain words
-    mana
+    arena
+      ? `#main .screen.st-start .gametitle{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}#main .screen.st-start{gap:4px}#main .screen.st-start button{background:none;border:0;box-shadow:none;border-radius:0;padding:6px 0;font-size:clamp(17px,2.2vw,24px);letter-spacing:.06em;text-transform:uppercase;color:color-mix(in srgb,var(--ink) 72%,transparent)}#main .screen.st-start button:hover,#main .screen.st-start button:focus-visible{color:var(--accent);outline:0}#main .screen.st-start button.big{color:var(--ink);font-weight:800;letter-spacing:.12em}#main .screen.st-start .tagline{font-size:clamp(14px,1.6vw,18px);letter-spacing:.08em}${beat.menu ? `#main .screen.st-start{${anim('menu')}}` : ''}`
+      : mana
       ? 'body:is([data-screen=title],[data-screen=attract]) #mana .mana-screen [data-role=display]{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important}body:is([data-screen=title],[data-screen=attract]) #mana .mana-screen>.mana-image[data-ratio=backdrop]{display:none}body:is([data-screen=title],[data-screen=attract]) #mana .mana-screen::after,body:is([data-screen=title],[data-screen=attract]) #mana .mana-screen::before{background:none}body:is([data-screen=title],[data-screen=attract]) #mana .mana-screen>.mana-stack{background:none!important;padding:0!important;margin:0!important}body:is([data-screen=title],[data-screen=attract]) #mana .mana-screen>.mana-region:not(:has(.mana-text:not(:empty))){display:none}'
       : `#front{background:transparent}#front h1.fx-title{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}#front .fx-menu{gap:2px;min-width:0}#front .fx-menu button{background:none;border:0;box-shadow:none;backdrop-filter:none;border-radius:0;padding:6px 0;text-align:inherit;font-size:clamp(17px,2.2vw,24px);letter-spacing:.06em;text-transform:uppercase;color:color-mix(in srgb,var(--ink) 72%,transparent)}#front .fx-menu button:hover,#front .fx-menu button.on{color:var(--accent);box-shadow:none}#front .fx-menu button.on::before{content:"";display:inline-block;width:.9em;height:2px;margin:0 .45em .3em 0;vertical-align:middle;background:var(--accent)}#front .fx-tag{font-size:clamp(14px,1.6vw,18px);letter-spacing:.08em}`,
-    beat.menu ? (mana ? '' : `#front .fx-col{${anim('menu')}}${beat.menu.enter === 'stagger' ? [1, 2, 3, 4, 5, 6].map((n) => `#front .fx-menu button:nth-child(${n}){animation:st-rise .6s cubic-bezier(.2,.8,.2,1) ${beat.menu.at + n * 70}ms both}`).join('') : ''}`) : '',
+    beat.menu ? (mana || arena ? '' : `#front .fx-col{${anim('menu')}}${beat.menu.enter === 'stagger' ? [1, 2, 3, 4, 5, 6].map((n) => `#front .fx-menu button:nth-child(${n}){animation:st-rise .6s cubic-bezier(.2,.8,.2,1) ${beat.menu.at + n * 70}ms both}`).join('') : ''}`) : '',
     // the loading screen: the stage over the level's frame, the name gone to a corner, the place over a thin bar, the
     // whole faded away once the level is drawn
     '#stage.loading{z-index:6}',
@@ -123,7 +127,7 @@ export function stageCss(card, { mana = false, live = false, treatment = 'cutout
     '@keyframes st-slam{from{opacity:0;transform:scale(1.25)}}',
     '@keyframes st-wipe{from{clip-path:inset(0 100% 0 0)}}',
     // a player who turns motion down: everything fades, at once
-    '@media (prefers-reduced-motion:reduce){#stage *,#stage .st-title i,#front .fx-col,#front .fx-menu button{animation:st-fade .25s ease both!important;animation-delay:0s!important}#stage .st-bar i{animation:none!important;width:100%;opacity:.6}}',
+    '@media (prefers-reduced-motion:reduce){#stage *,#stage .st-title i,#front .fx-col,#front .fx-menu button,#main .screen.st-start{animation:st-fade .25s ease both!important;animation-delay:0s!important}#stage .st-bar i{animation:none!important;width:100%;opacity:.6}}',
   ].filter(Boolean).join('\n  ');
 }
 

@@ -626,7 +626,8 @@ function interfaceCard() {
     '(hero, ally, foe, ride, prop), never a level or a set. Offered last (next: front), once the first level plays;',
     'sooner only when asked. { composition: a front card, subjects?: roles or refs, mode?: still | 3d, treatment? }:',
     `  cards ${FRONT_CARD_IDS.join(', ')}; treatments ${STAGE_TREATMENTS.join(', ')}; 3d brings the cutout or`,
-    '  silhouette alive over its picture. Part interface:front; seen on the exported game (export_game).',
+    '  silhouette alive over its picture. Part interface:front; seen on the exported game (export_game). An arena',
+    '  shell game\'s is menu.stage, its subjects sketch refs; a versus game\'s title is the face-off, drawn.',
     'WORDS (closed):',
     ...Object.entries(THEME_WORDS).map(([k, ws]) => `  ${k}: ${ws.join('|')}`),
   );

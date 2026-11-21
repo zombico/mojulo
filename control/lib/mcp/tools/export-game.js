@@ -606,11 +606,13 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
   // that could not be pictured (no browser, no sketch) is said, and the stage draws its name and its ground without it
   let frontStage = null, stageSays = [];
   const WARM_MAX = 30 * 1024 * 1024;
-  if (norm.shell === 'play' && norm.front?.stage) {
+  // (the play shell's front.stage, or the arena shell's menu.stage: one stage, baked the same)
+  const stageOf = norm.shell === 'play' ? norm.front?.stage : norm.menu?.stage;
+  if (stageOf) {
     const { bakeFrontStage } = await import('@/lib/graph/game/front-plates');
     const T = norm.theme || {}, hex = (v, d) => (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v) ? v : d);
     const colours = { ink: hex(T.ink, '#e8edf4'), accent: hex(T.accent, '#5fb0ff'), bg: hex(T.bg, '#0e1116') };
-    const { plates, says } = await bakeFrontStage(norm.front.stage, { getSketch, colours });
+    const { plates, says } = await bakeFrontStage(stageOf, { getSketch, colours });
     const srcOf = (p) => `assets/front/subject-${p.slot + 1}.png`, glbOf = (p) => `assets/front/subject-${p.slot + 1}.glb`;
     for (const p of plates) if (p) { await write(srcOf(p), p.png); if (p.live) await write(glbOf(p), p.live.glb); }
     // a live stage (mode '3d') loads three.js and its glTF loader only after the pictures show: beside the page (the
