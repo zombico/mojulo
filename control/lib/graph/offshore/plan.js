@@ -22,10 +22,16 @@
  *   deckBoxes(plan, deckId)    → the boxes a body and a gaze meet on that deck, its z from the deck's floor (the
  *                                route search's and the laws' own; void cells walked by no one and seen across)
  *
+ *   lamps     a flood at each of the recipe's `floods` (a point on a deck, its height over it, the point it lights), a
+ *             fitting under every `fittings.every`-th tile of a deck that has a deck's floor under it; the rig's `hour`
+ *             (tiles.js HOURS) and its `weather` (weather/weather.js) are read here and lit by the builder; a weather
+ *             of rain leaves the plan `wet`
+ *
  * Grid: cell (i, j) spans x [i·C, (i+1)·C], y [j·C, (j+1)·C]; a map's first row is the deck's far (+y) edge. A node
  * (i, j) is the corner at (i·C, j·C). Pure: the recipe's `seed` picks the modules' colours and nothing else.
  */
-import { CELL, BODY, FLOORS, GLYPHS, RAILS, PILLARS, MODULES, MODULE_IDS, stopsOf } from './tiles.js';
+import { CELL, BODY, FLOORS, GLYPHS, RAILS, PILLARS, MODULES, MODULE_IDS, LAMPS, HOURS, stopsOf } from './tiles.js';
+import { readWeather, STATES } from '../weather/weather.js';
 
 const no = (msg) => { throw new Error(`offshore rig: ${msg}`); };
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -36,7 +42,8 @@ export const STAIR = Object.freeze({ rise: 0.19, cells: [3, 2], least: 5, most: 
 const SEA = Object.freeze({ z: 0, bed: -3 });
 const mulberry32 = (a) => () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 
-const KEYS = ['id', 'name', 'seed', 'sea', 'decks', 'legs', 'stairs', 'modules', 'start', 'goal', 'watch', 'reads'];
+const KEYS = ['id', 'name', 'seed', 'sea', 'decks', 'legs', 'stairs', 'modules', 'floods', 'fittings', 'hour', 'weather', 'start', 'goal', 'watch', 'reads'];
+const FLOOD_KEYS = ['deck', 'at', 'height', 'aim', 'cone', 'power', 'reach'];
 const DECK_KEYS = ['id', 'z', 'map', 'rail', 'inner', 'walls', 'columns', 'reads'];
 const STAIR_KEYS = ['from', 'to', 'at', 'dir', 'side'];
 const MODULE_KEYS = ['kind', 'deck', 'at', 'turn', 'fill', 'toward', 'id'];
@@ -92,7 +99,23 @@ export function readRig(R) {
   const sea = { ...SEA, ...(R.sea ?? {}) };
   const place = (p, what) => { if (!p) return null; if (!byId[p.deck] || !Array.isArray(p.at) || !isNum(p.at[0]) || !isNum(p.at[1])) no(`${what}: { deck, at: [x, y] metres }`); return { deck: p.deck, at: [p.at[0], p.at[1]], ...(p.says ? { says: p.says } : {}) }; };
   const watch = (R.watch ?? []).map((w, k) => { if (!byId[w.deck] || !Array.isArray(w.at)) no(`watch ${k}: { id, deck, at: [x, y], to?: [x, y], facing?: [x, y] }`); return { id: w.id ?? `watch-${k + 1}`, ...w }; });
-  return { id: R.id ?? 'rig', name: R.name ?? R.id ?? 'rig', seed: Number.isInteger(R.seed) ? R.seed : 1, sea, W, H, decks, legs, stairs, modules, start: place(R.start, 'start'), goal: place(R.goal, 'goal'), watch, ...(R.reads ? { reads: R.reads } : {}) };
+  // the lamps: floods by the recipe's rows (a point on a deck, its height over it, the point it is aimed at), fittings
+  // under the decks every `fittings.every` cells (none unless asked)
+  const floods = (R.floods ?? []).map((f, k) => {
+    for (const key of Object.keys(f)) if (!FLOOD_KEYS.includes(key)) no(`flood ${k}: '${key}' is not a flood's word (${FLOOD_KEYS.join(', ')})`);
+    if (!byId[f.deck] || !Array.isArray(f.at) || !isNum(f.at[0]) || !isNum(f.at[1])) no(`flood ${k}: { deck, at: [x, y] metres, height?, aim: [x, y] or [x, y, z] }`);
+    if (!Array.isArray(f.aim) || f.aim.length < 2 || !f.aim.every(isNum)) no(`flood ${k}: aim is the point it lights, [x, y] on its deck or [x, y, z]`);
+    const h = f.height ?? 6;
+    if (!isNum(h) || h < 1 || h > 20) no(`flood ${k}: height is metres over its deck, 1 to 20`);
+    for (const key of ['cone', 'power', 'reach']) if (f[key] !== undefined && (!isNum(f[key]) || f[key] <= 0)) no(`flood ${k}: ${key} is a positive number`);
+    return { deck: f.deck, at: [f.at[0], f.at[1]], height: h, aim: f.aim.length === 3 ? [...f.aim] : [f.aim[0], f.aim[1], byId[f.deck].z], ...Object.fromEntries(['cone', 'power', 'reach'].filter((key) => f[key] !== undefined).map((key) => [key, f[key]])) };
+  });
+  const fittings = R.fittings === undefined || R.fittings === false ? 0 : R.fittings === true ? 3 : R.fittings?.every;
+  if (!Number.isInteger(fittings) || fittings < 0 || fittings > 6) no('fittings is true, false or { every: 1 to 6 cells }');
+  const hour = R.hour ?? 'day';
+  if (!HOURS[hour]) no(`hour is one of ${Object.keys(HOURS).join(', ')}`);
+  const weather = R.weather === undefined ? null : readWeather(R.weather, 'rig.weather');
+  return { id: R.id ?? 'rig', name: R.name ?? R.id ?? 'rig', seed: Number.isInteger(R.seed) ? R.seed : 1, sea, W, H, decks, legs, stairs, modules, floods, fittings, hour, weather, start: place(R.start, 'start'), goal: place(R.goal, 'goal'), watch, ...(R.reads ? { reads: R.reads } : {}) };
 }
 
 // a rectangle from two corners, as a box's footprint
@@ -223,7 +246,16 @@ export function planRig(recipe) {
   for (const S of stairs) { ports.push({ deck: S.from, at: S.foot, of: `${S.id}:foot` }); ports.push({ deck: S.to, at: S.head, of: `${S.id}:head` }); }
   if (R.start) ports.push({ deck: R.start.deck, at: R.start.at, of: 'start' });
   if (R.goal) ports.push({ deck: R.goal.deck, at: R.goal.at, of: 'goal' });
-  return { id: R.id, name: R.name, seed: R.seed, cell: C, W, H, bounds: [0, 0, W * C, H * C], sea: R.sea, decks, rails, pillars, stairs, modules, braces, ports, start: R.start, goal: R.goal, watch: R.watch, ...(R.reads ? { reads: R.reads } : {}) };
+  // THE LAMPS: each flood at its height over its deck, aimed; a fitting under each deck's every-th tile over a floor below
+  const lamps = R.floods.map((f) => ({ kind: 'flood', at: [r3(f.at[0]), r3(f.at[1]), r3(byId[f.deck].z + f.height)], foot: byId[f.deck].z, aim: f.aim, ...LAMPS.flood, ...Object.fromEntries(['cone', 'power', 'reach'].filter((k) => f[k] !== undefined).map((k) => [k, f[k]])) }));
+  if (R.fittings) for (const d of decks) for (let j = 1; j < H; j += R.fittings) for (let i = 1; i < W; i += R.fittings) {
+    if (!at(d, i, j) || !decks.some((e) => e.z < d.z && at(e, i, j))) continue;
+    const x = (i + 0.5) * C, y = (j + 0.5) * C, z = r3(d.z - d.thick - 0.15);
+    lamps.push({ kind: 'fitting', at: [x, y, z], aim: [x, y, z - 5], ...LAMPS.fitting });
+  }
+  // (wet: a weather whose fall is rain: the tiles open to the sky are wet, the ones under a deck dry)
+  const wet = !!(R.weather && Object.keys(R.weather.climate).some((n) => STATES[n]?.fall?.glyph === 'streak' && STATES[n]?.family === 'wet'));
+  return { id: R.id, name: R.name, seed: R.seed, cell: C, W, H, bounds: [0, 0, W * C, H * C], sea: R.sea, decks, rails, pillars, stairs, modules, braces, ports, lamps, hour: R.hour, weather: R.weather, wet, start: R.start, goal: R.goal, watch: R.watch, ...(R.reads ? { reads: R.reads } : {}) };
 }
 
 /** a module's solid boxes (world metres): its footprint, a derrick's four legs, a crane's pedestal, none for a boom */

@@ -70,11 +70,13 @@ const ghost = { on: !o.has('--seen') };
 const start = [...P.start.at, zOf(P.start.deck) + 0.05], goal = [...P.goal.at, zOf(P.goal.deck)];
 const mission = { result: { at: goal, radius: 2, when: [] }, hints: [{ at: start, radius: 3, says: `${P.start.says ?? ''} I: walk unseen or be seen.` }] };
 const entities = [{ ...h0, rule: { ...h0.rule, step: 0.35, mission, ghost }, transform: { pos: start, heading: 0 } }, ...P.watch.map(guardOf)];
+// (the rig's hour, its air and its weather: the builder's page; the rain a weather the world reads, its decks its roofs)
 const manifest = { kind: 'controllable', faces: B.faces, colliders: B.colliders, entities, figures: room.manifest.figures, fxStyle: room.manifest.fxStyle, figureGrade: room.manifest.figureGrade,
-  bg: '#b9c4cb', sky: { zenith: [86, 112, 138], horizon: [196, 204, 210], day: 1, stars: 0, seed: 5 } };
+  bg: B.page.bg, sky: B.page.sky, ...(B.page.weather ? { weather: B.page.weather, seed: P.seed } : {}) };
 const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scene.js');
 const { payload } = await resolveWorldScene({ ref: `steel-serpents-rig-${id}`, title: `${P.name} · Steel Serpents`, manifest }, { era: 'gen-7', live: true });
 payload.barriers = B.barriers;
+for (const k of ['haze', 'roofs', 'wetRoad']) if (B.page[k]) payload[k] = B.page[k];
 const page = await writePage(payload, room, path.join(out, `${id}.html`), { capture: o.has('--capture'), cdn: o.has('--cdn') });
-console.log(`rig: ${page.file} (${page.mb} MB) · ${B.counts.faces} faces, ${B.counts.colliders} colliders, ${B.counts.barriers} barriers · guards ${P.watch.map((w) => w.id).join(', ')} · ${ghost.on ? 'unseen (I to be seen)' : 'seen (I to walk unseen)'}`);
+console.log(`rig: ${page.file} (${page.mb} MB) · ${P.hour}${P.weather ? `, ${Object.keys(P.weather.climate).join('/')}` : ''} · ${B.counts.lamps} lamps, ${B.counts.wet} wet tiles · ${B.counts.faces} faces, ${B.counts.colliders} colliders, ${B.counts.barriers} barriers · guards ${P.watch.map((w) => w.id).join(', ')} · ${ghost.on ? 'unseen (I to be seen)' : 'seen (I to walk unseen)'}`);
 process.exit(0);

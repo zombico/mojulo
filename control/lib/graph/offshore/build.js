@@ -1,24 +1,26 @@
 /**
  * THE RIG BUILT — a planned rig (plan.js) as the World page's static world: its faces (decks, rails, pillars, the
  * jacket's bracing, stairs, modules, the sea), its colliders (what stops a body and a gaze) and its barriers (what stops
- * a body only: the guard rails, worlds/controllable/barrier.js). Every face is shaded here, once, under the rig's sun
- * and sky: its fill times the sky's light and the sun's by how it turns to it, and a face under a deck above it in that
- * deck's shadow (the cellar deck lies in the main deck's; the jacket in the cellar's), since the page lights a baked
- * face no further.
+ * a body only: the guard rails, worlds/controllable/barrier.js). Every face is shaded here, once, at the rig's hour
+ * (tiles.js HOURS): its fill times the sky's light and the sun's (the moon's) by how it turns to it, a face under a deck
+ * above it in that deck's shadow (the cellar deck lies in the main deck's; the jacket in the cellar's), and the light of
+ * every lamp that reaches it (by the square of its distance, its cone and its reach, never through a deck's floor),
+ * since the page lights a baked face no further. The lamps are drawn burning (`glow`), a flood on its pole.
+ * A wet rig (a weather of rain, plan.js): the tiles open to the sky darker, and their tops a film the page throws the
+ * floods back off (channels/wet-road.js); the rain falls nowhere under a deck (the weather channel's `roofs`).
  *
- *   rigWorld(plan, { sun?, sky?, seaReach? }) → { faces, colliders, barriers, counts }
+ *   rigWorld(plan, { seaReach? }) → { faces, colliders, barriers, page: { sky, bg, haze?, weather?, roofs?, wetRoad? },
+ *                                     counts }
  *
  * Pure: the plan's seed has already picked every colour; the builder adds no dice of its own but the deck's tile tones,
  * seeded by the cell.
  */
-import { CELL, FLOORS, RAILS, PILLARS, MODULES } from './tiles.js';
+import { CELL, FLOORS, RAILS, PILLARS, MODULES, HOURS } from './tiles.js';
 import { DIRS, moduleBoxes, pillarBox, railBox } from './plan.js';
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;
 /** how far a stair tread's box stands under the tread drawn over it */
 const TREAD_DROP = 0.25;
-/** the rig's light: toward the sun (unit, world frame), the sky's and the sun's colour in linear light */
-export const RIG_LIGHT = Object.freeze({ sun: [-0.42, -0.55, 0.72], skyLight: [0.52, 0.56, 0.6], sunLight: [0.62, 0.58, 0.52], under: 0.55 });
 const lin = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4), enc = (v) => (v <= 0.0031308 ? v * 12.92 : 1.055 * v ** (1 / 2.4) - 0.055);
 const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
 const toHex = (c) => '#' + c.map((v) => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, '0')).join('');
@@ -273,8 +275,27 @@ function slabs(plan, d) {
   return out;
 }
 
-/** Build a planned rig: its faces shaded, its colliders, its barriers. */
-export function rigWorld(plan, { light = RIG_LIGHT, seaReach = 420 } = {}) {
+/** the lamps drawn: a flood's pole from its deck and its head, burning; a fitting's tube under its deck */
+function drawLamps(out, plan) {
+  for (const l of plan.lamps) {
+    const G = 'rig:lamp', glow = (px, spread) => `0 0 ${px}px ${spread}px ${l.glow}`;
+    if (l.kind === 'fitting') { out.push({ ...face([[l.at[0] - 0.6, l.at[1] - 0.09, l.at[2]], [l.at[0] - 0.6, l.at[1] + 0.09, l.at[2]], [l.at[0] + 0.6, l.at[1] + 0.09, l.at[2]], [l.at[0] + 0.6, l.at[1] - 0.09, l.at[2]]], [0, 0, -1], l.glow, G), glow: glow(14, 4) }); continue; }
+    beam(out, [l.at[0], l.at[1], l.foot], [l.at[0], l.at[1], l.at[2] - 0.2], 0.16, '#3b4046', 'rig:pillar');
+    // (the head: a housing tilted toward its aim, its lens a burning face looking at it)
+    const d = [l.aim[0] - l.at[0], l.aim[1] - l.at[1], l.aim[2] - l.at[2]], n = Math.hypot(...d), a = d.map((v) => v / n);
+    const lens = [l.at[0] + a[0] * 0.25, l.at[1] + a[1] * 0.25, l.at[2] + a[2] * 0.25], back = [l.at[0] - a[0] * 0.25, l.at[1] - a[1] * 0.25, l.at[2] - a[2] * 0.25];
+    beam(out, back, lens, 0.62, '#2e3236', 'rig:pillar');
+    const up = Math.abs(a[2]) > 0.9 ? [1, 0, 0] : [0, 0, 1], u = [a[1] * up[2] - a[2] * up[1], a[2] * up[0] - a[0] * up[2], a[0] * up[1] - a[1] * up[0]], ul = Math.hypot(...u), U = u.map((v) => (v / ul) * 0.28);
+    const V = [a[1] * U[2] - a[2] * U[1], a[2] * U[0] - a[0] * U[2], a[0] * U[1] - a[1] * U[0]], c = lens.map((v, k) => v + a[k] * 0.01);
+    const P = (s, t) => c.map((v, k) => v + U[k] * s + V[k] * t);
+    out.push({ ...face([P(-1, -1), P(1, -1), P(1, 1), P(-1, 1)], a, l.glow, G), glow: glow(30, 10) });
+  }
+}
+
+/** Build a planned rig: its faces shaded, its colliders, its barriers, and what its page is given (its sky, its air,
+ *  its rain and its wet decks' film). */
+export function rigWorld(plan, { seaReach = 420 } = {}) {
+  const light = HOURS[plan.hour ?? 'day'];
   const faces = [];
   drawDecks(faces, plan);
   for (const r of plan.rails) drawRail(faces, r);
@@ -287,25 +308,58 @@ export function rigWorld(plan, { light = RIG_LIGHT, seaReach = 420 } = {}) {
   }
   for (const S of plan.stairs) drawStair(faces, S);
   for (const m of plan.modules) drawModule(faces, m);
-  // THE SHADE: each face lit by the sky and, out of every deck's shadow, the sun
-  const L = light.sun, Lh = Math.hypot(...L), C = plan.cell;
+  drawLamps(faces, plan);
+  // THE SHADE: each face lit by the sky, the sun (or the moon) out of every deck's shadow, and every lamp that reaches it
+  const L = light.sun, Lh = Math.hypot(...L), C = plan.cell, W = plan.W;
+  const tile = (d, x, y) => { const i = Math.floor(x / C), j = Math.floor(y / C); return i >= 0 && j >= 0 && i < W && j < plan.H && !!d.floor[j * W + i]; };
+  const covered = (x, y, z) => plan.decks.some((d) => d.z > z + 0.5 && tile(d, x, y));
   const shadowed = (p, n) => {
     if (n[2] < -0.5) return true;
     // (the sun's ray from the face's middle: under a deck's floor where it crosses that deck's height)
     for (const d of plan.decks) {
       if (d.z <= p[2] + 0.2) continue;
-      const t = (d.z - d.thick - p[2]) / (L[2] / Lh), x = p[0] + (L[0] / Lh) * t, y = p[1] + (L[1] / Lh) * t, i = Math.floor(x / C), j = Math.floor(y / C);
-      if (i >= 0 && j >= 0 && i < plan.W && j < plan.H && d.floor[j * plan.W + i]) return true;
+      const t = (d.z - d.thick - p[2]) / (L[2] / Lh);
+      if (tile(d, p[0] + (L[0] / Lh) * t, p[1] + (L[1] / Lh) * t)) return true;
     }
     return false;
   };
+  // (a lamp's light on a point: by the square of its distance, the face's turn to it, its cone, its reach; none through a
+  // deck's floor between them)
+  const lamps = plan.lamps.map((l) => { const d = [l.aim[0] - l.at[0], l.aim[1] - l.at[1], l.aim[2] - l.at[2]], n = Math.hypot(...d); return { ...l, dir: d.map((v) => v / n), edge: Math.cos((l.cone * Math.PI) / 360), rgb: hex(l.colour).map(lin) }; });
+  const through = (p, q) => plan.decks.some((d) => { const zp = d.z - d.thick / 2; if ((p[2] - zp) * (q[2] - zp) >= 0) return false; const t = (zp - p[2]) / (q[2] - p[2]); return tile(d, p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t); });
+  const lampAt = (p, n) => {
+    const out = [0, 0, 0];
+    for (const l of lamps) {
+      const v = [l.at[0] - p[0], l.at[1] - p[1], l.at[2] - p[2]], dd = Math.hypot(...v);
+      if (dd > l.reach || dd < 1e-3) continue;
+      const u = v.map((x) => x / dd), turn = n[0] * u[0] + n[1] * u[1] + n[2] * u[2];
+      if (turn <= 0) continue;
+      const cosA = -(u[0] * l.dir[0] + u[1] * l.dir[1] + u[2] * l.dir[2]), spot = Math.min(1, Math.max(0, (cosA - l.edge) / 0.12));
+      if (spot <= 0 || through(p, l.at)) continue;
+      const fade = 1 - Math.max(0, (dd - l.reach * 0.7) / (l.reach * 0.3)), I = l.power * Math.min(3, 100 / (dd * dd)) * turn * spot * spot * fade;
+      for (let k = 0; k < 3; k++) out[k] += l.rgb[k] * I;
+    }
+    return out;
+  };
+  // (wet: a deck's tile open to the sky darker, and its top a film the page throws the lamps back off)
+  const quads = [];
   for (const f of faces) {
-    if (f.group === 'rig:flame') { f.cornerFills = f.corners.map(() => f.fill); continue; }
+    if (f.group === 'rig:flame' || f.group === 'rig:lamp') { f.cornerFills = f.corners.map(() => f.fill); continue; }
     const n = f.normal, m = [0, 1, 2].map((k) => f.corners.reduce((a, c) => a + c[k], 0) / f.corners.length);
-    const c = Math.max(0, (n[0] * L[0] + n[1] * L[1] + n[2] * L[2]) / Lh), sh = shadowed(m, n), sky = 0.75 + 0.25 * n[2];
-    const rgb = hex(f.fill).map((v, k) => enc(lin(v) * (light.skyLight[k] * sky * (sh ? light.under : 1) + (sh ? 0 : light.sunLight[k] * c)) * 1.25));
+    const wet = plan.wet && f.group === 'rig:deck' && n[2] > 0.9 && !covered(m[0], m[1], m[2]);
+    if (wet && plan.decks.some((d) => Math.abs(d.z - m[2]) < 1e-6)) quads.push(f.corners.map((c) => [...c]));
+    const c = Math.max(0, (n[0] * L[0] + n[1] * L[1] + n[2] * L[2]) / Lh), sh = shadowed(m, n), sky = 0.75 + 0.25 * n[2], lit = lampAt(m, n);
+    const rgb = hex(f.fill).map((v, k) => enc(Math.min(1, lin(v) * (wet ? 0.6 : 1) * (light.skyLight[k] * sky * (sh ? light.under : 1) + (sh ? 0 : light.sunLight[k] * c) + lit[k]) * light.gain)));
     f.fill = toHex(rgb); f.cornerFills = f.corners.map(() => f.fill);
   }
+  // THE PAGE'S SKY, AIR AND WEATHER: the hour's; the rain falling nowhere under a deck (its floor's boxes, as roofs);
+  // the wet decks' film with the floods in it
+  const page = { sky: { preset: plan.hour === 'night' ? 'night' : 'day', ...light.sky, seed: 5 }, bg: light.bg, ...(light.haze ? { haze: { ...light.haze } } : {}) };
+  if (plan.weather) {
+    page.weather = { ...plan.weather, surface: plan.weather.surface ?? 'tin' };
+    page.roofs = plan.decks.flatMap((d) => slabs(plan, d).map((b) => [b.min[0], b.min[1], b.max[0], b.max[1], b.min[2]]));
+  }
+  if (quads.length) page.wetRoad = { quads, lamps: plan.lamps.filter((l) => l.kind === 'flood').map((l) => ({ at: l.at, rgb: hex(l.colour).map((v) => Math.round(v * 255)), intensity: 1.5 })), zenith: light.sky.zenith, horizon: light.sky.horizon };
   // THE SEA: a sheet of ocean water over the bed, as far as the eye goes
   const [X0, Y0, X1, Y1] = plan.bounds, cx = (X0 + X1) / 2, cy = (Y0 + Y1) / 2, R = seaReach;
   const sq = (z) => [[cx - R, cy - R, z], [cx + R, cy - R, z], [cx + R, cy + R, z], [cx - R, cy + R, z]];
@@ -324,5 +378,5 @@ export function rigWorld(plan, { light = RIG_LIGHT, seaReach = 420 } = {}) {
     colliders.push({ min: [S.landing.min[0], S.landing.min[1], S.z0], max: [S.landing.max[0], S.landing.max[1], r4(S.zL - TREAD_DROP)], of: `rig:${S.id}` });
     for (const b of S.rails) barriers.push({ min: [b.min[0], b.min[1], b.z0], max: [b.max[0], b.max[1], r4(b.z1)], of: `rig:${S.id}:${b.of}`, kind: 'rail' });
   }
-  return { faces, colliders, barriers, counts: { faces: faces.length, colliders: colliders.length, barriers: barriers.length } };
+  return { faces, colliders, barriers, page, counts: { faces: faces.length, colliders: colliders.length, barriers: barriers.length, lamps: plan.lamps.length, wet: quads.length } };
 }

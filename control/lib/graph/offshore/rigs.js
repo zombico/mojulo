@@ -13,7 +13,7 @@ export const RIGS = Object.freeze({
   // crosses each deck to the stair on its far side.
   'drilling-platform': {
     id: 'drilling-platform', name: 'The drilling platform', seed: 3,
-    reads: 'four decks over the sea: a landing, a cellar deck of columns, a production deck of containers, the drill floor and the helideck',
+    reads: 'four decks over the sea at night in the rain: a landing, a cellar deck of columns, a production deck of containers, the drill floor and the helideck, lit by floods',
     decks: [
       { id: 'landing', z: 4, reads: 'the boat landing round the south-west leg',
         map: [
@@ -82,6 +82,19 @@ export const RIGS = Object.freeze({
       { kind: 'container', deck: 'top', at: [5.5, 5.5], turn: 90 },
       { kind: 'skid', deck: 'top', at: [9.6, 5.1] },
       { kind: 'drums', deck: 'top', at: [5.5, 7.5] },
+    ],
+    // the night: rain, a tube under every third tile of a deck over another, and the floods: the main deck's from three
+    // legs and the quarters' wall, the drill floor's from the derrick, the helideck's corner, the landing's
+    hour: 'night', weather: { climate: { rain: 3, downpour: 1 }, start: 'rain' }, fittings: { every: 3 },
+    floods: [
+      { deck: 'landing', at: [0.6, 8.4], height: 4, aim: [7, 3] },
+      { deck: 'main', at: [4.9, 4.9], height: 7, aim: [16, 8] },
+      { deck: 'main', at: [43.1, 4.9], height: 7, aim: [33, 8] },
+      { deck: 'main', at: [43.1, 31.1], height: 7, aim: [35, 22] },
+      { deck: 'main', at: [10.5, 25.2], height: 8.5, aim: [18, 17] },
+      { deck: 'top', at: [20.9, 14.9], height: 9, aim: [25, 19] },
+      { deck: 'top', at: [27.1, 21.1], height: 9, aim: [22, 15] },
+      { deck: 'top', at: [47.5, 26.5], height: 3, aim: [40, 16] },
     ],
     start: { deck: 'landing', at: [5.5, 7.6], says: 'aboard from the boat. Up through the decks to the drill floor, unseen.' },
     goal: { deck: 'top', at: [31.5, 19.6], says: 'the driller\'s cabin' },

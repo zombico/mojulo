@@ -112,6 +112,33 @@ describe('offshore rig: built', () => {
     for (const t of S.treads) { const b = boxes.find((c) => c.min[0] === t.min[0] && c.min[1] === t.min[1]); if (b) expect(b.max[2]).toBeLessThan(t.z - 2 * S.rise + 0.35); }
   });
 
+  it('a night rig in the rain: its lamps light what they reach and nothing through a deck, its open tiles wet, its rain under no deck', () => {
+    const NIGHT = { ...SMALL, hour: 'night', weather: 'rain', fittings: { every: 2 }, floods: [{ deck: 'high', at: [20, 6], height: 6, aim: [20, 6] }] };
+    const P = planRig(NIGHT), W = rigWorld(P), D = rigWorld(planRig({ ...NIGHT, floods: [] }));
+    expect(P.wet).toBe(true);
+    expect(P.lamps.filter((l) => l.kind === 'fitting').every((l) => l.at[2] < 12)).toBe(true);
+    // (the flood's pool on the high deck under it: brighter than the same tile unlit; the low deck under the plate is not)
+    const top = (B, z, x, y) => B.faces.find((f) => f.group === 'rig:deck' && f.normal[2] > 0.9 && f.corners[0][2] === z && f.corners[0][0] <= x && f.corners[2][0] >= x && f.corners[0][1] <= y && f.corners[2][1] >= y);
+    const v = (f) => parseInt(f.fill.slice(1, 3), 16);
+    expect(v(top(W, 12, 20, 6))).toBeGreaterThan(v(top(D, 12, 20, 6)) + 40);
+    expect(v(top(W, 4, 20, 6))).toBe(v(top(D, 4, 20, 6)));
+    expect(W.faces.filter((f) => f.glow).length).toBeGreaterThan(P.lamps.length - 1);
+    // (wet: the high deck's tiles are the film's; of the low deck's, only those open to the sky through the stair's well)
+    const well = new Set(P.stairs[0].cells.map((c) => `${c}`)), cellOf = (q) => `${Math.floor((q[0][0] + 0.1) / CELL)},${Math.floor((q[0][1] + 0.1) / CELL)}`;
+    expect(W.page.wetRoad.quads.filter((q) => q[0][2] === 12).length).toBe(P.W * P.H - 6);
+    expect(W.page.wetRoad.quads.filter((q) => q[0][2] === 4).every((q) => well.has(cellOf(q)))).toBe(true);
+    expect(W.page.wetRoad.lamps).toHaveLength(1);
+    expect(W.page.weather.climate).toEqual({ rain: 1 });
+    expect(W.page.roofs.length).toBeGreaterThan(0);
+    expect(W.page.sky.day).toBe(0);
+    // (a dry day rig carries none of it)
+    const day = rigWorld(planRig(SMALL));
+    expect(day.page.weather).toBeUndefined();
+    expect(day.page.wetRoad).toBeUndefined();
+    expect(() => readRig({ ...SMALL, hour: 'dusk' })).toThrow(/hour is one of/);
+    expect(() => readRig({ ...SMALL, floods: [{ deck: 'high', at: [1, 1] }] })).toThrow(/aim is/);
+  });
+
   it('the same rig builds the same bytes, and its map draws every deck\'s tiles and rounds', () => {
     const a = JSON.stringify(rigWorld(planRig(SMALL))), b = JSON.stringify(rigWorld(planRig(SMALL)));
     expect(a).toBe(b);

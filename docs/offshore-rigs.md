@@ -95,6 +95,34 @@ their rounds and the goal at the driller's cabin. It starts in invisible mode (I
 On the drilling platform, a way across unseen is found on every deck. Each straight way is seen: on the cellar after
 9 s, on the main deck at once, and on the drill floor after 7 s.
 
+## Night, floods and rain
+
+A rig names its `hour` (`tiles.js` `HOURS`: `day`, `night`), its `weather` (any weather word, `weather/weather.js`), its
+`floods` and its `fittings`:
+
+```js
+hour: 'night', weather: { climate: { rain: 3, downpour: 1 }, start: 'rain' }, fittings: { every: 3 },
+floods: [{ deck: 'main', at: [4.9, 4.9], height: 7, aim: [16, 8] }, { deck: 'top', at: [20.9, 14.9], height: 9, aim: [25, 19] }]
+```
+
+- **Floods** (`LAMPS.flood`) stand on a deck at a point, a height over it, aimed at a point (on the deck, or `[x, y, z]`).
+  Each has a cone, a power at ten metres and a reach (`cone`, `power`, `reach` override the row). It is drawn as a pole,
+  a housing and a burning lens.
+- **Fittings** (`LAMPS.fitting`) hang under every n-th tile of a deck that has a deck's floor under it. They are cool
+  tubes that light the deck below all round.
+- **The bake** lights every face once by the hour's sky and its sun or moon, then adds every lamp that reaches it. A
+  lamp's light falls by the square of the distance, the face's turn to it, its cone and its reach. None goes through a
+  deck's floor, so the cellar's light is its fittings' and what comes down the moonpool.
+- **Wet**: a weather whose fall is rain leaves the plan `wet`. Every tile open to the sky is darker, and its top joins
+  the page's wet film (`scene/channels/wet-road.js`), which throws the floods back off it as streaks and shows the sky by
+  Fresnel. A tile under a deck stays dry.
+- **The rain** falls round the camera (`scene/channels/weather.js`), on steel (`surface: 'tin'`). Each deck's floor is a
+  roof, so no drop falls and no ring lands under a deck.
+- **The night's air**: a dark sky and a thin blue haze.
+
+The dark between the pools is not yet cover. A guard's sight does not read light, so a body in the dark is seen as far
+as one in a pool.
+
 ## In the game book
 
 The facility maps book (`?book=facilities`, `gameworld/facility-maps.js`) draws the rigs after the facilities. It
@@ -107,6 +135,7 @@ The map is drawn as follows:
 - **Rails** are coloured by kind: gold for a guard rail, grey for a bulwark, light for a screen.
 - **Pillars and modules** are coloured by what they hide: red for a standing body, amber for a crouch.
 - **Stairs** are dashed, with their way up.
+- **Floods** are burning dots, each with a dashed line to what it lights.
 - **Ways on and off** are green, and the goal is gold.
 
 ## What is not yet
@@ -114,3 +143,4 @@ The map is drawn as follows:
 - A rig is not yet a level kind a `design_game` world names. The spike builds it, and the book shows the shelf.
 - Grating is a solid floor to the gaze and the route search. A body on the deck below is never seen through it.
 - Ladders, a deck's catwalks over the sea, and a body going over a rail into the water are not laid.
+- Light is not yet read by a guard's sight or by the route search: the pools and the dark are looks, not ground.

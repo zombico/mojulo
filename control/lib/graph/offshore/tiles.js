@@ -59,3 +59,20 @@ export const MODULES = Object.freeze({
   lifeboat: { size: [8, 3], h: 3, draw: 'lifeboat', fills: ['#e2671f'], solid: 'none', reads: 'a lifeboat on its davits, hung outside the rail' },
 });
 export const MODULE_IDS = Object.keys(MODULES);
+
+/** the lamps: a FLOOD on a pole or a bracket, aimed (its cone degrees across, its power its light at ten metres in the
+ *  bake's units, falling by the square of the distance, none past its reach); a FITTING under a deck, lighting the deck
+ *  below it all round, a cool tube's light */
+export const LAMPS = Object.freeze({
+  flood: { colour: '#ffe1ad', power: 1.15, cone: 72, reach: 36, glow: '#fff3d8', reads: 'a floodlight on a pole or a leg\'s bracket, aimed at a deck' },
+  fitting: { colour: '#cde4ff', power: 0.22, cone: 150, reach: 10, glow: '#e6f2ff', reads: 'a tube fitting under a deck, lighting the deck below it' },
+});
+
+/** the hours a rig is lit at: the sky's light and the sun's (or the moon's) in linear light, toward it, how much of the
+ *  sky reaches under a deck, and the sky painted over it and the air round it */
+export const HOURS = Object.freeze({
+  day: { sun: [-0.42, -0.55, 0.72], skyLight: [0.52, 0.56, 0.6], sunLight: [0.62, 0.58, 0.52], under: 0.55, gain: 1.25,
+    sky: { zenith: [86, 112, 138], horizon: [196, 204, 210], day: 1, stars: 0 }, bg: '#b9c4cb', haze: null },
+  night: { sun: [0.3, 0.45, 0.84], skyLight: [0.03, 0.036, 0.06], sunLight: [0.045, 0.055, 0.09], under: 0.45, gain: 1.25,
+    sky: { zenith: [5, 8, 18], horizon: [22, 28, 44], day: 0, stars: 0.5 }, bg: '#0d121d', haze: { color: '#121a28', density: 0.012 } },
+});

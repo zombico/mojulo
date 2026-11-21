@@ -32,3 +32,12 @@ modules on them, held to the laws a sneaking body needs, and built as a played p
   (`offshore/map.js`) with its rounds, and the rig's laws beside them.
 - The spike `scripts/spikes/mission/rig.mjs` proves the plan (`--plan`) and builds the page (`--out`), starting in
   invisible mode.
+- **Night, floods and rain.** A rig names its `hour` (day or night), its `weather`, its `floods` and its `fittings`:
+  - Floods stand on a deck at a height, aimed, drawn as a pole and a burning lens. Fittings hang under a deck over
+    another.
+  - Every face is baked under the hour's sky and moon plus each lamp that reaches it, never through a deck's floor.
+  - Rain wets the tiles open to the sky: darker, with the page's wet film throwing the floods back.
+  - The rain falls nowhere under a deck. Each deck's floor is a roof to the weather channel, which now keeps its
+    landing rings out from under a roof too, as it did its falling drops.
+  - The drilling platform is now a rainy night lit by eight floods. The dark between the pools is a look, not yet cover:
+    a guard's sight does not read light.

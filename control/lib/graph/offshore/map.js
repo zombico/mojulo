@@ -4,7 +4,7 @@
  * helideck green), the deck under it faint where none is, the rails by kind (gold a guard rail a gaze goes through,
  * grey a bulwark, light a wind screen), the pillars (a leg's octagon, a column's square), each module coloured by what it
  * hides (red stops a standing gaze, amber hides a crouch, blue a body lying down), the stairs dashed with their way up,
- * the ways on and off, and over it a way across unseen (white, dashed) and the rounds that watch it (red).
+ * the floods standing on it (a burning dot, a line to what each lights), the ways on and off, and over it a way across unseen (white, dashed) and the rounds that watch it (red).
  *
  *   rigMapSvg(plan, { deck, title?, path?, patrols?, px? }) → an SVG string
  */
@@ -54,6 +54,8 @@ export function rigMapSvg(plan, { deck, title = null, path = null, patrols = [],
     for (const B of boxes) s += `<rect x="${x(B.min[0])}" y="${y(B.max[1])}" width="${w(B.max[0] - B.min[0])}" height="${w(B.max[1] - B.min[1])}" fill="${hide}" stroke="#1c1f22" stroke-width="1"/>`;
     s += `<text x="${x(m.min[0]) + 2}" y="${y(m.max[1]) + 10}" fill="#1c1f22" font-size="9">${esc(m.kind)}</text>`;
   }
+  // (the floods standing on this deck: a burning dot, a line to the point each lights)
+  for (const l of plan.lamps ?? []) if (l.kind === 'flood' && Math.abs(l.foot - d.z) < 1e-6) s += `<line x1="${x(l.at[0])}" y1="${y(l.at[1])}" x2="${x(l.aim[0])}" y2="${y(l.aim[1])}" stroke="#ffe1ad" stroke-width="1" stroke-dasharray="2 3" opacity="0.8"/><circle cx="${x(l.at[0])}" cy="${y(l.at[1])}" r="4.5" fill="#ffe1ad" stroke="#10232c" stroke-width="1"/>`;
   for (const p of plan.ports) if (p.deck === d.id) s += `<circle cx="${x(p.at[0])}" cy="${y(p.at[1])}" r="5" fill="${p.of === 'goal' ? '#ffd24a' : '#6ae88a'}" stroke="#10232c" stroke-width="1.5"/>`;
   for (const P of patrols) {
     if (P.to) s += `<line x1="${x(P.at[0])}" y1="${y(P.at[1])}" x2="${x(P.to[0])}" y2="${y(P.to[1])}" stroke="#ff5a5a" stroke-width="2.5" opacity="0.85"/>`;
