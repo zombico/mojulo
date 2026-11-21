@@ -33,6 +33,14 @@ its colour script and light, and its orders (the first level, the climax), said 
 The labour's shape is the round's. A party RPG lays the mandala; a labour that asks for another shape (a chain, a hub,
 an open world) is laid as the mandala for now, and the brief says so (`asked`, `why`).
 
+**The quest in the journal.** A round laid as a mandala keeps a quest in the journal (J: `play.quests`, every level
+keeping it, its flags carried), named for what the round is about (its motivation: "Save the city, the kingdom, the
+world", "Save the princess") and walked as the round is: find the core's key where it is kept ("Find the crypt key in the
+castle."), go into the core, and, where the core keeps a boss, bring it down. Each step's flag is raised by what happens:
+the key's pickup on the stages of the level that keeps it, the core begun, the boss's fall (`battles.sets`). A world's
+quest step may be raised so by any event (`{ log, done, on: '<event>' | 'start', at?: '<level>' }`, `story.js`
+`questRaises`), as well as by a moment's or an answer's flag.
+
 **The citadel.** Where the labour's climax is a citadel (storm the citadel), the round's core is a **walled core**
 (`wcd/wcd.js`) over its level, layer on layer on its critical path: a guardhouse (an outer, crossed), its vault (the
 dungeon the words name, else a crypt), and its sanctum at the heart (the `citadel` program's rooms), each built as a

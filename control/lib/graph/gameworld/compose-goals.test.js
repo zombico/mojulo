@@ -8,6 +8,8 @@ import { withBuildingLevel } from '../structure/level.js';
 import { assembleStageScene } from '../era/stage.js';
 import { megaworldLinks, megaworldLaws } from './megaworld.js';
 import { WILDS } from './world-map.js';
+import { lowerPlay } from '../playscape/ui/direction.js';
+import { createBusState, processEvents, watchEvents } from '../worlds/event-bus.js';
 
 const levelSteps = (S) => S.filter((s) => s.key.startsWith('level-'));
 // a made level's game channel as it plays (a building's is lowered from its `level` on every read)
@@ -231,6 +233,28 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
     const C = composeGameworld({ prompt: 'a jrpg voyage across the sea to find my sister', seed: 3 });
     expect(C.brief.round.brief).toMatchObject({ labour: 'cross-the-great-sea', shape: 'mandala', asked: 'chain' });
     expect(C.megaworld.shape).toBe('mandala');
+  });
+
+  it('keeps a quest in its journal, named for what it is about, its steps raised as they happen: the key found, the core entered, the boss down', () => {
+    const core = W.megaworld.rings.at(-1)[0], keyAt = W.megaworld.gates[core].keyAt;
+    expect(W.quests).toEqual([{ id: 'save-the-world', name: 'Save the city, the kingdom, the world', steps: [
+      { log: 'Find the crypt key in the castle.', done: 'found-crypt-key', on: 'pickup:crypt-key', at: keyAt },
+      { log: 'Go into the citadel.', done: 'entered-core', on: 'start', at: core },
+      { log: 'Bring down what waits at the heart of the citadel.', done: 'core-stormed' },
+    ] }]);
+    expect(W.battles.sets).toBe('core-stormed');
+    expect(() => readGameworld(W)).not.toThrow();
+    // (on the bus: the key's pickup on the stage that keeps it, the core's start, the boss's win, each raising its step)
+    const lowered = (key) => lowerPlay(steps().find((s) => s.key === key).order.manifest, { player: 'hero' });
+    const run = (ev, events) => { const bus = createBusState(ev, []); for (const e of events) { processEvents(bus, [{ type: e }]); for (let k = 0; k < 6; k++) { const w = watchEvents(bus); if (!w.length) break; processEvents(bus, w); } } return bus.vars; };
+    const keyStage = steps().find((s) => s.key.startsWith(`level-${keyAt}-`) && (s.order.manifest.game?.mechanics ?? []).some((m) => m.kind === 'collect')).key;
+    expect(run(lowered(keyStage), ['pickup:crypt-key'])['flag-found-crypt-key']).toBe(1);
+    const C = lowered(`level-${core}-0`), boss = C.rpg && Object.keys(C.rpg.encounters).at(-1);
+    const V = run(C, [...(C.initial ?? []).map((e) => e.type), `rpg-won:${boss}`]);
+    expect(V['flag-entered-core']).toBe(1);
+    expect(V['flag-core-stormed']).toBe(1);
+    // (a round with no boss keeps the first two)
+    expect(composeGameworld({ prompt: 'a jrpg voyage across the sea to find my sister', seed: 3 }).quests[0].steps.map((s) => s.done)).toEqual(['found-castle-key', 'entered-core']);
   });
 
   it('storms its citadel: the core a walled core, a guardhouse, its vault and the sanctum, fought through to the boss at its heart', () => {

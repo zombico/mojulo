@@ -213,3 +213,9 @@
   path, the packs fought through them and the boss in the sanctum. A citadel the words name is always laid, with its boss
   (before, "save the princess from the citadel" laid no dungeon and no boss); the JRPG's own labour, unnamed, builds it
   where the words lay a dungeon. The WCD's gates are its design's words, not locks: the way in stays the mandala's key.
+- **The round's quest in the journal.** A party RPG laid as a mandala keeps a quest (the journal, J), named for its
+  brief's motivation and walked as the round is: find the core's key where it is kept, go into the core, bring down its
+  boss where it has one. Each step is raised by what happens: the key's pickup, the core begun, the boss's fall
+  (`battles.sets`). For this a world's quest step may now be raised by any bus event or by its level's start
+  (`{ log, done, on, at? }`, `gameworld/story.js` `questRaises`: a cue a stage lays for it), beside a moment's or an
+  answer's flag.

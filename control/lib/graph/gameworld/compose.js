@@ -42,7 +42,7 @@ import { suggestGenres, readGenre, cubeOfWorld, GENRES } from './intent.js';
 import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf, heroStreetWords } from './genre-forms.js';
 import { worldMapLevel, wildsLevel, WORLD_MAP } from './world-map.js';
 import { stampMegaworld } from './megaworld.js';
-import { gmnOfWords, resolveGmn, stampGameBrief } from './gmn.js';
+import { gmnOfWords, resolveGmn, stampGameBrief, MOTIVATIONS } from './gmn.js';
 import { settingOfGame } from './cast-setting.js';
 import { heroDesign } from './hero-design.js';
 import { genrePaletteWords } from './world-palette.js';
@@ -162,6 +162,19 @@ const ROUND_BOSS = Object.freeze({ pack: Object.freeze(['drake']), pages: (place
 ] });
 // a party RPG's brief where its words name none (gmn.js): save the world, by storming the citadel (a mandala, a walled
 // core at its middle)
+// THE ROUND'S QUEST (the journal's): its name the motivation's, its steps the key, the way in and the boss; each raised
+// by what happens (the key's pickup where it is kept, the core begun) or by the boss's fall (its flag, battles.sets)
+export function roundQuest({ motivation, gate, core, name, boss }) {
+  const key = gate.key.replace(/-/g, ' '), found = `found-${gate.key}`.slice(0, 48), entered = 'entered-core', stormed = 'core-stormed';
+  const title = MOTIVATIONS[motivation].name, cap1 = (s) => s[0].toUpperCase() + s.slice(1);
+  const steps = [
+    { log: `Find the ${key} in ${name(gate.keyAt)}.`, done: found, on: `pickup:${gate.key}`, at: gate.keyAt },
+    { log: `Go into ${name(core)}.`, done: entered, on: 'start', at: core },
+    ...(boss ? [{ log: `Bring down what waits at the heart of ${name(core)}.`, done: stormed }] : []),
+  ];
+  return { quest: { id: motivation, name: cap1(title), steps }, ...(boss ? { sets: stormed } : {}) };
+}
+
 // THE CITADEL a citadel labour's core is built as (wcd/wcd.js, era/programs.js uses): its guardhouse, its vault (the
 // dungeon the words name, else this), its sanctum
 const CITADEL = Object.freeze({ gate: 'guardhouse', vault: 'crypt', core: 'citadel' });
@@ -598,6 +611,16 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
       world.wcd = { core: 'sanctum', spaces: { gate: sp('outer', 0, CITADEL.gate), vault: sp('inner', 1, dungeonUse), sanctum: sp('inner', 2, CITADEL.core) },
         doors: [{ from: 'gate', to: 'vault', via: 'door', gate: { clearance: 1 } }, { from: 'vault', to: 'sanctum', via: 'stair', gate: { clearance: 2 } }] };
       world.brief.round = { ...world.brief.round, citadel: { at: core, path: ['gate', 'vault', 'sanctum'], uses: [CITADEL.gate, dungeonUse, CITADEL.core] } };
+    }
+    // THE ROUND'S QUEST (a gameworld's quests, playscape/ui/quests.js: the journal, J): named for what the round is about
+    // (its brief's motivation), its steps the round's own way to its end: find the core's key where it is kept, go in,
+    // and, where the core keeps a boss, bring it down. Each step's flag raised by what happens (story.js quest steps' `on`:
+    // the key picked up where it is kept, the core begun) or by the boss's fall (battles.sets)
+    if (roundResolved?.motivation) {
+      const Q = roundQuest({ motivation: roundResolved.motivation, gate, core, name: (id) => low(world.levels[id]?.name ?? id), boss: !!world.battles?.boss });
+      world.quests = [...(world.quests ?? []), Q.quest];
+      if (Q.sets) world.battles = { ...world.battles, sets: Q.sets };
+      world.brief.round = { ...world.brief.round, quest: { id: Q.quest.id, steps: Q.quest.steps.map((s) => s.done) } };
     }
   }
   // (the round's brief stamped: its reading and its orders, gmn.js; the words that named it read)

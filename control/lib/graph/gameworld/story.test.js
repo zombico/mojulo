@@ -5,7 +5,7 @@ import { readGameworld } from './world.js';
 import { runSteps } from './runner.js';
 import { heroOrders, castOrders } from './hero-looks.js';
 import { gameStages, stageLevelOrder, stageEnds, stageSpots, stageLane, gameStore } from './levels.js';
-import { bindStory } from './story.js';
+import { bindStory, readGameQuests, questRaises, levelQuests } from './story.js';
 import { reviewParts } from './review.js';
 import { gameworldBibleHtml } from './bible-html.js';
 import { storyReport } from './runner.js';
@@ -253,6 +253,20 @@ describe('choices and quests, cascaded', () => {
     const lv = (steps) => steps.filter((s) => s.key.startsWith('level-'));
     for (const [i, s] of lv(S).entries()) expect(s.print).not.toBe(lv(S0)[i].print);
   }, 240_000);
+});
+
+describe('a quest step raised by what happens (on, at)', () => {
+  it('its flag set as its event fires on its level\'s stages, or as the level starts; read and taught; never unset', () => {
+    const Q = [{ id: 'the-key', steps: [{ log: 'Find the key.', done: 'found-key', on: 'pickup:key', at: 'gate' }, { log: 'Go in.', done: 'in', on: 'start' }] }];
+    const R = readGameQuests(Q);
+    expect(R[0].steps[0]).toMatchObject({ done: 'found-key', on: 'pickup:key', at: 'gate' });
+    expect(questRaises(R, 'gate')).toEqual([{ id: 'quest-the-key-1', when: { on: 'pickup:key' }, then: { emit: 'flag:found-key' } }, { id: 'quest-the-key-2', when: { start: true }, then: { emit: 'flag:in' } }]);
+    expect(questRaises(R, 'elsewhere').map((c) => c.id)).toEqual(['quest-the-key-2']);
+    // (the page's quests never see them: levelQuests leaves on and at off)
+    expect(levelQuests(R)[0].steps[0]).toEqual({ log: 'Find the key.', done: 'found-key' });
+    expect(() => readGameQuests([{ id: 'x', steps: [{ done: 'a', at: 'gate' }] }])).toThrow(/at is the level whose stages raise it/);
+    expect(() => readGameQuests([{ id: 'x', steps: [{ done: 'a', on: '' }] }])).toThrow(/on is what raises its flag/);
+  });
 });
 
 describe('companions: a cast member who joins', () => {

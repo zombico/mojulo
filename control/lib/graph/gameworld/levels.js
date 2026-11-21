@@ -76,7 +76,7 @@ import { obstacleStage, obstacleEnds } from './roll-course.js';
 import { courseCamera, COURSE_NEAR, COURSE_TALL_FOV } from './course-view.js';
 import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups, loopOn, loopBlocks, arenaOn, arenaLayout } from './lay-concerns.js';
 import { sceneFlags, sceneNeeds, FLAGS_READY, flagVar } from '../playscape/ui/scenes.js';
-import { storyScene, levelQuests, storyActors } from './story.js';
+import { storyScene, levelQuests, questRaises, storyActors } from './story.js';
 import { withBuildingLevel, PROBE } from '../structure/level.js';
 import { complexRoute, complexLaws } from '../network/complex.js';
 import { withProgram, PROGRAMS } from '../era/programs.js';
@@ -1384,7 +1384,8 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
   if (members.length) play = { ...(play ?? {}), party: members, ...(stands.length ? { spots: [...(play?.spots ?? []), ...stands] } : {}), ...(members.some((m) => m.joins) ? { carry: STORY_SLICE } : {}) };
   // THE QUESTS (story.js, playscape/ui/quests.js): every stage keeps the journal, its flags carried in the story slice
   // (beside a stage's own: a town's sidequests, folk-cast.js)
-  if (G.quests?.length) play = { ...(play ?? {}), quests: [...(play?.quests ?? []), ...levelQuests(G.quests)], carry: STORY_SLICE };
+  // (and a step raised by what happens on this stage's level: its cue, story.js questRaises)
+  if (G.quests?.length) { const raise = questRaises(G.quests, stage.level); play = { ...(play ?? {}), quests: [...(play?.quests ?? []), ...levelQuests(G.quests)], carry: STORY_SLICE, ...(raise.length ? { cues: [...(play?.cues ?? []), ...raise] } : {}) }; }
   if (scenes.length) {
     const spots = stageSpots(ends, lane);
     // where a scene's has and done read: the game's inventories and its campaign (only when its scenes ask)
