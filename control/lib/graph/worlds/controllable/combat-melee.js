@@ -160,6 +160,8 @@ export function buildCombatMelee(E) {
       // consumes THIS swing outright (no further targets this swing).
       // (`rule.clash: false` on either body: its blades never lock: the swing lands as a hit, a game whose foes are cut
       // down, never crossed with)
+      // (a hero whose blows CLANG, `rule.clang`: blades that meet only ring, either's swing going on; never a lock)
+      if (tg.swingT != null && tg.strikeParams && tg.staggerT == null && ((e.rule && e.rule.clang) || (tg.rule && tg.rule.clang))) { out.push({ tg, kind: 'clang', v, flat }); continue; }
       if (tg.swingT != null && tg.strikeParams && tg.staggerT == null && !(e.rule && e.rule.clash === false) && !(tg.rule && tg.rule.clash === false)) { out.push({ tg, kind: 'clash', v, flat }); break; }
       out.push({ tg, kind: 'hit', v, flat });
     }
@@ -172,6 +174,14 @@ export function buildCombatMelee(E) {
       if (kind === 'ally') {
         e.struckThisSwing[tg.id] = true;
         if (Number.isFinite(tg.poise) && tg.staggerT == null) armReaction(tg, 'stagger');
+        continue;
+      }
+      if (kind === 'clang') {
+        // (met blades ring: a spark at the cross, the struck one's guard sound, no damage, nothing stopped)
+        e.struckThisSwing[tg.id] = true;
+        const ux = -v[0] / flat, uy = -v[1] / flat, lr = latR(tg);
+        tg.guardSeq = (tg.guardSeq || 0) + 1; tg.lastGuard = { seq: tg.guardSeq, kind: 'block', by: e.id, t: state.time, at: 0 };
+        state.clashes.push({ seq: state.clashSeq++, pos: [tg.transform.pos[0] + ux * lr, tg.transform.pos[1] + uy * lr, hullZ(tg)], dir: [ux, uy], t: state.time, fxColor: 0xcfe8ff, fxScale: 2.5, n: 16 });
         continue;
       }
       if (kind === 'clash') {
@@ -516,7 +526,8 @@ export function buildCombatMelee(E) {
     const f = fwdXY(tg.transform.heading), ux = -v[0] / flat, uy = -v[1] / flat;
     if (f[0] * ux + f[1] * uy <= 0) return null;   // (from behind: it lands)
     const lr = latR(tg), at = [tg.transform.pos[0] + ux * lr, tg.transform.pos[1] + uy * lr, hullZ(tg)];
-    const parry = G.parry == null || state.time - (tg.guardAt ?? -1e9) <= G.parry + 1e-9;
+    // (a hero whose blows clang, `rule.clang`, is never parried: the guard only blocks, its string going on)
+    const parry = !(A.rule && A.rule.clang) && (G.parry == null || state.time - (tg.guardAt ?? -1e9) <= G.parry + 1e-9);
     tg.guardSeq = (tg.guardSeq || 0) + 1;
     if (parry) {
       // PARRIED: the attacker's swing spent, it staggered open for the riposte; the guard free at once

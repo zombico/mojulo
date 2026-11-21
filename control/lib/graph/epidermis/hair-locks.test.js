@@ -105,6 +105,10 @@ describe('the lock hair', () => {
     expect(tied.counts.tails).toBe(1); expect(tied.counts.overlap.open).toBeLessThan(0.03);
     expect(rope.counts.tails).toBe(S.ties.length); expect(rope.counts.locks).toBe(0);
     for (const H of [tied, rope]) { expect(clearOf(H)).toBe(true); expect(H.mesh.closure).toBe('closed'); }
+    // (and a ponytail that lets a loose strand down at each temple, `face-strands`: its two strands tails of their own,
+    // claimed before the tie gathers the rest, each clear of the head)
+    const F = readScalp({ style: 'ponytail', moves: ['face-strands'] }), framed = lockHair(chart, D, F, { centre, stylize: 1 });
+    expect(F.ties.length).toBe(3); expect(framed.counts.tails).toBe(3); expect(clearOf(framed)).toBe(true);
   }, 180_000);
   it('one colour: a streak only where the groom asks for one', () => {
     const H = lockHair(chart, D, groom('short', { streaks: [{ kind: 'tips', colour: 'blue', from: 0.5 }] }), { centre, stylize: 1 });

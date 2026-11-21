@@ -318,7 +318,7 @@ const FA_SPECIALS = {
   ],
 };
 // (its sidearm the stylish game's pistols: two guns, held they fire at their rate and never run dry, weak; every weapon's)
-export const FALLEN_ANGEL_ARSENAL = Object.freeze({ ...BASIC_ARSENAL, art: 'freestyle', mp: { max: 100, onHit: 4 }, switch: 'cancel',
+export const FALLEN_ANGEL_ARSENAL = Object.freeze({ ...BASIC_ARSENAL, art: 'freestyle', mp: { max: 100, onHit: 4 }, switch: 'cancel', clang: true,
   // (its sword parries, the shield's pose with no shield: a stylish hero carries none)
   weapons: BASIC_ARSENAL.weapons.map((W) => (W.id === 'sword' ? { ...W, guard: 'parry', moves: { ...W.moves, ...FA_SPECIALS.moves }, combos: [...W.combos, ...FA_SPECIALS.combos] } : W)),
   ranged: [{ id: 'pistols', name: 'Pistols', mode: 'auto', rof: 9, damage: 0.4, impact: 3, range: 30, infinite: true, hand: 'right', dual: true }] });
@@ -397,7 +397,10 @@ export function lowerJuggle(J0) {
 export const SWITCHES = Object.freeze(['between', 'cancel']);
 export function readArsenal(A) {
   if (!isObj(A)) no('an arsenal is { timing?, weapons: [{ id, name?, figure?, sidearm?, reach?, damage?, moves, combos }], ranged?: [one sidearm] }');
-  for (const k of Object.keys(A)) if (!['timing', 'weapons', 'ranged', 'juggle', 'art', 'mp', 'switch'].includes(k)) no(`'${k}' is not part of an arsenal (timing, weapons, ranged, juggle, art, mp, switch)`);
+  for (const k of Object.keys(A)) if (!['timing', 'weapons', 'ranged', 'juggle', 'art', 'mp', 'switch', 'clang'].includes(k)) no(`'${k}' is not part of an arsenal (timing, weapons, ranged, juggle, art, mp, switch, clang)`);
+  // (`clang: true`: a blow that meets a foe's blade or its guard only rings, the hero's string never broken: no lock, no
+  // parry; worlds/controllable/combat-melee.js `rule.clang`)
+  if (A.clang !== undefined && typeof A.clang !== 'boolean') no('clang is true (a met blade or a guard only rings: the string goes on) or false');
   // (how the weapon is switched: `between` moves only, as it always was, or `cancel`: taken mid-string at the move's
   // switch point, the next weapon's string chained on, combat-melee.js)
   if (A.switch !== undefined && !SWITCHES.includes(A.switch)) no(`switch is how the weapon is changed: ${SWITCHES.join(' | ')}`);

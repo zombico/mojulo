@@ -290,3 +290,12 @@ What the theme will hold:
   back into the room) and is drawn across it as a veil of its colour, glowing from the floor and fading up, breathing
   (`scene/channels/events.js`; the event bus keeps an entity's `facing`, `worlds/event-bus.js`); a marker without one is
   its sphere, as before.
+- **A blow that meets a blade or a guard only clangs** (an arsenal's `clang: true`, the stylish template's: `combos.js`,
+  laid as the hero's `rule.clang`, `arsenal.js`). Met blades no longer lock the pair face to face: they ring (a spark at
+  the cross, the struck one's block sound), either's swing going on; a guard up before the hero only blocks, never
+  parries, so the string is never broken (`worlds/controllable/combat-melee.js`). Without it, the clash as before.
+- **A stylish hero runs in combat with nothing held** (`combat.run`, laid on a stylish game's action hero,
+  `gameworld/levels.js`): in combat a hero walked at the combat pace unless the trigger was held; the trigger is now its
+  sprint, never its run (`worlds/controllable/rules-platform.js`).
+- **Face strands** (`face-strands`, a realistic groom's move: `epidermis/dermal-hair.js`): a loose strand let down at
+  each temple, falling before the ear to the cheek, claimed before a ponytail's tie gathers the rest; Lucien's bangs.

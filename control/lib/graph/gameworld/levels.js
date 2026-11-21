@@ -132,7 +132,7 @@ import { readCourse, courseAt, coursePlan, courseLaws, lowerCourse, slabOf } fro
 import { courseCube, courseColours, skinCourse } from './course-skin.js';
 import { juiceOfGame } from './juice.js';
 import { tempoOfGame } from './tempo.js';
-import { styleMeterOfGame, levelRankOf, vitalsOf } from './style-meter.js';
+import { styleMeterOfGame, levelRankOf, vitalsOf, STYLISH } from './style-meter.js';
 import { gradeOfGame } from './grade.js';
 import { readBuildingParked, parkIn, paintOfDress } from '../vehicle-registry/parked.js';
 import { roleOf } from '../era/stocking.js';
@@ -892,7 +892,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const cam0 = cam && cam !== 'third-person' ? camera : A.camera ?? camera, camOf = ends.vista && cam0?.rule === 'follow' ? { ...cam0, vista: { at: ends.vista } } : cam0;
     // (AN ACTION HERO, the orbit and a blow: combat's guard and the run's stride, and its weapon sheathed out of combat
     // where the run made the sheathed hero, opts.sheathRef)
-    const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef, heldRefs) : null;
+    const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef, heldRefs, { run: runsInCombat(G) }) : null;
     pilotPart = { figures: fighter ? fighter.figures : P.figures, entities: [fighter ? fighter.entity : A.entity], camera: camOf, events, ...(actionOrbit ? { lock: true } : {}) };
     seatable = !look;
   } else {
@@ -1476,7 +1476,9 @@ export function heldSpecs(G, spec) {
 // null for a world with none, whose hero has the one blow)
 const kitLegend = (G) => { const A = arsenalOfGame(G)?.arsenal; return A ? movesetLegend({ sidearm: A.ranged?.[0]?.name?.toLowerCase() ?? null }) : null; };
 export const actionWall = (rule) => (rule && rule.wall ? { wall: { ...(rule.wall === true ? {} : rule.wall), ground: false } } : {});
-function actionHero(entity, figures, sheathRef, heldRefs = null) {
+/** a stylish game's hero runs in combat with nothing held (combat.run): the trigger is its sprint, never its run */
+const runsInCombat = (G) => { const f = G?.feel, pole = typeof f === 'string' ? f : f?.pole; return STYLISH.includes(pole); };
+function actionHero(entity, figures, sheathRef, heldRefs = null, { run = false } = {}) {
   const fig = entity.body.figure, sheathed = sheathRef ? `${fig}-sheathed` : null;
   // (each weapon HELD as its own item, its own hero: runner.js `hero-held-<weapon>`, shown in combat while it is up)
   const held = sheathed && heldRefs ? Object.fromEntries(Object.keys(heldRefs).map((w) => [w, `${fig}-${w}`])) : null;
@@ -1485,7 +1487,7 @@ function actionHero(entity, figures, sheathRef, heldRefs = null) {
   const clipped = own && own.clips ? { ...own, clips: { ...own.clips, guard: 'walk' } } : own;
   return {
     figures: { ...figures, [fig]: clipped, ...(sheathed ? { [sheathed]: { ...clipped, heroRef: sheathRef } } : {}), ...(held ? Object.fromEntries(Object.entries(held).map(([w, n]) => [n, { ...clipped, heroRef: heldRefs[w] }])) : {}) },
-    entity: { ...entity, body: { ...entity.body, ...(sheathed ? { figure: sheathed } : {}), layers: POSE_LAYERS }, rule: { ...entity.rule, ...actionWall(entity.rule), combat: { ...COMBAT, ...(sheathed ? { drawn: fig, sheathed } : {}), ...(held && Object.keys(held).length ? { held } : {}) } } },
+    entity: { ...entity, body: { ...entity.body, ...(sheathed ? { figure: sheathed } : {}), layers: POSE_LAYERS }, rule: { ...entity.rule, ...actionWall(entity.rule), combat: { ...COMBAT, ...(run ? { run: true } : {}), ...(sheathed ? { drawn: fig, sheathed } : {}), ...(held && Object.keys(held).length ? { held } : {}) } } },
   };
 }
 
@@ -1827,7 +1829,7 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   const events = { ...(P.events || {}), ...(inputs.length > (P.events?.inputs?.length ?? 0) ? { inputs } : {}) };
   const A = armedPilot(G, { ...P.entities[0], transform: { pos: cx ? spawn : steppedIn(plan, spawn, heading), heading } }, cam);
   const camera = top ? { rule: 'overhead', target: 'hero', ...OVERHEAD } : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) } : actionOrbit ? { ...P.camera, steer: 'orbit', ...ACTION_ORBIT, tall: true } : A.camera ?? partyChase(G, P.camera);
-  const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef, heldRefs) : null, figs0 = fighter ? fighter.figures : P.figures;
+  const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef, heldRefs, { run: runsInCombat(G) }) : null, figs0 = fighter ? fighter.figures : P.figures;
   const pilot0 = { figures: X?.figures ? { ...figs0, ...X.figures } : figs0, entities: [piloted(fighter ? fighter.entity : A.entity), ...(X?.entities ?? [])], camera, events, ...(actionOrbit ? { lock: true } : {}) };
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's
   const play0 = base.play ?? null, { pilotPart, play } = storyPart(G, stage, ends, null, pilot0, play0, { story, carryFrom, party, castFigures });
