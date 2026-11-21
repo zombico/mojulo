@@ -313,7 +313,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     bagFrom();
     const out = K.start(cfg, R, enc, V());
     if (!out.length) return false;
-    mode = 'battle'; phase = 'intro'; beats = out; bi = 0; bt = 0; shown = {}; touched = {}; picks = {}; mi = 0; pend = null; boxes = { cmd: 'bottom-left', foes: 'bottom-right' };
+    mode = 'battle'; phase = 'intro'; beats = out; bi = 0; bt = 0; shown = {}; touched = {}; picks = {}; mi = 0; pend = null; boxes = { cmd: 'bottom-left', foes: 'bottom-right' }; spoils = null;
     msg = out[0].text; show(out[0]);
     stage(); placeDue = 3;
     // (every fighter takes its ready stance, where its figure has one: the controllable channel's __actMode)
@@ -601,6 +601,8 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       shown = {};
       if (R.b.phase === 'command') { phase = 'command'; msg = ''; if (!commanders().length) return resolve(); return screen('rpg-cmd'); }
       phase = 'end';
+      // (a fight won: its results, the spoils and what each member gained, read once its last beat is told)
+      if (R.b.phase === 'won') { spoils = spoilsOf(beats); screen('rpg-spoils'); }
       return;
     }
     if (phase === 'end') {
@@ -614,6 +616,30 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       screen(null);
       release();
     }
+  }
+  // THE RESULTS OF A FIGHT WON (the rpg-spoils screen): what the fight paid (its XP, its gold, what it dropped) and what
+  // each member standing came away with: its level, its way to the next, a level gained and what it raised (each stat
+  // before and after, kernel.js gain), a class rank risen, the skills learned. Read off the fight's last beats
+  let spoils = null;
+  const STAT_SAID = [['hp', 'HP'], ['mp', 'MP'], ['atk', 'Attack'], ['def', 'Defence'], ['mag', 'Magic'], ['spd', 'Speed']];
+  function spoilsOf(bs) {
+    let xp = 0, gold = 0;
+    const found = [];
+    for (const b of bs) if (b.kind === 'spoils') { if (b.item) found.push((cfg.items[b.item] && cfg.items[b.item].name) || b.item); else { xp += b.xp || 0; gold += b.gold || 0; } }
+    const members = R.b.ids.filter((m) => R.m[m].hp > 0).map((m) => {
+      const M = R.m[m], name = memberName(m), ups = bs.filter((b) => b.kind === 'level' && b.who === m && b.level != null);
+      const base = K.xpFor(cfg, M.level), next = M.level < cfg.rules.cap ? K.xpFor(cfg, M.level + 1) : null;
+      const was = ups.length ? ups[0].was : null, now = ups.length ? ups[ups.length - 1].now : null;
+      const rank = bs.filter((b) => b.kind === 'level' && b.who === m && b.rank != null).pop();
+      return {
+        id: m, name, level: M.level, up: ups.length > 0,
+        xp: next == null ? 1 : Math.max(0, M.xp - base), xpMax: next == null ? 1 : Math.max(1, next - base), toNext: next == null ? 'max level' : (next - M.xp) + ' to next',
+        stats: was && now ? STAT_SAID.filter(([k]) => now[k] !== was[k]).map(([k, label]) => ({ label, value: was[k] + ' → ' + now[k] })) : [],
+        rank: rank ? cfg.classes[rank.cls].name + ' rank ' + rank.rank : '',
+        learned: ((ls) => (ls.length ? 'Learned ' + ls.join(', ') : ''))(bs.filter((b) => b.kind === 'learn' && b.who === name).map((b) => (cfg.skills[b.skill] && cfg.skills[b.skill].name) || b.skill)),
+      };
+    });
+    return { title: 'Victory!', xp, gold, found: found.length ? 'Found ' + found.join(', ') : '', members };
   }
   function command(id) {
     if (id === 'guard' || id === 'flee') return pickNow({ act: id });
@@ -740,6 +766,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       foes: b.foes.map((x) => { const h = hp(x.uid, x.hp); return { id: x.uid, name: x.name, hp: Math.max(0, h), hpMax: x.max, down: h <= 0 }; }),
       turns: next.length ? next.map((x, i) => ({ name: x.name, variant: x.party ? 'plain' : 'muted', turn: i === 0 })) : null,
       heads, pops: numbers, strikes: struck,
+      spoils: spoils || { members: [] },
     };
   }
   // THE BOXES PLACED BY THE VIEW: once a fight is staged (and when its view changes), where its fighters stand on the
@@ -979,6 +1006,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       const S0 = mode === 'shop' ? vm().shop : null, T0 = S0 && S0.tabs ? S0.tabs[rt.state().tabs[0] || 0] : null;
       return {
         mode, phase, msg, screen: top, level: cmd ? LEVEL[top] || 'cmd' : null, member: cmd ? commanders()[mi] : null, acting: !!B0.acting, ui: filmUi,
+        ...(top === 'rpg-spoils' ? { spoils: B0.spoils } : {}),
         options: cmd ? (B0[LIST[top]] || []).map((o) => ({ label: o.label, ok: !o.disabled })) : [],
         ...(S0 ? { shop: { id: shopId, tab: T0 ? T0.label : null, rows: (T0 ? T0.rows : []).map((o) => ({ label: o.label, right: o.right, ok: !o.disabled })), said: smsg } } : {}),
       };

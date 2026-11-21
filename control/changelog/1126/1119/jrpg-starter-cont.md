@@ -196,3 +196,8 @@
   flow screen, `gameover` (`continue`, `home`), where a lost level goes in place of the result (`game/flow.js`); drawn by
   the play shell, and by its mana-ui front in the game's look. Any play-shell game may ask for it (`gameOver: true`).
   Before, a lost fight showed the result with try again, and its defeat was written into the save.
+- **A fight's results.** A fight won ends on a results window (`rpg-spoils`, `playscape/rpg/rpg-ui.js`) once its last
+  beat is told: its XP, its gold and what it dropped; each member standing with its level and an XP bar to the next; a
+  level gained with a Level up! badge and each stat it raised, before → after; a class rank risen; the skills learned.
+  Continue closes the fight. A level beat now carries the member's stats before and after (`kernel.js` `gain`). Before,
+  the spoils were only lines told one after another in the message line.

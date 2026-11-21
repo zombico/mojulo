@@ -669,6 +669,7 @@ export function buildRpg() {
   }
 
   // xp into levels (the class's growth comes with each), class points into the current class's level and its points
+  const grown = (S) => ({ hp: S.hp, mp: S.mp, atk: S.atk, def: S.def, mag: S.mag, spd: S.spd });
   function gain(cfg, R, id, xp, cp, out) {
     const M = R.m[id], p = memberOf(cfg, id);
     M.xp += xp;
@@ -677,7 +678,8 @@ export function buildRpg() {
       M.level++;
       const now = statsOf(cfg, R, id);
       M.hp = Math.min(now.hp, M.hp + (now.hp - was.hp)); M.mp = Math.min(now.mp, M.mp + (now.mp - was.mp));
-      out.push({ text: p.name + ' reached level ' + M.level + '!', kind: 'level', who: id, level: M.level });
+      // (what the level brought, for the fight's results: each stat before and after)
+      out.push({ text: p.name + ' reached level ' + M.level + '!', kind: 'level', who: id, level: M.level, was: grown(was), now: grown(now) });
     }
     const C = M.cl[M.cls], lv = C.lv;
     C.cp += cp;

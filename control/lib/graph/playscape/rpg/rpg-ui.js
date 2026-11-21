@@ -36,7 +36,7 @@ import { manaCss, lensCss } from '../../../mana-ui/css.js';
 import { themeCss, readTheme } from '../../../mana-ui/theme.js';
 
 export const RPG_SCOPE = '.moj-rpg .mana-root';
-export const RPG_SCREENS = Object.freeze(['rpg-watch', 'rpg-cmd', 'rpg-skill', 'rpg-item', 'rpg-target', 'rpg-party', 'rpg-equip', 'rpg-shop']);
+export const RPG_SCREENS = Object.freeze(['rpg-watch', 'rpg-cmd', 'rpg-skill', 'rpg-item', 'rpg-target', 'rpg-spoils', 'rpg-party', 'rpg-equip', 'rpg-shop']);
 
 const B = (path) => ({ bind: path });
 const I = (field) => ({ item: field });
@@ -91,6 +91,24 @@ const SCREENS = {
   'rpg-skill': pick(B('battle.skills'), 'skill'),
   'rpg-item': pick(B('battle.items'), 'item'),
   'rpg-target': pick(B('battle.targets'), 'target'),
+  // (a fight won: what it paid and what each member standing came away with: its level and its way to the next, a level
+  // gained and what it raised, a rank risen, skills learned; continue closes the fight)
+  'rpg-spoils': { use: 'screen', props: { title: B('battle.spoils.title'), layer: 'modal', place: 'center' }, on: { back: { emit: 'next' } }, children: [
+    { use: 'window', children: [col([
+      row([{ use: 'counter', props: { label: 'XP', value: B('battle.spoils.xp') } }, { use: 'counter', props: { label: 'Gold', value: B('battle.spoils.gold') } }], 'start'),
+      { use: 'text', props: { value: B('battle.spoils.found'), role: 'caption' }, when: B('battle.spoils.found') },
+      { use: 'divider' },
+      { use: 'each', props: { rows: B('battle.spoils.members'), row: col([
+        row([row([txt(I('name'), 'heading'), txt({ format: 'Lv {level}' }, 'numeral')], 'start'), { use: 'badge', props: { value: 'Level up!', variant: 'strong' }, when: I('up') }]),
+        { use: 'bar', props: { label: 'XP', value: I('xp'), max: I('xpMax'), numbers: false } },
+        txt(I('toNext'), 'caption'),
+        { use: 'each', props: { rows: I('stats'), row: row([txt(I('label'), 'label'), txt(I('value'), 'numeral')]) }, when: I('up') },
+        { use: 'text', props: { value: I('rank'), role: 'caption' }, when: I('rank') },
+        { use: 'text', props: { value: I('learned'), role: 'caption' }, when: I('learned') },
+      ]) } },
+    ], 'normal'),
+    { use: 'button', props: { label: { word: 'continue' } }, on: { accept: { emit: 'next' } } }] },
+  ] },
   'rpg-party': { use: 'screen', props: { title: 'Party', layer: 'modal', place: 'center' }, children: [
     { use: 'split', children: [
       { use: 'window', children: [

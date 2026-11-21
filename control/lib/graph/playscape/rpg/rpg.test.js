@@ -177,6 +177,30 @@ describe('the page: the battle window and the party menu', () => {
     expect(said[1].type).toBe(said[0].type.split(':')[0]);
   });
 
+  it('a fight won: its results, what it paid and what each member came away with, a level gained and what it raised; continue closes it', () => {
+    const foes = { slime: { name: 'Slime', hp: 1, atk: 0, def: 0, mag: 0, spd: 1, xp: 400, gold: 25 } };
+    const P = page({ rpg: { party: PARTY, foes, encounters: [{ id: 'slimes', foes: ['slime'] }] } });
+    processEvents(P.bus, [{ type: 'rpg-battle:slimes' }]);
+    P.frames();
+    for (let r = 0; r < 60 && P.api.state().screen !== 'rpg-spoils' && P.api.state().mode; r++) {
+      P.frames(10);
+      if (P.api.state().phase === 'command') { P.press('Enter'); P.press('Enter'); }
+    }
+    const S = P.api.state();
+    expect(S.screen).toBe('rpg-spoils');
+    expect(S.spoils).toMatchObject({ title: 'Victory!', xp: 400, gold: 25 });
+    const ayla = S.spoils.members.find((m) => m.id === 'ayla');
+    expect(ayla.up).toBe(true);
+    expect(ayla.level).toBeGreaterThan(1);
+    expect(ayla.stats.find((x) => x.label === 'HP').value).toMatch(/^\d+ → \d+$/);
+    expect(ayla.xp).toBeLessThanOrEqual(ayla.xpMax);
+    expect(P.document.querySelector('.moj-rpg').textContent).toContain('Level up!');
+    // (continue closes the fight, the win said)
+    P.press('Enter');
+    expect(P.api.state().mode).toBeNull();
+    expect(P.said().map((e) => e.type)).toContain('rpg-won:slimes');
+  });
+
   it('a join and a fight that arrive together: the one who joins fights', () => {
     const P = page({ rpg: { party: [...PARTY, { id: 'mira', class: 'cleric', joins: 'met-mira' }], encounters: PLAY.rpg.encounters } });
     processEvents(P.bus, [{ type: 'rpg-join:mira' }, { type: 'rpg-battle:wolves' }]);

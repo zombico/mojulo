@@ -169,6 +169,17 @@ Leaving by it, the play shell shows the trip while the next map is built: a ship
 clouds, "Sailing to" or "Flying to" the place. A crossing joins the world further than its rings (an isle, another
 mandala), so the trip covers the load that a far place costs.
 
+## A fight's results
+
+A fight won ends on its results (the RPG's `rpg-spoils` screen, `playscape/rpg/rpg-ui.js`), once its last beat is told:
+- what it paid: its XP, its gold, and what the foes dropped;
+- for each member standing: its level and an XP bar to the next (or max level);
+- a level gained: a Level up! badge and each stat it raised, before → after (the level beat carries both,
+  `playscape/rpg/kernel.js` `gain`);
+- a class rank risen and the skills learned.
+
+Continue (or back) closes the fight, as before. A fight lost or fled has none.
+
 ## The party menu
 
 P opens the party menu: Status, Class, Equip and Skills, and Item (a battle item used outside a fight, on the member in
