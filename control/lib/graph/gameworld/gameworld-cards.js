@@ -96,6 +96,8 @@ import { GENRE_COLOUR } from './world-palette.js';
 import { BOOK_SKINS } from './book-skin.js';
 import { INTENT_LOOKS } from '../playscape/ui/interface-look.js';
 import { THEME_CARD_IDS } from '../playscape/ui/theme-cards/loader.js';
+import { FRONT_CARD_IDS } from '../playscape/ui/front-cards/loader.js';
+import { STAGE_TREATMENTS } from '../game/front-stage.js';
 import { THEME_WORDS, THEME_FAMILIES } from '../../mana-ui/theme.js';
 import { FLOW_KINDS, SCREEN_EVENTS, LEVEL_EVENTS, FLOW_SPECIALS, FLOW_GUARDS, FLOW_IN_PLAY } from '../game/flow.js';
 import { SECTIONS, BANDS, TASKS, MISSION_LIMITS, MISSION_DEFAULTS, MISSION_MAPS, MISSION_BUILDINGS } from '../mission/index.js';
@@ -619,7 +621,13 @@ function interfaceCard() {
     `FAMILIES: ${Object.entries(THEME_FAMILIES).map(([f, ids]) => `${f} ${ids.join(' ')}`).join('; ')}.`,
     `CARDS: ${THEME_CARD_IDS.join(', ')}. A NEW LOOK IS A CARD: { id, name, about, family?, tags?, from, ...words } as a`,
     'JSON file on the shelf (playscape/ui/theme-cards/, its README), the way a WordPress theme is a theme.json; for one',
-    'game only, the same inline as ui.theme. WORDS (closed):',
+    'game only, the same inline as ui.theme.',
+    'THE START SCREEN (front.stage): a launcher before any engine loads, a visual artifact of the game\'s own subjects',
+    '(hero, ally, foe, ride, prop), never a level or a set. Offered last (next: front), once the first level plays;',
+    'sooner only when asked. { composition: a front card, subjects?: roles or refs, mode?: still | 3d, treatment? }:',
+    `  cards ${FRONT_CARD_IDS.join(', ')}; treatments ${STAGE_TREATMENTS.join(', ')}; 3d brings the cutout or`,
+    '  silhouette alive over its picture. Part interface:front; seen on the exported game (export_game).',
+    'WORDS (closed):',
     ...Object.entries(THEME_WORDS).map(([k, ws]) => `  ${k}: ${ws.join('|')}`),
   );
 }
@@ -1468,6 +1476,7 @@ function nextCard() {
     '  compile    `compile.blockers` (by chapter): what the build would hit; fix first. `estimate`: the build left.',
     '  req        the unit being worked (`unit`): its view { ref, chapter: unit } carries its `req` (gameworld-ledger).',
     '  composite  accepted `levels` the game lacks: run: true makes the game of them alone, playable to the last.',
+    '  front      the first level plays: its start screen, offered (`composition`, `subjects`, `patch`); the creator\'s to take.',
     '  chapters   (not a step) each chapter: department, state, `open` parts, what it `waits` on. Work one at a time,',
     '             upstream first: { ref, chapter } is its view (a department, or a subagent given only that and its card).',
     '             With run: true it makes that chapter and what it names, ahead of approvals (`ahead`: say so).',

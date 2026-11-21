@@ -19,6 +19,11 @@
  *   frontStageSuggestion(world)          → { composition, subjects, why, patch } | null: the card the game's genre is
  *                                          suited by (else the fallback) whose slots its subjects fill; null when the
  *                                          front already has a stage or nothing fills one
+ *   frontStep(world, { proved })         → design_game's `front` move, or null: offered near the end of the guided
+ *                                          rail, once the first level is proved (`proved`) and the game has subjects
+ *                                          and no stage; suggested with its patch, never laid, never a goalpost
+ *   frontPart(world)                     → the review's `interface:front` content, or null with no stage: its card,
+ *                                          the subjects that stand on it, its mode and treatment, what it lacks
  *   stagedFront(world, front)            → the front as the game carries it: its stage's subjects (roles, refs, or
  *                                          none) settled to the refs that fill its card's slots, so the export pictures
  *                                          sketches; a stage nothing fills keeps no subjects (the export says so)
@@ -94,6 +99,22 @@ export function frontStageSuggestion(world) {
     return { composition: id, subjects: stage.subjects, why, patch };
   }
   return null;
+}
+
+export function frontStep(world, { proved = false } = {}) {
+  if (!proved) return null;
+  const S = frontStageSuggestion(world);
+  if (!S) return null;
+  return { step: 'front', composition: S.composition, subjects: S.subjects, why: `the first level plays; its start screen is still the theme's ground. ${S.why}`, patch: S.patch, card: 'gameworld-interface' };
+}
+
+export function frontPart(world) {
+  const stage = world?.front?.stage;
+  if (!isObj(stage)) return null;
+  const card = FRONT_CARDS[stage.composition];
+  const filled = card ? fillStage(card, frontSubjects(world), Array.isArray(stage.subjects) ? stage.subjects : []) : null;
+  const lacks = !card ? `no front card '${stage.composition}'` : !filled ? `nothing the game has made stands on its ${card.slots.length} slot${card.slots.length === 1 ? '' : 's'}: its name and ground alone` : null;
+  return { composition: stage.composition, ...(card ? { name: card.name } : {}), subjects: filled ? filled.map((s) => ({ role: s.role, ref: s.ref })) : [], mode: stage.mode ?? 'still', treatment: stage.treatment ?? 'cutout', ...(lacks ? { lacks } : {}), seen: 'on the exported game (export_game): game.html opens on it; the eyes gate is the creator\'s' };
 }
 
 export function stagedFront(world, front) {

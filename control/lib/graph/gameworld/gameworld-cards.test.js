@@ -95,7 +95,10 @@ describe('the rail\'s cards', () => {
     // producer: 4594)
     // the battles card too (2026-11-15, zero to level one: `manual`, a lorecube manual fielded by the page, three lines;
     // 5197 bytes before, 5541 with them; 5888 the same day for `tree`, a school the party can be in, two lines: 5796)
-    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4864, 'gameworld-world': 5760, 'gameworld-foes': 5888, 'gameworld-wcd': 4608, 'gameworld-battles': 5888, 'gameworld-next': 5504, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
+    // (2026-11-21, 1120-mana-ui-start-screens: gameworld-interface 4096 → 4736, the start screen, front.stage, five lines:
+    // when it is offered, its shape, its cards and treatments, its part; 4045 bytes before, 4590 with them;
+    // gameworld-next 5504 → 5632, the `front` move, one line; 5417 bytes before, 5540 with it)
+    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4864, 'gameworld-world': 5760, 'gameworld-foes': 5888, 'gameworld-wcd': 4608, 'gameworld-battles': 5888, 'gameworld-next': 5632, 'gameworld-interface': 4736, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

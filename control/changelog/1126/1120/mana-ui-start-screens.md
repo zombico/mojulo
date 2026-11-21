@@ -53,3 +53,9 @@ website, composed from the game's own characters, vehicles and props, never a le
   over a thin bar, with a note if a big map is still being built. When the level's first frame is drawn, the loading
   screen fades away over it. Both screen kinds, the plain ones and those drawn by the game UI, hand over this way; a
   game without a staged start screen keeps its loading screen as it was.
+- **Offered near the end of the guided design.** Once a game's first level is proved and it has something to show,
+  `design_game` offers its start screen as a next move, `front`: the layout its kind of game suits, who stands on it,
+  and the change that lays it, which the person takes or leaves (it is never a goalpost, and nothing is laid unasked).
+  Before then it is theirs to ask for in the interface chapter. A start screen is reviewed there as its own part, the
+  start screen: its layout, who stands on it, pictures or 3D and their look, and what it lacks. The interface card
+  says what a start screen is, when it is offered, and its layouts and looks.
