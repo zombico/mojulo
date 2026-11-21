@@ -7,13 +7,18 @@
  * The page carries only what a baked stage gives it: a game whose front has no stage, or whose export baked none,
  * emits not a byte of this (its key absent, its sheet and code left out).
  *
- *   stageConfig(card, plates, { title, treatment, three }) → the page's cfg.stage: the frames, the slots' anchors, the
+ *   stageConfig(card, plates, { title, treatment, three, warm }) → the page's cfg.stage: the frames, the slots' anchors, the
  *                                           beats, the plates' srcs (a slot whose plate was not baked: null), and for a
  *                                           live stage each plate's model and the camera its picture was cut from
  *   stageCss(card, { mana, live, treatment }) → the stage's sheet, laid after the shell's (and the front's or mana-ui's)
  *   stageImportmap(three)                 → the importmap a live stage's page carries ('three' to its module)
  *   playStageRuntime(cfg)                 the page's code (inlined with toString(), references nothing outside itself)
- *                                         → { show(on) }
+ *                                         → { show(on), loading(place), slow(words), loaded(), isLoading() }
+ *
+ * THE RAMP: while the title is up the stage warms the first level (a prefetch of its page and the files it fetches:
+ * no frame, no WebGL, not when the browser asks to save data), and when play is pressed the start screen becomes the
+ * loading screen: the figure held where it stood, the big name gone, a small one in the corner, the place said over a
+ * thin bar, until the level's first frame is drawn and the stage fades away over it.
  *
  * THE LIVE STAGE (front.stage.mode '3d'): once the pictures have shown, three.js and its glTF loader are loaded (a
  * dynamic import: the page opens without them), and each subject with a model is drawn in a canvas over its picture by
@@ -34,7 +39,7 @@ const yUp = ([x, y, z]) => [x, z, -y];
 // a module's address as an import takes it: a path beside the page is said from the page ('./…'), never bare
 const rel = (u) => (/^(https?:|\/|\.)/.test(u) ? u : `./${u}`);
 
-export function stageConfig(card, plates, { title, treatment = 'cutout', three = null }) {
+export function stageConfig(card, plates, { title, treatment = 'cutout', three = null, warm = null }) {
   const frame = (F) => ({ title: { box: F.title.box, align: F.title.align, size: F.title.size }, subjects: F.subjects });
   return {
     card: card.id,
@@ -49,6 +54,8 @@ export function stageConfig(card, plates, { title, treatment = 'cutout', three =
       ...(three && p.live && p.frame ? { live: { glb: p.live.glb, clip: p.live.clip, pos: yUp(p.frame.shot.pos), target: yUp(p.frame.shot.target), vfov: p.frame.shot.vfov, capture: [p.frame.capture.width, p.frame.capture.height], crop: [p.frame.crop.x, p.frame.crop.y, p.frame.crop.w, p.frame.crop.h], t: (p.frame.poseMs || 0) / 1000 } } : {}),
     } : null)),
     ...(three && plates.some((p) => p && p.live) ? { three: { loader: rel(three.loader) }, treatment } : {}),
+    // the first level's page and the shared files it fetches, warmed while the title is up (export_game: within its cap)
+    ...(Array.isArray(warm) && warm.length ? { warm: warm.map(rel) } : {}),
   };
 }
 
@@ -94,13 +101,26 @@ export function stageCss(card, { mana = false, live = false, treatment = 'cutout
       ? 'body:is([data-screen=title],[data-screen=attract]) #mana .mana-screen [data-role=display]{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important}body:is([data-screen=title],[data-screen=attract]) #mana .mana-screen>.mana-image[data-ratio=backdrop]{display:none}body:is([data-screen=title],[data-screen=attract]) #mana .mana-screen::after,body:is([data-screen=title],[data-screen=attract]) #mana .mana-screen::before{background:none}body:is([data-screen=title],[data-screen=attract]) #mana .mana-screen>.mana-stack{background:none!important;padding:0!important;margin:0!important}body:is([data-screen=title],[data-screen=attract]) #mana .mana-screen>.mana-region:not(:has(.mana-text:not(:empty))){display:none}'
       : `#front{background:transparent}#front h1.fx-title{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}#front .fx-menu{gap:2px;min-width:0}#front .fx-menu button{background:none;border:0;box-shadow:none;backdrop-filter:none;border-radius:0;padding:6px 0;text-align:inherit;font-size:clamp(17px,2.2vw,24px);letter-spacing:.06em;text-transform:uppercase;color:color-mix(in srgb,var(--ink) 72%,transparent)}#front .fx-menu button:hover,#front .fx-menu button.on{color:var(--accent);box-shadow:none}#front .fx-menu button.on::before{content:"";display:inline-block;width:.9em;height:2px;margin:0 .45em .3em 0;vertical-align:middle;background:var(--accent)}#front .fx-tag{font-size:clamp(14px,1.6vw,18px);letter-spacing:.08em}`,
     beat.menu ? (mana ? '' : `#front .fx-col{${anim('menu')}}${beat.menu.enter === 'stagger' ? [1, 2, 3, 4, 5, 6].map((n) => `#front .fx-menu button:nth-child(${n}){animation:st-rise .6s cubic-bezier(.2,.8,.2,1) ${beat.menu.at + n * 70}ms both}`).join('') : ''}`) : '',
+    // the loading screen: the stage over the level's frame, the name gone to a corner, the place over a thin bar, the
+    // whole faded away once the level is drawn
+    '#stage.loading{z-index:6}',
+    '#stage .st-load,#stage .st-mini{display:none}',
+    '#stage.loading .st-load{position:absolute;left:max(16px,6vw);bottom:max(24px,9vh);z-index:4;display:flex;flex-direction:column;gap:10px;max-width:min(560px,70vw);animation:st-fade .5s ease both}',
+    '#stage.loading .st-mini{position:absolute;left:max(16px,4vw);top:max(16px,4vh);z-index:4;display:block;font-weight:900;text-transform:uppercase;letter-spacing:.06em;font-size:clamp(14px,1.6vw,20px);color:var(--ink);animation:st-fade .5s ease .1s both}',
+    '#stage .st-place{font-size:clamp(22px,3.4vw,44px);font-weight:800;line-height:1.05;color:var(--ink)}',
+    '#stage .st-note{font-size:13px;color:color-mix(in srgb,var(--ink) 65%,transparent)}',
+    '#stage .st-bar{width:min(260px,60vw);height:3px;border-radius:2px;overflow:hidden;background:color-mix(in srgb,var(--ink) 18%,transparent)}',
+    '#stage .st-bar i{display:block;height:100%;width:35%;background:var(--accent);animation:st-bar 1.2s ease-in-out infinite}',
+    '#stage.loading .st-title{opacity:0;transform:translateY(-4%) scale(.97);transition:opacity .45s ease,transform .6s ease}',
+    '#stage.leaving{opacity:0;transition:opacity .45s ease}',
+    '@keyframes st-bar{from{transform:translateX(-100%)}to{transform:translateX(290%)}}',
     '@keyframes st-fade{from{opacity:0}}',
     '@keyframes st-rise{from{opacity:0;transform:translateY(14%)}}',
     '@keyframes st-slide{from{opacity:0;transform:translateX(-6%)}}',
     '@keyframes st-slam{from{opacity:0;transform:scale(1.25)}}',
     '@keyframes st-wipe{from{clip-path:inset(0 100% 0 0)}}',
     // a player who turns motion down: everything fades, at once
-    '@media (prefers-reduced-motion:reduce){#stage *,#stage .st-title i,#front .fx-col,#front .fx-menu button{animation:st-fade .25s ease both!important;animation-delay:0s!important}}',
+    '@media (prefers-reduced-motion:reduce){#stage *,#stage .st-title i,#front .fx-col,#front .fx-menu button{animation:st-fade .25s ease both!important;animation-delay:0s!important}#stage .st-bar i{animation:none!important;width:100%;opacity:.6}}',
   ].filter(Boolean).join('\n  ');
 }
 
@@ -137,6 +157,18 @@ export function playStageRuntime(cfg) {
   }
   title.appendChild(inner);
   root.appendChild(title);
+  // the loading screen's parts: the name small in a corner, the place, a note when it is slow, a thin bar
+  const mini = document.createElement('div');
+  mini.className = 'st-mini';
+  mini.textContent = S.title;
+  root.appendChild(mini);
+  const load = document.createElement('div');
+  load.className = 'st-load';
+  const placeEl = document.createElement('div'), noteEl = document.createElement('div'), bar = document.createElement('div');
+  placeEl.className = 'st-place'; noteEl.className = 'st-note'; bar.className = 'st-bar';
+  bar.appendChild(document.createElement('i'));
+  load.appendChild(placeEl); load.appendChild(bar); load.appendChild(noteEl);
+  root.appendChild(load);
   S.plates.forEach((p, i) => {
     if (!p) return;
     const d = document.createElement('div');
@@ -247,12 +279,50 @@ export function playStageRuntime(cfg) {
     raf = requestAnimationFrame(step);
   }
 
+  // the first level warmed while the title is up: its page and the files it fetches, prefetched once the pictures have
+  // shown, never when the browser asks to save data
+  let warmed = false;
+  function warm() {
+    if (warmed || !S.warm) return;
+    warmed = true;
+    const c = navigator.connection;
+    if (c && (c.saveData || /(^|-)2g$/.test(c.effectiveType || ''))) return;
+    for (const href of S.warm) {
+      const l = document.createElement('link');
+      l.rel = 'prefetch'; l.href = href;
+      document.head.appendChild(l);
+    }
+  }
+  let loadingNow = false, leaveT = 0;
+  function loading(place) {
+    clearTimeout(leaveT);
+    loadingNow = true;
+    placeEl.textContent = place || '';
+    noteEl.textContent = '';
+    root.classList.remove('leaving');
+    root.classList.add('on', 'loading');
+    return true;
+  }
+  function loaded() {
+    if (!loadingNow) return;
+    loadingNow = false;
+    root.classList.add('leaving');
+    leaveT = setTimeout(() => { root.classList.remove('loading', 'leaving'); if (!shown) root.classList.remove('on'); }, 480);
+  }
+
   return {
+    loading,
+    loaded,
+    slow(words) { if (loadingNow) noteEl.textContent = words || ''; },
+    isLoading: () => loadingNow,
     show(on) {
+      if (on) { clearTimeout(leaveT); loadingNow = false; root.classList.remove('loading', 'leaving'); }
       if (on === shown) return;
       shown = on;
       root.classList.toggle('on', on);
       if (!on) { cancelAnimationFrame(raf); return; }
+      // (on a timer, not when idle: a live stage draws every frame, and a prefetch is the browser's lowest priority anyway)
+      if (!warmed && S.warm) setTimeout(warm, 1200);
       if (!booted && S.three) setTimeout(bootLive, 700);
       else if (lives.some((it) => it.ready)) loop();
       // the entrance again: the animations restarted by taking them off for one frame

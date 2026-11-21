@@ -99,3 +99,38 @@ describe('the live stage', () => {
     expect(still).not.toContain('#stage .st-subj canvas');
   });
 });
+
+describe('the ramp', () => {
+  const WARM = { ...BAKED, warm: ['levels/k-1.html', 'assets/geometry/groups-1.json'] };
+  it('warms the first level from the page, said from it', () => {
+    expect(stageConfig(card, BAKED.plates, { title: 'x', warm: WARM.warm }).warm).toEqual(['./levels/k-1.html', './assets/geometry/groups-1.json']);
+    expect(stageConfig(card, BAKED.plates, { title: 'x' }).warm).toBeUndefined();
+  });
+
+  it('play turns the start screen into the loading screen, and the level\'s first frame lifts it', async () => {
+    const html = emitPlayShell(game({ tagline: 'go', stage: STAGE }), LEVELS, { frontStage: WARM });
+    const dom = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/game.html' });
+    const d = dom.window.document, stage = d.getElementById('stage');
+    const play = [...d.querySelectorAll('#front .fx-menu button')].find((b) => /start|play/i.test(b.textContent));
+    play.click();
+    expect(stage.classList.contains('loading')).toBe(true);
+    expect(stage.classList.contains('on')).toBe(true);
+    expect(stage.querySelector('.st-place').textContent).toBe('One');
+    expect(stage.querySelector('.st-mini').textContent).toBe('Sky Runner');
+    expect(d.getElementById('veil').style.display).toBe('none');
+    const frame = d.getElementById('frame');
+    dom.window.dispatchEvent(new dom.window.MessageEvent('message', { data: { moj: 'game-shown' }, source: frame.contentWindow }));
+    expect(stage.classList.contains('leaving')).toBe(true);
+    await new Promise((r) => setTimeout(r, 600));
+    expect(stage.classList.contains('loading')).toBe(false);
+    expect(stage.classList.contains('on')).toBe(false);
+  });
+
+  it('a game with no stage keeps its own loading veil', () => {
+    const dom = new JSDOM(emitPlayShell(game({ tagline: 'go' }), LEVELS), { runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/game.html' });
+    const d = dom.window.document;
+    [...d.querySelectorAll('#front .fx-menu button')].find((b) => /start|play/i.test(b.textContent)).click();
+    expect(d.getElementById('stage')).toBeNull();
+    expect(d.getElementById('veil').style.display).toBe('flex');
+  });
+});

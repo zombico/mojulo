@@ -46,3 +46,10 @@ website, composed from the game's own characters, vehicles and props, never a le
   not load or is too heavy for a start screen, or for a player who turns motion down, the picture stays and nothing
   else changes. Looks that remake a picture's colours (two-tone, dot screen, posterize, ink) stay pictures, and the
   export says so.
+- **From the start screen into the game.** While a staged start screen is up, the game quietly starts fetching its
+  first level in the background (not on a connection that asks to save data, and not past 30 MB), so pressing start
+  plays from what is already there. Pressing start then turns the start screen itself into the loading screen: the
+  figure stays where it stood, the big name gives way to a small one in the corner, and the place being loaded is named
+  over a thin bar, with a note if a big map is still being built. When the level's first frame is drawn, the loading
+  screen fades away over it. Both screen kinds, the plain ones and those drawn by the game UI, hand over this way; a
+  game without a staged start screen keeps its loading screen as it was.

@@ -142,7 +142,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ...(manifest.front ? { front: frontConfig(manifest.front, stageCard ? null : frontArt, { levels: levelTable.length, run: !!manifest.run }) } : {}),
     // THE STAGE (front-stage-page.js): the start screen laid out by its card from the plates export_game baked; a
     // front with no stage, or a page no export baked one for, carries no key and none of its sheet or code
-    ...(stageCard ? { stage: stageConfig(stageCard, frontStage.plates || [], { title: manifest.title, treatment: manifest.front.stage.treatment || 'cutout', three: frontStage.three || null }) } : {}),
+    ...(stageCard ? { stage: stageConfig(stageCard, frontStage.plates || [], { title: manifest.title, treatment: manifest.front.stage.treatment || 'cutout', three: frontStage.three || null, warm: frontStage.warm || null }) } : {}),
     flow,
     ...(hasTurns ? { turns } : {}),
     // (a bare HUD look draws no pause button under a mouse: the media a mana-ui shell asks, said only by such a game)
@@ -593,14 +593,17 @@ export function playShellRuntime(cfg, K) {
     show('level');
     // the veil while it loads: mana-ui's loading screen when the game draws its screens with it
     // (in a run the place it is going is the map's number in the run: what was cleared, and what is next)
-    if (MANA) MANA.loading(run ? (run.at ? 'cleared ' + run.at + ' of ' + run.order.length + ' · ' : '') + 'map ' + (run.at + 1) + ' of ' + run.order.length : lv.title);
+    // (a staged game's start screen is its loading screen: the figure held, the name gone to a corner, the place said)
+    const place = run ? (run.at ? 'cleared ' + run.at + ' of ' + run.order.length + ' · ' : '') + 'map ' + (run.at + 1) + ' of ' + run.order.length : lv.title;
+    if (STAGE && STAGE.loading(place)) { if (MANA) MANA.close(); /* the stage holds until the level is drawn, mana-ui's title put away */ }
+    else if (MANA) MANA.loading(place);
     else { $('veilText').textContent = lv.title; veil.style.display = 'flex'; }
     clearTimeout(veilCap);
     // (a big map is baked before a byte of it arrives, for minutes: the veil holds, and says so, until the frame has loaded;
     // a level without the bridge still shows, a while after it has)
     clearTimeout(veilHint);
-    veilHint = setTimeout(() => { $('veilText').textContent = lv.title + ' · being built for the first time: a big map can take a few minutes'; }, 8000);
-    veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); }, 600000);
+    veilHint = setTimeout(() => { $('veilText').textContent = lv.title + ' · being built for the first time: a big map can take a few minutes'; if (STAGE) STAGE.slow('being built for the first time: a big map can take a few minutes'); }, 8000);
+    veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); if (STAGE) STAGE.loaded(); }, 600000);
     frame.src = lv.src;
   }
   function post(msg) { try { if (frame.contentWindow) frame.contentWindow.postMessage(msg, '*'); } catch (e) { /* opaque frame */ } }
@@ -609,7 +612,7 @@ export function playShellRuntime(cfg, K) {
     post({ moj: W.gamepad, on: true, deadZone: 0.15, lookScale: 18, invertY: false });
   };
   frame.addEventListener('load', pushPrefs);
-  frame.addEventListener('load', () => { if (veil.style.display === 'none') return; clearTimeout(veilCap); clearTimeout(veilHint); $('veilText').textContent = session ? session.level.title : ''; veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); }, 45000); });
+  frame.addEventListener('load', () => { if (veil.style.display === 'none' && !(STAGE && STAGE.isLoading())) return; clearTimeout(veilCap); clearTimeout(veilHint); $('veilText').textContent = session ? session.level.title : ''; veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); if (STAGE) STAGE.loaded(); }, 45000); });
 
   window.addEventListener('message', (e) => {
     const d = e.data;
@@ -619,7 +622,7 @@ export function playShellRuntime(cfg, K) {
     // the menu asked for from inside the level (Esc there, or the captured mouse let go by it): the pause opens
     if (d.moj === W.menu) { if (!paused && screen === 'level') setPaused(true); return; }
     // the level's first frame drawn: the veil lifts (a level from before game-shown lifts it a moment after it is ready)
-    if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); if (session && !session.t0) session.t0 = performance.now(); turnReady(); signal('shown'); return; }
+    if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); if (STAGE) STAGE.loaded(); if (session && !session.t0) session.t0 = performance.now(); turnReady(); signal('shown'); return; }
     // the scene the flow staged here has ended (or the level had none, or it never started): the flow goes on, the page
     // kept when the cinematic hands its stage on to the level
     if (d.moj === W.sceneEnd) { if (turn && turn.s.phase === 'main' && turn.s.sub === 'start' && d.scene === turn.s.trigger.scene) { turnSceneEnd(); return; } const cs = FLOW.steps[at.step]; if (cs && (cs.kind === 'cinematic' || cs.kind === 'cutscene') && d.scene === cs.scene) go('next', { keepPage: !!cs.keep }); return; }

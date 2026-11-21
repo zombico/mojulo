@@ -605,6 +605,7 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
   // World page, cut out and drawn in the stage's treatment in the game's colours, written to assets/front/; a subject
   // that could not be pictured (no browser, no sketch) is said, and the stage draws its name and its ground without it
   let frontStage = null, stageSays = [];
+  const WARM_MAX = 30 * 1024 * 1024;
   if (norm.shell === 'play' && norm.front?.stage) {
     const { bakeFrontStage } = await import('@/lib/graph/game/front-plates');
     const T = norm.theme || {}, hex = (v, d) => (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v) ? v : d);
@@ -631,7 +632,9 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
     };
     stageSays = says;
   }
-  await write('game.html', emitShellFor(resolved, { manifest: shellManifest, menu: shellMenu, frontArt, ...(frontStage ? { frontStage } : {}) }));
+  // (a staged game's shell is written once its levels are: it warms the first of them while its title is up)
+  const writeShell = () => write('game.html', emitShellFor(resolved, { manifest: shellManifest, menu: shellMenu, frontArt, ...(frontStage ? { frontStage } : {}) }));
+  if (!frontStage) await writeShell();
   await writeRecipe('recipe/game.json', norm);
 
   // levels — the ?walk=1&hud=0&download=1 bake, one page per level, figure bank hoisted shared.
@@ -640,9 +643,12 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
   // point of mapRef is that the map manifest exists ONCE for all its mode variants. A city's segment
   // level reads its city plan by ref (`city`) the same way, so the plan ships once beside its segments.
   const mapRecipes = new Set();
+  let firstPage = null;
   for (const lv of resolved.levels) {
     const levelSketch = getSketch(lv.ref);
-    await write(LEVEL_SRC(lv.ref), await hoistShared(await emitWorldPage(levelSketch, 'level', { cdn, era, reads: eraReads })));
+    const page = await hoistShared(await emitWorldPage(levelSketch, 'level', { cdn, era, reads: eraReads }));
+    if (firstPage === null) firstPage = page;
+    await write(LEVEL_SRC(lv.ref), page);
     await writeRecipe(`recipe/${lv.ref}.json`, levelSketch.manifest);
     // a city's sites stand edifices by ref (city/plan/landmarks.js): each ships too, the city's and its segments'
     const standsOf = (m) => (m && m.kind === 'city' && Array.isArray(m.sites) ? m.sites.map((x) => x && x.from) : []);
@@ -654,6 +660,22 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
       const mapSketch = getSketch(mapRef);
       if (mapSketch?.manifest) { await writeRecipe(`recipe/${mapRef}.json`, mapSketch.manifest); queue.push(...standsOf(mapSketch.manifest)); }
     }
+  }
+
+  // THE RAMP (front-stage-page.js): a staged game's title warms its first level, the page and the shared files it fetches
+  // (the figure and geometry banks), so play starts from the browser's cache; none past WARM_MAX, which a phone would
+  // pay for before the player asked
+  if (frontStage) {
+    if (firstPage !== null && resolved.levels.length) {
+      const bytesOf = (rel) => files.find((f) => f.file === rel)?.bytes ?? 0;
+      // (every shared file the page names: a bank fetched outright, and the figure bank's map of names to files)
+      const fetched = [...new Set([...firstPage.matchAll(/(["'])\.\.\/(assets\/[^"']+\.json)\1/g)].map((m) => m[2]))];
+      const warm = [LEVEL_SRC(resolved.levels[0].ref), ...fetched];
+      const total = warm.reduce((n, rel) => n + bytesOf(rel), 0);
+      if (total <= WARM_MAX) frontStage = { ...frontStage, warm };
+      else stageSays.push(`front.stage: the first level is ${(total / 1048576).toFixed(1)} MB, past the ${WARM_MAX / 1048576} MB a title warms: it loads when play is pressed`);
+    }
+    await writeShell();
   }
 
   // menu worlds (a hangar, a viewer) — resolveGame already verified the refs exist
@@ -714,7 +736,7 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
     ...(heavy.length ? {
       note: `Files over 25MB (${heavy.join(', ')}) exceed some static hosts' per-file limits (e.g. Cloudflare Pages) — GitHub Pages allows up to 100MB/file. Level weight is geometry; a lighter world recipe shrinks it.`,
     } : {}),
-    ...(frontStage ? { front_stage: { pictured: frontStage.plates.filter(Boolean).length, of: frontStage.plates.length, ...(frontStage.three ? { live: frontStage.plates.filter((p) => p && p.live).length } : {}), ...(stageSays.length ? { says: stageSays } : {}) } } : {}),
+    ...(frontStage ? { front_stage: { pictured: frontStage.plates.filter(Boolean).length, of: frontStage.plates.length, ...(frontStage.three ? { live: frontStage.plates.filter((p) => p && p.live).length } : {}), ...(frontStage.warm ? { warms: frontStage.warm.length } : {}), ...(stageSays.length ? { says: stageSays } : {}) } } : {}),
     ...(browserDownload ? { browser_download: browserDownload } : {}),
     ...(pluginBuild && cdnInput ? { cdn_note: '`cdn: true` was ignored: the Claude plugin build of mojulo writes only self-contained pages.' } : {}),
     ...(await desktopResult()),
