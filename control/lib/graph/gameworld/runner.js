@@ -94,6 +94,10 @@ import { BEAST_KINS } from '../beast/cards.js';
 import { fighterName } from '../versus/versus-sheet.js';
 import { solvePalette } from '../color-theorist/solve.js';
 import { gameTheme } from '../color-theorist/adapters.js';
+import { BOSSES } from './bosses.js';
+import { bossSpec } from './boss-spec.js';
+import { sideMapOf } from './side-map/scene.js';
+import { sideMapBossCast } from './side-map/boss-cast.js';
 import { stagedFront } from './front-stage.js';
 
 const REF_MAX = 64;
@@ -228,14 +232,15 @@ const sheetOf = (G, s, score = null) => {
 };
 // THE SCORE'S CUES A GAME NAMES BY REF (cue-sheet.js): a game's shell plays stored beats sketches, so each cue the game
 // itself plays is a step of the run, a beats-composition minted from the sheet's answer at `<ref>-cue-<id>`, and the
-// game names it. The outcomes' stingers today (the shell's music.victory / music.defeat); a level's own cues ride its
-// audio and are no step. → { steps, music } (music: null where the sheet answers neither)
-const GAME_CUES = Object.freeze(['victory', 'defeat']);
+// game names it: the outcomes' stingers (the shell's music.victory / music.defeat) and the score its screens play
+// (music.menu: the sheet's title cue, else its menus'); a level's own cues ride its audio and are no step.
+// → { steps, music } (music: null where the sheet answers none)
+const GAME_CUES = Object.freeze({ victory: ['victory'], defeat: ['defeat'], menu: ['title', 'menu'] });
 function gameCues(runScore, G, ref) {
   if (!runScore) return { steps: [], music: null };
   const steps = [], music = {};
-  for (const id of GAME_CUES) {
-    const R = runScore.sheet.requests.find((r) => r.id === id);
+  for (const [id, asks] of Object.entries(GAME_CUES)) {
+    const R = asks.map((a) => runScore.sheet.requests.find((r) => r.id === a)).find((r) => r?.cue);
     if (!R?.cue) continue;
     const order = { kind: 'beats-composition', title: `${G.name ?? G.id} · ${id}`, score: R.cue.score };
     const at = childRef(ref, `cue-${id}`);
@@ -317,6 +322,10 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   const steps = [adopted
     ? { key: 'hero', ref: heroRef, ready: true, adopt: true, order: { adopt: heroRef }, print: fingerprint({ adopt: heroRef }) }
     : { key: 'hero', ref: heroRef, ready: true, order: hero, print: fingerprint({ spec: hero.spec, motion: hero.motion, ...lit(hero.mint.toon) }) }];
+  // THE CO-STAR (characters.costar): a second hero made on its own and adopted, as an adopted hero is, stood in each side
+  // map beside the hero for the player to pick (side-map/level.js)
+  const costar = G.characters?.costar ?? null;
+  if (costar) steps.push({ key: 'costar', ref: costar.ref, ready: true, adopt: true, order: { adopt: costar.ref }, print: fingerprint({ adopt: costar.ref }) });
   const ready = characterReady(world, { lookup }), B = resolveBook(world);
   const waits = (r) => (r.ready ? {} : { waiting: r.waiting });
   // a hero edited by hand since the run is the one that plays: the equipped hero is built over it (its own motion
@@ -375,6 +384,9 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   // the bestiary's foes (foes.js): one beast for each entry a level stands, waiting on nothing
   steps.push(...foeSteps(G, ref, { ready: true }));
   const foeRefs = foeRefsOf(G, ref);
+  // the side maps' bosses (bosses.js): one figure each, minted through the hero door at `<ref>-foe-<id>`
+  steps.push(...sideMapBossSteps(G, ref, { ready: true }));
+  const bossRefs = sideMapBossRefs(G, ref);
   // the minigames' keepers (minigames.js): one figure, minted as a hero is, standing at every stall
   // (and the shops' merchant and innkeeper on the battle stages, battles.js: the same figure where the minigames stand
   // one, else the shopkeeper's)
@@ -405,6 +417,8 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   const ownMoves = react ? Object.fromEntries([...(adopted ? [] : [heroRef]), ...(equipped ? [equipped.ref] : []), ...(foeRef && ownFoe && !beastLook(G.battles.foe) ? [foeRef] : []), ...(keeperRef ? [keeperRef] : [])].map((r) => [r, REACT_STATES])) : null;
   if (ownMoves && adopted) { const st = reactStatesOf(isObj(lookup?.heroSpec?.motion) ? Object.keys(lookup.heroSpec.motion) : []); if (st) ownMoves[heroRef] = st; }
   const heroGaits = rowGaits(adopted ? null : G, gaitsOf(equipped ? equipped.order.spec : adopted ? lookup?.heroSpec : { ...hero.spec, ...(hero.motion ? motionFields(hero.motion) : {}) }));
+  // (the hero's stature once it is made: its stored row's, the door's lookup; the levels' hero collides as tall as it stands)
+  const heroStature = Number.isFinite(lookup?.stature) ? lookup.stature : null;
   // a building by ref is played as it was made: its ref is the level, and no step makes it
   const stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
   const runScore = scoreOfRun(world, G, ref);
@@ -523,12 +537,14 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const goalCast = (hostile || folk || cars) && !fight && !stall && !market ? GA.goalCast : null;
     // (the people of its pavements, people.js: a district's; rolled by the world's keys, worn by its scene's walkers)
     const people = s.section === 'geocity' ? peopleExtra(G) : null;
-    const extra = composeExtras(fight, stall, market, goalCast, folk, hostile, cars, people);
+    // (a side map's boss in its last room: side-map/boss-cast.js)
+    const sideBoss = s.section === 'sidemap' && G.levels[s.level]?.sidemap?.boss ? (ends) => sideMapBossCast(G, ends, { refs: bossRefs, ...(heroStature ? { stature: heroStature } : {}) }) : null;
+    const extra = composeExtras(fight, stall, market, goalCast, folk, hostile, cars, people, sideBoss);
     // (a stage with cars says its key: the same press gets in and out)
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : cars ? { legend: 'E  car' } : {}) } : {};
     // a walked stage's story slots: its before at its start, its after (and its epoch's end) at its exit
     const sl = walkedSlots(st, endOf[i], s);
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(s.section === 'street' || G.factions || G.law ? { foeRefs } : {}), ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights, ...sheetOf(G, s, runScore), ...gunnerRefOf(G, ref) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(costar ? { costar } : {}), ...(s.section === 'street' || G.factions || G.law ? { foeRefs } : {}), ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), ...(heroStature ? { heroStature } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights, ...sheetOf(G, s, runScore), ...gunnerRefOf(G, ref) });
     // (a party RPG marks no way out: no flag over its exits, the road or the door itself the way on)
     if (G.battles && G.battles.on !== 'board') L.args = unmarked(L.args);
     // on an epoch's map, a level won goes back to the map
@@ -710,6 +726,17 @@ const foeSteps = (G, ref, ready, ids = null) => {
 // a level's print: its args', and where foes stand its bestiary's (the cast is a function the args' JSON leaves out, so an
 // entry's vanish, states or skin changed would leave the level as it was made); a level with none prints as before
 const levelPrint = (G, args, hostile) => (hostile ? fingerprint({ args, foes: bestiaryOf(G) }) : fingerprint(args));
+// the side maps' bosses: the roster ids their chains name, each minted through the hero door (bosses.js bossSpec)
+// (a worker bot, a roster boss with a `workbot` body, is stood as its card's rig: nothing to mint)
+const sideMapBossIds = (G) => [...new Set(G.ids.map((id) => G.levels[id].sidemap?.boss).filter((id) => id && !BOSSES[id]?.workbot))];
+const sideMapBossRefs = (G, ref) => Object.fromEntries(sideMapBossIds(G).map((id) => [id, childRef(ref, `foe-${id}`)]));
+// (its identity hue the one its level's map holds back for its boss: the dress's, side-map/dress.js; the law that keeps it
+// its own reads the map's zones, so the boss stands out of every one of them)
+const sideMapBossHue = (G, id) => { const lv = G.ids.find((k) => G.levels[k].sidemap?.boss === id), s = gameStages(G).find((x) => x.level === lv && x.section === 'sidemap'); return s ? sideMapOf({ ...s.manifest, ...(G.feel ? { feel: G.feel } : {}) }).dress.palette.boss : null; };
+const sideMapBossSteps = (G, ref, ready) => sideMapBossIds(G).map((id) => {
+  const spec = bossSpec(id, { hue: sideMapBossHue(G, id) }), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} ${BOSSES[id].name}`, spec };
+  return { key: `foe-${id}`, ref: childRef(ref, `foe-${id}`), ...ready, order: { spec, mint, motion: null }, print: fingerprint({ spec }) };
+});
 // the front a story city has unless its world writes one (game/play-front.js): continue, play, options, credits
 const STORY_FRONT = Object.freeze({ layout: 'lower-third', credits: Object.freeze({}) });
 const foeRefsOf = (G, ref) => Object.fromEntries(fieldedIds(G).map((id) => [id, isModel(bestiaryOf(G)[id]) ? bestiaryOf(G)[id].skin.meshRef : childRef(ref, `foes-${id}`)]));
@@ -1129,6 +1156,7 @@ function quickSteps(world, G, ref, lookup) {
     steps.push({ key: 'hero', ref: heroRef, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
   }
   const heroGaits = pilot ? null : gaitsOf(adopted ? lookup?.heroSpec : Q.hero ? playJog(quickHero) : null);
+  const heroStature = !pilot && Number.isFinite(lookup?.stature) ? lookup.stature : null;
   // a ride (ride.js): the vehicle's build at the game's tier (vehicle-registry/ride.js): an assembled ride minted as its
   // own sketch, or a realistic loft or a machine ridden astride the world compiles in place (nothing to mint); every
   // stage drives it
@@ -1245,7 +1273,7 @@ function quickSteps(world, G, ref, lookup) {
     }
     const audio = scoreOf(s, i);
     const guards = guardRef ? { ref: guardRef, posts: (ends) => guardPosts(Q, ends) } : null;
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, ...((s.section === 'mission' || s.section === 'industrial') && figRefs.foe ? { gunnerRef: figRefs.foe } : {}), ...(ownMoves ? { moves: ownMoves } : {}), ...(heroGaits ? { heroGaits } : {}), ...(pilot ? { pilot } : {}), goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...(guards ? { guards } : {}), ...(party.length ? { party, castFigures } : {}), ...(audio ? { audio } : {}), ...(ride ? { ride } : {}), ...(Q.goal === 'defend' ? { extra: (ends) => defendCast(Q, ends, figRefs) } : Q.goal === 'battle' ? { extra: (ends) => battleCast(Q, ends, figRefs.foe) } : Q.goal === 'shoot' ? { extra: (ends) => shootCast(Q, ends, figRefs.foe, { hero: !!heroRef, camera: world.camera, G, ...(guns ? { guns } : {}) }), legend: Q.craft !== undefined ? 'click or Z  guns · R  missile · X  flare · F  boost · Q / E  roll' : Q.arms ? ARMS_LEGEND : 'click  fire' } : Q.goal === 'deathmatch' ? { extra: (ends) => deathmatchCast(Q, ends, figRefs.foe, { hero: !!heroRef, camera: world.camera, ...(guns ? { guns } : {}) }), legend: deathmatchLegend(Q) } : Q.goal === 'collect' ? { extra: () => bagPlay(Q), legend: 'I  bag' } : Q.goal === 'race' && ride ? { extra: (ends) => raceCast(Q, ends, ride) } : Q.goal === 'work' ? { extra: (ends) => workCast(Q, ends) } : figRefs.farmhand ? { extra: (ends) => farmCast(Q, ends, figRefs.farmhand) } : {}) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, ...((s.section === 'mission' || s.section === 'industrial') && figRefs.foe ? { gunnerRef: figRefs.foe } : {}), ...(ownMoves ? { moves: ownMoves } : {}), ...(heroGaits ? { heroGaits } : {}), ...(heroStature ? { heroStature } : {}), ...(pilot ? { pilot } : {}), goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...(guards ? { guards } : {}), ...(party.length ? { party, castFigures } : {}), ...(audio ? { audio } : {}), ...(ride ? { ride } : {}), ...(Q.goal === 'defend' ? { extra: (ends) => defendCast(Q, ends, figRefs) } : Q.goal === 'battle' ? { extra: (ends) => battleCast(Q, ends, figRefs.foe) } : Q.goal === 'shoot' ? { extra: (ends) => shootCast(Q, ends, figRefs.foe, { hero: !!heroRef, camera: world.camera, G, ...(guns ? { guns } : {}) }), legend: Q.craft !== undefined ? 'click or Z  guns · R  missile · X  flare · F  boost · Q / E  roll' : Q.arms ? ARMS_LEGEND : 'click  fire' } : Q.goal === 'deathmatch' ? { extra: (ends) => deathmatchCast(Q, ends, figRefs.foe, { hero: !!heroRef, camera: world.camera, ...(guns ? { guns } : {}) }), legend: deathmatchLegend(Q) } : Q.goal === 'collect' ? { extra: () => bagPlay(Q), legend: 'I  bag' } : Q.goal === 'race' && ride ? { extra: (ends) => raceCast(Q, ends, ride) } : Q.goal === 'work' ? { extra: (ends) => workCast(Q, ends) } : figRefs.farmhand ? { extra: (ends) => farmCast(Q, ends, figRefs.farmhand) } : {}) });
     const extraLaws = [...(balance ? [balance] : []), ...castLaws], laws = extraLaws.length ? [...(L.laws ?? []), ...extraLaws] : L.laws;
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args), ...(laws ? { laws } : {}) });
   });

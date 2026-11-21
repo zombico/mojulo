@@ -108,6 +108,10 @@ const ROWS = {
   'beam-rifle-shot': mecha('weapon', 'shoot', 'weapon.shot', 'a beam rifle firing', ['beam rifle', 'long rifle', 'beam shot']),
   'beam-rifle-hit': mecha('impact', 'hit', 'weapon.hit', 'a beam round landing', ['beam hit', 'beam impact']),
   'beam-charge': mecha('weapon', null, 'weapon.charge', 'a beam rifle charging', ['charge up', 'beam charge']),
+  // ── an arm cannon (sets/buster.js): a run and gun's energy shots, the tap, the first charge and the full charge ──
+  'buster-shot': { label: 'an arm cannon\'s shot: a bright pew of energy', aliases: ['arm cannon', 'buster', 'pew', 'energy shot', 'laser shot'], category: 'weapon', family: 'shoot', voices: { realistic: 'buster' }, slot: 'weapon.shot' },
+  'buster-charged-shot': { label: 'an arm cannon\'s charged shot: lower, driven, a warble on it', aliases: ['buster charge shot', 'charged pew'], category: 'weapon', family: 'shoot', voices: { realistic: 'buster' }, slot: 'weapon.chargedShot' },
+  'buster-full-shot': { label: 'an arm cannon\'s full charge let go: a blast with a long falling tail', aliases: ['full charge', 'buster blast', 'charged blast'], category: 'weapon', family: 'shoot', voices: { realistic: 'buster' }, slot: 'weapon.chargedShot' },
   'beam-charged-shot': mecha('weapon', 'shoot', 'weapon.chargedShot', 'a charged beam shot', ['charged shot', 'charge shot']),
   'bazooka-shot': mecha('weapon', 'shoot', 'weapon.shot', 'a bazooka firing', ['bazooka', 'launcher shot', 'rocket launch']),
   'bazooka-hit': mecha('impact', 'hit', 'weapon.hit', 'a bazooka round bursting', ['bazooka hit', 'shell burst']),
@@ -235,6 +239,7 @@ const ROWS = {
   'brake-squeal': made('machinery', null, 'on', 'a car\'s brakes squealing as it stops hard', ['brakes', 'brake', 'squealing brakes'], 'motoring', { act: 'brake-squeal' }),
   'diesel-engine': made('machinery', null, 'hold', 'a heavy diesel by its throttle: a truck, a carrier, a walking machine\'s power pack', ['diesel', 'truck engine', 'heavy engine'], 'engine', { kind: 'diesel' }),
   'tank-engine': made('machinery', null, 'hold', 'a tracked vehicle by its throttle: its diesel and its tracks clanking', ['tank engine', 'tracked engine', 'track clatter'], 'engine', { kind: 'tracked' }),
+  'steam-hiss': made('machinery', null, 'hold', 'a machine venting steam, by its pressure: its exhaust hissing and chuffing', ['steam', 'steam vent', 'exhaust steam', 'venting'], 'servo', { kind: 'steam' }),
   'walker-hydraulics': made('machinery', null, 'hold', 'a walking machine\'s hydraulics by its pace: its pump straining, its valves chuffing with its steps', ['hydraulics', 'walker servo', 'mech hydraulics'], 'servo', { kind: 'walker' }),
   'boat-engine': made('machinery', null, 'hold', 'an outboard by its throttle', ['boat', 'speedboat', 'outboard'], 'engine', { kind: 'boat' }),
   'helicopter': made('machinery', null, 'hold', 'a helicopter by its throttle', ['chopper', 'rotor'], 'engine', { kind: 'helicopter' }),

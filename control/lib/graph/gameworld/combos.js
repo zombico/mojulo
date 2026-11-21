@@ -19,6 +19,10 @@
  *            rear; at most 0.4 m), lunge (the lead foot driven out to land with the blow, the rear leg extending behind,
  *            then the rear foot recovering forward after it; at most 0.7 m, one stride), dash (the body carried in a glide
  *            to the blow, the feet held in the stance, closing on what is ahead: a special's, at most 4 m); `m` metres
+ *   plant    the metres the feet split IN PLACE through the cut (a move with no travel's: 0.1 to 0.6): the lead foot steps
+ *            forward and the rear back over the wind-up as the body swings into the blow, held through it, drawn back
+ *            to the stance after; the body never moves (hero-swing-body.js plantAt). A plant move chained into from
+ *            another, taken before its feet were drawn back, starts in the split (its `_on` clip)
  *   mp       the MP it costs (a special's: the arsenal's `mp` pool; refused, said, when the pool is short)
  *   reach    the metres its blow reaches, in place of the weapon's (a burst's, a shockwave's)
  *   damage   × the held weapon's; impact (the blow's shove: its hitstop grows with it), topple (knocks down), launch
@@ -107,7 +111,7 @@ export function readCombos(C) {
   for (const [id, m] of Object.entries(C.moves)) {
     const at = `moves.${id}`;
     if (!isObj(m)) no(`${at} is { swing | strike, role, frames, cancel?, contact?, travel?, damage?, impact?, topple?, launch?, cooldown? }`);
-    for (const k of Object.keys(m)) if (!['swing', 'strike', 'role', 'frames', 'cancel', 'contact', 'travel', 'damage', 'impact', 'topple', 'launch', 'cooldown', 'air', 'slam', 'rise', 'arc', 'spin', 'mp', 'reach'].includes(k)) no(`${at}.${k} is not part of a move`);
+    for (const k of Object.keys(m)) if (!['swing', 'strike', 'role', 'frames', 'cancel', 'contact', 'travel', 'damage', 'impact', 'topple', 'launch', 'cooldown', 'air', 'slam', 'rise', 'arc', 'spin', 'mp', 'reach', 'plant'].includes(k)) no(`${at}.${k} is not part of a move`);
     if (m.mp !== undefined && !num(m.mp, 0, 200)) no(`${at}.mp is the MP it costs, 0 to 200 (a move with none costs nothing)`);
     if (m.reach !== undefined && !num(m.reach, 0.5, 8)) no(`${at}.reach is the metres its blow reaches, over the weapon's, 0.5 to 8`);
     if (m.arc !== undefined && !num(m.arc, 30, 360)) no(`${at}.arc is the degrees round the hero its blow reaches, 30 to 360 (360: all round, a spin attack's)`);
@@ -132,6 +136,9 @@ export function readCombos(C) {
       // (a dash: the body carried in a glide, its feet held in the stance, a special's: a stinger's)
       if (m.travel.kind === 'dash' && m.travel.m > 4) no(`${at}: a dash covers at most 4 m`);
     }
+    // (a plant splits the feet where the hero stands: no travel with it, no air under it)
+    if (m.plant !== undefined && !num(m.plant, 0.1, 0.6)) no(`${at}.plant is the metres the feet split in place, 0.1 to 0.6`);
+    if (m.plant !== undefined && ((m.travel && m.travel.kind !== 'none') || m.air)) no(`${at}: a plant splits the feet in place (no travel, no air)`);
     for (const k of ['damage', 'impact']) if (m[k] !== undefined && !num(m[k], 0, 20)) no(`${at}.${k} is a number 0 to 20`);
     if (m.launch !== undefined && !num(m.launch, 0, 20)) no(`${at}.launch is the foe's speed up (m/s)`);
     if (m.topple !== undefined && typeof m.topple !== 'boolean') no(`${at}.topple is true or false`);
@@ -183,6 +190,7 @@ export function lowerCombos(C0, { prefix = '' } = {}) {
     ...(m.cooldown > 0 ? { cooldown: r4(m.cooldown / FPS) } : {}),
     ...(m.air ? { air: true } : {}), ...(m.slam > 0 ? { slam: m.slam } : {}), ...(m.rise ? { rise: true } : {}),
     ...(m.arc ? { arc: m.arc } : {}), ...(m.spin ? { spin: m.spin } : {}), ...(m.mp > 0 ? { mp: m.mp } : {}), ...(m.reach ? { reach: m.reach } : {}),
+    ...(m.plant ? { plant: m.plant } : {}),
   }]));
   // (the ground's tree and the air's: a string made in the air opens from a jump or a launch, the ground's from the feet)
   const tree = {}, airTree = {};

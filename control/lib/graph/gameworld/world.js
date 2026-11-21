@@ -227,6 +227,7 @@ import { readMounts } from '../worlds/mount-units.js';
 import { validateAirspace, isSpace } from '../skyscape/airspace.js';
 import { readGeotown } from '../geotown/read.js';
 import { readGeocity } from '../geocity/metro.js';
+import { readSideMap } from './side-map/zones.js';
 /** The uses a town level opens at their doors when it names none: a shop, the hall (an old town's church), a dwelling. */
 export const GEOTOWN_ENTER = Object.freeze(['shop', 'hall', 'dwelling']);
 // the evocations a geocity level may be (geocity/metro.js EVOKES): a district, never the metro or its skyline
@@ -239,6 +240,7 @@ import { readPlay } from '../level/play-layer.js';
 import { zoneOf } from '../level/zones.js';
 import { DRESSES } from '../gameroom/dress.js';
 import { readArea } from '../gameroom/area.js';
+import { BOSS_IDS } from './bosses.js';
 import { readMission } from '../mission/brief.js';
 import { loadoutOf } from './loadout.js';
 
@@ -303,7 +305,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -664,7 +666,8 @@ export function readGameworld(W) {
     if (L.foes !== undefined) {
       if (quickGame) throw new Error(`gameworld: ${at}.foes: a quick game's foes are its goal's (quick.foe)`);
       // (a glyph map's: on its walk's beats, or where its approved sketch marks its fights: gameworld/foes.js)
-      if (L.walk === undefined && L.glyphs === undefined && (L.building === undefined || L.building?.ref !== undefined)) throw new Error(`gameworld: ${at}.foes stand on a walk's trails, a glyph map or a building's rooms (a building made by ref, a city, a road or a run takes none yet)`);
+      // (and on a side map's spawners and runs: side-map/cast.js)
+      if (L.walk === undefined && L.glyphs === undefined && L.sidemap === undefined && (L.building === undefined || L.building?.ref !== undefined)) throw new Error(`gameworld: ${at}.foes stand on a walk's trails, a glyph map, a side map or a building's rooms (a building made by ref, a city, a road or a run takes none yet)`);
       readLevelFoes(L.foes, foes, at);
     }
     // a match's arena in words (tunnel-arena.js), or { words, spawns }: laid where the world's cube asks for one
@@ -679,14 +682,14 @@ export function readGameworld(W) {
     if (L.kitchen !== undefined) {
       // a kitchen level (gameworld/kitchen-shifts.js, laid by kitchen-level.js): its own room, its layout, its menu, its
       // challenge and its map's variations; the work goal's places its own
-      const beside = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'geocity', 'glyphs', 'obstacles', 'street', 'mission', 'industrial', 'places', 'ground', 'arena', 'course', 'foes'].filter((k) => L[k] !== undefined);
+      const beside = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'geocity', 'glyphs', 'obstacles', 'street', 'mission', 'industrial', 'places', 'ground', 'arena', 'course', 'foes', 'sidemap'].filter((k) => L[k] !== undefined);
       if (beside.length) throw new Error(`gameworld: ${at}: a kitchen level is the kitchen alone: no ${beside.join(', ')} beside it`);
       readShift(L.kitchen, `${at}.kitchen`);
     } else if (L.industrial !== undefined) {
       // an industrial level: a yard before a base building, designed under the arena's laws and built by the geocube
       // (mission-industrial.js); its mission is its play (the default one where it names none), its ground, its foes and
       // its tasks its own
-      const beside = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'glyphs', 'places', 'ground', 'arena', 'goal', 'foes', 'course', 'obstacles'].filter((k) => L[k] !== undefined);
+      const beside = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'glyphs', 'places', 'ground', 'arena', 'goal', 'foes', 'course', 'obstacles', 'sidemap'].filter((k) => L[k] !== undefined);
       if (beside.length) throw new Error(`gameworld: ${at}: an industrial level is its yard and its mission alone: no ${beside.join(', ')} beside it`);
       readIndustrial(L.industrial, `${at}.industrial`);
       let M;
@@ -696,10 +699,20 @@ export function readGameworld(W) {
     } else if (L.mission !== undefined && L.building === undefined) {
       // a mission level: the firing range stretched into sections with tasks (lib/graph/mission), laid from the world's
       // guns; its foes, its tasks and its ground are its own (a mission in a building: the building's branch, below)
-      const beside = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'glyphs', 'places', 'ground', 'arena', 'goal', 'foes', 'course'].filter((k) => L[k] !== undefined);
+      const beside = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'glyphs', 'places', 'ground', 'arena', 'goal', 'foes', 'course', 'sidemap'].filter((k) => L[k] !== undefined);
       if (beside.length) throw new Error(`gameworld: ${at}: a mission level is the mission alone (its ground, its foes and its tasks are its own): no ${beside.join(', ')} beside it`);
       try { readMission(L.mission, 'mission'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
       if (!loadoutOf(W)) throw new Error(`gameworld: ${at}.mission is laid from the guns the world carries, and this world carries none: a quick shooter's arms, a gun in the hero's right hand (an item that serves 'shoot'), or a feel whose template shoots`);
+    } else if (L.sidemap !== undefined) {
+      // a SIDE MAP level (side-map/zones.js): a traditional side-scroller's level as the camera's path, a chain of camera
+      // zones laid in the hero's screens and reach, built as the geocube's `show: 'sidemap'`; the map is the whole level
+      const other = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'geocity', 'glyphs', 'places', 'ground', 'arena', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen'].filter((k) => L[k] !== undefined);
+      // (its foes beside it: stood on its spawners and its runs, side-map/cast.js)
+      if (other.length) throw new Error(`gameworld: ${at}: a side map level is the map alone: no ${other.join(', ')} beside it`);
+      if (W.camera !== 'side') throw new Error(`gameworld: ${at}.sidemap is seen from the side: set camera: 'side' (the side map's camera holds its zones)`);
+      try { readSideMap(L.sidemap); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^side map:\s*sidemap\.?/, 'sidemap.').replace(/^side map:\s*/, '')}`); }
+      // (its boss one of the roster's: gameworld/bosses.js)
+      if (L.sidemap.boss !== undefined && !BOSS_IDS.includes(L.sidemap.boss)) throw new Error(`gameworld: ${at}.sidemap.boss is a boss of the roster (${BOSS_IDS.join(', ')})`);
     } else if (L.glyphs !== undefined) {
       // a glyph-map level: the whole level one world written as a glyph grid (its paths, its places, its regions), walked
       // end to end on one page; the map is its own ground
@@ -1084,6 +1097,8 @@ export function resolveLevel(world, id) {
     const cube = painted ? { geocube: cubeInPalette(style.geocube, style.palette), ...(style.terrain !== undefined ? { terrain: style.terrain } : {}), ...(style.hour !== undefined ? { hour: style.hour } : {}) } : {};
     return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, glyphs: { ...(painted ? {} : { kit }), seed: seed >>> 0, grid, ...cube, ...words } };
   }
+  // a side map level: its zone chain as written (levels.js lays it on the level's geocube for the world's hero)
+  if (L.sidemap) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, sidemap: L.sidemap };
   // a geocity level: the district on the level's geocube (a morning valley unless the style names one), as a geotown's
   if (L.geocity) {
     const c0 = cubeInPalette(style.geocube ?? 'valley-morning', style.palette), c1 = typeof c0 === 'string' ? { from: c0 } : c0, cube = c1.era ? c1 : { ...c1, era: 'gen-7' };

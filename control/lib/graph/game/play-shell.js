@@ -135,6 +135,8 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ...(manifest.run ? { run: { length: manifest.run.length, ...(manifest.run.repeat ? { repeat: true } : {}) } } : {}),
     // the result's stingers (music.victory / music.defeat, resolved to srcs): absent, no key
     ...(stingers && (stingers.victory || stingers.defeat) ? { stingers: { victory: stingers.victory || null, defeat: stingers.defeat || null } } : {}),
+    // the screens' score (music.menu, resolved to a src): looped while a screen is up, never under a level
+    ...(stingers && stingers.menu ? { screens: stingers.menu } : {}),
     wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, menu: MSG_MENU, gamepad: MSG_GAMEPAD, seats: MSG_SEATS, shown: MSG_SHOWN, cardDone: MSG_CARD_DONE, sceneEnd: MSG_SCENE_END, ...(levelTable.some((l) => l.contract && l.contract.save) ? { save: MSG_SAVE } : {}), ...(links ? { door: MSG_DOOR } : {}) },
     pauseButtons: PAUSE_BUTTONS,
     // THE FRONT (play-front.js): a title over a cover, the start menu, options, credits, the end; absent, no key (a
@@ -555,11 +557,23 @@ export function playShellRuntime(cfg, K) {
     if (!src || !settings.sfxOn) return;
     post({ moj: W.audio, on: false, volume: 1 });
     warmStinger(src);
-    stingerBlob[src].then((url) => { if (!url) return; stingerEl = stingerEl || new Audio(); stingerEl.src = url; stingerEl.volume = 0.6; stingerEl.play().catch(() => {}); });
+    stingerBlob[src].then((url) => { if (!url) return; stingerEl = stingerEl || new Audio(); if (SCREENS && !stingerEl.onended) stingerEl.onended = screensPlay; screensStop(); stingerEl.src = url; stingerEl.volume = 0.6; stingerEl.play().catch(() => {}); });
   }
   // `stage`: a cinematic the flow plays on the level's page ({ scene, skip? }, params.__stage): the level plays it, held,
   // and says when it ends
+  // THE SCREENS' SCORE (music.menu): looped while a screen is up (the title, the menus, the results), stopped as a level
+  // launches, held under a stinger; a browser lets it start once the player has pressed something, so a press tries again
+  const SCREENS = cfg.screens || null;
+  let screensEl = null, onScreens = false;
+  function screensPlay() {
+    if (!SCREENS || !onScreens || !settings.sfxOn || (stingerEl && !stingerEl.paused && !stingerEl.ended)) return;
+    if (!screensEl) { screensEl = new Audio(SCREENS); screensEl.loop = true; screensEl.volume = 0.5; }
+    if (screensEl.paused) screensEl.play().catch(() => {});
+  }
+  function screensStop() { if (screensEl) screensEl.pause(); }
+  if (SCREENS) { window.addEventListener('keydown', screensPlay); window.addEventListener('pointerdown', screensPlay); }
   function launch(lv, arrive, carry, stage, picked) {
+    onScreens = false; screensStop();
     if (stingerEl) stingerEl.pause();
     if (STINGERS) { warmStinger(STINGERS.victory); warmStinger(STINGERS.defeat); }
     launches += 1;
@@ -608,6 +622,7 @@ export function playShellRuntime(cfg, K) {
   }
   function post(msg) { try { if (frame.contentWindow) frame.contentWindow.postMessage(msg, '*'); } catch (e) { /* opaque frame */ } }
   const pushPrefs = () => {
+    if (SCREENS) { if (settings.sfxOn) screensPlay(); else screensStop(); }
     post({ moj: W.audio, on: settings.sfxOn, volume: 1 });
     post({ moj: W.gamepad, on: true, deadZone: 0.15, lookScale: 18, invertY: false });
   };
@@ -982,6 +997,7 @@ export function playShellRuntime(cfg, K) {
     if (CINE) next = CINE.arrive(next, s, at);
     at = next;
     clearTimeout(holdTimer); clearTimeout(idleTimer); holdUntil = null; idleAfter = 0;
+    if (SCREENS) { onScreens = s.kind !== 'level'; if (onScreens) screensPlay(); }
     if (s.kind === 'level') {
       const lv = LEVELS.find((l) => l.ref === next.level);
       if (!lv) { toast('No level ' + next.level + '.'); return; }

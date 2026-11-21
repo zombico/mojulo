@@ -128,6 +128,8 @@ const PINS = {
   'diesel-engine': 'c096cf2c7466',
   'tank-engine': '603e700a05e4',
   'walker-hydraulics': '94b48bc613a7',
+  // (a machine venting steam: a new row, servo's steam dial, 2026-11-20)
+  'steam-hiss': '0a6272248c1d',   // re-pinned 2026-11-21: silent at no pressure and gone after its 0.4 s release, as the servo family is (its channel holds a body that stands at its standing pressure)
   // (the helicopter and a multirotor drone's motors: the artillery range's rotorcraft)
   'helicopter': '6a1db48b91b1',
   'drone-motors': 'f9e1b6875b8b',

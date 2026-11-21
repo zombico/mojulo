@@ -552,7 +552,9 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, f
   const organicGroup = (f) => (f.organic === 'land' ? STATIC_LAND_GROUP : STATIC_ORGANIC_GROUP);
   const renderGroup = creasesCfg ? (f) => (f.organic && renderGroup0(f) === STATIC_GROUP ? organicGroup(f) : renderGroup0(f)) : renderGroup0;
   const inkByGroup = new Map();
-  if (toonInk) {
+  // (`only: 'bodies'`: the bodies' parts take the ink, the world's faces none: a cel body's outline, gameworld/game-bodies.js
+  // CEL_INK, never the land's)
+  if (toonInk && toonInk.only !== 'bodies') {
     for (const f of expanded0) {
       if (!f || f.decal || f.water || f.studio || f.wireframe || f.glow || f.texture || f.noInk || f.layer === 'through' || (typeof f.alpha === 'number' && f.alpha < 1)) continue;
       const k = renderGroup(f);

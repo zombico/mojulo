@@ -12,6 +12,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 // leg of the matrix. Listed here so both configs read one list; the e2e config re-exports it.
 // A list, not a suffix: a rename would collide with every branch still editing these files.
 export const E2E = [
+  // a side map level resolved as its page resolves it and played to its goal by the side map's bot (gameworld/side-map/)
+  'lib/graph/gameworld/side-map/level.e2e.test.js',
   'lib/graph/gameworld/race-hud.e2e.test.js',
   'lib/graph/gameworld/door-probes.e2e.test.js',
   // a shoot plan's contact sheet rendered through the door: its frames captured in headless Chrome and composed
@@ -80,7 +82,7 @@ export const E2E = [
   'lib/graph/scene/channels/controllable/seats.live.test.js',
   'lib/graph/worlds/controllable/vayo-air.live.test.js',
   'lib/graph/worlds/controllable/vayo-move.live.test.js',
-  'lib/graph/worlds/controllable/knock.live.test.js',
+  'lib/graph/worlds/controllable/knock.live.test.js', 'lib/graph/scene/channels/controllable/shot-light.live.test.js', 'lib/graph/worlds/cel-body.e2e.test.js',
   'lib/graph/worlds/mount-ride.live.test.js',
   'lib/mcp/tools/design-game.seats.test.js',
   'lib/graph/science-worlds/conformance.chrome.test.js',

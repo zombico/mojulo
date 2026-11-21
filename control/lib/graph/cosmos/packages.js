@@ -47,4 +47,6 @@ export const PACKAGES = Object.freeze({
   'quest-turns': { name: 'Quest turns: a main quest\'s chapter lowered to its world overlay, the world turned as the chapter opens', effort: 'M' },
   'side-quests': { name: 'Side quests by the main quest: hung on its beats, near its path or anywhere, as loose as it says', effort: 'M' },
   'hostile-encounters': { name: 'Hostile encounters: foe classes on a level, the touch and the stomp, the pace, the hop, the dive and the charge', effort: 'L' },
+  // the traditional side-scroller map (11-17): a level as the camera's path, read as words; what laying it waits on
+  'side-map': { name: 'The traditional side-scroller map: a chain of camera zones laid in screens and reach, its climbs, its laws, its camera and its closed parts painted', effort: 'L' },
 });

@@ -15,12 +15,14 @@
  *   VERTICALITY   how the floors climb: flat (level), rolling (up and down), climbing (each step up), towering (each step
  *                 up and taller: the wall's own in an advanced segment)
  *
- *   coursePlan(reach, { teach, verticality, length }) → { teach, verticality, lift, floors: [{ s0, s1, z }], gaps: [{
+ *   coursePlan(reach, { teach, verticality, length, lift?, end?, floor? }) → { teach, verticality, lift, floors: [{ s0, s1, z }], gaps: [{
  *       s0, s1, w, dz, teaches, kind }] }: stations in metres along the line, heights over the course's base (the
  *       trailhead's ground plus `lift`), each gap between floor k and k+1: its width, its rise (negative a drop), the
  *       move it teaches and its kind (gap | step | drop | wall)
  *   courseLaws(plan, reach) → [{ id, holds, says }] the machine gate: every gap crossed by the move it teaches; an
  *       advanced one past the running jump; floors long enough to land on and to fight on
+ *   joinLaw(id, dz, reach) → { id, holds, says }: where two of a strip's segments meet on its ground, the step between
+ *       them (a drop free, a step up one the running jump makes)
  *   liftOf(reach) · slabOf(reach) → the course's lift and a floor's thickness, each a share of what the hero's running
  *       jump clears: a course is sized by its hero, so nothing is drawn that the play does not need
  *   lowerCourse(plan, lane, { player, slab? }) → { blocks, events: { sources, reactions } }: the floors as walkway tiles over
@@ -78,12 +80,17 @@ export function advancedMoves(reach) {
   return ['air', 'dash', 'wall'].filter((m) => (m === 'wall' ? !!reach.wall : !!reach.moves?.[m]));
 }
 
-/** The gaps a segment teaches, in order: [{ teaches, w (share of the move's reach past the base), dz }] in metres. */
-function beatsOf(reach, teach, verticality) {
+/** The gaps a segment teaches, in order: [{ teaches, w (share of the move's reach past the base), dz }] in metres.
+ * `floor`: the lowest a floor may stand over the course's base (null: no floor; a side strip's is its ground, 0): a drop
+ * that would take the next floor under it is taken only as far as it, and its gap sized at that height. */
+function beatsOf(reach, teach, verticality, floor = null) {
   const V = VERTICALITY[verticality], run = reach.moves.run, H = run.height, L = run.long;
   // a basic gap: a share of the running jump's reach at the step's own height (so a step up is narrower)
+  let z = 0;
   const basic = (share, k) => {
-    const dz = k % 2 === 0 ? V.up * H * (verticality === 'rolling' ? 0.8 : 1) : (verticality === 'rolling' ? -V.down * H * 2 : V.up * H);
+    let dz = k % 2 === 0 ? V.up * H * (verticality === 'rolling' ? 0.8 : 1) : (verticality === 'rolling' ? -V.down * H * 2 : V.up * H);
+    if (floor !== null && z + dz < floor) dz = floor - z;
+    z += r3(dz);
     const span = reachAt(run, dz) ?? L;
     return { teaches: 'run', w: r3(span * share), dz: r3(dz) };
   };
@@ -116,10 +123,12 @@ function beatsOf(reach, teach, verticality) {
 /** The course a segment lays: its floors and the gaps between them along `length` metres of line. `lift` the height
  * it stands over its ground (its stairs climb it; 0, a side strip's: no stairs, the floors start on the ground), `end`
  * the ground before its first step and after its last. */
-export function coursePlan(reach, { teach = 'basic', verticality = 'flat', length = 72, lift = liftOf(reach), end = END } = {}) {
+export function coursePlan(reach, { teach = 'basic', verticality = 'flat', length = 72, lift = liftOf(reach), end = END, floor = null, walls = true } = {}) {
   if (!TEACH.includes(teach)) throw new Error(`course: teach is one of ${TEACH.join(', ')}`);
   if (!VERTICALITY[verticality]) throw new Error(`course: verticality is one of ${Object.entries(VERTICALITY).map(([k, v]) => `${k} (${v.says})`).join(', ')}`);
-  const beats = beatsOf(reach, teach, verticality);
+  // (`walls: false`: no wall face to kick up, the climbing left to a level's own climbs: a side map's run is one screen
+  // thick, and going up is an up run's)
+  const beats = walls ? beatsOf(reach, teach, verticality, floor) : beatsOf(reach, teach, verticality, floor).filter((b) => b.kind !== 'wall');
   const stairs = Math.ceil(lift / RISER) * TREAD;
   const s0 = end + stairs, s1 = length - end - stairs, room = s1 - s0;
   // the floors share what the gaps leave, a fighting segment's floors long enough to fight on
@@ -164,6 +173,14 @@ export function courseLaws(plan, reach) {
   return laws;
 }
 
+/** A JOIN's law (a side strip's segments meeting on its ground): `dz` the rise from the floor left to the floor met,
+ * with no gap between. A drop is free; a step up is one the running jump makes, with the gaps' margin. */
+export function joinLaw(id, dz, reach) {
+  if (dz <= 1e-3) return { id, holds: true, says: dz < -1e-3 ? `a drop of ${r3(-dz)} m: free` : 'level' };
+  const at = reachAt(reach.moves.run, dz);
+  return { id, holds: at !== null && at >= MARGIN, says: `a step ${r3(dz)} m up: the running jump ${at === null ? `rises ${reach.moves.run.height} m, not that high` : `clears it, landing ${at} m on`}` };
+}
+
 // ─── the lowering ───────────────────────────────────────────────────────────
 /** The line at station s (metres along it): its point and heading, interpolated. */
 function along(line, s) {
@@ -194,7 +211,9 @@ export function lowerCourse(plan, lane, { player = 'hero', value = 0.58, slab = 
     // one is lower, so a step or a wall's face is whole; never below the ground. Absent, a column to the ground)
     const top = base + f.z, under = lowUnder(f.s0, f.s1);
     const beside = [plan.floors[k - 1], plan.floors[k + 1]].filter(Boolean).map((n) => base + n.z);
-    const lo = slab ? Math.max(under, Math.min(top - slab, ...beside.map((z) => z - SLAB_UNDER))) : under;
+    const lo0 = slab ? Math.max(under, Math.min(top - slab, ...beside.map((z) => z - SLAB_UNDER))) : under;
+    // (never at or above its own top: a floor lower than the ground under it reaches down a slab's depth, never up)
+    const lo = lo0 < top ? lo0 : top - (slab ?? SLAB_UNDER);
     const e0 = edge(a, along(line, f.s0).h), e1 = edge(a, along(line, f.s1).h);
     const first = f.s0 + e0, last = f.s1 - e1;
     for (let s = first; s < last; s += TILE) tile(s, top, lo, k);

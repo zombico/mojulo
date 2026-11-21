@@ -944,6 +944,40 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // runtime. A strike's row may name its own kind, and its description speaks of a turn-based fight's figure; the level
 // HUD lays no lens again. Nothing else moved.
 //
+//
+// Re-pinned 2026-11-19 (a move's PLANT, gameworld/combos.js: the feet split in place through a cut): the runtime the
+// page embeds (combat-melee.js stepMoveset) plays a plant chained into from another plant on its `_on` clip, begun split.
+// One place: where a move's clip is chosen. A moveset with no plant plays its clips as before; every fixture that embeds
+// the controllable runtime re-pinned with it.
+// Re-pinned 2026-11-19 (a card's own dash, feel/lower.js `takes.dash`): the runtime the page embeds (rules-platform.js)
+// plays a body's `dash` clip over its dash's burst, on the ground and in an air dash, where its takes name one; a rule
+// whose takes name none holds the running jump's gather as before. One place, where the dash's pose is chosen; every
+// fixture that embeds the controllable runtime re-pinned with it. (The dash's dust is a block of its own, gated on a
+// rule's `dash.dust`: no fixture has one, and none emits it.)
+// Re-pinned 2026-11-20 (the wall slide faces out, rules-platform.js): the runtime the page embeds turns a body caught on
+// a wall to face out from it, where the stick moves it in the world's frame, and the stick no longer turns a clinging
+// body. A rule with no `cling` steps as before; every fixture that embeds the controllable runtime re-pinned with it.
+// Re-pinned 2026-11-20 (a foe's rounds travel, combat-ranged.js): a weapon may say `noGround` (its round flies on over
+// and under z = 0) and `passTeam` (its round passes through its own team's bodies), carried onto the round it launches
+// and read by the contact sweep; a weapon that says neither launches and sweeps as before. Every fixture that embeds the
+// controllable runtime re-pinned with it. (The page's foe-round look and the boss room's shutter are blocks of their
+// own, gated on a foe weapon's `foeRound` and a side-map zone's `shut`: no fixture has either, and none emits them.)
+// Re-pinned 2026-11-21 (the audio channel unlocks on a key and on the game shell's word that sound is on): a game played
+// on the keys, or hosted in the shell's frame, was never clicked and stayed silent. The fixtures that carry `audio`
+// (audio, kitchen-sink) re-pinned with it; every other fixture keeps every byte.
+// Re-pinned 2026-11-21 (the platform rule's FLINCH, rules-platform.js `flinch`, opt-in: a blow taken holds a run-and-gun
+// hero in its hurt; the buster's tap held while it flinches): a rule without `flinch` steps as before; every fixture
+// that embeds the controllable runtime re-pinned with it. (The side map's shutter wall and its room put back after a
+// fall are the side-map runtime's, emitted only under a side map's camera: no fixture has one.)
+// Re-pinned 2026-11-21 (the game-params seam reads a light shell's turn pick, params.__picks.pilot, as its pilot: a co-star's
+// level stands two heroes in the player's seat): a level with no pick pilots as before; every fixture that embeds the
+// controllable channel re-pinned with it.
+//
+// Re-pinned 2026-11-21 (1116-rc merged into 1117-side-scroller-galaxy): the fixtures both lines moved, together. Those
+// that embed the controllable runtime (this line's buster, flinch and co-star pick over the candidate's talking jaw and
+// bare fists), those whose pages inline the game UI runtime and the HUD host (this line's side map's HUD over the
+// candidate's race, radar and talk box), and those that carry `audio` (this line's unlock and run voices over the
+// candidate's ambience and cab). Nothing else moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

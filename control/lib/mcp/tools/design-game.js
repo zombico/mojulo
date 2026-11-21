@@ -29,7 +29,7 @@ import { mintSolidHandler } from './mint-solid.js';
 import { createCharacterHandler } from './create-character.js';
 import { createGameHandler, auditGameLevel } from './create-game.js';
 import { heroMintArgs, heroRemakeOps } from './hero-mint.js';
-import { HERO_FIELDS, validateHeroSpec, heroKeyHint } from './layered.js';
+import { HERO_FIELDS, heroStature, validateHeroSpec, heroKeyHint } from './layered.js';
 import { egocubeCreate, rollStored } from '@/lib/graph/egocube/kind.js';
 import { LAWS_VERSION } from '@/lib/graph/equipment/expand.js';
 import {
@@ -106,7 +106,11 @@ function heroLookup(heroRef) {
   const headRev = (SketchRevisionRepository.head(heroRef)?.rev ?? 0) + 1;
   const lookup = revisionLookup({ ref: heroRef, headRev, head: row.manifest, get: (r, rev) => SketchRevisionRepository.get(r, rev)?.manifest ?? null });
   const hero = isObj(row.manifest?.hero) ? row.manifest.hero : null;
-  return Object.assign(lookup, { head: row.manifest, headRev, heroSpec: hero ? Object.fromEntries(HERO_FIELDS.filter((k) => hero[k] !== undefined).map((k) => [k, hero[k]])) : null });
+  Object.assign(lookup, { head: row.manifest, headRev, heroSpec: hero ? Object.fromEntries(HERO_FIELDS.filter((k) => hero[k] !== undefined).map((k) => [k, hero[k]])) : null });
+  // its STATURE (metres, its plan's crown, no mesh compiled: layered.js heroStature), read only when a level asks for it,
+  // so the levels' hero collides as tall as it stands; null where its head reads none (the level keeps its default)
+  let stature;
+  return Object.defineProperty(lookup, 'stature', { get: () => { if (stature === undefined) { try { stature = hero ? heroStature(hero) : null; } catch { stature = null; } } return stature; } });
 }
 
 /** A NAMED HERO's ref, found by its name (create_character spec.name; names are a hero's own on this machine), or the

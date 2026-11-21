@@ -139,4 +139,9 @@ export const BASELINE = Object.freeze({
     'bird-warble': { layers: 4, ms: 521, centroidHz: 3144, crestDb: 8.04, bands: { sub: 0, low: 0, mid: 0.3, high: 0.7 }, spread: 1.72, heard: 1.73, width: 0 },
     'katana-heavy-swing': { layers: 12, ms: 262, centroidHz: 7853, crestDb: 19.53, bands: { sub: 0.21, low: 0.07, mid: 0.21, high: 0.51 }, spread: 2.85, heard: 1.99, width: 0.11 },
   },
+  buster: {
+    'buster-shot': { layers: 4, ms: 145, centroidHz: 3317, crestDb: 12.42, bands: { sub: 0, low: 0.11, mid: 0.8, high: 0.09 }, spread: 1.51, heard: 1.36, width: 0 },
+    'buster-charged-shot': { layers: 6, ms: 286, centroidHz: 3852, crestDb: 14.73, bands: { sub: 0.03, low: 0.11, mid: 0.76, high: 0.1 }, spread: 1.67, heard: 1.4, width: 0 },
+    'buster-full-shot': { layers: 7, ms: 497, centroidHz: 3528, crestDb: 13.77, bands: { sub: 0.13, low: 0.35, mid: 0.46, high: 0.06 }, spread: 2.81, heard: 1.77, width: 0 },
+  },
 });

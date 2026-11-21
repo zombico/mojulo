@@ -200,10 +200,11 @@ describe('emitGameShell with music', () => {
 describe('outcome stingers', () => {
   const STINGERS = { victory: '/api/sketches/sk_win/beats.wav', defeat: '/api/sketches/sk_lose/beats.wav' };
 
-  it('validate in either shell; the play shell takes the stingers and no other music', () => {
+  it('validate in either shell; the play shell takes the stingers and its screens\' score, no battle music', () => {
     expect(validateGameManifest({ ...GAME, music: { victory: 'sk_win', defeat: 'sk_lose' } }).ok).toBe(true);
     expect(validateGameManifest({ ...GAME, shell: 'play', music: { victory: 'sk_win' } }).ok).toBe(true);
-    expect(validateGameManifest({ ...GAME, shell: 'play', music: { victory: 'sk_win', menu: 'sk_m' } }).errors.join()).toMatch(/shell 'play' has no music/);
+    expect(validateGameManifest({ ...GAME, shell: 'play', music: { victory: 'sk_win', menu: 'sk_m' } }).ok).toBe(true);
+    expect(validateGameManifest({ ...GAME, shell: 'play', music: { victory: 'sk_win', battle: ['sk_b'] } }).errors.join()).toMatch(/shell 'play' has no music/);
     expect(validateGameManifest({ ...GAME, music: { victory: 3 } }).errors.join()).toMatch(/music.victory must be a beats sketch ref.*mood: 'victory'/);
   });
 

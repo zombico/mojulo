@@ -4,6 +4,7 @@ import { MSG_AUDIO as GAME_MSG_AUDIO } from '../../game/level-contract.js';
 import { safeJson } from '../emit-util.js';
 import { weatherAudioScript } from '../../beats/weather-audio.js';
 import { buildAdaptive } from '../../beats/adaptive-music.js';
+import { runAudioScript } from './run-audio.js';
 
 // audio channel (beats.plan.md): synthesized WebAudio presence over the live World — an ambient
 // soundtrack, bus-event SFX stingers, gait/walk footsteps, and wind. Emitted ONLY when the payload
@@ -17,6 +18,11 @@ export function audioChannelScript(audio) {
   // adaptive music (audio.combat): the scores play on two engines of their own, crossfaded; the first engine keeps the
   // cues, footsteps and wind at a steady level. Without it every line below is as it was.
   const combat = !!audio.combat;
+  // the effects' level under the score (audio.sfxLevel, 0..1, opt-in): the cue engine's own master, where the scores play
+  // on engines of their own (combat); absent, the stock 0.9
+  const sfxGain = combat && Number.isFinite(audio.sfxLevel) ? Math.round(0.9 * audio.sfxLevel * 1000) / 1000 : 0.9;
+  // the boss's piece (audio.boss, with combat): a third engine, changed to for good once the boss's room has shut
+  const bossOn = combat && !!audio.boss;
   const musicEng = combat ? '(__engs ? __engs[__music.active] : __beatsEng)' : '__beatsEng';
   // the SFX mixer (audio.mix, opt-in): the cues on a bus in a space, ducks dipping the score, a voice cap, a cue placed
   // by its distance from the pilot. Absent, not a byte of it is emitted.
@@ -35,7 +41,7 @@ export function audioChannelScript(audio) {
   return `
 // ---- beats audio channel (opt-in, presentation-only) ----
 const __AUDIO = ${safeJson(audio)};
-const __BEATS_PATCHES = ${safeJson(combat ? pagePatches(audio.soundtrack, audio.combat) : pagePatches(audio.soundtrack))};
+const __BEATS_PATCHES = ${safeJson(bossOn ? pagePatches(audio.soundtrack, audio.combat, audio.boss) : combat ? pagePatches(audio.soundtrack, audio.combat) : pagePatches(audio.soundtrack))};
 const __BEATS = (${emitBeatsKernel(audioFeatures(audio))})();
 let __beatsCtx = null, __beatsEng = null, __beatsMuted = false, __beatsVol = 1;${bed ? '\nlet __bedEng = null;' : ''}
 // one write path for mute × volume (0.9 is the engine's stock master level); suspend keeps
@@ -43,21 +49,21 @@ let __beatsCtx = null, __beatsEng = null, __beatsMuted = false, __beatsVol = 1;$
 function __beatsApply() {
   __beatsBtn.textContent = __beatsMuted ? '\\u{1F507}' : '\\u{1F50A}';
   if (!__beatsEng) return;
-  __beatsEng.master.gain.value = __beatsMuted ? 0 : 0.9 * __beatsVol;${bed ? `
+  __beatsEng.master.gain.value = __beatsMuted ? 0 : ${sfxGain} * __beatsVol;${bed ? `
   if (__bedEng) __bedEng.master.gain.value = __beatsMuted ? 0 : ${bedLevel} * __beatsVol;` : ''}${combat ? `
   if (__engs && !__switching) __engs[__music.active].master.gain.value = __beatsMuted ? 0 : 0.9 * __beatsVol;` : ''}
   if (__beatsMuted) __beatsCtx.suspend(); else __beatsCtx.resume().catch(() => {});
 }
 function __beatsUnlock() {
-  if (__beatsCtx) { if (__beatsCtx.state === 'suspended' && !__beatsMuted) __beatsCtx.resume(); return; }
+  if (__beatsCtx) { if (__beatsCtx.state === 'suspended' && !__beatsMuted) __beatsCtx.resume().catch(() => {}); return; }
   __beatsCtx = new (window.AudioContext || window.webkitAudioContext)();
   __beatsEng = __BEATS.createEngine(__beatsCtx);${mix ? `
   __beatsEng.setSfx(__AUDIO.mix);   // the SFX mixer: the cues' bus and space, and the music bus a duck dips (before the score starts)` : ''}
   if (__AUDIO.soundtrack) {${audio.beat ? `
     __beatT0 = __beatsCtx.currentTime + 0.08;   // the transport's own start (startTransport's t0): the beat clock's zero` : ''}
-${combat ? `    __engs = { explore: __BEATS.createEngine(__beatsCtx), combat: __BEATS.createEngine(__beatsCtx) };${mix ? `
-    __engs.explore.setSfx({}); __engs.combat.setSfx({}); __beatsEng.linkDuck(__engs.explore); __beatsEng.linkDuck(__engs.combat);   // a duck dips whichever score plays` : ''}
-    __engs.combat.master.gain.value = 0;
+${combat ? `    __engs = { explore: __BEATS.createEngine(__beatsCtx), combat: __BEATS.createEngine(__beatsCtx)${bossOn ? ', boss: __BEATS.createEngine(__beatsCtx)' : ''} };${mix ? `
+    __engs.explore.setSfx({}); __engs.combat.setSfx({}); __beatsEng.linkDuck(__engs.explore); __beatsEng.linkDuck(__engs.combat);   // a duck dips whichever score plays${bossOn ? '\n    __engs.boss.setSfx({}); __beatsEng.linkDuck(__engs.boss);' : ''}` : ''}
+    __engs.combat.master.gain.value = 0;${bossOn ? ' __engs.boss.master.gain.value = 0;' : ''}
     __startTrack(__engs.explore, __AUDIO.soundtrack);
     __musicT0 = __beatsCtx.currentTime + 0.08;   // the explore piece's t0: its bar lines are where a change may land` : `    if (__AUDIO.soundtrack.kind === 'beats-composition') __beatsEng.startComposition(__AUDIO.soundtrack, __BEATS_PATCHES);
     else if (__AUDIO.soundtrack.kind === 'beats-pattern') __beatsEng.startPattern(__AUDIO.soundtrack, __BEATS_PATCHES);
@@ -67,7 +73,10 @@ ${combat ? `    __engs = { explore: __BEATS.createEngine(__beatsCtx), combat: __
   __bedEng = __BEATS.createEngine(__beatsCtx); __bedEng.startPattern(__AUDIO.bed, __BEATS_PATCHES);   // the environment's bed` : ''}
   __beatsApply();   // prefs may have arrived over the sidecar before the unlock gesture
 }
-renderer.domElement.addEventListener('pointerdown', __beatsUnlock);${audio.tension ? `
+renderer.domElement.addEventListener('pointerdown', __beatsUnlock);
+// (a key, a pad's play or the game shell's word that sound is on also unlock it: a game played on the keys or hosted in the
+// shell's frame, which delegates autoplay, is never clicked, and was silent)
+window.addEventListener('keydown', __beatsUnlock);${audio.tension ? `
 // THE TENSION (adaptive-music.js, the same closure the tests hold): raised by the level's own events off the bus log
 // (like the stingers: the reducer drains reaction-emitted events internally), leaking back toward calm. Read-only.
 const __ADAPT = (${buildAdaptive.toString()})();
@@ -91,11 +100,11 @@ function __startTrack(eng, r) {
 }
 function __switchTo(to) {
   const from = __music.active, outEng = __engs[from], inEng = __engs[to];
-  const bar = __ADAPT.barSeconds(from === 'explore' ? __AUDIO.soundtrack : __AUDIO.combat);
+  const bar = __ADAPT.barSeconds(from === 'explore' ? __AUDIO.soundtrack : ${bossOn ? "from === 'boss' ? __AUDIO.boss : " : ''}__AUDIO.combat);
   const now = __beatsCtx.currentTime, at = __ADAPT.nextBar(now + 0.25, __musicT0, bar);
   __switching = true;
   setTimeout(() => {
-    __startTrack(inEng, to === 'explore' ? __AUDIO.soundtrack : __AUDIO.combat);
+    __startTrack(inEng, to === 'explore' ? __AUDIO.soundtrack : ${bossOn ? "to === 'boss' ? __AUDIO.boss : " : ''}__AUDIO.combat);
     const t = __beatsCtx.currentTime + 0.08, vol = __beatsMuted ? 0 : 0.9 * __beatsVol;   // the new piece's t0: the bar line
     __musicT0 = t;
     inEng.master.gain.cancelScheduledValues(t); inEng.master.gain.setValueAtTime(0, t); inEng.master.gain.linearRampToValueAtTime(vol, t + bar);
@@ -110,7 +119,11 @@ function __switchTo(to) {
   const now = __beatsCtx.currentTime, dt = __tenLast === null ? 0 : Math.min(0.25, now - __tenLast);
   __tenLast = now;
   __tension = __ADAPT.leak(__tension, dt, __TEN.decay);${combat ? `
-  if (!__engs || __switching || __beatsMuted) return;
+  if (!__engs || __switching || __beatsMuted) return;${bossOn ? `
+  // (the boss's room shut behind the hero, sidemap.js the camera's _shut: its piece, for good)
+  if (__music.active === 'boss') return;
+  const __cw = window.__mojCtrl && window.__mojCtrl.world, __sh = __cw && __cw.camera && __cw.camera._shut;
+  if (__sh && Object.keys(__sh).some((k) => __sh[k] != null)) { __switchTo('boss'); return; }` : ''}
   const next = __ADAPT.decide(__music, __tension, dt, __TEN, __ADAPT.barSeconds(__AUDIO.combat));
   if (next.to) __switchTo(next.to); else __music = next;` : ''}
 })();
@@ -132,6 +145,7 @@ window.addEventListener('message', (e) => {
   if (!d || d.moj !== '${GAME_MSG_AUDIO}') return;
   if (typeof d.on === 'boolean') __beatsMuted = !d.on;
   if (typeof d.volume === 'number' && isFinite(d.volume)) __beatsVol = Math.max(0, Math.min(1, d.volume));
+  if (d.on === true) __beatsUnlock();
   __beatsApply();
 });
 // HUD speaker: pre-unlock it advertises sound; after, it toggles mute (suspend keeps CPU quiet).
@@ -411,7 +425,7 @@ ${audio.moves ? `// a MOVESET's sounds (audio.moves, beats-world.js; gameworld/c
     }
   })();
 })();
-` : ''}${audio.foes ? `// a sheet level's FOES (audio.foes, beats-world.js; gameworld/sound-sheet.js): each foe of the bestiary by its id
+` : ''}${audio.run ? runAudioScript() : ''}${audio.foes ? `// a sheet level's FOES (audio.foes, beats-world.js; gameworld/sound-sheet.js): each foe of the bestiary by its id
 // (a body's id is foe-<its id>-<n>) sounds on its attack (a swing begun), on a blow taken and as it falls, each a cue
 // of the level's, placed where it stands. A kind's attacks are held apart (a pack never says one sound at once).
 // Read-only, as the moveset's above. (No backticks: inside an emitted template literal.)

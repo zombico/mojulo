@@ -23,6 +23,9 @@ describe('the combo manifest', () => {
     bad((C) => { C.combos.push({ id: 'x', beats: ['L', 'H'], moves: ['cut-2', 'thrust'] }); }, /play 'cut-2' where 'three-cuts' plays 'cut-1'/);
     bad((C) => { C.moves['cut-1'].travel = { kind: 'teleport', m: 1 }; }, /travel is \{ kind: none \| step \| lunge/);
     bad((C) => { C.combos[0].beats = ['.', 'L']; C.combos[0].moves = ['cut-1']; }, /a pause stands between two presses/);
+    // (a plant splits the feet in place: never beside a travel)
+    bad((C) => { C.moves['cut-1'].plant = 0.4; }, /a plant splits the feet in place/);
+    bad((C) => { C.moves['cut-1'].travel = { kind: 'none' }; C.moves['cut-1'].plant = 0.9; }, /plant is the metres the feet split in place/);
   });
 });
 
