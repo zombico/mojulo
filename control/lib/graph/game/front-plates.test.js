@@ -25,6 +25,14 @@ describe('framing a subject', () => {
     expect(Math.hypot(side.pos[0], side.pos[1])).toBeCloseTo(Math.hypot(front.pos[0], front.pos[1]), 6);
   });
 
+  it('turned right, the same view is taken from the subject\'s other side', () => {
+    const b = subjectBounds(figure);
+    const L = subjectShot(b, { view: 'three-quarter', crop: 'full' }), R = subjectShot(b, { view: 'three-quarter', crop: 'full', facing: 'right' });
+    expect(R.pos[0]).toBeCloseTo(-L.pos[0], 6);
+    expect(R.pos[1]).toBeCloseTo(L.pos[1], 6);
+    expect(L.pos[0]).toBeGreaterThan(0);
+  });
+
   it('a tighter crop comes nearer and looks higher', () => {
     const b = subjectBounds(figure);
     const full = subjectShot(b, { view: 'front', crop: 'full' }), bust = subjectShot(b, { view: 'front', crop: 'bust' });

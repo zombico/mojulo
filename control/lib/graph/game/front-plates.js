@@ -59,7 +59,8 @@ export function subjectShot(bounds, slot, { aspect = 0.8 } = {}) {
   const reach = Math.max(max[0] - min[0], max[1] - min[1]) / 2;
   const half = (VFOV / 2) * (Math.PI / 180), hHalf = Math.atan(Math.tan(half) * aspect);
   const dist = Math.max((seen / 2) * MARGIN / Math.tan(half), reach * MARGIN / Math.tan(hHalf)) + reach;
-  const yaw = (SUBJECT_VIEWS[slot.view] ?? 0) * (Math.PI / 180);
+  // (a view's yaw turns the subject's front to the screen's left; turned right, the same view from its other side)
+  const yaw = (SUBJECT_VIEWS[slot.view] ?? 0) * (slot.facing === 'right' ? -1 : 1) * (Math.PI / 180);
   return {
     pos: [cx + Math.sin(yaw) * dist, cy + Math.cos(yaw) * dist, cz - seen * 0.06],
     target: [cx, cy, cz],

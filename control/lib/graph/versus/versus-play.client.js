@@ -358,16 +358,64 @@ function schemeHelp() {
   return 'SIMPLE: one attack button, tap again on hit to auto-combo · Special + direction · Special + attack super';
 }
 
+// THE TITLE, laid out by the face-off front card (playscape/ui/front-cards/face-off.json, carried as VERSUS_FRONT): the
+// roster's first two squared up across a hard diagonal, each side its fighter's colour, each sliding in from its side;
+// the name huge across the cut, letter by letter; PRESS START as plain words where the card puts the menu. A wide frame
+// or an upright phone's, as the card says; a player who turns motion down sees it whole at once.
+const TITLE_STILL = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 function drawTitle() {
-  drawMenuBackdrop();
-  ROSTER.slice(0, 2).forEach((r, k) => {
-    const fake = { x: 0, y: 0, face: k === 0 ? 1 : -1, st: 'stand', sf: 0, mv: null };
-    drawFighter(fake, r.F, r.color, { scale: Math.min(H, W) / 3000, camX: 0, cx: W / 2 + (k === 0 ? -W * 0.18 : W * 0.18), ground: H * 0.8 }, game.t + k * 50);
+  const L = VERSUS_FRONT, Fr = W / H <= 0.8 ? L.tall : L.wide;
+  const ms = TITLE_STILL ? 1e9 : game.t * (1000 / 60);
+  const beat = (part) => { const m = L.motion.find((b) => b.part === part); return m ? m.at : 0; };
+  const ease = (at, dur = 700) => { const k = Math.min(1, Math.max(0, (ms - at) / dur)); return 1 - Math.pow(1 - k, 3); };
+  const px = (b) => ({ x: (b[0] / 100) * W, y: (b[1] / 100) * H, w: (b[2] / 100) * W, h: (b[3] / 100) * H });
+  const pair = [0, 1].map((k) => ROSTER[k % ROSTER.length]);
+  // the ground: each side its fighter's colour, the cut a line of ink, wiped on
+  g.fillStyle = '#0c0a10'; g.fillRect(0, 0, W, H);
+  const tilt = Math.tan((14 * Math.PI) / 180) * H / 2, wipe = ease(beat('ground'), 600);
+  g.save(); g.beginPath(); g.rect(0, 0, W * wipe, H); g.clip();
+  pair.forEach((r, k) => {
+    const grd = g.createLinearGradient(k ? W : 0, 0, W / 2, 0);
+    grd.addColorStop(0, vsRgba(r.color, -0.2, 0.55)); grd.addColorStop(1, vsRgba(r.color, -0.5, 0.18));
+    g.fillStyle = grd; g.beginPath();
+    if (k === 0) { g.moveTo(0, 0); g.lineTo(W / 2 + tilt, 0); g.lineTo(W / 2 - tilt, H); g.lineTo(0, H); }
+    else { g.moveTo(W, 0); g.lineTo(W / 2 + tilt, 0); g.lineTo(W / 2 - tilt, H); g.lineTo(W, H); }
+    g.closePath(); g.fill();
   });
-  vsOutlined(g, VERSUS.title.toUpperCase(), W / 2, H * 0.3, Math.min(96, W / 9), '#fff');
-  vsText(g, 'a side-view fighter on mojulo rails', W / 2, H * 0.3 + 60, 18, '#ffd23a', 'center', 600);
-  if (Math.floor(game.t / 30) % 2 === 0) vsOutlined(g, 'PRESS START', W / 2, H * 0.62, 30, '#fff');
-  vsText(g, 'Enter / Space / J / a gamepad\'s A', W / 2, H * 0.62 + 34, 14, 'rgba(255,255,255,0.6)', 'center', 500);
+  g.strokeStyle = '#fff'; g.lineWidth = Math.max(3, W / 240);
+  g.beginPath(); g.moveTo(W / 2 + tilt, 0); g.lineTo(W / 2 - tilt, H); g.stroke();
+  g.restore();
+  // the name, behind the fighters, each letter rising in on its beat
+  const T = px(Fr.title.box), name = VERSUS.title.toUpperCase();
+  let size = T.h * 0.82;
+  g.font = `900 ${size}px ${VS_FONT}`;
+  const full = g.measureText(name).width;
+  if (full > T.w) { size *= T.w / full; g.font = `900 ${size}px ${VS_FONT}`; }
+  const widths = [...name].map((c) => g.measureText(c).width), total = widths.reduce((a, b) => a + b, 0);
+  let x = T.x + (T.w - total) / 2;
+  g.textAlign = 'left'; g.textBaseline = 'middle';
+  [...name].forEach((c, i) => {
+    const p = ease(beat('title') + i * 38);
+    g.globalAlpha = p; g.fillStyle = '#fff';
+    g.fillText(c, x, T.y + T.h / 2 + (1 - p) * size * 0.16);
+    x += widths[i];
+  });
+  g.globalAlpha = 1;
+  // the fighters, turned to each other, standing on their boxes' floors
+  pair.forEach((r, k) => {
+    const B = px(Fr.subjects[k]), p = ease(beat('subject') + k * 160);
+    const side = B.x + B.w / 2 < W / 2 ? -1 : 1, scale = (B.h * 0.92) / ((r.F.body && r.F.body.height) || 1800);
+    g.globalAlpha = p;
+    drawFighter({ x: 0, y: 0, face: side < 0 ? 1 : -1, st: 'stand', sf: 0, mv: null }, r.F, r.color, { scale, camX: 0, cx: B.x + B.w / 2 + side * (1 - p) * W * 0.08, ground: B.y + B.h * 0.96 }, game.t + k * 50);
+  });
+  g.globalAlpha = 1;
+  // the menu: plain words, the prompt breathing once it has entered
+  const M = px(Fr.menu.box), mp = ease(beat('menu'));
+  g.globalAlpha = mp * (TITLE_STILL ? 1 : 0.55 + 0.45 * Math.abs(Math.sin(game.t / 40)));
+  vsText(g, 'PRESS START', M.x + M.w / 2, M.y + Math.min(M.h * 0.3, 40), Math.min(30, W / 18), '#fff', 'center', 900);
+  g.globalAlpha = mp * 0.6;
+  vsText(g, 'Enter / Space / J / a gamepad\'s A', M.x + M.w / 2, M.y + Math.min(M.h * 0.3, 40) + 32, 13, '#fff', 'center', 500);
+  g.globalAlpha = 1;
 }
 
 function drawStageSelect() {

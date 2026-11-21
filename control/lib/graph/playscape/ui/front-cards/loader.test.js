@@ -24,6 +24,16 @@ describe('the front cards', () => {
     expect(Object.isFrozen(FRONT_CARDS['hero-pose'].frames.wide.subjects[0])).toBe(true);
   });
 
+  it('the face-off stands two subjects turned to each other on a split ground', () => {
+    const F = FRONT_CARDS['face-off'];
+    expect(F.slots.map((s) => s.facing)).toEqual(['right', 'left']);
+    expect(F.ground).toBe('split');
+    for (const f of ['wide', 'tall']) {
+      const [a, b] = F.frames[f].subjects;
+      expect(a[0] + a[2] / 2, f).toBeLessThan(b[0] + b[2] / 2);   // the one turned right stands on the left
+    }
+  });
+
   it('suit genres a rail names', () => {
     const genres = new Set(Object.values(RAILS).flatMap((r) => r.handles?.genres ?? []));
     for (const id of FRONT_CARD_IDS) for (const g of FRONT_CARDS[id].suits) expect(genres.has(g), `${id} suits ${g}`).toBe(true);
@@ -43,6 +53,8 @@ describe('the front cards', () => {
     expect(() => readFrontCard(card({ frames: { wide: card().frames.wide } }), 'probe.json')).toThrow(/frames is \{ wide, tall \}/);
     expect(() => readFrontCard(card({ motion: [{ part: 'menu', enter: 'letters', at: 0 }, { part: 'title', enter: 'fade', at: 0 }] }), 'probe.json')).toThrow(/only the title enters letter by letter/);
     expect(() => readFrontCard(card({ motion: [{ part: 'title', enter: 'fade', at: 0 }] }), 'probe.json')).toThrow(/gives the menu its entrance/);
+    expect(() => readFrontCard(card({ slots: [{ roles: ['hero'], view: 'front', crop: 'full', anchor: 'bottom', facing: 'up' }] }), 'probe.json')).toThrow(/facing is one of: left, right/);
+    expect(() => readFrontCard(card({ ground: 'stripes' }), 'probe.json')).toThrow(/ground is one of: theme, plain, split/);
     expect(() => readFrontCard(card({ motion: [{ part: 'title', enter: 'fade', at: 0 }, { part: 'title', enter: 'rise', at: 9 }, { part: 'menu', enter: 'fade', at: 0 }] }), 'probe.json')).toThrow(/enters once/);
   });
 });

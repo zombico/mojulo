@@ -31,6 +31,7 @@ import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES as CONTROL_SCHEMES } from '../controls/schemes.js';
 import { buildSeatsKernel } from '../controls/seats-kernel.js';
 import { DEVICES } from '../controls/devices.js';
+import { FRONT_CARDS } from '../playscape/ui/front-cards/loader.js';
 
 // the level wire a hosted arena speaks (the game shell's own handshake: ready → init → outcome)
 export const VERSUS_WIRE = Object.freeze({ ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, version: CONTRACT_VERSION });
@@ -141,6 +142,9 @@ export function emitVersusPage(manifest = {}, { title } = {}) {
   const shell = versusSource('versus-play.client.js');
   // the data rides as JSON; `</` is escaped so nothing in a name can close the script
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
+  // its title laid out by the face-off front card: the card's frames and beats, the canvas draws them
+  const F = FRONT_CARDS['face-off'], frame = (f) => ({ subjects: f.subjects, title: { box: f.title.box }, menu: { box: f.menu.box } });
+  const front = JSON.stringify({ wide: frame(F.frames.wide), tall: frame(F.frames.tall), motion: F.motion });
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -158,6 +162,7 @@ export function emitVersusPage(manifest = {}, { title } = {}) {
 "use strict";
 (function () {
 const VERSUS = ${json};
+const VERSUS_FRONT = ${front};
 ${lib}
 ${shell}
 })();

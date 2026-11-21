@@ -7,9 +7,11 @@
  *   { "id": "<the file's name>", "name": "…", "about": "what it shows, in a line", "author"?,
  *     "suits": ["<genre>", …],          the genres it is the start screen for (gameworld/rails.js handles.genres)
  *     "fallback"?: true,                 the card a game whose genre no card suits is offered (one card at most)
- *     "slots": [{ roles, view, crop, anchor }],   what stands on it, in order of importance: each a subject of one of
- *                                        its roles (SUBJECT_ROLES), seen from its view, cropped and anchored
- *     "ground": "theme" | "plain",       the graphic behind: the theme's stage shapes, or its ground alone
+ *     "slots": [{ roles, view, crop, anchor, facing? }],   what stands on it, in order of importance: each a subject
+ *                                        of one of its roles (SUBJECT_ROLES), seen from its view, cropped and
+ *                                        anchored, turned left (the default) or right on the screen
+ *     "ground": "theme" | "plain" | "split",   the graphic behind: the theme's stage shapes, its ground alone, or the
+ *                                        screen cut on a diagonal, a side a subject
  *     "frames": { "wide": FRAME, "tall": FRAME },   the layout on a landscape screen and on a phone held upright
  *       FRAME: { subjects: [[x, y, w, h], …] (one box a slot), title: PART & { size, behind? }, tagline?: PART, menu: PART }
  *       PART:  { box: [x, y, w, h], align: start | center | end }     boxes in percent of the screen
@@ -18,7 +20,7 @@
  * Every card is read when this module loads and checked here; a card that loads is a start screen that lays out.
  *
  *   FRONT_CARDS · FRONT_CARD_IDS     id → the card as written (frozen)
- *   SUBJECT_ROLES · SUBJECT_VIEWS · SUBJECT_CROPS · TITLE_SIZES · ENTRANCES · PARTS
+ *   SUBJECT_ROLES · SUBJECT_VIEWS · SUBJECT_CROPS · SUBJECT_FACINGS · TITLE_SIZES · ENTRANCES · PARTS
  *   frontCard(id)                    → the card, or null
  *   fallbackCard()                   → the card a game no card suits is offered, or null
  *
@@ -37,9 +39,13 @@ export const SUBJECT_ROLES = Object.freeze(['hero', 'ally', 'foe', 'ride', 'prop
 export const SUBJECT_VIEWS = Object.freeze({ front: 0, 'three-quarter': 35, profile: 90, 'back-three-quarter': 145 });
 export const SUBJECT_CROPS = Object.freeze(['full', 'knees', 'waist', 'bust']);
 export const SUBJECT_ANCHORS = Object.freeze(['bottom', 'center']);
+// which way the subject turns on the screen: left (the default: a view's yaw shows its front turned to the left) or
+// right, the same view taken from its other side
+export const SUBJECT_FACINGS = Object.freeze(['left', 'right']);
 export const TITLE_SIZES = Object.freeze(['large', 'huge']);
 export const ALIGNS = Object.freeze(['start', 'center', 'end']);
-export const GROUNDS = Object.freeze(['theme', 'plain']);
+// the theme's stage shapes, its ground alone, or the screen cut on a hard diagonal (each subject's side its own colour)
+export const GROUNDS = Object.freeze(['theme', 'plain', 'split']);
 export const PARTS = Object.freeze(['ground', 'subject', 'title', 'tagline', 'menu']);
 // how a part enters: `letters` the name letter by letter, `stagger` the menu row by row; the rest whole
 export const ENTRANCES = Object.freeze(['fade', 'rise', 'slide', 'slam', 'wipe', 'letters', 'stagger']);
@@ -70,12 +76,13 @@ export function readFrontCard(card, file = `${card?.id}.json`) {
   if (!Array.isArray(card.slots) || !card.slots.length || card.slots.length > 4) throw new Error(`${where}: slots is a list of one to four subjects`);
   card.slots.forEach((s, i) => {
     const at = `${where}: slots[${i}]`;
-    if (!isObj(s)) throw new Error(`${at} is { roles, view, crop, anchor }`);
-    for (const k of Object.keys(s)) if (!['roles', 'view', 'crop', 'anchor'].includes(k)) throw new Error(`${at}.${k}: not part of a slot (roles, view, crop, anchor)`);
+    if (!isObj(s)) throw new Error(`${at} is { roles, view, crop, anchor, facing? }`);
+    for (const k of Object.keys(s)) if (!['roles', 'view', 'crop', 'anchor', 'facing'].includes(k)) throw new Error(`${at}.${k}: not part of a slot (roles, view, crop, anchor, facing)`);
     if (!Array.isArray(s.roles) || !s.roles.length || !s.roles.every((r) => SUBJECT_ROLES.includes(r))) throw new Error(`${at}.roles is a list of: ${SUBJECT_ROLES.join(', ')}`);
     if (!(s.view in SUBJECT_VIEWS)) throw new Error(`${at}.view is one of: ${Object.keys(SUBJECT_VIEWS).join(', ')}`);
     if (!SUBJECT_CROPS.includes(s.crop)) throw new Error(`${at}.crop is one of: ${SUBJECT_CROPS.join(', ')}`);
     if (!SUBJECT_ANCHORS.includes(s.anchor)) throw new Error(`${at}.anchor is one of: ${SUBJECT_ANCHORS.join(', ')}`);
+    if (s.facing !== undefined && !SUBJECT_FACINGS.includes(s.facing)) throw new Error(`${at}.facing is one of: ${SUBJECT_FACINGS.join(', ')}`);
   });
   if (!GROUNDS.includes(card.ground)) throw new Error(`${where}: ground is one of: ${GROUNDS.join(', ')}`);
   if (!isObj(card.frames) || FRAMES.some((f) => !card.frames[f]) || Object.keys(card.frames).some((f) => !FRAMES.includes(f))) throw new Error(`${where}: frames is { wide, tall }: the layout on a landscape screen and on a phone held upright`);

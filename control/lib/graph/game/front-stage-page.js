@@ -73,7 +73,8 @@ export function stageCss(card, { mana = false, live = false, treatment = 'cutout
   const parts = (F) => [
     `#stage{--st-gx:${pct(F.subjects[0][0] + F.subjects[0][2] / 2)}}`,
     `#stage .st-title{${box(F.title.box)};justify-content:${ALIGN[F.title.align][0]};text-align:${ALIGN[F.title.align][1]}}`,
-    ...F.subjects.map((b, i) => `#stage .st-subj[data-i="${i}"]{${box(b)}}`),
+    // (each subject slides in from its own side of the screen; a second one a beat after the first)
+    ...F.subjects.map((b, i) => `#stage .st-subj[data-i="${i}"]{${box(b)}${F.subjects.length > 1 ? `;--st-dx:${b[0] + b[2] / 2 < 50 ? -1 : 1}${beat.subject && i ? `;animation-delay:${beat.subject.at + i * 160}ms` : ''}` : ''}}`),
     mana
       ? `body[data-screen=title] #mana .mana-screen>.mana-stack,body[data-screen=attract] #mana .mana-screen>.mana-stack{position:absolute;${box(F.menu.box)};height:auto;max-width:none;align-items:${ALIGN[F.menu.align][0]};text-align:${ALIGN[F.menu.align][1]}}`
       : `#front .fx-col{${box(F.menu.box).split(';').map((d) => `${d}!important`).join(';')};height:auto!important;max-width:none!important;right:auto!important;bottom:auto!important;transform:none!important;align-items:${ALIGN[F.menu.align][0]}!important;text-align:${ALIGN[F.menu.align][1]}!important}`,
@@ -82,7 +83,9 @@ export function stageCss(card, { mana = false, live = false, treatment = 'cutout
   return [
     '#stage{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;display:none;background:var(--bg)}',
     '#stage.on{display:block}',
-    card.ground === 'theme'
+    card.ground === 'split'
+      ? `#stage .st-ground{position:absolute;inset:0;background:linear-gradient(104deg,color-mix(in srgb,var(--accent) 34%,var(--bg)) 0%,color-mix(in srgb,var(--accent) 12%,var(--bg)) 49.6%,var(--ink) 49.6% 50.4%,color-mix(in srgb,var(--accent2) 12%,var(--bg)) 50.4%,color-mix(in srgb,var(--accent2) 34%,var(--bg)) 100%);${anim('ground')}}`
+      : card.ground === 'theme'
       ? `#stage .st-ground{position:absolute;inset:0;background:radial-gradient(ellipse 60% 75% at var(--st-gx) 62%,color-mix(in srgb,var(--accent) 26%,var(--bg)) 0%,var(--bg) 70%),linear-gradient(115deg,transparent 54%,color-mix(in srgb,var(--accent2) 14%,transparent) 54% 61%,transparent 61%);${anim('ground')}}`
       : `#stage .st-ground{position:absolute;inset:0;background:var(--bg);${anim('ground')}}`,
     `#stage .st-title{position:absolute;display:flex;align-items:center;z-index:${card.frames.wide.title.behind ? 1 : 3};margin:0;font-weight:900;text-transform:uppercase;letter-spacing:-.02em;line-height:.86;color:var(--ink);white-space:nowrap${letters ? '' : `;${anim('title')}`}}`,
@@ -116,7 +119,7 @@ export function stageCss(card, { mana = false, live = false, treatment = 'cutout
     '@keyframes st-bar{from{transform:translateX(-100%)}to{transform:translateX(290%)}}',
     '@keyframes st-fade{from{opacity:0}}',
     '@keyframes st-rise{from{opacity:0;transform:translateY(14%)}}',
-    '@keyframes st-slide{from{opacity:0;transform:translateX(-6%)}}',
+    '@keyframes st-slide{from{opacity:0;transform:translateX(calc(var(--st-dx,-1) * 8%))}}',
     '@keyframes st-slam{from{opacity:0;transform:scale(1.25)}}',
     '@keyframes st-wipe{from{clip-path:inset(0 100% 0 0)}}',
     // a player who turns motion down: everything fades, at once

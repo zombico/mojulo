@@ -39,6 +39,14 @@ describe('the stage in the shell', () => {
     expect(stageCss(card, { mana: true })).toContain('#mana .mana-screen>.mana-stack');
   });
 
+  it('a card of two subjects slides each in from its own side, the second a beat after; a split ground cuts the screen', () => {
+    const F = FRONT_CARDS['face-off'], css = stageCss(F), at = F.motion.find((m) => m.part === 'subject').at;
+    expect(css).toMatch(/#stage \.st-subj\[data-i="0"\]\{[^}]*--st-dx:-1[^}]*\}/);
+    expect(css).toMatch(new RegExp(`#stage \\.st-subj\\[data-i="1"\\]\\{[^}]*--st-dx:1;animation-delay:${at + 160}ms`));
+    expect(css).toMatch(/\.st-ground\{[^}]*linear-gradient\(104deg/);
+    expect(stageCss(FRONT_CARDS['hero-pose'])).not.toContain('--st-dx:');
+  });
+
   it('drawn in a page: the name behind, the plates, shown on the title', () => {
     const html = emitPlayShell(game({ tagline: 'go', stage: STAGE }), LEVELS, { frontStage: BAKED });
     const dom = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/game.html' });
