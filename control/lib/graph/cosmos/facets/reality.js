@@ -10,6 +10,7 @@
  * `lowers` names the module that makes a value. See ../cosmos.js for how a cosmos cube reads a facet.
  */
 import { ERAS, ERA_IDS, eraCastConventions } from '../../era/eras.js';
+import { FILLS } from '../../gameworld/side-map/fills.js';
 
 function castStatus(id) {
   const planned = eraCastConventions(id).filter((c) => c.status === 'planned').map((c) => c.id);
@@ -77,7 +78,7 @@ export const REALITY = Object.freeze({
         themed: { status: 'built', since: '2026-11-09', requires: ['reality.interface=front'], lowers: 'lib/graph/game/play-shell-mana.js', note: 'a world\'s ui: the shell\'s attract, title, level list, options, results and loading screens on mana-ui, in the world\'s look (its guide lowered to a theme: type on a frame sized by the screen and the seat, a halo over the world, a legend bar, lean, transitions, sound cues), in its languages' },
         // partial 11-06 (the RPG on mana-ui; 11-09 the brawl yard, the fighter\'s lab): some games\' own screens run on
         // mana-ui; a level\'s HUD, talk, quest log and pause do not yet
-        'in-game': { status: 'partial', effort: 'M', pkg: 'game-ui', lowers: 'lib/graph/playscape/rpg/rpg-ui.js', note: 'screens inside play on mana-ui: the RPG\'s battles, party menu, shops and inn, the brawler\'s readouts, the fighter\'s select and lab, a broadcast\'s menus, the strategy boards, the board-game tables and the holo arena (11-10), the practice, work and game rooms\' menu (the shell\'s pause, 11-13); since 11-13 a level\'s own HUD rows on a world that says `ui` (game/hud-mana.js, one host a level page), a course\'s HUD, the pause button and the touch pad (11-14), a turn\'s picks; a level\'s talk menus and its quest log are still the page\'s own DOM, and a world with no `ui` keeps the page\'s HUD' },
+        'in-game': { status: 'partial', effort: 'M', pkg: 'game-ui', lowers: 'lib/graph/playscape/rpg/rpg-ui.js', note: 'screens inside play on mana-ui: the RPG\'s battles, party menu, shops and inn, the brawler\'s readouts, the fighter\'s select and lab, a broadcast\'s menus, a mission\'s briefing, HUD, pause and debrief (gameworld/mission-mana.js), the strategy boards, the board-game tables and the holo arena (11-10), the practice, work and game rooms\' menu (the shell\'s pause, 11-13); since 11-13 a level\'s own HUD rows on a world that says `ui` (game/hud-mana.js, one host a level page), a course\'s HUD, the pause button and the touch pad (11-14), a turn\'s picks; a level\'s talk menus and its quest log are still the page\'s own DOM, and a world with no `ui` keeps the page\'s HUD' },
       },
     },
     // what a game sounds like. A quick game says its music and its effects; a gameworld's `sound` (11-13) lays the sound
@@ -123,6 +124,16 @@ export const REALITY = Object.freeze({
     // weathered, whether anyone still sweeps, and how far a kit's own story of decay went. A stage recipe's word: no key
     // of a designed game's level carries it, nor a place's wetness (era/wetness.js) or a room's own daylight, the join
     // the board names, priced as one package
+    // absent 11-17 (the traditional side-scroller map): what a side map's closed parts are painted as, by place: the look
+    // the cube owns (a level form's look is reality's, through its geocube). Named and read; the painting is the gap
+    fill: {
+      values: {
+        // (most worlds paint no side map: none, built, so the sweep's other worlds are never held up by a fill)
+        none: { status: 'built' },
+        ...Object.fromEntries(Object.entries(FILLS).map(([id, F]) => [id, { status: 'built', since: '2026-11-18', requires: ['space.levelForm=side-map'], lowers: 'lib/graph/gameworld/side-map/paint.js',
+          note: `a side map's closed parts painted as ${F.says} (docs/side-map-principles.md): named and read (side-map/zones.js), painted on the map's build (side-map/paint.js: the fill, its slices' motifs, a big mass's middle, the edges and breaks, the threads)` }])),
+      },
+    },
     condition: {
       source: {
         module: 'lib/graph/era/condition.js', table: 'CONDITIONS', status: 'partial', effort: 'M', pkg: 'condition',

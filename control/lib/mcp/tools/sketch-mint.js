@@ -22,6 +22,7 @@ import { resolveArt } from '../../graph/era/art-direction.js';
 import { resolveCompose } from '../../graph/era/compose.js';
 import { resolveProps } from '../../graph/era/compose-lay.js';
 import { resolvePlayUi } from '../../graph/playscape/ui/direction.js';
+import { bindSceneVoices } from '../../graph/face-acting/recordings.js';
 import path from 'node:path';
 import { randomInt } from 'node:crypto';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
@@ -715,6 +716,9 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   manifest = newTrailSeed(manifest, ref ?? existingSketch?.ref, existingSketch?.manifest ?? null);
   // a world's UI direction (playscape/ui/direction.js): the same gate for its play block's UI, filled here and stored
   manifest = resolvePlayUi(manifest);
+  // a scene's recorded lines (playscape/ui/scenes.js `voice`): each WAV saved where mojulo keeps its outcomes and timed,
+  // so the line's face says it and its page plays it (face-acting/recordings.js bindSceneVoices); none, the same manifest
+  manifest = bindSceneVoices(manifest);
   // the gaits an edit authors (a figure's walk, a hero's, a world figure's) are stored by value as they are minted now;
   // a motion the edit left as stored keeps its bytes, and a restore comes back as it was exported (motion-stamp.js)
   if (!restore) manifest = stampAuthoredMotion(manifest, existingSketch?.manifest ?? null);

@@ -31,6 +31,8 @@ export const LINE_BOOK = F({
   work: F({
     townie: F(['It\'s a quiet life here, and that suits me.', 'I keep the house and the garden. Plenty to do.', 'Market days are the best days.', 'The road brings all sorts through here.']),
     keeper: F(['Fair prices and honest weights, always.', 'Business is steady, thank the roads.', 'If you need something I don\'t have, ask. I might know who does.', 'Everything here was made or grown nearby.']),
+    innkeeper: F(['A bed, a hot meal, and no questions. That\'s an inn.', 'Rest here a night and the road looks shorter.', 'Travellers bring the news. I just pour.', 'The fire\'s lit. Sit by it.']),
+    priest: F(['The road is long. Go with a blessing.', 'The temple doors are never shut.', 'Light a candle for those still out there.', 'Rest is a kind of prayer too.']),
     master: F(['Mind the sparks.', 'Good work takes time. Bad work takes longer.', 'There\'s always something that needs mending.', 'My hands know this trade better than my head does.']),
     apprentice: F(['I\'m learning the trade. Slowly.', 'The master says I\'m getting better. I think.', 'One day this bench will be mine.']),
     farmhand: F(['The fields don\'t tend themselves.', 'Rain\'s coming, I can feel it.', 'Up before the sun, every day.', 'Good soil here. Good soil.']),

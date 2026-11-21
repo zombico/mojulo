@@ -8,6 +8,7 @@
  *   realistic  people as they are (a story, a western RPG, serious action)  anime | western
  *   muscular   the fighters (a versus fighter)                              anime | western
  *   mascot     the platformer's (a collectathon, a runner, a kart)          mascot | lowpoly
+ *   herobot    the side-on run and gun's toy hero robot (a metroidvania)     herobot | lowpoly
  *
  * The style is the world's, never the rail's: the anime tradition draws on the anime frame (anime-bodies.js: a body
  * codename, Shonen High's among them); the western on the tiered builds (hero-form.js
@@ -84,9 +85,9 @@ export const GAME_BODIES = Object.freeze({
   }),
   mascot: Object.freeze({
     read: 'the platformer\'s: a big head on a small round body, or a few flat faces',
-    genres: ['collectathon', 'co-op-platformer', 'metroidvania', 'endless-runner', 'racing', 'kart-racer', 'rhythm'],
+    genres: ['collectathon', 'co-op-platformer', 'endless-runner', 'racing', 'kart-racer', 'rhythm'],
     goals: ['collect', 'runner', 'race', 'rhythm'],
-    feels: ['jumping-giuseppe', 'galaxy-boy', 'commuter-rail-runner'],
+    feels: ['jumping-giuseppe', 'commuter-rail-runner'],
     styles: Object.freeze({
       mascot: { when: 'any world but a pixel one (the default)', roles: {
         hero: { build: 'chibi' },
@@ -94,6 +95,24 @@ export const GAME_BODIES = Object.freeze({
       lowpoly: { when: 'a pixel world (its medium), or the operator\'s word', roles: {
         hero: { register: 'lowpoly' },
         henchman: { register: 'lowpoly', build: 'stout' } } },
+    }),
+  }),
+  // the toy hero robot (hero-form.js HEROBOT_PROPORTIONS): too real a body for the mascot's chibi, too much a toy for
+  // the realistic rail's. Its head is the anime form's own, bare (`animeStyle: null`): a head cast's body tune would
+  // undo the proportions (Shonen High's, the door's default, stretched it to 4.9 heads); bare, it stands as the
+  // proportions say, about four and a half heads
+  herobot: Object.freeze({
+    read: 'the toy hero robot: a big helmeted head on an adult-limbed body, about four and a half heads, big gloved hands, booted feet',
+    genres: ['metroidvania'],
+    goals: [],
+    feels: ['galaxy-boy'],
+    styles: Object.freeze({
+      herobot: { when: 'any world but a pixel one (the default)', roles: {
+        hero: { proportions: 'herobot', head: 'anime', animeStyle: null },
+        henchman: { proportions: 'herobot', head: 'anime', animeStyle: null } } },
+      lowpoly: { when: 'a pixel world (its medium), or the operator\'s word', roles: {
+        hero: { register: 'lowpoly', proportions: 'herobot' },
+        henchman: { register: 'lowpoly', proportions: 'herobot' } } },
     }),
   }),
 });
@@ -105,6 +124,18 @@ export const GAME_WORD = 'game';
 const BY_GENRE = Object.fromEntries(GAME_BODY_NAMES.flatMap((r) => GAME_BODIES[r].genres.map((g) => [g, r])));
 const BY_GOAL = Object.fromEntries(GAME_BODY_NAMES.flatMap((r) => GAME_BODIES[r].goals.map((g) => [g, r])));
 const BY_FEEL = Object.fromEntries(GAME_BODY_NAMES.flatMap((r) => GAME_BODIES[r].feels.map((f) => [f, r])));
+
+/** A rail's BODY LIGHT (a body's light, never its face's: the head stays the tradition's): `cel` the character light played
+ * in its two tones, stepped by the world's key (world-scene.js heroFigure `cel`); a rail not named here, the body as it
+ * always was. The side scroller's and the mascot platformer's are cel: a fixed side camera and a key a zone keep the
+ * bands from swimming, hard armour reads in two tones and a gloss, and the shots' flat-band effects ask for bodies drawn
+ * in the same language. */
+export const BODY_LIGHTS = Object.freeze({ herobot: 'cel', mascot: 'cel' });
+/** A cel body's LINE: round each of its parts (the silhouette alone, so a segment's form is drawn and the forms that adorn
+ * it read as one), dark but never black (a navy, the cel's dark), `px` wide on the screen the level is seen on. */
+export const CEL_INK = Object.freeze({ color: '#1c2438', px: 1.6 });
+/** The body light a game's rail plays its characters in (its feel's rail, railOfGame), or null. */
+export const bodyLightOf = (game = {}) => { const R = railOfGame(game); return (R && BODY_LIGHTS[R.rail]) ?? null; };
 
 /** The rail a game reads: its feel template's (how the hero moves says what it is), else its genre's, else its quick
  * goal's; null when none names one (the door as it is). */
@@ -125,7 +156,8 @@ export function styleOf(rail, { tradition = null, look = null, pixel = false, st
     if (!S[style]) throw new Error(`body: the ${rail} rail is drawn ${Object.keys(S).join(' | ')} (not '${style}')`);
     return { style, why: 'the operator\'s word' };
   }
-  if (rail === 'mascot') return pixel ? { style: 'lowpoly', why: 'a pixel world' } : { style: 'mascot', why: S.mascot.when };
+  // (the platformers' rails are drawn in their own style, or lowpoly in a pixel world, whatever the tradition)
+  if (rail === 'mascot' || rail === 'herobot') return pixel ? { style: 'lowpoly', why: 'a pixel world' } : { style: rail, why: S[rail].when };
   if (tradition === 'anime') return { style: 'anime', why: 'the anime tradition' };
   if (rail === 'comic') return look === 'material' ? { style: 'material', why: 'the western tradition in a material look' } : { style: 'ink', why: 'the western tradition, drawn' };
   return { style: 'western', why: tradition === 'western' ? 'the western tradition' : 'no tradition named: the western, the default that never lies about a body' };

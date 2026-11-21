@@ -178,7 +178,7 @@ describe('emitThreeWorld live ink (toon-shading Phase 4)', () => {
     const html = emitThreeWorld({ faces: [floorF], entities: ents, toon: { ink: true } });
     expect(html).toContain('--- toon ink');
     expect(html).toContain('function __inkRigPart');
-    expect(html).toContain('__inkRigPart(mesh, geo, fig)');
+    expect(html).toContain('__inkRigPart(mesh, geo, fig, b.scale)');
     const plain = emitThreeWorld({ faces: [floorF], entities: ents });
     expect(plain).not.toContain('__inkRigPart');
     expect(plain).not.toContain('--- toon ink');

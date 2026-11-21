@@ -947,6 +947,61 @@ def _strike(kind, word):
     return lambda K: pad(strike(K.syl(word), K.syl("ハッ"), kind, f"{kind}-word"))
 
 
+# ---------------- round 11 (trials): a run and gun's sounds (gameworld/sound-sheet.js RUN_SOUNDS) ----------------
+# (the buster's own shots are energy, synthesized in sfx-shelf/sets/buster.js: a voice's pew read as a voice)
+# a foe's slow round ポン; a robot zapped ビリッ;
+# the wrecks ドカーン and ドッカーン (a thump, the word's breath held as the blast, debris scattered after); a rock heaved
+# ググッ (a slow creak and a strain), landing ゴトッ, crumbling ガラガラ; the shutter ガシャーン (a slam and steel ringing);
+# a foe stomped ポコッ
+
+
+def r11_pon(S):
+    return Group([(0, click(S["ポ"], 8, 1200) * DB(-6)), (0.003, tick(S["ポ"], 0.12, 0.75, (5, -3), 2200, "pon"))], 0.16).mono()
+
+
+def r11_zap(S, key="biri"):
+    r = rng(key)
+    grains = [pachi({"パ": S["ビ"], "チ": S["リ"]}, r.uniform(0.9, 1.5)) for _ in range(4)]
+    crack = scatter(grains, 0.28, per_s=40, seed=zlib.crc32(key.encode()) % 1000)
+    low = W.center(tick(S["ビ"], 0.12, 0.5, (0, -4), 900, key + "/t") * DB(-4))
+    return W.norm(crack[:, : low.shape[1]] + low)
+
+
+def r11_boom(K, word, secs, key, deep=0.38, debris=True):
+    thump = tick(K.syl("ド"), 0.3 * secs, deep, (2, -8), 380, key + "/t")
+    blast = lowpass(held_air(K.seed(word, 0.9), secs, 120, 3200, key + "/b", 0.06), 2400) * np.exp(-np.linspace(0, 4, int(secs * SR)))
+    mix = place([(0, W.center(thump)), (0.01, W.center(W.norm(blast) * DB(-2)))], secs + 0.1)
+    if debris:
+        grit = scatter(_pops(K.seed("パラパラ", 1.3)), secs * 0.7, per_s=14, seed=zlib.crc32(key.encode()) % 1000) * DB(-12)
+        mix = place([(0, mix), (0.12, grit)], secs + 0.25)
+    return W.norm(mix)
+
+
+def r11_strain(S):
+    return Group([(0, r7_creak({"ギ": S["グ"]}, 22, "strain")), (0, tick(S["グ"], 0.5, 0.35, (0, 2), 400, "strain/t") * DB(-6))], 0.6).mono()
+
+
+def r11_rock_land(S):
+    k = click(S["ゴ"], 10, 700)
+    return Group([(0, tick(S["ゴ"], 0.16, 0.36, (1, -6), 420, "gotsu/t")), (0.006, k * DB(-3)), (0.006, Ring(k, WOOD, 0.7, -8)),
+                  (0.03, lowpass(burst(S["ト"], 40, 600), 2500) * DB(-8))], 0.35)
+
+
+def r11_crumble(K):
+    return scatter(_pops(K.seed("ガラガラ", 1.2)), 0.7, per_s=22, seed=37)
+
+
+def r11_shutter(S):
+    k = click(S["ガ"], 14, 900)
+    return Group([(0, tick(S["ガ"], 0.18, 0.4, (2, -6), 500, "gashan/t")), (0.004, k), (0.004, Ring(k, STEEL, 0.55, -2)),
+                  (0.004, Ring(k, HEAVY, 1.0, -6)), (0.03, burst(S["シャ"], 90, 1800) * DB(-6))], 1.4)
+
+
+def r11_stomp(S):
+    return Group([(0, tick(S["ポ"], 0.08, 0.6, (3, -2), 1800, "poko/p")), (0.07, click(S["コ"], 8, 1400) * DB(-4)),
+                  (0.07, tick(S["コ"], 0.06, 0.9, (0, -3), 2500, "poko/k") * DB(-3))], 0.18).mono()
+
+
 BUILDS = {
     "step-grass": _step,
     "wade": _wade,
@@ -1035,4 +1090,15 @@ BUILDS = {
     "raindrop-potsu": lambda K: pad(W.center(r10_raindrop(K))),
     "howl-voice": r10_howl,
     "bat-wings": lambda K: pad(r10_wings(K)),
+    # round 11 (trials): a run and gun's
+    "foe-pon": lambda K: pad(W.center(r11_pon(K.S("ポ")))),
+    "zap-biri": lambda K: pad(r11_zap(K.S("ビ", "リ"))),
+    "boom-dokaan": lambda K: pad(r11_boom(K, "ドカーン", 0.9, "dokaan")),
+    "big-boom-dokkaan": lambda K: pad(r11_boom(K, "ドッカーン", 1.6, "dokkaan", deep=0.3)),
+    "strain-gugu": lambda K: pad(W.center(r11_strain(K.S("グ")))),
+    "throw-bun": _strike("staff", "ブン"),
+    "rock-gotsu": lambda K: Split(r11_rock_land(K.S("ゴ", "ト"))),
+    "crumble-gara": lambda K: pad(r11_crumble(K)),
+    "shutter-gashaan": lambda K: Split(r11_shutter(K.S("ガ", "シャ"))),
+    "stomp-poko": lambda K: pad(W.center(r11_stomp(K.S("ポ", "コ")))),
 }

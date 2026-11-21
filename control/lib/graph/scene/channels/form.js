@@ -279,7 +279,7 @@ const ENV_BODY = `
 #endif
 `;
 
-export function formScript(cfg) {
+export function formScript(cfg, { resample = false } = {}) {
   // (the beats' code only in a room with a beat: a room without one is byte for byte as it was)
   const NB = cfg.lights.filter((l) => l.beat).length;
   return `
@@ -397,7 +397,22 @@ fDirect += fBeat * diffuseColor.rgb;
     mat.userData.cast = true;` : ''}
     return mat;
   };
-  const map = (url) => { const t = loader.load(url); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = THREE.NoColorSpace; t.channel = 0; return t; };
+${resample ? `  // (a tile the page reads again at seeded shifts, channels/resample.js: read so here too, where the march landed. Its
+  // plans shift by whole courses, boards and units, so the joints stay where the relief has them)
+  const __rsForm = (mat, q) => {
+    if (!q) return mat;
+    const ob = mat.onBeforeCompile, ck = mat.customProgramCacheKey();
+    mat.onBeforeCompile = (sh) => {
+      ob(sh);
+      sh.uniforms.uRsA = { value: new THREE.Vector4(q[0], q[1], q[2], q[3]) };
+      sh.uniforms.uRsB = { value: new THREE.Vector4(q[4], q[5], q[6], q[7]) };
+      sh.uniforms.uRsC = { value: new THREE.Vector4(q[8], q[9], q[10], 0) };
+      sh.fragmentShader = sh.fragmentShader.replace('void main() {', __RS_GLSL + '\\nvoid main() {').replace('texture2D( map, fUV )', 'rsRead( map, fUV )');
+    };
+    mat.customProgramCacheKey = () => ck + 'rs';
+    return mat;
+  };
+` : ''}  const map = (url) => { const t = loader.load(url); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = THREE.NoColorSpace; t.channel = 0; return t; };
   const maps = {}, made = { material: 0, colour: 0, pom: 0 };
   for (const [k, m] of Object.entries(F.maps)) maps[k] = { ...m, normal: m.normal ? map(m.normal) : null, orm: m.orm ? map(m.orm) : null };
   // every surface of the room that carries its baked light; the rest keep their look, untoned
@@ -416,8 +431,8 @@ ${cfg.sun || cfg.instanced ? `
     }` : ''}
     if (!o.isMesh || o.isInstancedMesh || !b.isMeshBasicMaterial || typeof o.userData.g !== 'string' || keep.has(o.userData.g) || !o.geometry.getAttribute('aLit')) { (Array.isArray(b) ? b : [b]).forEach((m) => { m.toneMapped = false; }); return; }
     const M = maps[o.userData.key];
-    o.material = lit({ map: b.map, vertexColors: b.vertexColors, side: b.side, transparent: b.transparent, opacity: b.opacity, depthWrite: b.depthWrite, alphaTest: b.alphaTest,
-      ...(M && M.orm ? { aoMap: M.orm } : {})${cfg.reflect ? ', ...(SURF[o.userData.g] && SURF[o.userData.g].clear ? { transparent: true, depthWrite: false } : {})' : ''} }, M${cfg.reflect ? ', SURF[o.userData.g] || null, WETG.has(o.userData.g), o.userData.g' : ''});
+    o.material = ${resample ? '__rsForm(' : ''}lit({ map: b.map, vertexColors: b.vertexColors, side: b.side, transparent: b.transparent, opacity: b.opacity, depthWrite: b.depthWrite, alphaTest: b.alphaTest,
+      ...(M && M.orm ? { aoMap: M.orm } : {})${cfg.reflect ? ', ...(SURF[o.userData.g] && SURF[o.userData.g].clear ? { transparent: true, depthWrite: false } : {})' : ''} }, M${cfg.reflect ? ', SURF[o.userData.g] || null, WETG.has(o.userData.g), o.userData.g' : ''})${resample ? ', __RESAMPLE[o.userData.key])' : ''};
 ${cfg.reflect && cfg.sun ? `    // (a built thing out of doors is closed and drawn both sides: into the shadow map it casts by its far faces only,
     // so its lit faces never shade themselves in bands)
     if (SURF[o.userData.g]) o.material.shadowSide = THREE.BackSide;
@@ -438,9 +453,11 @@ ${cfg.reflect && cfg.sun ? `    // (a built thing out of doors is closed and dra
     const a0 = o.material.opacity;
     o.material = new THREE.ShaderMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
       uniforms: { uA: { value: a0 }, uF0: { value: F.f0 }, uUp: { value: up }, uDown: { value: down } },
-      vertexShader: 'varying vec3 vC;\\nvarying vec3 vW;\\nvoid main() { vC = color; vec4 w = modelMatrix * vec4( position, 1.0 ); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
-      fragmentShader: 'uniform float uA;\\nuniform float uF0;\\nuniform vec3 uUp;\\nuniform vec3 uDown;\\nvarying vec3 vC;\\nvarying vec3 vW;\\n'
-        + 'void main() { vec3 N = normalize( cross( dFdx( vW ), dFdy( vW ) ) ), V = normalize( cameraPosition - vW ); if ( dot( N, V ) < 0.0 ) N = - N;\\n'
+      // (the page's depth is logarithmic, scene-three.js: a shader of its own writes and tests it the same way, or its
+      // glass is drawn through every wall in front of it)
+      vertexShader: 'varying vec3 vC;\\nvarying vec3 vW;\\n#include <common>\\n#include <logdepthbuf_pars_vertex>\\nvoid main() { vC = color; vec4 w = modelMatrix * vec4( position, 1.0 ); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w;\\n#include <logdepthbuf_vertex>\\n}',
+      fragmentShader: 'uniform float uA;\\nuniform float uF0;\\nuniform vec3 uUp;\\nuniform vec3 uDown;\\nvarying vec3 vC;\\nvarying vec3 vW;\\n#include <common>\\n#include <logdepthbuf_pars_fragment>\\n'
+        + 'void main() {\\n#include <logdepthbuf_fragment>\\n  vec3 N = normalize( cross( dFdx( vW ), dFdy( vW ) ) ), V = normalize( cameraPosition - vW ); if ( dot( N, V ) < 0.0 ) N = - N;\\n'
         + '  float c = clamp( dot( N, V ), 0.0, 1.0 ), fr = uF0 + ( 1.0 - uF0 ) * pow( 1.0 - c, 5.0 ); vec3 R = reflect( - V, N );\\n'
         + '  vec3 env = mix( uDown, uUp, smoothstep( -0.25, 0.35, R.z ) ) + uUp * pow( max( R.z, 0.0 ), 12.0 ) * 0.6;\\n'
         + '  float k = clamp( fr * 2.2, 0.0, 1.0 ); gl_FragColor = vec4( mix( vC, env, k ), uA + ( 1.0 - uA ) * k * 0.85 ); }' });
@@ -474,7 +491,10 @@ ${cfg.figures ? `  // THE ROOM'S LIGHT AT A POINT (\`figures\`: a room that asks
   };
   // (and the lamps themselves over the same light, for the bodies' own shading and their shadows: channels/controllable)
   probe.lit = { lamps: LA.map((l) => ({ at: l.at, key: l.key.map((v) => v / LREF), r: l.radius })), amb: F.ambient.map((v) => v / LREF), fall: F.fall };
-` : ''}  const prev = scene.onBeforeRender;
+` : ''}  // (the light a thing held before the eye is drawn under: the live lamps, in the camera's frame, and the ambient;
+  // channels/controllable/gunplay-view.js lights the gun and the hands by it)
+  probe.light = { U, K };
+  const prev = scene.onBeforeRender;
   scene.onBeforeRender = function (r, s, cam, rt) {
     if (prev) prev.call(this, r, s, cam, rt);
     if (rt) return;

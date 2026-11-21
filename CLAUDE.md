@@ -48,11 +48,8 @@ the loop runs on what is missing. That step is the producer's ([intake.js](contr
 `gameworld-producer` card: the seat that faces the person and hands the director the work, one agent in both; the
 assistant director holds a unit to its remit): a gameworld's `intake` records each thing brought as placed or set aside,
 never dropped, and the readout says which goalposts it answered. A new kind of material is a row of `INTAKE_KINDS`.
-The producer knows the shape first: the rails ([rails.js](control/lib/graph/gameworld/rails.js)) are the game types
-mojulo builds, each a template a person's own game starts from and never the game itself. It calls the size (a
-pixelizer game, a quick game, a table game, the designed game), says the pitch back and locks it (a gameworld's `rail`),
-and hands on the first level; the readout's `producer.ask` is the one question a turn asks. A new game type is a row of
-`RAILS` first.
+The producer's rails, its pitch and its hand-off: [rails.js](control/lib/graph/gameworld/rails.js); the steps are the
+`gameworld-producer` card's and the `game-design` routing card's.
 
 Two audiences, one truth. The README, the plugin and the manifests speak to the person (the 3D creative studio): they
 open broad, show the pieces it makes from the easy (an object) up to the hard (a game), and say what the person gets,
@@ -258,7 +255,9 @@ Pointers only; each target carries its own design notes.
   `headgear` word, and the helmets by tradition an outfit's `language.head` wears; a new look is a card.
 - Arms: [equipment/arms/](control/lib/graph/equipment/arms/) (modern and future guns and knives for the gen-7 look: a
   model row and its builder → tunable parts → a finish card, held to the laws in `laws.js`; a new look is a finish card,
-  a new archetype a model row). Manual: the `equipment` solid-vocab card; review: `scripts/render-arms.mjs`.
+  a new archetype a model row). Manual: the `equipment` solid-vocab card; review: `scripts/render-arms.mjs`. In a
+  shooter's hands a gun is its parts' boxes unless its slot asks for the arm itself (`gameworld/arms-kit.js` `armDetailed`;
+  the mission and the firing range ask).
 - Solids: [polygonizer/](control/lib/graph/polygonizer/) (`field-terms.js`, `code-realm.js`,
   `field-exact.js` for `exact: true` through Manifold), [worlds/workbench.js](control/lib/graph/worlds/workbench.js);
   manuals are the `solid-vocab/` cards. OpenSCAD both ways: [scad/scad-render.js](control/lib/graph/scad/scad-render.js)
@@ -274,6 +273,11 @@ Pointers only; each target carries its own design notes.
   vehicle word through it, and a new vehicle is a row first. The shelves that build them (road, the car shelf's
   personal cars, the mecha shelf's legged frames, the craft shelf's aircraft and boats, the rail shelf), file by file:
   [docs/vehicles.md](docs/vehicles.md).
+- A track's design language: [roads/track-language.js](control/lib/graph/roads/track-language.js) (one card says what a raced
+  track is made of and how its parts are shaped: way, kerb, rail, flags, trees, sky; a kart track's chunky drawing,
+  `roads/chunky-look.js`; a street circuit's town, `roads/street-frontage.js`; a mine's galleries under a hill, lit as
+  a cave, `roads/mine.js`; a new map is a card), the principles a card is written by:
+  [docs/track-design-principles.md](docs/track-design-principles.md).
 - Airports: [airport/](control/lib/graph/airport/) (the transport hub's grammar laid at an airport's real figures, `plan.js`:
   piers, nose-in stands sized to the craft shelf's liners and their jet bridges, the taxiway and runway at their
   separations, the tower and hangar, each concourse a wing; drawn whole as a miniature on a plinth, `miniature.js`, or one
@@ -330,13 +334,23 @@ Pointers only; each target carries its own design notes.
   blade (an arsenal's `art`: `SWORD_ARTS` in `polygonizer/hero-swing-body.js`): [docs/sword-arts.md](docs/sword-arts.md). A game's play
   tried before its levels (the action and platform rooms, the mount lane, the firing and artillery ranges, the roll room, the work room and the game room, chosen by how
   it plays): [gameworld/practice.js](control/lib/graph/gameworld/practice.js), [docs/practice-rooms.md](docs/practice-rooms.md).
-- The rails and the producer's loop: [gameworld/rails.js](control/lib/graph/gameworld/rails.js) (one row a game type,
-  naming into the feel templates, genre cubes, quick goals and pixelizer games that measure it; the size call; the shape
-  and a rail's sheet, served by id as `gameworld-rails` and `gameworld-rail-<id>`; the pitch, a gameworld's `rail`),
-  the producer's steps and its one question in [gameworld/goalposts.js](control/lib/graph/gameworld/goalposts.js), a
-  locked pitch stored on its rail's starter level by [gameworld/pitch-start.js](control/lib/graph/gameworld/pitch-start.js),
-  and the first unit proposed to the director by [gameworld/hand-off.js](control/lib/graph/gameworld/hand-off.js):
-  [docs/zero-to-level-one.md](docs/zero-to-level-one.md).
+- Missions (a shooter's first level): [mission/](control/lib/graph/mission/) (the firing range stretched into sections,
+  each a band the world's guns are for with a task in it: the section table, the brief read from the guns, the seeded
+  composition, the laws; a new section is a row) and [gameworld/mission-level.js](control/lib/graph/gameworld/mission-level.js)
+  (the level: `levels.<id>.mission`, a quick shooter's `mission`, the practice door's `mission` room; its tasks the
+  `objectives` mechanic, `game/objectives.js`; its briefing, HUD, pause and debrief on mana-ui through the page's mission
+  channel, `gameworld/mission-mana.js`; proved on the bus and played headless, `gameworld/mission-proof.js`):
+  [docs/missions.md](docs/missions.md). Arena maps (a fighting map as blocks on a grid, the principles of line-of-sight
+  combat as laws, a generator that grows a template under them; laid as a mission's ground, `mission.map`, by `ground.js` and
+  `phases.js`; a building's `fight` dials are the geocube's answer to the same laws; a town's or a city's cut read as a map, `read-town.js`; an industrial yard found under the laws, `facility.js`; a mission laid on a place the geocube builds, read off its colliders, `read-colliders.js`, `gameworld/mission-site.js`; an industrial level, a yard designed piece by piece under the laws and built by the geocube, `yard.js`, `gameworld/mission-industrial.js`):
+  [arena-map/](control/lib/graph/arena-map/), [docs/arena-maps.md](docs/arena-maps.md). The damage ring (where a hit came from, round the aim) is its own concept,
+  `gameworld/damage-ring.js`: a mission draws it on mana-ui, a quick shooter's level and a deathmatch through the page's
+  damage ring channel.
+- The game producer: [gameworld/rails.js](control/lib/graph/gameworld/rails.js) (a new game type is a row first),
+  [gameworld/pitch-start.js](control/lib/graph/gameworld/pitch-start.js), [gameworld/hand-off.js](control/lib/graph/gameworld/hand-off.js).
+- The exhibit producer: [exhibit/producer.js](control/lib/graph/exhibit/producer.js) (`create_exhibit({ start })`),
+  [exhibit/scales.js](control/lib/graph/exhibit/scales.js), [exhibit/fit.js](control/lib/graph/exhibit/fit.js),
+  [exhibit/intake.js](control/lib/graph/exhibit/intake.js); the steps are the `exhibit-producer` routing card's.
 - The platformer's rail (a mascot platformer from its feel to a first level and the flow that plays it, in two
   dimensions: `2d` the side-scroller, one strip and one turn, its home the title; `3d` opt-in, courses up a hill, a
   turn each, its home the courses screen; both on one flow shape, a start menu, a screen on its side, the
@@ -365,6 +379,9 @@ Pointers only; each target carries its own design notes.
   as the page walks it). Its clients: the geocity's `under` (podiums and their concourses: `geocity/podium.js`) and a
   stage's `complex` (buildings with basements on one yard, `complex.js`; a WCD level's spaces; a campus by its name,
   `campuses.js`, a new campus a row).
+- Hijack City (the open city's crime game, a starter for a GTA-like: the `hijack-city` rail and its starter,
+  [gameworld/hijack-city.js](control/lib/graph/gameworld/hijack-city.js), the `open-city-crime` genre):
+  [docs/hijack-city.md](docs/hijack-city.md).
 - Quest open worlds: [docs/quest-open-world.md](docs/quest-open-world.md) (the WCD's opposite pole: a geocity's regions
   joined sideways, never gated on the way on; a `design_game` world's `qow`; its principles as laws). The metro it is
   laid on: [geocity/](control/lib/graph/geocity/) (the geocube's `show: 'geocity'`: major streets first, rings, roads,
@@ -373,6 +390,9 @@ Pointers only; each target carries its own design notes.
   modes, states, death; a new thing on a shelf is a row, never a foe special-cased). Their book is the cast sheet
   (`/bible?book=foes`, [gameworld/foe-cast-html.js](control/lib/graph/gameworld/foe-cast-html.js)), and a world with
   none is proposed a cast by the casting call ([foe-casting.js](control/lib/graph/gameworld/foe-casting.js)).
+- Worker bots: [workbots/](control/lib/graph/workbots/) (a toy world's worker bots in their own low-poly language: a
+  few big primitives in toy colours by role, a face of two lit eyes and a mouth; a bot is a card, stood as a rig figure
+  by a figures-map `workbot`; level 0's boss Bulwark is one).
 - Fight levels (Mojulo Fighter, internal name versus): a fight is laid on any level by its LANE
   ([versus/versus-lane.js](control/lib/graph/versus/versus-lane.js): where it runs, its walls, its floor, the camera's
   room); [versus/versus-levels.js](control/lib/graph/versus/versus-levels.js) turns each kind of level into a world
@@ -389,7 +409,9 @@ Pointers only; each target carries its own design notes.
   `forge_motion`'s `film` and `subject.screenplay` ([tools/film.js](control/lib/mcp/tools/film.js),
   [tools/scene-film.js](control/lib/mcp/tools/scene-film.js): a scene's storyboard and animatic, its voice, dub and set,
   the film shot natively as a video, its Blender film pack as the high-end version; a cutscene another studio orders,
-  `film/order.js`); craft in [docs/cinematics.md](docs/cinematics.md).
+  `film/order.js`); craft in [docs/cinematics.md](docs/cinematics.md). A camera directed in words (a shoot plan's
+  framing and moves, `shoot/`; a scene's camera style, `actor/camera-styles.js`) and looked at on a contact sheet:
+  `/direct`.
 - The game's colour: [gameworld/colour.js](control/lib/graph/gameworld/colour.js) (the bridge from a game to the colour
   theorist: its cast read as figures on its ground, `color-theorist/figures.js`, kept in their hue families; the ways it
   could be oriented, `color-theorist/directions.js`, each a patch; the colour book, `/bible?book=colour`; a new kind of

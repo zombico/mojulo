@@ -13,14 +13,16 @@
  *              pitch's words name (action-levels.js: a cathedral, catacombs, a tower…; else the citadel) fought room by room, action-first-level.js actionStarter, its hero on the realistic body in the duelist's coat, the rail's
  *              template kit, `arsenal: { from }`,
  *              and its style meter, `styleMeter: 'auto'`, the orbit camera and the starter's look) or
+ *              'hijack-city' (Hijack City's: its district, story, law and shops, hijack-city.js) or
  *              'compose' (a first reading of the genre the rail starts from, compose.js, one level)
  *     unlaid   a rail with no starter the book lays yet, or a size that is not the designed game's: said, the pitch
  *              answered and not stored
  *
  * Pure: the same pitch lays the same starter.
  */
-import { readRail, railOf, railSheet } from './rails.js';
+import { readRail, railOf, railSheet, variantOf } from './rails.js';
 import { platformerStart } from './platformer-game.js';
+import { hijackCityStart } from './hijack-city.js';
 import { composeGameworld } from './compose.js';
 import { GENRES, readGenre } from './intent.js';
 import { actionStarter } from './action-first-level.js';
@@ -40,7 +42,7 @@ const genrePrompt = (genre) => (GENRES[genre]?.words ?? []).map((w) => `a ${w} g
 
 export function pitchStart(world, { title } = {}) {
   if (!isObj(world) || world.levels !== undefined || !isObj(world.rail) || world.rail.locked !== true) return null;
-  const P = readRail(world.rail), R = railOf(P.from), S = railSheet(P.from);
+  const P = readRail(world.rail), R = railOf(P.from), S = railSheet(P.from, P.variant ?? null);
   if (P.size !== undefined && P.size !== 'designed') return { unlaid: `a ${P.size} game is made in its own call (${S.sizes.find((z) => z.size === P.size)?.door ?? 'its door'}): it needs no starter` };
   if (!R.sizes.includes('designed')) return { unlaid: `${R.name} is not laid as a designed game yet: it reaches ${R.sizes.join(', ')}` };
   const named = { ...(title && world.name === undefined ? { name: title } : {}) };
@@ -50,6 +52,11 @@ export function pitchStart(world, { title } = {}) {
   if (plat) {
     const W = { ...plat.world, ...withFeel, ...named };
     return { world: W, laid: { by: 'platformer', dimension: plat.dimension, levels: Object.keys(W.levels), says: SAYS } };
+  }
+  // Hijack City's rail: its own starter, the district, the story, the law and the shops (hijack-city.js)
+  if (R.id === 'hijack-city') {
+    const H = hijackCityStart({ ...withFeel, ...named });
+    if (H) return { world: { ...H.world, ...(world.intent === undefined ? { intent: { from: 'open-city-crime' } } : {}) }, laid: { by: 'hijack-city', levels: Object.keys(H.world.levels), says: SAYS } };
   }
   const prompt = S.starts ? genrePrompt(S.starts) : null;
   if (!prompt) return { unlaid: `${R.name} has no starter the book lays from its cube yet: write its first level (gameworld-guide), and the pitch is kept with it` };
@@ -79,6 +86,9 @@ export function pitchStart(world, { title } = {}) {
     const W = { ...ground, camera: 'orbit', foes: A.foes, fights: A.fights, levels: { [planId]: A.level }, grade: A.grade, ...(TEMPLATE_ARSENALS[R.handles.pole] ? { arsenal: { from: R.handles.pole } } : {}), styleMeter: 'auto', ...withFeel, ...named, ...intent };
     return { world: W, laid: { by: 'action', from: S.starts, levels: Object.keys(W.levels), says: SAYS } };
   }
-  const W = { ...starter, ...withFeel, ...named, ...intent };
-  return { world: W, laid: { by: 'compose', from: S.starts, levels: Object.keys(W.levels), says: SAYS } };
+  const W0 = { ...starter, ...withFeel, ...named, ...intent };
+  // (a VARIANT's street words on each street the starter lays: the heroes' tuning on a beat-em-up's, rails.js variants)
+  const V = P.variant ? variantOf(R, P.variant) : null;
+  const W = V?.street ? { ...W0, levels: Object.fromEntries(Object.entries(W0.levels).map(([k, L]) => [k, isObj(L?.street) ? { ...L, street: { ...V.street, ...L.street } } : L])) } : W0;
+  return { world: W, laid: { by: 'compose', from: S.starts, ...(V ? { variant: V.id } : {}), levels: Object.keys(W.levels), says: SAYS } };
 }

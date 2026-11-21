@@ -150,6 +150,7 @@ export const MECHANIC_SFX = {
   waves: { wave: 'wave', leak: 'hit', 'base:fallen': 'lose', 'waves:cleared': 'goal' },
   notes: { 'note:hit': 'beat-hit', 'note:miss': 'beat-miss', 'notes:failed': 'lose', 'notes:done': 'goal' },
   'wave-gauntlet': { wave: 'wave', 'gauntlet:arena': 'chime', 'gauntlet:again': 'lose', 'gauntlet:sealed:*': 'thud', 'gauntlet:clear:*': 'chime', 'gauntlet:out:*': 'goal' },
+  objectives: { 'objective:begin': 'chime', 'objective:done': 'checkpoint', 'objective:sealed': 'thud', wave: 'wave', 'objectives:done': 'goal' },
   push: { pushed: 'thud', 'plates:held': 'goal' },
   clock: { dawn: 'chime', dusk: 'chime' },
   crops: { planted: 'thud', harvested: 'pickup', 'crops:late': 'lose' },
@@ -159,6 +160,19 @@ export const MECHANIC_SFX = {
   cargo: { 'cargo:lost:*': 'hit' },
   bounty: { 'bounty:*': 'pickup' },
   deliver: { 'errand:done:*': 'goal', 'errand:short:*': 'thud' },
+  // (the open city's jobs: one taken where its giver stands, one that comes by phone, an app's task, a side joined, a
+  // faction's posting taken and done, its fight begun and lost)
+  offer: { 'offer:*': 'chime' },
+  call: { 'call:*': 'alarm' },
+  task: { 'task:*': 'chime', 'app:sub:*': 'checkpoint' },
+  join: { 'join:*': 'checkpoint', 'join-open:*': 'alarm', 'join-ask:*': 'chime', 'app:leave:*': 'thud' },
+  act: { 'posting:*': 'chime', 'act:*:ok': 'goal', 'encounter:*': 'wave', 'encounter-lost:*': 'lose' },
+  // (the law: a star raised the alarm, a bust a loss, shaken off a checkpoint)
+  wanted: { 'wanted:*': 'alarm', 'busted': 'lose', 'wanted-lost': 'checkpoint' },
+  vitals: { wasted: 'lose' },
+  respray: { 'respray:done': 'checkpoint', 'respray:short': 'thud' },
+  gunshop: { 'gunshop:bought': 'pickup', 'gunshop:short': 'thud' },
+  mission: { 'mission:*': 'chime', 'mission-failed:*': 'lose', 'mission-passed:*': 'goal' },
   frags: { kill: 'down', 'frags:won': 'goal', 'frags:lost': 'lose' },
   control: { 'control:won': 'goal', 'control:lost': 'lose' },
   board: { 'board-won': 'goal', 'board-lost': 'lose', 'board-draw': 'lose' },

@@ -45,6 +45,19 @@ describe('a film', () => {
     expect(sceneOrder(FILM)).toEqual(['two', 'one']);
   });
 
+  it('shoots each scene in the film\'s camera style unless the scene says its own; a word it cannot read is refused', () => {
+    const F = { ...FILM, camera: 'handheld', scenes: [{ ...FILM.scenes[0], camera: 'long take' }, FILM.scenes[1]] };
+    expect(filmErrors(F)).toEqual([]);
+    expect(sceneScreenplay(F, 'one').camera).toBe('long take');
+    expect(sceneScreenplay(F, 'two').camera).toBe('handheld');
+    expect(sceneScreenplay(FILM, 'two').camera).toBeUndefined();
+    expect(sceneStamp(F, 'two')).not.toBe(sceneStamp(FILM, 'two'));
+    expect(filmErrors({ ...FILM, camera: 'wobbly' }).join()).toMatch(/camera: a camera style/);
+    expect(filmErrors({ ...F, scenes: [{ ...F.scenes[0], camera: 'wobbly' }, F.scenes[1]] }).join()).toMatch(/scenes\[0\]\.camera/);
+    expect(departmentOfPath('/camera')).toBe('camera');
+    expect(departmentOfPath('/scenes/0/camera')).toBe('camera');
+  });
+
   it('stamps a scene by what its board is drawn from: an edit moves it, another scene\'s does not', () => {
     const a = sceneStamp(FILM, 'one');
     expect(sceneStamp({ ...FILM, scenes: [{ ...FILM.scenes[0], script: 'ANA: Ready now?\nBEN: Ready.' }, FILM.scenes[1]] }, 'one')).not.toBe(a);

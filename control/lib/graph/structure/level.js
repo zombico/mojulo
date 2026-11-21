@@ -318,7 +318,8 @@ function withStageLevel(m, ref) {
   // in the way-in room's front wall, its zone just inside, and a walker entering by it standing a few steps in
   const D = typeof m.level.door === 'string' ? stageDoor(m, m.level.from) : null;
   const doorMech = D ? [{ kind: 'door', id: m.level.door, at: D.at, half: D.half, spawn: D.spawn, heading: D.heading }] : [];
-  const game = { levelRef: ref, mechanics: [...(m.level.mechanics ?? []), ...doorMech, ...(m.level.exit === false ? [] : [exit])], fall: { mode: 'respawn' } };
+  // (`complete: false`: its result card put away, as a mission's is: the debrief is its own channel's)
+  const game = { levelRef: ref, mechanics: [...(m.level.mechanics ?? []), ...doorMech, ...(m.level.exit === false ? [] : [exit])], fall: { mode: 'respawn' }, ...(m.level.complete === false ? { complete: false } : {}) };
   const doors = D ? { doors: [...(m.doors ?? []), { id: m.level.door, at: { side: '-y', u: D.u }, room: D.room, to: { map: 'outside', door: m.level.door } }] } : {};
   const spawn = D ? [D.spawn[0], D.spawn[1], 0] : L.spawn, heading = D ? D.heading : L.heading;
   // a recipe that brings its own pilot (a gameworld's hero) keeps it, its figures and its camera: only the game channel

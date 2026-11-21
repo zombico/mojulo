@@ -444,6 +444,14 @@ const EYEWEAR = (reads, word, palette) => ({ reads, family: 'eyegear', words: { 
 // the masks' VARIATIONS, each the builder's words (tiered: the cast rides the landmark head): eyegear's DOMINO kind
 const MASK = (reads, words) => ({ reads, family: 'eyegear', words, at: { tiered: (spec) => withKit(spec, maskKit({ ...words, head: spec.head })) } });
 
+// THE TOY HERO ROBOT'S HELM (the herobot's, game-bodies.js): a face-window helm whose cheek guards curl under the jaw (ending
+// at the jaw line, never a chin of their own: the face is seen, side on, with its head turned to the screen) and
+// whose back tucks round to the nape, ear domes capped in the trim, the window's top edge a raised V down to the bridge
+// of the nose framing a gem. Its groups are the robot's armour's own (Armor, Cuff, Gem), so the hero's palette paints it
+// with the rest of the suit; the card's colours only fill what the hero names none of
+export const HEROBOT_HELM = {"id": "helmet", "mode": "shell", "part": "cranium", "s": [2, 5], "t": "wrap", "nt": 8, "ns": 1, "mugen": 0.001, "thick": 0.001, "rigid": true, "stack": false, "group": "Armor", "signature": {"kind": "helm", "group": "Armor", "parts": ["face", "earR", "earL"], "pad": 0.012, "n": 2.2, "crown": 0.95, "drop": -0.02, "flare": 0, "window": {"brow": 0.13, "w": 0.65, "bottom": 0.16, "rim": {"group": "Cuff"}, "nape": 0.22, "jaw": {"drop": 0.14, "curl": 0.5, "wrap": 0.2}, "back": {"tuck": 0.35}, "v": {"apex": 0.1, "curve": 1.6, "raise": 0.004, "group": "Cuff", "frame": {"cheek": [0.004, 0.22], "peak": [0.28, 0.56], "gem": {"corner": [0.1, 0.28], "top": 0.22, "bottom": 0.12}}}, "hug": 0.45}, "ears": {"group": "Armor", "cap": {"group": "Cuff"}}, "gem": {"group": "Gem", "shape": "diamond", "r": 0.02, "setting": {"group": "Armor", "w": 0.15}}, "scale": 1.05}};
+const HEROBOT_HELM_PALETTE = { Armor: '#1f5fc8', Cuff: '#7fd4ff', Gem: '#c4122f', ArmorHighlight: '#a9d3ff', CuffHighlight: '#e8f8ff', GemHighlight: '#ff7d96' };
+
 export const HEADGEAR = Object.freeze({
   // ── HELMETS ──
   bikerHelmet: HELMETED('the biker helmet: a full-face shell, a smoked visor, a double racing stripe over the crown; the rider', 'fullFace', { Helmet: '#c62828', HelmetVisor: '#20252c', HelmetTrim: '#f2f2f2' }),
@@ -621,6 +629,9 @@ export const HEADGEAR = Object.freeze({
     at: { tiered: (spec) => withHelm(spec, [HELM({ n: 3.2, pad: 0.014, flare: 0.08, muzzle: 0.008, crown: 0.95, visor: 'slits', faceplate: 'Face' })]) } },
   bandHelm: { reads: 'the band helm: a round helm with a visor band across the eyes; the space hero', family: 'helmet',
     at: { tiered: (spec) => withHelm(spec, [HELM({ n: 2.2, pad: 0.02, flare: 0.2, muzzle: 0.01, crown: 0.9, visor: 'band' })]) } },
+  // ── THE TOY HERO ROBOT (1117) ──
+  heroBotHelm: { reads: 'the hero robot\'s helm: a face window, cheek guards curled under the jaw, ear domes, a raised V over the brow round a gem; the run and gun\'s hero', family: 'helmet', palette: HEROBOT_HELM_PALETTE,
+    at: { tiered: (spec) => withHelm({ ...spec, palette: { ...HEROBOT_HELM_PALETTE, ...(spec.palette || {}) } }, [HEROBOT_HELM]) } },
   // ── FANTASY (1114): what a fantasy hero wears on the head that is not a hood (a hood is a garment's word: an outfit
   // piece's `hood`). Each a card over the builders above, no builder of its own: the CIRCLET an eyegear cast pushed up to
   // the brow with no lenses, its strap the band round the head, a gem on its front; the HATS a soft helmet shell over the

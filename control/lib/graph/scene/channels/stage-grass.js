@@ -76,8 +76,10 @@ export function farShare(d, { near, radius }) {
 }
 
 /** A stage's lift: its grid's step (m); how it flecks its two stops (the cell, m, and the share that takes the lower
- *  stop); the fall across a cell past which it is a cliff's face and carries no lift (m). */
-export const STAGE_LIFT = Object.freeze({ step: 1, fleck: 0.3, lower: 0.25, drop: 1.2 });
+ *  stop); the fall across a cell past which it is a cliff's face and carries no lift (m); and its STRANDS: thin dark
+ *  dashes of blade laid over it world-anchored, two ways across (each a cell `w` by `l` m, a `share` of them drawn),
+ *  in the shade's lower stop × `dark`, so the raised grass reads darker and grained, never a flat sheet of squares. */
+export const STAGE_LIFT = Object.freeze({ step: 1, fleck: 0.3, lower: 0.25, drop: 1.2, strands: Object.freeze({ share: 0.24, w: 0.045, l: 0.34, dark: 0.78 }) });
 
 // THE FORM GRASS ON A STAGE (opt-in: liveGrass.form; in the field's place): the form render's grass (channels/
 // form-grass.js: clumps placed once over the land, all of them near the eye, half from the thinning to the view cone's
@@ -141,7 +143,7 @@ ${viewConeScript(null)}${formGrassScript({ ramp: true })}
   lm.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, { uLiftR: LD, uLiftC: LC });
     sh.vertexShader = 'attribute vec3 aLift; uniform vec2 uLiftR; varying vec3 vLiftS; varying vec2 vLiftP;\\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n  { float kL = smoothstep( uLiftR.x, uLiftR.y, distance( position.xy, cameraPosition.xy ) ); transformed.z += aLift.x * kL; vLiftS = vec3( aLift.y, kL, aLift.z ); vLiftP = position.xy; }');
-    sh.fragmentShader = 'uniform vec3 uLiftC[ 4 ]; varying vec3 vLiftS; varying vec2 vLiftP;\\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\\n  { float hs = fract( sin( dot( floor( vLiftP / ' + f3(FLg.cell) + ' ), vec2( 12.9898, 78.233 ) ) ) * 43758.5453 ), h2 = fract( sin( dot( floor( vLiftP / ' + f3(SL.fleck) + ' ), vec2( 39.346, 11.135 ) ) ) * 24634.6345 );\\n  if ( vLiftS.x < ' + f3(FLg.least) + ' || hs > vLiftS.y * 1.1 || hs > smoothstep( ' + f3(FLg.least) + ', ' + f3(FLg.wall) + ', vLiftS.x ) * 1.2 ) discard;\\n  diffuseColor.rgb = uLiftC[ ( vLiftS.z > 0.5 ? 0 : 2 ) + ( h2 < ' + f3(SL.lower) + ' ? 1 : 0 ) ]; }');
+    sh.fragmentShader = 'uniform vec3 uLiftC[ 4 ]; varying vec3 vLiftS; varying vec2 vLiftP;\\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\\n  { float hs = fract( sin( dot( floor( vLiftP / ' + f3(FLg.cell) + ' ), vec2( 12.9898, 78.233 ) ) ) * 43758.5453 ), h2 = fract( sin( dot( floor( vLiftP / ' + f3(SL.fleck) + ' ), vec2( 39.346, 11.135 ) ) ) * 24634.6345 );\\n  if ( vLiftS.x < ' + f3(FLg.least) + ' || hs > vLiftS.y * 1.1 || hs > smoothstep( ' + f3(FLg.least) + ', ' + f3(FLg.wall) + ', vLiftS.x ) * 1.2 ) discard;\\n  diffuseColor.rgb = uLiftC[ ( vLiftS.z > 0.5 ? 0 : 2 ) + ( h2 < ' + f3(SL.lower) + ' ? 1 : 0 ) ];\\n  { vec2 sa = floor( vLiftP / vec2( ' + f3(SL.strands.w) + ', ' + f3(SL.strands.l) + ' ) ), sb = floor( vLiftP.yx / vec2( ' + f3(SL.strands.w) + ', ' + f3(SL.strands.l) + ' ) ) + 7.0;\\n    float ha = fract( sin( dot( sa, vec2( 27.619, 57.583 ) ) ) * 32768.1 ), hb = fract( sin( dot( sb, vec2( 61.271, 19.997 ) ) ) * 24137.3 );\\n    if ( ha < ' + f3(SL.strands.share / 2) + ' || hb < ' + f3(SL.strands.share / 2) + ' ) diffuseColor.rgb = uLiftC[ 3 ] * ' + f3(SL.strands.dark) + '; } }');
   };
   lm.customProgramCacheKey = () => 'mojulo-stage-form-lift';
   const sheet = new THREE.Mesh(lg, lm); sheet.frustumCulled = false; sheet.userData.g = 'far-lift'; sheet.userData.blades = true; sheet.raycast = __noFoot; scene.add(sheet);

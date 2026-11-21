@@ -408,9 +408,18 @@ export function assembleStoreys(manifest, ctx, plan, assemble) {
   // orders its goal's last), every other storey bare of it, so it never stands across the way up
   const lastWay = (manifest.links || []).at(-1), byRoom = new Map(plan.rooms.map((r) => [r.id, r]));
   const goalStorey = lastWay && byRoom.has(lastWay.to) ? byRoom.get(lastWay.to).storey : 0;
+  // (a hall's gallery, a building designed as a fighting map: its catwalk's height and its doorway, as the whole building
+  // resolved them (stage.js planStage), handed to the storeys either side of its wall as raw openings)
+  const G = (plan.galleries ?? []).filter((x) => !x.lost);
+  const withGallery = (q) => {
+    if (q.gallery !== undefined) { delete q.gallery; const x = G.find((y) => y.hall === q.id); if (x) { q.gallery = { side: x.side, z: x.z }; q._openings = [{ side: x.side, lo: x.lo, hi: x.hi, top: r5(x.z + x.top), sill: x.z }]; } }
+    const x = G.find((y) => y.from === q.id);
+    if (x) q._openings = [...(q._openings ?? []), { side: flip(x.side), lo: x.lo, hi: x.hi, top: x.top }];
+    return q;
+  };
   const parts = plan.storeys.map((st) => {
     const s = st.index, mine = ids(s);
-    const rooms = roomsOf(s).map((r) => { const { storey, ...rest } = r; return { ...rest, id: idOf(r) }; });
+    const rooms = roomsOf(s).map((r) => { const { storey, ...rest } = r; return withGallery({ ...rest, id: idOf(r) }); });
     const links = (manifest.links || []).filter((l) => mine.has(l.from) && mine.has(l.to));
     // the dressing seats its set piece in the room of the last doorway (crypt.js): never one a stair stands in
     const stairRooms = new Set(plan.stairs.flatMap((x) => [x.lower, x.upper]).filter((id) => mine.has(id)));

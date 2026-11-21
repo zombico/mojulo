@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { manaUi } from './kernel.js';
-import { manaCss, GREYBOX_VARS } from './css.js';
+import { manaCss, lensCss, GREYBOX_VARS } from './css.js';
 import { themeCss, THEME_IDS } from './theme.js';
 
 // ONE STYLE FOR A GAME: every component, the live game's as much as the menus', is drawn by the one sheet and dressed
@@ -16,7 +16,8 @@ describe('mana-ui: one style for a game', () => {
   it('every component has its rule in the sheet', () => {
     for (const id of manaUi.COMPONENT_IDS) {
       if (DRAWN_AS[id]) continue;
-      expect(new RegExp(`\\.mana-${id}(?![\\w-])`).test(sheet), `.mana-${id} has no rule in css.js`).toBe(true);
+      // (the lens's parts have their rules in its own sheet, lensCss: its root must not be the root's)
+      expect(new RegExp(`\\.mana-${id}(?![\\w-])`).test(`${sheet}\n${lensCss()}`), `.mana-${id} has no rule in css.js`).toBe(true);
     }
   });
   it('the sheet\'s rules carry no colour of their own: every colour is a variable', () => {

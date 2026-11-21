@@ -51,6 +51,17 @@ describe("forge_motion's shoot plan", () => {
     expect(keys[1]).toMatchObject({ focal_mm: 85, ease: 'hold' });
   });
 
+  it('a key framed in words is solved and stored with its words; a plan about nothing answers no composition', async () => {
+    const res = await shoot('stage', { plan: { cameras: [{ id: 'cu', keys: [{ t: 0, frame: { on: [0, 0, 0], heading: 90, height: 1.75, size: 'mcu', side: 'three-quarter-left' } }] }] } });
+    const key = SketchRepository.getByRef('stage').manifest.shoot.cameras[0].keys[0];
+    expect(key.framing).toMatchObject({ size: 'mcu', side: 'three-quarter-left' });
+    expect(key.pos[1]).toBeGreaterThan(0);   // in front of a figure facing +y
+    expect(res.shoot?.composition ?? res.composition).toBeUndefined();
+    const edited = await shoot('stage', { ops: [{ op: 'frame', camera: 'wide', t: 0, on: [0, 0, 0], size: 'ws' }] });
+    expect(edited.did[0]).toMatch(/added camera wide/);
+    expect(SketchRepository.getByRef('stage').manifest.shoot.cameras.map((c) => c.id)).toEqual(['cu', 'wide']);
+  });
+
   it('a bad op names itself and leaves the stored plan alone', async () => {
     await shoot('stage', { plan: PLAN });
     const before = JSON.stringify(SketchRepository.getByRef('stage').manifest.shoot);

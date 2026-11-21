@@ -23,7 +23,7 @@
  * Its keys (the brawl scheme, controls/schemes.js): the stick, attack, strong, jump, special; start the practice settings, back
  * the move list; R a reset. A second controller pressing attack or start drops in as the next player (four at most).
  */
-/* global gunCode, joinStreet, newGunReader, readGunButtons, gunMoveList, tallyRounds, accuracyOf, sceneOf, stepScene, sceneShows, streetSession, STREET_DIFFICULTY, CPU_LEVELS, BRAWL_YARD, castKit, THREE, THINGS, MOUNTS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, streetOf, stepStreet, streetRead, newReader, readButtons, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
+/* global gunCode, joinStreet, newGunReader, readGunButtons, gunMoveList, tallyRounds, accuracyOf, sceneOf, stepScene, sceneShows, streetSession, STREET_DIFFICULTY, CPU_LEVELS, BRAWL_YARD, castKit, THREE, THINGS, MOUNTS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, streetOf, stepStreet, streetRead, newReader, readButtons, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS, BRAWL_SWAY, swayAir, swayHang, swayStep, swayRegion, swayBend */
 const BY = BRAWL_YARD;
 const BELT = BY.belt;
 controls.enabled = false;
@@ -135,6 +135,9 @@ function sceneFrame(pad) {
 let dummies = BY.dummies;
 let room = null, bodies = [], things = new Map(), rounds = new Map(), t = 0;
 let readers = [], hp0 = [], over = null, seenClear = 0, bossSaid = false, said = 0;
+// (the street's HUD, game-like: the foe last hit and when it goes, the combo and when it goes, the way on's arrow until
+// when, the most grenades each seat has held)
+let hudTarget = null, hudCombo = null, goUntil = -1, grTop = [];
 // (a practice room with a GAME on it, its `stakes`: over once, told by the page's game contract)
 let ENDED = false;
 const runs = [];
@@ -154,7 +157,7 @@ function build() {
   // (the brawler yard's own waves while the settings' Waves is on)
   const melee = !RANGE && BY.waves && SET.waves ? { waves: BY.waves, loop: BY.loop } : {};
   SPARE = spareSeats();
-  const who = seatsOf().map((i, k) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style, ...(k >= picks.length ? { away: true } : {}) }));
+  const who = seatsOf().map((i, k) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style, ...(STREET && BY.roster[i].power ? { power: BY.roster[i].power } : {}), ...(k >= picks.length ? { away: true } : {}) }));
   if (STREET) {
     // (how hard the street fights, by the game's turn: the tier's crowd rules over the street's, its bosses' minds)
     const tier = SESSION.difficulty ? STREET_DIFFICULTY[SESSION.difficulty] : null, minds = Object.keys(CPU_LEVELS);
@@ -166,7 +169,7 @@ function build() {
     room = streetOf({ belt: BELT, players: who, waves, ...gunner, ...(STREET.lives ? { lives: STREET.lives } : {}), ...(STREET.tune ? { tune: STREET.tune } : {}), ...(BY.things.length ? { things: BY.things } : {}), ...(tier && Object.keys(tier.crowd).length ? { crowd: tier.crowd } : {}) });
     readers = picks.map(() => (GUNPLAY ? newGunReader() : newReader()));
     hp0 = room.s.bodies.map((b) => b.hp);
-    over = null; seenClear = 0; bossSaid = false;
+    over = null; seenClear = 0; bossSaid = false; hudTarget = null; hudCombo = null; goUntil = -1; grTop = [];
     Object.assign(UI.state.brawl.street, { moments: [], time: '0:00', scene: { on: false } });
   } else room = practiceOf({ belt: BELT, players: who, dummies, things: BY.things, health: SET.health.toLowerCase(), ...range, ...melee, ...(BY.stakes ? { stakes: BY.stakes } : {}) });
   ENDED = false;
@@ -333,6 +336,7 @@ function makePlayed(skin) {
     if (uv) { if (P.uv) uv.set(decodeF32(P.uv), o * 2); else for (let k = 0; k < m; k++) { uv[(o + k) * 2] = pack.paintTex.white[0]; uv[(o + k) * 2 + 1] = pack.paintTex.white[1]; } }
     o += m;
   }
+  capeOffArms(skin, jnt, wgt);
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3, true));
@@ -359,6 +363,20 @@ function makePlayed(skin) {
   const shadow = footShadow();
   YARD.add(shadow);
   return { group, shadow, skin, played: true, bones, mesh, line: null, base: skin.base, drawn: null };
+}
+// A CAPE HANGS FROM THE SHOULDERS (hero-cloth.js hangs a cloak on strings, `<part>S<m><k>`, and keeps on an arm the
+// share of the cloth draped over it): on the street the arms strike and hold fists at the waist, so a cloak that kept
+// to them would be pinched in to the fists; what hangs on strings keeps no share on an arm, the torso carrying it
+const STRUNG = /_[A-Za-z]+S\d+$/;
+function capeOffArms(skin, jnt, wgt) {
+  const bones = skin.pack.bones, strung = bones.map((b) => STRUNG.test(b.id)), torso = bones.findIndex((b) => b.id === 'torso');
+  if (torso < 0 || !strung.some(Boolean)) return;
+  const arm = skin.seg.map((sg) => /^(upperArm|foreArm)/.test(sg));
+  for (let v = 0; v < jnt.length / 4; v++) {
+    let on = false;
+    for (let q = 0; q < 4; q++) if (wgt[v * 4 + q] > 0 && strung[jnt[v * 4 + q]]) on = true;
+    if (on) for (let q = 0; q < 4; q++) if (arm[jnt[v * 4 + q]]) jnt[v * 4 + q] = torso;
+  }
 }
 // the states a played body shows by its own clips (the fight's: a blow, a reaction, a fall, the guard); the brawl's own
 // (walking, a hold, held, a pick-up, a throw, a jump with no blow) are posed by the yard on its body
@@ -489,10 +507,13 @@ function placeMount(B, p) {
   // (the rider sat on its saddle: lifted from a stander's hip to the saddle's top)
   return MOUNTS[kind].seat + 60 - RIDER_HIP;
 }
-const RIDER_HIP = 900;
+const RIDER_HIP = 900, FLOORED = new Set(['fall', 'down', 'ko', 'rise']);
 function placeBody(B, p, F) {
   const hidden = !!p.gone, lift = placeMount(B, p);
   if (lift) p = { ...p, y: p.y + lift };
+  // (a body carried on the air, a weather power's hero (brawl-kinetics.js BRAWL_AIR): it hovers, bobbing slowly, and drifts
+  // standing, never walking; down, it lies on the ground as any body does)
+  if (F.power && F.power.float && !FLOORED.has(p.st)) p = { ...p, y: p.y + BRAWL_AIR.HOVER + Math.round(60 * Math.sin((t + p.id * 37) * 0.06)), ...(p.st === 'walk' ? { st: 'stand' } : {}) };
   B.group.visible = !hidden; B.shadow.visible = !hidden;
   if (B.blade) B.blade.fill.visible = B.blade.ink.visible = !hidden && !!F.weapon;
   if (B.line) B.line.visible = !hidden;
@@ -502,6 +523,7 @@ function placeBody(B, p, F) {
   if (B.played) placePlayed(B, p, F, N);
   else if (B.skin) placeCharacter(B, p, F, N);
   else placeStick(B, p, F, N);
+  if (B.skin) swayBody(B, p, F);
   placeBlade(B, p, F, J, N);
   if (p.gn !== undefined) placeGun(B, p, N);
   B.shadow.position.set(p.x / 1000, p.z / 1000 + DR(p.x), 0.01 + FL(p.x));
@@ -514,6 +536,73 @@ function placeBody(B, p, F) {
     B.line.rotation.z = BELT.drift ? Math.atan2(DR(p.x + 500) - DR(p.x - 500), 1) : 0;
   }
 }
+// ── what hangs loose on a character's body (brawl-sway.js): its long hair below the neck and its cloth below the hips
+// (a skirt, a coat's tails, a cape's hem), bent about their roots by the air the body moves through: its own motion,
+// a gale it stands in, a floater's updraft. Read from its rest positions once; drawn only (the sim never sees it) ──
+function swayRegionsOf(B) {
+  if (B.sway !== undefined) return B.sway;
+  const pack = B.skin.pack, bi = (id) => pack.bones.findIndex((b) => b.id === id);
+  const head = bi('head'), thigh = Math.max(bi('thighL'), bi('thighR')), pelvis = bi('pelvis');
+  // (the trunk's, and a cloth's strings where the character's cloth hangs on them (hero-cloth.js: `<part>S<m><k>`): the
+  // yard poses those riding the torso, so here they sway as the trunk's cloth does)
+  const trunk = new Set([...['pelvis', 'lumbar', 'torso'].map(bi), ...pack.bones.map((b, i) => (STRUNG.test(b.id) ? i : -1))].filter((i) => i >= 0));
+  if (head < 0) return (B.sway = null);
+  const neck = pack.bones[head].head, hip = thigh >= 0 ? pack.bones[thigh].head : null;
+  // (the hang's axis: the middle of what hangs at its root, so a mane hanging down the back bends about the back)
+  const pivotOf = (pos, root, pick, at) => { let x = 0, y = 0, n = 0; for (let i = 0; i < pos.length / 3; i++) { const u = root - pos[i * 3 + 2]; if (u > 0 && u < 0.04 && pick(i)) { x += pos[i * 3]; y += pos[i * 3 + 1]; n++; } } return n ? [x / n, y / n] : [at[0], at[1]]; };
+  const out = [];
+  const add = (kind, geo, carrier, pick, root, at) => {
+    const pos = geo.attributes.position.array, R = swayRegion(pos, root, pivotOf(pos, root, pick, at), pick, BRAWL_SWAY[kind].least);
+    if (R) out.push({ kind, P: BRAWL_SWAY[kind], geo, R, carrier, st: { wx: 0, wy: 0, vx: 0, vy: 0 }, still: true });
+  };
+  // (the face and the throat ahead of the neck are not hair: a lock hangs behind it or beside it)
+  const behind = (pos, i) => pos[i * 3 + 1] < neck[1] + 0.03;
+  if (B.played) {
+    const geo = B.mesh.geometry, pos = geo.attributes.position.array, J = geo.attributes.skinIndex.array, W = geo.attributes.skinWeight.array;
+    const top = (i) => { let b = 0; for (let q = 1; q < 4; q++) if (W[i * 4 + q] > W[i * 4 + b]) b = q; return J[i * 4 + b]; };
+    add('hair', geo, () => B.bones[head].matrix, (i) => top(i) === head && behind(pos, i), neck[2] - BRAWL_SWAY.neck, neck);
+    if (hip && pelvis >= 0) add('cloth', geo, () => B.bones[pelvis].matrix, (i) => trunk.has(top(i)), hip[2] - BRAWL_SWAY.hip, pack.bones[pelvis].head);
+  } else {
+    const H = B.meshes[head];
+    if (H) { const pos = H.fill.geometry.attributes.position.array; add('hair', H.fill.geometry, () => H.fill.matrix, (i) => behind(pos, i), neck[2] - BRAWL_SWAY.neck, neck); }
+    if (hip) for (const k of trunk) { const M = B.meshes[k]; if (M) add('cloth', M.fill.geometry, () => M.fill.matrix, () => true, hip[2] - BRAWL_SWAY.hip, pack.bones[k].head); }
+  }
+  return (B.sway = out.length ? out : null);
+}
+const SWAY_IN = [0, 0, 0];
+function swayBody(B, p, F) {
+  const regions = swayRegionsOf(B);
+  if (!regions) return;
+  // the body's own velocity along the belt (m/s), read off the sim's frames: held while the street holds
+  const f = room.s.f, W = (B.sw ??= { f, x: p.x, y: p.y, z: p.z, v: [0, 0, 0] }), dfr = f - W.f;
+  if (dfr > 0) {
+    const k = dfr > 8 ? 0 : 60 / 1000 / dfr, v = [(p.x - W.x) * k, (p.z - W.z) * k, (p.y - W.y) * k], s = Math.hypot(v[0], v[1], v[2]);
+    W.v = s > BRAWL_SWAY.most ? v.map((c) => (c * BRAWL_SWAY.most) / s) : v;
+    Object.assign(W, { f, x: p.x, y: p.y, z: p.z });
+  }
+  // the wind where it stands: each gale's column, whole over its first two thirds (brawl-core.js stepGusts)
+  let wind = 0;
+  for (const g of room.s.gusts || []) { const along = (p.x - g.x) * g.dir; if (along >= 0 && along <= g.len && Math.abs(p.z - g.z) <= g.wid / 2 + 400) wind += g.dir * g.v * Math.min(1, (3 * (g.len - along)) / g.len); }
+  const float = !!(F.power && F.power.float) && !FLOORED.has(p.st), lying = p.st === 'down' || p.st === 'ko';
+  const air = lying ? [0, 0, 0] : swayAir(W.v, [wind, 0, 0], p.face, float);
+  for (const G of regions) {
+    // (the air turned into the carrier's rest frame: its matrix's turn read transposed)
+    const e = G.carrier().elements;
+    SWAY_IN[0] = e[0] * air[0] + e[1] * air[1] + e[2] * air[2];
+    SWAY_IN[1] = e[4] * air[0] + e[5] * air[1] + e[6] * air[2];
+    SWAY_IN[2] = e[8] * air[0] + e[9] * air[1] + e[10] * air[2];
+    if (dfr > 0) swayStep(G.st, swayHang(SWAY_IN, G.P), SWAY_IN, G.P, Math.min(dfr, 6), f, p.id * 1.37, float);
+    const still = Math.hypot(G.st.wx, G.st.wy) < 1e-3;
+    if (still && G.still) continue;
+    swayBend(G.geo.attributes.position.array, G.R, G.st.wx, G.st.wy);
+    // (only the span it bent goes up to the card: a played body is one buffer of every part)
+    const A = G.geo.attributes.position, lo = G.R.idx[0], hi = G.R.idx[G.R.idx.length - 1];
+    A.addUpdateRange(lo * 3, (hi - lo + 1) * 3);
+    A.needsUpdate = true;
+    G.still = still;
+  }
+}
+
 // ── a held blade (versus-arena.client.js's): from the grip hand along the sim's own line, so what is drawn is what
 // strikes; made as the body first holds one, changed as it changes weapon ──
 function placeBlade(B, p, F, J, N) {
@@ -607,10 +696,51 @@ function placeGun(B, p, N) {
 }
 const ROUND_MINE = new THREE.MeshBasicMaterial({ color: 0xffe28a }), ROUND_FOE = new THREE.MeshBasicMaterial({ color: 0xff5a2a });
 const ROUND_SHADOW = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false });
+// A SUPER BEAT on the lens (a powered street's): whoever calls up a power, or throws a fight's super, struck round for
+// STRIKE_FOR steps in its power's screen (a seat's own, else its move's card's: a villain's), a super's the ink; drawn
+// round the body as it stands (the street is held still for the beat, and the caster stands through its move)
+const STRIKE_FOR = 30, STRIKES = [];
+let strikeN = 0;
+function superBeat(e) {
+  const b = room.s.bodies[e.p], F = b && room.ctx.fighters[b.fi], mv = b && b.mv && F.moves[b.mv];
+  const card = mv && typeof mv.id === 'string' && mv.id.startsWith('power.') ? POWERS[mv.id.slice(6)] : null;
+  const kind = e.t === 'super' ? 'ink' : (F && F.power && F.power.screen) || (card && card.beat.screen) || 'lift';
+  if (kind === 'none') return;
+  STRIKES.push({ p: e.p, n: ++strikeN, kind, at: t, power: e.t === 'super' || kind === 'ink' ? 0.9 : 0.6 });
+}
+function strikeRows() {
+  while (STRIKES.length && t - STRIKES[0].at > STRIKE_FOR) STRIKES.shift();
+  const rows = [];
+  for (const k of STRIKES) {
+    const b = room.s.bodies[k.p];
+    if (!b || b.gone) continue;
+    const F = room.ctx.fighters[b.fi], h = (F.body && F.body.height) || 1800, m = project(b.x, b.z, b.y + h * 0.5), top = project(b.x, b.z, b.y + h);
+    rows.push({ id: k.p, n: k.n, x: Math.round(m[0] * 1000) / 1000, y: Math.round(m[1] * 1000) / 1000, r: Math.round(Math.max(0.02, Math.abs(top[1] - m[1]) * 1.1) * 1000) / 1000, kind: k.kind, power: k.power });
+  }
+  return rows;
+}
+// (a SPECIAL's round, a projectile of the fight's (a fireball, a hero's power: brawl-powers.js): a glowing body its
+// box's size, in its thrower's power's colour, else the fight's own)
+const SPECIAL_LOOK = '#ffe9b0', POWER_LOOKS = new Map();
+const powerColour = (id) => { const b = room.s.bodies[id], P = b && room.ctx.fighters[b.fi].power; return (P && P.colour) || SPECIAL_LOOK; };
+const lookOf = (c) => { if (!POWER_LOOKS.has(c)) POWER_LOOKS.set(c, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.85, depthWrite: false })); return POWER_LOOKS.get(c); };
+function placeSpecial(r) {
+  let m = rounds.get(r.id);
+  if (!m) {
+    m = { tracer: new THREE.Mesh(BALL, lookOf(powerColour(r.o))), shadow: new THREE.Mesh(new THREE.CircleGeometry(1, 12), ROUND_SHADOW), big: true };
+    YARD.add(m.tracer, m.shadow);
+    rounds.set(r.id, m);
+  }
+  m.tracer.position.set(r.x / 1000, r.z / 1000 + DR(r.x), r.y / 1000 + FL(r.x));
+  m.tracer.scale.set(r.w / 2000, 0.18, r.h / 2000);
+  m.shadow.position.set(r.x / 1000, r.z / 1000 + DR(r.x), 0.006 + FL(r.x));
+  m.shadow.scale.setScalar(Math.min(0.6, r.w / 2400));
+}
 function placeRounds() {
   const seen = new Set();
   for (const r of room.s.shots) {
-    if (r.gun === undefined || r.life <= 0 || r.done) continue;
+    if (r.life <= 0 || r.done) continue;
+    if (r.gun === undefined) { if (r.hits > 0) { seen.add(r.id); placeSpecial(r); } continue; }
     seen.add(r.id);
     let m = rounds.get(r.id);
     if (!m) {
@@ -671,11 +801,54 @@ function placeThings() {
 
 const FLASHES = [];
 const FLASH_GEO = new THREE.SphereGeometry(1, 12, 8);
-function flash(e, heavy, spark = false) {
-  const m = new THREE.Mesh(FLASH_GEO, new THREE.MeshBasicMaterial({ color: spark ? 0xffb347 : heavy ? 0xffd23a : 0xffffff, transparent: true, opacity: 0.9, depthWrite: false }));
+function flash(e, heavy, spark = false, colour = null) {
+  const m = new THREE.Mesh(FLASH_GEO, new THREE.MeshBasicMaterial({ color: colour || (spark ? 0xffb347 : heavy ? 0xffd23a : 0xffffff), transparent: true, opacity: 0.9, depthWrite: false }));
   m.position.set(e.x / 1000, (e.z ?? 0) / 1000 + DR(e.x), (e.y ?? 1100) / 1000 + FL(e.x));
   // (a round's spark small and quick; a blow's flash; a heavy one's, or a burst's, big)
   YARD.add(m); FLASHES.push({ m, k: 0, n: spark ? 5 : heavy ? 12 : 8, r: spark ? 0.14 : heavy ? 0.45 : 0.3 });
+}
+// A DUST RING where an impact meets the ground (brawl-kinetics.js, rupa's knockback: the ground's share of a power's
+// impact), running out as wide as the cube root of that share, as rupa's own page draws it
+const DUST_GEO = new THREE.RingGeometry(0.55, 1, 40);
+function dustRing(e) {
+  const m = new THREE.Mesh(DUST_GEO, new THREE.MeshBasicMaterial({ color: 0xcdbfa6, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide }));
+  m.position.set(e.x / 1000, (e.z ?? 0) / 1000 + DR(e.x), 0.02 + FL(e.x));
+  YARD.add(m); FLASHES.push({ m, k: 0, n: 26, r: 0.25 * Math.cbrt(Math.max(1, e.ground) / 1000) });
+}
+// AN EARTH POWER'S SLAB (brawl-core.js `walls`): a block of the street's stone, rising out of the ground, standing,
+// sliding, and sinking back into dust as it crumbles
+const SLABS = new Map(), SLAB_GEO = shaded(new THREE.BoxGeometry(1, 1, 1));
+function placeWalls() {
+  const seen = new Set();
+  for (const w of room.s.walls || []) {
+    seen.add(w.id);
+    let m = SLABS.get(w.id);
+    if (!m) { m = castOn(new THREE.Mesh(SLAB_GEO, lambert('#8a7b66'))); YARD.add(m); SLABS.set(w.id, m); }
+    const H = w.h / 1000, sink = w.st === 'rise' ? H * (1 - Math.min(1, w.f / w.rise)) : w.st === 'crumble' ? H * Math.min(1, w.f / w.rest) : 0;
+    m.scale.set(w.len / 1000, w.wid / 1000, Math.max(0.01, H - sink));
+    m.position.set(w.x / 1000, w.z / 1000 + DR(w.x), FL(w.x) + (H - sink) / 2);
+  }
+  for (const [id, m] of SLABS) if (!seen.has(id)) { YARD.remove(m); SLABS.delete(id); }
+}
+// A GALE (brawl-core.js `gusts`): streaks of air running down its column from its caller for as long as it blows, each at
+// its own height and across the column (by its index: no dice), pale and thin
+const STREAK_GEO = new THREE.BoxGeometry(1, 0.03, 0.03), STREAKS = [];
+function galeStreaks(e) {
+  for (let i = 0; i < 14; i++) {
+    const m = new THREE.Mesh(STREAK_GEO, new THREE.MeshBasicMaterial({ color: 0xe8f2ff, transparent: true, opacity: 0, depthWrite: false }));
+    const across = ((i * 0.618) % 1) - 0.5, up = 0.3 + ((i * 0.381) % 1) * 1.6;
+    YARD.add(m); STREAKS.push({ m, e, i, across, up, k: -(i % 5) * 3, n: e.frames });
+  }
+}
+function stepStreaks() {
+  for (let j = STREAKS.length - 1; j >= 0; j--) {
+    const S = STREAKS[j]; S.k++;
+    const u = ((S.k * 3 + S.i * 17) % 40) / 40, along = (S.e.len / 1000) * u, x = S.e.x / 1000 + S.e.dir * along, len = 0.6 + 0.8 * (1 - u);
+    S.m.scale.set(len, 1, 1);
+    S.m.position.set(x, S.e.z / 1000 + S.across * (S.e.wid / 1000) + DR(S.e.x), S.up + FL(S.e.x));
+    S.m.material.opacity = S.k < 0 ? 0 : 0.55 * (1 - u) * Math.min(1, (S.n - S.k) / 10);
+    if (S.k >= S.n) { YARD.remove(S.m); S.m.material.dispose(); STREAKS.splice(j, 1); }
+  }
 }
 // IMPACT FRAMES: the picture flashed for a heavy landing (inverted under the anime register, white otherwise)
 const IMPACT = (() => {
@@ -817,9 +990,14 @@ const UI = (() => {
     ...(RANGE ? [{ kind: 'cycler', label: 'Gun', var: 'brawl.practice.set.gun', options: RANGE.names }] : []),
     ...((RANGE && RANGE.waves) || BY.waves ? [{ kind: 'toggle', label: 'Waves', var: 'brawl.practice.set.waves' }] : []),
     ...BY.yard.settings.map((f) => (f.label === 'Type' ? { ...f, options: [...f.options, ...BY.roster.map((r) => r.name)] } : f))];
-  const state = { brawl: { street: { p1: {}, p2: {}, p3: {}, p4: {}, gun: { on: false, name: '', ammo: '', grenades: 0 }, accuracy: '—', hp: 1, hpMax: 1, name: '', cleared: 0, of: 1, left: 0, boss: { on: false, name: '', hp: 0, hpMax: 1 }, moments: [], time: '0:00', rank: '', moves: [] }, practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' } } } };
+  const state = { brawl: { street: { strikes: [], p1: {}, p2: {}, p3: {}, p4: {}, gun: { on: false, name: '', ammo: '', grenades: 0 }, accuracy: '—', hp: 1, hpMax: 1, name: '', cleared: 0, of: 1, left: 0, boss: { on: false, name: '', hp: 0, hpMax: 1 }, moments: [], time: '0:00', rank: '', moves: [] }, practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' } } } };
+  // (THE LENS, a powered street's (brawl-street.js STREET_LENS): its host over the world's canvas and under the HUD,
+  // never raised (a z-index or a contain would make it its own, and its regions would filter nothing of the world))
+  const lensHost = BY.yard.spec.lens ? document.createElement('div') : null;
+  if (lensHost) { lensHost.className = 'moj-brawl-lens'; (document.getElementById('wrap') || document.body).appendChild(lensHost); }
+  // (inside the scene's frame, so the HUD's corners are the street's, never the page's margin)
   const el = document.createElement('div');
-  document.body.appendChild(el);
+  (document.getElementById('wrap') || document.body).appendChild(el);
   const setPath = (path, to) => { const k = path.split('.'), last = k.pop(); k.reduce((o, x) => o[x], state)[last] = to; };
   const rt = manaUi.runtime(BY.yard.spec, {
     read: (p) => manaUi.readPath(state, p),
@@ -829,6 +1007,7 @@ const UI = (() => {
   rt.glyphs({ keys: { up: 'W', down: 'S', left: 'A', right: 'D', tabPrev: 'A', tabNext: 'D', back: 'Esc', accept: 'J' }, pad: { xbox: { up: '↑', down: '↓', left: '←', right: '→', tabPrev: '←', tabNext: '→', back: 'B', accept: 'A' } } });
   rt.input('keys');
   const view = manaUi.mount(el, rt, { auto: true });
+  if (lensHost) manaUi.mount(lensHost, rt, { part: 'lens', auto: true });
   return { state, rt, view, press: (a) => { rt.press(a); view.paint(); } };
 })();
 // the settings applied as the screen closes: the fighter, the dummies, their health
@@ -892,7 +1071,7 @@ function tick() {
     room = stepStreet(room, pads);
     if (GUNPLAY) tally = tallyRounds(tally, room.s.events, picks.length);
     // (a boss turning: a crowd-kind boss's phase, a fighter boss's stage)
-    for (const e of room.s.events) { if (e.t === 'phase') TURNS.push(e); if (e.t === 'bossStage') TURNS.push({ says: e.name || 'Stage ' + e.k, k: e.k - 1 }); }
+    for (const e of room.s.events) { if (e.t === 'phase') TURNS.push(e); if (e.t === 'bossStage') TURNS.push({ says: e.name || 'Stage ' + e.k, k: e.k - 1 }); if (e.t === 'enrage') TURNS.push({ says: `${e.name} is enraged`, k: 0 }); }
   } else {
     room = stepYard(room, buttons);
     if (BY.stakes && !ENDED && room.yard.over) { ENDED = true; if (window.__mojGame) window.__mojGame.end(room.yard.over === 'won' ? 'success' : 'fail'); }
@@ -901,6 +1080,23 @@ function tick() {
   for (const e of room.s.events) {
     if (e.t === 'hit') flash(e, (e.w ?? 1) >= 2, e.kind === 'round' && !e.flinch);
     if (e.t === 'clash') flash(e, true);
+    if (e.t === 'impact') dustRing(e);
+    // (a slab wrenched up, shoved, crumbling: dust where it meets the ground)
+    if (e.t === 'wall' || e.t === 'crumble') { dustRing(e); if (e.t === 'crumble') flash({ ...e, y: 900 }, true, true); }
+    if (e.t === 'shove') dustRing({ ...e, ground: 8000 });
+    // (a gale's streaks; a round blown out of the air puffs)
+    if (e.t === 'gust') galeStreaks(e);
+    if (e.t === 'blown') flash(e, false, true, '#e8f2ff');
+    // (THE FOE SHELF'S IDIOMS, brawl-crowd.js: a summons rising in a ring of the ground's dust where its summoner points,
+    // one cut down when its summoner falls going up in a puff, a pair's survivor enraged, a boss in its next form)
+    if (e.t === 'summon') { dustRing({ ...e, ground: 8000 }); flash({ ...e, y: 400 }, false, true, '#b9a4ff'); }
+    if (e.t === 'cut') flash({ ...e, y: 900 }, true, false, '#d8d0ff');
+    if (e.t === 'enrage') flash({ ...e, y: 1200 }, true, false, '#ff5a3a');
+    if (e.t === 'becomes') { flash({ ...e, y: 1200 }, true, false, '#ffffff'); dustRing({ ...e, ground: 30000 }); }
+    // (a hero's power: a burst in its colour where it is called up; and its SUPER BEAT on the lens, round whoever calls
+    // it up, the street held still for it: the power's own screen (brawl-powers.js `beat`), a fight super's its negative)
+    if (e.t === 'power') flash({ ...e, y: 1000 }, true, false, powerColour(e.p));
+    if (BY.yard.spec.lens && (e.t === 'power' || e.t === 'super')) superBeat(e);
     if (e.t === 'break') wreckAt(e);
     if (e.t === 'burst') flash({ ...e, y: 600 }, true);
     // (a round on cover sparks on its face; a body coming up out of the ground throws its dirt up)
@@ -930,6 +1126,8 @@ function draw() {
   room.s.bodies.forEach((p, i) => placeBody(bodies[i], p, room.ctx.fighters[p.fi]));
   placeThings();
   placeRounds();
+  placeWalls();
+  stepStreaks();
   stepFlashes();
   IMPACT.el.style.display = IMPACT.left > 0 ? 'block' : 'none';
   if (STREET) { streetScreen(); return; }
@@ -940,19 +1138,36 @@ function draw() {
 // a held screen is beaten, the boss's name as it comes in), and its end opened once
 function streetScreen() {
   const R = streetRead(room, hp0), S = UI.state.brawl.street, secs = Math.floor(R.f / 60);
+  if (BY.yard.spec.lens) S.strikes = strikeRows();
   const say = (text, weight) => { S.moments = S.moments.slice(-4).concat([{ id: 'm' + (said++), text, ...(weight ? { weight } : {}) }]); };
-  if (R.cleared > seenClear) { seenClear = R.cleared; if (!R.won) say('GO', 'major'); }
+  // (a held screen beaten: the way on opens, an arrow at the right edge for a few seconds, not a word over the fight)
+  if (R.cleared > seenClear) { seenClear = R.cleared; if (!R.won) goUntil = t + 180; }
+  // (the foe a player last hit, by name and a short bar, for two seconds; the hitter's combo, its word at each rung)
+  for (const e of room.s.events) {
+    if (e.t !== 'hit' || !(typeof e.p === 'number' && e.p < picks.length) || e.d === undefined || e.d < picks.length) continue;
+    const d = room.s.bodies.find((x) => x.id === e.d), F = d && room.ctx.fighters[d.fb ?? d.fi];
+    if (d && F && F.name !== R.boss.name) hudTarget = { id: d.id, until: t + 120 };
+    if (e.combo >= 2) hudCombo = { n: e.combo, until: t + 90 };
+  }
   if (R.boss.on && !bossSaid) { bossSaid = true; say(R.boss.name.toUpperCase(), 'decisive'); }
   // (a boss turning: its phase's word, or its number)
   while (TURNS.length) { const e = TURNS.shift(); say((e.says || 'PHASE ' + (e.k + 1)).toUpperCase(), 'major'); }
   // (each seat's quarter: taken (its name, health, gun, rounds: low at a fifth of a magazine, grenades), open, or none)
   const seat = (k) => {
-    const OFF = { on: false, open: false, name: '', hp: 0, hpMax: 1, gun: '', ammo: '', low: false, grenades: 0 };
+    const OFF = { on: false, open: false, name: '', hp: 0, hpMax: 1, gun: '', gunId: '', ammo: '', rounds: 0, size: 0, endless: false, low: false, grenades: 0, grenadesMax: 0 };
     if (k >= picks.length) return k < picks.length + SPARE.length ? { ...OFF, open: true } : OFF;
     const p = room.s.bodies[k], G = p.gn !== undefined ? room.ctx.guns[p.gn] : null;
-    return { ...OFF, on: true, name: BY.roster[picks[k]].name, hp: Math.max(0, p.hp), hpMax: hp0[k] || 1, ...(G ? { gun: gunCode(G), ammo: p.am === undefined ? '∞' : String(p.am), low: !!(p.am !== undefined && G.ammo && p.am <= G.ammo * 0.2), grenades: p.gr || 0 } : {}) };
+    grTop[k] = Math.max(grTop[k] || 0, p.gr || 0);
+    return { ...OFF, on: true, name: BY.roster[picks[k]].name, hp: Math.max(0, p.hp), hpMax: hp0[k] || 1, ...(p.pwm !== undefined ? { powerOn: true, power: p.pw, powerMax: p.pwm } : {}), ...(G ? { gun: gunCode(G), gunId: G.id || '', ammo: p.am === undefined ? '∞' : String(p.am), rounds: p.am === undefined ? 0 : p.am, size: G.ammo || 0, endless: p.am === undefined, low: !!(p.am !== undefined && G.ammo && p.am <= G.ammo * 0.2), grenades: p.gr || 0, grenadesMax: grTop[k] } : {}) };
   };
   Object.assign(S, { hp: R.hp, hpMax: R.hpMax, name: BY.roster[picks[0]].name, cleared: R.cleared, of: R.of, left: R.left, lives: R.lives ? { on: true, left: R.lives.left, of: R.lives.of } : { on: false, left: 0, of: 1 }, boss: { ...R.boss, phased: !!R.phase, phase: R.phase ? R.phase.at : 0, phases: R.phase ? R.phase.of : 1 }, p1: seat(0), p2: seat(1), p3: seat(2), p4: seat(3), ...(R.gun ? { gun: R.gun, accuracy: accuracyOf(tally) === null ? '—' : accuracyOf(tally) + '%' } : {}) });
+  // the danger (one player: the screen's edge, closing in under half its health), the foe being hit, the combo, the way on
+  const share = R.hpMax > 0 ? R.hp / R.hpMax : 1, tgt = hudTarget && t < hudTarget.until ? room.s.bodies.find((x) => x.id === hudTarget.id) : null, TF = tgt && room.ctx.fighters[tgt.fb ?? tgt.fi];
+  S.peril = picks.length === 1 ? Math.round(Math.min(1, Math.max(0, (0.5 - share) / 0.45)) * 20) / 20 : 0;
+  S.target = tgt && TF && tgt.hp > 0 ? { on: true, name: TF.name || '', hp: Math.max(0, tgt.hp), hpMax: hp0[tgt.id] || TF.hp || tgt.hp || 1 } : { on: false, name: '', hp: 0, hpMax: 1 };
+  const cn = hudCombo && t < hudCombo.until ? hudCombo.n : 0;
+  S.combo = { on: cn >= 2, n: cn, word: cn >= 30 ? 'Insane' : cn >= 20 ? 'Wild' : cn >= 10 ? 'Great' : cn >= 5 ? 'Nice' : '' };
+  S.go = t < goUntil && !R.boss.on;
   if (!over) { S.time = Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0'); S.rank = R.won ? R.rank : '—'; }
   if (!over && (R.won || R.lost)) {
     over = R.won ? 'won' : 'lost';
@@ -991,4 +1206,4 @@ function stepBrawlYard(ms) {
   LATCH.clear();
   draw();
 }
-window.__mojBrawl = { wreck: (e) => wreckAt(e), get seats() { return { joined: picks.length, spare: SPARE.length, seated: seated() }; }, get session() { return { players: picks.slice(), difficulty: SESSION.difficulty, ...(SESSION.gun ? { gun: SESSION.gun } : {}) }; }, get tally() { return { ...tally }; }, get scene() { return CINE ? { id: CINE.id, at: CINE.state.at, shows: sceneShows(CINE.beats, CINE.state) } : null; }, play: (id) => playScene(id, () => {}), get room() { return room; }, get ui() { return UI; }, get read() { return STREET ? streetRead(room, hp0) : yardRead(room, 0); }, get over() { return over; }, get heard() { return { ...HEARD }; }, get cues() { return typeof __AUDIO !== 'undefined' && __AUDIO && __AUDIO.cues ? Object.keys(__AUDIO.cues) : []; } };
+window.__mojBrawl = { wreck: (e) => wreckAt(e), get seats() { return { joined: picks.length, spare: SPARE.length, seated: seated() }; }, get session() { return { players: picks.slice(), difficulty: SESSION.difficulty, ...(SESSION.gun ? { gun: SESSION.gun } : {}) }; }, get tally() { return { ...tally }; }, get scene() { return CINE ? { id: CINE.id, at: CINE.state.at, shows: sceneShows(CINE.beats, CINE.state) } : null; }, play: (id) => playScene(id, () => {}), get room() { return room; }, get ui() { return UI; }, get read() { return STREET ? streetRead(room, hp0) : yardRead(room, 0); }, get over() { return over; }, get heard() { return { ...HEARD }; }, get sway() { return bodies.map((B) => (B.sway ? B.sway.map((G) => ({ kind: G.kind, n: G.R.idx.length, L: +G.R.L.toFixed(3), w: +Math.hypot(G.st.wx, G.st.wy).toFixed(3) })) : null)); }, get cues() { return typeof __AUDIO !== 'undefined' && __AUDIO && __AUDIO.cues ? Object.keys(__AUDIO.cues) : []; } };

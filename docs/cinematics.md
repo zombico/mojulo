@@ -84,6 +84,76 @@ What a director would shoot, in the shoot plan's own shape and the scenes card's
 - **Let a shot be read.** A cut that would hold for less than about a second is folded into the one before it.
 - **Cut on the line.** Shots change as lines begin, so the cut lands on whoever is about to speak.
 
+## Camera styles
+
+The coverage above is one way of shooting a scene, the classical one. A screenplay's `camera` (a film's, or a scene's
+own) names another, a card in `actor/camera-styles.js`, and the same cuts (on the lines, the crosses, the turns) are
+shot as the card says:
+
+- **A cut is the scene's; its framing is the style's.** Every style cuts where the scene turns. The card says what each
+  cut is shot as: the opening (a wide, or straight in on the first speaker), a line (over the shoulder, a clean single,
+  the two held), the turn (a close, a push, or nothing special), a move (back to the wide, or the mover followed).
+- **The pace is a hold.** A card's `least` is how long a framing is held before the next cut is let in: a sooner cut
+  waits until it has, and is dropped if the next comes first. A card's `react` breaks a long line with a cut to the
+  listener.
+- **Singles are said in words.** A style's singles are framed by size, angle, side and place (`shoot/framing.js`):
+  a three-quarter on the scene's side of the line, or a frontal one in the middle that crosses it on purpose.
+- **One camera can be a whole scene.** A oner glides to each framing in a short shot of its own and holds it, a single
+  camera all scene.
+- **The hand on the camera is the style's.** Each card names its shake, laid over every camera it keys.
+- **A style answers its own notes.** A card's `quiet` names the director's notes it answers by design: a oner's long
+  takes are its point, and a frontal style crosses the line on purpose.
+
+- **Read in the frame it is filmed in.** A style's singles are solved in the film's 16:9 frame (`FILM_ASPECT`), and a
+  scene's coverage is read there (`actor/frame-read.js` `sceneFrameRead`, the actors its subjects): the answer's
+  `framing`, beside the director's notes. A single says whom it frames (its keys' `about`). The same actor twice in a
+  row within a size is no cut, and a long take's glide is on its way between framings, not a composition. The read
+  finds the classical coverage's closes and overs a little loose over the head: its eyes sit in the middle of the
+  frame, not on the upper third.
+
+`classical` is the coverage with no style, byte for byte. A new style is a card. The in-game scene runner still shoots
+classical (its directing camera frames by the scenes card's words).
+
+## The frame
+
+Where a camera stands is the clearance gate's; what it puts in its frame is the frame read's (`shoot/frame.js`), and a
+camera can be placed from the same words (`shoot/framing.js`, a shoot-plan key's `frame` or the op `frame`).
+
+- **Size by the cut.** A shot's size is where the frame's bottom edge cuts the figure, read off its landmarks (the eyes,
+  the chin, the chest, the waist, the knees): extreme close-up to medium long shot. A figure shown whole is sized by
+  how much of the frame it fills: full, wide, extreme wide. From far above or below a figure is sized by its length
+  across the frame. The sizes are rows (`SIZES`), each with the lens it reaches for.
+- **The dials apart.** Size, angle (the lens's tilt: eye, high, low, overhead, worm), side (where the camera stands round
+  the subject, from its facing), place (a third, the centre, or lead) and dutch combine freely. A framed key on a
+  subject rides it, so the framing holds as it moves.
+- **Headroom and the upper third.** A medium shot or wider keeps the crown in; the eyes sit near the upper third.
+- **Never cut at a joint.** The bottom edge falls between the knees and the ankles, not on them.
+- **Lead room.** A figure facing across the frame sits on the side it faces away from, its room ahead of it.
+- **Thirty degrees or two sizes.** The next shot of the same subject turns 30° or more round it, or changes its size by
+  two steps; less, and the cut jumps.
+- **Screen direction.** A mover going frame right keeps going frame right after the cut, unless a shot along its path
+  (toward or away) turns it.
+
+The read rides the shoot door's answer as `composition`: each shot's subject, size, headroom, eyes, place and facing, and
+advice with its fix. It reads; the eyes gate (LOOK THROUGH on the World page) is the person's.
+
+## The moves
+
+A move is said by its name and laid as keys framed in those words (`shoot/moves.js`, a key's `move`, the op `move`), so
+it rides a subject that walks and reads back as its sizes. Each is a row of `MOVES`.
+
+- **Dolly or zoom, never confused.** A push in keeps its lens and moves the camera; a crash zoom keeps the camera and
+  changes the lens; a dolly zoom does both against each other so the subject holds its size while the place round it
+  stretches. Framing from where a camera stands (`framing.js` `solveFromStand`) is how a zoom or a pan frames.
+- **A zoom keeps its subject framed on the way.** A crash zoom lays a key at each size between, timed by the lens, so
+  the aim follows the closing frame.
+- **A crane bows.** The boom swings on its arm: a key between, at the mean tilt, so the path arcs.
+- **A whip is a blur.** Between its keys a whip pan leaves its subject on purpose, and the frame read does not call it
+  lost; inside a whip or a crash zoom it reads no composition.
+- **The hand that holds it.** A camera's `shake` (`shoot/shake.js`) is a style (handheld, steadicam, run, rumble) laid
+  over its keyed path by the sampler from seeded dice, so every reader of the camera shakes the same; a camera without
+  one is sampled exactly as before.
+
 ## The director's notes
 
 Suggestions read off a scene and its coverage (`actor/notes.js` `directorsNotes`), each with its principle and a change
@@ -499,6 +569,11 @@ then this department directs it (`playscape/ui/scene-script.js`), lowered at bui
   refusal.
 
 ## Where to look
+
+- **The contact sheet** (a shoot plan's `contact`, `shoot/contact.js`, `motion/contact-sheet.js`): each shot at its
+  start, middle and end on the world's own page, the thirds drawn over, the frame read under each frame. A scene's
+  (a screenplay's `shot.params.contact` with `export: 'film'`) is the film shot in mojulo at those frames only. The skill
+  `/direct` is the director's loop round it: the words, the why, the read, the sheet, three rounds at most.
 
 - **The dailies** (`control/scripts/spikes/actor/dailies.mjs`): every take on one clock, its timeline and its readings
   law by law; scenes drawn from above.

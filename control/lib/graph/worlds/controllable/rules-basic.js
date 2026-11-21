@@ -609,6 +609,10 @@ export function buildRulesBasic(E) {
   // foot), `axis` (unit, up it), `length` (along the axis to the lip's height), `N` (its normal, the climber's side),
   // `Nh` (that side, level), `U` (across), `half` (how far across a body moves: 0 is a line), `speed` m/s, `standoff`
   // (the body's distance off it), `pitch` (rung spacing, the gait's step), `omni` (a rope: taken from any side), `top`.
+  // `hold` (opt-in: a ladder between a map's stacked floors): it is also climbed by PRESSING AND HOLDING JUMP. Stood
+  // under it (within `holdReach` of its face, facing any way), holding jump takes hold of it and goes up it rung by rung
+  // while it is held; let go of the key and the body hangs where it is; back goes down. On such a surface jump is the
+  // climb, so it does not kick off. Absent: as it was.
   const CLIMB_REACH = 0.75, CLIMB_COOL = 0.3;
   const dotv = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
   const climbPoint = (r, u, lat, N) => add(add(add(r.base, scl(r.axis, u)), scl(r.U, lat)), scl(N, r.standoff ?? 0.35));
@@ -621,6 +625,12 @@ export function buildRulesBasic(E) {
     const d = r.omni ? Math.hypot(rel[0], rel[1]) : dotv(rel, r.N);
     const toward = r.omni ? -dotv(f, Nside) : -dotv(f, r.Nh);
     if (input.forward > 0 && toward >= 0.5 && across && d >= -0.05 && d <= CLIMB_REACH && u >= -0.4 && u <= r.length - 0.3) {
+      return { u: clamp(u, 0, r.length - 0.3), lat: clamp(lat, -(r.half || 0), r.half || 0), N: Nside };
+    }
+    // (`hold`: stood under it, whichever way the body faces, holding jump takes hold with no step forward; `holdReach`
+    // is how far off its face that is, a ladder's own foot)
+    const hr = r.hold ? (Number.isFinite(r.holdReach) ? r.holdReach : CLIMB_REACH) : 0;
+    if (r.hold && input.jumpHeld && Math.abs(lat) <= (r.half || 0) + Math.max(0.25, hr * 0.6) && d >= -0.05 && d <= hr && u >= -0.4 && u <= r.length - 0.3) {
       return { u: clamp(u, 0, r.length - 0.3), lat: clamp(lat, -(r.half || 0), r.half || 0), N: Nside };
     }
     // from above: on the level at the lip, past it toward the climb side, walking out over it
@@ -637,7 +647,7 @@ export function buildRulesBasic(E) {
     e._climbCool = Math.max(0, (e._climbCool || 0) - dt);
     // a hit, a drop or a dormant body lets go
     if (e.staggerT != null || e.dropping || e.dormant || e.downed) { e.climbing = null; return false; }
-    const me = !state.pilotId || state.pilotId === e.id || E.seated(state, e), inp = me ? input : { forward: 0, strafe: 0, turn: 0, jump: 0 };
+    const me = !state.pilotId || state.pilotId === e.id || E.seated(state, e), inp = me ? input : { forward: 0, strafe: 0, turn: 0, jump: 0, jumpHeld: 0 };
     const eye = e.rule.eye ?? 0, t = e.transform;
     if (!e.climbing) {
       if (e._climbCool > 0) return false;
@@ -655,8 +665,9 @@ export function buildRulesBasic(E) {
       e.climbing = null; e._climbCool = CLIMB_COOL; e.vel = [0, 0, vz]; e.dashVel = kick; e.grounded = false; e.coyote = 1; e.jumpBuf = 0;
     };
     // jump: kick off the surface, out and up
-    if (inp.jump) { letGo((e.rule.jumpSpeed ?? 8.5) * 0.55, [c.N[0] * 3, c.N[1] * 3]); e.jumped = true; e.locomotion = 'leap'; return true; }
-    const du = (inp.forward || 0) * speed * dt, side = clamp((inp.strafe || 0) + (e.rule.turnMode && e.rule.turnMode !== 'tank' ? inp.turn || 0 : 0), -1, 1);
+    if (inp.jump && !r.hold) { letGo((e.rule.jumpSpeed ?? 8.5) * 0.55, [c.N[0] * 3, c.N[1] * 3]); e.jumped = true; e.locomotion = 'leap'; return true; }
+    // (`hold`: jump held is up, as forward is)
+    const du = clamp((inp.forward || 0) + (r.hold && inp.jumpHeld ? 1 : 0), -1, 1) * speed * dt, side = clamp((inp.strafe || 0) + (e.rule.turnMode && e.rule.turnMode !== 'tank' ? inp.turn || 0 : 0), -1, 1);
     c.u += du;
     if (r.half > 0) c.lat = clamp(c.lat + side * speed * 0.7 * dt, -r.half, r.half);
     // at the lip: mount onto the level, or hold at the top of a surface with nowhere to step
@@ -664,6 +675,7 @@ export function buildRulesBasic(E) {
       if (r.top && du > 0) {
         t.pos = [r.top[0] + r.U[0] * c.lat, r.top[1] + r.U[1] * c.lat, r.top[2] + eye];
         e.climbing = null; e._climbCool = CLIMB_COOL; e.vel = [0, 0, 0]; e.dashVel = null; e.grounded = true; e.coyote = 0;
+        if (r.hold) e.jumpBuf = 0;   // (the key that climbed it is not a jump off its top)
         e.locomotion = 'forward'; e.moving = true; e.climbed = { on: L.id, end: 'top' };
         return true;
       }

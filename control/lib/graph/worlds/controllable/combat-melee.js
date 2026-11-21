@@ -577,6 +577,14 @@ export function buildCombatMelee(E) {
       }
     }
     const Wc = Ws ? Ws[e.weaponIdx || 0] : null, M = Wc ? Wc.moveset : r.moveset;
+    // THE HOLSTER (`rule.holster`, gameworld/arsenal.js: the open city's pistol): the weapon's sidearm drawn or put away
+    // on the cycle (R) or by its number (1 the hands, 2 the gun). Drawn, the click fires it and swings nothing; put
+    // away, it fires not at all and the click swings. Facts: `gunOut`
+    if (r.holster && Wc && Wc.sidearm) {
+      const want = input.slot === 1 ? false : input.slot === 2 ? true : input.cycle ? !e.gunOut : !!e.gunOut;
+      if (want !== !!e.gunOut && e.swingT == null) { e.gunOut = want; say('cycle', 'taken', want ? Wc.sidearm.name : 'Unarmed'); }
+      input = { ...input, special: e.gunOut && (input.special || input.fire) ? 1 : 0, fire: e.gunOut ? 0 : input.fire };
+    }
     if (Wc) { r.moveset = M; e.mvWeapon = Wc.id; }
     // THE SIDEARM (a weapon's `sidearm`, gameworld/combos.js: S, its ranged weapon, combat-ranged.js stepWeapon on the S
     // press): the current weapon's, each its own state kept across the cycle (a quiver's arrows, a magazine)
@@ -722,7 +730,12 @@ export function buildCombatMelee(E) {
         // body ahead nearer than that, it plays in place: its `_still` clip, no travel), so the feet its clip plants
         // stay planted on the floor; a figure with the move's own clips plays them, any other its swing's
         const room = mv.travel ? mvRoom(e, world, fwdXY(t.heading)) : Infinity, travels = !!mv.travel && (mv.travel.kind === 'dash' || room >= mv.travel.m - 1e-9);   // (a dash glides in, closing on what is ahead)
-        e.swingT = 0; e.swingClip = r.moveClips && mv.clip ? (mv.travel && !travels ? `${mv.clip}_still` : mv.clip) : spec.clip;
+        // (a PLANT chained into from another plant while its feet are still more split than not, before the middle of
+        // their drawing back, begins split: its `_on` clip, so the feet hold their split from cut to cut; the closing
+        // runs from the blow's end to hero-swing-body.js PLANT.end, 0.94, here its own copy)
+        const was = M.moves[S.move], c1 = was ? (was.contact ?? r.strikeContact ?? [0, 0.6])[1] : 0;
+        const onPlant = !!(mv.plant && was && was.plant && e.swingT != null && e.swingT <= (c1 + Math.max(c1 + 0.05, 0.94)) / 2);
+        e.swingT = 0; e.swingClip = r.moveClips && mv.clip ? (mv.travel && !travels ? `${mv.clip}_still` : onPlant ? `${mv.clip}_on` : mv.clip) : spec.clip;
         e.strikeParams = { ...spec.params, ...(Wc && Wc.reach != null ? { reach: Wc.reach } : {}), ...(mv.reach ? { reach: mv.reach } : {}), damage: (r.strikeDamage ?? 0) * (Wc && Wc.damage != null ? Wc.damage : 1) * (mv.damage ?? 1), ...(mv.impact != null ? { impact: mv.impact } : {}), topple: !!mv.topple, launch: mv.launch ?? 0, ...(mv.slam ? { slam: mv.slam } : {}), ...(mv.knock ? { knock: mv.knock } : {}) };
         // (an air move's KICK, the air's stickiness: the climb or the fall stopped, the hero lifted a little as it begins, the
         // hang holding it there beside the foe it struck)

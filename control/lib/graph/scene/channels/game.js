@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION as GAME_CONTRACT_VERSION, MSG_INIT as GAME_MSG_INIT, MSG_OUTCOME as GAME_MSG_OUTCOME, MSG_READY as GAME_MSG_READY, MSG_DOOR as GAME_MSG_DOOR, MSG_SHOWN as GAME_MSG_SHOWN, MSG_CARD_DONE as GAME_MSG_CARD_DONE, MSG_SCENE_END as GAME_MSG_SCENE_END } from '../../game/level-contract.js';
+import { CONTRACT_VERSION as GAME_CONTRACT_VERSION, MSG_INIT as GAME_MSG_INIT, MSG_OUTCOME as GAME_MSG_OUTCOME, MSG_READY as GAME_MSG_READY, MSG_DOOR as GAME_MSG_DOOR, MSG_SAVE as GAME_MSG_SAVE, MSG_SHOWN as GAME_MSG_SHOWN, MSG_CARD_DONE as GAME_MSG_CARD_DONE, MSG_SCENE_END as GAME_MSG_SCENE_END } from '../../game/level-contract.js';
 import { FONTS } from '../../game/hud-widgets.js';
 import { safeJson } from '../emit-util.js';
 
@@ -126,7 +126,34 @@ ${ranks ? `    // THE RANK (game/rank.js), on a level won: read off the style me
     }
     return st.envelope;
   }
-${game.doors ? `  // a DOOR crossed (the door mechanic): leave by it once, carrying what the session gathered (result 'transit');
+${game.save ? `  // THE SAVE (game.save: { vars: [prefixes], on: [event prefixes] }, a level that keeps its own progress: the open city).
+  // As an event it names passes, what the bus keeps under its prefixes (numbers, none of them nought) goes to the shell;
+  // a continue hands it back (params.__resume): set on the bus as the level starts, then 'resumed' raised so what was
+  // under way picks up. Standalone, nothing is sent and nothing comes back
+  const __SAVE = __GAME.save;
+  let __saveN = 0;
+  function __keeps() { const B = window.__mojBus, V = B && B.state && B.state.vars, out = {}; if (!V) return out; for (const k in V) if (typeof V[k] === 'number' && V[k] !== 0 && __SAVE.vars.some(function (p) { return k.indexOf(p) === 0; })) out[k] = V[k]; return out; }
+  if (hosted && !capture) setInterval(function () {
+    const B = window.__mojBus, L = B && B.state && B.state.log;
+    if (!L || !st.started || st.ended) return;
+    if (L.length < __saveN) __saveN = 0;
+    let due = false;
+    for (let i = __saveN; i < L.length; i++) { const ty = L[i] && L[i].type; if (ty && __SAVE.on.some(function (p) { return ty.indexOf(p) === 0; })) due = true; }
+    __saveN = L.length;
+    if (due) { try { window.parent.postMessage({ moj: '${GAME_MSG_SAVE}', levelRef: __GAME.levelRef, vars: __keeps() }, '*'); } catch (e) { /* opaque parent */ } }
+  }, 500);
+  st.onStart.push(function (params) {
+    const R = params && params.__resume;
+    if (!R || typeof R !== 'object') return;
+    (function put(n) {
+      const B = window.__mojBus;
+      if (!B || !B.state) { if (n < 200) setTimeout(function () { put(n + 1); }, 50); return; }
+      for (const k in R) if (typeof R[k] === 'number' && __SAVE.vars.some(function (p) { return k.indexOf(p) === 0; })) B.state.vars[k] = R[k];
+      __saveN = (B.state.log || []).length;
+      B.bus.processEvents(B.state, [{ type: 'resumed' }]);
+    })(0);
+  });
+` : ''}${game.doors ? `  // a DOOR crossed (the door mechanic): leave by it once, carrying what the session gathered (result 'transit');
   // the shell loads the level it links to. With no shell, the door stays shut and says so.
   function door(id) {
     if (st.ended || st.leaving) return;

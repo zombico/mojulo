@@ -59,3 +59,37 @@ describe('arms kit', () => {
   });
 });
 
+
+// THE ARM ITSELF IN THE HANDS (armDetailed, withArmMeshes): a slot that asks is handed the arm as the library builds it,
+// part by part; one long gun and the bow, chosen from the table.
+import { armDetailed, withArmMeshes, ARM_DETAIL } from './arms-kit.js';
+import { armBoxes } from '../equipment/arms/handling.js';
+
+describe('the arm itself in the hands', () => {
+  const GUN = ARMS_KIT_WORDS.find((w) => !ARMS_KIT[w].bow), BOWW = ARMS_KIT_WORDS.find((w) => ARMS_KIT[w].bow);
+  const pilot = (slots) => ({ id: 'p', pilotable: true, rule: { type: 'walk', loadout: slots } });
+  it('a slot asks by its view, and only a slot with an arm of the library: the bow keeps its own drawing', () => {
+    const gun = armDetailed(kitSlot(GUN, SHOOT.rifle)), bow = armDetailed(kitSlot(BOWW, SHOOT.rifle));
+    expect(gun.gunplay.view.detail).toBe(ARM_DETAIL);
+    expect(gun.gunplay.view.mesh).toBeUndefined();
+    expect(bow.gunplay.view.detail).toBeUndefined();
+    expect(kitSlot(GUN, SHOOT.rifle).gunplay.view.detail).toBeUndefined();
+  });
+  it('the mesh is built where it is asked for, and nowhere else: no ask, the same entities', () => {
+    const plain = [pilot([kitSlot(GUN, SHOOT.rifle)])];
+    expect(withArmMeshes(plain)).toBe(plain);
+    const asked = [pilot([armDetailed(kitSlot(GUN, SHOOT.rifle)), kitSlot(BOWW, SHOOT.rifle)]), { id: 'foe' }];
+    const out = withArmMeshes(asked), [gun, bow] = out[0].rule.loadout, M = gun.gunplay.view.mesh;
+    expect(out[1]).toBe(asked[1]);
+    expect(bow.gunplay.view.mesh).toBeUndefined();
+    expect(asked[0].rule.loadout[0].gunplay.view.mesh).toBeUndefined();
+    // every part its quads (twelve numbers a quad), each quad a colour of the palette; every box of the proxy is a part
+    for (const P of M.parts) { expect(P.q.length, P.part).toBe(P.ci.length * 12); expect(Math.max(...P.ci), P.part).toBeLessThan(M.cols.length); }
+    expect(M.cols.every((c) => /^#[0-9a-f]{6}$/i.test(c))).toBe(true);
+    const parts = M.parts.map((P) => P.part);
+    for (const [, , , part] of armBoxes(ARMS_KIT[GUN].arm)) expect(parts, part).toContain(part);
+    expect(M.parts.reduce((n, P) => n + P.ci.length, 0)).toBeGreaterThan(gun.gunplay.view.boxes.length * 10);
+    // (and it is the build's: the same words, the same mesh)
+    expect(JSON.stringify(withArmMeshes(asked)[0].rule.loadout[0].gunplay.view.mesh)).toBe(JSON.stringify(M));
+  });
+});

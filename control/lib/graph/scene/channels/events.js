@@ -5,8 +5,8 @@ import { registerCss, cleanDials, dialsAt } from '../../playscape/ui/register.js
 import { UI_STATES } from '../../playscape/ui/parts.js';
 import { borderCss, cleanBorder } from '../../playscape/ui/borders.js';
 import { inventoryCss } from '../../playscape/ui/inventory-dress.js';
-import { MENU_CSS, menuScript, reachScript, usesOf } from './interact-channel.js';
-import { sceneScript, sceneTakesOn, sceneTempoOn } from './scene-channel.js';
+import { MENU_CSS, menuScript, reachScript, usesOf, seatReachScript, seatUsesOf } from './interact-channel.js';
+import { sceneScript, sceneTakesOn, sceneTempoOn, sceneVoicesOn } from './scene-channel.js';
 import { questScript } from './quest-channel.js';
 import { libraryScript } from './library-channel.js';
 import { rpgScript } from './rpg-channel.js';
@@ -91,6 +91,8 @@ function hudScript(widgets, style, register, menus = null, titles = null, juice 
   };
   const rows = widgets.map((w) => ({ ...w, css: colorCss(w.color, accentDefault(w) ? 'var(--moj-accent)' : ''), ...(w.kind === 'title' && titles ? titleRow(w) : {}) }));
   const gated = widgets.some((w) => w.id || w.when);
+  // (a count drawn as stars, the wanted level's: absent, not a byte)
+  const starred = widgets.some((w) => w.kind === 'readout' && w.as === 'stars');
   const pressed = widgets.some((w) => w.kind === 'button');   // a level with a button row
   const on = (x) => (gated ? ` && __hudOn(${x})` : '');
   const titled = !!titles && widgets.some((w) => w.kind === 'title');
@@ -175,7 +177,7 @@ function __syncHud(t, incoming) {
       const mx = typeof h.w.max === 'string' ? (__busState.vars[h.w.max] || 0) : h.w.max;
       const pct = mx > 0 ? Math.max(0, Math.min(1, n / mx)) : 0;
       h.fill.style.width = (pct * 100).toFixed(1) + '%'; h.val.textContent = Math.ceil(n) + '/' + Math.ceil(mx);
-    } else h.val.textContent = h.w.as === 'clock' ? __hudClock(n) : String(n);
+    } else h.val.textContent = h.w.as === 'clock' ? __hudClock(n) : ${starred ? `h.w.as === 'stars' ? '\u2605'.repeat(Math.max(0, Math.min(h.w.max, Math.round(n)))) + '\u2606'.repeat(Math.max(0, h.w.max - Math.max(0, Math.min(h.w.max, Math.round(n))))) : ` : ''}String(n);
   }
   const log = __busState.log || [];
   if (log.length < __hudLogN) __hudLogN = 0;
@@ -218,7 +220,7 @@ function __syncHud(t, incoming) {
 // frame seeds dt 0 (frame zero → no events), so a frozen still / ?t render is the initial condition.
 // Reaction VERBS reflected here are the non-physics ones — spawn (a marker appears), toggle (.on →
 // mesh visibility), move (reposition). Reaching back INTO physics (impulse on a body) is Phase 5b.
-export function eventsChannelScript(events0, { fxDay = null, rollItems = false } = {}) {
+export function eventsChannelScript(events0, { fxDay = null, rollItems = false, questMana = null, manaShared = null } = {}) {
   // the style floor (`fxStyle`, scene/effect-style.js): every beam and explosion raised to it before the page reads them;
   // a composed one (juice-style.js: the game's register and its game type's time) at its own numbers
   const fxs = events0 && events0.fxStyle;
@@ -233,6 +235,7 @@ export function eventsChannelScript(events0, { fxDay = null, rollItems = false }
   const stats = !!(events.stats && typeof events.stats === 'object');   // play.stats: the stats kernel takes its ops off the ctrl queue
   const uses = usesOf(events.sources);   // usable places (a cue's use): the reach prompt and the interact press
   const reach = Object.keys(uses).length ? reachScript(uses) : '';
+  const seatUses = seatUsesOf(events.sources), seatReach = Object.keys(seatUses).length ? seatReachScript(seatUses) : '';   // seats 2 … their own places (a seated shift)
   // the statuses its cues put on the cast, drawn on their bodies in their looks; and those its bodies are born under
   const els = [...(cast ? statusElements(events) : []), ...(Array.isArray(events.born) ? events.born : [])].filter((n, i, a) => a.indexOf(n) === i);
   const trs0 = cast ? transitKinds(events) : [];   // how its cast comes and goes (spawn / vanish with, transfigure)
@@ -409,7 +412,7 @@ function __ensureMarker(e) {
   __markerMeshes[e.id] = mesh;
   return mesh;
 }
-${hudBlock}${reach}${status}${fxl ? fxLightScript({ ...(fxDay == null ? {} : { day: fxDay }), ...(events.fxLight === true ? {} : { world: false }), ...(events.rim || events.trail ? { blows: true } : {}) }) : ''}${rimOn ? rimScript(events.rim) : ''}${trailOn ? swingTrailScript(events.trail) : ''}${moments}${beams}
+${hudBlock}${reach}${seatReach}${status}${fxl ? fxLightScript({ ...(fxDay == null ? {} : { day: fxDay }), ...(events.fxLight === true ? {} : { world: false }), ...(events.rim || events.trail ? { blows: true } : {}) }) : ''}${rimOn ? rimScript(events.rim) : ''}${trailOn ? swingTrailScript(events.trail) : ''}${moments}${beams}
 // Read-only projection of bus ENTITY state onto meshes. The bus decides WHAT is true; this shows it.
 // Physics body PROXIES (Phase 5b link) are skipped — they already render via the physics channel.
 function __syncBus() {
@@ -440,7 +443,8 @@ stepEvents = (t) => {
     const z = __BUS.deriveZoneEvents(window.__mojCtrl.world.entities, __zonePrev, __SOURCES);
     __zonePrev = z.prev;
     for (const ev of z.events) incoming.push(ev);${reach ? `
-    __stepReach(z.events, incoming);` : ''}
+    __stepReach(z.events, incoming);` : ''}${seatReach ? `
+    __stepSeatReach(z.events, incoming);` : ''}
   }${facts ? `
   if (window.__mojCtrl && window.__mojCtrl.facts) {   // CAST FACTS → down / gone / spawned / arrive / stuck / hit:<id>
     const c = window.__mojCtrl.facts(__castPrev);
@@ -460,8 +464,8 @@ ${stats ? '  if (window.__mojCtrl) __STATS.applyBodies(__busState, window.__mojC
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
 function __watchFix() { let g = 0; while (g++ < 8) { ${stats ? 'const st = __STATS.step(EVENTS.stats, __busState); if (st.length) __BUS.processEvents(__busState, st); ' : ''}const w = __BUS.watchEvents(__busState); if (!w.length${stats ? ' && !st.length' : ''}) break; __BUS.processEvents(__busState, w); } }
-window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${widgets.some((w) => w.kind === 'button' && w.press) ? `
+window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${widgets.some((w) => w.kind === 'button' && w.press) || (events.reactions || []).some((r) => r && typeof r.on === 'string' && (r.on.startsWith('app:') || r.on.startsWith('mayhem:'))) ? `
 // a HUD button pressed (a level's button row, drawn here or by the mana-ui HUD): its event on the bus this frame
-window.__mojBus.press = function (type) { __inputQueue.push({ type: String(type) }); };` : ''}${scenes ? sceneScript({ takes: sceneTakesOn(events.scenes), tempo: sceneTempoOn(events.scenes) }) : ''}${quests ? questScript() : ''}${library ? libraryScript() : ''}${minigames ? minigameScript(events.minigames) : ''}${rpg ? rpgScript(events.rpg) : ''}`;
+window.__mojBus.press = function (type) { __inputQueue.push({ type: String(type) }); };` : ''}${scenes ? sceneScript({ takes: sceneTakesOn(events.scenes), tempo: sceneTempoOn(events.scenes), voices: sceneVoicesOn(events) }) : ''}${quests ? questScript(questMana ? { mana: questMana, ...(manaShared ? { shared: manaShared } : {}) } : {}) : ''}${library ? libraryScript() : ''}${minigames ? minigameScript(events.minigames) : ''}${rpg ? rpgScript(events.rpg) : ''}`;
 }
 

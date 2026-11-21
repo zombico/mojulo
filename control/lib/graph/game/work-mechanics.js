@@ -24,8 +24,17 @@
  *     tickets?: ticket slots at the hand-in, reach? (1.1): how far from a place its E works, bases? (true): the places'
  *     own markers (false: a room that draws them as blocks), show? (false): the work drawn where it happens, in pips (a
  *     station's work filling, its wait filling, its hold going out toward the burn; a pip a unit on a shelf), and what
- *     is in hand on the HUD, a counter an item that stands only while one is held, counters? (false): a counter stands
+ *     is in hand on the HUD, a counter an item that stands only while one is held, rail? (false): the open orders along
+ *     the top of the screen, each its order's colour, what it wants and a bar of the patience it has left (in place of the
+ *     toast that says an order came), counters? (false): a counter stands
  *     under each place (a level's, quick.js workCast), each place's marker a small cap on its top }
+ *
+ * SEATS (ctx.seats, a level with seats: the bodies seats 2 … take): every verb a hand does is lowered once a seat. Seat 1
+ * is the pilot as above; seat n's hands are the holder `hands<n>`, its carry `w<i>:carry:<n>`, its zones `s<n>:use-…`
+ * watching its body (each a `seatUse`, never the pilot's reach), its press `s<n>:use-<place>` (the page's seat reach,
+ * scene/channels/interact-channel.js seatReachScript). The stations, shelves, tickets and clock are one, shared: a shelf
+ * is the PASS, what one cook puts down another takes up. A slot remembers who works it (`<slot>:by`): walking off pauses
+ * only that cook's work, and what a run with no wait makes comes into that cook's hands. No seats: what it always was.
  *
  * Said on the bus: work:took, work:made, work:ready, work:burned, work:served, work:walked, work:full, work:won,
  * work:lost (the rest `__w<i>:` and the use zones `use-w<i>-…`). Vars: `w<i>:served`, `w<i>:missed`, `w<i>:burned`,
@@ -40,6 +49,7 @@ import { readCard, isRaw } from '../worksim/card.js';
 import { arrivalsOf, simulate, TPS } from '../worksim/sim.js';
 import { SCENARIOS } from '../worksim/scenarios.js';
 import { lowerMove, heldVar, itemKey, NOWHERE } from '../playscape/ui/items.js';
+import { SEATS } from '../controls/seats-kernel.js';
 
 const BAG = 'bag';
 const STEP = 1 / TPS;
@@ -56,6 +66,9 @@ const SHELF = 4;
 export const WORK_COLORS = Object.freeze({ shovel: '#e4875f', bucket: '#5fa3c7', wait: '#a98fd6', hold: '#e8604c', stock: '#e9b949', busy: '#f0a020', ready: '#5cc46a', crate: '#c9a978', shelf: '#a99f90', serve: '#f6f2ea' });
 const COLOR = WORK_COLORS;
 const TICKETS = ['#e05a5a', '#5a9be0', '#e0c25a', '#a05ae0', '#5ae0b4', '#e07f5a'];
+// (seated: each seat's corner of the screen, its own state there in its colour; seat 1's is the bottom left, as it was)
+// (the top's middle is the order rail's, the shared state in one place: work's `rail`)
+const CORNER = [null, 'bottom-left', 'bottom-right', 'top-right', 'bottom'];
 
 // one guard after another (the bus's `if` takes one predicate): `on` → … → `ok` when every guard holds; the first that
 // fails emits `no` (at most one: a later guard is asked only when the earlier held)
@@ -148,8 +161,25 @@ export function lowerWork(p, ctx) {
   // left out (a room that draws them as blocks), the busy, ready and ticket markers kept, raised over a counter
   const reach = p.reach === undefined ? 1.1 : p.reach, bases = p.bases !== false, lift = bases ? 0 : 0.6, show = p.show === true;
   if (p.show !== undefined && typeof p.show !== 'boolean') fail('show is true (the work drawn where it happens, in pips) or false');
+  const rail = p.rail === true;
+  if (p.rail !== undefined && typeof p.rail !== 'boolean') fail('rail is true (the open orders along the top of the screen, each its patience going) or false');
   if (!(Number.isFinite(reach) && reach >= 0.5 && reach <= 3)) fail('reach is how far from a place its E works, 0.5 to 3 m');
-  const zone = (id, at, prompt, radius = reach) => F.sources.push({ type: 'zone', zone: `use-${id}`, at: at.slice(), radius, planar: true, watch: ctx.player, use: id, prompt });
+  // THE HANDS (docs/local-multiplayer-principles.md): one a seat. Seat 1 is the pilot: its zones `use-<place>` watch it,
+  // its press is the page's `use-<place>`, its holder the bag. A level with seats (ctx.seats: the bodies seats 2 … take,
+  // the level's seats.bodies) gives each its own: zones `s<n>:use-<place>` watching its body (a `seatUse`, never the
+  // pilot's reach), its press `s<n>:use-<place>`, its holder `hands<n>`, its carry `w<i>:carry:<n>`. Every verb a hand
+  // does is lowered once a hand, each hand's own events suffixed `:<n>` when seated; with one hand there is no suffix
+  // and the reactions are the ones a single cook always had, in the same order
+  const seated = Array.isArray(ctx.seats) && ctx.seats.length > 0;
+  const HANDS = [
+    { n: 1, bag: BAG, carry, ent: ctx.player, sfx: seated ? ':1' : '', use: (id) => `use-${id}` },
+    ...(seated ? ctx.seats.slice(0, 3).map((ent, k) => ({ n: k + 2, bag: `hands${k + 2}`, carry: v(`carry:${k + 2}`), ent, sfx: `:${k + 2}`, use: (id) => `s${k + 2}:use-${id}` })) : []),
+  ];
+  for (const H of HANDS.slice(1)) F.vars[H.carry] = 0;
+  const zoneOf = (H, id) => (H.n === 1 ? `use-${id}` : `s${H.n}:use-${id}`);
+  const zone = (id, at, prompt, radius = reach) => {
+    for (const H of HANDS) F.sources.push(H.n === 1 ? { type: 'zone', zone: `use-${id}`, at: at.slice(), radius, planar: true, watch: ctx.player, use: id, prompt } : { type: 'zone', zone: zoneOf(H, id), at: at.slice(), radius, planar: true, watch: H.ent, seat: H.n, seatUse: id, hands: H.bag, prompt });
+  };
   // `counters: true`: the level stands a counter under each place (quick.js workCast), so a place's own marker sits on
   // its top as a dome in its colour, never wider than the counter
   const counters = p.counters === true;
@@ -173,6 +203,8 @@ export function lowerWork(p, ctx) {
     { var: served, label: `Served (of ${goal})`, as: 'counter' }, { var: missed, label: 'Lost', as: 'counter' },
     { var: left, label: 'Time', as: 'counter' }, { var: carry, label: 'Hands', as: 'bar', max: hands },
   );
+  // (seated: each other seat's hands in its own corner, in its colour: no seat's state is anonymous or another's)
+  for (const H of HANDS.slice(1)) F.hud.push({ var: H.carry, label: `${SEATS.SEAT_LABELS[H.n - 1]} hands`, as: 'bar', max: hands, slot: CORNER[H.n], color: SEATS.SEAT_COLORS[H.n - 1] });
   toast('work:won', `${goal} served: the shift is done`, { ttl: 3 });
   toast('work:lost', `the bell: ${goal} were wanted`, { ttl: 3 });
   toast('work:full', 'hands full');
@@ -180,15 +212,18 @@ export function lowerWork(p, ctx) {
   // crates: a raw item a press, while the hands have room
   const raws = [...new Set(Object.values(C.stations).flatMap((st) => Object.keys(st.takes)).filter((i) => isRaw(C, i)))];
   for (const item of raws) {
-    const id = `${W}-crate-${item}`, at = crateAt(item), take = `${I}:take:${item}`;
+    const id = `${W}-crate-${item}`, at = crateAt(item);
     zone(id, at, `take ${words(item)}`);
     mark(`${id}-box`, at, COLOR.crate, 0, true, 0.55);
-    R({ on: `use-${id}`, if: { var: carry, lte: hands - 1 }, do: 'emit', type: take });
-    R({ on: `use-${id}`, if: { var: carry, gt: hands - 1 }, do: 'emit', type: 'work:full' });
-    const { ok } = lowerMove({ item, n: 1, from: NOWHERE, to: BAG, on: take }, F);
-    R({ on: ok, do: 'inc', var: carry, by: 1 });
-    R({ on: ok, do: 'emit', type: 'work:took', item });
-    toast(ok, `took ${words(item)}`, { ttl: 0.8 });
+    for (const H of HANDS) {
+      const take = `${I}:take:${item}${H.sfx}`;
+      R({ on: H.use(id), if: { var: H.carry, lte: hands - 1 }, do: 'emit', type: take });
+      R({ on: H.use(id), if: { var: H.carry, gt: hands - 1 }, do: 'emit', type: 'work:full' });
+      const { ok } = lowerMove({ item, n: 1, from: NOWHERE, to: H.bag, on: take }, F);
+      R({ on: ok, do: 'inc', var: H.carry, by: 1 });
+      R({ on: ok, do: 'emit', type: 'work:took', item });
+      toast(ok, `took ${words(item)}`, { ttl: 0.8 });
+    }
   }
 
   // SHOWING THE WORK (`show: true`): the process drawn where it happens, in pips. Over each station slot a row of five:
@@ -229,10 +264,10 @@ export function lowerWork(p, ctx) {
         off(`${P}:burn`, H5);
       }
     } else {
-      off(`moved:${P}:hand:${itemKey(st.item)}`, W5);
+      for (const H of HANDS) off(`moved:${P}:hand${H.sfx}:${itemKey(st.item)}`, W5);
       off(`${P}:leave`, W5);
     }
-    off(taken, all);
+    for (const t of taken) off(t, all);
   }
   function showShelf(id, at, item, cap) {
     const n = Math.min(cap, 6), here = heldVar(id, item);
@@ -250,14 +285,15 @@ export function lowerWork(p, ctx) {
   // IN HAND (shown): what the bag holds, a readout an item that stands only while one is held (its ui-<id> gate)
   if (show) {
     const carried = [...new Set([...Object.values(C.stations).flatMap((st) => Object.keys(st.takes)), ...Object.values(C.stations).map((st) => st.item)])];
-    for (const item of carried) {
-      const key = itemKey(item), hid = `${W}-held-${key}`, gate = `ui-${hid}`, mine = heldVar(BAG, key);
+    for (const H of HANDS) for (const item of carried) {
+      // (seat 1's as it always was; seated, each other seat's in its own corner, said as its own)
+      const key = itemKey(item), sfx = H.n === 1 ? '' : `-${H.n}`, hid = `${W}-held-${key}${sfx}`, gate = `ui-${hid}`, mine = heldVar(H.bag, key);
       F.vars[mine] ??= 0;
       F.vars[gate] = 0;
-      F.hud.push({ id: hid, var: mine, label: words(key), as: 'counter', slot: 'bottom-left' });
-      F.watches.push({ type: `${I}:holds:${key}`, when: { var: mine, gte: 1 } }, { type: `${I}:empty:${key}`, when: { var: mine, lt: 1 } });
-      R({ on: `${I}:holds:${key}`, do: 'set', var: gate, to: 1 });
-      R({ on: `${I}:empty:${key}`, do: 'set', var: gate, to: 0 });
+      F.hud.push(H.n === 1 ? { id: hid, var: mine, label: words(key), as: 'counter', slot: 'bottom-left' } : { id: hid, var: mine, label: `${SEATS.SEAT_LABELS[H.n - 1]} ${words(key)}`, as: 'counter', slot: CORNER[H.n], color: SEATS.SEAT_COLORS[H.n - 1] });
+      F.watches.push({ type: `${I}:holds:${key}${sfx}`, when: { var: mine, gte: 1 } }, { type: `${I}:empty:${key}${sfx}`, when: { var: mine, lt: 1 } });
+      R({ on: `${I}:holds:${key}${sfx}`, do: 'set', var: gate, to: 1 });
+      R({ on: `${I}:empty:${key}${sfx}`, do: 'set', var: gate, to: 0 });
     }
   }
 
@@ -265,26 +301,30 @@ export function lowerWork(p, ctx) {
   // takes one (while the hands have room): a bag of several things needs to say which
   const kept = Object.keys(L.shelves);
   for (const item of kept) {
-    const id = `${W}-shelf-${item}`, at = shelfAt(item), cap = C.items[item].store === Infinity ? SHELF : C.items[item].store, here = heldVar(id, item), mine = heldVar(BAG, item);
+    const id = `${W}-shelf-${item}`, at = shelfAt(item), cap = C.items[item].store === Infinity ? SHELF : C.items[item].store, here = heldVar(id, item);
     const [pin, pout] = shelfPads(at, heading);
-    F.vars[mine] ??= 0;
+    for (const H of HANDS) F.vars[heldVar(H.bag, item)] ??= 0;
     zone(`${id}-put`, pin, `put down ${words(item)}`, Math.min(0.6, reach));   // (how many it holds its pips show)
     zone(`${id}-take`, pout, `take ${words(item)}`, Math.min(0.6, reach));
     mark(`${id}-board`, at, COLOR.shelf, 0, true, 0.5);
     if (show) showShelf(id, at, item, cap);
-    R({ on: `use-${id}-put`, if: { var: mine, gte: 1 }, do: 'emit', type: `${I}:put:${item}` });
-    R({ on: `use-${id}-take`, do: 'emit', type: `${I}:get:${item}` });
-    chain(F.reactions, `${I}:put:${item}`, [{ var: here, lte: cap - 1 }], `${I}:putting:${item}`, null);
-    const put = lowerMove({ item, n: 1, from: BAG, to: id, on: `${I}:putting:${item}` }, F);
-    R({ on: put.ok, do: 'inc', var: carry, by: -1, min: 0 });
-    toast(put.ok, `put down the ${words(item)}`, { ttl: 0.8 });
-    R({ on: `${I}:put:${item}`, if: { var: here, gte: cap }, do: 'emit', type: `${I}:shelf-full:${item}` });
-    toast(`${I}:shelf-full:${item}`, `the ${words(item)} shelf is full`);
-    R({ on: `${I}:get:${item}`, if: { var: carry, gt: hands - 1 }, do: 'emit', type: 'work:full' });
-    chain(F.reactions, `${I}:get:${item}`, [{ var: here, gte: 1 }, { var: carry, lte: hands - 1 }], `${I}:getting:${item}`, null);
-    const get = lowerMove({ item, n: 1, from: id, to: BAG, on: `${I}:getting:${item}` }, F);
-    R({ on: get.ok, do: 'inc', var: carry, by: 1 });
-    toast(get.ok, `took the ${words(item)} off the shelf`, { ttl: 0.8 });
+    // (with seats, the shelf is the pass: what one cook puts down another takes up)
+    for (const H of HANDS) {
+      const mine = heldVar(H.bag, item), putH = `${I}:put:${item}${H.sfx}`, getH = `${I}:get:${item}${H.sfx}`;
+      R({ on: H.use(`${id}-put`), if: { var: mine, gte: 1 }, do: 'emit', type: putH });
+      R({ on: H.use(`${id}-take`), do: 'emit', type: getH });
+      chain(F.reactions, putH, [{ var: here, lte: cap - 1 }], `${I}:putting:${item}${H.sfx}`, null);
+      const put = lowerMove({ item, n: 1, from: H.bag, to: id, on: `${I}:putting:${item}${H.sfx}` }, F);
+      R({ on: put.ok, do: 'inc', var: H.carry, by: -1, min: 0 });
+      toast(put.ok, `put down the ${words(item)}`, { ttl: 0.8 });
+      R({ on: putH, if: { var: here, gte: cap }, do: 'emit', type: `${I}:shelf-full:${item}` });
+      if (H.n === 1) toast(`${I}:shelf-full:${item}`, `the ${words(item)} shelf is full`);
+      R({ on: getH, if: { var: H.carry, gt: hands - 1 }, do: 'emit', type: 'work:full' });
+      chain(F.reactions, getH, [{ var: here, gte: 1 }, { var: H.carry, lte: hands - 1 }], `${I}:getting:${item}${H.sfx}`, null);
+      const get = lowerMove({ item, n: 1, from: id, to: H.bag, on: `${I}:getting:${item}${H.sfx}` }, F);
+      R({ on: get.ok, do: 'inc', var: H.carry, by: 1 });
+      toast(get.ok, `took the ${words(item)} off the shelf`, { ttl: 0.8 });
+    }
   }
 
   // stations: each slot its own phase (0 free, 1 left mid-work, 2 worked, 3 running alone, 4 done on the station)
@@ -294,26 +334,44 @@ export function lowerWork(p, ctx) {
       const id = `${W}-${sid}-${k}`, use = `use-${id}`, P = `${I}:${sid}:${k}`, Pp = `${P}:p`, Pw = `${P}:w`, Ph = `${P}:h`;
       const busy = `${id}-busy`, ready = `${id}-ready`;
       Object.assign(F.vars, { [P]: 0, [Pp]: 0, [Pw]: 0, [Ph]: 0 });
+      // (seated: which seat works the slot, so walking off pauses its own work and a run's make comes to its hands)
+      const by = `${P}:by`;
+      if (seated) F.vars[by] = 0;
       // (the verb is said by the station's colour, not its prompt)
       zone(id, at, `${words(sid)}: ${Object.keys(st.takes).length ? `${pieces(st.takes)} → ` : ''}${st.batch > 1 ? `${st.batch} ` : ''}${words(st.item)}`);
       mark(`${id}-base`, at, COLOR[st.verb], 0, true, 0.6);
       // (with the work shown, the pips say busy and ready: the two markers are not laid)
       if (!show) { mark(busy, at, COLOR.busy, 0.8, false, 0.25); mark(ready, at, COLOR.ready, 0.8, false, 0.3); }
       // E: take what is done, start (its takes in the bag), or resume
-      R({ on: use, if: { var: P, eq: 4 }, do: 'emit', type: `${P}:collect` });
-      R({ on: use, if: { var: P, eq: 0 }, do: 'emit', type: `${P}:try` });
-      R({ on: use, if: { var: P, eq: 1 }, do: 'emit', type: `${P}:resume` });
-      chain(F.reactions, `${P}:try`, Object.entries(st.takes).map(([i, n]) => ({ var: heldVar(BAG, i), gte: n })), `${P}:start`, `${P}:short`);
-      for (const i of Object.keys(st.takes)) F.vars[heldVar(BAG, i)] ??= 0;
+      for (const H of HANDS) {
+        const useH = H.use(id);
+        R({ on: useH, if: { var: P, eq: 4 }, do: 'emit', type: `${P}:collect${H.sfx}` });
+        R({ on: useH, if: { var: P, eq: 0 }, do: 'emit', type: `${P}:try${H.sfx}` });
+        R({ on: useH, if: { var: P, eq: 1 }, do: 'emit', type: `${P}:resume${H.sfx}` });
+        chain(F.reactions, `${P}:try${H.sfx}`, Object.entries(st.takes).map(([i, n]) => ({ var: heldVar(H.bag, i), gte: n })), `${P}:start${H.sfx}`, `${P}:short`);
+        for (const i of Object.keys(st.takes)) F.vars[heldVar(H.bag, i)] ??= 0;
+      }
       toast(`${P}:short`, `the ${words(sid)} needs ${pieces(st.takes)}`, { ttl: 1.6 });
-      for (const [i, n] of Object.entries(st.takes)) lowerMove({ item: i, n, from: BAG, to: NOWHERE, on: `${P}:start` }, F);
-      if (takesN) R({ on: `${P}:start`, do: 'inc', var: carry, by: -takesN, min: 0 });
+      // a hand's start spends its takes from its own hands, then (seated) starts the slot as one
+      for (const H of HANDS) {
+        const startH = `${P}:start${H.sfx}`;
+        for (const [i, n] of Object.entries(st.takes)) lowerMove({ item: i, n, from: H.bag, to: NOWHERE, on: startH }, F);
+        if (takesN) R({ on: startH, do: 'inc', var: H.carry, by: -takesN, min: 0 });
+        if (seated) { R({ on: startH, do: 'set', var: by, to: H.n }); R({ on: startH, do: 'emit', type: `${P}:start` }); }
+      }
       R({ on: `${P}:start`, do: 'set', var: Pp, to: 0 });
       R({ on: `${P}:start`, do: 'set', var: P, to: 2 });
       R({ on: `${P}:start`, do: 'toggle', target: busy, to: true });
-      R({ on: `${P}:resume`, do: 'set', var: P, to: 2 });
-      // the work is done standing there: walk off and it waits, its progress kept
-      R({ on: 'exit', match: { zone: use, entity: ctx.player }, if: { var: P, eq: 2 }, do: 'set', var: P, to: 1 });
+      for (const H of HANDS) {
+        R({ on: `${P}:resume${H.sfx}`, do: 'set', var: P, to: 2 });
+        if (seated) R({ on: `${P}:resume${H.sfx}`, do: 'set', var: by, to: H.n });
+      }
+      // the work is done standing there: walk off and it waits, its progress kept (seated: only its own worker's walking off)
+      for (const H of HANDS) {
+        if (!seated) { R({ on: 'exit', match: { zone: use, entity: ctx.player }, if: { var: P, eq: 2 }, do: 'set', var: P, to: 1 }); continue; }
+        R({ on: 'exit', match: { zone: zoneOf(H, id), entity: H.ent }, if: { var: P, eq: 2 }, do: 'emit', type: `${P}:off${H.sfx}` });
+        R({ on: `${P}:off${H.sfx}`, if: { var: by, eq: H.n }, do: 'set', var: P, to: 1 });
+      }
       R({ on: tick, if: { var: P, eq: 2 }, do: 'inc', var: Pp, by: STEP });
       F.watches.push({ type: `${P}:worked`, when: { var: Pp, gte: work } });
       if (st.wait) {
@@ -341,30 +399,40 @@ export function lowerWork(p, ctx) {
         }
       } else {
         // made in the hands; full, left on the station to take later
+        // made in the hands of the one who worked it (seated: the slot's worker)
         R({ on: `${P}:worked`, if: { var: P, eq: 2 }, do: 'emit', type: `${P}:made` });
-        R({ on: `${P}:made`, if: { var: carry, lte: hands - st.batch }, do: 'emit', type: `${P}:hand` });
-        R({ on: `${P}:made`, if: { var: carry, gt: hands - st.batch }, do: 'emit', type: `${P}:leave` });
+        for (const H of HANDS) {
+          const madeH = seated ? `${P}:made${H.sfx}` : `${P}:made`;
+          if (seated) R({ on: `${P}:made`, if: { var: by, eq: H.n }, do: 'emit', type: madeH });
+          R({ on: madeH, if: { var: H.carry, lte: hands - st.batch }, do: 'emit', type: `${P}:hand${H.sfx}` });
+          R({ on: madeH, if: { var: H.carry, gt: hands - st.batch }, do: 'emit', type: `${P}:leave` });
+        }
         R({ on: `${P}:leave`, do: 'set', var: P, to: 4 });
         R({ on: `${P}:leave`, do: 'toggle', target: busy, to: false });
         R({ on: `${P}:leave`, do: 'toggle', target: ready, to: true });
         toast(`${P}:leave`, `hands full: the ${words(st.item)} waits on the ${words(sid)}`);
-        const { ok } = lowerMove({ item: st.item, n: st.batch, from: NOWHERE, to: BAG, on: `${P}:hand` }, F);
-        R({ on: ok, do: 'inc', var: carry, by: st.batch });
-        R({ on: ok, do: 'set', var: P, to: 0 });
-        R({ on: ok, do: 'toggle', target: busy, to: false });
-        R({ on: ok, do: 'emit', type: 'work:made', item: st.item });
-        toast(ok, `${words(st.item)} made`, { ttl: 0.8 });
+        for (const H of HANDS) {
+          const { ok } = lowerMove({ item: st.item, n: st.batch, from: NOWHERE, to: H.bag, on: `${P}:hand${H.sfx}` }, F);
+          R({ on: ok, do: 'inc', var: H.carry, by: st.batch });
+          R({ on: ok, do: 'set', var: P, to: 0 });
+          R({ on: ok, do: 'toggle', target: busy, to: false });
+          R({ on: ok, do: 'emit', type: 'work:made', item: st.item });
+          toast(ok, `${words(st.item)} made`, { ttl: 0.8 });
+        }
       }
-      // E on what is done: into the hands, while they have room
-      R({ on: `${P}:collect`, if: { var: carry, lte: hands - st.batch }, do: 'emit', type: `${P}:take` });
-      R({ on: `${P}:collect`, if: { var: carry, gt: hands - st.batch }, do: 'emit', type: 'work:full' });
-      const { ok } = lowerMove({ item: st.item, n: st.batch, from: NOWHERE, to: BAG, on: `${P}:take` }, F);
-      R({ on: ok, do: 'inc', var: carry, by: st.batch });
-      R({ on: ok, do: 'set', var: P, to: 0 });
-      R({ on: ok, do: 'toggle', target: ready, to: false });
-      R({ on: ok, do: 'emit', type: 'work:took', item: st.item });
-      toast(ok, `took the ${words(st.item)}`, { ttl: 0.8 });
-      if (show) showSlot({ id, P, Pp, Pw, Ph, at, st, work, taken: ok });
+      // E on what is done: into the hands, while they have room (any cook's)
+      const taken = HANDS.map((H) => {
+        R({ on: `${P}:collect${H.sfx}`, if: { var: H.carry, lte: hands - st.batch }, do: 'emit', type: `${P}:take${H.sfx}` });
+        R({ on: `${P}:collect${H.sfx}`, if: { var: H.carry, gt: hands - st.batch }, do: 'emit', type: 'work:full' });
+        const { ok } = lowerMove({ item: st.item, n: st.batch, from: NOWHERE, to: H.bag, on: `${P}:take${H.sfx}` }, F);
+        R({ on: ok, do: 'inc', var: H.carry, by: st.batch });
+        R({ on: ok, do: 'set', var: P, to: 0 });
+        R({ on: ok, do: 'toggle', target: ready, to: false });
+        R({ on: ok, do: 'emit', type: 'work:took', item: st.item });
+        toast(ok, `took the ${words(st.item)}`, { ttl: 0.8 });
+        return ok;
+      });
+      if (show) showSlot({ id, P, Pp, Pw, Ph, at, st, work, taken });
     });
   }
 
@@ -390,15 +458,32 @@ export function lowerWork(p, ctx) {
     R({ on: `${I}:walk:${j}`, do: 'inc', var: missed, by: 1 });
     R({ on: `${I}:walk:${j}`, do: 'emit', type: 'work:walked' });
     kinds.forEach((K, k) => {
+      // (the tickets as markers at the hand-in; with the rail up, the rail is the ticket and none is laid)
       const tk = `${W}-ticket-${j}-${k}`;
-      mark(tk, [r3(serveAt[0] + (j - (tickets - 1) / 2) * 0.7), serveAt[1], serveAt[2]], TICKETS[k % TICKETS.length], 1.2, false, 0.22);
-      R({ on: `${I}:fill:${j}`, match: { kind: String(k + 1) }, do: 'toggle', target: tk, to: true });
+      if (!rail) mark(tk, [r3(serveAt[0] + (j - (tickets - 1) / 2) * 0.7), serveAt[1], serveAt[2]], TICKETS[k % TICKETS.length], 1.2, false, 0.22);
+      if (!rail) R({ on: `${I}:fill:${j}`, match: { kind: String(k + 1) }, do: 'toggle', target: tk, to: true });
       R({ on: `${I}:fill:${j}`, match: { kind: String(k + 1) }, do: 'emit', type: `${I}:ordered:${k}` });
-      R({ on: `${I}:walk:${j}`, do: 'toggle', target: tk, to: false });
-      R({ on: `${I}:done:${j}:${k}`, do: 'toggle', target: tk, to: false });
+      if (!rail) { R({ on: `${I}:walk:${j}`, do: 'toggle', target: tk, to: false }); R({ on: `${I}:done:${j}:${k}`, do: 'toggle', target: tk, to: false }); }
     });
+    // THE ORDER RAIL (`rail: true`): the ticket along the top of the screen while it is open, in its order's colour, what
+    // it wants said, its bar the patience it has left (the shared state shown in one place, for every cook)
+    if (rail) {
+      const keeps = `${I}:r:${j}`;
+      F.vars[keeps] = 0;
+      R({ on: `${I}:fill:${j}`, do: 'set', var: keeps, to: patience });
+      R({ on: tick, if: { var: o, gte: 1 }, do: 'inc', var: keeps, by: -STEP, min: 0 });
+      kinds.forEach((K, k) => {
+        const rid = `${W}-order-${j}-${k}`, gate = `ui-${rid}`;
+        F.vars[gate] = 0;
+        F.hud.push({ id: rid, var: keeps, label: `${K.name}: ${pieces(K.wants)}`, as: 'bar', max: patience, slot: 'top', color: TICKETS[k % TICKETS.length] });
+        R({ on: `${I}:fill:${j}`, match: { kind: String(k + 1) }, do: 'set', var: gate, to: 1 });
+        R({ on: `${I}:walk:${j}`, do: 'set', var: gate, to: 0 });
+        R({ on: `${I}:done:${j}:${k}`, do: 'set', var: gate, to: 0 });
+      });
+    }
   }
-  kinds.forEach((K, k) => toast(`${I}:ordered:${k}`, `order: ${K.name} (${pieces(K.wants)})`, { ttl: 1.6 }));
+  // (with the rail up, an order is seen arriving on it: no toast besides)
+  if (!rail) kinds.forEach((K, k) => toast(`${I}:ordered:${k}`, `order: ${K.name} (${pieces(K.wants)})`, { ttl: 1.6 }));
   R({ on: `${I}:turned`, do: 'inc', var: missed, by: 1 });
   R({ on: `${I}:turned`, do: 'emit', type: 'work:walked' });
   toast('work:walked', 'an order walked out');
@@ -409,20 +494,27 @@ export function lowerWork(p, ctx) {
   Object.assign(F.vars, { [lock]: 1, [asked]: 0 });
   zone(hid, serveAt, 'hand in an order');
   mark(`${hid}-counter`, serveAt, COLOR.serve, 0, true, 0.7);
-  R({ on: `use-${hid}`, do: 'set', var: lock, to: 0 });
-  R({ on: `use-${hid}`, do: 'set', var: asked, to: 1 });
+  for (const H of HANDS) {
+    R({ on: H.use(hid), do: 'set', var: lock, to: 0 });
+    R({ on: H.use(hid), do: 'set', var: asked, to: 1 });
+  }
   for (let j = 0; j < tickets; j++) {
     const o = `${I}:o:${j}`, age = `${I}:a:${j}`;
     kinds.forEach((K, k) => {
       const ask = `${I}:sv:${j}:${k}`, cand = `${I}:cand:${j}:${k}`, done = `${I}:done:${j}:${k}`, n = Object.values(K.wants).reduce((t, x) => t + x, 0);
-      R({ on: `use-${hid}`, if: { var: o, eq: k + 1 }, do: 'emit', type: ask });
-      chain(F.reactions, ask, Object.entries(K.wants).map(([i, x]) => ({ var: heldVar(BAG, i), gte: x })), cand, null);
-      for (const i of Object.keys(K.wants)) F.vars[heldVar(BAG, i)] ??= 0;
-      R({ on: cand, if: { var: lock, eq: 0 }, do: 'emit', type: done });
-      R({ on: cand, if: { var: lock, eq: 0 }, do: 'set', var: lock, to: 1 });
-      // the wants leave the bag (each guarded by the chain above, so taken directly), the ticket is torn
-      for (const [i, x] of Object.entries(K.wants)) R({ on: done, do: 'inc', var: heldVar(BAG, i), by: -x, min: 0 });
-      R({ on: done, do: 'inc', var: carry, by: -n, min: 0 });
+      // each hand asks with what it holds; the one whose hands fill the order takes the lock (seated: then tears it as one)
+      for (const H of HANDS) {
+        const askH = `${ask}${H.sfx}`, candH = `${cand}${H.sfx}`, doneH = `${done}${H.sfx}`;
+        R({ on: H.use(hid), if: { var: o, eq: k + 1 }, do: 'emit', type: askH });
+        chain(F.reactions, askH, Object.entries(K.wants).map(([i, x]) => ({ var: heldVar(H.bag, i), gte: x })), candH, null);
+        for (const i of Object.keys(K.wants)) F.vars[heldVar(H.bag, i)] ??= 0;
+        R({ on: candH, if: { var: lock, eq: 0 }, do: 'emit', type: doneH });
+        R({ on: candH, if: { var: lock, eq: 0 }, do: 'set', var: lock, to: 1 });
+        // the wants leave the hands (each guarded by the chain above, so taken directly), the ticket is torn
+        for (const [i, x] of Object.entries(K.wants)) R({ on: doneH, do: 'inc', var: heldVar(H.bag, i), by: -x, min: 0 });
+        R({ on: doneH, do: 'inc', var: H.carry, by: -n, min: 0 });
+        if (seated) R({ on: doneH, do: 'emit', type: done });
+      }
       // a quick hand-in tips: within half its patience
       R({ on: done, if: { var: age, lt: patience / 2 }, do: 'inc', var: score, by: 5 });
       R({ on: done, do: 'inc', var: score, by: 10 });
@@ -441,6 +533,6 @@ export function lowerWork(p, ctx) {
     world: F,
     on: { 'work:won': { end: 'success' }, 'work:lost': { end: 'fail' } },
     emits: ['work:took', 'work:made', 'work:ready', 'work:burned', 'work:served', 'work:walked', 'work:full', 'work:won', 'work:lost'],
-    work: { card: C.id, goal, hands, tickets, heading, arrivals: arrivals.length, layout: { stations: Object.fromEntries(Object.keys(C.stations).map((s) => [s, slotsAt(s)])), crates: Object.fromEntries(raws.map((i) => [i, crateAt(i)])), shelves: Object.fromEntries(kept.map((i) => [i, shelfAt(i)])), serve: serveAt } },
+    work: { card: C.id, goal, hands, tickets, heading, arrivals: arrivals.length, layout: { stations: Object.fromEntries(Object.keys(C.stations).map((s) => [s, slotsAt(s)])), crates: Object.fromEntries(raws.map((i) => [i, crateAt(i)])), shelves: Object.fromEntries(kept.map((i) => [i, shelfAt(i)])), serve: serveAt }, ...(seated ? { seats: HANDS.map((H) => ({ n: H.n, body: H.ent, hands: H.bag, carry: H.carry })) } : {}) },
   };
 }

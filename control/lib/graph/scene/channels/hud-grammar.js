@@ -7,10 +7,16 @@
  *   top           NAVIGATION  a compass strip (the camera's heading), the goal's bearing on it, under it the objective in
  *                             a line with its distance, and THE CARD LANE: what the level says (its opening, a line
  *                             said, a way held), one at a time on mana-ui's moment queue
- *   bottom        THE ACTIONS what each button does, a row of icons and never words: the weapon in hand, the sidearm,
- *                             the item held with its count, the guard, the sprint, the lock, each under the control of
- *                             the device in hand (keys, or a pad once one has spoken). The level's key reminders (a
- *                             lesson's line, a fight's keys) are not drawn: the row is what they pointed at
+ *   top-right     WHAT IS HELD, a row of icons and never words: the weapon in hand, the sidearm, the item held with
+ *                             its count, each under the control of the device in hand (keys, or a pad once one has
+ *                             spoken), small. What the body does (the guard, the sprint, the lock) is not equipment: its
+ *                             keys are the controls screen's. The level's key reminders are not drawn either
+ *   bottom-right  THE MAP     a round scope that turns with the hero: the foes awake and the way on (gameworld/radar.js),
+ *                             where the page's own radar was put away
+ *   over the world  THE STAMINA as a ring by the hero's shoulder, shown only while it is spent, harm when nearly winded;
+ *                             THE LOCK as brackets over the locked foe's head with its health thin under them, in place
+ *                             of the page's own diamond. Both on mana-ui's anchors, at points the page's camera projects
+ * The hearts empty by quarters: a hit takes part of a heart, and the heart shows it.
  *
  * The page is its host: each frame it reads the bus's vars (events.js `window.__mojBus`) and the pilot
  * (controllable/index.js `window.__mojCtrl`) into the state mana-ui draws, and takes no input (a HUD never has the focus).
@@ -30,6 +36,8 @@ import { manaUiSource, manaUi } from '../../../mana-ui/kernel.js';
 import { manaCss } from '../../../mana-ui/css.js';
 import { themeCss, readTheme } from '../../../mana-ui/theme.js';
 import { ICONS, iconFor, iconSvg } from '../../playscape/ui/item-icons.js';
+import { radarMarks, sceneThings, RADAR } from '../../gameworld/radar.js';
+import { hitBearing } from '../../gameworld/damage-ring.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
@@ -52,27 +60,46 @@ export function readHudGrammar(g, at = 'events.grammar') {
 }
 
 const B = (p) => ({ bind: `hud.${p}` }), I = (f) => ({ item: f });
+// what the body does is not what it holds: these slots are not drawn (their keys are the controls screen's)
+const BODY = Object.freeze(['guard', 'sprint', 'lock']);
 const region = (at, children, extra = {}, bare = false) => ({ use: 'region', props: { at, ...(bare ? { variant: 'bare' } : {}) }, children, ...extra });
 /** The spec: the three places as regions of a hud (kernel.js components: pips, compass, text, slot). */
 export function hudGrammarSpec(g) {
   const G = readHudGrammar(g);
   return { screens: {}, hud: { use: 'hud', children: [
-    region('top-left', [{ use: 'stack', props: { gap: 'tight' }, children: [
-      { use: 'pips', props: { value: B('hearts'), max: B('heartsMax'), shape: 'heart' } },
-      { use: 'bar', props: { value: B('stamina'), max: 100, variant: 'mp', figures: false, size: 'thin' }, when: B('spent') },
-    ] }], {}, true),
+    // (over the world, at the points the page projects: the stamina ring by the hero, the lock over its foe)
+    { use: 'anchors', props: { variant: 'bare', rows: B('ring'), row: { use: 'charge', props: { value: I('value'), state: I('state') } } } },
+    { use: 'anchors', props: { variant: 'bare', rows: B('lock'), row: { use: 'stack', props: { gap: 'tight', align: 'center' }, children: [{ use: 'reticle', props: { shape: 'bracket' } }, { use: 'bar', props: { value: I('hp'), max: I('hpMax'), variant: 'hp', size: 'thin', figures: false } }] } } },
+    region('top-left', [{ use: 'pips', props: { value: B('hearts'), max: B('heartsMax'), shape: 'heart' } }], {}, true),
     region('top', [{ use: 'stack', props: { gap: 'tight', align: 'center' }, children: [
       { use: 'compass', props: { heading: B('heading'), markers: B('markers') } },
       { use: 'text', props: { value: B('objective'), role: 'label' }, when: B('objective') },
       { use: 'moments', props: { rows: B('moments'), as: 'toast' } },
     ] }], {}, true),
-    ...(G.slots.length ? [region('bottom', [{ use: 'each', props: { dir: 'row', rows: B('slots'), row: { use: 'slot', props: { name: I('name'), key: I('key'), count: I('count'), active: I('active'), disabled: I('disabled') } } } }], {}, true)] : []),
+    ...(G.slots.some((s) => !BODY.includes(s.id)) ? [region('top-right', [{ use: 'each', props: { dir: 'row', rows: B('slots'), row: { use: 'slot', props: { name: I('name'), key: I('key'), count: I('count'), active: I('active'), disabled: I('disabled') } } } }], {}, true)] : []),
+    region('bottom-right', [{ use: 'minimap', props: { shape: 'round', scope: true, markers: B('radar'), north: B('north') } }], { when: B('radarOn') }, true),
   ] } };
 }
 
 // (what it stands in for is not shown beside it; the layer over the canvas, taking no pointer)
 const HOST_CSS = '.moj-hg{position:absolute;inset:0;pointer-events:none;z-index:7}.moj-hg .mana-root{background:none}'
-  + '.moj-hud-top-left,.moj-w-legend,.moj-c-radar,.moj-c-gauge{display:none!important}'
+  + '.moj-hud-top-left,.moj-w-legend,.moj-c-radar,.moj-c-gauge,.moj-c-lock{display:none!important}'
+  // (and the runtime's bar over a locked foe, where the lock carries the foe's health; a foe targeted with no lock keeps it)
+  + 'body:has(.moj-hg .mana-anchors .mana-reticle) .moj-c-ehp{display:none!important}'
+  // (a level's passing words off the aim: to the foot's left, on no glow, haloed dark so grass does not eat them)
+  + '.moj-hud-center:has(.moj-w-toast){top:auto;bottom:16%;left:7%;transform:none;align-items:flex-start}'
+  + '.moj-w-toast{font-size:18px!important;text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 6px rgba(0,0,0,.7)!important;color:#fff!important}'
+  // (the ring and the lock on no plate; the ring small by the shoulder, harm when nearly spent)
+  + '.moj-hg .mana-anchor>*{background:none!important;padding:0!important}'
+  + '.moj-hg .mana-anchor .mana-ring{width:34px;height:34px}'
+  + '.moj-hg .mana-anchor .mana-charge[data-state=active] .mana-ring::before{background:conic-gradient(var(--mana-harm) calc(var(--r,0) * 1turn),transparent 0)}'
+  + '.moj-hg .mana-anchor .mana-reticle{font-size:44px;color:var(--mana-accent)}'
+  + '.moj-hg .mana-anchor .mana-bar{width:64px}.moj-hg .mana-anchor .mana-bar .mana-track{width:64px;min-width:0}'
+  + '.moj-hg .mana-minimap[data-scope=yes]{width:min(22vh,190px);height:min(22vh,190px)}'
+  + '.moj-hg .mana-minimap .mana-marker[data-kind=foe]{color:var(--mana-harm)}.moj-hg .mana-minimap .mana-marker[data-kind=goal]{color:var(--mana-accent)}'
+  + '.moj-hg .mana-minimap[data-scope=yes]::after{content:"\\25B2";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:12px}'
+  // (what is held small and quiet in its corner: its keys a caption under it)
+  + '.moj-hg .mana-place[data-at=top-right] .mana-slot{transform:scale(.82);transform-origin:top right}'
   // (a game's page shows no viewer's strip (the view cams, wireframe, fly and walk, reverse view, the AI switch) and no
   // corner hint, however it is opened: their keys still answer)
   + '.hud,.hint{display:none!important}';
@@ -81,7 +108,10 @@ const HOST_CSS = '.moj-hg{position:absolute;inset:0;pointer-events:none;z-index:
 export function hudGrammarPage(cfg, ui, spec, css) {
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   const root = document.createElement('div'); root.className = 'moj-hg'; (document.getElementById('wrap') || document.body).appendChild(root);
-  const S = { hud: { hearts: cfg.hearts.max, heartsMax: cfg.hearts.max, stamina: 100, spent: false, heading: 0, markers: [], objective: cfg.objective || '', slots: [], moments: [] } };
+  const S = { hud: { hearts: cfg.hearts.max, heartsMax: cfg.hearts.max, stamina: 100, spent: false, heading: 0, markers: [], objective: cfg.objective || '', slots: [], moments: [], ring: [], lock: [], radar: [], north: 0, radarOn: false } };
+  // (a point of the world on the HUD, 0..1 of its frame, or null behind the camera)
+  let pv = null;
+  const onScreen = (x, y, z) => { if (typeof camera === 'undefined' || typeof THREE === 'undefined') return null; pv = pv || new THREE.Vector3(); camera.updateMatrixWorld(); pv.set(x, y, z).project(camera); if (pv.z >= 1) return null; const r = (v) => Math.round(v * 1000) / 1000; return { x: r(pv.x * 0.5 + 0.5), y: r(-pv.y * 0.5 + 0.5) }; };
   const WEIGHT = { intro: 'major', held: 'normal', say: 'normal' };
   let said = '', nth = 0, view = null, place = '';
   const rt = ui.runtime(spec, { read: (p) => ui.readPath(S, p), act: function () {}, now: () => performance.now() / 1000 });
@@ -95,7 +125,8 @@ export function hudGrammarPage(cfg, ui, spec, css) {
     const bus = window.__mojBus, vars = bus && bus.state ? bus.state.vars : {};
     const hp = Number(vars[cfg.hearts.var]);
     // (a part of a heart is a heart still held: it empties with its last hp)
-    if (Number.isFinite(hp)) S.hud.hearts = Math.max(0, Math.min(cfg.hearts.max, Math.ceil(hp / cfg.hearts.per)));
+    // (to the quarter: a hit takes part of a heart, and the heart shows it)
+    if (Number.isFinite(hp)) S.hud.hearts = Math.max(0, Math.min(cfg.hearts.max, Math.ceil((hp / cfg.hearts.per) * 4) / 4));
     const W = window.__mojCtrl && window.__mojCtrl.world, me = W && W.pilotId ? W.byId[W.pilotId] : null;
     // (what the level says: its guide's one thing, guide.js; a level with none, the word's own goal and line)
     const GV = window.__mojGuide && window.__mojGuide.view ? window.__mojGuide.view() : null;
@@ -111,6 +142,24 @@ export function hudGrammarPage(cfg, ui, spec, css) {
       // (its stamina, where it sprints on one: shown while it is spent)
       const max = me.rule && me.rule.stamina ? (me.rule.boostMax || 0) : 0;
       if (max > 0) { const f = Math.max(0, Math.min(1, (me.boost == null ? max : me.boost) / max)); S.hud.stamina = Math.round(f * 100); S.hud.spent = f < 0.995; }
+      // the ring by the hero's shoulder while spent, nearly gone in harm; the lock over its foe's head
+      const p = me.transform.pos, h = (me.rule && me.rule.collideHeight) || 1.7, sh = S.hud.spent ? onScreen(p[0], p[1], p[2] + h * 0.85) : null;
+      const ring = sh ? [{ x: Math.min(0.97, sh.x + 0.045), y: sh.y, value: Math.round(S.hud.stamina / 5) / 20, state: S.hud.stamina < 25 ? 'active' : 'cooling' }] : [];
+      if (JSON.stringify(ring) !== JSON.stringify(S.hud.ring)) S.hud.ring = ring;
+      // (the lock over its foe's drawn top, as the runtime measures it for its own bar, controllable/index.js __foeTopOf;
+      // its health as the runtime keeps a foe's, on its body)
+      const L = W.lock, tg = L && L.target ? W.byId[L.target] : null, top = tg ? (typeof __foeTopOf === 'function' ? __foeTopOf(tg) : 1) : 0;
+      const tp = tg && tg.transform && !tg.gone && !tg.downed ? onScreen(tg.transform.pos[0], tg.transform.pos[1], tg.transform.pos[2] + top + 0.1) : null;
+      const cur = tg ? (tg.body && Number.isFinite(tg.body.hp) ? tg.body.hp : Number.isFinite(tg.hp) ? tg.hp : tg.hpMax) : 0;
+      const lock = tp ? [{ id: String(tg.id), x: tp.x, y: tp.y, hp: Math.max(0, cur || 0), hpMax: tg.hpMax || cur || 1 }] : [];
+      if (JSON.stringify(lock) !== JSON.stringify(S.hud.lock)) S.hud.lock = lock;
+      // the map: the foes awake round the hero and the way on, on a scope that turns with it
+      if (cfg.radar) {
+        const things = __gRThings(W, me, at), marks = __gRadar(p, me.transform.heading, things, cfg.radar), north = __gBearing(p, me.transform.heading, [p[0], p[1] + 1, 0]);
+        S.hud.radarOn = true;
+        if (JSON.stringify(marks) !== JSON.stringify(S.hud.radar)) S.hud.radar = marks;
+        if (Math.abs(north - S.hud.north) >= 5) S.hud.north = north;
+      }
     }
     // (a place card: the name of the place the hero has come into, the weightiest of the lane's cards)
     if (me && cfg.places) { const x = me.transform.pos[0], y = me.transform.pos[1], at = cfg.places.find((p) => x >= p.box[0] && x < p.box[2] && y >= p.box[1] && y < p.box[3]); if (at && at.name !== place) { place = at.name; S.hud.moments = S.hud.moments.concat([{ id: 'p' + (++nth), text: at.name, weight: 'major' }]).slice(-6); } }
@@ -121,7 +170,7 @@ export function hudGrammarPage(cfg, ui, spec, css) {
       if (card && card !== said) S.hud.moments = S.hud.moments.concat([{ id: 'g' + (++nth), text: GV.text, weight: WEIGHT[GV.mode] }]).slice(-6);
       said = card;
     }
-    const slots = cfg.slots.map((s) => { const n = s.var ? Number(vars[s.var]) : NaN; return { name: s.name, key: (pad ? s.pad : s.keys) || '', count: Number.isFinite(n) ? String(n) : '', active: s.id === 'weapon', disabled: s.var ? !(n > 0) : false }; });
+    const slots = cfg.slots.filter((s) => cfg.body.indexOf(s.id) < 0).map((s) => { const n = s.var ? Number(vars[s.var]) : NaN; return { name: s.name, key: (pad ? s.pad : s.keys) || '', count: Number.isFinite(n) ? String(n) : '', active: s.id === 'weapon', disabled: s.var ? !(n > 0) : false }; });
     if (JSON.stringify(slots) !== JSON.stringify(S.hud.slots)) S.hud.slots = slots;
     requestAnimationFrame(step);
   }
@@ -165,6 +214,7 @@ export function hudGrammarScript(g, hud = []) {
   manaUi.readSpec(spec);
   return `
 // THE HUD GRAMMAR (scene/channels/hud-grammar.js): the hero's hearts, the compass and the goal, the actions; mana-ui's
-window.__mojHudGrammar = (${hudGrammarPage.toString()})(${json(G)}, ${manaUiSource()}, ${json(spec)}, ${json(`${manaCss()}\n${themeCss(G0.theme ?? 'greybox')}\n${HOST_CSS}\n${dressCss(G0)}`)});
+const __gRadar = ${radarMarks.toString()}, __gRThings = ${sceneThings.toString()}, __gBearing = ${hitBearing.toString()};
+window.__mojHudGrammar = (${hudGrammarPage.toString()})(${json({ ...G, body: BODY, radar: { ...RADAR, range: 40 } })}, ${manaUiSource()}, ${json(spec)}, ${json(`${manaCss()}\n${themeCss(G0.theme ?? 'greybox')}\n${HOST_CSS}\n${dressCss(G0)}`)});
 `;
 }

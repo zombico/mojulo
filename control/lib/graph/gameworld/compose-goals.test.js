@@ -5,6 +5,8 @@ import { FLOW_IN_PLAY } from '../game/flow.js';
 import { composeMechanics } from '../game/mechanics.js';
 import { readBattle } from '../playscape/ui/battles.js';
 import { withBuildingLevel } from '../structure/level.js';
+import { assembleStageScene } from '../era/stage.js';
+import { megaworldLinks, megaworldLaws } from './megaworld.js';
 
 const levelSteps = (S) => S.filter((s) => s.key.startsWith('level-'));
 // a made level's game channel as it plays (a building's is lowered from its `level` on every read)
@@ -127,15 +129,20 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     // carries `figureGrade: 'play'` (the tighter gameplay figures), one line an order, 0e1c91bc -> c9c3c6b8 and
     // 9ad2a5b7 -> 33b4c186; the hero world's as well, and its pilots run on the play grade's `jog` state (its stride the
     // grade's) where they named the library's Jog_Fwd_Loop. Nothing else in the orders moved)
-    expect(fingerprint(unladdered(unaudited(orders)))).toBe('c9c3c6b8');
-    expect(fingerprint(unladdered(unaudited(ground)))).toBe('33b4c186');
+    // (re-pinned 2026-11-19, 1118-jrpg-starter: a new level's trail stage on an isekai land is written with the form
+    // render's grass and no grass hat on its rocks, gameworld/levels.js withFormGrass (`grass: { form: true }`,
+    // `hats: 'lips'`): those two words on each trail stage's manifest and nothing else; without them every order below
+    // prints as it did. c9c3c6b8 -> a0e638e8, 33b4c186 -> 64b2bc96, 71917dd0 -> cd58ee08, aa47dab1 -> c97f28f9,
+    // b14f4c0f -> 610ba5bf, 323e54e5 -> fd0f2b8d)
+    expect(fingerprint(unladdered(unaudited(orders)))).toBe('a0e638e8');
+    expect(fingerprint(unladdered(unaudited(ground)))).toBe('64b2bc96');
     // (re-pinned 2026-11-07, 1107-action-rpg merging 1105-rc: the hero's figure maps the library's Sprint_Loop as its
     // `sprint` clip (playscape/player.js, the stamina sprint's legs), one more clip in each order's hero figure and nothing
     // else: without it the orders print 3229f9a0 as before, 3229f9a0 -> 71917dd0)
-    expect(fingerprint(unladdered(unaudited(hero)))).toBe('71917dd0');   // (3498540d -> 3229f9a0: the play grade, above)
-    expect(fingerprint(unaudited(orders))).toBe('aa47dab1');   // (642958c3 -> aa47dab1: the play grade, above)
-    expect(fingerprint(unaudited(ground))).toBe('b14f4c0f');   // (eadb7584 -> b14f4c0f: the play grade, above)
-    expect(fingerprint(unaudited(hero))).toBe('323e54e5');   // (4e44b89a -> 2448f711: the play grade; -> 323e54e5: the sprint clip, above)
+    expect(fingerprint(unladdered(unaudited(hero)))).toBe('cd58ee08');   // (3498540d -> 3229f9a0: the play grade, above)
+    expect(fingerprint(unaudited(orders))).toBe('c97f28f9');   // (642958c3 -> aa47dab1: the play grade, above)
+    expect(fingerprint(unaudited(ground))).toBe('610ba5bf');   // (eadb7584 -> b14f4c0f: the play grade, above)
+    expect(fingerprint(unaudited(hero))).toBe('fd0f2b8d');   // (4e44b89a -> 2448f711: the play grade; -> 323e54e5: the sprint clip, above)
   }, 300000);
 
   it('a dungeon is indoors: building levels in a room kit, the goals laid in their rooms, made by the run', () => {
@@ -198,4 +205,104 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     const before = levelSteps(runSteps(MEADOWMARK_HERO, { ref: 'gw' })).filter((s) => s.key.startsWith('level-shell-shore-'));
     expect(levelSteps(S).filter((s) => s.key.startsWith('level-shell-shore-')).map((s) => s.print)).toEqual(before.map((s) => s.print));
   }, 300000);
+});
+
+// a party RPG round its town: the dungeon and the castle named do not turn the world indoors; each is a level of the hub
+describe('composed: a party RPG round its town, its castle and its dungeon', () => {
+  const W = composeGameworld({ prompt: 'a medieval fantasy jrpg: a fortified town with a castle, a field with monsters, a dungeon with a boss' });
+  const ids = Object.keys(W.levels);
+  // (its levels' steps, laid once for the tests that read them: a whole world's stages)
+  let S0 = null;
+  const steps = () => (S0 ??= runSteps(W, { ref: 'gw' }));
+
+  it('lays the town at the centre, the wilds, the castle\'s level, and the dungeon last with the boss at its end', () => {
+    expect(W.hub).toBe(ids[0]);
+    expect(W.start).toBe(ids[0]);
+    expect(W.levels[ids[0]].places.street).toMatchObject({ enter: ['shop', 'inn', 'temple'], walls: true });
+    const last = W.levels[ids[ids.length - 1]];
+    expect(last.building).toMatchObject({ use: 'crypt' });
+    expect(last.goal).toMatchObject({ boss: true });
+    expect(W.levels[W.brief.round.castle].places.castle).toBeTruthy();
+    expect(W.brief.round).toMatchObject({ dungeon: ids[ids.length - 1], trades: ['inn', 'temple'] });
+  });
+
+  it('is laid as a mandala: the town outermost, the wilds and the castle round it, the dungeon the core behind the castle\'s key', () => {
+    const core = ids[ids.length - 1], castle = W.brief.round.castle;
+    expect(W.megaworld).toMatchObject({ shape: 'mandala', rings: [[W.hub], expect.arrayContaining([castle]), [core]], gates: { [core]: { key: 'crypt-key', keyAt: castle } } });
+    expect(W.megaworld.rings[1]).toHaveLength(ids.length - 2);
+    // (its links the megaworld's: a road from the town to each of the second ring, the core's way gated by its key)
+    expect(W.links).toEqual(megaworldLinks(W.megaworld));
+    expect(W.links.filter((l) => l.from === W.hub).map((l) => l.to).sort()).toEqual([...W.megaworld.rings[1]].sort());
+    expect(W.links.find((l) => l.to === core)).toMatchObject({ kind: 'gate', key: 'crypt-key', keyAt: castle });
+    expect(megaworldLaws(W.megaworld).every((L) => L.ok)).toBe(true);
+    expect(W).toMatchObject({ hub: ids[0], start: ids[0], topology: 'interconnected' });
+    expect(W.brief.round.mandala).toMatchObject({ core, key: 'crypt-key', keyAt: castle });
+    // (without a dungeon the castle is the core, its key in the farthest wilds; with neither, the farthest wilds')
+    const C = composeGameworld({ prompt: 'a jrpg: a fortified town with a castle' }), cid = Object.keys(C.levels);
+    expect(C.megaworld.rings[2]).toEqual([C.brief.round.castle]);
+    expect(C.megaworld.gates[C.brief.round.castle]).toMatchObject({ key: 'castle-key', keyAt: C.megaworld.rings[1][0] });
+    expect(cid.length).toBeGreaterThanOrEqual(3);
+    expect(megaworldLaws(C.megaworld).every((L) => L.ok)).toBe(true);
+  });
+
+  it('stands on the green valley\'s cube, gritty, each place its own flora: the wilds in groves by a lake, the castle on the upland', () => {
+    expect(W.brief.cube).toMatchObject({ id: 'valley-morning', from: 'a party RPG round its town' });
+    expect(W.style.geocube).toMatchObject({ from: 'valley-morning', grit: 0.5 });
+    const castle = W.brief.round.castle, wilds = ids.filter((id, i) => i > 0 && W.levels[id].walk && id !== castle);
+    expect(wilds.length).toBeGreaterThan(0);
+    expect(W.levels[wilds[0]].style.geocube).toMatchObject({ from: 'valley-morning', biocube: 'grove', outside: { water: { lake: true } } });
+    expect(W.levels[castle].style.geocube).toMatchObject({ biocube: 'upland' });
+    expect(W.levels[W.hub].style?.geocube).toBeUndefined();
+    // (a word naming a cube or what grows is the world's: it is kept, and every place grows it)
+    const N = composeGameworld({ prompt: 'a gothic jrpg: a fortified town with a castle, a dungeon with a boss' });
+    expect(N.brief.cube).toMatchObject({ id: 'gothic-night', word: 'gothic' });
+    const D = composeGameworld({ prompt: 'a desert jrpg: a fortified town with a castle, a dungeon with a boss' });
+    expect(Object.values(D.levels).every((L) => L.style?.geocube?.biocube === undefined)).toBe(true);
+  });
+
+  it('a hub game that names neither keeps its old shape: the town, the wilds, the last raising its castle', () => {
+    const V = composeGameworld({ prompt: 'a jrpg in a green valley' }), vid = Object.keys(V.levels);
+    expect(V.hub).toBe(vid[0]);
+    expect(V.levels[vid[vid.length - 1]].places).toMatchObject({ castle: true });
+    expect(V.brief.round).toMatchObject({ trades: ['inn', 'temple'] });
+    expect(V.brief.round.castle).toBeUndefined();
+  });
+
+  it('its levels make: the town\'s street stands its inn and temple at their doors', () => {
+    const S = steps();
+    const town = levelSteps(S).find((s) => s.order.manifest.town);
+    expect(town.order.manifest.town.enter).toEqual(['shop', 'inn', 'temple']);
+    expect(levelSteps(S).some((s) => s.key.startsWith(`level-${ids[ids.length - 1]}`))).toBe(true);
+  }, 180000);
+
+  it('its places are travelled by the mandala\'s ways: the second ring from the town and back, the core past its gate, each stretch its own packs', () => {
+    const S = runSteps({ ...W, battles: { random: { every: 12, chance: 0.25 } } }, { ref: 'gw' });
+    const game = S.find((s) => s.key === 'game').order, out = (lvl) => game.levels.find((l) => l.ref === `gw-level-${lvl}-0`).exits, exits = (lvl) => out(lvl).map((e) => e.to);
+    for (const id of W.megaworld.rings[1]) {
+      expect(exits(W.hub)).toContain(`gw-level-${id}-0`);
+      expect(exits(id)).toContain(`gw-level-${W.hub}-0`);
+    }
+    // (the core reached from the farthest wilds, its way shut until the castle's key is held; the game's atlas the rings)
+    const core = ids[ids.length - 1], far = W.megaworld.rings[1][0];
+    const way = game.levels.filter((l) => l.ref.startsWith(`gw-level-${far}-`)).flatMap((l) => l.exits).find((e) => e.to === `gw-level-${core}-0`);
+    expect(way?.gate).toMatchObject({ has: 'crypt-key' });
+    expect(game.levels.filter((l) => l.ref.startsWith(`gw-level-${core}-`)).flatMap((l) => l.exits).some((e) => e.to.startsWith(`gw-level-${far}-`))).toBe(true);
+    expect(game.atlas).toMatchObject({ shape: 'mandala', rings: [[`gw-level-${W.hub}-0`], expect.any(Array), [`gw-level-${core}-0`]] });
+    // (the field's stretches each roll their own packs: a region's encounters are the stage's)
+    const field = levelSteps(S).filter((s) => s.key.startsWith(`level-${ids[1]}-`)).map((s) => s.order.manifest.play?.rpg?.random?.sets);
+    expect(field.every((sets) => Array.isArray(sets) && sets.length > 0)).toBe(true);
+    expect(levelSteps(S).find((s) => s.key.startsWith(`level-${W.hub}-`)).order.manifest.play?.rpg?.random).toBeUndefined();
+  }, 180000);
+
+  it('the castle walked: its level stands the castle\'s ward on its trail, the keep inside its curtain entered at its door', () => {
+    const S = steps();
+    const m = levelSteps(S).find((s) => s.key.startsWith(`level-${W.brief.round.castle}`) && s.order.manifest.buildings).order.manifest;
+    expect(m.buildings).toEqual([expect.objectContaining({ use: 'keep', enter: 'door' })]);
+    expect(m.town).toMatchObject({ enter: 0, walls: expect.anything(), street: true });
+    const P = assembleStageScene(m);
+    const keep = P.anchors.find((a) => a.kind === 'building' && a.use === 'keep');
+    expect(keep).toMatchObject({ enter: 'door', inside: { use: 'keep' } });
+    const C = P.colliders.filter((c) => String(c.of).startsWith('town:walls')), xs = C.flatMap((c) => [c.min[0], c.max[0]]), ys = C.flatMap((c) => [c.min[1], c.max[1]]);
+    expect(keep.at[0] > Math.min(...xs) && keep.at[0] < Math.max(...xs) && keep.at[1] > Math.min(...ys) && keep.at[1] < Math.max(...ys)).toBe(true);
+  }, 180000);
 });

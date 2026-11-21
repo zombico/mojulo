@@ -23,6 +23,13 @@
  *     where that clip leaves it, the pilot again, its own rule back. A follow camera goes with the pilot, framed by the horse's
  *     `camera` ({ dist, height, lookH }) while it is ridden and given its own back after.
  *
+ *   A CAB (`mount.cab: true`: a car, any body on its own rule, the `drive` rule's): got INTO, not onto. Any walker may
+ *     (no riding clips: it is not seen riding): it walks to the cab's `stand` (its door), is in after `mount.s`, and is
+ *     gone from the world while it is (`gone`: unseen, no one's target), carried in the cab; the cab is the pilot.
+ *     Interact again when it is slow (`slow`): out after `dismount.s`, set down at the door, pushed clear of a wall
+ *     that stands there, the pilot again. The cab plays no clip of the rider's: its own rule drives it, and only while
+ *     it is driven: a cab no one drives is parked (`cabRule` keeps its rule), so a held stick moves nothing.
+ *
  * Opt-in (compose.js EMISSION_OPT_IN): emitted only into a page whose world has a mount; on the live instance a world
  * without one steps exactly as before. Import-free (the page runs this source via toString()). Field ownership: the
  * horse's e.riderId, e.mountClip / e.mountU (a getting-on or -off clip's name and share, the rule plays it), e.gaitIx,
@@ -35,10 +42,79 @@ export function buildMount(E) {
   const step = E.stepWorld;
   // (a horse's `mount` and a body's `rides`, carried onto the entity)
   registerNormalize((ent, raw) => { if (raw.mount && typeof raw.mount === 'object') ent.mount = { ...raw.mount }; if (raw.rides === true) ent.rides = true; });
+  // (a car no one gets into, the law's police car: its hull, and the body the page draws it with)
+  registerNormalize((ent, raw) => { if (Array.isArray(raw.carHull) && raw.carHull.length === 2) ent.carHull = raw.carHull.slice(); if (raw.carBody && typeof raw.carBody === 'object') ent.carBody = { ...raw.carBody }; });
 
   // a point in a horse's frame (its figure's: +y forward, +x its right) → the world, at the horse's place and heading
   const local = (h, p) => { const a = h.transform.heading - Math.PI / 2, c = Math.cos(a), s = Math.sin(a); return [h.transform.pos[0] + p[0] * c - p[1] * s, h.transform.pos[1] + p[0] * s + p[1] * c, h.transform.pos[2]]; };
   const wrapA = (a) => { a = (a + Math.PI) % TAU; if (a < 0) a += TAU; return a - Math.PI; };
+
+  // ── THE CABS' HULLS (`mount.hull`: [half width, half length], a box turned with its car) ──────────────────────
+  // After every body has moved: a cab that overlaps another is pushed back out of it along the least overlap (the one
+  // that moves gives way, two that move share it; one that stands holds) and loses the speed it carried into it; a
+  // walker (a body on foot with a `collideRadius`) is pushed out of every hull. The traffic the page hands the world
+  // (`state.trafficHulls`: [{ p, heading, hull }], scene/channels/flow.js) holds as a parked car does. Facts: e.bumped (the speed lost, the
+  // step it struck). A cab with no hull, and a world with no cab, are as they were.
+  // (a car no one gets into, `carHull`: the law's police car, a hull all the same)
+  const hullOf = (h) => (h.mount ? h.mount.hull : h.carHull);
+  const axes = (h) => { const a = h.transform.heading, c = Math.cos(a), sn = Math.sin(a), u = hullOf(h); return { f: [c, sn], r: [sn, -c], hw: u[0], hl: u[1], p: h.transform.pos }; };
+  // the least push that takes box A out of box B (separating axes, on the ground plane), or null where they are apart
+  function apart(A, B) {
+    const d = [A.p[0] - B.p[0], A.p[1] - B.p[1]];
+    let best = null;
+    for (const n of [A.f, A.r, B.f, B.r]) {
+      const ra = A.hl * Math.abs(n[0] * A.f[0] + n[1] * A.f[1]) + A.hw * Math.abs(n[0] * A.r[0] + n[1] * A.r[1]);
+      const rb = B.hl * Math.abs(n[0] * B.f[0] + n[1] * B.f[1]) + B.hw * Math.abs(n[0] * B.r[0] + n[1] * B.r[1]);
+      const c = d[0] * n[0] + d[1] * n[1], pen = ra + rb - Math.abs(c);
+      if (pen <= 0) return null;
+      if (!best || pen < best.pen) best = { pen, n: c < 0 ? [-n[0], -n[1]] : n };
+    }
+    return best;
+  }
+  function hulls(state, cabs) {
+    const H = [...cabs.filter((h) => h.mount.cab && h.mount.hull && !h.gone), ...state.entities.filter((e) => e.carHull && !e.mount && !e.gone)];
+    if (!H.length && !(state.trafficHulls && state.trafficHulls.length)) return;
+    const moves = (h) => Math.abs(h.speed || 0) > 0.01;
+    const struck = (h, n) => { const v = h.speed || 0, into = -(Math.cos(h.transform.heading) * n[0] + Math.sin(h.transform.heading) * n[1]) * Math.sign(v); if (into > 0) { const lost = Math.abs(v) * into; h.speed = v * (1 - into); if (lost > 0.2) h.bumped = lost; } };
+    for (let i = 0; i < H.length; i++) for (let j = i + 1; j < H.length; j++) {
+      const a = H[i], b = H[j];
+      if (Math.abs(a.transform.pos[2] - b.transform.pos[2]) > 2 || (!moves(a) && !moves(b))) continue;
+      const hit = apart(axes(a), axes(b));
+      if (!hit) continue;
+      const wa = moves(a) ? (moves(b) ? 0.5 : 1) : 0, wb = 1 - wa;
+      a.transform.pos[0] += hit.n[0] * hit.pen * wa; a.transform.pos[1] += hit.n[1] * hit.pen * wa;
+      b.transform.pos[0] -= hit.n[0] * hit.pen * wb; b.transform.pos[1] -= hit.n[1] * hit.pen * wb;
+      if (wa) struck(a, hit.n);
+      if (wb) struck(b, [-hit.n[0], -hit.n[1]]);
+    }
+    // (the traffic near the pilot, scene/channels/flow.js: boxes that hold; a cab that moves is pushed out of them)
+    const T = (state.trafficHulls || []).map((x) => ({ f: [Math.cos(x.heading), Math.sin(x.heading)], r: [Math.sin(x.heading), -Math.cos(x.heading)], hw: x.hull[0], hl: x.hull[1], p: x.p }));
+    for (const a of H) {
+      if (!moves(a)) continue;
+      for (const X of T) {
+        if (Math.abs(a.transform.pos[2] - X.p[2]) > 2) continue;
+        const hit = apart(axes(a), X);
+        if (!hit) continue;
+        a.transform.pos[0] += hit.n[0] * hit.pen; a.transform.pos[1] += hit.n[1] * hit.pen; struck(a, hit.n);
+      }
+    }
+    const boxes = [...H.map(axes), ...T];
+    for (const e of state.entities) {
+      const cr = e.rule && e.rule.collideRadius;
+      if (!(cr > 0) || e.mount || e.carHull || e.mountedOn || e.gone || e.isCamera) continue;
+      for (const X of boxes) {
+        const dx = e.transform.pos[0] - X.p[0], dy = e.transform.pos[1] - X.p[1];
+        if (Math.abs(e.transform.pos[2] - (e.rule.eye || 0) - X.p[2]) > 2) continue;
+        const u = dx * X.r[0] + dy * X.r[1], v = dx * X.f[0] + dy * X.f[1], cu = clamp(u, -X.hw, X.hw), cv = clamp(v, -X.hl, X.hl);
+        let ou = u - cu, ov = v - cv, d = Math.hypot(ou, ov), pen;
+        if (d > 1e-9) { if (d >= cr) continue; pen = cr - d; ou /= d; ov /= d; }
+        // (its middle inside the box: out through the nearer side)
+        else if (X.hw - Math.abs(u) < X.hl - Math.abs(v)) { ou = u < 0 ? -1 : 1; ov = 0; pen = X.hw - Math.abs(u) + cr; }
+        else { ou = 0; ov = v < 0 ? -1 : 1; pen = X.hl - Math.abs(v) + cr; }
+        e.transform.pos[0] += (ou * X.r[0] + ov * X.f[0]) * pen; e.transform.pos[1] += (ou * X.r[1] + ov * X.f[1]) * pen;
+      }
+    }
+  }
 
   // ── THE RIDE RULE ────────────────────────────────────────────────────────────────────────────────────────────────
   function ride(e, input, dt, world) {
@@ -123,16 +199,24 @@ export function buildMount(E) {
     const horses = state.entities.filter((e) => e.mount);
     if (!horses.length) return step(state, input, dt, hooks);
     dt = dt || 1 / 60;
+    // (a cab no one drives is PARKED: it stands on no rule of its own, so the stick its driver-to-be still holds on the
+    // way to its door moves nothing; its own rule is back the step after its driver is in)
+    for (const h of horses) {
+      if (!h.mount.cab) continue;
+      const driven = state.pilotId === h.id;
+      if (!driven && !h.cabRule) { h.cabRule = h.rule; h.rule = { type: 'mounted' }; h.speed = 0; }
+      else if (driven && h.cabRule) { h.rule = h.cabRule; h.cabRule = null; }
+    }
     const press = !!(input && input.interact) || !!state.mountPress;
     state.mountPress = 0;
     const pilot = state.byId[state.pilotId];
     // the rider of the piloted horse, or the pilot itself on foot
     const P = pilot && pilot.mount ? state.byId[pilot.riderId] : pilot;
-    if (press && P && P.rides && !P.mountedOn && !busy(P)) {
-      // GET ON: the nearest free horse in reach
+    if (press && P && !P.mount && !P.mountedOn && !busy(P)) {
+      // GET ON: the nearest free horse in reach (a body that rides), or the nearest free cab (any walker)
       let best = null, bd = Infinity;
       for (const h of horses) {
-        if (h.riderId || h.downed || h.gone) continue;
+        if (h.riderId || h.downed || h.gone || !(P.rides || h.mount.cab)) continue;
         const d = Math.hypot(h.transform.pos[0] - P.transform.pos[0], h.transform.pos[1] - P.transform.pos[1]);
         if (d < (h.mount.reach ?? 2.6) && d < bd) { bd = d; best = h; }
       }
@@ -144,8 +228,16 @@ export function buildMount(E) {
     } else if (press && P && P.mountedOn && P.mountPhase === 'ride') {
       // GET OFF: at a walk or halted
       const h = state.byId[P.mountedOn];
-      if (h && Math.abs(h.speed || 0) <= (h.mount.slow ?? 1.8) && h.jumpT == null) { P.mountPhase = 'dismount'; P.mountT = 0; h.mountClip = h.mount.dismount.clip; h.mountU = 0; }
+      if (h && Math.abs(h.speed || 0) <= (h.mount.slow ?? 1.8) && h.jumpT == null) { P.mountPhase = 'dismount'; P.mountT = 0; h.mountClip = h.mount.dismount.clip || null; h.mountU = 0; }
     }
+    // THROWN OUT (the cast's `dismount`, `e.eject`: the law's bust): a rider made to get off now, the car stopped, set
+    // down at `eject.to` when it names one; one on foot is as it was
+    for (const h of horses) {
+      const p = h.riderId && state.byId[h.riderId];
+      if (!p || !p.eject) continue;
+      h.speed = 0; h.mountClip = null; p.mountPhase = 'dismount'; p.mountT = (h.mount.dismount && h.mount.dismount.s) || 0;
+    }
+    for (const e of state.entities) if (e.eject && !e.mountedOn) e.eject = null;
     // the moment before the step: approaching, getting on, getting off
     for (const h of horses) {
       const p = h.riderId && state.byId[h.riderId];
@@ -162,12 +254,15 @@ export function buildMount(E) {
         p.transform.heading += clamp(da, -4 * dt, 4 * dt);
         p.locomotion = d > 0.05 ? (M.walk || 'forward') : 'idle'; p.moving = d > 0.05; p.gaitPhase = (p.gaitPhase || 0) + go / (M.stride ?? 1.4);
         if ((d <= 0.05 && Math.abs(wrapA(want - p.transform.heading)) < 0.05) || p.mountT > (M.approachMax ?? 3)) {
-          p.mountPhase = 'mount'; p.mountT = 0; h.mountClip = M.mount.clip; h.mountU = 0;
+          p.mountPhase = 'mount'; p.mountT = 0; h.mountClip = M.mount.clip || null; h.mountU = 0;
+          // (into a cab: gone from the world from the door on)
+          if (M.cab) p.gone = true;
           event(state, { type: 'mounting', rider: p.id, mount: h.id });
         }
       }
     }
     step(state, input, dt, hooks);
+    hulls(state, horses);
     // the moment after: the rider carried in its horse's frame, playing the horse's clip
     for (const h of horses) {
       const p = h.riderId && state.byId[h.riderId];
@@ -175,7 +270,7 @@ export function buildMount(E) {
       const M = h.mount;
       if (p.mountPhase === 'mount') {
         p.mountT += dt; const u = p.mountT / M.mount.s;
-        h.mountU = Math.min(1, u); carry(p, h); p.locomotion = M.mount.clip; p.gaitPhase = Math.min(0.999, u);
+        h.mountU = Math.min(1, u); carry(p, h); if (M.mount.clip) p.locomotion = M.mount.clip; p.gaitPhase = Math.min(0.999, u);
         if (u >= 1) {
           // on: the horse is the pilot now
           p.mountPhase = 'ride'; h.mountClip = null; h.mountU = 0; h.gaitIx = 0; h.speed = 0;
@@ -186,16 +281,19 @@ export function buildMount(E) {
         carry(p, h); p.locomotion = h.locomotion; p.gaitPhase = h.gaitPhase;
       } else if (p.mountPhase === 'dismount') {
         p.mountT += dt; const u = p.mountT / M.dismount.s;
-        h.mountU = Math.min(1, u); carry(p, h); p.locomotion = M.dismount.clip; p.gaitPhase = Math.min(0.999, u);
+        h.mountU = Math.min(1, u); carry(p, h); if (M.dismount.clip) p.locomotion = M.dismount.clip; p.gaitPhase = Math.min(0.999, u);
         if (u >= 1) {
           // off: set down where the clip leaves the rider, its own rule back, the pilot again
           const at = local(h, M.dismount.stand || M.stand);
           p.transform.pos[0] = at[0]; p.transform.pos[1] = at[1]; p.transform.pos[2] = h.transform.pos[2] + ((p.riderRule && p.riderRule.eye) || 0);
           p.transform.heading = (h.transform.heading + (M.dismount.facing ?? M.facing ?? -Math.PI / 2)) % TAU;
           p.rule = p.riderRule; p.riderRule = null; p.mountedOn = null; p.mountPhase = null; p.mountT = 0; p.moving = false; p.locomotion = 'idle'; p.vel = [0, 0, 0];
+          // (out of a cab: in the world again, clear of a wall that stands at its door)
+          if (M.cab) { p.gone = false; if (state.colliders) resolveBlocking(p.transform.pos, p.transform.pos[2] - ((p.rule && p.rule.eye) || 0), (p.rule && p.rule.collideHeight) || 1.8, (p.rule && p.rule.collideRadius) || 0.3, state.colliders, (p.rule && p.rule.step) || 0.35); }
           h.riderId = null; h.mountClip = null; h.mountU = 0; h.speed = 0; h.gaitIx = 0;
           state.pilotId = p.id; retarget(state, h.id, p.id, null);
           event(state, { type: 'dismounted', rider: p.id, mount: h.id });
+          if (p.eject) { const to = p.eject.to; if (Array.isArray(to)) { p.transform.pos[0] = to[0]; p.transform.pos[1] = to[1]; p.transform.pos[2] = to[2]; } p.eject = null; }
         }
       }
     }

@@ -17,8 +17,13 @@
  */
 import { heldVar, itemKey } from '../playscape/ui/items.js';
 import { lowerEscapeRoom } from './escape-room.js';
-import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver } from './errand-mechanics.js';
+import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer, lowerCall, lowerTask, lowerJoin, lowerAct } from './errand-mechanics.js';
+import { lowerWanted } from './law-mechanics.js';
+import { lowerVitals } from './vitals-mechanics.js';
+import { lowerRespray, lowerGunshop } from './shop-mechanics.js';
+import { lowerMission } from './mission-mechanics.js';
 import { lowerWaveGauntlet } from './wave-gauntlet.js';
+import { lowerObjectives } from './objectives.js';
 import { lowerWork } from './work-mechanics.js';
 
 const ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs', 'hud', 'sources', 'sequences', 'initial'];
@@ -52,7 +57,8 @@ const CMP_KEYS = ['gte', 'gt', 'lte', 'lt', 'eq', 'ne'];
 // ── the mechanic registry ───────────────────────────────────────────────────────────────────────
 // role: terminal | emitter | gate ; ends (terminals only): which results it can end in.
 // requires: store slice KINDS. lower(params, ctx) → { world, produces?, on?, consumes?, audit? }.
-// ctx = { i (index, for namespacing), player, spawn, storeSchema }.
+// ctx = { i (index, for namespacing), player, spawn, storeSchema, seats? (a level with seats: the bodies seats 2 … take;
+// a mechanic a seat works lowers a hand a seat, the work shift's) }.
 const MECHANICS = {
   // reach a goal zone → success. The walkability audit IS its completability check.
   'reach-exit': {
@@ -247,12 +253,47 @@ const MECHANICS = {
   // hit:<player>, a foe's touch) costs one, and so does each fall into one of `falls` (the catch zones a course lays,
   // which also put it back on the floor it left); a `oneup` (coins' every so many) gives one back, `max` at most (9).
   // None left: fail. On the HUD as Lives. Requires no store slice.
+  // ENERGY (opt-in, `energy: { max, hit, down? }`; absent, a hit costs a life as above): the action platformer's, a hit
+  // takes `hit` of the `energy` (`max`, 28, its ticks) and spent it costs a life, the energy full again. A fall costs a
+  // life and fills the energy. `down` [x, y, z]: where the body is dropped as it is spent, to fall out as a fall does
+  // (a side map's: under its frame, side-map/play.js SIDE_DOWN), the fall taking the life. On the HUD as Energy.
+  // CONTINUES (opt-in, `continues: true`; absent, none left fails at once): none left waits on the player, as a GAME OVER
+  // with a continue (a HUD that draws one: the side map's, side-map/hud.js): `continue` on the bus gives the lives back
+  // (and the energy), `giveup` fails the level.
   lives: {
     role: 'terminal', ends: ['fail'], requires: [],
     lower(p, ctx) {
       const start = Number.isInteger(p.start) && p.start > 0 ? p.start : 3, max = Number.isInteger(p.max) && p.max >= start ? p.max : 9;
       if (p.falls !== undefined && !(Array.isArray(p.falls) && p.falls.every((z) => typeof z === 'string' && z))) throw new Error(`lives[${ctx.i}]: falls are the catch zones' names a fall into costs a life`);
-      const falls = p.falls ?? [];
+      const falls = p.falls ?? [], E = p.energy;
+      if (p.continues !== undefined && typeof p.continues !== 'boolean') throw new Error(`lives[${ctx.i}]: continues is true or false: whether none left waits on a continue`);
+      // (none left: the level failed, or a continue waited on)
+      const out = (top) => (p.continues ? {
+        reactions: [{ on: 'continue', do: 'set', var: 'lives', to: start }, ...(top ? [{ on: 'continue', do: 'set', var: 'energy', to: top }] : [])],
+        on: { giveup: { end: 'fail' } },
+      } : { reactions: [], on: { dead: { end: 'fail' } } });
+      if (E !== undefined && !(E && typeof E === 'object' && Number.isInteger(E.max ?? 28) && (E.max ?? 28) > 0 && Number.isInteger(E.hit ?? 4) && (E.hit ?? 4) > 0 && (E.down === undefined || (Array.isArray(E.down) && E.down.length === 3 && E.down.every(Number.isFinite))))) throw new Error(`lives[${ctx.i}]: energy is { max (28), hit (4), down? [x, y, z] }: the ticks a body has, what a hit takes, where it goes spent`);
+      if (E) {
+        const top = E.max ?? 28, hit = E.hit ?? 4, O = out(top);
+        return {
+          world: {
+            vars: { lives: start, energy: top },
+            reactions: [
+              { on: `hit:${ctx.player}`, do: 'inc', var: 'energy', by: -hit, min: 0 },
+              // (spent: dropped to fall out, the fall taking the life; else the life taken here)
+              ...(E.down ? [{ on: 'drained', do: 'move', target: ctx.player, to: E.down.slice() }]
+                : [{ on: 'drained', do: 'inc', var: 'lives', by: -1, min: 0 }, { on: 'drained', do: 'set', var: 'energy', to: top }]),
+              ...falls.flatMap((zone) => [{ on: 'enter', match: { zone }, do: 'inc', var: 'lives', by: -1, min: 0 }, { on: 'enter', match: { zone }, do: 'set', var: 'energy', to: top }]),
+              { on: 'oneup', do: 'inc', var: 'lives', by: 1, max },
+              ...O.reactions,
+            ],
+            watches: [{ type: 'drained', when: { var: 'energy', lte: 0 } }, { type: 'dead', when: { var: 'lives', lte: 0 } }],
+            hud: [{ var: 'energy', label: 'Energy', as: 'bar', max: top, color: 'harm' }, { var: 'lives', label: 'Lives', as: 'counter' }],
+          },
+          on: O.on,
+        };
+      }
+      const O = out(0);
       return {
         world: {
           vars: { lives: start },
@@ -260,11 +301,12 @@ const MECHANICS = {
             { on: `hit:${ctx.player}`, do: 'inc', var: 'lives', by: -1, min: 0 },
             ...falls.map((zone) => ({ on: 'enter', match: { zone }, do: 'inc', var: 'lives', by: -1, min: 0 })),
             { on: 'oneup', do: 'inc', var: 'lives', by: 1, max },
+            ...O.reactions,
           ],
           watches: [{ type: 'dead', when: { var: 'lives', lte: 0 } }],
           hud: [{ var: 'lives', label: 'Lives', as: 'counter' }],   // (a counter: mana-ui draws its heart, hud-mana.js)
         },
-        on: { dead: { end: 'fail' } },
+        on: O.on,
       };
     },
   },
@@ -360,12 +402,17 @@ const MECHANICS = {
       // world's own combat produces it, no hp-pool
       const who = typeof p.who === 'string' && p.who ? p.who : null;
       const v = `__downs_${ctx.i}`;
+      // `bar` { of, hp, label? }: ONE body's health as the HUD's bar (a boss's, read in the HUD and never over its head):
+      // its hp from `hp`, each hit's damage off it (the hit fact's `harm`), none at its fall; the bar in place of the count
+      const B = p.bar && typeof p.bar.of === 'string' && p.bar.of && Number.isFinite(p.bar.hp) && p.bar.hp > 0 ? p.bar : null, bv = B ? `boss_${ctx.i}` : null;
+      const label = typeof p.label === 'string' && p.label ? p.label : 'Defeated';
       return {
         world: {
-          vars: { [v]: 0 },
-          reactions: [who ? { on: 'down', match: { entity: who }, do: 'inc', var: v, by: 1 } : { on: 'enemy:down', do: 'inc', var: v, by: 1 }],
+          vars: { [v]: 0, ...(B ? { [bv]: B.hp } : {}) },
+          reactions: [who ? { on: 'down', match: { entity: who }, do: 'inc', var: v, by: 1 } : { on: 'enemy:down', do: 'inc', var: v, by: 1 },
+            ...(B ? [{ on: `hit:${B.of}`, do: 'inc', var: bv, by: 'event.harm', min: 0 }, { on: 'down', match: { entity: B.of }, do: 'set', var: bv, to: 0 }] : [])],
           watches: [{ type: 'all:defeated', when: { var: v, gte: count } }],
-          hud: [{ var: v, label: typeof p.label === 'string' && p.label ? p.label : 'Defeated' }],
+          hud: [B ? { var: bv, label: typeof B.label === 'string' && B.label ? B.label : label, as: 'bar', max: B.hp, slot: 'top-right' } : { var: v, label }],
         },
         on: { 'all:defeated': { end: 'success' } },
         needs: p.producer === 'runtime' || who ? [] : ['enemy:down'],
@@ -809,6 +856,10 @@ const MECHANICS = {
   // down, death beginning the arena (or its checkpoint) again (game/wave-gauntlet.js; "gauntlet" alone is the glove)
   'wave-gauntlet': { role: 'terminal', ends: ['success', 'fail'], requires: [], lower: lowerWaveGauntlet },
 
+  // OBJECTIVES (objectives.js): a level's tasks done in order, a section each: walked into, it begins (its foes woken);
+  // met, its way on opens; the last met wins. A mission's structure (gameworld/mission-level.js)
+  objectives: { role: 'terminal', ends: ['success'], requires: [], lower: lowerObjectives },
+
   // PUSH (a terminal): a grid of cells (`cols` × `rows`, `cell` metres, from `origin` its corner) with boulders on some
   // and plates on others. Walking into a boulder's cell from a side pushes it one cell on, if that cell is free (in
   // the grid, no wall, no boulder); else the walker is put back. Every plate under a boulder: success. All on the bus:
@@ -1017,6 +1068,24 @@ const MECHANICS = {
   cargo: { role: 'emitter', requires: ['inventory'], lower: lowerCargo },
   bounty: { role: 'emitter', requires: ['inventory'], lower: lowerBounty },
   deliver: { role: 'terminal', ends: ['success'], requires: ['inventory'], lower: lowerDeliver },
+  // (where a job is taken: its giver's place; its quest begins and its legs open)
+  offer: { role: 'emitter', lower: lowerOffer },
+  // (a job offered by phone, by a giver already met, when the one before it is done)
+  call: { role: 'emitter', lower: lowerCall },
+  // (a job given by a phone app, subscribed to and taken on the phone: no one to meet)
+  task: { role: 'emitter', lower: lowerTask },
+  // (a faction joined where its contact stands; its board's posting, finished by an act done)
+  join: { role: 'emitter', lower: lowerJoin },
+  act: { role: 'emitter', lower: lowerAct },
+  // (THE LAW, gameworld/law.js: the wanted level, raised by mayhem, its police coming star by star; game/law-mechanics.js)
+  wanted: { role: 'emitter', lower: lowerWanted },
+  // (the street's health: blows off it, mended when quiet, WASTED at none; game/vitals-mechanics.js)
+  vitals: { role: 'emitter', lower: lowerVitals },
+  // (the city's shops: a respray that loses the law, a gun shop's rounds; game/shop-mechanics.js)
+  respray: { role: 'emitter', requires: ['inventory'], lower: lowerRespray },
+  gunshop: { role: 'emitter', requires: ['inventory'], lower: lowerGunshop },
+  // (a story mission: a job with ways to fail, started again after; game/mission-mechanics.js)
+  mission: { role: 'emitter', lower: lowerMission },
 
   // the PARTY carried (an emitter): the battle party of play.rpg (playscape/rpg) goes from level to level in a party
   // slice: each member's level, xp, hp, mp, class, class ranks and points, and the skills learned (the kernel's save:
@@ -1399,6 +1468,7 @@ export function lowerMechanic(kind, params, ctx) {
     spawn: (ctx && ctx.spawn) || [0, 0, 2],
     storeSchema: ctx && ctx.storeSchema,
     hints: (ctx && ctx.hints) || {},
+    ...(ctx && Array.isArray(ctx.seats) && ctx.seats.length ? { seats: ctx.seats } : {}),
     resolve(reqKind, named, where) {
       const r = resolveSlice(ctx && ctx.storeSchema, reqKind, named, where);
       if (r.error) { errors.push(r.error); return null; }
@@ -1456,7 +1526,7 @@ export function composeMechanics(mechanics, ctx = {}) {
   list.forEach((m, i) => {
     if (!m || !m.kind) { errors.push(`mechanics[${i}] must be { kind, ... }`); return; }
     let low;
-    try { low = lowerMechanic(m.kind, m, { i, player, spawn, storeSchema: ctx.storeSchema, hints }); }
+    try { low = lowerMechanic(m.kind, m, { i, player, spawn, storeSchema: ctx.storeSchema, hints, ...(Array.isArray(ctx.seats) && ctx.seats.length ? { seats: ctx.seats } : {}) }); }
     catch (e) { errors.push(e.message); return; }
     low.errors.forEach((e) => errors.push(e));
     (low.emits || []).forEach((e) => emitted.add(e));

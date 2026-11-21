@@ -94,13 +94,19 @@ export { HAND_POSES };
  * The right hand of the structured hero: `wrist`, `elbow` (rest, m), `len` the palm's length (the wrist to the middle
  * knuckle: the hand bone's tail, `knuckles`), `X` the cast's extremities, `girth` the plan's radial scale, `female`,
  * `group` the palette group the palm and digits wear (`Skin`; a gloved cast's `Glove`).
+ * `curl` ({ <digit>: deg }, a hand word's angles: HAND_POSES) builds the hand closed by it past its rest, for a hand drawn
+ * alone at a pose (equipment/arms/view-hand.js); absent, the rest hand.
  * Returns { segments, joints, bones, hands, wrist }: the six rings parts (mirrored by name), the rig joints and bones
  * (`$S`), the rig's `hands` block for both sides, and the hand's section at the wrist (the forearm's last ring).
  */
-export function heroHand({ wrist, elbow, len, X = 1, girth = 1, wide = 1, female = false, group = 'Skin', wristDepth = 1 }) {
+export function heroHand({ wrist, elbow, len, X = 1, girth = 1, wide = 1, female = false, group = 'Skin', wristDepth = 1, wristLen = 0, curl = null }) {
   const F = HAND_FORM[female ? 'female' : 'male'];
   const A = unit(sub(wrist, elbow)), V = unit(sub([0, 1, 0], mul(A, A[1]))), N = unit(cross(V, A));   // along, across (toward the thumb), out of the palm
-  const at = (u, v, w) => add(wrist, add(add(mul(A, u), mul(V, v)), mul(N, w)));
+  // (`wristLen`: the hand stood further off the wrist by this share of its length, the wrist's first ring left at the
+  // joint, so the WRIST runs longer before the palm: the hero robot's glove on its long cuff; 0 as before, byte for byte)
+  const lift = wristLen > 0 ? wristLen * len : 0;
+  const at0 = (u, v, w) => add(wrist, add(add(mul(A, u), mul(V, v)), mul(N, w)));
+  const at = lift ? (u, v, w) => at0(u + lift, v, w) : at0;
   const dirOf = (u, v, w) => unit(add(add(mul(A, u), mul(V, v)), mul(N, w)));
   // `wide`: the hand's breadth beyond its length (the anime casts' broader palm): the palm's width, the knuckles'
   // spread and the digits' width across; their depth only by its root, so the hand broadens without thickening
@@ -123,12 +129,12 @@ export function heroHand({ wrist, elbow, len, X = 1, girth = 1, wide = 1, female
       ...(i === 1 || i === 2 ? { backR: mul(N, P.thenar[i - 1] * gx), backL: mul(N, (i === 1 ? P.hypothenar : P.hypothenar * 0.6) * gx) } : {}),
     };
     // the wrist's two rings round (e 2: the forearm's oval runs on into them), the palm's flatter across (e 2.6)
-    const pts = ringAt(at(u * len, 0, 0), A, back, hw * wx, hb * dx, hf * dx, ring8, i < 2 ? 2 : 2.6, push);
+    const pts = ringAt((i === 0 ? at0 : at)(u * len, 0, 0), A, back, hw * wx, hb * dx, hf * dx, ring8, i < 2 ? 2 : 2.6, push);
     // the knuckle arc: the last ring's ends fall short of the middle knuckle, the little finger's more
     if (last) for (const sl of ring8) { const v = dot(sub(pts[sl], wrist), V), side = v < 0 ? P.arc[0] * x * Math.min(1, -v / (hw * wx)) : P.arc[1] * x * Math.min(1, v / (hw * wx)); pts[sl] = R(sub(pts[sl], mul(A, side))); }
     return { id: `st${i}`, points: pts };
   });
-  const palm = { name: 'handR', kind: 'rings', slots: 'ring8', stations: palmStations, caps: { back: R(at(-0.2 * len, 0, 0)), tip: R(at((1 + P.tip) * len - 0.004 * x, 0, -0.002 * x)) }, group, mirror: 'name',
+  const palm = { name: 'handR', kind: 'rings', slots: 'ring8', stations: palmStations, caps: { back: R(at0(-0.2 * len, 0, 0)), tip: R(at((1 + P.tip) * len - 0.004 * x, 0, -0.002 * x)) }, group, mirror: 'name',
     bind: { bone: 'handR', blend: { back: { foreArmR: 1 }, st0: { foreArmR: 0.5, handR: 0.5 } } } };
 
   // ── the digits: straight in the hand's frame, then curled by the rest curl as the rig curls them ──
@@ -168,7 +174,7 @@ export function heroHand({ wrist, elbow, len, X = 1, girth = 1, wide = 1, female
     // the hinge joints (a bone's aux, on the axis its own link turns about): the root's, and the thumb's knuckle's
     const hinge = add(js[0], mul(ax[0], 0.01 * x)); let knuckle = thumb ? add(js[1], mul(ax[1], 0.01 * x)) : null;
     for (let k = 0; k < 3; k++) {
-      const a = G.rest * W[k], p = [...jp[k]];
+      const a = (G.rest + (curl ? curl[d] ?? 0 : 0)) * W[k], p = [...jp[k]];
       jp = jp.map((q, i) => (i > k ? rotLine(q, p, ax[k], a) : q));
       tipCap = rotLine(tipCap, p, ax[k], a);
       if (knuckle && k === 0) knuckle = rotLine(knuckle, p, ax[k], a);

@@ -212,10 +212,116 @@ hand: rice in the pot, fish chopped, rice taken off, plated and handed in. Serve
 
 What the proof does not cover: walls (the walk is straight), the hero's own speed, a newcomer, and the fun.
 
+### Seats: two to four cooks
+
+A level with seats (a cube's `soul.seats`, the level's `seats.bodies`) lowers the mechanic once a seat. Seat 1 is the
+pilot as above. Seat n has its own hands (the holder `hands<n>`, its carry `w<i>:carry:<n>`), its own zones on its own
+body (`s<n>:use-<place>`, never in the pilot's reach) and its own press: on the page, its controller's interact,
+with a plate over its head in its colour naming the place. The stations, shelves, tickets and clock stay one,
+shared. A slot remembers who works it: walking off pauses only that cook's work, and what a run with no wait makes
+comes into that cook's hands. A shelf is the pass: one cook puts down, another takes up. With no seats the mechanic
+lowers what it always did, byte for byte.
+
+The proof plays several cooks (`cooks: [{ spawn, reach }]`), each on the same policy with its own hands at the places
+its reach allows; a made thing a cook holds and can use nowhere it can reach goes on the pass. On the kitchen laid in
+two halves (crates and prep on one side, plating and the hand-in on the other, the shelves on the line between), two
+cooks win only through the pass: cook 2 serves every order, from what cook 1 put across. With nobody on the far side
+nothing is served.
+
+### The kitchen: an arena for cooks
+
+`worksim/kitchen.js` lays a card as a kitchen for its cooks. Each place is read by its role: crates, prep (a station
+that takes only raw things), assembly (one that takes a made thing), shelves and the hand-in. The kitchens are rows:
+
+| kitchen | what it is | the pressure |
+|---------|------------|--------------|
+| split   | prep on one side of a counter, assembly and the hand-in on the other; what crosses goes on a pass set in the counter | the handoff: nothing is served unless it is passed |
+| island  | one floor round an island of shelves; every cook reaches everything | crowding |
+
+Its laws are measured on its floor and advise: every place reached from its side; the sides sealed (no way round, and a
+counter the cooks' jump does not clear); every order crossing the pass; a pass for everything that crosses; a 760 mm
+walkway; the whole room on one fixed screen.
+
+`tuneKitchen` (work-proof.js) sets the shift by what the kitchen lets its cooks do: the solver tunes the card for that
+many hands, then the proof plays the kitchen with its cooks on their sides, slowing the orders until they keep up; the
+goal is four fifths of what they served. The simulator alone has no space, so it counts four cooks as four times one;
+in a split kitchen four cooks serve little more than two.
+
+The quick door's `cooks` (1, 2 or 4) and `kitchen` make the level a kitchen room of its own
+(`gameworld/kitchen-level.js`), never a line by a trail: the game room's area for the trade (its floor, its walls cut
+away on the camera's side, what stands outside), each place dressed as the trade's thing, each cook on its own side, a seat nobody sits in held still, and one fixed overhead station framing the whole room. It is lit as a studio set: a warm key and a cool fill shading its
+faces, ambient occlusion baked, the counters' and the cooks' shadows cast from the key, contact occlusion, inked seams
+and a warm grade; its floor's tiles are quieted, and each crate shows its raw thing on top. The floor carries no recipe: the work room's arrows are for
+practice, and in the game working out what comes next is the cooks' job. Each seat's
+state is in its own corner in its colour (P1 bottom left, P2 bottom right, P3 top right, P4 bottom): its hands, and what
+it holds while it holds it. A tag over each cook says its seat in its colour and what it carries, and the open
+orders run along the top of the screen (the mechanic's `rail`), each its patience going. Plating stations are
+stainless counters, a pass between cooks a lit stainless hatch, the hand-in a servery with its bell. The registry marks `soul.dependence=handoff` (the work mechanic's) and `soul.frame=fixed`
+built, so the co-op kitchen probe is makeable; the Work Sim rail carries its words, and a sentence asking for one is
+told the quick door. In headless Chromium with two stub pads, seat 1 took a fish, chopped it and put it on the pass; seat 2 took it up from the
+other side with its own button.
+
+#### Shifts: the map changes as the levels go on
+
+A kitchen is a level of its own (`levels.<id>.kitchen`, `gameworld/kitchen-shifts.js`): `{ name?, kitchen?, card?,
+challenge?, mirror?, obstacles?, serve? }`, read over the quick game's own words; the cooks are always the game's. A map
+is varied two ways, each a layout option of `layKitchen`: `mirror` flips the kitchen (prep on the other side, the cooks
+and their pads facing the other way) and `obstacles` stands a counter island in each side's floor, so every walk bends
+round it. Every law is measured on the varied map as on the plain one, and the shift is tuned on it.
+
+`quick.shifts` (with cooks) makes a campaign: `shifts: n` takes the first n rows of `SHIFTS`, the progression (the
+island with the sushi counter, then the split, mirrored, with islands, each a new menu, the challenge rising), and a
+list is its own shifts. Each is a level `shift-1` … named for its shift, played in order by the game's flow. The island
+opens the campaign only with the sushi counter: the proof's cooks keep up with a multi-take menu (the wok, the ramen
+bowl, the diner, the pizzeria) only on a split, so the progression lays those on splits. The proof walks straight lines,
+so an island in the floor does not change what it measures; how much it slows real cooks is the eyes gate's.
+
+### The food
+
+`control/lib/graph/food/` draws what a card handles, read off the card and never modelled item by item, since a card
+already says what each thing is made of:
+
+- A thing whose words name a **dish** (sushi, a roll, a salad, a soup, a burger…) is that dish. Its parts are what its
+  station takes, composed in the dish's arrangement (a nigiri pair, maki rings, a heap in a bowl) on its plate or bowl.
+- A thing whose words name an **ingredient** (fish, rice, lettuce, tomato, carrot, meat, egg, bread…) is that
+  ingredient, in the state its words say (sliced, cooked, crated…). Otherwise, made from the same ingredient, it is
+  in the state its station gives: a station worked by hand preps it, one that runs alone cooks it, a bucket of one thing
+  packs it. Otherwise it is as it comes (wheat grown from seed is wheat).
+- A thing no row names is read from its station, else drawn as a block in a colour from its name.
+
+The kitchen has menus beside the sushi counter, each a recipe shape of its own (`worksim/scenarios.js`):
+
+| menu | its shape |
+|---|---|
+| pasta | the pasta and its sauce run alone in two pots at once and meet on the plate (spaghetti, twirled under its sauce); or layered in a tray and baked again (a pasta bake, browned) |
+| wok | a cooker's rice and a pot's noodles, the prep, and a wok that burns if left: fried rice (the rice with the rest mixed through), chow mein |
+| ramen | a stock that runs long and keeps, noodles and eggs boiled, pork sliced: four things in every bowl |
+| diner | a grill that burns, a fryer (fries upright in their cup), the salad cut, a burger stacked; a meal wants a burger and fries |
+| pizzeria | dough kneaded and rolled, a sauce simmered, cheese grated, the pizza topped (in layers) and baked (browned) |
+
+The dish arrangements beside them: a twirl, a toss, a bake in its tray, a curry beside its rice, a fold, dumplings,
+skewers, a soup with its noodles, egg halves and slices, a pizza in layers. A thing several things are cooked into that
+names its base ("fried rice") is that base with the rest mixed through. A dish put through an oven comes out browned.
+An ingredient's finer method (an egg boiled is halved, a potato mashed is in a bowl) is a row's `methods`.
+
+The rows are in `food/roster.js` (ingredients and their prepped and cooked looks, states, dishes, vessels), so a new
+food is a row. The forms (`food/forms.js`) are face lists from the lathe, box and prism, the glyph shelf's discipline:
+built at glyph scale and placed at a size (`foodFaces`). Rounds are shaded smooth, a corner at a time, with creases kept
+sharp; boxes are chamfered, their edges and corners cut. The laws (`food/laws.js`, advice) check that every thing is
+drawn, a card's things are told apart, what is made looks unlike what it was made from, and each fits its box. The
+review sheet is `node scripts/render-food.mjs <dir> [card|all]`. Whether it reads as food is the eyes gate.
+
 ## How it joins next (not built)
 
-- **Seats.** Two to four players on one kitchen: `crew.workers` as seats, a handoff as a bucket between seats. This is
-  what the co-op kitchen probe is blocked on (`soul.dependence=handoff`).
+- **Balancing a split kitchen's sides by their work.** A split lays prep on one side and everything that takes a made
+  thing on the other, so a long chain (the pizzeria's roll, simmer, top and bake) lands on one cook: tuned for two
+  cooks, the pizzeria serves four orders a shift. A layout that shares the stations out by their labour.
+- **The food on the page.** On its crate, on the station working it, on a shelf or a pass, carried over the cook,
+  on the order rail.
+- **Seats, the rest.** A spot that holds any one thing (a plate), the
+  simulator's workers each with their own reach (the proof stands in), hazards (a belt, fire), each cook drawn apart
+  (today the same hero, told apart by its ring, its tag and its corner), and the co-op kitchen laid from a sentence (today the
+  composer names the quick door: `design_game({ quick: { goal: 'work', cooks: 2 } })`).
 - **The look on a level.** The work room is dressed and stands in its area; a quick shift's level still draws counters
   and markers. The dress and the area belong on the level too, read by the verb and the item.
 - **The book.** A gameworld's `work` page in the game design and production chapter: the card, its target and the
@@ -228,5 +334,8 @@ What the proof does not cover: walls (the walk is straight), the hero's own spee
 ## Gates
 
 Machine: `worksim.test.js` (the card, routes, determinism, absence, the solver's targets), `work-mechanics.test.js`
-(the mechanic on the bus) and `work-proof.test.js` (a level won by a walker who knows the card, near the simulator).
+(the mechanic on the bus, seated too), `work-proof.test.js` (a level won by a walker who knows the card, near the
+simulator; a split kitchen won by two cooks only through the pass) and the seats page suite
+(`seats.live.test.js`: a seat's own press works the shift with its own hands, in headless Chromium), `kitchen.test.js`
+(the roles, the laws, the pass, the tuning) and `quick-work.test.js` (the kitchen room from the quick door).
 Eyes: not run.

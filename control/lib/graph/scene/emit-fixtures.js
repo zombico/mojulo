@@ -19,6 +19,9 @@ import { shootSubjects } from '../shoot/subjects.js';
 import { versusArenaData } from '../versus/versus-page.js';
 import { brawlYardData } from '../brawl/brawl-page.js';
 import { brawlLevel } from '../brawl/brawl-levels.js';
+// (a mission's page data as its level carries it: two tasks, a plan, the briefing's words)
+const MISSION_UI = { title: 'fixture', theme: 'field-brief', plan: { heading: 0, half: 8, length: 18, anchors: { spawn: [2, 0, 0], exit: [15.5, 0, 0] }, sections: [{ id: 'staging', x: [0, 10], entry: [2, 0, 0] }, { id: 'extract', x: [10, 18], entry: [11.6, 3.6, 0] }] },
+  tasks: [{ id: 'staging', text: 'Take the rounds', kind: 'take' }, { id: 'extract', text: 'Get out', kind: 'reach' }], briefing: { kit: ['rifle: the mid band, 15 m'], sections: ['Take the rounds: the body and the kit'], laws: [] } };
 import { meetArenaData } from '../contest/meet-arena.js';
 import { matchArenaData } from '../contest/match-arena.js';
 import { turnsArenaData } from '../contest/turn-arena.js';
@@ -285,6 +288,11 @@ export const EMIT_FIXTURES = [
   // brawl (the practice yard, lib/graph/brawl): the brawl block, its own frame step (`stepBrawlPage`), the camera owned,
   // the yard's screen in mana-ui; its belt the yard preset's, one dummy standing
   ['brawl', { faces: [floor()], brawl: brawlYardData(brawlLevel({ kind: 'greybox', preset: 'yard' }, { practice: { dummies: [{ mode: 'stand' }] } }).brawl) }],
+  // mission (a shooter's first level, gameworld/mission-level.js): the mission block, mana-ui and the controls host in a
+  // scope of its own, its briefing, HUD, pause and debrief read off the scene's probes; the smallest mission (two tasks)
+  ['mission', { faces: [floor()], mission: MISSION_UI }],
+  // damage ring (a page with its own HUD: gameworld/damage-ring.js): its block alone, the tracker and the bearing inlined
+  ['damage-ring', { faces: [floor()], damageRing: { life: 1.6, most: 6 } }],
   // meet (an athletic meet on a track): the meet block, its own frame step (`stepContest`), the camera owned
   ['meet', { faces: [floor()], meet: meetArenaData({ event: 'hurdles', lanes: 3, players: 1 }) }],
   // court (a net game on a court): the court block, its own frame step (`stepCourt`), the camera owned

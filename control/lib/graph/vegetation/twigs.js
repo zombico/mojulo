@@ -242,7 +242,21 @@ export const CROSS = Object.freeze({ size: 1.15, aspect: 0.8, tips: 16, stand: 0
   // (by outline, each holding the maple's cover (count × scale² × its leaf's area): a narrower leaf more of them and each a
   // little larger; a willow's half the cover, airy)
   byShape: Object.freeze({ ovate: Object.freeze({ count: 31, scale: 0.205 }), lobed: Object.freeze({ count: 21, scale: 0.205 }), broad: Object.freeze({ count: 21, scale: 0.21 }), lance: Object.freeze({ count: 16, scale: 0.238 }) }) });
-export function leafCross(species, { seed = 1, tips = CROSS.tips, bundle = null } = {}) {
+/**
+ * A bundle's CORE (`leafCross(…, { core: true })`, the hybrid crown): a low faceted blob filling the bundle's room
+ * behind its leaves, so the crown reads as a mass with volume where the leaves open, its colour the crown's inside
+ * (`shade` × the leaf's tone); the bundle gives up as many leaves as the blob costs, so the crown spends no more
+ * triangles than it did. `size` its half-widths × the bundle's reach (across, across × the cross's aspect, out), its
+ * corners nudged by `lumps` of a half-width so no two blobs are one shape.
+ */
+export const CORE = Object.freeze({ size: Object.freeze([1.2, 1.2, 0.9]), shade: 0.68, lumps: 0.18 });
+// an icosahedron: its 12 corners and 20 faces, the blob's bones
+const ICO = (() => { const t = (1 + Math.sqrt(5)) / 2, v = [[-1, t, 0], [1, t, 0], [-1, -t, 0], [1, -t, 0], [0, -1, t], [0, 1, t], [0, -1, -t], [0, 1, -t], [t, 0, -1], [t, 0, 1], [-t, 0, -1], [-t, 0, 1]].map(unit3);
+  const f = [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]];
+  return { v, f }; })();
+export const CORE_TRIS = ICO.f.length;
+
+export function leafCross(species, { seed = 1, tips = CROSS.tips, bundle = null, core = false } = {}) {
   if (needleHabit(species)) return leafClump(species, { seed });
   const rng = mulberry32((seed * 2654435761 + 173) >>> 0), shape = leafShape(species), S = LEAF_SHAPES[shape], R = speciesLeaf(species) * CLUMP.size * CROSS.size, tris = [], NP = CROSS.points[shape] ?? 3;
   const wMax = Math.max(...Array.from({ length: 21 }, (_, j) => S.w(CROSS.from + (1 - CROSS.from) * j / 20)));
@@ -253,7 +267,14 @@ export function leafCross(species, { seed = 1, tips = CROSS.tips, bundle = null 
   // own finger, the bundle spread through the mass's room by the golden angle. Not crossed: a pair on one midrib covers
   // little more than one, where each leaf turned its own way covers its own; two thirds the cards hold the cover)
   if (CROSS.leafCard) {
-    const B = { ...CROSS.bundle, ...(CROSS.byShape[shape] || {}), ...(bundle || {}) }, G = R * 1.6 * B.scale, M = B.points;
+    const B0 = { ...CROSS.bundle, ...(CROSS.byShape[shape] || {}), ...(bundle || {}) }, G = R * 1.6 * B0.scale, M = B0.points;
+    // (with a core, the leaves it costs given up: the crown spends what it did)
+    const per = (LEAF_TRIS[shape] || LEAF_TRIS.ovate).length, B = core ? { ...B0, count: Math.max(1, B0.count - Math.ceil(CORE_TRIS / per)) } : B0;
+    if (core) {
+      const rc = R * B0.spread, sz = [CORE.size[0] * rc, CORE.size[1] * rc * CROSS.aspect, CORE.size[2] * rc], c = TONES.leaf.map((v) => Math.round(v * CORE.shade));
+      const at = ICO.v.map((q) => q.map((x, k) => x * sz[k] * (1 + (rng() - 0.5) * 2 * CORE.lumps)));
+      for (const F of ICO.f) tris.push({ p: F.map((i) => at[i]), c, kind: 'leaf' });
+    }
     // (the leaf in a few triangles, LEAF_TRIS: its stalk at its base, its tip along X; centred on o)
     const leaf = (o, X, n, c) => {
       const v = unit3(cross(n, X)), at = ([w, u]) => add(o, add(mul(X, (u - 0.45) * G), mul(v, w * G)));

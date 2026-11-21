@@ -192,6 +192,10 @@ export function buildCombatRanged(E) {
       lobAngle: w.lobAngle ?? 0,          // deg the launch aim tilts UP from the look direction (the lob)
       splashRadius: w.splashRadius ?? 0,  // burst poise-break/damage reach; the direct hit is the d~0 case
       projRadius: w.projRadius ?? 0.5,    // the round's own collision radius (added to a target's radius)
+      // (opt-in: a round that flies on over and under z = 0, `noGround`, as a buster's does: a side map's floors are its
+      // colliders, below z = 0 as often as above; and one that passes through its own team's bodies, `passTeam`: a foe's
+      // round flies through the foes before it. Absent, as every round always was)
+      ...(w.noGround ? { noGround: true } : {}), ...(w.passTeam ? { passTeam: true } : {}),
       armTime: w.armTime ?? 0.06,         // sec before the round can burst (so it clears the muzzle/owner)
       fuse: w.fuse ?? 4,                  // sec max flight before it bursts wherever it is
       // DRAG (opt-in, 1/m): a shell's quadratic drag constant (½ρ·Cd·A / m): dv/dt = −k·|v|·v, a round slowing along its
@@ -201,7 +205,8 @@ export function buildCombatRanged(E) {
       // distance of a hittable body — a near-miss bursts beside the target and the splash catches
       // it, instead of sailing past. 0 (default) = contact-only, byte-identical.
       proximity: Number.isFinite(w.proximityRadius) && w.proximityRadius > 0 ? w.proximityRadius : 0,
-      ammo: magazine, cooldownT: 0, reloading: false, reloadT: 0, prevFire: false, shots: 0,
+      // (`loaded`: a weapon carried with fewer rounds in it than it holds, a gun bought empty; absent, full)
+      ammo: Number.isFinite(w.loaded) ? Math.max(0, Math.min(magazine, Math.round(w.loaded))) : magazine, cooldownT: 0, reloading: false, reloadT: 0, prevFire: false, shots: 0,
       burstLeft: 0,                       // rounds still owed to the current trigger pull
       energy: Number.isFinite(w.energyMax ?? w.energy) && (w.energyMax ?? w.energy) > 0 ? (w.energyMax ?? w.energy) : 0,
       energyLock: false,
@@ -411,6 +416,7 @@ export function buildCombatRanged(E) {
           // (a charged round carries the charge's damage, a bow's arrow drawn full; any other the weapon's own)
           damage: chargedShot ? shotDamage : (w.damage || 0), impact: shotImpact, born: state.time, age: 0, armTime: w.armTime || 0, fuse: w.fuse || 4, ...(w.projectileDrag ? { drag: w.projectileDrag } : {}),
           fxColor: w.fxColor ?? null, fxScale: w.fxScale ?? null, smokeTrail: w.smokeTrail !== false, ...(w.knock ? { knock: w.knock } : {}),
+          ...(w.noGround ? { noGround: true } : {}), ...(w.passTeam ? { passTeam: true } : {}),
         });
         e.lastShot = { mode: 'launch', t: state.time, from, to: null, charged: chargedShot };
       } else {
@@ -548,8 +554,10 @@ export function buildCombatRanged(E) {
           // the (larger) splash reaches the target. Contact rounds keep the bare radius.
           const segLen = Math.hypot(p.pos[0] - prev[0], p.pos[1] - prev[1], p.pos[2] - prev[2]);
           const detR = (p.projRadius || 0) + (p.prox || 0);
+          const passT = p.passTeam && state.byId && state.byId[p.owner] ? state.byId[p.owner].team : null;   // (a round through its own team)
           for (const tg of state.entities) {
             if (tg.id === p.owner || tg.invincible || !(tg.body && tg.body.hittable)) continue;   // i-frames take no hits
+            if (passT && tg.team === passT) continue;
             const stepLen = Math.max(latR(tg) * 0.5, 1e-3);
             const n = Math.min(24, Math.max(1, Math.ceil(segLen / stepLen)));
             let hitPt = null;
@@ -674,8 +682,9 @@ export function buildCombatRanged(E) {
     const suppressed = owns.reaction || owns.drop || owns.clash || owns.cine;
     const firesForPilot = !e.pilotable || state.pilotId === e.id || E.seated(state, e);
     if (e.weapon && !suppressed && e.rule && e.rule.type === 'ai') stepWeapon(e, { fire: e.aiFire ? 1 : 0 }, dt, state);
-    // (a moveset's hero, gameworld/combos.js: its sidearm on S, never mid-swing; L and H are its blades)
-    else if (e.weapon && !suppressed && e.tackleT == null && firesForPilot) stepWeapon(e, e.rule && e.rule.moveset ? { ...input, fire: input.special && !input.mod && e.swingT == null && !e.guarding ? 1 : 0, ...(e.mvAim ? { aim: e.mvAim } : {}) } : input, dt, state);   // a tackle owns the body — no firing mid-charge
+    // (a moveset's hero, gameworld/combos.js: its sidearm on S, never mid-swing; L and H are its blades; a holster's
+    // (`rule.holster`, combat-melee.js) only while drawn, on the click too)
+    else if (e.weapon && !suppressed && e.tackleT == null && firesForPilot) stepWeapon(e, e.rule && e.rule.moveset ? { ...input, fire: (e.rule.holster ? e.gunOut && (input.special || input.fire) : input.special) && !input.mod && e.swingT == null && !e.guarding ? 1 : 0, ...(e.mvAim ? { aim: e.mvAim } : {}) } : input, dt, state);   // a tackle owns the body — no firing mid-charge
   }, 10);
   // MISSILES (opt-in `rule.missiles`: skyscape/dogfight.js): { count?, lockTime?, cone?, range?, speed?, turn?, damage?,
   // splash?, prox?, fuse?, cooldown?, flares?, flareTime?, flareAt?, hitsAs? } (`hitsAs`: the hits a burst counts). Each step the body's LOCK builds on the hittable foe nearest

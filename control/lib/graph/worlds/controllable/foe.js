@@ -4,9 +4,12 @@
  * gameworld's level: gameworld/foes.js) runs its move here in place of the mind; a move the mind already plays (hold,
  * chase, drift, swarm) and a lurker once awake run the mind as they always did.
  *
- *   rule.foe  { move, touch?, during?, stomp, stretch?, ends?, drop?, hop?, dive?, rush?, lurk? }
+ *   rule.foe  { move, touch?, during?, stomp, stretch?, ends?, drop?, fire?, hop?, dive?, rush?, lurk? }
  *     PACE    walks its stretch (`ends`, two points), turning at an end, at a wall it cannot pass and at a ledge (the
- *             ground ahead missing, or more than `drop` below its feet): it never walks off its floor
+ *             ground ahead missing, or more than `drop` below its feet): it never walks off its floor; with `fire` it
+ *             fires its gun on its cooldown at a hero ahead of it (within `rule.range`, 30 m), straight along its facing;
+ *             with `rock` it stops every so often, picks a rock up off its floor and throws it at the hero in an arc
+ *             (rockStep: a round of the world's, `shootable`)
  *     PATROL  the same stretch walked as a round (`patrol`: { calm s }), watching ahead as it goes: a hero in its sight (the
  *             mind's words, `sightRange` and `sightCone`, and a clear line past the colliders, eye to eye) hands it to
  *             the mind the same step, which perceives it and engages; once the mind has seen no one for `calm` s it
@@ -40,7 +43,7 @@
  * every byte; on the live instance a world without one steps exactly as before. Wraps the `ai` rule and stepWorld, as
  * hitstop.js does, so the pinned pipeline order is untouched. Import-free (the page runs this source via toString()).
  * Field ownership: e.foe- (foeRail, foeRailT, foeRailFrom, foeEnds, foeLeg, foeHopT, foeDive, foeT, foeAt, foeAim, foeCool, foeRush, foeRun, foeStunFor,
- * foeAwake, foeCharging, foeStomped, foeMercyT).
+ * foeAwake, foeCharging, foeStomped, foeMercyT, foeFire, foeRock, foeRockT, foeRockShot).
  */
 
 export function buildFoe(E) {
@@ -93,12 +96,54 @@ export function buildFoe(E) {
     return end;
   }
 
+  // THE ROCK (`rule.foe.rock`: { every s, lift s, hold s, angle deg, g, size m, damage, splash?, reach? }): every `every`
+  // seconds, with a hero ahead, the pacer stops, stoops and picks a rock up off the floor before it (`lift` s, the rock
+  // rising from its feet to its hand over its head: e.foeRock { t, lift, ground, hand }, the page's), then throws it at
+  // the hero in an ARC (a launch at `angle` up, its speed what lands it where the hero stands under `g`), a round of the
+  // world's (state.projectiles) that bursts where it lands, `shootable` (a hero's round breaks it in the air, buster.js)
+  function rockStep(e, r, dt, world) {
+    const K = r.foe.rock, t = e.transform, H = r.collideHeight ?? 1.7;
+    if (!e.foeRock) {
+      e.foeRockT = (e.foeRockT ?? 0) + dt;
+      if (e.foeRockT < K.every) return false;
+      const P = nearestPilot(e, world), f = fwdXY(t.heading);
+      if (!P || ((P.p.transform.pos[0] - t.pos[0]) * f[0] + (P.p.transform.pos[1] - t.pos[1]) * f[1]) <= 1) return false;
+      const foot = t.pos[2] - eyeOf(r), ahead = (r.collideRadius ?? 0.5) + (K.reach ?? 0.6);
+      e.foeRock = { t: 0, lift: K.lift, ground: [t.pos[0] + f[0] * ahead, t.pos[1] + f[1] * ahead, foot + K.size], hand: [t.pos[0] + f[0] * ahead * 0.5, t.pos[1] + f[1] * ahead * 0.5, foot + H * 1.02] };
+    }
+    const R = e.foeRock;
+    R.t += dt; e.moving = false; e.aiFire = 0; e.locomotion = 'lift';
+    if (!R.thrown && R.t >= K.lift) {
+      const P = nearestPilot(e, world);
+      if (P) {
+        const q = P.p.transform.pos, tgt = [q[0], q[1], q[2] - ((P.p.rule && P.p.rule.eye) || 0) + 0.6], from = R.hand;
+        const dx = tgt[0] - from[0], dy = tgt[1] - from[1], d = Math.max(0.5, Math.hypot(dx, dy)), dz = tgt[2] - from[2];
+        const a = (K.angle ?? 50) * Math.PI / 180, g = K.g ?? 14, den = 2 * Math.cos(a) * Math.cos(a) * (d * Math.tan(a) - dz);
+        const v = den > 0 ? Math.sqrt((g * d * d) / den) : Math.sqrt(g * d);
+        // (the round waits on the body, `foeRockShot`, for the step's own state: stepWithFoes launches it)
+        e.foeRockShot = { owner: e.id, pos: from.slice(), vel: [(dx / d) * v * Math.cos(a), (dy / d) * v * Math.cos(a), v * Math.sin(a)], gravity: g, splashRadius: K.splash ?? 0.9, projRadius: K.size,
+          prox: 0, damage: K.damage ?? 10, impact: 0, born: (world && world.time) || 0, age: 0, armTime: 0.15, fuse: 5, noGround: true, passTeam: true, fxColor: 0x8a7a66, fxScale: K.size, smokeTrail: false, rock: true, shootable: true };
+      }
+      R.thrown = true;
+    }
+    if (R.t >= K.lift + (K.hold ?? 0.35)) { e.foeRock = null; e.foeRockT = 0; }
+    return true;
+  }
+
   function pace(e, r, dt, world) {
+    if (r.foe.rock && rockStep(e, r, dt, world)) return;
     const end = leg(e, r);
     e.transform.heading = angleTo(e.transform.pos, end);
     const s = stepAlong(e, r, dt, world, Math.min(r.speed ?? 2, flat(e.transform.pos, end) / dt));
     if (s.ledge || s.blocked) e.foeLeg = 1 - e.foeLeg;
     e.moving = s.moved > 0; e.locomotion = 'forward'; gait(e, r, s.moved);
+    // (`fire`: it fires its gun at a hero AHEAD of it as it goes, the trigger pulled and let go on alternate frames, its
+    // cooldown the pace; one behind it it rolls on from, until it turns at its end and faces it)
+    if (r.foe.fire && e.weapon) {
+      const P = nearestPilot(e, world), f = fwdXY(e.transform.heading);
+      const ahead = !!P && P.d <= (r.range ?? 30) && ((P.p.transform.pos[0] - e.transform.pos[0]) * f[0] + (P.p.transform.pos[1] - e.transform.pos[1]) * f[1]) > 0;
+      e.transform.pitch = 0; e.foeFire = ahead && !e.foeFire; e.aiFire = e.foeFire ? 1 : 0;
+    }
   }
 
   // a patrol walks its round while it has seen no one lately; a hero in its sight is the mind's, which perceives it
@@ -278,6 +323,12 @@ export function buildFoe(E) {
     dt = dt || 1 / 60;
     const before = pilotsOf(state).map((p) => [p, p.transform.pos[2] - eyeOf(p.rule)]);
     step(state, input, dt, hooks);
+    // (a rock thrown this step, rockStep: into the world's rounds)
+    for (const e of foes) if (e.foeRockShot) {
+      if (!state.projectiles) { state.projectiles = []; state.bursts = state.bursts || []; state.projSeq = state.projSeq || 0; state.burstSeq = state.burstSeq || 0; }
+      state.projectiles.push({ id: 'proj-' + (state.projSeq++), ...e.foeRockShot });
+      e.foeRockShot = null;
+    }
     // (a blow's knockback moves a body after its rule did: one on the rail is put back on it)
     for (const e of foes) if (e.rule.rail && (!e.rule.rail.wait || e.foeRail === 'on') && !e.gone) onRail(e, e.rule.rail);
     const held = !!(input && (input.jumpHeld || input.jump));

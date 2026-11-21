@@ -37,6 +37,30 @@ describe('a foe\'s own moves', () => {
     expect(Math.min(...xs)).toBeLessThan(-1.7);
     expect(Math.max(...xs)).toBeLessThanOrEqual(2 + 1e-9);
   });
+  it('a pacer that FIRES shoots a hero ahead of it, and holds its fire at one behind it', () => {
+    const gun = { fireClass: 'lob', lobAngle: 0, projectileSpeed: 7, projectileGravity: 0, projRadius: 0.1, splashRadius: 0, fuse: 3, cooldown: 0.5, damage: 10, eye: 0.3 };
+    const shooter = (heading) => ({ ...foe('w', PACER, [0, 0, 0], heading, { foe: { stretch: 4, fire: true } }), weapon: gun });
+    // (the hero ahead along the way it walks: rounds fly; behind it: none)
+    const ahead = run(world([pilot([8, 0, 0]), shooter(0)]), 60), behind = run(world([pilot([-30, 0, 0]), shooter(0)]), 20);
+    expect((ahead.projectiles || []).filter((q) => q.owner === 'w').length + (ahead.byId.w.weapon.shots || 0)).toBeGreaterThan(0);
+    expect(behind.byId.w.weapon.shots || 0).toBe(0);
+    // (one without `fire` never pulls its trigger on its own move)
+    const quiet = run(world([pilot([8, 0, 0]), { ...foe('w', PACER, [0, 0, 0], 0, { foe: { stretch: 4 } }), weapon: gun }]), 60);
+    expect(quiet.byId.w.weapon.shots || 0).toBe(0);
+  });
+  it('a pacer with a ROCK stops, lifts one off its floor and throws it in an arc that comes down where the hero stands', () => {
+    const rock = { every: 0.5, lift: 0.6, hold: 0.3, angle: 50, g: 14, size: 0.3, damage: 10 };
+    const st = world([pilot([9, 0, 0]), foe('w', PACER, [0, 0, 0], 0, { rule: { collideHeight: 2 }, foe: { stretch: 6, rock } })]);
+    let lifted = false, thrown = null;
+    for (let i = 0; i < 120 && !thrown; i++) { run(st, 1); const R = st.byId.w.foeRock; if (R && !R.thrown) { lifted = true; expect(st.byId.w.moving).toBe(false); } thrown = (st.projectiles || []).find((q) => q.rock) || null; }
+    expect(lifted).toBe(true);
+    expect(thrown).toMatchObject({ rock: true, shootable: true, owner: 'w' });
+    // (up first, then down: an arc, its lowest point along the way within a metre of the hero)
+    expect(thrown.vel[2]).toBeGreaterThan(0);
+    let best = Infinity;
+    for (let i = 0; i < 120 && st.projectiles.includes(thrown); i++) { run(st, 1); best = Math.min(best, Math.hypot(thrown.pos[0] - 9, thrown.pos[1], thrown.pos[2] - 0.6)); }
+    expect(best).toBeLessThan(1);
+  });
   it('turns at a ledge before it steps off, and at a wall it cannot pass', () => {
     const ledge = (p) => (p[0] < 1 ? 0 : null);
     const a = world([pilot(FAR), foe('w', PACER, [0, 0, 0], 0, { foe: { stretch: 10 } })]), far = [];

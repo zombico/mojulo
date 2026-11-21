@@ -21,13 +21,13 @@
  *       bark's own), template, soft (1 a bush walked through, SKIRT_FLAG a skirt's tree)
  * Deterministic; templates cached a process (the grower is the cost).
  */
-import { treeForm, crossClumps } from './tree-form.js';
+import { treeForm, crossClumps, massCrown, majorBalls, anchorBlobs } from './tree-form.js';
 import { bambooForm } from './bamboo-form.js';
 import { bushForm, bushBlossom, bushBerries, ADORN } from './bush-form.js';
 import { barkMaterial } from './bark-material.js';
 import { leafSpray, leafClump, needleHabit } from '../vegetation/sprays.js';
 import { leafCross, leafShape as leafOutlineOf } from '../vegetation/twigs.js';
-import { TONES } from '../vegetation/tree-mesh.js';
+import { TONES, blobTris } from '../vegetation/tree-mesh.js';
 import { SPECIES } from '../vegetation/species.js';
 import { readKind } from '../era/leaf-forms.js';
 import { readBush } from '../era/thickets.js';
@@ -99,6 +99,91 @@ export function budgeted(form, { clumpTris, leanTris, sprayTris, woodTris, canLe
  *  a far crown of fewer clumps grown read as a bubble). */
 export const FLORA_LOD = Object.freeze({ detail: Object.freeze([6, 16]), mid: 25, sprayed: 6 });
 
+/** A mass crown's blob (form/tree-form.js massCrown): a sphere of `detail` subdivisions, squashed `squash` up, its colour
+ *  the leaf's × `shade` (the crown's inside), scaled to each blob's radius on the page; a major ball `ball` subdivisions
+ *  (it is big: a coarse one shows its facets). */
+export const MASS_BLOB = Object.freeze({ detail: 1, ball: 2, squash: 0.85, shade: 0.82,
+  // (a major ball read as a CROWN, not a sphere: its surface pushed in and out by broad lumps (`amp` of its radius, at
+  // `freq` lumps round it), wider than tall (`wide` across, `top` its upper half's height), its underside flatter
+  // (`bottom`), its faces lit by which way they face (`tones`: the leaf's × these, up, side, under); `variants` of them,
+  // each turned its own way on the page)
+  lobe: Object.freeze({ amp: 0.17, freq: Object.freeze([2.6, 4.3]), wide: 1.12, top: 0.92, bottom: 0.55, tones: Object.freeze([1.05, 0.84, 0.6]), variants: 3 }) });
+/** THE REALISTIC TREE (a stage's `crowns: 'realistic'`): the grown tree itself, its crown its own leaves, grown `older`
+ *  × its species' years (a young tree re-stood tall is bare: an older one has the limbs and the ends a grown tree has)
+ *  and stood in the canopy form; far off, its card FULL (`far`, channels/form-flora.js FLORA_FAR): its crown's mass (its
+ *  major balls and the lobes joining them, form/tree-form.js majorBalls) baked under its leaves, at `shade` of the
+ *  leaf's tone, its edge broken past `rim` of its radius as a crown's edge is, and each leaf grown by `leaf` texels: the
+ *  far crown its whole mass in pixels, for no geometry (`discs`: off while its balls are drawn as cups, their own
+ *  triangles baked). Its crown's masses steer its limbs (tree-form.js EVOKE: grown from them back to the trunk) and
+ *  are not drawn: its leaves are CLOUDS of puffs (PUFF) on its limbs' sections (tree-form.js CLOUD), its least bundles
+ *  and its leaf bundles on its puffs' faces for what the plain crown's triangles leave: no leaf off a cloud. */
+export const REALISTIC = Object.freeze({ older: 1.25,
+  // (TALL: its lowest limb and its lowest leaf `headroom` m over its foot at least, out of a grown figure's reach (one
+  // 1.8 m tall reaches about 2.3 m); a tree placed smaller is raised to it, and one that then would crowd a crown kept
+  // left out; its template says its own lowest, `clear`, in its metres)
+  headroom: 3,
+
+  // (its crown a CLOUD: `k` masses (the fewer for a sparse crown, the more for a full one), overlapping (`sep` over 1:
+  // their radii may sum past the distance between them), each its own size)
+  cloud: Object.freeze({ k: Object.freeze([6, 8]), sep: 1.45, joined: false }),
+  // (each mass OFF the trunk's axis: moved out, away from it, by `off` × its radius: none sits centred over the stem,
+  // each out on the branch that carries it, tree-form.js EVOKE)
+  off: 0.4, far: Object.freeze({ shade: 0.8, rim: 0.6, leaf: 0.5, squash: 0.85, discs: false }) });
+/**
+ * A REALISTIC TREE'S HABIT, by its species (a species with no row takes `default`'s): what makes a kind of tree read
+ * as itself on the one primitive (tree-form.js limbTree):
+ *  - `trunk` { form: single | Y (forked high) | V (forked low), fork: its share of the height, spread: each stem's lean
+ *    off upright in degrees, girth: × the trunk's and the stems', lead: the leader's share of the crown };
+ *  - `limbs` { girth: × a limb's, climb: degrees over the level a limb leaves at };
+ *  - `twigs` (tree-form.js EVOKE.twigs' keys: `n`, `fan`, `climb`, a drooping kind's under the level, `length`, `size`);
+ *  - `crown` { wide: × its masses' reach from the trunk, flat: its masses drawn up toward its top (0 none, 1 all) };
+ *  - `puff` (PUFF's keys: `wide`, `long` along its twig, `top`, `bottom`) and `cloud` (tree-form.js CLOUD's keys:
+ *    `size`, `sit`, a hanging kind's under its twig). A new kind of tree is a row.
+ */
+export const REALISTIC_HABITS = Object.freeze({
+  default: Object.freeze({}),
+  // (an oak: a short bole forking into a broad Y, thick limbs climbing low, wide flat-bottomed clouds)
+  oak: Object.freeze({ trunk: { form: 'Y', fork: 0.5, spread: 26, girth: 1.3 }, limbs: { girth: 1.2, climb: 28 }, twigs: { fan: 95, climb: 15 }, crown: { wide: 1.1 }, puff: { wide: 1.2, top: 0.75, bottom: 0.4 }, cloud: { size: 0.55 } }),
+  // (a beech: one leader high into a rounded crown, smooth round clouds)
+  beech: Object.freeze({ trunk: { lead: 0.85, girth: 1.1 }, puff: { wide: 1.08, top: 0.95, bottom: 0.5 } }),
+  // (a maple: a Y high in a round dome)
+  maple: Object.freeze({ trunk: { form: 'Y', fork: 0.42, spread: 20 }, twigs: { fan: 80 }, puff: { wide: 1.0, top: 1.0, bottom: 0.55 } }),
+  // (a cherry: a V low, its limbs spreading, its clouds flat plates along its twigs)
+  cherry: Object.freeze({ trunk: { form: 'V', fork: 0.12, spread: 26, girth: 0.9 }, limbs: { climb: 26 }, twigs: { fan: 110, climb: 8 }, crown: { wide: 1.15, flat: 0.25 }, puff: { wide: 1.3, long: 1.25, top: 0.55, bottom: 0.35 }, cloud: { size: 0.55 } }),
+  // (a willow: a Y, its twigs falling, its clouds hanging tall under them)
+  willow: Object.freeze({ trunk: { form: 'Y', fork: 0.38, spread: 30 }, twigs: { n: 4, fan: 90, climb: -55, length: 1.3 }, puff: { wide: 0.75, top: 0.9, bottom: 1.6 }, cloud: { sit: -0.2, size: 0.45 } }),
+  // (a schefflera: a bole into an umbrella of flat plates)
+  schefflera: Object.freeze({ trunk: { lead: 0.7 }, limbs: { climb: 50 }, twigs: { fan: 120, climb: 5 }, crown: { flat: 0.5 }, puff: { wide: 1.5, long: 1.2, top: 0.45, bottom: 0.3 } }),
+  // (a birch: slender, a high leader, a light trunk, small loose clouds a little drooping)
+  birch: Object.freeze({ trunk: { lead: 0.9, girth: 0.7 }, limbs: { girth: 0.75, climb: 45 }, twigs: { n: 2, fan: 60, climb: -10 }, crown: { wide: 0.8 }, puff: { wide: 0.9, top: 1.1, bottom: 0.7 }, cloud: { size: 0.38 } }),
+  // (a poplar: a column, steep limbs close to its leader, tall clouds)
+  poplar: Object.freeze({ trunk: { lead: 0.95 }, limbs: { climb: 68 }, twigs: { n: 2, fan: 40, climb: 60 }, crown: { wide: 0.45 }, puff: { wide: 0.85, top: 1.5, bottom: 0.8 }, cloud: { size: 0.45 } }),
+  // (an acacia: a Y fanning out under a flat, wide crown, its clouds thin plates)
+  acacia: Object.freeze({ trunk: { form: 'Y', fork: 0.35, spread: 34 }, limbs: { climb: 40 }, twigs: { fan: 120, climb: 3 }, crown: { wide: 1.35, flat: 0.75 }, puff: { wide: 1.45, long: 1.3, top: 0.4, bottom: 0.25 }, cloud: { size: 0.6 } }),
+});
+export const habitOf = (species) => REALISTIC_HABITS[species] ?? REALISTIC_HABITS.default;
+/** The kinds grown for the realistic look alone, which no leaf form names: a scene reaches one by a kind's `species`
+ *  word (`{ form, species }`, speciesFor). */
+export const REALISTIC_KINDS = Object.freeze(['birch', 'poplar', 'acacia']);
+/** A realistic crown's PUFF (tree-form.js CLOUD): a lobe as a major ball's is (MASS_BLOB.lobe), coarser (`detail`),
+ *  its lumps softer (`amp`), its underside flat (`bottom`): a cloud's puff, sitting on its branch. `variants` of them. */
+export const PUFF = Object.freeze({ detail: 1, amp: 0.12, freq: Object.freeze([2.4, 3.9]), wide: 1.05, top: 0.95, bottom: 0.45, tones: MASS_BLOB.lobe.tones, variants: 4 });
+// a major ball as a crown's lobe (MASS_BLOB.lobe): a sphere twice subdivided, each corner moved by its own way out of the
+// middle alone (so the shared corners stay shared: the surface closed), its faces toned by which way they face
+function lobeTris(seed, L = MASS_BLOB.lobe, detail = MASS_BLOB.ball) {
+  const h = (k) => hashN(seed * 977 + k), ph = Array.from({ length: 6 }, (_, k) => h(k) * Math.PI * 2);
+  const at = (q) => {
+    const l = Math.hypot(q[0], q[1], q[2]) || 1, d = [q[0] / l, q[1] / l, q[2] / l];
+    const b = 1 + L.amp * (Math.sin(L.freq[0] * d[0] + ph[0]) * Math.sin(L.freq[0] * d[1] + ph[1]) + 0.6 * Math.sin(L.freq[1] * d[2] + ph[2]) * Math.cos(L.freq[1] * d[0] + ph[3]) + 0.4 * Math.sin(L.freq[1] * d[1] + ph[4] + 2 * d[2]));
+    return [d[0] * L.wide * (L.long ?? 1) * b, d[1] * L.wide * b, d[2] * (d[2] >= 0 ? L.top : L.bottom) * b].map(r4);
+  };
+  const leaf = TONES.leaf, tone = (k) => leaf.map((v) => Math.min(255, Math.round(v * L.tones[k] * MASS_BLOB.shade)));
+  return blobTris([0, 0, 0], [1, 1, 1], leaf, { detail }).map((t) => {
+    const p = t.p.map(at), u = [p[1][0] - p[0][0], p[1][1] - p[0][1], p[1][2] - p[0][2]], v = [p[2][0] - p[0][0], p[2][1] - p[0][1], p[2][2] - p[0][2]];
+    const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], nz = n[2] / (Math.hypot(...n) || 1);
+    return { p, c: tone(nz > 0.35 ? 0 : nz > -0.25 ? 1 : 2), kind: 'leaf' };
+  });
+}
 const CACHE = new Map();
 const b64 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64');
 const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
@@ -136,24 +221,96 @@ function template(kind, name, form, leaf, extra = {}) {
     bark: form.bark, pad: !!form.pad, ...(form.detail ? { detail: form.detail } : {}), ...(form.trunk ? { trunk: form.trunk } : {}), ...extra,
   };
 }
-function treeTemplate(species, height) {
-  const key = `tree:${species}:${height}`;
+// (a realistic template's own parts, for the painted era to draw the same tree: its wood's chains, its puffs and their
+// shape; kept beside the template, never in the payload)
+const SKELETON = new WeakMap();
+/** A realistic template's parts: { chains: [{ pts, rs, order }], puffs: [{ p, o, s }], puff } in the template's own
+ *  frame (its foot at the origin, its height the template's), or null for a template drawn plain. */
+export const realisticParts = (T) => SKELETON.get(T) ?? null;
+function treeTemplate(species, height, crowns = null) {
+  // (`crowns`: 'hybrid', a broadleaf's bundles each with a blob in it, vegetation/twigs.js CORE; 'masses', its bundles
+  // gathered round a few big blobs, the leaf mass round its branches, and moved onto their surfaces, form/tree-form.js
+  // massCrown: the crown's volume for the triangles it had; a needled crown is as it was)
+  const core = crowns === 'hybrid', masses = crowns === 'masses', tips = crowns === 'blobs', real = crowns === 'realistic';
+  const key = `tree:${species}:${height}${crowns ? `:${crowns}` : ''}`;
   if (!CACHE.has(key)) {
     // (a broadleaf's crown as CROSSES, vegetation/twigs.js: its wood drawn to the twig, a bundle of small crossed leaves
     // of its own outline along each drawn shoot, no sprays; far off, its card, baked from these same leaves
     // (channels/form-flora.js FLORA_FAR). A needled crown keeps its clumps and sprays)
     const crossed = !needleHabit(species);
-    const F = treeForm(species, { seed: SPECIES[species].specimen ?? 1, far: true, twigs: crossed, mature: { toHeight: 0.95, range: [1, 2], cambium: 2.2, aim: height } });
+    // (a crown a stage's `crowns` reads stands in the CANOPY FORM, form/tree-form.js CANOPY: a bare stem, a wider crown)
+    // ('realistic': grown older, REALISTIC.older)
+    const S = SPECIES[species], older = real && S.kind === 'tree' ? { years: Math.round((S.growth ? S.growth[S.growth.length - 1].years : S.years) * REALISTIC.older) } : {};
+    const F = treeForm(species, { seed: S.specimen ?? 1, ...older, far: true, twigs: crossed, mature: { toHeight: 0.95, range: [1, 2], cambium: 2.2, aim: height }, ...(crowns && crossed ? { canopy: true } : {}) });
     // (a needled crown: its needles in sleeves round its leafy shoots, channels/form-flora.js; no needle a polygon)
     if (!crossed) CACHE.set(key, { ...template('tree', species, F, species), ...(F.sleeve ? { sleeve: packSleeve(F.sleeve) } : {}) });
     else {
       // (within the plants' budget, FLORA_BUDGET: its bundles by rank, each grown)
-      const C0 = crossClumps(F), xt = leafCross(species, { seed: 17 }).tris.length;
-      const Q = budgeted({ ...F, clumps: C0, sites: [] }, { clumpTris: xt, leanTris: xt, sprayTris: 0, woodTris: (F.wood.idx || []).length / 3, canLean: false });
-      const T = { ...template('tree', species, { ...F, clumps: Q.clumps, sites: [] }, species), budget: Q.budget };
-      // (far off the same wood as near: no limb drops and the trunk holds as the tree switches level)
-      CACHE.set(key, { ...T, cross: true, woodFar: T.wood,
-        clumpGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafCross(species, { seed: 17 + k }).tris)) });
+      const C0 = crossClumps(F), xt = leafCross(species, { seed: 17, core }).tris.length;
+      // ('realistic' only where its crown has masses to read: a species whose growth bears none keeps its plain tree)
+      const R = real && C0.length > 0;
+      if (real && !R) CACHE.set(key, treeTemplate(species, height, null));
+      else {
+        // ('blobs': the crown's 3 or 4 major balls, its leaves set aside, tree-form.js majorBalls: its form studied alone)
+        // ('realistic': the same balls and their joining lobes under its leaves, REALISTIC: its crown's mass near, as its
+        // card has it far)
+        const M0 = masses ? massCrown(C0) : tips || R ? { ...majorBalls(C0, R ? REALISTIC.cloud : {}), clumps: C0 } : null;
+        // ('realistic': each mass moved off the trunk's axis, REALISTIC.off)
+        // (and shaped by its habit's crown: its reach × `wide`, its masses drawn up toward its top by `flat`)
+        const HB = habitOf(species), CR = HB.crown || {}, zTop = M0 && R ? Math.max(...M0.blobs.map((b) => b.p[2])) : 0;
+        if (R) M0.blobs = M0.blobs.map((b) => { const h = Math.hypot(b.p[0], b.p[1]), a = h > 1e-3 ? Math.atan2(b.p[1], b.p[0]) : b.r * 2 * Math.PI, H = (h + REALISTIC.off * b.s) * (CR.wide ?? 1);
+          return { ...b, p: [r4(H * Math.cos(a)), r4(H * Math.sin(a)), r4(b.p[2] + (zTop - b.p[2]) * (CR.flat ?? 0))], o: [r4(Math.cos(a)), r4(Math.sin(a)), 0] }; });
+        // (each blob held to the wood that is drawn: none floats over a twig the cut left out)
+        // ('realistic': grown again with its wood EVOKED by its balls, tree-form.js EVOKE: a limb only where it carries
+        // one, no hair-thin twig; and its leaves only on its balls)
+        const FE = R ? treeForm(species, { seed: S.specimen ?? 1, ...older, far: true, twigs: crossed, mature: { toHeight: 0.95, range: [1, 2], cambium: 2.2, aim: height }, canopy: true, evoke: { balls: M0.blobs, habit: HB } }) : null;
+        const W = FE ?? F;
+        // ('realistic': its crown the CLOUDS on its limbs' sections, tree-form.js CLOUD, its masses only where they led the
+        // limbs; its leaves only on its clouds)
+        // (its leaves ON its clouds: a bundle on a puff's upper, outer face, facing out, at its bundles' middle size, for
+        // what the plain tree's triangles leave once its wood and its puffs are paid: the leaf at the clouds' edges)
+        if (FE) {
+          M0.blobs = FE.clouds;
+          const sMid = [...C0.map((c) => c.s)].sort((a, b) => a - b)[Math.floor(C0.length / 2)] ?? 0.5, tris = (w) => (w.idx || []).length / 3;
+          // (the plain tree it stands for: its species at its height, crowned as a scene without `crowns` has it)
+          const plain = treeTemplate(species, height, null).budget.tris;
+          // (its puffs too within it: past what is left once its wood is paid, its smallest puffs given up, the tails of
+          // its clouds' runs, so its clouds keep their bodies)
+          const pt = lobeTris(17, { ...PUFF, ...(HB.puff || {}) }, PUFF.detail).length, most = Math.max(1, Math.floor((plain - tris(W.wood)) / pt));
+          if (M0.blobs.length > most) { const keep = new Set(M0.blobs.map((b, i) => i).sort((i, j) => M0.blobs[j].s - M0.blobs[i].s || i - j).slice(0, most)); M0.blobs = M0.blobs.filter((b, i) => keep.has(i)); }
+          const room = Math.max(0, Math.floor((plain - tris(W.wood) - M0.blobs.length * pt) / Math.max(1, xt)));
+          M0.clumps = M0.blobs.map((b, i) => {
+            const h = (k) => hashN(i * 977 + k), az = 2 * Math.PI * h(1), up = 0.3 + 0.6 * h(2), w = Math.sqrt(1 - up * up), o = [Math.cos(az) * w, Math.sin(az) * w, up];
+            return { p: b.p.map((v, k) => r4(v + o[k] * b.s * 0.92)), o: o.map(r4), d: [r4(-Math.sin(az)), r4(Math.cos(az)), 0], s: r4(sMid), e: 0.7, r: r4(h(3)) };
+          }).sort((a, b) => a.r - b.r).slice(0, room);
+        }
+        const M = M0 && tips ? { ...M0, blobs: anchorBlobs(M0.blobs, W.wood.pos) } : M0, blobGeo = R ? packGeo(lobeTris(17, { ...PUFF, ...(HB.puff || {}) }, PUFF.detail)) : M ? packGeo(blobTris([0, 0, 0], [1, 1, MASS_BLOB.squash], TONES.leaf.map((v) => Math.round(v * MASS_BLOB.shade)), { detail: tips ? MASS_BLOB.ball : MASS_BLOB.detail })) : null;
+        // (a mass crown's blobs spend from its budget as its wood does: its bundles give up what they cost; a realistic
+        // crown's puffs only from the plants' budget, which `budgeted` holds)
+        // (and never more triangles than the crown it stands for: as many of its least bundles given up as its blobs cost)
+        const giveUp = M && masses ? Math.ceil((M.blobs.length * blobGeo.n) / Math.max(1, xt)) : 0;
+        const kept0 = M ? [...M.clumps].sort((a, b) => a.r - b.r).slice(0, Math.max(1, M.clumps.length - giveUp)) : C0;
+        const Q = budgeted({ ...W, clumps: kept0, sites: [] }, { clumpTris: xt, leanTris: xt, sprayTris: 0, woodTris: (W.wood.idx || []).length / 3 + (M ? M.blobs.length * blobGeo.n : 0), canLean: false });
+        // (its crown's reach round its stem: its balls' or its bundles' farthest edge)
+        const crownR = r4(Math.max(0.5, ...(M ? M.blobs : Q.clumps).map((b) => Math.hypot(b.p[0], b.p[1]) + (M ? b.s : b.s * 0.5))));
+        // (a major ball drawn as a crown's lobe, MASS_BLOB.lobe: its variants, each ball one by its rank)
+        // ('realistic': its clouds' puffs, PUFF: its variants, each puff one by its rank)
+        const ballGeo = tips ? Array.from({ length: MASS_BLOB.lobe.variants }, (_, k) => packGeo(lobeTris(17 + k))) : R ? Array.from({ length: PUFF.variants }, (_, k) => packGeo(lobeTris(17 + k, { ...PUFF, ...(HB.puff || {}) }, PUFF.detail))) : null;
+        const T = { ...template('tree', species, { ...W, clumps: Q.clumps, sites: [] }, species), crownR, budget: tips ? { ...Q.budget, tris: (W.wood.idx || []).length / 3 + M.blobs.length * ballGeo[0].n } : Q.budget,
+          ...(M ? { blobs: packSites(M.blobs), nBlobs: M.blobs.length, blobGeo: ballGeo ?? [blobGeo] } : {}), ...(tips ? { leaves: false } : {}) };
+        // ('realistic': its far card full, its mass baked under its leaves: REALISTIC.far)
+        if (R) {
+          T.far = REALISTIC.far;
+          // (its lowest limb or leaf: the limbs' lowest start, its clouds' puffs' undersides, its bundles kept)
+          const pl = (b) => b.p[2] - b.s * PUFF.bottom * (1 + PUFF.amp);
+          T.clear = r4(Math.min(W.limbLow ?? Infinity, ...M.blobs.map(pl), ...Q.clumps.map((c) => c.p[2] - c.s * 0.5)));
+        }
+        // (far off the same wood as near: no limb drops and the trunk holds as the tree switches level)
+        const TT = { ...T, cross: true, woodFar: T.wood,
+          clumpGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafCross(species, { seed: 17 + k, core }).tris)), ...(core ? { core: true } : {}), ...(masses ? { masses: true } : {}) };
+        CACHE.set(key, TT);
+        if (R && W.skeleton) SKELETON.set(TT, { chains: W.skeleton, puffs: M.blobs.map((b) => ({ p: b.p, o: b.o, s: b.s })), puff: { ...PUFF, ...(HB.puff || {}) } });
+      }
     }
   }
   // (the leaves it drops: its own outline, needles for a needled crown; channels/form-flora.js lays them round its foot)
@@ -196,7 +353,8 @@ function barkOf(key) {
 
 /** The species a tree grows as: its own where it names one (`species`, a town's street tree), else its kind's leaf
  *  form's, or (no kind) its cluster's among FLORA_DEFAULT. */
-export const speciesFor = (t, K) => t.species ?? (K ? FLORA_SPECIES[K.form] : FLORA_DEFAULT[Math.floor(hashN((t.cluster + 7) * 7919) * FLORA_DEFAULT.length)]);
+// (a kind may name its species, `species`: a realistic kind the leaf forms have no word for, REALISTIC_HABITS)
+export const speciesFor = (t, K) => t.species ?? K?.species ?? (K ? FLORA_SPECIES[K.form] : FLORA_DEFAULT[Math.floor(hashN((t.cluster + 7) * 7919) * FLORA_DEFAULT.length)]);
 /** Each tree's size as the form grows it (the plan floraRead draws by): its height and its crown's reach (m), in the
  *  plants' order, so a caller can hold a tree to its room before it is grown. */
 export function treeSizes(plants) {
@@ -218,10 +376,47 @@ function treePlan(plants, kindAt) {
   for (const [sp, list] of groups) {
     const hOf = ([t, K]) => scaled(sp, t.h) * (K?.scale ?? 1);
     const hs = list.map(hOf).sort((a, b) => a - b), aim = Math.max(HEIGHT_STEP, Math.round(hs[Math.floor(hs.length / 2)] / HEIGHT_STEP) * HEIGHT_STEP);
-    const T = treeTemplate(sp, aim);
+    const T = treeTemplate(sp, aim, plants.crowns ?? null);
     for (const e of list) plan.push({ t: e[0], K: e[1], T, h: hOf(e) });
   }
   return plan;
+}
+
+/** THE REALISTIC PLAN of a stage's plants (era/isekai.js plantItems): each tree the realistic look keeps, its index in
+ *  `plants.trees`, its template and its height, as the form render places it (its species, its height among the
+ *  level's, trees apart, its headroom); the painted era draws the same trees from it. */
+export function realisticPlan(plants) {
+  if (!plants || plants.form === 'bamboo' || plants.form === 'blossom' || !plants.trees.length) return [];
+  const P = { ...plants, crowns: 'realistic' }, kindAt = (t) => (t.kind >= 0 && plants.kinds ? readKind(plants.kinds[t.kind]) : null), at = new Map(plants.trees.map((t, i) => [t, i]));
+  return apart(treePlan(P, kindAt)).map(({ t, T, h }) => ({ i: at.get(t), T, h }));
+}
+/** A placed tree's turn, as the form render turns it (by where it stands). */
+export const treeYaw = (x, y) => 2 * Math.PI * hashN(Math.round(x * 100) * 7 + Math.round(y * 100) * 13);
+
+/**
+ * TREES APART (a stage's `crowns`): each tree reads on its own. Its crown's reach (its template's `crownR`, the farthest
+ * of its balls' or its bundles' edges round its stem, × the tree's height over the template's) is kept clear of every
+ * crown already kept, `gap` × the two reaches between their stems; the tallest kept first. One that would touch is
+ * scaled down until it clears, to `least` of its height at the most, and else left out. A tree held for a view is held.
+ */
+export const APART = Object.freeze({ gap: 1.05, least: 0.75 });
+// (a realistic tree's least height: its lowest limb or leaf at REALISTIC.headroom over its foot)
+const tallest = (T, h) => (T.clear > 0 ? Math.max(h, (REALISTIC.headroom * T.height) / T.clear) : h);
+function apart(plan) {
+  const kept = [], out = [];
+  plan = plan.map((e) => ({ ...e, h: tallest(e.T, e.h) }));
+  const order = plan.map((e, i) => i).sort((a, b) => plan[b].h - plan[a].h || a - b), keep = new Set(), hOf = new Map();
+  for (const i of order) {
+    const e = plan[i], R0 = (e.T.crownR ?? e.T.radius) * (e.h / e.T.height), least = e.T.clear > 0 ? Math.max(APART.least, tallest(e.T, 0) / e.h) : APART.least;
+    if (e.t.held) { keep.add(i); hOf.set(i, e.h); continue; }
+    // (the largest share of its reach that clears every crown kept)
+    let k = 1;
+    for (const o of kept) { const d = Math.hypot(e.t.x - o.x, e.t.y - o.y), room = d / APART.gap - o.R; k = Math.min(k, room / Math.max(1e-6, R0)); }
+    if (k < least - 1e-9) continue;
+    keep.add(i); hOf.set(i, e.h * k); kept.push({ x: e.t.x, y: e.t.y, R: R0 * k });
+  }
+  plan.forEach((e, i) => { if (keep.has(i)) out.push({ ...e, h: hOf.get(i) }); });
+  return out;
 }
 
 /** A RAISED VIEW (a camera whose eye stands `raised` m over what it looks at: an overlook) claims what it looks over: no
@@ -280,7 +475,7 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
     return leaf.map((v, k) => r4(v + (fall[k] + (AUTUMN.yellow[k] - fall[k]) * y - v) * t));
   };
   const push = (T, p, h, K, soft = false, yaw0 = null) => {
-    const ti = use(T), yaw = yaw0 ?? 2 * Math.PI * hashN(Math.round(p.x * 100) * 7 + Math.round(p.y * 100) * 13);
+    const ti = use(T), yaw = yaw0 ?? treeYaw(p.x, p.y);
     out.push(p.x, p.y, p.z, r4(h / T.height), r4(yaw), ...turned(T, p, leafOf(K)), ...tint(T, barkTarget(K)), ti, typeof soft === 'number' ? soft : soft ? 1 : 0);
   };
   // the trees: each kind's species at the kind's middle height (a level's heights to the nearest HEIGHT_STEP)
@@ -296,15 +491,17 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
     }
   }
   const bySpecies = new Map();
-  for (const { t, K, T, h } of treePlan(plants, kindAt)) { bySpecies.set(T.name, T); if (!t.held) push(T, t, h, K); }
+  // (a crown a stage's `crowns` reads stands APART: each tree reads on its own, its crown never joining a neighbour's)
+  const P0 = treePlan(plants, kindAt), P1 = plants.crowns ? apart(P0) : P0;
+  for (const { t, K, T, h } of P1) { bySpecies.set(T.name, T); if (!t.held) push(T, t, h, K); }
   // the SKIRT's trees (era/isekai.js plantItems `skirt`), the stage's far clumps grown as the level's own: each its kind's
   // species, the template its trees near the trail grow from (else the species' own middle height), as wide as the
   // painted crown it stands for; past the walk, so no litter and never brushed (SKIRT_FLAG). No bubble of foliage left
   if (plants.form !== 'bamboo') for (const s of plants.skirt ?? []) {
     const K = kindAt(s), sp = speciesFor(s, K), S = SPECIES[sp];
-    const T = bySpecies.get(sp) ?? treeTemplate(sp, Math.max(HEIGHT_STEP, Math.round(((S?.heights ? (S.heights[0] + S.heights[1]) / 2 : 9) * FLORA_TALL) / HEIGHT_STEP) * HEIGHT_STEP));
+    const T = bySpecies.get(sp) ?? treeTemplate(sp, Math.max(HEIGHT_STEP, Math.round(((S?.heights ? (S.heights[0] + S.heights[1]) / 2 : 9) * FLORA_TALL) / HEIGHT_STEP) * HEIGHT_STEP), plants.crowns ?? null);
     bySpecies.set(sp, T);
-    push(T, s, r4((s.r * T.height) / T.radius), K, SKIRT_FLAG);
+    push(T, s, r4(tallest(T, (s.r * T.height) / T.radius)), K, SKIRT_FLAG);
   }
   // the bushes: each thicket kind its habit at its middle height; the shrubs the dome, in their season
   for (const b of plants.bushes) {

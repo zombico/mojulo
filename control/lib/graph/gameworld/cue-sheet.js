@@ -25,6 +25,7 @@
  *   onScore(G)                  → the game has a `music`: its levels are scored from the sheet
  *   levelScore(world, level, { game?, sheet? })  → { soundtrack?, combat? } for a level's audio, or null
  *   readCues(cues)              → cues, or throws naming the mood that is none (the world's read)
+ *   cityScore(G, sheet?)        → a played city's: ambient beats under its streets, a chase when the law or a fight comes
  *
  * STAND-INS: the generators have no title theme and no cue that ends yet. Until they do, the title, the menus, the
  * credits and the cinematics are answered by the nearest mood that exists, said as a stand-in and listed as owed.
@@ -45,6 +46,20 @@ import { seedOfRef } from '../beats/field-cue.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const isField = (m) => Object.prototype.hasOwnProperty.call(SCORE_MOODS, m), isClub = (m) => Object.prototype.hasOwnProperty.call(CLUB_MOODS, m);
+/** A PLAYED CITY'S SCORE (a district or a town played, runner.js sheetOf): AMBIENT BEATS under its streets (the club's
+ * `chill`: boom-bap with a swing, tape and dust, keys in sevenths and ninths), on the game's one identity; and where its
+ * law or its factions can come for the player, a CHASE (the club's `drive`) the level changes to as the tension rises
+ * (adaptive-music.js): a star raised, a fight begun, blows taken, and the wanted level's second-by-second calm while any
+ * star is on, so the chase holds while the police do. `sheet`: the game's cue sheet (its identity). → { soundtrack,
+ * combat?, tension? } */
+export const CITY_SCORE = Object.freeze({ walk: 'chill', chase: 'drive',
+  tension: Object.freeze({ on: Object.freeze({ 'wanted:*': 1, 'encounter:*': 1, 'raising:wanted': 0.5, 'calming:wanted': 0.12, 'hit:hero': 0.25, 'held:hero': 0.25 }), enter: 0.55, exit: 0.2, hold: 4, decay: 14 }) });
+export function cityScore(G, sheet = null) {
+  const id = sheet?.identity ?? null, cue = (mood) => ({ score: { mood, style: 'club', ...(id !== null ? { game: id } : {}) } });
+  const chase = !!(G?.law || G?.factions?.length);
+  return { soundtrack: cue(CITY_SCORE.walk), ...(chase ? { combat: cue(CITY_SCORE.chase), tension: { ...CITY_SCORE.tension, on: { ...CITY_SCORE.tension.on } } } : {}) };
+}
+
 /** Whether a game's levels are scored from the sheet: it has a `music`. */
 export const onScore = (G) => G?.music !== undefined;
 
@@ -85,7 +100,8 @@ function spot(world, G) {
     const L = G.levels?.[id] ?? {}, stage = stages.find((s) => s.level === id)?.manifest ?? null;
     out.push({ id: `level:${id}`, by: 'levels', for: `the level '${id}'`, role: 'place', loop: true, level: id, stage, final: ids.length > 1 && i === ids.length - 1 });
     if (L.foes !== undefined || L.goal?.gauntlet) out.push({ id: `fight:${id}`, by: 'foes', for: `the fights of '${id}'`, role: 'battle', loop: true, level: id });
-    if (L.goal?.boss) out.push({ id: `boss:${id}`, by: 'foes', for: `the boss of '${id}'`, role: 'boss', loop: true, level: id });
+    // (a side map's boss too: its room's own piece, the fights' before it)
+    if (L.goal?.boss || L.sidemap?.boss) out.push({ id: `boss:${id}`, by: 'foes', for: `the boss of '${id}'`, role: 'boss', loop: true, level: id });
   });
   // the outcomes
   out.push({ id: 'victory', by: 'build', for: 'a level won', role: 'stinger', loop: false }, { id: 'defeat', by: 'build', for: 'a level lost', role: 'stinger', loop: false });
@@ -149,13 +165,16 @@ export function cueSheet(world, { game = null } = {}) {
 
 /**
  * A level's score from the sheet, for its audio: its place under it, its fights (or its boss) coming in with the
- * tension (beats/adaptive-music.js). Null: a game with no `music`, or a level whose place is silent.
+ * tension (beats/adaptive-music.js); a side map's boss its own piece, once its room has shut behind the hero (`boss`). Null: a game with no `music`, or a level whose place is silent.
  */
 export function levelScore(world, level, { game = null, sheet = null } = {}) {
   const G = readGameworld(world);
   if (!onScore(G)) return null;
   const S = sheet ?? cueSheet(world, { game }), at = (id) => S.requests.find((r) => r.id === id)?.cue ?? null;
-  const place = at(`level:${level}`), fight = at(`boss:${level}`) ?? at(`fight:${level}`);
+  // (a side map's boss has its own room: its piece comes in once the room shuts behind the hero, the fights' before it)
+  const room = !!G.levels?.[level]?.sidemap?.boss, boss = room ? at(`boss:${level}`) : null;
+  const place = at(`level:${level}`), fight = room ? at(`fight:${level}`) ?? boss : at(`boss:${level}`) ?? at(`fight:${level}`);
   if (!place && !fight) return null;
+  if (place && fight && boss) return { soundtrack: place, combat: fight, boss };
   return place ? { soundtrack: place, ...(fight ? { combat: fight } : {}) } : { soundtrack: fight };
 }

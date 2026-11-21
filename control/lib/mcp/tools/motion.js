@@ -916,6 +916,7 @@ export function registerMotionTools() {
             plan: { type: 'object', additionalProperties: true, description: "{ fps?, cameras: [{ id?, type?: 'two-node'|'one-node', lens?: '35mm', keys: [{ t, pos, poi?, ease? }] }], shots? }; replaces the plan" },
             ops: { type: 'array', items: { type: 'object', additionalProperties: true }, description: "{ op: 'set_key', camera, t, … }, in order" },
             subjects_at: { type: 'number', description: 'Where each followable subject is at t (s).' },
+            contact: { description: 'A contact sheet to look at: 1 | 2 | 3 frames a shot (true: 3).' },
             note: { type: 'string', description: 'Revision note.' },
           },
         },

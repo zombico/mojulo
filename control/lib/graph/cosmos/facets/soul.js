@@ -49,13 +49,13 @@ export const SOUL = Object.freeze({
     },
     // proportions and a vibe are baked into the figure and its clips; gear rides it
     cast: { source: { module: 'lib/graph/polygonizer/figure-cast.js', table: 'CAST_PRESETS' } },
-    // built 11-01 (the body rails, gameworld/game-bodies.js): the kind of body a game puts in it, hero and henchman
+    // built 11-01 (the body rails, gameworld/game-bodies.js; 11-17 the toy hero robot's): the kind of body a game puts in it, hero and henchman
     // alike, by its type (characters.direction.body, a quick game's body), each in the styles its tradition draws. A
     // game's figures are baked at the play grade and cut to their pose twin on a close shot (figures/figure-grades.js)
     body: {
       source: {
         module: 'lib/graph/gameworld/game-bodies.js', table: 'GAME_BODIES',
-        since: { comic: '2026-11-01', realistic: '2026-11-01', muscular: '2026-11-01', mascot: '2026-11-01' },
+        since: { comic: '2026-11-01', realistic: '2026-11-01', muscular: '2026-11-01', mascot: '2026-11-01', herobot: '2026-11-17' },
       },
     },
     vibe: { source: { module: 'lib/graph/gameworld/hero-vibe.js', table: 'VIBES' } },
@@ -153,14 +153,16 @@ export const SOUL = Object.freeze({
       values: {
         parallel: { status: 'built', lowers: LEVELS, note: PILOT_PER_SEAT, requires: TWO },
         roles: { ...NOT_YET, effort: 'M', requires: TWO },
-        handoff: { ...NOT_YET, effort: 'L', requires: TWO },
+        // built 11-18 (1118-coop-cooking-spike): the work shift's kitchen for cooks, its sides sealed and what crosses on a pass
+        handoff: { status: 'built', since: '2026-11-18', lowers: 'lib/graph/worksim/kitchen.js', note: 'a work shift\'s kitchen for two or four cooks (gameworld/kitchen-level.js, quick.cooks): its sides sealed by a counter, prep on one and assembly and the hand-in on the other, everything an order needs crossing on a pass set in the counter (put from one side, taken from the other); each seat its own hands (work-mechanics.js), the kitchen\'s laws measuring that every order crosses; the work mechanic only', requires: [...TWO, 'power.mechanics=work'] },
       },
     },
     frame: {
       given: GIVEN,
       values: {
         'follow-all': { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'the side and top-down cameras hold every playing seat (rules-basic.js groupFrame, the group leash); a third-person camera follows seat 1 only', requires: TWO },
-        fixed: { status: 'partial', effort: 'S', lowers: VERSUS, note: VERSUS_ONLY, requires: TWO },
+        // built 11-18 (1118-coop-cooking-spike): one fixed overhead station over a work shift's kitchen, besides the versus fighter's lane
+        fixed: { status: 'built', since: '2026-11-18', lowers: 'lib/graph/gameworld/kitchen-level.js', note: 'one fixed screen holding every seat: the versus fighter\'s lane, and a work shift\'s kitchen for cooks (kitchen-level.js: one fixed overhead station framing the whole room, every cook in it, the kitchen\'s frame law); another fixed shared arena (a party game\'s) lays its own', requires: TWO },
         // local 11-09 (1109-gen-bodywork): the brawler's belt scrolls one shared view on as the players go (brawl-belt.js
         // beltScroll: never back, held at a gate until its wave falls, every player kept in the band), up to four seats with
         // drop-in; only in a brawl, so a run, a top-down field or a ride waits on it being lifted to the shared camera

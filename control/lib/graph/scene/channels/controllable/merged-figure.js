@@ -20,7 +20,8 @@
 
 /** Whether a baked figure is drawn as one skinned mesh. Pure; also emitted onto the page by its source. */
 export function mergeableFigure(fig) {
-  if (!fig || !fig.rig || fig.skin || fig.form || fig.paintTex || fig.face || fig.rim || fig.muzzle || fig.thrusters || fig.juice || fig.live || fig.forms) return false;
+  // (a cel body, world-scene.js heroFigure `cel`, steps each part between its two tones: drawn part by part)
+  if (!fig || !fig.rig || fig.skin || fig.form || fig.paintTex || fig.face || fig.rim || fig.muzzle || fig.thrusters || fig.juice || fig.live || fig.forms || fig.toon) return false;
   if (!Array.isArray(fig.parts) || !Array.isArray(fig.bones) || !fig.parts.some(Boolean)) return false;
   for (const b of fig.bones) if (b && typeof b.id === 'string' && (b.id.indexOf('weapon_') === 0 || b.id === 'shield')) return false;
   for (const p of fig.parts) {

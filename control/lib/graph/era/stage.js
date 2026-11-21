@@ -49,13 +49,13 @@ import { plazaDress } from './plaza-dress.js';
 import { DELFINO_PLAZA } from './style/delfino-plaza.js';
 import { RESEARCH_LAB } from './style/research-lab.js';
 import { labRoom } from './lab.js';
-import { bayRoom, bayLaws } from './bay.js';
+import { bayRoom, bayLaws, catwalkLayout } from './bay.js';
 import { bayKit, bayKitOf, BAY_REGISTERS } from './style/bay-kits.js';
 import { composeForBuild, rolesPinned, beatsPinned } from './compose.js';
 import { roomRoles } from './compose-roles.js';
 import { plotLights, keyTuner } from './compose-plot.js';
 import { composeReport } from './compose-report.js';
-import { PIECES, layProps, propFaces, dressLaws } from './compose-dress.js';
+import { PIECES, layProps, layCover, propFaces, dressLaws } from './compose-dress.js';
 import { assembleComplexScene } from '../network/complex.js';
 import { assembleStationScene } from '../network/station.js';
 import { assembleSubwayScene } from '../network/subway.js';
@@ -486,6 +486,7 @@ function sampleFaces(plan) {
   return out;
 }
 
+const flip2 = (s) => (s.startsWith('+') ? `-${s[1]}` : `+${s[1]}`);
 export function planStage(m = {}) {
   // a composed interior (era/compose.js): its kit composed from a value on each bay axis, its id the bay kit it names
   const composed = m.compose !== undefined ? composeForBuild(m) : null;
@@ -595,7 +596,9 @@ export function planStage(m = {}) {
     // `open`: sides left out (a stage SET seen from the open side while iterating — no third or fourth wall)
     const open = Array.isArray(r.open) ? r.open.filter((s) => ['-x', '+x', '-y', '+y'].includes(s)) : [];
     const room = { id, box: [r.x, r.y, r.x + r.w, r.y + r.d], x0: r.x + t, y0: r.y + t, x1: r.x + r.w - t, y1: r.y + r.d - t, h: lift === 1 ? r.h : Math.round(r.h * lift * 2) / 2, open, openings: { '-x': [], '+x': [], '-y': [], '+y': [] },
-      ...(storeyed ? { storey: r.storey ?? 0 } : {}), ...(flatIds.has(id) ? { flat: true } : {}) };
+      ...(storeyed ? { storey: r.storey ?? 0 } : {}), ...(flatIds.has(id) ? { flat: true } : {}),
+      // (a hall's gallery, a building designed as a fighting map: programs.js FIGHT; resolved below)
+      ...(r.gallery ? { gallery: { ...r.gallery } } : {}) };
     byId.set(id, room);
     return room;
   });
@@ -619,7 +622,10 @@ export function planStage(m = {}) {
     else if (ay1 === by0) wall = { ax: '+y', bx: '-y', at: ay1, lo: Math.max(a.x0, b.x0), hi: Math.min(a.x1, b.x1) };
     else if (by1 === ay0) wall = { ax: '-y', bx: '+y', at: ay0, lo: Math.max(a.x0, b.x0), hi: Math.min(a.x1, b.x1) };
     if (!wall || wall.hi - wall.lo < width + 2 * kit.door.frame) throw new Error(`stage: rooms '${a.id}' and '${b.id}' do not share enough wall for a ${width} m doorway`);
-    const mid = Math.round((wall.lo + wall.hi) / 2 / g) * g;
+    // (`along`: the doorway's middle set along its wall, plan metres, a ring's second doorway off the first: programs.js
+    // FIGHT; absent, the shared wall's middle on the grid)
+    if (l.along !== undefined && !(Number.isFinite(l.along) && l.along - width / 2 >= wall.lo + kit.door.frame - 1e-6 && l.along + width / 2 <= wall.hi - kit.door.frame + 1e-6)) throw new Error(`stage: link ${a.id} → ${b.id} along ${l.along} stands off the wall they share (its middle from ${wall.lo + kit.door.frame + width / 2} to ${wall.hi - kit.door.frame - width / 2})`);
+    const mid = l.along !== undefined ? l.along : Math.round((wall.lo + wall.hi) / 2 / g) * g;
     const op = { lo: mid - width / 2, hi: mid + width / 2, top: height };
     a.openings[wall.ax].push(op); b.openings[wall.bx].push(op);
     return { from: a.id, to: b.id, wall: wall.ax, at: wall.at, ...op };
@@ -642,6 +648,33 @@ export function planStage(m = {}) {
     r.openings[w.side].push(op);
     return { room: r.id, side: w.side, at, ...op };
   });
+  // A GALLERY'S DOORWAY (a building designed as a fighting map, program-core.js fight.gallery): the storey over the
+  // ground's room opens onto the hall's catwalk through the wall they share, at that storey's floor; laid where the
+  // catwalk fits (bay.js catwalkLayout), else the hall keeps its catwalk as it was and the gallery is said lost. A storey
+  // built alone takes the doorway as its rooms' raw openings (`_openings`: storeys.js assembleStoreys)
+  const galleries = [];
+  for (const r0 of m.rooms) for (const o of r0._openings ?? []) byId.get(r0.id)?.openings[o.side].push({ lo: o.lo, hi: o.hi, top: o.top, ...(o.sill ? { sill: o.sill } : {}) });
+  for (const r of rooms) {
+    if (!r.gallery || r.gallery.z !== undefined) continue;
+    const G = r.gallery, f = byId.get(G.from), s = G.side, X = s.endsWith('x');
+    delete r.gallery;
+    if (!storeyed || !f || !kit.B?.catwalk || !(f.storey > r.storey)) { galleries.push({ hall: r.id, from: G.from, side: s, lost: !storeyed || !f ? `no storey over the ${r.id} to enter it from` : !kit.B?.catwalk ? `kit '${kitId}' builds no catwalk` : `the ${G.from} stands no higher than the ${r.id}` }); continue; }
+    const line = s === '-x' ? r.box[0] : s === '+x' ? r.box[2] : s === '-y' ? r.box[1] : r.box[3], fl = s === '-x' ? f.box[2] : s === '+x' ? f.box[0] : s === '-y' ? f.box[3] : f.box[1];
+    const lo0 = Math.max(X ? r.y0 : r.x0, X ? f.y0 : f.x0), hi0 = Math.min(X ? r.y1 : r.x1, X ? f.y1 : f.x1), width = kit.door.width;
+    const z = r5(f.z0 - r.z0), top = Math.min(kit.door.height, f.h - 0.5), mid = Math.round((lo0 + hi0) / 2 / g) * g, fs = flip2(s);
+    if (Math.abs(line - fl) > 1e-6 || hi0 - lo0 < width + 2 * kit.door.frame || r.h < z + top + 1) { galleries.push({ hall: r.id, from: G.from, side: s, lost: `the ${G.from} and the ${r.id} share no wall for a doorway at ${z} m` }); continue; }
+    const op = { lo: mid - width / 2, hi: mid + width / 2, top: r5(z + top), sill: z };
+    r.openings[s].push(op);
+    const Lw = catwalkLayout(r, kit, s, z, true);
+    if (!Lw) { r.openings[s].pop(); galleries.push({ hall: r.id, from: G.from, side: s, lost: `the ${r.id}'s ${s} wall holds no catwalk at ${z} m clear of its doorways` }); continue; }
+    f.openings[fs].push({ lo: op.lo, hi: op.hi, top });
+    r.gallery = { side: s, z, from: f.id, lo: op.lo, hi: op.hi, top };
+    // (where it stands, in plan metres along its wall: its deck, its near stair along the wall, a long one's second
+    // stair coming in square through its front rail, the deck's depth off the wall)
+    const pc = (u) => r5(Lw.F.start + (Lw.F.U[0] + Lw.F.U[1]) * u), span = (a, b) => [pc(a), pc(b)].sort((p, q) => p - q);
+    galleries.push({ hall: r.id, from: f.id, side: s, z, at: line, lo: op.lo, hi: op.hi, top, deck: span(Lw.landU, Lw.endU), near: span(Lw.startU, Lw.landU), foot: pc(0),
+      ...(Lw.second ? { front: span(Lw.gapA, Lw.gapB), reach: r5(Lw.o1 + Lw.sLen) } : {}), depth: [r5(Lw.o0), r5(Lw.o1)], slope: r5(z / Lw.sLen) });
+  }
   for (const r of rooms) for (const k of Object.keys(r.openings)) r.openings[k].sort((p, q) => p.lo - q.lo);
   // (a stage's stairs: a keep's steep flight, or a building's switchback, construction/circulation.js STAIR_PROFILES)
   if (m.stair !== undefined && !STAIR_PROFILE_IDS.includes(m.stair)) throw new Error(`stage: stair is ${STAIR_PROFILE_IDS.join(' or ')} (a keep's steep flight, or a building's switchback)`);
@@ -694,7 +727,7 @@ export function planStage(m = {}) {
   const sk0 = readSkandart(m), skC = sk0 ? resolveSkandartCard(nightKit, sk0.card, { use: m._program?.use ?? null }) : null;
   if (sk0 && !skC) throw new Error(`stage: skandart: nothing kit '${kitId}' is made of sheds anything, and the recipe names no answer of its own; give one: skandart: { foot: { pieces: { <a debris shelf row>: how many } } }`);
   const sk = sk0 ? { ...sk0, card: skC.card, from: skC.from } : null;
-  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(sk ? { skandart: sk } : {}), ...(m._condition ? { condition: m._condition } : {}), ...(m._weathering ? { weathering: m._weathering } : {}), ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}), ...(m.daylight ? { daylight: m.daylight } : {}), ...(m.samples ? { samples: m.samples } : {}), ...(wetness ? { wet: wetness } : {}),
+  const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(galleries.length ? { galleries } : {}), ...(sk ? { skandart: sk } : {}), ...(m._condition ? { condition: m._condition } : {}), ...(m._weathering ? { weathering: m._weathering } : {}), ...(ways.length ? { ways } : {}), ...(m.rhythm ? { rhythm: m.rhythm } : {}), ...(m.coat === false ? { coat: false } : {}), ...(m.daylight ? { daylight: m.daylight } : {}), ...(m.samples ? { samples: m.samples } : {}), ...(wetness ? { wet: wetness } : {}),
     // (a military base's building is stocked by its rooms' uses, a hospital's by its own table, a
     // vernacular town's by its uses: stocking.js,
     // compose-dress.js layProps)
@@ -703,10 +736,13 @@ export function planStage(m = {}) {
     ...(composed ? { compose: { axes: composed, mood: composed.mood ?? 'even', beats: beatsPinned(m), roles: m._composeRoles ?? roomRoles({ rooms, links, ways, stairs }, { goal: m._program?.goal, pinned: rolesPinned(m) }) } } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}), ...(shade !== null ? { shade } : {}), ...(plotRooms ? { plot: plotRooms, ...(m._program?.goal ? { plotGoal: m._program.goal } : {}) } : {}),
     ...(St ? { storeys: St.z0s.map((z0, index) => ({ index, z0 })), flat: St.flat, stairs } : {}), ...(m._storey ? { cuts: m._storey } : {}) };
   // a composed interior's things (compose-dress.js): the recipe's own (`props`, laid at authoring time and edited since),
-  // else laid now; `props: false` none. A storey takes the ones in its rooms
-  if (composed || m.props !== undefined) {
+  // else laid now; `props: false` none. A storey takes the ones in its rooms. A building designed as a fighting map
+  // (programs.js FIGHT `cover`) lays its halls' cover over them, composed or not (compose-dress.js layCover)
+  const coverAsk = !!m._program?.fight?.cover && !m._storey && !Array.isArray(m.props) && m.props !== false;
+  if (composed || m.props !== undefined || coverAsk) {
     if (m.props !== undefined && m.props !== false && !Array.isArray(m.props)) throw new Error('stage: props is a list of items ([{ id, kind, room, at, facing }]), or false for none');
-    const mine = new Set(rooms.map((r) => r.id)), list = Array.isArray(m.props) ? m.props : m.props === false || !composed ? [] : layProps(planned);
+    const list0 = Array.isArray(m.props) ? m.props : m.props === false || !composed ? [] : layProps(planned);
+    const mine = new Set(rooms.map((r) => r.id)), list = coverAsk ? [...list0, ...layCover(planned, list0)] : list0;
     for (const [i, it] of list.entries()) {
       if (!it || typeof it.id !== 'string' || !PIECES[it.kind]) throw new Error(`stage: props[${i}] is { id, kind: ${Object.keys(PIECES).join(' | ')}, room, at: [x, y], facing }`);
       if (!m._storey && !mine.has(it.room)) throw new Error(`stage: props[${i}] (${it.id}) stands in '${it.room}', no room of this stage`);

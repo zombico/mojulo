@@ -209,6 +209,24 @@ export const GRUNT_STYLES = Object.freeze({
         items: [['carbine', 'holster']], heads: ['tacticalHelmet', 'tacticalMask'], stands: ['guard', 'relaxed'] },
     },
   },
+  // ── THE POLICE: the patrol in a uniform shirt and a duty belt; the tactical unit in black (a depiction: no force told
+  // apart). The law of an open city (gameworld/law.js), never a faction ──
+  police: {
+    name: 'Police', reads: 'the patrol: a uniform shirt, dark trousers, a duty belt and a sidearm; the tactical unit in a plate carrier and a helmet',
+    facets: { archetype: 'everyman', role: 'frontline', motivation: 0.65, order: 0.95 }, ages: ['adult', 'seasoned'], vibe: 'bold',
+    hair: { male: ['crew', 'taper', 'buzz'], female: ['bun', 'ponytail'] },
+    colourways: {
+      navy: { reads: 'pale blue shirts, navy trousers', palette: { Top: '#a9bfd8', Bottom: '#1b2436', Shoes: '#0d0d0f', Button: '#d8dde5', Leather: '#111214', Buckle: '#c2c6cc', Outer: '#1b2436', OutfitSecond: '#1b2436', Trim: '#c2c6cc', Helmet: '#1b2436', HelmetTrim: '#0e121b' } },
+      black: { reads: 'black shirts and trousers, silver trim', palette: { Top: '#1c1d21', Bottom: '#16171a', Shoes: '#0b0b0b', Button: '#c9ccd2', Leather: '#0d0d0d', Buckle: '#c9ccd2', Outer: '#1c1d21', OutfitSecond: '#1c1d21', Trim: '#c9ccd2', Helmet: '#1c1d21', HelmetTrim: '#0b0b0b' } },
+    },
+    kinds: {
+      patrol: { reads: 'the patrol officer: a uniform shirt and a duty belt, a sidearm', weight: 3, builds: ['canonical', 'heroic'],
+        dress: () => outfit('guard', {}, [], { fit: 0.6, stylize: 0.15, ornament: 2 }), items: [['holster'], ['drawnPistol']], stands: ['relaxed', 'hand-on-hip'] },
+      tactical: { reads: 'the tactical unit: black tactical, a plate carrier, a carbine, a helmet', weight: 1, builds: ['heroic', 'canonical'],
+        dress: () => outfit('tactical', {}, [{ kind: 'vest' }, { kind: 'kneepads' }], { fit: 0.85 }),
+        items: [['carbine', 'holster']], heads: ['tacticalHelmet'], stands: ['guard', 'relaxed'] },
+    },
+  },
 });
 export const GRUNT_STYLE_IDS = Object.freeze(Object.keys(GRUNT_STYLES));
 

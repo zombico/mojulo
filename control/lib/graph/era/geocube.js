@@ -462,6 +462,11 @@ const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
+// A LEVEL LAID ON THE PLACE AS IT STANDS (gameworld/mission-site.js: a mission on a cube's building, its yard and its
+// weather): the page's own channels a level rides, each read by the world's resolve as on any kind and by nothing here;
+// and a camera that is the page's (an entity's, with a `rule`) is not a still. Absent, the kind is as it was.
+const LEVEL_KEYS = Object.freeze(['events', 'audio', 'mission', 'game', 'parked']);
+const pageCamera = (c) => !!c && typeof c === 'object' && typeof c.rule === 'string';
 // a relief checked where the cube names it: its own words, said as the cube's
 const reliefOrNo = (v, at) => { try { readRelief(v); } catch (e) { no(`${at}: ${e.message.replace(/^relief: /, '')}`); } };
 const groundOrNo = (v, at) => { try { readGround(v); } catch (e) { no(`${at}${e.message.replace(/^local-meru: ground/, '')}`); } };
@@ -1447,9 +1452,9 @@ function withTownCameras(payload, site) {
     cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'sea', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart', 'fxStyle'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, sea, words, hall, skandart; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'sea', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart', 'fxStyle', 'crowns', 'grass', 'hats', ...LEVEL_KEYS].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, sea, words, hall, skandart; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
   // (`camera`: the still it is first seen from, STILLS: a camera glyph's, gameworld/glyph-words.js)
-  if (manifest.camera !== undefined && !STILLS.includes(manifest.camera)) no(`camera is the still it is first seen from: ${STILLS.join(', ')}`);
+  if (manifest.camera !== undefined && !pageCamera(manifest.camera) && !STILLS.includes(manifest.camera)) no(`camera is the still it is first seen from: ${STILLS.join(', ')}`);
   // (`words`, and its `brief`: the words a scene was asked in and what each decided, written at authoring time into the
   // keys above, gameworld/scene-words.js; the build reads the keys. And the page's live light, which world-scene reads:
   // shadows, occlusion, light.tier; scene/live-light.js)
@@ -1467,7 +1472,7 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   if (!SHOW.includes(show)) no(`show is ${SHOW.slice(0, -1).map((s) => `'${s}'`).join(', ')} or '${SHOW[SHOW.length - 1]}'`);
   // (inside: the cube's room, or a hall walked through its interior: in-hall.js)
   const inside = show === 'room' || show === 'hall';
-  if (manifest.camera !== undefined && inside) no('camera is a still of the outside: show \'land\', \'trail\', \'path\' or \'town\'');
+  if (manifest.camera !== undefined && !pageCamera(manifest.camera) && inside) no('camera is a still of the outside: show \'land\', \'trail\', \'path\' or \'town\'');
   // (`cone`: gameplay's view cone, its reach in metres, read by the outside's form render; scene/channels/view-cone.js)
   if (manifest.cone !== undefined) { if (inside) no('cone is the view cone over the outside\'s grass: show \'land\', \'trail\', \'path\' or \'town\''); readCone(manifest.cone); }
   if (manifest.hall !== undefined && show !== 'hall') no('hall is the walk through the cube\'s interior (era/in-hall.js): show \'hall\'');
@@ -1521,6 +1526,12 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   // trail is laid over, so the form render draws their land, their outsides and their rooms under the cube's one sun)
   if (manifest.buildings !== undefined && !(low.kind === 'stage' && low.trail !== undefined)) no('buildings stand on a land a trail is laid over: show \'path\' or \'town\'');
   if (manifest.buildings !== undefined) low.buildings = manifest.buildings;
+  // (`grass` and `crowns`: how the path's stage draws its grass and its broadleaves' crowns, era/isekai.js: the form
+  // field and its raised ground; the hybrid crown, each leaf bundle round a blob, form/flora-read.js)
+  if ((manifest.grass !== undefined || manifest.crowns !== undefined || manifest.hats !== undefined) && !(low.kind === 'stage' && low.trail !== undefined)) no('grass, crowns and hats are a path\'s stage\'s: show \'path\' or \'town\'');
+  if (manifest.grass !== undefined) low.grass = manifest.grass;
+  if (manifest.hats !== undefined) low.hats = manifest.hats;
+  if (manifest.crowns !== undefined) low.crowns = manifest.crowns;
   // (`wet`: it has just rained, a stage's word: the hard standing films the sky)
   if (manifest.wet !== undefined) low.wet = manifest.wet;
   // (and where it names a weather and no wetness, the weather's own: rain is raining, era/wetness.js)
@@ -1533,7 +1544,7 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   if (show === 'room') withAccent(payload, onInterior(cube, D?.interior).inside.accentWall, cube.surfaces.accent);
   else if (show === 'hall') withAccent(payload, '+y', cube.surfaces.accent, ((B) => (B ? [B.min[0], B.min[1], B.max[0], B.max[1]] : null))((payload.rooms || []).find((r) => r.id === payload.hall.beats.find((b) => b.kind === 'landmark')?.room)?.box), false);
   else withIslandCamera(payload);
-  if (manifest.camera !== undefined) withStill(payload, manifest.camera);
+  if (manifest.camera !== undefined && !pageCamera(manifest.camera)) withStill(payload, manifest.camera);
   // (what its ground is, era/substrate.js: a street's land, read off the trail it stands on)
   const sub = low.kind === 'stage' && low.trail !== undefined && low.meru === undefined ? substrateOf(low).shares : null;
   payload.geocube = { ...geocubeReadout(cube, show, P, manifest), ...(sub ? { substrate: sub } : {}),

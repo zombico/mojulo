@@ -80,7 +80,9 @@ export function synthesizeLevel(manifest) {
   const { player, spawn } = deriveLevelPlayer(manifest);
   let composed;
   try {
-    composed = composeMechanics(game.mechanics, { player, spawn, fall: game.fall });
+    // (a level with seats: the bodies seats 2 … take, so a mechanic a seat works, the work shift's, gives each its own hands)
+    const seats = Array.isArray(manifest.seats?.bodies) && manifest.seats.bodies.length ? manifest.seats.bodies : null;
+    composed = composeMechanics(game.mechanics, { player, spawn, fall: game.fall, ...(seats ? { seats } : {}) });
   } catch (err) {
     throw new Error(`game mechanics are invalid:\n${err.message}`);
   }
