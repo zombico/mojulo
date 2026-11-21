@@ -39,7 +39,7 @@ const yUp = ([x, y, z]) => [x, z, -y];
 // a module's address as an import takes it: a path beside the page is said from the page ('./…'), never bare
 const rel = (u) => (/^(https?:|\/|\.)/.test(u) ? u : `./${u}`);
 
-export function stageConfig(card, plates, { title, treatment = 'cutout', three = null, warm = null }) {
+export function stageConfig(card, plates, { title, treatment = 'cutout', three = null, warm = null, background = null }) {
   const frame = (F) => ({ title: { box: F.title.box, align: F.title.align, size: F.title.size }, subjects: F.subjects });
   return {
     card: card.id,
@@ -54,6 +54,8 @@ export function stageConfig(card, plates, { title, treatment = 'cutout', three =
       ...(three && p.live && p.frame ? { live: { glb: p.live.glb, clip: p.live.clip, pos: yUp(p.frame.shot.pos), target: yUp(p.frame.shot.target), vfov: p.frame.shot.vfov, capture: [p.frame.capture.width, p.frame.capture.height], crop: [p.frame.crop.x, p.frame.crop.y, p.frame.crop.w, p.frame.crop.h], t: (p.frame.poseMs || 0) / 1000 } } : {}),
     } : null)),
     ...(three && plates.some((p) => p && p.live) ? { three: { loader: rel(three.loader) }, treatment } : {}),
+    // the picture the person brought, behind the subject in place of the graphic ground (export_game copied it)
+    ...(typeof background === 'string' && background ? { background } : {}),
     // the first level's page and the shared files it fetches, warmed while the title is up (export_game: within its cap)
     ...(Array.isArray(warm) && warm.length ? { warm: warm.map(rel) } : {}),
   };
@@ -65,7 +67,7 @@ export function stageImportmap(three) {
 }
 
 /** The sheet: the layer, its parts placed by the card's frames, the menu moved into its box, the beats. */
-export function stageCss(card, { mana = false, arena = false, live = false, treatment = 'cutout' } = {}) {
+export function stageCss(card, { mana = false, arena = false, live = false, treatment = 'cutout', background = false } = {}) {
   const W = card.frames.wide, T = card.frames.tall;
   const beat = Object.fromEntries(card.motion.map((m) => [m.part, m]));
   const anim = (part) => { const m = beat[part]; return m ? `animation:st-${m.enter === 'letters' || m.enter === 'stagger' ? 'rise' : m.enter} .7s cubic-bezier(.2,.8,.2,1) ${m.at}ms both` : ''; };
@@ -90,6 +92,9 @@ export function stageCss(card, { mana = false, arena = false, live = false, trea
       : card.ground === 'theme'
       ? `#stage .st-ground{position:absolute;inset:0;background:radial-gradient(ellipse 60% 75% at var(--st-gx) 62%,color-mix(in srgb,var(--accent) 26%,var(--bg)) 0%,var(--bg) 70%),linear-gradient(115deg,transparent 54%,color-mix(in srgb,var(--accent2) 14%,transparent) 54% 61%,transparent 61%);${anim('ground')}}`
       : `#stage .st-ground{position:absolute;inset:0;background:var(--bg);${anim('ground')}}`,
+    // a picture the person brought: cover-fitted behind the subject, under a scrim of the theme's ground so the name and
+    // the menu read (from the side the menu is on; from below on an upright phone)
+    background ? `#stage .st-ground.pic{background:linear-gradient(${card.frames.wide.menu.box[0] + card.frames.wide.menu.box[2] / 2 > 50 ? 270 : 90}deg,color-mix(in srgb,var(--bg) 90%,transparent) 0%,color-mix(in srgb,var(--bg) 55%,transparent) 45%,color-mix(in srgb,var(--bg) 25%,transparent) 100%),var(--st-pic) center/cover no-repeat}@media ${TALL}{#stage .st-ground.pic{background:linear-gradient(0deg,color-mix(in srgb,var(--bg) 92%,transparent) 0%,color-mix(in srgb,var(--bg) 40%,transparent) 50%,color-mix(in srgb,var(--bg) 60%,transparent) 100%),var(--st-pic) center/cover no-repeat}}` : '',
     `#stage .st-title{position:absolute;display:flex;align-items:center;z-index:${card.frames.wide.title.behind ? 1 : 3};margin:0;font-weight:900;text-transform:uppercase;letter-spacing:-.02em;line-height:.86;color:var(--ink);white-space:nowrap${letters ? '' : `;${anim('title')}`}}`,
     '#stage .st-title .st-line{display:block}',
     letters ? `#stage .st-title i{display:inline-block;font-style:normal;animation:st-rise .7s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(${beat.title.at}ms + var(--n) * 38ms)}` : '',
@@ -142,6 +147,7 @@ export function playStageRuntime(cfg) {
   root.setAttribute('aria-hidden', 'true');
   const ground = document.createElement('div');
   ground.className = 'st-ground';
+  if (S.background) { ground.classList.add('pic'); ground.style.setProperty('--st-pic', 'url(' + JSON.stringify(S.background) + ')'); }
   root.appendChild(ground);
   const title = document.createElement('h2');
   title.className = 'st-title';

@@ -628,9 +628,21 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
       for (const f of ['three.module.min.js', 'three.core.min.js', 'addons/loaders/GLTFLoader.js', 'addons/utils/BufferGeometryUtils.js', 'addons/utils/SkeletonUtils.js']) await write(`assets/front/three/${f}`, await fs.readFile(path.join(vendor, f)));
       three = { module: 'assets/front/three/three.module.min.js', loader: 'assets/front/three/addons/loaders/GLTFLoader.js' };
     }
+    // the picture the person brought for behind the subject (front-background.js): copied beside the game; one that is not
+    // there, or not a picture, is said, and the card's graphic ground stands in
+    let background = null;
+    if (stageOf.background) {
+      try {
+        const { backgroundBytes } = await import('@/lib/graph/game/front-background');
+        const { buffer, ext } = await backgroundBytes(stageOf.background);
+        background = `assets/front/background.${ext}`;
+        await write(background, buffer);
+      } catch (err) { says.push(`front.stage.background: ${err.message}; the card's graphic ground is drawn instead`); }
+    }
     frontStage = {
       plates: plates.map((p) => (p ? { src: srcOf(p), width: p.width, height: p.height, frame: p.frame, ...(p.live ? { live: { glb: glbOf(p), clip: p.live.clip } } : {}) } : null)),
       ...(three ? { three } : {}),
+      ...(background ? { background } : {}),
     };
     stageSays = says;
   }
@@ -738,7 +750,7 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
     ...(heavy.length ? {
       note: `Files over 25MB (${heavy.join(', ')}) exceed some static hosts' per-file limits (e.g. Cloudflare Pages) — GitHub Pages allows up to 100MB/file. Level weight is geometry; a lighter world recipe shrinks it.`,
     } : {}),
-    ...(frontStage ? { front_stage: { pictured: frontStage.plates.filter(Boolean).length, of: frontStage.plates.length, ...(frontStage.three ? { live: frontStage.plates.filter((p) => p && p.live).length } : {}), ...(frontStage.warm ? { warms: frontStage.warm.length } : {}), ...(stageSays.length ? { says: stageSays } : {}) } } : {}),
+    ...(frontStage ? { front_stage: { pictured: frontStage.plates.filter(Boolean).length, of: frontStage.plates.length, ...(frontStage.background ? { background: frontStage.background } : {}), ...(frontStage.three ? { live: frontStage.plates.filter((p) => p && p.live).length } : {}), ...(frontStage.warm ? { warms: frontStage.warm.length } : {}), ...(stageSays.length ? { says: stageSays } : {}) } } : {}),
     ...(browserDownload ? { browser_download: browserDownload } : {}),
     ...(pluginBuild && cdnInput ? { cdn_note: '`cdn: true` was ignored: the Claude plugin build of mojulo writes only self-contained pages.' } : {}),
     ...(await desktopResult()),

@@ -98,8 +98,10 @@ describe('the rail\'s cards', () => {
     // (2026-11-21, 1120-mana-ui-start-screens: gameworld-interface 4096 → 4736, the start screen, front.stage, five lines:
     // when it is offered, its shape, its cards and treatments, its part; 4045 bytes before, 4590 with them, 4698 with
     // the arena shell's menu.stage and the versus title's champion, one subject a screen, one line more;
-    // gameworld-next 5504 → 5632, the `front` move, one line; 5417 bytes before, 5540 with it)
-    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4864, 'gameworld-world': 5760, 'gameworld-foes': 5888, 'gameworld-wcd': 4608, 'gameworld-battles': 5888, 'gameworld-next': 5632, 'gameworld-interface': 4736, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
+    // gameworld-next 5504 → 5632, the `front` move, one line; 5417 bytes before, 5540 with it; gameworld-interface
+    // 4736 → 4864 the same day: the start screen's ground graphic, a picture the creator brings its `background`, one
+    // line: 4830 bytes)
+    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4864, 'gameworld-world': 5760, 'gameworld-foes': 5888, 'gameworld-wcd': 4608, 'gameworld-battles': 5888, 'gameworld-next': 5632, 'gameworld-interface': 4864, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

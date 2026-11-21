@@ -627,7 +627,8 @@ function interfaceCard() {
     'sooner only when asked. { composition: a front card, subjects?: [a role or a ref], mode?: still | 3d, treatment? }:',
     `  cards ${FRONT_CARD_IDS.join(', ')}; treatments ${STAGE_TREATMENTS.join(', ')}; 3d brings the cutout or`,
     '  silhouette alive over its picture. Part interface:front; seen on the exported game (export_game). An arena',
-    '  shell game\'s is menu.stage (a ref); a versus game\'s title is the champion, drawn.',
+    '  shell game\'s is menu.stage (a ref); a versus game\'s title is the champion, drawn. Its ground is graphic;',
+    '  a picture the creator brings is background: { path } (filed to a stash) or { stash, item } (their upload).',
     'WORDS (closed):',
     ...Object.entries(THEME_WORDS).map(([k, ws]) => `  ${k}: ${ws.join('|')}`),
   );

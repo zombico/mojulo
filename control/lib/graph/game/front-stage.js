@@ -15,6 +15,10 @@
  *                                              pictures first, the live subjects over them once loaded
  *     treatment?:  '<treatment>'                how a picture is made graphic (STAGE_TREATMENTS); the theme's, else
  *                                              a cut-out
+ *     background?: { stash, item }             a picture the person brought, behind the subject in place of the
+ *                                              card's graphic ground: an image item of a stash (uploaded on the
+ *                                              dashboard, or a file design_game's patch filed there). Absent: the
+ *                                              ground stays graphic
  *   }
  *
  *   STAGE_KEYS · STAGE_MODES · STAGE_TREATMENTS
@@ -24,7 +28,7 @@
  */
 import { FRONT_CARDS, FRONT_CARD_IDS, SUBJECT_ROLES } from '../playscape/ui/front-cards/loader.js';
 
-export const STAGE_KEYS = Object.freeze(['composition', 'subjects', 'mode', 'treatment']);
+export const STAGE_KEYS = Object.freeze(['composition', 'subjects', 'mode', 'treatment', 'background']);
 export const STAGE_MODES = Object.freeze(['still', '3d']);
 // a picture made graphic: the alpha with a rim in the accent; the theme's ink and accent; a dot screen; an inked edge;
 // a few flat tones; the shape alone, filled
@@ -48,5 +52,10 @@ export function readFrontStage(stage, { where = 'front.stage' } = {}) {
   }
   if (stage.mode !== undefined && !STAGE_MODES.includes(stage.mode)) errors.push(`${where}.mode is one of: ${STAGE_MODES.join(', ')} (still: pictures only; 3d: the live subjects over them)`);
   if (stage.treatment !== undefined && !STAGE_TREATMENTS.includes(stage.treatment)) errors.push(`${where}.treatment is one of: ${STAGE_TREATMENTS.join(', ')}`);
+  // (the picture is checked to be there, and an image, when the game is exported: the recipe names it only)
+  const B = stage.background;
+  if (B !== undefined && !(isObj(B) && typeof B.stash === 'string' && B.stash && Number.isInteger(B.item) && Object.keys(B).length === 2)) {
+    errors.push(`${where}.background is a picture behind the subject: a stash image item { stash: '<stash ref>', item: <image item id> } (upload it to a stash on the dashboard, or pass { path: '<absolute PNG, JPEG or WebP path>' } in design_game's patch: it is filed into a stash)`);
+  }
   return errors;
 }

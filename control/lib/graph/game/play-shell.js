@@ -142,7 +142,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ...(manifest.front ? { front: frontConfig(manifest.front, stageCard ? null : frontArt, { levels: levelTable.length, run: !!manifest.run }) } : {}),
     // THE STAGE (front-stage-page.js): the start screen laid out by its card from the plates export_game baked; a
     // front with no stage, or a page no export baked one for, carries no key and none of its sheet or code
-    ...(stageCard ? { stage: stageConfig(stageCard, frontStage.plates || [], { title: manifest.title, treatment: manifest.front.stage.treatment || 'cutout', three: frontStage.three || null, warm: frontStage.warm || null }) } : {}),
+    ...(stageCard ? { stage: stageConfig(stageCard, frontStage.plates || [], { title: manifest.title, treatment: manifest.front.stage.treatment || 'cutout', three: frontStage.three || null, warm: frontStage.warm || null, background: frontStage.background || null }) } : {}),
     flow,
     ...(hasTurns ? { turns } : {}),
     // (a bare HUD look draws no pause button under a mouse: the media a mana-ui shell asks, said only by such a game)
@@ -219,7 +219,7 @@ ${bareHud ? '  @media (hover:hover) and (pointer:fine){#pauseBtn{display:none!im
   ${FRONT_CSS}` : ''}${mana ? `
   ${shellManaCss(ui)}` : ''}${mana && screen ? `
   ${manaFrameCss(screen)}` : ''}${stageCard ? `
-  ${stageCss(stageCard, { mana, live: !!cfg.stage.three, treatment: cfg.stage.treatment })}` : ''}
+  ${stageCss(stageCard, { mana, live: !!cfg.stage.three, treatment: cfg.stage.treatment, background: !!cfg.stage.background })}` : ''}
 </style>${stageCard && cfg.stage.three ? `<script type="importmap">${stageImportmap(frontStage.three)}</script>` : ''}</head>
 <body>
 <main id="app"></main>${front ? `

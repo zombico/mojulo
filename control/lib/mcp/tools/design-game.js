@@ -48,6 +48,7 @@ import { readMainQuest, mainQuestContext, mainQuestReport } from '@/lib/graph/ga
 import { questPlays, withQuestLevels } from '@/lib/graph/gameworld/main-quest-lay.js';
 import { goalposts, leadNext, draftAsk, startReadout, producerSteps, producerSays } from '@/lib/graph/gameworld/goalposts.js';
 import { frontStep } from '@/lib/graph/gameworld/front-stage.js';
+import { patchStageBackgrounds } from '@/lib/graph/game/front-background.js';
 import { loopOf, loopLaws } from '@/lib/graph/gameworld/core-loop.js';
 import { compileCheck, planError } from './design-game-check.js';
 import { combatGame } from '@/lib/graph/gameworld/combat/game.js';
@@ -887,7 +888,10 @@ export async function designGameHandler(input, context = {}) {
     // a preview: what the patch would do, and nothing written
     if (preview === true) return previewPatch(ref, patchVehicleWords(patch).patch);
     // a quick game's vehicle word is read through the vehicle registry first, as the quick path reads it (doors.js)
-    if (patch !== undefined) await oneWrite(ref, () => updateSketchHandler({ ref, patch: patchVehicleWords(patch).patch, ...(title ? { title } : {}) }));
+    // (a start screen's picture given as a file is filed into a stash first, the recipe naming the stash's item:
+    // game/front-background.js)
+    const filedPatch = patch !== undefined ? patchStageBackgrounds(patch, { title: row.title || ref }).patch : undefined;
+    if (patch !== undefined) await oneWrite(ref, () => updateSketchHandler({ ref, patch: patchVehicleWords(filedPatch).patch, ...(title ? { title } : {}) }));
   }
   // what the vehicle registry read: a word written as its table's key (absent when none was)
   const redirected = [...(quick !== undefined ? quickVehicleWords(quick).redirects : []), ...(patch !== undefined ? patchVehicleWords(patch).redirects : [])];

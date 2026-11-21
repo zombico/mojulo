@@ -132,7 +132,7 @@ ${art ? `  body,body.hud{background:#04070d url("${art}") center/cover no-repeat
   // column of words moved into the card's menu box; a menu without one, or a page no export baked one for, carries none
   // of its sheet or code
   const stageCard = manifest.menu && manifest.menu.stage && frontStage ? FRONT_CARDS[manifest.menu.stage.composition] || null : null;
-  const stage = stageCard ? stageConfig(stageCard, frontStage.plates || [], { title: manifest.title, treatment: manifest.menu.stage.treatment || 'cutout', three: frontStage.three || null }) : null;
+  const stage = stageCard ? stageConfig(stageCard, frontStage.plates || [], { title: manifest.title, treatment: manifest.menu.stage.treatment || 'cutout', three: frontStage.three || null, background: frontStage.background || null }) : null;
 
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -331,7 +331,7 @@ ${art ? `  body,body.hud{background:#04070d url("${art}") center/cover no-repeat
   body.hud .load-panel::after{right:0;bottom:0;border-left:0;border-top:0}
   body.hud #loadPct{text-shadow:0 0 22px var(--accent)}${artCss}${fontCss}
 ${stage ? `
-  ${stageCss(stageCard, { arena: true, live: !!stage.three, treatment: stage.treatment })}
+  ${stageCss(stageCard, { arena: true, live: !!stage.three, treatment: stage.treatment, background: !!stage.background })}
 ` : ''}</style>${stage && stage.three ? `<script type="importmap">${stageImportmap(frontStage.three)}</script>` : ''}</head><body class="${hud ? 'hud' : ''}">
 <button id="gearBtn" title="settings" aria-label="settings">⚙</button>
 <button id="menuBtn" title="menu" aria-label="pause menu" style="display:none">☰</button>

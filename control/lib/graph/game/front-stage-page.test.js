@@ -46,6 +46,14 @@ describe('the stage in the shell', () => {
     expect(stageCss(FRONT_CARDS['hero-pose'])).not.toContain('--st-dx:');
   });
 
+  it('a picture the person brought stands behind the subject under a scrim; without one the ground is graphic', () => {
+    const cfg = stageConfig(card, BAKED.plates, { title: 'x', background: 'assets/front/background.png' });
+    expect(cfg.background).toBe('assets/front/background.png');
+    expect(stageConfig(card, BAKED.plates, { title: 'x' })).not.toHaveProperty('background');
+    expect(stageCss(card, { background: true })).toMatch(/#stage \.st-ground\.pic\{background:linear-gradient\([^}]*var\(--st-pic\) center\/cover/);
+    expect(stageCss(card)).not.toContain('.st-ground.pic');
+  });
+
   it('drawn in a page: the name behind, the plates, shown on the title', () => {
     const html = emitPlayShell(game({ tagline: 'go', stage: STAGE }), LEVELS, { frontStage: BAKED });
     const dom = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/game.html' });

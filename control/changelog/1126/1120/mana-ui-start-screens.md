@@ -70,3 +70,9 @@ website, composed from the game's own characters, vehicles and props, never a le
   sketch), pictured at export and drawn behind its start screen alone, its words moved where the layout puts them;
   one without a stage is as it was, byte for byte. A contest's start stays its broadcast's opening; the tabletop, the
   pen-and-paper game and the pixel games keep their own starts.
+- **A picture of the person's own behind the character.** A start screen's ground stays graphic unless the person
+  brings a picture for it: `background` on the stage, a picture uploaded to a stash on the dashboard, or a file the
+  agent has, which the game design's patch files into a stash first, so the recipe names the picture wherever it goes.
+  The export copies it beside the game and draws it behind the character, filling the screen under a wash of the game's
+  own ground colour so the name and the menu still read; a picture that is gone or is not a picture is said, and the
+  graphic ground stands in. The review's start screen says whether its ground is graphic or brought.
