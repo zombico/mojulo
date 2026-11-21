@@ -60,6 +60,7 @@ import { readGrid } from '../level/grid.js';
 import { mapItems } from '../level/map-items.js';
 import { manualBattles } from './battles-manual.js';
 import { treesBattles } from './battles-tree.js';
+import { ARMORY_ARMS } from '../equipment/armory.js';
 
 export const PACKS = Object.freeze([
   ['slime', 'slime'], ['wolf', 'bat'], ['goblin', 'spider', 'slime'], ['skeleton', 'wolf'],
@@ -107,6 +108,24 @@ export const FOE_LOOKS = Object.freeze({
   zombie: { people: 'zombie' },
 });
 const isPeopleLook = (look) => !!look && typeof look === 'object' && look.people !== undefined;
+// THE BATTLE FOES' ARMS: what each people foe of the presets holds, by its kind (equipment/armory.js rows): the goblin
+// its lineage's rank-and-file cudgel (foe-casting.js PEOPLE_ARMS), the shaman a bone club for its fetish staff, the
+// skeleton a rusted sword and a cracked round shield; the zombie claws, bare. A person's are its spec's (the bandit's
+// dagger). A look that writes its own `gear` holds that; one written for every foe (`battles.foe`) holds only its own. A
+// foe held so fights with the swings the page bakes on its rig (egocube/moves.js ARMED_ATTACKS). A new kind's arms is a
+// row.
+export const FOE_ARMS = Object.freeze({
+  goblin: Object.freeze({ right: 'cudgel' }),
+  shaman: Object.freeze({ right: 'bone-club' }),
+  skeleton: Object.freeze({ right: 'rusted-sword', left: 'cracked-round' }),
+});
+/** A battle foe's gear as the hero door takes it (laws-2 builds), or null: its look's own, else its kind's row (`key` the
+ * foe kind, or 'foe' for the one look every foe stands in). */
+export function foeGearOf(look, key) {
+  if (isObj(look) && isObj(look.gear)) return structuredClone(look.gear);
+  const row = key !== 'foe' && isPeopleLook(look) ? FOE_ARMS[key] : null;
+  return row ? Object.fromEntries(Object.entries(row).map(([slot, name]) => [slot, { type: 'equipment', ...structuredClone(ARMORY_ARMS[name]), laws: 2, armory: name }])) : null;
+}
 // a battle people's sheet: its skin rolled in the game's setting as a caster where its foe fights by magic, else as a
 // frontline fighter (foes/people.js peopleRole), its seed the world's moved by the foe's kind (one sheet per kind)
 export function battlePeopleRoll(G, kind, look) {
@@ -378,8 +397,10 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
       if (isPeopleLook(look)) {
         // (a people from its sheet, as a bestiary people stands: a person or a beast-kin on its own moves, at its stature)
         const sheet = rollEgocube(battlePeopleRoll(G, G.battles?.foe !== undefined ? 'foe' : kind, look));
-        // (made for party battles: its strikes in turn, its recoils, its roar, egocube/moves.js foeBattleMovesOf)
-        stand({ figures, entities }, fid, fieldFigure(fref, fieldOf({ body: 'person', sheet, battle: true })), at, h);
+        // (made for party battles: its strikes in turn, its recoils, its roar, egocube/moves.js foeBattleMovesOf; held,
+        // its kind's arms swung: FOE_ARMS)
+        const key = G.battles?.foe !== undefined ? 'foe' : kind;
+        stand({ figures, entities }, fid, fieldFigure(fref, fieldOf({ body: 'person', sheet, battle: true }, { armed: !!foeGearOf(look, key)?.right })), at, h);
         const e = entities.at(-1);
         e.rule = { ...e.rule, collideHeight: r3(statureOf({ body: 'person', sheet })) };
         return fid;

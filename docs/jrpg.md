@@ -235,6 +235,19 @@ were):
 - **A people or a person** (a goblin, a skeleton, a bandit) carries a member's repertoire by its role (three attacks,
   a cast, three recoils, its ready stance) and a **roar**: the deep squat, both fists flexed by the head, the face
   shouting (`foeBattleMovesOf`; a people's sheet made with `moves: 'battle'`).
+- **Armed by its kind** (`gameworld/battles.js` `FOE_ARMS`, rows of the armory, `equipment/armory.js`), and its three
+  attacks are then the held swings, as a party member's are:
+
+  | foe | holds |
+  |---|---|
+  | goblin | a cudgel (its lineage's rank-and-file arm, `foe-casting.js` `PEOPLE_ARMS`) |
+  | shaman | a bone club, its fetish staff |
+  | skeleton | a rusted sword and a cracked round shield |
+  | zombie | nothing: it claws |
+  | bandit | its dagger (its spec's) |
+
+  A look the world writes with its own `gear` (`battles.looks.<id>.gear`) holds that; the one look every foe stands in
+  (`battles.foe`) holds only its own. A new kind's arms is a row.
 
 **A boss's roar and heavier lunge.** A boss's fight opens with every foe's roar (the `boss` juice: `act: roar, at:
 foes`, before the flash and the shake). A boss runs up to its target slower, its strike plays longer, and the camera
@@ -247,5 +260,4 @@ shakes as it lands.
 Each step ends playable, and each is something a person can say that the words did not carry before. An RPG Maker
 idea is reached through the primitive that already owns it (a switch is a flag, an event page a scene's `if`, a
 transfer a megaworld's way), never rebuilt:
-1. **The foes armed:** a people foe holding its kind's weapon (a goblin's club, a skeleton's sword), as the party's
-   classes do; a bat's strike from the wing.
+1. **A bat's strike from the wing**, and a beast-kin's and a mascot's channel (their rigs have no person's hands).

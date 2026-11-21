@@ -92,6 +92,9 @@ describe('a lone sheet made to play a part (`moves: true`, a bestiary\'s people)
     for (const w of Object.values(C.battle)) expect(C.create.spec.motion[w], w).toBe(true);
     for (const w of Object.keys(C.create.spec.motion)) expect(MOTION_GAITS[w], w).toBeTruthy();
     expect(egocubeCreate(rollStored({ kind: 'egocube', roll, moves: true }))).not.toHaveProperty('battle');
+    // (held, a weapon in its hand: its attacks the held swings the page bakes)
+    const A = egocubeCreate(S, { armed: true });
+    expect([A.battle.strike, A.battle.strike2, A.battle.strike3]).toEqual(ARMED_ATTACKS);
   });
 });
 

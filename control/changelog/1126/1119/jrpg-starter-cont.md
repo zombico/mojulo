@@ -169,3 +169,8 @@
   `fauna/behavior/strike.js`: drawn in, then hunkered low, the head down and still). A skill used channels first and
   then casts: the `cast` juice is `act: channel, then: cast` (an act's new `then`: an act it goes on into, the beat held
   while the first plays). One without its own channel stands in its ready stance while it gathers.
+- **The foes armed by their kind.** A party battle's people foe is made holding its kind's arms (`gameworld/battles.js`
+  `FOE_ARMS`, rows of the armory): the goblin a cudgel, the shaman a bone club, the skeleton a rusted sword and a
+  cracked round shield; the zombie claws, bare. Its three attacks are then the held swings, as a party member's are, and
+  so are a person foe's that holds something (the bandit's dagger). A look the world writes with its own `gear` holds
+  that. Before, every people foe fought with its fists, and the bandit punched with a dagger in its hand.
