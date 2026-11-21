@@ -148,3 +148,17 @@
   Its three attacks are the held swings (the cut, the thrust, the cleave) that the page bakes on its own rig at the
   weapon's weight, so the fists are not minted for one who holds a weapon. Before, the party fought with fists, its
   swords and staves numbers alone.
+- **The foes' own repertoires.** A party battle's foes on the field are made with their own moves (on a board, as
+  made):
+  - A beast has its lunge and its other ways at a foe (`fauna/behavior/strike.js`, each a clip of its own built from
+    its posed body): the **snap** (barely gathered, a quick bite), the **maul** (reared up, brought down low and far;
+    a body on legs only) and the **roar** (up tall, the head high, held). It plays the lunge, the snap and the maul in
+    turn (`egocube/moves.js` `beastMovesOf { battle }`). The animal door takes them too, as words (`snap`, `maul`,
+    `roar`) or `motion.strikes`. A body that cannot strike yet (a bat, a swimmer) has none.
+  - A people or a person foe carries a member's repertoire by its role and a roar (`foeBattleMovesOf`; a people's
+    sheet made with `moves: 'battle'`).
+
+  Before, a beast in a party battle had no blow at all, and a person foe one.
+- **A boss's roar and heavier lunge.** A boss's fight opens with its foes' roar (the `boss` juice: `act: roar, at:
+  foes`). A boss runs up slower, strikes longer, and the camera shakes as it lands.
+- **A summoned foe's entrance.** A foe a page calls in roars as it appears out of the smoke (the `summon` juice).

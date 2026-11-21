@@ -43,6 +43,15 @@ describe('the varied acts and the step', () => {
     expect(clip({ clips: {} }, 'win', 1, 'x')).toBe(null);
   });
 
+  it('a foe roars with its own roar, and a beast varies its strike, snap and maul; one without a roar plays none', () => {
+    const { clip } = P({});
+    expect(clip({ clips: { recoome: 1 }, battle: { roar: 'recoome' } }, 'roar', 1, 'foe-1')).toBe('recoome');
+    expect(clip({ clips: { strike: 1 } }, 'roar', 1, 'foe-1')).toBe(null);
+    const wolf = { clips: { strike: 1, snap: 1, maul: 1, roar: 1, stagger: 1 }, battle: { strike: 'strike', strike2: 'snap', strike3: 'maul', roar: 'roar' } };
+    expect(new Set([1, 2, 3].map((n) => clip(wolf, 'strike', n, 'foe-2')))).toEqual(new Set(['strike', 'snap', 'maul']));
+    expect(clip(wolf, 'hurt', 1, 'foe-2')).toBe('stagger');
+  });
+
   it('steps on its tween, running in; stands ready while the fight lasts', () => {
     const W = { time: 0, byId: {} }, { mode } = P(W), m = () => ({ position: { x: 0, y: 0 } });
     const e = { id: 'hero', transform: { pos: [0, 0, 0] }, fightReady: 0, stepOff: { a: [0, 0], b: [4, 0], t0: 0, for: 0.5, run: true } };

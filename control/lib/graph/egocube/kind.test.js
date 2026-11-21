@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { readEgocubeKind, rollStored, egocubeNodes, egocubeCreate, egocubePrint, assembleEgocubeScene, LINEUP_GAP } from './kind.js';
 import { rollEgocube } from './egocube.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
-import { moveSetOf, creatureMovesOf, beastGaitsOf, READY_OF_ROLE, ATTACK_OF_ROLE, WIN_OF_ARCHETYPE, battleMovesOf, BATTLE_ATTACKS_OF_ROLE, ARMED_ATTACKS } from './moves.js';
+import { moveSetOf, creatureMovesOf, beastGaitsOf, READY_OF_ROLE, ATTACK_OF_ROLE, WIN_OF_ARCHETYPE, battleMovesOf, BATTLE_ATTACKS_OF_ROLE, ARMED_ATTACKS, foeBattleMovesOf, beastMovesOf, FOE_ROAR } from './moves.js';
 import { MOTION_GAITS } from '../polygonizer/hero-motion.js';
 import { ROLES, ARCHETYPE_IDS } from './facets.js';
 
@@ -80,6 +80,33 @@ describe('a lone sheet made to play a part (`moves: true`, a bestiary\'s people)
     expect(C.create.spec.motion).toBeTruthy();
     expect(egocubeCreate(plain).moves).toBeUndefined();
     expect(() => readEgocubeKind({ kind: 'egocube', roll, moves: 'yes' })).toThrow(/moves is true/);
+  });
+
+  it('made to play a party battle\'s foe (`moves: \'battle\'`): a member\'s repertoire by its role and a roar, every word a motion', () => {
+    const roll = { facets: { role: 'frontline' }, seed: 4 }, S = rollStored({ kind: 'egocube', roll, moves: 'battle' }), f = S.sheet.facets;
+    const C = egocubeCreate(S), B = foeBattleMovesOf(f.role, { archetype: f.archetype });
+    expect(C.battle).toEqual(B.states);
+    expect(C.battle.roar).toBe(FOE_ROAR);
+    expect(C.moves).toEqual(egocubeCreate(rollStored({ kind: 'egocube', roll, moves: true })).moves);
+    for (const w of Object.values(C.battle)) expect(C.create.spec.motion[w], w).toBe(true);
+    for (const w of Object.keys(C.create.spec.motion)) expect(MOTION_GAITS[w], w).toBeTruthy();
+    expect(egocubeCreate(rollStored({ kind: 'egocube', roll, moves: true }))).not.toHaveProperty('battle');
+  });
+});
+
+// A PARTY BATTLE'S BEAST (moves.js beastMovesOf { battle }): its strike and its other ways at a foe as the acts the page
+// plays them by; a body that cannot strike has none; without `battle`, as it always was
+describe('a party battle\'s beast', () => {
+  it('strikes, snaps and mauls in turn and roars; a snake has no maul; a swimmer none; plain, unchanged', () => {
+    const W = beastMovesOf('wolf', { battle: true });
+    expect(W.motion).toMatchObject({ strike: true, strikes: { snap: true, maul: true, roar: true } });
+    expect(W.states).toMatchObject({ strike: 'strike', strike2: 'snap', strike3: 'maul', roar: 'roar', stagger: 'flinch', swing_neutral: 'strike' });
+    const S = beastMovesOf('snake', { battle: true });
+    expect(S.states).toMatchObject({ strike: 'strike', strike2: 'snap', roar: 'roar' });
+    expect(S.states).not.toHaveProperty('strike3');
+    expect(beastMovesOf('salmon', { battle: true })).toEqual(beastMovesOf('salmon'));
+    expect(beastMovesOf('wolf', { battle: true, strike: { startup: 40 } }).motion.strike).toEqual({ startup: 40 });
+    expect(beastMovesOf('wolf')).toEqual({ motion: [...beastGaitsOf('wolf'), 'flinch', 'fall', 'rise'], states: { stagger: 'flinch', topple: 'fall', getup: 'rise' } });
   });
 });
 

@@ -208,12 +208,33 @@ strike), timed by the weapon's weight. So a weapon costs no clips at the mint, a
 
 The page plays a figure's strikes and recoils in turn, each figure from a place of its own, so no two blows in a row
 look alike. A figure without its own falls back to the clip it has. A world's juice can name the acts (`act: strike |
-cast | use | hurt | fall | win`, `at: party` for the win).
+cast | use | hurt | fall | win | roar`, `at: party` for the win, `at: foes` for every standing foe).
+
+**The foes' own repertoires.** A party battle's foes, fought on the field, are made with theirs (on a board, as they
+were):
+- **A beast** has its lunge and its other ways at a foe (`fauna/behavior/strike.js`), each a clip of its own built from
+  its own posed body, as the lunge is:
+  - the **snap**: barely gathered, a quick bite an eighth of its length out;
+  - the **maul**: reared up and drawn back, then brought down low and a quarter of its length forward, slow and heavy (a
+    body on legs only);
+  - the **roar**: gathered low, then up tall with the head high, held, no reach.
+
+  It plays the lunge, the snap and the maul in turn (`egocube/moves.js` `beastMovesOf { battle }`); a snake, with no
+  maul, varies its two. A body that cannot strike yet (a bat on its folded wings, a swimmer) has none.
+- **A people or a person** (a goblin, a skeleton, a bandit) carries a member's repertoire by its role (three attacks,
+  a cast, three recoils, its ready stance) and a **roar**: the deep squat, both fists flexed by the head, the face
+  shouting (`foeBattleMovesOf`; a people's sheet made with `moves: 'battle'`).
+
+**A boss's roar and heavier lunge.** A boss's fight opens with every foe's roar (the `boss` juice: `act: roar, at:
+foes`, before the flash and the shake). A boss runs up to its target slower, its strike plays longer, and the camera
+shakes as it lands.
+
+**A summoned foe's entrance.** A foe a page calls in roars as it appears out of the smoke (the `summon` juice).
 
 ## What comes next
 
 Each step ends playable, and each is something a person can say that the words did not carry before. An RPG Maker
 idea is reached through the primitive that already owns it (a switch is a flag, an event page a scene's `if`, a
 transfer a megaworld's way), never rebuilt:
-1. **The fights animated, further:** foes' own repertoires (a beast's several attacks), a boss's roar and heavier
-   lunge, a summoned foe's entrance.
+1. **The foes armed:** a people foe holding its kind's weapon (a goblin's club, a skeleton's sword), as the party's
+   classes do; a bat's strike from the wing.

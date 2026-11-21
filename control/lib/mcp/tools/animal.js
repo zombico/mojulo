@@ -34,7 +34,7 @@ import { groundedFeet } from '@/lib/graph/polygonizer/figure-animal-foot';
 import { SPECIES as FAUNA, speciesPlan, speciesParams, stanceOf } from '@/lib/graph/fauna/species';
 import { withMotion, motionGaits, motionBehaviors, motionReactions, checkBehaviors } from '@/lib/graph/fauna/rig';
 import { BEHAVIORS, resolveBehavior } from '@/lib/graph/fauna/behavior/index';
-import { strikesOf, strikeTiming, strikeSeconds, strikeWindow } from '@/lib/graph/fauna/behavior/strike';
+import { strikesOf, strikeWaysOf, strikeTiming, strikeSeconds, strikeWindow } from '@/lib/graph/fauna/behavior/strike';
 import { resolveAnimalName } from '@/lib/graph/fauna/entries';
 import { FAMILIES } from '@/lib/graph/fauna/families';
 import { buildFauna, mergeParams } from '@/lib/graph/fauna/build';
@@ -74,17 +74,19 @@ const legStance = (n) => ({ 6: 'hexapod', 8: 'octopod', 10: 'decapod', 14: 'isop
  * 'strike', `['walk', 'relax', 'flinch', 'strike']`), or `{ gaits?, behaviors?, variants?, reactions?, strike?, keys? }`
  * (`behaviors: 'all'` for every behavior the species can be posed doing, `reactions: 'all'` its flinch, fall and rise,
  * `strike: true` the blow it deals at a jab's timing or `{ startup, active, recovery }` at its attack's, frames at 60 Hz;
- * `gaits` defaults to every gait only when no behavior, reaction or strike is named). Throws a teaching error naming
- * what it can do.
+ * `gaits` defaults to every gait only when no behavior, reaction or strike is named; `strikes: { snap?, maul?, roar? }`
+ * its other ways at a foe beside the strike, each true or its timing, or their words in a list). Throws a teaching
+ * error naming what it can do.
  */
 export function motionSpec(species, motion) {
   if (motion === undefined || motion === null || motion === false) return null;
   const have = motionGaits(species), does = motionBehaviors(species), reacts = motionReactions(species), strikes = strikesOf(species).length > 0;
-  const say = `'${species}' moves: ${have.join(', ')}; does: ${does.join(', ') || 'none posed yet'}; reacts: ${reacts.join(', ') || 'none yet'}; strikes: ${strikes ? 'yes' : 'not yet'}`;
+  const say = `'${species}' moves: ${have.join(', ')}; does: ${does.join(', ') || 'none posed yet'}; reacts: ${reacts.join(', ') || 'none yet'}; strikes: ${strikes ? strikeWaysOf(species).join(', ') : 'not yet'}`;
   const words = typeof motion === 'string' && motion !== 'all' ? [motion] : Array.isArray(motion) ? motion : null;
-  const REACTION_WORDS = ['flinch', 'fall', 'rise'], other = (w) => !BEHAVIORS[w] && !REACTION_WORDS.includes(w) && w !== 'strike';
-  const o = motion === true || motion === 'all' ? {} : words ? { gaits: words.filter(other), behaviors: words.filter((w) => BEHAVIORS[w]), reactions: words.filter((w) => REACTION_WORDS.includes(w)), ...(words.includes('strike') ? { strike: true } : {}) } : motion;
-  if (!o || typeof o !== 'object') throw new Error(`\`motion\` must be true, a gait, behavior or reaction word or 'strike', a list of them, or { gaits, behaviors, reactions, strike, keys } — ${say}`);
+  const REACTION_WORDS = ['flinch', 'fall', 'rise'], WAY_WORDS = ['snap', 'maul', 'roar'], other = (w) => !BEHAVIORS[w] && !REACTION_WORDS.includes(w) && w !== 'strike' && !WAY_WORDS.includes(w);
+  const named = words ? words.filter((w) => WAY_WORDS.includes(w)) : [];
+  const o = motion === true || motion === 'all' ? {} : words ? { gaits: words.filter(other), behaviors: words.filter((w) => BEHAVIORS[w]), reactions: words.filter((w) => REACTION_WORDS.includes(w)), ...(words.includes('strike') ? { strike: true } : {}), ...(named.length ? { strikes: Object.fromEntries(named.map((w) => [w, true])) } : {}) } : motion;
+  if (!o || typeof o !== 'object') throw new Error(`\`motion\` must be true, a gait, behavior or reaction word, 'strike' or a way at a foe (snap, maul, roar), a list of them, or { gaits, behaviors, reactions, strike, strikes, keys } — ${say}`);
   const behaviors = o.behaviors === 'all' ? does : o.behaviors === undefined ? [] : [o.behaviors].flat();
   const reactions = o.reactions === 'all' ? reacts : o.reactions === undefined ? [] : [o.reactions].flat();
   for (const w of reactions) if (!reacts.includes(w)) throw new Error(`no reaction '${w}' — ${say}`);
@@ -94,15 +96,30 @@ export function motionSpec(species, motion) {
     if (strike !== true && (typeof strike !== 'object' || Array.isArray(strike) || Object.keys(strike).some((k) => !['startup', 'active', 'recovery'].includes(k)))) throw new Error('`motion.strike` is true or { startup?, active?, recovery? } (frames at 60 Hz)');
     if (strike !== true) strikeTiming(strike);
   }
-  const gaits = o.gaits === undefined ? (behaviors.length || reactions.length || strike ? [] : have) : [o.gaits].flat();
+  // (its other ways at a foe: a snap, a maul, its roar, fauna/behavior/strike.js)
+  let ways;
+  if (o.strikes !== undefined) {
+    const can = strikeWaysOf(species).filter((w) => w !== 'strike');
+    if (!o.strikes || typeof o.strikes !== 'object' || Array.isArray(o.strikes)) throw new Error('`motion.strikes` is { snap?, maul?, roar?: true | { startup?, active?, recovery? } }');
+    ways = {};
+    for (const [w, t] of Object.entries(o.strikes)) {
+      if (t === false) continue;
+      if (!WAY_WORDS.includes(w)) throw new Error(`\`motion.strikes\`: no way '${w}' (snap, maul, roar; the lunge is \`strike\`)`);
+      if (!can.includes(w)) throw new Error(`'${species}' has no ${w} (its ways beside the strike: ${can.join(', ') || 'none yet'}) — ${say}`);
+      if (t !== true && (typeof t !== 'object' || Array.isArray(t) || Object.keys(t).some((k) => !['startup', 'active', 'recovery'].includes(k)))) throw new Error(`\`motion.strikes.${w}\` is true or { startup?, active?, recovery? } (frames at 60 Hz)`);
+      ways[w] = t === true ? true : strikeTiming(t, w);
+    }
+    if (!Object.keys(ways).length) ways = undefined;
+  }
+  const gaits = o.gaits === undefined ? (behaviors.length || reactions.length || strike || ways ? [] : have) : [o.gaits].flat();
   for (const g of gaits) if (!have.includes(g)) throw new Error(`no gait '${g}' — ${say}`);
   const variants = o.variants ?? {};
   if (typeof variants !== 'object' || Array.isArray(variants)) throw new Error('`motion.variants` is { <behavior>: <strategy> }');
   try { checkBehaviors(species, behaviors, variants); } catch (err) { throw new Error(`${err.message} — ${say}`); }
-  if (!gaits.length && !behaviors.length && !reactions.length && !strike) throw new Error(`\`motion\` names no clip — ${say}`);
+  if (!gaits.length && !behaviors.length && !reactions.length && !strike && !ways) throw new Error(`\`motion\` names no clip — ${say}`);
   const keys = o.keys ?? 24;
   if (!Number.isInteger(keys) || keys < 4 || keys > 96) throw new Error('`motion.keys` must be an integer in [4, 96] (frames per stride)');
-  return { gaits, keys, ...(behaviors.length ? { behaviors } : {}), ...(Object.keys(variants).length ? { variants } : {}), ...(reactions.length ? { reactions } : {}), ...(strike ? { strike: strike === true ? true : strikeTiming(strike) } : {}) };
+  return { gaits, keys, ...(behaviors.length ? { behaviors } : {}), ...(Object.keys(variants).length ? { variants } : {}), ...(reactions.length ? { reactions } : {}), ...(strike ? { strike: strike === true ? true : strikeTiming(strike) } : {}), ...(ways ? { strikes: ways } : {}) };
 }
 
 /**
@@ -284,7 +301,7 @@ export async function createAnimalHandler(input) {
       ...(M ? { ooze: { oozes: M.oozes, seed: M.seed, ...(stylism ? { stylism } : {}), ...(setting ? { setting } : {}) } } : {}),
       ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
     });
-    return { ...res, species, ...(coatWorld ? { coat: { in: 'world', dressed: coatLedger } } : {}), ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species), ...(M ? { ooze: { oozes: M.oozes, seed: M.seed, form: M.form, ...(seat.notes ? { notes: seat.notes } : {}), ...(seat.face !== undefined && seat.face < 1 ? { face: seat.face, note: `the head seats ${seat.face * 100}% of the oozes' face (a fuller one cannot place its lids)` } : {}), ...(seat.eye !== undefined ? { eye: seat.eye, eye_note: `the head seats ${seat.eye * 100}% of the oozes' eye growth (a bigger eye cannot place its lids)` } : {}), ...(seat.expression !== undefined ? { expression: seat.expression } : {}), ...(seat.setting ? { setting: { ...seat.setting, light: toon ? 'character' : 'studio' } } : {}) } } : {}), ...(motion ? { motion: { gaits: motion.gaits, ...(motion.behaviors ? { behaviors: Object.fromEntries(motion.behaviors.map((b) => [b, resolveBehavior(rid, b, { variant: motion.variants?.[b] }).line])) } : {}), ...(motion.strike ? { strike: { seconds: strikeSeconds(motion.strike === true ? undefined : motion.strike), blow: strikeWindow(motion.strike === true ? undefined : motion.strike) } } : {}) } } : {}) };
+    return { ...res, species, ...(coatWorld ? { coat: { in: 'world', dressed: coatLedger } } : {}), ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species), ...(M ? { ooze: { oozes: M.oozes, seed: M.seed, form: M.form, ...(seat.notes ? { notes: seat.notes } : {}), ...(seat.face !== undefined && seat.face < 1 ? { face: seat.face, note: `the head seats ${seat.face * 100}% of the oozes' face (a fuller one cannot place its lids)` } : {}), ...(seat.eye !== undefined ? { eye: seat.eye, eye_note: `the head seats ${seat.eye * 100}% of the oozes' eye growth (a bigger eye cannot place its lids)` } : {}), ...(seat.expression !== undefined ? { expression: seat.expression } : {}), ...(seat.setting ? { setting: { ...seat.setting, light: toon ? 'character' : 'studio' } } : {}) } } : {}), ...(motion ? { motion: { gaits: motion.gaits, ...(motion.behaviors ? { behaviors: Object.fromEntries(motion.behaviors.map((b) => [b, resolveBehavior(rid, b, { variant: motion.variants?.[b] }).line])) } : {}), ...(motion.strike ? { strike: { seconds: strikeSeconds(motion.strike === true ? undefined : motion.strike), blow: strikeWindow(motion.strike === true ? undefined : motion.strike) } } : {}), ...(motion.strikes ? { strikes: Object.fromEntries(Object.entries(motion.strikes).map(([w, t]) => [w, { seconds: strikeSeconds(t === true ? undefined : t, w), blow: strikeWindow(t === true ? undefined : t, w) }])) } : {}) } } : {}) };
   }
 
   // A species RESOLVES to (archetype, opts) here, at mint time — the stored recipe is

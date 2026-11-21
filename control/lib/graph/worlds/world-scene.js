@@ -150,8 +150,9 @@ export function stateFace(face, own, clips) {
 /** a body destroyed when it goes down (its `vanish.die` a dismantle, a cleave or a destroy: gameworld/vanish.js), or one
  * that sheds a mode (its `modes`): the page's wreck plays both */
 // (a body destroyed in its going, a body with modes, or a summons whose strings may be cut: worlds/controllable/summon.js)
-// the battle acts a figure's `moves` may name (egocube/moves.js battleMovesOf), kept as names for the page's acts
-const BATTLE_ACT_STATES = new Set(['strike', 'strike2', 'strike3', 'cast', 'use', 'hurt', 'hurt2', 'hurt3', 'ready', 'win']);
+// the battle acts a figure's `moves` may name (egocube/moves.js battleMovesOf, a foe's foeBattleMovesOf, a beast's
+// beastMovesOf), kept as names for the page's acts
+const BATTLE_ACT_STATES = new Set(['strike', 'strike2', 'strike3', 'cast', 'use', 'hurt', 'hurt2', 'hurt3', 'ready', 'win', 'roar']);
 // (the blow's window a battle's held swing is baked to land in, a share of its length)
 const BATTLE_SWING_CONTACT = Object.freeze([0.45, 0.6]);
 const wrecks = (e) => !!(e && e.body && ((e.body.vanish && ['dismantle', 'cleave', 'destroy'].includes(e.body.vanish.die)) || (Array.isArray(e.body.modes) && e.body.modes.length > 1) || (e.rule && e.rule.summoned && e.rule.summoned.bound)));

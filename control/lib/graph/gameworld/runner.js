@@ -72,7 +72,7 @@ import { sheetAudio, sheetBed, onSheet, levelSheet, citySounds, rideSound, rideT
 import { cueSheet, levelScore, onScore, cityScore } from './cue-sheet.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { castingOf, laidCasting, laidJoins } from './casting.js';
-import { REACT_MOTION, reactStatesOf, beastMovesOf, battleMovesOf, ROLE_OF_CLASS, weaponOfClass } from '../egocube/moves.js';
+import { REACT_MOTION, reactStatesOf, beastMovesOf, battleMovesOf, foeBattleMovesOf, ROLE_OF_CLASS, weaponOfClass } from '../egocube/moves.js';
 import { beastLook } from './stage-figures.js';
 import { kinWords, kinBare, isKin } from '../foes/packs.js';
 import { brawlCast, brawlBodies, withBodies, brawlStreet, withStreetBodies } from './brawl-cast.js';
@@ -279,10 +279,11 @@ const REACT_STATES = reactStatesOf(Object.keys(REACT_MOTION));
 // a figure that is a beast (a look naming a `species`): made through the animal door with its two gaits and its reactions
 // (design-game.js realizes an `animal` order); it plays its own on the field (stage-figures.js foeFigure). A look may grow
 // it (a bestiary's skin: `{ species, ooze?, stylism? }`, foes.js) and arm it (`strike`, its blow's timing: the strike
-// clip its swing plays); a species alone orders as it always did
-const beastStep = (key, ref, look, title) => {
+// clip its swing plays); a species alone orders as it always did. A party battle's beast (`battle`) is made with its
+// other ways at a foe beside its strike (a snap, a maul, its roar: egocube/moves.js beastMovesOf)
+const beastStep = (key, ref, look, title, { battle = false } = {}) => {
   const { strike, ...L } = typeof look === 'string' ? { species: look } : look;
-  const animal = { ...L, motion: beastMovesOf(L.species, { strike }).motion };
+  const animal = { ...L, motion: beastMovesOf(L.species, { strike, ...(battle ? { battle } : {}) }).motion };
   return { key, ref, ready: true, order: { animal, title }, print: fingerprint({ animal }) };
 };
 // a mascot's own one-shots (egocube/mascot-form.js `reactions`)
@@ -369,16 +370,21 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   // every pack on the map (and for a level goal's boss, made at the same ref); else each foe kind its own figure (made
   // once the plan says which, below), the boss's at this ref as without battles
   const ownFoe = G.battles && G.battles.foe !== undefined, foeRef = G.battles ? childRef(ref, 'foe') : null;
+  // (a party battle's foes, fought on the field, are made with a foe's repertoire: a beast its other ways at a foe, a
+  // people's and a person's a member's strikes, recoils and stance and a roar, egocube/moves.js; on a board, as made)
+  const fieldFight = !!G.battles && G.battles.on !== 'board', foeFight = fieldFight ? foeBattleMovesOf('frontline') : null, peopleMoves = fieldFight ? 'battle' : true;
+  const withFoeFight = (spec) => (foeFight ? { ...spec, motion: { ...(isObj(spec.motion) ? spec.motion : {}), ...foeFight.motion } } : spec), foeOwn = {};
   if (foeRef && !ownFoe) { if (bossed(G)) steps.push(bossStep(G, ref, { ready: true })); }
-  else if (foeRef && beastLook(G.battles.foe)) steps.push(beastStep('foe', foeRef, G.battles.foe, `${G.name ?? G.id} foe`));
+  else if (foeRef && beastLook(G.battles.foe)) steps.push(beastStep('foe', foeRef, G.battles.foe, `${G.name ?? G.id} foe`, { battle: fieldFight }));
   else if (foeRef && isPeopleLook(G.battles.foe)) {
     // (a people standing for every pack: its sheet, then the character from it, as each kind's is below)
-    const roll = battlePeopleRoll(G, 'foe', G.battles.foe), manifest = { kind: 'egocube', roll, moves: true }, sheetRef = childRef(ref, 'foe-sheet');
+    const roll = battlePeopleRoll(G, 'foe', G.battles.foe), manifest = { kind: 'egocube', roll, moves: peopleMoves }, sheetRef = childRef(ref, 'foe-sheet');
     steps.push({ key: 'foe-sheet', ref: sheetRef, ready: true, order: { title: `${G.name ?? G.id} foe (sheet)`, manifest }, print: fingerprint(manifest) });
-    steps.push({ key: 'foe', ref: foeRef, ready: true, order: { egocube: sheetRef, title: `${G.name ?? G.id} foe` }, print: fingerprint({ roll, moves: true }) });
+    steps.push({ key: 'foe', ref: foeRef, ready: true, order: { egocube: sheetRef, title: `${G.name ?? G.id} foe` }, print: fingerprint({ roll, moves: peopleMoves }) });
   }
   else if (foeRef) {
-    const spec = withReact(react, G.battles.foe ?? BATTLE_FOE), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} foe`, spec, ...(spec.head === 'anime' ? { toon: { light: true } } : {}) };
+    const spec = withFoeFight(withReact(react, G.battles.foe ?? BATTLE_FOE)), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} foe`, spec, ...(spec.head === 'anime' ? { toon: { light: true } } : {}) };
+    if (foeFight) foeOwn[foeRef] = foeFight.states;
     steps.push({ key: 'foe', ref: foeRef, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
   } else if (bossed(G)) steps.push(bossStep(G, ref, { ready: true }));
   if (guarded(G)) steps.push(guardStep(G, ref, { ready: true }));
@@ -416,7 +422,8 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   const ownMoves = react ? Object.fromEntries([...(adopted ? [] : [heroRef]), ...(equipped ? [equipped.ref] : []), ...(foeRef && ownFoe && !beastLook(G.battles.foe) ? [foeRef] : []), ...(keeperRef ? [keeperRef] : [])].map((r) => [r, REACT_STATES])) : null;
   if (ownMoves && adopted) { const st = reactStatesOf(isObj(lookup?.heroSpec?.motion) ? Object.keys(lookup.heroSpec.motion) : []); if (st) ownMoves[heroRef] = st; }
   // (the hero's battle moves beside its reactions)
-  const ownAll = fightMoves ? ownMoves ?? {} : ownMoves;
+  const ownAll = fightMoves || foeFight ? ownMoves ?? {} : ownMoves;
+  for (const [r, st] of Object.entries(foeOwn)) ownAll[r] = { ...(ownAll[r] ?? {}), ...st };
   if (fightMoves) for (const r of [heroRef, ...(equipped ? [equipped.ref] : [])]) ownAll[r] = { ...(ownAll[r] ?? {}), ...fightMoves.states };
   const heroGaits = rowGaits(adopted ? null : G, gaitsOf(equipped ? equipped.order.spec : adopted ? lookup?.heroSpec : { ...hero.spec, ...(hero.motion ? motionFields(hero.motion) : {}) }));
   // a building by ref is played as it was made: its ref is the level, and no step makes it
@@ -468,18 +475,19 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   const kindRefs = {};
   if (plan && !ownFoe) for (const kind of foeKindsOf(G, plan)) {
     const kref = kindRefs[kind] = childRef(ref, `foe-${kind}`), look = foeLookOf(G, kind), title = `${G.name ?? G.id} ${kind}`;
-    if (beastLook(look)) { steps.push(beastStep(`foe-${kind}`, kref, look, title)); continue; }
+    if (beastLook(look)) { steps.push(beastStep(`foe-${kind}`, kref, look, title, { battle: fieldFight })); continue; }
     // (a people, foes/people.js: a lineage, the beast-kin, the undead: its sheet rolled in the game's setting, then the
     // character the loop makes from it through its own door, its moves on it, as a bestiary people is made)
     if (isPeopleLook(look)) {
-      const roll = battlePeopleRoll(G, kind, look), manifest = { kind: 'egocube', roll, moves: true }, sheetRef = childRef(ref, `foe-${kind}-sheet`);
+      const roll = battlePeopleRoll(G, kind, look), manifest = { kind: 'egocube', roll, moves: peopleMoves }, sheetRef = childRef(ref, `foe-${kind}-sheet`);
       steps.push({ key: `foe-${kind}-sheet`, ref: sheetRef, ready: true, order: { title: `${title} (sheet)`, manifest }, print: fingerprint(manifest) });
-      steps.push({ key: `foe-${kind}`, ref: kref, ready: true, order: { egocube: sheetRef, title }, print: fingerprint({ roll, moves: true }) });
+      steps.push({ key: `foe-${kind}`, ref: kref, ready: true, order: { egocube: sheetRef, title }, print: fingerprint({ roll, moves: peopleMoves }) });
       continue;
     }
-    const spec = withReact(react, look), mint = { kind: 'layered', via: 'hero', title, spec, ...(spec.head === 'anime' ? { toon: { light: true } } : {}) };
+    const spec = withFoeFight(withReact(react, look)), mint = { kind: 'layered', via: 'hero', title, spec, ...(spec.head === 'anime' ? { toon: { light: true } } : {}) };
     steps.push({ key: `foe-${kind}`, ref: kref, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
     if (ownMoves) ownMoves[kref] = REACT_STATES;
+    if (foeFight) ownAll[kref] = { ...(ownAll[kref] ?? {}), ...foeFight.states };
   }
   stages.reduce((n, _, i) => { packFrom[i] = n; return n + (plan?.[i]?.length ?? 0); }, 0);
   const games = G.minigames ? minigamePlan(G, stages) : null;

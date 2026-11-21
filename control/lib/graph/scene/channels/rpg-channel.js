@@ -55,7 +55,9 @@ export function rpgPage(cfg, K, ctl, jk, M) {
   const WHY = { useless: 'It would do nothing now.', battle: 'Not during a fight.', rules: 'Classes are fixed here.', same: 'Already that class.', locked: 'That class is not open yet.', member: 'Not a class they can take.', sp: 'Not enough class points.', requires: 'Learn what it builds on first.', learned: 'Already learned.', class: 'Take that class first.', unknown: '' };
   const BEAT = 650, POP_FOR = 1200, STRIKE_FOR = 700;
   // how long each act plays (seconds), within a beat
-  const ACT_FOR = { strike: 0.55, cast: 0.7, hurt: 0.4, fall: 0.6, use: 0.8, win: 1.2 };
+  const ACT_FOR = { strike: 0.55, cast: 0.7, hurt: 0.4, fall: 0.6, use: 0.8, win: 1.2, roar: 1.3 };
+  // (a boss's blow is heavier: its run up slower, its strike longer, the camera shaken as it lands)
+  const BOSS_RUN = 1.6, BOSS_STRIKE = 1.4, BOSS_SHAKE = 0.3;
   // mode: null | 'battle' | 'field' | 'shop'; the battle's own phase: intro | command | play | end. (Which list a member
   // is on, its row, the open tab: the screen's state, mana-ui's; `pend` is the pick waiting for its target)
   let mode = null, phase = null, beats = [], bi = 0, bt = 0, shown = {}, msg = '', picks = {}, mi = 0, pend = null, pops = [], popN = 0, strikes = [], strikeN = 0;
@@ -126,6 +128,8 @@ export function rpgPage(cfg, K, ctl, jk, M) {
   }
   // (a foe with a figure of its own: its fall is its own, not the pack's)
   const ownFigure = (who) => { const m = (cfg.met || []).find((x) => x.id === R.b.enc); return !!(m && Array.isArray(m.who)); };
+  // (a figure that stands for a boss: its blows are heavier)
+  const bossFigure = (id) => !!(id && R.b && R.b.foes.some((f) => f.F && f.F.boss && f.hp > 0 && figureOf(f.uid) === id));
   function cast(ops) { try { if (window.__mojCtrl && window.__mojCtrl.cast) window.__mojCtrl.cast(ops); } catch (e) { /* a figure gone: no moment */ } }
   function flash(color, secs) {
     flashEl.style.transition = 'none'; flashEl.style.background = color || '#ffffff'; flashEl.style.opacity = '0.75';
@@ -151,13 +155,17 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     else if (s.act) {
       // the body acts it out (the controllable channel plays e.act: its own clip at the act's phase on the world clock);
       // a pack's figure stands for all its foes, so a foe's fall is its recoil (it falls when the fight is won)
-      // (at: party, every standing member's figure acts it: the win)
-      const w = W(), whos = s.at === 'party' ? R.b.ids.filter((m) => R.m[m].hp > 0) : [s.at === 'actor' ? b.by || b.who : b.target];
+      // (at: party, every standing member's figure acts it: the win; at: foes, every standing foe's: a boss's roar, a
+      // pack's one figure once)
+      const w = W(), whos = s.at === 'party' ? R.b.ids.filter((m) => R.m[m].hp > 0) : s.at === 'foes' ? R.b.foes.filter((f) => f.hp > 0).map((f) => f.uid) : [s.at === 'actor' ? b.by || b.who : b.target], did = new Set();
       for (const who of whos) {
         const id = figureOf(who), e = id && w && w.byId[id];
-        if (!e) continue;
+        if (!e || did.has(id)) continue;
+        did.add(id);
         const is = s.act === 'fall' && !R.b.side[who] && !ownFigure(who) ? 'hurt' : s.act, to = is === 'strike' ? figureOf(b.target) : null;
-        e.act = { is, t0: w.time || 0, for: s.for || ACT_FOR[is], ...(to && to !== id ? { to } : {}) };
+        const heavy = is === 'strike' && !R.b.side[who] && bossFigure(id);
+        e.act = { is, t0: w.time || 0, for: (s.for || ACT_FOR[is]) * (heavy ? BOSS_STRIKE : 1), ...(to && to !== id ? { to } : {}) };
+        if (heavy) cast([{ op: 'shake', k: BOSS_SHAKE, for: e.act.for }]);
       }
     }
   }
@@ -288,7 +296,8 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       else if (W1.is === 'at') {
         const T = placed(W1.on);
         // (e.ranAt: whom it last ran up to this fight)
-        if (T) { const dx = T.transform.pos[0] - p[0], dy = T.transform.pos[1] - p[1], d = Math.hypot(dx, dy) || 1, gap = STEP_GAP + ((T.rule && T.rule.collideRadius) || 0.4); b = [dx / d * Math.max(0, d - gap), dy / d * Math.max(0, d - gap)]; dur = RUN_FOR; run = true; e.ranAt = W1.on; }
+        // (a boss runs up heavier: slower)
+        if (T) { const dx = T.transform.pos[0] - p[0], dy = T.transform.pos[1] - p[1], d = Math.hypot(dx, dy) || 1, gap = STEP_GAP + ((T.rule && T.rule.collideRadius) || 0.4); b = [dx / d * Math.max(0, d - gap), dy / d * Math.max(0, d - gap)]; dur = RUN_FOR * (party.has(id) || !bossFigure(id) ? 1 : BOSS_RUN); run = true; e.ranAt = W1.on; }
       }
       e.stepOff = { a: offNow(e, now), b, t0: now, for: dur, run };
     }

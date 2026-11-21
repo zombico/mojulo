@@ -23,7 +23,10 @@
  *                          gaits and its flinch, fall and rise: fauna/behavior/react.js) and the field states they play;
  *                          with `strike` (true, or its attack's { startup, active, recovery }) and a body that can deal
  *                          one (fauna/behavior/strike.js), the motion's object form carrying it, played by the swing
- *   beastFieldOf(species, { strike? }) → a beast's figure on the level map: its own gaits as the walker's states, its
+ *   beastMovesOf(species, { battle: true }) → a party battle's beast: its strike and its other ways at a foe (a snap, a
+ *                          maul, its roar: fauna/behavior/strike.js) as its acts by name, strike, strike2, strike3, roar
+ *   foeBattleMovesOf(role, { archetype?, armed? }) → a party battle's person foe: a member's repertoire and a roar
+ *   beastFieldOf(species, { strike?, battle? }) → a beast's figure on the level map: its own gaits as the walker's states, its
  *                          reactions (and its strike) as its moves (a cast's beast, a battle's beast foe, a fielded
  *                          foe); throws for a species the fauna does not know
  *   REACT_MOTION          the reactions any person a run makes may carry (a world's `moves`): a hit, a stagger, the
@@ -34,7 +37,7 @@
  */
 import { MOTION_GAITS } from '../polygonizer/hero-motion.js';
 import { motionGaits, motionReactions } from '../fauna/rig.js';
-import { strikesOf } from '../fauna/behavior/strike.js';
+import { strikesOf, strikeWaysOf } from '../fauna/behavior/strike.js';
 
 export const READY_OF_ROLE = Object.freeze({ frontline: 'guard', flanker: 'low', support: 'centre', controller: 'centre', caster: 'centre', ranged: 'athletic' });
 export const ATTACK_OF_ROLE = Object.freeze({ frontline: 'cross', flanker: 'jab', ranged: 'jab', controller: 'josephPoint', caster: 'jotaroPoint', support: 'fistToSky' });
@@ -106,6 +109,9 @@ export const WEAPON_OF_CLASS = Object.freeze({
   cleric: Object.freeze({ right: Object.freeze({ item: 'staff', style: 'celestial', parts: Object.freeze({ hilt: 'arm', end: 'mace' }) }) }),
 });
 export const ARMED_ATTACKS = Object.freeze(['swing_neutral', 'swing_forward', 'swing_back']);
+/** A person foe's ROAR: the threat a boss opens its fight with and a summoned foe enters by (an aura: the deep squat,
+ * both fists flexed by the head, the face shouting). */
+export const FOE_ROAR = 'recoome';
 /** The gear a party class holds, as the hero door takes it (a fresh copy), or null (fists). */
 export const weaponOfClass = (cls) => (WEAPON_OF_CLASS[cls] ? structuredClone(WEAPON_OF_CLASS[cls]) : null);
 
@@ -116,6 +122,13 @@ export function battleMovesOf(role, { archetype = null, armed = false } = {}) {
   const states = { strike: a1, strike2: a2, strike3: a3, cast: BATTLE_CAST_OF_ROLE[r], use: BATTLE_USE, hurt: BATTLE_HURTS[0], hurt2: BATTLE_HURTS[1], hurt3: BATTLE_HURTS[2], ready: READY_OF_ROLE[r], win: WIN_OF_ARCHETYPE[archetype] ?? 'fistToSky' };
   const words = Object.values(states).filter((w) => !ARMED_ATTACKS.includes(w));
   return { motion: Object.fromEntries([...new Set([...words, ...Object.keys(REACT_MOTION)])].map((w) => [w, true])), states };
+}
+
+/** A PARTY BATTLE'S PERSON FOE: a member's repertoire by its role (its strikes, its cast, its recoils, its ready
+ * stance) and its roar, the act a boss opens its fight with and a summoned foe enters by (rpg-channel.js). */
+export function foeBattleMovesOf(role, { archetype = null, armed = false } = {}) {
+  const B = battleMovesOf(role, { archetype, armed });
+  return { motion: { ...B.motion, [FOE_ROAR]: true }, states: { ...B.states, roar: FOE_ROAR } };
 }
 
 /** The families a creature's rig solves (a showcase pose reaches for a person's shoulders and hands). */
@@ -139,17 +152,23 @@ export function beastGaitsOf(species) {
 /** A beast's motion: its two gaits and its reactions (a swimmer has none); and the field states the reactions play. */
 // (every way a mind swings plays the one blow: a beast has no cleave of its own yet)
 const SWINGS = ['neutral', 'forward', 'back', 'left', 'right'];
-export function beastMovesOf(species, { strike } = {}) {
+// (a party battle's beast: its strike and its other ways at a foe, fauna/behavior/strike.js, as the acts the page plays
+// them by, strike, strike2, strike3 in turn and its roar; a body that cannot strike has none of them)
+const BATTLE_WAYS = Object.freeze({ snap: 'strike2', maul: 'strike3', roar: 'roar' });
+export function beastMovesOf(species, { strike, battle = false } = {}) {
   const reacts = motionReactions(species), gaits = beastGaitsOf(species);
   // (a strike at its attack's timing: the motion's object form; without one the words, as always)
-  const struck = strike && strikesOf(species).length ? strike : null;
+  const struck = (strike || battle) && strikesOf(species).length ? strike || true : null;
+  const ways = battle && struck ? strikeWaysOf(species).filter((w) => BATTLE_WAYS[w]) : [];
+  // (a body with no maul, a snake, varies its two)
+  const acts = ways.length ? { strike: 'strike', ...Object.fromEntries(ways.map((w) => [BATTLE_WAYS[w], w])) } : {};
   return {
-    motion: struck ? { gaits, ...(reacts.length ? { reactions: reacts } : {}), strike: struck } : [...gaits, ...reacts],
-    states: { ...(reacts.length ? { stagger: 'flinch', topple: 'fall', getup: 'rise' } : {}), ...(struck ? Object.fromEntries(SWINGS.map((d) => [`swing_${d}`, 'strike'])) : {}) },
+    motion: struck ? { gaits, ...(reacts.length ? { reactions: reacts } : {}), strike: struck, ...(ways.length ? { strikes: Object.fromEntries(ways.map((w) => [w, true])) } : {}) } : [...gaits, ...reacts],
+    states: { ...(reacts.length ? { stagger: 'flinch', topple: 'fall', getup: 'rise' } : {}), ...(struck ? Object.fromEntries(SWINGS.map((d) => [`swing_${d}`, 'strike'])) : {}), ...acts },
   };
 }
 
-export function beastFieldOf(species, { strike } = {}) {
-  const g = beastGaitsOf(species), M = beastMovesOf(species, { strike });
+export function beastFieldOf(species, { strike, battle = false } = {}) {
+  const g = beastGaitsOf(species), M = beastMovesOf(species, { strike, battle });
   return { own: { forward: g.at(-1), turn: g[0], strafe: g.at(-1) }, ...(Object.keys(M.states).length ? { moves: M.states } : {}) };
 }

@@ -2161,10 +2161,11 @@ function __formMode(fig, e, mode) {
   return fig.clips[k] ? k : f + ':idle';
 }
 ` : ''}${acts ? `// a battle act's clip among the figure's own: the first it has of the act's names (its swing, its recoil, its fall)
-const __ACT_CLIPS = { strike: ['strike', 'swing_neutral', 'swing', 'attack', 'punch'], cast: ['cast', 'strike', 'swing_neutral'], use: ['cast', 'strike', 'swing_neutral'], hurt: ['stagger', 'hitHigh', 'flinch'], fall: ['topple', 'knockedOutDown', 'fall'], win: [] };
+const __ACT_CLIPS = { strike: ['strike', 'swing_neutral', 'swing', 'attack', 'punch'], cast: ['cast', 'strike', 'swing_neutral'], use: ['cast', 'strike', 'swing_neutral'], hurt: ['stagger', 'hitHigh', 'flinch'], fall: ['topple', 'knockedOutDown', 'fall'], win: [], roar: [] };
 // (a party battle's repertoire, fig.battle: its own clips for an act by name, egocube/moves.js battleMovesOf; an act
-// plays them in turn, from a place of its own on the figure's name, so no two blows in a row look alike)
-const __ACT_OWN = { strike: ['strike', 'strike2', 'strike3'], cast: ['cast'], use: ['use', 'cast'], hurt: ['hurt', 'hurt2', 'hurt3'], win: ['win'] };
+// plays them in turn, from a place of its own on the figure's name, so no two blows in a row look alike; a foe's roar,
+// egocube/moves.js foeBattleMovesOf and a beast's beastMovesOf, its own only)
+const __ACT_OWN = { strike: ['strike', 'strike2', 'strike3'], cast: ['cast'], use: ['use', 'cast'], hurt: ['hurt', 'hurt2', 'hurt3'], win: ['win'], roar: ['roar'] };
 function __actClip(fig, is, n, id) {
   const B = fig.battle, own = [];
   if (B) for (const k of __ACT_OWN[is] || []) if (B[k] && fig.clips[B[k]] && own.indexOf(B[k]) < 0) own.push(B[k]);

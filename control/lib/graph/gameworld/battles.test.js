@@ -20,7 +20,7 @@ describe('battles: the book\'s party battles, laid on its trails', () => {
     // (a figure for each foe the plan stands, in its look: a beast through the animal door, a person through the hero's)
     expect(S.find((s) => s.key === 'foe-wolf')).toMatchObject({ ref: 'gw-foe-wolf', ready: true, order: { animal: { species: 'wolf' } } });
     // (a people, the goblin's orcish kin: its sheet, then the character the character door makes from it, its moves on it)
-    expect(S.find((s) => s.key === 'foe-goblin-sheet')).toMatchObject({ ref: 'gw-foe-goblin-sheet', order: { manifest: { kind: 'egocube', moves: true } } });
+    expect(S.find((s) => s.key === 'foe-goblin-sheet')).toMatchObject({ ref: 'gw-foe-goblin-sheet', order: { manifest: { kind: 'egocube', moves: 'battle' } } });   // (made to play a party battle's foe: egocube/moves.js foeBattleMovesOf)
     expect(S.find((s) => s.key === 'foe-goblin')).toMatchObject({ ref: 'gw-foe-goblin', order: { egocube: 'gw-foe-goblin-sheet' } });
     expect(S.some((s) => s.key === 'foe')).toBe(false);
     const L = levels(W({}));

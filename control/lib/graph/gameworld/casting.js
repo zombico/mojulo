@@ -39,7 +39,7 @@
  */
 import { rollCast, castOfScale, RELATIONS, SCALES } from '../egocube/cast.js';
 import { settingOfGame } from './cast-setting.js';
-import { moveSetOf, fieldStatesOf, creatureMovesOf, beastFieldOf, battleMovesOf, weaponOfClass } from '../egocube/moves.js';
+import { moveSetOf, fieldStatesOf, creatureMovesOf, beastFieldOf, battleMovesOf, foeBattleMovesOf, weaponOfClass } from '../egocube/moves.js';
 import { beastOnTiered } from '../egocube/plan.js';
 import { cubeOfWorld } from './intent.js';
 
@@ -162,7 +162,9 @@ export function fieldOf(m, { armed = false } = {}) {
   if (m.body === 'mascot') return { own: { forward: 'run', idle: 'idle', turn: 'walk', strafe: 'run' }, moves: { stagger: 'flinch', topple: 'fall', getup: 'rise' } };
   // (one who fights in the party plays a party battle's repertoire beside: moves.js battleMovesOf, minted with it, kind.js)
   if (m.sheet.ancestry?.door === 'hero' || beastOnTiered(m.sheet)) {
-    const B = m.bond === 'party' && m.sheet.facets.role !== 'non-combatant' ? battleMovesOf(m.sheet.facets.role, { archetype: m.sheet.facets.archetype, armed }) : null;
+    // (a party battle's foe, `battle`, a foe's: foeBattleMovesOf, minted with it by the egocube's moves: 'battle')
+    const F = m.sheet.facets, fights = F.role !== 'non-combatant';
+    const B = m.bond === 'party' && fights ? battleMovesOf(F.role, { archetype: F.archetype, armed }) : m.battle && fights ? foeBattleMovesOf(F.role, { archetype: F.archetype, armed }) : null;
     return { moves: { ...fieldStatesOf(moveSetOf(m.sheet.facets).moves), ...(B ? B.states : {}) } };
   }
   return { own: { forward: 'jog', idle: 'idle', turn: 'walk', strafe: 'jog' }, moves: fieldStatesOf(creatureMovesOf(m.sheet.facets).moves) };

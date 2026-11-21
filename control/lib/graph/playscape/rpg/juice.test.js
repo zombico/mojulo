@@ -87,7 +87,13 @@ describe('the bodies act a blow out', () => {
     expect(JUICE_PRESETS.ko).toContainEqual({ act: 'fall' });
     const J = readJuice({ on: { 'skill:fire': [{ act: 'cast', at: 'actor', for: 0.8 }, 'hit'] } });
     expect(J.on['skill:fire'][0]).toEqual({ act: 'cast', at: 'actor', for: 0.8 });
-    expect(() => readJuice({ on: { hit: [{ act: 'dance' }] } })).toThrow(/act is strike, cast, use, hurt, fall, win/);
+    expect(() => readJuice({ on: { hit: [{ act: 'dance' }] } })).toThrow(/act is strike, cast, use, hurt, fall, win, roar/);
+    // (a boss opens its fight roaring, every standing foe's figure; a foe called in enters roaring)
+    expect(JUICE_PRESETS.boss[0]).toEqual({ act: 'roar', at: 'foes' });
+    expect(JUICE_PRESETS.summon).toContainEqual({ act: 'roar', at: 'target' });
+    expect(juiceKeys({ kind: 'summon', who: 'f2', target: 'f2' })).toEqual(['summon']);
+    expect(readJuice(undefined).on.summon).toEqual(JUICE_PRESETS.summon);
+    expect(() => readJuice({ on: { hit: [{ puff: 'smoke', at: 'foes' }] } })).toThrow(/at is target or actor/);
     // (a cast acts, an item is used, and the fight won, the whole party strikes its win)
     expect(JUICE_PRESETS.cast).toContainEqual({ act: 'cast', at: 'actor' });
     expect(JUICE_PRESETS.item).toContainEqual({ act: 'use', at: 'actor' });

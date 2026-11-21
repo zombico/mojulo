@@ -17,7 +17,8 @@
  * members, by path; its preview is the cast standing in a line; a member is made by its path (`member`), and a member
  * on the hero door is made with its MOVES (moves.js): its stance, its attack, its reactions and its win, as clips; one
  * below it with a walk, a jog and the moves its rig solves; a beast with its two gaits and its reactions; a mascot with
- * its flinch, fall and rise.
+ * its flinch, fall and rise. A lone sheet made to play a foe (`moves: true`) carries the same moves; `moves: 'battle'`
+ * a party battle's foe's besides (moves.js foeBattleMovesOf).
  *
  * `roll` is rollEgocube's arguments (with `years` and `chapters`, rollThread's: a fate thread). The sheet (or the
  * thread) is ROLLED WHERE IT IS WRITTEN and stored by value (`rollStored`): a later change to the Egocube's tables never
@@ -39,7 +40,7 @@ import { rollMascot, asksForMascot, MASCOT_KEYS } from './mascot.js';
 import { mascotPlanFromSheet, modelSheet } from './mascot-form.js';
 import { mascotOfPerson } from './mascot-from-person.js';
 import { rollCast, readCastRequest } from './cast.js';
-import { battleMovesOf, moveSetOf, creatureMovesOf, beastMovesOf } from './moves.js';
+import { battleMovesOf, foeBattleMovesOf, moveSetOf, creatureMovesOf, beastMovesOf } from './moves.js';
 import { motionPlan } from '../polygonizer/hero-motion.js';
 import { fingerprint } from '../gameworld/review.js';
 
@@ -86,7 +87,7 @@ export function readEgocubeKind(m) {
   if (isMascotRoll(m.roll)) for (const k of ['years', 'chapters', 'lineages']) if (m.roll[k] !== undefined) throw fail(`a mascot does not age and has no people: roll.${k} is a person's (tuning: 'person')`);
   if (m.output !== undefined && !OUTPUTS.includes(m.output)) throw fail(`output is ${OUTPUTS.map((o) => `'${o}'`).join(' or ')} (mascot: the character made as its mascot, docs/mascot.md)`);
   if (m.dress !== undefined && !DRESS.includes(m.dress)) throw fail(`dress is ${DRESS.map((d) => `'${d}'`).join(' or ')} (designed: the outfit designed from the sheet; kit: the stock kit by role)`);
-  if (m.moves !== undefined && m.moves !== true) throw fail('moves is true: the character is made to play a part, its moves on it as a cast member\'s (a foe\'s: its swing, its flinch, its fall and rise)');
+  if (m.moves !== undefined && m.moves !== true && m.moves !== 'battle') throw fail('moves is true: the character is made to play a part, its moves on it as a cast member\'s (a foe\'s: its swing, its flinch, its fall and rise); \'battle\' a party battle\'s foe besides (its strikes in turn, its cast, its recoils, its ready stance, its roar: moves.js foeBattleMovesOf)');
   return m;
 }
 
@@ -150,10 +151,12 @@ export function egocubeCreate(m, { years, dress, title, output, member, armed = 
   const P = planFromSheet(node.sheet, { dress: (dress ?? m.dress ?? 'designed') === 'designed' ? 'designed' : undefined, ...(title ? { title } : {}) });
   // a cast's member on the hero door plays its part: its moves ride its spec as motion words (moves.js); so does a lone
   // sheet made to play one (`moves: true`, a bestiary's people: gameworld/foes.js)
-  const plays = !!node.member || m.moves === true;
+  const plays = !!node.member || m.moves === true || m.moves === 'battle';
   if (plays && P.create.as === 'hero') {
-    // (a member who fights in the party carries a party battle's repertoire too: moves.js battleMovesOf)
-    const M = moveSetOf(node.sheet.facets), B = node.member?.bond === 'party' && node.sheet.facets.role !== 'non-combatant' ? battleMovesOf(node.sheet.facets.role, { archetype: node.sheet.facets.archetype, armed }) : null;
+    // (a member who fights in the party carries a party battle's repertoire too: moves.js battleMovesOf; a foe made for
+    // party battles, `moves: 'battle'`, a foe's: foeBattleMovesOf)
+    const fights = node.sheet.facets.role !== 'non-combatant', F = node.sheet.facets;
+    const M = moveSetOf(F), B = node.member?.bond === 'party' && fights ? battleMovesOf(F.role, { archetype: F.archetype, armed }) : !node.member && m.moves === 'battle' && fights ? foeBattleMovesOf(F.role, { archetype: F.archetype, armed }) : null;
     return { node: { path: node.path, years: node.years, band: node.band }, ...of, create: { ...P.create, spec: { ...P.create.spec, motion: { ...(P.create.spec.motion ?? {}), ...M.motion, ...(B ? B.motion : {}) } } }, moves: M.moves, ...(B ? { battle: B.states } : {}), after: P.after, ledger: P.ledger, ...(P.outfit ? { outfit: P.outfit } : {}) };
   }
   // a member below the hero door (a beast-kin on the creature loop's rig): a walk and a jog, and the moves its rig solves

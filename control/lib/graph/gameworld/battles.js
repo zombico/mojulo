@@ -378,12 +378,14 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
       if (isPeopleLook(look)) {
         // (a people from its sheet, as a bestiary people stands: a person or a beast-kin on its own moves, at its stature)
         const sheet = rollEgocube(battlePeopleRoll(G, G.battles?.foe !== undefined ? 'foe' : kind, look));
-        stand({ figures, entities }, fid, fieldFigure(fref, fieldOf({ body: 'person', sheet })), at, h);
+        // (made for party battles: its strikes in turn, its recoils, its roar, egocube/moves.js foeBattleMovesOf)
+        stand({ figures, entities }, fid, fieldFigure(fref, fieldOf({ body: 'person', sheet, battle: true })), at, h);
         const e = entities.at(-1);
         e.rule = { ...e.rule, collideHeight: r3(statureOf({ body: 'person', sheet })) };
         return fid;
       }
-      stand({ figures, entities }, fid, foeFigure(fref, look), at, h);
+      // (a beast with its other ways at a foe as its acts: a snap, a maul, its roar; egocube/moves.js beastMovesOf)
+      stand({ figures, entities }, fid, foeFigure(fref, look, { battle: true }), at, h);
       // (a beast drawn at its foe's height: its body scaled, what it collides with and where it is hit with it)
       if (beastLook(look) && FOE_HEIGHT[kind] && !G.battles?.foe) {
         const m = bodyOf(look.species, { ooze: look.ooze }), k = FOE_HEIGHT[kind] / Math.max(0.05, m.height), x = m.extent * k, e = entities.at(-1);
