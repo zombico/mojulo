@@ -99,3 +99,22 @@ front, a tick at a time.
   a little white smoke, and the eye within one and a half its reach whited out, the more the nearer, thinning over a
   second and a half. The chaff's a pop of grey and its cloud: foil strips thrown a few metres out, slowing, drifting down
   and swaying, each glittering in its own time, the cloud thinning at the end of its seconds.
+- **Getting into a vehicle and riding it** (worlds/controllable/board.js, a vehicle's `board: { reach?, out?, form?, climb? }`,
+  inside the takedown and the knockout): the action within a vehicle's reach (3.5 m), with no takedown or sleeper nearer,
+  climbs in (half a second, the climb's clip, carried onto it), and then the vehicle is the pilot: its pilot rule, the
+  stick, the trigger and its turret's look, the camera following it where it followed the rider; the rider is aboard,
+  out of sight, never hit, carried with it. The action again halts it and lets its rider out, in its boarding form first
+  (a walker folds onto its wheels), set down at its left side, the pilot and its camera given back. A vehicle downed
+  throws its rider out where it stands. The guards see, chase and shoot the vehicle while it is ridden: it is the pilot.
+- **The rover walker to ride** (gameworld/ride-machine.js `rideVehicle`, `RIDE`; the yard's `ride`, `room.mjs --ride
+  'rover walker'`): the transforming walker parked in its tank form, low on its wheels as it is boarded, and got into.
+  Driven on its wheels at its drive's 6 m/s, steered; B unfolds it onto its legs and it walks at its gait's 2.2 m/s (the
+  artillery range's frame, combat/frames.js: its rig, its gait, its tank form, the fold between them, its steered wheels).
+  Its backpack's guns, laid by the mouse on their mounts (the turret's chase view, its aim a pip): the autocannon
+  automatic, four rounds a second from a belt of 40, each bursting 1.8 m round; 2 loads the rocket pod, a salvo of six at
+  60 m/s, each bursting 4 m round; drawn as the launchers' rounds are. It takes 1200 before it is downed.
+- **A frame to ride resolved from its words** (worlds/world-scene.js, a figures-map entry `{ frame: { frame, stance?,
+  palette? } }`): rigged as the artillery range rigs it, so a level's manifest carries the words and never the bodies;
+  combat/frames.js `frameBase` keeps a few by their words (the machine's numbers and its figure read the same frame).
+- **The gunner's readout only for a gunner** (turret-view.js): its panel and its sight's glass hidden while no turret is
+  the pilot's (a rider got out), the small arms' reticle and card back.

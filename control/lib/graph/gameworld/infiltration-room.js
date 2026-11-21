@@ -31,7 +31,7 @@
  *   the targets   a person's box at 5, 15 and 30 m of the start, one behind the corner; each stands again a moment
  *                 after it falls
  *
- *   infiltrationRoom(G, { refs?, cast?, vault?, roll?, climb?, toss?: '<the hero's own clip for each (toss: its throw)>', crouch?: { idle, walk }, prone?: { idle, crawl } }) → { manifest, kit: [names], knife, hero: 'own' | 'stand-in', targets }
+ *   infiltrationRoom(G, { refs?, cast?, vault?, roll?, climb?, toss?: '<the hero's own clip for each (toss: its throw)>', ride?: '<a transforming walker to ride>', crouch?: { idle, walk }, prone?: { idle, crawl } }) → { manifest, kit: [names], knife, hero: 'own' | 'stand-in', targets }
  *   INFILTRATION_LEGEND
  *
  * Pure, no dice. Its page: scripts/spikes/mission/room.mjs (a spike: the room joins the practice door once it is kept).
@@ -42,6 +42,7 @@ import { floorOf, dummyFigure } from './practice-room.js';
 import { standFoe } from './foes.js';
 import { loadoutOf } from './loadout.js';
 import { armsLoadout, armDetailed, knifeOf } from './arms-kit.js';
+import { rideVehicle } from './ride-machine.js';
 import { SHOOT, SHOULDER, PERSON } from './quick.js';
 import { lowerBody } from './game-bodies.js';
 import { PLAY_GRADE } from '../figures/figure-grades.js';
@@ -51,6 +52,8 @@ import { BASIC_ARSENAL } from './combos.js';
 const HALF = 16;
 export const INFILTRATION_LEGEND = 'W A S D  run · mouse  look · Space  dive · run at a low wall to go over it · hold W into a taller one to climb it · C  crouch · C (hold)  lie down, and stand · unarmed: click  punch · E behind a guard that has not seen you  takedown · G (hold)  weapon menu · H (hold)  item menu · right mouse (hold)  aim · click  fire, aimed · Tab  first person, aimed · Q  the other shoulder, aimed · R  reload · V  knife';
 const START = Object.freeze([0, -13, 0]);
+// (where a machine to ride is parked: to the start's left, facing up the yard)
+const RIDE_AT = Object.freeze([-6, -11]);
 const wall = (id, x, y, length, height, N = [0, -1]) => ({ id, form: 'wall', at: [x, y, 0], N, length, height, thick: 0.5 });
 const BLOCKS = Object.freeze([
   wall('corner', -6, -3, 9, 2.6), wall('corner-return', -10.5, 1.2, 8, 2.6, [1, 0]),
@@ -108,7 +111,7 @@ const FISTS = (() => {
 })();
 
 /** The infiltration yard (see the header). */
-export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, roll = null, climb = null, crouch = null, prone = null, toss = null } = {}) {
+export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, roll = null, climb = null, crouch = null, prone = null, toss = null, ride = null } = {}) {
   const own = typeof refs.hero === 'string';
   if (G?.feel != null) readFeel(G.feel);
   const L = loadoutOf(G), words = (L?.weapons ?? []).filter((w) => typeof w === 'string'), hasKnife = (L?.weapons ?? []).some((w) => w && typeof w === 'object' && w.fire === 'melee');
@@ -174,6 +177,14 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, ro
   const part = { figures: manifest.figures, entities: manifest.entities };
   standFoe(null, part, { id: GUARD.id, entry: GUARD.entry, at: GUARD.at.slice(), heading: GUARD.heading }, { figure: guardFigure(refs.guard, cast), tune: GUARD_TUNE });
   manifest.figures = part.figures; manifest.entities = part.entities;
+  // (a machine to ride, `ride` a transforming walker's word: parked beside the start in its tank form, got into with the
+  // action and left with it again, worlds/controllable/board.js; gameworld/ride-machine.js)
+  if (ride) {
+    const R = rideVehicle(ride, { id: 'ride', at: [RIDE_AT[0], RIDE_AT[1], 0], heading: Math.PI / 2, base: { damage: TARGET_HP / SHOOT.foeHp * (SHOOT.rifle.damage ?? 1) } });
+    manifest.figures = { ...manifest.figures, ride: R.figure };
+    manifest.entities = [...manifest.entities, R.entity];
+    manifest.events = { ...manifest.events, hud: [...(manifest.events.hud ?? []), { text: R.keys }] };
+  }
   // (the fists, laid as a level's arsenal is, their clips the figure's own)
   const armed = armLevel({ ...(G ?? {}), arsenal: FISTS }, manifest);
   if (armed !== manifest) { manifest.figures = armed.figures; manifest.entities = armed.entities.map((e) => (e.id === 'hero' ? { ...e, rule: { ...e.rule, moveClips: true, ...FIST_BLOW } } : e)); }
