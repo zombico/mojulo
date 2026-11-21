@@ -73,8 +73,8 @@ export function stageCss(card, { mana = false, arena = false, live = false, trea
   const parts = (F) => [
     `#stage{--st-gx:${pct(F.subjects[0][0] + F.subjects[0][2] / 2)}}`,
     `#stage .st-title{${box(F.title.box)};justify-content:${ALIGN[F.title.align][0]};text-align:${ALIGN[F.title.align][1]}}`,
-    // (each subject slides in from its own side of the screen; a second one a beat after the first)
-    ...F.subjects.map((b, i) => `#stage .st-subj[data-i="${i}"]{${box(b)}${F.subjects.length > 1 ? `;--st-dx:${b[0] + b[2] / 2 < 50 ? -1 : 1}${beat.subject && i ? `;animation-delay:${beat.subject.at + i * 160}ms` : ''}` : ''}}`),
+    // (the subject slides in from its own side of the screen)
+    ...F.subjects.map((b, i) => `#stage .st-subj[data-i="${i}"]{${box(b)}${beat.subject && beat.subject.enter === 'slide' ? `;--st-dx:${b[0] + b[2] / 2 < 50 ? -1 : 1}` : ''}}`),
     arena
       ? `#main .screen.st-start{position:fixed;${box(F.menu.box)};min-height:0;height:auto;margin:0;padding:0;justify-content:flex-start;align-items:${ALIGN[F.menu.align][0]};text-align:${ALIGN[F.menu.align][1]}}`
       : mana
@@ -86,7 +86,7 @@ export function stageCss(card, { mana = false, arena = false, live = false, trea
     '#stage{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;display:none;background:var(--bg)}',
     '#stage.on{display:block}',
     card.ground === 'split'
-      ? `#stage .st-ground{position:absolute;inset:0;background:linear-gradient(104deg,color-mix(in srgb,var(--accent) 34%,var(--bg)) 0%,color-mix(in srgb,var(--accent) 12%,var(--bg)) 49.6%,var(--ink) 49.6% 50.4%,color-mix(in srgb,var(--accent2) 12%,var(--bg)) 50.4%,color-mix(in srgb,var(--accent2) 34%,var(--bg)) 100%);${anim('ground')}}`
+      ? `#stage .st-ground{position:absolute;inset:0;background:linear-gradient(104deg,color-mix(in srgb,var(--accent2) 18%,var(--bg)) 0%,var(--bg) 49.6%,var(--ink) 49.6% 50.4%,color-mix(in srgb,var(--accent) 14%,var(--bg)) 50.4%,color-mix(in srgb,var(--accent) 40%,var(--bg)) 100%);${anim('ground')}}`
       : card.ground === 'theme'
       ? `#stage .st-ground{position:absolute;inset:0;background:radial-gradient(ellipse 60% 75% at var(--st-gx) 62%,color-mix(in srgb,var(--accent) 26%,var(--bg)) 0%,var(--bg) 70%),linear-gradient(115deg,transparent 54%,color-mix(in srgb,var(--accent2) 14%,transparent) 54% 61%,transparent 61%);${anim('ground')}}`
       : `#stage .st-ground{position:absolute;inset:0;background:var(--bg);${anim('ground')}}`,

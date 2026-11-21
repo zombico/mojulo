@@ -4,8 +4,9 @@ A start screen's layout is a card: one JSON file here. A theme card (`../theme-c
 a front card says what is on it and where. The loader (`loader.js`) reads every card when it loads and checks it, so a
 card that loads is a start screen that lays out.
 
-A start screen is a **visual artifact**, not a level: a few subjects (the game's own characters, vehicles and props),
-its name and its menu on a graphic ground, entering on beats. The game's shell opens it before any of the engine loads.
+A start screen is a **visual artifact**, not a level: a single subject (one of the game's own characters, vehicles or
+props), its name and its menu on a graphic ground, entering on beats. One character, never a cast: a cast is the
+select screen's. The game's shell opens it before any of the engine loads.
 It is drawn as pictures of the subjects (the default), or with the same subjects live in 3D over those pictures (the
 high-end mode, `front.stage.mode: '3d'`). A card never names a world, a set or a camera path through one.
 
@@ -32,10 +33,11 @@ high-end mode, `front.stage.mode: '3d'`). A card never names a world, a set or a
 - `id` is the file's name. `name` and `about` say what it shows.
 - `suits` names the genres it is the start screen for (the genres in `gameworld/rails.js`). One card at most is the
   `fallback`: the one a game whose genre no card suits is offered.
-- `slots` are what stands on it, most important first. Each takes a subject of one of its `roles` (`hero`, `ally`,
+- `slots` is what stands on it: exactly one, a subject of one of its `roles` (`hero`, `ally`,
   `foe`, `ride`, `prop`), seen from its `view` (front, three-quarter, profile, back-three-quarter), with its `crop`
-  (full, knees, waist, bust) and its `anchor` (bottom, center).
-- `ground`: `theme` draws the theme's stage shapes behind; `plain` its ground alone.
+  (full, knees, waist, bust), its `anchor` (bottom, center) and its `facing` (left, the default, or right).
+- `ground`: `theme` draws the theme's stage shapes behind; `plain` its ground alone; `split` cuts the screen on a hard
+  diagonal, the subject's side in the accent.
 - `frames` lays the parts out on a landscape screen (`wide`) and on a phone held upright (`tall`): every box is
   `[x, y, w, h]` in percent of the screen. The title's `behind: true` sets the name behind the subjects, so they stand
   in front of it.
@@ -48,6 +50,6 @@ high-end mode, `front.stage.mode: '3d'`). A card never names a world, a set or a
 | Card | What it shows | Suits |
 |---|---|---|
 | `hero-pose` | one figure large and off centre, the name huge behind it, the menu as words on the open side | action, platformers, adventure, horror, stealth, runners; the fallback |
+| `champion` | one fighter squared up across a hard diagonal, the name huge across the cut | fighters, brawlers, arena shooters; the versus title |
 
-Planned: `face-off` (fighters), `showroom` (a vehicle), `hardware` (a gun or an operator), `ensemble` (a party),
-`still-life` (a board's pieces).
+Planned, each one subject: `showroom` (a vehicle), `hardware` (a gun or an operator).

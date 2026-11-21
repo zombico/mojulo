@@ -142,8 +142,8 @@ export function emitVersusPage(manifest = {}, { title } = {}) {
   const shell = versusSource('versus-play.client.js');
   // the data rides as JSON; `</` is escaped so nothing in a name can close the script
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
-  // its title laid out by the face-off front card: the card's frames and beats, the canvas draws them
-  const F = FRONT_CARDS['face-off'], frame = (f) => ({ subjects: f.subjects, title: { box: f.title.box }, menu: { box: f.menu.box } });
+  // its title laid out by the champion front card: the card's frames and beats, the canvas draws them
+  const F = FRONT_CARDS['champion'], frame = (f) => ({ subjects: f.subjects, title: { box: f.title.box }, menu: { box: f.menu.box } });
   const front = JSON.stringify({ wide: frame(F.frames.wide), tall: frame(F.frames.tall), motion: F.motion });
   return `<!doctype html>
 <html lang="en">

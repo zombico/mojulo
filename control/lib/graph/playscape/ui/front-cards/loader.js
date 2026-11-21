@@ -1,17 +1,17 @@
 /**
  * THE FRONT CARDS — a game's start screen laid out as data, so a new start screen is a card, not code (the theme cards'
  * sibling: a theme card says how the screen is drawn, a front card says what is on it and where). A start screen is a
- * visual artifact: a few SUBJECTS (the game's own characters, vehicles, props: never a level or a set), its name and its
- * menu, on a graphic ground, entering on beats. Each `<id>.json` beside this file is one card:
+ * visual artifact: ONE SUBJECT (one of the game's own characters, vehicles or props: never a level or a set), its name
+ * and its menu, on a graphic ground, entering on beats. Each `<id>.json` beside this file is one card:
  *
  *   { "id": "<the file's name>", "name": "…", "about": "what it shows, in a line", "author"?,
  *     "suits": ["<genre>", …],          the genres it is the start screen for (gameworld/rails.js handles.genres)
  *     "fallback"?: true,                 the card a game whose genre no card suits is offered (one card at most)
- *     "slots": [{ roles, view, crop, anchor, facing? }],   what stands on it, in order of importance: each a subject
- *                                        of one of its roles (SUBJECT_ROLES), seen from its view, cropped and
- *                                        anchored, turned left (the default) or right on the screen
+ *     "slots": [{ roles, view, crop, anchor, facing? }],   what stands on it: ONE subject of one of its roles
+ *                                        (SUBJECT_ROLES), seen from its view, cropped and anchored, turned left (the
+ *                                        default) or right on the screen
  *     "ground": "theme" | "plain" | "split",   the graphic behind: the theme's stage shapes, its ground alone, or the
- *                                        screen cut on a diagonal, a side a subject
+ *                                        screen cut on a diagonal
  *     "frames": { "wide": FRAME, "tall": FRAME },   the layout on a landscape screen and on a phone held upright
  *       FRAME: { subjects: [[x, y, w, h], …] (one box a slot), title: PART & { size, behind? }, tagline?: PART, menu: PART }
  *       PART:  { box: [x, y, w, h], align: start | center | end }     boxes in percent of the screen
@@ -44,7 +44,7 @@ export const SUBJECT_ANCHORS = Object.freeze(['bottom', 'center']);
 export const SUBJECT_FACINGS = Object.freeze(['left', 'right']);
 export const TITLE_SIZES = Object.freeze(['large', 'huge']);
 export const ALIGNS = Object.freeze(['start', 'center', 'end']);
-// the theme's stage shapes, its ground alone, or the screen cut on a hard diagonal (each subject's side its own colour)
+// the theme's stage shapes, its ground alone, or the screen cut on a hard diagonal (the subject's side its accent)
 export const GROUNDS = Object.freeze(['theme', 'plain', 'split']);
 export const PARTS = Object.freeze(['ground', 'subject', 'title', 'tagline', 'menu']);
 // how a part enters: `letters` the name letter by letter, `stagger` the menu row by row; the rest whole
@@ -73,7 +73,8 @@ export function readFrontCard(card, file = `${card?.id}.json`) {
   if (card.author !== undefined && !isStr(card.author)) throw new Error(`${where}: author is words`);
   if (!Array.isArray(card.suits) || !card.suits.every((g) => GENRE.test(g)) || new Set(card.suits).size !== card.suits.length) throw new Error(`${where}: suits is a list of genres (gameworld/rails.js), each once`);
   if (card.fallback !== undefined && card.fallback !== true) throw new Error(`${where}: fallback is true, or left out`);
-  if (!Array.isArray(card.slots) || !card.slots.length || card.slots.length > 4) throw new Error(`${where}: slots is a list of one to four subjects`);
+  // (one subject a start screen: a single character, its name and its ground; a cast belongs to the select screen)
+  if (!Array.isArray(card.slots) || card.slots.length !== 1) throw new Error(`${where}: slots is one subject: a start screen stands a single character`);
   card.slots.forEach((s, i) => {
     const at = `${where}: slots[${i}]`;
     if (!isObj(s)) throw new Error(`${at} is { roles, view, crop, anchor, facing? }`);

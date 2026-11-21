@@ -39,10 +39,9 @@ describe('the stage in the shell', () => {
     expect(stageCss(card, { mana: true })).toContain('#mana .mana-screen>.mana-stack');
   });
 
-  it('a card of two subjects slides each in from its own side, the second a beat after; a split ground cuts the screen', () => {
-    const F = FRONT_CARDS['face-off'], css = stageCss(F), at = F.motion.find((m) => m.part === 'subject').at;
-    expect(css).toMatch(/#stage \.st-subj\[data-i="0"\]\{[^}]*--st-dx:-1[^}]*\}/);
-    expect(css).toMatch(new RegExp(`#stage \\.st-subj\\[data-i="1"\\]\\{[^}]*--st-dx:1;animation-delay:${at + 160}ms`));
+  it('a subject that slides comes in from its own side; a split ground cuts the screen', () => {
+    const C = FRONT_CARDS.champion, css = stageCss(C);
+    expect(css).toMatch(/#stage \.st-subj\[data-i="0"\]\{[^}]*--st-dx:1\}/);
     expect(css).toMatch(/\.st-ground\{[^}]*linear-gradient\(104deg/);
     expect(stageCss(FRONT_CARDS['hero-pose'])).not.toContain('--st-dx:');
   });

@@ -24,14 +24,13 @@ describe('the front cards', () => {
     expect(Object.isFrozen(FRONT_CARDS['hero-pose'].frames.wide.subjects[0])).toBe(true);
   });
 
-  it('the face-off stands two subjects turned to each other on a split ground', () => {
-    const F = FRONT_CARDS['face-off'];
-    expect(F.slots.map((s) => s.facing)).toEqual(['right', 'left']);
-    expect(F.ground).toBe('split');
-    for (const f of ['wide', 'tall']) {
-      const [a, b] = F.frames[f].subjects;
-      expect(a[0] + a[2] / 2, f).toBeLessThan(b[0] + b[2] / 2);   // the one turned right stands on the left
-    }
+  it('every card stands a single character; the champion turns it to the open side on a split ground', () => {
+    for (const id of FRONT_CARD_IDS) expect(FRONT_CARDS[id].slots, id).toHaveLength(1);
+    const C = FRONT_CARDS.champion;
+    expect(C.ground).toBe('split');
+    const [x, , w] = C.frames.wide.subjects[0];
+    expect(x + w / 2).toBeGreaterThan(50);            // it stands right of the cut …
+    expect(C.slots[0].facing ?? 'left').toBe('left'); // … turned to the open side
   });
 
   it('suit genres a rail names', () => {
@@ -54,6 +53,7 @@ describe('the front cards', () => {
     expect(() => readFrontCard(card({ motion: [{ part: 'menu', enter: 'letters', at: 0 }, { part: 'title', enter: 'fade', at: 0 }] }), 'probe.json')).toThrow(/only the title enters letter by letter/);
     expect(() => readFrontCard(card({ motion: [{ part: 'title', enter: 'fade', at: 0 }] }), 'probe.json')).toThrow(/gives the menu its entrance/);
     expect(() => readFrontCard(card({ slots: [{ roles: ['hero'], view: 'front', crop: 'full', anchor: 'bottom', facing: 'up' }] }), 'probe.json')).toThrow(/facing is one of: left, right/);
+    expect(() => readFrontCard(card({ slots: [card().slots[0], card().slots[0]] }), 'probe.json')).toThrow(/a start screen stands a single character/);
     expect(() => readFrontCard(card({ ground: 'stripes' }), 'probe.json')).toThrow(/ground is one of: theme, plain, split/);
     expect(() => readFrontCard(card({ motion: [{ part: 'title', enter: 'fade', at: 0 }, { part: 'title', enter: 'rise', at: 9 }, { part: 'menu', enter: 'fade', at: 0 }] }), 'probe.json')).toThrow(/enters once/);
   });
