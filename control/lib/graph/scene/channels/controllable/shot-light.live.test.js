@@ -153,11 +153,20 @@ describe('the shot light on a side map\'s page', () => {
     await p.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.shotLight, { timeout: 20000 });
     const frames = (n) => p.evaluate((n) => new Promise((r) => { const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n);
     await frames(60);
-    const quiet = await p.screenshot();
-    await p.evaluate(() => { const C = window.__mojCtrl, W = C.world; W.bursts = W.bursts || []; W.bursts.push({ seq: 99, pos: [0, -3, 0.6], t: W.time, radius: 0.4, fxColor: 0xffd23a }); W.burstSeq = 100; C.strike('crate', 1e7, 'blast', { at: [0, -3, 0.6] }); });
-    // (held a moment after it goes off, the world paused (a menu's freeze), so the frame read is the same every run)
-    await p.waitForFunction(() => { const W = window.__mojCtrl.world, b = (W.breaks || [])[0]; return b && W.time - b.t >= 0.04; }, { timeout: 5000, polling: 'raf' });
+    // (the world held for the quiet frame as well, so the two frames differ by the blast alone)
     await p.evaluate(() => { window.__mojFreeze = true; });
+    await frames(3);
+    const quiet = await p.screenshot();
+    // (set off and held 0.08 s after, the world stepped by hand in one go and then frozen (a menu's freeze), so the frame
+    // read is the same moment on every machine, as a slow one's frames are not: the core white and the hue out from it
+    // from a hundredth of a second, the accent's rings come in by 0.04 s, and the hue has sunk to the centre by 0.14 s)
+    await p.evaluate(() => {
+      const C = window.__mojCtrl, W = C.world;
+      W.bursts = W.bursts || []; W.bursts.push({ seq: 99, pos: [0, -3, 0.6], t: W.time, radius: 0.4, fxColor: 0xffd23a }); W.burstSeq = 100; C.strike('crate', 1e7, 'blast', { at: [0, -3, 0.6] });
+      window.__mojFreeze = false;
+      for (let k = 0; k < 8; k++) C.step(0.01, {});
+      window.__mojFreeze = true;
+    });
     await frames(3);
     const lit = await p.screenshot();
     expect(errors).toEqual([]);
