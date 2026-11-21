@@ -319,7 +319,8 @@ const FA_SPECIALS = {
 };
 // (its sidearm the stylish game's pistols: two guns, held they fire at their rate and never run dry, weak; every weapon's)
 export const FALLEN_ANGEL_ARSENAL = Object.freeze({ ...BASIC_ARSENAL, art: 'freestyle', mp: { max: 100, onHit: 4 }, switch: 'cancel',
-  weapons: BASIC_ARSENAL.weapons.map((W) => (W.id === 'sword' ? { ...W, moves: { ...W.moves, ...FA_SPECIALS.moves }, combos: [...W.combos, ...FA_SPECIALS.combos] } : W)),
+  // (its sword parries, the shield's pose with no shield: a stylish hero carries none)
+  weapons: BASIC_ARSENAL.weapons.map((W) => (W.id === 'sword' ? { ...W, guard: 'parry', moves: { ...W.moves, ...FA_SPECIALS.moves }, combos: [...W.combos, ...FA_SPECIALS.combos] } : W)),
   ranged: [{ id: 'pistols', name: 'Pistols', mode: 'auto', rof: 9, damage: 0.4, impact: 3, range: 30, infinite: true, hand: 'right', dual: true }] });
 export const TEMPLATE_ARSENALS = Object.freeze({ 'fallen-angel': FALLEN_ANGEL_ARSENAL, 'fable-of-artesia': ARTESIA_ARSENAL });
 export function arsenalFor(feel) {
@@ -432,8 +433,9 @@ export function readArsenal(A) {
   return A;
 }
 /** how a weapon guards (hero-swing-body.js AIM_POSES' guards): `shield` the blade's (a shield on the off arm), `cover` the
- * fist's (both fists up); a weapon's own `guard`, else by the figure it shows (drawn: the shield; sheathed: the cover) */
-export const GUARDS = Object.freeze(['shield', 'cover']);
+ * fist's (both fists up), `parry` the shield's pose with no shield (the off forearm braced: a stylish hero carries none);
+ * a weapon's own `guard`, else by the figure it shows (drawn: the shield; sheathed: the cover) */
+export const GUARDS = Object.freeze(['shield', 'cover', 'parry']);
 const guardOf = (W) => (W.guard === false ? null : W.guard ?? ((W.figure ?? 'drawn') === 'sheathed' ? 'cover' : 'shield'));
 /** the aim each kind of sidearm is held in (hero-swing-body.js AIM_POSES) */
 export const AIM_OF = Object.freeze({ draw: 'archer', auto: 'gunslinger' });
@@ -447,7 +449,7 @@ export function lowerArsenal(A0) {
     // (its sidearm on S, lowered to the runtime's ranged weapon, and the aim the hero holds it in: its clip `mv_aim_<id>`,
     // a draw's the archer's, an auto's the gunslinger's, hero-swing-body.js aimClip)
     // (its GUARD's pose while the guard is up, `mv_guard_<weapon>`: a blade's the shield, the fist's the cover; false none)
-    ...(guardOf(W) ? { guard: { clip: `mv_guard_${W.id}`, pose: guardOf(W), ...(guardOf(W) === 'shield' ? { prop: 'shield' } : {}) } } : {}),
+    ...(guardOf(W) ? { guard: { clip: `mv_guard_${W.id}`, pose: guardOf(W) === 'parry' ? 'shield' : guardOf(W), ...(guardOf(W) === 'shield' ? { prop: 'shield' } : {}) } } : {}),
     ...(sidOf(W) ? { sidearm: sideOf(sidOf(W)) } : {}),
     // (each weapon's clips its own: mv_<weapon>_<move>, its stance mv_<weapon>_ready)
     moveset: { ...lowerCombos({ ...(A.timing ? { timing: A.timing } : {}), moves: W.moves, combos: W.combos }, { prefix: `${W.id}_` }), ...(A.juggle ? { air: lowerJuggle(A.juggle).air } : {}), ...(A.art && A.art !== 'realistic' ? { art: A.art } : {}), ...(A.mp ? { mp: { max: A.mp.max, regen: A.mp.regen ?? 0, onHit: A.mp.onHit ?? 0 } } : {}), ...(A.switch === 'cancel' ? { swap: true } : {}) } }));

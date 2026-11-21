@@ -282,3 +282,10 @@ What the theme will hold:
   silhouette. It now throws one, as the room's own are: from its key lamp, as dark as the share of the light there that
   lamp gives (the light it takes away: deep under a lone torch, faint in a lit room), its edge a penumbra (laid from
   points of the flame a little apart, each copy darkening a part); the dark at its feet by the same share, its own.
+- **A stylish hero parries, with no shield.** A drawn weapon's guard defaulted to the shield's pose with a shield on the
+  off arm, so a stylish hero guarding (Shift) showed a round shield. A weapon's guard takes `parry` (`combos.js`: the
+  shield's pose, the off forearm braced, no shield), and the stylish template's sword parries.
+- **A sealed doorway is a barrier.** The seals a fight raises on its room's ways (`game/wave-gauntlet.js`) were drawn as
+  the bus's marker, a red sphere half sunk in the floor at the doorway. A seal now knows its doorway's facing (the way
+  back into the room) and is drawn across it as a veil of its colour, glowing from the floor and fading up, breathing
+  (`scene/channels/events.js`); a marker without one is its sphere, as before.

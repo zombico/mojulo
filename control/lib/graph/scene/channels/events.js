@@ -385,6 +385,22 @@ function __updateAim() {   // park the aim dot where the character is looking (n
 });
 function __ensureMarker(e) {
   if (__markerMeshes[e.id]) return __markerMeshes[e.id];
+  // a SEAL that knows its doorway's facing (game/wave-gauntlet.js: the way back into the room): a barrier across the
+  // doorway, a veil of its colour glowing from the floor and fading up, breathing; any other marker, its sphere
+  if (e.type === 'seal' && Array.isArray(e.facing)) {
+    const W = Number.isFinite(e.w) ? e.w : 2.8, H = Number.isFinite(e.h) ? e.h : 3.4, col = new THREE.Color(e.color != null ? e.color : '#7a1f1a').multiplyScalar(2.2);
+    const U = { uC: { value: col }, uT: { value: 0 } };
+    const mat = new THREE.ShaderMaterial({ uniforms: U, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+      vertexShader: 'varying vec2 vU; void main() { vU = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'uniform vec3 uC; uniform float uT; varying vec2 vU; void main() { float edge = smoothstep(0.0, 0.08, vU.x) * smoothstep(1.0, 0.92, vU.x); float up = pow(1.0 - vU.y, 1.6); float vein = 0.5 + 0.5 * sin(vU.y * 26.0 - uT * 3.0 + sin(vU.x * 9.0 + uT) * 1.5); float a = edge * (0.18 + 0.5 * up) * (0.75 + 0.25 * sin(uT * 2.4)) * (0.7 + 0.3 * vein); gl_FragColor = vec4(uC * a, a); }' });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(W, H), mat);
+    // (the plane stood up across the doorway: its face along the way in, its foot on the floor)
+    mesh.geometry.rotateX(Math.PI / 2); mesh.geometry.translate(0, 0, H / 2);
+    mesh.rotation.z = Math.atan2(e.facing[1], e.facing[0]) + Math.PI / 2;
+    mesh.onBeforeRender = () => { U.uT.value = performance.now() / 1000; };
+    mesh.__entityId = e.id; mesh.renderOrder = 2; scene.add(mesh); __markerMeshes[e.id] = mesh;
+    return mesh;
+  }
   const r = Number.isFinite(e.radius) ? e.radius : 0.4;
   const col = e.color != null ? new THREE.Color(e.color) : new THREE.Color(__MARKER_COLOR);
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 12), new THREE.MeshBasicMaterial({ color: col }));
