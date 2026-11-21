@@ -849,6 +849,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-21 (the audio channel unlocks on a key and on the game shell's word that sound is on): a game played
 // on the keys, or hosted in the shell's frame, was never clicked and stayed silent. The fixtures that carry `audio`
 // (audio, kitchen-sink) re-pinned with it; every other fixture keeps every byte.
+// Re-pinned 2026-11-21 (the platform rule's FLINCH, rules-platform.js `flinch`, opt-in: a blow taken holds a run-and-gun
+// hero in its hurt; the buster's tap held while it flinches): a rule without `flinch` steps as before; every fixture
+// that embeds the controllable runtime re-pinned with it. (The side map's shutter wall and its room put back after a
+// fall are the side-map runtime's, emitted only under a side map's camera: no fixture has one.)
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

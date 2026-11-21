@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { cueSheet, levelScore, onScore, readCues } from './cue-sheet.js';
 import { composeGameworld, MEADOWMARK_HERO } from './index.js';
 import { resolveWorldAudio } from '../beats/beats-world.js';
+import { seedOfRef } from '../beats/field-cue.js';
 
 // The cue sheet (cue-sheet.js): each department's request for music, answered on the game's one identity.
 // One world per kind of request: a composed world (the flow's screens, its levels, the outcomes), one with foes and a
@@ -142,10 +143,13 @@ describe('the cues a game names by ref (its outcomes\' stingers)', () => {
       expect(at(`cue-${id}`)).toBeLessThan(at('game'));
       expect(chapterOfStep(step.key).id).toBe('score');
     }
-    expect(S[at('game')].order.music).toEqual({ victory: 'gw-cue-victory', defeat: 'gw-cue-defeat' });
+    // (and the screens' score, music.menu: the sheet's title cue, else its menus')
+    expect(S[at('game')].order.music).toEqual({ victory: 'gw-cue-victory', defeat: 'gw-cue-defeat', menu: 'gw-cue-menu' });
+    const sheet = cueSheet({ ...w, music: {} }, { game: seedOfRef('gw-game') }), first = sheet.requests.find((r) => (r.id === 'title' || r.id === 'menu') && r.cue);
+    expect(S[at('cue-menu')].order.score).toEqual(first.cue.score);
     // a silenced outcome is no step and no key
     const quiet = runSteps({ ...w, music: { cues: { defeat: false } } }, { ref: 'gw' });
     expect(quiet.some((s) => s.key === 'cue-defeat')).toBe(false);
-    expect(quiet.find((s) => s.key === 'game').order.music).toEqual({ victory: 'gw-cue-victory' });
+    expect(quiet.find((s) => s.key === 'game').order.music).toEqual({ victory: 'gw-cue-victory', menu: 'gw-cue-menu' });
   });
 });

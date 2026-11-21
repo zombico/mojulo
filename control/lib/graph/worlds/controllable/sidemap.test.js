@@ -2,7 +2,8 @@
 // concepts: the frame holds a run's height as the hero runs it, and turns the corner into a shaft eased, never snapped;
 // a rising frame the hero does not climb leaves it under the frame's bottom, and that is a fall: to limbo (where the
 // catch zone counts it), then back at its zone's checkpoint; up at a ladder takes it, its back to the camera, and the top
-// steps it off onto the floor; a held room is never left backward, and a boss's room shuts behind the hero; a page without the camera keeps every byte.
+// steps it off onto the floor; a held room is never left backward, and a boss's room shuts behind the hero, its door a wall while it is shut, a fall in
+// it putting the hero back before its door and the room as it was; a page without the camera keeps every byte.
 import { describe, it, expect } from 'vitest';
 import { composeLive, emissionSource } from './compose.js';
 import { deriveZoneEvents } from '../event-bus.js';
@@ -92,6 +93,29 @@ describe('the side map\'s camera', () => {
     expect(st.byId.hero.transform.pos[1]).toBeGreaterThanOrEqual(S.s);
     // (a room that holds no boss has no shutter)
     expect(play([{ run: 'across', screens: 1 }, { room: [1, 1] }]).P.camera.zones[1].shut).toBeUndefined();
+  });
+  it('shut, the door is a wall (slid down like the far one); a fall in the room comes back before its door, the room as it was', () => {
+    const G = play([{ run: 'across', screens: 1 }, { room: [1, 1], teach: 'boss' }]), Z = G.P.camera.zones[1], S = Z.shut;
+    const st = world(G, [0, S.s - 1, S.z0 + 0.05]);
+    const foe = { id: 'boss-x', team: 'foes', rule: { type: 'static' }, body: { type: 'none', hp: 200 }, transform: { pos: [0, Z.rect[1] - 3, S.z0], heading: -Math.PI / 2 } };
+    st.entities.push(foe); st.byId[foe.id] = foe;
+    step(st, { strafe: 1 }, 90);
+    expect(cam(st)._shut[1]).toBeGreaterThan(0);
+    expect(st.colliders.filter((c) => c.of === 'shutter:1')).toHaveLength(1);
+    // (falling against the shut door with the stick into it, the hero is held to it: a wall)
+    const h = st.byId.hero; h.transform.pos = [0, S.s + 1, S.z0 + 2.5]; h.vel = [0, 0, 0]; h.grounded = false;
+    let clung = 0;
+    step(st, { strafe: -1, jumpHeld: true }, 30, () => { if (h.cling) clung++; });
+    expect(clung).toBeGreaterThan(0);
+    // (hurt, then out of the frame's bottom: back before the door, the door open, the boss whole where it stood)
+    foe.body.hp = 40; foe.transform.pos[1] -= 4;
+    h.transform.pos = [0, S.s + 3, -9000];
+    step(st, {}, 70);
+    expect(h.transform.pos[1]).toBeLessThan(S.s);
+    expect(cam(st)._shut[1]).toBeUndefined();
+    expect(st.colliders.filter((c) => c.of === 'shutter:1')).toHaveLength(0);
+    expect(foe.body.hp).toBe(200);
+    expect(foe.transform.pos[1]).toBeCloseTo(Z.rect[1] - 3, 3);
   });
   it('a page without the side map\'s camera keeps every byte', () => {
     expect(emissionSource({})).not.toContain("'side-map'");
