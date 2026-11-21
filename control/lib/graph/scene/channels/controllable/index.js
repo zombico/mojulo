@@ -2161,11 +2161,11 @@ function __formMode(fig, e, mode) {
   return fig.clips[k] ? k : f + ':idle';
 }
 ` : ''}${acts ? `// a battle act's clip among the figure's own: the first it has of the act's names (its swing, its recoil, its fall)
-const __ACT_CLIPS = { strike: ['strike', 'swing_neutral', 'swing', 'attack', 'punch'], cast: ['cast', 'strike', 'swing_neutral'], use: ['cast', 'strike', 'swing_neutral'], hurt: ['stagger', 'hitHigh', 'flinch'], fall: ['topple', 'knockedOutDown', 'fall'], win: [], roar: [] };
+const __ACT_CLIPS = { strike: ['strike', 'swing_neutral', 'swing', 'attack', 'punch'], cast: ['cast', 'strike', 'swing_neutral'], use: ['cast', 'strike', 'swing_neutral'], hurt: ['stagger', 'hitHigh', 'flinch'], fall: ['topple', 'knockedOutDown', 'fall'], win: [], roar: [], channel: [] };
 // (a party battle's repertoire, fig.battle: its own clips for an act by name, egocube/moves.js battleMovesOf; an act
 // plays them in turn, from a place of its own on the figure's name, so no two blows in a row look alike; a foe's roar,
 // egocube/moves.js foeBattleMovesOf and a beast's beastMovesOf, its own only)
-const __ACT_OWN = { strike: ['strike', 'strike2', 'strike3'], cast: ['cast'], use: ['use', 'cast'], hurt: ['hurt', 'hurt2', 'hurt3'], win: ['win'], roar: ['roar'] };
+const __ACT_OWN = { strike: ['strike', 'strike2', 'strike3'], cast: ['cast'], use: ['use', 'cast'], hurt: ['hurt', 'hurt2', 'hurt3'], win: ['win'], roar: ['roar'], channel: ['channel'] };
 function __actClip(fig, is, n, id) {
   const B = fig.battle, own = [];
   if (B) for (const k of __ACT_OWN[is] || []) if (B[k] && fig.clips[B[k]] && own.indexOf(B[k]) < 0) own.push(B[k]);
@@ -2185,7 +2185,9 @@ function __actMode(fig, e, m) {
     m.position.x += S.a[0] + (S.b[0] - S.a[0]) * k; m.position.y += S.a[1] + (S.b[1] - S.a[1]) * k;
     running = !!S.run && u < 1;
   }
-  const A = e.act, at = A ? (now - A.t0) / A.for : -1;
+  let A = e.act, at = A ? (now - A.t0) / A.for : -1;
+  // (an act that goes on into another, A.then: a channel into its cast, the next begun where the first ends)
+  if (A && at > 1 && A.then) { A = e.act = { ...A.then, t0: A.t0 + A.for, ...(A.to ? { to: A.to } : {}) }; at = (now - A.t0) / A.for; }
   if (!(A && at >= 0 && (at <= 1 || A.is === 'fall' || A.is === 'win'))) {
     if (A && at > 1) e.act = null;
     if (running) { const c = fig.clips.sprint ? 'sprint' : fig.clips.forward ? 'forward' : null; if (c) return { mode: c, phase: ((now - S.t0) / 0.67) % 1 }; }
@@ -2198,7 +2200,10 @@ function __actMode(fig, e, m) {
   // (a strike leans in toward its target, unless it ran up to it)
   const T = A.to && A.is === 'strike' && !(S && Math.hypot(S.b[0], S.b[1]) > 0.01) ? __world.byId[A.to] : null;
   if (T && at <= 1) { const dx = T.transform.pos[0] - e.transform.pos[0], dy = T.transform.pos[1] - e.transform.pos[1], d = Math.hypot(dx, dy) || 1, k = Math.sin(Math.PI * at) * Math.min(1.2, d * 0.4) / d; m.position.x += dx * k; m.position.y += dy * k; }
-  return c ? { mode: c, phase: Math.min(at, 0.999) } : null;
+  if (c) return { mode: c, phase: Math.min(at, 0.999) };
+  // (an act it has no clip for, a channel without its own: it stands in its ready stance through it)
+  const R0 = fig.battle && fig.battle.ready;
+  return e.fightReady != null && R0 && fig.clips[R0] ? { mode: R0, phase: Math.min(0.999, Math.max(0, now - e.fightReady) / 0.5) } : null;
 }
 ` : ''}${figHasLayers ? `// POSE LAYERS (\`body.layers: { run?, combat?: [{ pivot, chain, axis, deg }] }\`, an action hero's: gameworld/levels.js): a
 // pose laid over the clip a state plays, each op turning its pivot bone (figure-local: right +x, forward +y, up +z) and

@@ -37,6 +37,8 @@
  *            brought down low and forward a quarter of its length; a legless body has none
  *   roar     the display: gathered low, then up tall with the head high and held there (the blow held long), no reach;
  *            a legless one reared in its coil, its head high
+ *   channel  the gathering before a power goes off: drawn in, then hunkered low, the head down and still, held long; a
+ *            legless one reared slowly in its coil, its head forward
  *
  *   STRIKE_WAYS                   the ways, 'strike' first; WAY_TIMING each one's default timing
  *   strikeWaysOf(id)              → the ways species `id` can take (none for a body that cannot strike)
@@ -73,13 +75,19 @@ const WAY_POSES = Object.freeze({
     two: { stand: POSES.two.stand, windup: { support: 'crouch', head: 'low', lunge: -0.04 }, blow: { support: 'stand', head: 'high', lunge: 0.02 } },
     none: { stand: POSES.none.stand, windup: { support: 'coil', head: 'forward' }, blow: { support: 'coil-strike', head: 'high' } },
   },
+  channel: {
+    four: { stand: POSES.four.stand, windup: { support: 'stand', head: 'fixed', lunge: -0.03 }, blow: { support: 'crouch', head: 'low', lunge: -0.05 } },
+    two: { stand: POSES.two.stand, windup: { support: 'stand', head: 'fixed', lunge: -0.03 }, blow: { support: 'crouch', head: 'low', lunge: -0.05 } },
+    none: { stand: POSES.none.stand, windup: { support: 'coil', head: 'forward' }, blow: { support: 'coil-strike', head: 'forward' } },
+  },
 });
-export const STRIKE_WAYS = Object.freeze(['strike', 'snap', 'maul', 'roar']);
+export const STRIKE_WAYS = Object.freeze(['strike', 'snap', 'maul', 'roar', 'channel']);
 export const WAY_TIMING = Object.freeze({
   strike: STRIKE_TIMING,
   snap: Object.freeze({ startup: 12, active: 3, recovery: 14 }),
   maul: Object.freeze({ startup: 40, active: 6, recovery: 28 }),
   roar: Object.freeze({ startup: 16, active: 48, recovery: 18 }),
+  channel: Object.freeze({ startup: 20, active: 60, recovery: 16 }),
 });
 const still = ({ lunge, dart, ...p }) => ({ ...p, tail: 'rest', loop: 'stare' });
 // a posed frame thrown by `v` (metres, x y z): every bone moved, none turned

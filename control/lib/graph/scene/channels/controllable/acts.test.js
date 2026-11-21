@@ -52,6 +52,23 @@ describe('the varied acts and the step', () => {
     expect(clip(wolf, 'hurt', 1, 'foe-2')).toBe('stagger');
   });
 
+  it('a channel plays its own clip, then goes on into the cast where it ends; one without a channel stands ready through it', () => {
+    const W = { time: 0, byId: {} }, { mode } = P(W), m = () => ({ position: { x: 0, y: 0 } });
+    const mage = { clips: { channel: 1, jotaroPoint: 1, guard: 1 }, battle: { channel: 'channel', cast: 'jotaroPoint', ready: 'guard' } };
+    const e = { id: 'mage', transform: { pos: [0, 0, 0] }, fightReady: 0, act: { is: 'channel', t0: 0, for: 0.6, then: { is: 'cast', for: 0.7 } } };
+    W.time = 0.3;
+    expect(mode(mage, e, m()).mode).toBe('channel');
+    W.time = 0.9;
+    const r = mode(mage, e, m());
+    expect(r.mode).toBe('jotaroPoint');
+    expect(r.phase).toBeCloseTo(0.3 / 0.7, 3);
+    expect(e.act.is).toBe('cast');
+    // (one without a channel of its own stands ready while it gathers)
+    const plain = { clips: { cast: 1, guard: 1 }, battle: { ready: 'guard' } }, q = { id: 'q', transform: { pos: [0, 0, 0] }, fightReady: 0, act: { is: 'channel', t0: 0, for: 0.6, then: { is: 'cast', for: 0.7 } } };
+    W.time = 0.3;
+    expect(mode(plain, q, m())).toMatchObject({ mode: 'guard' });
+  });
+
   it('steps on its tween, running in; stands ready while the fight lasts', () => {
     const W = { time: 0, byId: {} }, { mode } = P(W), m = () => ({ position: { x: 0, y: 0 } });
     const e = { id: 'hero', transform: { pos: [0, 0, 0] }, fightReady: 0, stepOff: { a: [0, 0], b: [4, 0], t0: 0, for: 0.5, run: true } };

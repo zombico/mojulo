@@ -17,7 +17,7 @@
  *       { puff: '<moment>', at?, color?, scale? }   a moment plays there (playscape/elements/moments.js)
  *       { beam: '<attack>', color? }               an attack flies from the actor to the target (beams.js presets)
  *       { shake: k, for? }                         the camera shakes (k 0..1)
- *       { act: strike | cast | use | hurt | fall | win | roar, at?, for? }   the figure acts it out with its own clip: the
+ *       { act: strike | channel | cast | use | hurt | fall | win | roar, at?, for?, then? }   the figure acts it out with its own clip: the
  *                                                  actor's swing (leaning toward its target), a cast, the target's recoil,
  *                                                  a fall (a member's; a pack's figure recoils, and falls when the fight
  *                                                  is won), an item used, the win (at: party, every standing member), a
@@ -25,7 +25,9 @@
  *                                                  opens its fight; a summoned foe's entrance); a figure with a party
  *                                                  battle's repertoire (egocube/moves.js battleMovesOf, a foe's
  *                                                  foeBattleMovesOf, a beast's beastMovesOf) varies its strikes and
- *                                                  recoils among its own, turn by turn
+ *                                                  recoils among its own, turn by turn; a channel (the power gathered
+ *                                                  before a cast: hero-aura.js `channel`) goes `then` into the cast, the
+ *                                                  beat held while it gathers
  *     in the window:
  *       { flash: '#rrggbb'?, for? }                the screen flashes
  *       { jolt: 'target' | 'actor' | 'window', k? } the window jolts; a row's jolt is its number's change, which
@@ -68,12 +70,12 @@ export const JUICE_STEPS = Object.freeze({
   pop: '{ pop: normal | big | crit | small, color? } how big the number rises (its colour the theme\'s)',
   hold: '{ hold: s } the beat lingers',
   emit: '{ emit: <event> } a bus event, for any cue to answer',
-  act: '{ act: strike | cast | use | hurt | fall | win | roar, at?: target | actor | party | foes, for?: s } the figure acts it out with its own clip (varied among its own where it has several)',
+  act: '{ act: strike | channel | cast | use | hurt | fall | win | roar, at?: target | actor | party | foes, for?: s, then?: <act> } the figure acts it out with its own clip (varied among its own where it has several); then: another act it goes on into, the beat held while the first plays (a channel then the cast)',
   lens: '{ lens: ring | lift | shade | ink, at?: target | actor } the screen round the figure (mana-ui\'s lens): the air about it bent, lit, darkened or inked for the beat, never over the figure, never the whole screen; it yields to the world: a beat that flashes the screen, or puffs or lands a beam on that figure, plays no lens there',
   shot: '{ shot: closeup | behind | target | view, at?: actor | target, for?: s } the camera cuts to it for the beat: a close-up on a figure, behind the actor at its target, on the target, or back to the fight\'s view',
 });
 export const SHOTS = Object.freeze(['closeup', 'behind', 'target', 'view']);
-export const ACTS = Object.freeze(['strike', 'cast', 'use', 'hurt', 'fall', 'win', 'roar']);
+export const ACTS = Object.freeze(['strike', 'channel', 'cast', 'use', 'hurt', 'fall', 'win', 'roar']);
 export const LENS_KINDS = Object.freeze(['ring', 'lift', 'shade', 'ink']);
 const POPS = ['normal', 'big', 'crit', 'small'];
 const JOLTS = ['target', 'actor', 'window'];
@@ -86,7 +88,8 @@ export const JUICE_PRESETS = Object.freeze({
   resist: [{ act: 'strike', at: 'actor' }, { pop: 'small' }, { jolt: 'target', k: 0.5 }],
   // (a miss: the air round the target bent where the blow passed; a cast: the air round the caster lit as it gathers)
   miss: [{ act: 'strike', at: 'actor' }, { pop: 'small' }, { lens: 'ring' }],
-  cast: [{ act: 'cast', at: 'actor' }, { lens: 'lift', at: 'actor' }],
+  // (a cast channels first: the power gathered, then let go; the beat held while it gathers)
+  cast: [{ act: 'channel', at: 'actor', then: 'cast' }, { lens: 'lift', at: 'actor' }],
   item: [{ act: 'use', at: 'actor' }, { lens: 'lift', at: 'actor' }],
   heal: [{ pop: 'normal', color: '#7dffa5' }, { puff: 'sparks', color: '#7dffa5', scale: 0.5 }],
   status: [{ puff: 'smoke', scale: 0.5 }],
@@ -119,7 +122,7 @@ const KEY = /^[a-z][a-z0-9-]*(:[a-z][a-z0-9-]*)?$/;
 function readStep(s, where, fx) {
   const k = Object.keys(s).find((x) => JUICE_STEPS[x]);
   if (!k) throw err(`${where} is a step: ${Object.keys(JUICE_STEPS).join(', ')} (or a juice's name)`);
-  const allow = { puff: ['puff', 'at', 'color', 'scale'], beam: ['beam', 'color'], shake: ['shake', 'for'], flash: ['flash', 'for'], jolt: ['jolt', 'k'], pop: ['pop', 'color'], hold: ['hold'], emit: ['emit'], act: ['act', 'at', 'for'], lens: ['lens', 'at'], shot: ['shot', 'at', 'for'] }[k];
+  const allow = { puff: ['puff', 'at', 'color', 'scale'], beam: ['beam', 'color'], shake: ['shake', 'for'], flash: ['flash', 'for'], jolt: ['jolt', 'k'], pop: ['pop', 'color'], hold: ['hold'], emit: ['emit'], act: ['act', 'at', 'for', 'then'], lens: ['lens', 'at'], shot: ['shot', 'at', 'for'] }[k];
   for (const x of Object.keys(s)) if (!allow.includes(x)) throw err(`${where}.${x} is not part of a ${k} (${allow.join(', ')})`);
   if (s.color !== undefined && !(typeof s.color === 'string' && (HEX.test(s.color) || /^[a-z]+$/.test(s.color)))) throw err(`${where}.color is '#rrggbb' or a colorant`);
   if (s.at !== undefined && s.at !== 'target' && s.at !== 'actor' && !(k === 'act' && (s.at === 'party' || s.at === 'foes'))) throw err(`${where}.at is target or actor${k === 'act' ? ' (or party: every standing member; foes: every standing foe)' : ''}`);
@@ -137,6 +140,7 @@ function readStep(s, where, fx) {
   if (k === 'pop' && !POPS.includes(s.pop)) throw err(`${where}.pop is ${POPS.join(', ')}`);
   if (k === 'hold' && !(num(s.hold) && s.hold > 0 && s.hold <= 3)) throw err(`${where}.hold is seconds, above 0, at most 3`);
   if (k === 'act' && !ACTS.includes(s.act)) throw err(`${where}.act is ${ACTS.join(', ')}`);
+  if (k === 'act' && s.then !== undefined && !(ACTS.includes(s.then) && s.then !== s.act)) throw err(`${where}.then is another act it goes on into (${ACTS.join(', ')})`);
   if (k === 'lens') { if (!LENS_KINDS.includes(s.lens)) throw err(`${where}.lens is ${LENS_KINDS.join(', ')}`); fx.lens = true; }
   if (k === 'shot' && !SHOTS.includes(s.shot)) throw err(`${where}.shot is ${SHOTS.join(', ')}`);
   if (k === 'emit' && !(typeof s.emit === 'string' && /^[a-z][a-z0-9:_-]*$/i.test(s.emit))) throw err(`${where}.emit is a bus event`);

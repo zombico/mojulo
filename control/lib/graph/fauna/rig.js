@@ -19,7 +19,7 @@
  * behavior/pose.js, lasting as long as its loop's motion takes on a body that size (`behaviorSeconds`). A floating
  * behavior's surface is the ground's level. A `strike` (true, or its attack's `{ startup, active, recovery }`) packs the
  * one-shot a beast deals a blow by (behavior/strike.js), clip `strike`; absent, nothing. Its other ways at a foe
- * (`strikes: { snap?, maul?, roar?: true | timing }`, a party battle's beast) each a one-shot the same way, a clip of its
+ * (`strikes: { snap?, maul?, roar?, channel?: true | timing }`, a party battle's beast) each a one-shot the same way, a clip of its
  * way's name; absent, nothing. `gaitStride(id, gait)` says how
  * far one stride goes and how fast, for the walker that moves the body (a level's fauna, era/biocube-fauna.js).
  */
@@ -28,7 +28,7 @@ import { gaitFrames, prepare } from './gait.js';
 import { BEHAVIORS, resolveBehavior, repertoire } from './behavior/index.js';
 import { posable, behaviorFrames, prepare as preparePose } from './behavior/pose.js';
 import { reactsOf, reactionFrames, REACTION_SECONDS } from './behavior/react.js';
-import { strikesOf, strikeWaysOf, strikeFrames, strikeSeconds, strikeTiming } from './behavior/strike.js';
+import { strikesOf, strikeWaysOf, strikeFrames, strikeSeconds, strikeTiming, STRIKE_WAYS } from './behavior/strike.js';
 import { packLayeredRig } from '../polygonizer/station-loft-rig.js';
 import { shapeId } from '../polygonizer/station-loft-plan.js';
 import { bodyPlan, bodyLocomotion } from './body.js';
@@ -154,10 +154,10 @@ export function withMotion(plan, id, gaits = motionGaits(id), keys = 24, { behav
 // the other ways at a foe (behavior/strike.js): { <way>: true | its timing }, each one the species can take; none: undefined
 function readWays(id, strikes) {
   if (strikes === undefined) return undefined;
-  if (!strikes || typeof strikes !== 'object' || Array.isArray(strikes)) throw new Error('motion strikes is { snap?, maul?, roar?: true | { startup, active, recovery } }');
+  if (!strikes || typeof strikes !== 'object' || Array.isArray(strikes)) throw new Error('motion strikes is { snap?, maul?, roar?, channel?: true | { startup, active, recovery } }');
   const can = strikeWaysOf(id), out = {};
   for (const [w, t] of Object.entries(strikes)) {
-    if (w === 'strike' || !['snap', 'maul', 'roar'].includes(w)) throw new Error(`motion strikes: no way '${w}' (snap, maul, roar; the lunge is \`strike\`)`);
+    if (w === 'strike' || !STRIKE_WAYS.includes(w)) throw new Error(`motion strikes: no way '${w}' (${STRIKE_WAYS.slice(1).join(', ')}; the lunge is \`strike\`)`);
     if (!can.includes(w)) throw new Error(`'${id}' has no ${w} (it can: ${can.join(', ') || 'none: it cannot strike yet'})`);
     out[w] = t === true ? true : strikeTiming(t, w);
   }

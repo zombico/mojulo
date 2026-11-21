@@ -557,6 +557,18 @@ export const AURAS = Object.freeze({
     family: 'squad', after: 'the ultra fighting pose: a deep wide squat, both arms flexed up beside the head', seconds: 1.6,
     beats: [{ at: 0.6, name: 'flex', feet: 'squat', hands: { R: { at: 'templeR', off: [0.22, 0.02, 0.02], by: 'fist', shape: 'fist', palm: 'in', elbow: 'out', touch: false }, L: { at: 'templeL', off: [0.22, 0.02, 0.02], by: 'fist', shape: 'fist', palm: 'in', elbow: 'out', touch: false } }, face: { open: 0.4, brow: -0.6 } }],
   },
+  // ── SPELL: power gathered before it is let go ──
+  // (the CHANNEL: the set-up a spell or an ability plays before it goes off, egocube/moves.js battleMovesOf `channel`:
+  // the hands drawn up from below into a cupped space before the chest, palms to each other, the eyes on it, then
+  // swelling a touch apart as it fills, held)
+  channel: {
+    family: 'spell', after: 'channelling: feet set broad, both hands drawn up from below to cup a gathering power before the chest, palms to each other, eyes on it, swelling as it fills', seconds: 1.6,
+    beats: [
+      { at: 0.3, name: 'draw', feet: 'broad', hands: { R: { at: 'belly', off: [0.14, 0.2, -0.02], by: 'palm', shape: 'cup', palm: 'up', elbow: 'down', touch: false }, L: { at: 'belly', off: [0.14, 0.2, -0.02], by: 'palm', shape: 'cup', palm: 'up', elbow: 'down', touch: false } }, face: { blink: 0.3, brow: -0.3 } },
+      { at: 0.58, name: 'gather', curl: 0.06, look: { turn: 0, pitch: -22 }, hands: { R: { at: 'solar', off: [0.07, 0.3, 0.04], by: 'palm', shape: 'cup', palm: 'in', elbow: 'down', touch: false }, L: { at: 'solar', off: [0.07, 0.3, 0.04], by: 'palm', shape: 'cup', palm: 'in', elbow: 'down', touch: false } }, face: { blink: 0.55, brow: -0.45 } },
+      { at: 0.86, name: 'swell', hands: { R: { at: 'solar', off: [0.1, 0.31, 0.06], by: 'palm', shape: 'open', palm: 'in', elbow: 'down', touch: false }, L: { at: 'solar', off: [0.1, 0.31, 0.06], by: 'palm', shape: 'open', palm: 'in', elbow: 'down', touch: false } }, face: { blink: 0.6, brow: -0.55, open: 0.15 } },
+    ],
+  },
   // ── MEME ──
   tPose: {
     family: 'meme', after: 'asserting dominance: the bind pose struck on purpose, arms rising stiff to the sides', seconds: 2.2,

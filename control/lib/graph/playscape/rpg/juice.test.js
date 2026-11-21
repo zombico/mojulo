@@ -87,7 +87,7 @@ describe('the bodies act a blow out', () => {
     expect(JUICE_PRESETS.ko).toContainEqual({ act: 'fall' });
     const J = readJuice({ on: { 'skill:fire': [{ act: 'cast', at: 'actor', for: 0.8 }, 'hit'] } });
     expect(J.on['skill:fire'][0]).toEqual({ act: 'cast', at: 'actor', for: 0.8 });
-    expect(() => readJuice({ on: { hit: [{ act: 'dance' }] } })).toThrow(/act is strike, cast, use, hurt, fall, win, roar/);
+    expect(() => readJuice({ on: { hit: [{ act: 'dance' }] } })).toThrow(/act is strike, channel, cast, use, hurt, fall, win, roar/);
     // (a boss opens its fight roaring, every standing foe's figure; a foe called in enters roaring)
     expect(JUICE_PRESETS.boss[0]).toEqual({ act: 'roar', at: 'foes' });
     expect(JUICE_PRESETS.summon).toContainEqual({ act: 'roar', at: 'target' });
@@ -95,7 +95,10 @@ describe('the bodies act a blow out', () => {
     expect(readJuice(undefined).on.summon).toEqual(JUICE_PRESETS.summon);
     expect(() => readJuice({ on: { hit: [{ puff: 'smoke', at: 'foes' }] } })).toThrow(/at is target or actor/);
     // (a cast acts, an item is used, and the fight won, the whole party strikes its win)
-    expect(JUICE_PRESETS.cast).toContainEqual({ act: 'cast', at: 'actor' });
+    // (a cast channels first, then goes on into the cast; a then that is no act, or the same act, teaches)
+    expect(JUICE_PRESETS.cast).toContainEqual({ act: 'channel', at: 'actor', then: 'cast' });
+    expect(() => readJuice({ on: { cast: [{ act: 'channel', then: 'dance' }] } })).toThrow(/then is another act/);
+    expect(() => readJuice({ on: { cast: [{ act: 'cast', then: 'cast' }] } })).toThrow(/then is another act/);
     expect(JUICE_PRESETS.item).toContainEqual({ act: 'use', at: 'actor' });
     expect(JUICE_PRESETS.victory).toContainEqual({ act: 'win', at: 'party' });
     expect(juiceKeys({ kind: 'cast', who: 'a', item: 'potion' })).toEqual(['item:potion', 'item', 'cast']);
@@ -114,7 +117,7 @@ describe('the lens: the screen round a still figure, where the world leaves the 
     expect(() => readJuice({ on: { hit: [{ lens: 'ring', for: 1 }] } })).toThrow(/for is not part of a lens/);
     const D = readJuice(undefined);
     expect(D.on.miss).toContainEqual({ lens: 'ring' });
-    expect(D.on.cast).toEqual([{ act: 'cast', at: 'actor' }, { lens: 'lift', at: 'actor' }]);
+    expect(D.on.cast).toEqual([{ act: 'channel', at: 'actor', then: 'cast' }, { lens: 'lift', at: 'actor' }]);
     expect(juiceKeys({ kind: 'cast', who: 'ayla' })).toContain('cast');
   });
 

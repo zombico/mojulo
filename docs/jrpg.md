@@ -187,6 +187,9 @@ The fighters move on their own line, as a console RPG's do:
 Every member of the party (a cast's `bond: 'party'`) and the hero of a world of battles are made with a **party battle's
 repertoire** (`egocube/moves.js` `battleMovesOf`):
 - three attacks by its role: a frontliner's cross, hook and uppercut; a flanker's jab, body hook and thrust;
+- a **channel** (`hero-aura.js` `channel`): feet set broad, both hands drawn up from below to cup a gathering power
+  before the chest, palms to each other, the eyes on it, swelling as it fills; the set-up a spell or an ability plays
+  before it goes off;
 - a cast pose by its role and a thumbs-up for an item;
 - three ways to take a blow beside its stagger, and its fall;
 - its ready stance, held while the fight lasts, and its win pose, struck by the whole party when the fight is won.
@@ -208,7 +211,14 @@ strike), timed by the weapon's weight. So a weapon costs no clips at the mint, a
 
 The page plays a figure's strikes and recoils in turn, each figure from a place of its own, so no two blows in a row
 look alike. A figure without its own falls back to the clip it has. A world's juice can name the acts (`act: strike |
-cast | use | hurt | fall | win | roar`, `at: party` for the win, `at: foes` for every standing foe).
+channel | cast | use | hurt | fall | win | roar`, `at: party` for the win, `at: foes` for every standing foe, `then:
+<act>` for an act it goes on into).
+
+**Channelling before a cast.** A skill used channels first, then goes off: the `cast` juice is `act: channel, then:
+cast`, the beat held while the power gathers, so the blow or the heal lands after the cast pose. Every fighter has a
+channel: each party member and the hero, each person foe, and each beast that can strike (a beast's: drawn in, then
+hunkered low, the head down and still, held). One without its own stands in its ready stance while it gathers. A
+world's juice can name its own (`cast:<skill>`), with or without the channel.
 
 **The foes' own repertoires.** A party battle's foes, fought on the field, are made with theirs (on a board, as they
 were):
@@ -217,7 +227,8 @@ were):
   - the **snap**: barely gathered, a quick bite an eighth of its length out;
   - the **maul**: reared up and drawn back, then brought down low and a quarter of its length forward, slow and heavy (a
     body on legs only);
-  - the **roar**: gathered low, then up tall with the head high, held, no reach.
+  - the **roar**: gathered low, then up tall with the head high, held, no reach;
+  - the **channel**: hunkered low, the head down and still, held long.
 
   It plays the lunge, the snap and the maul in turn (`egocube/moves.js` `beastMovesOf { battle }`); a snake, with no
   maul, varies its two. A body that cannot strike yet (a bat on its folded wings, a swimmer) has none.

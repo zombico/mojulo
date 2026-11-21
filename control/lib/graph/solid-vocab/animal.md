@@ -53,8 +53,8 @@ attack's timing (frames at 60 Hz; a jab's by default), one clip named `strike`. 
 (the telegraph), then springs a fifth of its length forward; a legless one rears into its coil and darts. The result
 says its `seconds` and the `blow` window, the share of the clip where the hit lands. A swimmer has none yet.
 Its other WAYS at a foe ride beside it, each a clip of its name: `snap` (barely gathered, a quick bite an eighth of its
-length out), `maul` (reared up and brought down low and far: a body on legs only) and `roar` (up tall, the head high,
-held); words in the list or `{ strikes: { snap: true, maul: { startup, active, recovery } } }`. A party battle's beast
+length out), `maul` (reared up and brought down low and far: a body on legs only), `roar` (up tall, the head high,
+held) and `channel` (hunkered low, the head down and still, held long: a power gathered); words in the list or `{ strikes: { snap: true, maul: { startup, active, recovery } } }`. A party battle's beast
 is made with all it has, played in turn.
 
 ## The maker door — a NEW fish or snake from parameters

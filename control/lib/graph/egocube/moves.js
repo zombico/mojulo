@@ -81,8 +81,10 @@ export function fieldStatesOf(moves) {
  * A PARTY BATTLE'S REPERTOIRE (a member who fights in the party, `bond: 'party'`, and the hero of a world of party
  * battles): enough moves that a fight is not one blow over and over. Three attacks by its role (the page plays them in
  * turn, varied), a cast by its role for a skill, a thumbs-up for an item, four ways to take a blow, its ready stance
- * held while it fights and its win pose. The states are the names the battle's acts look for (rpg-channel.js juice,
- * the controllable channel's __ACT_CLIPS): strike, strike2, strike3, cast, use, hurt, hurt2, hurt3, ready, win.
+ * held while it fights and its win pose, and its CHANNEL (hero-aura.js `channel`: the hands drawn up to cup a gathering
+ * power before the chest, the set-up a spell or an ability plays before it goes off). The states are the names the
+ * battle's acts look for (rpg-channel.js juice, the controllable channel's __ACT_CLIPS): strike, strike2, strike3,
+ * channel, cast, use, hurt, hurt2, hurt3, ready, win.
  */
 export const BATTLE_ATTACKS_OF_ROLE = Object.freeze({
   frontline: ['cross', 'hook', 'uppercut'], flanker: ['jab', 'bodyHook', 'thrust'], ranged: ['jab', 'crossLeft', 'thrustLeft'],
@@ -90,6 +92,7 @@ export const BATTLE_ATTACKS_OF_ROLE = Object.freeze({
 });
 export const BATTLE_CAST_OF_ROLE = Object.freeze({ frontline: 'fistCrush', flanker: 'killerQueen', ranged: 'fingerGuns', controller: 'josephPoint', caster: 'jotaroPoint', support: 'fistToSky' });
 const BATTLE_HURTS = ['hitHigh', 'hitBody', 'hitLow'], BATTLE_USE = 'niceGuy';
+export const BATTLE_CHANNEL = 'channel';
 // (a party class's role, for the hero of a world of party battles, whose sheet is the hero door's and not a member's)
 export const ROLE_OF_CLASS = Object.freeze({ fighter: 'frontline', knight: 'frontline', monk: 'flanker', rogue: 'flanker', mage: 'caster', cleric: 'support' });
 
@@ -119,7 +122,7 @@ export const weaponOfClass = (cls) => (WEAPON_OF_CLASS[cls] ? structuredClone(WE
  * weapon (WEAPON_OF_CLASS), its attacks the held swings the page bakes, so none of its fists' is minted. */
 export function battleMovesOf(role, { archetype = null, armed = false } = {}) {
   const r = BATTLE_ATTACKS_OF_ROLE[role] ? role : 'frontline', [a1, a2, a3] = armed ? ARMED_ATTACKS : BATTLE_ATTACKS_OF_ROLE[r];
-  const states = { strike: a1, strike2: a2, strike3: a3, cast: BATTLE_CAST_OF_ROLE[r], use: BATTLE_USE, hurt: BATTLE_HURTS[0], hurt2: BATTLE_HURTS[1], hurt3: BATTLE_HURTS[2], ready: READY_OF_ROLE[r], win: WIN_OF_ARCHETYPE[archetype] ?? 'fistToSky' };
+  const states = { strike: a1, strike2: a2, strike3: a3, channel: BATTLE_CHANNEL, cast: BATTLE_CAST_OF_ROLE[r], use: BATTLE_USE, hurt: BATTLE_HURTS[0], hurt2: BATTLE_HURTS[1], hurt3: BATTLE_HURTS[2], ready: READY_OF_ROLE[r], win: WIN_OF_ARCHETYPE[archetype] ?? 'fistToSky' };
   const words = Object.values(states).filter((w) => !ARMED_ATTACKS.includes(w));
   return { motion: Object.fromEntries([...new Set([...words, ...Object.keys(REACT_MOTION)])].map((w) => [w, true])), states };
 }
@@ -153,8 +156,8 @@ export function beastGaitsOf(species) {
 // (every way a mind swings plays the one blow: a beast has no cleave of its own yet)
 const SWINGS = ['neutral', 'forward', 'back', 'left', 'right'];
 // (a party battle's beast: its strike and its other ways at a foe, fauna/behavior/strike.js, as the acts the page plays
-// them by, strike, strike2, strike3 in turn and its roar; a body that cannot strike has none of them)
-const BATTLE_WAYS = Object.freeze({ snap: 'strike2', maul: 'strike3', roar: 'roar' });
+// them by, strike, strike2, strike3 in turn, its roar and its channel; a body that cannot strike has none of them)
+const BATTLE_WAYS = Object.freeze({ snap: 'strike2', maul: 'strike3', roar: 'roar', channel: 'channel' });
 export function beastMovesOf(species, { strike, battle = false } = {}) {
   const reacts = motionReactions(species), gaits = beastGaitsOf(species);
   // (a strike at its attack's timing: the motion's object form; without one the words, as always)

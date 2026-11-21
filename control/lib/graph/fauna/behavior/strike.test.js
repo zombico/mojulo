@@ -59,11 +59,11 @@ describe('a beast deals a blow', () => {
 // barely gathered), mauls (reared up and brought down, the heavy one) and roars (up tall, the head high, held, no
 // reach), each a clip of its own name at its own timing; a legless body has no maul; the lunge is as it always was.
 describe('a beast\'s ways at a foe', () => {
-  const ways = ['strike', 'snap', 'maul', 'roar'];
+  const ways = ['strike', 'snap', 'maul', 'roar', 'channel'];
   it('a body on legs has every way, a legless one no maul, one that cannot strike none', () => {
     expect(STRIKE_WAYS).toEqual(ways);
     expect(strikeWaysOf('wolf')).toEqual(ways);
-    expect(strikeWaysOf('snake')).toEqual(['strike', 'snap', 'roar']);
+    expect(strikeWaysOf('snake')).toEqual(['strike', 'snap', 'roar', 'channel']);
     expect(strikeWaysOf('salmon')).toEqual([]);
     expect(() => strikeFrames('snake', undefined, 24, 'maul')).toThrow(/has no maul/);
     expect(() => strikeFrames('wolf', undefined, 24, 'kick')).toThrow(/no way 'kick'/);
@@ -73,8 +73,12 @@ describe('a beast\'s ways at a foe', () => {
     expect(strikeSeconds(undefined, 'snap')).toBeLessThan(strikeSeconds());
     expect(strikeSeconds(undefined, 'maul')).toBeGreaterThan(strikeSeconds());
     const go = (w) => { const F = strikeFrames('wolf', undefined, 93, w), [a, b] = strikeWindow(undefined, w), at = (u) => F[Math.round(u * 92)]; return { F, wind: snout(at(a - 0.01)), blow: snout(at((a + b) / 2)), stand: snout(F[0]) }; };
-    const lunge = go('strike'), snap = go('snap'), maul = go('maul'), roar = go('roar');
-    for (const W of [snap, maul, roar]) expect(JSON.stringify(W.F[0])).toBe(JSON.stringify(W.F.at(-1)));
+    const lunge = go('strike'), snap = go('snap'), maul = go('maul'), roar = go('roar'), channel = go('channel');
+    // (the channel: hunkered low, the head down and still, no reach, held longest)
+    expect(channel.blow[2]).toBeLessThan(channel.stand[2] - 0.2);
+    expect(channel.blow[1]).toBeLessThanOrEqual(channel.stand[1]);
+    expect(strikeSeconds(undefined, 'channel')).toBeGreaterThan(strikeSeconds(undefined, 'roar'));
+    for (const W of [snap, maul, roar, channel]) expect(JSON.stringify(W.F[0])).toBe(JSON.stringify(W.F.at(-1)));
     expect(snap.blow[1] - snap.stand[1]).toBeGreaterThan(0.1);
     expect(snap.blow[1] - snap.stand[1]).toBeLessThan(lunge.blow[1] - lunge.stand[1]);
     expect(maul.wind[2]).toBeGreaterThan(maul.stand[2] + 0.2);   // reared

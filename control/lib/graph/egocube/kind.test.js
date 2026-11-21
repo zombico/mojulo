@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { readEgocubeKind, rollStored, egocubeNodes, egocubeCreate, egocubePrint, assembleEgocubeScene, LINEUP_GAP } from './kind.js';
 import { rollEgocube } from './egocube.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
-import { moveSetOf, creatureMovesOf, beastGaitsOf, READY_OF_ROLE, ATTACK_OF_ROLE, WIN_OF_ARCHETYPE, battleMovesOf, BATTLE_ATTACKS_OF_ROLE, ARMED_ATTACKS, foeBattleMovesOf, beastMovesOf, FOE_ROAR } from './moves.js';
+import { moveSetOf, creatureMovesOf, beastGaitsOf, READY_OF_ROLE, ATTACK_OF_ROLE, WIN_OF_ARCHETYPE, battleMovesOf, BATTLE_ATTACKS_OF_ROLE, ARMED_ATTACKS, foeBattleMovesOf, beastMovesOf, FOE_ROAR, BATTLE_CHANNEL } from './moves.js';
 import { MOTION_GAITS } from '../polygonizer/hero-motion.js';
 import { ROLES, ARCHETYPE_IDS } from './facets.js';
 
@@ -87,6 +87,7 @@ describe('a lone sheet made to play a part (`moves: true`, a bestiary\'s people)
     const C = egocubeCreate(S), B = foeBattleMovesOf(f.role, { archetype: f.archetype });
     expect(C.battle).toEqual(B.states);
     expect(C.battle.roar).toBe(FOE_ROAR);
+    expect(C.battle.channel).toBe(BATTLE_CHANNEL);   // (and the channel every fighter gathers a power with)
     expect(C.moves).toEqual(egocubeCreate(rollStored({ kind: 'egocube', roll, moves: true })).moves);
     for (const w of Object.values(C.battle)) expect(C.create.spec.motion[w], w).toBe(true);
     for (const w of Object.keys(C.create.spec.motion)) expect(MOTION_GAITS[w], w).toBeTruthy();
@@ -100,7 +101,7 @@ describe('a party battle\'s beast', () => {
   it('strikes, snaps and mauls in turn and roars; a snake has no maul; a swimmer none; plain, unchanged', () => {
     const W = beastMovesOf('wolf', { battle: true });
     expect(W.motion).toMatchObject({ strike: true, strikes: { snap: true, maul: true, roar: true } });
-    expect(W.states).toMatchObject({ strike: 'strike', strike2: 'snap', strike3: 'maul', roar: 'roar', stagger: 'flinch', swing_neutral: 'strike' });
+    expect(W.states).toMatchObject({ strike: 'strike', strike2: 'snap', strike3: 'maul', roar: 'roar', channel: 'channel', stagger: 'flinch', swing_neutral: 'strike' });
     const S = beastMovesOf('snake', { battle: true });
     expect(S.states).toMatchObject({ strike: 'strike', strike2: 'snap', roar: 'roar' });
     expect(S.states).not.toHaveProperty('strike3');
@@ -148,6 +149,7 @@ describe('a cast as a cube (cast.js)', () => {
     const path = Object.keys(S.castSheet.members).find((p) => p !== 'hero'), M = egocubeCreate(S, { member: path }), f = S.castSheet.members[path].sheet.facets;
     expect(M.battle).toEqual(battleMovesOf(f.role, { archetype: f.archetype }).states);
     expect(new Set([M.battle.strike, M.battle.strike2, M.battle.strike3]).size).toBe(3);
+    expect(M.battle.channel).toBe(BATTLE_CHANNEL);
     expect(new Set([M.battle.hurt, M.battle.hurt2, M.battle.hurt3]).size).toBe(3);
     for (const w of Object.values(M.battle)) expect(M.create.spec.motion[w], w).toBe(true);
     for (const w of Object.keys(M.create.spec.motion)) expect(MOTION_GAITS[w], w).toBeTruthy();

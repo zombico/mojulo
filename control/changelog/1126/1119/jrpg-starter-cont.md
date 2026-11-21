@@ -162,3 +162,10 @@
 - **A boss's roar and heavier lunge.** A boss's fight opens with its foes' roar (the `boss` juice: `act: roar, at:
   foes`). A boss runs up slower, strikes longer, and the camera shakes as it lands.
 - **A summoned foe's entrance.** A foe a page calls in roars as it appears out of the smoke (the `summon` juice).
+- **Everyone channels.** A new pose, `channel` (`polygonizer/hero-aura.js`, the `spell` family): feet set broad, both
+  hands drawn up from below to cup a gathering power before the chest, palms to each other, the eyes on it, swelling as
+  it fills. Any hero takes it as a motion word. In a party battle every fighter has one: each party member and the
+  hero (`battleMovesOf`), each person foe, and each beast that can strike (its own way, `channel`, in
+  `fauna/behavior/strike.js`: drawn in, then hunkered low, the head down and still). A skill used channels first and
+  then casts: the `cast` juice is `act: channel, then: cast` (an act's new `then`: an act it goes on into, the beat held
+  while the first plays). One without its own channel stands in its ready stance while it gathers.

@@ -55,7 +55,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
   const WHY = { useless: 'It would do nothing now.', battle: 'Not during a fight.', rules: 'Classes are fixed here.', same: 'Already that class.', locked: 'That class is not open yet.', member: 'Not a class they can take.', sp: 'Not enough class points.', requires: 'Learn what it builds on first.', learned: 'Already learned.', class: 'Take that class first.', unknown: '' };
   const BEAT = 650, POP_FOR = 1200, STRIKE_FOR = 700;
   // how long each act plays (seconds), within a beat
-  const ACT_FOR = { strike: 0.55, cast: 0.7, hurt: 0.4, fall: 0.6, use: 0.8, win: 1.2, roar: 1.3 };
+  const ACT_FOR = { strike: 0.55, channel: 0.65, cast: 0.7, hurt: 0.4, fall: 0.6, use: 0.8, win: 1.2, roar: 1.3 };
   // (a boss's blow is heavier: its run up slower, its strike longer, the camera shaken as it lands)
   const BOSS_RUN = 1.6, BOSS_STRIKE = 1.4, BOSS_SHAKE = 0.3;
   // mode: null | 'battle' | 'field' | 'shop'; the battle's own phase: intro | command | play | end. (Which list a member
@@ -164,8 +164,10 @@ export function rpgPage(cfg, K, ctl, jk, M) {
         did.add(id);
         const is = s.act === 'fall' && !R.b.side[who] && !ownFigure(who) ? 'hurt' : s.act, to = is === 'strike' ? figureOf(b.target) : null;
         const heavy = is === 'strike' && !R.b.side[who] && bossFigure(id);
-        e.act = { is, t0: w.time || 0, for: (s.for || ACT_FOR[is]) * (heavy ? BOSS_STRIKE : 1), ...(to && to !== id ? { to } : {}) };
+        e.act = { is, t0: w.time || 0, for: (s.for || ACT_FOR[is]) * (heavy ? BOSS_STRIKE : 1), ...(to && to !== id ? { to } : {}), ...(s.then ? { then: { is: s.then, for: ACT_FOR[s.then] } } : {}) };
         if (heavy) cast([{ op: 'shake', k: BOSS_SHAKE, for: e.act.for }]);
+        // (an act that goes on into another, a channel into its cast: the beat held while the first plays)
+        if (s.then) linger = Math.max(linger, e.act.for * 1000);
       }
     }
   }
