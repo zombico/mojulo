@@ -69,7 +69,8 @@ const guardOf = (w) => {
 const ghost = { on: !o.has('--seen') };
 const start = [...P.start.at, zOf(P.start.deck) + 0.05], goal = [...P.goal.at, zOf(P.goal.deck)];
 const mission = { result: { at: goal, radius: 2, when: [] }, hints: [{ at: start, radius: 3, says: `${P.start.says ?? ''} I: walk unseen or be seen.` }] };
-const entities = [{ ...h0, rule: { ...h0.rule, step: 0.35, mission, ghost }, transform: { pos: start, heading: 0 } }, ...P.watch.map(guardOf)];
+// (the radar's reach: a deck's width and a little, so the deck fills the square scope; the game's look draws it, world.json ui.radar)
+const entities = [{ ...h0, rule: { ...h0.rule, step: 0.35, mission, ghost, radarRange: 30 }, transform: { pos: start, heading: 0 } }, ...P.watch.map(guardOf)];
 // (the rig's hour, its air and its weather: the builder's page; the rain a weather the world reads, its decks its roofs)
 const manifest = { kind: 'controllable', faces: B.faces, colliders: B.colliders, entities, figures: room.manifest.figures, fxStyle: room.manifest.fxStyle, figureGrade: room.manifest.figureGrade,
   bg: B.page.bg, sky: B.page.sky, ...(B.page.weather ? { weather: B.page.weather, seed: P.seed } : {}) };

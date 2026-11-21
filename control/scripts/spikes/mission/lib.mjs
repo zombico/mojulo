@@ -13,7 +13,12 @@
  *                                   game's HUD laid on the resolved payload (a stage or geocube recipe takes no pilot)
  */
 import fs from 'node:fs/promises';
+import fss from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+/** The game's radar look (world.json `ui.radar`, game/hud-mana.js RADAR_LOOK): every page's HUD draws it so. */
+export const RADAR_LOOK = JSON.parse(fss.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'world.json'), 'utf8')).ui?.radar ?? null;
 
 export function options(argv) {
   const opt = (k, d = null) => { const i = argv.indexOf(k); return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
@@ -77,7 +82,7 @@ export async function writePage(payload, room, file, { capture = false, theme = 
   // game/screen.js; a payload that names its own keeps it)
   const { readScreen, screenPayload, screenFrame } = await import('../../../lib/graph/game/screen.js');
   const P = P0.screen ? P0 : { ...P0, screen: screenPayload(readScreen('screen')), viewBox: screenFrame(readScreen('screen'), 1120) };
-  const html = emitThreeWorld({ ...P, camera: room.manifest.camera, events: events ?? room.manifest.events, walk: false, spin: false, hud: false, manaHud: levelHud(theme), ...(cdn ? { cdn: true } : { inline: true }), ...(capture ? { capture: true } : {}) });
+  const html = emitThreeWorld({ ...P, camera: room.manifest.camera, events: events ?? room.manifest.events, walk: false, spin: false, hud: false, manaHud: levelHud(theme, { radar: RADAR_LOOK }), ...(cdn ? { cdn: true } : { inline: true }), ...(capture ? { capture: true } : {}) });
   // (`cdn`: three.js from its pinned CDN, not inlined: the build an artifact host takes, packed in parts, docs/workshop.md)
   await fs.mkdir(path.dirname(file), { recursive: true });
   // (the World page's orbit hint is a viewer's, not a game's: a played level hides it)

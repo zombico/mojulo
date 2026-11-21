@@ -92,7 +92,7 @@ const GUARD_TUNE = Object.freeze({ team: 'guards', rule: Object.freeze({ speed: 
 const VAULT_CLIP_H = 0.5;
 // THE DIVE (worlds/controllable/dive.js over the rule's dodge): a second at 7.6 m/s at its middle, about 4.8 m of
 // ground, a second before another; with a roll of the hero's own (`roll`) it plays that, the page's tumble off
-const DIVE = Object.freeze({ dodge: true, dodgeDur: 1, dodgeSpeed: 7.6, dodgeCooldown: 1, dodgeBoostCost: 0, dodgeOverheat: false, dodgeTurns: 0, dive: Object.freeze({ jump: false }) });
+const DIVE = Object.freeze({ dodge: true, dodgeDur: 1, dodgeSpeed: 7.6, dodgeCooldown: 1, dodgeBoostCost: 0, dodgeOverheat: false, dodgeTurns: 0, dive: Object.freeze({ jump: false, blink: false }) });
 // (a bare hand's blow, where a held blade would say its own, worlds/held-strike.js: its reach, its seconds, and a damage
 // that makes the jab 8 of a target's 100, the cross about 10, the hook 16)
 const FIST_BLOW = Object.freeze({ strikeReach: 0.95, strikeDur: 0.4, strikeDamage: 16 });

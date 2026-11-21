@@ -46,7 +46,7 @@ import { manaCss } from '../../../mana-ui/css.js';
 import { themeCss } from '../../../mana-ui/theme.js';
 import { hudToMana } from '../../game/hud-mana.js';
 import { hudSubst, fmtDelta } from '../../game/hud-widgets.js';
-import { radarMarks, sceneThings, RADAR, planSvg, planBox, radarPlan } from '../../gameworld/radar.js';
+import { radarMarks, sceneThings, RADAR, planSvg, planBox, radarPlan, planFloors, floorPlanSvg } from '../../gameworld/radar.js';
 import { hitBearing } from '../../gameworld/damage-ring.js';
 import { talkSpec, talkState, TALK_GLYPHS } from '../../playscape/ui/talk-box.js';
 import { faceFrame, buildTalkFace } from './talk-face.js';
@@ -64,7 +64,10 @@ const TALK_CSS = '#moj-mana-talk{position:fixed;inset:0;pointer-events:none;z-in
 
 export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false, radarMap = null, talk = false } = {}) {
   // (a level whose HUD is its own rows, `rows: 'events'`: lowered here, where the page emits them, game/hud-mana.js)
-  if (hud && hud.rows === 'events' && !hud.spec) { const L = hudToMana(rows, { register, hero: hud.hero !== false, touch }); hud = { ...hud, spec: L.spec, feed: { ...L.feed, ...(hud.feed ?? {}) } }; }
+  if (hud && hud.rows === 'events' && !hud.spec) { const L = hudToMana(rows, { register, hero: hud.hero !== false, touch, ...(hud.radar ? { radar: hud.radar } : {}) }); hud = { ...hud, spec: L.spec, feed: { ...L.feed, ...(hud.feed ?? {}) } }; }
+  // (a level's radar look, game/hud-mana.js RADAR_LOOK: its size and a square scope's face are this HUD's own CSS, and its
+  // floor the plan and the guards of the pilot's floor alone; absent, not one byte)
+  const RL = hud && hud.radar ? hud.radar : null, floorRadar = !!(RL && RL.floor);
   if (!hud || !hud.spec) return '';
   // (a HUD of the level's own making, a course's: the level's buttons for a touch screen alone, game/screen-keys.js, are
   // drawn by it too, since the page's own widget rows stand down beside it)
@@ -80,8 +83,13 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     const pad = { use: 'region', props: { at: 'bottom', variant: 'bare' }, when: T('on'), children: [{ use: 'touchpad', props: { lane: T('lane'), held: T('held'), down: T('down'), buttons: T('buttons') } }] };
     hud = { ...hud, spec: { ...hud.spec, hud: { ...hud.spec.hud, children: [...(hud.spec.hud.children ?? []), pad] } } };
   }
+  const radarCss = !RL ? '' : (RL.size === 'large' ? '#moj-mana-hud .mana-minimap{width:calc(260 * var(--mana-du));height:calc(260 * var(--mana-du))}' : '')
+    + (RL.shape === 'square' ? '#moj-mana-hud .mana-minimap[data-shape=square][data-scope=yes]{border-radius:calc(6 * var(--mana-du));background:color-mix(in srgb,var(--mana-panel) 38%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--mana-ink) 40%,transparent);overflow:hidden}'
+      + '#moj-mana-hud .mana-minimap[data-shape=square] .mana-planclip{border-radius:calc(6 * var(--mana-du))}#moj-mana-hud .mana-minimap[data-shape=square] .mana-bezel::before{display:none}'
+      + '#moj-mana-hud .mana-minimap[data-shape=square][data-scope=yes]::before{border-radius:0}'
+      + '#moj-mana-hud .mana-minimap[data-shape=square] .mana-cone{border-radius:0}' : '');
   const R = hud.feed && hud.feed.rows;
-  const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp,#__radar,#__wc,#__damageRing,div:has(>#__wepIcon)' : ''}{display:none!important}${talk ? TALK_CSS : ''}`;
+  const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n${radarCss ? `${radarCss}\n` : ''}#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp,#__radar,#__wc,#__damageRing,div:has(>#__wepIcon)' : ''}{display:none!important}${talk ? TALK_CSS : ''}`;
   const H = !!(hud.feed && hud.feed.hero);
   const faces = !!(talk && talk.faces), speakers = (talk && talk.speakers) || {};
   return `
@@ -93,7 +101,10 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   // (the map under the scope, radar.js: the level's plan from its own colliders and its tall grass, drawn once, the first
   // frame the radar is up; laid under the scope each frame at the radar's scale, ahead at the top)
   const __hPlanSvg = ${planSvg.toString()}, __hPlanBox = ${planBox.toString()}, __hPlanAt = ${radarPlan.toString()};
-  let __hPlan = null;${radarMap ? `
+  let __hPlan = null;${floorRadar ? `
+  // (the radar of one floor: the level's floors, each one's plan drawn the first time the pilot stands on it)
+  const __hFloors = ${planFloors.toString()}, __hFloorSvg = ${floorPlanSvg.toString()};
+  let __hFl = null, __hBox = null; const __hFlPlans = {};` : ''}${radarMap ? `
   // (the land under it too, a level's \`radar.map\`: its contours and its trail, read when the level was built)
   const __hLand = ${json(radarMap)};` : ''}` : ''}
   const sheet = document.createElement('style'); sheet.textContent = ${json(css)}; document.head.appendChild(sheet);
@@ -233,9 +244,15 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     }
     // the page's radar, as a scope; its damage ring, as arcs; its weapon selector, as the wheel
     const R = st.radar; R.on = !!document.getElementById('__radar');
-    if (R.on && me.transform) { const p = me.transform.pos, cfgR = me.rule && me.rule.radarRange > 0 ? Object.assign({}, __hR, { range: me.rule.radarRange }) : __hR; R.marks = __hRadar(p, me.transform.heading, __hThings(W, me, null), cfgR); R.north = __hBearing(p, me.transform.heading, [p[0], p[1] + 1, 0]);
+    if (R.on && me.transform) { const p = me.transform.pos, cfgR = me.rule && me.rule.radarRange > 0 ? Object.assign({}, __hR, { range: me.rule.radarRange }) : __hR;${floorRadar ? `
+      // (the floor the pilot stands on: the highest a body's height under its feet; on a stair, the one it left until it
+      // is all but up. Its plan alone, and the foes within a storey of it)
+      if (!__hFl && W.colliders && W.colliders.length) { __hFl = __hFloors(W.colliders); __hBox = __hPlanBox(W.colliders, null); }
+      const foot = p[2] - ((me.rule && me.rule.eye) || 0), fz = (__hFl || []).reduce((a, z) => (z <= foot + 1 ? z : a), (__hFl && __hFl[0]) || 0);
+      R.marks = __hRadar(p, me.transform.heading, __hThings(W, me, null).filter((t) => Math.abs(((t.at && t.at[2]) || 0) - fz) < 3), cfgR); R.north = __hBearing(p, me.transform.heading, [p[0], p[1] + 1, 0]);
+      if (__hBox) { const k = String(fz); if (!__hFlPlans[k]) __hFlPlans[k] = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(__hFloorSvg(__hPlanSvg, W.colliders, __hBox, fz)); R.plan = Object.assign({ src: __hFlPlans[k] }, __hPlanAt(__hBox, p, me.transform.heading, cfgR.range)); } }` : ` R.marks = __hRadar(p, me.transform.heading, __hThings(W, me, null), cfgR); R.north = __hBearing(p, me.transform.heading, [p[0], p[1] + 1, 0]);
       if (!__hPlan && W.colliders && W.colliders.length) { const box = __hPlanBox(W.colliders, null); __hPlan = { box, src: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(__hPlanSvg(W.colliders, null, box, { rel: true, veils: W.veils || []${radarMap ? ', relief: __hLand.relief, trail: __hLand.trail' : ''} })) }; }
-      if (__hPlan) R.plan = Object.assign({ src: __hPlan.src }, __hPlanAt(__hPlan.box, p, me.transform.heading, cfgR.range)); }
+      if (__hPlan) R.plan = Object.assign({ src: __hPlan.src }, __hPlanAt(__hPlan.box, p, me.transform.heading, cfgR.range)); }`}
     const D = window.__mojDamageRing; st.ring.on = !!(D && D.hits && D.hits.length); st.ring.hits = st.ring.on ? D.hits : [];
     const C = window.__mojWc && window.__mojWc.view ? window.__mojWc.view() : null;
     st.wheel.open = !!(C && C.open);

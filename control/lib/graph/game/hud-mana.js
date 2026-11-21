@@ -32,6 +32,7 @@
  * timed row stands · lines.<k> a slot's passing lines · moments [] · hero { hp, hpMax, hasHp, stamina, staminaMax, sprints,
  * rest, peril } · gun { on, name, mode, rounds, size, reserve, reloading, rest } · focus { on, value, state, label } ·
  * radar { on, marks, north, plan? } · ring { on, hits } · wheel { open, title, slots }.
+ * A level asks for its radar's look (levelHud's `radar`, RADAR_LOOK): square, large, and of the pilot's floor alone.
  * Pure: a spec is data.
  */
 import { normalizeHud, HUD_SLOTS } from './hud-widgets.js';
@@ -44,7 +45,17 @@ const B = (path) => ({ bind: path });
 const MEANS = [[/^(hp|health|life|lives|hull)$/, 'hp'], [/^(mp|mana|magic|energy)$/, 'mp'], [/^(xp|exp|experience)$/, 'xp'], [/^(stamina|boost|sprint|breath|fuel)$/, 'stamina'], [/^(shield|armou?r|guard)$/, 'shield'], [/^boss/, 'boss']];
 const meaningOf = (w) => { for (const name of [w.var, w.label]) { const k = String(name ?? '').toLowerCase().trim(); for (const [re, v] of MEANS) if (re.test(k)) return v; } return 'plain'; };
 
-export function hudToMana(rows, { register = null, hero = true, touch = false } = {}) {
+/** A level's radar asked for: `shape` round (the scope) or square, `size` normal or large, `floor` true: the plan and the
+ *  guards of the floor the pilot stands on alone (a level of storeys or decks). Absent: the round scope as it was. */
+export const RADAR_LOOK = Object.freeze({ shape: ['round', 'square'], size: ['normal', 'large'], floor: [true, false] });
+export function readRadarLook(r) {
+  if (r == null) return null;
+  if (typeof r !== 'object' || Array.isArray(r)) throw new Error(`radar is { ${Object.keys(RADAR_LOOK).join(', ')} }`);
+  for (const [k, v] of Object.entries(r)) { if (!RADAR_LOOK[k]) throw new Error(`radar.${k} is not one of ${Object.keys(RADAR_LOOK).join(', ')}`); if (!RADAR_LOOK[k].includes(v)) throw new Error(`radar.${k} is one of ${RADAR_LOOK[k].join(', ')}`); }
+  return { ...r };
+}
+
+export function hudToMana(rows, { register = null, hero = true, touch = false, radar = null } = {}) {
   const { widgets } = normalizeHud(Array.isArray(rows) ? rows : [], register ? { register } : {});
   const vars = {}, keyOf = new Map(), gates = [], banners = [], toasts = [], lines = {};
   const varKey = (name) => { if (!keyOf.has(name)) { const k = `v${keyOf.size}`; keyOf.set(name, k); vars[k] = name; } return keyOf.get(name); };
@@ -101,7 +112,7 @@ export function hudToMana(rows, { register = null, hero = true, touch = false } 
     // THE GUN IN HAND, at the bottom right: its wireframe, its rounds as cartridges; resting while full
     regions.push({ use: 'region', props: { at: 'bottom-right', variant: 'scrim', rest: B('gun.rest') }, when: B('gun.on'), children: [{ use: 'magazine', props: { name: B('gun.name'), mode: B('gun.mode'), rounds: B('gun.rounds'), size: B('gun.size'), reserve: B('gun.reserve'), reloading: B('gun.reloading') } }] });
     // THE RADAR, a scope at the top right (where the page's stood), and the wheel while it is held open
-    regions.push({ use: 'region', props: { at: 'top-right', variant: 'bare' }, when: B('radar.on'), children: [{ use: 'minimap', props: { shape: 'round', scope: true, markers: B('radar.marks'), north: B('radar.north'), plan: B('radar.plan') } }] });
+    regions.push({ use: 'region', props: { at: 'top-right', variant: 'bare' }, when: B('radar.on'), children: [{ use: 'minimap', props: { shape: radar?.shape ?? 'round', scope: true, markers: B('radar.marks'), north: B('radar.north'), plan: B('radar.plan') } }] });
     regions.push({ use: 'region', props: { at: 'center', variant: 'bare' }, when: B('wheel.open'), children: [{ use: 'wheel', props: { rows: B('wheel.slots'), title: B('wheel.title') } }] });
     // the screen's edge, closing in as the health runs out; where a hit came from, as arcs round the aim
     layers.push({ use: 'peril', props: { level: B('hero.peril') } }, { use: 'threat', props: { markers: B('ring.hits') }, when: B('ring.on') });
@@ -110,8 +121,9 @@ export function hudToMana(rows, { register = null, hero = true, touch = false } 
 }
 
 /** A level's `manaHud` in a look (a mana-ui preset's name, a card's, or a theme object): its rows are the level's own. */
-export function levelHud(theme, { screen = null } = {}) {
+export function levelHud(theme, { screen = null, radar = null } = {}) {
   const base = typeof theme === 'string' && !THEMES[theme] ? cardTheme(theme) : theme ?? 'console';
   const portrait = !!screen && (screen === 'phone' || screen.pole === 'phone' || screen.orientation === 'portrait');
-  return { rows: 'events', theme: portrait ? (typeof base === 'string' ? { from: base, distance: 'hand' } : { ...base, distance: 'hand' }) : base };
+  const R = readRadarLook(radar);
+  return { rows: 'events', theme: portrait ? (typeof base === 'string' ? { from: base, distance: 'hand' } : { ...base, distance: 'hand' }) : base, ...(R ? { radar: R } : {}) };
 }

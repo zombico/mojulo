@@ -30,8 +30,9 @@ const room = infiltrationRoom(G, { refs: { ...(hero ? { hero } : {}), ...(guard 
 const { payload } = await resolveWorldScene({ ref: 'steel-serpents-infiltration-yard', manifest: room.manifest }, {});
 const cdn = argv.includes('--cdn');
 // (the game's HUD: the guard's sight is drawn on its radar)
+const { RADAR_LOOK } = await import('./lib.mjs');
 const { levelHud } = await import('../../../lib/graph/game/hud-mana.js');
-const html = emitThreeWorld({ ...payload, wireframe: false, walk: true, spin: false, decollide: true, hud: false, manaHud: levelHud('field-brief'), inline: !cdn, cdn, ...(argv.includes('--capture') ? { capture: true } : {}) });
+const html = emitThreeWorld({ ...payload, wireframe: false, walk: true, spin: false, decollide: true, hud: false, manaHud: levelHud('field-brief', { radar: RADAR_LOOK }), inline: !cdn, cdn, ...(argv.includes('--capture') ? { capture: true } : {}) });
 await fs.mkdir(out, { recursive: true });
 const file = path.join(out, 'infiltration-yard.html');
 await fs.writeFile(file, html);

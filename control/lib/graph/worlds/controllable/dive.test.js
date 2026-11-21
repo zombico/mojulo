@@ -41,3 +41,16 @@ describe('the dive on a button', () => {
     expect(run(b, { jump: 1, jumpHeld: 1 }, 30)).toBeGreaterThan(0.2);
   });
 });
+
+// (the page: a dive whose rule says `blink: false` is invincible and drawn whole; every other i-frame still shimmers, and a
+// page whose rules ask nothing keeps its line as it was)
+import { controllableChannelScript } from '../../scene/channels/controllable/index.js';
+describe('the dive drawn whole', () => {
+  const cam = { rule: 'follow', target: 'p' }, ent = (dive) => [{ id: 'p', pilotable: true, rule: { type: 'platform', dodge: true, dive }, body: { type: 'mesh' }, transform: { pos: [0, 0, 0], heading: 0 } }];
+  it('no flicker through a dive that says so; the shimmer line untouched where none does', () => {
+    const steady = controllableChannelScript(ent({ jump: false, blink: false }), cam, {}), plain = controllableChannelScript(ent({ jump: false }), cam, {});
+    expect(steady).toContain('e.invincible && !(e.dodgeT != null && e.rule && e.rule.dive && e.rule.dive.blink === false)');
+    expect(plain).not.toContain('dive.blink === false');
+    expect(plain).toMatch(/\n  if \(e\.invincible\) \{/);
+  });
+});

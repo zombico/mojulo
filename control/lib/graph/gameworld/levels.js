@@ -1103,7 +1103,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // a mission's is its own channel's (mission-mana.js)
   // (a level with a HUD grammar, hud-grammar.js, has its HUD: its hearts, its compass and its actions stand in for the
   // rows, so they are not drawn a second time)
-  if (G.ui !== undefined && !manifest.manaHud && !MX && !manifest.events?.grammar) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null }) };
+  if (G.ui !== undefined && !manifest.manaHud && !MX && !manifest.events?.grammar) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, ...(G.ui?.radar ? { radar: G.ui.radar } : {}) }) };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : stage.section === 'mission' ? stage.mission.laws.map((l) => ({ concern: 'mission', law: l.law, holds: l.holds, says: l.says })) : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];

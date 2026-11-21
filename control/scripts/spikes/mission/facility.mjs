@@ -24,6 +24,7 @@ process.env.MOJULO_SEMANTIC_INDEX_DISABLED ??= '1';
 const { infiltrationRoom } = await import('../../../lib/graph/gameworld/infiltration-room.js');
 const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scene.js');
 const { emitThreeWorld } = await import('../../../lib/graph/scene/scene-three.js');
+const { RADAR_LOOK } = await import('./lib.mjs');
 const { levelHud } = await import('../../../lib/graph/game/hud-mana.js');
 const pair = (k) => (opt(k) ? opt(k).split(',') : null);
 const G = { id: 'steel-serpents', name: 'Steel Serpents', feel: opt('--feel', 'steel-serpents') };
@@ -62,7 +63,7 @@ payload.colliders = [...payload.colliders.filter((c) => !isBound(c)),
   wallOf('-x', [X0 - 0.5, Y0 - 0.5], [X0, Y1 + 0.5]), wallOf('+x', [X1, Y0 - 0.5], [X1 + 0.5, Y1 + 0.5]), wallOf('-y', [X0 - 0.5, Y0 - 0.5], [X1 + 0.5, Y0]), wallOf('+y', [X0 - 0.5, Y1], [X1 + 0.5, Y1 + 0.5])];
 console.log(`facility: bounds ${bounds.length} of the trail's given way to a perimeter x ${X0.toFixed(1)}..${X1.toFixed(1)}, y ${Y0.toFixed(1)}..${Y1.toFixed(1)}`);
 const { walkers: _w, ...P } = payload;
-const html = emitThreeWorld({ ...P, camera: room.manifest.camera, events: room.manifest.events, walk: false, spin: false, hud: false, manaHud: levelHud(opt('--theme', 'field-brief')), inline: !cdn, cdn, ...(argv.includes('--capture') ? { capture: true } : {}) });
+const html = emitThreeWorld({ ...P, camera: room.manifest.camera, events: room.manifest.events, walk: false, spin: false, hud: false, manaHud: levelHud(opt('--theme', 'field-brief'), { radar: RADAR_LOOK }), inline: !cdn, cdn, ...(argv.includes('--capture') ? { capture: true } : {}) });
 await fs.mkdir(out, { recursive: true });
 if (argv.includes('--dump')) await fs.writeFile(path.join(out, 'level.json'), JSON.stringify({ colliders: payload.colliders, anchors: payload.anchors, walk: payload.walk, keys: Object.keys(payload), hero: payload.entities.find((e) => e.id === 'hero').rule, form: payload.form && Object.keys(payload.form), roofs: payload.roofs && payload.roofs.length }));
 const file = path.join(out, 'facility.html');

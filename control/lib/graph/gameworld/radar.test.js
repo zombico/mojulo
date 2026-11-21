@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { RADAR, radarMarks, planBox, planPoint, planSvg, radarPlan, sceneThings } from './radar.js';
+import { RADAR, radarMarks, planBox, planPoint, planSvg, radarPlan, sceneThings, planFloors, floorPlanSvg } from './radar.js';
 
 const at = (m) => [m.x, m.y];
 describe('the radar', () => {
@@ -117,5 +117,26 @@ describe('what a watcher sees, on the radar', () => {
   it('a foe that shows no sight is a mark and nothing more', () => {
     const [m] = radarMarks([0, 0], 0, [{ at: [5, 0], kind: 'foe' }], cfg);
     expect(m.fan).toBeUndefined();
+  });
+});
+
+describe('one floor\'s plan', () => {
+  // (two decks: a slab at 4 and one at 12 over half of it; a column on each; a container on the upper)
+  const C = [
+    { min: [0, 0, 3.7], max: [20, 20, 4] }, { min: [0, 0, 11.7], max: [10, 20, 12] },
+    { min: [5, 5, 4], max: [6, 6, 11.7] }, { min: [15, 15, 4], max: [16, 16, 6] },
+    { min: [2, 2, 12], max: [8, 4, 14.6] },
+  ];
+  it('a level\'s floors are its slabs\' tops, lowest first; a column or a container is no floor', () => {
+    expect(planFloors(C)).toEqual([4, 12]);
+  });
+  it('each floor draws its own slabs as ground and what stands at it alone; the other floor\'s things are not on it', () => {
+    const box = planBox(C, null), low = floorPlanSvg(planSvg, C, box, 4), high = floorPlanSvg(planSvg, C, box, 12);
+    const rects = (svg) => (svg.match(/<rect /g) || []).length;
+    // (each the plan's ground, then low: its slab and the two columns standing on it; high: its slab and its container)
+    expect(rects(low)).toBe(1 + 1 + 2);
+    expect(rects(high)).toBe(1 + 1 + 1);
+    expect(low).not.toBe(high);
+    expect(low).toContain('fill="#0e1214"');
   });
 });

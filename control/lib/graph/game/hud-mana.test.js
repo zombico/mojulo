@@ -1,7 +1,7 @@
 // a level's HUD rows on mana-ui (hud-mana.js): each row lowered to the part that means it, read by the runtime's own
 // reader; the page's host (scene/channels/mana-hud.js) carries them and parses
 import { describe, it, expect } from 'vitest';
-import { hudToMana, levelHud } from './hud-mana.js';
+import { hudToMana, levelHud, readRadarLook } from './hud-mana.js';
 import { manaUi } from '../../mana-ui/index.js';
 import { manaHudScript } from '../scene/channels/mana-hud.js';
 
@@ -102,5 +102,25 @@ describe('the host carries a level\'s rows', () => {
     const at = (slot) => JSON.stringify(spec.hud.children.find((r) => r.props.at === slot));
     expect(at('bottom-right')).toContain('{"use":"button","props":{"label":"whistle"},"on":{"accept":{"emit":"whistle"}}}');
     expect(at('top-right')).toMatch(/"on":\{"accept":\{"emit":"map"\}\},"when":\{"bind":"on\.r1"\}/);
+  });
+});
+
+describe('a level\'s radar look', () => {
+  const mini = (spec) => JSON.stringify(spec).match(/"use":"minimap","props":\{"shape":"(\w+)"/)[1];
+  it('square, large and of the pilot\'s floor when the level asks; the round scope as it was when it does not', () => {
+    expect(mini(hudToMana([], {}).spec)).toBe('round');
+    expect(mini(hudToMana([], { radar: { shape: 'square' } }).spec)).toBe('square');
+    expect(levelHud('console', { radar: { shape: 'square', size: 'large', floor: true } }).radar).toEqual({ shape: 'square', size: 'large', floor: true });
+    expect(levelHud('console')).not.toHaveProperty('radar');
+    expect(() => readRadarLook({ shape: 'hex' })).toThrow(/shape is one of/);
+    expect(() => readRadarLook({ zoom: 2 })).toThrow(/not one of/);
+  });
+  it('the page draws one floor and sizes the scope only when asked; a level that asks nothing keeps every byte', () => {
+    const plain = manaHudScript(levelHud('console'), { rows: [] }), asked = manaHudScript(levelHud('console', { radar: { shape: 'square', size: 'large', floor: true } }), { rows: [] });
+    expect(plain).not.toContain('__hFloorSvg');
+    expect(plain).not.toContain('260 * var(--mana-du)');
+    expect(asked).toContain('__hFloorSvg');
+    expect(asked).toContain('260 * var(--mana-du)');
+    expect(asked).toContain('[data-shape=square][data-scope=yes]');
   });
 });

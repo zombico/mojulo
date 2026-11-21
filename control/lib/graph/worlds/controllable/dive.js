@@ -4,6 +4,8 @@
  * on the pilot's rule, beside its `dodge`:
  *
  *   rule.dive: { jump?: false,       `jump: false`: the body has no jump (its button is the dive's: the page sends it)
+ *                blink?: false,      invincible through the dive and drawn whole: the page does not flicker it (its
+ *                                    i-frames' shimmer, scene/channels/controllable/index.js), the hits still miss
  *                clip?: true }       the body has a ROLL OF ITS OWN to play (the hero library's `rollForward`, a dive over
  *                                    the shoulder into a tucked roll, polygonizer/hero-jump.js): it turns to face the way
  *                                    it dives and plays `dodge_roll` through, its phase the dodge's (the rule's

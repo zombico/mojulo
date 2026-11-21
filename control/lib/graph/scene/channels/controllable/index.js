@@ -2597,8 +2597,10 @@ ${figHasRide ? `      // (a ridden machine's front turns about the steering axis
   // i-frame SHIMMER: while INVINCIBLE the whole rig flickers translucent — the
   // classic i-frame read. Both the acrobatic dodge and the getup rise set
   // e.invincible, so both shimmer; the topple FALL (not invincible) does not.
-  // Restore full opacity when it ends.
-  if (e.invincible) {
+  // Restore full opacity when it ends.${entities.some((x) => x && x.rule && x.rule.dive && x.rule.dive.blink === false) ? `
+  // (a dive whose rule says \`blink: false\`, dive.js: invincible through it, and drawn whole: no flicker while it rolls)
+  if (e.invincible && !(e.dodgeT != null && e.rule && e.rule.dive && e.rule.dive.blink === false)) {` : `
+  if (e.invincible) {`}
     const o = 0.45 + 0.35 * Math.sin(__world.time * 40);
     for (const bm of rig.skin ? [rig.skin] : rig.boneMeshes) { if (bm && bm.material) { bm.material.transparent = true; bm.material.opacity = o; } }   // (a merged figure: its one skin)
     rig.__shimmered = true;

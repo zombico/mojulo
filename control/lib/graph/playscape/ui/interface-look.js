@@ -27,9 +27,10 @@ import { manaUi } from '../../../mana-ui/kernel.js';
 import { THEME_CARDS, THEME_CARD_IDS, cardTheme } from './theme-cards/loader.js';
 import { solvePalette } from '../../color-theorist/solve.js';
 import { juiceOfGame, juiceSuggestion } from '../../gameworld/juice.js';
+import { readRadarLook } from '../../game/hud-mana.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const KEYS = ['theme', 'colour', 'languages', 'language'];
+const KEYS = ['theme', 'colour', 'languages', 'language', 'radar'];
 
 // the art director's register by the game's intent (gameworld/intent.js GENRES): where its look starts
 export const INTENT_LOOKS = Object.freeze({
@@ -89,6 +90,8 @@ export function readUi(ui, where = 'ui') {
   if (ui.languages !== undefined || ui.language !== undefined) {
     try { manaUi.readSpec({ screens: {}, languages: ui.languages, language: ui.language }); } catch (e) { errors.push(`${where}: ${e.message}`); }
   }
+  // (its radar's look, game/hud-mana.js RADAR_LOOK: square, large, of the pilot's floor alone)
+  if (ui.radar !== undefined) { try { readRadarLook(ui.radar); } catch (e) { errors.push(`${where}.${e.message}`); } }
   return errors;
 }
 
