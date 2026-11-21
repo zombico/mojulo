@@ -12,7 +12,9 @@
  *                it (a drop down a chute) — inside the zone's rectangle only, so a run's frame never follows into a pit. A `rise` zone's frame climbs on its own at its pace (m/s) from where it stood as the
  *                target came in: the screen from below. A `shut` zone (a boss's room: { s, z0, z1, at }) walls itself
  *                up behind the target once it is past `at`: `_shut` records when, by zone, and the target is never let
- *                back past `s` (the page's shutter comes down there)
+ *                back past `s` (the page's shutter comes down there); the shutter is a wall while it is shut (a collider:
+ *                slid on and kicked off). A fall in a shut room puts the target back before its door (`backOut` m), the
+ *                door open, and the room's foes as they stood when it shut, whole: the fight from its start
  *   the FALL     a target wholly under the frame's bottom (its feet `stature` under it) has fallen out: it is taken out of
  *                the level to LIMBO (`limbo`, metres down, where a catch zone stands: the lives mechanic's `falls` counts it
  *                there, game/mechanics.js), the frame held, and `respawn` seconds later it is back at the zone's
@@ -28,7 +30,7 @@
  *
  * Import-free (the page runs this source, compose.js); emitted only into a page whose camera is a side map's, so every
  * other page keeps every byte. Field ownership: the camera's e._zoneAt, e._zoneC, e._zoneT, e._riseAt, e._riseZ, e._fell,
- * e._cut, e._falls, e._shut, e.frame; the world's sideFalls (from the camera's count, before each step); the target's fellOut.
+ * e._cut, e._falls, e._shut, e._roomOf, e._shutWalls, e.frame; the world's sideFalls (from the camera's count, before each step); the target's fellOut.
  */
 
 export function buildSideMap(E) {
@@ -59,7 +61,20 @@ export function buildSideMap(E) {
     if (e._fell) {
       e._fell.t += dt;
       if (e._fell.t < (r.respawn ?? 0.8)) { if (e._zoneC) place(); return; }
-      const k = e._fell.zone, cp = Zs[k].checkpoint || [Zs[k].rect[0] + 1, Zs[k].rect[2] + H / 3];
+      let k = e._fell.zone, cp = Zs[k].checkpoint || [Zs[k].rect[0] + 1, Zs[k].rect[2] + H / 3];
+      // (fallen in a boss's room that has shut: back BEFORE its door, the door open again, and what stood in the room as
+      // it shut back where it stood, whole: the fight from its start)
+      const S = Zs[k].shut;
+      if (S && e._shut && e._shut[k] != null && k > 0) {
+        delete e._shut[k];
+        for (const id in (e._roomOf && e._roomOf[k]) || {}) {
+          const b = world.byId[id], o = e._roomOf[k][id];
+          if (!b || b.gone) continue;
+          b.transform.pos = o.pos.slice(); b.transform.heading = o.heading; if (b.body && o.hp != null) b.body.hp = o.hp;
+          b.vel = [0, 0, 0]; b.downed = false; b.foeRock = null; b.foeRockT = 0; b.foeT = 0; b.hits = 0;
+        }
+        cp = [S.s - (r.backOut ?? 2.5), S.z0]; k = k - 1;
+      }
       tgt.transform.pos = [x, cp[0], cp[1] + eye + 0.05];
       tgt.vel = [0, 0, 0]; tgt.dashVel = null; tgt.grounded = false; tgt.climbing = null;
       e._fell = null; e._zoneAt = k; e._riseAt = null; e._cut = true;
@@ -91,7 +106,16 @@ export function buildSideMap(E) {
     // time it closed by zone, the page's shutter coming down), the target never back through it
     if (Z.shut) {
       const S = Z.shut, sh = e._shut || (e._shut = {});
-      if (sh[k] == null && s >= S.at) sh[k] = world.time || 0;
+      if (sh[k] == null && s >= S.at) {
+        sh[k] = world.time || 0;
+        // (what stands in the room as it shuts, as it stands: a fall in it puts the room back so)
+        const R = (e._roomOf || (e._roomOf = {}))[k] || (e._roomOf[k] = {});
+        for (const id in world.byId) {
+          const b = world.byId[id], q = b && b.transform && b.transform.pos;
+          if (!q || b === tgt || b.team !== 'foes' || b.downed || b.gone || !inRect(Z, q[1], q[2] - ((b.rule && b.rule.eye) || 0)) || R[id]) continue;
+          R[id] = { pos: q.slice(), heading: b.transform.heading, hp: b.body && Number.isFinite(b.body.hp) ? b.body.hp : null };
+        }
+      }
       const lim = S.s + ((tgt.rule && tgt.rule.collideRadius) || 0.3);
       if (sh[k] != null && p[1] < lim) { p[1] = lim; if (tgt.vel && tgt.vel[1] < 0) tgt.vel[1] = 0; if (tgt.dashVel && tgt.dashVel[1] < 0) tgt.dashVel = null; }
     }
@@ -104,6 +128,23 @@ export function buildSideMap(E) {
     }
   }
   Object.assign(E.RULES, { 'side-map': sideMap });
+
+  // THE SHUTTER IS A WALL: a shut room's door a solid box (its colliders, `of` shutter:<zone>) while it is shut, so a body
+  // slides on it and kicks off it as off any wall; gone again when the room opens (a fall in it)
+  const step0 = E.stepWorld;
+  E.stepWorld = function stepWithShutters(state, input, dt, hooks) {
+    const out = step0(state, input, dt, hooks), cam = state.camera, Zs = cam && cam.rule && cam.rule.type === 'side-map' && cam.rule.zones;
+    if (!Zs || !(cam._shut || cam._shutWalls)) return out;
+    const sh = cam._shut || {}, on = cam._shutWalls || (cam._shutWalls = {});
+    if (!state.colliders) state.colliders = [];
+    for (let k = 0; k < Zs.length; k++) {
+      const S = Zs[k].shut;
+      if (!S) continue;
+      if (sh[k] != null && !on[k]) { state.colliders.push({ min: [-1.5, S.s - S.w, S.z0], max: [1.5, S.s, S.z1], of: 'shutter:' + k }); on[k] = true; }
+      else if (sh[k] == null && on[k]) { state.colliders = state.colliders.filter((c) => c.of !== 'shutter:' + k); on[k] = false; }
+    }
+    return out;
+  };
 
   // a LADDER under the side map's camera: UP or DOWN takes hold of it (the climb owns the body from there); on it, no shot
   const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];

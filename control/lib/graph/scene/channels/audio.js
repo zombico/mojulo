@@ -18,6 +18,9 @@ export function audioChannelScript(audio) {
   // adaptive music (audio.combat): the scores play on two engines of their own, crossfaded; the first engine keeps the
   // cues, footsteps and wind at a steady level. Without it every line below is as it was.
   const combat = !!audio.combat;
+  // the effects' level under the score (audio.sfxLevel, 0..1, opt-in): the cue engine's own master, where the scores play
+  // on engines of their own (combat); absent, the stock 0.9
+  const sfxGain = combat && Number.isFinite(audio.sfxLevel) ? Math.round(0.9 * audio.sfxLevel * 1000) / 1000 : 0.9;
   // the boss's piece (audio.boss, with combat): a third engine, changed to for good once the boss's room has shut
   const bossOn = combat && !!audio.boss;
   const musicEng = combat ? '(__engs ? __engs[__music.active] : __beatsEng)' : '__beatsEng';
@@ -43,7 +46,7 @@ let __beatsCtx = null, __beatsEng = null, __beatsMuted = false, __beatsVol = 1;$
 function __beatsApply() {
   __beatsBtn.textContent = __beatsMuted ? '\\u{1F507}' : '\\u{1F50A}';
   if (!__beatsEng) return;
-  __beatsEng.master.gain.value = __beatsMuted ? 0 : 0.9 * __beatsVol;${bed ? `
+  __beatsEng.master.gain.value = __beatsMuted ? 0 : ${sfxGain} * __beatsVol;${bed ? `
   if (__bedEng) __bedEng.master.gain.value = __beatsMuted ? 0 : ${bedLevel} * __beatsVol;` : ''}${combat ? `
   if (__engs && !__switching) __engs[__music.active].master.gain.value = __beatsMuted ? 0 : 0.9 * __beatsVol;` : ''}
   if (__beatsMuted) __beatsCtx.suspend(); else __beatsCtx.resume().catch(() => {});

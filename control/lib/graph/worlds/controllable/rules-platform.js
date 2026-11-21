@@ -49,6 +49,16 @@ export function buildRulesPlatform(E) {
 
   function platform(e, input, dt, world) {
     const r = e.rule;
+    // THE FLINCH (opt-in `flinch`: seconds, a feel card's `hit.flinch`, gameworld/feel/lower.js): a blow taken (the body's
+    // hits counted up: a foe's touch, a round) snaps it into its hurt for that long, the stick, the jump and the dash not
+    // its own until it passes (the blow's knock carries it); its takes' `hurt` clip plays over it (below). Absent →
+    // byte-identical. Field ownership: e.flinchT, e.flinchHits
+    if (r.flinch > 0) {
+      const hits = e.hits || 0;
+      if (e.flinchHits != null && hits > e.flinchHits && !e.downed) e.flinchT = r.flinch;
+      e.flinchHits = hits;
+      if (e.flinchT > 0) { e.flinchT = Math.max(0, e.flinchT - dt); input = Object.assign({}, input, { forward: 0, strafe: 0, turn: 0, jump: 0, jumpHeld: 0, boost: 0 }); }
+    }
     // A PERSON WALKS AND RUNS (opt-in `walkSpeed`, a hero's: playscape/player.js): no thrusters, so F is nothing of its
     // own. The stick's travel is the pace (below, once the stick is read): a key, full travel, runs at `speed`; a pad's
     // stick walks under `runAt` of its travel and runs past it; the walk key held (`input.walk`) walks. A rule whose F is
@@ -736,6 +746,8 @@ export function buildRulesPlatform(E) {
         const u = dashU(e), k = u < DASH_RISE ? u / DASH_RISE : u < DASH_EASE ? 1 : 1 - (u - DASH_EASE) / (1 - DASH_EASE);
         e.locomotion = 'jump_fwd'; e.gaitPhase = K.fwd[0] * (0.5 + 0.45 * k); e.moving = true;
       }
+      // (a card with a FLINCH of its own, `takes.hurt`: that clip over the flinch by its share, over anything else)
+      if (K.hurt && e.flinchT > 0 && r.flinch > 0) { e.locomotion = 'hurt'; e.gaitPhase = 1 - e.flinchT / r.flinch; e.moving = true; }
     }
     }
 

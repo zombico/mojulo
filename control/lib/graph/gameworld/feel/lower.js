@@ -133,10 +133,10 @@ export const SPRINT = Object.freeze({ build: 1, fall: 0.5 });
 
 /** The platform rule's `takes`: each take's flight as shares of its clip, and the landing's seconds (the card's). */
 function takesOf(J, look, T = TAKES) {
-  const S = Object.fromEntries(Object.entries(T).filter(([state]) => state !== 'dash').map(([state, clip]) => [state, jumpShares(clip)]));
+  const S = Object.fromEntries(Object.entries(T).filter(([state]) => state !== 'dash' && state !== 'hurt').map(([state, clip]) => [state, jumpShares(clip)]));
   const squash = look?.squash > 0 ? r4(look.squash) : 0;
   // (a card's own dash, `jumps.dash`: a move on the floor the runtime plays over the dash's burst, rules-platform.js)
-  return { up: [S.jump_up.off, S.jump_up.on], fwd: [S.jump_fwd.off, S.jump_fwd.on], air: [S.jump_air.kick, S.jump_air.on], land: r4(Math.max(1, J.land ?? 0) / FPS), ...(squash ? { squash } : {}), ...(T.dash ? { dash: true } : {}) };
+  return { up: [S.jump_up.off, S.jump_up.on], fwd: [S.jump_fwd.off, S.jump_fwd.on], air: [S.jump_air.kick, S.jump_air.on], land: r4(Math.max(1, J.land ?? 0) / FPS), ...(squash ? { squash } : {}), ...(T.dash ? { dash: true } : {}), ...(T.hurt ? { hurt: true } : {}) };
 }
 
 /** A card → the platform rule's fields, and what is carried, partly carried and not carried. `takes`: the hero's own
@@ -290,6 +290,9 @@ export function lowerFeel(card, { gear = null, takes = false, base = null } = {}
   if (carried.includes('dodge') && C.dodge.kind === 'roll') partly.push({ field: 'dodge.kind', why: 'the roll plays as the runtime\'s dash, invulnerable throughout: a body with no roll clip dashes on its run' });
   // the takes: the hero's own jumps on this flight, the landing its frames (the card's `land`, at least one)
   if (takes) { rule.takes = takesOf(J, C.look, takesOfCard(C)); carried.push('jump.land'); }
+  // THE FLINCH (a card's `hit.flinch` frames, with its takes' `hurt` clip: rules-platform.js `flinch`): a blow taken snaps
+  // the hero into its hurt, the stick and the jump not its own until it passes
+  if (takes && C.hit?.flinch > 0 && takesOfCard(C).hurt) put('hit.flinch', 'flinch', r4(C.hit.flinch / FPS));
   return { rule, lane, carried, partly, lost };
 }
 

@@ -141,7 +141,7 @@ export const BASELINE = Object.freeze({
   },
   buster: {
     'buster-shot': { layers: 4, ms: 145, centroidHz: 3317, crestDb: 12.42, bands: { sub: 0, low: 0.11, mid: 0.8, high: 0.09 }, spread: 1.51, heard: 1.36, width: 0 },
-    'buster-charged-shot': { layers: 6, ms: 290, centroidHz: 3711, crestDb: 14.42, bands: { sub: 0.03, low: 0.14, mid: 0.73, high: 0.09 }, spread: 1.75, heard: 1.45, width: 0 },
-    'buster-full-shot': { layers: 8, ms: 540, centroidHz: 3557, crestDb: 12.88, bands: { sub: 0.1, low: 0.39, mid: 0.46, high: 0.05 }, spread: 2.68, heard: 1.79, width: 0 },
+    'buster-charged-shot': { layers: 6, ms: 286, centroidHz: 3852, crestDb: 14.73, bands: { sub: 0.03, low: 0.11, mid: 0.76, high: 0.1 }, spread: 1.67, heard: 1.4, width: 0 },
+    'buster-full-shot': { layers: 7, ms: 497, centroidHz: 3528, crestDb: 13.77, bands: { sub: 0.13, low: 0.35, mid: 0.46, high: 0.06 }, spread: 2.81, heard: 1.77, width: 0 },
   },
 });

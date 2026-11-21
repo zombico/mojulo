@@ -7,6 +7,8 @@
  *     soundtrack?: <inline beats-ambient|beats-composition recipe> | { beatsRef }
  *                  | 'field:<mood>' | { score: { mood, seed?, game?, role? } }   (a generated field cue, field-cue.js)
  *     sfx?:        { cues?: {...} | undefined, beatsRef?, on?: { '<event type glob>': '<cueId>' } },
+*     sfxLevel?:   0..1, the effects' level under the score (the cue engine's own master, where the scores have engines of
+ *                  their own: a level with `combat`)
  *     boss?:       a third score (as `combat`), the piece a boss's room changes to once it has shut (a side map's)
  *     footsteps?:  true | { step?, jump?, land? (gesture lists) },
  *     wind?:       true | { level (dB), freq (Hz) },
@@ -267,6 +269,8 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
       ...(run && Object.keys(run).length ? { run } : {}),
     };
     out.sheet = style;
+    // (the effects' level under the score, the sheet's `level`: a run and gun's busy fire never buries its music)
+    if (Number.isFinite(sheet.level) && audioSpec.sfxLevel === undefined) out.sfxLevel = Math.max(0, Math.min(1, sheet.level));
     // one breath across the game's hits (a performer's): each hit spends some, a rest refills it; `breath: false` off
     if (sheet.breath !== false) out.breath = { spend: 0.18, recover: 0.8, floor: 0.7, ...(typeof sheet.breath === 'object' ? sheet.breath : {}) };
   }
@@ -440,6 +444,11 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
   // a MOVESET's sounds (`moves`, the practice room's and an action game's: gameworld/combos.js): each of its events names
   // one of the level's sfx cues; the swing and the hit by the weapon in hand and the move's weight. A cue it names that
   // the level has not is refused, saying which
+  // the effects' level under the score (`sfxLevel`, 0..1): the cue engine's master where the scores have their own
+  if (audioSpec.sfxLevel !== undefined) {
+    if (!(Number.isFinite(audioSpec.sfxLevel) && audioSpec.sfxLevel >= 0 && audioSpec.sfxLevel <= 1)) throw new Error('audio.sfxLevel is the effects\' level under the score, 0 to 1');
+    out.sfxLevel = audioSpec.sfxLevel;
+  }
   // a run and gun's voices (`run`): each event a gesture list (a cue), `charge` and `treads` held voices; checked
   if (audioSpec.run !== undefined) {
     const R = audioSpec.run, rOut = {};

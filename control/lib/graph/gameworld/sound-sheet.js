@@ -91,6 +91,9 @@ export const RUN_SOUNDS = Object.freeze({ tap: 'buster-shot', shot: 'buster-char
   dash: 'dodge', kick: 'kick', cling: 'slide', hurt: 'hurt', foeShot: 'shoot', foeHit: 'metal-impact', armour: 'ricochet', wreck: 'wreck-explosion',
   boss: 'big-explosion', lift: 'metal-creak', throw: 'throw', rock: 'stone-impact', break: 'stone-break', shut: 'portcullis', treads: 'tank-engine',
   steam: 'steam-hiss', stomp: 'stomp' });
+// A RUN AND GUN'S MIX: its effects under its score at this level (a busy fire, a tap a press, never buries the music); a
+// game's `sound.level` over it
+export const RUN_LEVEL = 0.5;
 // the run's held voices (a sustain of the shelf's, driven 0 … 1), and the buster's own events (none for a hero without one)
 export const RUN_HELD = Object.freeze(['charge', 'treads', 'steam']);
 // EACH FOE BY WHAT IT DOES (`run.foes`: { <foe id>: { <move>: <shelf word> } }), by its class's moves (lib/graph/foes/,
@@ -242,8 +245,9 @@ function foeVoices(G) {
 /** A game's own `sound` (its style, its slots and cues by shelf word), checked; throws `gameworld: sound…`. */
 export function readSound(S) {
   if (S === undefined) return {};
-  if (!isObj(S)) throw fail(` is { style?, slots?, on?, weapons?, moves?, guns?, foes?, run?, ride?, bed?, vary? } (got ${JSON.stringify(S)})`);
+  if (!isObj(S)) throw fail(` is { style?, slots?, on?, weapons?, moves?, guns?, foes?, run?, ride?, bed?, vary?, level? } (got ${JSON.stringify(S)})`);
   if (S.bed !== undefined && S.bed !== false && !resolveBed(S.bed)) throw fail(`.bed '${S.bed}' is a bed (${Object.keys(BEDS).join(', ')}) or false`);
+  if (S.level !== undefined && !(Number.isFinite(S.level) && S.level >= 0 && S.level <= 1)) throw fail(`.level is the effects' level under the score, 0 to 1`);
   if (S.vary !== undefined && typeof S.vary !== 'boolean') throw fail(`.vary is true or false (every hit a variant: a combo, a burst of fire, never one sound said twice)`);
   if (S.style !== undefined && !(S.style in STYLES)) throw fail(`.style '${S.style}' is one of ${Object.keys(STYLES).join(', ')}`);
   const word = (at, w) => { if (!resolveSoundId(w)) throw fail(`${at}: '${w}' is not a sound on the shelf; ${suggestSounds(w)}`); };
@@ -408,7 +412,9 @@ export const STEP_GAIN = 0.15;
 export function sheetAudio(G, opts = {}) {
   const S = soundSheet(G, opts);
   const space = levelSpace(G, opts);
-  return { sheet: { style: S.style, slots: S.slots, on: S.on, steps: { gain: Number.isFinite(G?.sound?.steps) ? G.sound.steps : STEP_GAIN }, ...(space ? { mix: { space } } : {}), ...(S.moves ? { moves: S.moves } : {}), ...(Object.keys(S.foeSounds).length ? { foes: S.foeSounds } : {}), ...(S.run ? { run: S.run } : {}) } };
+  // (the effects' level under the score: the game's own, else a run and gun's)
+  const level = Number.isFinite(G?.sound?.level) ? G.sound.level : S.run ? RUN_LEVEL : null;
+  return { sheet: { style: S.style, slots: S.slots, on: S.on, steps: { gain: Number.isFinite(G?.sound?.steps) ? G.sound.steps : STEP_GAIN }, ...(space ? { mix: { space } } : {}), ...(S.moves ? { moves: S.moves } : {}), ...(Object.keys(S.foeSounds).length ? { foes: S.foeSounds } : {}), ...(S.run ? { run: S.run } : {}), ...(level != null ? { level } : {}) } };
 }
 
 /**

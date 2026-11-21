@@ -92,7 +92,7 @@ export function buildBuster(E) {
         if (held && !prev) {
           let out = 0;
           for (const p of state.projectiles || []) if (p.owner === e.id && p.busterLv === 0) out++;
-          if (out < (B.max || 3)) fire(state, e, 0, B);
+          if (out < (B.max || 3) && !(e.flinchT > 0)) fire(state, e, 0, B);   // (no tap while it flinches: rules-platform.js)
           // (the press's own frame is a frame held: let go L frames after the press, a level of L frames fires, the action
           // lab's beat; a frame sooner, it fizzles)
           e.busterOn = true; e.busterT = d;

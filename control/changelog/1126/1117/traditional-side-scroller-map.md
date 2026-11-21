@@ -417,4 +417,13 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   `buster-charged-shot`, `buster-full-shot`, synthesized: a square sweeping down for the zip, a triangle or a saw for the
   body, the charges driven and warbling over a thump, the full charge a blast with a long falling tail), in the
   register and the baseline; the run's tap and charged rounds play them. The vocal beam trials are withdrawn.
+- **The music heard over the fire**: a run and gun's effects sit at half under its score (the sheet's `level`, the
+  audio's `sfxLevel`: the cue engine's own master where the scores play on engines of their own; a game's `sound.level`
+  over it), and the full charge is held near the other shots' level and no longer dips the music.
+- **Galaxy Boy flinches**: a blow taken (a foe's touch, a round) snaps him back for a third of a second, arched, the arms
+  swept back, the knees giving (hero-jump.js `flinch`, the card's `jumps.hurt` and `hit.flinch`), the stick, the jump,
+  the dash and the tap shot not his until it passes (rules-platform.js `flinch`, opt-in).
+- **The boss is fought from his door**: a life lost in the boss's room comes back just before its door, the door open
+  and the boss whole where he stood as it shut; walked in, it shuts again. Shut, the door is a wall (a collider while
+  it is shut), so the room's walls are both slid down and kicked off.
 

@@ -23,6 +23,7 @@
  * reaching down only late in the fall), `dashPoised` (its ground dash, never off the floor: leaning in, streamlined,
  * the off knee forward with its foot swept back, the gun side's foot back on its toes, the arms on a clock face: the
  * gun's forearm at 4 o'clock, the off arm's at 7) and
+ * `flinch` (a run-and-gun hero's blow taken: snapped back, arched, the arms flung up, the knees giving) and
  * `runningJump` (a hurdler's leap out of the sprint and back into it: the lead leg out straight, the trail leg round at
  * the side, the trunk diving over the lead, the opposite arm reaching; its planted feet slide back at the run's `speed`,
  * so it plays between sprint cycles, the engine carrying the body on at that speed), and the ROLLS: `rollForward` (a
@@ -167,6 +168,19 @@ const BASE = {
       { t: 0.18, pose: { hinge: 42, spine: { sagittal: 0.15 }, shL: { pitch: -35, roll: -90, yaw: -40 }, elbowL: 70, shR: { pitch: 5 }, elbowR: 110, ...legs2(55, 115, 0, 0), pointL: 80, head: { pitch: 30 } }, sink: 0.16, heelL: 0, heelR: 45, groundL: 0, groundR: 1, footL: 0, footR: -0.5 },
       { t: 0.78, pose: { hinge: 42, spine: { sagittal: 0.15 }, shL: { pitch: -35, roll: -90, yaw: -40 }, elbowL: 70, shR: { pitch: 5 }, elbowR: 110, ...legs2(55, 115, 0, 0), pointL: 80, head: { pitch: 30 } }, sink: 0.16, heelL: 0, heelR: 45, groundL: 0, groundR: 1, footL: 0, footR: -0.5 },
       { t: 1, pose: {}, sink: 0, heelL: 0, heelR: 0, groundL: 1, groundR: 1, footL: 0, footR: 0 },
+    ],
+  },
+  // THE FLINCH, a run-and-gun hero's blow taken (a feel card's `jumps.hurt`, played over the flinch by its share,
+  // rules-platform.js): snapped back from the hit at once, the trunk thrown back and arched, the chest out, the head
+  // back, both arms swept back and bent, the knees giving under it; held, then gathered back to the stand at the end.
+  // Never off the floor (the engine's knock carries the body).
+  flinch: {
+    seconds: 0.5, floor: true,
+    keys: [
+      STAND,
+      { t: 0.1, pose: { hinge: -20, spine: { sagittal: -0.35 }, shL: { pitch: -45, roll: -25 }, shR: { pitch: -30, roll: 25 }, elbowL: 45, elbowR: 50, ...legs(20, 35), head: { pitch: -25 } }, sink: 0.12, heel: 10, ground: 1 },
+      { t: 0.7, pose: { hinge: -16, spine: { sagittal: -0.3 }, shL: { pitch: -40, roll: -22 }, shR: { pitch: -26, roll: 22 }, elbowL: 48, elbowR: 54, ...legs(22, 38), head: { pitch: -20 } }, sink: 0.13, heel: 5, ground: 1 },
+      end(),
     ],
   },
   // THE RUNNING JUMP, a hurdler's leap out of the sprint and back into it. The left foot takes off (the trail leg), the

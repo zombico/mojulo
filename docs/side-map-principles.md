@@ -94,11 +94,15 @@ that holds a hero of a given stature at the frame's share, the lane at its place
     checkpoint. A pit is a pit because the frame does not follow the hero down into it. A hit costs energy, not a life:
     the hero has 28 ticks, a hit takes 4, and a life goes only when they run out. The hero then drops out of the frame
     and comes back as a fall does (`SIDE_ENERGY` in `control/lib/graph/gameworld/side-map/level.js`, the lives
-    mechanic's `energy`).
+    mechanic's `energy`). A hit makes the hero flinch: snapped back for a third of a second, the stick, the jump and
+    the tap shot not his until it passes (the feel card's `hit.flinch`, its `jumps.hurt` clip).
 20. **A checkpoint a zone.** Every zone a fall can end has one, never further back than the zone's start.
 21. **A ladder shows the hero's back.** On a ladder the hero turns to face into the place and climbs with its back to
     the camera, for as long as it holds on. Up or down at a ladder takes hold; up off its top steps onto the floor. A
     ladder's foot is on a floor and its top at a floor's lip. It is never the test.
+22. **A boss is fought from its door.** A life lost in a boss's room that has shut comes back just before its door,
+    the door open and the boss whole where it stood: the fight from its start. Shut, the door is a wall like the far
+    one: both are slid down and kicked off.
 
 The camera on the zones, the fall out of the frame and the ladder taken from the side are
 `control/lib/graph/worlds/controllable/sidemap.js` (the camera rule `side-map`), handed a laid map by
@@ -313,7 +317,8 @@ map's HUD").
 Every thing the screen shows doing something says it: the buster's tap and its charge (a hum rising as it fills, then
 the round it lets go), the dash, the wall kick, a blow taken; a robot struck, a heavy's armour glancing the round off, a
 wreck; a foe's round leaving; the boss's rock heaved, landing or shot apart; the shutter behind the hero; the boss's
-treads and the steam off his back; a foe stomped on. Each foe says what it does: a robot sparks on as it comes into
+treads and the steam off his back; a foe stomped on. The effects sit under the music (at half its level), so a busy fire
+never buries it. Each foe says what it does: a robot sparks on as it comes into
 the frame, the frog croaks, a hopper springs, a charger revs and slams, a flier swells into its dive, a turret fires
 its own round. What is off the screen is silent, as it is unseen. Under it, an electronic score: the level's piece, a
 fight piece the tension crosses into, the boss's own piece once his room shuts, a stinger as the level is won or lost. The words and how a game changes them are in

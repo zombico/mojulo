@@ -49,7 +49,8 @@ export const copy = (o) => JSON.parse(JSON.stringify(o, (k, v) => (v === Infinit
  *   hit      hitstop { base, perMs, max } or null (frames, both bodies), stun ({ model: 'body' } the flinch the blow
  *            causes; { model: 'rule', base s, decay, min s } combat-hit's combo rule; { model: 'none' }), force
  *            (momentum { gain, lift deg } | boop { push, bounce, hop } | ricochet { restitution, floor }), mercy (frames
- *            a hit body cannot be hit again), alert (frames a free body that saw a hit guards the next)
+ *            a hit body cannot be hit again), alert (frames a free body that saw a hit guards the next); flinch (frames the
+ *            HERO is held in its hurt after a blow, its `jumps.hurt` clip playing: a run-and-gun hero's)
  *   wall     stop { stagger m/s } | bonk { above, rebound, hop } | bounce { e, cap, soft (m/s: in the air, a slower
  *            contact is a plain wall, so a body can come to rest on it and cling) }
  *   air      the air jump, or null: jumps (in the air, reset on landing and on a wall), mult (× the jump's height)
@@ -409,7 +410,9 @@ export const POLES = Object.freeze({
       // drawn up so he is balanced to fire, the legs reaching down only before the floor; never the mascot's tuck)
       // (and its dash its own, hero-jump.js dashPoised: leaning in, the off knee forward and the gun side's foot back, the
       // off arm's elbow up, the buster tipped up)
-      jumps: { jump_up: 'jumpPoised', jump_fwd: 'jumpPoised', dash: 'dashPoised' },
+      // (and its FLINCH, hero-jump.js flinch: a blow taken snaps him back, arched, the arms flung up, for `hit.flinch`
+      // frames, the stick and the jump not his until it passes: rules-platform.js `flinch`)
+      jumps: { jump_up: 'jumpPoised', jump_fwd: 'jumpPoised', dash: 'dashPoised', hurt: 'flinch' }, hit: { flinch: 20 },
     },
     // (its heroes, gameworld/herobots.js: Galaxy Boy's buster the default; Zero Boy's SABER in its place, his string on the
     // fire press in place, saber.js)
