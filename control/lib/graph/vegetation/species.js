@@ -31,6 +31,12 @@ export const SPECIES = Object.freeze({
   // a maple: Rauh's rhythm, a round crown, its leaf palmate (vegetation/twigs.js), five pointed lobes from the stalk
   // (its limbs sweeping round and a little crooked, the hand's helix and zig; smooth, bending between nodes)
   maple: { kind: 'tree', bark: 'beech', arch: 'rauh', over: { hand: { sense: 1, twist: 5, helix: 7, turn: 35, zig: 5 }, smooth: true }, years: 18, leafScale: 1.8, heights: [10, 18], leaf: 'palmate' },
+  // REALISTIC KINDS (a stage's `crowns: 'realistic'`, form/flora-read.js REALISTIC_HABITS): grown on the library's own
+  // architectures and given their look by their habit: a birch, slender on Troll's arching limbs; a poplar, a column
+  // on Rauh's upright rhythm; an acacia, Rauh's crown spread flat as an umbrella over the savanna (its habit's)
+  birch: { kind: 'tree', bark: 'beech', arch: 'troll', years: 16, leafScale: 1.0, heights: [12, 22], specimen: 5 },
+  poplar: { kind: 'tree', bark: 'oak', arch: 'rauh', years: 18, leafScale: 1.2, heights: [18, 28] },
+  acacia: { kind: 'tree', bark: 'oak', arch: 'rauh', years: 14, leafScale: 1.0, heights: [6, 12] },
   coconut: { kind: 'palm', palm: 'coconut', ages: [22, 32, 45], heights: [8, 26] },
   date: { kind: 'palm', palm: 'date', ages: [18, 30, 45], heights: [5, 16] },
   washingtonia: { kind: 'palm', palm: 'washingtonia', ages: [25, 40], heights: [11, 18] },

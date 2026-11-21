@@ -24,7 +24,7 @@ A row of a world's `events.hud` is a **widget** in one slot. Four kinds:
 { "press": "whistle", "label": "whistle", "slot": "bottom-right" }
 ```
 
-- **readout** (`var`) projects a bus var — `as: text | counter | bar | clock` (card `hud-readout`).
+- **readout** (`var`) projects a bus var — `as: text | counter | bar | clock | stars` (card `hud-readout`).
 - **banner** (`on`) shows `text` when the bus emits a matching event, for `ttl` seconds (card `hud-banner`).
 - **toast** (`as: 'toast'`) is the damage number: a banner that STACKS, one rising element per
   firing — off an event (`on`, reading `{event.damage}`) or off a var's change (`var`, reading

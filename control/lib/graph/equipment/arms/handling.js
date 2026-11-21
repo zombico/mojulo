@@ -85,6 +85,45 @@ export function armBoxes(build) {
   return Object.entries(bounds).filter(([g]) => SOLID(g)).map(([g, b]) => [b.lo.map(r3), b.hi.map(r3), g === 'grip' || g === 'buttpad' || g === 'foregrip' ? '#26282b' : '#3b3f45', g]);
 }
 
+// (the arm's faces by the build, as a view that draws the arm itself reads them: a few kept)
+const MESH = new Map();
+/**
+ * An arm as the kernel draws it, part by part, for a view that draws the arm itself in the hands (a game's viewmodel:
+ * gameworld/arms-kit.js withArmMeshes), where armBoxes is its proxy. → { cols: ['#rrggbb'], parts: [{ part, q, ci }] }:
+ * `q` a part's quads in the item's centimetres (twelve numbers a quad, to the hundredth; a triangle a quad with its last
+ * corner twice), `ci` each quad's colour as an index into `cols` (the faces' own fills, lit as the workbench lights
+ * them), each quad wound so its normal looks outward. Every group is drawn, the dark of the bore and the seams
+ * included: they are the arm's detail.
+ */
+export function armMesh(build) {
+  const key = JSON.stringify(build);
+  if (MESH.has(key)) return MESH.get(key);
+  const e = expandEquipment({ type: 'equipment', ...build }), groups = {};
+  for (const [k, arr] of Object.entries(e.monomers)) for (const m of arr || []) { const g = m.group || '?'; ((groups[g] ||= {})[k] ||= []).push(m); }
+  const cols = [], parts = [];
+  for (const [part, man] of Object.entries(groups)) {
+    const q = [], ci = [];
+    for (const f of lowerObjectFaces({ kind: 'workbench', units: 'cm', ...man }, DEFAULT_LIGHT)) {
+      let C = (f.corners || []).map(xyz);
+      if (C.length < 3 || typeof f.fill !== 'string') continue;
+      // (wound so its normal is the face's own outward one: a view shades it by which way it looks)
+      const N = f.outNormal, a = C[0], b = C[1], c = C[2];
+      if (Array.isArray(N)) {
+        const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+        if ((u[1] * v[2] - u[2] * v[1]) * N[0] + (u[2] * v[0] - u[0] * v[2]) * N[1] + (u[0] * v[1] - u[1] * v[0]) * N[2] < 0) C = [C[0], ...C.slice(1).reverse()];
+      }
+      let i = cols.indexOf(f.fill);
+      if (i < 0) { i = cols.length; cols.push(f.fill); }
+      for (let k = 1; k + 1 < C.length; k += 2) { for (const c of [C[0], C[k], C[k + 1], C[k + 2] ?? C[k + 1]]) q.push(r2(c[0]), r2(c[1]), r2(c[2])); ci.push(i); }
+    }
+    if (ci.length) parts.push({ part, q, ci });
+  }
+  const out = { cols, parts };
+  if (MESH.size > 16) MESH.clear();
+  MESH.set(key, out);
+  return out;
+}
+
 /**
  * An arm's stations and handling (see the head). `build` an arm's build words ({ item, model?, line?, parts? }); a knife
  * has no stations here (it is held as a blade: hero-grip).

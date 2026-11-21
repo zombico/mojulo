@@ -107,7 +107,8 @@ const skinPpm = (plan) => { try { return pxPerMetre(readTarget((typeof plan.styl
 import { paintFaceRig, paintFaceBase } from '@/lib/graph/polygonizer/face-paint-rig';
 import { sparseMorph, quantMorph } from '@/lib/graph/figures/morph-sparse';
 import { heroFaceTracks } from '@/lib/graph/polygonizer/anime-face-tracks';
-import { westernFaceRig } from '@/lib/graph/polygonizer/western-face-rig';
+import { westernFaceRig, westernKnots } from '@/lib/graph/polygonizer/western-face-rig';
+import { westernPerformanceTrack } from '@/lib/graph/face-acting/western-read';
 import { gearMounts, gearFaces, gearPackParts, gearRestPoint } from '@/lib/graph/polygonizer/hero-gear';
 import { xrHands } from '@/lib/graph/polygonizer/hero-xr-hands';
 import { attachMounts } from '@/lib/graph/polygonizer/hero-attach';
@@ -214,6 +215,14 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { loadSharp } from '@/lib/sharp-lazy';
 import { rigSpecies } from '@/lib/graph/mutagen/rig';
+import { cityGuide } from '@/lib/graph/gameworld/city-guide.js';
+import { cityMap } from '@/lib/graph/gameworld/city-map.js';
+import { bagUi } from '@/lib/graph/gameworld/bag-ui.js';
+import { phoneUi } from '@/lib/graph/gameworld/phone-ui.js';
+
+// where a played level's driven cars stand (gameworld/cars.js: entities with a cab): the scene draws no parked car there
+const pooledOf = (m) => [...new Set((Array.isArray(m.entities) ? m.entities : []).map((e) => e?.mount?.pool?.model).filter((x) => typeof x === 'string'))];
+const drivenOf = (m) => (Array.isArray(m.entities) ? m.entities.filter((e) => e?.mount?.cab && Array.isArray(e.transform?.pos)).map((e) => e.transform.pos) : []);
 
 const svgDataUrl = (svg) => `data:image/svg+xml;base64,${Buffer.from(String(svg), 'utf8').toString('base64')}`;
 
@@ -304,9 +313,17 @@ function walkerRigVariants() {
   }
   return _walkerRigs;
 }
-async function attachCityWalkers(scene) {
+async function attachCityWalkers(scene, people = null) {
   const loops = scene && scene.walkerLoops;
   if (!Array.isArray(loops) || !loops.length) return scene;
+  // (a played district's people, gameworld/people.js: the level's own rolled persons, `people` their figure names. Each
+  // walker wears one in turn at a height of its own, real-size; the level's figures carry their bakes, none is added here)
+  if (Array.isArray(people) && people.length) {
+    const tall = (i) => 1 + ((((i * 2654435761) >>> 0) % 1000) / 1000 - 0.5) * 0.12;
+    scene.walkers = loops.map((L, i) => ({ figure: people[i % people.length], blend: true, path: L.path, style: L.style || 'bumble', scale: Math.round(tall(i) * 1000) / 1000, speed: L.speed > 0 ? L.speed : 1.35, ...(Number.isFinite(L.start) ? { startFrac: L.start } : {}) }));
+    delete scene.walkerLoops;
+    return scene;
+  }
   const rigs = await walkerRigVariants();
   const scale = (scene.cityCues?.pedHeight ?? CITY_PED_HEIGHT) / (rigs[0].figH || 1.85);   // a metro city walks real-size people (fractal-city METRO)
   // a planned city's walker (city/plan/pedestrians.js) carries its own pace, its start along its loop and the crossings it
@@ -593,8 +610,11 @@ export const WORLD_KINDS = {
         // (a brawl fought down one of its streets, brawl/brawl-levels.js the town kind: its `brawl` block the page's, not the town's)
         const played = m.entities !== undefined || m.game !== undefined || m.brawl !== undefined, own = played ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOTOWN_KEYS.includes(k))) : m;
         // (formBuildings: its buildings baked for the form render, form/sun-light.js; a page's read only, the handoff's as it was)
-        const p = assembleGeotownScene(own, { title: ctx.title, ...(ctx.formLit ? { form: true, ...(ctx.handoff ? {} : { formBuildings: true }) } : {}) });
-        return played ? p : attachDummy(p);
+        // (the cars its hero gets into are the level's bodies, gameworld/cars.js: the town draws the rest)
+        const p = assembleGeotownScene(own, { title: ctx.title, ...(played && drivenOf(m).length ? { driven: drivenOf(m) } : {}), ...(ctx.formLit ? { form: true, ...(ctx.handoff ? {} : { formBuildings: true }) } : {}) });
+        // (played with cars: what it says as it opens and the way on, gameworld/city-guide.js; none where it stands no car)
+        const guide = played ? cityGuide(m) : null;
+        return played ? (guide ? { ...p, guide: m.manaHud ? { ...guide, mana: true } : guide } : p) : attachDummy(p);
       }
       // a side-scroller's strip (era/geocube-side.js): a course skinned in the cube's layers, its land behind it in layers;
       // played, the level's pilot and game layered over it by the page
@@ -607,7 +627,8 @@ export const WORLD_KINDS = {
       // (formBuildings: its massing baked for the form render, form/sun-light.js; a page's read only, the handoff's as it was)
       // (a game's level stands on one, a district: the level's pilot and its game layered over it by the page, and no
       // stand-in walks it)
-      if (m.show === 'geocity') return (m.entities !== undefined || m.game !== undefined ? (p) => p : attachDummy)(assembleGeocityScene(m.entities !== undefined || m.game !== undefined ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCITY_KEYS.includes(k))) : m, { title: ctx.title, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true, ...(ctx.formLit && !ctx.handoff ? { formBuildings: true } : {}) } : {}) }));
+      // (played: its people walk its blocks, the legacy city's walkers: geocity/scene.js THE PEOPLE)
+      if (m.show === 'geocity') return (m.entities !== undefined || m.game !== undefined ? (p) => attachCityWalkers(p, Object.keys(m.figures ?? {}).filter((k) => /^person-\d+$/.test(k))).then(attachCityCars).then((q) => { const guide = cityGuide(m); return guide ? { ...q, guide: m.manaHud ? { ...guide, mana: true } : guide } : q; }).then(({ plan, ...q }) => { const map = m.manaHud ? cityMap(plan, m, m.manaHud.map) : null, bag = m.manaHud ? bagUi(m, m.manaHud.inventory) : null, phone = m.manaHud ? phoneUi(m, m.manaHud.phone) : null; return { ...q, ...(map ? { cityMap: map } : {}), ...(bag ? { bagUi: bag } : {}), ...(phone ? { phoneUi: phone } : {}) }; }) : attachDummy)(assembleGeocityScene(m.entities !== undefined || m.game !== undefined ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCITY_KEYS.includes(k))) : m, { title: ctx.title, ...(m.entities !== undefined || m.game !== undefined ? { play: true, ...(drivenOf(m).length ? { driven: drivenOf(m), pooled: pooledOf(m) } : {}) } : {}), ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true, ...(ctx.formLit && !ctx.handoff ? { formBuildings: true } : {}) } : {}) }));
       const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }, assembleStageScene);
       return p.route ? attachDummy(p) : p;
     },
@@ -960,7 +981,9 @@ export const WORLD_KINDS = {
         // the face's blend shapes: the anime head's (drawn, or painted), the landmark head's (western-face-rig.js)
         // (the REALISTIC face plays on the page too, relational-face-rig.js: its morphs and tracks ride the page's pack, and
         // the rig preview drives them; the anime and the landmark faces ride an export alone, as before)
-        const pageFace = !ctx.face && rigged && realisticSkinned(m.hero) && m.hero.head === 'relational';
+        // (and the ANIME face, drawn, or the LANDMARK face, its mouth its jaw bone, of a hero that speaks in the page's scenes:
+        // ctx.talks, playscape/ui/talk-lines.js)
+        const pageFace = !ctx.face && rigged && ((realisticSkinned(m.hero) && m.hero.head === 'relational') || (!!ctx.talks && ((m.hero?.head === 'anime' && !m.hero.painterly) || (m.hero && (m.hero.head ?? 'landmark') === 'landmark'))));
         const face = (ctx.face || pageFace) && rigged && m.hero ? (m.hero.head === 'anime' ? (m.hero.painterly && facePaint ? paintFaceRig(m, mesh, facePaint) : heroFaceRig(m, mesh)) : (m.hero.head ?? 'landmark') === 'landmark' ? westernFaceRig(m, mesh) : m.hero.head === 'relational' ? relationalFaceRig(m, mesh) : null) : null;
         // CLIP TIMING (hero-gesture.js heroClipSeconds): the anime hero's clips each carry a designed duration (`s` on the
         // packed clip), which the World page's clip preview and the GLB both play; every other row's clips
@@ -1113,6 +1136,16 @@ export const WORLD_KINDS = {
           const { t, w } = performanceTrack(perform(ctx.takes[k].perform), { fps: TAKE_FACE_FPS });
           face.meta.tracks[k] = { t, w };
           if (Array.isArray(face.meta.ambientOver)) face.meta.ambientOver = face.meta.ambientOver.filter((c) => c !== k);
+        }
+        // THE TALKING FACE (ctx.talks, playscape/ui/talk-lines.js): each line this figure says, its face's take under the
+        // line's clip (talk:<scene>:<beat>), played on the page while the line's take runs: the realistic face's
+        // performance track, the anime face's drawings, the landmark face's drawings with its jaw's degrees beside them
+        // (face-acting/western-read.js: its mouth is the jaw bone, `jaws`). Absent ⇒ as before
+        if (face?.meta?.tracks && ctx.talks) for (const [k, P] of Object.entries(ctx.talks)) {
+          const head = m.hero.head ?? 'landmark';
+          const T = head === 'anime' ? animePerformanceTrack(perform(P), face.K ?? faceKnots(face.authored), { sevenG: !!face.sevenG }) : head === 'relational' ? performanceTrack(perform(P), { fps: TAKE_FACE_FPS }) : head === 'landmark' ? westernPerformanceTrack(perform(P), face.K ?? westernKnots(face.authored)) : null;
+          if (T) face.meta.tracks[k] = { t: T.t, w: T.w };
+          if (T?.jaw) (face.meta.jaws ||= {})[k] = T.jaw;
         }
         if (face?.meta && m.hero.head === 'relational' && m.hero.perform) face.meta.performances = Object.fromEntries(Object.entries(m.hero.perform).map(([k, P]) => [k, performanceTrack(perform(P))]));
         // (the ANIME face's: each take read as drawings, face-acting/anime-read.js, a STEP track on its targets: the 7G

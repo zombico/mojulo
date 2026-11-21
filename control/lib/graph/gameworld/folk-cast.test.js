@@ -75,6 +75,26 @@ describe('folk on a stage: a town\'s people stood by their houses', () => {
     expect(talks.some((t) => bus.vars[menuVar(t.id)])).toBe(true);
   });
 
+  it('in a world with the game\'s UI, says each one\'s lines in the talk box: a scene they speak, played each time they are used', () => {
+    const M = townLevel(runSteps({ ...W, ui: { theme: 'world' } }, { ref: 'gw' })).order.manifest;
+    const folk = M.entities.filter((e) => e.id.startsWith('folk-')), said = M.play.scenes.filter((x) => x.id.startsWith('talk-'));
+    expect(said.length).toBe(folk.length);
+    expect(M.play.menus.some((m) => m.kind === 'talk' && m.id.startsWith('talk-'))).toBe(false);
+    for (const x of said) {
+      const who = x.id.slice('talk-'.length);
+      expect(x).toMatchObject({ once: false, when: { on: `folk-say:${who}` }, names: { [who]: expect.any(String) } });
+      expect(x.beats.length).toBeGreaterThanOrEqual(3);
+      expect(x.beats.every((b) => b.line.who === who && typeof b.line.say === 'string')).toBe(true);
+    }
+    // the interact key on one of them starts their scene
+    const ev = lowerPlay(M, { player: 'player' });
+    const zone = ev.sources.find((z) => z.use && z.prompt === 'Talk');
+    const bus = createBusState(ev, []);
+    processEvents(bus, [{ type: `use-${zone.use}` }]);
+    for (let k = 0; k < 6; k++) { const w = watchEvents(bus); if (!w.length) break; processEvents(bus, w); }
+    expect(bus.log.some((e) => /^scene:talk-folk-/.test(e.type))).toBe(true);
+  });
+
   it('says the operator\'s words where the folk are given them', () => {
     const said = townLevel(runSteps(withTown({ say: { keeper: 'Welcome in.' } }), { ref: 'gw' })).order.manifest;
     expect(said.play.menus.filter((m) => m.who === 'Keeper').every((m) => m.lines.join() === 'Welcome in.')).toBe(true);

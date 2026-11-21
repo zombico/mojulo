@@ -95,3 +95,11 @@ agent. The durable handoff (`request_voice_render` → `pull` → `submit` →
 `accept`, mirroring the image render bicycle) is V1 in the plan; the
 capability ladder that lets a natively voice-capable agent serve the same
 queue is V2.
+
+## A game's lines
+
+A level's scene lines take a recording the same way: write the WAV with the worker (with `--timings` where the Python
+rung is installed) and give its path as the line's `voice` (`{ line: { who, say, voice: 'line.wav' } }`). The world's
+write saves and times it; its page plays it as the line begins, and the speaker's face says it
+([mana-ui.md](mana-ui.md), "A level's scenes"). Keep each speaker's voice in `play.speakers.<who>.voice`.
+

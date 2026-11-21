@@ -86,10 +86,15 @@ export function stageColliders(plan, geom, anchors, { ceilings = false } = {}) {
       const a0 = (alongX ? bx0 : by0) - t, a1 = (alongX ? bx1 : by1) + t;
       const slab = (u0, u1, z0, z1) => push(alongX ? [u0, c - t, z0] : [c - t, u0, z0], alongX ? [u1, c + t, z1] : [c + t, u1, z1], `wall:${r.id}:${side}`);
       let u = a0;
-      for (const op of r.openings[side]) {
+      const ops = r.openings[side];
+      for (const op of ops) {
+        // (two doorways stacked on one span, a gallery's over the floor's: the wall between them is the lower's lintel up
+        // to the upper's sill, never across either; one alone, its lintel to the wall's head and its sill from the floor)
+        const over = ops.filter((o) => o !== op && o.lo < op.hi && o.hi > op.lo), above = over.filter((o) => (o.sill ?? 0) >= op.top - 1e-6), below = over.filter((o) => op.sill && o.top <= op.sill + 1e-6);
         slab(u, op.lo, 0, r.h);
-        slab(op.lo, op.hi, op.top, r.h);   // the lintel (an arched head's crown: the way through stays clear)
-        u = op.hi;
+        slab(op.lo, op.hi, op.top, above.length ? Math.min(...above.map((o) => o.sill)) : r.h);   // the lintel (an arched head's crown: the way through stays clear)
+        if (op.sill) slab(op.lo, op.hi, below.length ? Math.max(...below.map((o) => o.top)) : 0, op.sill);   // (a doorway at a gallery's height: the wall whole under it)
+        u = Math.max(u, op.hi);
       }
       slab(u, a1, 0, r.h);
     }

@@ -11,7 +11,8 @@
  *   readUploadFrom(from)        → { path } or { stash, item }, or throws, teaching (shape only)
  *   readArtFile(file)           → the picture's bytes and header (PNG, JPEG, WebP; 10 MB, the stash intake's cap), or throws
  *   pictureHeader(buffer)       → { type, width, height } from a PNG's, JPEG's or WebP's header, or null
- *   fileArt(picture, { title }) → { stash, item }: the picture filed into a new stash as an image item
+ *   fileArt(picture, { title, label? }) → { stash, item }: the picture filed into a new stash as an image item (the
+ *                                stash titled '<title> — <label>', cover art by default)
  *   checkUploadedArt(from)      → errors[]: the stash, the item and its being an image (create_cover's gate)
  *   uploadedArt(from)           → the image's bytes (the compositor's illustration layer), or throws, teaching
  */
@@ -71,8 +72,8 @@ export function pictureHeader(b) {
 }
 
 /** A checked picture filed into a new stash as an image item, as the dashboard's intake stores one. */
-export function fileArt(picture, { title }) {
-  const stash = StashRepository.mint({ title: `${title} — cover art` });
+export function fileArt(picture, { title, label = 'cover art' }) {
+  const stash = StashRepository.mint({ title: `${title} — ${label}` });
   const key = `stashes/${stash.stashRef}/items/${picture.name.replace(/[^A-Za-z0-9._-]/g, '_')}`;
   uploadFileSync(key, picture.buffer);
   const item = StashRepository.gather({

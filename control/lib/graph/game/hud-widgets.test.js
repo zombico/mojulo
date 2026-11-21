@@ -101,7 +101,7 @@ describe('normalizeHud — the widget language over events.hud', () => {
 
   it('the closed lists are what the cards say', () => {
     expect(HUD_SLOTS).toEqual(['top-left', 'top', 'top-right', 'center', 'bottom-left', 'bottom', 'bottom-right']);
-    expect(HUD_KINDS).toEqual(['text', 'counter', 'bar', 'clock']);
+    expect(HUD_KINDS).toEqual(['text', 'counter', 'bar', 'clock', 'stars']);
     expect(MOMENT_KINDS).toEqual(['banner', 'toast', 'title']);
     expect(TITLE_THEME_IDS).toEqual(['arcade', 'pixel', 'cel', 'cartoon', 'cinematic', 'speed']);
     // every theme is whole: a carve, an entrance, an edge, a colour and a time from the closed lists

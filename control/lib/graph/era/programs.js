@@ -124,6 +124,67 @@ export const stockedUse = (id) => !!(PROGRAMS[id]?.base || PROGRAMS[id]?.hospita
 /** A military base's buildings: the uses a walled-core dungeon's spaces are made of (card gameworld-wcd). */
 export const BASE_USES = Object.freeze(PROGRAM_IDS.filter((id) => PROGRAMS[id].base));
 
+/**
+ * A BUILDING DESIGNED AS A FIGHTING MAP (`program.fight`, opt-in: absent, the plan is as it always was). The arena's
+ * laws (arena-map/laws.js) read a plan's circuit, its lines and its height; each dial is the plan's answer to one of
+ * them, where the concept lives:
+ *   rings    no room hangs off one doorway: rooms along a wing open onto their neighbours (a house's leaves onto the
+ *            room beside them), the lobby has a second door into the core, the first rooms into the lobby (or the core
+ *            where no stair stands in it), the last into the annex (program-core.js, and the tree packer here)
+ *   stagger  no straight line runs door to door across the core: of two opposite wings one leaves from the core's back,
+ *            and a wing off the back takes the lobby's door to the other end of the core's front (program-core.js)
+ *   stairs   a second way up: a stair room at the far end of each wing with no annex, on every storey, climbed by the
+ *            building's own stair (program-core.js; storeys.js placeStairs lays it)
+ *   gallery  the tall annex overlooked: its catwalk moved onto the wall the building stands against, at the upper
+ *            storey's floor, opening from that storey's corridor (program-core.js; stage.js opens it; bay.js builds it)
+ *   cover    the halls broken: the annex's own stock (stocking.js HALL_COVER) stood in its middle on a seeded lattice, a
+ *            baffle off each doorway, its doorways, stairs and a lane round it kept clear (compose-dress.js layCover)
+ *   room     room to fight in: every storey a metre taller and the corridors wide (program-core.js ROOMY), the core
+ *            given the floor its stair needs up the taller storey
+ * `fight: true` asks every dial; `{ rings?, stagger?, stairs?, gallery?, cover?, room? }` the ones named true. A house's plan
+ * takes rings and cover; the rest are said (a finding) and laid nowhere.
+ */
+export const FIGHT = Object.freeze({
+  rings: 'a second doorway for every room: no room hangs off one doorway',
+  stagger: 'the core\'s doorways offset: no straight line door to door across it',
+  stairs: 'a second stair at the far end of each wing, joining the same storeys',
+  gallery: 'a gallery round the tall annex at the upper storey\'s floor, open to the hall, entered from the storey and by its stair',
+  cover: 'cover in the middle of the halls: their own stock on a seeded lattice, the doorways and a way round clear',
+  room: 'room to fight in: every storey a metre taller, the corridors wide enough for two to pass with cover between them',
+});
+export const FIGHT_DIALS = Object.freeze(Object.keys(FIGHT));
+/** A program's `fight`, read: null when absent, else each dial true or false. */
+export function readFight(v) {
+  if (v === undefined || v === false) return null;
+  if (v === true) return Object.fromEntries(FIGHT_DIALS.map((k) => [k, true]));
+  if (!v || typeof v !== 'object' || Array.isArray(v) || Object.entries(v).some(([k, b]) => !FIGHT_DIALS.includes(k) || typeof b !== 'boolean'))
+    throw new Error(`program: fight is true (every dial) or { ${FIGHT_DIALS.map((k) => `${k}?`).join(', ')} } (each true or false): the plan designed as a fighting map`);
+  const F = Object.fromEntries(FIGHT_DIALS.map((k) => [k, v[k] === true]));
+  return Object.values(F).some(Boolean) ? F : null;
+}
+// (a house's leaves, rung: each room with one doorway on its storey opened onto the room beside it that shares the most
+// wall, never a stair's room; where none stands beside it, a second doorway into the room it opens off, the two at
+// either end of the wall they share, where that wall holds two)
+function ringHouse(rooms, links, need, overIds, kit) {
+  const same = (l, a, b) => (l.from === a && l.to === b) || (l.from === b && l.to === a), stair = new Set(links.filter((l) => { const a = rooms.find((q) => q.id === l.from), b = rooms.find((q) => q.id === l.to); return a && b && (a.s ?? 0) !== (b.s ?? 0); }));
+  const deg = (id) => links.filter((l) => !stair.has(l) && (l.from === id || l.to === id)).length + out.filter((l) => l.from === id || l.to === id).length;
+  const out = [], m = kit.wall / 2 + kit.door.frame + kit.door.width / 2 + 0.01;
+  for (const r of rooms) {
+    if (overIds.has(r.id) || deg(r.id) > 1) continue;
+    const s = r.s ?? 0, best = rooms.filter((q) => q !== r && (q.s ?? 0) === s && !overIds.has(q.id) && !links.some((l) => same(l, r.id, q.id)) && !out.some((l) => same(l, r.id, q.id)) && shared(r, q) >= need)
+      .sort((p, q) => shared(r, q) - shared(r, p) || (p.id < q.id ? -1 : 1))[0];
+    if (best) { out.push({ from: r.id, to: best.id }); continue; }
+    // (its one doorway's room: a second doorway beside the first, the two at the ends of their wall)
+    const l0 = links.find((l) => !stair.has(l) && (l.from === r.id || l.to === r.id)), p = l0 && rooms.find((q) => q.id === (l0.from === r.id ? l0.to : l0.from));
+    if (!p || overIds.has(p.id)) continue;
+    const alongX = r.y + r.d === p.y || p.y + p.d === r.y, lo = alongX ? Math.max(r.x, p.x) : Math.max(r.y, p.y), hi = alongX ? Math.min(r.x + r.w, p.x + p.w) : Math.min(r.y + r.d, p.y + p.d);
+    if (hi - lo - kit.wall < 2 * (kit.door.width + 2 * kit.door.frame)) continue;
+    Object.assign(l0, { along: +(lo + m).toFixed(6), alongX });
+    out.push({ from: l0.to, to: l0.from, along: +(hi - m).toFixed(6), alongX });
+  }
+  return out;
+}
+
 /** A room kit's language when no civilization names one: the kit's own (outdoor kits carry theirs in STRUCTURE_RAILS). */
 const KIT_ANCHOR = { 'gothic-stone': 'tiered', 'gothic-nave': 'tiered', catacomb: 'tiered', 'island-plaza': 'timber-hall', 'research-lab': 'shell' };
 
@@ -162,8 +223,10 @@ export function planProgram(program, kitId = 'gothic-stone', { civilization = nu
   const use = program.use, P = PROGRAMS[use];
   if (!P) throw new Error(`program: use '${use}' is not one (${PROGRAM_IDS.join(', ')})`);
   // (a building's settings are its plan's: storeys, wings, loading, bays; a house's are its rooms')
-  const settings = P.shape === 'core' ? ['use', 'seed', 'civilization', 'storeys', 'wings', 'loading', 'bays', 'basement'] : ['use', 'seed', 'rooms', 'add', 'civilization', 'scale'];
+  const settings = P.shape === 'core' ? ['use', 'seed', 'civilization', 'storeys', 'wings', 'loading', 'bays', 'basement', 'fight'] : ['use', 'seed', 'rooms', 'add', 'civilization', 'scale', 'fight'];
   for (const k of Object.keys(program)) if (!settings.includes(k)) throw new Error(`program: '${k}' is not a setting (${settings.join(', ')})`);
+  // (designed as a fighting map, opt-in: FIGHT)
+  const fight = readFight(program.fight);
   // (a composed interior's card, compose.js, where it is not the kit's own: its doorways set the corridors' widths)
   const kit = card ?? STAGE_KITS[kitId];
   if (!kit || !kit.grid) throw new Error(`program: kit '${kitId}' is open ground; a program is laid in a room kit (${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].grid).join(', ')})`);
@@ -171,9 +234,11 @@ export function planProgram(program, kitId = 'gothic-stone', { civilization = nu
   const rnd = mulberry32((program.seed ?? 1) * 2654435761 + use.length * 97);
   // a building: its core and wings (program-core.js), laid from the corner as the tree's plan is
   if (P.shape === 'core') {
-    const C = planCore(P, program, kit, rnd), x0 = Math.min(...C.rooms.map((r) => r.x)), y0 = Math.min(...C.rooms.map((r) => r.y));
+    const C = planCore(P, fight ? { ...program, fight } : program, kit, rnd), x0 = Math.min(...C.rooms.map((r) => r.x)), y0 = Math.min(...C.rooms.map((r) => r.y));
     const rooms = C.rooms.map((r) => ({ ...r, x: r.x - x0, y: r.y - y0 }));
-    return { use, reads: P.reads, rooms, links: C.links, ways: C.ways, entry: C.entry, goal: C.goal, front: '-y', language: lang, findings: C.findings, plan: C.plan, ...(C.under ? { under: C.under } : {}) };
+    // (a link's doorway set along its wall, `along`, is in the plan's frame too)
+    const links = fight ? C.links.map(({ alongX, ...l }) => (l.along === undefined ? l : { ...l, along: +(l.along - (alongX ? x0 : y0)).toFixed(6) })) : C.links;
+    return { use, reads: P.reads, rooms, links, ways: C.ways, entry: C.entry, goal: C.goal, front: '-y', language: lang, findings: C.findings, plan: C.plan, ...(C.under ? { under: C.under } : {}), ...(fight ? { fight } : {}) };
   }
   const g = kit.grid, need = kit.door.width + 2 * kit.door.frame + kit.wall;   // the wall a doorway needs (stage.js planStage)
   // (scale: the template's rooms laid larger, the plan scale times, its rooms' heights by its root: a party fights in
@@ -265,6 +330,12 @@ export function planProgram(program, kitId = 'gothic-stone', { civilization = nu
     if (want0 && want0.w && !o.w && !o.d && (room.w * room.d < want0.w[0] * want0.d[0] - 1e-9)) findings.push({ id: 'small', room: room.id, says: `the ${room.id} is under its role's size` });
   }
   if (!placed.length) throw new Error(`program: no room of the ${use} could be seated`);
+  // (designed as a fighting map: a house's leaves rung; the core's dials are not a house's, said)
+  if (fight?.rings) {
+    const overIds = new Set(placed.filter((q) => q.over).flatMap((q) => [q.id, q.over]));
+    links.push(...ringHouse(placed, links, need, overIds, kit));
+  }
+  if (fight) for (const k of ['stagger', 'stairs', 'gallery']) if (fight[k]) findings.push({ id: 'fight', says: `fight.${k} is a building's on a core (an office, a warehouse, a base): a ${use}'s plan is a tree, and lays none` });
   // the plan from its corner
   const x0 = Math.min(...placed.map((r) => r.x)), y0 = Math.min(...placed.map((r) => r.y));
   const rooms = placed.map(({ s, over, ...r }) => ({ ...r, x: r.x - x0, y: r.y - y0, ...(s ? { storey: s } : {}) }));
@@ -275,8 +346,10 @@ export function planProgram(program, kitId = 'gothic-stone', { civilization = nu
   if (!goal) findings.push({ id: 'no-goal', says: `the ${P.goal} is not there; the level's goal falls to the deepest room` });
   // the goal room's doorway last: a kit's dressing seats its set piece in the walk's last room (crypt.js), so the
   // tomb, the altar or the strongbox stands where the level ends
-  const ordered = goal ? [...links.filter((l) => l.to !== goal.id), ...links.filter((l) => l.to === goal.id)] : links;
-  return { use, reads: P.reads, rooms, links: ordered, entry: entry.id, goal: goal?.id ?? null, front: '-y', language: lang, findings };
+  const ordered0 = goal ? [...links.filter((l) => l.to !== goal.id), ...links.filter((l) => l.to === goal.id)] : links;
+  // (a ring's doorway set along its wall, `along`, in the plan's frame)
+  const ordered = fight ? ordered0.map(({ alongX, ...l }) => (l.along === undefined ? l : { ...l, along: +(l.along - (alongX ? x0 : y0)).toFixed(6) })) : ordered0;
+  return { use, reads: P.reads, rooms, links: ordered, entry: entry.id, goal: goal?.id ?? null, front: '-y', language: lang, findings, ...(fight ? { fight } : {}) };
 }
 
 /**
@@ -309,7 +382,9 @@ export function withProgram(m) {
       // (on storeys, the rooms each holds, the ground first)
       ...(P.rooms.some((r) => r.storey) ? { storeys: [...Array(Math.max(...P.rooms.map((r) => r.storey ?? 0)) + 1)].map((_, s) => P.rooms.filter((r) => (r.storey ?? 0) === s).map((r) => r.id)) } : {}), findings: P.findings,
       // (a basement's walls that face out, where a network's passages may leave it: program-core.js)
-      ...(P.under ? { under: P.under } : {}) },
+      ...(P.under ? { under: P.under } : {}),
+      // (designed as a fighting map: the dials asked, which the stage reads for its cover)
+      ...(P.fight ? { fight: P.fight } : {}) },
   };
 }
 

@@ -1,7 +1,8 @@
 import { b64, safeJson } from '../../emit-util.js';
 import { packRigMesh } from '../../../figures/rig-bake.js';
 import { emissionSource } from '../../../worlds/controllable/compose.js';
-import { surfaceAt } from '../../../roads/surface.js';
+import { surfaceAt, padAt } from '../../../roads/surface.js';
+import { kartItemsViewScript } from './kart-items-view.js';
 import { commanderSource } from '../../../worlds/controllable/commander.js';
 import { MSG_GAMEPAD as GAME_MSG_GAMEPAD, MSG_AI as GAME_MSG_AI, MSG_SEATS as GAME_MSG_SEATS } from '../../../game/level-contract.js';
 import { hangarStepperBlock } from './hangar-menu.js';
@@ -210,7 +211,7 @@ export function pageFigures(figures) {
  * through the pilot scheme, riding the frame's input as `input.seats` (worlds/controllable/core.js). A controller sits down
  * with any press (start is the shell's pause): the first to press is seat 1. A ring in the seat's colour stands under each
  * seated body, and a strip names who is in. Emitted only for a world with seats. */
-function seatsScript(seats) {
+function seatsScript(seats, uses = false) {
   const bodies = Array.isArray(seats.bodies) ? seats.bodies.slice(0, 3) : [];
   const max = Math.max(1, Math.min(4, seats.max ?? bodies.length + 1, bodies.length + 1));
   return `// ── SEATS ──
@@ -240,12 +241,17 @@ function __seatSnap(x) {
   else { const st = __padStick(g.axes[0] || 0, g.axes[1] || 0); mx = st[0]; my = -st[1]; }
   const P = __seatPrev[x.n] || (__seatPrev[x.n] = {}), jh = h('jump'), tk = h('tackle');
   const out = { forward: my, turn: __MOUSELOOK ? 0 : mx, strafe: __MOUSELOOK ? mx : 0, lift: (jh ? 1 : 0) - (h('kneel') ? 1 : 0), jump: jh && !P.jump ? 1 : 0, jumpHeld: jh ? 1 : 0, fire: h('fire') ? 1 : 0, boost: h('boost') ? 1 : 0, walk: h('walk') ? 1 : 0, kneel: h('kneel') ? 1 : 0, tackle: tk && !P.tackle ? 1 : 0 };
-  P.jump = jh; P.tackle = tk;
+  P.jump = jh; P.tackle = tk;${uses ? `
+  const ih = h('interact'); if (ih && P.interact === false) __seatUseN[x.n] = (__seatUseN[x.n] || 0) + 1; P.interact = ih;   // (a seat's own use press; the press that sat it down is not one)` : ''}
   return out;
-}
+}${uses ? `
+// a seat's own interact presses, counted (the events channel's seat reach turns them into s<n>:use-<place>), and its key
+const __seatUseN = {};
+window.__mojSeatUses = (n) => __seatUseN[n] || 0;
+window.__mojSeatLabel = (n) => { const x = __SK.seat(__SEATS, n); if (!x) return ''; const f = x.controller === 'keyboard' ? 'keyboard' : 'gamepad', c = (__BIND.bind[f].interact || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; };` : ''}
 // the strip: who is in, in their colours; an empty seat says how to sit down
 const __seatEl = document.createElement('div');
-__seatEl.style.cssText = 'position:fixed;top:calc(8px + env(safe-area-inset-top, 0px));left:50%;transform:translateX(-50%);display:flex;gap:6px;font:600 12px system-ui,sans-serif;pointer-events:none;z-index:5';
+__seatEl.style.cssText = 'position:fixed;${uses ? 'bottom:calc(44px + env(safe-area-inset-bottom, 0px))' : 'top:calc(8px + env(safe-area-inset-top, 0px))'};left:50%;transform:translateX(-50%);display:flex;gap:6px;font:600 12px system-ui,sans-serif;pointer-events:none;z-index:5';   // (a shift's seats: at the bottom, the top being its order rail's)
 document.body.appendChild(__seatEl);
 let __seatSaid = '';
 function __seatStrip() {
@@ -779,7 +785,7 @@ function __updateSmoke() {
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, formSun = null, formLand = false, acts = false, tempo = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null } = {}) {
+export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, seatUses = false, formSun = null, formLand = false, acts = false, tempo = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null } = {}) {
   // the bank as the page reads it (pageFigures): every flag below reads it, so the branches it needs are emitted
   const PAGE = pageFigures(figures0 || {}), figures = PAGE.figs;
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
@@ -898,6 +904,11 @@ function __updateGearLines() {
   // one play it while the scene channel names it (world.take), at the line's phase. None ⇒ not a byte of it
   const takes = Object.values(figures || {}).some((f) => f && f.rig && f.clips && Object.keys(f.clips).some((k) => k.indexOf('scene:') === 0));
   const figHasFace = Object.values(figures || {}).some((f) => f && f.rig && f.face && Array.isArray(f.face.targets) && Array.isArray(f.parts) && f.parts.some((p) => p && p.morph));
+  // a TALKING face (playscape/ui/talk-lines.js: a line a hero says, its face's take under the line's clip, talk:<scene>:<beat>):
+  // the face plays it while the scene channel names it (world.take), the body as it was. None ⇒ not a byte of it
+  const talking = figHasFace && Object.values(figures || {}).some((f) => f && f.face && f.face.tracks && Object.keys(f.face.tracks).some((k) => k.indexOf('talk:') === 0));
+  // (and the LANDMARK head's mouth, its jaw bone: the line's degrees, face-acting/western-read.js, turned about the head's x)
+  const talkJaw = talking && Object.values(figures || {}).some((f) => f && f.face && f.face.jaws && Object.keys(f.face.jaws).length);
   // a PAINTED body (the realistic hero's skin, dermal-hero.js heroSkinPaint, packed as station-loft-rig.js `paintTex` and
   // each part's `uv`): its bone meshes drawn on the atlas (texel × the part's lit colour), as the World page draws it.
   // No painted body → the emitted channel is byte-identical.
@@ -939,6 +950,9 @@ function __updateGearLines() {
   // scaled about its feet by the rule's `e.squash`. No rule carries one ⇒ not a byte of it
   const figHasSquash = (entities || []).some((e) => e && e.rule && e.rule.takes && e.rule.takes.squash > 0);
   const figHasForms = Object.values(figures || {}).some((f) => f && f.rig && f.forms);
+  // a body with a clip for firing its gun (`fire`) or for a round landing on it (`flinch`), opt-in (a mission's crew):
+  // absent, not a byte
+  const fires = Object.values(figures || {}).some((f) => f && f.rig && f.clips && (f.clips.fire || f.clips.flinch));
   // a car's own light in a dark mood (car-designer/supercar-figure.js: the headlamps' pool on the road, the tail lamps'
   // ribbons) — emitted only when some figure's juice carries them.
   const figHasLights = figHasJuice && Object.values(figures || {}).some((f) => f && f.rig && f.juice && (f.juice.beams || f.juice.trails));
@@ -1827,7 +1841,8 @@ const __rigPA = [0, 0, 0], __rigPB = [0, 0, 0];
 const __rigV = new THREE.Vector3(), __rigH = new THREE.Vector3(), __rigT = new THREE.Vector3();
 const __RIG_Z = new THREE.Vector3(0, 0, 1), __RIG_ONE = new THREE.Vector3(1, 1, 1);
 const __rigQT = new THREE.Quaternion(), __rigQZ = new THREE.Quaternion();
-const __rigAxis = new THREE.Vector3(), __rigPivot = new THREE.Vector3();
+const __rigAxis = new THREE.Vector3(), __rigPivot = new THREE.Vector3();${talkJaw ? `
+const __tjHead = new THREE.Quaternion(), __tjQ = new THREE.Quaternion(), __tjAxis = new THREE.Vector3();   // a talking jaw's scratch` : ''}
 ${busterOn ? `// THE ARM CANNON'S SWAP (polygonizer/hero-buster-rig.js: the cannon on a bone of its own, buster<S>): while the buster is
 // out (charging, or a shot just fired: worlds/controllable/buster.js) the cannon's bone grows to full and the hand's bones
 // shrink away, each about its own head, eased over a few frames; otherwise the hand, the cannon put away. A figure with
@@ -2493,12 +2508,19 @@ function __sidearmProps(e, m, rig, fig, AL) {
     if (q) m.scale.set(s0 * q[0], s0 * q[0], s0 * q[1]); else { m.scale.setScalar(s0); m.userData.s0 = null; }
   }
   ` : ''}const fig = rig.fig;
-  ${figHasForms || acts || moveset || takes ? 'let' : 'const'} mode = e.moving ? e.locomotion : ${moveset ? "(e.idleClip && rig.fig.clips && rig.fig.clips[e.idleClip] ? e.idleClip : 'idle')" : "'idle'"};${moveset ? '   // (a moveset\'s hero in combat idles in its fighting stance: mv_ready)' : ''}${moveset ? `
+  ${figHasForms || acts || moveset || takes || fires ? 'let' : 'const'} mode = e.moving ? e.locomotion : ${moveset ? "(e.idleClip && rig.fig.clips && rig.fig.clips[e.idleClip] ? e.idleClip : 'idle')" : "'idle'"};${moveset ? '   // (a moveset\'s hero in combat idles in its fighting stance: mv_ready)' : ''}${moveset ? `
   // A SIDEARM'S AIM (e.mvPose, combat-melee.js: the archer's draw at its share, the gunslinger's guns): the whole body
   // standing, the body above the hips over the walk (the aim layer in the bone loop, __aimLayer)
   const AP = e.mvPose && e.staggerT == null && fig.clips && fig.clips[e.mvPose.clip] ? e.mvPose : null;   // (none while reeling)
   if (AP && !e.moving) mode = AP.clip;
-  const AL = __aimLayer(rig, fig, AP, dt);` : ''}${figHasForms ? `
+  const AL = __aimLayer(rig, fig, AP, dt);` : ''}${fires ? `
+  // A GUN IN ITS HANDS (a figure with a \`fire\` clip): while its trigger is down, and for a breath after a round has
+  // gone, the body plays it, the weapon up, standing or on the move; never while it reels
+  if (fig.clips.fire && e.weapon && e.staggerT == null && !e.downed && (e.aiFire || (e.lastShot && __world.time - e.lastShot.t < 0.5))) mode = 'fire';
+  // A HIT SHOWS (a figure with a \`flinch\` clip): a round that lands plays it once through, over whatever the body was
+  // doing; the body is not stopped by it (a stagger is the engine's, by poise: this is only seen)
+  const flinchU = fig.clips.flinch && e.hitFlash >= 0 && e.staggerT == null && !e.downed ? (__world.time - e.hitFlash) / 0.32 : 1;
+  if (flinchU < 1) mode = 'flinch';` : ''}${figHasForms ? `
   if (fig.forms) mode = __formMode(fig, e, mode);` : ''}${acts ? `
   const act = __actMode(fig, e, m), phase = act ? act.phase : e.gaitPhase;
   if (act) mode = act.mode;` : ''}${takes ? `
@@ -2506,7 +2528,10 @@ function __sidearmProps(e, m, rig, fig, AL) {
   const tk = __world.take && !e.moving && fig.clips[__world.take.clip] ? __world.take : null;
   if (tk) mode = tk.clip;
   e.taking = tk ? tk.clip : null;` : ''}
-  const mix = __CW.advanceGaitMix(rig.mix, mode, ${takes ? `tk ? Math.min(tk.u, 0.999) : ` : ''}${moveset ? `(AP && mode === AP.clip ? AP.phase : ${acts ? 'phase' : 'e.gaitPhase'})` : acts ? 'phase' : 'e.gaitPhase'}, dt || 0, ${moveset ? "(typeof mode === 'string' && mode.indexOf('mv_') === 0 && e.rule && e.rule.moveset ? e.rule.moveset.blend : rig.blendTime)" : 'rig.blendTime'});${moveset ? '   // (into a move\'s own clip: the moveset\'s blend, its travel waiting it out: no foot slides)' : ''}
+${fires ? `  // (a hold is a clip played once and held: firing, it comes up over a fifth of a second and stays; standing in one, it
+  // is held; neither runs on the gait's phase, which stands still on a body that stands)
+  const heldU = mode === 'flinch' ? Math.max(0, Math.min(0.999, flinchU)) : mode === 'fire' ? (rig.fireU = Math.min(0.999, (rig.fireU || 0) + (dt || 0) / 0.2)) : (rig.fireU = 0, mode === 'idle' && fig.clips.idle && fig.clips.idle.held ? 0.999 : null);
+` : ''}  const mix = __CW.advanceGaitMix(rig.mix, mode, ${fires ? 'heldU != null ? heldU : ' : ''}${takes ? `tk ? Math.min(tk.u, 0.999) : ` : ''}${moveset ? `(AP && mode === AP.clip ? AP.phase : ${acts ? 'phase' : 'e.gaitPhase'})` : acts ? 'phase' : 'e.gaitPhase'}, dt || 0, ${moveset ? "(typeof mode === 'string' && mode.indexOf('mv_') === 0 && e.rule && e.rule.moveset ? e.rule.moveset.blend : rig.blendTime)" : 'rig.blendTime'});${moveset ? '   // (into a move\'s own clip: the moveset\'s blend, its travel waiting it out: no foot slides)' : ''}
   const w = mix.prevMode ? mix.w * mix.w * (3 - 2 * mix.w) : 1;
   // head-look-at overlay (renderer-convergence step 2, procedural rung): ease the head bone's
   // yaw toward a tracked entity, clamped to a natural range — a runtime joint override no
@@ -2592,6 +2617,10 @@ ${camera && camera.rule === 'side-map' ? `  // (on a side map, a body with nothi
 ${figHasLive ? `  const LV = fig.live ? __rigLive(e, rig, dt) : null;
 ` : ''}${figHasLayers ? `  const PL = e.body && e.body.layers ? __poseLayers(e, fig, dt) : null;
 ` : ''}${busterOn ? `  const BS = __busterSwap(e, fig, rig, dt), BA = __busterArm(e, fig, rig, dt);
+` : ''}${talkJaw ? `  // (a line it says on the landmark head: its jaw's degrees on the line's clock, while the scene channel plays it)
+  const TJ = __world.take && fig.face && fig.face.jaws && __world.take.clip.indexOf('talk:') === 0 ? fig.face.jaws[__world.take.clip] : null;
+  const tjDeg = TJ ? __rigTrack({ t: TJ.t, w: TJ.d }, Math.min(__world.take.u, 0.999) * TJ.t[TJ.t.length - 1]) || 0 : 0;
+  e.talkJaw = tjDeg;   // (where a headless driver reads it)
 ` : ''}  for (let bi = 0; bi < fig.bones.length; bi++) {
     const mesh = rig.boneMeshes[bi];
     if (!mesh) continue;
@@ -2617,7 +2646,12 @@ ${figHasLive ? `  const LV = fig.live ? __rigLive(e, rig, dt) : null;
     if (fig.bones[bi].id === 'head' && Math.abs(rig.lookA) > 1e-4) {
       __rigQL.setFromAxisAngle(__RIG_Z, rig.lookA);
       __rigQA.premultiply(__rigQL);
-    }
+    }${talkJaw ? `
+    // (the talking jaw opens about its hinge, the head's own x as the head now stands: the rig's jaw chain's axis, sign −1)
+    if (tjDeg) {
+      if (fig.bones[bi].id === 'head') __tjHead.copy(__rigQA);
+      else if (fig.bones[bi].id === 'jaw') { __tjAxis.set(1, 0, 0).applyQuaternion(__tjHead); __tjQ.setFromAxisAngle(__tjAxis, -tjDeg * Math.PI / 180); __rigQA.premultiply(__tjQ); }
+    }` : ''}
     // per-slot arm overlay: on the covered arm bones, REPLACE the base [q, head] with the
     // alternate-aim curve (over-shoulder bazooka). The weapon bone rides forearmR, so it follows.
     if (ov) { const j = ov.bones.indexOf(bi); if (j >= 0) __rigOverlay(ov, ovClip, mix.phase, j, __rigQA, __rigPA); }
@@ -2694,7 +2728,12 @@ ${figHasRide ? `      // (a ridden machine's front turns about the steering axis
     mesh.matrix.compose(__rigV, __rigQA, __RIG_ONE);
   }${moveset ? `
   __sidearmProps(e, m, rig, fig, AL);` : ''}${figHasFace ? `
-  if (fig.face) __rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);` : ''}${takes && figHasFace ? `
+  if (fig.face) ${talking ? `{
+    // (a line it says: its face's take on the line's clock, while the scene channel plays it)
+    const tf = __world.take && fig.face.tracks && fig.face.tracks[__world.take.clip] && __world.take.clip.indexOf('talk:') === 0 ? __world.take : null;
+    if (tf) __rigFace(rig, tf.clip, Math.min(tf.u, 0.999));
+    else __rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);
+  }` : `__rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);`}` : ''}${takes && figHasFace ? `
   // (a taking face's weights, where a headless driver reads them: e.takeFace)
   if (fig.face) { const fm = tk ? rig.boneMeshes.find((x) => x && x.morphTargetInfluences && x.morphTargetInfluences.length) : null; e.takeFace = fm ? Array.from(fm.morphTargetInfluences) : null; }` : ''}
   // i-frame SHIMMER: while INVINCIBLE the whole rig flickers translucent — the
@@ -2906,7 +2945,10 @@ ${driveSurface ? `// surface hook (roads/surface.js): what a car's tyres are on,
 const __surfaceT = ${safeJson(driveSurface)};
 const __surfaceAt = ${surfaceAt.toString()};
 const __surface = (p) => __surfaceAt(__surfaceT, p);
-` : ''}${groundGridScript()}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
+${driveSurface.pads ? `// boost pads (roads/surface.js padAt): the seconds of boost a wheel on one lights
+const __padAt = ${padAt.toString()};
+const __pad = (p) => __padAt(__surfaceT, p);
+` : ''}${driveSurface.items ? kartItemsViewScript(driveSurface.items.boxes.length) : ''}` : ''}${groundGridScript()}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
 const __groundRay = new THREE.Raycaster();
 const __bodySet = () => Object.values(__bodies);
 let __gridOn = false;
@@ -3045,6 +3087,7 @@ function __wcRender() {
   if (!lo || !m) { __wcHide(); return; }
   if (!__wcEl) {
     __wcEl = document.createElement('div');
+    __wcEl.id = '__wc';   // (a HUD host that draws the wheel itself puts this panel away by its id: channels/mana-hud.js)
     __wcEl.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:30;display:flex;flex-direction:column;gap:6px;min-width:240px;padding:14px 18px;background:rgba(8,13,24,.88);border:1px solid #2a3b58;border-radius:12px;font:600 13px system-ui,sans-serif;color:#cfe3ff;pointer-events:none;backdrop-filter:blur(2px)';
     (typeof wrap !== 'undefined' ? wrap : document.body).appendChild(__wcEl);
   }
@@ -3070,6 +3113,21 @@ function __wcRender() {
   __wcCur = cur;
 }
 function __wcHide() { __wcOpen = false; __wcCur = -1; if (__wcEl) __wcEl.style.display = 'none'; }
+// what the selector shows, for a HUD host that draws it itself (channels/mana-hud.js: the wheel): whether it is open, and
+// each slot at its face button (north 0, east 90, south 180, west 270), the button's glyph in this pad's layout, the one
+// in hand, its rounds
+window.__mojWc = { view: () => {
+  const ent = __wcEnt(), lo = ent && __entLoadout(ent), m = __wcMap();
+  if (!__wcOpen || !lo || !m) return { open: false, rows: [] };
+  const AT = { 3: 0, 1: 90, 0: 180, 2: 270 }, cur = ent.loadoutIdx || 0, rows = [];
+  for (const bi of [2, 3, 1, 0]) {
+    if (m[bi] == null) continue;
+    const cfg = lo[m[bi]] || {}, w = m[bi] === cur ? ent.weapon : null, n = cfg.name || (cfg.strike ? 'melee' : 'ranged');
+    const count = w && Number.isFinite(w.ammo) ? w.ammo + (Number.isFinite(w.reserve) ? ' / ' + w.reserve : '') : '';
+    rows.push({ name: n, at: AT[bi], key: __CTL.label(__DEV, 'gamepad', __DEV.gamepad.faces[bi], __padLayout), on: m[bi] === cur, count, sub: count });
+  }
+  return { open: true, title: 'hold RB · press a button', rows };
+} };
 window.__mojWcHide = __wcHide;   // the pause sidecar closes the selector when the shell freezes the sim
 ${touchLayer ? `${touchScript(touchLayer, { view: touchView })}` : ''}function __pollPad() {
 ${seats ? `  // SEATS: seat 1 reads only its own pad (none when the keyboard is its controller), never another seat's
@@ -3162,7 +3220,8 @@ ${touchLayer ? `  if (__touchOn()) return __touchRows();   // the screen's pad (
     suits: W.entities.filter((e) => e.pilotable).length > 1,
     ai: W.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')),
     follow: !!(W.camera && W.camera.rule && W.camera.rule.type === 'follow'),
-    interact: !!window.__mojUses,   // the world has somewhere to use (the events channel says)${hasForms ? `
+    interact: !!window.__mojUses,   // the world has somewhere to use (the events channel says)
+    items: !!window.__mojItems,     // a race whose boxes hand out items (kart-items-view.js)${hasForms ? `
     forms: true,                    // a body that transforms (forms.js)` : ''}
     active: { gamepad: __padOn && __padSeen }, layout: __padLayout,
   });
@@ -3288,7 +3347,7 @@ function __readInput() {
   __lookDX = 0; __lookDY = 0;
   return ${xr ? '__xrCtl ? __xrCtl.input(inp) : ' : ''}inp;
 }
-${seats ? seatsScript(seats) : ''}// active whenever there are entities to step; the camera is OWNED only if a camera entity exists
+${seats ? seatsScript(seats, seatUses) : ''}// active whenever there are entities to step; the camera is OWNED only if a camera entity exists
 // (otherwise OrbitControls keeps the view — e.g. a clock-driven figure turntable orbited by hand).
 __ctrlActive = __world.entities.length > 0;
 if (__world.camera) { controls.enabled = false; __ctrlOwnsCamera = true; }
@@ -3731,6 +3790,7 @@ const __lockEl = document.createElement('div');
 __lockEl.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none;z-index:9;display:none';
 __lockEl.innerHTML = '<div style="width:40px;height:40px;margin:-20px 0 0 -20px;border:2px solid #ffe000;border-radius:5px;transform:rotate(45deg);box-shadow:0 0 14px rgba(255,224,0,.55),inset 0 0 8px rgba(255,224,0,.25)"></div>'
   + '<div style="position:absolute;left:26px;top:-8px;font:700 11px/1 ui-monospace,Menlo,monospace;letter-spacing:2px;color:#ffe000;text-shadow:0 0 8px rgba(255,224,0,.7)">LOCK</div>';
+__lockEl.className = 'moj-c-lock';   // (a HUD host that draws the lock itself puts this one away: channels/hud-grammar.js)
 wrap.appendChild(__lockEl);
 const __lockV = new THREE.Vector3();
 function __updateLock() {
@@ -3752,6 +3812,7 @@ const __radarSelf = () => __world.spectate ? __specWatchEnt() : ((__world.pilotI
 if (__radarSelf() && !(__world.camera && __world.camera.rule && __world.camera.rule.type === 'side') && __world.entities.some((e) => e.body && e.body.hittable && e !== __radarSelf())) {
   const RSZ = 132;
   const __rWrap = document.createElement('div');
+  __rWrap.id = '__radar';   // (a HUD host that draws the radar itself puts this one away by its id: channels/mana-hud.js)
   __rWrap.style.cssText = 'position:absolute;right:16px;top:16px;width:' + RSZ + 'px;height:' + RSZ + 'px;border-radius:50%;background:rgba(8,14,22,0.42);box-shadow:inset 0 0 0 1px rgba(120,200,255,0.28),0 2px 10px rgba(0,0,0,0.42);pointer-events:none;z-index:9;overflow:hidden';
   const __rCv = document.createElement('canvas');
   __rCv.width = RSZ * 2; __rCv.height = RSZ * 2; __rCv.style.cssText = 'width:100%;height:100%';
@@ -3841,6 +3902,7 @@ for (const e of __world.entities) {
   el.style.cssText = 'position:absolute;width:56px;height:6px;transform:translate(-50%,-50%);border-radius:3px;background:rgba(8,12,20,0.6);box-shadow:inset 0 0 0 1px rgba(255,120,120,0.55),0 1px 3px rgba(0,0,0,0.5);overflow:hidden;pointer-events:none;z-index:8;display:none';
   const fl = document.createElement('div'); fl.style.cssText = 'height:100%;width:100%;background:#ff5a5a';
   el.appendChild(fl); wrap.appendChild(el);
+  el.className = 'moj-c-ehp';   // (a HUD host that draws its foe's health with its lock puts these away: channels/hud-grammar.js)
   __ehp.push({ id: e.id, el: el, fill: fl });
 }
 const __ehpV = __ehp.length ? new THREE.Vector3() : null;${foeBars ? `
@@ -5283,11 +5345,12 @@ function __updateBreaks(dt) {
 ${distort ? distortViewScript() : ''}${rupa ? smokeViewScript() : ''}` : ''}${panelsOn ? panelsViewScript() : ''}${scarsOn ? scarsViewScript() : ''}${groundOn ? groundViewScript() : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
-    ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });${tempo ? `
+    ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''}${driveSurface && driveSurface.pads ? ', padAt: __pad' : ''} });${tempo ? `
     const wdt = dt * __CW.tempoScale(__world);   // the world clock: the bodies and their effects on the world's step, the camera on the real one
     // a moment that fires cues the live shoot plan's shot waiting on it (on: 'tempo:<what fired it>'): the impact cam
     if (__world.tempo && __world.tempo.playing !== __tmLast) { __tmLast = __world.tempo.playing; if (__tmLast && window.__mojShoot && window.__mojShoot.cue) window.__mojShoot.cue('tempo:' + __tmLast.on); }` : ''}
-    for (const e of __world.entities) __syncEntity(e, ${tempo ? 'wdt' : 'dt'});${place ? '\n    __placeStep(dt);' : ''}${seats ? `
+    for (const e of __world.entities) __syncEntity(e, ${tempo ? 'wdt' : 'dt'});${driveSurface && driveSurface.items ? `
+    __kiTick(dt);` : ''}${place ? '\n    __placeStep(dt);' : ''}${seats ? `
     __seatRings();
     __seatStrip();
     __seatsOver();` : ''}

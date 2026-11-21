@@ -1,0 +1,13 @@
+{
+  "id": "field-brief",
+  "name": "Field Brief",
+  "about": "A shooter's mission: a briefing board and a field HUD over a scene seen down the sights. Dark steel plates, an amber line, upper case, cut corners; nothing drawn across the whole screen, so the sights and what stands in them stay clear.",
+  "family": "shooter",
+  "tags": ["shooter", "fps", "mission", "briefing"],
+  "author": "mojulo",
+  "from": "mecha",
+  "tokens": { "ink": "#eef0e6", "panel": "#171b19", "line": "#e8b23a", "accent": "#e8b23a", "accent2": "#7fd0c0", "harm": "#e0533f", "hp": "#9ad26a" },
+  "overlay": "none",
+  "stage": "none",
+  "backdrop": "blur"
+}

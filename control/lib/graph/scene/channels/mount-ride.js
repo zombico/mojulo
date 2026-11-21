@@ -5,8 +5,9 @@ import { REACH_CSS } from './interact-channel.js';
 // within a free horse's reach is offered it: the reach prompt shows the live interact key and "ride"; riding at a walk or
 // halted, "get off". The press is handed to the runtime (`mountPress`, read on its next step), which does the rest. The
 // bus, when the page has one, hears the runtime's `mounting`, `mounted` and `dismounted` { rider, mount }: a game counts
-// them. Absent a mount ⇒ NOT emitted.
-export function mountRideScript() {
+// them. Absent a mount ⇒ NOT emitted. With a CAB among them (`cab`, a car: mount.js), any walker is offered it, the words
+// "get in" and "get out"; a page with none is as it was, byte for byte.
+export function mountRideScript({ cab = false } = {}) {
   return `
 // --- mounts: the reach of a horse, getting on and off ---
 (function () {
@@ -22,13 +23,13 @@ export function mountRideScript() {
     let ask = '';
     if (pilot.mount && pilot.riderId) {
       const p = W.byId[pilot.riderId];
-      if (p && p.mountPhase === 'ride' && Math.abs(pilot.speed || 0) <= (pilot.mount.slow || 1.8) && pilot.jumpT == null) ask = 'get off';
-    } else if (pilot.rides && !pilot.mountedOn) {
+      if (p && p.mountPhase === 'ride' && Math.abs(pilot.speed || 0) <= (pilot.mount.slow || 1.8) && pilot.jumpT == null) ask = ${cab ? "pilot.mount.cab ? 'get out' : 'get off'" : "'get off'"};
+    } else if (${cab ? '!pilot.mount' : 'pilot.rides'} && !pilot.mountedOn) {
       for (const h of W.entities) {
-        if (!h.mount || h.riderId || h.downed || h.gone) continue;
-        if (Math.hypot(h.transform.pos[0] - pilot.transform.pos[0], h.transform.pos[1] - pilot.transform.pos[1]) < (h.mount.reach || 2.6)) { ask = 'ride'; break; }
+        if (!h.mount || h.riderId || h.downed || h.gone${cab ? ' || !(pilot.rides || h.mount.cab)' : ''}) continue;
+        if (Math.hypot(h.transform.pos[0] - pilot.transform.pos[0], h.transform.pos[1] - pilot.transform.pos[1]) < (h.mount.reach || 2.6)) { ask = ${cab ? "h.mount.cab ? 'get in' : 'ride'" : "'ride'"}; break; }
       }
-    }
+${cab ? "      if (!ask && W.trafficOffer) ask = 'get in';   // (a vehicle of the traffic's in reach: channels/cab-pool.js)\n" : ''}    }
     const n = C.interacts ? C.interacts() : 0;
     if (prevN !== null && n !== prevN && ask && !window.__mojMenuOpen && !window.__mojReach) W.mountPress = 1;
     prevN = n;

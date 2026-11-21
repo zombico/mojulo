@@ -20,8 +20,18 @@
  * A row's `id` and `when` gate it as they did (the bus vars ui-<id>, ui-<id>-state, phase): the host says which stand.
  * A row's colour is not carried: the theme owns the look.
  *
+ * Drawn as a game draws its HUD, not a dashboard (docs/mana-ui.md, "A HUD that reads as a game"): no box over the world
+ * (a corner's parts on a scrim, the others bare); the health one long bar in cells at the bottom left with no label and
+ * no number (the pilot's own, or the level's row that is the health, folded in), its sprint thin under it and, on a
+ * level with a world clock, the slow-motion's charge as a ring beside it; the screen's edge closing in as the health
+ * runs out; and, read off the page's own probes, the gun in hand at the bottom right (its wireframe, its rounds as
+ * cartridges), the radar as a scope at the top right, the damage ring as arcs and the weapon wheel while it is held
+ * open. Each stands only where the page has the thing (gun.on, focus.on, radar.on, ring.on, wheel.open).
+ *
  * The state the spec binds (the host writes it from the level's bus): v.<k> a var's value · on.<k> whether a gated or
- * timed row stands · lines.<k> a slot's passing lines · moments [] · hero { hp, hpMax, hasHp, stamina, staminaMax, sprints }.
+ * timed row stands · lines.<k> a slot's passing lines · moments [] · hero { hp, hpMax, hasHp, stamina, staminaMax, sprints,
+ * rest, peril } · gun { on, name, mode, rounds, size, reserve, reloading, rest } · focus { on, value, state, label } ·
+ * radar { on, marks, north } · ring { on, hits } · wheel { open, title, slots }.
  * Pure: a spec is data.
  */
 import { normalizeHud, HUD_SLOTS } from './hud-widgets.js';
@@ -32,6 +42,8 @@ import { cardTheme } from '../playscape/ui/theme-cards/loader.js';
 const B = (path) => ({ bind: path });
 // a bar's meaning, read off what it is called
 const MEANS = [[/^(hp|health|life|lives|hull)$/, 'hp'], [/^(mp|mana|magic|energy)$/, 'mp'], [/^(xp|exp|experience)$/, 'xp'], [/^(stamina|boost|sprint|breath|fuel)$/, 'stamina'], [/^(shield|armou?r|guard)$/, 'shield'], [/^boss/, 'boss']];
+// money, read off what a counter is called (a coin, cash, gold): drawn as money
+const MONEY = /^(coins?|cash|money|gold|dollars?|credits?|bucks)$/i;
 const meaningOf = (w) => { for (const name of [w.var, w.label]) { const k = String(name ?? '').toLowerCase().trim(); for (const [re, v] of MEANS) if (re.test(k)) return v; } return 'plain'; };
 
 export function hudToMana(rows, { register = null, hero = true, touch = false } = {}) {
@@ -42,14 +54,19 @@ export function hudToMana(rows, { register = null, hero = true, touch = false } 
   // a row that is gated (a part's id, its phases) or timed stands while the host says so
   const gate = (w, i, ttl = 0) => { if (!w.id && !w.when && !ttl) return {}; const k = `r${i}`; gates.push({ k, ...(w.id ? { id: w.id } : {}), ...(w.when ? { when: w.when } : {}), ...(ttl ? { ttl } : {}) }); return { when: B(`on.${k}`) }; };
   const cond = (w) => ({ ...(w.id ? { id: w.id } : {}), ...(w.when ? { when: w.when } : {}) });
-  let hpRow = false;
+  let hpRow = false, hpStrip = null;
   widgets.forEach((w, i) => {
     if (w.kind === 'readout') {
       const value = B(`v.${varKey(w.var)}`), label = w.label ?? '';
+      // (the row that is the health becomes the health strip, the pilot's own drawn by it: one health on the screen)
+      if (hero && !hpStrip && meaningOf(w) === 'hp') { hpStrip = { gate: gate(w, i), value, max: w.as === 'bar' && w.max !== undefined ? (typeof w.max === 'string' ? B(`v.${varKey(w.max)}`) : w.max) : B(`top.${varKey(w.var)}`), k: varKey(w.var) }; hpRow = true; return; }
       if (w.as === 'bar') {
         const variant = meaningOf(w); if (variant === 'hp') hpRow = true;
         bySlot[w.slot].push({ use: 'bar', props: { value, max: typeof w.max === 'string' ? B(`v.${varKey(w.max)}`) : w.max, ...(variant !== 'plain' ? { variant } : {}), ...(label ? { label } : {}) }, ...gate(w, i) });
-      } else if (w.as === 'clock') bySlot[w.slot].push({ use: 'timer', props: { seconds: value, ...(label ? { label } : {}) }, ...gate(w, i) });
+      } else if (w.as === 'stars') bySlot[w.slot].push({ use: 'pips', props: { value, max: w.max, shape: 'star', ...(label ? { label } : {}) }, ...gate(w, i) });
+      else if (w.as === 'clock') bySlot[w.slot].push({ use: 'timer', props: { seconds: value, ...(label ? { label } : {}) }, ...gate(w, i) });
+      // (money is a coin and a figure, never the word beside a number: the shape is the label)
+      else if (w.as === 'counter' && MONEY.test(String(label || w.var).trim())) bySlot[w.slot].push({ use: 'counter', props: { label: '', value, icon: 'coin' }, ...gate(w, i) });
       else if (w.as === 'counter') { const icon = iconOf(label) ?? iconOf(w.var); bySlot[w.slot].push({ use: 'counter', props: { label, value, ...(icon ? { icon } : {}) }, ...gate(w, i) }); }
       else bySlot[w.slot].push({ use: 'stat', props: { label, value }, ...gate(w, i) });
     } else if (w.kind === 'banner') banners.push({ on: w.on, text: w.text, ...cond(w) });
@@ -67,17 +84,34 @@ export function hudToMana(rows, { register = null, hero = true, touch = false } 
     }
     // (a title is carved letters in the scene: the title channel's, as before)
   });
-  // the pilot's own gauges lead the top-left: its health (unless a row is already the health), its sprint
-  const own = hero ? [...(hpRow ? [] : [{ use: 'bar', props: { value: B('hero.hp'), max: B('hero.hpMax'), variant: 'hp', label: 'HP' }, when: B('hero.hasHp') }]), { use: 'bar', props: { value: B('hero.stamina'), max: B('hero.staminaMax'), variant: 'stamina', figures: false }, when: B('hero.sprints') }] : [];
-  bySlot['top-left'] = [...own, ...bySlot['top-left']];
-  const regions = [];
+  const regions = [], layers = [];
   for (const slot of HUD_SLOTS) {
     const kids = [...bySlot[slot], ...(lines[slot] ? [{ use: 'feed', props: { rows: B(`lines.${lines[slot]}`), max: 6 } }] : []), ...(slot === 'center' && banners.length ? [{ use: 'moments', props: { rows: B('moments'), as: 'banner', hold: 1.6, read: 0.4 } }] : [])];
     if (!kids.length) continue;
-    const align = slot.endsWith('left') ? 'start' : slot.endsWith('right') ? 'end' : 'center', bare = kids.every((k) => k.use === 'feed' || k.use === 'moments');
-    regions.push({ use: 'region', props: { at: slot, ...(bare ? { variant: 'bare' } : {}) }, children: kids.length === 1 ? kids : [{ use: 'stack', props: { dir: 'column', gap: 'tight', align }, children: kids }] });
+    // (no box over the world: a corner's parts on a scrim, the rest bare with the halo)
+    const align = slot.endsWith('left') ? 'start' : slot.endsWith('right') ? 'end' : 'center', corner = slot.includes('-');
+    regions.push({ use: 'region', props: { at: slot, variant: corner ? 'scrim' : 'bare' }, children: kids.length === 1 ? kids : [{ use: 'stack', props: { dir: 'column', gap: 'tight', align }, children: kids }] });
   }
-  return { spec: { screens: {}, hud: { use: 'hud', children: regions } }, feed: { rows: { vars, gates, banners, toasts, lines: Object.values(lines) }, ...(hero ? { hero: true } : {}) } };
+  if (hero) {
+    // THE PILOT, at the bottom left: the health a strip in cells (the level's health row folded in, else its own), its
+    // sprint thin under it, the slow-motion's charge beside them; resting while full
+    const hp = hpStrip ? { value: hpStrip.value, max: hpStrip.max } : { value: B('hero.hp'), max: B('hero.hpMax') };
+    regions.unshift({ use: 'region', props: { at: 'bottom-left', variant: 'scrim', rest: B('hero.rest') }, children: [{ use: 'stack', props: { dir: 'row', gap: 'normal', align: 'center' }, children: [
+      { use: 'charge', props: { value: B('focus.value'), state: B('focus.state'), icon: 'clock', label: B('focus.label') }, when: B('focus.on') },
+      { use: 'stack', props: { gap: 'tight' }, children: [
+        { use: 'bar', props: { ...hp, variant: 'hp', segments: 4, size: 'large', figures: false }, ...(hpStrip ? hpStrip.gate : { when: B('hero.hasHp') }) },
+        { use: 'bar', props: { value: B('hero.stamina'), max: B('hero.staminaMax'), variant: 'stamina', size: 'thin', figures: false }, when: B('hero.sprints') },
+      ] },
+    ] }] });
+    // THE GUN IN HAND, at the bottom right: its wireframe, its rounds as cartridges; resting while full
+    regions.push({ use: 'region', props: { at: 'bottom-right', variant: 'scrim', rest: B('gun.rest') }, when: B('gun.on'), children: [{ use: 'magazine', props: { name: B('gun.name'), mode: B('gun.mode'), rounds: B('gun.rounds'), size: B('gun.size'), reserve: B('gun.reserve'), reloading: B('gun.reloading') } }] });
+    // THE RADAR, a scope at the top right (where the page's stood), and the wheel while it is held open
+    regions.push({ use: 'region', props: { at: 'top-right', variant: 'bare' }, when: B('radar.on'), children: [{ use: 'minimap', props: { shape: 'round', scope: true, markers: B('radar.marks'), north: B('radar.north') } }] });
+    regions.push({ use: 'region', props: { at: 'center', variant: 'bare' }, when: B('wheel.open'), children: [{ use: 'wheel', props: { rows: B('wheel.slots'), title: B('wheel.title') } }] });
+    // the screen's edge, closing in as the health runs out; where a hit came from, as arcs round the aim
+    layers.push({ use: 'peril', props: { level: B('hero.peril') } }, { use: 'threat', props: { markers: B('ring.hits') }, when: B('ring.on') });
+  }
+  return { spec: { screens: {}, hud: { use: 'hud', children: [...layers, ...regions] } }, feed: { rows: { vars, gates, banners, toasts, lines: Object.values(lines) }, ...(hero ? { hero: true, ...(hpStrip ? { hpVar: hpStrip.k } : {}) } : {}) } };
 }
 
 /** A level's `manaHud` in a look (a mana-ui preset's name, a card's, or a theme object): its rows are the level's own. */

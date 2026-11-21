@@ -192,9 +192,9 @@ widgets under a pointer (only the view knows where they are).
 | group | for |
 |---|---|
 | layout | screens on the stack (`seats` > 1 gives each couch seat a cursor), windows, stacks, splits, tabs (fixed, or pages from data), `each` (a row per item that does not itself take focus), dividers |
-| value | text in a type role, stats, bars (phase segments, the hatched chip of the last hit, filling from the right for a second fighter, or without their numbers), pips, counters, timers, compares (better or worse as ▲ ▼), tables (your row marked), dials, action and hotbar slots (key, cooldown, count, the one in hand), and placeholders for icons, portraits and images, badges, button prompts; a card (its face, its state as a shape, its back), a log (kept whole, shown from its end), a small series as bars |
+| value | text in a type role, stats, bars (phase segments, the hatched chip of the last hit, filling from the right for a second fighter, or without their numbers), pips, counters, timers, compares (better or worse as ▲ ▼), tables (your row marked), dials, action and hotbar slots (key, cooldown, count, the one in hand), and placeholders for icons, portraits and images, badges, button prompts; a card (its face, its state as a shape, its back), a log (kept whole, shown from its end), a small series as bars, a magazine (the gun's wireframe over it, the rounds as the figure, the reserve its caption, a belt of the cartridges it feeds; low, empty and reloading said) |
 | input | lists (a long one scrolls), grids (two directions), trees (tiers by what each node requires), carousels, buttons, toggles, cyclers, sliders, keybinds, a `field` that picks its input from data, an allocator (points spent as a draft), a text entry (typed from a grid, so a pad can type). A disabled button, slot, row or cell may say `why`: its reason shows under it while it has the focus or the pointer, and as it is pressed |
-| hud | the in-game layer: a `hud` of regions (the nine screen places, a place that may be bound) and layers: anchors (a part over each thing in the world at the screen x and y the game projects; a row with an id is its own element, and `pass` rows rise and fade once: damage numbers), edges (what is off screen, held at the edge with an arrow), a threat ring (where harm came from), the cinema bars; reticle, minimap, compass, feed, toast, banner, a phone's touch controls. A screen lays its own parts out in regions too, over the held game |
+| hud | the in-game layer: a `hud` of regions (the nine screen places, a place that may be bound; a region bare, on a scrim, or at rest) and layers: anchors (a part over each thing in the world at the screen x and y the game projects; a row with an id is its own element, and `pass` rows rise and fade once: damage numbers), edges (what is off screen, held at the edge with an arrow), a threat ring (arcs where harm came from, fading), the peril (the screen's edge closing in as danger rises), the cinema bars; reticle, minimap (or a scope: a bezel, the wedge ahead, north), compass, feed, toast, banner, a phone's touch controls. A screen lays its own parts out in regions too, over the held game |
 | enemy | an enemy's awareness as a shape (unaware –, suspicious ?, searching ??, alert !, combat !!, fleeing », down ✕) and its statuses |
 
 Left and right cross between the panes of a split (a list and its detail), landing on the row the list has active.
@@ -273,6 +273,17 @@ wherever there is text to read. Every theme keeps these rules on its own; no wor
 
 Display words may still perform: a title can echo huge and hollow behind itself, break out of its box, lean all the way
 and slam in. A menu's rows, labels, values and buttons stay plain.
+
+**A title that enters letter by letter.** A text's `letters` (`rise`, `slam`, `wipe`, `track`; `none` the default)
+draws its words a span a letter, each numbered so it enters after the one before, the whole read aloud as one word
+(`aria-label`). The entrance runs on the theme's motion (its stagger, travel, pop, duration and ease), so a look with no
+motion shows the words at once, and a calm reader (reduced motion, `data-motion=reduced`) sees them fade. Its sheet is
+`lettersCss`, kept apart from the main sheet: only a surface that draws letters lays it (the play shell's title and
+attract screens, the board), so no other page changes. A look says how its title enters with the theme word `title`
+(`still | rise | slam | wipe | track`); a look that says none is read without it and its title rises (`titleLetters`).
+The title screen's `bare` draws its menu as words with no window behind, for a start screen whose picture is its own
+stage (the play shell's front stage, `game/front-stage-page.js`, where the stage draws the name behind its subjects and
+mana-ui draws the menu).
 
 ### Theme cards: a look is data
 
@@ -571,6 +582,9 @@ A game's HUD is a `hud` holding the HUD idioms it uses. A screen idiom is used a
 - `idioms-fight.js` — a fighting game's own language (below): the top frame, the meters, a side's combo and callouts, the
   announcer, training's readouts; the face-off, fighter select, the fight's pause, the command list, training's settings,
   the match's results.
+- `idioms-talk.js` — people talking, as presenters a host feeds (below, "A level's scenes"): the talk box, with the
+  speaker's nameplate, a place for a face, the line typed on, ▼ once it is whole, the answers numbered with the one in
+  hand marked, and the legend.
 
 ### The live game
 
@@ -578,7 +592,8 @@ A game's HUD is a `hud` holding the HUD idioms it uses. A screen idiom is used a
 
 - a fight: mirrored bars with the chip of the last hit, rounds, the clock; super meters; a combo count
 - a race: place, lap and times; a speedometer
-- a firefight: where harm came from, what is off screen, lock-on brackets, the ability bar
+- a firefight: where harm came from, what is off screen, lock-on brackets, the ability bar; a shooter's own readouts
+  (the weapon, the health, the order, the radar, the peril edge), drawn as below ("A HUD that reads as a game")
 - survival: the hotbar, names over things in the world
 - strategy: resources, the unit in focus, an attack's forecast, a defence's wave
 - a match: the score bug, a lower third
@@ -602,6 +617,138 @@ second look of its own. `style-rules.test.js` holds every component to that:
 
 A part that is its own frame (the aim, a moment's banner, a phone's controls) sits bare over the world. The aim keeps
 a halo in the panel's colour so it reads over any scene.
+
+## A HUD that reads as a game
+
+A HUD can track every value a game has and still read as an app: a box per readout, a label beside every number, a
+checklist, a map in a square frame. A modern shooter's HUD (the Halo, Call of Duty, Apex, Destiny and Battlefield lines)
+shows much the same values, but each one is shaped like what it measures, and it speaks only when something matters.
+These principles make a HUD evocative rather than a state tracker. Every theme keeps them; the theme decides the look,
+not whether a principle holds.
+
+1. **The shape is the label.** Health is a long bar and needs no "HP"; the magazine is a number by the gun and needs no
+   "Ammo". A label is for a value whose shape does not say what it is. Health is read by its length, cut into cells so
+   a loss reads as a chunk (`health-strip`: `segments`, `figures: false`).
+2. **One figure leads each readout.** The value acted on now is drawn as a display numeral; the value behind it is a
+   caption. A magazine's rounds are large and the reserve is small beside them; a clock's seconds are the figure.
+   Never two values at one size side by side, as a table would draw them (`magazine`).
+3. **Count what can be seen.** A thing the player spends one at a time is drawn one at a time, as the thing it is:
+   the rounds in a magazine as a belt of cartridges that empties toward the edge it sits by (a rifle's bottle-necked
+   round, a pistol's short one, a shotgun's shell, a rocket; a spent one its empty outline), hearts, grenades, charges.
+   Past what the eye can count (a drum of a hundred rounds) it becomes one track.
+4. **A picture before a word.** What the player holds is drawn before it is named: the gun in hand as a wireframe of
+   its side, so a rifle, a shotgun and a pistol are told apart at a glance and the name is only confirmation
+   (`magazine`'s `gun`, else its name; `guns.js`).
+5. **No boxes over the world.** A readout over play sits on the world. It is either bare with a halo, or on a scrim: a
+   shade behind it that fades out before any edge can show (`region` `variant: 'bare' | 'scrim'`). A plate with a
+   border is for a menu, not for a corner of the screen during a fight.
+6. **The corners have jobs.** The player is at the bottom left (health), the player's gun is at the bottom right, where
+   the player is and what is near is at the top left (the radar), and what to do now is at the top. The centre is the
+   aim's, and it stays open except for marks about the aim itself (hits, the damage ring).
+7. **It speaks when something changes.** A readout that holds no news (a full magazine, full health) fades back, and
+   the moment it changes it comes forward (`region` `rest`, a binding the game sets). Firing is not news: a shot kicks
+   the figure and does not flash it. A loss or a low value is news.
+8. **Urgency is shown, not reported.** Low ammunition turns the figure and the belt to harm and says so ("Low ammo",
+   "Reload", "Reloading"). Low health closes the screen's own edge in, tinted, and near the end the edge beats slowly
+   (`peril`; under three times a second, still under less motion or less flash). The player feels it before reading a
+   number.
+9. **An order, not a checklist.** The objective is one line with a mark: what to do now, which of how many, and how
+   far (metres to a place, or the foes still standing). A held place drains its clock under it. The full list of tasks
+   belongs to the pause, the map and the briefing (`objective-order`).
+10. **The map is an instrument.** A radar is round and centred on the player, with ahead at the top, so it turns as
+    the player turns. It has a bezel of ticks, the wedge the player sees, north riding the bezel, and a face that fades
+    into the world. It is never a picture in a square frame (`minimap` `scope`, `north`; `radar-scope`).
+11. **Harm says where it came from.** A hit marks an arc of a ring round the aim at the attacker's bearing. The arc
+    tapers at its ends, fades as it ages, and follows the attacker while it stands (`threat`, a mark's `fade`).
+12. **Geometry carries the genre.** Cut corners, a lean shared by bars and belts, tick marks, a mark before an order,
+    a fire mode in a small keyed box. These come from the theme's closed words (`slant`, `corner`, `frame`), never from a
+    node.
+13. **Readable first, still.** Every principle above sits around the words (restraint, above). A figure keeps its halo,
+    a harm colour keeps its contrast against the scrim, and nothing that repeats breathes faster than three times a
+    second.
+
+How a shooter's parts are drawn now:
+
+| a modern shooter shows | an app-like HUD draws | mana-ui draws |
+|---|---|---|
+| the gun's silhouette, the magazine's rounds large, the reserve small, a belt of cartridges, "reload" said when empty | "Ammo 23/90" in a box | `weapon-readout`: `magazine` on a scrim (the gun's wireframe, its rounds as the cartridges it feeds), resting while full |
+| health as a long bar in cells, no number | "HP ▓▓▓░ 74/100" in a box | `health-strip`: a large bar in cells, `figures: false`, on a scrim |
+| low health as a red, beating screen edge | a hatched bar | `peril-edge`: `peril`, its level from the health's share |
+| one order with a mark and a distance | a checklist of every step | `objective-order`; the checklist moves to the map screen |
+| a round radar that turns with the player, a view wedge, north on the bezel | a square map | `radar-scope`: `minimap` `scope`, `north` |
+| tapered arcs round the aim that fade | a triangle on a dashed circle | `threat`, each arc turned to its bearing, `fade` its age |
+
+The first mission draws all of these (below). The idioms are on the `live` shelf, and the board's shooter HUD lays them
+out together.
+
+Not yet drawn, and next on this road (the UI only):
+
+- a compass strip with the objective's bearing and distance, beside the radar
+- a waypoint over the objective in the world (a mark and its metres; an `anchors` row, the game projecting it)
+- the kill confirm at the aim (a skull, a ring) and a kill feed of icons, not lines of words
+- the equipment (grenades, a melee charge) as counted slots beside the gun
+- a pickup said where it was taken ("+30 rounds" rising off the belt)
+
+### A cinematic action game: its HUD, its item select and its pause
+
+A cinematic action game (the genre's slow motion on a dodge, a hero fighting through set pieces) holds to the same
+principles on its three surfaces. Each is drawn by mana-ui in the game's look, in place of what the level page drew on
+its own.
+
+- **The HUD** (the level's rows lowered by `game/hud-mana.js`, hosted by `scene/channels/mana-hud.js`):
+  - **The pilot, bottom left.** The health is one strip in cells with no label and no number. A level row that is the
+    health is folded into it, so the screen shows one health (its max is the highest the row has stood). The sprint is
+    a thin bar under it, and the strip rests while the health is full.
+  - **The slow motion.** Beside the strip, a charge (`charge`, the `bullet-time` idiom) is a ring round an hourglass.
+    It fills while the moment comes back, glows when it is ready with what sets it off said beside it ("Dodge"), and
+    drains while the world crawls.
+  - **The rest.** The gun in hand sits bottom right (`magazine`: its wireframe, its rounds as cartridges). The page's
+    radar becomes a scope at the top right, its damage ring becomes arcs, and the screen's edge closes in under half
+    health. Every other row is bare or on a scrim, never boxed.
+  - Each part stands only where the page has the thing; the page's own versions are put away.
+- **The item select** (`wheel`, the `item-wheel` idiom): held open on RB, what is carried lies round a ring at the face
+  button that picks it (Y at the top, B right, A at the foot, X left), as the pad's own diamond. Each slot is drawn as
+  its wireframe with its name, its button in the pad's own print and its rounds. The one in hand is lit and named large
+  in the middle, over a shade with no box, the world showing through. It takes no focus: the level's own buttons pick,
+  and the page says what it shows through `window.__mojWc.view()`.
+- **The pause** (`pause-menu`, as every game's pause now is): the world is veiled behind (the theme's backdrop), PAUSED is
+  large at the left with where you are under it, and the menu is set at a title's size. What the run stands at sits bare
+  at the right: which level of how many, and the time played (the play shell's `pause.where()`). The controls screen
+  shows each key as a cap beside what it does.
+
+### The street: the beat 'em up and the run and gun
+
+Both draw one street HUD (`brawl/brawl-street.js` `streetSpec`, its `gun` variant the run and gun's), inside the
+street's frame (the HUD's root is the scene's, never the page's margin: every `.mana-root` in a world page's `#wrap` is
+placed in it).
+
+- **The seats** are four quarters across the top on one shade, never boxes. A seat taken is its tag and its name, and its
+  health as a strip in cells in its own colour (`bar` `side`), read by its length. The run and gun's seat adds the gun
+  in its hands as its wireframe, its rounds as the figure over a belt (or a track past sixty), the sidearm endless (`∞`,
+  never low: `magazine` `endless`), and its grenades as pips. The arcade guns have their own wireframes (machine gun,
+  spread, flame).
+- **Danger:** with one player the screen's edge closes in under half health (`peril`); in co-op the low seat's bar
+  beats, since one edge cannot say whose.
+- **The foe being hit** is named, with a short bar, under the seats for two seconds after the last hit. **The combo** is
+  a large figure at the hitter's edge, with a word at each rung.
+- **Shapes over words:** the way on is an arrow pulsing at the right edge ("GO ➜"), not a word over the fight. The
+  boss's name is a title over its bar, its phases ticks inside it. The stages and the foes left are marks with no label.
+- **A scene** (an arrive or leave card) clears the HUD from the screen. The street's own end says no health on a loss,
+  and the rank is stamped.
+- A choice of gun before the street shows each gun's wireframe beside its name (an option's `gun`).
+
+### Fable of Artesia: the action-adventure's HUD
+
+The action-adventure's HUD grammar (`scene/channels/hud-grammar.js`) holds to the same principles.
+
+- **The hearts empty by quarters** (`pips` takes a fraction: the last heart drawn that far full).
+- **What is held** (the weapon, the sidearm, the item and its count) sits small at the top right. What the body does
+  (the guard, the sprint, the lock) is not equipment: its keys are the controls screen's.
+- **The stamina** is a ring by the hero's shoulder, shown only while it is spent, harm when nearly gone. **The lock**
+  is brackets over the locked foe's drawn top with its health thin under them, in place of the runtime's own diamond
+  and bar. Both are drawn on `anchors` at points the page's camera projects.
+- **The map** is a round scope at the bottom right that turns with the hero, with the foes awake and the way on.
+- **Passing words** (an item used up, a pickup) sit at the foot's left, haloed dark, off the aim.
 
 ## The fight's language
 
@@ -779,6 +926,42 @@ audit. `manaUiPage(spec, { state })` is a self-contained page over a plain state
 
 ## The surfaces on it
 
+### A level's scenes
+
+A level's scenes (`playscape/ui/scenes.js`) speak through the talk box on a page whose level has a mana-ui HUD. The HUD
+host (`scene/channels/mana-hud.js`) runs a second runtime on its own kernel and sheet, over a root of its own
+(`#moj-mana-talk`), so the box wears the game's theme and the page carries no second kernel.
+
+- **The state** is the scene runner's view, lowered each frame by `playscape/ui/talk-box.js` `talkState`: the speaker's
+  name, the words typed so far, whether the line is whole, the answers with the one in hand, and the legend (no skip on a
+  flow's stage that cannot be skipped).
+- **The input stays the scene channel's** (`scene-channel.js`): a press goes on, holding or Esc skips, a number or the
+  arrows pick. A choice's row pressed is that answer.
+- **While a scene plays** the page's own box and hint are put away and the HUD steps aside.
+- A page with scenes and no mana-ui HUD keeps the scene channel's own box.
+- **Whoever speaks is drawn live in the box's face** (`scene/channels/talk-face.js`): their own figure, head and
+  shoulders, seen by a second camera in front of them on the page's one renderer. Before each frame's render the
+  portrait is rendered into a corner of the canvas and copied into a canvas over the face's place; the frame's render
+  then draws over the corner. Nothing is baked: their idle, a walk, a script's take play in the portrait as they do in
+  the world. The level's speakers sheet, `play.speakers: { <who>: { portrait: 'live' | 'none' } }`, shows a speaker by
+  the box alone (`none`); a speaker with no body on the page, or one hidden (the player's in first person), has no face.
+- **A speaker's face says the line** (`playscape/ui/talk-lines.js`): a plain line said by a hero with a talking head
+  (the realistic face, or the anime or landmark face, which then plays on the page) is performed at build (`face-acting/perform.js`:
+  its expression, its words lip-synced by `speech.js`, the blinks and gaze of a speaking face) into a face track on the
+  speaker's figure, and the line gets a face-only take on its own clock (`talk:<scene>:<beat>`). The scene runner plays
+  it as it plays a script's take; the page's face plays the track while it runs, in the world and in the portrait. A
+  script's lines keep their own takes. The landmark head says it too (`face-acting/western-read.js`): the take
+  read as the anime face reads it, its eyes, smile and brows on its targets, its mouth's vowels its jaw bone's degrees
+  (`face.jaws`), turned on the page about the head's own x as the rig's jaw chain turns it.
+- **Recorded voices, when the creator wants them.** A line's `voice` takes a WAV's path (the voice worker's, a native
+  speech engine's, a person's): `create_sketch` / `update_sketch` bind it as a hero's recorded lines are bound
+  (`face-acting/recordings.js` `bindSceneVoices`: saved by its content under the outcomes, timed by the engine's
+  `.timings.json`, else by its words aligned, else by its loudness). The speaker's face says it on the recording's own
+  timeline, a recorded line has a take whoever says it, and the page carries the recording's bytes and plays it as the
+  take begins, stopping it as the line goes (`scene-channel.js`, `window.__mojVoice`). A browser plays no sound before a
+  press, so a line already under way when the first press comes is taken up where its take has got to.
+  `play.speakers.<who>.voice` keeps each speaker's casting with the level. Lines with no recording stay silent.
+
 ### The RPG's battles, party menu and shops
 
 The first surface moved onto mana-ui. Its spec is `playscape/rpg/rpg-ui.js` (screens and a HUD of components, data
@@ -855,6 +1038,27 @@ mana-ui, not a page panel of their own: `gameworld/practice-mana.js`, hosted by 
   takes the same look (`playCss`): the HUD's counters and its hint line as tickets, the use prompt with its key as a cap,
   and the page's margin in the plate's colour. Only the HUD's own hooks are styled (its classes and `--moj-*` tokens).
 
+### The first mission
+
+A shooter's first level ([missions.md](missions.md)) is on mana-ui whole, from one spec
+(`gameworld/mission-mana.js`): the briefing over the held scene, the HUD while it plays, the pilot's pause and, on a page
+played alone, the debrief. It is a level's HUD drawn by the runtime, read each frame off the scene's own probes (the
+bus's vars for the level's hp, the task in hand and the yard's clock; the pilot's weapon for the gun, its fire mode, its
+magazine and its reserve; the pilot's hits and who dealt the last for the damage ring, a mark on the `damage-direction`
+idiom's ring where each hit came from), painted when what it shows changes. It holds to the principles above: the
+health a strip in cells and the gun its magazine, both on scrims and resting while they hold no news; the task in hand
+as one order, with how far; the radar a scope; the screen's edge closing in as the health runs out. The list of every
+task is on the map screen. The page's own readouts and ammo panel are put away where mana-ui
+draws the same thing; the reticle stays the gunplay view's.
+
+- **Hosted as a page channel** (`scene/channels/mission.js`), opt-in on a world's `mission`; absent, it adds nothing.
+  The kernel, the controls host and the runtime sit in a scope of their own.
+- **Input** is the controls layer's (`controls/mana-host.js`), as the practice rooms' menu: the pilot scheme's `pause`
+  opens it, the scene is held on the pause sidecar.
+- **Its look** is the theme its manifest names: the world's interface where it writes one, else the `field-brief`
+  theme card. A look with an overlay across the screen is read without it: the HUD lies over the sights.
+- **In a game's shell** its debrief stays shut: the shell's own result screen is the debrief.
+
 ### The strategy boards
 
 A board (`board/board-page.js`: a tactics battle, an epoch's map, a tower defence, a skirmish) is drawn by mana-ui by
@@ -927,6 +1131,34 @@ screen is up.
 - `over`, GAME OVER where the level lets the player continue (the lives mechanic's `continues`). Continue and Give up
   raise `continue` and `giveup` on the level's bus; back does not leave it.
 
+### The open city
+
+A played city (an open-world game: errands and jobs, a phone, a map, a bag, a journal) draws every part of its UI on
+mana-ui, and reads as a game's, not an app's. It follows the principles a game HUD is drawn by:
+- the shape is the label;
+- nothing is boxed over the world;
+- a part speaks when something changes;
+- the map is an instrument.
+
+Its look is the `downtown` theme card (`playscape/ui/theme-cards/downtown.json`, the look a `city-stalker` intent starts
+from: `INTENT_LOOKS` may name a card as well as a preset). It is near-black glass with white words, a taxi's yellow for
+what matters and a banknote's green for money, with nothing drawn across the screen, so the city shows through every
+screen.
+
+- **The radar** (`scene/channels/map-channel.js`) is round, on no plate, with a rim and a shadow under it and its ground
+  darkening toward the edge. The opened map shows the ground in the look's own night, with water in a cold blue. Only
+  the goal and you are named on it, and the key beside it names the rest.
+- **Money** is a coin and a figure that leads, large (`game/hud-mana.js`: a counter of coin, cash, gold or credits is
+  drawn as money). The bag says it the same way.
+- **The guide** (`scene/channels/guide-mana.js`) gives the objective as an order (a mark, what to do, how far). The keys
+  that work now speak when they change (a car in reach, the wheel taken, a call on the phone) and step away after a few
+  seconds. As a car is taken its name is said large at the bottom right, leaning, and gone, as an open-world game names
+  a ride.
+- **The phone** (`scene/channels/phone-channel.js`) is a handset held at the bottom right with the city still there
+  round it, not a screen. It has a phone's body, the hour and the signal along its top, its apps as the tabs, and its
+  contacts above the open thread.
+- Every place of a level's HUD is bare, its words haloed (`game/hud-mana.js`).
+
 ## In a headset
 
 A WebXR session shows no DOM, so mana-ui reaches a headset as a picture of itself, never a second drawing of it:
@@ -963,6 +1195,11 @@ changes its frames. Nothing is loaded: the theme's sheet carries each as a mask,
 beside it. The runtime only names one (`data-icon` on an `icon`, a counter's `icon`, a prompt's glyph); a game's other
 words for it (`coins`, `time`, `hp`) are aliases in the library.
 
+A shooter's guns are a shelf beside them (`guns.js`): each gun a wireframe of its side on a 64 by 20 grid, its
+outlines over a faint fill of themselves and its inner lines thinner, and each round it feeds standing tip up, both
+masks cut from the ink like the pictograms. A magazine names its gun (`gun`, else its `name`; the words for a gun are
+aliases) and the sheet draws its wireframe and its rounds; a name with no wireframe draws none. A new gun is a row.
+
 A theme dresses them further. `icons` has eight styles: `solid`, `line`, `chunky`, `badge`, `duo`, `sketch` (drawn by
 hand), `stencil` (cut and sprayed) and `glow` (a lit tube). `iconTone: 'meaning'` colours each by what it means in the
 theme's own tokens (a heart the health's, a bolt the stamina's, a skull the harm's, what is won the accent). A badge's
@@ -983,6 +1220,74 @@ title with the run's rules and best, its pause (the pause menu, the level's cont
 a loading screen that says which map is next, and a result with the map, the seconds, the coins and a rank. In play
 its level hosts a HUD of its own (`scene/channels/mana-hud.js`, composed by `gameworld/course-hud.js`). Both wear the
 look the course's dress names (`toybox`, the toy family's first card).
+
+### The lens: the screen layer
+
+The HUD sits on the picture. The lens acts on it: a spec's `lens` is a second part of the same runtime, drawn apart
+from the HUD's root (`rt.lens()`, mounted with `mount(el, rt, { part: 'lens' })`). The host lays it beside the world's
+canvas and under the UI. Its regions filter the world's own pixels, so its root is never its own stacking context:
+no z-index, no `contain`, no `container-type`, no opacity, transform or filter on it (`lensCss`). Anything that
+isolated it would leave its regions filtering nothing; the reactive layer's spike found it
+(`scripts/spikes/reactive-layer/`).
+
+**It is for still figures: a turn-based fight, never an action level.** A region on the screen is drawn where the
+figure was when the page last projected it. A figure that stands while the round plays is where its region says; one
+that runs and dodges outruns it, and an action level's hits are already answered by the world (the body's flash, its
+sparks, the tempo's moments). So its host is the RPG's battle (`playscape/rpg/rpg-ui.js`, `scene/channels/rpg-channel.js`),
+and the level HUD carries no lens.
+
+Its first effect is the **strike**: the air round a figure on the screen.
+- **What it draws:** a band from the figure's silhouette out, bent and lit (`ring`), lit (`lift`), darkened (`shade`)
+  or turned to its negative for a beat (`ink`, a lift under less flash). Each row may name its own kind over the
+  strike's: a miss's ring and a cast's lift in the same fight.
+- **Where it draws:** each row `{ id, n, x, y, r, power?, kind? }` is the figure's middle and its body's radius on the
+  screen. A new `n` plays again.
+- **Its cost:** each strike is a region the size of its band (a region filters only its own area), and at most
+  `most` play at once.
+
+**In a fight it is a juice step** (`playscape/rpg/juice.js`): `{ lens: ring | lift | shade | ink, at?: target | actor }`
+draws round the figure the step names, for the beat. By default a miss bends the air round its target and a cast
+lights the air round its caster: the beats the world leaves bare.
+
+**It never overlaps the world's own effects.** The world draws on the figure, so the strike's mask leaves a hole over
+the body. And a lens step yields where the beat's world already answers (`lensYields`): a flash over the field, a puff
+on the same figure, or a beam landing on its target. The screen's juice never doubles the world's.
+`scripts/spikes/reactive-layer/lens-proof.mjs` shows it in Chrome in a party fight: each kind round the struck figure,
+and nothing on a hit that flashes the field.
+
+### Screen effects
+
+A moment worth celebrating gets a screen effect: the HUD's `effect` layer, beside its regions. Its kinds are
+`confetti`, `streamers`, `sparkles`, `burst`, `petals` and a `flash`. Confetti falls from the top, pops from the centre
+or fires up from the bottom (`from`).
+- **Trigger:** it plays once each time its `on` takes a new value (a finish, a best lap, a level up: bind it to a count
+  the game raises), or holds while `loop`. A new trigger is a new element (its `data-key`), so its animation plays
+  again; with no trigger the layer is empty and hidden.
+- **Pieces:** thrown by the effect's own dice (`seed` and the trigger: the same moment throws the same pieces), in the
+  theme's colours by name (`tones`: accent, accent2, hp, ink by default) or a hex, as many as `count` (at most 160) for
+  `seconds`.
+- **It never touches play.** It is pure CSS: it catches no pointer, is laid out alone (`contain: strict`), and its
+  motions move transform and opacity only, the compositor's, so it asks the game for no frame. It holds with a held
+  clock, as every HUD animation does, and under less motion its pieces stay home and only a flash, a fade, plays.
+
+A race lays two: confetti on the finish and sparkles on a lap better than the best (`fx.finish`, `fx.best`).
+
+### A race's HUD
+
+A level raced by laps on a roadway (the `laps` mechanic round a track) hosts a HUD of its own too, composed by
+`gameworld/race-hud.js`. A race is read from behind the kart as a course is, so the HUD keeps to the corners and the
+right edge: the place, large, in the top left over the field; the lap of the laps, this lap's time and the best lap in
+the top right; the track's map on the right edge, the track's own line drawn as a dotted route (the minimap's
+`route`) with you and the field on it; the speed on a dial in the bottom-right corner; the final lap and the finish
+(with the place) as moments. The start is five lights coming on a beat apart on a plate, then out together for GO:
+a screen, so the karts are held, and the world frozen with the race's clock until they go out. A tall frame lays the
+place and the lap on one plate at the top, with no map. Its look is its track's: `kart-candy` (the toy family) for a
+candy track, `pit-wall` (the clean family: the timing tower) for a circuit; a world that names its own theme wears it.
+A race on a track with item boxes (`roads/kart-items.js`) shows its held item as one large `slot` (`size: 'l'`) at the
+top's middle, there all race and in no words: dashed while empty, the item's pictogram filling it and its frame the
+accent (`active`) while one is held, the key that uses it in its corner; read off the page's `window.__mojItems`. A
+slot draws its pictogram where the theme has one (its icon carries `data-icon`), its initials where not. Each item names its pictogram on the icon shelf (`icons.js`: a wrapped sweet with a
+bolt through it, a toffee splat, a gumball), and Candy Kart draws its pictograms chunky, toned by what they mean.
 
 ### Layout that adapts
 
@@ -1021,11 +1326,41 @@ reading the level's bus each frame. So a level's readouts, its moments and the g
 | legend | words in its slot, for its ttl |
 | title | the carved letters, as before (`game/title-carve.js`) |
 
-A row's `id` and `when` gate it as they did. The pilot's own gauges (its health, its sprint) lead the top-left corner,
-read off the runtime; the runtime's own gauges and the old widget columns are hidden, not removed. A row's colour is
-not carried: the theme owns the look. A level manifest asks for it with `manaHud: { rows: 'events', theme }`
+A row's `id` and `when` gate it as they did. The pilot's parts (its health as a strip in cells, with a level's
+health row folded in; its sprint; the slow motion's charge; the gun in hand; the radar, the damage ring and the weapon
+wheel) are drawn as the cinematic action game's are (above), read off the runtime. The runtime's own gauges, its radar,
+weapon panel, wheel and damage ring, and the old widget columns are hidden, not removed. A row's colour is not carried:
+the theme owns the look. A corner's rows sit on a scrim and the others bare, never boxed. A level manifest asks for it with `manaHud: { rows: 'events', theme }`
 (`levelHud`); a world without a `ui` lays its levels as before, and a course's HUD stays its own composition on the
 same host. Not yet on the host: a board, a building or a tabletop level, and the level-complete card.
+
+### The shooter's HUD is the baseline
+
+Every page a gun is fired on wears one HUD: the first mission and its kin (a mission in a building, an industrial
+level), a quick shooter's level, a deathmatch and the firing range. It is the mission's page with nothing of a mission
+in it where there is none (`mission: { tasks: [], plain: true }`, `shooterHudUi`; `gameworld/mission-mana.js`): the gun
+in hand, the health, the screen's edge, the scope (a minimap: the level's plan turning under its marks), the damage
+ring, the map and the pause. With no mission it shows no
+order, opens no briefing and leaves the end to the level; the level's own counters, lines and clock stay the page's (a
+bout's frags and place) and stand at the top right, clear of the scope; the page's own health row and its old radar
+give way, since this HUD draws both.
+
+What "A HUD that reads as a game" sets down are the baseline, and they are principles, not a skin. They hold for every
+shooter whatever it looks like:
+
+- a readout is read by its shape (a belt of rounds, a bar's length), never by a label beside a number
+- nothing is boxed over the world, and a readout with no news rests
+- danger is felt at the screen's edge before it is read
+- one order at a time, the list on the map
+- a hit says where it came from
+
+The look over them is the game's own. A world's `ui` (the interface chapter: `playscape/ui/interface-look.js`) names
+its theme, and the same parts are drawn in it: its inks, its accent and harm colours, its type, its corners. A world
+that names none wears the field brief. A new look is a theme card; a new part is a part of mana-ui that every theme
+then draws. So a game themes its HUD its way and cannot quietly drop a principle: the parts carry them.
+
+Said: the firing range's own buttons and its bout badge still stand at the top left under the scope; a world's `ui`
+has been checked to change the sheet, not looked at theme by theme on a shooter.
 
 ## What is next
 

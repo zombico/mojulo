@@ -1,0 +1,42 @@
+{
+  "id": "pit-wall",
+  "name": "Pit Wall",
+  "about": "A circuit race read off the timing tower: near-black plates with a hairline, white figures in capitals, yellow for your place and the lights, purple for a best lap. Exact and quiet: it never competes with the track.",
+  "family": "clean",
+  "tags": [
+    "racing",
+    "circuit",
+    "realistic",
+    "sim",
+    "timing"
+  ],
+  "author": "mojulo",
+  "from": "modern",
+  "tokens": {
+    "ink": "#ffffff",
+    "panel": "#121317",
+    "line": "#3a3d45",
+    "accent": "#ffd400",
+    "accent2": "#a855f7",
+    "harm": "#e10600"
+  },
+  "frame": "hairline",
+  "corner": "square",
+  "plate": "flat",
+  "case": "upper",
+  "motion": "snap",
+  "slant": "none",
+  "breakout": "none",
+  "backing": "none",
+  "crest": "none",
+  "overlay": "none",
+  "material": "none",
+  "stage": [
+    "stripes",
+    "none",
+    "streaks",
+    "none",
+    "none"
+  ],
+  "icons": "line"
+}

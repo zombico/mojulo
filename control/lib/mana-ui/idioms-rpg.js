@@ -99,6 +99,16 @@ export const RPG_IDIOMS = {
     ]),
     example: { title: 'Armoury', gold: { bind: 'player.gold' }, buy: { bind: 'shop.buy' }, sell: { bind: 'shop.sell' } },
   },
+  'map-screen': {
+    kind: 'screen', about: 'the map opened: the place from straight above or as a miniature on a table, what is on it by its icon and its name, and a key to the icons beside it',
+    reads: 'shapes, markers (each its icon and label), view: plan | follow | miniature, focus, heading, zoom; key: [{ icon, name }]', emits: 'a key row\'s find (its icon: show me these)',
+    params: ['title', 'shapes', 'markers', 'view', 'focus', 'heading', 'zoom', 'key'],
+    node: screen({ title: P('title'), layer: 'modal', place: 'full' }, [{ use: 'split', props: { ratio: 'wide' }, children: [
+      { use: 'window', children: [{ use: 'map', props: { shapes: P('shapes'), markers: P('markers'), view: P('view'), focus: P('focus'), heading: P('heading'), zoom: P('zoom'), size: 'full', labels: true } }] },
+      { use: 'window', props: { title: { word: 'map' } }, children: [{ use: 'list', id: 'key', props: { rows: P('key'), row: row({ use: 'icon', props: { name: I('icon') } }, txt(I('name'))) }, on: { accept: { emit: 'find', icon: I('icon') } } }] },
+    ] }]),
+    example: { title: 'Map', shapes: { bind: 'city.shapes' }, markers: { bind: 'city.markers' }, view: { bind: 'city.view' }, focus: { bind: 'city.focus' }, heading: { bind: 'city.heading' }, zoom: { bind: 'city.zoom' }, key: { bind: 'city.key' } },
+  },
   'quest-log': {
     kind: 'screen', about: 'the journal: quests beside the one in focus, its story and its steps (done ☑, to do ☐)',
     reads: 'quests: [{ id, name, state, about, steps: [{ text, done }] }]', emits: 'a quest\'s then (track it)',

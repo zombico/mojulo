@@ -102,6 +102,24 @@ export const HOSPITAL_STOCK = Object.freeze({
   // the basement's stores
   store: STOCK.store,
 });
+/**
+ * A HALL'S COVER (a building designed as a fighting map, programs.js FIGHT `cover`; laid by compose-dress.js layCover):
+ * what a tall hall's middle is broken by, from the hall's own stock: `[piece, the STOCK row it is taken from]`, the
+ * first its BLOCK (a mass a body stands behind: the piece, in rows back to back where it is thin), the rest its LINES
+ * (low cover a body crouches behind, laid end to end). A hall with no row here is left as it is stocked. A new hall is
+ * a row; a piece is never one its own rows do not name.
+ */
+export const HALL_COVER = Object.freeze({
+  // a warehouse's shed: its racking and its crates (a store's)
+  shed: [['rack', 'store'], ['crate', 'store']],
+  // a hangar: its containers, its barriers
+  hangar: [['container', 'hangar'], ['barrier', 'hangar']],
+  // a generator hall: the plant's switchgear, its own barriers
+  'generator-hall': [['switchgear', 'switchgear'], ['barrier', 'generator-hall']],
+  // a lab's instrument bay: its racks (a server room's)
+  instrument: [['instrument-rack', 'server']],
+});
+
 /** The great object a base use stands at its landmark's focus, in place of its register's (a hospital's emergency
  *  department its scanner). */
 export const GREAT = Object.freeze({ command: 'ops-table', plant: 'generator', emergency: 'scanner' });

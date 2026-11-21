@@ -83,3 +83,27 @@ describe('nav: a mind walks the path', () => {
     expect(Math.hypot(w.byId.m.transform.pos[0], w.byId.m.transform.pos[1])).toBeLessThan(2);
   });
 });
+
+// LEDGES (opt-in): a cell with no ground at the body's height is shut as a wall is. One case: a floor with a well in
+// it and one pillar (the grid is the colliders' world, so one stands); the way across is round the well, never over it.
+describe('nav ledges', () => {
+  const well = (p) => p[0] > 15 && p[0] < 25 && Math.abs(p[1]) < 12;
+  const w = { colliders: [{ min: [60, 60, 0], max: [61, 61, 5] }], ground: (p) => (well(p) ? null : 0) };
+  it('without the ask the path is straight over the well, as it was', () => {
+    expect(E.navPath(w, [0, 0], [40, 0], { radius: 1 })).toEqual([]);
+    expect(E.navClear(w, [0, 0], [40, 0], { radius: 1 })).toBe(true);
+  });
+  it('with it the path goes round: no corner of it stands over the well, and it ends at the goal', () => {
+    expect(E.navClear(w, [0, 0], [40, 0], { radius: 1, ledges: true })).toBe(false);
+    const path = E.navPath(w, [0, 0], [40, 0], { radius: 1, ledges: true });
+    expect(path.length).toBeGreaterThan(1);
+    expect(path.at(-1)).toEqual([40, 0]);
+    for (const c of path) expect(well(c)).toBe(false);
+    expect(E.navPath(w, [0, 0], [40, 0], { radius: 1, ledges: true })).toEqual(path);
+  });
+  it('a step down within its drop is ground still; a drop past it is a ledge', () => {
+    const stepDown = { colliders: w.colliders, ground: (p) => (p[0] > 20 ? -0.3 : 0) }, cliff = { colliders: w.colliders, ground: (p) => (p[0] > 20 ? -4 : 0) };
+    expect(E.navClear(stepDown, [0, 0], [40, 0], { radius: 1, ledges: true })).toBe(true);
+    expect(E.navClear(cliff, [0, 0], [40, 0], { radius: 1, ledges: true })).toBe(false);
+  });
+});

@@ -60,6 +60,8 @@ import { LEVEL_GOAL, PERSON } from './quick.js';
 import { gauntletIds } from './gauntlet.js';
 import { taskFoeIds } from './fights.js';
 import { streetFoeIds } from './brawl-cast.js';
+import { factionFoeIds } from './factions.js';
+import { lawFoeIds } from './law.js';
 import { HERO } from '../foes/vocab.js';
 import { FEELS, FPS } from './feel/cards.js';
 import { feelCard } from './feel/lower.js';
@@ -213,6 +215,10 @@ export function fieldedIds(G) {
   for (const f of taskFoeIds(G)) used.add(f);
   // (and who its streets bring: brawl-cast.js)
   for (const f of streetFoeIds(G)) used.add(f);
+  // (and who its factions fight with: factions.js)
+  for (const f of factionFoeIds(G.factions)) used.add(f);
+  // (and who answers mayhem: law.js)
+  for (const f of lawFoeIds(G.law)) used.add(f);
   // (and what a summoner it fields calls, and who a pair stands with)
   for (const id of [...used]) { const E = bestiaryOf(G)[id]; if (E?.summons) used.add(E.summons.foe); if (E?.pair) used.add(E.pair.foe); }
   // (and the modes each of them becomes)
@@ -383,6 +389,8 @@ export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tun
     body: { type: 'figure-rig', figure: fig, hittable: true, hp: f.toll.hp, poise: 2, radius: b.rule.collideRadius, egg: b.egg, hpBar: 'target', targetRim: C.rim, ...(f.scale !== 1 ? { scale: f.scale } : {}), vanish: vanishOf(G, last), ...(modes ? { modes } : {}), ...(p.entry && p.entry.states ? { born: stateBirth(p.entry.states, { height: 2 * b.egg.cz }) } : {}), ...(T.body || {}) },
     transform: { pos: p.at, heading: p.heading },
     ...(more.dormant ? { dormant: true } : {}),
+    // (one kept away until it is brought, and where it may be set down then: the law's police, levels.js policeCast)
+    ...(more.gone ? { gone: true } : {}), ...(Array.isArray(more.posts) ? { posts: more.posts } : {}),
   };
   // (its genre's row: how hard a game's foes are, hero-rows.js rowFoe)
   const made = rowFoe(G, e);

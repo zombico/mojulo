@@ -209,6 +209,58 @@ export function designRoadway({ class: className = 'kart', length = 600, twist =
   return { ...best, advisories: [...best.advisories, 'no seed tried keeps the line clear of itself: the best is kept'] };
 }
 
+/**
+ * A STREET CIRCUIT: a lap round city blocks, its corners square, as a race through a town's streets runs. The lap is
+ * the outline of a few blocks of a grid grown from one (`blocks`: 2 to 5, more with `twist`), never pinched at a
+ * corner: each corner a right angle at the class's tightest radius and a little over, each straight a block's side. The
+ * blocks it goes round are the course's own (`design.streets`: their cells and their size in metres, and the grid's
+ * origin), so the town can be laid on them (roads/street-frontage.js).
+ */
+export function designStreets({ class: className = 'kart', length = 700, twist = 0.5, blocks = null, elevation = null, ramps = [], seed = 1 } = {}) {
+  const cls = designClass(className), tw = Math.max(0, Math.min(1, twist)), want = Math.max(2, Math.min(5, blocks ?? Math.round(2 + 3 * tw)));
+  let best = null;
+  for (let attempt = 0; attempt < 24; attempt++) {
+    const rnd = mulberry32((seed * 131 + attempt * 7919) >>> 0), key = (x, y) => `${x},${y}`, cells = new Map([[key(0, 0), [0, 0]]]);
+    const D = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+    for (let g = 0; cells.size < want && g < 200; g++) { const list = [...cells.values()], c = list[Math.floor(rnd() * list.length)], d = D[Math.floor(rnd() * 4)]; cells.set(key(c[0] + d[0], c[1] + d[1]), [c[0] + d[0], c[1] + d[1]]); }
+    const has = (x, y) => cells.has(key(x, y));
+    // a corner of the grid touched by two blocks only across it would pinch the lap: refused
+    let pinched = false;
+    for (const [x, y] of cells.values()) for (const [vx, vy] of [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]]) { const a = has(vx - 1, vy - 1), b = has(vx, vy - 1), c = has(vx, vy), d = has(vx - 1, vy); if ((a && c && !b && !d) || (b && d && !a && !c)) pinched = true; }
+    if (pinched) continue;
+    // the outline, the blocks on its left (anticlockwise): each open side of a block an edge, chained
+    const next = new Map();
+    for (const [x, y] of cells.values()) {
+      if (!has(x, y - 1)) next.set(key(x, y), [x + 1, y]);
+      if (!has(x + 1, y)) next.set(key(x + 1, y), [x + 1, y + 1]);
+      if (!has(x, y + 1)) next.set(key(x + 1, y + 1), [x, y + 1]);
+      if (!has(x - 1, y)) next.set(key(x, y + 1), [x, y]);
+    }
+    const [sx, sy] = [...next.keys()][0].split(',').map(Number), ring = [[sx, sy]];
+    for (let k = 0; k < 64; k++) { const n = next.get(key(...ring[ring.length - 1])); if (n[0] === sx && n[1] === sy) break; ring.push(n); }
+    // its corners: where the outline turns
+    const corners = ring.filter((p, i) => { const a = ring[(i + ring.length - 1) % ring.length], b = ring[(i + 1) % ring.length]; return (p[0] - a[0]) * (b[1] - p[1]) - (p[1] - a[1]) * (b[0] - p[0]) !== 0; });
+    if (corners.length < 4) continue;
+    const cx = corners.reduce((t, p) => t + p[0], 0) / corners.length, cy = corners.reduce((t, p) => t + p[1], 0) / corners.length;
+    const per = ring.length;   // (the outline's length in blocks: a block's side each step)
+    let S = length / per, course = null;
+    for (let k = 0; k < 6; k++) {
+      const r = Math.min(cls.rmin * (1.2 + 0.5 * rnd()), S * 0.3);
+      try {
+        course = fromPIs({ class: className, pis: corners.map(([x, y]) => [(x - cx) * S, (y - cy) * S, r]), closed: true, seed, elevation, ramps });
+      } catch { S *= 1.25; course = null; continue; }
+      S *= length / course.length;
+    }
+    if (!course) continue;
+    const size = r3(course.length / per), sc = selfClearance(course.alignment, { width: course.footprint, margin: 1 });
+    const scored = { ...course, design: { class: className, form: 'streets', length, twist: tw, seed, attempt, streets: { cells: [...cells.values()], size, origin: [r3(-cx * size), r3(-cy * size)] } }, selfClearance: sc };
+    if (!sc.conflicts.length && !sc.crossings.length) return scored;
+    best ??= scored;
+  }
+  if (!best) throw new Error('roadway: no street circuit could be laid at that length for the class');
+  return { ...best, advisories: [...best.advisories, 'no seed tried keeps the line clear of itself: the best is kept'] };
+}
+
 /** A stage designed from a few words, seeded: a road from one end to the other `length` metres along, meandering by
  *  `twist` (each leg turning up to 25° + 50°·twist, the heading held within 70° of the way on so it never folds back),
  *  its corners from the class's radius band, its hills and ramps as asked. */
@@ -342,6 +394,8 @@ export const COURSE_PRESETS = Object.freeze({
   'race-of-champions': () => designDuel({ class: 'stadium', length: 420, twist: 0.4, seed: 2 }),
   hillside: () => designRoadway({ class: 'circuit', length: 1800, twist: 0.45, elevation: { amplitude: 14, hills: 3 }, seed: 11 }),
   'stunt-park': () => designRoadway({ class: 'rally', length: 1100, twist: 0.3, elevation: { amplitude: 5, hills: 2, crest: 'sharp' }, ramps: ['kicker', 'tabletop', 'gap', 'whoops'], seed: 5 }),
+  // a street circuit: round three blocks of a town, its corners square
+  'city-blocks': () => designStreets({ class: 'kart', length: 720, blocks: 3, seed: 4 }),
   // point to point: a gravel special stage over three crests cut to fly
   'rally-stage': () => designStage({ class: 'rally', length: 2000, twist: 0.6, elevation: { amplitude: 12, hills: 3, crest: 'sharp' }, seed: 9 }),
 });
@@ -356,6 +410,7 @@ export function roadwayCourse(what) {
   }
   if (what && Array.isArray(what.pis)) return fromPIs(what);
   if (what?.duel) { const { duel: _d, closed: _c, ...rest } = what; return designDuel(rest); }
+  if (what?.streets) { const { streets: _s, closed: _c, ...rest } = what; return designStreets(rest); }
   if (what?.closed === false) { const { closed: _c, ...rest } = what; return designStage(rest); }
   return designRoadway(what ?? {});
 }

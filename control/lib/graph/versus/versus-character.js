@@ -169,8 +169,10 @@ export async function resolveCharacters(roster, lookup, sheetOf = () => null) {
   for (const [i, e] of roster.entries()) {
     if (!isCharacterEntry(e)) { out.push(e); continue; }
     const where = `roster[${i}]`;
+    // (a hero's POWER is the brawl's word (brawl/brawl-powers.js), not the fight's: carried past the fighter's reading)
+    const { power, ...e0 } = e;
     let spec;
-    try { spec = fighterSpec(e, i); } catch (err) { throw new Error(`versus: ${where}: ${err.message.replace(/^versus: /, '')}`); }
+    try { spec = fighterSpec(e0, i); } catch (err) { throw new Error(`versus: ${where}: ${err.message.replace(/^versus: /, '')}`); }
     const ref = spec.hero.ref, manifest = lookup(ref);
     const { body, color } = await measureCharacter(manifest, where, ref);
     // (its own strikes, solved on its own rig: versus-hero.js; the guard it stands in with them)
@@ -192,6 +194,7 @@ export async function resolveCharacters(roster, lookup, sheetOf = () => null) {
       body, ...(spec.color ?? color ? { color: spec.color ?? color } : {}), character: ref,
       ...(sheet ? { sheet: manifest.egocube.ref, reads: read.reads } : {}),
       ...(fight ? { heroNormals: fight.normals, guard: fight.guard } : {}),
+      ...(power !== undefined ? { power } : {}),
     });
   }
   return out;

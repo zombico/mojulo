@@ -1,3 +1,18 @@
+// Re-pinned 2026-11-18 (the open city's shops and guns): every fixture that embeds the controllable runtime. A weapon
+// may start with fewer rounds than it holds (combat-ranged.js `loaded`), the cast gains `repaint` (a respray), and a
+// moveset's hero may carry its sidearm in a holster (combat-melee.js `holster`, its trigger in combat-ranged.js). Each
+// is taken only by a weapon, an op or a rule that names it (no fixture's does): their worlds step as before.
+// Re-pinned 2026-11-17 (the street's health): every fixture that embeds the controllable runtime. A police car's hold
+// is its own count (rules-drive.js `chaser`: `helds`, `heldBy`) and the cast's facts raise it as `held:<id>` (cast.js
+// castFacts: one field more per body), so a hold is no hit. A body that is never held raises nothing new.
+// Re-pinned 2026-11-17 (the law's police cars): every fixture that embeds the controllable runtime. The drive builder
+// gained the `chaser` rule (rules-drive.js), the cast its `dismount` op and a `near` spawn's car reset, the mount step its
+// `eject` and a `carHull`'s place among the hulls, and the runtime keeps `posts`, `carBody` and `carHull` (two
+// normalizers). Each is taken only by an entity or an op that names it (no fixture's does): their worlds step as before.
+// Re-pinned 2026-11-17 (the open city's wanted level): every fixture that embeds the controllable runtime. The cast's
+// `spawn` gained `near` and `ring` (worlds/controllable/cast.js: a body set down at a ring's distance from another, on
+// one of its own `posts`, the law's police), a branch taken only by an op that names `near` (no fixture's does): their
+// worlds step as before.
 import { createHash } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
@@ -20,6 +35,30 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-20 (start screens, mana-ui's letters): `brawl`, `mission` and `holo`, the pages that embed the game UI
+// runtime: its text takes `letters` (a display entering letter by letter) and its kernel source carries the split. No
+// page here draws letters (their sheet, lettersCss, is laid only by the play shell's title and the board); they draw as before.
+// Re-pinned 2026-11-18 (1116-rc's lens merged into Hijack City): `brawl`, `mission` and `holo`, the runtime they embed
+// now carrying both the candidate's lens and this branch's "No ammo" word.
+// Re-pinned 2026-11-18 (Hijack City, mana-ui's magazine): `brawl`, `mission` and `holo`, the pages that embed the game UI
+// runtime whole. Its magazine says "No ammo" for a gun empty with none in reserve (kernel.js: one word, one condition).
+// Re-pinned 2026-11-18 (the release candidate merged into gen 7's city): the candidate's pins moved by this branch's
+// emission changes since the last merge: the passers-by drawn where seen and one mesh each (channels/walkers.js), the
+// occlusion prepass's reach (channels/creases.js), the cab's sounds (channels/audio.js), the level's save and the event
+// bus's city rows (channels/game.js), the walkers that react and the patrol (cab-pool.js). Nothing else moved.
+// Re-pinned 2026-11-18 (gen 7's city frame, channels/creases.js OCCLUSION_FAR): `occlusion` only. A page with occlusion
+// alone leaves a mesh wholly past 240 reaches of the camera out of the prepass; the creases' rows read the far and are
+// unchanged.
+// Re-pinned 2026-11-17 (a rider's footsteps): the audio channel's footsteps skip a body that rides (in a car, in a
+// saddle) or is gone: a carried body was heard walking under its ride.
+// Re-pinned 2026-11-17 (the release candidate merged into the open city): the candidate's pins moved by this branch's
+// two changes below (the event bus's zone rule; mana-ui's map, now with a side's turf as a shape kind).
+// Re-pinned 2026-11-17 (mana-ui's map): the game UI runtime and its sheet, which a page with a mana screen embeds whole,
+// gained the `map` component (kernel.js: a catalogue row and its draw; css.js: its rules), the corner radar and the map
+// screen idioms. The two fixtures that embed the runtime (brawl, holo) re-pinned; they draw as before.
+// Re-pinned 2026-11-16 (the open city: a driver in a cab stands in zones where its car is): the event bus the page
+// embeds reads a body sent away that rides in a cab as present (worlds/event-bus.js deriveZoneEvents: one line replaced),
+// so an errand is done from a car. Every fixture that embeds the bus re-pinned; the pages draw and play as before.
 // Re-pinned 2026-11-14 (the action RPG: foes that never lock blades, steps at their own level): the runtime's melee
 // contact reads `rule.clash === false` on either body before a clash (combat-melee.js: one line replaced in place; a
 // rule that says nothing clashes as before), and the audio channel plays a step at `footsteps.gain` (audio.js: one
@@ -804,12 +843,75 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // stands inside its round, the pads fill from the screen's edge, the HUD's bottom corners stand over a pad, a region
 // whose every part is gated off draws no plate, and a glass theme no longer blurs behind a bare region; neither page
 // draws a touch pad or an empty region, and every other fixture holds byte for byte.
+// Pinned 2026-11-15 (1115-shooting-rails: a mission's briefing, HUD, pause and debrief on mana-ui): the new `mission`
+// fixture only (the mission channel's block: mana-ui, the controls host and the mission's runtime in a scope of their
+// own). Every other fixture carries no `mission` and keeps its bytes: the channel adds nothing where it is absent.
+// Re-pinned 2026-11-15 (1115-shooting-rails: the damage ring): `mission` only. Its runtime reads the pilot's hits and
+// marks where each came from on mana-ui's ring, its bearing inlined beside it.
+// Re-pinned and pinned 2026-11-15 (1115-shooting-rails: the damage ring as its own concept): `mission` (its runtime
+// steps the shared tracker, inlined beside it) and the new `damage-ring` fixture (the ring's own channel, for a page whose
+// HUD is its own). No other fixture carries either.
+// Re-pinned 2026-11-15 (1105-rc merged into 1115-shooting-rails): `mission` only. Its page inlines the game UI kernel,
+// which the candidate changed (pictograms, the frame, the touchpad, the pick screen), as `brawl` and `holo` were re-pinned
+// for there; the mission's own block is as it was.
+// Re-pinned 2026-11-15 (1115-shooting-rails: a ladder climbed by holding jump): the seventeen fixtures whose page
+// inlines the controllable runtime (`controllable`, `controllable-lock`, `action-hero`, `controllable-shadows`,
+// `cast-shadows`, `live-shadows-actors`, `live-shadows-both`, `controllable-smoke`, `controllable-figure`,
+// `controllable-hangar`, `fx`, `shoot-live`, `toon-ink-controllable`, `toon-ink-fx`, `capture-controllable`,
+// `kitchen-sink`, `kitchen-sink-capture`). The climb's owner (worlds/controllable/rules-basic.js) reads a climbable's
+// opt-in `hold` and `holdReach`: stood under it, holding jump takes hold and goes up while it is held. No fixture
+// carries a climbable that asks, so every one plays as it did (the runtime's trace holds); only the runtime's text
+// moved. Every fixture with no controllable runtime holds byte for byte.
+// Re-pinned 2026-11-15 again (1115-shooting-rails: a mind's path kept to its ground): the same seventeen, for the same
+// reason. The pathfinder (worlds/controllable/nav.js) takes an opt-in `ledges`: a cell with no ground at the body's
+// height is shut as a wall is, asked of the ground a cell at a time as a path reaches it; a mind asks with
+// `rule.navLedges`. No fixture's mind asks, so every path is the colliders' as it was; only the runtime's text moved.
+// Re-pinned 2026-11-15 a third time (1115-shooting-rails: a wave crosses a building's storeys): the same seventeen,
+// for the same reason. A mind's flight (worlds/controllable/mind.js floorWay) takes an opt-in `way`, its points from the
+// foot up, walked a point at a time (a switchback's legs and landing). No fixture's flight carries one, so every walk
+// is foot to top as it was; only the runtime's text moved.
+// Re-pinned 2026-11-16 (1115-shooting-rails: a radar and a map): `mission` only. Its page's HUD carries the radar and
+// its screens the map (gameworld/radar.js, inlined beside the mission's runtime), and each task that is a place to go
+// its place. Every other fixture holds byte for byte.
+// Re-pinned 2026-11-16 again (1115-shooting-rails: a mission fills its window): `mission` only. A mission's page fills
+// its window where its game names no screen. Every other fixture holds byte for byte. (The gunplay view's own changes
+// of that day, the gun drawn after the world's glass and lit by the form render, moved no fixture: none carries it.)
+// Re-pinned 2026-11-17 (1115-shooting-rails: every shooter wears the HUD): `mission` only. The mission's page gained a
+// plain form (no order, briefing or debrief, for a shooter with no mission), its order stands only where there is one,
+// its health falls back to the pilot's own body where the bus keeps none, and its map is drawn at the floor the pilot
+// stands on and boxed on the ground a level says it is fought on. No other fixture moved.
+// Re-pinned 2026-11-17 again (1115-shooting-rails: orders are spoken): `mission` only. Its HUD carries a line for the
+// order as it is given (mana-ui's subtitles, who gives it and what is said), each task its line. No other fixture moved.
+//
 // Re-pinned 2026-11-15 (the switch cancel): the runtime the page embeds gained the moveset's `swap` (combat-melee.js
 // stepMoveset: the weapon cycle pressed mid-swing held to the live move's switch point, the next weapon's string
 // opened on the press that was waiting, the string's count carried on). Five places in that one function: a block
 // added before the cycle, the cycle's own line guarded on `swap`, a guard on the chain at the cancel, the buffer's
 // hold, and the opener's count. A moveset that says no `swap` runs as before: the cycle mid-swing is dropped. Every
 // fixture that embeds the controllable runtime re-pinned with it.
+//
+// Re-pinned 2026-11-17 (the race's HUD on mana-ui): `brawl` and `holo`, the two whose page inlines the game UI runtime.
+// Its minimap gains a `route` (a way drawn as a dotted line under its markers, gameworld/race-hud.js's track map): one
+// prop, its draw and two sheet rules; a minimap that names no route draws as it did. Every other page byte-identical.
+//
+// Re-pinned 2026-11-17 (boost pads on a street circuit's alley): the drive rule gains an opt-in boost read through the
+// world's `padAt` (rules-drive.js: a wheel on a pad lights a boost, its top and pull past the kart's own while it
+// lasts), the core passes the hook into the world, and the page wires it when its drive surface lays pads. A world with
+// no pads has no `padAt` and drives as before. Every fixture that embeds the controllable runtime re-pinned with it.
+//
+// Re-pinned 2026-11-17 (a race's held item on the pause sheet): the pilot scheme the page carries gains its `useItem`
+// action (controls/schemes.js: F, right Shift, the pad's left face, in a vehicle) and the sheet's two rows for it, and
+// the pause legend's flags gain `items` (a race whose boxes hand out items). A page with no item boxes shows no row.
+// The sheet's thrusters row is hidden in a vehicle too (the thrusters were never a vehicle's; a kart's F is its item).
+// Every fixture that embeds the controllable runtime re-pinned with it.
+//
+// Re-pinned 2026-11-18 (a race's held item as one large slot): mana-ui's `slot` draws its pictogram (its icon carries
+// `data-icon`, as an icon's and a counter's do) and takes a `size` (l: a slot read at a glance), and the sheet sizes it.
+// `brawl` and `holo`, the two whose page inlines the game UI runtime; a slot of the size unsaid draws as it did.
+//
+// Re-pinned 2026-11-18 (screen effects): mana-ui gains its `effect` layer (confetti, streamers, sparkles, burst, petals,
+// a flash: pure CSS over everything, catching nothing) and the sheet its rules and motions. `brawl` and `holo`, the two
+// whose page inlines the game UI runtime; a HUD that lays no effect draws as it did.
 //
 // Re-pinned 2026-11-15 (the release candidate merged into the side-scroll starter): `brawl`. Its page carries both
 // sides' changes at once (the belt's bends and the yard's client from the one, the game UI kernel and its sheet from the
@@ -829,6 +931,20 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // band's models' colours brought to linear light). Again (a boss's phases, a second seat taken mid-street): the
 // crowd, the street's read and the yard's client; the fixture is a yard, with neither. Again (the street's seats):
 // the street's read (a gun's letters) and the yard's client (each seat's quarter).
+// Re-pinned 2026-11-18 (1116-rc merged into 1117-kart-improvements): the fixtures both lines moved, together. The
+// seventeen that embed the controllable runtime (this line's boost pads and its use-item key in the pilot scheme, over
+// the candidate's), and `brawl`, `holo` and `mission`, whose pages inline the game UI runtime (this line's slot, effect
+// layer and minimap route merged with the candidate's peril, scope and magazine). Nothing else moved.
+//
+// Re-pinned 2026-11-18 (the lens, mana-ui's screen layer): `brawl`, `holo` and `mission`, whose pages inline the game UI
+// runtime. The runtime gains the lens's part (a spec's `lens`, drawn apart and mounted beside the canvas) and its
+// `strike`; a HUD that lays no lens draws as it did, and no pinned page lays one.
+//
+// Re-pinned 2026-11-18 (the lens for still figures): `brawl`, `holo` and `mission`, whose pages inline the game UI
+// runtime. A strike's row may name its own kind, and its description speaks of a turn-based fight's figure; the level
+// HUD lays no lens again. Nothing else moved.
+//
+//
 // Re-pinned 2026-11-19 (a move's PLANT, gameworld/combos.js: the feet split in place through a cut): the runtime the
 // page embeds (combat-melee.js stepMoveset) plays a plant chained into from another plant on its `_on` clip, begun split.
 // One place: where a move's clip is chosen. A moveset with no plant plays its clips as before; every fixture that embeds
@@ -856,6 +972,12 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-21 (the game-params seam reads a light shell's turn pick, params.__picks.pilot, as its pilot: a co-star's
 // level stands two heroes in the player's seat): a level with no pick pilots as before; every fixture that embeds the
 // controllable channel re-pinned with it.
+//
+// Re-pinned 2026-11-21 (1116-rc merged into 1117-side-scroller-galaxy): the fixtures both lines moved, together. Those
+// that embed the controllable runtime (this line's buster, flinch and co-star pick over the candidate's talking jaw and
+// bare fists), those whose pages inline the game UI runtime and the HUD host (this line's side map's HUD over the
+// candidate's race, radar and talk box), and those that carry `audio` (this line's unlock and run voices over the
+// candidate's ambience and cab). Nothing else moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
@@ -868,3 +990,46 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
     }
   });
 });
+//
+// Re-pinned 2026-11-17 (1116-rc merged into 1115-shooting-rails): the fixtures whose page inlines the controllable runtime
+// (the seventeen named above, with the candidate's own that carry it) and `mission`. Each page carries both sides' changes
+// at once: the candidate's (the switch cancel, the street, the sea) and this branch's (a climb held by jump, a path kept
+// to its ground, a flight's way, the mission's HUD); each is said above, and neither changes how a fixture plays.
+// Re-pinned 2026-11-17 (1115-shooting-rails: one radar): `mission` only. Its sheet puts the page's own round radar away
+// (the controllable runtime's, by the class the candidate gave it) wherever the shooter's HUD stands, so a shooter has
+// one radar, the HUD's scope. No other fixture moved.
+// Re-pinned 2026-11-17 again (1115-shooting-rails: the radar a minimap): `mission` only. The scope is larger, reaches
+// 40 m, and carries the level's plan under its marks, turned so ahead is up. No other fixture moved.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: a hero's power): `brawl` only. Its page inlines the brawl's core, crowd,
+// practice and client, and now the powers shelf (brawl-powers.js): a power's stock spent and filled at a fall, a special's
+// round carrying its knock, a special's round drawn (it was not) and a power's burst. The fixture's fighters have no power:
+// it plays as it did. Re-pinned again the same day for a power DESIGNED (brawl-powers.js: a kind's dials, read back as
+// written): `brawl` only, the shelf's lines alone.
+// Re-pinned 2026-11-18 (1117-reactive-z-layer merged into 1117-hero-beat-em-up): `brawl` only. Its page carries both
+// sides' runtime at once: the lens's still-figure runtime (that branch's) and the powers shelf (this one's).
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: a power's super beat): `brawl` only. Its page inlines the core (a power
+// holds the street still as it starts, and is told for a body with no stock too), the shelf (each card's beat) and the
+// client (the lens's host and its strikes, laid only where the street's spec carries a lens). The fixture has no power.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: rupa's knockback on a power's blow): `brawl` only. Its page inlines the
+// kinetics (brawl-kinetics.js: the law, a body's mass, the throw, the slide), the core's use of it on a blow that carries
+// energy and the client's dust ring at an impact. The fixture's blows carry none: it plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: an earth power's slab): `brawl` only. Its page inlines the core's walls
+// (raised, stood as cover, shoved, crumbling: a state key only while one stands), the slab's law in the kinetics, the
+// moves' second press and the client's slab and its dust. The fixture raises none: it plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: floating and a gale): `brawl` only. Its page inlines the air's laws in the
+// kinetics (a floater's drift, a wind's drag), the core's drift in place of the walk for a floating body and its gusts
+// (a state key only while one blows), and the client's hover and the gale's streaks. The fixture floats and blows
+// nothing: it plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: a floating body's hover): `brawl` only. Its page inlines the pose's hover
+// (one knee drawn up, the other leg hanging, toe pointed; never the stride). The fixture floats nothing: it plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: loose hair and cloth in the air): `brawl` only. Its page inlines the sway
+// (brawl-sway.js: the air a body feels, the hang, the spring, the bend) and the client's bend of a character's long hair
+// and loose cloth, a cape kept off the arms, and the hover in the comics' pose of power (the knee up, its shin tucked,
+// the fists at the waist). The sim never reads any of it: the fixture plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: the foe shelf's idioms on the street): `brawl` only. Its page inlines the
+// crowd's summoner and its summons (a pool held offstage, called a few at a time, cut down with it), a pair (one down, the
+// other enraged), a boss's form at a stage, the caster, drone and blaster crowd types, and the client's dust, flashes and
+// banner for them. The fixture's street says none of them: it plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: the review's fixes): `brawl` only. Its page inlines the sway keeping each
+// region's own rest positions (no copy of a part's buffer), and a boss stage's form read as any fighter's recipe. The
+// fixture plays as it did.

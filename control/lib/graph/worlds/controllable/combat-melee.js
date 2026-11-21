@@ -566,6 +566,14 @@ export function buildCombatMelee(E) {
       }
     }
     const Wc = Ws ? Ws[e.weaponIdx || 0] : null, M = Wc ? Wc.moveset : r.moveset;
+    // THE HOLSTER (`rule.holster`, gameworld/arsenal.js: the open city's pistol): the weapon's sidearm drawn or put away
+    // on the cycle (R) or by its number (1 the hands, 2 the gun). Drawn, the click fires it and swings nothing; put
+    // away, it fires not at all and the click swings. Facts: `gunOut`
+    if (r.holster && Wc && Wc.sidearm) {
+      const want = input.slot === 1 ? false : input.slot === 2 ? true : input.cycle ? !e.gunOut : !!e.gunOut;
+      if (want !== !!e.gunOut && e.swingT == null) { e.gunOut = want; say('cycle', 'taken', want ? Wc.sidearm.name : 'Unarmed'); }
+      input = { ...input, special: e.gunOut && (input.special || input.fire) ? 1 : 0, fire: e.gunOut ? 0 : input.fire };
+    }
     if (Wc) { r.moveset = M; e.mvWeapon = Wc.id; }
     // THE SIDEARM (a weapon's `sidearm`, gameworld/combos.js: S, its ranged weapon, combat-ranged.js stepWeapon on the S
     // press): the current weapon's, each its own state kept across the cycle (a quiver's arrows, a magazine)

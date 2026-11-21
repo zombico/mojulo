@@ -49,24 +49,30 @@
  *                Everyone who has a body can be played: a second controller drops in as the next of them
  *       kit    the stage kit its rooms are built in (brawl-levels.js BRAWL_STAGE_KITS; the open-air plaza unsaid)
  *       lives  the falls the player may take (1 to 9; 3)
- *       tuning how hard it hits, a card (brawl/brawl-tunings.js: measured | arcade). Unsaid, a run & gun's street is
+ *       tuning how hard it hits, a card (brawl/brawl-tunings.js: measured | arcade | heroes: every seat a hero with a
+ *              power, the game's hero its own actions page's `attack`, heroPower). Unsaid, a run & gun's street is
  *              the arcade's (soldiers fall to a couple of rounds, the hero to a few hits, five falls) and a
  *              beat-em-up's the sim's own numbers
+ *       powers the seats' own powers in seat order (null keeps a seat's): each a power of the shelf's or one DESIGNED
+ *              (brawl/brawl-powers.js readPower: { kind, name?, beam?, stock?, strength?, speed?, size?, pierce? }); a
+ *              designed one far from what the street was measured with is advised (a `balance` law), never refused
  *       guns   a run & gun's street: true, or the guns carried, the first held; unsaid, the game's intent decides
  *              (`intent.from: 'run-and-gun'`)
  *   readLevelStreet(v)     → { design, kit, lives, guns } checked (throws, teaching)
  *   streetFoeIds(G)        → the bestiary ids the world's streets bring, each one figure to make (foes.js fieldedIds)
+ *   heroPower(G)           → { id, beam } | null the street power the game's hero throws (its actions page's `attack`)
  *   streetLevel(G, words, { title?, ref?, heroRef?, foeRefs? }) → { manifest, laws }: the level's world, its brawl block
  *                          and its game contract; the hero the game's own (a stand-in fighter, said, where it has none),
  *                          each foe with a body drawn from its made ref
  *
  * Pure.
  */
-import { bestiaryOf, isPeople, isModel } from './foes.js';
+import { bestiaryOf, isPeople, isModel, modeChain } from './foes.js';
 import { brawlLevel, readBrawlLevel, BRAWL_STAGE_KITS } from '../brawl/brawl-levels.js';
 import { readGun } from '../brawl/brawl-guns.js';
 import { readScreen } from '../game/screen.js';
-import { TUNINGS, STREET_TUNINGS, tuningOf, roomTune } from '../brawl/brawl-tunings.js';
+import { TUNINGS, STREET_TUNINGS, tuningOf, roomTune, seatPower } from '../brawl/brawl-tunings.js';
+import { ATTACK_POWER, POWER_IDS, readPower, powerAdvice } from '../brawl/brawl-powers.js';
 import { castRoles, FIGHT_ROLES } from './fights.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { CROWD_TYPES } from '../brawl/brawl-crowd.js';
@@ -76,7 +82,7 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: brawl${m}`);
 
 export const BRAWL_PLAYS = Object.freeze({
-  walker: 'thug', swarm: 'thug', patrol: 'thug', guard: 'sword', summoner: 'thug',
+  walker: 'thug', swarm: 'thug', patrol: 'thug', guard: 'sword', summoner: 'caster',
   hopper: 'jumper', swooper: 'jumper', charger: 'charger', pursuer: 'charger',
   lurker: 'knife', stalker: 'knife', brute: 'heavy',
   turret: 'rifleman', hunter: 'gunner', lobber: 'grenadier',
@@ -124,7 +130,14 @@ export function brawlCast(G, waves, { gun = false, plays = null } = {}) {
       const id = FIGHT_ROLES[word] ? R[word] : word;
       if (!B[id]) throw fail(`.waves[${i}].foes.${word}: a role (${Object.keys(FIGHT_ROLES).join(', ')}) or one of the bestiary's (${Object.keys(B).join(', ')})`);
       if (!foes.includes(id)) foes.push(id);
-      return { type: plays?.[id] ?? brawlPlay(B[id], { gun }), n, foe: id };
+      // (A SUMMONER, the foe shelf's: it calls its own `summons` entry on the street, as many at once as it says (the
+      // street's most), bound unless said: brawl-crowd.js readSummons)
+      const S = B[id].summons, type = plays?.[id] ?? brawlPlay(B[id], { gun });
+      if (S && !gun && CROWD_TYPES[type]?.hangs) {
+        if (!foes.includes(S.foe)) foes.push(S.foe);
+        return { type, n, foe: id, summons: { type: plays?.[S.foe] ?? brawlPlay(B[S.foe], { gun }), n: Math.max(1, Math.min(4, S.count ?? 2)), bound: S.bound !== false, foe: S.foe } };
+      }
+      return { type, n, foe: id };
     });
     const { foes: _f, ...rest } = w;
     return { ...rest, crowd };
@@ -203,11 +216,22 @@ export function brawlStreet(G, street, { gun = false, plays = null } = {}) {
     if (!B[id]) throw fail(`.street.boss: a role (${Object.keys(FIGHT_ROLES).join(', ')}) or one of the bestiary's (${Object.keys(B).join(', ')})`);
     boss = id;
     if (!foes.includes(id)) { foes.push(id); if (!brawlBodies(G, { foes: [id] })[id]) says.push(`${id} is drawn as a jointed figure: only a person's body stands on the street yet (skin it as a person or a people to give it one)`); }
+    // (THE BOSS'S RELATIONS, the foe shelf's: its PAIR stands beside it, one down enraging the other (a pair that
+    // revives is enraged on the street: said); each entry it BECOMES is a form it is defeated into, an act a form)
+    const P = B[id].pair, chain = modeChain(B, id).slice(1);
+    for (const f of [...(P ? [P.foe] : []), ...chain]) if (!foes.includes(f)) foes.push(f);
+    if (P?.down === 'revive') says.push(`${id} and ${P.foe} revive each other in the round; on the street one down enrages the other`);
+    const pairWords = P ? { foe: P.foe, down: 'enrage' } : null, forms = chain;
     screens.push({ length: bossWords.length ?? STREET.stop, boss: true });
     const withAt = S.stops.length, callsAt = withAt + (bossWords.with ? 1 : 0);
     const called = callers.flatMap((c, n) => C.waves[callsAt + n].crowd.map((e) => ({ ...e, stage: c.k })));
-    const stages = stagesIn ? stagesIn.map(({ calls: _c, ...st }) => st) : null;
-    waves.push({ screen: screens.length - 1, crowd: [...(bossWords.with ? C.waves[withAt].crowd : []), ...called], boss: { foe: id, ...(bossWords.hp ? { hp: bossWords.hp } : {}), ...(bossWords.cpu ? { cpu: bossWords.cpu } : {}), ...(stages ? { stages } : {}) } });
+    const written = stagesIn ? stagesIn.map(({ calls: _c, ...st }) => st) : null;
+    // (its forms laid on its acts in turn: the acts it has, else one an act a form, its health shared evenly)
+    const stages0 = written ?? (forms.length ? Array.from({ length: forms.length + 1 }, () => ({})) : null);
+    // (the act keeps its own name, else the street's own banner for it: a bestiary id is no name for a player)
+    const stages = stages0 ? stages0.map((st, k) => (k > 0 && forms[k - 1] ? { ...st, form: { foe: forms[k - 1] } } : st)) : null;
+    if (written && forms.length > written.length - 1) says.push(`${id} becomes ${forms.length} forms but its fight has ${written.length - 1} acts after the first: the last ${forms.length - (written.length - 1)} are not reached`);
+    waves.push({ screen: screens.length - 1, crowd: [...(bossWords.with ? C.waves[withAt].crowd : []), ...called], boss: { foe: id, ...(bossWords.hp ? { hp: bossWords.hp } : {}), ...(bossWords.cpu ? { cpu: bossWords.cpu } : {}), ...(stages ? { stages } : {}), ...(pairWords ? { pair: pairWords } : {}) } });
   } else says.push('the street ends on its last stop: it names no boss');
   // (a street builds: a stop that meets fewer than the one before it is said)
   const met = waves.filter((w) => !w.boss).map((w) => w.crowd.reduce((a, c) => a + c.n, 0));
@@ -217,13 +241,17 @@ export function brawlStreet(G, street, { gun = false, plays = null } = {}) {
 
 /** The street's waves as the page takes them. */
 export function withStreetBodies(waves, rosterAt) {
+  const at = (foe) => (Number.isInteger(rosterAt?.[foe]) ? rosterAt[foe] : null);
+  // (each foe by its body: a crowd entry's and its summons', a boss's, its pair's and each form it becomes)
+  const summonsOf = (S) => (S ? { summons: (({ foe, ...x }) => (at(foe) !== null ? { ...x, roster: at(foe) } : x))(S) } : {});
+  const fighterOf = ({ foe, ...b }) => (at(foe) !== null ? { ...b, fighter: at(foe) } : { ...b, archetype: 'grappler', id: foe, name: foe });
   return waves.map(({ boss, ...w }) => ({
-    ...w, crowd: w.crowd.map(({ foe, ...c }) => (Number.isInteger(rosterAt?.[foe]) ? { ...c, roster: rosterAt[foe] } : c)),
-    ...(boss ? { boss: (({ foe, ...b }) => (Number.isInteger(rosterAt?.[foe]) ? { ...b, fighter: rosterAt[foe] } : { ...b, archetype: 'grappler', id: foe, name: foe }))(boss) } : {}),
+    ...w, crowd: w.crowd.map(({ foe, summons, ...c }) => ({ ...(at(foe) !== null ? { ...c, roster: at(foe) } : c), ...summonsOf(summons) })),
+    ...(boss ? { boss: (({ pair, stages, ...b }) => ({ ...fighterOf(b), ...(pair ? { pair: fighterOf(pair) } : {}), ...(stages ? { stages: stages.map(({ form, ...st }) => ({ ...st, ...(form ? { form: fighterOf(form) } : {}) })) } : {}) }))(boss) } : {}),
   }));
 }
 
-const LEVEL_WORDS = ['kit', 'ground', 'things', 'scenes', 'lives', 'guns', 'players', 'tuning'];
+const LEVEL_WORDS = ['kit', 'ground', 'things', 'scenes', 'lives', 'guns', 'players', 'tuning', 'powers'];
 /** the street a level takes when it says no stops: three that build, the cast's boss on a novice's mind (a first
  * street's: measured, brawl/brawl-playthrough.js) */
 export const STREET_UNSAID = Object.freeze({ stops: [{ wave: { grunt: 2 } }, { wave: { grunt: 3, shooter: 1 } }, { wave: { elite: 1, grunt: 3 } }], boss: Object.freeze({ foe: 'boss', cpu: 'novice' }) });
@@ -234,7 +262,7 @@ const STAND_INS = ['all-rounder', 'rushdown', 'zoner', 'grappler'];
 export function readLevelStreet(v0) {
   // (`true`, or a street that says no stops: the street unsaid, on the place it names)
   const v = v0 === true ? {} : v0;
-  if (!isObj(v)) throw fail('.street is true, or { open?, stops?, boss?, ground? | kit?, things?, scenes?, lives?, guns?, players?, tuning? }');
+  if (!isObj(v)) throw fail('.street is true, or { open?, stops?, boss?, ground? | kit?, things?, scenes?, lives?, guns?, players?, tuning?, powers? }');
   const said = Object.fromEntries(Object.entries(v).filter(([k]) => !LEVEL_WORDS.includes(k)));
   const design = said.stops === undefined ? { ...STREET_UNSAID, ...said } : said;
   readStreet(design);
@@ -255,7 +283,15 @@ export function readLevelStreet(v0) {
   }
   if (v.players !== undefined && !(Number.isInteger(v.players) && v.players >= 1 && v.players <= STREET_SEATS)) throw fail(`.street.players is how many play from its start, 1 to ${STREET_SEATS} on one screen`);
   if (v.tuning !== undefined && !STREET_TUNINGS.includes(v.tuning)) throw fail(`.street.tuning is one of ${STREET_TUNINGS.map((id) => `${id} (${TUNINGS[id].says})`).join('; ')}`);
-  return { design, kit: v.kit ?? STREET.kit, ground: v.ground ?? null, things: v.things ?? null, scenes: v.scenes === undefined ? null : v.scenes, lives: v.lives ?? null, guns: v.guns ?? null, players: v.players ?? 1, tuning: v.tuning ?? null };
+  // (ITS POWERS: the seats' own, in seat order, each a power of the shelf's or one designed (brawl/brawl-powers.js
+  // readPower); a seat it does not say takes the card's (the hero's own attack, the team's), and a street with no card
+  // that gives powers gives those it says alone)
+  if (v.powers !== undefined) {
+    if (!Array.isArray(v.powers) || !v.powers.length || v.powers.length > STREET_SEATS) throw fail(`.street.powers is 1 to ${STREET_SEATS} powers in seat order, each one of ${POWER_IDS.join(', ')} or designed: { kind, name?, beam?, stock?, strength?, speed?, size?, pierce? } (null keeps a seat's own)`);
+    v.powers.forEach((P, k) => { if (P !== null) { try { readPower(P, 'power'); } catch (e) { throw fail(`.street.powers[${k}]${e.message.replace(/^brawl: power/, '')}`); } } });
+    if (v.guns !== undefined) throw fail('.street.powers: a run & gun\'s street is fought with guns (powers are a beat-em-up\'s)');
+  }
+  return { design, kit: v.kit ?? STREET.kit, ground: v.ground ?? null, things: v.things ?? null, scenes: v.scenes === undefined ? null : v.scenes, lives: v.lives ?? null, guns: v.guns ?? null, players: v.players ?? 1, tuning: v.tuning ?? null, powers: v.powers ?? null };
 }
 const gunsOf = (G, L) => L.guns !== null || G?.intent?.from === 'run-and-gun';
 
@@ -270,6 +306,13 @@ export function streetFoeIds(G) {
     try { const R = readLevelStreet(words); for (const id of brawlStreet(G, R.design, { gun: gunsOf(G, R) }).foes) if (!out.includes(id)) out.push(id); } catch { /* the reader says what is wrong with it */ }
   }
   return out;
+}
+
+/** The street power a game's hero throws: its actions page's first power with an `attack` (a beam), played as the
+ * street's power of that form (brawl-powers.js ATTACK_POWER) and drawn in that beam; null where it throws none. */
+export function heroPower(G) {
+  const P = (G?.characters?.hero?.actions?.powers ?? []).find((p) => isObj(p) && typeof p.attack === 'string' && ATTACK_POWER[p.attack]);
+  return P ? { id: ATTACK_POWER[P.attack], beam: P.attack } : null;
 }
 
 /** A street level of a designed game: its world, its brawl and its contract. */
@@ -288,7 +331,15 @@ export function streetLevel(G, words, { title, ref, heroRef = null, foeRefs = nu
   // nobody fills is a stand-in fighter, said)
   const made = [...(heroRef ? [{ id: 'hero', hero: { ref: heroRef } }] : []), ...(party ?? []).filter((m) => m?.ref).map((m) => ({ id: m.id, name: m.name ?? m.id, hero: { ref: m.ref } }))].slice(0, STREET_SEATS);
   const short = Math.max(0, L.players - made.length);
-  const heroes = [...made, ...Array.from({ length: made.length ? short : Math.max(1, L.players) }, (_, k) => ({ id: `stand-in-${made.length + k + 1}`, name: `P${made.length + k + 1}`, archetype: STAND_INS[(made.length + k) % STAND_INS.length] }))];
+  const seated = [...made, ...Array.from({ length: made.length ? short : Math.max(1, L.players) }, (_, k) => ({ id: `stand-in-${made.length + k + 1}`, name: `P${made.length + k + 1}`, archetype: STAND_INS[(made.length + k) % STAND_INS.length] }))];
+  // (a card that gives POWERS (the heroes'): each seat a hero with its power, brawl/brawl-powers.js: the game's hero its
+  // own where its actions page throws one (its first `attack`, played as the street's power of that form, drawn in that
+  // beam), every other seat the team's in seat order)
+  const own = heroPower(G);
+  const powerAt = (h, k) => L.powers?.[k] ?? seatPower(card, k, h.id === 'hero' && heroRef ? own : null);
+  const heroes = card.powers || L.powers ? seated.map((h, k) => { const P = powerAt(h, k); return P ? { ...h, power: P } : h; }) : seated;
+  // (a designed power far from what the street was measured with: advised, never refused)
+  const told = L.powers ? L.powers.flatMap((P, k) => (P && typeof P === 'object' ? powerAdvice(P, seated[k]?.name ?? (seated[k]?.id === 'hero' ? 'the hero' : `seat ${k + 1}`)) : [])) : [];
   const rosterAt = Object.fromEntries(bodied.map((id, k) => [id, heroes.length + k]));
   const roster = [...heroes, ...bodied.map((id) => ({ id: `foe-${id}`, name: id, hero: { ref: foeRefs[id] } }))];
   const register = ['anime', 'western'].includes(G?.juice?.register) ? G.juice.register : null;
@@ -305,7 +356,7 @@ export function streetLevel(G, words, { title, ref, heroRef = null, foeRefs = nu
   const game = { levelRef: ref ?? 'street', consumes: [], produces: { results: ['success', 'fail'], events: [] }, presets: { default: {} }, complete: { text: 'the street' } };
   const standIns = heroes.length - made.length;
   const says = [...S.says, ...(standIns ? [made.length ? `${standIns} of its ${L.players} seats ${standIns === 1 ? 'is a stand-in fighter' : 'are stand-in fighters'}: the game has a hero and ${made.length - (heroRef ? 1 : 0)} who join its party (a cast member that \`joins\` takes a seat)` : `the street is played by ${standIns === 1 ? 'a stand-in fighter' : 'stand-in fighters'}: the world has no hero yet`] : [])];
-  const laws = [{ concern: 'cast', law: 'street', holds: !says.length, says: says.length ? says.join('; ') : `the street's ${S.waves.length} stops are met by the game's own cast (${S.foes.join(', ')})` }];
+  const laws = [{ concern: 'cast', law: 'street', holds: !says.length, says: says.length ? says.join('; ') : `the street's ${S.waves.length} stops are met by the game's own cast (${S.foes.join(', ')})` }, ...(told.length ? [{ concern: 'balance', law: 'power', holds: false, says: told.join('; ') }] : [])];
   // (a street runs across the screen: an upright one shows a sliver of it. Advised, never refused, as a fight's is)
   const upright = (() => { try { return G?.screen ? readScreen(G.screen).orientation === 'portrait' : false; } catch { return false; } })();
   if (upright) laws.push({ concern: 'screen', law: 'frame-fits', holds: false, says: 'a street runs across the screen, and this game is made for an upright one: its players and the crowd are cut off at the sides. Give the world `screen: \'screen\'` (or a tablet) for a beat-em-up or a run & gun' });

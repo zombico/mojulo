@@ -9,8 +9,10 @@
  *   hard sun   a high warm key with real cast shadows (era/sun.js), the shade a clean pale blue, never black (Sunshine's
  *              first principle: era/style/delfino-plaza.js)
  *   colour     saturated, the colour the painted stop's; no tiles
+ *   gloss      a face that says `gloss` (0–1) takes the key's highlight (the chunky look's plastics: chunky-look.js)
  *
- *   shadeFaces(faces, { colourOf, light, crease, shadows }) → faces lit per corner (cornerFills), four corners at most
+ *   shadeFaces(faces, { colourOf, light, crease, shadows, normals }) → faces lit per corner (cornerFills), four corners at
+ *              most; `normals`: each keeps its normal and its corners' smoothed normals (a light laid after)
  *   SHADED_LIGHT → Sunshine's island noon (era/sixth-gen.js `sunshine`)
  *
  * Pure, deterministic.
@@ -31,9 +33,10 @@ function newell(c) {
 const saturate = (c, k) => { const l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; return c.map((v) => l + (v - l) * k); };
 
 /** Faces lit the sixth generation's way: each corner its smoothed normal under the sky, the bounce and the sun. */
-export function shadeFaces(faces, { colourOf, light = SHADED_LIGHT, shadows = true } = {}) {
+export function shadeFaces(faces, { colourOf, light = SHADED_LIGHT, shadows = true, normals = false } = {}) {
   const L = sunDir(light.key.elevation, light.key.azimuth), key = hexRgb(light.key.color), sky = hexRgb(light.sky), grd = hexRgb(light.ground);
   const cosC = Math.cos(((light.crease ?? 50) * Math.PI) / 180);
+  const H = unit([L[0], L[1], L[2] + 1]);   // the half vector of the sun and straight up: where a gloss shows from behind a car
   // the faces wound to their own normals; the corners that meet, by position
   const F = faces.filter((f) => f.corners?.length >= 3).map((f) => { const wn = newell(f.corners), n = f.normal ? unit(f.normal) : wn, flip = wn[0] * n[0] + wn[1] * n[1] + wn[2] * n[2] < 0; return { f, c: flip ? f.corners.slice().reverse() : f.corners, n }; });
   const at = new Map(), k = (p) => p.map((v) => Math.round(v * 200)).join(',');
@@ -48,12 +51,17 @@ export function shadeFaces(faces, { colourOf, light = SHADED_LIGHT, shadows = tr
       const n = smooth(p, x.n), up = (n[2] + 1) / 2, lam = Math.max(0, n[0] * L[0] + n[1] * L[1] + n[2] * L[2]) * sunlit;
       // the sky from above and the bounce from below, a pale blue floor under the shade; the sun's warm key over it
       const fill = sky.map((s, i) => (s * up + grd[i] * (1 - up)) * light.fill);
-      return base.map((v, i) => v * Math.max(light.shadeFloor * sky[i] * 0.9 + 0.1, fill[i] + key[i] * light.sunGain * lam));
+      const lit = base.map((v, i) => v * Math.max(light.shadeFloor * sky[i] * 0.9 + 0.1, fill[i] + key[i] * light.sunGain * lam));
+      // a glossy face (`gloss`, 0–1): the key's own colour laid over it where its normal meets the half vector
+      if (!(x.f.gloss > 0)) return lit;
+      const g = x.f.gloss * Math.pow(Math.max(0, n[0] * H[0] + n[1] * H[1] + n[2] * H[2]), light.glossPower ?? 16) * (0.35 + 0.65 * sunlit);
+      return lit.map((v, i) => v + key[i] * g);
     };
     const cs = x.c.map(lit), n = x.c.length;
     // four corners at most (the World draws a face's first four): a fan of quads
     const idx = n <= 4 ? [[...Array(n).keys()]] : Array.from({ length: Math.ceil((n - 2) / 2) }, (_, j) => { const i = 1 + 2 * j; return i + 2 < n ? [0, i, i + 1, i + 2] : [0, i, i + 1]; });
-    for (const I of idx) out.push({ corners: I.map((i) => x.c[i]), fill: toHex(I.reduce((s, i) => s.map((v, q) => v + cs[i][q] / I.length), [0, 0, 0])), cornerFills: I.map((i) => toHex(cs[i])) });
+    // (`normals`: each face keeps its normal and a corner's smoothed one, for a light laid after: the form render's)
+    for (const I of idx) out.push({ corners: I.map((i) => x.c[i]), fill: toHex(I.reduce((s, i) => s.map((v, q) => v + cs[i][q] / I.length), [0, 0, 0])), cornerFills: I.map((i) => toHex(cs[i])), ...(normals ? { normal: x.n, cornerNormals: I.map((i) => smooth(x.c[i], x.n)) } : {}) });
   }
   return out;
 }

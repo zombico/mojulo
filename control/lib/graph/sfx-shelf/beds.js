@@ -31,6 +31,13 @@ export const BEDS = Object.freeze({
     { word: 'frog', hits: 4, vel: [0.4, 0.6], pan: -0.3 }, { word: 'frog', hits: 3, vel: [0.3, 0.5], pan: 0.4 },
     { word: 'cricket', hits: 3, vel: [0.25, 0.4], pan: 0.1 }, { word: 'bubbling', hits: 2, vel: [0.3, 0.45], pan: -0.1 },
     { word: 'fly', hits: 1, vel: [0.25, 0.35], pan: 0.3 }] },
+  // (no car of the player's in it: a car's own sounds are heard only from the car being driven, and the street walked is
+  // its own sound. The city's traffic far off is a held hum under it: the audio channel's `ambience`)
+  city: { label: 'a city street: horns far off down the blocks, a truck, a dog, a siren somewhere, the wind between the towers, pigeons and sparrows on the ledges', aliases: ['city', 'street', 'town', 'downtown', 'urban', 'district'], bpm: 90, tracks: [
+    { word: 'car-horn', hits: 2, vel: [0.05, 0.1], pan: -0.6 }, { word: 'car-horn', hits: 1, vel: [0.04, 0.08], pan: 0.55 },
+    { word: 'truck-horn', hits: 1, vel: [0.03, 0.06], pan: 0.3 }, { word: 'dog-bark', hits: 1, vel: [0.05, 0.09], pan: -0.35 },
+    { word: 'siren', hits: 1, vel: [0.025, 0.04], pan: 0.7 }, { word: 'wind-gust', hits: 1, vel: [0.08, 0.14], pan: 0 },
+    { word: 'sparrow', hits: 2, vel: [0.12, 0.22], pan: -0.4 }, { word: 'bird-chirp', hits: 1, vel: [0.12, 0.2], pan: 0.45 }] },
   farm: { label: 'a farmyard: hens, ducks, a goose, the rooster now and then', aliases: ['farm', 'farmyard', 'barnyard'], bpm: 90, tracks: [
     { word: 'chicken', hits: 3, vel: [0.35, 0.55], pan: -0.4 }, { word: 'duck', hits: 2, vel: [0.3, 0.5], pan: 0.4 },
     { word: 'goose', hits: 1, vel: [0.3, 0.45], pan: 0.2 }, { word: 'rooster', hits: 1, vel: [0.4, 0.5], pan: -0.1 }] },

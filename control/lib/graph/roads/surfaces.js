@@ -8,5 +8,7 @@ export const SURFACES = Object.freeze({
   gravel: Object.freeze({ texture: 'soil-gravel', hex: '#e2ddd2', mu: 0.65, roll: 3.5 }),
   grass: Object.freeze({ texture: 'grass-dry', hex: '#e9e6d6', mu: 0.55, roll: 4 }),
   dirt: Object.freeze({ texture: 'soil-dirt', hex: '#e6e0d4', mu: 0.7, roll: 2.5 }),
+  // (a town's cobbled alley, street-features.js: a little less grip than asphalt and much more rolling, the stones)
+  cobbles: Object.freeze({ mu: 0.8, roll: 16 }),
   sand: Object.freeze({ texture: 'soil-sand', hex: '#ebe6da', mu: 0.5, roll: 8 }),
 });

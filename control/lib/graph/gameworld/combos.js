@@ -335,20 +335,22 @@ export function arsenalFor(feel) {
  * runtime's ranged weapon (worlds/controllable/combat-ranged.js initWeapon):
  *   auto   held, it fires at `rof` rounds a second (hitscan) until the magazine is dry and reloads (`magazine`, `reload`),
  *          or never runs dry (`infinite`: a stylish game's pistols, weak to match); `damage`, `impact`, `range` (m),
- *          `dual` (two guns taking turns)
+ *          `dual` (two guns taking turns); `reserve` the spare rounds carried (absent: endless reloads), `loaded` the rounds in
+ *          the magazine at the start (absent: full): a gun carried empty, its rounds bought (gameworld/shops.js)
  *   draw   held, it draws for `draw` seconds and is ready; let go once ready, it looses its round (an arrow: `speed` m/s,
  *          `drop` m/s² of gravity, `damage`, `impact`); let go before, `early`: none (a bow: nothing) or tap (a charge
  *          shot's pellet: `tap { damage, impact }`); `quiver` arrows (absent: endless), `nock` seconds to the next
  *   hand   the hand it is held in (right | left): where its round leaves from
  */
 export const SIDEARM_MODES = Object.freeze(['auto', 'draw']);
-const SIDEARM_KEYS = Object.freeze({ auto: ['rof', 'damage', 'impact', 'range', 'infinite', 'magazine', 'reload', 'hand', 'dual'], draw: ['draw', 'early', 'tap', 'speed', 'drop', 'damage', 'impact', 'quiver', 'nock', 'hand'] });
+const SIDEARM_KEYS = Object.freeze({ auto: ['rof', 'damage', 'impact', 'range', 'infinite', 'magazine', 'reload', 'hand', 'dual', 'reserve', 'loaded'], draw: ['draw', 'early', 'tap', 'speed', 'drop', 'damage', 'impact', 'quiver', 'nock', 'hand'] });
 function readSidearm(G, at) {
   if (!isObj(G) || typeof G.id !== 'string' || !G.id) no(`${at} is { id, name?, mode: auto | draw, … }`);
   if (!SIDEARM_MODES.includes(G.mode)) no(`${at}.mode is auto (held, it fires at its rate) or draw (held, it draws; let go once drawn, it looses)`);
   for (const k of Object.keys(G)) if (!['id', 'name', 'mode', ...SIDEARM_KEYS[G.mode]].includes(k)) no(`${at}.${k} is not part of a ${G.mode} sidearm (${SIDEARM_KEYS[G.mode].join(', ')})`);
   const pos = (k, lo, hi) => { if (G[k] !== undefined && !num(G[k], lo, hi)) no(`${at}.${k} is a number, ${lo} to ${hi}`); };
   pos('damage', 0, 50); pos('impact', 0, 500); pos('range', 1, 400); pos('rof', 0.5, 30); pos('magazine', 1, 999); pos('reload', 0, 10);
+  pos('reserve', 0, 9999); pos('loaded', 0, 999);
   pos('draw', 0.05, 3); pos('speed', 5, 200); pos('drop', 0, 50); pos('quiver', 0, 999); pos('nock', 0, 5);
   if (G.hand !== undefined && !['right', 'left'].includes(G.hand)) no(`${at}.hand is right or left`);
   if (G.early !== undefined && !['none', 'tap'].includes(G.early)) no(`${at}.early is none (a bow: nothing loosed) or tap (a charge shot: its pellet)`);
@@ -357,7 +359,7 @@ function readSidearm(G, at) {
 /** a sidearm's runtime weapon (initWeapon's config) */
 export function lowerSidearm(G) {
   const eye = 1.25, hand = G.hand ?? 'right';   // (the round leaves at the chest: a level shot meets a body's middle)
-  if (G.mode === 'auto') return { fireClass: 'sight', auto: true, rof: G.rof ?? 8, magazine: G.magazine ?? 60, reload: G.reload ?? 1.2, damage: G.damage ?? 0.5, impact: G.impact ?? 4, range: G.range ?? 30, coreAngle: 3, eye, hand, fxScale: 0.15, fxColor: 0xffd27a, ...(G.infinite ? { infinite: true } : {}), ...(G.dual ? { muzzleAlt: true } : {}) };
+  if (G.mode === 'auto') return { fireClass: 'sight', auto: true, rof: G.rof ?? 8, magazine: G.magazine ?? 60, reload: G.reload ?? 1.2, damage: G.damage ?? 0.5, impact: G.impact ?? 4, range: G.range ?? 30, coreAngle: 3, eye, hand, fxScale: 0.15, fxColor: 0xffd27a, ...(G.infinite ? { infinite: true } : {}), ...(G.dual ? { muzzleAlt: true } : {}) , ...(Number.isFinite(G.reserve) ? { reserve: G.reserve } : {}), ...(Number.isFinite(G.loaded) ? { loaded: G.loaded } : {}) };
   return { fireClass: 'lob', auto: false, chargeTime: G.draw ?? 0.45, ...(G.early === 'tap' ? {} : { early: 'none' }), magazine: 1, reload: G.nock ?? 0.3, ...(Number.isFinite(G.quiver) ? { reserve: G.quiver } : {}),
     projectileSpeed: G.speed ?? 45, projectileGravity: G.drop ?? 9, lobAngle: 1, projRadius: 0.12, splashRadius: 0, armTime: 0.04, fuse: 3, smokeTrail: false, cooldown: 0.1, eye, hand,
     damage: G.tap?.damage ?? 0, impact: G.tap?.impact ?? 0, chargedDamage: G.damage ?? 3, chargedImpact: G.impact ?? 30, chargedRangeMul: 1 };

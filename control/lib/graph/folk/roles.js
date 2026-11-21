@@ -18,7 +18,8 @@
  *     room    where a person without a service is found inside their lot (era/programs.js PROGRAMS rooms): a room, or
  *             { <use>: room } for a role that lives on more than one use (a townie at a hearth, or behind the counter)
  *     slots   the line slots every person of the role has (`greeting`, `farewell`; a service adds its own)
- *   ROOTS[use] = the role a lot of that use (era/out-structures.js STRUCTURE_USES) is for
+ *   ROOTS[use] = the role a lot of that use (era/out-structures.js STRUCTURE_USES) is for, or of that trade (a lot kept
+ *                for an inn, a temple, a smithy: era/stage-buildings.js TOWN_TRADES), the trade's over the shape's
  *   RELATIONS[id] = { reads, born?, lean?, pull? }   `born`: shares the parent's ancestry (the born channel, egocube.js);
  *                   a partner's and a child's age lean is the dweller's to say (domicile.js)
  *
@@ -40,7 +41,7 @@ export const ROLES = Object.freeze({
   townie: R({
     title: 'Townie',
     reads: 'lives here: a household round a hearth, out to the square and back',
-    room: { dwelling: 'hearth', shop: 'backroom' }, facets: { role: 'non-combatant' },
+    room: { dwelling: 'hearth', shop: 'backroom', tavern: 'kitchen', temple: 'nave' }, facets: { role: 'non-combatant' },
     lean: { archetype: { everyman: 3, caregiver: 2, innocent: 2, jester: 1, lover: 1 } },
     slots: PLACEHOLDER, house: true, grows: [],
     seeks: [{ need: 'provisions', roles: ['keeper'], why: 'a household buys what it does not grow or make' }],
@@ -52,6 +53,23 @@ export const ROLES = Object.freeze({
     lean: { age: { child: 0, youth: 0.5, adult: 3, seasoned: 3, elder: 1 }, archetype: { everyman: 2, ruler: 2, creator: 1, caregiver: 1 } },
     slots: PLACEHOLDER, house: true, grows: [],
     seeks: [{ need: 'supplier', roles: ['farmhand', 'master'], why: 'a counter sells what someone grows or makes' }],
+  }),
+  innkeeper: R({
+    title: 'Innkeeper',
+    reads: 'keeps the inn: beds over a taproom, a meal and a fire for the road-weary',
+    service: 'innkeep', facets: { role: 'non-combatant' },
+    lean: { age: { child: 0, youth: 0.5, adult: 3, seasoned: 3, elder: 1 }, build: { stout: 3, canonical: 2 }, archetype: { caregiver: 4, everyman: 2, jester: 1 } },
+    slots: PLACEHOLDER, house: true, grows: [],
+    seeks: [{ need: 'provisions', roles: ['keeper', 'farmhand'], why: 'a taproom feeds the road on what the town grows and sells' }],
+  }),
+  priest: R({
+    title: 'Priest',
+    reads: 'tends the temple: its sanctuary, a blessing for the road',
+    service: 'shrine', facets: { role: 'non-combatant' },
+    lean: { age: { child: 0, youth: 0.3, adult: 1, seasoned: 3, elder: 3 }, archetype: { sage: 3, caregiver: 3, innocent: 1 } },
+    pull: { order: { at: 0.25, spread: 0.15 } },
+    slots: PLACEHOLDER, grows: [],
+    seeks: [{ need: 'village', roles: ['townie'], why: 'a temple keeps a village: someone has to come' }],
   }),
   master: R({
     title: 'Master',
@@ -114,4 +132,6 @@ export const ROLE_IDS = Object.freeze(Object.keys(ROLES));
 /** The role a lot's use is for. A use with no row (a castle's lots) roots no one, and the folk sheet says so. */
 export const ROOTS = Object.freeze({
   dwelling: 'townie', shop: 'keeper', workshop: 'master', barn: 'farmhand', hall: 'elder', tower: 'captain',
+  // (a lot kept for a trade, era/stage-buildings.js TOWN_TRADES: its keeper the trade's, whatever its shape)
+  inn: 'innkeeper', temple: 'priest', smithy: 'master',
 });

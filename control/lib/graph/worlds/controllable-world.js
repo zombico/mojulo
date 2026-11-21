@@ -73,6 +73,9 @@ export function assembleControllableScene(manifest = {}, opts = {}) {
     ...(manifest.sky && typeof manifest.sky === 'object' ? { sky: manifest.sky }
       : (atmo && atmo.sky ? { sky: atmo.sky } : {})),
     ...(atmo && atmo.light ? { light: atmo.light } : {}),
+    // opt-in FORM RENDER (a stage whose faces are baked as material under a day's light, arena-map/ground-form.js):
+    // its `form` handed to the page as a town's is (scene/channels/form.js). Absent, not one key more.
+    ...(manifest.form && typeof manifest.form === 'object' && !Array.isArray(manifest.form) ? { form: manifest.form } : {}),
   };
 }
 

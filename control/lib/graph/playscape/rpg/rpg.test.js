@@ -7,7 +7,7 @@ import { createBusState, processEvents, watchEvents } from '../../worlds/event-b
 import { eventsChannelScript } from '../../scene/channels/events.js';
 import { JSDOM } from 'jsdom';
 import { rpgScript, rpgPage, rpgMana } from '../../scene/channels/rpg-channel.js';
-import { juiceKeys } from './juice.js';
+import { juiceKeys, lensYields } from './juice.js';
 import { manaControls, manaHostSource } from '../../controls/mana-controls.js';
 import { manaUiSource } from '../../../mana-ui/kernel.js';
 import { buildGameStoreKernel } from '../../game/store-kernel.js';
@@ -114,7 +114,7 @@ function page(play, vars = {}, game = null, more = {}) {
   const queue = [];
   const { keys, pad, padLayout } = manaControls(), ctl = { keys, pad, padLayout, select: 8 };
   const inScope = (src) => new Function('window', 'document', `return ${src};`)(window, document);
-  const M = { ui: inScope(manaUiSource()), host: inScope(manaHostSource()), ...rpgMana(ev.rpg) };
+  const M = { ui: inScope(manaUiSource()), host: inScope(manaHostSource()), ...rpgMana(ev.rpg), ly: lensYields };
   const api = new Function('document', 'window', '__busState', '__inputQueue', 'cfg', 'K', 'ctl', 'M', `return (${rpgPage.toString()})(cfg, K, ctl, ${juiceKeys.toString()}, M);`)(document, window, bus, queue, ev.rpg, new Function(`return (${buildRpg.toString()})();`)(), ctl, M);
   let t = 0;
   const frames = (n = 1) => { for (let i = 0; i < n; i++) { t += 100; api.step(t); } };
@@ -517,5 +517,47 @@ describe('the cinema: a blow played as a short film, skippable, the view given b
     expect(() => lowerPlay({ entities: ENTITIES, play: { rpg: { ...PLAY.rpg, rules: { cinema: { on: 'skills', ui: 'numbers', skip: 3 } } } } }, { player: 'hero' })).not.toThrow();
     expect(() => lowerPlay({ entities: ENTITIES, play: { rpg: { ...PLAY.rpg, rules: { cinema: { on: 'always' } } } } }, { player: 'hero' })).toThrow(/cinema.on is 'skills'/);
     expect(() => lowerPlay({ entities: ENTITIES, play: { rpg: { ...PLAY.rpg, rules: { view: 'diagonal' } } } }, { player: 'hero' })).toThrow(/view is side or front or left or right or overhead/);
+  });
+});
+
+describe('the lens in a fight: the screen round a still figure', () => {
+  // the stand-in world: the pilot (the party's figure) and the wolves' figure, projected by a plain rule (x across, z up)
+  const world = () => {
+    const byId = { hero: { id: 'hero', transform: { pos: [0, 0, 0] } }, 'wolf-1': { id: 'wolf-1', transform: { pos: [8, 0, 0] } } };
+    return { __mojCtrl: { world: { pilotId: 'hero', byId, entities: Object.values(byId), time: 0 }, project: (x, y, z) => [100 + x * 50, 600 - z * 100, 0.5] } };
+  };
+  const play = (juice) => {
+    const P = page({ rpg: { ...PLAY.rpg, juice } }, {}, null, world());
+    processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
+    P.frames();
+    const seen = [];
+    for (let r = 0; r < 400 && P.api.state().mode; r++) {
+      P.frames(1);
+      for (const el of P.document.querySelectorAll('.mana-struck')) seen.push({ kind: el.getAttribute('data-kind'), style: el.getAttribute('style'), host: el.closest('.moj-rpg-lens') && !el.closest('.moj-rpg') });
+      const s = P.api.state();
+      if (s.phase === 'command') P.press('Enter');
+      else if (s.phase === 'end') P.press('Enter');
+    }
+    return { P, seen };
+  };
+
+  it('a juice\'s lens step draws round the figure it names, in its own host beside the canvas, gone with its beat', () => {
+    const { P, seen } = play({ on: { hit: [{ lens: 'ink' }] } });
+    // (the default cast's lift plays too, round a caster: the ink is this juice's hits)
+    const ink = seen.filter((x) => x.kind === 'ink');
+    expect(ink.length).toBeGreaterThan(0);
+    expect(seen.every((x) => x.host)).toBe(true);
+    // round a figure's middle (its body 1.8 high: the middle 0.9 up, at 600 - 90 px of the window's 768)
+    const tops = new Set(ink.map((x) => /top:([\d.]+)%/.exec(x.style)[1]));
+    expect([...tops].every((t) => Math.abs(Number(t) - (510 / P.window.innerHeight) * 100) < 0.2)).toBe(true);
+    expect(P.document.querySelectorAll('.mana-struck').length).toBe(0);
+  });
+
+  it('it yields where the beat\'s world answers the figure: a flash over the field, a puff on it', () => {
+    const inked = (juice) => play(juice).seen.filter((x) => x.kind === 'ink');
+    expect(inked({ on: { hit: [{ flash: '#ffffff' }, { lens: 'ink' }] } })).toEqual([]);
+    expect(inked({ on: { hit: [{ puff: 'sparks' }, { lens: 'ink' }] } })).toEqual([]);
+    // (the same juice with the puff on the other figure: the lens plays)
+    expect(inked({ on: { hit: [{ puff: 'sparks', at: 'actor' }, { lens: 'ink' }] } }).length).toBeGreaterThan(0);
   });
 });

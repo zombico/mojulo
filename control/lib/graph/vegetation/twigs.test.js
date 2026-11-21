@@ -3,7 +3,7 @@
 // grown tree's stem bare and its spread its own (growUp); far off, every clump in place with half its leaves. Drawn to its
 // twigs (`twigs`), every cross on a shoot whose twig is drawn.
 import { describe, it, expect } from 'vitest';
-import { LEAF_TRIS, MAPLE_TRIS, CROSS, leafCross, leafShape } from './twigs.js';
+import { LEAF_TRIS, MAPLE_TRIS, CROSS, CORE_TRIS, leafCross, leafShape } from './twigs.js';
 import { SPECIES } from './species.js';
 import { treeForm, crossClumps, TREE_FORM, SHOOTS } from '../form/tree-form.js';
 
@@ -84,5 +84,23 @@ describe('a crown of crosses', () => {
     const reach = (F) => Math.max(...F.clumps.map((c) => Math.hypot(c.p[0], c.p[1])));
     const r = [5, 6, 7, 8].map((seed) => reach(treeForm(sp, { seed })));
     expect(Math.max(...r) - Math.min(...r)).toBeGreaterThan(0.2);
+  });
+});
+
+describe('a bundle\'s core (the hybrid crown)', () => {
+  it('fills the bundle\'s room with a blob in the crown\'s darker tone, for no more triangles than the bundle had', () => {
+    for (const sp of ['beech', 'oak', 'willow']) {
+      const bare = leafCross(sp, { seed: 17 }).tris, cored = leafCross(sp, { seed: 17, core: true }).tris;
+      expect(cored.length).toBeLessThanOrEqual(bare.length);
+      // (its blob: CORE_TRIS faces round the bundle's middle, darker than the leaves)
+      const blob = cored.slice(0, CORE_TRIS), lum = (c) => c[0] + c[1] + c[2];
+      expect(blob.every((t) => t.kind === 'leaf' && lum(t.c) < Math.min(...cored.slice(CORE_TRIS).map((x) => lum(x.c))))).toBe(true);
+      const mid = blob.flatMap((t) => t.p).reduce((a, q) => a.map((v, k) => v + q[k] / (CORE_TRIS * 3)), [0, 0, 0]);
+      expect(Math.hypot(...mid)).toBeLessThan(0.2);
+      // (the same seed, the same bundle)
+      expect(JSON.stringify(leafCross(sp, { seed: 17, core: true }))).toBe(JSON.stringify({ tris: cored }));
+    }
+    // (asked for nothing, the bundle as it was)
+    expect(JSON.stringify(leafCross('beech', { seed: 17, core: false }))).toBe(JSON.stringify(leafCross('beech', { seed: 17 })));
   });
 });
