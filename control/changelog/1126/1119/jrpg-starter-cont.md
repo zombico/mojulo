@@ -207,3 +207,9 @@
   world, storm the citadel). It is stamped as any brief is (stakes, ending, acts, colour script, light, the first level's
   and the climax's orders) and said in `brief.round.brief`. The round's shape is read from its labour: the mandala, as
   before; a labour asking for a chain, a hub or an open world is laid as the mandala for now, and the brief says so.
+- **The citadel: a labour's climax as a walled core.** Where a party RPG's labour climaxes in a citadel (storm the
+  citadel), its core is a walled-core dungeon (`wcd/wcd.js`) over its level: a guardhouse (an outer), its vault (the
+  dungeon the words name, else a crypt) and its sanctum (the `citadel` program), the complex's buildings on its critical
+  path, the packs fought through them and the boss in the sanctum. A citadel the words name is always laid, with its boss
+  (before, "save the princess from the citadel" laid no dungeon and no boss); the JRPG's own labour, unnamed, builds it
+  where the words lay a dungeon. The WCD's gates are its design's words, not locks: the way in stays the mandala's key.

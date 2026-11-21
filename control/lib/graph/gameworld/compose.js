@@ -162,6 +162,9 @@ const ROUND_BOSS = Object.freeze({ pack: Object.freeze(['drake']), pages: (place
 ] });
 // a party RPG's brief where its words name none (gmn.js): save the world, by storming the citadel (a mandala, a walled
 // core at its middle)
+// THE CITADEL a citadel labour's core is built as (wcd/wcd.js, era/programs.js uses): its guardhouse, its vault (the
+// dungeon the words name, else this), its sanctum
+const CITADEL = Object.freeze({ gate: 'guardhouse', vault: 'crypt', core: 'citadel' });
 const ROUND_GMN = Object.freeze({ motivations: Object.freeze({ 'save-the-world': 1 }), labours: Object.freeze({ 'storm-the-citadel': 1 }) });
 const ROUND_NOT_YET = (shape) => `a party RPG lays its round as a mandala; a ${shape} round is not laid yet, so the mandala stands for it`;
 // the treasure chests each fighting stage of a party RPG keeps (gameworld/chests.js)
@@ -472,22 +475,27 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // own before it; the wilds between the town and them. A turn-based game's town keeps an inn and a temple on its
   // street (era/town-trades.js), the party's rest and its priest
   const hubbed = !!genre && !form && n >= 2 && cubeOfWorld({ intent: { from: genre.id } }).cube.space?.topology === 'hub';
-  const castled = hubbed && P.words.some((w) => CASTLE_WORDS.has(w)), dungeoned = hubbed && !!indoors;
   const turnBased = hubbed && [].concat(cubeOfWorld({ intent: { from: genre.id } }).cube.power?.combat ?? []).includes('turn-based');
-  const N = hubbed ? Math.max(n, 2 + (castled ? 1 : 0) + (dungeoned ? 1 : 0)) : n;
-  const castleAt = castled ? (dungeoned ? N - 2 : N - 1) : -1;
   // THE ROUND'S BRIEF (gmn.js): what a party RPG is about and what it asks of the player, read from its words (the
   // princess, the citadel, the sea…), a JRPG's own where they name none (ROUND_GMN: save the world, storm the citadel).
   // Its labour's shape is the round's: a mandala, rings travelled inward to a gated core. A shape a party RPG does not
-  // lay yet (a chain, a hub, an open world) is laid as the mandala, and the brief says so
+  // lay yet (a chain, a hub, an open world) is laid as the mandala, and the brief says so. A labour whose climax is a
+  // CITADEL always has its dungeon: the round's core, a walled core (CITADEL below), the dungeon the words name its vault,
+  // else a crypt
   const roundBrief = turnBased ? gmnOfWords(P.words, { defaults: ROUND_GMN }) : null;
   const roundResolved = roundBrief ? resolveGmn(roundBrief.gmn) : null, askedShape = roundResolved?.structure?.shape ?? null;
+  // (a citadel the words named always has its dungeon; the JRPG's own, unnamed, builds one where the words laid a dungeon)
+  const citadelClimax = roundResolved?.structure?.climax === 'citadel', namedLabour = !!roundBrief?.read.some((r) => r.decides.some((d) => d.startsWith('gameBrief.gmn.labours.')));
+  const vault = indoors ?? (hubbed && citadelClimax && namedLabour ? { use: CITADEL.vault, kit: ROOM_KIT_OF_USE[CITADEL.vault] ?? 'gothic-stone', useWord: null, from: 0 } : null);
+  const castled = hubbed && P.words.some((w) => CASTLE_WORDS.has(w)), dungeoned = hubbed && !!vault;
+  const N = hubbed ? Math.max(n, 2 + (castled ? 1 : 0) + (dungeoned ? 1 : 0)) : n;
+  const castleAt = castled ? (dungeoned ? N - 2 : N - 1) : -1;
   // (a turn-based round of three levels or more is laid in its labour's shape, ROUND_MANDALA below; its wilds counted as
   // they are laid)
   const roundMandala = turnBased && N >= 3;
   let wildsK = 0;
   // (the dungeon's use: the word's, but a castle named beside it is the castle's level, and the dungeon stays a crypt)
-  const dungeonUse = dungeoned ? (indoors.use === 'keep' && castled ? room : indoors.use) : null;
+  const dungeonUse = dungeoned ? (vault.use === 'keep' && castled ? room : vault.use) : null;
   const hubId = `${wid}-1`.slice(0, 48);
   // a genre whose cube asks for a WORLD MAP (space.worldMap 'zones' on levelForm 'map': the action RPG) is laid as one: a
   // planned map walked block by block and travelled zone to zone, its first zone laid in teaching order (world-map.js),
@@ -513,12 +521,12 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     const lg = goals ? (({ boss, escape, gauntlet, health, ...g }) => ({ ...g, ...(health && !held ? { health } : {}), ...(boss && last ? { boss } : held ? { gauntlet: gauntlet === 'holdout' ? { ...DEFAULT_HOLDOUT, arenas: DEFAULT_HOLDOUT.arenas.map((A) => ({ waves: A.waves.map((W) => ({ ...W })) })) } : { arenas: DEFAULT_GAUNTLET.arenas.map((A) => ({ waves: A.waves.map((W) => ({ ...W })) })) } } : escape ? { escape } : {}) }))(goals) : null;
     const lgoal = lg && Object.keys(lg).length ? { goal: lg } : {};
     // (a side camera runs a trail's lane: a side-scroller's levels stay out of doors)
-    const inside = indoors && (hubbed ? dungeoned && last : i >= indoors.from) && camera !== 'side';
+    const inside = (hubbed ? !!vault && dungeoned && last : !!indoors && i >= indoors.from) && camera !== 'side';
     const nodes = { [`${SUFFIX[i] ?? 'stage'}-a`]: { trail: true }, [`${SUFFIX[i] ?? 'stage'}-b`]: { trail: true }, ...(climb ? { lookout: { meru: true } } : {}) };
     // (a genre's book form, genre-forms.js: its levels laid in it, a flight sim's courses; no town, no walk goal)
     const L = hubbed && i === 0 ? { name: `${cap(landscape)} town`, walk: { nodes: { square: { trail: true } } }, places: { town: true, street: turnBased ? { houses: 7, enter: ['shop', 'inn', 'temple'], walk: ['shop'], walls: true, inside: true } : { houses: 6, enter: 2, walk: ['shop'], walls: true, inside: true } } }
       : form ? (({ street, ...rest }) => ({ name: `${form.name} ${i + 1}`, ...rest, ...(street ? { street: heroWords.length ? { ...street, tuning: 'heroes' } : street } : {}) }))(form.level(i, n))
-      : inside && hubbed ? { name: `The ${dungeonUse}`, building: { use: dungeonUse, kit: dungeonUse === indoors.use ? indoors.kit : ROOM_KIT_OF_USE[dungeonUse] ?? 'gothic-stone' }, ...lgoal }
+      : inside && hubbed ? { name: citadelClimax && roundMandala ? 'The citadel' : `The ${dungeonUse}`, building: { use: dungeonUse, kit: dungeonUse === vault.use ? vault.kit : ROOM_KIT_OF_USE[dungeonUse] ?? 'gothic-stone' }, ...lgoal }
       : hubbed && i === castleAt ? { name: 'The castle', walk: { nodes }, ...lgoal, places: { castle: civIds[1] ? { civilization: civIds[1] } : true } }
       // (a mandala round's wilds, its second ring: the world map's blocks walked out from the town, world-map.js
       // wildsLevel, each block's pack its battles'; the core is laid as it was)
@@ -573,11 +581,23 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     // never the real-time goal's: the boss the words name at the core is ROUND_BOSS's pack, its fight's own pages a line
     // as it begins and one at half its HP; the core's goal keeps what else it holds
     const C = world.levels[core];
-    if (C.goal?.boss) {
-      const { boss: _b, ...rest } = C.goal;
-      if (Object.keys(rest).length) C.goal = rest; else delete C.goal;
+    // (a citadel's core keeps its boss whether or not the words named one)
+    if (C.goal?.boss || (citadelClimax && dungeoned)) {
+      const { boss: _b, ...rest } = C.goal ?? {};
+      if (Object.keys(rest).length) C.goal = rest; else if (C.goal) delete C.goal;
       world.battles = { ...(world.battles ?? {}), boss: [...ROUND_BOSS.pack], bossPages: ROUND_BOSS.pages(low(C.name ?? core)) };
       world.brief.round = { ...world.brief.round, boss: { pack: [...ROUND_BOSS.pack], at: core } };
+    }
+    // THE CITADEL (a labour whose climax is one: storm the citadel): the core a WALLED CORE (wcd/wcd.js) over its level,
+    // layer on layer on its critical path: its guardhouse (an outer, crossed), its vault (the dungeon the words named,
+    // else a crypt), and its sanctum at the heart (the citadel's own rooms), the boss there; each layer fought through
+    // (battles.js lays the packs in the rooms on the way, the boss in the last). Its doors' gates are the design's words:
+    // the way in is the mandala's key
+    if (citadelClimax && dungeoned) {
+      const sp = (kind, depth, use) => ({ kind, depth, level: core, use });
+      world.wcd = { core: 'sanctum', spaces: { gate: sp('outer', 0, CITADEL.gate), vault: sp('inner', 1, dungeonUse), sanctum: sp('inner', 2, CITADEL.core) },
+        doors: [{ from: 'gate', to: 'vault', via: 'door', gate: { clearance: 1 } }, { from: 'vault', to: 'sanctum', via: 'stair', gate: { clearance: 2 } }] };
+      world.brief.round = { ...world.brief.round, citadel: { at: core, path: ['gate', 'vault', 'sanctum'], uses: [CITADEL.gate, dungeonUse, CITADEL.core] } };
     }
   }
   // (the round's brief stamped: its reading and its orders, gmn.js; the words that named it read)

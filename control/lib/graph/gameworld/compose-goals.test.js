@@ -233,6 +233,24 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
     expect(C.megaworld.shape).toBe('mandala');
   });
 
+  it('storms its citadel: the core a walled core, a guardhouse, its vault and the sanctum, fought through to the boss at its heart', () => {
+    const core = W.megaworld.rings.at(-1)[0];
+    expect(W.levels[core].name).toBe('The citadel');
+    expect(W.wcd).toMatchObject({ core: 'sanctum', spaces: { gate: { kind: 'outer', level: core, use: 'guardhouse' }, vault: { kind: 'inner', level: core, use: 'crypt' }, sanctum: { kind: 'inner', level: core, use: 'citadel' } } });
+    expect(readGameworld(W).wcd.path).toEqual(['gate', 'vault', 'sanctum']);
+    const M = steps().find((s) => s.key === `level-${core}-0`).order.manifest, E = M.play.rpg.encounters;
+    expect(E.length).toBeGreaterThan(1);
+    expect(E.at(-1)).toMatchObject({ foes: ['drake'], flee: false });
+    // (a citadel the words name is always laid, its boss though no word named one; the JRPG's own, unnamed, only where
+    // the words lay a dungeon: a round of a town and its wilds stays one)
+    const named = composeGameworld({ prompt: 'a jrpg where we save the princess from the citadel', seed: 3 });
+    expect(named.wcd?.core).toBe('sanctum');
+    expect(named.battles.boss).toEqual(['drake']);
+    expect(composeGameworld({ prompt: 'a jrpg where a party battles monsters', seed: 3 }).wcd).toBeUndefined();
+    const sea = composeGameworld({ prompt: 'a jrpg voyage across the sea to find my sister', seed: 3 });
+    expect(sea.wcd).toBeUndefined();
+  });
+
   it('lays the town at the centre, the wilds, the castle\'s level, and the dungeon last with the boss at its end', () => {
     expect(W.hub).toBe(ids[0]);
     expect(W.start).toBe(ids[0]);

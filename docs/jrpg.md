@@ -33,6 +33,14 @@ its colour script and light, and its orders (the first level, the climax), said 
 The labour's shape is the round's. A party RPG lays the mandala; a labour that asks for another shape (a chain, a hub,
 an open world) is laid as the mandala for now, and the brief says so (`asked`, `why`).
 
+**The citadel.** Where the labour's climax is a citadel (storm the citadel), the round's core is a **walled core**
+(`wcd/wcd.js`) over its level, layer on layer on its critical path: a guardhouse (an outer, crossed), its vault (the
+dungeon the words name, else a crypt), and its sanctum at the heart (the `citadel` program's rooms), each built as a
+building of the core's complex and fought through (the packs in the rooms on the way, the boss in the sanctum). Its
+doors' gates are design words (the WCD's principles read them); the way in is the mandala's key. A citadel the words name
+("citadel", "fortress", "stronghold", "lair") is always laid, its boss with it; the JRPG's own labour, unnamed, builds it
+only where the words lay a dungeon, so a round of a town and its wilds stays one. Said in `brief.round.citadel`.
+
 A round of three levels or more is laid as a **mandala** (`gameworld/megaworld.js`), rings travelled inward (a town
 and one stretch of wilds stay a plain hub):
 - the first ring is the town, where the game starts;
