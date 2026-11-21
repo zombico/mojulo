@@ -853,6 +853,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // hero in its hurt; the buster's tap held while it flinches): a rule without `flinch` steps as before; every fixture
 // that embeds the controllable runtime re-pinned with it. (The side map's shutter wall and its room put back after a
 // fall are the side-map runtime's, emitted only under a side map's camera: no fixture has one.)
+// Re-pinned 2026-11-21 (the game-params seam reads a light shell's turn pick, params.__picks.pilot, as its pilot: a co-star's
+// level stands two heroes in the player's seat): a level with no pick pilots as before; every fixture that embeds the
+// controllable channel re-pinned with it.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
