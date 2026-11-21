@@ -42,6 +42,7 @@ import { suggestGenres, readGenre, cubeOfWorld, GENRES } from './intent.js';
 import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf, heroStreetWords } from './genre-forms.js';
 import { worldMapLevel, wildsLevel, WORLD_MAP } from './world-map.js';
 import { stampMegaworld } from './megaworld.js';
+import { gmnOfWords, resolveGmn, stampGameBrief } from './gmn.js';
 import { settingOfGame } from './cast-setting.js';
 import { heroDesign } from './hero-design.js';
 import { genrePaletteWords } from './world-palette.js';
@@ -159,6 +160,10 @@ const ROUND_BOSS = Object.freeze({ pack: Object.freeze(['drake']), pages: (place
   { when: { start: true }, who: 'Ember Drake', say: `None who come into ${place} leave it.` },
   { when: { foe: 'drake', hpBelow: 0.5 }, who: 'Ember Drake', say: ['You burn brighter than the others did.', 'Then burn out!'] },
 ] });
+// a party RPG's brief where its words name none (gmn.js): save the world, by storming the citadel (a mandala, a walled
+// core at its middle)
+const ROUND_GMN = Object.freeze({ motivations: Object.freeze({ 'save-the-world': 1 }), labours: Object.freeze({ 'storm-the-citadel': 1 }) });
+const ROUND_NOT_YET = (shape) => `a party RPG lays its round as a mandala; a ${shape} round is not laid yet, so the mandala stands for it`;
 // the treasure chests each fighting stage of a party RPG keeps (gameworld/chests.js)
 const ROUND_CHESTS = 2;
 const low = (t) => (typeof t === 'string' && /^The /.test(t) ? `the ${t.slice(4)}` : t);
@@ -471,7 +476,14 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const turnBased = hubbed && [].concat(cubeOfWorld({ intent: { from: genre.id } }).cube.power?.combat ?? []).includes('turn-based');
   const N = hubbed ? Math.max(n, 2 + (castled ? 1 : 0) + (dungeoned ? 1 : 0)) : n;
   const castleAt = castled ? (dungeoned ? N - 2 : N - 1) : -1;
-  // (a turn-based round of three levels or more is a mandala, ROUND_MANDALA below; its wilds counted as they are laid)
+  // THE ROUND'S BRIEF (gmn.js): what a party RPG is about and what it asks of the player, read from its words (the
+  // princess, the citadel, the sea…), a JRPG's own where they name none (ROUND_GMN: save the world, storm the citadel).
+  // Its labour's shape is the round's: a mandala, rings travelled inward to a gated core. A shape a party RPG does not
+  // lay yet (a chain, a hub, an open world) is laid as the mandala, and the brief says so
+  const roundBrief = turnBased ? gmnOfWords(P.words, { defaults: ROUND_GMN }) : null;
+  const roundResolved = roundBrief ? resolveGmn(roundBrief.gmn) : null, askedShape = roundResolved?.structure?.shape ?? null;
+  // (a turn-based round of three levels or more is laid in its labour's shape, ROUND_MANDALA below; its wilds counted as
+  // they are laid)
   const roundMandala = turnBased && N >= 3;
   let wildsK = 0;
   // (the dungeon's use: the word's, but a castle named beside it is the castle's level, and the dungeon stays a crypt)
@@ -567,6 +579,17 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
       world.battles = { ...(world.battles ?? {}), boss: [...ROUND_BOSS.pack], bossPages: ROUND_BOSS.pages(low(C.name ?? core)) };
       world.brief.round = { ...world.brief.round, boss: { pack: [...ROUND_BOSS.pack], at: core } };
     }
+  }
+  // (the round's brief stamped: its reading and its orders, gmn.js; the words that named it read)
+  if (roundBrief) {
+    world.gameBrief = stampGameBrief({ gameBrief: { gmn: roundBrief.gmn } }).gameBrief;
+    for (const r of roundBrief.read) {
+      const had = world.brief.read.find((x) => x.word === r.word);
+      if (had) had.decides = [...new Set([...had.decides, ...r.decides])]; else world.brief.read.push({ word: r.word, decides: [...r.decides] });
+    }
+    world.brief.unread = world.brief.unread.filter((w) => !roundBrief.read.some((r) => r.word === w));
+    const laid = roundMandala ? 'mandala' : 'hub';
+    world.brief.round = { ...(world.brief.round ?? {}), brief: { motivation: roundResolved.motivation, labour: roundResolved.labour, shape: laid, ...(askedShape && askedShape !== laid && roundMandala ? { asked: askedShape, why: ROUND_NOT_YET(askedShape) } : {}) } };
   }
   world.brief.levels = decided;
   // what the levels are played for, and which are buildings: said only when a word decided it

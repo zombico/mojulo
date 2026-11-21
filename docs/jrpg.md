@@ -23,6 +23,16 @@ Words that name a party RPG (`design_game { compose: { prompt } }`, a `jrpg` int
 | the castle (when the words name one) | **The castle walked:** its ward on the trail, closed by the castle's own fortification, and its keep entered at its door. Inside the keep are the gatehouse, the great hall, the chapel, the solar and the treasury (`era/programs.js` `keep`). |
 | the dungeon (when the words name one) | A building of its use (a crypt by default), the boss at its end. Reached through a gate. |
 
+**What it is about.** A party RPG's words compose its **game brief** (`gameworld/gmn.js`): a motivation (the why:
+save the princess, save the world, reunite with family, solve the mystery, find the treasure, stop the virus) and a
+labour (the how: storm the citadel, conquer the map, cross the great sea, be the very best…), each read from the words
+people say for it (`GMN_WORDS`: princess, citadel, sea, sister…), the first named the lead. Where the words name none, a
+JRPG's own: save the world by storming the citadel. The brief is stamped as any is: its stakes, its ending, its acts,
+its colour script and light, and its orders (the first level, the climax), said in `brief.round.brief`.
+
+The labour's shape is the round's. A party RPG lays the mandala; a labour that asks for another shape (a chain, a hub,
+an open world) is laid as the mandala for now, and the brief says so (`asked`, `why`).
+
 A round of three levels or more is laid as a **mandala** (`gameworld/megaworld.js`), rings travelled inward (a town
 and one stretch of wilds stay a plain hub):
 - the first ring is the town, where the game starts;

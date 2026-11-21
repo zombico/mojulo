@@ -201,3 +201,9 @@
   level gained with a Level up! badge and each stat it raised, before → after; a class rank risen; the skills learned.
   Continue closes the fight. A level beat now carries the member's stats before and after (`kernel.js` `gain`). Before,
   the spoils were only lines told one after another in the message line.
+- **A party RPG is about something: its brief from its words.** A composed party RPG now carries a game brief
+  (`gameworld/gmn.js`): a motivation and a labour read from its words (`GMN_WORDS`, the words people say for each:
+  princess, citadel, sea, sister…, `gmnOfWords`; the first named the lead), a JRPG's own where they name none (save the
+  world, storm the citadel). It is stamped as any brief is (stakes, ending, acts, colour script, light, the first level's
+  and the climax's orders) and said in `brief.round.brief`. The round's shape is read from its labour: the mandala, as
+  before; a labour asking for a chain, a hub or an open world is laid as the mandala for now, and the brief says so.

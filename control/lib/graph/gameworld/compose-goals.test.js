@@ -216,6 +216,23 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
   let S0 = null;
   const steps = () => (S0 ??= runSteps(W, { ref: 'gw' }));
 
+  it('is about something: its brief read from its words, a JRPG\'s own where they name none; its labour\'s shape its round\'s', () => {
+    // (none named: save the world by storming the citadel, a mandala, as it was laid before it had a brief)
+    expect(W.gameBrief.gmn).toEqual({ motivations: { 'save-the-world': 1 }, labours: { 'storm-the-citadel': 1 } });
+    expect(W.gameBrief.orders.map((o) => o.id)).toEqual(['lv0', 'citadel']);
+    expect(W.brief.round.brief).toEqual({ motivation: 'save-the-world', labour: 'storm-the-citadel', shape: 'mandala' });
+    expect(() => readGameworld(W)).not.toThrow();
+    // (named: the princess and the citadel read, its first level the moment she is taken)
+    const P = composeGameworld({ prompt: 'a jrpg where we save the princess from the citadel', seed: 3 });
+    expect(P.gameBrief.gmn.motivations).toEqual({ 'save-the-princess': 1 });
+    expect(P.gameBrief.orders[0].words).toContain('she is taken');
+    expect(P.brief.unread).not.toContain('princess');
+    // (a shape a party RPG does not lay yet: the mandala stands for it, said)
+    const C = composeGameworld({ prompt: 'a jrpg voyage across the sea to find my sister', seed: 3 });
+    expect(C.brief.round.brief).toMatchObject({ labour: 'cross-the-great-sea', shape: 'mandala', asked: 'chain' });
+    expect(C.megaworld.shape).toBe('mandala');
+  });
+
   it('lays the town at the centre, the wilds, the castle\'s level, and the dungeon last with the boss at its end', () => {
     expect(W.hub).toBe(ids[0]);
     expect(W.start).toBe(ids[0]);
