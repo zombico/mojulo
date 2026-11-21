@@ -191,6 +191,20 @@ repertoire** (`egocube/moves.js` `battleMovesOf`):
 - three ways to take a blow beside its stagger, and its fall;
 - its ready stance, held while the fight lasts, and its win pose, struck by the whole party when the fight is won.
 
+**Weapons in hand.** In a world of battles, each party member who is a person, and the hero, holds its class's weapon
+(`egocube/moves.js` `WEAPON_OF_CLASS`):
+
+| class | holds | its three attacks |
+|---|---|---|
+| fighter | a greatsword | the cut, the thrust and the cleave, heavy and slow |
+| knight | a sword and a shield | the same at a one-hand sword's pace |
+| rogue | a dagger | the same, quick and short |
+| mage, cleric | a staff | the same, swung as a haft |
+| monk | its fists | the boxer's three by its role |
+
+A held weapon's three attacks are the swings the page bakes on the figure's own rig (`world-kinds.js`, the held
+strike), timed by the weapon's weight. So a weapon costs no clips at the mint, and the fists are not minted.
+
 The page plays a figure's strikes and recoils in turn, each figure from a place of its own, so no two blows in a row
 look alike. A figure without its own falls back to the clip it has. A world's juice can name the acts (`act: strike |
 cast | use | hurt | fall | win`, `at: party` for the win).

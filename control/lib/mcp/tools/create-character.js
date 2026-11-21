@@ -85,7 +85,8 @@ async function createFromEgocube({ egocube, years, member, dress, output, as, sp
   const row = SketchRepository.getByRef(egocube);
   if (!row || row.manifest?.kind !== 'egocube') throw new Error(`create_character: '${egocube}' is not an egocube (make one with create_sketch { kind: 'egocube', roll })`);
   // `output: 'mascot'`: the cube's character made as its mascot (egocube/mascot-from-person.js), with its model sheet
-  const C = egocubeCreate(row.manifest, { years, member, dress, output });
+  // (a member made holding a weapon, its spec's `gear`: its battle attacks are the held swings, egocube/moves.js)
+  const C = egocubeCreate(row.manifest, { years, member, dress, output, armed: !!spec?.gear?.right });
   const makes = { hero: 'a person (as: hero)', creature: 'a body below the hero door (as: creature)', animal: 'a beast, a real species (as: animal)' };
   if (as !== undefined && as !== C.create.as) throw new Error(`create_character: the egocube '${egocube}'${member ? ` (${member})` : ''} makes ${makes[C.create.as]}; leave \`as\` out`);
   // a cast's beast (cast.js): the animal door, titled by what it is; the species is its body, the cast its reading

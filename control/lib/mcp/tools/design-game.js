@@ -157,10 +157,10 @@ async function realize(step, action) {
   if (key.startsWith('cast-') && order.egocube) {
     // a rolled cast member: the character its cast makes by path (create_character { egocube, member }); remade beside
     // and moved into its own row, as a fighter is, so the ref and its history stay
-    if (action === 'make') await createCharacterHandler({ egocube: order.egocube, member: order.member, title: order.title, ref });
+    if (action === 'make') await createCharacterHandler({ egocube: order.egocube, member: order.member, title: order.title, ...(order.spec ? { spec: order.spec } : {}), ref });
     else {
       const beside = childRef(ref, 'remake');
-      await createCharacterHandler({ egocube: order.egocube, member: order.member, title: order.title, ref: beside });
+      await createCharacterHandler({ egocube: order.egocube, member: order.member, title: order.title, ...(order.spec ? { spec: order.spec } : {}), ref: beside });
       try { await updateSketchHandler({ ref, title: order.title, manifest: SketchRepository.getByRef(beside).manifest, note: 'design_game: a cast member remade from its cast' }); }
       finally { SketchRepository.deleteByRef(beside); }
     }

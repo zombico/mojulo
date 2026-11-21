@@ -122,7 +122,7 @@ export function egocubeNodes(m) {
 }
 
 /** The create_character call for the node at `years` (exactly, else the canonical node), dressed as the cube says. */
-export function egocubeCreate(m, { years, dress, title, output, member } = {}) {
+export function egocubeCreate(m, { years, dress, title, output, member, armed = false } = {}) {
   const nodes = egocubeNodes(m);
   if (m.cast !== undefined && years !== undefined) throw new Error('egocube: a cast\'s members are made by path (member), not by years');
   if (m.cast === undefined && member !== undefined) throw new Error('egocube: `member` names one of a cast\'s people; this cube is one character');
@@ -153,7 +153,7 @@ export function egocubeCreate(m, { years, dress, title, output, member } = {}) {
   const plays = !!node.member || m.moves === true;
   if (plays && P.create.as === 'hero') {
     // (a member who fights in the party carries a party battle's repertoire too: moves.js battleMovesOf)
-    const M = moveSetOf(node.sheet.facets), B = node.member?.bond === 'party' && node.sheet.facets.role !== 'non-combatant' ? battleMovesOf(node.sheet.facets.role, { archetype: node.sheet.facets.archetype }) : null;
+    const M = moveSetOf(node.sheet.facets), B = node.member?.bond === 'party' && node.sheet.facets.role !== 'non-combatant' ? battleMovesOf(node.sheet.facets.role, { archetype: node.sheet.facets.archetype, armed }) : null;
     return { node: { path: node.path, years: node.years, band: node.band }, ...of, create: { ...P.create, spec: { ...P.create.spec, motion: { ...(P.create.spec.motion ?? {}), ...M.motion, ...(B ? B.motion : {}) } } }, moves: M.moves, ...(B ? { battle: B.states } : {}), after: P.after, ledger: P.ledger, ...(P.outfit ? { outfit: P.outfit } : {}) };
   }
   // a member below the hero door (a beast-kin on the creature loop's rig): a walk and a jog, and the moves its rig solves

@@ -72,7 +72,7 @@ import { sheetAudio, sheetBed, onSheet, levelSheet, citySounds, rideSound, rideT
 import { cueSheet, levelScore, onScore, cityScore } from './cue-sheet.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { castingOf, laidCasting, laidJoins } from './casting.js';
-import { REACT_MOTION, reactStatesOf, beastMovesOf, battleMovesOf, ROLE_OF_CLASS } from '../egocube/moves.js';
+import { REACT_MOTION, reactStatesOf, beastMovesOf, battleMovesOf, ROLE_OF_CLASS, weaponOfClass } from '../egocube/moves.js';
 import { beastLook } from './stage-figures.js';
 import { kinWords, kinBare, isKin } from '../foes/packs.js';
 import { brawlCast, brawlBodies, withBodies, brawlStreet, withStreetBodies } from './brawl-cast.js';
@@ -318,8 +318,10 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   const react = !!G.moves;
   // (the hero of a world of battles carries a party battle's repertoire, by its class's role: moves.js battleMovesOf;
   // an adopted hero plays the moves it was made with)
-  const fightMoves = G.battles && !adopted ? battleMovesOf(ROLE_OF_CLASS[castingOf(G)?.anchor?.cls] ?? 'frontline') : null;
-  const withFight = (spec) => (fightMoves ? { ...spec, motion: { ...(isObj(spec.motion) ? spec.motion : {}), ...fightMoves.motion } } : spec);
+  // (and holds its class's weapon where its spec holds nothing: moves.js WEAPON_OF_CLASS)
+  const heroCls = G.battles && !adopted ? castingOf(G)?.anchor?.cls ?? null : null, heroGear = heroCls && !isObj(O.mint.args.spec.gear) ? weaponOfClass(heroCls) : null;
+  const fightMoves = G.battles && !adopted ? battleMovesOf(ROLE_OF_CLASS[heroCls] ?? 'frontline', { armed: !!(heroGear?.right || O.mint.args.spec.gear?.right) }) : null;
+  const withFight = (spec) => (fightMoves ? { ...spec, motion: { ...(isObj(spec.motion) ? spec.motion : {}), ...fightMoves.motion }, ...(heroGear ? { gear: heroGear } : {}) } : spec);
   const keepFight = (patch) => (fightMoves && patch ? patch.map((op) => (op.op === 'set' && op.path === '/hero/motion' && isObj(op.value) ? { ...op, value: { ...op.value, ...fightMoves.motion } } : op)) : patch);
   const hero = { spec: withFight(withReact(react, playJog(O.mint.args.spec))), mint: { ...O.mint.args, spec: withFight(withReact(react, playJog(O.mint.args.spec))) }, motion: keepFight(keepReact(react, keepJog(O.motion?.args.patch))) ?? null };
   const steps = [adopted
@@ -357,8 +359,9 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const castRef = childRef(ref, 'casting'), manifest = { kind: 'egocube', cast: CG.request }, gate = CG.scale === 'journey' ? ready.cast : { ready: true };
     steps.push({ key: 'casting', ref: castRef, ready: true, order: { title: `${G.name ?? G.id} · cast`, manifest }, print: fingerprint(manifest) });
     for (const M of CG.members) {
-      const order = { egocube: castRef, member: M.path, title: `${G.name ?? G.id} · ${M.name}` };
-      steps.push({ key: `cast-${M.id}`, ref: childRef(ref, `cast-${M.id}`), ready: gate.ready, ...waits(gate), order, print: fingerprint({ cast: manifest, member: M.path }) });
+      // (a party member of a world of battles made holding its class's weapon, casting.js `gear`)
+      const order = { egocube: castRef, member: M.path, title: `${G.name ?? G.id} · ${M.name}`, ...(M.gear ? { spec: { gear: M.gear } } : {}) };
+      steps.push({ key: `cast-${M.id}`, ref: childRef(ref, `cast-${M.id}`), ready: gate.ready, ...waits(gate), order, print: fingerprint({ cast: manifest, member: M.path, ...(M.gear ? { gear: M.gear } : {}) }) });
     }
   }
   const GL = laidCasting(G);   // the rolled members in the book's cast: the story places them, the field party carries them

@@ -90,11 +90,30 @@ const BATTLE_HURTS = ['hitHigh', 'hitBody', 'hitLow'], BATTLE_USE = 'niceGuy';
 // (a party class's role, for the hero of a world of party battles, whose sheet is the hero door's and not a member's)
 export const ROLE_OF_CLASS = Object.freeze({ fighter: 'frontline', knight: 'frontline', monk: 'flanker', rogue: 'flanker', mage: 'caster', cleric: 'support' });
 
-/** A party fighter's battle moves: { motion: { <word>: true }, states: { strike…win: <word> } }. */
-export function battleMovesOf(role, { archetype = null } = {}) {
-  const r = BATTLE_ATTACKS_OF_ROLE[role] ? role : 'frontline', [a1, a2, a3] = BATTLE_ATTACKS_OF_ROLE[r];
+/**
+ * A party class's WEAPON in hand (the hero door's `gear`, hero-gear.js): the fighter's greatsword, the knight's sword and
+ * shield, the rogue's dagger, the mage's and the cleric's staves; the monk fights with its fists. One who holds a blade or
+ * a haft strikes with it: the page bakes its held swings on its own rig (world-kinds.js, the held strike: the cut, the
+ * thrust and the cleave, `swing_neutral`, `swing_forward`, `swing_back`), and those are its three attacks.
+ */
+export const WEAPON_OF_CLASS = Object.freeze({
+  fighter: Object.freeze({ right: Object.freeze({ item: 'greatsword' }) }),
+  knight: Object.freeze({ right: Object.freeze({ item: 'sword' }), left: Object.freeze({ item: 'shield' }) }),
+  rogue: Object.freeze({ right: Object.freeze({ item: 'dagger' }) }),
+  mage: Object.freeze({ right: Object.freeze({ item: 'staff', style: 'druid' }) }),
+  cleric: Object.freeze({ right: Object.freeze({ item: 'staff', style: 'celestial' }) }),
+});
+export const ARMED_ATTACKS = Object.freeze(['swing_neutral', 'swing_forward', 'swing_back']);
+/** The gear a party class holds, as the hero door takes it (a fresh copy), or null (fists). */
+export const weaponOfClass = (cls) => (WEAPON_OF_CLASS[cls] ? structuredClone(WEAPON_OF_CLASS[cls]) : null);
+
+/** A party fighter's battle moves: { motion: { <word>: true }, states: { strike…win: <word> } }. `armed`: it holds a
+ * weapon (WEAPON_OF_CLASS), its attacks the held swings the page bakes, so none of its fists' is minted. */
+export function battleMovesOf(role, { archetype = null, armed = false } = {}) {
+  const r = BATTLE_ATTACKS_OF_ROLE[role] ? role : 'frontline', [a1, a2, a3] = armed ? ARMED_ATTACKS : BATTLE_ATTACKS_OF_ROLE[r];
   const states = { strike: a1, strike2: a2, strike3: a3, cast: BATTLE_CAST_OF_ROLE[r], use: BATTLE_USE, hurt: BATTLE_HURTS[0], hurt2: BATTLE_HURTS[1], hurt3: BATTLE_HURTS[2], ready: READY_OF_ROLE[r], win: WIN_OF_ARCHETYPE[archetype] ?? 'fistToSky' };
-  return { motion: Object.fromEntries([...new Set([...Object.values(states), ...Object.keys(REACT_MOTION)])].map((w) => [w, true])), states };
+  const words = Object.values(states).filter((w) => !ARMED_ATTACKS.includes(w));
+  return { motion: Object.fromEntries([...new Set([...words, ...Object.keys(REACT_MOTION)])].map((w) => [w, true])), states };
 }
 
 /** The families a creature's rig solves (a showcase pose reaches for a person's shoulders and hands). */

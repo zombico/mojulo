@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { readEgocubeKind, rollStored, egocubeNodes, egocubeCreate, egocubePrint, assembleEgocubeScene, LINEUP_GAP } from './kind.js';
 import { rollEgocube } from './egocube.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
-import { moveSetOf, creatureMovesOf, beastGaitsOf, READY_OF_ROLE, ATTACK_OF_ROLE, WIN_OF_ARCHETYPE, battleMovesOf, BATTLE_ATTACKS_OF_ROLE } from './moves.js';
+import { moveSetOf, creatureMovesOf, beastGaitsOf, READY_OF_ROLE, ATTACK_OF_ROLE, WIN_OF_ARCHETYPE, battleMovesOf, BATTLE_ATTACKS_OF_ROLE, ARMED_ATTACKS } from './moves.js';
 import { MOTION_GAITS } from '../polygonizer/hero-motion.js';
 import { ROLES, ARCHETYPE_IDS } from './facets.js';
 
@@ -124,6 +124,10 @@ describe('a cast as a cube (cast.js)', () => {
     expect(new Set([M.battle.hurt, M.battle.hurt2, M.battle.hurt3]).size).toBe(3);
     for (const w of Object.values(M.battle)) expect(M.create.spec.motion[w], w).toBe(true);
     for (const w of Object.keys(M.create.spec.motion)) expect(MOTION_GAITS[w], w).toBeTruthy();
+    // (one made holding a weapon strikes with it: its attacks the held swings the page bakes, none of its fists minted)
+    const A = egocubeCreate(S, { member: path, armed: true });
+    expect([A.battle.strike, A.battle.strike2, A.battle.strike3]).toEqual(ARMED_ATTACKS);
+    for (const w of [M.battle.strike, M.battle.strike2, M.battle.strike3]) expect(A.create.spec.motion[w], w).toBeUndefined();
     // (one who is not of the party plays its part as it always did)
     expect(egocubeCreate(rollStored(CAST), { member: 'hero/rival' })).not.toHaveProperty('battle');
     // (each role its own blows: no two roles' attacks the same three)
