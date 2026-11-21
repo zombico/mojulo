@@ -56,8 +56,8 @@ export function chestLoot(tier, n, seed) {
  * A stage's chests: each at a spot (`{ at, toward }`: a free beat and the way it stands beside), its id numbered across
  * the game (`from`), its holds the tier's. → { entities, play: { menus, cues } }
  */
-export function chestCast(spots, { tier = 0, from = 0, seed = 1 } = {}) {
-  const holds = chestLoot(tier, spots.length, seed + from * 7919), entities = [], menus = [], cues = [];
+export function chestCast(spots, { tier = 0, from = 0, seed = 1, named = () => null } = {}) {
+  const holds = chestLoot(tier, spots.length, seed + from * 7919), entities = [], menus = [], cues = [], items = {};
   spots.forEach((s, k) => {
     const id = `chest-${from + k + 1}`, open = `${id}-open`, H = holds[k];
     // (a step aside from the way, facing it: the way runs from the beat toward `toward`)
@@ -67,9 +67,11 @@ export function chestCast(spots, { tier = 0, from = 0, seed = 1 } = {}) {
     entities.push({ id, transform: { pos: at, heading }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: 'chest' } });
     entities.push({ id: open, transform: { pos: at.slice(), heading }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: 'chest-open' }, dormant: true });
     menus.push({ id, kind: 'chest', title: 'Treasure chest', holds: H, loot: 'all' });
+    // (each thing found by the name the world gives it, where it gives one: the find is said in it)
+    for (const h of H) { const n = named(h.item); if (n) items[h.item] = { name: n }; }
     // (opened where it stands; empty, its body swapped for the open one, as the level starts too where the store left it so)
     cues.push({ id: `${id}-opened`, when: { use: { at: [at[0], at[1]], r: CHEST.reach }, prompt: 'open' }, then: [{ open: id }, { sound: CHEST.sound }] });
     cues.push({ id: `${id}-empty`, when: { var: heldVar(id, H[0].item), eq: 0 }, then: [{ vanish: id }, { spawn: open }] });
   });
-  return { entities, play: { menus, cues } };
+  return { entities, play: { menus, cues, ...(Object.keys(items).length ? { items } : {}) } };
 }

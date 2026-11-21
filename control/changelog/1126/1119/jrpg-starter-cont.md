@@ -219,3 +219,10 @@
   (`battles.sets`). For this a world's quest step may now be raised by any bus event or by its level's start
   (`{ log, done, on, at? }`, `gameworld/story.js` `questRaises`: a cue a stage lays for it), beside a moment's or an
   answer's flag.
+- **The round in its era.** A party RPG's round is reskinned in its setting's era (`gameworld/round-eras.js`), the
+  presets' numbers kept so its ladder, shops, chests and packs compose unchanged: a future round's foes are machines in
+  an animal's shape (the `techno` and `transmetal` oozes), the hive's insect people and troopers, its items Med-kits and
+  Energy Cells, its boss the Core Sentinel, its citadel barracks, a lab and command, its levels named for a colony; a
+  modern round's strays, thugs and First-aid Kits. "Sci-fi", "space", "futuristic", "galactic", "starship" now name the
+  alien world's kit (the composer's `LEXICON`, for any genre). A chest says its find by the world's names. A kind's arms
+  go with its own look only. Before, a sci-fi party RPG was a meadow of slimes and potions under an Ember Drake.

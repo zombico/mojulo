@@ -126,7 +126,8 @@ export const FOE_ARMS = Object.freeze({
  * foe kind, or 'foe' for the one look every foe stands in). */
 export function foeGearOf(look, key) {
   if (isObj(look) && isObj(look.gear)) return structuredClone(look.gear);
-  const row = key !== 'foe' && isPeopleLook(look) ? FOE_ARMS[key] : null;
+  // (a kind's arms go with its own look: one the world dresses its own way, an era's, holds only what that look says)
+  const row = key !== 'foe' && isPeopleLook(look) && look === FOE_LOOKS[key] ? FOE_ARMS[key] : null;
   return row ? Object.fromEntries(Object.entries(row).map(([slot, name]) => [slot, { type: 'equipment', ...structuredClone(ARMORY_ARMS[name]), laws: 2, armory: name }])) : null;
 }
 // a battle people's sheet: its skin rolled in the game's setting as a caster where its foe fights by magic, else as a
@@ -445,7 +446,9 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
     const i = Math.min(freeLeft.length - 1, Math.floor(((k + 0.5) * freeLeft.length) / Math.min(nChests, freeLeft.length))), b = freeLeft[i], next = along[along.indexOf(b) + 1] ?? { at: ends.exit ?? ends.spawn };
     return { at: b.at, toward: next.at && (next.at[0] !== b.at[0] || next.at[1] !== b.at[1]) ? next.at : ends.spawn };
   });
-  const chests = chestSpots.length ? chestCast(chestSpots, { tier: tierOf(from), from: 0, seed: seed + from }) : null;
+  // (what each is called where the world names it: an era's med-kits, chests.js names the find by them)
+  const named = (id) => (isObj(B.items) && B.items[id]?.name) || (isObj(B.gear) && B.gear[id]?.name) || null;
+  const chests = chestSpots.length ? chestCast(chestSpots, { tier: tierOf(from), from: 0, seed: seed + from, named }) : null;
   if (chests) entities.push(...chests.entities);
   const random = B.random ? { sets: packs.length ? packs.map((p) => [...p]) : [PACKS[0]], ...B.random } : null;
   // the merchant and the innkeeper, beside where the party comes in (none where the book says no shops, or none stands)
@@ -462,7 +465,7 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
   // (a stage with chests keeps what each still holds in the store: the bag's holders, so an opened chest stays open)
   const mechanics = [{ kind: 'party', slice: PARTY_SLICE }, { kind: 'bag', slice: BAG_SLICE, ...(chestsPer(G) ? { holders: CHEST_SLICE } : {}) }, ...(rpg.rules.defeat === 'fail' ? [{ kind: 'fail-on-death', startHp: 1 }] : [])];
   if (chests) rest.push(...chests.play.cues);
-  return { figures, entities, play: { rpg, ...(rest.length ? { cues: rest } : {}), ...(chests ? { menus: chests.play.menus } : {}) }, mechanics };
+  return { figures, entities, play: { rpg, ...(rest.length ? { cues: rest } : {}), ...(chests ? { menus: chests.play.menus, ...(chests.play.items ? { items: chests.play.items } : {}) } : {}) }, mechanics };
 }
 
 // the wares the world can sell: the tier's (or the book's own), less what the world's items and gear leave out

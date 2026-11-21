@@ -33,6 +33,18 @@ its colour script and light, and its orders (the first level, the climax), said 
 The labour's shape is the round's. A party RPG lays the mandala; a labour that asks for another shape (a chain, a hub,
 an open world) is laid as the mandala for now, and the brief says so (`asked`, `why`).
 
+**Its era.** A party RPG's round is reskinned in its setting's era (the world's kit's era, `cast-setting.js`
+`ERA_OF_KIT`; `gameworld/round-eras.js`): the presets' numbers kept (each foe's, item's and gear's stats, prices and
+drops), what each is called and how each foe looks the era's. A fantasy era (rustic, myth) is the presets as they are.
+
+| era | its foes | its items | its boss | its citadel |
+|---|---|---|---|---|
+| future (an alien world: "sci-fi", "space", "futuristic", "alien"…) | machines in an animal's shape (the `techno` and `transmetal` oozes: a Nanite Blob, a Hound Unit, a Heavy Mech), the hive's insect people, troopers | Med-kits, Energy Cells, a Plasma Blade, a Flak Vest | the Core Sentinel | barracks, a lab, command |
+| modern | strays and vermin, thugs, a cult leader | First-aid Kits, Energy Drinks, a Baseball Bat | The Boss | guardhouse, a warehouse, an office |
+
+Its levels are named by its place word (a colony, not a meadow); a foe in an era's look holds no kind's arms. A new era
+is a row.
+
 **The quest in the journal.** A round laid as a mandala keeps a quest in the journal (J: `play.quests`, every level
 keeping it, its flags carried), named for what the round is about (its motivation: "Save the city, the kingdom, the
 world", "Save the princess") and walked as the round is: find the core's key where it is kept ("Find the crypt key in the

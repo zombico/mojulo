@@ -43,7 +43,8 @@ import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf, heroStreetWo
 import { worldMapLevel, wildsLevel, WORLD_MAP } from './world-map.js';
 import { stampMegaworld } from './megaworld.js';
 import { gmnOfWords, resolveGmn, stampGameBrief, MOTIVATIONS } from './gmn.js';
-import { settingOfGame } from './cast-setting.js';
+import { roundEraOf, eraBattles } from './round-eras.js';
+import { settingOfGame, ERA_OF_KIT } from './cast-setting.js';
 import { heroDesign } from './hero-design.js';
 import { genrePaletteWords } from './world-palette.js';
 import { FLOW_IN_PLAY } from '../game/flow.js';
@@ -67,7 +68,10 @@ export const LEXICON = Object.freeze({
   meadow: { kit: 'isekai-meadow' }, pastoral: { kit: 'isekai-meadow' }, green: { kit: 'isekai-meadow' }, grassy: { kit: 'isekai-meadow' }, grass: { kit: 'isekai-meadow' }, valley: { kit: 'isekai-meadow', 'land.landscape': ['downs', 0.5] },
   bamboo: { kit: 'isekai-bamboo' }, forest: { kit: 'isekai-bamboo' },
   blossom: { kit: 'isekai-sakura', weather: 'spring-blossom' }, sakura: { kit: 'isekai-sakura', weather: 'spring-blossom' }, spring: { kit: 'isekai-sakura', weather: 'spring-blossom' },
-  night: { kit: 'alien-night', 'land.cloud': [null, 0] }, alien: { kit: 'alien-night' }, moon: { kit: 'alien-night' }, glowing: { kit: 'alien-night' },
+  night: { kit: 'alien-night', 'land.cloud': [null, 0] }, alien: { kit: 'alien-night' },
+  // (a future setting said plainly: an alien world, the future era's kit, cast-setting.js ERA_OF_KIT)
+  'sci-fi': { kit: 'alien-night' }, scifi: { kit: 'alien-night' }, futuristic: { kit: 'alien-night' }, space: { kit: 'alien-night' },
+  galactic: { kit: 'alien-night' }, interstellar: { kit: 'alien-night' }, starship: { kit: 'alien-night' }, spaceship: { kit: 'alien-night' }, moon: { kit: 'alien-night' }, glowing: { kit: 'alien-night' },
   airless: { kit: 'airless-plain' }, lunar: { kit: 'airless-plain' }, crater: { kit: 'airless-plain' }, cratered: { kit: 'airless-plain' }, asteroid: { kit: 'airless-plain' }, vacuum: { kit: 'airless-plain' },
   garden: { kit: 'isekai-garden' }, zen: { kit: 'isekai-garden', 'land.rock': ['balanced', 0.25] },
   // who builds: a building language and a fortification
@@ -156,9 +160,9 @@ const ROUND_MANDALA = Object.freeze({ key: (core) => `${core}-key` });
 const ROUND_TALK = Object.freeze({ who: 'priest' });
 // the round's boss (playscape/rpg/presets.js: the drake, the one preset boss, tuned to want level 5 and its weakness), its
 // fight's own pages (play.rpg encounters' `pages`): what it says as the fight begins, and at half its HP
-const ROUND_BOSS = Object.freeze({ pack: Object.freeze(['drake']), pages: (place) => [
-  { when: { start: true }, who: 'Ember Drake', say: `None who come into ${place} leave it.` },
-  { when: { foe: 'drake', hpBelow: 0.5 }, who: 'Ember Drake', say: ['You burn brighter than the others did.', 'Then burn out!'] },
+const ROUND_BOSS = Object.freeze({ pack: Object.freeze(['drake']), pages: (place, who = 'Ember Drake') => [
+  { when: { start: true }, who, say: `None who come into ${place} leave it.` },
+  { when: { foe: 'drake', hpBelow: 0.5 }, who, say: ['You burn brighter than the others did.', 'Then burn out!'] },
 ] });
 // a party RPG's brief where its words name none (gmn.js): save the world, by storming the citadel (a mandala, a walled
 // core at its middle)
@@ -499,7 +503,12 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const roundResolved = roundBrief ? resolveGmn(roundBrief.gmn) : null, askedShape = roundResolved?.structure?.shape ?? null;
   // (a citadel the words named always has its dungeon; the JRPG's own, unnamed, builds one where the words laid a dungeon)
   const citadelClimax = roundResolved?.structure?.climax === 'citadel', namedLabour = !!roundBrief?.read.some((r) => r.decides.some((d) => d.startsWith('gameBrief.gmn.labours.')));
-  const vault = indoors ?? (hubbed && citadelClimax && namedLabour ? { use: CITADEL.vault, kit: ROOM_KIT_OF_USE[CITADEL.vault] ?? 'gothic-stone', useWord: null, from: 0 } : null);
+  // (THE ERA a party RPG's round is in, its kit's: round-eras.js; a fantasy era none, the presets as they are. Its
+  // citadel built of its own buildings)
+  const eraRow = turnBased ? roundEraOf(ERA_OF_KIT[style.kit]) : null, CIT = eraRow?.citadel ?? CITADEL;
+  // (its levels named by its era's place word where it has one, else by the land's form: a colony, not a meadow)
+  const placeWord = eraRow?.place ?? landscape;
+  const vault = indoors ?? (hubbed && citadelClimax && namedLabour ? { use: CIT.vault, kit: CIT.kit ?? ROOM_KIT_OF_USE[CIT.vault] ?? 'gothic-stone', useWord: null, from: 0 } : null);
   const castled = hubbed && P.words.some((w) => CASTLE_WORDS.has(w)), dungeoned = hubbed && !!vault;
   const N = hubbed ? Math.max(n, 2 + (castled ? 1 : 0) + (dungeoned ? 1 : 0)) : n;
   const castleAt = castled ? (dungeoned ? N - 2 : N - 1) : -1;
@@ -537,15 +546,15 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     const inside = (hubbed ? !!vault && dungeoned && last : !!indoors && i >= indoors.from) && camera !== 'side';
     const nodes = { [`${SUFFIX[i] ?? 'stage'}-a`]: { trail: true }, [`${SUFFIX[i] ?? 'stage'}-b`]: { trail: true }, ...(climb ? { lookout: { meru: true } } : {}) };
     // (a genre's book form, genre-forms.js: its levels laid in it, a flight sim's courses; no town, no walk goal)
-    const L = hubbed && i === 0 ? { name: `${cap(landscape)} town`, walk: { nodes: { square: { trail: true } } }, places: { town: true, street: turnBased ? { houses: 7, enter: ['shop', 'inn', 'temple'], walk: ['shop'], walls: true, inside: true } : { houses: 6, enter: 2, walk: ['shop'], walls: true, inside: true } } }
+    const L = hubbed && i === 0 ? { name: `${cap(placeWord)} town`, walk: { nodes: { square: { trail: true } } }, places: { town: true, street: turnBased ? { houses: 7, enter: ['shop', 'inn', 'temple'], walk: ['shop'], walls: true, inside: true } : { houses: 6, enter: 2, walk: ['shop'], walls: true, inside: true } } }
       : form ? (({ street, ...rest }) => ({ name: `${form.name} ${i + 1}`, ...rest, ...(street ? { street: heroWords.length ? { ...street, tuning: 'heroes' } : street } : {}) }))(form.level(i, n))
       : inside && hubbed ? { name: citadelClimax && roundMandala ? 'The citadel' : `The ${dungeonUse}`, building: { use: dungeonUse, kit: dungeonUse === vault.use ? vault.kit : ROOM_KIT_OF_USE[dungeonUse] ?? 'gothic-stone' }, ...lgoal }
       : hubbed && i === castleAt ? { name: 'The castle', walk: { nodes }, ...lgoal, places: { castle: civIds[1] ? { civilization: civIds[1] } : true } }
       // (a mandala round's wilds, its second ring: the world map's blocks walked out from the town, world-map.js
       // wildsLevel, each block's pack its battles'; the core is laid as it was)
-      : roundMandala && !last ? { name: `${cap(landscape)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, ...wildsLevel({ landscape, at: wildsK++ }), ...lgoal }
+      : roundMandala && !last ? { name: `${cap(placeWord)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, ...wildsLevel({ landscape, at: wildsK++ }), ...lgoal }
       : inside ? { name: `${cap(indoors.use)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, building: { use: indoors.use, kit: indoors.kit }, ...lgoal }
-      : { name: `${cap(landscape)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, walk: { nodes }, ...lgoal };
+      : { name: `${cap(placeWord)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, walk: { nodes }, ...lgoal };
     if (i > 0 && !inside && !form && !hubbed) L.places = { town: true, ...(last || n === 1 ? { castle: civIds[1] ? { civilization: civIds[1] } : true } : {}) };
     // (round a hub, the wilds: no town of their own, the last raising its castle)
     if (i > 0 && hubbed && last && !castled && !dungeoned) L.places = { castle: civIds[1] ? { civilization: civIds[1] } : true };
@@ -568,11 +577,18 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // them, never the whole party choosing and then the round played: playscape/rpg/kernel.js, rules.turns 'timeline')
   // (a foe's HP shown as the same bar over its head as a member's: rules.foeHp 'bar')
   if (turnBased && world.battles?.rules?.turns === undefined) world.battles = { ...(world.battles ?? {}), rules: { turns: 'timeline', foeHp: 'bar', ...(world.battles?.rules ?? {}) } };
+  // (and is reskinned in its era, round-eras.js: its foes' names and looks, its items' and gear's names, the presets'
+  // numbers kept; the looks its words named keep theirs)
+  if (eraRow && world.battles) {
+    const E = eraBattles(eraRow), B0 = world.battles;
+    world.battles = { ...B0, looks: { ...E.looks, ...(B0.looks ?? {}) }, foes: { ...E.foes, ...(B0.foes ?? {}) }, items: B0.items ?? E.items, gear: B0.gear ?? E.gear };
+  }
   // (and keeps treasure off the path: two chests a fighting stage, opened once, gameworld/chests.js)
   if (turnBased && world.battles && world.battles.chests === undefined) world.battles = { ...world.battles, chests: ROUND_CHESTS };
   if (hubbed) world.brief.hub = hubId;
   // (round a hub: its castle's level, its dungeon, the trades on its town's street, said as the world was laid)
   if (hubbed && (castled || dungeoned || turnBased)) world.brief.round = { ...(castled ? { castle: `${wid}-${castleAt + 1}`.slice(0, 48) } : {}), ...(dungeoned ? { dungeon: `${wid}-${N}`.slice(0, 48) } : {}), ...(turnBased ? { trades: ['inn', 'temple'] } : {}) };
+  if (eraRow) world.brief.round = { ...world.brief.round, era: { era: ERA_OF_KIT[style.kit], says: eraRow.says } };
   // THE ROUND AS A MANDALA (megaworld.js): a turn-based round is not a star of roads but rings travelled inward. The town
   // the first ring, where it sets out; the wilds and the castle the second, each a road from the town; the last level the
   // core (the dungeon, else the castle, else the farthest wilds), its way in gated by a key found on the way: in the
@@ -598,7 +614,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     if (C.goal?.boss || (citadelClimax && dungeoned)) {
       const { boss: _b, ...rest } = C.goal ?? {};
       if (Object.keys(rest).length) C.goal = rest; else if (C.goal) delete C.goal;
-      world.battles = { ...(world.battles ?? {}), boss: [...ROUND_BOSS.pack], bossPages: ROUND_BOSS.pages(low(C.name ?? core)) };
+      world.battles = { ...(world.battles ?? {}), boss: [...ROUND_BOSS.pack], bossPages: ROUND_BOSS.pages(low(C.name ?? core), eraRow?.boss.name) };
       world.brief.round = { ...world.brief.round, boss: { pack: [...ROUND_BOSS.pack], at: core } };
     }
     // THE CITADEL (a labour whose climax is one: storm the citadel): the core a WALLED CORE (wcd/wcd.js) over its level,
@@ -608,9 +624,9 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     // the way in is the mandala's key
     if (citadelClimax && dungeoned) {
       const sp = (kind, depth, use) => ({ kind, depth, level: core, use });
-      world.wcd = { core: 'sanctum', spaces: { gate: sp('outer', 0, CITADEL.gate), vault: sp('inner', 1, dungeonUse), sanctum: sp('inner', 2, CITADEL.core) },
+      world.wcd = { core: 'sanctum', spaces: { gate: sp('outer', 0, CIT.gate), vault: sp('inner', 1, dungeonUse), sanctum: sp('inner', 2, CIT.core) },
         doors: [{ from: 'gate', to: 'vault', via: 'door', gate: { clearance: 1 } }, { from: 'vault', to: 'sanctum', via: 'stair', gate: { clearance: 2 } }] };
-      world.brief.round = { ...world.brief.round, citadel: { at: core, path: ['gate', 'vault', 'sanctum'], uses: [CITADEL.gate, dungeonUse, CITADEL.core] } };
+      world.brief.round = { ...world.brief.round, citadel: { at: core, path: ['gate', 'vault', 'sanctum'], uses: [CIT.gate, dungeonUse, CIT.core] } };
     }
     // THE ROUND'S QUEST (a gameworld's quests, playscape/ui/quests.js: the journal, J): named for what the round is about
     // (its brief's motivation), its steps the round's own way to its end: find the core's key where it is kept, go in,
