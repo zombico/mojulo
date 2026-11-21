@@ -1149,8 +1149,11 @@ export const SIGNATURES = {
     // a PONYTAIL out of the helm's back: `n` flattened, tapering clumps from a tie at height `u` (behind), falling `len`
     // down and `back` behind, fanning `spread` (of len) toward the tips; `wild` scatters each clump's direction, length and
     // flick by a fixed pattern (no dice), so the tail reads as wild hair: { u, len, r, n?, spread?, back?, wild?, flick?,
-    // group, tie?: { group, r? } }
-    if (S.ponytail) { const T = S.ponytail, nC = T.n ?? 9, root = at(T.u, -Math.PI / 2, 0.004), bk = [0, -1, 0], len = T.len;
+    // group, tie?: { group, r? }, twin? }. `twin` (radians): TWO tails, tied that far either side of the back, each
+    // swung out to its own side as it falls (twin tails)
+    if (S.ponytail) { const T = S.ponytail;
+      for (const tw of T.twin ? [T.twin, -T.twin] : [0]) {
+      const nC = T.n ?? 9, root = at(T.u, -Math.PI / 2 + tw, 0.004), bk = tw ? unit([dmath.sin(tw) * 0.9, -1, 0]) : [0, -1, 0], len = T.len;
       const hsh = (i, k) => { const x = dmath.sin(i * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); };
       if (T.tie) out.push({ ...disc(add(root, mul(bk, -0.004)), unit(add(bk, [0, 0, -0.35])), T.tie.r ?? T.r * 1.4, T.r * 0.9, 10, 0.6), group: T.tie.group ?? S.group });
       for (let i = 0; i < nC; i++) { const ph = i * 2.39996, w = T.wild ?? 0.5, L = len * (1 - 0.3 * w * hsh(i, 1)), sp = (T.spread ?? 0.35) * (0.5 + hsh(i, 2));
@@ -1158,7 +1161,7 @@ export const SIGNATURES = {
         const spine = Array.from({ length: K }, (_, j) => { const t = j / (K - 1);
           return add(add(add(root, mul(bk, L * (T.back ?? 0.3) * dmath.pow(Math.min(1, t * 2.2), 0.6))), [0, 0, -L * dmath.pow(t, 1.25)]),
             add(mul(side, sp * L * dmath.pow(t, 0.9)), [0, -(T.flick ?? 0.12) * L * w * hsh(i, 3) * t * t * t, 0])); });
-        out.push({ ...sweep(spine, spine.slice(0, -1).map((_, j) => Math.max(0.0008, T.r * (0.7 + 0.5 * hsh(i, 4)) * dmath.pow(1 - j / (K - 1), 0.85))), 5, { squash: [1, 0.45] }), group: T.group ?? 'Hair' }); } }
+        out.push({ ...sweep(spine, spine.slice(0, -1).map((_, j) => Math.max(0.0008, T.r * (0.7 + 0.5 * hsh(i, 4)) * dmath.pow(1 - j / (K - 1), 0.85))), 5, { squash: [1, 0.45] }), group: T.group ?? 'Hair' }); } } }
     // a GEM on the brow, centred over the window (the forehead jewel): { r, h?, u?, group, setting?: { group, w? }, shape?:
     // 'diamond' (a faceted rhombus, `tall`/`wide` its half-extents in r, on a rhombus plate `w` wider: the border) }
     if (S.gem) { const G = S.gem, ug = G.u ?? (VP ? uTw - 0.3 * (uTw - uAv) : Math.min(0.95, uE + (S.window?.brow ?? 0.12) + 0.07)), c = at(ug, F, vLift), nrm = unit(sub(at(ug, F, 0.02), c)), r = G.r ?? w * 0.07;

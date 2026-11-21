@@ -19,7 +19,7 @@
  *   the FOES     the level's `foes` on the map's spawners (cast.js), stood by the stage's extra (the runner's foe cast) on
  *                the lane's rail, in the hero's body light
  *
- *   sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits?, heroStature?, pilot?, title?, mechanics?, extra?, audio?, foeFrom? })
+ *   sideMapLevelOrder(G, stage, { ref, heroRef, costar?, heroGaits?, heroStature?, pilot?, title?, mechanics?, extra?, audio?, foeFrom? })
  *     → { tool: 'create_sketch', args: { title, manifest }, laws }   laws: the map's own (laws.js), each `sidemap:<id>`
  *
  * Pure.
@@ -54,7 +54,7 @@ export const SIDE_ENERGY = Object.freeze({ max: BOSS_TICKS, hit: 4 });
 const introOf = (stage) => { const id = stage.manifest.sidemap?.boss, R = id && BOSSES[id]; return R ? { world: `The ${R.theme}`, name: R.name, line: `Watch for it: ${R.tell}.`, gives: R.weapon, hue: R.hue } : null; };
 const bossOf = (X) => { const m = (X?.mechanics ?? []).find((x) => x && x.kind === 'defeat-all' && x.bar); return m ? { id: m.bar.of, name: m.bar.label ?? m.label ?? '', hp: m.bar.hp } : null; };
 
-export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, title, mechanics = null, extra = null, audio = null, foeFrom = [] } = {}) {
+export function sideMapLevelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, heroStature = null, pilot = null, title, mechanics = null, extra = null, audio = null, foeFrom = [] } = {}) {
   if (!heroRef) throw new Error('levels: a side map is played by a hero seen from the side; give the world a hero (its characters)');
   const name = title ?? `${G.name ?? G.id} · ${stage.label ?? stage.level}`, stature = heroStature ?? SIDE_MAP_STATURE;
   const manifest0 = { ...stage.manifest, ...(G.feel ? { feel: G.feel } : {}), stature };
@@ -63,7 +63,8 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
   // the hero: the feel's rule on the lane, as tall as it stands
   const written = G.feel ? feelRule(G.feel) : null;
   const rule = { ...(written ?? {}), move: 'lane', lane: [[0, r3(s0 - 20)], [0, r3(s1 + 20)]], collideHeight: stature };
-  const controls = `A / D  run · Space  jump${written?.dash ? ' · F  dash' : ''}${written?.buster ? ' · J  fire (hold: charge)' : ''}${written?.moveset && written?.strike === 'melee' ? ' · J  saber (press again: the string)' : ''}${L.ladders.length ? ' · W / S  climb' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
+  // (with a co-star the J key says both ways it plays: the hero's and the co-star's)
+  const controls = `A / D  run · Space  jump${written?.dash ? ' · F  dash' : ''}${costar && heroRef ? ' · J  fire or cut (hold: charge)' : written?.buster ? ' · J  fire (hold: charge)' : ''}${!(costar && heroRef) && written?.moveset && written?.strike === 'melee' ? ' · J  saber (press again: the string)' : ''}${L.ladders.length ? ' · W / S  climb' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   // (the hero's own jumps, where the feel plays its takes: the figure carries the clips its rule's takes play, the card's
   // over feel/lower.js TAKES; without them the page has no clip for a take and the air plays the run)
   const takes = G.feel && readFeel(G.feel).takes ? takesOfCard(feelCard(G.feel)) : null;
@@ -73,7 +74,23 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
   // runner's foe cast, foes.js hostileCast); what it gives the hero (its stomp, its hit egg) laid over the hero's own
   // (`foeFrom`: the level's `from`, its bestiary's ids read by levels.js)
   const X = extra ? extra(sideMapEnds(L, foeFrom, { spawn: P.spawn, boss: stage.manifest.sidemap?.boss ?? null })) : null;
-  const hero = X?.pilot ? { ...hero0, ...X.pilot, rule: { ...hero0.rule, ...(X.pilot.rule ?? {}), ...(written ?? {}) }, body: { ...hero0.body, ...(X.pilot.body ?? {}) } } : hero0;
+  const hero1 = X?.pilot ? { ...hero0, ...X.pilot, rule: { ...hero0.rule, ...(X.pilot.rule ?? {}), ...(written ?? {}) }, body: { ...hero0.body, ...(X.pilot.body ?? {}) } } : hero0;
+  // THE CO-STAR (characters.costar, `costar`: { ref, name, variant? }): a second hero stood where the hero stands, playing
+  // the feel's `variant` (its own rule and its own takes), both in the player's seat (`seat: 'player'`, each its rule kept
+  // as its `pilotRule`): the page's pick (the flow's `pilot`, params.__picks.pilot) says who goes, the other leaves as the
+  // level starts; no pick, the hero goes
+  let costarE = null, costarFig = null;
+  if (costar && heroRef) {
+    const F = { ...(typeof G.feel === 'string' ? { pole: G.feel } : G.feel), ...(costar.variant ? { variant: costar.variant } : {}) };
+    const ruleC = { ...feelRule(F), move: 'lane', lane: rule.lane, collideHeight: stature };
+    const takesC = readFeel(F).takes ? takesOfCard(feelCard(F)) : null;
+    const WC = playerWorld({ heroRef: costar.ref, ...(heroGaits ? { gaits: heroGaits } : {}), walk: false, id: 'costar', title: name, controls, rule: ruleC, ...(takesC ? { takes: takesC } : {}) });
+    const c0 = { ...WC.entities[0], transform: { pos: P.spawn, heading: Math.PI / 2 } };
+    costarE = X?.pilot ? { ...c0, ...X.pilot, id: 'costar', rule: { ...c0.rule, ...(X.pilot.rule ?? {}), ...ruleC }, body: { ...c0.body, ...(X.pilot.body ?? {}), figure: 'costar' } } : c0;
+    costarE = { ...costarE, seat: 'player', pilotRule: costarE.rule, name: costar.name };
+    costarFig = WC.figures;
+  }
+  const hero = costarE ? { ...hero1, seat: 'player', pilotRule: hero1.rule } : hero1;
   // its bodies in their rail's light (game-bodies.js BODY_LIGHTS: the side scroller's cel); a rail with none, as they were
   const light = bodyLightOf({ feel: G.feel?.pole ?? (typeof G.feel === 'string' ? G.feel : null) });
   // (a cel body's key a zone: its lamps where it is lit by lamps, on the camera's zones the page reads; index.js
@@ -81,7 +98,7 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
   const lampsAt = light === 'cel' ? sideMapLamps(L, M.dress) : [];
   const lamped = lampsAt.length ? { ...P.camera, zones: P.camera.zones.map((z, i) => { const ls = lampsAt.filter((l) => l.zone === i).map((l) => l.at); return ls.length ? { ...z, lamps: ls } : z; }) } : P.camera;
   // (the foes' figures in the same light as the hero's: one register over every body on the map)
-  const figures0 = { ...(W0.figures ?? {}), ...(X?.figures ?? {}) };
+  const figures0 = { ...(W0.figures ?? {}), ...(costarFig ?? {}), ...(X?.figures ?? {}) };
   const figures = light ? Object.fromEntries(Object.entries(figures0).map(([k, f]) => [k, { ...f, light }])) : figures0;
   // the goal: the last zone's far side; the falls: the catch zone in limbo, a life each where the world keeps lives
   const last = L.zones.at(-1), reach = { kind: 'reach-exit', at: [0, r3(last.rect[1] - 2.5), r3(last.exit[1] + 1)], radius: 2.5, planar: false };
@@ -93,7 +110,7 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits = null, he
   const events = { ...ev, sources: [...(ev.sources ?? []), P.catch] };
   const manifest = {
     ...manifest0, title: name,
-    figures, entities: [hero, ...P.ladders, ...(X?.entities ?? []).map((e) => (e.team === 'foes' ? sideFoe(e, stature) : e))], camera: lamped, events, colliders: P.colliders,
+    figures, entities: [hero, ...(costarE ? [costarE] : []), ...P.ladders, ...(X?.entities ?? []).map((e) => (e.team === 'foes' ? sideFoe(e, stature) : e))], camera: lamped, events, colliders: P.colliders,
     ...(mechanics?.play || X?.play ? { play: mergePlay(mechanics?.play ?? null, X?.play ?? null) } : {}),
     // (a cel body's line round each of its parts, the bodies' alone, CEL_INK px wide on the side map's screen: 720 rows)
     ...(light === 'cel' && !manifest0.toon ? { toon: { ink: { only: 'bodies', color: CEL_INK.color, widthAbs: r3((CEL_INK.px * L.screen.height) / 720), lines: false } } } : {}),

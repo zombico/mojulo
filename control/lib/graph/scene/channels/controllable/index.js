@@ -5128,7 +5128,8 @@ function __applyMatchParams(params) {
   const idOf = (v) => (v && typeof v === 'object' ? (v.id || v.name || '') : String(v == null ? '' : v));
   // the game shell passes a picked party slice as { roster: { <id>: {...} } } — the ids are the keys.
   const rosterIds = (v) => (v && typeof v === 'object' && v.roster && typeof v.roster === 'object' ? Object.keys(v.roster) : null);
-  const want = params.pilot != null ? idOf(params.pilot)
+  // (a light shell's turn pick lands under __picks: a level that stands two heroes, a co-star's, names who goes as its pilot pick)
+  const want = params.pilot != null ? idOf(params.pilot) : params.__picks && params.__picks.pilot != null ? idOf(params.__picks.pilot)
     : ((rosterIds(params.suits) || [])[0]
       || (Array.isArray(params.roster) && params.roster.length ? idOf(params.roster[0]) : null));
   if (want && __world.byId[want] && __world.byId[want].pilotable && __world.pilotId !== want) {

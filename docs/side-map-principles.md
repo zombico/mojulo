@@ -258,7 +258,14 @@ hue its level holds back for its boss, so it stands out of every zone that leads
 its signal. The first is Crucible: its head is a crucible of molten metal, on a brute's body, and it lobs.
 
 Its heroes are the herobots (`control/lib/graph/gameworld/herobots.js`): Galaxy Boy with the buster on his arm, and Zero
-Boy, Galaxy Boy in red with a yellow ponytail and a saber. Zero Boy plays Galaxy Boy's feel with the saber in the
+Boy, Galaxy Boy in indigo with a yellow ponytail and a saber.
+
+Galaxy Boy has a co-star, Astro Girl, so the game is theirs together. She is Zero Boy's sister: his colours and his saber
+on her own figure (the female cast, slimmer and longer at the boys' height), a girl's face on the boys' kid cast (larger
+almond eyes under a flicked lash, thinner brows, a smaller nose and mouth, a softer chin), twin tails and swept-back fins
+off her helm, a bodice and a short skirt in the suit (the toy suit's `chest: 'bodice'` and `brief: 'skirt'`). A game
+with a co-star (the book's `characters.costar`) stands both at the start of each side map, and before every level the
+player picks who goes (the rail's `setup` pick, `pilot`); the other leaves as the level starts. The title is both names. Zero Boy plays Galaxy Boy's feel with the saber in the
 buster's place (`gameworld/feel/saber.js`). In the air the press is a cut at what is ahead, the jump going on under it, never held up. His three cuts chain on the
 fire press and never move him, and they deal
 damage on the buster's scale. Each cut plants his feet as his body swings into it, one leg forward and one back, and

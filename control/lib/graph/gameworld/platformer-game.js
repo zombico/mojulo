@@ -182,8 +182,11 @@ export const SIDE_MAP_FOES = Object.freeze({
  * first run, its `meet` zone's three, the dash run's two, then its gauntlet's six with the heavies among them. */
 export const SIDE_MAP_FIRST_FOES = Object.freeze(['hardhat', 'hardhat', 'hopfrog', 'shellgun', 'ram', 'batwing', 'hardhat', 'ironhorn', 'shellgun', 'batwing', 'bunker', 'prickle']);
 
+/** How each way of playing is said on the co-star's pick. */
+const COSTAR_ABOUT = Object.freeze({ buster: 'The arm cannon: tap to shoot, hold to charge.', saber: 'The saber: press to cut, again for the string.' });
+
 /** The rail's game in a dimension: the words to write on a gameworld (see the header). */
-export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id, name, seed, kit, boss = false, camera, hero } = {}) {
+export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id, name, seed, kit, boss = false, camera, hero, costar } = {}) {
   const D = PLATFORMER_DIMENSIONS[readDimension(dimension)];
   if (!POLES[pole] || POLES[pole].base !== 'platformer') throw new Error(`platformer: '${pole}' is not a platformer's template (${Object.keys(POLES).filter((p) => POLES[p].base === 'platformer').join(', ')})`);
   if (D.poles && !D.poles.includes(pole)) throw new Error(`platformer: ${POLES[pole].name} is played in 2d (${D.after} is ${D.poles.map((p) => POLES[p].name).join(', ')}'s)`);
@@ -191,6 +194,11 @@ export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id
   // (a run and gun's HERO, herobots.js: the variant of its feel it plays, Zero Boy's the saber)
   if (hero !== undefined && !(SIDE_MAP_POLES.includes(pole) && HEROBOTS[hero])) throw new Error(`platformer: hero is one of ${HEROBOT_IDS.join(', ')}, a side scroller's (${SIDE_MAP_POLES.map((p) => POLES[p].name).join(', ')})`);
   const variant = hero ? HEROBOTS[hero].variant : undefined;
+  // (its CO-STAR, herobots.js: a second hero the player picks before each level, Astro Girl beside Galaxy Boy; `costar`:
+  // false for none, or a herobot's id; the caller writes the book's `characters.costar` with the co-star it makes)
+  const costarId = costar === false ? null : costar ?? (SIDE_MAP_POLES.includes(pole) && (hero ?? 'galaxy-boy') === 'galaxy-boy' ? 'astro-girl' : null);
+  if (costarId && !HEROBOTS[costarId]) throw new Error(`platformer: costar is one of ${HEROBOT_IDS.join(', ')}, or false`);
+  const C = costarId ? HEROBOTS[costarId] : null, H = HEROBOTS[hero ?? 'galaxy-boy'];
   const level = id ?? D.level, flow = platformerFlow(dimension), front = platformerFront(dimension), sideMap = SIDE_MAP_POLES.includes(pole) && D === PLATFORMER_DIMENSIONS['2d'];
   const words = {
     feel: { pole, takes: true, ...(variant && variant !== variantsOf(pole)[0] ? { variant } : {}) },
@@ -211,8 +219,11 @@ export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id
     grade: 'vivid',
     ui: { theme: sideMap ? SIDE_MAP_LOOK : PLATFORMER_LOOK },
     front, flow,
+    // (the co-star's pick, asked before each level: who goes, the hero or the co-star; setup.js, the page's `pilot`)
+    ...(C ? { setup: { picks: [{ id: 'pilot', ask: 'Who goes?', from: { options: [{ id: 'hero', name: H.name, about: COSTAR_ABOUT[H.variant] ?? H.name }, { id: 'costar', name: C.name, about: COSTAR_ABOUT[C.variant] ?? C.name }] } }] } } : {}),
   };
-  return { dimension, level, words, turn: PLATFORMER_TURN[dimension], says: `${POLES[pole].name} as ${D.after}: ${D.says}` };
+  return { dimension, level, words, turn: PLATFORMER_TURN[dimension], says: `${POLES[pole].name} as ${D.after}: ${D.says}${C ? `, ${H.name} and ${C.name} its co-stars` : ''}`,
+    ...(C ? { costar: { herobot: costarId, name: C.name, variant: C.variant } } : {}) };
 }
 
 /** The dimension a world's camera says: side is 2d, a chase is 3d; null when it says none, or another camera. */
@@ -268,6 +279,7 @@ function patchFor(world, dimension, pole, boss) {
   const upright = (world.screen === 'phone' || (isObj(world.screen) && world.screen.orientation === 'portrait'));
   const advise = upright ? 'its screen is held upright: a platformer is read across its width, a lane or a chase camera (screen: \'screen\', a monitor or a TV)' : null;
   if (G.words.screen && world.screen === undefined) ops.push({ op: 'set', path: '/screen', value: G.words.screen });
+  if (G.words.setup && world.setup === undefined) ops.push({ op: 'set', path: '/setup', value: G.words.setup });
   for (const k of ['sound', 'music']) if (G.words[k] && world[k] === undefined) ops.push({ op: 'set', path: `/${k}`, value: G.words[k] });
   // THE HERO IS A MASCOT by default: a book whose direction names no body takes the template's body (the mascot's chibi,
   // or the toy hero robot's for the run and gun)

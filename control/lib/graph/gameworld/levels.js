@@ -746,11 +746,11 @@ function withBookUi(G, play) {
   return { ...play, ui: { seed: h % 2147483647 } };
 }
 
-function levelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null, foeRefs = null } = {}) {
+function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, heroStature = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null, foeRefs = null } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
   // a side map (side-map/level.js): its hero on the lane, its camera on the zones, its falls out of the frame
-  if (stage.section === 'sidemap') return sideMapLevelOrder(G, stage, { ref, heroRef, heroGaits, heroStature, pilot, title, mechanics, extra, audio, foeFrom: G.levels?.[stage.level]?.foes !== undefined ? readLevelFoes(G.levels[stage.level].foes, G.foes, `levels.${stage.level}`).from : [] });
+  if (stage.section === 'sidemap') return sideMapLevelOrder(G, stage, { ref, heroRef, costar, heroGaits, heroStature, pilot, title, mechanics, extra, audio, foeFrom: G.levels?.[stage.level]?.foes !== undefined ? readLevelFoes(G.levels[stage.level].foes, G.foes, `levels.${stage.level}`).from : [] });
   // a street level (brawl-cast.js): its own simulation and its own contract, the game's hero and made foes its bodies
   if (stage.section === 'street') { const S = streetLevel(G, stage.street, { title: title ?? stageTitle(stage), ref, heroRef, foeRefs, party, ...STREET_LAY }); return { tool: 'create_sketch', args: { title: S.manifest.title, manifest: S.manifest }, laws: S.laws }; }
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, heroStature, pilot, mechanics, title, sheathRef, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });

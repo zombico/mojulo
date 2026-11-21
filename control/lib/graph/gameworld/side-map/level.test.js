@@ -56,6 +56,24 @@ describe('a side map level', () => {
     expect(stageLevelOrder(W, stage, { heroRef: 'hero-ref', heroStature: 1.67, ref: 'lvl', audio }).args.manifest.audio).toEqual(audio);
     expect(stageLevelOrder(W, stage, { heroRef: 'hero-ref', heroStature: 1.67, ref: 'lvl' }).args.manifest.audio).toBeUndefined();
   });
+  it('with a co-star both stand in the player\'s seat, each on its own feel; the rail asks who goes; without one, the hero alone', () => {
+    const P = platformerGame({ pole: 'galaxy-boy' });
+    expect(P.costar).toMatchObject({ herobot: 'astro-girl', variant: 'saber' });
+    expect(P.words.setup.picks[0]).toMatchObject({ id: 'pilot', from: { options: [{ id: 'hero' }, { id: 'costar' }] } });
+    expect(platformerGame({ pole: 'galaxy-boy', hero: 'zero-boy' }).words.setup).toBeUndefined();
+    const W = { ...galaxy(), characters: { direction: { tradition: 'anime', body: 'herobot' }, hero: { ref: 'gb-hero' }, costar: { ref: 'gb-costar', name: 'Astro Girl', variant: 'saber' } } };
+    const G = readGameworld(W), [stage] = gameStages(W);
+    const m = stageLevelOrder(G, stage, { heroRef: 'hero-ref', heroStature: 1.67, ref: 'lvl', costar: G.characters.costar }).args.manifest;
+    const seats = m.entities.filter((e) => e.seat === 'player');
+    expect(seats.map((e) => e.id)).toEqual(['hero', 'costar']);
+    expect(seats[0].pilotRule.buster).toBeDefined();
+    expect(seats[1].pilotRule.moveset).toBeDefined();
+    expect(seats[1].pilotRule.buster).toBeUndefined();
+    expect(m.figures.costar).toMatchObject({ heroRef: 'gb-costar' });
+    const alone = stageLevelOrder(G, stage, { heroRef: 'hero-ref', heroStature: 1.67, ref: 'lvl' }).args.manifest;
+    expect(alone.entities.some((e) => e.seat)).toBe(false);
+    expect(() => readGameworld({ ...W, characters: { ...W.characters, costar: { name: 'x' } } })).toThrow(/costar.ref/);
+  });
   it('a side map is played by a hero', () => {
     const W = galaxy(), [stage] = gameStages(W);
     expect(() => stageLevelOrder(W, stage, { heroRef: null })).toThrow(/played by a hero/);

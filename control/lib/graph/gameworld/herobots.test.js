@@ -9,7 +9,7 @@ import { heroRecord } from '@/lib/mcp/tools/layered.js';
 
 describe('the herobots', () => {
   it('each the herobot body in the toy suit under the helm, its face open; the hero door takes it', () => {
-    for (const id of ['galaxy-boy', 'zero-boy']) {
+    for (const id of Object.keys(HEROBOTS)) {
       const S = herobotSpec(id);
       expect(S).toMatchObject({ proportions: 'herobot', adorn: { type: 'armor', style: 'herobot' } });
       expect(S.adorn.with[0].signature.window).toBeDefined();
@@ -26,6 +26,22 @@ describe('the herobots', () => {
     expect(Z.adorn.with[0].signature.ponytail).toMatchObject({ group: 'Hair' });
     expect(Z.palette.Armor).not.toBe(G.palette.Armor);
     expect(Z.palette.Hair).toBe(HEROBOTS['zero-boy'].palette.Hair);
+  });
+  it('Astro Girl her brother\'s colours and saber on her own figure: the female cast, her own line over the kept body, twin tails, fins, a bodice and a skirt', () => {
+    const A = herobotSpec('astro-girl'), Z = herobotSpec('zero-boy'), H = HEROBOTS['astro-girl'];
+    expect(A.palette).toEqual(Z.palette);
+    expect(A.gear).toEqual(Z.gear);
+    expect(H.variant).toBe(HEROBOTS['zero-boy'].variant);
+    expect(A.cast).toBe('female');
+    expect(Z.cast).toBeUndefined();
+    // (her own ratios over the cast's undone: the cast's, hers and the spec's multiply to hers)
+    for (const [k, v] of Object.entries(ANIME_STYLES[H.animeStyle].female.tune)) expect(A.tune[k] * v).toBeCloseTo(H.tune[k] ?? 1, 3);
+    expect(A.sculpt).toEqual(H.sculpt);
+    const sig = A.adorn.with[0].signature;
+    expect(sig.ponytail.twin).toBeGreaterThan(0);
+    expect(sig.horns).toBeDefined();
+    expect(A.adorn.language).toEqual({ brief: 'skirt', chest: 'bodice' });
+    expect(Z.adorn.with[0].signature.horns).toBeUndefined();
   });
   it('a cast\'s face on the hero\'s own body: its face words over the cast\'s, its body tune undone (its height kept)', () => {
     const id = Object.keys(HEROBOTS).find((k) => HEROBOTS[k].keepBody), S = herobotSpec(id), H = HEROBOTS[id];

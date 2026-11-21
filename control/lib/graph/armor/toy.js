@@ -15,15 +15,17 @@
 // the knees, the collar, the thigh rims and the plaques. The helm is not the family's: the hero robot's helm is a
 // headgear card (headgear/cards.js heroBotHelm), worn with the suit as the build's `with`.
 //
-// Language words (each optional; absent, the piece as the card has it): pauldron ball | none, chest barrel | none,
-// arms football | none, legs cone | none, knees cap | none, collar band | none, brief brief | none, cannon none | R | L (the
-// arm cannon on that arm: never at the card's default, a run and gun's hero names it).
+// Language words (each optional; absent, the piece as the card has it): pauldron ball | none, chest barrel | bodice |
+// none (`bodice`: the barrel cut fuller and higher, over a heroine's chest, which the barrel sinks into),
+// arms football | none, legs cone | none, knees cap | none, collar band | none, brief brief | skirt | none (`skirt`: in
+// the brief's place a short flared skirt off the hips, its hem in the trim: a heroine's silhouette), cannon none | R | L
+// (the arm cannon on that arm: never at the card's default, a run and gun's hero names it).
 import { r4 } from './plate.js';
 
 export const TOY_ORDER = Object.freeze([[0.0, 'chest'], [0.1, 'boot'], [0.2, 'forearm'], [0.3, 'pauldron'], [0.45, 'brief'], [0.55, 'knee'],
   [0.65, 'collar'], [0.8, 'thighRim'], [0.9, 'plaque']]);
-export const TOY_WORDS = Object.freeze({ pauldron: ['ball', 'none'], chest: ['barrel', 'none'], arms: ['football', 'none'], legs: ['cone', 'none'],
-  knees: ['cap', 'none'], collar: ['band', 'none'], brief: ['brief', 'none'], cannon: ['none', 'R', 'L'] });
+export const TOY_WORDS = Object.freeze({ pauldron: ['ball', 'none'], chest: ['barrel', 'bodice', 'none'], arms: ['football', 'none'], legs: ['cone', 'none'],
+  knees: ['cap', 'none'], collar: ['band', 'none'], brief: ['brief', 'skirt', 'none'], cannon: ['none', 'R', 'L'] });
 // which language word turns each piece off
 const OFF = Object.freeze({ pauldron: 'pauldron', chest: 'chest', forearm: 'arms', boot: 'legs', knee: 'knees', collar: 'collar', brief: 'brief' });
 
@@ -44,6 +46,10 @@ const PIECES = Object.freeze({
   pec: Object.freeze({"mode": "shell", "part": "torso", "side": "R", "s": [1.9, 2.3], "t": [0.5, 1.0], "nt": 2, "ns": 1, "mugen": -0.02, "thick": 0.001, "rigid": true, "group": "Pec", "signature": {"kind": "plaque", "group": "Pec", "s": [1.45, 2.6], "w": [0.36, 0.44], "c": 0.78, "lift": 0.024, "thick": 0.007, "bevel": 0.82}}),
   abplate: Object.freeze({"mode": "shell", "part": "torso", "side": "R", "s": [0.9, 1.3], "t": [0, 0.3], "nt": 2, "ns": 1, "mugen": -0.02, "thick": 0.001, "rigid": true, "group": "Plaque", "signature": {"kind": "plaque", "group": "Plaque", "s": [0.77, 1.58], "w": [0.3, 0.51], "lift": 0.034, "thick": 0.007, "bevel": 0.84}}),
   brief: Object.freeze({"mode": "shell", "part": "pelvis", "s": [0.6, 4.6], "t": "wrap", "nt": 10, "ns": 4, "mugen": 0.001, "thick": 0.001, "rigid": true, "group": "Armor", "signature": {"kind": "volume", "group": "Armor", "shape": "football", "girth": 1.1, "n": 2.4, "squash": [1.24, 0.98], "m": 24, "lip": {"group": "Cuff", "at": "high", "w": 0.14, "out": 0.03}, "base": 0.88, "peak": 0.6, "mouth": 0.8}}),
+  // (the BODICE, the chest's other word: the barrel fuller and its peak higher, so it stands over a heroine's chest)
+  bodice: Object.freeze({"mode": "shell", "part": "torso", "s": [1.05, 3.6], "t": "wrap", "nt": 10, "ns": 4, "mugen": 0.001, "thick": 0.001, "rigid": true, "group": "Chest", "signature": {"kind": "volume", "group": "Chest", "shape": "football", "girth": 1.34, "n": 2.0, "squash": [1.22, 1.08], "m": 32, "lip": {"group": "Cuff", "at": "low", "w": 0.12, "out": 0.03}, "base": 0.76, "peak": 0.7, "mouth": 0.72, "rings": 18}}),
+  // (the SKIRT, the brief's other word: a cone off the hips flaring as it falls past them, its hem a lip in the trim)
+  skirt: Object.freeze({"mode": "shell", "part": "pelvis", "s": [0.2, 4.4], "t": "wrap", "nt": 10, "ns": 4, "mugen": 0.001, "thick": 0.001, "rigid": true, "group": "Armor", "signature": {"kind": "volume", "group": "Armor", "shape": "cone", "girth": 1.24, "taper": 0.62, "n": 2.4, "extend": [0.55, 0], "squash": [1.2, 1.0], "m": 28, "lip": {"group": "Cuff", "at": "low", "w": 0.12, "out": 0.04}}}),
   pauldron: Object.freeze({"mode": "shell", "part": "upperArmR", "s": [0.0, 0.9], "t": "wrap", "nt": 10, "ns": 4, "mugen": 0.001, "thick": 0.001, "rigid": true, "group": "Armor", "signature": {"kind": "volume", "group": "Armor", "shape": "bead", "girth": 2.3, "at": 0.15, "squashAlong": 0.85, "rings": 15, "m": 28}, "side": "R"}),
   forearm: Object.freeze({"mode": "shell", "part": "foreArmR", "s": [0.35, 1.95], "t": "wrap", "nt": 8, "ns": 4, "mugen": 0.001, "thick": 0.001, "rigid": true, "group": "Armor", "signature": {"kind": "volume", "group": "Armor", "shape": "football", "girth": 2.05, "peak": 0.86, "mouth": 0.94, "n": 2.2, "lip": {"group": "Cuff", "at": "high", "w": 0.14, "out": 0.05}, "base": 0.5}}),
   boot: Object.freeze({"mode": "shell", "part": "shankR", "s": [0.45, 2.0], "t": "wrap", "nt": 8, "ns": 4, "mugen": 0.001, "thick": 0.001, "rigid": true, "group": "Armor", "signature": {"kind": "volume", "group": "Armor", "shape": "cone", "girth": 1.72, "taper": 1.6, "n": 2.2, "extend": [0, 0.02], "lip": {"group": "Cuff", "at": "low", "w": 0.12, "out": 0.06}}}),
@@ -73,7 +79,7 @@ export function toySuit(dials, ctx = {}, lang = {}) {
     kit.push({ id: `${id}R`, ...q }, { id: `${id}L`, ...mirror(q) });
   };
   const PIECE = {
-    chest: () => lay('chest', PIECES.chest, false),
+    chest: () => lay('chest', lang.chest === 'bodice' ? PIECES.bodice : PIECES.chest, false),
     boot: () => { lay('boot', PIECES.boot, true); lay('sole', PIECES.sole, true); },
     forearm: () => {
       const C = lang.cannon === 'R' || lang.cannon === 'L' ? lang.cannon : null;
@@ -83,7 +89,7 @@ export function toySuit(dials, ctx = {}, lang = {}) {
       kit.push({ id: 'forearmR', ...(C === 'R' ? seamless : q) }, { id: 'forearmL', ...mirror(C === 'L' ? seamless : q) }, { id: `buster${C}`, ...(C === 'L' ? mirror(c) : c) });
     },
     pauldron: () => lay('shoulder', PIECES.pauldron, true),
-    brief: () => lay('brief', PIECES.brief, false),
+    brief: () => lay('brief', lang.brief === 'skirt' ? PIECES.skirt : PIECES.brief, false),
     knee: () => lay('knee', PIECES.knee, true),
     collar: () => lay('neckband', PIECES.collar, false),
     thighRim: () => { if (orn >= 2) lay('thighRim', PIECES.thighRim, true); },

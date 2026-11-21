@@ -426,4 +426,12 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
 - **The boss is fought from his door**: a life lost in the boss's room comes back just before its door, the door open
   and the boss whole where he stood as it shut; walked in, it shuts again. Shut, the door is a wall (a collider while
   it is shut), so the room's walls are both slid down and kicked off.
+- **Astro Girl, Galaxy Boy's co-star**: a herobot (herobots.js `astro-girl`), Zero Boy's sister: his colours and his saber
+  on her own figure (the female cast at the boys' height, her own line over it: `cast`, `tune`), the kid cast's face made a
+  girl's (`face` and `sculpt` words), twin tails (the helm ponytail's `twin`) and swept-back fins (its `horns`), a bodice
+  and a short skirt (the toy suit's new words `chest: 'bodice'`, `brief: 'skirt'`). The co-star joins a game through the
+  character book (`characters.costar`: ref, name, variant); the run adopts her, each side map stands her beside the hero
+  in the player's seat on her own feel, and the rail writes a pick asked before every level (`setup.picks` `pilot`: "Who
+  goes?") which the page reads as its pilot. The rail names her for Galaxy Boy's game (`platformerGame().costar`).
+  Laws (herobots.test.js, armor/toy.test.js, side-map level.test.js).
 
