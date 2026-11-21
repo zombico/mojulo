@@ -297,7 +297,9 @@ export function effectContext(play, phases = (play && play.phases) || ['playing'
   const partIds = new Set();
   for (const p of (play && play.parts) || []) if (p && isStr(p.id)) { if (partIds.has(p.id)) throw new Error(`play.parts: two parts called '${p.id}'`); partIds.add(p.id); }
   const menuIds = new Set(((play && play.menus) || []).map((m) => m && m.id).filter(isStr));
-  return { partIds, phases, menuIds, looks: readLooks(play), explosions: readExplosions(play), beams: readBeams(play), stats: readStats(play) };
+  // (the chests looted whole as they open, menus.js loot: 'all': their open says menu-open:<id>, which loots them)
+  const loots = new Set(((play && play.menus) || []).filter((m) => m && m.kind === 'chest' && m.loot === 'all').map((m) => m.id));
+  return { partIds, phases, menuIds, loots, looks: readLooks(play), explosions: readExplosions(play), beams: readBeams(play), stats: readStats(play) };
 }
 
 /** The cues of a play block, read; shape errors throw and teach. */
@@ -393,7 +395,7 @@ const shown = UI_STATES.indexOf('shown');
  * vars; set and emit are the game's own. `end` (when given) undoes what came up: a show is hidden, a state goes back
  * to shown, an opened menu closes (a phase, a set and an emit stay: they are the game's, not the moment's).
  */
-export function lowerEffects(ts, on, frag, { phases = ['playing'], menuIds = new Set(), end = null, ttl = null, places = [] } = {}) {
+export function lowerEffects(ts, on, frag, { phases = ['playing'], menuIds = new Set(), end = null, ttl = null, places = [], loots = null } = {}) {
   for (const t of ts) {
     if (t.kind === 'stat') { lowerStatEffect(t, on, frag); continue; }
     if (t.kind === 'cast') {
@@ -447,6 +449,7 @@ export function lowerEffects(ts, on, frag, { phases = ['playing'], menuIds = new
     const to = t.kind === 'phase' ? phases.indexOf(t.phase) : t.kind === 'state' ? UI_STATES.indexOf(t.to) : t.kind === 'show' || t.kind === 'open' ? 1 : 0;
     if (!(v in frag.vars)) frag.vars[v] = t.kind === 'phase' ? 0 : t.kind === 'state' ? shown : t.kind === 'hide' ? 1 : 0;
     frag.reactions.push({ on, do: 'set', var: v, to });
+    if (t.kind === 'open' && loots && loots.has(t.menu)) frag.reactions.push({ on, do: 'emit', type: `menu-open:${t.menu}` });
     if (end && t.kind !== 'phase') frag.reactions.push({ on: end, do: 'set', var: v, to: t.kind === 'state' ? shown : t.kind === 'show' || t.kind === 'open' ? 0 : 1 });
   }
   return frag;
@@ -460,7 +463,7 @@ export function lowerCues(play, { anchors = [], player = null, places = anchors 
   const phases = (play && play.phases) || ['playing'];
   const cues = readCues(play, phases);
   if (!cues.length) return null;
-  const { menuIds } = effectContext(play, phases), frag = emptyFrag();
+  const { menuIds, loots } = effectContext(play, phases), frag = emptyFrag();
   const add = (f) => { for (const k of ['sources', 'reactions', 'watches', 'initial', 'timers']) frag[k].push(...f[k]); };
   for (const c of cues) {
     const on = `cue:${c.id}`, end = `cue-end:${c.id}`, zone = `cue-${c.id}`;
@@ -474,7 +477,7 @@ export function lowerCues(play, { anchors = [], player = null, places = anchors 
         frag.reactions.push({ on: from, if: g, do: 'emit', type: to });
         if (c.otherwise) frag.reactions.push({ on: from, if: flipped(g), do: 'emit', type: `cue-else:${c.id}` });
       });
-      if (c.otherwise) lowerEffects(c.otherwise, `cue-else:${c.id}`, frag, { phases, menuIds, places });
+      if (c.otherwise) lowerEffects(c.otherwise, `cue-else:${c.id}`, frag, { phases, menuIds, loots, places });
     }
     if (c.once) frag.watches.push({ type: on, when: { count: pass, gte: 1 } });
     add(fire(c.when, hit, zone, anchors, player));
@@ -484,7 +487,7 @@ export function lowerCues(play, { anchors = [], player = null, places = anchors 
     // a use at a place ends, as a near does, when the figure walks off it (what it opened closes)
     const used = !c.until && c.when.kind === 'use' ? usePlace(c.when, zone, anchors) : null;
     if (used) frag.reactions.push({ on: 'exit', match: { zone: used.zone }, do: 'emit', type: end });
-    lowerEffects(c.then, on, frag, { phases, menuIds, places, end: c.until || used ? end : null, ttl: c.until && c.until.kind === 'ttl' ? c.until.ttl : null });
+    lowerEffects(c.then, on, frag, { phases, menuIds, loots, places, end: c.until || used ? end : null, ttl: c.until && c.until.kind === 'ttl' ? c.until.ttl : null });
   }
   // two cues on one place share its zone (one enter, one exit); the first prompt given is its word
   const byZone = new Map();

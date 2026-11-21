@@ -94,6 +94,7 @@ import { spaceLaws } from '../skyscape/space.js';
 import { flyCourse } from '../skyscape/autopilot.js';
 import { seatCraft, craftPilot } from '../skyscape/craft.js';
 import { battleRoster, laidBattles, PARTY_SLICE, BAG_SLICE, BAG_START } from './battles.js';
+import { chestsPer, CHEST_SLICE } from './chests.js';
 import { mergeExtras, libraryFigure, fieldFigure, stand } from './stage-figures.js';
 import { standFoe, foePlacements, bestiaryOf, stompOf, targetRimOf } from './foes.js';
 import { streetLevel } from './brawl-cast.js';
@@ -1994,6 +1995,8 @@ export function gameStore(world, book) {
   // party battles (battles.js): the party, its levels, classes and skills, carried from level to level
   if (G.battles) {
     slices.push({ name: PARTY_SLICE, kind: 'party', init: { roster: battleRoster(G) } });
+    // (and the treasure its stages keep: what each chest still holds, chests.js)
+    if (chestsPer(G)) slices.push({ name: CHEST_SLICE, kind: 'flags' });
     // and its bag: items, the gear not worn, gold (a keyed map's bag is the same slice, its keys beside them)
     const bag = slices.findIndex((x) => x.name === BAG_SLICE), init = { items: { ...BAG_START } };
     if (bag < 0) slices.push({ name: BAG_SLICE, kind: 'inventory', init }); else slices[bag] = { ...slices[bag], init };

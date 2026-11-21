@@ -132,6 +132,21 @@ among the town's wares. Each is opened by its keeper, and only where its lot's d
 (`skip`, `noCast`, `miss`, `wild`, `tick`, `wake: 'hit'`, `rounds`), or the starter book's (paralysis, blindness,
 confusion, burn, regen) by name. A skill's `status: { is }` inflicts one, a `cure` lifts it.
 
+## Treasure chests
+
+A book's battles may keep treasure off the path (`battles.chests: n`, 0 to 4 a fighting stage; a composed party RPG
+keeps two), each a chest standing a step aside from the way on a beat the packs leave free (`gameworld/chests.js`):
+- **Opened** with E where it stands, everything in it goes into the bag at once and the find is said ("Found 2 potions
+  and an ether!"), with the shelf's `chest-open` sound. Its loot is by how far on (`CHEST_LOOT`, the shops' tiers):
+  potions, gold and starter gear first, then ethers and rings, then the dearer cures.
+- **Opened again**, it says it is empty. Emptied, its shut body (the glyph shelf's `chest`) gives way to an open one
+  (`chest-open`).
+- **Kept opened.** What each still holds is a holder's count, kept in the store's `chests` slice by the bag (`holders`),
+  so a level gone back to, or a save loaded, finds it open and empty.
+
+It is a chest menu looted whole (`play.menus` `{ kind: 'chest', holds, loot: 'all' }`, RPG Maker's treasure event):
+any level can stand one by hand.
+
 ## Travel by ship or airship
 
 A megaworld may name **crossings**, ways taken aboard beside its rings' own:

@@ -183,3 +183,10 @@
   and the hero and that class's members are made with it. Before, a member struck its archetype's showcase pose and the
   hero a fist to the sky. A `motion` laid over an egocube character's sheet (`create_character { egocube, spec }`) now
   adds its words to the moves the sheet gives it, where it replaced them.
+- **Treasure chests.** A book's battles may keep treasure off the path (`battles.chests: n`, 0 to 4 a fighting stage;
+  a composed party RPG keeps two), each on a beat the packs leave free, a step aside from the way
+  (`gameworld/chests.js`). E opens one: everything in it goes into the bag at once and the find is said ("Found 2
+  potions and an ether!"), its loot by how far on. Opened again it is empty; emptied, its shut body gives way to an open
+  one; and the store keeps what each still holds (the bag's `holders`, the `chests` slice), so it stays opened. Built
+  from a chest menu looted whole, new: `play.menus` `{ kind: 'chest', loot: 'all' }`, which any level can stand by hand;
+  and two new forms on the glyph shelf, `chest` and `chest-open`.

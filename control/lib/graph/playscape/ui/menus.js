@@ -9,7 +9,8 @@
  *     talk     { who?, lines: [text | { who, say }], choices?: [{ say, then? }] }
  *     confirm  { ask, yes: effect(s), no?: effect(s) }              rest here? save? pull the lever?
  *     shop     { stock: [{ item, price }], currency: '<var>', sell? }
- *     chest    { holds: [{ item, count? }] }
+ *     chest    { holds: [{ item, count? }], loot?: 'all' }   (loot: 'all', a JRPG's chest: opened, everything goes into the
+ *              bag at once and the find is said, no menu shown; opened again, empty, it says so)
  *     save     { slots? }                                           (3)
  *     map      { }                                                  the map's own rooms and anchors
  *     list     { rows: [{ label, var }] }                           a status page, a quest log
@@ -49,7 +50,7 @@ export const MENU_KINDS = Object.freeze({
   talk: { about: 'someone speaks: lines, then choices that lead on', fields: 'who?, lines, choices?', example: { id: 'keeper', kind: 'talk', who: 'Keeper', lines: ['You came by the garden gate.', 'Few do.'], choices: [{ say: 'Who lives here?', then: { open: 'plaque' } }, { say: 'Goodbye' }] } },
   confirm: { about: 'a yes or a no: rest here, save, pull the lever', fields: 'ask, yes, no?', example: { id: 'rest', kind: 'confirm', ask: 'Rest until dawn?', yes: [{ set: 'hp', to: 100 }, { say: 'You wake rested.' }] } },
   shop: { about: 'buy for a currency: accept buys the item in focus when the currency var holds its price (and the stock lasts)', fields: 'stock: [{ item, price?, count? }], currency', example: { id: 'counter', kind: 'shop', title: 'Apothecary', currency: 'gold', stock: [{ item: 'tonic', price: 12 }, { item: 'lamp oil', price: 5 }], sell: true } },
-  chest: { about: 'what a container holds: accept takes one of the item in focus into the bag', fields: 'holds', example: { id: 'trunk', kind: 'chest', title: 'Old trunk', holds: [{ item: 'crest key' }, { item: 'candle', count: 3 }] } },
+  chest: { about: 'what a container holds: accept takes one of the item in focus into the bag; loot: \'all\' takes it all as it opens, the find said (a JRPG\'s)', fields: 'holds, loot?', example: { id: 'trunk', kind: 'chest', title: 'Old trunk', holds: [{ item: 'crest key' }, { item: 'candle', count: 3 }] } },
   save: { about: 'save slots at a save point', fields: 'slots?', example: { id: 'typewriter', kind: 'save', title: 'Save your progress', slots: 3 } },
   map: { about: 'the map itself: its rooms and the things in it, where you are', fields: '(none)', example: { id: 'atlas', kind: 'map', title: 'East wing' } },
   inventory: { about: 'what you carry: each item held, with its count; accept uses the one in focus (when it has a use)', fields: 'from? (bag)', example: { id: 'bag', kind: 'inventory', title: 'Bag' } },
@@ -112,6 +113,8 @@ export function readMenus(play) {
     } else if (m.kind === 'chest') {
       if (!(Array.isArray(m.holds) && m.holds.length && m.holds.every((h) => isObj(h) && isStr(h.item) && (h.count === undefined || (Number.isInteger(h.count) && h.count > 0))))) throw new Error(`${where}: a chest holds [{ item, count? }, …]`);
       out.holds = m.holds.map((h) => ({ item: h.item, count: h.count ?? 1 }));
+      if (m.loot !== undefined && m.loot !== 'all') throw new Error(`${where}.loot is 'all': opened, everything it holds goes into the bag at once, and the find is said (else a menu to take from, one at a time)`);
+      if (m.loot === 'all') out.loot = 'all';
     } else if (m.kind === 'number') {
       if (!isStr(m.ask)) throw new Error(`${where}: a number asks for something: ask: '<words>'`);
       if (!isStr(m.var)) throw new Error(`${where}: a number names the var it writes: var: '<var>'`);
@@ -148,10 +151,10 @@ export function lowerMenus(play, { places = [] } = {}) {
   // the items' uses: a use (a view's, or a cue's `use`) says used:<item>, and the item's effects follow
   const items = readItems(play, (t, w) => readEffect(t, w, ctx)), uses = Object.values(items).filter((it) => it.use), gear = Object.values(items).some((it) => it.equip);
   if (!menus.length && !uses.length && !gear) return null;
-  const { phases, menuIds } = ctx, frag = emptyFrag();
-  for (const it of uses) lowerEffects(it.use, `used:${it.key}`, frag, { phases, menuIds, places });
+  const { phases, menuIds, loots } = ctx, frag = emptyFrag();
+  for (const it of uses) lowerEffects(it.use, `used:${it.key}`, frag, { phases, menuIds, loots, places });
   // the equipment's wearing: equip:<item> / unequip:<item> (items.js), its on and off effects
-  if (gear) lowerEquips(items, frag, (ts, on) => lowerEffects(ts, on, frag, { phases, menuIds, places }));
+  if (gear) lowerEquips(items, frag, (ts, on) => lowerEffects(ts, on, frag, { phases, menuIds, loots, places }));
   for (const m of menus) {
     frag.vars[menuVar(m.id)] = 0;
     if (m.kind === 'number') { frag.vars[m.edit] = 0; frag.vars[m.numVar] ??= 0; }
@@ -169,11 +172,21 @@ export function lowerMenus(play, { places = [] } = {}) {
     });
     // a chest's holds and a shop's counted stock fill their holders
     if (m.kind === 'chest') for (const h of m.holds) frag.vars[heldVar(m.id, h.item)] = h.count;
+    // (a chest looted whole, a JRPG's: opened (menu-open:<id>, its cue's open), shown not at all, everything it holds
+    // moved into the bag, the find said; opened when empty, it says so)
+    if (m.kind === 'chest' && m.loot === 'all') {
+      const on = `menu-open:${m.id}`;
+      frag.reactions.push({ on, do: 'set', var: menuVar(m.id), to: 0 });
+      m.holds.forEach((h, k) => {
+        const { ok } = lowerMove({ item: h.item, n: h.count, from: m.id, to: 'bag', on, ...(k ? {} : { deny: 'It\'s empty.' }) }, frag);
+        if (!k) frag.hud.push({ on: ok, as: 'toast', text: foundSay(play, m.holds), slot: 'center', ttl: 2.5 });
+      });
+    }
     if (m.kind === 'shop') for (const x of m.stock) if (x.count) frag.vars[heldVar(m.id, x.item)] = x.count;
     m.picks.forEach((p, k) => {
       const on = `menu-pick:${m.id}:${k}`;
       frag.reactions.push({ on, do: 'set', var: menuVar(m.id), to: 0 });
-      lowerEffects(p.then, on, frag, { phases, menuIds, places });
+      lowerEffects(p.then, on, frag, { phases, menuIds, loots, places });
     });
   }
   return tidy(frag);
@@ -223,6 +236,15 @@ export function viewRows(play, m) {
   // the bag's view: what it wears first (from the bag's own view only), then what it carries
   const keys = itemsNamed(play), worn = m.from === 'bag' ? keys.filter((k) => itemOf(items, k).equip).map((k) => ({ ...row(k), name: `${itemOf(items, k).name} (${itemOf(items, k).equip.slot})`, slot: itemOf(items, k).equip.slot, count: heldVar(WORN, k), verb: 'unequip', worn: true })) : [];
   return [...worn, ...keys.map((k) => { const it = itemOf(items, k); return { ...row(k), count: heldVar(m.from, k), ...(it.use ? { verb: 'use' } : it.equip && m.from === 'bag' ? { verb: 'equip' } : {}) }; })];
+}
+
+/** What a chest looted whole says it held: 'Found 2 potions and an ether!' (each item by its name, a count over one). */
+export function foundSay(play, holds) {
+  // (a currency, or gold, silver and the like, is counted bare: 60 gold)
+  const items = readItems(play), mass = (it) => it.kind === 'currency' || /^(gold|silver|copper|money|coin)$/.test(it.name);
+  const one = (h) => { const it = itemOf(items, h.item), n = it.name; return mass(it) ? `${h.count} ${n}` : h.count > 1 ? `${h.count} ${n}${/s$/.test(n) ? '' : 's'}` : `${/^[aeiou]/i.test(n) ? 'an' : 'a'} ${n}`; };
+  const xs = holds.map(one);
+  return `Found ${xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}` : xs[0]}!`;
 }
 
 /** What opens each menu: the cues and the other menus' picks that name it. */

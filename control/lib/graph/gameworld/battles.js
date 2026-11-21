@@ -61,6 +61,7 @@ import { mapItems } from '../level/map-items.js';
 import { manualBattles } from './battles-manual.js';
 import { treesBattles } from './battles-tree.js';
 import { ARMORY_ARMS } from '../equipment/armory.js';
+import { chestCast, chestsPer, readChests, CHEST_SLICE } from './chests.js';
 import { MOTION_GAITS } from '../polygonizer/hero-motion.js';
 import { WIN_OF_CLASS } from '../egocube/moves.js';
 
@@ -159,7 +160,7 @@ export const BAG_START = Object.freeze({ potion: 2 });
 // room (a dungeon: its boss in the goal room, levels.js buildingEnds); a building made by ref, a building's inside
 // entered by its door (a town's house), a city and a roadway have none
 export const FOUGHT = (s) => !['interior', 'city', 'roadway'].includes(s.section) && !(s.section === 'building' && s.building?.ref);
-const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'bossPages', 'sets', 'foe', 'looks', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'states', 'rules', 'manual', 'tree', 'wins'];
+const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'bossPages', 'sets', 'foe', 'looks', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'states', 'rules', 'manual', 'tree', 'wins', 'chests'];
 const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules', 'skirmish', 'epochs', 'talk'];
 const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -208,6 +209,8 @@ export function readBattles(v, characters = null, ids = null) {
   // classic party RPG's; a member who joins on a story flag still stands where the story puts it)
   if (v.followers !== undefined && typeof v.followers !== 'boolean') throw err('.followers is true (the party walks the map behind the hero, the default) or false (the hero walks alone; the party still fights)');
   const boss = v.boss === undefined ? null : packOf(v.boss, '.boss');
+  // (chests: the treasure each fighting stage keeps off its path, chests.js)
+  readChests(v.chests, err);
   // (wins: the victory pose each class strikes when a fight is won, over its starter (egocube/moves.js WIN_OF_CLASS): any
   // of the hero door's motion words, a showcase pose or a victory)
   if (v.wins !== undefined) {
@@ -433,6 +436,17 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
     const room = ends.rooms?.find((r) => b.at[0] >= r.x && b.at[0] <= r.x + r.w && b.at[1] >= r.y && b.at[1] <= r.y + r.d);
     encounters.push({ id: `pack-${from + k + 1}`, foes: [...met[k]], at: [b.at[0], b.at[1]], who: who.length > 1 ? who : id, ...(boss ? { flee: false } : {}), ...(boss && B.bossPages ? { pages: B.bossPages.map((p) => ({ ...p })) } : {}), ...(boss && lair ? { near: 3 } : {}), ...(room ? { room: [room.x, room.y, r3(room.x + room.w), r3(room.y + room.d), room.z] } : {}) });
   });
+  // THE CHESTS (chests.js): on the beats the packs leave free, spread along the way, each a step aside from it
+  // (a glyph map's packs stand on its own pack marks: its chests on the beats along its way, but its home's)
+  const same = (a, b) => Math.abs(a.at[0] - b.at[0]) < 0.5 && Math.abs(a.at[1] - b.at[1]) < 0.5;
+  const pool = ends?.map ? (ends.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead' && !(ends.home && b.region === ends.home)) : along;
+  const nChests = chestsPer(G), freeLeft = nChests ? pool.filter((b) => !picks.some((p) => same(p, b))) : [];
+  const chestSpots = Array.from({ length: Math.min(nChests, freeLeft.length) }, (_, k) => {
+    const i = Math.min(freeLeft.length - 1, Math.floor(((k + 0.5) * freeLeft.length) / Math.min(nChests, freeLeft.length))), b = freeLeft[i], next = along[along.indexOf(b) + 1] ?? { at: ends.exit ?? ends.spawn };
+    return { at: b.at, toward: next.at && (next.at[0] !== b.at[0] || next.at[1] !== b.at[1]) ? next.at : ends.spawn };
+  });
+  const chests = chestSpots.length ? chestCast(chestSpots, { tier: tierOf(from), from: 0, seed: seed + from }) : null;
+  if (chests) entities.push(...chests.entities);
   const random = B.random ? { sets: packs.length ? packs.map((p) => [...p]) : [PACKS[0]], ...B.random } : null;
   // the merchant and the innkeeper, beside where the party comes in (none where the book says no shops, or none stands)
   // (in a hub world they stand in the hub instead, hubCast)
@@ -445,8 +459,10 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
   const bossEnc = B.sets ? encounters.find((e) => e.flee === false && B.boss && e.foes.join('|') === B.boss.join('|')) : null;
   if (bossEnc) rest.push({ id: 'rpg-boss-sets', when: { on: `rpg-won:${bossEnc.id}` }, then: { emit: `flag:${B.sets}` } });
   // the party and the bag carried (the party and bag mechanics); a wiped party fails the level under defeat: 'fail'
-  const mechanics = [{ kind: 'party', slice: PARTY_SLICE }, { kind: 'bag', slice: BAG_SLICE }, ...(rpg.rules.defeat === 'fail' ? [{ kind: 'fail-on-death', startHp: 1 }] : [])];
-  return { figures, entities, play: { rpg, ...(rest.length ? { cues: rest } : {}) }, mechanics };
+  // (a stage with chests keeps what each still holds in the store: the bag's holders, so an opened chest stays open)
+  const mechanics = [{ kind: 'party', slice: PARTY_SLICE }, { kind: 'bag', slice: BAG_SLICE, ...(chestsPer(G) ? { holders: CHEST_SLICE } : {}) }, ...(rpg.rules.defeat === 'fail' ? [{ kind: 'fail-on-death', startHp: 1 }] : [])];
+  if (chests) rest.push(...chests.play.cues);
+  return { figures, entities, play: { rpg, ...(rest.length ? { cues: rest } : {}), ...(chests ? { menus: chests.play.menus } : {}) }, mechanics };
 }
 
 // the wares the world can sell: the tier's (or the book's own), less what the world's items and gear leave out

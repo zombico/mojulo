@@ -159,6 +159,8 @@ const ROUND_BOSS = Object.freeze({ pack: Object.freeze(['drake']), pages: (place
   { when: { start: true }, who: 'Ember Drake', say: `None who come into ${place} leave it.` },
   { when: { foe: 'drake', hpBelow: 0.5 }, who: 'Ember Drake', say: ['You burn brighter than the others did.', 'Then burn out!'] },
 ] });
+// the treasure chests each fighting stage of a party RPG keeps (gameworld/chests.js)
+const ROUND_CHESTS = 2;
 const low = (t) => (typeof t === 'string' && /^The /.test(t) ? `the ${t.slice(4)}` : t);
 function roundTalk(world) {
   const M = world.megaworld, core = M?.rings?.at(-1)?.[0], gate = core && M.gates?.[core];
@@ -533,6 +535,8 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // them, never the whole party choosing and then the round played: playscape/rpg/kernel.js, rules.turns 'timeline')
   // (a foe's HP shown as the same bar over its head as a member's: rules.foeHp 'bar')
   if (turnBased && world.battles?.rules?.turns === undefined) world.battles = { ...(world.battles ?? {}), rules: { turns: 'timeline', foeHp: 'bar', ...(world.battles?.rules ?? {}) } };
+  // (and keeps treasure off the path: two chests a fighting stage, opened once, gameworld/chests.js)
+  if (turnBased && world.battles && world.battles.chests === undefined) world.battles = { ...world.battles, chests: ROUND_CHESTS };
   if (hubbed) world.brief.hub = hubId;
   // (round a hub: its castle's level, its dungeon, the trades on its town's street, said as the world was laid)
   if (hubbed && (castled || dungeoned || turnBased)) world.brief.round = { ...(castled ? { castle: `${wid}-${castleAt + 1}`.slice(0, 48) } : {}), ...(dungeoned ? { dungeon: `${wid}-${N}`.slice(0, 48) } : {}), ...(turnBased ? { trades: ['inn', 'temple'] } : {}) };
