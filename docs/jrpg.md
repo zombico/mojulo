@@ -199,7 +199,8 @@ repertoire** (`egocube/moves.js` `battleMovesOf`):
 | fighter | a greatsword | the cut, the thrust and the cleave, heavy and slow |
 | knight | a sword and a shield | the same at a one-hand sword's pace |
 | rogue | a dagger | the same, quick and short |
-| mage, cleric | a staff | the same, swung as a haft |
+| mage | a short staff | the same, swung head first |
+| cleric | a mace | the same |
 | monk | its fists | the boxer's three by its role |
 
 A held weapon's three attacks are the swings the page bakes on the figure's own rig (`world-kinds.js`, the held

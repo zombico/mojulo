@@ -143,7 +143,8 @@
   the hero had no strike at all and each companion one move.
 - **Weapons in hand by class.** In a world of battles, each party member who is a person, and the hero, is made holding
   its class's weapon (`egocube/moves.js` `WEAPON_OF_CLASS`: the fighter a greatsword, the knight a sword and a shield,
-  the rogue a dagger, the mage and the cleric a staff; the monk its fists), passed to its mint as the hero door's `gear`.
+  the rogue a dagger, the mage a short staff, the cleric a mace; the monk its fists; a long staff is swung from the
+  wrong end, so a caster's is on an arm's haft), passed to its mint as the hero door's `gear`.
   Its three attacks are the held swings (the cut, the thrust, the cleave) that the page bakes on its own rig at the
   weapon's weight, so the fists are not minted for one who holds a weapon. Before, the party fought with fists, its
   swords and staves numbers alone.

@@ -92,7 +92,7 @@ export const ROLE_OF_CLASS = Object.freeze({ fighter: 'frontline', knight: 'fron
 
 /**
  * A party class's WEAPON in hand (the hero door's `gear`, hero-gear.js): the fighter's greatsword, the knight's sword and
- * shield, the rogue's dagger, the mage's and the cleric's staves; the monk fights with its fists. One who holds a blade or
+ * shield, the rogue's dagger, the mage's short staff and the cleric's mace; the monk fights with its fists. One who holds a blade or
  * a haft strikes with it: the page bakes its held swings on its own rig (world-kinds.js, the held strike: the cut, the
  * thrust and the cleave, `swing_neutral`, `swing_forward`, `swing_back`), and those are its three attacks.
  */
@@ -100,8 +100,10 @@ export const WEAPON_OF_CLASS = Object.freeze({
   fighter: Object.freeze({ right: Object.freeze({ item: 'greatsword' }) }),
   knight: Object.freeze({ right: Object.freeze({ item: 'sword' }), left: Object.freeze({ item: 'shield' }) }),
   rogue: Object.freeze({ right: Object.freeze({ item: 'dagger' }) }),
-  mage: Object.freeze({ right: Object.freeze({ item: 'staff', style: 'druid' }) }),
-  cleric: Object.freeze({ right: Object.freeze({ item: 'staff', style: 'celestial' }) }),
+  // (a caster's staff on an arm's haft, swung head first as a blade is; a long staff is walked with, its heel by the floor,
+  // and swung from the wrong end: hero-gear.js; the cleric's a mace)
+  mage: Object.freeze({ right: Object.freeze({ item: 'staff', style: 'druid', parts: Object.freeze({ hilt: 'arm' }) }) }),
+  cleric: Object.freeze({ right: Object.freeze({ item: 'staff', style: 'celestial', parts: Object.freeze({ hilt: 'arm', end: 'mace' }) }) }),
 });
 export const ARMED_ATTACKS = Object.freeze(['swing_neutral', 'swing_forward', 'swing_back']);
 /** The gear a party class holds, as the hero door takes it (a fresh copy), or null (fists). */
