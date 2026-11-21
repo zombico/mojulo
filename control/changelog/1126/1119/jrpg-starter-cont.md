@@ -226,3 +226,9 @@
   modern round's strays, thugs and First-aid Kits. "Sci-fi", "space", "futuristic", "galactic", "starship" now name the
   alien world's kit (the composer's `LEXICON`, for any genre). A chest says its find by the world's names. A kind's arms
   go with its own look only. Before, a sci-fi party RPG was a meadow of slimes and potions under an Ember Drake.
+- **The round in its labour's shape.** A party RPG's round is laid in the shape its brief's labour asks for
+  (`gameworld/megaworld.js`): the mandala (storm the citadel), a CHAIN of maps one way on (cross the great sea), a HUB
+  joined to every zone (be the very best), an OPEN ring of neighbours (conquer the map); in each the town sets out, the
+  core is gated by its key and its first win ends the game, with the save points, the game over, the chests and the
+  quest. The megaworld's game end is now a chain's last zone, or a hub's or an open world's `end` (a new key), where
+  only a mandala's core ended a game before; the travel screen draws each. Before, every party RPG was a mandala.

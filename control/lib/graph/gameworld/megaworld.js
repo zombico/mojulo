@@ -15,6 +15,8 @@
  *                             // (game/play-shell.js), shut until its story flag where it names one
  *     saves?: [<zone>, …],    // the zones that keep a SAVE POINT where the party comes in: saving there steps out, a
  *                             // way to the same map (the store written as at any crossing), arriving beside it
+ *     end?: <zone>,           // a hub's or an open world's END: the zone whose first win completes the game (a mandala's
+ *                             // is its core, a chain's its last zone)
  *   }
  *
  *   MANDALA  each zone joins the next ring's by its sector (the zone at the same share round its ring); the core is the
@@ -27,7 +29,8 @@
  *   megaworldLaws(M)               → [{ law, ok, says }]: it advises, as WCD's own laws do
  *   stampMegaworld(world)          → the world with its links, topology, start and hub laid; a world without one, itself
  *   atlasOf(M, stages, refs)       → the game manifest's `atlas`: { slice, rings: [[level ref]] }
- *   coreOf(M, stages, refs)        → a mandala's core as a level ref: the level whose first win completes the game; else null
+ *   coreOf(M, stages, refs)        → the game's end as a level ref, the level whose first win completes it: a mandala's
+ *                                    core, a chain's last zone, a hub's or an open world's `end`; else null
  * Pure.
  */
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -38,7 +41,7 @@ export const ATLAS_SLICE = 'atlas';
 export function readMegaworld(v, levels = {}, at = '') {
   if (v === undefined) return null;
   if (!isObj(v)) throw fail(`${at} is { shape, rings, gates? }: the world's zones in rings, the ways between them`);
-  for (const k of Object.keys(v)) if (!['shape', 'rings', 'gates', 'saves', 'crossings'].includes(k)) throw fail(`.${k} is not part of it (shape, rings, gates, saves, crossings)`);
+  for (const k of Object.keys(v)) if (!['shape', 'rings', 'gates', 'saves', 'crossings', 'end'].includes(k)) throw fail(`.${k} is not part of it (shape, rings, gates, saves, crossings, end)`);
   if (!MEGAWORLD_SHAPES.includes(v.shape)) throw fail(`.shape is ${MEGAWORLD_SHAPES.join(', ')}`);
   if (!Array.isArray(v.rings) || !v.rings.length || v.rings.some((r) => !Array.isArray(r) || !r.length)) throw fail('.rings is a list of rings, each a list of zones (levels), the first where it sets out');
   const zones = v.rings.flat(), seen = new Set();
@@ -52,6 +55,7 @@ export function readMegaworld(v, levels = {}, at = '') {
   if (v.shape === 'chain' && v.rings.some((r) => r.length !== 1)) throw fail('.rings: a chain is one zone a ring');
   if (v.shape === 'hub' && (v.rings.length !== 2 || v.rings[0].length !== 1)) throw fail('.rings: a hub is two rings, the home alone in the first');
   if (v.shape === 'open' && v.rings.length !== 1) throw fail('.rings: an open world is one ring, each zone joined to its neighbours');
+  if (v.end !== undefined && (!['hub', 'open'].includes(v.shape) || !seen.has(v.end) || v.end === v.rings[0][0])) throw fail(`.end is a hub's or an open world's last zone, the one whose first win ends the game (a mandala's is its core, a chain's its last zone; never where it sets out)`);
   // (its crossings: ways taken aboard, beside the rings' own, each its trip shown while the next map is built)
   if (v.crossings !== undefined) {
     if (!Array.isArray(v.crossings)) throw fail('.crossings is a list of { from, to, by: ship | airship, needs? }: ways taken aboard');
@@ -132,9 +136,11 @@ export function atlasOf(M, stages, refs) {
   return { slice: ATLAS_SLICE, shape: M.shape, rings: M.rings.map((r) => r.map(first).filter(Boolean)).filter((r) => r.length) };
 }
 
-/** A mandala's core, the game's final level: its first win completes the game. Any other shape has no one end. */
+/** The game's final level, its first win completing the game: a mandala's core, a chain's last zone, a hub's or an open
+ * world's `end`; none said, none. */
 export function coreOf(M, stages, refs) {
-  if (M?.shape !== 'mandala') return null;
-  const i = stages.findIndex((s) => s.level === M.rings.at(-1)[0] && s.section !== 'interior');
+  const end = M?.shape === 'mandala' || M?.shape === 'chain' ? M.rings.at(-1)[0] : M?.end ?? null;
+  if (!end) return null;
+  const i = stages.findIndex((s) => s.level === end && s.section !== 'interior');
   return i < 0 ? null : refs[i];
 }

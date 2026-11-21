@@ -183,7 +183,9 @@ export function roundQuest({ motivation, gate, core, name, boss }) {
 // dungeon the words name, else this), its sanctum
 const CITADEL = Object.freeze({ gate: 'guardhouse', vault: 'crypt', core: 'citadel' });
 const ROUND_GMN = Object.freeze({ motivations: Object.freeze({ 'save-the-world': 1 }), labours: Object.freeze({ 'storm-the-citadel': 1 }) });
-const ROUND_NOT_YET = (shape) => `a party RPG lays its round as a mandala; a ${shape} round is not laid yet, so the mandala stands for it`;
+const ROUND_NOT_YET = (shape) => `a party RPG lays its round as a mandala, a chain, a hub or an open world; a ${shape} round is not laid, so the mandala stands for it`;
+// the shapes a party RPG's round is laid in (megaworld.js)
+const ROUND_SHAPES = Object.freeze(['mandala', 'chain', 'hub', 'open']);
 // the treasure chests each fighting stage of a party RPG keeps (gameworld/chests.js)
 const ROUND_CHESTS = 2;
 const low = (t) => (typeof t === 'string' && /^The /.test(t) ? `the ${t.slice(4)}` : t);
@@ -513,8 +515,8 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const N = hubbed ? Math.max(n, 2 + (castled ? 1 : 0) + (dungeoned ? 1 : 0)) : n;
   const castleAt = castled ? (dungeoned ? N - 2 : N - 1) : -1;
   // (a turn-based round of three levels or more is laid in its labour's shape, ROUND_MANDALA below; its wilds counted as
-  // they are laid)
-  const roundMandala = turnBased && N >= 3;
+  // they are laid. `roundMandala`: a round laid as a megaworld, in its shape, roundShape)
+  const roundMandala = turnBased && N >= 3, roundShape = ROUND_SHAPES.includes(askedShape) ? askedShape : 'mandala';
   let wildsK = 0;
   // (the dungeon's use: the word's, but a castle named beside it is the castle's level, and the dungeon stays a crypt)
   const dungeonUse = dungeoned ? (vault.use === 'keep' && castled ? room : vault.use) : null;
@@ -603,9 +605,17 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     const ring = [...[...wilds].reverse(), ...(mid ? [mid] : [])];
     const gate = { key: ROUND_MANDALA.key(dungeoned ? dungeonUse : 'castle'), keyAt: mid ?? wilds[wilds.length - 1] };
     // (its save points: the town, and each stretch of the wilds where the party comes in; never the castle or the core)
-    world.megaworld = { shape: 'mandala', rings: [[hubId], ring, [core]], gates: { [core]: gate }, saves: [hubId, ...wilds] };
+    // THE ROUND IN ITS LABOUR'S SHAPE (megaworld.js, gmn.js WORLD_SHAPES): a MANDALA's rings inward to the core; a CHAIN
+    // map after map, the wilds in order, the castle last before the core, the core the far end; a HUB the town joined to
+    // every zone, the core among them; an OPEN world one ring, each zone joined to its neighbours. In each the core is
+    // gated by its key, found in the zone the round reaches before it, and the core's first win ends the game
+    const rings = roundShape === 'chain' ? [[hubId], ...[...wilds, ...(mid ? [mid] : [])].map((z) => [z]), [core]]
+      : roundShape === 'hub' ? [[hubId], [...wilds, ...(mid ? [mid] : []), core]]
+      : roundShape === 'open' ? [[hubId, ...wilds, ...(mid ? [mid] : []), core]]
+      : [[hubId], ring, [core]];
+    world.megaworld = { shape: roundShape, rings, gates: { [core]: gate }, saves: [hubId, ...wilds], ...(roundShape === 'hub' || roundShape === 'open' ? { end: core } : {}) };
     Object.assign(world, stampMegaworld(world), { hub: hubId });
-    world.brief.round = { ...world.brief.round, mandala: { core, ...gate }, talk: { who: ROUND_TALK.who, pages: 2, on: gate.key } };
+    world.brief.round = { ...world.brief.round, [roundShape === 'mandala' ? 'mandala' : 'way']: { core, ...gate }, talk: { who: ROUND_TALK.who, pages: 2, on: gate.key } };
     // THE ROUND'S BOSS: a turn-based world's boss is a party battle (battles.js `boss`, the last pack, no escape from it),
     // never the real-time goal's: the boss the words name at the core is ROUND_BOSS's pack, its fight's own pages a line
     // as it begins and one at half its HP; the core's goal keeps what else it holds
@@ -647,7 +657,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
       if (had) had.decides = [...new Set([...had.decides, ...r.decides])]; else world.brief.read.push({ word: r.word, decides: [...r.decides] });
     }
     world.brief.unread = world.brief.unread.filter((w) => !roundBrief.read.some((r) => r.word === w));
-    const laid = roundMandala ? 'mandala' : 'hub';
+    const laid = roundMandala ? roundShape : 'hub';
     world.brief.round = { ...(world.brief.round ?? {}), brief: { motivation: roundResolved.motivation, labour: roundResolved.labour, shape: laid, ...(askedShape && askedShape !== laid && roundMandala ? { asked: askedShape, why: ROUND_NOT_YET(askedShape) } : {}) } };
   }
   world.brief.levels = decided;

@@ -30,8 +30,17 @@ people say for it (`GMN_WORDS`: princess, citadel, sea, sister…), the first na
 JRPG's own: save the world by storming the citadel. The brief is stamped as any is: its stakes, its ending, its acts,
 its colour script and light, and its orders (the first level, the climax), said in `brief.round.brief`.
 
-The labour's shape is the round's. A party RPG lays the mandala; a labour that asks for another shape (a chain, a hub,
-an open world) is laid as the mandala for now, and the brief says so (`asked`, `why`).
+The labour's shape is the round's (`gameworld/megaworld.js`), the town where it sets out and the core gated by its key,
+found in the zone the round reaches before it; the core's first win ends the game in each:
+
+| shape | labours | the round |
+|---|---|---|
+| mandala | storm the citadel | rings travelled inward: the town, then the wilds and the castle round it, the core at the centre |
+| chain | cross the great sea, the Campbellian journey | map after map, one way on: the wilds in order, the castle last, the core the far end |
+| hub | be the very best, catch them all | the town joined to every zone, the core among them (the megaworld's `end`) |
+| open | conquer the map, 100% the tasks | one ring, each zone joined to its neighbours, none the only way on (its `end` the core) |
+
+The travel screen draws each shape's rings; save points, the game over, the chests and the quest are laid in each.
 
 **Its era.** A party RPG's round is reskinned in its setting's era (the world's kit's era, `cast-setting.js`
 `ERA_OF_KIT`; `gameworld/round-eras.js`): the presets' numbers kept (each foe's, item's and gear's stats, prices and

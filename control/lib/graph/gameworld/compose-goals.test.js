@@ -229,10 +229,25 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
     expect(P.gameBrief.gmn.motivations).toEqual({ 'save-the-princess': 1 });
     expect(P.gameBrief.orders[0].words).toContain('she is taken');
     expect(P.brief.unread).not.toContain('princess');
-    // (a shape a party RPG does not lay yet: the mandala stands for it, said)
-    const C = composeGameworld({ prompt: 'a jrpg voyage across the sea to find my sister', seed: 3 });
-    expect(C.brief.round.brief).toMatchObject({ labour: 'cross-the-great-sea', shape: 'mandala', asked: 'chain' });
-    expect(C.megaworld.shape).toBe('mandala');
+  });
+
+  it('is laid in its labour\'s shape: a chain, a hub, an open world; each gated at its core, each ending there', () => {
+    // (one prompt a shape: the sea a chain, the tournament a hub, the regions an open world)
+    const cases = [['a jrpg voyage across the sea to find my sister, with a dungeon and a boss', 'chain'], ['a jrpg to become the champion of the tournament, with a dungeon and a boss', 'hub'], ['a jrpg where we conquer the regions, with a dungeon and a boss', 'open']];
+    for (const [prompt, shape] of cases) {
+      const C = composeGameworld({ prompt, seed: 3 }), M = C.megaworld, ids = Object.keys(C.levels), core = ids.at(-1);
+      expect(C.brief.round.brief.shape, prompt).toBe(shape);
+      expect(M.shape).toBe(shape);
+      expect(M.rings.flat().sort()).toEqual([...ids].sort());
+      expect(M.rings[0][0]).toBe(ids[0]);
+      expect(M.gates[core].key).toBeTruthy();
+      expect(megaworldLaws(M).every((l) => l.ok), prompt).toBe(true);
+      if (shape !== 'chain') expect(M.end).toBe(core);
+      const game = runSteps(C, { ref: 'gw' }).find((s) => s.key === 'game').order;
+      expect(game.final, prompt).toBe(`gw-level-${core}-0`);
+      expect(game.atlas.shape).toBe(shape);
+      expect(game.gameOver).toBe(true);
+    }
   });
 
   it('keeps a quest in its journal, named for what it is about, its steps raised as they happen: the key found, the core entered, the boss down', () => {

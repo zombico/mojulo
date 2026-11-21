@@ -69,7 +69,10 @@ describe('the megaworld', () => {
     const c = stages.findIndex((s) => s.level === 'citadel'), core = stageLevelOrder(G, stages[c], { ref: refs[c], heroRef: null, map: plan[c] }).args.manifest.game.mechanics.filter((x) => x.kind === 'reach-exit');
     expect(core.map((x) => x.exit ?? null).sort()).toEqual(['back', null]);
     expect(coreOf(G.megaworld, stages, refs)).toBe('ref-citadel');
-    expect(coreOf({ shape: 'chain', rings: [['town'], ['woods']] }, stages, refs)).toBeNull();
+    // (a chain ends at its last zone; a hub or an open world at its `end`, else nowhere)
+    expect(coreOf({ shape: 'chain', rings: [['town'], ['woods']] }, stages, refs)).toBe('ref-woods');
+    expect(coreOf({ shape: 'hub', rings: [['town'], ['woods']] }, stages, refs)).toBeNull();
+    expect(coreOf({ shape: 'hub', rings: [['town'], ['woods']], end: 'woods' }, stages, refs)).toBe('ref-woods');
     // (the store: the atlas slice, and the story flags a won pack is kept in)
     const store = gameStore(world, null);
     expect(store.slices.find((s) => s.name === ATLAS_SLICE)).toEqual({ name: ATLAS_SLICE, kind: 'flags' });
