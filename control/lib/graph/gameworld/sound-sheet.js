@@ -87,7 +87,7 @@ const WEAPON_KEYS = Object.freeze(['swing', 'heavy', 'hit', 'finisher']);
 // glancing it off, `wreck`, `boss` a boss blown apart), a thrower's rock (`lift`, `throw`, `rock` landing, `break` shot
 // apart in the air), the boss room's shutter (`shut`), a boss's treads (`treads`, HELD, by its speed) and its exhausts'
 // steam (`steam`, HELD), a foe stomped on (`stomp`)
-export const RUN_SOUNDS = Object.freeze({ tap: 'beam-blip', shot: 'beam-rifle-shot', full: 'beam-charged-shot', charge: 'charge-hum',
+export const RUN_SOUNDS = Object.freeze({ tap: 'buster-shot', shot: 'buster-charged-shot', full: 'buster-full-shot', charge: 'charge-hum',
   dash: 'dodge', kick: 'kick', cling: 'slide', hurt: 'hurt', foeShot: 'shoot', foeHit: 'metal-impact', armour: 'ricochet', wreck: 'wreck-explosion',
   boss: 'big-explosion', lift: 'metal-creak', throw: 'throw', rock: 'stone-impact', break: 'stone-break', shut: 'portcullis', treads: 'tank-engine',
   steam: 'steam-hiss', stomp: 'stomp' });

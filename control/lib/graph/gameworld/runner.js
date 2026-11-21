@@ -219,14 +219,15 @@ const sheetOf = (G, s, score = null) => {
 };
 // THE SCORE'S CUES A GAME NAMES BY REF (cue-sheet.js): a game's shell plays stored beats sketches, so each cue the game
 // itself plays is a step of the run, a beats-composition minted from the sheet's answer at `<ref>-cue-<id>`, and the
-// game names it. The outcomes' stingers today (the shell's music.victory / music.defeat); a level's own cues ride its
-// audio and are no step. → { steps, music } (music: null where the sheet answers neither)
-const GAME_CUES = Object.freeze(['victory', 'defeat']);
+// game names it: the outcomes' stingers (the shell's music.victory / music.defeat) and the score its screens play
+// (music.menu: the sheet's title cue, else its menus'); a level's own cues ride its audio and are no step.
+// → { steps, music } (music: null where the sheet answers none)
+const GAME_CUES = Object.freeze({ victory: ['victory'], defeat: ['defeat'], menu: ['title', 'menu'] });
 function gameCues(runScore, G, ref) {
   if (!runScore) return { steps: [], music: null };
   const steps = [], music = {};
-  for (const id of GAME_CUES) {
-    const R = runScore.sheet.requests.find((r) => r.id === id);
+  for (const [id, asks] of Object.entries(GAME_CUES)) {
+    const R = asks.map((a) => runScore.sheet.requests.find((r) => r.id === a)).find((r) => r?.cue);
     if (!R?.cue) continue;
     const order = { kind: 'beats-composition', title: `${G.name ?? G.id} · ${id}`, score: R.cue.score };
     const at = childRef(ref, `cue-${id}`);

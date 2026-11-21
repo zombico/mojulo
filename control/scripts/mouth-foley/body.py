@@ -948,18 +948,11 @@ def _strike(kind, word):
 
 
 # ---------------- round 11 (trials): a run and gun's sounds (gameworld/sound-sheet.js RUN_SOUNDS) ----------------
-# the buster's rounds as ピュン (a pew: a bright voiced tick falling), its charged round ビュン lower and longer with a
-# spark's ring, the full charge ドギューン (a thump, then a long falling pew); a foe's slow round ポン; a robot zapped ビリッ;
+# (the buster's own shots are energy, synthesized in sfx-shelf/sets/buster.js: a voice's pew read as a voice)
+# a foe's slow round ポン; a robot zapped ビリッ;
 # the wrecks ドカーン and ドッカーン (a thump, the word's breath held as the blast, debris scattered after); a rock heaved
 # ググッ (a slow creak and a strain), landing ゴトッ, crumbling ガラガラ; the shutter ガシャーン (a slam and steel ringing);
 # a foe stomped ポコッ
-
-
-def r11_pew(S, word, secs, base, arch, lp, key, ring=None, thump=None):
-    ev = [(0, click(S[word], 6, 2500) * DB(-8)), (0.004, arch_tick(S[word], secs, base, arch, lp, key, 4.5))]
-    if thump: ev.insert(0, (0, tick(S[thump], 0.16, 0.42, (3, -6), 500, key + "/t") * DB(-2)))
-    if ring: ev.append((0.004, Ring(burst(S[word], 10, 4000), SPARK, ring, -10)))
-    return Group(ev, secs + 0.06)
 
 
 def r11_pon(S):
@@ -1098,9 +1091,6 @@ BUILDS = {
     "howl-voice": r10_howl,
     "bat-wings": lambda K: pad(r10_wings(K)),
     # round 11 (trials): a run and gun's
-    "buster-pyun": lambda K: Split(r11_pew(K.S("ピュ"), "ピュ", 0.16, 1.7, [(0, 8), (1, -10)], 7000, "pyun")),
-    "charged-byun": lambda K: Split(r11_pew(K.S("ビュ"), "ビュ", 0.3, 1.15, [(0, 10), (0.2, 7), (1, -12)], 5500, "byun", ring=0.9)),
-    "full-dogyuun": lambda K: Split(r11_pew(K.S("ギュ", "ド"), "ギュ", 0.6, 0.95, [(0, 12), (0.3, 8), (1, -14)], 5000, "dogyuun", ring=0.7, thump="ド")),
     "foe-pon": lambda K: pad(W.center(r11_pon(K.S("ポ")))),
     "zap-biri": lambda K: pad(r11_zap(K.S("ビ", "リ"))),
     "boom-dokaan": lambda K: pad(r11_boom(K, "ドカーン", 0.9, "dokaan")),

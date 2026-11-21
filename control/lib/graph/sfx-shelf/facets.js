@@ -131,7 +131,7 @@ const ROW_MATTER = {
   checkpoint: ['synthetic'], chime: ['synthetic', 'metal'], wave: ['synthetic'], 'beat-hit': ['synthetic'], 'beat-miss': ['synthetic'],
   'swell-in': ['air'],
 };
-const SET_FACETS = { 'mecha-layered': { matter: ['machine', 'metal', 'energy'], genres: g('mecha') } };
+const SET_FACETS = { 'mecha-layered': { matter: ['machine', 'metal', 'energy'], genres: g('mecha') }, buster: { matter: ['energy'], genres: g('platform', 'shooting') } };
 
 const uniq = (a) => [...new Set(a)];
 let cache = null;

@@ -408,4 +408,13 @@ move beside the way, the hero under the cast rig, the boss's fight in its room, 
   run's own sounds rendered as mouth-foley trials (round 11: the buster's ピュン, ビュン and ドギューン, a foe's ポン, a
   robot zapped ビリッ, the wrecks ドカーン and ドッカーン, a rock heaved ググッ, thrown ブン, landing ゴトッ, crumbling ガラガラ,
   the shutter ガシャーン, a stomp ポコッ): trials for the operator's ears, written to no row until they pass.
+- **The game is heard**: a level's sound started only on a click on its page, so a game played on the keys in the game
+  shell was silent; it now starts on a key and on the shell's word that sound is on (the shell's frame delegates
+  autoplay). The light shell's screens have a score: `music.menu` (the cue sheet's title cue, minted as `cue-menu`)
+  loops while a screen is up, stops as a level launches and waits under a stinger. Laws (play-shell.test.js,
+  game-shell.test.js); the audio fixtures' emit pins re-pinned with a note.
+- **The buster sounds like energy**: an arm cannon set on the shelf (`sets/buster.js`: `buster-shot`,
+  `buster-charged-shot`, `buster-full-shot`, synthesized: a square sweeping down for the zip, a triangle or a saw for the
+  body, the charges driven and warbling over a thump, the full charge a blast with a long falling tail), in the
+  register and the baseline; the run's tap and charged rounds play them. The vocal beam trials are withdrawn.
 

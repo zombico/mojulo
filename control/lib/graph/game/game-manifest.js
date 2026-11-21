@@ -313,8 +313,9 @@ export function validateGameManifest(manifest) {
   if (manifest.shell !== undefined) {
     if (manifest.shell !== 'play') errors.push("shell is 'play' (the light shell: title → levels → result) or absent (the arena shell)");
     else {
-      // music: only its stingers (the result screen's), never a menu or battle score
-      const stingersOnly = manifest.music && typeof manifest.music === 'object' && Object.keys(manifest.music).every((k) => k === 'victory' || k === 'defeat' || k === 'volume');
+      // music: its stingers (the result screen's) and its screens' score (`menu`: the title, the menus, the results
+      // between levels), never a battle score
+      const stingersOnly = manifest.music && typeof manifest.music === 'object' && Object.keys(manifest.music).every((k) => ['victory', 'defeat', 'menu', 'volume', 'menuVolume'].includes(k));
       const arena = ['menu', 'music', 'setup', 'difficulty'].filter((k) => manifest[k] !== undefined && !(k === 'music' && stingersOnly));
       if (arena.length) errors.push(`shell 'play' has no ${arena.join(', ')}: drop ${arena.length === 1 ? 'it' : 'them'}, or drop shell for the arena shell`);
     }

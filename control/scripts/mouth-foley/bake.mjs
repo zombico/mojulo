@@ -269,7 +269,7 @@ export const RECIPES = [
   { id: 'bird-warble', text: 'ピーヨ', whistle: [call(0, 3000, 3400, 0.35, 0.45, { vibrato: { rate: 28, depth: 120 } }), call(0.36, 3300, 2400, 0.12, 0.4)] },
   // round 11 (trials): a run and gun's sounds (gameworld/sound-sheet.js RUN_SOUNDS), each for the row it would voice
   ...[
-    ['beam-blip', 'buster-pyun', 'ピュン'], ['beam-rifle-shot', 'charged-byun', 'ビュン'], ['beam-charged-shot', 'full-dogyuun', 'ドギューン'],
+    // (the buster's shots are energy, synthesized: sfx-shelf/sets/buster.js; a voice's ピュン read as a voice, 2026-11-21)
     ['shoot', 'foe-pon', 'ポン'], ['hurt', 'zap-biri', 'ビリッ'], ['wreck-explosion', 'boom-dokaan', 'ドカーン'], ['big-explosion', 'big-boom-dokkaan', 'ドッカーン'],
     ['metal-creak', 'strain-gugu', 'ググッ'], ['throw', 'throw-bun', 'ブン'], ['stone-impact', 'rock-gotsu', 'ゴトッ'], ['stone-break', 'crumble-gara', 'ガラガラ'],
     ['portcullis', 'shutter-gashaan', 'ガシャーン'], ['stomp', 'stomp-poko', 'ポコッ'],

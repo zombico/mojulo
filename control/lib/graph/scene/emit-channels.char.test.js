@@ -846,6 +846,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // and read by the contact sweep; a weapon that says neither launches and sweeps as before. Every fixture that embeds the
 // controllable runtime re-pinned with it. (The page's foe-round look and the boss room's shutter are blocks of their
 // own, gated on a foe weapon's `foeRound` and a side-map zone's `shut`: no fixture has either, and none emits them.)
+// Re-pinned 2026-11-21 (the audio channel unlocks on a key and on the game shell's word that sound is on): a game played
+// on the keys, or hosted in the shell's frame, was never clicked and stayed silent. The fixtures that carry `audio`
+// (audio, kitchen-sink) re-pinned with it; every other fixture keeps every byte.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

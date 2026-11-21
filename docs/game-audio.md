@@ -25,7 +25,7 @@ A game with neither key builds the levels it built: nothing is laid behind its b
 sound sheet; `music` (even `music: {}`) puts it on the cue sheet and gives its levels a space on the mixer.
 
 A run and gun (a feel whose template's charge is a shot: Galaxy Boy's) hears its own events too, `run`: the buster's
-tap, its charged round and the full charge's, the charge held as a hum that rises as it fills; the hero's dash, wall kick,
+tap, its charged round and the full charge's (energy, synthesized: the arm cannon set, `sfx-shelf/sets/buster.js`), the charge held as a hum that rises as it fills; the hero's dash, wall kick,
 slide down a wall and a blow taken; a foe's round leaving, a robot struck, a heavy's armour glancing a round off, a
 wreck, a boss blown apart; a thrown rock heaved, flying, landing or shot apart; the boss room's shutter coming down; a
 boss's treads as a held engine by its speed and its exhausts' steam as a held hiss; a foe stomped on. Each foe also
@@ -78,8 +78,15 @@ another mood for a request, or `false` for silence. An id nothing asked is liste
 (`levelScore`, the adaptive music), on every level the game builds. A quick game's own `quick.music` still wins.
 The outcomes' stingers play when a level is won or lost: a game's shell plays stored beats sketches, so a run mints
 each as a step of the score's chapter (`cue-victory`, `cue-defeat`, at `<ref>-cue-<id>`) and the game names them
-(`music.victory`, `music.defeat`). A changed answer remakes its cue in place. The flow's cues (title, menus,
-credits, cinematics) are on the sheet and not yet played: the play shell scores no flow step.
+(`music.victory`, `music.defeat`). A changed answer remakes its cue in place. The screens' score is the title cue
+(else the menus'), minted the same way (`cue-menu`) and named `music.menu`: the play shell loops it while a screen is up
+(the title, the menus, the results between levels), stops it as a level launches and holds it under a stinger. A
+browser lets it start only once the player has pressed something, so the first title is silent until then. The
+credits' and the cinematics' cues are on the sheet and not yet played.
+
+**A level is heard on the keys.** A level's sound starts on the player's first press: a click on the page, a key, or
+the game shell's word that sound is on (the shell's frame delegates autoplay, so a key pressed on the title is enough).
+A game played on the keys in the shell was silent before.
 
 **Stand-ins.** The generators have no title theme and no cue that ends. Until they do, the title, the menus, the
 credits and the cinematics are answered by the nearest mood that exists, marked `stand-in` and listed as owed.

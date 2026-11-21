@@ -49,7 +49,7 @@ function __beatsApply() {
   if (__beatsMuted) __beatsCtx.suspend(); else __beatsCtx.resume().catch(() => {});
 }
 function __beatsUnlock() {
-  if (__beatsCtx) { if (__beatsCtx.state === 'suspended' && !__beatsMuted) __beatsCtx.resume(); return; }
+  if (__beatsCtx) { if (__beatsCtx.state === 'suspended' && !__beatsMuted) __beatsCtx.resume().catch(() => {}); return; }
   __beatsCtx = new (window.AudioContext || window.webkitAudioContext)();
   __beatsEng = __BEATS.createEngine(__beatsCtx);${mix ? `
   __beatsEng.setSfx(__AUDIO.mix);   // the SFX mixer: the cues' bus and space, and the music bus a duck dips (before the score starts)` : ''}
@@ -67,7 +67,10 @@ ${combat ? `    __engs = { explore: __BEATS.createEngine(__beatsCtx), combat: __
   __bedEng = __BEATS.createEngine(__beatsCtx); __bedEng.startPattern(__AUDIO.bed, __BEATS_PATCHES);   // the environment's bed` : ''}
   __beatsApply();   // prefs may have arrived over the sidecar before the unlock gesture
 }
-renderer.domElement.addEventListener('pointerdown', __beatsUnlock);${audio.tension ? `
+renderer.domElement.addEventListener('pointerdown', __beatsUnlock);
+// (a key, a pad's play or the game shell's word that sound is on also unlock it: a game played on the keys or hosted in the
+// shell's frame, which delegates autoplay, is never clicked, and was silent)
+window.addEventListener('keydown', __beatsUnlock);${audio.tension ? `
 // THE TENSION (adaptive-music.js, the same closure the tests hold): raised by the level's own events off the bus log
 // (like the stingers: the reducer drains reaction-emitted events internally), leaking back toward calm. Read-only.
 const __ADAPT = (${buildAdaptive.toString()})();
@@ -136,6 +139,7 @@ window.addEventListener('message', (e) => {
   if (!d || d.moj !== '${GAME_MSG_AUDIO}') return;
   if (typeof d.on === 'boolean') __beatsMuted = !d.on;
   if (typeof d.volume === 'number' && isFinite(d.volume)) __beatsVol = Math.max(0, Math.min(1, d.volume));
+  if (d.on === true) __beatsUnlock();
   __beatsApply();
 });
 // HUD speaker: pre-unlock it advertises sound; after, it toggles mute (suspend keeps CPU quiet).
