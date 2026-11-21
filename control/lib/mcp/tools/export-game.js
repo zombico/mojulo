@@ -612,7 +612,21 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
     const { bakeFrontStage } = await import('@/lib/graph/game/front-plates');
     const T = norm.theme || {}, hex = (v, d) => (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v) ? v : d);
     const colours = { ink: hex(T.ink, '#e8edf4'), accent: hex(T.accent, '#5fb0ff'), bg: hex(T.bg, '#0e1116') };
-    const { plates, says } = await bakeFrontStage(stageOf, { getSketch, colours });
+    // the picture the person brought (front-background.js) is the start screen on its own, with the game's name and its
+    // menu: the character is never drawn over it again (the picture may well show it). One that is not there, or not a
+    // picture, is said, and the character stands on the card's graphic ground instead
+    let background = null;
+    const early = [];
+    if (stageOf.background) {
+      try {
+        const { backgroundBytes } = await import('@/lib/graph/game/front-background');
+        const { buffer, ext } = await backgroundBytes(stageOf.background);
+        background = `assets/front/background.${ext}`;
+        await write(background, buffer);
+      } catch (err) { early.push(`front.stage.background: ${err.message}; the character is drawn on the card's graphic ground instead`); }
+    }
+    const baked = background ? { plates: [null], says: [] } : await bakeFrontStage(stageOf, { getSketch, colours });
+    const plates = baked.plates, says = [...early, ...baked.says];
     const srcOf = (p) => `assets/front/subject-${p.slot + 1}.png`, glbOf = (p) => `assets/front/subject-${p.slot + 1}.glb`;
     for (const p of plates) if (p) { await write(srcOf(p), p.png); if (p.live) await write(glbOf(p), p.live.glb); }
     // a live stage (mode '3d') loads three.js and its glTF loader only after the pictures show: beside the page (the
@@ -627,17 +641,6 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
       const { VENDOR_DIR: vendor } = await import('@/lib/graph/scene/emit-util');
       for (const f of ['three.module.min.js', 'three.core.min.js', 'addons/loaders/GLTFLoader.js', 'addons/utils/BufferGeometryUtils.js', 'addons/utils/SkeletonUtils.js']) await write(`assets/front/three/${f}`, await fs.readFile(path.join(vendor, f)));
       three = { module: 'assets/front/three/three.module.min.js', loader: 'assets/front/three/addons/loaders/GLTFLoader.js' };
-    }
-    // the picture the person brought for behind the subject (front-background.js): copied beside the game; one that is not
-    // there, or not a picture, is said, and the card's graphic ground stands in
-    let background = null;
-    if (stageOf.background) {
-      try {
-        const { backgroundBytes } = await import('@/lib/graph/game/front-background');
-        const { buffer, ext } = await backgroundBytes(stageOf.background);
-        background = `assets/front/background.${ext}`;
-        await write(background, buffer);
-      } catch (err) { says.push(`front.stage.background: ${err.message}; the card's graphic ground is drawn instead`); }
     }
     frontStage = {
       plates: plates.map((p) => (p ? { src: srcOf(p), width: p.width, height: p.height, frame: p.frame, ...(p.live ? { live: { glb: glbOf(p), clip: p.live.clip } } : {}) } : null)),

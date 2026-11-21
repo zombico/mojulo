@@ -46,7 +46,7 @@ describe('the stage in the shell', () => {
     expect(stageCss(FRONT_CARDS['hero-pose'])).not.toContain('--st-dx:');
   });
 
-  it('a picture the person brought stands behind the subject under a scrim; without one the ground is graphic', () => {
+  it('a picture the person brought fills the screen under a scrim; without one the ground is graphic', () => {
     const cfg = stageConfig(card, BAKED.plates, { title: 'x', background: 'assets/front/background.png' });
     expect(cfg.background).toBe('assets/front/background.png');
     expect(stageConfig(card, BAKED.plates, { title: 'x' })).not.toHaveProperty('background');

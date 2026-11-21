@@ -114,7 +114,7 @@ export function frontPart(world) {
   const card = FRONT_CARDS[stage.composition];
   const filled = card ? fillStage(card, frontSubjects(world), Array.isArray(stage.subjects) ? stage.subjects : []) : null;
   const lacks = !card ? `no front card '${stage.composition}'` : !filled ? `nothing the game has made stands on its ${card.slots.length} slot${card.slots.length === 1 ? '' : 's'}: its name and ground alone` : null;
-  return { composition: stage.composition, ...(card ? { name: card.name } : {}), subjects: filled ? filled.map((s) => ({ role: s.role, ref: s.ref })) : [], mode: stage.mode ?? 'still', treatment: stage.treatment ?? 'cutout', background: stage.background ? { brought: stage.background } : 'graphic', ...(lacks ? { lacks } : {}), seen: 'on the exported game (export_game): game.html opens on it; the eyes gate is the creator\'s' };
+  return { composition: stage.composition, ...(card ? { name: card.name } : {}), subjects: filled ? filled.map((s) => ({ role: s.role, ref: s.ref })) : [], mode: stage.mode ?? 'still', treatment: stage.treatment ?? 'cutout', background: stage.background ? { brought: stage.background, says: 'the picture stands alone: no character is drawn over it' } : 'graphic', ...(lacks ? { lacks } : {}), seen: 'on the exported game (export_game): game.html opens on it; the eyes gate is the creator\'s' };
 }
 
 export function stagedFront(world, front) {

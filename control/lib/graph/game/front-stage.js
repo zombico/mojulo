@@ -15,10 +15,12 @@
  *                                              pictures first, the live subjects over them once loaded
  *     treatment?:  '<treatment>'                how a picture is made graphic (STAGE_TREATMENTS); the theme's, else
  *                                              a cut-out
- *     background?: { stash, item }             a picture the person brought, behind the subject in place of the
- *                                              card's graphic ground: an image item of a stash (uploaded on the
- *                                              dashboard, or a file design_game's patch filed there). Absent: the
- *                                              ground stays graphic
+ *     background?: { stash, item }             a picture the person brought: the start screen on its own, with the
+ *                                              game's name and its menu, in place of the character on the card's
+ *                                              graphic ground (never both: the picture may show the character). An
+ *                                              image item of a stash (uploaded on the dashboard, or a file
+ *                                              design_game's patch filed there). Absent: the character on the
+ *                                              graphic ground
  *   }
  *
  *   STAGE_KEYS · STAGE_MODES · STAGE_TREATMENTS
@@ -55,7 +57,7 @@ export function readFrontStage(stage, { where = 'front.stage' } = {}) {
   // (the picture is checked to be there, and an image, when the game is exported: the recipe names it only)
   const B = stage.background;
   if (B !== undefined && !(isObj(B) && typeof B.stash === 'string' && B.stash && Number.isInteger(B.item) && Object.keys(B).length === 2)) {
-    errors.push(`${where}.background is a picture behind the subject: a stash image item { stash: '<stash ref>', item: <image item id> } (upload it to a stash on the dashboard, or pass { path: '<absolute PNG, JPEG or WebP path>' } in design_game's patch: it is filed into a stash)`);
+    errors.push(`${where}.background is a picture standing in for the character: a stash image item { stash: '<stash ref>', item: <image item id> } (upload it to a stash on the dashboard, or pass { path: '<absolute PNG, JPEG or WebP path>' } in design_game's patch: it is filed into a stash)`);
   }
   return errors;
 }

@@ -123,7 +123,7 @@ describe('the start screen reviewed', () => {
   it('a stage is a part of the interface chapter: its card, who stands on it, its look; none without a stage', () => {
     const world = W({ made: { hero: rec('h') }, front: { stage: { composition: fb.id, treatment: 'duotone' } } });
     expect(frontPart(world)).toMatchObject({ composition: fb.id, name: fb.name, mode: 'still', treatment: 'duotone', subjects: [{ role: 'hero', ref: 'h' }], background: 'graphic' });
-    expect(frontPart({ ...world, front: { stage: { ...world.front.stage, background: { stash: 'st_a', item: 1 } } } }).background).toEqual({ brought: { stash: 'st_a', item: 1 } });
+    expect(frontPart({ ...world, front: { stage: { ...world.front.stage, background: { stash: 'st_a', item: 1 } } } }).background).toMatchObject({ brought: { stash: 'st_a', item: 1 }, says: expect.stringMatching(/no character/) });
     expect(frontPart(world).lacks).toBeUndefined();
     expect(frontPart(W({ front: { stage: { composition: fb.id } } })).lacks).toMatch(/nothing the game has made/);
     expect(frontPart(W())).toBeNull();

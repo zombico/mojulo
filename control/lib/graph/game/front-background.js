@@ -1,6 +1,6 @@
 /**
- * front-background — a START SCREEN's picture behind its subject, brought by the person (game/front-stage.js
- * `background`). The recipe names a stash image item, so it travels with the recipe and the dashboard's upload is one
+ * front-background — a START SCREEN's picture, brought by the person (game/front-stage.js `background`): the screen on
+ * its own, with the game's name and its menu, in place of the character on its graphic ground (never both). The recipe names a stash image item, so it travels with the recipe and the dashboard's upload is one
  * way in; a picture the agent has as a file (`{ path }`) is filed into a stash by design_game's patch before it is
  * written, as create_cover files its art (image-outcomes/cover-upload.js).
  *

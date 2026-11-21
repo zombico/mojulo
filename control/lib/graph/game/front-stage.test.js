@@ -15,10 +15,10 @@ describe('reading a front stage', () => {
     expect(readFrontStage({ composition: id, subjects: ['aB3-sketch_ref'] })).toEqual([]);
   });
 
-  it('a picture behind the subject is a stash image item; a path, or anything else, is taught', () => {
+  it('a picture in place of the character is a stash image item; a path, or anything else, is taught', () => {
     expect(readFrontStage({ composition: id, background: { stash: 'st_a', item: 3 } })).toEqual([]);
     for (const bad of [{ path: '/x.png' }, { stash: 'st_a' }, { stash: 'st_a', item: '3' }, 'pic.png', { stash: 'st_a', item: 3, more: 1 }]) {
-      expect(readFrontStage({ composition: id, background: bad }).join(' ')).toMatch(/background is a picture behind the subject: a stash image item/);
+      expect(readFrontStage({ composition: id, background: bad }).join(' ')).toMatch(/background is a picture standing in for the character: a stash image item/);
     }
   });
 
