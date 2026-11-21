@@ -35,6 +35,9 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-20 (start screens, mana-ui's letters): `brawl`, `mission` and `holo`, the pages that embed the game UI
+// runtime: its text takes `letters` (a display entering letter by letter) and its kernel source carries the split. No
+// page here draws letters (their sheet, lettersCss, is laid only by the play shell's title and the board); they draw as before.
 // Re-pinned 2026-11-18 (1116-rc's lens merged into Hijack City): `brawl`, `mission` and `holo`, the runtime they embed
 // now carrying both the candidate's lens and this branch's "No ammo" word.
 // Re-pinned 2026-11-18 (Hijack City, mana-ui's magazine): `brawl`, `mission` and `holo`, the pages that embed the game UI

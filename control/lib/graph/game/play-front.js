@@ -13,6 +13,8 @@
  *     credits?: { roll?: [{ role, names: [..] }], thanks?, closing?, attribution? }   the roll; attribution: false
  *               drops the closing "made with mojulo" line
  *     end?:     { text?, credits? }                    the card when the last level is first cleared, then the roll
+ *     stage?:   { composition, subjects?, mode?, treatment? }   the start screen laid out from the game's own subjects
+ *               by a front card (front-stage.js); read here, not yet drawn: the page is as it was
  *   }
  *
  *   FRONT_ENTRIES, FRONT_LAYOUTS
@@ -24,9 +26,11 @@
  *                                              it draws; where each pick leads is the game's flow (api.go)
  */
 
+import { readFrontStage } from './front-stage.js';
+
 export const FRONT_ENTRIES = Object.freeze(['continue', 'play', 'levels', 'options', 'credits']);
 export const FRONT_LAYOUTS = Object.freeze(['center', 'lower-third', 'left', 'right']);
-const KEYS = ['cover', 'layout', 'tagline', 'press', 'menu', 'credits', 'end'];
+const KEYS = ['cover', 'layout', 'tagline', 'press', 'menu', 'credits', 'end', 'stage'];
 const REF = /^[A-Za-z0-9_-]{1,64}$/;
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
 const isStr = (v) => typeof v === 'string' && v.trim().length > 0;
@@ -75,6 +79,7 @@ export function readFront(front, { levels = 1, run = false, where = 'front' } = 
       if (run) errors.push(`${where}.end: a run ends at its own result; its credits are on the title's menu`);
     }
   }
+  if (front.stage !== undefined) errors.push(...readFrontStage(front.stage, { where: `${where}.stage` }));
   return errors;
 }
 

@@ -47,6 +47,8 @@ import { chapterView } from '@/lib/graph/gameworld/chapter-view.js';
 import { readMainQuest, mainQuestContext, mainQuestReport } from '@/lib/graph/gameworld/main-quest.js';
 import { questPlays, withQuestLevels } from '@/lib/graph/gameworld/main-quest-lay.js';
 import { goalposts, leadNext, draftAsk, startReadout, producerSteps, producerSays } from '@/lib/graph/gameworld/goalposts.js';
+import { frontStep } from '@/lib/graph/gameworld/front-stage.js';
+import { patchStageBackgrounds } from '@/lib/graph/game/front-background.js';
 import { loopOf, loopLaws } from '@/lib/graph/gameworld/core-loop.js';
 import { compileCheck, planError } from './design-game-check.js';
 import { combatGame } from '@/lib/graph/gameworld/combat/game.js';
@@ -886,7 +888,10 @@ export async function designGameHandler(input, context = {}) {
     // a preview: what the patch would do, and nothing written
     if (preview === true) return previewPatch(ref, patchVehicleWords(patch).patch);
     // a quick game's vehicle word is read through the vehicle registry first, as the quick path reads it (doors.js)
-    if (patch !== undefined) await oneWrite(ref, () => updateSketchHandler({ ref, patch: patchVehicleWords(patch).patch, ...(title ? { title } : {}) }));
+    // (a start screen's picture given as a file is filed into a stash first, the recipe naming the stash's item:
+    // game/front-background.js)
+    const filedPatch = patch !== undefined ? patchStageBackgrounds(patch, { title: row.title || ref }).patch : undefined;
+    if (patch !== undefined) await oneWrite(ref, () => updateSketchHandler({ ref, patch: patchVehicleWords(filedPatch).patch, ...(title ? { title } : {}) }));
   }
   // what the vehicle registry read: a word written as its table's key (absent when none was)
   const redirected = [...(quick !== undefined ? quickVehicleWords(quick).redirects : []), ...(patch !== undefined ? patchVehicleWords(patch).redirects : [])];
@@ -1505,6 +1510,12 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   // built with design goalposts open is said to be a draft
   const drafted = !!posts && !W.quick && posts.next?.goalpost !== 'first-level';
   full.next = leadNext(full.next, posts, { mode: W.mode ?? 'gated', quick: !!W.quick, made: !!W.made?.game, brought: isObj(W.intake) && Array.isArray(W.intake.items) && W.intake.items.length > 0 });
+  // THE START SCREEN (gameworld/front-stage.js): near the end of the guided rail, once the first level is proved and the
+  // game has something to show, its stage is offered with its patch (suggested, never laid, never a goalpost); before
+  // that it is the creator's to ask for ({ ref, chapter: 'interface' }, a /front patch)
+  const proved = !!W.made?.game && (!posts || posts.posts.some((p) => p.id === 'first-level' && p.status === 'met'));
+  const front = (() => { try { return frontStep(W, { proved }); } catch { return null; } })();
+  if (front) full.next = [...full.next, front];
   // (a game with a pitch is the producer's to lead: the one question this turn asks, goalposts.js producerSays)
   if (isObj(W.rail)) { const P = producerSays(full.next); if (P) full.producer = P; }
   // the ticket: what this call did, linked to the intent it acted on (gameworld/asks.js)

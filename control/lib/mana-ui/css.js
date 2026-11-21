@@ -857,3 +857,25 @@ export function lensCss(scope = '.mana-lens') {
     '@keyframes mana-lens-ink{0%,52%{opacity:1}53%,100%{opacity:0}}',
   ].join('\n');
 }
+
+/**
+ * A display entering letter by letter (the text component's `letters`): each letter rises, slams, is wiped on or
+ * tracks in, one after another by the theme's stagger, on its travel, its pop, its duration and its ease, so a look with
+ * no motion shows its words at once and a calm reader (prefers-reduced-motion, data-motion=reduced) sees them fade.
+ * Kept apart from the sheet: only a surface that draws letters lays it (the play shell's title, the board), so every
+ * other page is as it was.
+ */
+export function lettersCss(scope = '.mana-root') {
+  const s = scope, L = `${s} [data-letters] .mana-letter`;
+  return [
+    `${L}{display:inline-block;white-space:pre;animation-duration:calc(${v('dur')} * 3);animation-timing-function:${v('ease')};animation-fill-mode:both;animation-delay:calc(var(--n) * ${v('stagger')})}`,
+    ...['rise', 'slam', 'wipe', 'track'].map((k) => `${s} [data-letters=${k}] .mana-letter{animation-name:mana-letter-${k}}`),
+    `@keyframes mana-letter-rise{from{opacity:0;transform:translateY(calc(${v('travel')} * 3))}}`,
+    `@keyframes mana-letter-slam{from{opacity:0;transform:scale(calc(${v('pop')} + .6))}}`,
+    `@keyframes mana-letter-wipe{from{clip-path:inset(100% 0 0 0)}to{clip-path:inset(0 0 0 0)}}`,
+    `@keyframes mana-letter-track{from{opacity:0;transform:translateX(calc(${v('travel')} * 4))}}`,
+    `@keyframes mana-letter-fade{from{opacity:0}}`,
+    `${s}[data-motion=reduced] [data-letters] .mana-letter{animation-name:mana-letter-fade;animation-delay:0ms}`,
+    `@media (prefers-reduced-motion:reduce){${L}{animation-name:mana-letter-fade;animation-delay:0ms}}`,
+  ].join('\n');
+}

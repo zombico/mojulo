@@ -105,6 +105,8 @@
  */
 export function buildManaUi() {
   const ROLES = ['display', 'title', 'heading', 'body', 'label', 'caption', 'numeral'];
+  // how a display's words enter letter by letter (css.js lettersCss); none: whole, as they always were
+  const LETTER_ENTRANCES = ['none', 'rise', 'slam', 'wipe', 'track'];
   const REGIONS = ['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'];
   // an enemy's awareness, each a SHAPE (never a colour alone): what it knows of you
   const AWARENESS = { unaware: '–', suspicious: '?', searching: '??', alert: '!', combat: '!!', fleeing: '»', down: '✕' };
@@ -197,7 +199,7 @@ export function buildManaUi() {
     touchpad: { group: 'hud', about: 'the look of a touch screen\'s virtual pad: a stick and round buttons, each named by the gamepad control it is (a word, or { label, control: south | east | west | north | rb … }); the touch driver (controllable/touch.js) reads it, never this runtime; what the driver knows is drawn: `lane` a stick held to left and right, `held` the stick under a thumb ({ ox, oy: where it rose from its rest, dx, dy: its nub, in px }), `down` the controls pressed', props: { stick: [B, true], buttons: [L, ['A', 'B']], lane: [B, false], held: [A], down: [L, []] } },
     legend: { group: 'value', about: 'what the buttons do here (a row: { action | actions: [..], label }), each with the glyph of the control the player is holding (keys, an Xbox, a PlayStation or a Nintendo pad); a finger needs none, so a touch screen draws none', props: { rows: [L, [], true] } },
     // values
-    text: { group: 'value', about: 'words in a type role; `tone` what a number means (a blow\'s kind: hit, crit, heal, miss, block), the theme\'s colour', props: { value: [T, '', true], role: [ROLES, 'body'], tone: [A, 'plain'] } },
+    text: { group: 'value', about: 'words in a type role; `tone` what a number means (a blow\'s kind: hit, crit, heal, miss, block), the theme\'s colour; `letters` a display\'s words entering letter by letter (rise, slam, wipe, track: css.js lettersCss), read aloud whole', props: { value: [T, '', true], role: [ROLES, 'body'], tone: [A, 'plain'], letters: [LETTER_ENTRANCES, 'none'] } },
     // a load: the unglamorous rules each game relearns (docs/mana-ui.md, loading)
     loader: { group: 'value', about: 'a load in progress, honest about it: the progress never goes back (null: not known, a sweep), an activity mark that moves even while the page is busy, the step it is on, a still-loading line once nothing has moved for `stall` seconds, tips that turn every `turn` seconds (left and right turn them too; `seed` mixes their order), a failure said with its words; `auto` goes on by itself once ready (after `least` seconds on screen, or at once if ready before `grace`), else it waits for the player (a press made in the first moment after ready is not an answer); on the game\'s clock (host.now)', props: { progress: [A], max: [N, 100], step: [T], tips: [L, []], tip: [T], ready: [B, false], error: [T], auto: [B, false], stall: [N, 10], turn: [N, 8], seed: [N, 0], least: [N, 1], grace: [N, 0.3] }, verbs: ['done'] },
     stat: { group: 'value', about: 'a label and its number; `count` counts it up from zero as it first shows (a results row, on the game\'s clock with host.countUp)', props: { label: [T, '', true], value: [T, '', true], max: [T], count: [B, false] } },
@@ -723,6 +725,13 @@ export function buildManaUi() {
           case 'text': {
             const tone = TONES.includes(p.tone) && p.tone !== 'plain' ? p.tone : null;
             // a display's words carry their echo (a theme's breakout draws them again, huge and hollow, behind)
+            // (a display entering letter by letter: each letter its own span, numbered for its delay, the whole read aloud
+            // as one word; absent, the words as they were)
+            if (p.letters !== 'none' && p.role !== 'numeral' && String(p.value).length) {
+              const chars = Array.from(String(p.value));
+              return ['span', { class: cls, 'data-role': p.role, 'data-tone': tone, 'data-echo': p.role === 'display' ? p.value : null, 'data-letters': p.letters, 'aria-label': String(p.value) },
+                ...chars.map((ch, i) => ['span', { class: 'mana-letter', 'aria-hidden': 'true', style: `--n:${i}` }, ch])];
+            }
             if (p.role !== 'numeral') return ['span', { class: cls, 'data-role': p.role, 'data-tone': tone, 'data-echo': p.role === 'display' ? p.value : null }, p.value];
             const c = changeOf(key, p.value);
             return ['span', { class: cls, 'data-role': p.role, 'data-tone': tone, ...chOf(c) }, words(counting(key, p.value, c, false))];

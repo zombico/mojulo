@@ -18,7 +18,7 @@
  *   { kind: 'game', title,
  *     store:  { slices: [{ name, kind: character|inventory|party|progression|flags, init? }] },
  *     levels: [{ ref, title?, gate? }],    // order = play order; gate = declarative unlock
- *     menu?:  { tagline?, attribution?, entries: [{ id, title, subtitle?, kind: 'levels'|'world'|'soon'|'about', ref? }] },
+ *     menu?:  { tagline?, attribution?, art?, stage? (front-stage.js; its subjects refs), entries: [{ id, title, subtitle?, kind: 'levels'|'world'|'soon'|'about', ref? }] },
  *     music?: { menu?: <beatsRef>, about?: <beatsRef>, battle?: [<beatsRef>, …], victory?: <beatsRef>, defeat?: <beatsRef> },
  *     setup?: { <sliceName>: <presentation> },
  *     difficulty?: { label?, default?, options: [{ id: 'easy'|'medium'|'max', name, sub? }] },
@@ -93,6 +93,8 @@ import { readScreen } from './screen.js';
 import { buildGameStoreKernel } from './store-kernel.js';
 import { validateHudStyle } from './hud-widgets.js';
 import { readFront } from './play-front.js';
+import { readFrontStage } from './front-stage.js';
+import { SUBJECT_ROLES } from '../playscape/ui/front-cards/loader.js';
 import { readFlow } from './flow.js';
 import { readShellUi } from './play-shell-mana.js';
 
@@ -237,6 +239,12 @@ export function validateGameManifest(manifest) {
       // backdrop while start + menus keep `art` (the title card).
       if (menu.setupArt !== undefined && (typeof menu.setupArt !== 'string' || !menu.setupArt.trim())) {
         errors.push('menu.setupArt must be a non-empty string (the setup-screen backdrop image URL/path)');
+      }
+      // stage (front-stage.js, opt-in): the start screen laid out by a front card from the game's own subjects, pictured
+      // at export; the arena shell has no world to read a hero or a foe from, so its subjects are sketch refs
+      if (menu.stage !== undefined) {
+        readFrontStage(menu.stage, { where: 'menu.stage' }).forEach((e) => errors.push(e));
+        if (Array.isArray(menu.stage?.subjects) && menu.stage.subjects.some((x) => SUBJECT_ROLES.includes(x))) errors.push('menu.stage.subjects are sketch refs on the arena shell: it has no world to read a hero or a foe from');
       }
       if (!Array.isArray(menu.entries) || !menu.entries.length) {
         errors.push("menu.entries is required (non-empty array) when menu is declared");
