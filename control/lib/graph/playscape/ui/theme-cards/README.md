@@ -32,6 +32,8 @@ No code. The loader (`loader.js`) reads every card when it loads and checks it w
   scale, case, fills), its `tokens` (ink, panel, line and accent are the four it needs; the rest are derived), its
   `type` and its `faces` (fonts it brings, as `data:` URLs: a page loads nothing). An unknown word is refused and the
   words that exist are named.
+- `title` says how the look's title enters, letter by letter, on a game's title and attract screens: `still` (whole),
+  `rise`, `slam`, `wipe` or `track`. A card that says none rises. Brawl Street slams, Dread wipes, Lightdeck tracks.
 
 ## Writing one
 

@@ -6,8 +6,12 @@
 import { emitGameShell } from './game-shell.js';
 import { emitPlayShell } from './play-shell.js';
 
-/** `manifest`, `menu` and `frontArt` default to the resolved ones; export_game passes its copies with folder-relative art. */
-export function emitShellFor(resolved, { manifest = resolved.manifest, menu = resolved.menu, frontArt = resolved.frontArt || null } = {}) {
-  if (manifest.shell === 'play') return emitPlayShell(manifest, resolved.levels, { stingers: resolved.music, ...(frontArt ? { frontArt } : {}) });
-  return emitGameShell(manifest, resolved.levels, menu, resolved.music, resolved.setup);
+/**
+ * `manifest`, `menu` and `frontArt` default to the resolved ones; export_game passes its copies with folder-relative art,
+ * and the start screen's stage it baked (`frontStage`: { plates }, front-plates.js), which only an export has: the play
+ * shell's `front.stage`, the arena shell's `menu.stage`.
+ */
+export function emitShellFor(resolved, { manifest = resolved.manifest, menu = resolved.menu, frontArt = resolved.frontArt || null, frontStage = null } = {}) {
+  if (manifest.shell === 'play') return emitPlayShell(manifest, resolved.levels, { stingers: resolved.music, ...(frontArt ? { frontArt } : {}), ...(frontStage ? { frontStage } : {}) });
+  return emitGameShell(manifest, resolved.levels, menu, resolved.music, resolved.setup, frontStage ? { frontStage } : {});
 }

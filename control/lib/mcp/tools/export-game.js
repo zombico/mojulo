@@ -601,7 +601,57 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
     const W = withFlowVideos(shellManifest, (film) => rels[film] ?? null);
     shellManifest = W.manifest; cutscenesMissing = W.missing;
   }
-  await write('game.html', emitShellFor(resolved, { manifest: shellManifest, menu: shellMenu, frontArt }));
+  // front.stage (game/front-stage.js, front-plates.js): the start screen's subjects pictured now, each captured on its own
+  // World page, cut out and drawn in the stage's treatment in the game's colours, written to assets/front/; a subject
+  // that could not be pictured (no browser, no sketch) is said, and the stage draws its name and its ground without it
+  let frontStage = null, stageSays = [];
+  const WARM_MAX = 30 * 1024 * 1024;
+  // (the play shell's front.stage, or the arena shell's menu.stage: one stage, baked the same)
+  const stageOf = norm.shell === 'play' ? norm.front?.stage : norm.menu?.stage;
+  if (stageOf) {
+    const { bakeFrontStage } = await import('@/lib/graph/game/front-plates');
+    const T = norm.theme || {}, hex = (v, d) => (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v) ? v : d);
+    const colours = { ink: hex(T.ink, '#e8edf4'), accent: hex(T.accent, '#5fb0ff'), bg: hex(T.bg, '#0e1116') };
+    // the picture the person brought (front-background.js) is the start screen on its own, with the game's name and its
+    // menu: the character is never drawn over it again (the picture may well show it). One that is not there, or not a
+    // picture, is said, and the character stands on the card's graphic ground instead
+    let background = null;
+    const early = [];
+    if (stageOf.background) {
+      try {
+        const { backgroundBytes } = await import('@/lib/graph/game/front-background');
+        const { buffer, ext } = await backgroundBytes(stageOf.background);
+        background = `assets/front/background.${ext}`;
+        await write(background, buffer);
+      } catch (err) { early.push(`front.stage.background: ${err.message}; the character is drawn on the card's graphic ground instead`); }
+    }
+    const baked = background ? { plates: [null], says: [] } : await bakeFrontStage(stageOf, { getSketch, colours });
+    const plates = baked.plates, says = [...early, ...baked.says];
+    const srcOf = (p) => `assets/front/subject-${p.slot + 1}.png`, glbOf = (p) => `assets/front/subject-${p.slot + 1}.glb`;
+    for (const p of plates) if (p) { await write(srcOf(p), p.png); if (p.live) await write(glbOf(p), p.live.glb); }
+    // a live stage (mode '3d') loads three.js and its glTF loader only after the pictures show: beside the page (the
+    // vendored files, offline), or from the pinned CDN when the export asks for cdn
+    const live = plates.some((p) => p && p.live);
+    let three = null;
+    if (live && cdn) {
+      const { CDN_THREE_VERSION } = await import('@/lib/graph/scene/emit-util');
+      const at = `https://cdn.jsdelivr.net/npm/three@${CDN_THREE_VERSION}`;
+      three = { module: `${at}/build/three.module.min.js`, loader: `${at}/examples/jsm/loaders/GLTFLoader.js` };
+    } else if (live) {
+      const { VENDOR_DIR: vendor } = await import('@/lib/graph/scene/emit-util');
+      for (const f of ['three.module.min.js', 'three.core.min.js', 'addons/loaders/GLTFLoader.js', 'addons/utils/BufferGeometryUtils.js', 'addons/utils/SkeletonUtils.js']) await write(`assets/front/three/${f}`, await fs.readFile(path.join(vendor, f)));
+      three = { module: 'assets/front/three/three.module.min.js', loader: 'assets/front/three/addons/loaders/GLTFLoader.js' };
+    }
+    frontStage = {
+      plates: plates.map((p) => (p ? { src: srcOf(p), width: p.width, height: p.height, frame: p.frame, ...(p.live ? { live: { glb: glbOf(p), clip: p.live.clip } } : {}) } : null)),
+      ...(three ? { three } : {}),
+      ...(background ? { background } : {}),
+    };
+    stageSays = says;
+  }
+  // (a staged game's shell is written once its levels are: it warms the first of them while its title is up)
+  const writeShell = () => write('game.html', emitShellFor(resolved, { manifest: shellManifest, menu: shellMenu, frontArt, ...(frontStage ? { frontStage } : {}) }));
+  if (!frontStage) await writeShell();
   await writeRecipe('recipe/game.json', norm);
 
   // levels — the ?walk=1&hud=0&download=1 bake, one page per level, figure bank hoisted shared.
@@ -610,9 +660,12 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
   // point of mapRef is that the map manifest exists ONCE for all its mode variants. A city's segment
   // level reads its city plan by ref (`city`) the same way, so the plan ships once beside its segments.
   const mapRecipes = new Set();
+  let firstPage = null;
   for (const lv of resolved.levels) {
     const levelSketch = getSketch(lv.ref);
-    await write(LEVEL_SRC(lv.ref), await hoistShared(await emitWorldPage(levelSketch, 'level', { cdn, era, reads: eraReads })));
+    const page = await hoistShared(await emitWorldPage(levelSketch, 'level', { cdn, era, reads: eraReads }));
+    if (firstPage === null) firstPage = page;
+    await write(LEVEL_SRC(lv.ref), page);
     await writeRecipe(`recipe/${lv.ref}.json`, levelSketch.manifest);
     // a city's sites stand edifices by ref (city/plan/landmarks.js): each ships too, the city's and its segments'
     const standsOf = (m) => (m && m.kind === 'city' && Array.isArray(m.sites) ? m.sites.map((x) => x && x.from) : []);
@@ -624,6 +677,22 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
       const mapSketch = getSketch(mapRef);
       if (mapSketch?.manifest) { await writeRecipe(`recipe/${mapRef}.json`, mapSketch.manifest); queue.push(...standsOf(mapSketch.manifest)); }
     }
+  }
+
+  // THE RAMP (front-stage-page.js): a staged game's title warms its first level, the page and the shared files it fetches
+  // (the figure and geometry banks), so play starts from the browser's cache; none past WARM_MAX, which a phone would
+  // pay for before the player asked
+  if (frontStage) {
+    if (firstPage !== null && resolved.levels.length) {
+      const bytesOf = (rel) => files.find((f) => f.file === rel)?.bytes ?? 0;
+      // (every shared file the page names: a bank fetched outright, and the figure bank's map of names to files)
+      const fetched = [...new Set([...firstPage.matchAll(/(["'])\.\.\/(assets\/[^"']+\.json)\1/g)].map((m) => m[2]))];
+      const warm = [LEVEL_SRC(resolved.levels[0].ref), ...fetched];
+      const total = warm.reduce((n, rel) => n + bytesOf(rel), 0);
+      if (total <= WARM_MAX) frontStage = { ...frontStage, warm };
+      else stageSays.push(`front.stage: the first level is ${(total / 1048576).toFixed(1)} MB, past the ${WARM_MAX / 1048576} MB a title warms: it loads when play is pressed`);
+    }
+    await writeShell();
   }
 
   // menu worlds (a hangar, a viewer) — resolveGame already verified the refs exist
@@ -684,6 +753,7 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
     ...(heavy.length ? {
       note: `Files over 25MB (${heavy.join(', ')}) exceed some static hosts' per-file limits (e.g. Cloudflare Pages) — GitHub Pages allows up to 100MB/file. Level weight is geometry; a lighter world recipe shrinks it.`,
     } : {}),
+    ...(frontStage ? { front_stage: { pictured: frontStage.plates.filter(Boolean).length, of: frontStage.plates.length, ...(frontStage.background ? { background: frontStage.background } : {}), ...(frontStage.three ? { live: frontStage.plates.filter((p) => p && p.live).length } : {}), ...(frontStage.warm ? { warms: frontStage.warm.length } : {}), ...(stageSays.length ? { says: stageSays } : {}) } } : {}),
     ...(browserDownload ? { browser_download: browserDownload } : {}),
     ...(pluginBuild && cdnInput ? { cdn_note: '`cdn: true` was ignored: the Claude plugin build of mojulo writes only self-contained pages.' } : {}),
     ...(await desktopResult()),

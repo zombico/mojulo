@@ -22,6 +22,7 @@ import { CHARACTER_PART_IDS, CAST_PART } from './characters.js';
 import { resolveTechDirection } from './tech-direction.js';
 import { cubeOfWorld } from './intent.js';
 import { concernsOf } from './concerns.js';
+import { frontPart } from './front-stage.js';
 
 export const MODES = Object.freeze({
   gated: 'every part waits for the creator\'s approval before the next step builds on it',
@@ -72,6 +73,9 @@ export function reviewParts(world) {
     const L = interfaceLook(G), T = readTheme(L.theme), WORDS_SAID = ['frame', 'corner', 'plate', 'focus', 'motion', 'slant', 'transition', 'backdrop', 'material', 'backing', 'crest', 'breakout', 'overlay', 'stage', 'sounds'];
     parts.push({ id: 'interface:look', name: 'The interface\'s look', content: { from: L.from, preset: T.from, words: Object.fromEntries(WORDS_SAID.map((k) => [k, T[k]])), tokens: { ink: T.tokens.ink, panel: T.tokens.panel, line: T.tokens.line, accent: T.tokens.accent, accent2: T.tokens.accent2 }, languages: Object.keys((G.ui && G.ui.languages) || {}), advice: L.advice.map((a) => `${a.law}: ${a.advice}`) } });
   }
+  // the start screen's stage (front-stage.js): its card and the subjects standing on it, seen on the exported game
+  const FP = frontPart(world);
+  if (FP) parts.push({ id: 'interface:front', name: 'The start screen', content: FP });
   // THE FLOW (game-flow.js): what plays when, the game director's, as a storyboard (each step, whose it is, what it waits
   // on, where it goes); a world with no flow of its own and no story cinematics has none to show
   const F = worldFlow(G);
