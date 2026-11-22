@@ -8,6 +8,8 @@
  *   cd control
  *   node scripts/spikes/mission/boss.mjs --boss <cinder|glint|breaker|lineman|tank|gunship|walker> --out /abs/dir [--cdn]
  *   node scripts/spikes/mission/boss.mjs --boss <id> --plan     the boss's laws, and its arena's
+ *   --guard <ref>                the boss's figure, a character minted in the database (MOJULO_DATA_DIR)
+ *   --look <look>=<ref>          the figure one of its looks wears (a phase's `look`: Cinder's `cracked`), repeatable
  *
  * The arenas: a hall of low walls (Cinder: the arc broken by them), of tall cover and perches (Glint), of pillars it
  * tears out (Breaker), of tiles (Lineman); a yard with a block the tank drives round (mines in the kit), a field lined
@@ -64,14 +66,18 @@ const start = [0, -AD / 2 + 5, 0.05];
 const mission = { result: { at: [0, AD / 2 + 50, 0], radius: 1, when: [] }, hints: [{ at: start, radius: 4, says: human ? `${BOSSES[id].name}, ${BOSSES[id].title}. Read the floor: every move is marked before it lands. Dive through, step out, or get behind cover; hit it in the opening after.` : `${VEHICLES[id].name}. ${VEHICLES[id].wins.map((w) => w.says).join('. ')}.` }] };
 const hero = { ...h0, rule: { ...h0.rule, step: 0.35, mission, radarRange: 36 }, body: { ...h0.body, hp: 100 }, transform: { pos: start, heading: Math.PI / 2 } };
 let boss;
+// (the figure each of its looks wears: the guard's figure with another character's ref)
+const looks = {}, figures = { ...room.manifest.figures };
+for (let i = 2; i < process.argv.length; i++) if (process.argv[i] === '--look') { const [look, ref] = String(process.argv[i + 1]).split('='); figures[`boss-${look}`] = { ...figures[g0.body.figure], heroRef: ref }; looks[look] = `boss-${look}`; }
 if (human) {
   const arena = { center: [0, 0], r: Math.min(AW, AD) / 2, z: 0, ...(A.perches ? { perches: A.perches } : {}), cover };
-  boss = { ...g0, id: 'boss', team: 'guards', rule: { ...g0.rule, foe: undefined, alarm: undefined, guardRadius: 60, standoff: 8, mind: { ...(g0.rule.mind || {}), ...bossMind(id) }, boss: bossRule(id, { arena, seed: 7 }) },
+  boss = { ...g0, id: 'boss', team: 'guards', rule: { ...g0.rule, foe: undefined, alarm: undefined, guardRadius: 60, standoff: 8, mind: { ...(g0.rule.mind || {}), ...bossMind(id) }, boss: bossRule(id, { arena, seed: 7, ...(Object.keys(looks).length ? { figures: looks } : {}) }) },
     body: { ...g0.body, hp: 1600 }, transform: { pos: A.perches ? [A.perches[0][0], A.perches[0][1], 0.05] : [0, AD / 2 - 8, 0.05], heading: -Math.PI / 2 } };
 } else {
   boss = vehicleEntity(id, { at: id === 'gunship' ? [A.runs[0][0], A.runs[0][1], 16] : [A.route[0][0], A.route[0][1], 0], hp: 1200, ...(A.route ? { route: A.route } : {}), ...(A.runs ? { runs: A.runs } : {}), seed: 7 });
 }
-const manifest = { kind: 'controllable', faces, colliders, entities: [hero, boss], figures: room.manifest.figures, fxStyle: room.manifest.fxStyle, figureGrade: room.manifest.figureGrade,
+// (the room's cast light: its bodies drawn under one light, as a level's are; without it a made figure bakes under none)
+const manifest = { kind: 'controllable', faces, colliders, entities: [hero, boss], figures, fxStyle: room.manifest.fxStyle, figureGrade: room.manifest.figureGrade, ...(room.manifest.castLight ? { castLight: room.manifest.castLight } : {}),
   bg: '#b9c4cb', sky: { zenith: [86, 112, 138], horizon: [196, 204, 210], day: 1, stars: 0, seed: 5 } };
 const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scene.js');
 const { payload } = await resolveWorldScene({ ref: `steel-serpents-boss-${id}`, title: `${human ? BOSSES[id].name : VEHICLES[id].name} · Steel Serpents`, manifest }, { era: 'gen-7', live: true });

@@ -48,3 +48,17 @@ of, each held to laws a body facing it needs.
   - The HUD draws the boss across the top: its name, its title, and its health with a tick between its phases.
 - The spike `scripts/spikes/mission/boss.mjs` stands each boss in an arena laid for what it wants, the operative
   carrying the kit that beats it. Craft in `docs/boss-fights.md`.
+- **Counters** (`boss/bosses.js` `counters`): how a human boss is beaten other than by rounds poured in. A `part` counter
+  is a piece of its own that breaks under the hits it takes, only from where it shows and only while it is bare, and its
+  breaking makes the boss reel, costs it health and shortens a move. Its law holds it reachable: the move that bares it
+  comes in every phase, and its opening is long enough to react and land the hits. Cinder is the first: every arc of
+  flame ends with him turned away to vent, and four rounds into the tank on his back rupture it. He goes up in his own
+  fire, and his arcs reach a share as far for the rest of the fight.
+- **Looks by phase** (`looks`, a phase's `look`): a phase can swap the boss's figure. Cinder's mask cracks open in his
+  last phase to show his face. The page builds each look's figure up front, under the same light as the body.
+- **Cinder's look**: a heavyset welder minted through the character door (`scripts/spikes/mission/cinder.json`) in
+  canvas coveralls, a leather chest plate, bracers and kneepads. He wears a new realistic headwear, the WELDING MASK
+  (`headgear/realistic.js` `shield`): a strap on the band line and a plate stood off the face, convex across and down,
+  with a slot of dark glass at the eyes. Its cracked twin is split open across the eyes. The tank and its hose are
+  drawn by the page on his torso bone (`boss-view.js`), so the tank can glow while it is bare, flash as each hit lands
+  and burst when it breaks.

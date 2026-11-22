@@ -9,7 +9,10 @@
  *                 phase (the mind's own crossing, `mindPhase`) runs the phase's arena EVENT: `burn` (fires along the
  *                 arena's rim), `relocate` (to the next of its `perches`), `tear` (a piece of cover gone: of its `cover`
  *                 ([{ id, min, max }]) the one nearest the pilot, its collider and its body), `live` (the floor's grid fired on its own between its moves), `adds`
- *                 (its dormant crew woken)
+ *                 (its dormant crew woken); a phase's `figure` (a look's) swapped onto its body. A move that VENTS holds it
+ *                 on through its opening turned away from the aim. Its COUNTERS (`counters`, a `part`): rounds or bursts
+ *                 landing on it from where the part shows while it is bare, counted to the part's hits; at its hits it
+ *                 breaks (a reel, a share of its health, its own fire, its moves shortened)
  *   a vehicle     (rule.boss.kind 'vehicle'; its rule's type its own, so nothing else drives it) is driven by its STATE:
  *                 along its `route` (a loop of points), on its `runs` (flown end to end at its state's altitude, then a
  *                 hover at the end), stranded where it stands; its moves by its state's weights and tempo, a run's strafe
@@ -51,7 +54,7 @@ export function buildBoss(E) {
     const z = (target[2] != null ? target[2] : p[2]) - ((state.pilotId && state.byId[state.pilotId] && state.byId[state.pilotId].rule && state.byId[state.pilotId].rule.eye) || 0);
     H.forEach((h, k) => state.bossHazards.push({ ...h, z, id: `${e.id}:${S.count}:${k}`, by: e.id, move: id, k, ...(look.hazard ? { colour: look.hazard } : {}), ...(look.tell ? { tellColour: look.tell } : {}) }));
     const end = Math.max(...H.map((h) => h.t1)) - t;
-    S.cur = { id, t0: t, frame, aim: Math.atan2(target[1] - p[1], target[0] - p[0]), start: [p[0], p[1]], openAt: t + Math.max(P.open.at, end), openEnd: t + Math.max(P.open.at, end) + P.open.for, charge: P.pattern === 'charge' ? H[0] : null };
+    S.cur = { id, t0: t, frame, aim: Math.atan2(target[1] - p[1], target[0] - p[0]), start: [p[0], p[1]], openAt: t + Math.max(P.open.at, end), openEnd: t + Math.max(P.open.at, end) + P.open.for, charge: P.pattern === 'charge' ? H[0] : null, vent: !!P.vent };
   }
 
   // a phase's arena event, as the crossing runs it
@@ -78,6 +81,40 @@ export function buildBoss(E) {
       }
     } else if (kind === 'live') e.bossS.live = true;
     else if (kind === 'adds' && Array.isArray(A.adds)) for (const id of A.adds) { const a = state.byId[id]; if (a) a.dormant = false; }
+  }
+
+  // COUNTERS (a human boss's `counters`, boss/bosses.js): a PART of its own, bare only `when` (`vent`: the opening of a
+  // move that turns it away; `open`: any opening; `always`) and only `from` where it shows (`behind`), counts the rounds
+  // (or the bursts) that land on the boss so; at its `hits` it breaks: the boss reels `stagger` seconds where it stands,
+  // loses `harm` of its health, its pending landings are called off, it goes up in its own fire (a disc round it), and each
+  // move in `shorten` reaches a share as far from then on. state.bosses[id].counters says each: { hits, of, bare, broken }
+  function counters(state, e, S, t0, t) {
+    const B = e.rule.boss, p = e.transform.pos, h = e.transform.heading || 0, C = S.cur;
+    S.parts = S.parts || {};
+    for (const c of B.counters) {
+      if (c.kind !== 'part' || S.broken[c.id]) continue;
+      const bare = c.when === 'always' || (C && t0 >= C.openAt && t0 < C.openEnd && (c.when === 'open' || C.vent));
+      S.bare = S.bare || {}; S.bare[c.id] = !!bare;
+      if (!bare) continue;
+      const behind = (q) => c.from !== 'behind' || (q[0] - p[0]) * Math.cos(h) + (q[1] - p[1]) * Math.sin(h) < 0;
+      let n = 0;
+      if (c.takes.includes('round')) for (const s of state.entities) if (s !== e && s.lastShot && s.lastShot.targetId === e.id && s.lastShot.t === t0 && behind(s.transform.pos)) n++;
+      if (c.takes.includes('explosive')) for (const b of state.bursts || []) if (b.t === t0 && !b.effect && b.by !== e.id && Math.hypot(b.pos[0] - p[0], b.pos[1] - p[1]) < 1.6 && behind(b.pos)) n++;
+      if (!n) continue;
+      S.parts[c.id] = (S.parts[c.id] || 0) + n;
+      if (S.parts[c.id] < c.hits) continue;
+      // IT BREAKS
+      const K = c.breaks || {}, max = e.hpMax || e.body.hp;
+      S.broken[c.id] = true;
+      if (K.harm) e.body.hp = Math.max(0, e.body.hp - K.harm * max);
+      if (K.stagger) { S.reel = t + K.stagger; e.reactClip = 'stagger'; e.staggerT = 0; e.reactDur = K.stagger; }
+      state.bossHazards = state.bossHazards.filter((x) => !(x.by === e.id && x.t0 > t));
+      S.cur = null; S.next = t + (K.stagger || 0) + 0.6;
+      if (state.bursts) state.bursts.push({ seq: state.burstSeq++, pos: [p[0] - Math.cos(h) * 0.3, p[1] - Math.sin(h) * 0.3, p[2] + 1.3], t, radius: 2.6 });
+      state.bossHazards.push({ shape: 'disc', c: [p[0], p[1]], r: 2.2, z: p[2], t0: t + 0.15, t1: t + Math.max(1, K.stagger || 1), tm: t, harm: 0.1, id: `${e.id}:${c.id}:rupture`, by: e.id, move: c.id, colour: (B.look || {}).hazard });
+      for (const [m, f] of Object.entries(K.shorten || {})) { const M = B.moves[m]; if (M) M.hazards = M.hazards.map((x) => ({ ...x, ...(x.reach ? { reach: x.reach * f } : {}), ...(x.shape === 'ring' ? { to: x.to * f } : {}) })); }
+      S.said = { text: K.says || '', t };
+    }
   }
 
   // VEHICLES: where a hit landed, in the vehicle's own frame, and the part it lands on (the box it is in, else the nearest)
@@ -151,8 +188,13 @@ export function buildBoss(E) {
       if (!B) continue;
       if (!e.bossS) { e.bossS = { phase: 0, state: B.start || (B.states ? Object.keys(B.states)[0] : null), stateT: 0, next: t0 + (B.first ?? 2), cur: null, broken: {}, hits: {}, count: 0 }; e.hpMax = e.hpMax || e.body.hp; }
       hp0.set(e, e.body.hp);
-      // (a human boss in its move's tell and hazards: planted, facing the aim, its rule held for the step)
-      if (B.kind === 'human' && e.bossS.cur && t0 < e.bossS.cur.openAt) { held.push([e, e.rule.type]); e.rule.type = HELD; e.aiFire = false; e.transform.heading = e.bossS.cur.aim; }
+      // (a human boss in its move's tell and hazards: planted, facing the aim, its rule held for the step; a move that
+      // VENTS holds it on through its opening, turned away, its back to the aim; reeling from a broken counter, planted)
+      const C = e.bossS.cur, vents = C && C.vent && t0 >= C.openAt && t0 < C.openEnd;
+      if (B.kind === 'human' && ((C && (t0 < C.openAt || vents)) || (e.bossS.reel != null && t0 < e.bossS.reel))) {
+        held.push([e, e.rule.type]); e.rule.type = HELD; e.aiFire = false;
+        if (C && !(e.bossS.reel != null && t0 < e.bossS.reel)) e.transform.heading = vents ? C.aim + Math.PI : C.aim;
+      }
     }
     let out;
     try { out = step(state, input, dt, hooks); } finally { for (const [e, ty] of held) e.rule.type = ty; }
@@ -165,7 +207,8 @@ export function buildBoss(E) {
       if (B.kind === 'human') {
         // the phase its mind is in (mind.js crosses them); a crossing runs the phase's event
         const ph = Math.min((B.phases || []).length - 1, e.mindPhase == null ? 0 : e.mindPhase + 1);
-        if (ph !== S.phase) { S.phase = ph; const ev = B.phases[ph] && B.phases[ph].event; if (ev) event(state, e, ev); }
+        if (ph !== S.phase) { S.phase = ph; const P2 = B.phases[ph] || {}; if (P2.event) event(state, e, P2.event); if (P2.figure) e.body.figure = P2.figure; }
+        if (B.counters) counters(state, e, S, t0, t);
         // (in its opening it stands winded and takes half again)
         if (S.cur && t0 >= S.cur.openAt && t0 < S.cur.openEnd && e.body.hp < H0) e.body.hp = Math.max(0, e.body.hp - (H0 - e.body.hp) * 0.5);
         if (S.cur && S.cur.charge) {
@@ -207,7 +250,7 @@ export function buildBoss(E) {
         const P = B.moves[h.move], R = E.layPattern(P, ...S.cur.frame(pilot.transform.pos), S.cur.t0)[h.k];
         Object.assign(h, { a: R.a, b: R.b, ...(R.o ? { o: R.o } : {}) });
       }
-      state.bosses[e.id] = { name: B.name, title: B.title || '', phase: S.phase, phases: (B.phases || []).length, state: S.state, broken: Object.keys(S.broken), open: !!(S.cur && t >= S.cur.openAt && t < S.cur.openEnd), hp: e.body.hp, hpMax: e.hpMax };
+      state.bosses[e.id] = { name: B.name, title: B.title || '', ...(B.counters ? { counters: Object.fromEntries(B.counters.map((c) => [c.id, { hits: (S.parts || {})[c.id] || 0, of: c.hits, bare: !!(S.bare || {})[c.id], broken: !!S.broken[c.id] }])), ...(S.said ? { said: S.said } : {}) } : {}), phase: S.phase, phases: (B.phases || []).length, state: S.state, broken: Object.keys(S.broken), open: !!(S.cur && t >= S.cur.openAt && t < S.cur.openEnd), hp: e.body.hp, hpMax: e.hpMax };
     }
     // THE HAZARDS LAND: on each body of another team inside one, once a hazard, unless it is through, under or behind cover
     for (const h of state.bossHazards) {

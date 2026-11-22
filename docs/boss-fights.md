@@ -71,6 +71,27 @@ own.
   | `live` | the floor's grid fires on its own between moves |
   | `adds` | its dormant crew is woken |
 
+A phase may also wear a `look` (one of the boss's `looks`): the figure the page swaps in at the crossing (`bossRule(id,
+{ figures: { <look>: <figure> } })`). Cinder's mask cracks open in his last.
+
+### Counters
+
+A **counter** is how a boss is beaten other than by rounds poured in (`counters`, a row a kind). Its kind so far is
+`part`: a piece of the boss's own that
+
+- takes what it `takes` (`round`, `explosive`) until its `hits` break it;
+- only from where it shows (`from: 'behind'`);
+- only while it is bare (`when`: `vent`, the opening of a move that turns the boss away to vent; `open`, any opening;
+  `always`);
+- and what its breaking does (`breaks`): a `stagger` of seconds where it stands, a `harm` of its health, its pending
+  landings called off, a ring of its own fire, and each move in `shorten` reaching a share as far from then on.
+
+The law `counter-<id>` holds it reachable: the move that bares it comes in every phase, and its opening is long enough
+to react and land its hits (a round a quarter second).
+
+Cinder's is his tank. Every arc of flame ends with him turned away to vent the lance, his back and the tank toward the
+body he attacked. Four rounds into it then and it ruptures.
+
 The mind crosses the phases itself (`mindPhases`). The laws (`bossLaws`) hold:
 
 - every move holds the pattern laws;
@@ -132,16 +153,28 @@ shelf: `bossRule`, `bossMind`, `vehicleEntity`.
 - each hazard's mark in the boss's tell colour, filling as its landing nears, then the landing itself in its hazard
   colour (a sweep's beam, a ring's front, a strafe's landings one by one);
 - the mines, amber while arming and red once armed;
+- a human boss's counter prop on its torso bone (Cinder's tank and its hose to his right hand): glowing while it is bare,
+  white for a moment as each hit lands, a burst of fire when it breaks;
 - a vehicle's dress and parts: a weak spot red and beating while it can be hit, a broken track wrecked.
 
 The HUD draws the boss across the top: its name, its title, and its health with a tick between phases.
 
 `node scripts/spikes/mission/boss.mjs --boss <id> --out dir` stands a boss in an arena laid for what it wants, with the
-operative carrying the kit it is beaten with. `--plan` prints its laws.
+operative carrying the kit it is beaten with. `--plan` prints its laws. `--guard <ref>` gives the boss a minted figure,
+and `--look <look>=<ref>` the figure a look wears (both from the database under `MOJULO_DATA_DIR`):
+
+```bash
+node scripts/mcp-stdio.mjs call create_character --json "{\"as\":\"hero\",\"ref\":\"cinder\",\"spec\":$(cat scripts/spikes/mission/cinder.json)}"
+node scripts/spikes/mission/boss.mjs --boss cinder --guard cinder --look cracked=cinder-cracked --out /abs/dir
+```
+
+(`cinder-cracked` is the same spec with `"headgear": "weldingMaskCracked"`.)
 
 ## What is not yet
 
-- The human bosses wear the guard's figure. A gimmick's look (a fuel tank on the back, a long coat) is not drawn.
+- Only Cinder has a look of his own (`--guard` and `--look` on the spike, a character minted from
+  `scripts/spikes/mission/cinder.json`); the other three wear the guard's figure. Only the `part` counter is built:
+  Breaker's charge into a wall and Glint's flash while he holds a lock are still to come.
 - A vehicle is boxes. Its turret does not turn apart from its hull, and the walker does not stride.
 - A boss is not yet named by a level: a `design_game` world's `goal.boss` still stands a foe of the boss rank. The
   casting call does not propose a gimmick, and the game book has no boss sheet.

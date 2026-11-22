@@ -870,7 +870,7 @@ function withHeadwear(R, hero) {
   if (!H) return R;
   // (its groups' colours: the card's, under the operator's own)
   const own = hero.palette || {}, card = withHeadgear({}, 'realistic', id).palette || {};
-  const tones = Object.fromEntries([W.group, W.gemGroup, W.trimGroup].filter(Boolean).map((g) => [g, own[g] ?? card[g]]).filter(([, v]) => v));
+  const tones = Object.fromEntries([W.group, W.gemGroup, W.trimGroup, W.visorGroup].filter(Boolean).map((g) => [g, own[g] ?? card[g]]).filter(([, v]) => v));
   return { ...R, parts: { ...R.parts, ...H.parts }, palette: { ...(R.palette || {}), ...tones } };
 }
 /** An anime hero's LOOK stamp kept with its words: re-resolved only when the list changed (a re-tuned look word never

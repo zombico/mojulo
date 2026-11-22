@@ -31,6 +31,31 @@ describe('headwear on the realistic head', () => {
       expect(JSON.stringify(buildHeadwear(H.cloud, H, HEADWEAR[id]).M.vertices)).toBe(JSON.stringify(B.M.vertices));
     });
   }
+  // (the shield, the welding mask: a plate off the face; the head's nasion and chin on the test head)
+  const face = { nasion: 1.62, chin: 1.5 };
+  const inGroup = (M, g) => M.vertices.filter((_, i) => M.faces.some((f, fi) => M.groups[fi] === g && f.includes(i)));
+  it('the welding mask: its strap clears the head, its plate stands off the face, its glass at the eyes; the same twice', () => {
+    const W = HEADWEAR.weldingMask, B = buildHeadwear(H.cloud, { ...H, face }, W), law = headwearGaps({ ...H, made: B.made });
+    expect(law.through).toBe(0);
+    expect(volumes(B.M).every((v) => v > 0)).toBe(true);
+    const plate = inGroup(B.M, W.group), skull = H.cloud.skull.filter((p) => p[1] > 0);
+    const gap = Math.min(...plate.map((p) => Math.min(...skull.map((q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2])))));
+    expect(gap).toBeGreaterThan(W.ease * 0.4);
+    // (the plate over the brow and under the chin; the glass across the eyes, in front of the plate)
+    expect(Math.min(...plate.map((p) => p[2]))).toBeLessThan(face.chin);
+    const glass = inGroup(B.M, W.visorGroup);
+    expect(glass.length).toBeGreaterThan(0);
+    expect(Math.max(...glass.map((p) => p[2]))).toBeLessThan(face.nasion + 0.02);
+    expect(Math.min(...glass.map((p) => p[1]))).toBeGreaterThan(Math.max(...skull.map((p) => p[1])));
+    expect(JSON.stringify(buildHeadwear(H.cloud, { ...H, face }, W).M.vertices)).toBe(JSON.stringify(B.M.vertices));
+  });
+  it('the cracked welding mask: no glass, and the plate open across the eyes in front', () => {
+    const W = HEADWEAR.weldingMaskCracked, { M } = buildHeadwear(H.cloud, { ...H, face }, W);
+    expect(W.visorGroup).toBeUndefined();
+    const front = inGroup(M, W.group).filter((p) => Math.abs(p[0]) < 0.02 && p[1] > 0);
+    expect(front.some((p) => p[2] > face.nasion - 0.02 && p[2] < face.nasion + 0.005)).toBe(false);
+    expect(front.some((p) => p[2] < face.nasion - 0.06)).toBe(true);
+  });
   it('the circlet: its gem on the midline at the front, in its own group', () => {
     const { M } = buildHeadwear(H.cloud, H, HEADWEAR.circlet), W = HEADWEAR.circlet;
     const gem = M.vertices.filter((_, i) => M.faces.some((f, fi) => M.groups[fi] === W.gemGroup && f.includes(i)));

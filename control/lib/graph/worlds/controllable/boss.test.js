@@ -61,6 +61,60 @@ describe('a human boss', () => {
   });
 });
 
+describe('a human boss\'s counter', () => {
+  // (a boss with a part counter, and the move that bares it, chosen from the shelf)
+  const id = Object.keys(BOSSES).find((k) => (BOSSES[k].counters || []).some((c) => c.kind === 'part' && c.when === 'vent'));
+  const C = BOSSES[id].counters.find((c) => c.kind === 'part'), vent = Object.keys(BOSSES[id].moves).find((m) => BOSSES[id].moves[m].vent);
+  const shooter = (at) => ({ id: 's', team: 'hero', rule: { type: 'none' }, body: { type: 'mesh', hp: 100 }, transform: { pos: [...at, 0], heading: 0 } });
+  // (a round lands on the boss in the step about to run: what the director reads off the shooter, as a fired round leaves it)
+  const shoot = (s) => { s.byId.s.lastShot = { targetId: 'b', t: s.time, to: [0, 0, 1.3] }; E.stepWorld(s, {}, 0.05, hooks); };
+  const toVent = (s) => { for (let k = 0; k < 200; k++) { const c = s.byId.b.bossS && s.byId.b.bossS.cur; if (c && c.vent && s.time >= c.openAt + 0.05) return true; E.stepWorld(s, {}, 0.05, hooks); } return false; };
+  const fight = (shooterAt) => { const s = world([pilot([8, 0]), shooter(shooterAt), human(oneMove(id, vent))]); s.byId.p.invincible = true; return s; };
+
+  it('the vent turns it away from the aim through its opening', () => {
+    const s = fight([8, 0]);
+    expect(toVent(s)).toBe(true);
+    const S = s.byId.b.bossS, h = s.byId.b.transform.heading;
+    expect(Math.cos(h - (S.cur.aim + Math.PI))).toBeGreaterThan(0.99);
+    expect(s.bosses.b.counters[C.id].bare).toBe(true);
+  });
+
+  it('its part breaks only to its hits from behind while bare: then it reels, loses health, and the move reaches less far', () => {
+    const s = fight([8, 0]);
+    // (rounds before it is bare count for nothing)
+    for (let k = 0; k < C.hits; k++) shoot(s);
+    expect(s.bosses.b.counters[C.id].hits).toBe(0);
+    expect(toVent(s)).toBe(true);
+    const hp0 = s.byId.b.body.hp, reach0 = Math.max(...s.byId.b.rule.boss.moves[vent].hazards.map((h) => h.reach || 0));
+    for (let k = 0; k < C.hits; k++) shoot(s);
+    const B = s.bosses.b.counters[C.id];
+    expect(B.broken).toBe(true);
+    expect(hp0 - s.byId.b.body.hp).toBeGreaterThanOrEqual((C.breaks.harm || 0) * 500 - 1e-6);
+    expect(s.byId.b.bossS.reel).toBeGreaterThan(s.time);
+    if (C.breaks.shorten && C.breaks.shorten[vent]) expect(Math.max(...s.byId.b.rule.boss.moves[vent].hazards.map((h) => h.reach || 0))).toBeCloseTo(reach0 * C.breaks.shorten[vent], 6);
+  });
+
+  it('rounds from in front of it, while it is turned away, do not count', () => {
+    const s = fight([-8, 0]);
+    expect(toVent(s)).toBe(true);
+    for (let k = 0; k < C.hits; k++) shoot(s);
+    expect(s.bosses.b.counters[C.id].hits).toBe(0);
+  });
+
+  it('a phase\'s look swaps its figure', () => {
+    const look = Object.keys(BOSSES[id].looks || {})[0];
+    if (!look) return;
+    const R = bossRule(id, { first: 99, figures: { [look]: 'boss-' + look } }), b = human(R);
+    b.body.figure = 'boss';
+    const s = world([pilot([10, 0]), b]);
+    run(s, 0.1);
+    const k = R.phases.findIndex((p) => p.figure);
+    s.byId.b.mindPhase = k - 1;
+    run(s, 0.1);
+    expect(s.byId.b.body.figure).toBe('boss-' + look);
+  });
+});
+
 describe('a vehicle boss', () => {
   const at = [0, 0, 0];
   it('a mine under its track breaks the track; both broken, it is stranded and its grille is then there to hit', () => {

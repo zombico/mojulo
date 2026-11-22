@@ -65,10 +65,28 @@ describe('human bosses', () => {
   });
 
   it('a boss of one move, or a phase that waits longer, is advised; a move off the shelf is refused', () => {
-    const one = { ...B, moves: { only: B.moves[Object.keys(B.moves)[0]] }, phases: [{ moves: { only: 1 }, tempo: 2 }] };
+    const one = { ...B, moves: { only: B.moves[Object.keys(B.moves)[0]] }, phases: [{ moves: { only: 1 }, tempo: 2 }], counters: undefined, looks: undefined };
     expect(lawsOf(bossLaws(one))['its-own']).toBe(false);
     expect(lawsOf(bossLaws({ ...B, phases: [B.phases[0], { ...B.phases[1], tempo: 9 }] })).rising).toBe(false);
     expect(() => readBoss({ ...B, moves: { x: { pattern: 'kamehameha', says: '' } } })).toThrow(/pattern is one of/);
+  });
+});
+
+describe('a human boss\'s counter', () => {
+  // (a boss with a part counter bared by a move that vents, from the shelf)
+  const id = Object.keys(BOSSES).find((k) => (BOSSES[k].counters || []).some((c) => c.when === 'vent'));
+  const B = BOSSES[id], C = B.counters.find((c) => c.when === 'vent'), vent = Object.keys(B.moves).find((m) => B.moves[m].vent);
+
+  it('is reachable: the move that bares it comes in every phase, its opening long enough for its hits', () => {
+    expect(lawsOf(bossLaws(id))[`counter-${C.id}`]).toBe(true);
+  });
+
+  it('is advised where a phase never bares it, and refused where nothing vents or its numbers are off', () => {
+    const k = B.phases.length - 1, without = { ...B, phases: B.phases.map((p, i) => (i === k ? { ...p, moves: Object.fromEntries(Object.entries(p.moves).filter(([m]) => m !== vent)) } : p)) };
+    expect(lawsOf(bossLaws(without))[`counter-${C.id}`]).toBe(false);
+    const quiet = { ...B, moves: Object.fromEntries(Object.entries(B.moves).map(([m, x]) => [m, { ...x, vent: undefined }])) };
+    expect(() => readBoss(quiet)).toThrow(/a move of its must vent/);
+    expect(() => readBoss({ ...B, counters: [{ ...C, from: 'above' }] })).toThrow(/from is one of/);
   });
 });
 

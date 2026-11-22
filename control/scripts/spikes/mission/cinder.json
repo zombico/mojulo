@@ -1,0 +1,68 @@
+{
+ "cast": "male",
+ "form": "realistic",
+ "physique": {
+  "from": "heavyset",
+  "bulk": 0.6,
+  "weight": 0.45,
+  "tone": -0.2,
+  "height": -0.35
+ },
+ "hair": "buzz",
+ "headgear": "weldingMask",
+ "outfit": {
+  "type": "outfit",
+  "style": "flightsuit",
+  "language": {
+   "top": {
+    "family": "woven",
+    "sleeve": "long",
+    "hem": "hip",
+    "fit": "loose",
+    "collar": true
+   },
+   "bottom": {
+    "family": "woven",
+    "leg": "long",
+    "cut": "straight",
+    "into": "boots",
+    "pockets": "cargo"
+   },
+   "feet": "boots",
+   "tuck": true
+  },
+  "pieces": [
+   {
+    "kind": "chestPlate"
+   },
+   {
+    "kind": "bracers"
+   },
+   {
+    "kind": "kneepads"
+   }
+  ]
+ },
+ "palette": {
+  "Top": "#6a5a48",
+  "Bottom": "#6a5a48",
+  "Helmet": "#2a2522",
+  "Leather": "#6b4a33",
+  "Trim": "#b8662a",
+  "Buckle": "#c9a14a",
+  "Shoes": "#1c1714",
+  "Gloves": "#7a5536",
+  "Hair": "#3a2c22",
+  "HairHighlight": "#4c3a2c"
+ },
+ "face": {
+  "seed": 4471,
+  "ethnicity": "western",
+  "age": 47,
+  "want": {
+   "chin": "strong",
+   "nose": "soft",
+   "eyes": "hooded"
+  }
+ }
+}

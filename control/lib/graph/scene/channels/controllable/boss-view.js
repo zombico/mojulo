@@ -6,12 +6,58 @@
 //   a MINE            a small disc and its light: amber while it arms, red once armed
 //   a vehicle's PARTS boxes on the vehicle, placed from its pose each frame: a plate steel, a track dark, a weak spot red
 //                     and beating while it can be hit, dim while something covers it; a broken part gone
+//   a human boss's    the counter's PROP carried on its body (a `part` counter's `prop`: a canister) on its chest bone,
+//   COUNTER           placed from the bone's rest and its back's depth, so it rides every clip; a hose from it to the right
+//                     hand; glowing while it is bare, white for a moment as each hit lands; on breaking, a burst of fire
+//                     and gone
 // Emitted only into a page whose world has a boss or a placed weapon, so every other page keeps every byte. Needs THREE,
 // scene and __world in scope.
 export function bossViewScript() {
   return `
 // ── THE BOSS FIGHT SEEN ──
-const __BV = { marks: new Map(), mines: new Map(), parts: new Map() };
+const __BV = { marks: new Map(), mines: new Map(), parts: new Map(), props: new Map(), fires: [] };
+// (a rig's bone by its id, the first of the names it might go by; its index into the rig's bones)
+const __bvBone = (fig, names) => { for (const n of names) { const i = fig.bones.findIndex((b) => (b.id || b) === n); if (i >= 0) return i; } return -1; };
+const __bvV = new THREE.Vector3(), __bvW = new THREE.Vector3();
+// (a prop's shading baked into its corners from its normals, as the page's bodies are: no light in the scene to do it)
+function __bvShaded(geo, hex) {
+  const n = geo.getAttribute('normal'), c = new THREE.Color(hex), col = new Float32Array(n.count * 3);
+  for (let i = 0; i < n.count; i++) { const k = 0.5 + 0.5 * Math.max(0, n.getX(i) * 0.35 - n.getY(i) * 0.55 + n.getZ(i) * 0.75); col[i * 3] = c.r * k; col[i * 3 + 1] = c.g * k; col[i * 3 + 2] = c.b * k; }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return geo;
+}
+// THE PROPS a boss's counters carry on its body: each on its chest bone at its back, a hose to its right hand
+function __bvProps(e, g, B) {
+  const rf = g.userData.rigFig, fig = rf.fig, out = [];
+  const ci = __bvBone(fig, ['upperChest', 'chest', 'torso', 'spine2', 'spine']), hi = __bvBone(fig, ['handR', 'rightHand', 'hand_r', 'handRight']);
+  if (ci < 0 || !rf.boneMeshes[ci]) return out;
+  const bone = rf.boneMeshes[ci], bn = fig.bones[ci], head = bn.head || [0, 0, 1.3], tail = bn.tail || [head[0], head[1], head[2] + 0.2];
+  // (the back's depth at the chest: the least forward of the skin the chest carries, else a chest's half)
+  let back = head[1] - 0.13;
+  const sk = rf.skin && rf.skin.geometry;
+  if (sk) { const P = sk.getAttribute('position'), J = sk.getAttribute('skinIndex'), Wt = sk.getAttribute('skinWeight'); let m = Infinity;
+    for (let i = 0; i < P.count; i++) for (let k = 0; k < 4; k++) if (J.getComponent(i, k) === ci && Wt.getComponent(i, k) > 0.4) { const y = P.getY(i), z = P.getZ(i); if (z > Math.min(head[2], tail[2]) - 0.05 && z < Math.max(head[2], tail[2]) + 0.05 && y < m) m = y; }
+    if (m < Infinity) back = m; }
+  for (const c of B.counters) {
+    const Q = c.prop; if (!Q || Q.shape !== 'canister') continue;
+    const o = new THREE.Group(), mat = new THREE.MeshBasicMaterial({ vertexColors: true, color: 0xffffff }), band = new THREE.MeshBasicMaterial({ vertexColors: true });
+    const body = new THREE.Mesh(__bvShaded(new THREE.CylinderGeometry(Q.r, Q.r, Q.h, 18), Q.colour), mat); body.rotation.x = Math.PI / 2; o.add(body);
+    for (const z of [-0.36, 0.36]) { const b2 = new THREE.Mesh(__bvShaded(new THREE.CylinderGeometry(Q.r * 1.05, Q.r * 1.05, 0.035, 18), Q.band), band); b2.rotation.x = Math.PI / 2; b2.position.z = z * Q.h; o.add(b2); }
+    const cap = new THREE.Mesh(__bvShaded(new THREE.SphereGeometry(Q.r, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2), Q.colour), mat); cap.rotation.x = Math.PI / 2; cap.position.z = Q.h / 2; o.add(cap);
+    const valve = new THREE.Mesh(__bvShaded(new THREE.CylinderGeometry(0.025, 0.025, 0.08, 8), Q.band), band); valve.rotation.x = Math.PI / 2; valve.position.z = Q.h / 2 + Q.r * 0.9; o.add(valve);
+    const glow = new THREE.Mesh(new THREE.CylinderGeometry(Q.r * 1.35, Q.r * 1.35, Q.h * 1.1, 18), new THREE.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    glow.rotation.x = Math.PI / 2; o.add(glow);
+    // (in the scene, following the bone's matrix each frame: a body drawn as one mesh keeps its bone meshes hidden, for
+    // their matrices alone, so nothing hung on them would show)
+    const off = new THREE.Matrix4().makeTranslation((head[0] + tail[0]) / 2, back - Q.r - 0.015, (head[2] + tail[2]) / 2 + 0.02);
+    o.matrixAutoUpdate = false; scene.add(o);
+    const hose = hi >= 0 && rf.boneMeshes[hi] ? { mesh: new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: new THREE.Color(Q.hose || '#1d1a17') })), bone: rf.boneMeshes[hi], at: fig.bones[hi].head } : null;
+    if (hose) scene.add(hose.mesh);
+    out.push({ id: c.id, o, mat, glow, hose, Q, bone, off, hits: 0, flash: -9, gone: false });
+  }
+  return out;
+}
+
 const __bvMat = (hex, op) => new THREE.MeshBasicMaterial({ color: new THREE.Color(hex), transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
 const __bvGeo = (h) => {
   const S = h.shape;
@@ -67,6 +113,43 @@ function __bvFrame() {
     const armed = t >= q.armAt; o.light.material.color.set(armed ? 0xff2a1a : 0xffb000); o.light.visible = armed ? Math.sin(t * 8) > -0.2 : Math.sin(t * 16) > 0;
   }
   for (const [id, o] of __BV.mines) if (!ms.has(id)) { scene.remove(o); __BV.mines.delete(id); }
+  // A HUMAN BOSS'S COUNTERS, on its body as they are now
+  for (const e of W.entities) {
+    const B = e.rule && e.rule.boss;
+    if (!B || B.kind !== 'human' || !B.counters || !e.bossS) continue;
+    const g = __bodies[e.id];
+    if (!g || !g.userData || !g.userData.rigFig) continue;
+    let K = __BV.props.get(e.id);
+    // (on its body as it is: a phase's look swapped in is another body, the props carried over to it)
+    if (!K || K.g !== g) { if (K) for (const x of K.items) { scene.remove(x.o); if (x.hose) scene.remove(x.hose.mesh); } K = { g, items: __bvProps(e, g, B) }; __BV.props.set(e.id, K); }
+    const st = (W.bosses && W.bosses[e.id] && W.bosses[e.id].counters) || {};
+    for (const x of K.items) {
+      const c = st[x.id] || {};
+      if (x.gone) continue;
+      x.bone.updateWorldMatrix(true, false); x.o.matrix.multiplyMatrices(x.bone.matrixWorld, x.off); x.o.matrixWorldNeedsUpdate = true;
+      x.o.visible = g.visible; if (x.hose) x.hose.mesh.visible = g.visible;
+      if (c.broken || e.gone) {
+        // (it ruptures: a ball of fire where it was, the canister and its hose gone)
+        x.gone = true; x.o.getWorldPosition(__bvV);
+        for (let k = 0; k < 7; k++) { const f = new THREE.Mesh(new THREE.SphereGeometry(0.25, 10, 8), new THREE.MeshBasicMaterial({ color: k % 2 ? 0xffb347 : 0xff5a1a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })); f.position.copy(__bvV); f.userData = { t0: t, v: [Math.cos(k * 0.9) * 1.6, Math.sin(k * 0.9) * 1.6, 1.2 + (k % 3) * 0.6] }; scene.add(f); __BV.fires.push(f); }
+        x.o.visible = false; if (x.hose) x.hose.mesh.visible = false;
+        continue;
+      }
+      if ((c.hits || 0) > x.hits) { x.hits = c.hits; x.flash = t; }
+      x.mat.color.setScalar(t - x.flash < 0.14 ? 3 : 1);
+      x.glow.material.opacity = c.bare ? 0.28 + 0.22 * Math.sin(t * 11) : 0;
+      // (its hose: from the canister's foot, sagging, to the right hand)
+      if (x.hose) {
+        x.o.localToWorld(__bvV.set(0, 0, -x.Q.h * 0.42));
+        const a = x.hose.at; x.hose.bone.updateWorldMatrix(true, false); __bvW.set(a[0], a[1], a[2]).applyMatrix4(x.hose.bone.matrixWorld);
+        const mid = __bvV.clone().lerp(__bvW, 0.5); mid.z -= 0.35;
+        const curve = new THREE.CatmullRomCurve3([__bvV.clone(), __bvV.clone().lerp(mid, 0.6).setZ(Math.min(__bvV.z, mid.z) - 0.05), mid, __bvW.clone()]);
+        x.hose.mesh.geometry.dispose(); x.hose.mesh.geometry = new THREE.TubeGeometry(curve, 14, 0.022, 6, false);
+      }
+    }
+  }
+  // (the fire a counter goes up in: thrown out and fading)
+  __BV.fires = __BV.fires.filter((f) => { const u = t - f.userData.t0, v = f.userData.v; if (u > 1.4) { scene.remove(f); f.geometry.dispose(); return false; } f.position.x += v[0] * 0.016; f.position.y += v[1] * 0.016; f.position.z += v[2] * 0.016; f.scale.setScalar(1 + u * 3); f.material.opacity = 0.9 * (1 - u / 1.4); return true; });
   // A VEHICLE'S PARTS, as they are now
   for (const e of W.entities) {
     const B = e.rule && e.rule.boss;

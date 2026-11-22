@@ -928,6 +928,8 @@ function __updateGearLines() {
   // a body with MODES (worlds/controllable/vanish.js): each mode's figure built up front as a loadout's are, the sync's
   // variant swap showing the one it is in. None ⇒ the body as it was, byte for byte
   const hasModes = (entities || []).some((e) => e && e.body && Array.isArray(e.body.modes) && e.body.modes.length > 1);
+  // (a boss whose looks wear figures of their own, boss/stand.js `figures`: each built up front, a phase's swap a warm body)
+  const bossFigs = (entities || []).some((e) => e && e.rule && e.rule.boss && Array.isArray(e.rule.boss.figures) && e.rule.boss.figures.length);
   // a body that sheathes its weapon out of combat (rules-platform.js `combat.drawn` / `combat.sheathed`): both figures built,
   // the rule's choice shown; and a body's POSE LAYERS (\`body.layers\`): none, not a byte
   const hasSheath = (entities || []).some((e) => e && e.rule && e.rule.combat && e.rule.combat.sheathed);
@@ -1652,7 +1654,8 @@ ${place ? 'let __castNow = null;   // (the body being made: its own set of the r
   // sibling body must not read as footing to the ground probe, nor an active one as a target).
   // An UNPILOTED pilotable suit runs its ambient rule at build time, so its loadout lives on
   // pilotRule — check both, or its weapons could never swap after a T take-over.
-  const lo = (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length ? e.rule.loadout : null)
+  const lo = ${bossFigs ? `(e.rule && e.rule.boss && Array.isArray(e.rule.boss.figures) && e.rule.boss.figures.length ? [{ figure: b.figure }, ...e.rule.boss.figures.map((f) => ({ figure: f }))] : null)
+    || ` : ''}(e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length ? e.rule.loadout : null)
     || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length ? e.pilotRule.loadout : null)${hasModes ? `
     || (Array.isArray(b.modes) && b.modes.length > 1 ? b.modes : null)` : ''}${hasSheath ? `
     || (e.rule && e.rule.combat && e.rule.combat.sheathed ? [{ figure: e.rule.combat.drawn }, { figure: e.rule.combat.sheathed }] : null)` : ''};
