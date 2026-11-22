@@ -52,9 +52,11 @@ export function buildLocalAreas(plan, arena, { K, seed = 1, local = {}, upTo = '
   const C = Array.from({ length: Math.max(32, Math.round(Lt / 2)) + 1 }, (_, i) => a.at(Math.min(Lt, (i * Lt) / Math.max(32, Math.round(Lt / 2)))));
   const nearestC = (x, y) => { let b = C[0], d = Infinity; for (const c of C) { const e = (c.x - x) ** 2 + (c.y - y) ** 2; if (e < d) { d = e; b = c; } } return { c: b, d: Math.sqrt(d) }; };
   const areas = [], faces = [], colliders = [], things = [], byZone = {};
+  // (the venue's buildings in the track's design language, where it says its pieces' paint: track-language.js)
+  const language = plan.language?.card ?? null;
   const build = (id, params, at, yaw, s) => {
     const B = TRACK_BLOCKS[id], b = buildBlock(B, { params, library: TRACK_BLOCKS, many: 0.5, seed: s, at, yaw: (yaw * 180) / Math.PI });
-    return { b, faces: paintPiece(b.faces, K) };
+    return { b, faces: paintPiece(b.faces, K, { language }) };
   };
   const facingTrack = (p) => { const { c } = nearestC(p[0], p[1]); return Math.atan2(c.y - p[1], c.x - p[0]) + Math.PI / 2; };
   const box = (b) => ({ min: b.box.lo.map(r3), max: b.box.hi.map(r3) });
@@ -171,7 +173,7 @@ export function buildLocalAreas(plan, arena, { K, seed = 1, local = {}, upTo = '
     // debris fence is, so the lower rows read from the track)
     if (bowl) along([front.a, front.b], 10, (p, h) => {
       const B = TRACK_BLOCKS['catch-fence'], b = buildBlock(B, { params: { len: 9.8, h: cls === 'kart' ? 2 : 4 }, library: TRACK_BLOCKS, many: 0.5, seed: s, at: [p[0], p[1], zAt(p)], yaw: (h * 180) / Math.PI });
-      dress.push(...paintPiece(b.faces.filter((f) => f.group !== 'tech:cable'), K), ...b.faces.filter((f) => f.group === 'tech:cable').map((f) => ({ corners: f.corners, fill: K.flat('tyre', 3), alpha: 0.3, group: 'stand:mesh' })));
+      dress.push(...paintPiece(b.faces.filter((f) => f.group !== 'tech:cable'), K, { language }), ...b.faces.filter((f) => f.group === 'tech:cable').map((f) => ({ corners: f.corners, fill: K.flat('tyre', 3), alpha: 0.3, group: 'stand:mesh' })));
     });
     if (z.use === 'paddock' && cls !== 'kart') {
       // the team trucks, nose to the pit building, a lamp along the row

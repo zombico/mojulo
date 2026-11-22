@@ -134,12 +134,12 @@ export const DOOR_PROBES = Object.freeze([
     now: 'type',
   },
   {
-    family: 'blocked', genre: 'co-op-kitchen', prompt: 'a co-op kitchen game: four friends cook the orders together',
-    concept: 'refused with what it waits on, nothing made in its place',
-    holds: (r) => madeNothing(r),
-    reference: null,
-    shows: 'refused',   // (the hillclimb column's word when it holds: the right answer is not a level)
-    now: 'type',
+    family: 'kitchen', genre: 'co-op-kitchen', prompt: 'a co-op kitchen game: four friends cook the orders together',
+    concept: 'a work shift with a seat for each cook',
+    holds: ({ steps }) => someLevel(steps, (m) => isObj(m.seats) && (m.seats.max ?? 0) >= 2 && mechanicsOf(m).includes('work')),
+    // (from a sentence it is said, not laid: one level of it alone is the quick door's, a kitchen of its own room)
+    reference: { quick: { goal: 'work', cooks: 4 } },
+    now: 'not',
   },
 ]);
 

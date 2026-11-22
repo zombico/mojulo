@@ -51,6 +51,15 @@ export const SWARD_CELL = 22, SWARD_SEAM = 0.12;
 /** The sward's medium areas: a long sward's share of its grass laid medium where it names none ('tall', or a share of
  *  short alone), and their field's cell (metres): stretches of their own along a trail, between its tall ones. */
 export const SWARD_MEDIUM = Object.freeze({ share: 0.45, cell: 11 });
+/** A town's LAWN (landRead `lawn`): where its grass goes bare (the bare field's threshold: a wild land's 0.27 leaves a
+ *  stretch in five or so bare; a kept lawn only its few worn places), its fields' dice EVEN (finalised: evenHash). */
+export const LAWN = Object.freeze({ bare: 0.12 });
+/** A TOWN'S FLORA in the form render (a geotown's, a metro's: worlds/world-scene.js): its lawns' blades drawn out to
+ *  `grass` × the view cone's reach (past it the field's impression, channels/form-grass.js), so a city's verges cost
+ *  what they show; its street trees lay no litter (a kept street is swept, channels/form-flora.js). */
+export const TOWN_FLORA = Object.freeze({ grass: 0.4, litter: false });
+/** A 32-bit hash's bits mixed through (murmur3's finaliser): every bit of the key moves every bit of the dice. */
+export const evenHash = (h0) => { let h = h0 >>> 0; h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b) >>> 0; h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35) >>> 0; h ^= h >>> 16; return h >>> 0; };
 /** How far past a claimed ground (era/isekai.js ALLOT) the grass grows back to its full (m): none inside the claim, short
  *  and thin at its edge, so no blade leans into it. */
 export const GRASS_OFF = 0.6;
@@ -113,7 +122,7 @@ function layerAtlas(LAYERS, surface) {
   return R;
 }
 
-export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass = false, relief = RELIEF_DEFAULT, reliefSeed = 3, moss = 0, sward = 'tall', drifts = [], grown = null, snow = null, tallGrass = null, stones = 1 } = {}) {
+export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass = false, relief = RELIEF_DEFAULT, reliefSeed = 3, moss = 0, sward = 'tall', drifts = [], grown = null, snow = null, lawn = null, tallGrass = null, stones = 1 } = {}) {
   // (no land to read: a payload with no faces of the land's groups)
   if (!P0.faces.some((f) => /^isekai:(sand|ground|soil|scree|cliff|rock|water)$/.test(f.group))) return null;
   // (the cards a land stands up, the grass's blades and the sky's clouds, are drawn by their cut-out textures: not read here
@@ -265,12 +274,16 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
     });
     // (and where grass grows at all: a field wandering at two scales, so the land has its bare stretches, the grass thinning
     // out toward them rather than stopping at a line)
-    const lat = (x, y, cell, tag) => { const u = x / cell, v = y / cell, i = Math.floor(u), j = Math.floor(v), e = (t) => t * t * (3 - 2 * t), a = e(u - i), b = e(v - j), h = (p, q) => strHash(`3|${tag}|${p},${q}`) / 4294967296;
+    // (`lawn`, a town's: its lattice's dice finalised, EVEN, so a field is as round one way as the other (the bare hash's
+    // last character barely moves its high bits, and its fields run in bars along y); its lawns bare only where `bare`
+    // says, a kept lawn's few worn places)
+    const LW = lawn ? { ...LAWN, ...lawn } : null, hashOf = LW ? (k) => evenHash(strHash(k)) : strHash;
+    const lat = (x, y, cell, tag) => { const u = x / cell, v = y / cell, i = Math.floor(u), j = Math.floor(v), e = (t) => t * t * (3 - 2 * t), a = e(u - i), b = e(v - j), h = (p, q) => hashOf(`3|${tag}|${p},${q}`) / 4294967296;
       return (h(i, j) * (1 - a) + h(i + 1, j) * a) * (1 - b) + (h(i, j + 1) * (1 - a) + h(i + 1, j + 1) * a) * b; };
-    const ease = (t) => t * t * (3 - 2 * t);
+    const ease = (t) => t * t * (3 - 2 * t), bareFrom = LW ? LW.bare : 0.27;
     // (the green ground before the field thins it: where a patch of tall grass may stand, form/tall-grass.js)
     const green0 = tallGrass ? Float32Array.from(cov) : null;
-    for (let j = 0; j < ny; j++) for (let ii = 0; ii < nx; ii++) { const x = x0 + ii * GCELL, y = y0 + j * GCELL, n = 0.65 * lat(x, y, 7, 'grass-at') + 0.35 * lat(x, y, 2.5, 'grass-at2'); cov[j * nx + ii] *= ease(Math.min(1, Math.max(0, (n - 0.27) / 0.2))); }
+    for (let j = 0; j < ny; j++) for (let ii = 0; ii < nx; ii++) { const x = x0 + ii * GCELL, y = y0 + j * GCELL, n = 0.65 * lat(x, y, 7, 'grass-at') + 0.35 * lat(x, y, 2.5, 'grass-at2'); cov[j * nx + ii] *= ease(Math.min(1, Math.max(0, (n - bareFrom) / 0.2))); }
     // (none where snow lies, whatever its depth: a winter's ground is the snow's, the grass under it; a snow line's land
     // keeps its grass below the line; era/snow.js snowMap)
     if (snow) {

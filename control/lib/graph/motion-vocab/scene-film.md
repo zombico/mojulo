@@ -58,7 +58,7 @@ forge_motion({ title: 'The key', export: 'storyboard',
   - `look`: `film` (default) or `anime`;
   - `style`: a playing style for every part without one;
   - `grain`: `twos` | `threes`, the scene on twos with the camera on ones, as anime is keyed;
-  - `grade`: a word (film, noir, bleach, vivid, pastel, cold, warm, night) or the dials;
+  - `grade`: a word (film, noir, bleach, vivid, pastel, cold, warm, night, tenebrae) or the dials;
   - `hero`: the spec every part without a body plays;
   - `contact`: `1` | `2` | `3` with `export: 'film'`: the film shot in mojulo at a few frames a shot, its CONTACT SHEET
     (each cut's start, middle and end on the set's own page, a row a shot, the thirds over each frame and the frame read

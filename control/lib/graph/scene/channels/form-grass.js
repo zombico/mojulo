@@ -343,7 +343,7 @@ ${ramp ? `      // (a blade in the host's ramp: unlit, the stop its height picks
       scene.onBeforeRender = function (r, sc, cam, rt) {
         if (prevBR) prevBR.call(this, r, sc, cam, rt);
         if (!cam.isPerspectiveCamera) return;
-        const pov = view === 'pov', RP = CONE.reach, cx = CONE.eye.x, cy = CONE.eye.y;
+        const pov = view === 'pov', RP = CONE.reach * (Gm.reach || 1), cx = CONE.eye.x, cy = CONE.eye.y;
         PV.uPovR.value = pov ? RP : 1e6;
         // (a tile draws all its rows inside the thinning, those kept out to the reach, none past it)
         for (const T of TILES) {${stand ? "\n          if (T.kind === 'stand') { T.g.instanceCount = T.n; T.m.visible = T.n > 0 && CONE.sees(T.s); continue; }" : ''}

@@ -33,16 +33,33 @@ beforeAll(async () => {
 }, 900000);
 afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
 
-// the speaker's face, sampled over a while: how far its weights travel from frame to frame
-const travel = (page, who, ms) => page.evaluate(async (w, ms) => {
+// the speaker's face, sampled from the moment its line starts (waited for in the page, so no round trip is lost on a
+// slow runner), over a while and over enough frames: how far its weights travel from frame to frame (software GL on a
+// loaded machine draws a frame or two a second, and a short line's face would come and go unseen between them)
+const travel = (page, who, ms, frames = 6) => page.evaluate(async (w, ms, frames) => {
+  const next = () => new Promise((r) => requestAnimationFrame(r));
+  const w0 = performance.now();
+  while (!(window.__mojScenes.view().line && window.__mojScenes.view().line.who === w) && performance.now() - w0 < 20000) await next();
   const meshOf = () => { let f = null; window.__mojCtrl.bodies[w].traverse((x) => { if (!f && x.morphTargetInfluences && x.morphTargetInfluences.length) f = x; }); return f; };
   const m = meshOf(), seen = [];
   const t0 = performance.now();
-  while (performance.now() - t0 < ms) { seen.push(Array.from(m.morphTargetInfluences)); await new Promise((r) => requestAnimationFrame(r)); }
+  while ((performance.now() - t0 < ms || seen.length < frames) && performance.now() - t0 < 4 * ms) { seen.push(Array.from(m.morphTargetInfluences)); await next(); }
   let most = 0;
   for (let i = 1; i < seen.length; i++) for (let j = 0; j < seen[i].length; j++) most = Math.max(most, Math.abs(seen[i][j] - seen[0][j]));
   return { frames: seen.length, most };
-}, who, ms);
+}, who, ms, frames);
+
+// on to a speaker's line, a press at a time: a press fills a line still typing, and on a full one goes to the next;
+// each press waited out (its line changed, or filled), so a line already full when its sample ended is never skipped
+const advanceTo = async (page, who) => {
+  for (let k = 0; k < 8; k++) {
+    const v = await page.evaluate(() => { const l = window.__mojScenes.view().line; return l ? { who: l.who, full: !!l.full } : null; });
+    if (v && v.who === who) return;
+    await page.keyboard.press('Space');
+    await page.waitForFunction((p) => { const l = window.__mojScenes.view().line; return !l || l.who !== p.who || !!l.full !== p.full; }, { timeout: 15000 }, v || { who: null, full: false });
+  }
+  throw new Error(`never reached ${who}'s line`);
+};
 
 describe('talking faces on the page', () => {
   it('built: each line a talking head says is a face take, its track on the speaker\'s face', () => {
@@ -67,20 +84,23 @@ describe('talking faces on the page', () => {
       expect(mayor.most).toBeGreaterThan(0.1);
       // (TALK_SHOT=<png>: the mayor mid-line, his face in the box)
       if (process.env.TALK_SHOT) await page.screenshot({ path: process.env.TALK_SHOT });   // (the mayor)
-      await page.keyboard.press('Space');
-      await page.waitForFunction(() => window.__mojScenes.view().line && window.__mojScenes.view().line.full, { timeout: 10000 });
-      await page.keyboard.press('Space');
-      await page.waitForFunction(() => window.__mojScenes.view().line && window.__mojScenes.view().line.who === 'hero', { timeout: 10000 });
+      await advanceTo(page, 'hero');
       const hero = await travel(page, 'hero', 2500);
+      expect(hero.frames).toBeGreaterThan(2);
       expect(hero.most).toBeGreaterThan(0.1);
       // the guard's jaw: open and shut on the words (the entity's own talkJaw, degrees)
-      await page.keyboard.press('Space');
-      await page.waitForFunction(() => window.__mojScenes.view().line && window.__mojScenes.view().line.full, { timeout: 10000 });
-      await page.keyboard.press('Space');
-      await page.waitForFunction(() => window.__mojScenes.view().line && window.__mojScenes.view().line.who === 'guard', { timeout: 10000 });
+      await advanceTo(page, 'guard');
+      // (sampled in the page over the whole line: from its start until it is said in full and a beat after, at most 15 s;
+      // the jaw opens a couple of seconds in, later on a loaded machine, so a fixed window can end before it does)
       const jaw = await page.evaluate(async () => {
-        const seen = [], t0 = performance.now();
-        while (performance.now() - t0 < 2500) { seen.push(window.__mojCtrl.world.byId.guard.talkJaw || 0); await new Promise((r) => requestAnimationFrame(r)); }
+        const next = () => new Promise((r) => requestAnimationFrame(r)), w0 = performance.now(), line = () => window.__mojScenes.view().line;
+        while (!(line() && line().who === 'guard') && performance.now() - w0 < 20000) await next();
+        const seen = [], t0 = performance.now(); let full = null;
+        while (performance.now() - t0 < 15000 && line() && line().who === 'guard' && (full === null || performance.now() - full < 1500)) {
+          seen.push(window.__mojCtrl.world.byId.guard.talkJaw || 0);
+          if (full === null && line().full) full = performance.now();
+          await next();
+        }
         return seen;
       });
       expect(Math.max(...jaw)).toBeGreaterThan(2);

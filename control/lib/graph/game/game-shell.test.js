@@ -200,10 +200,11 @@ describe('emitGameShell with music', () => {
 describe('outcome stingers', () => {
   const STINGERS = { victory: '/api/sketches/sk_win/beats.wav', defeat: '/api/sketches/sk_lose/beats.wav' };
 
-  it('validate in either shell; the play shell takes the stingers and no other music', () => {
+  it('validate in either shell; the play shell takes the stingers and its screens\' score, no battle music', () => {
     expect(validateGameManifest({ ...GAME, music: { victory: 'sk_win', defeat: 'sk_lose' } }).ok).toBe(true);
     expect(validateGameManifest({ ...GAME, shell: 'play', music: { victory: 'sk_win' } }).ok).toBe(true);
-    expect(validateGameManifest({ ...GAME, shell: 'play', music: { victory: 'sk_win', menu: 'sk_m' } }).errors.join()).toMatch(/shell 'play' has no music/);
+    expect(validateGameManifest({ ...GAME, shell: 'play', music: { victory: 'sk_win', menu: 'sk_m' } }).ok).toBe(true);
+    expect(validateGameManifest({ ...GAME, shell: 'play', music: { victory: 'sk_win', battle: ['sk_b'] } }).errors.join()).toMatch(/shell 'play' has no music/);
     expect(validateGameManifest({ ...GAME, music: { victory: 3 } }).errors.join()).toMatch(/music.victory must be a beats sketch ref.*mood: 'victory'/);
   });
 
@@ -348,5 +349,31 @@ describe('emitGameShell style tokens', () => {
     expect(style).not.toContain('body{display:none');
     expect(style).toContain('--ink:#cfe3ff');
     expect(evil).toContain('const THEME = null;');
+  });
+});
+
+// THE ARENA SHELL'S START SCREEN STAGED (front-stage-page.js): a menu.stage an export baked plates for lays the start
+// screen out by its front card; without one, or without the baked plates, the page carries none of it
+describe('the arena start screen staged', () => {
+  const STAGED = normalizeGameManifest({ ...GAME, menu: { ...MENU_DECL, stage: { composition: 'champion', subjects: ['sk_a'] } } });
+  const BAKED = { plates: [{ src: 'assets/front/subject-1.png', width: 400, height: 900 }] };
+  it('a stage is checked like the front\'s, its subjects sketch refs', () => {
+    expect(validateGameManifest({ ...GAME, menu: { ...MENU_DECL, stage: { composition: 'champion', subjects: ['sk_a'] } } }).errors).toEqual([]);
+    expect(validateGameManifest({ ...GAME, menu: { ...MENU_DECL, stage: { composition: 'champion', subjects: ['hero'] } } }).errors.join(' ')).toMatch(/sketch refs on the arena shell/);
+    expect(validateGameManifest({ ...GAME, menu: { ...MENU_DECL, stage: { composition: 'nope' } } }).errors.join(' ')).toMatch(/menu\.stage\.composition is a front card/);
+  });
+  it('a baked stage draws behind the start screen alone, its words moved into the card\'s menu box', () => {
+    const html = emitGameShell(STAGED, LEVELS, MENU_RESOLVED, null, null, { frontStage: BAKED });
+    expect(html).toContain('const __mojStage = (');
+    expect(html).toContain("STAGE.show(s === 'start')");
+    expect(html).toContain("s.classList.add('st-start')");
+    expect(html).toContain('#main .screen.st-start{position:fixed;');
+    expect(html).toContain('"src":"assets/front/subject-1.png"');
+  });
+  it('no stage, or no baked plates: the page is as it was, byte for byte', () => {
+    const plain = emitGameShell(GAME_MENU, LEVELS, MENU_RESOLVED);
+    expect(emitGameShell(GAME_MENU, LEVELS, MENU_RESOLVED, null, null, { frontStage: BAKED })).toBe(plain);
+    const unbaked = emitGameShell(STAGED, LEVELS, MENU_RESOLVED);
+    for (const s of ['__mojStage', 'st-start', '#stage']) expect(unbaked).not.toContain(s);
   });
 });

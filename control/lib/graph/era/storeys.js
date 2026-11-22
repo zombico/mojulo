@@ -481,6 +481,8 @@ export function assembleStoreys(manifest, ctx, plan, assemble) {
       ...(manifest._ground ? { _ground: { ...manifest._ground, lift: st.z0 } } : {}),
       ...(manifest.doors ? { doors: manifest.doors.filter((d) => mine.has(d.room)) } : {}),
       ...(manifest.items ? { items: manifest.items.filter((it) => it.room === undefined ? s === 0 : mine.has(it.room)) } : {}),
+      // (a room's light designed, `plot` (stage.js): each storey its own rooms')
+      ...(manifest.plot ? { plot: Object.fromEntries(Object.entries(manifest.plot).filter(([id]) => mine.has(id))) } : {}),
       ...(s > 0 ? { camera: undefined } : {}),
       // (a composed building's rooms keep the roles the whole building gave them, each focus in its storey's own frame)
       ...(plan.compose ? { _composeRoles: plan.compose.roles.filter((r) => mine.has(r.room)).map((r) => ({ ...r, focus: [r.focus[0], r.focus[1], r5(r.focus[2] - st.z0)] })) } : {}),
@@ -490,6 +492,7 @@ export function assembleStoreys(manifest, ctx, plan, assemble) {
     if (sub.doors && !sub.doors.length) delete sub.doors;
     if (sub.items && !sub.items.length) delete sub.items;
     if (sub.ways && !sub.ways.length) delete sub.ways;
+    if (sub.plot && !Object.keys(sub.plot).length) delete sub.plot;
     return { s, z: st.z0, P: assemble(sub, ctx) };
   });
   const tag = (s) => (id) => (s === 0 || id == null ? id : `${id}@${s}`);

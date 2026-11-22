@@ -5,7 +5,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { formLandScript, GROUND_PARALLAX, STONE_LADDER, FAR_LAND } from './form-land.js';
+import { inflateSync } from 'node:zlib';
+import { formLandScript, GROUND_PARALLAX, STONE_LADDER, FAR_LAND, packLand, LAND_PACK } from './form-land.js';
 import { FAR_GROUPS } from '../../form/land-read.js';
 
 const land = { light: { sun: [1, 1, 1], ambient: [0.2, 0.2, 0.2] } };
@@ -134,5 +135,25 @@ describe('a land it rains on', () => {
     for (const page of [rain, pour]) { expect(page).toContain('RAIN on the land'); expect(page).toContain('m.envMap = skyEnv; m.envMapIntensity = 0.6'); }
     expect(rain).toContain('float rw = 0.8 *');
     expect(pour).toContain('float rw = 1.0 *');
+  });
+});
+
+describe('the land packed for its page', () => {
+  // (a city's grass map: half-metre cells over a metro, mostly the same few bytes)
+  const big = Buffer.alloc(LAND_PACK.from, 0); big.fill(255, 1000, 4000);
+  const read = { ...land, pos: Buffer.alloc(64).toString('base64'), grass: { cell: 0.5, size: [2, 2], px: big.toString('base64') } };
+  it('a large array rides deflated, the same bytes inflated; a small one as it was; the payload held is untouched', () => {
+    const P = packLand(read);
+    expect(P.packed).toBe(1);
+    expect(P.grass.px.startsWith('z:')).toBe(true);
+    expect(P.grass.px.length).toBeLessThan(read.grass.px.length / 20);
+    expect(inflateSync(Buffer.from(P.grass.px.slice(2), 'base64')).equals(big)).toBe(true);
+    expect(P.pos).toBe(read.pos);
+    expect(read.grass.px.startsWith('z:')).toBe(false);
+    expect(packLand(land)).toBe(land);
+  });
+  it('the page inflates what was packed before it reads it, and carries nothing for a land that was not', () => {
+    expect(formLandScript(read)).toContain("DecompressionStream('deflate')");
+    expect(formLandScript(land)).not.toContain('DecompressionStream');
   });
 });

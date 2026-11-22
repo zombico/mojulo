@@ -49,7 +49,8 @@ export const copy = (o) => JSON.parse(JSON.stringify(o, (k, v) => (v === Infinit
  *   hit      hitstop { base, perMs, max } or null (frames, both bodies), stun ({ model: 'body' } the flinch the blow
  *            causes; { model: 'rule', base s, decay, min s } combat-hit's combo rule; { model: 'none' }), force
  *            (momentum { gain, lift deg } | boop { push, bounce, hop } | ricochet { restitution, floor }), mercy (frames
- *            a hit body cannot be hit again), alert (frames a free body that saw a hit guards the next)
+ *            a hit body cannot be hit again), alert (frames a free body that saw a hit guards the next); flinch (frames the
+ *            HERO is held in its hurt after a blow, its `jumps.hurt` clip playing: a run-and-gun hero's)
  *   wall     stop { stagger m/s } | bonk { above, rebound, hop } | bounce { e, cap, soft (m/s: in the air, a slower
  *            contact is a plain wall, so a body can come to rest on it and cling) }
  *   air      the air jump, or null: jumps (in the air, reset on landing and on a wall), mult (× the jump's height)
@@ -391,15 +392,31 @@ export const POLES = Object.freeze({
   'galaxy-boy': { demo: ['move', 'jump', 'wall', 'dash', 'buster', 'shoot', 'switch'], name: 'Galaxy Boy', after: 'Mega Man X', base: 'platformer', view: { camera: 'side' }, stage: 'highway',
     says: 'the run-and-gun: the buster\'s tap shot (three out at most) and its charge, held through anything, the dash and the dash jump that keeps its speed, the wall slide and the wall kick, the air dash; no stomp, no double jump',
     set: {
-      ground: { walk: 1.6, run: 5.5, sprint: 5.5, accel: 120, decel: 120 }, jump: { height: 1.6, cut: 0.35, coyote: 4 }, air: { jumps: 0, mult: 0.9 },
-      dash: { kind: 'dash', frames: 28, speed: 10, iframes: null, air: { count: 1, speed: 10, frames: 20 }, cancel: false, hold: { min: 6 }, jump: true, wall: true },
+      // (the jump 2.24 m at its apex, 1.4 times the 1.6 the platformer's mascot clears: the operator's, a run-and-gun hero
+      // clears his own height and more; the side map's gaps and ledges are laid by it, side-map/layout.js reach)
+      ground: { walk: 1.6, run: 5.5, sprint: 5.5, accel: 120, decel: 120 }, jump: { height: 2.24, cut: 0.35, coyote: 4 }, air: { jumps: 0, mult: 0.9 },
+      // (its ground dash raises dust off the feet: round-look.js DASH_DUST)
+      dash: { kind: 'dash', frames: 28, speed: 10, iframes: null, air: { count: 1, speed: 10, frames: 20 }, cancel: false, hold: { min: 6 }, jump: true, wall: true, dust: true },
       land: { model: 'slide', slide: 3, step: { cooldown: 12 } }, pound: null,
       charge: { kind: 'shot', levels: [30, 90], show: 14, stance: false, air: true, tap: { speed: 15, size: 0.08, life: 36, max: 3, force: { push: 1 }, tags: ['light', 'shot'] }, at: [
         { speed: 15, size: 0.18, life: 48, force: { push: 4 }, tags: ['light', 'shot'] },
         { speed: 17, size: 0.42, life: 60, force: { push: 7, hop: 0.7 }, tags: ['heavy', 'shot'] },
       ] },
       life: { hp: 16, oneHit: false, ko: 90 }, lane: { x: 0, face: false },
+      // (the pad's faces as the run-and-gun's: the left face fires (beside the right trigger), the top face dashes (beside
+      // the left trigger); the bottom face jumps as every pad's does)
+      pad: { fire: ['rt', 'west'], boost: ['lt', 'north'] },
+      // (its jump the POISED one, hero-jump.js jumpPoised: one pose held the whole flight, the knee away from the buster
+      // drawn up so he is balanced to fire, the legs reaching down only before the floor; never the mascot's tuck)
+      // (and its dash its own, hero-jump.js dashPoised: leaning in, the off knee forward and the gun side's foot back, the
+      // off arm's elbow up, the buster tipped up)
+      // (and its FLINCH, hero-jump.js flinch: a blow taken snaps him back, arched, the arms flung up, for `hit.flinch`
+      // frames, the stick and the jump not his until it passes: rules-platform.js `flinch`)
+      jumps: { jump_up: 'jumpPoised', jump_fwd: 'jumpPoised', dash: 'dashPoised', hurt: 'flinch' }, hit: { flinch: 20 },
     },
+    // (its heroes, gameworld/herobots.js: Galaxy Boy's buster the default; Zero Boy's SABER in its place, his string on the
+    // fire press in place, saber.js)
+    variants: { buster: {}, saber: { charge: null, blade: { kit: 'saber' } } },
     needs: ['ladders', 'a boss\'s weapon got (a weapon a boss)', 'sub-tanks and heart tanks', 'armor parts (the legs earn the air dash)'] },
   'commuter-rail-runner': { demo: ['lanes', 'jump', 'dodge', 'dash'], name: 'Commuter Rail Runner', after: 'the infinite runner', base: 'pinball', view: { camera: 'third-person', D: 5.5, h: 2.8, pitch: 0.22 }, stage: 'rail',
     says: 'the endless run, pinball\'s body: the track comes at you faster and faster; on the rails a flick switches lanes, a jump clears a barrier, a roll or a boost goes under an overhead, a train is dodged, coins gathered, a hit stumbles and a second ends it; on the slope the ball steers free between rocks and pillars, one hit and the run is over',

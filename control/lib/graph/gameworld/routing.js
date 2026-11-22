@@ -63,8 +63,11 @@ export function refusalCards(message) {
   const owners = chaptersOfPath(p);
   if (owners.length !== 1) return [];
   const cards = owners[0].cards.filter((c) => !c.includes('*'));
-  // a chapter of several cards: the one named for the page refused, when there is one
-  const own = cards.filter((c) => c === `gameworld-${first.replace(/[A-Z]/g, (x) => `-${x.toLowerCase()}`)}`);
+  // a chapter of several cards: the one named for the page refused, when there is one (the path's first word, else any
+  // word of it: characters/hero/actions is the actions page)
+  const kebab = (w) => `gameworld-${w.replace(/[A-Z]/g, (x) => `-${x.toLowerCase()}`)}`, words = p.split('/').filter(Boolean);
+  const named = cards.filter((c) => c === kebab(first));
+  const own = named.length ? named : cards.filter((c) => words.some((w) => c === kebab(w)));
   return own.length ? own : cards;
 }
 

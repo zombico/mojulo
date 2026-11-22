@@ -28,6 +28,7 @@
  * its tightest bend wider than the road's own. (A taut string, the shortest line, hugs the inside of a long bend
  * tighter than the road; least total bending does too.) Deterministic: fixed passes in index order.
  */
+import { itemRows } from './kart-items.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const TAU = 2 * Math.PI;
@@ -111,6 +112,9 @@ export function trackContract(plan, { leg = 20, slots = 8 } = {}) {
       for (let k = 0; k < 8 && !away(s); k++) s += X.outer;
       if (s > s0 + gap * (j + 1) - gap / 3) continue;          // pushed onto the next: that one stands for both
     }
+    // (none between a split's mouths, street-features.js: the way round the corner or the alley across it, either is the lap)
+    const sp = plan.street?.split;
+    if (sp && s > sp.s0 - X.outer && s < sp.s1 + X.outer) continue;
     checkpoints.push({ at: pt(s), radius: r3(X.road + 1) });
   }
   // the grid: two abreast behind the start line, the pole on the left of the first row
@@ -149,5 +153,7 @@ export function trackContract(plan, { leg = 20, slots = 8 } = {}) {
     ramps: course.ramps.map((r) => ({ ...r, ...(r.lip ? { lip: { ...r.lip, at: pt(r.lip.s) } } : {}) })),
     crossings: plan.crossings.map((c) => ({ s: [c.s1, c.s2], at: c.at, dz: c.dz })),
     ...(duel ? { duel } : {}),
+    // (a race's item boxes, kart-items.js: their rows across the way, where a game or a rival reads them)
+    ...(plan.items ? { items: itemRows(plan, plan.items) } : {}),
   };
 }

@@ -80,9 +80,15 @@ export function synthesizeLevel(manifest) {
   const { player, spawn } = deriveLevelPlayer(manifest);
   let composed;
   try {
-    composed = composeMechanics(game.mechanics, { player, spawn, fall: game.fall });
+    // (a level with seats: the bodies seats 2 … take, so a mechanic a seat works, the work shift's, gives each its own hands)
+    const seats = Array.isArray(manifest.seats?.bodies) && manifest.seats.bodies.length ? manifest.seats.bodies : null;
+    composed = composeMechanics(game.mechanics, { player, spawn, fall: game.fall, ...(seats ? { seats } : {}) });
   } catch (err) {
     throw new Error(`game mechanics are invalid:\n${err.message}`);
   }
+  // (a level that keeps its own health and carries the Halo Meter, worlds/controllable/style.js: the transformation mends
+  // it, the bus's `halo:heal` up to the health it starts at; any other level, nothing)
+  const H = composed.events.vars || {}, halo = manifest.styleMeter && manifest.styleMeter.halo;
+  if (halo && typeof H.hp === 'number' && H.hp > 0) (composed.events.reactions || (composed.events.reactions = [])).push({ on: 'halo:heal', do: 'inc', var: 'hp', by: 'event.by', max: H.hp });
   return { game: sceneContract(chapterContract(mergeContract(game, composed), play), play), mechEvents: composed.events };
 }

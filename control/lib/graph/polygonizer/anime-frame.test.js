@@ -25,6 +25,15 @@ describe('the anime frame', () => {
     expect(through1 / through0).toBeGreaterThan(1.2);
     expect(across1).toBe(across0);
   });
+  it('a hand stood off its wrist (`wristLen`): the wrist\'s first ring at the joint, the palm and the digits further out by that share of its length; absent, as it was', () => {
+    const base = { wrist: [0.3, 0, 0.8], elbow: [0.3, 0, 1.05], len: 0.09 };
+    const H0 = heroHand(base), H1 = heroHand({ ...base, wristLen: 0.3 }), H00 = heroHand({ ...base, wristLen: 0 });
+    expect(H00).toEqual(H0);
+    const st = (H, i) => Object.values(H.segments[0].stations[i].points)[0];
+    expect(st(H1, 0)).toEqual(st(H0, 0));
+    // (down the arm: z falls along the hand; the second ring 0.3 of the palm's length further)
+    expect(st(H0, 1)[2] - st(H1, 1)[2]).toBeCloseTo(0.3 * 0.09, 4);
+  });
   it('rounds the shoe and gives it a heel ring; laws 21 keeps the box', () => {
     expect(A21.parts.footR.slots.length).toBe(10);
     expect(A20.parts.footR.slots.length).toBe(6);

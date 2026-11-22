@@ -95,6 +95,9 @@ const PILOT = {
     { id: 'spectateNext', label: 'watch next fighter', group: 'camera', in: ['spectate'], bind: { keyboard: ['Tab'], gamepad: ['rb', 'right'] } },
     { id: 'spectateLock', label: 'lock / free camera', group: 'camera', in: ['spectate'], bind: { keyboard: ['KeyF'], gamepad: ['south'] } },
     { id: 'pause', label: 'pause', group: 'system', in: [...MOVE, 'spectate'], bind: { keyboard: ['Escape'], gamepad: ['start'] } },
+    // a race's item (roads/kart-items.js: what a box handed the kart), used in a vehicle: F (the thrusters' key on foot, free
+    // in a vehicle, whose Q and E strafe), right Shift, the pad's left face
+    { id: 'useItem', label: 'use item', group: 'combat', in: ['vehicle'], bind: { keyboard: ['KeyF', 'ShiftRight'], gamepad: ['west'] } },
     // use / talk / open, live only in reach: E strafes anywhere else, and the runtime keeps it from strafing in reach
     { id: 'interact', label: 'use / talk', group: 'world', in: ['reach'], bind: { keyboard: ['KeyE'], gamepad: ['west'], xr: ['left.squeeze'] } },
   ],
@@ -110,7 +113,8 @@ const PILOT = {
       { ids: ['strafeRight', 'strafeLeft'], label: 'strafe', unless: 'moveset' },
       { ids: ['jump', 'kneel'], label: 'ascend / descend', when: 'space' },
       { ids: ['jump'], label: 'jump', unless: 'space' },
-      { ids: ['boost'], label: 'boost thrusters', unless: ['walker', 'dash', 'sprint'] },
+      // (the thrusters are a body's on foot or in space, never a vehicle's: in a kart its F is the item's)
+      { ids: ['boost'], label: 'boost thrusters', unless: ['walker', 'dash', 'sprint', 'vehicle'] },
       { ids: ['boost'], label: 'dash', when: 'dash' },
       { ids: ['boost'], label: 'run (hold)', when: 'sprint' },
       { ids: ['walk'], label: 'walk (hold)', when: 'walker', unless: 'space' },
@@ -131,6 +135,7 @@ const PILOT = {
       { ids: ['aiToggle'], label: 'AI attack on / off', when: 'ai' },
       { ids: ['reverseView'], label: 'reverse view', when: 'follow' },
       { ids: ['interact'], label: 'use / talk', when: 'interact' },
+      { ids: ['useItem'], label: 'use item', when: 'items' },
     ],
     gamepad: [
       { quad: MOVE4, prefix: '🎮 ', label: { _: 'move', space: 'thrust & strafe', vehicle: 'steer', walker: 'move: tilt to walk, push to run' } },
@@ -149,6 +154,7 @@ const PILOT = {
       { ids: ['lock'], label: 'target lock', when: 'lock' },
       { ids: ['transform'], label: 'transform', when: 'forms' },
       { ids: ['interact'], label: 'use / talk', when: 'interact' },
+      { ids: ['useItem'], label: 'use item', when: 'items' },
       { ids: ['reverseView'], label: 'reverse view', when: 'follow' },
       { ids: ['pause'], label: 'pause' },
     ],

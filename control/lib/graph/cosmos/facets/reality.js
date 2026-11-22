@@ -10,6 +10,7 @@
  * `lowers` names the module that makes a value. See ../cosmos.js for how a cosmos cube reads a facet.
  */
 import { ERAS, ERA_IDS, eraCastConventions } from '../../era/eras.js';
+import { FILLS } from '../../gameworld/side-map/fills.js';
 
 function castStatus(id) {
   const planned = eraCastConventions(id).filter((c) => c.status === 'planned').map((c) => c.id);
@@ -123,6 +124,16 @@ export const REALITY = Object.freeze({
     // weathered, whether anyone still sweeps, and how far a kit's own story of decay went. A stage recipe's word: no key
     // of a designed game's level carries it, nor a place's wetness (era/wetness.js) or a room's own daylight, the join
     // the board names, priced as one package
+    // absent 11-17 (the traditional side-scroller map): what a side map's closed parts are painted as, by place: the look
+    // the cube owns (a level form's look is reality's, through its geocube). Named and read; the painting is the gap
+    fill: {
+      values: {
+        // (most worlds paint no side map: none, built, so the sweep's other worlds are never held up by a fill)
+        none: { status: 'built' },
+        ...Object.fromEntries(Object.entries(FILLS).map(([id, F]) => [id, { status: 'built', since: '2026-11-18', requires: ['space.levelForm=side-map'], lowers: 'lib/graph/gameworld/side-map/paint.js',
+          note: `a side map's closed parts painted as ${F.says} (docs/side-map-principles.md): named and read (side-map/zones.js), painted on the map's build (side-map/paint.js: the fill, its slices' motifs, a big mass's middle, the edges and breaks, the threads)` }])),
+      },
+    },
     condition: {
       source: {
         module: 'lib/graph/era/condition.js', table: 'CONDITIONS', status: 'partial', effort: 'M', pkg: 'condition',

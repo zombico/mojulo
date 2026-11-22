@@ -267,6 +267,13 @@ export const RECIPES = [
   { id: 'sparrow', text: 'チュンチュン', whistle: [0, 1, 2, 3].map((k) => call(k * 0.1, 4300 - 80 * k, 2700, 0.05, 0.5 - 0.05 * (k % 2))) },
   { id: 'bird-trill', text: 'ピピピッ', whistle: [0, 1, 2, 3, 4, 5].map((k) => call(k * 0.055, 3300, 3900, 0.035, 0.45)) },
   { id: 'bird-warble', text: 'ピーヨ', whistle: [call(0, 3000, 3400, 0.35, 0.45, { vibrato: { rate: 28, depth: 120 } }), call(0.36, 3300, 2400, 0.12, 0.4)] },
+  // round 11 (trials): a run and gun's sounds (gameworld/sound-sheet.js RUN_SOUNDS), each for the row it would voice
+  ...[
+    // (the buster's shots are energy, synthesized: sfx-shelf/sets/buster.js; a voice's ピュン read as a voice, 2026-11-21)
+    ['shoot', 'foe-pon', 'ポン'], ['hurt', 'zap-biri', 'ビリッ'], ['wreck-explosion', 'boom-dokaan', 'ドカーン'], ['big-explosion', 'big-boom-dokkaan', 'ドッカーン'],
+    ['metal-creak', 'strain-gugu', 'ググッ'], ['throw', 'throw-bun', 'ブン'], ['stone-impact', 'rock-gotsu', 'ゴトッ'], ['stone-break', 'crumble-gara', 'ガラガラ'],
+    ['portcullis', 'shutter-gashaan', 'ガシャーン'], ['stomp', 'stomp-poko', 'ポコッ'],
+  ].map(([row, build, text]) => ({ id: `r11-${build}`, build, text, trial: true, row })),
 ].map((r) => (r.build ? { voice: 'jm_kumo', speed: 1, chain: 'body', ...r } : r));
 
 // a chain that keeps the voiced hum traces its voicing; the rest are air (trace.js `voicing`)

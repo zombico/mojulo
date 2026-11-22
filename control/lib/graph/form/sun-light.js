@@ -10,8 +10,9 @@
  *                lift     how far off a corner's face its shadow test starts (m), so a wall does not shade itself
  *   skyAt(n, light)       the light a face of normal `n` takes without the sun: the sky on a face turned up, the
  *                         ground's on one turned down, their mean on a wall (the cast rig's hemisphere, the same law)
- *   baseOf(hex, light)    the base a paint's colour asks for: that colour, shown square to the sun under the whole
- *                         sky (the land's reference, era/cube-light.js), over the light there. → { base (linear),
+ *   baseOf(hex, light, reference?, ground?)   the base a paint's colour asks for: that colour, shown on a face turned
+ *                         `reference` (a world whose largest surfaces lie flat: its ground), else square to
+ *                         the sun under the whole sky (the land's reference, era/cube-light.js), over the light there. → { base (linear),
  *                         unreached } (a channel past 1 held at 1: the colour is out of this light's reach)
  *   sunLitFaces(faces, light, { shadow?, ground?, keep? }) → { faces, unreached: [group] }
  *     faces     each with `corners`, `normal` and a `fill` (its paint, as it shows lit: a value never darkened by its turn
@@ -24,6 +25,7 @@
  *     ground    the ground's base (linear) under the building; absent, SUN_LIGHT.ground of the light it stands in
  *     lift      how far off its face a corner's shadow test starts (SUN_LIGHT.lift; a building dressed in thin
  *               layers over its walls, its courses, surrounds and panels, asks for more, so its own dress does not shade it)
+ *     a face may carry `cornerNormals` (one a corner: drawn smooth), each corner lit by its own
  *     → each face its `fill` and `cornerFills` the base, `cornerLight` one linear [r,g,b] a corner, and `sunShare` one
  *       a corner: the share of that light the sun gives (0 in a baked shadow), by which a live shadow darkens it
  *       (scene/live-light.js)
@@ -49,25 +51,31 @@ export function skyAt(n, light, ground = null) {
   return [0, 1, 2].map((k) => G[k] + (light.ambient[k] - G[k]) * t);
 }
 
-export function baseOf(hex, light) {
-  const want = displayToLinear(hex).map((v, k) => v / Math.max(1e-6, light.ambient[k] + light.sun[k]));
+export function baseOf(hex, light, reference = null, ground = null) {
+  // (a `reference` normal: the colour shown on a face turned so, under the sky it sees and the sun by its cosine, in the
+  // place of a face square to the sun under the whole sky)
+  const den = reference ? (() => { const s = skyAt(reference, light, ground), c = Math.max(0, dot(reference, light.dir)); return s.map((v, k) => v + light.sun[k] * c); })() : light.ambient.map((v, k) => v + light.sun[k]);
+  const want = displayToLinear(hex).map((v, k) => v / Math.max(1e-6, den[k]));
   return { base: want.map((v) => Math.min(1, v)), unreached: Math.max(...want) > 1.005 };
 }
 
-export function sunLitFaces(faces, light, { shadow = null, ground = null, keep = null, lift = SUN_LIGHT.lift } = {}) {
+export function sunLitFaces(faces, light, { shadow = null, ground = null, keep = null, lift = SUN_LIGHT.lift, reference = null } = {}) {
   const bases = new Map(), unreached = new Set();
   const based = (f) => {
     if (bases.has(f.fill)) return bases.get(f.fill);
-    const B = baseOf(f.fill, light), out = { hex: hexOf(B.base), unreached: B.unreached };
+    const B = baseOf(f.fill, light, reference, ground), out = { hex: hexOf(B.base), unreached: B.unreached };
     bases.set(f.fill, out);
     return out;
   };
   const out = faces.map((f) => {
     if (!f || !Array.isArray(f.corners) || !Array.isArray(f.normal) || typeof f.fill !== 'string' || !/^#[0-9a-f]{6}$/i.test(f.fill) || (keep && keep.has(f.group))) return f;
-    const n = f.normal, B = based(f), sky = skyAt(n, light, ground), cos = Math.max(0, dot(n, light.dir));
+    // (a face drawn smooth carries a normal a corner, `cornerNormals`: each corner lit by its own; one normal a face unsaid)
+    const n = f.normal, B = based(f), CN = Array.isArray(f.cornerNormals) && f.cornerNormals.length === f.corners.length ? f.cornerNormals : null;
+    const sky0 = skyAt(n, light, ground), cos0 = Math.max(0, dot(n, light.dir));
     if (B.unreached) unreached.add(f.group ?? '');
     const cornerLight = [], sunShare = [];
-    for (const c of f.corners) {
+    for (let i = 0; i < f.corners.length; i++) {
+      const c = f.corners[i], m = CN ? CN[i] : n, sky = CN ? skyAt(m, light, ground) : sky0, cos = CN ? Math.max(0, dot(m, light.dir)) : cos0;
       const s = cos > 0 ? (shadow ? shadow([c[0] + n[0] * lift, c[1] + n[1] * lift, c[2] + n[2] * lift], n) : 1) : 0;
       const sun = light.sun.map((v) => v * cos * s), all = sky.map((v, k) => v + sun[k]), y = luminance(all);
       cornerLight.push(all.map(r5));

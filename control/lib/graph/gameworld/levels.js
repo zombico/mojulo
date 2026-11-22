@@ -26,6 +26,7 @@
  * Pure (the stage is assembled to read its ends; nothing is stored).
  */
 import { facilityBuilding } from '../era/facilities.js';
+import { raceHud, RACE_DIAL } from './race-hud.js';
 import { levelHud } from '../game/hud-mana.js';
 import { interfaceLook } from '../playscape/ui/interface-look.js';
 import { ATLAS_SLICE } from './megaworld.js';
@@ -35,6 +36,8 @@ import { errandLegs, layErrand } from './errand.js';
 import { readGameworld, resolveLevel, looksOfKit } from './world.js';
 import { assembleGeotownScene, GEOTOWN_KEYS } from '../geotown/scene.js';
 import { assembleGeocityScene, GEOCITY_KEYS } from '../geocity/scene.js';
+import { fleetOf, pickOf } from '../geocity/fleets.js';
+import { streamOf } from '../city/plan/dice.js';
 import { SURFACE_IDS as GEOTOWN_SURFACES } from '../geotown/pattern.js';
 import { rollArt, ART_KITS, ART_ITEMS } from '../era/art-direction.js';
 import { solvePalette, fingerprint as printOf } from '../color-theorist/solve.js';
@@ -49,15 +52,24 @@ import { resolveEquipment } from './equipment.js';
 import { outTrailOf, outTrailStyle } from '../era/out-trail-board.js';
 import { outTrailSpan } from '../era/out-trail.js';
 import { SIDE_CUBE, sidePads, sideCameraWords } from '../era/geocube-side.js';
+import { sideMapLevelOrder } from './side-map/level.js';
 import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
 import { fixedStations, uprightCamera, UPRIGHT, STEERED } from './cameras.js';
 import { SHOOT, PERSON, shoulderOf, STREET_LAY } from './quick.js';
+import { kitchenLevel } from './kitchen-level.js';
 import { HOLDER } from './mechanics.js';
 import { readScreen, screenPayload } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
 import { genreHero } from './hero-rows.js';
 import { movesetLegend } from './input-map.js';
+import { quickFigure } from './cast-setting.js';
+import { jobQuests, contactName } from './city-guide.js';
+import { taskApps, appTitle } from './phone-ui.js';
+import { resolveMotion, GAIT_BASE } from './hero-vibe.js';
+import { turfRect, actLine } from './factions.js';
+import { policeCount, policeCars, LAW } from './law.js';
+import { patrolCar } from './cars.js';
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
 import { concernIds } from './concerns.js';
@@ -85,7 +97,7 @@ import { flyCourse } from '../skyscape/autopilot.js';
 import { seatCraft, craftPilot } from '../skyscape/craft.js';
 import { battleRoster, laidBattles, PARTY_SLICE, BAG_SLICE, BAG_START } from './battles.js';
 import { mergeExtras, libraryFigure, fieldFigure, stand } from './stage-figures.js';
-import { standFoe, foePlacements } from './foes.js';
+import { standFoe, foePlacements, readLevelFoes, bestiaryOf, stompOf, targetRimOf } from './foes.js';
 import { streetLevel } from './brawl-cast.js';
 import { readTheme } from '../../mana-ui/theme.js';
 import { armLevel, heroStrikes, arsenalOfGame } from './arsenal.js';
@@ -131,14 +143,14 @@ function armedPilot(G, entity, cam) {
   };
 }
 const SNEAK_TUNE = Object.freeze({ team: 'guards', rule: { guardRadius: 10, speed: 3, turnRate: 2.2 }, body: { hittable: false } });
-import { feelRule, readFeel, TAKES, feelCard, lowerFeel, feelVayo } from './feel/lower.js';
+import { feelRule, readFeel, takesOfCard, feelCard, lowerFeel, feelVayo } from './feel/lower.js';
 import { reachOf } from './feel/reach.js';
 import { laidCasting, laidJoins } from './casting.js';
-import { readCourse, courseAt, coursePlan, courseLaws, lowerCourse, slabOf } from './course.js';
+import { readCourse, courseAt, coursePlan, courseLaws, joinLaw, lowerCourse, slabOf } from './course.js';
 import { courseCube, courseColours, skinCourse } from './course-skin.js';
 import { juiceOfGame } from './juice.js';
 import { tempoOfGame } from './tempo.js';
-import { styleMeterOfGame } from './style-meter.js';
+import { styleMeterOfGame, levelRankOf, vitalsOf, STYLISH } from './style-meter.js';
 import { gradeOfGame } from './grade.js';
 import { readBuildingParked, parkIn, paintOfDress } from '../vehicle-registry/parked.js';
 import { industrialPlan, industrialManifest } from './mission-industrial.js';
@@ -152,7 +164,11 @@ const juiceOf = (G) => { const J = juiceOfGame(G); return J ? { fxStyle: J.fxSty
 // the world's clock (tempo.js): the moments that slow or hold its live levels, on every level; none written, nothing laid
 const tempoOf = (G) => { const T = tempoOfGame(G); return T ? { tempo: T.tempo } : {}; };
 // the style meter (style-meter.js): how well the hero fights, on every level it strikes on; none written, nothing laid
-const meterOf = (G) => { const M = styleMeterOfGame(G); return M ? { styleMeter: M.styleMeter } : {}; };
+// the way on (game/hud-mana.js `ways`): a gauntlet whose arenas are walked into (a level's tasks, tasks.js) names the
+// one waiting in its arm var (game/wave-gauntlet.js); the arrow points to its ring
+const waysOf = (mechanics) => { const g = (mechanics ?? []).find((m) => m && m.kind === 'wave-gauntlet' && Array.isArray(m.arenas) && m.arenas.some((a) => a.enter)); return g ? { var: `__wg_${g.id ?? 'gauntlet'}_arm`, at: g.arenas.map((a) => (a.enter ? a.enter.at.slice() : null)) } : null; };
+// (the vitals are the HUD's, not the runtime's: kept off the page's meter)
+const meterOf = (G) => { const M = styleMeterOfGame(G); if (!M) return {}; const { vitals: _v, ...styleMeter } = M.styleMeter; return { styleMeter }; };
 // the world's grade (grade.js): the look over every frame of its levels; none written, nothing laid
 const gradeOf = (G) => { const R = gradeOfGame(G); return R ? { grade: R.grade } : {}; };
 // the grade its people are played at (figure-grades.js): a game's levels play the PLAY grade, the cinematics pose theirs
@@ -173,6 +189,8 @@ export function gameStages(world) {
   for (const level of order) {
     const R = resolveLevel(G, level);
     if (R.style?.hour !== undefined) hours[level] = R.style.hour;
+    // a kitchen level is one stage: a kitchen room of its own (kitchen-level.js), never laid by a trail
+    if (R.kitchen) { out.push({ level, node: 'kitchen', section: 'kitchen', index: 0, label: R.name, kitchen: R.kitchen, manifest: kitchenLevel(G, { ref: level, spec: R.kitchen }).manifest }); continue; }
     // a building level is one stage: its rooms laid from its program (or the building already made, by ref)
     // (a MISSION in it, mission-building.js: its phases placed in the building's rooms from its plan read as a fighting
     // map; the plan rides the stage for the order that lays its pilot, cast and tasks, the page's `mission` its manifest)
@@ -194,8 +212,10 @@ export function gameStages(world) {
       continue;
     }
     if (R.glyphs) { out.push({ level, node: 'map', section: 'map', index: 0, manifest: { kind: 'map', level: R.glyphs } }); continue; }
+    // a side map level is one stage: the map on its cube (side-map/scene.js), laid for the hero its level order makes
+    if (R.sidemap) { out.push({ level, node: 'map', section: 'sidemap', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', show: 'sidemap', cube: R.style?.geocube ?? G.style?.geocube ?? SIDE_CUBE, seed: R.seed, sidemap: R.sidemap } }); continue; }
     // a geocity level is one stage: the district on its cube (geocity/scene.js: an evocation), walked from its streets
-    if (R.geocity) { out.push({ level, node: 'district', section: 'geocity', index: 0, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...(R.geocity.hour !== undefined ? { hour: R.geocity.hour } : {}) } }); continue; }
+    if (R.geocity) { out.push({ level, node: 'district', section: 'geocity', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...(R.geocity.hour !== undefined ? { hour: R.geocity.hour } : {}) } }); continue; }
     // a geotown level is one stage: the town on its cube (geotown/scene.js), walked from its streets
     if (R.geotown) {
       out.push({ level, node: 'town', section: 'geotown', index: 0, manifest: { kind: 'geocube', cube: R.geotown.cube, show: 'geotown', seed: R.seed, geotown: R.geotown.spec, ...(R.geotown.hour !== undefined ? { hour: R.geotown.hour } : {}), ...(R.geotown.enter?.length ? { enter: [...R.geotown.enter] } : {}) } });
@@ -260,7 +280,7 @@ export function gameStages(world) {
       // (a level that builds is solid, era/solid.js: no flat building polygons)
       const manifest = here.length || street || keep._keepOut || looks || painted ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}), ...(here.length || street ? { solid: true } : {}), ...keep, ...(looks ? { looks } : {}), ...(painted ? { palette: painted } : {}) } : s.manifest;
       const field = { ...(R.field && first ? { field: R.field } : {}), ...(R.board && first ? { board: R.board } : {}), ...(R.loop && first ? { loop: R.loop } : {}), ...(R.arena && first ? { arena: R.arena } : {}) };
-      out.push({ level, node: s.node, section: s.section, index: i, manifest, ...field });
+      out.push({ level, node: s.node, section: s.section, index: i, manifest: withFormGrass(manifest), ...field });
     });
     // the insides of the buildings whose scene changes at the door: each a level of its own, after the level's stages,
     // linked by its door (the outside's `door` ↔ the inside's `out`)
@@ -410,7 +430,7 @@ export function roadwayEnds(manifest) {
   const T = trackContract(plan), surface = trackSurface(plan), pole = T.duel ? T.duel.grid[1] : T.grid[0];
   const out = { spawn: pole.at, heading: pole.heading, exit: T.finish.at, exitFrom: 'the finish line', planar: true, beats: [], hazards: [] };
   const at = (x, y) => surface([x, y, 1e4]);
-  for (const [k, v] of Object.entries({ ground: at, surface: at, rocks: null, colliders: plan.colliders, roadway: T, roadLaws: trackLaws(trackCensus(plan)) })) Object.defineProperty(out, k, { value: v, enumerable: false });
+  for (const [k, v] of Object.entries({ ground: at, surface: at, rocks: null, colliders: plan.colliders, roadway: T, roadLaws: [...trackLaws(trackCensus(plan)), ...(plan.language?.laws ?? []).map((l) => ({ concern: 'roadway', law: `language:${l.law}`, holds: false, says: l.detail })), ...(plan.scape?.laws ?? []).map((l) => ({ concern: 'roadway', law: `trackscape:${l.law}`, holds: false, says: l.detail }))] })) Object.defineProperty(out, k, { value: v, enumerable: false });
   ROAD_ENDS.set(key, out);
   return out;
 }
@@ -576,7 +596,7 @@ function mapEnds(manifest) {
 // (and a shop's floor, where the town's shops are walked into: `geotown.shops`)
 const TOWN_GROUND = new RegExp(`^geotown:(${[...GEOTOWN_SURFACES.filter((k) => k !== 'house'), 'floor'].join('|')})$`);
 function geotownEnds(manifest) {
-  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOTOWN_KEYS.includes(k))), P = assembleGeotownScene(own, {});
+  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOTOWN_KEYS.includes(k))), parked = [], P = assembleGeotownScene(own, { parked });
   const route = (P.route ?? []).map((p) => [p[0], p[1], p[2] ?? 0]);
   if (route.length < 2) throw new Error('levels: the town lays no walk round its first block to set the hero down on');
   const ground = groundSampler(P.faces ?? [], TOWN_GROUND), on = (p) => { const z = ground(p[0], p[1]); return [r3(p[0]), r3(p[1]), r3(z ?? p[2])]; };
@@ -597,6 +617,8 @@ function geotownEnds(manifest) {
   const houses = (P.anchors ?? []).filter((a) => a.kind === 'house' && Array.isArray(a.at) && Array.isArray(a.N));
   Object.defineProperty(out, 'townDoors', { value: houses.map((a, n) => ({ id: `town-${a.use}-${n + 1}`, use: a.use, at: a.at, N: a.N, enter: a.store ? 'walk' : null,
     ...(a.store?.keeper ? { rooms: [{ id: 'shopfloor', box: a.store.inside, stand: { at: a.store.keeper.map(r3), face: a.store.till.map(r3) } }] } : {}) })), enumerable: false });
+  // (the cars the town parks, cars.js: the ones its hero may get into)
+  Object.defineProperty(out, 'parked', { value: parkedCars(parked), enumerable: false });
   Object.defineProperty(out, 'townLots', { value: houses.map((a, n) => ({ route: 'geotown', side: a.row ?? 'row', s: n, use: a.use })), enumerable: false });
   // (the tills of its shops walked into, geotown.shops: where an errand's trade had in a shop of that kind stands)
   Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.store?.till).map((a) => ({ id: a.id.replace(/^house-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
@@ -606,10 +628,11 @@ function geotownEnds(manifest) {
 // THE DISTRICT'S ENDS (a geocity level, geocity/scene.js: an evocation): the hero set down at the start of the walk its
 // metro lays (its evoked street's), facing along it, its exit the far side of that walk; beats along the way every dozen
 // metres; its ground the district's ground faces (its walks, roads, pads, courts, stoops and its open shops' floors:
-// never a roof), what stands on it its boxes; the tills of its shops walked into (geocity.shops)
-const CITY_GROUND = /^geocity:(walk|road|bike|crossing|ground|court|lot|pad|paving|site|park|field|yard|scrub|median|margin|planting|promenade|quay|sand|deck|stoop|floor|highway|platform)$/;
+// never a roof, and never the highway carried over its streets: a level is set down on the street under it), what
+// stands on it its boxes; the tills of its shops walked into (geocity.shops)
+const CITY_GROUND = /^geocity:(walk|road|bike|crossing|ground|court|lot|pad|paving|site|park|field|yard|scrub|median|margin|planting|promenade|quay|sand|deck|stoop|floor|platform)$/;
 function geocityEnds(manifest) {
-  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), P = assembleGeocityScene(own, {});
+  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), parked = [], streets = [], P = assembleGeocityScene(own, { play: true, parked, streets });
   const route = (P.route ?? []).map((p) => [p[0], p[1], p[2] ?? 0]);
   if (route.length < 2) throw new Error('levels: the district lays no walk to set the hero down on');
   const ground = groundSampler(P.faces ?? [], CITY_GROUND), on = (p) => { const z = ground(p[0], p[1]); return [r3(p[0]), r3(p[1]), r3(z ?? p[2])]; };
@@ -624,13 +647,125 @@ function geocityEnds(manifest) {
   Object.defineProperty(out, 'rocks', { value: () => null, enumerable: false });
   Object.defineProperty(out, 'colliders', { value: P.colliders ?? [], enumerable: false });
   Object.defineProperty(out, 'townDoors', { value: [], enumerable: false });
+  // (the cars its hero may get into, cars.js: the ones it parks, and where none stands within a walk of the start, its
+  // own fleet's at the kerb there)
+  const lots = parkedCars(parked), walk = lots.some((c) => Math.hypot(c.at[0] - spawn[0], c.at[1] - spawn[1]) <= KERB.walk);
+  Object.defineProperty(out, 'parked', { value: walk ? lots : [...kerbCars(manifest.seed ?? 1, kerbSpots(route, groundSampler(P.faces ?? [], /^geocity:road$/), P.colliders ?? [], ground, P.flow?.lanes ?? [])), ...lots], enumerable: false });
+  // (its STREETS as a driver keeps to them: the middle line of each signalled street its traffic drives, cityRoads)
+  Object.defineProperty(out, 'roads', { value: cityRoads(streets), enumerable: false });
   Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && a.store?.till).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
+  // (its PLACES: each shop walked into as somewhere a job may send its hero, a stride out from its door on the walk or
+  // the forecourt before it: where a pick-up or a hand-in stands, had from the kerb)
+  Object.defineProperty(out, 'places', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && Array.isArray(a.at) && Array.isArray(a.N) && a.store?.card).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: on([a.at[0] + a.N[0] * 2.4, a.at[1] + a.N[1] * 2.4, a.at[2]]), N: [r3(a.N[0]), r3(a.N[1])] })), enumerable: false });
   // (what it weighs: its faces, its boxes, its repeats' templates and instances; said by the level's audit and its book)
   Object.defineProperty(out, 'weight', { value: { faces: (P.faces ?? []).length, colliders: (P.colliders ?? []).length, templates: (P.repeats ?? []).reduce((a, r) => a + r.template.length, 0), instances: (P.repeats ?? []).reduce((a, r) => a + r.transforms.length, 0), shops: P.geocity?.stores?.shops ?? 0 }, enumerable: false });
   return out;
 }
+// A DISTRICT'S STREETS for a driver who keeps to them (worlds/controllable rules-drive.js `chaser`, the law's police car):
+// its arterials and its neighbourhoods' streets, run by run (geocity/scene.js `ctx.streets`), each once, along x (0) or
+// y (1). → [[axis, cross, lo, hi], …]
+function cityRoads(streets) {
+  const seen = new Set(), r1 = (v) => Math.round(v * 10) / 10;
+  return streets.filter((r) => r[3] - r[2] >= 4).map((r) => [r[0], r1(r[1]), r1(r[2]), r1(r[3])]).filter((r) => !seen.has(r.join()) && seen.add(r.join()));
+}
+
 // (what plays in a metro is the level's, layered over it by the page: never the district's own settings)
 const CITY_PLAY_KEYS = ['level', 'game', 'entities', 'camera', 'pilot', 'play', 'destruction', 'matter', 'scars', 'wind'];
+
+// THE CARS A LEVEL'S HERO MAY GET INTO (cars.js): the cars its town or district parks itself, each the car shelf's own
+// model in its own paint where the scene stands it (its nose along +y at rotZ 0, a body's heading from +x). A
+// vehicle with something on its roof (a taxi's sign, a light bar) stays scenery. → [{ at, heading, model, paint }]
+const parkedCars = (list) => list.filter((c) => !c.extra).map((c) => ({ at: c.pos.map(r3), heading: r3((c.rotZ ?? 0) + Math.PI / 2), model: c.model, paint: c.paint }));
+
+// WHERE A CAR MAY STAND where a district parks none by its start (its lots lie blocks away): the kerb beside the walk's start. From the spawn, out across the
+// walk to the road on whichever side it lies nearer, a car's half width into it; then along the street, a car's length
+// apart, each spot on the road and clear of every box, nose to tail; where a ground is given (`top`), the road is
+// the ground there, never one running under a walk or a pad. → [{ at, heading }], none where no road lies beside the start
+const KERB = Object.freeze({ reach: 14, step: 0.5, into: 1.5, apart: 6.5, most: 3, clear: 1.2, walk: 60, lane: 2.4 });
+function kerbSpots(route, road, colliders, top = null, lanes = []) {
+  if (route.length < 2) return [];
+  const [x0, y0] = route[0], hd = Math.atan2(route[1][1] - y0, route[1][0] - x0), f = [Math.cos(hd), Math.sin(hd)], spots = [];
+  const blocked = (x, y, z) => colliders.some((c) => x > c.min[0] - KERB.clear && x < c.max[0] + KERB.clear && y > c.min[1] - KERB.clear && y < c.max[1] + KERB.clear && z + 0.7 > c.min[2] && z + 0.7 < c.max[2]);
+  // (never in a lane its traffic drives, geocity/flow.js: a car parked there would hold the lane for good)
+  // (a lane at the road's own height: a highway's, carried over the street, is none of its)
+  const laneZ = (g, u) => { let k = 0; while (k + 2 < g.length && g[k + 2] <= u) k += 2; const t = k + 2 < g.length ? Math.min(1, Math.max(0, (u - g[k]) / (g[k + 2] - g[k] || 1))) : 0; return g[k + 1] + ((g[k + 3] ?? g[k + 1]) - g[k + 1]) * t; };
+  const driven = (x, y, z) => lanes.some((L) => { const u = L.axis === 'y' ? y : x, off = (L.axis === 'y' ? x : y) - L.cross; return u >= L.lo && u <= L.hi && Math.abs(off) < KERB.lane && Math.abs(laneZ(L.ground, u) - z) < 2.5; });
+  const open = (x, y) => { const z = road(x, y); return z !== null && !driven(x, y, z) && (!top || Math.abs((top(x, y) ?? z) - z) < 0.1) && !blocked(x, y, z); };
+  let side = null;
+  for (let s = KERB.step; s <= KERB.reach && !side; s += KERB.step) for (const k of [1, -1]) { const n = [-f[1] * k, f[0] * k]; if (top ? open(x0 + n[0] * s, y0 + n[1] * s) && open(x0 + n[0] * (s + KERB.into), y0 + n[1] * (s + KERB.into)) : road(x0 + n[0] * s, y0 + n[1] * s) !== null && road(x0 + n[0] * (s + KERB.into), y0 + n[1] * (s + KERB.into)) !== null) { side = { n, s: s + KERB.into }; break; } }
+  if (!side) return [];
+  for (const k of [0, 1, -1, 2, -2, 3, -3, 4, -4]) {
+    if (spots.length >= KERB.most) break;
+    const x = x0 + side.n[0] * side.s + f[0] * k * KERB.apart, y = y0 + side.n[1] * side.s + f[1] * k * KERB.apart, z = road(x, y);
+    if (z === null || blocked(x, y, z) || (top && [-2.2, 2.2].some((d) => !open(x + f[0] * d, y + f[1] * d)))) continue;
+    spots.push({ at: [r3(x), r3(y), r3(z)], heading: r3(hd) });
+  }
+  return spots;
+}
+
+// a driven errand's places (a stage with cars): how far along its walk the first stands, and a kerb's reach (m)
+// (`weigh`: how much more the drive from the stop before counts than the gap to any other stop taken, when a stop is
+// chosen: the drive matters most)
+const ERRAND_DRIVE = Object.freeze({ from: 0.33, reach: 7, weigh: 0.6 });
+// A CITY'S RUN: every hero in a played town or district runs at least this fast (m/s), the streets being long; a hero
+// that does not reach it by its stride runs it on quicker legs (player.js `runSpeed`)
+const CITY_RUN = 5.5;
+const cityStage = (stage) => stage?.manifest?.kind === 'geocube' && (stage.manifest.show === 'geocity' || stage.manifest.show === 'geotown');
+// A HERO'S REACH (hero-vibe.js, its motion's `reach`: an athletic run, its legs opened wide): how much more ground its
+// run's stride takes than the gait as studied, so the level runs it that much faster at the same cadence (player.js
+// `reach`). 1 for a hero that does not say it.
+function heroReach(G) {
+  const M = G?.characters?.hero?.motion;
+  if (!M) return 1;
+  try {
+    const R = resolveMotion(M);
+    if (!R.axes?.reach || !R.motion?.jog?.strideLength) return 1;
+    return Math.round((R.motion.jog.strideLength / GAIT_BASE.jog.strideLength) * 1000) / 1000;
+  } catch { return 1; }
+}
+
+// AN ENCOUNTER (a faction's posting that is a fight, factions.js `act.fight`; free roam): where its foes stand, out on
+// the street before its place: how far out, how far apart, how near wakes them, and clear of anyone who stands
+const ENCOUNTER = Object.freeze({ out: 4.5, apart: 1.7, reach: 10, clear: 30 });
+/** An encounter's cast: the crew's bodies stood asleep where the stage laid them (foes.js standFoe: each its class, its
+ * figure, its hp), woken by the posting's own mechanic (game/errand-mechanics.js lowerAct `fight`); and the pilot made
+ * hittable, as a stage with foes makes it. */
+function encounterCast(G, E, refs, hero) {
+  const B = bestiaryOf(G), part = { figures: {}, entities: [] }, ctx = { rim: targetRimOf(G), sheets: {} };
+  for (const f of E.foes) standFoe(G, part, { id: f.id, eid: E.eid, entry: B[E.eid], at: f.at, heading: f.heading }, { ref: refs?.[E.eid] ?? null, more: { dormant: true, modeRefs: refs ?? {} }, ctx });
+  return { ...part, pilot: { ...(hero ? { rule: { stomp: stompOf(G) } } : {}), body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } } } };
+}
+
+/** The law's police: its bodies stood asleep and gone where the level starts (foes.js standFoe, each its class and its
+ * figure), each with the posts it may be set down on; brought by the wanted level (game/law-mechanics.js lowerWanted). */
+function policeCast(G, L, refs, hero) {
+  const B = bestiaryOf(G), part = { figures: {}, entities: [] }, ctx = { rim: targetRimOf(G), sheets: {} };
+  L.ids.forEach((id, k) => {
+    // (from the `armed` star on, the tactical unit with its pistol: law.js LAW.gun, fired by the ai's own trigger)
+    const armed = L.armed && Math.floor(k / L.armed.per) + 1 >= L.armed.from, eid = armed ? L.armed.eid : L.eid;
+    const e = standFoe(G, part, { id, eid, entry: B[eid], at: L.at, heading: L.heading }, { ref: refs?.[eid] ?? null, more: { dormant: true, gone: true, posts: L.posts, modeRefs: refs ?? {} }, ctx });
+    // (its pistol a loadout slot before its blow: a pursuer's weapons are its loadout's, the mind picking the gun at range)
+    if (armed && e.rule) e.rule = { ...e.rule, loadout: [{ name: 'pistol', weapon: { ...LAW.gun } }, ...(e.rule.loadout ?? [])] };
+    // (sent for the player, they know where to look and keep up: at least LAW.chase of a city's run, and a long sight)
+    if (e.rule) e.rule = { ...e.rule, speed: Math.max(e.rule.speed ?? 0, r3(LAW.chase.run * CITY_RUN)), sightRange: Math.max(e.rule.sightRange ?? 0, LAW.chase.sight) };
+  });
+  // (its cars: the fleets' police car, asleep and gone at the start, after the hero on the streets: cars.js patrolCar)
+  if (L.cars) {
+    const V = fleetOf(LAW.car.fleet)[0];
+    for (const id of L.cars.ids) part.entities.push(patrolCar({ id, at: L.at, heading: L.heading, model: V.model, paint: V.paints[0], target: 'hero', roads: L.cars.roads, posts: L.cars.posts }));
+  }
+  return { ...part, pilot: { ...(hero ? { rule: { stomp: stompOf(G) } } : {}), body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } } } };
+}
+
+// a job's giver: how far from the start it stands at the least (a short drive), how far from another giver, what it
+// says unsaid (m)
+const GIVER = Object.freeze({ off: 120, apart: 14, says: 'I have a job for you.', budget: 8000, contact: 'contact' });
+
+// The district's own cars stood at those spots: each one of its civilian fleet (geocity/fleets.js: the model and the
+// paint the city's dice pick for a car parked there), where no car of its lots stands within a walk of the start.
+function kerbCars(seed, spots) {
+  return spots.map((k, i) => { const v = pickOf(fleetOf('civilian'), streamOf(seed, 'fleet', `kerb:${i}`)); return { at: k.at, heading: k.heading, model: v.model, paint: v.paint }; }).filter((c) => !c.model.startsWith('site:'));
+}
 
 // THE TOWN'S DOORS: for each use the level opens (`enter`), the house of that use whose door stands nearest the walk the
 // hero is set down on, entered at its door into a scene of its own (interiorStage): its zone on the walk before the door,
@@ -763,10 +898,13 @@ function withBookUi(G, play) {
   return { ...play, ui: { seed: h % 2147483647 } };
 }
 
-function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null, foeRefs = null, gunnerRef = null } = {}) {
+function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, heroStature = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null, heldRefs = null, foeRefs = null, gunnerRef = null } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
+  // a side map (side-map/level.js): its hero on the lane, its camera on the zones, its falls out of the frame
+  if (stage.section === 'sidemap') return sideMapLevelOrder(G, stage, { ref, heroRef, costar, heroGaits, heroStature, pilot, title, mechanics, extra, audio, foeFrom: G.levels?.[stage.level]?.foes !== undefined ? readLevelFoes(G.levels[stage.level].foes, G.foes, `levels.${stage.level}`).from : [] });
   // a street level (brawl-cast.js): its own simulation and its own contract, the game's hero and made foes its bodies
+  if (stage.section === 'kitchen') { const KL = kitchenLevel(G, { ref, heroRef, spec: stage.kitchen ?? {}, ...(title ? { title } : {}) }); return { tool: 'create_sketch', args: { title: KL.manifest.title, manifest: KL.manifest }, laws: KL.laws }; }
   if (stage.section === 'street') { const S = streetLevel(G, stage.street, { title: title ?? stageTitle(stage), ref, heroRef, foeRefs, party, ...STREET_LAY }); return { tool: 'create_sketch', args: { title: S.manifest.title, manifest: S.manifest }, laws: S.laws }; }
   // (a mission in a building: the mission's cast, tasks, camera and page over the building's rooms)
   // (an industrial level: the place's recipe with the mission's cast on it; its ends the mission's own, on the land)
@@ -777,7 +915,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
       ends: { spawn: M.anchors.spawn.slice(), heading: M.heading, exit: M.anchors.exit.slice(), exitFrom: M.anchors.exit.slice(), beats: M.sections.map((S) => ({ beat: S.id, at: S.entry.slice() })), planar: true }, ...(laws.length ? { laws } : {}) };
   }
   if (stage.section === 'building' && stage.mission) return buildingMissionOrder(G, stage, { ref, heroRef, heroGaits, pilot, title, gunnerRef });
-  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, sheathRef, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
+  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, heroStature, pilot, mechanics, title, sheathRef, heldRefs, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
   const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stage.section === 'obstacles' ? obstacleEnds(stage.manifest) : stage.section === 'mission' ? missionEnds(stage.manifest) : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
   // reads them: the field the ground was flattened for, a race's checkpoint spacing; cover stands after the goal's cast
@@ -838,7 +976,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
   const doorMechs = (ends.doors ?? []).map(({ inside: _i, ...d }) => ({ kind: 'door', ...d }));
   // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot
-  const ways = map ? stageWays(stage, ends, map) : null;
+  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps, G.factions, G.law ? { ...G.law, bag: !!G.errands?.length } : null, { bag: !!G.errands?.length, shops: G.shops ?? null, errands: G.errands ?? null }) : null;
   // (a glyph map with no way on, a megaworld's core: its goal stays its own, reaching it the level's win, no exit taken)
   // (a zone holding the walk's goal keeps it too: reaching it is the game's end, its gates travel)
   const keepsGoal = ways && stage.section === 'map' && (!map.on.length || !!ends.holdsGoal);
@@ -853,6 +991,9 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // what the game lets break stays broken (the aftermath mechanic: the breaks kept in the world's aftermath slice)
   const after = mechanics?.destruction && mechanics.destruction !== 'none' ? [{ kind: 'aftermath', slice: AFTERMATH_SLICE }] : [];
   const game = { levelRef: ref, mechanics: [...doorMechs, ...(lane ? placed.map((m) => onLane(m, lane)) : placed), ...after], fall: { mode: 'respawn' }, ...(ways && ways.arrive.length ? { arrive: ways.arrive.map((a) => a.from) } : {}), ...(stage.section === 'mission' ? { complete: false } : {}) };
+  // THE LEVEL'S OWN SAVE (a played city with jobs: one long level, scene/channels/game.js `save`): what it keeps, and the
+  // moments it is kept at; the game's shell holds it and hands it back on a continue
+  if (ways?.save) game.save = ways.save;
   let pilotPart, seatable = false;
   if (stage.section === 'airspace') {
     // THE CRAFT (skyscape/craft.js): an airspace is flown, whoever the hero is: the map's craft on the fly rule its class
@@ -901,11 +1042,15 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const written = G.feel ? feelRule(G.feel) : null;
     const rule0 = written ? { ...written, ...(camRule ?? {}) } : camRule, struck = strikeWindow(G, rule0);
     // (a feel that asks for its takes: the hero plays its own jumps on the rule's flight, feel/lower.js TAKES)
-    const takes = G.feel && readFeel(G.feel).takes ? TAKES : null;
-    const rule = struck ? { ...(rule0 ?? {}), ...struck } : rule0;
+    // (the card's own jumps over them where it names any: a run-and-gun hero's poised jump, feel/lower.js takesOfCard)
+    const takes = G.feel && readFeel(G.feel).takes ? takesOfCard(feelCard(G.feel)) : null;
+    const rule1 = struck ? { ...(rule0 ?? {}), ...struck } : rule0;
+    // (the hero collides as tall as it stands, `heroStature`, the run's read of its made body; a mascot pilot keeps its
+    // own capsule; none read, the person's 1.7 m as before)
+    const rule = heroStature && !pilot ? { ...(rule1 ?? {}), collideHeight: heroStature } : rule1;
     // (a mascot pilot, egocube/mascot-pilot.js: its own clips, capsule, stride, camera and eye)
     const moves = heroMoves(G);
-    const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), ...(lane || stage.section === 'runner' ? { walk: false } : {}), id: 'hero', title: name, controls: G.mechanics?.legend === 'menu' ? '' : `${controls}${written?.dash && written.dash.ground !== false ? ' · F  dash' : written?.sprint ? ' · F  run' : rule?.stamina ? ` · F  sprint (stamina)${rule.dodge ? ' · F F  dodge' : ''}` : ''}${written?.sprintSpeed ? ' · Shift  sprint' : ''}${airKeys(written)}${actionOrbit ? ' · C  lock on' : ''}${movesLegend(moves)}`, ...(rule ? { rule } : {}), ...(takes ? { takes } : {}) }), moves, startingGrants(G));
+    const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), ...(lane || stage.section === 'runner' ? { walk: false } : {}), ...(heroReach(G) !== 1 ? { reach: heroReach(G) } : {}), ...(cityStage(stage) ? { runSpeed: CITY_RUN } : {}), id: 'hero', title: name, controls: G.mechanics?.legend === 'menu' ? '' : `${controls}${written?.dash && written.dash.ground !== false ? ' · F  dash' : written?.sprint ? ' · F  run' : rule?.stamina ? ` · F  sprint (stamina)${rule.dodge ? ' · F F  dodge' : ''}` : ''}${written?.sprintSpeed ? ' · Shift  sprint' : ''}${written?.buster ? ' · J  fire (hold: charge)' : ''}${airKeys(written)}${actionOrbit ? ' · C  lock on' : ''}${movesLegend(moves)}`, ...(rule ? { rule } : {}), ...(takes ? { takes } : {}) }), moves, startingGrants(G));
     const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
     const camera = look ? { rule: 'eye', target: 'hero', height: pilot ? pilot.eye : HERO_EYE, mouseLook: true, hideTarget: true }
       : top ? { rule: 'overhead', target: 'hero', ...OVERHEAD }
@@ -922,7 +1067,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const cam0 = cam && cam !== 'third-person' ? camera : A.camera ?? camera, camOf = ends.vista && cam0?.rule === 'follow' ? { ...cam0, vista: { at: ends.vista } } : cam0;
     // (AN ACTION HERO, the orbit and a blow: combat's guard and the run's stride, and its weapon sheathed out of combat
     // where the run made the sheathed hero, opts.sheathRef)
-    const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef) : null;
+    const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef, heldRefs, { run: runsInCombat(G) }) : null;
     pilotPart = { figures: fighter ? fighter.figures : P.figures, entities: [fighter ? fighter.entity : A.entity], camera: camOf, events, ...(actionOrbit ? { lock: true } : {}) };
     seatable = !look;
   } else {
@@ -966,7 +1111,14 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // (a level's own goal, `goalCast`: quick.js levelGoalCast, the same shape, or null when it stands nothing; its play
   // laid beside the systems' own, never over it)
   let extraPlay = null, blocks = null, posts = null, pads = null;
-  const X = X0;
+  // (a job's GIVER stands where the stage laid it: the hero door's person, rolled by the world's keys on its job's own
+  // path, at the crowd grade and standing; none without a hero to meet them)
+  const giverPart = heroRef && ways?.givers?.length ? ways.givers.reduce((part, g) => stand(part, g.id, { hero: quickFigure(G, null, 'farmhand', undefined, { path: `giver/${g.contact}` }).spec, grade: 'play', crowd: true, budget: GIVER.budget, stand: true }, g.at.slice(), g.heading), { figures: {}, entities: [] }) : null;
+  // (AN ENCOUNTER's crew, stood asleep where the stage laid them: encounterCast)
+  const encPart = ways?.encounter ? encounterCast(G, ways.encounter, foeRefs, !!heroRef) : null;
+  // (THE LAW's police, stood asleep and away at the start: policeCast)
+  const lawPart = ways?.police ? policeCast(G, ways.police, foeRefs, !!heroRef) : null;
+  const X1 = giverPart ? mergeExtras(X0, giverPart) : X0, X2 = encPart ? mergeExtras(X1, encPart) : X1, X = lawPart ? mergeExtras(X2, lawPart) : X2;
   if (X) {
     const p0 = pilotPart.entities[0];
     // (a written feel wins over a goal's own feet: a deathmatch's shooter pole moves the pilot only where no feel is written)
@@ -1051,6 +1203,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     // a power that gives the wall or the line: the pilot's figure plays their states' fallbacks from the start
     if (Object.values(grants).some((g) => g.wall || g.gear) && pilotPart.figures) pilotPart = { ...pilotPart, figures: Object.fromEntries(Object.entries(pilotPart.figures).map(([k, f]) => [k, f && f.clips ? { ...f, clips: traversalStates(f.clips) } : f])) };
   }
+  // (its jobs kept in its journal: each errand a quest, its legs the steps, city-guide.js jobQuests)
+  if (ways?.quests?.length) extraPlay = mergePlay(extraPlay, { quests: ways.quests });
   let play;
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? mergePlay(mechanics?.play ?? {}, extraPlay) : mechanics?.play ?? null, { story, carryFrom, party, castFigures }));
   // (a level on lives shows them, not the hp bar, and no level badge: the lives and coins counters say the run; and the
@@ -1103,7 +1257,25 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // a mission's is its own channel's (mission-mana.js)
   // (a level with a HUD grammar, hud-grammar.js, has its HUD: its hearts, its compass and its actions stand in for the
   // rows, so they are not drawn a second time)
-  if (G.ui !== undefined && !manifest.manaHud && !MX && !manifest.events?.grammar) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, ...(G.ui?.radar ? { radar: G.ui.radar } : {}) }) };
+  // (a level that carries the style meter is ranked on its results, game/rank.js)
+  if (manifest.styleMeter && manifest.game) manifest = { ...manifest, game: { ...manifest.game, rank: levelRankOf(G, stage.level) ?? {} } };
+  // A RACE (race-hud.js): a roadway raced by laps wears its own HUD, the race read at a glance (place, laps, times, the
+  // map, the speed, the lights), in its track's look unless the world names a theme of its own
+  if (stage.section === 'roadway' && !manifest.manaHud) {
+    const mi = (game?.mechanics ?? []).findIndex((x) => x && x.kind === 'laps');
+    if (mi >= 0) {
+      const Lm = game.mechanics[mi], top = pilotPart.entities?.[0]?.rule?.topSpeed, c = stage.manifest.course;
+      const named = G.ui && typeof G.ui === 'object' && G.ui.theme && G.ui.theme !== 'world' ? interfaceLook(G).theme : null;
+      manifest = { ...manifest, manaHud: raceHud({ mech: mi, laps: Lm.laps ?? 1, racers: 1 + (Array.isArray(Lm.rivals) ? Lm.rivals.length : 0), outline: ends.roadway?.line ?? null,
+        language: typeof stage.manifest.language === 'string' ? stage.manifest.language : null, items: !!stage.manifest.items, cls: c && typeof c === 'object' ? c.class : typeof c === 'string' && /^kart/.test(c) ? 'kart' : 'circuit',
+        speedMax: Number.isFinite(top) && top > 0 ? Math.ceil((top * 3.6 * 1.15) / 10) * 10 : RACE_DIAL[c && typeof c === 'object' ? c.class : typeof c === 'string' && /^kart/.test(c) ? 'kart' : 'circuit'] ?? 120 }, { theme: named, screen: G.screen ?? null }) };
+    }
+  }
+  // (a level that carries the style meter, style-meter.js, shows it there, whether or not the world writes a `ui`)
+  if ((G.ui !== undefined || manifest.styleMeter) && !manifest.manaHud && !MX && !manifest.events?.grammar) {
+    const U = G.ui && typeof G.ui === 'object' ? G.ui : {};
+    manifest = { ...manifest, manaHud: { ...levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, ...(G.ui?.radar ? { radar: G.ui.radar } : {}), ...(manifest.styleMeter ? { style: true, vitals: vitalsOf(G) } : {}) }), ...(U.map !== undefined ? { map: U.map } : {}), ...(U.inventory !== undefined ? { inventory: U.inventory } : {}), ...(U.phone !== undefined ? { phone: U.phone } : {}) } };
+  }
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : stage.section === 'mission' ? stage.mission.laws.map((l) => ({ concern: 'mission', law: l.law, holds: l.holds, says: l.says })) : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
@@ -1142,7 +1314,15 @@ function seatPart(G, pilotPart, ends, lane) {
 
 // the systems' play and what a goal or the battles bring: the lists (cues, menus, parts, spots, routines) one after the
 // other, the items together, the rest the extra's (a quick goal has no systems, so its play is the extra's own, as it was)
-const PLAY_LISTS = ['cues', 'menus', 'parts', 'spots', 'routines', 'quests'];
+const PLAY_LISTS = ['cues', 'menus', 'parts', 'spots', 'routines', 'quests', 'scenes'];
+// A NEW LEVEL'S GRASS (era/isekai.js `grass.form`): a trail stage on an isekai land (its kit, or a geocube's) is made with
+// its field drawn as the form render's grass near and the raised ground beyond, in its own ramp (channels/stage-grass.js),
+// in place of the spiky tufts and cards. Written here, as the level is made, so a stage already stored keeps what it drew;
+// it says only how its grass is drawn: a stage that grows none stays bare. And no grass hat on its rocks (`hats: 'lips'`:
+// the cliff lips' fringe kept), a recipe's own `hats` kept. A recipe's own `grass` is kept
+const withFormGrass = (m) => (m && m.kind === 'stage' && m.trail !== undefined && m.grass === undefined && (m.geocube !== undefined || /^isekai-/.test(m.kit ?? ''))
+  ? { ...m, grass: { form: true }, ...(m.hats === undefined ? { hats: 'lips' } : {}) } : m);
+
 function mergePlay(base, extra) {
   if (!base) return extra;
   const out = { ...base, ...extra };
@@ -1228,7 +1408,7 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
     const asks = sceneNeeds({ scenes }), from = carryFrom && (asks.items.length || asks.done.length) ? carryFrom : null;
     // (and how each acts a script: the cast's and the hero's `actor`, playscape/ui/scene-script.js; none said, none carried)
     const actors = storyActors(G);
-    play = { ...(play ?? {}), spots: [...(play?.spots ?? []), ...spots], scenes, ...(storyCarried(G) ? { carry: STORY_SLICE } : {}), ...(from ? { carryFrom: from } : {}), ...(actors ? { actors } : {}) };
+    play = { ...(play ?? {}), spots: [...(play?.spots ?? []), ...spots], scenes: [...(play?.scenes ?? []), ...scenes], ...(storyCarried(G) ? { carry: STORY_SLICE } : {}), ...(from ? { carryFrom: from } : {}), ...(actors ? { actors } : {}) };
   }
   return { pilotPart, play };
 }
@@ -1288,7 +1468,7 @@ function sideSegments(G, level, stages) {
   const segments = stages.map((s) => {
     const C = courseAt(spec, s.node);
     let D = 12;
-    while (D < 400) { try { coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: D, lift: 0, end: STRIP_END }); break; } catch { D += 1; } }
+    while (D < 400) { try { coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: D, lift: 0, end: STRIP_END, floor: 0 }); break; } catch { D += 1; } }
     D = Math.ceil(D * STRIP_SLACK);
     const seg = { node: s.node, s0: r3(at), length: r3(D) };
     at += D;
@@ -1312,7 +1492,8 @@ function stripCourse(G, stage) {
     const C = courseAt(spec, seg.node);
     if (!C) continue;
     // (on a strip the course stands on the ground: no stairs up to it, the hero on its first floor at once)
-    const plan = coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: Math.floor(seg.length), lift: 0, end: STRIP_END });
+    // (a floor never stands under the strip's ground, `floor: 0`: a rolling trail rolls, it does not sink)
+    const plan = coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: Math.floor(seg.length), lift: 0, end: STRIP_END, floor: 0 });
     const line = Array.from({ length: Math.floor(seg.length) + 1 }, (_, k) => [0, r3(seg.s0 + k)]);
     const L = lowerCourse(plan, { line, ground: () => 0 }), B = L.blocks[0].blocks;
     B.forEach((b, k) => { const p = L.parts[k]; blocks.push(b); parts.push({ ...p, role: p.stair || (p.floor > 0 && plan.gaps[p.floor - 1]?.kind === 'wall') ? 'built' : 'terrain', node: seg.node }); });
@@ -1320,7 +1501,10 @@ function stripCourse(G, stage) {
     const name = (z) => z.replace(/^__course-/, `__course-${j + 1}-`);
     sources.push(...L.events.sources.map((x) => ({ ...x, zone: name(x.zone) })));
     reactions.push(...L.events.reactions.map((x) => ({ ...x, match: { ...x.match, zone: name(x.match.zone) } })));
-    laws.push(...courseLaws(plan, reach).map((x) => ({ ...x, id: segs.length > 1 ? `${seg.node}:${x.id}` : x.id })));
+    const lawId = (id) => (segs.length > 1 ? `${seg.node}:${id}` : id);
+    laws.push(...courseLaws(plan, reach).map((x) => ({ ...x, id: lawId(x.id) })));
+    // (its JOINS: on from the strip's ground onto its first floor, and off its last floor back down to it)
+    laws.push(joinLaw(lawId('join-in'), plan.floors[0].z, reach), joinLaw(lawId('join-out'), -plan.floors.at(-1).z, reach));
     const at = (s, z) => [0, r3(seg.s0 + s), r3(L.base + z)];
     // (the floor the hero is set down on is no beat: nothing stands on it, the first foe a jump or two in)
     beats.push(...plan.floors.map((f, k) => ({ beat: `floor-${k + 1}`, at: at((f.s0 + f.s1) / 2, f.z), ...(segs.length > 1 ? { node: seg.node } : {}) })).filter((_, k) => j > 0 || k > 0));
@@ -1493,6 +1677,14 @@ export function sheathedSpec(G, spec) {
   if (spec.gear[slot]) return null;
   return { ...bare, gear: { ...rest, [slot]: R } };
 }
+/** The heroes a world's HELD weapons are shown by (combos.js weapon `held`, gameworld/runner.js `hero-held-<weapon>`): each
+ * the sheathed hero, its blade on its back, with the weapon's item in its right hand. → [{ id, spec }]; none where there is
+ * no sheathed hero or no weapon is held. */
+export function heldSpecs(G, spec) {
+  const S = sheathedSpec(G, spec), A = arsenalOfGame(G)?.arsenal;
+  if (!S || !A) return [];
+  return A.weapons.filter((W) => W.held).map((W) => ({ id: W.id, spec: { ...S, gear: { ...S.gear, right: W.held } } }));
+}
 // AN ACTION HERO'S WALL (a hero that starts with `wall` or is granted it): walking into a wall, a house's or a rock's,
 // never climbs it; a jump at it takes hold (worlds/controllable/wall.js `ground: false`), as an open world's climb is a
 // choice and never a stumble. A city stalker's wall, taken from the ground, is its own
@@ -1500,14 +1692,18 @@ export function sheathedSpec(G, spec) {
 // null for a world with none, whose hero has the one blow)
 const kitLegend = (G) => { const A = arsenalOfGame(G)?.arsenal; return A ? movesetLegend({ sidearm: A.ranged?.[0]?.name?.toLowerCase() ?? null }) : null; };
 export const actionWall = (rule) => (rule && rule.wall ? { wall: { ...(rule.wall === true ? {} : rule.wall), ground: false } } : {});
-function actionHero(entity, figures, sheathRef) {
+/** a stylish game's hero runs in combat with nothing held (combat.run): the trigger is its sprint, never its run */
+const runsInCombat = (G) => { const f = G?.feel, pole = typeof f === 'string' ? f : f?.pole; return STYLISH.includes(pole); };
+function actionHero(entity, figures, sheathRef, heldRefs = null, { run = false } = {}) {
   const fig = entity.body.figure, sheathed = sheathRef ? `${fig}-sheathed` : null;
+  // (each weapon HELD as its own item, its own hero: runner.js `hero-held-<weapon>`, shown in combat while it is up)
+  const held = sheathed && heldRefs ? Object.fromEntries(Object.keys(heldRefs).map((w) => [w, `${fig}-${w}`])) : null;
   const own = figures[fig];
   // (the guard walks on the hero's own walk, its clip `walk`, where the figure keeps one)
   const clipped = own && own.clips ? { ...own, clips: { ...own.clips, guard: 'walk' } } : own;
   return {
-    figures: { ...figures, [fig]: clipped, ...(sheathed ? { [sheathed]: { ...clipped, heroRef: sheathRef } } : {}) },
-    entity: { ...entity, body: { ...entity.body, ...(sheathed ? { figure: sheathed } : {}), layers: POSE_LAYERS }, rule: { ...entity.rule, ...actionWall(entity.rule), combat: { ...COMBAT, ...(sheathed ? { drawn: fig, sheathed } : {}) } } },
+    figures: { ...figures, [fig]: clipped, ...(sheathed ? { [sheathed]: { ...clipped, heroRef: sheathRef } } : {}), ...(held ? Object.fromEntries(Object.entries(held).map(([w, n]) => [n, { ...clipped, heroRef: heldRefs[w] }])) : {}) },
+    entity: { ...entity, body: { ...entity.body, ...(sheathed ? { figure: sheathed } : {}), layers: POSE_LAYERS }, rule: { ...entity.rule, ...actionWall(entity.rule), combat: { ...COMBAT, ...(run ? { run: true } : {}), ...(sheathed ? { drawn: fig, sheathed } : {}), ...(held && Object.keys(held).length ? { held } : {}) } } },
   };
 }
 
@@ -1530,9 +1726,10 @@ function heldWays(G, stage, ends, plan, mechanics) {
   return Object.assign(out, { hold });
 }
 
-function stageWays(stage, ends, plan) {
+function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law = null, city = {}) {
   // (a glyph map's ends carry its ways as a trail's do, level/grid-ends.js: a zone of a megaworld)
-  if (stage.manifest.trail === undefined && stage.section !== 'map') throw new Error(`levels: a map world's stages are trails or glyph maps, whose ends and pockets carry its ways; '${stage.level}/${stage.node}' is a climb`);
+  // (a town's and a district's walk carries them too: its far end the way on, its start the way back, levels.js geotownEnds)
+  if (stage.manifest.trail === undefined && !['map', 'geotown', 'geocity'].includes(stage.section)) throw new Error(`levels: a map world's stages are trails, glyph maps, towns or districts, whose ends and pockets carry its ways; '${stage.level}/${stage.node}' is a climb`);
   const side = ends.beats.filter((b) => b.beat === 'pocket').concat(ends.beats.filter((b) => b.beat === 'landmark'));
   const h = ends.heading, behind = [r3(ends.spawn[0] - 2.4 * Math.cos(h)), r3(ends.spawn[1] - 2.4 * Math.sin(h)), ends.spawn[2]];
   const toward = (p, q, d) => { const L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1, t = Math.min(1, d / L); return [r3(p[0] + (q[0] - p[0]) * t), r3(p[1] + (q[1] - p[1]) * t), r3(p[2] + (q[2] - p[2]) * t + 1)]; };
@@ -1551,6 +1748,7 @@ function stageWays(stage, ends, plan) {
     spot.set(w, { at: z.exit, arrive: [z.arrive[0], z.arrive[1], r3(z.arrive[2] + 1)] });
   }
   const mechanics = [], arrive = [];
+  let quests = [], stoodGivers = [], encounter = null;
   for (const w of [...gated, ...plan.on, ...plan.back]) {
     const s = spot.get(w);
     mechanics.push({ kind: 'reach-exit', exit: w.id, at: s.at, radius: w === plan.back[0] ? 1.2 : 2.5, ...(ends.planar ? {} : { planar: false }), ...(w.needs ? { needs: w.needs } : {}) });
@@ -1571,10 +1769,207 @@ function stageWays(stage, ends, plan) {
   if (plan.errand?.length) {
     const free = ends.beats.filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead' && !extra.some((_, j) => side[j] === b));
     const taken = new Set([...extra.map((_, j) => side[j]), ...(found.length ? [free[Math.floor(free.length / 2)]] : [])]);
-    const spots = free.filter((b) => !taken.has(b)).map((b) => b.at);
-    mechanics.push(...layErrand(plan.errand, spots, ends.tills ?? []));
+    const open = free.filter((b) => !taken.has(b)).map((b) => b.at);
+    // (a stage with cars to get into, cars.js: a town's, a district's. Its errand is driven: its places stand apart
+    // along its streets, from a third of the way to the far end and never side by side, each had from the kerb: a
+    // car pulled up beside the walk is in reach)
+    const driven = (ends.parked?.length ?? 0) > 0, need = plan.errand.filter((l) => l.kind === 'trade' || l.kind === 'deliver').length;
+    // (its places: the stage's own, ends.places, a district's shops, where it has enough of them: each the one farthest
+    // from the start and from every place already taken, so a job crosses the district; else along its walk, from a
+    // third of the way to its far end)
+    const named = new Map(), givers = [];
+    let spots = open;
+    if (driven && need > 0 && (ends.places?.length ?? 0) >= need) {
+      const pool = ends.places.slice(), d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+      // THE GIVERS: each job is TAKEN from someone, who stands before a shop a short drive from the start (the nearest
+      // at least GIVER.off away, off each other), looking out from its door; coming to them takes the job
+      const near = (p) => d2(p.at, ends.spawn), stood = [];
+      // (one giver a CONTACT, errand.js `contact`: the jobs of one contact share them. The first is taken where they
+      // stand; they are on the phone after, and each next job is offered by a call when the one before it is done)
+      for (const J of plan.errand.filter((l) => l.kind === 'deliver')) {
+        if (taskApps(J, fus).length) continue;   // (a phone app's task: no one stands for it)
+        const who = J.contact ?? GIVER.contact, id = J.id ?? 'errand', had = givers.find((g) => g.contact === who);
+        if (had) { had.jobs.push({ id, says: J.offer ?? GIVER.says, repeat: J.repeat === true }); continue; }
+        const ok = (p) => stood.every((q) => d2(p.at, q) >= GIVER.apart);
+        // (a short drive off: the nearest that far; where the district has none so far, the farthest it has)
+        const far = pool.filter((p) => near(p) >= GIVER.off && ok(p)), at = far.length ? far.reduce((m, p) => (near(p) < near(m) - 1e-9 ? p : m)) : pool.filter(ok).reduce((m, p) => (!m || near(p) > near(m) + 1e-9 ? p : m), null);
+        if (!at) continue;
+        pool.splice(pool.indexOf(at), 1); stood.push(at.at);
+        givers.push({ id: `giver-${who}`, contact: who, at: at.at.slice(), heading: r3(Math.atan2(at.N[1], at.N[0])), place: at.card, jobs: [{ id, says: J.offer ?? GIVER.says, repeat: J.repeat === true }] });
+      }
+      // THE STOPS, in the order they are driven (each job: its giver, its pick-ups, its hand-in): every stop a drive
+      // from the one before it (ERRAND_DRIVE.apart) and from the one after it where that one is fixed (a till, a
+      // giver's door), each the place that keeps the nearest of those and of every stop already taken farthest, so a
+      // job crosses the district, never a shop to the shop next door
+      const tillsLeft = (ends.tills ?? []).map((t) => ({ ...t })), tillAt = (l) => { const k = l.shop ? tillsLeft.findIndex((t) => t.card === l.shop && !t.taken) : -1; if (k < 0) return null; tillsLeft[k].taken = true; return tillsLeft[k].at; };
+      const homeOf = (l) => { if (l.kind !== 'deliver' || l.repeat === true) return null; const g = givers.find((x) => x.jobs.some((J) => J.id === (l.id ?? 'errand'))); return g ? g.at : null; };
+      const legs0 = plan.errand.filter((l) => l.kind === 'trade' || l.kind === 'deliver'), fixed = legs0.map((l) => (l.kind === 'trade' ? tillAt(l) : homeOf(l)));
+      const taken2 = [ends.spawn, ...stood];
+      let prev = givers[0]?.at ?? ends.spawn;
+      spots = [];
+      legs0.forEach((l, k) => {
+        const id = l.kind === 'trade' ? l.job : l.id ?? 'errand', g = givers.find((x) => x.jobs[0]?.id === id);
+        if (g) prev = l.kind === 'trade' && legs0.findIndex((x) => (x.kind === 'trade' ? x.job : x.id ?? 'errand') === id) === k ? g.at : prev;
+        // (a till's or a giver's door stands where it stands; a stop on a spot of its own is chosen)
+        if (fixed[k] && l.kind === 'trade') { prev = fixed[k]; return; }
+        const next = fixed[k + 1] ?? null;
+        const score = (p) => Math.min(d2(p.at, prev) * ERRAND_DRIVE.weigh, next ? d2(p.at, next) * ERRAND_DRIVE.weigh : Infinity, ...taken2.map((q) => d2(p.at, q)));
+        const best = pool.reduce((m, p) => (!m || score(p) > score(m) + 1e-9 ? p : m), null);
+        pool.splice(pool.indexOf(best), 1); taken2.push(best.at); spots.push(best.at); named.set(best.at, best.card);
+        prev = fixed[k] ?? best.at;
+      });
+    } else if (driven && need > 0 && open.length > need) {
+      const along = Array.from({ length: need }, (_, k) => open[Math.min(open.length - 1, Math.round(open.length * ERRAND_DRIVE.from + ((open.length - 1 - open.length * ERRAND_DRIVE.from) * k) / Math.max(1, need - 1)))]).filter((p, k, arr) => arr.indexOf(p) === k);
+      if (along.length >= need) spots = along;
+    }
+    const tills = ends.tills ?? [], laid = layErrand(plan.errand, spots, tills), placeOf = (l) => { const hit = spots.find((p) => named.has(p) && p[0] === l.at?.[0] && p[1] === l.at?.[1]); return l.till ? tills.find((t) => t.id === l.till)?.card : hit ? named.get(hit) : null; };
+    // (each leg says where it is, `place`: the kind of shop it stands at or in, for the page's guide)
+    // (and the flag it sets when it is done, `flag`: its job's step in the journal, city-guide.js jobQuests)
+    const giverOf = new Map(givers.flatMap((g) => g.jobs.map((J) => [J.id, g])));
+    // (the phone apps' tasks, errand.js `app`: taken on the phone, where the level is driven; never on foot alone, since
+    // the givers are laid only there too)
+    const appJobs = driven ? plan.errand.filter((l) => l.kind === 'deliver' && taskApps(l, fus).length) : [], appOf = new Map(appJobs.map((J) => [J.id ?? 'errand', taskApps(J, fus)]));
+    const legs = laid.map((l) => {
+      if (l.kind !== 'trade' && l.kind !== 'deliver') return l;
+      const place = placeOf(l), id = l.kind === 'trade' ? l.job : l.id ?? 'errand', g = giverOf.get(id);
+      // (a one-off is brought HOME: handed in where its giver stands, who pays; a standing job's is where it was laid)
+      const home = l.kind === 'deliver' && g && l.repeat !== true;
+      return { ...l, ...(home ? { at: g.at.slice(), home: true } : {}), ...(driven && !l.till ? { radius: ERRAND_DRIVE.reach } : {}), ...(home ? { place: g.place } : place ? { place } : {}),
+        flag: l.kind === 'trade' ? `had-${l.item}` : `done-${id}`, ...(g || appOf.has(id) ? { after: `took-${id}` } : {}) };
+    });
+    // (each giver's offer: where its first job is taken, errand-mechanics.js lowerOffer; each job after it a call, on the
+    // one before it done, lowerCall; a job's legs are had after it is taken)
+    const offers = givers.flatMap((g) => g.jobs.map((J, k) => (k === 0
+      ? { kind: 'offer', id: J.id, at: g.at.slice(), flag: `took-${J.id}`, says: J.says, radius: ERRAND_DRIVE.reach, place: g.place, contact: g.contact }
+      : { kind: 'call', id: J.id, flag: `took-${J.id}`, on: `errand:done:${g.jobs[k - 1].id}`, from: contactName(g.contact), says: J.says, contact: g.contact })));
+    // (a task is on each app its tags put it on, phone-ui.js taskApps; the first task of an app carries its subscribing)
+    const subbed = new Set(), tasks = appJobs.map((J) => {
+      const on = taskApps(J, fus), subs = on.filter((a) => !subbed.has(a)); subs.forEach((a) => subbed.add(a));
+      return { kind: 'task', id: J.id ?? 'errand', app: on[0], flag: `took-${J.id ?? 'errand'}`, name: appTitle(on[0], fus), ...(on.length > 1 ? { apps: on } : {}), ...(J.tags ? { tags: J.tags } : {}),
+        ...(subs.length === 1 && subs[0] === on[0] ? { subscribe: true } : subs.length ? { subscribe: subs.map((a) => ({ app: a, name: appTitle(a, fus) })) } : {}) };
+    });
+    offers.push(...tasks);
+    // THE FACTIONS (factions.js): each on its turf, a part of the district its shops stand in. Its contact stands at a
+    // shop on its turf, and coming to them is joining it (lowerJoin: one faction at a time). Its board's postings are
+    // acts (lowerAct), each with the zone it is done in: its target's turf, a rival's when it names one.
+    if (driven && factions?.length && (ends.places?.length ?? 0) > 0) {
+      const P = ends.places, box = [Math.min(...P.map((p) => p.at[0])), Math.min(...P.map((p) => p.at[1])), Math.max(...P.map((p) => p.at[0])), Math.max(...P.map((p) => p.at[1]))];
+      const key = (p) => `${p.at[0]},${p.at[1]}`, used = new Set([...givers.map((g) => `${g.at[0]},${g.at[1]}`), ...legs.filter((l) => l.at).map((l) => `${l.at[0]},${l.at[1]}`)]);
+      const inside = (r) => (p) => p.at[0] >= r[0] && p.at[0] <= r[2] && p.at[1] >= r[1] && p.at[1] <= r[3];
+      const nearest = (c, ok) => P.filter(ok).reduce((m, p) => (!m || Math.hypot(p.at[0] - c[0], p.at[1] - c[1]) < Math.hypot(m.at[0] - c[0], m.at[1] - c[1]) - 1e-9 ? p : m), null);
+      for (const F of factions) {
+        const r = turfRect(F, box), c = [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2], free = (p) => !used.has(key(p));
+        const at = nearest(c, (p) => free(p) && inside(r)(p)) ?? nearest(c, free);
+        if (!at) continue;
+        used.add(key(at));
+        givers.push({ id: `giver-${F.id}`, contact: F.id, faction: F.id, at: at.at.slice(), heading: r3(Math.atan2(at.N[1], at.N[0])), place: at.card, jobs: [] });
+        // (opened by the level's first job done, a contact's or an app's: a side is offered to someone who has worked, and
+        // taken only by the player's say: errand-mechanics.js lowerJoin)
+        const first = givers[0]?.jobs[0]?.id ?? appJobs[0]?.id ?? null;
+        offers.push({ kind: 'join', faction: F.id, at: at.at.slice(), radius: ERRAND_DRIVE.reach, name: F.name, says: F.says, ...(first ? { after: `done-${first}` } : {}), others: factions.filter((o) => o.id !== F.id).map((o) => o.id), colour: F.colour, turf: r, place: at.card });
+      }
+      // (the acts after every contact stands: an act's place is never where someone stands, and clear of them)
+      for (const F of factions) {
+        const r = turfRect(F, box), free = (p) => !used.has(key(p)) && givers.every((g) => Math.hypot(g.at[0] - p.at[0], g.at[1] - p.at[1]) > ENCOUNTER.clear);
+        if (!givers.some((g) => g.faction === F.id)) continue;
+        for (const Pn of F.board) {
+          const tr = Pn.act.on ? turfRect(factions.find((o) => o.id === Pn.act.on), box) : r, tc = [(tr[0] + tr[2]) / 2, (tr[1] + tr[3]) / 2], spot = nearest(tc, (p) => free(p) && inside(tr)(p)) ?? nearest(tc, free) ?? nearest(tc, () => true);
+          // (a posting that is a FIGHT, factions.js `act.fight`: the crew of the faction it is done on stood out on the
+          // street before its place, in a row along the fronts, facing out; one a level for now)
+          let fight = null;
+          if (Pn.act.fight && !encounter) {
+            const T = factions.find((o) => o.id === Pn.act.on), nn = Math.hypot(spot.N[0], spot.N[1]) || 1, N = [spot.N[0] / nn, spot.N[1] / nn], along = [-N[1], N[0]], n = Pn.act.fight.crowd;
+            const mid = [spot.at[0] + N[0] * ENCOUNTER.out, spot.at[1] + N[1] * ENCOUNTER.out], home = givers.find((g) => g.faction === F.id);
+            const foes = Array.from({ length: n }, (_, k) => { const o = (k - (n - 1) / 2) * ENCOUNTER.apart; return { id: `foe-${T.crew}-${Pn.id}-${k + 1}`, at: [r3(mid[0] + along[0] * o), r3(mid[1] + along[1] * o), r3(spot.at[2])], heading: r3(Math.atan2(N[1], N[0])) }; });
+            encounter = { id: Pn.id, eid: T.crew, foes };
+            // (lost when the player is wasted: the street's own health, VITALS below)
+            fight = { foes: foes.map((f) => f.id), at: [r3(mid[0]), r3(mid[1]), r3(spot.at[2])], radius: ENCOUNTER.reach, ...(home ? { back: home.at.slice() } : {}), wasted: 'wasted' };
+          }
+          offers.push({ kind: 'act', id: Pn.id, faction: F.id, verb: Pn.act.verb, ...(Pn.act.target ? { target: Pn.act.target } : {}), flag: `took-${Pn.id}`, done: `done-${Pn.id}`, at: spot.at.slice(), radius: r3(Math.max(ERRAND_DRIVE.reach, Math.min(tr[2] - tr[0], tr[3] - tr[1]) / 2)),
+            ...(Pn.reward.length ? { reward: Pn.reward } : {}), standing: Pn.standing, rank: Pn.rank, name: F.name, title: Pn.name, line: actLine(Pn, factions), ...(Pn.says ? { says: Pn.says } : {}), ...(fight ? { fight } : {}) });
+        }
+      }
+    }
+    // (the legs before the offers: a hand-in where its giver stands is not tried on the step that takes the job)
+    mechanics.push(...legs, ...offers);
+    // (each job told as a STORY MISSION, errand.js `mission`: started as it is taken, its heat as its goods are had,
+    // failed and started again; game/mission-mechanics.js)
+    for (const E of city.errands ?? []) {
+      if (!E.mission || !legs.some((l) => l.id === E.id || l.job === E.id)) continue;
+      mechanics.push({ kind: 'mission', id: E.id, flag: `took-${E.id}`, ...(E.name ? { name: E.name } : {}), ...(E.mission.time ? { time: E.mission.time } : {}),
+        ...(E.mission.heat ? { heat: E.mission.heat, hot: `had-${E.roots[0]}` } : {}), ...(E.mission.final ? { final: true } : {}) });
+    }
+    quests = jobQuests([...offers, ...legs]);
+    stoodGivers = givers;
   }
-  return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })) };
+  // THE LAW (law.js): a driven city a world's law watches. Its police stand asleep at the start, out of sight (policeCast),
+  // each with the posts it may be set down on (its walk's, its shops' fronts); the wanted level brings them star by star
+  // (game/law-mechanics.js lowerWanted), a street fight started raising one too
+  let police = null;
+  if (law && cityStage(stage) && (ends.parked?.length ?? 0) > 0) {
+    const ids = Array.from({ length: policeCount(law) }, (_, k) => `police-${k + 1}`);
+    // (its cars: one a star while the law has them, kept to the district's streets, set down at their junctions)
+    const roads = ends.roads ?? [], nc = roads.length >= 2 ? policeCars(law) : 0, cars = Array.from({ length: nc }, (_, k) => `police-car-${k + 1}`);
+    police = { eid: law.police, ids, at: ends.spawn.slice(), heading: ends.heading, posts: lawPosts(ends), ...(law.armed ? { armed: { from: law.armed, per: law.per, eid: law.armedId } } : {}), ...(nc ? { cars: { ids: cars, roads, posts: roadPosts(roads, ends) } } : {}) };
+    mechanics.push({ kind: 'wanted', police: ids, ...(nc ? { cars } : {}), per: law.per, stars: law.stars, calm: law.calm, busted: law.busted, ...(law.bag && law.fine ? { fine: law.fine } : {}), back: ends.spawn.slice(), ...(encounter ? { mayhem: [`encounter:${encounter.id}`] } : {}) });
+  }
+  // THE CITY'S SHOPS (shops.js, game/shop-mechanics.js), on a driven city with a bag to pay from: the gun shop at a shop
+  // front a short walk off that no one stands at and no job sends the player to; the respray at a street's junction a
+  // drive off, clear of the cars parked there
+  if (city.shops && city.bag && cityStage(stage) && (ends.parked?.length ?? 0) > 0) {
+    const d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]), taken = mechanics.filter((m) => Array.isArray(m.at)).map((m) => m.at);
+    const pick = (list, lo) => list.filter((q) => d2(q, ends.spawn) >= lo).sort((a, b) => d2(a, ends.spawn) - d2(b, ends.spawn) || a[0] - b[0] || a[1] - b[1])[0] ?? null;
+    if (city.shops.guns) {
+      const at = pick((ends.places ?? []).map((q) => q.at).filter((q) => taken.every((t) => d2(t, q) > SHOP_AT.apart)), SHOP_AT.guns);
+      if (at) mechanics.push({ kind: 'gunshop', at: at.slice(), price: city.shops.guns.price, rounds: city.shops.guns.rounds });
+    }
+    if (city.shops.respray) {
+      const parked = ends.parked ?? [], at = pick(roadPosts(ends.roads ?? [], ends).filter((q) => parked.every((c) => d2(c.at, q) > SHOP_AT.clear) && taken.every((t) => d2(t, q) > SHOP_AT.apart)), SHOP_AT.respray);
+      if (at) mechanics.push({ kind: 'respray', at: at.slice(), price: city.shops.respray.price });
+    }
+  }
+  // THE STREET'S HEALTH (game/vitals-mechanics.js): a driven city where something can hurt the player (its law, a
+  // faction's fight): blows cost it, quiet mends it, and at none the player is wasted, billed and set down at the start
+  if (cityStage(stage) && (ends.parked?.length ?? 0) > 0 && (police || encounter)) mechanics.push({ kind: 'vitals', ...VITALS_CITY, ...(city.bag ? { bill: VITALS_BILL } : {}), back: ends.spawn.slice() });
+  const save = cityStage(stage) && (ends.parked?.length ?? 0) > 0 && (stoodGivers.length || mechanics.some((m) => m.kind === 'task' || m.kind === 'join')) ? CITY_SAVE : null;
+  return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })), ...(quests.length ? { quests } : {}), ...(stoodGivers.length ? { givers: stoodGivers } : {}), ...(encounter ? { encounter } : {}), ...(police ? { police } : {}), ...(save ? { save } : {}) };
+}
+
+// A PLAYED CITY'S SAVE (scene/channels/game.js `save`): the bus vars that hold its progress (the jobs' and factions'
+// flags, the bag, standing, a faction's contact opened, a one-off handed in, a mission passed), and the moments it is
+// kept (a job taken or done, a mission passed, a side joined, an app subscribed, a gun's rounds bought, a respray)
+const CITY_SAVE = Object.freeze({ vars: Object.freeze(['flag-', 'held:bag:', 'standing-', 'join-open-', 'delivered-', 'mission-done-']), on: Object.freeze(['flag:took-', 'errand:done:', 'mission-passed:', 'join:', 'app:sub:', 'act:', 'gunshop:bought', 'respray:done']) });
+// where a city's shops stand (m): the gun shop at least this far from the start, the respray this far; apart from any
+// place a job uses, and the respray clear of a parked car
+const SHOP_AT = Object.freeze({ guns: 60, respray: 90, apart: 20, clear: 9 });
+// the street's health in a played city (game/vitals-mechanics.js): a blow's cost, the mending, and the hospital's bill
+const VITALS_CITY = Object.freeze({ hp: 100, hit: 10, mend: 3, after: 5 }), VITALS_BILL = 25;
+
+// WHERE A POLICE CAR MAY BE SET DOWN: the junctions of the district's streets, on the ground there; at the most
+// POLICE_POSTS.most of them, taken evenly
+// (a street's run stops at the kerb of the street it meets: they join within this much of its end, m)
+const ROAD_JOIN = 14;
+function roadPosts(roads, ends) {
+  const g = ends.ground ?? (() => null), out = [];
+  for (const x of roads) for (const y of roads) {
+    if (x[0] !== 1 || y[0] !== 0 || y[1] < x[2] - ROAD_JOIN || y[1] > x[3] + ROAD_JOIN || x[1] < y[2] - ROAD_JOIN || x[1] > y[3] + ROAD_JOIN) continue;
+    const z = g(x[1], y[1]);
+    if (z !== null && z !== undefined) out.push([x[1], y[1], z]);
+  }
+  const pick = out.length <= POLICE_POSTS.cars ? out : Array.from({ length: POLICE_POSTS.cars }, (_, k) => out[Math.floor((k * out.length) / POLICE_POSTS.cars)]);
+  return pick.map((p) => p.map((v) => Math.round(v * 10) / 10));
+}
+
+// WHERE THE POLICE MAY BE SET DOWN (the cast's spawn `near`): along the walk the district lays, every POLICE_POSTS.step m,
+// and before its shops' fronts; at the most POLICE_POSTS.most of them, taken evenly
+const POLICE_POSTS = Object.freeze({ step: 20, most: 32, cars: 48 });
+function lawPosts(ends) {
+  const out = [], via = ends.via ?? [], g = ends.ground ?? (() => null);
+  let last = null;
+  for (const p of via) if (!last || Math.hypot(p[0] - last[0], p[1] - last[1]) >= POLICE_POSTS.step) { last = p; const z = g(p[0], p[1]); out.push([p[0], p[1], z ?? ends.spawn[2]]); }
+  for (const P of ends.places ?? []) out.push(P.at.slice());
+  const pick = out.length <= POLICE_POSTS.most ? out : Array.from({ length: POLICE_POSTS.most }, (_, k) => out[Math.floor((k * out.length) / POLICE_POSTS.most)]);
+  return pick.map((p) => p.map((v) => Math.round(v * 10) / 10));
 }
 
 /**
@@ -1806,6 +2201,8 @@ export function buildingStage(B0) {
     ...composed, ...(tone !== undefined ? { tone } : {}),
     // (its highest floor stood taller, era/stage.js withCeilings: a played building's top storey clear of the follow camera)
     ...(B.headroom !== undefined ? { headroom: B.headroom } : {}),
+    // (its rooms' light designed, `plot`: era/stage.js)
+    ...(B.plot !== undefined ? { plot: B.plot } : {}),
   };
 }
 
@@ -1851,7 +2248,7 @@ export function buildingEnds(stage, lowered = withBuildingLevel({ ...stage.manif
   return ends;
 }
 
-function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, sheathRef = null, goal = null, goalCast = null, extra = null, legend = null, story = null, carryFrom = null, party = null, castFigures = null } = {}) {
+function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, mechanics = null, title, sheathRef = null, heldRefs = null, goal = null, goalCast = null, extra = null, legend = null, story = null, carryFrom = null, party = null, castFigures = null } = {}) {
   const name = title ?? `${G.name ?? G.id} · ${stage.level}`;
   let base = { ...stage.manifest, title: name, ...(mechanics?.play ? { play: mechanics.play } : {}) };
   const lowered = withBuildingLevel(base, ref), walker = lowered.entities[0];
@@ -1898,17 +2295,25 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   const controls = `${top ? `W A S D  move${!pilot && !moves?.gear ? ' · Z  walk' : ''}` : `${walkRun(pilot, moves?.gear ? 'F ' : '')} · A / D  turn`} · Space  jump${carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${movesLegend(moves)}${X?.legend ? ` · ${X.legend}` : ''}${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   // (AN ACTION HERO indoors, the orbit and a blow, as on a trail: it moves in the camera's frame under the orbit that
   // locks on, and where the run made its sheathed twin its blade goes to its back and the fist is in its hands)
+  // (and in a tall room it stands back and looks up, so the height is seen: `tall`, controllable/rules-basic.js; a building
+  // with no room over seven metres, as it was)
   const actionOrbit = cam === 'orbit' && carriesStrike(G);
-  const brule = { ...(top ? { move: 'world', moveYaw: OVERHEAD.yaw } : actionOrbit ? { move: 'camera' } : {}), ...(strikeWindow(G, null) ?? {}) };
+  const brule = { ...(top ? { move: 'world', moveYaw: OVERHEAD.yaw } : actionOrbit ? { move: 'camera' } : {}), ...(strikeWindow(G, null) ?? {}), ...(heroStature && !pilot ? { collideHeight: heroStature } : {}) };
   const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls, ...(Object.keys(brule).length ? { rule: brule } : {}) }), moves, startingGrants(G));
   const inputs = [...(P.events?.inputs ?? []), ...(mechanics?.inputs ?? []), ...(X?.inputs ?? [])];
   const events = { ...(P.events || {}), ...(inputs.length > (P.events?.inputs?.length ?? 0) ? { inputs } : {}) };
   const A = armedPilot(G, { ...P.entities[0], transform: { pos: cx ? spawn : steppedIn(plan, spawn, heading), heading } }, cam);
-  const camera = top ? { rule: 'overhead', target: 'hero', ...OVERHEAD } : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) } : actionOrbit ? { ...P.camera, steer: 'orbit', ...ACTION_ORBIT } : A.camera ?? partyChase(G, P.camera);
-  const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef) : null, figs0 = fighter ? fighter.figures : P.figures;
+  const camera = top ? { rule: 'overhead', target: 'hero', ...OVERHEAD } : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) } : actionOrbit ? { ...P.camera, steer: 'orbit', ...ACTION_ORBIT, tall: true } : A.camera ?? partyChase(G, P.camera);
+  const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef, heldRefs, { run: runsInCombat(G) }) : null, figs0 = fighter ? fighter.figures : P.figures;
   const pilot0 = { figures: X?.figures ? { ...figs0, ...X.figures } : figs0, entities: [piloted(fighter ? fighter.entity : A.entity), ...(X?.entities ?? [])], camera, events, ...(actionOrbit ? { lock: true } : {}) };
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's
   const play0 = base.play ?? null, { pilotPart, play } = storyPart(G, stage, ends, null, pilot0, play0, { story, carryFrom, party, castFigures });
-  const manifest = armLevel(G, { ...base, ...pilotPart, ...(play !== play0 ? { play: withBookUi(G, play) } : {}), ...juiceOf(G), ...tempoOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf() });
+  let manifest = armLevel(G, { ...base, ...pilotPart, ...(play !== play0 ? { play: withBookUi(G, play) } : {}), ...juiceOf(G), ...tempoOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf() });
+  // (and is ranked on its results, game/rank.js: its par counted from its tasks; a building's game is made from its
+  // `level` as the page is resolved, so the rank is said there)
+  if (manifest.styleMeter && manifest.level) manifest = { ...manifest, level: { ...manifest.level, rank: levelRankOf(G, stage.level) ?? {} } };
+  // (a level that carries the style meter, style-meter.js, shows it: its HUD on the game UI runtime, in the game's look,
+  // the level's own rows drawn there with it)
+  if (manifest.styleMeter && !manifest.manaHud && !manifest.events?.grammar) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, style: true, vitals: vitalsOf(G), ways: waysOf(manifest.level?.mechanics) }) };
   return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }

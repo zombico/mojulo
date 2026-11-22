@@ -181,7 +181,7 @@ export function lowerWaveGauntlet(p, ctx) {
   // the end: the seal on the way out lifted, or the clear the win
   if (p.at) {
     const outE = `gauntlet:out:${id}`, sealedE = `gauntlet:sealed:${id}`, open = `${pre}_open`;
-    world.entities.push({ id: N.seal, type: 'seal', on: true, position: p.at.slice(), radius: 0.9, color: '#7a1f1a' });
+    world.entities.push({ id: N.seal, type: 'seal', on: true, position: p.at.slice(), radius: 0.9, color: '#7a1f1a', ...(p.back ? { facing: [p.back[0] - p.at[0], p.back[1] - p.at[1]] } : {}) });
     world.reactions.push({ on: endE, do: 'set', var: open, to: 1 }, { on: endE, do: 'toggle', target: N.seal, to: false });
     world.sources.push({ type: 'zone', zone: N.exit, at: p.at.slice(), radius: Number.isFinite(p.radius) ? p.radius : 2, planar: p.planar !== false, watch: ctx.player });
     world.reactions.push(
@@ -192,10 +192,11 @@ export function lowerWaveGauntlet(p, ctx) {
     world.hud.push({ on: sealedE, text: outlast !== null ? 'sealed: hold out' : 'sealed: clear the arena', as: 'toast', ttl: 1.4 });
     out.on[outE] = { end: 'success' };
   } else out.on[endE] = { end: 'success' };
-  // the other ways, sealed while it stands: a seal each, a walker turned away; lifted at the end
+  // the other ways, sealed while it stands: a seal each, a walker turned away; lifted at the end (each seal facing back
+  // into the room where its way says so, drawn as a barrier across its doorway: channels/events.js)
   seals.forEach((q, j) => {
     const sid = `${id}-seal-${j + 1}`, zone = `${id}-way-${j + 1}`, sealedE = `gauntlet:held:${id}`, open = `${pre}_open`;
-    world.entities.push({ id: sid, type: 'seal', on: true, position: q.at.slice(), radius: 0.9, color: '#7a1f1a' });
+    world.entities.push({ id: sid, type: 'seal', on: true, position: q.at.slice(), radius: 0.9, color: '#7a1f1a', ...(q.back ? { facing: [q.back[0] - q.at[0], q.back[1] - q.at[1]] } : {}) });
     world.sources.push({ type: 'zone', zone, at: q.at.slice(), radius: Number.isFinite(q.radius) ? q.radius : 2, planar: true, watch: ctx.player });
     world.reactions.push({ on: endE, do: 'toggle', target: sid, to: false }, { on: 'enter', match: { zone }, if: { var: open, lt: 1 }, do: 'emit', type: sealedE, way: j + 1 },
       ...(q.back ? [{ on: 'enter', match: { zone }, if: { var: open, lt: 1 }, do: 'move', target: ctx.player, to: q.back.slice() }] : []));
@@ -211,7 +212,7 @@ export function lowerWaveGauntlet(p, ctx) {
     world.reactions.push({ on: begin, do: 'set', var: on, to: 1 }, { on: clearedE(lastK), do: 'set', var: on, to: 0 });
     A.seals.forEach((q, j) => {
       const sid = `${id}-seal-${a + 1}-${j + 1}`, zone = `${id}-way-${a + 1}-${j + 1}`;
-      world.entities.push({ id: sid, type: 'seal', on: false, position: q.at.slice(), radius: 0.9, color: '#7a1f1a' });
+      world.entities.push({ id: sid, type: 'seal', on: false, position: q.at.slice(), radius: 0.9, color: '#7a1f1a', ...(q.back ? { facing: [q.back[0] - q.at[0], q.back[1] - q.at[1]] } : {}) });
       world.sources.push({ type: 'zone', zone, at: q.at.slice(), radius: Number.isFinite(q.radius) ? q.radius : 2, planar: true, watch: ctx.player });
       world.reactions.push({ on: begin, do: 'toggle', target: sid, to: true }, { on: clearedE(lastK), do: 'toggle', target: sid, to: false },
         { on: 'enter', match: { zone }, if: { var: on, gte: 1 }, do: 'emit', type: heldE, arena: a + 1, way: j + 1 },

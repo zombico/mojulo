@@ -238,20 +238,21 @@ function animeCast(c, a, word = 'anime') {
   if (a.shank !== undefined) dials.shank *= a.shank;
   const b = { ...BODY_DEFAULTS, ...c.body };
   const body = { ...c.body, waist: r6(b.waist * a.waist), arm: r6(b.arm * a.upperArm), thigh: r6(b.thigh * a.thigh), calf: r6(b.calf * a.calf), neck: r6(b.neck * a.neckGirth) };
-  return { ...c, dials: Object.fromEntries(Object.entries(dials).map(([k, v]) => [k, r6(v)])), body, headScale: r6((c.headScale ?? 1) * a.head), extremities: a.extremities, ...(a.hands !== undefined ? { hands: a.hands } : {}), ...(a.handWidth !== undefined ? { handWidth: a.handWidth } : {}), ...(a.puff !== undefined ? { puff: a.puff } : {}), ...(a.glove ? { glove: true } : {}), ...(a.suitNeck ? { suitNeck: true } : {}), proportions: word };
+  return { ...c, dials: Object.fromEntries(Object.entries(dials).map(([k, v]) => [k, r6(v)])), body, headScale: r6((c.headScale ?? 1) * a.head), extremities: a.extremities, ...(a.hands !== undefined ? { hands: a.hands } : {}), ...(a.handWidth !== undefined ? { handWidth: a.handWidth } : {}), ...(a.wristLen !== undefined ? { wristLen: a.wristLen } : {}), ...(a.puff !== undefined ? { puff: a.puff } : {}), ...(a.glove ? { glove: true } : {}), ...(a.suitNeck ? { suitNeck: true } : {}), proportions: word };
 }
 /** the anime casts (`heroPlan({ proportions: 'anime' })`): the hero casts re-proportioned for the anime head */
 export const ANIME_CASTS = Object.freeze({ female: animeCast(HERO_CASTS.female, ANIME_PROPORTIONS.female), male: animeCast(HERO_CASTS.male, ANIME_PROPORTIONS.male) });
 /** HEROBOT PROPORTIONS: the hero ROBOT's body for the anime head, the toy-hero read of the late
  * platformer renders (about 4.5 heads tall): a big head, a short torso and short arms over legs a little short, a short
  * neck, and big hands and feet (`extremities` > 1) for the gauntlets and boots to sit on, the hands bigger still and
- * puffed (`hands`, `puff`: the cartoon glove's fat, rounded digits) and gloved (`glove`: the palm and digits wear the
+ * puffed (`hands`, `puff`: the cartoon glove's fat, rounded digits; `wristLen`: the glove stood off the wrist on a
+ * longer wrist, hero-hand.js) and gloved (`glove`: the palm and digits wear the
  * palette's `Glove`, white unless named), the neck in the body stocking (`suitNeck`: the palette's `Top`), the shins a little longer (`shank`) for an action hero's stride. An ADULT-limbed body, not the
  * child-coded `chibi` cast: the skeleton keeps its joints and its girths; the head and the segment lengths move. Ratios of
  * the realistic casts, as ANIME_PROPORTIONS are; `arms` scales both arm segments' lengths. */
 export const HEROBOT_PROPORTIONS = Object.freeze({
-  female: Object.freeze({ head: 1.64, legs: 0.9, torso: 0.72, neck: 0.62, shoulders: 0.9, waist: 0.93, upperArm: 0.84, thigh: 0.88, calf: 0.9, neckGirth: 0.95, extremities: 1.12, arms: 0.84, shank: 1.14, hands: 1.25, puff: 1.55, glove: true, suitNeck: true }),
-  male: Object.freeze({ head: 1.62, legs: 0.9, torso: 0.74, neck: 0.62, shoulders: 0.92, waist: 0.95, upperArm: 0.86, thigh: 0.9, calf: 0.92, neckGirth: 1.0, extremities: 1.18, arms: 0.84, shank: 1.14, hands: 1.25, puff: 1.55, glove: true, suitNeck: true }),
+  female: Object.freeze({ head: 1.64, legs: 0.9, torso: 0.72, neck: 0.62, shoulders: 0.9, waist: 0.93, upperArm: 0.84, thigh: 0.88, calf: 0.9, neckGirth: 0.95, extremities: 1.12, arms: 0.84, shank: 1.14, hands: 1.1, wristLen: 0.3, puff: 1.55, glove: true, suitNeck: true }),
+  male: Object.freeze({ head: 1.62, legs: 0.9, torso: 0.74, neck: 0.62, shoulders: 0.92, waist: 0.95, upperArm: 0.86, thigh: 0.9, calf: 0.92, neckGirth: 1.0, extremities: 1.18, arms: 0.84, shank: 1.14, hands: 1.1, wristLen: 0.3, puff: 1.55, glove: true, suitNeck: true }),
 });
 /** the herobot casts (`heroPlan({ proportions: 'herobot' })`) */
 export const HEROBOT_CASTS = Object.freeze({ female: animeCast(HERO_CASTS.female, HEROBOT_PROPORTIONS.female, 'herobot'), male: animeCast(HERO_CASTS.male, HEROBOT_PROPORTIONS.male, 'herobot') });
@@ -737,7 +738,8 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // (and the plan's own `hands`: the hands' size over the cast's, the palm and the digits whole with their joints, a kin's
   // card's word, beast/cards.js; 1 is exact)
   const handSize = (preset?.hands ?? 1) * (CF?.hands ?? 1) * hands, handPuff = (preset?.puff ?? 1) * (CF?.puff ?? 1);
-  J.knuckles = R(add(J.wrist, mul(unit(add(J.wrist, mul(J.elbow, -1))), 0.09 * X * handSize)));
+  // (a cast's `wristLen`: the hand stood further off the wrist by that share of its length, hero-hand.js; the knuckles out with it)
+  J.knuckles = R(add(J.wrist, mul(unit(add(J.wrist, mul(J.elbow, -1))), 0.09 * X * handSize * (1 + (preset?.wristLen ?? 0)))));
   const joints = Object.fromEntries(Object.entries(J).filter(([k]) => !['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop'].includes(k)));
   Object.assign(joints, { neckHub: J.neckHub, headBase: J.headBase });
 
@@ -1060,7 +1062,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   const foot = structured && (bare || feet === 'bare') ? heroFoot({ ankle: J.ankle, toeBase: J.toeBase, X, girth: g0, female: femaleMass }) : null;
   // (hero laws 21: the anime frame, ANIME_FRAME: the wrist deeper through the hand, the shoe's heel a heel)
   const AFR = isAnimeFrame({ laws, proportions, core }) && !CF ? ANIME_FRAME : null;
-  const hand = structured ? heroHand({ wrist: J.wrist, elbow: J.elbow, len: 0.09 * X * handSize, X: X * handSize, girth: g0 * handPuff, wide: (preset?.handWidth ?? 1) * (CF?.wide ?? 1), female: femaleMass, ...(preset?.glove ? { group: 'Glove' } : {}), ...(AFR ? { wristDepth: AFR.wrist } : {}) }) : null;
+  const hand = structured ? heroHand({ wrist: J.wrist, elbow: J.elbow, len: 0.09 * X * handSize, X: X * handSize, girth: g0 * handPuff, wide: (preset?.handWidth ?? 1) * (CF?.wide ?? 1), female: femaleMass, ...(preset?.glove ? { group: 'Glove' } : {}), ...(AFR ? { wristDepth: AFR.wrist } : {}), ...(preset?.wristLen > 0 ? { wristLen: preset.wristLen } : {}) }) : null;
   const limb = (name, from, to, rA, rB, over, group, prev, next, extra = {}) => ({ name, kind: 'segment', from, to, rA, rB, ...extra, over, group, mirror: 'name', bind: { bone: name, prev, next } });
   const segments = [torso, ...bust, ...pelvisParts, neck, ...(head ? [] : [blankHead]),
     // the structured core's DELTOID (NECK_ROOT.deltoid): the arm's top ring a little under the joint, its cap taller, so

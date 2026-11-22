@@ -31,7 +31,9 @@
  *     composed here (gameworld/tunnel-land.js composeLook: the same words, the same look, in any process); with
  *     `pole: 'voxel'`, the VOXEL look (voxel-look.js): a battle racer's flat colour under the isekai light, set pieces
  *     in cubes, no tiles; with `pole: 'shaded'`, the SHADED look (shaded-look.js): the sixth generation's polygons lit
- *     per corner under a sky, a bounce and a hard high sun, saturated, no tiles
+ *     per corner under a sky, a bounce and a hard high sun, saturated, no tiles; with `pole: 'chunky'`, the CHUNKY look
+ *     (chunky-look.js): the same smooth polygons under a softer light, a kart track's own; and with `form: true` as well,
+ *     built in their colours alone for the form render (the light laid after, track-form.js; `K.form`)
  *
  * Tiles are PNGs resolved by key (`track:<painter>:<stops>`, landscape/surface-textures.js). Pure, deterministic.
  */
@@ -46,6 +48,7 @@ import { ISEKAI_STYLES } from '../era/isekai.js';
 import { sunDir } from '../era/sun.js';
 import { VOXEL_LIGHT } from './voxel-look.js';
 import { SHADED_LIGHT } from './shaded-look.js';
+import { CHUNKY_LIGHT, CHUNKY_FORM_LIGHT } from './chunky-look.js';
 
 /** Each material: its painter, the kit ramp it is drawn from, the values of its five stops (luma 0–255), how much of the
  *  ramp's colour it keeps, and `grain`: tiles per the caller's uv unit (asphalt's aggregate is fine, a tile a metre). */
@@ -110,7 +113,9 @@ export function trackKit(kit) {
   const sw = swatchesOf(kitId);
   if (!sw) throw new Error(`roadway: unknown kit '${kitId}' (a kit's id, or a look in words: { look: '…' })`);
   // the pole: the look's own (banded, material), or the voxel look when the kit asks for it ({ …, pole: 'voxel' })
-  const pole = kit && typeof kit === 'object' && (kit.pole === 'voxel' || kit.pole === 'shaded') ? kit.pole : poleOf(kitId), land = sw.land ?? {};
+  const pole = kit && typeof kit === 'object' && (kit.pole === 'voxel' || kit.pole === 'shaded' || kit.pole === 'chunky') ? kit.pole : poleOf(kitId), land = sw.land ?? {};
+  // (the chunky look, chunky-look.js, is lit as the shaded look is, under its own softer light)
+  const smooth = pole === 'shaded' || pole === 'chunky';
   const card = lookOf(kitId)?.card ?? ISEKAI_STYLES[kitId] ?? null, light = { ...VOXEL_LIGHT, ...(card?.light ?? {}), cel: card?.cel ?? VOXEL_LIGHT.cel };
   const rampOf = (name) => resample(land[name] ?? (name === 'soil' ? land.rock : name === 'sky' ? [[40, 100, 170], [120, 170, 220]] : land.grass) ?? [[90, 90, 90], [200, 200, 200]]);
   const ramps = {};
@@ -140,21 +145,22 @@ export function trackKit(kit) {
   };
   const varyAt = (c) => { const m = c.reduce((a, p) => [a[0] + p[0] / c.length, a[1] + p[1] / c.length], [0, 0]), i = Math.floor(m[0]), j = Math.floor(m[1]); let h = Math.imul((i * 73856093) ^ (j * 19349663), 1274126177); h = ((h ^ (h >>> 16)) >>> 0) % 3; return 1 + 0.04 * (h - 1); };
   // the shaded pole's light (shaded-look.js): the sky from above, the bounce from below, the high warm sun; saturated
-  const SL = SHADED_LIGHT, sL = sunDir(SL.key.elevation, SL.key.azimuth), sKey = hexRgb(SL.key.color).map((v) => v / 255), sSky = hexRgb(SL.sky).map((v) => v / 255), sGrd = hexRgb(SL.ground).map((v) => v / 255);
+  const form = pole === 'chunky' && !!(kit && typeof kit === 'object' && kit.form);
+  const SL = form ? CHUNKY_FORM_LIGHT : pole === 'chunky' ? CHUNKY_LIGHT : SHADED_LIGHT, sL = sunDir(SL.key.elevation, SL.key.azimuth), sKey = hexRgb(SL.key.color).map((v) => v / 255), sSky = hexRgb(SL.sky).map((v) => v / 255), sGrd = hexRgb(SL.ground).map((v) => v / 255);
   const sixthLit = (rgb, n) => {
     const l = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2], c = rgb.map((v) => l + (v - l) * SL.saturate), up = (n[2] + 1) / 2, lam = Math.max(0, n[0] * sL[0] + n[1] * sL[1] + n[2] * sL[2]);
     return hex(c.map((v, k) => v * Math.max(SL.shadeFloor * sSky[k] * 0.9 + 0.1, (sSky[k] * up + sGrd[k] * (1 - up)) * SL.fill + sKey[k] * SL.sunGain * lam)));
   };
   const tiled = (m, corners, uv0, n) => {
     if (pole === 'voxel') return { corners, fill: isekaiLit(ramps[m][2], n, varyAt(corners)) };
-    if (pole === 'shaded') return { corners, fill: sixthLit(ramps[m][2], n) };
+    if (smooth) return { corners, fill: sixthLit(ramps[m][2], n) };
     const R = ramps[m], g = TRACK_MATERIALS[m].grain ?? 1, uv = g === 1 ? uv0 : uv0.map(([u, v]) => [u * g, v * g]);
     if (pole === 'material') return { corners, fill: shadeOf(n), texture: keyOf(m, R), textureLit: true, uv };
     const isLit = lam(n) >= CEL, stops = windowAt(R, isLit ? 3 : 1);
     return { corners, fill: hex(stops[2]), texture: keyOf(m, stops), uv };
   };
   return {
-    id: kitId, pole, ramps, paints, light,
+    id: kitId, pole, ramps, paints, light, ...(form ? { form: true } : {}),
     /** A set piece group's colours at a value (0–1 channels), banded the isekai way (a band is a choice of stop, not a
      *  darkening): lit, its stop warmed a touch by the key; a top, half a stop up; shade, a stop down, cooled toward the
      *  ambient. What the voxel look fills a cube with. */
@@ -173,7 +179,7 @@ export function trackKit(kit) {
     piece(G, corners, value, normal, mark = false) {
       const wn = normalOf(corners), c = normal && wn[0] * normal[0] + wn[1] * normal[1] + wn[2] * normal[2] < 0 ? corners.slice().reverse() : corners;
       const n = normal ?? wn, i = Math.max(0, Math.min(4, Math.round(value * 4) - (mark ? 1 : 0))), L = lam(n), isLit = L >= CEL;
-      if (pole === 'shaded') return { corners: c, fill: sixthLit(this.colourOf(G, value, mark).lit.map((v) => v * 255), n) };
+      if (smooth) return { corners: c, fill: sixthLit(this.colourOf(G, value, mark).lit.map((v) => v * 255), n) };
       if (pole === 'voxel') { const V = this.colourOf(G, value, mark), l = Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]); return { corners: c, fill: hex((l >= light.cel ? (n[2] > 0.7 ? V.top : V.lit) : V.shade).map((v) => v * 255)) }; }
       if (G.flat || mark) {
         const R = G.flat === 'paint' ? own.paint : G.flat === 'rubber' ? ramps.rubber : G.flat === 'light' ? [hexRgb(paints.line)] : G.flat === 'accent' ? [accent] : ramps[G.material] ?? own[G.material];
@@ -193,7 +199,7 @@ export function trackKit(kit) {
     paint(name, corners, extra = {}) {
       const { c, n } = facingUp(corners), rgb = hexRgb(paints[name]);
       if (pole === 'voxel') return { corners: c, fill: isekaiLit(rgb, n), ...extra };
-      if (pole === 'shaded') return { corners: c, fill: sixthLit(rgb, n), ...extra };
+      if (smooth) return { corners: c, fill: sixthLit(rgb, n), ...extra };
       const k = pole === 'material' ? Math.min(1, lam(n)) : lam(n) >= CEL ? 1 : 0.72;
       return { corners: c, fill: hex(rgb.map((v) => v * k)), ...extra };
     },
@@ -203,7 +209,7 @@ export function trackKit(kit) {
       const wn = normalOf(corners), c = normal && wn[0] * normal[0] + wn[1] * normal[1] + wn[2] * normal[2] < 0 ? corners.slice().reverse() : corners;
       const n = normal ?? wn, rgb = hexRgb(h);
       if (pole === 'voxel') return { corners: c, fill: isekaiLit(rgb, n) };
-      if (pole === 'shaded') return { corners: c, fill: sixthLit(rgb, n) };
+      if (smooth) return { corners: c, fill: sixthLit(rgb, n) };
       const k = pole === 'material' ? Math.min(1, lam(n)) : lam(n) >= CEL ? 1 : 0.72;
       return { corners: c, fill: hex(rgb.map((v) => v * k)) };
     },

@@ -15,6 +15,10 @@
  *              kiosk, a mid-rise ring round its court, a slab on its lawn; in the outskirts semi pairs under gables to
  *              the street in two rows back to back, an edge's or a main street's shops along its street, low-rises, a
  *              walk-up, a school and its field. Glass in the core, stone and brick outward (its grammar's skins)
+ *   backs      (an evocation's neighbourhoods, backs.js) behind each outskirts row its back lands from the geotown's
+ *              primitives: a yard behind each house and the fences between, a shop row's service yard, a low-rise's lot;
+ *              a block's park its paths, playground, pavilion, benches and trees; a vacant lot's young trees; a school
+ *              field's pitch. A house is three storeys at most
  *   night      past dusk each tall wall's floors lit in runs (the grammar's share), panes no light shades: the room's own
  *   evoked     an evocation (metro.js EVOKES, design.js `evoked`): its blocks at a building's detail, each core and frame
  *              mass a lot the facade pipeline wears (city/plan/facades.js skinLot: curtainwall, punched stone, brick,
@@ -68,8 +72,11 @@ import { INDUSTRY_SEGMENTS } from './segments.js';
 import { HIGHWAY, deckAt } from './highways.js';
 import { WATERFRONT, WATERFRONT_PAINT, frameOf, waterfrontTemplates, shoreAt } from './waterfront.js';
 import { rooftopTemplates, rooftopPlan, beaconsOf, BEACON } from './rooftop.js';
-import { assembleGeotownScene } from '../geotown/scene.js';
-import { materialContext, wordTile } from '../era/arch-style.js';
+import { assembleGeotownScene, coloursOf as townColoursOf } from '../geotown/scene.js';
+import { PATTERNS } from '../geotown/pattern.js';
+import { rowYards, shopYards, residentsLot, blockPark, schoolPitch, volunteers } from './backs.js';
+import { drawnGround, settleStamps, settleTrees, SETTLE } from './settle.js';
+import { materialContext, wordTile, MATERIAL_WORD_IDS } from '../era/arch-style.js';
 import { dressTownFace } from '../era/town-dress.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
 import { litFactor } from '../polygonizer/vexar.js';
@@ -106,17 +113,21 @@ const SECTION = readSection('passage');
 const CELL = 40, KERB = 0.15, WALK = 2.4, STEP = 1.2;
 // an outskirts house: a semi pair's frontage, the gap between pairs, its depth, its front yard; a storey; a shop's depth
 const PAIR = 13.6, GAP = 1.4, HOUSE_D = 12, SETBACK = 5, STOREY = 3, SHOP_D = 14;
+// (a house is a house: a semi pair stands this many storeys at most, whatever its corridor lifts the block's others to)
+const HOUSE_MOST = 3;
 // the skyline's ground cells (m); what it draws of a neighbourhood (its tall buildings); what a block at detail wears
 // facades on (the core's and the frame's: an outskirts block keeps its massing until it is a geotown's)
 // the street's kit: drawn within NEAR metres of the camera (the page's near repeats), a lamp every LAMP metres along a
 // (read by the seventh generation, ctx.form) the metro's soft ground the form's land draws and grows its grass on: its
 // parks, its medians' lawns, the green round its towns, its lawned pads (the paved, the lots, the sites and the scrub stay
 // paint, as a geotown's paving does)
-export const FORM_GROUND = Object.freeze(['geocity:park', 'geocity:median', 'geocity:margin', 'geocity:pad']);
+// (and its vacant lots' scrub, its school fields, its courts' and squares' planting: grass too, never a flat paint beside
+// the form's lawns)
+export const FORM_GROUND = Object.freeze(['geocity:park', 'geocity:median', 'geocity:margin', 'geocity:pad', 'geocity:scrub', 'geocity:field', 'geocity:court', 'geocity:planting']);
 /** The PLANTS a form read grows (form/flora-read.js): the metro's street trees, each its species at its height, and its
  *  composed towns' (their trees, bushes and shrubs moved into the metro's frame; a block town's those on its block, its
  *  bushes' kinds merged into one list), with the ground every trunk and claim takes from the grass. */
-function metroPlants(trees, towns) {
+function metroPlants(trees, towns, own = []) {
   const T = [], B = [], Sh = [], clear = [], kinds = [], kindKey = new Map();
   for (const sp of [...trees.keys()].sort()) for (const t of trees.get(sp)) T.push({ x: t.x, y: t.y, z: r5(t.z0 - 0.15), h: t.height, kind: -1, cluster: T.length, species: sp });
   // (the street trees' trunks claim their ground; a town's claims come with it)
@@ -131,7 +142,7 @@ function metroPlants(trees, towns) {
     for (const c of (p.clear ?? []).filter(([x, y]) => !keep || keep(x, y))) clear.push([r5(c[0] + at[0]), r5(c[1] + at[1]), c[2]]);
   }
   if (!T.length && !B.length && !Sh.length) return null;
-  return { form: 'blob', kinds: null, bushKinds: kinds.length ? kinds : null, trees: T, bushes: B, shrubs: Sh, clear: [...street, ...clear] };
+  return { form: 'blob', kinds: null, bushKinds: kinds.length ? kinds : null, trees: T, bushes: B, shrubs: Sh, clear: [...street, ...clear, ...own] };
 }
 // (the town-seams law: a composed town's ground and the metro's round it, read this far either side of its outline,
 // within this: a kerb's height and the drapes' cells)
@@ -167,6 +178,8 @@ const FINISHES = Object.freeze({
   'geocity:works': ['corrugated', 'wall'], 'geocity:works:roof': ['standing-seam', 'floor'], 'geocity:warehouse': ['cladding', 'wall'],
   'geocity:warehouse:roof': ['membrane', 'floor'], 'geocity:control': ['cmu', 'wall'], 'geocity:yard': ['hardstanding', 'floor'],
   'geocity:bund': ['gravel', 'floor'], 'geocity:switchyard': ['ballast', 'floor'], 'geocity:bund-wall': ['concrete', 'wall'],
+  // (its back lands, backs.js: a park's gravel paths, a service yard's asphalt, a patio's flags, a deck's boards)
+  'geocity:back-park-path': ['gravel', 'floor'], 'geocity:back-lane': ['asphalt', 'floor'], 'geocity:back-paving': ['flags', 'floor'], 'geocity:back-deck': ['decking', 'floor'],
   // (its highways' decks: asphalt over concrete, highways.js)
   'geocity:highway': ['asphalt', 'floor'], 'geocity:highway-side': ['concrete', 'wall'],
   // (its waterfront, waterfront.js: granite quays, concrete walls, timber decks, a promenade, rocks, sand)
@@ -243,6 +256,8 @@ function coloursOf(cube) {
 /** The groups the form render's bake leaves as painted (glass, a lit window, a detail lot's skin), and how far off a
  *  wall its sun test starts (m): as a town's (geotown/scene.js). */
 const FORM_KEEP = new Set(['geocity:glass', 'geocity:night-window', 'geocity:facade']), FORM_LIFT = 0.3;
+/** A back land's roles whose ground no grass grows through (geotown/scene.js's CLAIMED, and a lane's paving). */
+const BACK_CLAIMED = new Set(['paving', 'deck', 'shed', 'roof', 'garage', 'gravel', 'soil', 'sand', 'water', 'coping', 'timber', 'chips', 'mulch', 'compost', 'steel', 'dirt', 'court', 'track', 'drive', 'car', 'lane', 'park-path', 'step', 'bin', 'line']);
 /** A level face wider than this (m) is ground, and shades nothing; the sun test's grid for a city (m). */
 const FORM_SPAN = 30, FORM_CELL = 3;
 export function assembleGeocityScene(m, ctx = {}) {
@@ -258,7 +273,8 @@ export function assembleGeocityScene(m, ctx = {}) {
   const spec = cubeLookSpec(paint), lit = lookLight(spec, paint), LIGHT = lit.light, sun = LIGHT.toLight, air = spec.air ?? spec.ref.air, night = lit.night;
   // (the finishes in the cube's material context, each a tile; geotown/scene.js finishesOf)
   const MX = materialContext(cube), FIN = {};
-  Object.entries(FINISHES).forEach(([group, [word, as]], k) => { const T = wordTile(word, MX, 211 + 17 * k); if (T) FIN[group] = { spec: T.spec, metres: T.metres, ...(as === 'floor' ? { floor: true } : {}) }; });
+  // (one tile a word, seeded by the word: every group that wears a brick wears the same brick, drawn and shipped once)
+  Object.entries(FINISHES).forEach(([group, [word, as]]) => { const T = wordTile(word, MX, 211 + 17 * MATERIAL_WORD_IDS.indexOf(word)); if (T) FIN[group] = { spec: T.spec, metres: T.metres, ...(as === 'floor' ? { floor: true } : {}) }; });
   const col = coloursOf(cube), faces = [], counts = { towers: 0, buildings: 0, houses: 0, panes: 0, detailed: 0 };
   // the analytic hull (worlds/controllable/core.js resolveBlocking, an engine's static boxes, the route audit): a box
   // round every mass a walker can reach, `of` its block and its group; `holder` the block being built at block scale
@@ -285,7 +301,8 @@ export function assembleGeocityScene(m, ctx = {}) {
   // THE FRONTAGE (frontage.js): each building's walls as the street sees them, recorded as it is laid (its boxes, its
   // storeys, its use, the walls inside it), dressed once the cameras say which are near a person's eye
   const fronts = [], frontOf = (b, q, z0, storeys, floorH, use, { skip = [], only = null, ground = false, house = null, open = null, signs = null, sinks = null } = {}) => { if (storeys >= 1) fronts.push({ b, q, z0, storeys: Math.round(storeys), floorH, use, skip, only, ground, house, ...(open ? { open, signs, ...(sinks ? { sinks } : {}) } : {}) }); };
-  const stamp = (key, pos, rotZ, scale = null) => { if (!stamps.has(key)) stamps.set(key, []); stamps.get(key).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}), ...(scale ? { scale } : {}) }); };
+  // (`slope`, [dz/dx, dz/dy]: a flat piece laid on the road's own slope, never level across it: its paint, its rails)
+  const stamp = (key, pos, rotZ, scale = null, slope = null) => { if (!stamps.has(key)) stamps.set(key, []); stamps.get(key).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}), ...(scale ? { scale } : {}), ...(slope && (slope[0] || slope[1]) ? { slope: slope.map(r5) } : {}) }); };
   const templateOf = (key) => { const [k, f] = key.split(':'); return f ? KIT[k][f] : KIT[k]; };
   // a site's machines (SITE above): the crane drawn within its district's reach of the camera, the machines inside its
   // hoarding near the camera only, like the kit
@@ -314,10 +331,11 @@ export function assembleGeocityScene(m, ctx = {}) {
   };
   // the street trees, by species, grown after the cameras (their detail is what the cameras see)
   const trees = new Map();
-  const plant = (where, x, y, z, key) => {
+  const plant = (where, x, y, z, key, h = null) => {
     const R = streamOf(seed, 'trees', key), list = TREE.species[where], sp = list[Math.floor(R() * list.length)];
     if (!trees.has(sp)) trees.set(sp, []);
-    trees.get(sp).push({ x: r5(x), y: r5(y), z0: r5(z), height: r5(TREE.height[0] + (TREE.height[1] - TREE.height[0]) * R()) });
+    const height = TREE.height[0] + (TREE.height[1] - TREE.height[0]) * R();
+    trees.get(sp).push({ x: r5(x), y: r5(y), z0: r5(z), height: r5(h ?? height) });
   };
   // a pane no light shades (a lit room at night)
   const pane = (corners, n, hex) => { faces.push({ corners: corners.map(P3), normal: P3(n), outNormal: P3(n), group: 'geocity:night-window', fill: hex, cornerFills: corners.map(() => hex) }); counts.panes++; };
@@ -334,21 +352,93 @@ export function assembleGeocityScene(m, ctx = {}) {
   // slot (retail/store-slot.js), behind the door its front lays (frontage.js `shopBays`, its open shop's): the row's wall
   // cut at each door, its box left open round each inside and through each door, each inside stamped where it stands
   // and drawn near the camera only ──
+  // (a metro played, levels.js geocityEnds and the world kind: its pads hold a body, below)
+  const PLAY = ctx.play === true, padHolds = [], walked = [];
   const ENTER = d.spec.shops ?? null, cityStores = new Map(), entered = [], steep = { n: 0 }, tight = { n: 0, last: null };
   // (a shop's stoop: its riser and tread, how far it stands either side of its door, the most its door stands over its
   // walk (three risers), and the most its floor is sunk under its pad to keep it so)
   const STOOP = { riser: 0.18, tread: 0.28, side: 0.25, most: 0.54, sunk: 2 }, sunk = [];
+  // (a row's FORECOURT: where its pad stands more than a stoop over its walk anywhere along it, the walk is raised to
+  // its shops' floor along the whole front, so every door is entered on the level: how far it stands out from the
+  // wall (two people abreast), the lane beside it an end's steps and their landing stand on, the run of an end's ramp
+  // to a metre of rise, the most it rises before the row is left to its stoops; its rail's height, its posts' stride,
+  // and the drop an edge is railed from)
+  const FORE = { depth: 2, lane: 1.4, landing: 1.4, run: 5, most: 3, rail: 1.05, post: 1.5, guard: 0.3 }, fores = [];
   // (a composed town's repeats are drawn within the metro's ring, but a shop's inside within its own)
   const storeRing = (rp) => (typeof rp.group === 'string' && rp.group.startsWith('geotown:store-') && rp.near ? rp.near : NEAR);
   const openShops = (b, s, q, z0, z1) => {
     const wl = wallsOf(q)[s], n = FACINGS[s], t = [-n[1], n[0]], T = SLOT.wall, k = s === 's' || s === 'n' ? 0 : 1, deep = k === 0 ? q[3] - q[1] : q[2] - q[0];
     const D = { ...FRONTAGE.shop.door, ...FRONTAGE.shop.open }, zs = shopRise(STOREY), wallFace = faces[faces.length - 4 + ['s', 'e', 'n', 'w'].indexOf(s)], C = holder !== null ? colliders.pop() : null;
     let wall = [wallFace], held = C ? [[C.min[0], C.min[1], C.max[0], C.max[1]]] : [], deepest = 0;
+    // ITS FORECOURT: level with its floor along the whole front; at each end that stands over the walk a ramp down to
+    // it (no nearer a door than a step), or steps down beside it; a face down to the walk along its outer edge; a body
+    // is held at its foot
+    const bays = shopBays(wl.L, 'shops', FRONTAGE.shop.enter).bays, at = (u, v) => [wl.a[0] + t[0] * u + n[0] * v, wl.a[1] + t[1] * u + n[1] * v];
+    const zwAt = (u, v = 0.4) => S(...at(u, v)) + KERB, high = Math.max(...cuts(0, wl.L, 4).map((u) => z0 - zwAt(u)));
+    let fore = null;
+    if (bays.length && high > STOOP.most && high <= FORE.most) {
+      const doors = bays.map(({ u, w }) => { const su = w / FRONTAGE.shop.w; return [u + D.u * su - (D.w * su) / 2, u + D.u * su + (D.w * su) / 2]; });
+      const h0 = Math.max(0, z0 - zwAt(0)), h1 = Math.max(0, z0 - zwAt(wl.L)), room0 = Math.min(...doors.map((dd) => dd[0])) - 0.4, room1 = wl.L - Math.max(...doors.map((dd) => dd[1])) - 0.4;
+      // an end's way down to the walk: a RAMP at its run where it has the room before a door, its forecourt's own end;
+      // else STEPS beside the forecourt, on a lane outside it, the forecourt closed at that end
+      const treads = (h) => { const nr = Math.ceil(h / STOOP.riser - 1e-6); return Array.from({ length: nr - 1 }, (_, i) => (h * (i + 1)) / nr); };
+      const ramp0 = h0 > 0.02 && room0 >= h0 * FORE.run ? h0 * FORE.run : 0, ramp1 = h1 > 0.02 && room1 >= h1 * FORE.run ? h1 * FORE.run : 0;
+      // a strip's top in pieces along it, [from, to, the drop under the floor at each]: laid from `v0` to `v1` off the wall
+      const lay = (segs, v0, v1) => segs.forEach(([ua, ub, da, db], k2) => {
+        if (ub - ua < 0.01) return;
+        const za = z0 - da, zc = z0 - db, zb = (uu) => zwAt(uu, v1) - 0.05, low = (uu) => Math.min(zwAt(uu, v0 + 0.2), zwAt(uu, v1)) - 0.05;
+        put([[...at(ua, v0), za], [...at(ub, v0), zc], [...at(ub, v1), zc], [...at(ua, v1), za]], 'geocity:stoop', col.walk);
+        put([[...at(ua, v1), Math.min(zb(ua), za)], [...at(ub, v1), Math.min(zb(ub), zc)], [...at(ub, v1), zc], [...at(ua, v1), za]], 'geocity:stoop', col.retain, n);
+        // (a face across it where the next piece, or the walk past its end, lies lower: a riser, a closed end)
+        const zn = segs[k2 + 1] ? z0 - segs[k2 + 1][2] : low(ub), zp = k2 > 0 ? z0 - segs[k2 - 1][3] : low(ua);
+        if (zc - zn > 0.02) put([[...at(ub, v0), zn], [...at(ub, v1), zn], [...at(ub, v1), zc], [...at(ub, v0), zc]], 'geocity:stoop', col.retain, t);
+        if (za - zp > 0.02) put([[...at(ua, v1), zp], [...at(ua, v0), zp], [...at(ua, v0), za], [...at(ua, v1), za]], 'geocity:stoop', col.retain, [-t[0], -t[1], 0]);
+      });
+      const segs = [...(ramp0 ? [[0, ramp0, h0, 0]] : []), [ramp0, wl.L - ramp1, 0, 0], ...(ramp1 ? [[wl.L - ramp1, wl.L, 0, h1]] : [])];
+      lay(segs, 0, FORE.depth);
+      // (an end's steps: a landing level with the forecourt, stepped onto from its side, then its treads down to the walk)
+      const T0 = h0 > 0.02 && !ramp0 ? treads(h0) : null, T1 = h1 > 0.02 && !ramp1 ? treads(h1) : null, V2 = FORE.depth + FORE.lane;
+      const side0 = T0 ? [...T0.slice().reverse().map((dr, i) => [i * STOOP.tread, (i + 1) * STOOP.tread, dr, dr]), [T0.length * STOOP.tread, T0.length * STOOP.tread + FORE.landing, 0, 0]] : null;
+      const from1 = T1 ? wl.L - T1.length * STOOP.tread - FORE.landing : wl.L, side1 = T1 ? [[from1, from1 + FORE.landing, 0, 0], ...T1.map((dr, i) => [from1 + FORE.landing + i * STOOP.tread, from1 + FORE.landing + (i + 1) * STOOP.tread, dr, dr])] : null;
+      if (side0) lay(side0, FORE.depth, V2);
+      if (side1) lay(side1, FORE.depth, V2);
+      const topOf = (list) => (uu) => { const g = list.find((x) => uu <= x[1] + 1e-9) ?? list[list.length - 1]; return z0 - (g[2] + ((g[3] - g[2]) * Math.min(1, Math.max(0, (uu - g[0]) / (g[1] - g[0] || 1))))); }, zTop = topOf(segs);
+      // ITS RAILS: a post every stride, a top rail and a mid rail between them, wherever its edge stands a step or
+      // more over what lies beside it: its outer edge (open at each landing), its closed ends, its steps' outer edge
+      // and their landing's end; the level stretch's hold a body (`holder`)
+      const bar = (p, q, za, zc, lo, hi, want) => put([[...p, za + lo], [...q, zc + lo], [...q, zc + hi], [...p, za + hi]], 'geocity:handrail', col.rail ?? '#3a3f45', want);
+      const railU = (ua, ub, v, top, beside) => {
+        if (ub - ua < 0.3) return;
+        const us = cuts(ua, ub, FORE.post);
+        for (let i = 0; i + 1 < us.length; i++) {
+          const a2 = us[i], b2 = us[i + 1];
+          if (Math.max(top(a2) - beside(a2), top(b2) - beside(b2)) < FORE.guard) continue;
+          for (const [lo, hi] of [[FORE.rail - 0.06, FORE.rail], [FORE.rail * 0.5 - 0.03, FORE.rail * 0.5 + 0.03]]) bar(at(a2, v), at(b2, v), top(a2), top(b2), lo, hi, n);
+          for (const uu of [a2, b2]) { bar(at(uu - 0.03, v), at(uu + 0.03, v), top(uu), top(uu), 0, FORE.rail, n); bar(at(uu, v - 0.03), at(uu, v + 0.03), top(uu), top(uu), 0, FORE.rail, t); }
+          if (holder !== null && Math.abs(top(a2) - top(b2)) < 0.01) { const p0 = at(a2, v - 0.05), p1 = at(b2, v + 0.05); colliders.push({ min: P3([Math.min(p0[0], p1[0]), Math.min(p0[1], p1[1]), top(a2)]), max: P3([Math.max(p0[0], p1[0]), Math.max(p0[1], p1[1]), top(a2) + FORE.rail]), of: `${b.id}:rail` }); }
+        }
+      };
+      const railV = (uu, v0, v1, z, want) => {
+        for (const [lo, hi] of [[FORE.rail - 0.06, FORE.rail], [FORE.rail * 0.5 - 0.03, FORE.rail * 0.5 + 0.03]]) bar(at(uu, v0), at(uu, v1), z, z, lo, hi, want);
+        for (const v of [v0, v1]) bar(at(uu, v - 0.03), at(uu, v + 0.03), z, z, 0, FORE.rail, want);
+        if (holder !== null) { const p0 = at(uu - 0.05, v0), p1 = at(uu + 0.05, v1); colliders.push({ min: P3([Math.min(p0[0], p1[0]), Math.min(p0[1], p1[1]), z]), max: P3([Math.max(p0[0], p1[0]), Math.max(p0[1], p1[1]), z + FORE.rail]), of: `${b.id}:rail` }); }
+      };
+      const walkAt = (v) => (uu) => zwAt(uu, v + 0.2), gap0 = side0 ? side0[side0.length - 1] : null, gap1 = side1 ? side1[0] : null;
+      // (the forecourt's outer edge: beside it the walk, or its steps' treads; open where a landing meets it)
+      const beside = (uu) => (side0 && uu <= gap0[1] ? topOf(side0)(uu) : side1 && uu >= gap1[0] ? topOf(side1)(uu) : zwAt(uu, FORE.depth + 0.2));
+      for (const [ua, ub] of [[0, gap0 ? gap0[0] : 0], [gap0 ? gap0[1] : 0, gap1 ? gap1[0] : wl.L], [gap1 ? gap1[1] : wl.L, wl.L]]) railU(ua, ub, FORE.depth, zTop, beside);
+      if (side0) { railV(0, 0, FORE.depth, z0, [-t[0], -t[1], 0]); railU(0, gap0[1], V2, topOf(side0), walkAt(V2)); railV(gap0[1], FORE.depth, V2, z0, t); }
+      if (side1) { railV(wl.L, 0, FORE.depth, z0, t); railU(gap1[0], wl.L, V2, topOf(side1), walkAt(V2)); railV(gap1[0], FORE.depth, V2, z0, [-t[0], -t[1], 0]); }
+      const lv = segs.find((x) => x[2] === 0 && x[3] === 0);
+      if (holder !== null && lv && lv[1] - lv[0] > 0.2) { const p0 = at(lv[0], 0), p1 = at(lv[1], FORE.depth); colliders.push({ min: P3([Math.min(p0[0], p1[0]), Math.min(p0[1], p1[1]), Math.min(zwAt(lv[0], FORE.depth), zwAt(lv[1], FORE.depth)) - 1]), max: P3([Math.max(p0[0], p1[0]), Math.max(p0[1], p1[1]), z0]), of: `${b.id}:forecourt` }); }
+      fore = { a: wl.a, t, n, L: wl.L, zTop, block: b.id };
+      fores.push(fore);
+    }
     // (each bay's tenant by its street's tenancy, never the bay's before it; its sign in its store's own colour; how far
     // its floor is sunk under its row's pad)
     const opened = [], signs = {}, sinks = {};
     let prev = null;
-    shopBays(wl.L, 'shops', FRONTAGE.shop.enter).bays.forEach(({ u, w }, i) => {
+    bays.forEach(({ u, w }, i) => {
       const su = w / FRONTAGE.shop.w, ud = u + D.u * su, dw = D.w * su;
       const slot = slotOf({ w: w - 2 * T, d: deep - 2 * T, h: STOREY - 0.2, door: { x: ud - (u - w / 2 + T), w: dw } });
       // (a bay too narrow or too shallow to hold a store stays shut, and is counted)
@@ -356,7 +446,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       // (its FLOOR: its row's pad, or SUNK under it where the pad stands more than a stoop over its walk, so its door is
       // never more than `STOOP.most` up; a pad past `STOOP.sunk` over its walk keeps its shop shut. Its STOOP: treads
       // down from its door onto the walk, each a riser, and a riser's face under its threshold)
-      const foot = [wl.a[0] + t[0] * ud, wl.a[1] + t[1] * ud], zw = S(foot[0] + n[0] * 0.4, foot[1] + n[1] * 0.4) + KERB, sink = Math.max(0, z0 - zw - STOOP.most);
+      const foot = [wl.a[0] + t[0] * ud, wl.a[1] + t[1] * ud], zw = fore ? z0 : S(foot[0] + n[0] * 0.4, foot[1] + n[1] * 0.4) + KERB, sink = Math.max(0, z0 - zw - STOOP.most);
       if (sink > STOOP.sunk) { steep.n++; return; }
       const zf = z0 - sink, rise = zf - zw, nr = Math.max(1, Math.ceil(rise / STOOP.riser - 1e-6));
       const c = (al, v) => [foot[0] + t[0] * al + n[0] * v, foot[1] + t[1] * al + n[1] * v];
@@ -387,7 +477,9 @@ export function assembleGeocityScene(m, ctx = {}) {
       wall = wall.flatMap((f) => cutFace(f, { axis: k === 0 ? 'x' : 'y', plane: wl.a[1 - k], u0: o[k] - dw / 2, u1: o[k] + dw / 2, z0: zf + 0.02, z1: zf + D.h * zs, N: n }));
       // (sunk: the pad, the land under it and any terrace's face are cut round its inside, and the face that holds
       // its pad over its walk at its door, once the metro is laid: `sunk`)
-      if (sink > 0) { sunk.push({ I, door: box2(-dw / 2, -0.45, dw / 2, 0.3), sill: box2(-dw / 2, -0.2, dw / 2, 0.02), top: zf + In.h }); sinks[i] = r5(sink); deepest = Math.max(deepest, sink); }
+      // (every inside, sunk or not: a row that stands across two terraces has the higher one's pad through its floor)
+      sunk.push({ I, door: box2(-dw / 2, -0.45, dw / 2, 0.3), sill: box2(-dw / 2, -0.2, dw / 2, 0.02), top: zf + In.h });
+      if (sink > 0) { sinks[i] = r5(sink); deepest = Math.max(deepest, sink); }
       if (C) {
         held = held.flatMap((r) => rectLess(r, I)).flatMap((r) => rectLess(r, way));
         for (const bx of St.boxes) { const r = box2(bx.min[0], bx.min[1], bx.max[0], bx.max[1]); colliders.push({ min: P3([r[0], r[1], zf + bx.min[2]]), max: P3([r[2], r[3], zf + bx.max[2]]), of: `${b.id}:store:${bx.of}` }); }
@@ -490,6 +582,28 @@ export function assembleGeocityScene(m, ctx = {}) {
   // an evocation's tiers: its blocks at a building's detail, the neighbourhoods round them as massing, the rest its
   // skyline (each neighbourhood's ground one coarse drape, its tall buildings on it, nothing low)
   const E = d.evoked, detail = new Set(E?.blocks ?? []), massed = E ? new Set(E.regions) : null, lots = [];
+  // THE BACK LANDS (backs.js): an evoked neighbourhood's outskirts blocks behind their rows (yards and their fences, a
+  // shop row's service yard, a low-rise's lot), its little parks, its school's field and its vacant lots, laid from the
+  // geotown's primitives in a side's frame and painted by the town's colours; their trees grown as the street's, their
+  // cars the fleet's; read by the seventh generation, the ground under every hard thing claimed from the grass
+  const BACKS_ON = !!E && E.evoke !== 'skyline', townCol = BACKS_ON ? townColoursOf(cube) : null, townP = BACKS_ON ? PATTERNS[d.metro.outskirts] ?? PATTERNS['bay-and-gable'] : null, backClaims = [];
+  const counts2 = { yards: 0, fences: 0, parks: 0 };
+  const SIDE_AXES = { w: [[0, 1], [1, 0]], e: [[0, 1], [-1, 0]], s: [[1, 0], [0, 1]], n: [[1, 0], [0, -1]] };
+  // (a side's frame: its origin, its u and v in the world; a block's own frame where `s` is null, u along x and v along y)
+  const backFrame = (o, s) => { const [ex, ey] = s ? SIDE_AXES[s] : [[1, 0], [0, 1]]; return { xy: (u, v) => [o[0] + ex[0] * u + ey[0] * v, o[1] + ex[1] * u + ey[1] * v], ex, ey }; };
+  const layBack = (Fr, fs) => {
+    for (const f of fs) {
+      const cs = f.corners.map(([u, v, z]) => [...Fr.xy(u, v), z]), o = f.out, want = [Fr.ex[0] * o[0] + Fr.ey[0] * o[1], Fr.ex[1] * o[0] + Fr.ey[1] * o[1], o[2]];
+      put(cs, `geocity:back-${f.role}`, f.hex ?? townCol[f.role] ?? townCol.metal, want);
+      // (read by the seventh generation: no blade up through a patio, a shed, a path; circles along a thing's top)
+      if (form && BACK_CLAIMED.has(f.role) && o[2] >= 0.5) {
+        const xs = cs.map((c) => c[0]), ys = cs.map((c) => c[1]), bx0 = Math.min(...xs), bx1 = Math.max(...xs), by0 = Math.min(...ys), by1 = Math.max(...ys), w = bx1 - bx0, h = by1 - by0, m = Math.min(w, h);
+        if (w * h >= 0.25) { const n = Math.max(1, Math.ceil(Math.max(w, h) / Math.max(0.5, m))), r = r5(m * 0.6 + 0.15); for (let k = 0; k < n; k++) { const t = (k + 0.5) / n; backClaims.push(w >= h ? [r5(bx0 + w * t), r5((by0 + by1) / 2), r] : [r5((bx0 + bx1) / 2), r5(by0 + h * t), r]); } }
+      }
+    }
+  };
+  const growBack = (Fr, ts, key, where = 'low') => ts.forEach((t, k) => { const [x, y] = Fr.xy(t.u, t.v); plant(where, x, y, t.z, `back:${key}:${k}`, t.h); });
+  const parkBack = (Fr, cs, key) => cs.forEach((c, k) => { const [x, y] = Fr.xy(c.u, c.v); vehicleAt('civilian', x, y, c.z, c.along === 'u' ? Fr.ex : Fr.ey, `back:${key}:${k}`); });
   // (each block's terraces, read again by what is walked into: geocity/podium.js)
   const zOf = new Map();
   for (const r of d.regions) {
@@ -521,6 +635,9 @@ export function assembleGeocityScene(m, ctx = {}) {
       terraces.forEach((t, k) => {
         const [a0, b0, a1, b1] = t.q;
         put([[a0, b0, t.z], [a1, b0, t.z], [a1, b1, t.z], [a0, b1, t.z]], padGroup, IND_GROUND[b.kind]?.[1] ?? padHex);
+        // (played, `ctx.play`: the pad holds a body at its foot. A terrace that stands over its walk is a wall to a walker and
+        // a car below it, stood on from its level side: its box from under the lowest ground round it to its top)
+        if (PLAY) padHolds.push({ q: [a0, b0, a1, b1], top: t.z, bot: Math.min(...[[a0, b0], [a1, b0], [a1, b1], [a0, b1]].map(([x, yy]) => S(x, yy))) - 1, of: `${b.id}:pad` });
         // its retaining faces: down to the walk on its street sides, down to the terrace below between them
         const edges = [[[a0, b0], [a1, b0], [0, -1, 0], 's'], [[a1, b0], [a1, b1], [1, 0, 0], 'e'], [[a1, b1], [a0, b1], [0, 1, 0], 'n'], [[a0, b1], [a0, b0], [-1, 0, 0], 'w']];
         for (const [p, q, nn, s] of edges) {
@@ -532,11 +649,18 @@ export function assembleGeocityScene(m, ctx = {}) {
           put([[p[0], p[1], zb(p)], [q[0], q[1], zb(q)], [q[0], q[1], t.z], [p[0], p[1], t.z]], 'geocity:retain', col.retain, nn);
         }
       });
+      // (played: a block people walk round, its walk's ring: THE PEOPLE below)
+      if (PLAY && detail.has(b.id)) walked.push({ id: b.id, rect: [x0, y0, x1, y1] });
+      // (a block's park laid as the geotown lays one, backs.js: its paths, its playground, its pavilion, its benches, its trees)
+      if (b.kind === 'park' && BACKS_ON) {
+        const Fr = backFrame([x0, y0], null), K = blockPark(x1 - x0, y1 - y0, { zAt: (u, v) => zAt(...Fr.xy(u, v)), P: townP, R: streamOf(seed, 'backs', b.id) });
+        layBack(Fr, K.faces); growBack(Fr, K.trees, b.id, 'dense'); counts2.parks++;
+      }
       if (b.kind === 'park') continue;
       if (!firstBlock || Math.hypot((x0 + x1) / 2 - d.seat[0], (y0 + y1) / 2 - d.seat[1]) < Math.hypot((firstBlock.rect[0] + firstBlock.rect[2]) / 2 - d.seat[0], (firstBlock.rect[1] + firstBlock.rect[3]) / 2 - d.seat[1])) firstBlock = b;
       holder = b.id; zOf.set(b.id, zAt);
       if (detail.has(b.id) && DETAILED.includes(b.kind)) detailed(b, { x0, y0, x1, y1, zAt, Rb });
-      else building(b, { x0, y0, x1, y1, longY, zAt, Rb });
+      else building(b, { x0, y0, x1, y1, longY, zAt, Rb, steps: terraces.slice(1).filter((t, k) => Math.abs(t.z - terraces[k].z) > 1e-6).map((t) => (longY ? t.q[1] : t.q[0])) });
       holder = null;
     }
   }
@@ -549,7 +673,10 @@ export function assembleGeocityScene(m, ctx = {}) {
    *  platform down a right-of-way). All stamped as repeats drawn only near the camera: from far the blocks suffice. */
   function street() {
     const lift = 0.05, at = (l, off, s) => (l.axis === 'ns' ? [l.at + off, s] : [s, l.at + off]), rotAlong = (l) => (l.axis === 'ns' ? Math.PI / 2 : 0);
-    const flat = (key, l, off, s) => { const [x, yy] = at(l, off, s); stamp(key, [x, yy, S(x, yy) + lift], rotAlong(l)); };
+    // (paint lies on the road: each piece on the plane through its own start, the road's fall along it and across it)
+    const fall = (x, yy, ax, len) => { const along = (S(x + (ax ? 0 : len), yy + (ax ? len : 0)) - S(x, yy)) / len, mx = x + (ax ? 0 : len / 2), my = yy + (ax ? len / 2 : 0), over = ax ? (S(mx + 0.5, my) - S(mx - 0.5, my)) : (S(mx, my + 0.5) - S(mx, my - 0.5)); return ax ? [over, along] : [along, over]; };
+    const LEN = { dash: 3, line: 10, yellow: 10, rail: 10, bar: 3 };
+    const flat = (key, l, off, s) => { const [x, yy] = at(l, off, s); stamp(key, [x, yy, S(x, yy) + lift], rotAlong(l), null, fall(x, yy, l.axis === 'ns', LEN[key] ?? 10)); };
     for (const l of d.lines) {
       const runs = l.axis === 'ns' ? runsNS : runsEW, bands = l.bands.slice().sort((a, b) => a.from - b.from);
       // the lines between bands
@@ -606,8 +733,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     for (const a of NS) for (const b of EW) {
       const x = a.at, yy = b.at, z = S(x, yy);
       // crosswalks across each arm, just outside the crossing; stop bars behind them
-      for (const sy of [-1, 1]) for (let o = -a.road / 2 + 0.6; o <= a.road / 2 - 0.6; o += 1.2) stamp('bar', [x + o, yy + sy * (b.half + 0.6) + (sy < 0 ? -3 : 0), z + lift], Math.PI / 2);
-      for (const sx of [-1, 1]) for (let o = -b.road / 2 + 0.6; o <= b.road / 2 - 0.6; o += 1.2) stamp('bar', [x + sx * (a.half + 0.6) + (sx < 0 ? -3 : 0), yy + o, z + lift], 0);
+      for (const sy of [-1, 1]) for (let o = -a.road / 2 + 0.6; o <= a.road / 2 - 0.6; o += 1.2) { const bx = x + o, by = yy + sy * (b.half + 0.6) + (sy < 0 ? -3 : 0); stamp('bar', [bx, by, S(bx, by) + lift], Math.PI / 2, null, fall(bx, by, true, LEN.bar)); }
+      for (const sx of [-1, 1]) for (let o = -b.road / 2 + 0.6; o <= b.road / 2 - 0.6; o += 1.2) { const bx = x + sx * (a.half + 0.6) + (sx < 0 ? -3 : 0), by = yy + o; stamp('bar', [bx, by, S(bx, by) + lift], 0, null, fall(bx, by, false, LEN.bar)); }
       // a signal on each corner, the diagonal pairs reaching over the two roads; a street-name sign on one
       for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
         const px = x + sx * (a.road / 2 + 0.9), py = yy + sy * (b.road / 2 + 0.9), face = sx * sy > 0 ? (sx > 0 ? 'w' : 'e') : (sy > 0 ? 's' : 'n');
@@ -667,8 +794,10 @@ export function assembleGeocityScene(m, ctx = {}) {
             // its trees on the verge each side (a streetcar suburb's boulevard), clear of its poles
             for (const sd of [-1, 1]) for (let s0 = a + 9 + (sd > 0 ? TREE.verge / 2 : 0); s0 <= b - 9; s0 += TREE.verge) {
               if (sd === side && Math.abs(((s0 - a - 6) % HYDRO + HYDRO) % HYDRO) < 2.5) continue;
-              const [x, yy] = pt(sd, s0, st.w / 2 - WALK - 1.0);
-              plant(r.industrial ? 'dense' : 'low', x, yy, S(x, yy), `${st.id}:${sd}:${Math.round(s0)}`);
+              // (played, a tree stands on the walk by the kerb: the verge it stands on otherwise is drawn as the road's
+              // own edge, where a car parks and drives)
+              const [x, yy] = pt(sd, s0, PLAY ? st.w / 2 - WALK + 0.9 : st.w / 2 - WALK - 1.0);
+              plant(r.industrial ? 'dense' : 'low', x, yy, S(x, yy) + (PLAY ? KERB : 0), `${st.id}:${sd}:${Math.round(s0)}`);
             }
           } else {
             for (const sd of [-1, 1]) for (let s0 = a + 8 + (sd > 0 ? LAMP / 2 : 0); s0 <= b - 8; s0 += LAMP) { const [x, yy] = pt(sd, s0); stamp(`lamp:${face(sd)}`, [x, yy, S(x, yy) + KERB], 0); }
@@ -803,7 +932,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   }
 
   /** A block's buildings, by its segment, on its terraces. */
-  function building(b, { x0, y0, x1, y1, longY, zAt, Rb, far = false }) {
+  function building(b, { x0, y0, x1, y1, longY, zAt, Rb, far = false, steps = [] }) {
     const w = x1 - x0, h = y1 - y0, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, med = b.storeys.median;
     const inset = (share) => { const e = ((w + h) - Math.sqrt((w + h) ** 2 - 4 * w * h * (1 - share))) / 4; return [x0 + e, y0 + e, x1 - e, y1 - e]; };
     const zc = zAt(cx, cy);
@@ -853,10 +982,14 @@ export function assembleGeocityScene(m, ctx = {}) {
     } else if (b.kind === 'construction') going(b, { x0, y0, x1, y1, longY, zAt, Rb, far });
     else if (b.kind === 'parking') parked(b, { x0, y0, x1, y1, longY, zAt, Rb });
     // (a vacant block by its neighbourhood's sites its contractor's yard, fleets.js: their machines staged on it)
-    else if (b.kind === 'vacant' && d.yards?.[b.id]) { fenced(b, { x0, y0, x1, y1 }, zAt((x0 + x1) / 2, (y0 + y1) / 2), 'fence'); yardOf(b, d.yards[b.id], { x0, y0, x1, y1, longY, zAt }); }
-    else if (b.kind === 'vacant') fenced(b, { x0, y0, x1, y1 }, zAt((x0 + x1) / 2, (y0 + y1) / 2), 'fence');
+    else if (b.kind === 'vacant' && d.yards?.[b.id]) { fenced(b, { x0, y0, x1, y1 }, zAt, 'fence'); yardOf(b, d.yards[b.id], { x0, y0, x1, y1, longY, zAt }); }
+    else if (b.kind === 'vacant') {
+      fenced(b, { x0, y0, x1, y1 }, zAt, 'fence');
+      // (its young trees, seeded where they fell, backs.js)
+      if (BACKS_ON && !far) { const Fr = backFrame([x0, y0], null); growBack(Fr, volunteers([0, 0, x1 - x0, y1 - y0], { zAt: (u, v) => zAt(...Fr.xy(u, v)), R: streamOf(seed, 'backs', b.id) }).trees, b.id); }
+    }
     else if (INDUSTRY_SEGMENTS.includes(b.kind)) industrial(b, { zAt, Rb, far });
-    else outskirts(b, { x0, y0, x1, y1, longY, zAt, Rb });
+    else outskirts(b, { x0, y0, x1, y1, longY, zAt, Rb, steps });
   }
 
   /** A building going up (segments.js `construction`): its columns and floor slabs risen to its `progress` of the
@@ -901,7 +1034,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     // near: scaffolding up its two long faces, a bay every 2 m along and every lift up
     const faces2 = longY ? [['w', q[0], 'y', q[1], q[3]], ['e', q[2], 'y', q[1], q[3]]] : [['s', q[1], 'x', q[0], q[2]], ['n', q[3], 'x', q[0], q[2]]];
     for (const [f, at2, along, a, c] of faces2) for (let t = a + 1; t <= c - 1; t += 2) for (let z = zc; z + 2 <= top + 1e-6; z += 2) stamp(`scaffold:${f}`, along === 'y' ? [at2, t, z] : [t, at2, z], 0);
-    fenced(b, { x0, y0, x1, y1 }, zc, 'hoarding');
+    fenced(b, { x0, y0, x1, y1 }, zAt, 'hoarding');
     // barriers and cones on the walk along a street side (the one it fronts first)
     const s = ['s', 'n', 'w', 'e'].find((k) => b.sides[k]?.kind === 'street' || b.sides[k]?.kind === 'arterial') ?? 's', o = WALK / 2;
     for (let k = 0; k < 5; k++) {
@@ -911,10 +1044,12 @@ export function assembleGeocityScene(m, ctx = {}) {
     for (let k = 0; k < 4; k++) { const p = s === 's' ? [x0 + 17 + k * 1.6, y0 - o] : s === 'n' ? [x0 + 17 + k * 1.6, y1 + o] : s === 'w' ? [x0 - o, y0 + 17 + k * 1.6] : [x1 + o, y0 + 17 + k * 1.6]; stamp('cone', [p[0], p[1], S(p[0], p[1]) + KERB], 0); }
   }
   /** A block's edge fenced near the camera: hoarding along its streets (a site's), temporary panels along the rest. */
+  // (each panel on the terrace it stands on: `z` the block's zAt, or one height)
   function fenced(b, { x0, y0, x1, y1 }, z, street) {
+    const zf = typeof z === 'function' ? z : () => z;
     for (const [k, a, c, fixed, ax] of [['s', x0, x1, y0 + 0.4, 'x'], ['n', x0, x1, y1 - 0.4, 'x'], ['w', y0, y1, x0 + 0.4, 'y'], ['e', y0, y1, x1 - 0.4, 'y']]) {
       const kind = street === 'hoarding' && (b.sides[k]?.kind === 'street' || b.sides[k]?.kind === 'arterial') ? 'hoarding' : 'fence', len = kind === 'hoarding' ? 2.4 : 3.5;
-      for (let t = a + len / 2; t <= c - len / 2 + 1e-6; t += len) stamp(kind, ax === 'x' ? [t, fixed, z] : [fixed, t, z], ax === 'x' ? 0 : Math.PI / 2);
+      for (let t = a + len / 2; t <= c - len / 2 + 1e-6; t += len) stamp(kind, ax === 'x' ? [t, fixed, zf(t, fixed)] : [fixed, t, zf(fixed, t)], ax === 'x' ? 0 : Math.PI / 2);
     }
   }
   /** A surface parking lot (segments.js `parking`): rows of stalls across its short side, an aisle between each two,
@@ -1341,19 +1476,23 @@ export function assembleGeocityScene(m, ctx = {}) {
   }
 
   /** An outskirts block: two rows along its long sides, each the row its segment puts on that side. */
-  function outskirts(b, { x0, y0, x1, y1, longY, zAt, Rb }) {
+  function outskirts(b, { x0, y0, x1, y1, longY, zAt, Rb, steps = [] }) {
     const sides = longY ? ['w', 'e'] : ['s', 'n'], med = Math.max(1, Math.round(b.storeys.median)), brickOf = () => HOUSE_BRICK[Math.floor(Rb() * HOUSE_BRICK.length)];
     const along = longY ? [y0, y1] : [x0, x1], deep = longY ? x1 - x0 : y1 - y0;
     // a row's frame: `u` along the block from its start, `v` into it from its side's edge
     const at = (s, u, v) => (s === 'w' ? [x0 + v, along[0] + u] : s === 'e' ? [x1 - v, along[0] + u] : s === 's' ? [along[0] + u, y0 + v] : [along[0] + u, y1 - v]);
     const rectOf = (s, u0, u1, v0, v1) => { const p = at(s, u0, v0), q = at(s, u1, v1); return [Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[0], q[0]), Math.max(p[1], q[1])]; };
     const L = along[1] - along[0];
+    // (what each row leaves behind it, for the back lands: a row of houses' plots and back wall, a row of shops' bays)
+    const rows = [];
     const houses = (s, u0, u1) => {
       const len = u1 - u0, n = Math.max(1, Math.floor((len + GAP) / (PAIR + GAP))), f = (len - (n - 1) * GAP) / n, dpt = Math.min(HOUSE_D, deep / 2 - SETBACK - 4);
       if (dpt < 6) return;
+      // (each house of a pair its own plot, half the pair and half the gap beside it)
+      rows.push({ s, kind: 'houses', v0: SETBACK + dpt, plots: Array.from({ length: n }, (_, k) => { const a = u0 + k * (f + GAP), m = a + f / 2; return [[k ? a - GAP / 2 : u0, m], [m, k + 1 < n ? a + f + GAP / 2 : u1]]; }).flat() });
       for (let k = 0; k < n; k++) {
         const u = u0 + k * (f + GAP), q = rectOf(s, u, u + f, SETBACK, SETBACK + dpt), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
-        const st = Math.max(1, Math.min(b.storeys.rail[1], med + (Rb() < 0.3 ? 1 : 0) - (Rb() < 0.2 ? 1 : 0))), ze = z0 + st * STOREY, zr = ze + Math.min(4.5, 0.32 * f);
+        const st = Math.max(1, Math.min(b.storeys.rail[1], HOUSE_MOST, med + (Rb() < 0.3 ? 1 : 0) - (Rb() < 0.2 ? 1 : 0))), ze = z0 + st * STOREY, zr = ze + Math.min(4.5, 0.32 * f);
         // the gable to the street: its ridge runs into the block
         gable(q[0], q[1], q[2], q[3], z0, ze, zr, longY ? 'x' : 'y', brickOf(), ROOFS[Math.floor(Rb() * ROOFS.length)], 'geocity:house');
         // (its windows each storey, its door to its street)
@@ -1363,6 +1502,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     };
     const shops = (s, storeys, group) => {
       const n = Math.max(1, Math.round(L / 30)), f = L / n;
+      rows.push({ s, kind: 'shops', v0: Math.min(SHOP_D, deep / 2 - 2), plots: Array.from({ length: n }, (_, k) => [k * f + 0.4, (k + 1) * f - 0.4]) });
       for (let k = 0; k < n; k++) {
         const q = rectOf(s, k * f + 0.4, (k + 1) * f - 0.4, 0, Math.min(SHOP_D, deep / 2 - 2)), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2), st = storeys + (Rb() < 0.3 ? 1 : 0);
         box(q[0], q[1], q[2], q[3], z0, z0 + st * STOREY + 0.6, SHOP_FRONT[Math.floor(Rb() * SHOP_FRONT.length)], ROOFS[2], group);
@@ -1381,6 +1521,8 @@ export function assembleGeocityScene(m, ctx = {}) {
       for (let k = 0; k < n; k++) {
         const u = (k + 0.5) * (L / n), q = rectOf(sides[0], u - 14, u + 14, deep / 2 - 7.5, deep / 2 + 7.5), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2), z1 = z0 + 4 * STOREY;
         box(q[0], q[1], q[2], q[3], z0, z1, famOf(brick, `${b.id}:${k}`)[0], ROOFS[2], 'geocity:lowrise');
+        // (its residents' lot between its other street and its wall, backs.js)
+        if (BACKS_ON && deep / 2 - 7.5 - 2 >= 7) rows.push({ s: sides[1], kind: 'lot', v0: 1, v1: deep / 2 - 7.5 - 1, plots: [[u - 14, u + 14]] });
         lights(q[0], q[1], q[2], q[3], z0, z1, STOREY, Rb);
         frontOf(b, q, z0, 4, STOREY, 'residential');
       }
@@ -1394,7 +1536,32 @@ export function assembleGeocityScene(m, ctx = {}) {
       box(q[0], q[1], q[2], q[3], z0, z0 + 3 * 4, '#9a4f3c', ROOFS[2], 'geocity:school');
       const fq = rectOf(sides[1], L * 0.15, L * 0.85, 6, Math.max(8, deep / 2 - 4));
       put([[fq[0], fq[1], zAt(fq[0], fq[1]) + 0.03], [fq[2], fq[1], zAt(fq[0], fq[1]) + 0.03], [fq[2], fq[3], zAt(fq[0], fq[1]) + 0.03], [fq[0], fq[3], zAt(fq[0], fq[1]) + 0.03]], 'geocity:field', col.field);
+      // (its pitch on its field, backs.js: on the field's own level)
+      const fv1 = Math.max(8, deep / 2 - 4);
+      if (BACKS_ON && L * 0.7 - 6 >= 30 && fv1 - 6 - 6 >= 18) { const Fr = backFrame(at(sides[1], 0, 0), sides[1]); layBack(Fr, schoolPitch([L * 0.15 + 3, 9, L * 0.85 - 3, fv1 - 3], { zAt: () => zAt(fq[0], fq[1]) + 0.03, R: streamOf(seed, 'backs', `${b.id}:pitch`) }).faces); }
     } else { houses(sides[0], 2, L - 2); houses(sides[1], 2, L - 2); }
+    if (!BACKS_ON || !rows.length) return;
+    // ── its BACK LANDS (backs.js), each row's in its side's frame: a row of houses' yards to the spine (the spine's fence the
+    // first row's), a row of shops' service yard, a low-rise's lot; a row with no row behind it reaches past the spine to
+    // the other side's setback ──
+    const Rk = streamOf(seed, 'backs', b.id), spineDrawn = new Set(), stepsU = steps.map((t) => t - along[0]);
+    for (const row of rows) {
+      const Fr = backFrame(at(row.s, 0, 0), row.s), zS = (u, v) => zAt(...Fr.xy(u, v)), other = rows.some((r) => r.s !== row.s && r.kind !== 'lot');
+      const v1 = row.v1 ?? (other ? deep / 2 : deep - SETBACK), spine = !spineDrawn.has('spine') && row.kind !== 'lot';
+      if (v1 - row.v0 < 2) continue;
+      if (row.kind === 'houses') {
+        const Y = rowYards(row.plots, { v0: row.v0, v1, zAt: zS, P: townP, R: Rk, spine, steps: stepsU });
+        layBack(Fr, Y.faces); growBack(Fr, Y.trees, `${b.id}:${row.s}`);
+        counts2.yards += Y.plans.length;
+      } else if (row.kind === 'shops') {
+        const Y = shopYards(row.plots, { v0: row.v0, v1, zAt: zS, R: Rk, spine });
+        layBack(Fr, Y.faces); parkBack(Fr, Y.cars, `${b.id}:${row.s}`);
+      } else {
+        const Y = residentsLot(row.plots[0][0], row.plots[0][1], { v0: row.v0, v1, zAt: zS, R: Rk });
+        layBack(Fr, Y.faces); parkBack(Fr, Y.cars, `${b.id}:lot`);
+      }
+      if (spine) spineDrawn.add('spine');
+    }
   }
 
   street();
@@ -1526,6 +1693,12 @@ export function assembleGeocityScene(m, ctx = {}) {
     }
   }
   for (const t of tunnels) for (const R of t.footprint) groundCut(R, (f) => Math.min(...f.corners.map((cc) => cc[2])) >= t.top + 0.2);
+  // (played: each pad's box, open round what is walked into under its level: a sunk shop and its door, a podium's inside,
+  // a passage's run)
+  if (PLAY) {
+    const open = [...sunk.flatMap((K) => [K.I, K.door]), ...podia.map((P) => P.I.footprint), ...tunnels.flatMap((t) => t.footprint)];
+    for (const H of padHolds) for (const r of open.reduce((rs, o) => rs.flatMap((q) => rectLess(q, o)), [H.q])) colliders.push({ min: P3([r[0], r[1], H.bot]), max: P3([r[2], r[3], H.top]), of: H.of });
+  }
   // the subway under its street (geocity/subway.js): its stations, tunnels and entrances, the walk open over each
   // entrance's stairwell
   if (SUBP && !SUB) SUB = subwayUnder(d, { S, kerb: KERB, plan: SUBP });
@@ -1782,13 +1955,53 @@ export function assembleGeocityScene(m, ctx = {}) {
   // (the URBAN PIZZA VIEWER, a live page whose world asks for the view cone, scene/channels/city-cone.js: the kit drawn by
   // the cone's rule rather than the ring; an export, and a page without the cone, as before)
   const coned = !!ctx.live && m.cone !== undefined && m.cone !== null, kit = coned ? { cone: 'kit' } : {};
+  // (what the street stood on a walk a forecourt now covers, a bench, a bin, a bike ring: on the forecourt)
+  if (fores.length) for (const [k, list] of stamps) {
+    if (['dash', 'line', 'yellow', 'rail', 'bar', 'wire'].includes(k.split(':')[0])) continue;
+    for (const st of list) for (const Fc of fores) {
+      const dx = st.pos[0] - Fc.a[0], dy = st.pos[1] - Fc.a[1], u = dx * Fc.t[0] + dy * Fc.t[1], v = dx * Fc.n[0] + dy * Fc.n[1];
+      if (u >= 0 && u <= Fc.L && v >= 0 && v <= FORE.depth && st.pos[2] < Fc.zTop(u)) st.pos = P3([st.pos[0], st.pos[1], Fc.zTop(u)]);
+    }
+  }
+  // SETTLED ON WHAT IS DRAWN (settle.js): the street's paint and its furniture, and its trees, were stood on the land; the
+  // road and the walk under them are drapes, flat across each cell: each re-seated on the surface drawn under it
+  {
+    const ground = { carriage: drawnGround(faces, SETTLE.carriage), walked: drawnGround(faces, SETTLE.walked) };
+    const st = settleStamps(stamps, ground), tr = settleTrees(trees, ground.walked);
+    counts.settled = { pieces: st.seated, trees: tr.seated, left: st.left + tr.left };
+  }
+  // PLAYED, NOTHING STANDS ON A ROAD: what the street stands (a signal, a lamp, a pole, a hydrant, a bin, a bench, a
+  // sign) and every tree is kept only off the carriageway: one found over road surface with no other ground under it
+  // (a walk, a paving, a park, a lot) is left out. A road is driven on here, and what stands in it is hit.
+  if (PLAY) {
+    const ROADS = ['geocity:road', 'geocity:streetcar-row', 'geocity:bike'], flat = faces.filter((f) => f.normal && f.normal[2] > 0.9 && f.corners.length >= 3).map((f) => { const xs = f.corners.map((c) => c[0]), ys = f.corners.map((c) => c[1]); return { road: ROADS.includes(f.group), x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), z: f.corners[0][2], c: f.corners }; });
+    const inside = (x, y, c) => { let k = false; for (let i = 0, j = c.length - 1; i < c.length; j = i++) if ((c[i][1] > y) !== (c[j][1] > y) && x < ((c[j][0] - c[i][0]) * (y - c[i][1])) / (c[j][1] - c[i][1]) + c[i][0]) k = !k; return k; };
+    const onRoad = (x, y, z) => { let road = false; for (const f of flat) { if (x < f.x0 || x > f.x1 || y < f.y0 || y > f.y1 || Math.abs(f.z - z) > 3 || !inside(x, y, f.c)) continue; if (!f.road) return false; road = true; } return road; };
+    const STOOD = ['signal', 'lamp', 'hydro', 'can', 'pole', 'hydrant', 'bin', 'bench', 'sign', 'ring', 'papers'];
+    for (const [k, list] of stamps) if (STOOD.includes(k.split(':')[0])) stamps.set(k, list.filter((t) => !onRoad(t.pos[0], t.pos[1], t.pos[2])));
+    for (const [k, list] of trees) trees.set(k, list.filter((t) => !onRoad(t.x, t.y, t.z0)));
+  }
   const repeats = E?.evoke === 'skyline' ? [] : [...stamps].map(([key, transforms]) => ({ group: `geocity:${key.split(':')[0]}`, template: templateOf(key), transforms, near: NEAR, ...kit }));
   if (E?.evoke !== 'skyline') {
     // (the shops' insides, each a template stamped at its doors, within its own ring)
     for (const [key, { template, transforms }] of [...cityStores].sort(([a], [b]) => a.localeCompare(b))) repeats.push({ group: `geocity:store-${key}`, template, transforms, near: ENTER.near, occlude: false, compact: true });
     // (its vehicles: each model's paint and trim and its roof's extras, cars.js; its machines the shelf's assembly)
     // (none of them an occluder in the ambient bake: a parked car, a machine, a window darkens nothing the bake needs)
-    for (const r of carRepeats(vehicles, { group: 'geocity:vehicle', ...(F ? { pool: F.kinds } : {}) })) repeats.push({ ...r, near: NEAR, occlude: false, compact: true, ...kit });
+    // (a played level's cars a hero gets into, gameworld/cars.js: `ctx.driven` their places, each a body of the level's
+    // and so never drawn here; `ctx.parked`, a list the caller hands, is filled with every vehicle parked)
+    if (Array.isArray(ctx.parked)) ctx.parked.push(...vehicles);
+    // (`ctx.streets`, a list the caller hands, filled with every street a driver keeps to: each arterial across the
+    // land and each neighbourhood's own streets, run by run, as [axis (0 along x, 1 along y), its middle, from, to]:
+    // gameworld/levels.js cityRoads, the law's police car)
+    if (Array.isArray(ctx.streets)) {
+      for (const l of d.lines) ctx.streets.push(l.axis === 'ns' ? [1, r5(l.at), r5(ly0), r5(ly1)] : [0, r5(l.at), r5(lx0), r5(lx1)]);
+      for (const r of d.regions) for (const st of r.streets ?? []) for (const [a, b] of st.runs ?? []) ctx.streets.push([st.axis === 'ns' ? 1 : 0, r5(st.at), r5(a), r5(b)]);
+    }
+    const drivenAt = ctx.driven ?? [], undriven = drivenAt.length ? vehicles.filter((c) => !drivenAt.some((q) => Math.abs(q[0] - c.pos[0]) < 0.02 && Math.abs(q[1] - c.pos[1]) < 0.02)) : vehicles;
+    // (their models pooled with the traffic's: the templates those bodies are drawn from, scene/channels/cab-pool.js;
+    // `ctx.pooled`, the models of bodies the district did not park itself: its fleet's cars a level stands at a kerb)
+    const bodyModels = drivenAt.length ? [...new Set([...vehicles.filter((c) => !undriven.includes(c)).map((c) => c.model), ...(ctx.pooled ?? [])])].sort().map((model) => ({ model })) : [];
+    for (const r of carRepeats(undriven, { group: 'geocity:vehicle', ...(F || bodyModels.length ? { pool: [...(F ? F.kinds : []), ...bodyModels] } : {}) })) repeats.push({ ...r, near: NEAR, occlude: false, compact: true, ...kit });
     for (const [arch, transforms] of [...machines].sort(([a], [b]) => a.localeCompare(b))) repeats.push({ group: `geocity:machine-${arch}`, template: siteFaces(LIGHT, `m:${arch}`, () => assembleMachine(arch, { laws: false })), transforms, near: NEAR, occlude: false, compact: true, ...kit });
     // (its industry's pieces, industry.js: the tall ones seen across their district, the rest near the camera)
     if (indStamps.size) {
@@ -1824,7 +2037,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   // their crowns raised over the walk, drawn near the camera only like the kit
   // (read by the seventh generation: the street trees the form grows, each its species at its height, form/flora-read.js)
   let plants = null;
-  if (form && E?.evoke !== 'skyline') plants = metroPlants(trees, townPlants);
+  if (form && E?.evoke !== 'skyline') plants = metroPlants(trees, townPlants, backClaims);
   if (!form && E?.evoke !== 'skyline' && trees.size) {
     const eyes = cameras.map(({ worldFraming: wf }) => ({ pos: wf.cameraPosition, focalPx: 1280 / (2 * Math.tan((wf.horizontalFov * Math.PI) / 360)) }));
     for (const sp of [...trees.keys()].sort()) {
@@ -1889,8 +2102,40 @@ export function assembleGeocityScene(m, ctx = {}) {
     for (const f of faces) if (FORM_GROUND.includes(f.group)) f.group = 'isekai:ground';
     counts.trees = [...trees.values()].reduce((a, l) => a + l.length, 0);
   }
+  // ── THE PEOPLE (played): on the walks of the blocks a person is near, each walking round its block on its sidewalk,
+  // one to each stretch of it, turn about one way and the other, at a person's pace; the legacy city's walkers carry them (worlds/world-kinds.js
+  // attachCityWalkers, scene/channels/walkers.js: their clothed rigs, a looped path). A block whose shops stand on a
+  // forecourt keeps its walk to those who shop there: its ring would pass through its rails. Seeded per block.
+  const PEOPLE = { inset: 1.2, stride: 6, speed: 1.35, most: 36, share: 0.9, each: 55, block: 6 }, walkerLoops = [];
+  if (PLAY) {
+    const railed = new Set(fores.map((f) => f.block));
+    for (const b of walked) {
+      if (walkerLoops.length >= PEOPLE.most) break;
+      if (railed.has(b.id)) continue;
+      const R = streamOf(seed, 'people', b.id), [x0, y0, x1, y1] = b.rect, k = PEOPLE.inset;
+      if (x1 - x0 < 12 || y1 - y0 < 12 || R() >= PEOPLE.share) continue;
+      const corners = [[x0 - k, y0 - k], [x1 + k, y0 - k], [x1 + k, y1 + k], [x0 - k, y1 + k], [x0 - k, y0 - k]], pts = [];
+      for (let i = 0; i + 1 < corners.length; i++) { const [a, c] = [corners[i], corners[i + 1]], L = Math.hypot(c[0] - a[0], c[1] - a[1]), n = Math.max(1, Math.round(L / PEOPLE.stride)); for (let j = 0; j < n; j++) pts.push([a[0] + ((c[0] - a[0]) * j) / n, a[1] + ((c[1] - a[1]) * j) / n]); }
+      const ring = [...pts, pts[0]].map(([x, y]) => P3([x, y, S(x, y) + KERB]));
+      // (a person to each stretch of its walk, turn about: one way, then the other, set out round it)
+      const many = Math.max(1, Math.min(PEOPLE.block, Math.round((2 * (x1 - x0 + y1 - y0)) / PEOPLE.each))), first = R();
+      for (let i = 0; i < many && walkerLoops.length < PEOPLE.most; i++) walkerLoops.push({ block: b.id, path: i % 2 ? ring.slice().reverse() : ring, speed: r5(PEOPLE.speed * (0.85 + R() * 0.3)), start: r5((first + i / many) % 1) });
+    }
+    if (walkerLoops.length) counts.people = walkerLoops.length;
+  }
+  // ── ITS PLAN (played): the metro as a map's ground, in its own metres (gameworld/city-map.js lays it on mana-ui's
+  // map): its frame, its land as street, its water, its arterials' roadways, every block by what it is (a park, a
+  // lot, a square, else built: how tall it stands in a miniature by its kind), and each shop walked into as a place ──
+  let plan = null;
+  if (PLAY) {
+    const TALL = { tower: 1, podium: 0.7, slab: 0.55, midrise: 0.45 }, KIND = { park: 'park', parking: 'lot', square: 'walk', vacant: 'lot', construction: 'lot' };
+    const shapes = [{ kind: 'road', r: [lx0, ly0, lx1, ly1].map(r5) }];
+    for (const w of d.water) { const q = { s: [0, 0, d.frame.W, ly0], n: [0, ly1, d.frame.W, d.frame.D], w: [0, ly0, lx0, ly1], e: [lx1, ly0, d.frame.W, ly1] }[w.side]; if (q && q[2] > q[0] && q[3] > q[1]) shapes.push({ kind: 'water', r: q.map(r5) }); }
+    for (const r of d.regions) for (const b of r.blocks ?? []) { if (!Array.isArray(b.rect)) continue; const k = KIND[b.kind] ?? 'block', tall = k === 'block' ? TALL[b.kind] ?? 0.16 : 0; shapes.push({ kind: k, r: b.rect.map(r5), ...(tall ? { tall } : {}) }); }
+    plan = { box: [0, 0, r5(d.frame.W), r5(d.frame.D)], shapes, places: entered.map((e) => ({ at: [r5(e.door[0]), r5(e.door[1])], kind: 'shop', card: e.S.card })) };
+  }
   return {
-    faces, ...(formTown ? { form: { town: formTown } } : {}), ...(repeats.length ? { repeats } : {}), ...(F ? { flow: F } : {}), ...(beaconAt.length ? { beacons: { at: beaconAt, color: BEACON.color, period: BEACON.period, duty: BEACON.duty } } : {}), ...(counts.industry?.lines ? { footless: ['geocity:wire'] } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
+    faces, ...(formTown ? { form: { town: formTown } } : {}), ...(repeats.length ? { repeats } : {}), ...(F ? { flow: F } : {}), ...(plan ? { plan } : {}), ...(walkerLoops.length ? { walkerLoops, cityCues: { pedHeight: 1.75 } } : {}), ...(beaconAt.length ? { beacons: { at: beaconAt, color: BEACON.color, period: BEACON.period, duty: BEACON.duty } } : {}), ...(counts.industry?.lines ? { footless: ['geocity:wire'] } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
     // (the city's haze is laid per its world unit, city/plan/scene.js; this world's unit is the metre)
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },
@@ -1917,7 +2162,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       graph: { nodes: d.graph.nodes.length, edges: d.graph.edges.length, beyond: d.graph.beyond },
       ...(Object.keys(towns).length ? { geotowns: towns } : {}),
       // (its shops walked into: how many, on how many templates, their cards, the faces their templates hold)
-      ...(ENTER ? { stores: { near: ENTER.near, shops: entered.length, sunk: entered.filter((e) => e.sink > 0).length, shut: steep.n, small: tight.n, templates: cityStores.size, cards: entered.reduce((a, e) => ({ ...a, [e.S.card]: (a[e.S.card] ?? 0) + 1 }), {}), faces: [...cityStores.values()].reduce((a, v) => a + v.S.faceCount, 0) } } : {}),
+      ...(ENTER ? { stores: { near: ENTER.near, shops: entered.length, sunk: entered.filter((e) => e.sink > 0).length, ...(fores.length ? { forecourts: fores.length } : {}), shut: steep.n, small: tight.n, templates: cityStores.size, cards: entered.reduce((a, e) => ({ ...a, [e.S.card]: (a[e.S.card] ?? 0) + 1 }), {}), faces: [...cityStores.values()].reduce((a, v) => a + v.S.faceCount, 0) } } : {}),
       ...(UN ? { under: inside ? {
         podium: inside.block, plan: inside.I.plan, rise: inside.I.rise,
         podia: podia.map((P) => ({ id: P.block, plan: P.I.plan, ports: P.I.ports.length, findings: P.I.findings })),

@@ -106,6 +106,7 @@ export function buildBus() {
     if (raw.pose !== undefined) e.pose = raw.pose;
     if (raw.color !== undefined) e.color = raw.color;      // marker tint (so conceptual entities read)
     if (Number.isFinite(raw.radius)) e.radius = raw.radius;
+    if (Array.isArray(raw.facing)) e.facing = raw.facing.slice();   // a seal's doorway, the way back in (drawn across it)
     state.entities.push(e);
     state.byId[e.id] = e;
     return e;
@@ -477,7 +478,7 @@ export function buildBus() {
       if (s.type !== 'zone' || !s.zone) continue;
       const watch = s.watch || '*';
       for (const e of list) {
-        if (!e || !e.id || e.gone) continue;           // one asleep or sent away stands in no zone
+        if (!e || !e.id || (e.gone && !e.mountedOn)) continue;   // one asleep or sent away stands in no zone (one riding in a cab is where its car is)
         if (!glob(e.id, watch)) continue;
         if (!inZone(zonePos(e), s)) continue;
         const key = s.zone + '|' + e.id;

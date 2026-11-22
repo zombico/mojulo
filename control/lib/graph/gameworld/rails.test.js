@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import {
   RAILS, RAIL_IDS, SIZES, SIZE_IDS, NOT_YET, GENERIC_GOALS, SEEN_WORDS,
   railOf, railOfPole, railOfGenre, railsOfGoal, seenOf, railWords, railLacks, railShape, OWN, sizeCall,
-  railShapes, railSheet, nearestRails, notYetFor, laidGenre, TUNINGS, readRail, railReport, railMoves,
+  railShapes, railSheet, nearestRails, notYetFor, laidGenre, TUNINGS, readRail, railReport, railMoves, variantOf,
 } from './rails.js';
 import { POLES } from './feel/cards.js';
 import { GENRES, genreCube } from './intent.js';
@@ -17,6 +17,12 @@ import { dryRun } from '../cosmos/cosmos.js';
 import { railCardById } from './gameworld-cards.js';
 import { goalposts, startReadout, producerSteps, producerSays, leadNext, GOALPOSTS } from './goalposts.js';
 import { pitchStart } from './pitch-start.js';
+import { actionStarter } from './action-first-level.js';
+import { levelPlan } from './action-levels.js';
+import { heroOrders } from './index.js';
+import { validateHeroSpec } from '../../mcp/tools/layered.js';
+import { applyManifestPatch } from '../../mcp/tools/manifest-patch.js';
+import { STYLISH } from './style-meter.js';
 import { readGameworld } from './world.js';
 import { chaptersOfPath } from './chapters.js';
 import { MOTIVATIONS } from './gmn.js';
@@ -189,7 +195,8 @@ describe('the two depths: the shape, then the sheet', () => {
     expect(S.rails.length).toBe(RAIL_IDS.length); expect(S.notYet.length).toBe(Object.keys(NOT_YET).length);
     expect(S.rails.every((l) => !/\n/.test(l))).toBe(true);
     expect(S.rails[0].startsWith(`${RAIL_IDS[0]}: `)).toBe(true);
-    expect(S.notYet[0]).toContain('Not a game yet');
+    // (none waiting today, the shared kitchen having joined the Work Sim rail: no line said)
+    if (S.notYet.length) expect(S.notYet[0]).toContain('Not a game yet');
   });
 
   it('a sheet reads the four tunings from the rail\'s own cube, copying none', () => {
@@ -241,9 +248,10 @@ describe('the two depths: the shape, then the sheet', () => {
   });
 
   it('a type not made yet is said by its own words', () => {
+    expect(notYetFor('a quiet walk')).toEqual([]);
+    if (!Object.keys(NOT_YET).length) return;   // (none waiting today: nothing is said of one)
     const [id, N] = Object.entries(NOT_YET)[0];
     expect(notYetFor(`I want a ${N.words[0]} game`)[0]).toMatchObject({ id, waits: N.waits });
-    expect(notYetFor('a quiet walk')).toEqual([]);
     // (a word may also be a rail's: the producer then says both, the type not made yet and the nearest rail)
     for (const v of Object.values(NOT_YET)) expect(v.words.length).toBeGreaterThan(0);
   });
@@ -251,7 +259,8 @@ describe('the two depths: the shape, then the sheet', () => {
   it('is served as two cards by id: the shape, and a rail\'s sheet', () => {
     const all = railCardById('gameworld-rails');
     for (const id of [RAIL_IDS[0], RAIL_IDS[RAIL_IDS.length - 1]]) expect(all.body).toContain(RAILS[id].name);
-    expect(all.body).toMatch(/TEMPLATE/); expect(all.body).toContain(Object.values(NOT_YET)[0].name);
+    expect(all.body).toMatch(/TEMPLATE/);
+    if (Object.keys(NOT_YET).length) expect(all.body).toContain(Object.values(NOT_YET)[0].name);
     const one = railCardById(`gameworld-rail-${designed}`);
     expect(one.body).toContain(RAILS[designed].name); expect(one.body).toMatch(/TEMPLATE/); expect(one.body).toContain('THE CHAIN');
     expect(one.body).toContain(railLacks(designed)[0]);
@@ -361,7 +370,9 @@ describe('the producer leads: one question a turn, before the goalposts', () => 
     const w = railWords(id)[0], N = Object.values(NOT_YET)[0];
     const R = producerSteps({ intake: 'none', brief: `a ${w} game` }).find((s) => s.step === 'rail');
     expect(R.nearest.map((r) => r.id)).toContain(id);
-    expect(producerSteps({ intake: 'none', name: N.words[0] }).find((s) => s.step === 'rail').notYet[0].waits).toBe(N.waits);
+    if (N) expect(producerSteps({ intake: 'none', name: N.words[0] }).find((s) => s.step === 'rail').notYet[0].waits).toBe(N.waits);
+    // (the words of a type that joined a rail point at the rail: a co-op kitchen at the Work Sim)
+    expect(producerSteps({ intake: 'none', brief: 'a co-op kitchen game' }).find((s) => s.step === 'rail').nearest.map((r) => r.id)).toContain('work-sim');
     expect(producerSteps({ intake: 'none' }).find((s) => s.step === 'rail').nearest).toBeUndefined();
   });
 
@@ -385,7 +396,8 @@ describe('the producer leads: one question a turn, before the goalposts', () => 
 });
 
 describe('the pitch kept: a locked pitch with no level is given the rail\'s starter', () => {
-  const composed = RAIL_IDS.find((k) => RAILS[k].sizes.includes('designed') && RAILS[k].handles.genres.some(laid) && !['platformer'].includes(POLES[RAILS[k].handles.pole]?.base));
+  const composed = RAIL_IDS.find((k) => RAILS[k].sizes.includes('designed') && RAILS[k].handles.genres.some(laid) && !['platformer'].includes(POLES[RAILS[k].handles.pole]?.base) && !STYLISH.includes(RAILS[k].handles.pole));
+  const stylish = RAIL_IDS.find((k) => STYLISH.includes(RAILS[k].handles.pole) && RAILS[k].sizes.includes('designed'));
   const platformer = RAIL_IDS.find((k) => POLES[RAILS[k].handles.pole]?.base === 'platformer' && RAILS[k].sizes.includes('designed'));
   const small = RAIL_IDS.find((k) => !RAILS[k].sizes.includes('designed'));
   const base = { id: 'their-game', name: 'Their Game' };
@@ -415,8 +427,78 @@ describe('the pitch kept: a locked pitch with no level is given the rail\'s star
     expect(() => readGameworld(P.world)).not.toThrow();
   });
 
+  it('a stylish rail lays its genre\'s reading with the citadel fought room by room, its kit, its meter and its look, the creator\'s keys winning', () => {
+    const P = pitchStart({ ...base, rail: { from: stylish, locked: true } }), A = actionStarter();
+    expect(P.laid).toMatchObject({ by: 'action', levels: ['citadel'] });
+    expect(P.world).toMatchObject({ camera: 'orbit', styleMeter: 'auto', arsenal: { from: RAILS[stylish].handles.pole }, feel: RAILS[stylish].handles.pole, fights: A.fights, foes: A.foes, grade: A.grade });
+    expect(P.world.levels.citadel).toEqual(A.level);
+    expect(P.world.characters.hero.looks.underlayer).toEqual({ type: 'outfit', style: 'duelist' });
+    // (its level a plan its pitch's words name: a cathedral said, the cathedral laid; the same plan's fights and its light)
+    const nave = pitchStart({ ...base, name: 'Their Cathedral', rail: { from: stylish, locked: true } }), C = levelPlan('cathedral');
+    expect(Object.keys(nave.world.levels)).toEqual(['cathedral']);
+    expect(nave.world.levels.cathedral).toEqual(C.level); expect(nave.world.fights).toEqual(C.fights);
+    expect(() => readGameworld(nave.world)).not.toThrow();
+    expect(P.world.characters.hero.looks.body.form).toBe('realistic');
+    // (and the hero its pages compose is one the hero door takes, as design_game asks before it stores the world)
+    const O = heroOrders(readGameworld(P.world)), spec = O.motion ? applyManifestPatch({ hero: O.mint.args.spec }, O.motion.args.patch).manifest.hero : O.mint.args.spec;
+    expect(validateHeroSpec(spec)).toEqual([]);
+    // (the composed level and what played it gone: no links, no flow naming a level that is not there)
+    for (const k of ['links', 'flow', 'mode', 'review', 'brief', 'made']) expect(P.world[k]).toBeUndefined();
+    expect(() => readGameworld(P.world)).not.toThrow();
+    // what the creator wrote wins: a kit of their own, no meter, another look on the screen
+    const own = pitchStart({ ...base, arsenal: { from: 'fable-of-artesia' }, styleMeter: false, grade: null, rail: { from: stylish, locked: true } }).world;
+    expect(own).toMatchObject({ arsenal: { from: 'fable-of-artesia' }, styleMeter: false, grade: null });
+    expect(JSON.stringify(pitchStart({ ...base, rail: { from: stylish, locked: true } }))).toBe(JSON.stringify(P));
+  });
+
   it('a rail with no starter, or a smaller size, is said and not laid', () => {
     expect(pitchStart({ ...base, rail: { from: small, locked: true } }).unlaid).toMatch(/not laid as a designed game yet/);
     expect(pitchStart({ ...base, rail: { from: composed, size: 'quick', locked: true } })?.unlaid ?? pitchStart({ ...base, rail: { from: RAIL_IDS.find((k) => RAILS[k].sizes.includes('quick')), size: 'quick', locked: true } }).unlaid).toMatch(/its own call/);
+  });
+});
+
+// A RAIL'S VARIANTS: a variant a door's words make (the beat-em-up's heroes) is named by its own words, has its own sheet
+// whose chain asks its own question before anything is made, and lays its street's words on a designed game's starter
+describe('a rail\'s variants', () => {
+  const withV = RAIL_IDS.filter((id) => RAILS[id].variants);
+  const [rid] = withV, [vid] = Object.keys(RAILS[rid].variants), V = variantOf(rid, vid);
+  it('every variant has its name, its words, its first level and the question it asks with its card', () => {
+    for (const id of withV) for (const k of Object.keys(RAILS[id].variants)) {
+      const v = variantOf(id, k);
+      expect(v.name && v.like && v.level1 && v.words.length && v.ask.card, `${id}.${k}`).toBeTruthy();
+    }
+    expect(() => variantOf(rid, 'nope')).toThrow(/variants/);
+  });
+  it('is named by its own words, the rail\'s own words still the rail', () => {
+    const [hit] = nearestRails(`a ${V.words[0]} with my friends`);
+    expect(hit).toMatchObject({ id: rid, variant: vid, name: V.name });
+    const plain = RAILS[rid].words?.[0];
+    if (plain) expect(nearestRails(`like ${plain}`)[0].variant).toBeUndefined();
+  });
+  it('its sheet\'s chain asks its question first at every size, its quick door carries its words, its first level its street', () => {
+    const S = railSheet(rid, vid);
+    expect(S).toMatchObject({ id: rid, variant: vid, name: V.name, level1: V.level1 });
+    const quick = S.chain.find((c) => c.size === 'quick'), designed = S.chain.find((c) => c.size === 'designed');
+    expect(quick.steps[0]).toMatchObject({ step: V.ask.step, card: V.ask.card });
+    expect(quick.steps[1].does).toContain(V.quick);
+    expect(designed.steps.findIndex((st) => st.step === V.ask.step)).toBeLessThan(designed.steps.findIndex((st) => st.step === 'chapters'));
+    expect(designed.steps.find((st) => st.step === 'first-level').does).toContain(Object.values(V.street)[0]);
+    // (the rail's own sheet names its variants and asks no variant's question)
+    expect(railSheet(rid).variants.map((v) => v.id)).toContain(vid);
+    expect(railSheet(rid).chain.flatMap((c) => c.steps).some((st) => st.step === V.ask.step)).toBe(false);
+  });
+  it('a pitch names it, its report and card are its own, and a designed game\'s starter streets carry its words', () => {
+    expect(() => readRail({ from: rid, variant: 'nope' })).toThrow(/variants/);
+    const R = railReport({ rail: { from: rid, variant: vid, locked: true } });
+    expect(R).toMatchObject({ variant: vid, name: V.name, card: `gameworld-rail-${rid}-${vid}` });
+    const card = railCardById(R.card);
+    expect(card.body).toContain(V.ask.does.slice(0, 20));
+    expect(railCardById(`gameworld-rail-${rid}`).body).toContain(`gameworld-rail-${rid}-${vid}`);
+    const P = pitchStart({ id: 'g', name: 'Theirs', rail: { from: rid, variant: vid, locked: true } });
+    expect(P.laid.variant).toBe(vid);
+    const streets = Object.values(P.world.levels).filter((L) => L.street);
+    expect(streets.length).toBeGreaterThan(0);
+    for (const L of streets) expect(L.street).toMatchObject(V.street);
+    expect(() => readGameworld(P.world)).not.toThrow();
   });
 });

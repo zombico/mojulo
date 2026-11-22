@@ -23,6 +23,7 @@ const PINS = {
   'armor-hit': '6b70934960f0',
   'shield-hit': '3c3a7ad30409',
   'step-concrete': '818649682593',
+  'step-pavement': '642f14c8c129',   // a new row (2026-11-17): a street's footstep, a heel's click
   'step-metal': 'eff697365f68',
   'step-dirt': 'd8c4a58c17ad',
   'step-grass': 'e532cbf02159',
@@ -113,11 +114,22 @@ const PINS = {
   'backfire': 'a41ad1b70e0b',
   'car-door': 'ef4a9a177b85',
   'kart-engine': '43dfb6c0858e',
+  'road-car-engine': '3bff9d8db5e6',   // a new row (2026-11-17): a road car's engine for a small speaker
+  // new rows (2026-11-18): the open city's car sound design and its traffic far off
+  'road-car-load': '2122cb0d7c66',
+  'road-roar': 'a6b6adaa341b',
+  'traffic-hum': 'af8571c65ac7',
+  'car-door-open': '5924b78a922b',
+  'car-ignition': '0050e366d421',
+  'car-engine-off': '847665ad254d',
+  'brake-squeal': '4c70edf4c909',
   'boat-engine': '0447bec3c238',
   // (new rows: the heavy diesel and the tracked engine, a walking machine's hydraulics: the artillery range's bases)
   'diesel-engine': 'c096cf2c7466',
   'tank-engine': '603e700a05e4',
   'walker-hydraulics': '94b48bc613a7',
+  // (a machine venting steam: a new row, servo's steam dial, 2026-11-20)
+  'steam-hiss': '0a6272248c1d',   // re-pinned 2026-11-21: silent at no pressure and gone after its 0.4 s release, as the servo family is (its channel holds a body that stands at its standing pressure)
   // (the helicopter and a multirotor drone's motors: the artillery range's rotorcraft)
   'helicopter': '6a1db48b91b1',
   'drone-motors': 'f9e1b6875b8b',

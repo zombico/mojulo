@@ -50,6 +50,11 @@ A row is voiced in styles (`styles.js`). Four are the palettes (`arcade`, `foley
 falls back to `foley` where it has no voice yet. The palettes are frozen behind the roster: every palette cue id is
 exactly one row, so their recipes never change.
 
+The **arm cannon** set (`sets/buster.js`) voices a run and gun's buster in the realistic style: `buster-shot`,
+`buster-charged-shot` and `buster-full-shot`, energy shots in the kernel's own tones (a square sweeping down for the
+zip, a triangle or a saw for the body, a hair of noise; the charges driven and warbling over a thump). A voice's
+pew read as a voice, not a beam: energy is synthesized.
+
 `mouth` is **mouth foley**: the sounds a voice makes better, made the way a vocal sound-effect performer makes them. The
 local voice worker (Kokoro) says a sound word that already sounds like the thing, mostly Japanese manga words (シュッ
 shu' for a swing, ザシュッ zashu' for a slash, ブン bun for a heavy swing, スパッ supa' for a clean swish), a chain cuts

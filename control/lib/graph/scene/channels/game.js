@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION as GAME_CONTRACT_VERSION, MSG_INIT as GAME_MSG_INIT, MSG_OUTCOME as GAME_MSG_OUTCOME, MSG_READY as GAME_MSG_READY, MSG_DOOR as GAME_MSG_DOOR, MSG_SHOWN as GAME_MSG_SHOWN, MSG_CARD_DONE as GAME_MSG_CARD_DONE, MSG_SCENE_END as GAME_MSG_SCENE_END } from '../../game/level-contract.js';
+import { CONTRACT_VERSION as GAME_CONTRACT_VERSION, MSG_INIT as GAME_MSG_INIT, MSG_OUTCOME as GAME_MSG_OUTCOME, MSG_READY as GAME_MSG_READY, MSG_DOOR as GAME_MSG_DOOR, MSG_SAVE as GAME_MSG_SAVE, MSG_SHOWN as GAME_MSG_SHOWN, MSG_CARD_DONE as GAME_MSG_CARD_DONE, MSG_SCENE_END as GAME_MSG_SCENE_END } from '../../game/level-contract.js';
 import { FONTS } from '../../game/hud-widgets.js';
 import { safeJson } from '../emit-util.js';
 
@@ -33,6 +33,7 @@ export function awaitShell({ started, fallback, wait = 1500, tick = 100, slack =
   })(now() + tick);
 }
 
+import { rankOf, levelRank } from '../../game/rank.js';
 export function gameChannelScript(game, { shownOnStart = false } = {}) {
   // a level left by one of several named exits (reach-exit `exit`, on `{ end, exit }`): only then does the envelope carry
   // `exit`, so a level without one keeps its bytes
@@ -41,9 +42,14 @@ export function gameChannelScript(game, { shownOnStart = false } = {}) {
   const keeps = !!(game && Array.isArray(game.keep) && game.keep.length);
   // an emit that names its event ({event}: a broken block's broke:<id> kept as a flag of that name): only then
   const named = !!(game && game.on && Object.values(game.on).some((a) => a && a.emit && Object.values(a.emit).some((v) => v === '{event}')));
+  // a level that is ranked (game.rank: { par? }, game/rank.js): as it is won, the rank and its figures join its stats;
+  // only then
+  const ranks = !!(game && game.rank && typeof game.rank === 'object');
   return `
 // ---- game channel (level contract bridge, opt-in) ----
-const __GAME = ${safeJson(game)};
+${ranks ? `${rankOf.toString()}
+const __levelRank = ${levelRank.toString()};
+` : ''}const __GAME = ${safeJson(game)};
 (function () {
   const __CV = ${GAME_CONTRACT_VERSION};
   // the style tokens (hud-widgets.js) a hosting shell sends beside game-init: set as --moj-* vars
@@ -88,7 +94,12 @@ const __GAME = ${safeJson(game)};
     if (typeof exit === 'string' && exit) st.envelope.exit = exit;` : ''}
     // optional SCORE payload (additive — validateEnvelope ignores it; shells without a score
     // screen simply never read it): { pilot, rows: [{ id, name, kills, deaths, dmg, shots, hits }] }.
-    if (stats && typeof stats === 'object') { try { st.envelope.stats = JSON.parse(JSON.stringify(stats)); } catch (e) { /* non-serializable stats are dropped, never fatal */ } }
+${ranks ? `    // THE RANK (game/rank.js), on a level won: read off the style meter, the world's clock and the par
+    if (st.envelope.result === 'success' && window.__mojStyle) {
+      const W = window.__mojCtrl && window.__mojCtrl.world, R = __levelRank(window.__mojStyle.now(), W ? W.time : 0, __GAME.rank.par);
+      if (R) stats = Object.assign({}, stats, { rank: R.rank, kept: ((stats && stats.kept) || []).concat(R.kept) });
+    }
+` : ''}    if (stats && typeof stats === 'object') { try { st.envelope.stats = JSON.parse(JSON.stringify(stats)); } catch (e) { /* non-serializable stats are dropped, never fatal */ } }
     if (hosted && !capture) { try { window.parent.postMessage({ moj: '${GAME_MSG_OUTCOME}', envelope: st.envelope }, '*'); } catch (e) { console.error('game outcome post', e); } }
     // the RESULT CARD (game.complete: false hides it; { text } retitles it) — themed by the
     // --moj-* tokens, the literals are the fallbacks so an un-themed level looks as before.
@@ -115,7 +126,34 @@ const __GAME = ${safeJson(game)};
     }
     return st.envelope;
   }
-${game.doors ? `  // a DOOR crossed (the door mechanic): leave by it once, carrying what the session gathered (result 'transit');
+${game.save ? `  // THE SAVE (game.save: { vars: [prefixes], on: [event prefixes] }, a level that keeps its own progress: the open city).
+  // As an event it names passes, what the bus keeps under its prefixes (numbers, none of them nought) goes to the shell;
+  // a continue hands it back (params.__resume): set on the bus as the level starts, then 'resumed' raised so what was
+  // under way picks up. Standalone, nothing is sent and nothing comes back
+  const __SAVE = __GAME.save;
+  let __saveN = 0;
+  function __keeps() { const B = window.__mojBus, V = B && B.state && B.state.vars, out = {}; if (!V) return out; for (const k in V) if (typeof V[k] === 'number' && V[k] !== 0 && __SAVE.vars.some(function (p) { return k.indexOf(p) === 0; })) out[k] = V[k]; return out; }
+  if (hosted && !capture) setInterval(function () {
+    const B = window.__mojBus, L = B && B.state && B.state.log;
+    if (!L || !st.started || st.ended) return;
+    if (L.length < __saveN) __saveN = 0;
+    let due = false;
+    for (let i = __saveN; i < L.length; i++) { const ty = L[i] && L[i].type; if (ty && __SAVE.on.some(function (p) { return ty.indexOf(p) === 0; })) due = true; }
+    __saveN = L.length;
+    if (due) { try { window.parent.postMessage({ moj: '${GAME_MSG_SAVE}', levelRef: __GAME.levelRef, vars: __keeps() }, '*'); } catch (e) { /* opaque parent */ } }
+  }, 500);
+  st.onStart.push(function (params) {
+    const R = params && params.__resume;
+    if (!R || typeof R !== 'object') return;
+    (function put(n) {
+      const B = window.__mojBus;
+      if (!B || !B.state) { if (n < 200) setTimeout(function () { put(n + 1); }, 50); return; }
+      for (const k in R) if (typeof R[k] === 'number' && __SAVE.vars.some(function (p) { return k.indexOf(p) === 0; })) B.state.vars[k] = R[k];
+      __saveN = (B.state.log || []).length;
+      B.bus.processEvents(B.state, [{ type: 'resumed' }]);
+    })(0);
+  });
+` : ''}${game.doors ? `  // a DOOR crossed (the door mechanic): leave by it once, carrying what the session gathered (result 'transit');
   // the shell loads the level it links to. With no shell, the door stays shut and says so.
   function door(id) {
     if (st.ended || st.leaving) return;

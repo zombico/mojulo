@@ -1,0 +1,33 @@
+{
+  "id": "hero-pose",
+  "name": "Hero pose",
+  "about": "One figure large and off centre, caught in its pose; the game's name set huge behind it and breaking past it; the menu as plain words on the open side.",
+  "author": "mojulo",
+  "suits": ["stylish-action", "platformer-3d", "collectathon", "co-op-platformer", "metroidvania", "run-and-gun", "action-rpg", "top-down-adventure", "open-adventure", "story-adventure", "dungeon-crawler", "survival-horror", "stealth", "city-stalker", "endless-runner"],
+  "fallback": true,
+  "slots": [
+    { "roles": ["hero", "ally"], "view": "three-quarter", "crop": "full", "anchor": "bottom" }
+  ],
+  "ground": "theme",
+  "frames": {
+    "wide": {
+      "subjects": [[50, 4, 46, 96]],
+      "title": { "box": [4, 8, 92, 42], "align": "start", "size": "huge", "behind": true },
+      "tagline": { "box": [6, 48, 40, 6], "align": "start" },
+      "menu": { "box": [6, 58, 32, 34], "align": "start" }
+    },
+    "tall": {
+      "subjects": [[10, 14, 80, 56]],
+      "title": { "box": [4, 4, 92, 22], "align": "center", "size": "huge", "behind": true },
+      "tagline": { "box": [10, 25, 80, 4], "align": "center" },
+      "menu": { "box": [16, 72, 68, 22], "align": "center" }
+    }
+  },
+  "motion": [
+    { "part": "ground", "enter": "fade", "at": 0 },
+    { "part": "title", "enter": "letters", "at": 120 },
+    { "part": "subject", "enter": "rise", "at": 360 },
+    { "part": "tagline", "enter": "fade", "at": 720 },
+    { "part": "menu", "enter": "stagger", "at": 860 }
+  ]
+}

@@ -62,7 +62,7 @@ import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings, w
 import { validateCast, resolveCast, CAST_KEYS, CAST_PRESET_NAMES } from '@/lib/graph/polygonizer/figure-cast';
 import { isOutfitBuild, outfitReadout, outfitTones, outfitLanguage, outfitPieces, OUTFIT_LAWS_VERSION } from '@/lib/graph/outfit/expand';
 import { headOf as helmetOf } from '@/lib/graph/headgear/helmets';
-import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS, validateOutfit, OUTFIT_WORDS, dressPlan, kitPalette, dressContext, libraryFeet } from '@/lib/graph/polygonizer/hero-dress';
+import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS, validateOutfit, OUTFIT_WORDS, dressPlan, kitPalette, dressContext, libraryFeet, libraryHands } from '@/lib/graph/polygonizer/hero-dress';
 import { isArmorBuild, armorReadout, armorFamily, armorMaterials, armorLanguage, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
 import { validateStatueBuild, normalizeStatue, statueHero, statueHair, statueRecipe, STATUE_LAWS_VERSION, STATUE_STYLES } from '@/lib/graph/statue/expand';
 import { undeadWords, undeadFlesh, undeadCard } from '@/lib/graph/undead/tiered';
@@ -602,7 +602,8 @@ function realisticExpand(plan, hero) {
   // PLATING: a suit word (lib/graph/plating SUITS: a powered suit's undersuit and plates) is the library's
   const suitWords = words.filter((w) => SUITS[w]);
   // HANDWEAR: a glove word (lib/graph/handwear HANDWEAR) is the library's
-  const handWords = words.filter((w) => HANDWEAR[w]);
+  // (an outfit card's `hands` naming a glove card, as a word list's word: hero-dress.js libraryHands)
+  const handWords = [...words.filter((w) => HANDWEAR[w]), ...(Array.isArray(hero.outfit) || typeof hero.outfit === 'string' ? [] : libraryHands(hero.outfit))];
   // LOOSE garments (body-relational-drape.js LOOSE_GARMENTS: martialPants; body-relational-gi.js LOOSE_TOPS: gi): the
   // drape's, in place of their segment pieces
   const looseWords = words.filter((w) => LOOSE_GARMENTS[w] || LOOSE_TOPS[w]);
@@ -669,7 +670,10 @@ function realisticExpand(plan, hero) {
   // the dress made on the body's ENVELOPE (body-relational-envelope.js: the skin's grid, each ring carried out over its
   // hollows as cloth and plate would lie), then the skin put back under it, with whatever the dress wrote on those parts
   // beside their points (the paint's groups)
-  const env = { ...S, parts: envelopeParts(S.parts, Object.keys(S.parts).filter((k) => ENVELOPED.test(k))) };
+  // (a POSED coat's hinges, body-relational-jacket.js ventBack: joints carried by the pelvis and their bones, after the
+  // body's, so every bone it had keeps its index; absent, the rig as it was)
+  const coatRig = wear?.coat ? { ...S.rig, joints: { ...S.rig.joints, ...wear.coat.joints }, bones: [...S.rig.bones, ...wear.coat.bones] } : S.rig;
+  const env = { ...S, rig: coatRig, parts: envelopeParts(S.parts, Object.keys(S.parts).filter((k) => ENVELOPED.test(k))) };
   // (the tailor's cloth in the body the dress is made on, so a button, an emblem or a trim placed on a worn piece finds it)
   if (wear) Object.assign(env.parts, wear.parts);
   // (an armour's plates fitted: each a hollow shell over the realistic skin, sampled as densely as it; its cuirass and
@@ -699,7 +703,9 @@ function realisticExpand(plan, hero) {
       R.parts[name] = { ...P, offsets, ...(stretch ? { stretch } : {}) };
     }
   }
-  R.rig = S.rig;
+  R.rig = coatRig;
+  // (and each family's set of its hinges, which the clips are given by posedCoatClips)
+  if (wear?.coat) R.coatPoses = wear.coat.poses;
   if (S.headFit) R.headFit = S.headFit;
   // the dials: the dressed expansion's (a garment rides its body part's), the slice's blends over the new stations, a
   // part the slice removed left out
@@ -769,6 +775,8 @@ function realisticExpand(plan, hero) {
     }
   }
   if (S.correctives) R.correctives = garmentCorrectives(S.correctives, R.parts);
+  // (under realistic laws 17 the tailor's cloth carries them too, by the skin nearest it: carriedCorrectives)
+  if (R.correctives && ((hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined) ?? 1) >= 17) R.correctives = carriedCorrectives(R.correctives, R);
   // (a down hood's LINING, shown where it lies folded on the back: its cloth's colour a shade down, unless the operator names it)
   for (const g of Object.values(R.parts)) if (typeof g.group === 'string' && g.group.endsWith(LINING) && !hero.palette?.[g.group]) { const c = R.palette?.[g.group.slice(0, -LINING.length)]; if (typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c)) R.palette = { ...R.palette, [g.group]: shadeHex(c, LINING_SHADE) }; }
   return R;
@@ -791,6 +799,42 @@ function garmentCorrectives(C, parts) {
         if (m) { const a = c.d[`${body}/${m[0]}.${sl}`], b = c.d[`${body}/${m[1]}.${sl}`], t = m[2]; if (a || b) o = [0, 1, 2].map((i) => Math.round(((a?.[i] ?? 0) * (1 - t) + (b?.[i] ?? 0) * t) * 1e6) / 1e6); }
         if (o) d[`${g}/${st.id}.${sl}`] = o;
       }
+    }
+    return { ...c, d };
+  });
+}
+/**
+ * THE CLOTH CARRIES THE SKIN'S CORRECTIVES (realistic laws 17). A raised arm's correctives (the pauldron, the shoulder
+ * level and overhead) push the skin round the shoulder out, and the tailor's cloth over it (its merged tubes, the coat's
+ * `_body` and `_arm<S>`, a second skin) was copied from no one body ring, so `garmentCorrectives` gave it none: the skin
+ * came out through the cloth, the shoulder blade and the deltoid shown through a coat. Here every cloth point no
+ * corrective names moves as the skin nearest it moves: the offsets of its `k` nearest skin points (those a corrective
+ * leaves still, still), weighted by nearness, within `far` of it. The points as the mesh names them (one compile of the
+ * dressed recipe: the cloth's rings resampled as the skin's are). → the correctives, each its `d` widened
+ */
+const CARRY = Object.freeze({ k: 4, far: 0.1, cell: 0.05 });
+function carriedCorrectives(C, R) {
+  const mesh = compileLayered(R, {}), at = new Map();
+  mesh.pointIds.forEach((id, i) => { if (!at.has(id)) at.set(id, mesh.vertices[i]); });
+  const isCloth = (id) => !!R.parts[id.split('/')[0]]?.garment, cloth = [...at.keys()].filter(isCloth);
+  // (every skin point, gridded: whichever the corrective moves and whichever it leaves)
+  const grid = new Map(), cellOf = (p) => p.map((v) => Math.floor(v / CARRY.cell));
+  for (const [id, p] of at) { if (isCloth(id)) continue; const k = cellOf(p).join(','); if (!grid.has(k)) grid.set(k, []); grid.get(k).push([id, p]); }
+  // (each cloth point's nearest skin points, found once for every corrective)
+  const near = new Map();
+  for (const id of cloth) {
+    const p = at.get(id), g = cellOf(p), list = [];
+    for (let x = -2; x <= 2; x++) for (let y = -2; y <= 2; y++) for (let z = -2; z <= 2; z++) for (const [sid, q] of grid.get(`${g[0] + x},${g[1] + y},${g[2] + z}`) ?? []) { const dd = Math.hypot(q[0] - p[0], q[1] - p[1], q[2] - p[2]); if (dd < CARRY.far) list.push([dd, sid]); }
+    if (list.length) near.set(id, list.sort((a, b) => a[0] - b[0]).slice(0, CARRY.k));
+  }
+  return C.map((c) => {
+    const d = { ...c.d };
+    for (const [id, list] of near) {
+      if (d[id]) continue;
+      let W = 0; const o = [0, 0, 0];
+      for (const [dd, sid] of list) { const w = 1 / (dd + 0.002); W += w; const q = c.d[sid]; if (q) for (let i = 0; i < 3; i++) o[i] += q[i] * w; }
+      if (!W || (!o[0] && !o[1] && !o[2])) continue;
+      d[id] = o.map((v) => Math.round((v / W) * 1e6) / 1e6);
     }
     return { ...c, d };
   });
@@ -984,7 +1028,7 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * rim, the skin beside each eye brought forward to the outer canthus's depth so it wraps the globe's side, the eye and
  * the front's silhouette kept), where laws 1 to 15 let the skin fall back a centimetre behind the canthus and the
  * globe's side show bare from 3/4 and the side */
-export const REALISTIC_LAWS_VERSION = 16;
+export const REALISTIC_LAWS_VERSION = 17;
 export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'headLaws', 'kit', 'headgear', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote', 'acting', 'animeStyle', 'animeBody', 'muscleShirt', 'attach', 'reference', 'xenoHeaddress', 'xenoSpecies', 'stocking'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
@@ -1336,7 +1380,8 @@ function faceSkin(hero) {
  * calls this: a hero stored without a face wears its pole's head. */
 export function withRolledFace(spec, was = null) {
   if (!realisticFaced(spec)) return spec;
-  if (was && (spec.face === undefined || spec.face === null) && was.face) return { ...spec, face: was.face, ...(spec.cast === undefined && was.cast !== undefined ? { cast: was.cast } : {}) };
+  // (never from a hero that had the anime head: its face is in the anime head's own words, refused here)
+  if (was && was.head !== 'anime' && (spec.face === undefined || spec.face === null) && was.face) return { ...spec, face: was.face, ...(spec.cast === undefined && was.cast !== undefined ? { cast: was.cast } : {}) };
   const f = spec.face === undefined || spec.face === null ? {} : spec.face;
   if (typeof f !== 'object' || Array.isArray(f)) return spec;   // (refused by name at the record)
   const face = { ...f, ...(f.seed === undefined ? { seed: randomInt(1, 2147483647) } : {}), ...(f.ethnicity === undefined ? { ethnicity: ROLLED_ETHNICITIES[randomInt(ROLLED_ETHNICITIES.length)] } : {}) };
@@ -1793,6 +1838,21 @@ export function faceMeasures(hero, plan) {
   const headScale = (hero.headScale ?? castOf(hero.cast, props)?.headScale ?? 1) * (hero.tune?.head ?? 1);   // humanoid-plan wornHead
   const a = humanoidAnchors(headPoleOf(hero), hero.face ?? {}), k = scale * headScale, r3 = (x) => Math.round(x * k * 1000) / 1000;
   return { head_m: r3(a.crown[2] - a.menton[2]), cheekbones_m: r3(2 * a.zygionR[0]), jaw_m: r3(2 * a.gonionR[0]), pupils_m: r3(2 * a.eyeR[0]) };
+}
+
+/** A hero's STATURE in metres, the crown over the soles, off its plan alone (no mesh compiled): the head's include
+ * placed on the body and the head's own crown over it, as the readout's heads-tall reads it. The bare body: a helm or a
+ * boot's sole adds to it. The tiered heads (anime, landmark); null for any other (the realistic form, the relational
+ * head, a figure with no head), whose height is read off its mesh. */
+export function heroStature(hero, plan = heroPlanOf(hero)) {
+  const inc = plan?.include?.find((i) => i.name === 'head');
+  if (!inc || !Array.isArray(inc.shift)) return null;
+  const r3 = (x) => Math.round(x * 1000) / 1000;
+  if (hero.head === 'anime') { const fm = faceMeasures(hero, plan); return fm && Number.isFinite(fm.crown_z) ? r3(inc.shift[2] + fm.crown_z) : null; }
+  if ((hero.head ?? 'landmark') !== 'landmark' || hero.form === 'realistic') return null;
+  const props = hero.proportions ?? 'hero', scale = planScale({ cast: hero.cast, tune: hero.tune, proportions: props });
+  const headScale = (hero.headScale ?? castOf(hero.cast, props)?.headScale ?? 1) * (hero.tune?.head ?? 1);
+  return r3(inc.shift[2] + humanoidAnchors(headPoleOf(hero), hero.face ?? {}).crown[2] * scale * headScale);
 }
 
 /** What the tune did, in the operator's units: height off the compiled stats, the yoke and the pelvis off the plan's rings. */

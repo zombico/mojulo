@@ -29,7 +29,7 @@
  * window.__mojRpg drives it headless (a test, the audit): its state, act(<menu action>), the runtime (`ui`).
  */
 import { buildRpg } from '../../playscape/rpg/kernel.js';
-import { juiceKeys } from '../../playscape/rpg/juice.js';
+import { juiceKeys, lensYields } from '../../playscape/rpg/juice.js';
 import { rpgUiSpec, rpgUiTheme, rpgUiCss } from '../../playscape/rpg/rpg-ui.js';
 import { manaUiSource } from '../../../mana-ui/kernel.js';
 import { manaControls, manaGlyphs, manaHostSource, padLayoutSource } from '../../controls/mana-controls.js';
@@ -38,7 +38,7 @@ import { DEVICES } from '../../controls/devices.js';
 /**
  * The page: run in the events channel's scope (it reads __busState, __inputQueue). cfg: EVENTS.rpg; K: the kernel; ctl:
  * the menu scheme resolved (keys, pad, padLayout) and the pad's select; jk: the juice's keys; M: mana-ui on the page
- * ({ ui: the kernel, host: mana-host, spec, glyphs, css }).
+ * ({ ui: the kernel, host: mana-host, spec, glyphs, css, ly: when a lens step yields to the world's own (juice.js) }).
  * → { step(t), … } the frame's step, and the handles window.__mojRpg exposes.
  */
 export function rpgPage(cfg, K, ctl, jk, M) {
@@ -48,14 +48,17 @@ export function rpgPage(cfg, K, ctl, jk, M) {
   // (mana-ui draws into root; the flash over the field is the juice's, not the UI's)
   const root = document.createElement('div'); root.className = 'moj-rpg'; document.body.appendChild(root);
   const flashEl = document.createElement('div'); flashEl.className = 'moj-rpg-flash'; document.body.appendChild(flashEl);
+  // THE LENS (mana-ui's screen layer): its own host over the world's canvas, never raised (a z-index, a contain would
+  // make it its own and its regions would filter nothing of the world beneath); a juice's lens steps draw in it
+  const lensHost = document.createElement('div'); lensHost.className = 'moj-rpg-lens'; (document.getElementById('wrap') || document.body).appendChild(lensHost);
   const CMD = { attack: 'Attack', skill: 'Skill', item: 'Item', guard: 'Guard', flee: 'Flee' };
   const WHY = { battle: 'Not during a fight.', rules: 'Classes are fixed here.', same: 'Already that class.', locked: 'That class is not open yet.', member: 'Not a class they can take.', sp: 'Not enough class points.', requires: 'Learn what it builds on first.', learned: 'Already learned.', class: 'Take that class first.', unknown: '' };
-  const BEAT = 650, POP_FOR = 1200;
+  const BEAT = 650, POP_FOR = 1200, STRIKE_FOR = 700;
   // how long each act plays (seconds), within a beat
   const ACT_FOR = { strike: 0.55, cast: 0.55, hurt: 0.4, fall: 0.6 };
   // mode: null | 'battle' | 'field' | 'shop'; the battle's own phase: intro | command | play | end. (Which list a member
   // is on, its row, the open tab: the screen's state, mana-ui's; `pend` is the pick waiting for its target)
-  let mode = null, phase = null, beats = [], bi = 0, bt = 0, shown = {}, msg = '', picks = {}, mi = 0, pend = null, pops = [], popN = 0;
+  let mode = null, phase = null, beats = [], bi = 0, bt = 0, shown = {}, msg = '', picks = {}, mi = 0, pend = null, pops = [], popN = 0, strikes = [], strikeN = 0;
   let fmsg = '', seen = 0, walked = 0, lastPos = null, rolls = 0, lastT = 0;
   const SLOT = { weapon: 'Weapon', armor: 'Armor', accessory: 'Accessory' };
   // (a shop's id, what was last said; the party menu's slot being chosen for, and whose)
@@ -141,6 +144,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       else if (who != null) { /* the change's own mark */ }
     }
     else if (s.pop) popStyle = s;
+    else if (s.lens) { const f = figureOf(s.at === 'actor' ? b.by || b.who : b.target); if (f) strikes.push({ id: ++strikeN, at: f, kind: s.lens, t: lastT }); }
     else if (s.hold) linger += s.hold * 1000;
     else if (s.emit) __inputQueue.push({ type: s.emit });
     else if (s.shot) shotAt(s.shot, figureOf(s.at === 'target' ? b.target : b.by || b.who), figureOf(b.target), (s.for || SHOT_FOR) * 1000);
@@ -158,10 +162,12 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     linger = 0; popStyle = null;
     const keys = jk ? jk(b) : [];
     for (const k of keys) __inputQueue.push({ type: 'rpg-on:' + k });
-    for (const k of keys) if (J[k]) { for (const s of J[k]) step1(s, b); break; }
-    // layered over it: every happening of the beat with an also adds its steps
-    const A = (cfg.juice && cfg.juice.also) || {};
-    for (const k of keys) if (A[k]) for (const s of A[k]) step1(s, b);
+    // the first happening with steps, and layered over it every happening of the beat with an also; a lens step plays
+    // only where the beat's world leaves that figure bare (no flash over the field, no puff on it, no beam landing on it)
+    const A = (cfg.juice && cfg.juice.also) || {}, all = [];
+    for (const k of keys) if (J[k]) { all.push(...J[k]); break; }
+    for (const k of keys) if (A[k]) all.push(...A[k]);
+    for (const s of all) if (!(s.lens && M.ly && M.ly(all, s))) step1(s, b);
   }
   // a beat shown: its juice, its number, its numbers moved, its film
   function show(b) { shots = []; juice(b); pop(b); note(b); cinema(b); }
@@ -513,7 +519,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       const ev = K.close(cfg, R, V());
       keep(); bagSay();
       for (const e of ev) __inputQueue.push(e);
-      mode = null; phase = null; pops = [];
+      mode = null; phase = null; pops = []; strikes = [];
       { const w = W(); if (w) for (const e of w.entities) if (e.act) e.act = null; }   // the fight's acts end with it
       unstage();
       screen(null);
@@ -555,6 +561,18 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     const top = (e.rule && e.rule.collideHeight) || 1.8, P = [e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] - ((e.rule && e.rule.eye) || 0) + top + 0.12], p = proj(P[0], P[1], P[2]);
     return p[2] < 1 ? [p[0], p[1], P] : null;
   }
+  // where a figure's body is on the screen (0..1) and how big (its radius, a share of the screen's height): a lens's strike
+  function bodyAt(fig) {
+    const w = W(), proj = window.__mojCtrl && window.__mojCtrl.project, e = fig && w && w.byId[fig];
+    if (!e || !e.transform || !proj) return null;
+    const top = (e.rule && e.rule.collideHeight) || 1.8, z = e.transform.pos[2] - ((e.rule && e.rule.eye) || 0);
+    const m = proj(e.transform.pos[0], e.transform.pos[1], z + top * 0.5), h = proj(e.transform.pos[0], e.transform.pos[1], z + top);
+    if (!(m[2] < 1)) return null;
+    // (the projection scales the camera's view to the window, so its share of the window is its share of the canvas, the
+    // lens host's box)
+    const Wd = window.innerWidth || 960, Ht = window.innerHeight || 540, q = (v) => Math.round(v * 1000) / 1000;
+    return { x: q(m[0] / Wd), y: q(m[1] / Ht), r: q(Math.max(0.02, (Math.abs(h[1] - m[1]) / Ht) * 1.1)) };
+  }
   function battleModel() {
     const b = R.b, cmd = phase === 'command', active = cmd ? commanders()[mi] : null, top = up(), lv = LEVEL[top] || 'cmd', aiming = cmd && top === 'rpg-target' && !!pend;
     const o = cmd && active ? K.options(cfg, R, active, V()) : { commands: [], skills: [], items: [] };
@@ -580,6 +598,9 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     // the numbers where blows land, over whoever took them (a foe over its own figure, or its pack's)
     const numbers = [];
     for (const p of pops) { const at = headAt(figureOf(p.at)); if (at) { const [x, y] = frac(at); numbers.push({ id: p.id, x, y, world: at[2], value: p.value, kind: p.kind, role: p.role }); } }
+    // the lens's strikes, round the figures the juice named (a figure stands still in a fight: its place is the same each frame)
+    const struck = [];
+    for (const x of strikes) { const at = bodyAt(x.at); if (at) struck.push({ id: x.at, n: x.id, x: at.x, y: at.y, r: at.r, kind: x.kind, power: 0.6 }); }
     const next = K.preview(cfg, R, 6);
     return {
       on: true, phase, aiming, acting, message: msg, foeHp: cfg.rules.foeHp === 'bar',
@@ -595,7 +616,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       targets: aiming ? K.targets(cfg, R, pend).map((t) => { const ff = R.b.side[t.id] ? null : figureOf(t.id); return { id: t.id, label: t.name, aim: Object.assign({ [t.id]: true }, ff ? { ['fig-' + ff]: true } : {}) }; }) : [],
       foes: b.foes.map((x) => { const h = hp(x.uid, x.hp); return { id: x.uid, name: x.name, hp: Math.max(0, h), hpMax: x.max, down: h <= 0 }; }),
       turns: next.length ? next.map((x, i) => ({ name: x.name, variant: x.party ? 'plain' : 'muted', turn: i === 0 })) : null,
-      heads, pops: numbers,
+      heads, pops: numbers, strikes: struck,
     };
   }
   // THE BOXES PLACED BY THE VIEW: once a fight is staged (and when its view changes), where its fighters stand on the
@@ -726,9 +747,9 @@ export function rpgPage(cfg, K, ctl, jk, M) {
   let rt = null;
   rt = M.ui.runtime(M.spec, { read: (p) => M.ui.readPath(vm(), p), act: answer });
   if (M.glyphs) rt.glyphs(M.glyphs);
-  const mounted = M.ui.mount(root, rt, {});
+  const mounted = M.ui.mount(root, rt, {}), lensMounted = M.ui.mount(lensHost, rt, { part: 'lens' });
   // (the view, held: a fight or a menu holds the world as mana-ui's own hold says the menu has the input)
-  const face = { paint: () => { mounted.paint(); if (mode) hold(); } };
+  const face = { paint: () => { mounted.paint(); lensMounted.paint(); if (mode) hold(); } };
 
   // ── input: the menus are mana-host's (the menu scheme on the keys and every pad); P and a pad's select are play's ──
   window.addEventListener('keydown', (ev) => {
@@ -808,9 +829,10 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     }
     // (a number stays up while it rises)
     if (pops.length) pops = pops.filter((p) => now - p.t < POP_FOR);
+    if (strikes.length) strikes = strikes.filter((x) => now - x.t < STRIKE_FOR);
     input.poll();
     changed();
-    if (rt.tick()) mounted.paint();
+    if (rt.tick()) { mounted.paint(); lensMounted.paint(); }
     if (mode) hold();
   }
   const api = {
@@ -847,6 +869,6 @@ export function rpgScript(cfg) {
   const { keys, pad } = manaControls(), M = rpgMana(cfg), json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
   return `
 // RPG: party battles over the field, the party menu on P (playscape/rpg); its UI mana-ui's (playscape/rpg/rpg-ui.js)
-const __rpg = (${rpgPage.toString()})(EVENTS.rpg, (${buildRpg.toString()})(), { keys: ${json(keys)}, pad: ${json(pad)}, padLayout: (${padLayoutSource()}), select: ${DEVICES.gamepad.buttons.select} }, ${juiceKeys.toString()}, { ui: ${manaUiSource()}, host: ${manaHostSource()}, spec: ${json(M.spec)}, glyphs: ${json(M.glyphs)}, css: ${json(M.css)} });
+const __rpg = (${rpgPage.toString()})(EVENTS.rpg, (${buildRpg.toString()})(), { keys: ${json(keys)}, pad: ${json(pad)}, padLayout: (${padLayoutSource()}), select: ${DEVICES.gamepad.buttons.select} }, ${juiceKeys.toString()}, { ui: ${manaUiSource()}, host: ${manaHostSource()}, spec: ${json(M.spec)}, glyphs: ${json(M.glyphs)}, css: ${json(M.css)}, ly: ${lensYields.toString()} });
 function __stepRpg(t) { __rpg.step(t); }`;
 }

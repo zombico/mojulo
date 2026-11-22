@@ -18,7 +18,7 @@
  *   a lake         where the infield is widest, a basin and its water
  *
  *   LANDS, SETTLEMENTS
- *   planSurrounds(plan, { arena, scape, K, seed, land, settlement }) → { plan (its land shaped: terrain, groundAt, the
+ *   planSurrounds(plan, { arena, scape, K, seed, land, settlement, keepOut? }) → { plan (its land shaped: terrain, groundAt, the
  *        ground's faces), faces, things (for the eye), report: { land, settlement, formations, buildings, trees, faces } }
  *
  * Pure, deterministic.
@@ -29,6 +29,8 @@ import { buildBlock } from '../era/blocks.js';
 import { inPoly } from './arena-plan.js';
 import { terrainAt, GRASS_TILE } from './track.js';
 import { TRACK_BLOCKS, paintPiece } from './set-pieces.js';
+import { treeFaces } from './track-language.js';
+import { chunkyFaces, chunkyLightOf } from './chunky-look.js';
 
 /** A land's character: its relief's shape, its height in the infield, its steepest rise from what stays flat, its height
  *  near the venue and far from it (reached `reach` m out), its wavelength (m), steps (a mesa's terraces), the snow line
@@ -170,12 +172,15 @@ function gridAt(xs, ys, z, x, y) {
   return fx >= fy ? z00 + fx * (z10 - z00) + fy * (z11 - z10) : z00 + fy * (z01 - z00) + fx * (z11 - z01);
 }
 
-export function planSurrounds(plan, { arena = null, scape = null, K, seed = 1, land = 'hills', settlement = 'village' } = {}) {
+export function planSurrounds(plan, { arena = null, scape = null, K, seed = 1, land = 'hills', settlement = 'village', keepOut = [] } = {}) {
   const L = LANDS[land];
   if (!L) throw new Error(`trackscape: no land '${land}' (${Object.keys(LANDS).join(', ')})`);
   if (!SETTLEMENTS.includes(settlement)) throw new Error(`trackscape: no settlement '${settlement}' (${SETTLEMENTS.join(', ')})`);
   const kart = plan.course.class === 'kart', rnd = mulberry32((seed * 2654435761 + 977) >>> 0), S = (seed * 7919) % 100003;
   const keep = keepOf(plan, arena, scape), T = plan.terrain, zFar = T.zFar;
+  // (what the caller has built already, a street circuit's town, street-frontage.js: kept clear as a settlement is)
+  for (const d of keepOut) keep.discs.push({ at: d.at, r: d.r });
+  const outOf = (p, pad) => !keepOut.some((d) => Math.hypot(p[0] - d.at[0], p[1] - d.at[1]) < d.r + pad);
   const a = plan.alignment, Lap = a.length, lapPts = Array.from({ length: Math.max(32, Math.round(Lap / 10)) }, (_, i) => a.at((i * Lap) / Math.max(32, Math.round(Lap / 10))));
   const bx0 = T.x0, by0 = T.y0, bx1 = T.x0 + T.nx * T.cell, by1 = T.y0 + T.ny * T.cell, bc = [(bx0 + bx1) / 2, (by0 + by1) / 2], H = Math.max(bx1 - bx0, by1 - by0) / 2 + FAR_OUT;
   const inFar = (p, share = 0.7) => Math.max(Math.abs(p[0] - bc[0]), Math.abs(p[1] - bc[1])) < H * share;
@@ -381,7 +386,7 @@ export function planSurrounds(plan, { arena = null, scape = null, K, seed = 1, l
   mark('settlement', n0);
   // ── woods: trees near, canopy far, groves in the infield; boulders on steep ground ──
   const near = kart ? 170 : 280, reach = kart ? 520 : 900, cap = kart ? 160 : 340, capFar = kart ? 60 : 130, thr = 0.32 - 0.7 * L.woods;
-  const clearOf = (p, pad) => !(lake && Math.hypot(p[0] - lake.at[0], p[1] - lake.at[1]) < lake.R * 1.35 + pad) && !formations.some((f) => p[0] > f.box.lo[0] - pad && p[0] < f.box.hi[0] + pad && p[1] > f.box.lo[1] - pad && p[1] < f.box.hi[1] + pad) && !sites.some((s) => Math.hypot(s.at[0] - p[0], s.at[1] - p[1]) < s.r + pad) && !fieldAt(p[0], p[1]);
+  const clearOf = (p, pad) => outOf(p, pad) && !(lake && Math.hypot(p[0] - lake.at[0], p[1] - lake.at[1]) < lake.R * 1.35 + pad) && !formations.some((f) => p[0] > f.box.lo[0] - pad && p[0] < f.box.hi[0] + pad && p[1] > f.box.lo[1] - pad && p[1] < f.box.hi[1] + pad) && !sites.some((s) => Math.hypot(s.at[0] - p[0], s.at[1] - p[1]) < s.r + pad) && !fieldAt(p[0], p[1]);
   const trees = [], canopy = [], scree = [], wooded = L.woods > 0.05;   // (a desert has none)
   const pitch = kart ? 13 : 20;
   const rx = keep.ring.map((p) => p[0]), ry = keep.ring.map((p) => p[1]);
@@ -410,7 +415,12 @@ export function planSurrounds(plan, { arena = null, scape = null, K, seed = 1, l
   }
   // each wood tile one paint (one voxel grid per tile on the voxel pole)
   const TILE = 160, tiles = new Map(), into = (p) => { const k = `${Math.floor(p[0] / TILE)},${Math.floor(p[1] / TILE)}`; if (!tiles.has(k)) tiles.set(k, { near: [], far: [], dv: keep.dist([(Math.floor(p[0] / TILE) + 0.5) * TILE, (Math.floor(p[1] / TILE) + 0.5) * TILE]).dv }); return tiles.get(k); };
+  // (the chunky drawing with a language that says its tree: the trees built as the track is, track-language.js)
+  const card = K.pole === 'chunky' ? plan.language?.card : null, chunkTrees = [];
+  const hexOf = (c) => `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v * 255))).toString(16).padStart(2, '0')).join('')}`;
+  const leaf = card?.parts.tree ? [0.4, 0.55, 0.7].map((v) => hexOf(K.colourOf({ material: 'foliage' }, v).lit)) : null, bark = card?.parts.tree ? hexOf(K.colourOf({ material: 'bark' }, 0.45).lit) : null;
   for (const t of kept) {
+    if (leaf) { chunkTrees.push(...treeFaces(card, { at: [r3(t.p[0]), r3(t.p[1]), r3(groundAt(t.p[0], t.p[1]) - 0.2)], h: t.h * 0.8, rnd, leaf, bark })); continue; }
     const b = buildBlock(TRACK_BLOCKS.tree, { params: { h: t.h }, library: TRACK_BLOCKS, ring: 'mid', at: [r3(t.p[0]), r3(t.p[1]), r3(groundAt(t.p[0], t.p[1]) - 0.2)], yaw: rnd() * 360, seed: 1 });
     into(t.p).near.push(...b.faces);
   }
@@ -419,6 +429,7 @@ export function planSurrounds(plan, { arena = null, scape = null, K, seed = 1, l
   for (const p of scree) { const rr = 1.2 + rnd() * 2.5; lump(into(p).far, [p[0], p[1], groundAt(p[0], p[1]) - rr * 0.3], { r: rr, h: rr * (0.7 + rnd() * 0.6), profile: BOULDER, sides: 6, rnd, value: 0.56 }); }
   n0 = faces.length;
   for (const k of [...tiles.keys()].sort()) { const t = tiles.get(k); if (t.near.length) faces.push(...paintPiece(t.near, K, { voxel: voxelAt(t.dv) })); }
+  if (chunkTrees.length) faces.push(...chunkyFaces(chunkTrees, { light: chunkyLightOf(K) }));
   mark('trees', n0); n0 = faces.length;
   for (const k of [...tiles.keys()].sort()) { const t = tiles.get(k); if (t.far.length) faces.push(...paintPiece(t.far, K, { voxel: Math.max(6, voxelAt(t.dv)) })); }
   mark('canopy', n0); count.ground = ground.length;

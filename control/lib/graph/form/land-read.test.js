@@ -4,7 +4,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { landRead, formPayload, hazeUnder, HAZE_UNDER, SWARD_MEDIUM, GRASS_OFF } from './land-read.js';
+import { landRead, formPayload, hazeUnder, HAZE_UNDER, SWARD_MEDIUM, GRASS_OFF, evenHash } from './land-read.js';
+import { strHash } from '../city/plan/dice.js';
 import { cubeLight } from '../era/cube-light.js';
 import { readGeocube } from '../era/geocube.js';
 import { assembleStageScene } from '../era/stage.js';
@@ -89,6 +90,20 @@ describe('landRead', () => {
     for (let q = 0; q < px.length; q += 4) if (px[q] === 255) { on++; expect(px[q + 1]).toBeLessThanOrEqual(floor + 1); if (px[q + 1] <= 1) deep++; }
     expect(on).toBeGreaterThan(100);
     expect(deep).toBeGreaterThan(0);            // (the middle reaches the floor: deeper than SD_IN, held)
+  });
+
+  it('a town\'s lawn: its fields\' dice even (as varied along y as along x), its grass bare in fewer places', () => {
+    // (the lattice's dice a step along each axis: the bare hash keeps its high bits along y, where the key's last
+    // character moves; the even one is as varied both ways)
+    const step = (hash) => { let ax = 0, ay = 0; for (let i = 0; i < 60; i++) for (let j = 0; j < 60; j++) { const v = (p, q) => hash(`3|grass-at|${p},${q}`) / 4294967296; ax += Math.abs(v(i, j) - v(i + 1, j)); ay += Math.abs(v(i, j) - v(i, j + 1)); } return [ax / 3600, ay / 3600]; };
+    const [bx, by] = step(strHash), [ex, ey] = step((k) => evenHash(strHash(k)));
+    expect(by).toBeLessThan(bx / 4);
+    expect(Math.abs(ex - ey)).toBeLessThan(0.05);
+    expect(ey).toBeGreaterThan(0.28);
+    // (read: more of the ground is grass, and a read with no lawn is as it was)
+    const P = payload('grass'), cover = (opts) => { const px = Buffer.from(formPayload(landRead(P, C, { grass: 'map', ...opts })).grass.px, 'base64'); let n = 0; for (let q = 0; q < px.length / 4; q++) n += px[q * 4 + 2]; return n; };
+    expect(cover({ lawn: {} })).toBeGreaterThan(cover({}));
+    expect(cover({})).toBe(cover({ lawn: null }));
   }, 120_000);
 
   it('a payload with no land reads as nothing', () => {
