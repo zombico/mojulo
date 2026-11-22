@@ -23,9 +23,11 @@
  *     foes?:      { <id>: { name?, hp, mp?, atk, def, mag, spd, xp?, gold?, cp?, weak?, resist?, absorb?, immune?,
  *                 skills?, drops?: [{ item, chance }], boss?, pattern? } }
  *                 pattern: [{ use: 'attack' | 'guard' | '<skill>', when?: { hpBelow?, hpAbove?, turn?, every?, after? },
- *                 weight?: 1-9 }]   its ACTION PATTERN: on its turn, a row whose `when` holds (its HP below or above a
- *                 share, its nth turn, every nth, from its nth on) and that it can pay for, by weight (5 unsaid); none,
- *                 the rule every foe keeps (a skill by chance, else an attack)
+ *                 weight?: 1-9, charge?: true | '<line>' }]   its ACTION PATTERN: on its turn, a row whose `when` holds
+ *                 (its HP below or above a share, its nth turn, every nth, from its nth on) and that it can pay for, by
+ *                 weight (5 unsaid); none, the rule every foe keeps (a skill by chance, else an attack). A row that
+ *                 CHARGES is telegraphed: its turn spent gathering (the line said, `{name}` the foe's), and its next
+ *                 turn the blow or the skill let go at twice its power (kernel.js CHARGED): a turn to guard or mend
  *     items?:     [ids] | { <item>: { name?, heal?, mp?, revive?, cure?, hurt?, element?, target? } }   what an item
  *                 does in a fight (its count is the bag's: held:bag:<item>); default: every preset
  *     gear?:      [ids] | { <item>: { name?, slot: weapon | armor | accessory, atk?, def?, mag?, spd?, hp?, mp?, classes?,
@@ -203,11 +205,14 @@ function readSkill(k, d, where) {
 // those that hold (kernel.js patternPick)
 const WHEN_KEYS = ['hpBelow', 'hpAbove', 'turn', 'every', 'after'];
 function readPattern(v, where) {
-  return listOf(v, where, '{ use, when?, weight? }').map((r, i) => {
+  return listOf(v, where, '{ use, when?, weight?, charge? }').map((r, i) => {
     const at = `${where}[${i}]`;
-    if (!isObj(r)) throw err(`${at} is { use: 'attack' | 'guard' | '<skill>', when?, weight? }`);
-    keysOnly(r, ['use', 'when', 'weight'], at);
+    if (!isObj(r)) throw err(`${at} is { use: 'attack' | 'guard' | '<skill>', when?, weight?, charge? }`);
+    keysOnly(r, ['use', 'when', 'weight', 'charge'], at);
     const use = id(r.use, `${at}.use`);
+    // (a charge: a turn gathering, said, then the blow let go; a guard has nothing to gather)
+    if (r.charge !== undefined && !(r.charge === true || (typeof r.charge === 'string' && r.charge.trim() && r.charge.length <= 80))) throw err(`${at}.charge is true or the line said as it gathers ({name} the foe's), 80 characters at most`);
+    if (r.charge !== undefined && use === 'guard') throw err(`${at}.charge is for a blow or a skill: a guard has nothing to gather`);
     if (r.weight !== undefined && !(Number.isInteger(r.weight) && r.weight >= 1 && r.weight <= 9)) throw err(`${at}.weight is a whole number from 1 to 9 (how often among the rows that hold; 5 when left out)`);
     let when = null;
     if (r.when !== undefined) {
@@ -217,7 +222,7 @@ function readPattern(v, where) {
       for (const k of ['turn', 'every', 'after']) if (r.when[k] !== undefined && !(Number.isInteger(r.when[k]) && r.when[k] >= 1)) throw err(`${at}.when.${k} is a whole number of its own turns, 1 or more`);
       when = { ...r.when };
     }
-    return { use, ...(when ? { when } : {}), weight: r.weight ?? 5 };
+    return { use, ...(when ? { when } : {}), weight: r.weight ?? 5, ...(r.charge !== undefined ? { charge: r.charge } : {}) };
   });
 }
 

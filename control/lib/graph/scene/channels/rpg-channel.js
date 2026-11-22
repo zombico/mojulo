@@ -273,7 +273,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       const next = beats[bi + 1], hits = (x) => x && x.by === who && x.target != null && (x.kind === 'hurt' || x.kind === 'miss');
       if (f && !B.kind && hits(next) && figureOf(next.target) && figureOf(next.target) !== f) want[f] = { is: 'at', on: figureOf(next.target) };
       else if (f && hits(B) && figureOf(B.target) && figureOf(B.target) !== f) want[f] = { is: 'at', on: figureOf(B.target) };
-      else if (f && (B.kind === 'cast' || B.kind === 'heal')) want[f] = { is: 'out' };
+      else if (f && (B.kind === 'cast' || B.kind === 'heal' || B.kind === 'charge')) want[f] = { is: 'out' };
     }
     return want;
   }
@@ -656,7 +656,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
 
   // ── what the screens read (the host's state, never copied into the UI: a binding reads it here each frame) ──
   // (the banner across the top tells an action's name or a status, never a number: a blow's lands over whoever takes it)
-  const TOLD = ['start', 'cast', 'status', 'ko', 'level', 'learn', 'spoils', 'end', 'page', 'summon'];
+  const TOLD = ['start', 'cast', 'charge', 'status', 'ko', 'level', 'learn', 'spoils', 'end', 'page', 'summon'];
   const LIST = { 'rpg-cmd': 'commands', 'rpg-skill': 'skills', 'rpg-item': 'items', 'rpg-target': 'targets' };
   const LEVEL = { 'rpg-cmd': 'cmd', 'rpg-skill': 'skill', 'rpg-item': 'item', 'rpg-target': 'target' };
   // (the screen up: none while the runtime draws its first frame)

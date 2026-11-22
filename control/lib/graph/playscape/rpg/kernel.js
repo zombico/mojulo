@@ -353,6 +353,9 @@ export function buildRpg() {
     }
   }
 
+  // a charged blow's power (a pattern row's `charge`): twice what it would be, its base and its stat's share both
+  const CHARGED = 2;
+  const charged = (S) => ({ ...S, power: (S.power || 0) * CHARGED, scale: (S.scale || 0) * CHARGED });
   const ATTACK = { id: 'attack', name: 'Attack', mp: 0, target: 'foe', power: 0, stat: 'atk', scale: 1, harm: true, element: null, heal: false, revive: false, cure: [], status: null, buff: null };
 
   // an actor's turn, then the fight's own pages its moment may have brought (pages)
@@ -412,15 +415,21 @@ export function buildRpg() {
       }
     }
     if (pick.act === 'guard') { A.side.guard = 1; out.push({ text: A.name + ' guards.', kind: 'status', who }); return; }
-    if (pick.act === 'attack') { out.push({ text: A.name + ' attacks!', who }); apply(cfg, R, A, ATTACK, 'foe', pick.target, out); return; }
+    // (a foe gathering for its next turn: said, so the party can brace)
+    if (pick.act === 'charge') { out.push({ text: pick.line ? pick.line.split('{name}').join(A.name) : A.name + ' is gathering its power!', kind: 'charge', who }); return; }
+    if (pick.act === 'attack') {
+      out.push(pick.charged ? { text: A.name + ' unleashes its full strength!', who, charged: true } : { text: A.name + ' attacks!', who });
+      apply(cfg, R, A, pick.charged ? charged(ATTACK) : ATTACK, 'foe', pick.target, out);
+      return;
+    }
     if (pick.act === 'skill') {
-      const S = cfg.skills[pick.skill];
+      const S0 = cfg.skills[pick.skill], S = S0 && pick.charged ? charged(S0) : S0;
       if (!S) return;
       if (A.st.silence && S.mp > 0) { out.push({ text: A.name + ' is silenced and cannot cast.', kind: 'miss', who }); return; }
       if (cfg.states && S.mp > 0 && stateWith(cfg, A, 'noCast')) { out.push({ text: A.name + ' cannot cast.', kind: 'miss', who }); return; }
       if (A.mp < S.mp) { out.push({ text: A.name + ' has too little MP.', kind: 'miss', who }); return; }
       A.mp -= S.mp;
-      out.push({ text: A.name + ' uses ' + S.name + '!', kind: 'cast', who, mp: A.mp, skill: pick.skill, target: pick.target });
+      out.push({ text: A.name + (pick.charged ? ' unleashes ' : ' uses ') + S.name + '!', kind: 'cast', who, mp: A.mp, skill: pick.skill, target: pick.target, ...(pick.charged ? { charged: true } : {}) });
       apply(cfg, R, A, S, S.target, pick.target, out);
       return;
     }
@@ -464,13 +473,25 @@ export function buildRpg() {
     let t = rnd(b) * rows.reduce((a, r) => a + r.weight, 0), r = rows[rows.length - 1];
     for (const x of rows) { t -= x.weight; if (t < 0) { r = x; break; } }
     if (r.use === 'guard') return { act: 'guard' };
-    if (r.use === 'attack') { const L = living(R); return { act: 'attack', target: L[Math.floor(rnd(b) * L.length)] }; }
-    return foeSkill(cfg, R, f, r.use);
+    // (a row that charges: this turn spent gathering, said; the next its blow let go, its aim chosen then)
+    if (r.charge) { f.charged = r.use; return { act: 'charge', line: r.charge === true ? null : r.charge }; }
+    return letGo(cfg, R, f, r.use);
+  }
+  function letGo(cfg, R, f, use) {
+    if (use === 'attack') { const L = living(R); return { act: 'attack', target: L[Math.floor(rnd(R.b) * L.length)] }; }
+    return foeSkill(cfg, R, f, use);
+  }
+  // a charged foe's next turn: what it gathered, let go at CHARGED times its power (a turn of its own, counted)
+  function unleash(cfg, R, f) {
+    const use = f.charged;
+    f.charged = null; f.turns = (f.turns || 0) + 1; f.guard = 0;
+    return { ...letGo(cfg, R, f, use), charged: true };
   }
   // a foe's turn: its pattern's row where it has one that holds, else one of its skills by chance (one it can pay for),
   // else an attack; a target from the other side
   function foePick(cfg, R, f) {
     const b = R.b, F = f.F;
+    if (f.charged) return unleash(cfg, R, f);
     const own = F.pattern ? patternPick(cfg, R, f) : null;
     if (own) return own;
     const can = F.skills.filter((k) => cfg.skills[k] && f.mp >= cfg.skills[k].mp);

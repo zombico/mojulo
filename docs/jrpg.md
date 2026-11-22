@@ -157,7 +157,10 @@ shell's flow it is a screen of its own, `gameover` (`continue`, `home`): a lost 
 A foe may carry an **action pattern** (`battles.foes.<id>.pattern`, RPG Maker's action patterns in words): rows of
 `{ use, when?, weight? }`. `use` is `attack`, `guard` or a skill; `when` is its HP below or above a share, its nth turn,
 every nth, or from its nth on; `weight` (1 to 9) how often it is chosen among the rows that hold. With none holding, it
-keeps the rule every foe has.
+keeps the rule every foe has. A row with `charge` (true, or the line said, `{name}` the foe's) is **telegraphed**: the
+foe spends that turn gathering, said in the message line and played as its channel (the juice's `charge`), and on its
+next turn lets the blow or the skill go at twice its power (the juice's `unleash`). A guard takes half of it, as of any
+blow, so the turn between is the party's to brace or mend.
 
 ```json
 { "foes": { "warden": { "hp": 400, "atk": 14, "def": 12, "mag": 10, "spd": 6, "boss": true, "pattern": [
@@ -174,6 +177,13 @@ the message line the first time its moment holds, `sets` a story flag as it is s
 calls foes into the fight, six fighting at most. A summoned foe's figure is the next in the encounter's `who` past its
 foes', minted `dormant` (hidden), and woken in smoke where it stands (a pack's one figure stands for all its foes). A composed party RPG's boss is a
 party battle (`battles.boss`, the Ember Drake by default) that speaks as it begins and at half its HP.
+
+**The boss, measured.** The Ember Drake is tuned to the party the ladder brings to it (`battles.js` `PACKS` walked in
+order, every member taking each fight's XP: level 6). Its breath is telegraphed every third turn, and every second
+once it is under half its HP. Since a fight is deterministic, `gameworld/boss-law.test.js` fights it on many seeds three
+ways (careful: bracing for the charge, mending, striking its weakness; the same unbraced; careless: only attacking) and
+holds it to a boss's shape: the careful party wins nearly always and the careless one mostly falls, a level short wins
+less often, bracing is worth winning, and the fight lasts 8 to 20 rounds. A boss retuned, or a new one, answers to it.
 
 **Traits** (RPG Maker's traits, the three a fight reads), on a class or a piece of gear: `resist` (elements taken at
 half), `immune` (elements taken not at all) and `ward` (states warded off). A member carries its class's and what it

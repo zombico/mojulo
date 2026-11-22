@@ -49,7 +49,8 @@
  *     a blow     skill:<id>, crit, weak, element:<el>, resist, absorb, hit
  *     a use      cast:<skill>, cast · item:<item>
  *     heal:<skill>, heal · miss · status:<is>, status · ko:<foe>, ko · fall (a member)
- *     start:boss, start · summon (a foe called in) · victory · defeat · flee · level · learn
+ *     start:boss, start · summon (a foe called in) · charge (a foe gathering a charged blow) · unleash (a
+ *     charged blow let go: its cast's keys after it) · victory · defeat · flee · level · learn
  *
  *   JUICE_PRESETS, JUICE_ON, JUICE_ALSO   the defaults: named juices, what each happening plays, what layers over
  *   readJuice(v, { skills })   → { on: { <key>: [step] }, also: { <key>: [step] }, fx: { puffs, shake, beams: { <name>: spec }, lens } } every name
@@ -99,6 +100,9 @@ export const JUICE_PRESETS = Object.freeze({
   // (the boss roars as its fight opens, and a foe called in enters roaring: their roar where their figure has one)
   boss: [{ act: 'roar', at: 'foes' }, { flash: '#ff6040', for: 0.3 }, { shake: 0.6 }, { hold: 0.9 }],
   summon: [{ act: 'roar', at: 'target' }, { shake: 0.15 }],
+  // (a foe gathering a charged blow: it channels, the air about it lit, the field trembling; let go, the screen whites out)
+  charge: [{ act: 'channel', at: 'actor', for: 1.2 }, { lens: 'lift', at: 'actor' }, { shake: 0.12, for: 1 }, { hold: 0.5 }],
+  unleash: [{ act: 'cast', at: 'actor' }, { flash: '#ffffff', for: 0.15 }, { shake: 0.45 }, { hold: 0.2 }],
   victory: [{ flash: '#ffe07a', for: 0.2 }, { act: 'win', at: 'party' }],
   level: [{ flash: '#ffe07a', for: 0.15 }],
   fire: ['hit', { puff: 'flash', color: '#ff7a2a' }],
@@ -110,7 +114,7 @@ export const JUICE_PRESETS = Object.freeze({
 export const JUICE_ALSO = Object.freeze({ weak: 'weak', resist: 'resist' });
 export const JUICE_ON = Object.freeze({
   hit: 'hit', crit: 'crit', miss: 'miss', heal: 'heal', status: 'status', cast: 'cast', item: 'item',
-  ko: 'ko', fall: 'fall', start: 'start', 'start:boss': 'boss', summon: 'summon', victory: 'victory', level: 'level',
+  ko: 'ko', fall: 'fall', start: 'start', 'start:boss': 'boss', summon: 'summon', charge: 'charge', unleash: 'unleash', victory: 'victory', level: 'level',
   'element:fire': 'fire', 'element:ice': 'ice', 'element:thunder': 'thunder', 'element:light': 'light', 'element:dark': 'dark',
 });
 
@@ -228,6 +232,7 @@ export function juiceKeys(b) {
     if (b.skill) out.push('heal:' + b.skill);
     out.push('heal');
   } else if (k === 'cast') {
+    if (b.charged) out.push('unleash');
     if (b.skill) out.push('cast:' + b.skill);
     if (b.item) out.push('item:' + b.item, 'item');
     out.push('cast');
@@ -240,6 +245,8 @@ export function juiceKeys(b) {
     if (b.boss) out.push('start:boss');
     out.push('start');
   } else if (k === 'summon') out.push('summon');
+  else if (k === 'charge') out.push('charge');
+  else if (!k && b.charged) out.push('unleash');
   else if (k === 'miss') out.push('miss');
   else if (k === 'spoils' && b.xp !== undefined) out.push('victory');
   else if (k === 'end') out.push(b.lost ? 'defeat' : 'flee');

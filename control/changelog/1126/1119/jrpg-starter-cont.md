@@ -232,3 +232,11 @@
   core is gated by its key and its first win ends the game, with the save points, the game over, the chests and the
   quest. The megaworld's game end is now a chain's last zone, or a hub's or an open world's `end` (a new key), where
   only a mandala's core ended a game before; the travel screen draws each. Before, every party RPG was a mandala.
+- **The boss, measured, and its telegraphed blow.** A foe's action pattern row may `charge` (`true`, or the line said,
+  `{name}` the foe's): it spends that turn gathering, said in the message line and played as its channel (the juice's
+  new `charge`), then lets the blow or the skill go on its next turn at twice its power (`unleash`); a guard takes half,
+  so the turn between is the party's to brace. The Ember Drake breathes so every third turn, every second under half
+  its HP, and is retuned (540 HP, atk 26, mag 24, from 160, 17, 13) to the level the ladder brings the party to (6): a
+  new law, `gameworld/boss-law.test.js`, fights it on sixteen seeds three ways and holds it to a boss's shape (a careful
+  party wins nearly always, a careless one mostly falls, a level short wins less, bracing is worth winning, 8 to 20
+  rounds). Before, a careless party at level 3 beat it seven times in eight.

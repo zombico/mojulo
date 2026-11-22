@@ -328,6 +328,36 @@ describe('a foe\'s action pattern', () => {
   });
 });
 
+// A CHARGED BLOW (a pattern row's `charge`): the foe's turn spent gathering, said, so the party can brace; its next turn
+// the blow let go at twice its power; a guard takes half of it like any blow
+describe('a charged blow', () => {
+  const ogre = { name: 'Ogre', hp: 999, mp: 0, atk: 20, def: 1, mag: 1, spd: 1, xp: 1, gold: 1,
+    pattern: [{ use: 'attack', when: { turn: 1 }, charge: '{name} winds up…' }, { use: 'attack', when: { after: 2 } }] };
+  const lone = () => readRpg({ rpg: { party: [{ id: 'ayla', class: 'knight', level: 9 }], foes: { ogre }, encounters: [{ id: 'den', foes: ['ogre'] }] } });
+  const taken = (beats) => beats.filter((x) => x.kind === 'hurt' && x.target === 'ayla').reduce((a, x) => a + x.amount, 0);
+  const play = (brace) => {
+    const cfg = lone(), R = rpgInit(cfg), v = {};
+    rpgStart(cfg, R, 'den', v);
+    const hit = { ayla: { act: 'attack', target: 'f0' } };
+    return [rpgRound(cfg, R, hit, v), rpgRound(cfg, R, brace ? { ayla: { act: 'guard' } } : hit, v), rpgRound(cfg, R, hit, v)];
+  };
+
+  it('is said as it gathers, then let go at twice a blow\'s power; braced for, half of it', () => {
+    const [one, two, three] = play(false);
+    expect(one.find((x) => x.kind === 'charge')).toMatchObject({ text: 'Ogre winds up…', who: 'f0' });
+    expect(taken(one)).toBe(0);
+    expect(two.find((x) => x.charged)).toMatchObject({ text: 'Ogre unleashes its full strength!' });
+    expect(taken(two)).toBeGreaterThan(1.5 * taken(three));
+    expect(taken(play(true)[1])).toBeLessThan(0.6 * taken(two));
+  });
+
+  it('is read and taught: a line or true, never on a guard', () => {
+    expect(lone().foes.ogre.pattern[0]).toEqual({ use: 'attack', when: { turn: 1 }, weight: 5, charge: '{name} winds up…' });
+    expect(() => readRpg({ rpg: { party: [{ id: 'ayla', class: 'knight' }], foes: { ogre: { ...ogre, pattern: [{ use: 'guard', charge: true }] } } } })).toThrow(/a guard has nothing to gather/);
+    expect(() => readRpg({ rpg: { party: [{ id: 'ayla', class: 'knight' }], foes: { ogre: { ...ogre, pattern: [{ use: 'attack', charge: 3 }] } } } })).toThrow(/charge is true or the line/);
+  });
+});
+
 // A FIGHT'S OWN PAGES (encounters[].pages): each said once, the first time its moment holds (begun, a foe under a share
 // of its HP, its nth round), a beat of kind 'page' carrying its flag
 describe('a fight\'s own pages', () => {

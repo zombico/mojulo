@@ -64,6 +64,10 @@ describe('battle juice: steps, composed, bound to the fight\'s happenings', () =
     expect(juiceKeys({ kind: 'ko' })).toEqual(['fall']);
     expect(juiceKeys({ kind: 'start', boss: true })).toEqual(['start:boss', 'start']);
     expect(juiceKeys({ kind: 'cast', skill: 'heal' })).toEqual(['cast:heal', 'cast']);
+    // (a foe gathering a charged blow, and the blow let go: a skill's cast, or a blow's own line)
+    expect(juiceKeys({ kind: 'charge', who: 'f0' })).toEqual(['charge']);
+    expect(juiceKeys({ kind: 'cast', skill: 'fire-breath', charged: true })).toEqual(['unleash', 'cast:fire-breath', 'cast']);
+    expect(juiceKeys({ who: 'f0', charged: true })).toEqual(['unleash']);
     expect(juiceKeys({ kind: 'end', lost: true })).toEqual(['defeat']);
     expect(juiceKeys({ kind: 'spoils', xp: 4 })).toEqual(['victory']);
   });
