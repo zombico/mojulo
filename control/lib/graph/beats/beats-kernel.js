@@ -21,7 +21,9 @@
  *     seeded PRNG, never sampled), a lookahead transport, gestures, and wind. Only
  *     touches AudioContext APIs at call time, so importing the kernel in Node is safe.
  *
- * Doctrine (beats.plan.md): synthesized, never sampled — no media bytes, no network.
+ * Doctrine: synthesized by default — no media bytes, no network. The one exception is opt-in: the sampler slice
+ * plays the recorded sound library's bytes that a page or a render hands it (it never fetches them), and every
+ * recorded piece names the synthesized piece it falls back to, so a machine without the library still plays.
  * Audio is presentation, not simulation: nothing here feeds state back into a world.
  */
 
@@ -90,6 +92,11 @@ import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
 //           pitch path (its period jittered, a doubled period under it, a
 //           rattle on it) and a breath of noise through the bird's moving
 //           resonances. A tonal call a trace would turn to sandpaper.
+// The sound library added one more:
+//   sampler a `voice: 'sample'` patch (a recorded piece): engine.loadSamples
+//           decodes the library's bytes once, a hit plays its card's variant
+//           chosen by the note's key, to its end (a choke still cuts it), at
+//           playbackRate root→note; unloaded, the piece's `fallback` plays.
 // Regions nest: a region inside another region's new lines is resolved
 // first (innermost out), so a hook for a newer feature can sit inside an
 // older feature's lines. A nested feature implies its host (IMPLIES).
@@ -99,8 +106,8 @@ import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
 // same transform a 2.1 page's did. A slice is syntax-checked once; if a
 // transform disturbed the markers (a minifier drops comments), the page gets
 // this whole function, whose markers are inert.
-export const BEATS_KERNEL_FEATURES = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix', 'sustain', 'trace', 'syrinx'];
-export const IMPLIES = { ev: ['voice'], score: ['voice', 'ev'], orch: ['voice'], perc: ['voice', 'ev'], va: ['voice', 'ev'], fx: ['voice', 'ev', 'mix'], anthem: ['voice', 'ev', 'mix'], timbre: ['voice', 'ev', 'orch', 'mix'], sfxmix: ['sfx', 'mix'], sustain: ['sfxmix', 'sfx', 'mix'], trace: ['sfx'], syrinx: ['sfx'] };
+export const BEATS_KERNEL_FEATURES = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix', 'sustain', 'trace', 'syrinx', 'sampler'];
+export const IMPLIES = { ev: ['voice'], score: ['voice', 'ev'], orch: ['voice'], perc: ['voice', 'ev'], va: ['voice', 'ev'], fx: ['voice', 'ev', 'mix'], anthem: ['voice', 'ev', 'mix'], timbre: ['voice', 'ev', 'orch', 'mix'], sfxmix: ['sfx', 'mix'], sustain: ['sfxmix', 'sfx', 'mix'], trace: ['sfx'], syrinx: ['sfx'], sampler: ['voice'] };
 // an innermost region: no region marker inside either half.
 const REGION = /\/\*@(\w+)\{\*\/\n((?:(?!\/\*@)[\s\S])*?)\/\*\|\n((?:(?!\/\*@)[\s\S])*?)@\*\/\n/g;
 export function sliceKernelText(text, keep) {
@@ -1259,6 +1266,24 @@ export function buildBeatsKernel() {
     function unit(k) { return mulberry32(k)(); }
 /*|
 @*/
+/*@sampler{*/
+    // recorded samples (opt-in, the sound library's): loadSamples({ cards: { <card>: [id…] }, bytes: { <id>: an
+    // ArrayBuffer of a WAV } }) decodes each once for this engine; a `voice: 'sample'` patch names its card
+    // (`library`), whose ids are its variants, one chosen per hit by the note's key, so a hit replays identically.
+    const sampleCards = {}, sampleBufs = new Map();
+    function loadSamples(slice) {
+      if (!slice) return Promise.resolve();
+      Object.assign(sampleCards, slice.cards || {});
+      const bytes = slice.bytes || {};
+      return Promise.all(Object.keys(bytes).map((id) => (sampleBufs.has(id) ? null
+        : Promise.resolve(ctx.decodeAudioData(bytes[id])).then((b) => { sampleBufs.set(id, b); }))));
+    }
+    function sampleBuf(patch, k) {
+      const ids = sampleCards[patch.library] || [];
+      return ids.length ? sampleBufs.get(ids[(k >>> 0) % ids.length]) || null : null;
+    }
+/*|
+@*/
     // Karplus-Strong plucked string — computed, never sampled (the guitar voice).
     // A seeded noise burst fills a delay line one period long; recirculating it
     // through a one-pole averaging (lowpass) loop filter turns the broadband pluck
@@ -2353,6 +2378,18 @@ export function buildBeatsKernel() {
       }
 /*|
 @*/
+/*@sampler{*/
+      // a sample voice plays its recorded variant to its end (a one-shot rings out past a short note); unloaded (no
+      // library on this machine, or not decoded yet) it plays the synthesized piece it stands in for, `fallback`.
+      let sbuf = null, srate = 1;
+      if (voice === 'sample') {
+        sbuf = sampleBuf(patch, nk);
+        if (!sbuf) return patch.fallback ? playVoice(patch.fallback, hz, t, dur, vel, dest, key) : undefined;
+        srate = patch.root ? hz / (440 * Math.pow(2, (patch.root - 69) / 12)) : 1;
+        if (patch.oneShot !== false) dur = Math.max(dur, sbuf.duration / srate - (patch.release == null ? 0.05 : patch.release));
+      }
+/*|
+@*/
       const { node: env, end } = envGain(t, dur, patch, vel);
 /*@anthem{*/
       const pmod = patch.pitchLane || patch.vib ? pitchMod(patch, t, end) : null;
@@ -2493,6 +2530,13 @@ export function buildBeatsKernel() {
         nz.start(t); nz.stop(t + adec + 0.02);
 @*/
       }
+/*@sampler{*/
+      if (sbuf) {
+        const src = ctx.createBufferSource(); src.buffer = sbuf; src.playbackRate.value = srate;
+        src.connect(env); src.start(t); src.stop(end);
+      } else
+/*|
+@*/
       if (voice === 'noise') {
 /*@voice{*/
         const src = noiseSrc(t, vu);
@@ -3689,6 +3733,10 @@ export function buildBeatsKernel() {
 /*|
 @*/
       playVoice,
+/*@sampler{*/
+      loadSamples,
+/*|
+@*/
 /*@strings{*/
       stringBuffer,
 /*|

@@ -141,18 +141,26 @@ function collect(m, set) {
     for (const name of patchNamesOf(row)) {
       const p = row.patchParams ? { ...PATCHES[name], ...row.patchParams } : PATCHES[name];
       if (!LEGACY.has(name) || voiceNeeds(p)) set.add('voice');
-      if (p && (p.harmonics || p.tremolo || p.pedal || p.players)) set.add('orch');
-      if (p && (p.velMap || p.claps || p.drive || p.excite === 'noise' || p.chokes || (p.partials || []).some((q) => q && q.rise))) set.add('perc');
-      if (p && (p.wave === 'pulse' || p.wave === 'supersaw' || p.sub || p.noise || p.lfo || p.voice === 'fm4' || (p.filter && p.filter.slope) || (p.filterEnv && (p.filterEnv.amount != null || p.filterEnv.velAmount)))) set.add('va');
-      if (p && p.bend) set.add('orch');
-      if (p && (p.harmonicsLoud || p.life || p.damper || p.ringExact)) set.add('timbre');
-      if (p && p.unisonSpread) { set.add('timbre'); set.add('anthem'); } // the second string's ring sits in the anthem string clause
-      if (p && STRING_KEYS.some((k) => p[k] != null && p[k] !== false)) set.add('strings');
+      // a recorded piece (the sound library's): the sampler, and whatever the synthesized piece it falls back to needs
+      if (p && p.voice === 'sample') { set.add('sampler'); if (p.fallback) patchFeatures(p.fallback, set); }
+      patchFeatures(p, set);
     }
   }
   for (const list of Object.values(m.cues || {})) addGestures(set, list);
   if (m.kind === 'beats-sfx' && m.mix) set.add('sfxmix');
   if (m.kind === 'beats-sfx' && m.sustains) addSustains(set, Object.values(m.sustains));
+}
+
+// the features one patch's own keys need (a row's patch, a kit's piece, a recorded piece's fallback)
+function patchFeatures(p, set) {
+  if (voiceNeeds(p)) set.add('voice');
+  if (p && (p.harmonics || p.tremolo || p.pedal || p.players)) set.add('orch');
+  if (p && (p.velMap || p.claps || p.drive || p.excite === 'noise' || p.chokes || (p.partials || []).some((q) => q && q.rise))) set.add('perc');
+  if (p && (p.wave === 'pulse' || p.wave === 'supersaw' || p.sub || p.noise || p.lfo || p.voice === 'fm4' || (p.filter && p.filter.slope) || (p.filterEnv && (p.filterEnv.amount != null || p.filterEnv.velAmount)))) set.add('va');
+  if (p && p.bend) set.add('orch');
+  if (p && (p.harmonicsLoud || p.life || p.damper || p.ringExact)) set.add('timbre');
+  if (p && p.unisonSpread) { set.add('timbre'); set.add('anthem'); } // the second string's ring sits in the anthem string clause
+  if (p && STRING_KEYS.some((k) => p[k] != null && p[k] !== false)) set.add('strings');
 }
 
 // a held voice (sustain): the feature, and what its layers' chains need
@@ -164,7 +172,7 @@ function addSustains(set, specs) {
   }
 }
 
-const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix', 'sustain', 'trace', 'syrinx'];
+const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix', 'sustain', 'trace', 'syrinx', 'sampler'];
 const sorted = (set) => {
   for (const f of [...set]) for (const g of IMPLIES[f] || []) set.add(g);
   return ORDER.filter((f) => set.has(f));
@@ -200,6 +208,16 @@ export function audioFeatures(audio) {
   addSustains(set, [audio.thruster && audio.thruster.voice, audio.jump && audio.jump.charge && audio.jump.charge.voice, audio.engine && audio.engine.voice, ...Object.values(audio.sustains || {}), ...(audio.run ? [audio.run.charge, audio.run.treads, audio.run.steam] : [])]);
   if (audio.wind && audio.wind.vary) set.add('x');
   return sorted(set);
+}
+
+/** The sound library's cards a beats manifest's recorded pieces name (kit pieces included), sorted; [] for none. */
+export function sampleCards(...manifests) {
+  const out = new Set();
+  for (const m of manifests) for (const row of rowsOf(expandBeatsManifest(m))) if (row) for (const n of patchNamesOf(row)) {
+    const p = PATCHES[n];
+    if (p && p.voice === 'sample' && p.library) out.add(p.library);
+  }
+  return [...out].sort();
 }
 
 /**
