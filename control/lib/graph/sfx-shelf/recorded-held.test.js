@@ -3,7 +3,7 @@
 // spec the fallback; unloaded it is exactly that spec. A tiny library is built here: one engine of three loops, one
 // tyre loop, each a steady tone.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
@@ -69,6 +69,20 @@ describe('recorded held voices', () => {
     expect(validateBeatsManifest(held(s)).ok).toBe(true);
     expect(audioFeatures({ sustains: { e: s } })).toEqual(expect.arrayContaining(['sustain', 'sampler']));
     expect(gestureSampleCards({ sustains: { e: s } })).toHaveLength(rpms.length);
+  });
+
+  it('the widest rev range in the table is a valid held voice, its lowest loop bent far up where it is silent', () => {
+    const [wide, W] = Object.entries(HELD_TUNINGS).filter(([, t]) => t.engine).sort(([, a], [, b]) => b.rpm[1] / b.rpm[0] - a.rpm[1] / a.rpm[0])[0];
+    library(true);
+    const synth = { layers: [{ kind: 'noise', gain: [0, 1] }] };
+    const cards = Object.fromEntries([W.rpm[0], W.rpm[1]].map((r) => [`${W.engine}-${r}`, r]));
+    // (its two ends recorded, in the fixture's library beside the probe engine)
+    const lib = JSON.parse(readFileSync(path.join(dir, 'library.json'), 'utf8')), some = Object.values(lib.cards)[0].variants;
+    for (const [card, rpm] of Object.entries(cards)) lib.cards[card] = { role: 'loop', loop: true, engine: W.engine, rpm, variants: some };
+    writeFileSync(path.join(dir, 'library.json'), JSON.stringify(lib)); forgetLibrary();
+    const s = recordedHeld(wide, synth);
+    expect(s.layers[0].rate[1]).toBeGreaterThan(8);
+    expect(validateBeatsManifest(held(s)).ok).toBe(true);
   });
 
   it('a loop row is its one loop under the control', () => {

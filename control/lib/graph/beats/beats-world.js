@@ -17,7 +17,7 @@
  *     weather?:    true | { level? (0..1), surface? }   the world's sky, sounding (manifest.weather; beats/weather-audio.js)
  *     (a sheet level also carries `foes`: { <foe id>: { attack?, hurt?, down? } } cue ids, from sfx.sheet.foes)
  *     ambience?:   { voice, level? }   a place's own held sound under the bed (a city's traffic far off)
- *     engine?:     { voice, top, level?, idle?, cab?, drive?: { load?, road?, skid? } }   a ride's engine: a held voice following the pilot's speed up to `top`
+ *     engine?:     { voice, top, level?, idle?, cab?, drive?: { load?, road?, skid? }, models?: { <car model>: <held row> } }   a ride's engine: a held voice following the pilot's speed up to `top`
  *                  (`cab`: a city's cars, heard only while the pilot rides one, by that car's speed)
  *     run?:        { <event>: <gesture list> | <a held voice> }   a run and gun's voices (gameworld/sound-sheet.js
  *                  RUN_SOUNDS: the buster, the hero, its robot foes, a rock, the shutter; `charge` and `treads` held),
@@ -424,7 +424,11 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     // audio channel's car sound design: its growl under the throttle, its tyres' roar by the speed, their screech as they slip)
     const held = (h, at) => { const sp = typeof h.voice === 'string' ? sfxSound(h.voice)?.sustain : h.voice; if (!sp) throw new Error(`${at}.voice: '${h.voice}' is not a held voice on the SFX shelf`); return { voice: heldVoice(sp, `${at}.voice`), level: Number.isFinite(h.level) ? h.level : 0.4 }; };
     const drive = en.drive && typeof en.drive === 'object' ? Object.fromEntries(['load', 'road', 'skid'].filter((k) => en.drive[k]).map((k) => [k, held(en.drive[k], `audio.engine.drive.${k}`)])) : null;
-    out.engine = { voice: heldVoice(spec, 'audio.engine.voice'), top: en.top, level: Number.isFinite(en.level) ? en.level : 0.3, idle: Number.isFinite(en.idle) ? Math.max(0, Math.min(1, en.idle)) : 0.12, ...(en.cab === true ? { cab: true } : {}), ...(drive && Object.keys(drive).length ? { drive } : {}) };
+    // (a city car's own engines, `models`: { <car model>: <a held row> }, opt-in: the car taken heard by its own, each
+    // engine resolved once into `voices` and heard from the cab where `cab` says so; a model not named is `voice`)
+    const models = en.models && typeof en.models === 'object' ? Object.fromEntries(Object.entries(en.models).filter(([, w]) => typeof w === 'string')) : null;
+    const voices = models && Object.keys(models).length ? Object.fromEntries([...new Set(Object.values(models))].sort().map((w) => { const sp = sfxSound(w, { cab: en.cab === true })?.sustain; if (!sp) throw new Error(`audio.engine.models: '${w}' is not a held voice on the SFX shelf`); return [w, heldVoice(sp, `audio.engine.voices.${w}`)]; })) : null;
+    out.engine = { voice: heldVoice(spec, 'audio.engine.voice'), top: en.top, level: Number.isFinite(en.level) ? en.level : 0.3, idle: Number.isFinite(en.idle) ? Math.max(0, Math.min(1, en.idle)) : 0.12, ...(en.cab === true ? { cab: true } : {}), ...(drive && Object.keys(drive).length ? { drive } : {}), ...(voices ? { models, voices } : {}) };
   }
   // a place's own held sound (`ambience`: { voice, level? }): a city's traffic far off, held under the bed while the
   // level plays (the audio channel's), quieter inside a car

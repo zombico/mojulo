@@ -483,7 +483,8 @@ export function checkSustain(sp, where, errors) {
     if (isObj(L) && L.kind === 'sample') {
       if (typeof L.library !== 'string' || !/^[a-z0-9-]{1,64}$/.test(L.library)) errors.push(`${w}.library must be a sound library card id (kebab-case)`);
       if (L.take !== undefined && !(Number.isInteger(L.take) && L.take >= 0)) errors.push(`${w}.take must be a non-negative integer (which of the card's takes)`);
-      range(L.rate, `${w}.rate`, 0.1, 8, 'its playback rate at each end of the control');
+      // (an engine's lowest loop is bent far up at the control's top, where its window has long faded it out: the range is wide)
+      range(L.rate, `${w}.rate`, 0.01, 32, 'its playback rate at each end of the control');
       if (L.window !== undefined && !(Array.isArray(L.window) && L.window.length === 3 && L.window.every((v) => inRange(v, 0, 1)) && L.window[0] <= L.window[1] && L.window[1] <= L.window[2])) errors.push(`${w}.window must be [lo, at, hi] in 0..1, rising (where the recording is heard on the control)`);
     }
     if (!isObj(L) || !['noise', 'osc', 'sample'].includes(L.kind)) { errors.push(`${w}.kind must be 'noise', 'osc' or 'sample'`); return; }

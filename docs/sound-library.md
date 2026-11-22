@@ -56,8 +56,14 @@ node scripts/sound-library/condition.mjs --cards spike,batch2,vehicles,registry 
   car's engine asks the registry (`rideSound`), so a helicopter is heard by its rotor. Rows with no synthesized voice
   of their own (a siren, a bus door, a lock's chirp) are `recorded` rows: their palette stand-in, or silence, without
   the library.
+- **The open city's car taken** (Hijack City; `citySounds` in `gameworld/sound-sheet.js`): where the library records a
+  car's own engine, the city names it for that car's model (`modelEngines()`: the car shelf's cards and the traffic's
+  lofts, through the registry), heard from the cab whatever the engine (`CAB` in `recorded-held.js`: short of its
+  redline, through a small speaker), and the page starts the engine the driven car's model names. A car whose engine is
+  the city's own keeps the hatchback. Each engine a page carries is its loops (about 0.6 MB of MP3 an engine: a city
+  page with the V8, the V12, the electric motor and the diesel beside the hatchback carries about 3.5 MB of sound).
 - Not yet: the beds (the library's ambience loops), a vehicle's events wired into the pages that drive it (the city
-  car's cues are; a ride's are not), the engine handoffs.
+  car's cues are its own, the same for every car; a ride's are not), the engine handoffs.
 
 The kernel's `sampler` slice carries all of it; a recipe without recorded sounds emits none of it, and a page or a
 render on a machine without the library is byte for byte what it was. Under test the library is never the

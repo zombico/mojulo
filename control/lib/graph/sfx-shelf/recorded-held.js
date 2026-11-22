@@ -10,8 +10,11 @@
  * which every recorded voice carries as its `fallback`.
  *
  *   `HELD_TUNINGS`                  row id → { engine, rpm: [idle, redline], level?, band? } | { loop, rate?, level? }
- *   `recordedHeld(id, synthesized)` → the recorded held voice for a row (its synthesized spec the fallback; a row
- *                                     voiced only by its recording, `synthesized` null, has none), or null
+ *   `recordedHeld(id, synthesized, { cab })` → the recorded held voice for a row (its synthesized spec the fallback; a
+ *                                     row voiced only by its recording, `synthesized` null, has none), or null. `cab`
+ *                                     hears an engine as the open city's car at the wheel does (CAB: short of its
+ *                                     redline, through a small speaker), whichever engine it is
+ *   `CAB`                           that hearing: the share of the engine's revs the city drives it to, the speaker's band
  *
  * Reads the library's index (sound-library/library.js); timeless.
  */
@@ -53,7 +56,10 @@ export const HELD_TUNINGS = Object.freeze({
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
-export function recordedHeld(id, synthesized) {
+// the open city's car at the wheel, whichever car it is (road-car-engine's own tuning is this, on the hatchback)
+export const CAB = Object.freeze({ redline: 0.75, band: Object.freeze({ lo: 60, hi: 5200 }) });
+
+export function recordedHeld(id, synthesized, { cab = false } = {}) {
   const T = HELD_TUNINGS[id];
   if (!T) return null;
   const S = synthesized || {}, fall = synthesized ? { fallback: synthesized } : {};
@@ -64,7 +70,8 @@ export function recordedHeld(id, synthesized) {
     if (!card) return null;
     return { ...base, layers: [{ kind: 'sample', library: card, gain: [0, T.level ?? 1], rate: T.rate || [1, 1] }], ...fall };
   }
-  const [idle, red] = T.rpm;
+  const idle = T.rpm[0], red = cab ? Math.round(T.rpm[0] + (T.rpm[1] - T.rpm[0]) * CAB.redline) : T.rpm[1];
+  const band = cab ? T.band || CAB.band : T.band;
   // the loops inside the tuning's revs (a little either side): one recorded far past its redline is never heard
   const loops = recordedEngine(T.engine).filter((l) => l.rpm >= idle * 0.85 && l.rpm <= red * 1.15);
   if (!loops.length) return null;
@@ -77,7 +84,7 @@ export function recordedHeld(id, synthesized) {
     gain: [0, T.level ?? 1],
     // the revs at each end of the control over the revs it was recorded at
     rate: [r4(idle / l.rpm), r4(red / l.rpm)],
-    ...(T.band ? { band: { ...T.band } } : {}),
+    ...(band ? { band: { ...band } } : {}),
   }));
   return { ...base, layers, ...fall };
 }

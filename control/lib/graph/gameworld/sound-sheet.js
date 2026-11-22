@@ -67,7 +67,7 @@ import { stageKit } from '../era/stage.js';
 import { resolveBed, BEDS } from '../sfx-shelf/beds.js';
 import { gunCues } from './combat/range-sound.js';
 import { sfxSound } from '../sfx-shelf/resolve.js';
-import { vehicleSounds } from '../sfx-shelf/vehicle-sounds.js';
+import { vehicleSounds, modelEngines } from '../sfx-shelf/vehicle-sounds.js';
 import { POLES } from './feel/cards.js';
 import { feelCard } from './feel/lower.js';
 import { BOSSES } from './bosses.js';
@@ -511,6 +511,9 @@ export function citySounds(G, { manifest = null, quick = G?.quick } = {}) {
   const cues = Object.fromEntries([['car:door', CITY_CAR.door], ['car:horn', CITY_CAR.horn], ['car:crash', CITY_CAR.crash], ['car:open', CITY_CAR.open], ['car:start', CITY_CAR.start], ['car:off', CITY_CAR.off], ['car:brake', CITY_CAR.brake], ['car:shift', CITY_CAR.shift], ...(G?.law ? [['law:siren', CITY_CAR.siren]] : [])].map(([k, w]) => [k, cue(w)]).filter(([, g]) => g));
   // (the car's engine the road car's, voiced for a small speaker, unless the game names its own ride)
   const own = readSound(G?.sound).ride;
-  return { engine: { ...R.engine, ...(own ? {} : { voice: CITY_CAR.engine }), level: CITY_CAR.level, cab: true, drive: { load: { ...CITY_CAR.drive.load }, road: { ...CITY_CAR.drive.road }, skid: { ...CITY_CAR.drive.skid } } }, cues, ambience: { ...CITY_CAR.ambience },
+  // (and the car taken heard by its OWN engine where the recorded library voices it, heard from the cab: a muscle car's V8,
+  // an electric car's whine, a truck's diesel, sfx-shelf/vehicle-sounds.js; the road car's elsewhere, as without it)
+  const models = own ? {} : Object.fromEntries(Object.entries(modelEngines()).filter(([, w]) => w !== R.engine.voice && w !== CITY_CAR.engine && sfxSound(w, { cab: true })?.recorded));
+  return { engine: { ...R.engine, ...(own ? {} : { voice: CITY_CAR.engine }), level: CITY_CAR.level, cab: true, ...(Object.keys(models).length ? { models } : {}), drive: { load: { ...CITY_CAR.drive.load }, road: { ...CITY_CAR.drive.road }, skid: { ...CITY_CAR.drive.skid } } }, cues, ambience: { ...CITY_CAR.ambience },
     why: `${R.why}, heard only at the wheel: started as its driver gets in and stopped as they get out, its growl under the pedal, its tyres on the road and in a slide, the brakes, a gear changed; the door, the horn, a crash; the city's traffic far off` };
 }

@@ -16,6 +16,9 @@
   hooves, sails) and the events it is known by (sirens, horns, bells, air brakes, a reverse beeper, a car's alarm and
   its lock, a flyby, a liftoff), by its kind or its own. A ride a game names is heard by its vehicle: a helicopter by
   its rotor, a supercar by its V12.
+- In the open city (Hijack City), the car you take is heard by its own engine where the library is installed: a muscle
+  car's V8, a luxury saloon's V12, an electric car's whine, a stolen van's or truck's diesel, each heard from the
+  driver's seat; every other car keeps the city's hatchback.
 - Music can play recorded instruments. A recorded piece plays one of its takes per hit and falls back to the
   synthesized piece it stands in for where the library is not installed; recipes without recorded pieces are
   unchanged to the byte. The first recorded drum kit lost to the synthesized 90s rock kit by ear, so no recorded

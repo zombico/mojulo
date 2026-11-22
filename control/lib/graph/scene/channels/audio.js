@@ -504,7 +504,8 @@ ${audio.engine.cab ? `    // (THE CAR'S SOUND DESIGN, a city's: gameworld/sound-
     if (K.runAt && __t >= K.runAt) { K.runAt = 0; K.started = true; }
     const __rides = !!K.started && __phase === 'ride';
     const __held = function (v, lv) { return __beatsEng.sustain(Object.assign({}, v, { level: (v.level == null ? 1 : v.level) * lv })); };
-    if (__rides && !H) { try { H = __held(E.voice, E.level); const D = E.drive || {}; for (const k of ['load', 'road', 'skid']) K[k] = D[k] ? __held(D[k].voice, D[k].level) : null; } catch (e) { return; } }
+    if (__rides && !H) { try { ${audio.engine.models ? `const __mdl = __cp && __cp.mount && __cp.mount.pool && __cp.mount.pool.model, __mk = __mdl && __mdl.indexOf('loft:') === 0 ? __mdl.split('|')[0] : __mdl;   // (the car taken: its own engine where the level names one, audio.engine.models)
+      H = __held((__mk && E.models[__mk] && E.voices[E.models[__mk]]) || E.voice, E.level);` : 'H = __held(E.voice, E.level);'} const D = E.drive || {}; for (const k of ['load', 'road', 'skid']) K[k] = D[k] ? __held(D[k].voice, D[k].level) : null; } catch (e) { return; } }
     else if (!__rides && H) { H.stop(); H = null; for (const k of ['load', 'road', 'skid']) if (K[k]) { K[k].stop(); K[k] = null; } }
 ` : `    if (!H) { try { H = __beatsEng.sustain(Object.assign({}, E.voice, { level: (E.voice.level == null ? 1 : E.voice.level) * E.level })); } catch (e) { return; } }
 `}    const ctrl = window.__mojCtrl && window.__mojCtrl.world, P${audio.engine.cab ? '0' : ''} = ctrl && ctrl.byId && ctrl.byId[ctrl.pilotId];

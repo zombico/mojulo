@@ -8,10 +8,14 @@
  * and recorded where it is (resolve.js, recorded-held.js).
  *
  *   `vehicleSounds(vehicle)`  a registry id or a word for one (resolveVehicle) → { id, engine, runs?, events } or null
+ *   `modelEngines()`          a town's car models (the car shelf's cards; a traffic loft `loft:<fleet class>`) → the
+ *                             engine each is heard by: { <model>: <engine row> }, through the registry's handles
  *
  * Pure data and pure functions: no clock, no dice.
  */
-import { VEHICLES, resolveVehicle } from '../vehicle-registry/roster.js';
+import { VEHICLES, resolveVehicle, rowOfHandle } from '../vehicle-registry/roster.js';
+import { CAR_CARD_IDS } from '../car-shelf/car-library.js';
+import { FLEET } from '../roads/fleet.js';
 
 // a car's events, a truck's, an aircraft's: the events a vehicle of that kind is known by
 const CAR = Object.freeze({ start: 'car-ignition', stop: 'car-engine-off', open: 'car-door-open', door: 'car-door', horn: 'car-horn', brake: 'brake-squeal', shift: 'gear-shift', lock: 'lock-chirp', alarm: 'car-alarm' });
@@ -135,6 +139,15 @@ export function vehicleSounds(vehicle) {
   const runs = 'runs' in own ? own.runs : kind.runs ?? null;
   const events = { ...(own.events || kind.events || {}), ...(own.more || {}) };
   return { id, engine, ...(runs ? { runs } : {}), events };
+}
+
+let models = null;
+export function modelEngines() {
+  if (models) return models;
+  const out = {};
+  for (const k of CAR_CARD_IDS) { const id = rowOfHandle('car', k), v = id && vehicleSounds(id); if (v && v.engine) out[k] = v.engine; }
+  for (const k of Object.keys(FLEET)) { const id = rowOfHandle('fleet', k), v = id && vehicleSounds(id); if (v && v.engine) out[`loft:${k}`] = v.engine; }
+  return (models = Object.freeze(out));
 }
 
 /** every word the table names (a guard test holds each to a shelf row) */

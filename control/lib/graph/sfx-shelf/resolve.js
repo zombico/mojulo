@@ -62,8 +62,9 @@ function voiceOf(id, style, seen, dials) {
  * The sound a word names, in a style (default `realistic`): `{ id, style, from, gestures | sustain, family? }` (a held
  * voice gives its sustain spec), with `channel` too for a sound the audio channel's own code plays, or null when the
  * word names no row or no step voices it in that style. `style` on the result is the style that answered (a fallback's when it did).
+ * `cab` hears a recorded engine as the open city's car at the wheel does (recorded-held.js CAB); it moves nothing else.
  */
-export function sfxSound(word, { style = 'realistic', dials = {} } = {}) {
+export function sfxSound(word, { style = 'realistic', dials = {}, cab = false } = {}) {
   if (!STYLES[style]) throw new Error(`sfx style '${style}': one of ${Object.keys(STYLES).join(', ')}`);
   const id = resolveSoundId(word);
   if (!id) return null;
@@ -80,7 +81,7 @@ export function sfxSound(word, { style = 'realistic', dials = {} } = {}) {
   // a held voice (an engine, the tyres, the road) the library's loops voice, at the row's own tuning (recorded-held.js)
   // (a row voiced only by its recording, `recorded`, is held with nothing to fall back to)
   const heldOpen = voice ? voice.sustain && voice.style === 'realistic' : asked && row.recorded && row.slot === 'hold';
-  const heldRec = heldOpen && !Object.keys(dials || {}).length ? recordedHeld(id, voice ? voice.sustain : null) : null;
+  const heldRec = heldOpen && !Object.keys(dials || {}).length ? recordedHeld(id, voice ? voice.sustain : null, { cab }) : null;
   if (heldRec) voice = { ...(voice || { style: 'realistic', from: 'library' }), recorded: heldRec.layers.map((L) => L.library).join(' '), sustain: heldRec };
   if (row.channel) return { id, channel: row.channel, ...(voice || {}) };
   return voice ? { id, ...voice } : null;

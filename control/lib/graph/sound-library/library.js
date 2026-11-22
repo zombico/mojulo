@@ -95,6 +95,8 @@ export function sampleSlice(cards, { compact = false } = {}) {
       if (!existsSync(file)) continue;
       out.bytes[v.id] = readFileSync(compact && existsSync(mp3) ? mp3 : file);
       ids.push(v.id);
+      // (a loop is held on its first take, recorded-held.js: its others are never heard, so never carried)
+      if (card.loop) break;
     }
     if (ids.length) out.cards[name] = ids;
   }
