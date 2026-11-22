@@ -270,6 +270,12 @@ export const TISSUE_MM = Object.freeze({
   temporal: 10, condyle: 9, masseter: 18, go: 12, buccal: 15, philtrum: 12, mentolabial: 11, pg: 11, gn: 8, me: 7,
 });
 const MM_V = 1 / 230;   // a millimetre in head heights
+/** each upper lip plate's middle: how far forward it is bowed off the line from the philtrum to the corner, and its
+ * radius, in V */
+/** the nasolabial pad (each side): its beads out from the alare, the midpoint and the cheilion, and back from them, and
+ * its radii, in V */
+const NASOLABIAL = Object.freeze({ out: [0.035, 0.04, 0.035], back: [0.07, 0.057, 0.037], r: [0.02, 0.024, 0.018] });
+const LIP_ARCH = Object.freeze({ bow: 0.012, r: 0.0165 });
 /** a closed mouth's lip line, cut to one depth (mm): the groove's depth below the less prominent lip's front, its tube's
  * radius (its width), its edge's blend */
 const SEAM = Object.freeze({ depth: 1, radius: 1.3, blend: 0.5 });
@@ -522,7 +528,7 @@ export function coreVajras(P, rel = RELATIONS) {
     soft(`raphe${s}`, mUp, mid(mUp, mLo), mLo, [0.035, 0.032, 0.035], [null, ['jawHalf'], J]);
     // the depressor anguli oris: the mandible's front → the corner — seals the lower cheek to the chin however far
     // the jaw drops
-    soft(`depressor${s}`, at(inX(P[`ment${s}`], 0.03), { y: -0.01, z: 0.01 }), at(mid(P[`ment${s}`], ch), { y: -0.025 }), at(md, { x: -Math.sign(ch.x) * 0.006, y: -0.03, z: -0.01 }), [0.03, 0.032, 0.022], [J, [`loMid${s}`], corner]);
+    soft(`depressor${s}`, at(inX(P[`ment${s}`], 0.03), { y: -0.01, z: 0.01 }), at(mid(P[`ment${s}`], ch), { y: -0.025 }), at(md, { x: -Math.sign(ch.x) * 0.006, y: -0.04, z: -0.01 }), [0.03, 0.032, 0.022], [J, [`loMid${s}`], corner]);
     // in front of the ear: the joint's cover, between the jaw's joint and the vault (the ear will sit on it)
     soft(`preauricular${s}`, at(P[`condyle${s}`], { y: -0.01 }), inX(at(P[`porion${s}`], { y: -0.045, z: 0.02 }), 0.04), inX(at(P[`eu${s}`], { y: -0.06, z: -0.2 }), 0.1), [0.045, 0.06, 0.06]);
     // behind the ramus, under the ear: the parotid's fill, from under the ear down behind the jaw's angle, so the
@@ -535,6 +541,13 @@ export function coreVajras(P, rel = RELATIONS) {
     // deepens the fold; riding the bulge, it stood forward as a knob), its foot the jaw. Its foot is the
     // jowl (`jowl`, its radius) and runs `foldReach` below the corner
     soft(`fold${s}`, at(P[`al${s}`], { x: Math.sign(ch.x) * 0.03, y: -0.095, z: -0.006 }), { x: ch.x + Math.sign(ch.x) * 0.04, y: ch.y - 0.03, z: ch.z + 0.006 }, { x: ch.x + Math.sign(ch.x) * 0.012, y: ch.y - 0.03, z: ch.z - R.foldReach }, [0.006, 0.012, R.jowl], [null, [`zyg${s}`], J]);
+    // THE NASOLABIAL PAD — the cheek's fat beside the fold, from beside the wing's base down to beside the mouth's corner:
+    // the cheek's side of the fold comes forward to meet the lip there, so the fold is a soft valley between two masses
+    // (with nothing there the triangle between the wing, the balloon's arm and the corner fell ~13 mm behind the lip's
+    // front, flat, and the lip stood out of it as a muzzle with a hard turn along its edge). It rides the smile as the
+    // fold does, so the fold deepens as the cheek bunches.
+    const nl = NASOLABIAL, al = P[`al${s}`], sx = Math.sign(ch.x);
+    soft(`nasolabial${s}`, { x: al.x + sx * nl.out[0], y: al.y - nl.back[0], z: al.z - 0.005 }, { x: (al.x + ch.x) / 2 + sx * nl.out[1], y: (al.y + ch.y) / 2 - nl.back[1], z: (al.z + ch.z) / 2 }, { x: ch.x + sx * nl.out[2], y: ch.y - nl.back[2], z: ch.z + 0.01 }, nl.r, [null, [`zyg${s}`], corner]);
     V.push({ name: `zygomaticus${s}`, a: inX(at(mid(malar, zy, 0.35), { y: -0.03, z: -0.01 }), 0.03), c: at(mid(malar, ch, 0.5), { y: -0.025 }), b: at(md, { y: -0.02 }), r: [0.018, 0.016, 0.014], group: 'soft', muscle: true, balloon: true, drive: [null, [`zyg${s}`], corner] });
     // THE LATERAL PERIORBITAL FILL (realistic laws 16, the `periorbital` relation: 0 or absent, none): the tissue over the
     // lateral orbital rim, from beside the brow's outer end down past the outer canthus into the cheek under the lower
@@ -579,9 +592,13 @@ export function coreVajras(P, rel = RELATIONS) {
     const al = P[`al${s}`], sg = Math.sign(al.x);
     taper(`sill${s}`, { x: sg * 0.006, y: P.sn.y - 0.026, z: P.sn.z - 0.016 }, { x: al.x, y: al.y - 0.07, z: al.z - 0.026 }, 0.013, 0.01);
   }
+  // (each plate's middle bowed forward, `LIP_ARCH`, so the lip lies on the dental arch's curve: a straight cone from the
+  // philtrum to the corner made the lip a wedge in plan, round only at the midline, its sides flat planes running back to
+  // a hard turn into the cheek that the light read as a line from the wing to the corner)
   for (const s of ['L', 'R']) {
     const sg = Math.sign(P[`ch${s}`].x), ch = P[`ch${s}`];
-    taper(`upperLipPlate${s}`, { ...philMid, x: sg * 0.014, y: philMid.y - 0.004 }, { x: ch.x - sg * 0.022, y: ch.y - 0.022, z: ch.z + 0.012 }, 0.02, 0.011, [null, [`bow${s}`], [`corner${s}`]]);
+    const pa = { ...philMid, x: sg * 0.014, y: philMid.y - 0.004 }, pb = { x: ch.x - sg * 0.022, y: ch.y - 0.022, z: ch.z + 0.012 };
+    v(`upperLipPlate${s}`, pa, at(mid(pa, pb), { y: LIP_ARCH.bow }), pb, [0.02, LIP_ARCH.r, 0.011], 'lipBody', [null, [`bow${s}`], [`corner${s}`]]);
   }
   // THE LOWER LIP'S BODY — orbicularis oris below the mouth, behind and below the lower vermilion: corner → under the
   // lip's fullest → the centre above the mentolabial fold, each side; it rides the jaw as the lower lip does, so the
@@ -661,7 +678,7 @@ export function coreVajras(P, rel = RELATIONS) {
   const upC = at(P.ls, { y: -0.024, z: -0.002 }), loC = at(P.li, { y: -0.028 }), F = R.lipFullness;
   for (const s of ['L', 'R']) {
     v(`upperLip${s}`, at(P[`ch${s}`], { y: -0.014 }), at(P[`bow${s}`], { y: -0.016, z: -0.008 }), upC, [0.006, 0.016 * F, 0.022 * F], 'lips', [[`corner${s}`], [`bow${s}`], ['lipUpC']]);
-    v(`lowerLip${s}`, at(P[`ch${s}`], { y: -0.014, z: -0.002 }), at(P[`loMid${s}`], { y: -0.02 }), loC, [0.006, 0.02 * F, 0.026 * F], 'lips', [[`corner${s}`], [`loMid${s}`], ['lipStretch']]);
+    v(`lowerLip${s}`, at(P[`ch${s}`], { y: -0.016 }), at(P[`loMid${s}`], { y: -0.02 }), loC, [0.006, 0.02 * F, 0.026 * F], 'lips', [[`corner${s}`], [`loMid${s}`], ['lipStretch']]);
     // the philtral columns: two ridges from the nose's base down to the bow's peaks
     v(`philtrum${s}`, at(P.sn, { x: (s === 'L' ? -1 : 1) * 0.012, y: -0.006, z: -0.012 }), at(mid(P.sn, P[`bow${s}`]), { x: (s === 'L' ? -1 : 1) * 0.004, y: -0.006 }), at(P[`bow${s}`], { y: -0.008 }), [0.005, 0.005 * pk, 0.006 * pk], 'lips', [null, null, [`bow${s}`]]);
   }
@@ -674,9 +691,11 @@ export function coreVajras(P, rel = RELATIONS) {
   // wing's root (the nostril's first bead), clear of it, its edge blended over ~3 mm, so the root's own round end is the
   // wing's heel: cut across the wing in front of the root, it left the root standing outside the groove as a curled
   // flap, and cut into the root's back, it met the root's flat underside in a point
+  // (its inner end buried a little under the sill and thinned, its edge blended wider: at the sill's depth and the
+  // groove's width it broke through as a pit beside the columella's foot, a white fleck under the light)
   for (const s of ['L', 'R']) {
     const sg = Math.sign(P[`al${s}`].x), lb = lobule[s];
-    cut(`alarCrease${s}`, at(lb, { x: sg * 0.022, y: -0.026, z: 0.012 }), at(lb, { x: sg * 0.016, y: -0.036, z: -0.004 }), at(lb, { x: sg * 0.004, y: -0.042, z: -0.018 }), [0.003, 0.004, 0.003], null, 0.012);
+    cut(`alarCrease${s}`, at(lb, { x: sg * 0.022, y: -0.026, z: 0.012 }), at(lb, { x: sg * 0.016, y: -0.036, z: -0.004 }), at(lb, { x: sg * 0.004, y: -0.048, z: -0.018 }), [0.003, 0.0045, 0.0022], null, 0.02);
   }
   // (the line parts the lips as far forward as their fullness carries them, and as deep)
   cut('lipLine', at(P.chL, { y: 0.002 }), { ...P.sto, y: P.ls.y - 0.001 + (F - 1) * 0.022 }, at(P.chR, { y: 0.002 }), [0.003, 0.005 * F, 0.003], [['cornerL'], ['lipLineC'], ['cornerR']]);
