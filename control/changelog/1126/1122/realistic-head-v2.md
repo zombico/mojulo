@@ -15,7 +15,8 @@ face toward the proportions and the clean structure of a current game character,
   instead of melting into a fullness under the chin.
 - A cheekbone: the cheek's front plane carries out to the cheekbone and turns there to the side, a high plane under the
   eye with a soft shadow beneath it, the full cheek kept below.
-- The eyes open as a relaxed adult's do: the lids' edges at a lid's own thickness, the upper lid grazing the iris's top
-  instead of covering a third of it, the opening ~9.5 mm tall where it was 6 to 7.
+- The eyes open wider and read awake: the lids' edges at a lid's own thickness, the opening 7.7 mm tall on him and 8.9
+  on her where it was 6.0 and 7.4. A relaxed adult's 9 to 11 waits on the blink: a lid opened that far stretches its
+  skin past what the shut lid can spread.
 
 Still to come: the upper lid's fold and the eye's corners, the nose. Hair, brows and lashes are not part of it.
