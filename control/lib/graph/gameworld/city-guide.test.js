@@ -25,12 +25,17 @@ describe('the city\'s guide', () => {
   it('a standing job goes round again from its pick-up', () => {
     expect(cityGuide(level([trade, deliver({ repeat: true })])).loop).toBe(1);
   });
-  it('with no job the city is open, and says so; with no car, or no hero, it says nothing', () => {
+  it('with no job the city is open, and says so; with no car and no job, or no hero, it says nothing', () => {
     const G = cityGuide(level([]));
     expect(G.steps.map((s) => s.id)).toEqual(['car']);
     expect(G.intro).toMatch(/The city is open/);
     expect(G.done).toBe(CITY_GUIDE.open);
-    expect(cityGuide(level([trade, deliver()], [hero]))).toBeNull();
+    expect(cityGuide(level([], [hero]))).toBeNull();
+    // ON FOOT: no car to take and a job to do (a kit hero's level): the job is the way on, and nothing says car
+    const F = cityGuide(level([trade, deliver()], [hero]));
+    expect(F.steps[0].id).not.toBe('car');
+    expect(F.lessons).toEqual(CITY_GUIDE.foot.lessons.map((l) => ({ ...l })));
+    expect(`${F.intro} ${F.done}`).not.toMatch(/car/);
     expect(cityGuide(level([], [cab('car-1', [0, 0, 0])]))).toBeNull();
     expect(cityGuide({})).toBeNull();
   });

@@ -79,3 +79,34 @@
   traffic, no ambient-occlusion pass, the live shadows at half size; the buildings, parked cars and street kit stay).
   Measured on the district the playable page shows: 5.7 M triangles and 2,400 draws a frame down to 2.2 M and 1,400.
   The occlusion prepass was redrawing the whole district every frame; the foes were not the cost.
+
+#### Started again: Hero City, from Hijack City's map and quests and the beat-em-up's action
+
+- **Hero City, the vigilante rail's starter** (`gameworld/hero-city.js`): a locked pitch on Vigilante Justice now lays a
+  superhero's district rather than nothing. It is Hijack City's district and quest spine (a contact's jobs told as
+  missions, the journal, the guide's pillar, the phone, the save) with the crime game taken out (no wanted level, police,
+  shops or sides) and a hero put in: a kit hero on a line, its jobs the contact's bounties on the street's crews (a
+  crew member's fall drops the proof), the last a mastermind who keeps behind the thugs it summons, the beat-em-up
+  villain's way of fighting, as the foe shelf's summoner. Drawn calm.
+- **The beat-em-up's powers in the open world** (`gameworld/hero-powers.js`): the beam, the ball of force, the barrage
+  and the flame, each the street's own card, lowered onto the round runtime's range button. A card's uses are the
+  button's magazine, recharged rather than refilled at a fall; its beam names its colour; its joules are its knockback.
+  A kit's `ranged` takes a power by name. The arsenal's sidearm takes three new words to carry them: `colour`, `knock`
+  and a draw's `splash` (absent, every weapon lowers as before).
+- **A hero on foot is guided to its jobs.** A kit hero takes no car: its district's cars stay scenery, and the city's
+  guide, which led with "Get into a car", leads straight to the job and teaches the walk alone.
+- **One draw a person, faces and all.** A figure with a face used to keep every one of its parts a mesh of its own, about
+  sixty, none of them ever culled, so every fighter on a city's street was drawn whole every frame and again into the
+  shadow map, on screen or not. Only the part that carries the face's morphs keeps its own mesh now; every other part is
+  merged into the one skinned mesh and culled as a whole (`merged-figure.js` `keptPart`). On Hero City's district: 750
+  draws to the screen and 487 into the shadow map, down to 293 and 24, the picture the same.
+- **The game's interface asks for one frame, not one a view** (mana-ui `kernel.js` `onFrame`): the HUD, the lens, the
+  phone, the journal and the map each ran a loop of its own; a page's views now share one, painting in the order they
+  were mounted.
+- **No blur under a HUD in play** (mana-ui `theme.js`, the glass material): a glass theme's HUD plates blurred the
+  world under them again every frame it drew. They keep their glass's three-quarter panel and lose the blur; a window or
+  a toast over a held world keeps it.
+- **What a city frame costs, measured** (headless Chrome, software GL, counts exact, times not): Hijack City's district
+  draws itself twice a frame, once into the contact occlusion's prepass (about 1.2 M triangles) and once to the screen.
+  The prepass cannot be trimmed by distance on a city: its triangles are in meshes that span the district. A city in
+  play that wants its frame takes `calm`.

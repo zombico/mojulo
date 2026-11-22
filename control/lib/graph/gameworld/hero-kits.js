@@ -10,7 +10,7 @@
  *              press charges the heavy blow, and the punch with the MODIFIER held is the style's super, spent from a
  *              meter its blows fill. A style is an arsenal of one weapon, the body, lowered by the arsenal's own
  *              lowering (combos.js): the same frames, juggle and foe health as any kit
- *   ranged     one RANGE button, if any (RANGED_KITS): the arsenal's one sidearm
+ *   ranged     one RANGE button, if any (RANGED_KITS; or a superhero POWER, hero-powers.js CITY_POWERS): the arsenal's one sidearm
  *   special    one SPECIAL button, for actions and events (SPECIALS): at a foe that is reeling or in the air it is
  *              the style's FINISH (the arsenal's F beat); with none, it is the level's own (a door, a switch, someone
  *              to help)
@@ -29,6 +29,7 @@
  *
  * Pure data and resolvers.
  */
+import { CITY_POWERS, powerSidearm } from './hero-powers.js';
 import { HERO_MOVES, TRAVERSAL_MOVES } from './actions.js';
 import { BASIC_ARSENAL } from './combos.js';
 
@@ -178,7 +179,7 @@ export function readHeroKit(v) {
   const out = { movement: K.movement ?? base.movement, style: K.style ?? base.style, ranged: K.ranged === undefined ? base.ranged : K.ranged, special: K.special ?? base.special };
   if (!MOVEMENT_KITS[out.movement]) no(`.movement is how it gets about (${list(MOVEMENT_KITS)}), not '${out.movement}'`);
   if (!FIGHTING_STYLES[out.style]) no(`.style is how it fights (${list(FIGHTING_STYLES)}), not '${out.style}'`);
-  if (out.ranged !== null && !RANGED_KITS[out.ranged]) no(`.ranged is what it has at range (${list(RANGED_KITS)}), or null for none, not '${out.ranged}'`);
+  if (out.ranged !== null && !RANGED_KITS[out.ranged] && !CITY_POWERS[out.ranged]) no(`.ranged is what it has at range (${list(RANGED_KITS)}; or a power, ${list(CITY_POWERS)}), or null for none, not '${out.ranged}'`);
   if (!SPECIALS[out.special]) no(`.special is what its special button does (${list(SPECIALS)}), not '${out.special}'`);
   return { ...out, ...(K.from !== undefined ? { from: K.from } : {}) };
 }
@@ -202,14 +203,17 @@ export function kitGrants(G) {
 }
 
 /** The arsenal a kit's style and ranged make: one weapon, the hands; the basic kit's timing and juggle; its one sidearm. */
+// (the range button's sidearm: a kit's own, or a superhero power lowered from the street's card, hero-powers.js)
+const rangedOf = (id) => (RANGED_KITS[id] ? structuredClone(RANGED_KITS[id].sidearm) : powerSidearm(id));
+
 export function kitArsenal(kit) {
   if (!kit) return null;
   const K = readHeroKit(kit), W = structuredClone(FIGHTING_STYLES[K.style].weapon);
-  return { timing: structuredClone(BASIC_ARSENAL.timing), weapons: [W], juggle: structuredClone(BASIC_ARSENAL.juggle), mp: { ...FIGHTING_STYLES[K.style].mp }, ...(K.ranged ? { ranged: [structuredClone(RANGED_KITS[K.ranged].sidearm)] } : {}) };
+  return { timing: structuredClone(BASIC_ARSENAL.timing), weapons: [W], juggle: structuredClone(BASIC_ARSENAL.juggle), mp: { ...FIGHTING_STYLES[K.style].mp }, ...(K.ranged ? { ranged: [rangedOf(K.ranged)] } : {}) };
 }
 
 /** A kit's buttons, in words. */
 export function kitLegendOf(kit) {
   const K = readHeroKit(kit);
-  return `click  punch (again to flow on, pause to turn it, hold to charge) · Ctrl + click  super${K.ranged ? ` · Q  ${RANGED_KITS[K.ranged].sidearm.name.toLowerCase()}` : ''} · E  special (finish a reeling foe, or the thing at hand)`;
+  return `click  punch (again to flow on, pause to turn it, hold to charge) · Ctrl + click  super${K.ranged ? ` · Q  ${rangedOf(K.ranged).name.toLowerCase()}` : ''} · E  special (finish a reeling foe, or the thing at hand)`;
 }

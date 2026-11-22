@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { mergeableFigure, mergedFigureScript } from './merged-figure.js';
+import { mergeableFigure, mergedFigureScript, keptPart } from './merged-figure.js';
 import { pageFigures, controllableChannelScript } from './index.js';
 
 // ONE DRAW A FIGURE: a plain rigid rig is drawn as one skinned mesh, each part's corners bound wholly to its own bone, so
@@ -22,7 +22,11 @@ describe('which figures are drawn as one', () => {
     expect(mergeableFigure(P)).toBe(true);
     expect(mergeableFigure({ ...P, skin: true })).toBe(false);
     expect(mergeableFigure({ ...P, paintTex: { url: 'x' } })).toBe(false);
-    expect(mergeableFigure({ ...P, face: { targets: [] } })).toBe(false);
+    // (a face keeps only its own part: the one carrying its morphs; a morph with no face to drive it keeps the whole)
+    expect(mergeableFigure({ ...P, face: { targets: [] } })).toBe(true);
+    expect(mergeableFigure({ ...P, face: { targets: [] }, parts: [{ ...P.parts[0], morph: { i: 'AA==' } }, P.parts[1]] })).toBe(true);
+    expect(mergeableFigure({ ...P, parts: [{ ...P.parts[0], morph: { i: 'AA==' } }, P.parts[1]] })).toBe(false);
+    expect([keptPart({ ...P.parts[0], morph: { i: 'AA==' } }), keptPart(P.parts[1]), keptPart(null)]).toEqual([true, false, false]);
     expect(mergeableFigure({ ...P, muzzle: { bone: 'pelvis' } })).toBe(false);
     expect(mergeableFigure({ ...P, bones: [...P.bones, { id: 'weapon_rifle' }] })).toBe(false);
     expect(mergeableFigure({ ...P, parts: [{ ...P.parts[0], spec8: 'AA==' }, P.parts[1]] })).toBe(false);
@@ -33,7 +37,7 @@ describe('which figures are drawn as one', () => {
   it('the page builds it merged only where a part\'s own mesh is never read', () => {
     const ent = [{ id: 'hero', body: { type: 'figure-rig', figure: 'p' }, rule: { type: 'walk' }, transform: { pos: [0, 0, 0], heading: 0 } }];
     const figs = { p: { rig: true, layered: true, bones: [{ id: 'pelvis', head: [0, 0, 0], tail: [0, 0, 1] }], parts: [part(0)], clips: { idle: clip }, figH: 1.7 } };
-    expect(controllableChannelScript(ent, null, figs)).toContain('if (__mergeable(fig)) return __makeMergedGroup(fig, b, group);');
+    expect(controllableChannelScript(ent, null, figs)).toContain('if (__mergeable(fig)) return __makeMergedGroup(fig, b, group, __part);');
     expect(controllableChannelScript(ent, null, figs, { toonInk: { width: 1 } })).not.toContain('__makeMergedGroup');
     expect(controllableChannelScript(ent, null, figs, { xr: true })).not.toContain('__makeMergedGroup');
     // (a bank with nothing to merge: not a byte of it)
@@ -102,3 +106,23 @@ describe('the pose grade cut in', () => {
   });
 });
 
+
+describe('a person with a face', () => {
+  it('is merged but for its face\'s part, which keeps its own mesh in its bone\'s place on the same skeleton', async () => {
+    const THREE = await import(pathToFileURL(path.join(process.cwd(), 'public/vendor/three/three.module.min.js')).href);
+    const dec = (T) => (s) => { const b = Buffer.from(s, 'base64'); return new T(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); };
+    const make = new Function('THREE', 'scene', '__decodeU16', '__decodeU32', 'decodeU8', `${mergedFigureScript()}\nreturn __makeMergedGroup;`)(THREE, new THREE.Scene(), dec(Uint16Array), dec(Uint32Array), dec(Uint8Array));
+    const P0 = person(), P = { ...P0, face: { targets: ['smile'] }, parts: [P0.parts[0], { ...P0.parts[1], morph: { i: 'AA==' } }] };
+    // the page's part builder, as __makeRigGroup hands it: a mesh of its own, in the group
+    const built = [];
+    const own = (bn, bi) => { const m = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial()); m.matrixAutoUpdate = false; built.push(bi); g0.add(m); return m; };
+    const g0 = new THREE.Group(), g = make(P, {}, g0, own);
+    const R = g.userData.rigFig;
+    expect(built).toEqual([1]);
+    expect(R.boneMeshes[0].isBone).toBe(true);
+    expect(R.boneMeshes[1].isMesh).toBe(true);
+    // the skinned mesh holds only the merged part's corners; its skeleton is every slot, the kept mesh in its own
+    expect(R.skin.geometry.getAttribute('position').count).toBe(P.parts[0].n);
+    expect(R.skin.skeleton.bones[1]).toBe(R.boneMeshes[1]);
+  });
+});

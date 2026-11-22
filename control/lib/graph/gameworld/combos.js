@@ -356,9 +356,12 @@ export function arsenalFor(feel) {
  *          `drop` m/s² of gravity, `damage`, `impact`); let go before, `early`: none (a bow: nothing) or tap (a charge
  *          shot's pellet: `tap { damage, impact }`); `quiver` arrows (absent: endless), `nock` seconds to the next
  *   hand   the hand it is held in (right | left): where its round leaves from
+ *   either mode: `colour` its round's tint (0xRRGGBB: a power's beam, gameworld/hero-powers.js), `knock` its energy
+ *          ({ kinetic?, impact?, lift? } in joules: knockback apart from damage, worlds/controllable/knock.js), and a
+ *          draw's `splash` (m: its round bursts where it lands, everything within taking its blow)
  */
 export const SIDEARM_MODES = Object.freeze(['auto', 'draw']);
-const SIDEARM_KEYS = Object.freeze({ auto: ['rof', 'damage', 'impact', 'range', 'infinite', 'magazine', 'reload', 'hand', 'dual', 'reserve', 'loaded'], draw: ['draw', 'early', 'tap', 'speed', 'drop', 'damage', 'impact', 'quiver', 'nock', 'hand'] });
+const SIDEARM_KEYS = Object.freeze({ auto: ['rof', 'damage', 'impact', 'range', 'infinite', 'magazine', 'reload', 'hand', 'dual', 'reserve', 'loaded', 'colour', 'knock'], draw: ['draw', 'early', 'tap', 'speed', 'drop', 'damage', 'impact', 'quiver', 'nock', 'hand', 'colour', 'knock', 'splash'] });
 function readSidearm(G, at) {
   if (!isObj(G) || typeof G.id !== 'string' || !G.id) no(`${at} is { id, name?, mode: auto | draw, … }`);
   if (!SIDEARM_MODES.includes(G.mode)) no(`${at}.mode is auto (held, it fires at its rate) or draw (held, it draws; let go once drawn, it looses)`);
@@ -369,15 +372,19 @@ function readSidearm(G, at) {
   pos('draw', 0.05, 3); pos('speed', 5, 200); pos('drop', 0, 50); pos('quiver', 0, 999); pos('nock', 0, 5);
   if (G.hand !== undefined && !['right', 'left'].includes(G.hand)) no(`${at}.hand is right or left`);
   if (G.early !== undefined && !['none', 'tap'].includes(G.early)) no(`${at}.early is none (a bow: nothing loosed) or tap (a charge shot: its pellet)`);
+  pos('splash', 0, 12);
+  if (G.colour !== undefined && !(Number.isInteger(G.colour) && G.colour >= 0 && G.colour <= 0xffffff)) no(`${at}.colour is its round's tint, an integer 0xRRGGBB`);
+  if (G.knock !== undefined && !(isObj(G.knock) && Object.keys(G.knock).every((k) => ['kinetic', 'impact', 'lift'].includes(k) && num(G.knock[k], 0, k === 'lift' ? 1 : 1e7)))) no(`${at}.knock is { kinetic?, impact?, lift? }: joules (lift 0 to 1)`);
   return G;
 }
 /** a sidearm's runtime weapon (initWeapon's config) */
 export function lowerSidearm(G) {
   const eye = 1.25, hand = G.hand ?? 'right';   // (the round leaves at the chest: a level shot meets a body's middle)
-  if (G.mode === 'auto') return { fireClass: 'sight', auto: true, rof: G.rof ?? 8, magazine: G.magazine ?? 60, reload: G.reload ?? 1.2, damage: G.damage ?? 0.5, impact: G.impact ?? 4, range: G.range ?? 30, coreAngle: 3, eye, hand, fxScale: 0.15, fxColor: 0xffd27a, ...(G.infinite ? { infinite: true } : {}), ...(G.dual ? { muzzleAlt: true } : {}) , ...(Number.isFinite(G.reserve) ? { reserve: G.reserve } : {}), ...(Number.isFinite(G.loaded) ? { loaded: G.loaded } : {}) };
+  const own = { ...(G.colour !== undefined ? { fxColor: G.colour } : {}), ...(G.knock ? { knock: { ...G.knock } } : {}) };
+  if (G.mode === 'auto') return { fireClass: 'sight', auto: true, rof: G.rof ?? 8, magazine: G.magazine ?? 60, reload: G.reload ?? 1.2, damage: G.damage ?? 0.5, impact: G.impact ?? 4, range: G.range ?? 30, coreAngle: 3, eye, hand, fxScale: 0.15, fxColor: 0xffd27a, ...(G.infinite ? { infinite: true } : {}), ...(G.dual ? { muzzleAlt: true } : {}) , ...(Number.isFinite(G.reserve) ? { reserve: G.reserve } : {}), ...(Number.isFinite(G.loaded) ? { loaded: G.loaded } : {}) , ...own };
   return { fireClass: 'lob', auto: false, chargeTime: G.draw ?? 0.45, ...(G.early === 'tap' ? {} : { early: 'none' }), magazine: 1, reload: G.nock ?? 0.3, ...(Number.isFinite(G.quiver) ? { reserve: G.quiver } : {}),
     projectileSpeed: G.speed ?? 45, projectileGravity: G.drop ?? 9, lobAngle: 1, projRadius: 0.12, splashRadius: 0, armTime: 0.04, fuse: 3, smokeTrail: false, cooldown: 0.1, eye, hand,
-    damage: G.tap?.damage ?? 0, impact: G.tap?.impact ?? 0, chargedDamage: G.damage ?? 3, chargedImpact: G.impact ?? 30, chargedRangeMul: 1 };
+    damage: G.tap?.damage ?? 0, impact: G.tap?.impact ?? 0, chargedDamage: G.damage ?? 3, chargedImpact: G.impact ?? 30, chargedRangeMul: 1, ...(G.splash ? { splashRadius: G.splash } : {}), ...own };
 }
 /**
  * THE JUGGLE RULES (an arsenal's `juggle`, frames and metres): how long a launched foe stays in the air for the hero's

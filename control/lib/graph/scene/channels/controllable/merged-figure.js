@@ -6,9 +6,13 @@
  * 3. Bound at the identity, as the skinned rig (`__makeSkinGroup`) is: a part's corners are in its bone's frame.
  *
  *   mergeableFigure(fig)    → whether a baked fig is drawn merged: its parts plain (indexed and quantized, coloured) and
- *                             nothing that needs a bone's own mesh (a paint, a face's morphs, a form's materials, spec or
- *                             metal patches, a weapon or shield bone shown and hidden by itself, a muzzle, thrusters, a
- *                             racer's juice or life, forms, a skin of its own)
+ *                             nothing that needs a bone's own mesh (a paint, a form's materials, spec or metal patches, a
+ *                             weapon or shield bone shown and hidden by itself, a muzzle, thrusters, a racer's juice or
+ *                             life, forms, a skin of its own). A FACE no longer keeps a person whole: only its part that
+ *                             carries the face's morphs (`keptPart`, the head) keeps its own mesh, built by the page's
+ *                             part builder and posed in its bone's place, and every other part is merged. A person with a
+ *                             face is two draws a pass, not sixty
+ *   keptPart(p)             → whether a mergeable figure's part keeps its own mesh (its morphs: the face's targets)
  *   mergedFigureScript(o)   → the page's builder, `__makeMergedGroup(fig, b, group)`, and `__mergeable` (this predicate);
  *                             `pose`: a figure with a pose twin (figure-grades.js, `fig.pose` its name in the bank) has it
  *                             cut in while a close shot is on it (`__poseFrame()`, each frame), a second skinned mesh on
@@ -21,14 +25,19 @@
 /** Whether a baked figure is drawn as one skinned mesh. Pure; also emitted onto the page by its source. */
 export function mergeableFigure(fig) {
   // (a cel body, world-scene.js heroFigure `cel`, steps each part between its two tones: drawn part by part)
-  if (!fig || !fig.rig || fig.skin || fig.form || fig.paintTex || fig.face || fig.rim || fig.muzzle || fig.thrusters || fig.juice || fig.live || fig.forms || fig.toon) return false;
+  if (!fig || !fig.rig || fig.skin || fig.form || fig.paintTex || fig.rim || fig.muzzle || fig.thrusters || fig.juice || fig.live || fig.forms || fig.toon) return false;
   if (!Array.isArray(fig.parts) || !Array.isArray(fig.bones) || !fig.parts.some(Boolean)) return false;
   for (const b of fig.bones) if (b && typeof b.id === 'string' && (b.id.indexOf('weapon_') === 0 || b.id === 'shield')) return false;
   for (const p of fig.parts) {
     if (!p) continue;
-    if (!p.q || !p.idx || !p.col || p.form || p.uv || p.morph || p.metal || p.spec || p.spec8) return false;
+    if (p.morph && !fig.face) return false;
+    if (!p.q || !p.idx || !p.col || p.form || p.uv || p.metal || p.spec || p.spec8) return false;
   }
   return true;
+}
+/** Whether a mergeable figure's part keeps its own mesh: its face's morphs. Pure; also emitted onto the page. */
+export function keptPart(p) {
+  return !!(p && p.morph);
 }
 
 /** The page's merged builder (needs the page's `__decodeU16`, `__decodeU32`, `decodeU8`, `scene`). `cast`: the figure
@@ -38,8 +47,10 @@ export function mergedFigureScript({ cast = false, scaled = false, pose = false,
   return `
 // ONE DRAW A FIGURE (merged-figure.js): a rigid rig's parts in one skinned mesh, each part's corners bound to its bone
 const __mergeable = ${mergeableFigure.toString()};
-function __makeMergedGroup(fig, b, group) {
-  const bones = fig.bones.map(() => { const o = new THREE.Bone(); o.matrixAutoUpdate = false; group.add(o); return o; });
+const __kept = ${keptPart.toString()};
+// (\`own\`: the page's builder of a bone's own mesh, for a part that keeps one: it stands in its bone's place)
+function __makeMergedGroup(fig, b, group, own) {
+  const bones = fig.bones.map((bn, bi) => { if (own && __kept(fig.parts[bi])) { const m = own(bn, bi); if (m) return m; } const o = new THREE.Bone(); o.matrixAutoUpdate = false; group.add(o); return o; });
   const mesh = __mergedMesh(fig, group);
   scene.add(group);${scaled ? `
   if (b.scale > 0) group.scale.setScalar(b.scale);` : ''}
@@ -50,7 +61,7 @@ function __makeMergedGroup(fig, b, group) {
 }
 // a figure's parts as one skinned mesh in its group (bound by the caller)
 function __mergedMesh(fig, group) {
-  const D = fig.parts.map((P) => (P ? { P, q: __decodeU16(P.q), c: decodeU8(P.col), I: P.n > 65535 ? __decodeU32(P.idx) : __decodeU16(P.idx) } : null));
+  const D = fig.parts.map((P) => (P && !__kept(P) ? { P, q: __decodeU16(P.q), c: decodeU8(P.col), I: P.n > 65535 ? __decodeU32(P.idx) : __decodeU16(P.idx) } : null));
   let nv = 0, ni = 0;
   for (const d of D) if (d) { nv += d.P.n; ni += d.I.length; }
   const pos = new Float32Array(nv * 3), col = new Uint8Array(nv * 3), jnt = new Uint16Array(nv * 4);

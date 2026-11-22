@@ -11,7 +11,8 @@
  *   jobsOf(mechanics)          → a level's jobs, each its steps in order (see below)
  *   jobQuests(mechanics)       → the same jobs as the journal's quests (playscape/ui/quests.js)
  *   cityGuide(manifest)        → { intro, lessons, steps: [{ id, say, kind, at, radius, says? }], loop?, done } | null:
- *                              a level manifest (its title, entities, game.mechanics); null where it stands no car
+ *                              a level manifest (its title, entities, game.mechanics); null where it stands no car and
+ *                              gives no job. ON FOOT (no car to take, a kit hero's level): its jobs are the way on, no car
  *
  * Pure: the level's recipe in, the guide out.
  */
@@ -25,6 +26,8 @@ export const CITY_GUIDE = Object.freeze({
     Object.freeze({ keys: 'W  drive · S  brake · A D  steer' }),
   ]),
   open: 'The city is open: take any car',
+  // ON FOOT (a hero with no car to take: a kit's own movement, hero-kits.js): its walk taught, its jobs the way on
+  foot: Object.freeze({ lessons: Object.freeze([Object.freeze({ keys: 'W A S D  move', fact: 'move' })]), open: 'The city is yours: go where you will' }),
 });
 
 const words = (item) => String(item).replace(/-/g, ' ');
@@ -94,14 +97,16 @@ export function jobQuests(mechanics) {
 export function cityGuide(manifest) {
   const M = manifest ?? {}, entities = Array.isArray(M.entities) ? M.entities : [];
   const hero = entities.find((e) => e && e.pilotable && e.transform), cabs = entities.filter((e) => e?.mount?.cab && !e.mount.spare && e.transform);
-  if (!hero || !cabs.length) return null;
+  const jobs = jobsOf(M.game?.mechanics);
+  // (ON FOOT: a level with no car to take and a job to do, a kit hero's, is guided to its jobs alone)
+  const foot = !cabs.length;
+  if (!hero || (foot && !jobs.some((J) => !J.faction))) return null;
   const from = hero.transform.pos, d = (e) => Math.hypot(e.transform.pos[0] - from[0], e.transform.pos[1] - from[1]);
-  const car = cabs.reduce((m, e) => (d(e) < d(m) ? e : m), cabs[0]);
+  const car = foot ? null : cabs.reduce((m, e) => (d(e) < d(m) ? e : m), cabs[0]);
   // (the car is reached by being in one, whichever: standing beside it is not it. `cab`: scene/channels/guide.js)
-  const steps = [{ id: 'car', say: 'Get into a car', kind: 'find', at: at3(car.transform.pos), radius: CITY_GUIDE.car, cab: true }];
+  const steps = foot ? [] : [{ id: 'car', say: 'Get into a car', kind: 'find', at: at3(car.transform.pos), radius: CITY_GUIDE.car, cab: true }];
   // each job's steps in the order it is done; the first standing job goes round again from its pick-up
   let loop = null;
-  const jobs = jobsOf(M.game?.mechanics);
   for (const J of jobs) {
     if (J.faction) continue;   // (a faction's posting is a side taken, never the way on: its board, the journal and the map say it)
     // (a standing job goes round again from its pick-up: it is taken once)
@@ -111,10 +116,10 @@ export function cityGuide(manifest) {
   const job = jobs.some((J) => !J.faction);
   return {
     // (the game's name: a level's title is `<game> · <level> · <stage>`)
-    intro: `${M.title ? `${String(M.title).split(' · ')[0]}. ` : ''}${job ? 'Take any car. A job waits where the light stands.' : 'Take any car. The city is open.'}`,
-    lessons: CITY_GUIDE.lessons.map((l) => ({ ...l })),
+    intro: `${M.title ? `${String(M.title).split(' · ')[0]}. ` : ''}${foot ? 'A job waits where the light stands.' : job ? 'Take any car. A job waits where the light stands.' : 'Take any car. The city is open.'}`,
+    lessons: (foot ? CITY_GUIDE.foot.lessons : CITY_GUIDE.lessons).map((l) => ({ ...l })),
     steps,
     ...(loop !== null ? { loop } : {}),
-    done: CITY_GUIDE.open,
+    done: foot ? CITY_GUIDE.foot.open : CITY_GUIDE.open,
   };
 }

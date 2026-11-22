@@ -1597,8 +1597,9 @@ function __castMR(fig, c, n) {
 ` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose, rig: figHasCast, resp: figHasResp }) : ''}function __makeRigGroup(fig, b) {
   const group = new THREE.Group();${figHasSkin ? `
   if (fig.skin) return __makeSkinGroup(fig, b, group);` : ''}${figMerge ? `
-  if (__mergeable(fig)) return __makeMergedGroup(fig, b, group);` : ''}
-  const boneMeshes = fig.bones.map((bn, bi) => {
+` : ''}
+  // (a part's own mesh: every part's, or on a merged figure the one that keeps its own, merged-figure.js keptPart)
+  const __part = (bn, bi) => {
     const part = fig.parts[bi];
     if (!part) return null;${figHasForm ? `
     if (part.form && fig.form) {
@@ -1635,7 +1636,9 @@ function __castMR(fig, c, n) {
     mesh.frustumCulled = false;   // matrices mutate per frame
     group.add(mesh);
     return mesh;
-  });
+  };${figMerge ? `
+  if (__mergeable(fig)) return __makeMergedGroup(fig, b, group, __part);` : ''}
+  const boneMeshes = fig.bones.map(__part);
   scene.add(group);${bodyScaled ? `
   if (b.scale > 0) group.scale.setScalar(b.scale);` : ''}
   group.userData.rigFig = { fig, boneMeshes, mix: {}, blendTime: b.blendTime, lookA: 0,

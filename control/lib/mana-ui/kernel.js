@@ -1386,6 +1386,17 @@ export function buildManaUi() {
   // controls/mana-host.js connects the two.
   // a swipe or a tap from a pointer's travel and time, when the host hands none (controls/swipe.js swipeOf is the truth)
   const SWIPE_OF = (dx, dy, ms) => { const m = Math.hypot(dx, dy); if (m < 12) return ms <= 600 ? 'tap' : null; if (m < 24 || ms > 600) return null; return Math.abs(dx) >= Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down'); };
+// ONE FRAME for every view a page mounts (the HUD, the lens, a phone, a journal, a map…): each view's check is a job on
+// it, so a page with six views asks the browser for one animation frame, not six, and its views paint in the order they
+// were mounted (a view mounted later draws over an earlier one's change of the same frame)
+function onFrame(job) {
+  const F = globalThis.__manaFrame || (globalThis.__manaFrame = { jobs: [], on: false });
+  F.jobs.push(job);
+  if (F.on) return;
+  F.on = true;
+  const run = () => { for (const j of F.jobs) j(); requestAnimationFrame(run); };
+  requestAnimationFrame(run);
+}
   function mount(el, rt, opts) {
     const o = opts || {}, swipe = typeof o.swipe === 'function' ? o.swipe : SWIPE_OF, clock = () => (typeof performance !== 'undefined' ? performance.now() : 0);
     let html = '';
@@ -1473,7 +1484,7 @@ export function buildManaUi() {
       let lh = null;
       const lpaint = () => { if (o.tick) rt.tick(); const v = rt.lensView(); if (v !== lh) { lh = v; const t = rt.lens(); patch(el, t ? [t] : []); } };
       lpaint();
-      if (o.auto && typeof requestAnimationFrame === 'function') { const loop = () => { lpaint(); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+      if (o.auto && typeof requestAnimationFrame === 'function') onFrame(lpaint);
       return { paint: lpaint };
     }
     const paint = () => { const h = rt.view(); if (h !== html) { html = h; pressMark(); const before = places(); patch(el, [rt.tree()]); glide(before); } hold(); };
@@ -1507,7 +1518,7 @@ export function buildManaUi() {
     });
     el.addEventListener('pointercancel', () => { down = null; });
     // a frame: a value the screen read changed, or the game opened or closed a screen itself
-    if (o.auto && typeof requestAnimationFrame === 'function') { let up = rt.state().screen; const loop = () => { const now = rt.state().screen; if (rt.tick() || now !== up) { up = now; paint(); } requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+    if (o.auto && typeof requestAnimationFrame === 'function') { let up = rt.state().screen; onFrame(() => { const now = rt.state().screen; if (rt.tick() || now !== up) { up = now; paint(); } }); }
     // THE FRAME: the view's own box, measured now and whenever it changes (a phone turned, a window dragged), said to the
     // runtime so a spec that branches on it is laid again; held in the hand where the pointer is a finger
     const measure = () => {

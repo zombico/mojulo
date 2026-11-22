@@ -505,8 +505,10 @@ export function themeCss(theme, scope = '.mana-root') {
   // the echo: the words again, behind themselves (attr() read on the element itself, never through a variable, which
   // would read it on the root)
   if (T.breakout === 'echo' || T.breakout === 'full') out.push(`${s} :is(.mana-screen>.mana-title,.mana-text[data-role=display])::before{content:attr(data-echo)}`);
-  // glass: the scene behind a plate blurred
-  if (T.material === 'glass') out.push(`${framed},${s} .mana-place>.mana-region:not([data-variant=bare]):not(:has(>:is(.mana-reticle,.mana-banner,.mana-touchpad,.mana-moments))),${s} .mana-toast{backdrop-filter:blur(10px) saturate(1.4);-webkit-backdrop-filter:blur(10px) saturate(1.4)}`);
+  // glass: the scene behind a window or a toast blurred. Never a HUD's plate: over a world in play a backdrop filter
+  // blurs the picture under it again every frame the world draws (the compositor's own pass, a plate at a time), and the
+  // plate is three quarters panel already (surfaceOf), so it reads as glass without it
+  if (T.material === 'glass') out.push(`${framed},${s} .mana-toast{backdrop-filter:blur(10px) saturate(1.4);-webkit-backdrop-filter:blur(10px) saturate(1.4)}`);
   if (T.focus === 'ring') out.push(`${s} [data-st=focus]{outline:2px solid ${k.accent};outline-offset:-2px}`);
   // a highlight bar: a solid block at the leading edge, the accent fading off behind the words, moved on the frame
   if (T.focus === 'bar') out.push(`${s} [data-st=focus]{outline:none;border-color:transparent;color:${onBar};background:linear-gradient(90deg,${k.accent} 0 calc(7 * var(--mana-du)),${alpha(k.accent, 0.42)} calc(7 * var(--mana-du)),${alpha(k.accent, 0.12)} 78%,transparent)}`);

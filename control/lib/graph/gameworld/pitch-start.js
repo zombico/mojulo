@@ -9,7 +9,9 @@
  *     null     not a locked pitch with no level (nothing to do: the start readout answers as it always has)
  *     world    the written world with the starter under it: every key the creator wrote wins
  *     by       'platformer' (the platformer's rail: its first level and the flow that plays it, platformer-game.js),
- *              'hijack-city' (Hijack City's: its district, story, law and shops, hijack-city.js) or
+ *              'hijack-city' (Hijack City's: its district, story, law and shops, hijack-city.js),
+ *              'hero-city' (the vigilante rail's: Hijack City's district and missions, a hero with a power, the crews
+ *              and a mastermind, hero-city.js) or
  *              'compose' (a first reading of the genre the rail starts from, compose.js, one level)
  *     unlaid   a rail with no starter the book lays yet, or a size that is not the designed game's: said, the pitch
  *              answered and not stored
@@ -19,6 +21,7 @@
 import { readRail, railOf, railSheet, variantOf } from './rails.js';
 import { platformerStart } from './platformer-game.js';
 import { hijackCityStart } from './hijack-city.js';
+import { heroCityStart } from './hero-city.js';
 import { composeGameworld } from './compose.js';
 import { GENRES, readGenre } from './intent.js';
 
@@ -47,6 +50,11 @@ export function pitchStart(world, { title } = {}) {
   if (R.id === 'hijack-city') {
     const H = hijackCityStart({ ...withFeel, ...named });
     if (H) return { world: { ...H.world, ...(world.intent === undefined ? { intent: { from: 'open-city-crime' } } : {}) }, laid: { by: 'hijack-city', levels: Object.keys(H.world.levels), says: SAYS } };
+  }
+  // the vigilante rail's: Hero City, Hijack City's district and missions with a hero's power and a mastermind (hero-city.js)
+  if (R.id === 'vigilante-justice') {
+    const H = heroCityStart({ ...withFeel, ...named });
+    if (H) return { world: { ...H.world, ...(world.intent === undefined ? { intent: { from: 'city-stalker' } } : {}) }, laid: { by: 'hero-city', levels: Object.keys(H.world.levels), says: SAYS } };
   }
   const prompt = S.starts ? genrePrompt(S.starts) : null;
   if (!prompt) return { unlaid: `${R.name} has no starter the book lays from its cube yet: write its first level (gameworld-guide), and the pitch is kept with it` };
