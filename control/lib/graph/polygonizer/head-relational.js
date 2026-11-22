@@ -275,6 +275,14 @@ const MM_V = 1 / 230;   // a millimetre in head heights
 /** the nasolabial pad (each side): its beads out from the alare, the midpoint and the cheilion, and back from them, and
  * its radii, in V */
 const NASOLABIAL = Object.freeze({ out: [0.035, 0.04, 0.035], back: [0.07, 0.057, 0.037], r: [0.02, 0.024, 0.018] });
+/** the jaw's border: its beads' radii (chin's corner, the body, ahead of the gonion), how far the body's middle flares
+ * out past the line between them, and how far the floor of the mouth's middle is raised, in V */
+const JAW_BORDER = Object.freeze({ r: [0.02, 0.022, 0.02], flare: 0.01, floorLift: 0.025, from: 0.3 });
+/** the shorter wave where bone lies near the skin: the wavelength's share at a bone line, and how far its falloff reaches
+ * (the Gaussian's width, in V) */
+const BONE_WAVE = Object.freeze({ share: 0.5, reach: 0.06 });
+/** the depressor anguli oris's belly: how far it is set back (V) and its radius */
+const DEPRESSOR_BELLY = Object.freeze({ back: 0.008, r: 0.026 });
 const LIP_ARCH = Object.freeze({ bow: 0.012, r: 0.0165 });
 /** a closed mouth's lip line, cut to one depth (mm): the groove's depth below the less prominent lip's front, its tube's
  * radius (its width), its edge's blend */
@@ -466,7 +474,24 @@ export function coreVajras(P, rel = RELATIONS) {
   // (`chinRound`: the protuberance's radius, its centre moved forward by what it loses, so the pogonion stays put)
   const cr = R.chinRound;
   w('chin', at(P.mentL, { y: -0.005, z: 0.01 }), at(P.pg, { y: -0.05 - 0.05 * cr, z: 0.005 }), at(P.mentR, { y: -0.005, z: 0.01 }), [0.02, 0.05 * (1 + cr), 0.02], [J, J, J], { stepIn: true });
-  w('floor', at(P.goL, { x: 0.05 }), at(P.me, { y: -0.08, z: 0.06 }), at(P.goR, { x: -0.05 }), [0.05, 0.075, 0.05], [J, J, J], { stepIn: true });
+  // (the floor's middle raised by `JAW_BORDER.floorLift`, so its underside rises back from the menton toward the throat:
+  // at the canon's height it hung ~3 mm under the menton 18 mm behind it, a fullness under the chin that hid the jaw's line)
+  w('floor', at(P.goL, { x: 0.05 }), at(P.me, { y: -0.08, z: 0.06 + JAW_BORDER.floorLift }), at(P.goR, { x: -0.05 }), [0.05, 0.075, 0.05], [J, J, J], { stepIn: true });
+  // THE JAW'S BORDER — the mandible's lower edge, from under the chin's corner along the body to just ahead of the
+  // gonion: a narrow cone at the edge, so the face's side turns under to the jaw's underside at the bone's own small
+  // radius (the mandible's body is a tall thin plate with a rounded lower edge; drawn as one round cone ~10 mm across,
+  // the side turned under over ~16 mm, and the jaw read as a soft fullness from the 3/4 and from below). Each bead is set
+  // in from the edge's skin point by its radius, up and in along the edge's outward normal.
+  for (const s of ['L', 'R']) {
+    const sg = Math.sign(P[`go${s}`].x), JB = JAW_BORDER, rr = JB.r;
+    const inset = (p, r) => ({ x: p.x - sg * 0.6 * r, y: p.y, z: p.z + 0.8 * r });
+    const c0 = at(P[`ment${s}`], { x: -sg * 0.005, y: -0.013, z: -0.026 }), s2 = at(P[`go${s}`], { y: 0.01, z: 0.004 });
+    // (it starts a share of the way back from the chin's corner, `JAW_BORDER.from`: begun on the corner, its bead sat on the
+    // chin's tubercle, the mandible's end and the depressor's, and under the shorter wave they stood as a ball there)
+    const s0 = mid(c0, s2, JAW_BORDER.from);
+    const s1 = { x: (s0.x + s2.x) / 2 + sg * JB.flare, y: (s0.y + s2.y) / 2, z: (s0.z + s2.z) / 2 };
+    w(`jawBorder${s}`, inset(s0, rr[0]), inset(s1, rr[1]), inset(s2, rr[2]), rr, [J, J, J]);
+  }
   // THE BROW — an arch each side, the glabella → the supraorbital peak over the iris's outer edge → the
   // frontozygomatic: forward over the eye (`browProjection`), sweeping back to its outer end behind the eye
   // (`orbitRim`), so it hoods the globe without walling it in; its radius the sex's ridge
@@ -528,7 +553,9 @@ export function coreVajras(P, rel = RELATIONS) {
     soft(`raphe${s}`, mUp, mid(mUp, mLo), mLo, [0.035, 0.032, 0.035], [null, ['jawHalf'], J]);
     // the depressor anguli oris: the mandible's front → the corner — seals the lower cheek to the chin however far
     // the jaw drops
-    soft(`depressor${s}`, at(inX(P[`ment${s}`], 0.03), { y: -0.01, z: 0.01 }), at(mid(P[`ment${s}`], ch), { y: -0.025 }), at(md, { x: -Math.sign(ch.x) * 0.006, y: -0.04, z: -0.01 }), [0.03, 0.032, 0.022], [J, [`loMid${s}`], corner]);
+    // (its belly slim and set back, `DEPRESSOR_BELLY`: at the canon's size it held the skin under the mouth's corner ~6 mm
+    // ahead of the corner itself, a block under the mouth that the shorter wave along the jaw showed as a bulge)
+    soft(`depressor${s}`, at(inX(P[`ment${s}`], 0.03), { y: -0.01, z: 0.01 }), at(mid(P[`ment${s}`], ch), { y: -0.025 - DEPRESSOR_BELLY.back }), at(md, { x: -Math.sign(ch.x) * 0.006, y: -0.04, z: -0.01 }), [0.03, DEPRESSOR_BELLY.r, 0.022], [J, [`loMid${s}`], corner]);
     // in front of the ear: the joint's cover, between the jaw's joint and the vault (the ear will sit on it)
     soft(`preauricular${s}`, at(P[`condyle${s}`], { y: -0.01 }), inX(at(P[`porion${s}`], { y: -0.045, z: 0.02 }), 0.04), inX(at(P[`eu${s}`], { y: -0.06, z: -0.2 }), 0.1), [0.045, 0.06, 0.06]);
     // behind the ramus, under the ear: the parotid's fill, from under the ear down behind the jaw's angle, so the
@@ -1195,6 +1222,13 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     { c: S({ ...Pt.sto, y: Pt.sto.y - 0.02 }), s2: ((Pt.chR.x + 0.02) * sc) ** 2 },
     ...['L', 'R'].map((s) => ({ c: S(Pt[`eye${s}`]), s2: (0.07 * sc) ** 2 })),
   ];
+  // and where bone lies near the skin, along LINES (`BONE_WAVE`): the jaw's border and the chin's underside, as moved (so
+  // the shorter wave rides the jaw). Where masses crowd, the summed wave swells the skin ~k·ln(n) past each of them (four
+  // within a centimetre under the jaw's side swelled it ~10 mm, a soft fullness that turned under over ~16 mm and hid the
+  // jaw's line); a shorter wave there keeps the bone's own edge
+  const boneFoci = ['jawBorderL', 'jawBorderR', 'chin'].filter((n) => Vn[n]).flatMap((n) => [[Vn[n].a, Vn[n].c], [Vn[n].c, Vn[n].b]]).map(([a, b]) => ({ a: S(a), b: S(b) }));
+  const boneS2 = (BONE_WAVE.reach * sc) ** 2;
+  const segQ = (p, a, b) => { const ab = [b.x - a.x, b.y - a.y, b.z - a.z], L2 = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2; const t = Math.max(0, Math.min(1, ((p.x - a.x) * ab[0] + (p.y - a.y) * ab[1] + (p.z - a.z) * ab[2]) / (L2 || 1))); return ((p.x - a.x - ab[0] * t) ** 2 + (p.y - a.y - ab[1] * t) ** 2 + (p.z - a.z - ab[2] * t) ** 2) / boneS2; };
   const depth = depthOf(markersV.map((m) => ({ p: S(m.p), t: m.t * sc })), (0.04 * sc) ** 2);
   const skin = layer !== 'skull';
   const kw = rel.skinWave * sc;
@@ -1224,7 +1258,12 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     // the wavelength at p: the skin's, shortened toward the features (Gaussian falloffs about the mouth and the eyes)
     let fall = 0;
     for (const f of featureFoci) { const q = ((p.x - f.c.x) ** 2 + (p.y - f.c.y) ** 2 + (p.z - f.c.z) ** 2) / f.s2; if (q < 9) fall = Math.max(fall, SM.exp(-q)); }
-    const k = kw * (1 - (1 - rel.featureWave) * fall);
+    let fallB = 0;
+    for (const f of boneFoci) { const q = segQ(p, f.a, f.b); if (q < 9) fallB = Math.max(fallB, SM.exp(-q)); }
+    // (the two shortenings joined by a smooth maximum, a p-norm, never a hard one nor one capped by it: a hard maximum kinks
+    // the wavelength where the mouth's falloff equals the jaw's, and the chin's corner took flat facets along that line)
+    const rF = (1 - rel.featureWave) * fall, rB = (1 - BONE_WAVE.share) * fallB;
+    const k = kw * (1 - (rB > 0 ? (rF ** 4 + rB ** 4) ** 0.25 : rF));
     let sum = 0;
     for (const v of es) sum += SM.exp(-(v - lo) / k);
     let d = lo - k * SM.log(sum);

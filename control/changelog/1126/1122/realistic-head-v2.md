@@ -11,5 +11,7 @@ face toward the proportions and the clean structure of a current game character,
 - The upper lip follows the curve of the teeth instead of a wedge, and the cheek beside it comes forward to meet it in
   a soft fold, so the hard line from the nose's wing to the mouth's corner is gone. The corners tuck into the cheek
   without the hook they had, and the pit at the foot of each wing is gone.
+- The jaw has a border: a line from the chin to the jaw's angle, the face turning under it to the jaw's underside
+  instead of melting into a fullness under the chin.
 
-Still to come: the cheekbone's and the jaw's planes, the eyelids, the nose. Hair, brows and lashes are not part of it.
+Still to come: the cheekbone, the eyelids, the nose. Hair, brows and lashes are not part of it.
