@@ -63,7 +63,7 @@ import { SFX_PALETTES, SFX_PALETTE_NAMES, levelSfx, MECHANIC_SFX } from './sfx-p
 import { sfxSound } from '../sfx-shelf/resolve.js';
 // a run and gun's events (gameworld/sound-sheet.js RUN_SOUNDS, its words; kept here so the page's payload is checked
 // without the game's tables) and the two held among them
-export const RUN_EVENTS = Object.freeze(['tap', 'shot', 'full', 'charge', 'dash', 'kick', 'cling', 'hurt', 'foeShot', 'foeHit', 'armour', 'wreck', 'boss', 'lift', 'throw', 'rock', 'break', 'shut', 'treads', 'steam', 'stomp']);
+export const RUN_EVENTS = Object.freeze(['tap', 'shot', 'full', 'charge', 'dash', 'kick', 'cling', 'hurt', 'foeShot', 'foeHit', 'armour', 'wreck', 'boss', 'lift', 'throw', 'rock', 'break', 'shut', 'treads', 'steam', 'stomp', 'air']);
 export const RUN_HELD = Object.freeze(['charge', 'treads', 'steam']);
 // (and each foe's own: `foes` { <foe id>: { <move>: <gesture list> } }, gameworld/sound-sheet.js FOE_MOVES)
 export const RUN_FOE_MOVES = Object.freeze(['wake', 'hop', 'brace', 'stun', 'dive', 'shot']);

@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { sfxSound } from './resolve.js';
-import { SOUND_IDS } from './roster.js';
+import { SOUND_IDS, SOUNDS } from './roster.js';
 import { HELD_TUNINGS } from './recorded-held.js';
 import { forgetLibrary, hasFlavor } from '../sound-library/library.js';
 import { soundSheet } from '../gameworld/sound-sheet.js';
@@ -26,6 +26,9 @@ function wav(hz) {
 const [heldRow, HT] = Object.entries(HELD_TUNINGS).find(([, t]) => t.flavor);
 const FLAVOR = HT.flavor;
 const row = SOUND_IDS.find((id) => { const s = sfxSound(id); return s && s.style === 'realistic' && Array.isArray(s.gestures); });
+// a row that stands on a palette row (its family), and that family: a flavored card on the family voices the row too
+const standing = SOUND_IDS.find((id) => id !== row && SOUNDS[id].family && SOUNDS[id].family !== id && SOUNDS[SOUNDS[id].family]?.palette && sfxSound(id)?.gestures);
+const fam = SOUNDS[standing].family;
 let dir = null;
 const prev = process.env.MOJULO_SOUNDS_DIR;
 const library = (on) => { process.env.MOJULO_SOUNDS_DIR = on ? dir : path.join(dir, 'absent'); forgetLibrary(); };
@@ -41,6 +44,7 @@ beforeAll(() => {
   card(`${row}-real`, { shelf: row, role: 'one-shot' }, 300);
   card(`${row}-own`, { shelf: row, role: 'one-shot', flavor: FLAVOR }, 600);
   card(HT.loop, { shelf: heldRow, role: 'loop', loop: true, flavor: FLAVOR }, 200);
+  card(`${fam}-own`, { shelf: fam, role: 'one-shot', flavor: FLAVOR }, 700);
   writeFileSync(path.join(dir, 'library.json'), JSON.stringify({ version: 1, cards }));
 });
 afterAll(() => {
@@ -60,6 +64,12 @@ describe('a flavor', () => {
     library(true);
     expect(sfxSound(row).recorded).toBe(`${row}-real`);
     expect(sfxSound(row, { flavor: 'some-other-rail' }).recorded).toBe(`${row}-real`);
+  });
+
+  it('a flavored card on a palette row voices, for its flavor, every row that stands on it', () => {
+    library(true);
+    expect(sfxSound(standing, { flavor: FLAVOR }).recorded).toBe(`${fam}-own`);
+    expect(sfxSound(standing).recorded).not.toBe(`${fam}-own`);
   });
 
   it('a flavored held voice answers only its flavor', () => {

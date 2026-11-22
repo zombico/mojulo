@@ -35,3 +35,6 @@
   foes firing, sparking, glancing rounds off their armour and blowing apart, its bosses going up in a chain of blasts,
   the stomp, the boulder thrown, the boss room's blast door. A game's own sounds are its flavor: they never reach
   another game, which keeps the shelf's.
+- Jumping Giuseppe sounds like itself where the library is installed: a springy cartoon hero's steps, jumps and
+  landings, its coins, extra lives, checkpoints and goal, its bumps and falls, and, heard for the first time, its wall
+  kick, its slide down a wall, its double jump and the foes it stomps.

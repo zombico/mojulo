@@ -94,6 +94,10 @@ export const RUN_SOUNDS = Object.freeze({ tap: 'buster-shot', shot: 'buster-char
   dash: 'dodge', kick: 'kick', cling: 'slide', hurt: 'hurt', foeShot: 'shoot', foeHit: 'metal-impact', armour: 'ricochet', wreck: 'wreck-explosion',
   boss: 'big-explosion', lift: 'metal-creak', throw: 'throw', rock: 'stone-impact', break: 'stone-break', shut: 'portcullis', treads: 'tank-engine',
   steam: 'steam-hiss', stomp: 'stomp' });
+// A PLATFORMER'S OWN MOVES through the same channel (a feel on the platformer's base whose charge is no shot: Jumping
+// Giuseppe's): its wall kick, its wall slide, a blow taken, a foe stomped on, its jump in the air (the double jump); heard
+// only where the game's own recordings are (its flavor, sound-library), so a page without the library is as it was
+export const PLATFORM_RUN = Object.freeze({ kick: 'kick', cling: 'slide', hurt: 'hurt', stomp: 'stomp', air: 'air-jump' });
 // A RUN AND GUN'S MIX: its effects under its score at this level (a busy fire, a tap a press, never buries the music); a
 // game's `sound.level` over it
 export const RUN_LEVEL = 0.5;
@@ -287,7 +291,7 @@ export function readSound(S) {
         }
         continue;
       }
-      if (!(ev in RUN_SOUNDS)) throw fail(`.run.${ev} is not a run and gun's event (${Object.keys(RUN_SOUNDS).join(', ')})`);
+      if (!(ev in RUN_SOUNDS) && !(ev in PLATFORM_RUN)) throw fail(`.run.${ev} is not a run and gun's event (${Object.keys(RUN_SOUNDS).join(', ')})`);
       word(`.run.${ev}`, w);
       if (RUN_HELD.includes(ev) && !sfxSound(w)?.sustain) throw fail(`.run.${ev} '${w}' is a held voice of the shelf (as '${RUN_SOUNDS[ev]}' is)`);
     }
@@ -308,9 +312,18 @@ export function readSound(S) {
 
 /** A run and gun's own voices (see the header): { run: { <event>: <shelf word> }, why } | null, for a game whose feel is a
  *  run and gun's; the buster's events where its hero carries one, a boss's treads where a level's boss rolls. */
+function platformRun(pole, own) {
+  if (!hasFlavor(pole)) return null;
+  const run = Object.fromEntries(Object.entries(PLATFORM_RUN).map(([ev, w]) => [ev, own.run?.[ev] ?? w]));
+  const why = { run: `a platformer (${POLES[pole].name}): its wall kick, its wall slide, a blow taken, a foe stomped on, its jump in the air` };
+  for (const ev of Object.keys(own.run ?? {})) why[`run:${ev}`] = 'the game says so';
+  return { run, why, platform: true };
+}
+
 export function runSounds(G, own = readSound(G?.sound)) {
   if (own.run === false) return null;
   const F = G?.feel, pole = typeof F === 'string' ? F : isObj(F) ? F.pole : null;
+  if (pole && POLES[pole]?.base === 'platformer' && POLES[pole]?.set?.charge?.kind !== 'shot') return platformRun(pole, own);
   if (!pole || POLES[pole]?.set?.charge?.kind !== 'shot') return null;
   let buster = true;
   try { buster = feelCard(F)?.charge?.kind === 'shot'; } catch { buster = false; }
@@ -358,7 +371,7 @@ export function soundSheet(G, { manifest = null } = {}) {
   // (its FLAVOR: a game's own recorded sounds, its feel's pole's (Galaxy Boy's), where the library holds them)
   const F = G?.feel, pole = typeof F === 'string' ? F : isObj(F) ? F.pole : null, flavor = pole && hasFlavor(pole) ? pole : null;
   if (flavor) why.flavor = `its own recorded sounds (${flavor}'s), ahead of the shelf's`;
-  return { style, ...(flavor ? { flavor } : {}), slots, on, ...(mv ? { moves: mv.moves } : {}), ...(rn ? { run: rn.run } : {}), foes: fv.foes, foeSounds: fs.foeSounds, why, owed };
+  return { style, ...(flavor ? { flavor } : {}), slots, on, ...(mv ? { moves: mv.moves } : {}), ...(rn ? { run: rn.run } : {}), ...(rn?.platform ? { platform: true } : {}), foes: fv.foes, foeSounds: fs.foeSounds, why, owed };
 }
 
 // a place's environment by its words (its own kit, its weather, its hour and its look's title): the bed it lays under the score
@@ -424,7 +437,7 @@ export function sheetAudio(G, opts = {}) {
   const S = soundSheet(G, opts);
   const space = levelSpace(G, opts);
   // (the effects' level under the score: the game's own, else a run and gun's)
-  const level = Number.isFinite(G?.sound?.level) ? G.sound.level : S.run ? RUN_LEVEL : null;
+  const level = Number.isFinite(G?.sound?.level) ? G.sound.level : S.run && !S.platform ? RUN_LEVEL : null;
   return { sheet: { style: S.style, ...(S.flavor ? { flavor: S.flavor } : {}), slots: S.slots, on: S.on, steps: { gain: Number.isFinite(G?.sound?.steps) ? G.sound.steps : STEP_GAIN }, ...(space ? { mix: { space } } : {}), ...(S.moves ? { moves: S.moves } : {}), ...(Object.keys(S.foeSounds).length ? { foes: S.foeSounds } : {}), ...(S.run ? { run: S.run } : {}), ...(level != null ? { level } : {}) } };
 }
 

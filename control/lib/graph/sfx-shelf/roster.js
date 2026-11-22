@@ -445,6 +445,7 @@ const ROWS = {
   'tank-tracks': made('machinery', null, 'hold', 'a tracked vehicle\'s tracks by its speed: clanking and squealing', ['tank tracks', 'tracks', 'track squeal'], 'engine', { kind: 'tracked' }),
   'rail-wheels': made('machinery', null, 'hold', 'a train\'s wheels on the rails by its speed: the clack of the joints', ['train wheels', 'rail wheels', 'clickety clack'], 'tires', { surface: 'road' }),
   'bicycle-freewheel': made('machinery', null, 'hold', 'a bicycle coasting by its speed: its freewheel ticking', ['freewheel', 'bicycle', 'bike coasting'], 'tires', { surface: 'road' }),
+  'air-jump': recorded('movement', 'jump', 'on', 'a jump in the air: a second leap, a spin', ['double jump', 'air jump', 'spin jump'], { matter: ['air'] }),
   hooves: recorded('creature', null, 'hold', 'a horse\'s hooves on the road by its pace', ['hooves', 'trotting', 'hoofbeats'], { matter: ['creature'] }),
   'sail-wind': recorded('elemental', null, 'hold', 'a sailing boat under way: wind in its sails, its ropes, the water', ['sails', 'sailing', 'under sail'], { matter: ['air', 'water'] }),
   'police-siren': recorded('machinery', 'alarm', 'on', 'a police car\'s siren wailing', ['police siren', 'siren wail', 'cop siren'], { matter: ['electric'] }),

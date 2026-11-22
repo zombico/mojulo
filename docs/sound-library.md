@@ -79,6 +79,12 @@ node scripts/sound-library/condition.mjs --cards spike,batch2,vehicles,registry 
   flavor (the buster's charge). Galaxy Boy's own: its buster's three shots and its charge, its robot hero's dash, wall
   kick, wall slide, hurt, jump and landing, its robot foes' shots, hits, armour and wrecks, its bosses blowing apart, a
   robot waking, the stomp, the boulder lifted and thrown, the boss room's blast door.
+- **Jumping Giuseppe** (`jumping-giuseppe`): its steps, jump and landing, its mechanics' cues (a coin, an extra life, a
+  bump, a foe knocked out, death, a checkpoint, the goal), and its hero's own moves, which a platformer (a feel on the
+  platformer's base whose charge is no shot) hears through the run channel only where its flavor is recorded
+  (`PLATFORM_RUN` in `gameworld/sound-sheet.js`: the wall kick, the wall slide, a blow taken, a foe stomped on, the
+  double jump, `air`, e.airJumpsUsed up). A flavored card on a palette row voices every row that stands on it, for its
+  flavor: one cartoon step on any floor. The ground pound is the feel lab's and not yet the runtime's, so it is silent.
 - Not yet: the beds (the library's ambience loops), the traffic heard by its own engines, the engine handoffs.
 
 The kernel's `sampler` slice carries all of it; a recipe without recorded sounds emits none of it, and a page or a

@@ -78,7 +78,8 @@ export function sfxSound(word, { style = 'realistic', dials = {}, cab = false, f
   // (a row voiced only by its recording answers realistic with its stand-in's style, foley's: its recording still wins)
   const open = voice ? voice.gestures && (voice.style === 'realistic' || (asked && row.recorded)) : asked;
   // (a game's own recording, its `flavor`'s, voices the row for that game whatever its style: it is the game's design)
-  const own = flavor && !Object.keys(dials || {}).length && (!voice || voice.gestures) ? recordedFor(id, { flavor }) : null;
+  // (and a flavored card on the palette row a row stands on voices it too, for that flavor: a cartoon step on any floor)
+  const own = flavor && !Object.keys(dials || {}).length && (!voice || voice.gestures) ? recordedFor(id, { flavor }) ?? (row.family && row.family !== id ? recordedFor(row.family, { flavor }) : null) : null;
   const rec = own ?? (open && !Object.keys(dials || {}).length ? recordedFor(id) : null);
   if (rec) voice = { ...(voice || { style: 'realistic', from: 'library' }), recorded: rec.card, gestures: [{ type: 'sample', library: rec.card, dur: rec.dur, ...(voice ? { fallback: voice.gestures } : {}) }] };
   // a held voice (an engine, the tyres, the road) the library's loops voice, at the row's own tuning (recorded-held.js)
