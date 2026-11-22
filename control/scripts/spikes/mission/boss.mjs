@@ -82,8 +82,9 @@ if (human) {
   const arena = { center: [0, 0], r: Math.min(AW, AD) / 2, z: 0, ...(A.perches ? { perches: A.perches } : {}), cover };
   boss = { ...g0, id: 'boss', team: 'guards', rule: { ...g0.rule, foe: undefined, alarm: undefined, guardRadius: 60, standoff: 8, mind: { ...(g0.rule.mind || {}), ...bossMind(id) }, boss: bossRule(id, { arena, seed: 7, ...(Object.keys(looks).length ? { figures: looks } : {}) }) },
     body: { ...g0.body, hp: 1600 }, transform: { pos: A.perches ? [A.perches[0][0], A.perches[0][1], (A.perches[0][2] ?? 0) + 0.05] : [0, AD / 2 - 8, 0.05], heading: A.perches ? Math.PI : -Math.PI / 2 } };
-  // (a sentry's reach the arena's length, its post its perch)
-  if (A.perches) boss.rule = { ...boss.rule, range: Math.hypot(AW, AD), guardAt: [A.perches[0][0], A.perches[0][1]] };
+  // (a marksman's only shot is his lock, told by its glint: as a sentry he holds his perch and his fire between them, his
+  // reach nil; the director aims every lock)
+  if (A.perches) boss.rule = { ...boss.rule, range: 0.1, guardAt: [A.perches[0][0], A.perches[0][1]] };
 } else {
   boss = vehicleEntity(id, { at: id === 'gunship' ? [A.runs[0][0], A.runs[0][1], 16] : [A.route[0][0], A.route[0][1], 0], hp: 1200, ...(A.route ? { route: A.route } : {}), ...(A.runs ? { runs: A.runs } : {}), seed: 7 });
 }
