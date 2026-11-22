@@ -296,3 +296,8 @@
   HP; a state's, Reraise, spent with it). Only a counter rolls, and only for its bearer, so a world naming none fights as
   it did. The Riposte Ring, the Guardian Crest and the Phoenix Charm in the shops, named in each era; the Reraise state
   and its cast opt-in; their juice (counter, cover, rise).
+- **RPG primitives, step 5: costs.** A skill may cost HP (`hpCost`, its user needing more), be a limit break (`limit`:
+  used only on a full gauge, which the blows a member takes fill, emptying it; a world with none keeps no gauge, and
+  `rpg.<member>.limit` is on the bus where it does) or rest after use (`cooldown`, 1 to 9 of its user's turns). The skill
+  list shows each cost (MP, HP, LIMIT n%, wait n); a foe pays as a member does and never uses a limit break. Starters:
+  Blood Blade and Meteor bought on the fighter's and the mage's trees; Braver and Healing Wind, limit breaks, opt-in.

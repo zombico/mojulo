@@ -759,7 +759,8 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       ...((() => { const at = cmd && active && heads.some((h) => h.id === active) ? besideAt(active) : null; return { beside: !!at, besideAt: at ? [{ id: 'cmd', x: at[0], y: at[1] }] : [] }; })()),
       title: !active ? '' : memberName(active) + (aiming ? ' · ' + named : lv !== 'cmd' ? ' · ' + CMD[lv] : ''),
       commands: o.commands.map((c) => ({ id: c.id, label: CMD[c.id], disabled: !c.ok })),
-      skills: o.skills.map((x) => ({ id: x.id, label: x.name, right: x.mp ? x.mp + ' MP' : '', disabled: !x.ok })),
+      // (what each costs: its MP and HP, a limit break's gauge, a resting skill's turns left)
+      skills: o.skills.map((x) => ({ id: x.id, label: x.name, right: [x.mp ? x.mp + ' MP' : '', x.hp ? x.hp + ' HP' : '', x.limit !== undefined ? 'LIMIT ' + x.limit + '%' : '', x.wait ? 'wait ' + x.wait : ''].filter(Boolean).join(' · '), disabled: !x.ok })),
       items: o.items.map((it) => ({ id: it.id, label: it.name, right: '×' + it.count })),
       // (each target names the rows it marks while in focus: its own, and the figure it stands on)
       targets: aiming ? K.targets(cfg, R, pend).map((t) => { const ff = R.b.side[t.id] ? null : figureOf(t.id); return { id: t.id, label: t.name, aim: Object.assign({ [t.id]: true }, ff ? { ['fig-' + ff]: true } : {}) }; }) : [],

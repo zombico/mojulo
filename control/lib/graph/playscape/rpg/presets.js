@@ -52,7 +52,7 @@ export const CLASS_PRESETS = Object.freeze({
   fighter: {
     name: 'Fighter', about: 'the front line: hits hard, takes hits, no magic',
     base: st(34, 0, 11, 8, 2, 6), growth: st(8, 0, 2.6, 1.8, 0.3, 0.9),
-    skills: [{ skill: 'power-strike', at: 1 }, { skill: 'cleave', at: 3 }, { skill: 'rally', cost: 1 }, { skill: 'berserk', cost: 2, requires: ['rally'] }, { skill: 'armor-pierce', cost: 2 }, { skill: 'twin-cut', cost: 2, requires: ['power-strike'] }],
+    skills: [{ skill: 'power-strike', at: 1 }, { skill: 'cleave', at: 3 }, { skill: 'rally', cost: 1 }, { skill: 'berserk', cost: 2, requires: ['rally'] }, { skill: 'armor-pierce', cost: 2 }, { skill: 'twin-cut', cost: 2, requires: ['power-strike'] }, { skill: 'blood-blade', cost: 2, requires: ['power-strike'] }],
     start: { weapon: 'bronze-sword', armor: 'leather-armor' },
   },
   knight: {
@@ -64,7 +64,7 @@ export const CLASS_PRESETS = Object.freeze({
   mage: {
     name: 'Mage', about: 'the caster: elemental magic, a sleep spell, frail',
     base: st(22, 14, 5, 4, 12, 6), growth: st(4.5, 3.2, 0.8, 0.9, 2.8, 0.9),
-    skills: [{ skill: 'fire', at: 1 }, { skill: 'blizzard', at: 2 }, { skill: 'thunder', at: 3 }, { skill: 'sleep', cost: 1 }, { skill: 'firestorm', cost: 2, requires: ['fire'] }, { skill: 'focus', cost: 1 }, { skill: 'drain', cost: 1 }, { skill: 'osmose', cost: 1 }, { skill: 'gravity', cost: 2, requires: ['drain'] }],
+    skills: [{ skill: 'fire', at: 1 }, { skill: 'blizzard', at: 2 }, { skill: 'thunder', at: 3 }, { skill: 'sleep', cost: 1 }, { skill: 'firestorm', cost: 2, requires: ['fire'] }, { skill: 'focus', cost: 1 }, { skill: 'drain', cost: 1 }, { skill: 'osmose', cost: 1 }, { skill: 'gravity', cost: 2, requires: ['drain'] }, { skill: 'meteor', cost: 3, requires: ['firestorm'] }],
     start: { weapon: 'oak-staff', armor: 'robe' },
   },
   cleric: {
@@ -131,6 +131,11 @@ export const SKILL_PRESETS = Object.freeze({
   provoke: { name: 'Provoke', about: 'draws the foes\' blows to itself', mp: 0, target: 'self', status: { is: 'taunt' } },
   frenzy: { name: 'Frenzy', about: 'an ally fights in a rage: stronger, past commanding', mp: 3, target: 'ally', status: { is: 'berserk' } },
   doom: { name: 'Doom', about: 'a foe falls when the count runs out', mp: 8, target: 'foe', status: { is: 'doom', chance: 0.6 } },
+  // (COSTS beside the MP: a blow paid in blood, a spell that rests after, limit breaks a full gauge lets go)
+  'blood-blade': { name: 'Blood Blade', about: 'a heavy cut paid for in its own HP', mp: 0, hpCost: 12, target: 'foe', power: 6, stat: 'atk', scale: 1.8 },
+  meteor: { name: 'Meteor', about: 'stones from the sky on every foe; it rests three turns after', mp: 12, cooldown: 3, target: 'foes', power: 14, stat: 'mag', scale: 1.1 },
+  braver: { name: 'Braver', about: 'a limit break: a leaping cut', mp: 0, limit: true, target: 'foe', power: 12, stat: 'atk', scale: 2.6 },
+  'healing-wind': { name: 'Healing Wind', about: 'a limit break: every ally mended', mp: 0, limit: true, target: 'allies', power: 30, stat: 'mag', scale: 1.2, heal: true },
   reraise: { name: 'Reraise', about: 'an ally rises again once if it falls', mp: 12, target: 'ally', status: { is: 'reraise' } },
   osmose: { name: 'Osmose', about: 'draws MP from a foe', mp: 0, target: 'foe', power: 4, stat: 'mag', scale: 0.4, damage: 'mp', drain: 1 },
   smoke: { name: 'Smoke', about: 'every foe may be silenced', mp: 2, target: 'foes', status: { is: 'silence', chance: 0.6, rounds: 3 } },

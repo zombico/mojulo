@@ -21,7 +21,9 @@
  *                 (a blow) | mag (a spell); EFFECTS: hits 2-8 strikes, each its own swing; damage gravity (power the
  *                 share of the HP as it stands; a foe immune to 'gravity' takes none), fixed (power exactly), pierce (no
  *                 guard against it) or mp (taken from the MP); drain the share of it the user takes back; steal a foe's
- *                 first drop into the bag, once a foe;
+ *                 first drop into the bag, once a foe; COSTS beside its mp: hpCost the HP it costs (its user must have
+ *                 more), limit a limit break (used when its user's gauge is full, the blows it takes filling it, emptying
+ *                 it; a world with none keeps no gauge), cooldown the turns of its user's it rests after use (1-9);
  *                 status: { is: poison | sleep | silence, chance?, rounds? }; buff: { stat, pct, rounds? };
  *                 carry: usable from any class once learned
  *     foes?:      { <id>: { name?, hp, mp?, atk, def, mag, spd, xp?, gold?, cp?, weak?, resist?, absorb?, immune?,
@@ -263,7 +265,7 @@ function readBuffOf(v, where) {
 // power exactly, pierce the usual with no guard against it, mp the usual taken from the target's MP
 export const DAMAGE_FORMS = Object.freeze(['gravity', 'fixed', 'pierce', 'mp']);
 function readSkill(k, d, where) {
-  keysOnly(d, ['name', 'about', 'mp', 'target', 'power', 'stat', 'scale', 'element', 'heal', 'revive', 'cure', 'status', 'buff', 'carry', 'juice', 'hits', 'damage', 'drain', 'steal'], where);
+  keysOnly(d, ['name', 'about', 'mp', 'target', 'power', 'stat', 'scale', 'element', 'heal', 'revive', 'cure', 'status', 'buff', 'carry', 'juice', 'hits', 'damage', 'drain', 'steal', 'hpCost', 'limit', 'cooldown'], where);
   optNum(d.mp, `${where}.mp`); optNum(d.power, `${where}.power`); optNum(d.scale, `${where}.scale`);
   const heal = !!d.heal, revive = !!d.revive;
   const target = d.target ?? (heal || revive || d.cure ? 'ally' : 'foe');
@@ -284,6 +286,10 @@ function readSkill(k, d, where) {
   if ((d.hits !== undefined || d.damage !== undefined || d.drain !== undefined) && !harm) throw err(`${where}: hits, damage and drain shape a harmful skill: give it power`);
   if (d.drain !== undefined && !(num(d.drain) && d.drain > 0 && d.drain <= 1)) throw err(`${where}.drain is the share of what it deals the user takes back (HP, or MP for mp damage), above 0, at most 1`);
   if (d.steal !== undefined && d.steal !== true) throw err(`${where}.steal is true: it takes a foe's first drop into the bag, once a foe`);
+  // (its COSTS beside the MP: HP paid as it is used, a limit gauge filled full, turns of rest after)
+  if (d.hpCost !== undefined && !(Number.isInteger(d.hpCost) && d.hpCost >= 1)) throw err(`${where}.hpCost is the HP it costs, a whole number, 1 or more (its user must have more)`);
+  if (d.limit !== undefined && d.limit !== true) throw err(`${where}.limit is true: a limit break, used only when its user's gauge is full (taking blows fills it), emptying it`);
+  if (d.cooldown !== undefined && !(Number.isInteger(d.cooldown) && d.cooldown >= 1 && d.cooldown <= 9)) throw err(`${where}.cooldown is how many of its user's turns it rests after use, 1 to 9`);
   if (!harm && !heal && !revive && !cure.length && !status && !buff && !d.steal) throw err(`${where} does nothing: give it power (a blow or a spell), heal, revive, cure, status, buff or steal`);
   return {
     id: k, name: d.name ?? words(k), about: d.about ?? '', mp: d.mp ?? 0, target, power, stat, scale, harm,
@@ -291,6 +297,7 @@ function readSkill(k, d, where) {
     // (only a skill that has them carries them: every other's as it was)
     ...(d.hits !== undefined ? { hits: d.hits } : {}), ...(d.damage !== undefined ? { damage: d.damage } : {}),
     ...(d.drain !== undefined ? { drain: d.drain } : {}), ...(d.steal ? { steal: true } : {}),
+    ...(d.hpCost !== undefined ? { hpCost: d.hpCost } : {}), ...(d.limit ? { limit: true } : {}), ...(d.cooldown !== undefined ? { cooldown: d.cooldown } : {}),
   };
 }
 
@@ -647,7 +654,9 @@ export function readRpg(play) {
   for (const T of [...Object.values(classes).map((c) => c.traits), ...Object.values(gear).map((g) => g.traits), ...Object.values(foes)]) if (T?.inflict && !RPG_STATUSES[T.inflict.is]) used.add(T.inflict.is);
   const states = used.size ? Object.fromEntries([...used].sort().map((k) => [k, readState(k, knownStates[k] ?? STATE_PRESETS[k], `.states.${k}`)])) : null;
   knownStates = null;
-  return { seed: rules.seed, party: party0, classes, skills, foes, items, gear, encounters, random, met, juice, ...(states ? { states } : {}), ...(shops ? { shops } : {}), rules: { ...rules, xp: { ...rules.xp }, cp: [...rules.cp] } };
+  // (a world with a limit break keeps each member's gauge; one with none carries no gauge at all)
+  const limits = Object.values(skills).some((S) => S.limit);
+  return { seed: rules.seed, party: party0, classes, skills, foes, items, gear, encounters, random, met, juice, ...(states ? { states } : {}), ...(limits ? { limits: true } : {}), ...(shops ? { shops } : {}), rules: { ...rules, xp: { ...rules.xp }, cp: [...rules.cp] } };
 }
 
 const doneVar = (enc) => `rpg-done-${enc}`;

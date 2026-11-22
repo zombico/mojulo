@@ -53,7 +53,7 @@ export function buildRpg() {
   /** A fighter held by a state that takes its turns (the page asks it nothing). */
   function stuck(cfg, R, who) { const T = R.b && (R.b.side[who] ? { st: R.b.side[who].st } : R.b.foes.find((f) => f.uid === who)); return !!(T && (stateWith(cfg, T, 'skip') || stateWith(cfg, T, 'berserk'))); }
   const LETTERS = 'ABCDEFGH';
-  const CRIT = 1 / 16, MISS = 1 / 24, WAKE = 0.5, STEAL = 0.5, COVER = 0.4;
+  const CRIT = 1 / 16, MISS = 1 / 24, WAKE = 0.5, STEAL = 0.5, COVER = 0.4, LIMIT = 100, LIMIT_FILL = 1.25;
 
   // mulberry32, its state on the battle (b.r), so the dice survive a pause between rounds
   function rnd(b) {
@@ -200,8 +200,9 @@ export function buildRpg() {
   function options(cfg, R, id, vars) {
     const M = R.m[id], s = R.b && R.b.side[id], silenced = !!(s && s.st.silence);
     const skills = usable(cfg, R, id).map((k) => {
-      const S = cfg.skills[k], why = silenced && S.mp > 0 ? 'silenced' : M.mp < S.mp ? 'mp' : '';
-      return { id: k, name: S.name, mp: S.mp, target: S.target, ok: !why, why };
+      const S = cfg.skills[k], wait = (s && s.cool && s.cool[k]) || 0, gauge = (s && s.limit) || 0;
+      const why = silenced && S.mp > 0 ? 'silenced' : M.mp < S.mp ? 'mp' : S.hpCost && M.hp <= S.hpCost ? 'hp' : S.limit && gauge < LIMIT ? 'limit' : wait > 0 ? 'cooldown' : '';
+      return { id: k, name: S.name, mp: S.mp, target: S.target, ok: !why, why, ...(S.hpCost ? { hp: S.hpCost } : {}), ...(S.limit ? { limit: gauge } : {}), ...(wait ? { wait } : {}) };
     });
     const items = [];
     for (const k in cfg.items) { const n = (vars && vars['held:bag:' + k]) || 0; if (n > 0) items.push({ id: k, name: cfg.items[k].name, count: n, target: cfg.items[k].target }); }
@@ -325,6 +326,8 @@ export function buildRpg() {
       return true;
     }
     T.hp = Math.max(0, T.hp - n);
+    // (a world with a limit break: a member's gauge fills with the blows it takes, by their share of its HP)
+    if (cfg.limits && T.party && n > 0) T.side.limit = Math.min(LIMIT, (T.side.limit || 0) + Math.ceil(n / Math.max(1, T.S.hp) * LIMIT * LIMIT_FILL));
     if (T.st.sleep && phys && n > 0) { T.st.sleep = 0; }
     // (a state a blow ends: confusion knocked out of it)
     if (cfg.states && phys && n > 0) for (const k in cfg.states) if (cfg.states[k].wake === 'hit' && T.st[k] > 0) { T.st[k] = 0; out.push({ text: T.name + ' comes to its senses.', kind: 'status', target: T.who }); }
@@ -560,7 +563,15 @@ export function buildRpg() {
       if (A.st.silence && S.mp > 0) { out.push({ text: A.name + ' is silenced and cannot cast.', kind: 'miss', who }); return; }
       if (cfg.states && S.mp > 0 && stateWith(cfg, A, 'noCast')) { out.push({ text: A.name + ' cannot cast.', kind: 'miss', who }); return; }
       if (A.mp < S.mp) { out.push({ text: A.name + ' has too little MP.', kind: 'miss', who }); return; }
+      // (its costs beside the MP: HP, a full gauge, a rest)
+      if (S.hpCost && A.hp <= S.hpCost) { out.push({ text: A.name + ' has too little HP.', kind: 'miss', who }); return; }
+      if (S.limit && (A.side.limit || 0) < LIMIT) { out.push({ text: A.name + ' is not ready.', kind: 'miss', who }); return; }
+      if (S.cooldown && A.side.cool && A.side.cool[pick.skill] > 0) { out.push({ text: S.name + ' is not ready yet.', kind: 'miss', who }); return; }
       A.mp -= S.mp;
+      if (S.hpCost) { A.hp -= S.hpCost; out.push({ text: A.name + ' pays ' + S.hpCost + ' HP.', kind: 'status', who, hp: A.hp }); }
+      if (S.limit) A.side.limit = 0;
+      // (a rest of n turns: set past the turn it is used in, which ends a turn of it)
+      if (S.cooldown) (A.side.cool || (A.side.cool = {}))[pick.skill] = S.cooldown + 1;
       out.push({ text: A.name + (pick.charged ? ' unleashes ' : ' uses ') + S.name + '!', kind: 'cast', who, mp: A.mp, skill: pick.skill, target: pick.target, ...(pick.charged ? { charged: true } : {}) });
       apply(cfg, R, A, S, S.target, pick.target, out, vars);
       return;
@@ -600,7 +611,7 @@ export function buildRpg() {
     const b = R.b, P = f.F.pattern, n = f.turns = (f.turns || 0) + 1, share = f.hp / f.max;
     f.guard = 0;
     const holds = (w) => !w || ((w.hpBelow == null || share < w.hpBelow) && (w.hpAbove == null || share > w.hpAbove) && (w.turn == null || n === w.turn) && (w.every == null || n % w.every === 0) && (w.after == null || n >= w.after));
-    const rows = P.filter((r) => holds(r.when) && (r.use === 'attack' || r.use === 'guard' || (cfg.skills[r.use] && f.mp >= cfg.skills[r.use].mp)));
+    const rows = P.filter((r) => holds(r.when) && (r.use === 'attack' || r.use === 'guard' || (cfg.skills[r.use] && canPay(cfg, f, r.use))));
     if (!rows.length) return null;
     let t = rnd(b) * rows.reduce((a, r) => a + r.weight, 0), r = rows[rows.length - 1];
     for (const x of rows) { t -= x.weight; if (t < 0) { r = x; break; } }
@@ -619,6 +630,8 @@ export function buildRpg() {
     f.charged = null; f.turns = (f.turns || 0) + 1; f.guard = 0;
     return { ...letGo(cfg, R, f, use), charged: true };
   }
+  // what a foe can pay for: the MP, more HP than it costs, not resting; never a limit break
+  const canPay = (cfg, f, k) => { const S = cfg.skills[k]; return f.mp >= S.mp && !(S.hpCost && f.hp <= S.hpCost) && !S.limit && !(f.cool && f.cool[k] > 0); };
   // a foe's turn: its pattern's row where it has one that holds, else one of its skills by chance (one it can pay for),
   // else an attack; a target from the other side
   function foePick(cfg, R, f) {
@@ -626,7 +639,7 @@ export function buildRpg() {
     if (f.charged) return unleash(cfg, R, f);
     const own = F.pattern ? patternPick(cfg, R, f) : null;
     if (own) return own;
-    const can = F.skills.filter((k) => cfg.skills[k] && f.mp >= cfg.skills[k].mp);
+    const can = F.skills.filter((k) => cfg.skills[k] && canPay(cfg, f, k));
     if (can.length && rnd(b) < 0.35) return foeSkill(cfg, R, f, can[Math.floor(rnd(b) * can.length)]);
     const L = aimable(cfg, R);
     return { act: 'attack', target: L[Math.floor(rnd(b) * L.length)] };
@@ -799,6 +812,7 @@ export function buildRpg() {
       }
     }
     for (let i = T.buffs.length - 1; i >= 0; i--) if (--T.buffs[i].rounds <= 0) T.buffs.splice(i, 1);
+    if (T.side.cool) for (const k in T.side.cool) if (T.side.cool[k] > 0) T.side.cool[k]--;
   }
   // the round's end: every one's tick
   function roundEnd(cfg, R, out) {
@@ -1130,6 +1144,7 @@ export function buildRpg() {
     for (const p of cfg.party) {
       const M = R.m[p.id], k = 'rpg.' + p.id + '.';
       vars[k + 'hp'] = M.hp; vars[k + 'mp'] = M.mp; vars[k + 'level'] = M.level; vars[k + 'class'] = M.cls;
+      if (cfg.limits) vars[k + 'limit'] = (R.b && R.b.side[p.id] && R.b.side[p.id].limit) || 0;
     }
     vars['rpg.battle'] = R.b && R.b.phase === 'command' ? 1 : R.b ? 2 : 0;
     vars['rpg.won'] = R.won;

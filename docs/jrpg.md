@@ -265,6 +265,13 @@ coverer) and `revive` (the share of its HP it rises with as it falls, once a fig
 spent with it). Only a counter rolls a die, and only for a bearer that has one. The starters: the Riposte Ring and the
 Guardian Crest in the second shop, the Phoenix Charm in the third; Reraise a world's to put on a tree or grant.
 
+**Costs** beside a skill's MP: `hpCost` (the HP it costs, paid as it is used; its user must have more), `limit` (a limit
+break: used only when its user's gauge is full, emptying it; the gauge fills with the blows the member takes, by their
+share of its HP, shown in the skill list as LIMIT n%; a world with no limit break keeps no gauge) and `cooldown` (how many
+of its user's turns it rests after use, shown as wait n). A foe pays as a member does, and never uses a limit break.
+The starters: the fighter's Blood Blade (12 HP) and the mage's Meteor (rests three turns), bought on their trees; two
+limit breaks, Braver and Healing Wind, a world's to put on a tree or grant.
+
 **The temple and the smithy.** A party RPG's town whose street keeps a temple has a temple shop (`shops.<id>.raise`,
 the gold to raise each fallen member, healed and cured); one that keeps a smithy has the smithy's, the arms and armour
 among the town's wares. Each is opened by its keeper, and only where its lot's door is laid on the town's stage.

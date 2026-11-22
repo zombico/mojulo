@@ -558,6 +558,55 @@ describe('reactions', () => {
   });
 });
 
+// COSTS (rpg.js readSkill): HP paid as a skill is used (more than it costs needed), a limit break a full gauge lets go
+// (the gauge filled by the blows taken; a world with none carries none), a rest of turns after; a foe pays as a member
+describe('costs', () => {
+  const dummy = { name: 'Dummy', hp: 9999, mp: 99, atk: 40, def: 0, mag: 30, spd: 1, xp: 1, gold: 1, skills: ['meteor'], pattern: [{ use: 'meteor' }, { use: 'attack', weight: 1 }] };
+  const cfgOf = (extra = {}) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter', level: 20 }], classes: { fighter: { skills: ['blood-blade', 'meteor', 'braver'].map((skill) => ({ skill })) } },
+    foes: { dummy }, encounters: [{ id: 'yard', foes: ['dummy'] }], ...extra } });
+  const begin = (cfg) => { const R = rpgInit(cfg), v = {}; rpgStart(cfg, R, 'yard', v); R.m.ayla.mp = 999; return [R, v]; };
+  const opt = (cfg, R, v, k) => rpgOptions(cfg, R, 'ayla', v).skills.find((x) => x.id === k);
+
+  it('pays its HP as it is used, and is barred to a user with no more than it costs', () => {
+    const cfg = cfgOf(), [R, v] = begin(cfg), was = R.m.ayla.hp;
+    const out = rpgRound(cfg, R, { ayla: { act: 'skill', skill: 'blood-blade', target: 'f0' } }, v);
+    expect(out.find((x) => x.text === 'Ayla pays 12 HP.')).toBeTruthy();
+    expect(R.m.ayla.hp).toBeLessThanOrEqual(was - 12);
+    R.m.ayla.hp = 12;
+    expect(opt(cfg, R, v, 'blood-blade')).toMatchObject({ ok: false, why: 'hp', hp: 12 });
+  });
+
+  it('rests its turns after use, and so does a foe\'s', () => {
+    const cfg = cfgOf(), [R, v] = begin(cfg);
+    R.m.ayla.hp = 9999;
+    rpgRound(cfg, R, { ayla: { act: 'skill', skill: 'meteor', target: 'f0' } }, v);
+    for (const left of [3, 2, 1]) { expect(opt(cfg, R, v, 'meteor')).toMatchObject({ ok: false, why: 'cooldown', wait: left }); rpgRound(cfg, R, { ayla: { act: 'guard' } }, v); }
+    expect(opt(cfg, R, v, 'meteor').ok).toBe(true);
+    // (the foe's meteor, its pattern's first row: once, then three turns of something else)
+    const F = cfgOf(), [RF, vF] = begin(F);
+    RF.m.ayla.hp = 9999;
+    const used = [0, 1, 2, 3].map(() => rpgRound(F, RF, { ayla: { act: 'guard' } }, vF).some((x) => x.kind === 'cast' && x.who === 'f0' && x.skill === 'meteor'));
+    expect(used).toEqual([true, false, false, false]);
+  });
+
+  it('a limit break waits for a full gauge, which the blows taken fill, and empties it; a world with none keeps no gauge', () => {
+    const cfg = cfgOf(), [R, v] = begin(cfg);
+    R.m.ayla.hp = 9999;
+    expect(cfg.limits).toBe(true);
+    expect(opt(cfg, R, v, 'braver')).toMatchObject({ ok: false, why: 'limit', limit: 0 });
+    for (let k = 0; k < 3; k++) rpgRound(cfg, R, { ayla: { act: 'guard' } }, v);
+    expect(v['rpg.ayla.limit']).toBeGreaterThan(0);
+    R.b.side.ayla.limit = 100;
+    expect(opt(cfg, R, v, 'braver').ok).toBe(true);
+    rpgRound(cfg, R, { ayla: { act: 'skill', skill: 'braver', target: 'f0' } }, v);
+    expect(R.b.side.ayla.limit).toBeLessThan(100);
+    const plain = readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter' }] } });
+    expect('limits' in plain).toBe(false);
+    expect(() => cfgOf({ skills: { x: { mp: 0, power: 2, cooldown: 12 } } })).toThrow(/1 to 9/);
+    expect(() => cfgOf({ skills: { x: { mp: 0, power: 2, hpCost: 0 } } })).toThrow(/HP it costs/);
+  });
+});
+
 // A CHARGED BLOW (a pattern row's `charge`): the foe's turn spent gathering, said, so the party can brace; its next turn
 // the blow let go at twice its power; a guard takes half of it like any blow
 describe('a charged blow', () => {
