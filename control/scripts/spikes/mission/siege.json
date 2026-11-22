@@ -1,0 +1,52 @@
+{
+  "id": "level-1-siege",
+  "name": "The siege walker",
+  "brief": "The proof is in hand, and the walker under the hangar is awake. It has come up onto the test apron behind the hangar to stop you leaving. Bring it down.",
+  "apron": { "x": [-46, 46], "y": [-30, 30], "tile": 5, "fence": 3 },
+  "hero": { "at": [-38, 0], "heading": 0 },
+  "walker": { "at": [28, 0], "heading": 3.1416, "bounds": [[-40, -25], [40, 25]] },
+  "kit": { "mines": 4, "rations": 2 },
+  "cover": [
+    { "id": "jersey-1", "form": "wall", "at": [-30, -7], "N": [1, 0], "length": 5, "height": 1.1 },
+    { "id": "jersey-2", "form": "wall", "at": [-30, 7], "N": [1, 0], "length": 5, "height": 1.1 },
+    { "id": "jersey-3", "form": "wall", "at": [-20, 0], "N": [1, 0], "length": 6, "height": 1.1 },
+    { "id": "jersey-4", "form": "wall", "at": [-12, -13], "N": [1, 0], "length": 5, "height": 1.1 },
+    { "id": "jersey-5", "form": "wall", "at": [-12, 13], "N": [1, 0], "length": 5, "height": 1.1 },
+    { "id": "jersey-6", "form": "wall", "at": [-2, 0], "N": [1, 0], "length": 4, "height": 1.1 },
+    { "id": "jersey-7", "form": "wall", "at": [8, -12], "N": [-1, 0], "length": 5, "height": 1.1 },
+    { "id": "jersey-8", "form": "wall", "at": [8, 12], "N": [-1, 0], "length": 5, "height": 1.1 },
+    { "id": "jersey-9", "form": "wall", "at": [20, -20], "N": [0, 1], "length": 6, "height": 1.1 },
+    { "id": "jersey-10", "form": "wall", "at": [20, 20], "N": [0, -1], "length": 6, "height": 1.1 },
+    { "id": "container-1", "form": "wall", "at": [-24, -18], "N": [1, 0], "length": 6.1, "height": 2.6, "thick": 2.4 },
+    { "id": "container-2", "form": "wall", "at": [-24, 18], "N": [1, 0], "length": 6.1, "height": 2.6, "thick": 2.4 },
+    { "id": "container-3", "form": "wall", "at": [-6, -22], "N": [0, 1], "length": 6.1, "height": 2.6, "thick": 2.4 },
+    { "id": "container-4", "form": "wall", "at": [-6, 22], "N": [0, -1], "length": 6.1, "height": 2.6, "thick": 2.4 },
+    { "id": "container-5", "form": "wall", "at": [14, 0], "N": [-1, 0], "length": 6.1, "height": 2.6, "thick": 2.4 },
+    { "id": "crates-1", "form": "crate", "at": [-34, -14], "stack": 2 },
+    { "id": "crates-2", "form": "crate", "at": [-34, 14], "stack": 2 },
+    { "id": "crates-3", "form": "crate", "at": [2, -16], "stack": 2 },
+    { "id": "crates-4", "form": "crate", "at": [2, 16], "stack": 2 },
+    { "id": "crates-5", "form": "crate", "at": [30, -14] },
+    { "id": "crates-6", "form": "crate", "at": [30, 14] }
+  ],
+  "crates": [
+    { "id": "mines-sw", "at": [-36, -20], "count": 3 },
+    { "id": "mines-nw", "at": [-36, 20], "count": 3 },
+    { "id": "mines-s", "at": [-4, -27], "count": 3 },
+    { "id": "mines-n", "at": [-4, 27], "count": 3 },
+    { "id": "mines-e", "at": [36, 0], "count": 3 }
+  ],
+  "supplies": [
+    { "kind": "ration", "at": [-40, -6] },
+    { "kind": "ammo", "at": [-40, 6] },
+    { "kind": "ration", "at": [0, -26] },
+    { "kind": "ammo", "at": [0, 26] },
+    { "kind": "ammo", "at": [24, -24] },
+    { "kind": "ammo", "at": [24, 24] }
+  ],
+  "hints": [
+    { "at": [-38, 0], "radius": 5, "says": "rings on the ground: its shells land there. Get a wall between you and them" },
+    { "at": [-20, 0], "radius": 6, "says": "it walks to where its shells fell: lay a mine there (tap H) before it comes" },
+    { "at": [24, 0], "radius": 10, "says": "behind it: its reloaders. Shoot them down and its reload takes longer" }
+  ]
+}

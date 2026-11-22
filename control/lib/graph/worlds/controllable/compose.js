@@ -65,6 +65,7 @@ import { buildAlert } from './alert.js';
 import { buildAlarm } from './alarm.js';
 import { buildVeil } from './veil.js';
 import { buildKnockout } from './knockout.js';
+import { buildBoss } from './boss.js';
 import { buildGhost } from './ghost.js';
 import { buildTurret } from './turret.js';
 import { buildSteer } from './steer.js';
@@ -95,9 +96,10 @@ export const EMISSION = [...EMISSION_ENGINE];
 // a world's triggered breaks: trigger.js; what a level's seed picks on it: roll.js; a big gun
 // aimed by hand on any base: turret.js; a body steered on its wheels: steer.js; a rotorcraft: rules-hover.js; a boat: rules-boat.js), so a page
 // without one keeps every byte; the live Node instance carries them all (each is a no-op on a world without its spec).
+// A boss fought in phases (boss.js) wraps outside the knockout, so it reads every hit the step dealt and what the pilot used.
 // The world clock (a world's `tempo`: world-clock.js) comes last, so it wraps every other step, a hitstop's among them.
 // (The style meter, a world's `styleMeter`: style.js, sits inside it: it reads each step on the world's own clock.)
-export const EMISSION_OPT_IN = Object.freeze({ runner: buildRunner, roll: buildRoll, hitstop: buildHitstop, foe: buildFoe, ghost: buildGhost, vanish: buildVanish, summon: buildSummon, pair: buildPair, sweep: buildSweep, gunplay: buildGunplay, mount: buildMount, rupa: buildRupa, vayoAir: buildVayoAir, vayoMove: buildVayoMove, knock: buildKnock, loose: buildLoose, trigger: buildTrigger, hover: buildRulesHover, boat: buildRulesBoat, turret: buildTurret, steer: buildSteer, style: buildStyle, clock: buildWorldClock, aimView: buildAimView, freeRun: buildFreeRun, carry: buildCarry, dive: buildDive, takedown: buildTakedown, startle: buildStartle, stance: buildStance, mission: buildMission, alert: buildAlert, alarm: buildAlarm, veil: buildVeil, knockout: buildKnockout });
+export const EMISSION_OPT_IN = Object.freeze({ runner: buildRunner, roll: buildRoll, hitstop: buildHitstop, foe: buildFoe, ghost: buildGhost, vanish: buildVanish, summon: buildSummon, pair: buildPair, sweep: buildSweep, gunplay: buildGunplay, mount: buildMount, rupa: buildRupa, vayoAir: buildVayoAir, vayoMove: buildVayoMove, knock: buildKnock, loose: buildLoose, trigger: buildTrigger, hover: buildRulesHover, boat: buildRulesBoat, turret: buildTurret, steer: buildSteer, style: buildStyle, clock: buildWorldClock, aimView: buildAimView, freeRun: buildFreeRun, carry: buildCarry, dive: buildDive, takedown: buildTakedown, startle: buildStartle, stance: buildStance, mission: buildMission, alert: buildAlert, alarm: buildAlarm, veil: buildVeil, knockout: buildKnockout, boss: buildBoss });
 
 // The live Node instance factory (the façade composes one; tests may compose their own).
 export function composeLive() {

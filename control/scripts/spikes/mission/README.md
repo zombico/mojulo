@@ -18,6 +18,7 @@ Three segments, a page each, joined by doors that carry what is held and the bod
 | level 1, the perimeter | `level-1-perimeter.html` | the yard: the hangar's door, and on past it the barracks, the hangar's key down its corridor past a sentry | `level1.json` | `yard.mjs` |
 | level 1, the hangar | `level-1-hangar.html` | the briefed intel, three clues, a lift down to what was not in the briefing, the stairwell out | `level1.json` | `hangar.mjs` |
 | the holding block | `holding-block.html` | a level of the `holding` kind: captured, the kit taken; out of a cell block by the turnkey's round, the kit back on the way, the front door | `holding.json` | `holding.mjs` (`--plan`: its laws) |
+| level 1, the siege walker | `level-1-siege.html` | the boss: the test apron behind the hangar, out the hall's back doors once the walker's proof is held. Standing, it lays barrages (rings where they land: cover), reloads with its tails and walks on to where its shells fell; mines laid there break its legs, its reloaders shot from behind slow its reload. Folded onto its wheels, it is a tank: keep moving round its slow gun, a mine under its wheels stops it, its engine from behind, its hips from its sides | `siege.json` | `boss.mjs` (`--tank`: start it folded) |
 | the facilities | `<id>.html` | a facility (era/facilities.js: depot, power-plant, motor-pool, research-wing, field-hq) built as a building level, its rooms laid in figures, a guard walking its hall | `lib/graph/era/facilities.js` | `facilities.mjs` (`--plan`: each room's laws and the hall crossed bare and laid; `--svg`: plans) |
 
 Level 1 is a walled-core dungeon in miniature (`docs/walled-core-dungeon.md`): each layer a segment, each door gated by
@@ -46,6 +47,8 @@ something found in the layer before. `plan.mjs` reads it dry and holds it to the
 | what the level sounds like | `level0.json` `audio` (the geocube's) | `soundtrack` and `combat` (a field mood each: `field:tension`, `field:battle`), `tension.on` (which events raise the score: the alarm's `alarm:found`, `alarm:sweep`, `alarm:call`, `alarm:detected`, a guard's `seen`), `wind`, `bed`, `sfx.sheet` (`slots`: the steps' and the shot's shelf words; `events`: any event to a shelf word) |
 | the trail's rocks | `level0.json` `path` (the geocube's) | `rubble`: `'parallax'` (fewer, drawn in the ground's shader, none stood up: the cheap road), `true` (stones stood up), `false` (none) |
 | how much the page costs a frame | `level0.json` `performance` | `light` (`off` / `half` / `full`), `occlusion`, `cone` (real grass's reach), `bodies` (`blob`: no body drawn into the live shadow map, a pool at the feet; `live` for real shadows). The play grade (`figureGrade: 'play'`) also draws each body in one call, not one a part |
+| the boss | `siege.json`; `gameworld/combat/boss-fight.js` `siegeWalkerBoss({ tune })` | the apron's `cover` (block words, as the yard's), mine `crates` and `supplies`, the operative's `kit` (`mines` first in its item menu: a tap of H lays one), where the walker stands; its `tune`: `stand` (`barrage`: shells, missiles, their scatter, reach and hurt; `reload`: its seconds and `slow` by reloaders lost; `legs.break`: what its legs take before it falls), `tank` (`gun`: `lay`, `traverse`, `hurt`; `salvo`; `mine.stun`), `hp` (its core), `spots` by id (`hp`, `from`, `arc`) |
+| how any tank is fought | `boss-fight.js` `tankPhase`, `tankSpots` | the tank's phase and its weak spots: the same words for every tank of the game, its spots its own |
 | the lift's scene | `hangar.mjs` `shoot` | a shoot plan's keys and a cue (`/direct`, `docs/cinematics.md`) |
 
 ## Change, then prove
@@ -72,6 +75,7 @@ Then build the pages (each a few minutes; `--hero` and `--guard` need the databa
 node scripts/spikes/mission/level0.mjs --out /abs/dir --hero <ref> --guard <ref>
 node scripts/spikes/mission/yard.mjs   --out /abs/dir --hero <ref> --guard <ref>
 node scripts/spikes/mission/hangar.mjs --out /abs/dir --hero <ref> --guard <ref>
+node scripts/spikes/mission/boss.mjs   --out /abs/dir --hero <ref>
 ```
 
 Keep the three pages in one folder under their names: a door goes to the next page by its file name.
@@ -92,5 +96,6 @@ changelog theme, piece by piece.
 - `operative.json`: the hero's spec. `room.mjs`: the infiltration yard, the practice room every mechanic was tried in.
 - `level0.json`, `level0-plan.mjs`, `level0.mjs`: the approach.
 - `level1.json`, `plan.mjs`, `yard.mjs`, `hangar.mjs`: the base.
+- `siege.json`, `boss.mjs`: the boss, the siege walker on the apron (the fight's rules: `lib/graph/worlds/controllable/boss.js`).
 - `facility.mjs`: the first try of the operative in a geocube building, kept for its notes on bounds and spawn.
 - `lib.mjs`: what every builder does the same way.
