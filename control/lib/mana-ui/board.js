@@ -21,7 +21,7 @@
  *                         its `also`: the keypad, Tab and Shift+Tab, Page Up and Down; previewKey its keydown
  */
 import { manaUiSource, manaUi } from './kernel.js';
-import { manaCss, FRAME_CSS } from './css.js';
+import { manaCss, lettersCss, FRAME_CSS } from './css.js';
 import { THEMES, themeCss, themeAdvice, readTheme } from './theme.js';
 import { IDIOMS, SCREEN_IDIOMS, withIdioms } from './idioms.js';
 import { SAMPLE_STATE, SAMPLE_LANGUAGES } from './samples.js';
@@ -52,6 +52,7 @@ export const BOARD_HUDS = Object.freeze({
   'tower defence HUD': ['wave-status', 'world-labels', 'event-feed'],
   'match broadcast': ['score-bug', 'lower-third', 'event-feed'],
   'cutscene': ['cinema-bars', 'subtitles'],
+  'talk': ['cinema-bars', 'talk-box'],
   'stealth HUD': ['stealth-meter', 'enemy-plates', 'minimap-corner', 'interact-prompt'],
 });
 
@@ -142,6 +143,7 @@ h2.sec{margin:22px 24px 8px;font-size:13px;letter-spacing:.14em;text-transform:u
 figure{margin:0}figcaption{margin-top:6px;font-size:12px;color:#333}figcaption span{display:inline-block;width:44px;color:#888;font-size:10px;text-transform:uppercase;letter-spacing:.08em}
 pre{margin:4px 0 0;font:10px/1.3 ui-monospace,monospace;color:#555;white-space:pre-wrap;min-height:13px}
 ${manaCss('.mana-stage .mana-root')}
+${lettersCss('.mana-stage .mana-root')}
 ${FRAME_CSS}
 </style><style id="mana-theme"></style></head><body><header><h1>${esc(title)}</h1><p>Every idiom over one sample state: the structure, the data it reads and the effects it emits, in greybox; a theme is a layer over it. Click a frame to drive it: arrows, WASD or the keypad, Enter, Escape, [ and ] for tabs, letters into a name; a second seat on I J K L, U, O.</p>
 <p><label for="look">Theme</label><select id="look">${looks.map((l) => `<option value="${esc(l.id)}"${l.id === theme ? ' selected' : ''}>${esc(l.name)}</option>`).join('')}</select></p><div id="advice"></div></header>${body}

@@ -3,11 +3,12 @@
 // book's: a genre it cannot lay from a sentence yet), and a genre the book lays in its own walks laid as it was.
 import { describe, expect, it } from 'vitest';
 
-import { GENRE_FORMS, HAND_OFFS, PENDING, WAITS, pendingOf, refusalOf, heroFrameOf } from './genre-forms.js';
+import { GENRE_FORMS, HAND_OFFS, PENDING, WAITS, pendingOf, refusalOf, heroFrameOf, heroStreetWords } from './genre-forms.js';
 import { readActions, resolveActions } from './actions.js';
 import { GENRES, readGenre, genreCube } from './intent.js';
 import { dryRun } from '../cosmos/cosmos.js';
 import { composeGameworld } from './compose.js';
+import { DOOR_PROBES } from './door-probes.js';
 import { readGameworld } from './world.js';
 import { runSteps } from './runner.js';
 
@@ -33,11 +34,17 @@ describe('the genre\'s form', () => {
   });
 
   it('a genre the registry cannot make yet is refused with what it waits on, nothing laid in its place', () => {
-    const R = refusalOf('co-op-kitchen');
-    expect(R.verdict).toBe('blocked');
-    expect(R.waits.length).toBeGreaterThan(0);
+    // (a blocked genre, picked from the probes in code: one whose prompt the composer reads as itself)
+    const P = DOOR_PROBES.find((p) => refusalOf(p.genre)?.verdict === 'blocked' && readGenre(p.prompt)?.id === p.genre);
     expect(refusalOf('flight-sim')).toBeNull();
-    expect(() => composeGameworld({ prompt: 'a co-op kitchen game: four friends cook the orders together', seed: 1 })).toThrow(new RegExp(`waits on ${R.waits[0].replace(/[.=]/g, '\\$&')}`));
+    if (!P) return;   // (none left blocked among the probes: nothing to refuse)
+    const R = refusalOf(P.genre);
+    expect(R.waits.length).toBeGreaterThan(0);
+    expect(() => composeGameworld({ prompt: P.prompt, seed: 1 })).toThrow(new RegExp(`waits on ${R.waits[0].replace(/[.=]/g, '\\$&')}`));
+  });
+  it('a co-op kitchen is no longer refused: from a sentence it names the quick door that plays it, with its cooks', () => {
+    expect(refusalOf('co-op-kitchen')).toBeNull();
+    expect(() => composeGameworld({ prompt: 'a co-op kitchen game: four friends cook the orders together', seed: 1 })).toThrow(/design_game\(\{ quick: \{ goal: 'work', cooks: 2 \} \}\)/);
   });
 
   it('a genre the book lays in its own walks is laid as before: walks and buildings, its words\' goals', () => {
@@ -50,7 +57,7 @@ describe('the genre\'s form', () => {
 describe('a genre the book cannot lay from a sentence yet', () => {
   it('is refused with what it waits on and the one level it plays alone, nothing laid in its place', () => {
     for (const [id, why] of Object.entries(PENDING)) { expect(GENRES[id], id).toBeTruthy(); expect(WAITS[why], id).toBeTruthy(); expect(GENRE_FORMS[id], id).toBeUndefined(); }
-    expect(pendingOf('kart-racer')).toEqual({ waits: WAITS.ride, one: 'race' });
+    expect(pendingOf('kart-racer')).toEqual({ waits: WAITS.ride, one: 'race', call: "{ goal: 'race' }" });
     expect(() => composeGameworld({ prompt: 'a kart racer: three laps against rival drivers', seed: 1 })).toThrow(/waits on a ride the book drives[\s\S]*design_game\(\{ quick: \{ goal: 'race' \} \}\)/);
     // (one per kind of wait: a ride, a form)
     expect(() => composeGameworld({ prompt: 'an arena shooter: a deathmatch against bots', seed: 1 })).toThrow(/waits on its kernel as a book level[\s\S]*goal: 'deathmatch'/);
@@ -156,5 +163,16 @@ describe('the street genres are registered', () => {
     const feel = composeGameworld({ prompt: 'a mega man style run and gun across stormy cliffs', seed: 1 });
     expect(feel.intent).toBeUndefined();
     expect(Object.values(feel.levels)[0].street).toBeUndefined();
+  });
+
+  it('a superhero beat-em-up lays its streets on the heroes tuning, the word read as deciding it; a plain one does not', () => {
+    const W = composeGameworld({ prompt: 'a superhero beat em up in a port town', levels: 1, seed: 1 });
+    expect(W.intent).toEqual({ from: 'co-op-brawler' });
+    expect(Object.values(W.levels)[0].street).toMatchObject({ tuning: 'heroes', lives: 5 });
+    expect(W.brief.read.find((r) => r.word === 'superhero')?.decides).toContain('levels.street.tuning=heroes');
+    expect(W.brief.unread).not.toContain('superhero');
+    expect(() => readGameworld(W)).not.toThrow();
+    expect(Object.values(composeGameworld({ prompt: 'a beat em up in a port town', levels: 1, seed: 1 }).levels)[0].street.tuning).toBeUndefined();
+    expect(heroStreetWords('a superheroic run')).toEqual([]);
   });
 });

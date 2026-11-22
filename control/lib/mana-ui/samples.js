@@ -241,6 +241,8 @@ export const SAMPLE_STATE = Object.freeze({
     results: { outcome: 'Victory', sub: '12:40', rows: [{ what: 'trained', you: 34, them: 29, lead: 'you' }, { what: 'units lost', you: 18, them: 29, lead: 'you' }, { what: 'mined', you: 2100, them: 2450, lead: 'them' }], series: [{ label: 'You', values: [2, 4, 7, 9, 8, 12, 16] }, { label: 'Them', values: [2, 5, 8, 8, 6, 4, 0] }] },
   },
   talk: { who: 'Keeper', text: 'You came by the garden gate. Few do. What brings you to the vale?', choices: [{ label: 'The east gate.', then: { emit: 'talk:gate' } }, { label: 'Who lives here?', then: { emit: 'talk:who' } }, { label: 'Goodbye.', then: { close: true } }] },
+  // a scene's line in the talk box (idioms-talk.js), a choice up under it
+  speech: { show: true, who: 'Keeper', face: 'Keeper', text: 'The gate has not opened in a hundred years. Why would it open for you?', more: false, choices: [{ n: 1, say: 'I carry the crest key.', mark: '▶' }, { n: 2, say: 'It will not. I came to see it.', mark: '▷' }], legend: [{ actions: ['up', 'down'], label: 'Move' }, { action: 'accept', label: 'Choose' }] },
 });
 
 // A GAME IN THREE LANGUAGES (a spec's `languages`), for the board's frames: each its own name and some of the runtime's

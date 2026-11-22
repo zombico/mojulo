@@ -100,7 +100,8 @@ function spot(world, G) {
     const L = G.levels?.[id] ?? {}, stage = stages.find((s) => s.level === id)?.manifest ?? null;
     out.push({ id: `level:${id}`, by: 'levels', for: `the level '${id}'`, role: 'place', loop: true, level: id, stage, final: ids.length > 1 && i === ids.length - 1 });
     if (L.foes !== undefined || L.goal?.gauntlet) out.push({ id: `fight:${id}`, by: 'foes', for: `the fights of '${id}'`, role: 'battle', loop: true, level: id });
-    if (L.goal?.boss) out.push({ id: `boss:${id}`, by: 'foes', for: `the boss of '${id}'`, role: 'boss', loop: true, level: id });
+    // (a side map's boss too: its room's own piece, the fights' before it)
+    if (L.goal?.boss || L.sidemap?.boss) out.push({ id: `boss:${id}`, by: 'foes', for: `the boss of '${id}'`, role: 'boss', loop: true, level: id });
   });
   // the outcomes
   out.push({ id: 'victory', by: 'build', for: 'a level won', role: 'stinger', loop: false }, { id: 'defeat', by: 'build', for: 'a level lost', role: 'stinger', loop: false });
@@ -164,13 +165,16 @@ export function cueSheet(world, { game = null } = {}) {
 
 /**
  * A level's score from the sheet, for its audio: its place under it, its fights (or its boss) coming in with the
- * tension (beats/adaptive-music.js). Null: a game with no `music`, or a level whose place is silent.
+ * tension (beats/adaptive-music.js); a side map's boss its own piece, once its room has shut behind the hero (`boss`). Null: a game with no `music`, or a level whose place is silent.
  */
 export function levelScore(world, level, { game = null, sheet = null } = {}) {
   const G = readGameworld(world);
   if (!onScore(G)) return null;
   const S = sheet ?? cueSheet(world, { game }), at = (id) => S.requests.find((r) => r.id === id)?.cue ?? null;
-  const place = at(`level:${level}`), fight = at(`boss:${level}`) ?? at(`fight:${level}`);
+  // (a side map's boss has its own room: its piece comes in once the room shuts behind the hero, the fights' before it)
+  const room = !!G.levels?.[level]?.sidemap?.boss, boss = room ? at(`boss:${level}`) : null;
+  const place = at(`level:${level}`), fight = room ? at(`fight:${level}`) ?? boss : at(`boss:${level}`) ?? at(`fight:${level}`);
   if (!place && !fight) return null;
+  if (place && fight && boss) return { soundtrack: place, combat: fight, boss };
   return place ? { soundtrack: place, ...(fight ? { combat: fight } : {}) } : { soundtrack: fight };
 }

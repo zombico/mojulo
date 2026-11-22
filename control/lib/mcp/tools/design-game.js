@@ -29,7 +29,8 @@ import { mintSolidHandler } from './mint-solid.js';
 import { createCharacterHandler } from './create-character.js';
 import { createGameHandler, auditGameLevel } from './create-game.js';
 import { heroMintArgs, heroRemakeOps } from './hero-mint.js';
-import { HERO_FIELDS } from './layered.js';
+import { HERO_FIELDS, heroStature, validateHeroSpec, heroKeyHint } from './layered.js';
+import { egocubeCreate, rollStored } from '@/lib/graph/egocube/kind.js';
 import { LAWS_VERSION } from '@/lib/graph/equipment/expand.js';
 import {
   GAMEWORLD_KIND, isGameworldKind, gameworldOf, readGameworld, resolveBook, reviewState, approve as approveWorldPart, reviewParts,
@@ -46,6 +47,8 @@ import { chapterView } from '@/lib/graph/gameworld/chapter-view.js';
 import { readMainQuest, mainQuestContext, mainQuestReport } from '@/lib/graph/gameworld/main-quest.js';
 import { questPlays, withQuestLevels } from '@/lib/graph/gameworld/main-quest-lay.js';
 import { goalposts, leadNext, draftAsk, startReadout, producerSteps, producerSays } from '@/lib/graph/gameworld/goalposts.js';
+import { frontStep } from '@/lib/graph/gameworld/front-stage.js';
+import { patchStageBackgrounds } from '@/lib/graph/game/front-background.js';
 import { loopOf, loopLaws } from '@/lib/graph/gameworld/core-loop.js';
 import { compileCheck, planError } from './design-game-check.js';
 import { combatGame } from '@/lib/graph/gameworld/combat/game.js';
@@ -103,7 +106,11 @@ function heroLookup(heroRef) {
   const headRev = (SketchRevisionRepository.head(heroRef)?.rev ?? 0) + 1;
   const lookup = revisionLookup({ ref: heroRef, headRev, head: row.manifest, get: (r, rev) => SketchRevisionRepository.get(r, rev)?.manifest ?? null });
   const hero = isObj(row.manifest?.hero) ? row.manifest.hero : null;
-  return Object.assign(lookup, { head: row.manifest, headRev, heroSpec: hero ? Object.fromEntries(HERO_FIELDS.filter((k) => hero[k] !== undefined).map((k) => [k, hero[k]])) : null });
+  Object.assign(lookup, { head: row.manifest, headRev, heroSpec: hero ? Object.fromEntries(HERO_FIELDS.filter((k) => hero[k] !== undefined).map((k) => [k, hero[k]])) : null });
+  // its STATURE (metres, its plan's crown, no mesh compiled: layered.js heroStature), read only when a level asks for it,
+  // so the levels' hero collides as tall as it stands; null where its head reads none (the level keeps its default)
+  let stature;
+  return Object.defineProperty(lookup, 'stature', { get: () => { if (stature === undefined) { try { stature = hero ? heroStature(hero) : null; } catch { stature = null; } } return stature; } });
 }
 
 /** A NAMED HERO's ref, found by its name (create_character spec.name; names are a hero's own on this machine), or the
@@ -767,6 +774,31 @@ async function varyGame(ref, vary, chapter) {
   };
 }
 
+/**
+ * A HEROES BRAWL's heroes and villain given words of their own (a `look`, the hero door's `spec`: quick.js readHeroes) read
+ * by the hero door before anything is made: each one's spec as its mint will have it (its sheet's words, the brawler's
+ * body, the look and the person's words over them), so a word the door refuses is said now, not at the run. Throws.
+ */
+export function heroWordsChecked(world, heroes) {
+  const own = (t) => isObj(t) && (t.look !== undefined || t.spec !== undefined);
+  if (!(Array.isArray(heroes.team) && heroes.team.some(own)) && !own(heroes.villain)) return;
+  const steps = runSteps(world, { ref: 'heroes-check' }), bad = [];
+  for (const st of steps) {
+    const O = st.order ?? {};
+    let spec = null;
+    if (O.egocube && O.spec) {
+      const sheet = steps.find((x) => x.ref === O.egocube);
+      if (!sheet) continue;
+      spec = Object.fromEntries(Object.entries({ ...egocubeCreate(rollStored(sheet.order.manifest)).create.spec, ...O.spec }).filter(([, v]) => v !== null));
+    } else if (st.key === 'foes-crowd-villain' && O.spec) spec = O.spec;
+    if (!spec) continue;
+    // (a word the door does not take, said as the door says it: where it belongs, or the word it is near)
+    const errs = [...Object.keys(spec).filter((k) => !HERO_FIELDS.includes(k) && k !== 'vibe').map(heroKeyHint), ...validateHeroSpec(spec)];
+    if (errs.length) bad.push(`${(O.title ?? st.key).split(' · ').pop()}: ${errs.join('; ')}`);
+  }
+  if (bad.length) throw new Error(`design_game: quick.heroes: the hero door refuses these words (create_character's spec, get_solid_vocab({ id: 'layered' })): ${bad.join(' | ')}`);
+}
+
 export async function designGameHandler(input, context = {}) {
   if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, compose?, patch?, approve?, revise?, note?, run?, force?, check?, example?, compare?, chapter?, req?, ask?, trace?, preview?, production?, as?, vary? }');
   const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, check, example, compare, quick, compose, readout: shape, chapter: named, req, ask, trace, preview, production, as } = input;
@@ -820,6 +852,7 @@ export async function designGameHandler(input, context = {}) {
   const painted = compose !== undefined ? paintedCast(stampWorldPalette(stampGeocubes(composedWorld(compose)))) : null;
   const composed = painted ? (painted.painted.length ? { ...painted.world, brief: { ...painted.world.brief, colour: { ...(painted.world.brief.colour ?? {}), cast: painted.painted } } } : painted.world) : undefined;
   const world = withNamedHero(compose !== undefined ? composed : quickQ !== undefined ? quickWorld({ ...(isObj(quickQ.world) ? quickQ.world : {}), quick: Object.fromEntries(Object.entries(quickQ).filter(([k]) => k !== 'world')) }) : written);
+  if (quickQ?.goal === 'brawl' && isObj(quickQ.heroes)) heroWordsChecked(world, quickQ.heroes);
   const run = asked ?? (quick !== undefined ? true : undefined);
   // a reference, made on request (the creator asked to see one): a gameworld of its own, never mixed into theirs
   if (example !== undefined) {
@@ -859,7 +892,10 @@ export async function designGameHandler(input, context = {}) {
     // a preview: what the patch would do, and nothing written
     if (preview === true) return previewPatch(ref, patchVehicleWords(patch).patch);
     // a quick game's vehicle word is read through the vehicle registry first, as the quick path reads it (doors.js)
-    if (patch !== undefined) await oneWrite(ref, () => updateSketchHandler({ ref, patch: patchVehicleWords(patch).patch, ...(title ? { title } : {}) }));
+    // (a start screen's picture given as a file is filed into a stash first, the recipe naming the stash's item:
+    // game/front-background.js)
+    const filedPatch = patch !== undefined ? patchStageBackgrounds(patch, { title: row.title || ref }).patch : undefined;
+    if (patch !== undefined) await oneWrite(ref, () => updateSketchHandler({ ref, patch: patchVehicleWords(filedPatch).patch, ...(title ? { title } : {}) }));
   }
   // what the vehicle registry read: a word written as its table's key (absent when none was)
   const redirected = [...(quick !== undefined ? quickVehicleWords(quick).redirects : []), ...(patch !== undefined ? patchVehicleWords(patch).redirects : [])];
@@ -1478,6 +1514,12 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   // built with design goalposts open is said to be a draft
   const drafted = !!posts && !W.quick && posts.next?.goalpost !== 'first-level';
   full.next = leadNext(full.next, posts, { mode: W.mode ?? 'gated', quick: !!W.quick, made: !!W.made?.game, brought: isObj(W.intake) && Array.isArray(W.intake.items) && W.intake.items.length > 0 });
+  // THE START SCREEN (gameworld/front-stage.js): near the end of the guided rail, once the first level is proved and the
+  // game has something to show, its stage is offered with its patch (suggested, never laid, never a goalpost); before
+  // that it is the creator's to ask for ({ ref, chapter: 'interface' }, a /front patch)
+  const proved = !!W.made?.game && (!posts || posts.posts.some((p) => p.id === 'first-level' && p.status === 'met'));
+  const front = (() => { try { return frontStep(W, { proved }); } catch { return null; } })();
+  if (front) full.next = [...full.next, front];
   // (a game with a pitch is the producer's to lead: the one question this turn asks, goalposts.js producerSays)
   if (isObj(W.rail)) { const P = producerSays(full.next); if (P) full.producer = P; }
   // the ticket: what this call did, linked to the intent it acted on (gameworld/asks.js)

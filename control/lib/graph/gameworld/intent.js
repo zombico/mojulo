@@ -190,7 +190,7 @@ const put = (cube, f, s, v) => { (cube[f] ||= {})[s] = v; };
  * sport's genre. */
 export function quickGenre(Q) {
   if (!Q) return null;
-  return (Q.goal === 'race' && Q.rivals ? 'kart-racer' : Q.goal === 'shoot' && Q.craft ? (CRAFT[Q.craft]?.space ? 'space-shooter' : 'air-combat') : Q.goal === 'contest' ? contestGenre(Q.sport) : QUICK_GENRE[Q.goal]) ?? null;
+  return (Q.goal === 'race' && Q.rivals ? 'kart-racer' : Q.goal === 'work' && Q.cooks > 1 ? 'co-op-kitchen' : Q.goal === 'shoot' && Q.craft ? (CRAFT[Q.craft]?.space ? 'space-shooter' : 'air-combat') : Q.goal === 'contest' ? contestGenre(Q.sport) : QUICK_GENRE[Q.goal]) ?? null;
 }
 
 export function cubeOfWorld(world) {
@@ -204,6 +204,8 @@ export function cubeOfWorld(world) {
   if (Q?.transformer) put(cube, 'soul', 'hero', 'transformer');
   if (Q?.track) put(cube, 'space', 'levelForm', Q.track === 'loop' ? 'circuit' : 'trail');
   if (Q?.run) put(cube, 'time', 'progression', 'runs');
+  // cooks sharing a work shift's kitchen (quick.cooks): its seats, all on one side, sitting down at any time
+  if (Q?.goal === 'work' && Q.cooks > 1) { put(cube, 'soul', 'seats', Q.cooks > 2 ? 'four' : 'two'); put(cube, 'soul', 'contest', 'co-op'); put(cube, 'soul', 'join', 'drop-in'); }
   if (world?.style?.pixel) put(cube, 'reality', 'medium', 'pixel');
   // its main quest (main-quest.js): the arc its shape is, the periods it spans, how loose its sides are
   const MQ = world?.mainQuest && typeof world.mainQuest === 'object' ? world.mainQuest : null;

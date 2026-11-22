@@ -5,6 +5,7 @@ import { readGameworld } from './world.js';
 import { gameStages, stageLevelOrder } from './levels.js';
 import { createWorld, stepWorld } from '../worlds/controllable-world.js';
 import { readSeats } from '../worlds/world-scene.js';
+import { synthesizeLevel } from '../game/level-synth.js';
 
 // SEATS, LOWERED: a gameworld whose cube says soul.seats two or four lays a body per extra seat
 // beside the hero (the hero itself, on its rule; while its seat is empty, after the hero on the escort motive) and names
@@ -44,6 +45,24 @@ describe('seats, lowered from the cube', () => {
 
   it('first person seats one: there is no body for a second player to take', () => {
     expect(level(W({ soul: { seats: 'two' } }, { camera: 'first-person' })).seats).toBeUndefined();
+  }, 60_000);
+});
+
+describe('a work shift, seated', () => {
+  // (the shift's level: its mechanic lowered by the level's synth, with the level's seats as the bodies seats 2 … take)
+  const shift = (cube) => {
+    const w = { ...quickWorld({ id: 'kitchen', quick: { goal: 'work' } }), ...(cube ? { intent: { cube } } : {}) };
+    const G = readGameworld(w), [stage] = gameStages(w);
+    const m = stageLevelOrder(G, stage, { ref: 'shift-level', heroRef: 'h', goal: (ends) => goalMechanics(w.quick, ends) }).args.manifest;
+    return { m, events: synthesizeLevel(m).mechEvents };
+  };
+  it('two seats: the second cook has its own zones on its own body; one seat lays none', () => {
+    const two = shift({ soul: { seats: 'two' } });
+    expect(two.m.seats.bodies).toEqual(['hero-2']);
+    const mine = two.events.sources.filter((z) => z.seatUse);
+    expect(mine.length).toBe(two.events.sources.filter((z) => z.use).length);
+    expect(mine.every((z) => z.seat === 2 && z.watch === 'hero-2')).toBe(true);
+    expect(shift(null).events.sources.some((z) => z.seatUse)).toBe(false);
   }, 60_000);
 });
 

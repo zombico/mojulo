@@ -274,6 +274,17 @@ wherever there is text to read. Every theme keeps these rules on its own; no wor
 Display words may still perform: a title can echo huge and hollow behind itself, break out of its box, lean all the way
 and slam in. A menu's rows, labels, values and buttons stay plain.
 
+**A title that enters letter by letter.** A text's `letters` (`rise`, `slam`, `wipe`, `track`; `none` the default)
+draws its words a span a letter, each numbered so it enters after the one before, the whole read aloud as one word
+(`aria-label`). The entrance runs on the theme's motion (its stagger, travel, pop, duration and ease), so a look with no
+motion shows the words at once, and a calm reader (reduced motion, `data-motion=reduced`) sees them fade. Its sheet is
+`lettersCss`, kept apart from the main sheet: only a surface that draws letters lays it (the play shell's title and
+attract screens, the board), so no other page changes. A look says how its title enters with the theme word `title`
+(`still | rise | slam | wipe | track`); a look that says none is read without it and its title rises (`titleLetters`).
+The title screen's `bare` draws its menu as words with no window behind, for a start screen whose picture is its own
+stage (the play shell's front stage, `game/front-stage-page.js`, where the stage draws the name behind its subjects and
+mana-ui draws the menu).
+
 ### Theme cards: a look is data
 
 A new look is a card, not code: one JSON file on the shelf (`control/lib/graph/playscape/ui/theme-cards/`), the way a
@@ -571,6 +582,9 @@ A game's HUD is a `hud` holding the HUD idioms it uses. A screen idiom is used a
 - `idioms-fight.js` — a fighting game's own language (below): the top frame, the meters, a side's combo and callouts, the
   announcer, training's readouts; the face-off, fighter select, the fight's pause, the command list, training's settings,
   the match's results.
+- `idioms-talk.js` — people talking, as presenters a host feeds (below, "A level's scenes"): the talk box, with the
+  speaker's nameplate, a place for a face, the line typed on, ▼ once it is whole, the answers numbered with the one in
+  hand marked, and the legend.
 
 ### The live game
 
@@ -912,6 +926,42 @@ audit. `manaUiPage(spec, { state })` is a self-contained page over a plain state
 
 ## The surfaces on it
 
+### A level's scenes
+
+A level's scenes (`playscape/ui/scenes.js`) speak through the talk box on a page whose level has a mana-ui HUD. The HUD
+host (`scene/channels/mana-hud.js`) runs a second runtime on its own kernel and sheet, over a root of its own
+(`#moj-mana-talk`), so the box wears the game's theme and the page carries no second kernel.
+
+- **The state** is the scene runner's view, lowered each frame by `playscape/ui/talk-box.js` `talkState`: the speaker's
+  name, the words typed so far, whether the line is whole, the answers with the one in hand, and the legend (no skip on a
+  flow's stage that cannot be skipped).
+- **The input stays the scene channel's** (`scene-channel.js`): a press goes on, holding or Esc skips, a number or the
+  arrows pick. A choice's row pressed is that answer.
+- **While a scene plays** the page's own box and hint are put away and the HUD steps aside.
+- A page with scenes and no mana-ui HUD keeps the scene channel's own box.
+- **Whoever speaks is drawn live in the box's face** (`scene/channels/talk-face.js`): their own figure, head and
+  shoulders, seen by a second camera in front of them on the page's one renderer. Before each frame's render the
+  portrait is rendered into a corner of the canvas and copied into a canvas over the face's place; the frame's render
+  then draws over the corner. Nothing is baked: their idle, a walk, a script's take play in the portrait as they do in
+  the world. The level's speakers sheet, `play.speakers: { <who>: { portrait: 'live' | 'none' } }`, shows a speaker by
+  the box alone (`none`); a speaker with no body on the page, or one hidden (the player's in first person), has no face.
+- **A speaker's face says the line** (`playscape/ui/talk-lines.js`): a plain line said by a hero with a talking head
+  (the realistic face, or the anime or landmark face, which then plays on the page) is performed at build (`face-acting/perform.js`:
+  its expression, its words lip-synced by `speech.js`, the blinks and gaze of a speaking face) into a face track on the
+  speaker's figure, and the line gets a face-only take on its own clock (`talk:<scene>:<beat>`). The scene runner plays
+  it as it plays a script's take; the page's face plays the track while it runs, in the world and in the portrait. A
+  script's lines keep their own takes. The landmark head says it too (`face-acting/western-read.js`): the take
+  read as the anime face reads it, its eyes, smile and brows on its targets, its mouth's vowels its jaw bone's degrees
+  (`face.jaws`), turned on the page about the head's own x as the rig's jaw chain turns it.
+- **Recorded voices, when the creator wants them.** A line's `voice` takes a WAV's path (the voice worker's, a native
+  speech engine's, a person's): `create_sketch` / `update_sketch` bind it as a hero's recorded lines are bound
+  (`face-acting/recordings.js` `bindSceneVoices`: saved by its content under the outcomes, timed by the engine's
+  `.timings.json`, else by its words aligned, else by its loudness). The speaker's face says it on the recording's own
+  timeline, a recorded line has a take whoever says it, and the page carries the recording's bytes and plays it as the
+  take begins, stopping it as the line goes (`scene-channel.js`, `window.__mojVoice`). A browser plays no sound before a
+  press, so a line already under way when the first press comes is taken up where its take has got to.
+  `play.speakers.<who>.voice` keeps each speaker's casting with the level. Lines with no recording stay silent.
+
 ### The RPG's battles, party menu and shops
 
 The first surface moved onto mana-ui. Its spec is `playscape/rpg/rpg-ui.js` (screens and a HUD of components, data
@@ -1050,6 +1100,36 @@ given to the arena's block beside its client, which asks whether it was given on
 - The cursor is the `board` scheme's, over the cells projected as the camera shows them now (the camera turns to the
   seat to play), drawn as a ring on the cell.
 - Its sheet and theme are scoped to its own root (`#mana-holo`); the theme sets no cover and no veil.
+
+### The side map's HUD
+
+A side map level (`gameworld/side-map/level.js`) of a game with a `ui` is given a HUD of its own
+(`gameworld/side-map/hud.js`), hosted by the level page's HUD host on its `sidemap` feed, in the game's look (Galaxy
+Boy's is the `galaxy` card: navy plates, a square edge, energy in yellow ticks, a boss's in red, a monospace face in
+capitals). It is read as the 8-bit action platformers read, and nothing else is over the play:
+
+- The hero's energy is a column of fine ticks at the top left, filling from the foot (the lives mechanic's `energy`: a
+  hit takes ticks, a life goes when they run out). A level with no energy draws its lives there, one block a life.
+- A special weapon's energy is a column beside it, in the weapon's tint, while the hero holds a gun with energy of its
+  own (`energyMax`). The buster has none, so the column waits for the special weapons.
+- The boss's column stands at the opposite corner, top right, once the boss is awake and near, and is gone a moment
+  after it falls. Its name is said across the top as it comes in.
+- READY flashes in the middle as the level starts and after a life is lost, the lives left under it. The keys are key
+  caps along the foot for the first seconds.
+- It puts away the level's own rows (the energy, the lives chip, the boss's bar), the radar and the melee ring: a side
+  scroller reads its foes on the screen.
+
+Its screens are the HUD's own, opened by its host over the held level: `window.__mojMenuOpen` and `__mojFreeze` set, as
+a level's own menus hold it, and a `.moj-menu-hud` marker so the shell's Esc menu is not asked for over them. The keys
+and the pad drive them through the controls host (`controls/mana-host.js`), which leaves every key to play while no
+screen is up.
+
+- `intro`, a world's intro card as the level starts (`press: any`): the boss's name in its hue (`--sm-hue`), its world,
+  its tell and what it gives; any button or three seconds, then READY.
+- `menu`, the start menu on the menu key (`MENU_KEY`, Enter): the weapons from the pilot's loadout in order, the slots
+  not yet won locked; accept equips. Back resumes.
+- `over`, GAME OVER where the level lets the player continue (the lives mechanic's `continues`). Continue and Give up
+  raise `continue` and `giveup` on the level's bus; back does not leave it.
 
 ### The open city
 

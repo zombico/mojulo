@@ -169,6 +169,20 @@ describe('the isekai meadow, live (`wind`)', () => {
     expect(JSON.stringify(W.faces)).toBe(JSON.stringify(p.faces));
   });
 
+  it('grass.form: the field drawn as the form render\'s grass and its raised ground, in the stage\'s ramp; it asks for no grass of its own', () => {
+    const F = assembleStageScene({ ...M, wind: true, grass: { form: true } });
+    expect(F.liveGrass.form).toBe(true);
+    const page = stageGrassScript({ ...F.liveGrass, wind: F.liveGrass.wind });
+    expect(page).toContain("userData.g = 'far-lift'");
+    expect(page).not.toContain('THE FAR GRASS');
+    // (the same field otherwise: its grid, its mask, its ramp; the static floor unchanged)
+    expect(F.liveGrass.grid).toEqual(LG.grid);
+    expect(JSON.stringify(F.faces)).toBe(JSON.stringify(W.faces));
+    // (a grass that says only how it is drawn asks for none: no wind and no biocube's grass, no live grass)
+    expect('liveGrass' in assembleStageScene({ ...M, grass: { form: true } })).toBe(false);
+    expect(() => assembleStageScene({ ...M, wind: true, grass: { form: 'yes' } })).toThrow(/grass.form/);
+  });
+
   it('stands far grass where the field has thinned: the card\'s clumps, the field\'s loss of cover, off by the recipe', () => {
     expect(LG.far).toEqual(ISEKAI_MEADOW.live.far);
     // (the far grass is what the field's cover has lost: none near the eye, all of it past the field, rising between)
@@ -392,5 +406,14 @@ describe('a stage kept clean', () => {
     expect(n(clean, 'isekai:grass')).toBe(n(plain, 'isekai:grass'));
     expect(JSON.stringify(assembleStageScene({ ...M, hats: true }).faces)).toBe(JSON.stringify(plain.faces));
     expect(() => assembleStageScene({ ...M, hats: 'no' })).toThrow(/hats/);
+  });
+
+  it("hats: 'lips' keeps the rocks clean and the cliff lips' fringe: no cap and no fringe on a rock, the lips as they were", () => {
+    const M = { kind: 'stage', kit: 'isekai-meadow' }, plain = assembleStageScene(M), lips = assembleStageScene({ ...M, hats: 'lips' });
+    const n = (P, g) => P.faces.filter((f) => f.group === g).length, caps = (P) => P.faces.filter((f) => /:hat-(lit|shade)$/.test(f.texture || '')).length;
+    expect(n(lips, 'isekai:hat')).toBe(0); expect(caps(lips)).toBe(0);
+    expect(caps(plain)).toBeGreaterThan(0);
+    expect(n(lips, 'isekai:lip')).toBe(n(plain, 'isekai:lip'));
+    expect(n(lips, 'isekai:cliff')).toBe(n(plain, 'isekai:cliff'));
   });
 });

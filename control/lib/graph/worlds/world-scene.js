@@ -137,11 +137,14 @@ function posMapFor(path, readBoundMeshFaces, buildPosMap) {
  */
 /** A hero's FACE under the runtime's state names (`clips` each state's clip, `own` the hero's clips by their names): a
  * state's facial track its clip's, the ambient blink over a state whose clip it played over or that has no track of
- * its own (a library's clip). */
+ * its own (a library's clip); a line's talking take (talk:<scene>:<beat>) kept under its own name. */
 export function stateFace(face, own, clips) {
   const of = Object.fromEntries(Object.keys(clips).map((st) => [st, Object.keys(own).find((c) => own[c] === clips[st]) ?? null]));
   const tracks = {}, over = new Set(face.ambientOver || []);
   for (const [st, c] of Object.entries(of)) if (c && face.tracks[c]) tracks[st] = face.tracks[c];
+  // (a line the hero says keeps its face's take under its own clip: playscape/ui/talk-lines.js, played by the page while
+  // the scene's take names it)
+  for (const k of Object.keys(face.tracks)) if (k.indexOf('talk:') === 0) tracks[k] = face.tracks[k];
   return { ...face, tracks, ambientOver: Object.keys(clips).filter((st) => !of[st] || !tracks[st] || over.has(of[st])) };
 }
 /** a body destroyed when it goes down (its `vanish.die` a dismantle, a cleave or a destroy: gameworld/vanish.js), or one
@@ -184,7 +187,7 @@ function movesOf(rule, name) {
   const Ws = Array.isArray(rule.weapons) && rule.weapons.length ? rule.weapons : [{ figure: 'drawn', moveset: rule.moveset }];
   const C = rule.combat || {}, sheathed = !!C.sheathed && name === C.sheathed && name !== C.drawn;
   const mine = Ws.filter((W) => (W.figure === 'sheathed') === sheathed);
-  const moves = mine.flatMap((W) => Object.values(W.moveset.moves).filter((m) => m.clip).map((m) => ({ clip: m.clip, ...(m.swing ? { swing: m.swing } : { strike: m.strike }), ...(m.travel ? { travel: m.travel } : {}), ...(m.contact ? { contact: m.contact } : {}), ...(m.air ? { air: true } : {}) })));
+  const moves = mine.flatMap((W) => Object.values(W.moveset.moves).filter((m) => m.clip).map((m) => ({ clip: m.clip, ...(m.swing ? { swing: m.swing } : { strike: m.strike }), ...(m.travel ? { travel: m.travel } : {}), ...(m.contact ? { contact: m.contact } : {}), ...(m.air ? { air: true } : {}), ...(m.plant ? { plant: m.plant } : {}) })));
   const readies = mine.map((W) => { const first = Object.values(W.moveset.moves)[0]; return { clip: W.moveset.ready ?? 'mv_ready', ...(first && first.strike ? { strike: first.strike } : {}) }; });
   // (the sidearms' aims, on every figure the hero shows: a sidearm is held on the sheathed hero, the blade on its back)
   const aims = [...new Map([...Ws.filter((W) => W.sidearm && W.sidearm.aim).map((W) => [W.sidearm.aim, { clip: W.sidearm.aim, pose: W.sidearm.pose, hand: W.sidearm.hand }]),
@@ -194,7 +197,60 @@ function movesOf(rule, name) {
   const art = mine.map((W) => W.moveset.art).find(Boolean);
   return { moves, readies, ...(aims.length ? { aims } : {}), ...(art ? { art } : {}) };
 }
-export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null, takes = null, lit = false, pilot = false } = {}) {
+/** A rig figure's drawn bounds at its own scale (its parts' rest corners, z up): { h, ext } (its height, its longest
+ * extent across the ground), or null for a figure with no packed corners. */
+function rigBounds(fig) {
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const q of (fig && fig.parts) || []) {
+    if (!q || typeof q.pos !== 'string') continue;
+    const B = Buffer.from(q.pos, 'base64'), P = new Float32Array(B.buffer, B.byteOffset, B.length >> 2);
+    for (let i = 0; i + 2 < P.length; i += 3) for (let k = 0; k < 3; k++) { if (P[i + k] < lo[k]) lo[k] = P[i + k]; if (P[i + k] > hi[k]) hi[k] = P[i + k]; }
+  }
+  return lo[2] === Infinity ? null : { h: hi[2] - lo[2], ext: Math.max(hi[0] - lo[0], hi[1] - lo[1]) };
+}
+/** A cel body: the character light baked lit and in shade (no highlight, so neither bake splits a face and both carry the
+ * same corners); the lit bake's scene with each part's shade tones as `colS`, its face's corners as `faceM` (a third bake,
+ * the face's groups marked), and the body's `toon` set, or null when the two bakes do not line up. */
+// (a face's palette groups, and the marker its third bake paints them: a colour no palette names)
+const CEL_FACE_GROUPS = /^(Skin|Sclera|Iris|Pupil|Mouth|Lip|Brow|Lash|Ink|Teeth|Tongue|Blush|Eye)/;
+const CEL_FACE_MARK = '#ff00fe';
+// (and a boss's SIGNAL, its eyes and its glow, gameworld/bosses.js: a fourth bake marks it, `sigM`, so the page lights it
+// by its tell, worlds/controllable/tell.js; a body with no signal group bakes no fourth)
+const CEL_SIGNAL_GROUPS = /^Signal/;
+async function celBody(manifest, ctx, jumps = null) {
+  const { expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
+  const groups = Object.keys(expandLayeredManifest(manifest).recipe?.palette ?? {});
+  if (!groups.length) return null;
+  // (each bake regenerates the hero from its record: the jumps its takes play, heroFigure's `jumps`, carried onto it, a
+  // jump it already moves by its own)
+  const withJumps = (E) => (jumps && E.recipe ? { ...E, recipe: { ...E.recipe, locomotion: { ...jumps, ...(E.recipe.locomotion || {}) } } } : E);
+  const stepped = (t) => withJumps(expandLayeredManifest({ ...manifest, toon: { ...(manifest.toon ?? {}), light: { threshold: t, thresholds: Object.fromEntries(groups.map((g) => [g, t])), highlight: false } } }));
+  // (the step at the ends of N·L's range, the most the light allows (vexar.js toonLightErrors: [-1, 1]): at -1 every group
+  // lit, at 1 every group in shade; past them the light is refused and the default stands, both bakes the same)
+  // (and a third, lit, its FACE's groups painted a marker: each corner whose colour that changes is the face's, so a charge
+  // lights the helmet and the body and only edges the face, index.js uToonCharge)
+  const faceGroups = groups.filter((g) => CEL_FACE_GROUPS.test(g));
+  const markOf = (gs) => () => { const E = stepped(-1); return gs.length ? { ...E, recipe: { ...E.recipe, palette: { ...E.recipe.palette, ...Object.fromEntries(gs.map((g) => [g, CEL_FACE_MARK])) } } } : null; };
+  const marked = markOf(faceGroups), sigGroups = groups.filter((g) => CEL_SIGNAL_GROUPS.test(g));
+  const [L, S, F, Sg] = await Promise.all([stepped(-1), stepped(1), marked(), markOf(sigGroups)()].map((m) => (m ? WORLD_KINDS.layered.resolve(m, ctx) : null)));
+  const A = L?.figures?.body, B = S?.figures?.body, Fb = F?.figures?.body, Sb = Sg?.figures?.body;
+  if (!A?.parts || !B?.parts || A.parts.length !== B.parts.length) return null;
+  // (each part whose two bakes carry the same corners steps between them; one that does not (a piece the light splits
+  // its own way) keeps its lit bake; two bakes of one tone are no cel, the light was not stepped)
+  const lines = (p, q) => !!p && !!q && p.pos === q.pos && typeof p.col === 'string' && typeof q.col === 'string';
+  const faceOf = (p, i, M = Fb) => {
+    const q = M?.parts?.[i];
+    if (!lines(p, q) || p.col === q.col) return null;
+    const a = Buffer.from(p.col, 'base64'), b = Buffer.from(q.col, 'base64'), m = Buffer.alloc(a.length / 3);
+    for (let v = 0; v < m.length; v++) m[v] = a[v * 3] !== b[v * 3] || a[v * 3 + 1] !== b[v * 3 + 1] || a[v * 3 + 2] !== b[v * 3 + 2] ? 255 : 0;
+    return m.toString('base64');
+  };
+  const parts = A.parts.map((p, i) => { if (!(lines(p, B.parts[i]) && p.col !== B.parts[i].col)) return p; const f = faceOf(p, i), g = Sb ? faceOf(p, i, Sb) : null; return { ...p, colS: B.parts[i].col, ...(f ? { faceM: f } : {}), ...(g ? { sigM: g } : {}) }; });
+  if (!parts.some((p) => p && p.colS)) return null;
+  return { ...L, figures: { ...L.figures, body: { ...A, toon: true, parts } } };
+}
+
+export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null, takes = null, talks = null, lit = false, pilot = false, cel = false } = {}) {
   let manifest, body;
   // a MODEL made elsewhere (`modelRef`: a sketch a rigged humanoid .glb is bound onto, stood `height` metres): its pack read
   // by scene/rig-import.js, played as a hero's is (worlds/controllable/model-figure.js)
@@ -230,9 +286,11 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
   // `jumps`: the hero's own jumps a game's takes play (gameworld/feel/lower.js TAKES: hero-jump.js words), compiled onto
   // its rig beside its clips (its recipe's `locomotion`, as its door motion is); a jump it already moves by stays its own.
   // Absent: the hero's clips as minted
+  let jumpsAdded = null;
   if (manifest && Array.isArray(spec.jumps) && spec.jumps.length && manifest.recipe?.rig) {
     const { motionPlan } = await import('@/lib/graph/polygonizer/hero-motion.js');
     const add = motionPlan(Object.fromEntries(spec.jumps.map((w) => [w, true])));
+    jumpsAdded = add;
     manifest = { ...manifest, recipe: { ...manifest.recipe, locomotion: { ...add, ...(manifest.recipe.locomotion || {}) } } };
   }
   // `swing`: the world's game type (its composed juice's flavor), the timing the hero's swing plays at (hero-swing.js);
@@ -240,13 +298,20 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
   if (!body) {
     // `hands`: a world a headset plays: the hero's hands as the headset draws them ride the pack (hero-xr-hands.js)
     // (`takes`: the scenes' takes this figure plays, playscape/ui/scene-takes.js, packed on its rig as clips of their own)
+    // (`talks`: the lines this figure says, playscape/ui/talk-lines.js: each a face take its face carries on the page)
     // (and the lit read asks for the body as the skinned export gets it, `face`: a realistic hero's relief with it, its
     // normal map, its cloth's occlusion, roughness and metal, epidermis/cloth-relief.js: what the page's cast material reads)
     // (`lit`: a body the cast rig lights, color-theorist/cast-rig.js: its colour under no light and each corner's normal, as
     // the lit export reads it and a fight plays it, versus-character.js characterBody; its rig, its clips and what it
     // holds are the same read's. Absent: the body as it always was, its light baked)
     // (`pilot`: a body a player pilots plays it: its run the engagement run's body, world-kinds.js ctx.pilot)
-    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(lit ? { light: FLAT_LIGHT, unshaded: true, face: true } : {}), ...(pilot ? { pilot: true } : {}) });
+    const ctx = { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(talks ? { talks } : {}), ...(lit ? { light: FLAT_LIGHT, unshaded: true, face: true } : {}), ...(pilot ? { pilot: true } : {}) };
+    // (`cel`: THE CEL BODY, a body's light and not its face's: the character light (station-loft-shade.js, its shade swatches
+    // and its metal by materials/toon-materials.js) baked twice, every group stepped lit and every group in shade, as a
+    // fight plays a toon body (versus-character.js toonBody), so each corner carries both tones (`colS` the shade's) and
+    // the page steps between them by its world's key as the body turns. The bakes that do not line up: as it always was)
+    const toon = cel && !lit && manifest ? await celBody(manifest, ctx, jumpsAdded) : null;
+    const scene = toon ?? await WORLD_KINDS.layered.resolve(manifest, ctx);
     body = scene.figures && scene.figures.body;
     if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);
   }
@@ -1370,6 +1435,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       // nothing is computed, byte-identical
       const { hasScripts } = await import('@/lib/graph/playscape/ui/scene-script.js');
       const takesOf = hasScripts(sketch.manifest.play) ? (await import('@/lib/graph/playscape/ui/scene-takes.js')).sceneTakes(sketch.manifest, { anchors: payload.anchors, player: Array.isArray(sketch.manifest.entities) ? deriveLevelPlayer(sketch.manifest).player : null }) : null;
+      // THE TALKING FACES (playscape/ui/talk-lines.js): a page whose scenes have lines said by a hero with a talking face
+      // (realistic or anime) gives that figure each line's face take, read off the same program the page plays (lowerPlay's).
+      // None ⇒ nothing is computed, byte-identical
+      const { talkHeadOf, talkLines } = await import('@/lib/graph/playscape/ui/talk-lines.js');
+      const talksOf = Array.isArray(sketch.manifest.play?.scenes) && Object.values(figs).some((f) => f && talkHeadOf(f.hero))
+        ? talkLines(sketch.manifest, (await import('@/lib/graph/playscape/ui/scenes.js')).sceneProgram((await import('@/lib/graph/playscape/ui/direction.js')).lowerablePlay(sketch.manifest, { anchors: payload.anchors, player: Array.isArray(sketch.manifest.entities) ? deriveLevelPlayer(sketch.manifest).player : null }))).byFigure
+        : null;
       for (const [name, rawSpec] of Object.entries(figs)) {
         if (!rawSpec || typeof rawSpec !== 'object') continue;
         // meshRef entries were consumed by the bind-back block above (static
@@ -1409,7 +1481,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
             ride = (R, dz) => { mountRide = { sol: mountRiderSync(mountsSpec, { R, dz }, solve), riderId: rider.id }; return mountRide.sol.clips; };
           }
           // (a world a headset plays, its own `xr` or the page's `?xr=`: the hero's hands ride its figure, hero-xr-hands.js)
-          const takes = takesOf?.[name] ?? null;
+          const takes = takesOf?.[name] ?? null, talks = talksOf?.[name] ?? null;
           // THE CAST RIG ON THE HERO (color-theorist/cast-rig.js; the page's kit: scene/channels/cast-rig.js): on a page whose
           // land is drawn as form, every body an entity wears (the hero a player pilots, a foe, a walker, one that stands
           // still) is read lit (its colour under no light, its normals) and carries the rig solved from the land's own cube
@@ -1418,7 +1490,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // (the one a player pilots among them plays the engagement run's body: heroFigure's `pilot`)
           const piloted = (payload.entities || []).some((e) => e && e.pilotable && e.body && (e.body.figure === name || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
           const castFig = !!formCast && typeof rawSpec.modelRef !== 'string' && (payload.entities || []).some((e) => e && e.body && (e.body.figure === name || (Array.isArray(e.body.modes) && e.body.modes.some((m) => m && m.figure === name)) || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
-          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(piloted ? { pilot: true } : {}), ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(castFig ? { lit: true } : {}) });
+          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(piloted ? { pilot: true } : {}), ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(talks ? { talks } : {}), ...(castFig ? { lit: true } : {}), ...(rawSpec.light === 'cel' && !castFig ? { cel: true } : {}) });
           if (castFig) {
             const { castRig, CAST_REGISTERS } = await import('@/lib/graph/color-theorist/cast-rig.js'), { castRigInput } = await import('@/lib/graph/scene/channels/cast-rig.js');
             const reg = sketch.manifest.fxStyle && CAST_REGISTERS.includes(sketch.manifest.fxStyle.register) ? sketch.manifest.fxStyle.register : 'western';
@@ -1460,6 +1532,33 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // (BARE HANDS, gameworld/arsenal.js FISTS: a moveset's hero that holds nothing and carries only its fists
           // strikes with them, the fist's reach, a light blow's seconds; held-strike.js FIST)
           else payload.entities = payload.entities.map((e) => (wields(e) && Array.isArray(e.rule.weapons) && e.rule.weapons.length && e.rule.weapons.every((W) => W && W.id === 'fist') ? armHeld(e, FIST, moveClips) : e));
+          // (and a moveset's hero whose rule names its strike already, a feel's own: the saber's, feel/saber.js, its reach
+          // and its damage its own; its figure's clips are played all the same)
+          if (moveClips && mover && mover.rule.strike === 'melee' && !mover.rule.moveClips) payload.entities = payload.entities.map((e) => (e === mover ? { ...e, rule: { ...e.rule, moveClips: true } } : e));
+          // (the BUSTER's MUZZLE, where its figure carries the cannon on a bone, polygonizer/hero-buster-rig.js: the end of
+          // its arm raised level along the facing, measured off the rest rig as shares of the figure's height (its side
+          // from the middle, its height, its reach ahead; a right arm's side +), so the runtime fires from it at the body's own height:
+          // worlds/controllable/buster.js; the page raises that arm as it fires)
+          const cb = (figure.bones || []).find((b) => /^buster[LR]$/.test(b.id)), H = figure.figH;
+          if (cb && H > 0) {
+            const S = cb.id.slice(-1), bone = (n) => figure.bones.find((b) => b.id === n), U = bone(`upperArm${S}`), F = bone(`foreArm${S}`);
+            const len = (b) => Math.hypot(b.tail[0] - b.head[0], b.tail[1] - b.head[1], b.tail[2] - b.head[2]);
+            if (U && F) {
+              const r4 = (v) => Math.round(v * 1e4) / 1e4, reach = len(U) + len(F) + len(cb);
+              const at = (sh) => ({ right: r4(sh[0] / H), up: r4(sh[2] / H), ahead: r4((sh[1] + reach) / H) });
+              // (and by what the body plays when it fires: the shoulder where the move's own clip holds it mid-move, a
+              // dash's lean and sink, a jump's held pose; the runtime fires from the one its locomotion names)
+              const ui = figure.bones.indexOf(U), nb = figure.bones.length, moves = {};
+              for (const st of ['dash', 'jump_up', 'jump_fwd']) {
+                const C = figure.clips && figure.clips[st];
+                if (!C || !C.b || !(C.k > 0)) continue;
+                const i = C.once ? Math.round(0.5 * (C.k - 1)) : Math.floor(0.5 * C.k) % C.k, o = (i * nb + ui) * 7 + 4;
+                if (Number.isFinite(C.b[o + 2])) moves[st] = at([C.b[o], C.b[o + 1], C.b[o + 2]]);
+              }
+              const muzzle = { ...at(U.head), ...(Object.keys(moves).length ? { moves } : {}) };
+              payload.entities = payload.entities.map((e) => (e.rule && e.rule.buster && e.body && e.body.figure === name ? { ...e, rule: { ...e.rule, buster: { ...e.rule.buster, muzzle } } } : e));
+            }
+          }
           continue;
         }
         // RACER bodies (car-designer/roster.js): a figures-map entry may be a cartoon racer's recipe (`racer`: { facets,
@@ -1516,6 +1615,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           const { STATES } = await import('@/lib/graph/weather/weather.js');
           const W = sketch.manifest.weather, wet = typeof W === 'string' && STATES[W]?.family === 'wet';
           payload.figures[name] = await atRigFidelity(mechaFigure(rawSpec.mecha, { form: ERAS[era]?.surface === 'form', setting: { sky: payload.sky ?? null, wet } }));
+          continue;
+        }
+        // WORKER BOTS (workbots/: a toy world's worker bots, their own low-poly language, a face on each): a figures-map
+        // entry may be a worker bot's card (`workbot`: { card, palette? }), delivered as its rig (a bone a part, its light
+        // baked in its own cel). Absent ⇒ none is resolved, byte-identical.
+        if (rawSpec.workbot && typeof rawSpec.workbot === 'object') {
+          const { workbotFigure } = await import('@/lib/graph/workbots/index.js');
+          payload.figures[name] = workbotFigure(rawSpec.workbot);
           continue;
         }
         // CYCLE bodies (cycle-shelf/: the vehicle registry's realistic build of a machine ridden astride): a figures-map
@@ -1780,6 +1887,19 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           if (A && B && A.rig && B.rig && !(A.shed && A.shed[e.body.modes[i + 1].figure])) A.shed = { ...(A.shed || {}), [e.body.modes[i + 1].figure]: shedParts(A, B) };
         });
       }
+      // FIT (a body's `fit: { least, from? }`, a side map's foes, gameworld/side-map/cast.js): a body drawn at least `least` m tall
+      // by its figure's own bounds, its scale, hit egg and collider grown together; a figure the order could not see (a
+      // beast's skeleton is shorter than its flesh and its head). None ⇒ the bodies as they were
+      const fitted = (payload.entities || []).filter((e) => e && e.body && e.body.fit && payload.figures[e.body.figure]);
+      for (const e of fitted) {
+        const b = rigBounds(payload.figures[e.body.figure]), { fit, ...body } = e.body;
+        e.body = body;
+        if (!b) continue;
+        // (from the scale it was stood at before any guess of the order's, `from`, never under it)
+        const s0 = fit.from ?? body.scale ?? 1, k = Math.max(1, fit.least / (b.h * s0)), s = s0 * k, r3 = (v) => Math.round(v * 1000) / 1000, H = b.h * s, ext = b.ext * s;
+        e.body = { ...body, scale: r3(s), radius: r3(Math.max(0.15, ext * 0.25)), egg: { a: r3(Math.max(0.2, ext * 0.35)), c: r3(H / 2), cz: r3(H / 2) } };
+        e.rule = { ...e.rule, collideHeight: r3(H), collideRadius: r3(Math.max(0.15, ext * 0.25)) };
+      }
     }
     // GLYPH bodies (U1): body:{type:'glyph', form, tint?, scale?}
     // lowers here to a single-frame figure-frames body + a generated `glyph:<form>` clip — the
@@ -1862,7 +1982,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // events.style wins over the play block's. Its cues (playscape/ui/cues.js) bring their reactions, watches, zones
   // and sequences beside it. Absent `play` ⇒ not a byte changes.
   const playEv = payload && sketch.manifest.play ? lowerPlay(sketch.manifest, { anchors: payload.anchors, player: Array.isArray(sketch.manifest.entities) ? deriveLevelPlayer(sketch.manifest).player : null }) : null;
-  const { style: _playStyle, register: _playRegister, menus: _playMenus, cast: _playCast, looks: _playLooks, scenes: _playScenes, quests: _playQuests, library: _playLibrary, rpg: _playRpg, minigames: _playMini, ...playBus } = playEv || {};
+  const { style: _playStyle, register: _playRegister, menus: _playMenus, cast: _playCast, looks: _playLooks, scenes: _playScenes, speakers: _playSpeakers, quests: _playQuests, library: _playLibrary, rpg: _playRpg, minigames: _playMini, ...playBus } = playEv || {};
   let ev = payload && mergeEventManifests(mergeEventManifests(sketch.manifest.events, Object.keys(playBus).length ? playBus : null), mechEvents);
   // (a level whose play is a library alone has no bus of its own yet: the shelf still needs the page's)
   if (!ev && payload && playEv && playEv.library) ev = {};
@@ -1871,6 +1991,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (playEv.register) ev = { ...ev, register: playEv.register };
     if (playEv.menus) ev = { ...ev, menus: playEv.menus };
     if (playEv.scenes) ev = { ...ev, scenes: playEv.scenes };   // the scene runner's program (playscape/ui/scenes.js)
+    // (the RECORDED lines' audio, playscape/ui/talk-lines.js: each recording the program's lines name, carried in the page
+    // as its bytes so a self-contained page speaks them; one this machine does not hold stays silent)
+    const vox = playEv.scenes ? [...new Set(playEv.scenes.flatMap((sc) => (sc.beats || []).filter((b) => b && b.kind === 'line' && b.voice && b.voice.recording).map((b) => b.voice.recording)))] : [];
+    if (vox.length) {
+      const { readRecording } = await import('@/lib/graph/face-acting/recordings.js'), voices = {};
+      for (const id of vox) { const bytes = readRecording(id); if (bytes) voices[id] = Buffer.from(bytes).toString('base64'); }
+      if (Object.keys(voices).length) ev = { ...ev, voices };
+    }
+    if (playEv.speakers) ev = { ...ev, speakers: playEv.speakers };   // how each speaks in the talk box (talk-box.js)
     if (playEv.quests) ev = { ...ev, quests: playEv.quests };   // the quests' journal (playscape/ui/quests.js)
     if (playEv.library) ev = { ...ev, library: playEv.library };   // the library's shelf (playscape/ui/library.js)
     if (playEv.cast) ev = { ...ev, cast: true };

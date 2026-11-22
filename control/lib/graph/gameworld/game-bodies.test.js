@@ -2,7 +2,7 @@
 // the world's (the tradition, the look, the medium), never the rail's; a role's words resolve their pole and mint through
 // the hero door; a body word is a rail, 'game' or { rail, style }.
 import { describe, it, expect } from 'vitest';
-import { GAME_BODIES, GAME_BODY_NAMES, GAME_BODY_ROLES, railOfGame, styleOf, gameBody, readBodyWord } from './game-bodies.js';
+import { GAME_BODIES, GAME_BODY_NAMES, GAME_BODY_ROLES, railOfGame, styleOf, gameBody, readBodyWord, BODY_LIGHTS, bodyLightOf } from './game-bodies.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { withDefaultForm } from '../polygonizer/motion-stamp.js';
 import { GENRES } from './intent.js';
@@ -48,6 +48,17 @@ describe('the body rails', () => {
       if (B.spec.animeBody) expect(hero.animeBodyResolved.pole).toBe(pole);
     }
   }, 240000);
+  it('the toy hero robot is a rail of its own: the run and gun reads it, and its head stays bare so its proportions stand', () => {
+    expect(railOfGame({ feel: 'galaxy-boy' })).toMatchObject({ rail: 'herobot', from: 'feel' });
+    expect(railOfGame({ genre: 'metroidvania' }).rail).toBe('herobot');
+    expect(railOfGame({ feel: 'jumping-giuseppe' }).rail).toBe('mascot');
+    expect(styleOf('herobot', { tradition: 'anime' }).style).toBe('herobot');
+    expect(styleOf('herobot', { pixel: true }).style).toBe('lowpoly');
+    const B = gameBody('herobot', 'hero');
+    expect(B.spec).toMatchObject({ proportions: 'herobot', head: 'anime', animeStyle: null });
+    // (the door stamps a head cast only where none is said: a bare head said is kept, so no cast's body tune lands on it)
+    expect(withDefaultForm({ cast: 'male', ...B.spec }).animeStyle).toBeNull();
+  });
   it('puts the muscle shirt on only when asked: the role\'s definition, or the world\'s; a western body has none to put on', () => {
     expect(gameBody('muscular', 'hero', { tradition: 'anime' }).spec.muscleShirt).toBeUndefined();
     expect(gameBody('muscular', 'hero', { tradition: 'anime', muscle: true }).spec.muscleShirt).toEqual({ definition: 1 });
@@ -63,5 +74,12 @@ describe('the body rails', () => {
     expect(() => readBodyWord({ rail: 'game', style: 'ink' })).toThrow(/name the rail/);
     expect(readBodyWord({ rail: 'game', muscle: true })).toEqual({ rail: 'game', muscle: true });
     expect(() => readBodyWord({ rail: 'comic', muscle: 2 })).toThrow(/definition 0 to 1/);
+  });
+  it('a rail\'s body light: the side scroller\'s and the mascot\'s cel, a body\'s light and never its face\'s; the others none', () => {
+    expect(bodyLightOf({ feel: 'galaxy-boy' })).toBe('cel');
+    expect(Object.keys(BODY_LIGHTS).every((r) => GAME_BODY_NAMES.includes(r))).toBe(true);
+    const other = GAME_BODY_NAMES.find((r) => !BODY_LIGHTS[r] && GAME_BODIES[r].feels.length);
+    if (other) expect(bodyLightOf({ feel: GAME_BODIES[other].feels[0] })).toBeNull();
+    expect(bodyLightOf({})).toBeNull();
   });
 });

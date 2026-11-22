@@ -49,6 +49,16 @@ export function buildRulesPlatform(E) {
 
   function platform(e, input, dt, world) {
     const r = e.rule;
+    // THE FLINCH (opt-in `flinch`: seconds, a feel card's `hit.flinch`, gameworld/feel/lower.js): a blow taken (the body's
+    // hits counted up: a foe's touch, a round) snaps it into its hurt for that long, the stick, the jump and the dash not
+    // its own until it passes (the blow's knock carries it); its takes' `hurt` clip plays over it (below). Absent →
+    // byte-identical. Field ownership: e.flinchT, e.flinchHits
+    if (r.flinch > 0) {
+      const hits = e.hits || 0;
+      if (e.flinchHits != null && hits > e.flinchHits && !e.downed) e.flinchT = r.flinch;
+      e.flinchHits = hits;
+      if (e.flinchT > 0) { e.flinchT = Math.max(0, e.flinchT - dt); input = Object.assign({}, input, { forward: 0, strafe: 0, turn: 0, jump: 0, jumpHeld: 0, boost: 0 }); }
+    }
     // A PERSON WALKS AND RUNS (opt-in `walkSpeed`, a hero's: playscape/player.js): no thrusters, so F is nothing of its
     // own. The stick's travel is the pace (below, once the stick is read): a key, full travel, runs at `speed`; a pad's
     // stick walks under `runAt` of its travel and runs past it; the walk key held (`input.walk`) walks. A rule whose F is
@@ -142,7 +152,8 @@ export function buildRulesPlatform(E) {
       turnAmt = 0;
       // (a moveset's move, committed, holds the facing it was taken at: the stick turns the body again once it ends)
       // (and in the air after a launch the hero is turned to the foe it threw, combat-melee.js `mvThrown`)
-      if (wmMag > 1e-3 && !(r.moveset && (e.swingT != null || (e.mvThrown != null && !e.grounded)))) {
+      // (and on a wall slide the body faces out from the wall, whatever the stick presses into it: below, the cling)
+      if (wmMag > 1e-3 && !(r.cling && e.cling) && !(r.moveset && (e.swingT != null || (e.mvThrown != null && !e.grounded)))) {
         const d = ((Math.atan2(wmY, wmX) - t.heading + Math.PI) % TAU + TAU) % TAU - Math.PI, mx = (r.faceRate ?? 12) * dt;
         turnAmt = clamp(d, -mx, mx);
         t.heading = (t.heading + turnAmt) % TAU;
@@ -486,13 +497,19 @@ export function buildRulesPlatform(E) {
         const px = t.pos[0], py = t.pos[1];
         resolveBlocking(t.pos, footZ, r.collideHeight ?? (eye || 24), r.collideRadius ?? 0, world.colliders, step);
         // THE WALL SLIDE (opt-in `cling`): falling against a wall with the stick into it (more than `cling.toward` of the
-        // push) holds the body to it, sliding down at `cling.slide` (below) and facing out; its air jumps and air dashes
+        // push) holds the body to it, sliding down at `cling.slide` (below) and facing out (turned from the wall as it is
+        // caught, the stick no longer turning it while it slides); its air jumps and air dashes
         // come back. Let go of it and the kick's grace (`cling.coyote`) counts down
         if (r.cling && !e.grounded && e.vel[2] <= 0 && !(e.kickT > 0)) {
           const ex = t.pos[0] - px, ey = t.pos[1] - py, el = Math.hypot(ex, ey);
           const wx = f[0] * fwdIn + rt[0] * sideIn, wy = f[1] * fwdIn + rt[1] * sideIn, wm = Math.hypot(wx, wy);
           if (el > 1e-9 && wm > 1e-3 && -(wx * ex + wy * ey) / el > r.cling.toward * wm) {
             e.cling = [ex / el, ey / el]; e.wallN = e.cling; e.wallCoyote = r.cling.coyote; e.airJumpsUsed = 0;
+            // (FACING OUT while it slides: the jump to the wall faced it, the stick pressing into it; caught on it, the body
+            // turns its back to the wall, as the run-and-gun's hero does, so a shot or a cut goes out from it)
+            // (where the stick moves the body in the world's frame, a lane's or the world's: a stick read off the facing
+            // would turn with it and let go of the wall)
+            if (worldMove) t.heading = Math.atan2(e.cling[1], e.cling[0]);
             if (r.dash && r.dash.air) e.airDashes = r.dash.air.count;
             e.dashT = 0; e.carry = 0;
           } else if (e.cling) e.cling = null;
@@ -724,10 +741,14 @@ export function buildRulesPlatform(E) {
       e.squash = Q && up !== 1 ? [1 / Math.sqrt(up), up] : null;
       // THE DASH'S LUNGE (`dash`): a ground dash is a burst, not a run, so it takes no strides: the hero holds the running
       // jump's gather, leaning into it as the burst gets up to speed and rising out of it as it eases
-      if (r.dash && e.dashT > 0 && e.grounded && !e.take) {
+      // (a card with a dash of its own, `takes.dash`: that clip over the burst by its share, in the air dash too)
+      if (r.dash && e.dashT > 0 && K.dash && (e.grounded ? !e.take : e.dashAir)) { e.locomotion = 'dash'; e.gaitPhase = dashU(e); e.moving = true; }
+      else if (r.dash && e.dashT > 0 && e.grounded && !e.take) {
         const u = dashU(e), k = u < DASH_RISE ? u / DASH_RISE : u < DASH_EASE ? 1 : 1 - (u - DASH_EASE) / (1 - DASH_EASE);
         e.locomotion = 'jump_fwd'; e.gaitPhase = K.fwd[0] * (0.5 + 0.45 * k); e.moving = true;
       }
+      // (a card with a FLINCH of its own, `takes.hurt`: that clip over the flinch by its share, over anything else)
+      if (K.hurt && e.flinchT > 0 && r.flinch > 0) { e.locomotion = 'hurt'; e.gaitPhase = 1 - e.flinchT / r.flinch; e.moving = true; }
     }
     }
 

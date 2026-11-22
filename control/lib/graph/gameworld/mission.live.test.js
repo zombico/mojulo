@@ -66,7 +66,9 @@ describe('the first mission, from a world', () => {
     await page.evaluate(() => { const W = window.__mojCtrl.world, me = W.entities.find((e) => e.pilotable), f = W.entities.find((e) => e.team === 'foes'); f.transform.pos[0] = me.transform.pos[0] - 6; f.transform.pos[1] = me.transform.pos[1]; me.transform.heading = 0; me.hits = (me.hits || 0) + 1; me.lastHitBy = f.id; });
     await page.waitForFunction(() => window.__mojMission.state.ms.ring.on, T());
     expect(await ring()).toMatchObject({ on: true, hits: [{ bearing: 180 }] });
-    await page.waitForFunction(() => !window.__mojMission.state.ms.ring.on, { timeout: 10000 });
+    // (its mark stands its life, damage-ring.js RING.life, in the world's time: a frame steps that time by a capped dt, so
+    // on a loaded runner drawing a frame a second its 1.6 s take tens of seconds by the clock; waited for as long)
+    await page.waitForFunction(() => !window.__mojMission.state.ms.ring.on, T(90000));
     // a way on still sealed puts the body back
     const S0 = level.mission.sections[0];
     await stand(S0.door.at);
@@ -84,9 +86,13 @@ describe('the first mission, from a world', () => {
     // the pilot's pause: the menu up, the scene held
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => window.__mojMission.rt.state().screen === 'pause', T());
+    expect((await st()).screen).toBe('pause');
+    // (a frame already in flight as the menu came up may step the clock once more: a software-drawn frame takes 270 to
+    // 390 ms on a runner, so the hold is read once the clock has stood still for longer than one; a scene that never
+    // holds times out here)
+    await page.waitForFunction(() => new Promise((r) => { const t0 = window.__mojCtrl.world.time; setTimeout(() => r(window.__mojCtrl.world.time === t0), 600); }), T());
     const z = await st();
-    expect(z.screen).toBe('pause');
-    await wait(400);
+    await wait(1000);
     expect((await st()).t).toBe(z.t);
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => !window.__mojMission.up, T());

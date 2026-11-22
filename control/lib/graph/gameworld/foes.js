@@ -490,6 +490,8 @@ export function hostileCast(G, level, ends, { refs, hero = true, hurt = null, ra
   }
   // on a side strip's rail: each body that stands (a summons sleeps on its summoner) is ON the rail where it was stood,
   // held to the lane in all it does; a rare one (railAmbush) waits behind the lane and comes in
+  // (a side map says its own rail in its ends: side-map/cast.js sideMapEnds)
+  rail = rail ?? ends?.rail ?? null;
   if (rail) {
     let k = 0;
     const taken = [];

@@ -13,7 +13,8 @@
  *             their sides pixel-locked the same way
  *   hats      a boulder big enough wears one: its top cap is a grass tile and a ragged grass FRINGE drapes over its
  *             shoulder; every cliff LIP (a grass cell above a cliff cell) drapes the same fringe down the face
- *             (a stage's `hats: false` keeps the rocks and the lips clean: no cap, no fringe)
+ *             (a stage's `hats: false` keeps the rocks and the lips clean: no cap, no fringe; `hats: 'lips'` the rocks
+ *             alone, the lips' fringe kept)
  *   grass     tufts as crossed blade cards, pixel-locked, lit or shade by the shadow at the tuft's root
  *   trees     a crown of overlapping round masses on a short trunk, baked and locked to the foliage ramp
  *   layers    the far ridges painted from the far ramp; a thin haze; the sky dome from the sky ramp; a high cloud deck
@@ -43,6 +44,7 @@ import { makeSunShadow, makeSoftSunShadow, sunDir } from './sun.js';
 import { bakeStageLight } from './stage.js';
 import { natureSite, trailFaces, trailRims, rockItems, treeItems, grassTufts, tube } from './nature.js';
 import { blobTris } from '../vegetation/tree-mesh.js';
+import { realisticPlan, realisticParts, treeYaw } from '../form/flora-read.js';
 import { lockFaces } from './palette.js';
 import { gridX, gridY } from '../polygonizer/landform.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
@@ -683,7 +685,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   } else if (Hr) { const H = heroSpot(Hr, site, manifest); if (H) trees.push({ ...H, h: Hr.h, v: 0, cluster: -1, hero: true }); }
   if (keep) for (let i = trees.length - 1; i >= 0; i--) if (!kept(keep, trees[i].x, trees[i].y, CROWN)) trees.splice(i, 1);
   // (the form render's trail ALLOTTED, ALLOT: no tree standing in a stone's ground, its foot clear of it)
-  if (ctx.form) { const stones = allotClaims(st, { rocks }); for (let i = trees.length - 1; i >= 0; i--) if (stones.some(([x, y, r]) => Math.hypot(trees[i].x - x, trees[i].y - y) < r + ALLOT.trunk)) trees.splice(i, 1); }
+  // (and a gen-6 scene's realistic trees allotted alike: the same stand as the form render's, realisticBands)
+  if (ctx.form || manifest.crowns === 'realistic') { const stones = allotClaims(st, { rocks }); for (let i = trees.length - 1; i >= 0; i--) if (stones.some(([x, y, r]) => Math.hypot(trees[i].x - x, trees[i].y - y) < r + ALLOT.trunk)) trees.splice(i, 1); }
   // (a clump's roles its cast names a bush, thickets.js clumpBushes: those trees taken out, bushes stood where they stood)
   const CB = st.thickets && !bamboo && !sakura ? clumpBushes(trees, st.trees, st.thickets, site, { far: TREE_BANDS.far }) : null;
   if (CB && CB.items.length) trees.splice(0, trees.length, ...CB.trees);
@@ -692,7 +695,12 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // the trees BANDED by the trail (a card's `trees.bands`, treeBands): the hero near built whole, the stock past it
   // stamped from templates (built off the map, through everything below, then lifted out), the far a shell
   // (a cavern stands no band of trees round it: underground)
-  const TB = !bamboo && !sak && !st.glow && !site.cavern ? treeBands(st, site, trees, broken) : null;
+  // (a gen-6 scene's REALISTIC trees, `crowns: 'realistic'`: the trees the form render keeps, painted from its own
+  // structure, realisticBands)
+  const realistic = !ctx.form && manifest.crowns === 'realistic' && !bamboo && !sak && !st.glow && !site.cavern && (st.trees.form || 'blob') === 'blob';
+  const TB = realistic ? realisticBands(st, site, trees) : !bamboo && !sak && !st.glow && !site.cavern ? treeBands(st, site, trees, broken) : null;
+  // (the trees the form render leaves out are left out here too: one stand of trees in both eras)
+  if (realistic) trees.splice(0, trees.length, ...trees.filter((t) => t.real));
   // BUSHES in sections (a biocube's `bushes`, thickets.js): tree kinds with the trunk taken away, drawn through the
   // trees' own path; a blocking bush a collider, a walked-through one drawn in the page's soft groups
   const TS = st.thickets && !bamboo && !sak ? placeThickets(st.thickets, site, { rocks, trees, reserved: site.reserved, far: TREE_BANDS.far }, seed) : null;
@@ -814,17 +822,18 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // (read in the form render, gen-7: no fringe draped over a cliff's lip or a boulder's rim, and no grass cap on a boulder:
   // they are painted cards and painted tops, tricks the material render does not keep; the rock stays rock, its moss the
   // form's own, optional; ctx.form, worlds/world-scene.js)
-  // (a stage's `hats: false`: the rocks and the cliff lips kept clean, no grass cap and no fringe)
-  if (manifest.hats !== undefined && typeof manifest.hats !== 'boolean') throw new Error('stage: hats is true or false (false: no grass cap on a rock, no fringe over a cliff lip)');
-  const drapes = !ctx.form && manifest.hats !== false;
-  const grows = !!st.grass && (!SH || !!B) && !site.cavern, hatOf = (b) => !b.cave && drapes && grows && b.s >= st.boulder.minHat;
+  // (a stage's `hats: false`: the rocks and the cliff lips kept clean, no grass cap and no fringe; `hats: 'lips'`: the
+  // rocks kept clean, the cliff lips' fringe kept: a new scene's, gameworld/levels.js)
+  if (manifest.hats !== undefined && typeof manifest.hats !== 'boolean' && manifest.hats !== 'lips') throw new Error("stage: hats is true, false or 'lips' (false: no grass cap on a rock, no fringe over a cliff lip; 'lips': the cliff lips' fringe alone)");
+  const drapes = !ctx.form && manifest.hats !== false, rockHats = drapes && manifest.hats !== 'lips';
+  const grows = !!st.grass && (!SH || !!B) && !site.cavern, hatOf = (b) => !b.cave && rockHats && grows && b.s >= st.boulder.minHat;
   const capSnow = (f) => SF && f.normal[2] > SN.hold && SF(...mean(f.corners), f.normal) > 0;
   const asCap = (b) => (f) => (capSnow(f) ? { ...asRock(f), group: 'isekai:snow', tint: landTint['isekai:snow'] } : SH && hatOf(b) ? { ...asRock(f), group: 'isekai:ground', tint: landTint['isekai:ground'] } : asRock(f));
   const rockFaces = SH ? [...ground.faces.filter((f) => f.cel === 'cliff').map(asRock), ...boulders.flatMap((b) => [...b.sides.map(asRock), ...b.cap.map(asCap(b))])] : [];
   if (!SH) for (const f of ground.faces) if (f.cel === 'cliff') draw(f, 'cliff', lit(mean(f.corners), f.celN), cliffN);
   const H = st.hat, fringes = [];
   for (const b of boulders) {
-    const hatted = SH ? hatOf(b) : !b.cave && drapes && b.s >= st.boulder.minHat;
+    const hatted = SH ? hatOf(b) : !b.cave && rockHats && b.s >= st.boulder.minHat;
     if (!SH) {
       const bn = MAT ? formNormals([...b.sides, ...b.cap]) : null;
       for (const f of b.sides) draw(f, 'rock', lit(mean(f.corners), f.normal), bn);
@@ -1066,6 +1075,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     faces: site.caves ? caveLight([...drawnFaces, ...site.caves.flatMap((c) => lampFaces(c).map((f) => ({ ...f, outNormal: f.normal, cornerFills: f.corners.map(() => f.fill) })))], site.caves, { day: st.night ? 0.3 : 1, open: hourDim(st) }) : drawnFaces,
     cutouts,
     ...(treeRepeats.length ? { repeats: treeRepeats } : {}),
+    // (a gen-6 scene's realistic trees, their places and how many built whole: realisticBands)
+    ...(realistic ? { realistic: { trees: trees.map((t) => [r5(t.x), r5(t.y), r5(t.real.h)]), built: TB.built.length } } : {}),
     ...(st.clouds ? { effects: [composeCloudDeck([], { up: 'z', ...st.clouds, sun: dir })] } : {}),
     lights: [],
     cameras: [manifest.camera || (site.out ? outTrailCamera(site) : { name: 'trail', worldFraming: { cameraPosition: eye.map(r5), lookAt: [x1, y1, site.ground(x1, y1) + 3].map(r5), horizontalFov: 75, pictureCenter: [560, 390] } }),
@@ -1090,7 +1101,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     ...(manifest.destruction === 'physical' ? { physicalTrees: (TB ? TB.built : trees).filter((t) => t.trunks && t.crownAt).map((t, i) => ({ id: `tree-${i}`, foot: [r5(t.trunks[0].pts[0][0]), r5(t.trunks[0].pts[0][1]), r5(t.trunks[0].pts[0][2])], h: r5(t.h), trunk: r5(t.trunks[0].radii[0]), crownAt: t.crownAt, crownR: t.crownR, ...(st.trees.form ? { form: st.trees.form } : {}) })) } : {}),
     // (the live grass: asked for by the recipe, or the carpet a biocube's grass lays by default)
     // (under snow, the carpet the snow's depth leaves standing, as the tufts are, and no wildflowers in it: snow.js grassUnder)
-    ...((manifest.wind || manifest.grass || (B?.flora?.grass && B.flora.grass.live !== null)) && grows ? { liveGrass: offSand(grittyGrass(liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass ?? (B?.flora?.flowers && !SN ? { flowers: B.flora.flowers } : undefined), inSnow), broken, st), onSand) } : {}),
+    ...((manifest.wind || grassAsks(manifest.grass) || (B?.flora?.grass && B.flora.grass.live !== null)) && grows ? { liveGrass: offSand(grittyGrass(liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, grassWith(manifest.grass, B?.flora?.flowers && !SN ? { flowers: B.flora.flowers } : undefined), inSnow), broken, st), onSand) } : {}),
     // a gritty polygon land's rock: its fabric drawn near the eye, as the island's (its own strata and joints)
     ...(broken ? { fabric: (() => {
       const base = { joints: site.grid.joints ?? { spacing: st.landform.joint }, strata: site.grid.strata ?? null, grit: SH.grit, sun: dir, seed, rockColour: stopFill(st, 'cliff', true), green: stopFill(st, 'blades', true) };
@@ -1104,7 +1115,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: WALK_EYE, gravity: 22, radius: 0.4 },
     // (the form render's read, ctx.form: where each plant stands, as data, for it to grow its own there: form/flora-read.js;
     // world-scene takes it off the payload once read. Any other read: none, every byte as it was)
-    ...(ctx.form ? { plants: withClaims(plantItems(st, site, { trees, thickets: TH, shrubs: shr, rocks, avoid: near.filter((a) => !trees.includes(a)), skirt: skirtTrees }), [...(LP?.claims ?? []), ...(TRK?.claims ?? []), ...(DF?.claims ?? [])]) } : {}),
+    // (`crowns`, CROWNS: how its broadleaves' crowns are read, form/flora-read.js treeTemplate)
+    ...(ctx.form ? { plants: { ...withClaims(plantItems(st, site, { trees, thickets: TH, shrubs: shr, rocks, avoid: near.filter((a) => !trees.includes(a)), skirt: skirtTrees }), [...(LP?.claims ?? []), ...(TRK?.claims ?? []), ...(DF?.claims ?? [])]), ...(manifest.crowns !== undefined ? { crowns: crownsOf(manifest.crowns) } : {}) } } : {}),
     // (and its dunes as a map, for the form render's sand: era/out-dunes.js duneMap)
     ...(ctx.form && DS ? { dunes: duneMap(site) } : {}),
     // (and its snow as a map, for the form render to lay it over the ground: era/snow.js snowMap)
@@ -1339,7 +1351,17 @@ function grittyGrass(LG, grit, st) {
     // (its crowns are chipped: the core and the chips sway with the wood)
     ...(LG.crowns ? { crowns: { ...LG.crowns, groups: [...LG.crowns.groups, CORE_GROUP, CHIP_GROUP, ...(st.thickets ? [SOFT_BRUSH.core, SOFT_BRUSH.chips] : [])] } } : {}) };
 }
-const GRASS_KEYS = ['look', 'contact', 'density', 'height', 'flowers', 'far', 'sway'];
+// a stage's `crowns`, how its broadleaves' crowns are read in the form render (form/flora-read.js treeTemplate): 'hybrid'
+// (each leaf bundle round a blob), 'masses' (big blobs round the branches, the bundles on their surfaces) or 'blobs' (a
+// blob at each branch end, the leaves set aside: the crown's form studied alone)
+export const CROWNS = Object.freeze(['hybrid', 'masses', 'blobs', 'realistic']);
+const crownsOf = (c) => { if (!CROWNS.includes(c)) throw new Error(`isekai: crowns is ${CROWNS.join(' or ')} (how the form render reads its broadleaves' crowns)`); return c; };
+const GRASS_KEYS = ['look', 'contact', 'density', 'height', 'flowers', 'far', 'sway', 'form'];
+// (a grass that says only HOW it is drawn, `{ form: true }`, asks for no grass of its own: it draws whatever grass the
+// stage grows, over the defaults that grass would take)
+const onlyHow = (g) => !!g && typeof g === 'object' && !Array.isArray(g) && Object.keys(g).every((k) => k === 'form');
+const grassAsks = (g) => !!g && !onlyHow(g);
+const grassWith = (g, dflt) => (onlyHow(g) ? { ...(dflt ?? {}), ...g } : g ?? dflt);
 /**
  * `grass` on an isekai stage: the live field's own dials, beside `wind` (and standing it in the default wind without one).
  * { look?: 'banded' | 'material' (default the kit's pole), contact?: true | false | { body?, press?, recover?, wave?,
@@ -1352,6 +1374,7 @@ export function validateIsekaiGrass(g) {
   const e = [];
   if (g.look !== undefined && !['banded', 'material'].includes(g.look)) e.push("grass.look must be 'banded' (the ramp's stops, locked) or 'material' (a material under light)");
   if (g.sway !== undefined && g.sway !== false) e.push('grass.sway is false (the trees stand still in the wind), or left out (they sway)');
+  if (g.form !== undefined && typeof g.form !== 'boolean') e.push('grass.form must be true or false (the field drawn as the form render\'s grass and its raised ground, in the stage\'s ramp: channels/stage-grass.js)');
   if (g.far !== undefined && typeof g.far !== 'boolean') e.push('grass.far must be true or false (the far grass past the field: the card\'s, or none)');
   if (g.density !== undefined && !(Number.isFinite(g.density) && g.density >= 0.5 && g.density <= 12)) e.push('grass.density must be 0.5–12 (tufts a square metre)');
   if (g.height !== undefined && !(Array.isArray(g.height) && g.height.length === 2 && g.height.every((v) => Number.isFinite(v) && v >= 0.1 && v <= 2.5) && g.height[0] <= g.height[1])) e.push('grass.height must be [lo, hi], 0.1–2.5 m, lo ≤ hi');
@@ -1571,6 +1594,9 @@ export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1, 
     // the FAR grass (the card's `live.far`): the meadow out past the field in clumps of its own, wider and sparser, that
     // stand where the field has thinned and give way to it as it fills in (stage-grass.js); `grass.far: false` ⇒ none
     ...(L.far && G.far !== false ? { far: { density: L.far.density, width: L.far.width } } : {}),
+    // THE FORM FIELD (`grass.form`): the field drawn as the form render's grass in this stage's ramp, and past its reach
+    // the RAISED GROUND (channels/far-lift.js), in place of the tufts and the blade cards (channels/stage-grass.js)
+    ...(G.form ? { form: true } : {}),
     // the MATERIAL pole draws the grass as a material under light: by the look's pole unless the recipe says
     ...((G.look ?? poleOf(st)) === 'material' ? { real: { ...REAL_GRASS, ...(L.real || {}), sun: sunDir(st.light.key.elevation, st.light.key.azimuth).map(r5), sunColor: hexRgb(st.light.key.color).map((v) => Math.round(v * 255)) } } : {}),
     // the sakura's PETALS: falling from under each crown, and the CARPET lying round the walker
@@ -1918,9 +1944,69 @@ function treeBands(st, site, trees, grit = 0) {
   }).filter(Boolean);
   return { built, stock, phantoms, isPhantom, repeats };
 }
+/**
+ * REALISTIC TREES PAINTED (a gen-6 trail's `crowns: 'realistic'`): the trees the form render keeps (form/flora-read.js
+ * realisticPlan: their species, their heights, trees apart, their headroom), each drawn from its template's own
+ * structure (realisticParts) as painted faces: its trunk, stems and limbs as tubes (`sides` by their order, a chain's
+ * points thinned to `points`), its puffs as the crown's blobs (`detail`), all through the stage's light and lock. Banded
+ * as the trail bands its trees (TREE_BANDS): the HERO near built whole, turned as the form render turns it (treeYaw); the
+ * rest STAMPED from its template's `variants`, each turned its own way, a tree its variant by its place; a FAR tree casts
+ * as its coarse self (its trunk and main limbs, its puffs coarsest). One structure in both eras.
+ */
+export const REAL_BANDS = Object.freeze({ variants: 3, sides: Object.freeze([6, 5, 4]), points: 4, trunkPoints: 6, detail: 1 });
+function realisticBands(st, site, trees) {
+  const plants = plantItems(st, site, { trees, thickets: null, shrubs: null }), B = TREE_BANDS, n = REAL_BANDS.variants;
+  const kept = realisticPlan(plants).map(({ i, T, h }) => Object.assign(trees[i], { real: { T, h, yaw: treeYaw(plants.trees[i].x, plants.trees[i].y) } }));
+  for (const t of kept) { const d = site.trailDist(t.x, t.y) - site.halfWAt(t.y); t.band = t.hero || d < B.hero ? 'hero' : d > B.far ? 'far' : 'stock'; }
+  const built = kept.filter((t) => t.band === 'hero'), stock = kept.filter((t) => t.band !== 'hero');
+  const tpls = [...new Set(stock.map((t) => t.real.T))];
+  const phantoms = tpls.flatMap((T, si) => Array.from({ length: n }, (_, v) => ({ x: B.off - B.gap * (si * n + v), y: B.off, z0: 0, h: T.height, v, slot: si * n + v, cluster: -2, band: 'stock', real: { T, h: T.height, yaw: (2 * Math.PI * v) / n } })));
+  const vOf = (t) => Math.floor(hash3(Math.round(t.x * 100), Math.round(t.y * 100), 4159) * n) % n;
+  const isPhantom = (f) => f.corners[0][0] < B.off / 2;
+  const repeats = (faces, sunAt) => phantoms.map((ph) => {
+    const mine = stock.filter((t) => t.real.T === ph.real.T && vOf(t) === ph.v);
+    if (!mine.length) return null;
+    const template = faces.filter((f) => Math.round((B.off - f.corners[0][0]) / B.gap) === ph.slot).map((f) => ({ ...f, corners: f.corners.map((c) => [r5(c[0] - ph.x), r5(c[1] - ph.y), c[2]]) }));
+    return { template, group: `isekai:trees:${ph.slot}`, transforms: mine.map((t) => {
+      const z = site.ground(t.x, t.y) - 0.15, lit = sunAt([t.x, t.y, z + t.real.h * 0.7]), sh = lit < 1 ? B.shade + (1 - B.shade) * lit : 1;
+      return { pos: [t.x, t.y, r5(z)], scale: r5(t.real.h / ph.h), ...(lit < 1 ? { tint: [sh, sh, sh].map(r5) } : {}) };
+    }) };
+  }).filter(Boolean);
+  return { built, stock, phantoms, isPhantom, repeats };
+}
+// one realistic tree's painted faces (REAL_BANDS): its template's chains and puffs, turned, scaled and stood at its foot
+function realFaces(st, site, t, group, tint) {
+  const R = realisticParts(t.real.T); if (!R) return [];
+  const far = t.band === 'far', k = t.real.h / t.real.T.height, c = Math.cos(t.real.yaw), s = Math.sin(t.real.yaw), z0 = t.z0 ?? site.ground(t.x, t.y) - 0.15;
+  const at = (q) => [t.x + (q[0] * c - q[1] * s) * k, t.y + (q[0] * s + q[1] * c) * k, z0 + q[2] * k], out = [];
+  t.trunks = [];
+  for (const ch of R.chains) {
+    if (far && ch.order > 1) continue;
+    const m = ch.pts.length, np = Math.min(m, ch.order === 0 ? REAL_BANDS.trunkPoints : REAL_BANDS.points), ix = Array.from({ length: np }, (_, j) => Math.round((j * (m - 1)) / Math.max(1, np - 1)));
+    const pts = ix.map((j) => at(ch.pts[j])), radii = ix.map((j) => ch.rs[j] * k);
+    tube(out, pts, radii, far ? 4 : REAL_BANDS.sides[Math.min(2, ch.order)], st.tint.wood, 'isekai:wood');
+    if (ch.order === 0) t.trunks.push({ pts, radii });
+  }
+  const P0 = R.puff, unitS = blobTris([0, 0, 0], [1, 1, 1], null, { detail: far ? 0 : REAL_BANDS.detail }), mids = [];
+  for (const b of R.puffs) {
+    const ha = Math.atan2(b.o[1], b.o[0]), ca = Math.cos(ha), sa = Math.sin(ha), ctr = at(b.p);
+    mids.push(ctr);
+    for (const tri of unitS) {
+      const cs = tri.p.map((q) => { const x = q[0] * P0.wide * (P0.long ?? 1), y = q[1] * P0.wide, z = q[2] * (q[2] >= 0 ? P0.top : P0.bottom); return P(at([b.p[0] + (x * ca - y * sa) * b.s, b.p[1] + (x * sa + y * ca) * b.s, b.p[2] + z * b.s])); });
+      const nn = facetN(cs, sub(mean(cs), ctr));
+      out.push({ corners: cs, normal: nn, outNormal: nn, tint, group });
+    }
+  }
+  // (where its crown hangs and how far it reaches, as a painted tree says)
+  const cm = mids.length ? mean(mids) : [t.x, t.y, z0 + t.real.h * 0.7];
+  t.crownAt = cm.map(r5); t.crownR = r5(Math.max(1, ...mids.map((q) => Math.hypot(q[0] - cm[0], q[1] - cm[1]))));
+  return out;
+}
 function treeFaces(st, site, trees, grit = 0) {
   const T = st.trees, C = T.crown, out = [], lobesAll = [], blossom = T.form === 'blossom', crownGroup = blossom ? 'isekai:blossom' : 'isekai:crown', crownTint = blossom ? st.tint.blossom : st.tint.crown;
   trees.forEach((t, ti) => {
+    // (a realistic tree painted from its template's structure, realisticBands)
+    if (t.real) { for (const f of realFaces(st, site, t, crownGroup, crownTint)) out.push(f); return; }
     // (a stock tree's template stands at its own `z0`, off the map: era/isekai.js treeBands)
     const z0 = t.z0 ?? site.ground(t.x, t.y) - 0.15, h = t.h, k = Math.round(t.x * 17 + t.y * 5) + ti * 131;
     const Rc = C.radius * h, c = [t.x + (hash3(k, 1, 941) - 0.5) * 0.3, t.y + (hash3(k, 2, 943) - 0.5) * 0.3, z0 + C.height * h];

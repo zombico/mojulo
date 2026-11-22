@@ -4,8 +4,10 @@
  * screens as pips, the crowd left on this one (or the boss's bar while it stands), the moments (GO, the boss's name),
  * and the two ends (the street cleared, the player down), each with a way to fight it again.
  *
- *   streetSpec()        the spec: the HUD and its screens (`won`, `lost`, and `moves`, the brawler's move list)
- *   streetScreenOf()    → { spec, css, theme } for the street's page
+ *   streetSpec(play?, { powers? })  the spec: the HUD and its screens (`won`, `lost`, and `moves`, the brawler's move
+ *                       list); `powers` each seat's power stock as pips and the LENS, mana-ui's screen layer, for a
+ *                       power's super beat round its caster (a heroes street's: brawl-powers.js `beat`)
+ *   streetScreenOf(play?, { powers? }) → { spec, css, theme } for the street's page
  *   readStreet(street, belt, where?) → the settled `{ players, waves, things?, cast? }` of a world's `brawl.street` (throws
  *                       naming the fault before the page is made)
  *
@@ -18,11 +20,12 @@
  */
 import { readScenes } from './brawl-scenes.js';
 import { IDIOMS } from '../../mana-ui/idioms.js';
-import { manaCss } from '../../mana-ui/css.js';
+import { manaCss, lensCss } from '../../mana-ui/css.js';
 import { themeCss } from '../../mana-ui/theme.js';
 import { cardTheme } from '../playscape/ui/theme-cards/loader.js';
 import { readWaves } from './brawl-crowd.js';
 import { readGun } from './brawl-guns.js';
+import { STREET_TUNINGS } from './brawl-tunings.js';
 
 const b = (path) => ({ bind: `brawl.street.${path}` });
 const endOf = (title, sub, play, won) => ({ use: 'screen', props: { layer: 'modal', place: 'center', title }, children: [{ use: 'stack', props: { dir: 'column', gap: 'normal', align: 'center' }, children: [
@@ -41,7 +44,7 @@ export const STREET_GUNS = Object.freeze(['machine-gun']);
 // (what the end says: the time, the health kept as a bar and never as a sum, the accuracy where guns were fired, the rank
 // stamped on; a loss says none of the health it does not have)
 const stats = (play, won = true) => [{ use: 'stat', props: { label: 'time', value: b('time'), count: true } }, ...(won ? [{ use: 'bar', props: { value: b('hp'), max: b('hpMax'), variant: 'hp', label: 'health', figures: false } }] : []), ...(play === 'gun' ? [{ use: 'stat', props: { label: 'accuracy', value: b('accuracy') } }] : []), ...(won ? [{ use: 'badge', props: { value: b('rank'), variant: 'stamp' } }] : [])];
-export function streetSpec(play = 'brawl') {
+export function streetSpec(play = 'brawl', { powers = false } = {}) {
   const end = (title, sub, won) => endOf(title, sub, play, won);
   return {
     defs: { 'command-list': { params: IDIOMS['command-list'].params, node: IDIOMS['command-list'].node } },
@@ -59,7 +62,9 @@ export function streetSpec(play = 'brawl') {
           { use: 'bar', props: { value: b(`${p}.hp`), max: b(`${p}.hpMax`), variant: 'hp', size: 'large', segments: 5, figures: false, side: k } },
           ...(play === 'gun' ? [{ use: 'stack', props: { dir: 'row', gap: 'normal', align: 'apart' }, children: [
             { use: 'magazine', props: { gun: b(`${p}.gunId`), rounds: b(`${p}.rounds`), size: b(`${p}.size`), endless: b(`${p}.endless`), low: 0.2 } },
-            { use: 'pips', props: { value: b(`${p}.grenades`), max: b(`${p}.grenadesMax`), shape: 'pip' } }] }] : [])] },
+            { use: 'pips', props: { value: b(`${p}.grenades`), max: b(`${p}.grenadesMax`), shape: 'pip' } }] }] : []),
+          // (a hero's power: its uses left this life as pips under its bar, where the street's heroes have powers)
+          ...(powers ? [{ use: 'pips', props: { value: b(`${p}.power`), max: b(`${p}.powerMax`), shape: 'pip' }, when: b(`${p}.powerOn`) }] : [])] },
         { use: 'stack', props: { dir: 'row', gap: 'tight', align: 'center' }, when: b(`${p}.open`), children: [{ use: 'badge', props: { value: `${k + 1}P`, side: k, variant: 'muted' } }, { use: 'text', props: { value: 'Press start', role: 'caption' } }] }] })) }] },
       // THE FOE BEING HIT: its name and a short bar under the hitter's seat, gone a moment after the last hit
       { use: 'region', props: { at: 'top-left', variant: 'bare' }, when: b('target.on'), children: [{ use: 'stack', props: { gap: 'tight', align: 'start' }, children: [{ use: 'text', props: { value: b('target.name'), role: 'label' } }, { use: 'bar', props: { value: b('target.hp'), max: b('target.hpMax'), variant: 'hp', size: 'thin', figures: false } }] }] },
@@ -87,8 +92,16 @@ export function streetSpec(play = 'brawl') {
       lost: end('Down', 'the street is still theirs', false),
       moves: { use: 'command-list', props: { title: 'Moves', kinds: b('moves') } },
     },
+    // THE LENS (mana-ui's screen layer, beside the world's canvas): a hero's SUPER BEAT, the camera's glass round whoever
+    // calls up a power (brawl-powers.js `beat`), each row its own kind. The street is held still for the beat, so the
+    // figure stands where the page drew it: the lens's own law. Only where the street's heroes have powers
+    ...(powers && play !== 'gun' ? { lens: { use: 'lens', children: [{ use: 'strike', props: { rows: b('strikes'), kind: 'lift', seconds: STRIKE_SECONDS, most: 4 } }] } } : {}),
   };
 }
+/** how long a super beat's strike plays (s): the freeze and the caster's move, which it stands still through */
+export const STRIKE_SECONDS = 0.5;
+/** the lens's scope on a street's page: its host beside the canvas (brawl-yard.client.js), never raised */
+export const STREET_LENS = '.moj-brawl-lens';
 
 // the street's own touches over the sheet: a seat low on health beats (co-op cannot say whose with one screen edge), the
 // way on's arrow leans and pulses (under three times a second), the combo's figure large, the boss's bar held to the
@@ -112,15 +125,19 @@ const STREET_CSS = [
   '.mana-root .mana-place[data-at=bottom] .mana-bar[data-variant=boss]{width:min(calc(760 * var(--mana-du)),58cqw)}',
 ].join('\n');
 
-export function streetScreenOf(play = 'brawl') {
-  return { spec: streetSpec(play), css: `${manaCss()}\n${themeCss(cardTheme('brawl-street'))}\n${STREET_CSS}`, theme: 'brawl-street', sides: cardTheme('brawl-street').sides };
+export function streetScreenOf(play = 'brawl', opts = {}) {
+  const spec = streetSpec(play, opts);
+  return { spec, css: `${manaCss()}\n${themeCss(cardTheme('brawl-street'))}\n${STREET_CSS}${spec.lens ? `\n${lensCss(`${STREET_LENS} .mana-lens`)}` : ''}`, theme: 'brawl-street', sides: cardTheme('brawl-street').sides };
 }
 
 /** A world's `brawl.street`, settled: who plays (roster indices, one to four), the waves a held screen (read against
  * the belt, so a fault is said before the page), the things on it. */
 export function readStreet(street, belt, where = 'brawl.street') {
   if (!street || typeof street !== 'object' || Array.isArray(street)) throw new Error(`brawl: ${where} is { players?, roster?, waves: [{ screen, crowd: [{ type, n }], boss? }], things? }`);
-  for (const k of Object.keys(street)) if (!['players', 'roster', 'waves', 'things', 'cast', 'scenes', 'play', 'guns', 'grenades'].includes(k)) throw new Error(`brawl: ${where}.${k} is not a street's word (players, roster, waves, things, cast, scenes, play, guns, grenades)`);
+  for (const k of Object.keys(street)) if (!['players', 'roster', 'waves', 'things', 'cast', 'scenes', 'play', 'guns', 'grenades', 'tuning'].includes(k)) throw new Error(`brawl: ${where}.${k} is not a street's word (players, roster, waves, things, cast, scenes, play, guns, grenades, tuning)`);
+  // (ITS TUNING, a card's id (brawl-tunings.js): the falls its players may take and the room's numbers; its army and
+  // entrances are laid into its waves where it is written, gameworld/quick.js brawlStreets)
+  if (street.tuning !== undefined && !STREET_TUNINGS.includes(street.tuning)) throw new Error(`brawl: ${where}.tuning is one of ${STREET_TUNINGS.join(', ')}`);
   // (HOW IT IS PLAYED: the brawler's kit, or the run & gun's: its players' guns (the first held over the sidearm) and grenades)
   const play = street.play ?? 'brawl';
   if (!STREET_PLAYS.includes(play)) throw new Error(`brawl: ${where}.play is ${STREET_PLAYS.join(' | ')}`);
@@ -133,5 +150,5 @@ export function readStreet(street, belt, where = 'brawl.street') {
   if (street.cast !== undefined && (!street.cast || typeof street.cast !== 'object' || Array.isArray(street.cast) || Object.values(street.cast).some((v) => { const L = Array.isArray(v) ? v : [v]; return !L.length || L.some((k) => !Number.isInteger(k) || k < 0); }))) throw new Error(`brawl: ${where}.cast is { <crowd type> | boss | *: a roster index, or a list of them taken in turn }`);
   if (!Array.isArray(street.waves) || !street.waves.length) throw new Error(`brawl: ${where}.waves is a list of { screen, crowd: [{ type, n }] }, at least one: a street with no wave is a walk`);
   readWaves(street.waves, belt);
-  return { players: street.players ?? [0], waves: street.waves, things: street.things ?? [], ...(play === 'gun' ? { play, guns: street.guns ?? STREET_GUNS.slice(), grenades: street.grenades ?? 3 } : {}), ...(street.roster ? { roster: street.roster } : {}), ...(street.cast ? { cast: street.cast } : {}), ...(street.scenes ? { scenes: readScenes(street.scenes, belt, `${where}.scenes`) } : {}) };
+  return { players: street.players ?? [0], waves: street.waves, things: street.things ?? [], ...(play === 'gun' ? { play, guns: street.guns ?? STREET_GUNS.slice(), grenades: street.grenades ?? 3 } : {}), ...(street.roster ? { roster: street.roster } : {}), ...(street.cast ? { cast: street.cast } : {}), ...(street.scenes ? { scenes: readScenes(street.scenes, belt, `${where}.scenes`) } : {}), ...(street.tuning ? { tuning: street.tuning } : {}) };
 }

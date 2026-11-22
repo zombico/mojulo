@@ -192,6 +192,10 @@ export function buildCombatRanged(E) {
       lobAngle: w.lobAngle ?? 0,          // deg the launch aim tilts UP from the look direction (the lob)
       splashRadius: w.splashRadius ?? 0,  // burst poise-break/damage reach; the direct hit is the d~0 case
       projRadius: w.projRadius ?? 0.5,    // the round's own collision radius (added to a target's radius)
+      // (opt-in: a round that flies on over and under z = 0, `noGround`, as a buster's does: a side map's floors are its
+      // colliders, below z = 0 as often as above; and one that passes through its own team's bodies, `passTeam`: a foe's
+      // round flies through the foes before it. Absent, as every round always was)
+      ...(w.noGround ? { noGround: true } : {}), ...(w.passTeam ? { passTeam: true } : {}),
       armTime: w.armTime ?? 0.06,         // sec before the round can burst (so it clears the muzzle/owner)
       fuse: w.fuse ?? 4,                  // sec max flight before it bursts wherever it is
       // DRAG (opt-in, 1/m): a shell's quadratic drag constant (½ρ·Cd·A / m): dv/dt = −k·|v|·v, a round slowing along its
@@ -412,6 +416,7 @@ export function buildCombatRanged(E) {
           // (a charged round carries the charge's damage, a bow's arrow drawn full; any other the weapon's own)
           damage: chargedShot ? shotDamage : (w.damage || 0), impact: shotImpact, born: state.time, age: 0, armTime: w.armTime || 0, fuse: w.fuse || 4, ...(w.projectileDrag ? { drag: w.projectileDrag } : {}),
           fxColor: w.fxColor ?? null, fxScale: w.fxScale ?? null, smokeTrail: w.smokeTrail !== false, ...(w.knock ? { knock: w.knock } : {}),
+          ...(w.noGround ? { noGround: true } : {}), ...(w.passTeam ? { passTeam: true } : {}),
         });
         e.lastShot = { mode: 'launch', t: state.time, from, to: null, charged: chargedShot };
       } else {
@@ -549,8 +554,10 @@ export function buildCombatRanged(E) {
           // the (larger) splash reaches the target. Contact rounds keep the bare radius.
           const segLen = Math.hypot(p.pos[0] - prev[0], p.pos[1] - prev[1], p.pos[2] - prev[2]);
           const detR = (p.projRadius || 0) + (p.prox || 0);
+          const passT = p.passTeam && state.byId && state.byId[p.owner] ? state.byId[p.owner].team : null;   // (a round through its own team)
           for (const tg of state.entities) {
             if (tg.id === p.owner || tg.invincible || !(tg.body && tg.body.hittable)) continue;   // i-frames take no hits
+            if (passT && tg.team === passT) continue;
             const stepLen = Math.max(latR(tg) * 0.5, 1e-3);
             const n = Math.min(24, Math.max(1, Math.ceil(segLen / stepLen)));
             let hitPt = null;

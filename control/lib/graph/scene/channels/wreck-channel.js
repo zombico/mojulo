@@ -34,10 +34,11 @@ export const WRECK_LIMBS = Object.freeze(['head', 'upperArmL', 'upperArmR', 'thi
 
 export function wreckGroups(bones, parent, { sever = 'all', seed = 1, ride = 0.065, limbs = ['head', 'upperArmL', 'upperArmR', 'thighL', 'thighR'] } = {}) {
   const n = bones.length, ids = bones.map((b) => b.id);
-  const len = (b) => Math.hypot(b.tail[0] - b.head[0], b.tail[1] - b.head[1], b.tail[2] - b.head[2]);
-  // (no parents given: each bone joins the bone whose segment passes nearest its head)
-  const segD = (p, a, b) => { const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], ap = [p[0] - a[0], p[1] - a[1], p[2] - a[2]], L = ab[0] * ab[0] + ab[1] * ab[1] + ab[2] * ab[2]; const t = L > 0 ? Math.max(0, Math.min(1, (ap[0] * ab[0] + ap[1] * ab[1] + ap[2] * ab[2]) / L)) : 0; return Math.hypot(ap[0] - ab[0] * t, ap[1] - ab[1] * t, ap[2] - ab[2] * t); };
-  const P = Array.isArray(parent) && parent.length === n ? parent : bones.map((b, i) => { let best = -1, bd = Infinity; bones.forEach((o, j) => { if (j !== i && j < i) { const d = segD(b.head, o.head, o.tail); if (d < bd) { bd = d; best = j; } } }); return best; });
+  // (a bone with no tail is a joint of a rig drawn by parts, a worker bot's: its own piece, never riding its parent)
+  const len = (b) => (b.tail ? Math.hypot(b.tail[0] - b.head[0], b.tail[1] - b.head[1], b.tail[2] - b.head[2]) : Infinity);
+  // (no parents given: each bone joins the bone whose segment passes nearest its head; a bone with no tail, its point)
+  const segD = (p, a, b = a) => { const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], ap = [p[0] - a[0], p[1] - a[1], p[2] - a[2]], L = ab[0] * ab[0] + ab[1] * ab[1] + ab[2] * ab[2]; const t = L > 0 ? Math.max(0, Math.min(1, (ap[0] * ab[0] + ap[1] * ab[1] + ap[2] * ab[2]) / L)) : 0; return Math.hypot(ap[0] - ab[0] * t, ap[1] - ab[1] * t, ap[2] - ab[2] * t); };
+  const P = Array.isArray(parent) && parent.length === n ? parent : bones.map((b, i) => { let best = -1, bd = Infinity; bones.forEach((o, j) => { if (j !== i && j < i) { const d = segD(b.head, o.head, o.tail || o.head); if (d < bd) { bd = d; best = j; } } }); return best; });
   let named = limbs.filter((id) => ids.includes(id));
   if (sever === 'head') named = named.filter((id) => id === 'head');
   if (sever === 'some') {

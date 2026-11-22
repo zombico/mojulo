@@ -12,6 +12,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 // leg of the matrix. Listed here so both configs read one list; the e2e config re-exports it.
 // A list, not a suffix: a rename would collide with every branch still editing these files.
 export const E2E = [
+  // a side map level resolved as its page resolves it and played to its goal by the side map's bot (gameworld/side-map/)
+  'lib/graph/gameworld/side-map/level.e2e.test.js',
   'lib/graph/gameworld/race-hud.e2e.test.js',
   'lib/graph/gameworld/door-probes.e2e.test.js',
   // a shoot plan's contact sheet rendered through the door: its frames captured in headless Chrome and composed
@@ -70,6 +72,8 @@ export const E2E = [
   'lib/graph/game/play-shell-atlas.live.test.js',
   // a zoned map's four zones built to a folder and walked gate by gate in headless Chrome (scripts/worldmap.mjs)
   'lib/graph/gameworld/worldmap-bed.live.test.js',
+  // the JRPG starter's town played: a townsperson's talk in the talk box, the innkeeper's inn
+  'lib/graph/gameworld/jrpg-town.live.test.js',
   // the hover bot over a little world in headless Chromium: its ground cast, its teleport, its flight's step and hole
   'lib/graph/scene/hover-bot.live.test.js',
   'lib/graph/game/pause-owner.live.test.js',
@@ -78,7 +82,7 @@ export const E2E = [
   'lib/graph/scene/channels/controllable/seats.live.test.js',
   'lib/graph/worlds/controllable/vayo-air.live.test.js',
   'lib/graph/worlds/controllable/vayo-move.live.test.js',
-  'lib/graph/worlds/controllable/knock.live.test.js',
+  'lib/graph/worlds/controllable/knock.live.test.js', 'lib/graph/scene/channels/controllable/shot-light.live.test.js', 'lib/graph/worlds/cel-body.e2e.test.js',
   'lib/graph/worlds/mount-ride.live.test.js',
   'lib/mcp/tools/design-game.seats.test.js',
   'lib/graph/science-worlds/conformance.chrome.test.js',
@@ -93,6 +97,12 @@ export const E2E = [
   'lib/graph/gameworld/combat/range-sound.chrome.test.js',
   'lib/graph/gameworld/combat/artillery.chrome.test.js',
   'lib/graph/scene/visual-gate.chrome.test.js',
+  // a level's scene said through mana-ui's talk box: its page in headless Chrome, a line, a choice clicked
+  'lib/graph/playscape/ui/talk-box.live.test.js',
+  // a scene's lines said by a realistic and an anime face: each face's weights move while its line plays
+  'lib/graph/playscape/ui/talk-mouth.live.test.js',
+  // a recorded line heard: its bytes on the page, played after a press while its line is up, stopped at the next
+  'lib/graph/playscape/ui/talk-voice.live.test.js',
 ];
 
 // What no tier but its own runs (the e2e config takes this, less the e2e suites themselves).

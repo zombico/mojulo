@@ -247,6 +247,38 @@ export function withFootwork(arm, travel, { R, rigNodesAt, plantedFoot }) {
   };
 }
 /**
+ * THE PLANT (a move's `plant`, gameworld/combos.js: a cut made where the hero stands): the feet SPLIT in place as the body
+ * swings into the blow, one leg forward and one back, and the body never moves (no travel: the runtime carries nothing).
+ * The lead foot steps out `m`/2 ahead of its stance place as the cut winds up and the rear `m`/2 behind it, each lifting
+ * on a short arc (the lead first, the rear overlapping it), both down by the blow; held through the blow; drawn back to the
+ * stance after it (the lead first), so the move ends where it began and a string chains. `on`: the move begins already
+ * split (a plant move chained into from another before its feet were drawn back: its `_on` clip), no opening.
+ *
+ *   PLANT                   the numbers: the lead's share of the opening and the closing, their overlap, the end, the lift
+ *   plantAt(u, P, lead)     → { L, R } each { dy, lift } at phase u, P { m, window: [from, to], on? }
+ */
+export const PLANT = Object.freeze({ lead: 0.65, end: 0.94, lift: 0.035 });
+export function plantAt(u, P, lead = 'L') {
+  const rear = lead === 'L' ? 'R' : 'L', h = P.m / 2, [c0, c1] = P.window, e = Math.max(c1 + 0.05, PLANT.end), k = PLANT.lead;
+  const arc = (a, b) => (u > a && u < b ? Math.sin(Math.PI * (u - a) / (b - a)) : 0);
+  // (each foot's share of the split at u: out over its opening, home over its closing)
+  const lo = [0, c0 * k], ro = [c0 * (1 - k), c0], lc = [c1, c1 + (e - c1) * k], rc = [c1 + (e - c1) * (1 - k), e];
+  const span = ([a, b]) => ease((u - a) / Math.max(b - a, 1e-6));
+  const wL = (P.on ? 1 : span(lo)) * (1 - span(lc)), wR = (P.on ? 1 : span(ro)) * (1 - span(rc));
+  const lift = (o, c) => PLANT.lift * Math.max(P.on ? 0 : arc(o[0], o[1]), arc(c[0], c[1]));
+  return { [lead]: { dy: h * wL, lift: lift(lo, lc) }, [rear]: { dy: -h * wR, lift: lift(ro, rc) } };
+}
+/** A clip's plant over it: each foot from the clip's stance place split by plantAt (the lead the foot standing further
+ * forward as the move begins, the left on a square stance), the body sunk as little as lets both legs reach. */
+export function withPlant(arm, P, { R, rigNodesAt, plantedFoot }) {
+  const Z = { L: { dy: 0, lift: 0 }, R: { dy: 0, lift: 0 } }, F0 = feetOf(R, arm(0), Z, plantedFoot), lead = F0.R[1] > F0.L[1] + 1e-6 ? 'R' : 'L';
+  return (u) => {
+    const p = arm(u), at = { ...p, feet: feetOf(R, p, plantAt(u, P, lead), plantedFoot) };
+    for (let s = 0; s <= 0.3 + 1e-9; s += 0.01) { const q = s ? { ...at, sink: Math.round(((p.sink ?? 0) + s) * 1e4) / 1e4 } : at; if (legsReach(R, q, rigNodesAt)) return q; }
+    return at;
+  };
+}
+/**
  * THE ART'S REACH GUARD (a sword art's clips, `ctx.style` an art: SWING_STYLES with a `timing`): an art's keys stand at
  * the edge of what the legs reach (the least sink, the widest stance), so a moment between two keys, or a lunge out of
  * the art's wide stance, can outstretch a leg. Any sample that does sinks on until both reach (`sink`, at most 0.6 m),
@@ -301,10 +333,12 @@ export function moveClip(move, ctx) {
   const tTo = move.travel ? Math.max(0.05, move.travel.kind === 'step' || move.travel.kind === 'dash' ? contact[0] : contact[1]) : 0;
   const travel = move.travel && move.travel.kind !== 'none' && move.travel.m > 0 ? { kind: move.travel.kind, m: move.travel.m, from: Math.min(move.travel.wait || 0, tTo * 0.5), to: tTo } : null;
   // (a DASH glides: its feet held in the stance while the runtime carries the body, no footwork)
-  const fn0 = move.air ? (u) => airBody(arm(u), u, from) : travel && ctx.footwork && travel.kind !== 'dash' ? withFootwork(arm, travel, ctx) : arm;
+  // (a PLANT splits the feet in place: no travel with it, the body still)
+  const plant = !move.air && !travel && move.plant > 0 ? { m: move.plant, window: [contact[0], contact[1]], ...(move.plantOn ? { on: true } : {}) } : null;
+  const fn0 = move.air ? (u) => airBody(arm(u), u, from) : plant ? withPlant(arm, plant, ctx) : travel && ctx.footwork && travel.kind !== 'dash' ? withFootwork(arm, travel, ctx) : arm;
   const fn = isArt(ctx.style) ? reachGuard(fn0, R, rigNodesAt) : fn0;
   fn.keys = 24;
-  fn.move = { family: 'swing', word, hand: 'R', class: cls, strike: from, window: [from, contact[1]], ...(travel ? { travel } : {}), ...(move.air ? { air: true } : {}) };
+  fn.move = { family: 'swing', word, hand: 'R', class: cls, strike: from, window: [from, contact[1]], ...(travel ? { travel } : {}), ...(plant ? { plant } : {}), ...(move.air ? { air: true } : {}) };
   return fn;
 }
 

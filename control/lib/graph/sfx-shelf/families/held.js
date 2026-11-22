@@ -8,7 +8,7 @@
  *            tracked vehicle's diesel and its tracks, a multirotor drone's motors and props
  *   beam     a held beam weapon by its power: a laser's buzz, a plasma stream's roar
  *   servo    a machine gathering itself: the audio channel's jump servo and its piston chuffs, ported; a walking
- *            machine's hydraulics by its pace
+ *            machine's hydraulics by its pace; a machine's steam venting, by its pressure
  *   fire     a fire burning on: its roar breathing, its crackle popping faster as it grows
  *   charge   a charge filling: a hum climbing an octave and more, its pulse quickening
  *   exhaust  a motor UNDER LOAD by its throttle at its revs, silent coasting: a road car's growl over its engine
@@ -173,7 +173,7 @@ export const servo = {
   label: 'a machine gathering itself: a servo straining, pistons chuffing faster',
   sustain: true,
   ordered: [],
-  dials: { kind: ['hydraulic', 'walker'] },
+  dials: { kind: ['hydraulic', 'walker', 'steam'] },
   defaults: { kind: 'hydraulic' },
   idle: 'silent',
   build(d) {
@@ -182,6 +182,14 @@ export const servo = {
       osc('sawtooth', [90, 180], [0, 0.3], { cutoff: [300, 1600], q: 3 }),
       noise([0, 0.25], { band: { lo: 200 }, cutoff: [600, 2400], q: 1.2, lfo: { to: 'gain', wave: 'sawtooth', rate: [1, 4], depth: -1 } }),
       noise([0, 0.06], { band: { lo: 2000 }, cutoff: [3500, 9000], pan: 0.2 }),
+    ] };
+    // a machine's steam venting by its pressure: a bright hiss through a lowpass opening up, chuffing with each exhaust
+    // (a sawtooth on its gain), a breath of air under it and the pipe's low rush; silent at no pressure, as the family is
+    // (a body that steams as it stands is held at its standing pressure by its channel: run-audio.js RUN_STEAM)
+    if (d.kind === 'steam') return { attack: 0.3, release: 0.4, layers: [
+      noise([0, 0.32], { band: { lo: 1800 }, cutoff: [4200, 9500], q: 0.5, lfo: { to: 'gain', wave: 'sawtooth', rate: [1.2, 3.2], depth: -0.7 } }),
+      noise([0, 0.12], { band: { lo: 900 }, cutoff: [2200, 4200], pan: 0.25 }),
+      noise([0, 0.08], { band: { hi: 420 }, lfo: { to: 'gain', rate: [0.4, 1.1], depth: 0.4 } }),
     ] };
     // the channel's synth: a sawtooth motor 66 → 140 Hz through a resonant lowpass 240 → 760 Hz (Q 4), its gain rising with the
     // charge; the chuffs a noise thump through 130 Hz up and a lowpass 480 → 1000 Hz, quickening as it coils

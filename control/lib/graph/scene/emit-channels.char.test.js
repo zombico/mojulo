@@ -35,6 +35,9 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-20 (start screens, mana-ui's letters): `brawl`, `mission` and `holo`, the pages that embed the game UI
+// runtime: its text takes `letters` (a display entering letter by letter) and its kernel source carries the split. No
+// page here draws letters (their sheet, lettersCss, is laid only by the play shell's title and the board); they draw as before.
 // Re-pinned 2026-11-18 (1116-rc's lens merged into Hijack City): `brawl`, `mission` and `holo`, the runtime they embed
 // now carrying both the candidate's lens and this branch's "No ammo" word.
 // Re-pinned 2026-11-18 (Hijack City, mana-ui's magazine): `brawl`, `mission` and `holo`, the pages that embed the game UI
@@ -941,6 +944,40 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // runtime. A strike's row may name its own kind, and its description speaks of a turn-based fight's figure; the level
 // HUD lays no lens again. Nothing else moved.
 //
+//
+// Re-pinned 2026-11-19 (a move's PLANT, gameworld/combos.js: the feet split in place through a cut): the runtime the
+// page embeds (combat-melee.js stepMoveset) plays a plant chained into from another plant on its `_on` clip, begun split.
+// One place: where a move's clip is chosen. A moveset with no plant plays its clips as before; every fixture that embeds
+// the controllable runtime re-pinned with it.
+// Re-pinned 2026-11-19 (a card's own dash, feel/lower.js `takes.dash`): the runtime the page embeds (rules-platform.js)
+// plays a body's `dash` clip over its dash's burst, on the ground and in an air dash, where its takes name one; a rule
+// whose takes name none holds the running jump's gather as before. One place, where the dash's pose is chosen; every
+// fixture that embeds the controllable runtime re-pinned with it. (The dash's dust is a block of its own, gated on a
+// rule's `dash.dust`: no fixture has one, and none emits it.)
+// Re-pinned 2026-11-20 (the wall slide faces out, rules-platform.js): the runtime the page embeds turns a body caught on
+// a wall to face out from it, where the stick moves it in the world's frame, and the stick no longer turns a clinging
+// body. A rule with no `cling` steps as before; every fixture that embeds the controllable runtime re-pinned with it.
+// Re-pinned 2026-11-20 (a foe's rounds travel, combat-ranged.js): a weapon may say `noGround` (its round flies on over
+// and under z = 0) and `passTeam` (its round passes through its own team's bodies), carried onto the round it launches
+// and read by the contact sweep; a weapon that says neither launches and sweeps as before. Every fixture that embeds the
+// controllable runtime re-pinned with it. (The page's foe-round look and the boss room's shutter are blocks of their
+// own, gated on a foe weapon's `foeRound` and a side-map zone's `shut`: no fixture has either, and none emits them.)
+// Re-pinned 2026-11-21 (the audio channel unlocks on a key and on the game shell's word that sound is on): a game played
+// on the keys, or hosted in the shell's frame, was never clicked and stayed silent. The fixtures that carry `audio`
+// (audio, kitchen-sink) re-pinned with it; every other fixture keeps every byte.
+// Re-pinned 2026-11-21 (the platform rule's FLINCH, rules-platform.js `flinch`, opt-in: a blow taken holds a run-and-gun
+// hero in its hurt; the buster's tap held while it flinches): a rule without `flinch` steps as before; every fixture
+// that embeds the controllable runtime re-pinned with it. (The side map's shutter wall and its room put back after a
+// fall are the side-map runtime's, emitted only under a side map's camera: no fixture has one.)
+// Re-pinned 2026-11-21 (the game-params seam reads a light shell's turn pick, params.__picks.pilot, as its pilot: a co-star's
+// level stands two heroes in the player's seat): a level with no pick pilots as before; every fixture that embeds the
+// controllable channel re-pinned with it.
+//
+// Re-pinned 2026-11-21 (1116-rc merged into 1117-side-scroller-galaxy): the fixtures both lines moved, together. Those
+// that embed the controllable runtime (this line's buster, flinch and co-star pick over the candidate's talking jaw and
+// bare fists), those whose pages inline the game UI runtime and the HUD host (this line's side map's HUD over the
+// candidate's race, radar and talk box), and those that carry `audio` (this line's unlock and run voices over the
+// candidate's ambience and cab). Nothing else moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
@@ -963,3 +1000,36 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // one radar, the HUD's scope. No other fixture moved.
 // Re-pinned 2026-11-17 again (1115-shooting-rails: the radar a minimap): `mission` only. The scope is larger, reaches
 // 40 m, and carries the level's plan under its marks, turned so ahead is up. No other fixture moved.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: a hero's power): `brawl` only. Its page inlines the brawl's core, crowd,
+// practice and client, and now the powers shelf (brawl-powers.js): a power's stock spent and filled at a fall, a special's
+// round carrying its knock, a special's round drawn (it was not) and a power's burst. The fixture's fighters have no power:
+// it plays as it did. Re-pinned again the same day for a power DESIGNED (brawl-powers.js: a kind's dials, read back as
+// written): `brawl` only, the shelf's lines alone.
+// Re-pinned 2026-11-18 (1117-reactive-z-layer merged into 1117-hero-beat-em-up): `brawl` only. Its page carries both
+// sides' runtime at once: the lens's still-figure runtime (that branch's) and the powers shelf (this one's).
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: a power's super beat): `brawl` only. Its page inlines the core (a power
+// holds the street still as it starts, and is told for a body with no stock too), the shelf (each card's beat) and the
+// client (the lens's host and its strikes, laid only where the street's spec carries a lens). The fixture has no power.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: rupa's knockback on a power's blow): `brawl` only. Its page inlines the
+// kinetics (brawl-kinetics.js: the law, a body's mass, the throw, the slide), the core's use of it on a blow that carries
+// energy and the client's dust ring at an impact. The fixture's blows carry none: it plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: an earth power's slab): `brawl` only. Its page inlines the core's walls
+// (raised, stood as cover, shoved, crumbling: a state key only while one stands), the slab's law in the kinetics, the
+// moves' second press and the client's slab and its dust. The fixture raises none: it plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: floating and a gale): `brawl` only. Its page inlines the air's laws in the
+// kinetics (a floater's drift, a wind's drag), the core's drift in place of the walk for a floating body and its gusts
+// (a state key only while one blows), and the client's hover and the gale's streaks. The fixture floats and blows
+// nothing: it plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: a floating body's hover): `brawl` only. Its page inlines the pose's hover
+// (one knee drawn up, the other leg hanging, toe pointed; never the stride). The fixture floats nothing: it plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: loose hair and cloth in the air): `brawl` only. Its page inlines the sway
+// (brawl-sway.js: the air a body feels, the hang, the spring, the bend) and the client's bend of a character's long hair
+// and loose cloth, a cape kept off the arms, and the hover in the comics' pose of power (the knee up, its shin tucked,
+// the fists at the waist). The sim never reads any of it: the fixture plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: the foe shelf's idioms on the street): `brawl` only. Its page inlines the
+// crowd's summoner and its summons (a pool held offstage, called a few at a time, cut down with it), a pair (one down, the
+// other enraged), a boss's form at a stage, the caster, drone and blaster crowd types, and the client's dust, flashes and
+// banner for them. The fixture's street says none of them: it plays as it did.
+// Re-pinned 2026-11-18 (1117-hero-beat-em-up: the review's fixes): `brawl` only. Its page inlines the sway keeping each
+// region's own rest positions (no copy of a part's buffer), and a boss stage's form read as any fighter's recipe. The
+// fixture plays as it did.

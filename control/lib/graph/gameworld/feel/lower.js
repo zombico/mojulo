@@ -31,6 +31,8 @@
  */
 import { FPS, r4, POLES, POLE_IDS, variantsOf, poleCard, blendPoles, mergeDeep } from './cards.js';
 import { jumpShares } from '../../polygonizer/hero-jump.js';
+import { saberRule } from './saber.js';
+import { DASH_DUST } from './round-look.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** A hero's STAMINA (the sprint's gauge), its defaults: seconds of sprint, seconds to refill from empty, and seconds to
@@ -59,6 +61,21 @@ export function feelCard(feel) {
   const F = readFeel(feel), base = F.toward && F.t > 0 ? blendPoles(F.pole, F.toward, F.t) : poleCard(F.pole, F.variant ?? null);
   return F.set ? mergeDeep(base, F.set) : base;
 }
+
+// THE BUSTER's rounds (worlds/controllable/buster.js): a hero's blow (foes/vocab.js HERO.blow, the foes' health is counted
+// in blows) and each level's share of it (the tap, the first charge, the full charge), and each level's colour (the
+// hero juice's charge tiers, gameworld/feel/hero-juice.js: the tap a pale lemon, then green, then gold)
+const BLOW = 20;
+export const BUSTER_DAMAGE = Object.freeze([0.5, 1, 2.5]);
+const BUSTER_COLOURS = Object.freeze([0xfff2a8, 0x5dff7a, 0xffd23a]);
+// each round's HITBOX (its own, not its drawing: worlds/controllable/buster.js), shares of its size: the regular rounds
+// tinier than they look (`r` the radius it meets a body with); the full charge (the last level) a TALL capsule, `tall`
+// its half height over its centre, so it catches what stands anywhere in its height
+export const BUSTER_HIT = Object.freeze({ tap: Object.freeze({ r: 0.75 }), level: Object.freeze({ r: 0.8 }), full: Object.freeze({ r: 0.75, tall: 1.1 }) });
+// each round's LOW REACH (worlds/controllable/buster.js `low`): it meets a body down to this share of the hero's height
+// under its muzzle, so a walker at the hero's knee falls to a tap, not to the tall full charge alone (the run and gun's
+// low foe is shot standing, never crouched for)
+export const BUSTER_LOW = 0.35;
 
 // what the runtime does not carry yet, by the card's field (reported only when the card has it)
 const LOST = Object.freeze({
@@ -106,16 +123,20 @@ export function steppedSpeed(h, g, dt = 1 / FPS) {
  * `jump_fwd` a jump out of the run, `jump_air` an air jump (the double jump's second push: its clip from the kick on).
  */
 export const TAKES = Object.freeze({ jump_up: 'jump', jump_fwd: 'jumpForward', jump_air: 'doubleJump' });
+/** A card's own takes (its `jumps`: { <state>: <hero-jump.js word> }, a run-and-gun hero's poised jump; `dash` its
+ * dash's clip, played over the burst) over TAKES. */
+export const takesOfCard = (C) => ({ ...TAKES, ...(C && C.jumps && typeof C.jumps === 'object' ? C.jumps : {}) });
 
 /** The run button's build (`rule.sprint`): a held run gets to the card's sprint over a second of running, as a mascot
  * platformer's does (momentum earned, not a burst: the dash is that), and gives it back over half a second let go. */
 export const SPRINT = Object.freeze({ build: 1, fall: 0.5 });
 
 /** The platform rule's `takes`: each take's flight as shares of its clip, and the landing's seconds (the card's). */
-function takesOf(J, look) {
-  const S = Object.fromEntries(Object.entries(TAKES).map(([state, clip]) => [state, jumpShares(clip)]));
+function takesOf(J, look, T = TAKES) {
+  const S = Object.fromEntries(Object.entries(T).filter(([state]) => state !== 'dash' && state !== 'hurt').map(([state, clip]) => [state, jumpShares(clip)]));
   const squash = look?.squash > 0 ? r4(look.squash) : 0;
-  return { up: [S.jump_up.off, S.jump_up.on], fwd: [S.jump_fwd.off, S.jump_fwd.on], air: [S.jump_air.kick, S.jump_air.on], land: r4(Math.max(1, J.land ?? 0) / FPS), ...(squash ? { squash } : {}) };
+  // (a card's own dash, `jumps.dash`: a move on the floor the runtime plays over the dash's burst, rules-platform.js)
+  return { up: [S.jump_up.off, S.jump_up.on], fwd: [S.jump_fwd.off, S.jump_fwd.on], air: [S.jump_air.kick, S.jump_air.on], land: r4(Math.max(1, J.land ?? 0) / FPS), ...(squash ? { squash } : {}), ...(T.dash ? { dash: true } : {}), ...(T.hurt ? { hurt: true } : {}) };
 }
 
 /** A card → the platform rule's fields, and what is carried, partly carried and not carried. `takes`: the hero's own
@@ -181,6 +202,11 @@ export function lowerFeel(card, { gear = null, takes = false, base = null } = {}
     if (S.length > 1) rule.combo = 1;
     half('moves.string', `the contact window's place in the swing (${m.startup} of ${total} frames to the first active); its frames are the swing clip's until the clips are fitted to the card${S.length > 2 ? `; a string of ${S.length} plays as the runtime's two-hit combo` : ''}`);
   }
+  // the SABER (a card's `blade: { kit: 'saber' }`, saber.js): its string on the fire press, in place, on the buster's scale
+  if (C.blade?.kit === 'saber') { Object.assign(rule, saberRule()); carried.push('blade'); }
+  // THE PAD (a card's `pad`: { <action>: [control, control] }, the controls schemes.js names): the pad's faces as the
+  // card's game lays them, over the scheme's own (controls-kernel.js resolve's override; the legend relabels itself)
+  if (C.pad && typeof C.pad === 'object') { rule.controls = { gamepad: Object.fromEntries(Object.entries(C.pad).map(([k, v]) => [k, [...v]])) }; carried.push('pad'); }
   // the hitstop: both bodies frozen on a melee connect for the card's frames (base + perMs a unit of the blow's shove, at
   // most max: combat-melee.js stepMelee), the runtime's melee only (a stomp's and a pound's are the lab's)
   if (C.hit?.hitstop && C.hit.hitstop.max > 0) { const H = C.hit.hitstop; put('hit.hitstop', 'hitstop', { base: H.base, perMs: H.perMs, max: H.max }); }
@@ -217,8 +243,9 @@ export function lowerFeel(card, { gear = null, takes = false, base = null } = {}
   if (takes && C.dash && C.dash.kind === 'dash') {
     const D = C.dash, A = D.air;
     // (a burst the card's frames long: a dash held longer is not carried, a dash is not a run)
+    // (and its DUST where the card raises it: round-look.js DASH_DUST, the page's wisp off the feet on the ground)
     rule.dash = { speed: D.speed, time: r4(D.frames / FPS), ...(D.jump ? { jump: true } : {}), ...(D.wall ? { wall: true } : {}),
-      ...(A && A.count > 0 ? { air: { count: A.count, speed: A.speed, time: r4(A.frames / FPS) } } : {}) };
+      ...(A && A.count > 0 ? { air: { count: A.count, speed: A.speed, time: r4(A.frames / FPS) } } : {}), ...(D.dust ? { dust: { ...DASH_DUST } } : {}) };
     half('dash', `the dash on F (a person's): the ground dash, ${A?.count ? 'the air dash, ' : ''}${D.jump ? 'the dash jump' : ''}${D.wall ? ', the dash wall kick' : ''}; a burst, the card's ${D.frames} frames whatever the button does${D.hold ? ' (its held dash is not carried)' : ''}${D.iframes ? '; its invincible frames are not carried' : ''}${D.cancel ? '; its cancel out of a move is not carried' : ''}`);
     moves.add('dash');
   }
@@ -233,6 +260,19 @@ export function lowerFeel(card, { gear = null, takes = false, base = null } = {}
       ...(G.stamina ? { stamina: { max: G.stamina.max, cost: G.stamina.cost, regen: G.stamina.regen, break: r4(G.stamina.break / FPS) } } : {}) };
     half('guard', `the guard held (Shift, the pad's left shoulder): the block from the front, the parry ${G.parry == null ? 'on any guard' : `within ${Math.round(G.parry)} frames of raising it`}, the riposte; every foe's blow parryable (the zones are the lab's)${G.perfect ? '; the perfect dodge\'s witch time is not carried' : ''}`);
     moves.add('guard');
+  }
+  // THE BUSTER (worlds/controllable/buster.js), a run and gun's: a charge of `kind: 'shot'` whose tap fires. The tap
+  // shot on the press of fire (J, the pad's right trigger), at most the tap's `max` in flight; held, the charge builds
+  // through anything, and let go it fires the highest level reached; every round straight from the chest along the
+  // facing, its speed, size and life the card's (frames as seconds), its damage a share of a hero's blow by its level
+  // (BUSTER_DAMAGE), a heavy round's impact a stagger. The charge's stance and its show frames are the page's juice
+  if (C.charge && C.charge.kind === 'shot' && C.charge.tap && Array.isArray(C.charge.levels) && Array.isArray(C.charge.at)) {
+    const K = C.charge, hit = (R, k) => { const H = k === 0 ? BUSTER_HIT.tap : k === K.levels.length ? BUSTER_HIT.full : BUSTER_HIT.level; return { r: r4(R.size * H.r), ...(H.tall ? { tall: r4(R.size * H.tall) } : {}) }; };
+    const round = (R, k) => ({ speed: R.speed, size: R.size, life: r4(R.life / FPS), damage: r4(BLOW * BUSTER_DAMAGE[Math.min(k, BUSTER_DAMAGE.length - 1)]),
+      impact: (R.tags ?? []).includes('heavy') ? 1 : 0, color: BUSTER_COLOURS[Math.min(k, BUSTER_COLOURS.length - 1)], hit: hit(R, k) });
+    rule.buster = { max: K.tap.max ?? 3, chest: 0.7, low: BUSTER_LOW, tap: round(K.tap, 0), levels: K.levels.map((f, i) => ({ at: r4(f / FPS), ...round(K.at[i] ?? K.at[K.at.length - 1], i + 1) })) };
+    half('charge', `the buster on fire (J, the pad's right trigger): the tap shot on the press (${rule.buster.max} out at most), the charge held through anything and let go at ${K.levels.map((f) => `${f}`).join(' or ')} frames; each round straight from the chest; its damage a share of a hero's blow by level (${BUSTER_DAMAGE.join(', ')})`);
+    moves.add('charge');
   }
   for (const [field, why] of Object.entries(LOST)) {
     if (moves.has(field)) continue;
@@ -249,7 +289,10 @@ export function lowerFeel(card, { gear = null, takes = false, base = null } = {}
   // (a dodge carried as the runtime's dash: its roll's tumble is the body's clip, its i-frames the whole dash's)
   if (carried.includes('dodge') && C.dodge.kind === 'roll') partly.push({ field: 'dodge.kind', why: 'the roll plays as the runtime\'s dash, invulnerable throughout: a body with no roll clip dashes on its run' });
   // the takes: the hero's own jumps on this flight, the landing its frames (the card's `land`, at least one)
-  if (takes) { rule.takes = takesOf(J, C.look); carried.push('jump.land'); }
+  if (takes) { rule.takes = takesOf(J, C.look, takesOfCard(C)); carried.push('jump.land'); }
+  // THE FLINCH (a card's `hit.flinch` frames, with its takes' `hurt` clip: rules-platform.js `flinch`): a blow taken snaps
+  // the hero into its hurt, the stick and the jump not its own until it passes
+  if (takes && C.hit?.flinch > 0 && takesOfCard(C).hurt) put('hit.flinch', 'flinch', r4(C.hit.flinch / FPS));
   return { rule, lane, carried, partly, lost };
 }
 
