@@ -13,5 +13,7 @@ face toward the proportions and the clean structure of a current game character,
   without the hook they had, and the pit at the foot of each wing is gone.
 - The jaw has a border: a line from the chin to the jaw's angle, the face turning under it to the jaw's underside
   instead of melting into a fullness under the chin.
+- A cheekbone: the cheek's front plane carries out to the cheekbone and turns there to the side, a high plane under the
+  eye with a soft shadow beneath it, the full cheek kept below.
 
-Still to come: the cheekbone, the eyelids, the nose. Hair, brows and lashes are not part of it.
+Still to come: the eyelids, the nose. Hair, brows and lashes are not part of it.

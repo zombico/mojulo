@@ -278,11 +278,15 @@ const NASOLABIAL = Object.freeze({ out: [0.035, 0.04, 0.035], back: [0.07, 0.057
 /** the jaw's border: its beads' radii (chin's corner, the body, ahead of the gonion), how far the body's middle flares
  * out past the line between them, and how far the floor of the mouth's middle is raised, in V */
 const JAW_BORDER = Object.freeze({ r: [0.02, 0.022, 0.02], flare: 0.01, floorLift: 0.025, from: 0.3 });
-/** the shorter wave where bone lies near the skin: the wavelength's share at a bone line, and how far its falloff reaches
- * (the Gaussian's width, in V) */
+/** the shorter wave where bone lies near the skin: the wavelength's share at the jaw's bone lines, and how far its
+ * falloff reaches (the Gaussian's width, in V) */
 const BONE_WAVE = Object.freeze({ share: 0.5, reach: 0.06 });
 /** the depressor anguli oris's belly: how far it is set back (V) and its radius */
 const DEPRESSOR_BELLY = Object.freeze({ back: 0.008, r: 0.026 });
+/** the cheekbone's ridge: its beads' radii (its medial end, the eminence, the arch), the medial end's skin point in from
+ * the malar point, behind the eminence's depth and below it, the eminence's off the malar point (out, up) at its depth
+ * behind the subnasale, and the arch's off the zygion (forward, up, in), and how broadly it is joined to the skin, in V */
+const CHEEKBONE = Object.freeze({ join: 0.038, r: [0.026, 0.033, 0.026], medial: [0.04, 0.01, 0.015], out: 0.012, depth: 0.057, up: -0.01, back: [0.03, -0.02, 0.012] });
 const LIP_ARCH = Object.freeze({ bow: 0.012, r: 0.0165 });
 /** a closed mouth's lip line, cut to one depth (mm): the groove's depth below the less prominent lip's front, its tube's
  * radius (its width), its edge's blend */
@@ -455,6 +459,27 @@ export function coreVajras(P, rel = RELATIONS) {
   w('cheekBar', at(P.malarL, { y: -0.05 }), maxilla, at(P.malarR, { y: -0.05 }), [0.05, 0.12, 0.05]);
   // the zygomatic arches: cheekbone → zygion → in front of the ear
   for (const s of ['L', 'R']) w(`arch${s}`, at(P[`malar${s}`], { y: -0.05 }), inX(P[`zy${s}`], 0.03), at(P[`condyle${s}`], { z: 0.035 }), [0.05, 0.03, 0.03]);
+  // THE CHEEKBONE — the zygoma's body as one ridge: from the orbital rim under the outer canthus, through the malar
+  // eminence (a little out and forward of the malar point), back along the arch's start. It carries the face's front
+  // plane out to the eminence and turns it there to the side (without it the turn came from the arch's broad front bead
+  // and the masses round it, ~24 mm across, and the cheek read as one ball). It takes the skin's full wave (shortened
+  // along it, the ridge stood apart from the cheek's balloon in a groove, a ball under the eye). Each bead's skin point
+  // is set on the eminence's outward normal, half out and half forward, and the bead in from it by its radius.
+  for (const s of ['L', 'R']) {
+    const sg = Math.sign(P[`malar${s}`].x), CB = CHEEKBONE, rr = CB.r, m = P[`malar${s}`], ex = P[`ex${s}`];
+    const inset = (p, r) => ({ x: p.x - sg * 0.7 * r, y: p.y - 0.7 * r, z: p.z });
+    // (its medial end sinks into the cheek's front plane, low and in from the eminence: run up to the orbital rim it drew
+    // a ring of shadow under the eye)
+    const s0 = { x: m.x - sg * CB.medial[0], y: P.sn.y - CB.depth - CB.medial[1], z: m.z - CB.medial[2] };
+    // (the eminence's depth is read from the subnasale, not off the malar point: the summed skin stands ~9 mm ahead of
+    // that point, and a ridge hung off it lay buried)
+    const s1 = { x: m.x + sg * CB.out, y: P.sn.y - CB.depth, z: m.z + CB.up };
+    const s2 = inX(at(P[`zy${s}`], { y: CB.back[0], z: CB.back[1] }), CB.back[2]);
+    // (its own feature at its own radius, joined to the skin after the wave as the nose and the lips are: bone dressed
+    // in the malar's 11 mm of tissue made a ridge of any size a round of 11 mm and more, and the turn stayed broad; and
+    // summed into the wave as a soft mass, its tail swelled the skin beside the eye, 22 mm above, by ~0.5 mm)
+    V.push({ name: `cheekbone${s}`, a: inset(s0, rr[0]), c: inset(s1, rr[1]), b: inset(s2, rr[2]), r: rr, group: 'cheekbone' });
+  }
   // the alveolar mass: the upper jaw under the lips, the mouth's bed (the teeth). The dental arch curves back: its ends
   // lie behind the mouth's corners and inside them (on the corners, their skin stood ~7 mm proud of the cheilion and
   // the mouth sat flat between them)
@@ -1093,9 +1118,9 @@ export function earPart(P, rel, s, baseX) {
 
 
 /** the blend width per group, in V (the bone melts broadly; the nose and the lips keep their lobes) */
-const BLEND = { bone: 0.04, soft: 0.03, nose: 0.012, lipBody: 0.05, lips: 0.01, teeth: 0.0006, tongue: 0.012 };
+const BLEND = { bone: 0.04, soft: 0.03, nose: 0.012, lipBody: 0.05, lips: 0.01, teeth: 0.0006, tongue: 0.012, cheekbone: 0.02 };
 /** how each soft feature joins the skin */
-const JOIN = { soft: 0.04, nose: 0.02, lipBody: 0.016, lips: 0.012, ear: 0.01 };
+const JOIN = { soft: 0.04, nose: 0.02, lipBody: 0.016, lips: 0.012, ear: 0.01, cheekbone: CHEEKBONE.join };
 /** the head's layers: the skull alone, or the skin over it */
 export const HEAD_LAYERS = Object.freeze(['skin', 'skull']);
 
@@ -1226,9 +1251,9 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   // the shorter wave rides the jaw). Where masses crowd, the summed wave swells the skin ~k·ln(n) past each of them (four
   // within a centimetre under the jaw's side swelled it ~10 mm, a soft fullness that turned under over ~16 mm and hid the
   // jaw's line); a shorter wave there keeps the bone's own edge
-  const boneFoci = ['jawBorderL', 'jawBorderR', 'chin'].filter((n) => Vn[n]).flatMap((n) => [[Vn[n].a, Vn[n].c], [Vn[n].c, Vn[n].b]]).map(([a, b]) => ({ a: S(a), b: S(b) }));
-  const boneS2 = (BONE_WAVE.reach * sc) ** 2;
-  const segQ = (p, a, b) => { const ab = [b.x - a.x, b.y - a.y, b.z - a.z], L2 = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2; const t = Math.max(0, Math.min(1, ((p.x - a.x) * ab[0] + (p.y - a.y) * ab[1] + (p.z - a.z) * ab[2]) / (L2 || 1))); return ((p.x - a.x - ab[0] * t) ** 2 + (p.y - a.y - ab[1] * t) ** 2 + (p.z - a.z - ab[2] * t) ** 2) / boneS2; };
+  const boneLines = [...['jawBorderL', 'jawBorderR', 'chin'].map((n) => [n, BONE_WAVE.share, BONE_WAVE.reach])];
+  const boneFoci = boneLines.filter(([n]) => Vn[n]).flatMap(([n, share, reach]) => [[Vn[n].a, Vn[n].c], [Vn[n].c, Vn[n].b]].map(([a, b]) => ({ a: S(a), b: S(b), cut: 1 - share, s2: (reach * sc) ** 2 })));
+  const segQ = (p, a, b, s2) => { const ab = [b.x - a.x, b.y - a.y, b.z - a.z], L2 = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2; const t = Math.max(0, Math.min(1, ((p.x - a.x) * ab[0] + (p.y - a.y) * ab[1] + (p.z - a.z) * ab[2]) / (L2 || 1))); return ((p.x - a.x - ab[0] * t) ** 2 + (p.y - a.y - ab[1] * t) ** 2 + (p.z - a.z - ab[2] * t) ** 2) / s2; };
   const depth = depthOf(markersV.map((m) => ({ p: S(m.p), t: m.t * sc })), (0.04 * sc) ** 2);
   const skin = layer !== 'skull';
   const kw = rel.skinWave * sc;
@@ -1258,18 +1283,18 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     // the wavelength at p: the skin's, shortened toward the features (Gaussian falloffs about the mouth and the eyes)
     let fall = 0;
     for (const f of featureFoci) { const q = ((p.x - f.c.x) ** 2 + (p.y - f.c.y) ** 2 + (p.z - f.c.z) ** 2) / f.s2; if (q < 9) fall = Math.max(fall, SM.exp(-q)); }
-    let fallB = 0;
-    for (const f of boneFoci) { const q = segQ(p, f.a, f.b); if (q < 9) fallB = Math.max(fallB, SM.exp(-q)); }
+    let rB = 0;
+    for (const f of boneFoci) { const q = segQ(p, f.a, f.b, f.s2); if (q < 9) rB = Math.max(rB, f.cut * SM.exp(-q)); }
     // (the two shortenings joined by a smooth maximum, a p-norm, never a hard one nor one capped by it: a hard maximum kinks
     // the wavelength where the mouth's falloff equals the jaw's, and the chin's corner took flat facets along that line)
-    const rF = (1 - rel.featureWave) * fall, rB = (1 - BONE_WAVE.share) * fallB;
+    const rF = (1 - rel.featureWave) * fall;
     const k = kw * (1 - (rB > 0 ? (rF ** 4 + rB ** 4) ** 0.25 : rF));
     let sum = 0;
     for (const v of es) sum += SM.exp(-(v - lo) / k);
     let d = lo - k * SM.log(sum);
     // (BARE: the skin wave alone, no feature joined and nothing cut: what the face's parts lie over)
     if (bare) return d;
-    for (const k of ['nose', 'lipBody', 'lips']) if (g[k] !== undefined) d = smin(d, g[k], JOIN[k] * sc);
+    for (const k of ['nose', 'lipBody', 'lips', 'cheekbone']) if (g[k] !== undefined) d = smin(d, g[k], JOIN[k] * sc);
     // the grooves and the mouth cut from the skin (the eyes are their own rig, set in after)
     for (const c of carves) d = smax(d, -c.f(p), (c.blend ?? 0.003) * sc);
     if (mouthF) d = smax(d, -mouthF(p), 0.006 * sc);
