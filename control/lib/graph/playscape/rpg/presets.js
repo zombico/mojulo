@@ -41,7 +41,7 @@ export const CLASS_PRESETS = Object.freeze({
   fighter: {
     name: 'Fighter', about: 'the front line: hits hard, takes hits, no magic',
     base: st(34, 0, 11, 8, 2, 6), growth: st(8, 0, 2.6, 1.8, 0.3, 0.9),
-    skills: [{ skill: 'power-strike', at: 1 }, { skill: 'cleave', at: 3 }, { skill: 'rally', cost: 1 }, { skill: 'berserk', cost: 2, requires: ['rally'] }],
+    skills: [{ skill: 'power-strike', at: 1 }, { skill: 'cleave', at: 3 }, { skill: 'rally', cost: 1 }, { skill: 'berserk', cost: 2, requires: ['rally'] }, { skill: 'armor-pierce', cost: 2 }, { skill: 'twin-cut', cost: 2, requires: ['power-strike'] }],
     start: { weapon: 'bronze-sword', armor: 'leather-armor' },
   },
   knight: {
@@ -53,7 +53,7 @@ export const CLASS_PRESETS = Object.freeze({
   mage: {
     name: 'Mage', about: 'the caster: elemental magic, a sleep spell, frail',
     base: st(22, 14, 5, 4, 12, 6), growth: st(4.5, 3.2, 0.8, 0.9, 2.8, 0.9),
-    skills: [{ skill: 'fire', at: 1 }, { skill: 'blizzard', at: 2 }, { skill: 'thunder', at: 3 }, { skill: 'sleep', cost: 1 }, { skill: 'firestorm', cost: 2, requires: ['fire'] }, { skill: 'focus', cost: 1 }],
+    skills: [{ skill: 'fire', at: 1 }, { skill: 'blizzard', at: 2 }, { skill: 'thunder', at: 3 }, { skill: 'sleep', cost: 1 }, { skill: 'firestorm', cost: 2, requires: ['fire'] }, { skill: 'focus', cost: 1 }, { skill: 'drain', cost: 1 }, { skill: 'osmose', cost: 1 }, { skill: 'gravity', cost: 2, requires: ['drain'] }],
     start: { weapon: 'oak-staff', armor: 'robe' },
   },
   cleric: {
@@ -65,7 +65,7 @@ export const CLASS_PRESETS = Object.freeze({
   rogue: {
     name: 'Rogue', about: 'the quick one: acts first, poisons, slows',
     base: st(26, 4, 9, 5, 4, 11), growth: st(5.5, 0.6, 2.0, 1.1, 0.6, 2.0),
-    skills: [{ skill: 'poison-blade', at: 1 }, { skill: 'trip', at: 2 }, { skill: 'backstab', cost: 1 }, { skill: 'smoke', cost: 1 }],
+    skills: [{ skill: 'poison-blade', at: 1 }, { skill: 'trip', at: 2 }, { skill: 'backstab', cost: 1 }, { skill: 'smoke', cost: 1 }, { skill: 'steal', cost: 1 }, { skill: 'mug', cost: 2, requires: ['steal'] }],
     start: { weapon: 'dagger', armor: 'leather-armor' },
   },
   monk: {
@@ -103,6 +103,14 @@ export const SKILL_PRESETS = Object.freeze({
   'poison-blade': { name: 'Poison Blade', about: 'a cut that may poison', mp: 0, target: 'foe', power: 0, stat: 'atk', scale: 0.8, status: { is: 'poison', chance: 0.6 } },
   trip: { name: 'Trip', about: 'one foe\'s speed falls for 3 rounds', mp: 0, target: 'foe', buff: { stat: 'spd', pct: -0.4, rounds: 3 } },
   backstab: { name: 'Backstab', about: 'a precise, heavy cut', mp: 2, target: 'foe', power: 4, stat: 'atk', scale: 1.5 },
+  // (EFFECTS, rpg.js readSkill: a theft, a theft with a blow, two cuts, a blow through armour, a draining spell, gravity)
+  steal: { name: 'Steal', about: 'takes what a foe carries', mp: 0, target: 'foe', steal: true },
+  mug: { name: 'Mug', about: 'a cut that takes what a foe carries', mp: 2, target: 'foe', power: 0, stat: 'atk', scale: 1, steal: true },
+  'twin-cut': { name: 'Twin Cut', about: 'two quick cuts', mp: 3, target: 'foe', power: 0, stat: 'atk', scale: 0.7, hits: 2 },
+  'armor-pierce': { name: 'Armor Pierce', about: 'a thrust that ignores armour', mp: 3, target: 'foe', power: 2, stat: 'atk', scale: 0.9, damage: 'pierce' },
+  drain: { name: 'Drain', about: 'takes HP from a foe', mp: 5, target: 'foe', power: 6, stat: 'mag', scale: 0.7, drain: 0.5, element: 'dark' },
+  gravity: { name: 'Gravity', about: 'a quarter of a foe\'s HP, whatever its guard', mp: 8, target: 'foe', power: 0.25, damage: 'gravity' },
+  osmose: { name: 'Osmose', about: 'draws MP from a foe', mp: 0, target: 'foe', power: 4, stat: 'mag', scale: 0.4, damage: 'mp', drain: 1 },
   smoke: { name: 'Smoke', about: 'every foe may be silenced', mp: 2, target: 'foes', status: { is: 'silence', chance: 0.6, rounds: 3 } },
   // the fist
   chakra: { name: 'Chakra', about: 'restores its own HP and ends poison', mp: 0, target: 'self', power: 8, stat: 'mag', scale: 1, heal: true, cure: ['poison'] },
@@ -143,7 +151,7 @@ export const FOE_PRESETS = Object.freeze({
   // gathers its fire a turn first, then lets it go at twice its power. Under half its HP it takes its second form: its
   // scales blaze, it drinks the cold that hurt it and fears the storm, it bites harder and breathes every second turn)
   drake: {
-    name: 'Ember Drake', hp: 800, mp: 80, atk: 26, def: 10, mag: 24, spd: 8, xp: 80, gold: 120, cp: 5, weak: ['ice'], absorb: ['fire'], immune: ['sleep', 'poison'], skills: ['fire-breath', 'bite'], boss: true, drops: [drop('hi-potion', 1)],
+    name: 'Ember Drake', hp: 800, mp: 80, atk: 26, def: 10, mag: 24, spd: 8, xp: 80, gold: 120, cp: 5, weak: ['ice'], absorb: ['fire'], immune: ['gravity', 'sleep', 'poison'], skills: ['fire-breath', 'bite'], boss: true, drops: [drop('hi-potion', 1)],
     pattern: [
       { use: 'bite', weight: 4 }, { use: 'attack', weight: 3 },
       { use: 'fire-breath', when: { every: 3 }, charge: '{name} gathers its fire…', weight: 9 },
@@ -157,31 +165,31 @@ export const FOE_PRESETS = Object.freeze({
   // like the drake (gameworld/boss-law.deep.test.js): a charged blow telegraphed, and a second form under half its HP
   // that turns its weaknesses round. A world writes each out whole in its battles (`battles.foes.<id>`) to edit.
   leviathan: {
-    name: 'Leviathan', hp: 720, mp: 90, atk: 24, def: 12, mag: 21, spd: 9, xp: 80, gold: 120, cp: 5, weak: ['thunder'], absorb: ['ice'], immune: ['sleep', 'poison'], skills: ['tidal-wave', 'bite'], boss: true, drops: [drop('hi-potion', 1)],
+    name: 'Leviathan', hp: 720, mp: 90, atk: 24, def: 12, mag: 21, spd: 9, xp: 80, gold: 120, cp: 5, weak: ['thunder'], absorb: ['ice'], immune: ['gravity', 'sleep', 'poison'], skills: ['tidal-wave', 'bite'], boss: true, drops: [drop('hi-potion', 1)],
     pattern: [{ use: 'bite', weight: 4 }, { use: 'attack', weight: 3 }, { use: 'tidal-wave', when: { every: 3 }, charge: 'The sea rises behind {name}…', weight: 9 }],
     phases: [{ below: 0.5, say: '{name} sheds its frozen scales!', weak: ['fire'], absorb: ['ice', 'thunder'], mag: 26,
       pattern: [{ use: 'bite', weight: 4 }, { use: 'attack', weight: 3 }, { use: 'tidal-wave', when: { every: 2 }, charge: 'The sea rises behind {name}…', weight: 9 }] }],
   },
   champion: {
-    name: 'The Champion', hp: 540, mp: 40, atk: 21, def: 14, mag: 8, spd: 10, xp: 80, gold: 160, cp: 5, immune: ['sleep'], skills: ['power-strike', 'shield-bash'], boss: true, drops: [drop('hi-potion', 1)],
+    name: 'The Champion', hp: 540, mp: 40, atk: 21, def: 14, mag: 8, spd: 10, xp: 80, gold: 160, cp: 5, immune: ['gravity', 'sleep'], skills: ['power-strike', 'shield-bash'], boss: true, drops: [drop('hi-potion', 1)],
     pattern: [{ use: 'attack', weight: 4 }, { use: 'power-strike', weight: 3 }, { use: 'shield-bash', weight: 2 }, { use: 'power-strike', when: { every: 3 }, charge: '{name} raises the blade high…', weight: 9 }],
     phases: [{ below: 0.5, say: '{name} casts the shield aside!', def: 8, atk: 25, spd: 14,
       pattern: [{ use: 'attack', weight: 3 }, { use: 'power-strike', weight: 4 }, { use: 'cleave', when: { every: 3 }, charge: '{name} sets both hands to the blade…', weight: 9 }] }],
   },
   warlord: {
-    name: 'The Warlord', hp: 950, mp: 40, atk: 30, def: 12, mag: 6, spd: 7, xp: 80, gold: 140, cp: 5, weak: ['fire'], immune: ['sleep'], skills: ['cleave', 'war-cry'], boss: true, drops: [drop('hi-potion', 1)],
+    name: 'The Warlord', hp: 950, mp: 40, atk: 30, def: 12, mag: 6, spd: 7, xp: 80, gold: 140, cp: 5, weak: ['fire'], immune: ['gravity', 'sleep'], skills: ['cleave', 'war-cry'], boss: true, drops: [drop('hi-potion', 1)],
     pattern: [{ use: 'attack', weight: 4 }, { use: 'war-cry', when: { turn: 1 } }, { use: 'cleave', when: { every: 3 }, charge: '{name} hefts the great axe…', weight: 9 }],
     phases: [{ below: 0.5, say: '{name} roars, and the fire no longer bites!', weak: ['thunder'], resist: ['fire'], atk: 34,
       pattern: [{ use: 'attack', weight: 4 }, { use: 'war-cry', when: { every: 4 }, weight: 9 }, { use: 'cleave', when: { every: 2 }, charge: '{name} hefts the great axe…', weight: 9 }] }],
   },
   roc: {
-    name: 'Thunderbird', hp: 700, mp: 90, atk: 22, def: 10, mag: 22, spd: 10, xp: 80, gold: 120, cp: 5, weak: ['ice'], absorb: ['thunder'], immune: ['sleep', 'poison'], skills: ['gale', 'bite'], boss: true, drops: [drop('hi-potion', 1)],
+    name: 'Thunderbird', hp: 700, mp: 90, atk: 22, def: 10, mag: 22, spd: 10, xp: 80, gold: 120, cp: 5, weak: ['ice'], absorb: ['thunder'], immune: ['gravity', 'sleep', 'poison'], skills: ['gale', 'bite'], boss: true, drops: [drop('hi-potion', 1)],
     pattern: [{ use: 'bite', weight: 4 }, { use: 'attack', weight: 3 }, { use: 'gale', when: { every: 3 }, charge: '{name} spreads its wings as the sky darkens…', weight: 9 }],
     phases: [{ below: 0.5, say: 'Lightning crackles through {name}\'s feathers!', weak: ['fire'], absorb: ['thunder', 'ice'], spd: 12, mag: 25,
       pattern: [{ use: 'bite', weight: 4 }, { use: 'attack', weight: 3 }, { use: 'gale', when: { every: 2 }, charge: '{name} spreads its wings as the sky darkens…', weight: 9 }] }],
   },
   colossus: {
-    name: 'The Colossus', hp: 900, mp: 0, atk: 30, def: 20, mag: 4, spd: 6, xp: 80, gold: 120, cp: 5, weak: ['thunder'], resist: ['fire', 'ice'], immune: ['sleep', 'poison'], skills: ['quake'], boss: true, drops: [drop('hi-potion', 1)],
+    name: 'The Colossus', hp: 900, mp: 0, atk: 30, def: 20, mag: 4, spd: 6, xp: 80, gold: 120, cp: 5, weak: ['thunder'], resist: ['fire', 'ice'], immune: ['gravity', 'sleep', 'poison'], skills: ['quake'], boss: true, drops: [drop('hi-potion', 1)],
     pattern: [{ use: 'attack', weight: 5 }, { use: 'quake', when: { every: 3 }, charge: 'The ground trembles as {name} rises…', weight: 9 }],
     phases: [{ below: 0.5, say: '{name}\'s crystal core lies bare!', def: 8, spd: 8, weak: ['fire', 'ice'], resist: ['thunder'],
       pattern: [{ use: 'attack', weight: 5 }, { use: 'quake', when: { every: 2 }, charge: 'The ground trembles as {name} rises…', weight: 9 }] }],
@@ -196,6 +204,10 @@ export const ITEM_PRESETS = Object.freeze({
   remedy: { name: 'Remedy', price: 18, cure: ['poison', 'sleep', 'silence'], target: 'ally' },
   feather: { name: 'Revival Feather', price: 40, revive: true, target: 'ally' },
   firebomb: { name: 'Firebomb', price: 15, hurt: 25, element: 'fire', target: 'foes' },
+  // (an item that leaves a status on the foes, or gives an ally a buff)
+  'sleep-powder': { name: 'Sleep Powder', price: 30, status: { is: 'sleep', chance: 0.6, rounds: 2 }, target: 'foes' },
+  'smoke-bomb': { name: 'Smoke Bomb', price: 25, status: { is: 'silence', chance: 0.7, rounds: 3 }, target: 'foes' },
+  'power-tonic': { name: 'Power Tonic', price: 35, buff: { stat: 'atk', pct: 0.3, rounds: 3 }, target: 'ally' },
 });
 
 export const GEAR_SLOTS = Object.freeze(['weapon', 'armor', 'accessory']);

@@ -76,8 +76,8 @@ export const PACKS = Object.freeze([
 // iron and silver, then the dearer cures), and buys back at half; the inn's night (full HP and MP, cured) costs more
 // the further on (INN_PRICE + INN_STEP a tier). The inn is the stage's rest: no free one beside it.
 export const SHOP_WARES = Object.freeze([
-  Object.freeze(['potion', 'antidote', 'bronze-sword', 'oak-staff', 'cestus', 'leather-armor', 'robe']),
-  Object.freeze(['potion', 'antidote', 'ether', 'firebomb', 'iron-sword', 'silver-staff', 'gi', 'chain-mail', 'swift-ring', 'venom-dagger', 'hunter-charm', 'shadow-cloak']),
+  Object.freeze(['potion', 'antidote', 'bronze-sword', 'oak-staff', 'cestus', 'leather-armor', 'robe', 'power-tonic']),
+  Object.freeze(['potion', 'antidote', 'ether', 'firebomb', 'iron-sword', 'silver-staff', 'gi', 'chain-mail', 'swift-ring', 'venom-dagger', 'hunter-charm', 'shadow-cloak', 'sleep-powder', 'smoke-bomb']),
   Object.freeze(['hi-potion', 'ether', 'remedy', 'feather', 'firebomb', 'iron-sword', 'silver-staff', 'chain-mail', 'mana-charm', 'swift-ring', 'flame-sword', 'ember-ring']),
 ]);
 export const INN_PRICE = 6, INN_STEP = 6;

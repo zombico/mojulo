@@ -51,7 +51,7 @@ export function buildRpg() {
   /** A fighter held by a state that takes its turns (the page asks it nothing). */
   function stuck(cfg, R, who) { const T = R.b && (R.b.side[who] ? { st: R.b.side[who].st } : R.b.foes.find((f) => f.uid === who)); return !!(T && stateWith(cfg, T, 'skip')); }
   const LETTERS = 'ABCDEFGH';
-  const CRIT = 1 / 16, MISS = 1 / 24, WAKE = 0.5;
+  const CRIT = 1 / 16, MISS = 1 / 24, WAKE = 0.5, STEAL = 0.5;
 
   // mulberry32, its state on the battle (b.r), so the dice survive a pause between rounds
   function rnd(b) {
@@ -270,34 +270,70 @@ export function buildRpg() {
   }
 
   function hurt(cfg, R, A, T, fx, out) {
-    const b = R.b, phys = fx.stat === 'atk';
+    const b = R.b, phys = fx.stat === 'atk', form = fx.damage;
+    // (a gravity or a fixed blow is no swing: it neither goes wide nor meets a guard, a crit or an element)
+    const set = form === 'gravity' || form === 'fixed';
+    if (form === 'gravity' && T.F && has(T.F.immune, 'gravity')) { out.push({ text: 'No effect. ' + T.name + ' is unmoved.', kind: 'miss', target: T.who, by: A.who }); return; }
     // (a state that blinds: its share of blows go wide, a die of its own)
-    const dim = phys && cfg.states ? stateWith(cfg, A, 'miss') : null;
+    const dim = !set && phys && cfg.states ? stateWith(cfg, A, 'miss') : null;
     if (dim && rnd(b) < dim.miss) { out.push({ text: A.name + ' misses ' + T.name + '.', kind: 'miss', target: T.who, by: A.who }); return; }
     // (the fight's own miss, less the striker's hit, more the target's evasion: a die the same either way)
-    if (phys && !T.st.sleep && rnd(b) < Math.max(0, MISS - rateOf(cfg, A, 'hit') + rateOf(cfg, T, 'eva'))) { out.push({ text: A.name + ' misses ' + T.name + '.', kind: 'miss', target: T.who, by: A.who }); return; }
-    let raw = fx.power + A.S[fx.stat] * fx.scale - (phys ? T.S.def / 2 : T.S.mag / 4);
-    raw *= 0.875 + 0.25 * rnd(b);
-    let crit = false;
-    if (phys && rnd(b) < CRIT + rateOf(cfg, A, 'crit')) { crit = true; raw *= 1.5; }
-    if (T.side.guard) raw *= 0.5;
-    const em = elementMul(T, fx.element, cfg);
-    let n = Math.max(em === 0 ? 0 : 1, Math.round(Math.max(0, raw) * Math.abs(em)));
+    if (!set && phys && !T.st.sleep && rnd(b) < Math.max(0, MISS - rateOf(cfg, A, 'hit') + rateOf(cfg, T, 'eva'))) { out.push({ text: A.name + ' misses ' + T.name + '.', kind: 'miss', target: T.who, by: A.who }); return; }
+    let crit = false, em = 1, n;
+    if (form === 'gravity') n = Math.max(1, Math.floor(T.hp * fx.power));
+    else if (form === 'fixed') n = Math.round(fx.power);
+    else {
+      // (a piercing blow meets no guard of defence or magic)
+      let raw = fx.power + A.S[fx.stat] * fx.scale - (form === 'pierce' ? 0 : phys ? T.S.def / 2 : T.S.mag / 4);
+      raw *= 0.875 + 0.25 * rnd(b);
+      if (phys && rnd(b) < CRIT + rateOf(cfg, A, 'crit')) { crit = true; raw *= 1.5; }
+      if (T.side.guard) raw *= 0.5;
+      em = elementMul(T, fx.element, cfg);
+      n = Math.max(em === 0 ? 0 : 1, Math.round(Math.max(0, raw) * Math.abs(em)));
+    }
     if (em < 0) {
       const S = T.S, was = T.hp;
       T.hp = Math.min(S.hp, T.hp + n);
       out.push({ text: T.name + ' absorbs it and recovers ' + (T.hp - was) + ' HP.', kind: 'heal', target: T.who, amount: T.hp - was, hp: T.hp, absorb: true, by: A.who, skill: fx.id || undefined, element: fx.element || undefined });
       return;
     }
+    const tag = crit ? 'A critical hit! ' : em === 2 ? 'It\'s super effective! ' : em === 0 ? 'No effect. ' : em === 0.5 ? 'It resists. ' : '';
+    // (damage to MP: taken from the target's MP, never its HP; it wakes no one)
+    if (form === 'mp') {
+      const was = T.mp;
+      T.mp = Math.max(0, T.mp - n);
+      out.push({ text: tag + T.name + ' loses ' + (was - T.mp) + ' MP.', kind: 'hurt', target: T.who, amount: was - T.mp, hp: T.hp, mp: T.mp, pool: 'mp', crit: crit || undefined, by: A.who, skill: fx.id || undefined, element: fx.element || undefined, mul: em !== 1 ? em : undefined });
+      if (fx.drain) drainBack(A, Math.round((was - T.mp) * fx.drain), 'mp', fx, out);
+      return true;
+    }
     T.hp = Math.max(0, T.hp - n);
     if (T.st.sleep && phys && n > 0) { T.st.sleep = 0; }
     // (a state a blow ends: confusion knocked out of it)
     if (cfg.states && phys && n > 0) for (const k in cfg.states) if (cfg.states[k].wake === 'hit' && T.st[k] > 0) { T.st[k] = 0; out.push({ text: T.name + ' comes to its senses.', kind: 'status', target: T.who }); }
-    const tag = crit ? 'A critical hit! ' : em === 2 ? 'It\'s super effective! ' : em === 0 ? 'No effect. ' : em === 0.5 ? 'It resists. ' : '';
     out.push({ text: tag + T.name + ' takes ' + n + ' damage.', kind: 'hurt', target: T.who, amount: n, hp: T.hp, crit: crit || undefined, by: A.who, skill: fx.id || undefined, element: fx.element || undefined, mul: em !== 1 ? em : undefined });
+    if (fx.drain) drainBack(A, Math.round(n * fx.drain), 'hp', fx, out);
     if (T.hp <= 0) fall(cfg, R, T, out);
     return true;
   }
+  // a DRAIN: a share of what a blow dealt taken back by its striker, HP (or MP), never past its own
+  function drainBack(A, n, pool, fx, out) {
+    if (n <= 0 || A.hp <= 0) return;
+    const top = A.S[pool], was = A[pool];
+    A[pool] = Math.min(top, A[pool] + n);
+    if (A[pool] > was) out.push({ text: A.name + ' drains ' + (A[pool] - was) + (pool === 'mp' ? ' MP.' : ' HP.'), kind: 'heal', target: A.who, amount: A[pool] - was, ...(pool === 'mp' ? { mp: A.mp, pool: 'mp' } : { hp: A.hp }), by: A.who, skill: fx.id || undefined, drain: true });
+  }
+  // a THEFT (a skill's `steal`): a foe's first drop taken into the bag, once a foe, on a die (the striker's hit helps)
+  function steal(cfg, R, A, T, vars, out) {
+    if (!A.party || T.party || T.hp <= 0) return;
+    const f = T.side, D = f.F.drops || [];
+    if (f.robbed || !D.length) { out.push({ text: T.name + ' has nothing to steal.', kind: 'miss', target: T.who, by: A.who }); return; }
+    if (rnd(R.b) >= Math.min(0.95, STEAL + rateOf(cfg, A, 'hit'))) { out.push({ text: A.name + ' could not steal anything.', kind: 'miss', target: T.who, by: A.who }); return; }
+    const k = D[0].item, name = (cfg.items[k] && cfg.items[k].name) || (cfg.gear[k] && cfg.gear[k].name) || k;
+    f.robbed = 1;
+    if (vars) vars['held:bag:' + k] = (vars['held:bag:' + k] || 0) + 1;
+    out.push({ text: A.name + ' stole ' + name + '!', kind: 'steal', target: T.who, by: A.who, item: k });
+  }
+
   function fall(cfg, R, T, out) {
     T.st.sleep = 0; T.st.silence = 0; T.buffs.length = 0;
     if (cfg.states) for (const k in cfg.states) T.st[k] = 0;
@@ -354,7 +390,7 @@ export function buildRpg() {
   // one effect (a skill's, an item's, an attack's) from A on its targets: 'foe' / 'foes' the other side, 'ally' /
   // 'allies' its own, 'self' itself. A single target that fell since the pick: another (a foe at random; an ally, the
   // most hurt one standing)
-  function apply(cfg, R, A, fx, aim, target, out) {
+  function apply(cfg, R, A, fx, aim, target, out, vars) {
     const b = R.b, enemies = aim === 'foe' || aim === 'foes';
     let pool;
     if (aim === 'self') pool = [A.who];
@@ -370,7 +406,10 @@ export function buildRpg() {
     for (const w of hits) {
       const T = unit(cfg, R, w);
       if (!T) continue;
-      const landed = fx.harm ? hurt(cfg, R, A, T, fx, out) : true;
+      // (a blow that strikes more than once: each its own swing, while the target stands)
+      let landed = fx.harm ? hurt(cfg, R, A, T, fx, out) : true;
+      for (let h = 1; fx.harm && h < (fx.hits || 1) && T.hp > 0; h++) landed = hurt(cfg, R, A, T, fx, out) || landed;
+      if (fx.steal) steal(cfg, R, A, T, vars, out);
       if (fx.heal || fx.revive) heal(cfg, R, A, T, fx, out);
       cure(cfg, R, T, fx, out);
       // (a status a plain blow carries is left only where the blow lands; a skill's rolls as it always did)
@@ -472,7 +511,7 @@ export function buildRpg() {
       if (A.mp < S.mp) { out.push({ text: A.name + ' has too little MP.', kind: 'miss', who }); return; }
       A.mp -= S.mp;
       out.push({ text: A.name + (pick.charged ? ' unleashes ' : ' uses ') + S.name + '!', kind: 'cast', who, mp: A.mp, skill: pick.skill, target: pick.target, ...(pick.charged ? { charged: true } : {}) });
-      apply(cfg, R, A, S, S.target, pick.target, out);
+      apply(cfg, R, A, S, S.target, pick.target, out, vars);
       return;
     }
     if (pick.act === 'item') {
@@ -481,8 +520,8 @@ export function buildRpg() {
       vars[key] -= 1;
       out.push({ text: A.name + ' uses ' + I.name + '!', kind: 'cast', who, item: pick.item, target: pick.target });
       // an item's number is its own: no stat behind it (a bomb's blast still meets the target's guard and element)
-      const fx = { id: null, stat: 'mag', scale: 0, power: I.hurt || I.heal || 0, harm: !!I.hurt, heal: !!I.heal && !I.hurt, revive: !!I.revive, cure: I.cure || [], element: I.element || null, status: null, buff: null };
-      if (fx.harm || fx.heal || fx.revive || fx.cure.length) apply(cfg, R, A, fx, I.target, pick.target, out);
+      const fx = { id: null, stat: 'mag', scale: 0, power: I.hurt || I.heal || 0, harm: !!I.hurt, heal: !!I.heal && !I.hurt, revive: !!I.revive, cure: I.cure || [], element: I.element || null, status: I.status || null, buff: I.buff || null };
+      if (fx.harm || fx.heal || fx.revive || fx.cure.length || fx.status || fx.buff) apply(cfg, R, A, fx, I.target, pick.target, out, vars);
       if (I.mp) for (const m of I.target === 'allies' ? living(R) : [pick.target]) {
         const T = unit(cfg, R, m);
         if (!T || T.hp <= 0 || !T.party) continue;

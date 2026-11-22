@@ -380,6 +380,61 @@ describe('traits', () => {
   });
 });
 
+// EFFECTS (rpg.js readSkill, readItem): a blow that strikes more than once, damage in another form (a share of the HP
+// as it stands, an exact sum, through the guard, from the MP), a drain back to the striker, a theft into the bag; an
+// item that leaves a status or gives a buff. A sure hand (hit 1) so no swing goes wide; a dummy that stands
+describe('effects', () => {
+  const dummy = { name: 'Dummy', hp: 400, mp: 40, atk: 1, def: 60, mag: 40, spd: 1, xp: 1, gold: 1, drops: [{ item: 'ether', chance: 0.1 }] };
+  const learned = ['twin-cut', 'armor-pierce', 'power-strike', 'gravity', 'drain', 'osmose', 'steal'].map((skill) => ({ skill }));
+  const cfgOf = (foes = {}) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter', level: 9, gear: { weapon: 'sure' } }], classes: { fighter: { skills: learned } }, foes: { dummy, ...foes },
+    gear: { sure: { slot: 'weapon', atk: 6, hit: 1 } }, encounters: [{ id: 'yard', foes: [Object.keys(foes)[0] ?? 'dummy'] }] } });
+  const begin = (cfg) => { const R = rpgInit(cfg), v = {}; rpgStart(cfg, R, 'yard', v); R.m.ayla.mp = 99; return [R, v]; };
+  const use = (cfg, R, v, skill) => rpgRound(cfg, R, { ayla: { act: 'skill', skill, target: 'f0' } }, v).filter((x) => x.by === 'ayla' || x.target === 'ayla');
+
+  it('strikes as many times as it says; a blow through armour lands harder on the armoured than the same blow against it', () => {
+    const cfg = cfgOf(), [R, v] = begin(cfg);
+    expect(use(cfg, R, v, 'twin-cut').filter((x) => x.kind === 'hurt' && x.target === 'f0')).toHaveLength(2);
+    const pierce = use(cfg, R, v, 'armor-pierce').find((x) => x.kind === 'hurt').amount, plain = use(cfg, R, v, 'power-strike').find((x) => x.kind === 'hurt').amount;
+    expect(pierce).toBeGreaterThan(plain);
+  });
+
+  it('gravity takes a share of the HP as it stands, never a boss\'s; drain gives back a share; osmose takes MP, not HP', () => {
+    const cfg = cfgOf(), [R, v] = begin(cfg), f = R.b.foes[0];
+    f.hp = 200;
+    expect(use(cfg, R, v, 'gravity').find((x) => x.kind === 'hurt').amount).toBe(50);
+    R.m.ayla.hp = 10;
+    const d = use(cfg, R, v, 'drain');
+    expect(d.find((x) => x.drain)).toMatchObject({ kind: 'heal', target: 'ayla' });
+    const hp = f.hp, o = use(cfg, R, v, 'osmose').find((x) => x.kind === 'hurt');
+    expect(o).toMatchObject({ pool: 'mp' });
+    expect(f.hp).toBe(hp);
+    expect(f.mp).toBeLessThan(40);
+    const boss = cfgOf({ drake: true }), [RB, vB] = begin(boss);
+    expect(use(boss, RB, vB, 'gravity').find((x) => x.target === 'f0')).toMatchObject({ kind: 'miss' });
+  });
+
+  it('a theft takes the foe\'s first drop into the bag, once a foe', () => {
+    const cfg = cfgOf(), [R, v] = begin(cfg);
+    let took;
+    for (let k = 0; k < 6 && !took; k++) took = use(cfg, R, v, 'steal').find((x) => x.kind === 'steal');
+    expect(took).toMatchObject({ item: 'ether' });
+    expect(v['held:bag:ether']).toBe(1);
+    expect(use(cfg, R, v, 'steal').find((x) => x.target === 'f0').text).toMatch(/nothing to steal/);
+  });
+
+  it('an item may leave a status on the foes or give an ally a buff; each is read and taught', () => {
+    const cfg = cfgOf(), [R, v] = begin(cfg);
+    v['held:bag:power-tonic'] = 1;
+    rpgRound(cfg, R, { ayla: { act: 'item', item: 'power-tonic', target: 'ayla' } }, v);
+    expect(R.b.side.ayla.buffs).toEqual([expect.objectContaining({ stat: 'atk', pct: 0.3 })]);
+    expect(cfg.items['sleep-powder']).toMatchObject({ target: 'foes', status: { is: 'sleep' } });
+    const bad = (skills) => () => readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter' }], skills } });
+    expect(bad({ x: { mp: 1, power: 2, hits: 12 } })).toThrow(/2 to 8/);
+    expect(bad({ x: { mp: 1, power: 3, damage: 'gravity' } })).toThrow(/share of the target's HP/);
+    expect(bad({ x: { mp: 1, heal: true, power: 3, drain: 0.5 } })).toThrow(/shape a harmful skill/);
+  });
+});
+
 // A CHARGED BLOW (a pattern row's `charge`): the foe's turn spent gathering, said, so the party can brace; its next turn
 // the blow let go at twice its power; a guard takes half of it like any blow
 describe('a charged blow', () => {

@@ -236,6 +236,16 @@ fields, and a state may carry rates (a haze that makes its bearer hard to hit). 
 dice, never add one: a world that names none fights exactly as it did. The starters: the Venom Dagger, the Flame
 Sword, the Hunter's Charm, the Shadow Cloak and the Ember Ring, sold from the second and third shops on.
 
+**Effects** (what a skill or an item does beside its blow), on a skill: `hits` (2 to 8 strikes, each its own swing,
+while the target stands); `damage` in another form: `gravity` (its power the share of the target's HP as it stands:
+a quarter, whatever its guard; the bosses are immune, `immune: ['gravity']`), `fixed` (its power exactly), `pierce` (no
+defence against it) or `mp` (taken from the MP, not the HP); `drain` (the share of what it dealt the user takes back,
+HP, or MP for MP damage); and `steal` (a foe's first drop into the bag, once a foe; with power, a mug). An item may leave
+a `status` (a sleep powder's on every foe) or give a `buff` (a tonic's on an ally). None of them rolls a die where it
+is not used, so a world that uses none fights as it did. The starters, bought on the class trees (never learned
+unasked): the rogue's Steal and Mug, the fighter's Armor Pierce and Twin Cut, the mage's Drain, Osmose and Gravity; and
+the Power Tonic, the Sleep Powder and the Smoke Bomb in the shops.
+
 **The temple and the smithy.** A party RPG's town whose street keeps a temple has a temple shop (`shops.<id>.raise`,
 the gold to raise each fallen member, healed and cured); one that keeps a smithy has the smithy's, the arms and armour
 among the town's wares. Each is opened by its keeper, and only where its lot's door is laid on the town's stage.

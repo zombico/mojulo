@@ -17,7 +17,11 @@
  *                 the world's classes (default: every preset). entry = { skill, at?: rank } learned at that class rank,
  *                 or { skill, cost: n, requires?: [skill] } bought on the class's tree with its points
  *     skills?:    { <id>: { name?, about?, mp?, target?, power?, stat?, scale?, element?, heal?, revive?, cure?, status?,
- *                 buff?, carry? } }   target: foe | foes | ally | allies | self; stat: atk (a blow) | mag (a spell);
+ *                 buff?, carry?, hits?, damage?, drain?, steal? } }   target: foe | foes | ally | allies | self; stat: atk
+ *                 (a blow) | mag (a spell); EFFECTS: hits 2-8 strikes, each its own swing; damage gravity (power the
+ *                 share of the HP as it stands; a foe immune to 'gravity' takes none), fixed (power exactly), pierce (no
+ *                 guard against it) or mp (taken from the MP); drain the share of it the user takes back; steal a foe's
+ *                 first drop into the bag, once a foe;
  *                 status: { is: poison | sleep | silence, chance?, rounds? }; buff: { stat, pct, rounds? };
  *                 carry: usable from any class once learned
  *     foes?:      { <id>: { name?, hp, mp?, atk, def, mag, spd, xp?, gold?, cp?, weak?, resist?, absorb?, immune?,
@@ -31,7 +35,7 @@
  *                 phases: [{ below, say?, pattern?, weak?, resist?, absorb?, immune?, atk?, def?, mag?, spd? }]   its
  *                 PHASES: a form it takes the first time its HP falls under `below` (each under the one before), what
  *                 the phase names replacing its own, said (`say`, {name} the foe's) and roared as it comes
- *     items?:     [ids] | { <item>: { name?, heal?, mp?, revive?, cure?, hurt?, element?, target? } }   what an item
+ *     items?:     [ids] | { <item>: { name?, heal?, mp?, revive?, cure?, hurt?, element?, target?, status?, buff? } }   what an item
  *                 does in a fight (its count is the bag's: held:bag:<item>); default: every preset
  *     gear?:      [ids] | { <item>: { name?, slot: weapon | armor | accessory, atk?, def?, mag?, spd?, hp?, mp?, classes?,
  *                 resist?, immune?, ward?, hit?, eva?, crit?, element?, inflict?, grants? } }   (TRAITS, a class's too: the
@@ -177,13 +181,8 @@ function readAttack(d, where) {
   const out = {};
   if (d.element !== undefined) out.element = id(d.element, `${where}.element`);
   if (d.inflict !== undefined) {
-    const v = d.inflict;
-    if (!isObj(v) || !isStatus(v.is)) throw err(`${where}.inflict is { is: ${statusWords().join(' | ')}, chance?, rounds? }: a status its blows may leave`);
-    keysOnly(v, ['is', 'chance', 'rounds'], `${where}.inflict`);
-    if (v.chance !== undefined && !(num(v.chance) && v.chance > 0 && v.chance <= 1)) throw err(`${where}.inflict.chance is above 0, at most 1`);
-    if (v.rounds !== undefined && !(Number.isInteger(v.rounds) && v.rounds >= 1)) throw err(`${where}.inflict.rounds is 1 or more`);
-    const own = !RPG_STATUSES[v.is] ? (knownStates[v.is] ?? STATE_PRESETS[v.is]) : null;
-    out.inflict = { is: v.is, chance: v.chance ?? 0.25, rounds: v.rounds ?? (own && own.rounds) ?? 3 };
+    if (d.inflict?.rounds !== undefined && !(Number.isInteger(d.inflict.rounds) && d.inflict.rounds >= 1)) throw err(`${where}.inflict.rounds is 1 or more`);
+    out.inflict = readStatusOf(d.inflict, `${where}.inflict`, 0.25);
   }
   return out;
 }
@@ -208,8 +207,26 @@ let knownStates = null;
 const isStatus = (s) => !!RPG_STATUSES[s] || !!(knownStates && (s in knownStates || STATE_PRESETS[s]));
 const statusWords = () => [...Object.keys(RPG_STATUSES), ...Object.keys(knownStates ?? {}), ...Object.keys(STATE_PRESETS)].filter((x, i, a) => a.indexOf(x) === i);
 
+// a status an effect leaves: { is, chance?, rounds? } (a state of the world's own lasts its own rounds unless it says)
+function readStatusOf(v, where, chance = 1) {
+  if (!isObj(v) || !isStatus(v.is)) throw err(`${where} is { is: ${statusWords().join(' | ')}, chance?, rounds? }`);
+  keysOnly(v, ['is', 'chance', 'rounds'], where);
+  if (v.chance !== undefined && !(num(v.chance) && v.chance > 0 && v.chance <= 1)) throw err(`${where}.chance is above 0, at most 1`);
+  const own = !RPG_STATUSES[v.is] ? (knownStates[v.is] ?? STATE_PRESETS[v.is]) : null;
+  return { is: v.is, chance: v.chance ?? chance, rounds: v.rounds ?? (own && own.rounds) ?? 3 };
+}
+// a buff an effect gives: { stat, pct, rounds? }
+function readBuffOf(v, where) {
+  if (!isObj(v) || !BUFF_STATS.includes(v.stat) || !num(v.pct) || v.pct === 0) throw err(`${where} is { stat: ${BUFF_STATS.join(' | ')}, pct: a share up (0.5) or down (-0.3), rounds? }`);
+  keysOnly(v, ['stat', 'pct', 'rounds'], where);
+  return { stat: v.stat, pct: v.pct, rounds: v.rounds ?? 3 };
+}
+// the DAMAGE a harmful effect deals, beside the usual (its power and its stat's share, less the target's guard):
+// gravity a share of the target's HP as it stands (power: the share; a foe immune to 'gravity' takes none), fixed its
+// power exactly, pierce the usual with no guard against it, mp the usual taken from the target's MP
+export const DAMAGE_FORMS = Object.freeze(['gravity', 'fixed', 'pierce', 'mp']);
 function readSkill(k, d, where) {
-  keysOnly(d, ['name', 'about', 'mp', 'target', 'power', 'stat', 'scale', 'element', 'heal', 'revive', 'cure', 'status', 'buff', 'carry', 'juice'], where);
+  keysOnly(d, ['name', 'about', 'mp', 'target', 'power', 'stat', 'scale', 'element', 'heal', 'revive', 'cure', 'status', 'buff', 'carry', 'juice', 'hits', 'damage', 'drain', 'steal'], where);
   optNum(d.mp, `${where}.mp`); optNum(d.power, `${where}.power`); optNum(d.scale, `${where}.scale`);
   const heal = !!d.heal, revive = !!d.revive;
   const target = d.target ?? (heal || revive || d.cure ? 'ally' : 'foe');
@@ -219,26 +236,24 @@ function readSkill(k, d, where) {
   const scale = d.scale ?? (d.stat !== undefined || (d.power ?? 0) > 0 ? 1 : 0);
   const cure = listOf(d.cure, `${where}.cure`, 'statuses');
   for (const s of cure) if (!isStatus(s)) throw err(`${where}.cure: '${s}' is not a status (${statusWords().join(', ')})`);
-  let status = null;
-  if (d.status !== undefined) {
-    if (!isObj(d.status) || !isStatus(d.status.is)) throw err(`${where}.status is { is: ${statusWords().join(' | ')}, chance?, rounds? }`);
-    keysOnly(d.status, ['is', 'chance', 'rounds'], `${where}.status`);
-    if (d.status.chance !== undefined && !(num(d.status.chance) && d.status.chance > 0 && d.status.chance <= 1)) throw err(`${where}.status.chance is above 0, at most 1`);
-    // (a state of the world's own lasts its own rounds unless the skill says)
-    const own = !RPG_STATUSES[d.status.is] ? (knownStates[d.status.is] ?? STATE_PRESETS[d.status.is]) : null;
-    status = { is: d.status.is, chance: d.status.chance ?? 1, rounds: d.status.rounds ?? (own && own.rounds) ?? 3 };
-  }
-  let buff = null;
-  if (d.buff !== undefined) {
-    if (!isObj(d.buff) || !BUFF_STATS.includes(d.buff.stat) || !num(d.buff.pct) || d.buff.pct === 0) throw err(`${where}.buff is { stat: ${BUFF_STATS.join(' | ')}, pct: a share up (0.5) or down (-0.3), rounds? }`);
-    keysOnly(d.buff, ['stat', 'pct', 'rounds'], `${where}.buff`);
-    buff = { stat: d.buff.stat, pct: d.buff.pct, rounds: d.buff.rounds ?? 3 };
-  }
+  const status = d.status !== undefined ? readStatusOf(d.status, `${where}.status`) : null;
+  const buff = d.buff !== undefined ? readBuffOf(d.buff, `${where}.buff`) : null;
   const power = d.power ?? 0, harm = !heal && !revive && (power > 0 || scale > 0);
-  if (!harm && !heal && !revive && !cure.length && !status && !buff) throw err(`${where} does nothing: give it power (a blow or a spell), heal, revive, cure, status or buff`);
+  // (the EFFECTS beside the blow: how many times it strikes, the form its damage takes, what it drains back, a theft)
+  if (d.hits !== undefined && !(Number.isInteger(d.hits) && d.hits >= 2 && d.hits <= 8)) throw err(`${where}.hits is how many times it strikes, 2 to 8`);
+  if (d.damage !== undefined && !DAMAGE_FORMS.includes(d.damage)) throw err(`${where}.damage is ${DAMAGE_FORMS.join(', ')} (gravity a share of the target's HP, fixed its power exactly, pierce no guard against it, mp from the MP)`);
+  if (d.damage === 'gravity' && !(power > 0 && power <= 1)) throw err(`${where}.power is the share of the target's HP a gravity takes, above 0, at most 1`);
+  if (d.damage === 'fixed' && !(power >= 1)) throw err(`${where}.power is the damage a fixed blow deals exactly, 1 or more`);
+  if ((d.hits !== undefined || d.damage !== undefined || d.drain !== undefined) && !harm) throw err(`${where}: hits, damage and drain shape a harmful skill: give it power`);
+  if (d.drain !== undefined && !(num(d.drain) && d.drain > 0 && d.drain <= 1)) throw err(`${where}.drain is the share of what it deals the user takes back (HP, or MP for mp damage), above 0, at most 1`);
+  if (d.steal !== undefined && d.steal !== true) throw err(`${where}.steal is true: it takes a foe's first drop into the bag, once a foe`);
+  if (!harm && !heal && !revive && !cure.length && !status && !buff && !d.steal) throw err(`${where} does nothing: give it power (a blow or a spell), heal, revive, cure, status, buff or steal`);
   return {
     id: k, name: d.name ?? words(k), about: d.about ?? '', mp: d.mp ?? 0, target, power, stat, scale, harm,
     element: d.element !== undefined ? id(d.element, `${where}.element`) : null, heal, revive, cure, status, buff, carry: !!d.carry,
+    // (only a skill that has them carries them: every other's as it was)
+    ...(d.hits !== undefined ? { hits: d.hits } : {}), ...(d.damage !== undefined ? { damage: d.damage } : {}),
+    ...(d.drain !== undefined ? { drain: d.drain } : {}), ...(d.steal ? { steal: true } : {}),
   };
 }
 
@@ -344,14 +359,16 @@ function readFoe(k, d, where) {
 }
 
 function readItem(k, d, where) {
-  keysOnly(d, ['name', 'price', 'heal', 'mp', 'revive', 'cure', 'hurt', 'element', 'target'], where);
+  keysOnly(d, ['name', 'price', 'heal', 'mp', 'revive', 'cure', 'hurt', 'element', 'target', 'status', 'buff'], where);
   for (const s of ['heal', 'mp', 'hurt', 'price']) optNum(d[s], `${where}.${s}`);
   const cure = listOf(d.cure, `${where}.cure`, 'statuses');
   for (const s of cure) if (!isStatus(s)) throw err(`${where}.cure: '${s}' is not a status (${statusWords().join(', ')})`);
-  if (!d.heal && !d.mp && !d.revive && !cure.length && !d.hurt) throw err(`${where} does nothing in a fight: heal, mp, revive, cure or hurt`);
-  const target = d.target ?? (d.hurt ? 'foe' : 'ally');
+  // (an item may leave a status, a sleep powder's on the foes, or give a buff, a tonic's on an ally)
+  const status = d.status !== undefined ? readStatusOf(d.status, `${where}.status`) : null, buff = d.buff !== undefined ? readBuffOf(d.buff, `${where}.buff`) : null;
+  if (!d.heal && !d.mp && !d.revive && !cure.length && !d.hurt && !status && !buff) throw err(`${where} does nothing in a fight: heal, mp, revive, cure, hurt, status or buff`);
+  const target = d.target ?? (d.hurt || status ? 'foe' : 'ally');
   if (!RPG_TARGETS.includes(target) || target === 'self') throw err(`${where}.target is foe, foes, ally or allies`);
-  return { name: d.name ?? words(k), heal: d.heal ?? 0, mp: d.mp ?? 0, revive: !!d.revive, cure, hurt: d.hurt ?? 0, element: d.element !== undefined ? id(d.element, `${where}.element`) : null, target };
+  return { name: d.name ?? words(k), heal: d.heal ?? 0, mp: d.mp ?? 0, revive: !!d.revive, cure, hurt: d.hurt ?? 0, element: d.element !== undefined ? id(d.element, `${where}.element`) : null, target, ...(status ? { status } : {}), ...(buff ? { buff } : {}) };
 }
 
 /** play.rpg → the kernel's cfg, or null. Every name is checked; errors say what a field is. */
@@ -588,7 +605,7 @@ export function readRpg(play) {
   // (the states the fight can meet: the world's own, and any preset a skill or an item names; none, no key)
   const used = new Set(Object.keys(knownStates));
   for (const S of Object.values(skills)) { if (S.status && !RPG_STATUSES[S.status.is]) used.add(S.status.is); for (const c of S.cure ?? []) if (!RPG_STATUSES[c]) used.add(c); }
-  for (const I of Object.values(items)) for (const c of I.cure ?? []) if (!RPG_STATUSES[c]) used.add(c);
+  for (const I of Object.values(items)) { for (const c of I.cure ?? []) if (!RPG_STATUSES[c]) used.add(c); if (I.status && !RPG_STATUSES[I.status.is]) used.add(I.status.is); }
   // (and any a blow leaves: a class's, a piece of gear's or a foe's `inflict`)
   for (const T of [...Object.values(classes).map((c) => c.traits), ...Object.values(gear).map((g) => g.traits), ...Object.values(foes)]) if (T?.inflict && !RPG_STATUSES[T.inflict.is]) used.add(T.inflict.is);
   const states = used.size ? Object.fromEntries([...used].sort().map((k) => [k, readState(k, knownStates[k] ?? STATE_PRESETS[k], `.states.${k}`)])) : null;

@@ -276,3 +276,10 @@
   world that names none fights byte for byte as it did (the boss law and the kernel's pins unmoved). Five starters
   (the Venom Dagger, the Flame Sword, the Hunter's Charm, the Shadow Cloak, the Ember Ring), in the second and third
   shops, named in each era.
+- **RPG primitives, step 2: effects.** A skill may strike more than once (`hits`, 2 to 8), deal its damage in another
+  form (`damage`: `gravity` a share of the HP as it stands, `fixed` its power exactly, `pierce` through the guard, `mp`
+  from the MP), take a share back (`drain`, HP or MP) or steal (`steal`: a foe's first drop into the bag, once a foe; a
+  mug with power); an item may leave a `status` or give a `buff`. None rolls where it is unused, so the boss law and the
+  pins are unmoved. Starters on the class trees, bought, never learned unasked (Steal, Mug, Armor Pierce, Twin Cut,
+  Drain, Osmose, Gravity: the bosses immune to it), and three items in the shops (Power Tonic, Sleep Powder, Smoke
+  Bomb), named in each era; a theft has its juice (`steal`).

@@ -656,7 +656,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
 
   // ── what the screens read (the host's state, never copied into the UI: a binding reads it here each frame) ──
   // (the banner across the top tells an action's name or a status, never a number: a blow's lands over whoever takes it)
-  const TOLD = ['start', 'cast', 'charge', 'phase', 'status', 'ko', 'level', 'learn', 'spoils', 'end', 'page', 'summon'];
+  const TOLD = ['start', 'cast', 'charge', 'phase', 'steal', 'status', 'ko', 'level', 'learn', 'spoils', 'end', 'page', 'summon'];
   const LIST = { 'rpg-cmd': 'commands', 'rpg-skill': 'skills', 'rpg-item': 'items', 'rpg-target': 'targets' };
   const LEVEL = { 'rpg-cmd': 'cmd', 'rpg-skill': 'skill', 'rpg-item': 'item', 'rpg-target': 'target' };
   // (the screen up: none while the runtime draws its first frame)
