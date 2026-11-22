@@ -258,6 +258,13 @@ Reflect, Provoke, Frenzy, Doom), a world's to put on a class's tree or grant: th
 names none carries no states table. The bosses are immune to Doom. Petrify (a fighter out of the fight but not fallen)
 is not yet a behaviour.
 
+**Reactions** (what a fighter does on another's turn), a trait on a class or gear, a foe's own field, or a state's:
+`counter` (the chance it strikes back with a plain blow at one whose blow was aimed at it alone; a counter is never
+countered), `cover` (it steps before an ally under 40% of its HP whom a foe's blow is aimed at, the first standing
+coverer) and `revive` (the share of its HP it rises with as it falls, once a fight; a state's second life, Reraise, is
+spent with it). Only a counter rolls a die, and only for a bearer that has one. The starters: the Riposte Ring and the
+Guardian Crest in the second shop, the Phoenix Charm in the third; Reraise a world's to put on a tree or grant.
+
 **The temple and the smithy.** A party RPG's town whose street keeps a temple has a temple shop (`shops.<id>.raise`,
 the gold to raise each fallen member, healed and cured); one that keeps a smithy has the smithy's, the arms and armour
 among the town's wares. Each is opened by its keeper, and only where its lot's door is laid on the town's stage.

@@ -494,6 +494,70 @@ describe('what a state does', () => {
   });
 });
 
+// REACTIONS (rpg.js readReacts): what a fighter does on another's turn: a strike back at a blow aimed at it alone (never
+// a counter countered), a step before a badly hurt ally, a rise from a fall once a fight (a state's spent as it is used)
+describe('reactions', () => {
+  const brute = { name: 'Brute', hp: 999, mp: 0, atk: 40, def: 0, mag: 1, spd: 30, xp: 1, gold: 1 };
+  const gear = { spikes: { slot: 'accessory', counter: 1 }, crest: { slot: 'accessory', cover: true }, phoenix: { slot: 'accessory', revive: 0.5 } };
+  const cfgOf = (a = {}, b = {}, foe = brute, extra = {}) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'knight', level: 20, gear: a }, { id: 'bram', class: 'knight', level: 20, gear: b }],
+    gear, foes: { foe }, encounters: [{ id: 'yard', foes: ['foe'] }], ...extra } });
+  const begin = (cfg) => { const R = rpgInit(cfg), v = {}; rpgStart(cfg, R, 'yard', v); return [R, v]; };
+  const guard = { ayla: { act: 'guard' }, bram: { act: 'guard' } };
+
+  it('strikes back at a blow aimed at it alone, and a counter is never countered', () => {
+    const cfg = cfgOf({ accessory: 'spikes' }, { accessory: 'spikes' }, { ...brute, counter: 1 }), [R, v] = begin(cfg);
+    let seen = 0;
+    for (let k = 0; k < 4; k++) {
+      const out = rpgRound(cfg, R, guard, v), foeBlows = out.filter((x) => x.kind === 'hurt' && x.by === 'f0' && x.target !== 'f0').length;
+      const counters = out.filter((x) => x.kind === 'counter');
+      // (each of the foe's blows that landed or not: one counter from the member it was aimed at, none back from the foe)
+      expect(counters.every((x) => x.who !== 'f0')).toBe(true);
+      seen += counters.length;
+      if (foeBlows) expect(out.some((x) => x.kind === 'hurt' && x.target === 'f0')).toBe(true);
+    }
+    expect(seen).toBeGreaterThan(0);
+  });
+
+  it('steps before a badly hurt ally a foe\'s blow is aimed at', () => {
+    const cfg = cfgOf({}, { accessory: 'crest' }), [R, v] = begin(cfg);
+    R.m.ayla.hp = 5;
+    let covered = false;
+    for (let k = 0; k < 4; k++) {
+      const out = rpgRound(cfg, R, guard, v);
+      expect(out.some((x) => x.kind === 'hurt' && x.target === 'ayla' && x.by === 'f0')).toBe(false);
+      covered = covered || out.some((x) => x.kind === 'cover' && x.who === 'bram' && x.target === 'ayla');
+    }
+    expect(covered).toBe(true);
+  });
+
+  it('rises once a fight as it falls; a state\'s second life is spent with it; a foe may rise too', () => {
+    const cfg = cfgOf({ accessory: 'phoenix' }), [R, v] = begin(cfg);
+    R.m.ayla.hp = 1; R.m.bram.hp = 999;
+    let rose;
+    for (let k = 0; k < 6 && !rose; k++) rose = rpgRound(cfg, R, guard, v).find((x) => x.kind === 'rise');
+    expect(rose).toMatchObject({ target: 'ayla', hp: Math.round(rpgStatsOf(cfg, R, 'ayla').hp * 0.5) });
+    R.m.ayla.hp = 1;
+    let again = false, fell = false;
+    for (let k = 0; k < 6 && !fell; k++) { const out = rpgRound(cfg, R, guard, v); again = again || out.some((x) => x.kind === 'rise'); fell = R.m.ayla.hp <= 0; }
+    expect(fell).toBe(true);
+    expect(again).toBe(false);
+    const F = cfgOf({}, {}, { ...brute, atk: 1, revive: 0.5 }), [RF, vF] = begin(F);
+    RF.b.foes[0].hp = 1;
+    RF.m.ayla.mp = 99;
+    let ko = [];
+    for (let k = 0; k < 6 && !ko.some((x) => x.kind === 'ko' && x.target === 'f0'); k++) ko = rpgRound(F, RF, { ayla: { act: 'attack', target: 'f0' }, bram: { act: 'guard' } }, vF);
+    expect(ko.some((x) => x.kind === 'ko' && x.target === 'f0')).toBe(true);
+    expect(ko.some((x) => x.kind === 'rise' && x.target === 'f0')).toBe(true);
+  });
+
+  it('is read and taught', () => {
+    expect(() => cfgOf({}, {}, brute, { gear: { ...gear, bad: { slot: 'accessory', counter: 2 } } })).toThrow(/counter is the chance/);
+    expect(() => cfgOf({}, {}, brute, { gear: { ...gear, bad: { slot: 'accessory', cover: 'yes' } } })).toThrow(/cover is true/);
+    expect(() => cfgOf({}, {}, { ...brute, cover: true })).toThrow(/not part of|cover/);
+    expect(readRpg({ rpg: { party: [{ id: 'ayla', class: 'knight' }] } }).gear['phoenix-charm'].traits).toEqual({ revive: 0.25 });
+  });
+});
+
 // A CHARGED BLOW (a pattern row's `charge`): the foe's turn spent gathering, said, so the party can brace; its next turn
 // the blow let go at twice its power; a guard takes half of it like any blow
 describe('a charged blow', () => {

@@ -183,6 +183,7 @@ function cuesCard() {
   '  TRAITS on a class or gear (a foe its own): hit?, eva?, crit? (shares added to the fight\'s), element? and inflict?:',
   '  { is, chance?, rounds? } (what a plain blow carries), grants?: [skills], resist?, immune?, ward?; a state may carry rates.',
   '  EFFECTS on a skill: hits?: 2-8, damage?: gravity | fixed | pierce | mp, drain?: share, steal?: true; an item\'s status?, buff?.',
+  '  REACTIONS (a trait, a foe\'s own, a state\'s): counter?: chance, cover?: true (before a badly hurt ally), revive?: share.',
   '  encounters[].pages: [{ when: { start: true } | { foe?, hpBelow } | { round }, say, who?, sets?, summon?, heal? }],',
   '  each said once; summon: [foe] calls foes in (a dormant figure each past the foes\' in who), heal: share.',
   '  states: { <id>: { said, skip?, noCast?, miss?, wild?, tick?, stats?, takes?, berserk?, reflect?, taunt?, doom?, rates?,',

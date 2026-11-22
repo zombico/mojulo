@@ -53,7 +53,7 @@ export function buildRpg() {
   /** A fighter held by a state that takes its turns (the page asks it nothing). */
   function stuck(cfg, R, who) { const T = R.b && (R.b.side[who] ? { st: R.b.side[who].st } : R.b.foes.find((f) => f.uid === who)); return !!(T && (stateWith(cfg, T, 'skip') || stateWith(cfg, T, 'berserk'))); }
   const LETTERS = 'ABCDEFGH';
-  const CRIT = 1 / 16, MISS = 1 / 24, WAKE = 0.5, STEAL = 0.5;
+  const CRIT = 1 / 16, MISS = 1 / 24, WAKE = 0.5, STEAL = 0.5, COVER = 0.4;
 
   // mulberry32, its state on the battle (b.r), so the dice survive a pause between rounds
   function rnd(b) {
@@ -243,13 +243,16 @@ export function buildRpg() {
   // none of and the states it wards off, its rates summed, the skills granted, and what its plain blow carries (the
   // weapon's over the class's)
   function traitsOf(cfg, M) {
-    const out = { resist: [], immune: [], ward: [], grants: [], hit: 0, eva: 0, crit: 0, element: null, inflict: null };
+    const out = { resist: [], immune: [], ward: [], grants: [], hit: 0, eva: 0, crit: 0, element: null, inflict: null, counter: 0, cover: false, revive: 0 };
     const add = (t) => {
       if (!t) return;
       for (const k of ['resist', 'immune', 'ward', 'grants']) if (t[k]) out[k].push(...t[k]);
       for (const k of ['hit', 'eva', 'crit']) if (t[k]) out[k] += t[k];
       if (t.element) out.element = t.element;
       if (t.inflict) out.inflict = t.inflict;
+      if (t.counter) out.counter = Math.min(1, out.counter + t.counter);
+      if (t.cover) out.cover = true;
+      if (t.revive) out.revive = Math.max(out.revive, t.revive);
     };
     add(cfg.classes[M.cls] && cfg.classes[M.cls].traits);
     for (const slot of ['accessory', 'armor', 'weapon']) if (M.gear[slot]) add(cfg.gear[M.gear[slot]] && cfg.gear[M.gear[slot]].traits);
@@ -260,6 +263,12 @@ export function buildRpg() {
     let n = U.party ? traitsOf(cfg, U.M)[k] : (U.F && U.F[k]) || 0;
     if (cfg.states) for (const x of statesOn(cfg, U)) if (x[k]) n += x[k];
     return n;
+  }
+  // a fighter's REACTION (counter, cover, revive): its traits or a foe's own, and the states it is in (the most of them)
+  function reactOf(cfg, U, k) {
+    let v = U.party ? traitsOf(cfg, U.M)[k] : (U.F && U.F[k]) || 0;
+    if (cfg.states) for (const x of statesOn(cfg, U)) if (x[k]) v = k === 'cover' ? true : Math.max(v || 0, x[k]);
+    return v;
   }
   // a plain blow: the weapon's (or the foe's) element and the status it may leave, else the bare attack
   function attackOf(cfg, U) {
@@ -344,10 +353,17 @@ export function buildRpg() {
   }
 
   function fall(cfg, R, T, out) {
+    // (a fighter that rises again, once a fight: its share read before its states are cleared, a state's spent with it)
+    const rise = !T.side.rose && reactOf(cfg, T, 'revive');
     T.st.sleep = 0; T.st.silence = 0; T.buffs.length = 0;
     if (cfg.states) for (const k in cfg.states) T.st[k] = 0;
     if (T.party) T.M.poison = 0; else T.st.poison = 0;
     out.push({ text: T.party ? T.name + ' falls!' : T.name + ' is defeated!', kind: 'ko', target: T.who, foe: T.party ? undefined : T.side.kind });
+    if (rise) {
+      T.side.rose = 1;
+      T.hp = Math.max(1, Math.round(T.S.hp * rise));
+      out.push({ text: T.name + ' rises again!', kind: 'rise', target: T.who, amount: T.hp, hp: T.hp });
+    }
   }
   function heal(cfg, R, A, T, fx, out) {
     const b = R.b;
@@ -415,6 +431,14 @@ export function buildRpg() {
     else if (pool.indexOf(target) >= 0) hits = [target];
     else if (enemies) hits = [pool[Math.floor(rnd(b) * pool.length)]];
     else hits = [fx.revive ? pool[0] : mostHurt(cfg, R, pool)];
+    // (a foe's blow aimed at one badly hurt member: an ally who covers steps before it, the first standing)
+    if (!A.party && enemies && aim === 'foe' && fx.stat === 'atk' && !fx.counter && hits.length === 1) {
+      const T0 = unit(cfg, R, hits[0]);
+      if (T0 && T0.party && T0.hp / Math.max(1, T0.S.hp) < COVER) {
+        const by = living(R).find((m) => m !== hits[0] && reactOf(cfg, unit(cfg, R, m), 'cover'));
+        if (by) { out.push({ text: unit(cfg, R, by).name + ' covers ' + T0.name + '!', kind: 'cover', who: by, target: hits[0] }); hits = [by]; }
+      }
+    }
     for (const w of hits) {
       let T = unit(cfg, R, w);
       if (!T) continue;
@@ -432,6 +456,11 @@ export function buildRpg() {
       // (a status a plain blow carries is left only where the blow lands; a skill's rolls as it always did)
       if (!fx.onHit || landed) afflict(cfg, R, T, fx, out);
       buffOn(cfg, R, T, fx, out);
+      // (a blow aimed at it alone, from the other side: it may strike back, standing, once; a counter is never countered)
+      if (fx.harm && fx.stat === 'atk' && (aim === 'foe') && !fx.counter && T.who !== A.who && T.hp > 0 && A.hp > 0 && T.party !== A.party) {
+        const c = reactOf(cfg, T, 'counter');
+        if (c && rnd(b) < c) { out.push({ text: T.name + ' counters!', kind: 'counter', who: T.who, target: A.who }); apply(cfg, R, T, { ...attackOf(cfg, T), counter: true }, 'foe', A.who, out, vars); }
+      }
     }
   }
 

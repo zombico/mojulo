@@ -48,8 +48,10 @@
  *                 elements its wearer takes half of or none of, the states it wards off; its RATES, shares added to the
  *                 fight's: hit (its blows surer), eva (blows at it go wide), crit (its blows critical); what its plain
  *                 blow carries, an element and a status it may leave where it lands, inflict: { is, chance?, rounds? };
- *                 the skills it grants while worn. A foe names its rates, element and inflict as its own fields; a
- *                 state may carry rates)
+ *                 the skills it grants while worn; its REACTIONS on another's turn: counter (the chance it strikes back at a
+ *                 blow aimed at it alone; a counter is never countered), cover (it steps before a badly hurt ally a foe's
+ *                 blow is aimed at), revive (the share of its HP it rises with, once a fight). A foe names its rates,
+ *                 element, inflict, counter and revive as its own fields; a state may carry rates and reactions)
  *                 what a member may wear, one item a slot, its numbers added to theirs (default: every preset); worn
  *                 items come from the bag and go back to it (held:bag:<item>); a class switch takes off what it forbids
  *     encounters?: [{ id, foes: [foe ids], at?: [x, y], who?: '<entity>' | ['<entity>', …], near?, flee?, room?, pages? }]
@@ -120,6 +122,8 @@ const RULE_WORDS = { defeat: ['fail', 'retry'], switch: ['anywhere', 'never'], c
 const BUFF_STATS = ['atk', 'def', 'mag', 'spd'];
 // the RATES (traits.js of RPG Maker's: hit, evasion, critical), each a share added to the fight's own
 export const RATE_KEYS = Object.freeze(['hit', 'eva', 'crit']);
+// the REACTIONS (rpg.js readReacts): a strike back, a step before an ally, a rise from a fall
+export const REACT_KEYS = Object.freeze(['counter', 'cover', 'revive']);
 const RATE_SAYS = { hit: 'how much surer its blows land', eva: 'how often a blow at it goes wide', crit: 'how much more often its blows are critical' };
 const DEFAULT_BASE = Object.freeze({ hp: 30, mp: 0, atk: 8, def: 6, mag: 4, spd: 6 });
 const DEFAULT_GROWTH = Object.freeze({ hp: 6, mp: 0, atk: 2, def: 1.5, mag: 1, spd: 1 });
@@ -165,11 +169,11 @@ function readWorn(v, where) {
 // surer its blows land, `eva` how often a blow at it goes wide, `crit` how much more often its blows are critical; its
 // ATTACK, what a plain blow carries: `element` (a flame sword's fire) and `inflict` (a poison dagger's { is, chance?,
 // rounds? }); and the skills it `grants` while it is worn or the class held. Null where it names none
-const TRAIT_KEYS = ['resist', 'immune', 'ward', ...RATE_KEYS, 'element', 'inflict', 'grants'];
+const TRAIT_KEYS = ['resist', 'immune', 'ward', ...RATE_KEYS, 'element', 'inflict', 'grants', ...REACT_KEYS];
 function readTraits(d, where) {
   const out = {};
   for (const k of ['resist', 'immune', 'ward']) if (d[k] !== undefined) out[k] = listOf(d[k], `${where}.${k}`, k === 'ward' ? 'states' : 'elements').map((e, i) => id(e, `${where}.${k}[${i}]`));
-  Object.assign(out, readRates(d, where), readAttack(d, where));
+  Object.assign(out, readRates(d, where), readAttack(d, where), readReacts(d, where));
   if (d.grants !== undefined) out.grants = listOf(d.grants, `${where}.grants`, 'skill ids').map((e, i) => id(e, `${where}.grants[${i}]`));
   return Object.keys(out).length ? out : null;
 }
@@ -180,6 +184,16 @@ function readRates(d, where) {
     if (!(num(d[k]) && d[k] >= (k === 'eva' ? 0 : -1) && d[k] <= 1)) throw err(`${where}.${k} is ${RATE_SAYS[k]}: a share, ${k === 'eva' ? '0' : '-1'} to 1`);
     out[k] = d[k];
   }
+  return out;
+}
+// its REACTIONS, what it does on another's turn: `counter` the chance it strikes back at one whose blow was aimed at it
+// alone, `cover` it steps before a badly hurt ally a foe's blow is aimed at, `revive` the share of its HP it rises with,
+// once a fight, as it falls
+function readReacts(d, where, keys = REACT_KEYS) {
+  const out = {};
+  if (keys.includes('counter') && d.counter !== undefined) { if (!(num(d.counter) && d.counter > 0 && d.counter <= 1)) throw err(`${where}.counter is the chance it strikes back, above 0, at most 1`); out.counter = d.counter; }
+  if (keys.includes('cover') && d.cover !== undefined) { if (d.cover !== true) throw err(`${where}.cover is true: it steps before a badly hurt ally`); out.cover = true; }
+  if (keys.includes('revive') && d.revive !== undefined) { if (!(num(d.revive) && d.revive > 0 && d.revive <= 1)) throw err(`${where}.revive is the share of its HP it rises with, once a fight, above 0, at most 1`); out.revive = d.revive; }
   return out;
 }
 // what a plain blow carries: its element, and a status it may leave
@@ -200,8 +214,8 @@ function readAttack(d, where) {
 // accord, `reflect` a spell aimed at it alone turns back on its caster, `taunt` the foes' blows and spells aimed at one
 // come to it, `doom` it falls as the state runs out; and `stack`, what one cast on a bearer already in it does: refresh
 // (its rounds anew, the default), keep (nothing), add (its rounds added, nine at most)
-export const STATE_DOES = Object.freeze(['skip', 'noCast', 'miss', 'wild', 'tick', 'stats', 'takes', 'berserk', 'reflect', 'taunt', 'doom']);
-const STATE_KEYS = ['name', 'said', 'rounds', 'skip', 'noCast', 'miss', 'wild', 'tick', 'wake', ...RATE_KEYS, 'stats', 'takes', 'berserk', 'reflect', 'taunt', 'doom', 'stack'];
+export const STATE_DOES = Object.freeze(['skip', 'noCast', 'miss', 'wild', 'tick', 'stats', 'takes', 'berserk', 'reflect', 'taunt', 'doom', ...REACT_KEYS]);
+const STATE_KEYS = ['name', 'said', 'rounds', 'skip', 'noCast', 'miss', 'wild', 'tick', 'wake', ...RATE_KEYS, 'stats', 'takes', 'berserk', 'reflect', 'taunt', 'doom', 'stack', ...REACT_KEYS];
 function readState(k, d, where) {
   if (RPG_STATUSES[k]) throw err(`${where}: '${k}' is the kernel's own status; a state of the world's own takes another name`);
   if (!isObj(d)) throw err(`${where} is { ${STATE_KEYS.join(', ')} }: a state, by what it does`);
@@ -223,7 +237,7 @@ function readState(k, d, where) {
   readRates(d, where);
   if (!STATE_DOES.some((f) => d[f]) && !RATE_KEYS.some((r) => d[r])) throw err(`${where} does nothing: ${STATE_DOES.join(', ')}, or a rate (${RATE_KEYS.join(', ')})`);
   return { name: d.name ?? words(k), said: d.said ?? words(k).toLowerCase(), rounds: d.rounds ?? 3, ...Object.fromEntries(['skip', 'noCast', 'miss', 'wild', 'tick', 'wake', 'berserk', 'reflect', 'taunt', 'doom', 'stack'].filter((f) => d[f] !== undefined).map((f) => [f, d[f]])),
-    ...(stats ? { stats } : {}), ...(takes ? { takes } : {}), ...readRates(d, where) };
+    ...(stats ? { stats } : {}), ...(takes ? { takes } : {}), ...readRates(d, where), ...readReacts(d, where) };
 }
 // (the statuses a skill or an item may name: the kernel's three, the world's own states, the starter book's)
 let knownStates = null;
@@ -359,7 +373,7 @@ function readPhases(v, where) {
 }
 
 function readFoe(k, d, where) {
-  keysOnly(d, ['name', ...RPG_STATS, 'xp', 'gold', 'cp', 'weak', 'resist', 'absorb', 'immune', 'skills', 'drops', 'boss', 'pattern', 'phases', ...RATE_KEYS, 'element', 'inflict'], where);
+  keysOnly(d, ['name', ...RPG_STATS, 'xp', 'gold', 'cp', 'weak', 'resist', 'absorb', 'immune', 'skills', 'drops', 'boss', 'pattern', 'phases', ...RATE_KEYS, 'element', 'inflict', 'counter', 'revive'], where);
   for (const s of ['hp', 'atk', 'def', 'mag', 'spd']) if (!num(d[s]) || d[s] < 0) throw err(`${where}.${s} is a number (hp, atk, def, mag, spd are each needed)`);
   if (d.hp < 1) throw err(`${where}.hp is 1 or more`);
   for (const s of ['mp', 'xp', 'gold', 'cp']) optNum(d[s], `${where}.${s}`);
@@ -377,7 +391,7 @@ function readFoe(k, d, where) {
     ...(d.pattern !== undefined ? { pattern: readPattern(d.pattern, `${where}.pattern`) } : {}),
     ...(d.phases !== undefined ? { phases: readPhases(d.phases, `${where}.phases`) } : {}),
     // (its rates and what its plain blow carries, where it names them)
-    ...readRates(d, where), ...readAttack(d, where),
+    ...readRates(d, where), ...readAttack(d, where), ...readReacts(d, where, ['counter', 'revive']),
   };
 }
 

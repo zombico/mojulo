@@ -290,3 +290,9 @@
   states (haste, slow, barrier, shell, berserk, reflect, taunt, doom) and the skills that cast them, a world's to put on
   a tree or grant: none sits on a preset tree, so a world naming none carries no states table and fights as it did. The
   bosses are immune to Doom. Petrify is not yet a behaviour.
+- **RPG primitives, step 4: reactions.** What a fighter does on another's turn, a trait on a class or gear, a foe's own
+  field or a state's: `counter` (a chance to strike back at a blow aimed at it alone; never a counter countered), `cover`
+  (it steps before a badly hurt ally a foe's blow is aimed at) and `revive` (it rises once a fight with that share of its
+  HP; a state's, Reraise, spent with it). Only a counter rolls, and only for its bearer, so a world naming none fights as
+  it did. The Riposte Ring, the Guardian Crest and the Phoenix Charm in the shops, named in each era; the Reraise state
+  and its cast opt-in; their juice (counter, cover, rise).

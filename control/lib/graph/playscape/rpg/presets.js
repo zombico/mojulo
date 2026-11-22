@@ -42,6 +42,8 @@ export const STATE_PRESETS = Object.freeze({
   reflect: Object.freeze({ name: 'Reflect', said: 'reflecting', rounds: 3, reflect: true }),
   taunt: Object.freeze({ name: 'Taunt', said: 'taunting', rounds: 3, taunt: true }),
   doom: Object.freeze({ name: 'Doom', said: 'doomed', rounds: 5, doom: true, stack: 'keep' }),
+  // (a reaction a state carries: a second life, spent as it is used)
+  reraise: Object.freeze({ name: 'Reraise', said: 'blessed', rounds: 9, revive: 0.3, stack: 'keep' }),
 });
 
 const st = (hp, mp, atk, def, mag, spd) => Object.freeze({ hp, mp, atk, def, mag, spd });
@@ -129,6 +131,7 @@ export const SKILL_PRESETS = Object.freeze({
   provoke: { name: 'Provoke', about: 'draws the foes\' blows to itself', mp: 0, target: 'self', status: { is: 'taunt' } },
   frenzy: { name: 'Frenzy', about: 'an ally fights in a rage: stronger, past commanding', mp: 3, target: 'ally', status: { is: 'berserk' } },
   doom: { name: 'Doom', about: 'a foe falls when the count runs out', mp: 8, target: 'foe', status: { is: 'doom', chance: 0.6 } },
+  reraise: { name: 'Reraise', about: 'an ally rises again once if it falls', mp: 12, target: 'ally', status: { is: 'reraise' } },
   osmose: { name: 'Osmose', about: 'draws MP from a foe', mp: 0, target: 'foe', power: 4, stat: 'mag', scale: 0.4, damage: 'mp', drain: 1 },
   smoke: { name: 'Smoke', about: 'every foe may be silenced', mp: 2, target: 'foes', status: { is: 'silence', chance: 0.6, rounds: 3 } },
   // the fist
@@ -250,4 +253,8 @@ export const GEAR_PRESETS = Object.freeze({
   'hunter-charm': { name: 'Hunter\'s Charm', price: 90, slot: 'accessory', hit: 0.05, crit: 0.08 },
   'shadow-cloak': { name: 'Shadow Cloak', price: 85, slot: 'armor', def: 3, eva: 0.08 },
   'ember-ring': { name: 'Ember Ring', price: 120, slot: 'accessory', mag: 2, grants: ['fire'] },
+  // (gear with a REACTION, rpg.js readReacts: a strike back, a step before an ally, a second life)
+  'riposte-ring': { name: 'Riposte Ring', price: 140, slot: 'accessory', counter: 0.3 },
+  'guardian-crest': { name: 'Guardian Crest', price: 110, slot: 'accessory', def: 2, cover: true },
+  'phoenix-charm': { name: 'Phoenix Charm', price: 220, slot: 'accessory', revive: 0.25 },
 });

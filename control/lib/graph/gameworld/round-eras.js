@@ -45,7 +45,7 @@ export const ROUND_ERAS = Object.freeze({
       colossus: { name: 'Titan Mech', look: { species: 'mammoth', ooze: 'transmetal' } },
     }),
     items: Object.freeze({ potion: 'Med-kit', 'hi-potion': 'Trauma Kit', ether: 'Energy Cell', antidote: 'Antitoxin', remedy: 'Nanocure', feather: 'Revive Shot', firebomb: 'Plasma Grenade', 'sleep-powder': 'Sedative Gas', 'smoke-bomb': 'Smoke Grenade', 'power-tonic': 'Combat Stim' }),
-    gear: Object.freeze({ 'bronze-sword': 'Shock Baton', 'iron-sword': 'Plasma Blade', 'oak-staff': 'Focus Rod', 'silver-staff': 'Psi Rod', cestus: 'Power Gauntlet', 'leather-armor': 'Flak Vest', 'chain-mail': 'Combat Armour', robe: 'Field Suit', gi: 'Flex Suit', 'swift-ring': 'Servo Ring', 'mana-charm': 'Psi Chip', 'venom-dagger': 'Toxin Blade', 'flame-sword': 'Thermal Sabre', 'hunter-charm': 'Targeting Chip', 'shadow-cloak': 'Stealth Cloak', 'ember-ring': 'Pyro Chip' }),
+    gear: Object.freeze({ 'bronze-sword': 'Shock Baton', 'iron-sword': 'Plasma Blade', 'oak-staff': 'Focus Rod', 'silver-staff': 'Psi Rod', cestus: 'Power Gauntlet', 'leather-armor': 'Flak Vest', 'chain-mail': 'Combat Armour', robe: 'Field Suit', gi: 'Flex Suit', 'swift-ring': 'Servo Ring', 'mana-charm': 'Psi Chip', 'venom-dagger': 'Toxin Blade', 'flame-sword': 'Thermal Sabre', 'hunter-charm': 'Targeting Chip', 'shadow-cloak': 'Stealth Cloak', 'ember-ring': 'Pyro Chip', 'riposte-ring': 'Reflex Chip', 'guardian-crest': 'Bodyguard Unit', 'phoenix-charm': 'Auto-Defib' }),
     citadel: Object.freeze({ gate: 'barracks', vault: 'lab', core: 'command', kit: 'research-lab' }),
   }),
   // A MODERN round (today's town and its wilds): strays and vermin, thugs and their boss
@@ -73,7 +73,7 @@ export const ROUND_ERAS = Object.freeze({
       colossus: { name: 'Wrecking Bot', look: { species: 'mammoth', ooze: 'techno' } },
     }),
     items: Object.freeze({ potion: 'First-aid Kit', 'hi-potion': 'Trauma Kit', ether: 'Energy Drink', antidote: 'Antidote', remedy: 'Medicine', feather: 'Adrenaline Shot', firebomb: 'Flashbang', 'sleep-powder': 'Knockout Spray', 'smoke-bomb': 'Smoke Grenade', 'power-tonic': 'Energy Shot' }),
-    gear: Object.freeze({ 'bronze-sword': 'Baseball Bat', 'iron-sword': 'Crowbar', 'oak-staff': 'Walking Stick', 'silver-staff': 'Steel Cane', cestus: 'Knuckle Dusters', 'leather-armor': 'Leather Jacket', 'chain-mail': 'Kevlar Vest', robe: 'Hoodie', gi: 'Track Suit', 'swift-ring': 'Running Shoes', 'mana-charm': 'Lucky Charm', 'venom-dagger': 'Rusty Knife', 'flame-sword': 'Blowtorch', 'hunter-charm': 'Lucky Dice', 'shadow-cloak': 'Dark Hoodie', 'ember-ring': 'Zippo Lighter' }),
+    gear: Object.freeze({ 'bronze-sword': 'Baseball Bat', 'iron-sword': 'Crowbar', 'oak-staff': 'Walking Stick', 'silver-staff': 'Steel Cane', cestus: 'Knuckle Dusters', 'leather-armor': 'Leather Jacket', 'chain-mail': 'Kevlar Vest', robe: 'Hoodie', gi: 'Track Suit', 'swift-ring': 'Running Shoes', 'mana-charm': 'Lucky Charm', 'venom-dagger': 'Rusty Knife', 'flame-sword': 'Blowtorch', 'hunter-charm': 'Lucky Dice', 'shadow-cloak': 'Dark Hoodie', 'ember-ring': 'Zippo Lighter', 'riposte-ring': 'Brass Knuckles', 'guardian-crest': 'Riot Shield', 'phoenix-charm': 'Lucky Coin' }),
     citadel: Object.freeze({ gate: 'guardhouse', vault: 'warehouse', core: 'office', kit: 'research-lab' }),
   }),
 });
