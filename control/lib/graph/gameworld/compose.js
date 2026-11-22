@@ -573,7 +573,8 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // (and fights turn by turn, one at a time: each member picks when its turn comes and acts at once, the foes between
   // them, never the whole party choosing and then the round played: playscape/rpg/kernel.js, rules.turns 'timeline')
   // (a foe's HP shown as the same bar over its head as a member's: rules.foeHp 'bar')
-  if (turnBased && world.battles?.rules?.turns === undefined) world.battles = { ...(world.battles ?? {}), rules: { turns: 'timeline', foeHp: 'bar', ...(world.battles?.rules ?? {}) } };
+  // (and opens a fight now and then with the party striking first, or ambushed: never its boss's, play.rpg rules.openings)
+  if (turnBased && world.battles?.rules?.turns === undefined) world.battles = { ...(world.battles ?? {}), rules: { turns: 'timeline', foeHp: 'bar', openings: true, ...(world.battles?.rules ?? {}) } };
   // (and is reskinned in its era, round-eras.js: its foes' names and looks, its items' and gear's names, the presets'
   // numbers kept; the looks its words named keep theirs)
   if (eraRow && world.battles) {

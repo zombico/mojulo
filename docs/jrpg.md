@@ -279,6 +279,12 @@ keeps where each stands. A world without rows has no Row and halves nothing. `sc
 into the message line: its HP and what it is weak to, resists, absorbs and is immune to (the mage's Scan, bought on its
 tree; the Scan Lens in the first shop).
 
+**Openings.** A world that asks (`rules.openings: true`, or `{ first, ambush }`, the chance of each, an eighth unsaid)
+opens a fight now and then with the party striking first (the foes sit out the first round; on the timeline the
+party's gauges start full) or ambushed (the reverse, and where the party stands in rows, the rows turned about for the
+fight). Never at a fight with no escape: a boss's opens as written. An encounter may say its own (`opening: normal |
+first | ambush`), a scripted surprise. A composed party RPG asks for them.
+
 **The temple and the smithy.** A party RPG's town whose street keeps a temple has a temple shop (`shops.<id>.raise`,
 the gold to raise each fallen member, healed and cured); one that keeps a smithy has the smithy's, the arms and armour
 among the town's wares. Each is opened by its keeper, and only where its lot's door is laid on the town's stage.

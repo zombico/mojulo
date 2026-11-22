@@ -441,7 +441,13 @@ export function readRpg(play) {
   // (stage: where a fight is fought: on the map as it stands, 'live', the default; 'arena', a place solved near where it
   // was met on the map's own ground, cleared of what stands in it, the party on the left; or 'backdrop', the fighters on
   // an arena of their own before a background drawn once from the map: scene/channels)
-  keysOnly(Ru, [...Object.keys(RPG_RULES), 'view', 'cinema', 'stage', 'rows'], '.rules');
+  keysOnly(Ru, [...Object.keys(RPG_RULES), 'view', 'cinema', 'stage', 'rows', 'openings'], '.rules');
+  // (OPENINGS: a fight may open with the party striking first, or the foes ambushing it; a die each fight, never at a
+  // fight with no escape (a boss's); absent, every fight opens alike)
+  if (Ru.openings !== undefined) {
+    const O = Ru.openings;
+    if (O !== true && !(isObj(O) && Object.keys(O).every((k) => k === 'first' || k === 'ambush') && Object.values(O).every((n) => num(n) && n >= 0 && n <= 0.5))) throw err('.rules.openings is true, or { first?, ambush? }: the chance a fight opens with the party striking first, or ambushed (each 0 to 0.5; an eighth unsaid)');
+  }
   // (ROWS: the party stands in a front and a back row; a member in the back deals and takes half from blows, never
   // from spells or ranged blows, and the Row command moves it; absent, no rows)
   if (Ru.rows !== undefined && Ru.rows !== true) throw err('.rules.rows is true: the party in a front and a back row (each member\'s row, the Row command)');
@@ -464,7 +470,7 @@ export function readRpg(play) {
   if (Ru.cp !== undefined && !(Array.isArray(Ru.cp) && Ru.cp.length >= 1 && Ru.cp[0] === 0 && Ru.cp.every((n, i) => Number.isInteger(n) && (i === 0 || n > Ru.cp[i - 1])))) throw err('.rules.cp is the class points each class rank needs, rising from 0: [0, 2, 5, 9]');
   optNum(Ru.sp, '.rules.sp');
   if (Ru.seed !== undefined && !Number.isInteger(Ru.seed)) throw err('.rules.seed is a whole number');
-  const rules = { ...RPG_RULES, ...Ru };
+  const rules = { ...RPG_RULES, ...Ru, ...(Ru.openings !== undefined ? { openings: { first: 0.125, ambush: 0.125, ...(Ru.openings === true ? {} : Ru.openings) } } : {}) };
 
   // the party
   if (!Array.isArray(P.party) || !P.party.length || P.party.length > 8) throw err('.party is a list of 1 to 8 members: [{ id, name?, class, level?, joins?, bonus?, classes? }]');
@@ -588,7 +594,8 @@ export function readRpg(play) {
   E.forEach((e, i) => {
     const at = `.encounters[${i}]`;
     if (!isObj(e)) throw err(`${at} is { id, foes, at?, who?, near?, flee?, room? }`);
-    keysOnly(e, ['id', 'foes', 'at', 'who', 'near', 'flee', 'room', 'pages'], at);
+    keysOnly(e, ['id', 'foes', 'at', 'who', 'near', 'flee', 'room', 'pages', 'opening'], at);
+    if (e.opening !== undefined && !['normal', 'first', 'ambush'].includes(e.opening)) throw err(`${at}.opening is normal, first (the party strikes first) or ambush (the foes do): how this fight opens, whatever the dice`);
     id(e.id, `${at}.id`);
     if (e.id === 'random') throw err(`${at}.id 'random' is the random encounters' own`);
     if (encSeen.has(e.id)) throw err(`${at}.id '${e.id}' twice`);
@@ -607,7 +614,7 @@ export function readRpg(play) {
     if (e.flee !== undefined && typeof e.flee !== 'boolean') throw err(`${at}.flee is false for a fight with no escape`);
     if (e.room !== undefined && !(Array.isArray(e.room) && e.room.length === 5 && e.room.every(num) && e.room[2] > e.room[0] && e.room[3] > e.room[1])) throw err(`${at}.room is the room it is fought in, [x0, y0, x1, y1, floor]`);
     const boss = e.foes.some((f) => foes[f].boss);
-    encounters[e.id] = { foes: [...e.foes], flee: e.flee ?? !boss, ...(pages ? { pages } : {}) };
+    encounters[e.id] = { foes: [...e.foes], flee: e.flee ?? !boss, ...(pages ? { pages } : {}), ...(e.opening ? { opening: e.opening } : {}) };
     if (e.at) met.push({ id: e.id, at: [e.at[0], e.at[1]], who: e.who ?? null, near: e.near ?? 2.2, ...(e.room ? { room: [...e.room] } : {}) });
   });
 

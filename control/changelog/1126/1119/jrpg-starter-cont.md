@@ -307,3 +307,8 @@
   skill or an item reads a foe's HP, weaknesses and guards into the message line. The mage's Scan on its tree, the Scan
   Lens and the Hunting Bow in the shops, named in each era. The six steps' primitives (traits, effects, state behaviours,
   reactions, costs, rows and scan) leave a world that names none fighting byte for byte as it did.
+- **Openings: the party strikes first, or is ambushed.** `rules.openings` (true, or the chance of each) rolls a fight's
+  opening: the party first (the foes sit out the first round; on the timeline the party's gauges start full) or
+  ambushed (the reverse, the rows turned about where there are rows), never at a fight with no escape; an encounter may
+  script its own (`opening`). Each opens with its line and juice (`start:first`, `start:ambush`). A composed party RPG
+  asks for them; a world that asks none opens every fight as it did.

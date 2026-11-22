@@ -49,7 +49,7 @@
  *     a blow     skill:<id>, crit, weak, element:<el>, resist, absorb, hit
  *     a use      cast:<skill>, cast · item:<item>
  *     heal:<skill>, heal · miss · status:<is>, status · ko:<foe>, ko · fall (a member)
- *     start:boss, start · summon (a foe called in) · charge (a foe gathering a charged blow) · unleash (a
+ *     start:first, start:ambush (an opening), start:boss, start · summon (a foe called in) · charge (a foe gathering a charged blow) · unleash (a
  *     charged blow let go: its cast's keys after it) · phase (a foe taking its next form) · steal (a theft that took something) · counter, cover, rise (the reactions) · scan (a foe read) · victory · defeat · flee · level · learn
  *
  *   JUICE_PRESETS, JUICE_ON, JUICE_ALSO   the defaults: named juices, what each happening plays, what layers over
@@ -113,6 +113,9 @@ export const JUICE_PRESETS = Object.freeze({
   rise: [{ flash: '#fff3b0', for: 0.2 }, { puff: 'sparks', color: '#ffe07a' }, { hold: 0.3 }],
   // (a scan: the air round the foe inked as it is read, the line held a moment longer to be read)
   scan: [{ lens: 'ink', at: 'target' }, { hold: 0.8 }],
+  // (a fight's opening: the party's first strike in cool light; an ambush in red, the field jolted)
+  first: [{ flash: '#9fe8ff', for: 0.2 }, { hold: 0.5 }],
+  ambush: [{ flash: '#ff3030', for: 0.25 }, { shake: 0.45 }, { jolt: 'window', k: 1.5 }, { hold: 0.6 }],
   victory: [{ flash: '#ffe07a', for: 0.2 }, { act: 'win', at: 'party' }],
   level: [{ flash: '#ffe07a', for: 0.15 }],
   fire: ['hit', { puff: 'flash', color: '#ff7a2a' }],
@@ -124,7 +127,7 @@ export const JUICE_PRESETS = Object.freeze({
 export const JUICE_ALSO = Object.freeze({ weak: 'weak', resist: 'resist' });
 export const JUICE_ON = Object.freeze({
   hit: 'hit', crit: 'crit', miss: 'miss', heal: 'heal', status: 'status', cast: 'cast', item: 'item',
-  ko: 'ko', fall: 'fall', start: 'start', 'start:boss': 'boss', summon: 'summon', charge: 'charge', unleash: 'unleash', phase: 'phase', steal: 'steal', counter: 'counter', cover: 'cover', rise: 'rise', scan: 'scan', victory: 'victory', level: 'level',
+  ko: 'ko', fall: 'fall', start: 'start', 'start:boss': 'boss', 'start:first': 'first', 'start:ambush': 'ambush', summon: 'summon', charge: 'charge', unleash: 'unleash', phase: 'phase', steal: 'steal', counter: 'counter', cover: 'cover', rise: 'rise', scan: 'scan', victory: 'victory', level: 'level',
   'element:fire': 'fire', 'element:ice': 'ice', 'element:thunder': 'thunder', 'element:light': 'light', 'element:dark': 'dark',
 });
 
@@ -252,6 +255,7 @@ export function juiceKeys(b) {
     if (b.status) out.push('status:' + b.status);
     out.push('status');
   } else if (k === 'start') {
+    if (b.opening) out.push('start:' + b.opening);
     if (b.boss) out.push('start:boss');
     out.push('start');
   } else if (k === 'summon') out.push('summon');

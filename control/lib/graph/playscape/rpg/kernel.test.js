@@ -657,6 +657,47 @@ describe('rows and scan', () => {
   });
 });
 
+// OPENINGS (rules.openings, an encounter's opening): a fight that opens with the party striking first (the foes sit out
+// the first round; on the timeline the party's gauges start full), or ambushed (the reverse, the rows turned about); a
+// die each fight where the world asks, never at a fight with no escape; a world that asks none opens every fight alike
+describe('openings', () => {
+  const brute = { name: 'Brute', hp: 999, mp: 0, atk: 10, def: 0, mag: 1, spd: 5, xp: 1, gold: 1 };
+  const cfgOf = (rules = {}, opening) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter', level: 10 }], rules, foes: { brute },
+    encounters: [{ id: 'yard', foes: ['brute'], ...(opening ? { opening } : {}) }, { id: 'lair', foes: ['brute'], flee: false }] } });
+  const foeActs = (out) => out.some((x) => x.who === 'f0' || x.by === 'f0');
+  const memberActs = (out) => out.some((x) => x.who === 'ayla' || x.by === 'ayla');
+  const attack = { ayla: { act: 'attack', target: 'f0' } };
+
+  it('opens with the party striking first: the foes sit out the first round; or ambushed: the party does', () => {
+    for (const [opening, party, foes] of [['first', true, false], ['ambush', false, true]]) {
+      const cfg = cfgOf({}, opening), R = rpgInit(cfg), v = {};
+      expect(rpgStart(cfg, R, 'yard', v).find((x) => x.opening)).toMatchObject({ kind: 'start', opening });
+      const one = rpgRound(cfg, R, attack, v);
+      expect([memberActs(one), foeActs(one)], opening).toEqual([party, foes]);
+      const two = rpgRound(cfg, R, attack, v);
+      expect([memberActs(two), foeActs(two)], opening).toEqual([true, true]);
+    }
+  });
+
+  it('on the timeline the side that strikes first starts with its gauges full', () => {
+    const first = cfgOf({ turns: 'timeline' }, 'first'), R = rpgInit(first), v = {};
+    expect(foeActs(rpgStart(first, R, 'yard', v))).toBe(false);
+    expect(R.b.turn).toBe('ayla');
+    const amb = cfgOf({ turns: 'timeline', rows: true }, 'ambush'), RA = rpgInit(amb), vA = {};
+    expect(foeActs(rpgStart(amb, RA, 'yard', vA))).toBe(true);
+    expect(RA.b.flip).toBe(1);
+  });
+
+  it('a die each fight where the world asks, both ways, never at a boss\'s; a world that asks none opens alike', () => {
+    const cfg = cfgOf({ openings: { first: 0.4, ambush: 0.4 } }), seen = new Set();
+    for (let seed = 1; seed <= 16; seed++) { const C = { ...cfg, seed }, R = rpgInit(C); rpgStart(C, R, 'yard', {}); seen.add(R.b.opening ?? 'normal'); const RB = rpgInit(C); rpgStart(C, RB, 'lair', {}); expect(RB.b.opening).toBeUndefined(); }
+    expect([...seen].sort()).toEqual(['ambush', 'first', 'normal']);
+    const plain = cfgOf(), R = rpgInit(plain);
+    expect(rpgStart(plain, R, 'yard', {}).some((x) => x.opening)).toBe(false);
+    expect(() => cfgOf({ openings: { first: 0.9 } })).toThrow(/0 to 0.5/);
+  });
+});
+
 // A CHARGED BLOW (a pattern row's `charge`): the foe's turn spent gathering, said, so the party can brace; its next turn
 // the blow let go at twice its power; a guard takes half of it like any blow
 describe('a charged blow', () => {

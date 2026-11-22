@@ -172,11 +172,23 @@ export function buildRpg() {
     const names = foes.map((f) => f.name);
     const said = names.length === 1 ? names[0] + ' appears!' : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] + ' appear!';
     const out = [{ text: said, kind: 'start', boss: foes.some((f) => f.F.boss) || undefined }];
+    // (its OPENING: the encounter's own, else a die where the world asks for openings, never at a fight with no escape)
+    const O = cfg.rules.openings;
+    let opening = E.opening || null;
+    if (!opening && O && R.b.flee) { const d = rnd(R.b); opening = d < O.first ? 'first' : d < O.first + O.ambush ? 'ambush' : null; }
+    if (opening && opening !== 'normal') {
+      R.b.opening = opening;
+      // (an ambush from behind turns the rows about for the fight)
+      if (opening === 'ambush' && cfg.rules.rows) R.b.flip = 1;
+      out.push(opening === 'first' ? { text: 'The party strikes first!', kind: 'start', opening } : { text: 'Ambushed! The foes strike first!', kind: 'start', opening });
+    }
     if (E.pages) pages(cfg, R, out, true);
     // the timeline: every gauge starts part full (by a die, more for the quick), and whoever is up first acts
     if (isTimeline(cfg)) {
       R.b.ct = {};
       for (const a of actors(R)) R.b.ct[a] = Math.min(GAUGE - 1, spdOf(cfg, R, a) * 2 + rnd(R.b) * GAUGE * 0.4);
+      // (an opening: the side that strikes first starts with its gauges full, the other's empty)
+      if (R.b.opening) for (const a of actors(R)) R.b.ct[a] = (R.b.side[a] ? R.b.opening === 'first' : R.b.opening === 'ambush') ? GAUGE - 1 + R.b.ct[a] / GAUGE : 0;
       advance(cfg, R, vars, out);
     }
     mirror(cfg, R, vars);
@@ -348,7 +360,7 @@ export function buildRpg() {
     if (A[pool] > was) out.push({ text: A.name + ' drains ' + (A[pool] - was) + (pool === 'mp' ? ' MP.' : ' HP.'), kind: 'heal', target: A.who, amount: A[pool] - was, ...(pool === 'mp' ? { mp: A.mp, pool: 'mp' } : { hp: A.hp }), by: A.who, skill: fx.id || undefined, drain: true });
   }
   // the ROW a member stands in (rules.rows): its own, else the front
-  const rowOf = (R, who) => (R.m[who] && R.m[who].row) || 'front';
+  const rowOf = (R, who) => { const r = (R.m[who] && R.m[who].row) || 'front'; return R.b && R.b.flip ? (r === 'back' ? 'front' : 'back') : r; };
   // a SCAN (a skill's or an item's `scan`): a foe's HP and what it is weak to, resists, drinks and shrugs off, said
   function scan(cfg, R, T, out) {
     if (T.party || T.hp <= 0) return;
@@ -565,7 +577,7 @@ export function buildRpg() {
     }
     if (pick.act === 'guard') { A.side.guard = 1; out.push({ text: A.name + ' guards.', kind: 'status', who }); return; }
     // (the Row command: a member steps to the other row, its turn spent)
-    if (pick.act === 'row' && A.party && cfg.rules.rows) { const to = rowOf(R, who) === 'back' ? 'front' : 'back'; R.m[who].row = to; out.push({ text: A.name + ' moves to the ' + to + ' row.', kind: 'status', who, row: to }); return; }
+    if (pick.act === 'row' && A.party && cfg.rules.rows) { R.m[who].row = R.m[who].row === 'back' ? 'front' : 'back'; const to = rowOf(R, who); out.push({ text: A.name + ' moves to the ' + to + ' row.', kind: 'status', who, row: to }); return; }
     // (a foe gathering for its next turn: said, so the party can brace)
     if (pick.act === 'charge') { out.push({ text: pick.line ? pick.line.split('{name}').join(A.name) : A.name + ' is gathering its power!', kind: 'charge', who }); return; }
     if (pick.act === 'attack') {
@@ -775,9 +787,10 @@ export function buildRpg() {
     let order = [];
     if (fleeing) {
       if (flee(cfg, R, vars, out)) return out;
-    } else for (const m of living(R)) order.push({ who: m, key: statsOf(cfg, R, m).spd * (0.75 + 0.5 * rnd(b)), i: order.length, pick: picks[m] || { act: 'guard' } });
+    } else for (const m of living(R)) if (!(b.round === 1 && b.opening === 'ambush')) order.push({ who: m, key: statsOf(cfg, R, m).spd * (0.75 + 0.5 * rnd(b)), i: order.length, pick: picks[m] || { act: 'guard' } });
     const nm = order.length;
-    for (const f of livingFoes(R)) order.push({ who: f.uid, key: foeStats(f, cfg).spd * (0.75 + 0.5 * rnd(b)), i: nm + order.length, foe: f });
+    // (an opening's first round: only the side that strikes first acts in it)
+    for (const f of livingFoes(R)) if (!(b.round === 1 && b.opening === 'first')) order.push({ who: f.uid, key: foeStats(f, cfg).spd * (0.75 + 0.5 * rnd(b)), i: nm + order.length, foe: f });
     order.sort((x, y) => y.key - x.key || x.i - y.i);
     for (const o of order) {
       if (!livingFoes(R).length || !living(R).length) break;
