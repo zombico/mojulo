@@ -23,7 +23,7 @@ import { expandBeatsManifest, checkAuthoring } from './beats-authoring.js';
 export const BEATS_KINDS = ['beats-ambient', 'beats-composition', 'beats-pattern', 'beats-sfx'];
 const KIND_SET = new Set(BEATS_KINDS);
 const ROLES = new Set(['harmony', 'roots', 'melody', 'pulse']);
-const GESTURES = new Set(['sweep', 'flutter', 'burst', 'thump', 'grain', 'ring', 'tone', 'riser', 'downlifter', 'impact', 'reverse-cymbal', 'scratch', 'duck', 'trace', 'syrinx']);
+const GESTURES = new Set(['sweep', 'flutter', 'burst', 'thump', 'grain', 'ring', 'tone', 'riser', 'downlifter', 'impact', 'reverse-cymbal', 'scratch', 'duck', 'trace', 'syrinx', 'sample']);
 // the SFX mixer (sfxmix): the effects a gesture's own `chain` may carry (none runs an oscillator or computes an impulse
 // per hit: the space is the reverb), and the spaces setSfx knows (the kernel's SFX_SPACES; beats-sfxmix.test.js holds
 // the two lists equal).
@@ -552,6 +552,19 @@ function checkSyrinx(g, w, errors) {
   }
 }
 
+// a recorded sound (the sound library's): its card, the seconds of its longest variant (what a cue's extent reads), its
+// level and playback rate, and the synthesized gestures it stands in for where the recording is not loaded
+function checkSample(g, w, errors) {
+  if (typeof g.library !== 'string' || !/^[a-z0-9-]{1,64}$/.test(g.library)) errors.push(`${w}.library must be a sound library card id (kebab-case)`);
+  for (const [k, lo, hi] of [['dur', 0, 60], ['vol', 0, 4], ['rate', 0.25, 4], ['at', 0, 60]]) {
+    if (g[k] !== undefined && !inRange(g[k], lo, hi)) errors.push(`${w}.${k} must be in [${lo}, ${hi}]`);
+  }
+  if (g.fallback !== undefined) {
+    if (Array.isArray(g.fallback) && g.fallback.some((f) => f && f.type === 'sample')) errors.push(`${w}.fallback must be synthesized gestures (no sample inside a sample)`);
+    else checkGestures(g.fallback, `${w}.fallback`, errors);
+  }
+}
+
 function checkGestures(list, where, errors) {
   if (!Array.isArray(list) || !list.length) { errors.push(`${where} must be a non-empty gesture array`); return; }
   list.forEach((g, i) => {
@@ -563,6 +576,7 @@ function checkGestures(list, where, errors) {
     checkLayer(g, `${where}[${i}]`, errors);
     if (g.type === 'trace') checkTrace(g, `${where}[${i}]`, errors);
     if (g.type === 'syrinx') checkSyrinx(g, `${where}[${i}]`, errors);
+    if (g.type === 'sample') checkSample(g, `${where}[${i}]`, errors);
     if (PRODUCTION_GESTURES.has(g.type)) {
       const w = `${where}[${i}]`, lim = (k, lo, hi, why) => { if (g[k] !== undefined && !inRange(g[k], lo, hi)) errors.push(`${w}.${k} must be in [${lo}, ${hi}]${why ? ` (${why})` : ''}`); };
       lim('dur', 0.05, 60, 'seconds'); lim('bars', 0.25, 64, 'bars at the recipe\'s tempo'); lim('beats', 0.25, 256); lim('vol', 0, 2); lim('at', 0, 60, 'seconds after the hit');

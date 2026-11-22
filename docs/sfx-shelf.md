@@ -7,7 +7,9 @@ sounds belong to the interface. The code is [control/lib/graph/sfx-shelf/](../co
 ## How a sound is stored
 
 Nothing on the shelf is stored as audio. Every sound is a small recipe of numbers, synthesized whenever it is played
-or exported, the same way in a game page and in a WAV. There are three kinds of recipe:
+or exported, the same way in a game page and in a WAV. The one addition is opt-in and lives outside the shelf: where
+the recorded sound library is installed, a row it records plays its recording ([Recorded voices](#recorded-voices),
+below). There are three kinds of recipe:
 
 - **A cue** (a one-shot) is a list of gestures, each a simple way to make sound:
 
@@ -293,10 +295,24 @@ its own reload time (`mag out`, `mag in`, `rack`), its hit (`flesh impact`), its
 `blade swing` and `blade hit`, a rocket's `explosion`, footsteps on `step concrete`, on a mix in the open. A game
 names its own word for any of them.
 
+## Recorded voices
+
+Where the recorded sound library is installed on this machine ([sound-library.md](sound-library.md)), a row the library
+records is voiced by its recording in the `realistic` style: `sfxSound(word)` answers one `sample` gesture naming the
+library's card, with the row's synthesized gestures as its `fallback`, and `recorded` on the result says which card.
+Each hit plays one of the card's takes, chosen by the hit's variant, so a footstep or a gunshot never repeats itself.
+A row `realistic` does not voice at all (a creature only the mouth style voices) is given one by its recording.
+
+It stays synthesized wherever the library does not answer: another style, a row asked for at its own dials (an
+explosion at `size: 'huge'` is a design point, not the recording), a held voice (an engine, a fire burning on), or a
+machine without the library, where every answer is byte for byte what it was. On a page the samples are inlined (as
+MP3) only when its cues play them; a cue whose recording is not decoded yet plays its fallback, exactly as it would
+have sounded without the library.
+
 ## Not yet
 
 Beyond the sheet, the fight and the firing range, a level reads the shelf by its words only by hand so far: the practice rooms
 (`gameworld/practice-room.js`) name their sounds by word and wire them to a moveset's events (`audio.moves`, the
 world-audio card); made levels do not yet. To come: wiring weapon roles, explosion presets, body sizes,
 surfaces and vehicles to their sounds by word, a level's held voices on its `hold` slot (an engine on a vehicle's
-throttle), and WAVs in the engine handoff.
+throttle), recorded held voices and beds (the library's loops), and WAVs in the engine handoff.

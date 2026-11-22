@@ -15,12 +15,19 @@
  * is its fallback's (realistic's) as that style would find it, stand-ins included. A row no step voices is null in that style (a charge-up has no arcade
  * voice yet). The gestures are the set's or the palette's own, untransposed: a game's key is its caller's business
  * (sfx-palettes.js paletteCues).
+ *
+ * A recorded voice (the sound library's, opt-in): where the library is installed on this machine and records a row
+ * (a card whose `shelf` is the row), the row's realistic one-shot, asked for at its own dials, is that card's
+ * recording: one `sample` gesture carrying the synthesized gestures it would have been as its `fallback`
+ * (`from` stays theirs, `recorded` names the card). Without the library every answer is as it was, byte for byte;
+ * with it this module reads the library's index (sound-library/library.js).
  */
 import { SFX_PALETTES } from '../beats/sfx-palettes.js';
 import { STYLES } from './styles.js';
 import { SETS } from './sets.js';
 import { SOUNDS, resolveSoundId } from './roster.js';
 import { FAMILIES, familyCue } from './families.js';
+import { recordedFor } from '../sound-library/library.js';
 
 function voiceOf(id, style, seen, dials) {
   const key = `${id}|${style}`;
@@ -61,7 +68,13 @@ export function sfxSound(word, { style = 'realistic', dials = {} } = {}) {
   if (!id) return null;
   const row = SOUNDS[id];
   const v = voiceOf(id, style, new Set(), dials);
-  const voice = v ? { style: v.style ?? style, from: v.from, ...(v.gestures ? { gestures: v.gestures } : { sustain: v.sustain }), ...(v.family ? { family: v.family } : {}) } : null;
+  let voice = v ? { style: v.style ?? style, from: v.from, ...(v.gestures ? { gestures: v.gestures } : { sustain: v.sustain }), ...(v.family ? { family: v.family } : {}) } : null;
+  // the recorded voice: a realistic one-shot at its own dials, where the library records this row; a row realistic does
+  // not voice at all (a creature only the mouth style voices) is given one by its recording, with nothing to fall back to
+  const asked = style === 'realistic' || (STYLES[style].overlay && STYLES[style].fallback === 'realistic' && !(row.voices && row.voices[style]));
+  const open = voice ? voice.gestures && voice.style === 'realistic' : asked;
+  const rec = open && !Object.keys(dials || {}).length ? recordedFor(id) : null;
+  if (rec) voice = { ...(voice || { style: 'realistic', from: 'library' }), recorded: rec.card, gestures: [{ type: 'sample', library: rec.card, dur: rec.dur, ...(voice ? { fallback: voice.gestures } : {}) }] };
   if (row.channel) return { id, channel: row.channel, ...(voice || {}) };
   return voice ? { id, ...voice } : null;
 }

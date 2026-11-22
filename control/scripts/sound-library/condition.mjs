@@ -11,7 +11,8 @@
  *   - one-shots and instrument pieces: leading silence trimmed (below -60 dBFS), peak-normalized to -1 dBFS;
  *   - beds (loops): never trimmed (the seam is the loop's), loudness-normalized to -24 LUFS integrated, and the
  *     seam measured: the jump from the last sample to the first against the bed's median sample-to-sample step;
- *   - named by its bytes: <out>/masters/<sha16>.wav.
+ *   - named by its bytes: <out>/masters/<sha16>.wav, with <sha16>.mp3 beside it (160 kbps, the form a page inlines:
+ *     about a tenth of the WAV; an offline render reads the WAV).
  * Writes <out>/library.json: { version, cards: { <card>: { shelf | band, role, loop, prompt, variants: [ { id,
  * take, seconds, rate, channels, peakDb, lufs, seam?, source: { sha256, request } } ] } } }, ordered by card and take
  * so the same takes make the same index. Re-running rewrites only what changed (masters are content-addressed).
@@ -117,6 +118,8 @@ async function main() {
       const bytes = readFileSync(made), id = createHash('sha256').update(bytes).digest('hex').slice(0, 16);
       const at = path.join(masters, `${id}.wav`);
       if (!existsSync(at)) renameSync(made, at);
+      const mp3 = path.join(masters, `${id}.mp3`);
+      if (!existsSync(mp3)) run(ff, ['-y', '-i', at, '-codec:a', 'libmp3lame', '-b:a', '160k', '-map_metadata', '-1', '-id3v2_version', '0', '-fflags', '+bitexact', '-flags:a', '+bitexact', mp3]);
       const w = readWav(bytes), lv = levels(ff, at), led = ledger.find((e) => e.card === c.id && e.take === t);
       variants.push({
         id, take: t, seconds: +(w.frames / w.rate).toFixed(3), rate: w.rate, channels: w.channels, peakDb: lv.peakDb, lufs: lv.lufs,

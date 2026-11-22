@@ -82,6 +82,8 @@ function addGestures(set, list) {
   if (Array.isArray(list) && list.some((g) => g && PRODUCTION.has(g.type))) set.add('anthem');
   if (Array.isArray(list) && list.some((g) => g && g.type === 'trace')) set.add('trace');
   if (Array.isArray(list) && list.some((g) => g && g.type === 'syrinx')) set.add('syrinx');
+  // a recorded sound (the sound library's): the sampler (its cue path rides the sfx one), and what its fallback needs
+  if (Array.isArray(list)) for (const g of list) if (g && g.type === 'sample') { set.add('sampler'); set.add('sfx'); addGestures(set, g.fallback); }
 }
 
 // the kernel's `scored` test, mirrored: a composition that uses the score
@@ -210,13 +212,32 @@ export function audioFeatures(audio) {
   return sorted(set);
 }
 
-/** The sound library's cards a beats manifest's recorded pieces name (kit pieces included), sorted; [] for none. */
+/**
+ * The sound library's cards a beats manifest plays (its recorded pieces, kit pieces included, and its recorded
+ * gestures), sorted; [] for none.
+ */
 export function sampleCards(...manifests) {
   const out = new Set();
-  for (const m of manifests) for (const row of rowsOf(expandBeatsManifest(m))) if (row) for (const n of patchNamesOf(row)) {
-    const p = PATCHES[n];
-    if (p && p.voice === 'sample' && p.library) out.add(p.library);
+  for (const m of manifests) {
+    for (const row of rowsOf(expandBeatsManifest(m))) if (row) for (const n of patchNamesOf(row)) {
+      const p = PATCHES[n];
+      if (p && p.voice === 'sample' && p.library) out.add(p.library);
+    }
+    for (const c of gestureSampleCards(m)) out.add(c);
   }
+  return [...out].sort();
+}
+
+/** Every card a recorded gesture (`type: 'sample'`) names anywhere in a value (a manifest, a world's audio), sorted. */
+export function gestureSampleCards(value) {
+  const out = new Set();
+  const walk = (x) => {
+    if (!x || typeof x !== 'object') return;
+    if (Array.isArray(x)) { for (const y of x) walk(y); return; }
+    if (x.type === 'sample' && typeof x.library === 'string') out.add(x.library);
+    for (const k in x) walk(x[k]);
+  };
+  walk(value);
   return [...out].sort();
 }
 

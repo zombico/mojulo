@@ -9,7 +9,10 @@
  *   `readLibrary()`             the index, or null when none is installed (read once per directory)
  *   `sampleSlice(cards)`        what an engine's `loadSamples` takes for those card names: { cards: { <card>: [id…] },
  *                               bytes: { <id>: Buffer } }, only the cards the library holds; null when it holds none
- *   `sampleSliceBase64(cards)`  the same with the bytes as base64, for a page to inline
+ *   `sampleSliceBase64(cards)`  the same with the bytes as base64, for a page to inline: each variant's MP3 where the
+ *                               library carries one (`masters/<id>.mp3`, a tenth of the WAV), else its WAV
+ *   `recordedFor(shelfId)`      the card that records a shelf row (its `shelf`), as { card, dur: the longest variant's
+ *                               seconds, variants }, or null: no library, no card for the row, or none of its masters here
  *
  * Reads files; timeless (no clock: a variant is named by its content).
  */
@@ -39,9 +42,28 @@ export function readLibrary() {
 }
 
 /** for tests: forget what was read */
-export function forgetLibrary() { read.clear(); }
+export function forgetLibrary() { read.clear(); recorded.clear(); }
 
-export function sampleSlice(cards) {
+const recorded = new Map();
+export function recordedFor(shelfId) {
+  const dir = libraryDir(), key = `${dir}\n${shelfId}`;
+  if (!recorded.has(key)) recorded.set(key, findRecorded(dir, shelfId));
+  return recorded.get(key);
+}
+function findRecorded(dir, shelfId) {
+  const lib = readLibrary();
+  if (!lib) return null;
+  for (const name of Object.keys(lib.cards).sort()) {
+    const c = lib.cards[name];
+    if (!c || c.shelf !== shelfId || c.role === 'bed') continue;
+    const held = (c.variants || []).filter((v) => ID.test(v.id) && existsSync(path.join(dir, 'masters', `${v.id}.wav`)));
+    if (!held.length) continue;
+    return { card: name, dur: Math.max(...held.map((v) => Number(v.seconds) || 0)), variants: held.length };
+  }
+  return null;
+}
+
+export function sampleSlice(cards, { compact = false } = {}) {
   const lib = readLibrary();
   if (!lib) return null;
   const dir = libraryDir(), out = { cards: {}, bytes: {} };
@@ -51,9 +73,9 @@ export function sampleSlice(cards) {
     const ids = [];
     for (const v of card.variants || []) {
       if (!ID.test(v.id)) continue;
-      const file = path.join(dir, 'masters', `${v.id}.wav`);
+      const file = path.join(dir, 'masters', `${v.id}.wav`), mp3 = path.join(dir, 'masters', `${v.id}.mp3`);
       if (!existsSync(file)) continue;
-      out.bytes[v.id] = readFileSync(file);
+      out.bytes[v.id] = readFileSync(compact && existsSync(mp3) ? mp3 : file);
       ids.push(v.id);
     }
     if (ids.length) out.cards[name] = ids;
@@ -62,7 +84,7 @@ export function sampleSlice(cards) {
 }
 
 export function sampleSliceBase64(cards) {
-  const s = sampleSlice(cards);
+  const s = sampleSlice(cards, { compact: true });
   if (!s) return null;
   return { cards: s.cards, bytes: Object.fromEntries(Object.entries(s.bytes).map(([id, b]) => [id, b.toString('base64')])) };
 }

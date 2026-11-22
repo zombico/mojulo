@@ -1161,6 +1161,17 @@ export function buildBeatsKernel() {
     const ops = [];
 /*@sfx{*/
     (gestures || []).forEach(function (g, gi) {
+/*@sampler{*/
+      // a recorded sound (the sound library's): one op, its variant picked by the hit (the plain path the first take),
+      // with the synthesized gestures it stands in for planned beside it, for a moment (or a machine) without the
+      // recording. Its extent is the longest variant's (`dur`), so a cue's end and the voice cap read it.
+      if (g && g.type === 'sample') {
+        const op = { at: g.at || 0, kind: 'sample', library: g.library, pick: variant >>> 0, len: g.dur || 0, vol: g.vol == null ? 1 : g.vol, rate: g.rate || 1, alt: cuePlan(g.fallback || [], variant) };
+        if (g.chain || g.pan != null || g.send != null) op.layer = gi;
+        ops.push(op); return;
+      }
+/*|
+@*/
 /*@sfxmix{*/
       // a gesture with its own chain / pan / send is a layer: its ops carry its
       // index, so the mixer routes them together. A plain gesture's ops carry none.
@@ -1281,6 +1292,16 @@ export function buildBeatsKernel() {
     function sampleBuf(patch, k) {
       const ids = sampleCards[patch.library] || [];
       return ids.length ? sampleBufs.get(ids[(k >>> 0) % ids.length]) || null : null;
+    }
+    // a cue's recorded gestures that are not loaded here (no library on the page, or not decoded yet) give way to the
+    // synthesized gestures they stand in for, in their place, before the cue is planned: the cue is then exactly the
+    // one it would have been without the library, its layers routed as theirs are.
+    function heard(gestures) {
+      const off = (g) => g && g.type === 'sample' && !(sampleCards[g.library] || []).some((id) => sampleBufs.has(id));
+      if (!Array.isArray(gestures) || !gestures.some(off)) return gestures;
+      const out = [];
+      for (const g of gestures) { if (off(g)) for (const f of g.fallback || []) out.push(f); else out.push(g); }
+      return out;
     }
 /*|
 @*/
@@ -3080,6 +3101,19 @@ export function buildBeatsKernel() {
         }
 /*|
 @*/
+/*@sampler{*/
+        else if (op.kind === 'sample') {
+          // a recorded variant, played whole; not loaded (yet), the synthesized ops it stands in for
+          const ids = sampleCards[op.library] || [], b = ids.length ? sampleBufs.get(ids[op.pick % ids.length]) || null : null;
+          if (!b) playOps(op.alt || [], t, out, vs);
+          else {
+            const src = ctx.createBufferSource(); src.buffer = b; src.playbackRate.value = op.rate;
+            const g = ctx.createGain(); g.gain.value = op.vol * vs;
+            src.connect(g); g.connect(out); src.start(t);
+          }
+        }
+/*|
+@*/
       }
     }
 
@@ -3759,6 +3793,15 @@ export function buildBeatsKernel() {
 @*/
 /*@sustain{*/
       sustain,
+/*|
+@*/
+/*@sampler{*/
+      // (the later key wins: playCue with the recorded gestures resolved first, otherwise as above)
+      playCue(gestures, when, dest, velScale, variant, place) {
+        const gs = heard(gestures), t = when == null ? ctx.currentTime : when;
+        if (typeof sfxCue === 'function') sfxCue(gs, cuePlan(gs, variant), t, dest, velScale, place);
+        else playOps(cuePlan(gs, variant), t, dest, velScale);
+      },
 /*|
 @*/
       startAmbient(recipe, patches) { startTransport(recipe, patches, 'ambient'); },

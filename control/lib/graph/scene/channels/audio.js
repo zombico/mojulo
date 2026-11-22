@@ -1,5 +1,6 @@
 import { emitBeatsKernel } from '../../beats/beats-kernel.js';
-import { audioFeatures, pagePatches } from '../../beats/beats-features.js';
+import { audioFeatures, gestureSampleCards, pagePatches } from '../../beats/beats-features.js';
+import { sampleSliceBase64 } from '../../sound-library/library.js';
 import { MSG_AUDIO as GAME_MSG_AUDIO } from '../../game/level-contract.js';
 import { safeJson } from '../emit-util.js';
 import { weatherAudioScript } from '../../beats/weather-audio.js';
@@ -38,12 +39,17 @@ export function audioChannelScript(audio) {
   // an environment's bed (audio.bed, sfx-shelf/beds.js): a pattern of the shelf's one-shots on its own engine, under the
   // score at its own level. Absent, not a byte of it is emitted.
   const bed = !!audio.bed, bedLevel = Number(audio.bedLevel ?? 0.5);
+  // recorded sounds (the sound library's, opt-in): the samples the payload's recorded gestures name, inlined when this
+  // machine holds them, decoded by the cue engine at the unlock; a cue before they are decoded plays its synthesized
+  // fallback. A payload without recorded gestures (every world where the library is not installed) emits nothing here.
+  const cards = gestureSampleCards(audio), samples = cards.length ? sampleSliceBase64(cards) : null;
   return `
 // ---- beats audio channel (opt-in, presentation-only) ----
 const __AUDIO = ${safeJson(audio)};
 const __BEATS_PATCHES = ${safeJson(bossOn ? pagePatches(audio.soundtrack, audio.combat, audio.boss) : combat ? pagePatches(audio.soundtrack, audio.combat) : pagePatches(audio.soundtrack))};
 const __BEATS = (${emitBeatsKernel(audioFeatures(audio))})();
-let __beatsCtx = null, __beatsEng = null, __beatsMuted = false, __beatsVol = 1;${bed ? '\nlet __bedEng = null;' : ''}
+let __beatsCtx = null, __beatsEng = null, __beatsMuted = false, __beatsVol = 1;${bed ? '\nlet __bedEng = null;' : ''}${samples ? `
+const __SAMPLES = ${safeJson(samples)};` : ''}
 // one write path for mute × volume (0.9 is the engine's stock master level); suspend keeps
 // CPU quiet while muted. resume() only sticks post-gesture — the pointerdown unlock owns that.
 function __beatsApply() {
@@ -57,7 +63,8 @@ function __beatsApply() {
 function __beatsUnlock() {
   if (__beatsCtx) { if (__beatsCtx.state === 'suspended' && !__beatsMuted) __beatsCtx.resume().catch(() => {}); return; }
   __beatsCtx = new (window.AudioContext || window.webkitAudioContext)();
-  __beatsEng = __BEATS.createEngine(__beatsCtx);${mix ? `
+  __beatsEng = __BEATS.createEngine(__beatsCtx);${samples ? `
+  __beatsEng.loadSamples({ cards: __SAMPLES.cards, bytes: Object.fromEntries(Object.entries(__SAMPLES.bytes).map(([id, b]) => [id, Uint8Array.from(atob(b), (c) => c.charCodeAt(0)).buffer])) });   // the recorded sounds` : ''}${mix ? `
   __beatsEng.setSfx(__AUDIO.mix);   // the SFX mixer: the cues' bus and space, and the music bus a duck dips (before the score starts)` : ''}
   if (__AUDIO.soundtrack) {${audio.beat ? `
     __beatT0 = __beatsCtx.currentTime + 0.08;   // the transport's own start (startTransport's t0): the beat clock's zero` : ''}
