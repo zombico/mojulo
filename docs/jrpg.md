@@ -225,9 +225,16 @@ own), its height (`heights`, 0.3 to 12 m, a beast's) and its lines are each a fi
 a foe of the world's own defined in `foes` beside it, with its own look and height: a person's own boss is laid as
 readily as a starter. A boss retuned answers to the boss law where it is a preset.
 
-**Traits** (RPG Maker's traits, the three a fight reads), on a class or a piece of gear: `resist` (elements taken at
-half), `immune` (elements taken not at all) and `ward` (states warded off). A member carries its class's and what it
-wears, gathered as it stands, so a ring against fire is put on before the drake.
+**Traits** (RPG Maker's traits), on a class or a piece of gear: `resist` (elements taken at half), `immune` (elements
+taken not at all) and `ward` (states warded off); the **rates**, each a share added to the fight's own: `hit` (its
+blows surer), `eva` (blows at it go wide) and `crit` (its blows critical more often); what a **plain blow carries**:
+`element` (a flame sword's fire, so it strikes a weakness) and `inflict: { is, chance?, rounds? }` (a poison dagger's,
+left only where the blow lands); and the skills it `grants` while worn or held (an ember ring's Fire, to a fighter). A
+member carries its class's and what it wears, gathered as it stands (the weapon's element and inflict over the
+class's), so a ring against fire is put on before the drake. A foe names its rates, element and inflict as its own
+fields, and a state may carry rates (a haze that makes its bearer hard to hit). The rates only move the fight's own
+dice, never add one: a world that names none fights exactly as it did. The starters: the Venom Dagger, the Flame
+Sword, the Hunter's Charm, the Shadow Cloak and the Ember Ring, sold from the second and third shops on.
 
 **The temple and the smithy.** A party RPG's town whose street keeps a temple has a temple shop (`shops.<id>.raise`,
 the gold to raise each fallen member, healed and cured); one that keeps a smithy has the smithy's, the arms and armour

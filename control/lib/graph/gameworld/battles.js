@@ -77,8 +77,8 @@ export const PACKS = Object.freeze([
 // the further on (INN_PRICE + INN_STEP a tier). The inn is the stage's rest: no free one beside it.
 export const SHOP_WARES = Object.freeze([
   Object.freeze(['potion', 'antidote', 'bronze-sword', 'oak-staff', 'cestus', 'leather-armor', 'robe']),
-  Object.freeze(['potion', 'antidote', 'ether', 'firebomb', 'iron-sword', 'silver-staff', 'gi', 'chain-mail', 'swift-ring']),
-  Object.freeze(['hi-potion', 'ether', 'remedy', 'feather', 'firebomb', 'iron-sword', 'silver-staff', 'chain-mail', 'mana-charm', 'swift-ring']),
+  Object.freeze(['potion', 'antidote', 'ether', 'firebomb', 'iron-sword', 'silver-staff', 'gi', 'chain-mail', 'swift-ring', 'venom-dagger', 'hunter-charm', 'shadow-cloak']),
+  Object.freeze(['hi-potion', 'ether', 'remedy', 'feather', 'firebomb', 'iron-sword', 'silver-staff', 'chain-mail', 'mana-charm', 'swift-ring', 'flame-sword', 'ember-ring']),
 ]);
 export const INN_PRICE = 6, INN_STEP = 6;
 // the temple's rite (a town's priest, era/town-trades.js): the gold to raise one fallen member, healed and cured

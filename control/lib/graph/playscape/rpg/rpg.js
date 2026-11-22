@@ -34,8 +34,12 @@
  *     items?:     [ids] | { <item>: { name?, heal?, mp?, revive?, cure?, hurt?, element?, target? } }   what an item
  *                 does in a fight (its count is the bag's: held:bag:<item>); default: every preset
  *     gear?:      [ids] | { <item>: { name?, slot: weapon | armor | accessory, atk?, def?, mag?, spd?, hp?, mp?, classes?,
- *                 resist?, immune?, ward? } }   (TRAITS, a class's too: the elements its wearer takes half of or none of,
- *                 the states it wards off)
+ *                 resist?, immune?, ward?, hit?, eva?, crit?, element?, inflict?, grants? } }   (TRAITS, a class's too: the
+ *                 elements its wearer takes half of or none of, the states it wards off; its RATES, shares added to the
+ *                 fight's: hit (its blows surer), eva (blows at it go wide), crit (its blows critical); what its plain
+ *                 blow carries, an element and a status it may leave where it lands, inflict: { is, chance?, rounds? };
+ *                 the skills it grants while worn. A foe names its rates, element and inflict as its own fields; a
+ *                 state may carry rates)
  *                 what a member may wear, one item a slot, its numbers added to theirs (default: every preset); worn
  *                 items come from the bag and go back to it (held:bag:<item>); a class switch takes off what it forbids
  *     encounters?: [{ id, foes: [foe ids], at?: [x, y], who?: '<entity>' | ['<entity>', …], near?, flee?, room?, pages? }]
@@ -104,6 +108,9 @@ export const RPG_RULES = Object.freeze({
 });
 const RULE_WORDS = { defeat: ['fail', 'retry'], switch: ['anywhere', 'never'], carry: ['class', 'all'], foeHp: ['bar', 'hidden'], turns: ['rounds', 'timeline'], view: ['side', 'front', 'left', 'right', 'overhead'], stage: ['live', 'backdrop', 'arena'] };
 const BUFF_STATS = ['atk', 'def', 'mag', 'spd'];
+// the RATES (traits.js of RPG Maker's: hit, evasion, critical), each a share added to the fight's own
+export const RATE_KEYS = Object.freeze(['hit', 'eva', 'crit']);
+const RATE_SAYS = { hit: 'how much surer its blows land', eva: 'how often a blow at it goes wide', crit: 'how much more often its blows are critical' };
 const DEFAULT_BASE = Object.freeze({ hp: 30, mp: 0, atk: 8, def: 6, mag: 4, spd: 6 });
 const DEFAULT_GROWTH = Object.freeze({ hp: 6, mp: 0, atk: 2, def: 1.5, mag: 1, spd: 1 });
 const FLAG = /^[a-z][a-z0-9-]{0,47}$/;
@@ -143,16 +150,46 @@ function readWorn(v, where) {
   return Object.fromEntries(Object.entries(v).map(([slot, it]) => { if (typeof it !== 'string' || !it) throw err(`${where}.${slot} is an item`); return [slot, itemKey(it)]; }));
 }
 
-// TRAITS a class or a piece of gear carries (RPG Maker's traits, the three the fight reads): the elements it takes half
-// of (resist) or none of (immune), and the states it wards off (ward); null where it names none
+// TRAITS a class or a piece of gear carries (RPG Maker's traits): the elements it takes half of (resist) or none of
+// (immune), the states it wards off (ward); its RATES, each added to the fight's own (kernel.js MISS, CRIT): `hit` how much
+// surer its blows land, `eva` how often a blow at it goes wide, `crit` how much more often its blows are critical; its
+// ATTACK, what a plain blow carries: `element` (a flame sword's fire) and `inflict` (a poison dagger's { is, chance?,
+// rounds? }); and the skills it `grants` while it is worn or the class held. Null where it names none
+const TRAIT_KEYS = ['resist', 'immune', 'ward', ...RATE_KEYS, 'element', 'inflict', 'grants'];
 function readTraits(d, where) {
   const out = {};
   for (const k of ['resist', 'immune', 'ward']) if (d[k] !== undefined) out[k] = listOf(d[k], `${where}.${k}`, k === 'ward' ? 'states' : 'elements').map((e, i) => id(e, `${where}.${k}[${i}]`));
+  Object.assign(out, readRates(d, where), readAttack(d, where));
+  if (d.grants !== undefined) out.grants = listOf(d.grants, `${where}.grants`, 'skill ids').map((e, i) => id(e, `${where}.grants[${i}]`));
   return Object.keys(out).length ? out : null;
+}
+// the RATES a trait, a foe or a state carries: each a share added to the fight's own, -1 to 1 (eva 0 to 1)
+function readRates(d, where) {
+  const out = {};
+  for (const k of RATE_KEYS) if (d[k] !== undefined) {
+    if (!(num(d[k]) && d[k] >= (k === 'eva' ? 0 : -1) && d[k] <= 1)) throw err(`${where}.${k} is ${RATE_SAYS[k]}: a share, ${k === 'eva' ? '0' : '-1'} to 1`);
+    out[k] = d[k];
+  }
+  return out;
+}
+// what a plain blow carries: its element, and a status it may leave
+function readAttack(d, where) {
+  const out = {};
+  if (d.element !== undefined) out.element = id(d.element, `${where}.element`);
+  if (d.inflict !== undefined) {
+    const v = d.inflict;
+    if (!isObj(v) || !isStatus(v.is)) throw err(`${where}.inflict is { is: ${statusWords().join(' | ')}, chance?, rounds? }: a status its blows may leave`);
+    keysOnly(v, ['is', 'chance', 'rounds'], `${where}.inflict`);
+    if (v.chance !== undefined && !(num(v.chance) && v.chance > 0 && v.chance <= 1)) throw err(`${where}.inflict.chance is above 0, at most 1`);
+    if (v.rounds !== undefined && !(Number.isInteger(v.rounds) && v.rounds >= 1)) throw err(`${where}.inflict.rounds is 1 or more`);
+    const own = !RPG_STATUSES[v.is] ? (knownStates[v.is] ?? STATE_PRESETS[v.is]) : null;
+    out.inflict = { is: v.is, chance: v.chance ?? 0.25, rounds: v.rounds ?? (own && own.rounds) ?? 3 };
+  }
+  return out;
 }
 
 // a state of the world's own (beside RPG_STATUSES, the kernel's three), by what it does (presets.js STATE_PRESETS)
-const STATE_KEYS = ['name', 'said', 'rounds', 'skip', 'noCast', 'miss', 'wild', 'tick', 'wake'];
+const STATE_KEYS = ['name', 'said', 'rounds', 'skip', 'noCast', 'miss', 'wild', 'tick', 'wake', ...RATE_KEYS];
 function readState(k, d, where) {
   if (RPG_STATUSES[k]) throw err(`${where}: '${k}' is the kernel's own status; a state of the world's own takes another name`);
   if (!isObj(d)) throw err(`${where} is { ${STATE_KEYS.join(', ')} }: a state, by what it does`);
@@ -162,8 +199,9 @@ function readState(k, d, where) {
   if (d.tick !== undefined && !(num(d.tick) && d.tick !== 0 && Math.abs(d.tick) < 1)) throw err(`${where}.tick is a share of its HP each turn, below 0 to hurt, above to mend (not 0, under 1 either way)`);
   if (d.wake !== undefined && d.wake !== 'hit') throw err(`${where}.wake is 'hit': a blow ends it`);
   if (d.rounds !== undefined && !(Number.isInteger(d.rounds) && d.rounds >= 1)) throw err(`${where}.rounds is how many turns it lasts, 1 or more`);
-  if (!d.skip && !d.noCast && !d.miss && !d.wild && !d.tick) throw err(`${where} does nothing: skip, noCast, miss, wild or tick`);
-  return { name: d.name ?? words(k), said: d.said ?? words(k).toLowerCase(), rounds: d.rounds ?? 3, ...Object.fromEntries(['skip', 'noCast', 'miss', 'wild', 'tick', 'wake'].filter((f) => d[f] !== undefined).map((f) => [f, d[f]])) };
+  readRates(d, where);
+  if (!d.skip && !d.noCast && !d.miss && !d.wild && !d.tick && !RATE_KEYS.some((k) => d[k])) throw err(`${where} does nothing: skip, noCast, miss, wild, tick, or a rate (${RATE_KEYS.join(', ')})`);
+  return { name: d.name ?? words(k), said: d.said ?? words(k).toLowerCase(), rounds: d.rounds ?? 3, ...Object.fromEntries(['skip', 'noCast', 'miss', 'wild', 'tick', 'wake'].filter((f) => d[f] !== undefined).map((f) => [f, d[f]])), ...readRates(d, where) };
 }
 // (the statuses a skill or an item may name: the kernel's three, the world's own states, the starter book's)
 let knownStates = null;
@@ -283,7 +321,7 @@ function readPhases(v, where) {
 }
 
 function readFoe(k, d, where) {
-  keysOnly(d, ['name', ...RPG_STATS, 'xp', 'gold', 'cp', 'weak', 'resist', 'absorb', 'immune', 'skills', 'drops', 'boss', 'pattern', 'phases'], where);
+  keysOnly(d, ['name', ...RPG_STATS, 'xp', 'gold', 'cp', 'weak', 'resist', 'absorb', 'immune', 'skills', 'drops', 'boss', 'pattern', 'phases', ...RATE_KEYS, 'element', 'inflict'], where);
   for (const s of ['hp', 'atk', 'def', 'mag', 'spd']) if (!num(d[s]) || d[s] < 0) throw err(`${where}.${s} is a number (hp, atk, def, mag, spd are each needed)`);
   if (d.hp < 1) throw err(`${where}.hp is 1 or more`);
   for (const s of ['mp', 'xp', 'gold', 'cp']) optNum(d[s], `${where}.${s}`);
@@ -300,6 +338,8 @@ function readFoe(k, d, where) {
     // (only a foe that has one carries it: every other's numbers as they were)
     ...(d.pattern !== undefined ? { pattern: readPattern(d.pattern, `${where}.pattern`) } : {}),
     ...(d.phases !== undefined ? { phases: readPhases(d.phases, `${where}.phases`) } : {}),
+    // (its rates and what its plain blow carries, where it names them)
+    ...readRates(d, where), ...readAttack(d, where),
   };
 }
 
@@ -385,7 +425,7 @@ export function readRpg(play) {
   for (const [k, d0] of Object.entries(givenClasses)) {
     const at = `.classes.${k}`, d = d0 ?? CLASS_PRESETS[k];
     if (!d) throw err(`${at}: '${k}' is no preset class (${Object.keys(CLASS_PRESETS).join(', ')}): define it ({ base, growth, skills })`);
-    if (d0) keysOnly(d0, ['name', 'about', 'base', 'growth', 'skills', 'opens', 'start', 'resist', 'immune', 'ward'], at);
+    if (d0) keysOnly(d0, ['name', 'about', 'base', 'growth', 'skills', 'opens', 'start', ...TRAIT_KEYS], at);
     if (d.opens !== undefined && !FLAG.test(d.opens)) throw err(`${at}.opens is the flag that opens the class`);
     const skills = listOf(d.skills, `${at}.skills`, '{ skill, at? } or { skill, cost, requires? }').map((e, i) => {
       const w = `${at}.skills[${i}]`;
@@ -422,6 +462,10 @@ export function readRpg(play) {
     for (const r of [...(foes[k].pattern ?? []), ...(foes[k].phases ?? []).flatMap((p) => p.pattern ?? [])]) if (r.use !== 'attack' && r.use !== 'guard') skillWant.add(r.use);
   }
 
+  // (the skills a class or a piece of gear grants are wanted too: the gear given, gathered here, read below)
+  for (const [c, C] of Object.entries(givenClasses)) for (const k of (C ?? CLASS_PRESETS[c] ?? {}).grants ?? []) if (typeof k === 'string') skillWant.add(k);
+  for (const d of Object.values(table(P.gear, '.gear') ?? {})) for (const k of (isObj(d) && Array.isArray(d.grants) ? d.grants : [])) if (typeof k === 'string') skillWant.add(k);
+  for (const d of Object.values(GEAR_PRESETS)) for (const k of d.grants ?? []) skillWant.add(k);
   // the skills: the world's, then every one a class or a foe names
   const skillsGiven = table(P.skills, '.skills') ?? {};
   for (const s of skillWant) if (!(s in skillsGiven)) skillsGiven[s] = null;
@@ -452,7 +496,7 @@ export function readRpg(play) {
   for (const [k0, d0] of Object.entries(gearGiven)) {
     const k = itemKey(k0), d = d0 ?? GEAR_PRESETS[k], at = `.gear.${k0}`;
     if (!d) throw err(`${at}: '${k0}' is no preset gear (${Object.keys(GEAR_PRESETS).join(', ')}): define it ({ slot, atk?, def?, … })`);
-    keysOnly(d, ['name', 'price', 'slot', ...RPG_STATS, 'classes', 'resist', 'immune', 'ward'], at);
+    keysOnly(d, ['name', 'price', 'slot', ...RPG_STATS, 'classes', ...TRAIT_KEYS], at);
     optNum(d.price, `${at}.price`);
     if (!GEAR_SLOTS.includes(d.slot)) throw err(`${at}.slot is ${GEAR_SLOTS.join(', ')}`);
     for (const st of RPG_STATS) if (d[st] !== undefined && !num(d[st])) throw err(`${at}.${st} is a number it adds`);
@@ -545,6 +589,8 @@ export function readRpg(play) {
   const used = new Set(Object.keys(knownStates));
   for (const S of Object.values(skills)) { if (S.status && !RPG_STATUSES[S.status.is]) used.add(S.status.is); for (const c of S.cure ?? []) if (!RPG_STATUSES[c]) used.add(c); }
   for (const I of Object.values(items)) for (const c of I.cure ?? []) if (!RPG_STATUSES[c]) used.add(c);
+  // (and any a blow leaves: a class's, a piece of gear's or a foe's `inflict`)
+  for (const T of [...Object.values(classes).map((c) => c.traits), ...Object.values(gear).map((g) => g.traits), ...Object.values(foes)]) if (T?.inflict && !RPG_STATUSES[T.inflict.is]) used.add(T.inflict.is);
   const states = used.size ? Object.fromEntries([...used].sort().map((k) => [k, readState(k, knownStates[k] ?? STATE_PRESETS[k], `.states.${k}`)])) : null;
   knownStates = null;
   return { seed: rules.seed, party: party0, classes, skills, foes, items, gear, encounters, random, met, juice, ...(states ? { states } : {}), ...(shops ? { shops } : {}), rules: { ...rules, xp: { ...rules.xp }, cp: [...rules.cp] } };

@@ -328,6 +328,58 @@ describe('a foe\'s action pattern', () => {
   });
 });
 
+// TRAITS (rpg.js readTraits): a member's rates (hit, eva, crit) from its class, its gear and the states it is in, a foe's
+// its own; a plain blow carrying its weapon's element and the status it leaves where it lands; a skill granted while
+// the gear is worn. The concept on the rates' ends (a share of 1 always or never), so no die decides the test
+describe('traits', () => {
+  const dummy = { name: 'Dummy', hp: 999, mp: 0, atk: 30, def: 0, mag: 1, spd: 1, xp: 1, gold: 1, weak: ['fire'] };
+  const one = (gear, foes = {}, extra = {}) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter', level: 5, gear }], foes: { dummy, ...foes }, gear: { 'bronze-sword': true, 'leather-armor': true, 'flame-sword': true, 'ember-ring': true,
+    'sure-blade': { slot: 'weapon', atk: 4, hit: 1, crit: 1, inflict: { is: 'poison', chance: 1 } }, 'ghost-veil': { slot: 'armor', eva: 1 }, pricker: { slot: 'weapon', atk: 4, inflict: { is: 'poison', chance: 1 } } }, encounters: [{ id: 'yard', foes: ['dummy'] }], ...extra } });
+  const round = (cfg, R, v, pick) => rpgRound(cfg, R, { ayla: pick }, v);
+  const begin = (cfg) => { const R = rpgInit(cfg), v = {}; rpgStart(cfg, R, 'yard', v); return [R, v]; };
+
+  it('a rate of one is always: a sure blow lands critical and leaves its poison; a veil of evasion is never struck', () => {
+    const cfg = one({ weapon: 'sure-blade', armor: 'ghost-veil' }), [R, v] = begin(cfg);
+    for (let k = 0; k < 4; k++) {
+      const out = round(cfg, R, v, { act: 'attack', target: 'f0' });
+      expect(out.find((x) => x.kind === 'hurt' && x.target === 'f0')).toMatchObject({ crit: true });
+      expect(out.some((x) => x.kind === 'hurt' && x.target === 'ayla')).toBe(false);
+    }
+    expect(R.b.foes[0].st.poison).toBeTruthy();
+  });
+
+  it('a blow\'s status is left only where it lands: a foe that evades it keeps clear', () => {
+    // (a blade that only carries the poison: a sure one's hit would cancel the evasion, as the rates sum)
+    const cfg = one({ weapon: 'pricker' }, { dummy: { ...dummy, eva: 1 } }), [R, v] = begin(cfg);
+    for (let k = 0; k < 3; k++) expect(round(cfg, R, v, { act: 'attack', target: 'f0' }).some((x) => x.kind === 'hurt' && x.target === 'f0')).toBe(false);
+    expect(R.b.foes[0].st.poison).toBeFalsy();
+  });
+
+  it('a weapon\'s element is its plain blow\'s: the flame sword strikes the fire a foe is weak to', () => {
+    const cfg = one({ weapon: 'flame-sword' }), [R, v] = begin(cfg);
+    let hit;
+    for (let k = 0; k < 6 && !hit; k++) hit = round(cfg, R, v, { act: 'attack', target: 'f0' }).find((x) => x.kind === 'hurt' && x.target === 'f0');
+    expect(hit).toMatchObject({ element: 'fire', mul: 2 });
+  });
+
+  it('a skill granted while the gear is worn, and not once it is off', () => {
+    const cfg = one({ weapon: 'bronze-sword', accessory: 'ember-ring' }), R = rpgInit(cfg);
+    expect(rpgUsable(cfg, R, 'ayla')).toContain('fire');
+    const bare = one({ weapon: 'bronze-sword' });
+    expect(rpgUsable(bare, rpgInit(bare), 'ayla')).not.toContain('fire');
+  });
+
+  it('a state carries rates too; each is read and taught', () => {
+    const cfg = one({ weapon: 'bronze-sword' }, {}, { states: { haze: { said: 'hazed', eva: 1, rounds: 9 } }, skills: { mist: { mp: 0, target: 'self', status: { is: 'haze', chance: 1 } } }, classes: { fighter: { skills: [{ skill: 'mist' }] } } });
+    const [R, v] = begin(cfg);
+    round(cfg, R, v, { act: 'skill', skill: 'mist', target: 'ayla' });
+    for (let k = 0; k < 3; k++) expect(round(cfg, R, v, { act: 'guard' }).some((x) => x.kind === 'hurt' && x.target === 'ayla')).toBe(false);
+    expect(() => one({}, {}, { gear: { bad: { slot: 'accessory', crit: 2 } } })).toThrow(/crit is how much more often/);
+    expect(() => one({}, {}, { gear: { bad: { slot: 'weapon', inflict: { is: 'gloom' } } } })).toThrow(/inflict is \{ is:/);
+    expect(cfg.gear['flame-sword'].traits).toEqual({ element: 'fire' });
+  });
+});
+
 // A CHARGED BLOW (a pattern row's `charge`): the foe's turn spent gathering, said, so the party can brace; its next turn
 // the blow let go at twice its power; a guard takes half of it like any blow
 describe('a charged blow', () => {

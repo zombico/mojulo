@@ -213,4 +213,10 @@ export const GEAR_PRESETS = Object.freeze({
   gi: { name: 'Gi', price: 22, slot: 'armor', def: 3, spd: 1, classes: ['monk'] },
   'swift-ring': { name: 'Swift Ring', price: 55, slot: 'accessory', spd: 3 },
   'mana-charm': { name: 'Mana Charm', price: 50, slot: 'accessory', mp: 8 },
+  // (gear with TRAITS, rpg.js readTraits: what a blow carries, a rate, a skill granted)
+  'venom-dagger': { name: 'Venom Dagger', price: 80, slot: 'weapon', atk: 5, spd: 1, classes: ['rogue', 'fighter', 'mage'], inflict: { is: 'poison', chance: 0.3 } },
+  'flame-sword': { name: 'Flame Sword', price: 150, slot: 'weapon', atk: 10, classes: BLADES, element: 'fire' },
+  'hunter-charm': { name: 'Hunter\'s Charm', price: 90, slot: 'accessory', hit: 0.05, crit: 0.08 },
+  'shadow-cloak': { name: 'Shadow Cloak', price: 85, slot: 'armor', def: 3, eva: 0.08 },
+  'ember-ring': { name: 'Ember Ring', price: 120, slot: 'accessory', mag: 2, grants: ['fire'] },
 });

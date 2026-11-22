@@ -184,6 +184,8 @@ export function buildRpg() {
     const add = (s) => { if (!seen[s] && M.learned[s]) { seen[s] = 1; out.push(s); } };
     for (const e of cfg.classes[M.cls].skills) add(e.skill);
     for (const c in cfg.classes) for (const e of cfg.classes[c].skills) if (cfg.rules.carry === 'all' || cfg.skills[e.skill].carry) add(e.skill);
+    // (and what its class and its gear grant, while they are its)
+    for (const s of traitsOf(cfg, M).grants) if (!seen[s] && cfg.skills[s]) { seen[s] = 1; out.push(s); }
     return out;
   }
 
@@ -229,11 +231,32 @@ export function buildRpg() {
 
   // the element's multiplier on a target: weak ×2, resist ×½, immune 0, absorb −1 (it heals)
   // a member's TRAITS: its class's and what it wears (rpg.js readTraits), gathered as they stand
+  // a member's TRAITS (rpg.js readTraits), gathered from its class and what it wears: the elements it takes half of or
+  // none of and the states it wards off, its rates summed, the skills granted, and what its plain blow carries (the
+  // weapon's over the class's)
   function traitsOf(cfg, M) {
-    const out = { resist: [], immune: [], ward: [] }, add = (t) => { if (t) for (const k in out) if (t[k]) out[k].push(...t[k]); };
+    const out = { resist: [], immune: [], ward: [], grants: [], hit: 0, eva: 0, crit: 0, element: null, inflict: null };
+    const add = (t) => {
+      if (!t) return;
+      for (const k of ['resist', 'immune', 'ward', 'grants']) if (t[k]) out[k].push(...t[k]);
+      for (const k of ['hit', 'eva', 'crit']) if (t[k]) out[k] += t[k];
+      if (t.element) out.element = t.element;
+      if (t.inflict) out.inflict = t.inflict;
+    };
     add(cfg.classes[M.cls] && cfg.classes[M.cls].traits);
-    for (const slot in M.gear) add(cfg.gear[M.gear[slot]] && cfg.gear[M.gear[slot]].traits);
+    for (const slot of ['accessory', 'armor', 'weapon']) if (M.gear[slot]) add(cfg.gear[M.gear[slot]] && cfg.gear[M.gear[slot]].traits);
     return out;
+  }
+  // a fighter's RATE (hit, eva or crit): a member's traits, a foe's own, and the states it is in, summed
+  function rateOf(cfg, U, k) {
+    let n = U.party ? traitsOf(cfg, U.M)[k] : (U.F && U.F[k]) || 0;
+    if (cfg.states) for (const x of statesOn(cfg, U)) if (x[k]) n += x[k];
+    return n;
+  }
+  // a plain blow: the weapon's (or the foe's) element and the status it may leave, else the bare attack
+  function attackOf(cfg, U) {
+    const T = U.party ? traitsOf(cfg, U.M) : U.F || {};
+    return T.element || T.inflict ? { ...ATTACK, element: T.element || null, status: T.inflict || null, onHit: true } : ATTACK;
   }
   function elementMul(U, el, cfg) {
     // (a member: its traits, immune none of it, resist half; a foe: its own)
@@ -251,11 +274,12 @@ export function buildRpg() {
     // (a state that blinds: its share of blows go wide, a die of its own)
     const dim = phys && cfg.states ? stateWith(cfg, A, 'miss') : null;
     if (dim && rnd(b) < dim.miss) { out.push({ text: A.name + ' misses ' + T.name + '.', kind: 'miss', target: T.who, by: A.who }); return; }
-    if (phys && !T.st.sleep && rnd(b) < MISS) { out.push({ text: A.name + ' misses ' + T.name + '.', kind: 'miss', target: T.who, by: A.who }); return; }
+    // (the fight's own miss, less the striker's hit, more the target's evasion: a die the same either way)
+    if (phys && !T.st.sleep && rnd(b) < Math.max(0, MISS - rateOf(cfg, A, 'hit') + rateOf(cfg, T, 'eva'))) { out.push({ text: A.name + ' misses ' + T.name + '.', kind: 'miss', target: T.who, by: A.who }); return; }
     let raw = fx.power + A.S[fx.stat] * fx.scale - (phys ? T.S.def / 2 : T.S.mag / 4);
     raw *= 0.875 + 0.25 * rnd(b);
     let crit = false;
-    if (phys && rnd(b) < CRIT) { crit = true; raw *= 1.5; }
+    if (phys && rnd(b) < CRIT + rateOf(cfg, A, 'crit')) { crit = true; raw *= 1.5; }
     if (T.side.guard) raw *= 0.5;
     const em = elementMul(T, fx.element, cfg);
     let n = Math.max(em === 0 ? 0 : 1, Math.round(Math.max(0, raw) * Math.abs(em)));
@@ -272,6 +296,7 @@ export function buildRpg() {
     const tag = crit ? 'A critical hit! ' : em === 2 ? 'It\'s super effective! ' : em === 0 ? 'No effect. ' : em === 0.5 ? 'It resists. ' : '';
     out.push({ text: tag + T.name + ' takes ' + n + ' damage.', kind: 'hurt', target: T.who, amount: n, hp: T.hp, crit: crit || undefined, by: A.who, skill: fx.id || undefined, element: fx.element || undefined, mul: em !== 1 ? em : undefined });
     if (T.hp <= 0) fall(cfg, R, T, out);
+    return true;
   }
   function fall(cfg, R, T, out) {
     T.st.sleep = 0; T.st.silence = 0; T.buffs.length = 0;
@@ -345,10 +370,11 @@ export function buildRpg() {
     for (const w of hits) {
       const T = unit(cfg, R, w);
       if (!T) continue;
-      if (fx.harm) hurt(cfg, R, A, T, fx, out);
+      const landed = fx.harm ? hurt(cfg, R, A, T, fx, out) : true;
       if (fx.heal || fx.revive) heal(cfg, R, A, T, fx, out);
       cure(cfg, R, T, fx, out);
-      afflict(cfg, R, T, fx, out);
+      // (a status a plain blow carries is left only where the blow lands; a skill's rolls as it always did)
+      if (!fx.onHit || landed) afflict(cfg, R, T, fx, out);
       buffOn(cfg, R, T, fx, out);
     }
   }
@@ -427,7 +453,7 @@ export function buildRpg() {
       if (held) { out.push({ text: A.name + ' is ' + held.said + '.', kind: 'status', who }); return; }
       if ((pick.act === 'attack' || pick.act === 'skill') && stateWith(cfg, A, 'wild')) {
         const all = [...living(R), ...livingFoes(R).map((f) => f.uid)].filter((x) => x !== who);
-        if (all.length) { const t = all[Math.floor(rnd(R.b) * all.length)]; out.push({ text: A.name + ' lashes out wildly!', kind: 'status', who }); apply(cfg, R, A, ATTACK, 'foe', t, out); return; }
+        if (all.length) { const t = all[Math.floor(rnd(R.b) * all.length)]; out.push({ text: A.name + ' lashes out wildly!', kind: 'status', who }); apply(cfg, R, A, attackOf(cfg, A), 'foe', t, out); return; }
       }
     }
     if (pick.act === 'guard') { A.side.guard = 1; out.push({ text: A.name + ' guards.', kind: 'status', who }); return; }
@@ -435,7 +461,7 @@ export function buildRpg() {
     if (pick.act === 'charge') { out.push({ text: pick.line ? pick.line.split('{name}').join(A.name) : A.name + ' is gathering its power!', kind: 'charge', who }); return; }
     if (pick.act === 'attack') {
       out.push(pick.charged ? { text: A.name + ' unleashes its full strength!', who, charged: true } : { text: A.name + ' attacks!', who });
-      apply(cfg, R, A, pick.charged ? charged(ATTACK) : ATTACK, 'foe', pick.target, out);
+      apply(cfg, R, A, pick.charged ? charged(attackOf(cfg, A)) : attackOf(cfg, A), 'foe', pick.target, out);
       return;
     }
     if (pick.act === 'skill') {

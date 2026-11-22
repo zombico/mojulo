@@ -268,3 +268,11 @@
   anime world, the landmark head in a western one) at the age its look names, and an era's version holds none of the
   fantasy armory: the modern and future champions' looks say `gear: {}` (bare-fisted; write `gear` to arm one), since a
   look written out like the preset's now carries the preset kind's arms. Held by a new case in `round-bosses.test.js`.
+- **RPG primitives, step 1: traits.** A class's or a piece of gear's traits (`playscape/rpg/rpg.js` `readTraits`) gain
+  the RATES, shares added to the fight's own: `hit`, `eva` and `crit` (the kernel's MISS and CRIT were constants); what a
+  plain blow carries: `element` (a flame sword strikes fire) and `inflict: { is, chance?, rounds? }` (a status left only
+  where the blow lands); and the skills a piece `grants` while worn or a class while held. A foe names its rates,
+  element and inflict as its own fields; a state may carry rates. The rates move the fight's own dice and add none, so a
+  world that names none fights byte for byte as it did (the boss law and the kernel's pins unmoved). Five starters
+  (the Venom Dagger, the Flame Sword, the Hunter's Charm, the Shadow Cloak, the Ember Ring), in the second and third
+  shops, named in each era.
