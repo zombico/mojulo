@@ -21,6 +21,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadCards } from './cards/index.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const RATE = 44100;
@@ -36,7 +37,6 @@ function args(argv) {
     else throw new Error(`condition: unknown argument ${k}`);
   }
   if (!a.out) throw new Error('condition: --out <dir> is required');
-  if (!/^[a-z0-9-]+$/.test(a.cards)) throw new Error(`condition: bad card set '${a.cards}'`);
   return a;
 }
 
@@ -99,7 +99,7 @@ async function main() {
   const a = args(process.argv.slice(2));
   const ff = ffmpegBin();
   if (!ff) throw new Error('condition: ffmpeg not found ($MOJULO_FFMPEG or PATH); conditioning needs it');
-  const { CARDS } = await import(path.join(HERE, 'cards', `${a.cards}.js`));
+  const CARDS = await loadCards(a.cards);
   const ledgerFile = path.join(a.out, 'ledger.jsonl');
   const ledger = existsSync(ledgerFile) ? readFileSync(ledgerFile, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
   const masters = path.join(a.out, 'masters');

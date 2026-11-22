@@ -19,6 +19,7 @@ import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadCards } from './cards/index.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const API = 'https://api.elevenlabs.io/v1/sound-generation';
@@ -38,7 +39,6 @@ function args(argv) {
     else throw new Error(`generate: unknown argument ${k}`);
   }
   if (!a.out) throw new Error('generate: --out <dir> is required (the takes are the operator\'s, never the repo\'s)');
-  if (!/^[a-z0-9-]+$/.test(a.cards)) throw new Error(`generate: bad card set '${a.cards}'`);
   return a;
 }
 
@@ -60,7 +60,7 @@ async function take(card, key) {
 
 async function main() {
   const a = args(process.argv.slice(2));
-  const { CARDS } = await import(path.join(HERE, 'cards', `${a.cards}.js`));
+  const CARDS = await loadCards(a.cards);
   const cards = CARDS.filter((c) => !a.only || a.only.has(c.id));
   const ledgerFile = path.join(a.out, 'ledger.jsonl');
   mkdirSync(a.out, { recursive: true });

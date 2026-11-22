@@ -14,6 +14,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadCards } from './cards/index.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -27,7 +28,6 @@ function args(argv) {
     else throw new Error(`board: unknown argument ${k}`);
   }
   if (!a.out) throw new Error('board: --out <dir> is required');
-  if (!/^[a-z0-9-]+$/.test(a.cards)) throw new Error(`board: bad card set '${a.cards}'`);
   return a;
 }
 
@@ -57,7 +57,7 @@ const fmt = (v, unit = '') => (v == null ? '–' : `${v}${unit}`);
 
 async function main() {
   const a = args(process.argv.slice(2));
-  const { CARDS } = await import(path.join(HERE, 'cards', `${a.cards}.js`));
+  const CARDS = await loadCards(a.cards);
   const ledgerFile = path.join(a.out, 'ledger.jsonl');
   const ledger = existsSync(ledgerFile) ? readFileSync(ledgerFile, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
   const costOf = (card, n) => ledger.find((e) => e.card === card && e.take === n)?.cost ?? null;
