@@ -210,8 +210,6 @@ Object.assign(INSTRUMENTS, {
   'slap-bass': { patch: 'bassSlap', chain: [{ type: 'drive', amount: 0.12, tone: 5200 }], feel: { jitterTime: 0.004, jitterVel: 0.14 } },
   // the 90s rock kit: parallel compression, then a short bright plate.
   'drum-kit-90s-rock': { patch: 'rockKit90s', chain: [{ type: 'compress', parallel: 0.45, threshold: -30, ratio: 8, attack: 0.002, release: 0.08 }, { type: 'reverb', model: 'plate', decay: 1.3, predelay: 0.006, wet: 0.24 }], feel: 'rock-drummer' },
-  // the same room and drummer on the recorded kit (the sound library's; its synthesized pieces where it is not installed)
-  'drum-kit-recorded-rock': { patch: 'recRockKit', chain: [{ type: 'compress', parallel: 0.45, threshold: -30, ratio: 8, attack: 0.002, release: 0.08 }, { type: 'reverb', model: 'plate', decay: 1.3, predelay: 0.006, wet: 0.24 }], feel: 'rock-drummer' },
   // the orchestra hit into a hall (a section change's exclamation mark).
   'orchestra-hit': { patch: 'orchHit', chain: [{ type: 'reverb', model: 'room2', decay: 2.8, predelay: 0.02, wet: 0.35 }], feel: { strum: 0.004 } },
   // roots styles (country, blues, the soloist)

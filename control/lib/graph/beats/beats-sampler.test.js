@@ -3,14 +3,14 @@
 // library renders the recorded kit byte-identical to the kit it was modelled on. A tiny library is built here (one
 // decaying tone a card), never the real one.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { renderBeatsOffline } from './beats-render.js';
 import { normalizeBeatsManifest } from './beats-manifest.js';
 import { beatsFeatures, sampleCards } from './beats-features.js';
-import { emitBeatsKernel } from './beats-kernel.js';
+import { emitBeatsKernel, sliceKernelText } from './beats-kernel.js';
 import { emitBeatsPlayer } from './beats-player.js';
 import { PATCHES } from './audio-patches.js';
 import { forgetLibrary, sampleSlice } from '../sound-library/library.js';
@@ -18,7 +18,9 @@ import { forgetLibrary, sampleSlice } from '../sound-library/library.js';
 const kitPiece = Object.keys(PATCHES).find((k) => PATCHES[k].voice === 'sample');
 const recordedKit = Object.keys(PATCHES).find((k) => PATCHES[k].kit && Object.values(PATCHES[k].kit).some((n) => PATCHES[n] && PATCHES[n].voice === 'sample'));
 
-const comp = (instrument) => normalizeBeatsManifest({ kind: 'beats-composition', title: 'sampler probe', bpm: 120, seed: 7, parts: [{ name: 'dr', instrument, groove: { style: 'rock-drive', bars: 1 } }] });
+// a groove on a kit patch (no instrument: the recorded kit is the sampler's proving patch, not on the shelf)
+const comp = (patch) => normalizeBeatsManifest({ kind: 'beats-composition', title: 'sampler probe', bpm: 120, seed: 7, parts: [{ name: 'dr', patch, groove: { style: 'rock-drive', bars: 1 } }] });
+const ARENA = 'rockKit90s';
 
 function wav(seconds, hz) {
   const sr = 44100, n = Math.round(seconds * sr), b = Buffer.alloc(44 + n * 2);
@@ -53,18 +55,25 @@ afterAll(() => {
 describe('the sampler', () => {
   it('is its own kernel feature: a recipe without recorded pieces carries none of it', () => {
     expect(recordedKit).toBeTruthy();
-    expect(beatsFeatures(comp('drum-kit-recorded-rock'))).toContain('sampler');
-    expect(beatsFeatures(comp('drum-kit-90s-rock'))).not.toContain('sampler');
-    expect(emitBeatsKernel(beatsFeatures(comp('drum-kit-90s-rock')))).not.toContain('loadSamples');
+    expect(beatsFeatures(comp(recordedKit))).toContain('sampler');
+    expect(beatsFeatures(comp(ARENA))).not.toContain('sampler');
+    expect(emitBeatsKernel(beatsFeatures(comp(ARENA)))).not.toContain('loadSamples');
     expect(emitBeatsKernel(['sampler'])).toContain('loadSamples');
-    expect(sampleCards(comp('drum-kit-90s-rock'))).toEqual([]);
+    expect(sampleCards(comp(ARENA))).toEqual([]);
+  });
+
+  it('with the sampler off, every other feature on is byte for byte the kernel before it', () => {
+    // pinned from 1116-rc's kernel with every feature on: the sampler regions, off, leave that text as it was.
+    const t = readFileSync(new URL('./beats-kernel.js', import.meta.url), 'utf8');
+    const text = sliceKernelText(t.slice(t.indexOf('function buildBeatsKernel()'), t.lastIndexOf('}') + 1), (f) => f !== 'sampler');
+    expect(sha(text)).toBe('55adeb89fe5d2191d1f8920728303e89f0bab76e35f8fdca1db3b275e83e564a');
   });
 
   it('without the library, the recorded kit renders byte-identical to the kit its pieces stand in for', async () => {
     withLibrary(false);
-    expect(sampleSlice(sampleCards(comp('drum-kit-recorded-rock')))).toBe(null);
-    const rec = await renderBeatsOffline(comp('drum-kit-recorded-rock'), { tail: 0.3 });
-    const arena = await renderBeatsOffline(comp('drum-kit-90s-rock'), { tail: 0.3 });
+    expect(sampleSlice(sampleCards(comp(recordedKit)))).toBe(null);
+    const rec = await renderBeatsOffline(comp(recordedKit), { tail: 0.3 });
+    const arena = await renderBeatsOffline(comp(ARENA), { tail: 0.3 });
     expect(sha(rec.wav)).toBe(sha(arena.wav));
   });
 
@@ -72,19 +81,19 @@ describe('the sampler', () => {
     withLibrary(true);
     const slice = sampleSlice([PATCHES[kitPiece].library]);
     expect(Object.values(slice.cards)[0]).toHaveLength(2);
-    const a = await renderBeatsOffline(comp('drum-kit-recorded-rock'), { tail: 0.3 });
-    const b = await renderBeatsOffline(comp('drum-kit-recorded-rock'), { tail: 0.3 });
+    const a = await renderBeatsOffline(comp(recordedKit), { tail: 0.3 });
+    const b = await renderBeatsOffline(comp(recordedKit), { tail: 0.3 });
     withLibrary(false);
-    const fallback = await renderBeatsOffline(comp('drum-kit-recorded-rock'), { tail: 0.3 });
+    const fallback = await renderBeatsOffline(comp(recordedKit), { tail: 0.3 });
     expect(sha(a.wav)).toBe(sha(b.wav));
     expect(sha(a.wav)).not.toBe(sha(fallback.wav));
   });
 
   it('a page inlines the samples only where the recipe plays them and this machine holds them', () => {
     withLibrary(true);
-    expect(emitBeatsPlayer(comp('drum-kit-recorded-rock'))).toContain('const SAMPLES = ');
-    expect(emitBeatsPlayer(comp('drum-kit-90s-rock'))).not.toContain('const SAMPLES');
+    expect(emitBeatsPlayer(comp(recordedKit))).toContain('const SAMPLES = ');
+    expect(emitBeatsPlayer(comp(ARENA))).not.toContain('const SAMPLES');
     withLibrary(false);
-    expect(emitBeatsPlayer(comp('drum-kit-recorded-rock'))).not.toContain('const SAMPLES');
+    expect(emitBeatsPlayer(comp(recordedKit))).not.toContain('const SAMPLES');
   });
 });

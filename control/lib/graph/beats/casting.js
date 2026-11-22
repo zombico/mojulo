@@ -66,7 +66,7 @@ const ROWS = [
   [['supersaw-lead', 'hoover'], 'synth', ['C3', 'C6'], 'huge and driving: a trance supersaw, a hoover scream'],
   [['acid-bass', 'reese-bass', 'wobble-bass', 'fm-bass'], 'synth-bass', ['E1', 'C4']],
   [['timpani'], 'timpani'],
-  [['drum-kit', 'drum-kit-90s-rock', 'drum-kit-recorded-rock', 'acoustic-kit', 'stadium-kit', 'stadium-kit-gated', 'brush-kit', 'blues-kit', 'orchestral-perc', 'latin-perc', 'palmas', 'drum-machine-88', 'drum-machine-909', 'drum-machine-bright'], 'kit'],
+  [['drum-kit', 'drum-kit-90s-rock', 'acoustic-kit', 'stadium-kit', 'stadium-kit-gated', 'brush-kit', 'blues-kit', 'orchestral-perc', 'latin-perc', 'palmas', 'drum-machine-88', 'drum-machine-909', 'drum-machine-bright'], 'kit'],
 ];
 // sustained exceptions inside a plucked or struck family, and the reverse
 const SUSTAINS = new Set(['organ', 'organ-rotary', 'fm-organ', 'pedal-steel', 'harmonica']);

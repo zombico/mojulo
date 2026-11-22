@@ -488,6 +488,8 @@ PATCHES.pianoGrand3 = { ...PATCHES.pianoGrand, unisonSpread: 0.6, life: true, ri
 // one per hit by the note's key, played to its end; on a machine without the library (or before its samples are
 // decoded) each piece plays the arena kit's synthesized piece it stands in for (`fallback`). The kit keeps the arena
 // kit's map, the pieces the library does not hold (rim, ride, china, bell, splash) still synthesized. New names.
+// Not on the instrument shelf: heard beside the synthesized 90s kit in the robot rock band, the synthesized kit won
+// (operator, by ear, 2026-11-22). Kept as the sampler's proving patch, reachable only by naming `recRockKit`.
 const rec = (library, fallback, volume) => ({ voice: 'sample', library, fallback: PATCHES[fallback], attack: 0.001, decay: 0, sustain: 1, release: 0.05, volume });
 Object.assign(PATCHES, {
   recKick: rec('kick', 'kickAcoustic', -3),
