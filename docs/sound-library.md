@@ -38,7 +38,13 @@ tar -xf sounds-spike-v2.tar -C ~/.mojulo/sounds
 - **The band**: a `voice: 'sample'` patch names a card and plays its variants as an instrument piece, falling back to
   the synthesized piece it names. The first recorded kit (`recRockKit`) lost to the synthesized 90s kit by ear and is
   not on the instrument shelf; it stays as the sampler's proving patch.
-- Not yet: held voices and beds (the library's loops), the engine handoffs.
+- **Held voices** (`sfx-shelf/recorded-held.js`): an engine is a set of steady loops recorded at known revs (cards with
+  `engine` and `rpm`); a held row with a tuning plays them crossfaded by its control, each bent in pitch by the revs over
+  its own, its synthesized spec the fallback. The recordings are shared and the tuning is the row's: the open city's
+  car at the wheel (`road-car-engine`: short of its redline, through a small speaker) and a racing car (`car-engine`:
+  the whole range, open) drive the same loops their own ways. Tyres and the road are one loop each. ElevenLabs takes a
+  prompt's revs as a mood, not a number, so a loop's `rpm` is what it was asked for until it is calibrated by ear.
+- Not yet: the beds (the library's ambience loops), the engine handoffs.
 
 The kernel's `sampler` slice carries all of it; a recipe without recorded sounds emits none of it, and a page or a
 render on a machine without the library is byte for byte what it was. Under test the library is never the
@@ -49,8 +55,8 @@ developer's (`vitest.setup.js` points `MOJULO_SOUNDS_DIR` at nothing); a suite t
 Maintainer tooling in [control/scripts/sound-library/](../control/scripts/sound-library/), never shipped and never
 called by mojulo itself (mojulo calls no generation API):
 
-1. **Cards** (`cards/<set>.js`): one per sound, the shelf row it voices, its prompt, length, prompt influence, loop and
-   how many takes. Sets load together (`--cards spike,batch2`), each card id once.
+1. **Cards** (`cards/<set>.js`): one per sound, the shelf row it voices (or, for an engine's loop, the `engine` and the
+   `rpm`), its prompt, length, prompt influence, loop and how many takes. Sets load together (`--cards spike,batch2`), each card id once.
 2. **Generate** (`generate.mjs --cards <sets> --out <dir> --budget <credits> [--dry]`): the takes, from the ElevenLabs
    sound-generation API (`eleven_text_to_sound_v3`, which cost 10 credits a second), into `<dir>/takes`, every call in
    `<dir>/ledger.jsonl`; a take already made is skipped, and a call that would cross the budget is not made. The key
@@ -58,6 +64,6 @@ called by mojulo itself (mojulo calls no generation API):
    `NODE_USE_ENV_PROXY=1`), never in a file.
 3. **Audition** (`board.mjs`): every take on one page with its measures, for the ears gate, which is the operator's.
 4. **Condition** (`condition.mjs`, needs ffmpeg): every take kept as a variant (leaving one out is the pick), trimmed,
-   level-matched, a loop's seam measured, the masters and `library.json` written; a re-run is byte-identical.
+   level-matched (one-shots by peak, beds at -24 LUFS, a vehicle's loops at -14), a loop's seam measured, the masters and `library.json` written; a re-run is byte-identical.
 
 The takes, the masters and the ledger are the operator's, outside the repo; a release carries them as a tarball.

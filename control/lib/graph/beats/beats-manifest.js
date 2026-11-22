@@ -473,9 +473,20 @@ export function checkSustain(sp, where, errors) {
   for (const k of ['attack', 'release']) if (sp[k] !== undefined && !inRange(sp[k], 0.005, 5)) errors.push(`${where}.${k} must be seconds in [0.005, 5] (how fast it follows the control ${k === 'attack' ? 'up' : 'down'})`);
   if (sp.level !== undefined && !inRange(sp.level, 0, 2)) errors.push(`${where}.level must be in [0, 2]`);
   if (sp.send !== undefined && !inRange(sp.send, 0, 1)) errors.push(`${where}.send must be in [0, 1] (its share to the mix's space)`);
+  // a held voice of recordings (the sound library's loops) names the synthesized voice it stands in for
+  if (sp.fallback !== undefined) {
+    if (isObj(sp.fallback) && (sp.fallback.layers || []).some((L) => L && L.kind === 'sample')) errors.push(`${where}.fallback must be a synthesized held voice (no recording inside its fallback)`);
+    else checkSustain(sp.fallback, `${where}.fallback`, errors);
+  }
   sp.layers.forEach((L, i) => {
     const w = `${where}.layers[${i}]`;
-    if (!isObj(L) || !['noise', 'osc'].includes(L.kind)) { errors.push(`${w}.kind must be 'noise' or 'osc'`); return; }
+    if (isObj(L) && L.kind === 'sample') {
+      if (typeof L.library !== 'string' || !/^[a-z0-9-]{1,64}$/.test(L.library)) errors.push(`${w}.library must be a sound library card id (kebab-case)`);
+      if (L.take !== undefined && !(Number.isInteger(L.take) && L.take >= 0)) errors.push(`${w}.take must be a non-negative integer (which of the card's takes)`);
+      range(L.rate, `${w}.rate`, 0.1, 8, 'its playback rate at each end of the control');
+      if (L.window !== undefined && !(Array.isArray(L.window) && L.window.length === 3 && L.window.every((v) => inRange(v, 0, 1)) && L.window[0] <= L.window[1] && L.window[1] <= L.window[2])) errors.push(`${w}.window must be [lo, at, hi] in 0..1, rising (where the recording is heard on the control)`);
+    }
+    if (!isObj(L) || !['noise', 'osc', 'sample'].includes(L.kind)) { errors.push(`${w}.kind must be 'noise', 'osc' or 'sample'`); return; }
     if (L.wave !== undefined && !WAVES.has(L.wave)) errors.push(`${w}.wave must be one of: ${[...WAVES].join(', ')}`);
     range(L.gain, `${w}.gain`, 0, 2, 'its level at each end of the control');
     range(L.pitch, `${w}.pitch`, 1, 20000, 'Hz');

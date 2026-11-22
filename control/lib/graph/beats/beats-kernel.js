@@ -3238,17 +3238,39 @@ export function buildBeatsKernel() {
     // rising, `release` falling) on ramps the voice plans itself; stop(t?) fades
     // it out and frees it. It plays on the SFX bus when there is one.
     function sustain(spec, dest) {
+/*@sampler{*/
+      // a held voice of recordings (the sound library's loops) not loaded here plays the synthesized voice it stands in for
+      if (spec && spec.fallback && (spec.layers || []).some((L) => L && L.kind === 'sample' && !(sampleCards[L.library] || []).some((id) => sampleBufs.has(id)))) return sustain(spec.fallback, dest);
+/*|
+@*/
       const S = spec || {}, t0 = ctx.currentTime, out = ctx.createGain();
       out.gain.setValueAtTime(S.level == null ? 1 : S.level, t0);
       out.connect(dest && dest !== master ? dest : sfx ? sfx.bus : master);
       const snd = S.send == null ? (sfx ? sfx.send : 0) : S.send;
       if (sfx && sfx.space && snd > 0) { const sg = ctx.createGain(); sg.gain.value = snd; out.connect(sg); sg.connect(sfx.space); }
       const lanes = [], srcs = [];
+/*@sampler{*/
+      // (a lane may carry its own curve over x, `fn`: a recording's window)
+      const valOf = (p, v) => (p.fn ? p.fn(v) : p.geo ? p.r[0] * Math.pow(p.r[1] / p.r[0], v) : p.r[0] + (p.r[1] - p.r[0]) * v);
+/*|
       const valOf = (p, v) => (p.geo ? p.r[0] * Math.pow(p.r[1] / p.r[0], v) : p.r[0] + (p.r[1] - p.r[0]) * v);
+@*/
       const valAt = (p, t) => (t >= p.b ? p.to : t <= p.a ? p.from : p.from + (p.to - p.from) * (t - p.a) / (p.b - p.a));
       const lane = (param, r, geo) => { const p = { param, r, geo, a: t0, b: t0 }; p.from = p.to = valOf(p, 0); param.setValueAtTime(p.from, t0); lanes.push(p); };
       (S.layers || []).forEach(function (L, i) {
         let src;
+/*@sampler{*/
+        // a recording (the sound library's loop, `library`, its `take`), looped from a seeded place, its playback rate a
+        // lane over x (`rate`: an engine's revs over the revs it was recorded at)
+        if (L.kind === 'sample') {
+          src = ctx.createBufferSource(); src.loop = true;
+          const ids = sampleCards[L.library] || [];
+          src.buffer = sampleBufs.get(ids[(L.take || 0) % Math.max(1, ids.length)]) || null;
+          lane(src.playbackRate, L.rate || [1, 1], false);
+          src.start(t0, src.buffer ? unit(hashSeed(0x5A59, i)) * src.buffer.duration : 0);
+        } else
+/*|
+@*/
         if (L.kind === 'osc') { src = ctx.createOscillator(); src.type = L.wave || 'sine'; lane(src.frequency, L.pitch || [220, 220], true); src.start(t0); }
         else src = noiseSrc(t0, unit(hashSeed(0x5A57, i)));
         srcs.push(src);
@@ -3259,6 +3281,16 @@ export function buildBeatsKernel() {
         let cut = null;
         if (L.cutoff) { cut = ctx.createBiquadFilter(); cut.type = 'lowpass'; cut.Q.value = L.q == null ? 0.7 : L.q; lane(cut.frequency, L.cutoff, true); head.connect(cut); head = cut; }
         const g = ctx.createGain(); lane(g.gain, L.gain || [0, 1], false); head.connect(g);
+/*@sampler{*/
+        // `window` [lo, at, hi] on x (a recording's place among its neighbours): it rises from lo to at and falls to hi on
+        // equal-power curves, silent outside (lo = at: full below; at = hi: full above), times its `gain` lane's level
+        if (L.window) {
+          const [wl, wa, wh] = L.window, top = (L.gain || [1, 1])[1];
+          const fn = (v) => top * (v < wa ? (wa > wl ? (v <= wl ? 0 : Math.sin(Math.PI / 2 * (v - wl) / (wa - wl))) : 1) : (wh > wa ? (v >= wh ? 0 : Math.cos(Math.PI / 2 * (v - wa) / (wh - wa))) : 1));
+          const p = lanes.pop(); p.fn = fn; p.from = p.to = fn(0); g.gain.setValueAtTime(p.from, t0); lanes.push(p);
+        }
+/*|
+@*/
         let tail = g;
         if (L.lfo) {
           const o = ctx.createOscillator(); o.type = L.lfo.wave || 'sine'; lane(o.frequency, L.lfo.rate || [4, 4], true); o.start(t0); srcs.push(o);

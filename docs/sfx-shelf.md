@@ -304,8 +304,10 @@ Each hit plays one of the card's takes, chosen by the hit's variant, so a footst
 A row `realistic` does not voice at all (a creature only the mouth style voices) is given one by its recording.
 
 It stays synthesized wherever the library does not answer: another style, a row asked for at its own dials (an
-explosion at `size: 'huge'` is a design point, not the recording), a held voice (an engine, a fire burning on), or a
-machine without the library, where every answer is byte for byte what it was. On a page the samples are inlined (as
+explosion at `size: 'huge'` is a design point, not the recording), or a machine without the library, where every
+answer is byte for byte what it was. A held voice is recorded only where `sfx-shelf/recorded-held.js` tunes it (the
+engines, the tyres, the road): the engine's loops crossfaded by the row's own rev range, the synthesized spec the
+fallback ([sound-library.md](sound-library.md)). On a page the samples are inlined (as
 MP3) only when its cues play them; a cue whose recording is not decoded yet plays its fallback, exactly as it would
 have sounded without the library.
 
@@ -315,4 +317,4 @@ Beyond the sheet, the fight and the firing range, a level reads the shelf by its
 (`gameworld/practice-room.js`) name their sounds by word and wire them to a moveset's events (`audio.moves`, the
 world-audio card); made levels do not yet. To come: wiring weapon roles, explosion presets, body sizes,
 surfaces and vehicles to their sounds by word, a level's held voices on its `hold` slot (an engine on a vehicle's
-throttle), recorded held voices and beds (the library's loops), and WAVs in the engine handoff.
+throttle), recorded beds (the library's ambience loops), and WAVs in the engine handoff.

@@ -9,7 +9,7 @@
  * PATH; required here: conditioning is the one step that needs it):
  *   - decoded to 16-bit PCM WAV at 44.1 kHz, its channels kept (the master; the shipped codec is chosen later);
  *   - one-shots and instrument pieces: leading silence trimmed (below -60 dBFS), peak-normalized to -1 dBFS;
- *   - beds (loops): never trimmed (the seam is the loop's), loudness-normalized to -24 LUFS integrated, and the
+ *   - beds and loops: never trimmed (the seam is the loop's), loudness-normalized (beds -24 LUFS, a vehicle's loops -14), the
  *     seam measured: the jump from the last sample to the first against the bed's median sample-to-sample step;
  *   - named by its bytes: <out>/masters/<sha16>.wav, with <sha16>.mp3 beside it (160 kbps, the form a page inlines:
  *     about a tenth of the WAV; an offline render reads the WAV).
@@ -28,6 +28,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const RATE = 44100;
 const PEAK_DB = -1;
 const BED_LUFS = -24;
+const LOOP_LUFS = -14;   // a vehicle's loops (role 'loop'): an engine at the wheel, not a bed under the score
 
 function args(argv) {
   const a = { cards: 'spike', out: null };
@@ -85,12 +86,12 @@ function seam(bytes, w) {
 }
 
 function condition(ff, src, card, tmp) {
-  const one = card.role !== 'bed';
+  const one = card.role !== 'bed' && card.role !== 'loop';
   const trim = one ? 'silenceremove=start_periods=1:start_threshold=-60dB:start_silence=0.002,' : '';
   // pass 1: decode (and trim) at the master rate, to measure what the gain must be
   run(ff, ['-y', '-i', src, '-af', `${trim}aresample=${RATE}`, '-c:a', 'pcm_s16le', tmp]);
   const lv = levels(ff, tmp);
-  const gain = one ? PEAK_DB - lv.peakDb : Math.min(BED_LUFS - lv.lufs, PEAK_DB - lv.peakDb);
+  const gain = one ? PEAK_DB - lv.peakDb : Math.min((card.role === 'loop' ? LOOP_LUFS : BED_LUFS) - lv.lufs, PEAK_DB - lv.peakDb);
   const out = `${tmp}.g.wav`;
   run(ff, ['-y', '-i', tmp, '-af', `volume=${gain.toFixed(2)}dB`, '-c:a', 'pcm_s16le', '-map_metadata', '-1', '-fflags', '+bitexact', '-flags:a', '+bitexact', out]);
   return out;
@@ -123,14 +124,14 @@ async function main() {
       const w = readWav(bytes), lv = levels(ff, at), led = ledger.find((e) => e.card === c.id && e.take === t);
       variants.push({
         id, take: t, seconds: +(w.frames / w.rate).toFixed(3), rate: w.rate, channels: w.channels, peakDb: lv.peakDb, lufs: lv.lufs,
-        ...(c.role === 'bed' ? { seam: seam(bytes, w) } : {}),
+        ...(c.role === 'bed' || c.role === 'loop' ? { seam: seam(bytes, w) } : {}),
         source: { sha256: led?.sha256 ?? createHash('sha256').update(readFileSync(src)).digest('hex'), request: led?.request ?? null },
       });
       n++;
     }
-    cards[c.id] = { ...(c.shelf ? { shelf: c.shelf } : {}), ...(c.band ? { band: c.band } : {}), role: c.role, loop: !!c.loop, prompt: c.prompt, variants };
+    cards[c.id] = { ...(c.shelf ? { shelf: c.shelf } : {}), ...(c.band ? { band: c.band } : {}), ...(c.engine ? { engine: c.engine, rpm: c.rpm } : {}), role: c.role, loop: !!c.loop, prompt: c.prompt, variants };
   }
-  const index = { version: 1, set: a.cards, rate: RATE, levels: { oneShotPeakDb: PEAK_DB, bedLufs: BED_LUFS }, cards };
+  const index = { version: 1, set: a.cards, rate: RATE, levels: { oneShotPeakDb: PEAK_DB, bedLufs: BED_LUFS, loopLufs: LOOP_LUFS }, cards };
   writeFileSync(path.join(a.out, 'library.json'), `${JSON.stringify(index, null, 1)}\n`);
   for (const f of [tmp, `${tmp}.g.wav`]) if (existsSync(f)) spawnSync('rm', ['-f', f]);
   console.log(`condition: ${n} variants over ${Object.keys(cards).length} cards → ${path.join(a.out, 'library.json')}`);

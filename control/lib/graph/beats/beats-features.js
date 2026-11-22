@@ -171,6 +171,8 @@ function addSustains(set, specs) {
     if (!sp || typeof sp !== 'object') continue;
     set.add('sustain');
     for (const L of sp.layers || []) if (L && L.chain) layerChainFeatures(L.chain, set);
+    // a held voice of recordings: the sampler, and what the synthesized voice it stands in for needs
+    if ((sp.layers || []).some((L) => L && L.kind === 'sample')) { set.add('sampler'); if (sp.fallback) addSustains(set, [sp.fallback]); }
   }
 }
 
@@ -228,13 +230,14 @@ export function sampleCards(...manifests) {
   return [...out].sort();
 }
 
-/** Every card a recorded gesture (`type: 'sample'`) names anywhere in a value (a manifest, a world's audio), sorted. */
+/** Every card a recorded gesture (`type: 'sample'`) or a held voice's recorded layer (`kind: 'sample'`) names anywhere
+ * in a value (a manifest, a world's audio), sorted. */
 export function gestureSampleCards(value) {
   const out = new Set();
   const walk = (x) => {
     if (!x || typeof x !== 'object') return;
     if (Array.isArray(x)) { for (const y of x) walk(y); return; }
-    if (x.type === 'sample' && typeof x.library === 'string') out.add(x.library);
+    if ((x.type === 'sample' || x.kind === 'sample') && typeof x.library === 'string') out.add(x.library);
     for (const k in x) walk(x[k]);
   };
   walk(value);

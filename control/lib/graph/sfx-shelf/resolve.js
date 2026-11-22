@@ -28,6 +28,7 @@ import { SETS } from './sets.js';
 import { SOUNDS, resolveSoundId } from './roster.js';
 import { FAMILIES, familyCue } from './families.js';
 import { recordedFor } from '../sound-library/library.js';
+import { recordedHeld } from './recorded-held.js';
 
 function voiceOf(id, style, seen, dials) {
   const key = `${id}|${style}`;
@@ -75,6 +76,9 @@ export function sfxSound(word, { style = 'realistic', dials = {} } = {}) {
   const open = voice ? voice.gestures && voice.style === 'realistic' : asked;
   const rec = open && !Object.keys(dials || {}).length ? recordedFor(id) : null;
   if (rec) voice = { ...(voice || { style: 'realistic', from: 'library' }), recorded: rec.card, gestures: [{ type: 'sample', library: rec.card, dur: rec.dur, ...(voice ? { fallback: voice.gestures } : {}) }] };
+  // a held voice (an engine, the tyres, the road) the library's loops voice, at the row's own tuning (recorded-held.js)
+  const heldRec = voice && voice.sustain && voice.style === 'realistic' && !Object.keys(dials || {}).length ? recordedHeld(id, voice.sustain) : null;
+  if (heldRec) voice = { ...voice, recorded: heldRec.layers.map((L) => L.library).join(' '), sustain: heldRec };
   if (row.channel) return { id, channel: row.channel, ...(voice || {}) };
   return voice ? { id, ...voice } : null;
 }

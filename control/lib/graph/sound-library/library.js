@@ -11,6 +11,9 @@
  *                               bytes: { <id>: Buffer } }, only the cards the library holds; null when it holds none
  *   `sampleSliceBase64(cards)`  the same with the bytes as base64, for a page to inline: each variant's MP3 where the
  *                               library carries one (`masters/<id>.mp3`, a tenth of the WAV), else its WAV
+ *   `recordedEngine(engine)`    an engine's steady loops (cards whose `engine` is it, each with the `rpm` it was asked
+ *                               at), sorted by rpm: [{ card, rpm }], only cards whose masters are here; [] for none
+ *   `recordedLoop(card)`        a loop card held here (its masters present), or null
  *   `recordedFor(shelfId)`      the card that records a shelf row (its `shelf`), as { card, dur: the longest variant's
  *                               seconds, variants }, or null: no library, no card for the row, or none of its masters here
  *
@@ -61,6 +64,21 @@ function findRecorded(dir, shelfId) {
     return { card: name, dur: Math.max(...held.map((v) => Number(v.seconds) || 0)), variants: held.length };
   }
   return null;
+}
+
+const held = (dir, c) => (c.variants || []).filter((v) => ID.test(v.id) && existsSync(path.join(dir, 'masters', `${v.id}.wav`)));
+
+export function recordedEngine(engine) {
+  const lib = readLibrary();
+  if (!lib) return [];
+  const dir = libraryDir();
+  return Object.entries(lib.cards).filter(([, c]) => c && c.engine === engine && Number(c.rpm) > 0 && held(dir, c).length)
+    .map(([card, c]) => ({ card, rpm: Number(c.rpm) })).sort((a, b) => a.rpm - b.rpm || (a.card < b.card ? -1 : 1));
+}
+
+export function recordedLoop(card) {
+  const lib = readLibrary(), c = lib && lib.cards[card];
+  return c && c.loop && held(libraryDir(), c).length ? card : null;
 }
 
 export function sampleSlice(cards, { compact = false } = {}) {
