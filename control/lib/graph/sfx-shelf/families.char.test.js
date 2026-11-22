@@ -244,6 +244,9 @@ const PINS = {
   'train-horn': '00e49ca24936',
   'ship-horn': '00e49ca24936',
   'train-brakes': '4c70edf4c909',
+  'v8-ignition': '0050e366d421',
+  'diesel-ignition': '0050e366d421',
+  'bike-ignition': '0050e366d421',
 };
 
 describe('the families\' builds, pinned', () => {

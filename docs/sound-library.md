@@ -62,8 +62,13 @@ node scripts/sound-library/condition.mjs --cards spike,batch2,vehicles,registry 
   redline, through a small speaker), and the page starts the engine the driven car's model names. A car whose engine is
   the city's own keeps the hatchback. Each engine a page carries is its loops (about 0.6 MB of MP3 an engine: a city
   page with the V8, the V12, the electric motor and the diesel beside the hatchback carries about 3.5 MB of sound).
+- **The car taken's own events** (the same `citySounds`): each car model's registry vehicle's events, where the library
+  records them, are its cues under `<cue>@<set>` (`engine.cueOf` naming a model's set, `engine.mute` the city's cues a
+  set has none of): a V8's start, a truck's air horn, air brakes and reverse beeper, a bus's doors, a backfire off the
+  pedal, the lock's chirp as its driver walks away, a police car's siren on N; an electric car has no starter. A car
+  whose events are all the city car's has no set.
 - Not yet: the beds (the library's ambience loops), a vehicle's events wired into the pages that drive it (the city
-  car's cues are its own, the same for every car; a ride's are not), the engine handoffs.
+  car's are; a ride's are not), the engine handoffs.
 
 The kernel's `sampler` slice carries all of it; a recipe without recorded sounds emits none of it, and a page or a
 render on a machine without the library is byte for byte what it was. Under test the library is never the

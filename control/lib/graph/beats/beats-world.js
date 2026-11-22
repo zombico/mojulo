@@ -428,7 +428,11 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     // engine resolved once into `voices` and heard from the cab where `cab` says so; a model not named is `voice`)
     const models = en.models && typeof en.models === 'object' ? Object.fromEntries(Object.entries(en.models).filter(([, w]) => typeof w === 'string')) : null;
     const voices = models && Object.keys(models).length ? Object.fromEntries([...new Set(Object.values(models))].sort().map((w) => { const sp = sfxSound(w, { cab: en.cab === true })?.sustain; if (!sp) throw new Error(`audio.engine.models: '${w}' is not a held voice on the SFX shelf`); return [w, heldVoice(sp, `audio.engine.voices.${w}`)]; })) : null;
-    out.engine = { voice: heldVoice(spec, 'audio.engine.voice'), top: en.top, level: Number.isFinite(en.level) ? en.level : 0.3, idle: Number.isFinite(en.idle) ? Math.max(0, Math.min(1, en.idle)) : 0.12, ...(en.cab === true ? { cab: true } : {}), ...(drive && Object.keys(drive).length ? { drive } : {}), ...(voices ? { models, voices } : {}) };
+    // (its cars' own cues, `cueOf`: { <car model>: <set> }, the set's cues `<cue>@<set>` of audio.sfx.cues; `mute`: { <set>:
+    // [<cue>…] } the city's cues a set has none of)
+    const cueOf = en.cueOf && typeof en.cueOf === 'object' ? Object.fromEntries(Object.entries(en.cueOf).filter(([, v]) => typeof v === 'string')) : null;
+    const mute = cueOf && en.mute && typeof en.mute === 'object' ? Object.fromEntries(Object.entries(en.mute).filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, v.filter((c) => typeof c === 'string')])) : null;
+    out.engine = { voice: heldVoice(spec, 'audio.engine.voice'), top: en.top, level: Number.isFinite(en.level) ? en.level : 0.3, idle: Number.isFinite(en.idle) ? Math.max(0, Math.min(1, en.idle)) : 0.12, ...(en.cab === true ? { cab: true } : {}), ...(drive && Object.keys(drive).length ? { drive } : {}), ...(voices ? { models, voices } : {}), ...(cueOf && Object.keys(cueOf).length ? { cueOf, ...(mute && Object.keys(mute).length ? { mute } : {}) } : {}) };
   }
   // a place's own held sound (`ambience`: { voice, level? }): a city's traffic far off, held under the bed while the
   // level plays (the audio channel's), quieter inside a car

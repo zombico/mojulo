@@ -29,9 +29,9 @@ export const CARDS = [
   loopFx('road-roar-loop', 'road-roar', 'tyre and road noise inside a car at highway speed, constant rumble, no engine, no wind'),
   // the car's events
   shot('ignition-hatch', 'car-ignition', 'a small car starter motor cranking and the four-cylinder engine catching to idle', 2.5),
-  shot('ignition-v8', null, 'a V8 starter motor cranking and the big engine catching with a rev blip, then idling', 3),
-  shot('ignition-diesel', null, 'a diesel truck starter cranking and the engine clattering to life', 3),
-  shot('ignition-bike', null, 'a motorcycle electric starter and the engine catching to a fast idle', 2),
+  shot('ignition-v8', 'v8-ignition', 'a V8 starter motor cranking and the big engine catching with a rev blip, then idling', 3),
+  shot('ignition-diesel', 'diesel-ignition', 'a diesel truck starter cranking and the engine clattering to life', 3),
+  shot('ignition-bike', 'bike-ignition', 'a motorcycle electric starter and the engine catching to a fast idle', 2),
   shot('engine-off', 'car-engine-off', 'a car engine switched off, the idle dying and a short tick of cooling', 1.5),
   shot('door-open', 'car-door-open', 'a car door handle pulled and the door opening, close', 1),
   shot('horn', 'car-horn', 'a single car horn honk, close, outdoors', 0.8),

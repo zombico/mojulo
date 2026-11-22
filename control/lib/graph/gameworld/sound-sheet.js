@@ -67,7 +67,7 @@ import { stageKit } from '../era/stage.js';
 import { resolveBed, BEDS } from '../sfx-shelf/beds.js';
 import { gunCues } from './combat/range-sound.js';
 import { sfxSound } from '../sfx-shelf/resolve.js';
-import { vehicleSounds, modelEngines } from '../sfx-shelf/vehicle-sounds.js';
+import { vehicleSounds, modelEngines, modelVehicles } from '../sfx-shelf/vehicle-sounds.js';
 import { POLES } from './feel/cards.js';
 import { feelCard } from './feel/lower.js';
 import { BOSSES } from './bosses.js';
@@ -502,6 +502,27 @@ export const CITY_CAR = Object.freeze({ top: 28, level: 0.55, engine: 'road-car-
   drive: Object.freeze({ load: Object.freeze({ voice: 'road-car-load', level: 0.45 }), road: Object.freeze({ voice: 'road-roar', level: 0.35 }), skid: Object.freeze({ voice: 'tire-squeal', level: 0.4 }) }),
   // (the city's traffic far off, held under the street's bed)
   ambience: Object.freeze({ voice: 'traffic-hum', level: 0.32 }) });
+// a car's EVENTS (sfx-shelf/vehicle-sounds.js) → the city's cues they play
+const EVENT_CUE = Object.freeze([['start', 'car:start'], ['stop', 'car:off'], ['open', 'car:open'], ['door', 'car:door'], ['doors', 'car:door'], ['horn', 'car:horn'], ['brake', 'car:brake'], ['shift', 'car:shift'], ['lock', 'car:lock'], ['siren', 'car:siren'], ['reverse', 'car:reverse'], ['backfire', 'car:backfire']]);
+// the city's own car's cues by those keys (CITY_CAR): what a car with an event of its own is heard by instead
+const CITY_CUE = Object.freeze({ 'car:start': CITY_CAR.start, 'car:off': CITY_CAR.off, 'car:open': CITY_CAR.open, 'car:door': CITY_CAR.door, 'car:horn': CITY_CAR.horn, 'car:brake': CITY_CAR.brake, 'car:shift': CITY_CAR.shift });
+// the sets of cues the town's car models have of their own, where the library records them: { sets: { <name>: { cues:
+// { <cue>: <word> } } }, cueOf: { <model>: <name> }, mute: { <name>: [<cue>…] } }, a set named for the first vehicle that
+// has it; a model whose events are all the city car's has none
+function citySets(style) {
+  const sets = {}, bySig = new Map(), cueOf = {}, mute = {};
+  for (const [model, vid] of Object.entries(modelVehicles())) {
+    const V = vehicleSounds(vid), ev = V?.events ?? {}, cues = {};
+    for (const [e, k] of EVENT_CUE) { const w = ev[e]; if (w && w !== CITY_CUE[k] && sfxSound(w, { style })?.recorded) cues[k] = w; }
+    const off = [...new Set(EVENT_CUE.filter(([e]) => (V?.silent ?? []).includes(e)).map(([, k]) => k))];
+    if (!Object.keys(cues).length) continue;
+    const sig = JSON.stringify([cues, off]);
+    if (!bySig.has(sig)) { bySig.set(sig, vid); sets[vid] = { cues }; if (off.length) mute[vid] = off; }
+    cueOf[model] = bySig.get(sig);
+  }
+  return { sets, cueOf, mute };
+}
+
 export function citySounds(G, { manifest = null, quick = G?.quick } = {}) {
   if (!onSheet(G, quick) || !playedCity(manifest)) return null;
   const R = rideSound(G, { quick, words: 'car', top: CITY_CAR.top });
@@ -514,6 +535,12 @@ export function citySounds(G, { manifest = null, quick = G?.quick } = {}) {
   // (and the car taken heard by its OWN engine where the recorded library voices it, heard from the cab: a muscle car's V8,
   // an electric car's whine, a truck's diesel, sfx-shelf/vehicle-sounds.js; the road car's elsewhere, as without it)
   const models = own ? {} : Object.fromEntries(Object.entries(modelEngines()).filter(([, w]) => w !== R.engine.voice && w !== CITY_CAR.engine && sfxSound(w, { cab: true })?.recorded));
-  return { engine: { ...R.engine, ...(own ? {} : { voice: CITY_CAR.engine }), level: CITY_CAR.level, cab: true, ...(Object.keys(models).length ? { models } : {}), drive: { load: { ...CITY_CAR.drive.load }, road: { ...CITY_CAR.drive.road }, skid: { ...CITY_CAR.drive.skid } } }, cues, ambience: { ...CITY_CAR.ambience },
+  // (and its own EVENTS where the library records them: a V8's start, a truck's air horn and air brakes and its reverse
+  // beeper, a bus's doors, a police car's siren, a muscle car's backfire, the lock's chirp as its driver walks off; an
+  // electric car has no starter to crank. Each set of a car's own is its cues under `<cue>@<set>`, `cueOf` naming a
+  // car model's set and `mute` the city's cues a set has none of)
+  const sets = own ? null : citySets(style);
+  for (const [name, S] of Object.entries(sets?.sets ?? {})) for (const [k, w] of Object.entries(S.cues)) { const g = cue(w); if (g) cues[`${k}@${name}`] = g; }
+  return { engine: { ...R.engine, ...(own ? {} : { voice: CITY_CAR.engine }), level: CITY_CAR.level, cab: true, ...(Object.keys(models).length ? { models } : {}), ...(sets && Object.keys(sets.cueOf).length ? { cueOf: sets.cueOf, ...(Object.keys(sets.mute).length ? { mute: sets.mute } : {}) } : {}), drive: { load: { ...CITY_CAR.drive.load }, road: { ...CITY_CAR.drive.road }, skid: { ...CITY_CAR.drive.skid } } }, cues, ambience: { ...CITY_CAR.ambience },
     why: `${R.why}, heard only at the wheel: started as its driver gets in and stopped as they get out, its growl under the pedal, its tyres on the road and in a slide, the brakes, a gear changed; the door, the horn, a crash; the city's traffic far off` };
 }

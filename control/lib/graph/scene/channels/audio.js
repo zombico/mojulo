@@ -43,6 +43,9 @@ export function audioChannelScript(audio) {
   // machine holds them, decoded by the cue engine at the unlock; a cue before they are decoded plays its synthesized
   // fallback. A payload without recorded gestures (every world where the library is not installed) emits nothing here.
   const cards = gestureSampleCards(audio), samples = cards.length ? sampleSliceBase64(cards) : null;
+  // a city's cars' own events (audio.engine.cueOf, sound-sheet.js citySounds): the car taken heard by its own cues, and the
+  // events only some cars have (a siren, a reverse beeper, a backfire, the lock); absent, not a byte of it
+  const carSets = !!(audio.engine && audio.engine.cab && audio.engine.cueOf), carHas = (k) => carSets && Object.keys(audio.cues || {}).some((c) => c.indexOf(`${k}@`) === 0);
   return `
 // ---- beats audio channel (opt-in, presentation-only) ----
 const __AUDIO = ${safeJson(audio)};
@@ -482,7 +485,9 @@ ${audio.engine.cab ? `  // (a car's revs through its GEARS: in each gear the eng
   const __GEARS = [0.18, 0.36, 0.56, 0.78, 1];
   const __rev = (v) => { const f = Math.max(0, Math.min(1, v / E.top)); if (f < 0.01) return E.idle; let lo = 0; for (const hi of __GEARS) { if (f <= hi) return E.idle + (1 - E.idle) * (lo ? 0.34 : 0.06 + 0.28 * Math.min(1, f / 0.04)) + (1 - E.idle) * 0.66 * ((f - lo) / (hi - lo)); lo = hi; } return 1; };
   const __gearOf = (v) => { const f = Math.max(0, Math.min(1, v / E.top)); let i = 0; while (i < __GEARS.length - 1 && f > __GEARS[i]) i++; return i; };
-` : ''}  let H = null;
+${carSets ? `  // (the car taken: the set of its own cues its model names, audio.engine.cueOf)
+  const __setOf = (c) => { const m = c && c.mount && c.mount.pool && c.mount.pool.model, mk = m && m.indexOf('loft:') === 0 ? m.split('|')[0] : m; return (mk && E.cueOf[mk]) || null; };
+` : ''}` : ''}  let H = null;
   (function __beatsEngine() {
     requestAnimationFrame(__beatsEngine);
     if (!__beatsEng) return;
@@ -492,12 +497,13 @@ ${audio.engine.cab ? `    // (THE CAR'S SOUND DESIGN, a city's: gameworld/sound-
     // opened and shut. Walking is its own sound and hears no engine, not even an idle)
     const __cw = window.__mojCtrl && window.__mojCtrl.world, __cp = __cw && __cw.byId && __cw.byId[__cw.pilotId];
     const __hero = __cp && __cp.mount ? __cw.byId[__cp.riderId] || null : __cp, __phase = __hero && __hero.mountedOn ? __hero.mountPhase || 'ride' : null;
-    const __t = performance.now() / 1000, __cue = function (k, g) { __beatsCue(__AUDIO.cues && __AUDIO.cues[k], g); };
-    if (__phase !== K.phase) {
+    const __t = performance.now() / 1000, __cue = ${carSets ? `function (k, g) { if (K.set && E.mute && E.mute[K.set] && E.mute[K.set].indexOf(k) >= 0) return; __beatsCue(__AUDIO.cues && ((K.set && __AUDIO.cues[k + '@' + K.set]) || __AUDIO.cues[k]), g); };` : 'function (k, g) { __beatsCue(__AUDIO.cues && __AUDIO.cues[k], g); };'}
+    if (__phase !== K.phase) {${carSets ? `
+      if (__phase && !K.set) K.set = __setOf(__hero && __cw.byId[__hero.mountedOn]);   // (the car being got into: its own cues)` : ''}
       if (__phase === 'mount') __cue('car:open');
       if (__phase === 'ride' && K.phase !== 'ride') { __cue('car:door'); K.startAt = __t + 0.3; }
       if (__phase === 'dismount') { if (K.started) __cue('car:off'); K.started = false; K.startAt = 0; K.runAt = 0; __cue('car:open', 0.8); }
-      if (!__phase && K.phase) { __cue('car:door'); K.started = false; K.startAt = 0; K.runAt = 0; }
+      if (!__phase && K.phase) { __cue('car:door'); ${carHas('car:lock') ? "__cue('car:lock', 0.7); " : ''}${carSets ? 'K.set = null; K.siren = false; ' : ''}K.started = false; K.startAt = 0; K.runAt = 0; }
       K.phase = __phase;
     }
     if (K.startAt && __t >= K.startAt) { K.startAt = 0; __cue('car:start'); K.runAt = __t + 0.75; }
@@ -545,16 +551,24 @@ ${audio.engine.cab ? `    // (the car at the wheel: its pedal (the growl under l
       if (K.road) K.road.set(__beatsMuted ? 0 : Math.min(1, K.speed / E.top));
       const wb = (P.rule && P.rule.wheelbase) || 2.7, grip = (P.rule && P.rule.grip) || 1, slip = (spd * spd * Math.abs(Math.tan(P.steerAngle || 0))) / wb / (grip * 9.81);
       if (K.skid) K.skid.set(__beatsMuted ? 0 : Math.max(P.braking && spd > 8 ? 0.4 : 0, Math.min(1, (slip - 0.8) * 2.5)));
-      if (P.braking && !K.braking && spd > 9 && !(now - (K.brakeT || -9) < 1.5)) { K.brakeT = now; __beatsCue(__AUDIO.cues && __AUDIO.cues['car:brake'], Math.min(1, spd / 25)); }
-      K.braking = !!P.braking;
+      if (P.braking && !K.braking && spd > 9 && !(now - (K.brakeT || -9) < 1.5)) { K.brakeT = now; ${carSets ? "__cue('car:brake', Math.min(1, spd / 25));" : "__beatsCue(__AUDIO.cues && __AUDIO.cues['car:brake'], Math.min(1, spd / 25));"} }
+      K.braking = !!P.braking;${carHas('car:reverse') ? `
+      // (backing up: its reverse beeper, where the car has one)
+      if ((P.speed || 0) < -0.8 && !(now - (K.revT || -9) < 2.8)) { K.revT = now; __cue('car:reverse', 0.5); }` : ''}${carHas('car:backfire') ? `
+      // (off the pedal high in its revs: a backfire, where the car has one)
+      if ((K.lastThr || 0) > 0.7 && thr < 0.15 && rpm > 0.6 && !(now - (K.bfT || -9) < 2)) { K.bfT = now; __cue('car:backfire', 0.7); }
+      K.lastThr = thr;` : ''}${carHas('car:siren') ? `
+      // (its siren, where the car has one: N at the wheel turns it on and off)
+      if (K.siren && !(now - (K.sirT || -9) < 3.8)) { K.sirT = now; __cue('car:siren', 0.6); }` : ''}
       const gear = __gearOf(K.speed);
-      if (K.gear != null && gear > K.gear && K.thr > 0.5) __beatsCue(__AUDIO.cues && __AUDIO.cues['car:shift'], 0.45);
+      if (K.gear != null && gear > K.gear && K.thr > 0.5) ${carSets ? "__cue('car:shift', 0.45);" : "__beatsCue(__AUDIO.cues && __AUDIO.cues['car:shift'], 0.45);"}
       K.gear = gear;
     }
     if (H) H.set(__beatsMuted || !P ? 0 : __rev(K.speed));` : '    H.set(__beatsMuted || !P ? 0 : x);'}
   })();
 ${audio.engine.cab ? `  // (the horn: H at the wheel)
-  if (E.cab) addEventListener('keydown', function (ev) { const c = window.__mojCtrl && window.__mojCtrl.world, P = c && c.byId && c.byId[c.pilotId]; if (ev.code === 'KeyH' && !ev.repeat && P && P.mountedOn && !window.__mojMenuOpen) __beatsCue(__AUDIO.cues && __AUDIO.cues['car:horn']); });
+  // (at the wheel the pilot is the car, its driver its rider: riderId; on foot beside it, mountedOn)
+  if (E.cab) addEventListener('keydown', function (ev) { const c = window.__mojCtrl && window.__mojCtrl.world, P = c && c.byId && c.byId[c.pilotId]; if (ev.code === 'KeyH' && !ev.repeat && P && (P.mountedOn || P.riderId) && !window.__mojMenuOpen) __beatsCue(__AUDIO.cues && (${carSets ? "(K.set && __AUDIO.cues['car:horn@' + K.set]) || " : ''}__AUDIO.cues['car:horn']));${carHas('car:siren') ? " if (ev.code === 'KeyN' && !ev.repeat && P && P.riderId && K.set && __AUDIO.cues['car:siren@' + K.set] && !window.__mojMenuOpen) { K.siren = !K.siren; K.sirT = -9; }" : ''} });
 ` : ''}})();
 ` : ''}// thruster ROAR (boost, the F key): a SUSTAINED rocket-engine voice — the acoustic twin of the
 // visual jets. Unlike the one-shot cues above it is a continuous, gain-modulated noise bed that

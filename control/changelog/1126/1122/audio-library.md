@@ -18,7 +18,10 @@
   its rotor, a supercar by its V12.
 - In the open city (Hijack City), the car you take is heard by its own engine where the library is installed: a muscle
   car's V8, a luxury saloon's V12, an electric car's whine, a stolen van's or truck's diesel, each heard from the
-  driver's seat; every other car keeps the city's hatchback.
+  driver's seat; every other car keeps the city's hatchback. It is heard by its own events too: a V8's start, a truck's
+  air horn, air brakes and reverse beeper, a bus's folding doors, a backfire as a muscle car or a hot hatch comes off
+  the pedal, the lock's chirp as you walk away; an electric car starts without a crank.
+- The horn (H) sounds at the wheel of a car in the open city again: it only answered while getting in.
 - Music can play recorded instruments. A recorded piece plays one of its takes per hit and falls back to the
   synthesized piece it stands in for where the library is not installed; recipes without recorded pieces are
   unchanged to the byte. The first recorded drum kit lost to the synthesized 90s rock kit by ear, so no recorded

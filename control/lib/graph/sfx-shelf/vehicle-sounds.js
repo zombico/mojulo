@@ -7,7 +7,9 @@
  * its bell). Every word is a shelf row, so a vehicle sounds synthesized wherever the recorded library is not installed
  * and recorded where it is (resolve.js, recorded-held.js).
  *
- *   `vehicleSounds(vehicle)`  a registry id or a word for one (resolveVehicle) → { id, engine, runs?, events } or null
+ *   `vehicleSounds(vehicle)`  a registry id or a word for one (resolveVehicle) → { id, engine, runs?, events, silent? } or
+ *                             null; `silent` the events it has none of where its kind does (an electric car's starter)
+ *   `modelVehicles()`         a town's car models (as below) → the registry vehicle each is: { <model>: <vehicle id> }
  *   `modelEngines()`          a town's car models (the car shelf's cards; a traffic loft `loft:<fleet class>`) → the
  *                             engine each is heard by: { <model>: <engine row> }, through the registry's handles
  *
@@ -19,8 +21,8 @@ import { FLEET } from '../roads/fleet.js';
 
 // a car's events, a truck's, an aircraft's: the events a vehicle of that kind is known by
 const CAR = Object.freeze({ start: 'car-ignition', stop: 'car-engine-off', open: 'car-door-open', door: 'car-door', horn: 'car-horn', brake: 'brake-squeal', shift: 'gear-shift', lock: 'lock-chirp', alarm: 'car-alarm' });
-const TRUCK = Object.freeze({ start: 'car-ignition', stop: 'car-engine-off', door: 'car-door', horn: 'truck-horn', brake: 'air-brakes', reverse: 'reverse-beeper' });
-const BIKE = Object.freeze({ start: 'car-ignition', stop: 'car-engine-off', horn: 'car-horn', shift: 'gear-shift' });
+const TRUCK = Object.freeze({ start: 'diesel-ignition', stop: 'car-engine-off', door: 'car-door', horn: 'truck-horn', brake: 'air-brakes', reverse: 'reverse-beeper' });
+const BIKE = Object.freeze({ start: 'bike-ignition', stop: 'car-engine-off', horn: 'car-horn', shift: 'gear-shift' });
 const PLANE = Object.freeze({ start: 'prop-start', flyby: 'prop-flyby' });
 const JET = Object.freeze({ start: 'jet-spool', flyby: 'jet-flyby' });
 const ROTOR = Object.freeze({ flyby: 'heli-flyby' });
@@ -33,7 +35,7 @@ const BY_KIND = Object.freeze({
   'road/hire': { engine: 'car-engine', events: CAR },
   'road/sport': { engine: 'car-engine', events: CAR },
   'road/racer': { engine: 'race-engine', events: { shift: 'gear-shift' } },
-  'road/patrol': { engine: 'v8-engine', events: { ...CAR, siren: 'police-siren', yelp: 'police-yelp' } },
+  'road/patrol': { engine: 'v8-engine', events: { ...CAR, start: 'v8-ignition', siren: 'police-siren', yelp: 'police-yelp' } },
   'road/hauler': { engine: 'diesel-engine', events: TRUCK },
   'road/transit': { engine: 'diesel-engine', events: { ...TRUCK, doors: 'bus-door' } },
   'road/service': { engine: 'diesel-engine', events: TRUCK },
@@ -55,19 +57,21 @@ const BY_KIND = Object.freeze({
 });
 
 // a vehicle that is not its kind's: its own engine, what it runs on, and its own `events` (its whole set) or `more`
-// (added to its kind's)
+// (over its kind's; a `null` takes one away: an electric car has no starter to crank)
 const OWN = Object.freeze({
   // road
-  'electric-car': { engine: 'electric-motor' },
+  'electric-car': { engine: 'electric-motor', more: { start: null, stop: null, shift: null } },
   'e-bike': { engine: 'electric-motor', events: { horn: 'bicycle-bell' } },
   'luxury-sedan': { engine: 'supercar-engine' },
-  'muscle-car': { engine: 'v8-engine', more: { backfire: 'backfire' } },
-  'classic-car': { engine: 'v8-engine' },
+  'muscle-car': { engine: 'v8-engine', more: { start: 'v8-ignition', backfire: 'backfire' } },
+  'classic-car': { engine: 'v8-engine', more: { start: 'v8-ignition' } },
   'sports-car': { engine: 'supercar-engine' },
   supercar: { engine: 'supercar-engine' },
   'hot-hatch': { more: { backfire: 'backfire' } },
-  'large-suv': { engine: 'v8-engine' },
+  'large-suv': { engine: 'v8-engine', more: { start: 'v8-ignition' } },
   'camper-van': { engine: 'diesel-engine' },
+  pickup: { more: { horn: 'car-horn', brake: 'brake-squeal', reverse: null } },
+  'cargo-van': { more: { horn: 'car-horn', brake: 'brake-squeal' } },
   motorcycle: { engine: 'motorbike-engine', events: BIKE },
   'sport-bike': { engine: 'motorbike-engine', events: BIKE },
   'race-bike': { engine: 'motorbike-engine', events: { shift: 'gear-shift' } },
@@ -91,9 +95,9 @@ const OWN = Object.freeze({
   'fire-engine': { more: { siren: 'police-siren', horn: 'fire-horn' } },
   'ladder-truck': { more: { siren: 'police-siren', horn: 'fire-horn' } },
   taxi: { more: { horn: 'car-horn' } },
-  limousine: { engine: 'v8-engine' },
+  limousine: { engine: 'v8-engine', more: { start: 'v8-ignition' } },
   // offroad
-  'trophy-truck': { engine: 'v8-engine' },
+  'trophy-truck': { engine: 'v8-engine', more: { start: 'v8-ignition' } },
   'rally-car': { engine: 'car-engine' },
   'dirt-bike': { engine: 'scooter-engine', events: BIKE },
   atv: { engine: 'scooter-engine', events: BIKE },
@@ -137,17 +141,25 @@ export function vehicleSounds(vehicle) {
   const own = OWN[id] || {};
   const engine = 'engine' in own ? own.engine : kind.engine ?? null;
   const runs = 'runs' in own ? own.runs : kind.runs ?? null;
-  const events = { ...(own.events || kind.events || {}), ...(own.more || {}) };
-  return { id, engine, ...(runs ? { runs } : {}), events };
+  const events = Object.fromEntries(Object.entries({ ...(own.events || kind.events || {}), ...(own.more || {}) }).filter(([, w]) => w));
+  // (the events it takes away, said: a page that plays a car's events silences these, where it would play its own)
+  const silent = Object.entries(own.more || {}).filter(([, w]) => w === null).map(([e]) => e);
+  return { id, engine, ...(runs ? { runs } : {}), events, ...(silent.length ? { silent } : {}) };
 }
 
-let models = null;
-export function modelEngines() {
+let models = null, engines = null;
+export function modelVehicles() {
   if (models) return models;
   const out = {};
-  for (const k of CAR_CARD_IDS) { const id = rowOfHandle('car', k), v = id && vehicleSounds(id); if (v && v.engine) out[k] = v.engine; }
-  for (const k of Object.keys(FLEET)) { const id = rowOfHandle('fleet', k), v = id && vehicleSounds(id); if (v && v.engine) out[`loft:${k}`] = v.engine; }
+  for (const k of CAR_CARD_IDS) { const id = rowOfHandle('car', k); if (id) out[k] = id; }
+  for (const k of Object.keys(FLEET)) { const id = rowOfHandle('fleet', k); if (id) out[`loft:${k}`] = id; }
   return (models = Object.freeze(out));
+}
+export function modelEngines() {
+  if (engines) return engines;
+  const out = {};
+  for (const [k, id] of Object.entries(modelVehicles())) { const v = vehicleSounds(id); if (v && v.engine) out[k] = v.engine; }
+  return (engines = Object.freeze(out));
 }
 
 /** every word the table names (a guard test holds each to a shelf row) */

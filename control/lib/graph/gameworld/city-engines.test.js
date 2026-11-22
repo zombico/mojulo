@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { citySounds, CITY_CAR } from './sound-sheet.js';
-import { modelEngines } from '../sfx-shelf/vehicle-sounds.js';
+import { modelEngines, modelVehicles, vehicleSounds } from '../sfx-shelf/vehicle-sounds.js';
 import { HELD_TUNINGS, CAB } from '../sfx-shelf/recorded-held.js';
 import { sfxSound } from '../sfx-shelf/resolve.js';
 import { forgetLibrary } from '../sound-library/library.js';
@@ -27,6 +27,10 @@ function wav(hz) {
 // one car model heard by an engine that is not the city's own, and that engine's tuning
 const [model, word] = Object.entries(modelEngines()).find(([, w]) => w !== CITY_CAR.engine && w !== 'car-engine' && HELD_TUNINGS[w]?.engine);
 const T = HELD_TUNINGS[word];
+// a car model with a reverse beeper (a truck taken from the traffic), and one that takes its starter away (an electric car)
+const backs = Object.entries(modelVehicles()).find(([, v]) => vehicleSounds(v).events.reverse && vehicleSounds(v).events.horn !== CITY_CAR.horn);
+const quiet = Object.entries(modelVehicles()).find(([, v]) => vehicleSounds(v).silent?.includes('start') && vehicleSounds(v).events.lock);
+const EVENTS = ['reverse', 'horn', 'lock'].map((e) => (e === 'lock' ? vehicleSounds(quiet[1]) : vehicleSounds(backs[1])).events[e]);
 const G = { sound: {} }, manifest = { kind: 'geocube', show: 'geocity' };
 let dir = null;
 const prev = process.env.MOJULO_SOUNDS_DIR;
@@ -41,6 +45,12 @@ beforeAll(() => {
     writeFileSync(path.join(dir, 'masters', `${id}.wav`), b);
     cards[`${T.engine}-${rpm}`] = { role: 'loop', loop: true, engine: T.engine, rpm, variants: [{ id, take: 1, seconds: 0.5 }] };
   }
+  // (and the events those two cars have of their own, one take each)
+  EVENTS.forEach((shelf, i) => {
+    const b = wav(500 + 50 * i), id = createHash('sha256').update(b).digest('hex').slice(0, 16);
+    writeFileSync(path.join(dir, 'masters', `${id}.wav`), b);
+    cards[`${shelf}-take`] = { shelf, role: 'one-shot', variants: [{ id, take: 1, seconds: 0.5 }] };
+  });
   writeFileSync(path.join(dir, 'library.json'), JSON.stringify({ version: 1, cards }));
 });
 afterAll(() => {
@@ -57,6 +67,25 @@ describe('the car taken, heard by its own engine', () => {
     const audio = resolveWorldAudio({ engine: city.engine });
     expect(audio.engine.voices).toBeUndefined();
     expect(audioChannelScript(audio)).not.toContain('E.models');
+    expect(city.engine.cueOf).toBeUndefined();
+    expect(Object.keys(city.cues).some((k) => k.includes('@'))).toBe(false);
+    expect(audioChannelScript(audio)).not.toMatch(/__setOf|car:reverse|car:lock/);
+  });
+
+  it('with it, a car taken is heard by its own events: its cues under its set, what it has none of muted', () => {
+    library(true);
+    const city = citySounds(G, { manifest });
+    const truck = city.engine.cueOf[backs[0]], ev = city.engine.cueOf[quiet[0]];
+    expect(city.cues).toHaveProperty(`car:reverse@${truck}`);
+    expect(city.cues).toHaveProperty(`car:horn@${truck}`);
+    expect(city.cues).toHaveProperty(`car:lock@${ev}`);
+    expect(city.engine.mute[ev]).toContain('car:start');
+    expect(city.engine.mute[truck]).toBeUndefined();
+    const audio = resolveWorldAudio({ engine: city.engine, sfx: { cues: city.cues } });
+    expect(audio.engine.cueOf).toEqual(city.engine.cueOf);
+    const page = audioChannelScript(audio);
+    for (const k of ['__setOf', "__cue('car:reverse'", "__cue('car:lock'", 'P.riderId']) expect(page).toContain(k);
+    expect(page).not.toContain('KeyN');   // (no car here has a siren recorded)
   });
 
   it('with it, a car whose own engine is recorded is named for it, its engine heard from the cab', () => {
